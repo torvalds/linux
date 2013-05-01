@@ -262,7 +262,7 @@ found:
 
 static int openpromfs_readdir(struct file * filp, void * dirent, filldir_t filldir)
 {
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct op_inode_info *oi = OP_I(inode);
 	struct device_node *dp = oi->u.node;
 	struct device_node *child;
@@ -432,6 +432,7 @@ static struct file_system_type openprom_fs_type = {
 	.mount		= openprom_mount,
 	.kill_sb	= kill_anon_super,
 };
+MODULE_ALIAS_FS("openpromfs");
 
 static void op_inode_init_once(void *data)
 {

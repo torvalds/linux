@@ -13,9 +13,7 @@
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
 
-#ifdef CONFIG_USB_G_DBGP_SERIAL
-#include "u_serial.c"
-#endif
+#include "u_serial.h"
 
 #define DRIVER_VENDOR_ID	0x0525 /* NetChip */
 #define DRIVER_PRODUCT_ID	0xc0de /* undefined */
@@ -233,6 +231,10 @@ static void dbgp_unbind(struct usb_gadget *gadget)
 	gadget->ep0->driver_data = NULL;
 }
 
+#ifdef CONFIG_USB_G_DBGP_SERIAL
+static unsigned char tty_line;
+#endif
+
 static int __init dbgp_configure_endpoints(struct usb_gadget *gadget)
 {
 	int stp;
@@ -270,7 +272,7 @@ static int __init dbgp_configure_endpoints(struct usb_gadget *gadget)
 	dbgp.serial->in->desc = &i_desc;
 	dbgp.serial->out->desc = &o_desc;
 
-	if (gserial_setup(gadget, 1) < 0) {
+	if (gserial_alloc_line(&tty_line)) {
 		stp = 3;
 		goto fail_3;
 	}
@@ -379,7 +381,7 @@ static int dbgp_setup(struct usb_gadget *gadget,
 #ifdef CONFIG_USB_G_DBGP_PRINTK
 		err = dbgp_enable_ep();
 #else
-		err = gserial_connect(dbgp.serial, 0);
+		err = gserial_connect(dbgp.serial, tty_line);
 #endif
 		if (err < 0)
 			goto fail;
@@ -422,7 +424,7 @@ static void __exit dbgp_exit(void)
 {
 	usb_gadget_unregister_driver(&dbgp_driver);
 #ifdef CONFIG_USB_G_DBGP_SERIAL
-	gserial_cleanup();
+	gserial_free_line(tty_line);
 #endif
 }
 

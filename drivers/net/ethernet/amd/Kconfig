@@ -7,7 +7,7 @@ config NET_VENDOR_AMD
 	default y
 	depends on DIO || MACH_DECSTATION || MVME147 || ATARI || SUN3 || \
 		   SUN3X || SBUS || PCI || ZORRO || (ISA && ISA_DMA_API) || \
-		   (ARM && ARCH_EBSA110) || ISA || EISA || MCA || PCMCIA
+		   (ARM && ARCH_EBSA110) || ISA || EISA || PCMCIA
 	---help---
 	  If you have a network (Ethernet) chipset belonging to this class,
 	  say Y.
@@ -104,19 +104,6 @@ config DECLANCE
 	  This driver is for the series of Ethernet controllers produced by
 	  DEC (now Compaq) based on the AMD LANCE chipset, including the
 	  DEPCA series.  (This chipset is better known via the NE2100 cards.)
-
-config DEPCA
-	tristate "DEPCA, DE10x, DE200, DE201, DE202, DE422 support"
-	depends on (ISA || EISA || MCA)
-	select CRC32
-	---help---
-	  If you have a network (Ethernet) card of this type, say Y and read
-	  the Ethernet-HOWTO, available from
-	  <http://www.tldp.org/docs.html#howto> as well as
-	  <file:drivers/net/ethernet/amd/depca.c>.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called depca.
 
 config HPLANCE
 	bool "HP on-board LANCE support"

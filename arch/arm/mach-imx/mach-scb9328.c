@@ -20,11 +20,10 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 
-#include <mach/common.h>
-#include <mach/hardware.h>
-#include <mach/iomux-mx1.h>
-
+#include "common.h"
 #include "devices-imx1.h"
+#include "hardware.h"
+#include "iomux-mx1.h"
 
 /*
  * This scb9328 has a 32MiB flash
@@ -132,10 +131,6 @@ static void __init scb9328_timer_init(void)
 	mx1_clocks_init(32000);
 }
 
-static struct sys_timer scb9328_timer = {
-	.init	= scb9328_timer_init,
-};
-
 MACHINE_START(SCB9328, "Synertronixx scb9328")
 	/* Sascha Hauer */
 	.atag_offset = 100,
@@ -143,7 +138,7 @@ MACHINE_START(SCB9328, "Synertronixx scb9328")
 	.init_early = imx1_init_early,
 	.init_irq = mx1_init_irq,
 	.handle_irq = imx1_handle_irq,
-	.timer = &scb9328_timer,
+	.init_time	= scb9328_timer_init,
 	.init_machine = scb9328_init,
 	.restart	= mxc_restart,
 MACHINE_END

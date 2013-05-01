@@ -145,7 +145,7 @@ MACHINE_START(CM4002, "OpenGear/CM4002")
 	.map_io		= ks8695_map_io,
 	.init_irq	= ks8695_init_irq,
 	.init_machine	= og_init,
-	.timer		= &ks8695_timer,
+	.init_time	= ks8695_timer_init,
 	.restart        = ks8695_restart,
 MACHINE_END
 #endif
@@ -157,7 +157,7 @@ MACHINE_START(CM4008, "OpenGear/CM4008")
 	.map_io		= ks8695_map_io,
 	.init_irq	= ks8695_init_irq,
 	.init_machine	= og_init,
-	.timer		= &ks8695_timer,
+	.init_time	= ks8695_timer_init,
 	.restart        = ks8695_restart,
 MACHINE_END
 #endif
@@ -169,7 +169,7 @@ MACHINE_START(CM41XX, "OpenGear/CM41xx")
 	.map_io		= ks8695_map_io,
 	.init_irq	= ks8695_init_irq,
 	.init_machine	= og_init,
-	.timer		= &ks8695_timer,
+	.init_time	= ks8695_timer_init,
 	.restart        = ks8695_restart,
 MACHINE_END
 #endif
@@ -181,7 +181,7 @@ MACHINE_START(IM4004, "OpenGear/IM4004")
 	.map_io		= ks8695_map_io,
 	.init_irq	= ks8695_init_irq,
 	.init_machine	= og_init,
-	.timer		= &ks8695_timer,
+	.init_time	= ks8695_timer_init,
 	.restart        = ks8695_restart,
 MACHINE_END
 #endif
@@ -193,7 +193,7 @@ MACHINE_START(IM42XX, "OpenGear/IM42xx")
 	.map_io		= ks8695_map_io,
 	.init_irq	= ks8695_init_irq,
 	.init_machine	= og_init,
-	.timer		= &ks8695_timer,
+	.init_time	= ks8695_timer_init,
 	.restart        = ks8695_restart,
 MACHINE_END
 #endif

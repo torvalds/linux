@@ -139,23 +139,8 @@ EXPORT_SYMBOL_GPL(vfio_unregister_iommu_driver);
  */
 static int vfio_alloc_group_minor(struct vfio_group *group)
 {
-	int ret, minor;
-
-again:
-	if (unlikely(idr_pre_get(&vfio.group_idr, GFP_KERNEL) == 0))
-		return -ENOMEM;
-
 	/* index 0 is used by /dev/vfio/vfio */
-	ret = idr_get_new_above(&vfio.group_idr, group, 1, &minor);
-	if (ret == -EAGAIN)
-		goto again;
-	if (ret || minor > MINORMASK) {
-		if (minor > MINORMASK)
-			idr_remove(&vfio.group_idr, minor);
-		return -ENOSPC;
-	}
-
-	return minor;
+	return idr_alloc(&vfio.group_idr, group, 1, MINORMASK + 1, GFP_KERNEL);
 }
 
 static void vfio_free_group_minor(int minor)
@@ -189,6 +174,17 @@ static void vfio_container_release(struct kref *kref)
 static void vfio_container_put(struct vfio_container *container)
 {
 	kref_put(&container->kref, vfio_container_release);
+}
+
+static void vfio_group_unlock_and_free(struct vfio_group *group)
+{
+	mutex_unlock(&vfio.group_lock);
+	/*
+	 * Unregister outside of lock.  A spurious callback is harmless now
+	 * that the group is no longer in vfio.group_list.
+	 */
+	iommu_group_unregister_notifier(group->iommu_group, &group->nb);
+	kfree(group);
 }
 
 /**
@@ -229,8 +225,7 @@ static struct vfio_group *vfio_create_group(struct iommu_group *iommu_group)
 
 	minor = vfio_alloc_group_minor(group);
 	if (minor < 0) {
-		mutex_unlock(&vfio.group_lock);
-		kfree(group);
+		vfio_group_unlock_and_free(group);
 		return ERR_PTR(minor);
 	}
 
@@ -239,8 +234,7 @@ static struct vfio_group *vfio_create_group(struct iommu_group *iommu_group)
 		if (tmp->iommu_group == iommu_group) {
 			vfio_group_get(tmp);
 			vfio_free_group_minor(minor);
-			mutex_unlock(&vfio.group_lock);
-			kfree(group);
+			vfio_group_unlock_and_free(group);
 			return tmp;
 		}
 	}
@@ -249,8 +243,7 @@ static struct vfio_group *vfio_create_group(struct iommu_group *iommu_group)
 			    group, "%d", iommu_group_id(iommu_group));
 	if (IS_ERR(dev)) {
 		vfio_free_group_minor(minor);
-		mutex_unlock(&vfio.group_lock);
-		kfree(group);
+		vfio_group_unlock_and_free(group);
 		return (struct vfio_group *)dev; /* ERR_PTR */
 	}
 
@@ -274,16 +267,7 @@ static void vfio_group_release(struct kref *kref)
 	device_destroy(vfio.class, MKDEV(MAJOR(vfio.devt), group->minor));
 	list_del(&group->vfio_next);
 	vfio_free_group_minor(group->minor);
-
-	mutex_unlock(&vfio.group_lock);
-
-	/*
-	 * Unregister outside of lock.  A spurious callback is harmless now
-	 * that the group is no longer in vfio.group_list.
-	 */
-	iommu_group_unregister_notifier(group->iommu_group, &group->nb);
-
-	kfree(group);
+	vfio_group_unlock_and_free(group);
 }
 
 static void vfio_group_put(struct vfio_group *group)
@@ -443,7 +427,7 @@ static struct vfio_device *vfio_group_get_device(struct vfio_group *group,
  * a device.  It's not always practical to leave a device within a group
  * driverless as it could get re-bound to something unsafe.
  */
-static const char * const vfio_driver_whitelist[] = { "pci-stub" };
+static const char * const vfio_driver_whitelist[] = { "pci-stub", "pcieport" };
 
 static bool vfio_whitelisted_driver(struct device_driver *drv)
 {
@@ -466,8 +450,9 @@ static int vfio_dev_viable(struct device *dev, void *data)
 {
 	struct vfio_group *group = data;
 	struct vfio_device *device;
+	struct device_driver *drv = ACCESS_ONCE(dev->driver);
 
-	if (!dev->driver || vfio_whitelisted_driver(dev->driver))
+	if (!drv || vfio_whitelisted_driver(drv))
 		return 0;
 
 	device = vfio_group_get_device(group, dev);
@@ -642,33 +627,16 @@ int vfio_add_group_dev(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(vfio_add_group_dev);
 
-/* Test whether a struct device is present in our tracking */
-static bool vfio_dev_present(struct device *dev)
+/* Given a referenced group, check if it contains the device */
+static bool vfio_dev_present(struct vfio_group *group, struct device *dev)
 {
-	struct iommu_group *iommu_group;
-	struct vfio_group *group;
 	struct vfio_device *device;
 
-	iommu_group = iommu_group_get(dev);
-	if (!iommu_group)
-		return false;
-
-	group = vfio_group_get_from_iommu(iommu_group);
-	if (!group) {
-		iommu_group_put(iommu_group);
-		return false;
-	}
-
 	device = vfio_group_get_device(group, dev);
-	if (!device) {
-		vfio_group_put(group);
-		iommu_group_put(iommu_group);
+	if (!device)
 		return false;
-	}
 
 	vfio_device_put(device);
-	vfio_group_put(group);
-	iommu_group_put(iommu_group);
 	return true;
 }
 
@@ -682,10 +650,18 @@ void *vfio_del_group_dev(struct device *dev)
 	struct iommu_group *iommu_group = group->iommu_group;
 	void *device_data = device->device_data;
 
+	/*
+	 * The group exists so long as we have a device reference.  Get
+	 * a group reference and use it to scan for the device going away.
+	 */
+	vfio_group_get(group);
+
 	vfio_device_put(device);
 
 	/* TODO send a signal to encourage this to be released */
-	wait_event(vfio.release_q, !vfio_dev_present(dev));
+	wait_event(vfio.release_q, !vfio_dev_present(group, dev));
+
+	vfio_group_put(group);
 
 	iommu_group_put(iommu_group);
 

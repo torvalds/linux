@@ -1,0 +1,30 @@
+/dts-v1/;
+
+/include/ "kirkwood-ns2-common.dtsi"
+
+/ {
+	model = "LaCie Internet Space v2";
+	compatible = "lacie,inetspace_v2", "marvell,kirkwood-88f6281", "marvell,kirkwood";
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x8000000>;
+	};
+
+	ocp@f1000000 {
+		sata@80000 {
+			status = "okay";
+			nr-ports = <1>;
+		};
+	};
+
+	ns2-leds {
+		compatible = "lacie,ns2-leds";
+
+		blue-sata {
+			label = "ns2:blue:sata";
+			slow-gpio = <&gpio0 29 0>;
+			cmd-gpio = <&gpio0 30 0>;
+		};
+	};
+};

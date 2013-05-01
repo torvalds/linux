@@ -307,26 +307,17 @@ int kbd_rate(struct kbd_repeat *rep)
  */
 static void put_queue(struct vc_data *vc, int ch)
 {
-	struct tty_struct *tty = vc->port.tty;
-
-	if (tty) {
-		tty_insert_flip_char(tty, ch, 0);
-		tty_schedule_flip(tty);
-	}
+	tty_insert_flip_char(&vc->port, ch, 0);
+	tty_schedule_flip(&vc->port);
 }
 
 static void puts_queue(struct vc_data *vc, char *cp)
 {
-	struct tty_struct *tty = vc->port.tty;
-
-	if (!tty)
-		return;
-
 	while (*cp) {
-		tty_insert_flip_char(tty, *cp, 0);
+		tty_insert_flip_char(&vc->port, *cp, 0);
 		cp++;
 	}
-	tty_schedule_flip(tty);
+	tty_schedule_flip(&vc->port);
 }
 
 static void applkey(struct vc_data *vc, int key, char mode)
@@ -582,12 +573,8 @@ static void fn_inc_console(struct vc_data *vc)
 
 static void fn_send_intr(struct vc_data *vc)
 {
-	struct tty_struct *tty = vc->port.tty;
-
-	if (!tty)
-		return;
-	tty_insert_flip_char(tty, 0, TTY_BREAK);
-	tty_schedule_flip(tty);
+	tty_insert_flip_char(&vc->port, 0, TTY_BREAK);
+	tty_schedule_flip(&vc->port);
 }
 
 static void fn_scroll_forw(struct vc_data *vc)

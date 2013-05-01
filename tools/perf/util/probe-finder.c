@@ -413,12 +413,12 @@ static int convert_variable_type(Dwarf_Die *vr_die,
 				   dwarf_diename(vr_die), dwarf_diename(&type));
 			return -EINVAL;
 		}
+		if (die_get_real_type(&type, &type) == NULL) {
+			pr_warning("Failed to get a type"
+				   " information.\n");
+			return -ENOENT;
+		}
 		if (ret == DW_TAG_pointer_type) {
-			if (die_get_real_type(&type, &type) == NULL) {
-				pr_warning("Failed to get a type"
-					   " information.\n");
-				return -ENOENT;
-			}
 			while (*ref_ptr)
 				ref_ptr = &(*ref_ptr)->next;
 			/* Add new reference with offset +0 */

@@ -98,7 +98,7 @@ static int cx18_i2c_new_ir(struct cx18 *cx, struct i2c_adapter *adap, u32 hw,
 	case CX18_HW_Z8F0811_IR_RX_HAUP:
 		init_data->ir_codes = RC_MAP_HAUPPAUGE;
 		init_data->internal_get_key_func = IR_KBD_GET_KEY_HAUP_XVR;
-		init_data->type = RC_TYPE_RC5;
+		init_data->type = RC_BIT_RC5;
 		init_data->name = cx->card_name;
 		info.platform_data = init_data;
 		break;
@@ -115,9 +115,6 @@ int cx18_i2c_register(struct cx18 *cx, unsigned idx)
 	struct i2c_adapter *adap = &cx->i2c_adap[bus];
 	const char *type = hw_devicenames[idx];
 	u32 hw = 1 << idx;
-
-	if (idx >= ARRAY_SIZE(hw_addrs))
-		return -1;
 
 	if (hw == CX18_HW_TUNER) {
 		/* special tuner group handling */
@@ -240,15 +237,13 @@ int init_cx18_i2c(struct cx18 *cx)
 
 	for (i = 0; i < 2; i++) {
 		/* Setup algorithm for adapter */
-		memcpy(&cx->i2c_algo[i], &cx18_i2c_algo_template,
-			sizeof(struct i2c_algo_bit_data));
+		cx->i2c_algo[i] = cx18_i2c_algo_template;
 		cx->i2c_algo_cb_data[i].cx = cx;
 		cx->i2c_algo_cb_data[i].bus_index = i;
 		cx->i2c_algo[i].data = &cx->i2c_algo_cb_data[i];
 
 		/* Setup adapter */
-		memcpy(&cx->i2c_adap[i], &cx18_i2c_adap_template,
-			sizeof(struct i2c_adapter));
+		cx->i2c_adap[i] = cx18_i2c_adap_template;
 		cx->i2c_adap[i].algo_data = &cx->i2c_algo[i];
 		sprintf(cx->i2c_adap[i].name + strlen(cx->i2c_adap[i].name),
 				" #%d-%d", cx->instance, i);

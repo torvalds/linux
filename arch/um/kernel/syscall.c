@@ -14,29 +14,6 @@
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
 
-long sys_fork(void)
-{
-	return do_fork(SIGCHLD, UPT_SP(&current->thread.regs.regs),
-		      &current->thread.regs, 0, NULL, NULL);
-}
-
-long sys_vfork(void)
-{
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD,
-		      UPT_SP(&current->thread.regs.regs),
-		      &current->thread.regs, 0, NULL, NULL);
-}
-
-long sys_clone(unsigned long clone_flags, unsigned long newsp,
-	       void __user *parent_tid, void __user *child_tid)
-{
-	if (!newsp)
-		newsp = UPT_SP(&current->thread.regs.regs);
-
-	return do_fork(clone_flags, newsp, &current->thread.regs, 0, parent_tid,
-		      child_tid);
-}
-
 long old_mmap(unsigned long addr, unsigned long len,
 	      unsigned long prot, unsigned long flags,
 	      unsigned long fd, unsigned long offset)

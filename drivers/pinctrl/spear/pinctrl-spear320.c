@@ -2240,6 +2240,10 @@ static struct spear_muxreg pwm2_pin_34_muxreg[] = {
 		.mask = PMX_SSP_CS_MASK,
 		.val = 0,
 	}, {
+		.reg = MODE_CONFIG_REG,
+		.mask = PMX_PWM_MASK,
+		.val = PMX_PWM_MASK,
+	}, {
 		.reg = IP_SEL_PAD_30_39_REG,
 		.mask = PMX_PL_34_MASK,
 		.val = PMX_PWM2_PL_34_VAL,
@@ -2956,9 +2960,9 @@ static struct spear_function mii2_function = {
 };
 
 /* Pad multiplexing for cadence mii 1_2 as smii or rmii device */
-static const unsigned smii0_1_pins[] = { 10, 11, 13, 14, 15, 16, 17, 18, 19, 20,
+static const unsigned rmii0_1_pins[] = { 10, 11, 13, 14, 15, 16, 17, 18, 19, 20,
 	21, 22, 23, 24, 25, 26, 27 };
-static const unsigned rmii0_1_pins[] = { 10, 11, 21, 22, 23, 24, 25, 26, 27 };
+static const unsigned smii0_1_pins[] = { 10, 11, 21, 22, 23, 24, 25, 26, 27 };
 static struct spear_muxreg mii0_1_muxreg[] = {
 	{
 		.reg = PMX_CONFIG_REG,
@@ -3406,14 +3410,14 @@ static struct spear_function *spear320_functions[] = {
 	&i2c2_function,
 };
 
-static struct of_device_id spear320_pinctrl_of_match[] __devinitdata = {
+static struct of_device_id spear320_pinctrl_of_match[] = {
 	{
 		.compatible = "st,spear320-pinmux",
 	},
 	{},
 };
 
-static int __devinit spear320_pinctrl_probe(struct platform_device *pdev)
+static int spear320_pinctrl_probe(struct platform_device *pdev)
 {
 	int ret;
 
@@ -3427,6 +3431,8 @@ static int __devinit spear320_pinctrl_probe(struct platform_device *pdev)
 	spear3xx_machdata.npmx_modes = ARRAY_SIZE(spear320_pmx_modes);
 
 	pmx_init_addr(&spear3xx_machdata, PMX_CONFIG_REG);
+	pmx_init_gpio_pingroup_addr(spear3xx_machdata.gpio_pingroups,
+			spear3xx_machdata.ngpio_pingroups, PMX_CONFIG_REG);
 
 	ret = spear_pinctrl_probe(pdev, &spear3xx_machdata);
 	if (ret)
@@ -3435,7 +3441,7 @@ static int __devinit spear320_pinctrl_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit spear320_pinctrl_remove(struct platform_device *pdev)
+static int spear320_pinctrl_remove(struct platform_device *pdev)
 {
 	return spear_pinctrl_remove(pdev);
 }
@@ -3447,7 +3453,7 @@ static struct platform_driver spear320_pinctrl_driver = {
 		.of_match_table = spear320_pinctrl_of_match,
 	},
 	.probe = spear320_pinctrl_probe,
-	.remove = __devexit_p(spear320_pinctrl_remove),
+	.remove = spear320_pinctrl_remove,
 };
 
 static int __init spear320_pinctrl_init(void)

@@ -4905,7 +4905,7 @@ static unsigned long ibmvfc_get_desired_dma(struct vio_dev *vdev)
 	return pool_dma + ((512 * 1024) * driver_template.cmd_per_lun);
 }
 
-static struct vio_device_id ibmvfc_device_table[] __devinitdata = {
+static struct vio_device_id ibmvfc_device_table[] = {
 	{"fcp", "IBM,vfc-client"},
 	{ "", "" }
 };

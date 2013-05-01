@@ -391,7 +391,7 @@ static int hdpvr_probe(struct usb_interface *interface,
 		goto error;
 	}
 
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	retval = hdpvr_register_i2c_adapter(dev);
 	if (retval < 0) {
 		v4l2_err(&dev->v4l2_dev, "i2c adapter register failed\n");
@@ -401,12 +401,14 @@ static int hdpvr_probe(struct usb_interface *interface,
 	client = hdpvr_register_ir_rx_i2c(dev);
 	if (!client) {
 		v4l2_err(&dev->v4l2_dev, "i2c IR RX device register failed\n");
+		retval = -ENODEV;
 		goto reg_fail;
 	}
 
 	client = hdpvr_register_ir_tx_i2c(dev);
 	if (!client) {
 		v4l2_err(&dev->v4l2_dev, "i2c IR TX device register failed\n");
+		retval = -ENODEV;
 		goto reg_fail;
 	}
 #endif
@@ -417,7 +419,7 @@ static int hdpvr_probe(struct usb_interface *interface,
 	return 0;
 
 reg_fail:
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	i2c_del_adapter(&dev->i2c_adapter);
 #endif
 error:
@@ -449,7 +451,7 @@ static void hdpvr_disconnect(struct usb_interface *interface)
 	mutex_lock(&dev->io_mutex);
 	hdpvr_cancel_queue(dev);
 	mutex_unlock(&dev->io_mutex);
-#if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	i2c_del_adapter(&dev->i2c_adapter);
 #endif
 	video_unregister_device(dev->video_dev);

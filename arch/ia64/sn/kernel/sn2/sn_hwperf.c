@@ -977,7 +977,7 @@ int sn_hwperf_get_nearest_node(cnodeid_t node,
 	return e;
 }
 
-static int __devinit sn_hwperf_misc_register_init(void)
+static int sn_hwperf_misc_register_init(void)
 {
 	int e;
 

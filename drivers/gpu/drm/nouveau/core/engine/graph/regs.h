@@ -205,6 +205,7 @@
 #define NV20_PGRAPH_TSIZE(i)                               (0x00400908 + (i*16))
 #define NV20_PGRAPH_TSTATUS(i)                             (0x0040090C + (i*16))
 #define NV20_PGRAPH_ZCOMP(i)                               (0x00400980 + 4*(i))
+#define NV41_PGRAPH_ZCOMP0(i)                              (0x004009c0 + 4*(i))
 #define NV10_PGRAPH_TILE(i)                                (0x00400B00 + (i*16))
 #define NV10_PGRAPH_TLIMIT(i)                              (0x00400B04 + (i*16))
 #define NV10_PGRAPH_TSIZE(i)                               (0x00400B08 + (i*16))
@@ -216,6 +217,7 @@
 #define NV47_PGRAPH_TSTATUS(i)                             (0x00400D0C + (i*16))
 #define NV04_PGRAPH_V_RAM                                  0x00400D40
 #define NV04_PGRAPH_W_RAM                                  0x00400D80
+#define NV47_PGRAPH_ZCOMP0(i)                              (0x00400e00 + 4*(i))
 #define NV10_PGRAPH_COMBINER0_IN_ALPHA                     0x00400E40
 #define NV10_PGRAPH_COMBINER1_IN_ALPHA                     0x00400E44
 #define NV10_PGRAPH_COMBINER0_IN_RGB                       0x00400E48
@@ -261,9 +263,12 @@
 #define NV04_PGRAPH_DMA_B_OFFSET                           0x00401098
 #define NV04_PGRAPH_DMA_B_SIZE                             0x0040109C
 #define NV04_PGRAPH_DMA_B_Y_SIZE                           0x004010A0
+#define NV47_PGRAPH_ZCOMP1(i)                              (0x004068c0 + 4*(i))
 #define NV40_PGRAPH_TILE1(i)                               (0x00406900 + (i*16))
 #define NV40_PGRAPH_TLIMIT1(i)                             (0x00406904 + (i*16))
 #define NV40_PGRAPH_TSIZE1(i)                              (0x00406908 + (i*16))
 #define NV40_PGRAPH_TSTATUS1(i)                            (0x0040690C + (i*16))
+#define NV40_PGRAPH_ZCOMP1(i)                              (0x00406980 + 4*(i))
+#define NV41_PGRAPH_ZCOMP1(i)                              (0x004069c0 + 4*(i))
 
 #endif

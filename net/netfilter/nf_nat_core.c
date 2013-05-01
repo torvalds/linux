@@ -191,9 +191,8 @@ find_appropriate_src(struct net *net, u16 zone,
 	unsigned int h = hash_by_src(net, zone, tuple);
 	const struct nf_conn_nat *nat;
 	const struct nf_conn *ct;
-	const struct hlist_node *n;
 
-	hlist_for_each_entry_rcu(nat, n, &net->ct.nat_bysource[h], bysource) {
+	hlist_for_each_entry_rcu(nat, &net->ct.nat_bysource[h], bysource) {
 		ct = nat->ct;
 		if (same_src(ct, tuple) && nf_ct_zone(ct) == zone) {
 			/* Copy source part from reply tuple. */

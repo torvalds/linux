@@ -262,7 +262,7 @@ static inline u16 fan_to_reg(long rpm)
 {
 	if (rpm <= 0)
 		return 0x0fff;
-	return SENSORS_LIMIT((1350000 + (rpm >> 1)) / rpm, 1, 0xffe);
+	return clamp_val((1350000 + (rpm >> 1)) / rpm, 1, 0xffe);
 }
 
 static inline unsigned long time_from_reg(u8 reg)
@@ -272,7 +272,7 @@ static inline unsigned long time_from_reg(u8 reg)
 
 static inline u8 time_to_reg(unsigned long val)
 {
-	return SENSORS_LIMIT((val + 50) / 100, 0, 0xff);
+	return clamp_val((val + 50) / 100, 0, 0xff);
 }
 
 static inline long temp_from_reg(s8 reg)
@@ -282,7 +282,7 @@ static inline long temp_from_reg(s8 reg)
 
 static inline s8 temp_to_reg(long val, s8 min, s8 max)
 {
-	return SENSORS_LIMIT(val / 1000, min, max);
+	return clamp_val(val / 1000, min, max);
 }
 
 static const u16 pwm_freq_cksel0[16] = {
@@ -319,7 +319,7 @@ static u8 pwm_freq_to_reg(unsigned long val, u16 clkin)
 
 	/* Best fit for cksel = 1 */
 	base_clock = clkin * 1000 / ((clkin == 48000) ? 384 : 256);
-	reg1 = SENSORS_LIMIT(DIV_ROUND_CLOSEST(base_clock, val), 1, 128);
+	reg1 = clamp_val(DIV_ROUND_CLOSEST(base_clock, val), 1, 128);
 	best1 = base_clock / reg1;
 	reg1 = 0x80 | (reg1 - 1);
 
@@ -889,7 +889,7 @@ store_pwm(struct device *dev, struct device_attribute *attr,
 		val = pwm_freq_to_reg(val, data->clkin);
 		break;
 	default:
-		val = SENSORS_LIMIT(val, 0, 0xff);
+		val = clamp_val(val, 0, 0xff);
 		break;
 	}
 	w83795_write(client, W83795_REG_PWM(index, nr), val);
@@ -1126,7 +1126,7 @@ store_temp_pwm_enable(struct device *dev, struct device_attribute *attr,
 		break;
 	case TEMP_PWM_FAN_MAP:
 		mutex_lock(&data->update_lock);
-		tmp = SENSORS_LIMIT(tmp, 0, 0xff);
+		tmp = clamp_val(tmp, 0, 0xff);
 		w83795_write(client, W83795_REG_TFMR(index), tmp);
 		data->pwm_tfmr[index] = tmp;
 		mutex_unlock(&data->update_lock);
@@ -1177,13 +1177,13 @@ store_fanin(struct device *dev, struct device_attribute *attr,
 	mutex_lock(&data->update_lock);
 	switch (nr) {
 	case FANIN_TARGET:
-		val = fan_to_reg(SENSORS_LIMIT(val, 0, 0xfff));
+		val = fan_to_reg(clamp_val(val, 0, 0xfff));
 		w83795_write(client, W83795_REG_FTSH(index), val >> 4);
 		w83795_write(client, W83795_REG_FTSL(index), (val << 4) & 0xf0);
 		data->target_speed[index] = val;
 		break;
 	case FANIN_TOL:
-		val = SENSORS_LIMIT(val, 0, 0x3f);
+		val = clamp_val(val, 0, 0x3f);
 		w83795_write(client, W83795_REG_TFTS, val);
 		data->tol_speed = val;
 		break;
@@ -1227,22 +1227,22 @@ store_temp_pwm(struct device *dev, struct device_attribute *attr,
 	mutex_lock(&data->update_lock);
 	switch (nr) {
 	case TEMP_PWM_TTTI:
-		val = SENSORS_LIMIT(val, 0, 0x7f);
+		val = clamp_val(val, 0, 0x7f);
 		w83795_write(client, W83795_REG_TTTI(index), val);
 		break;
 	case TEMP_PWM_CTFS:
-		val = SENSORS_LIMIT(val, 0, 0x7f);
+		val = clamp_val(val, 0, 0x7f);
 		w83795_write(client, W83795_REG_CTFS(index), val);
 		break;
 	case TEMP_PWM_HCT:
-		val = SENSORS_LIMIT(val, 0, 0x0f);
+		val = clamp_val(val, 0, 0x0f);
 		tmp = w83795_read(client, W83795_REG_HT(index));
 		tmp &= 0x0f;
 		tmp |= (val << 4) & 0xf0;
 		w83795_write(client, W83795_REG_HT(index), tmp);
 		break;
 	case TEMP_PWM_HOT:
-		val = SENSORS_LIMIT(val, 0, 0x0f);
+		val = clamp_val(val, 0, 0x0f);
 		tmp = w83795_read(client, W83795_REG_HT(index));
 		tmp &= 0xf0;
 		tmp |= val & 0x0f;
@@ -1541,7 +1541,7 @@ store_in(struct device *dev, struct device_attribute *attr,
 	if ((index >= 17) &&
 	    !((data->has_gain >> (index - 17)) & 1))
 		val /= 8;
-	val = SENSORS_LIMIT(val, 0, 0x3FF);
+	val = clamp_val(val, 0, 0x3FF);
 	mutex_lock(&data->update_lock);
 
 	lsb_idx = IN_LSB_SHIFT_IDX[index][IN_LSB_IDX];
@@ -1596,7 +1596,7 @@ store_sf_setup(struct device *dev, struct device_attribute *attr,
 
 	switch (nr) {
 	case SETUP_PWM_DEFAULT:
-		val = SENSORS_LIMIT(val, 0, 0xff);
+		val = clamp_val(val, 0, 0xff);
 		break;
 	case SETUP_PWM_UPTIME:
 	case SETUP_PWM_DOWNTIME:

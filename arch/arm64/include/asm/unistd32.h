@@ -23,7 +23,7 @@
 
 __SYSCALL(0,   sys_restart_syscall)
 __SYSCALL(1,   sys_exit)
-__SYSCALL(2,   compat_sys_fork_wrapper)
+__SYSCALL(2,   sys_fork)
 __SYSCALL(3,   sys_read)
 __SYSCALL(4,   sys_write)
 __SYSCALL(5,   compat_sys_open)
@@ -32,7 +32,7 @@ __SYSCALL(7,   sys_ni_syscall)			/* 7 was sys_waitpid */
 __SYSCALL(8,   sys_creat)
 __SYSCALL(9,   sys_link)
 __SYSCALL(10,  sys_unlink)
-__SYSCALL(11,  compat_sys_execve_wrapper)
+__SYSCALL(11,  compat_sys_execve)
 __SYSCALL(12,  sys_chdir)
 __SYSCALL(13,  sys_ni_syscall)			/* 13 was sys_time */
 __SYSCALL(14,  sys_mknod)
@@ -40,7 +40,7 @@ __SYSCALL(15,  sys_chmod)
 __SYSCALL(16,  sys_lchown16)
 __SYSCALL(17,  sys_ni_syscall)			/* 17 was sys_break */
 __SYSCALL(18,  sys_ni_syscall)			/* 18 was sys_stat */
-__SYSCALL(19,  compat_sys_lseek_wrapper)
+__SYSCALL(19,  compat_sys_lseek)
 __SYSCALL(20,  sys_getpid)
 __SYSCALL(21,  compat_sys_mount)
 __SYSCALL(22,  sys_ni_syscall)			/* 22 was sys_umount */
@@ -93,7 +93,7 @@ __SYSCALL(68,  sys_ni_syscall)			/* 68 was sys_sgetmask */
 __SYSCALL(69,  sys_ni_syscall)			/* 69 was sys_ssetmask */
 __SYSCALL(70,  sys_setreuid16)
 __SYSCALL(71,  sys_setregid16)
-__SYSCALL(72,  compat_sys_sigsuspend)
+__SYSCALL(72,  sys_sigsuspend)
 __SYSCALL(73,  compat_sys_sigpending)
 __SYSCALL(74,  sys_sethostname)
 __SYSCALL(75,  compat_sys_setrlimit)
@@ -113,8 +113,8 @@ __SYSCALL(88,  sys_reboot)
 __SYSCALL(89,  sys_ni_syscall)			/* 89 was sys_readdir */
 __SYSCALL(90,  sys_ni_syscall)			/* 90 was sys_mmap */
 __SYSCALL(91,  sys_munmap)
-__SYSCALL(92,  sys_truncate)
-__SYSCALL(93,  sys_ftruncate)
+__SYSCALL(92,  compat_sys_truncate)
+__SYSCALL(93,  compat_sys_ftruncate)
 __SYSCALL(94,  sys_fchmod)
 __SYSCALL(95,  sys_fchown16)
 __SYSCALL(96,  sys_getpriority)
@@ -141,7 +141,7 @@ __SYSCALL(116, compat_sys_sysinfo)
 __SYSCALL(117, sys_ni_syscall)			/* 117 was sys_ipc */
 __SYSCALL(118, sys_fsync)
 __SYSCALL(119, compat_sys_sigreturn_wrapper)
-__SYSCALL(120, compat_sys_clone_wrapper)
+__SYSCALL(120, sys_clone)
 __SYSCALL(121, sys_setdomainname)
 __SYSCALL(122, sys_newuname)
 __SYSCALL(123, sys_ni_syscall)			/* 123 was sys_modify_ldt */
@@ -207,11 +207,11 @@ __SYSCALL(182, sys_chown16)
 __SYSCALL(183, sys_getcwd)
 __SYSCALL(184, sys_capget)
 __SYSCALL(185, sys_capset)
-__SYSCALL(186, compat_sys_sigaltstack_wrapper)
+__SYSCALL(186, compat_sys_sigaltstack)
 __SYSCALL(187, compat_sys_sendfile)
 __SYSCALL(188, sys_ni_syscall)			/* 188 reserved */
 __SYSCALL(189, sys_ni_syscall)			/* 189 reserved */
-__SYSCALL(190, compat_sys_vfork_wrapper)
+__SYSCALL(190, sys_vfork)
 __SYSCALL(191, compat_sys_getrlimit)		/* SuS compliant getrlimit */
 __SYSCALL(192, sys_mmap_pgoff)
 __SYSCALL(193, compat_sys_truncate64_wrapper)
@@ -392,11 +392,16 @@ __SYSCALL(367, sys_fanotify_init)
 __SYSCALL(368, compat_sys_fanotify_mark_wrapper)
 __SYSCALL(369, sys_prlimit64)
 __SYSCALL(370, sys_name_to_handle_at)
-__SYSCALL(371, sys_open_by_handle_at)
-__SYSCALL(372, sys_clock_adjtime)
+__SYSCALL(371, compat_sys_open_by_handle_at)
+__SYSCALL(372, compat_sys_clock_adjtime)
 __SYSCALL(373, sys_syncfs)
+__SYSCALL(374, compat_sys_sendmmsg)
+__SYSCALL(375, sys_setns)
+__SYSCALL(376, compat_sys_process_vm_readv)
+__SYSCALL(377, compat_sys_process_vm_writev)
+__SYSCALL(378, sys_ni_syscall)			/* 378 for kcmp */
 
-#define __NR_compat_syscalls		374
+#define __NR_compat_syscalls		379
 
 /*
  * Compat syscall numbers used by the AArch64 kernel.

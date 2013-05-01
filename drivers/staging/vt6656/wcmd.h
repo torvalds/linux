@@ -28,7 +28,6 @@
 
 #ifndef __WCMD_H__
 #define __WCMD_H__
-
 #include "ttype.h"
 #include "80211hdr.h"
 #include "80211mgr.h"
@@ -75,9 +74,9 @@ typedef enum tagCMD_STATUS {
 typedef struct tagCMD_ITEM {
     CMD_CODE eCmd;
     BYTE     abyCmdDesireSSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
-    BOOL     bNeedRadioOFF;
-    BOOL     bRadioCmd;
-    BOOL     bForceSCAN;
+    bool     bNeedRadioOFF;
+    bool     bRadioCmd;
+    bool     bForceSCAN;
     WORD     wDeAuthenReason;
 } CMD_ITEM, *PCMD_ITEM;
 
@@ -112,14 +111,13 @@ typedef enum tagCMD_STATE {
 /*---------------------  Export Types  ------------------------------*/
 
 /*---------------------  Export Functions  --------------------------*/
+struct vnt_private;
 
-void vResetCommandTimer(void *hDeviceContext);
+void vResetCommandTimer(struct vnt_private *);
 
-BOOL bScheduleCommand(void *hDeviceContext,
-		      CMD_CODE eCommand,
-		      PBYTE pbyItem0);
+int bScheduleCommand(struct vnt_private *, CMD_CODE eCommand, u8 *pbyItem0);
 
-void vRunCommand(void *hDeviceContext);
+void vRunCommand(struct vnt_private *);
 
 /*
 void
@@ -128,6 +126,6 @@ WCMDvCommandThread(
     );
 */
 
-void BSSvSecondTxData(void *hDeviceContext);
+void BSSvSecondTxData(struct vnt_private *);
 
 #endif /* __WCMD_H__ */

@@ -356,7 +356,7 @@ static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	return dev;
 }
 
-static void __devinit apb_calc_first_last(u8 map, u32 *first_p, u32 *last_p)
+static void apb_calc_first_last(u8 map, u32 *first_p, u32 *last_p)
 {
 	u32 idx, first, last;
 
@@ -378,9 +378,9 @@ static void __devinit apb_calc_first_last(u8 map, u32 *first_p, u32 *last_p)
 /* Cook up fake bus resources for SUNW,simba PCI bridges which lack
  * a proper 'ranges' property.
  */
-static void __devinit apb_fake_ranges(struct pci_dev *dev,
-				      struct pci_bus *bus,
-				      struct pci_pbm_info *pbm)
+static void apb_fake_ranges(struct pci_dev *dev,
+			    struct pci_bus *bus,
+			    struct pci_pbm_info *pbm)
 {
 	struct pci_bus_region region;
 	struct resource *res;
@@ -404,15 +404,15 @@ static void __devinit apb_fake_ranges(struct pci_dev *dev,
 	pcibios_bus_to_resource(dev, res, &region);
 }
 
-static void __devinit pci_of_scan_bus(struct pci_pbm_info *pbm,
-				      struct device_node *node,
-				      struct pci_bus *bus);
+static void pci_of_scan_bus(struct pci_pbm_info *pbm,
+			    struct device_node *node,
+			    struct pci_bus *bus);
 
 #define GET_64BIT(prop, i)	((((u64) (prop)[(i)]) << 32) | (prop)[(i)+1])
 
-static void __devinit of_scan_pci_bridge(struct pci_pbm_info *pbm,
-					 struct device_node *node,
-					 struct pci_dev *dev)
+static void of_scan_pci_bridge(struct pci_pbm_info *pbm,
+			       struct device_node *node,
+			       struct pci_dev *dev)
 {
 	struct pci_bus *bus;
 	const u32 *busrange, *ranges;
@@ -503,9 +503,9 @@ after_ranges:
 	pci_of_scan_bus(pbm, node, bus);
 }
 
-static void __devinit pci_of_scan_bus(struct pci_pbm_info *pbm,
-				      struct device_node *node,
-				      struct pci_bus *bus)
+static void pci_of_scan_bus(struct pci_pbm_info *pbm,
+			    struct device_node *node,
+			    struct pci_bus *bus)
 {
 	struct device_node *child;
 	const u32 *reg;
@@ -564,7 +564,7 @@ show_pciobppath_attr(struct device * dev, struct device_attribute * attr, char *
 
 static DEVICE_ATTR(obppath, S_IRUSR | S_IRGRP | S_IROTH, show_pciobppath_attr, NULL);
 
-static void __devinit pci_bus_register_of_sysfs(struct pci_bus *bus)
+static void pci_bus_register_of_sysfs(struct pci_bus *bus)
 {
 	struct pci_dev *dev;
 	struct pci_bus *child_bus;
@@ -585,8 +585,8 @@ static void __devinit pci_bus_register_of_sysfs(struct pci_bus *bus)
 		pci_bus_register_of_sysfs(child_bus);
 }
 
-struct pci_bus * __devinit pci_scan_one_pbm(struct pci_pbm_info *pbm,
-					    struct device *parent)
+struct pci_bus *pci_scan_one_pbm(struct pci_pbm_info *pbm,
+				 struct device *parent)
 {
 	LIST_HEAD(resources);
 	struct device_node *node = pbm->op->dev.of_node;
@@ -618,7 +618,7 @@ struct pci_bus * __devinit pci_scan_one_pbm(struct pci_pbm_info *pbm,
 	return bus;
 }
 
-void __devinit pcibios_fixup_bus(struct pci_bus *pbus)
+void pcibios_fixup_bus(struct pci_bus *pbus)
 {
 }
 
@@ -949,8 +949,7 @@ static int __init pcibios_init(void)
 subsys_initcall(pcibios_init);
 
 #ifdef CONFIG_SYSFS
-static void __devinit pci_bus_slot_names(struct device_node *node,
-					 struct pci_bus *bus)
+static void pci_bus_slot_names(struct device_node *node, struct pci_bus *bus)
 {
 	const struct pci_slot_names {
 		u32	slot_mask;

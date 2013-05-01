@@ -181,7 +181,7 @@ static struct pccard_operations electra_cf_ops = {
 	.set_mem_map		= electra_cf_set_mem_map,
 };
 
-static int __devinit electra_cf_probe(struct platform_device *ofdev)
+static int electra_cf_probe(struct platform_device *ofdev)
 {
 	struct device *device = &ofdev->dev;
 	struct device_node *np = ofdev->dev.of_node;
@@ -324,7 +324,7 @@ fail1:
 
 }
 
-static int __devexit electra_cf_remove(struct platform_device *ofdev)
+static int electra_cf_remove(struct platform_device *ofdev)
 {
 	struct device *device = &ofdev->dev;
 	struct electra_cf_socket *cf;

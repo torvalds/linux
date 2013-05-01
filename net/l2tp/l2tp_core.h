@@ -188,7 +188,10 @@ struct l2tp_tunnel {
 	int (*recv_payload_hook)(struct sk_buff *skb);
 	void (*old_sk_destruct)(struct sock *);
 	struct sock		*sock;		/* Parent socket */
-	int			fd;
+	int			fd;		/* Parent fd, if tunnel socket
+						 * was created by userspace */
+
+	struct work_struct	del_work;
 
 	uint8_t			priv[0];	/* private data */
 };
@@ -228,6 +231,8 @@ out:
 	return tunnel;
 }
 
+extern struct sock *l2tp_tunnel_sock_lookup(struct l2tp_tunnel *tunnel);
+extern void l2tp_tunnel_sock_put(struct sock *sk);
 extern struct l2tp_session *l2tp_session_find(struct net *net, struct l2tp_tunnel *tunnel, u32 session_id);
 extern struct l2tp_session *l2tp_session_find_nth(struct l2tp_tunnel *tunnel, int nth);
 extern struct l2tp_session *l2tp_session_find_by_ifname(struct net *net, char *ifname);

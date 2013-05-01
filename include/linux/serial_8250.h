@@ -59,6 +59,8 @@ enum {
 	PLAT8250_DEV_SM501,
 };
 
+struct uart_8250_dma;
+
 /*
  * This should be used by drivers which want to register
  * their own 8250 ports without registering their own
@@ -91,6 +93,8 @@ struct uart_8250_port {
 #define MSR_SAVE_FLAGS UART_MSR_ANY_DELTA
 	unsigned char		msr_saved_flags;
 
+	struct uart_8250_dma	*dma;
+
 	/* 8250 specific callbacks */
 	int			(*dl_read)(struct uart_8250_port *);
 	void			(*dl_write)(struct uart_8250_port *, int);
@@ -105,6 +109,8 @@ extern int early_serial_setup(struct uart_port *port);
 
 extern int serial8250_find_port(struct uart_port *p);
 extern int serial8250_find_port_for_earlycon(void);
+extern unsigned int serial8250_early_in(struct uart_port *port, int offset);
+extern void serial8250_early_out(struct uart_port *port, int offset, int value);
 extern int setup_early_serial8250_console(char *cmdline);
 extern void serial8250_do_set_termios(struct uart_port *port,
 		struct ktermios *termios, struct ktermios *old);

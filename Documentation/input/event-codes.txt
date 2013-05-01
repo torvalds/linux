@@ -196,6 +196,17 @@ EV_MSC:
 EV_MSC events are used for input and output events that do not fall under other
 categories.
 
+A few EV_MSC codes have special meaning:
+
+* MSC_TIMESTAMP:
+  - Used to report the number of microseconds since the last reset. This event
+    should be coded as an uint32 value, which is allowed to wrap around with
+    no special consequence. It is assumed that the time difference between two
+    consecutive events is reliable on a reasonable time scale (hours).
+    A reset to zero can happen, in which case the time since the last event is
+    unknown.  If the device does not provide this information, the driver must
+    not provide it to user space.
+
 EV_LED:
 ----------
 EV_LED events are used for input and output to set and query the state of

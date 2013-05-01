@@ -32,8 +32,6 @@ struct cpuidle_driver;
  ****************************/
 
 struct cpuidle_state_usage {
-	void		*driver_data;
-
 	unsigned long long	disable;
 	unsigned long long	usage;
 	unsigned long long	time; /* in US */
@@ -62,33 +60,6 @@ struct cpuidle_state {
 
 #define CPUIDLE_DRIVER_FLAGS_MASK (0xFFFF0000)
 
-/**
- * cpuidle_get_statedata - retrieves private driver state data
- * @st_usage: the state usage statistics
- */
-static inline void *cpuidle_get_statedata(struct cpuidle_state_usage *st_usage)
-{
-	return st_usage->driver_data;
-}
-
-/**
- * cpuidle_set_statedata - stores private driver state data
- * @st_usage: the state usage statistics
- * @data: the private data
- */
-static inline void
-cpuidle_set_statedata(struct cpuidle_state_usage *st_usage, void *data)
-{
-	st_usage->driver_data = data;
-}
-
-struct cpuidle_state_kobj {
-	struct cpuidle_state *state;
-	struct cpuidle_state_usage *state_usage;
-	struct completion kobj_unregister;
-	struct kobject kobj;
-};
-
 struct cpuidle_device {
 	unsigned int		registered:1;
 	unsigned int		enabled:1;
@@ -98,7 +69,7 @@ struct cpuidle_device {
 	int			state_count;
 	struct cpuidle_state_usage	states_usage[CPUIDLE_STATE_MAX];
 	struct cpuidle_state_kobj *kobjs[CPUIDLE_STATE_MAX];
-
+	struct cpuidle_driver_kobj *kobj_driver;
 	struct list_head 	device_list;
 	struct kobject		kobj;
 	struct completion	kobj_unregister;
@@ -131,10 +102,11 @@ static inline int cpuidle_get_last_residency(struct cpuidle_device *dev)
 struct cpuidle_driver {
 	const char		*name;
 	struct module 		*owner;
+	int                     refcnt;
 
-	unsigned int		power_specified:1;
 	/* set to 1 to use the core cpuidle time keeping (for all states). */
 	unsigned int		en_core_tk_irqen:1;
+	/* states array must be ordered in decreasing power consumption */
 	struct cpuidle_state	states[CPUIDLE_STATE_MAX];
 	int			state_count;
 	int			safe_state_index;
@@ -163,6 +135,10 @@ extern int cpuidle_wrap_enter(struct cpuidle_device *dev,
 					struct cpuidle_driver *drv, int index));
 extern int cpuidle_play_dead(void);
 
+extern struct cpuidle_driver *cpuidle_get_cpu_driver(struct cpuidle_device *dev);
+extern int cpuidle_register_cpu_driver(struct cpuidle_driver *drv, int cpu);
+extern void cpuidle_unregister_cpu_driver(struct cpuidle_driver *drv, int cpu);
+
 #else
 static inline void disable_cpuidle(void) { }
 static inline int cpuidle_idle_call(void) { return -ENODEV; }
@@ -189,7 +165,6 @@ static inline int cpuidle_wrap_enter(struct cpuidle_device *dev,
 					struct cpuidle_driver *drv, int index))
 { return -ENODEV; }
 static inline int cpuidle_play_dead(void) {return -ENODEV; }
-
 #endif
 
 #ifdef CONFIG_ARCH_NEEDS_CPU_IDLE_COUPLED

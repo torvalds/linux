@@ -78,7 +78,7 @@ void pcibios_report_status(u_int status_mask, int warn)
  * Bug 3 is responsible for the sound DMA grinding to a halt.  We now
  * live with bug 2.
  */
-static void __devinit pci_fixup_83c553(struct pci_dev *dev)
+static void pci_fixup_83c553(struct pci_dev *dev)
 {
 	/*
 	 * Set memory region to start at address 0, and enable IO
@@ -130,7 +130,7 @@ static void __devinit pci_fixup_83c553(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_WINBOND, PCI_DEVICE_ID_WINBOND_83C553, pci_fixup_83c553);
 
-static void __devinit pci_fixup_unassign(struct pci_dev *dev)
+static void pci_fixup_unassign(struct pci_dev *dev)
 {
 	dev->resource[0].end -= dev->resource[0].start;
 	dev->resource[0].start = 0;
@@ -142,7 +142,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_WINBOND2, PCI_DEVICE_ID_WINBOND2_89C940F,
  * if it is the host bridge by marking it as such.  These resources are of
  * no consequence to the PCI layer (they are handled elsewhere).
  */
-static void __devinit pci_fixup_dec21285(struct pci_dev *dev)
+static void pci_fixup_dec21285(struct pci_dev *dev)
 {
 	int i;
 
@@ -161,7 +161,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_DEC, PCI_DEVICE_ID_DEC_21285, pci_fixup_d
 /*
  * PCI IDE controllers use non-standard I/O port decoding, respect it.
  */
-static void __devinit pci_fixup_ide_bases(struct pci_dev *dev)
+static void pci_fixup_ide_bases(struct pci_dev *dev)
 {
 	struct resource *r;
 	int i;
@@ -182,7 +182,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_ANY_ID, PCI_ANY_ID, pci_fixup_ide_bases);
 /*
  * Put the DEC21142 to sleep
  */
-static void __devinit pci_fixup_dec21142(struct pci_dev *dev)
+static void pci_fixup_dec21142(struct pci_dev *dev)
 {
 	pci_write_config_dword(dev, 0x40, 0x80000000);
 }
@@ -204,7 +204,7 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_DEC, PCI_DEVICE_ID_DEC_21142, pci_fixup_d
  * functional.  However, The CY82C693U _does not work_ in bus
  * master mode without locking the PCI bus solid.
  */
-static void __devinit pci_fixup_cy82c693(struct pci_dev *dev)
+static void pci_fixup_cy82c693(struct pci_dev *dev)
 {
 	if ((dev->class >> 8) == PCI_CLASS_STORAGE_IDE) {
 		u32 base0, base1;
@@ -254,7 +254,7 @@ static void __devinit pci_fixup_cy82c693(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_CONTAQ, PCI_DEVICE_ID_CONTAQ_82C693, pci_fixup_cy82c693);
 
-static void __devinit pci_fixup_it8152(struct pci_dev *dev)
+static void pci_fixup_it8152(struct pci_dev *dev)
 {
 	int i;
 	/* fixup for ITE 8152 devices */
@@ -361,9 +361,7 @@ void pcibios_fixup_bus(struct pci_bus *bus)
 	printk(KERN_INFO "PCI: bus%d: Fast back to back transfers %sabled\n",
 		bus->number, (features & PCI_COMMAND_FAST_BACK) ? "en" : "dis");
 }
-#ifdef CONFIG_HOTPLUG
 EXPORT_SYMBOL(pcibios_fixup_bus);
-#endif
 
 /*
  * Swizzle the device pin each time we cross a bridge.  If a platform does
@@ -380,7 +378,7 @@ EXPORT_SYMBOL(pcibios_fixup_bus);
  * PCI standard swizzle is implemented on plug-in cards and Cardbus based
  * PCI extenders, so it can not be ignored.
  */
-static u8 __devinit pcibios_swizzle(struct pci_dev *dev, u8 *pin)
+static u8 pcibios_swizzle(struct pci_dev *dev, u8 *pin)
 {
 	struct pci_sys_data *sys = dev->sysdata;
 	int slot, oldpin = *pin;
@@ -415,7 +413,7 @@ static int pcibios_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 	return irq;
 }
 
-static int __init pcibios_init_resources(int busnr, struct pci_sys_data *sys)
+static int pcibios_init_resources(int busnr, struct pci_sys_data *sys)
 {
 	int ret;
 	struct pci_host_bridge_window *window;
@@ -447,7 +445,7 @@ static int __init pcibios_init_resources(int busnr, struct pci_sys_data *sys)
 	return 0;
 }
 
-static void __init pcibios_init_hw(struct hw_pci *hw, struct list_head *head)
+static void pcibios_init_hw(struct hw_pci *hw, struct list_head *head)
 {
 	struct pci_sys_data *sys = NULL;
 	int ret;
@@ -465,6 +463,9 @@ static void __init pcibios_init_hw(struct hw_pci *hw, struct list_head *head)
 		sys->swizzle = hw->swizzle;
 		sys->map_irq = hw->map_irq;
 		INIT_LIST_HEAD(&sys->resources);
+
+		if (hw->private_data)
+			sys->private_data = hw->private_data[nr];
 
 		ret = hw->setup(nr, sys);
 
@@ -495,7 +496,7 @@ static void __init pcibios_init_hw(struct hw_pci *hw, struct list_head *head)
 	}
 }
 
-void __init pci_common_init(struct hw_pci *hw)
+void pci_common_init(struct hw_pci *hw)
 {
 	struct pci_sys_data *sys;
 	LIST_HEAD(head);

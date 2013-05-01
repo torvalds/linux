@@ -115,7 +115,7 @@ static ssize_t tmp102_set_temp(struct device *dev,
 
 	if (kstrtol(buf, 10, &val) < 0)
 		return -EINVAL;
-	val = SENSORS_LIMIT(val, -256000, 255000);
+	val = clamp_val(val, -256000, 255000);
 
 	mutex_lock(&tmp102->lock);
 	tmp102->temp[sda->index] = val;
@@ -147,7 +147,7 @@ static const struct attribute_group tmp102_attr_group = {
 #define TMP102_CONFIG  (TMP102_CONF_TM | TMP102_CONF_EM | TMP102_CONF_CR1)
 #define TMP102_CONFIG_RD_ONLY (TMP102_CONF_R0 | TMP102_CONF_R1 | TMP102_CONF_AL)
 
-static int __devinit tmp102_probe(struct i2c_client *client,
+static int tmp102_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
 	struct tmp102 *tmp102;
@@ -216,7 +216,7 @@ fail_restore_config:
 	return status;
 }
 
-static int __devexit tmp102_remove(struct i2c_client *client)
+static int tmp102_remove(struct i2c_client *client)
 {
 	struct tmp102 *tmp102 = i2c_get_clientdata(client);
 
@@ -283,7 +283,7 @@ static struct i2c_driver tmp102_driver = {
 	.driver.name	= DRIVER_NAME,
 	.driver.pm	= TMP102_DEV_PM_OPS,
 	.probe		= tmp102_probe,
-	.remove		= __devexit_p(tmp102_remove),
+	.remove		= tmp102_remove,
 	.id_table	= tmp102_id,
 };
 

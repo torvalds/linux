@@ -62,6 +62,13 @@
 		interrupt-parent = <&tzic>;
 		ranges;
 
+		ipu: ipu@40000000 {
+			#crtc-cells = <1>;
+			compatible = "fsl,imx51-ipu";
+			reg = <0x40000000 0x20000000>;
+			interrupts = <11 10>;
+		};
+
 		aips@70000000 { /* AIPS1 */
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
@@ -76,17 +83,22 @@
 				reg = <0x70000000 0x40000>;
 				ranges;
 
-				esdhc@70004000 { /* ESDHC1 */
+				esdhc1: esdhc@70004000 {
 					compatible = "fsl,imx51-esdhc";
 					reg = <0x70004000 0x4000>;
 					interrupts = <1>;
+					clocks = <&clks 44>, <&clks 0>, <&clks 71>;
+					clock-names = "ipg", "ahb", "per";
 					status = "disabled";
 				};
 
-				esdhc@70008000 { /* ESDHC2 */
+				esdhc2: esdhc@70008000 {
 					compatible = "fsl,imx51-esdhc";
 					reg = <0x70008000 0x4000>;
 					interrupts = <2>;
+					clocks = <&clks 45>, <&clks 0>, <&clks 72>;
+					clock-names = "ipg", "ahb", "per";
+					bus-width = <4>;
 					status = "disabled";
 				};
 
@@ -94,15 +106,19 @@
 					compatible = "fsl,imx51-uart", "fsl,imx21-uart";
 					reg = <0x7000c000 0x4000>;
 					interrupts = <33>;
+					clocks = <&clks 32>, <&clks 33>;
+					clock-names = "ipg", "per";
 					status = "disabled";
 				};
 
-				ecspi@70010000 { /* ECSPI1 */
+				ecspi1: ecspi@70010000 {
 					#address-cells = <1>;
 					#size-cells = <0>;
 					compatible = "fsl,imx51-ecspi";
 					reg = <0x70010000 0x4000>;
 					interrupts = <36>;
+					clocks = <&clks 51>, <&clks 52>;
+					clock-names = "ipg", "per";
 					status = "disabled";
 				};
 
@@ -110,48 +126,55 @@
 					compatible = "fsl,imx51-ssi", "fsl,imx21-ssi";
 					reg = <0x70014000 0x4000>;
 					interrupts = <30>;
+					clocks = <&clks 49>;
 					fsl,fifo-depth = <15>;
 					fsl,ssi-dma-events = <25 24 23 22>; /* TX0 RX0 TX1 RX1 */
 					status = "disabled";
 				};
 
-				esdhc@70020000 { /* ESDHC3 */
+				esdhc3: esdhc@70020000 {
 					compatible = "fsl,imx51-esdhc";
 					reg = <0x70020000 0x4000>;
 					interrupts = <3>;
+					clocks = <&clks 46>, <&clks 0>, <&clks 73>;
+					clock-names = "ipg", "ahb", "per";
+					bus-width = <4>;
 					status = "disabled";
 				};
 
-				esdhc@70024000 { /* ESDHC4 */
+				esdhc4: esdhc@70024000 {
 					compatible = "fsl,imx51-esdhc";
 					reg = <0x70024000 0x4000>;
 					interrupts = <4>;
+					clocks = <&clks 47>, <&clks 0>, <&clks 74>;
+					clock-names = "ipg", "ahb", "per";
+					bus-width = <4>;
 					status = "disabled";
 				};
 			};
 
-			usb@73f80000 {
+			usbotg: usb@73f80000 {
 				compatible = "fsl,imx51-usb", "fsl,imx27-usb";
 				reg = <0x73f80000 0x0200>;
 				interrupts = <18>;
 				status = "disabled";
 			};
 
-			usb@73f80200 {
+			usbh1: usb@73f80200 {
 				compatible = "fsl,imx51-usb", "fsl,imx27-usb";
 				reg = <0x73f80200 0x0200>;
 				interrupts = <14>;
 				status = "disabled";
 			};
 
-			usb@73f80400 {
+			usbh2: usb@73f80400 {
 				compatible = "fsl,imx51-usb", "fsl,imx27-usb";
 				reg = <0x73f80400 0x0200>;
 				interrupts = <16>;
 				status = "disabled";
 			};
 
-			usb@73f80600 {
+			usbh3: usb@73f80600 {
 				compatible = "fsl,imx51-usb", "fsl,imx27-usb";
 				reg = <0x73f80600 0x0200>;
 				interrupts = <17>;
@@ -198,20 +221,30 @@
 				#interrupt-cells = <2>;
 			};
 
-			wdog@73f98000 { /* WDOG1 */
-				compatible = "fsl,imx51-wdt", "fsl,imx21-wdt";
-				reg = <0x73f98000 0x4000>;
-				interrupts = <58>;
-			};
-
-			wdog@73f9c000 { /* WDOG2 */
-				compatible = "fsl,imx51-wdt", "fsl,imx21-wdt";
-				reg = <0x73f9c000 0x4000>;
-				interrupts = <59>;
+			kpp: kpp@73f94000 {
+				compatible = "fsl,imx51-kpp", "fsl,imx21-kpp";
+				reg = <0x73f94000 0x4000>;
+				interrupts = <60>;
+				clocks = <&clks 0>;
 				status = "disabled";
 			};
 
-			iomuxc@73fa8000 {
+			wdog1: wdog@73f98000 {
+				compatible = "fsl,imx51-wdt", "fsl,imx21-wdt";
+				reg = <0x73f98000 0x4000>;
+				interrupts = <58>;
+				clocks = <&clks 0>;
+			};
+
+			wdog2: wdog@73f9c000 {
+				compatible = "fsl,imx51-wdt", "fsl,imx21-wdt";
+				reg = <0x73f9c000 0x4000>;
+				interrupts = <59>;
+				clocks = <&clks 0>;
+				status = "disabled";
+			};
+
+			iomuxc: iomuxc@73fa8000 {
 				compatible = "fsl,imx51-iomuxc";
 				reg = <0x73fa8000 0x4000>;
 
@@ -246,6 +279,29 @@
 							250 0x80000000	/* MX51_PAD_NANDF_CS6__FEC_TDATA3 */
 							255 0x80000000	/* MX51_PAD_NANDF_CS7__FEC_TX_EN */
 							260 0x80000000	/* MX51_PAD_NANDF_RDY_INT__FEC_TX_CLK */
+						>;
+					};
+
+					pinctrl_fec_2: fecgrp-2 {
+						fsl,pins = <
+							589 0x80000000 /* MX51_PAD_DI_GP3__FEC_TX_ER */
+							592 0x80000000 /* MX51_PAD_DI2_PIN4__FEC_CRS */
+							594 0x80000000 /* MX51_PAD_DI2_PIN2__FEC_MDC */
+							596 0x80000000 /* MX51_PAD_DI2_PIN3__FEC_MDIO */
+							598 0x80000000 /* MX51_PAD_DI2_DISP_CLK__FEC_RDATA1 */
+							602 0x80000000 /* MX51_PAD_DI_GP4__FEC_RDATA2 */
+							604 0x80000000 /* MX51_PAD_DISP2_DAT0__FEC_RDATA3 */
+							609 0x80000000 /* MX51_PAD_DISP2_DAT1__FEC_RX_ER */
+							618 0x80000000 /* MX51_PAD_DISP2_DAT6__FEC_TDATA1 */
+							623 0x80000000 /* MX51_PAD_DISP2_DAT7__FEC_TDATA2 */
+							628 0x80000000 /* MX51_PAD_DISP2_DAT8__FEC_TDATA3 */
+							634 0x80000000 /* MX51_PAD_DISP2_DAT9__FEC_TX_EN */
+							639 0x80000000 /* MX51_PAD_DISP2_DAT10__FEC_COL */
+							644 0x80000000 /* MX51_PAD_DISP2_DAT11__FEC_RX_CLK */
+							649 0x80000000 /* MX51_PAD_DISP2_DAT12__FEC_RX_DV */
+							653 0x80000000 /* MX51_PAD_DISP2_DAT13__FEC_TX_CLK */
+							657 0x80000000 /* MX51_PAD_DISP2_DAT14__FEC_RDATA0 */
+							662 0x80000000 /* MX51_PAD_DISP2_DAT15__FEC_TDATA0 */
 						>;
 					};
 				};
@@ -295,6 +351,66 @@
 					};
 				};
 
+				ipu_disp1 {
+					pinctrl_ipu_disp1_1: ipudisp1grp-1 {
+						fsl,pins = <
+							528 0x5 /* MX51_PAD_DISP1_DAT0__DISP1_DAT0 */
+							529 0x5 /* MX51_PAD_DISP1_DAT1__DISP1_DAT1 */
+							530 0x5 /* MX51_PAD_DISP1_DAT2__DISP1_DAT2 */
+							531 0x5 /* MX51_PAD_DISP1_DAT3__DISP1_DAT3 */
+							532 0x5 /* MX51_PAD_DISP1_DAT4__DISP1_DAT4 */
+							533 0x5 /* MX51_PAD_DISP1_DAT5__DISP1_DAT5 */
+							535 0x5 /* MX51_PAD_DISP1_DAT6__DISP1_DAT6 */
+							537 0x5 /* MX51_PAD_DISP1_DAT7__DISP1_DAT7 */
+							539 0x5 /* MX51_PAD_DISP1_DAT8__DISP1_DAT8 */
+							541 0x5 /* MX51_PAD_DISP1_DAT9__DISP1_DAT9 */
+							543 0x5 /* MX51_PAD_DISP1_DAT10__DISP1_DAT10 */
+							545 0x5 /* MX51_PAD_DISP1_DAT11__DISP1_DAT11 */
+							547 0x5 /* MX51_PAD_DISP1_DAT12__DISP1_DAT12 */
+							549 0x5 /* MX51_PAD_DISP1_DAT13__DISP1_DAT13 */
+							551 0x5 /* MX51_PAD_DISP1_DAT14__DISP1_DAT14 */
+							553 0x5 /* MX51_PAD_DISP1_DAT15__DISP1_DAT15 */
+							555 0x5 /* MX51_PAD_DISP1_DAT16__DISP1_DAT16 */
+							557 0x5 /* MX51_PAD_DISP1_DAT17__DISP1_DAT17 */
+							559 0x5 /* MX51_PAD_DISP1_DAT18__DISP1_DAT18 */
+							563 0x5 /* MX51_PAD_DISP1_DAT19__DISP1_DAT19 */
+							567 0x5 /* MX51_PAD_DISP1_DAT20__DISP1_DAT20 */
+							571 0x5 /* MX51_PAD_DISP1_DAT21__DISP1_DAT21 */
+							575 0x5 /* MX51_PAD_DISP1_DAT22__DISP1_DAT22 */
+							579 0x5 /* MX51_PAD_DISP1_DAT23__DISP1_DAT23 */
+							584 0x5 /* MX51_PAD_DI1_PIN2__DI1_PIN2 (hsync) */
+							583 0x5 /* MX51_PAD_DI1_PIN3__DI1_PIN3 (vsync) */
+						>;
+					};
+				};
+
+				ipu_disp2 {
+					pinctrl_ipu_disp2_1: ipudisp2grp-1 {
+						fsl,pins = <
+							603 0x5 /* MX51_PAD_DISP2_DAT0__DISP2_DAT0 */
+							608 0x5 /* MX51_PAD_DISP2_DAT1__DISP2_DAT1 */
+							613 0x5 /* MX51_PAD_DISP2_DAT2__DISP2_DAT2 */
+							614 0x5 /* MX51_PAD_DISP2_DAT3__DISP2_DAT3 */
+							615 0x5 /* MX51_PAD_DISP2_DAT4__DISP2_DAT4 */
+							616 0x5 /* MX51_PAD_DISP2_DAT5__DISP2_DAT5 */
+							617 0x5 /* MX51_PAD_DISP2_DAT6__DISP2_DAT6 */
+							622 0x5 /* MX51_PAD_DISP2_DAT7__DISP2_DAT7 */
+							627 0x5 /* MX51_PAD_DISP2_DAT8__DISP2_DAT8 */
+							633 0x5 /* MX51_PAD_DISP2_DAT9__DISP2_DAT9 */
+							637 0x5 /* MX51_PAD_DISP2_DAT10__DISP2_DAT10 */
+							643 0x5 /* MX51_PAD_DISP2_DAT11__DISP2_DAT11 */
+							648 0x5 /* MX51_PAD_DISP2_DAT12__DISP2_DAT12 */
+							652 0x5 /* MX51_PAD_DISP2_DAT13__DISP2_DAT13 */
+							656 0x5 /* MX51_PAD_DISP2_DAT14__DISP2_DAT14 */
+							661 0x5 /* MX51_PAD_DISP2_DAT15__DISP2_DAT15 */
+							593 0x5 /* MX51_PAD_DI2_PIN2__DI2_PIN2 (hsync) */
+							595 0x5 /* MX51_PAD_DI2_PIN3__DI2_PIN3 (vsync) */
+							597 0x5 /* MX51_PAD_DI2_DISP_CLK__DI2_DISP_CLK */
+							599 0x5 /* MX51_PAD_DI_GP4__DI2_PIN15 */
+						>;
+					};
+				};
+
 				uart1 {
 					pinctrl_uart1_1: uart1grp-1 {
 						fsl,pins = <
@@ -324,13 +440,55 @@
 							49 0x1c5	/* MX51_PAD_EIM_D24__UART3_CTS */
 						>;
 					};
+
+					pinctrl_uart3_2: uart3grp-2 {
+						fsl,pins = <
+							434 0x1c5	/* MX51_PAD_UART3_RXD__UART3_RXD */
+							430 0x1c5	/* MX51_PAD_UART3_TXD__UART3_TXD */
+						>;
+					};
 				};
+
+				kpp {
+					pinctrl_kpp_1: kppgrp-1 {
+						fsl,pins = <
+							438 0xe0	/* MX51_PAD_KEY_ROW0__KEY_ROW0 */
+							439 0xe0	/* MX51_PAD_KEY_ROW1__KEY_ROW1 */
+							440 0xe0	/* MX51_PAD_KEY_ROW2__KEY_ROW2 */
+							441 0xe0	/* MX51_PAD_KEY_ROW3__KEY_ROW3 */
+							442 0xe8	/* MX51_PAD_KEY_COL0__KEY_COL0 */
+							444 0xe8	/* MX51_PAD_KEY_COL1__KEY_COL1 */
+							446 0xe8	/* MX51_PAD_KEY_COL2__KEY_COL2 */
+							448 0xe8	/* MX51_PAD_KEY_COL3__KEY_COL3 */
+						>;
+					};
+				};
+			};
+
+			pwm1: pwm@73fb4000 {
+				#pwm-cells = <2>;
+				compatible = "fsl,imx51-pwm", "fsl,imx27-pwm";
+				reg = <0x73fb4000 0x4000>;
+				clocks = <&clks 37>, <&clks 38>;
+				clock-names = "ipg", "per";
+				interrupts = <61>;
+			};
+
+			pwm2: pwm@73fb8000 {
+				#pwm-cells = <2>;
+				compatible = "fsl,imx51-pwm", "fsl,imx27-pwm";
+				reg = <0x73fb8000 0x4000>;
+				clocks = <&clks 39>, <&clks 40>;
+				clock-names = "ipg", "per";
+				interrupts = <94>;
 			};
 
 			uart1: serial@73fbc000 {
 				compatible = "fsl,imx51-uart", "fsl,imx21-uart";
 				reg = <0x73fbc000 0x4000>;
 				interrupts = <31>;
+				clocks = <&clks 28>, <&clks 29>;
+				clock-names = "ipg", "per";
 				status = "disabled";
 			};
 
@@ -338,7 +496,16 @@
 				compatible = "fsl,imx51-uart", "fsl,imx21-uart";
 				reg = <0x73fc0000 0x4000>;
 				interrupts = <32>;
+				clocks = <&clks 30>, <&clks 31>;
+				clock-names = "ipg", "per";
 				status = "disabled";
+			};
+
+			clks: ccm@73fd4000{
+				compatible = "fsl,imx51-ccm";
+				reg = <0x73fd4000 0x4000>;
+				interrupts = <0 71 0x04 0 72 0x04>;
+				#clock-cells = <1>;
 			};
 		};
 
@@ -349,46 +516,54 @@
 			reg = <0x80000000 0x10000000>;
 			ranges;
 
-			ecspi@83fac000 { /* ECSPI2 */
+			ecspi2: ecspi@83fac000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx51-ecspi";
 				reg = <0x83fac000 0x4000>;
 				interrupts = <37>;
+				clocks = <&clks 53>, <&clks 54>;
+				clock-names = "ipg", "per";
 				status = "disabled";
 			};
 
-			sdma@83fb0000 {
+			sdma: sdma@83fb0000 {
 				compatible = "fsl,imx51-sdma", "fsl,imx35-sdma";
 				reg = <0x83fb0000 0x4000>;
 				interrupts = <6>;
+				clocks = <&clks 56>, <&clks 56>;
+				clock-names = "ipg", "ahb";
 				fsl,sdma-ram-script-name = "imx/sdma/sdma-imx51.bin";
 			};
 
-			cspi@83fc0000 {
+			cspi: cspi@83fc0000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
 				compatible = "fsl,imx51-cspi", "fsl,imx35-cspi";
 				reg = <0x83fc0000 0x4000>;
 				interrupts = <38>;
+				clocks = <&clks 55>, <&clks 0>;
+				clock-names = "ipg", "per";
 				status = "disabled";
 			};
 
-			i2c@83fc4000 { /* I2C2 */
+			i2c2: i2c@83fc4000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
-				compatible = "fsl,imx51-i2c", "fsl,imx1-i2c";
+				compatible = "fsl,imx51-i2c", "fsl,imx21-i2c";
 				reg = <0x83fc4000 0x4000>;
 				interrupts = <63>;
+				clocks = <&clks 35>;
 				status = "disabled";
 			};
 
-			i2c@83fc8000 { /* I2C1 */
+			i2c1: i2c@83fc8000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
-				compatible = "fsl,imx51-i2c", "fsl,imx1-i2c";
+				compatible = "fsl,imx51-i2c", "fsl,imx21-i2c";
 				reg = <0x83fc8000 0x4000>;
 				interrupts = <62>;
+				clocks = <&clks 34>;
 				status = "disabled";
 			};
 
@@ -396,21 +571,23 @@
 				compatible = "fsl,imx51-ssi", "fsl,imx21-ssi";
 				reg = <0x83fcc000 0x4000>;
 				interrupts = <29>;
+				clocks = <&clks 48>;
 				fsl,fifo-depth = <15>;
 				fsl,ssi-dma-events = <29 28 27 26>; /* TX0 RX0 TX1 RX1 */
 				status = "disabled";
 			};
 
-			audmux@83fd0000 {
+			audmux: audmux@83fd0000 {
 				compatible = "fsl,imx51-audmux", "fsl,imx31-audmux";
 				reg = <0x83fd0000 0x4000>;
 				status = "disabled";
 			};
 
-			nand@83fdb000 {
+			nfc: nand@83fdb000 {
 				compatible = "fsl,imx51-nand";
 				reg = <0x83fdb000 0x1000 0xcfff0000 0x10000>;
 				interrupts = <8>;
+				clocks = <&clks 60>;
 				status = "disabled";
 			};
 
@@ -418,15 +595,18 @@
 				compatible = "fsl,imx51-ssi", "fsl,imx21-ssi";
 				reg = <0x83fe8000 0x4000>;
 				interrupts = <96>;
+				clocks = <&clks 50>;
 				fsl,fifo-depth = <15>;
 				fsl,ssi-dma-events = <47 46 37 35>; /* TX0 RX0 TX1 RX1 */
 				status = "disabled";
 			};
 
-			ethernet@83fec000 {
+			fec: ethernet@83fec000 {
 				compatible = "fsl,imx51-fec", "fsl,imx27-fec";
 				reg = <0x83fec000 0x4000>;
 				interrupts = <87>;
+				clocks = <&clks 42>, <&clks 42>, <&clks 42>;
+				clock-names = "ipg", "ahb", "ptp";
 				status = "disabled";
 			};
 		};

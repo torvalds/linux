@@ -27,7 +27,7 @@
 
 /*
  * We'd like to dump the L2_ECC_TAG register on errors, but errata make
- * that unsafe... So for now we don't.  (BCM1250/BCM112x erratum SOC-48.)
+ * that unsafe... So for now we don't.	(BCM1250/BCM112x erratum SOC-48.)
  */
 #undef DUMP_L2_ECC_TAG_ON_ERROR
 
@@ -48,7 +48,7 @@
 #define CP0_CERRI_EXTERNAL     (1 << 26)
 
 #define CP0_CERRI_IDX_VALID(c) (!((c) & CP0_CERRI_EXTERNAL))
-#define CP0_CERRI_DATA         (CP0_CERRI_DATA_PARITY)
+#define CP0_CERRI_DATA	       (CP0_CERRI_DATA_PARITY)
 
 #define CP0_CERRD_MULTIPLE     (1 << 31)
 #define CP0_CERRD_TAG_STATE    (1 << 30)
@@ -56,8 +56,8 @@
 #define CP0_CERRD_DATA_SBE     (1 << 28)
 #define CP0_CERRD_DATA_DBE     (1 << 27)
 #define CP0_CERRD_EXTERNAL     (1 << 26)
-#define CP0_CERRD_LOAD         (1 << 25)
-#define CP0_CERRD_STORE        (1 << 24)
+#define CP0_CERRD_LOAD	       (1 << 25)
+#define CP0_CERRD_STORE	       (1 << 24)
 #define CP0_CERRD_FILLWB       (1 << 23)
 #define CP0_CERRD_COHERENCY    (1 << 22)
 #define CP0_CERRD_DUPTAG       (1 << 21)
@@ -69,10 +69,10 @@
    (CP0_CERRD_LOAD | CP0_CERRD_STORE | CP0_CERRD_FILLWB | CP0_CERRD_COHERENCY | CP0_CERRD_DUPTAG)
 #define CP0_CERRD_TYPES \
    (CP0_CERRD_TAG_STATE | CP0_CERRD_TAG_ADDRESS | CP0_CERRD_DATA_SBE | CP0_CERRD_DATA_DBE | CP0_CERRD_EXTERNAL)
-#define CP0_CERRD_DATA         (CP0_CERRD_DATA_SBE | CP0_CERRD_DATA_DBE)
+#define CP0_CERRD_DATA	       (CP0_CERRD_DATA_SBE | CP0_CERRD_DATA_DBE)
 
-static uint32_t	extract_ic(unsigned short addr, int data);
-static uint32_t	extract_dc(unsigned short addr, int data);
+static uint32_t extract_ic(unsigned short addr, int data);
+static uint32_t extract_dc(unsigned short addr, int data);
 
 static inline void breakout_errctl(unsigned int val)
 {
@@ -209,11 +209,11 @@ asmlinkage void sb1_cache_error(void)
 	  "=r" (dpahi), "=r" (dpalo), "=r" (eepc));
 
 	cerr_dpa = (((uint64_t)dpahi) << 32) | dpalo;
-	printk(" c0_errorepc ==   %08x\n", eepc);
-	printk(" c0_errctl   ==   %08x", errctl);
+	printk(" c0_errorepc ==	  %08x\n", eepc);
+	printk(" c0_errctl   ==	  %08x", errctl);
 	breakout_errctl(errctl);
 	if (errctl & CP0_ERRCTL_ICACHE) {
-		printk(" c0_cerr_i   ==   %08x", cerr_i);
+		printk(" c0_cerr_i   ==	  %08x", cerr_i);
 		breakout_cerri(cerr_i);
 		if (CP0_CERRI_IDX_VALID(cerr_i)) {
 			/* Check index of EPC, allowing for delay slot */
@@ -229,7 +229,7 @@ asmlinkage void sb1_cache_error(void)
 		}
 	}
 	if (errctl & CP0_ERRCTL_DCACHE) {
-		printk(" c0_cerr_d   ==   %08x", cerr_d);
+		printk(" c0_cerr_d   ==	  %08x", cerr_d);
 		breakout_cerrd(cerr_d);
 		if (CP0_CERRD_DPA_VALID(cerr_d)) {
 			printk(" c0_cerr_dpa == %010llx\n", cerr_dpa);
@@ -256,7 +256,7 @@ asmlinkage void sb1_cache_error(void)
 	/*
 	 * Calling panic() when a fatal cache error occurs scrambles the
 	 * state of the system (and the cache), making it difficult to
-	 * investigate after the fact.  However, if you just stall the CPU,
+	 * investigate after the fact.	However, if you just stall the CPU,
 	 * the other CPU may keep on running, which is typically very
 	 * undesirable.
 	 */
@@ -411,7 +411,7 @@ static uint32_t extract_ic(unsigned short addr, int data)
 				"	dmfc0  $1, $28, 1\n\t"
 				"	dsrl32 %1, $1, 0 \n\t"
 				"	sll    %2, $1, 0 \n\t"
-				"	.set	pop         \n"
+				"	.set	pop	    \n"
 				: "=r" (datahi), "=r" (insta), "=r" (instb)
 				: "r" ((way << 13) | addr | (offset << 3)));
 				predecode = (datahi >> 8) & 0xff;
@@ -441,8 +441,8 @@ static uint8_t dc_ecc(uint64_t dword)
 {
 	uint64_t t;
 	uint32_t w;
-	uint8_t  p;
-	int      i;
+	uint8_t	 p;
+	int	 i;
 
 	p = 0;
 	for (i = 7; i >= 0; i--)

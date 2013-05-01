@@ -160,9 +160,6 @@ static ssize_t show_device(struct device *dev, struct device_attribute *attr,
 		       gadget->speed);
 	n += scnprintf(buf + n, PAGE_SIZE - n, "max_speed         = %d\n",
 		       gadget->max_speed);
-	/* TODO: Scheduled for removal in 3.8. */
-	n += scnprintf(buf + n, PAGE_SIZE - n, "is_dualspeed      = %d\n",
-		       gadget_is_dualspeed(gadget));
 	n += scnprintf(buf + n, PAGE_SIZE - n, "is_otg            = %d\n",
 		       gadget->is_otg);
 	n += scnprintf(buf + n, PAGE_SIZE - n, "is_a_peripheral   = %d\n",
@@ -225,7 +222,7 @@ static struct {
 } dbg_data = {
 	.idx = 0,
 	.tty = 0,
-	.lck = __RW_LOCK_UNLOCKED(lck)
+	.lck = __RW_LOCK_UNLOCKED(dbg_data.lck)
 };
 
 /**

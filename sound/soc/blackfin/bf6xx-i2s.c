@@ -186,7 +186,7 @@ static struct snd_soc_dai_driver bfin_i2s_dai = {
 	.ops = &bfin_i2s_dai_ops,
 };
 
-static int __devinit bfin_i2s_probe(struct platform_device *pdev)
+static int bfin_i2s_probe(struct platform_device *pdev)
 {
 	struct sport_device *sport;
 	struct device *dev = &pdev->dev;
@@ -208,7 +208,7 @@ static int __devinit bfin_i2s_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit bfin_i2s_remove(struct platform_device *pdev)
+static int bfin_i2s_remove(struct platform_device *pdev)
 {
 	struct sport_device *sport = platform_get_drvdata(pdev);
 
@@ -220,7 +220,7 @@ static int __devexit bfin_i2s_remove(struct platform_device *pdev)
 
 static struct platform_driver bfin_i2s_driver = {
 	.probe  = bfin_i2s_probe,
-	.remove = __devexit_p(bfin_i2s_remove),
+	.remove = bfin_i2s_remove,
 	.driver = {
 		.name = "bfin-i2s",
 		.owner = THIS_MODULE,

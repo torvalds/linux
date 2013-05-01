@@ -202,7 +202,7 @@ static int psb_gtt_attach_pages(struct gtt_range *gt)
 	WARN_ON(gt->pages);
 
 	/* This is the shared memory object that backs the GEM resource */
-	inode = gt->gem.filp->f_path.dentry->d_inode;
+	inode = file_inode(gt->gem.filp);
 	mapping = inode->i_mapping;
 
 	gt->pages = kmalloc(pages * sizeof(struct page *), GFP_KERNEL);

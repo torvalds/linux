@@ -50,13 +50,12 @@ module_param(debug, bool, 0644);
 ACPI_MODULE_NAME("pci_slot");
 
 #define MY_NAME "pci_slot"
-#define err(format, arg...) printk(KERN_ERR "%s: " format , MY_NAME , ## arg)
-#define info(format, arg...) printk(KERN_INFO "%s: " format , MY_NAME , ## arg)
+#define err(format, arg...) pr_err("%s: " format , MY_NAME , ## arg)
+#define info(format, arg...) pr_info("%s: " format , MY_NAME , ## arg)
 #define dbg(format, arg...)					\
 	do {							\
 		if (debug)					\
-			printk(KERN_DEBUG "%s: " format,	\
-				MY_NAME , ## arg);		\
+			pr_debug("%s: " format,	MY_NAME , ## arg); \
 	} while (0)
 
 #define SLOT_NAME_SIZE 21		/* Inspired by #define in acpiphp.h */
@@ -330,19 +329,8 @@ static struct dmi_system_id acpi_pci_slot_dmi_table[] __initdata = {
 	{}
 };
 
-static int __init
-acpi_pci_slot_init(void)
+void __init acpi_pci_slot_init(void)
 {
 	dmi_check_system(acpi_pci_slot_dmi_table);
 	acpi_pci_register_driver(&acpi_pci_slot_driver);
-	return 0;
 }
-
-static void __exit
-acpi_pci_slot_exit(void)
-{
-	acpi_pci_unregister_driver(&acpi_pci_slot_driver);
-}
-
-module_init(acpi_pci_slot_init);
-module_exit(acpi_pci_slot_exit);

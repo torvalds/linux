@@ -45,7 +45,6 @@
 #include <linux/miscdevice.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
-#include <linux/spinlock.h>
 #include <linux/stat.h>
 #include <linux/module.h>
 
@@ -63,7 +62,7 @@ struct cuse_conn {
 	bool			unrestricted_ioctl;
 };
 
-static DEFINE_SPINLOCK(cuse_lock);		/* protects cuse_conntbl */
+static DEFINE_MUTEX(cuse_lock);		/* protects registration */
 static struct list_head cuse_conntbl[CUSE_CONNTBL_LEN];
 static struct class *cuse_class;
 
@@ -92,19 +91,22 @@ static ssize_t cuse_read(struct file *file, char __user *buf, size_t count,
 			 loff_t *ppos)
 {
 	loff_t pos = 0;
+	struct iovec iov = { .iov_base = buf, .iov_len = count };
 
-	return fuse_direct_io(file, buf, count, &pos, 0);
+	return fuse_direct_io(file, &iov, 1, count, &pos, 0);
 }
 
 static ssize_t cuse_write(struct file *file, const char __user *buf,
 			  size_t count, loff_t *ppos)
 {
 	loff_t pos = 0;
+	struct iovec iov = { .iov_base = (void __user *)buf, .iov_len = count };
+
 	/*
 	 * No locking or generic_write_checks(), the server is
 	 * responsible for locking and sanity checks.
 	 */
-	return fuse_direct_io(file, buf, count, &pos, 1);
+	return fuse_direct_io(file, &iov, 1, count, &pos, 1);
 }
 
 static int cuse_open(struct inode *inode, struct file *file)
@@ -114,14 +116,14 @@ static int cuse_open(struct inode *inode, struct file *file)
 	int rc;
 
 	/* look up and get the connection */
-	spin_lock(&cuse_lock);
+	mutex_lock(&cuse_lock);
 	list_for_each_entry(pos, cuse_conntbl_head(devt), list)
 		if (pos->dev->devt == devt) {
 			fuse_conn_get(&pos->fc);
 			cc = pos;
 			break;
 		}
-	spin_unlock(&cuse_lock);
+	mutex_unlock(&cuse_lock);
 
 	/* dead? */
 	if (!cc)
@@ -267,7 +269,7 @@ static int cuse_parse_one(char **pp, char *end, char **keyp, char **valp)
 static int cuse_parse_devinfo(char *p, size_t len, struct cuse_devinfo *devinfo)
 {
 	char *end = p + len;
-	char *key, *val;
+	char *uninitialized_var(key), *uninitialized_var(val);
 	int rc;
 
 	while (true) {
@@ -305,14 +307,14 @@ static void cuse_gendev_release(struct device *dev)
  */
 static void cuse_process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 {
-	struct cuse_conn *cc = fc_to_cc(fc);
+	struct cuse_conn *cc = fc_to_cc(fc), *pos;
 	struct cuse_init_out *arg = req->out.args[0].value;
 	struct page *page = req->pages[0];
 	struct cuse_devinfo devinfo = { };
 	struct device *dev;
 	struct cdev *cdev;
 	dev_t devt;
-	int rc;
+	int rc, i;
 
 	if (req->out.h.error ||
 	    arg->major != FUSE_KERNEL_VERSION || arg->minor < 11) {
@@ -356,15 +358,24 @@ static void cuse_process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 	dev_set_drvdata(dev, cc);
 	dev_set_name(dev, "%s", devinfo.name);
 
+	mutex_lock(&cuse_lock);
+
+	/* make sure the device-name is unique */
+	for (i = 0; i < CUSE_CONNTBL_LEN; ++i) {
+		list_for_each_entry(pos, &cuse_conntbl[i], list)
+			if (!strcmp(dev_name(pos->dev), dev_name(dev)))
+				goto err_unlock;
+	}
+
 	rc = device_add(dev);
 	if (rc)
-		goto err_device;
+		goto err_unlock;
 
 	/* register cdev */
 	rc = -ENOMEM;
 	cdev = cdev_alloc();
 	if (!cdev)
-		goto err_device;
+		goto err_unlock;
 
 	cdev->owner = THIS_MODULE;
 	cdev->ops = &cuse_frontend_fops;
@@ -377,9 +388,8 @@ static void cuse_process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 	cc->cdev = cdev;
 
 	/* make the device available */
-	spin_lock(&cuse_lock);
 	list_add(&cc->list, cuse_conntbl_head(devt));
-	spin_unlock(&cuse_lock);
+	mutex_unlock(&cuse_lock);
 
 	/* announce device availability */
 	dev_set_uevent_suppress(dev, 0);
@@ -391,7 +401,8 @@ out:
 
 err_cdev:
 	cdev_del(cdev);
-err_device:
+err_unlock:
+	mutex_unlock(&cuse_lock);
 	put_device(dev);
 err_region:
 	unregister_chrdev_region(devt, 1);
@@ -411,7 +422,7 @@ static int cuse_send_init(struct cuse_conn *cc)
 
 	BUILD_BUG_ON(CUSE_INIT_INFO_MAX > PAGE_SIZE);
 
-	req = fuse_get_req(fc);
+	req = fuse_get_req(fc, 1);
 	if (IS_ERR(req)) {
 		rc = PTR_ERR(req);
 		goto err;
@@ -441,6 +452,7 @@ static int cuse_send_init(struct cuse_conn *cc)
 	req->out.argvar = 1;
 	req->out.argpages = 1;
 	req->pages[0] = page;
+	req->page_descs[0].length = req->out.args[1].size;
 	req->num_pages = 1;
 	req->end = cuse_process_init_reply;
 	fuse_request_send_background(fc, req);
@@ -520,9 +532,9 @@ static int cuse_channel_release(struct inode *inode, struct file *file)
 	int rc;
 
 	/* remove from the conntbl, no more access from this point on */
-	spin_lock(&cuse_lock);
+	mutex_lock(&cuse_lock);
 	list_del_init(&cc->list);
-	spin_unlock(&cuse_lock);
+	mutex_unlock(&cuse_lock);
 
 	/* remove device */
 	if (cc->dev)

@@ -528,7 +528,7 @@ static int perf_ibs_handle_irq(struct perf_ibs *perf_ibs, struct pt_regs *iregs)
 	if (!test_bit(IBS_STARTED, pcpu->state)) {
 		/*
 		 * Catch spurious interrupts after stopping IBS: After
-		 * disabling IBS there could be still incomming NMIs
+		 * disabling IBS there could be still incoming NMIs
 		 * with samples that even have the valid bit cleared.
 		 * Mark all this NMIs as handled.
 		 */

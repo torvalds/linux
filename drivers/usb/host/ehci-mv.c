@@ -43,7 +43,7 @@ static void ehci_clock_enable(struct ehci_hcd_mv *ehci_mv)
 	unsigned int i;
 
 	for (i = 0; i < ehci_mv->clknum; i++)
-		clk_enable(ehci_mv->clk[i]);
+		clk_prepare_enable(ehci_mv->clk[i]);
 }
 
 static void ehci_clock_disable(struct ehci_hcd_mv *ehci_mv)
@@ -51,7 +51,7 @@ static void ehci_clock_disable(struct ehci_hcd_mv *ehci_mv)
 	unsigned int i;
 
 	for (i = 0; i < ehci_mv->clknum; i++)
-		clk_disable(ehci_mv->clk[i]);
+		clk_disable_unprepare(ehci_mv->clk[i]);
 }
 
 static int mv_ehci_enable(struct ehci_hcd_mv *ehci_mv)
@@ -302,7 +302,6 @@ static int mv_ehci_remove(struct platform_device *pdev)
 {
 	struct ehci_hcd_mv *ehci_mv = platform_get_drvdata(pdev);
 	struct usb_hcd *hcd = ehci_mv->hcd;
-	int clk_i;
 
 	if (hcd->rh_registered)
 		usb_remove_hcd(hcd);

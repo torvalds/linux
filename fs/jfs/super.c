@@ -154,7 +154,7 @@ static int jfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	/*
 	 * If we really return the number of allocated & free inodes, some
 	 * applications will fail because they won't see enough free inodes.
-	 * We'll try to calculate some guess as to how may inodes we can
+	 * We'll try to calculate some guess as to how many inodes we can
 	 * really allocate
 	 *
 	 * buf->f_files = atomic_read(&imap->im_numinos);
@@ -833,6 +833,7 @@ static struct file_system_type jfs_fs_type = {
 	.kill_sb	= kill_block_super,
 	.fs_flags	= FS_REQUIRES_DEV,
 };
+MODULE_ALIAS_FS("jfs");
 
 static void init_once(void *foo)
 {

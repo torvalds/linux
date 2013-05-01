@@ -613,7 +613,7 @@ static const struct i2c_algorithm rcar_i2c_algo = {
 	.functionality	= rcar_i2c_func,
 };
 
-static int __devinit rcar_i2c_probe(struct platform_device *pdev)
+static int rcar_i2c_probe(struct platform_device *pdev)
 {
 	struct i2c_rcar_platform_data *pdata = pdev->dev.platform_data;
 	struct rcar_i2c_priv *priv;
@@ -642,11 +642,9 @@ static int __devinit rcar_i2c_probe(struct platform_device *pdev)
 	if (ret < 0)
 		return ret;
 
-	priv->io = devm_ioremap(dev, res->start, resource_size(res));
-	if (!priv->io) {
-		dev_err(dev, "cannot ioremap\n");
-		return -ENODEV;
-	}
+	priv->io = devm_ioremap_resource(dev, res);
+	if (IS_ERR(priv->io))
+		return PTR_ERR(priv->io);
 
 	priv->irq = platform_get_irq(pdev, 0);
 	init_waitqueue_head(&priv->wait);
@@ -682,7 +680,7 @@ static int __devinit rcar_i2c_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit rcar_i2c_remove(struct platform_device *pdev)
+static int rcar_i2c_remove(struct platform_device *pdev)
 {
 	struct rcar_i2c_priv *priv = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
@@ -693,16 +691,16 @@ static int __devexit rcar_i2c_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_driver rcar_i2c_drv = {
+static struct platform_driver rcar_i2c_driver = {
 	.driver	= {
 		.name	= "i2c-rcar",
 		.owner	= THIS_MODULE,
 	},
 	.probe		= rcar_i2c_probe,
-	.remove		= __devexit_p(rcar_i2c_remove),
+	.remove		= rcar_i2c_remove,
 };
 
-module_platform_driver(rcar_i2c_drv);
+module_platform_driver(rcar_i2c_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Renesas R-Car I2C bus driver");

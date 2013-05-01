@@ -77,9 +77,8 @@ _lookup_deviceid(const struct pnfs_layoutdriver_type *ld,
 		 long hash)
 {
 	struct nfs4_deviceid_node *d;
-	struct hlist_node *n;
 
-	hlist_for_each_entry_rcu(d, n, &nfs4_deviceid_cache[hash], node)
+	hlist_for_each_entry_rcu(d, &nfs4_deviceid_cache[hash], node)
 		if (d->ld == ld && d->nfs_client == clp &&
 		    !memcmp(&d->deviceid, id, sizeof(*id))) {
 			if (atomic_read(&d->ref))
@@ -248,12 +247,11 @@ static void
 _deviceid_purge_client(const struct nfs_client *clp, long hash)
 {
 	struct nfs4_deviceid_node *d;
-	struct hlist_node *n;
 	HLIST_HEAD(tmp);
 
 	spin_lock(&nfs4_deviceid_lock);
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(d, n, &nfs4_deviceid_cache[hash], node)
+	hlist_for_each_entry_rcu(d, &nfs4_deviceid_cache[hash], node)
 		if (d->nfs_client == clp && atomic_read(&d->ref)) {
 			hlist_del_init_rcu(&d->node);
 			hlist_add_head(&d->tmpnode, &tmp);
@@ -291,12 +289,11 @@ void
 nfs4_deviceid_mark_client_invalid(struct nfs_client *clp)
 {
 	struct nfs4_deviceid_node *d;
-	struct hlist_node *n;
 	int i;
 
 	rcu_read_lock();
 	for (i = 0; i < NFS4_DEVICE_ID_HASH_SIZE; i ++){
-		hlist_for_each_entry_rcu(d, n, &nfs4_deviceid_cache[i], node)
+		hlist_for_each_entry_rcu(d, &nfs4_deviceid_cache[i], node)
 			if (d->nfs_client == clp)
 				set_bit(NFS_DEVICEID_INVALID, &d->flags);
 	}

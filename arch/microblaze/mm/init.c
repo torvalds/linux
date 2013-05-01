@@ -89,7 +89,7 @@ static unsigned long highmem_setup(void)
 		reservedpages++;
 	}
 	totalram_pages += totalhigh_pages;
-	printk(KERN_INFO "High memory: %luk\n",
+	pr_info("High memory: %luk\n",
 					totalhigh_pages << (PAGE_SHIFT-10));
 
 	return reservedpages;
@@ -142,8 +142,8 @@ void __init setup_memory(void)
 			((u32)_text <= (memory_start + lowmem_size - 1))) {
 			memory_size = lowmem_size;
 			PAGE_OFFSET = memory_start;
-			printk(KERN_INFO "%s: Main mem: 0x%x, "
-				"size 0x%08x\n", __func__, (u32) memory_start,
+			pr_info("%s: Main mem: 0x%x, size 0x%08x\n",
+				__func__, (u32) memory_start,
 					(u32) memory_size);
 			break;
 		}
@@ -158,7 +158,7 @@ void __init setup_memory(void)
 	kernel_align_start = PAGE_DOWN((u32)_text);
 	/* ALIGN can be remove because _end in vmlinux.lds.S is align */
 	kernel_align_size = PAGE_UP((u32)klimit) - kernel_align_start;
-	printk(KERN_INFO "%s: kernel addr:0x%08x-0x%08x size=0x%08x\n",
+	pr_info("%s: kernel addr:0x%08x-0x%08x size=0x%08x\n",
 		__func__, kernel_align_start, kernel_align_start
 			+ kernel_align_size, kernel_align_size);
 	memblock_reserve(kernel_align_start, kernel_align_size);
@@ -181,10 +181,10 @@ void __init setup_memory(void)
 	max_low_pfn = ((u64)memory_start + (u64)lowmem_size) >> PAGE_SHIFT;
 	max_pfn = ((u64)memory_start + (u64)memory_size) >> PAGE_SHIFT;
 
-	printk(KERN_INFO "%s: max_mapnr: %#lx\n", __func__, max_mapnr);
-	printk(KERN_INFO "%s: min_low_pfn: %#lx\n", __func__, min_low_pfn);
-	printk(KERN_INFO "%s: max_low_pfn: %#lx\n", __func__, max_low_pfn);
-	printk(KERN_INFO "%s: max_pfn: %#lx\n", __func__, max_pfn);
+	pr_info("%s: max_mapnr: %#lx\n", __func__, max_mapnr);
+	pr_info("%s: min_low_pfn: %#lx\n", __func__, min_low_pfn);
+	pr_info("%s: max_low_pfn: %#lx\n", __func__, max_low_pfn);
+	pr_info("%s: max_pfn: %#lx\n", __func__, max_pfn);
 
 	/*
 	 * Find an area to use for the bootmem bitmap.
@@ -246,7 +246,7 @@ void free_init_pages(char *what, unsigned long begin, unsigned long end)
 		free_page(addr);
 		totalram_pages++;
 	}
-	printk(KERN_INFO "Freeing %s: %ldk freed\n", what, (end - begin) >> 10);
+	pr_info("Freeing %s: %ldk freed\n", what, (end - begin) >> 10);
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
@@ -260,7 +260,7 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 		totalram_pages++;
 		pages++;
 	}
-	printk(KERN_NOTICE "Freeing initrd memory: %dk freed\n",
+	pr_notice("Freeing initrd memory: %dk freed\n",
 					(int)(pages * (PAGE_SIZE / 1024)));
 }
 #endif
@@ -304,11 +304,11 @@ void __init mem_init(void)
 	initsize = (unsigned long)&__init_end - (unsigned long)&__init_begin;
 	bsssize = (unsigned long)&__bss_stop - (unsigned long)&__bss_start;
 
-	pr_info("Memory: %luk/%luk available (%luk kernel code, "
-		"%luk reserved, %luk data, %luk bss, %luk init)\n",
+	pr_info("Memory: %luk/%luk available (%luk kernel code, ",
 		nr_free_pages() << (PAGE_SHIFT-10),
 		num_physpages << (PAGE_SHIFT-10),
-		codesize >> 10,
+		codesize >> 10);
+	pr_cont("%luk reserved, %luk data, %luk bss, %luk init)\n",
 		reservedpages << (PAGE_SHIFT-10),
 		datasize >> 10,
 		bsssize >> 10,
@@ -394,17 +394,17 @@ asmlinkage void __init mmu_init(void)
 	unsigned int kstart, ksize;
 
 	if (!memblock.reserved.cnt) {
-		printk(KERN_EMERG "Error memory count\n");
+		pr_emerg("Error memory count\n");
 		machine_restart(NULL);
 	}
 
 	if ((u32) memblock.memory.regions[0].size < 0x400000) {
-		printk(KERN_EMERG "Memory must be greater than 4MB\n");
+		pr_emerg("Memory must be greater than 4MB\n");
 		machine_restart(NULL);
 	}
 
 	if ((u32) memblock.memory.regions[0].size < kernel_tlb) {
-		printk(KERN_EMERG "Kernel size is greater than memory node\n");
+		pr_emerg("Kernel size is greater than memory node\n");
 		machine_restart(NULL);
 	}
 

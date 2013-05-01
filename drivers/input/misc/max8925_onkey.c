@@ -100,9 +100,6 @@ static int max8925_onkey_probe(struct platform_device *pdev)
 	input->dev.parent = &pdev->dev;
 	input_set_capability(input, EV_KEY, KEY_POWER);
 
-	irq[0] += chip->irq_base;
-	irq[1] += chip->irq_base;
-
 	error = request_threaded_irq(irq[0], NULL, max8925_onkey_handler,
 				     IRQF_ONESHOT, "onkey-down", info);
 	if (error < 0) {

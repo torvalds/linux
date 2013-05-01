@@ -2,8 +2,10 @@
 # Serial device configuration
 #
 
+if TTY
+
 menu "Serial drivers"
-	depends on HAS_IOMEM
+	depends on HAS_IOMEM && GENERIC_HARDIRQS
 
 source "drivers/tty/serial/8250/Kconfig"
 
@@ -93,7 +95,7 @@ config SERIAL_SB1250_DUART_CONSOLE
 
 config SERIAL_ATMEL
 	bool "AT91 / AT32 on-chip serial port support"
-	depends on (ARM && ARCH_AT91) || AVR32
+	depends on ARCH_AT91 || AVR32
 	select SERIAL_CORE
 	help
 	  This enables the driver for the on-chip UARTs of the Atmel
@@ -198,7 +200,7 @@ config SERIAL_CLPS711X_CONSOLE
 
 config SERIAL_SAMSUNG
 	tristate "Samsung SoC serial support"
-	depends on ARM && PLAT_SAMSUNG
+	depends on PLAT_SAMSUNG
 	select SERIAL_CORE
 	help
 	  Support for the on-chip UARTs on the Samsung S3C24XX series CPUs,
@@ -208,15 +210,15 @@ config SERIAL_SAMSUNG
 
 config SERIAL_SAMSUNG_UARTS_4
 	bool
-	depends on ARM && PLAT_SAMSUNG
-	default y if !(CPU_S3C2410 || SERIAL_S3C2412 || CPU_S3C2440 || CPU_S3C2442)
+	depends on PLAT_SAMSUNG
+	default y if !(CPU_S3C2410 || CPU_S3C2412 || CPU_S3C2440 || CPU_S3C2442)
 	help
 	  Internal node for the common case of 4 Samsung compatible UARTs
 
 config SERIAL_SAMSUNG_UARTS
 	int
-	depends on ARM && PLAT_SAMSUNG
-	default 6 if ARCH_S5P6450
+	depends on PLAT_SAMSUNG
+	default 6 if CPU_S5P6450
 	default 4 if SERIAL_SAMSUNG_UARTS_4 || CPU_S3C2416
 	default 3
 	help
@@ -249,7 +251,7 @@ config SERIAL_SAMSUNG_CONSOLE
 
 config SERIAL_SIRFSOC
         tristate "SiRF SoC Platform Serial port support"
-        depends on ARM && ARCH_PRIMA2
+        depends on ARCH_PRIMA2
         select SERIAL_CORE
         help
           Support for the on-chip UART on the CSR SiRFprimaII series,
@@ -268,6 +270,17 @@ config SERIAL_SIRFSOC_CONSOLE
           "console=ttySiRFx". (Try "man bootparam" or see the documentation of
           your boot loader about how to pass options to the kernel at
           boot time.)
+
+config SERIAL_TEGRA
+	tristate "NVIDIA Tegra20/30 SoC serial controller"
+	depends on ARCH_TEGRA && TEGRA20_APB_DMA
+	select SERIAL_CORE
+	help
+	  Support for the on-chip UARTs on the NVIDIA Tegra series SOCs
+	  providing /dev/ttyHS0, 1, 2, 3 and 4 (note, some machines may not
+	  provide all of these ports, depending on how the serial port
+	  are enabled). This driver uses the APB DMA to achieve higher baudrate
+	  and better performance.
 
 config SERIAL_MAX3100
 	tristate "MAX3100 support"
@@ -347,7 +360,7 @@ config SERIAL_ZS_CONSOLE
 
 config SERIAL_21285
 	tristate "DC21285 serial port support"
-	depends on ARM && FOOTBRIDGE
+	depends on FOOTBRIDGE
 	select SERIAL_CORE
 	help
 	  If you have a machine based on a 21285 (Footbridge) StrongARM(R)/
@@ -371,7 +384,7 @@ config SERIAL_21285_CONSOLE
 
 config SERIAL_MPSC
 	bool "Marvell MPSC serial port support"
-	depends on PPC32 && MV64X60
+	depends on MV64X60
 	select SERIAL_CORE
 	help
 	  Say Y here if you want to use the Marvell MPSC serial controller.
@@ -408,7 +421,7 @@ config SERIAL_PXA_CONSOLE
 
 config SERIAL_SA1100
 	bool "SA1100 serial port support"
-	depends on ARM && ARCH_SA1100
+	depends on ARCH_SA1100
 	select SERIAL_CORE
 	help
 	  If you have a machine based on a SA1100/SA1110 StrongARM(R) CPU you
@@ -716,19 +729,19 @@ config SERIAL_SH_SCI_DMA
 
 config SERIAL_PNX8XXX
 	bool "Enable PNX8XXX SoCs' UART Support"
-	depends on MIPS && (SOC_PNX8550 || SOC_PNX833X)
+	depends on SOC_PNX833X
 	select SERIAL_CORE
 	help
-	  If you have a MIPS-based Philips SoC such as PNX8550 or PNX8330
-	  and you want to use serial ports, say Y.  Otherwise, say N.
+	  If you have a MIPS-based Philips SoC such as PNX8330 and you want
+	  to use serial ports, say Y.  Otherwise, say N.
 
 config SERIAL_PNX8XXX_CONSOLE
 	bool "Enable PNX8XX0 serial console"
 	depends on SERIAL_PNX8XXX
 	select SERIAL_CORE_CONSOLE
 	help
-	  If you have a MIPS-based Philips SoC such as PNX8550 or PNX8330
-	  and you want to use serial console, say Y. Otherwise, say N.
+	  If you have a MIPS-based Philips SoC such as PNX8330 and you want
+	  to use serial console, say Y. Otherwise, say N.
 
 config SERIAL_HS_LPC32XX
 	tristate "LPC32XX high speed serial port support"
@@ -1013,7 +1026,7 @@ config SERIAL_SGI_IOC3
 
 config SERIAL_MSM
 	bool "MSM on-chip serial port support"
-	depends on ARM && ARCH_MSM
+	depends on ARCH_MSM
 	select SERIAL_CORE
 
 config SERIAL_MSM_CONSOLE
@@ -1035,7 +1048,7 @@ config SERIAL_MSM_HS
 
 config SERIAL_VT8500
 	bool "VIA VT8500 on-chip serial port support"
-	depends on ARM && ARCH_VT8500
+	depends on ARCH_VT8500
 	select SERIAL_CORE
 
 config SERIAL_VT8500_CONSOLE
@@ -1045,7 +1058,7 @@ config SERIAL_VT8500_CONSOLE
 
 config SERIAL_NETX
 	tristate "NetX serial port support"
-	depends on ARM && ARCH_NETX
+	depends on ARCH_NETX
 	select SERIAL_CORE
 	help
 	  If you have a machine based on a Hilscher NetX SoC you
@@ -1376,6 +1389,7 @@ config SERIAL_MXS_AUART_CONSOLE
 
 config SERIAL_XILINX_PS_UART
 	tristate "Xilinx PS UART support"
+	depends on OF
 	select SERIAL_CORE
 	help
 	  This driver supports the Xilinx PS UART port.
@@ -1423,4 +1437,53 @@ config SERIAL_EFM32_UART_CONSOLE
 	depends on SERIAL_EFM32_UART=y
 	select SERIAL_CORE_CONSOLE
 
+config SERIAL_ARC
+	tristate "ARC UART driver support"
+	select SERIAL_CORE
+	help
+	  Driver for on-chip UART for ARC(Synopsys) for the legacy
+	  FPGA Boards (ML50x/ARCAngel4)
+
+config SERIAL_ARC_CONSOLE
+	bool "Console on ARC UART"
+	depends on SERIAL_ARC=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  Enable system Console on ARC UART
+
+config SERIAL_ARC_NR_PORTS
+	int "Number of ARC UART ports"
+	depends on SERIAL_ARC
+	range 1 3
+	default "1"
+	help
+	  Set this to the number of serial ports you want the driver
+	  to support.
+
+config SERIAL_RP2
+	tristate "Comtrol RocketPort EXPRESS/INFINITY support"
+	depends on PCI
+	select SERIAL_CORE
+	help
+	  This driver supports the Comtrol RocketPort EXPRESS and
+	  RocketPort INFINITY families of PCI/PCIe multiport serial adapters.
+	  These adapters use a "RocketPort 2" ASIC that is not compatible
+	  with the original RocketPort driver (CONFIG_ROCKETPORT).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called rp2.
+
+	  If you want to compile this driver into the kernel, say Y here.  If
+	  you don't have a suitable RocketPort card installed, say N.
+
+config SERIAL_RP2_NR_UARTS
+	int "Maximum number of RocketPort EXPRESS/INFINITY ports"
+	depends on SERIAL_RP2
+	default "32"
+	help
+	  If multiple cards are present, the default limit of 32 ports may
+	  need to be increased.
+
 endmenu
+
+endif # TTY

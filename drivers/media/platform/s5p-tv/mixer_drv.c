@@ -151,8 +151,8 @@ void mxr_power_put(struct mxr_device *mdev)
 
 /* --------- RESOURCE MANAGEMENT -------------*/
 
-static int __devinit mxr_acquire_plat_resources(struct mxr_device *mdev,
-	struct platform_device *pdev)
+static int mxr_acquire_plat_resources(struct mxr_device *mdev,
+				      struct platform_device *pdev)
 {
 	struct resource *res;
 	int ret;
@@ -240,27 +240,27 @@ static int mxr_acquire_clocks(struct mxr_device *mdev)
 	struct device *dev = mdev->dev;
 
 	res->mixer = clk_get(dev, "mixer");
-	if (IS_ERR_OR_NULL(res->mixer)) {
+	if (IS_ERR(res->mixer)) {
 		mxr_err(mdev, "failed to get clock 'mixer'\n");
 		goto fail;
 	}
 	res->vp = clk_get(dev, "vp");
-	if (IS_ERR_OR_NULL(res->vp)) {
+	if (IS_ERR(res->vp)) {
 		mxr_err(mdev, "failed to get clock 'vp'\n");
 		goto fail;
 	}
 	res->sclk_mixer = clk_get(dev, "sclk_mixer");
-	if (IS_ERR_OR_NULL(res->sclk_mixer)) {
+	if (IS_ERR(res->sclk_mixer)) {
 		mxr_err(mdev, "failed to get clock 'sclk_mixer'\n");
 		goto fail;
 	}
 	res->sclk_hdmi = clk_get(dev, "sclk_hdmi");
-	if (IS_ERR_OR_NULL(res->sclk_hdmi)) {
+	if (IS_ERR(res->sclk_hdmi)) {
 		mxr_err(mdev, "failed to get clock 'sclk_hdmi'\n");
 		goto fail;
 	}
 	res->sclk_dac = clk_get(dev, "sclk_dac");
-	if (IS_ERR_OR_NULL(res->sclk_dac)) {
+	if (IS_ERR(res->sclk_dac)) {
 		mxr_err(mdev, "failed to get clock 'sclk_dac'\n");
 		goto fail;
 	}
@@ -271,8 +271,8 @@ fail:
 	return -ENODEV;
 }
 
-static int __devinit mxr_acquire_resources(struct mxr_device *mdev,
-	struct platform_device *pdev)
+static int mxr_acquire_resources(struct mxr_device *mdev,
+				 struct platform_device *pdev)
 {
 	int ret;
 	ret = mxr_acquire_plat_resources(mdev, pdev);
@@ -298,7 +298,7 @@ static void mxr_release_resources(struct mxr_device *mdev)
 {
 	mxr_release_clocks(mdev);
 	mxr_release_plat_resources(mdev);
-	memset(&mdev->res, 0, sizeof mdev->res);
+	memset(&mdev->res, 0, sizeof(mdev->res));
 }
 
 static void mxr_release_layers(struct mxr_device *mdev)
@@ -310,8 +310,8 @@ static void mxr_release_layers(struct mxr_device *mdev)
 			mxr_layer_release(mdev->layer[i]);
 }
 
-static int __devinit mxr_acquire_layers(struct mxr_device *mdev,
-	struct mxr_platform_data *pdata)
+static int mxr_acquire_layers(struct mxr_device *mdev,
+			      struct mxr_platform_data *pdata)
 {
 	mdev->layer[0] = mxr_graph_layer_create(mdev, 0);
 	mdev->layer[1] = mxr_graph_layer_create(mdev, 1);
@@ -372,7 +372,7 @@ static const struct dev_pm_ops mxr_pm_ops = {
 
 /* --------- DRIVER INITIALIZATION ---------- */
 
-static int __devinit mxr_probe(struct platform_device *pdev)
+static int mxr_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct mxr_platform_data *pdata = dev->platform_data;
@@ -382,7 +382,7 @@ static int __devinit mxr_probe(struct platform_device *pdev)
 	/* mdev does not exist yet so no mxr_dbg is used */
 	dev_info(dev, "probe start\n");
 
-	mdev = kzalloc(sizeof *mdev, GFP_KERNEL);
+	mdev = kzalloc(sizeof(*mdev), GFP_KERNEL);
 	if (!mdev) {
 		dev_err(dev, "not enough memory.\n");
 		ret = -ENOMEM;
@@ -431,7 +431,7 @@ fail:
 	return ret;
 }
 
-static int __devexit mxr_remove(struct platform_device *pdev)
+static int mxr_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct mxr_device *mdev = to_mdev(dev);
@@ -450,7 +450,7 @@ static int __devexit mxr_remove(struct platform_device *pdev)
 
 static struct platform_driver mxr_driver __refdata = {
 	.probe = mxr_probe,
-	.remove = __devexit_p(mxr_remove),
+	.remove = mxr_remove,
 	.driver = {
 		.name = MXR_DRIVER_NAME,
 		.owner = THIS_MODULE,

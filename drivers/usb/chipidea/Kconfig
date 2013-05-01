@@ -20,6 +20,7 @@ config USB_CHIPIDEA_UDC
 config USB_CHIPIDEA_HOST
 	bool "ChipIdea host controller"
 	depends on USB=y || USB=USB_CHIPIDEA
+	depends on USB_EHCI_HCD
 	select USB_EHCI_ROOT_HUB_TT
 	help
 	  Say Y here to enable host controller functionality of the

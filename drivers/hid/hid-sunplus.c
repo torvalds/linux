@@ -63,17 +63,6 @@ static struct hid_driver sp_driver = {
 	.report_fixup = sp_report_fixup,
 	.input_mapping = sp_input_mapping,
 };
+module_hid_driver(sp_driver);
 
-static int __init sp_init(void)
-{
-	return hid_register_driver(&sp_driver);
-}
-
-static void __exit sp_exit(void)
-{
-	hid_unregister_driver(&sp_driver);
-}
-
-module_init(sp_init);
-module_exit(sp_exit);
 MODULE_LICENSE("GPL");

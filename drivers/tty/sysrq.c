@@ -15,6 +15,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/sched.h>
+#include <linux/sched/rt.h>
 #include <linux/interrupt.h>
 #include <linux/mm.h>
 #include <linux/fs.h>
@@ -42,6 +43,7 @@
 #include <linux/input.h>
 #include <linux/uaccess.h>
 #include <linux/moduleparam.h>
+#include <linux/jiffies.h>
 
 #include <asm/ptrace.h>
 #include <asm/irq_regs.h>
@@ -49,6 +51,9 @@
 /* Whether we react on sysrq keys or just ignore them */
 static int __read_mostly sysrq_enabled = SYSRQ_DEFAULT_ENABLE;
 static bool __read_mostly sysrq_always_enabled;
+
+unsigned short platform_sysrq_reset_seq[] __weak = { KEY_RESERVED };
+int sysrq_reset_downtime_ms __weak;
 
 static bool sysrq_on(void)
 {
@@ -347,7 +352,8 @@ static struct sysrq_key_op sysrq_term_op = {
 
 static void moom_callback(struct work_struct *ignored)
 {
-	out_of_memory(node_zonelist(0, GFP_KERNEL), GFP_KERNEL, 0, NULL, true);
+	out_of_memory(node_zonelist(first_online_node, GFP_KERNEL), GFP_KERNEL,
+		      0, NULL, true);
 }
 
 static DECLARE_WORK(moom_work, moom_callback);
@@ -584,6 +590,7 @@ struct sysrq_state {
 	int reset_seq_len;
 	int reset_seq_cnt;
 	int reset_seq_version;
+	struct timer_list keyreset_timer;
 };
 
 #define SYSRQ_KEY_RESET_MAX	20 /* Should be plenty */
@@ -617,29 +624,51 @@ static void sysrq_parse_reset_sequence(struct sysrq_state *state)
 	state->reset_seq_version = sysrq_reset_seq_version;
 }
 
-static bool sysrq_detect_reset_sequence(struct sysrq_state *state,
+static void sysrq_do_reset(unsigned long dummy)
+{
+	__handle_sysrq(sysrq_xlate[KEY_B], false);
+}
+
+static void sysrq_handle_reset_request(struct sysrq_state *state)
+{
+	if (sysrq_reset_downtime_ms)
+		mod_timer(&state->keyreset_timer,
+			jiffies + msecs_to_jiffies(sysrq_reset_downtime_ms));
+	else
+		sysrq_do_reset(0);
+}
+
+static void sysrq_detect_reset_sequence(struct sysrq_state *state,
 					unsigned int code, int value)
 {
 	if (!test_bit(code, state->reset_keybit)) {
 		/*
 		 * Pressing any key _not_ in reset sequence cancels
-		 * the reset sequence.
+		 * the reset sequence.  Also cancelling the timer in
+		 * case additional keys were pressed after a reset
+		 * has been requested.
 		 */
-		if (value && state->reset_seq_cnt)
+		if (value && state->reset_seq_cnt) {
 			state->reset_canceled = true;
+			del_timer(&state->keyreset_timer);
+		}
 	} else if (value == 0) {
-		/* key release */
+		/*
+		 * Key release - all keys in the reset sequence need
+		 * to be pressed and held for the reset timeout
+		 * to hold.
+		 */
+		del_timer(&state->keyreset_timer);
+
 		if (--state->reset_seq_cnt == 0)
 			state->reset_canceled = false;
 	} else if (value == 1) {
 		/* key press, not autorepeat */
 		if (++state->reset_seq_cnt == state->reset_seq_len &&
 		    !state->reset_canceled) {
-			return true;
+			sysrq_handle_reset_request(state);
 		}
 	}
-
-	return false;
 }
 
 static void sysrq_reinject_alt_sysrq(struct work_struct *work)
@@ -746,10 +775,8 @@ static bool sysrq_handle_keypress(struct sysrq_state *sysrq,
 		if (was_active)
 			schedule_work(&sysrq->reinject_work);
 
-		if (sysrq_detect_reset_sequence(sysrq, code, value)) {
-			/* Force emergency reboot */
-			__handle_sysrq(sysrq_xlate[KEY_B], false);
-		}
+		/* Check for reset sequence */
+		sysrq_detect_reset_sequence(sysrq, code, value);
 
 	} else if (value == 0 && test_and_clear_bit(code, sysrq->key_down)) {
 		/*
@@ -810,6 +837,7 @@ static int sysrq_connect(struct input_handler *handler,
 	sysrq->handle.handler = handler;
 	sysrq->handle.name = "sysrq";
 	sysrq->handle.private = sysrq;
+	setup_timer(&sysrq->keyreset_timer, sysrq_do_reset, 0);
 
 	error = input_register_handle(&sysrq->handle);
 	if (error) {
@@ -839,6 +867,7 @@ static void sysrq_disconnect(struct input_handle *handle)
 
 	input_close_device(handle);
 	cancel_work_sync(&sysrq->reinject_work);
+	del_timer_sync(&sysrq->keyreset_timer);
 	input_unregister_handle(handle);
 	kfree(sysrq);
 }
@@ -870,19 +899,16 @@ static bool sysrq_handler_registered;
 
 static inline void sysrq_register_handler(void)
 {
-	extern unsigned short platform_sysrq_reset_seq[] __weak;
 	unsigned short key;
 	int error;
 	int i;
 
-	if (platform_sysrq_reset_seq) {
-		for (i = 0; i < ARRAY_SIZE(sysrq_reset_seq); i++) {
-			key = platform_sysrq_reset_seq[i];
-			if (key == KEY_RESERVED || key > KEY_MAX)
-				break;
+	for (i = 0; i < ARRAY_SIZE(sysrq_reset_seq); i++) {
+		key = platform_sysrq_reset_seq[i];
+		if (key == KEY_RESERVED || key > KEY_MAX)
+			break;
 
-			sysrq_reset_seq[sysrq_reset_seq_len++] = key;
-		}
+		sysrq_reset_seq[sysrq_reset_seq_len++] = key;
 	}
 
 	error = input_register_handler(&sysrq_handler);
@@ -929,6 +955,8 @@ static struct kernel_param_ops param_ops_sysrq_reset_seq = {
 
 module_param_array_named(reset_seq, sysrq_reset_seq, sysrq_reset_seq,
 			 &sysrq_reset_seq_len, 0644);
+
+module_param_named(sysrq_downtime_ms, sysrq_reset_downtime_ms, int, 0644);
 
 #else
 

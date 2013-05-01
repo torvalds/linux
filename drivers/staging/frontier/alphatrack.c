@@ -678,10 +678,9 @@ static int usb_alphatrack_probe(struct usb_interface *intf,
 	/* allocate memory for our device state and initialize it */
 
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
-	if (dev == NULL) {
-		dev_err(&intf->dev, "Out of memory\n");
+	if (dev == NULL)
 		goto exit;
-	}
+
 	mutex_init(&dev->mtx);
 	dev->intf = intf;
 	init_waitqueue_head(&dev->read_wait);
@@ -721,28 +720,21 @@ static int usb_alphatrack_probe(struct usb_interface *intf,
 
 	/* FIXME - there are more usb_alloc routines for dma correctness.
 	   Needed? */
-	dev->ring_buffer =
-	    kmalloc((true_size * sizeof(struct alphatrack_icmd)), GFP_KERNEL);
-
-	if (!dev->ring_buffer) {
-		dev_err(&intf->dev,
-			"Couldn't allocate input ring_buffer of size %d\n",
-			true_size);
+	dev->ring_buffer = kmalloc_array(true_size,
+					 sizeof(struct alphatrack_icmd),
+					 GFP_KERNEL);
+	if (!dev->ring_buffer)
 		goto error;
-	}
 
-	dev->interrupt_in_buffer =
-	    kmalloc(dev->interrupt_in_endpoint_size, GFP_KERNEL);
-
-	if (!dev->interrupt_in_buffer) {
-		dev_err(&intf->dev, "Couldn't allocate interrupt_in_buffer\n");
+	dev->interrupt_in_buffer = kmalloc(dev->interrupt_in_endpoint_size,
+					   GFP_KERNEL);
+	if (!dev->interrupt_in_buffer)
 		goto error;
-	}
+
 	dev->oldi_buffer = kmalloc(dev->interrupt_in_endpoint_size, GFP_KERNEL);
-	if (!dev->oldi_buffer) {
-		dev_err(&intf->dev, "Couldn't allocate old buffer\n");
+	if (!dev->oldi_buffer)
 		goto error;
-	}
+
 	dev->interrupt_in_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!dev->interrupt_in_urb) {
 		dev_err(&intf->dev, "Couldn't allocate interrupt_in_urb\n");
@@ -764,20 +756,17 @@ static int usb_alphatrack_probe(struct usb_interface *intf,
 	true_size = min(write_buffer_size, WRITE_BUFFER_SIZE);
 
 	dev->interrupt_out_buffer =
-	    kmalloc(true_size * dev->interrupt_out_endpoint_size, GFP_KERNEL);
-
-	if (!dev->interrupt_out_buffer) {
-		dev_err(&intf->dev, "Couldn't allocate interrupt_out_buffer\n");
+		kmalloc_array(true_size,
+			      dev->interrupt_out_endpoint_size,
+			      GFP_KERNEL);
+	if (!dev->interrupt_out_buffer)
 		goto error;
-	}
 
-	dev->write_buffer =
-	    kmalloc(true_size * sizeof(struct alphatrack_ocmd), GFP_KERNEL);
-
-	if (!dev->write_buffer) {
-		dev_err(&intf->dev, "Couldn't allocate write_buffer\n");
+	dev->write_buffer = kmalloc_array(true_size,
+					  sizeof(struct alphatrack_ocmd),
+					  GFP_KERNEL);
+	if (!dev->write_buffer)
 		goto error;
-	}
 
 	dev->interrupt_out_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!dev->interrupt_out_urb) {

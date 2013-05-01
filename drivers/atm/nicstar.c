@@ -121,8 +121,8 @@
 static u32 ns_read_sram(ns_dev * card, u32 sram_address);
 static void ns_write_sram(ns_dev * card, u32 sram_address, u32 * value,
 			  int count);
-static int __devinit ns_init_card(int i, struct pci_dev *pcidev);
-static void __devinit ns_init_card_error(ns_dev * card, int error);
+static int ns_init_card(int i, struct pci_dev *pcidev);
+static void ns_init_card_error(ns_dev * card, int error);
 static scq_info *get_scq(ns_dev *card, int size, u32 scd);
 static void free_scq(ns_dev *card, scq_info * scq, struct atm_vcc *vcc);
 static void push_rxbufs(ns_dev *, struct sk_buff *);
@@ -180,8 +180,8 @@ MODULE_LICENSE("GPL");
 
 /* Functions */
 
-static int __devinit nicstar_init_one(struct pci_dev *pcidev,
-				      const struct pci_device_id *ent)
+static int nicstar_init_one(struct pci_dev *pcidev,
+			    const struct pci_device_id *ent)
 {
 	static int index = -1;
 	unsigned int error;
@@ -200,7 +200,7 @@ err_out:
 	return -ENODEV;
 }
 
-static void __devexit nicstar_remove_one(struct pci_dev *pcidev)
+static void nicstar_remove_one(struct pci_dev *pcidev)
 {
 	int i, j;
 	ns_dev *card = pci_get_drvdata(pcidev);
@@ -251,7 +251,6 @@ static void __devexit nicstar_remove_one(struct pci_dev *pcidev)
 		if (card->scd2vc[j] != NULL)
 			free_scq(card, card->scd2vc[j]->scq, card->scd2vc[j]->tx_vcc);
 	}
-	idr_remove_all(&card->idr);
 	idr_destroy(&card->idr);
 	pci_free_consistent(card->pcidev, NS_RSQSIZE + NS_RSQ_ALIGNMENT,
 			    card->rsq.org, card->rsq.dma);
@@ -262,7 +261,7 @@ static void __devexit nicstar_remove_one(struct pci_dev *pcidev)
 	kfree(card);
 }
 
-static struct pci_device_id nicstar_pci_tbl[] __devinitdata = {
+static struct pci_device_id nicstar_pci_tbl[] = {
 	{ PCI_VDEVICE(IDT, PCI_DEVICE_ID_IDT_IDT77201), 0 },
 	{0,}			/* terminate list */
 };
@@ -273,7 +272,7 @@ static struct pci_driver nicstar_driver = {
 	.name = "nicstar",
 	.id_table = nicstar_pci_tbl,
 	.probe = nicstar_init_one,
-	.remove = __devexit_p(nicstar_remove_one),
+	.remove = nicstar_remove_one,
 };
 
 static int __init nicstar_init(void)
@@ -351,7 +350,7 @@ static void ns_write_sram(ns_dev * card, u32 sram_address, u32 * value,
 	spin_unlock_irqrestore(&card->res_lock, flags);
 }
 
-static int __devinit ns_init_card(int i, struct pci_dev *pcidev)
+static int ns_init_card(int i, struct pci_dev *pcidev)
 {
 	int j;
 	struct ns_dev *card = NULL;
@@ -821,7 +820,7 @@ static int __devinit ns_init_card(int i, struct pci_dev *pcidev)
 	return error;
 }
 
-static void __devinit ns_init_card_error(ns_dev * card, int error)
+static void ns_init_card_error(ns_dev *card, int error)
 {
 	if (error >= 17) {
 		writel(0x00000000, card->membase + CFG);
@@ -950,11 +949,10 @@ static void free_scq(ns_dev *card, scq_info *scq, struct atm_vcc *vcc)
 static void push_rxbufs(ns_dev * card, struct sk_buff *skb)
 {
 	struct sk_buff *handle1, *handle2;
-	u32 id1 = 0, id2 = 0;
+	int id1, id2;
 	u32 addr1, addr2;
 	u32 stat;
 	unsigned long flags;
-	int err;
 
 	/* *BARF* */
 	handle2 = NULL;
@@ -1027,23 +1025,12 @@ static void push_rxbufs(ns_dev * card, struct sk_buff *skb)
 				card->lbfqc += 2;
 		}
 
-		do {
-			if (!idr_pre_get(&card->idr, GFP_ATOMIC)) {
-				printk(KERN_ERR
-				       "nicstar%d: no free memory for idr\n",
-				       card->index);
-				goto out;
-			}
+		id1 = idr_alloc(&card->idr, handle1, 0, 0, GFP_ATOMIC);
+		if (id1 < 0)
+			goto out;
 
-			if (!id1)
-				err = idr_get_new_above(&card->idr, handle1, 0, &id1);
-
-			if (!id2 && err == 0)
-				err = idr_get_new_above(&card->idr, handle2, 0, &id2);
-
-		} while (err == -EAGAIN);
-
-		if (err)
+		id2 = idr_alloc(&card->idr, handle2, 0, 0, GFP_ATOMIC);
+		if (id2 < 0)
 			goto out;
 
 		spin_lock_irqsave(&card->res_lock, flags);

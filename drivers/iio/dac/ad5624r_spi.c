@@ -220,7 +220,7 @@ static const struct ad5624r_chip_info ad5624r_chip_info_tbl[] = {
 	},
 };
 
-static int __devinit ad5624r_probe(struct spi_device *spi)
+static int ad5624r_probe(struct spi_device *spi)
 {
 	struct ad5624r_state *st;
 	struct iio_dev *indio_dev;
@@ -238,7 +238,11 @@ static int __devinit ad5624r_probe(struct spi_device *spi)
 		if (ret)
 			goto error_put_reg;
 
-		voltage_uv = regulator_get_voltage(st->reg);
+		ret = regulator_get_voltage(st->reg);
+		if (ret < 0)
+			goto error_disable_reg;
+
+		voltage_uv = ret;
 	}
 
 	spi_set_drvdata(spi, indio_dev);
@@ -282,7 +286,7 @@ error_ret:
 	return ret;
 }
 
-static int __devexit ad5624r_remove(struct spi_device *spi)
+static int ad5624r_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad5624r_state *st = iio_priv(indio_dev);
@@ -314,7 +318,7 @@ static struct spi_driver ad5624r_driver = {
 		   .owner = THIS_MODULE,
 		   },
 	.probe = ad5624r_probe,
-	.remove = __devexit_p(ad5624r_remove),
+	.remove = ad5624r_remove,
 	.id_table = ad5624r_id,
 };
 module_spi_driver(ad5624r_driver);

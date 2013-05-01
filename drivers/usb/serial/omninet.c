@@ -23,10 +23,6 @@
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 
-/*
- * Version Information
- */
-#define DRIVER_VERSION "v1.1"
 #define DRIVER_AUTHOR "Alessandro Zummo"
 #define DRIVER_DESC "USB ZyXEL omni.net LCD PLUS Driver"
 
@@ -178,13 +174,9 @@ static void omninet_read_bulk_callback(struct urb *urb)
 	}
 
 	if (urb->actual_length && header->oh_len) {
-		struct tty_struct *tty = tty_port_tty_get(&port->port);
-		if (tty) {
-			tty_insert_flip_string(tty, data + OMNINET_DATAOFFSET,
-							header->oh_len);
-			tty_flip_buffer_push(tty);
-			tty_kref_put(tty);
-		}
+		tty_insert_flip_string(&port->port, data + OMNINET_DATAOFFSET,
+				header->oh_len);
+		tty_flip_buffer_push(&port->port);
 	}
 
 	/* Continue trying to always read  */

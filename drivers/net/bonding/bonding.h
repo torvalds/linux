@@ -22,6 +22,7 @@
 #include <linux/in6.h>
 #include <linux/netpoll.h>
 #include <linux/inetdevice.h>
+#include <linux/etherdevice.h>
 #include "bond_3ad.h"
 #include "bond_alb.h"
 
@@ -244,9 +245,10 @@ struct bonding {
 	struct   delayed_work ad_work;
 	struct   delayed_work mcast_work;
 #ifdef CONFIG_DEBUG_FS
-	/* debugging suport via debugfs */
+	/* debugging support via debugfs */
 	struct	 dentry *debug_dir;
 #endif /* CONFIG_DEBUG_FS */
+	bool	dev_addr_from_first;
 };
 
 static inline bool bond_vlan_used(struct bonding *bond)
@@ -256,6 +258,9 @@ static inline bool bond_vlan_used(struct bonding *bond)
 
 #define bond_slave_get_rcu(dev) \
 	((struct slave *) rcu_dereference(dev->rx_handler_data))
+
+#define bond_slave_get_rtnl(dev) \
+	((struct slave *) rtnl_dereference(dev->rx_handler_data))
 
 /**
  * Returns NULL if the net_device does not belong to any of the bond's slaves
@@ -279,11 +284,9 @@ static inline struct slave *bond_get_slave_by_dev(struct bonding *bond,
 
 static inline struct bonding *bond_get_bond_by_slave(struct slave *slave)
 {
-	if (!slave || !slave->dev->master) {
+	if (!slave || !slave->bond)
 		return NULL;
-	}
-
-	return netdev_priv(slave->dev->master);
+	return slave->bond;
 }
 
 static inline bool bond_is_lb(const struct bonding *bond)
@@ -359,10 +362,9 @@ static inline void bond_netpoll_send_skb(const struct slave *slave,
 
 static inline void bond_set_slave_inactive_flags(struct slave *slave)
 {
-	struct bonding *bond = netdev_priv(slave->dev->master);
-	if (!bond_is_lb(bond))
+	if (!bond_is_lb(slave->bond))
 		bond_set_backup_slave(slave);
-	if (!bond->params.all_slaves_active)
+	if (!slave->bond->params.all_slaves_active)
 		slave->inactive = 1;
 }
 
@@ -450,6 +452,18 @@ static inline void bond_destroy_proc_dir(struct bond_net *bn)
 }
 #endif
 
+static inline struct slave *bond_slave_has_mac(struct bonding *bond,
+					       const u8 *mac)
+{
+	int i = 0;
+	struct slave *tmp;
+
+	bond_for_each_slave(bond, tmp, i)
+		if (ether_addr_equal_64bits(mac, tmp->dev->dev_addr))
+			return tmp;
+
+	return NULL;
+}
 
 /* exported from bond_main.c */
 extern int bond_net_id;

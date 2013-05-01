@@ -52,13 +52,11 @@ You should also find the complete GPL in the COPYING file accompanying this sour
   +-----------------------------------------------------------------------+
 */
 
-/*
-+----------------------------------------------------------------------------+
-|                               Included files                               |
-+----------------------------------------------------------------------------+
-*/
+#define APCI1710_TTL_INIT		0
+#define APCI1710_TTL_INITDIRECTION	1
 
-#include "APCI1710_Ttl.h"
+#define APCI1710_TTL_READCHANNEL	0
+#define APCI1710_TTL_READPORT		1
 
 /*
 +----------------------------------------------------------------------------+
@@ -100,9 +98,12 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI1710_InsnConfigInitTTLIO(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int i_APCI1710_InsnConfigInitTTLIO(struct comedi_device *dev,
+					  struct comedi_subdevice *s,
+					  struct comedi_insn *insn,
+					  unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_ReturnValue = 0;
 	unsigned char b_ModulNbr;
 	unsigned char b_InitType;
@@ -406,9 +407,12 @@ APCI1710_TTL_READCHANNEL
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI1710_InsnBitsReadTTLIO(struct comedi_device *dev, struct comedi_subdevice *s,
-	struct comedi_insn *insn, unsigned int *data)
+static int i_APCI1710_InsnBitsReadTTLIO(struct comedi_device *dev,
+					struct comedi_subdevice *s,
+					struct comedi_insn *insn,
+					unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_ReturnValue = 0;
 	unsigned int dw_StatusReg;
 	unsigned char b_ModulNbr;
@@ -655,9 +659,12 @@ int i_APCI1710_InsnBitsReadTTLIO(struct comedi_device *dev, struct comedi_subdev
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI1710_InsnReadTTLIOAllPortValue(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
+static int i_APCI1710_InsnReadTTLIOAllPortValue(struct comedi_device *dev,
+						struct comedi_subdevice *s,
+						struct comedi_insn *insn,
+						unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_ReturnValue = 0;
 	unsigned int dw_StatusReg;
 	unsigned char b_ModulNbr;
@@ -825,9 +832,12 @@ int i_APCI1710_InsnWriteSetTTLIOChlOnOff(struct comedi_device *dev,struct comedi
 +----------------------------------------------------------------------------+
 */
 
-int i_APCI1710_InsnWriteSetTTLIOChlOnOff(struct comedi_device *dev,
-	struct comedi_subdevice *s, struct comedi_insn *insn, unsigned int *data)
+static int i_APCI1710_InsnWriteSetTTLIOChlOnOff(struct comedi_device *dev,
+						struct comedi_subdevice *s,
+						struct comedi_insn *insn,
+						unsigned int *data)
 {
+	struct addi_private *devpriv = dev->private;
 	int i_ReturnValue = 0;
 	unsigned int dw_StatusReg = 0;
 	unsigned char b_ModulNbr;

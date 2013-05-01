@@ -197,7 +197,6 @@ error_0:
 EXPORT_SYMBOL_GPL(nfs_alloc_client);
 
 #if IS_ENABLED(CONFIG_NFS_V4)
-/* idr_remove_all is not needed as all id's are removed by nfs_put_client */
 void nfs_cleanup_cb_ident_idr(struct net *net)
 {
 	struct nfs_net *nn = net_generic(net, nfs_net_id);
@@ -277,7 +276,7 @@ void nfs_put_client(struct nfs_client *clp)
 		nfs_cb_idr_remove_locked(clp);
 		spin_unlock(&nn->nfs_client_lock);
 
-		BUG_ON(!list_empty(&clp->cl_superblocks));
+		WARN_ON_ONCE(!list_empty(&clp->cl_superblocks));
 
 		clp->rpc_ops->free_client(clp);
 	}
@@ -615,8 +614,7 @@ EXPORT_SYMBOL_GPL(nfs_create_rpc_client);
  */
 static void nfs_destroy_server(struct nfs_server *server)
 {
-	if (!(server->flags & NFS_MOUNT_LOCAL_FLOCK) ||
-			!(server->flags & NFS_MOUNT_LOCAL_FCNTL))
+	if (server->nlm_host)
 		nlmclnt_done(server->nlm_host);
 }
 
@@ -1060,10 +1058,6 @@ struct nfs_server *nfs_create_server(struct nfs_mount_info *mount_info,
 	error = nfs_init_server(server, mount_info->parsed, nfs_mod);
 	if (error < 0)
 		goto error;
-
-	BUG_ON(!server->nfs_client);
-	BUG_ON(!server->nfs_client->rpc_ops);
-	BUG_ON(!server->nfs_client->rpc_ops->file_inode_ops);
 
 	/* Probe the root fh to retrieve its FSID */
 	error = nfs_probe_fsinfo(server, mount_info->mntfh, fattr);

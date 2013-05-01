@@ -64,7 +64,7 @@ void __init corenet_ds_setup_arch(void)
 	pr_info("%s board from Freescale Semiconductor\n", ppc_md.name);
 }
 
-static const struct of_device_id of_device_ids[] __devinitconst = {
+static const struct of_device_id of_device_ids[] = {
 	{
 		.compatible	= "simple-bus"
 	},

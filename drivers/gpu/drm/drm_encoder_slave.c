@@ -123,3 +123,66 @@ void drm_i2c_encoder_destroy(struct drm_encoder *drm_encoder)
 	module_put(module);
 }
 EXPORT_SYMBOL(drm_i2c_encoder_destroy);
+
+/*
+ * Wrapper fxns which can be plugged in to drm_encoder_helper_funcs:
+ */
+
+static inline struct drm_encoder_slave_funcs *
+get_slave_funcs(struct drm_encoder *enc)
+{
+	return to_encoder_slave(enc)->slave_funcs;
+}
+
+void drm_i2c_encoder_dpms(struct drm_encoder *encoder, int mode)
+{
+	get_slave_funcs(encoder)->dpms(encoder, mode);
+}
+EXPORT_SYMBOL(drm_i2c_encoder_dpms);
+
+bool drm_i2c_encoder_mode_fixup(struct drm_encoder *encoder,
+		const struct drm_display_mode *mode,
+		struct drm_display_mode *adjusted_mode)
+{
+	return get_slave_funcs(encoder)->mode_fixup(encoder, mode, adjusted_mode);
+}
+EXPORT_SYMBOL(drm_i2c_encoder_mode_fixup);
+
+void drm_i2c_encoder_prepare(struct drm_encoder *encoder)
+{
+	drm_i2c_encoder_dpms(encoder, DRM_MODE_DPMS_OFF);
+}
+EXPORT_SYMBOL(drm_i2c_encoder_prepare);
+
+void drm_i2c_encoder_commit(struct drm_encoder *encoder)
+{
+	drm_i2c_encoder_dpms(encoder, DRM_MODE_DPMS_ON);
+}
+EXPORT_SYMBOL(drm_i2c_encoder_commit);
+
+void drm_i2c_encoder_mode_set(struct drm_encoder *encoder,
+		struct drm_display_mode *mode,
+		struct drm_display_mode *adjusted_mode)
+{
+	get_slave_funcs(encoder)->mode_set(encoder, mode, adjusted_mode);
+}
+EXPORT_SYMBOL(drm_i2c_encoder_mode_set);
+
+enum drm_connector_status drm_i2c_encoder_detect(struct drm_encoder *encoder,
+	    struct drm_connector *connector)
+{
+	return get_slave_funcs(encoder)->detect(encoder, connector);
+}
+EXPORT_SYMBOL(drm_i2c_encoder_detect);
+
+void drm_i2c_encoder_save(struct drm_encoder *encoder)
+{
+	get_slave_funcs(encoder)->save(encoder);
+}
+EXPORT_SYMBOL(drm_i2c_encoder_save);
+
+void drm_i2c_encoder_restore(struct drm_encoder *encoder)
+{
+	get_slave_funcs(encoder)->restore(encoder);
+}
+EXPORT_SYMBOL(drm_i2c_encoder_restore);

@@ -207,7 +207,7 @@ static u32 i2c_dw_get_clk_rate_khz(struct dw_i2c_dev *dev)
 	return dev->controller->clk_khz;
 }
 
-static int __devinit i2c_dw_pci_probe(struct pci_dev *pdev,
+static int i2c_dw_pci_probe(struct pci_dev *pdev,
 const struct pci_device_id *id)
 {
 	struct dw_i2c_dev *dev;
@@ -319,7 +319,6 @@ err_free_irq:
 	free_irq(pdev->irq, dev);
 err_iounmap:
 	iounmap(dev->base);
-	pci_set_drvdata(pdev, NULL);
 	put_device(&pdev->dev);
 	kfree(dev);
 err_release_region:
@@ -328,7 +327,7 @@ exit:
 	return r;
 }
 
-static void __devexit i2c_dw_pci_remove(struct pci_dev *pdev)
+static void i2c_dw_pci_remove(struct pci_dev *pdev)
 {
 	struct dw_i2c_dev *dev = pci_get_drvdata(pdev);
 
@@ -336,7 +335,6 @@ static void __devexit i2c_dw_pci_remove(struct pci_dev *pdev)
 	pm_runtime_forbid(&pdev->dev);
 	pm_runtime_get_noresume(&pdev->dev);
 
-	pci_set_drvdata(pdev, NULL);
 	i2c_del_adapter(&dev->adapter);
 	put_device(&pdev->dev);
 
@@ -368,7 +366,7 @@ static struct pci_driver dw_i2c_driver = {
 	.name		= DRIVER_NAME,
 	.id_table	= i2_designware_pci_ids,
 	.probe		= i2c_dw_pci_probe,
-	.remove		= __devexit_p(i2c_dw_pci_remove),
+	.remove		= i2c_dw_pci_remove,
 	.driver         = {
 		.pm     = &i2c_dw_pm_ops,
 	},

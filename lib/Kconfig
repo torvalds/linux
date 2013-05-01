@@ -42,6 +42,9 @@ config GENERIC_IO
 config STMP_DEVICE
 	bool
 
+config PERCPU_RWSEM
+	boolean
+
 config CRC_CCITT
 	tristate "CRC-CCITT functions"
 	help
@@ -319,7 +322,7 @@ config CPUMASK_OFFSTACK
 
 config DISABLE_OBSOLETE_CPUMASK_FUNCTIONS
        bool "Disable obsolete cpumask functions" if DEBUG_PER_CPU_MAPS
-       depends on EXPERIMENTAL && BROKEN
+       depends on BROKEN
 
 config CPU_RMAP
 	bool

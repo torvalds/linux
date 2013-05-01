@@ -426,7 +426,7 @@ static struct snd_kcontrol_new snd_ak4113_iec958_controls[] = {
 },
 {
 	.iface =	SNDRV_CTL_ELEM_IFACE_PCM,
-	.name =		"IEC958 Preample Capture Default",
+	.name =		"IEC958 Preamble Capture Default",
 	.access =	SNDRV_CTL_ELEM_ACCESS_READ |
 		SNDRV_CTL_ELEM_ACCESS_VOLATILE,
 	.info =		snd_ak4113_spdif_pinfo,

@@ -1524,7 +1524,7 @@ static int qib_assign_ctxt(struct file *fp, const struct qib_user_info *uinfo)
 		}
 	}
 
-	i_minor = iminor(fp->f_dentry->d_inode) - QIB_USER_MINOR_BASE;
+	i_minor = iminor(file_inode(fp)) - QIB_USER_MINOR_BASE;
 	if (i_minor)
 		ret = find_free_ctxt(i_minor - 1, fp, uinfo);
 	else

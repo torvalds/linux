@@ -78,7 +78,7 @@ struct stk1160_buffer *stk1160_next_buffer(struct stk1160 *dev)
 	unsigned long flags = 0;
 
 	/* Current buffer must be NULL when this functions gets called */
-	BUG_ON(dev->isoc_ctl.buf);
+	WARN_ON(dev->isoc_ctl.buf);
 
 	spin_lock_irqsave(&dev->buf_lock, flags);
 	if (!list_empty(&dev->avail_bufs)) {
@@ -101,7 +101,7 @@ void stk1160_buffer_done(struct stk1160 *dev)
 	buf->vb.v4l2_buf.sequence = dev->field_count >> 1;
 	buf->vb.v4l2_buf.field = V4L2_FIELD_INTERLACED;
 	buf->vb.v4l2_buf.bytesused = buf->bytesused;
-	do_gettimeofday(&buf->vb.v4l2_buf.timestamp);
+	v4l2_get_timestamp(&buf->vb.v4l2_buf.timestamp);
 
 	vb2_set_plane_payload(&buf->vb, 0, buf->bytesused);
 	vb2_buffer_done(&buf->vb, VB2_BUF_STATE_DONE);
@@ -475,7 +475,11 @@ int stk1160_alloc_isoc(struct stk1160 *dev)
 		if (!dev->isoc_ctl.transfer_buffer[i]) {
 			stk1160_err("cannot alloc %d bytes for tx[%d] buffer\n",
 				sb_size, i);
-			goto free_i_bufs;
+
+			/* Not enough transfer buffers, so just give up */
+			if (i < STK1160_MIN_BUFS)
+				goto free_i_bufs;
+			goto nomore_tx_bufs;
 		}
 		memset(dev->isoc_ctl.transfer_buffer[i], 0, sb_size);
 
@@ -506,10 +510,25 @@ int stk1160_alloc_isoc(struct stk1160 *dev)
 		}
 	}
 
-	stk1160_dbg("urbs allocated\n");
+	stk1160_dbg("%d urbs allocated\n", num_bufs);
 
 	/* At last we can say we have some buffers */
 	dev->isoc_ctl.num_bufs = num_bufs;
+
+	return 0;
+
+nomore_tx_bufs:
+	/*
+	 * Failed to allocate desired buffer count. However, we may have
+	 * enough to work fine, so we just free the extra urb,
+	 * store the allocated count and keep going, fingers crossed!
+	 */
+	usb_free_urb(dev->isoc_ctl.urb[i]);
+	dev->isoc_ctl.urb[i] = NULL;
+
+	stk1160_warn("%d urbs allocated. Trying to continue...\n", i - 1);
+
+	dev->isoc_ctl.num_bufs = i - 1;
 
 	return 0;
 

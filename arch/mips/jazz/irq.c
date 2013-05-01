@@ -111,7 +111,7 @@ asmlinkage void plat_irq_dispatch(void)
 }
 
 static void r4030_set_mode(enum clock_event_mode mode,
-                           struct clock_event_device *evt)
+			   struct clock_event_device *evt)
 {
 	/* Nothing to do ...  */
 }
@@ -146,7 +146,7 @@ void __init plat_time_init(void)
 
 	BUG_ON(HZ != 100);
 
-	cd->cpumask             = cpumask_of(cpu);
+	cd->cpumask		= cpumask_of(cpu);
 	clockevents_register_device(cd);
 	action->dev_id = cd;
 	setup_irq(JAZZ_TIMER_IRQ, action);

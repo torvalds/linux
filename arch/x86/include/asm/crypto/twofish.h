@@ -31,9 +31,9 @@ asmlinkage void twofish_dec_blk_3way(struct twofish_ctx *ctx, u8 *dst,
 /* helpers from twofish_x86_64-3way module */
 extern void twofish_dec_blk_cbc_3way(void *ctx, u128 *dst, const u128 *src);
 extern void twofish_enc_blk_ctr(void *ctx, u128 *dst, const u128 *src,
-				u128 *iv);
+				le128 *iv);
 extern void twofish_enc_blk_ctr_3way(void *ctx, u128 *dst, const u128 *src,
-				     u128 *iv);
+				     le128 *iv);
 
 extern int lrw_twofish_setkey(struct crypto_tfm *tfm, const u8 *key,
 			      unsigned int keylen);

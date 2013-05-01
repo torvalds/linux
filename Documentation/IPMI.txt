@@ -348,33 +348,39 @@ You can change this at module load time (for a module) with:
 
   modprobe ipmi_si.o type=<type1>,<type2>....
        ports=<port1>,<port2>... addrs=<addr1>,<addr2>...
-       irqs=<irq1>,<irq2>... trydefaults=[0|1]
+       irqs=<irq1>,<irq2>...
        regspacings=<sp1>,<sp2>,... regsizes=<size1>,<size2>,...
        regshifts=<shift1>,<shift2>,...
        slave_addrs=<addr1>,<addr2>,...
        force_kipmid=<enable1>,<enable2>,...
        kipmid_max_busy_us=<ustime1>,<ustime2>,...
        unload_when_empty=[0|1]
+       trydefaults=[0|1] trydmi=[0|1] tryacpi=[0|1]
+       tryplatform=[0|1] trypci=[0|1]
 
-Each of these except si_trydefaults is a list, the first item for the
+Each of these except try... items is a list, the first item for the
 first interface, second item for the second interface, etc.
 
 The si_type may be either "kcs", "smic", or "bt".  If you leave it blank, it
 defaults to "kcs".
 
-If you specify si_addrs as non-zero for an interface, the driver will
+If you specify addrs as non-zero for an interface, the driver will
 use the memory address given as the address of the device.  This
 overrides si_ports.
 
-If you specify si_ports as non-zero for an interface, the driver will
+If you specify ports as non-zero for an interface, the driver will
 use the I/O port given as the device address.
 
-If you specify si_irqs as non-zero for an interface, the driver will
+If you specify irqs as non-zero for an interface, the driver will
 attempt to use the given interrupt for the device.
 
-si_trydefaults sets whether the standard IPMI interface at 0xca2 and
+trydefaults sets whether the standard IPMI interface at 0xca2 and
 any interfaces specified by ACPE are tried.  By default, the driver
 tries it, set this value to zero to turn this off.
+
+The other try... items disable discovery by their corresponding
+names.  These are all enabled by default, set them to zero to disable
+them.  The tryplatform disables openfirmware.
 
 The next three parameters have to do with register layout.  The
 registers used by the interfaces may not appear at successive

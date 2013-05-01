@@ -15,23 +15,20 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 
-#include <mach/board.h>
-#include <mach/at91_aic.h>
-
 #include <asm/setup.h>
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
+#include "at91_aic.h"
+#include "board.h"
 #include "generic.h"
 
 
 static const struct of_device_id irq_of_match[] __initconst = {
 
 	{ .compatible = "atmel,at91rm9200-aic", .data = at91_aic_of_init },
-	{ .compatible = "atmel,at91rm9200-gpio", .data = at91_gpio_of_irq_setup },
-	{ .compatible = "atmel,at91sam9x5-gpio", .data = at91_gpio_of_irq_setup },
 	{ /*sentinel*/ }
 };
 
@@ -52,7 +49,7 @@ static const char *at91_dt_board_compat[] __initdata = {
 
 DT_MACHINE_START(at91sam_dt, "Atmel AT91SAM (Device Tree)")
 	/* Maintainer: Atmel */
-	.timer		= &at91sam926x_timer,
+	.init_time	= at91sam926x_pit_init,
 	.map_io		= at91_map_io,
 	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= at91_dt_initialize,

@@ -2963,7 +2963,7 @@ static void send_association_request(struct atmel_private *priv, int is_reassoc)
 	ssid_el_p[1] = priv->SSID_size;
 	memcpy(ssid_el_p + 2, priv->SSID, priv->SSID_size);
 	ssid_el_p[2 + priv->SSID_size] = WLAN_EID_SUPP_RATES;
-	ssid_el_p[3 + priv->SSID_size] = 4; /* len of suported rates */
+	ssid_el_p[3 + priv->SSID_size] = 4; /* len of supported rates */
 	memcpy(ssid_el_p + 4 + priv->SSID_size, atmel_basic_rates, 4);
 
 	atmel_transmit_management_frame(priv, &header, (void *)&body, bodysize);

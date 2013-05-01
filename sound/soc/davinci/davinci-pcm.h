@@ -12,6 +12,7 @@
 #ifndef _DAVINCI_PCM_H
 #define _DAVINCI_PCM_H
 
+#include <linux/genalloc.h>
 #include <linux/platform_data/davinci_asp.h>
 #include <mach/edma.h>
 
@@ -20,6 +21,7 @@ struct davinci_pcm_dma_params {
 	unsigned short acnt;
 	dma_addr_t dma_addr;		/* device physical address for DMA */
 	unsigned sram_size;
+	struct gen_pool *sram_pool;	/* SRAM gen_pool for ping pong */
 	enum dma_event_q asp_chan_q;	/* event queue number for ASP channel */
 	enum dma_event_q ram_chan_q;	/* event queue number for RAM channel */
 	unsigned char data_type;	/* xfer data type */

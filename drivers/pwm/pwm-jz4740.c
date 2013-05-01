@@ -162,7 +162,7 @@ static const struct pwm_ops jz4740_pwm_ops = {
 	.owner = THIS_MODULE,
 };
 
-static int __devinit jz4740_pwm_probe(struct platform_device *pdev)
+static int jz4740_pwm_probe(struct platform_device *pdev)
 {
 	struct jz4740_pwm_chip *jz4740;
 	int ret;
@@ -191,7 +191,7 @@ static int __devinit jz4740_pwm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit jz4740_pwm_remove(struct platform_device *pdev)
+static int jz4740_pwm_remove(struct platform_device *pdev)
 {
 	struct jz4740_pwm_chip *jz4740 = platform_get_drvdata(pdev);
 	int ret;
@@ -211,7 +211,7 @@ static struct platform_driver jz4740_pwm_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = jz4740_pwm_probe,
-	.remove = __devexit_p(jz4740_pwm_remove),
+	.remove = jz4740_pwm_remove,
 };
 module_platform_driver(jz4740_pwm_driver);
 

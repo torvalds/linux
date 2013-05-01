@@ -830,6 +830,8 @@ static const char *section_white_list[] =
 	".toc*",
 	".xt.prop",				 /* xtensa */
 	".xt.lit",         /* xtensa */
+	".arcextmap*",			/* arc */
+	".gnu.linkonce.arcext*",	/* arc : modules */
 	NULL
 };
 
@@ -858,25 +860,23 @@ static void check_section(const char *modname, struct elf_info *elf,
 
 #define ALL_INIT_DATA_SECTIONS \
 	".init.setup$", ".init.rodata$", \
-	".devinit.rodata$", ".cpuinit.rodata$", ".meminit.rodata$", \
-	".init.data$", ".devinit.data$", ".cpuinit.data$", ".meminit.data$"
+	".cpuinit.rodata$", ".meminit.rodata$", \
+	".init.data$", ".cpuinit.data$", ".meminit.data$"
 #define ALL_EXIT_DATA_SECTIONS \
-	".exit.data$", ".devexit.data$", ".cpuexit.data$", ".memexit.data$"
+	".exit.data$", ".cpuexit.data$", ".memexit.data$"
 
 #define ALL_INIT_TEXT_SECTIONS \
-	".init.text$", ".devinit.text$", ".cpuinit.text$", ".meminit.text$"
+	".init.text$", ".cpuinit.text$", ".meminit.text$"
 #define ALL_EXIT_TEXT_SECTIONS \
-	".exit.text$", ".devexit.text$", ".cpuexit.text$", ".memexit.text$"
+	".exit.text$", ".cpuexit.text$", ".memexit.text$"
 
 #define ALL_PCI_INIT_SECTIONS	\
 	".pci_fixup_early$", ".pci_fixup_header$", ".pci_fixup_final$", \
 	".pci_fixup_enable$", ".pci_fixup_resume$", \
 	".pci_fixup_resume_early$", ".pci_fixup_suspend$"
 
-#define ALL_XXXINIT_SECTIONS DEV_INIT_SECTIONS, CPU_INIT_SECTIONS, \
-	MEM_INIT_SECTIONS
-#define ALL_XXXEXIT_SECTIONS DEV_EXIT_SECTIONS, CPU_EXIT_SECTIONS, \
-	MEM_EXIT_SECTIONS
+#define ALL_XXXINIT_SECTIONS CPU_INIT_SECTIONS, MEM_INIT_SECTIONS
+#define ALL_XXXEXIT_SECTIONS CPU_EXIT_SECTIONS, MEM_EXIT_SECTIONS
 
 #define ALL_INIT_SECTIONS INIT_SECTIONS, ALL_XXXINIT_SECTIONS
 #define ALL_EXIT_SECTIONS EXIT_SECTIONS, ALL_XXXEXIT_SECTIONS
@@ -885,12 +885,10 @@ static void check_section(const char *modname, struct elf_info *elf,
 #define TEXT_SECTIONS ".text$"
 
 #define INIT_SECTIONS      ".init.*"
-#define DEV_INIT_SECTIONS  ".devinit.*"
 #define CPU_INIT_SECTIONS  ".cpuinit.*"
 #define MEM_INIT_SECTIONS  ".meminit.*"
 
 #define EXIT_SECTIONS      ".exit.*"
-#define DEV_EXIT_SECTIONS  ".devexit.*"
 #define CPU_EXIT_SECTIONS  ".cpuexit.*"
 #define MEM_EXIT_SECTIONS  ".memexit.*"
 
@@ -979,7 +977,7 @@ const struct sectioncheck sectioncheck[] = {
 	.mismatch = DATA_TO_ANY_EXIT,
 	.symbol_white_list = { DEFAULT_SYMBOL_WHITE_LIST, NULL },
 },
-/* Do not reference init code/data from devinit/cpuinit/meminit code/data */
+/* Do not reference init code/data from cpuinit/meminit code/data */
 {
 	.fromsec = { ALL_XXXINIT_SECTIONS, NULL },
 	.tosec   = { INIT_SECTIONS, NULL },
@@ -1000,7 +998,7 @@ const struct sectioncheck sectioncheck[] = {
 	.mismatch = XXXINIT_TO_SOME_INIT,
 	.symbol_white_list = { DEFAULT_SYMBOL_WHITE_LIST, NULL },
 },
-/* Do not reference exit code/data from devexit/cpuexit/memexit code/data */
+/* Do not reference exit code/data from cpuexit/memexit code/data */
 {
 	.fromsec = { ALL_XXXEXIT_SECTIONS, NULL },
 	.tosec   = { EXIT_SECTIONS, NULL },
@@ -1089,7 +1087,7 @@ static const struct sectioncheck *section_mismatch(
  * Pattern 2:
  *   Many drivers utilise a *driver container with references to
  *   add, remove, probe functions etc.
- *   These functions may often be marked __devinit and we do not want to
+ *   These functions may often be marked __cpuinit and we do not want to
  *   warn here.
  *   the pattern is identified by:
  *   tosec   = init or exit section
@@ -2130,7 +2128,7 @@ int main(int argc, char **argv)
 	struct ext_sym_list *extsym_iter;
 	struct ext_sym_list *extsym_start = NULL;
 
-	while ((opt = getopt(argc, argv, "i:I:e:cmsSo:awM:K:")) != -1) {
+	while ((opt = getopt(argc, argv, "i:I:e:msSo:awM:K:")) != -1) {
 		switch (opt) {
 		case 'i':
 			kernel_read = optarg;
@@ -2138,9 +2136,6 @@ int main(int argc, char **argv)
 		case 'I':
 			module_read = optarg;
 			external_module = 1;
-			break;
-		case 'c':
-			cross_build = 1;
 			break;
 		case 'e':
 			external_module = 1;

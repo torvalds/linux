@@ -199,4 +199,13 @@ int sh_clk_div6_reparent_register(struct clk *clks, int nr);
 #define CLKDEV_DEV_ID(_id, _clk) { .dev_id = _id, .clk = _clk }
 #define CLKDEV_ICK_ID(_cid, _did, _clk) { .con_id = _cid, .dev_id = _did, .clk = _clk }
 
+/* .enable_reg will be updated to .mapping on sh_clk_fsidiv_register() */
+#define SH_CLK_FSIDIV(_reg, _parent)		\
+{						\
+	.enable_reg = (void __iomem *)_reg,	\
+	.parent		= _parent,		\
+}
+
+int sh_clk_fsidiv_register(struct clk *clks, int nr);
+
 #endif /* __SH_CLOCK_H */

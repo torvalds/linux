@@ -78,7 +78,7 @@ static struct spi_board_info ap81_spi_info[] = {
 
 static struct ath79_spi_platform_data ap81_spi_data = {
 	.bus_num	= 0,
-	.num_chipselect	= 1,
+	.num_chipselect = 1,
 };
 
 static void __init ap81_setup(void)

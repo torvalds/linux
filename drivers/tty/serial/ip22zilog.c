@@ -248,17 +248,12 @@ static void ip22zilog_maybe_update_regs(struct uart_ip22zilog_port *up,
 #define Rx_BRK 0x0100                   /* BREAK event software flag.  */
 #define Rx_SYS 0x0200                   /* SysRq event software flag.  */
 
-static struct tty_struct *ip22zilog_receive_chars(struct uart_ip22zilog_port *up,
+static bool ip22zilog_receive_chars(struct uart_ip22zilog_port *up,
 						  struct zilog_channel *channel)
 {
-	struct tty_struct *tty;
 	unsigned char ch, flag;
 	unsigned int r1;
-
-	tty = NULL;
-	if (up->port.state != NULL &&
-	    up->port.state->port.tty != NULL)
-		tty = up->port.state->port.tty;
+	bool push = up->port.state != NULL;
 
 	for (;;) {
 		ch = readb(&channel->control);
@@ -312,10 +307,10 @@ static struct tty_struct *ip22zilog_receive_chars(struct uart_ip22zilog_port *up
 		if (uart_handle_sysrq_char(&up->port, ch))
 			continue;
 
-		if (tty)
+		if (push)
 			uart_insert_char(&up->port, r1, Rx_OVR, ch, flag);
 	}
-	return tty;
+	return push;
 }
 
 static void ip22zilog_status_handle(struct uart_ip22zilog_port *up,
@@ -438,21 +433,20 @@ static irqreturn_t ip22zilog_interrupt(int irq, void *dev_id)
 	while (up) {
 		struct zilog_channel *channel
 			= ZILOG_CHANNEL_FROM_PORT(&up->port);
-		struct tty_struct *tty;
 		unsigned char r3;
+		bool push = false;
 
 		spin_lock(&up->port.lock);
 		r3 = read_zsreg(channel, R3);
 
 		/* Channel A */
-		tty = NULL;
 		if (r3 & (CHAEXT | CHATxIP | CHARxIP)) {
 			writeb(RES_H_IUS, &channel->control);
 			ZSDELAY();
 			ZS_WSYNC(channel);
 
 			if (r3 & CHARxIP)
-				tty = ip22zilog_receive_chars(up, channel);
+				push = ip22zilog_receive_chars(up, channel);
 			if (r3 & CHAEXT)
 				ip22zilog_status_handle(up, channel);
 			if (r3 & CHATxIP)
@@ -460,22 +454,22 @@ static irqreturn_t ip22zilog_interrupt(int irq, void *dev_id)
 		}
 		spin_unlock(&up->port.lock);
 
-		if (tty)
-			tty_flip_buffer_push(tty);
+		if (push)
+			tty_flip_buffer_push(&up->port.state->port);
 
 		/* Channel B */
 		up = up->next;
 		channel = ZILOG_CHANNEL_FROM_PORT(&up->port);
+		push = false;
 
 		spin_lock(&up->port.lock);
-		tty = NULL;
 		if (r3 & (CHBEXT | CHBTxIP | CHBRxIP)) {
 			writeb(RES_H_IUS, &channel->control);
 			ZSDELAY();
 			ZS_WSYNC(channel);
 
 			if (r3 & CHBRxIP)
-				tty = ip22zilog_receive_chars(up, channel);
+				push = ip22zilog_receive_chars(up, channel);
 			if (r3 & CHBEXT)
 				ip22zilog_status_handle(up, channel);
 			if (r3 & CHBTxIP)
@@ -483,8 +477,8 @@ static irqreturn_t ip22zilog_interrupt(int irq, void *dev_id)
 		}
 		spin_unlock(&up->port.lock);
 
-		if (tty)
-			tty_flip_buffer_push(tty);
+		if (push)
+			tty_flip_buffer_push(&up->port.state->port);
 
 		up = up->next;
 	}

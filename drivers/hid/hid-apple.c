@@ -439,7 +439,8 @@ static const struct hid_device_id apple_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER4_HF_ANSI),
 		.driver_data = APPLE_NUMLOCK_EMULATION | APPLE_HAS_FN },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER4_HF_ISO),
-		.driver_data = APPLE_NUMLOCK_EMULATION | APPLE_HAS_FN },
+		.driver_data = APPLE_NUMLOCK_EMULATION | APPLE_HAS_FN |
+			APPLE_ISO_KEYBOARD },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_APPLE, USB_DEVICE_ID_APPLE_GEYSER4_HF_JIS),
 		.driver_data = APPLE_NUMLOCK_EMULATION | APPLE_HAS_FN |
 			APPLE_RDESC_JIS },
@@ -554,23 +555,6 @@ static struct hid_driver apple_driver = {
 	.input_mapping = apple_input_mapping,
 	.input_mapped = apple_input_mapped,
 };
+module_hid_driver(apple_driver);
 
-static int __init apple_init(void)
-{
-	int ret;
-
-	ret = hid_register_driver(&apple_driver);
-	if (ret)
-		pr_err("can't register apple driver\n");
-
-	return ret;
-}
-
-static void __exit apple_exit(void)
-{
-	hid_unregister_driver(&apple_driver);
-}
-
-module_init(apple_init);
-module_exit(apple_exit);
 MODULE_LICENSE("GPL");

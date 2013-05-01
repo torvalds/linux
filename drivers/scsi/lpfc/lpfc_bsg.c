@@ -955,9 +955,9 @@ lpfc_bsg_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		spin_lock_irqsave(&phba->ct_ev_lock, flags);
 		if (phba->sli_rev == LPFC_SLI_REV4) {
 			evt_dat->immed_dat = phba->ctx_idx;
-			phba->ctx_idx = (phba->ctx_idx + 1) % 64;
+			phba->ctx_idx = (phba->ctx_idx + 1) % LPFC_CT_CTX_MAX;
 			/* Provide warning for over-run of the ct_ctx array */
-			if (phba->ct_ctx[evt_dat->immed_dat].flags &
+			if (phba->ct_ctx[evt_dat->immed_dat].valid ==
 			    UNSOL_VALID)
 				lpfc_printf_log(phba, KERN_WARNING, LOG_ELS,
 						"2717 CT context array entry "
@@ -973,7 +973,7 @@ lpfc_bsg_ct_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 				piocbq->iocb.unsli3.rcvsli3.ox_id;
 			phba->ct_ctx[evt_dat->immed_dat].SID =
 				piocbq->iocb.un.rcvels.remoteID;
-			phba->ct_ctx[evt_dat->immed_dat].flags = UNSOL_VALID;
+			phba->ct_ctx[evt_dat->immed_dat].valid = UNSOL_VALID;
 		} else
 			evt_dat->immed_dat = piocbq->iocb.ulpContext;
 
@@ -1010,6 +1010,47 @@ error_ct_unsol_exit:
 	    (evt_req_id == SLI_CT_ELX_LOOPBACK))
 		return 0;
 	return 1;
+}
+
+/**
+ * lpfc_bsg_ct_unsol_abort - handler ct abort to management plane
+ * @phba: Pointer to HBA context object.
+ * @dmabuf: pointer to a dmabuf that describes the FC sequence
+ *
+ * This function handles abort to the CT command toward management plane
+ * for SLI4 port.
+ *
+ * If the pending context of a CT command to management plane present, clears
+ * such context and returns 1 for handled; otherwise, it returns 0 indicating
+ * no context exists.
+ **/
+int
+lpfc_bsg_ct_unsol_abort(struct lpfc_hba *phba, struct hbq_dmabuf *dmabuf)
+{
+	struct fc_frame_header fc_hdr;
+	struct fc_frame_header *fc_hdr_ptr = &fc_hdr;
+	int ctx_idx, handled = 0;
+	uint16_t oxid, rxid;
+	uint32_t sid;
+
+	memcpy(fc_hdr_ptr, dmabuf->hbuf.virt, sizeof(struct fc_frame_header));
+	sid = sli4_sid_from_fc_hdr(fc_hdr_ptr);
+	oxid = be16_to_cpu(fc_hdr_ptr->fh_ox_id);
+	rxid = be16_to_cpu(fc_hdr_ptr->fh_rx_id);
+
+	for (ctx_idx = 0; ctx_idx < LPFC_CT_CTX_MAX; ctx_idx++) {
+		if (phba->ct_ctx[ctx_idx].valid != UNSOL_VALID)
+			continue;
+		if (phba->ct_ctx[ctx_idx].rxid != rxid)
+			continue;
+		if (phba->ct_ctx[ctx_idx].oxid != oxid)
+			continue;
+		if (phba->ct_ctx[ctx_idx].SID != sid)
+			continue;
+		phba->ct_ctx[ctx_idx].valid = UNSOL_INVALID;
+		handled = 1;
+	}
+	return handled;
 }
 
 /**
@@ -1318,7 +1359,7 @@ lpfc_issue_ct_rsp(struct lpfc_hba *phba, struct fc_bsg_job *job, uint32_t tag,
 	icmd->ulpClass = CLASS3;
 	if (phba->sli_rev == LPFC_SLI_REV4) {
 		/* Do not issue unsol response if oxid not marked as valid */
-		if (!(phba->ct_ctx[tag].flags & UNSOL_VALID)) {
+		if (phba->ct_ctx[tag].valid != UNSOL_VALID) {
 			rc = IOCB_ERROR;
 			goto issue_ct_rsp_exit;
 		}
@@ -1352,7 +1393,7 @@ lpfc_issue_ct_rsp(struct lpfc_hba *phba, struct fc_bsg_job *job, uint32_t tag,
 				phba->sli4_hba.rpi_ids[ndlp->nlp_rpi];
 
 		/* The exchange is done, mark the entry as invalid */
-		phba->ct_ctx[tag].flags &= ~UNSOL_VALID;
+		phba->ct_ctx[tag].valid = UNSOL_INVALID;
 	} else
 		icmd->ulpContext = (ushort) tag;
 

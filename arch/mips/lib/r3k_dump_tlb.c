@@ -30,7 +30,7 @@ static void dump_tlb(int first, int last)
 			"tlbr\n\t"
 			"nop\n\t"
 			".set\treorder");
-		entryhi  = read_c0_entryhi();
+		entryhi	 = read_c0_entryhi();
 		entrylo0 = read_c0_entrylo0();
 
 		/* Unused entries have a virtual address of KSEG0.  */

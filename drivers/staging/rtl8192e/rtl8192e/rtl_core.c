@@ -82,7 +82,7 @@ static struct rtl819x_ops rtl819xp_ops = {
 	.RxCheckStuckHandler		= rtl8192_HalRxCheckStuck,
 };
 
-static struct pci_device_id rtl8192_pci_id_tbl[] __devinitdata = {
+static struct pci_device_id rtl8192_pci_id_tbl[] = {
 	{RTL_PCI_DEVICE(0x10ec, 0x8192, rtl819xp_ops)},
 	{RTL_PCI_DEVICE(0x07aa, 0x0044, rtl819xp_ops)},
 	{RTL_PCI_DEVICE(0x07aa, 0x0047, rtl819xp_ops)},
@@ -91,15 +91,15 @@ static struct pci_device_id rtl8192_pci_id_tbl[] __devinitdata = {
 
 MODULE_DEVICE_TABLE(pci, rtl8192_pci_id_tbl);
 
-static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
+static int rtl8192_pci_probe(struct pci_dev *pdev,
 			const struct pci_device_id *id);
-static void __devexit rtl8192_pci_disconnect(struct pci_dev *pdev);
+static void rtl8192_pci_disconnect(struct pci_dev *pdev);
 
 static struct pci_driver rtl8192_pci_driver = {
 	.name = DRV_NAME,	/* Driver name   */
 	.id_table = rtl8192_pci_id_tbl,	/* PCI_ID table  */
 	.probe	= rtl8192_pci_probe,	/* probe fn      */
-	.remove	 = __devexit_p(rtl8192_pci_disconnect),	/* remove fn */
+	.remove	 = rtl8192_pci_disconnect,	/* remove fn */
 	.suspend = rtl8192E_suspend,	/* PM suspend fn */
 	.resume = rtl8192E_resume,                 /* PM resume fn  */
 };
@@ -2104,7 +2104,10 @@ static short rtl8192_alloc_rx_desc_ring(struct net_device *dev)
 						  skb_tail_pointer_rsl(skb),
 						  priv->rxbuffersize,
 						  PCI_DMA_FROMDEVICE);
-
+			if (pci_dma_mapping_error(priv->pdev, *mapping)) {
+				dev_kfree_skb_any(skb);
+				return -1;
+			}
 			entry->BufferAddress = cpu_to_le32(*mapping);
 
 			entry->Length = priv->rxbuffersize;
@@ -2397,7 +2400,11 @@ static void rtl8192_rx_normal(struct net_device *dev)
 						    skb_tail_pointer_rsl(skb),
 						    priv->rxbuffersize,
 						    PCI_DMA_FROMDEVICE);
-
+			if (pci_dma_mapping_error(priv->pdev,
+						  *((dma_addr_t *)skb->cb))) {
+				dev_kfree_skb_any(skb);
+				return;
+			}
 		}
 done:
 		pdesc->BufferAddress = cpu_to_le32(*((dma_addr_t *)skb->cb));
@@ -2846,7 +2853,7 @@ static const struct net_device_ops rtl8192_netdev_ops = {
 	.ndo_start_xmit = rtllib_xmit,
 };
 
-static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
+static int rtl8192_pci_probe(struct pci_dev *pdev,
 			const struct pci_device_id *id)
 {
 	unsigned long ioaddr = 0;
@@ -2955,7 +2962,8 @@ static int __devinit rtl8192_pci_probe(struct pci_dev *pdev,
 	netif_carrier_off(dev);
 	netif_stop_queue(dev);
 
-	register_netdev(dev);
+	if (register_netdev(dev))
+		goto err_free_irq;
 	RT_TRACE(COMP_INIT, "dev name: %s\n", dev->name);
 
 	rtl8192_proc_init_one(dev);
@@ -2981,7 +2989,7 @@ err_pci_disable:
 	return err;
 }
 
-static void __devexit rtl8192_pci_disconnect(struct pci_dev *pdev)
+static void rtl8192_pci_disconnect(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct r8192_priv *priv ;

@@ -28,9 +28,6 @@
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 
-
-/* Version Information */
-#define DRIVER_VERSION	"v0.10"
 #define DRIVER_DESC 	"SPCP8x5 USB to serial adaptor driver"
 
 #define SPCP8x5_007_VID		0x04FC
@@ -465,7 +462,6 @@ static void spcp8x5_process_read_urb(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	struct spcp8x5_private *priv = usb_get_serial_port_data(port);
-	struct tty_struct *tty;
 	unsigned char *data = urb->transfer_buffer;
 	unsigned long flags;
 	u8 status;
@@ -484,9 +480,6 @@ static void spcp8x5_process_read_urb(struct urb *urb)
 	if (!urb->actual_length)
 		return;
 
-	tty = tty_port_tty_get(&port->port);
-	if (!tty)
-		return;
 
 	if (status & UART_STATE_TRANSIENT_MASK) {
 		/* break takes precedence over parity, which takes precedence
@@ -501,17 +494,21 @@ static void spcp8x5_process_read_urb(struct urb *urb)
 
 		/* overrun is special, not associated with a char */
 		if (status & UART_OVERRUN_ERROR)
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+			tty_insert_flip_char(&port->port, 0, TTY_OVERRUN);
 
-		if (status & UART_DCD)
-			usb_serial_handle_dcd_change(port, tty,
-				   priv->line_status & MSR_STATUS_LINE_DCD);
+		if (status & UART_DCD) {
+			struct tty_struct *tty = tty_port_tty_get(&port->port);
+			if (tty) {
+				usb_serial_handle_dcd_change(port, tty,
+				       priv->line_status & MSR_STATUS_LINE_DCD);
+				tty_kref_put(tty);
+			}
+		}
 	}
 
-	tty_insert_flip_string_fixed_flag(tty, data, tty_flag,
+	tty_insert_flip_string_fixed_flag(&port->port, data, tty_flag,
 							urb->actual_length);
-	tty_flip_buffer_push(tty);
-	tty_kref_put(tty);
+	tty_flip_buffer_push(&port->port);
 }
 
 static int spcp8x5_wait_modem_info(struct usb_serial_port *port,
@@ -651,5 +648,4 @@ static struct usb_serial_driver * const serial_drivers[] = {
 module_usb_serial_driver(serial_drivers, id_table);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");

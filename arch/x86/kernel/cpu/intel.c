@@ -17,7 +17,6 @@
 
 #ifdef CONFIG_X86_64
 #include <linux/topology.h>
-#include <asm/numa_64.h>
 #endif
 
 #include "cpu.h"
@@ -168,7 +167,7 @@ int __cpuinit ppro_with_ram_bug(void)
 #ifdef CONFIG_X86_F00F_BUG
 static void __cpuinit trap_init_f00f_bug(void)
 {
-	__set_fixmap(FIX_F00F_IDT, __pa(&idt_table), PAGE_KERNEL_RO);
+	__set_fixmap(FIX_F00F_IDT, __pa_symbol(idt_table), PAGE_KERNEL_RO);
 
 	/*
 	 * Update the IDT descriptor and reload the IDT so that
@@ -612,10 +611,6 @@ static void __cpuinit intel_tlb_lookup(const unsigned char desc)
 
 static void __cpuinit intel_tlb_flushall_shift_set(struct cpuinfo_x86 *c)
 {
-	if (!cpu_has_invlpg) {
-		tlb_flushall_shift = -1;
-		return;
-	}
 	switch ((c->x86 << 8) + c->x86_model) {
 	case 0x60f: /* original 65 nm celeron/pentium/core2/xeon, "Merom"/"Conroe" */
 	case 0x616: /* single-core 65 nm celeron/core2solo "Merom-L"/"Conroe-L" */

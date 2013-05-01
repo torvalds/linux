@@ -406,7 +406,7 @@ static irqreturn_t mpc512x_psc_spi_isr(int irq, void *dev_id)
 }
 
 /* bus_num is used only for the case dev->platform_data == NULL */
-static int __devinit mpc512x_psc_spi_do_probe(struct device *dev, u32 regaddr,
+static int mpc512x_psc_spi_do_probe(struct device *dev, u32 regaddr,
 					      u32 size, unsigned int irq,
 					      s16 bus_num)
 {
@@ -438,6 +438,7 @@ static int __devinit mpc512x_psc_spi_do_probe(struct device *dev, u32 regaddr,
 		master->num_chipselect = pdata->max_chipselect;
 	}
 
+	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LSB_FIRST;
 	master->setup = mpc512x_psc_spi_setup;
 	master->transfer = mpc512x_psc_spi_transfer;
 	master->cleanup = mpc512x_psc_spi_cleanup;
@@ -492,7 +493,7 @@ free_master:
 	return ret;
 }
 
-static int __devexit mpc512x_psc_spi_do_remove(struct device *dev)
+static int mpc512x_psc_spi_do_remove(struct device *dev)
 {
 	struct spi_master *master = spi_master_get(dev_get_drvdata(dev));
 	struct mpc512x_psc_spi *mps = spi_master_get_devdata(master);
@@ -508,7 +509,7 @@ static int __devexit mpc512x_psc_spi_do_remove(struct device *dev)
 	return 0;
 }
 
-static int __devinit mpc512x_psc_spi_of_probe(struct platform_device *op)
+static int mpc512x_psc_spi_of_probe(struct platform_device *op)
 {
 	const u32 *regaddr_p;
 	u64 regaddr64, size64;
@@ -522,24 +523,18 @@ static int __devinit mpc512x_psc_spi_of_probe(struct platform_device *op)
 	regaddr64 = of_translate_address(op->dev.of_node, regaddr_p);
 
 	/* get PSC id (0..11, used by port_config) */
-	if (op->dev.platform_data == NULL) {
-		const u32 *psc_nump;
-
-		psc_nump = of_get_property(op->dev.of_node, "cell-index", NULL);
-		if (!psc_nump || *psc_nump > 11) {
-			dev_err(&op->dev, "mpc512x_psc_spi: Device node %s "
-				"has invalid cell-index property\n",
-				op->dev.of_node->full_name);
-			return -EINVAL;
-		}
-		id = *psc_nump;
+	id = of_alias_get_id(op->dev.of_node, "spi");
+	if (id < 0) {
+		dev_err(&op->dev, "no alias id for %s\n",
+			op->dev.of_node->full_name);
+		return id;
 	}
 
 	return mpc512x_psc_spi_do_probe(&op->dev, (u32) regaddr64, (u32) size64,
 				irq_of_parse_and_map(op->dev.of_node, 0), id);
 }
 
-static int __devexit mpc512x_psc_spi_of_remove(struct platform_device *op)
+static int mpc512x_psc_spi_of_remove(struct platform_device *op)
 {
 	return mpc512x_psc_spi_do_remove(&op->dev);
 }
@@ -553,7 +548,7 @@ MODULE_DEVICE_TABLE(of, mpc512x_psc_spi_of_match);
 
 static struct platform_driver mpc512x_psc_spi_of_driver = {
 	.probe = mpc512x_psc_spi_of_probe,
-	.remove = __devexit_p(mpc512x_psc_spi_of_remove),
+	.remove = mpc512x_psc_spi_of_remove,
 	.driver = {
 		.name = "mpc512x-psc-spi",
 		.owner = THIS_MODULE,

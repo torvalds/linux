@@ -46,29 +46,58 @@
 #define RCU_TREE_NONCORE
 #include "rcutree.h"
 
-static int show_rcubarrier(struct seq_file *m, void *unused)
-{
-	struct rcu_state *rsp;
+#define ulong2long(a) (*(long *)(&(a)))
 
-	for_each_rcu_flavor(rsp)
-		seq_printf(m, "%s: bcc: %d nbd: %lu\n",
-			   rsp->name,
-			   atomic_read(&rsp->barrier_cpu_count),
-			   rsp->n_barrier_done);
+static int r_open(struct inode *inode, struct file *file,
+					const struct seq_operations *op)
+{
+	int ret = seq_open(file, op);
+	if (!ret) {
+		struct seq_file *m = (struct seq_file *)file->private_data;
+		m->private = inode->i_private;
+	}
+	return ret;
+}
+
+static void *r_start(struct seq_file *m, loff_t *pos)
+{
+	struct rcu_state *rsp = (struct rcu_state *)m->private;
+	*pos = cpumask_next(*pos - 1, cpu_possible_mask);
+	if ((*pos) < nr_cpu_ids)
+		return per_cpu_ptr(rsp->rda, *pos);
+	return NULL;
+}
+
+static void *r_next(struct seq_file *m, void *v, loff_t *pos)
+{
+	(*pos)++;
+	return r_start(m, pos);
+}
+
+static void r_stop(struct seq_file *m, void *v)
+{
+}
+
+static int show_rcubarrier(struct seq_file *m, void *v)
+{
+	struct rcu_state *rsp = (struct rcu_state *)m->private;
+	seq_printf(m, "bcc: %d nbd: %lu\n",
+		   atomic_read(&rsp->barrier_cpu_count),
+		   rsp->n_barrier_done);
 	return 0;
 }
 
 static int rcubarrier_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, show_rcubarrier, NULL);
+	return single_open(file, show_rcubarrier, inode->i_private);
 }
 
 static const struct file_operations rcubarrier_fops = {
 	.owner = THIS_MODULE,
 	.open = rcubarrier_open,
 	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
+	.llseek = no_llseek,
+	.release = seq_release,
 };
 
 #ifdef CONFIG_RCU_BOOST
@@ -84,12 +113,14 @@ static char convert_kthread_status(unsigned int kthread_status)
 
 static void print_one_rcu_data(struct seq_file *m, struct rcu_data *rdp)
 {
+	long ql, qll;
+
 	if (!rdp->beenonline)
 		return;
-	seq_printf(m, "%3d%cc=%lu g=%lu pq=%d qp=%d",
+	seq_printf(m, "%3d%cc=%ld g=%ld pq=%d qp=%d",
 		   rdp->cpu,
 		   cpu_is_offline(rdp->cpu) ? '!' : ' ',
-		   rdp->completed, rdp->gpnum,
+		   ulong2long(rdp->completed), ulong2long(rdp->gpnum),
 		   rdp->passed_quiesce, rdp->qs_pending);
 	seq_printf(m, " dt=%d/%llx/%d df=%lu",
 		   atomic_read(&rdp->dynticks->dynticks),
@@ -97,8 +128,11 @@ static void print_one_rcu_data(struct seq_file *m, struct rcu_data *rdp)
 		   rdp->dynticks->dynticks_nmi_nesting,
 		   rdp->dynticks_fqs);
 	seq_printf(m, " of=%lu", rdp->offline_fqs);
+	rcu_nocb_q_lengths(rdp, &ql, &qll);
+	qll += rdp->qlen_lazy;
+	ql += rdp->qlen;
 	seq_printf(m, " ql=%ld/%ld qs=%c%c%c%c",
-		   rdp->qlen_lazy, rdp->qlen,
+		   qll, ql,
 		   ".N"[rdp->nxttail[RCU_NEXT_READY_TAIL] !=
 			rdp->nxttail[RCU_NEXT_TAIL]],
 		   ".R"[rdp->nxttail[RCU_WAIT_TAIL] !=
@@ -114,101 +148,67 @@ static void print_one_rcu_data(struct seq_file *m, struct rcu_data *rdp)
 		   per_cpu(rcu_cpu_kthread_loops, rdp->cpu) & 0xffff);
 #endif /* #ifdef CONFIG_RCU_BOOST */
 	seq_printf(m, " b=%ld", rdp->blimit);
-	seq_printf(m, " ci=%lu co=%lu ca=%lu\n",
-		   rdp->n_cbs_invoked, rdp->n_cbs_orphaned, rdp->n_cbs_adopted);
+	seq_printf(m, " ci=%lu nci=%lu co=%lu ca=%lu\n",
+		   rdp->n_cbs_invoked, rdp->n_nocbs_invoked,
+		   rdp->n_cbs_orphaned, rdp->n_cbs_adopted);
 }
 
-static int show_rcudata(struct seq_file *m, void *unused)
+static int show_rcudata(struct seq_file *m, void *v)
 {
-	int cpu;
-	struct rcu_state *rsp;
-
-	for_each_rcu_flavor(rsp) {
-		seq_printf(m, "%s:\n", rsp->name);
-		for_each_possible_cpu(cpu)
-			print_one_rcu_data(m, per_cpu_ptr(rsp->rda, cpu));
-	}
+	print_one_rcu_data(m, (struct rcu_data *)v);
 	return 0;
 }
 
+static const struct seq_operations rcudate_op = {
+	.start = r_start,
+	.next  = r_next,
+	.stop  = r_stop,
+	.show  = show_rcudata,
+};
+
 static int rcudata_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, show_rcudata, NULL);
+	return r_open(inode, file, &rcudate_op);
 }
 
 static const struct file_operations rcudata_fops = {
 	.owner = THIS_MODULE,
 	.open = rcudata_open,
 	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
+	.llseek = no_llseek,
+	.release = seq_release,
 };
 
-static void print_one_rcu_data_csv(struct seq_file *m, struct rcu_data *rdp)
+static int show_rcuexp(struct seq_file *m, void *v)
 {
-	if (!rdp->beenonline)
-		return;
-	seq_printf(m, "%d,%s,%lu,%lu,%d,%d",
-		   rdp->cpu,
-		   cpu_is_offline(rdp->cpu) ? "\"N\"" : "\"Y\"",
-		   rdp->completed, rdp->gpnum,
-		   rdp->passed_quiesce, rdp->qs_pending);
-	seq_printf(m, ",%d,%llx,%d,%lu",
-		   atomic_read(&rdp->dynticks->dynticks),
-		   rdp->dynticks->dynticks_nesting,
-		   rdp->dynticks->dynticks_nmi_nesting,
-		   rdp->dynticks_fqs);
-	seq_printf(m, ",%lu", rdp->offline_fqs);
-	seq_printf(m, ",%ld,%ld,\"%c%c%c%c\"", rdp->qlen_lazy, rdp->qlen,
-		   ".N"[rdp->nxttail[RCU_NEXT_READY_TAIL] !=
-			rdp->nxttail[RCU_NEXT_TAIL]],
-		   ".R"[rdp->nxttail[RCU_WAIT_TAIL] !=
-			rdp->nxttail[RCU_NEXT_READY_TAIL]],
-		   ".W"[rdp->nxttail[RCU_DONE_TAIL] !=
-			rdp->nxttail[RCU_WAIT_TAIL]],
-		   ".D"[&rdp->nxtlist != rdp->nxttail[RCU_DONE_TAIL]]);
-#ifdef CONFIG_RCU_BOOST
-	seq_printf(m, ",%d,\"%c\"",
-		   per_cpu(rcu_cpu_has_work, rdp->cpu),
-		   convert_kthread_status(per_cpu(rcu_cpu_kthread_status,
-					  rdp->cpu)));
-#endif /* #ifdef CONFIG_RCU_BOOST */
-	seq_printf(m, ",%ld", rdp->blimit);
-	seq_printf(m, ",%lu,%lu,%lu\n",
-		   rdp->n_cbs_invoked, rdp->n_cbs_orphaned, rdp->n_cbs_adopted);
-}
+	struct rcu_state *rsp = (struct rcu_state *)m->private;
 
-static int show_rcudata_csv(struct seq_file *m, void *unused)
-{
-	int cpu;
-	struct rcu_state *rsp;
-
-	seq_puts(m, "\"CPU\",\"Online?\",\"c\",\"g\",\"pq\",\"pq\",");
-	seq_puts(m, "\"dt\",\"dt nesting\",\"dt NMI nesting\",\"df\",");
-	seq_puts(m, "\"of\",\"qll\",\"ql\",\"qs\"");
-#ifdef CONFIG_RCU_BOOST
-	seq_puts(m, "\"kt\",\"ktl\"");
-#endif /* #ifdef CONFIG_RCU_BOOST */
-	seq_puts(m, ",\"b\",\"ci\",\"co\",\"ca\"\n");
-	for_each_rcu_flavor(rsp) {
-		seq_printf(m, "\"%s:\"\n", rsp->name);
-		for_each_possible_cpu(cpu)
-			print_one_rcu_data_csv(m, per_cpu_ptr(rsp->rda, cpu));
-	}
+	seq_printf(m, "s=%lu d=%lu w=%lu tf=%lu wd1=%lu wd2=%lu n=%lu sc=%lu dt=%lu dl=%lu dx=%lu\n",
+		   atomic_long_read(&rsp->expedited_start),
+		   atomic_long_read(&rsp->expedited_done),
+		   atomic_long_read(&rsp->expedited_wrap),
+		   atomic_long_read(&rsp->expedited_tryfail),
+		   atomic_long_read(&rsp->expedited_workdone1),
+		   atomic_long_read(&rsp->expedited_workdone2),
+		   atomic_long_read(&rsp->expedited_normal),
+		   atomic_long_read(&rsp->expedited_stoppedcpus),
+		   atomic_long_read(&rsp->expedited_done_tries),
+		   atomic_long_read(&rsp->expedited_done_lost),
+		   atomic_long_read(&rsp->expedited_done_exit));
 	return 0;
 }
 
-static int rcudata_csv_open(struct inode *inode, struct file *file)
+static int rcuexp_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, show_rcudata_csv, NULL);
+	return single_open(file, show_rcuexp, inode->i_private);
 }
 
-static const struct file_operations rcudata_csv_fops = {
+static const struct file_operations rcuexp_fops = {
 	.owner = THIS_MODULE,
-	.open = rcudata_csv_open,
+	.open = rcuexp_open,
 	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
+	.llseek = no_llseek,
+	.release = seq_release,
 };
 
 #ifdef CONFIG_RCU_BOOST
@@ -254,27 +254,11 @@ static const struct file_operations rcu_node_boost_fops = {
 	.owner = THIS_MODULE,
 	.open = rcu_node_boost_open,
 	.read = seq_read,
-	.llseek = seq_lseek,
+	.llseek = no_llseek,
 	.release = single_release,
 };
 
-/*
- * Create the rcuboost debugfs entry.  Standard error return.
- */
-static int rcu_boost_trace_create_file(struct dentry *rcudir)
-{
-	return !debugfs_create_file("rcuboost", 0444, rcudir, NULL,
-				    &rcu_node_boost_fops);
-}
-
-#else /* #ifdef CONFIG_RCU_BOOST */
-
-static int rcu_boost_trace_create_file(struct dentry *rcudir)
-{
-	return 0;  /* There cannot be an error if we didn't create it! */
-}
-
-#endif /* #else #ifdef CONFIG_RCU_BOOST */
+#endif /* #ifdef CONFIG_RCU_BOOST */
 
 static void print_one_rcu_state(struct seq_file *m, struct rcu_state *rsp)
 {
@@ -283,8 +267,9 @@ static void print_one_rcu_state(struct seq_file *m, struct rcu_state *rsp)
 	struct rcu_node *rnp;
 
 	gpnum = rsp->gpnum;
-	seq_printf(m, "%s: c=%lu g=%lu s=%d jfq=%ld j=%x ",
-		   rsp->name, rsp->completed, gpnum, rsp->fqs_state,
+	seq_printf(m, "c=%ld g=%ld s=%d jfq=%ld j=%x ",
+		   ulong2long(rsp->completed), ulong2long(gpnum),
+		   rsp->fqs_state,
 		   (long)(rsp->jiffies_force_qs - jiffies),
 		   (int)(jiffies & 0xffff));
 	seq_printf(m, "nfqs=%lu/nfqsng=%lu(%lu) fqlh=%lu oqlen=%ld/%ld\n",
@@ -306,26 +291,24 @@ static void print_one_rcu_state(struct seq_file *m, struct rcu_state *rsp)
 	seq_puts(m, "\n");
 }
 
-static int show_rcuhier(struct seq_file *m, void *unused)
+static int show_rcuhier(struct seq_file *m, void *v)
 {
-	struct rcu_state *rsp;
-
-	for_each_rcu_flavor(rsp)
-		print_one_rcu_state(m, rsp);
+	struct rcu_state *rsp = (struct rcu_state *)m->private;
+	print_one_rcu_state(m, rsp);
 	return 0;
 }
 
 static int rcuhier_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, show_rcuhier, NULL);
+	return single_open(file, show_rcuhier, inode->i_private);
 }
 
 static const struct file_operations rcuhier_fops = {
 	.owner = THIS_MODULE,
 	.open = rcuhier_open,
 	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
+	.llseek = no_llseek,
+	.release = seq_release,
 };
 
 static void show_one_rcugp(struct seq_file *m, struct rcu_state *rsp)
@@ -338,42 +321,42 @@ static void show_one_rcugp(struct seq_file *m, struct rcu_state *rsp)
 	struct rcu_node *rnp = &rsp->node[0];
 
 	raw_spin_lock_irqsave(&rnp->lock, flags);
-	completed = rsp->completed;
-	gpnum = rsp->gpnum;
-	if (rsp->completed == rsp->gpnum)
+	completed = ACCESS_ONCE(rsp->completed);
+	gpnum = ACCESS_ONCE(rsp->gpnum);
+	if (completed == gpnum)
 		gpage = 0;
 	else
 		gpage = jiffies - rsp->gp_start;
 	gpmax = rsp->gp_max;
 	raw_spin_unlock_irqrestore(&rnp->lock, flags);
-	seq_printf(m, "%s: completed=%ld  gpnum=%lu  age=%ld  max=%ld\n",
-		   rsp->name, completed, gpnum, gpage, gpmax);
+	seq_printf(m, "completed=%ld  gpnum=%ld  age=%ld  max=%ld\n",
+		   ulong2long(completed), ulong2long(gpnum), gpage, gpmax);
 }
 
-static int show_rcugp(struct seq_file *m, void *unused)
+static int show_rcugp(struct seq_file *m, void *v)
 {
-	struct rcu_state *rsp;
-
-	for_each_rcu_flavor(rsp)
-		show_one_rcugp(m, rsp);
+	struct rcu_state *rsp = (struct rcu_state *)m->private;
+	show_one_rcugp(m, rsp);
 	return 0;
 }
 
 static int rcugp_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, show_rcugp, NULL);
+	return single_open(file, show_rcugp, inode->i_private);
 }
 
 static const struct file_operations rcugp_fops = {
 	.owner = THIS_MODULE,
 	.open = rcugp_open,
 	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
+	.llseek = no_llseek,
+	.release = seq_release,
 };
 
 static void print_one_rcu_pending(struct seq_file *m, struct rcu_data *rdp)
 {
+	if (!rdp->beenonline)
+		return;
 	seq_printf(m, "%3d%cnp=%ld ",
 		   rdp->cpu,
 		   cpu_is_offline(rdp->cpu) ? '!' : ' ',
@@ -389,34 +372,30 @@ static void print_one_rcu_pending(struct seq_file *m, struct rcu_data *rdp)
 		   rdp->n_rp_need_nothing);
 }
 
-static int show_rcu_pending(struct seq_file *m, void *unused)
+static int show_rcu_pending(struct seq_file *m, void *v)
 {
-	int cpu;
-	struct rcu_data *rdp;
-	struct rcu_state *rsp;
-
-	for_each_rcu_flavor(rsp) {
-		seq_printf(m, "%s:\n", rsp->name);
-		for_each_possible_cpu(cpu) {
-			rdp = per_cpu_ptr(rsp->rda, cpu);
-			if (rdp->beenonline)
-				print_one_rcu_pending(m, rdp);
-		}
-	}
+	print_one_rcu_pending(m, (struct rcu_data *)v);
 	return 0;
 }
 
+static const struct seq_operations rcu_pending_op = {
+	.start = r_start,
+	.next  = r_next,
+	.stop  = r_stop,
+	.show  = show_rcu_pending,
+};
+
 static int rcu_pending_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, show_rcu_pending, NULL);
+	return r_open(inode, file, &rcu_pending_op);
 }
 
 static const struct file_operations rcu_pending_fops = {
 	.owner = THIS_MODULE,
 	.open = rcu_pending_open,
 	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
+	.llseek = no_llseek,
+	.release = seq_release,
 };
 
 static int show_rcutorture(struct seq_file *m, void *unused)
@@ -446,43 +425,58 @@ static struct dentry *rcudir;
 
 static int __init rcutree_trace_init(void)
 {
+	struct rcu_state *rsp;
 	struct dentry *retval;
+	struct dentry *rspdir;
 
 	rcudir = debugfs_create_dir("rcu", NULL);
 	if (!rcudir)
 		goto free_out;
 
-	retval = debugfs_create_file("rcubarrier", 0444, rcudir,
-						NULL, &rcubarrier_fops);
-	if (!retval)
-		goto free_out;
+	for_each_rcu_flavor(rsp) {
+		rspdir = debugfs_create_dir(rsp->name, rcudir);
+		if (!rspdir)
+			goto free_out;
 
-	retval = debugfs_create_file("rcudata", 0444, rcudir,
-						NULL, &rcudata_fops);
-	if (!retval)
-		goto free_out;
+		retval = debugfs_create_file("rcudata", 0444,
+				rspdir, rsp, &rcudata_fops);
+		if (!retval)
+			goto free_out;
 
-	retval = debugfs_create_file("rcudata.csv", 0444, rcudir,
-						NULL, &rcudata_csv_fops);
-	if (!retval)
-		goto free_out;
+		retval = debugfs_create_file("rcuexp", 0444,
+				rspdir, rsp, &rcuexp_fops);
+		if (!retval)
+			goto free_out;
 
-	if (rcu_boost_trace_create_file(rcudir))
-		goto free_out;
+		retval = debugfs_create_file("rcu_pending", 0444,
+				rspdir, rsp, &rcu_pending_fops);
+		if (!retval)
+			goto free_out;
 
-	retval = debugfs_create_file("rcugp", 0444, rcudir, NULL, &rcugp_fops);
-	if (!retval)
-		goto free_out;
+		retval = debugfs_create_file("rcubarrier", 0444,
+				rspdir, rsp, &rcubarrier_fops);
+		if (!retval)
+			goto free_out;
 
-	retval = debugfs_create_file("rcuhier", 0444, rcudir,
-						NULL, &rcuhier_fops);
-	if (!retval)
-		goto free_out;
+#ifdef CONFIG_RCU_BOOST
+		if (rsp == &rcu_preempt_state) {
+			retval = debugfs_create_file("rcuboost", 0444,
+				rspdir, NULL, &rcu_node_boost_fops);
+			if (!retval)
+				goto free_out;
+		}
+#endif
 
-	retval = debugfs_create_file("rcu_pending", 0444, rcudir,
-						NULL, &rcu_pending_fops);
-	if (!retval)
-		goto free_out;
+		retval = debugfs_create_file("rcugp", 0444,
+				rspdir, rsp, &rcugp_fops);
+		if (!retval)
+			goto free_out;
+
+		retval = debugfs_create_file("rcuhier", 0444,
+				rspdir, rsp, &rcuhier_fops);
+		if (!retval)
+			goto free_out;
+	}
 
 	retval = debugfs_create_file("rcutorture", 0444, rcudir,
 						NULL, &rcutorture_fops);

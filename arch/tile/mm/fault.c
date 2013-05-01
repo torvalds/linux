@@ -70,9 +70,10 @@ static noinline void force_sig_info_fault(const char *type, int si_signo,
  * Synthesize the fault a PL0 process would get by doing a word-load of
  * an unaligned address or a high kernel address.
  */
-SYSCALL_DEFINE2(cmpxchg_badaddr, unsigned long, address,
-		struct pt_regs *, regs)
+SYSCALL_DEFINE1(cmpxchg_badaddr, unsigned long, address)
 {
+	struct pt_regs *regs = current_pt_regs();
+
 	if (address >= PAGE_OFFSET)
 		force_sig_info_fault("atomic segfault", SIGSEGV, SEGV_MAPERR,
 				     address, INT_DTLB_MISS, current, regs);

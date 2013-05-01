@@ -1,6 +1,6 @@
 /*
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
+ * This program is free software; you can redistribute	it and/or modify it
+ * under  the terms of	the GNU General	 Public License as published by the
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  *
@@ -26,9 +26,9 @@ static inline void loongson_reboot(void)
 	func = (void *)ioremap_nocache(LOONGSON_BOOT_BASE, 4);
 
 	__asm__ __volatile__(
-	"       .set    noat                                            \n"
-	"       jr      %[func]                                         \n"
-	"       .set    at                                              \n"
+	"	.set	noat						\n"
+	"	jr	%[func]						\n"
+	"	.set	at						\n"
 	: /* No outputs */
 	: [func] "r" (func));
 #endif

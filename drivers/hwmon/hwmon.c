@@ -84,19 +84,21 @@ static void __init hwmon_pci_quirks(void)
 
 	/* Open access to 0x295-0x296 on MSI MS-7031 */
 	sb = pci_get_device(PCI_VENDOR_ID_ATI, 0x436c, NULL);
-	if (sb &&
-	    (sb->subsystem_vendor == 0x1462 &&	/* MSI */
-	     sb->subsystem_device == 0x0031)) {	/* MS-7031 */
+	if (sb) {
+		if (sb->subsystem_vendor == 0x1462 &&	/* MSI */
+		    sb->subsystem_device == 0x0031) {	/* MS-7031 */
+			pci_read_config_byte(sb, 0x48, &enable);
+			pci_read_config_word(sb, 0x64, &base);
 
-		pci_read_config_byte(sb, 0x48, &enable);
-		pci_read_config_word(sb, 0x64, &base);
-
-		if (base == 0 && !(enable & BIT(2))) {
-			dev_info(&sb->dev,
-				 "Opening wide generic port at 0x295\n");
-			pci_write_config_word(sb, 0x64, 0x295);
-			pci_write_config_byte(sb, 0x48, enable | BIT(2));
+			if (base == 0 && !(enable & BIT(2))) {
+				dev_info(&sb->dev,
+					 "Opening wide generic port at 0x295\n");
+				pci_write_config_word(sb, 0x64, 0x295);
+				pci_write_config_byte(sb, 0x48,
+						      enable | BIT(2));
+			}
 		}
+		pci_dev_put(sb);
 	}
 #endif
 }

@@ -34,6 +34,7 @@
 #include <linux/i2c-gpio.h>
 #include <linux/spi/spi.h>
 #include <linux/export.h>
+#include <linux/irqchip/arm-vic.h>
 
 #include <mach/hardware.h>
 #include <linux/platform_data/video-ep93xx.h>
@@ -43,8 +44,6 @@
 
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
-
-#include <asm/hardware/vic.h>
 
 #include "soc.h"
 
@@ -140,10 +139,28 @@ static struct irqaction ep93xx_timer_irq = {
 	.handler	= ep93xx_timer_interrupt,
 };
 
-static void __init ep93xx_timer_init(void)
+static u32 ep93xx_gettimeoffset(void)
+{
+	int offset;
+
+	offset = __raw_readl(EP93XX_TIMER4_VALUE_LOW) - last_jiffy_time;
+
+	/*
+	 * Timer 4 is based on a 983.04 kHz reference clock,
+	 * so dividing by 983040 gives the fraction of a second,
+	 * so dividing by 0.983040 converts to uS.
+	 * Refactor the calculation to avoid overflow.
+	 * Finally, multiply by 1000 to give nS.
+	 */
+	return (offset + (53 * offset / 3072)) * 1000;
+}
+
+void __init ep93xx_timer_init(void)
 {
 	u32 tmode = EP93XX_TIMER123_CONTROL_MODE |
 		    EP93XX_TIMER123_CONTROL_CLKSEL;
+
+	arch_gettimeoffset = ep93xx_gettimeoffset;
 
 	/* Enable periodic HZ timer.  */
 	__raw_writel(tmode, EP93XX_TIMER1_CONTROL);
@@ -157,21 +174,6 @@ static void __init ep93xx_timer_init(void)
 
 	setup_irq(IRQ_EP93XX_TIMER1, &ep93xx_timer_irq);
 }
-
-static unsigned long ep93xx_gettimeoffset(void)
-{
-	int offset;
-
-	offset = __raw_readl(EP93XX_TIMER4_VALUE_LOW) - last_jiffy_time;
-
-	/* Calculate (1000000 / 983040) * offset.  */
-	return offset + (53 * offset / 3072);
-}
-
-struct sys_timer ep93xx_timer = {
-	.init		= ep93xx_timer_init,
-	.offset		= ep93xx_gettimeoffset,
-};
 
 
 /*************************************************************************

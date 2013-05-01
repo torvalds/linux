@@ -86,4 +86,5 @@ extern long arch_prctl(struct task_struct *task, int code,
 		       unsigned long __user *addr);
 
 #endif
+#define user_stack_pointer(regs) PT_REGS_SP(regs)
 #endif /* __UM_X86_PTRACE_H */

@@ -22,6 +22,7 @@
  */
 
 #include "cx23885.h"
+#include "cx23885-av.h"
 
 void cx23885_av_work_handler(struct work_struct *work)
 {

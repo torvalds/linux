@@ -150,9 +150,15 @@ static struct cpuidle_monitor *snb_register(void)
 	    || cpupower_cpu_info.family != 6)
 		return NULL;
 
-	if (cpupower_cpu_info.model != 0x2A
-	    && cpupower_cpu_info.model != 0x2D)
+	switch (cpupower_cpu_info.model) {
+	case 0x2A: /* SNB */
+	case 0x2D: /* SNB Xeon */
+	case 0x3A: /* IVB */
+	case 0x3E: /* IVB Xeon */
+		break;
+	default:
 		return NULL;
+	}
 
 	is_valid = calloc(cpu_count, sizeof(int));
 	for (num = 0; num < SNB_CSTATE_COUNT; num++) {

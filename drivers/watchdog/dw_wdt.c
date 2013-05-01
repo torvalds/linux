@@ -293,7 +293,7 @@ static struct miscdevice dw_wdt_miscdev = {
 	.minor		= WATCHDOG_MINOR,
 };
 
-static int __devinit dw_wdt_drv_probe(struct platform_device *pdev)
+static int dw_wdt_drv_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct resource *mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -301,9 +301,9 @@ static int __devinit dw_wdt_drv_probe(struct platform_device *pdev)
 	if (!mem)
 		return -EINVAL;
 
-	dw_wdt.regs = devm_request_and_ioremap(&pdev->dev, mem);
-	if (!dw_wdt.regs)
-		return -ENOMEM;
+	dw_wdt.regs = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(dw_wdt.regs))
+		return PTR_ERR(dw_wdt.regs);
 
 	dw_wdt.clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(dw_wdt.clk))
@@ -333,7 +333,7 @@ out_put_clk:
 	return ret;
 }
 
-static int __devexit dw_wdt_drv_remove(struct platform_device *pdev)
+static int dw_wdt_drv_remove(struct platform_device *pdev)
 {
 	misc_deregister(&dw_wdt_miscdev);
 
@@ -345,7 +345,7 @@ static int __devexit dw_wdt_drv_remove(struct platform_device *pdev)
 
 static struct platform_driver dw_wdt_driver = {
 	.probe		= dw_wdt_drv_probe,
-	.remove		= __devexit_p(dw_wdt_drv_remove),
+	.remove		= dw_wdt_drv_remove,
 	.driver		= {
 		.name	= "dw_wdt",
 		.owner	= THIS_MODULE,

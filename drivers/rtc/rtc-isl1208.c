@@ -118,7 +118,7 @@ isl1208_i2c_set_regs(struct i2c_client *client, u8 reg, u8 const buf[],
 	return ret;
 }
 
-/* simple check to see wether we have a isl1208 */
+/* simple check to see whether we have a isl1208 */
 static int
 isl1208_i2c_validate_client(struct i2c_client *client)
 {
@@ -506,6 +506,7 @@ isl1208_rtc_interrupt(int irq, void *data)
 {
 	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
 	struct i2c_client *client = data;
+	struct rtc_device *rtc = i2c_get_clientdata(client);
 	int handled = 0, sr, err;
 
 	/*
@@ -527,6 +528,8 @@ isl1208_rtc_interrupt(int irq, void *data)
 
 	if (sr & ISL1208_REG_SR_ALM) {
 		dev_dbg(&client->dev, "alarm!\n");
+
+		rtc_update_irq(rtc, 1, RTC_IRQF | RTC_AF);
 
 		/* Clear the alarm */
 		sr &= ~ISL1208_REG_SR_ALM;

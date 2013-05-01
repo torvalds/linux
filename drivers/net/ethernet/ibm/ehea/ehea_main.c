@@ -76,16 +76,16 @@ MODULE_PARM_DESC(msg_level, "msg_level");
 MODULE_PARM_DESC(prop_carrier_state, "Propagate carrier state of physical "
 		 "port to stack. 1:yes, 0:no.  Default = 0 ");
 MODULE_PARM_DESC(rq3_entries, "Number of entries for Receive Queue 3 "
-		 "[2^x - 1], x = [6..14]. Default = "
+		 "[2^x - 1], x = [7..14]. Default = "
 		 __MODULE_STRING(EHEA_DEF_ENTRIES_RQ3) ")");
 MODULE_PARM_DESC(rq2_entries, "Number of entries for Receive Queue 2 "
-		 "[2^x - 1], x = [6..14]. Default = "
+		 "[2^x - 1], x = [7..14]. Default = "
 		 __MODULE_STRING(EHEA_DEF_ENTRIES_RQ2) ")");
 MODULE_PARM_DESC(rq1_entries, "Number of entries for Receive Queue 1 "
-		 "[2^x - 1], x = [6..14]. Default = "
+		 "[2^x - 1], x = [7..14]. Default = "
 		 __MODULE_STRING(EHEA_DEF_ENTRIES_RQ1) ")");
 MODULE_PARM_DESC(sq_entries, " Number of entries for the Send Queue  "
-		 "[2^x - 1], x = [6..14]. Default = "
+		 "[2^x - 1], x = [7..14]. Default = "
 		 __MODULE_STRING(EHEA_DEF_ENTRIES_SQ) ")");
 MODULE_PARM_DESC(use_mcs, " Multiple receive queues, 1: enable, 0: disable, "
 		 "Default = 1");
@@ -98,10 +98,10 @@ static struct ehea_fw_handle_array ehea_fw_handles;
 static struct ehea_bcmc_reg_array ehea_bcmc_regs;
 
 
-static int __devinit ehea_probe_adapter(struct platform_device *dev,
-					const struct of_device_id *id);
+static int ehea_probe_adapter(struct platform_device *dev,
+			      const struct of_device_id *id);
 
-static int __devexit ehea_remove(struct platform_device *dev);
+static int ehea_remove(struct platform_device *dev);
 
 static struct of_device_id ehea_device_table[] = {
 	{
@@ -1921,10 +1921,8 @@ static void ehea_add_multicast_entry(struct ehea_port *port, u8 *mc_mac_addr)
 	u64 hret;
 
 	ehea_mcl_entry = kzalloc(sizeof(*ehea_mcl_entry), GFP_ATOMIC);
-	if (!ehea_mcl_entry) {
-		pr_err("no mem for mcl_entry\n");
+	if (!ehea_mcl_entry)
 		return;
-	}
 
 	INIT_LIST_HEAD(&ehea_mcl_entry->list);
 
@@ -2909,7 +2907,7 @@ static ssize_t ehea_show_port_id(struct device *dev,
 static DEVICE_ATTR(log_port_id, S_IRUSR | S_IRGRP | S_IROTH, ehea_show_port_id,
 		   NULL);
 
-static void __devinit logical_port_release(struct device *dev)
+static void logical_port_release(struct device *dev)
 {
 	struct ehea_port *port = container_of(dev, struct ehea_port, ofdev.dev);
 	of_node_put(port->ofdev.dev.of_node);
@@ -3028,7 +3026,7 @@ static struct ehea_port *ehea_setup_single_port(struct ehea_adapter *adapter,
 	ehea_set_ethtool_ops(dev);
 
 	dev->hw_features = NETIF_F_SG | NETIF_F_TSO
-		      | NETIF_F_IP_CSUM | NETIF_F_HW_VLAN_TX | NETIF_F_LRO;
+		      | NETIF_F_IP_CSUM | NETIF_F_HW_VLAN_TX;
 	dev->features = NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_TSO
 		      | NETIF_F_HIGHDMA | NETIF_F_IP_CSUM | NETIF_F_HW_VLAN_TX
 		      | NETIF_F_HW_VLAN_RX | NETIF_F_HW_VLAN_FILTER
@@ -3257,8 +3255,8 @@ static void ehea_remove_device_sysfs(struct platform_device *dev)
 	device_remove_file(&dev->dev, &dev_attr_remove_port);
 }
 
-static int __devinit ehea_probe_adapter(struct platform_device *dev,
-					const struct of_device_id *id)
+static int ehea_probe_adapter(struct platform_device *dev,
+			      const struct of_device_id *id)
 {
 	struct ehea_adapter *adapter;
 	const u64 *adapter_handle;
@@ -3364,7 +3362,7 @@ out:
 	return ret;
 }
 
-static int __devexit ehea_remove(struct platform_device *dev)
+static int ehea_remove(struct platform_device *dev)
 {
 	struct ehea_adapter *adapter = dev_get_drvdata(&dev->dev);
 	int i;

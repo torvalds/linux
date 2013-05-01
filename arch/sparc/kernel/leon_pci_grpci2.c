@@ -668,7 +668,7 @@ static irqreturn_t grpci2_err_interrupt(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-static int __devinit grpci2_of_probe(struct platform_device *ofdev)
+static int grpci2_of_probe(struct platform_device *ofdev)
 {
 	struct grpci2_regs *regs;
 	struct grpci2_priv *priv;

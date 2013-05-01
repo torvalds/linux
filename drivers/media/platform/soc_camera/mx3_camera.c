@@ -17,6 +17,7 @@
 #include <linux/vmalloc.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
+#include <linux/dma/ipu-dma.h>
 
 #include <media/v4l2-common.h>
 #include <media/v4l2-dev.h>
@@ -24,7 +25,6 @@
 #include <media/soc_camera.h>
 #include <media/soc_mediabus.h>
 
-#include <mach/ipu.h>
 #include <linux/platform_data/camera-mx3.h>
 #include <linux/platform_data/dma-imx.h>
 
@@ -156,7 +156,7 @@ static void mx3_cam_dma_done(void *arg)
 		struct mx3_camera_buffer *buf = to_mx3_vb(vb);
 
 		list_del_init(&buf->queue);
-		do_gettimeofday(&vb->v4l2_buf.timestamp);
+		v4l2_get_timestamp(&vb->v4l2_buf.timestamp);
 		vb->v4l2_buf.field = mx3_cam->field;
 		vb->v4l2_buf.sequence = mx3_cam->sequence++;
 		vb2_buffer_done(vb, VB2_BUF_STATE_DONE);
@@ -510,7 +510,7 @@ static void mx3_camera_activate(struct mx3_camera_dev *mx3_cam,
 		clk_set_rate(mx3_cam->clk, rate);
 }
 
-/* Called with .video_lock held */
+/* Called with .host_lock held */
 static int mx3_camera_add_device(struct soc_camera_device *icd)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
@@ -530,7 +530,7 @@ static int mx3_camera_add_device(struct soc_camera_device *icd)
 	return 0;
 }
 
-/* Called with .video_lock held */
+/* Called with .host_lock held */
 static void mx3_camera_remove_device(struct soc_camera_device *icd)
 {
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
@@ -799,9 +799,10 @@ static inline void stride_align(__u32 *width)
  * default g_crop and cropcap from soc_camera.c
  */
 static int mx3_camera_set_crop(struct soc_camera_device *icd,
-			       struct v4l2_crop *a)
+			       const struct v4l2_crop *a)
 {
-	struct v4l2_rect *rect = &a->c;
+	struct v4l2_crop a_writable = *a;
+	struct v4l2_rect *rect = &a_writable.c;
 	struct soc_camera_host *ici = to_soc_camera_host(icd->parent);
 	struct mx3_camera_dev *mx3_cam = ici->priv;
 	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
@@ -1142,7 +1143,7 @@ static struct soc_camera_host_ops mx3_soc_camera_host_ops = {
 	.set_bus_param	= mx3_camera_set_bus_param,
 };
 
-static int __devinit mx3_camera_probe(struct platform_device *pdev)
+static int mx3_camera_probe(struct platform_device *pdev)
 {
 	struct mx3_camera_dev *mx3_cam;
 	struct resource *res;
@@ -1245,7 +1246,7 @@ egetres:
 	return err;
 }
 
-static int __devexit mx3_camera_remove(struct platform_device *pdev)
+static int mx3_camera_remove(struct platform_device *pdev)
 {
 	struct soc_camera_host *soc_host = to_soc_camera_host(&pdev->dev);
 	struct mx3_camera_dev *mx3_cam = container_of(soc_host,
@@ -1278,7 +1279,7 @@ static struct platform_driver mx3_camera_driver = {
 		.name	= MX3_CAM_DRV_NAME,
 	},
 	.probe		= mx3_camera_probe,
-	.remove		= __devexit_p(mx3_camera_remove),
+	.remove		= mx3_camera_remove,
 };
 
 module_platform_driver(mx3_camera_driver);

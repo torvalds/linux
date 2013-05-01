@@ -71,6 +71,16 @@ struct amba_device *amba_ahb_device_add(struct device *parent, const char *name,
 					resource_size_t base, size_t size,
 					int irq1, int irq2, void *pdata,
 					unsigned int periphid);
+struct amba_device *
+amba_apb_device_add_res(struct device *parent, const char *name,
+			resource_size_t base, size_t size, int irq1,
+			int irq2, void *pdata, unsigned int periphid,
+			struct resource *resbase);
+struct amba_device *
+amba_ahb_device_add_res(struct device *parent, const char *name,
+			resource_size_t base, size_t size, int irq1,
+			int irq2, void *pdata, unsigned int periphid,
+			struct resource *resbase);
 void amba_device_unregister(struct amba_device *);
 struct amba_device *amba_find_device(const char *, struct device *, unsigned int, unsigned int);
 int amba_request_regions(struct amba_device *, const char *);

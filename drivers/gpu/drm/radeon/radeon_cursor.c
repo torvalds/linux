@@ -66,24 +66,25 @@ static void radeon_hide_cursor(struct drm_crtc *crtc)
 	struct radeon_device *rdev = crtc->dev->dev_private;
 
 	if (ASIC_IS_DCE4(rdev)) {
-		WREG32(RADEON_MM_INDEX, EVERGREEN_CUR_CONTROL + radeon_crtc->crtc_offset);
-		WREG32(RADEON_MM_DATA, EVERGREEN_CURSOR_MODE(EVERGREEN_CURSOR_24_8_PRE_MULT) |
-		       EVERGREEN_CURSOR_URGENT_CONTROL(EVERGREEN_CURSOR_URGENT_1_2));
+		WREG32_IDX(EVERGREEN_CUR_CONTROL + radeon_crtc->crtc_offset,
+			   EVERGREEN_CURSOR_MODE(EVERGREEN_CURSOR_24_8_PRE_MULT) |
+			   EVERGREEN_CURSOR_URGENT_CONTROL(EVERGREEN_CURSOR_URGENT_1_2));
 	} else if (ASIC_IS_AVIVO(rdev)) {
-		WREG32(RADEON_MM_INDEX, AVIVO_D1CUR_CONTROL + radeon_crtc->crtc_offset);
-		WREG32(RADEON_MM_DATA, (AVIVO_D1CURSOR_MODE_24BPP << AVIVO_D1CURSOR_MODE_SHIFT));
+		WREG32_IDX(AVIVO_D1CUR_CONTROL + radeon_crtc->crtc_offset,
+			   (AVIVO_D1CURSOR_MODE_24BPP << AVIVO_D1CURSOR_MODE_SHIFT));
 	} else {
+		u32 reg;
 		switch (radeon_crtc->crtc_id) {
 		case 0:
-			WREG32(RADEON_MM_INDEX, RADEON_CRTC_GEN_CNTL);
+			reg = RADEON_CRTC_GEN_CNTL;
 			break;
 		case 1:
-			WREG32(RADEON_MM_INDEX, RADEON_CRTC2_GEN_CNTL);
+			reg = RADEON_CRTC2_GEN_CNTL;
 			break;
 		default:
 			return;
 		}
-		WREG32_P(RADEON_MM_DATA, 0, ~RADEON_CRTC_CUR_EN);
+		WREG32_IDX(reg, RREG32_IDX(reg) & ~RADEON_CRTC_CUR_EN);
 	}
 }
 
@@ -240,12 +241,19 @@ int radeon_crtc_cursor_move(struct drm_crtc *crtc,
 		y = 0;
 	}
 
-	if (ASIC_IS_AVIVO(rdev)) {
+	/* fixed on DCE6 and newer */
+	if (ASIC_IS_AVIVO(rdev) && !ASIC_IS_DCE6(rdev)) {
 		int i = 0;
 		struct drm_crtc *crtc_p;
 
-		/* avivo cursor image can't end on 128 pixel boundary or
+		/*
+		 * avivo cursor image can't end on 128 pixel boundary or
 		 * go past the end of the frame if both crtcs are enabled
+		 *
+		 * NOTE: It is safe to access crtc->enabled of other crtcs
+		 * without holding either the mode_config lock or the other
+		 * crtc's lock as long as write access to this flag _always_
+		 * grabs all locks.
 		 */
 		list_for_each_entry(crtc_p, &crtc->dev->mode_config.crtc_list, head) {
 			if (crtc_p->enabled)

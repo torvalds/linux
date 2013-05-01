@@ -192,8 +192,7 @@ static void _rtl92s_get_txpower_writeval_byregulatory(struct ieee80211_hw *hw,
 		 * defined by Realtek for large power */
 		chnlgroup = 0;
 
-		writeval = rtlphy->mcs_txpwrlevel_origoffset
-				[chnlgroup][index] +
+		writeval = rtlphy->mcs_offset[chnlgroup][index] +
 				((index < 2) ? pwrbase0 : pwrbase1);
 
 		RT_TRACE(rtlpriv, COMP_POWER, DBG_LOUD,
@@ -223,8 +222,7 @@ static void _rtl92s_get_txpower_writeval_byregulatory(struct ieee80211_hw *hw,
 					chnlgroup++;
 			}
 
-			writeval = rtlphy->mcs_txpwrlevel_origoffset
-					[chnlgroup][index]
+			writeval = rtlphy->mcs_offset[chnlgroup][index]
 					+ ((index < 2) ?
 					pwrbase0 : pwrbase1);
 
@@ -257,8 +255,7 @@ static void _rtl92s_get_txpower_writeval_byregulatory(struct ieee80211_hw *hw,
 		}
 
 		for (i = 0; i < 4; i++) {
-			pwrdiff_limit[i] =
-				(u8)((rtlphy->mcs_txpwrlevel_origoffset
+			pwrdiff_limit[i] = (u8)((rtlphy->mcs_offset
 				[chnlgroup][index] & (0x7f << (i * 8)))
 				>> (i * 8));
 
@@ -296,7 +293,7 @@ static void _rtl92s_get_txpower_writeval_byregulatory(struct ieee80211_hw *hw,
 		break;
 	default:
 		chnlgroup = 0;
-		writeval = rtlphy->mcs_txpwrlevel_origoffset[chnlgroup][index] +
+		writeval = rtlphy->mcs_offset[chnlgroup][index] +
 				((index < 2) ? pwrbase0 : pwrbase1);
 		RT_TRACE(rtlpriv, COMP_POWER, DBG_LOUD,
 			 "RTK better performance, writeval = 0x%x\n", writeval);

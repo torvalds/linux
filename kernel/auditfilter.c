@@ -1144,7 +1144,6 @@ static void audit_log_rule_change(kuid_t loginuid, u32 sessionid, u32 sid,
  * audit_receive_filter - apply all rules to the specified message type
  * @type: audit message type
  * @pid: target pid for netlink audit messages
- * @uid: target uid for netlink audit messages
  * @seq: netlink audit message sequence (serial) number
  * @data: payload data
  * @datasz: size of payload data

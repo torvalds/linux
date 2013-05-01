@@ -6,7 +6,8 @@
 
   <refnamediv>
     <refname>VIDIOC_CREATE_BUFS</refname>
-    <refpurpose>Create buffers for Memory Mapped or User Pointer I/O</refpurpose>
+    <refpurpose>Create buffers for Memory Mapped or User Pointer or DMA Buffer
+    I/O</refpurpose>
   </refnamediv>
 
   <refsynopsisdiv>
@@ -55,11 +56,11 @@
     </note>
 
     <para>This ioctl is used to create buffers for <link linkend="mmap">memory
-mapped</link> or <link linkend="userp">user pointer</link>
-I/O. It can be used as an alternative or in addition to the
-<constant>VIDIOC_REQBUFS</constant> ioctl, when a tighter control over buffers
-is required. This ioctl can be called multiple times to create buffers of
-different sizes.</para>
+mapped</link> or <link linkend="userp">user pointer</link> or <link
+linkend="dmabuf">DMA buffer</link> I/O. It can be used as an alternative or in
+addition to the <constant>VIDIOC_REQBUFS</constant> ioctl, when a tighter
+control over buffers is required. This ioctl can be called multiple times to
+create buffers of different sizes.</para>
 
     <para>To allocate device buffers applications initialize relevant fields of
 the <structname>v4l2_create_buffers</structname> structure. They set the
@@ -109,7 +110,8 @@ information.</para>
 	    <entry>__u32</entry>
 	    <entry><structfield>memory</structfield></entry>
 	    <entry>Applications set this field to
-<constant>V4L2_MEMORY_MMAP</constant> or
+<constant>V4L2_MEMORY_MMAP</constant>,
+<constant>V4L2_MEMORY_DMABUF</constant> or
 <constant>V4L2_MEMORY_USERPTR</constant>. See <xref linkend="v4l2-memory"
 /></entry>
 	  </row>

@@ -174,7 +174,7 @@ Operations are used through the following procedure:
      necessary (the object might have died whilst the thread was waiting).
 
      When it has finished doing its processing, it should call
-     fscache_put_operation() on it.
+     fscache_op_complete() and fscache_put_operation() on it.
 
  (4) The operation holds an effective lock upon the object, preventing other
      exclusive ops conflicting until it is released.  The operation can be

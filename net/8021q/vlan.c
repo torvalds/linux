@@ -95,6 +95,8 @@ void unregister_vlan_dev(struct net_device *dev, struct list_head *head)
 
 	grp->nr_vlan_devs--;
 
+	if (vlan->flags & VLAN_FLAG_MVRP)
+		vlan_mvrp_request_leave(dev);
 	if (vlan->flags & VLAN_FLAG_GVRP)
 		vlan_gvrp_request_leave(dev);
 
@@ -105,8 +107,12 @@ void unregister_vlan_dev(struct net_device *dev, struct list_head *head)
 	 */
 	unregister_netdevice_queue(dev, head);
 
-	if (grp->nr_vlan_devs == 0)
+	netdev_upper_dev_unlink(real_dev, dev);
+
+	if (grp->nr_vlan_devs == 0) {
+		vlan_mvrp_uninit_applicant(real_dev);
 		vlan_gvrp_uninit_applicant(real_dev);
+	}
 
 	/* Get rid of the vlan's reference to real_dev */
 	dev_put(real_dev);
@@ -115,16 +121,9 @@ void unregister_vlan_dev(struct net_device *dev, struct list_head *head)
 int vlan_check_real_dev(struct net_device *real_dev, u16 vlan_id)
 {
 	const char *name = real_dev->name;
-	const struct net_device_ops *ops = real_dev->netdev_ops;
 
 	if (real_dev->features & NETIF_F_VLAN_CHALLENGED) {
 		pr_info("VLANs not supported on %s\n", name);
-		return -EOPNOTSUPP;
-	}
-
-	if ((real_dev->features & NETIF_F_HW_VLAN_FILTER) &&
-	    (!ops->ndo_vlan_rx_add_vid || !ops->ndo_vlan_rx_kill_vid)) {
-		pr_info("Device %s has buggy VLAN hw accel\n", name);
 		return -EOPNOTSUPP;
 	}
 
@@ -156,15 +155,22 @@ int register_vlan_dev(struct net_device *dev)
 		err = vlan_gvrp_init_applicant(real_dev);
 		if (err < 0)
 			goto out_vid_del;
+		err = vlan_mvrp_init_applicant(real_dev);
+		if (err < 0)
+			goto out_uninit_gvrp;
 	}
 
 	err = vlan_group_prealloc_vid(grp, vlan_id);
 	if (err < 0)
-		goto out_uninit_applicant;
+		goto out_uninit_mvrp;
+
+	err = netdev_upper_dev_link(real_dev, dev);
+	if (err)
+		goto out_uninit_mvrp;
 
 	err = register_netdevice(dev);
 	if (err < 0)
-		goto out_uninit_applicant;
+		goto out_upper_dev_unlink;
 
 	/* Account for reference in struct vlan_dev_priv */
 	dev_hold(real_dev);
@@ -180,7 +186,12 @@ int register_vlan_dev(struct net_device *dev)
 
 	return 0;
 
-out_uninit_applicant:
+out_upper_dev_unlink:
+	netdev_upper_dev_unlink(real_dev, dev);
+out_uninit_mvrp:
+	if (grp->nr_vlan_devs == 0)
+		vlan_mvrp_uninit_applicant(real_dev);
+out_uninit_gvrp:
 	if (grp->nr_vlan_devs == 0)
 		vlan_gvrp_uninit_applicant(real_dev);
 out_vid_del:
@@ -242,6 +253,7 @@ static int register_vlan_device(struct net_device *real_dev, u16 vlan_id)
 	 * hope the underlying device can handle it.
 	 */
 	new_dev->mtu = real_dev->mtu;
+	new_dev->priv_flags |= (real_dev->priv_flags & IFF_UNICAST_FLT);
 
 	vlan_dev_priv(new_dev)->vlan_id = vlan_id;
 	vlan_dev_priv(new_dev)->real_dev = real_dev;
@@ -294,7 +306,7 @@ static void vlan_transfer_features(struct net_device *dev,
 	else
 		vlandev->hard_header_len = dev->hard_header_len + VLAN_HLEN;
 
-#if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
+#if IS_ENABLED(CONFIG_FCOE)
 	vlandev->fcoe_ddp_xid = dev->fcoe_ddp_xid;
 #endif
 
@@ -529,7 +541,7 @@ static int vlan_ioctl_handler(struct net *net, void __user *arg)
 	switch (args.cmd) {
 	case SET_VLAN_INGRESS_PRIORITY_CMD:
 		err = -EPERM;
-		if (!capable(CAP_NET_ADMIN))
+		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 			break;
 		vlan_dev_set_ingress_priority(dev,
 					      args.u.skb_priority,
@@ -539,7 +551,7 @@ static int vlan_ioctl_handler(struct net *net, void __user *arg)
 
 	case SET_VLAN_EGRESS_PRIORITY_CMD:
 		err = -EPERM;
-		if (!capable(CAP_NET_ADMIN))
+		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 			break;
 		err = vlan_dev_set_egress_priority(dev,
 						   args.u.skb_priority,
@@ -548,7 +560,7 @@ static int vlan_ioctl_handler(struct net *net, void __user *arg)
 
 	case SET_VLAN_FLAG_CMD:
 		err = -EPERM;
-		if (!capable(CAP_NET_ADMIN))
+		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 			break;
 		err = vlan_dev_change_flags(dev,
 					    args.vlan_qos ? args.u.flag : 0,
@@ -557,7 +569,7 @@ static int vlan_ioctl_handler(struct net *net, void __user *arg)
 
 	case SET_VLAN_NAME_TYPE_CMD:
 		err = -EPERM;
-		if (!capable(CAP_NET_ADMIN))
+		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 			break;
 		if ((args.u.name_type >= 0) &&
 		    (args.u.name_type < VLAN_NAME_TYPE_HIGHEST)) {
@@ -573,14 +585,14 @@ static int vlan_ioctl_handler(struct net *net, void __user *arg)
 
 	case ADD_VLAN_CMD:
 		err = -EPERM;
-		if (!capable(CAP_NET_ADMIN))
+		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 			break;
 		err = register_vlan_device(dev, args.u.VID);
 		break;
 
 	case DEL_VLAN_CMD:
 		err = -EPERM;
-		if (!capable(CAP_NET_ADMIN))
+		if (!ns_capable(net->user_ns, CAP_NET_ADMIN))
 			break;
 		unregister_vlan_dev(dev, NULL);
 		err = 0;
@@ -653,13 +665,19 @@ static int __init vlan_proto_init(void)
 	if (err < 0)
 		goto err3;
 
-	err = vlan_netlink_init();
+	err = vlan_mvrp_init();
 	if (err < 0)
 		goto err4;
+
+	err = vlan_netlink_init();
+	if (err < 0)
+		goto err5;
 
 	vlan_ioctl_set(vlan_ioctl_handler);
 	return 0;
 
+err5:
+	vlan_mvrp_uninit();
 err4:
 	vlan_gvrp_uninit();
 err3:
@@ -680,6 +698,7 @@ static void __exit vlan_cleanup_module(void)
 	unregister_pernet_subsys(&vlan_net_ops);
 	rcu_barrier(); /* Wait for completion of call_rcu()'s */
 
+	vlan_mvrp_uninit();
 	vlan_gvrp_uninit();
 }
 

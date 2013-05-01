@@ -42,12 +42,12 @@ struct omap_backlight {
 	struct omap_backlight_config *pdata;
 };
 
-static void inline omapbl_send_intensity(int intensity)
+static inline void omapbl_send_intensity(int intensity)
 {
 	omap_writeb(intensity, OMAP_PWL_ENABLE);
 }
 
-static void inline omapbl_send_enable(int enable)
+static inline void omapbl_send_enable(int enable)
 {
 	omap_writeb(enable, OMAP_PWL_CLK_ENABLE);
 }
@@ -77,7 +77,7 @@ static void omapbl_blank(struct omap_backlight *bl, int mode)
 static int omapbl_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct backlight_device *dev = platform_get_drvdata(pdev);
-	struct omap_backlight *bl = dev_get_drvdata(&dev->dev);
+	struct omap_backlight *bl = bl_get_data(dev);
 
 	omapbl_blank(bl, FB_BLANK_POWERDOWN);
 	return 0;
@@ -86,7 +86,7 @@ static int omapbl_suspend(struct platform_device *pdev, pm_message_t state)
 static int omapbl_resume(struct platform_device *pdev)
 {
 	struct backlight_device *dev = platform_get_drvdata(pdev);
-	struct omap_backlight *bl = dev_get_drvdata(&dev->dev);
+	struct omap_backlight *bl = bl_get_data(dev);
 
 	omapbl_blank(bl, bl->powermode);
 	return 0;
@@ -98,7 +98,7 @@ static int omapbl_resume(struct platform_device *pdev)
 
 static int omapbl_set_power(struct backlight_device *dev, int state)
 {
-	struct omap_backlight *bl = dev_get_drvdata(&dev->dev);
+	struct omap_backlight *bl = bl_get_data(dev);
 
 	omapbl_blank(bl, state);
 	bl->powermode = state;
@@ -108,7 +108,7 @@ static int omapbl_set_power(struct backlight_device *dev, int state)
 
 static int omapbl_update_status(struct backlight_device *dev)
 {
-	struct omap_backlight *bl = dev_get_drvdata(&dev->dev);
+	struct omap_backlight *bl = bl_get_data(dev);
 
 	if (bl->current_intensity != dev->props.brightness) {
 		if (bl->powermode == FB_BLANK_UNBLANK)
@@ -124,7 +124,7 @@ static int omapbl_update_status(struct backlight_device *dev)
 
 static int omapbl_get_intensity(struct backlight_device *dev)
 {
-	struct omap_backlight *bl = dev_get_drvdata(&dev->dev);
+	struct omap_backlight *bl = bl_get_data(dev);
 	return bl->current_intensity;
 }
 

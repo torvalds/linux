@@ -24,7 +24,7 @@
  *
  */
 
-#include <subdev/gpio.h>
+#include "priv.h"
 
 struct nv10_gpio_priv {
 	struct nouveau_gpio base;
@@ -83,25 +83,34 @@ nv10_gpio_drive(struct nouveau_gpio *gpio, int line, int dir, int out)
 }
 
 static void
-nv10_gpio_irq_enable(struct nouveau_gpio *gpio, int line, bool on)
-{
-	u32 mask = 0x00010001 << line;
-
-	nv_wr32(gpio, 0x001104, mask);
-	nv_mask(gpio, 0x001144, mask, on ? mask : 0);
-}
-
-static void
 nv10_gpio_intr(struct nouveau_subdev *subdev)
 {
 	struct nv10_gpio_priv *priv = (void *)subdev;
 	u32 intr = nv_rd32(priv, 0x001104);
 	u32 hi = (intr & 0x0000ffff) >> 0;
 	u32 lo = (intr & 0xffff0000) >> 16;
+	int i;
 
-	priv->base.isr_run(&priv->base, 0, hi | lo);
+	for (i = 0; (hi | lo) && i < 32; i++) {
+		if ((hi | lo) & (1 << i))
+			nouveau_event_trigger(priv->base.events, i);
+	}
 
 	nv_wr32(priv, 0x001104, intr);
+}
+
+static void
+nv10_gpio_intr_enable(struct nouveau_event *event, int line)
+{
+	nv_wr32(event->priv, 0x001104, 0x00010001 << line);
+	nv_mask(event->priv, 0x001144, 0x00010001 << line, 0x00010001 << line);
+}
+
+static void
+nv10_gpio_intr_disable(struct nouveau_event *event, int line)
+{
+	nv_wr32(event->priv, 0x001104, 0x00010001 << line);
+	nv_mask(event->priv, 0x001144, 0x00010001 << line, 0x00000000);
 }
 
 static int
@@ -112,14 +121,16 @@ nv10_gpio_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	struct nv10_gpio_priv *priv;
 	int ret;
 
-	ret = nouveau_gpio_create(parent, engine, oclass, &priv);
+	ret = nouveau_gpio_create(parent, engine, oclass, 16, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
 	priv->base.drive = nv10_gpio_drive;
 	priv->base.sense = nv10_gpio_sense;
-	priv->base.irq_enable = nv10_gpio_irq_enable;
+	priv->base.events->priv = priv;
+	priv->base.events->enable = nv10_gpio_intr_enable;
+	priv->base.events->disable = nv10_gpio_intr_disable;
 	nv_subdev(priv)->intr = nv10_gpio_intr;
 	return 0;
 }
@@ -141,8 +152,6 @@ nv10_gpio_init(struct nouveau_object *object)
 	if (ret)
 		return ret;
 
-	nv_wr32(priv, 0x001140, 0x00000000);
-	nv_wr32(priv, 0x001100, 0xffffffff);
 	nv_wr32(priv, 0x001144, 0x00000000);
 	nv_wr32(priv, 0x001104, 0xffffffff);
 	return 0;
@@ -152,7 +161,6 @@ static int
 nv10_gpio_fini(struct nouveau_object *object, bool suspend)
 {
 	struct nv10_gpio_priv *priv = (void *)object;
-	nv_wr32(priv, 0x001140, 0x00000000);
 	nv_wr32(priv, 0x001144, 0x00000000);
 	return nouveau_gpio_fini(&priv->base, suspend);
 }

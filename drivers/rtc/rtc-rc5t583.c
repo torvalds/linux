@@ -211,7 +211,7 @@ static const struct rtc_class_ops rc5t583_rtc_ops = {
 	.alarm_irq_enable = rc5t583_rtc_alarm_irq_enable,
 };
 
-static int __devinit rc5t583_rtc_probe(struct platform_device *pdev)
+static int rc5t583_rtc_probe(struct platform_device *pdev)
 {
 	struct rc5t583 *rc5t583 = dev_get_drvdata(pdev->dev.parent);
 	struct rc5t583_rtc *ricoh_rtc;
@@ -271,7 +271,7 @@ static int __devinit rc5t583_rtc_probe(struct platform_device *pdev)
  * Disable rc5t583 RTC interrupts.
  * Sets status flag to free.
  */
-static int __devexit rc5t583_rtc_remove(struct platform_device *pdev)
+static int rc5t583_rtc_remove(struct platform_device *pdev)
 {
 	struct rc5t583_rtc *rc5t583_rtc = dev_get_drvdata(&pdev->dev);
 
@@ -317,7 +317,7 @@ static const struct dev_pm_ops rc5t583_rtc_pm_ops = {
 
 static struct platform_driver rc5t583_rtc_driver = {
 	.probe		= rc5t583_rtc_probe,
-	.remove		= __devexit_p(rc5t583_rtc_remove),
+	.remove		= rc5t583_rtc_remove,
 	.driver		= {
 		.owner	= THIS_MODULE,
 		.name	= "rtc-rc5t583",

@@ -623,7 +623,7 @@ static int wl1251_op_config(struct ieee80211_hw *hw, u32 changed)
 		}
 	}
 
-	if (changed & IEEE80211_CONF_CHANGE_IDLE) {
+	if (changed & IEEE80211_CONF_CHANGE_IDLE && !wl->scanning) {
 		if (conf->flags & IEEE80211_CONF_IDLE) {
 			ret = wl1251_ps_set_mode(wl, STATION_IDLE);
 			if (ret < 0)
@@ -895,22 +895,34 @@ static int wl1251_op_hw_scan(struct ieee80211_hw *hw,
 	if (ret < 0)
 		goto out;
 
+	if (hw->conf.flags & IEEE80211_CONF_IDLE) {
+		ret = wl1251_ps_set_mode(wl, STATION_ACTIVE_MODE);
+		if (ret < 0)
+			goto out_sleep;
+		ret = wl1251_join(wl, wl->bss_type, wl->channel,
+				  wl->beacon_int, wl->dtim_period);
+		if (ret < 0)
+			goto out_sleep;
+	}
+
 	skb = ieee80211_probereq_get(wl->hw, wl->vif, ssid, ssid_len,
-				     req->ie, req->ie_len);
+				     req->ie_len);
 	if (!skb) {
 		ret = -ENOMEM;
-		goto out;
+		goto out_idle;
 	}
+	if (req->ie_len)
+		memcpy(skb_put(skb, req->ie_len), req->ie, req->ie_len);
 
 	ret = wl1251_cmd_template_set(wl, CMD_PROBE_REQ, skb->data,
 				      skb->len);
 	dev_kfree_skb(skb);
 	if (ret < 0)
-		goto out_sleep;
+		goto out_idle;
 
 	ret = wl1251_cmd_trigger_scan_to(wl, 0);
 	if (ret < 0)
-		goto out_sleep;
+		goto out_idle;
 
 	wl->scanning = true;
 
@@ -918,9 +930,13 @@ static int wl1251_op_hw_scan(struct ieee80211_hw *hw,
 			      req->n_channels, WL1251_SCAN_NUM_PROBES);
 	if (ret < 0) {
 		wl->scanning = false;
-		goto out_sleep;
+		goto out_idle;
 	}
+	goto out_sleep;
 
+out_idle:
+	if (hw->conf.flags & IEEE80211_CONF_IDLE)
+		ret = wl1251_ps_set_mode(wl, STATION_IDLE);
 out_sleep:
 	wl1251_ps_elp_sleep(wl);
 

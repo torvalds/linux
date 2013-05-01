@@ -334,11 +334,10 @@ static inline void reset_kprobe_instance(void)
 struct kprobe __kprobes *get_kprobe(void *addr)
 {
 	struct hlist_head *head;
-	struct hlist_node *node;
 	struct kprobe *p;
 
 	head = &kprobe_table[hash_ptr(addr, KPROBE_HASH_BITS)];
-	hlist_for_each_entry_rcu(p, node, head, hlist) {
+	hlist_for_each_entry_rcu(p, head, hlist) {
 		if (p->addr == addr)
 			return p;
 	}
@@ -471,7 +470,6 @@ static LIST_HEAD(unoptimizing_list);
 
 static void kprobe_optimizer(struct work_struct *work);
 static DECLARE_DELAYED_WORK(optimizing_work, kprobe_optimizer);
-static DECLARE_COMPLETION(optimizer_comp);
 #define OPTIMIZE_DELAY 5
 
 /*
@@ -552,8 +550,7 @@ static __kprobes void do_free_cleaned_kprobes(struct list_head *free_list)
 /* Start optimizer after OPTIMIZE_DELAY passed */
 static __kprobes void kick_kprobe_optimizer(void)
 {
-	if (!delayed_work_pending(&optimizing_work))
-		schedule_delayed_work(&optimizing_work, OPTIMIZE_DELAY);
+	schedule_delayed_work(&optimizing_work, OPTIMIZE_DELAY);
 }
 
 /* Kprobe jump optimizer */
@@ -592,16 +589,25 @@ static __kprobes void kprobe_optimizer(struct work_struct *work)
 	/* Step 5: Kick optimizer again if needed */
 	if (!list_empty(&optimizing_list) || !list_empty(&unoptimizing_list))
 		kick_kprobe_optimizer();
-	else
-		/* Wake up all waiters */
-		complete_all(&optimizer_comp);
 }
 
 /* Wait for completing optimization and unoptimization */
 static __kprobes void wait_for_kprobe_optimizer(void)
 {
-	if (delayed_work_pending(&optimizing_work))
-		wait_for_completion(&optimizer_comp);
+	mutex_lock(&kprobe_mutex);
+
+	while (!list_empty(&optimizing_list) || !list_empty(&unoptimizing_list)) {
+		mutex_unlock(&kprobe_mutex);
+
+		/* this will also make optimizing_work execute immmediately */
+		flush_delayed_work(&optimizing_work);
+		/* @optimizing_work might not have been queued yet, relax */
+		cpu_relax();
+
+		mutex_lock(&kprobe_mutex);
+	}
+
+	mutex_unlock(&kprobe_mutex);
 }
 
 /* Optimize kprobe if p is ready to be optimized */
@@ -792,7 +798,6 @@ out:
 static void __kprobes optimize_all_kprobes(void)
 {
 	struct hlist_head *head;
-	struct hlist_node *node;
 	struct kprobe *p;
 	unsigned int i;
 
@@ -803,7 +808,7 @@ static void __kprobes optimize_all_kprobes(void)
 	kprobes_allow_optimization = true;
 	for (i = 0; i < KPROBE_TABLE_SIZE; i++) {
 		head = &kprobe_table[i];
-		hlist_for_each_entry_rcu(p, node, head, hlist)
+		hlist_for_each_entry_rcu(p, head, hlist)
 			if (!kprobe_disabled(p))
 				optimize_kprobe(p);
 	}
@@ -814,7 +819,6 @@ static void __kprobes optimize_all_kprobes(void)
 static void __kprobes unoptimize_all_kprobes(void)
 {
 	struct hlist_head *head;
-	struct hlist_node *node;
 	struct kprobe *p;
 	unsigned int i;
 
@@ -825,7 +829,7 @@ static void __kprobes unoptimize_all_kprobes(void)
 	kprobes_allow_optimization = false;
 	for (i = 0; i < KPROBE_TABLE_SIZE; i++) {
 		head = &kprobe_table[i];
-		hlist_for_each_entry_rcu(p, node, head, hlist) {
+		hlist_for_each_entry_rcu(p, head, hlist) {
 			if (!kprobe_disabled(p))
 				unoptimize_kprobe(p, false);
 		}
@@ -919,7 +923,7 @@ static __kprobes struct kprobe *alloc_aggr_kprobe(struct kprobe *p)
 }
 #endif /* CONFIG_OPTPROBES */
 
-#ifdef KPROBES_CAN_USE_FTRACE
+#ifdef CONFIG_KPROBES_ON_FTRACE
 static struct ftrace_ops kprobe_ftrace_ops __read_mostly = {
 	.func = kprobe_ftrace_handler,
 	.flags = FTRACE_OPS_FL_SAVE_REGS,
@@ -964,7 +968,7 @@ static void __kprobes disarm_kprobe_ftrace(struct kprobe *p)
 			   (unsigned long)p->addr, 1, 0);
 	WARN(ret < 0, "Failed to disarm kprobe-ftrace at %p (%d)\n", p->addr, ret);
 }
-#else	/* !KPROBES_CAN_USE_FTRACE */
+#else	/* !CONFIG_KPROBES_ON_FTRACE */
 #define prepare_kprobe(p)	arch_prepare_kprobe(p)
 #define arm_kprobe_ftrace(p)	do {} while (0)
 #define disarm_kprobe_ftrace(p)	do {} while (0)
@@ -1141,7 +1145,7 @@ void __kprobes kprobe_flush_task(struct task_struct *tk)
 {
 	struct kretprobe_instance *ri;
 	struct hlist_head *head, empty_rp;
-	struct hlist_node *node, *tmp;
+	struct hlist_node *tmp;
 	unsigned long hash, flags = 0;
 
 	if (unlikely(!kprobes_initialized))
@@ -1152,12 +1156,12 @@ void __kprobes kprobe_flush_task(struct task_struct *tk)
 	hash = hash_ptr(tk, KPROBE_HASH_BITS);
 	head = &kretprobe_inst_table[hash];
 	kretprobe_table_lock(hash, &flags);
-	hlist_for_each_entry_safe(ri, node, tmp, head, hlist) {
+	hlist_for_each_entry_safe(ri, tmp, head, hlist) {
 		if (ri->task == tk)
 			recycle_rp_inst(ri, &empty_rp);
 	}
 	kretprobe_table_unlock(hash, &flags);
-	hlist_for_each_entry_safe(ri, node, tmp, &empty_rp, hlist) {
+	hlist_for_each_entry_safe(ri, tmp, &empty_rp, hlist) {
 		hlist_del(&ri->hlist);
 		kfree(ri);
 	}
@@ -1166,9 +1170,9 @@ void __kprobes kprobe_flush_task(struct task_struct *tk)
 static inline void free_rp_inst(struct kretprobe *rp)
 {
 	struct kretprobe_instance *ri;
-	struct hlist_node *pos, *next;
+	struct hlist_node *next;
 
-	hlist_for_each_entry_safe(ri, pos, next, &rp->free_instances, hlist) {
+	hlist_for_each_entry_safe(ri, next, &rp->free_instances, hlist) {
 		hlist_del(&ri->hlist);
 		kfree(ri);
 	}
@@ -1178,14 +1182,14 @@ static void __kprobes cleanup_rp_inst(struct kretprobe *rp)
 {
 	unsigned long flags, hash;
 	struct kretprobe_instance *ri;
-	struct hlist_node *pos, *next;
+	struct hlist_node *next;
 	struct hlist_head *head;
 
 	/* No race here */
 	for (hash = 0; hash < KPROBE_TABLE_SIZE; hash++) {
 		kretprobe_table_lock(hash, &flags);
 		head = &kretprobe_inst_table[hash];
-		hlist_for_each_entry_safe(ri, pos, next, head, hlist) {
+		hlist_for_each_entry_safe(ri, next, head, hlist) {
 			if (ri->rp == rp)
 				ri->rp = NULL;
 		}
@@ -1414,12 +1418,12 @@ static __kprobes int check_kprobe_address_safe(struct kprobe *p,
 	 */
 	ftrace_addr = ftrace_location((unsigned long)p->addr);
 	if (ftrace_addr) {
-#ifdef KPROBES_CAN_USE_FTRACE
+#ifdef CONFIG_KPROBES_ON_FTRACE
 		/* Given address is not on the instruction boundary */
 		if ((unsigned long)p->addr != ftrace_addr)
 			return -EILSEQ;
 		p->flags |= KPROBE_FLAG_FTRACE;
-#else	/* !KPROBES_CAN_USE_FTRACE */
+#else	/* !CONFIG_KPROBES_ON_FTRACE */
 		return -EINVAL;
 #endif
 	}
@@ -2021,7 +2025,6 @@ static int __kprobes kprobes_module_callback(struct notifier_block *nb,
 {
 	struct module *mod = data;
 	struct hlist_head *head;
-	struct hlist_node *node;
 	struct kprobe *p;
 	unsigned int i;
 	int checkcore = (val == MODULE_STATE_GOING);
@@ -2038,7 +2041,7 @@ static int __kprobes kprobes_module_callback(struct notifier_block *nb,
 	mutex_lock(&kprobe_mutex);
 	for (i = 0; i < KPROBE_TABLE_SIZE; i++) {
 		head = &kprobe_table[i];
-		hlist_for_each_entry_rcu(p, node, head, hlist)
+		hlist_for_each_entry_rcu(p, head, hlist)
 			if (within_module_init((unsigned long)p->addr, mod) ||
 			    (checkcore &&
 			     within_module_core((unsigned long)p->addr, mod))) {
@@ -2185,7 +2188,6 @@ static void __kprobes kprobe_seq_stop(struct seq_file *f, void *v)
 static int __kprobes show_kprobe_addr(struct seq_file *pi, void *v)
 {
 	struct hlist_head *head;
-	struct hlist_node *node;
 	struct kprobe *p, *kp;
 	const char *sym = NULL;
 	unsigned int i = *(loff_t *) v;
@@ -2194,7 +2196,7 @@ static int __kprobes show_kprobe_addr(struct seq_file *pi, void *v)
 
 	head = &kprobe_table[i];
 	preempt_disable();
-	hlist_for_each_entry_rcu(p, node, head, hlist) {
+	hlist_for_each_entry_rcu(p, head, hlist) {
 		sym = kallsyms_lookup((unsigned long)p->addr, NULL,
 					&offset, &modname, namebuf);
 		if (kprobe_aggrprobe(p)) {
@@ -2229,7 +2231,6 @@ static const struct file_operations debugfs_kprobes_operations = {
 static void __kprobes arm_all_kprobes(void)
 {
 	struct hlist_head *head;
-	struct hlist_node *node;
 	struct kprobe *p;
 	unsigned int i;
 
@@ -2242,7 +2243,7 @@ static void __kprobes arm_all_kprobes(void)
 	/* Arming kprobes doesn't optimize kprobe itself */
 	for (i = 0; i < KPROBE_TABLE_SIZE; i++) {
 		head = &kprobe_table[i];
-		hlist_for_each_entry_rcu(p, node, head, hlist)
+		hlist_for_each_entry_rcu(p, head, hlist)
 			if (!kprobe_disabled(p))
 				arm_kprobe(p);
 	}
@@ -2258,7 +2259,6 @@ already_enabled:
 static void __kprobes disarm_all_kprobes(void)
 {
 	struct hlist_head *head;
-	struct hlist_node *node;
 	struct kprobe *p;
 	unsigned int i;
 
@@ -2275,7 +2275,7 @@ static void __kprobes disarm_all_kprobes(void)
 
 	for (i = 0; i < KPROBE_TABLE_SIZE; i++) {
 		head = &kprobe_table[i];
-		hlist_for_each_entry_rcu(p, node, head, hlist) {
+		hlist_for_each_entry_rcu(p, head, hlist) {
 			if (!arch_trampoline_kprobe(p) && !kprobe_disabled(p))
 				disarm_kprobe(p, false);
 		}

@@ -22,6 +22,8 @@
 #define ATH9K_PLAT_EEP_MAX_WORDS	2048
 
 struct ath9k_platform_data {
+	const char *eeprom_name;
+
 	u16 eeprom_data[ATH9K_PLAT_EEP_MAX_WORDS];
 	u8 *macaddr;
 

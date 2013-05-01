@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -72,6 +72,7 @@
 #define ACPI_EXAMPLE                0x00004000
 #define ACPI_DRIVER                 0x00008000
 #define DT_COMPILER                 0x00010000
+#define ASL_PREPROCESSOR            0x00020000
 
 #define ACPI_ALL_COMPONENTS         0x0001FFFF
 #define ACPI_COMPONENT_DEFAULT      (ACPI_ALL_COMPONENTS)
@@ -262,18 +263,140 @@
  * Common parameters used for debug output functions:
  * line number, function name, module(file) name, component ID
  */
-#define ACPI_DEBUG_PARAMETERS           __LINE__, ACPI_GET_FUNCTION_NAME, _acpi_module_name, _COMPONENT
+#define ACPI_DEBUG_PARAMETERS \
+	__LINE__, ACPI_GET_FUNCTION_NAME, _acpi_module_name, _COMPONENT
+
+/* Check if debug output is currently dynamically enabled */
+
+#define ACPI_IS_DEBUG_ENABLED(level, component) \
+	((level & acpi_dbg_level) && (component & acpi_dbg_layer))
 
 /*
  * Master debug print macros
  * Print message if and only if:
  *    1) Debug print for the current component is enabled
  *    2) Debug error level or trace level for the print statement is enabled
+ *
+ * November 2012: Moved the runtime check for whether to actually emit the
+ * debug message outside of the print function itself. This improves overall
+ * performance at a relatively small code cost. Implementation involves the
+ * use of variadic macros supported by C99.
+ *
+ * Note: the ACPI_DO_WHILE0 macro is used to prevent some compilers from
+ * complaining about these constructs. On other compilers the do...while
+ * adds some extra code, so this feature is optional.
  */
-#define ACPI_DEBUG_PRINT(plist)         acpi_debug_print plist
-#define ACPI_DEBUG_PRINT_RAW(plist)     acpi_debug_print_raw plist
-
+#ifdef ACPI_USE_DO_WHILE_0
+#define ACPI_DO_WHILE0(a)               do a while(0)
 #else
+#define ACPI_DO_WHILE0(a)               a
+#endif
+
+/* DEBUG_PRINT functions */
+
+#define ACPI_DEBUG_PRINT(plist)         ACPI_ACTUAL_DEBUG plist
+#define ACPI_DEBUG_PRINT_RAW(plist)     ACPI_ACTUAL_DEBUG_RAW plist
+
+/* Helper macros for DEBUG_PRINT */
+
+#define ACPI_DO_DEBUG_PRINT(function, level, line, filename, modulename, component, ...) \
+	ACPI_DO_WHILE0 ({ \
+		if (ACPI_IS_DEBUG_ENABLED (level, component)) \
+		{ \
+			function (level, line, filename, modulename, component, __VA_ARGS__); \
+		} \
+	})
+
+#define ACPI_ACTUAL_DEBUG(level, line, filename, modulename, component, ...) \
+	ACPI_DO_DEBUG_PRINT (acpi_debug_print, level, line, \
+		filename, modulename, component, __VA_ARGS__)
+
+#define ACPI_ACTUAL_DEBUG_RAW(level, line, filename, modulename, component, ...) \
+	ACPI_DO_DEBUG_PRINT (acpi_debug_print_raw, level, line, \
+		filename, modulename, component, __VA_ARGS__)
+
+/*
+ * Function entry tracing
+ *
+ * The name of the function is emitted as a local variable that is
+ * intended to be used by both the entry trace and the exit trace.
+ */
+
+/* Helper macro */
+
+#define ACPI_TRACE_ENTRY(name, function, cast, param) \
+	ACPI_FUNCTION_NAME (name) \
+	function (ACPI_DEBUG_PARAMETERS, cast (param))
+
+/* The actual entry trace macros */
+
+#define ACPI_FUNCTION_TRACE(name) \
+	ACPI_FUNCTION_NAME(name) \
+	acpi_ut_trace (ACPI_DEBUG_PARAMETERS)
+
+#define ACPI_FUNCTION_TRACE_PTR(name, pointer) \
+	ACPI_TRACE_ENTRY (name, acpi_ut_trace_ptr, (void *), pointer)
+
+#define ACPI_FUNCTION_TRACE_U32(name, value) \
+	ACPI_TRACE_ENTRY (name, acpi_ut_trace_u32, (u32), value)
+
+#define ACPI_FUNCTION_TRACE_STR(name, string) \
+	ACPI_TRACE_ENTRY (name, acpi_ut_trace_str, (char *), string)
+
+#define ACPI_FUNCTION_ENTRY() \
+	acpi_ut_track_stack_ptr()
+
+/*
+ * Function exit tracing
+ *
+ * These macros include a return statement. This is usually considered
+ * bad form, but having a separate exit macro before the actual return
+ * is very ugly and difficult to maintain.
+ *
+ * One of the FUNCTION_TRACE macros above must be used in conjunction
+ * with these macros so that "_AcpiFunctionName" is defined.
+ */
+
+/* Exit trace helper macro */
+
+#define ACPI_TRACE_EXIT(function, cast, param) \
+	ACPI_DO_WHILE0 ({ \
+		function (ACPI_DEBUG_PARAMETERS, cast (param)); \
+		return ((param)); \
+	})
+
+/* The actual exit macros */
+
+#define return_VOID \
+	ACPI_DO_WHILE0 ({ \
+		acpi_ut_exit (ACPI_DEBUG_PARAMETERS); \
+		return; \
+	})
+
+#define return_ACPI_STATUS(status) \
+	ACPI_TRACE_EXIT (acpi_ut_status_exit, (acpi_status), status)
+
+#define return_PTR(pointer) \
+	ACPI_TRACE_EXIT (acpi_ut_ptr_exit, (u8 *), pointer)
+
+#define return_VALUE(value) \
+	ACPI_TRACE_EXIT (acpi_ut_value_exit, (u64), value)
+
+/* Conditional execution */
+
+#define ACPI_DEBUG_EXEC(a)              a
+#define ACPI_DEBUG_ONLY_MEMBERS(a)      a;
+#define _VERBOSE_STRUCTURES
+
+/* Various object display routines for debug */
+
+#define ACPI_DUMP_STACK_ENTRY(a)        acpi_ex_dump_operand((a), 0)
+#define ACPI_DUMP_OPERANDS(a, b ,c)     acpi_ex_dump_operands(a, b, c)
+#define ACPI_DUMP_ENTRY(a, b)           acpi_ns_dump_entry (a, b)
+#define ACPI_DUMP_PATHNAME(a, b, c, d)  acpi_ns_dump_pathname(a, b, c, d)
+#define ACPI_DUMP_BUFFER(a, b)          acpi_ut_debug_dump_buffer((u8 *) a, b, DB_BYTE_DISPLAY, _COMPONENT)
+
+#else				/* ACPI_DEBUG_OUTPUT */
 /*
  * This is the non-debug case -- make everything go away,
  * leaving no executable debug code!
@@ -281,6 +404,32 @@
 #define ACPI_FUNCTION_NAME(a)
 #define ACPI_DEBUG_PRINT(pl)
 #define ACPI_DEBUG_PRINT_RAW(pl)
+#define ACPI_DEBUG_EXEC(a)
+#define ACPI_DEBUG_ONLY_MEMBERS(a)
+#define ACPI_FUNCTION_TRACE(a)
+#define ACPI_FUNCTION_TRACE_PTR(a, b)
+#define ACPI_FUNCTION_TRACE_U32(a, b)
+#define ACPI_FUNCTION_TRACE_STR(a, b)
+#define ACPI_FUNCTION_EXIT
+#define ACPI_FUNCTION_STATUS_EXIT(s)
+#define ACPI_FUNCTION_VALUE_EXIT(s)
+#define ACPI_FUNCTION_ENTRY()
+#define ACPI_DUMP_STACK_ENTRY(a)
+#define ACPI_DUMP_OPERANDS(a, b, c)
+#define ACPI_DUMP_ENTRY(a, b)
+#define ACPI_DUMP_TABLES(a, b)
+#define ACPI_DUMP_PATHNAME(a, b, c, d)
+#define ACPI_DUMP_BUFFER(a, b)
+#define ACPI_DEBUG_PRINT(pl)
+#define ACPI_DEBUG_PRINT_RAW(pl)
+#define ACPI_IS_DEBUG_ENABLED(level, component) 0
+
+/* Return macros must have a return statement at the minimum */
+
+#define return_VOID                     return
+#define return_ACPI_STATUS(s)           return(s)
+#define return_VALUE(s)                 return(s)
+#define return_PTR(s)                   return(s)
 
 #endif				/* ACPI_DEBUG_OUTPUT */
 

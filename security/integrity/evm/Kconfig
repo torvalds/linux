@@ -11,3 +11,16 @@ config EVM
 	  integrity attacks.
 
 	  If you are unsure how to answer this question, answer N.
+
+config EVM_HMAC_VERSION
+	int "EVM HMAC version"
+	depends on EVM
+	default 2
+	help
+	  This options adds EVM HMAC version support.
+	  1 - original version
+	  2 - add per filesystem unique identifier (UUID) (default)
+
+	  WARNING: changing the HMAC calculation method or adding 
+	  additional info to the calculation, requires existing EVM
+	  labeled file systems to be relabeled.  

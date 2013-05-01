@@ -150,7 +150,7 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 			rx_status.freq = dev->conf.channel->center_freq;
 			rx_status.band = dev->conf.channel->band;
 			rx_status.mactime = le64_to_cpu(entry->tsft);
-			rx_status.flag |= RX_FLAG_MACTIME_MPDU;
+			rx_status.flag |= RX_FLAG_MACTIME_START;
 			if (flags & RTL818X_RX_DESC_FLAG_CRC32_ERR)
 				rx_status.flag |= RX_FLAG_FAILED_FCS_CRC;
 
@@ -901,7 +901,7 @@ static void rtl8180_eeprom_register_write(struct eeprom_93cx6 *eeprom)
 	udelay(10);
 }
 
-static int __devinit rtl8180_probe(struct pci_dev *pdev,
+static int rtl8180_probe(struct pci_dev *pdev,
 				   const struct pci_device_id *id)
 {
 	struct ieee80211_hw *dev;
@@ -1131,7 +1131,7 @@ static int __devinit rtl8180_probe(struct pci_dev *pdev,
 	return err;
 }
 
-static void __devexit rtl8180_remove(struct pci_dev *pdev)
+static void rtl8180_remove(struct pci_dev *pdev)
 {
 	struct ieee80211_hw *dev = pci_get_drvdata(pdev);
 	struct rtl8180_priv *priv;
@@ -1170,7 +1170,7 @@ static struct pci_driver rtl8180_driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= rtl8180_table,
 	.probe		= rtl8180_probe,
-	.remove		= __devexit_p(rtl8180_remove),
+	.remove		= rtl8180_remove,
 #ifdef CONFIG_PM
 	.suspend	= rtl8180_suspend,
 	.resume		= rtl8180_resume,

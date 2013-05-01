@@ -47,6 +47,12 @@
 # define NEED_NOPL	0
 #endif
 
+#ifdef CONFIG_MATOM
+# define NEED_MOVBE	(1<<(X86_FEATURE_MOVBE & 31))
+#else
+# define NEED_MOVBE	0
+#endif
+
 #ifdef CONFIG_X86_64
 #ifdef CONFIG_PARAVIRT
 /* Paravirtualized systems may not have PSE or PGE available */
@@ -80,7 +86,7 @@
 
 #define REQUIRED_MASK2	0
 #define REQUIRED_MASK3	(NEED_NOPL)
-#define REQUIRED_MASK4	0
+#define REQUIRED_MASK4	(NEED_MOVBE)
 #define REQUIRED_MASK5	0
 #define REQUIRED_MASK6	0
 #define REQUIRED_MASK7	0

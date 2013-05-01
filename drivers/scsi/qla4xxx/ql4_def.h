@@ -136,6 +136,7 @@
 #define RESPONSE_QUEUE_DEPTH		64
 #define QUEUE_SIZE			64
 #define DMA_BUFFER_SIZE			512
+#define IOCB_HIWAT_CUSHION		4
 
 /*
  * Misc
@@ -180,6 +181,7 @@
 #define DISABLE_ACB_TOV			30
 #define IP_CONFIG_TOV			30
 #define LOGIN_TOV			12
+#define BOOT_LOGIN_RESP_TOV		60
 
 #define MAX_RESET_HA_RETRIES		2
 #define FW_ALIVE_WAIT_TOV		3
@@ -314,6 +316,7 @@ struct ql4_tuple_ddb {
  * DDB flags.
  */
 #define DF_RELOGIN		0	/* Relogin to device */
+#define DF_BOOT_TGT		1	/* Boot target entry */
 #define DF_ISNS_DISCOVERED	2	/* Device was discovered via iSNS */
 #define DF_FO_MASKED		3
 
@@ -501,6 +504,7 @@ struct scsi_qla_host {
 #define AF_INTERRUPTS_ON		6 /* 0x00000040 */
 #define AF_GET_CRASH_RECORD		7 /* 0x00000080 */
 #define AF_LINK_UP			8 /* 0x00000100 */
+#define AF_LOOPBACK			9 /* 0x00000200 */
 #define AF_IRQ_ATTACHED			10 /* 0x00000400 */
 #define AF_DISABLE_ACB_COMPLETE		11 /* 0x00000800 */
 #define AF_HA_REMOVAL			12 /* 0x00001000 */
@@ -516,6 +520,8 @@ struct scsi_qla_host {
 #define AF_8XXX_RST_OWNER		25 /* 0x02000000 */
 #define AF_82XX_DUMP_READING		26 /* 0x04000000 */
 #define AF_83XX_NO_FW_DUMP		27 /* 0x08000000 */
+#define AF_83XX_IOCB_INTR_ON		28 /* 0x10000000 */
+#define AF_83XX_MBOX_INTR_ON		29 /* 0x20000000 */
 
 	unsigned long dpc_flags;
 
@@ -537,6 +543,7 @@ struct scsi_qla_host {
 	uint32_t tot_ddbs;
 
 	uint16_t iocb_cnt;
+	uint16_t iocb_hiwat;
 
 	/* SRB cache. */
 #define SRB_MIN_REQ	128
@@ -838,7 +845,8 @@ static inline int is_aer_supported(struct scsi_qla_host *ha)
 static inline int adapter_up(struct scsi_qla_host *ha)
 {
 	return (test_bit(AF_ONLINE, &ha->flags) != 0) &&
-		(test_bit(AF_LINK_UP, &ha->flags) != 0);
+	       (test_bit(AF_LINK_UP, &ha->flags) != 0) &&
+	       (!test_bit(AF_LOOPBACK, &ha->flags));
 }
 
 static inline struct scsi_qla_host* to_qla_host(struct Scsi_Host *shost)

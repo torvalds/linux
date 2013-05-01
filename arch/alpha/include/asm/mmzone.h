@@ -66,7 +66,7 @@ PLAT_NODE_DATA_LOCALNR(unsigned long p, int n)
     ((unsigned long)__va(NODE_DATA(kvaddr_to_nid(kaddr))->node_start_pfn  \
 			 << PAGE_SHIFT))
 
-/* XXX: FIXME -- wli */
+/* XXX: FIXME -- nyc */
 #define kern_addr_valid(kaddr)	(0)
 
 #define virt_to_page(kaddr)	pfn_to_page(__pa(kaddr) >> PAGE_SHIFT)

@@ -409,7 +409,10 @@ static inline
 				struct b43_dmadesc_meta *meta)
 {
 	if (meta->skb) {
-		dev_kfree_skb_any(meta->skb);
+		if (ring->tx)
+			ieee80211_free_txskb(ring->dev->wl->hw, meta->skb);
+		else
+			dev_kfree_skb_any(meta->skb);
 		meta->skb = NULL;
 	}
 }
@@ -1454,7 +1457,7 @@ int b43_dma_tx(struct b43_wldev *dev, struct sk_buff *skb)
 	if (unlikely(err == -ENOKEY)) {
 		/* Drop this packet, as we don't have the encryption key
 		 * anymore and must not transmit it unencrypted. */
-		dev_kfree_skb_any(skb);
+		ieee80211_free_txskb(dev->wl->hw, skb);
 		err = 0;
 		goto out;
 	}

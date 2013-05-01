@@ -469,7 +469,7 @@ static void qe_uart_int_rx(struct uart_qe_port *qe_port)
 	int i;
 	unsigned char ch, *cp;
 	struct uart_port *port = &qe_port->port;
-	struct tty_struct *tty = port->state->port.tty;
+	struct tty_port *tport = &port->state->port;
 	struct qe_bd *bdp;
 	u16 status;
 	unsigned int flg;
@@ -491,7 +491,7 @@ static void qe_uart_int_rx(struct uart_qe_port *qe_port)
 		/* If we don't have enough room in RX buffer for the entire BD,
 		 * then we try later, which will be the next RX interrupt.
 		 */
-		if (tty_buffer_request_room(tty, i) < i) {
+		if (tty_buffer_request_room(tport, i) < i) {
 			dev_dbg(port->dev, "ucc-uart: no room in RX buffer\n");
 			return;
 		}
@@ -512,7 +512,7 @@ static void qe_uart_int_rx(struct uart_qe_port *qe_port)
 				continue;
 
 error_return:
-			tty_insert_flip_char(tty, ch, flg);
+			tty_insert_flip_char(tport, ch, flg);
 
 		}
 
@@ -530,7 +530,7 @@ error_return:
 	qe_port->rx_cur = bdp;
 
 	/* Activate BH processing */
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(tport);
 
 	return;
 
@@ -560,7 +560,7 @@ handle_error:
 
 	/* Overrun does not affect the current character ! */
 	if (status & BD_SC_OV)
-		tty_insert_flip_char(tty, 0, TTY_OVERRUN);
+		tty_insert_flip_char(tport, 0, TTY_OVERRUN);
 #ifdef SUPPORT_SYSRQ
 	port->sysrq = 0;
 #endif

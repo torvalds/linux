@@ -26,14 +26,8 @@ static void show_cpuinfo_core(struct seq_file *m, struct cpuinfo_x86 *c,
 #ifdef CONFIG_X86_32
 static void show_cpuinfo_misc(struct seq_file *m, struct cpuinfo_x86 *c)
 {
-	/*
-	 * We use exception 16 if we have hardware math and we've either seen
-	 * it or the CPU claims it is internal
-	 */
-	int fpu_exception = c->hard_math && (ignore_fpu_irq || cpu_has_fpu);
 	seq_printf(m,
 		   "fdiv_bug\t: %s\n"
-		   "hlt_bug\t\t: %s\n"
 		   "f00f_bug\t: %s\n"
 		   "coma_bug\t: %s\n"
 		   "fpu\t\t: %s\n"
@@ -41,11 +35,10 @@ static void show_cpuinfo_misc(struct seq_file *m, struct cpuinfo_x86 *c)
 		   "cpuid level\t: %d\n"
 		   "wp\t\t: %s\n",
 		   c->fdiv_bug ? "yes" : "no",
-		   c->hlt_works_ok ? "no" : "yes",
 		   c->f00f_bug ? "yes" : "no",
 		   c->coma_bug ? "yes" : "no",
 		   c->hard_math ? "yes" : "no",
-		   fpu_exception ? "yes" : "no",
+		   c->hard_math ? "yes" : "no",
 		   c->cpuid_level,
 		   c->wp_works_ok ? "yes" : "no");
 }

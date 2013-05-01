@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -189,11 +189,10 @@ struct acpi_namespace_node {
 #define ANOBJ_EVALUATED                 0x20	/* Set on first evaluation of node */
 #define ANOBJ_ALLOCATED_BUFFER          0x40	/* Method AML buffer is dynamic (install_method) */
 
-#define ANOBJ_IS_EXTERNAL               0x08	/* i_aSL only: This object created via External() */
-#define ANOBJ_METHOD_NO_RETVAL          0x10	/* i_aSL only: Method has no return value */
-#define ANOBJ_METHOD_SOME_NO_RETVAL     0x20	/* i_aSL only: Method has at least one return value */
-#define ANOBJ_IS_BIT_OFFSET             0x40	/* i_aSL only: Reference is a bit offset */
-#define ANOBJ_IS_REFERENCED             0x80	/* i_aSL only: Object was referenced */
+#define ANOBJ_IS_EXTERNAL               0x08	/* iASL only: This object created via External() */
+#define ANOBJ_METHOD_NO_RETVAL          0x10	/* iASL only: Method has no return value */
+#define ANOBJ_METHOD_SOME_NO_RETVAL     0x20	/* iASL only: Method has at least one return value */
+#define ANOBJ_IS_REFERENCED             0x80	/* iASL only: Object was referenced */
 
 /* Internal ACPI table management - master table list */
 
@@ -262,10 +261,10 @@ struct acpi_create_field_info {
 };
 
 typedef
-acpi_status(*ACPI_INTERNAL_METHOD) (struct acpi_walk_state * walk_state);
+acpi_status(*acpi_internal_method) (struct acpi_walk_state * walk_state);
 
 /*
- * Bitmapped ACPI types.  Used internally only
+ * Bitmapped ACPI types. Used internally only
  */
 #define ACPI_BTYPE_ANY                  0x00000000
 #define ACPI_BTYPE_INTEGER              0x00000001
@@ -411,11 +410,10 @@ struct acpi_gpe_notify_info {
 	struct acpi_gpe_notify_info *next;
 };
 
-struct acpi_gpe_notify_object {
-	struct acpi_namespace_node *node;
-	struct acpi_gpe_notify_object *next;
-};
-
+/*
+ * GPE dispatch info. At any time, the GPE can have at most one type
+ * of dispatch - Method, Handler, or Implicit Notify.
+ */
 union acpi_gpe_dispatch_info {
 	struct acpi_namespace_node *method_node;	/* Method node for this GPE level */
 	struct acpi_gpe_handler_info *handler;  /* Installed GPE handler */
@@ -486,8 +484,10 @@ struct acpi_gpe_device_info {
 	struct acpi_namespace_node *gpe_device;
 };
 
-typedef acpi_status(*acpi_gpe_callback) (struct acpi_gpe_xrupt_info *gpe_xrupt_info,
-		struct acpi_gpe_block_info *gpe_block, void *context);
+typedef acpi_status(*acpi_gpe_callback) (struct acpi_gpe_xrupt_info *
+					 gpe_xrupt_info,
+					 struct acpi_gpe_block_info *gpe_block,
+					 void *context);
 
 /* Information about each particular fixed event */
 
@@ -582,7 +582,7 @@ struct acpi_pscope_state {
 };
 
 /*
- * Thread state - one per thread across multiple walk states.  Multiple walk
+ * Thread state - one per thread across multiple walk states. Multiple walk
  * states are created when there are nested control methods executing.
  */
 struct acpi_thread_state {
@@ -645,7 +645,7 @@ union acpi_generic_state {
  *
  ****************************************************************************/
 
-typedef acpi_status(*ACPI_EXECUTE_OP) (struct acpi_walk_state * walk_state);
+typedef acpi_status(*acpi_execute_op) (struct acpi_walk_state * walk_state);
 
 /* Address Range info block */
 
@@ -676,6 +676,8 @@ struct acpi_opcode_info {
 	u8 class;		/* Opcode class */
 	u8 type;		/* Opcode type */
 };
+
+/* Value associated with the parse object */
 
 union acpi_parse_value {
 	u64 integer;		/* Integer constant (Up to 64 bits) */
@@ -1023,6 +1025,31 @@ struct acpi_port_info {
 
 /*****************************************************************************
  *
+ * Disassembler
+ *
+ ****************************************************************************/
+
+struct acpi_external_list {
+	char *path;
+	char *internal_path;
+	struct acpi_external_list *next;
+	u32 value;
+	u16 length;
+	u8 type;
+	u8 flags;
+};
+
+/* Values for Flags field above */
+
+#define ACPI_IPATH_ALLOCATED    0x01
+
+struct acpi_external_file {
+	char *path;
+	struct acpi_external_file *next;
+};
+
+/*****************************************************************************
+ *
  * Debugger
  *
  ****************************************************************************/
@@ -1031,6 +1058,7 @@ struct acpi_db_method_info {
 	acpi_handle method;
 	acpi_handle main_thread_gate;
 	acpi_handle thread_complete_gate;
+	acpi_handle info_gate;
 	acpi_thread_id *threads;
 	u32 num_threads;
 	u32 num_created;
@@ -1041,6 +1069,7 @@ struct acpi_db_method_info {
 	u32 num_loops;
 	char pathname[128];
 	char **args;
+	acpi_object_type *types;
 
 	/*
 	 * Arguments to be passed to method for the command

@@ -198,18 +198,7 @@ static struct hid_driver ps3remote_driver = {
 	.report_fixup  = ps3remote_fixup,
 	.input_mapping = ps3remote_mapping,
 };
+module_hid_driver(ps3remote_driver);
 
-static int __init ps3remote_init(void)
-{
-	return hid_register_driver(&ps3remote_driver);
-}
-
-static void __exit ps3remote_exit(void)
-{
-	hid_unregister_driver(&ps3remote_driver);
-}
-
-module_init(ps3remote_init);
-module_exit(ps3remote_exit);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Dillow <dave@thedillows.org>, Antonio Ospite <ospite@studenti.unina.it>");

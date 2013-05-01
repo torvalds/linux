@@ -2202,7 +2202,7 @@ static void tsi721_disable_ints(struct tsi721_device *priv)
  *
  * Configures Tsi721 as RapidIO master port.
  */
-static int __devinit tsi721_setup_mport(struct tsi721_device *priv)
+static int tsi721_setup_mport(struct tsi721_device *priv)
 {
 	struct pci_dev *pdev = priv->pdev;
 	int err = 0;
@@ -2302,7 +2302,7 @@ err_exit:
 	return err;
 }
 
-static int __devinit tsi721_probe(struct pci_dev *pdev,
+static int tsi721_probe(struct pci_dev *pdev,
 				  const struct pci_device_id *id)
 {
 	struct tsi721_device *priv;

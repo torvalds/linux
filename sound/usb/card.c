@@ -25,9 +25,6 @@
  *
  *  NOTES:
  *
- *   - async unlink should be used for avoiding the sleep inside lock.
- *     2.4.22 usb-uhci seems buggy for async unlinking and results in
- *     oops.  in such a cse, pass async_unlink=0 option.
  *   - the linked URBs would be preferred but not used so far because of
  *     the instability of unlinking.
  *   - type II is not supported properly.  there is no device which supports
@@ -83,7 +80,6 @@ static bool enable[SNDRV_CARDS] = SNDRV_DEFAULT_ENABLE_PNP;/* Enable this card *
 static int vid[SNDRV_CARDS] = { [0 ... (SNDRV_CARDS-1)] = -1 };
 static int pid[SNDRV_CARDS] = { [0 ... (SNDRV_CARDS-1)] = -1 };
 static int nrpacks = 8;		/* max. number of packets per urb */
-static bool async_unlink = 1;
 static int device_setup[SNDRV_CARDS]; /* device parameter for this card */
 static bool ignore_ctl_error;
 
@@ -99,8 +95,6 @@ module_param_array(pid, int, NULL, 0444);
 MODULE_PARM_DESC(pid, "Product ID for the USB audio device.");
 module_param(nrpacks, int, 0644);
 MODULE_PARM_DESC(nrpacks, "Max. number of packets per URB.");
-module_param(async_unlink, bool, 0444);
-MODULE_PARM_DESC(async_unlink, "Use async unlink mode.");
 module_param_array(device_setup, int, NULL, 0444);
 MODULE_PARM_DESC(device_setup, "Specific device setup (if needed).");
 module_param(ignore_ctl_error, bool, 0444);
@@ -250,6 +244,21 @@ static int snd_usb_create_streams(struct snd_usb_audio *chip, int ctrlif)
 			usb_ifnum_to_if(dev, ctrlif)->intf_assoc;
 
 		if (!assoc) {
+			/*
+			 * Firmware writers cannot count to three.  So to find
+			 * the IAD on the NuForce UDH-100, also check the next
+			 * interface.
+			 */
+			struct usb_interface *iface =
+				usb_ifnum_to_if(dev, ctrlif + 1);
+			if (iface &&
+			    iface->intf_assoc &&
+			    iface->intf_assoc->bFunctionClass == USB_CLASS_AUDIO &&
+			    iface->intf_assoc->bFunctionProtocol == UAC_VERSION_2)
+				assoc = iface->intf_assoc;
+		}
+
+		if (!assoc) {
 			snd_printk(KERN_ERR "Audio class v2 interfaces need an interface association\n");
 			return -EINVAL;
 		}
@@ -345,7 +354,6 @@ static int snd_usb_audio_create(struct usb_device *dev, int idx,
 	chip->card = card;
 	chip->setup = device_setup[idx];
 	chip->nrpacks = nrpacks;
-	chip->async_unlink = async_unlink;
 	chip->probing = 1;
 
 	chip->usb_id = USB_ID(le16_to_cpu(dev->descriptor.idVendor),
@@ -559,9 +567,11 @@ static void snd_usb_audio_disconnect(struct usb_device *dev,
 		return;
 
 	card = chip->card;
-	mutex_lock(&register_mutex);
 	down_write(&chip->shutdown_rwsem);
 	chip->shutdown = 1;
+	up_write(&chip->shutdown_rwsem);
+
+	mutex_lock(&register_mutex);
 	chip->num_interfaces--;
 	if (chip->num_interfaces <= 0) {
 		snd_card_disconnect(card);
@@ -582,11 +592,9 @@ static void snd_usb_audio_disconnect(struct usb_device *dev,
 			snd_usb_mixer_disconnect(p);
 		}
 		usb_chip[chip->index] = NULL;
-		up_write(&chip->shutdown_rwsem);
 		mutex_unlock(&register_mutex);
 		snd_card_free_when_closed(card);
 	} else {
-		up_write(&chip->shutdown_rwsem);
 		mutex_unlock(&register_mutex);
 	}
 }
@@ -653,7 +661,7 @@ static int usb_audio_suspend(struct usb_interface *intf, pm_message_t message)
 				as->substream[0].need_setup_ep =
 					as->substream[1].need_setup_ep = true;
 			}
- 		}
+		}
 	} else {
 		/*
 		 * otherwise we keep the rest of the system in the dark

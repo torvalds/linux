@@ -55,7 +55,7 @@ therm_table(struct nouveau_bios *bios, u8 *ver, u8 *hdr, u8 *len, u8 *cnt)
 	return therm + nv_ro08(bios, therm + 1);
 }
 
-u16
+static u16
 nvbios_therm_entry(struct nouveau_bios *bios, int idx, u8 *ver, u8 *len)
 {
 	u8 hdr, cnt;
@@ -155,10 +155,15 @@ int
 nvbios_therm_fan_parse(struct nouveau_bios *bios,
 			  struct nvbios_therm_fan *fan)
 {
+	struct nouveau_therm_trip_point *cur_trip = NULL;
 	u8 ver, len, i;
 	u16 entry;
 
+	uint8_t duty_lut[] = { 0, 0, 25, 0, 40, 0, 50, 0,
+				75, 0, 85, 0, 100, 0, 100, 0 };
+
 	i = 0;
+	fan->nr_fan_trip = 0;
 	while ((entry = nvbios_therm_entry(bios, i++, &ver, &len))) {
 		s16 value = nv_ro16(bios, entry + 1);
 
@@ -167,8 +172,29 @@ nvbios_therm_fan_parse(struct nouveau_bios *bios,
 			fan->min_duty = value & 0xff;
 			fan->max_duty = (value & 0xff00) >> 8;
 			break;
+		case 0x24:
+			fan->nr_fan_trip++;
+			cur_trip = &fan->trip[fan->nr_fan_trip - 1];
+			cur_trip->hysteresis = value & 0xf;
+			cur_trip->temp = (value & 0xff0) >> 4;
+			cur_trip->fan_duty = duty_lut[(value & 0xf000) >> 12];
+			break;
+		case 0x25:
+			cur_trip = &fan->trip[fan->nr_fan_trip - 1];
+			cur_trip->fan_duty = value;
+			break;
 		case 0x26:
 			fan->pwm_freq = value;
+			break;
+		case 0x3b:
+			fan->bump_period = value;
+			break;
+		case 0x3c:
+			fan->slow_down_period = value;
+			break;
+		case 0x46:
+			fan->linear_min_temp = nv_ro08(bios, entry + 1);
+			fan->linear_max_temp = nv_ro08(bios, entry + 2);
 			break;
 		}
 	}

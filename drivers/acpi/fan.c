@@ -45,7 +45,7 @@ MODULE_DESCRIPTION("ACPI Fan Driver");
 MODULE_LICENSE("GPL");
 
 static int acpi_fan_add(struct acpi_device *device);
-static int acpi_fan_remove(struct acpi_device *device, int type);
+static int acpi_fan_remove(struct acpi_device *device);
 
 static const struct acpi_device_id fan_device_ids[] = {
 	{"PNP0C0B", 0},
@@ -172,7 +172,7 @@ static int acpi_fan_add(struct acpi_device *device)
 	return result;
 }
 
-static int acpi_fan_remove(struct acpi_device *device, int type)
+static int acpi_fan_remove(struct acpi_device *device)
 {
 	struct thermal_cooling_device *cdev = acpi_driver_data(device);
 

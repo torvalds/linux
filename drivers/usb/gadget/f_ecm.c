@@ -91,7 +91,7 @@ static inline unsigned ecm_bitrate(struct usb_gadget *g)
  * encapsulated commands (vendor-specific, using control-OUT).
  */
 
-#define LOG2_STATUS_INTERVAL_MSEC	5	/* 1 << 5 == 32 msec */
+#define ECM_STATUS_INTERVAL_MS		32
 #define ECM_STATUS_BYTECOUNT		16	/* 8 byte header + data */
 
 
@@ -192,7 +192,7 @@ static struct usb_endpoint_descriptor fs_ecm_notify_desc = {
 	.bEndpointAddress =	USB_DIR_IN,
 	.bmAttributes =		USB_ENDPOINT_XFER_INT,
 	.wMaxPacketSize =	cpu_to_le16(ECM_STATUS_BYTECOUNT),
-	.bInterval =		1 << LOG2_STATUS_INTERVAL_MSEC,
+	.bInterval =		ECM_STATUS_INTERVAL_MS,
 };
 
 static struct usb_endpoint_descriptor fs_ecm_in_desc = {
@@ -239,7 +239,7 @@ static struct usb_endpoint_descriptor hs_ecm_notify_desc = {
 	.bEndpointAddress =	USB_DIR_IN,
 	.bmAttributes =		USB_ENDPOINT_XFER_INT,
 	.wMaxPacketSize =	cpu_to_le16(ECM_STATUS_BYTECOUNT),
-	.bInterval =		LOG2_STATUS_INTERVAL_MSEC + 4,
+	.bInterval =		USB_MS_TO_HS_INTERVAL(ECM_STATUS_INTERVAL_MS),
 };
 
 static struct usb_endpoint_descriptor hs_ecm_in_desc = {
@@ -288,7 +288,7 @@ static struct usb_endpoint_descriptor ss_ecm_notify_desc = {
 	.bEndpointAddress =	USB_DIR_IN,
 	.bmAttributes =		USB_ENDPOINT_XFER_INT,
 	.wMaxPacketSize =	cpu_to_le16(ECM_STATUS_BYTECOUNT),
-	.bInterval =		LOG2_STATUS_INTERVAL_MSEC + 4,
+	.bInterval =		USB_MS_TO_HS_INTERVAL(ECM_STATUS_INTERVAL_MS),
 };
 
 static struct usb_ss_ep_comp_descriptor ss_ecm_intr_comp_desc = {
@@ -330,6 +330,7 @@ static struct usb_ss_ep_comp_descriptor ss_ecm_bulk_comp_desc = {
 
 static struct usb_descriptor_header *ecm_ss_function[] = {
 	/* CDC ECM control descriptors */
+	(struct usb_descriptor_header *) &ecm_iad_descriptor,
 	(struct usb_descriptor_header *) &ecm_control_intf,
 	(struct usb_descriptor_header *) &ecm_header_desc,
 	(struct usb_descriptor_header *) &ecm_union_desc,
@@ -353,7 +354,7 @@ static struct usb_descriptor_header *ecm_ss_function[] = {
 
 static struct usb_string ecm_string_defs[] = {
 	[0].s = "CDC Ethernet Control Model (ECM)",
-	[1].s = NULL /* DYNAMIC */,
+	[1].s = "",
 	[2].s = "CDC Ethernet Data",
 	[3].s = "CDC ECM",
 	{  } /* end of list */
@@ -742,42 +743,24 @@ ecm_bind(struct usb_configuration *c, struct usb_function *f)
 	ecm->notify_req->context = ecm;
 	ecm->notify_req->complete = ecm_notify_complete;
 
-	/* copy descriptors, and track endpoint copies */
-	f->descriptors = usb_copy_descriptors(ecm_fs_function);
-	if (!f->descriptors)
-		goto fail;
-
 	/* support all relevant hardware speeds... we expect that when
 	 * hardware is dual speed, all bulk-capable endpoints work at
 	 * both speeds
 	 */
-	if (gadget_is_dualspeed(c->cdev->gadget)) {
-		hs_ecm_in_desc.bEndpointAddress =
-				fs_ecm_in_desc.bEndpointAddress;
-		hs_ecm_out_desc.bEndpointAddress =
-				fs_ecm_out_desc.bEndpointAddress;
-		hs_ecm_notify_desc.bEndpointAddress =
-				fs_ecm_notify_desc.bEndpointAddress;
+	hs_ecm_in_desc.bEndpointAddress = fs_ecm_in_desc.bEndpointAddress;
+	hs_ecm_out_desc.bEndpointAddress = fs_ecm_out_desc.bEndpointAddress;
+	hs_ecm_notify_desc.bEndpointAddress =
+		fs_ecm_notify_desc.bEndpointAddress;
 
-		/* copy descriptors, and track endpoint copies */
-		f->hs_descriptors = usb_copy_descriptors(ecm_hs_function);
-		if (!f->hs_descriptors)
-			goto fail;
-	}
+	ss_ecm_in_desc.bEndpointAddress = fs_ecm_in_desc.bEndpointAddress;
+	ss_ecm_out_desc.bEndpointAddress = fs_ecm_out_desc.bEndpointAddress;
+	ss_ecm_notify_desc.bEndpointAddress =
+		fs_ecm_notify_desc.bEndpointAddress;
 
-	if (gadget_is_superspeed(c->cdev->gadget)) {
-		ss_ecm_in_desc.bEndpointAddress =
-				fs_ecm_in_desc.bEndpointAddress;
-		ss_ecm_out_desc.bEndpointAddress =
-				fs_ecm_out_desc.bEndpointAddress;
-		ss_ecm_notify_desc.bEndpointAddress =
-				fs_ecm_notify_desc.bEndpointAddress;
-
-		/* copy descriptors, and track endpoint copies */
-		f->ss_descriptors = usb_copy_descriptors(ecm_ss_function);
-		if (!f->ss_descriptors)
-			goto fail;
-	}
+	status = usb_assign_descriptors(f, ecm_fs_function, ecm_hs_function,
+			ecm_ss_function);
+	if (status)
+		goto fail;
 
 	/* NOTE:  all that is done without knowing or caring about
 	 * the network link ... which is unavailable to this code
@@ -795,11 +778,6 @@ ecm_bind(struct usb_configuration *c, struct usb_function *f)
 	return 0;
 
 fail:
-	if (f->descriptors)
-		usb_free_descriptors(f->descriptors);
-	if (f->hs_descriptors)
-		usb_free_descriptors(f->hs_descriptors);
-
 	if (ecm->notify_req) {
 		kfree(ecm->notify_req->buf);
 		usb_ep_free_request(ecm->notify, ecm->notify_req);
@@ -808,9 +786,9 @@ fail:
 	/* we might as well release our claims on endpoints */
 	if (ecm->notify)
 		ecm->notify->driver_data = NULL;
-	if (ecm->port.out_ep->desc)
+	if (ecm->port.out_ep)
 		ecm->port.out_ep->driver_data = NULL;
-	if (ecm->port.in_ep->desc)
+	if (ecm->port.in_ep)
 		ecm->port.in_ep->driver_data = NULL;
 
 	ERROR(cdev, "%s: can't bind, err %d\n", f->name, status);
@@ -825,16 +803,11 @@ ecm_unbind(struct usb_configuration *c, struct usb_function *f)
 
 	DBG(c->cdev, "ecm unbind\n");
 
-	if (gadget_is_superspeed(c->cdev->gadget))
-		usb_free_descriptors(f->ss_descriptors);
-	if (gadget_is_dualspeed(c->cdev->gadget))
-		usb_free_descriptors(f->hs_descriptors);
-	usb_free_descriptors(f->descriptors);
+	ecm_string_defs[0].id = 0;
+	usb_free_all_descriptors(f);
 
 	kfree(ecm->notify_req->buf);
 	usb_ep_free_request(ecm->notify, ecm->notify_req);
-
-	ecm_string_defs[1].s = NULL;
 	kfree(ecm);
 }
 
@@ -859,36 +832,15 @@ ecm_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN])
 	if (!can_support_ecm(c->cdev->gadget) || !ethaddr)
 		return -EINVAL;
 
-	/* maybe allocate device-global string IDs */
 	if (ecm_string_defs[0].id == 0) {
-
-		/* control interface label */
-		status = usb_string_id(c->cdev);
-		if (status < 0)
+		status = usb_string_ids_tab(c->cdev, ecm_string_defs);
+		if (status)
 			return status;
-		ecm_string_defs[0].id = status;
-		ecm_control_intf.iInterface = status;
 
-		/* data interface label */
-		status = usb_string_id(c->cdev);
-		if (status < 0)
-			return status;
-		ecm_string_defs[2].id = status;
-		ecm_data_intf.iInterface = status;
-
-		/* MAC address */
-		status = usb_string_id(c->cdev);
-		if (status < 0)
-			return status;
-		ecm_string_defs[1].id = status;
-		ecm_desc.iMACAddress = status;
-
-		/* IAD label */
-		status = usb_string_id(c->cdev);
-		if (status < 0)
-			return status;
-		ecm_string_defs[3].id = status;
-		ecm_iad_descriptor.iFunction = status;
+		ecm_control_intf.iInterface = ecm_string_defs[0].id;
+		ecm_data_intf.iInterface = ecm_string_defs[2].id;
+		ecm_desc.iMACAddress = ecm_string_defs[1].id;
+		ecm_iad_descriptor.iFunction = ecm_string_defs[3].id;
 	}
 
 	/* allocate and initialize one new instance */
@@ -913,9 +865,7 @@ ecm_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN])
 	ecm->port.func.disable = ecm_disable;
 
 	status = usb_add_function(c, &ecm->port.func);
-	if (status) {
-		ecm_string_defs[1].s = NULL;
+	if (status)
 		kfree(ecm);
-	}
 	return status;
 }

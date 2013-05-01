@@ -16,7 +16,6 @@
 #define __LINUX_UNIFI_WEXT_H__ 1
 
 #include <linux/kernel.h>
-#include <linux/version.h>
 #include <net/iw_handler.h>
 #include "csr_wifi_sme_prim.h"
 

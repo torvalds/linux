@@ -73,15 +73,15 @@
 /*******************************************************************************
  *  function prototypes
  ******************************************************************************/
-void parse_config( struct net_device *dev );
+void parse_config(struct net_device *dev);
 
-int readline( int filedesc, char *buffer );
+int readline(int filedesc, char *buffer);
 
-void translate_option( char *buffer, struct wl_private *lp );
+void translate_option(char *buffer, struct wl_private *lp);
 
-int parse_mac_address( char *value, u_char *byte_array );
+int parse_mac_address(char *value, u_char *byte_array);
 
-void ParseConfigLine( char *pszLine, char **ppszLVal, char **ppszRVal );
+void ParseConfigLine(char *pszLine, char **ppszLVal, char **ppszRVal);
 
 
-#endif  // __WL_PROFILE_H__
+#endif  /* __WL_PROFILE_H__ */

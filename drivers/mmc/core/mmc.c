@@ -239,7 +239,7 @@ static void mmc_select_card_type(struct mmc_card *card)
 {
 	struct mmc_host *host = card->host;
 	u8 card_type = card->ext_csd.raw_card_type & EXT_CSD_CARD_TYPE_MASK;
-	unsigned int caps = host->caps, caps2 = host->caps2;
+	u32 caps = host->caps, caps2 = host->caps2;
 	unsigned int hs_max_dtr = 0;
 
 	if (card_type & EXT_CSD_CARD_TYPE_26)
@@ -491,6 +491,17 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 
 		card->ext_csd.rel_param = ext_csd[EXT_CSD_WR_REL_PARAM];
 		card->ext_csd.rst_n_function = ext_csd[EXT_CSD_RST_N_FUNCTION];
+
+		/*
+		 * RPMB regions are defined in multiples of 128K.
+		 */
+		card->ext_csd.raw_rpmb_size_mult = ext_csd[EXT_CSD_RPMB_MULT];
+		if (ext_csd[EXT_CSD_RPMB_MULT] && mmc_host_cmd23(card->host)) {
+			mmc_part_add(card, ext_csd[EXT_CSD_RPMB_MULT] << 17,
+				EXT_CSD_PART_CONFIG_ACC_RPMB,
+				"rpmb", 0, false,
+				MMC_BLK_DATA_AREA_RPMB);
+		}
 	}
 
 	card->ext_csd.raw_erased_mem_count = ext_csd[EXT_CSD_ERASED_MEM_CONT];
@@ -527,6 +538,11 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 		} else {
 			card->ext_csd.data_tag_unit_size = 0;
 		}
+
+		card->ext_csd.max_packed_writes =
+			ext_csd[EXT_CSD_MAX_PACKED_WRITES];
+		card->ext_csd.max_packed_reads =
+			ext_csd[EXT_CSD_MAX_PACKED_READS];
 	} else {
 		card->ext_csd.data_sector_size = 512;
 	}
@@ -615,6 +631,8 @@ MMC_DEV_ATTR(serial, "0x%08x\n", card->cid.serial);
 MMC_DEV_ATTR(enhanced_area_offset, "%llu\n",
 		card->ext_csd.enhanced_area_offset);
 MMC_DEV_ATTR(enhanced_area_size, "%u\n", card->ext_csd.enhanced_area_size);
+MMC_DEV_ATTR(raw_rpmb_size_mult, "%#x\n", card->ext_csd.raw_rpmb_size_mult);
+MMC_DEV_ATTR(rel_sectors, "%#x\n", card->ext_csd.rel_sectors);
 
 static struct attribute *mmc_std_attrs[] = {
 	&dev_attr_cid.attr,
@@ -630,6 +648,8 @@ static struct attribute *mmc_std_attrs[] = {
 	&dev_attr_serial.attr,
 	&dev_attr_enhanced_area_offset.attr,
 	&dev_attr_enhanced_area_size.attr,
+	&dev_attr_raw_rpmb_size_mult.attr,
+	&dev_attr_rel_sectors.attr,
 	NULL,
 };
 
@@ -754,11 +774,11 @@ static int mmc_select_hs200(struct mmc_card *card)
 
 	if (card->ext_csd.card_type & EXT_CSD_CARD_TYPE_SDR_1_2V &&
 			host->caps2 & MMC_CAP2_HS200_1_2V_SDR)
-		err = mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_120, 0);
+		err = __mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_120);
 
 	if (err && card->ext_csd.card_type & EXT_CSD_CARD_TYPE_SDR_1_8V &&
 			host->caps2 & MMC_CAP2_HS200_1_8V_SDR)
-		err = mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_180, 0);
+		err = __mmc_set_signal_voltage(host, MMC_SIGNAL_VOLTAGE_180);
 
 	/* If fails try again during next card power cycle */
 	if (err)
@@ -1051,6 +1071,8 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 	if (mmc_card_highspeed(card) || mmc_card_hs200(card)) {
 		if (max_dtr > card->ext_csd.hs_max_dtr)
 			max_dtr = card->ext_csd.hs_max_dtr;
+		if (mmc_card_highspeed(card) && (max_dtr > 52000000))
+			max_dtr = 52000000;
 	} else if (max_dtr > card->csd.max_dtr) {
 		max_dtr = card->csd.max_dtr;
 	}
@@ -1204,8 +1226,8 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 			 * WARNING: eMMC rules are NOT the same as SD DDR
 			 */
 			if (ddr == MMC_1_2V_DDR_MODE) {
-				err = mmc_set_signal_voltage(host,
-					MMC_SIGNAL_VOLTAGE_120, 0);
+				err = __mmc_set_signal_voltage(host,
+					MMC_SIGNAL_VOLTAGE_120);
 				if (err)
 					goto err;
 			}
@@ -1255,6 +1277,29 @@ static int mmc_init_card(struct mmc_host *host, u32 ocr,
 			err = 0;
 		} else {
 			card->ext_csd.cache_ctrl = 1;
+		}
+	}
+
+	/*
+	 * The mandatory minimum values are defined for packed command.
+	 * read: 5, write: 3
+	 */
+	if (card->ext_csd.max_packed_writes >= 3 &&
+	    card->ext_csd.max_packed_reads >= 5 &&
+	    host->caps2 & MMC_CAP2_PACKED_CMD) {
+		err = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL,
+				EXT_CSD_EXP_EVENTS_CTRL,
+				EXT_CSD_PACKED_EVENT_EN,
+				card->ext_csd.generic_cmd6_time);
+		if (err && err != -EBADMSG)
+			goto free_card;
+		if (err) {
+			pr_warn("%s: Enabling packed event failed\n",
+				mmc_hostname(card->host));
+			card->ext_csd.packed_event_en = 0;
+			err = 0;
+		} else {
+			card->ext_csd.packed_event_en = 1;
 		}
 	}
 
@@ -1362,6 +1407,11 @@ static int mmc_suspend(struct mmc_host *host)
 	BUG_ON(!host->card);
 
 	mmc_claim_host(host);
+
+	err = mmc_cache_ctrl(host, 0);
+	if (err)
+		goto out;
+
 	if (mmc_can_poweroff_notify(host->card))
 		err = mmc_poweroff_notify(host->card, EXT_CSD_POWER_OFF_SHORT);
 	else if (mmc_card_can_sleep(host))
@@ -1369,8 +1419,9 @@ static int mmc_suspend(struct mmc_host *host)
 	else if (!mmc_host_is_spi(host))
 		err = mmc_deselect_cards(host);
 	host->card->state &= ~(MMC_STATE_HIGHSPEED | MMC_STATE_HIGHSPEED_200);
-	mmc_release_host(host);
 
+out:
+	mmc_release_host(host);
 	return err;
 }
 

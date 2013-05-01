@@ -41,19 +41,8 @@
 
 /*---------------------  Export Functions  --------------------------*/
 
-BOOL
-FIRMWAREbDownload(
-     PSDevice pDevice
-    );
-
-BOOL
-FIRMWAREbBrach2Sram(
-     PSDevice pDevice
-    );
-
-BOOL
-FIRMWAREbCheckVersion(
-     PSDevice pDevice
-    );
+int FIRMWAREbDownload(struct vnt_private *);
+int FIRMWAREbBrach2Sram(struct vnt_private *);
+int FIRMWAREbCheckVersion(struct vnt_private *);
 
 #endif /* __FIRMWARE_H__ */

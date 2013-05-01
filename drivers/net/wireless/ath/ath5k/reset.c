@@ -789,9 +789,9 @@ ath5k_hw_nic_wakeup(struct ath5k_hw *ah, struct ieee80211_channel *channel)
 		 * (I don't think it supports 44MHz) */
 		/* On 2425 initvals TURBO_SHORT is not present */
 		if (ah->ah_bwmode == AR5K_BWMODE_40MHZ) {
-			turbo = AR5K_PHY_TURBO_MODE |
-				(ah->ah_radio == AR5K_RF2425) ? 0 :
-				AR5K_PHY_TURBO_SHORT;
+			turbo = AR5K_PHY_TURBO_MODE;
+			if (ah->ah_radio != AR5K_RF2425)
+				turbo |= AR5K_PHY_TURBO_SHORT;
 		} else if (ah->ah_bwmode != AR5K_BWMODE_DEFAULT) {
 			if (ah->ah_radio == AR5K_RF5413) {
 				mode |= (ah->ah_bwmode == AR5K_BWMODE_10MHZ) ?
@@ -985,6 +985,8 @@ ath5k_hw_commit_eeprom_settings(struct ath5k_hw *ah,
 		return;
 
 	ee_mode = ath5k_eeprom_mode_from_channel(channel);
+	if (WARN_ON(ee_mode < 0))
+		return;
 
 	/* Adjust power delta for channel 14 */
 	if (channel->center_freq == 2484)

@@ -46,6 +46,7 @@ struct omap_kms_platform_data {
 };
 
 struct omap_drm_platform_data {
+	uint32_t omaprev;
 	struct omap_kms_platform_data *kms_pdata;
 };
 

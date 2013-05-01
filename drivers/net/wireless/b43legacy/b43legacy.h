@@ -13,6 +13,7 @@
 
 #include <linux/ssb/ssb.h>
 #include <linux/ssb/ssb_driver_chipcommon.h>
+#include <linux/completion.h>
 
 #include <net/mac80211.h>
 
@@ -733,6 +734,10 @@ struct b43legacy_wldev {
 
 	/* Firmware data */
 	struct b43legacy_firmware fw;
+	const struct firmware *fwp;	/* needed to pass fw pointer */
+
+	/* completion struct for firmware loading */
+	struct completion fw_load_complete;
 
 	/* Devicelist in struct b43legacy_wl (all 802.11 cores) */
 	struct list_head list;

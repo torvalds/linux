@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2012 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2013 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -420,10 +420,10 @@ static int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 		return -EINVAL;
 	}
 
-	if (tx_power > DIV_ROUND_UP(priv->eeprom_data->max_tx_pwr_half_dbm, 2)) {
+	if (tx_power > DIV_ROUND_UP(priv->nvm_data->max_tx_pwr_half_dbm, 2)) {
 		IWL_WARN(priv,
 			"Requested user TXPOWER %d above upper limit %d.\n",
-			 tx_power, priv->eeprom_data->max_tx_pwr_half_dbm);
+			 tx_power, priv->nvm_data->max_tx_pwr_half_dbm);
 		return -EINVAL;
 	}
 
@@ -1012,12 +1012,12 @@ static void iwl_calc_basic_rates(struct iwl_priv *priv,
 	 * As a consequence, it's not as complicated as it sounds, just add
 	 * any lower rates to the ACK rate bitmap.
 	 */
-	if (IWL_RATE_11M_INDEX < lowest_present_ofdm)
-		ofdm |= IWL_RATE_11M_MASK >> IWL_FIRST_CCK_RATE;
-	if (IWL_RATE_5M_INDEX < lowest_present_ofdm)
-		ofdm |= IWL_RATE_5M_MASK >> IWL_FIRST_CCK_RATE;
-	if (IWL_RATE_2M_INDEX < lowest_present_ofdm)
-		ofdm |= IWL_RATE_2M_MASK >> IWL_FIRST_CCK_RATE;
+	if (IWL_RATE_11M_INDEX < lowest_present_cck)
+		cck |= IWL_RATE_11M_MASK >> IWL_FIRST_CCK_RATE;
+	if (IWL_RATE_5M_INDEX < lowest_present_cck)
+		cck |= IWL_RATE_5M_MASK >> IWL_FIRST_CCK_RATE;
+	if (IWL_RATE_2M_INDEX < lowest_present_cck)
+		cck |= IWL_RATE_2M_MASK >> IWL_FIRST_CCK_RATE;
 	/* 1M already there or needed so always add */
 	cck |= IWL_RATE_1M_MASK >> IWL_FIRST_CCK_RATE;
 
@@ -1545,10 +1545,9 @@ void iwlagn_bss_info_changed(struct ieee80211_hw *hw,
 				bss_conf->bssid);
 	}
 
-	if (changes & BSS_CHANGED_BEACON && vif->type == NL80211_IFTYPE_ADHOC &&
-	    priv->beacon_ctx) {
+	if (changes & BSS_CHANGED_BEACON && priv->beacon_ctx == ctx) {
 		if (iwlagn_update_beacon(priv, vif))
-			IWL_ERR(priv, "Error sending IBSS beacon\n");
+			IWL_ERR(priv, "Error updating beacon\n");
 	}
 
 	mutex_unlock(&priv->mutex);

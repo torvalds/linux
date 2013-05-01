@@ -115,7 +115,7 @@ static void ot200_led_brightness_set(struct led_classdev *led_cdev,
 	spin_unlock_irqrestore(&value_lock, flags);
 }
 
-static int __devinit ot200_led_probe(struct platform_device *pdev)
+static int ot200_led_probe(struct platform_device *pdev)
 {
 	int i;
 	int ret;
@@ -144,7 +144,7 @@ err:
 	return ret;
 }
 
-static int __devexit ot200_led_remove(struct platform_device *pdev)
+static int ot200_led_remove(struct platform_device *pdev)
 {
 	int i;
 
@@ -156,7 +156,7 @@ static int __devexit ot200_led_remove(struct platform_device *pdev)
 
 static struct platform_driver ot200_led_driver = {
 	.probe		= ot200_led_probe,
-	.remove		= __devexit_p(ot200_led_remove),
+	.remove		= ot200_led_remove,
 	.driver		= {
 		.name	= "leds-ot200",
 		.owner	= THIS_MODULE,

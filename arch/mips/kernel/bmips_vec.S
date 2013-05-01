@@ -170,7 +170,7 @@ bmips_smp_entry:
 
 	/* switch to permanent stack and continue booting */
 
-	.global	bmips_secondary_reentry
+	.global bmips_secondary_reentry
 bmips_secondary_reentry:
 	la	k0, bmips_smp_boot_sp
 	lw	sp, 0(k0)
@@ -182,7 +182,7 @@ bmips_secondary_reentry:
 #endif /* CONFIG_SMP */
 
 	.align	4
-	.global	bmips_reset_nmi_vec_end
+	.global bmips_reset_nmi_vec_end
 bmips_reset_nmi_vec_end:
 
 END(bmips_reset_nmi_vec)
@@ -206,7 +206,7 @@ LEAF(bmips_smp_int_vec)
 	eret
 
 	.align	4
-	.global	bmips_smp_int_vec_end
+	.global bmips_smp_int_vec_end
 bmips_smp_int_vec_end:
 
 END(bmips_smp_int_vec)

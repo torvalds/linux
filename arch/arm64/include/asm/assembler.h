@@ -107,3 +107,11 @@
  * Register aliases.
  */
 lr	.req	x30		// link register
+
+/*
+ * Vector entry
+ */
+	 .macro	ventry	label
+	.align	7
+	b	\label
+	.endm

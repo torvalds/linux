@@ -672,18 +672,7 @@ static struct hid_driver picolcd_driver = {
 	.reset_resume =  picolcd_reset_resume,
 #endif
 };
+module_hid_driver(picolcd_driver);
 
-static int __init picolcd_init(void)
-{
-	return hid_register_driver(&picolcd_driver);
-}
-
-static void __exit picolcd_exit(void)
-{
-	hid_unregister_driver(&picolcd_driver);
-}
-
-module_init(picolcd_init);
-module_exit(picolcd_exit);
 MODULE_DESCRIPTION("Minibox graphics PicoLCD Driver");
 MODULE_LICENSE("GPL v2");

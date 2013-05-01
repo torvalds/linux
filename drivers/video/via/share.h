@@ -319,7 +319,7 @@ struct crt_mode_table {
 	int refresh_rate;
 	int h_sync_polarity;
 	int v_sync_polarity;
-	struct display_timing crtc;
+	struct via_display_timing crtc;
 };
 
 struct io_reg {

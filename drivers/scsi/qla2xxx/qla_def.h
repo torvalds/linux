@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2012 QLogic Corporation
+ * Copyright (c)  2003-2013 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -37,6 +37,7 @@
 #include "qla_nx.h"
 #define QLA2XXX_DRIVER_NAME	"qla2xxx"
 #define QLA2XXX_APIDEV		"ql2xapidev"
+#define QLA2XXX_MANUFACTURER	"QLogic Corporation"
 
 /*
  * We have MAILBOX_REGISTER_COUNT sized arrays in a few places,
@@ -253,8 +254,8 @@
 #define LOOP_DOWN_TIME			255	/* 240 */
 #define	LOOP_DOWN_RESET			(LOOP_DOWN_TIME - 30)
 
-/* Maximum outstanding commands in ISP queues (1-65535) */
-#define MAX_OUTSTANDING_COMMANDS	1024
+#define DEFAULT_OUTSTANDING_COMMANDS	1024
+#define MIN_OUTSTANDING_COMMANDS	128
 
 /* ISP request and response entry counts (37-65535) */
 #define REQUEST_ENTRY_CNT_2100		128	/* Number of request entries. */
@@ -537,6 +538,8 @@ struct device_reg_25xxmq {
 	uint32_t req_q_out;
 	uint32_t rsp_q_in;
 	uint32_t rsp_q_out;
+	uint32_t atio_q_in;
+	uint32_t atio_q_out;
 };
 
 typedef union {
@@ -562,6 +565,9 @@ typedef union {
 	(IS_QLA2100(ha) || IS_QLA2200(ha) ? \
 	 &(reg)->u.isp2100.mailbox5 : \
 	 &(reg)->u.isp2300.rsp_q_out)
+
+#define ISP_ATIO_Q_IN(vha) (vha->hw->tgt.atio_q_in)
+#define ISP_ATIO_Q_OUT(vha) (vha->hw->tgt.atio_q_out)
 
 #define MAILBOX_REG(ha, reg, num) \
 	(IS_QLA2100(ha) || IS_QLA2200(ha) ? \
@@ -762,8 +768,8 @@ typedef struct {
 #define MBC_PORT_LOGOUT			0x56	/* Port Logout request */
 #define MBC_SEND_RNID_ELS		0x57	/* Send RNID ELS request */
 #define MBC_SET_RNID_PARAMS		0x59	/* Set RNID parameters */
-#define MBC_GET_RNID_PARAMS		0x5a	/* Data Rate */
-#define MBC_DATA_RATE			0x5d	/* Get RNID parameters */
+#define MBC_GET_RNID_PARAMS		0x5a	/* Get RNID parameters */
+#define MBC_DATA_RATE			0x5d	/* Data Rate */
 #define MBC_INITIALIZE_FIRMWARE		0x60	/* Initialize firmware */
 #define MBC_INITIATE_LIP		0x62	/* Initiate Loop */
 						/* Initialization Procedure */
@@ -809,6 +815,7 @@ typedef struct {
 #define MBC_HOST_MEMORY_COPY		0x53	/* Host Memory Copy. */
 #define MBC_SEND_RNFT_ELS		0x5e	/* Send RNFT ELS request */
 #define MBC_GET_LINK_PRIV_STATS		0x6d	/* Get link & private data. */
+#define MBC_LINK_INITIALIZATION		0x72	/* Do link initialization. */
 #define MBC_SET_VENDOR_ID		0x76	/* Set Vendor ID. */
 #define MBC_PORT_RESET			0x120	/* Port Reset */
 #define MBC_SET_PORT_CONFIG		0x122	/* Set port configuration */
@@ -855,6 +862,9 @@ typedef struct {
 #define	MBX_2		BIT_2
 #define	MBX_1		BIT_1
 #define	MBX_0		BIT_0
+
+#define RNID_TYPE_SET_VERSION	0x9
+#define RNID_TYPE_ASIC_TEMP	0xC
 
 /*
  * Firmware state codes from get firmware state mailbox command
@@ -1841,9 +1851,6 @@ typedef struct fc_port {
 	uint8_t scan_state;
 } fc_port_t;
 
-#define QLA_FCPORT_SCAN_NONE	0
-#define QLA_FCPORT_SCAN_FOUND	1
-
 /*
  * Fibre channel port/lun states.
  */
@@ -2486,9 +2493,9 @@ struct bidi_statistics {
 #define QLA_MAX_QUEUES 256
 #define ISP_QUE_REG(ha, id) \
 	((ha->mqenable || IS_QLA83XX(ha)) ? \
-	((void *)(ha->mqiobase) +\
+	((device_reg_t __iomem *)(ha->mqiobase) +\
 	(QLA_QUE_PAGE * id)) :\
-	((void *)(ha->iobase)))
+	((device_reg_t __iomem *)(ha->iobase)))
 #define QLA_REQ_QUE_ID(tag) \
 	((tag < QLA_MAX_QUEUES && tag > 0) ? tag : 0)
 #define QLA_DEFAULT_QUE_QOS 5
@@ -2533,8 +2540,10 @@ struct req_que {
 	uint16_t  qos;
 	uint16_t  vp_idx;
 	struct rsp_que *rsp;
-	srb_t *outstanding_cmds[MAX_OUTSTANDING_COMMANDS];
+	srb_t **outstanding_cmds;
 	uint32_t current_outstanding_cmd;
+	uint16_t num_outstanding_cmds;
+#define	MAX_Q_DEPTH		32
 	int max_q_depth;
 };
 
@@ -2557,11 +2566,13 @@ struct qlt_hw_data {
 	struct atio *atio_ring_ptr;	/* Current address. */
 	uint16_t atio_ring_index; /* Current index. */
 	uint16_t atio_q_length;
+	uint32_t __iomem *atio_q_in;
+	uint32_t __iomem *atio_q_out;
 
 	void *target_lport_ptr;
 	struct qla_tgt_func_tmpl *tgt_ops;
 	struct qla_tgt *qla_tgt;
-	struct qla_tgt_cmd *cmds[MAX_OUTSTANDING_COMMANDS];
+	struct qla_tgt_cmd *cmds[DEFAULT_OUTSTANDING_COMMANDS];
 	uint16_t current_handle;
 
 	struct qla_tgt_vp_map *tgt_vp_map;
@@ -2618,7 +2629,6 @@ struct qla_hw_data {
 		uint32_t	nic_core_hung:1;
 
 		uint32_t	quiesce_owner:1;
-		uint32_t	thermal_supported:1;
 		uint32_t	nic_core_reset_hdlr_active:1;
 		uint32_t	nic_core_reset_owner:1;
 		uint32_t	isp82xx_no_md_cap:1;
@@ -2788,6 +2798,8 @@ struct qla_hw_data {
 #define IS_PI_SPLIT_DET_CAPABLE_HBA(ha)	(IS_QLA83XX(ha))
 #define IS_PI_SPLIT_DET_CAPABLE(ha)	(IS_PI_SPLIT_DET_CAPABLE_HBA(ha) && \
     (((ha)->fw_attributes_h << 16 | (ha)->fw_attributes) & BIT_22))
+#define IS_ATIO_MSIX_CAPABLE(ha) (IS_QLA83XX(ha))
+#define IS_TGT_MODE_CAPABLE(ha)	(ha->tgt.atio_q_length)
 
 	/* HBA serial number */
 	uint8_t		serial0;
@@ -2870,7 +2882,13 @@ struct qla_hw_data {
 	struct completion mbx_cmd_comp; /* Serialize mbx access */
 	struct completion mbx_intr_comp;  /* Used for completion notification */
 	struct completion dcbx_comp;	/* For set port config notification */
+	struct completion lb_portup_comp; /* Used to wait for link up during
+					   * loopback */
+#define DCBX_COMP_TIMEOUT	20
+#define LB_PORTUP_COMP_TIMEOUT	10
+
 	int notify_dcbx_comp;
+	int notify_lb_portup_comp;
 	struct mutex selflogin_lock;
 
 	/* Basic firmware related information. */
@@ -2887,6 +2905,7 @@ struct qla_hw_data {
 #define RISC_START_ADDRESS_2300 0x800
 #define RISC_START_ADDRESS_2400 0x100000
 	uint16_t	fw_xcb_count;
+	uint16_t	fw_iocb_count;
 
 	uint16_t	fw_options[16];         /* slots: 1,2,3,10,11 */
 	uint8_t		fw_seriallink_options[4];
@@ -3056,7 +3075,16 @@ struct qla_hw_data {
 	struct work_struct idc_state_handler;
 	struct work_struct nic_core_unrecoverable;
 
+#define HOST_QUEUE_RAMPDOWN_INTERVAL           (60 * HZ)
+#define HOST_QUEUE_RAMPUP_INTERVAL             (30 * HZ)
+	unsigned long   host_last_rampdown_time;
+	unsigned long   host_last_rampup_time;
+	int             cfg_lun_q_depth;
+
 	struct qlt_hw_data tgt;
+	uint16_t	thermal_support;
+#define THERMAL_SUPPORT_I2C BIT_0
+#define THERMAL_SUPPORT_ISP BIT_1
 };
 
 /*
@@ -3115,6 +3143,8 @@ typedef struct scsi_qla_host {
 #define MPI_RESET_NEEDED	19	/* Initiate MPI FW reset */
 #define ISP_QUIESCE_NEEDED	20	/* Driver need some quiescence */
 #define SCR_PENDING		21	/* SCR in target mode */
+#define HOST_RAMP_DOWN_QUEUE_DEPTH     22
+#define HOST_RAMP_UP_QUEUE_DEPTH       23
 
 	uint32_t	device_flags;
 #define SWITCH_FOUND		BIT_0
@@ -3247,8 +3277,6 @@ struct qla_tgt_vp_map {
 #define QLA_ALREADY_REGISTERED		0x109
 
 #define NVRAM_DELAY()		udelay(10)
-
-#define INVALID_HANDLE	(MAX_OUTSTANDING_COMMANDS+1)
 
 /*
  * Flash support definitions

@@ -173,9 +173,8 @@ static struct ip6addrlbl_entry *__ipv6_addr_label(struct net *net,
 						  const struct in6_addr *addr,
 						  int type, int ifindex)
 {
-	struct hlist_node *pos;
 	struct ip6addrlbl_entry *p;
-	hlist_for_each_entry_rcu(p, pos, &ip6addrlbl_table.head, list) {
+	hlist_for_each_entry_rcu(p, &ip6addrlbl_table.head, list) {
 		if (__ip6addrlbl_match(net, p, addr, type, ifindex))
 			return p;
 	}
@@ -261,9 +260,9 @@ static int __ip6addrlbl_add(struct ip6addrlbl_entry *newp, int replace)
 	if (hlist_empty(&ip6addrlbl_table.head)) {
 		hlist_add_head_rcu(&newp->list, &ip6addrlbl_table.head);
 	} else {
-		struct hlist_node *pos, *n;
+		struct hlist_node *n;
 		struct ip6addrlbl_entry *p = NULL;
-		hlist_for_each_entry_safe(p, pos, n,
+		hlist_for_each_entry_safe(p, n,
 					  &ip6addrlbl_table.head, list) {
 			if (p->prefixlen == newp->prefixlen &&
 			    net_eq(ip6addrlbl_net(p), ip6addrlbl_net(newp)) &&
@@ -319,13 +318,13 @@ static int __ip6addrlbl_del(struct net *net,
 			    int ifindex)
 {
 	struct ip6addrlbl_entry *p = NULL;
-	struct hlist_node *pos, *n;
+	struct hlist_node *n;
 	int ret = -ESRCH;
 
 	ADDRLABEL(KERN_DEBUG "%s(prefix=%pI6, prefixlen=%d, ifindex=%d)\n",
 		  __func__, prefix, prefixlen, ifindex);
 
-	hlist_for_each_entry_safe(p, pos, n, &ip6addrlbl_table.head, list) {
+	hlist_for_each_entry_safe(p, n, &ip6addrlbl_table.head, list) {
 		if (p->prefixlen == prefixlen &&
 		    net_eq(ip6addrlbl_net(p), net) &&
 		    p->ifindex == ifindex &&
@@ -380,11 +379,11 @@ static int __net_init ip6addrlbl_net_init(struct net *net)
 static void __net_exit ip6addrlbl_net_exit(struct net *net)
 {
 	struct ip6addrlbl_entry *p = NULL;
-	struct hlist_node *pos, *n;
+	struct hlist_node *n;
 
 	/* Remove all labels belonging to the exiting net */
 	spin_lock(&ip6addrlbl_table.lock);
-	hlist_for_each_entry_safe(p, pos, n, &ip6addrlbl_table.head, list) {
+	hlist_for_each_entry_safe(p, n, &ip6addrlbl_table.head, list) {
 		if (net_eq(ip6addrlbl_net(p), net)) {
 			hlist_del_rcu(&p->list);
 			ip6addrlbl_put(p);
@@ -505,12 +504,11 @@ static int ip6addrlbl_dump(struct sk_buff *skb, struct netlink_callback *cb)
 {
 	struct net *net = sock_net(skb->sk);
 	struct ip6addrlbl_entry *p;
-	struct hlist_node *pos;
 	int idx = 0, s_idx = cb->args[0];
 	int err;
 
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(p, pos, &ip6addrlbl_table.head, list) {
+	hlist_for_each_entry_rcu(p, &ip6addrlbl_table.head, list) {
 		if (idx >= s_idx &&
 		    net_eq(ip6addrlbl_net(p), net)) {
 			if ((err = ip6addrlbl_fill(skb, p,

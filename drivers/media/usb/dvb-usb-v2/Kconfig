@@ -1,6 +1,6 @@
 config DVB_USB_V2
 	tristate "Support for various USB DVB devices v2"
-	depends on DVB_CORE && USB && I2C && RC_CORE
+	depends on DVB_CORE && USB && I2C
 	help
 	  By enabling this you will be able to choose the various supported
 	  USB1.1 and USB2.0 DVB devices.
@@ -113,6 +113,7 @@ config DVB_USB_IT913X
 config DVB_USB_LME2510
 	tristate "LME DM04/QQBOX DVB-S USB2.0 support"
 	depends on DVB_USB_V2
+	depends on RC_CORE
 	select DVB_TDA10086 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_TDA826X if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_STV0288 if MEDIA_SUBDRV_AUTOSELECT
@@ -120,6 +121,7 @@ config DVB_USB_LME2510
 	select DVB_STV0299 if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_PLL if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_M88RS2000 if MEDIA_SUBDRV_AUTOSELECT
+	select DVB_TS2020 if MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Say Y here to support the LME DM04/QQBOX DVB-S USB2.0
 
@@ -134,7 +136,7 @@ config DVB_USB_MXL111SF
 
 config DVB_USB_RTL28XXU
 	tristate "Realtek RTL28xxU DVB USB support"
-	depends on DVB_USB_V2 && EXPERIMENTAL
+	depends on DVB_USB_V2
 	select DVB_RTL2830
 	select DVB_RTL2832
 	select MEDIA_TUNER_QT1010 if MEDIA_SUBDRV_AUTOSELECT

@@ -1,4 +1,4 @@
-ccflags-$(CONFIG_PPC64)			:= -mno-minimal-toc
+ccflags-$(CONFIG_PPC64)			:= $(NO_MINIMAL_TOC)
 ccflags-$(CONFIG_PPC_PSERIES_DEBUG)	+= -DDEBUG
 
 obj-y			:= lpar.o hvCall.o nvram.o reconfig.o \

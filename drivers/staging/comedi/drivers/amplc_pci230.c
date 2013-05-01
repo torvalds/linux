@@ -188,17 +188,17 @@ Support for PCI230+/260+, more triggered scan functionality, and workarounds
 for (or detection of) various hardware problems added by Ian Abbott.
 */
 
-#include "../comedidev.h"
-
+#include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+
+#include "../comedidev.h"
 
 #include "comedi_fc.h"
 #include "8253.h"
 #include "8255.h"
 
 /* PCI230 PCI configuration register information */
-#define PCI_VENDOR_ID_AMPLICON 0x14dc
 #define PCI_DEVICE_ID_PCI230 0x0000
 #define PCI_DEVICE_ID_PCI260 0x0006
 #define PCI_DEVICE_ID_INVALID 0xffff
@@ -1000,14 +1000,10 @@ static int pci230_ao_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 2;
 
-	/* Step 3: make sure arguments are trivially compatible.
-	 * "invalid argument" returned by comedilib to user mode process
-	 * if this fails. */
+	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+
 #define MAX_SPEED_AO	8000	/* 8000 ns => 125 kHz */
 #define MIN_SPEED_AO	4294967295u	/* 4294967295ns = 4.29s */
 			/*- Comedi limit due to unsigned int cmd.  Driver limit
@@ -1016,14 +1012,10 @@ static int pci230_ao_cmdtest(struct comedi_device *dev,
 
 	switch (cmd->scan_begin_src) {
 	case TRIG_TIMER:
-		if (cmd->scan_begin_arg < MAX_SPEED_AO) {
-			cmd->scan_begin_arg = MAX_SPEED_AO;
-			err++;
-		}
-		if (cmd->scan_begin_arg > MIN_SPEED_AO) {
-			cmd->scan_begin_arg = MIN_SPEED_AO;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+						 MAX_SPEED_AO);
+		err |= cfc_check_trigger_arg_max(&cmd->scan_begin_arg,
+						 MIN_SPEED_AO);
 		break;
 	case TRIG_EXT:
 		/* External trigger - for PCI230+ hardware version 2 onwards. */
@@ -1031,37 +1023,27 @@ static int pci230_ao_cmdtest(struct comedi_device *dev,
 		if ((cmd->scan_begin_arg & ~CR_FLAGS_MASK) != 0) {
 			cmd->scan_begin_arg = COMBINE(cmd->scan_begin_arg, 0,
 						      ~CR_FLAGS_MASK);
-			err++;
+			err |= -EINVAL;
 		}
 		/* The only flags allowed are CR_EDGE and CR_INVERT.  The
 		 * CR_EDGE flag is ignored. */
 		if ((cmd->scan_begin_arg
 		     & (CR_FLAGS_MASK & ~(CR_EDGE | CR_INVERT))) != 0) {
-			cmd->scan_begin_arg =
-			    COMBINE(cmd->scan_begin_arg, 0,
-				    CR_FLAGS_MASK & ~(CR_EDGE | CR_INVERT));
-			err++;
+			cmd->scan_begin_arg = COMBINE(cmd->scan_begin_arg, 0,
+						      CR_FLAGS_MASK &
+						      ~(CR_EDGE | CR_INVERT));
+			err |= -EINVAL;
 		}
 		break;
 	default:
-		if (cmd->scan_begin_arg != 0) {
-			cmd->scan_begin_arg = 0;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 		break;
 	}
 
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
-	if (cmd->stop_src == TRIG_NONE) {
-		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+
+	if (cmd->stop_src == TRIG_NONE)
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
@@ -1619,14 +1601,10 @@ static int pci230_ai_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 2;
 
-	/* Step 3: make sure arguments are trivially compatible.
-	 * "invalid argument" returned by comedilib to user mode process
-	 * if this fails. */
+	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+
 #define MAX_SPEED_AI_SE		3200	/* PCI230 SE:   3200 ns => 312.5 kHz */
 #define MAX_SPEED_AI_DIFF	8000	/* PCI230 DIFF: 8000 ns => 125 kHz */
 #define MAX_SPEED_AI_PLUS	4000	/* PCI230+:     4000 ns => 250 kHz */
@@ -1657,14 +1635,10 @@ static int pci230_ai_cmdtest(struct comedi_device *dev,
 			max_speed_ai = MAX_SPEED_AI_PLUS;
 		}
 
-		if (cmd->convert_arg < max_speed_ai) {
-			cmd->convert_arg = max_speed_ai;
-			err++;
-		}
-		if (cmd->convert_arg > MIN_SPEED_AI) {
-			cmd->convert_arg = MIN_SPEED_AI;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
+						 max_speed_ai);
+		err |= cfc_check_trigger_arg_max(&cmd->convert_arg,
+						 MIN_SPEED_AI);
 	} else if (cmd->convert_src == TRIG_EXT) {
 		/*
 		 * external trigger
@@ -1679,46 +1653,33 @@ static int pci230_ai_cmdtest(struct comedi_device *dev,
 			if ((cmd->convert_arg & ~CR_FLAGS_MASK) != 0) {
 				cmd->convert_arg = COMBINE(cmd->convert_arg, 0,
 							   ~CR_FLAGS_MASK);
-				err++;
+				err |= -EINVAL;
 			}
 			/* The only flags allowed are CR_INVERT and CR_EDGE.
 			 * CR_EDGE is required. */
 			if ((cmd->convert_arg & (CR_FLAGS_MASK & ~CR_INVERT))
 			    != CR_EDGE) {
 				/* Set CR_EDGE, preserve CR_INVERT. */
-				cmd->convert_arg =
-				    COMBINE(cmd->start_arg, (CR_EDGE | 0),
-					    CR_FLAGS_MASK & ~CR_INVERT);
-				err++;
+				cmd->convert_arg = COMBINE(cmd->start_arg,
+							   (CR_EDGE | 0),
+							   CR_FLAGS_MASK &
+							   ~CR_INVERT);
+				err |= -EINVAL;
 			}
 		} else {
 			/* Backwards compatibility with previous versions. */
 			/* convert_arg == 0 => trigger on -ve edge. */
 			/* convert_arg == 1 => trigger on +ve edge. */
-			if (cmd->convert_arg > 1) {
-				/* Default to trigger on +ve edge. */
-				cmd->convert_arg = 1;
-				err++;
-			}
+			err |= cfc_check_trigger_arg_max(&cmd->convert_arg, 1);
 		}
 	} else {
-		if (cmd->convert_arg != 0) {
-			cmd->convert_arg = 0;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
 	}
 
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 
-	if (cmd->stop_src == TRIG_NONE) {
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
-	}
+	if (cmd->stop_src == TRIG_NONE)
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (cmd->scan_begin_src == TRIG_EXT) {
 		/* external "trigger" to begin each scan
@@ -1727,24 +1688,21 @@ static int pci230_ai_cmdtest(struct comedi_device *dev,
 		if ((cmd->scan_begin_arg & ~CR_FLAGS_MASK) != 0) {
 			cmd->scan_begin_arg = COMBINE(cmd->scan_begin_arg, 0,
 						      ~CR_FLAGS_MASK);
-			err++;
+			err |= -EINVAL;
 		}
 		/* The only flag allowed is CR_EDGE, which is ignored. */
 		if ((cmd->scan_begin_arg & CR_FLAGS_MASK & ~CR_EDGE) != 0) {
 			cmd->scan_begin_arg = COMBINE(cmd->scan_begin_arg, 0,
 						      CR_FLAGS_MASK & ~CR_EDGE);
-			err++;
+			err |= -EINVAL;
 		}
 	} else if (cmd->scan_begin_src == TRIG_TIMER) {
 		/* N.B. cmd->convert_arg is also TRIG_TIMER */
 		if (!pci230_ai_check_scan_period(cmd))
-			err++;
+			err |= -EINVAL;
 
 	} else {
-		if (cmd->scan_begin_arg != 0) {
-			cmd->scan_begin_arg = 0;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 	}
 
 	if (err)
@@ -2660,15 +2618,12 @@ static struct pci_dev *pci230_find_pci_dev(struct comedi_device *dev,
 static int pci230_alloc_private(struct comedi_device *dev)
 {
 	struct pci230_private *devpriv;
-	int err;
 
-	/* sets dev->private to allocated memory */
-	err = alloc_private(dev, sizeof(struct pci230_private));
-	if (err) {
-		dev_err(dev->class_dev, "error! out of memory!\n");
-		return err;
-	}
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
+
 	spin_lock_init(&devpriv->isr_spinlock);
 	spin_lock_init(&devpriv->res_spinlock);
 	spin_lock_init(&devpriv->ai_stop_spinlock);
@@ -2676,7 +2631,7 @@ static int pci230_alloc_private(struct comedi_device *dev)
 	return 0;
 }
 
-/* Common part of attach and attach_pci. */
+/* Common part of attach and auto_attach. */
 static int pci230_attach_common(struct comedi_device *dev,
 				struct pci_dev *pci_dev)
 {
@@ -2836,25 +2791,30 @@ static int pci230_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	dev_info(dev->class_dev, "amplc_pci230: attach %s %d,%d\n",
 		 thisboard->name, it->options[0], it->options[1]);
-	rc = pci230_alloc_private(dev); /* sets dev->private */
+
+	rc = pci230_alloc_private(dev);
 	if (rc)
 		return rc;
+
 	pci_dev = pci230_find_pci_dev(dev, it);
 	if (!pci_dev)
 		return -EIO;
 	return pci230_attach_common(dev, pci_dev);
 }
 
-static int __devinit pci230_attach_pci(struct comedi_device *dev,
-				       struct pci_dev *pci_dev)
+static int pci230_auto_attach(struct comedi_device *dev,
+					unsigned long context_unused)
 {
+	struct pci_dev *pci_dev = comedi_to_pci_dev(dev);
 	int rc;
 
 	dev_info(dev->class_dev, "amplc_pci230: attach pci %s\n",
 		 pci_name(pci_dev));
-	rc = pci230_alloc_private(dev); /* sets dev->private */
+
+	rc = pci230_alloc_private(dev);
 	if (rc)
 		return rc;
+
 	dev->board_ptr = pci230_find_pci_board(pci_dev);
 	if (dev->board_ptr == NULL) {
 		dev_err(dev->class_dev,
@@ -2891,22 +2851,17 @@ static struct comedi_driver amplc_pci230_driver = {
 	.driver_name	= "amplc_pci230",
 	.module		= THIS_MODULE,
 	.attach		= pci230_attach,
-	.attach_pci	= pci230_attach_pci,
+	.auto_attach	= pci230_auto_attach,
 	.detach		= pci230_detach,
 	.board_name	= &pci230_boards[0].name,
 	.offset		= sizeof(pci230_boards[0]),
 	.num_names	= ARRAY_SIZE(pci230_boards),
 };
 
-static int __devinit amplc_pci230_pci_probe(struct pci_dev *dev,
+static int amplc_pci230_pci_probe(struct pci_dev *dev,
 					    const struct pci_device_id *ent)
 {
 	return comedi_pci_auto_config(dev, &amplc_pci230_driver);
-}
-
-static void __devexit amplc_pci230_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(amplc_pci230_pci_table) = {
@@ -2920,7 +2875,7 @@ static struct pci_driver amplc_pci230_pci_driver = {
 	.name		= "amplc_pci230",
 	.id_table	= amplc_pci230_pci_table,
 	.probe		= amplc_pci230_pci_probe,
-	.remove		= __devexit_p(amplc_pci230_pci_remove)
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(amplc_pci230_driver, amplc_pci230_pci_driver);
 

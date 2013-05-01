@@ -14,6 +14,7 @@
 #include <linux/fb.h>
 #include <linux/backlight.h>
 #include <linux/gpio.h>
+#include <linux/platform_device.h>
 #include <linux/cs5535.h>
 
 static struct cs5535_mfgpt_timer *pwm_timer;

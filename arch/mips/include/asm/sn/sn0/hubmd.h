@@ -8,16 +8,16 @@
  * Copyright (C) 1992 - 1997, 1999 Silicon Graphics, Inc.
  * Copyright (C) 1999 by Ralf Baechle
  */
-#ifndef	_ASM_SN_SN0_HUBMD_H
-#define	_ASM_SN_SN0_HUBMD_H
+#ifndef _ASM_SN_SN0_HUBMD_H
+#define _ASM_SN_SN0_HUBMD_H
 
 
 /*
  * Hub Memory/Directory interface registers
  */
-#define CACHE_SLINE_SIZE        128	/* Secondary cache line size on SN0 */
+#define CACHE_SLINE_SIZE	128	/* Secondary cache line size on SN0 */
 
-#define	MAX_REGIONS		64
+#define MAX_REGIONS		64
 
 /* Hardware page size and shift */
 
@@ -34,62 +34,62 @@
 #define MD_IO_PROT_OVRRD	0x200008 /* Clear my bit in MD_IO_PROTECT   */
 #define MD_HSPEC_PROTECT	0x200010 /* BDDIR, LBOOT, RBOOT protection  */
 #define MD_MEMORY_CONFIG	0x200018 /* Memory/Directory DIMM control   */
-#define	MD_REFRESH_CONTROL	0x200020 /* Memory/Directory refresh ctrl   */
-#define	MD_FANDOP_CAC_STAT	0x200028 /* Fetch-and-op cache status 	    */
-#define	MD_MIG_DIFF_THRESH	0x200030 /* Page migr. count diff thresh.   */
-#define	MD_MIG_VALUE_THRESH	0x200038 /* Page migr. count abs. thresh.   */
-#define	MD_MIG_CANDIDATE	0x200040 /* Latest page migration candidate */
-#define	MD_MIG_CANDIDATE_CLR	0x200048 /* Clear page migration candidate  */
-#define MD_DIR_ERROR		0x200050 /* Directory DIMM error 	    */
-#define MD_DIR_ERROR_CLR	0x200058 /* Directory DIMM error clear 	    */
-#define MD_PROTOCOL_ERROR	0x200060 /* Directory protocol error 	    */
+#define MD_REFRESH_CONTROL	0x200020 /* Memory/Directory refresh ctrl   */
+#define MD_FANDOP_CAC_STAT	0x200028 /* Fetch-and-op cache status	    */
+#define MD_MIG_DIFF_THRESH	0x200030 /* Page migr. count diff thresh.   */
+#define MD_MIG_VALUE_THRESH	0x200038 /* Page migr. count abs. thresh.   */
+#define MD_MIG_CANDIDATE	0x200040 /* Latest page migration candidate */
+#define MD_MIG_CANDIDATE_CLR	0x200048 /* Clear page migration candidate  */
+#define MD_DIR_ERROR		0x200050 /* Directory DIMM error	    */
+#define MD_DIR_ERROR_CLR	0x200058 /* Directory DIMM error clear	    */
+#define MD_PROTOCOL_ERROR	0x200060 /* Directory protocol error	    */
 #define MD_PROTOCOL_ERROR_CLR	0x200068 /* Directory protocol error clear  */
-#define MD_MEM_ERROR		0x200070 /* Memory DIMM error 		    */
-#define MD_MEM_ERROR_CLR	0x200078 /* Memory DIMM error clear 	    */
-#define MD_MISC_ERROR		0x200080 /* Miscellaneous MD error 	    */
+#define MD_MEM_ERROR		0x200070 /* Memory DIMM error		    */
+#define MD_MEM_ERROR_CLR	0x200078 /* Memory DIMM error clear	    */
+#define MD_MISC_ERROR		0x200080 /* Miscellaneous MD error	    */
 #define MD_MISC_ERROR_CLR	0x200088 /* Miscellaneous MD error clear    */
 #define MD_MEM_DIMM_INIT	0x200090 /* Memory DIMM mode initization.   */
-#define MD_DIR_DIMM_INIT	0x200098 /* Directory DIMM mode init. 	    */
-#define MD_MOQ_SIZE		0x2000a0 /* MD outgoing queue size 	    */
+#define MD_DIR_DIMM_INIT	0x200098 /* Directory DIMM mode init.	    */
+#define MD_MOQ_SIZE		0x2000a0 /* MD outgoing queue size	    */
 #define MD_MLAN_CTL		0x2000a8 /* NIC (Microlan) control register */
 
-#define MD_PERF_SEL		0x210000 /* Select perf monitor events 	    */
-#define MD_PERF_CNT0		0x210010 /* Performance counter 0 	    */
-#define MD_PERF_CNT1		0x210018 /* Performance counter 1 	    */
-#define MD_PERF_CNT2		0x210020 /* Performance counter 2 	    */
-#define MD_PERF_CNT3		0x210028 /* Performance counter 3 	    */
-#define MD_PERF_CNT4		0x210030 /* Performance counter 4 	    */
-#define MD_PERF_CNT5		0x210038 /* Performance counter 5 	    */
+#define MD_PERF_SEL		0x210000 /* Select perf monitor events	    */
+#define MD_PERF_CNT0		0x210010 /* Performance counter 0	    */
+#define MD_PERF_CNT1		0x210018 /* Performance counter 1	    */
+#define MD_PERF_CNT2		0x210020 /* Performance counter 2	    */
+#define MD_PERF_CNT3		0x210028 /* Performance counter 3	    */
+#define MD_PERF_CNT4		0x210030 /* Performance counter 4	    */
+#define MD_PERF_CNT5		0x210038 /* Performance counter 5	    */
 
-#define MD_UREG0_0		0x220000 /* uController/UART 0 register     */
-#define MD_UREG0_1		0x220008 /* uController/UART 0 register     */
-#define MD_UREG0_2		0x220010 /* uController/UART 0 register     */
-#define MD_UREG0_3		0x220018 /* uController/UART 0 register     */
-#define MD_UREG0_4		0x220020 /* uController/UART 0 register     */
-#define MD_UREG0_5		0x220028 /* uController/UART 0 register     */
-#define MD_UREG0_6		0x220030 /* uController/UART 0 register     */
-#define MD_UREG0_7		0x220038 /* uController/UART 0 register     */
+#define MD_UREG0_0		0x220000 /* uController/UART 0 register	    */
+#define MD_UREG0_1		0x220008 /* uController/UART 0 register	    */
+#define MD_UREG0_2		0x220010 /* uController/UART 0 register	    */
+#define MD_UREG0_3		0x220018 /* uController/UART 0 register	    */
+#define MD_UREG0_4		0x220020 /* uController/UART 0 register	    */
+#define MD_UREG0_5		0x220028 /* uController/UART 0 register	    */
+#define MD_UREG0_6		0x220030 /* uController/UART 0 register	    */
+#define MD_UREG0_7		0x220038 /* uController/UART 0 register	    */
 
 #define MD_SLOTID_USTAT		0x220048 /* Hub slot ID & UART/uCtlr status */
-#define MD_LED0			0x220050 /* Eight-bit LED for CPU A 	    */
-#define MD_LED1			0x220058 /* Eight-bit LED for CPU B 	    */
+#define MD_LED0			0x220050 /* Eight-bit LED for CPU A	    */
+#define MD_LED1			0x220058 /* Eight-bit LED for CPU B	    */
 
-#define MD_UREG1_0		0x220080 /* uController/UART 1 register     */
-#define MD_UREG1_1		0x220088 /* uController/UART 1 register     */
-#define MD_UREG1_2		0x220090 /* uController/UART 1 register     */
-#define MD_UREG1_3		0x220098 /* uController/UART 1 register     */
-#define MD_UREG1_4		0x2200a0 /* uController/UART 1 register     */
-#define MD_UREG1_5		0x2200a8 /* uController/UART 1 register     */
-#define MD_UREG1_6		0x2200b0 /* uController/UART 1 register     */
-#define MD_UREG1_7		0x2200b8 /* uController/UART 1 register     */
-#define MD_UREG1_8		0x2200c0 /* uController/UART 1 register     */
-#define MD_UREG1_9		0x2200c8 /* uController/UART 1 register     */
-#define MD_UREG1_10		0x2200d0 /* uController/UART 1 register     */
-#define MD_UREG1_11		0x2200d8 /* uController/UART 1 register     */
-#define MD_UREG1_12		0x2200e0 /* uController/UART 1 register     */
-#define MD_UREG1_13		0x2200e8 /* uController/UART 1 register     */
-#define MD_UREG1_14		0x2200f0 /* uController/UART 1 register     */
-#define MD_UREG1_15		0x2200f8 /* uController/UART 1 register     */
+#define MD_UREG1_0		0x220080 /* uController/UART 1 register	    */
+#define MD_UREG1_1		0x220088 /* uController/UART 1 register	    */
+#define MD_UREG1_2		0x220090 /* uController/UART 1 register	    */
+#define MD_UREG1_3		0x220098 /* uController/UART 1 register	    */
+#define MD_UREG1_4		0x2200a0 /* uController/UART 1 register	    */
+#define MD_UREG1_5		0x2200a8 /* uController/UART 1 register	    */
+#define MD_UREG1_6		0x2200b0 /* uController/UART 1 register	    */
+#define MD_UREG1_7		0x2200b8 /* uController/UART 1 register	    */
+#define MD_UREG1_8		0x2200c0 /* uController/UART 1 register	    */
+#define MD_UREG1_9		0x2200c8 /* uController/UART 1 register	    */
+#define MD_UREG1_10		0x2200d0 /* uController/UART 1 register	    */
+#define MD_UREG1_11		0x2200d8 /* uController/UART 1 register	    */
+#define MD_UREG1_12		0x2200e0 /* uController/UART 1 register	    */
+#define MD_UREG1_13		0x2200e8 /* uController/UART 1 register	    */
+#define MD_UREG1_14		0x2200f0 /* uController/UART 1 register	    */
+#define MD_UREG1_15		0x2200f8 /* uController/UART 1 register	    */
 
 #ifdef CONFIG_SGI_SN_N_MODE
 #define MD_MEM_BANKS		4	 /* 4 banks of memory max in N mode */
@@ -106,14 +106,14 @@
  *   Bits not used by the MD are used by software.
  */
 
-#define MD_SIZE_EMPTY		0	/* Valid in MEMORY_CONFIG           */
+#define MD_SIZE_EMPTY		0	/* Valid in MEMORY_CONFIG	    */
 #define MD_SIZE_8MB		1
 #define MD_SIZE_16MB		2
 #define MD_SIZE_32MB		3	/* Broken in Hub 1		    */
-#define MD_SIZE_64MB		4	/* Valid in MEMORY_CONFIG           */
-#define MD_SIZE_128MB		5	/* Valid in MEMORY_CONFIG           */
+#define MD_SIZE_64MB		4	/* Valid in MEMORY_CONFIG	    */
+#define MD_SIZE_128MB		5	/* Valid in MEMORY_CONFIG	    */
 #define MD_SIZE_256MB		6
-#define MD_SIZE_512MB		7	/* Valid in MEMORY_CONFIG           */
+#define MD_SIZE_512MB		7	/* Valid in MEMORY_CONFIG	    */
 #define MD_SIZE_1GB		8
 #define MD_SIZE_2GB		9
 #define MD_SIZE_4GB		10
@@ -207,16 +207,16 @@
 
 /* MD_SLOTID_USTAT bit definitions */
 
-#define MSU_CORECLK_TST_SHFT	7	/* You don't wanna know             */
+#define MSU_CORECLK_TST_SHFT	7	/* You don't wanna know		    */
 #define MSU_CORECLK_TST_MASK	(UINT64_CAST 1 << 7)
 #define MSU_CORECLK_TST		(UINT64_CAST 1 << 7)
-#define MSU_CORECLK_SHFT	6	/* You don't wanna know             */
+#define MSU_CORECLK_SHFT	6	/* You don't wanna know		    */
 #define MSU_CORECLK_MASK	(UINT64_CAST 1 << 6)
 #define MSU_CORECLK		(UINT64_CAST 1 << 6)
-#define MSU_NETSYNC_SHFT	5	/* You don't wanna know             */
+#define MSU_NETSYNC_SHFT	5	/* You don't wanna know		    */
 #define MSU_NETSYNC_MASK	(UINT64_CAST 1 << 5)
 #define MSU_NETSYNC		(UINT64_CAST 1 << 5)
-#define MSU_FPROMRDY_SHFT	4	/* Flash PROM ready bit 	    */
+#define MSU_FPROMRDY_SHFT	4	/* Flash PROM ready bit		    */
 #define MSU_FPROMRDY_MASK	(UINT64_CAST 1 << 4)
 #define MSU_FPROMRDY		(UINT64_CAST 1 << 4)
 #define MSU_I2CINTR_SHFT		3	/* I2C interrupt bit   */
@@ -228,8 +228,8 @@
 #define MSU_SN00_SLOTID_SHFT	7
 #define MSU_SN00_SLOTID_MASK	(UINT64_CAST 0x80)
 
-#define	MSU_PIMM_PSC_SHFT	4
-#define	MSU_PIMM_PSC_MASK	(0xf << MSU_PIMM_PSC_SHFT)
+#define MSU_PIMM_PSC_SHFT	4
+#define MSU_PIMM_PSC_MASK	(0xf << MSU_PIMM_PSC_SHFT)
 
 /* MD_MIG_DIFF_THRESH bit definitions */
 
@@ -260,7 +260,7 @@
 
 /* Other MD definitions */
 
-#define MD_BANK_SHFT		29			/* log2(512 MB)     */
+#define MD_BANK_SHFT		29			/* log2(512 MB)	    */
 #define MD_BANK_MASK		(UINT64_CAST 7 << 29)
 #define MD_BANK_SIZE		(UINT64_CAST 1 << MD_BANK_SHFT)	  /* 512 MB */
 #define MD_BANK_OFFSET(_b)	(UINT64_CAST (_b) << MD_BANK_SHFT)
@@ -300,32 +300,32 @@
  * Format C:  STATE != shared (FINE must be 0)
  */
 
-#define MD_PDIR_MASK		0xffffffffffff		/* Whole entry 	    */
+#define MD_PDIR_MASK		0xffffffffffff		/* Whole entry	    */
 #define MD_PDIR_ECC_SHFT	0			/* ABC low or high  */
 #define MD_PDIR_ECC_MASK	0x7f
-#define MD_PDIR_PRIO_SHFT	8			/* ABC low 	    */
+#define MD_PDIR_PRIO_SHFT	8			/* ABC low	    */
 #define MD_PDIR_PRIO_MASK	(0xf << 8)
-#define MD_PDIR_AX_SHFT		7			/* ABC low 	    */
+#define MD_PDIR_AX_SHFT		7			/* ABC low	    */
 #define MD_PDIR_AX_MASK		(1 << 7)
 #define MD_PDIR_AX		(1 << 7)
-#define MD_PDIR_FINE_SHFT	12			/* ABC low 	    */
+#define MD_PDIR_FINE_SHFT	12			/* ABC low	    */
 #define MD_PDIR_FINE_MASK	(1 << 12)
 #define MD_PDIR_FINE		(1 << 12)
-#define MD_PDIR_OCT_SHFT	13			/* A low 	    */
+#define MD_PDIR_OCT_SHFT	13			/* A low	    */
 #define MD_PDIR_OCT_MASK	(7 << 13)
-#define MD_PDIR_STATE_SHFT	13			/* BC low 	    */
+#define MD_PDIR_STATE_SHFT	13			/* BC low	    */
 #define MD_PDIR_STATE_MASK	(7 << 13)
-#define MD_PDIR_ONECNT_SHFT	16			/* BC low 	    */
+#define MD_PDIR_ONECNT_SHFT	16			/* BC low	    */
 #define MD_PDIR_ONECNT_MASK	(0x3f << 16)
-#define MD_PDIR_PTR_SHFT	22			/* C low 	    */
+#define MD_PDIR_PTR_SHFT	22			/* C low	    */
 #define MD_PDIR_PTR_MASK	(UINT64_CAST 0x7ff << 22)
-#define MD_PDIR_VECMSB_SHFT	22			/* AB low 	    */
+#define MD_PDIR_VECMSB_SHFT	22			/* AB low	    */
 #define MD_PDIR_VECMSB_BITMASK	0x3ffffff
 #define MD_PDIR_VECMSB_BITSHFT	27
 #define MD_PDIR_VECMSB_MASK	(UINT64_CAST MD_PDIR_VECMSB_BITMASK << 22)
-#define MD_PDIR_CWOFF_SHFT	7			/* C high 	    */
+#define MD_PDIR_CWOFF_SHFT	7			/* C high	    */
 #define MD_PDIR_CWOFF_MASK	(7 << 7)
-#define MD_PDIR_VECLSB_SHFT	10			/* AB high 	    */
+#define MD_PDIR_VECLSB_SHFT	10			/* AB high	    */
 #define MD_PDIR_VECLSB_BITMASK	(UINT64_CAST 0x3fffffffff)
 #define MD_PDIR_VECLSB_BITSHFT	0
 #define MD_PDIR_VECLSB_MASK	(MD_PDIR_VECLSB_BITMASK << 10)
@@ -349,25 +349,25 @@
  * Format C:  STATE != shared
  */
 
-#define MD_SDIR_MASK		0xffff			/* Whole entry 	    */
+#define MD_SDIR_MASK		0xffff			/* Whole entry	    */
 #define MD_SDIR_ECC_SHFT	0			/* AC low or high   */
 #define MD_SDIR_ECC_MASK	0x1f
-#define MD_SDIR_PRIO_SHFT	6			/* AC low 	    */
+#define MD_SDIR_PRIO_SHFT	6			/* AC low	    */
 #define MD_SDIR_PRIO_MASK	(1 << 6)
-#define MD_SDIR_AX_SHFT		5			/* AC low 	    */
+#define MD_SDIR_AX_SHFT		5			/* AC low	    */
 #define MD_SDIR_AX_MASK		(1 << 5)
 #define MD_SDIR_AX		(1 << 5)
-#define MD_SDIR_STATE_SHFT	7			/* AC low 	    */
+#define MD_SDIR_STATE_SHFT	7			/* AC low	    */
 #define MD_SDIR_STATE_MASK	(7 << 7)
-#define MD_SDIR_PTR_SHFT	10			/* C low 	    */
+#define MD_SDIR_PTR_SHFT	10			/* C low	    */
 #define MD_SDIR_PTR_MASK	(0x3f << 10)
-#define MD_SDIR_CWOFF_SHFT	5			/* C high 	    */
+#define MD_SDIR_CWOFF_SHFT	5			/* C high	    */
 #define MD_SDIR_CWOFF_MASK	(7 << 5)
-#define MD_SDIR_VECMSB_SHFT	11			/* A low 	    */
+#define MD_SDIR_VECMSB_SHFT	11			/* A low	    */
 #define MD_SDIR_VECMSB_BITMASK	0x1f
 #define MD_SDIR_VECMSB_BITSHFT	7
 #define MD_SDIR_VECMSB_MASK	(MD_SDIR_VECMSB_BITMASK << 11)
-#define MD_SDIR_VECLSB_SHFT	5			/* A high 	    */
+#define MD_SDIR_VECLSB_SHFT	5			/* A high	    */
 #define MD_SDIR_VECLSB_BITMASK	0x7ff
 #define MD_SDIR_VECLSB_BITSHFT	0
 #define MD_SDIR_VECLSB_MASK	(MD_SDIR_VECLSB_BITMASK << 5)
@@ -390,7 +390,7 @@
 
 /* Premium SIMM protection entry shifts and masks. */
 
-#define MD_PPROT_SHFT		0			/* Prot. field 	    */
+#define MD_PPROT_SHFT		0			/* Prot. field	    */
 #define MD_PPROT_MASK		7
 #define MD_PPROT_MIGMD_SHFT	3			/* Migration mode   */
 #define MD_PPROT_MIGMD_MASK	(3 << 3)
@@ -403,7 +403,7 @@
 
 /* Standard SIMM protection entry shifts and masks. */
 
-#define MD_SPROT_SHFT		0			/* Prot. field 	    */
+#define MD_SPROT_SHFT		0			/* Prot. field	    */
 #define MD_SPROT_MASK		7
 #define MD_SPROT_MIGMD_SHFT	3			/* Migration mode   */
 #define MD_SPROT_MIGMD_MASK	(3 << 3)
@@ -431,13 +431,13 @@
 
 #define CPU_LED_ADDR(_nasid, _slice)					   \
 	(private.p_sn00 ?						   \
-	 REMOTE_HUB_ADDR((_nasid), MD_UREG1_0 +	((_slice) << 5)) :	   \
+	 REMOTE_HUB_ADDR((_nasid), MD_UREG1_0 + ((_slice) << 5)) :	   \
 	 REMOTE_HUB_ADDR((_nasid), MD_LED0    + ((_slice) << 3)))
 
 #define SET_CPU_LEDS(_nasid, _slice,  _val)				   \
 	(HUB_S(CPU_LED_ADDR(_nasid, _slice), (_val)))
 
-#define SET_MY_LEDS(_v) 						   \
+#define SET_MY_LEDS(_v)							   \
 	SET_CPU_LEDS(get_nasid(), get_slice(), (_v))
 
 /*
@@ -541,7 +541,7 @@
  */
 
 struct dir_error_reg {
-	u64	uce_vld:   1,	/*    63: valid directory uce 	*/
+	u64	uce_vld:   1,	/*    63: valid directory uce	*/
 		ae_vld:	   1,	/*    62: valid dir prot ecc error */
 		ce_vld:	   1,	/*    61: valid correctable ECC err*/
 		rsvd1:	  19,	/* 60-42: reserved		*/
@@ -555,13 +555,13 @@ struct dir_error_reg {
 };
 
 typedef union md_dir_error {
-	u64	derr_reg;	/* the entire register 		*/
+	u64	derr_reg;	/* the entire register		*/
 	struct dir_error_reg derr_fmt;	/* the register format		*/
 } md_dir_error_t;
 
 
 struct mem_error_reg {
-	u64	uce_vld:   1,	/*    63: valid memory uce 	*/
+	u64	uce_vld:   1,	/*    63: valid memory uce	*/
 		ce_vld:	   1,	/*    62: valid correctable ECC err*/
 		rsvd1:	  22,	/* 61-40: reserved		*/
 		bad_syn:   8,	/* 39-32: bad mem ecc syndrome	*/
@@ -573,8 +573,8 @@ struct mem_error_reg {
 
 
 typedef union md_mem_error {
-	u64	merr_reg;	/* the entire register 		*/
-	struct mem_error_reg  merr_fmt; /* format of the mem_error reg  */
+	u64	merr_reg;	/* the entire register		*/
+	struct mem_error_reg  merr_fmt; /* format of the mem_error reg	*/
 } md_mem_error_t;
 
 
@@ -594,7 +594,7 @@ struct proto_error_reg {
 };
 
 typedef union md_proto_error {
-	u64	perr_reg;	/* the entire register 		*/
+	u64	perr_reg;	/* the entire register		*/
 	struct proto_error_reg	perr_fmt; /* format of the register	*/
 } md_proto_error_t;
 
@@ -695,33 +695,33 @@ typedef union md_pdir_loent {
  *   represent directory memory information.
  */
 
-typedef	union	md_dir_high	{
-        md_sdir_high_t	md_sdir_high;
-        md_pdir_high_t	md_pdir_high;
+typedef union	md_dir_high	{
+	md_sdir_high_t	md_sdir_high;
+	md_pdir_high_t	md_pdir_high;
 } md_dir_high_t;
 
-typedef	union	md_dir_low	{
-        md_sdir_low_t	md_sdir_low;
-        md_pdir_low_t	md_pdir_low;
+typedef union	md_dir_low	{
+	md_sdir_low_t	md_sdir_low;
+	md_pdir_low_t	md_pdir_low;
 } md_dir_low_t;
 
-typedef	struct	bddir_entry	{
-        md_dir_low_t	md_dir_low;
-        md_dir_high_t	md_dir_high;
+typedef struct	bddir_entry	{
+	md_dir_low_t	md_dir_low;
+	md_dir_high_t	md_dir_high;
 } bddir_entry_t;
 
 typedef struct	dir_mem_entry	{
-        u64		prcpf[MAX_REGIONS];
-        bddir_entry_t	directory_words[MD_PAGE_SIZE/CACHE_SLINE_SIZE];
+	u64		prcpf[MAX_REGIONS];
+	bddir_entry_t	directory_words[MD_PAGE_SIZE/CACHE_SLINE_SIZE];
 } dir_mem_entry_t;
 
 
 
 typedef union md_perf_sel {
-	u64 	perf_sel_reg;
+	u64	perf_sel_reg;
 	struct	{
 		u64	perf_rsvd : 60,
-		        perf_en   :  1,
+			perf_en	  :  1,
 			perf_sel  :  3;
 	} perf_sel_bits;
 } md_perf_sel_t;
@@ -730,7 +730,7 @@ typedef union md_perf_cnt {
 	u64	perf_cnt;
 	struct	{
 		u64	perf_rsvd : 44,
-	                perf_cnt  : 20;
+			perf_cnt  : 20;
 	} perf_cnt_bits;
 } md_perf_cnt_t;
 

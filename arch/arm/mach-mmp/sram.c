@@ -61,7 +61,7 @@ struct gen_pool *sram_get_gpool(char *pool_name)
 }
 EXPORT_SYMBOL(sram_get_gpool);
 
-static int __devinit sram_probe(struct platform_device *pdev)
+static int sram_probe(struct platform_device *pdev)
 {
 	struct sram_platdata *pdata = pdev->dev.platform_data;
 	struct sram_bank_info *info;
@@ -125,7 +125,7 @@ out:
 	return ret;
 }
 
-static int __devexit sram_remove(struct platform_device *pdev)
+static int sram_remove(struct platform_device *pdev)
 {
 	struct sram_bank_info *info;
 

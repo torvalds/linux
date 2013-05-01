@@ -235,13 +235,13 @@ struct rpcrdma_create_data_internal {
 };
 
 #define RPCRDMA_INLINE_READ_THRESHOLD(rq) \
-	(rpcx_to_rdmad(rq->rq_task->tk_xprt).inline_rsize)
+	(rpcx_to_rdmad(rq->rq_xprt).inline_rsize)
 
 #define RPCRDMA_INLINE_WRITE_THRESHOLD(rq)\
-	(rpcx_to_rdmad(rq->rq_task->tk_xprt).inline_wsize)
+	(rpcx_to_rdmad(rq->rq_xprt).inline_wsize)
 
 #define RPCRDMA_INLINE_PAD_VALUE(rq)\
-	rpcx_to_rdmad(rq->rq_task->tk_xprt).padding
+	rpcx_to_rdmad(rq->rq_xprt).padding
 
 /*
  * Statistics for RPCRDMA

@@ -25,11 +25,13 @@ static int fc0012_writereg(struct fc0012_priv *priv, u8 reg, u8 val)
 {
 	u8 buf[2] = {reg, val};
 	struct i2c_msg msg = {
-		.addr = priv->addr, .flags = 0, .buf = buf, .len = 2
+		.addr = priv->cfg->i2c_address, .flags = 0, .buf = buf, .len = 2
 	};
 
 	if (i2c_transfer(priv->i2c, &msg, 1) != 1) {
-		err("I2C write reg failed, reg: %02x, val: %02x", reg, val);
+		dev_err(&priv->i2c->dev,
+			"%s: I2C write reg failed, reg: %02x, val: %02x\n",
+			KBUILD_MODNAME, reg, val);
 		return -EREMOTEIO;
 	}
 	return 0;
@@ -38,12 +40,16 @@ static int fc0012_writereg(struct fc0012_priv *priv, u8 reg, u8 val)
 static int fc0012_readreg(struct fc0012_priv *priv, u8 reg, u8 *val)
 {
 	struct i2c_msg msg[2] = {
-		{ .addr = priv->addr, .flags = 0, .buf = &reg, .len = 1 },
-		{ .addr = priv->addr, .flags = I2C_M_RD, .buf = val, .len = 1 },
+		{ .addr = priv->cfg->i2c_address, .flags = 0,
+			.buf = &reg, .len = 1 },
+		{ .addr = priv->cfg->i2c_address, .flags = I2C_M_RD,
+			.buf = val, .len = 1 },
 	};
 
 	if (i2c_transfer(priv->i2c, msg, 2) != 2) {
-		err("I2C read reg failed, reg: %02x", reg);
+		dev_err(&priv->i2c->dev,
+			"%s: I2C read reg failed, reg: %02x\n",
+			KBUILD_MODNAME, reg);
 		return -EREMOTEIO;
 	}
 	return 0;
@@ -88,7 +94,7 @@ static int fc0012_init(struct dvb_frontend *fe)
 		0x04,	/* reg. 0x15: Enable LNA COMPS */
 	};
 
-	switch (priv->xtal_freq) {
+	switch (priv->cfg->xtal_freq) {
 	case FC_XTAL_27_MHZ:
 	case FC_XTAL_28_8_MHZ:
 		reg[0x07] |= 0x20;
@@ -98,8 +104,11 @@ static int fc0012_init(struct dvb_frontend *fe)
 		break;
 	}
 
-	if (priv->dual_master)
+	if (priv->cfg->dual_master)
 		reg[0x0c] |= 0x02;
+
+	if (priv->cfg->loop_through)
+		reg[0x09] |= 0x01;
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1); /* open I2C-gate */
@@ -114,15 +123,10 @@ static int fc0012_init(struct dvb_frontend *fe)
 		fe->ops.i2c_gate_ctrl(fe, 0); /* close I2C-gate */
 
 	if (ret)
-		err("fc0012_writereg failed: %d", ret);
+		dev_err(&priv->i2c->dev, "%s: fc0012_writereg failed: %d\n",
+				KBUILD_MODNAME, ret);
 
 	return ret;
-}
-
-static int fc0012_sleep(struct dvb_frontend *fe)
-{
-	/* nothing to do here */
-	return 0;
 }
 
 static int fc0012_set_params(struct dvb_frontend *fe)
@@ -144,7 +148,7 @@ static int fc0012_set_params(struct dvb_frontend *fe)
 			goto exit;
 	}
 
-	switch (priv->xtal_freq) {
+	switch (priv->cfg->xtal_freq) {
 	case FC_XTAL_27_MHZ:
 		xtal_freq_khz_2 = 27000 / 2;
 		break;
@@ -256,7 +260,8 @@ static int fc0012_set_params(struct dvb_frontend *fe)
 			break;
 		}
 	} else {
-		err("%s: modulation type not supported!", __func__);
+		dev_err(&priv->i2c->dev, "%s: modulation type not supported!\n",
+				KBUILD_MODNAME);
 		return -EINVAL;
 	}
 
@@ -318,7 +323,8 @@ exit:
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0); /* close I2C-gate */
 	if (ret)
-		warn("%s: failed: %d", __func__, ret);
+		dev_warn(&priv->i2c->dev, "%s: %s failed: %d\n",
+				KBUILD_MODNAME, __func__, ret);
 	return ret;
 }
 
@@ -331,8 +337,7 @@ static int fc0012_get_frequency(struct dvb_frontend *fe, u32 *frequency)
 
 static int fc0012_get_if_frequency(struct dvb_frontend *fe, u32 *frequency)
 {
-	/* CHECK: always ? */
-	*frequency = 0;
+	*frequency = 0; /* Zero-IF */
 	return 0;
 }
 
@@ -408,7 +413,8 @@ err:
 		fe->ops.i2c_gate_ctrl(fe, 0); /* close I2C-gate */
 exit:
 	if (ret)
-		warn("%s: failed: %d", __func__, ret);
+		dev_warn(&priv->i2c->dev, "%s: %s failed: %d\n",
+				KBUILD_MODNAME, __func__, ret);
 	return ret;
 }
 
@@ -424,7 +430,6 @@ static const struct dvb_tuner_ops fc0012_tuner_ops = {
 	.release	= fc0012_release,
 
 	.init		= fc0012_init,
-	.sleep		= fc0012_sleep,
 
 	.set_params	= fc0012_set_params,
 
@@ -436,26 +441,72 @@ static const struct dvb_tuner_ops fc0012_tuner_ops = {
 };
 
 struct dvb_frontend *fc0012_attach(struct dvb_frontend *fe,
-	struct i2c_adapter *i2c, u8 i2c_address, int dual_master,
-	enum fc001x_xtal_freq xtal_freq)
+	struct i2c_adapter *i2c, const struct fc0012_config *cfg)
 {
-	struct fc0012_priv *priv = NULL;
+	struct fc0012_priv *priv;
+	int ret;
+	u8 chip_id;
+
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 1);
 
 	priv = kzalloc(sizeof(struct fc0012_priv), GFP_KERNEL);
-	if (priv == NULL)
-		return NULL;
+	if (!priv) {
+		ret = -ENOMEM;
+		dev_err(&i2c->dev, "%s: kzalloc() failed\n", KBUILD_MODNAME);
+		goto err;
+	}
 
+	priv->cfg = cfg;
 	priv->i2c = i2c;
-	priv->dual_master = dual_master;
-	priv->addr = i2c_address;
-	priv->xtal_freq = xtal_freq;
 
-	info("Fitipower FC0012 successfully attached.");
+	/* check if the tuner is there */
+	ret = fc0012_readreg(priv, 0x00, &chip_id);
+	if (ret < 0)
+		goto err;
+
+	dev_dbg(&i2c->dev, "%s: chip_id=%02x\n", __func__, chip_id);
+
+	switch (chip_id) {
+	case 0xa1:
+		break;
+	default:
+		ret = -ENODEV;
+		goto err;
+	}
+
+	dev_info(&i2c->dev, "%s: Fitipower FC0012 successfully identified\n",
+			KBUILD_MODNAME);
+
+	if (priv->cfg->loop_through) {
+		ret = fc0012_writereg(priv, 0x09, 0x6f);
+		if (ret < 0)
+			goto err;
+	}
+
+	/*
+	 * TODO: Clock out en or div?
+	 * For dual tuner configuration clearing bit [0] is required.
+	 */
+	if (priv->cfg->clock_out) {
+		ret =  fc0012_writereg(priv, 0x0b, 0x82);
+		if (ret < 0)
+			goto err;
+	}
 
 	fe->tuner_priv = priv;
-
 	memcpy(&fe->ops.tuner_ops, &fc0012_tuner_ops,
 		sizeof(struct dvb_tuner_ops));
+
+err:
+	if (fe->ops.i2c_gate_ctrl)
+		fe->ops.i2c_gate_ctrl(fe, 0);
+
+	if (ret) {
+		dev_dbg(&i2c->dev, "%s: failed: %d\n", __func__, ret);
+		kfree(priv);
+		return NULL;
+	}
 
 	return fe;
 }

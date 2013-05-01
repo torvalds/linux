@@ -31,6 +31,8 @@ struct acx_header;
 
 int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
 		    size_t res_len);
+int wlcore_cmd_send_failsafe(struct wl1271 *wl, u16 id, void *buf, size_t len,
+			     size_t res_len, unsigned long valid_rets);
 int wl12xx_cmd_role_enable(struct wl1271 *wl, u8 *addr, u8 role_type,
 			   u8 *role_id);
 int wl12xx_cmd_role_disable(struct wl1271 *wl, u8 *role_id);
@@ -39,11 +41,14 @@ int wl12xx_cmd_role_stop_sta(struct wl1271 *wl, struct wl12xx_vif *wlvif);
 int wl12xx_cmd_role_start_ap(struct wl1271 *wl, struct wl12xx_vif *wlvif);
 int wl12xx_cmd_role_stop_ap(struct wl1271 *wl, struct wl12xx_vif *wlvif);
 int wl12xx_cmd_role_start_ibss(struct wl1271 *wl, struct wl12xx_vif *wlvif);
-int wl12xx_start_dev(struct wl1271 *wl, struct wl12xx_vif *wlvif);
+int wl12xx_start_dev(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+		     enum ieee80211_band band, int channel);
 int wl12xx_stop_dev(struct wl1271 *wl, struct wl12xx_vif *wlvif);
 int wl1271_cmd_test(struct wl1271 *wl, void *buf, size_t buf_len, u8 answer);
 int wl1271_cmd_interrogate(struct wl1271 *wl, u16 id, void *buf, size_t len);
 int wl1271_cmd_configure(struct wl1271 *wl, u16 id, void *buf, size_t len);
+int wlcore_cmd_configure_failsafe(struct wl1271 *wl, u16 id, void *buf,
+				  size_t len, unsigned long valid_rets);
 int wl1271_cmd_data_path(struct wl1271 *wl, bool enable);
 int wl1271_cmd_ps_mode(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 		       u8 ps_mode, u16 auto_ps_timeout);
@@ -75,22 +80,30 @@ int wl1271_cmd_set_ap_key(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			  u16 action, u8 id, u8 key_type,
 			  u8 key_size, const u8 *key, u8 hlid, u32 tx_seq_32,
 			  u16 tx_seq_16);
-int wl12xx_cmd_set_peer_state(struct wl1271 *wl, u8 hlid);
-int wl12xx_roc(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 role_id);
+int wl12xx_cmd_set_peer_state(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+			      u8 hlid);
+int wl12xx_roc(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 role_id,
+	       enum ieee80211_band band, u8 channel);
 int wl12xx_croc(struct wl1271 *wl, u8 role_id);
 int wl12xx_cmd_add_peer(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			struct ieee80211_sta *sta, u8 hlid);
 int wl12xx_cmd_remove_peer(struct wl1271 *wl, u8 hlid);
+void wlcore_set_pending_regdomain_ch(struct wl1271 *wl, u16 channel,
+				     enum ieee80211_band band);
+int wlcore_cmd_regdomain_config_locked(struct wl1271 *wl);
 int wl12xx_cmd_config_fwlog(struct wl1271 *wl);
 int wl12xx_cmd_start_fwlog(struct wl1271 *wl);
 int wl12xx_cmd_stop_fwlog(struct wl1271 *wl);
 int wl12xx_cmd_channel_switch(struct wl1271 *wl,
 			      struct wl12xx_vif *wlvif,
 			      struct ieee80211_channel_switch *ch_switch);
-int wl12xx_cmd_stop_channel_switch(struct wl1271 *wl);
+int wl12xx_cmd_stop_channel_switch(struct wl1271 *wl,
+				   struct wl12xx_vif *wlvif);
 int wl12xx_allocate_link(struct wl1271 *wl, struct wl12xx_vif *wlvif,
 			 u8 *hlid);
 void wl12xx_free_link(struct wl1271 *wl, struct wl12xx_vif *wlvif, u8 *hlid);
+int wlcore_cmd_wait_for_event_or_timeout(struct wl1271 *wl,
+					 u32 mask, bool *timeout);
 
 enum wl1271_commands {
 	CMD_INTERROGATE	= 1, /* use this to read information elements */
@@ -149,8 +162,11 @@ enum wl1271_commands {
 	CMD_WFD_START_DISCOVERY	= 45,
 	CMD_WFD_STOP_DISCOVERY	= 46,
 	CMD_WFD_ATTRIBUTE_CONFIG	= 47,
-	CMD_NOP			= 48,
-	CMD_LAST_COMMAND,
+	CMD_GENERIC_CFG			= 48,
+	CMD_NOP				= 49,
+
+	/* start of 18xx specific commands */
+	CMD_DFS_CHANNEL_CONFIG		= 60,
 
 	MAX_COMMAND_ID = 0xFFFF,
 };
@@ -167,8 +183,8 @@ enum cmd_templ {
 	CMD_TEMPL_PS_POLL,
 	CMD_TEMPL_KLV,
 	CMD_TEMPL_DISCONNECT,
-	CMD_TEMPL_APP_PROBE_REQ_2_4,
-	CMD_TEMPL_APP_PROBE_REQ_5,
+	CMD_TEMPL_APP_PROBE_REQ_2_4_LEGACY,
+	CMD_TEMPL_APP_PROBE_REQ_5_LEGACY,
 	CMD_TEMPL_BAR,           /* for firmware internal use only */
 	CMD_TEMPL_CTS,           /*
 				  * For CTS-to-self (FastCTS) mechanism
@@ -179,6 +195,8 @@ enum cmd_templ {
 	CMD_TEMPL_DEAUTH_AP,
 	CMD_TEMPL_TEMPORARY,
 	CMD_TEMPL_LINK_MEASUREMENT_REPORT,
+	CMD_TEMPL_PROBE_REQ_2_4_PERIODIC,
+	CMD_TEMPL_PROBE_REQ_5_PERIODIC,
 
 	CMD_TEMPL_MAX = 0xff
 };
@@ -220,7 +238,8 @@ enum {
 	CMD_STATUS_FW_RESET		= 22, /* Driver internal use.*/
 	CMD_STATUS_TEMPLATE_OOM		= 23,
 	CMD_STATUS_NO_RX_BA_SESSION	= 24,
-	MAX_COMMAND_STATUS		= 0xff
+
+	MAX_COMMAND_STATUS
 };
 
 #define CMDMBOX_HEADER_LEN 4
@@ -345,7 +364,15 @@ struct wl12xx_cmd_role_start {
 
 			u8 reset_tsf;
 
-			u8 padding_1[4];
+			/*
+			 * ap supports wmm (note that there is additional
+			 * per-sta wmm configuration)
+			 */
+			u8 wmm;
+
+			u8 bcast_session_id;
+			u8 global_session_id;
+			u8 padding_1[1];
 		} __packed ap;
 	};
 } __packed;
@@ -515,7 +542,14 @@ struct wl12xx_cmd_set_peer_state {
 
 	u8 hlid;
 	u8 state;
-	u8 padding[2];
+
+	/*
+	 * wmm is relevant for sta role only.
+	 * ap role configures the per-sta wmm params in
+	 * the add_peer command.
+	 */
+	u8 wmm;
+	u8 padding[1];
 } __packed;
 
 struct wl12xx_cmd_roc {
@@ -558,7 +592,7 @@ struct wl12xx_cmd_add_peer {
 	u8 bss_index;
 	u8 sp_len;
 	u8 wmm;
-	u8 padding1;
+	u8 session_id;
 } __packed;
 
 struct wl12xx_cmd_remove_peer {
@@ -597,6 +631,13 @@ enum wl12xx_fwlogger_output {
 	WL12XX_FWLOG_OUTPUT_HOST,
 };
 
+struct wl12xx_cmd_regdomain_dfs_config {
+	struct wl1271_cmd_header header;
+
+	__le32 ch_bit_map1;
+	__le32 ch_bit_map2;
+} __packed;
+
 struct wl12xx_cmd_config_fwlog {
 	struct wl1271_cmd_header header;
 
@@ -626,25 +667,11 @@ struct wl12xx_cmd_stop_fwlog {
 	struct wl1271_cmd_header header;
 } __packed;
 
-struct wl12xx_cmd_channel_switch {
+struct wl12xx_cmd_stop_channel_switch {
 	struct wl1271_cmd_header header;
 
 	u8 role_id;
-
-	/* The new serving channel */
-	u8 channel;
-	/* Relative time of the serving channel switch in TBTT units */
-	u8 switch_time;
-	/* Stop the role TX, should expect it after radar detection */
-	u8 stop_tx;
-	/* The target channel tx status 1-stopped 0-open*/
-	u8 post_switch_tx_disable;
-
 	u8 padding[3];
-} __packed;
-
-struct wl12xx_cmd_stop_channel_switch {
-	struct wl1271_cmd_header header;
 } __packed;
 
 /* Used to check radio status after calibration */

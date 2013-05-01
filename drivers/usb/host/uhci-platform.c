@@ -62,7 +62,7 @@ static const struct hc_driver uhci_platform_hc_driver = {
 
 static u64 platform_uhci_dma_mask = DMA_BIT_MASK(32);
 
-static int __devinit uhci_hcd_platform_probe(struct platform_device *pdev)
+static int uhci_hcd_platform_probe(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd;
 	struct uhci_hcd	*uhci;

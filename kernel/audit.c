@@ -272,6 +272,8 @@ static int audit_log_config_change(char *function_name, int new, int old,
 	int rc = 0;
 
 	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_CONFIG_CHANGE);
+	if (unlikely(!ab))
+		return rc;
 	audit_log_format(ab, "%s=%d old=%d auid=%u ses=%u", function_name, new,
 			 old, from_kuid(&init_user_ns, loginuid), sessionid);
 	if (sid) {
@@ -619,6 +621,8 @@ static int audit_log_common_recv_msg(struct audit_buffer **ab, u16 msg_type,
 	}
 
 	*ab = audit_log_start(NULL, GFP_KERNEL, msg_type);
+	if (unlikely(!*ab))
+		return rc;
 	audit_log_format(*ab, "pid=%d uid=%u auid=%u ses=%u",
 			 task_tgid_vnr(current),
 			 from_kuid(&init_user_ns, current_uid()),
@@ -1097,6 +1101,23 @@ static inline void audit_get_stamp(struct audit_context *ctx,
 	}
 }
 
+/*
+ * Wait for auditd to drain the queue a little
+ */
+static void wait_for_auditd(unsigned long sleep_time)
+{
+	DECLARE_WAITQUEUE(wait, current);
+	set_current_state(TASK_INTERRUPTIBLE);
+	add_wait_queue(&audit_backlog_wait, &wait);
+
+	if (audit_backlog_limit &&
+	    skb_queue_len(&audit_skb_queue) > audit_backlog_limit)
+		schedule_timeout(sleep_time);
+
+	__set_current_state(TASK_RUNNING);
+	remove_wait_queue(&audit_backlog_wait, &wait);
+}
+
 /* Obtain an audit buffer.  This routine does locking to obtain the
  * audit buffer, but then no locking is required for calls to
  * audit_log_*format.  If the tsk is a task that is currently in a
@@ -1142,20 +1163,13 @@ struct audit_buffer *audit_log_start(struct audit_context *ctx, gfp_t gfp_mask,
 
 	while (audit_backlog_limit
 	       && skb_queue_len(&audit_skb_queue) > audit_backlog_limit + reserve) {
-		if (gfp_mask & __GFP_WAIT && audit_backlog_wait_time
-		    && time_before(jiffies, timeout_start + audit_backlog_wait_time)) {
+		if (gfp_mask & __GFP_WAIT && audit_backlog_wait_time) {
+			unsigned long sleep_time;
 
-			/* Wait for auditd to drain the queue a little */
-			DECLARE_WAITQUEUE(wait, current);
-			set_current_state(TASK_INTERRUPTIBLE);
-			add_wait_queue(&audit_backlog_wait, &wait);
-
-			if (audit_backlog_limit &&
-			    skb_queue_len(&audit_skb_queue) > audit_backlog_limit)
-				schedule_timeout(timeout_start + audit_backlog_wait_time - jiffies);
-
-			__set_current_state(TASK_RUNNING);
-			remove_wait_queue(&audit_backlog_wait, &wait);
+			sleep_time = timeout_start + audit_backlog_wait_time -
+					jiffies;
+			if ((long)sleep_time > 0)
+				wait_for_auditd(sleep_time);
 			continue;
 		}
 		if (audit_rate_check() && printk_ratelimit())

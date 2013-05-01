@@ -16,24 +16,24 @@ static struct st_var_header var_headers[] = {
 	{ "ex_num", EXNUMBER, VAR_PROC, NULL, NULL },
 	{ "characters", CHARS, VAR_PROC, NULL, NULL },
 	{ "synth_direct", SYNTH_DIRECT, VAR_PROC, NULL, NULL },
-	{ "caps_start", CAPS_START, VAR_STRING, str_caps_start, NULL },
-	{ "caps_stop", CAPS_STOP, VAR_STRING, str_caps_stop, NULL },
+	{ "caps_start", CAPS_START, VAR_STRING, spk_str_caps_start, NULL },
+	{ "caps_stop", CAPS_STOP, VAR_STRING, spk_str_caps_stop, NULL },
 	{ "delay_time", DELAY, VAR_TIME, NULL, NULL },
 	{ "trigger_time", TRIGGER, VAR_TIME, NULL, NULL },
 	{ "jiffy_delta", JIFFY, VAR_TIME, NULL, NULL },
 	{ "full_time", FULL, VAR_TIME, NULL, NULL },
-	{ "spell_delay", SPELL_DELAY, VAR_NUM, &spell_delay, NULL },
-	{ "bleeps", BLEEPS, VAR_NUM, &bleeps, NULL },
-	{ "attrib_bleep", ATTRIB_BLEEP, VAR_NUM, &attrib_bleep, NULL },
-	{ "bleep_time", BLEEP_TIME, VAR_TIME, &bleep_time, NULL },
+	{ "spell_delay", SPELL_DELAY, VAR_NUM, &spk_spell_delay, NULL },
+	{ "bleeps", BLEEPS, VAR_NUM, &spk_bleeps, NULL },
+	{ "attrib_bleep", ATTRIB_BLEEP, VAR_NUM, &spk_attrib_bleep, NULL },
+	{ "bleep_time", BLEEP_TIME, VAR_TIME, &spk_bleep_time, NULL },
 	{ "cursor_time", CURSOR_TIME, VAR_TIME, NULL, NULL },
-	{ "punc_level", PUNC_LEVEL, VAR_NUM, &punc_level, NULL },
-	{ "reading_punc", READING_PUNC, VAR_NUM, &reading_punc, NULL },
-	{ "say_control", SAY_CONTROL, VAR_NUM, &say_ctrl, NULL },
-	{ "say_word_ctl", SAY_WORD_CTL, VAR_NUM, &say_word_ctl, NULL },
-	{ "no_interrupt", NO_INTERRUPT, VAR_NUM, &no_intr, NULL },
-	{ "key_echo", KEY_ECHO, VAR_NUM, &key_echo, NULL },
-	{ "bell_pos", BELL_POS, VAR_NUM, &bell_pos, NULL },
+	{ "punc_level", PUNC_LEVEL, VAR_NUM, &spk_punc_level, NULL },
+	{ "reading_punc", READING_PUNC, VAR_NUM, &spk_reading_punc, NULL },
+	{ "say_control", SAY_CONTROL, VAR_NUM, &spk_say_ctrl, NULL },
+	{ "say_word_ctl", SAY_WORD_CTL, VAR_NUM, &spk_say_word_ctl, NULL },
+	{ "no_interrupt", NO_INTERRUPT, VAR_NUM, &spk_no_intr, NULL },
+	{ "key_echo", KEY_ECHO, VAR_NUM, &spk_key_echo, NULL },
+	{ "bell_pos", BELL_POS, VAR_NUM, &spk_bell_pos, NULL },
 	{ "rate", RATE, VAR_NUM, NULL, NULL },
 	{ "pitch", PITCH, VAR_NUM, NULL, NULL },
 	{ "vol", VOL, VAR_NUM, NULL, NULL },
@@ -58,7 +58,7 @@ static struct punc_var_t punc_vars[] = {
 	{ -1, -1 },
 };
 
-int chartab_get_value(char *keyword)
+int spk_chartab_get_value(char *keyword)
 {
 	int value = 0;
 
@@ -103,11 +103,11 @@ void speakup_register_var(struct var_t *var)
 	p_header->data = var;
 	switch (p_header->var_type) {
 	case VAR_STRING:
-		set_string_var(nothing, p_header, 0);
+		spk_set_string_var(nothing, p_header, 0);
 		break;
 	case VAR_NUM:
 	case VAR_TIME:
-		set_num_var(0, p_header, E_DEFAULT);
+		spk_set_num_var(0, p_header, E_DEFAULT);
 		break;
 	default:
 		break;
@@ -123,7 +123,7 @@ void speakup_unregister_var(enum var_id_t var_id)
 	p_header->data = NULL;
 }
 
-struct st_var_header *get_var_header(enum var_id_t var_id)
+struct st_var_header *spk_get_var_header(enum var_id_t var_id)
 {
 	struct st_var_header *p_header;
 	if (var_id < 0 || var_id >= MAXVARS)
@@ -134,7 +134,7 @@ struct st_var_header *get_var_header(enum var_id_t var_id)
 	return p_header;
 }
 
-struct st_var_header *var_header_by_name(const char *name)
+struct st_var_header *spk_var_header_by_name(const char *name)
 {
 	int i;
 	struct st_var_header *where = NULL;
@@ -151,15 +151,15 @@ struct st_var_header *var_header_by_name(const char *name)
 	return where;
 }
 
-struct var_t *get_var(enum var_id_t var_id)
+struct var_t *spk_get_var(enum var_id_t var_id)
 {
 	BUG_ON(var_id < 0 || var_id >= MAXVARS);
 	BUG_ON(!var_ptrs[var_id]);
 	return var_ptrs[var_id]->data;
 }
-EXPORT_SYMBOL_GPL(get_var);
+EXPORT_SYMBOL_GPL(spk_get_var);
 
-struct punc_var_t *get_punc_var(enum var_id_t var_id)
+struct punc_var_t *spk_get_punc_var(enum var_id_t var_id)
 {
 	struct punc_var_t *rv = NULL;
 	struct punc_var_t *where;
@@ -175,7 +175,7 @@ struct punc_var_t *get_punc_var(enum var_id_t var_id)
 }
 
 /* handlers for setting vars */
-int set_num_var(int input, struct st_var_header *var, int how)
+int spk_set_num_var(int input, struct st_var_header *var, int how)
 {
 	int val;
 	short ret = 0;
@@ -217,7 +217,7 @@ int set_num_var(int input, struct st_var_header *var, int how)
 	if (p_val != NULL)
 		*p_val = val;
 	if (var->var_id == PUNC_LEVEL) {
-		punc_mask = punc_masks[val];
+		spk_punc_mask = spk_punc_masks[val];
 		return ret;
 	}
 	if (var_data->u.n.multiplier != 0)
@@ -232,7 +232,7 @@ int set_num_var(int input, struct st_var_header *var, int how)
 	if (!var_data->u.n.synth_fmt)
 		return ret;
 	if (var->var_id == PITCH)
-		cp = pitch_buff;
+		cp = spk_pitch_buff;
 	else
 		cp = buf;
 	if (!var_data->u.n.out_str)
@@ -244,7 +244,7 @@ int set_num_var(int input, struct st_var_header *var, int how)
 	return ret;
 }
 
-int set_string_var(const char *page, struct st_var_header *var, int len)
+int spk_set_string_var(const char *page, struct st_var_header *var, int len)
 {
 	int ret = 0;
 	struct var_t *var_data = var->data;
@@ -267,21 +267,21 @@ int set_string_var(const char *page, struct st_var_header *var, int len)
 	return ret;
 }
 
-/* set_mask_bits sets or clears the punc/delim/repeat bits,
+/* spk_set_mask_bits sets or clears the punc/delim/repeat bits,
  * if input is null uses the defaults.
  * values for how: 0 clears bits of chars supplied,
  * 1 clears allk, 2 sets bits for chars */
-int set_mask_bits(const char *input, const int which, const int how)
+int spk_set_mask_bits(const char *input, const int which, const int how)
 {
 	u_char *cp;
-	short mask = punc_info[which].mask;
+	short mask = spk_punc_info[which].mask;
 	if (how&1) {
-		for (cp = (u_char *)punc_info[3].value; *cp; cp++)
+		for (cp = (u_char *)spk_punc_info[3].value; *cp; cp++)
 			spk_chartab[*cp] &= ~mask;
 	}
 	cp = (u_char *)input;
 	if (cp == 0)
-		cp = punc_info[which].value;
+		cp = spk_punc_info[which].value;
 	else {
 		for ( ; *cp; cp++) {
 			if (*cp < SPACE)
@@ -308,7 +308,7 @@ int set_mask_bits(const char *input, const int which, const int how)
 	return 0;
 }
 
-char *strlwr(char *s)
+char *spk_strlwr(char *s)
 {
 	char *p;
 	if (s == NULL)
@@ -341,7 +341,7 @@ char *speakup_s2i(char *start, int *dest)
 	return start;
 }
 
-char *s2uchar(char *start, char *dest)
+char *spk_s2uchar(char *start, char *dest)
 {
 	int val = 0;
 	while (*start && *start <= SPACE)
@@ -357,7 +357,7 @@ char *s2uchar(char *start, char *dest)
 	return start;
 }
 
-char *xlate(char *s)
+char *spk_xlate(char *s)
 {
 	static const char finds[] = "nrtvafe";
 	static const char subs[] = "\n\r\t\013\001\014\033";

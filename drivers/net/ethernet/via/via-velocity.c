@@ -375,7 +375,7 @@ MODULE_DEVICE_TABLE(pci, velocity_id_table);
  *	Given a chip identifier return a suitable description. Returns
  *	a pointer a static string valid while the driver is loaded.
  */
-static const char __devinit *get_chip_name(enum chip_type chip_id)
+static const char *get_chip_name(enum chip_type chip_id)
 {
 	int i;
 	for (i = 0; chip_info_table[i].name != NULL; i++)
@@ -392,7 +392,7 @@ static const char __devinit *get_chip_name(enum chip_type chip_id)
  *	unload for each active device that is present. Disconnects
  *	the device from the network layer and frees all the resources
  */
-static void __devexit velocity_remove1(struct pci_dev *pdev)
+static void velocity_remove1(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct velocity_info *vptr = netdev_priv(dev);
@@ -421,7 +421,8 @@ static void __devexit velocity_remove1(struct pci_dev *pdev)
  *	all the verification and checking as well as reporting so that
  *	we don't duplicate code for each option.
  */
-static void __devinit velocity_set_int_opt(int *opt, int val, int min, int max, int def, char *name, const char *devname)
+static void velocity_set_int_opt(int *opt, int val, int min, int max, int def,
+				 char *name, const char *devname)
 {
 	if (val == -1)
 		*opt = def;
@@ -449,7 +450,8 @@ static void __devinit velocity_set_int_opt(int *opt, int val, int min, int max, 
  *	all the verification and checking as well as reporting so that
  *	we don't duplicate code for each option.
  */
-static void __devinit velocity_set_bool_opt(u32 *opt, int val, int def, u32 flag, char *name, const char *devname)
+static void velocity_set_bool_opt(u32 *opt, int val, int def, u32 flag,
+				  char *name, const char *devname)
 {
 	(*opt) &= (~flag);
 	if (val == -1)
@@ -474,7 +476,8 @@ static void __devinit velocity_set_bool_opt(u32 *opt, int val, int def, u32 flag
  *	Turn the module and command options into a single structure
  *	for the current device
  */
-static void __devinit velocity_get_options(struct velocity_opt *opts, int index, const char *devname)
+static void velocity_get_options(struct velocity_opt *opts, int index,
+				 const char *devname)
 {
 
 	velocity_set_int_opt(&opts->rx_thresh, rx_thresh[index], RX_THRESH_MIN, RX_THRESH_MAX, RX_THRESH_DEF, "rx_thresh", devname);
@@ -2627,9 +2630,8 @@ static const struct net_device_ops velocity_netdev_ops = {
  *	Set up the initial velocity_info struct for the device that has been
  *	discovered.
  */
-static void __devinit velocity_init_info(struct pci_dev *pdev,
-					 struct velocity_info *vptr,
-					 const struct velocity_info_tbl *info)
+static void velocity_init_info(struct pci_dev *pdev, struct velocity_info *vptr,
+			       const struct velocity_info_tbl *info)
 {
 	memset(vptr, 0, sizeof(struct velocity_info));
 
@@ -2648,7 +2650,8 @@ static void __devinit velocity_init_info(struct pci_dev *pdev,
  *	Retrieve the PCI configuration space data that interests us from
  *	the kernel PCI layer
  */
-static int __devinit velocity_get_pci_info(struct velocity_info *vptr, struct pci_dev *pdev)
+static int velocity_get_pci_info(struct velocity_info *vptr,
+				 struct pci_dev *pdev)
 {
 	vptr->rev_id = pdev->revision;
 
@@ -2685,7 +2688,7 @@ static int __devinit velocity_get_pci_info(struct velocity_info *vptr, struct pc
  *	Print per driver data as the kernel driver finds Velocity
  *	hardware
  */
-static void __devinit velocity_print_info(struct velocity_info *vptr)
+static void velocity_print_info(struct velocity_info *vptr)
 {
 	struct net_device *dev = vptr->dev;
 
@@ -2709,7 +2712,8 @@ static u32 velocity_get_link(struct net_device *dev)
  *	Configure a discovered adapter from scratch. Return a negative
  *	errno error code on failure paths.
  */
-static int __devinit velocity_found1(struct pci_dev *pdev, const struct pci_device_id *ent)
+static int velocity_found1(struct pci_dev *pdev,
+			   const struct pci_device_id *ent)
 {
 	static int first = 1;
 	struct net_device *dev;
@@ -3108,7 +3112,7 @@ static struct pci_driver velocity_driver = {
 	.name		= VELOCITY_NAME,
 	.id_table	= velocity_id_table,
 	.probe		= velocity_found1,
-	.remove		= __devexit_p(velocity_remove1),
+	.remove		= velocity_remove1,
 #ifdef CONFIG_PM
 	.suspend	= velocity_suspend,
 	.resume		= velocity_resume,

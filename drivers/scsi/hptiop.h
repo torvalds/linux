@@ -1,6 +1,6 @@
 /*
  * HighPoint RR3xxx/4xxx controller driver for Linux
- * Copyright (C) 2006-2009 HighPoint Technologies, Inc. All Rights Reserved.
+ * Copyright (C) 2006-2012 HighPoint Technologies, Inc. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -75,6 +75,45 @@ struct hpt_iopmv_regs {
 	__le32 outbound_intmask;
 };
 
+#pragma pack(1)
+struct hpt_iopmu_mvfrey {
+	__le32 reserved0[(0x4000 - 0) / 4];
+	__le32 inbound_base;
+	__le32 inbound_base_high;
+	__le32 reserved1[(0x4018 - 0x4008) / 4];
+	__le32 inbound_write_ptr;
+	__le32 reserved2[(0x402c - 0x401c) / 4];
+	__le32 inbound_conf_ctl;
+	__le32 reserved3[(0x4050 - 0x4030) / 4];
+	__le32 outbound_base;
+	__le32 outbound_base_high;
+	__le32 outbound_shadow_base;
+	__le32 outbound_shadow_base_high;
+	__le32 reserved4[(0x4088 - 0x4060) / 4];
+	__le32 isr_cause;
+	__le32 isr_enable;
+	__le32 reserved5[(0x1020c - 0x4090) / 4];
+	__le32 pcie_f0_int_enable;
+	__le32 reserved6[(0x10400 - 0x10210) / 4];
+	__le32 f0_to_cpu_msg_a;
+	__le32 reserved7[(0x10420 - 0x10404) / 4];
+	__le32 cpu_to_f0_msg_a;
+	__le32 reserved8[(0x10480 - 0x10424) / 4];
+	__le32 f0_doorbell;
+	__le32 f0_doorbell_enable;
+};
+
+struct mvfrey_inlist_entry {
+	dma_addr_t addr;
+	__le32 intrfc_len;
+	__le32 reserved;
+};
+
+struct mvfrey_outlist_entry {
+	__le32 val;
+};
+#pragma pack()
+
 #define MVIOP_MU_QUEUE_ADDR_HOST_MASK   (~(0x1full))
 #define MVIOP_MU_QUEUE_ADDR_HOST_BIT    4
 
@@ -87,6 +126,9 @@ struct hpt_iopmv_regs {
 #define MVIOP_MU_OUTBOUND_INT_MSG       1
 #define MVIOP_MU_OUTBOUND_INT_POSTQUEUE 2
 
+#define CL_POINTER_TOGGLE        0x00004000
+#define CPU_TO_F0_DRBL_MSG_BIT   0x02000000
+
 enum hpt_iopmu_message {
 	/* host-to-iop messages */
 	IOPMU_INBOUND_MSG0_NOP = 0,
@@ -95,6 +137,7 @@ enum hpt_iopmu_message {
 	IOPMU_INBOUND_MSG0_SHUTDOWN,
 	IOPMU_INBOUND_MSG0_STOP_BACKGROUND_TASK,
 	IOPMU_INBOUND_MSG0_START_BACKGROUND_TASK,
+	IOPMU_INBOUND_MSG0_RESET_COMM,
 	IOPMU_INBOUND_MSG0_MAX = 0xff,
 	/* iop-to-host messages */
 	IOPMU_OUTBOUND_MSG0_REGISTER_DEVICE_0 = 0x100,
@@ -118,6 +161,7 @@ struct hpt_iop_request_header {
 #define IOP_REQUEST_FLAG_BIST_REQUEST 2
 #define IOP_REQUEST_FLAG_REMAPPED     4
 #define IOP_REQUEST_FLAG_OUTPUT_CONTEXT 8
+#define IOP_REQUEST_FLAG_ADDR_BITS 0x40 /* flags[31:16] is phy_addr[47:32] */
 
 enum hpt_iop_request_type {
 	IOP_REQUEST_TYPE_GET_CONFIG = 0,
@@ -223,6 +267,13 @@ struct hpt_scsi_pointer {
 
 #define HPT_SCP(scp) ((struct hpt_scsi_pointer *)&(scp)->SCp)
 
+enum hptiop_family {
+	UNKNOWN_BASED_IOP,
+	INTEL_BASED_IOP,
+	MV_BASED_IOP,
+	MVFREY_BASED_IOP
+} ;
+
 struct hptiop_hba {
 	struct hptiop_adapter_ops *ops;
 	union {
@@ -236,6 +287,22 @@ struct hptiop_hba {
 			void *internal_req;
 			dma_addr_t internal_req_phy;
 		} mv;
+		struct {
+			struct hpt_iop_request_get_config __iomem *config;
+			struct hpt_iopmu_mvfrey __iomem *mu;
+
+			int internal_mem_size;
+			struct hptiop_request internal_req;
+			int list_count;
+			struct mvfrey_inlist_entry *inlist;
+			dma_addr_t inlist_phy;
+			__le32 inlist_wptr;
+			struct mvfrey_outlist_entry *outlist;
+			dma_addr_t outlist_phy;
+			__le32 *outlist_cptr; /* copy pointer shadow */
+			dma_addr_t outlist_cptr_phy;
+			__le32 outlist_rptr;
+		} mvfrey;
 	} u;
 
 	struct Scsi_Host *host;
@@ -283,6 +350,7 @@ struct hpt_ioctl_k {
 };
 
 struct hptiop_adapter_ops {
+	enum hptiop_family family;
 	int  (*iop_wait_ready)(struct hptiop_hba *hba, u32 millisec);
 	int  (*internal_memalloc)(struct hptiop_hba *hba);
 	int  (*internal_memfree)(struct hptiop_hba *hba);
@@ -298,6 +366,8 @@ struct hptiop_adapter_ops {
 	void (*post_msg)(struct hptiop_hba *hba, u32 msg);
 	void (*post_req)(struct hptiop_hba *hba, struct hptiop_request *_req);
 	int  hw_dma_bit_mask;
+	int  (*reset_comm)(struct hptiop_hba *hba);
+	__le64  host_phy_flag;
 };
 
 #define HPT_IOCTL_RESULT_OK         0

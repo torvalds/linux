@@ -134,7 +134,7 @@ static int altera_spi_txrx(struct spi_device *spi, struct spi_transfer *t)
 	hw->tx = t->tx_buf;
 	hw->rx = t->rx_buf;
 	hw->count = 0;
-	hw->bytes_per_word = (t->bits_per_word ? : spi->bits_per_word) / 8;
+	hw->bytes_per_word = t->bits_per_word / 8;
 	hw->len = t->len / hw->bytes_per_word;
 
 	if (hw->irq >= 0) {
@@ -215,7 +215,7 @@ static irqreturn_t altera_spi_irq(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
-static int __devinit altera_spi_probe(struct platform_device *pdev)
+static int altera_spi_probe(struct platform_device *pdev)
 {
 	struct altera_spi_platform_data *platp = pdev->dev.platform_data;
 	struct altera_spi *hw;
@@ -290,7 +290,7 @@ exit:
 	return err;
 }
 
-static int __devexit altera_spi_remove(struct platform_device *dev)
+static int altera_spi_remove(struct platform_device *dev)
 {
 	struct altera_spi *hw = platform_get_drvdata(dev);
 	struct spi_master *master = hw->bitbang.master;
@@ -311,7 +311,7 @@ MODULE_DEVICE_TABLE(of, altera_spi_match);
 
 static struct platform_driver altera_spi_driver = {
 	.probe = altera_spi_probe,
-	.remove = __devexit_p(altera_spi_remove),
+	.remove = altera_spi_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.owner = THIS_MODULE,

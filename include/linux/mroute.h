@@ -9,7 +9,7 @@
 #ifdef CONFIG_IP_MROUTE
 static inline int ip_mroute_opt(int opt)
 {
-	return (opt >= MRT_BASE) && (opt <= MRT_BASE + 10);
+	return (opt >= MRT_BASE) && (opt <= MRT_MAX);
 }
 #else
 static inline int ip_mroute_opt(int opt)

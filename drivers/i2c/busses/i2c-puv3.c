@@ -184,7 +184,7 @@ static struct i2c_algorithm puv3_i2c_algorithm = {
 /*
  * Main initialization routine.
  */
-static int __devinit puv3_i2c_probe(struct platform_device *pdev)
+static int puv3_i2c_probe(struct platform_device *pdev)
 {
 	struct i2c_adapter *adapter;
 	struct resource *mem;
@@ -223,7 +223,6 @@ static int __devinit puv3_i2c_probe(struct platform_device *pdev)
 	return 0;
 
 fail_add_adapter:
-	platform_set_drvdata(pdev, NULL);
 	kfree(adapter);
 fail_nomem:
 	release_mem_region(mem->start, resource_size(mem));
@@ -231,7 +230,7 @@ fail_nomem:
 	return rc;
 }
 
-static int __devexit puv3_i2c_remove(struct platform_device *pdev)
+static int puv3_i2c_remove(struct platform_device *pdev)
 {
 	struct i2c_adapter *adapter = platform_get_drvdata(pdev);
 	struct resource *mem;
@@ -245,7 +244,6 @@ static int __devexit puv3_i2c_remove(struct platform_device *pdev)
 	}
 
 	put_device(&pdev->dev);
-	platform_set_drvdata(pdev, NULL);
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(mem->start, resource_size(mem));
@@ -276,7 +274,7 @@ static SIMPLE_DEV_PM_OPS(puv3_i2c_pm, puv3_i2c_suspend, NULL);
 
 static struct platform_driver puv3_i2c_driver = {
 	.probe		= puv3_i2c_probe,
-	.remove		= __devexit_p(puv3_i2c_remove),
+	.remove		= puv3_i2c_remove,
 	.driver		= {
 		.name	= "PKUnity-v3-I2C",
 		.owner	= THIS_MODULE,

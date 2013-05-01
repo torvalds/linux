@@ -89,7 +89,7 @@ int apei_hest_parse(apei_hest_func_t func, void *data)
 	struct acpi_hest_header *hest_hdr;
 	int i, rc, len;
 
-	if (hest_disable)
+	if (hest_disable || !hest_tab)
 		return -EINVAL;
 
 	hest_hdr = (struct acpi_hest_header *)(hest_tab + 1);
@@ -215,9 +215,6 @@ void __init acpi_hest_init(void)
 		pr_info(HEST_PFX "Table parsing disabled.\n");
 		return;
 	}
-
-	if (acpi_disabled)
-		goto err;
 
 	status = acpi_get_table(ACPI_SIG_HEST, 0,
 				(struct acpi_table_header **)&hest_tab);

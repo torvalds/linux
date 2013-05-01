@@ -241,8 +241,6 @@ struct das800_private {
 	volatile int do_bits;	/* digital output bits */
 };
 
-#define devpriv ((struct das800_private *)dev->private)
-
 static int das800_attach(struct comedi_device *dev,
 			 struct comedi_devconfig *it);
 static void das800_detach(struct comedi_device *dev);
@@ -344,22 +342,7 @@ static int das800_probe(struct comedi_device *dev)
 	return -1;
 }
 
-/*
- * A convenient macro that defines init_module() and cleanup_module(),
- * as necessary.
- */
-static int __init driver_das800_init_module(void)
-{
-	return comedi_driver_register(&driver_das800);
-}
-
-static void __exit driver_das800_cleanup_module(void)
-{
-	comedi_driver_unregister(&driver_das800);
-}
-
-module_init(driver_das800_init_module);
-module_exit(driver_das800_cleanup_module);
+module_comedi_driver(driver_das800);
 
 /* interrupt service routine */
 static irqreturn_t das800_interrupt(int irq, void *d)
@@ -367,6 +350,7 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 	short i;		/* loop index */
 	short dataPoint = 0;
 	struct comedi_device *dev = d;
+	struct das800_private *devpriv = dev->private;
 	struct comedi_subdevice *s = dev->read_subdev;	/* analog input subdevice */
 	struct comedi_async *async;
 	int status;
@@ -461,6 +445,7 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 
 static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	struct das800_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned long iobase = it->options[0];
 	unsigned int irq = it->options[1];
@@ -472,9 +457,10 @@ static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (irq)
 		dev_dbg(dev->class_dev, "irq %u\n", irq);
 
-	/* allocate and initialize dev->private */
-	if (alloc_private(dev, sizeof(struct das800_private)) < 0)
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
 		return -ENOMEM;
+	dev->private = devpriv;
 
 	if (iobase == 0) {
 		dev_err(dev->class_dev,
@@ -569,6 +555,8 @@ static void das800_detach(struct comedi_device *dev)
 
 static int das800_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 {
+	struct das800_private *devpriv = dev->private;
+
 	devpriv->forever = 0;
 	devpriv->count = 0;
 	disable_das800(dev);
@@ -578,7 +566,9 @@ static int das800_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 /* enable_das800 makes the card start taking hardware triggered conversions */
 static void enable_das800(struct comedi_device *dev)
 {
+	struct das800_private *devpriv = dev->private;
 	unsigned long irq_flags;
+
 	spin_lock_irqsave(&dev->spinlock, irq_flags);
 	/*  enable fifo-half full interrupts for cio-das802/16 */
 	if (thisboard->resolution == 16)
@@ -604,6 +594,7 @@ static int das800_ai_do_cmdtest(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_cmd *cmd)
 {
+	struct das800_private *devpriv = dev->private;
 	int err = 0;
 	int tmp;
 	int gain, startChan;
@@ -631,37 +622,21 @@ static int das800_ai_do_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 2;
 
-	/* step 3: make sure arguments are trivially compatible */
+	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
-	if (cmd->convert_src == TRIG_TIMER) {
-		if (cmd->convert_arg < thisboard->ai_speed) {
-			cmd->convert_arg = thisboard->ai_speed;
-			err++;
-		}
-	}
-	if (!cmd->chanlist_len) {
-		cmd->chanlist_len = 1;
-		err++;
-	}
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
-	if (cmd->stop_src == TRIG_COUNT) {
-		if (!cmd->stop_arg) {
-			cmd->stop_arg = 1;
-			err++;
-		}
-	} else {		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+
+	if (cmd->convert_src == TRIG_TIMER)
+		err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
+						 thisboard->ai_speed);
+
+	err |= cfc_check_trigger_arg_min(&cmd->chanlist_len, 1);
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+
+	if (cmd->stop_src == TRIG_COUNT)
+		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+	else	/* TRIG_NONE */
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
 	if (err)
 		return 3;
@@ -710,6 +685,7 @@ static int das800_ai_do_cmdtest(struct comedi_device *dev,
 static int das800_ai_do_cmd(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
+	struct das800_private *devpriv = dev->private;
 	int startChan, endChan, scan, gain;
 	int conv_bits;
 	unsigned long irq_flags;
@@ -793,6 +769,7 @@ static int das800_ai_rinsn(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_insn *insn,
 			   unsigned int *data)
 {
+	struct das800_private *devpriv = dev->private;
 	int i, n;
 	int chan;
 	int range;
@@ -862,6 +839,7 @@ static int das800_do_wbits(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_insn *insn,
 			   unsigned int *data)
 {
+	struct das800_private *devpriv = dev->private;
 	int wbits;
 	unsigned long irq_flags;
 
@@ -885,6 +863,7 @@ static int das800_do_wbits(struct comedi_device *dev,
 /* loads counters with divisor1, divisor2 from private structure */
 static int das800_set_frequency(struct comedi_device *dev)
 {
+	struct das800_private *devpriv = dev->private;
 	int err = 0;
 
 	if (i8254_load(dev->iobase + DAS800_8254, 0, 1, devpriv->divisor1, 2))

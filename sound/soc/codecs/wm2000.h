@@ -10,6 +10,9 @@
 #define _WM2000_H
 
 #define WM2000_REG_SYS_START	    0x8000
+#define WM2000_REG_ANC_GAIN_CTRL    0x8fa2
+#define WM2000_REG_MSE_TH2          0x8fdf
+#define WM2000_REG_MSE_TH1          0x8fe0
 #define WM2000_REG_SPEECH_CLARITY   0x8fef
 #define WM2000_REG_SYS_WATCHDOG     0x8ff6
 #define WM2000_REG_ANA_VMID_PD_TIME 0x8ff7

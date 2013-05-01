@@ -297,7 +297,7 @@ static u8 piix_cable_detect(ide_hwif_t *hwif)
  *	capabilities of the hardware.
  */
 
-static void __devinit init_hwif_piix(ide_hwif_t *hwif)
+static void init_hwif_piix(ide_hwif_t *hwif)
 {
 	if (!hwif->dma_base)
 		return;
@@ -344,7 +344,7 @@ static const struct ide_port_ops ich_port_ops = {
 		.udma_mask	= udma, \
 	}
 
-static const struct ide_port_info piix_pci_info[] __devinitconst = {
+static const struct ide_port_info piix_pci_info[] = {
 	/* 0: MPIIX */
 	{	/*
 		 * MPIIX actually has only a single IDE channel mapped to
@@ -382,7 +382,7 @@ static const struct ide_port_info piix_pci_info[] __devinitconst = {
  *	finds a device matching our IDE device tables.
  */
  
-static int __devinit piix_init_one(struct pci_dev *dev, const struct pci_device_id *id)
+static int piix_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
 	return ide_pci_init_one(dev, &piix_pci_info[id->driver_data], NULL);
 }
@@ -394,7 +394,7 @@ static int __devinit piix_init_one(struct pci_dev *dev, const struct pci_device_
  *	they are found, disable use of DMA IDE
  */
 
-static void __devinit piix_check_450nx(void)
+static void piix_check_450nx(void)
 {
 	struct pci_dev *pdev = NULL;
 	u16 cfg;

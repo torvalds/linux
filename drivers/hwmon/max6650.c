@@ -245,7 +245,7 @@ static ssize_t set_target(struct device *dev, struct device_attribute *devattr,
 	if (err)
 		return err;
 
-	rpm = SENSORS_LIMIT(rpm, FAN_RPM_MIN, FAN_RPM_MAX);
+	rpm = clamp_val(rpm, FAN_RPM_MIN, FAN_RPM_MAX);
 
 	/*
 	 * Divide the required speed by 60 to get from rpm to rps, then
@@ -313,7 +313,7 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *devattr,
 	if (err)
 		return err;
 
-	pwm = SENSORS_LIMIT(pwm, 0, 255);
+	pwm = clamp_val(pwm, 0, 255);
 
 	mutex_lock(&data->update_lock);
 

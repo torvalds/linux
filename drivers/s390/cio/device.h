@@ -61,11 +61,10 @@ dev_fsm_event(struct ccw_device *cdev, enum dev_event dev_event)
 
 	if (dev_event == DEV_EVENT_INTERRUPT) {
 		if (state == DEV_STATE_ONLINE)
-			kstat_cpu(smp_processor_id()).
-				irqs[cdev->private->int_class]++;
+			inc_irq_stat(cdev->private->int_class);
 		else if (state != DEV_STATE_CMFCHANGE &&
 			 state != DEV_STATE_CMFUPDATE)
-			kstat_cpu(smp_processor_id()).irqs[IOINT_CIO]++;
+			inc_irq_stat(IRQIO_CIO);
 	}
 	dev_jumptable[state][dev_event](cdev, dev_event);
 }
@@ -142,9 +141,7 @@ int ccw_device_notify(struct ccw_device *, int);
 void ccw_device_set_disconnected(struct ccw_device *cdev);
 void ccw_device_set_notoper(struct ccw_device *cdev);
 
-/* qdio needs this. */
 void ccw_device_set_timeout(struct ccw_device *, int);
-extern struct subchannel_id ccw_device_get_subchannel_id(struct ccw_device *);
 
 /* Channel measurement facility related */
 void retry_set_schib(struct ccw_device *cdev);

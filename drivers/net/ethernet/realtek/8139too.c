@@ -228,7 +228,7 @@ typedef enum {
 static const struct {
 	const char *name;
 	u32 hw_flags;
-} board_info[] __devinitconst = {
+} board_info[] = {
 	{ "RealTek RTL8139", RTL8139_CAPS },
 	{ "RealTek RTL8129", RTL8129_CAPS },
 };
@@ -748,7 +748,7 @@ static void rtl8139_chip_reset (void __iomem *ioaddr)
 }
 
 
-static __devinit struct net_device * rtl8139_init_board (struct pci_dev *pdev)
+static struct net_device *rtl8139_init_board(struct pci_dev *pdev)
 {
 	struct device *d = &pdev->dev;
 	void __iomem *ioaddr;
@@ -935,8 +935,8 @@ static const struct net_device_ops rtl8139_netdev_ops = {
 	.ndo_set_features	= rtl8139_set_features,
 };
 
-static int __devinit rtl8139_init_one (struct pci_dev *pdev,
-				       const struct pci_device_id *ent)
+static int rtl8139_init_one(struct pci_dev *pdev,
+			    const struct pci_device_id *ent)
 {
 	struct net_device *dev = NULL;
 	struct rtl8139_private *tp;
@@ -991,7 +991,6 @@ static int __devinit rtl8139_init_one (struct pci_dev *pdev,
 	for (i = 0; i < 3; i++)
 		((__le16 *) (dev->dev_addr))[i] =
 		    cpu_to_le16(read_eeprom (ioaddr, i + 7, addr_len));
-	memcpy(dev->perm_addr, dev->dev_addr, dev->addr_len);
 
 	/* The Rtl8139-specific entries in the device structure. */
 	dev->netdev_ops = &rtl8139_netdev_ops;
@@ -1103,7 +1102,7 @@ err_out:
 }
 
 
-static void __devexit rtl8139_remove_one (struct pci_dev *pdev)
+static void rtl8139_remove_one(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata (pdev);
 	struct rtl8139_private *tp = netdev_priv(dev);
@@ -1141,7 +1140,7 @@ static void __devexit rtl8139_remove_one (struct pci_dev *pdev)
 #define EE_READ_CMD		(6)
 #define EE_ERASE_CMD	(7)
 
-static int __devinit read_eeprom (void __iomem *ioaddr, int location, int addr_len)
+static int read_eeprom(void __iomem *ioaddr, int location, int addr_len)
 {
 	int i;
 	unsigned retval = 0;
@@ -2652,7 +2651,7 @@ static struct pci_driver rtl8139_pci_driver = {
 	.name		= DRV_NAME,
 	.id_table	= rtl8139_pci_tbl,
 	.probe		= rtl8139_init_one,
-	.remove		= __devexit_p(rtl8139_remove_one),
+	.remove		= rtl8139_remove_one,
 #ifdef CONFIG_PM
 	.suspend	= rtl8139_suspend,
 	.resume		= rtl8139_resume,

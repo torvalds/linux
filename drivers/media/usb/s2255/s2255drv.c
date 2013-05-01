@@ -593,7 +593,7 @@ static int s2255_got_frame(struct s2255_channel *channel, int jpgsize)
 	buf = list_entry(dma_q->active.next,
 			 struct s2255_buffer, vb.queue);
 	list_del(&buf->vb.queue);
-	do_gettimeofday(&buf->vb.ts);
+	v4l2_get_timestamp(&buf->vb.ts);
 	s2255_fillbuff(channel, buf, jpgsize);
 	wake_up(&buf->vb.done);
 	dprintk(2, "%s: [buf/i] [%p/%d]\n", __func__, buf, buf->vb.i);
@@ -629,7 +629,6 @@ static void s2255_fillbuff(struct s2255_channel *channel,
 			   struct s2255_buffer *buf, int jpgsize)
 {
 	int pos = 0;
-	struct timeval ts;
 	const char *tmpbuf;
 	char *vbuf = videobuf_to_vmalloc(&buf->vb);
 	unsigned long last_frame;
@@ -674,8 +673,7 @@ static void s2255_fillbuff(struct s2255_channel *channel,
 	/* tell v4l buffer was filled */
 
 	buf->vb.field_count = channel->frame_count * 2;
-	do_gettimeofday(&ts);
-	buf->vb.ts = ts;
+	v4l2_get_timestamp(&buf->vb.ts);
 	buf->vb.state = VIDEOBUF_DONE;
 }
 
@@ -1651,7 +1649,7 @@ static int vidioc_enum_frameintervals(struct file *file, void *priv,
 	int is_ntsc = 0;
 #define NUM_FRAME_ENUMS 4
 	int frm_dec[NUM_FRAME_ENUMS] = {1, 2, 3, 5};
-	if (fe->index < 0 || fe->index >= NUM_FRAME_ENUMS)
+	if (fe->index >= NUM_FRAME_ENUMS)
 		return -EINVAL;
 	switch (fe->width) {
 	case 640:

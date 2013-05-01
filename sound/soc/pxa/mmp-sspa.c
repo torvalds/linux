@@ -405,7 +405,7 @@ struct snd_soc_dai_driver mmp_sspa_dai = {
 	.ops = &mmp_sspa_dai_ops,
 };
 
-static __devinit int asoc_mmp_sspa_probe(struct platform_device *pdev)
+static int asoc_mmp_sspa_probe(struct platform_device *pdev)
 {
 	struct sspa_priv *priv;
 	struct resource *res;
@@ -429,9 +429,9 @@ static __devinit int asoc_mmp_sspa_probe(struct platform_device *pdev)
 	if (res == NULL)
 		return -ENOMEM;
 
-	priv->sspa->mmio_base = devm_request_and_ioremap(&pdev->dev, res);
-	if (priv->sspa->mmio_base == NULL)
-		return -ENODEV;
+	priv->sspa->mmio_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(priv->sspa->mmio_base))
+		return PTR_ERR(priv->sspa->mmio_base);
 
 	priv->sspa->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(priv->sspa->clk))
@@ -453,7 +453,7 @@ static __devinit int asoc_mmp_sspa_probe(struct platform_device *pdev)
 	return snd_soc_register_dai(&pdev->dev, &mmp_sspa_dai);
 }
 
-static int __devexit asoc_mmp_sspa_remove(struct platform_device *pdev)
+static int asoc_mmp_sspa_remove(struct platform_device *pdev)
 {
 	struct sspa_priv *priv = platform_get_drvdata(pdev);
 
@@ -470,7 +470,7 @@ static struct platform_driver asoc_mmp_sspa_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = asoc_mmp_sspa_probe,
-	.remove = __devexit_p(asoc_mmp_sspa_remove),
+	.remove = asoc_mmp_sspa_remove,
 };
 
 module_platform_driver(asoc_mmp_sspa_driver);

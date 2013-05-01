@@ -517,11 +517,7 @@ static irqreturn_t mscan_isr(int irq, void *dev_id)
 
 static int mscan_do_set_mode(struct net_device *dev, enum can_mode mode)
 {
-	struct mscan_priv *priv = netdev_priv(dev);
 	int ret = 0;
-
-	if (!priv->open_time)
-		return -EINVAL;
 
 	switch (mode) {
 	case CAN_MODE_START:
@@ -590,8 +586,6 @@ static int mscan_open(struct net_device *dev)
 		goto exit_napi_disable;
 	}
 
-	priv->open_time = jiffies;
-
 	if (priv->can.ctrlmode & CAN_CTRLMODE_LISTENONLY)
 		setbits8(&regs->canctl1, MSCAN_LISTEN);
 	else
@@ -606,7 +600,6 @@ static int mscan_open(struct net_device *dev)
 	return 0;
 
 exit_free_irq:
-	priv->open_time = 0;
 	free_irq(dev->irq, dev);
 exit_napi_disable:
 	napi_disable(&priv->napi);
@@ -627,7 +620,6 @@ static int mscan_close(struct net_device *dev)
 	mscan_set_mode(dev, MSCAN_INIT_MODE);
 	close_candev(dev);
 	free_irq(dev->irq, dev);
-	priv->open_time = 0;
 
 	return 0;
 }

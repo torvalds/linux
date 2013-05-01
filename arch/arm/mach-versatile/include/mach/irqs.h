@@ -25,7 +25,7 @@
  *  IRQ interrupts definitions are the same as the INT definitions
  *  held within platform.h
  */
-#define IRQ_VIC_START		0
+#define IRQ_VIC_START		32
 #define IRQ_WDOGINT		(IRQ_VIC_START + INT_WDOGINT)
 #define IRQ_SOFTINT		(IRQ_VIC_START + INT_SOFTINT)
 #define IRQ_COMMRx		(IRQ_VIC_START + INT_COMMRx)
@@ -100,7 +100,7 @@
 /*
  * Secondary interrupt controller
  */
-#define IRQ_SIC_START		32
+#define IRQ_SIC_START		64
 #define IRQ_SIC_MMCI0B 		(IRQ_SIC_START + SIC_INT_MMCI0B)
 #define IRQ_SIC_MMCI1B 		(IRQ_SIC_START + SIC_INT_MMCI1B)
 #define IRQ_SIC_KMI0		(IRQ_SIC_START + SIC_INT_KMI0)
@@ -120,7 +120,7 @@
 #define IRQ_SIC_PCI1		(IRQ_SIC_START + SIC_INT_PCI1)
 #define IRQ_SIC_PCI2		(IRQ_SIC_START + SIC_INT_PCI2)
 #define IRQ_SIC_PCI3		(IRQ_SIC_START + SIC_INT_PCI3)
-#define IRQ_SIC_END		63
+#define IRQ_SIC_END		95
 
 #define IRQ_GPIO0_START		(IRQ_SIC_END + 1)
 #define IRQ_GPIO0_END		(IRQ_GPIO0_START + 31)

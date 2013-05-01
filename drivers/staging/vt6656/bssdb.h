@@ -79,21 +79,20 @@
 //
 
 typedef struct tagSERPObject {
-    BOOL    bERPExist;
+    bool    bERPExist;
     BYTE    byERP;
 } ERPObject, *PERPObject;
 
 
 typedef struct tagSRSNCapObject {
-    BOOL    bRSNCapExist;
+    bool    bRSNCapExist;
     WORD    wRSNCap;
 } SRSNCapObject, *PSRSNCapObject;
 
 // BSS info(AP)
-#pragma pack(1)
 typedef struct tagKnownBSS {
     // BSS info
-    BOOL            bActive;
+    bool            bActive;
     BYTE            abyBSSID[WLAN_BSSID_LEN];
     unsigned int            uChannel;
     BYTE            abySuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
@@ -111,10 +110,10 @@ typedef struct tagKnownBSS {
     signed long            ldBmAverage[RSSI_STAT_COUNT];
     signed long            ldBmAverRange;
     //For any BSSID selection improvment
-    BOOL            bSelected;
+    bool            bSelected;
 
     //++ WPA informations
-    BOOL            bWPAValid;
+    bool            bWPAValid;
     BYTE            byGKType;
     BYTE            abyPKType[4];
     WORD            wPKCount;
@@ -125,7 +124,7 @@ typedef struct tagKnownBSS {
     //--
 
     //++ WPA2 informations
-    BOOL            bWPA2Valid;
+    bool            bWPA2Valid;
     BYTE            byCSSGK;
     WORD            wCSSPKCount;
     BYTE            abyCSSPK[4];
@@ -142,8 +141,8 @@ typedef struct tagKnownBSS {
     unsigned int            uClearCount;
 //    BYTE            abyIEs[WLAN_BEACON_FR_MAXLEN];
     unsigned int            uIELength;
-    QWORD           qwBSSTimestamp;
-    QWORD           qwLocalTSF;     // local TSF timer
+	u64 qwBSSTimestamp;
+	u64 qwLocalTSF;/* local TSF timer */
 
     CARD_PHY_TYPE   eNetworkTypeInUse;
 
@@ -168,14 +167,14 @@ typedef enum tagNODE_STATE {
 // STA node info
 typedef struct tagKnownNodeDB {
     // STA info
-    BOOL            bActive;
+    bool            bActive;
     BYTE            abyMACAddr[WLAN_ADDR_LEN];
     BYTE            abyCurrSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN];
     BYTE            abyCurrExtSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN];
     WORD            wTxDataRate;
-    BOOL            bShortPreamble;
-    BOOL            bERPExist;
-    BOOL            bShortSlotTime;
+    bool            bShortPreamble;
+    bool            bERPExist;
+    bool            bShortSlotTime;
     unsigned int            uInActiveCount;
     WORD            wMaxBasicRate;     //Get from byTopOFDMBasicRate or byTopCCKBasicRate which depends on packetTyp.
     WORD            wMaxSuppRate;      //Records the highest supported rate getting from SuppRates IE and ExtSuppRates IE in Beacon.
@@ -189,15 +188,15 @@ typedef struct tagKnownNodeDB {
     WORD            wListenInterval;
     WORD            wAID;
     NODE_STATE      eNodeState;
-    BOOL            bPSEnable;
-    BOOL            bRxPSPoll;
+    bool            bPSEnable;
+    bool            bRxPSPoll;
     BYTE            byAuthSequence;
     unsigned long           ulLastRxJiffer;
     BYTE            bySuppRate;
     DWORD           dwFlags;
     WORD            wEnQueueCnt;
 
-    BOOL            bOnFly;
+    bool            bOnFly;
     unsigned long long       KeyRSC;
     BYTE            byKeyIndex;
     DWORD           dwKeyIndex;
@@ -208,7 +207,7 @@ typedef struct tagKnownNodeDB {
     BYTE            abyWepKey[WLAN_WEPMAX_KEYLEN];
     //
     // Auto rate fallback vars
-    BOOL            bIsInFallback;
+    bool            bIsInFallback;
     unsigned int            uAverageRSSI;
     unsigned int            uRateRecoveryTimeout;
     unsigned int            uRatePollTimeout;
@@ -226,80 +225,70 @@ typedef struct tagKnownNodeDB {
 
 /*---------------------  Export Functions  --------------------------*/
 
-PKnownBSS BSSpSearchBSSList(void *hDeviceContext,
-			    PBYTE pbyDesireBSSID,
-			    PBYTE pbyDesireSSID,
-			    CARD_PHY_TYPE ePhyType);
+PKnownBSS BSSpSearchBSSList(struct vnt_private *, u8 *pbyDesireBSSID,
+	u8 *pbyDesireSSID, CARD_PHY_TYPE ePhyType);
 
-PKnownBSS BSSpAddrIsInBSSList(void *hDeviceContext,
-			      PBYTE abyBSSID,
-			      PWLAN_IE_SSID pSSID);
+PKnownBSS BSSpAddrIsInBSSList(struct vnt_private *, u8 *abyBSSID,
+	PWLAN_IE_SSID pSSID);
 
-void BSSvClearBSSList(void *hDeviceContext, BOOL bKeepCurrBSSID);
+void BSSvClearBSSList(struct vnt_private *, int bKeepCurrBSSID);
 
-BOOL BSSbInsertToBSSList(void *hDeviceContext,
-			 PBYTE abyBSSIDAddr,
-			 QWORD qwTimestamp,
-			 WORD wBeaconInterval,
-			 WORD wCapInfo,
-			 BYTE byCurrChannel,
-			 PWLAN_IE_SSID pSSID,
-			 PWLAN_IE_SUPP_RATES pSuppRates,
-			 PWLAN_IE_SUPP_RATES pExtSuppRates,
-			 PERPObject psERP,
-			 PWLAN_IE_RSN pRSN,
-			 PWLAN_IE_RSN_EXT pRSNWPA,
-			 PWLAN_IE_COUNTRY pIE_Country,
-			 PWLAN_IE_QUIET pIE_Quiet,
-			 unsigned int uIELength,
-			 PBYTE pbyIEs,
-			 void *pRxPacketContext);
+int BSSbInsertToBSSList(struct vnt_private *,
+			u8 *abyBSSIDAddr,
+			u64 qwTimestamp,
+			u16 wBeaconInterval,
+			u16 wCapInfo,
+			u8 byCurrChannel,
+			PWLAN_IE_SSID pSSID,
+			PWLAN_IE_SUPP_RATES pSuppRates,
+			PWLAN_IE_SUPP_RATES pExtSuppRates,
+			PERPObject psERP,
+			PWLAN_IE_RSN pRSN,
+			PWLAN_IE_RSN_EXT pRSNWPA,
+			PWLAN_IE_COUNTRY pIE_Country,
+			PWLAN_IE_QUIET pIE_Quiet,
+			u32 uIELength,
+			u8 *pbyIEs,
+			void *pRxPacketContext);
 
-BOOL BSSbUpdateToBSSList(void *hDeviceContext,
-			 QWORD qwTimestamp,
-			 WORD wBeaconInterval,
-			 WORD wCapInfo,
-			 BYTE byCurrChannel,
-			 BOOL bChannelHit,
-			 PWLAN_IE_SSID pSSID,
-			 PWLAN_IE_SUPP_RATES pSuppRates,
-			 PWLAN_IE_SUPP_RATES pExtSuppRates,
-			 PERPObject psERP,
-			 PWLAN_IE_RSN pRSN,
-			 PWLAN_IE_RSN_EXT pRSNWPA,
-			 PWLAN_IE_COUNTRY pIE_Country,
-			 PWLAN_IE_QUIET pIE_Quiet,
-			 PKnownBSS pBSSList,
-			 unsigned int uIELength,
-			 PBYTE pbyIEs,
-			 void *pRxPacketContext);
+int BSSbUpdateToBSSList(struct vnt_private *,
+			u64 qwTimestamp,
+			u16 wBeaconInterval,
+			u16 wCapInfo,
+			u8 byCurrChannel,
+			int bChannelHit,
+			PWLAN_IE_SSID pSSID,
+			PWLAN_IE_SUPP_RATES pSuppRates,
+			PWLAN_IE_SUPP_RATES pExtSuppRates,
+			PERPObject psERP,
+			PWLAN_IE_RSN pRSN,
+			PWLAN_IE_RSN_EXT pRSNWPA,
+			PWLAN_IE_COUNTRY pIE_Country,
+			PWLAN_IE_QUIET pIE_Quiet,
+			PKnownBSS pBSSList,
+			u32 uIELength,
+			u8 *pbyIEs,
+			void *pRxPacketContext);
 
-BOOL BSSbIsSTAInNodeDB(void *hDeviceContext,
-		       PBYTE abyDstAddr,
-		       unsigned int *puNodeIndex);
+int BSSbIsSTAInNodeDB(struct vnt_private *, PBYTE abyDstAddr,
+	u32 *puNodeIndex);
 
-void BSSvCreateOneNode(void *hDeviceContext, unsigned int *puNodeIndex);
+void BSSvCreateOneNode(struct vnt_private *, u32 *puNodeIndex);
 
-void BSSvUpdateAPNode(void *hDeviceContext,
-		      PWORD pwCapInfo,
-		      PWLAN_IE_SUPP_RATES pItemRates,
-		      PWLAN_IE_SUPP_RATES pExtSuppRates);
+void BSSvUpdateAPNode(struct vnt_private *, u16 *pwCapInfo,
+	PWLAN_IE_SUPP_RATES pItemRates, PWLAN_IE_SUPP_RATES pExtSuppRates);
 
-void BSSvSecondCallBack(void *hDeviceContext);
+void BSSvSecondCallBack(struct vnt_private *);
 
-void BSSvUpdateNodeTxCounter(void *hDeviceContext,
-			     PSStatCounter pStatistic,
-			     BYTE byTSR,
-			     BYTE byPktNO);
+void BSSvUpdateNodeTxCounter(struct vnt_private *, PSStatCounter pStatistic,
+	u8 byTSR, u8 byPktNO);
 
-void BSSvRemoveOneNode(void *hDeviceContext,
-		       unsigned int uNodeIndex);
+void BSSvRemoveOneNode(struct vnt_private *, u32 uNodeIndex);
 
-void BSSvAddMulticastNode(void *hDeviceContext);
+void BSSvAddMulticastNode(struct vnt_private *);
 
-void BSSvClearNodeDBTable(void *hDeviceContext,
-			  unsigned int uStartIndex);
+void BSSvClearNodeDBTable(struct vnt_private *, u32 uStartIndex);
 
-void BSSvClearAnyBSSJoinRecord(void *hDeviceContext);
+void BSSvClearAnyBSSJoinRecord(struct vnt_private *);
 
 #endif /* __BSSDB_H__ */

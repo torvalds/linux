@@ -393,12 +393,11 @@ static void llc_sap_mcast(struct llc_sap *sap,
 {
 	int i = 0, count = 256 / sizeof(struct sock *);
 	struct sock *sk, *stack[count];
-	struct hlist_node *node;
 	struct llc_sock *llc;
 	struct hlist_head *dev_hb = llc_sk_dev_hash(sap, skb->dev->ifindex);
 
 	spin_lock_bh(&sap->sk_lock);
-	hlist_for_each_entry(llc, node, dev_hb, dev_hash_node) {
+	hlist_for_each_entry(llc, dev_hb, dev_hash_node) {
 
 		sk = &llc->sk;
 

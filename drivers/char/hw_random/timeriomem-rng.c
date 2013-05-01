@@ -88,7 +88,7 @@ static struct hwrng timeriomem_rng_ops = {
 	.priv		= 0,
 };
 
-static int __devinit timeriomem_rng_probe(struct platform_device *pdev)
+static int timeriomem_rng_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	int ret;
@@ -130,7 +130,7 @@ failed:
 	return ret;
 }
 
-static int __devexit timeriomem_rng_remove(struct platform_device *pdev)
+static int timeriomem_rng_remove(struct platform_device *pdev)
 {
 	del_timer_sync(&timeriomem_rng_timer);
 	hwrng_unregister(&timeriomem_rng_ops);
@@ -146,7 +146,7 @@ static struct platform_driver timeriomem_rng_driver = {
 		.owner		= THIS_MODULE,
 	},
 	.probe		= timeriomem_rng_probe,
-	.remove		= __devexit_p(timeriomem_rng_remove),
+	.remove		= timeriomem_rng_remove,
 };
 
 module_platform_driver(timeriomem_rng_driver);

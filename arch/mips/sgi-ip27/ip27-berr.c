@@ -39,7 +39,7 @@ static void dump_hub_information(unsigned long errst0, unsigned long errst1)
 
 	printk("Hub has valid error information:\n");
 	if (errst0 & PI_ERR_ST0_OVERRUN_MASK)
-		printk("Overrun is set.  Error stack may contain additional "
+		printk("Overrun is set.	 Error stack may contain additional "
 		       "information.\n");
 	printk("Hub error address is %08lx\n",
 	       (errst0 & PI_ERR_ST0_ADDR_MASK) >> (PI_ERR_ST0_ADDR_SHFT - 3));
@@ -85,7 +85,7 @@ void __init ip27_be_init(void)
 	board_be_handler = ip27_be_handler;
 
 	LOCAL_HUB_S(PI_ERR_INT_PEND,
-	            cpu ? PI_ERR_CLEAR_ALL_B : PI_ERR_CLEAR_ALL_A);
+		    cpu ? PI_ERR_CLEAR_ALL_B : PI_ERR_CLEAR_ALL_A);
 	LOCAL_HUB_S(PI_ERR_INT_MASK_A + cpuoff, 0);
 	LOCAL_HUB_S(PI_ERR_STACK_ADDR_A + cpuoff, 0);
 	LOCAL_HUB_S(PI_ERR_STACK_SIZE, 0);	/* Disable error stack */

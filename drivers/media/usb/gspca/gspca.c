@@ -44,7 +44,7 @@
 
 #include "gspca.h"
 
-#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
+#if IS_ENABLED(CONFIG_INPUT)
 #include <linux/input.h>
 #include <linux/usb/input.h>
 #endif
@@ -118,7 +118,7 @@ static const struct vm_operations_struct gspca_vm_ops = {
 /*
  * Input and interrupt endpoint handling functions
  */
-#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
+#if IS_ENABLED(CONFIG_INPUT)
 static void int_irq(struct urb *urb)
 {
 	struct gspca_dev *gspca_dev = (struct gspca_dev *) urb->context;
@@ -1586,8 +1586,7 @@ static int vidioc_querybuf(struct file *file, void *priv,
 	struct gspca_dev *gspca_dev = video_drvdata(file);
 	struct gspca_frame *frame;
 
-	if (v4l2_buf->index < 0
-	    || v4l2_buf->index >= gspca_dev->nframes)
+	if (v4l2_buf->index >= gspca_dev->nframes)
 		return -EINVAL;
 
 	frame = &gspca_dev->frame[v4l2_buf->index];
@@ -2304,7 +2303,7 @@ int gspca_dev_probe2(struct usb_interface *intf,
 
 	return 0;
 out:
-#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
+#if IS_ENABLED(CONFIG_INPUT)
 	if (gspca_dev->input_dev)
 		input_unregister_device(gspca_dev->input_dev);
 #endif
@@ -2349,7 +2348,7 @@ EXPORT_SYMBOL(gspca_dev_probe);
 void gspca_disconnect(struct usb_interface *intf)
 {
 	struct gspca_dev *gspca_dev = usb_get_intfdata(intf);
-#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
+#if IS_ENABLED(CONFIG_INPUT)
 	struct input_dev *input_dev;
 #endif
 
@@ -2361,7 +2360,7 @@ void gspca_disconnect(struct usb_interface *intf)
 	gspca_dev->present = 0;
 	destroy_urbs(gspca_dev);
 
-#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
+#if IS_ENABLED(CONFIG_INPUT)
 	gspca_input_destroy_urb(gspca_dev);
 	input_dev = gspca_dev->input_dev;
 	if (input_dev) {

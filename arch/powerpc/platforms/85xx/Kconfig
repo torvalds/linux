@@ -191,6 +191,13 @@ config SBC8548
 	help
 	  This option enables support for the Wind River SBC8548 board
 
+config PPA8548
+	bool "Prodrive PPA8548"
+	help
+	  This option enables support for the Prodrive PPA8548 board.
+	select DEFAULT_UIMAGE
+	select HAS_RAPIDIO
+
 config GE_IMP3A
 	bool "GE Intelligent Platforms IMP3A"
 	select DEFAULT_UIMAGE
@@ -245,6 +252,14 @@ config P4080_DS
 	help
 	  This option enables support for the P4080 DS board
 
+config SGY_CTS1000
+	tristate "Servergy CTS-1000 support"
+	select GPIOLIB
+	select OF_GPIO
+	depends on P4080_DS
+	help
+	  Enable this to support functionality in Servergy's CTS-1000 systems.
+
 endif # PPC32
 
 config P5020_DS
@@ -277,7 +292,6 @@ config P5040_DS
 
 config PPC_QEMU_E500
 	bool "QEMU generic e500 platform"
-	depends on EXPERIMENTAL
 	select DEFAULT_UIMAGE
 	help
 	  This option enables support for running as a QEMU guest using

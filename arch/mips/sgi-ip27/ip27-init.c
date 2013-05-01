@@ -151,7 +151,7 @@ nasid_t
 get_nasid(void)
 {
 	return (nasid_t)((LOCAL_HUB_L(NI_STATUS_REV_ID) & NSRI_NODEID_MASK)
-	                 >> NSRI_NODEID_SHFT);
+			 >> NSRI_NODEID_SHFT);
 }
 
 /*

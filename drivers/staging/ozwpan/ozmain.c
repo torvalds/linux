@@ -22,7 +22,7 @@
  * bind to nothing. '*' means bind to all netcards - this includes non-802.11
  * netcards. Bindings can be added later using an IOCTL.
  */
-char *g_net_dev = "";
+static char *g_net_dev = "";
 /*------------------------------------------------------------------------------
  * Context: process
  */

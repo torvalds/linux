@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -314,22 +314,7 @@ acpi_ns_search_and_enter(u32 target_name,
 	 * this problem, and we want to be able to enable ACPI support for them,
 	 * even though there are a few bad names.
 	 */
-	if (!acpi_ut_valid_acpi_name(target_name)) {
-		target_name =
-		    acpi_ut_repair_name(ACPI_CAST_PTR(char, &target_name));
-
-		/* Report warning only if in strict mode or debug mode */
-
-		if (!acpi_gbl_enable_interpreter_slack) {
-			ACPI_WARNING((AE_INFO,
-				      "Found bad character(s) in name, repaired: [%4.4s]\n",
-				      ACPI_CAST_PTR(char, &target_name)));
-		} else {
-			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-					  "Found bad character(s) in name, repaired: [%4.4s]\n",
-					  ACPI_CAST_PTR(char, &target_name)));
-		}
-	}
+	acpi_ut_repair_name(ACPI_CAST_PTR(char, &target_name));
 
 	/* Try to find the name in the namespace level specified by the caller */
 
@@ -343,6 +328,11 @@ acpi_ns_search_and_enter(u32 target_name,
 		if ((status == AE_OK) && (flags & ACPI_NS_ERROR_IF_FOUND)) {
 			status = AE_ALREADY_EXISTS;
 		}
+#ifdef ACPI_ASL_COMPILER
+		if (*return_node && (*return_node)->type == ACPI_TYPE_ANY) {
+			(*return_node)->flags |= ANOBJ_IS_EXTERNAL;
+		}
+#endif
 
 		/* Either found it or there was an error: finished either way */
 

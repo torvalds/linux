@@ -738,7 +738,7 @@ static struct ib_mr *iwch_get_dma_mr(struct ib_pd *pd, int acc)
 	return ibmr;
 }
 
-static struct ib_mw *iwch_alloc_mw(struct ib_pd *pd)
+static struct ib_mw *iwch_alloc_mw(struct ib_pd *pd, enum ib_mw_type type)
 {
 	struct iwch_dev *rhp;
 	struct iwch_pd *php;
@@ -746,6 +746,9 @@ static struct ib_mw *iwch_alloc_mw(struct ib_pd *pd)
 	u32 mmid;
 	u32 stag = 0;
 	int ret;
+
+	if (type != IB_MW_TYPE_1)
+		return ERR_PTR(-EINVAL);
 
 	php = to_iwch_pd(pd);
 	rhp = php->rhp;
@@ -783,8 +786,8 @@ static int iwch_dealloc_mw(struct ib_mw *mw)
 	mmid = (mw->rkey) >> 8;
 	cxio_deallocate_window(&rhp->rdev, mhp->attr.stag);
 	remove_handle(rhp, &rhp->mmidr, mmid);
-	kfree(mhp);
 	PDBG("%s ib_mw %p mmid 0x%x ptr %p\n", __func__, mw, mmid, mhp);
+	kfree(mhp);
 	return 0;
 }
 

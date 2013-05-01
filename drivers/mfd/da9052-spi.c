@@ -21,7 +21,7 @@
 
 #include <linux/mfd/da9052/da9052.h>
 
-static int __devinit da9052_spi_probe(struct spi_device *spi)
+static int da9052_spi_probe(struct spi_device *spi)
 {
 	int ret;
 	const struct spi_device_id *id = spi_get_device_id(spi);
@@ -58,7 +58,7 @@ static int __devinit da9052_spi_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int __devexit da9052_spi_remove(struct spi_device *spi)
+static int da9052_spi_remove(struct spi_device *spi)
 {
 	struct da9052 *da9052 = dev_get_drvdata(&spi->dev);
 
@@ -76,7 +76,7 @@ static struct spi_device_id da9052_spi_id[] = {
 
 static struct spi_driver da9052_spi_driver = {
 	.probe = da9052_spi_probe,
-	.remove = __devexit_p(da9052_spi_remove),
+	.remove = da9052_spi_remove,
 	.id_table = da9052_spi_id,
 	.driver = {
 		.name = "da9052",

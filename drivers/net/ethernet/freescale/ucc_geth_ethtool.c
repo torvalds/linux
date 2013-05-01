@@ -350,10 +350,10 @@ static void
 uec_get_drvinfo(struct net_device *netdev,
                        struct ethtool_drvinfo *drvinfo)
 {
-	strncpy(drvinfo->driver, DRV_NAME, 32);
-	strncpy(drvinfo->version, DRV_VERSION, 32);
-	strncpy(drvinfo->fw_version, "N/A", 32);
-	strncpy(drvinfo->bus_info, "QUICC ENGINE", 32);
+	strlcpy(drvinfo->driver, DRV_NAME, sizeof(drvinfo->driver));
+	strlcpy(drvinfo->version, DRV_VERSION, sizeof(drvinfo->version));
+	strlcpy(drvinfo->fw_version, "N/A", sizeof(drvinfo->fw_version));
+	strlcpy(drvinfo->bus_info, "QUICC ENGINE", sizeof(drvinfo->bus_info));
 	drvinfo->eedump_len = 0;
 	drvinfo->regdump_len = uec_get_regs_len(netdev);
 }

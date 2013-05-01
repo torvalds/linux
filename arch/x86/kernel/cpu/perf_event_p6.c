@@ -19,7 +19,7 @@ static const u64 p6_perfmon_event_map[] =
 
 };
 
-static __initconst u64 p6_hw_cache_event_ids
+static u64 p6_hw_cache_event_ids
 				[PERF_COUNT_HW_CACHE_MAX]
 				[PERF_COUNT_HW_CACHE_OP_MAX]
 				[PERF_COUNT_HW_CACHE_RESULT_MAX] =
@@ -227,6 +227,8 @@ static __initconst const struct x86_pmu p6_pmu = {
 	.event_constraints	= p6_event_constraints,
 
 	.format_attrs		= intel_p6_formats_attr,
+	.events_sysfs_show	= intel_event_sysfs_show,
+
 };
 
 __init int p6_pmu_init(void)

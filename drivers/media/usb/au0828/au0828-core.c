@@ -134,13 +134,17 @@ static void au0828_usb_disconnect(struct usb_interface *interface)
 	/* Digital TV */
 	au0828_dvb_unregister(dev);
 
+#ifdef CONFIG_VIDEO_AU0828_V4L2
 	if (AUVI_INPUT(0).type != AU0828_VMUX_UNDEFINED)
 		au0828_analog_unregister(dev);
+#endif
 
 	/* I2C */
 	au0828_i2c_unregister(dev);
 
+#ifdef CONFIG_VIDEO_AU0828_V4L2
 	v4l2_device_unregister(&dev->v4l2_dev);
+#endif
 
 	usb_set_intfdata(interface, NULL);
 
@@ -155,7 +159,10 @@ static void au0828_usb_disconnect(struct usb_interface *interface)
 static int au0828_usb_probe(struct usb_interface *interface,
 	const struct usb_device_id *id)
 {
-	int ifnum, retval;
+	int ifnum;
+#ifdef CONFIG_VIDEO_AU0828_V4L2
+	int retval;
+#endif
 	struct au0828_dev *dev;
 	struct usb_device *usbdev = interface_to_usbdev(interface);
 
@@ -194,6 +201,7 @@ static int au0828_usb_probe(struct usb_interface *interface,
 	dev->usbdev = usbdev;
 	dev->boardnr = id->driver_info;
 
+#ifdef CONFIG_VIDEO_AU0828_V4L2
 	/* Create the v4l2_device */
 	retval = v4l2_device_register(&interface->dev, &dev->v4l2_dev);
 	if (retval) {
@@ -203,6 +211,7 @@ static int au0828_usb_probe(struct usb_interface *interface,
 		kfree(dev);
 		return -EIO;
 	}
+#endif
 
 	/* Power Up the bridge */
 	au0828_write(dev, REG_600, 1 << 4);
@@ -216,9 +225,11 @@ static int au0828_usb_probe(struct usb_interface *interface,
 	/* Setup */
 	au0828_card_setup(dev);
 
+#ifdef CONFIG_VIDEO_AU0828_V4L2
 	/* Analog TV */
 	if (AUVI_INPUT(0).type != AU0828_VMUX_UNDEFINED)
 		au0828_analog_register(dev, interface);
+#endif
 
 	/* Digital TV */
 	au0828_dvb_register(dev);

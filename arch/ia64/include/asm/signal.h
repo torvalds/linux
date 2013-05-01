@@ -26,19 +26,7 @@ typedef struct {
 	unsigned long sig[_NSIG_WORDS];
 } sigset_t;
 
-struct sigaction {
-	__sighandler_t sa_handler;
-	unsigned long sa_flags;
-	sigset_t sa_mask;		/* mask last for extensibility */
-};
-
-struct k_sigaction {
-	struct sigaction sa;
-};
-
 #  include <asm/sigcontext.h>
-
-#define ptrace_signal_deliver(regs, cookie) do { } while (0)
 
 # endif /* !__ASSEMBLY__ */
 #endif /* _ASM_IA64_SIGNAL_H */

@@ -35,17 +35,73 @@
 #include <linux/init.h>
 
 #include <asm/time.h>
+#include <asm/cpu-features.h>
+
 #include <asm/netlogic/interrupt.h>
 #include <asm/netlogic/common.h>
+#include <asm/netlogic/haldefs.h>
+#include <asm/netlogic/common.h>
+
+#if defined(CONFIG_CPU_XLP)
+#include <asm/netlogic/xlp-hal/iomap.h>
+#include <asm/netlogic/xlp-hal/xlp.h>
+#include <asm/netlogic/xlp-hal/pic.h>
+#elif defined(CONFIG_CPU_XLR)
+#include <asm/netlogic/xlr/iomap.h>
+#include <asm/netlogic/xlr/pic.h>
+#include <asm/netlogic/xlr/xlr.h>
+#else
+#error "Unknown CPU"
+#endif
 
 unsigned int __cpuinit get_c0_compare_int(void)
 {
 	return IRQ_TIMER;
 }
 
+static cycle_t nlm_get_pic_timer(struct clocksource *cs)
+{
+	uint64_t picbase = nlm_get_node(0)->picbase;
+
+	return ~nlm_pic_read_timer(picbase, PIC_CLOCK_TIMER);
+}
+
+static cycle_t nlm_get_pic_timer32(struct clocksource *cs)
+{
+	uint64_t picbase = nlm_get_node(0)->picbase;
+
+	return ~nlm_pic_read_timer32(picbase, PIC_CLOCK_TIMER);
+}
+
+static struct clocksource csrc_pic = {
+	.name		= "PIC",
+	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
+};
+
+static void nlm_init_pic_timer(void)
+{
+	uint64_t picbase = nlm_get_node(0)->picbase;
+
+	nlm_pic_set_timer(picbase, PIC_CLOCK_TIMER, ~0ULL, 0, 0);
+	if (current_cpu_data.cputype == CPU_XLR) {
+		csrc_pic.mask	= CLOCKSOURCE_MASK(32);
+		csrc_pic.read	= nlm_get_pic_timer32;
+	} else {
+		csrc_pic.mask	= CLOCKSOURCE_MASK(64);
+		csrc_pic.read	= nlm_get_pic_timer;
+	}
+	csrc_pic.rating = 1000;
+	clocksource_register_hz(&csrc_pic, PIC_CLK_HZ);
+}
+
 void __init plat_time_init(void)
 {
+	nlm_init_pic_timer();
 	mips_hpt_frequency = nlm_get_cpu_frequency();
+	if (current_cpu_type() == CPU_XLR)
+		preset_lpj = mips_hpt_frequency / (3 * HZ);
+	else
+		preset_lpj = mips_hpt_frequency / (2 * HZ);
 	pr_info("MIPS counter frequency [%ld]\n",
 			(unsigned long)mips_hpt_frequency);
 }

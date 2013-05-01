@@ -1183,9 +1183,9 @@ static int rj54n1_s_register(struct v4l2_subdev *sd,
 static int rj54n1_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
+	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
 
-	return soc_camera_set_power(&client->dev, icl, on);
+	return soc_camera_set_power(&client->dev, ssdd, on);
 }
 
 static int rj54n1_s_ctrl(struct v4l2_ctrl *ctrl)
@@ -1245,14 +1245,14 @@ static int rj54n1_g_mbus_config(struct v4l2_subdev *sd,
 				struct v4l2_mbus_config *cfg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
+	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
 
 	cfg->flags =
 		V4L2_MBUS_PCLK_SAMPLE_RISING | V4L2_MBUS_PCLK_SAMPLE_FALLING |
 		V4L2_MBUS_MASTER | V4L2_MBUS_DATA_ACTIVE_HIGH |
 		V4L2_MBUS_HSYNC_ACTIVE_HIGH | V4L2_MBUS_VSYNC_ACTIVE_HIGH;
 	cfg->type = V4L2_MBUS_PARALLEL;
-	cfg->flags = soc_camera_apply_board_flags(icl, cfg);
+	cfg->flags = soc_camera_apply_board_flags(ssdd, cfg);
 
 	return 0;
 }
@@ -1261,10 +1261,10 @@ static int rj54n1_s_mbus_config(struct v4l2_subdev *sd,
 				const struct v4l2_mbus_config *cfg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
+	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
 
 	/* Figures 2.5-1 to 2.5-3 - default falling pixclk edge */
-	if (soc_camera_apply_board_flags(icl, cfg) &
+	if (soc_camera_apply_board_flags(ssdd, cfg) &
 	    V4L2_MBUS_PCLK_SAMPLE_RISING)
 		return reg_write(client, RJ54N1_OUT_SIGPO, 1 << 4);
 	else
@@ -1334,17 +1334,17 @@ static int rj54n1_probe(struct i2c_client *client,
 			const struct i2c_device_id *did)
 {
 	struct rj54n1 *rj54n1;
-	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
+	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
 	struct rj54n1_pdata *rj54n1_priv;
 	int ret;
 
-	if (!icl || !icl->priv) {
+	if (!ssdd || !ssdd->drv_priv) {
 		dev_err(&client->dev, "RJ54N1CB0C: missing platform data!\n");
 		return -EINVAL;
 	}
 
-	rj54n1_priv = icl->priv;
+	rj54n1_priv = ssdd->drv_priv;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
 		dev_warn(&adapter->dev,
@@ -1352,7 +1352,7 @@ static int rj54n1_probe(struct i2c_client *client,
 		return -EIO;
 	}
 
-	rj54n1 = kzalloc(sizeof(struct rj54n1), GFP_KERNEL);
+	rj54n1 = devm_kzalloc(&client->dev, sizeof(struct rj54n1), GFP_KERNEL);
 	if (!rj54n1)
 		return -ENOMEM;
 
@@ -1367,12 +1367,8 @@ static int rj54n1_probe(struct i2c_client *client,
 	v4l2_ctrl_new_std(&rj54n1->hdl, &rj54n1_ctrl_ops,
 			V4L2_CID_AUTO_WHITE_BALANCE, 0, 1, 1, 1);
 	rj54n1->subdev.ctrl_handler = &rj54n1->hdl;
-	if (rj54n1->hdl.error) {
-		int err = rj54n1->hdl.error;
-
-		kfree(rj54n1);
-		return err;
-	}
+	if (rj54n1->hdl.error)
+		return rj54n1->hdl.error;
 
 	rj54n1->clk_div		= clk_div;
 	rj54n1->rect.left	= RJ54N1_COLUMN_SKIP;
@@ -1387,10 +1383,8 @@ static int rj54n1_probe(struct i2c_client *client,
 		(clk_div.ratio_tg + 1) / (clk_div.ratio_t + 1);
 
 	ret = rj54n1_video_probe(client, rj54n1_priv);
-	if (ret < 0) {
+	if (ret < 0)
 		v4l2_ctrl_handler_free(&rj54n1->hdl);
-		kfree(rj54n1);
-	}
 
 	return ret;
 }
@@ -1398,13 +1392,12 @@ static int rj54n1_probe(struct i2c_client *client,
 static int rj54n1_remove(struct i2c_client *client)
 {
 	struct rj54n1 *rj54n1 = to_rj54n1(client);
-	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
+	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
 
 	v4l2_device_unregister_subdev(&rj54n1->subdev);
-	if (icl->free_bus)
-		icl->free_bus(icl);
+	if (ssdd->free_bus)
+		ssdd->free_bus(ssdd);
 	v4l2_ctrl_handler_free(&rj54n1->hdl);
-	kfree(rj54n1);
 
 	return 0;
 }

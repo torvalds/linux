@@ -14,7 +14,7 @@ struct perf_session;
 struct perf_top {
 	struct perf_tool   tool;
 	struct perf_evlist *evlist;
-	struct perf_target target;
+	struct perf_record_opts record_opts;
 	/*
 	 * Symbols will be added here in perf_event__process_sample and will
 	 * get out after decayed.
@@ -24,24 +24,16 @@ struct perf_top {
 	u64		   exact_samples;
 	u64		   guest_us_samples, guest_kernel_samples;
 	int		   print_entries, count_filter, delay_secs;
-	int		   freq;
 	bool		   hide_kernel_symbols, hide_user_symbols, zero;
 	bool		   use_tui, use_stdio;
 	bool		   sort_has_symbols;
-	bool		   dont_use_callchains;
 	bool		   kptr_restrict_warned;
 	bool		   vmlinux_warned;
-	bool		   inherit;
-	bool		   group;
-	bool		   sample_id_all_missing;
-	bool		   exclude_guest_missing;
 	bool		   dump_symtab;
 	struct hist_entry  *sym_filter_entry;
 	struct perf_evsel  *sym_evsel;
 	struct perf_session *session;
 	struct winsize	   winsize;
-	unsigned int	   mmap_pages;
-	int		   default_interval;
 	int		   realtime_prio;
 	int		   sym_pcnt_filter;
 	const char	   *sym_filter;

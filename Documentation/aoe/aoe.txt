@@ -125,7 +125,9 @@ DRIVER OPTIONS
   The aoe_deadsecs module parameter determines the maximum number of
   seconds that the driver will wait for an AoE device to provide a
   response to an AoE command.  After aoe_deadsecs seconds have
-  elapsed, the AoE device will be marked as "down".
+  elapsed, the AoE device will be marked as "down".  A value of zero
+  is supported for testing purposes and makes the aoe driver keep
+  trying AoE commands forever.
 
   The aoe_maxout module parameter has a default of 128.  This is the
   maximum number of unresponded packets that will be sent to an AoE

@@ -375,6 +375,7 @@ struct pch_udc_dev {
 	struct pch_udc_cfg_data		cfg_data;
 	struct pch_vbus_gpio_data	vbus_gpio;
 };
+#define to_pch_udc(g)	(container_of((g), struct pch_udc_dev, gadget))
 
 #define PCH_UDC_PCI_BAR			1
 #define PCI_DEVICE_ID_INTEL_EG20T_UDC	0x8808
@@ -384,7 +385,6 @@ struct pch_udc_dev {
 
 static const char	ep0_string[] = "ep0in";
 static DEFINE_SPINLOCK(udc_stall_spinlock);	/* stall spin lock */
-struct pch_udc_dev *pch_udc;		/* pointer to device object */
 static bool speed_fs;
 module_param_named(speed_fs, speed_fs, bool, S_IRUGO);
 MODULE_PARM_DESC(speed_fs, "true for Full speed operation");
@@ -1235,9 +1235,10 @@ static int pch_udc_pcd_vbus_draw(struct usb_gadget *gadget, unsigned int mA)
 	return -EOPNOTSUPP;
 }
 
-static int pch_udc_start(struct usb_gadget_driver *driver,
-	int (*bind)(struct usb_gadget *, struct usb_gadget_driver *));
-static int pch_udc_stop(struct usb_gadget_driver *driver);
+static int pch_udc_start(struct usb_gadget *g,
+		struct usb_gadget_driver *driver);
+static int pch_udc_stop(struct usb_gadget *g,
+		struct usb_gadget_driver *driver);
 static const struct usb_gadget_ops pch_udc_ops = {
 	.get_frame = pch_udc_pcd_get_frame,
 	.wakeup = pch_udc_pcd_wakeup,
@@ -1245,8 +1246,8 @@ static const struct usb_gadget_ops pch_udc_ops = {
 	.pullup = pch_udc_pcd_pullup,
 	.vbus_session = pch_udc_pcd_vbus_session,
 	.vbus_draw = pch_udc_pcd_vbus_draw,
-	.start	= pch_udc_start,
-	.stop	= pch_udc_stop,
+	.udc_start = pch_udc_start,
+	.udc_stop = pch_udc_stop,
 };
 
 /**
@@ -2981,40 +2982,15 @@ static int init_dma_pools(struct pch_udc_dev *dev)
 	return 0;
 }
 
-static int pch_udc_start(struct usb_gadget_driver *driver,
-	int (*bind)(struct usb_gadget *, struct usb_gadget_driver *))
+static int pch_udc_start(struct usb_gadget *g,
+		struct usb_gadget_driver *driver)
 {
-	struct pch_udc_dev	*dev = pch_udc;
-	int			retval;
+	struct pch_udc_dev	*dev = to_pch_udc(g);
 
-	if (!driver || (driver->max_speed == USB_SPEED_UNKNOWN) || !bind ||
-	    !driver->setup || !driver->unbind || !driver->disconnect) {
-		dev_err(&dev->pdev->dev,
-			"%s: invalid driver parameter\n", __func__);
-		return -EINVAL;
-	}
-
-	if (!dev)
-		return -ENODEV;
-
-	if (dev->driver) {
-		dev_err(&dev->pdev->dev, "%s: already bound\n", __func__);
-		return -EBUSY;
-	}
 	driver->driver.bus = NULL;
 	dev->driver = driver;
 	dev->gadget.dev.driver = &driver->driver;
 
-	/* Invoke the bind routine of the gadget driver */
-	retval = bind(&dev->gadget, driver);
-
-	if (retval) {
-		dev_err(&dev->pdev->dev, "%s: binding to %s returning %d\n",
-		       __func__, driver->driver.name, retval);
-		dev->driver = NULL;
-		dev->gadget.dev.driver = NULL;
-		return retval;
-	}
 	/* get ready for ep0 traffic */
 	pch_udc_setup_ep0(dev);
 
@@ -3026,30 +3002,21 @@ static int pch_udc_start(struct usb_gadget_driver *driver,
 	return 0;
 }
 
-static int pch_udc_stop(struct usb_gadget_driver *driver)
+static int pch_udc_stop(struct usb_gadget *g,
+		struct usb_gadget_driver *driver)
 {
-	struct pch_udc_dev	*dev = pch_udc;
-
-	if (!dev)
-		return -ENODEV;
-
-	if (!driver || (driver != dev->driver)) {
-		dev_err(&dev->pdev->dev,
-			"%s: invalid driver parameter\n", __func__);
-		return -EINVAL;
-	}
+	struct pch_udc_dev	*dev = to_pch_udc(g);
 
 	pch_udc_disable_interrupts(dev, UDC_DEVINT_MSK);
 
 	/* Assures that there are no pending requests with this driver */
-	driver->disconnect(&dev->gadget);
-	driver->unbind(&dev->gadget);
 	dev->gadget.dev.driver = NULL;
 	dev->driver = NULL;
 	dev->connected = 0;
 
 	/* set SD */
 	pch_udc_set_disconnect(dev);
+
 	return 0;
 }
 
@@ -3164,11 +3131,6 @@ static int pch_udc_probe(struct pci_dev *pdev,
 	int			retval;
 	struct pch_udc_dev	*dev;
 
-	/* one udc only */
-	if (pch_udc) {
-		pr_err("%s: already probed\n", __func__);
-		return -EBUSY;
-	}
 	/* init */
 	dev = kzalloc(sizeof *dev, GFP_KERNEL);
 	if (!dev) {
@@ -3207,7 +3169,6 @@ static int pch_udc_probe(struct pci_dev *pdev,
 		retval = -ENODEV;
 		goto finished;
 	}
-	pch_udc = dev;
 	/* initialize the hardware */
 	if (pch_udc_pcd_init(dev)) {
 		retval = -ENODEV;

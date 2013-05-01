@@ -13,7 +13,7 @@
 
 /*
  * This list reflects the assignment of interrupt numbers to
- * interrupting events.  Order is fairly irrelevant to handling
+ * interrupting events.	 Order is fairly irrelevant to handling
  * priority.  This differs from irix.
  */
 

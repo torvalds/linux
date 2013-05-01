@@ -654,7 +654,7 @@ int bnx2fc_init_mp_req(struct bnx2fc_cmd *io_req)
 	mp_req->mp_resp_bd = dma_alloc_coherent(&hba->pcidev->dev, sz,
 						 &mp_req->mp_resp_bd_dma,
 						 GFP_ATOMIC);
-	if (!mp_req->mp_req_bd) {
+	if (!mp_req->mp_resp_bd) {
 		printk(KERN_ERR PFX "unable to alloc MP resp bd\n");
 		bnx2fc_free_mp_resc(io_req);
 		return FAILED;
@@ -685,8 +685,8 @@ int bnx2fc_init_mp_req(struct bnx2fc_cmd *io_req)
 static int bnx2fc_initiate_tmf(struct scsi_cmnd *sc_cmd, u8 tm_flags)
 {
 	struct fc_lport *lport;
-	struct fc_rport *rport = starget_to_rport(scsi_target(sc_cmd->device));
-	struct fc_rport_libfc_priv *rp = rport->dd_data;
+	struct fc_rport *rport;
+	struct fc_rport_libfc_priv *rp;
 	struct fcoe_port *port;
 	struct bnx2fc_interface *interface;
 	struct bnx2fc_rport *tgt;
@@ -704,6 +704,7 @@ static int bnx2fc_initiate_tmf(struct scsi_cmnd *sc_cmd, u8 tm_flags)
 	unsigned long start = jiffies;
 
 	lport = shost_priv(host);
+	rport = starget_to_rport(scsi_target(sc_cmd->device));
 	port = lport_priv(lport);
 	interface = port->priv;
 
@@ -712,6 +713,7 @@ static int bnx2fc_initiate_tmf(struct scsi_cmnd *sc_cmd, u8 tm_flags)
 		rc = FAILED;
 		goto tmf_err;
 	}
+	rp = rport->dd_data;
 
 	rc = fc_block_scsi_eh(sc_cmd);
 	if (rc)

@@ -1,6 +1,6 @@
 
-extern struct sys_timer footbridge_timer;
-extern struct sys_timer isa_timer;
+extern void footbridge_timer_init(void);
+extern void isa_timer_init(void);
 
 extern void isa_rtc_init(void);
 

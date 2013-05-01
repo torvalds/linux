@@ -55,7 +55,7 @@ void t1_tp_destroy(struct petp *tp)
 	kfree(tp);
 }
 
-struct petp *__devinit t1_tp_create(adapter_t * adapter, struct tp_params *p)
+struct petp *t1_tp_create(adapter_t *adapter, struct tp_params *p)
 {
 	struct petp *tp = kzalloc(sizeof(*tp), GFP_KERNEL);
 

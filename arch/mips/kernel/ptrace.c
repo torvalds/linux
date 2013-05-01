@@ -50,7 +50,7 @@ void ptrace_disable(struct task_struct *child)
 }
 
 /*
- * Read a general register set.  We always use the 64-bit format, even
+ * Read a general register set.	 We always use the 64-bit format, even
  * for 32-bit kernels and for 32-bit processes on a 64-bit kernel.
  * Registers are sign extended to fill the available space.
  */
@@ -326,7 +326,7 @@ long arch_ptrace(struct task_struct *child, long request,
 		case FPC_CSR:
 			tmp = child->thread.fpu.fcr31;
 			break;
-		case FPC_EIR: {	/* implementation / version register */
+		case FPC_EIR: { /* implementation / version register */
 			unsigned int flags;
 #ifdef CONFIG_MIPS_MT_SMTC
 			unsigned long irqflags;
@@ -520,10 +520,10 @@ static inline int audit_arch(void)
 {
 	int arch = EM_MIPS;
 #ifdef CONFIG_64BIT
-	arch |=  __AUDIT_ARCH_64BIT;
+	arch |=	 __AUDIT_ARCH_64BIT;
 #endif
 #if defined(__LITTLE_ENDIAN)
-	arch |=  __AUDIT_ARCH_LE;
+	arch |=	 __AUDIT_ARCH_LE;
 #endif
 	return arch;
 }
@@ -546,7 +546,7 @@ asmlinkage void syscall_trace_enter(struct pt_regs *regs)
 	/* The 0x80 provides a way for the tracing parent to distinguish
 	   between a syscall stop and SIGTRAP delivery */
 	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD) ?
-	                         0x80 : 0));
+				 0x80 : 0));
 
 	/*
 	 * this isn't the same as continuing with a signal, but it will do
@@ -581,7 +581,7 @@ asmlinkage void syscall_trace_leave(struct pt_regs *regs)
 	/* The 0x80 provides a way for the tracing parent to distinguish
 	   between a syscall stop and SIGTRAP delivery */
 	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD) ?
-	                         0x80 : 0));
+				 0x80 : 0));
 
 	/*
 	 * this isn't the same as continuing with a signal, but it will do

@@ -160,7 +160,7 @@ int ms_transfer_data(struct rts51x_chip *chip, u8 trans_mode, u8 tpc,
 		rts51x_add_cmd(chip, WRITE_REG_CMD, MS_CFG, MS_2K_SECTOR_MODE,
 			       0);
 
-	trans_dma_enable(dir, chip, sec_cnt * 512, DMA_512);
+	rts51x_trans_dma_enable(dir, chip, sec_cnt * 512, DMA_512);
 
 	rts51x_add_cmd(chip, WRITE_REG_CMD, MS_TRANSFER, 0xFF,
 		       MS_TRANSFER_START | trans_mode);
@@ -602,7 +602,7 @@ static int ms_prepare_reset(struct rts51x_chip *chip)
 	if (!chip->option.FT2_fast_mode) {
 		wait_timeout(250);
 
-		card_power_on(chip, MS_CARD);
+		rts51x_card_power_on(chip, MS_CARD);
 		wait_timeout(150);
 
 #ifdef SUPPORT_OCP
@@ -872,7 +872,7 @@ static int msxc_change_power(struct rts51x_chip *chip, u8 mode)
 	int retval;
 	u8 buf[6];
 
-	ms_cleanup_work(chip);
+	rts51x_ms_cleanup_work(chip);
 
 	/* Set Parameter Register */
 	retval = ms_set_rw_reg_addr(chip, 0, 0, Pro_DataCount1, 6);
@@ -2600,14 +2600,14 @@ BUILD_FAIL:
 	return STATUS_FAIL;
 }
 
-int reset_ms_card(struct rts51x_chip *chip)
+int rts51x_reset_ms_card(struct rts51x_chip *chip)
 {
 	struct ms_info *ms_card = &(chip->ms_card);
 	int retval;
 
 	memset(ms_card, 0, sizeof(struct ms_info));
 
-	enable_card_clock(chip, MS_CARD);
+	rts51x_enable_card_clock(chip, MS_CARD);
 
 	retval = rts51x_select_card(chip, MS_CARD);
 	if (retval != STATUS_SUCCESS)
@@ -2936,7 +2936,7 @@ static int mspro_read_format_progress(struct rts51x_chip *chip,
 	return STATUS_SUCCESS;
 }
 
-void mspro_polling_format_status(struct rts51x_chip *chip)
+void rts51x_mspro_polling_format_status(struct rts51x_chip *chip)
 {
 	struct ms_info *ms_card = &(chip->ms_card);
 	int i;
@@ -2952,25 +2952,25 @@ void mspro_polling_format_status(struct rts51x_chip *chip)
 	return;
 }
 
-void mspro_format_sense(struct rts51x_chip *chip, unsigned int lun)
+void rts51x_mspro_format_sense(struct rts51x_chip *chip, unsigned int lun)
 {
 	struct ms_info *ms_card = &(chip->ms_card);
 
 	if (CHK_FORMAT_STATUS(ms_card, FORMAT_SUCCESS)) {
-		set_sense_type(chip, lun, SENSE_TYPE_NO_SENSE);
+		rts51x_set_sense_type(chip, lun, SENSE_TYPE_NO_SENSE);
 		ms_card->pro_under_formatting = 0;
 		ms_card->progress = 0;
 	} else if (CHK_FORMAT_STATUS(ms_card, FORMAT_IN_PROGRESS)) {
-		set_sense_data(chip, lun, CUR_ERR, 0x02, 0, 0x04, 0x04,
+		rts51x_set_sense_data(chip, lun, CUR_ERR, 0x02, 0, 0x04, 0x04,
 			       0, (u16) (ms_card->progress));
 	} else {
-		set_sense_type(chip, lun, SENSE_TYPE_FORMAT_CMD_FAILED);
+		rts51x_set_sense_type(chip, lun, SENSE_TYPE_FORMAT_CMD_FAILED);
 		ms_card->pro_under_formatting = 0;
 		ms_card->progress = 0;
 	}
 }
 
-int mspro_format(struct scsi_cmnd *srb, struct rts51x_chip *chip,
+int rts51x_mspro_format(struct scsi_cmnd *srb, struct rts51x_chip *chip,
 		 int short_data_len, int quick_format)
 {
 	struct ms_info *ms_card = &(chip->ms_card);
@@ -3035,7 +3035,7 @@ int mspro_format(struct scsi_cmnd *srb, struct rts51x_chip *chip,
 		ms_card->pro_under_formatting = 0;
 		ms_card->progress = 0;
 		ms_card->format_status = FORMAT_SUCCESS;
-		set_sense_type(chip, SCSI_LUN(srb), SENSE_TYPE_NO_SENSE);
+		rts51x_set_sense_type(chip, SCSI_LUN(srb), SENSE_TYPE_NO_SENSE);
 		return STATUS_SUCCESS;
 	}
 
@@ -3103,7 +3103,7 @@ static int ms_read_multiple_pages(struct rts51x_chip *chip, u16 phy_blk,
 	rts51x_add_cmd(chip, WRITE_REG_CMD, MS_SECTOR_CNT_H, 0xFF, 0);
 	rts51x_add_cmd(chip, WRITE_REG_CMD, MS_TPC, 0xFF, READ_PAGE_DATA);
 
-	trans_dma_enable(DMA_FROM_DEVICE, chip, 512 * page_cnt, DMA_512);
+	rts51x_trans_dma_enable(DMA_FROM_DEVICE, chip, 512 * page_cnt, DMA_512);
 
 	rts51x_add_cmd(chip, WRITE_REG_CMD, MS_TRANSFER, 0xFF,
 		       MS_TRANSFER_START | MS_TM_MULTI_READ);
@@ -3307,7 +3307,7 @@ static int ms_write_multiple_pages(struct rts51x_chip *chip, u16 old_blk,
 	rts51x_add_cmd(chip, WRITE_REG_CMD, CARD_DATA_SOURCE, 0x01,
 		       RING_BUFFER);
 
-	trans_dma_enable(DMA_TO_DEVICE, chip, 512 * page_cnt, DMA_512);
+	rts51x_trans_dma_enable(DMA_TO_DEVICE, chip, 512 * page_cnt, DMA_512);
 
 	rts51x_add_cmd(chip, WRITE_REG_CMD, MS_TRANSFER, 0xFF,
 		       MS_TRANSFER_START | MS_TM_MULTI_WRITE);
@@ -3467,7 +3467,7 @@ static int ms_read_multiple_pages(struct rts51x_chip *chip, u16 phy_blk,
 		rts51x_add_cmd(chip, WRITE_REG_CMD, MS_TRANS_CFG, 0xFF,
 			       trans_cfg);
 
-		trans_dma_enable(DMA_FROM_DEVICE, chip, 512, DMA_512);
+		rts51x_trans_dma_enable(DMA_FROM_DEVICE, chip, 512, DMA_512);
 
 		rts51x_add_cmd(chip, WRITE_REG_CMD, MS_TRANSFER, 0xFF,
 			       MS_TRANSFER_START | MS_TM_NORMAL_READ);
@@ -3670,7 +3670,7 @@ static int ms_write_multiple_pages(struct rts51x_chip *chip, u16 old_blk,
 		rts51x_add_cmd(chip, WRITE_REG_CMD, MS_TRANS_CFG, 0xFF,
 			       WAIT_INT);
 
-		trans_dma_enable(DMA_TO_DEVICE, chip, 512, DMA_512);
+		rts51x_trans_dma_enable(DMA_TO_DEVICE, chip, 512, DMA_512);
 
 		rts51x_add_cmd(chip, WRITE_REG_CMD, MS_TRANSFER, 0xFF,
 			       MS_TRANSFER_START | MS_TM_NORMAL_WRITE);
@@ -3803,10 +3803,10 @@ static int ms_prepare_write(struct rts51x_chip *chip, u16 old_blk, u16 new_blk,
 	return STATUS_SUCCESS;
 }
 
-int ms_delay_write(struct rts51x_chip *chip)
+int rts51x_ms_delay_write(struct rts51x_chip *chip)
 {
 	struct ms_info *ms_card = &(chip->ms_card);
-	struct ms_delay_write_tag *delay_write = &(ms_card->delay_write);
+	struct rts51x_ms_delay_write_tag *delay_write = &(ms_card->delay_write);
 	int retval;
 
 	if (delay_write->delay_write_flag) {
@@ -3827,16 +3827,16 @@ int ms_delay_write(struct rts51x_chip *chip)
 	return STATUS_SUCCESS;
 }
 
-static inline void ms_rw_fail(struct scsi_cmnd *srb, struct rts51x_chip *chip)
+static inline void rts51x_ms_rw_fail(struct scsi_cmnd *srb, struct rts51x_chip *chip)
 {
 	if (srb->sc_data_direction == DMA_FROM_DEVICE)
-		set_sense_type(chip, SCSI_LUN(srb),
+		rts51x_set_sense_type(chip, SCSI_LUN(srb),
 			       SENSE_TYPE_MEDIA_UNRECOVER_READ_ERR);
 	else
-		set_sense_type(chip, SCSI_LUN(srb), SENSE_TYPE_MEDIA_WRITE_ERR);
+		rts51x_set_sense_type(chip, SCSI_LUN(srb), SENSE_TYPE_MEDIA_WRITE_ERR);
 }
 
-static int ms_rw_multi_sector(struct scsi_cmnd *srb, struct rts51x_chip *chip,
+static int rts51x_ms_rw_multi_sector(struct scsi_cmnd *srb, struct rts51x_chip *chip,
 			      u32 start_sector, u16 sector_cnt)
 {
 	struct ms_info *ms_card = &(chip->ms_card);
@@ -3847,7 +3847,7 @@ static int ms_rw_multi_sector(struct scsi_cmnd *srb, struct rts51x_chip *chip,
 	u8 start_page, end_page = 0, page_cnt;
 	u8 *buf;
 	void *ptr = NULL;
-	struct ms_delay_write_tag *delay_write = &(ms_card->delay_write);
+	struct rts51x_ms_delay_write_tag *delay_write = &(ms_card->delay_write);
 
 	ms_set_err_code(chip, MS_NO_ERROR);
 
@@ -3857,7 +3857,7 @@ static int ms_rw_multi_sector(struct scsi_cmnd *srb, struct rts51x_chip *chip,
 
 	retval = ms_switch_clock(chip);
 	if (retval != STATUS_SUCCESS) {
-		ms_rw_fail(srb, chip);
+		rts51x_ms_rw_fail(srb, chip);
 		TRACE_RET(chip, retval);
 	}
 
@@ -3873,7 +3873,7 @@ static int ms_rw_multi_sector(struct scsi_cmnd *srb, struct rts51x_chip *chip,
 		retval = ms_build_l2p_tbl(chip, seg_no);
 		if (retval != STATUS_SUCCESS) {
 			chip->card_fail |= MS_CARD;
-			set_sense_type(chip, lun, SENSE_TYPE_MEDIA_NOT_PRESENT);
+			rts51x_set_sense_type(chip, lun, SENSE_TYPE_MEDIA_NOT_PRESENT);
 			TRACE_RET(chip, retval);
 		}
 	}
@@ -3898,7 +3898,7 @@ static int ms_rw_multi_sector(struct scsi_cmnd *srb, struct rts51x_chip *chip,
 					      start_page);
 #endif
 			if (retval != STATUS_SUCCESS) {
-				set_sense_type(chip, lun,
+				rts51x_set_sense_type(chip, lun,
 					       SENSE_TYPE_MEDIA_WRITE_ERR);
 				TRACE_RET(chip, retval);
 			}
@@ -3911,9 +3911,9 @@ static int ms_rw_multi_sector(struct scsi_cmnd *srb, struct rts51x_chip *chip,
 			old_blk = delay_write->old_phyblock;
 			new_blk = delay_write->new_phyblock;
 		} else {
-			retval = ms_delay_write(chip);
+			retval = rts51x_ms_delay_write(chip);
 			if (retval != STATUS_SUCCESS) {
-				set_sense_type(chip, lun,
+				rts51x_set_sense_type(chip, lun,
 					       SENSE_TYPE_MEDIA_WRITE_ERR);
 				TRACE_RET(chip, retval);
 			}
@@ -3922,7 +3922,7 @@ static int ms_rw_multi_sector(struct scsi_cmnd *srb, struct rts51x_chip *chip,
 					   log_blk - ms_start_idx[seg_no]);
 			new_blk = ms_get_unused_block(chip, seg_no);
 			if ((old_blk == 0xFFFF) || (new_blk == 0xFFFF)) {
-				set_sense_type(chip, lun,
+				rts51x_set_sense_type(chip, lun,
 					       SENSE_TYPE_MEDIA_WRITE_ERR);
 				TRACE_RET(chip, STATUS_FAIL);
 			}
@@ -3933,26 +3933,26 @@ static int ms_rw_multi_sector(struct scsi_cmnd *srb, struct rts51x_chip *chip,
 			if (retval != STATUS_SUCCESS) {
 				if (monitor_card_cd(chip, MS_CARD) ==
 				    CD_NOT_EXIST) {
-					set_sense_type(chip, lun,
+					rts51x_set_sense_type(chip, lun,
 						SENSE_TYPE_MEDIA_NOT_PRESENT);
 					TRACE_RET(chip, STATUS_FAIL);
 				}
 
-				set_sense_type(chip, lun,
+				rts51x_set_sense_type(chip, lun,
 					       SENSE_TYPE_MEDIA_WRITE_ERR);
 				TRACE_RET(chip, retval);
 			}
 		}
 	} else {
-		retval = ms_delay_write(chip);
+		retval = rts51x_ms_delay_write(chip);
 		if (retval != STATUS_SUCCESS) {
 			if (monitor_card_cd(chip, MS_CARD) == CD_NOT_EXIST) {
-				set_sense_type(chip, lun,
+				rts51x_set_sense_type(chip, lun,
 					       SENSE_TYPE_MEDIA_NOT_PRESENT);
 				TRACE_RET(chip, STATUS_FAIL);
 			}
 
-			set_sense_type(chip, lun,
+			rts51x_set_sense_type(chip, lun,
 				       SENSE_TYPE_MEDIA_UNRECOVER_READ_ERR);
 			TRACE_RET(chip, retval);
 		}
@@ -3960,7 +3960,7 @@ static int ms_rw_multi_sector(struct scsi_cmnd *srb, struct rts51x_chip *chip,
 		    ms_get_l2p_tbl(chip, seg_no,
 				   log_blk - ms_start_idx[seg_no]);
 		if (old_blk == 0xFFFF) {
-			set_sense_type(chip, lun,
+			rts51x_set_sense_type(chip, lun,
 				       SENSE_TYPE_MEDIA_UNRECOVER_READ_ERR);
 			TRACE_RET(chip, STATUS_FAIL);
 		}
@@ -3993,12 +3993,12 @@ static int ms_rw_multi_sector(struct scsi_cmnd *srb, struct rts51x_chip *chip,
 
 		if (retval != STATUS_SUCCESS) {
 			if (monitor_card_cd(chip, MS_CARD) == CD_NOT_EXIST) {
-				set_sense_type(chip, lun,
+				rts51x_set_sense_type(chip, lun,
 					       SENSE_TYPE_MEDIA_NOT_PRESENT);
 				TRACE_RET(chip, STATUS_FAIL);
 			}
 
-			ms_rw_fail(srb, chip);
+			rts51x_ms_rw_fail(srb, chip);
 			TRACE_RET(chip, retval);
 		}
 		/* Update L2P table if need */
@@ -4030,7 +4030,7 @@ static int ms_rw_multi_sector(struct scsi_cmnd *srb, struct rts51x_chip *chip,
 			retval = ms_build_l2p_tbl(chip, seg_no);
 			if (retval != STATUS_SUCCESS) {
 				chip->card_fail |= MS_CARD;
-				set_sense_type(chip, lun,
+				rts51x_set_sense_type(chip, lun,
 					       SENSE_TYPE_MEDIA_NOT_PRESENT);
 				TRACE_RET(chip, retval);
 			}
@@ -4040,14 +4040,14 @@ static int ms_rw_multi_sector(struct scsi_cmnd *srb, struct rts51x_chip *chip,
 		    ms_get_l2p_tbl(chip, seg_no,
 				   log_blk - ms_start_idx[seg_no]);
 		if (old_blk == 0xFFFF) {
-			ms_rw_fail(srb, chip);
+			rts51x_ms_rw_fail(srb, chip);
 			TRACE_RET(chip, STATUS_FAIL);
 		}
 
 		if (srb->sc_data_direction == DMA_TO_DEVICE) {
 			new_blk = ms_get_unused_block(chip, seg_no);
 			if (new_blk == 0xFFFF) {
-				ms_rw_fail(srb, chip);
+				rts51x_ms_rw_fail(srb, chip);
 				TRACE_RET(chip, STATUS_FAIL);
 			}
 		}
@@ -4073,7 +4073,7 @@ static int ms_rw_multi_sector(struct scsi_cmnd *srb, struct rts51x_chip *chip,
 	return STATUS_SUCCESS;
 }
 
-int ms_rw(struct scsi_cmnd *srb, struct rts51x_chip *chip, u32 start_sector,
+int rts51x_ms_rw(struct scsi_cmnd *srb, struct rts51x_chip *chip, u32 start_sector,
 	  u16 sector_cnt)
 {
 	struct ms_info *ms_card = &(chip->ms_card);
@@ -4084,12 +4084,12 @@ int ms_rw(struct scsi_cmnd *srb, struct rts51x_chip *chip, u32 start_sector,
 		    mspro_rw_multi_sector(srb, chip, start_sector, sector_cnt);
 	else
 		retval =
-		    ms_rw_multi_sector(srb, chip, start_sector, sector_cnt);
+		    rts51x_ms_rw_multi_sector(srb, chip, start_sector, sector_cnt);
 
 	return retval;
 }
 
-void ms_free_l2p_tbl(struct rts51x_chip *chip)
+void rts51x_ms_free_l2p_tbl(struct rts51x_chip *chip)
 {
 	struct ms_info *ms_card = &(chip->ms_card);
 	int i = 0;
@@ -4110,7 +4110,7 @@ void ms_free_l2p_tbl(struct rts51x_chip *chip)
 	}
 }
 
-void ms_cleanup_work(struct rts51x_chip *chip)
+void rts51x_ms_cleanup_work(struct rts51x_chip *chip)
 {
 	struct ms_info *ms_card = &(chip->ms_card);
 
@@ -4130,7 +4130,7 @@ void ms_cleanup_work(struct rts51x_chip *chip)
 	} else if ((!CHK_MSPRO(ms_card))
 		   && ms_card->delay_write.delay_write_flag) {
 		RTS51X_DEBUGP("MS: delay write\n");
-		ms_delay_write(chip);
+		rts51x_ms_delay_write(chip);
 		ms_card->counter = 0;
 	}
 }
@@ -4161,12 +4161,12 @@ static int ms_power_off_card3v3(struct rts51x_chip *chip)
 	return STATUS_SUCCESS;
 }
 
-int release_ms_card(struct rts51x_chip *chip)
+int rts51x_release_ms_card(struct rts51x_chip *chip)
 {
 	struct ms_info *ms_card = &(chip->ms_card);
 	int retval;
 
-	RTS51X_DEBUGP("release_ms_card\n");
+	RTS51X_DEBUGP("rts51x_release_ms_card\n");
 
 	ms_card->delay_write.delay_write_flag = 0;
 	ms_card->pro_under_formatting = 0;
@@ -4175,7 +4175,7 @@ int release_ms_card(struct rts51x_chip *chip)
 	chip->card_fail &= ~MS_CARD;
 	chip->card_wp &= ~MS_CARD;
 
-	ms_free_l2p_tbl(chip);
+	rts51x_ms_free_l2p_tbl(chip);
 
 	rts51x_write_register(chip, SFSM_ED, HW_CMD_STOP, HW_CMD_STOP);
 

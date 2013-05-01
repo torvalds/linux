@@ -37,29 +37,14 @@
 
 #define CAST5_PARALLEL_BLOCKS 16
 
-asmlinkage void __cast5_enc_blk_16way(struct cast5_ctx *ctx, u8 *dst,
-				      const u8 *src, bool xor);
-asmlinkage void cast5_dec_blk_16way(struct cast5_ctx *ctx, u8 *dst,
+asmlinkage void cast5_ecb_enc_16way(struct cast5_ctx *ctx, u8 *dst,
 				    const u8 *src);
-
-static inline void cast5_enc_blk_xway(struct cast5_ctx *ctx, u8 *dst,
-				      const u8 *src)
-{
-	__cast5_enc_blk_16way(ctx, dst, src, false);
-}
-
-static inline void cast5_enc_blk_xway_xor(struct cast5_ctx *ctx, u8 *dst,
-					  const u8 *src)
-{
-	__cast5_enc_blk_16way(ctx, dst, src, true);
-}
-
-static inline void cast5_dec_blk_xway(struct cast5_ctx *ctx, u8 *dst,
-				      const u8 *src)
-{
-	cast5_dec_blk_16way(ctx, dst, src);
-}
-
+asmlinkage void cast5_ecb_dec_16way(struct cast5_ctx *ctx, u8 *dst,
+				    const u8 *src);
+asmlinkage void cast5_cbc_dec_16way(struct cast5_ctx *ctx, u8 *dst,
+				    const u8 *src);
+asmlinkage void cast5_ctr_16way(struct cast5_ctx *ctx, u8 *dst, const u8 *src,
+				__be64 *iv);
 
 static inline bool cast5_fpu_begin(bool fpu_enabled, unsigned int nbytes)
 {
@@ -79,7 +64,10 @@ static int ecb_crypt(struct blkcipher_desc *desc, struct blkcipher_walk *walk,
 	struct cast5_ctx *ctx = crypto_blkcipher_ctx(desc->tfm);
 	const unsigned int bsize = CAST5_BLOCK_SIZE;
 	unsigned int nbytes;
+	void (*fn)(struct cast5_ctx *ctx, u8 *dst, const u8 *src);
 	int err;
+
+	fn = (enc) ? cast5_ecb_enc_16way : cast5_ecb_dec_16way;
 
 	err = blkcipher_walk_virt(desc, walk);
 	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
@@ -93,10 +81,7 @@ static int ecb_crypt(struct blkcipher_desc *desc, struct blkcipher_walk *walk,
 		/* Process multi-block batch */
 		if (nbytes >= bsize * CAST5_PARALLEL_BLOCKS) {
 			do {
-				if (enc)
-					cast5_enc_blk_xway(ctx, wdst, wsrc);
-				else
-					cast5_dec_blk_xway(ctx, wdst, wsrc);
+				fn(ctx, wdst, wsrc);
 
 				wsrc += bsize * CAST5_PARALLEL_BLOCKS;
 				wdst += bsize * CAST5_PARALLEL_BLOCKS;
@@ -107,12 +92,11 @@ static int ecb_crypt(struct blkcipher_desc *desc, struct blkcipher_walk *walk,
 				goto done;
 		}
 
+		fn = (enc) ? __cast5_encrypt : __cast5_decrypt;
+
 		/* Handle leftovers */
 		do {
-			if (enc)
-				__cast5_encrypt(ctx, wdst, wsrc);
-			else
-				__cast5_decrypt(ctx, wdst, wsrc);
+			fn(ctx, wdst, wsrc);
 
 			wsrc += bsize;
 			wdst += bsize;
@@ -194,9 +178,7 @@ static unsigned int __cbc_decrypt(struct blkcipher_desc *desc,
 	unsigned int nbytes = walk->nbytes;
 	u64 *src = (u64 *)walk->src.virt.addr;
 	u64 *dst = (u64 *)walk->dst.virt.addr;
-	u64 ivs[CAST5_PARALLEL_BLOCKS - 1];
 	u64 last_iv;
-	int i;
 
 	/* Start of the last block. */
 	src += nbytes / bsize - 1;
@@ -211,13 +193,7 @@ static unsigned int __cbc_decrypt(struct blkcipher_desc *desc,
 			src -= CAST5_PARALLEL_BLOCKS - 1;
 			dst -= CAST5_PARALLEL_BLOCKS - 1;
 
-			for (i = 0; i < CAST5_PARALLEL_BLOCKS - 1; i++)
-				ivs[i] = src[i];
-
-			cast5_dec_blk_xway(ctx, (u8 *)dst, (u8 *)src);
-
-			for (i = 0; i < CAST5_PARALLEL_BLOCKS - 1; i++)
-				*(dst + (i + 1)) ^= *(ivs + i);
+			cast5_cbc_dec_16way(ctx, (u8 *)dst, (u8 *)src);
 
 			nbytes -= bsize;
 			if (nbytes < bsize)
@@ -298,23 +274,12 @@ static unsigned int __ctr_crypt(struct blkcipher_desc *desc,
 	unsigned int nbytes = walk->nbytes;
 	u64 *src = (u64 *)walk->src.virt.addr;
 	u64 *dst = (u64 *)walk->dst.virt.addr;
-	u64 ctrblk = be64_to_cpu(*(__be64 *)walk->iv);
-	__be64 ctrblocks[CAST5_PARALLEL_BLOCKS];
-	int i;
 
 	/* Process multi-block batch */
 	if (nbytes >= bsize * CAST5_PARALLEL_BLOCKS) {
 		do {
-			/* create ctrblks for parallel encrypt */
-			for (i = 0; i < CAST5_PARALLEL_BLOCKS; i++) {
-				if (dst != src)
-					dst[i] = src[i];
-
-				ctrblocks[i] = cpu_to_be64(ctrblk++);
-			}
-
-			cast5_enc_blk_xway_xor(ctx, (u8 *)dst,
-					       (u8 *)ctrblocks);
+			cast5_ctr_16way(ctx, (u8 *)dst, (u8 *)src,
+					(__be64 *)walk->iv);
 
 			src += CAST5_PARALLEL_BLOCKS;
 			dst += CAST5_PARALLEL_BLOCKS;
@@ -327,13 +292,16 @@ static unsigned int __ctr_crypt(struct blkcipher_desc *desc,
 
 	/* Handle leftovers */
 	do {
+		u64 ctrblk;
+
 		if (dst != src)
 			*dst = *src;
 
-		ctrblocks[0] = cpu_to_be64(ctrblk++);
+		ctrblk = *(u64 *)walk->iv;
+		be64_add_cpu((__be64 *)walk->iv, 1);
 
-		__cast5_encrypt(ctx, (u8 *)ctrblocks, (u8 *)ctrblocks);
-		*dst ^= ctrblocks[0];
+		__cast5_encrypt(ctx, (u8 *)&ctrblk, (u8 *)&ctrblk);
+		*dst ^= ctrblk;
 
 		src += 1;
 		dst += 1;
@@ -341,7 +309,6 @@ static unsigned int __ctr_crypt(struct blkcipher_desc *desc,
 	} while (nbytes >= bsize);
 
 done:
-	*(__be64 *)walk->iv = cpu_to_be64(ctrblk);
 	return nbytes;
 }
 

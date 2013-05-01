@@ -519,13 +519,11 @@ static int dm6444evm_msp430_get_pins(void)
 	char buf[4];
 	struct i2c_msg msg[2] = {
 		{
-			.addr = dm6446evm_msp->addr,
 			.flags = 0,
 			.len = 2,
 			.buf = (void __force *)txbuf,
 		},
 		{
-			.addr = dm6446evm_msp->addr,
 			.flags = I2C_M_RD,
 			.len = 4,
 			.buf = buf,
@@ -535,6 +533,9 @@ static int dm6444evm_msp430_get_pins(void)
 
 	if (!dm6446evm_msp)
 		return -ENXIO;
+
+	msg[0].addr = dm6446evm_msp->addr;
+	msg[1].addr = dm6446evm_msp->addr;
 
 	/* Command 4 == get input state, returns port 2 and port3 data
 	 *   S Addr W [A] len=2 [A] cmd=4 [A]
@@ -689,7 +690,7 @@ static struct vpbe_output dm644xevm_vpbe_outputs[] = {
 			.std		= VENC_STD_ALL,
 			.capabilities	= V4L2_OUT_CAP_STD,
 		},
-		.subdev_name	= VPBE_VENC_SUBDEV_NAME,
+		.subdev_name	= DM644X_VPBE_VENC_SUBDEV_NAME,
 		.default_mode	= "ntsc",
 		.num_modes	= ARRAY_SIZE(dm644xevm_enc_std_timing),
 		.modes		= dm644xevm_enc_std_timing,
@@ -701,7 +702,7 @@ static struct vpbe_output dm644xevm_vpbe_outputs[] = {
 			.type		= V4L2_OUTPUT_TYPE_ANALOG,
 			.capabilities	= V4L2_OUT_CAP_DV_TIMINGS,
 		},
-		.subdev_name	= VPBE_VENC_SUBDEV_NAME,
+		.subdev_name	= DM644X_VPBE_VENC_SUBDEV_NAME,
 		.default_mode	= "480p59_94",
 		.num_modes	= ARRAY_SIZE(dm644xevm_enc_preset_timing),
 		.modes		= dm644xevm_enc_preset_timing,
@@ -712,10 +713,10 @@ static struct vpbe_config dm644xevm_display_cfg = {
 	.module_name	= "dm644x-vpbe-display",
 	.i2c_adapter_id	= 1,
 	.osd		= {
-		.module_name	= VPBE_OSD_SUBDEV_NAME,
+		.module_name	= DM644X_VPBE_OSD_SUBDEV_NAME,
 	},
 	.venc		= {
-		.module_name	= VPBE_VENC_SUBDEV_NAME,
+		.module_name	= DM644X_VPBE_VENC_SUBDEV_NAME,
 	},
 	.num_outputs	= ARRAY_SIZE(dm644xevm_vpbe_outputs),
 	.outputs	= dm644xevm_vpbe_outputs,
@@ -776,7 +777,7 @@ static __init void davinci_evm_init(void)
 	struct davinci_soc_info *soc_info = &davinci_soc_info;
 
 	aemif_clk = clk_get(NULL, "aemif");
-	clk_enable(aemif_clk);
+	clk_prepare_enable(aemif_clk);
 
 	if (HAS_ATA) {
 		if (HAS_NAND || HAS_NOR)
@@ -824,7 +825,7 @@ MACHINE_START(DAVINCI_EVM, "DaVinci DM644x EVM")
 	.atag_offset  = 0x100,
 	.map_io	      = davinci_evm_map_io,
 	.init_irq     = davinci_irq_init,
-	.timer	      = &davinci_timer,
+	.init_time	= davinci_timer_init,
 	.init_machine = davinci_evm_init,
 	.init_late	= davinci_init_late,
 	.dma_zone_size	= SZ_128M,

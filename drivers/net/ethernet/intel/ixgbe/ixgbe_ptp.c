@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2012 Intel Corporation.
+  Copyright(c) 1999 - 2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -96,14 +96,11 @@
 #define IXGBE_MAX_TIMEADJ_VALUE  0x7FFFFFFFFFFFFFFFULL
 
 #define IXGBE_OVERFLOW_PERIOD    (HZ * 30)
+#define IXGBE_PTP_TX_TIMEOUT     (HZ * 15)
 
 #ifndef NSECS_PER_SEC
 #define NSECS_PER_SEC 1000000000ULL
 #endif
-
-static struct sock_filter ptp_filter[] = {
-	PTP_FILTER
-};
 
 /**
  * ixgbe_ptp_setup_sdp
@@ -387,6 +384,15 @@ void ixgbe_ptp_check_pps_event(struct ixgbe_adapter *adapter, u32 eicr)
 	struct ixgbe_hw *hw = &adapter->hw;
 	struct ptp_clock_event event;
 
+	event.type = PTP_CLOCK_PPS;
+
+	/* this check is necessary in case the interrupt was enabled via some
+	 * alternative means (ex. debug_fs). Better to check here than
+	 * everywhere that calls this function.
+	 */
+	if (!adapter->ptp_clock)
+		return;
+
 	switch (hw->mac.type) {
 	case ixgbe_mac_X540:
 		ptp_clock_event(adapter->ptp_clock, &event);
@@ -396,126 +402,85 @@ void ixgbe_ptp_check_pps_event(struct ixgbe_adapter *adapter, u32 eicr)
 	}
 }
 
-
 /**
- * ixgbe_ptp_overflow_check - delayed work to detect SYSTIME overflow
- * @work: structure containing information about this work task
+ * ixgbe_ptp_overflow_check - watchdog task to detect SYSTIME overflow
+ * @adapter: private adapter struct
  *
- * this work function is scheduled to continue reading the timecounter
+ * this watchdog task periodically reads the timecounter
  * in order to prevent missing when the system time registers wrap
- * around. This needs to be run approximately twice a minute when no
- * PTP activity is occurring.
+ * around. This needs to be run approximately twice a minute.
  */
 void ixgbe_ptp_overflow_check(struct ixgbe_adapter *adapter)
 {
-	unsigned long elapsed_jiffies = adapter->last_overflow_check - jiffies;
+	bool timeout = time_is_before_jiffies(adapter->last_overflow_check +
+					     IXGBE_OVERFLOW_PERIOD);
 	struct timespec ts;
 
-	if ((adapter->flags2 & IXGBE_FLAG2_OVERFLOW_CHECK_ENABLED) &&
-	    (elapsed_jiffies >= IXGBE_OVERFLOW_PERIOD)) {
+	if (timeout) {
 		ixgbe_ptp_gettime(&adapter->ptp_caps, &ts);
 		adapter->last_overflow_check = jiffies;
 	}
 }
 
 /**
- * ixgbe_ptp_match - determine if this skb matches a ptp packet
- * @skb: pointer to the skb
- * @hwtstamp: pointer to the hwtstamp_config to check
+ * ixgbe_ptp_rx_hang - detect error case when Rx timestamp registers latched
+ * @adapter: private network adapter structure
  *
- * Determine whether the skb should have been timestamped, assuming the
- * hwtstamp was set via the hwtstamp ioctl. Returns non-zero when the packet
- * should have a timestamp waiting in the registers, and 0 otherwise.
- *
- * V1 packets have to check the version type to determine whether they are
- * correct. However, we can't directly access the data because it might be
- * fragmented in the SKB, in paged memory. In order to work around this, we
- * use skb_copy_bits which will properly copy the data whether it is in the
- * paged memory fragments or not. We have to copy the IP header as well as the
- * message type.
+ * this watchdog task is scheduled to detect error case where hardware has
+ * dropped an Rx packet that was timestamped when the ring is full. The
+ * particular error is rare but leaves the device in a state unable to timestamp
+ * any future packets.
  */
-static int ixgbe_ptp_match(struct sk_buff *skb, int rx_filter)
+void ixgbe_ptp_rx_hang(struct ixgbe_adapter *adapter)
 {
-	struct iphdr iph;
-	u8 msgtype;
-	unsigned int type, offset;
+	struct ixgbe_hw *hw = &adapter->hw;
+	struct ixgbe_ring *rx_ring;
+	u32 tsyncrxctl = IXGBE_READ_REG(hw, IXGBE_TSYNCRXCTL);
+	unsigned long rx_event;
+	int n;
 
-	if (rx_filter == HWTSTAMP_FILTER_NONE)
-		return 0;
-
-	type = sk_run_filter(skb, ptp_filter);
-
-	if (likely(rx_filter == HWTSTAMP_FILTER_PTP_V2_EVENT))
-		return type & PTP_CLASS_V2;
-
-	/* For the remaining cases actually check message type */
-	switch (type) {
-	case PTP_CLASS_V1_IPV4:
-		skb_copy_bits(skb, OFF_IHL, &iph, sizeof(iph));
-		offset = ETH_HLEN + (iph.ihl << 2) + UDP_HLEN + OFF_PTP_CONTROL;
-		break;
-	case PTP_CLASS_V1_IPV6:
-		offset = OFF_PTP6 + OFF_PTP_CONTROL;
-		break;
-	default:
-		/* other cases invalid or handled above */
-		return 0;
+	/* if we don't have a valid timestamp in the registers, just update the
+	 * timeout counter and exit
+	 */
+	if (!(tsyncrxctl & IXGBE_TSYNCRXCTL_VALID)) {
+		adapter->last_rx_ptp_check = jiffies;
+		return;
 	}
 
-	/* Make sure our buffer is long enough */
-	if (skb->len < offset)
-		return 0;
+	/* determine the most recent watchdog or rx_timestamp event */
+	rx_event = adapter->last_rx_ptp_check;
+	for (n = 0; n < adapter->num_rx_queues; n++) {
+		rx_ring = adapter->rx_ring[n];
+		if (time_after(rx_ring->last_rx_timestamp, rx_event))
+			rx_event = rx_ring->last_rx_timestamp;
+	}
 
-	skb_copy_bits(skb, offset, &msgtype, sizeof(msgtype));
+	/* only need to read the high RXSTMP register to clear the lock */
+	if (time_is_before_jiffies(rx_event + 5*HZ)) {
+		IXGBE_READ_REG(hw, IXGBE_RXSTMPH);
+		adapter->last_rx_ptp_check = jiffies;
 
-	switch (rx_filter) {
-	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
-		return (msgtype == IXGBE_RXMTRL_V1_SYNC_MSG);
-		break;
-	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
-		return (msgtype == IXGBE_RXMTRL_V1_DELAY_REQ_MSG);
-		break;
-	default:
-		return 0;
+		e_warn(drv, "clearing RX Timestamp hang");
 	}
 }
 
 /**
  * ixgbe_ptp_tx_hwtstamp - utility function which checks for TX time stamp
- * @q_vector: structure containing interrupt and ring information
- * @skb: particular skb to send timestamp with
+ * @adapter: the private adapter struct
  *
  * if the timestamp is valid, we convert it into the timecounter ns
  * value, then store that result into the shhwtstamps structure which
  * is passed up the network stack
  */
-void ixgbe_ptp_tx_hwtstamp(struct ixgbe_q_vector *q_vector,
-			   struct sk_buff *skb)
+static void ixgbe_ptp_tx_hwtstamp(struct ixgbe_adapter *adapter)
 {
-	struct ixgbe_adapter *adapter;
-	struct ixgbe_hw *hw;
+	struct ixgbe_hw *hw = &adapter->hw;
 	struct skb_shared_hwtstamps shhwtstamps;
 	u64 regval = 0, ns;
-	u32 tsynctxctl;
 	unsigned long flags;
 
-	/* we cannot process timestamps on a ring without a q_vector */
-	if (!q_vector || !q_vector->adapter)
-		return;
-
-	adapter = q_vector->adapter;
-	hw = &adapter->hw;
-
-	tsynctxctl = IXGBE_READ_REG(hw, IXGBE_TSYNCTXCTL);
 	regval |= (u64)IXGBE_READ_REG(hw, IXGBE_TXSTMPL);
 	regval |= (u64)IXGBE_READ_REG(hw, IXGBE_TXSTMPH) << 32;
-
-	/*
-	 * if TX timestamp is not valid, exit after clearing the
-	 * timestamp registers
-	 */
-	if (!(tsynctxctl & IXGBE_TSYNCTXCTL_VALID))
-		return;
 
 	spin_lock_irqsave(&adapter->tmreg_lock, flags);
 	ns = timecounter_cyc2time(&adapter->tc, regval);
@@ -523,22 +488,59 @@ void ixgbe_ptp_tx_hwtstamp(struct ixgbe_q_vector *q_vector,
 
 	memset(&shhwtstamps, 0, sizeof(shhwtstamps));
 	shhwtstamps.hwtstamp = ns_to_ktime(ns);
-	skb_tstamp_tx(skb, &shhwtstamps);
+	skb_tstamp_tx(adapter->ptp_tx_skb, &shhwtstamps);
+
+	dev_kfree_skb_any(adapter->ptp_tx_skb);
+	adapter->ptp_tx_skb = NULL;
 }
 
 /**
- * ixgbe_ptp_rx_hwtstamp - utility function which checks for RX time stamp
+ * ixgbe_ptp_tx_hwtstamp_work
+ * @work: pointer to the work struct
+ *
+ * This work item polls TSYNCTXCTL valid bit to determine when a Tx hardware
+ * timestamp has been taken for the current skb. It is necesary, because the
+ * descriptor's "done" bit does not correlate with the timestamp event.
+ */
+static void ixgbe_ptp_tx_hwtstamp_work(struct work_struct *work)
+{
+	struct ixgbe_adapter *adapter = container_of(work, struct ixgbe_adapter,
+						     ptp_tx_work);
+	struct ixgbe_hw *hw = &adapter->hw;
+	bool timeout = time_is_before_jiffies(adapter->ptp_tx_start +
+					      IXGBE_PTP_TX_TIMEOUT);
+	u32 tsynctxctl;
+
+	/* we have to have a valid skb */
+	if (!adapter->ptp_tx_skb)
+		return;
+
+	if (timeout) {
+		dev_kfree_skb_any(adapter->ptp_tx_skb);
+		adapter->ptp_tx_skb = NULL;
+		e_warn(drv, "clearing Tx Timestamp hang");
+		return;
+	}
+
+	tsynctxctl = IXGBE_READ_REG(hw, IXGBE_TSYNCTXCTL);
+	if (tsynctxctl & IXGBE_TSYNCTXCTL_VALID)
+		ixgbe_ptp_tx_hwtstamp(adapter);
+	else
+		/* reschedule to keep checking if it's not available yet */
+		schedule_work(&adapter->ptp_tx_work);
+}
+
+/**
+ * __ixgbe_ptp_rx_hwtstamp - utility function which checks for RX time stamp
  * @q_vector: structure containing interrupt and ring information
- * @rx_desc: the rx descriptor
  * @skb: particular skb to send timestamp with
  *
  * if the timestamp is valid, we convert it into the timecounter ns
  * value, then store that result into the shhwtstamps structure which
  * is passed up the network stack
  */
-void ixgbe_ptp_rx_hwtstamp(struct ixgbe_q_vector *q_vector,
-			   union ixgbe_adv_rx_desc *rx_desc,
-			   struct sk_buff *skb)
+void __ixgbe_ptp_rx_hwtstamp(struct ixgbe_q_vector *q_vector,
+			     struct sk_buff *skb)
 {
 	struct ixgbe_adapter *adapter;
 	struct ixgbe_hw *hw;
@@ -554,35 +556,17 @@ void ixgbe_ptp_rx_hwtstamp(struct ixgbe_q_vector *q_vector,
 	adapter = q_vector->adapter;
 	hw = &adapter->hw;
 
+	/*
+	 * Read the tsyncrxctl register afterwards in order to prevent taking an
+	 * I/O hit on every packet.
+	 */
 	tsyncrxctl = IXGBE_READ_REG(hw, IXGBE_TSYNCRXCTL);
-
-	/* Check if we have a valid timestamp and make sure the skb should
-	 * have been timestamped */
-	if (likely(!(tsyncrxctl & IXGBE_TSYNCRXCTL_VALID) ||
-		   !ixgbe_ptp_match(skb, adapter->rx_hwtstamp_filter)))
+	if (!(tsyncrxctl & IXGBE_TSYNCRXCTL_VALID))
 		return;
 
-	/*
-	 * Always read the registers, in order to clear a possible fault
-	 * because of stagnant RX timestamp values for a packet that never
-	 * reached the queue.
-	 */
 	regval |= (u64)IXGBE_READ_REG(hw, IXGBE_RXSTMPL);
 	regval |= (u64)IXGBE_READ_REG(hw, IXGBE_RXSTMPH) << 32;
 
-	/*
-	 * If the timestamp bit is set in the packet's descriptor, we know the
-	 * timestamp belongs to this packet. No other packet can be
-	 * timestamped until the registers for timestamping have been read.
-	 * Therefor only one packet with this bit can be in the queue at a
-	 * time, and the rx timestamp values that were in the registers belong
-	 * to this packet.
-	 *
-	 * If nothing went wrong, then it should have a skb_shared_tx that we
-	 * can turn into a skb_shared_hwtstamps.
-	 */
-	if (unlikely(!ixgbe_test_staterr(rx_desc, IXGBE_RXDADV_STAT_TS)))
-		return;
 
 	spin_lock_irqsave(&adapter->tmreg_lock, flags);
 	ns = timecounter_cyc2time(&adapter->tc, regval);
@@ -622,8 +606,7 @@ int ixgbe_ptp_hwtstamp_ioctl(struct ixgbe_adapter *adapter,
 	struct hwtstamp_config config;
 	u32 tsync_tx_ctl = IXGBE_TSYNCTXCTL_ENABLED;
 	u32 tsync_rx_ctl = IXGBE_TSYNCRXCTL_ENABLED;
-	u32 tsync_rx_mtrl = 0;
-	bool is_l4 = false;
+	u32 tsync_rx_mtrl = PTP_EV_PORT << 16;
 	bool is_l2 = false;
 	u32 regval;
 
@@ -646,16 +629,15 @@ int ixgbe_ptp_hwtstamp_ioctl(struct ixgbe_adapter *adapter,
 	switch (config.rx_filter) {
 	case HWTSTAMP_FILTER_NONE:
 		tsync_rx_ctl = 0;
+		tsync_rx_mtrl = 0;
 		break;
 	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
 		tsync_rx_ctl |= IXGBE_TSYNCRXCTL_TYPE_L4_V1;
-		tsync_rx_mtrl = IXGBE_RXMTRL_V1_SYNC_MSG;
-		is_l4 = true;
+		tsync_rx_mtrl |= IXGBE_RXMTRL_V1_SYNC_MSG;
 		break;
 	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
 		tsync_rx_ctl |= IXGBE_TSYNCRXCTL_TYPE_L4_V1;
-		tsync_rx_mtrl = IXGBE_RXMTRL_V1_DELAY_REQ_MSG;
-		is_l4 = true;
+		tsync_rx_mtrl |= IXGBE_RXMTRL_V1_DELAY_REQ_MSG;
 		break;
 	case HWTSTAMP_FILTER_PTP_V2_EVENT:
 	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
@@ -668,7 +650,6 @@ int ixgbe_ptp_hwtstamp_ioctl(struct ixgbe_adapter *adapter,
 	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
 		tsync_rx_ctl |= IXGBE_TSYNCRXCTL_TYPE_EVENT_V2;
 		is_l2 = true;
-		is_l4 = true;
 		config.rx_filter = HWTSTAMP_FILTER_PTP_V2_EVENT;
 		break;
 	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
@@ -690,45 +671,15 @@ int ixgbe_ptp_hwtstamp_ioctl(struct ixgbe_adapter *adapter,
 		return 0;
 	}
 
-	/* Store filter value for later use */
-	adapter->rx_hwtstamp_filter = config.rx_filter;
-
-	/* define ethertype filter for timestamped packets */
+	/* define ethertype filter for timestamping L2 packets */
 	if (is_l2)
-		IXGBE_WRITE_REG(hw, IXGBE_ETQF(3),
+		IXGBE_WRITE_REG(hw, IXGBE_ETQF(IXGBE_ETQF_FILTER_1588),
 				(IXGBE_ETQF_FILTER_EN | /* enable filter */
 				 IXGBE_ETQF_1588 | /* enable timestamping */
 				 ETH_P_1588));     /* 1588 eth protocol type */
 	else
-		IXGBE_WRITE_REG(hw, IXGBE_ETQF(3), 0);
+		IXGBE_WRITE_REG(hw, IXGBE_ETQF(IXGBE_ETQF_FILTER_1588), 0);
 
-#define PTP_PORT 319
-	/* L4 Queue Filter[3]: filter by destination port and protocol */
-	if (is_l4) {
-		u32 ftqf = (IXGBE_FTQF_PROTOCOL_UDP /* UDP */
-			    | IXGBE_FTQF_POOL_MASK_EN /* Pool not compared */
-			    | IXGBE_FTQF_QUEUE_ENABLE);
-
-		ftqf |= ((IXGBE_FTQF_PROTOCOL_COMP_MASK /* protocol check */
-			  & IXGBE_FTQF_DEST_PORT_MASK /* dest check */
-			  & IXGBE_FTQF_SOURCE_PORT_MASK) /* source check */
-			 << IXGBE_FTQF_5TUPLE_MASK_SHIFT);
-
-		IXGBE_WRITE_REG(hw, IXGBE_L34T_IMIR(3),
-				(3 << IXGBE_IMIR_RX_QUEUE_SHIFT_82599 |
-				 IXGBE_IMIR_SIZE_BP_82599));
-
-		/* enable port check */
-		IXGBE_WRITE_REG(hw, IXGBE_SDPQF(3),
-				(htons(PTP_PORT) |
-				 htons(PTP_PORT) << 16));
-
-		IXGBE_WRITE_REG(hw, IXGBE_FTQF(3), ftqf);
-
-		tsync_rx_mtrl |= PTP_PORT << 16;
-	} else {
-		IXGBE_WRITE_REG(hw, IXGBE_FTQF(3), 0);
-	}
 
 	/* enable/disable TX */
 	regval = IXGBE_READ_REG(hw, IXGBE_TSYNCTXCTL);
@@ -759,56 +710,18 @@ int ixgbe_ptp_hwtstamp_ioctl(struct ixgbe_adapter *adapter,
  * ixgbe_ptp_start_cyclecounter - create the cycle counter from hw
  * @adapter: pointer to the adapter structure
  *
- * this function initializes the timecounter and cyclecounter
- * structures for use in generated a ns counter from the arbitrary
- * fixed point cycles registers in the hardware.
- *
- * A change in link speed impacts the frequency of the DMA clock on
- * the device, which is used to generate the cycle counter
- * registers. Therefor this function is called whenever the link speed
- * changes.
- *
- * This function also turns on the SDP pin for clock out feature (X540
- * only), because this is where the shift is first calculated.
+ * This function should be called to set the proper values for the TIMINCA
+ * register and tell the cyclecounter structure what the tick rate of SYSTIME
+ * is. It does not directly modify SYSTIME registers or the timecounter
+ * structure. It should be called whenever a new TIMINCA value is necessary,
+ * such as during initialization or when the link speed changes.
  */
 void ixgbe_ptp_start_cyclecounter(struct ixgbe_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 incval = 0;
-	u32 timinca = 0;
 	u32 shift = 0;
-	u32 cycle_speed;
 	unsigned long flags;
-
-	/**
-	 * Determine what speed we need to set the cyclecounter
-	 * for. It should be different for 100Mb, 1Gb, and 10Gb. Treat
-	 * unknown speeds as 10Gb. (Hence why we can't just copy the
-	 * link_speed.
-	 */
-	switch (adapter->link_speed) {
-	case IXGBE_LINK_SPEED_100_FULL:
-	case IXGBE_LINK_SPEED_1GB_FULL:
-	case IXGBE_LINK_SPEED_10GB_FULL:
-		cycle_speed = adapter->link_speed;
-		break;
-	default:
-		/* cycle speed should be 10Gb when there is no link */
-		cycle_speed = IXGBE_LINK_SPEED_10GB_FULL;
-		break;
-	}
-
-	/*
-	 * grab the current TIMINCA value from the register so that it can be
-	 * double checked. If the register value has been cleared, it must be
-	 * reset to the correct value for generating a cyclecounter. If
-	 * TIMINCA is zero, the SYSTIME registers do not increment at all.
-	 */
-	timinca = IXGBE_READ_REG(hw, IXGBE_TIMINCA);
-
-	/* Bail if the cycle speed didn't change and TIMINCA is non-zero */
-	if (adapter->cycle_speed == cycle_speed && timinca)
-		return;
 
 	/**
 	 * Scale the NIC cycle counter by a large factor so that
@@ -819,8 +732,12 @@ void ixgbe_ptp_start_cyclecounter(struct ixgbe_adapter *adapter)
 	 * to nanoseconds using only a multiplier and a right-shift,
 	 * and (c) the value must fit within the timinca register space
 	 * => math based on internal DMA clock rate and available bits
+	 *
+	 * Note that when there is no link, internal DMA clock is same as when
+	 * link speed is 10Gb. Set the registers correctly even when link is
+	 * down to preserve the clock setting
 	 */
-	switch (cycle_speed) {
+	switch (adapter->link_speed) {
 	case IXGBE_LINK_SPEED_100_FULL:
 		incval = IXGBE_INCVAL_100;
 		shift = IXGBE_INCVAL_SHIFT_100;
@@ -830,6 +747,7 @@ void ixgbe_ptp_start_cyclecounter(struct ixgbe_adapter *adapter)
 		shift = IXGBE_INCVAL_SHIFT_1GB;
 		break;
 	case IXGBE_LINK_SPEED_10GB_FULL:
+	default:
 		incval = IXGBE_INCVAL_10GB;
 		shift = IXGBE_INCVAL_SHIFT_10GB;
 		break;
@@ -857,18 +775,11 @@ void ixgbe_ptp_start_cyclecounter(struct ixgbe_adapter *adapter)
 		return;
 	}
 
-	/* reset the system time registers */
-	IXGBE_WRITE_REG(hw, IXGBE_SYSTIML, 0x00000000);
-	IXGBE_WRITE_REG(hw, IXGBE_SYSTIMH, 0x00000000);
-	IXGBE_WRITE_FLUSH(hw);
-
-	/* store the new cycle speed */
-	adapter->cycle_speed = cycle_speed;
-
+	/* update the base incval used to calculate frequency adjustment */
 	ACCESS_ONCE(adapter->base_incval) = incval;
 	smp_mb();
 
-	/* grab the ptp lock */
+	/* need lock to prevent incorrect read while modifying cyclecounter */
 	spin_lock_irqsave(&adapter->tmreg_lock, flags);
 
 	memset(&adapter->cc, 0, sizeof(adapter->cc));
@@ -876,6 +787,31 @@ void ixgbe_ptp_start_cyclecounter(struct ixgbe_adapter *adapter)
 	adapter->cc.mask = CLOCKSOURCE_MASK(64);
 	adapter->cc.shift = shift;
 	adapter->cc.mult = 1;
+
+	spin_unlock_irqrestore(&adapter->tmreg_lock, flags);
+}
+
+/**
+ * ixgbe_ptp_reset
+ * @adapter: the ixgbe private board structure
+ *
+ * When the MAC resets, all timesync features are reset. This function should be
+ * called to re-enable the PTP clock structure. It will re-init the timecounter
+ * structure based on the kernel time as well as setup the cycle counter data.
+ */
+void ixgbe_ptp_reset(struct ixgbe_adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+	unsigned long flags;
+
+	/* set SYSTIME registers to 0 just in case */
+	IXGBE_WRITE_REG(hw, IXGBE_SYSTIML, 0x00000000);
+	IXGBE_WRITE_REG(hw, IXGBE_SYSTIMH, 0x00000000);
+	IXGBE_WRITE_FLUSH(hw);
+
+	ixgbe_ptp_start_cyclecounter(adapter);
+
+	spin_lock_irqsave(&adapter->tmreg_lock, flags);
 
 	/* reset the ns time counter */
 	timecounter_init(&adapter->tc, &adapter->cc,
@@ -904,7 +840,7 @@ void ixgbe_ptp_init(struct ixgbe_adapter *adapter)
 
 	switch (adapter->hw.mac.type) {
 	case ixgbe_mac_X540:
-		snprintf(adapter->ptp_caps.name, 16, "%pm", netdev->dev_addr);
+		snprintf(adapter->ptp_caps.name, 16, "%s", netdev->name);
 		adapter->ptp_caps.owner = THIS_MODULE;
 		adapter->ptp_caps.max_adj = 250000000;
 		adapter->ptp_caps.n_alarm = 0;
@@ -918,7 +854,7 @@ void ixgbe_ptp_init(struct ixgbe_adapter *adapter)
 		adapter->ptp_caps.enable = ixgbe_ptp_enable;
 		break;
 	case ixgbe_mac_82599EB:
-		snprintf(adapter->ptp_caps.name, 16, "%pm", netdev->dev_addr);
+		snprintf(adapter->ptp_caps.name, 16, "%s", netdev->name);
 		adapter->ptp_caps.owner = THIS_MODULE;
 		adapter->ptp_caps.max_adj = 250000000;
 		adapter->ptp_caps.n_alarm = 0;
@@ -936,16 +872,8 @@ void ixgbe_ptp_init(struct ixgbe_adapter *adapter)
 		return;
 	}
 
-	/* initialize the ptp filter */
-	if (ptp_filter_init(ptp_filter, ARRAY_SIZE(ptp_filter)))
-		e_dev_warn("ptp_filter_init failed\n");
-
 	spin_lock_init(&adapter->tmreg_lock);
-
-	ixgbe_ptp_start_cyclecounter(adapter);
-
-	/* (Re)start the overflow check */
-	adapter->flags2 |= IXGBE_FLAG2_OVERFLOW_CHECK_ENABLED;
+	INIT_WORK(&adapter->ptp_tx_work, ixgbe_ptp_tx_hwtstamp_work);
 
 	adapter->ptp_clock = ptp_clock_register(&adapter->ptp_caps,
 						&adapter->pdev->dev);
@@ -954,6 +882,11 @@ void ixgbe_ptp_init(struct ixgbe_adapter *adapter)
 		e_dev_err("ptp_clock_register failed\n");
 	} else
 		e_dev_info("registered PHC device on %s\n", netdev->name);
+
+	ixgbe_ptp_reset(adapter);
+
+	/* set the flag that PTP has been enabled */
+	adapter->flags2 |= IXGBE_FLAG2_PTP_ENABLED;
 
 	return;
 }
@@ -967,10 +900,16 @@ void ixgbe_ptp_init(struct ixgbe_adapter *adapter)
 void ixgbe_ptp_stop(struct ixgbe_adapter *adapter)
 {
 	/* stop the overflow check task */
-	adapter->flags2 &= ~(IXGBE_FLAG2_OVERFLOW_CHECK_ENABLED |
+	adapter->flags2 &= ~(IXGBE_FLAG2_PTP_ENABLED |
 			     IXGBE_FLAG2_PTP_PPS_ENABLED);
 
 	ixgbe_ptp_setup_sdp(adapter);
+
+	cancel_work_sync(&adapter->ptp_tx_work);
+	if (adapter->ptp_tx_skb) {
+		dev_kfree_skb_any(adapter->ptp_tx_skb);
+		adapter->ptp_tx_skb = NULL;
+	}
 
 	if (adapter->ptp_clock) {
 		ptp_clock_unregister(adapter->ptp_clock);

@@ -1048,7 +1048,7 @@ static const struct net_device_ops i596_netdev_ops = {
 #endif
 };
 
-static int __devinit i82596_probe(struct net_device *dev)
+static int i82596_probe(struct net_device *dev)
 {
 	int i;
 	struct i596_private *lp = netdev_priv(dev);

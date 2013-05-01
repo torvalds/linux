@@ -3,7 +3,7 @@
  * OCTEON 3XXX, 5XXX, 63XX device tree skeleton.
  *
  * This device tree is pruned and patched by early boot code before
- * use.  Because of this, it contains a super-set of the available
+ * use.	 Because of this, it contains a super-set of the available
  * devices and properties.
  */
 / {
@@ -433,12 +433,12 @@
 				cavium,t-we   = <45>;
 				cavium,t-rd-hld = <35>;
 				cavium,t-wr-hld = <45>;
-				cavium,t-pause  = <0>;
-				cavium,t-wait   = <0>;
-				cavium,t-page   = <35>;
+				cavium,t-pause	= <0>;
+				cavium,t-wait	= <0>;
+				cavium,t-page	= <35>;
 				cavium,t-rd-dly = <0>;
 
-				cavium,pages     = <0>;
+				cavium,pages	 = <0>;
 				cavium,bus-width = <8>;
 			};
 			cavium,cs-config@4 {
@@ -450,12 +450,12 @@
 				cavium,t-we   = <320>;
 				cavium,t-rd-hld = <320>;
 				cavium,t-wr-hld = <320>;
-				cavium,t-pause  = <320>;
-				cavium,t-wait   = <320>;
-				cavium,t-page   = <320>;
+				cavium,t-pause	= <320>;
+				cavium,t-wait	= <320>;
+				cavium,t-page	= <320>;
 				cavium,t-rd-dly = <0>;
 
-				cavium,pages     = <0>;
+				cavium,pages	 = <0>;
 				cavium,bus-width = <8>;
 			};
 			cavium,cs-config@5 {
@@ -467,12 +467,12 @@
 				cavium,t-we   = <150>;
 				cavium,t-rd-hld = <100>;
 				cavium,t-wr-hld = <30>;
-				cavium,t-pause  = <0>;
-				cavium,t-wait   = <30>;
-				cavium,t-page   = <320>;
+				cavium,t-pause	= <0>;
+				cavium,t-wait	= <30>;
+				cavium,t-page	= <320>;
 				cavium,t-rd-dly = <0>;
 
-				cavium,pages     = <0>;
+				cavium,pages	 = <0>;
 				cavium,bus-width = <16>;
 			};
 			cavium,cs-config@6 {
@@ -484,12 +484,12 @@
 				cavium,t-we   = <150>;
 				cavium,t-rd-hld = <100>;
 				cavium,t-wr-hld = <70>;
-				cavium,t-pause  = <0>;
-				cavium,t-wait   = <0>;
-				cavium,t-page   = <320>;
+				cavium,t-pause	= <0>;
+				cavium,t-wait	= <0>;
+				cavium,t-page	= <320>;
 				cavium,t-rd-dly = <0>;
 
-				cavium,pages     = <0>;
+				cavium,pages	 = <0>;
 				cavium,wait-mode;
 				cavium,bus-width = <16>;
 			};

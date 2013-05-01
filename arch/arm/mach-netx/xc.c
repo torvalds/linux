@@ -136,7 +136,7 @@ int xc_request_firmware(struct xc *x)
 	if (head->magic != 0x4e657458) {
 		if (head->magic == 0x5874654e) {
 			dev_err(x->dev,
-			    "firmware magic is 'XteN'. Endianess problems?\n");
+			    "firmware magic is 'XteN'. Endianness problems?\n");
 			ret = -ENODEV;
 			goto exit_release_firmware;
 		}

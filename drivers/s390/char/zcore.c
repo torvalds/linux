@@ -62,6 +62,7 @@ static struct dentry *zcore_dir;
 static struct dentry *zcore_file;
 static struct dentry *zcore_memmap_file;
 static struct dentry *zcore_reipl_file;
+static struct dentry *zcore_hsa_file;
 static struct ipl_parameter_block *ipl_block;
 
 /*
@@ -77,6 +78,8 @@ static int memcpy_hsa(void *dest, unsigned long src, size_t count, int mode)
 	int offs, blk_num;
 	static char buf[PAGE_SIZE] __attribute__((__aligned__(PAGE_SIZE)));
 
+	if (!hsa_available)
+		return -ENODATA;
 	if (count == 0)
 		return 0;
 
@@ -278,6 +281,15 @@ next:
 }
 
 /*
+ * Release the HSA
+ */
+static void release_hsa(void)
+{
+	diag308(DIAG308_REL_HSA, NULL);
+	hsa_available = 0;
+}
+
+/*
  * Read routine for zcore character device
  * First 4K are dump header
  * Next 32MB are HSA Memory
@@ -363,8 +375,8 @@ static int zcore_open(struct inode *inode, struct file *filp)
 
 static int zcore_release(struct inode *inode, struct file *filep)
 {
-	diag308(DIAG308_REL_HSA, NULL);
-	hsa_available = 0;
+	if (hsa_available)
+		release_hsa();
 	return 0;
 }
 
@@ -471,6 +483,41 @@ static const struct file_operations zcore_reipl_fops = {
 	.write		= zcore_reipl_write,
 	.open		= zcore_reipl_open,
 	.release	= zcore_reipl_release,
+	.llseek		= no_llseek,
+};
+
+static ssize_t zcore_hsa_read(struct file *filp, char __user *buf,
+			      size_t count, loff_t *ppos)
+{
+	static char str[18];
+
+	if (hsa_available)
+		snprintf(str, sizeof(str), "%lx\n", ZFCPDUMP_HSA_SIZE);
+	else
+		snprintf(str, sizeof(str), "0\n");
+	return simple_read_from_buffer(buf, count, ppos, str, strlen(str));
+}
+
+static ssize_t zcore_hsa_write(struct file *filp, const char __user *buf,
+			       size_t count, loff_t *ppos)
+{
+	char value;
+
+	if (*ppos != 0)
+		return -EPIPE;
+	if (copy_from_user(&value, buf, 1))
+		return -EFAULT;
+	if (value != '0')
+		return -EINVAL;
+	release_hsa();
+	return count;
+}
+
+static const struct file_operations zcore_hsa_fops = {
+	.owner		= THIS_MODULE,
+	.write		= zcore_hsa_write,
+	.read		= zcore_hsa_read,
+	.open		= nonseekable_open,
 	.llseek		= no_llseek,
 };
 
@@ -590,7 +637,7 @@ static int __init zcore_header_init(int arch, struct zcore_header *hdr)
 	hdr->rmem_size = memory;
 	hdr->mem_end = sys_info.mem_size;
 	hdr->num_pages = memory / PAGE_SIZE;
-	hdr->tod = get_clock();
+	hdr->tod = get_tod_clock();
 	get_cpu_id(&hdr->cpu_id);
 	for (i = 0; zfcpdump_save_areas[i]; i++) {
 		prefix = zfcpdump_save_areas[i]->pref_reg;
@@ -658,6 +705,7 @@ static int __init zcore_init(void)
 	rc = check_sdias();
 	if (rc)
 		goto fail;
+	hsa_available = 1;
 
 	rc = memcpy_hsa_kernel(&arch, __LC_AR_MODE_ID, 1);
 	if (rc)
@@ -714,9 +762,16 @@ static int __init zcore_init(void)
 		rc = -ENOMEM;
 		goto fail_memmap_file;
 	}
-	hsa_available = 1;
+	zcore_hsa_file = debugfs_create_file("hsa", S_IRUSR|S_IWUSR, zcore_dir,
+					     NULL, &zcore_hsa_fops);
+	if (!zcore_hsa_file) {
+		rc = -ENOMEM;
+		goto fail_reipl_file;
+	}
 	return 0;
 
+fail_reipl_file:
+	debugfs_remove(zcore_reipl_file);
 fail_memmap_file:
 	debugfs_remove(zcore_memmap_file);
 fail_file:
@@ -733,6 +788,7 @@ static void __exit zcore_exit(void)
 	debug_unregister(zcore_dbf);
 	sclp_sdias_exit();
 	free_page((unsigned long) ipl_block);
+	debugfs_remove(zcore_hsa_file);
 	debugfs_remove(zcore_reipl_file);
 	debugfs_remove(zcore_memmap_file);
 	debugfs_remove(zcore_file);

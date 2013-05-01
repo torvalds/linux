@@ -21,6 +21,7 @@
 #include "main.h"
 #include "phy_shim.h"
 #include "antsel.h"
+#include "debug.h"
 
 #define ANT_SELCFG_AUTO		0x80	/* bit indicates antenna sel AUTO */
 #define ANT_SELCFG_MASK		0x33	/* antenna configuration mask */
@@ -137,7 +138,8 @@ struct antsel_info *brcms_c_antsel_attach(struct brcms_c_info *wlc)
 				asi->antsel_avail = false;
 			} else {
 				asi->antsel_avail = false;
-				wiphy_err(wlc->wiphy, "antsel_attach: 2o3 "
+				brcms_err(wlc->hw->d11core,
+					  "antsel_attach: 2o3 "
 					  "board cfg invalid\n");
 			}
 

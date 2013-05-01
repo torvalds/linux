@@ -62,18 +62,32 @@ Configuration options:
 	256|=ignore nFull - A/D FIFO Full status
 
 */
-#include "../comedidev.h"
 
+/*
+ * FIXME
+ *
+ * All the supported boards have the same PCI vendor and device IDs, so
+ * auto-attachment of PCI devices will always find the first board type.
+ *
+ * Perhaps the boards have different subdevice IDs that we could use to
+ * distinguish them?
+ *
+ * Need some device attributes so the board type can be corrected after
+ * attachment if necessary, and possibly to set other options supported by
+ * manual attachment.
+ */
+
+#include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/gfp.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 
+#include "../comedidev.h"
+
 #include "amcc_s5933.h"
 #include "8253.h"
 #include "comedi_fc.h"
-
-#define PCI_VENDOR_ID_AMCC	0x10e8
 
 /* paranoid checks are broken */
 #undef PCI9118_PARANOIDCHECK	/*
@@ -210,8 +224,7 @@ static const struct comedi_lrange range_pci9118hg = { 8, {
 
 struct boardtype {
 	const char *name;		/* board name */
-	int vendor_id;			/* PCI vendor a device ID of card */
-	int device_id;
+	int device_id;			/* PCI device ID of card */
 	int iorange_amcc;		/* iorange for own S5933 region */
 	int iorange_9118;		/* pass thru card region size */
 	int n_aichan;			/* num of A/D chans */
@@ -233,6 +246,61 @@ struct boardtype {
 					 */
 	int half_fifo_size;		/* size of FIFO/2 */
 
+};
+
+static const struct boardtype boardtypes[] = {
+	{
+		.name		= "pci9118dg",
+		.device_id	= 0x80d9,
+		.iorange_amcc	= AMCC_OP_REG_SIZE,
+		.iorange_9118	= IORANGE_9118,
+		.n_aichan	= 16,
+		.n_aichand	= 8,
+		.mux_aichan	= 256,
+		.n_aichanlist	= PCI9118_CHANLEN,
+		.n_aochan	= 2,
+		.ai_maxdata	= 0x0fff,
+		.ao_maxdata	= 0x0fff,
+		.rangelist_ai	= &range_pci9118dg_hr,
+		.rangelist_ao	= &range_bipolar10,
+		.ai_ns_min	= 3000,
+		.ai_pacer_min	= 12,
+		.half_fifo_size	= 512,
+	}, {
+		.name		= "pci9118hg",
+		.device_id	= 0x80d9,
+		.iorange_amcc	= AMCC_OP_REG_SIZE,
+		.iorange_9118	= IORANGE_9118,
+		.n_aichan	= 16,
+		.n_aichand	= 8,
+		.mux_aichan	= 256,
+		.n_aichanlist	= PCI9118_CHANLEN,
+		.n_aochan	= 2,
+		.ai_maxdata	= 0x0fff,
+		.ao_maxdata	= 0x0fff,
+		.rangelist_ai	= &range_pci9118hg,
+		.rangelist_ao	= &range_bipolar10,
+		.ai_ns_min	= 3000,
+		.ai_pacer_min	= 12,
+		.half_fifo_size	= 512,
+	}, {
+		.name		= "pci9118hr",
+		.device_id	= 0x80d9,
+		.iorange_amcc	= AMCC_OP_REG_SIZE,
+		.iorange_9118	= IORANGE_9118,
+		.n_aichan	= 16,
+		.n_aichand	= 8,
+		.mux_aichan	= 256,
+		.n_aichanlist	= PCI9118_CHANLEN,
+		.n_aochan	= 2,
+		.ai_maxdata	= 0xffff,
+		.ao_maxdata	= 0x0fff,
+		.rangelist_ai	= &range_pci9118dg_hr,
+		.rangelist_ao	= &range_bipolar10,
+		.ai_ns_min	= 10000,
+		.ai_pacer_min	= 40,
+		.half_fifo_size	= 512,
+	},
 };
 
 struct pci9118_private {
@@ -358,10 +426,8 @@ static int check_channel_list(struct comedi_device *dev,
 		return 0;
 	}
 	if ((frontadd + n_chan + backadd) > s->len_chanlist) {
-		printk
-		    ("comedi%d: range/channel list is too long for "
-						"actual configuration (%d>%d)!",
-		     dev->minor, n_chan, s->len_chanlist - frontadd - backadd);
+		comedi_error(dev,
+			    "range/channel list is too long for actual configuration!\n");
 		return 0;
 	}
 
@@ -744,7 +810,7 @@ static void pci9118_calc_divisors(char mode, struct comedi_device *dev,
 		*tim2 = *div1 * devpriv->i8254_osc_base;
 							/* real convert timer */
 
-		if (usessh & (chnsshfront == 0))	/* use BSSH signal */
+		if (usessh && (chnsshfront == 0))	/* use BSSH signal */
 			if (*div2 < (chans + 2))
 				*div2 = chans + 2;
 
@@ -892,11 +958,10 @@ static void interrupt_pci9118_ai_onesample(struct comedi_device *dev,
 	if (devpriv->ai16bits == 0) {
 		if ((sampl & 0x000f) != devpriv->chanlist[s->async->cur_chan]) {
 							/* data dropout! */
-			printk
-			    ("comedi: A/D  SAMPL - data dropout: "
-				"received channel %d, expected %d!\n",
-				sampl & 0x000f,
-				devpriv->chanlist[s->async->cur_chan]);
+			dev_info(dev->class_dev,
+				 "A/D  SAMPL - data dropout: received channel %d, expected %d!\n",
+				 sampl & 0x000f,
+				 devpriv->chanlist[s->async->cur_chan]);
 			s->async->events |= COMEDI_CB_ERROR | COMEDI_CB_EOA;
 			pci9118_ai_cancel(dev, s);
 			comedi_event(dev, s);
@@ -1153,19 +1218,13 @@ static int pci9118_ai_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 2;
 
-	/* step 3: make sure arguments are trivially compatible */
+	/* Step 3: check if arguments are trivially valid */
 
 	if (cmd->start_src & (TRIG_NOW | TRIG_EXT))
-		if (cmd->start_arg != 0) {
-			cmd->start_arg = 0;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
 
 	if (cmd->scan_begin_src & (TRIG_FOLLOW | TRIG_EXT))
-		if (cmd->scan_begin_arg != 0) {
-			cmd->scan_begin_arg = 0;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 
 	if ((cmd->scan_begin_src == TRIG_TIMER) &&
 	    (cmd->convert_src == TRIG_TIMER) && (cmd->scan_end_arg == 1)) {
@@ -1175,64 +1234,40 @@ static int pci9118_ai_cmdtest(struct comedi_device *dev,
 	}
 
 	if (cmd->scan_begin_src == TRIG_TIMER)
-		if (cmd->scan_begin_arg < this_board->ai_ns_min) {
-			cmd->scan_begin_arg = this_board->ai_ns_min;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+						 this_board->ai_ns_min);
 
 	if (cmd->scan_begin_src == TRIG_EXT)
 		if (cmd->scan_begin_arg) {
 			cmd->scan_begin_arg = 0;
-			err++;
-			if (cmd->scan_end_arg > 65535) {
-				cmd->scan_end_arg = 65535;
-				err++;
-			}
+			err |= -EINVAL;
+			err |= cfc_check_trigger_arg_max(&cmd->scan_end_arg,
+							 65535);
 		}
 
 	if (cmd->convert_src & (TRIG_TIMER | TRIG_NOW))
-		if (cmd->convert_arg < this_board->ai_ns_min) {
-			cmd->convert_arg = this_board->ai_ns_min;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_min(&cmd->convert_arg,
+						 this_board->ai_ns_min);
 
 	if (cmd->convert_src == TRIG_EXT)
-		if (cmd->convert_arg) {
-			cmd->convert_arg = 0;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
 
-	if (cmd->stop_src == TRIG_COUNT) {
-		if (!cmd->stop_arg) {
-			cmd->stop_arg = 1;
-			err++;
-		}
-	} else {		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
-	}
+	if (cmd->stop_src == TRIG_COUNT)
+		err |= cfc_check_trigger_arg_min(&cmd->stop_arg, 1);
+	else	/* TRIG_NONE */
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 
-	if (!cmd->chanlist_len) {
-		cmd->chanlist_len = 1;
-		err++;
-	}
+	err |= cfc_check_trigger_arg_min(&cmd->chanlist_len, 1);
+	err |= cfc_check_trigger_arg_max(&cmd->chanlist_len,
+					 this_board->n_aichanlist);
 
-	if (cmd->chanlist_len > this_board->n_aichanlist) {
-		cmd->chanlist_len = this_board->n_aichanlist;
-		err++;
-	}
-
-	if (cmd->scan_end_arg < cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
+	err |= cfc_check_trigger_arg_min(&cmd->scan_end_arg,
+					 cmd->chanlist_len);
 
 	if ((cmd->scan_end_arg % cmd->chanlist_len)) {
 		cmd->scan_end_arg =
 		    cmd->chanlist_len * (cmd->scan_end_arg / cmd->chanlist_len);
-		err++;
+		err |= -EINVAL;
 	}
 
 	if (err)
@@ -1318,21 +1353,18 @@ static int Compute_and_setup_dma(struct comedi_device *dev)
 		if (dmalen0 < (devpriv->ai_n_realscanlen << 1)) {
 			/* uff, too short DMA buffer, disable EOS support! */
 			devpriv->ai_flags &= (~TRIG_WAKE_EOS);
-			printk
-			    ("comedi%d: WAR: DMA0 buf too short, can't "
-					"support TRIG_WAKE_EOS (%d<%d)\n",
-			     dev->minor, dmalen0,
-			     devpriv->ai_n_realscanlen << 1);
+			dev_info(dev->class_dev,
+				 "WAR: DMA0 buf too short, can't support TRIG_WAKE_EOS (%d<%d)\n",
+				  dmalen0, devpriv->ai_n_realscanlen << 1);
 		} else {
 			/* short first DMA buffer to one scan */
 			dmalen0 = devpriv->ai_n_realscanlen << 1;
 			if (devpriv->useeoshandle)
 				dmalen0 += 2;
 			if (dmalen0 < 4) {
-				printk
-					("comedi%d: ERR: DMA0 buf len bug? "
-								"(%d<4)\n",
-					dev->minor, dmalen0);
+				dev_info(dev->class_dev,
+					 "ERR: DMA0 buf len bug? (%d<4)\n",
+					 dmalen0);
 				dmalen0 = 4;
 			}
 		}
@@ -1341,21 +1373,18 @@ static int Compute_and_setup_dma(struct comedi_device *dev)
 		if (dmalen1 < (devpriv->ai_n_realscanlen << 1)) {
 			/* uff, too short DMA buffer, disable EOS support! */
 			devpriv->ai_flags &= (~TRIG_WAKE_EOS);
-			printk
-			    ("comedi%d: WAR: DMA1 buf too short, "
-					"can't support TRIG_WAKE_EOS (%d<%d)\n",
-			     dev->minor, dmalen1,
-			     devpriv->ai_n_realscanlen << 1);
+			dev_info(dev->class_dev,
+				 "WAR: DMA1 buf too short, can't support TRIG_WAKE_EOS (%d<%d)\n",
+				 dmalen1, devpriv->ai_n_realscanlen << 1);
 		} else {
 			/* short second DMA buffer to one scan */
 			dmalen1 = devpriv->ai_n_realscanlen << 1;
 			if (devpriv->useeoshandle)
 				dmalen1 -= 2;
 			if (dmalen1 < 4) {
-				printk
-					("comedi%d: ERR: DMA1 buf len bug? "
-								"(%d<4)\n",
-					dev->minor, dmalen1);
+				dev_info(dev->class_dev,
+					 "ERR: DMA1 buf len bug? (%d<4)\n",
+					 dmalen1);
 				dmalen1 = 4;
 			}
 		}
@@ -1865,6 +1894,20 @@ static int pci9118_reset(struct comedi_device *dev)
 	return 0;
 }
 
+/*
+ * FIXME - this is pretty ineffective because all the supported board types
+ * have the same device ID!
+ */
+static const struct boardtype *pci9118_find_boardinfo(struct pci_dev *pcidev)
+{
+	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(boardtypes); i++)
+		if (pcidev->device == boardtypes[i].device_id)
+			return &boardtypes[i];
+	return NULL;
+}
+
 static struct pci_dev *pci9118_find_pci(struct comedi_device *dev,
 					struct comedi_devconfig *it)
 {
@@ -1884,84 +1927,62 @@ static struct pci_dev *pci9118_find_pci(struct comedi_device *dev,
 			    PCI_SLOT(pcidev->devfn) != slot)
 				continue;
 		}
-		/*
-		 * Look for device that isn't in use.
-		 * Enable PCI device and request regions.
-		 */
-		if (comedi_pci_enable(pcidev, "adl_pci9118"))
-			continue;
-		printk(KERN_ERR ", b:s:f=%d:%d:%d, io=0x%4lx, 0x%4lx",
-			pcidev->bus->number,
-			PCI_SLOT(pcidev->devfn),
-			PCI_FUNC(pcidev->devfn),
-			(unsigned long)pci_resource_start(pcidev, 2),
-			(unsigned long)pci_resource_start(pcidev, 0));
 		return pcidev;
 	}
-	printk(KERN_ERR
-		"comedi%d: no supported board found! (req. bus/slot : %d/%d)\n",
-		dev->minor, bus, slot);
+	dev_err(dev->class_dev,
+		"no supported board found! (req. bus/slot : %d/%d)\n",
+		bus, slot);
 	return NULL;
 }
 
-static int pci9118_attach(struct comedi_device *dev,
-			  struct comedi_devconfig *it)
+static void pci9118_report_attach(struct comedi_device *dev, unsigned int irq)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	struct pci9118_private *devpriv = dev->private;
+	char irqbuf[30];
+	char muxbuf[30];
+
+	if (irq)
+		snprintf(irqbuf, sizeof(irqbuf), "irq %u%s", irq,
+			 (dev->irq ? "" : " UNAVAILABLE"));
+	else
+		snprintf(irqbuf, sizeof(irqbuf), "irq DISABLED");
+	if (devpriv->usemux)
+		snprintf(muxbuf, sizeof(muxbuf), "ext mux %u chans",
+			 devpriv->usemux);
+	else
+		snprintf(muxbuf, sizeof(muxbuf), "no ext mux");
+	dev_info(dev->class_dev, "%s (pci %s, %s, %sbus master, %s) attached\n",
+		 dev->board_name, pci_name(pcidev), irqbuf,
+		 (devpriv->master ? "" : "no "), muxbuf);
+}
+
+static int pci9118_common_attach(struct comedi_device *dev, int disable_irq,
+				 int master, int ext_mux, int softsshdelay,
+				 int hw_err_mask)
 {
 	const struct boardtype *this_board = comedi_board(dev);
-	struct pci9118_private *devpriv;
-	struct pci_dev *pcidev;
+	struct pci9118_private *devpriv = dev->private;
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct comedi_subdevice *s;
 	int ret, pages, i;
-	unsigned short master;
 	unsigned int irq;
 	u16 u16w;
 
-	printk("comedi%d: adl_pci9118: board=%s", dev->minor, this_board->name);
-
-	if (it->options[3] & 1)
-		master = 0;	/* user don't want use bus master */
-	else
-		master = 1;
-
-	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret < 0) {
-		printk(" - Allocation failed!\n");
-		return -ENOMEM;
+	dev->board_name = this_board->name;
+	ret = comedi_pci_enable(pcidev, dev->board_name);
+	if (ret) {
+		dev_err(dev->class_dev,
+			"cannot enable PCI device %s\n", pci_name(pcidev));
+		return ret;
 	}
-	devpriv = dev->private;
-
-	pcidev = pci9118_find_pci(dev, it);
-	if (!pcidev)
-		return -EIO;
-	comedi_set_hw_dev(dev, &pcidev->dev);
-
 	if (master)
 		pci_set_master(pcidev);
 
-	irq = pcidev->irq;
 	devpriv->iobase_a = pci_resource_start(pcidev, 0);
 	dev->iobase = pci_resource_start(pcidev, 2);
 
-	dev->board_name = this_board->name;
-
 	pci9118_reset(dev);
-
-	if (it->options[3] & 2)
-		irq = 0;	/* user don't want use IRQ */
-	if (irq > 0) {
-		if (request_irq(irq, interrupt_pci9118, IRQF_SHARED,
-				"ADLink PCI-9118", dev)) {
-			printk(", unable to allocate IRQ %d, DISABLING IT",
-			       irq);
-			irq = 0;	/* Can't use IRQ */
-		} else {
-			printk(", irq=%u", irq);
-		}
-	} else {
-		printk(", IRQ disabled");
-	}
-
-	dev->irq = irq;
 
 	if (master) {		/* alloc DMA buffers */
 		devpriv->dma_doublebuf = 0;
@@ -1984,46 +2005,36 @@ static int pci9118_attach(struct comedi_device *dev,
 			}
 		}
 		if (!devpriv->dmabuf_virt[0]) {
-			printk(", Can't allocate DMA buffer, DMA disabled!");
+			dev_warn(dev->class_dev,
+				 "Can't allocate DMA buffer, DMA disabled!\n");
 			master = 0;
 		}
-
 		if (devpriv->dmabuf_virt[1])
 			devpriv->dma_doublebuf = 1;
-
 	}
-
 	devpriv->master = master;
-	if (devpriv->master)
-		printk(", bus master");
-	else
-		printk(", no bus master");
 
-	devpriv->usemux = 0;
-	if (it->options[2] > 0) {
-		devpriv->usemux = it->options[2];
-		if (devpriv->usemux > 256)
-			devpriv->usemux = 256;	/* max 256 channels! */
-		if (it->options[4] > 0)
-			if (devpriv->usemux > 128) {
-				devpriv->usemux = 128;
-					/* max 128 channels with softare S&H! */
-			}
-		printk(", ext. mux %d channels", devpriv->usemux);
+	if (ext_mux > 0) {
+		if (ext_mux > 256)
+			ext_mux = 256;	/* max 256 channels! */
+		if (softsshdelay > 0)
+			if (ext_mux > 128)
+				ext_mux = 128;
+		devpriv->usemux = ext_mux;
+	} else {
+		devpriv->usemux = 0;
 	}
 
-	devpriv->softsshdelay = it->options[4];
-	if (devpriv->softsshdelay < 0) {
-					/* select sample&hold signal polarity */
-		devpriv->softsshdelay = -devpriv->softsshdelay;
+	if (softsshdelay < 0) {
+		/* select sample&hold signal polarity */
+		devpriv->softsshdelay = -softsshdelay;
 		devpriv->softsshsample = 0x80;
 		devpriv->softsshhold = 0x00;
 	} else {
+		devpriv->softsshdelay = softsshdelay;
 		devpriv->softsshsample = 0x00;
 		devpriv->softsshhold = 0x80;
 	}
-
-	printk(".\n");
 
 	pci_read_config_word(pcidev, PCI_COMMAND, &u16w);
 	pci_write_config_word(pcidev, PCI_COMMAND, u16w | 64);
@@ -2047,12 +2058,7 @@ static int pci9118_attach(struct comedi_device *dev,
 	s->range_table = this_board->rangelist_ai;
 	s->cancel = pci9118_ai_cancel;
 	s->insn_read = pci9118_insn_read_ai;
-	if (dev->irq) {
-		s->subdev_flags |= SDF_CMD_READ;
-		s->do_cmdtest = pci9118_ai_cmdtest;
-		s->do_cmd = pci9118_ai_cmd;
-		s->munge = pci9118_ai_munge;
-	}
+	s->munge = pci9118_ai_munge;
 
 	s = &dev->subdevices[1];
 	s->type = COMEDI_SUBD_AO;
@@ -2088,8 +2094,8 @@ static int pci9118_attach(struct comedi_device *dev,
 	devpriv->i8254_osc_base = 250;	/* 250ns=4MHz */
 	devpriv->ai_maskharderr = 0x10a;
 					/* default measure crash condition */
-	if (it->options[5])		/* disable some requested */
-		devpriv->ai_maskharderr &= ~it->options[5];
+	if (hw_err_mask)		/* disable some requested */
+		devpriv->ai_maskharderr &= ~hw_err_mask;
 
 	switch (this_board->ai_maxdata) {
 	case 0xffff:
@@ -2099,7 +2105,84 @@ static int pci9118_attach(struct comedi_device *dev,
 		devpriv->ai16bits = 0;
 		break;
 	}
+
+	if (disable_irq)
+		irq = 0;
+	else
+		irq = pcidev->irq;
+	if (irq > 0) {
+		if (request_irq(irq, interrupt_pci9118, IRQF_SHARED,
+				dev->board_name, dev)) {
+			dev_warn(dev->class_dev,
+				 "unable to allocate IRQ %u, DISABLING IT\n",
+				 irq);
+		} else {
+			dev->irq = irq;
+			/* Enable AI commands */
+			s = &dev->subdevices[0];
+			s->subdev_flags |= SDF_CMD_READ;
+			s->do_cmdtest = pci9118_ai_cmdtest;
+			s->do_cmd = pci9118_ai_cmd;
+		}
+	}
+
+	pci9118_report_attach(dev, irq);
 	return 0;
+}
+
+static int pci9118_attach(struct comedi_device *dev,
+			  struct comedi_devconfig *it)
+{
+	struct pci9118_private *devpriv;
+	struct pci_dev *pcidev;
+	int ext_mux, disable_irq, master, softsshdelay, hw_err_mask;
+
+	ext_mux = it->options[2];
+	master = ((it->options[3] & 1) == 0);
+	disable_irq = ((it->options[3] & 2) != 0);
+	softsshdelay = it->options[4];
+	hw_err_mask = it->options[5];
+
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
+
+	pcidev = pci9118_find_pci(dev, it);
+	if (!pcidev)
+		return -EIO;
+	comedi_set_hw_dev(dev, &pcidev->dev);
+
+	return pci9118_common_attach(dev, disable_irq, master, ext_mux,
+				     softsshdelay, hw_err_mask);
+}
+
+static int pci9118_auto_attach(struct comedi_device *dev,
+					 unsigned long context_unused)
+{
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	struct pci9118_private *devpriv;
+
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
+
+	dev->board_ptr = pci9118_find_boardinfo(pcidev);
+	if (dev->board_ptr == NULL) {
+		dev_err(dev->class_dev,
+			"adl_pci9118: cannot determine board type for pci %s\n",
+			pci_name(pcidev));
+		return -EINVAL;
+	}
+	/*
+	 * Need to 'get' the PCI device to match the 'put' in pci9118_detach().
+	 * (The 'put' also matches the implicit 'get' by pci9118_find_pci().)
+	 */
+	pci_dev_get(pcidev);
+	/* Don't disable irq, use bus master, no external mux,
+	 * no sample-hold delay, no error mask. */
+	return pci9118_common_attach(dev, 0, 1, 0, 0, 0);
 }
 
 static void pci9118_detach(struct comedi_device *dev)
@@ -2127,83 +2210,21 @@ static void pci9118_detach(struct comedi_device *dev)
 	}
 }
 
-static const struct boardtype boardtypes[] = {
-	{
-		.name		= "pci9118dg",
-		.vendor_id	= PCI_VENDOR_ID_AMCC,
-		.device_id	= 0x80d9,
-		.iorange_amcc	= AMCC_OP_REG_SIZE,
-		.iorange_9118	= IORANGE_9118,
-		.n_aichan	= 16,
-		.n_aichand	= 8,
-		.mux_aichan	= 256,
-		.n_aichanlist	= PCI9118_CHANLEN,
-		.n_aochan	= 2,
-		.ai_maxdata	= 0x0fff,
-		.ao_maxdata	= 0x0fff,
-		.rangelist_ai	= &range_pci9118dg_hr,
-		.rangelist_ao	= &range_bipolar10,
-		.ai_ns_min	= 3000,
-		.ai_pacer_min	= 12,
-		.half_fifo_size	= 512,
-	}, {
-		.name		= "pci9118hg",
-		.vendor_id	= PCI_VENDOR_ID_AMCC,
-		.device_id	= 0x80d9,
-		.iorange_amcc	= AMCC_OP_REG_SIZE,
-		.iorange_9118	= IORANGE_9118,
-		.n_aichan	= 16,
-		.n_aichand	= 8,
-		.mux_aichan	= 256,
-		.n_aichanlist	= PCI9118_CHANLEN,
-		.n_aochan	= 2,
-		.ai_maxdata	= 0x0fff,
-		.ao_maxdata	= 0x0fff,
-		.rangelist_ai	= &range_pci9118hg,
-		.rangelist_ao	= &range_bipolar10,
-		.ai_ns_min	= 3000,
-		.ai_pacer_min	= 12,
-		.half_fifo_size	= 512,
-	}, {
-		.name		= "pci9118hr",
-		.vendor_id	= PCI_VENDOR_ID_AMCC,
-		.device_id	= 0x80d9,
-		.iorange_amcc	= AMCC_OP_REG_SIZE,
-		.iorange_9118	= IORANGE_9118,
-		.n_aichan	= 16,
-		.n_aichand	= 8,
-		.mux_aichan	= 256,
-		.n_aichanlist	= PCI9118_CHANLEN,
-		.n_aochan	= 2,
-		.ai_maxdata	= 0xffff,
-		.ao_maxdata	= 0x0fff,
-		.rangelist_ai	= &range_pci9118dg_hr,
-		.rangelist_ao	= &range_bipolar10,
-		.ai_ns_min	= 10000,
-		.ai_pacer_min	= 40,
-		.half_fifo_size	= 512,
-	},
-};
-
 static struct comedi_driver adl_pci9118_driver = {
 	.driver_name	= "adl_pci9118",
 	.module		= THIS_MODULE,
 	.attach		= pci9118_attach,
+	.auto_attach	= pci9118_auto_attach,
 	.detach		= pci9118_detach,
 	.num_names	= ARRAY_SIZE(boardtypes),
 	.board_name	= &boardtypes[0].name,
 	.offset		= sizeof(struct boardtype),
 };
 
-static int __devinit adl_pci9118_pci_probe(struct pci_dev *dev,
+static int adl_pci9118_pci_probe(struct pci_dev *dev,
 					   const struct pci_device_id *ent)
 {
 	return comedi_pci_auto_config(dev, &adl_pci9118_driver);
-}
-
-static void __devexit adl_pci9118_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(adl_pci9118_pci_table) = {
@@ -2216,7 +2237,7 @@ static struct pci_driver adl_pci9118_pci_driver = {
 	.name		= "adl_pci9118",
 	.id_table	= adl_pci9118_pci_table,
 	.probe		= adl_pci9118_pci_probe,
-	.remove		= __devexit_p(adl_pci9118_pci_remove),
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(adl_pci9118_driver, adl_pci9118_pci_driver);
 

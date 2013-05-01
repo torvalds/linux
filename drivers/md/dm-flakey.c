@@ -39,6 +39,10 @@ enum feature_flag_bits {
 	DROP_WRITES
 };
 
+struct per_bio_data {
+	bool bio_submitted;
+};
+
 static int parse_features(struct dm_arg_set *as, struct flakey_c *fc,
 			  struct dm_target *ti)
 {
@@ -212,8 +216,9 @@ static int flakey_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad;
 	}
 
-	ti->num_flush_requests = 1;
-	ti->num_discard_requests = 1;
+	ti->num_flush_bios = 1;
+	ti->num_discard_bios = 1;
+	ti->per_bio_data_size = sizeof(struct per_bio_data);
 	ti->private = fc;
 	return 0;
 
@@ -265,11 +270,12 @@ static void corrupt_bio_data(struct bio *bio, struct flakey_c *fc)
 	}
 }
 
-static int flakey_map(struct dm_target *ti, struct bio *bio,
-		      union map_info *map_context)
+static int flakey_map(struct dm_target *ti, struct bio *bio)
 {
 	struct flakey_c *fc = ti->private;
 	unsigned elapsed;
+	struct per_bio_data *pb = dm_per_bio_data(bio, sizeof(struct per_bio_data));
+	pb->bio_submitted = false;
 
 	/* Are we alive ? */
 	elapsed = (jiffies - fc->start_time) / HZ;
@@ -277,7 +283,7 @@ static int flakey_map(struct dm_target *ti, struct bio *bio,
 		/*
 		 * Flag this bio as submitted while down.
 		 */
-		map_context->ll = 1;
+		pb->bio_submitted = true;
 
 		/*
 		 * Map reads as normal.
@@ -314,17 +320,16 @@ map_bio:
 	return DM_MAPIO_REMAPPED;
 }
 
-static int flakey_end_io(struct dm_target *ti, struct bio *bio,
-			 int error, union map_info *map_context)
+static int flakey_end_io(struct dm_target *ti, struct bio *bio, int error)
 {
 	struct flakey_c *fc = ti->private;
-	unsigned bio_submitted_while_down = map_context->ll;
+	struct per_bio_data *pb = dm_per_bio_data(bio, sizeof(struct per_bio_data));
 
 	/*
 	 * Corrupt successful READs while in down state.
 	 * If flags were specified, only corrupt those that match.
 	 */
-	if (fc->corrupt_bio_byte && !error && bio_submitted_while_down &&
+	if (fc->corrupt_bio_byte && !error && pb->bio_submitted &&
 	    (bio_data_dir(bio) == READ) && (fc->corrupt_bio_rw == READ) &&
 	    all_corrupt_bio_flags_match(bio, fc))
 		corrupt_bio_data(bio, fc);
@@ -332,8 +337,8 @@ static int flakey_end_io(struct dm_target *ti, struct bio *bio,
 	return error;
 }
 
-static int flakey_status(struct dm_target *ti, status_type_t type,
-			 unsigned status_flags, char *result, unsigned maxlen)
+static void flakey_status(struct dm_target *ti, status_type_t type,
+			  unsigned status_flags, char *result, unsigned maxlen)
 {
 	unsigned sz = 0;
 	struct flakey_c *fc = ti->private;
@@ -363,7 +368,6 @@ static int flakey_status(struct dm_target *ti, status_type_t type,
 
 		break;
 	}
-	return 0;
 }
 
 static int flakey_ioctl(struct dm_target *ti, unsigned int cmd, unsigned long arg)
@@ -406,7 +410,7 @@ static int flakey_iterate_devices(struct dm_target *ti, iterate_devices_callout_
 
 static struct target_type flakey_target = {
 	.name   = "flakey",
-	.version = {1, 2, 0},
+	.version = {1, 3, 1},
 	.module = THIS_MODULE,
 	.ctr    = flakey_ctr,
 	.dtr    = flakey_dtr,

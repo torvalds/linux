@@ -1167,11 +1167,8 @@ static u32 stv0900_get_tuner_freq(struct dvb_frontend *fe)
 	struct dvb_tuner_ops *tuner_ops = NULL;
 	u32 freq = 0;
 
-	if (&fe->ops)
-		frontend_ops = &fe->ops;
-
-	if (&frontend_ops->tuner_ops)
-		tuner_ops = &frontend_ops->tuner_ops;
+	frontend_ops = &fe->ops;
+	tuner_ops = &frontend_ops->tuner_ops;
 
 	if (tuner_ops->get_frequency) {
 		if ((tuner_ops->get_frequency(fe, &freq)) < 0)

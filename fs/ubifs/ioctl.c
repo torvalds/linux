@@ -147,7 +147,7 @@ out_unlock:
 long ubifs_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int flags, err;
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 
 	switch (cmd) {
 	case FS_IOC_GETFLAGS:

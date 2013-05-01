@@ -301,17 +301,14 @@ int virt_to_scatterlist(const void *addr, int size, struct scatterlist *sg,
 	while (size > 0 && i < sg_size) {
 		pg = virt_to_page(addr);
 		offset = offset_in_page(addr);
-		if (sg)
-			sg_set_page(&sg[i], pg, 0, offset);
+		sg_set_page(&sg[i], pg, 0, offset);
 		remainder_of_page = PAGE_CACHE_SIZE - offset;
 		if (size >= remainder_of_page) {
-			if (sg)
-				sg[i].length = remainder_of_page;
+			sg[i].length = remainder_of_page;
 			addr += remainder_of_page;
 			size -= remainder_of_page;
 		} else {
-			if (sg)
-				sg[i].length = size;
+			sg[i].length = size;
 			addr += size;
 			size = 0;
 		}
@@ -1935,7 +1932,7 @@ static const unsigned char filename_rev_map[256] = {
  * @src: Source location for the filename to encode
  * @src_size: Size of the source in bytes
  */
-void ecryptfs_encode_for_filename(unsigned char *dst, size_t *dst_size,
+static void ecryptfs_encode_for_filename(unsigned char *dst, size_t *dst_size,
 				  unsigned char *src, size_t src_size)
 {
 	size_t num_blocks;

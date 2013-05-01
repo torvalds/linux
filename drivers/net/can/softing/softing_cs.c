@@ -159,7 +159,7 @@ MODULE_FIRMWARE(fw_dir "bcard2.bin");
 MODULE_FIRMWARE(fw_dir "ldcard2.bin");
 MODULE_FIRMWARE(fw_dir "cancrd2.bin");
 
-static __devinit const struct softing_platform_data
+static const struct softing_platform_data
 *softingcs_find_platform_data(unsigned int manf, unsigned int prod)
 {
 	const struct softing_platform_data *lp;
@@ -193,8 +193,7 @@ static int softingcs_enable_irq(struct platform_device *pdev, int v)
 /*
  * pcmcia check
  */
-static __devinit int softingcs_probe_config(struct pcmcia_device *pcmcia,
-		void *priv_data)
+static int softingcs_probe_config(struct pcmcia_device *pcmcia, void *priv_data)
 {
 	struct softing_platform_data *pdat = priv_data;
 	struct resource *pres;
@@ -215,7 +214,7 @@ static __devinit int softingcs_probe_config(struct pcmcia_device *pcmcia,
 	return pcmcia_request_window(pcmcia, pres, memspeed);
 }
 
-static __devexit void softingcs_remove(struct pcmcia_device *pcmcia)
+static void softingcs_remove(struct pcmcia_device *pcmcia)
 {
 	struct platform_device *pdev = pcmcia->priv;
 
@@ -235,7 +234,7 @@ static void softingcs_pdev_release(struct device *dev)
 	kfree(pdev);
 }
 
-static __devinit int softingcs_probe(struct pcmcia_device *pcmcia)
+static int softingcs_probe(struct pcmcia_device *pcmcia)
 {
 	int ret;
 	struct platform_device *pdev;
@@ -338,7 +337,7 @@ static struct pcmcia_driver softingcs_driver = {
 	.name		= "softingcs",
 	.id_table	= softingcs_ids,
 	.probe		= softingcs_probe,
-	.remove		= __devexit_p(softingcs_remove),
+	.remove		= softingcs_remove,
 };
 
 static int __init softingcs_start(void)

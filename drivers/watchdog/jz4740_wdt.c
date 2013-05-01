@@ -144,7 +144,7 @@ static const struct watchdog_ops jz4740_wdt_ops = {
 	.set_timeout = jz4740_wdt_set_timeout,
 };
 
-static int __devinit jz4740_wdt_probe(struct platform_device *pdev)
+static int jz4740_wdt_probe(struct platform_device *pdev)
 {
 	struct jz4740_wdt_drvdata *drvdata;
 	struct watchdog_device *jz4740_wdt;
@@ -171,9 +171,9 @@ static int __devinit jz4740_wdt_probe(struct platform_device *pdev)
 	watchdog_set_drvdata(jz4740_wdt, drvdata);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	drvdata->base = devm_request_and_ioremap(&pdev->dev, res);
-	if (drvdata->base == NULL) {
-		ret = -EBUSY;
+	drvdata->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(drvdata->base)) {
+		ret = PTR_ERR(drvdata->base);
 		goto err_out;
 	}
 
@@ -197,7 +197,7 @@ err_out:
 	return ret;
 }
 
-static int __devexit jz4740_wdt_remove(struct platform_device *pdev)
+static int jz4740_wdt_remove(struct platform_device *pdev)
 {
 	struct jz4740_wdt_drvdata *drvdata = platform_get_drvdata(pdev);
 
@@ -210,7 +210,7 @@ static int __devexit jz4740_wdt_remove(struct platform_device *pdev)
 
 static struct platform_driver jz4740_wdt_driver = {
 	.probe = jz4740_wdt_probe,
-	.remove = __devexit_p(jz4740_wdt_remove),
+	.remove = jz4740_wdt_remove,
 	.driver = {
 		.name = "jz4740-wdt",
 		.owner	= THIS_MODULE,

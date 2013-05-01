@@ -70,7 +70,7 @@ static void smd_tty_notify(void *priv, unsigned event)
 		if (avail == 0)
 			break;
 
-		avail = tty_prepare_flip_string(tty, &ptr, avail);
+		avail = tty_prepare_flip_string(&info->port, &ptr, avail);
 
 		if (smd_read(info->ch, ptr, avail) != avail) {
 			/* shouldn't be possible since we're in interrupt
@@ -80,7 +80,7 @@ static void smd_tty_notify(void *priv, unsigned event)
 			pr_err("OOPS - smd_tty_buffer mismatch?!");
 		}
 
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(&info->port);
 	}
 
 	/* XXX only when writable and necessary */

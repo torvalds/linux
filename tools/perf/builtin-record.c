@@ -31,6 +31,38 @@
 #include <sched.h>
 #include <sys/mman.h>
 
+#ifndef HAVE_ON_EXIT
+#ifndef ATEXIT_MAX
+#define ATEXIT_MAX 32
+#endif
+static int __on_exit_count = 0;
+typedef void (*on_exit_func_t) (int, void *);
+static on_exit_func_t __on_exit_funcs[ATEXIT_MAX];
+static void *__on_exit_args[ATEXIT_MAX];
+static int __exitcode = 0;
+static void __handle_on_exit_funcs(void);
+static int on_exit(on_exit_func_t function, void *arg);
+#define exit(x) (exit)(__exitcode = (x))
+
+static int on_exit(on_exit_func_t function, void *arg)
+{
+	if (__on_exit_count == ATEXIT_MAX)
+		return -ENOMEM;
+	else if (__on_exit_count == 0)
+		atexit(__handle_on_exit_funcs);
+	__on_exit_funcs[__on_exit_count] = function;
+	__on_exit_args[__on_exit_count++] = arg;
+	return 0;
+}
+
+static void __handle_on_exit_funcs(void)
+{
+	int i;
+	for (i = 0; i < __on_exit_count; i++)
+		__on_exit_funcs[i] (__exitcode, __on_exit_args[i]);
+}
+#endif
+
 enum write_mode_t {
 	WRITE_FORCE,
 	WRITE_APPEND
@@ -192,121 +224,28 @@ static bool perf_evlist__equal(struct perf_evlist *evlist,
 
 static int perf_record__open(struct perf_record *rec)
 {
+	char msg[512];
 	struct perf_evsel *pos;
 	struct perf_evlist *evlist = rec->evlist;
 	struct perf_session *session = rec->session;
 	struct perf_record_opts *opts = &rec->opts;
 	int rc = 0;
 
-	perf_evlist__config_attrs(evlist, opts);
-
-	if (opts->group)
-		perf_evlist__set_leader(evlist);
+	perf_evlist__config(evlist, opts);
 
 	list_for_each_entry(pos, &evlist->entries, node) {
-		struct perf_event_attr *attr = &pos->attr;
-		/*
-		 * Check if parse_single_tracepoint_event has already asked for
-		 * PERF_SAMPLE_TIME.
-		 *
-		 * XXX this is kludgy but short term fix for problems introduced by
-		 * eac23d1c that broke 'perf script' by having different sample_types
-		 * when using multiple tracepoint events when we use a perf binary
-		 * that tries to use sample_id_all on an older kernel.
-		 *
-		 * We need to move counter creation to perf_session, support
-		 * different sample_types, etc.
-		 */
-		bool time_needed = attr->sample_type & PERF_SAMPLE_TIME;
-
-fallback_missing_features:
-		if (opts->exclude_guest_missing)
-			attr->exclude_guest = attr->exclude_host = 0;
-retry_sample_id:
-		attr->sample_id_all = opts->sample_id_all_missing ? 0 : 1;
 try_again:
 		if (perf_evsel__open(pos, evlist->cpus, evlist->threads) < 0) {
-			int err = errno;
-
-			if (err == EPERM || err == EACCES) {
-				ui__error_paranoid();
-				rc = -err;
-				goto out;
-			} else if (err ==  ENODEV && opts->target.cpu_list) {
-				pr_err("No such device - did you specify"
-				       " an out-of-range profile CPU?\n");
-				rc = -err;
-				goto out;
-			} else if (err == EINVAL) {
-				if (!opts->exclude_guest_missing &&
-				    (attr->exclude_guest || attr->exclude_host)) {
-					pr_debug("Old kernel, cannot exclude "
-						 "guest or host samples.\n");
-					opts->exclude_guest_missing = true;
-					goto fallback_missing_features;
-				} else if (!opts->sample_id_all_missing) {
-					/*
-					 * Old kernel, no attr->sample_id_type_all field
-					 */
-					opts->sample_id_all_missing = true;
-					if (!opts->sample_time && !opts->raw_samples && !time_needed)
-						attr->sample_type &= ~PERF_SAMPLE_TIME;
-
-					goto retry_sample_id;
-				}
-			}
-
-			/*
-			 * If it's cycles then fall back to hrtimer
-			 * based cpu-clock-tick sw counter, which
-			 * is always available even if no PMU support.
-			 *
-			 * PPC returns ENXIO until 2.6.37 (behavior changed
-			 * with commit b0a873e).
-			 */
-			if ((err == ENOENT || err == ENXIO)
-					&& attr->type == PERF_TYPE_HARDWARE
-					&& attr->config == PERF_COUNT_HW_CPU_CYCLES) {
-
+			if (perf_evsel__fallback(pos, errno, msg, sizeof(msg))) {
 				if (verbose)
-					ui__warning("The cycles event is not supported, "
-						    "trying to fall back to cpu-clock-ticks\n");
-				attr->type = PERF_TYPE_SOFTWARE;
-				attr->config = PERF_COUNT_SW_CPU_CLOCK;
-				if (pos->name) {
-					free(pos->name);
-					pos->name = NULL;
-				}
+					ui__warning("%s\n", msg);
 				goto try_again;
 			}
 
-			if (err == ENOENT) {
-				ui__error("The %s event is not supported.\n",
-					  perf_evsel__name(pos));
-				rc = -err;
-				goto out;
-			}
-
-			printf("\n");
-			error("sys_perf_event_open() syscall returned with %d "
-			      "(%s) for event %s. /bin/dmesg may provide "
-			      "additional information.\n",
-			      err, strerror(err), perf_evsel__name(pos));
-
-#if defined(__i386__) || defined(__x86_64__)
-			if (attr->type == PERF_TYPE_HARDWARE &&
-			    err == EOPNOTSUPP) {
-				pr_err("No hardware sampling interrupt available."
-				       " No APIC? If so then you can boot the kernel"
-				       " with the \"lapic\" boot parameter to"
-				       " force-enable it.\n");
-				rc = -err;
-				goto out;
-			}
-#endif
-
-			pr_err("No CONFIG_PERF_EVENTS=y kernel support configured?\n");
-			rc = -err;
+			rc = -errno;
+			perf_evsel__open_strerror(pos, &opts->target,
+						  errno, msg, sizeof(msg));
+			ui__error("%s\n", msg);
 			goto out;
 		}
 	}
@@ -326,7 +265,8 @@ try_again:
 			       "or try again with a smaller value of -m/--mmap_pages.\n"
 			       "(current value: %d)\n", opts->mmap_pages);
 			rc = -errno;
-		} else if (!is_power_of_2(opts->mmap_pages)) {
+		} else if (!is_power_of_2(opts->mmap_pages) &&
+			   (opts->mmap_pages != UINT_MAX)) {
 			pr_err("--mmap_pages/-m value must be a power of two.");
 			rc = -EINVAL;
 		} else {
@@ -388,10 +328,6 @@ static void perf_event__synthesize_guest_os(struct machine *machine, void *data)
 {
 	int err;
 	struct perf_tool *tool = data;
-
-	if (machine__is_host(machine))
-		return;
-
 	/*
 	 *As for guest kernel when processing subcommand record&report,
 	 *we arrange module mmap prior to guest kernel mmap and trigger
@@ -460,6 +396,7 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 	struct perf_evlist *evsel_list = rec->evlist;
 	const char *output_name = rec->output_name;
 	struct perf_session *session;
+	bool disabled = false;
 
 	rec->progname = argv[0];
 
@@ -549,6 +486,9 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 		goto out_delete_session;
 	}
 
+	if (!evsel_list->nr_groups)
+		perf_header__clear_feat(&session->header, HEADER_GROUP_DESC);
+
 	/*
 	 * perf_session__delete(session) will be called at perf_record__exit()
 	 */
@@ -575,12 +515,7 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 
 	rec->post_processing_offset = lseek(output, 0, SEEK_CUR);
 
-	machine = perf_session__find_host_machine(session);
-	if (!machine) {
-		pr_err("Couldn't find native kernel information.\n");
-		err = -1;
-		goto out_delete_session;
-	}
+	machine = &session->machines.host;
 
 	if (opts->pipe_output) {
 		err = perf_event__synthesize_attrs(tool, session,
@@ -633,9 +568,10 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 		       "Symbol resolution may be skewed if relocation was used (e.g. kexec).\n"
 		       "Check /proc/modules permission or run as root.\n");
 
-	if (perf_guest)
-		perf_session__process_machines(session, tool,
-					       perf_event__synthesize_guest_os);
+	if (perf_guest) {
+		machines__process_guests(&session->machines,
+					 perf_event__synthesize_guest_os, tool);
+	}
 
 	if (!opts->target.system_wide)
 		err = perf_event__synthesize_thread_map(tool, evsel_list->threads,
@@ -659,7 +595,13 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 		}
 	}
 
-	perf_evlist__enable(evsel_list);
+	/*
+	 * When perf is starting the traced process, all the events
+	 * (apart from group members) have enable_on_exec=1 set,
+	 * so don't spoil it by prematurely enabling them.
+	 */
+	if (!perf_target__none(&opts->target))
+		perf_evlist__enable(evsel_list);
 
 	/*
 	 * Let the child rip
@@ -682,8 +624,15 @@ static int __cmd_record(struct perf_record *rec, int argc, const char **argv)
 			waking++;
 		}
 
-		if (done)
+		/*
+		 * When perf is starting the traced process, at the end events
+		 * die with the process and we wait for that. Thus no need to
+		 * disable events in this case.
+		 */
+		if (done && !disabled && !perf_target__none(&opts->target)) {
 			perf_evlist__disable(evsel_list);
+			disabled = true;
+		}
 	}
 
 	if (quiet || signr == SIGUSR1)
@@ -819,11 +768,10 @@ static int get_stack_size(char *str, unsigned long *_size)
 }
 #endif /* LIBUNWIND_SUPPORT */
 
-static int
-parse_callchain_opt(const struct option *opt __maybe_unused, const char *arg,
-		    int unset)
+int record_parse_callchain_opt(const struct option *opt,
+			       const char *arg, int unset)
 {
-	struct perf_record *rec = (struct perf_record *)opt->value;
+	struct perf_record_opts *opts = opt->value;
 	char *tok, *name, *saveptr = NULL;
 	char *buf;
 	int ret = -1;
@@ -849,7 +797,7 @@ parse_callchain_opt(const struct option *opt __maybe_unused, const char *arg,
 		/* Framepointer style */
 		if (!strncmp(name, "fp", sizeof("fp"))) {
 			if (!strtok_r(NULL, ",", &saveptr)) {
-				rec->opts.call_graph = CALLCHAIN_FP;
+				opts->call_graph = CALLCHAIN_FP;
 				ret = 0;
 			} else
 				pr_err("callchain: No more arguments "
@@ -862,20 +810,20 @@ parse_callchain_opt(const struct option *opt __maybe_unused, const char *arg,
 			const unsigned long default_stack_dump_size = 8192;
 
 			ret = 0;
-			rec->opts.call_graph = CALLCHAIN_DWARF;
-			rec->opts.stack_dump_size = default_stack_dump_size;
+			opts->call_graph = CALLCHAIN_DWARF;
+			opts->stack_dump_size = default_stack_dump_size;
 
 			tok = strtok_r(NULL, ",", &saveptr);
 			if (tok) {
 				unsigned long size = 0;
 
 				ret = get_stack_size(tok, &size);
-				rec->opts.stack_dump_size = size;
+				opts->stack_dump_size = size;
 			}
 
 			if (!ret)
 				pr_debug("callchain: stack dump size %d\n",
-					 rec->opts.stack_dump_size);
+					 opts->stack_dump_size);
 #endif /* LIBUNWIND_SUPPORT */
 		} else {
 			pr_err("callchain: Unknown -g option "
@@ -888,7 +836,7 @@ parse_callchain_opt(const struct option *opt __maybe_unused, const char *arg,
 	free(buf);
 
 	if (!ret)
-		pr_debug("callchain: type %d\n", rec->opts.call_graph);
+		pr_debug("callchain: type %d\n", opts->call_graph);
 
 	return ret;
 }
@@ -926,9 +874,9 @@ static struct perf_record record = {
 #define CALLCHAIN_HELP "do call-graph (stack chain/backtrace) recording: "
 
 #ifdef LIBUNWIND_SUPPORT
-static const char callchain_help[] = CALLCHAIN_HELP "[fp] dwarf";
+const char record_callchain_help[] = CALLCHAIN_HELP "[fp] dwarf";
 #else
-static const char callchain_help[] = CALLCHAIN_HELP "[fp]";
+const char record_callchain_help[] = CALLCHAIN_HELP "[fp]";
 #endif
 
 /*
@@ -972,9 +920,9 @@ const struct option record_options[] = {
 		     "number of mmap data pages"),
 	OPT_BOOLEAN(0, "group", &record.opts.group,
 		    "put the counters into a counter group"),
-	OPT_CALLBACK_DEFAULT('g', "call-graph", &record, "mode[,dump_size]",
-			     callchain_help, &parse_callchain_opt,
-			     "fp"),
+	OPT_CALLBACK_DEFAULT('g', "call-graph", &record.opts,
+			     "mode[,dump_size]", record_callchain_help,
+			     &record_parse_callchain_opt, "fp"),
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show counter open errors, etc)"),
 	OPT_BOOLEAN('q', "quiet", &quiet, "don't print any message"),

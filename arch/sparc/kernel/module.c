@@ -43,10 +43,6 @@ void *module_alloc(unsigned long size)
 {
 	void *ret;
 
-	/* We handle the zero case fine, unlike vmalloc */
-	if (size == 0)
-		return NULL;
-
 	ret = module_map(size);
 	if (ret)
 		memset(ret, 0, size);

@@ -10,6 +10,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/kernel.h>
 #include <linux/net.h>
 #include <linux/slab.h>
 #include <linux/skbuff.h>
@@ -792,10 +793,9 @@ static const struct net_proto_family rxrpc_family_ops = {
  */
 static int __init af_rxrpc_init(void)
 {
-	struct sk_buff *dummy_skb;
 	int ret = -1;
 
-	BUILD_BUG_ON(sizeof(struct rxrpc_skb_priv) > sizeof(dummy_skb->cb));
+	BUILD_BUG_ON(sizeof(struct rxrpc_skb_priv) > FIELD_SIZEOF(struct sk_buff, cb));
 
 	rxrpc_epoch = htonl(get_seconds());
 
@@ -839,8 +839,9 @@ static int __init af_rxrpc_init(void)
 	}
 
 #ifdef CONFIG_PROC_FS
-	proc_net_fops_create(&init_net, "rxrpc_calls", 0, &rxrpc_call_seq_fops);
-	proc_net_fops_create(&init_net, "rxrpc_conns", 0, &rxrpc_connection_seq_fops);
+	proc_create("rxrpc_calls", 0, init_net.proc_net, &rxrpc_call_seq_fops);
+	proc_create("rxrpc_conns", 0, init_net.proc_net,
+		    &rxrpc_connection_seq_fops);
 #endif
 	return 0;
 
@@ -878,8 +879,8 @@ static void __exit af_rxrpc_exit(void)
 
 	_debug("flush scheduled work");
 	flush_workqueue(rxrpc_workqueue);
-	proc_net_remove(&init_net, "rxrpc_conns");
-	proc_net_remove(&init_net, "rxrpc_calls");
+	remove_proc_entry("rxrpc_conns", init_net.proc_net);
+	remove_proc_entry("rxrpc_calls", init_net.proc_net);
 	destroy_workqueue(rxrpc_workqueue);
 	kmem_cache_destroy(rxrpc_call_jar);
 	_leave("");

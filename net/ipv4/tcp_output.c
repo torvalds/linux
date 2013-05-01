@@ -314,7 +314,7 @@ static inline void TCP_ECN_send_syn(struct sock *sk, struct sk_buff *skb)
 	struct tcp_sock *tp = tcp_sk(sk);
 
 	tp->ecn_flags = 0;
-	if (sysctl_tcp_ecn == 1) {
+	if (sock_net(sk)->ipv4.sysctl_tcp_ecn == 1) {
 		TCP_SKB_CB(skb)->tcp_flags |= TCPHDR_ECE | TCPHDR_CWR;
 		tp->ecn_flags = TCP_ECN_OK;
 	}
@@ -622,7 +622,7 @@ static unsigned int tcp_syn_options(struct sock *sk, struct sk_buff *skb,
 
 	if (likely(sysctl_tcp_timestamps && *md5 == NULL)) {
 		opts->options |= OPTION_TS;
-		opts->tsval = TCP_SKB_CB(skb)->when;
+		opts->tsval = TCP_SKB_CB(skb)->when + tp->tsoffset;
 		opts->tsecr = tp->rx_opt.ts_recent;
 		remaining -= TCPOLEN_TSTAMP_ALIGNED;
 	}
@@ -806,7 +806,7 @@ static unsigned int tcp_established_options(struct sock *sk, struct sk_buff *skb
 
 	if (likely(tp->rx_opt.tstamp_ok)) {
 		opts->options |= OPTION_TS;
-		opts->tsval = tcb ? tcb->when : 0;
+		opts->tsval = tcb ? tcb->when + tp->tsoffset : 0;
 		opts->tsecr = tp->rx_opt.ts_recent;
 		size += TCPOLEN_TSTAMP_ALIGNED;
 	}
@@ -1331,7 +1331,7 @@ static void __pskb_trim_head(struct sk_buff *skb, int len)
 /* Remove acked data from a packet in the transmit queue. */
 int tcp_trim_head(struct sock *sk, struct sk_buff *skb, u32 len)
 {
-	if (skb_cloned(skb) && pskb_expand_head(skb, 0, 0, GFP_ATOMIC))
+	if (skb_unclone(skb, GFP_ATOMIC))
 		return -ENOMEM;
 
 	__pskb_trim_head(skb, len);
@@ -1351,8 +1351,8 @@ int tcp_trim_head(struct sock *sk, struct sk_buff *skb, u32 len)
 	return 0;
 }
 
-/* Calculate MSS. Not accounting for SACKs here.  */
-int tcp_mtu_to_mss(struct sock *sk, int pmtu)
+/* Calculate MSS not accounting any TCP options.  */
+static inline int __tcp_mtu_to_mss(struct sock *sk, int pmtu)
 {
 	const struct tcp_sock *tp = tcp_sk(sk);
 	const struct inet_connection_sock *icsk = inet_csk(sk);
@@ -1381,11 +1381,15 @@ int tcp_mtu_to_mss(struct sock *sk, int pmtu)
 	/* Then reserve room for full set of TCP options and 8 bytes of data */
 	if (mss_now < 48)
 		mss_now = 48;
-
-	/* Now subtract TCP options size, not including SACKs */
-	mss_now -= tp->tcp_header_len - sizeof(struct tcphdr);
-
 	return mss_now;
+}
+
+/* Calculate MSS. Not accounting for SACKs here.  */
+int tcp_mtu_to_mss(struct sock *sk, int pmtu)
+{
+	/* Subtract TCP options size, not including SACKs */
+	return __tcp_mtu_to_mss(sk, pmtu) -
+	       (tcp_sk(sk)->tcp_header_len - sizeof(struct tcphdr));
 }
 
 /* Inverse of above */
@@ -1986,6 +1990,9 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 		tso_segs = tcp_init_tso_segs(sk, skb, mss_now);
 		BUG_ON(!tso_segs);
 
+		if (unlikely(tp->repair) && tp->repair_queue == TCP_SEND_QUEUE)
+			goto repair; /* Skip network transmission */
+
 		cwnd_quota = tcp_cwnd_test(tp, skb);
 		if (!cwnd_quota)
 			break;
@@ -2026,6 +2033,7 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 		if (unlikely(tcp_transmit_skb(sk, skb, 1, gfp)))
 			break;
 
+repair:
 		/* Advance the send_head.  This one is sent out.
 		 * This call will increment packets_out.
 		 */
@@ -2305,12 +2313,11 @@ static void tcp_retrans_try_collapse(struct sock *sk, struct sk_buff *to,
  * state updates are done by the caller.  Returns non-zero if an
  * error occurred which prevented the send.
  */
-int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
+int __tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	unsigned int cur_mss;
-	int err;
 
 	/* Inconslusive MTU probe */
 	if (icsk->icsk_mtup.probe_size) {
@@ -2383,11 +2390,17 @@ int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
 	if (unlikely(NET_IP_ALIGN && ((unsigned long)skb->data & 3))) {
 		struct sk_buff *nskb = __pskb_copy(skb, MAX_TCP_HEADER,
 						   GFP_ATOMIC);
-		err = nskb ? tcp_transmit_skb(sk, nskb, 0, GFP_ATOMIC) :
-			     -ENOBUFS;
+		return nskb ? tcp_transmit_skb(sk, nskb, 0, GFP_ATOMIC) :
+			      -ENOBUFS;
 	} else {
-		err = tcp_transmit_skb(sk, skb, 1, GFP_ATOMIC);
+		return tcp_transmit_skb(sk, skb, 1, GFP_ATOMIC);
 	}
+}
+
+int tcp_retransmit_skb(struct sock *sk, struct sk_buff *skb)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+	int err = __tcp_retransmit_skb(sk, skb);
 
 	if (err == 0) {
 		/* Update global TCP statistics. */
@@ -2921,7 +2934,7 @@ static int tcp_send_syn_data(struct sock *sk, struct sk_buff *syn)
 	 */
 	if (tp->rx_opt.user_mss && tp->rx_opt.user_mss < tp->rx_opt.mss_clamp)
 		tp->rx_opt.mss_clamp = tp->rx_opt.user_mss;
-	space = tcp_mtu_to_mss(sk, inet_csk(sk)->icsk_pmtu_cookie) -
+	space = __tcp_mtu_to_mss(sk, inet_csk(sk)->icsk_pmtu_cookie) -
 		MAX_TCP_OPTION_SPACE;
 
 	syn_data = skb_copy_expand(syn, skb_headroom(syn), space,
@@ -2982,6 +2995,11 @@ int tcp_connect(struct sock *sk)
 	int err;
 
 	tcp_connect_init(sk);
+
+	if (unlikely(tp->repair)) {
+		tcp_finish_connect(sk, NULL);
+		return 0;
+	}
 
 	buff = alloc_skb_fclone(MAX_TCP_HEADER + 15, sk->sk_allocation);
 	if (unlikely(buff == NULL))

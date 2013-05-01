@@ -87,7 +87,6 @@ struct rpc_task {
 				tk_cred_retry : 2,
 				tk_rebind_retry : 2;
 };
-#define tk_xprt			tk_client->cl_xprt
 
 /* support walking a list of tasks on a wait queue */
 #define	task_for_each(task, pos, head) \
@@ -192,7 +191,6 @@ struct rpc_wait_queue {
 	pid_t			owner;			/* process id of last task serviced */
 	unsigned char		maxpriority;		/* maximum priority (0 if queue is not a priority queue) */
 	unsigned char		priority;		/* current priority */
-	unsigned char		count;			/* # task groups remaining serviced so far */
 	unsigned char		nr;			/* # tasks remaining for cookie */
 	unsigned short		qlen;			/* total # tasks waiting in queue */
 	struct rpc_timer	timer_list;

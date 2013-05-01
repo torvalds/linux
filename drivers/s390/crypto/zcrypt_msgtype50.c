@@ -241,84 +241,70 @@ static int ICACRT_msg_to_type50CRT_msg(struct zcrypt_device *zdev,
 				       struct ap_message *ap_msg,
 				       struct ica_rsa_modexpo_crt *crt)
 {
-	int mod_len, short_len, long_len, long_offset, limit;
+	int mod_len, short_len;
 	unsigned char *p, *q, *dp, *dq, *u, *inp;
 
 	mod_len = crt->inputdatalength;
 	short_len = mod_len / 2;
-	long_len = mod_len / 2 + 8;
 
 	/*
-	 * CEX2A cannot handle p, dp, or U > 128 bytes.
-	 * If we have one of these, we need to do extra checking.
-	 * For CEX3A the limit is 256 bytes.
+	 * CEX2A and CEX3A w/o FW update can handle requests up to
+	 * 256 byte modulus (2k keys).
+	 * CEX3A with FW update and CEX4A cards are able to handle
+	 * 512 byte modulus (4k keys).
 	 */
-	if (zdev->max_mod_size == CEX3A_MAX_MOD_SIZE)
-		limit = 256;
-	else
-		limit = 128;
-
-	if (long_len > limit) {
-		/*
-		 * zcrypt_rsa_crt already checked for the leading
-		 * zeroes of np_prime, bp_key and u_mult_inc.
-		 */
-		long_offset = long_len - limit;
-		long_len = limit;
-	} else
-		long_offset = 0;
-
-	/*
-	 * Instead of doing extra work for p, dp, U > 64 bytes, we'll just use
-	 * the larger message structure.
-	 */
-	if (long_len <= 64) {
+	if (mod_len <= 128) {		/* up to 1024 bit key size */
 		struct type50_crb1_msg *crb1 = ap_msg->message;
 		memset(crb1, 0, sizeof(*crb1));
 		ap_msg->length = sizeof(*crb1);
 		crb1->header.msg_type_code = TYPE50_TYPE_CODE;
 		crb1->header.msg_len = sizeof(*crb1);
 		crb1->keyblock_type = TYPE50_CRB1_FMT;
-		p = crb1->p + sizeof(crb1->p) - long_len;
+		p = crb1->p + sizeof(crb1->p) - short_len;
 		q = crb1->q + sizeof(crb1->q) - short_len;
-		dp = crb1->dp + sizeof(crb1->dp) - long_len;
+		dp = crb1->dp + sizeof(crb1->dp) - short_len;
 		dq = crb1->dq + sizeof(crb1->dq) - short_len;
-		u = crb1->u + sizeof(crb1->u) - long_len;
+		u = crb1->u + sizeof(crb1->u) - short_len;
 		inp = crb1->message + sizeof(crb1->message) - mod_len;
-	} else if (long_len <= 128) {
+	} else if (mod_len <= 256) {	/* up to 2048 bit key size */
 		struct type50_crb2_msg *crb2 = ap_msg->message;
 		memset(crb2, 0, sizeof(*crb2));
 		ap_msg->length = sizeof(*crb2);
 		crb2->header.msg_type_code = TYPE50_TYPE_CODE;
 		crb2->header.msg_len = sizeof(*crb2);
 		crb2->keyblock_type = TYPE50_CRB2_FMT;
-		p = crb2->p + sizeof(crb2->p) - long_len;
+		p = crb2->p + sizeof(crb2->p) - short_len;
 		q = crb2->q + sizeof(crb2->q) - short_len;
-		dp = crb2->dp + sizeof(crb2->dp) - long_len;
+		dp = crb2->dp + sizeof(crb2->dp) - short_len;
 		dq = crb2->dq + sizeof(crb2->dq) - short_len;
-		u = crb2->u + sizeof(crb2->u) - long_len;
+		u = crb2->u + sizeof(crb2->u) - short_len;
 		inp = crb2->message + sizeof(crb2->message) - mod_len;
-	} else {
-		/* long_len >= 256 */
+	} else if ((mod_len <= 512) &&	/* up to 4096 bit key size */
+		   (zdev->max_mod_size == CEX3A_MAX_MOD_SIZE)) { /* >= CEX3A */
 		struct type50_crb3_msg *crb3 = ap_msg->message;
 		memset(crb3, 0, sizeof(*crb3));
 		ap_msg->length = sizeof(*crb3);
 		crb3->header.msg_type_code = TYPE50_TYPE_CODE;
 		crb3->header.msg_len = sizeof(*crb3);
 		crb3->keyblock_type = TYPE50_CRB3_FMT;
-		p = crb3->p + sizeof(crb3->p) - long_len;
+		p = crb3->p + sizeof(crb3->p) - short_len;
 		q = crb3->q + sizeof(crb3->q) - short_len;
-		dp = crb3->dp + sizeof(crb3->dp) - long_len;
+		dp = crb3->dp + sizeof(crb3->dp) - short_len;
 		dq = crb3->dq + sizeof(crb3->dq) - short_len;
-		u = crb3->u + sizeof(crb3->u) - long_len;
+		u = crb3->u + sizeof(crb3->u) - short_len;
 		inp = crb3->message + sizeof(crb3->message) - mod_len;
-	}
+	} else
+		return -EINVAL;
 
-	if (copy_from_user(p, crt->np_prime + long_offset, long_len) ||
+	/*
+	 * correct the offset of p, bp and mult_inv according zcrypt.h
+	 * block size right aligned (skip the first byte)
+	 */
+	if (copy_from_user(p, crt->np_prime + MSGTYPE_ADJUSTMENT, short_len) ||
 	    copy_from_user(q, crt->nq_prime, short_len) ||
-	    copy_from_user(dp, crt->bp_key + long_offset, long_len) ||
+	    copy_from_user(dp, crt->bp_key + MSGTYPE_ADJUSTMENT, short_len) ||
 	    copy_from_user(dq, crt->bq_key, short_len) ||
-	    copy_from_user(u, crt->u_mult_inv + long_offset, long_len) ||
+	    copy_from_user(u, crt->u_mult_inv + MSGTYPE_ADJUSTMENT, short_len) ||
 	    copy_from_user(inp, crt->inputdata, mod_len))
 		return -EFAULT;
 

@@ -54,6 +54,9 @@ int gfs2_lm_withdraw(struct gfs2_sbd *sdp, char *fmt, ...)
 
 		kobject_uevent(&sdp->sd_kobj, KOBJ_OFFLINE);
 
+		if (!strcmp(sdp->sd_lockstruct.ls_ops->lm_proto_name, "lock_dlm"))
+			wait_for_completion(&sdp->sd_wdack);
+
 		if (lm->lm_unmount) {
 			fs_err(sdp, "telling LM to unmount\n");
 			lm->lm_unmount(sdp);

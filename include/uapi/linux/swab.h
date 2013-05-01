@@ -45,7 +45,9 @@
 
 static inline __attribute_const__ __u16 __fswab16(__u16 val)
 {
-#ifdef __arch_swab16
+#ifdef __HAVE_BUILTIN_BSWAP16__
+	return __builtin_bswap16(val);
+#elif defined (__arch_swab16)
 	return __arch_swab16(val);
 #else
 	return ___constant_swab16(val);
@@ -54,7 +56,9 @@ static inline __attribute_const__ __u16 __fswab16(__u16 val)
 
 static inline __attribute_const__ __u32 __fswab32(__u32 val)
 {
-#ifdef __arch_swab32
+#ifdef __HAVE_BUILTIN_BSWAP32__
+	return __builtin_bswap32(val);
+#elif defined(__arch_swab32)
 	return __arch_swab32(val);
 #else
 	return ___constant_swab32(val);
@@ -63,7 +67,9 @@ static inline __attribute_const__ __u32 __fswab32(__u32 val)
 
 static inline __attribute_const__ __u64 __fswab64(__u64 val)
 {
-#ifdef __arch_swab64
+#ifdef __HAVE_BUILTIN_BSWAP64__
+	return __builtin_bswap64(val);
+#elif defined (__arch_swab64)
 	return __arch_swab64(val);
 #elif defined(__SWAB_64_THRU_32__)
 	__u32 h = val >> 32;

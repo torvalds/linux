@@ -48,17 +48,17 @@ static struct platform_device rm200_serial8250_device = {
 };
 
 static struct resource rm200_ds1216_rsrc[] = {
-        {
-                .start = 0x1cd41ffc,
-                .end   = 0x1cd41fff,
-                .flags = IORESOURCE_MEM
-        }
+	{
+		.start = 0x1cd41ffc,
+		.end   = 0x1cd41fff,
+		.flags = IORESOURCE_MEM
+	}
 };
 
 static struct platform_device rm200_ds1216_device = {
-        .name           = "rtc-ds1216",
-        .num_resources  = ARRAY_SIZE(rm200_ds1216_rsrc),
-        .resource       = rm200_ds1216_rsrc
+	.name		= "rtc-ds1216",
+	.num_resources	= ARRAY_SIZE(rm200_ds1216_rsrc),
+	.resource	= rm200_ds1216_rsrc
 };
 
 static struct resource snirm_82596_rm200_rsrc[] = {
@@ -88,9 +88,9 @@ static struct resource snirm_82596_rm200_rsrc[] = {
 };
 
 static struct platform_device snirm_82596_rm200_pdev = {
-	.name           = "snirm_82596",
-	.num_resources  = ARRAY_SIZE(snirm_82596_rm200_rsrc),
-	.resource       = snirm_82596_rm200_rsrc
+	.name		= "snirm_82596",
+	.num_resources	= ARRAY_SIZE(snirm_82596_rm200_rsrc),
+	.resource	= snirm_82596_rm200_rsrc
 };
 
 static struct resource snirm_53c710_rm200_rsrc[] = {
@@ -107,9 +107,9 @@ static struct resource snirm_53c710_rm200_rsrc[] = {
 };
 
 static struct platform_device snirm_53c710_rm200_pdev = {
-	.name           = "snirm_53c710",
-	.num_resources  = ARRAY_SIZE(snirm_53c710_rm200_rsrc),
-	.resource       = snirm_53c710_rm200_rsrc
+	.name		= "snirm_53c710",
+	.num_resources	= ARRAY_SIZE(snirm_53c710_rm200_rsrc),
+	.resource	= snirm_53c710_rm200_rsrc
 };
 
 static int __init snirm_setup_devinit(void)
@@ -134,9 +134,9 @@ device_initcall(snirm_setup_devinit);
  */
 
 static DEFINE_RAW_SPINLOCK(sni_rm200_i8259A_lock);
-#define PIC_CMD    0x00
-#define PIC_IMR    0x01
-#define PIC_ISR    PIC_CMD
+#define PIC_CMD	   0x00
+#define PIC_IMR	   0x01
+#define PIC_ISR	   PIC_CMD
 #define PIC_POLL   PIC_ISR
 #define PIC_OCW3   PIC_ISR
 
@@ -421,8 +421,8 @@ void __init sni_rm200_i8259_irqs(void)
 }
 
 
-#define SNI_RM200_INT_STAT_REG  CKSEG1ADDR(0xbc000000)
-#define SNI_RM200_INT_ENA_REG   CKSEG1ADDR(0xbc080000)
+#define SNI_RM200_INT_STAT_REG	CKSEG1ADDR(0xbc000000)
+#define SNI_RM200_INT_ENA_REG	CKSEG1ADDR(0xbc080000)
 
 #define SNI_RM200_INT_START  24
 #define SNI_RM200_INT_END    28

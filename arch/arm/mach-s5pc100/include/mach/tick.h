@@ -15,6 +15,8 @@
 #ifndef __ASM_ARCH_TICK_H
 #define __ASM_ARCH_TICK_H __FILE__
 
+#include <linux/irqchip/arm-vic.h>
+
 /* note, the timer interrutps turn up in 2 places, the vic and then
  * the timer block. We take the VIC as the base at the moment.
  */

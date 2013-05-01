@@ -178,8 +178,7 @@ struct dma_controller {
 extern void musb_dma_completion(struct musb *musb, u8 epnum, u8 transmit);
 
 
-extern struct dma_controller *__devinit
-dma_controller_create(struct musb *, void __iomem *);
+extern struct dma_controller *dma_controller_create(struct musb *, void __iomem *);
 
 extern void dma_controller_destroy(struct dma_controller *);
 

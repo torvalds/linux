@@ -5,7 +5,7 @@
  *
  * Copyright (C) 2009--2010 Nokia Corporation.
  *
- * Contact: Sakari Ailus <sakari.ailus@maxwell.research.nokia.com>
+ * Contact: Sakari Ailus <sakari.ailus@iki.fi>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License

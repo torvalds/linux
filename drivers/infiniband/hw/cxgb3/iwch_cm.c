@@ -128,9 +128,8 @@ static void stop_ep_timer(struct iwch_ep *ep)
 {
 	PDBG("%s ep %p\n", __func__, ep);
 	if (!timer_pending(&ep->timer)) {
-		printk(KERN_ERR "%s timer stopped when its not running!  ep %p state %u\n",
+		WARN(1, "%s timer stopped when its not running!  ep %p state %u\n",
 			__func__, ep, ep->com.state);
-		WARN_ON(1);
 		return;
 	}
 	del_timer_sync(&ep->timer);
@@ -1756,9 +1755,8 @@ static void ep_timeout(unsigned long arg)
 		__state_set(&ep->com, ABORTING);
 		break;
 	default:
-		printk(KERN_ERR "%s unexpected state ep %p state %u\n",
+		WARN(1, "%s unexpected state ep %p state %u\n",
 			__func__, ep, ep->com.state);
-		WARN_ON(1);
 		abort = 0;
 	}
 	spin_unlock_irqrestore(&ep->com.lock, flags);

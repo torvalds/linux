@@ -39,11 +39,12 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/usb/ulpi.h>
-#include <plat/usb.h>
 #include <linux/regulator/consumer.h>
 #include <linux/pm_runtime.h>
 #include <linux/gpio.h>
 #include <linux/clk.h>
+
+#include <linux/platform_data/usb-omap.h>
 
 /* EHCI Register Set */
 #define EHCI_INSNREG04					(0xA0)
@@ -106,7 +107,7 @@ static int omap_ehci_init(struct usb_hcd *hcd)
 {
 	struct ehci_hcd		*ehci = hcd_to_ehci(hcd);
 	int			rc;
-	struct ehci_hcd_omap_platform_data	*pdata;
+	struct usbhs_omap_platform_data	*pdata;
 
 	pdata = hcd->self.controller->platform_data;
 
@@ -146,14 +147,11 @@ static int omap_ehci_init(struct usb_hcd *hcd)
 			gpio_set_value_cansleep(pdata->reset_gpio_port[1], 1);
 	}
 
-	/* root ports should always stay powered */
-	ehci_port_power(ehci, 1);
-
 	return rc;
 }
 
 static void disable_put_regulator(
-		struct ehci_hcd_omap_platform_data *pdata)
+		struct usbhs_omap_platform_data *pdata)
 {
 	int i;
 
@@ -178,7 +176,7 @@ static void disable_put_regulator(
 static int ehci_hcd_omap_probe(struct platform_device *pdev)
 {
 	struct device				*dev = &pdev->dev;
-	struct ehci_hcd_omap_platform_data	*pdata = dev->platform_data;
+	struct usbhs_omap_platform_data		*pdata = dev->platform_data;
 	struct resource				*res;
 	struct usb_hcd				*hcd;
 	void __iomem				*regs;
@@ -290,7 +288,6 @@ static int ehci_hcd_omap_remove(struct platform_device *pdev)
 {
 	struct device *dev				= &pdev->dev;
 	struct usb_hcd *hcd				= dev_get_drvdata(dev);
-	struct ehci_hcd_omap_platform_data *pdata	= dev->platform_data;
 
 	usb_remove_hcd(hcd);
 	disable_put_regulator(dev->platform_data);
@@ -300,13 +297,6 @@ static int ehci_hcd_omap_remove(struct platform_device *pdev)
 	pm_runtime_put_sync(dev);
 	pm_runtime_disable(dev);
 
-	if (pdata->phy_reset) {
-		if (gpio_is_valid(pdata->reset_gpio_port[0]))
-			gpio_free(pdata->reset_gpio_port[0]);
-
-		if (gpio_is_valid(pdata->reset_gpio_port[1]))
-			gpio_free(pdata->reset_gpio_port[1]);
-	}
 	return 0;
 }
 
@@ -374,7 +364,7 @@ static const struct hc_driver ehci_omap_hc_driver = {
 	.clear_tt_buffer_complete = ehci_clear_tt_buffer_complete,
 };
 
-MODULE_ALIAS("platform:omap-ehci");
+MODULE_ALIAS("platform:ehci-omap");
 MODULE_AUTHOR("Texas Instruments, Inc.");
 MODULE_AUTHOR("Felipe Balbi <felipe.balbi@nokia.com>");
 

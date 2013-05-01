@@ -151,19 +151,6 @@ failjob_rls_job:
 	return -ENOMEM;
 }
 
-/*
- * bsg_goose_queue - restart queue in case it was stopped
- * @q: request q to be restarted
- */
-void bsg_goose_queue(struct request_queue *q)
-{
-	if (!q)
-		return;
-
-	blk_run_queue_async(q);
-}
-EXPORT_SYMBOL_GPL(bsg_goose_queue);
-
 /**
  * bsg_request_fn - generic handler for bsg requests
  * @q: request queue to manage

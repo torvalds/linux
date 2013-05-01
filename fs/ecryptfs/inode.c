@@ -999,8 +999,8 @@ out:
 	return rc;
 }
 
-int ecryptfs_getattr_link(struct vfsmount *mnt, struct dentry *dentry,
-			  struct kstat *stat)
+static int ecryptfs_getattr_link(struct vfsmount *mnt, struct dentry *dentry,
+				 struct kstat *stat)
 {
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat;
 	int rc = 0;
@@ -1021,14 +1021,13 @@ int ecryptfs_getattr_link(struct vfsmount *mnt, struct dentry *dentry,
 	return rc;
 }
 
-int ecryptfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
-		     struct kstat *stat)
+static int ecryptfs_getattr(struct vfsmount *mnt, struct dentry *dentry,
+			    struct kstat *stat)
 {
 	struct kstat lower_stat;
 	int rc;
 
-	rc = vfs_getattr(ecryptfs_dentry_to_lower_mnt(dentry),
-			 ecryptfs_dentry_to_lower(dentry), &lower_stat);
+	rc = vfs_getattr(ecryptfs_dentry_to_lower_path(dentry), &lower_stat);
 	if (!rc) {
 		fsstack_copy_attr_all(dentry->d_inode,
 				      ecryptfs_inode_to_lower(dentry->d_inode));

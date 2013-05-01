@@ -26,6 +26,7 @@
 #include "stf.h"
 #include "channel.h"
 #include "mac80211_if.h"
+#include "debug.h"
 
 /* QDB() macro takes a dB value and converts to a quarter dB value */
 #define QDB(n) ((n) * BRCMS_TXPWR_DB_FACTOR)
@@ -182,8 +183,7 @@ static bool brcms_c_country_valid(const char *ccode)
 	 * chars.
 	 */
 	if (!((0x80 & ccode[0]) == 0 && ccode[0] >= 0x41 && ccode[0] <= 0x5A &&
-	      (0x80 & ccode[1]) == 0 && ccode[1] >= 0x41 && ccode[1] <= 0x5A &&
-	      ccode[2] == '\0'))
+	      (0x80 & ccode[1]) == 0 && ccode[1] >= 0x41 && ccode[1] <= 0x5A))
 		return false;
 
 	/*
@@ -335,8 +335,6 @@ struct brcms_cm_info *brcms_c_channel_mgr_attach(struct brcms_c_info *wlc)
 	struct ssb_sprom *sprom = &wlc->hw->d11core->bus->sprom;
 	const char *ccode = sprom->alpha2;
 	int ccode_len = sizeof(sprom->alpha2);
-
-	BCMMSG(wlc->wiphy, "wl%d\n", wlc->pub->unit);
 
 	wlc_cm = kzalloc(sizeof(struct brcms_cm_info), GFP_ATOMIC);
 	if (wlc_cm == NULL)
@@ -615,8 +613,8 @@ brcms_c_valid_chanspec_ext(struct brcms_cm_info *wlc_cm, u16 chspec)
 
 	/* check the chanspec */
 	if (brcms_c_chspec_malformed(chspec)) {
-		wiphy_err(wlc->wiphy, "wl%d: malformed chanspec 0x%x\n",
-			wlc->pub->unit, chspec);
+		brcms_err(wlc->hw->d11core, "wl%d: malformed chanspec 0x%x\n",
+			  wlc->pub->unit, chspec);
 		return false;
 	}
 
@@ -671,7 +669,7 @@ brcms_reg_apply_beaconing_flags(struct wiphy *wiphy,
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *ch;
 	const struct ieee80211_reg_rule *rule;
-	int band, i, ret;
+	int band, i;
 
 	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
 		sband = wiphy->bands[band];
@@ -686,9 +684,8 @@ brcms_reg_apply_beaconing_flags(struct wiphy *wiphy,
 				continue;
 
 			if (initiator == NL80211_REGDOM_SET_BY_COUNTRY_IE) {
-				ret = freq_reg_info(wiphy, ch->center_freq,
-						    0, &rule);
-				if (ret)
+				rule = freq_reg_info(wiphy, ch->center_freq);
+				if (IS_ERR(rule))
 					continue;
 
 				if (!(rule->flags & NL80211_RRF_NO_IBSS))
@@ -704,8 +701,8 @@ brcms_reg_apply_beaconing_flags(struct wiphy *wiphy,
 	}
 }
 
-static int brcms_reg_notifier(struct wiphy *wiphy,
-			      struct regulatory_request *request)
+static void brcms_reg_notifier(struct wiphy *wiphy,
+			       struct regulatory_request *request)
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct brcms_info *wl = hw->priv;
@@ -738,15 +735,14 @@ static int brcms_reg_notifier(struct wiphy *wiphy,
 		mboolclr(wlc->pub->radio_disabled, WL_RADIO_COUNTRY_DISABLE);
 	} else {
 		mboolset(wlc->pub->radio_disabled, WL_RADIO_COUNTRY_DISABLE);
-		wiphy_err(wlc->wiphy, "wl%d: %s: no valid channel for \"%s\"\n",
+		brcms_err(wlc->hw->d11core,
+			  "wl%d: %s: no valid channel for \"%s\"\n",
 			  wlc->pub->unit, __func__, request->alpha2);
 	}
 
 	if (wlc->pub->_nbands > 1 || wlc->band->bandtype == BRCM_BAND_2G)
 		wlc_phy_chanspec_ch14_widefilter_set(wlc->band->pi,
 					brcms_c_japan_ccode(request->alpha2));
-
-	return 0;
 }
 
 void brcms_c_regd_init(struct brcms_c_info *wlc)

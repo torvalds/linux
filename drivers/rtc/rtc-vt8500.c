@@ -70,7 +70,7 @@
 				| ALARM_SEC_BIT)
 
 #define VT8500_RTC_CR_ENABLE	(1 << 0)	/* Enable RTC */
-#define VT8500_RTC_CR_24H	(1 << 1)	/* 24h time format */
+#define VT8500_RTC_CR_12H	(1 << 1)	/* 12h time format */
 #define VT8500_RTC_CR_SM_ENABLE	(1 << 2)	/* Enable periodic irqs */
 #define VT8500_RTC_CR_SM_SEC	(1 << 3)	/* 0: 1Hz/60, 1: 1Hz */
 #define VT8500_RTC_CR_CALIB	(1 << 4)	/* Enable calibration */
@@ -119,7 +119,7 @@ static int vt8500_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	tm->tm_min = bcd2bin((time & TIME_MIN_MASK) >> TIME_MIN_S);
 	tm->tm_hour = bcd2bin((time & TIME_HOUR_MASK) >> TIME_HOUR_S);
 	tm->tm_mday = bcd2bin(date & DATE_DAY_MASK);
-	tm->tm_mon = bcd2bin((date & DATE_MONTH_MASK) >> DATE_MONTH_S);
+	tm->tm_mon = bcd2bin((date & DATE_MONTH_MASK) >> DATE_MONTH_S) - 1;
 	tm->tm_year = bcd2bin((date & DATE_YEAR_MASK) >> DATE_YEAR_S)
 			+ ((date >> DATE_CENTURY_S) & 1 ? 200 : 100);
 	tm->tm_wday = (time & TIME_DOW_MASK) >> TIME_DOW_S;
@@ -137,9 +137,10 @@ static int vt8500_rtc_set_time(struct device *dev, struct rtc_time *tm)
 		return -EINVAL;
 	}
 
-	writel((bin2bcd(tm->tm_year - 100) << DATE_YEAR_S)
-		| (bin2bcd(tm->tm_mon) << DATE_MONTH_S)
-		| (bin2bcd(tm->tm_mday)),
+	writel((bin2bcd(tm->tm_year % 100) << DATE_YEAR_S)
+		| (bin2bcd(tm->tm_mon + 1) << DATE_MONTH_S)
+		| (bin2bcd(tm->tm_mday))
+		| ((tm->tm_year >= 200) << DATE_CENTURY_S),
 		vt8500_rtc->regbase + VT8500_RTC_DS);
 	writel((bin2bcd(tm->tm_wday) << TIME_DOW_S)
 		| (bin2bcd(tm->tm_hour) << TIME_HOUR_S)
@@ -205,12 +206,13 @@ static const struct rtc_class_ops vt8500_rtc_ops = {
 	.alarm_irq_enable = vt8500_alarm_irq_enable,
 };
 
-static int __devinit vt8500_rtc_probe(struct platform_device *pdev)
+static int vt8500_rtc_probe(struct platform_device *pdev)
 {
 	struct vt8500_rtc *vt8500_rtc;
 	int ret;
 
-	vt8500_rtc = kzalloc(sizeof(struct vt8500_rtc), GFP_KERNEL);
+	vt8500_rtc = devm_kzalloc(&pdev->dev,
+			   sizeof(struct vt8500_rtc), GFP_KERNEL);
 	if (!vt8500_rtc)
 		return -ENOMEM;
 
@@ -220,36 +222,34 @@ static int __devinit vt8500_rtc_probe(struct platform_device *pdev)
 	vt8500_rtc->res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!vt8500_rtc->res) {
 		dev_err(&pdev->dev, "No I/O memory resource defined\n");
-		ret = -ENXIO;
-		goto err_free;
+		return -ENXIO;
 	}
 
 	vt8500_rtc->irq_alarm = platform_get_irq(pdev, 0);
 	if (vt8500_rtc->irq_alarm < 0) {
 		dev_err(&pdev->dev, "No alarm IRQ resource defined\n");
-		ret = -ENXIO;
-		goto err_free;
+		return -ENXIO;
 	}
 
-	vt8500_rtc->res = request_mem_region(vt8500_rtc->res->start,
-					     resource_size(vt8500_rtc->res),
-					     "vt8500-rtc");
+	vt8500_rtc->res = devm_request_mem_region(&pdev->dev,
+					vt8500_rtc->res->start,
+					resource_size(vt8500_rtc->res),
+					"vt8500-rtc");
 	if (vt8500_rtc->res == NULL) {
 		dev_err(&pdev->dev, "failed to request I/O memory\n");
-		ret = -EBUSY;
-		goto err_free;
+		return -EBUSY;
 	}
 
-	vt8500_rtc->regbase = ioremap(vt8500_rtc->res->start,
+	vt8500_rtc->regbase = devm_ioremap(&pdev->dev, vt8500_rtc->res->start,
 				      resource_size(vt8500_rtc->res));
 	if (!vt8500_rtc->regbase) {
 		dev_err(&pdev->dev, "Unable to map RTC I/O memory\n");
 		ret = -EBUSY;
-		goto err_release;
+		goto err_return;
 	}
 
 	/* Enable RTC and set it to 24-hour mode */
-	writel(VT8500_RTC_CR_ENABLE | VT8500_RTC_CR_24H,
+	writel(VT8500_RTC_CR_ENABLE,
 	       vt8500_rtc->regbase + VT8500_RTC_CR);
 
 	vt8500_rtc->rtc = rtc_device_register("vt8500-rtc", &pdev->dev,
@@ -258,11 +258,11 @@ static int __devinit vt8500_rtc_probe(struct platform_device *pdev)
 		ret = PTR_ERR(vt8500_rtc->rtc);
 		dev_err(&pdev->dev,
 			"Failed to register RTC device -> %d\n", ret);
-		goto err_unmap;
+		goto err_return;
 	}
 
-	ret = request_irq(vt8500_rtc->irq_alarm, vt8500_rtc_irq, 0,
-			  "rtc alarm", vt8500_rtc);
+	ret = devm_request_irq(&pdev->dev, vt8500_rtc->irq_alarm,
+				vt8500_rtc_irq, 0, "rtc alarm", vt8500_rtc);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "can't get irq %i, err %d\n",
 			vt8500_rtc->irq_alarm, ret);
@@ -273,31 +273,19 @@ static int __devinit vt8500_rtc_probe(struct platform_device *pdev)
 
 err_unreg:
 	rtc_device_unregister(vt8500_rtc->rtc);
-err_unmap:
-	iounmap(vt8500_rtc->regbase);
-err_release:
-	release_mem_region(vt8500_rtc->res->start,
-			   resource_size(vt8500_rtc->res));
-err_free:
-	kfree(vt8500_rtc);
+err_return:
 	return ret;
 }
 
-static int __devexit vt8500_rtc_remove(struct platform_device *pdev)
+static int vt8500_rtc_remove(struct platform_device *pdev)
 {
 	struct vt8500_rtc *vt8500_rtc = platform_get_drvdata(pdev);
-
-	free_irq(vt8500_rtc->irq_alarm, vt8500_rtc);
 
 	rtc_device_unregister(vt8500_rtc->rtc);
 
 	/* Disable alarm matching */
 	writel(0, vt8500_rtc->regbase + VT8500_RTC_IS);
-	iounmap(vt8500_rtc->regbase);
-	release_mem_region(vt8500_rtc->res->start,
-			   resource_size(vt8500_rtc->res));
 
-	kfree(vt8500_rtc);
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;
@@ -310,7 +298,7 @@ static const struct of_device_id wmt_dt_ids[] = {
 
 static struct platform_driver vt8500_rtc_driver = {
 	.probe		= vt8500_rtc_probe,
-	.remove		= __devexit_p(vt8500_rtc_remove),
+	.remove		= vt8500_rtc_remove,
 	.driver		= {
 		.name	= "vt8500-rtc",
 		.owner	= THIS_MODULE,

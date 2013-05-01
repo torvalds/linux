@@ -16,9 +16,9 @@
 #include "r8190_rtl8256.h"
 
 /*--------------------------------------------------------------------------
- * Overview:   	set RF band width (20M or 40M)
+ * Overview:	set RF band width (20M or 40M)
  * Input:       struct net_device*	dev
- * 		WIRELESS_BANDWIDTH_E	Bandwidth	//20M or 40M
+ *		WIRELESS_BANDWIDTH_E	Bandwidth	//20M or 40M
  * Output:      NONE
  * Return:      NONE
  * Note:	8226 support both 20M  and 40 MHz
@@ -106,16 +106,16 @@ void PHY_RF8256_Config(struct net_device* dev)
  *---------------------------------------------------------------------------*/
 void phy_RF8256_Config_ParaFile(struct net_device* dev)
 {
-	u32 	u4RegValue = 0;
+	u32	u4RegValue = 0;
 	//static s1Byte				szRadioAFile[] = RTL819X_PHY_RADIO_A;
 	//static s1Byte				szRadioBFile[] = RTL819X_PHY_RADIO_B;
 	//static s1Byte				szRadioCFile[] = RTL819X_PHY_RADIO_C;
 	//static s1Byte				szRadioDFile[] = RTL819X_PHY_RADIO_D;
-	u8 	eRFPath;
+	u8	eRFPath;
 	BB_REGISTER_DEFINITION_T	*pPhyReg;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u32	RegOffSetToBeCheck = 0x3;
-	u32 	RegValueToBeCheck = 0x7f1;
+	u32	RegValueToBeCheck = 0x7f1;
 	u32	RF3_Final_Value = 0;
 	u8	ConstRetryTimes = 5, RetryTimes = 5;
 	u8 ret = 0;
@@ -152,7 +152,7 @@ void phy_RF8256_Config_ParaFile(struct net_device* dev)
 		rtl8192_setBBreg(dev, pPhyReg->rfintfo, bRFSI_RFENV, 0x1);
 
 		/* Set bit number of Address and Data for RF register */
-		rtl8192_setBBreg(dev, pPhyReg->rfHSSIPara2, b3WireAddressLength, 0x0); 	// Set 0 to 4 bits for Z-serial and set 1 to 6 bits for 8258
+		rtl8192_setBBreg(dev, pPhyReg->rfHSSIPara2, b3WireAddressLength, 0x0);	// Set 0 to 4 bits for Z-serial and set 1 to 6 bits for 8258
 		rtl8192_setBBreg(dev, pPhyReg->rfHSSIPara2, b3WireDataLength, 0x0);	// Set 0 to 12 bits for Z-serial and 8258, and set 1 to 14 bits for ???
 
 		rtl8192_phy_SetRFReg(dev, (RF90_RADIO_PATH_E) eRFPath, 0x0, bMask12Bits, 0xbf);
@@ -309,4 +309,3 @@ void PHY_SetRF8256OFDMTxPower(struct net_device* dev, u8 powerlevel)
 	return;
 
 }
-

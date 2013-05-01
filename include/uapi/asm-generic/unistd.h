@@ -402,9 +402,9 @@ __SC_COMP(__NR_rt_sigsuspend, sys_rt_sigsuspend, compat_sys_rt_sigsuspend)
 #define __NR_rt_sigaction 134
 __SC_COMP(__NR_rt_sigaction, sys_rt_sigaction, compat_sys_rt_sigaction)
 #define __NR_rt_sigprocmask 135
-__SYSCALL(__NR_rt_sigprocmask, sys_rt_sigprocmask)
+__SC_COMP(__NR_rt_sigprocmask, sys_rt_sigprocmask, compat_sys_rt_sigprocmask)
 #define __NR_rt_sigpending 136
-__SYSCALL(__NR_rt_sigpending, sys_rt_sigpending)
+__SC_COMP(__NR_rt_sigpending, sys_rt_sigpending, compat_sys_rt_sigpending)
 #define __NR_rt_sigtimedwait 137
 __SC_COMP(__NR_rt_sigtimedwait, sys_rt_sigtimedwait, \
 	  compat_sys_rt_sigtimedwait)
@@ -690,9 +690,11 @@ __SC_COMP(__NR_process_vm_writev, sys_process_vm_writev, \
           compat_sys_process_vm_writev)
 #define __NR_kcmp 272
 __SYSCALL(__NR_kcmp, sys_kcmp)
+#define __NR_finit_module 273
+__SYSCALL(__NR_finit_module, sys_finit_module)
 
 #undef __NR_syscalls
-#define __NR_syscalls 273
+#define __NR_syscalls 274
 
 /*
  * All syscalls below here should go away really,

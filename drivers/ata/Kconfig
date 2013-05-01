@@ -14,7 +14,7 @@ menuconfig ATA
 	tristate "Serial ATA and Parallel ATA drivers"
 	depends on HAS_IOMEM
 	depends on BLOCK
-	depends on !(M32R || M68K) || BROKEN
+	depends on !(M32R || M68K || S390) || BROKEN
 	select SCSI
 	---help---
 	  If you want to use a ATA hard disk, ATA tape drive, ATA CD-ROM or
@@ -57,6 +57,19 @@ config ATA_ACPI
 	  power management, or other areas.
 	  You can disable this at kernel boot time by using the
 	  option libata.noacpi=1
+
+config SATA_ZPODD
+	bool "SATA Zero Power ODD Support"
+	depends on ATA_ACPI
+	default n
+	help
+	  This option adds support for SATA ZPODD. It requires both
+	  ODD and the platform support, and if enabled, will automatically
+	  power on/off the ODD when certain condition is satisfied. This
+	  does not impact user's experience of the ODD, only power is saved
+	  when ODD is not in use(i.e. no disc inside).
+
+	  If unsure, say N.
 
 config SATA_PMP
 	bool "SATA Port Multiplier support"
@@ -163,7 +176,7 @@ config SATA_QSTOR
 
 config SATA_SX4
 	tristate "Promise SATA SX4 support (Experimental)"
-	depends on PCI && EXPERIMENTAL
+	depends on PCI
 	help
 	  This option enables support for Promise Serial ATA SX4.
 
@@ -244,6 +257,14 @@ config SATA_PROMISE
 	depends on PCI
 	help
 	  This option enables support for Promise Serial ATA TX2/TX4.
+
+	  If unsure, say N.
+
+config SATA_RCAR
+	tristate "Renesas R-Car SATA support"
+	depends on ARCH_SHMOBILE && ARCH_R8A7779
+	help
+	  This option enables support for Renesas R-Car Serial ATA.
 
 	  If unsure, say N.
 
@@ -390,7 +411,7 @@ config PATA_CS5530
 
 config PATA_CS5535
 	tristate "CS5535 PATA support (Experimental)"
-	depends on PCI && X86 && !X86_64 && EXPERIMENTAL
+	depends on PCI && X86 && !X86_64
 	help
 	  This option enables support for the NatSemi/AMD CS5535
 	  companion chip used with the Geode processor family.
@@ -408,7 +429,7 @@ config PATA_CS5536
 
 config PATA_CYPRESS
 	tristate "Cypress CY82C693 PATA support (Very Experimental)"
-	depends on PCI && EXPERIMENTAL
+	depends on PCI
 	help
 	  This option enables support for the Cypress/Contaq CY82C693
 	  chipset found in some Alpha systems
@@ -496,7 +517,7 @@ config PATA_IMX
 
 config PATA_IT8213
 	tristate "IT8213 PATA support (Experimental)"
-	depends on PCI && EXPERIMENTAL
+	depends on PCI
 	help
 	  This option enables support for the ITE 821 PATA
           controllers via the new ATA layer.
@@ -589,7 +610,7 @@ config PATA_OLDPIIX
 
 config PATA_OPTIDMA
 	tristate "OPTI FireStar PATA support (Very Experimental)"
-	depends on PCI && EXPERIMENTAL
+	depends on PCI
 	help
 	  This option enables DMA/PIO support for the later OPTi
 	  controllers found on some old motherboards and in some
@@ -616,7 +637,7 @@ config PATA_PDC_OLD
 
 config PATA_RADISYS
 	tristate "RADISYS 82600 PATA support (Experimental)"
-	depends on PCI && EXPERIMENTAL
+	depends on PCI
 	help
 	  This option enables support for the RADISYS 82600
 	  PATA controllers via the new ATA layer
@@ -687,7 +708,7 @@ config PATA_SIS
 
 config PATA_TOSHIBA
 	tristate "Toshiba Piccolo support (Experimental)"
-	depends on PCI && EXPERIMENTAL
+	depends on PCI
 	help
 	  Support for the Toshiba Piccolo controllers. Currently only the
 	  primary channel is supported by this driver.
@@ -738,7 +759,7 @@ comment "PIO-only SFF controllers"
 
 config PATA_AT32
 	tristate "Atmel AVR32 PATA support (Experimental)"
-	depends on AVR32 && PLATFORM_AT32AP && EXPERIMENTAL
+	depends on AVR32 && PLATFORM_AT32AP
 	help
 	  This option enables support for the IDE devices on the
 	  Atmel AT32AP platform.
@@ -755,7 +776,7 @@ config PATA_AT91
 
 config PATA_CMD640_PCI
 	tristate "CMD640 PCI PATA support (Experimental)"
-	depends on PCI && EXPERIMENTAL
+	depends on PCI
 	help
 	  This option enables support for the CMD640 PCI IDE
 	  interface chip. Only the primary channel is currently
@@ -801,7 +822,7 @@ config PATA_NS87410
 
 config PATA_OPTI
 	tristate "OPTI621/6215 PATA support (Very Experimental)"
-	depends on PCI && EXPERIMENTAL
+	depends on PCI
 	help
 	  This option enables full PIO support for the early Opti ATA
 	  controllers found on some old motherboards.
@@ -881,7 +902,7 @@ config PATA_SAMSUNG_CF
 
 config PATA_WINBOND_VLB
 	tristate "Winbond W83759A VLB PATA support (Experimental)"
-	depends on ISA && EXPERIMENTAL
+	depends on ISA
 	select PATA_LEGACY
 	help
 	  Support for the Winbond W83759A controller on Vesa Local Bus
@@ -909,7 +930,7 @@ config ATA_GENERIC
 
 config PATA_LEGACY
 	tristate "Legacy ISA PATA support (Experimental)"
-	depends on (ISA || PCI) && EXPERIMENTAL
+	depends on (ISA || PCI)
 	help
 	  This option enables support for ISA/VLB/PCI bus legacy PATA
 	  ports and allows them to be accessed via the new ATA layer.

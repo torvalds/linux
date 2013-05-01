@@ -94,7 +94,7 @@ static struct gpio_chip template_chip = {
 	.can_sleep		= 1,
 };
 
-static int __devinit arizona_gpio_probe(struct platform_device *pdev)
+static int arizona_gpio_probe(struct platform_device *pdev)
 {
 	struct arizona *arizona = dev_get_drvdata(pdev->dev.parent);
 	struct arizona_pdata *pdata = arizona->dev->platform_data;
@@ -141,7 +141,7 @@ err:
 	return ret;
 }
 
-static int __devexit arizona_gpio_remove(struct platform_device *pdev)
+static int arizona_gpio_remove(struct platform_device *pdev)
 {
 	struct arizona_gpio *arizona_gpio = platform_get_drvdata(pdev);
 
@@ -152,7 +152,7 @@ static struct platform_driver arizona_gpio_driver = {
 	.driver.name	= "arizona-gpio",
 	.driver.owner	= THIS_MODULE,
 	.probe		= arizona_gpio_probe,
-	.remove		= __devexit_p(arizona_gpio_remove),
+	.remove		= arizona_gpio_remove,
 };
 
 module_platform_driver(arizona_gpio_driver);

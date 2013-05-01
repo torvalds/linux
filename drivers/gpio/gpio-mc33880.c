@@ -80,7 +80,7 @@ static void mc33880_set(struct gpio_chip *chip, unsigned offset, int value)
 	mutex_unlock(&mc->lock);
 }
 
-static int __devinit mc33880_probe(struct spi_device *spi)
+static int mc33880_probe(struct spi_device *spi)
 {
 	struct mc33880 *mc;
 	struct mc33880_platform_data *pdata;
@@ -147,7 +147,7 @@ exit_destroy:
 	return ret;
 }
 
-static int __devexit mc33880_remove(struct spi_device *spi)
+static int mc33880_remove(struct spi_device *spi)
 {
 	struct mc33880 *mc;
 	int ret;
@@ -175,7 +175,7 @@ static struct spi_driver mc33880_driver = {
 		.owner		= THIS_MODULE,
 	},
 	.probe		= mc33880_probe,
-	.remove		= __devexit_p(mc33880_remove),
+	.remove		= mc33880_remove,
 };
 
 static int __init mc33880_init(void)

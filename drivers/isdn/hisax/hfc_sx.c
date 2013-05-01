@@ -270,7 +270,7 @@ read_fifo(struct IsdnCardState *cs, u_char fifo, int trans_max)
 
 		if ((count > fifo_size) || (count < 4)) {
 			if (cs->debug & L1_DEB_WARN)
-				debugl1(cs, "hfcsx_read_fifo %d paket inv. len %d ", fifo , count);
+				debugl1(cs, "hfcsx_read_fifo %d packet inv. len %d ", fifo , count);
 			while (count) {
 				count--; /* empty fifo */
 				Read_hfc(cs, HFCSX_FIF_DRD);
@@ -1381,19 +1381,18 @@ hfcsx_card_msg(struct IsdnCardState *cs, int mt, void *arg)
 }
 
 #ifdef __ISAPNP__
-static struct isapnp_device_id hfc_ids[] __devinitdata = {
+static struct isapnp_device_id hfc_ids[] = {
 	{ ISAPNP_VENDOR('T', 'A', 'G'), ISAPNP_FUNCTION(0x2620),
 	  ISAPNP_VENDOR('T', 'A', 'G'), ISAPNP_FUNCTION(0x2620),
 	  (unsigned long) "Teles 16.3c2" },
 	{ 0, }
 };
 
-static struct isapnp_device_id *ipid __devinitdata = &hfc_ids[0];
-static struct pnp_card *pnp_c __devinitdata = NULL;
+static struct isapnp_device_id *ipid = &hfc_ids[0];
+static struct pnp_card *pnp_c = NULL;
 #endif
 
-int __devinit
-setup_hfcsx(struct IsdnCard *card)
+int setup_hfcsx(struct IsdnCard *card)
 {
 	struct IsdnCardState *cs = card->cs;
 	char tmp[64];

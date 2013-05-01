@@ -2561,9 +2561,6 @@ Your cooperation is appreciated.
 		192 = /dev/usb/yurex1	First USB Yurex device
 		   ...
 		209 = /dev/usb/yurex16	16th USB Yurex device
-		240 = /dev/usb/dabusb0	First daubusb device
-		    ...
-		243 = /dev/usb/dabusb3	Fourth dabusb device
 
 180 block	USB block devices
 		  0 = /dev/uba		First USB block device

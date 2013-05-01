@@ -16,10 +16,6 @@
 #include "csr_wifi_msgconv.h"
 #include "csr_wifi_router_prim.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 extern void CsrWifiRouterPfree(void *ptr);
 
 extern u8* CsrWifiRouterMaPacketSubscribeReqSer(u8 *ptr, size_t *len, void *msg);
@@ -67,9 +63,5 @@ extern void* CsrWifiRouterMaPacketIndDes(u8 *buffer, size_t len);
 extern size_t CsrWifiRouterMaPacketIndSizeof(void *msg);
 extern void CsrWifiRouterMaPacketIndSerFree(void *msg);
 
-
-#ifdef __cplusplus
-}
-#endif
 #endif /* CSR_WIFI_ROUTER_SERIALIZE_H__ */
 

@@ -57,7 +57,7 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 	 */
 	case bcond_op:
 		switch (insn.i_format.rt) {
-	 	case bltz_op:
+		case bltz_op:
 		case bltzl_op:
 			if ((long)regs->regs[insn.i_format.rs] < 0) {
 				epc = epc + 4 + (insn.i_format.simmediate << 2);
@@ -197,8 +197,8 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 		bit += (bit != 0);
 		bit += 23;
 		switch (insn.i_format.rt & 3) {
-		case 0:	/* bc1f */
-		case 2:	/* bc1fl */
+		case 0: /* bc1f */
+		case 2: /* bc1fl */
 			if (~fcr31 & (1 << bit)) {
 				epc = epc + 4 + (insn.i_format.simmediate << 2);
 				if (insn.i_format.rt == 2)
@@ -208,8 +208,8 @@ int __compute_return_epc_for_insn(struct pt_regs *regs,
 			regs->cp0_epc = epc;
 			break;
 
-		case 1:	/* bc1t */
-		case 3:	/* bc1tl */
+		case 1: /* bc1t */
+		case 3: /* bc1tl */
 			if (fcr31 & (1 << bit)) {
 				epc = epc + 4 + (insn.i_format.simmediate << 2);
 				if (insn.i_format.rt == 3)

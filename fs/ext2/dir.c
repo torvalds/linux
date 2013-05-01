@@ -290,7 +290,7 @@ static int
 ext2_readdir (struct file * filp, void * dirent, filldir_t filldir)
 {
 	loff_t pos = filp->f_pos;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct super_block *sb = inode->i_sb;
 	unsigned int offset = pos & ~PAGE_CACHE_MASK;
 	unsigned long n = pos >> PAGE_CACHE_SHIFT;

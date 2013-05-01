@@ -77,10 +77,10 @@ Configuration Options:
 
 #include <linux/interrupt.h>
 #include <linux/slab.h>
-#include "../comedidev.h"
-#include "pcm_common.h"
 
-#include <linux/pci.h>		/* for PCI devices */
+#include "../comedidev.h"
+
+#include "comedi_fc.h"
 
 #define CHANS_PER_PORT   8
 #define PORTS_PER_ASIC   6
@@ -92,7 +92,6 @@ Configuration Options:
 #define INTR_PORTS_PER_SUBDEV (INTR_CHANS_PER_ASIC/CHANS_PER_PORT)
 #define MAX_DIO_CHANS   (PORTS_PER_ASIC*2*CHANS_PER_PORT)
 #define MAX_ASICS       (MAX_DIO_CHANS/CHANS_PER_ASIC)
-#define SDEV_NO ((int)(s - dev->subdevices))
 #define CALC_N_SUBDEVS(nchans) ((nchans)/MAX_CHANS_PER_SUBDEV + (!!((nchans)%MAX_CHANS_PER_SUBDEV)) /*+ (nchans > INTR_CHANS_PER_ASIC ? 2 : 1)*/)
 /* IO Memory sizes */
 #define ASIC_IOSIZE (0x10)
@@ -194,11 +193,6 @@ struct pcmuio_private {
 	struct pcmuio_subdev_private *sprivs;
 };
 
-/*
- * most drivers define the following macro to make it easy to
- * access the private structure.
- */
-#define devpriv ((struct pcmuio_private *)dev->private)
 #define subpriv ((struct pcmuio_subdev_private *)s->private)
 
 /* DIO devices are slightly special.  Although it is possible to
@@ -348,6 +342,7 @@ static int pcmuio_dio_insn_config(struct comedi_device *dev,
 static void switch_page(struct comedi_device *dev, int asic, int page)
 {
 	const struct pcmuio_board *board = comedi_board(dev);
+	struct pcmuio_private *devpriv = dev->private;
 
 	if (asic < 0 || asic >= board->num_asics)
 		return;		/* paranoia */
@@ -404,6 +399,7 @@ static void init_asics(struct comedi_device *dev)
 static void lock_port(struct comedi_device *dev, int asic, int port)
 {
 	const struct pcmuio_board *board = comedi_board(dev);
+	struct pcmuio_private *devpriv = dev->private;
 
 	if (asic < 0 || asic >= board->num_asics)
 		return;		/* paranoia */
@@ -419,6 +415,7 @@ static void lock_port(struct comedi_device *dev, int asic, int port)
 static void unlock_port(struct comedi_device *dev, int asic, int port)
 {
 	const struct pcmuio_board *board = comedi_board(dev);
+	struct pcmuio_private *devpriv = dev->private;
 
 	if (asic < 0 || asic >= board->num_asics)
 		return;		/* paranoia */
@@ -435,6 +432,7 @@ static void pcmuio_stop_intr(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
 	int nports, firstport, asic, port;
+	struct pcmuio_private *devpriv = dev->private;
 
 	asic = subpriv->intr.asic;
 	if (asic < 0)
@@ -456,6 +454,7 @@ static irqreturn_t interrupt_pcmuio(int irq, void *d)
 {
 	int asic, got1 = 0;
 	struct comedi_device *dev = (struct comedi_device *)d;
+	struct pcmuio_private *devpriv = dev->private;
 	int i;
 
 	for (asic = 0; asic < MAX_ASICS; ++asic) {
@@ -607,6 +606,8 @@ static irqreturn_t interrupt_pcmuio(int irq, void *d)
 static int pcmuio_start_intr(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
+	struct pcmuio_private *devpriv = dev->private;
+
 	if (!subpriv->intr.continuous && subpriv->intr.stop_count == 0) {
 		/* An empty acquisition! */
 		s->async->events |= COMEDI_CB_EOA;
@@ -738,16 +739,65 @@ static int pcmuio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
-static int
-pcmuio_cmdtest(struct comedi_device *dev, struct comedi_subdevice *s,
-	       struct comedi_cmd *cmd)
+static int pcmuio_cmdtest(struct comedi_device *dev,
+			  struct comedi_subdevice *s,
+			  struct comedi_cmd *cmd)
 {
-	return comedi_pcm_cmdtest(dev, s, cmd);
+	int err = 0;
+
+	/* Step 1 : check if triggers are trivially valid */
+
+	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_INT);
+	err |= cfc_check_trigger_src(&cmd->scan_begin_src, TRIG_EXT);
+	err |= cfc_check_trigger_src(&cmd->convert_src, TRIG_NOW);
+	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
+	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
+
+	if (err)
+		return 1;
+
+	/* Step 2a : make sure trigger sources are unique */
+
+	err |= cfc_check_trigger_is_unique(cmd->start_src);
+	err |= cfc_check_trigger_is_unique(cmd->stop_src);
+
+	/* Step 2b : and mutually compatible */
+
+	if (err)
+		return 2;
+
+	/* Step 3: check if arguments are trivially valid */
+
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+	err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
+	err |= cfc_check_trigger_arg_is(&cmd->convert_arg, 0);
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
+
+	switch (cmd->stop_src) {
+	case TRIG_COUNT:
+		/* any count allowed */
+		break;
+	case TRIG_NONE:
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
+		break;
+	default:
+		break;
+	}
+
+	if (err)
+		return 3;
+
+	/* step 4: fix up any arguments */
+
+	/* if (err) return 4; */
+
+	return 0;
 }
 
 static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct pcmuio_board *board = comedi_board(dev);
+	struct pcmuio_private *devpriv;
 	struct comedi_subdevice *s;
 	int sdev_no, chans_left, n_subdevs, port, asic, thisasic_chanct = 0;
 	unsigned long iobase;
@@ -772,15 +822,10 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	dev->board_name = board->name;
 
-/*
- * Allocate the private structure area.  alloc_private() is a
- * convenient macro defined in comedidev.h.
- */
-	if (alloc_private(dev, sizeof(struct pcmuio_private)) < 0) {
-		dev_warn(dev->class_dev,
-			 "cannot allocate private data structure\n");
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
 		return -ENOMEM;
-	}
+	dev->private = devpriv;
 
 	for (asic = 0; asic < MAX_ASICS; ++asic) {
 		devpriv->asics[asic].num = asic;
@@ -793,14 +838,11 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	chans_left = CHANS_PER_ASIC * board->num_asics;
 	n_subdevs = CALC_N_SUBDEVS(chans_left);
-	devpriv->sprivs =
-	    kcalloc(n_subdevs, sizeof(struct pcmuio_subdev_private),
-		    GFP_KERNEL);
-	if (!devpriv->sprivs) {
-		dev_warn(dev->class_dev,
-			 "cannot allocate subdevice private data structures\n");
+	devpriv->sprivs = kcalloc(n_subdevs,
+				  sizeof(struct pcmuio_subdev_private),
+				  GFP_KERNEL);
+	if (!devpriv->sprivs)
 		return -ENOMEM;
-	}
 
 	ret = comedi_alloc_subdevices(dev, n_subdevs);
 	if (ret)
@@ -905,6 +947,7 @@ static int pcmuio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 static void pcmuio_detach(struct comedi_device *dev)
 {
 	const struct pcmuio_board *board = comedi_board(dev);
+	struct pcmuio_private *devpriv = dev->private;
 	int i;
 
 	if (dev->iobase)

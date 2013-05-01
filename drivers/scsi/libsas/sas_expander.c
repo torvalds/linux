@@ -1800,7 +1800,7 @@ out:
  * @dev:domain device to be detect.
  * @src_dev: the device which originated BROADCAST(CHANGE).
  *
- * Add self-configuration expander suport. Suppose two expander cascading,
+ * Add self-configuration expander support. Suppose two expander cascading,
  * when the first level expander is self-configuring, hotplug the disks in
  * second level expander, BROADCAST(CHANGE) will not only be originated
  * in the second level expander, but also be originated in the first level

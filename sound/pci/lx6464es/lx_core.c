@@ -385,7 +385,7 @@ polling_successful:
 
 
 /* low-level dsp access */
-int __devinit lx_dsp_get_version(struct lx6464es *chip, u32 *rdsp_version)
+int lx_dsp_get_version(struct lx6464es *chip, u32 *rdsp_version)
 {
 	u16 ret;
 	unsigned long flags;

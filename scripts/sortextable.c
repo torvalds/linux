@@ -248,6 +248,7 @@ do_file(char const *const fname)
 	case EM_S390:
 		custom_sort = sort_relative_table;
 		break;
+	case EM_ARM:
 	case EM_MIPS:
 		break;
 	}  /* end switch */

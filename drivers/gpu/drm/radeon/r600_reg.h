@@ -96,6 +96,15 @@
 #define R600_CONFIG_F0_BASE                                     0x542C
 #define R600_CONFIG_APER_SIZE                                   0x5430
 
+#define	R600_BIF_FB_EN						0x5490
+#define		R600_FB_READ_EN					(1 << 0)
+#define		R600_FB_WRITE_EN				(1 << 1)
+
+#define R600_CITF_CNTL           				0x200c
+#define		R600_BLACKOUT_MASK				0x00000003
+
+#define R700_MC_CITF_CNTL           				0x25c0
+
 #define R600_ROM_CNTL                              0x1600
 #       define R600_SCK_OVERWRITE                  (1 << 1)
 #       define R600_SCK_PRESCALE_CRYSTAL_CLK_SHIFT 28

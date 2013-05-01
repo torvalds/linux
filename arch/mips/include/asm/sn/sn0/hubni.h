@@ -25,38 +25,38 @@
 #define NI_BASE_TABLES		0x630000
 
 #define NI_STATUS_REV_ID	0x600000 /* Hub network status, rev, and ID */
-#define NI_PORT_RESET		0x600008 /* Reset the network interface     */
+#define NI_PORT_RESET		0x600008 /* Reset the network interface	    */
 #define NI_PROTECTION		0x600010 /* NI register access permissions  */
-#define NI_GLOBAL_PARMS		0x600018 /* LLP parameters 		    */
+#define NI_GLOBAL_PARMS		0x600018 /* LLP parameters		    */
 #define NI_SCRATCH_REG0		0x600100 /* Scratch register 0 (64 bits)    */
 #define NI_SCRATCH_REG1		0x600108 /* Scratch register 1 (64 bits)    */
 #define NI_DIAG_PARMS		0x600110 /* Parameters for diags	    */
 
 #define NI_VECTOR_PARMS		0x600200 /* Vector PIO routing parameters   */
-#define NI_VECTOR		0x600208 /* Vector PIO route 		    */
-#define NI_VECTOR_DATA		0x600210 /* Vector PIO data 		    */
-#define NI_VECTOR_STATUS	0x600300 /* Vector PIO return status 	    */
-#define NI_RETURN_VECTOR	0x600308 /* Vector PIO return vector 	    */
-#define NI_VECTOR_READ_DATA	0x600310 /* Vector PIO read data 	    */
+#define NI_VECTOR		0x600208 /* Vector PIO route		    */
+#define NI_VECTOR_DATA		0x600210 /* Vector PIO data		    */
+#define NI_VECTOR_STATUS	0x600300 /* Vector PIO return status	    */
+#define NI_RETURN_VECTOR	0x600308 /* Vector PIO return vector	    */
+#define NI_VECTOR_READ_DATA	0x600310 /* Vector PIO read data	    */
 #define NI_VECTOR_CLEAR		0x600380 /* Vector PIO read & clear status  */
 
-#define NI_IO_PROTECT		0x600400 /* PIO protection bits 	    */
-#define NI_IO_PROT_OVRRD	0x600408 /* PIO protection bit override     */
+#define NI_IO_PROTECT		0x600400 /* PIO protection bits		    */
+#define NI_IO_PROT_OVRRD	0x600408 /* PIO protection bit override	    */
 
-#define NI_AGE_CPU0_MEMORY	0x600500 /* CPU 0 memory age control 	    */
-#define NI_AGE_CPU0_PIO		0x600508 /* CPU 0 PIO age control 	    */
-#define NI_AGE_CPU1_MEMORY	0x600510 /* CPU 1 memory age control 	    */
-#define NI_AGE_CPU1_PIO		0x600518 /* CPU 1 PIO age control 	    */
-#define NI_AGE_GBR_MEMORY	0x600520 /* GBR memory age control 	    */
-#define NI_AGE_GBR_PIO		0x600528 /* GBR PIO age control 	    */
-#define NI_AGE_IO_MEMORY	0x600530 /* IO memory age control 	    */
-#define NI_AGE_IO_PIO		0x600538 /* IO PIO age control 		    */
+#define NI_AGE_CPU0_MEMORY	0x600500 /* CPU 0 memory age control	    */
+#define NI_AGE_CPU0_PIO		0x600508 /* CPU 0 PIO age control	    */
+#define NI_AGE_CPU1_MEMORY	0x600510 /* CPU 1 memory age control	    */
+#define NI_AGE_CPU1_PIO		0x600518 /* CPU 1 PIO age control	    */
+#define NI_AGE_GBR_MEMORY	0x600520 /* GBR memory age control	    */
+#define NI_AGE_GBR_PIO		0x600528 /* GBR PIO age control		    */
+#define NI_AGE_IO_MEMORY	0x600530 /* IO memory age control	    */
+#define NI_AGE_IO_PIO		0x600538 /* IO PIO age control		    */
 #define NI_AGE_REG_MIN		NI_AGE_CPU0_MEMORY
 #define NI_AGE_REG_MAX		NI_AGE_IO_PIO
 
-#define NI_PORT_PARMS		0x608000 /* LLP Parameters 		    */
-#define NI_PORT_ERROR		0x608008 /* LLP Errors 			    */
-#define NI_PORT_ERROR_CLEAR	0x608088 /* Clear the error bits 	    */
+#define NI_PORT_PARMS		0x608000 /* LLP Parameters		    */
+#define NI_PORT_ERROR		0x608008 /* LLP Errors			    */
+#define NI_PORT_ERROR_CLEAR	0x608088 /* Clear the error bits	    */
 
 #define NI_META_TABLE0		0x638000 /* First meta routing table entry  */
 #define NI_META_TABLE(_x)	(NI_META_TABLE0 + (8 * (_x)))
@@ -76,13 +76,13 @@
 #define NSRI_LINKUP_SHFT	29
 #define NSRI_LINKUP_MASK	(UINT64_CAST 0x1 << 29)
 #define NSRI_DOWNREASON_SHFT	28		/* 0=failed, 1=never came   */
-#define NSRI_DOWNREASON_MASK	(UINT64_CAST 0x1 << 28)	/*    out of reset. */
+#define NSRI_DOWNREASON_MASK	(UINT64_CAST 0x1 << 28) /*    out of reset. */
 #define NSRI_MORENODES_SHFT	18
 #define NSRI_MORENODES_MASK	(UINT64_CAST 1 << 18)	/* Max. # of nodes  */
 #define	 MORE_MEMORY		0
 #define	 MORE_NODES		1
 #define NSRI_REGIONSIZE_SHFT	17
-#define NSRI_REGIONSIZE_MASK	(UINT64_CAST 1 << 17)	/* Granularity 	    */
+#define NSRI_REGIONSIZE_MASK	(UINT64_CAST 1 << 17)	/* Granularity	    */
 #define	 REGIONSIZE_FINE	1
 #define	 REGIONSIZE_COARSE	0
 #define NSRI_NODEID_SHFT	8
@@ -90,14 +90,14 @@
 #define NSRI_REV_SHFT		4
 #define NSRI_REV_MASK		(UINT64_CAST 0xf << 4)	/* Chip Revision    */
 #define NSRI_CHIPID_SHFT	0
-#define NSRI_CHIPID_MASK	(UINT64_CAST 0xf)	/* Chip type ID     */
+#define NSRI_CHIPID_MASK	(UINT64_CAST 0xf)	/* Chip type ID	    */
 
 /*
- * In fine mode, each node is a region.  In coarse mode, there are
+ * In fine mode, each node is a region.	 In coarse mode, there are
  * eight nodes per region.
  */
 #define NASID_TO_FINEREG_SHFT	0
-#define NASID_TO_COARSEREG_SHFT	3
+#define NASID_TO_COARSEREG_SHFT 3
 
 /* NI_PORT_RESET mask definitions */
 
@@ -111,21 +111,21 @@
 
 /* NI_GLOBAL_PARMS mask and shift definitions */
 
-#define NGP_MAXRETRY_SHFT	48		/* Maximum retries  	    */
+#define NGP_MAXRETRY_SHFT	48		/* Maximum retries	    */
 #define NGP_MAXRETRY_MASK	(UINT64_CAST 0x3ff << 48)
-#define NGP_TAILTOWRAP_SHFT	32		/* Tail timeout wrap 	    */
+#define NGP_TAILTOWRAP_SHFT	32		/* Tail timeout wrap	    */
 #define NGP_TAILTOWRAP_MASK	(UINT64_CAST 0xffff << 32)
 
-#define NGP_CREDITTOVAL_SHFT	16		/* Tail timeout wrap 	    */
+#define NGP_CREDITTOVAL_SHFT	16		/* Tail timeout wrap	    */
 #define NGP_CREDITTOVAL_MASK	(UINT64_CAST 0xf << 16)
-#define NGP_TAILTOVAL_SHFT	4		/* Tail timeout value 	    */
+#define NGP_TAILTOVAL_SHFT	4		/* Tail timeout value	    */
 #define NGP_TAILTOVAL_MASK	(UINT64_CAST 0xf << 4)
 
 /* NI_DIAG_PARMS mask and shift definitions */
 
 #define NDP_PORTTORESET		(UINT64_CAST 1 << 18)	/* Port tmout reset */
 #define NDP_LLP8BITMODE		(UINT64_CAST 1 << 12)	/* LLP 8-bit mode   */
-#define NDP_PORTDISABLE		(UINT64_CAST 1 <<  6)	/* Port disable     */
+#define NDP_PORTDISABLE		(UINT64_CAST 1 <<  6)	/* Port disable	    */
 #define NDP_SENDERROR		(UINT64_CAST 1)		/* Send data error  */
 
 /*
@@ -137,7 +137,7 @@
 #define NVP_PIOID_MASK		(UINT64_CAST 0x3ff << 40)
 #define NVP_WRITEID_SHFT	32
 #define NVP_WRITEID_MASK	(UINT64_CAST 0xff << 32)
-#define NVP_ADDRESS_MASK	(UINT64_CAST 0xffff8)	/* Bits 19:3 	    */
+#define NVP_ADDRESS_MASK	(UINT64_CAST 0xffff8)	/* Bits 19:3	    */
 #define NVP_TYPE_SHFT		0
 #define NVP_TYPE_MASK		(UINT64_CAST 0x3)
 
@@ -151,7 +151,7 @@
 #define NVS_PIOID_MASK		(UINT64_CAST 0x3ff << 40)
 #define NVS_WRITEID_SHFT	32
 #define NVS_WRITEID_MASK	(UINT64_CAST 0xff << 32)
-#define NVS_ADDRESS_MASK	(UINT64_CAST 0xfffffff8)   /* Bits 31:3     */
+#define NVS_ADDRESS_MASK	(UINT64_CAST 0xfffffff8)   /* Bits 31:3	    */
 #define NVS_TYPE_SHFT		0
 #define NVS_TYPE_MASK		(UINT64_CAST 0x7)
 #define NVS_ERROR_MASK		(UINT64_CAST 0x4)  /* bit set means error */
@@ -161,10 +161,10 @@
 #define	 PIOTYPE_WRITE		1	/* VECTOR_PARMS and VECTOR_STATUS   */
 #define	 PIOTYPE_UNDEFINED	2	/* VECTOR_PARMS and VECTOR_STATUS   */
 #define	 PIOTYPE_EXCHANGE	3	/* VECTOR_PARMS and VECTOR_STATUS   */
-#define	 PIOTYPE_ADDR_ERR	4	/* VECTOR_STATUS only 		    */
-#define	 PIOTYPE_CMD_ERR	5	/* VECTOR_STATUS only 		    */
-#define	 PIOTYPE_PROT_ERR	6	/* VECTOR_STATUS only 		    */
-#define	 PIOTYPE_UNKNOWN	7	/* VECTOR_STATUS only 		    */
+#define	 PIOTYPE_ADDR_ERR	4	/* VECTOR_STATUS only		    */
+#define	 PIOTYPE_CMD_ERR	5	/* VECTOR_STATUS only		    */
+#define	 PIOTYPE_PROT_ERR	6	/* VECTOR_STATUS only		    */
+#define	 PIOTYPE_UNKNOWN	7	/* VECTOR_STATUS only		    */
 
 /* NI_AGE_XXX mask and shift definitions */
 
@@ -215,7 +215,7 @@
 
 #define NPE_FATAL_ERRORS	(NPE_LINKRESET | NPE_INTERNALERROR |	\
 				 NPE_BADMESSAGE | NPE_BADDEST |		\
-				 NPE_FIFOOVERFLOW | NPE_CREDITTO_MASK |	\
+				 NPE_FIFOOVERFLOW | NPE_CREDITTO_MASK | \
 				 NPE_TAILTO_MASK)
 
 /* NI_META_TABLE mask and shift definitions */
@@ -231,7 +231,7 @@
 typedef union	hubni_port_error_u {
 	u64	nipe_reg_value;
 	struct {
-	    u64	nipe_rsvd:	26,	/* unused */
+	    u64 nipe_rsvd:	26,	/* unused */
 		nipe_lnk_reset:	 1,	/* link reset */
 		nipe_intl_err:	 1,	/* internal error */
 		nipe_bad_msg:	 1,	/* bad message */

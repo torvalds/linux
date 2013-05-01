@@ -142,11 +142,11 @@ static void bcm_get_drvinfo(struct net_device *dev,
 			    struct ethtool_drvinfo *info)
 {
 	struct bcm_mini_adapter *Adapter = GET_BCM_ADAPTER(dev);
-	PS_INTERFACE_ADAPTER psIntfAdapter = Adapter->pvInterfaceAdapter;
+	struct bcm_interface_adapter *psIntfAdapter = Adapter->pvInterfaceAdapter;
 	struct usb_device *udev = interface_to_usbdev(psIntfAdapter->interface);
 
-	strcpy(info->driver, DRV_NAME);
-	strcpy(info->version, DRV_VERSION);
+	strlcpy(info->driver, DRV_NAME, sizeof(info->driver));
+	strlcpy(info->version, DRV_VERSION, sizeof(info->version));
 	snprintf(info->fw_version, sizeof(info->fw_version), "%u.%u",
 		 Adapter->uiFlashLayoutMajorVersion,
 		 Adapter->uiFlashLayoutMinorVersion);
@@ -186,7 +186,7 @@ static const struct ethtool_ops bcm_ethtool_ops = {
 int register_networkdev(struct bcm_mini_adapter *Adapter)
 {
 	struct net_device *net = Adapter->dev;
-	PS_INTERFACE_ADAPTER IntfAdapter = Adapter->pvInterfaceAdapter;
+	struct bcm_interface_adapter *IntfAdapter = Adapter->pvInterfaceAdapter;
 	struct usb_interface *udev = IntfAdapter->interface;
 	struct usb_device *xdev = IntfAdapter->udev;
 
@@ -227,7 +227,7 @@ int register_networkdev(struct bcm_mini_adapter *Adapter)
 void unregister_networkdev(struct bcm_mini_adapter *Adapter)
 {
 	struct net_device *net = Adapter->dev;
-	PS_INTERFACE_ADAPTER IntfAdapter = Adapter->pvInterfaceAdapter;
+	struct bcm_interface_adapter *IntfAdapter = Adapter->pvInterfaceAdapter;
 	struct usb_interface *udev = IntfAdapter->interface;
 	struct usb_device *xdev = IntfAdapter->udev;
 

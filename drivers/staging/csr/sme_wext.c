@@ -800,7 +800,6 @@ iwprivsconfwapi(struct net_device *dev, struct iw_request_info *info,
     u8 enable;
     netInterface_priv_t *interfacePriv = (netInterface_priv_t *)netdev_priv(dev);
     unifi_priv_t *priv = interfacePriv->privPtr;
-    func_enter();
 
     unifi_trace(priv, UDBG1, "iwprivsconfwapi\n" );
 
@@ -824,7 +823,6 @@ iwprivsconfwapi(struct net_device *dev, struct iw_request_info *info,
             ~(CSR_WIFI_SME_ENCRYPTION_CIPHER_PAIRWISE_SMS4 | CSR_WIFI_SME_ENCRYPTION_CIPHER_GROUP_SMS4);
     }
 
-    func_exit();
     return 0;
 }
 
@@ -837,7 +835,6 @@ iwprivswpikey(struct net_device *dev, struct iw_request_info *info,
     unifiio_wapi_key_t inKey;
     netInterface_priv_t *interfacePriv = (netInterface_priv_t *)netdev_priv(dev);
     unifi_priv_t *priv = interfacePriv->privPtr;
-    func_enter();
 
     unifi_trace(priv, UDBG1, "iwprivswpikey\n" );
 
@@ -882,7 +879,6 @@ iwprivswpikey(struct net_device *dev, struct iw_request_info *info,
         return convert_sme_error(r);
     }
 
-    func_exit();
     return r;
 }
 #endif
@@ -914,7 +910,6 @@ unifi_siwfreq(struct net_device *dev, struct iw_request_info *info,
     unifi_priv_t *priv = interfacePriv->privPtr;
     struct iw_freq *freq = (struct iw_freq *)wrqu;
 
-    func_enter();
     unifi_trace(priv, UDBG2, "unifi_siwfreq\n");
 
     if(interfacePriv->interfaceMode == CSR_WIFI_ROUTER_CTRL_MODE_AP ||
@@ -935,7 +930,6 @@ unifi_siwfreq(struct net_device *dev, struct iw_request_info *info,
         priv->connection_config.adhocChannel = wext_freq_to_channel(freq->m, freq->e);
     }
 
-    func_exit();
     return 0;
 } /* unifi_siwfreq() */
 
@@ -950,7 +944,6 @@ unifi_giwfreq(struct net_device *dev, struct iw_request_info *info,
     int err = 0;
     CsrWifiSmeConnectionInfo connectionInfo;
 
-    func_enter();
     unifi_trace(priv, UDBG2, "unifi_giwfreq\n");
     CHECK_INITED(priv);
 
@@ -970,7 +963,6 @@ unifi_giwfreq(struct net_device *dev, struct iw_request_info *info,
             (connectionInfo.networkType80211 == CSR_WIFI_SME_RADIO_IF_GHZ_5_0));
     freq->e = 6;
 
-    func_exit();
     return convert_sme_error(err);
 } /* unifi_giwfreq() */
 
@@ -982,7 +974,6 @@ unifi_siwmode(struct net_device *dev, struct iw_request_info *info,
     netInterface_priv_t *interfacePriv = (netInterface_priv_t *)netdev_priv(dev);
     unifi_priv_t *priv = interfacePriv->privPtr;
 
-    func_enter();
     unifi_trace(priv, UDBG2, "unifi_siwmode\n");
 
     if(interfacePriv->interfaceMode == CSR_WIFI_ROUTER_CTRL_MODE_AP ||
@@ -1011,7 +1002,6 @@ unifi_siwmode(struct net_device *dev, struct iw_request_info *info,
     priv->connection_config.ssid.length = 0;
     memset(priv->connection_config.bssid.a, 0xFF, ETH_ALEN);
 
-    func_exit();
     return 0;
 } /* unifi_siwmode() */
 
@@ -1026,7 +1016,6 @@ unifi_giwmode(struct net_device *dev, struct iw_request_info *info,
     unifi_priv_t *priv = interfacePriv->privPtr;
     CsrWifiSmeConnectionConfig connectionConfig;
 
-    func_enter();
     unifi_trace(priv, UDBG2, "unifi_giwmode\n");
     CHECK_INITED(priv);
 
@@ -1069,7 +1058,6 @@ unifi_giwmode(struct net_device *dev, struct iw_request_info *info,
 
     }
     unifi_trace(priv, UDBG4, "unifi_giwmode: mode = 0x%x\n", wrqu->mode);
-    func_exit();
     return r;
 } /* unifi_giwmode() */
 
@@ -1192,8 +1180,6 @@ unifi_siwap(struct net_device *dev, struct iw_request_info *info,
     unifi_priv_t *priv = interfacePriv->privPtr;
     int err = 0;
 
-    func_enter();
-
     CHECK_INITED(priv);
 
     if(interfacePriv->interfaceMode == CSR_WIFI_ROUTER_CTRL_MODE_AP ||
@@ -1235,11 +1221,9 @@ unifi_siwap(struct net_device *dev, struct iw_request_info *info,
         err = sme_mgt_connect(priv);
         if (err) {
             unifi_error(priv, "unifi_siwap: Join failed, status %d\n", err);
-            func_exit();
             return convert_sme_error(err);
         }
     }
-    func_exit();
 
     return 0;
 } /* unifi_siwap() */
@@ -1254,8 +1238,6 @@ unifi_giwap(struct net_device *dev, struct iw_request_info *info,
     CsrWifiSmeConnectionInfo connectionInfo;
     int r = 0;
     u8 *bssid;
-
-    func_enter();
 
     CHECK_INITED(priv);
     unifi_trace(priv, UDBG2, "unifi_giwap\n");
@@ -1281,7 +1263,6 @@ unifi_giwap(struct net_device *dev, struct iw_request_info *info,
         memset(wrqu->ap_addr.sa_data, 0, ETH_ALEN);
     }
 
-    func_exit();
     return 0;
 } /* unifi_giwap() */
 
@@ -1301,8 +1282,6 @@ unifi_siwscan(struct net_device *dev, struct iw_request_info *info,
     struct iw_point *data = &wrqu->data;
     struct iw_scan_req *req = (struct iw_scan_req *) extra;
 #endif
-
-    func_enter();
 
     CHECK_INITED(priv);
 
@@ -1366,7 +1345,6 @@ unifi_siwscan(struct net_device *dev, struct iw_request_info *info,
         kfree(channel_list);
     }
 
-    func_exit();
     return r;
 
 } /* unifi_siwscan() */
@@ -1707,7 +1685,6 @@ unifi_siwessid(struct net_device *dev, struct iw_request_info *info,
     int len;
     int err = 0;
 
-    func_enter();
     CHECK_INITED(priv);
 
     if(interfacePriv->interfaceMode == CSR_WIFI_ROUTER_CTRL_MODE_AP ||
@@ -1760,11 +1737,9 @@ unifi_siwessid(struct net_device *dev, struct iw_request_info *info,
     UF_RTNL_LOCK();
     if (err) {
         unifi_error(priv, "unifi_siwessid: Join failed, status %d\n", err);
-        func_exit();
         return convert_sme_error(err);
     }
 
-    func_exit();
     return 0;
 } /* unifi_siwessid() */
 
@@ -1779,7 +1754,6 @@ unifi_giwessid(struct net_device *dev, struct iw_request_info *info,
     CsrWifiSmeConnectionInfo connectionInfo;
     int r = 0;
 
-    func_enter();
     unifi_trace(priv, UDBG2, "unifi_giwessid\n");
     CHECK_INITED(priv);
 
@@ -1805,7 +1779,6 @@ unifi_giwessid(struct net_device *dev, struct iw_request_info *info,
                 data->length, essid);
     }
 
-    func_exit();
 
     return 0;
 } /* unifi_giwessid() */
@@ -1820,8 +1793,6 @@ unifi_siwrate(struct net_device *dev, struct iw_request_info *info,
     struct iw_param *args = &wrqu->bitrate;
     CsrWifiSmeMibConfig mibConfig;
     int r;
-
-    func_enter();
 
     CHECK_INITED(priv);
     unifi_trace(priv, UDBG2, "unifi_siwrate\n");
@@ -1863,7 +1834,6 @@ unifi_siwrate(struct net_device *dev, struct iw_request_info *info,
         return r;
     }
 
-    func_exit();
 
     return 0;
 } /* unifi_siwrate() */
@@ -1882,7 +1852,6 @@ unifi_giwrate(struct net_device *dev, struct iw_request_info *info,
     CsrWifiSmeMibConfig mibConfig;
     CsrWifiSmeConnectionStats connectionStats;
 
-    func_enter();
     unifi_trace(priv, UDBG2, "unifi_giwrate\n");
     CHECK_INITED(priv);
 
@@ -1912,8 +1881,6 @@ unifi_giwrate(struct net_device *dev, struct iw_request_info *info,
 
     args->value = bitrate * 500000;
     args->fixed = !flag;
-
-    func_exit();
 
     return 0;
 } /* unifi_giwrate() */
@@ -2081,7 +2048,6 @@ unifi_siwencode(struct net_device *dev, struct iw_request_info *info,
     int privacy = -1;
     CsrWifiSmeKey sme_key;
 
-    func_enter();
     unifi_trace(priv, UDBG2, "unifi_siwencode\n");
 
     CHECK_INITED(priv);
@@ -2236,7 +2202,6 @@ unifi_siwencode(struct net_device *dev, struct iw_request_info *info,
             CSR_WIFI_SME_ENCRYPTION_CIPHER_NONE;
     }
 
-    func_exit_r(rc);
     return convert_sme_error(rc);
 
 } /* unifi_siwencode() */
@@ -2467,7 +2432,6 @@ unifi_siwmlme(struct net_device *dev, struct iw_request_info *info,
     netInterface_priv_t *interfacePriv = (netInterface_priv_t *)netdev_priv(dev);
     unifi_priv_t *priv = interfacePriv->privPtr;
     struct iw_mlme *mlme = (struct iw_mlme *)extra;
-    func_enter();
 
     unifi_trace(priv, UDBG2, "unifi_siwmlme\n");
     CHECK_INITED(priv);
@@ -2488,11 +2452,9 @@ unifi_siwmlme(struct net_device *dev, struct iw_request_info *info,
             UF_RTNL_LOCK();
             break;
         default:
-            func_exit_r(-EOPNOTSUPP);
             return -EOPNOTSUPP;
     }
 
-    func_exit();
     return 0;
 } /* unifi_siwmlme() */
 
@@ -2529,7 +2491,6 @@ unifi_siwgenie(struct net_device *dev, struct iw_request_info *info,
     unifi_priv_t *priv = interfacePriv->privPtr;
     int len;
 
-    func_enter();
     unifi_trace(priv, UDBG2, "unifi_siwgenie\n");
 
     if(interfacePriv->interfaceMode == CSR_WIFI_ROUTER_CTRL_MODE_AP ||
@@ -2548,20 +2509,17 @@ unifi_siwgenie(struct net_device *dev, struct iw_request_info *info,
 
     len = wrqu->data.length;
     if (len == 0) {
-        func_exit();
         return 0;
     }
 
     priv->connection_config.mlmeAssociateReqInformationElements = kmalloc(len, GFP_KERNEL);
     if (priv->connection_config.mlmeAssociateReqInformationElements == NULL) {
-        func_exit();
         return -ENOMEM;
     }
 
     priv->connection_config.mlmeAssociateReqInformationElementsLength = len;
     memcpy( priv->connection_config.mlmeAssociateReqInformationElements, extra, len);
 
-    func_exit();
     return 0;
 } /* unifi_siwgenie() */
 
@@ -2574,7 +2532,6 @@ unifi_giwgenie(struct net_device *dev, struct iw_request_info *info,
     unifi_priv_t *priv = interfacePriv->privPtr;
     int len;
 
-    func_enter();
     unifi_trace(priv, UDBG2, "unifi_giwgenie\n");
 
     if(interfacePriv->interfaceMode == CSR_WIFI_ROUTER_CTRL_MODE_AP ||
@@ -2599,7 +2556,6 @@ unifi_giwgenie(struct net_device *dev, struct iw_request_info *info,
     wrqu->data.length = len;
     memcpy(extra, priv->connection_config.mlmeAssociateReqInformationElements, len);
 
-    func_exit();
     return 0;
 } /* unifi_giwgenie() */
 
@@ -2627,7 +2583,6 @@ _unifi_siwauth(struct net_device *dev, struct iw_request_info *info,
     unifi_priv_t *priv = interfacePriv->privPtr;
     CsrWifiSmeAuthModeMask new_auth;
 
-    func_enter();
     unifi_trace(priv, UDBG2, "unifi_siwauth\n");
 
     if(interfacePriv->interfaceMode == CSR_WIFI_ROUTER_CTRL_MODE_AP ||
@@ -2848,7 +2803,6 @@ _unifi_siwauth(struct net_device *dev, struct iw_request_info *info,
     }
 
     unifi_trace(priv, UDBG2, "authModeMask = %d", priv->connection_config.authModeMask);
-    func_exit();
 
     return 0;
 } /* _unifi_siwauth() */
@@ -2910,8 +2864,6 @@ _unifi_siwencodeext(struct net_device *dev, struct iw_request_info *info,
     unsigned char *a = (unsigned char *)ext->addr.sa_data;
     CsrWifiSmeKey sme_key;
     CsrWifiSmeKeyType key_type;
-
-    func_enter();
 
     CHECK_INITED(priv);
 
@@ -3061,7 +3013,6 @@ _unifi_siwencodeext(struct net_device *dev, struct iw_request_info *info,
         return convert_sme_error(r);
     }
 
-    func_exit();
     return r;
 } /* _unifi_siwencodeext() */
 

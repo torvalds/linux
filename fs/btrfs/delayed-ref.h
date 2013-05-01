@@ -132,6 +132,15 @@ struct btrfs_delayed_ref_root {
 	unsigned long num_heads_ready;
 
 	/*
+	 * bumped when someone is making progress on the delayed
+	 * refs, so that other procs know they are just adding to
+	 * contention intead of helping
+	 */
+	atomic_t procs_running_refs;
+	atomic_t ref_seq;
+	wait_queue_head_t wait;
+
+	/*
 	 * set when the tree is flushing before a transaction commit,
 	 * used by the throttling code to decide if new updates need
 	 * to be run right away
@@ -141,12 +150,47 @@ struct btrfs_delayed_ref_root {
 	u64 run_delayed_start;
 };
 
+extern struct kmem_cache *btrfs_delayed_ref_head_cachep;
+extern struct kmem_cache *btrfs_delayed_tree_ref_cachep;
+extern struct kmem_cache *btrfs_delayed_data_ref_cachep;
+extern struct kmem_cache *btrfs_delayed_extent_op_cachep;
+
+int btrfs_delayed_ref_init(void);
+void btrfs_delayed_ref_exit(void);
+
+static inline struct btrfs_delayed_extent_op *
+btrfs_alloc_delayed_extent_op(void)
+{
+	return kmem_cache_alloc(btrfs_delayed_extent_op_cachep, GFP_NOFS);
+}
+
+static inline void
+btrfs_free_delayed_extent_op(struct btrfs_delayed_extent_op *op)
+{
+	if (op)
+		kmem_cache_free(btrfs_delayed_extent_op_cachep, op);
+}
+
 static inline void btrfs_put_delayed_ref(struct btrfs_delayed_ref_node *ref)
 {
 	WARN_ON(atomic_read(&ref->refs) == 0);
 	if (atomic_dec_and_test(&ref->refs)) {
 		WARN_ON(ref->in_tree);
-		kfree(ref);
+		switch (ref->type) {
+		case BTRFS_TREE_BLOCK_REF_KEY:
+		case BTRFS_SHARED_BLOCK_REF_KEY:
+			kmem_cache_free(btrfs_delayed_tree_ref_cachep, ref);
+			break;
+		case BTRFS_EXTENT_DATA_REF_KEY:
+		case BTRFS_SHARED_DATA_REF_KEY:
+			kmem_cache_free(btrfs_delayed_data_ref_cachep, ref);
+			break;
+		case 0:
+			kmem_cache_free(btrfs_delayed_ref_head_cachep, ref);
+			break;
+		default:
+			BUG();
+		}
 	}
 }
 
@@ -176,8 +220,14 @@ struct btrfs_delayed_ref_head *
 btrfs_find_delayed_ref_head(struct btrfs_trans_handle *trans, u64 bytenr);
 int btrfs_delayed_ref_lock(struct btrfs_trans_handle *trans,
 			   struct btrfs_delayed_ref_head *head);
+static inline void btrfs_delayed_ref_unlock(struct btrfs_delayed_ref_head *head)
+{
+	mutex_unlock(&head->mutex);
+}
+
 int btrfs_find_ref_cluster(struct btrfs_trans_handle *trans,
 			   struct list_head *cluster, u64 search_start);
+void btrfs_release_ref_cluster(struct list_head *cluster);
 
 int btrfs_check_delayed_seq(struct btrfs_fs_info *fs_info,
 			    struct btrfs_delayed_ref_root *delayed_refs,

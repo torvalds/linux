@@ -187,7 +187,6 @@ void __init s5p6440_map_io(void)
 	s5p6440_default_sdhci2();
 
 	iotable_init(s5p6440_iodesc, ARRAY_SIZE(s5p6440_iodesc));
-	init_consistent_dma_size(SZ_8M);
 }
 
 void __init s5p6450_map_io(void)
@@ -202,7 +201,6 @@ void __init s5p6450_map_io(void)
 	s5p6450_default_sdhci2();
 
 	iotable_init(s5p6450_iodesc, ARRAY_SIZE(s5p6450_iodesc));
-	init_consistent_dma_size(SZ_8M);
 }
 
 /*

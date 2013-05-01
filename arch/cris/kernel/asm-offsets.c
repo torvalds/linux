@@ -1,3 +1,4 @@
+#include <linux/kbuild.h>
 #include <linux/sched.h>
 #include <asm/thread_info.h>
 
@@ -6,11 +7,6 @@
  * This code generates raw asm output which is post-processed to extract
  * and format the required data.
  */
-
-#define DEFINE(sym, val) \
-	asm volatile("\n->" #sym " %0 " #val : : "i" (val))
-
-#define BLANK() asm volatile("\n->" : : )
 
 #if !defined(CONFIG_ETRAX_ARCH_V10) && !defined(CONFIG_ETRAX_ARCH_V32)
 #error One of ARCH v10 and ARCH v32 must be true!

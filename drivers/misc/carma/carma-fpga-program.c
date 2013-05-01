@@ -546,7 +546,7 @@ static noinline int fpga_program_dma(struct fpga_dev *priv)
 		goto out_dma_unmap;
 	}
 
-	dma_async_memcpy_issue_pending(chan);
+	dma_async_issue_pending(chan);
 
 	/* Set the total byte count */
 	fpga_set_byte_count(priv->regs, priv->bytes);

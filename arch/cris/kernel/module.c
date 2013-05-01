@@ -32,8 +32,6 @@
 #ifdef CONFIG_ETRAX_KMALLOCED_MODULES
 void *module_alloc(unsigned long size)
 {
-	if (size == 0)
-		return NULL;
 	return kmalloc(size, GFP_KERNEL);
 }
 

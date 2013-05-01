@@ -686,12 +686,12 @@ static struct pxa3xx_pinmux_info mmp2_info = {
 	.ds_shift	= MMP2_DS_SHIFT,
 };
 
-static int __devinit mmp2_pinmux_probe(struct platform_device *pdev)
+static int mmp2_pinmux_probe(struct platform_device *pdev)
 {
 	return pxa3xx_pinctrl_register(pdev, &mmp2_info);
 }
 
-static int __devexit mmp2_pinmux_remove(struct platform_device *pdev)
+static int mmp2_pinmux_remove(struct platform_device *pdev)
 {
 	return pxa3xx_pinctrl_unregister(pdev);
 }
@@ -702,7 +702,7 @@ static struct platform_driver mmp2_pinmux_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe	= mmp2_pinmux_probe,
-	.remove	= __devexit_p(mmp2_pinmux_remove),
+	.remove	= mmp2_pinmux_remove,
 };
 
 static int __init mmp2_pinmux_init(void)

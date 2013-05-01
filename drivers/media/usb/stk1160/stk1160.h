@@ -30,11 +30,12 @@
 #define STK1160_VERSION		"0.9.5"
 #define STK1160_VERSION_NUM	0x000905
 
-/* TODO: Decide on number of packets for each buffer */
+/* Decide on number of packets for each buffer */
 #define STK1160_NUM_PACKETS 64
 
 /* Number of buffers for isoc transfers */
-#define STK1160_NUM_BUFS 16 /* TODO */
+#define STK1160_NUM_BUFS 16
+#define STK1160_MIN_BUFS 1
 
 /* TODO: This endpoint address should be retrieved */
 #define STK1160_EP_VIDEO 0x82

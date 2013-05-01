@@ -243,7 +243,7 @@ static struct regulator_ops tps62360_dcdc_ops = {
 	.get_mode		= tps62360_get_mode,
 };
 
-static int __devinit tps62360_init_dcdc(struct tps62360_chip *tps,
+static int tps62360_init_dcdc(struct tps62360_chip *tps,
 		struct tps62360_regulator_platform_data *pdata)
 {
 	int ret;
@@ -339,7 +339,7 @@ static const struct of_device_id tps62360_of_match[] = {
 MODULE_DEVICE_TABLE(of, tps62360_of_match);
 #endif
 
-static int __devinit tps62360_probe(struct i2c_client *client,
+static int tps62360_probe(struct i2c_client *client,
 				     const struct i2c_device_id *id)
 {
 	struct regulator_config config = { };
@@ -490,7 +490,7 @@ static int __devinit tps62360_probe(struct i2c_client *client,
  *
  * Unregister TPS driver as an i2c client device driver
  */
-static int __devexit tps62360_remove(struct i2c_client *client)
+static int tps62360_remove(struct i2c_client *client)
 {
 	struct tps62360_chip *tps = i2c_get_clientdata(client);
 
@@ -531,7 +531,7 @@ static struct i2c_driver tps62360_i2c_driver = {
 		.of_match_table = of_match_ptr(tps62360_of_match),
 	},
 	.probe = tps62360_probe,
-	.remove = __devexit_p(tps62360_remove),
+	.remove = tps62360_remove,
 	.shutdown = tps62360_shutdown,
 	.id_table = tps62360_id,
 };

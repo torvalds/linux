@@ -109,4 +109,6 @@ extern struct xfs_btree_cur *xfs_inobt_init_cursor(struct xfs_mount *,
 		struct xfs_trans *, struct xfs_buf *, xfs_agnumber_t);
 extern int xfs_inobt_maxrecs(struct xfs_mount *, int, int);
 
+extern const struct xfs_buf_ops xfs_inobt_buf_ops;
+
 #endif	/* __XFS_IALLOC_BTREE_H__ */

@@ -1165,6 +1165,19 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 	return ret;
 }
 
+/* Export DMA buffer */
+static int vidioc_expbuf(struct file *file, void *priv,
+	struct v4l2_exportbuffer *eb)
+{
+	struct s5p_mfc_ctx *ctx = fh_to_ctx(priv);
+
+	if (eb->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
+		return vb2_expbuf(&ctx->vq_src, eb);
+	if (eb->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+		return vb2_expbuf(&ctx->vq_dst, eb);
+	return -EINVAL;
+}
+
 /* Stream on */
 static int vidioc_streamon(struct file *file, void *priv,
 			   enum v4l2_buf_type type)
@@ -1521,6 +1534,8 @@ int vidioc_encoder_cmd(struct file *file, void *priv,
 		if (list_empty(&ctx->src_queue)) {
 			mfc_debug(2, "EOS: empty src queue, entering finishing state");
 			ctx->state = MFCINST_FINISHING;
+			if (s5p_mfc_ctx_ready(ctx))
+				set_work_bit_irqsave(ctx);
 			spin_unlock_irqrestore(&dev->irqlock, flags);
 			s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
 		} else {
@@ -1542,7 +1557,7 @@ int vidioc_encoder_cmd(struct file *file, void *priv,
 }
 
 static int vidioc_subscribe_event(struct v4l2_fh *fh,
-					struct v4l2_event_subscription *sub)
+				  const struct v4l2_event_subscription *sub)
 {
 	switch (sub->type) {
 	case V4L2_EVENT_EOS:
@@ -1568,6 +1583,7 @@ static const struct v4l2_ioctl_ops s5p_mfc_enc_ioctl_ops = {
 	.vidioc_querybuf = vidioc_querybuf,
 	.vidioc_qbuf = vidioc_qbuf,
 	.vidioc_dqbuf = vidioc_dqbuf,
+	.vidioc_expbuf = vidioc_expbuf,
 	.vidioc_streamon = vidioc_streamon,
 	.vidioc_streamoff = vidioc_streamoff,
 	.vidioc_s_parm = vidioc_s_parm,

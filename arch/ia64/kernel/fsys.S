@@ -529,7 +529,7 @@ GLOBAL_ENTRY(paravirt_fsys_bubble_down)
 	nop.i 0
 	;;
 	mov ar.rsc=0				// M2   set enforced lazy mode, pl 0, LE, loadrs=0
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
 	MOV_FROM_ITC(p0, p6, r30, r23)		// M    get cycle for accounting
 #else
 	nop.m 0
@@ -555,7 +555,7 @@ GLOBAL_ENTRY(paravirt_fsys_bubble_down)
 	cmp.ne pKStk,pUStk=r0,r0		// A    set pKStk <- 0, pUStk <- 1
 	br.call.sptk.many b7=ia64_syscall_setup	// B
 	;;
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
 	// mov.m r30=ar.itc is called in advance
 	add r16=TI_AC_STAMP+IA64_TASK_SIZE,r2
 	add r17=TI_AC_LEAVE+IA64_TASK_SIZE,r2

@@ -18,8 +18,21 @@
  *
  * Licensed under the GNU/GPL. See COPYING for details.
  */
+#include <linux/err.h>
+#include <linux/kernel.h>
+#include <linux/hrtimer.h>
+#include <linux/io.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/usb.h>
+#include <linux/usb/hcd.h>
 #include <linux/usb/ehci_pdriver.h>
+
+#include "ehci.h"
+
+#define DRIVER_DESC "EHCI generic platform driver"
+
+static const char hcd_name[] = "ehci-platform";
 
 static int ehci_platform_reset(struct usb_hcd *hcd)
 {
@@ -38,47 +51,18 @@ static int ehci_platform_reset(struct usb_hcd *hcd)
 	if (retval)
 		return retval;
 
-	if (pdata->port_power_on)
-		ehci_port_power(ehci, 1);
-	if (pdata->port_power_off)
-		ehci_port_power(ehci, 0);
-
+	if (pdata->no_io_watchdog)
+		ehci->need_io_watchdog = 0;
 	return 0;
 }
 
-static const struct hc_driver ehci_platform_hc_driver = {
-	.description		= hcd_name,
-	.product_desc		= "Generic Platform EHCI Controller",
-	.hcd_priv_size		= sizeof(struct ehci_hcd),
+static struct hc_driver __read_mostly ehci_platform_hc_driver;
 
-	.irq			= ehci_irq,
-	.flags			= HCD_MEMORY | HCD_USB2,
-
-	.reset			= ehci_platform_reset,
-	.start			= ehci_run,
-	.stop			= ehci_stop,
-	.shutdown		= ehci_shutdown,
-
-	.urb_enqueue		= ehci_urb_enqueue,
-	.urb_dequeue		= ehci_urb_dequeue,
-	.endpoint_disable	= ehci_endpoint_disable,
-	.endpoint_reset		= ehci_endpoint_reset,
-
-	.get_frame_number	= ehci_get_frame,
-
-	.hub_status_data	= ehci_hub_status_data,
-	.hub_control		= ehci_hub_control,
-#if defined(CONFIG_PM)
-	.bus_suspend		= ehci_bus_suspend,
-	.bus_resume		= ehci_bus_resume,
-#endif
-	.relinquish_port	= ehci_relinquish_port,
-	.port_handed_over	= ehci_port_handed_over,
-
-	.clear_tt_buffer_complete = ehci_clear_tt_buffer_complete,
+static const struct ehci_driver_overrides platform_overrides __initdata = {
+	.reset =	ehci_platform_reset,
 };
 
-static int __devinit ehci_platform_probe(struct platform_device *dev)
+static int ehci_platform_probe(struct platform_device *dev)
 {
 	struct usb_hcd *hcd;
 	struct resource *res_mem;
@@ -96,12 +80,12 @@ static int __devinit ehci_platform_probe(struct platform_device *dev)
 
 	irq = platform_get_irq(dev, 0);
 	if (irq < 0) {
-		pr_err("no irq provided");
+		dev_err(&dev->dev, "no irq provided");
 		return irq;
 	}
 	res_mem = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (!res_mem) {
-		pr_err("no memory recourse provided");
+		dev_err(&dev->dev, "no memory resource provided");
 		return -ENXIO;
 	}
 
@@ -121,29 +105,19 @@ static int __devinit ehci_platform_probe(struct platform_device *dev)
 	hcd->rsrc_start = res_mem->start;
 	hcd->rsrc_len = resource_size(res_mem);
 
-	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len, hcd_name)) {
-		pr_err("controller already in use");
-		err = -EBUSY;
+	hcd->regs = devm_ioremap_resource(&dev->dev, res_mem);
+	if (IS_ERR(hcd->regs)) {
+		err = PTR_ERR(hcd->regs);
 		goto err_put_hcd;
-	}
-
-	hcd->regs = ioremap_nocache(hcd->rsrc_start, hcd->rsrc_len);
-	if (!hcd->regs) {
-		err = -ENOMEM;
-		goto err_release_region;
 	}
 	err = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (err)
-		goto err_iounmap;
+		goto err_put_hcd;
 
 	platform_set_drvdata(dev, hcd);
 
 	return err;
 
-err_iounmap:
-	iounmap(hcd->regs);
-err_release_region:
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 err_put_hcd:
 	usb_put_hcd(hcd);
 err_power:
@@ -153,14 +127,12 @@ err_power:
 	return err;
 }
 
-static int __devexit ehci_platform_remove(struct platform_device *dev)
+static int ehci_platform_remove(struct platform_device *dev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(dev);
 	struct usb_ehci_pdata *pdata = dev->dev.platform_data;
 
 	usb_remove_hcd(hcd);
-	iounmap(hcd->regs);
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
 	platform_set_drvdata(dev, NULL);
 
@@ -225,7 +197,7 @@ static const struct dev_pm_ops ehci_platform_pm_ops = {
 static struct platform_driver ehci_platform_driver = {
 	.id_table	= ehci_platform_table,
 	.probe		= ehci_platform_probe,
-	.remove		= __devexit_p(ehci_platform_remove),
+	.remove		= ehci_platform_remove,
 	.shutdown	= usb_hcd_platform_shutdown,
 	.driver		= {
 		.owner	= THIS_MODULE,
@@ -233,3 +205,26 @@ static struct platform_driver ehci_platform_driver = {
 		.pm	= &ehci_platform_pm_ops,
 	}
 };
+
+static int __init ehci_platform_init(void)
+{
+	if (usb_disabled())
+		return -ENODEV;
+
+	pr_info("%s: " DRIVER_DESC "\n", hcd_name);
+
+	ehci_init_driver(&ehci_platform_hc_driver, &platform_overrides);
+	return platform_driver_register(&ehci_platform_driver);
+}
+module_init(ehci_platform_init);
+
+static void __exit ehci_platform_cleanup(void)
+{
+	platform_driver_unregister(&ehci_platform_driver);
+}
+module_exit(ehci_platform_cleanup);
+
+MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_AUTHOR("Hauke Mehrtens");
+MODULE_AUTHOR("Alan Stern");
+MODULE_LICENSE("GPL");

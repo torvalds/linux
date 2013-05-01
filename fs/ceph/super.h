@@ -21,7 +21,7 @@
 
 /* large granularity for statfs utilization stats to facilitate
  * large volume sizes on 32-bit machines. */
-#define CEPH_BLOCK_SHIFT   20  /* 1 MB */
+#define CEPH_BLOCK_SHIFT   22  /* 4 MB */
 #define CEPH_BLOCK         (1 << CEPH_BLOCK_SHIFT)
 
 #define CEPH_MOUNT_OPT_DIRSTAT         (1<<4) /* `cat dirname` for stats */
@@ -138,8 +138,8 @@ struct ceph_cap_snap {
 	struct ceph_snap_context *context;
 
 	umode_t mode;
-	uid_t uid;
-	gid_t gid;
+	kuid_t uid;
+	kgid_t gid;
 
 	struct ceph_buffer *xattr_blob;
 	u64 xattr_version;
@@ -798,13 +798,7 @@ extern int ceph_mmap(struct file *file, struct vm_area_struct *vma);
 /* file.c */
 extern const struct file_operations ceph_file_fops;
 extern const struct address_space_operations ceph_aops;
-extern int ceph_copy_to_page_vector(struct page **pages,
-				    const char *data,
-				    loff_t off, size_t len);
-extern int ceph_copy_from_page_vector(struct page **pages,
-				    char *data,
-				    loff_t off, size_t len);
-extern struct page **ceph_alloc_page_vector(int num_pages, gfp_t flags);
+
 extern int ceph_open(struct inode *inode, struct file *file);
 extern int ceph_atomic_open(struct inode *dir, struct dentry *dentry,
 			    struct file *file, unsigned flags, umode_t mode,

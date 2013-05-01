@@ -165,7 +165,7 @@ int saa7164_api_set_vbi_format(struct saa7164_port *port)
 	return ret;
 }
 
-int saa7164_api_set_gop_size(struct saa7164_port *port)
+static int saa7164_api_set_gop_size(struct saa7164_port *port)
 {
 	struct saa7164_dev *dev = port->dev;
 	struct tmComResEncVideoGopStructure gs;
@@ -619,7 +619,7 @@ int saa7164_api_get_videomux(struct saa7164_port *port)
 	return ret;
 }
 
-int saa7164_api_set_dif(struct saa7164_port *port, u8 reg, u8 val)
+static int saa7164_api_set_dif(struct saa7164_port *port, u8 reg, u8 val)
 {
 	struct saa7164_dev *dev = port->dev;
 
@@ -822,8 +822,8 @@ int saa7164_api_read_eeprom(struct saa7164_dev *dev, u8 *buf, int buflen)
 		&reg[0], 128, buf);
 }
 
-int saa7164_api_configure_port_vbi(struct saa7164_dev *dev,
-	struct saa7164_port *port)
+static int saa7164_api_configure_port_vbi(struct saa7164_dev *dev,
+					  struct saa7164_port *port)
 {
 	struct tmComResVBIFormatDescrHeader *fmt = &port->vbi_fmt_ntsc;
 
@@ -858,9 +858,10 @@ int saa7164_api_configure_port_vbi(struct saa7164_dev *dev,
 	return 0;
 }
 
-int saa7164_api_configure_port_mpeg2ts(struct saa7164_dev *dev,
-	struct saa7164_port *port,
-	struct tmComResTSFormatDescrHeader *tsfmt)
+static int
+saa7164_api_configure_port_mpeg2ts(struct saa7164_dev *dev,
+				   struct saa7164_port *port,
+				   struct tmComResTSFormatDescrHeader *tsfmt)
 {
 	dprintk(DBGLVL_API, "    bFormatIndex = 0x%x\n", tsfmt->bFormatIndex);
 	dprintk(DBGLVL_API, "    bDataOffset  = 0x%x\n", tsfmt->bDataOffset);
@@ -892,9 +893,10 @@ int saa7164_api_configure_port_mpeg2ts(struct saa7164_dev *dev,
 	return 0;
 }
 
-int saa7164_api_configure_port_mpeg2ps(struct saa7164_dev *dev,
-	struct saa7164_port *port,
-	struct tmComResPSFormatDescrHeader *fmt)
+static int
+saa7164_api_configure_port_mpeg2ps(struct saa7164_dev *dev,
+				   struct saa7164_port *port,
+				   struct tmComResPSFormatDescrHeader *fmt)
 {
 	dprintk(DBGLVL_API, "    bFormatIndex = 0x%x\n", fmt->bFormatIndex);
 	dprintk(DBGLVL_API, "    wPacketLength= 0x%x\n", fmt->wPacketLength);
@@ -925,7 +927,7 @@ int saa7164_api_configure_port_mpeg2ps(struct saa7164_dev *dev,
 	return 0;
 }
 
-int saa7164_api_dump_subdevs(struct saa7164_dev *dev, u8 *buf, int len)
+static int saa7164_api_dump_subdevs(struct saa7164_dev *dev, u8 *buf, int len)
 {
 	struct saa7164_port *tsport = NULL;
 	struct saa7164_port *encport = NULL;
@@ -1486,7 +1488,7 @@ int saa7164_api_i2c_write(struct saa7164_i2c *bus, u8 addr, u32 datalen,
 	return ret == SAA_OK ? 0 : -EIO;
 }
 
-int saa7164_api_modify_gpio(struct saa7164_dev *dev, u8 unitid,
+static int saa7164_api_modify_gpio(struct saa7164_dev *dev, u8 unitid,
 	u8 pin, u8 state)
 {
 	int ret;

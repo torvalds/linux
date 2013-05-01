@@ -235,7 +235,7 @@ static void recover_arm(struct av7110 *av7110)
 
 	restart_feeds(av7110);
 
-#if defined(CONFIG_INPUT_EVDEV) || defined(CONFIG_INPUT_EVDEV_MODULE)
+#if IS_ENABLED(CONFIG_INPUT_EVDEV)
 	av7110_check_ir_config(av7110, true);
 #endif
 }
@@ -268,7 +268,7 @@ static int arm_thread(void *data)
 		if (!av7110->arm_ready)
 			continue;
 
-#if defined(CONFIG_INPUT_EVDEV) || defined(CONFIG_INPUT_EVDEV_MODULE)
+#if IS_ENABLED(CONFIG_INPUT_EVDEV)
 		av7110_check_ir_config(av7110, false);
 #endif
 
@@ -1730,7 +1730,7 @@ static int alps_tdlb7_tuner_set_params(struct dvb_frontend *fe)
 
 static int alps_tdlb7_request_firmware(struct dvb_frontend* fe, const struct firmware **fw, char* name)
 {
-#if defined(CONFIG_DVB_SP8870) || defined(CONFIG_DVB_SP8870_MODULE)
+#if IS_ENABLED(CONFIG_DVB_SP8870)
 	struct av7110* av7110 = fe->dvb->priv;
 
 	return request_firmware(fw, name, &av7110->dev->pci->dev);
@@ -2367,8 +2367,8 @@ static int frontend_init(struct av7110 *av7110)
  * The same behaviour of missing VSYNC can be duplicated on budget
  * cards, by seting DD1_INIT trigger mode 7 in 3rd nibble.
  */
-static int __devinit av7110_attach(struct saa7146_dev* dev,
-				   struct saa7146_pci_extension_data *pci_ext)
+static int av7110_attach(struct saa7146_dev* dev,
+			 struct saa7146_pci_extension_data *pci_ext)
 {
 	const int length = TS_WIDTH * TS_HEIGHT;
 	struct pci_dev *pdev = dev->pci;
@@ -2723,7 +2723,9 @@ static int __devinit av7110_attach(struct saa7146_dev* dev,
 	if (ret < 0)
 		goto err_av7110_exit_v4l_12;
 
-#if defined(CONFIG_INPUT_EVDEV) || defined(CONFIG_INPUT_EVDEV_MODULE)
+	mutex_init(&av7110->ioctl_mutex);
+
+#if IS_ENABLED(CONFIG_INPUT_EVDEV)
 	av7110_ir_init(av7110);
 #endif
 	printk(KERN_INFO "dvb-ttpci: found av7110-%d.\n", av7110_num);
@@ -2761,12 +2763,12 @@ err_kfree_0:
 	goto out;
 }
 
-static int __devexit av7110_detach(struct saa7146_dev* saa)
+static int av7110_detach(struct saa7146_dev* saa)
 {
 	struct av7110 *av7110 = saa->ext_priv;
 	dprintk(4, "%p\n", av7110);
 
-#if defined(CONFIG_INPUT_EVDEV) || defined(CONFIG_INPUT_EVDEV_MODULE)
+#if IS_ENABLED(CONFIG_INPUT_EVDEV)
 	av7110_ir_exit(av7110);
 #endif
 	if (budgetpatch || av7110->full_ts) {
@@ -2910,7 +2912,7 @@ static struct saa7146_extension av7110_extension_driver = {
 	.module		= THIS_MODULE,
 	.pci_tbl	= &pci_tbl[0],
 	.attach		= av7110_attach,
-	.detach		= __devexit_p(av7110_detach),
+	.detach		= av7110_detach,
 
 	.irq_mask	= MASK_19 | MASK_03 | MASK_10,
 	.irq_func	= av7110_irq,

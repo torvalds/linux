@@ -407,7 +407,7 @@ static int fsa9480_irq_init(struct fsa9480_usbsw *usbsw)
 	return 0;
 }
 
-static int __devinit fsa9480_probe(struct i2c_client *client,
+static int fsa9480_probe(struct i2c_client *client,
 			 const struct i2c_device_id *id)
 {
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
@@ -462,7 +462,7 @@ fail1:
 	return ret;
 }
 
-static int __devexit fsa9480_remove(struct i2c_client *client)
+static int fsa9480_remove(struct i2c_client *client)
 {
 	struct fsa9480_usbsw *usbsw = i2c_get_clientdata(client);
 	if (client->irq)
@@ -533,7 +533,7 @@ static struct i2c_driver fsa9480_i2c_driver = {
 		.name = "fsa9480",
 	},
 	.probe = fsa9480_probe,
-	.remove = __devexit_p(fsa9480_remove),
+	.remove = fsa9480_remove,
 	.resume = fsa9480_resume,
 	.suspend = fsa9480_suspend,
 	.id_table = fsa9480_id,

@@ -656,7 +656,7 @@ struct iommu_table *iommu_init_table(struct iommu_table *tbl, int nid)
 	struct iommu_pool *p;
 
 	/* number of bytes needed for the bitmap */
-	sz = (tbl->it_size + 7) >> 3;
+	sz = BITS_TO_LONGS(tbl->it_size) * sizeof(unsigned long);
 
 	page = alloc_pages_node(nid, GFP_ATOMIC, get_order(sz));
 	if (!page)
@@ -708,7 +708,7 @@ struct iommu_table *iommu_init_table(struct iommu_table *tbl, int nid)
 
 void iommu_free_table(struct iommu_table *tbl, const char *node_name)
 {
-	unsigned long bitmap_sz, i;
+	unsigned long bitmap_sz;
 	unsigned int order;
 
 	if (!tbl || !tbl->it_map) {
@@ -717,18 +717,19 @@ void iommu_free_table(struct iommu_table *tbl, const char *node_name)
 		return;
 	}
 
+	/*
+	 * In case we have reserved the first bit, we should not emit
+	 * the warning below.
+	 */
+	if (tbl->it_offset == 0)
+		clear_bit(0, tbl->it_map);
+
 	/* verify that table contains no entries */
-	/* it_size is in entries, and we're examining 64 at a time */
-	for (i = 0; i < (tbl->it_size/64); i++) {
-		if (tbl->it_map[i] != 0) {
-			printk(KERN_WARNING "%s: Unexpected TCEs for %s\n",
-				__func__, node_name);
-			break;
-		}
-	}
+	if (!bitmap_empty(tbl->it_map, tbl->it_size))
+		pr_warn("%s: Unexpected TCEs for %s\n", __func__, node_name);
 
 	/* calculate bitmap size in bytes */
-	bitmap_sz = (tbl->it_size + 7) / 8;
+	bitmap_sz = BITS_TO_LONGS(tbl->it_size) * sizeof(unsigned long);
 
 	/* free bitmap */
 	order = get_order(bitmap_sz);

@@ -40,8 +40,9 @@ enum tpm_duration {
 };
 
 #define TPM_MAX_ORDINAL 243
-#define TPM_MAX_PROTECTED_ORDINAL 12
-#define TPM_PROTECTED_ORDINAL_MASK 0xFF
+#define TSC_MAX_ORDINAL 12
+#define TPM_PROTECTED_COMMAND 0x00
+#define TPM_CONNECTION_COMMAND 0x40
 
 /*
  * Bug workaround - some TPM's don't flush the most
@@ -65,21 +66,6 @@ static DECLARE_BITMAP(dev_mask, TPM_NUM_DEVICES);
  * values of the SHORT, MEDIUM, and LONG durations are retrieved
  * from the chip during initialization with a call to tpm_get_timeouts.
  */
-static const u8 tpm_protected_ordinal_duration[TPM_MAX_PROTECTED_ORDINAL] = {
-	TPM_UNDEFINED,		/* 0 */
-	TPM_UNDEFINED,
-	TPM_UNDEFINED,
-	TPM_UNDEFINED,
-	TPM_UNDEFINED,
-	TPM_UNDEFINED,		/* 5 */
-	TPM_UNDEFINED,
-	TPM_UNDEFINED,
-	TPM_UNDEFINED,
-	TPM_UNDEFINED,
-	TPM_SHORT,		/* 10 */
-	TPM_SHORT,
-};
-
 static const u8 tpm_ordinal_duration[TPM_MAX_ORDINAL] = {
 	TPM_UNDEFINED,		/* 0 */
 	TPM_UNDEFINED,
@@ -351,14 +337,11 @@ unsigned long tpm_calc_ordinal_duration(struct tpm_chip *chip,
 {
 	int duration_idx = TPM_UNDEFINED;
 	int duration = 0;
+	u8 category = (ordinal >> 24) & 0xFF;
 
-	if (ordinal < TPM_MAX_ORDINAL)
+	if ((category == TPM_PROTECTED_COMMAND && ordinal < TPM_MAX_ORDINAL) ||
+	    (category == TPM_CONNECTION_COMMAND && ordinal < TSC_MAX_ORDINAL))
 		duration_idx = tpm_ordinal_duration[ordinal];
-	else if ((ordinal & TPM_PROTECTED_ORDINAL_MASK) <
-		 TPM_MAX_PROTECTED_ORDINAL)
-		duration_idx =
-		    tpm_protected_ordinal_duration[ordinal &
-						   TPM_PROTECTED_ORDINAL_MASK];
 
 	if (duration_idx != TPM_UNDEFINED)
 		duration = chip->vendor.duration[duration_idx];
@@ -410,7 +393,7 @@ static ssize_t tpm_transmit(struct tpm_chip *chip, const char *buf,
 		    chip->vendor.req_complete_val)
 			goto out_recv;
 
-		if ((status == chip->vendor.req_canceled)) {
+		if (chip->vendor.req_canceled(chip, status)) {
 			dev_err(chip->dev, "Operation Canceled\n");
 			rc = -ECANCELED;
 			goto out;
@@ -468,7 +451,7 @@ static ssize_t transmit_cmd(struct tpm_chip *chip, struct tpm_cmd_t *cmd,
 		return -EFAULT;
 
 	err = be32_to_cpu(cmd->header.out.return_code);
-	if (err != 0)
+	if (err != 0 && desc)
 		dev_err(chip->dev, "A TPM error (%d) occurred %s\n", err, desc);
 
 	return err;
@@ -528,6 +511,25 @@ void tpm_gen_interrupt(struct tpm_chip *chip)
 }
 EXPORT_SYMBOL_GPL(tpm_gen_interrupt);
 
+#define TPM_ORD_STARTUP cpu_to_be32(153)
+#define TPM_ST_CLEAR cpu_to_be16(1)
+#define TPM_ST_STATE cpu_to_be16(2)
+#define TPM_ST_DEACTIVATED cpu_to_be16(3)
+static const struct tpm_input_header tpm_startup_header = {
+	.tag = TPM_TAG_RQU_COMMAND,
+	.length = cpu_to_be32(12),
+	.ordinal = TPM_ORD_STARTUP
+};
+
+static int tpm_startup(struct tpm_chip *chip, __be16 startup_type)
+{
+	struct tpm_cmd_t start_cmd;
+	start_cmd.header.in = tpm_startup_header;
+	start_cmd.params.startup_in.startup_type = startup_type;
+	return transmit_cmd(chip, &start_cmd, TPM_INTERNAL_RESULT_SIZE,
+			    "attempting to start the TPM");
+}
+
 int tpm_get_timeouts(struct tpm_chip *chip)
 {
 	struct tpm_cmd_t tpm_cmd;
@@ -541,11 +543,28 @@ int tpm_get_timeouts(struct tpm_chip *chip)
 	tpm_cmd.params.getcap_in.cap = TPM_CAP_PROP;
 	tpm_cmd.params.getcap_in.subcap_size = cpu_to_be32(4);
 	tpm_cmd.params.getcap_in.subcap = TPM_CAP_PROP_TIS_TIMEOUT;
+	rc = transmit_cmd(chip, &tpm_cmd, TPM_INTERNAL_RESULT_SIZE, NULL);
 
-	rc = transmit_cmd(chip, &tpm_cmd, TPM_INTERNAL_RESULT_SIZE,
-			"attempting to determine the timeouts");
-	if (rc)
+	if (rc == TPM_ERR_INVALID_POSTINIT) {
+		/* The TPM is not started, we are the first to talk to it.
+		   Execute a startup command. */
+		dev_info(chip->dev, "Issuing TPM_STARTUP");
+		if (tpm_startup(chip, TPM_ST_CLEAR))
+			return rc;
+
+		tpm_cmd.header.in = tpm_getcap_header;
+		tpm_cmd.params.getcap_in.cap = TPM_CAP_PROP;
+		tpm_cmd.params.getcap_in.subcap_size = cpu_to_be32(4);
+		tpm_cmd.params.getcap_in.subcap = TPM_CAP_PROP_TIS_TIMEOUT;
+		rc = transmit_cmd(chip, &tpm_cmd, TPM_INTERNAL_RESULT_SIZE,
+				  NULL);
+	}
+	if (rc) {
+		dev_err(chip->dev,
+			"A TPM error (%zd) occurred attempting to determine the timeouts\n",
+			rc);
 		goto duration;
+	}
 
 	if (be32_to_cpu(tpm_cmd.header.out.return_code) != 0 ||
 	    be32_to_cpu(tpm_cmd.header.out.length)
@@ -824,7 +843,7 @@ int tpm_do_selftest(struct tpm_chip *chip)
 {
 	int rc;
 	unsigned int loops;
-	unsigned int delay_msec = 1000;
+	unsigned int delay_msec = 100;
 	unsigned long duration;
 	struct tpm_cmd_t cmd;
 
@@ -845,6 +864,14 @@ int tpm_do_selftest(struct tpm_chip *chip)
 		cmd.header.in = pcrread_header;
 		cmd.params.pcrread_in.pcr_idx = cpu_to_be32(0);
 		rc = tpm_transmit(chip, (u8 *) &cmd, READ_PCR_RESULT_SIZE);
+		/* Some buggy TPMs will not respond to tpm_tis_ready() for
+		 * around 300ms while the self test is ongoing, keep trying
+		 * until the self test duration expires. */
+		if (rc == -ETIME) {
+			dev_info(chip->dev, HW_ERR "TPM command timed out during continue self test");
+			msleep(delay_msec);
+			continue;
+		}
 
 		if (rc < TPM_HEADER_SIZE)
 			return -EFAULT;
@@ -1075,12 +1102,28 @@ ssize_t tpm_store_cancel(struct device *dev, struct device_attribute *attr,
 }
 EXPORT_SYMBOL_GPL(tpm_store_cancel);
 
+static bool wait_for_tpm_stat_cond(struct tpm_chip *chip, u8 mask, bool check_cancel,
+				   bool *canceled)
+{
+	u8 status = chip->vendor.status(chip);
+
+	*canceled = false;
+	if ((status & mask) == mask)
+		return true;
+	if (check_cancel && chip->vendor.req_canceled(chip, status)) {
+		*canceled = true;
+		return true;
+	}
+	return false;
+}
+
 int wait_for_tpm_stat(struct tpm_chip *chip, u8 mask, unsigned long timeout,
-			 wait_queue_head_t *queue)
+		      wait_queue_head_t *queue, bool check_cancel)
 {
 	unsigned long stop;
 	long rc;
 	u8 status;
+	bool canceled = false;
 
 	/* check current status */
 	status = chip->vendor.status(chip);
@@ -1095,11 +1138,14 @@ again:
 		if ((long)timeout <= 0)
 			return -ETIME;
 		rc = wait_event_interruptible_timeout(*queue,
-						      ((chip->vendor.status(chip)
-						      & mask) == mask),
-						      timeout);
-		if (rc > 0)
+			wait_for_tpm_stat_cond(chip, mask, check_cancel,
+					       &canceled),
+			timeout);
+		if (rc > 0) {
+			if (canceled)
+				return -ECANCELED;
 			return 0;
+		}
 		if (rc == -ERESTARTSYS && freezing(current)) {
 			clear_thread_flag(TIF_SIGPENDING);
 			goto again;

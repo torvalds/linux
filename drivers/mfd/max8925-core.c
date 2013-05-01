@@ -14,17 +14,20 @@
 #include <linux/i2c.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
+#include <linux/irqdomain.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/machine.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/max8925.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
 
-static struct resource bk_resources[] __devinitdata = {
+static struct resource bk_resources[] = {
 	{ 0x84, 0x84, "mode control", IORESOURCE_REG, },
 	{ 0x85, 0x85, "control",      IORESOURCE_REG, },
 };
 
-static struct mfd_cell bk_devs[] __devinitdata = {
+static struct mfd_cell bk_devs[] = {
 	{
 		.name		= "max8925-backlight",
 		.num_resources	= ARRAY_SIZE(bk_resources),
@@ -110,99 +113,99 @@ static struct mfd_cell onkey_devs[] = {
 	},
 };
 
-static struct resource sd1_resources[] __devinitdata = {
+static struct resource sd1_resources[] = {
 	{0x06, 0x06, "sdv", IORESOURCE_REG, },
 };
 
-static struct resource sd2_resources[] __devinitdata = {
+static struct resource sd2_resources[] = {
 	{0x09, 0x09, "sdv", IORESOURCE_REG, },
 };
 
-static struct resource sd3_resources[] __devinitdata = {
+static struct resource sd3_resources[] = {
 	{0x0c, 0x0c, "sdv", IORESOURCE_REG, },
 };
 
-static struct resource ldo1_resources[] __devinitdata = {
+static struct resource ldo1_resources[] = {
 	{0x1a, 0x1a, "ldov", IORESOURCE_REG, },
 };
 
-static struct resource ldo2_resources[] __devinitdata = {
+static struct resource ldo2_resources[] = {
 	{0x1e, 0x1e, "ldov", IORESOURCE_REG, },
 };
 
-static struct resource ldo3_resources[] __devinitdata = {
+static struct resource ldo3_resources[] = {
 	{0x22, 0x22, "ldov", IORESOURCE_REG, },
 };
 
-static struct resource ldo4_resources[] __devinitdata = {
+static struct resource ldo4_resources[] = {
 	{0x26, 0x26, "ldov", IORESOURCE_REG, },
 };
 
-static struct resource ldo5_resources[] __devinitdata = {
+static struct resource ldo5_resources[] = {
 	{0x2a, 0x2a, "ldov", IORESOURCE_REG, },
 };
 
-static struct resource ldo6_resources[] __devinitdata = {
+static struct resource ldo6_resources[] = {
 	{0x2e, 0x2e, "ldov", IORESOURCE_REG, },
 };
 
-static struct resource ldo7_resources[] __devinitdata = {
+static struct resource ldo7_resources[] = {
 	{0x32, 0x32, "ldov", IORESOURCE_REG, },
 };
 
-static struct resource ldo8_resources[] __devinitdata = {
+static struct resource ldo8_resources[] = {
 	{0x36, 0x36, "ldov", IORESOURCE_REG, },
 };
 
-static struct resource ldo9_resources[] __devinitdata = {
+static struct resource ldo9_resources[] = {
 	{0x3a, 0x3a, "ldov", IORESOURCE_REG, },
 };
 
-static struct resource ldo10_resources[] __devinitdata = {
+static struct resource ldo10_resources[] = {
 	{0x3e, 0x3e, "ldov", IORESOURCE_REG, },
 };
 
-static struct resource ldo11_resources[] __devinitdata = {
+static struct resource ldo11_resources[] = {
 	{0x42, 0x42, "ldov", IORESOURCE_REG, },
 };
 
-static struct resource ldo12_resources[] __devinitdata = {
+static struct resource ldo12_resources[] = {
 	{0x46, 0x46, "ldov", IORESOURCE_REG, },
 };
 
-static struct resource ldo13_resources[] __devinitdata = {
+static struct resource ldo13_resources[] = {
 	{0x4a, 0x4a, "ldov", IORESOURCE_REG, },
 };
 
-static struct resource ldo14_resources[] __devinitdata = {
+static struct resource ldo14_resources[] = {
 	{0x4e, 0x4e, "ldov", IORESOURCE_REG, },
 };
 
-static struct resource ldo15_resources[] __devinitdata = {
+static struct resource ldo15_resources[] = {
 	{0x52, 0x52, "ldov", IORESOURCE_REG, },
 };
 
-static struct resource ldo16_resources[] __devinitdata = {
+static struct resource ldo16_resources[] = {
 	{0x12, 0x12, "ldov", IORESOURCE_REG, },
 };
 
-static struct resource ldo17_resources[] __devinitdata = {
+static struct resource ldo17_resources[] = {
 	{0x16, 0x16, "ldov", IORESOURCE_REG, },
 };
 
-static struct resource ldo18_resources[] __devinitdata = {
+static struct resource ldo18_resources[] = {
 	{0x74, 0x74, "ldov", IORESOURCE_REG, },
 };
 
-static struct resource ldo19_resources[] __devinitdata = {
+static struct resource ldo19_resources[] = {
 	{0x5e, 0x5e, "ldov", IORESOURCE_REG, },
 };
 
-static struct resource ldo20_resources[] __devinitdata = {
+static struct resource ldo20_resources[] = {
 	{0x9e, 0x9e, "ldov", IORESOURCE_REG, },
 };
 
-static struct mfd_cell reg_devs[] __devinitdata = {
+static struct mfd_cell reg_devs[] = {
 	{
 		.name = "max8925-regulator",
 		.id = 0,
@@ -639,17 +642,33 @@ static struct irq_chip max8925_irq_chip = {
 	.irq_disable	= max8925_irq_disable,
 };
 
+static int max8925_irq_domain_map(struct irq_domain *d, unsigned int virq,
+				 irq_hw_number_t hw)
+{
+	irq_set_chip_data(virq, d->host_data);
+	irq_set_chip_and_handler(virq, &max8925_irq_chip, handle_edge_irq);
+	irq_set_nested_thread(virq, 1);
+#ifdef CONFIG_ARM
+	set_irq_flags(virq, IRQF_VALID);
+#else
+	irq_set_noprobe(virq);
+#endif
+	return 0;
+}
+
+static struct irq_domain_ops max8925_irq_domain_ops = {
+	.map	= max8925_irq_domain_map,
+	.xlate	= irq_domain_xlate_onetwocell,
+};
+
+
 static int max8925_irq_init(struct max8925_chip *chip, int irq,
 			    struct max8925_platform_data *pdata)
 {
 	unsigned long flags = IRQF_TRIGGER_FALLING | IRQF_ONESHOT;
-	int i, ret;
-	int __irq;
+	int ret;
+	struct device_node *node = chip->dev->of_node;
 
-	if (!pdata || !pdata->irq_base) {
-		dev_warn(chip->dev, "No interrupt support on IRQ base\n");
-		return -EINVAL;
-	}
 	/* clear all interrupts */
 	max8925_reg_read(chip->i2c, MAX8925_CHG_IRQ1);
 	max8925_reg_read(chip->i2c, MAX8925_CHG_IRQ2);
@@ -667,35 +686,30 @@ static int max8925_irq_init(struct max8925_chip *chip, int irq,
 	max8925_reg_write(chip->rtc, MAX8925_RTC_IRQ_MASK, 0xff);
 
 	mutex_init(&chip->irq_lock);
+	chip->irq_base = irq_alloc_descs(-1, 0, MAX8925_NR_IRQS, 0);
+	if (chip->irq_base < 0) {
+		dev_err(chip->dev, "Failed to allocate interrupts, ret:%d\n",
+			chip->irq_base);
+		return -EBUSY;
+	}
+
+	irq_domain_add_legacy(node, MAX8925_NR_IRQS, chip->irq_base, 0,
+			      &max8925_irq_domain_ops, chip);
+
+	/* request irq handler for pmic main irq*/
 	chip->core_irq = irq;
-	chip->irq_base = pdata->irq_base;
-
-	/* register with genirq */
-	for (i = 0; i < ARRAY_SIZE(max8925_irqs); i++) {
-		__irq = i + chip->irq_base;
-		irq_set_chip_data(__irq, chip);
-		irq_set_chip_and_handler(__irq, &max8925_irq_chip,
-					 handle_edge_irq);
-		irq_set_nested_thread(__irq, 1);
-#ifdef CONFIG_ARM
-		set_irq_flags(__irq, IRQF_VALID);
-#else
-		irq_set_noprobe(__irq);
-#endif
-	}
-	if (!irq) {
-		dev_warn(chip->dev, "No interrupt support on core IRQ\n");
-		goto tsc_irq;
-	}
-
+	if (!chip->core_irq)
+		return -EBUSY;
 	ret = request_threaded_irq(irq, NULL, max8925_irq, flags | IRQF_ONESHOT,
 				   "max8925", chip);
 	if (ret) {
 		dev_err(chip->dev, "Failed to request core IRQ: %d\n", ret);
 		chip->core_irq = 0;
+		return -EBUSY;
 	}
 
-tsc_irq:
+	/* request irq handler for pmic tsc irq*/
+
 	/* mask TSC interrupt */
 	max8925_reg_write(chip->adc, MAX8925_TSC_IRQ_MASK, 0x0f);
 
@@ -704,7 +718,6 @@ tsc_irq:
 		return 0;
 	}
 	chip->tsc_irq = pdata->tsc_irq;
-
 	ret = request_threaded_irq(chip->tsc_irq, NULL, max8925_tsc_irq,
 				   flags | IRQF_ONESHOT, "max8925-tsc", chip);
 	if (ret) {
@@ -714,7 +727,7 @@ tsc_irq:
 	return 0;
 }
 
-static void __devinit init_regulator(struct max8925_chip *chip,
+static void init_regulator(struct max8925_chip *chip,
 				     struct max8925_platform_data *pdata)
 {
 	int ret;
@@ -821,7 +834,7 @@ static void __devinit init_regulator(struct max8925_chip *chip,
 	}
 }
 
-int __devinit max8925_device_init(struct max8925_chip *chip,
+int max8925_device_init(struct max8925_chip *chip,
 				  struct max8925_platform_data *pdata)
 {
 	int ret;
@@ -846,7 +859,7 @@ int __devinit max8925_device_init(struct max8925_chip *chip,
 
 	ret = mfd_add_devices(chip->dev, 0, &rtc_devs[0],
 			      ARRAY_SIZE(rtc_devs),
-			      &rtc_resources[0], chip->irq_base, NULL);
+			      NULL, chip->irq_base, NULL);
 	if (ret < 0) {
 		dev_err(chip->dev, "Failed to add rtc subdev\n");
 		goto out;
@@ -854,7 +867,7 @@ int __devinit max8925_device_init(struct max8925_chip *chip,
 
 	ret = mfd_add_devices(chip->dev, 0, &onkey_devs[0],
 			      ARRAY_SIZE(onkey_devs),
-			      &onkey_resources[0], 0, NULL);
+			      NULL, chip->irq_base, NULL);
 	if (ret < 0) {
 		dev_err(chip->dev, "Failed to add onkey subdev\n");
 		goto out_dev;
@@ -873,21 +886,19 @@ int __devinit max8925_device_init(struct max8925_chip *chip,
 		goto out_dev;
 	}
 
-	if (pdata && pdata->power) {
-		ret = mfd_add_devices(chip->dev, 0, &power_devs[0],
-					ARRAY_SIZE(power_devs),
-				      &power_supply_resources[0], 0, NULL);
-		if (ret < 0) {
-			dev_err(chip->dev, "Failed to add power supply "
-				"subdev\n");
-			goto out_dev;
-		}
+	ret = mfd_add_devices(chip->dev, 0, &power_devs[0],
+			      ARRAY_SIZE(power_devs),
+			      NULL, 0, NULL);
+	if (ret < 0) {
+		dev_err(chip->dev,
+			"Failed to add power supply subdev, err = %d\n", ret);
+		goto out_dev;
 	}
 
 	if (pdata && pdata->touch) {
 		ret = mfd_add_devices(chip->dev, 0, &touch_devs[0],
 				      ARRAY_SIZE(touch_devs),
-				      &touch_resources[0], 0, NULL);
+				      NULL, chip->tsc_irq, NULL);
 		if (ret < 0) {
 			dev_err(chip->dev, "Failed to add touch subdev\n");
 			goto out_dev;
@@ -901,7 +912,7 @@ out:
 	return ret;
 }
 
-void __devexit max8925_device_exit(struct max8925_chip *chip)
+void max8925_device_exit(struct max8925_chip *chip)
 {
 	if (chip->core_irq)
 		free_irq(chip->core_irq, chip);

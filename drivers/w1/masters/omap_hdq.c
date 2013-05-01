@@ -69,12 +69,12 @@ struct hdq_data {
 	int			init_trans;
 };
 
-static int __devinit omap_hdq_probe(struct platform_device *pdev);
-static int __devexit omap_hdq_remove(struct platform_device *pdev);
+static int omap_hdq_probe(struct platform_device *pdev);
+static int omap_hdq_remove(struct platform_device *pdev);
 
 static struct platform_driver omap_hdq_driver = {
 	.probe =	omap_hdq_probe,
-	.remove =	__devexit_p(omap_hdq_remove),
+	.remove =	omap_hdq_remove,
 	.driver =	{
 		.name =	"omap_hdq",
 	},
@@ -537,7 +537,7 @@ static void omap_w1_write_byte(void *_hdq, u8 byte)
 	}
 }
 
-static int __devinit omap_hdq_probe(struct platform_device *pdev)
+static int omap_hdq_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct hdq_data *hdq_data;
@@ -560,11 +560,9 @@ static int __devinit omap_hdq_probe(struct platform_device *pdev)
 		return -ENXIO;
 	}
 
-	hdq_data->hdq_base = devm_request_and_ioremap(dev, res);
-	if (!hdq_data->hdq_base) {
-		dev_dbg(&pdev->dev, "ioremap failed\n");
-		return -ENOMEM;
-	}
+	hdq_data->hdq_base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(hdq_data->hdq_base))
+		return PTR_ERR(hdq_data->hdq_base);
 
 	hdq_data->hdq_usecount = 0;
 	mutex_init(&hdq_data->hdq_mutex);
@@ -613,7 +611,7 @@ err_w1:
 	return ret;
 }
 
-static int __devexit omap_hdq_remove(struct platform_device *pdev)
+static int omap_hdq_remove(struct platform_device *pdev)
 {
 	struct hdq_data *hdq_data = platform_get_drvdata(pdev);
 

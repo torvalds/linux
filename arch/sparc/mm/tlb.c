@@ -135,8 +135,15 @@ void set_pmd_at(struct mm_struct *mm, unsigned long addr,
 			mm->context.huge_pte_count++;
 		else
 			mm->context.huge_pte_count--;
-		if (mm->context.huge_pte_count == 1)
-			hugetlb_setup(mm);
+
+		/* Do not try to allocate the TSB hash table if we
+		 * don't have one already.  We have various locks held
+		 * and thus we'll end up doing a GFP_KERNEL allocation
+		 * in an atomic context.
+		 *
+		 * Instead, we let the first TLB miss on a hugepage
+		 * take care of this.
+		 */
 	}
 
 	if (!pmd_none(orig)) {

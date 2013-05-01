@@ -21,7 +21,6 @@
 #include <linux/pwm_backlight.h>
 #include <linux/platform_data/s3c-hsotg.h>
 
-#include <asm/hardware/vic.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/setup.h>
@@ -234,7 +233,6 @@ static struct platform_device *smdkv210_devices[] __initdata = {
 	&s5pv210_device_ac97,
 	&s5pv210_device_iis0,
 	&s5pv210_device_spdif,
-	&samsung_asoc_dma,
 	&samsung_asoc_idma,
 	&samsung_device_keypad,
 	&smdkv210_dm9000,
@@ -329,10 +327,9 @@ MACHINE_START(SMDKV210, "SMDKV210")
 	/* Maintainer: Kukjin Kim <kgene.kim@samsung.com> */
 	.atag_offset	= 0x100,
 	.init_irq	= s5pv210_init_irq,
-	.handle_irq	= vic_handle_irq,
 	.map_io		= smdkv210_map_io,
 	.init_machine	= smdkv210_machine_init,
-	.timer		= &s5p_timer,
+	.init_time	= s5p_timer_init,
 	.restart	= s5pv210_restart,
 	.reserve	= &smdkv210_reserve,
 MACHINE_END

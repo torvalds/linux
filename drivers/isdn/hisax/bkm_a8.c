@@ -255,8 +255,7 @@ BKM_card_msg(struct IsdnCardState *cs, int mt, void *arg)
 	return (0);
 }
 
-static int __devinit
-sct_alloc_io(u_int adr, u_int len)
+static int sct_alloc_io(u_int adr, u_int len)
 {
 	if (!request_region(adr, len, "scitel")) {
 		printk(KERN_WARNING
@@ -267,15 +266,14 @@ sct_alloc_io(u_int adr, u_int len)
 	return (0);
 }
 
-static struct pci_dev *dev_a8 __devinitdata = NULL;
-static u16  sub_vendor_id __devinitdata = 0;
-static u16  sub_sys_id __devinitdata = 0;
-static u_char pci_bus __devinitdata = 0;
-static u_char pci_device_fn __devinitdata = 0;
-static u_char pci_irq __devinitdata = 0;
+static struct pci_dev *dev_a8 = NULL;
+static u16  sub_vendor_id = 0;
+static u16  sub_sys_id = 0;
+static u_char pci_bus = 0;
+static u_char pci_device_fn = 0;
+static u_char pci_irq = 0;
 
-int __devinit
-setup_sct_quadro(struct IsdnCard *card)
+int setup_sct_quadro(struct IsdnCard *card)
 {
 	struct IsdnCardState *cs = card->cs;
 	char tmp[64];

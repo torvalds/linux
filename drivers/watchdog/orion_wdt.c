@@ -140,9 +140,10 @@ static const struct watchdog_ops orion_wdt_ops = {
 static struct watchdog_device orion_wdt = {
 	.info = &orion_wdt_info,
 	.ops = &orion_wdt_ops,
+	.min_timeout = 1,
 };
 
-static int __devinit orion_wdt_probe(struct platform_device *pdev)
+static int orion_wdt_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	int ret;
@@ -156,18 +157,17 @@ static int __devinit orion_wdt_probe(struct platform_device *pdev)
 	wdt_tclk = clk_get_rate(clk);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
+		return -ENODEV;
 	wdt_reg = devm_ioremap(&pdev->dev, res->start, resource_size(res));
 	if (!wdt_reg)
 		return -ENOMEM;
 
 	wdt_max_duration = WDT_MAX_CYCLE_COUNT / wdt_tclk;
 
-	if ((heartbeat < 1) || (heartbeat > wdt_max_duration))
-		heartbeat = wdt_max_duration;
-
-	orion_wdt.timeout = heartbeat;
-	orion_wdt.min_timeout = 1;
+	orion_wdt.timeout = wdt_max_duration;
 	orion_wdt.max_timeout = wdt_max_duration;
+	watchdog_init_timeout(&orion_wdt, heartbeat, &pdev->dev);
 
 	watchdog_set_nowayout(&orion_wdt, nowayout);
 	ret = watchdog_register_device(&orion_wdt);
@@ -177,11 +177,11 @@ static int __devinit orion_wdt_probe(struct platform_device *pdev)
 	}
 
 	pr_info("Initial timeout %d sec%s\n",
-		heartbeat, nowayout ? ", nowayout" : "");
+		orion_wdt.timeout, nowayout ? ", nowayout" : "");
 	return 0;
 }
 
-static int __devexit orion_wdt_remove(struct platform_device *pdev)
+static int orion_wdt_remove(struct platform_device *pdev)
 {
 	watchdog_unregister_device(&orion_wdt);
 	clk_disable_unprepare(clk);
@@ -193,7 +193,7 @@ static void orion_wdt_shutdown(struct platform_device *pdev)
 	orion_wdt_stop(&orion_wdt);
 }
 
-static const struct of_device_id orion_wdt_of_match_table[] __devinitdata = {
+static const struct of_device_id orion_wdt_of_match_table[] = {
 	{ .compatible = "marvell,orion-wdt", },
 	{},
 };
@@ -201,7 +201,7 @@ MODULE_DEVICE_TABLE(of, orion_wdt_of_match_table);
 
 static struct platform_driver orion_wdt_driver = {
 	.probe		= orion_wdt_probe,
-	.remove		= __devexit_p(orion_wdt_remove),
+	.remove		= orion_wdt_remove,
 	.shutdown	= orion_wdt_shutdown,
 	.driver		= {
 		.owner	= THIS_MODULE,
@@ -223,4 +223,5 @@ MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:orion_wdt");
 MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);

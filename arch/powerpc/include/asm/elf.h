@@ -103,8 +103,6 @@ do {								\
 # define elf_read_implies_exec(ex, exec_stk) (is_32bit_task() ? \
 		(exec_stk == EXSTACK_DEFAULT) : 0)
 #else 
-# define SET_PERSONALITY(ex) \
-  set_personality(PER_LINUX | (current->personality & (~PER_MASK)))
 # define elf_read_implies_exec(ex, exec_stk) (exec_stk == EXSTACK_DEFAULT)
 #endif /* __powerpc64__ */
 

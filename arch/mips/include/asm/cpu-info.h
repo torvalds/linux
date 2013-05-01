@@ -52,14 +52,14 @@ struct cpuinfo_mips {
 	unsigned int		cputype;
 	int			isa_level;
 	int			tlbsize;
-	struct cache_desc	icache;	/* Primary I-cache */
-	struct cache_desc	dcache;	/* Primary D or combined I/D cache */
-	struct cache_desc	scache;	/* Secondary cache */
-	struct cache_desc	tcache;	/* Tertiary/split secondary cache */
-	int			srsets;	/* Shadow register sets */
+	struct cache_desc	icache; /* Primary I-cache */
+	struct cache_desc	dcache; /* Primary D or combined I/D cache */
+	struct cache_desc	scache; /* Secondary cache */
+	struct cache_desc	tcache; /* Tertiary/split secondary cache */
+	int			srsets; /* Shadow register sets */
 	int			core;	/* physical core number */
 #ifdef CONFIG_64BIT
-	int			vmbits;	/* Virtual memory size in bits */
+	int			vmbits; /* Virtual memory size in bits */
 #endif
 #if defined(CONFIG_MIPS_MT_SMP) || defined(CONFIG_MIPS_MT_SMTC)
 	/*
@@ -68,12 +68,12 @@ struct cpuinfo_mips {
 	 * exception resources, ASID spaces, etc, are common
 	 * to all TCs within the same VPE.
 	 */
-	int			vpe_id;  /* Virtual Processor number */
+	int			vpe_id;	 /* Virtual Processor number */
 #endif
 #ifdef CONFIG_MIPS_MT_SMTC
-	int			tc_id;   /* Thread Context number */
+	int			tc_id;	 /* Thread Context number */
 #endif
-	void 			*data;	/* Additional data */
+	void			*data;	/* Additional data */
 	unsigned int		watch_reg_count;   /* Number that exist */
 	unsigned int		watch_reg_use_cnt; /* Usable by ptrace */
 #define NUM_WATCH_REGS 4

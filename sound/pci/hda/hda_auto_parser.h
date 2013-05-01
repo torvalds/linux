@@ -51,8 +51,9 @@ enum {
 	INPUT_PIN_ATTR_INT,	/* internal mic/line-in */
 	INPUT_PIN_ATTR_DOCK,	/* docking mic/line-in */
 	INPUT_PIN_ATTR_NORMAL,	/* mic/line-in jack */
-	INPUT_PIN_ATTR_FRONT,	/* mic/line-in jack in front */
 	INPUT_PIN_ATTR_REAR,	/* mic/line-in jack in rear */
+	INPUT_PIN_ATTR_FRONT,	/* mic/line-in jack in front */
+	INPUT_PIN_ATTR_LAST = INPUT_PIN_ATTR_FRONT,
 };
 
 int snd_hda_get_input_pin_attr(unsigned int def_conf);
@@ -88,83 +89,5 @@ int snd_hda_parse_pin_defcfg(struct hda_codec *codec,
 /* older function */
 #define snd_hda_parse_pin_def_config(codec, cfg, ignore) \
 	snd_hda_parse_pin_defcfg(codec, cfg, ignore, 0)
-
-/*
- */
-
-struct hda_gen_spec {
-	/* fix-up list */
-	int fixup_id;
-	const struct hda_fixup *fixup_list;
-	const char *fixup_name;
-
-	/* additional init verbs */
-	struct snd_array verbs;
-};
-
-
-/*
- * Fix-up pin default configurations and add default verbs
- */
-
-struct hda_pintbl {
-	hda_nid_t nid;
-	u32 val;
-};
-
-struct hda_model_fixup {
-	const int id;
-	const char *name;
-};
-
-struct hda_fixup {
-	int type;
-	bool chained;
-	int chain_id;
-	union {
-		const struct hda_pintbl *pins;
-		const struct hda_verb *verbs;
-		void (*func)(struct hda_codec *codec,
-			     const struct hda_fixup *fix,
-			     int action);
-	} v;
-};
-
-/* fixup types */
-enum {
-	HDA_FIXUP_INVALID,
-	HDA_FIXUP_PINS,
-	HDA_FIXUP_VERBS,
-	HDA_FIXUP_FUNC,
-};
-
-/* fixup action definitions */
-enum {
-	HDA_FIXUP_ACT_PRE_PROBE,
-	HDA_FIXUP_ACT_PROBE,
-	HDA_FIXUP_ACT_INIT,
-	HDA_FIXUP_ACT_BUILD,
-};
-
-int snd_hda_gen_add_verbs(struct hda_gen_spec *spec,
-			  const struct hda_verb *list);
-void snd_hda_gen_apply_verbs(struct hda_codec *codec);
-void snd_hda_apply_pincfgs(struct hda_codec *codec,
-			   const struct hda_pintbl *cfg);
-void snd_hda_apply_fixup(struct hda_codec *codec, int action);
-void snd_hda_pick_fixup(struct hda_codec *codec,
-			const struct hda_model_fixup *models,
-			const struct snd_pci_quirk *quirk,
-			const struct hda_fixup *fixlist);
-
-static inline void snd_hda_gen_init(struct hda_gen_spec *spec)
-{
-	snd_array_init(&spec->verbs, sizeof(struct hda_verb *), 8);
-}
-
-static inline void snd_hda_gen_free(struct hda_gen_spec *spec)
-{
-	snd_array_free(&spec->verbs);
-}
 
 #endif /* __SOUND_HDA_AUTO_PARSER_H */

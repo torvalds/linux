@@ -24,6 +24,8 @@
 #include <linux/types.h>
 #include <linux/watchdog.h>
 #include <linux/uaccess.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <mach/at91_st.h>
 
 #define WDT_DEFAULT_TIME	5	/* seconds */
@@ -199,7 +201,7 @@ static struct miscdevice at91wdt_miscdev = {
 	.fops		= &at91wdt_fops,
 };
 
-static int __devinit at91wdt_probe(struct platform_device *pdev)
+static int at91wdt_probe(struct platform_device *pdev)
 {
 	int res;
 
@@ -216,7 +218,7 @@ static int __devinit at91wdt_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit at91wdt_remove(struct platform_device *pdev)
+static int at91wdt_remove(struct platform_device *pdev)
 {
 	int res;
 
@@ -252,15 +254,22 @@ static int at91wdt_resume(struct platform_device *pdev)
 #define at91wdt_resume	NULL
 #endif
 
+static const struct of_device_id at91_wdt_dt_ids[] = {
+	{ .compatible = "atmel,at91rm9200-wdt" },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, at91_wdt_dt_ids);
+
 static struct platform_driver at91wdt_driver = {
 	.probe		= at91wdt_probe,
-	.remove		= __devexit_p(at91wdt_remove),
+	.remove		= at91wdt_remove,
 	.shutdown	= at91wdt_shutdown,
 	.suspend	= at91wdt_suspend,
 	.resume		= at91wdt_resume,
 	.driver		= {
 		.name	= "at91_wdt",
 		.owner	= THIS_MODULE,
+		.of_match_table = of_match_ptr(at91_wdt_dt_ids),
 	},
 };
 

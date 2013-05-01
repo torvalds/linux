@@ -118,11 +118,17 @@ void __iomem *pci_map_rom(struct pci_dev *pdev, size_t *size)
 	void __iomem *rom;
 
 	/*
+	 * Some devices may provide ROMs via a source other than the BAR
+	 */
+	if (pdev->rom && pdev->romlen) {
+		*size = pdev->romlen;
+		return phys_to_virt(pdev->rom);
+	/*
 	 * IORESOURCE_ROM_SHADOW set on x86, x86_64 and IA64 supports legacy
 	 * memory map if the VGA enable bit of the Bridge Control register is
 	 * set for embedded VGA.
 	 */
-	if (res->flags & IORESOURCE_ROM_SHADOW) {
+	} else if (res->flags & IORESOURCE_ROM_SHADOW) {
 		/* primary video rom always starts here */
 		start = (loff_t)0xC0000;
 		*size = 0x20000; /* cover C000:0 through E000:0 */
@@ -181,7 +187,8 @@ void pci_unmap_rom(struct pci_dev *pdev, void __iomem *rom)
 	if (res->flags & (IORESOURCE_ROM_COPY | IORESOURCE_ROM_BIOS_COPY))
 		return;
 
-	iounmap(rom);
+	if (!pdev->rom || !pdev->romlen)
+		iounmap(rom);
 
 	/* Disable again before continuing, leave enabled if pci=rom */
 	if (!(res->flags & (IORESOURCE_ROM_ENABLE | IORESOURCE_ROM_SHADOW)))

@@ -32,6 +32,7 @@
 #include <asm/div64.h>
 
 #include "dvb_frontend.h"
+#include "tda18271c2dd.h"
 
 struct SStandardParam {
 	s32   m_IFFrequency;

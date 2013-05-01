@@ -476,8 +476,7 @@ out:
 	if (local_alloc_inode)
 		iput(local_alloc_inode);
 
-	if (alloc_copy)
-		kfree(alloc_copy);
+	kfree(alloc_copy);
 }
 
 /*
@@ -534,7 +533,7 @@ int ocfs2_begin_local_alloc_recovery(struct ocfs2_super *osb,
 		mlog_errno(status);
 
 bail:
-	if ((status < 0) && (*alloc_copy)) {
+	if (status < 0) {
 		kfree(*alloc_copy);
 		*alloc_copy = NULL;
 	}
@@ -1290,8 +1289,7 @@ bail:
 	if (main_bm_inode)
 		iput(main_bm_inode);
 
-	if (alloc_copy)
-		kfree(alloc_copy);
+	kfree(alloc_copy);
 
 	if (ac)
 		ocfs2_free_alloc_context(ac);

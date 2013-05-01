@@ -710,8 +710,8 @@ struct ich_pcm_table {
 	int ac97_idx;
 };
 
-static int __devinit snd_intel8x0m_pcm1(struct intel8x0m *chip, int device,
-				       struct ich_pcm_table *rec)
+static int snd_intel8x0m_pcm1(struct intel8x0m *chip, int device,
+			      struct ich_pcm_table *rec)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -749,7 +749,7 @@ static int __devinit snd_intel8x0m_pcm1(struct intel8x0m *chip, int device,
 	return 0;
 }
 
-static struct ich_pcm_table intel_pcms[] __devinitdata = {
+static struct ich_pcm_table intel_pcms[] = {
 	{
 		.suffix = "Modem",
 		.playback_ops = &snd_intel8x0m_playback_ops,
@@ -759,7 +759,7 @@ static struct ich_pcm_table intel_pcms[] __devinitdata = {
 	},
 };
 
-static int __devinit snd_intel8x0m_pcm(struct intel8x0m *chip)
+static int snd_intel8x0m_pcm(struct intel8x0m *chip)
 {
 	int i, tblsize, device, err;
 	struct ich_pcm_table *tbl, *rec;
@@ -819,7 +819,7 @@ static void snd_intel8x0m_mixer_free_ac97(struct snd_ac97 *ac97)
 }
 
 
-static int __devinit snd_intel8x0m_mixer(struct intel8x0m *chip, int ac97_clock)
+static int snd_intel8x0m_mixer(struct intel8x0m *chip, int ac97_clock)
 {
 	struct snd_ac97_bus *pbus;
 	struct snd_ac97_template ac97;
@@ -1090,7 +1090,7 @@ static void snd_intel8x0m_proc_read(struct snd_info_entry * entry,
 			(tmp & (ICH_PCR | ICH_SCR | ICH_TCR)) == 0 ? " none" : "");
 }
 
-static void __devinit snd_intel8x0m_proc_init(struct intel8x0m * chip)
+static void snd_intel8x0m_proc_init(struct intel8x0m *chip)
 {
 	struct snd_info_entry *entry;
 
@@ -1113,10 +1113,10 @@ struct ich_reg_info {
 	unsigned int offset;
 };
 
-static int __devinit snd_intel8x0m_create(struct snd_card *card,
-					 struct pci_dev *pci,
-					 unsigned long device_type,
-					 struct intel8x0m **r_intel8x0m)
+static int snd_intel8x0m_create(struct snd_card *card,
+				struct pci_dev *pci,
+				unsigned long device_type,
+				struct intel8x0m **r_intel8x0m)
 {
 	struct intel8x0m *chip;
 	int err;
@@ -1252,7 +1252,7 @@ static int __devinit snd_intel8x0m_create(struct snd_card *card,
 static struct shortname_table {
 	unsigned int id;
 	const char *s;
-} shortnames[] __devinitdata = {
+} shortnames[] = {
 	{ PCI_DEVICE_ID_INTEL_82801AA_6, "Intel 82801AA-ICH" },
 	{ PCI_DEVICE_ID_INTEL_82801AB_6, "Intel 82901AB-ICH0" },
 	{ PCI_DEVICE_ID_INTEL_82801BA_6, "Intel 82801BA-ICH2" },
@@ -1275,8 +1275,8 @@ static struct shortname_table {
 	{ 0 },
 };
 
-static int __devinit snd_intel8x0m_probe(struct pci_dev *pci,
-					const struct pci_device_id *pci_id)
+static int snd_intel8x0m_probe(struct pci_dev *pci,
+			       const struct pci_device_id *pci_id)
 {
 	struct snd_card *card;
 	struct intel8x0m *chip;
@@ -1325,7 +1325,7 @@ static int __devinit snd_intel8x0m_probe(struct pci_dev *pci,
 	return 0;
 }
 
-static void __devexit snd_intel8x0m_remove(struct pci_dev *pci)
+static void snd_intel8x0m_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
 	pci_set_drvdata(pci, NULL);
@@ -1335,7 +1335,7 @@ static struct pci_driver intel8x0m_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_intel8x0m_ids,
 	.probe = snd_intel8x0m_probe,
-	.remove = __devexit_p(snd_intel8x0m_remove),
+	.remove = snd_intel8x0m_remove,
 	.driver = {
 		.pm = INTEL8X0M_PM_OPS,
 	},

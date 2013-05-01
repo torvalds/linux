@@ -8,7 +8,9 @@ int perf_gtk__init(void)
 {
 	perf_error__register(&perf_gtk_eops);
 	perf_gtk__init_helpline();
+	perf_gtk__init_progress();
 	perf_gtk__init_hpp();
+
 	return gtk_init_check(NULL, NULL) ? 0 : -1;
 }
 

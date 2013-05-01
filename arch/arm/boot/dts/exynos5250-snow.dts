@@ -1,0 +1,43 @@
+/*
+ * Google Snow board device tree source
+ *
+ * Copyright (c) 2012 Google, Inc
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+*/
+
+/dts-v1/;
+/include/ "exynos5250.dtsi"
+/include/ "cros5250-common.dtsi"
+
+/ {
+	model = "Google Snow";
+	compatible = "google,snow", "samsung,exynos5250";
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		lid-switch {
+			label = "Lid";
+			gpios = <&gpx3 5 0 0x10000 0>;
+			linux,input-type = <5>; /* EV_SW */
+			linux,code = <0>; /* SW_LID */
+			debounce-interval = <1>;
+			gpio-key,wakeup;
+		};
+	};
+
+	/*
+	 * On Snow we've got SIP WiFi and so can keep drive strengths low to
+	 * reduce EMI.
+	 */
+	dwmmc3@12230000 {
+		slot@0 {
+			gpios = <&gpc4 0 2 0 0>, <&gpc4 1 2 3 0>,
+				<&gpc4 3 2 3 0>, <&gpc4 4 2 3 0>,
+				<&gpc4 5 2 3 0>, <&gpc4 6 2 3 0>;
+		};
+	};
+};

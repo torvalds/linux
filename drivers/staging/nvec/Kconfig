@@ -1,6 +1,7 @@
 config MFD_NVEC
 	bool "NV Tegra Embedded Controller SMBus Interface"
 	depends on I2C && GPIOLIB && ARCH_TEGRA
+	select MFD_CORE
 	help
 	    Say Y here to enable support for a nVidia compliant embedded
 	    controller.

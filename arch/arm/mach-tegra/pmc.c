@@ -19,7 +19,7 @@
 #include <linux/io.h>
 #include <linux/of.h>
 
-#include <mach/iomap.h>
+#include "iomap.h"
 
 #define PMC_CTRL		0x0
 #define PMC_CTRL_INTR_LOW	(1 << 17)

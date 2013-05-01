@@ -41,11 +41,11 @@
 #include <linux/rtc.h>
 #include <linux/bcd.h>
 #include <linux/slab.h>
+#include <linux/mfd/menelaus.h>
 
 #include <asm/mach/irq.h>
 
 #include <asm/gpio.h>
-#include <plat/menelaus.h>
 
 #define DRIVER_NAME			"menelaus"
 

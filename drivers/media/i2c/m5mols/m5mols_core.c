@@ -556,7 +556,7 @@ static int m5mols_get_fmt(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh,
 	mutex_lock(&info->lock);
 
 	format = __find_format(info, fh, fmt->which, info->res_type);
-	if (!format)
+	if (format)
 		fmt->format = *format;
 	else
 		ret = -EINVAL;
@@ -926,8 +926,8 @@ static irqreturn_t m5mols_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int __devinit m5mols_probe(struct i2c_client *client,
-				  const struct i2c_device_id *id)
+static int m5mols_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
 {
 	const struct m5mols_platform_data *pdata = client->dev.platform_data;
 	struct m5mols_info *info;
@@ -1018,7 +1018,7 @@ out_free:
 	return ret;
 }
 
-static int __devexit m5mols_remove(struct i2c_client *client)
+static int m5mols_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct m5mols_info *info = to_m5mols(sd);
@@ -1045,7 +1045,7 @@ static struct i2c_driver m5mols_i2c_driver = {
 		.name	= MODULE_NAME,
 	},
 	.probe		= m5mols_probe,
-	.remove		= __devexit_p(m5mols_remove),
+	.remove		= m5mols_remove,
 	.id_table	= m5mols_id,
 };
 

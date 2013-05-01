@@ -18,9 +18,9 @@ static inline int __copy_conv_sigset_to_user(compat_sigset_t __user *d,
 	BUG_ON(sizeof(*d) != sizeof(*s));
 	BUG_ON(_NSIG_WORDS != 2);
 
-	err  = __put_user(s->sig[0],       &d->sig[0]);
+	err  = __put_user(s->sig[0],	   &d->sig[0]);
 	err |= __put_user(s->sig[0] >> 32, &d->sig[1]);
-	err |= __put_user(s->sig[1],       &d->sig[2]);
+	err |= __put_user(s->sig[1],	   &d->sig[2]);
 	err |= __put_user(s->sig[1] >> 32, &d->sig[3]);
 
 	return err;

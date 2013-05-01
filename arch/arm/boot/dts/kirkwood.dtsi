@@ -4,6 +4,10 @@
 	compatible = "marvell,kirkwood";
 	interrupt-parent = <&intc>;
 
+	aliases {
+	       gpio0 = &gpio0;
+	       gpio1 = &gpio1;
+	};
 	intc: interrupt-controller {
 		compatible = "marvell,orion-intc", "marvell,intc";
 		interrupt-controller;
@@ -19,13 +23,22 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
+		core_clk: core-clocks@10030 {
+			compatible = "marvell,kirkwood-core-clock";
+			reg = <0x10030 0x4>;
+	        	#clock-cells = <1>;
+		};
+
 		gpio0: gpio@10100 {
 			compatible = "marvell,orion-gpio";
 			#gpio-cells = <2>;
 			gpio-controller;
 			reg = <0x10100 0x40>;
-			ngpio = <32>;
+			ngpios = <32>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 			interrupts = <35>, <36>, <37>, <38>;
+			clocks = <&gate_clk 7>;
 		};
 
 		gpio1: gpio@10140 {
@@ -33,8 +46,11 @@
 			#gpio-cells = <2>;
 			gpio-controller;
 			reg = <0x10140 0x40>;
-			ngpio = <18>;
+			ngpios = <18>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
 			interrupts = <39>, <40>, <41>;
+			clocks = <&gate_clk 7>;
 		};
 
 		serial@12000 {
@@ -42,7 +58,7 @@
 			reg = <0x12000 0x100>;
 			reg-shift = <2>;
 			interrupts = <33>;
-			/* set clock-frequency in board dts */
+			clocks = <&gate_clk 7>;
 			status = "disabled";
 		};
 
@@ -51,7 +67,7 @@
 			reg = <0x12100 0x100>;
 			reg-shift = <2>;
 			interrupts = <34>;
-			/* set clock-frequency in board dts */
+			clocks = <&gate_clk 7>;
 			status = "disabled";
 		};
 
@@ -59,6 +75,7 @@
 			compatible = "marvell,kirkwood-rtc", "marvell,orion-rtc";
 			reg = <0x10300 0x20>;
 			interrupts = <53>;
+			clocks = <&gate_clk 7>;
 		};
 
 		spi@10600 {
@@ -68,12 +85,69 @@
 			cell-index = <0>;
 			interrupts = <23>;
 			reg = <0x10600 0x28>;
+			clocks = <&gate_clk 7>;
 			status = "disabled";
+		};
+
+		gate_clk: clock-gating-control@2011c {
+			compatible = "marvell,kirkwood-gating-clock";
+			reg = <0x2011c 0x4>;
+			clocks = <&core_clk 0>;
+			#clock-cells = <1>;
 		};
 
 		wdt@20300 {
 			compatible = "marvell,orion-wdt";
 			reg = <0x20300 0x28>;
+			clocks = <&gate_clk 7>;
+			status = "okay";
+		};
+
+		xor@60800 {
+			compatible = "marvell,orion-xor";
+			reg = <0x60800 0x100
+			       0x60A00 0x100>;
+			status = "okay";
+			clocks = <&gate_clk 8>;
+
+			xor00 {
+			      interrupts = <5>;
+			      dmacap,memcpy;
+			      dmacap,xor;
+			};
+			xor01 {
+			      interrupts = <6>;
+			      dmacap,memcpy;
+			      dmacap,xor;
+			      dmacap,memset;
+			};
+		};
+
+		xor@60900 {
+			compatible = "marvell,orion-xor";
+			reg = <0x60900 0x100
+			       0xd0B00 0x100>;
+			status = "okay";
+			clocks = <&gate_clk 16>;
+
+			xor00 {
+			      interrupts = <7>;
+			      dmacap,memcpy;
+			      dmacap,xor;
+			};
+			xor01 {
+			      interrupts = <8>;
+			      dmacap,memcpy;
+			      dmacap,xor;
+			      dmacap,memset;
+			};
+		};
+
+		ehci@50000 {
+			compatible = "marvell,orion-ehci";
+			reg = <0x50000 0x1000>;
+			interrupts = <19>;
+			clocks = <&gate_clk 3>;
 			status = "okay";
 		};
 
@@ -81,6 +155,8 @@
 			compatible = "marvell,orion-sata";
 			reg = <0x80000 0x5000>;
 			interrupts = <21>;
+			clocks = <&gate_clk 14>, <&gate_clk 15>;
+			clock-names = "0", "1";
 			status = "disabled";
 		};
 
@@ -94,6 +170,7 @@
 			reg = <0x3000000 0x400>;
 			chip-delay = <25>;
 			/* set partition map and/or chip-delay in board dts */
+			clocks = <&gate_clk 7>;
 			status = "disabled";
 		};
 
@@ -104,6 +181,7 @@
 			#size-cells = <0>;
 			interrupts = <29>;
 			clock-frequency = <100000>;
+			clocks = <&gate_clk 7>;
 			status = "disabled";
 		};
 
@@ -113,7 +191,16 @@
 			      <0xf5000000 0x800>;
 			reg-names = "regs", "sram";
 			interrupts = <22>;
+			clocks = <&gate_clk 17>;
 			status = "okay";
+		};
+
+		mvsdio@90000 {
+			compatible = "marvell,orion-sdio";
+			reg = <0x90000 0x200>;
+			interrupts = <28>;
+			clocks = <&gate_clk 4>;
+			status = "disabled";
 		};
 	};
 };

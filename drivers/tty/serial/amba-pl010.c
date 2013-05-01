@@ -116,7 +116,6 @@ static void pl010_enable_ms(struct uart_port *port)
 
 static void pl010_rx_chars(struct uart_amba_port *uap)
 {
-	struct tty_struct *tty = uap->port.state->port.tty;
 	unsigned int status, ch, flag, rsr, max_count = 256;
 
 	status = readb(uap->port.membase + UART01x_FR);
@@ -165,7 +164,7 @@ static void pl010_rx_chars(struct uart_amba_port *uap)
 		status = readb(uap->port.membase + UART01x_FR);
 	}
 	spin_unlock(&uap->port.lock);
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&uap->port.state->port);
 	spin_lock(&uap->port.lock);
 }
 

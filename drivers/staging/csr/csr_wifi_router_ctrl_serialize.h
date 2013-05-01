@@ -17,10 +17,6 @@
 
 #include "csr_wifi_router_ctrl_prim.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 extern void CsrWifiRouterCtrlPfree(void *ptr);
 
 extern u8* CsrWifiRouterCtrlConfigurePowerModeReqSer(u8 *ptr, size_t *len, void *msg);
@@ -333,9 +329,5 @@ extern void* CsrWifiRouterCtrlWapiUnicastTxEncryptIndDes(u8 *buffer, size_t len)
 extern size_t CsrWifiRouterCtrlWapiUnicastTxEncryptIndSizeof(void *msg);
 extern void CsrWifiRouterCtrlWapiUnicastTxEncryptIndSerFree(void *msg);
 
-
-#ifdef __cplusplus
-}
-#endif
 #endif /* CSR_WIFI_ROUTER_CTRL_SERIALIZE_H__ */
 

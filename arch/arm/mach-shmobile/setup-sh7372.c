@@ -33,6 +33,7 @@
 #include <linux/sh_timer.h>
 #include <linux/pm_domain.h>
 #include <linux/dma-mapping.h>
+#include <linux/platform_data/sh_ipmmu.h>
 #include <mach/dma-register.h>
 #include <mach/hardware.h>
 #include <mach/irqs.h>
@@ -58,12 +59,32 @@ static struct map_desc sh7372_io_desc[] __initdata = {
 void __init sh7372_map_io(void)
 {
 	iotable_init(sh7372_io_desc, ARRAY_SIZE(sh7372_io_desc));
+}
 
-	/*
-	 * DMA memory at 0xff200000 - 0xffdfffff. The default 2MB size isn't
-	 * enough to allocate the frame buffer memory.
-	 */
-	init_consistent_dma_size(12 << 20);
+/* PFC */
+static struct resource sh7372_pfc_resources[] = {
+	[0] = {
+		.start	= 0xe6050000,
+		.end	= 0xe6057fff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= 0xe605800c,
+		.end	= 0xe6058027,
+		.flags	= IORESOURCE_MEM,
+	}
+};
+
+static struct platform_device sh7372_pfc_device = {
+	.name		= "pfc-sh7372",
+	.id		= -1,
+	.resource	= sh7372_pfc_resources,
+	.num_resources	= ARRAY_SIZE(sh7372_pfc_resources),
+};
+
+void __init sh7372_pinmux_init(void)
+{
+	platform_device_register(&sh7372_pfc_device);
 }
 
 /* SCIFA0 */
@@ -407,6 +428,26 @@ static const struct sh_dmae_slave_config sh7372_dmae_slaves[] = {
 		.addr		= 0xe6c30060,
 		.chcr		= CHCR_RX(XMIT_SZ_8BIT),
 		.mid_rid	= 0x3e,
+	}, {
+		.slave_id	= SHDMA_SLAVE_FLCTL0_TX,
+		.addr		= 0xe6a30050,
+		.chcr		= CHCR_TX(XMIT_SZ_32BIT),
+		.mid_rid	= 0x83,
+	}, {
+		.slave_id	= SHDMA_SLAVE_FLCTL0_RX,
+		.addr		= 0xe6a30050,
+		.chcr		= CHCR_RX(XMIT_SZ_32BIT),
+		.mid_rid	= 0x83,
+	}, {
+		.slave_id	= SHDMA_SLAVE_FLCTL1_TX,
+		.addr		= 0xe6a30060,
+		.chcr		= CHCR_TX(XMIT_SZ_32BIT),
+		.mid_rid	= 0x87,
+	}, {
+		.slave_id	= SHDMA_SLAVE_FLCTL1_RX,
+		.addr		= 0xe6a30060,
+		.chcr		= CHCR_RX(XMIT_SZ_32BIT),
+		.mid_rid	= 0x87,
 	}, {
 		.slave_id	= SHDMA_SLAVE_SDHI0_TX,
 		.addr		= 0xe6850030,
@@ -968,6 +1009,43 @@ static struct platform_device spu1_device = {
 	.num_resources	= ARRAY_SIZE(spu1_resources),
 };
 
+/* IPMMUI (an IPMMU module for ICB/LMB) */
+static struct resource ipmmu_resources[] = {
+	[0] = {
+		.name	= "IPMMUI",
+		.start	= 0xfe951000,
+		.end	= 0xfe9510ff,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static const char * const ipmmu_dev_names[] = {
+	"sh_mobile_lcdc_fb.0",
+	"sh_mobile_lcdc_fb.1",
+	"sh_mobile_ceu.0",
+	"uio_pdrv_genirq.0",
+	"uio_pdrv_genirq.1",
+	"uio_pdrv_genirq.2",
+	"uio_pdrv_genirq.3",
+	"uio_pdrv_genirq.4",
+	"uio_pdrv_genirq.5",
+};
+
+static struct shmobile_ipmmu_platform_data ipmmu_platform_data = {
+	.dev_names = ipmmu_dev_names,
+	.num_dev_names = ARRAY_SIZE(ipmmu_dev_names),
+};
+
+static struct platform_device ipmmu_device = {
+	.name           = "ipmmu",
+	.id             = -1,
+	.dev = {
+		.platform_data = &ipmmu_platform_data,
+	},
+	.resource       = ipmmu_resources,
+	.num_resources  = ARRAY_SIZE(ipmmu_resources),
+};
+
 static struct platform_device *sh7372_early_devices[] __initdata = {
 	&scif0_device,
 	&scif1_device,
@@ -979,6 +1057,7 @@ static struct platform_device *sh7372_early_devices[] __initdata = {
 	&cmt2_device,
 	&tmu00_device,
 	&tmu01_device,
+	&ipmmu_device,
 };
 
 static struct platform_device *sh7372_late_devices[] __initdata = {
@@ -1040,7 +1119,7 @@ void __init sh7372_add_standard_devices(void)
 				       ARRAY_SIZE(domain_devices));
 }
 
-static void __init sh7372_earlytimer_init(void)
+void __init sh7372_earlytimer_init(void)
 {
 	sh7372_clock_init();
 	shmobile_earlytimer_init();
@@ -1053,9 +1132,6 @@ void __init sh7372_add_early_devices(void)
 
 	/* setup early console here as well */
 	shmobile_setup_console();
-
-	/* override timer setup with soc-specific code */
-	shmobile_timer.init = sh7372_earlytimer_init;
 }
 
 #ifdef CONFIG_USE_OF
@@ -1099,7 +1175,7 @@ DT_MACHINE_START(SH7372_DT, "Generic SH7372 (Flattened Device Tree)")
 	.init_irq	= sh7372_init_irq,
 	.handle_irq	= shmobile_handle_irq_intc,
 	.init_machine	= sh7372_add_standard_devices_dt,
-	.timer		= &shmobile_timer,
+	.init_time	= shmobile_timer_init,
 	.dt_compat	= sh7372_boards_compat_dt,
 MACHINE_END
 

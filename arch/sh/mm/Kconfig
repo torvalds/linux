@@ -83,7 +83,7 @@ config 32BIT
 
 config PMB
 	bool "Support 32-bit physical addressing through PMB"
-	depends on MMU && EXPERIMENTAL && CPU_SH4A && !CPU_SH4AL_DSP
+	depends on MMU && CPU_SH4A && !CPU_SH4AL_DSP
 	select 32BIT
 	select UNCACHED_MAPPING
 	help
@@ -110,7 +110,8 @@ config VSYSCALL
 
 config NUMA
 	bool "Non Uniform Memory Access (NUMA) Support"
-	depends on MMU && SYS_SUPPORTS_NUMA && EXPERIMENTAL
+	depends on MMU && SYS_SUPPORTS_NUMA
+	select ARCH_WANT_NUMA_VARIABLE_LOCALITY
 	default n
 	help
 	  Some SH systems have many various memories scattered around

@@ -1,0 +1,100 @@
+/*
+ * Device Tree Source for the SH73A0 SoC
+ *
+ * Copyright (C) 2012 Renesas Solutions Corp.
+ *
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2.  This program is licensed "as is" without any warranty of any
+ * kind, whether express or implied.
+ */
+
+/include/ "skeleton.dtsi"
+
+/ {
+	compatible = "renesas,sh73a0";
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			reg = <0>;
+		};
+		cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a9";
+			reg = <1>;
+		};
+	};
+
+	gic: interrupt-controller@f0001000 {
+		compatible = "arm,cortex-a9-gic";
+		#interrupt-cells = <3>;
+		#address-cells = <1>;
+		interrupt-controller;
+		reg = <0xf0001000 0x1000>,
+		      <0xf0000100 0x100>;
+	};
+
+	i2c0: i2c@0xe6820000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "renesas,rmobile-iic";
+		reg = <0xe6820000 0x425>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 167 0x4
+			      0 168 0x4
+			      0 169 0x4
+			      0 170 0x4>;
+	};
+
+	i2c1: i2c@0xe6822000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "renesas,rmobile-iic";
+		reg = <0xe6822000 0x425>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 51 0x4
+			      0 52 0x4
+			      0 53 0x4
+			      0 54 0x4>;
+	};
+
+	i2c2: i2c@0xe6824000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "renesas,rmobile-iic";
+		reg = <0xe6824000 0x425>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 171 0x4
+			      0 172 0x4
+			      0 173 0x4
+			      0 174 0x4>;
+	};
+
+	i2c3: i2c@0xe6826000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "renesas,rmobile-iic";
+		reg = <0xe6826000 0x425>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 183 0x4
+			      0 184 0x4
+			      0 185 0x4
+			      0 186 0x4>;
+	};
+
+	i2c4: i2c@0xe6828000 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "renesas,rmobile-iic";
+		reg = <0xe6828000 0x425>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 187 0x4
+			      0 188 0x4
+			      0 189 0x4
+			      0 190 0x4>;
+	};
+};

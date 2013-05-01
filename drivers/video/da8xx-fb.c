@@ -185,7 +185,7 @@ struct da8xx_fb_par {
 };
 
 /* Variable Screen Information */
-static struct fb_var_screeninfo da8xx_fb_var __devinitdata = {
+static struct fb_var_screeninfo da8xx_fb_var = {
 	.xoffset = 0,
 	.yoffset = 0,
 	.transp = {0, 0, 0},
@@ -202,7 +202,7 @@ static struct fb_var_screeninfo da8xx_fb_var __devinitdata = {
 	.vmode = FB_VMODE_NONINTERLACED
 };
 
-static struct fb_fix_screeninfo da8xx_fb_fix __devinitdata = {
+static struct fb_fix_screeninfo da8xx_fb_fix = {
 	.id = "DA8xx FB Drv",
 	.type = FB_TYPE_PACKED_PIXELS,
 	.type_aux = 0,
@@ -213,62 +213,51 @@ static struct fb_fix_screeninfo da8xx_fb_fix __devinitdata = {
 	.accel = FB_ACCEL_NONE
 };
 
-struct da8xx_panel {
-	const char	name[25];	/* Full name <vendor>_<model> */
-	unsigned short	width;
-	unsigned short	height;
-	int		hfp;		/* Horizontal front porch */
-	int		hbp;		/* Horizontal back porch */
-	int		hsw;		/* Horizontal Sync Pulse Width */
-	int		vfp;		/* Vertical front porch */
-	int		vbp;		/* Vertical back porch */
-	int		vsw;		/* Vertical Sync Pulse Width */
-	unsigned int	pxl_clk;	/* Pixel clock */
-	unsigned char	invert_pxl_clk;	/* Invert Pixel clock */
-};
-
-static struct da8xx_panel known_lcd_panels[] = {
+static struct fb_videomode known_lcd_panels[] = {
 	/* Sharp LCD035Q3DG01 */
 	[0] = {
-		.name = "Sharp_LCD035Q3DG01",
-		.width = 320,
-		.height = 240,
-		.hfp = 8,
-		.hbp = 6,
-		.hsw = 0,
-		.vfp = 2,
-		.vbp = 2,
-		.vsw = 0,
-		.pxl_clk = 4608000,
-		.invert_pxl_clk = 1,
+		.name           = "Sharp_LCD035Q3DG01",
+		.xres           = 320,
+		.yres           = 240,
+		.pixclock       = 4608000,
+		.left_margin    = 6,
+		.right_margin   = 8,
+		.upper_margin   = 2,
+		.lower_margin   = 2,
+		.hsync_len      = 0,
+		.vsync_len      = 0,
+		.sync           = FB_SYNC_CLK_INVERT |
+			FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
 	},
 	/* Sharp LK043T1DG01 */
 	[1] = {
-		.name = "Sharp_LK043T1DG01",
-		.width = 480,
-		.height = 272,
-		.hfp = 2,
-		.hbp = 2,
-		.hsw = 41,
-		.vfp = 2,
-		.vbp = 2,
-		.vsw = 10,
-		.pxl_clk = 7833600,
-		.invert_pxl_clk = 0,
+		.name           = "Sharp_LK043T1DG01",
+		.xres           = 480,
+		.yres           = 272,
+		.pixclock       = 7833600,
+		.left_margin    = 2,
+		.right_margin   = 2,
+		.upper_margin   = 2,
+		.lower_margin   = 2,
+		.hsync_len      = 41,
+		.vsync_len      = 10,
+		.sync           = FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+		.flag           = 0,
 	},
 	[2] = {
 		/* Hitachi SP10Q010 */
-		.name = "SP10Q010",
-		.width = 320,
-		.height = 240,
-		.hfp = 10,
-		.hbp = 10,
-		.hsw = 10,
-		.vfp = 10,
-		.vbp = 10,
-		.vsw = 10,
-		.pxl_clk = 7833600,
-		.invert_pxl_clk = 0,
+		.name           = "SP10Q010",
+		.xres           = 320,
+		.yres           = 240,
+		.pixclock       = 7833600,
+		.left_margin    = 10,
+		.right_margin   = 10,
+		.upper_margin   = 10,
+		.lower_margin   = 10,
+		.hsync_len      = 10,
+		.vsync_len      = 10,
+		.sync           = FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+		.flag           = 0,
 	},
 };
 
@@ -399,10 +388,9 @@ static int lcd_cfg_dma(int burst_size, int fifo_th)
 		reg |= LCD_DMA_BURST_SIZE(LCD_DMA_BURST_8);
 		break;
 	case 16:
+	default:
 		reg |= LCD_DMA_BURST_SIZE(LCD_DMA_BURST_16);
 		break;
-	default:
-		return -EINVAL;
 	}
 
 	reg |= (fifo_th << 8);
@@ -447,7 +435,8 @@ static void lcd_cfg_vertical_sync(int back_porch, int pulse_width,
 	lcdc_write(reg, LCD_RASTER_TIMING_1_REG);
 }
 
-static int lcd_cfg_display(const struct lcd_ctrl_config *cfg)
+static int lcd_cfg_display(const struct lcd_ctrl_config *cfg,
+		struct fb_videomode *panel)
 {
 	u32 reg;
 	u32 reg_int;
@@ -456,7 +445,7 @@ static int lcd_cfg_display(const struct lcd_ctrl_config *cfg)
 						LCD_MONO_8BIT_MODE |
 						LCD_MONOCHROME_MODE);
 
-	switch (cfg->p_disp_panel->panel_shade) {
+	switch (cfg->panel_shade) {
 	case MONOCHROME:
 		reg |= LCD_MONOCHROME_MODE;
 		if (cfg->mono_8bit_mode)
@@ -469,7 +458,9 @@ static int lcd_cfg_display(const struct lcd_ctrl_config *cfg)
 		break;
 
 	case COLOR_PASSIVE:
-		if (cfg->stn_565_mode)
+		/* AC bias applicable only for Pasive panels */
+		lcd_cfg_ac_bias(cfg->ac_bias, cfg->ac_bias_intrpt);
+		if (cfg->bpp == 12 && cfg->stn_565_mode)
 			reg |= LCD_STN_565_ENABLE;
 		break;
 
@@ -490,22 +481,19 @@ static int lcd_cfg_display(const struct lcd_ctrl_config *cfg)
 
 	reg = lcdc_read(LCD_RASTER_TIMING_2_REG);
 
-	if (cfg->sync_ctrl)
-		reg |= LCD_SYNC_CTRL;
-	else
-		reg &= ~LCD_SYNC_CTRL;
+	reg |= LCD_SYNC_CTRL;
 
 	if (cfg->sync_edge)
 		reg |= LCD_SYNC_EDGE;
 	else
 		reg &= ~LCD_SYNC_EDGE;
 
-	if (cfg->invert_line_clock)
+	if (panel->sync & FB_SYNC_HOR_HIGH_ACT)
 		reg |= LCD_INVERT_LINE_CLOCK;
 	else
 		reg &= ~LCD_INVERT_LINE_CLOCK;
 
-	if (cfg->invert_frm_clock)
+	if (panel->sync & FB_SYNC_VERT_HIGH_ACT)
 		reg |= LCD_INVERT_FRAME_CLOCK;
 	else
 		reg &= ~LCD_INVERT_FRAME_CLOCK;
@@ -728,7 +716,7 @@ static void lcd_calc_clk_divider(struct da8xx_fb_par *par)
 }
 
 static int lcd_init(struct da8xx_fb_par *par, const struct lcd_ctrl_config *cfg,
-		struct da8xx_panel *panel)
+		struct fb_videomode *panel)
 {
 	u32 bpp;
 	int ret = 0;
@@ -738,7 +726,7 @@ static int lcd_init(struct da8xx_fb_par *par, const struct lcd_ctrl_config *cfg,
 	/* Calculate the divider */
 	lcd_calc_clk_divider(par);
 
-	if (panel->invert_pxl_clk)
+	if (panel->sync & FB_SYNC_CLK_INVERT)
 		lcdc_write((lcdc_read(LCD_RASTER_TIMING_2_REG) |
 			LCD_INVERT_PIXEL_CLOCK), LCD_RASTER_TIMING_2_REG);
 	else
@@ -750,30 +738,23 @@ static int lcd_init(struct da8xx_fb_par *par, const struct lcd_ctrl_config *cfg,
 	if (ret < 0)
 		return ret;
 
-	/* Configure the AC bias properties. */
-	lcd_cfg_ac_bias(cfg->ac_bias, cfg->ac_bias_intrpt);
-
 	/* Configure the vertical and horizontal sync properties. */
-	lcd_cfg_vertical_sync(panel->vbp, panel->vsw, panel->vfp);
-	lcd_cfg_horizontal_sync(panel->hbp, panel->hsw, panel->hfp);
+	lcd_cfg_vertical_sync(panel->lower_margin, panel->vsync_len,
+			panel->upper_margin);
+	lcd_cfg_horizontal_sync(panel->right_margin, panel->hsync_len,
+			panel->left_margin);
 
 	/* Configure for disply */
-	ret = lcd_cfg_display(cfg);
+	ret = lcd_cfg_display(cfg, panel);
 	if (ret < 0)
 		return ret;
 
-	if (QVGA != cfg->p_disp_panel->panel_type)
-		return -EINVAL;
+	bpp = cfg->bpp;
 
-	if (cfg->bpp <= cfg->p_disp_panel->max_bpp &&
-	    cfg->bpp >= cfg->p_disp_panel->min_bpp)
-		bpp = cfg->bpp;
-	else
-		bpp = cfg->p_disp_panel->max_bpp;
 	if (bpp == 12)
 		bpp = 16;
-	ret = lcd_cfg_frame_buffer(par, (unsigned int)panel->width,
-				(unsigned int)panel->height, bpp,
+	ret = lcd_cfg_frame_buffer(par, (unsigned int)panel->xres,
+				(unsigned int)panel->yres, bpp,
 				cfg->raster_order);
 	if (ret < 0)
 		return ret;
@@ -1012,7 +993,7 @@ static inline void lcd_da8xx_cpufreq_deregister(struct da8xx_fb_par *par)
 }
 #endif
 
-static int __devexit fb_remove(struct platform_device *dev)
+static int fb_remove(struct platform_device *dev)
 {
 	struct fb_info *info = dev_get_drvdata(&dev->dev);
 
@@ -1230,12 +1211,12 @@ static unsigned int da8xxfb_pixel_clk_period(struct da8xx_fb_par *par)
 	return pix_clk_period_picosec;
 }
 
-static int __devinit fb_probe(struct platform_device *device)
+static int fb_probe(struct platform_device *device)
 {
 	struct da8xx_lcdc_platform_data *fb_pdata =
 						device->dev.platform_data;
 	struct lcd_ctrl_config *lcd_cfg;
-	struct da8xx_panel *lcdc_info;
+	struct fb_videomode *lcdc_info;
 	struct fb_info *da8xx_fb_info;
 	struct clk *fb_clk = NULL;
 	struct da8xx_fb_par *par;
@@ -1267,7 +1248,7 @@ static int __devinit fb_probe(struct platform_device *device)
 		goto err_request_mem;
 	}
 
-	fb_clk = clk_get(&device->dev, NULL);
+	fb_clk = clk_get(&device->dev, "fck");
 	if (IS_ERR(fb_clk)) {
 		dev_err(&device->dev, "Can not get device clock\n");
 		ret = -ENODEV;
@@ -1283,6 +1264,7 @@ static int __devinit fb_probe(struct platform_device *device)
 		lcd_revision = LCD_VERSION_1;
 		break;
 	case 0x4F200800:
+	case 0x4F201000:
 		lcd_revision = LCD_VERSION_2;
 		break;
 	default:
@@ -1323,7 +1305,7 @@ static int __devinit fb_probe(struct platform_device *device)
 #ifdef CONFIG_CPU_FREQ
 	par->lcd_fck_rate = clk_get_rate(fb_clk);
 #endif
-	par->pxl_clk = lcdc_info->pxl_clk;
+	par->pxl_clk = lcdc_info->pixclock;
 	if (fb_pdata->panel_power_ctrl) {
 		par->panel_power_ctrl = fb_pdata->panel_power_ctrl;
 		par->panel_power_ctrl(1);
@@ -1336,8 +1318,8 @@ static int __devinit fb_probe(struct platform_device *device)
 	}
 
 	/* allocate frame buffer */
-	par->vram_size = lcdc_info->width * lcdc_info->height * lcd_cfg->bpp;
-	ulcm = lcm((lcdc_info->width * lcd_cfg->bpp)/8, PAGE_SIZE);
+	par->vram_size = lcdc_info->xres * lcdc_info->yres * lcd_cfg->bpp;
+	ulcm = lcm((lcdc_info->xres * lcd_cfg->bpp)/8, PAGE_SIZE);
 	par->vram_size = roundup(par->vram_size/8, ulcm);
 	par->vram_size = par->vram_size * LCD_NUM_BUFFERS;
 
@@ -1355,10 +1337,10 @@ static int __devinit fb_probe(struct platform_device *device)
 	da8xx_fb_info->screen_base = (char __iomem *) par->vram_virt;
 	da8xx_fb_fix.smem_start    = par->vram_phys;
 	da8xx_fb_fix.smem_len      = par->vram_size;
-	da8xx_fb_fix.line_length   = (lcdc_info->width * lcd_cfg->bpp) / 8;
+	da8xx_fb_fix.line_length   = (lcdc_info->xres * lcd_cfg->bpp) / 8;
 
 	par->dma_start = par->vram_phys;
-	par->dma_end   = par->dma_start + lcdc_info->height *
+	par->dma_end   = par->dma_start + lcdc_info->yres *
 		da8xx_fb_fix.line_length - 1;
 
 	/* allocate palette buffer */
@@ -1384,22 +1366,22 @@ static int __devinit fb_probe(struct platform_device *device)
 	/* Initialize par */
 	da8xx_fb_info->var.bits_per_pixel = lcd_cfg->bpp;
 
-	da8xx_fb_var.xres = lcdc_info->width;
-	da8xx_fb_var.xres_virtual = lcdc_info->width;
+	da8xx_fb_var.xres = lcdc_info->xres;
+	da8xx_fb_var.xres_virtual = lcdc_info->xres;
 
-	da8xx_fb_var.yres         = lcdc_info->height;
-	da8xx_fb_var.yres_virtual = lcdc_info->height * LCD_NUM_BUFFERS;
+	da8xx_fb_var.yres         = lcdc_info->yres;
+	da8xx_fb_var.yres_virtual = lcdc_info->yres * LCD_NUM_BUFFERS;
 
 	da8xx_fb_var.grayscale =
-	    lcd_cfg->p_disp_panel->panel_shade == MONOCHROME ? 1 : 0;
+	    lcd_cfg->panel_shade == MONOCHROME ? 1 : 0;
 	da8xx_fb_var.bits_per_pixel = lcd_cfg->bpp;
 
-	da8xx_fb_var.hsync_len = lcdc_info->hsw;
-	da8xx_fb_var.vsync_len = lcdc_info->vsw;
-	da8xx_fb_var.right_margin = lcdc_info->hfp;
-	da8xx_fb_var.left_margin  = lcdc_info->hbp;
-	da8xx_fb_var.lower_margin = lcdc_info->vfp;
-	da8xx_fb_var.upper_margin = lcdc_info->vbp;
+	da8xx_fb_var.hsync_len = lcdc_info->hsync_len;
+	da8xx_fb_var.vsync_len = lcdc_info->vsync_len;
+	da8xx_fb_var.right_margin = lcdc_info->right_margin;
+	da8xx_fb_var.left_margin  = lcdc_info->left_margin;
+	da8xx_fb_var.lower_margin = lcdc_info->lower_margin;
+	da8xx_fb_var.upper_margin = lcdc_info->upper_margin;
 	da8xx_fb_var.pixclock = da8xxfb_pixel_clk_period(par);
 
 	/* Initialize fbinfo */
@@ -1598,7 +1580,7 @@ static int fb_resume(struct platform_device *dev)
 
 static struct platform_driver da8xx_fb_driver = {
 	.probe = fb_probe,
-	.remove = __devexit_p(fb_remove),
+	.remove = fb_remove,
 	.suspend = fb_suspend,
 	.resume = fb_resume,
 	.driver = {

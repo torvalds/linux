@@ -121,6 +121,7 @@ nvc0_graph_class(void *obj)
 		return 0x9297;
 	case 0xe4:
 	case 0xe7:
+	case 0xe6:
 		return 0xa097;
 	default:
 		return 0;

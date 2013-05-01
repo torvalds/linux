@@ -68,31 +68,30 @@ void __init setup_cpuinfo(void)
 
 	cpu = (struct device_node *) of_find_node_by_type(NULL, "cpu");
 	if (!cpu)
-		printk(KERN_ERR "You don't have cpu!!!\n");
+		pr_err("You don't have cpu!!!\n");
 
-	printk(KERN_INFO "%s: initialising\n", __func__);
+	pr_info("%s: initialising\n", __func__);
 
 	switch (cpu_has_pvr()) {
 	case 0:
-		printk(KERN_WARNING
-			"%s: No PVR support. Using static CPU info from FDT\n",
+		pr_warn("%s: No PVR support. Using static CPU info from FDT\n",
 			__func__);
 		set_cpuinfo_static(&cpuinfo, cpu);
 		break;
 /* FIXME I found weird behavior with MB 7.00.a/b 7.10.a
  * please do not use FULL PVR with MMU */
 	case 1:
-		printk(KERN_INFO "%s: Using full CPU PVR support\n",
+		pr_info("%s: Using full CPU PVR support\n",
 			__func__);
 		set_cpuinfo_static(&cpuinfo, cpu);
 		set_cpuinfo_pvr_full(&cpuinfo, cpu);
 		break;
 	default:
-		printk(KERN_WARNING "%s: Unsupported PVR setting\n", __func__);
+		pr_warn("%s: Unsupported PVR setting\n", __func__);
 		set_cpuinfo_static(&cpuinfo, cpu);
 	}
 
 	if (cpuinfo.mmu_privins)
-		printk(KERN_WARNING "%s: Stream instructions enabled"
+		pr_warn("%s: Stream instructions enabled"
 			" - USERSPACE CAN LOCK THIS KERNEL!\n", __func__);
 }

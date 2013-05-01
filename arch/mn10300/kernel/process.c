@@ -37,12 +37,6 @@
 #include "internal.h"
 
 /*
- * power management idle function, if any..
- */
-void (*pm_idle)(void);
-EXPORT_SYMBOL(pm_idle);
-
-/*
  * return saved PC of a blocked thread.
  */
 unsigned long thread_saved_pc(struct task_struct *tsk)
@@ -113,7 +107,6 @@ void cpu_idle(void)
 			void (*idle)(void);
 
 			smp_rmb();
-			idle = pm_idle;
 			if (!idle) {
 #if defined(CONFIG_SMP) && !defined(CONFIG_HOTPLUG_CPU)
 				idle = poll_idle;
@@ -206,7 +199,7 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
  */
 int copy_thread(unsigned long clone_flags,
 		unsigned long c_usp, unsigned long ustk_size,
-		struct task_struct *p, struct pt_regs *kregs)
+		struct task_struct *p)
 {
 	struct thread_info *ti = task_thread_info(p);
 	struct pt_regs *c_regs;
@@ -227,7 +220,7 @@ int copy_thread(unsigned long clone_flags,
 	p->thread.wchan	= p->thread.pc;
 	p->thread.usp	= c_usp;
 
-	if (unlikely(!kregs)) {
+	if (unlikely(p->flags & PF_KTHREAD)) {
 		memset(c_regs, 0, sizeof(struct pt_regs));
 		c_regs->a0 = c_usp; /* function */
 		c_regs->d0 = ustk_size; /* argument */
@@ -236,8 +229,9 @@ int copy_thread(unsigned long clone_flags,
 		p->thread.pc	= (unsigned long) ret_from_kernel_thread;
 		return 0;
 	}
-	*c_regs = *kregs;
-	c_regs->sp = c_usp;
+	*c_regs = *current_pt_regs();
+	if (c_usp)
+		c_regs->sp = c_usp;
 	c_regs->epsw &= ~EPSW_FE; /* my FPU */
 
 	/* the new TLS pointer is passed in as arg #5 to sys_clone() */
@@ -247,30 +241,6 @@ int copy_thread(unsigned long clone_flags,
 	p->thread.pc	= (unsigned long) ret_from_fork;
 
 	return 0;
-}
-
-/*
- * clone a process
- * - tlsptr is retrieved by copy_thread() from current_frame()->d3
- */
-asmlinkage long sys_clone(unsigned long clone_flags, unsigned long newsp,
-			  int __user *parent_tidptr, int __user *child_tidptr,
-			  int __user *tlsptr)
-{
-	return do_fork(clone_flags, newsp ?: current_frame()->sp,
-		       current_frame(), 0, parent_tidptr, child_tidptr);
-}
-
-asmlinkage long sys_fork(void)
-{
-	return do_fork(SIGCHLD, current_frame()->sp,
-		       current_frame(), 0, NULL, NULL);
-}
-
-asmlinkage long sys_vfork(void)
-{
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, current_frame()->sp,
-		       current_frame(), 0, NULL, NULL);
 }
 
 unsigned long get_wchan(struct task_struct *p)

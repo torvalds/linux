@@ -60,7 +60,7 @@ sort__thread_cmp(struct hist_entry *left, struct hist_entry *right)
 static int hist_entry__thread_snprintf(struct hist_entry *self, char *bf,
 				       size_t size, unsigned int width)
 {
-	return repsep_snprintf(bf, size, "%*s:%5d", width,
+	return repsep_snprintf(bf, size, "%*s:%5d", width - 6,
 			      self->thread->comm ?: "", self->thread->pid);
 }
 
@@ -97,6 +97,16 @@ static int hist_entry__comm_snprintf(struct hist_entry *self, char *bf,
 	return repsep_snprintf(bf, size, "%*s", width, self->thread->comm);
 }
 
+struct sort_entry sort_comm = {
+	.se_header	= "Command",
+	.se_cmp		= sort__comm_cmp,
+	.se_collapse	= sort__comm_collapse,
+	.se_snprintf	= hist_entry__comm_snprintf,
+	.se_width_idx	= HISTC_COMM,
+};
+
+/* --sort dso */
+
 static int64_t _sort__dso_cmp(struct map *map_l, struct map *map_r)
 {
 	struct dso *dso_l = map_l ? map_l->dso : NULL;
@@ -117,38 +127,10 @@ static int64_t _sort__dso_cmp(struct map *map_l, struct map *map_r)
 	return strcmp(dso_name_l, dso_name_r);
 }
 
-struct sort_entry sort_comm = {
-	.se_header	= "Command",
-	.se_cmp		= sort__comm_cmp,
-	.se_collapse	= sort__comm_collapse,
-	.se_snprintf	= hist_entry__comm_snprintf,
-	.se_width_idx	= HISTC_COMM,
-};
-
-/* --sort dso */
-
 static int64_t
 sort__dso_cmp(struct hist_entry *left, struct hist_entry *right)
 {
 	return _sort__dso_cmp(left->ms.map, right->ms.map);
-}
-
-
-static int64_t _sort__sym_cmp(struct symbol *sym_l, struct symbol *sym_r,
-			      u64 ip_l, u64 ip_r)
-{
-	if (!sym_l || !sym_r)
-		return cmp_null(sym_l, sym_r);
-
-	if (sym_l == sym_r)
-		return 0;
-
-	if (sym_l)
-		ip_l = sym_l->start;
-	if (sym_r)
-		ip_r = sym_r->start;
-
-	return (int64_t)(ip_r - ip_l);
 }
 
 static int _hist_entry__dso_snprintf(struct map *map, char *bf,
@@ -169,9 +151,43 @@ static int hist_entry__dso_snprintf(struct hist_entry *self, char *bf,
 	return _hist_entry__dso_snprintf(self->ms.map, bf, size, width);
 }
 
+struct sort_entry sort_dso = {
+	.se_header	= "Shared Object",
+	.se_cmp		= sort__dso_cmp,
+	.se_snprintf	= hist_entry__dso_snprintf,
+	.se_width_idx	= HISTC_DSO,
+};
+
+/* --sort symbol */
+
+static int64_t _sort__sym_cmp(struct symbol *sym_l, struct symbol *sym_r)
+{
+	u64 ip_l, ip_r;
+
+	if (!sym_l || !sym_r)
+		return cmp_null(sym_l, sym_r);
+
+	if (sym_l == sym_r)
+		return 0;
+
+	ip_l = sym_l->start;
+	ip_r = sym_r->start;
+
+	return (int64_t)(ip_r - ip_l);
+}
+
+static int64_t
+sort__sym_cmp(struct hist_entry *left, struct hist_entry *right)
+{
+	if (!left->ms.sym && !right->ms.sym)
+		return right->level - left->level;
+
+	return _sort__sym_cmp(left->ms.sym, right->ms.sym);
+}
+
 static int _hist_entry__sym_snprintf(struct map *map, struct symbol *sym,
 				     u64 ip, char level, char *bf, size_t size,
-				     unsigned int width __maybe_unused)
+				     unsigned int width)
 {
 	size_t ret = 0;
 
@@ -197,41 +213,11 @@ static int _hist_entry__sym_snprintf(struct map *map, struct symbol *sym,
 	return ret;
 }
 
-
-struct sort_entry sort_dso = {
-	.se_header	= "Shared Object",
-	.se_cmp		= sort__dso_cmp,
-	.se_snprintf	= hist_entry__dso_snprintf,
-	.se_width_idx	= HISTC_DSO,
-};
-
 static int hist_entry__sym_snprintf(struct hist_entry *self, char *bf,
-				    size_t size,
-				    unsigned int width __maybe_unused)
+				    size_t size, unsigned int width)
 {
 	return _hist_entry__sym_snprintf(self->ms.map, self->ms.sym, self->ip,
 					 self->level, bf, size, width);
-}
-
-/* --sort symbol */
-static int64_t
-sort__sym_cmp(struct hist_entry *left, struct hist_entry *right)
-{
-	u64 ip_l, ip_r;
-
-	if (!left->ms.sym && !right->ms.sym)
-		return right->level - left->level;
-
-	if (!left->ms.sym || !right->ms.sym)
-		return cmp_null(left->ms.sym, right->ms.sym);
-
-	if (left->ms.sym == right->ms.sym)
-		return 0;
-
-	ip_l = left->ms.sym->start;
-	ip_r = right->ms.sym->start;
-
-	return _sort__sym_cmp(left->ms.sym, right->ms.sym, ip_l, ip_r);
 }
 
 struct sort_entry sort_sym = {
@@ -253,7 +239,7 @@ static int hist_entry__srcline_snprintf(struct hist_entry *self, char *bf,
 					size_t size,
 					unsigned int width __maybe_unused)
 {
-	FILE *fp;
+	FILE *fp = NULL;
 	char cmd[PATH_MAX + 2], *path = self->srcline, *nl;
 	size_t line_len;
 
@@ -274,7 +260,6 @@ static int hist_entry__srcline_snprintf(struct hist_entry *self, char *bf,
 
 	if (getline(&path, &line_len, fp) < 0 || !line_len)
 		goto out_ip;
-	fclose(fp);
 	self->srcline = strdup(path);
 	if (self->srcline == NULL)
 		goto out_ip;
@@ -284,8 +269,12 @@ static int hist_entry__srcline_snprintf(struct hist_entry *self, char *bf,
 		*nl = '\0';
 	path = self->srcline;
 out_path:
+	if (fp)
+		pclose(fp);
 	return repsep_snprintf(bf, size, "%s", path);
 out_ip:
+	if (fp)
+		pclose(fp);
 	return repsep_snprintf(bf, size, "%-#*llx", BITS_PER_LONG / 4, self->ip);
 }
 
@@ -335,7 +324,7 @@ sort__cpu_cmp(struct hist_entry *left, struct hist_entry *right)
 static int hist_entry__cpu_snprintf(struct hist_entry *self, char *bf,
 				       size_t size, unsigned int width)
 {
-	return repsep_snprintf(bf, size, "%-*d", width, self->cpu);
+	return repsep_snprintf(bf, size, "%*d", width, self->cpu);
 }
 
 struct sort_entry sort_cpu = {
@@ -344,6 +333,8 @@ struct sort_entry sort_cpu = {
 	.se_snprintf    = hist_entry__cpu_snprintf,
 	.se_width_idx	= HISTC_CPU,
 };
+
+/* sort keys for branch stacks */
 
 static int64_t
 sort__dso_from_cmp(struct hist_entry *left, struct hist_entry *right)
@@ -358,13 +349,6 @@ static int hist_entry__dso_from_snprintf(struct hist_entry *self, char *bf,
 	return _hist_entry__dso_snprintf(self->branch_info->from.map,
 					 bf, size, width);
 }
-
-struct sort_entry sort_dso_from = {
-	.se_header	= "Source Shared Object",
-	.se_cmp		= sort__dso_from_cmp,
-	.se_snprintf	= hist_entry__dso_from_snprintf,
-	.se_width_idx	= HISTC_DSO_FROM,
-};
 
 static int64_t
 sort__dso_to_cmp(struct hist_entry *left, struct hist_entry *right)
@@ -389,8 +373,7 @@ sort__sym_from_cmp(struct hist_entry *left, struct hist_entry *right)
 	if (!from_l->sym && !from_r->sym)
 		return right->level - left->level;
 
-	return _sort__sym_cmp(from_l->sym, from_r->sym, from_l->addr,
-			     from_r->addr);
+	return _sort__sym_cmp(from_l->sym, from_r->sym);
 }
 
 static int64_t
@@ -402,12 +385,11 @@ sort__sym_to_cmp(struct hist_entry *left, struct hist_entry *right)
 	if (!to_l->sym && !to_r->sym)
 		return right->level - left->level;
 
-	return _sort__sym_cmp(to_l->sym, to_r->sym, to_l->addr, to_r->addr);
+	return _sort__sym_cmp(to_l->sym, to_r->sym);
 }
 
 static int hist_entry__sym_from_snprintf(struct hist_entry *self, char *bf,
-					size_t size,
-					unsigned int width __maybe_unused)
+					 size_t size, unsigned int width)
 {
 	struct addr_map_symbol *from = &self->branch_info->from;
 	return _hist_entry__sym_snprintf(from->map, from->sym, from->addr,
@@ -416,14 +398,20 @@ static int hist_entry__sym_from_snprintf(struct hist_entry *self, char *bf,
 }
 
 static int hist_entry__sym_to_snprintf(struct hist_entry *self, char *bf,
-				       size_t size,
-				       unsigned int width __maybe_unused)
+				       size_t size, unsigned int width)
 {
 	struct addr_map_symbol *to = &self->branch_info->to;
 	return _hist_entry__sym_snprintf(to->map, to->sym, to->addr,
 					 self->level, bf, size, width);
 
 }
+
+struct sort_entry sort_dso_from = {
+	.se_header	= "Source Shared Object",
+	.se_cmp		= sort__dso_from_cmp,
+	.se_snprintf	= hist_entry__dso_from_snprintf,
+	.se_width_idx	= HISTC_DSO_FROM,
+};
 
 struct sort_entry sort_dso_to = {
 	.se_header	= "Target Shared Object",
@@ -484,30 +472,40 @@ struct sort_dimension {
 
 #define DIM(d, n, func) [d] = { .name = n, .entry = &(func) }
 
-static struct sort_dimension sort_dimensions[] = {
+static struct sort_dimension common_sort_dimensions[] = {
 	DIM(SORT_PID, "pid", sort_thread),
 	DIM(SORT_COMM, "comm", sort_comm),
 	DIM(SORT_DSO, "dso", sort_dso),
-	DIM(SORT_DSO_FROM, "dso_from", sort_dso_from),
-	DIM(SORT_DSO_TO, "dso_to", sort_dso_to),
 	DIM(SORT_SYM, "symbol", sort_sym),
-	DIM(SORT_SYM_TO, "symbol_from", sort_sym_from),
-	DIM(SORT_SYM_FROM, "symbol_to", sort_sym_to),
 	DIM(SORT_PARENT, "parent", sort_parent),
 	DIM(SORT_CPU, "cpu", sort_cpu),
-	DIM(SORT_MISPREDICT, "mispredict", sort_mispredict),
 	DIM(SORT_SRCLINE, "srcline", sort_srcline),
 };
+
+#undef DIM
+
+#define DIM(d, n, func) [d - __SORT_BRANCH_STACK] = { .name = n, .entry = &(func) }
+
+static struct sort_dimension bstack_sort_dimensions[] = {
+	DIM(SORT_DSO_FROM, "dso_from", sort_dso_from),
+	DIM(SORT_DSO_TO, "dso_to", sort_dso_to),
+	DIM(SORT_SYM_FROM, "symbol_from", sort_sym_from),
+	DIM(SORT_SYM_TO, "symbol_to", sort_sym_to),
+	DIM(SORT_MISPREDICT, "mispredict", sort_mispredict),
+};
+
+#undef DIM
 
 int sort_dimension__add(const char *tok)
 {
 	unsigned int i;
 
-	for (i = 0; i < ARRAY_SIZE(sort_dimensions); i++) {
-		struct sort_dimension *sd = &sort_dimensions[i];
+	for (i = 0; i < ARRAY_SIZE(common_sort_dimensions); i++) {
+		struct sort_dimension *sd = &common_sort_dimensions[i];
 
 		if (strncasecmp(tok, sd->name, strlen(tok)))
 			continue;
+
 		if (sd->entry == &sort_parent) {
 			int ret = regcomp(&parent_regex, parent_pattern, REG_EXTENDED);
 			if (ret) {
@@ -518,9 +516,7 @@ int sort_dimension__add(const char *tok)
 				return -EINVAL;
 			}
 			sort__has_parent = 1;
-		} else if (sd->entry == &sort_sym ||
-			   sd->entry == &sort_sym_from ||
-			   sd->entry == &sort_sym_to) {
+		} else if (sd->entry == &sort_sym) {
 			sort__has_sym = 1;
 		}
 
@@ -530,52 +526,69 @@ int sort_dimension__add(const char *tok)
 		if (sd->entry->se_collapse)
 			sort__need_collapse = 1;
 
-		if (list_empty(&hist_entry__sort_list)) {
-			if (!strcmp(sd->name, "pid"))
-				sort__first_dimension = SORT_PID;
-			else if (!strcmp(sd->name, "comm"))
-				sort__first_dimension = SORT_COMM;
-			else if (!strcmp(sd->name, "dso"))
-				sort__first_dimension = SORT_DSO;
-			else if (!strcmp(sd->name, "symbol"))
-				sort__first_dimension = SORT_SYM;
-			else if (!strcmp(sd->name, "parent"))
-				sort__first_dimension = SORT_PARENT;
-			else if (!strcmp(sd->name, "cpu"))
-				sort__first_dimension = SORT_CPU;
-			else if (!strcmp(sd->name, "symbol_from"))
-				sort__first_dimension = SORT_SYM_FROM;
-			else if (!strcmp(sd->name, "symbol_to"))
-				sort__first_dimension = SORT_SYM_TO;
-			else if (!strcmp(sd->name, "dso_from"))
-				sort__first_dimension = SORT_DSO_FROM;
-			else if (!strcmp(sd->name, "dso_to"))
-				sort__first_dimension = SORT_DSO_TO;
-			else if (!strcmp(sd->name, "mispredict"))
-				sort__first_dimension = SORT_MISPREDICT;
-		}
+		if (list_empty(&hist_entry__sort_list))
+			sort__first_dimension = i;
 
 		list_add_tail(&sd->entry->list, &hist_entry__sort_list);
 		sd->taken = 1;
 
 		return 0;
 	}
+
+	for (i = 0; i < ARRAY_SIZE(bstack_sort_dimensions); i++) {
+		struct sort_dimension *sd = &bstack_sort_dimensions[i];
+
+		if (strncasecmp(tok, sd->name, strlen(tok)))
+			continue;
+
+		if (sort__branch_mode != 1)
+			return -EINVAL;
+
+		if (sd->entry == &sort_sym_from || sd->entry == &sort_sym_to)
+			sort__has_sym = 1;
+
+		if (sd->taken)
+			return 0;
+
+		if (sd->entry->se_collapse)
+			sort__need_collapse = 1;
+
+		if (list_empty(&hist_entry__sort_list))
+			sort__first_dimension = i + __SORT_BRANCH_STACK;
+
+		list_add_tail(&sd->entry->list, &hist_entry__sort_list);
+		sd->taken = 1;
+
+		return 0;
+	}
+
 	return -ESRCH;
 }
 
-void setup_sorting(const char * const usagestr[], const struct option *opts)
+int setup_sorting(void)
 {
 	char *tmp, *tok, *str = strdup(sort_order);
+	int ret = 0;
+
+	if (str == NULL) {
+		error("Not enough memory to setup sort keys");
+		return -ENOMEM;
+	}
 
 	for (tok = strtok_r(str, ", ", &tmp);
 			tok; tok = strtok_r(NULL, ", ", &tmp)) {
-		if (sort_dimension__add(tok) < 0) {
+		ret = sort_dimension__add(tok);
+		if (ret == -EINVAL) {
+			error("Invalid --sort key: `%s'", tok);
+			break;
+		} else if (ret == -ESRCH) {
 			error("Unknown --sort key: `%s'", tok);
-			usage_with_options(usagestr, opts);
+			break;
 		}
 	}
 
 	free(str);
+	return ret;
 }
 
 void sort_entry__setup_elide(struct sort_entry *self, struct strlist *list,

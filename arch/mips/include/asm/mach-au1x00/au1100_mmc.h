@@ -148,7 +148,7 @@ struct au1xmmc_platform_data {
 /*
  *  SD_STATUS bit definitions.
  */
-#define SD_STATUS_DCRCW	(0x00000007)
+#define SD_STATUS_DCRCW (0x00000007)
 #define SD_STATUS_xx1	(0x00000008)
 #define SD_STATUS_CB	(0x00000010)
 #define SD_STATUS_DB	(0x00000020)

@@ -102,7 +102,7 @@ static const struct nla_policy ipt_policy[TCA_IPT_MAX + 1] = {
 	[TCA_IPT_TARG]	= { .len = sizeof(struct xt_entry_target) },
 };
 
-static int tcf_ipt_init(struct nlattr *nla, struct nlattr *est,
+static int tcf_ipt_init(struct net *net, struct nlattr *nla, struct nlattr *est,
 			struct tc_action *a, int ovr, int bind)
 {
 	struct nlattr *tb[TCA_IPT_MAX + 1];
@@ -207,10 +207,8 @@ static int tcf_ipt(struct sk_buff *skb, const struct tc_action *a,
 	struct tcf_ipt *ipt = a->priv;
 	struct xt_action_param par;
 
-	if (skb_cloned(skb)) {
-		if (pskb_expand_head(skb, 0, 0, GFP_ATOMIC))
-			return TC_ACT_UNSPEC;
-	}
+	if (skb_unclone(skb, GFP_ATOMIC))
+		return TC_ACT_UNSPEC;
 
 	spin_lock(&ipt->tcf_lock);
 

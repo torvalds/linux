@@ -15,6 +15,7 @@
 #define __ASM_PLAT_ADC_H __FILE__
 
 struct s3c_adc_client;
+struct platform_device;
 
 extern int s3c_adc_start(struct s3c_adc_client *client,
 			 unsigned int channel, unsigned int nr_samples);

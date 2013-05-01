@@ -176,6 +176,11 @@
 #define HDMI_PHY_CMU			HDMI_CTRL_BASE(0x007C)
 #define HDMI_CORE_RSTOUT		HDMI_CTRL_BASE(0x0080)
 
+/* PHY Control bit definition */
+
+/* HDMI_PHY_CON_0 */
+#define HDMI_PHY_POWER_OFF_EN		(1 << 0)
+
 /* Video related registers */
 #define HDMI_YMAX			HDMI_CORE_BASE(0x0060)
 #define HDMI_YMIN			HDMI_CORE_BASE(0x0064)
@@ -298,14 +303,14 @@
 #define HDMI_AVI_HEADER1		HDMI_CORE_BASE(0x0714)
 #define HDMI_AVI_HEADER2		HDMI_CORE_BASE(0x0718)
 #define HDMI_AVI_CHECK_SUM		HDMI_CORE_BASE(0x071C)
-#define HDMI_AVI_BYTE(n)		HDMI_CORE_BASE(0x0720 + 4 * (n))
+#define HDMI_AVI_BYTE(n)		HDMI_CORE_BASE(0x0720 + 4 * (n-1))
 
 #define HDMI_AUI_CON			HDMI_CORE_BASE(0x0800)
 #define HDMI_AUI_HEADER0		HDMI_CORE_BASE(0x0810)
 #define HDMI_AUI_HEADER1		HDMI_CORE_BASE(0x0814)
 #define HDMI_AUI_HEADER2		HDMI_CORE_BASE(0x0818)
 #define HDMI_AUI_CHECK_SUM		HDMI_CORE_BASE(0x081C)
-#define HDMI_AUI_BYTE(n)		HDMI_CORE_BASE(0x0820 + 4 * (n))
+#define HDMI_AUI_BYTE(n)		HDMI_CORE_BASE(0x0820 + 4 * (n-1))
 
 #define HDMI_MPG_CON			HDMI_CORE_BASE(0x0900)
 #define HDMI_MPG_CHECK_SUM		HDMI_CORE_BASE(0x091C)
@@ -337,6 +342,19 @@
 #define HDMI_AN_SEED_1			HDMI_CORE_BASE(0x0E5C)
 #define HDMI_AN_SEED_2			HDMI_CORE_BASE(0x0E60)
 #define HDMI_AN_SEED_3			HDMI_CORE_BASE(0x0E64)
+
+/* AVI bit definition */
+#define HDMI_AVI_CON_DO_NOT_TRANSMIT	(0 << 1)
+#define HDMI_AVI_CON_EVERY_VSYNC	(1 << 1)
+
+#define AVI_ACTIVE_FORMAT_VALID	(1 << 4)
+#define AVI_UNDERSCANNED_DISPLAY_VALID	(1 << 1)
+
+/* AUI bit definition */
+#define HDMI_AUI_CON_NO_TRAN		(0 << 0)
+
+/* VSI bit definition */
+#define HDMI_VSI_CON_DO_NOT_TRANSMIT	(0 << 0)
 
 /* HDCP related registers */
 #define HDMI_HDCP_SHA1(n)		HDMI_CORE_BASE(0x7000 + 4 * (n))

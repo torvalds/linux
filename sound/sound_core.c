@@ -146,8 +146,7 @@ extern int msnd_pinnacle_init(void);
  * devices only the standard chrdev aliases are requested.
  *
  * All these clutters are scheduled to be removed along with
- * sound-slot/service-* module aliases.  Please take a look at
- * feature-removal-schedule.txt for details.
+ * sound-slot/service-* module aliases.
  */
 #ifdef CONFIG_SOUND_OSS_CORE_PRECLAIM
 static int preclaim_oss = 1;

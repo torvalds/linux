@@ -575,7 +575,7 @@ static struct snd_soc_card ams_delta_audio_card = {
 };
 
 /* Module init/exit */
-static __devinit int ams_delta_probe(struct platform_device *pdev)
+static int ams_delta_probe(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = &ams_delta_audio_card;
 	int ret;
@@ -591,7 +591,7 @@ static __devinit int ams_delta_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devexit ams_delta_remove(struct platform_device *pdev)
+static int ams_delta_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
@@ -616,7 +616,7 @@ static struct platform_driver ams_delta_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = ams_delta_probe,
-	.remove = __devexit_p(ams_delta_remove),
+	.remove = ams_delta_remove,
 };
 
 module_platform_driver(ams_delta_driver);

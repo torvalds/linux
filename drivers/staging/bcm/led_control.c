@@ -24,7 +24,7 @@ BOOLEAN IsReqGpioIsLedInNVM(struct bcm_mini_adapter *Adapter, UINT gpios)
 }
 
 static INT LED_Blink(struct bcm_mini_adapter *Adapter, UINT GPIO_Num, UCHAR uiLedIndex,
-		ULONG timeout, INT num_of_time, LedEventInfo_t currdriverstate)
+		ULONG timeout, INT num_of_time, enum bcm_led_events currdriverstate)
 {
 	int Status = STATUS_SUCCESS;
 	BOOLEAN bInfinite = FALSE;
@@ -97,7 +97,7 @@ static INT ScaleRateofTransfer(ULONG rate)
 
 static INT LED_Proportional_Blink(struct bcm_mini_adapter *Adapter, UCHAR GPIO_Num_tx,
 		UCHAR uiTxLedIndex, UCHAR GPIO_Num_rx, UCHAR uiRxLedIndex,
-		LedEventInfo_t currdriverstate)
+		enum bcm_led_events currdriverstate)
 {
 	/* Initial values of TX and RX packets */
 	ULONG64 Initial_num_of_packts_tx = 0, Initial_num_of_packts_rx = 0;
@@ -607,7 +607,7 @@ static VOID LedGpioInit(struct bcm_mini_adapter *Adapter)
 
 static INT BcmGetGPIOPinInfo(struct bcm_mini_adapter *Adapter, UCHAR *GPIO_num_tx,
 		UCHAR *GPIO_num_rx, UCHAR *uiLedTxIndex, UCHAR *uiLedRxIndex,
-		LedEventInfo_t currdriverstate)
+		enum bcm_led_events currdriverstate)
 {
 	UINT uiIndex = 0;
 
@@ -651,7 +651,7 @@ static VOID LEDControlThread(struct bcm_mini_adapter *Adapter)
 	UCHAR GPIO_num = 0;
 	UCHAR uiLedIndex = 0;
 	UINT uiResetValue = 0;
-	LedEventInfo_t currdriverstate = 0;
+	enum bcm_led_events currdriverstate = 0;
 	ulong timeout = 0;
 
 	INT Status = 0;

@@ -63,7 +63,7 @@ void flush_tlb_all (void)
 void flush_tlb_mm(struct mm_struct *mm)
 {
 	if (mm == current->active_mm) {
-		int flags;
+		unsigned long flags;
 		local_save_flags(flags);
 		__get_new_mmu_context(mm);
 		__load_mmu_context(mm);
@@ -82,7 +82,7 @@ void flush_tlb_mm(struct mm_struct *mm)
 #endif
 
 void flush_tlb_range (struct vm_area_struct *vma,
-    		      unsigned long start, unsigned long end)
+		      unsigned long start, unsigned long end)
 {
 	struct mm_struct *mm = vma->vm_mm;
 	unsigned long flags;
@@ -100,7 +100,7 @@ void flush_tlb_range (struct vm_area_struct *vma,
 		int oldpid = get_rasid_register();
 		set_rasid_register (ASID_INSERT(mm->context));
 		start &= PAGE_MASK;
- 		if (vma->vm_flags & VM_EXEC)
+		if (vma->vm_flags & VM_EXEC)
 			while(start < end) {
 				invalidate_itlb_mapping(start);
 				invalidate_dtlb_mapping(start);
@@ -130,7 +130,7 @@ void flush_tlb_page (struct vm_area_struct *vma, unsigned long page)
 
 	local_save_flags(flags);
 
-       	oldpid = get_rasid_register();
+	oldpid = get_rasid_register();
 
 	if (vma->vm_flags & VM_EXEC)
 		invalidate_itlb_mapping(page);
@@ -140,4 +140,3 @@ void flush_tlb_page (struct vm_area_struct *vma, unsigned long page)
 
 	local_irq_restore(flags);
 }
-

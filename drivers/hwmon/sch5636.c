@@ -405,7 +405,7 @@ static int sch5636_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devinit sch5636_probe(struct platform_device *pdev)
+static int sch5636_probe(struct platform_device *pdev)
 {
 	struct sch5636_data *data;
 	int i, err, val, revision[2];

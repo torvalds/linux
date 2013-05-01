@@ -20,6 +20,7 @@
 #include <linux/if_ether.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/firmware.h>
 
 #include "mac.h"
 #include "ani.h"
@@ -247,6 +248,7 @@ enum ath9k_hw_caps {
 	ATH9K_HW_WOW_DEVICE_CAPABLE		= BIT(17),
 	ATH9K_HW_WOW_PATTERN_MATCH_EXACT	= BIT(18),
 	ATH9K_HW_WOW_PATTERN_MATCH_DWORD	= BIT(19),
+	ATH9K_HW_CAP_PAPRD			= BIT(20),
 };
 
 /*
@@ -273,8 +275,6 @@ struct ath9k_hw_capabilities {
 	u8 rx_status_len;
 	u8 tx_desc_len;
 	u8 txs_len;
-	u16 pcie_lcr_offset;
-	bool pcie_lcr_extsync_en;
 };
 
 struct ath9k_ops_config {
@@ -397,10 +397,12 @@ enum ath9k_int {
 #define MAX_RTT_TABLE_ENTRY     6
 #define MAX_IQCAL_MEASUREMENT	8
 #define MAX_CL_TAB_ENTRY	16
+#define CL_TAB_ENTRY(reg_base)	(reg_base + (4 * j))
 
 struct ath9k_hw_cal_data {
 	u16 channel;
 	u32 channelFlags;
+	u32 chanmode;
 	int32_t CalValid;
 	int8_t iCoff;
 	int8_t qCoff;
@@ -598,13 +600,10 @@ struct ath_hw_radar_conf {
  * @init_cal_settings: setup types of calibrations supported
  * @init_cal: starts actual calibration
  *
- * @init_mode_regs: Initializes mode registers
  * @init_mode_gain_regs: Initialize TX/RX gain registers
  *
  * @rf_set_freq: change frequency
  * @spur_mitigate_freq: spur mitigation
- * @rf_alloc_ext_banks:
- * @rf_free_ext_banks:
  * @set_rf_regs:
  * @compute_pll_control: compute the PLL control value to use for
  *	AR_RTC_PLL_CONTROL for a given channel
@@ -619,7 +618,6 @@ struct ath_hw_private_ops {
 	void (*init_cal_settings)(struct ath_hw *ah);
 	bool (*init_cal)(struct ath_hw *ah, struct ath9k_channel *chan);
 
-	void (*init_mode_regs)(struct ath_hw *ah);
 	void (*init_mode_gain_regs)(struct ath_hw *ah);
 	void (*setup_calibration)(struct ath_hw *ah,
 				  struct ath9k_cal_list *currCal);
@@ -629,8 +627,6 @@ struct ath_hw_private_ops {
 			   struct ath9k_channel *chan);
 	void (*spur_mitigate_freq)(struct ath_hw *ah,
 				   struct ath9k_channel *chan);
-	int (*rf_alloc_ext_banks)(struct ath_hw *ah);
-	void (*rf_free_ext_banks)(struct ath_hw *ah);
 	bool (*set_rf_regs)(struct ath_hw *ah,
 			    struct ath9k_channel *chan,
 			    u16 modesIndex);
@@ -660,6 +656,37 @@ struct ath_hw_private_ops {
 };
 
 /**
+ * struct ath_spec_scan - parameters for Atheros spectral scan
+ *
+ * @enabled: enable/disable spectral scan
+ * @short_repeat: controls whether the chip is in spectral scan mode
+ *		  for 4 usec (enabled) or 204 usec (disabled)
+ * @count: number of scan results requested. There are special meanings
+ *	   in some chip revisions:
+ *	   AR92xx: highest bit set (>=128) for endless mode
+ *		   (spectral scan won't stopped until explicitly disabled)
+ *	   AR9300 and newer: 0 for endless mode
+ * @endless: true if endless mode is intended. Otherwise, count value is
+ *           corrected to the next possible value.
+ * @period: time duration between successive spectral scan entry points
+ *	    (period*256*Tclk). Tclk = ath_common->clockrate
+ * @fft_period: PHY passes FFT frames to MAC every (fft_period+1)*4uS
+ *
+ * Note: Tclk = 40MHz or 44MHz depending upon operating mode.
+ *	 Typically it's 44MHz in 2/5GHz on later chips, but there's
+ *	 a "fast clock" check for this in 5GHz.
+ *
+ */
+struct ath_spec_scan {
+	bool enabled;
+	bool short_repeat;
+	bool endless;
+	u8 count;
+	u8 period;
+	u8 fft_period;
+};
+
+/**
  * struct ath_hw_ops - callbacks used by hardware code and driver code
  *
  * This structure contains callbacks designed to to be used internally by
@@ -667,6 +694,10 @@ struct ath_hw_private_ops {
  *
  * @config_pci_powersave:
  * @calibrate: periodic calibration for NF, ANI, IQ, ADC gain, ADC-DC
+ *
+ * @spectral_scan_config: set parameters for spectral scan and enable/disable it
+ * @spectral_scan_trigger: trigger a spectral scan run
+ * @spectral_scan_wait: wait for a spectral scan run to finish
  */
 struct ath_hw_ops {
 	void (*config_pci_powersave)(struct ath_hw *ah,
@@ -687,6 +718,10 @@ struct ath_hw_ops {
 	void (*antdiv_comb_conf_set)(struct ath_hw *ah,
 			struct ath_hw_antcomb_conf *antconf);
 	void (*antctrl_shared_chain_lnadiv)(struct ath_hw *hw, bool enable);
+	void (*spectral_scan_config)(struct ath_hw *ah,
+				     struct ath_spec_scan *param);
+	void (*spectral_scan_trigger)(struct ath_hw *ah);
+	void (*spectral_scan_wait)(struct ath_hw *ah);
 };
 
 struct ath_nf_limits {
@@ -709,6 +744,7 @@ enum ath_cal_list {
 struct ath_hw {
 	struct ath_ops reg_ops;
 
+	struct device *dev;
 	struct ieee80211_hw *hw;
 	struct ath_common common;
 	struct ath9k_hw_version hw_version;
@@ -770,7 +806,6 @@ struct ath_hw {
 	struct ath9k_cal_list iq_caldata;
 	struct ath9k_cal_list adcgain_caldata;
 	struct ath9k_cal_list adcdc_caldata;
-	struct ath9k_cal_list tempCompCalData;
 	struct ath9k_cal_list *cal_list;
 	struct ath9k_cal_list *cal_list_last;
 	struct ath9k_cal_list *cal_list_curr;
@@ -829,11 +864,8 @@ struct ath_hw {
 	/* ANI */
 	u32 proc_phyerr;
 	u32 aniperiod;
-	int totalSizeDesired[5];
-	int coarse_high[5];
-	int coarse_low[5];
-	int firpwr[5];
 	enum ath9k_ani_cmd ani_function;
+	u32 ani_skip_count;
 
 #ifdef CONFIG_ATH9K_BTCOEX_SUPPORT
 	struct ath_btcoex_hw btcoex_hw;
@@ -875,7 +907,6 @@ struct ath_hw {
 	struct ar5416IniArray iniModesTxGain;
 	struct ar5416IniArray iniCckfirNormal;
 	struct ar5416IniArray iniCckfirJapan2484;
-	struct ar5416IniArray ini_japan2484;
 	struct ar5416IniArray iniModes_9271_ANI_reg;
 	struct ar5416IniArray ini_radio_post_sys2ant;
 
@@ -921,6 +952,8 @@ struct ath_hw {
 	bool is_clk_25mhz;
 	int (*get_mac_revision)(void);
 	int (*external_reset)(void);
+
+	const struct firmware *eeprom_blob;
 };
 
 struct ath_bus_ops {
@@ -928,7 +961,6 @@ struct ath_bus_ops {
 	void (*read_cachesize)(struct ath_common *common, int *csz);
 	bool (*eeprom_read)(struct ath_common *common, u32 off, u16 *data);
 	void (*bt_coex_prep)(struct ath_common *common);
-	void (*extn_synch_en)(struct ath_common *common);
 	void (*aspm_init)(struct ath_common *common);
 };
 
@@ -977,7 +1009,7 @@ void ath9k_hw_setantenna(struct ath_hw *ah, u32 antenna);
 void ath9k_hw_synth_delay(struct ath_hw *ah, struct ath9k_channel *chan,
 			  int hw_delay);
 bool ath9k_hw_wait(struct ath_hw *ah, u32 reg, u32 mask, u32 val, u32 timeout);
-void ath9k_hw_write_array(struct ath_hw *ah, struct ar5416IniArray *array,
+void ath9k_hw_write_array(struct ath_hw *ah, const struct ar5416IniArray *array,
 			  int column, unsigned int *writecnt);
 u32 ath9k_hw_reverse_bits(u32 val, u32 n);
 u16 ath9k_hw_computetxtime(struct ath_hw *ah,
@@ -1060,19 +1092,21 @@ void ar9003_paprd_populate_single_table(struct ath_hw *ah,
 					int chain);
 int ar9003_paprd_create_curve(struct ath_hw *ah,
 			      struct ath9k_hw_cal_data *caldata, int chain);
-int ar9003_paprd_setup_gain_table(struct ath_hw *ah, int chain);
+void ar9003_paprd_setup_gain_table(struct ath_hw *ah, int chain);
 int ar9003_paprd_init_table(struct ath_hw *ah);
 bool ar9003_paprd_is_done(struct ath_hw *ah);
+bool ar9003_is_paprd_enabled(struct ath_hw *ah);
+void ar9003_hw_set_chain_masks(struct ath_hw *ah, u8 rx, u8 tx);
 
 /* Hardware family op attach helpers */
-void ar5008_hw_attach_phy_ops(struct ath_hw *ah);
+int ar5008_hw_attach_phy_ops(struct ath_hw *ah);
 void ar9002_hw_attach_phy_ops(struct ath_hw *ah);
 void ar9003_hw_attach_phy_ops(struct ath_hw *ah);
 
 void ar9002_hw_attach_calib_ops(struct ath_hw *ah);
 void ar9003_hw_attach_calib_ops(struct ath_hw *ah);
 
-void ar9002_hw_attach_ops(struct ath_hw *ah);
+int ar9002_hw_attach_ops(struct ath_hw *ah);
 void ar9003_hw_attach_ops(struct ath_hw *ah);
 
 void ar9002_hw_load_ani_reg(struct ath_hw *ah, struct ath9k_channel *chan);

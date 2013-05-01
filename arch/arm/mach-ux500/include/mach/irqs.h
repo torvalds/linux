@@ -46,6 +46,6 @@
 #include <mach/irqs-board-mop500.h>
 #endif
 
-#define NR_IRQS			IRQ_BOARD_END
+#define UX500_NR_IRQS		IRQ_BOARD_END
 
 #endif /* ASM_ARCH_IRQS_H */

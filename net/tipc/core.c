@@ -42,11 +42,6 @@
 
 #include <linux/module.h>
 
-#ifndef CONFIG_TIPC_PORTS
-#define CONFIG_TIPC_PORTS 8191
-#endif
-
-
 /* global variables used by multiple sub-systems within TIPC */
 int tipc_random __read_mostly;
 

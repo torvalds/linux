@@ -21,118 +21,6 @@
 		reg = <0x10000000 0x40000000>;
 	};
 
-	soc {
-		aips-bus@02000000 { /* AIPS1 */
-			spba-bus@02000000 {
-				ecspi@02008000 { /* eCSPI1 */
-					fsl,spi-num-chipselects = <1>;
-					cs-gpios = <&gpio3 19 0>;
-					pinctrl-names = "default";
-					pinctrl-0 = <&pinctrl_ecspi1_1>;
-					status = "okay";
-
-					flash: m25p80@0 {
-						compatible = "sst,sst25vf016b";
-						spi-max-frequency = <20000000>;
-						reg = <0>;
-					};
-				};
-
-				ssi1: ssi@02028000 {
-					fsl,mode = "i2s-slave";
-					status = "okay";
-				};
-			};
-
-			iomuxc@020e0000 {
-				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_hog>;
-
-				hog {
-					pinctrl_hog: hoggrp {
-						fsl,pins = <
-							1450 0x80000000	/* MX6Q_PAD_NANDF_D6__GPIO_2_6 */
-							1458 0x80000000	/* MX6Q_PAD_NANDF_D7__GPIO_2_7 */
-							121  0x80000000	/* MX6Q_PAD_EIM_D19__GPIO_3_19 */
-							144  0x80000000	/* MX6Q_PAD_EIM_D22__GPIO_3_22 */
-							152  0x80000000	/* MX6Q_PAD_EIM_D23__GPIO_3_23 */
-							1262 0x80000000 /* MX6Q_PAD_SD3_DAT5__GPIO_7_0 */
-							1270 0x1f0b0	/* MX6Q_PAD_SD3_DAT4__GPIO_7_1 */
-							953  0x80000000	/* MX6Q_PAD_GPIO_0__CCM_CLKO */
-						>;
-					};
-				};
-			};
-		};
-
-		aips-bus@02100000 { /* AIPS2 */
-			usb@02184000 { /* USB OTG */
-				vbus-supply = <&reg_usb_otg_vbus>;
-				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_usbotg_1>;
-				disable-over-current;
-				status = "okay";
-			};
-
-			usb@02184200 { /* USB1 */
-				status = "okay";
-			};
-
-			ethernet@02188000 {
-				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_enet_1>;
-				phy-mode = "rgmii";
-				phy-reset-gpios = <&gpio3 23 0>;
-				status = "okay";
-			};
-
-			usdhc@02198000 { /* uSDHC3 */
-				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_usdhc3_2>;
-				cd-gpios = <&gpio7 0 0>;
-				wp-gpios = <&gpio7 1 0>;
-				vmmc-supply = <&reg_3p3v>;
-				status = "okay";
-			};
-
-			usdhc@0219c000 { /* uSDHC4 */
-				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_usdhc4_2>;
-				cd-gpios = <&gpio2 6 0>;
-				wp-gpios = <&gpio2 7 0>;
-				vmmc-supply = <&reg_3p3v>;
-				status = "okay";
-			};
-
-			audmux@021d8000 {
-				status = "okay";
-				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_audmux_1>;
-			};
-
-			uart2: serial@021e8000 {
-				status = "okay";
-				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_uart2_1>;
-			};
-
-			i2c@021a0000 { /* I2C1 */
-				status = "okay";
-				clock-frequency = <100000>;
-				pinctrl-names = "default";
-				pinctrl-0 = <&pinctrl_i2c1_1>;
-
-				codec: sgtl5000@0a {
-					compatible = "fsl,sgtl5000";
-					reg = <0x0a>;
-					clocks = <&clks 169>;
-					VDDA-supply = <&reg_2p5v>;
-					VDDIO-supply = <&reg_3p3v>;
-				};
-			};
-		};
-	};
-
 	regulators {
 		compatible = "simple-bus";
 
@@ -174,5 +62,109 @@
 			"Headphone Jack", "HP_OUT";
 		mux-int-port = <1>;
 		mux-ext-port = <4>;
+	};
+};
+
+&ecspi1 {
+	fsl,spi-num-chipselects = <1>;
+	cs-gpios = <&gpio3 19 0>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi1_1>;
+	status = "okay";
+
+	flash: m25p80@0 {
+		compatible = "sst,sst25vf016b";
+		spi-max-frequency = <20000000>;
+		reg = <0>;
+	};
+};
+
+&ssi1 {
+	fsl,mode = "i2s-slave";
+	status = "okay";
+};
+
+&iomuxc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_hog>;
+
+	hog {
+		pinctrl_hog: hoggrp {
+			fsl,pins = <
+				1450 0x80000000	/* MX6Q_PAD_NANDF_D6__GPIO_2_6 */
+				1458 0x80000000	/* MX6Q_PAD_NANDF_D7__GPIO_2_7 */
+				121  0x80000000	/* MX6Q_PAD_EIM_D19__GPIO_3_19 */
+				144  0x80000000	/* MX6Q_PAD_EIM_D22__GPIO_3_22 */
+				152  0x80000000	/* MX6Q_PAD_EIM_D23__GPIO_3_23 */
+				1262 0x80000000 /* MX6Q_PAD_SD3_DAT5__GPIO_7_0 */
+				1270 0x1f0b0	/* MX6Q_PAD_SD3_DAT4__GPIO_7_1 */
+				953  0x80000000	/* MX6Q_PAD_GPIO_0__CCM_CLKO */
+			>;
+		};
+	};
+};
+
+&usbotg {
+	vbus-supply = <&reg_usb_otg_vbus>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usbotg_1>;
+	disable-over-current;
+	status = "okay";
+};
+
+&usbh1 {
+	status = "okay";
+};
+
+&fec {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_enet_1>;
+	phy-mode = "rgmii";
+	phy-reset-gpios = <&gpio3 23 0>;
+	status = "okay";
+};
+
+&usdhc3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usdhc3_2>;
+	cd-gpios = <&gpio7 0 0>;
+	wp-gpios = <&gpio7 1 0>;
+	vmmc-supply = <&reg_3p3v>;
+	status = "okay";
+};
+
+&usdhc4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_usdhc4_2>;
+	cd-gpios = <&gpio2 6 0>;
+	wp-gpios = <&gpio2 7 0>;
+	vmmc-supply = <&reg_3p3v>;
+	status = "okay";
+};
+
+&audmux {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_audmux_1>;
+};
+
+&uart2 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart2_1>;
+};
+
+&i2c1 {
+	status = "okay";
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c1_1>;
+
+	codec: sgtl5000@0a {
+		compatible = "fsl,sgtl5000";
+		reg = <0x0a>;
+		clocks = <&clks 169>;
+		VDDA-supply = <&reg_2p5v>;
+		VDDIO-supply = <&reg_3p3v>;
 	};
 };

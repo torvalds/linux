@@ -374,6 +374,8 @@ static inline void s3c_sdhci_setname(int id, char *name)
 		s3c_device_hsmmc3.name = name;
 		break;
 #endif
+	default:
+		break;
 	}
 }
 

@@ -311,10 +311,9 @@ static int sierra_net_send_cmd(struct usbnet *dev,
 	struct sierra_net_data *priv = sierra_net_get_private(dev);
 	int  status;
 
-	status = usb_control_msg(dev->udev, usb_sndctrlpipe(dev->udev, 0),
-			USB_CDC_SEND_ENCAPSULATED_COMMAND,
-			USB_DIR_OUT|USB_TYPE_CLASS|USB_RECIP_INTERFACE,	0,
-			priv->ifnum, cmd, cmdlen, USB_CTRL_SET_TIMEOUT);
+	status = usbnet_write_cmd(dev, USB_CDC_SEND_ENCAPSULATED_COMMAND,
+				  USB_DIR_OUT|USB_TYPE_CLASS|USB_RECIP_INTERFACE,
+				  0, priv->ifnum, cmd, cmdlen);
 
 	if (status != cmdlen && status != -ENODEV)
 		netdev_err(dev->net, "Submit %s failed %d\n", cmd_name, status);
@@ -340,7 +339,7 @@ static void sierra_net_set_ctx_index(struct sierra_net_data *priv, u8 ctx_ix)
 	dev_dbg(&(priv->usbnet->udev->dev), "%s %d", __func__, ctx_ix);
 	priv->tx_hdr_template[0] = 0x3F;
 	priv->tx_hdr_template[1] = ctx_ix;
-	*((u16 *)&priv->tx_hdr_template[2]) =
+	*((__be16 *)&priv->tx_hdr_template[2]) =
 		cpu_to_be16(SIERRA_NET_HIP_EXT_IP_OUT_ID);
 }
 
@@ -460,11 +459,9 @@ static void sierra_net_kevent(struct work_struct *work)
 
 		/* Query the modem for the LSI message */
 		buf = kzalloc(SIERRA_NET_USBCTL_BUF_LEN, GFP_KERNEL);
-		if (!buf) {
-			netdev_err(dev->net,
-				"failed to allocate buf for LS msg\n");
+		if (!buf)
 			return;
-		}
+
 		ifnum = priv->ifnum;
 		len = usb_control_msg(dev->udev, usb_rcvctrlpipe(dev->udev, 0),
 				USB_CDC_GET_ENCAPSULATED_RESPONSE,
@@ -599,8 +596,8 @@ static void sierra_net_get_drvinfo(struct net_device *net,
 {
 	/* Inherit standard device info */
 	usbnet_get_drvinfo(net, info);
-	strncpy(info->driver, driver_name, sizeof info->driver);
-	strncpy(info->version, DRIVER_VERSION, sizeof info->version);
+	strlcpy(info->driver, driver_name, sizeof(info->driver));
+	strlcpy(info->version, DRIVER_VERSION, sizeof(info->version));
 }
 
 static u32 sierra_net_get_link(struct net_device *net)
@@ -632,32 +629,22 @@ static int sierra_net_change_mtu(struct net_device *net, int new_mtu)
 static int sierra_net_get_fw_attr(struct usbnet *dev, u16 *datap)
 {
 	int result = 0;
-	u16 *attrdata;
+	__le16 attrdata;
 
-	attrdata = kmalloc(sizeof(*attrdata), GFP_KERNEL);
-	if (!attrdata)
-		return -ENOMEM;
+	result = usbnet_read_cmd(dev,
+				/* _u8 vendor specific request */
+				SWI_USB_REQUEST_GET_FW_ATTR,
+				USB_DIR_IN | USB_TYPE_VENDOR,	/* __u8 request type */
+				0x0000,		/* __u16 value not used */
+				0x0000,		/* __u16 index  not used */
+				&attrdata,	/* char *data */
+				sizeof(attrdata)	/* __u16 size */
+				);
 
-	result = usb_control_msg(
-			dev->udev,
-			usb_rcvctrlpipe(dev->udev, 0),
-			/* _u8 vendor specific request */
-			SWI_USB_REQUEST_GET_FW_ATTR,
-			USB_DIR_IN | USB_TYPE_VENDOR,	/* __u8 request type */
-			0x0000,		/* __u16 value not used */
-			0x0000,		/* __u16 index  not used */
-			attrdata,	/* char *data */
-			sizeof(*attrdata),		/* __u16 size */
-			USB_CTRL_SET_TIMEOUT);	/* int timeout */
-
-	if (result < 0) {
-		kfree(attrdata);
+	if (result < 0)
 		return -EIO;
-	}
 
-	*datap = le16_to_cpu(*attrdata);
-
-	kfree(attrdata);
+	*datap = le16_to_cpu(attrdata);
 	return result;
 }
 
@@ -697,10 +684,8 @@ static int sierra_net_bind(struct usbnet *dev, struct usb_interface *intf)
 	}
 	/* Initialize sierra private data */
 	priv = kzalloc(sizeof *priv, GFP_KERNEL);
-	if (!priv) {
-		dev_err(&dev->udev->dev, "No memory");
+	if (!priv)
 		return -ENOMEM;
-	}
 
 	priv->usbnet = dev;
 	priv->ifnum = ifacenum;

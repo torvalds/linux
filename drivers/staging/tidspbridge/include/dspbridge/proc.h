@@ -23,8 +23,6 @@
 #include <dspbridge/devdefs.h>
 #include <dspbridge/drv.h>
 
-extern char *iva_img;
-
 /*
  *  ======== proc_attach ========
  *  Purpose:

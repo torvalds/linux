@@ -70,8 +70,7 @@ static void ulog_send(unsigned int nlgroup)
 {
 	ebt_ulog_buff_t *ub = &ulog_buffers[nlgroup];
 
-	if (timer_pending(&ub->timer))
-		del_timer(&ub->timer);
+	del_timer(&ub->timer);
 
 	if (!ub->skb)
 		return;
@@ -319,8 +318,7 @@ static void __exit ebt_ulog_fini(void)
 	xt_unregister_target(&ebt_ulog_tg_reg);
 	for (i = 0; i < EBT_ULOG_MAXNLGROUPS; i++) {
 		ub = &ulog_buffers[i];
-		if (timer_pending(&ub->timer))
-			del_timer(&ub->timer);
+		del_timer(&ub->timer);
 		spin_lock_bh(&ub->lock);
 		if (ub->skb) {
 			kfree_skb(ub->skb);

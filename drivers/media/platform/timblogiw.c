@@ -130,7 +130,7 @@ static void timblogiw_dma_cb(void *data)
 
 	if (vb->state != VIDEOBUF_ERROR) {
 		list_del(&vb->queue);
-		do_gettimeofday(&vb->ts);
+		v4l2_get_timestamp(&vb->ts);
 		vb->field_count = fh->frame_count * 2;
 		vb->state = VIDEOBUF_DONE;
 
@@ -745,7 +745,7 @@ static int timblogiw_mmap(struct file *file, struct vm_area_struct *vma)
 
 /* Platform device functions */
 
-static __devinitconst struct v4l2_ioctl_ops timblogiw_ioctl_ops = {
+static struct v4l2_ioctl_ops timblogiw_ioctl_ops = {
 	.vidioc_querycap		= timblogiw_querycap,
 	.vidioc_enum_fmt_vid_cap	= timblogiw_enum_fmt,
 	.vidioc_g_fmt_vid_cap		= timblogiw_g_fmt,
@@ -767,7 +767,7 @@ static __devinitconst struct v4l2_ioctl_ops timblogiw_ioctl_ops = {
 	.vidioc_enum_framesizes		= timblogiw_enum_framesizes,
 };
 
-static __devinitconst struct v4l2_file_operations timblogiw_fops = {
+static struct v4l2_file_operations timblogiw_fops = {
 	.owner		= THIS_MODULE,
 	.open		= timblogiw_open,
 	.release	= timblogiw_close,
@@ -777,7 +777,7 @@ static __devinitconst struct v4l2_file_operations timblogiw_fops = {
 	.poll		= timblogiw_poll,
 };
 
-static __devinitconst struct video_device timblogiw_template = {
+static struct video_device timblogiw_template = {
 	.name		= TIMBLOGIWIN_NAME,
 	.fops		= &timblogiw_fops,
 	.ioctl_ops	= &timblogiw_ioctl_ops,
@@ -786,7 +786,7 @@ static __devinitconst struct video_device timblogiw_template = {
 	.tvnorms	= V4L2_STD_PAL | V4L2_STD_NTSC
 };
 
-static int __devinit timblogiw_probe(struct platform_device *pdev)
+static int timblogiw_probe(struct platform_device *pdev)
 {
 	int err;
 	struct timblogiw *lw = NULL;
@@ -848,7 +848,7 @@ err:
 	return err;
 }
 
-static int __devexit timblogiw_remove(struct platform_device *pdev)
+static int timblogiw_remove(struct platform_device *pdev)
 {
 	struct timblogiw *lw = platform_get_drvdata(pdev);
 
@@ -869,7 +869,7 @@ static struct platform_driver timblogiw_platform_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= timblogiw_probe,
-	.remove		= __devexit_p(timblogiw_remove),
+	.remove		= timblogiw_remove,
 };
 
 module_platform_driver(timblogiw_platform_driver);

@@ -593,14 +593,10 @@ ncp_fill_cache(struct file *filp, void *dirent, filldir_t filldir,
 		return 1; /* I'm not sure */
 
 	qname.name = __name;
-	qname.hash = full_name_hash(qname.name, qname.len);
 
-	if (dentry->d_op && dentry->d_op->d_hash)
-		if (dentry->d_op->d_hash(dentry, dentry->d_inode, &qname) != 0)
-			goto end_advance;
-
-	newdent = d_lookup(dentry, &qname);
-
+	newdent = d_hash_and_lookup(dentry, &qname);
+	if (unlikely(IS_ERR(newdent)))
+		goto end_advance;
 	if (!newdent) {
 		newdent = d_alloc(dentry, &qname);
 		if (!newdent)

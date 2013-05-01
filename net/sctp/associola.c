@@ -321,6 +321,9 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	asoc->default_timetolive = sp->default_timetolive;
 	asoc->default_rcv_context = sp->default_rcv_context;
 
+	/* SCTP_GET_ASSOC_STATS COUNTERS */
+	memset(&asoc->stats, 0, sizeof(struct sctp_priv_assoc_stats));
+
 	/* AUTH related initializations */
 	INIT_LIST_HEAD(&asoc->endpoint_shared_keys);
 	err = sctp_auth_asoc_copy_shkeys(ep, asoc, gfp);
@@ -431,8 +434,7 @@ void sctp_association_free(struct sctp_association *asoc)
 	 * on our state.
 	 */
 	for (i = SCTP_EVENT_TIMEOUT_NONE; i < SCTP_NUM_TIMEOUT_TYPES; ++i) {
-		if (timer_pending(&asoc->timers[i]) &&
-		    del_timer(&asoc->timers[i]))
+		if (del_timer(&asoc->timers[i]))
 			sctp_association_put(asoc);
 	}
 
@@ -445,7 +447,7 @@ void sctp_association_free(struct sctp_association *asoc)
 	/* Release the transport structures. */
 	list_for_each_safe(pos, temp, &asoc->peer.transport_addr_list) {
 		transport = list_entry(pos, struct sctp_transport, transports);
-		list_del(pos);
+		list_del_rcu(pos);
 		sctp_transport_free(transport);
 	}
 
@@ -565,7 +567,7 @@ void sctp_assoc_rm_peer(struct sctp_association *asoc,
 		sctp_assoc_update_retran_path(asoc);
 
 	/* Remove this peer from the list. */
-	list_del(&peer->transports);
+	list_del_rcu(&peer->transports);
 
 	/* Get the first transport of asoc. */
 	pos = asoc->peer.transport_addr_list.next;
@@ -760,12 +762,13 @@ struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 
 	/* Set the transport's RTO.initial value */
 	peer->rto = asoc->rto_initial;
+	sctp_max_rto(asoc, peer);
 
 	/* Set the peer's active state. */
 	peer->state = peer_state;
 
 	/* Attach the remote transport to our asoc.  */
-	list_add_tail(&peer->transports, &asoc->peer.transport_addr_list);
+	list_add_tail_rcu(&peer->transports, &asoc->peer.transport_addr_list);
 	asoc->peer.transport_count++;
 
 	/* If we do not yet have a primary path, set one.  */
@@ -1152,8 +1155,12 @@ static void sctp_assoc_bh_rcv(struct work_struct *work)
 		 */
 		if (sctp_chunk_is_data(chunk))
 			asoc->peer.last_data_from = chunk->transport;
-		else
+		else {
 			SCTP_INC_STATS(net, SCTP_MIB_INCTRLCHUNKS);
+			asoc->stats.ictrlchunks++;
+			if (chunk->chunk_hdr->type == SCTP_CID_SACK)
+				asoc->stats.isacks++;
+		}
 
 		if (chunk->transport)
 			chunk->transport->last_time_heard = jiffies;
@@ -1489,7 +1496,7 @@ void sctp_assoc_rwnd_increase(struct sctp_association *asoc, unsigned int len)
 
 		/* Stop the SACK timer.  */
 		timer = &asoc->timers[SCTP_EVENT_TIMEOUT_SACK];
-		if (timer_pending(timer) && del_timer(timer))
+		if (del_timer(timer))
 			sctp_association_put(asoc);
 	}
 }
@@ -1584,32 +1591,31 @@ int sctp_assoc_lookup_laddr(struct sctp_association *asoc,
 /* Set an association id for a given association */
 int sctp_assoc_set_id(struct sctp_association *asoc, gfp_t gfp)
 {
-	int assoc_id;
-	int error = 0;
+	bool preload = gfp & __GFP_WAIT;
+	int ret;
 
 	/* If the id is already assigned, keep it. */
 	if (asoc->assoc_id)
-		return error;
-retry:
-	if (unlikely(!idr_pre_get(&sctp_assocs_id, gfp)))
-		return -ENOMEM;
+		return 0;
 
+	if (preload)
+		idr_preload(gfp);
 	spin_lock_bh(&sctp_assocs_id_lock);
-	error = idr_get_new_above(&sctp_assocs_id, (void *)asoc,
-				    idr_low, &assoc_id);
-	if (!error) {
-		idr_low = assoc_id + 1;
+	/* 0 is not a valid id, idr_low is always >= 1 */
+	ret = idr_alloc(&sctp_assocs_id, asoc, idr_low, 0, GFP_NOWAIT);
+	if (ret >= 0) {
+		idr_low = ret + 1;
 		if (idr_low == INT_MAX)
 			idr_low = 1;
 	}
 	spin_unlock_bh(&sctp_assocs_id_lock);
-	if (error == -EAGAIN)
-		goto retry;
-	else if (error)
-		return error;
+	if (preload)
+		idr_preload_end();
+	if (ret < 0)
+		return ret;
 
-	asoc->assoc_id = (sctp_assoc_t) assoc_id;
-	return error;
+	asoc->assoc_id = (sctp_assoc_t)ret;
+	return 0;
 }
 
 /* Free the ASCONF queue */

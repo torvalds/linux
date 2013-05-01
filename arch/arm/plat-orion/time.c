@@ -156,7 +156,6 @@ orion_clkevt_mode(enum clock_event_mode mode, struct clock_event_device *dev)
 static struct clock_event_device orion_clkevt = {
 	.name		= "orion_tick",
 	.features	= CLOCK_EVT_FEAT_ONESHOT | CLOCK_EVT_FEAT_PERIODIC,
-	.shift		= 32,
 	.rating		= 300,
 	.set_next_event	= orion_clkevt_next_event,
 	.set_mode	= orion_clkevt_mode,
@@ -221,9 +220,6 @@ orion_time_init(void __iomem *_bridge_base, u32 _bridge_timer1_clr_mask,
 	 * Setup clockevent timer (interrupt-driven).
 	 */
 	setup_irq(irq, &orion_timer_irq);
-	orion_clkevt.mult = div_sc(tclk, NSEC_PER_SEC, orion_clkevt.shift);
-	orion_clkevt.max_delta_ns = clockevent_delta2ns(0xfffffffe, &orion_clkevt);
-	orion_clkevt.min_delta_ns = clockevent_delta2ns(1, &orion_clkevt);
 	orion_clkevt.cpumask = cpumask_of(0);
-	clockevents_register_device(&orion_clkevt);
+	clockevents_config_and_register(&orion_clkevt, tclk, 1, 0xfffffffe);
 }

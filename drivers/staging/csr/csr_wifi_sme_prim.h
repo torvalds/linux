@@ -20,10 +20,6 @@
 #include "csr_result.h"
 #include "csr_wifi_fsm_event.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #define CSR_WIFI_SME_PRIM                                               (0x0404)
 
 typedef CsrPrim CsrWifiSmePrim;
@@ -6509,11 +6505,6 @@ typedef struct
     CsrWifiFsmEvent common;
     CsrResult       status;
 } CsrWifiSmeWpsConfigurationCfm;
-
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* CSR_WIFI_SME_PRIM_H__ */
 

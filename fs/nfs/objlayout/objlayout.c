@@ -148,17 +148,6 @@ end_offset(u64 start, u64 len)
 	return end >= start ? end : NFS4_MAX_UINT64;
 }
 
-/* last octet in a range */
-static inline u64
-last_byte_offset(u64 start, u64 len)
-{
-	u64 end;
-
-	BUG_ON(!len);
-	end = start + len;
-	return end > start ? end - 1 : NFS4_MAX_UINT64;
-}
-
 static void _fix_verify_io_params(struct pnfs_layout_segment *lseg,
 			   struct page ***p_pages, unsigned *p_pgbase,
 			   u64 offset, unsigned long count)

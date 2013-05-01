@@ -1540,8 +1540,7 @@ static void stex_free_irq(struct st_hba *hba)
 		pci_disable_msi(pdev);
 }
 
-static int __devinit
-stex_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+static int stex_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct st_hba *hba;
 	struct Scsi_Host *host;
@@ -1815,7 +1814,7 @@ static struct pci_driver stex_pci_driver = {
 	.name		= DRV_NAME,
 	.id_table	= stex_pci_tbl,
 	.probe		= stex_probe,
-	.remove		= __devexit_p(stex_remove),
+	.remove		= stex_remove,
 	.shutdown	= stex_shutdown,
 };
 

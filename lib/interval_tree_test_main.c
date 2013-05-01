@@ -30,7 +30,8 @@ static void init(void)
 {
 	int i;
 	for (i = 0; i < NODES; i++) {
-		u32 a = prandom32(&rnd), b = prandom32(&rnd);
+		u32 a = prandom_u32_state(&rnd);
+		u32 b = prandom_u32_state(&rnd);
 		if (a <= b) {
 			nodes[i].start = a;
 			nodes[i].last = b;
@@ -40,7 +41,7 @@ static void init(void)
 		}
 	}
 	for (i = 0; i < SEARCHES; i++)
-		queries[i] = prandom32(&rnd);
+		queries[i] = prandom_u32_state(&rnd);
 }
 
 static int interval_tree_test_init(void)
@@ -51,7 +52,7 @@ static int interval_tree_test_init(void)
 
 	printk(KERN_ALERT "interval tree insert/remove");
 
-	prandom32_seed(&rnd, 3141592653589793238ULL);
+	prandom_seed_state(&rnd, 3141592653589793238ULL);
 	init();
 
 	time1 = get_cycles();

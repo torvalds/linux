@@ -197,7 +197,7 @@ static enum power_supply_property max17040_battery_props[] = {
 	POWER_SUPPLY_PROP_CAPACITY,
 };
 
-static int __devinit max17040_probe(struct i2c_client *client,
+static int max17040_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
@@ -207,7 +207,7 @@ static int __devinit max17040_probe(struct i2c_client *client,
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE))
 		return -EIO;
 
-	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
+	chip = devm_kzalloc(&client->dev, sizeof(*chip), GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
 
@@ -225,7 +225,6 @@ static int __devinit max17040_probe(struct i2c_client *client,
 	ret = power_supply_register(&client->dev, &chip->battery);
 	if (ret) {
 		dev_err(&client->dev, "failed: power supply register\n");
-		kfree(chip);
 		return ret;
 	}
 
@@ -238,13 +237,12 @@ static int __devinit max17040_probe(struct i2c_client *client,
 	return 0;
 }
 
-static int __devexit max17040_remove(struct i2c_client *client)
+static int max17040_remove(struct i2c_client *client)
 {
 	struct max17040_chip *chip = i2c_get_clientdata(client);
 
 	power_supply_unregister(&chip->battery);
 	cancel_delayed_work(&chip->work);
-	kfree(chip);
 	return 0;
 }
 
@@ -285,7 +283,7 @@ static struct i2c_driver max17040_i2c_driver = {
 		.name	= "max17040",
 	},
 	.probe		= max17040_probe,
-	.remove		= __devexit_p(max17040_remove),
+	.remove		= max17040_remove,
 	.suspend	= max17040_suspend,
 	.resume		= max17040_resume,
 	.id_table	= max17040_id,

@@ -224,7 +224,7 @@ static const struct agp_bridge_driver via_driver = {
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 };
 
-static struct agp_device_ids via_agp_device_ids[] __devinitdata =
+static struct agp_device_ids via_agp_device_ids[] =
 {
 	{
 		.device_id	= PCI_DEVICE_ID_VIA_82C597_0,
@@ -438,8 +438,7 @@ static void check_via_agp3 (struct agp_bridge_data *bridge)
 }
 
 
-static int __devinit agp_via_probe(struct pci_dev *pdev,
-				   const struct pci_device_id *ent)
+static int agp_via_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct agp_device_ids *devs = via_agp_device_ids;
 	struct agp_bridge_data *bridge;
@@ -485,7 +484,7 @@ static int __devinit agp_via_probe(struct pci_dev *pdev,
 	return agp_add_bridge(bridge);
 }
 
-static void __devexit agp_via_remove(struct pci_dev *pdev)
+static void agp_via_remove(struct pci_dev *pdev)
 {
 	struct agp_bridge_data *bridge = pci_get_drvdata(pdev);
 

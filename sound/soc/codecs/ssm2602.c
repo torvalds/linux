@@ -691,7 +691,7 @@ static const struct regmap_config ssm2602_regmap_config = {
 };
 
 #if defined(CONFIG_SPI_MASTER)
-static int __devinit ssm2602_spi_probe(struct spi_device *spi)
+static int ssm2602_spi_probe(struct spi_device *spi)
 {
 	struct ssm2602_priv *ssm2602;
 	int ret;
@@ -713,7 +713,7 @@ static int __devinit ssm2602_spi_probe(struct spi_device *spi)
 	return ret;
 }
 
-static int __devexit ssm2602_spi_remove(struct spi_device *spi)
+static int ssm2602_spi_remove(struct spi_device *spi)
 {
 	snd_soc_unregister_codec(&spi->dev);
 	return 0;
@@ -725,7 +725,7 @@ static struct spi_driver ssm2602_spi_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ssm2602_spi_probe,
-	.remove		= __devexit_p(ssm2602_spi_remove),
+	.remove		= ssm2602_spi_remove,
 };
 #endif
 
@@ -736,7 +736,7 @@ static struct spi_driver ssm2602_spi_driver = {
  *    low  = 0x1a
  *    high = 0x1b
  */
-static int __devinit ssm2602_i2c_probe(struct i2c_client *i2c,
+static int ssm2602_i2c_probe(struct i2c_client *i2c,
 			     const struct i2c_device_id *id)
 {
 	struct ssm2602_priv *ssm2602;
@@ -759,7 +759,7 @@ static int __devinit ssm2602_i2c_probe(struct i2c_client *i2c,
 	return ret;
 }
 
-static int __devexit ssm2602_i2c_remove(struct i2c_client *client)
+static int ssm2602_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
 	return 0;
@@ -780,7 +780,7 @@ static struct i2c_driver ssm2602_i2c_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = ssm2602_i2c_probe,
-	.remove = __devexit_p(ssm2602_i2c_remove),
+	.remove = ssm2602_i2c_remove,
 	.id_table = ssm2602_i2c_id,
 };
 #endif

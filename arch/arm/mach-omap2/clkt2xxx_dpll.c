@@ -14,10 +14,8 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
-#include <plat/clock.h>
-
 #include "clock.h"
-#include "cm2xxx_3xxx.h"
+#include "cm2xxx.h"
 #include "cm-regbits-24xx.h"
 
 /* Private functions */
@@ -31,7 +29,7 @@
  * REVISIT: DPLL can optionally enter low-power bypass by writing 0x1
  * instead.  Add some mechanism to optionally enter this mode.
  */
-static void _allow_idle(struct clk *clk)
+static void _allow_idle(struct clk_hw_omap *clk)
 {
 	if (!clk || !clk->dpll_data)
 		return;
@@ -45,7 +43,7 @@ static void _allow_idle(struct clk *clk)
  *
  * Disable DPLL automatic idle control.  No return value.
  */
-static void _deny_idle(struct clk *clk)
+static void _deny_idle(struct clk_hw_omap *clk)
 {
 	if (!clk || !clk->dpll_data)
 		return;
@@ -55,9 +53,7 @@ static void _deny_idle(struct clk *clk)
 
 
 /* Public data */
-
-const struct clkops clkops_omap2xxx_dpll_ops = {
+const struct clk_hw_omap_ops clkhwops_omap2xxx_dpll = {
 	.allow_idle	= _allow_idle,
 	.deny_idle	= _deny_idle,
 };
-

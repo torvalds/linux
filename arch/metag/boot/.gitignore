@@ -1,0 +1,4 @@
+vmlinux*
+uImage*
+ramdisk.*
+*.dtb

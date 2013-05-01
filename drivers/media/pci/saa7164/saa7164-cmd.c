@@ -23,7 +23,7 @@
 
 #include "saa7164.h"
 
-int saa7164_cmd_alloc_seqno(struct saa7164_dev *dev)
+static int saa7164_cmd_alloc_seqno(struct saa7164_dev *dev)
 {
 	int i, ret = -1;
 
@@ -42,7 +42,7 @@ int saa7164_cmd_alloc_seqno(struct saa7164_dev *dev)
 	return ret;
 }
 
-void saa7164_cmd_free_seqno(struct saa7164_dev *dev, u8 seqno)
+static void saa7164_cmd_free_seqno(struct saa7164_dev *dev, u8 seqno)
 {
 	mutex_lock(&dev->lock);
 	if ((dev->cmds[seqno].inuse == 1) &&
@@ -54,7 +54,7 @@ void saa7164_cmd_free_seqno(struct saa7164_dev *dev, u8 seqno)
 	mutex_unlock(&dev->lock);
 }
 
-void saa7164_cmd_timeout_seqno(struct saa7164_dev *dev, u8 seqno)
+static void saa7164_cmd_timeout_seqno(struct saa7164_dev *dev, u8 seqno)
 {
 	mutex_lock(&dev->lock);
 	if ((dev->cmds[seqno].inuse == 1) &&
@@ -64,7 +64,7 @@ void saa7164_cmd_timeout_seqno(struct saa7164_dev *dev, u8 seqno)
 	mutex_unlock(&dev->lock);
 }
 
-u32 saa7164_cmd_timeout_get(struct saa7164_dev *dev, u8 seqno)
+static u32 saa7164_cmd_timeout_get(struct saa7164_dev *dev, u8 seqno)
 {
 	int ret = 0;
 
@@ -132,7 +132,7 @@ int saa7164_irq_dequeue(struct saa7164_dev *dev)
 
 /* Commands to the f/w get marshelled to/from this code then onto the PCI
  * -bus/c running buffer. */
-int saa7164_cmd_dequeue(struct saa7164_dev *dev)
+static int saa7164_cmd_dequeue(struct saa7164_dev *dev)
 {
 	int loop = 1;
 	int ret;
@@ -186,8 +186,8 @@ int saa7164_cmd_dequeue(struct saa7164_dev *dev)
 	return SAA_OK;
 }
 
-int saa7164_cmd_set(struct saa7164_dev *dev, struct tmComResInfo *msg,
-	void *buf)
+static int saa7164_cmd_set(struct saa7164_dev *dev, struct tmComResInfo *msg,
+			   void *buf)
 {
 	struct tmComResBusInfo *bus = &dev->bus;
 	u8 cmd_sent;
@@ -259,7 +259,7 @@ out:
 /* Wait for a signal event, without holding a mutex. Either return TIMEOUT if
  * the event never occurred, or SAA_OK if it was signaled during the wait.
  */
-int saa7164_cmd_wait(struct saa7164_dev *dev, u8 seqno)
+static int saa7164_cmd_wait(struct saa7164_dev *dev, u8 seqno)
 {
 	wait_queue_head_t *q = NULL;
 	int ret = SAA_BUS_TIMEOUT;

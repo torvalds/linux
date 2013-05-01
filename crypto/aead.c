@@ -117,9 +117,8 @@ static int crypto_aead_report(struct sk_buff *skb, struct crypto_alg *alg)
 	struct crypto_report_aead raead;
 	struct aead_alg *aead = &alg->cra_aead;
 
-	snprintf(raead.type, CRYPTO_MAX_ALG_NAME, "%s", "aead");
-	snprintf(raead.geniv, CRYPTO_MAX_ALG_NAME, "%s",
-		 aead->geniv ?: "<built-in>");
+	strncpy(raead.type, "aead", sizeof(raead.type));
+	strncpy(raead.geniv, aead->geniv ?: "<built-in>", sizeof(raead.geniv));
 
 	raead.blocksize = alg->cra_blocksize;
 	raead.maxauthsize = aead->maxauthsize;
@@ -203,8 +202,8 @@ static int crypto_nivaead_report(struct sk_buff *skb, struct crypto_alg *alg)
 	struct crypto_report_aead raead;
 	struct aead_alg *aead = &alg->cra_aead;
 
-	snprintf(raead.type, CRYPTO_MAX_ALG_NAME, "%s", "nivaead");
-	snprintf(raead.geniv, CRYPTO_MAX_ALG_NAME, "%s", aead->geniv);
+	strncpy(raead.type, "nivaead", sizeof(raead.type));
+	strncpy(raead.geniv, aead->geniv, sizeof(raead.geniv));
 
 	raead.blocksize = alg->cra_blocksize;
 	raead.maxauthsize = aead->maxauthsize;
@@ -282,18 +281,16 @@ struct crypto_instance *aead_geniv_alloc(struct crypto_template *tmpl,
 	int err;
 
 	algt = crypto_get_attr_type(tb);
-	err = PTR_ERR(algt);
 	if (IS_ERR(algt))
-		return ERR_PTR(err);
+		return ERR_CAST(algt);
 
 	if ((algt->type ^ (CRYPTO_ALG_TYPE_AEAD | CRYPTO_ALG_GENIV)) &
 	    algt->mask)
 		return ERR_PTR(-EINVAL);
 
 	name = crypto_attr_alg_name(tb[1]);
-	err = PTR_ERR(name);
 	if (IS_ERR(name))
-		return ERR_PTR(err);
+		return ERR_CAST(name);
 
 	inst = kzalloc(sizeof(*inst) + sizeof(*spawn), GFP_KERNEL);
 	if (!inst)

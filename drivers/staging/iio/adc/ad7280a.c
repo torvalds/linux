@@ -117,7 +117,7 @@
  */
 #define POLYNOM		0x2F
 #define POLYNOM_ORDER	8
-#define HIGHBIT		1 << (POLYNOM_ORDER - 1);
+#define HIGHBIT		(1 << (POLYNOM_ORDER - 1))
 
 struct ad7280_state {
 	struct spi_device		*spi;
@@ -199,12 +199,8 @@ static int __ad7280_read32(struct spi_device *spi, unsigned *val)
 		.rx_buf = &rx_buf,
 		.len = 4,
 	};
-	struct spi_message m;
 
-	spi_message_init(&m);
-	spi_message_add_tail(&t, &m);
-
-	ret = spi_sync(spi, &m);
+	ret = spi_sync_transfer(spi, &t, 1);
 	if (ret)
 		return ret;
 
@@ -832,7 +828,7 @@ static const struct ad7280_platform_data ad7793_default_pdata = {
 	.thermistor_term_en = true,
 };
 
-static int __devinit ad7280_probe(struct spi_device *spi)
+static int ad7280_probe(struct spi_device *spi)
 {
 	const struct ad7280_platform_data *pdata = spi->dev.platform_data;
 	struct ad7280_state *st;
@@ -950,7 +946,7 @@ error_free_device:
 	return ret;
 }
 
-static int __devexit ad7280_remove(struct spi_device *spi)
+static int ad7280_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ad7280_state *st = iio_priv(indio_dev);
@@ -981,7 +977,7 @@ static struct spi_driver ad7280_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= ad7280_probe,
-	.remove		= __devexit_p(ad7280_remove),
+	.remove		= ad7280_remove,
 	.id_table	= ad7280_id,
 };
 module_spi_driver(ad7280_driver);

@@ -108,7 +108,7 @@ scm_version()
 	fi
 
 	# Check for svn and a svn repo.
-	if rev=`svn info 2>/dev/null | grep '^Last Changed Rev'`; then
+	if rev=`LANG= LC_ALL= LC_MESSAGES=C svn info 2>/dev/null | grep '^Last Changed Rev'`; then
 		rev=`echo $rev | awk '{print $NF}'`
 		printf -- '-svn%s' "$rev"
 

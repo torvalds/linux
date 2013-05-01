@@ -24,7 +24,7 @@ strip-flags   := $(addprefix --remove-section=,$(drop-sections))
 hostprogs-y := elf2ecoff
 
 targets := vmlinux.ecoff
-quiet_cmd_ecoff = ECOFF   $@
+quiet_cmd_ecoff = ECOFF	  $@
       cmd_ecoff = $(obj)/elf2ecoff $(VMLINUX) $@ $(e2eflag)
 $(obj)/vmlinux.ecoff: $(obj)/elf2ecoff $(VMLINUX) FORCE
 	$(call if_changed,ecoff)

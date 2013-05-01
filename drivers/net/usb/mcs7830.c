@@ -124,93 +124,20 @@ static const char driver_name[] = "MOSCHIP usb-ethernet driver";
 
 static int mcs7830_get_reg(struct usbnet *dev, u16 index, u16 size, void *data)
 {
-	struct usb_device *xdev = dev->udev;
-	int ret;
-	void *buffer;
-
-	buffer = kmalloc(size, GFP_NOIO);
-	if (buffer == NULL)
-		return -ENOMEM;
-
-	ret = usb_control_msg(xdev, usb_rcvctrlpipe(xdev, 0), MCS7830_RD_BREQ,
-			      MCS7830_RD_BMREQ, 0x0000, index, buffer,
-			      size, MCS7830_CTRL_TIMEOUT);
-	memcpy(data, buffer, size);
-	kfree(buffer);
-
-	return ret;
+	return usbnet_read_cmd(dev, MCS7830_RD_BREQ, MCS7830_RD_BMREQ,
+				0x0000, index, data, size);
 }
 
 static int mcs7830_set_reg(struct usbnet *dev, u16 index, u16 size, const void *data)
 {
-	struct usb_device *xdev = dev->udev;
-	int ret;
-	void *buffer;
-
-	buffer = kmemdup(data, size, GFP_NOIO);
-	if (buffer == NULL)
-		return -ENOMEM;
-
-	ret = usb_control_msg(xdev, usb_sndctrlpipe(xdev, 0), MCS7830_WR_BREQ,
-			      MCS7830_WR_BMREQ, 0x0000, index, buffer,
-			      size, MCS7830_CTRL_TIMEOUT);
-	kfree(buffer);
-	return ret;
-}
-
-static void mcs7830_async_cmd_callback(struct urb *urb)
-{
-	struct usb_ctrlrequest *req = (struct usb_ctrlrequest *)urb->context;
-	int status = urb->status;
-
-	if (status < 0)
-		printk(KERN_DEBUG "%s() failed with %d\n",
-		       __func__, status);
-
-	kfree(req);
-	usb_free_urb(urb);
+	return usbnet_write_cmd(dev, MCS7830_WR_BREQ, MCS7830_WR_BMREQ,
+				0x0000, index, data, size);
 }
 
 static void mcs7830_set_reg_async(struct usbnet *dev, u16 index, u16 size, void *data)
 {
-	struct usb_ctrlrequest *req;
-	int ret;
-	struct urb *urb;
-
-	urb = usb_alloc_urb(0, GFP_ATOMIC);
-	if (!urb) {
-		dev_dbg(&dev->udev->dev,
-			"Error allocating URB in write_cmd_async!\n");
-		return;
-	}
-
-	req = kmalloc(sizeof *req, GFP_ATOMIC);
-	if (!req) {
-		dev_err(&dev->udev->dev,
-			"Failed to allocate memory for control request\n");
-		goto out;
-	}
-	req->bRequestType = MCS7830_WR_BMREQ;
-	req->bRequest = MCS7830_WR_BREQ;
-	req->wValue = 0;
-	req->wIndex = cpu_to_le16(index);
-	req->wLength = cpu_to_le16(size);
-
-	usb_fill_control_urb(urb, dev->udev,
-			     usb_sndctrlpipe(dev->udev, 0),
-			     (void *)req, data, size,
-			     mcs7830_async_cmd_callback, req);
-
-	ret = usb_submit_urb(urb, GFP_ATOMIC);
-	if (ret < 0) {
-		dev_err(&dev->udev->dev,
-			"Error submitting the control message: ret=%d\n", ret);
-		goto out;
-	}
-	return;
-out:
-	kfree(req);
-	usb_free_urb(urb);
+	usbnet_write_cmd_async(dev, MCS7830_WR_BREQ, MCS7830_WR_BMREQ,
+				0x0000, index, data, size);
 }
 
 static int mcs7830_hif_get_mac_address(struct usbnet *dev, unsigned char *addr)

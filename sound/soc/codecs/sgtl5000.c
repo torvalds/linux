@@ -401,7 +401,7 @@ static const struct snd_kcontrol_new sgtl5000_snd_controls[] = {
 			5, 1, 0),
 
 	SOC_SINGLE_TLV("Mic Volume", SGTL5000_CHIP_MIC_CTRL,
-			0, 4, 0, mic_gain_tlv),
+			0, 3, 0, mic_gain_tlv),
 };
 
 /* mute the codec used by alsa core */
@@ -1344,7 +1344,7 @@ static int sgtl5000_probe(struct snd_soc_codec *codec)
 			SGTL5000_HP_ZCD_EN |
 			SGTL5000_ADC_ZCD_EN);
 
-	snd_soc_write(codec, SGTL5000_CHIP_MIC_CTRL, 0);
+	snd_soc_write(codec, SGTL5000_CHIP_MIC_CTRL, 2);
 
 	/*
 	 * disable DAP
@@ -1404,8 +1404,8 @@ static struct snd_soc_codec_driver sgtl5000_driver = {
 	.num_dapm_routes = ARRAY_SIZE(sgtl5000_dapm_routes),
 };
 
-static __devinit int sgtl5000_i2c_probe(struct i2c_client *client,
-					const struct i2c_device_id *id)
+static int sgtl5000_i2c_probe(struct i2c_client *client,
+			      const struct i2c_device_id *id)
 {
 	struct sgtl5000_priv *sgtl5000;
 	int ret;
@@ -1422,7 +1422,7 @@ static __devinit int sgtl5000_i2c_probe(struct i2c_client *client,
 	return ret;
 }
 
-static __devexit int sgtl5000_i2c_remove(struct i2c_client *client)
+static int sgtl5000_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
 
@@ -1449,7 +1449,7 @@ static struct i2c_driver sgtl5000_i2c_driver = {
 		   .of_match_table = sgtl5000_dt_ids,
 		   },
 	.probe = sgtl5000_i2c_probe,
-	.remove = __devexit_p(sgtl5000_i2c_remove),
+	.remove = sgtl5000_i2c_remove,
 	.id_table = sgtl5000_id,
 };
 

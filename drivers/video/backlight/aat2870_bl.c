@@ -74,7 +74,7 @@ static int aat2870_bl_get_brightness(struct backlight_device *bd)
 
 static int aat2870_bl_update_status(struct backlight_device *bd)
 {
-	struct aat2870_bl_driver_data *aat2870_bl = dev_get_drvdata(&bd->dev);
+	struct aat2870_bl_driver_data *aat2870_bl = bl_get_data(bd);
 	struct aat2870_data *aat2870 =
 			dev_get_drvdata(aat2870_bl->pdev->dev.parent);
 	int brightness = bd->props.brightness;

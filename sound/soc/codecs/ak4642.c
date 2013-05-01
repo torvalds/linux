@@ -26,6 +26,7 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
+#include <linux/of_device.h>
 #include <linux/module.h>
 #include <sound/soc.h>
 #include <sound/initval.h>
@@ -192,12 +193,6 @@ static const struct snd_soc_dapm_route ak4642_intercon[] = {
 	{"DACH", NULL, "DAC"},
 
 	{"LINEOUT Mixer", "DACL", "DAC"},
-};
-
-/* codec private data */
-struct ak4642_priv {
-	unsigned int sysclk;
-	enum snd_soc_control_type control_type;
 };
 
 /*
@@ -468,10 +463,9 @@ static int ak4642_resume(struct snd_soc_codec *codec)
 
 static int ak4642_probe(struct snd_soc_codec *codec)
 {
-	struct ak4642_priv *ak4642 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
-	ret = snd_soc_codec_set_cache_io(codec, 8, 8, ak4642->control_type);
+	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_I2C);
 	if (ret < 0) {
 		dev_err(codec->dev, "Failed to set cache I/O: %d\n", ret);
 		return ret;
@@ -520,31 +514,46 @@ static struct snd_soc_codec_driver soc_codec_dev_ak4648 = {
 };
 
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
-static __devinit int ak4642_i2c_probe(struct i2c_client *i2c,
-				      const struct i2c_device_id *id)
+static struct of_device_id ak4642_of_match[];
+static int ak4642_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
 {
-	struct ak4642_priv *ak4642;
-	int ret;
+	struct device_node *np = i2c->dev.of_node;
+	const struct snd_soc_codec_driver *driver;
 
-	ak4642 = devm_kzalloc(&i2c->dev, sizeof(struct ak4642_priv),
-			      GFP_KERNEL);
-	if (!ak4642)
-		return -ENOMEM;
+	driver = NULL;
+	if (np) {
+		const struct of_device_id *of_id;
 
-	i2c_set_clientdata(i2c, ak4642);
-	ak4642->control_type = SND_SOC_I2C;
+		of_id = of_match_device(ak4642_of_match, &i2c->dev);
+		if (of_id)
+			driver = of_id->data;
+	} else {
+		driver = (struct snd_soc_codec_driver *)id->driver_data;
+	}
 
-	ret =  snd_soc_register_codec(&i2c->dev,
-				(struct snd_soc_codec_driver *)id->driver_data,
-				&ak4642_dai, 1);
-	return ret;
+	if (!driver) {
+		dev_err(&i2c->dev, "no driver\n");
+		return -EINVAL;
+	}
+
+	return snd_soc_register_codec(&i2c->dev,
+				      driver, &ak4642_dai, 1);
 }
 
-static __devexit int ak4642_i2c_remove(struct i2c_client *client)
+static int ak4642_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
 	return 0;
 }
+
+static struct of_device_id ak4642_of_match[] = {
+	{ .compatible = "asahi-kasei,ak4642",	.data = &soc_codec_dev_ak4642},
+	{ .compatible = "asahi-kasei,ak4643",	.data = &soc_codec_dev_ak4642},
+	{ .compatible = "asahi-kasei,ak4648",	.data = &soc_codec_dev_ak4648},
+	{},
+};
+MODULE_DEVICE_TABLE(of, ak4642_of_match);
 
 static const struct i2c_device_id ak4642_i2c_id[] = {
 	{ "ak4642", (kernel_ulong_t)&soc_codec_dev_ak4642 },
@@ -558,9 +567,10 @@ static struct i2c_driver ak4642_i2c_driver = {
 	.driver = {
 		.name = "ak4642-codec",
 		.owner = THIS_MODULE,
+		.of_match_table = ak4642_of_match,
 	},
 	.probe		= ak4642_i2c_probe,
-	.remove		= __devexit_p(ak4642_i2c_remove),
+	.remove		= ak4642_i2c_remove,
 	.id_table	= ak4642_i2c_id,
 };
 #endif

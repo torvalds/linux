@@ -639,7 +639,7 @@ static void get_memory_layout(const struct mem_ctl_info *mci)
 	tmp_mb = (1 + pvt->tohm) >> 20;
 
 	mb = div_u64_rem(tmp_mb, 1000, &kb);
-	edac_dbg(0, "TOHM: %u.%03u GB (0x%016Lx)", mb, kb, (u64)pvt->tohm);
+	edac_dbg(0, "TOHM: %u.%03u GB (0x%016Lx)\n", mb, kb, (u64)pvt->tohm);
 
 	/*
 	 * Step 2) Get SAD range and SAD Interleave list
@@ -1692,8 +1692,7 @@ fail0:
  *		< 0 for error code
  */
 
-static int __devinit sbridge_probe(struct pci_dev *pdev,
-				  const struct pci_device_id *id)
+static int sbridge_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	int rc;
 	u8 mc, num_mc = 0;
@@ -1744,7 +1743,7 @@ fail0:
  *	sbridge_remove	destructor for one instance of device
  *
  */
-static void __devexit sbridge_remove(struct pci_dev *pdev)
+static void sbridge_remove(struct pci_dev *pdev)
 {
 	struct sbridge_dev *sbridge_dev;
 
@@ -1785,7 +1784,7 @@ MODULE_DEVICE_TABLE(pci, sbridge_pci_tbl);
 static struct pci_driver sbridge_driver = {
 	.name     = "sbridge_edac",
 	.probe    = sbridge_probe,
-	.remove   = __devexit_p(sbridge_remove),
+	.remove   = sbridge_remove,
 	.id_table = sbridge_pci_tbl,
 };
 

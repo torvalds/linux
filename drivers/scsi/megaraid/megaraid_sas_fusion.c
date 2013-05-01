@@ -1206,7 +1206,7 @@ megasas_set_pd_lba(struct MPI2_RAID_SCSI_IO_REQUEST *io_request, u8 cdb_len,
 				MPI2_SCSIIO_EEDPFLAGS_INSERT_OP;
 		}
 		io_request->Control |= (0x4 << 26);
-		io_request->EEDPBlockSize = MEGASAS_EEDPBLOCKSIZE;
+		io_request->EEDPBlockSize = scp->device->sector_size;
 	} else {
 		/* Some drives don't support 16/12 byte CDB's, convert to 10 */
 		if (((cdb_len == 12) || (cdb_len == 16)) &&
@@ -1511,7 +1511,8 @@ megasas_build_dcdb_fusion(struct megasas_instance *instance,
 	if (scmd->device->channel < MEGASAS_MAX_PD_CHANNELS &&
 	    instance->pd_list[pd_index].driveState == MR_PD_STATE_SYSTEM) {
 		io_request->Function = 0;
-		io_request->DevHandle =
+		if (fusion->fast_path_io)
+			io_request->DevHandle =
 			local_map_ptr->raidMap.devHndlInfo[device_id].curDevHdl;
 		io_request->RaidContext.timeoutValue =
 			local_map_ptr->raidMap.fpPdIoTimeoutSec;

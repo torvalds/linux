@@ -27,7 +27,7 @@
 	early_printk("ERROR: Microblaze " x "-different for PVR and DTS\n");
 #else
 #define err_printk(x) \
-	printk(KERN_INFO "ERROR: Microblaze " x "-different for PVR and DTS\n");
+	pr_info("ERROR: Microblaze " x "-different for PVR and DTS\n");
 #endif
 
 void set_cpuinfo_pvr_full(struct cpuinfo *ci, struct device_node *cpu)
@@ -38,12 +38,11 @@ void set_cpuinfo_pvr_full(struct cpuinfo *ci, struct device_node *cpu)
 
 	CI(ver_code, VERSION);
 	if (!ci->ver_code) {
-		printk(KERN_ERR "ERROR: MB has broken PVR regs "
-						"-> use DTS setting\n");
+		pr_err("ERROR: MB has broken PVR regs -> use DTS setting\n");
 		return;
 	}
 
-	temp = PVR_USE_BARREL(pvr) | PVR_USE_MSR_INSTR(pvr) |\
+	temp = PVR_USE_BARREL(pvr) | PVR_USE_MSR_INSTR(pvr) |
 		PVR_USE_PCMP_INSTR(pvr) | PVR_USE_DIV(pvr);
 	if (ci->use_instr != temp)
 		err_printk("BARREL, MSR, PCMP or DIV");
@@ -59,13 +58,13 @@ void set_cpuinfo_pvr_full(struct cpuinfo *ci, struct device_node *cpu)
 		err_printk("HW_FPU");
 	ci->use_fpu = temp;
 
-	ci->use_exc = PVR_OPCODE_0x0_ILLEGAL(pvr) |\
-			PVR_UNALIGNED_EXCEPTION(pvr) |\
-			PVR_ILL_OPCODE_EXCEPTION(pvr) |\
-			PVR_IOPB_BUS_EXCEPTION(pvr) |\
-			PVR_DOPB_BUS_EXCEPTION(pvr) |\
-			PVR_DIV_ZERO_EXCEPTION(pvr) |\
-			PVR_FPU_EXCEPTION(pvr) |\
+	ci->use_exc = PVR_OPCODE_0x0_ILLEGAL(pvr) |
+			PVR_UNALIGNED_EXCEPTION(pvr) |
+			PVR_ILL_OPCODE_EXCEPTION(pvr) |
+			PVR_IOPB_BUS_EXCEPTION(pvr) |
+			PVR_DOPB_BUS_EXCEPTION(pvr) |
+			PVR_DIV_ZERO_EXCEPTION(pvr) |
+			PVR_FPU_EXCEPTION(pvr) |
 			PVR_FSL_EXCEPTION(pvr);
 
 	CI(pvr_user1, USER1);

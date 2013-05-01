@@ -190,7 +190,7 @@ static struct platform_device markeins_flash_device = {
 	.name		= "physmap-flash",
 	.id		= 0,
 	.dev		= {
-        	.platform_data  = &markeins_flash_data,
+		.platform_data	= &markeins_flash_data,
 	},
 	.num_resources	= 1,
 	.resource	= &markeins_flash_resource,

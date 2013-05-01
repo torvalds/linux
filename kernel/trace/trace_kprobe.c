@@ -444,7 +444,7 @@ static int create_trace_probe(int argc, char **argv)
 			return -EINVAL;
 		}
 		/* an address specified */
-		ret = strict_strtoul(&argv[1][0], 0, (unsigned long *)&addr);
+		ret = kstrtoul(&argv[1][0], 0, (unsigned long *)&addr);
 		if (ret) {
 			pr_info("Failed to parse address.\n");
 			return ret;
@@ -751,8 +751,8 @@ static __kprobes void kprobe_trace_func(struct kprobe *kp, struct pt_regs *regs)
 	store_trace_args(sizeof(*entry), tp, regs, (u8 *)&entry[1], dsize);
 
 	if (!filter_current_check_discard(buffer, call, entry, event))
-		trace_nowake_buffer_unlock_commit_regs(buffer, event,
-						       irq_flags, pc, regs);
+		trace_buffer_unlock_commit_regs(buffer, event,
+						irq_flags, pc, regs);
 }
 
 /* Kretprobe handler */
@@ -784,8 +784,8 @@ static __kprobes void kretprobe_trace_func(struct kretprobe_instance *ri,
 	store_trace_args(sizeof(*entry), tp, regs, (u8 *)&entry[1], dsize);
 
 	if (!filter_current_check_discard(buffer, call, entry, event))
-		trace_nowake_buffer_unlock_commit_regs(buffer, event,
-						       irq_flags, pc, regs);
+		trace_buffer_unlock_commit_regs(buffer, event,
+						irq_flags, pc, regs);
 }
 
 /* Event entry printers */

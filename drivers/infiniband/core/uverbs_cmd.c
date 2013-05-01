@@ -48,6 +48,7 @@ struct uverbs_lock_class {
 
 static struct uverbs_lock_class pd_lock_class	= { .name = "PD-uobj" };
 static struct uverbs_lock_class mr_lock_class	= { .name = "MR-uobj" };
+static struct uverbs_lock_class mw_lock_class	= { .name = "MW-uobj" };
 static struct uverbs_lock_class cq_lock_class	= { .name = "CQ-uobj" };
 static struct uverbs_lock_class qp_lock_class	= { .name = "QP-uobj" };
 static struct uverbs_lock_class ah_lock_class	= { .name = "AH-uobj" };
@@ -124,18 +125,17 @@ static int idr_add_uobj(struct idr *idr, struct ib_uobject *uobj)
 {
 	int ret;
 
-retry:
-	if (!idr_pre_get(idr, GFP_KERNEL))
-		return -ENOMEM;
-
+	idr_preload(GFP_KERNEL);
 	spin_lock(&ib_uverbs_idr_lock);
-	ret = idr_get_new(idr, uobj, &uobj->id);
+
+	ret = idr_alloc(idr, uobj, 0, 0, GFP_NOWAIT);
+	if (ret >= 0)
+		uobj->id = ret;
+
 	spin_unlock(&ib_uverbs_idr_lock);
+	idr_preload_end();
 
-	if (ret == -EAGAIN)
-		goto retry;
-
-	return ret;
+	return ret < 0 ? ret : 0;
 }
 
 void idr_remove_uobj(struct idr *idr, struct ib_uobject *uobj)
@@ -730,7 +730,7 @@ ssize_t ib_uverbs_open_xrcd(struct ib_uverbs_file *file,
 			goto err_tree_mutex_unlock;
 		}
 
-		inode = f.file->f_path.dentry->d_inode;
+		inode = file_inode(f.file);
 		xrcd = find_xrcd(file->device, inode);
 		if (!xrcd && !(cmd.oflags & O_CREAT)) {
 			/* no file descriptor. Need CREATE flag */
@@ -1039,6 +1039,126 @@ ssize_t ib_uverbs_dereg_mr(struct ib_uverbs_file *file,
 		return ret;
 
 	idr_remove_uobj(&ib_uverbs_mr_idr, uobj);
+
+	mutex_lock(&file->mutex);
+	list_del(&uobj->list);
+	mutex_unlock(&file->mutex);
+
+	put_uobj(uobj);
+
+	return in_len;
+}
+
+ssize_t ib_uverbs_alloc_mw(struct ib_uverbs_file *file,
+			 const char __user *buf, int in_len,
+			 int out_len)
+{
+	struct ib_uverbs_alloc_mw      cmd;
+	struct ib_uverbs_alloc_mw_resp resp;
+	struct ib_uobject             *uobj;
+	struct ib_pd                  *pd;
+	struct ib_mw                  *mw;
+	int                            ret;
+
+	if (out_len < sizeof(resp))
+		return -ENOSPC;
+
+	if (copy_from_user(&cmd, buf, sizeof(cmd)))
+		return -EFAULT;
+
+	uobj = kmalloc(sizeof(*uobj), GFP_KERNEL);
+	if (!uobj)
+		return -ENOMEM;
+
+	init_uobj(uobj, 0, file->ucontext, &mw_lock_class);
+	down_write(&uobj->mutex);
+
+	pd = idr_read_pd(cmd.pd_handle, file->ucontext);
+	if (!pd) {
+		ret = -EINVAL;
+		goto err_free;
+	}
+
+	mw = pd->device->alloc_mw(pd, cmd.mw_type);
+	if (IS_ERR(mw)) {
+		ret = PTR_ERR(mw);
+		goto err_put;
+	}
+
+	mw->device  = pd->device;
+	mw->pd      = pd;
+	mw->uobject = uobj;
+	atomic_inc(&pd->usecnt);
+
+	uobj->object = mw;
+	ret = idr_add_uobj(&ib_uverbs_mw_idr, uobj);
+	if (ret)
+		goto err_unalloc;
+
+	memset(&resp, 0, sizeof(resp));
+	resp.rkey      = mw->rkey;
+	resp.mw_handle = uobj->id;
+
+	if (copy_to_user((void __user *)(unsigned long)cmd.response,
+			 &resp, sizeof(resp))) {
+		ret = -EFAULT;
+		goto err_copy;
+	}
+
+	put_pd_read(pd);
+
+	mutex_lock(&file->mutex);
+	list_add_tail(&uobj->list, &file->ucontext->mw_list);
+	mutex_unlock(&file->mutex);
+
+	uobj->live = 1;
+
+	up_write(&uobj->mutex);
+
+	return in_len;
+
+err_copy:
+	idr_remove_uobj(&ib_uverbs_mw_idr, uobj);
+
+err_unalloc:
+	ib_dealloc_mw(mw);
+
+err_put:
+	put_pd_read(pd);
+
+err_free:
+	put_uobj_write(uobj);
+	return ret;
+}
+
+ssize_t ib_uverbs_dealloc_mw(struct ib_uverbs_file *file,
+			   const char __user *buf, int in_len,
+			   int out_len)
+{
+	struct ib_uverbs_dealloc_mw cmd;
+	struct ib_mw               *mw;
+	struct ib_uobject	   *uobj;
+	int                         ret = -EINVAL;
+
+	if (copy_from_user(&cmd, buf, sizeof(cmd)))
+		return -EFAULT;
+
+	uobj = idr_write_uobj(&ib_uverbs_mw_idr, cmd.mw_handle, file->ucontext);
+	if (!uobj)
+		return -EINVAL;
+
+	mw = uobj->object;
+
+	ret = ib_dealloc_mw(mw);
+	if (!ret)
+		uobj->live = 0;
+
+	put_uobj_write(uobj);
+
+	if (ret)
+		return ret;
+
+	idr_remove_uobj(&ib_uverbs_mw_idr, uobj);
 
 	mutex_lock(&file->mutex);
 	list_del(&uobj->list);

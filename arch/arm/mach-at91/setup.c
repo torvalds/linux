@@ -10,6 +10,7 @@
 #include <linux/mm.h>
 #include <linux/pm.h>
 #include <linux/of_address.h>
+#include <linux/pinctrl/machine.h>
 
 #include <asm/system_misc.h>
 #include <asm/mach/map.h>
@@ -18,8 +19,8 @@
 #include <mach/cpu.h>
 #include <mach/at91_dbgu.h>
 #include <mach/at91_pmc.h>
-#include <mach/at91_shdwc.h>
 
+#include "at91_shdwc.h"
 #include "soc.h"
 #include "generic.h"
 
@@ -104,6 +105,8 @@ static void __init soc_detect(u32 dbgu_base)
 	switch (socid) {
 	case ARCH_ID_AT91RM9200:
 		at91_soc_initdata.type = AT91_SOC_RM9200;
+		if (at91_soc_initdata.subtype == AT91_SOC_SUBTYPE_NONE)
+			at91_soc_initdata.subtype = AT91_SOC_RM9200_BGA;
 		at91_boot_soc = at91rm9200_soc;
 		break;
 
@@ -338,6 +341,7 @@ static void at91_dt_rstc(void)
 }
 
 static struct of_device_id ramc_ids[] = {
+	{ .compatible = "atmel,at91rm9200-sdramc" },
 	{ .compatible = "atmel,at91sam9260-sdramc" },
 	{ .compatible = "atmel,at91sam9g45-ddramc" },
 	{ /*sentinel*/ }
@@ -436,6 +440,19 @@ end:
 	of_node_put(np);
 }
 
+void __init at91rm9200_dt_initialize(void)
+{
+	at91_dt_ramc();
+
+	/* Init clock subsystem */
+	at91_dt_clock_init();
+
+	/* Register the processor-specific clocks */
+	at91_boot_soc.register_clocks();
+
+	at91_boot_soc.init();
+}
+
 void __init at91_dt_initialize(void)
 {
 	at91_dt_rstc();
@@ -448,7 +465,8 @@ void __init at91_dt_initialize(void)
 	/* Register the processor-specific clocks */
 	at91_boot_soc.register_clocks();
 
-	at91_boot_soc.init();
+	if (at91_boot_soc.init)
+		at91_boot_soc.init();
 }
 #endif
 
@@ -463,4 +481,6 @@ void __init at91_initialize(unsigned long main_clock)
 	at91_boot_soc.register_clocks();
 
 	at91_boot_soc.init();
+
+	pinctrl_provide_dummies();
 }

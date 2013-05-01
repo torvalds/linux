@@ -18,7 +18,7 @@
 
 #include <linux/mfd/da9055/core.h>
 
-static int __devinit da9055_i2c_probe(struct i2c_client *i2c,
+static int da9055_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
 {
 	struct da9055 *da9055;
@@ -44,7 +44,7 @@ static int __devinit da9055_i2c_probe(struct i2c_client *i2c,
 	return da9055_device_init(da9055);
 }
 
-static int __devexit da9055_i2c_remove(struct i2c_client *i2c)
+static int da9055_i2c_remove(struct i2c_client *i2c)
 {
 	struct da9055 *da9055 = i2c_get_clientdata(i2c);
 
@@ -60,7 +60,7 @@ static struct i2c_device_id da9055_i2c_id[] = {
 
 static struct i2c_driver da9055_i2c_driver = {
 	.probe = da9055_i2c_probe,
-	.remove = __devexit_p(da9055_i2c_remove),
+	.remove = da9055_i2c_remove,
 	.id_table = da9055_i2c_id,
 	.driver = {
 		.name = "da9055",

@@ -560,7 +560,7 @@ static struct fb_ops pxa168fb_ops = {
 	.fb_imageblit	= cfb_imageblit,
 };
 
-static int __devinit pxa168fb_init_mode(struct fb_info *info,
+static int pxa168fb_init_mode(struct fb_info *info,
 			      struct pxa168fb_mach_info *mi)
 {
 	struct pxa168fb_info *fbi = info->par;
@@ -600,7 +600,7 @@ static int __devinit pxa168fb_init_mode(struct fb_info *info,
 	return ret;
 }
 
-static int __devinit pxa168fb_probe(struct platform_device *pdev)
+static int pxa168fb_probe(struct platform_device *pdev)
 {
 	struct pxa168fb_mach_info *mi;
 	struct fb_info *info = 0;
@@ -783,7 +783,7 @@ failed_put_clk:
 	return ret;
 }
 
-static int __devexit pxa168fb_remove(struct platform_device *pdev)
+static int pxa168fb_remove(struct platform_device *pdev)
 {
 	struct pxa168fb_info *fbi = platform_get_drvdata(pdev);
 	struct fb_info *info;
@@ -826,7 +826,7 @@ static struct platform_driver pxa168fb_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= pxa168fb_probe,
-	.remove		= __devexit_p(pxa168fb_remove),
+	.remove		= pxa168fb_remove,
 };
 
 module_platform_driver(pxa168fb_driver);

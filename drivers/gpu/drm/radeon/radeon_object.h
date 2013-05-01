@@ -80,7 +80,7 @@ static inline unsigned long radeon_bo_size(struct radeon_bo *bo)
 
 static inline bool radeon_bo_is_reserved(struct radeon_bo *bo)
 {
-	return !!atomic_read(&bo->tbo.reserved);
+	return ttm_bo_is_reserved(&bo->tbo);
 }
 
 static inline unsigned radeon_bo_ngpu_pages(struct radeon_bo *bo)

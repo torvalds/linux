@@ -558,6 +558,10 @@ ssize_t compat_rw_copy_check_uvector(int type,
 	}
 	*ret_pointer = iov;
 
+	ret = -EFAULT;
+	if (!access_ok(VERIFY_READ, uvector, nr_segs*sizeof(*uvector)))
+		goto out;
+
 	/*
 	 * Single unix specification:
 	 * We should -EINVAL if an element length is not >= 0 and fitting an
@@ -1080,17 +1084,12 @@ static ssize_t compat_do_readv_writev(int type, struct file *file,
 	if (!file->f_op)
 		goto out;
 
-	ret = -EFAULT;
-	if (!access_ok(VERIFY_READ, uvector, nr_segs*sizeof(*uvector)))
-		goto out;
-
-	tot_len = compat_rw_copy_check_uvector(type, uvector, nr_segs,
+	ret = compat_rw_copy_check_uvector(type, uvector, nr_segs,
 					       UIO_FASTIOV, iovstack, &iov);
-	if (tot_len == 0) {
-		ret = 0;
+	if (ret <= 0)
 		goto out;
-	}
 
+	tot_len = ret;
 	ret = rw_verify_area(type, file, pos, tot_len);
 	if (ret < 0)
 		goto out;
@@ -1278,8 +1277,7 @@ compat_sys_vmsplice(int fd, const struct compat_iovec __user *iov32,
  * Exactly like fs/open.c:sys_open(), except that it doesn't set the
  * O_LARGEFILE flag.
  */
-asmlinkage long
-compat_sys_open(const char __user *filename, int flags, umode_t mode)
+COMPAT_SYSCALL_DEFINE3(open, const char __user *, filename, int, flags, umode_t, mode)
 {
 	return do_sys_open(AT_FDCWD, filename, flags, mode);
 }
@@ -1288,8 +1286,7 @@ compat_sys_open(const char __user *filename, int flags, umode_t mode)
  * Exactly like fs/open.c:sys_openat(), except that it doesn't set the
  * O_LARGEFILE flag.
  */
-asmlinkage long
-compat_sys_openat(unsigned int dfd, const char __user *filename, int flags, umode_t mode)
+COMPAT_SYSCALL_DEFINE4(openat, int, dfd, const char __user *, filename, int, flags, umode_t, mode)
 {
 	return do_sys_open(dfd, filename, flags, mode);
 }
@@ -1739,55 +1736,13 @@ asmlinkage long compat_sys_signalfd(int ufd,
 }
 #endif /* CONFIG_SIGNALFD */
 
-#ifdef CONFIG_TIMERFD
-
-asmlinkage long compat_sys_timerfd_settime(int ufd, int flags,
-				   const struct compat_itimerspec __user *utmr,
-				   struct compat_itimerspec __user *otmr)
-{
-	int error;
-	struct itimerspec t;
-	struct itimerspec __user *ut;
-
-	if (get_compat_itimerspec(&t, utmr))
-		return -EFAULT;
-	ut = compat_alloc_user_space(2 * sizeof(struct itimerspec));
-	if (copy_to_user(&ut[0], &t, sizeof(t)))
-		return -EFAULT;
-	error = sys_timerfd_settime(ufd, flags, &ut[0], &ut[1]);
-	if (!error && otmr)
-		error = (copy_from_user(&t, &ut[1], sizeof(struct itimerspec)) ||
-			 put_compat_itimerspec(otmr, &t)) ? -EFAULT: 0;
-
-	return error;
-}
-
-asmlinkage long compat_sys_timerfd_gettime(int ufd,
-				   struct compat_itimerspec __user *otmr)
-{
-	int error;
-	struct itimerspec t;
-	struct itimerspec __user *ut;
-
-	ut = compat_alloc_user_space(sizeof(struct itimerspec));
-	error = sys_timerfd_gettime(ufd, ut);
-	if (!error)
-		error = (copy_from_user(&t, ut, sizeof(struct itimerspec)) ||
-			 put_compat_itimerspec(otmr, &t)) ? -EFAULT: 0;
-
-	return error;
-}
-
-#endif /* CONFIG_TIMERFD */
-
 #ifdef CONFIG_FHANDLE
 /*
  * Exactly like fs/open.c:sys_open_by_handle_at(), except that it
  * doesn't set the O_LARGEFILE flag.
  */
-asmlinkage long
-compat_sys_open_by_handle_at(int mountdirfd,
-			     struct file_handle __user *handle, int flags)
+COMPAT_SYSCALL_DEFINE3(open_by_handle_at, int, mountdirfd,
+			     struct file_handle __user *, handle, int, flags)
 {
 	return do_handle_open(mountdirfd, handle, flags);
 }

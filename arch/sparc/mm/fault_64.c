@@ -472,8 +472,13 @@ good_area:
 #if defined(CONFIG_HUGETLB_PAGE) || defined(CONFIG_TRANSPARENT_HUGEPAGE)
 	mm_rss = mm->context.huge_pte_count;
 	if (unlikely(mm_rss >
-		     mm->context.tsb_block[MM_TSB_HUGE].tsb_rss_limit))
-		tsb_grow(mm, MM_TSB_HUGE, mm_rss);
+		     mm->context.tsb_block[MM_TSB_HUGE].tsb_rss_limit)) {
+		if (mm->context.tsb_block[MM_TSB_HUGE].tsb)
+			tsb_grow(mm, MM_TSB_HUGE, mm_rss);
+		else
+			hugetlb_setup(regs);
+
+	}
 #endif
 	return;
 

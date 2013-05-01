@@ -115,7 +115,7 @@ static void __init process_switch(char c)
 			break;
 		}
 		cheetah_pcache_forced_on = 1;
-		add_taint(TAINT_MACHINE_CHECK);
+		add_taint(TAINT_MACHINE_CHECK, LOCKDEP_NOW_UNRELIABLE);
 		cheetah_enable_pcache();
 		break;
 
@@ -313,6 +313,25 @@ static void __init popc_patch(void)
 		}
 
 		p6++;
+	}
+}
+
+static void __init pause_patch(void)
+{
+	struct pause_patch_entry *p;
+
+	p = &__pause_3insn_patch;
+	while (p < &__pause_3insn_patch_end) {
+		unsigned long i, addr = p->addr;
+
+		for (i = 0; i < 3; i++) {
+			*(unsigned int *) (addr +  (i * 4)) = p->insns[i];
+			wmb();
+			__asm__ __volatile__("flush	%0"
+					     : : "r" (addr +  (i * 4)));
+		}
+
+		p++;
 	}
 }
 
@@ -528,6 +547,8 @@ static void __init init_sparc64_elf_hwcap(void)
 
 	if (sparc64_elf_hwcap & AV_SPARC_POPC)
 		popc_patch();
+	if (sparc64_elf_hwcap & AV_SPARC_PAUSE)
+		pause_patch();
 }
 
 void __init setup_arch(char **cmdline_p)

@@ -3,9 +3,6 @@
 
 #define ADIS16240_STARTUP_DELAY	220 /* ms */
 
-#define ADIS16240_READ_REG(a)    a
-#define ADIS16240_WRITE_REG(a) ((a) | 0x80)
-
 /* Flash memory write count */
 #define ADIS16240_FLASH_CNT      0x00
 /* Output, power supply */
@@ -75,8 +72,6 @@
 /* System command */
 #define ADIS16240_GLOB_CMD       0x4A
 
-#define ADIS16240_OUTPUTS        6
-
 /* MSC_CTRL */
 /* Enables sum-of-squares output (XYZPEAK_OUT) */
 #define ADIS16240_MSC_CTRL_XYZPEAK_OUT_EN	(1 << 15)
@@ -101,17 +96,17 @@
 /* Flash test, checksum flag: 1 = mismatch, 0 = match */
 #define ADIS16240_DIAG_STAT_CHKSUM      (1<<6)
 /* Power-on, self-test flag: 1 = failure, 0 = pass */
-#define ADIS16240_DIAG_STAT_PWRON_FAIL  (1<<5)
+#define ADIS16240_DIAG_STAT_PWRON_FAIL_BIT  5
 /* Power-on self-test: 1 = in-progress, 0 = complete */
 #define ADIS16240_DIAG_STAT_PWRON_BUSY  (1<<4)
 /* SPI communications failure */
-#define ADIS16240_DIAG_STAT_SPI_FAIL	(1<<3)
+#define ADIS16240_DIAG_STAT_SPI_FAIL_BIT	3
 /* Flash update failure */
-#define ADIS16240_DIAG_STAT_FLASH_UPT	(1<<2)
+#define ADIS16240_DIAG_STAT_FLASH_UPT_BIT	2
 /* Power supply above 3.625 V */
-#define ADIS16240_DIAG_STAT_POWER_HIGH	(1<<1)
+#define ADIS16240_DIAG_STAT_POWER_HIGH_BIT	1
  /* Power supply below 3.15 V */
-#define ADIS16240_DIAG_STAT_POWER_LOW	(1<<0)
+#define ADIS16240_DIAG_STAT_POWER_LOW_BIT	0
 
 /* GLOB_CMD */
 #define ADIS16240_GLOB_CMD_RESUME	(1<<8)
@@ -120,77 +115,15 @@
 
 #define ADIS16240_ERROR_ACTIVE          (1<<14)
 
-#define ADIS16240_MAX_TX 24
-#define ADIS16240_MAX_RX 24
-
-/**
- * struct adis16240_state - device instance specific data
- * @us:			actual spi_device
- * @trig:		data ready trigger registered with iio
- * @tx:			transmit buffer
- * @rx:			receive buffer
- * @buf_lock:		mutex to protect tx and rx
- **/
-struct adis16240_state {
-	struct spi_device	*us;
-	struct iio_trigger	*trig;
-	struct mutex		buf_lock;
-	u8			tx[ADIS16240_MAX_TX] ____cacheline_aligned;
-	u8			rx[ADIS16240_MAX_RX];
-};
-
-int adis16240_set_irq(struct iio_dev *indio_dev, bool enable);
-
 /* At the moment triggers are only used for ring buffer
  * filling. This may change!
  */
 
-#define ADIS16240_SCAN_SUPPLY	0
-#define ADIS16240_SCAN_ACC_X	1
-#define ADIS16240_SCAN_ACC_Y	2
-#define ADIS16240_SCAN_ACC_Z	3
+#define ADIS16240_SCAN_ACC_X	0
+#define ADIS16240_SCAN_ACC_Y	1
+#define ADIS16240_SCAN_ACC_Z	2
+#define ADIS16240_SCAN_SUPPLY	3
 #define ADIS16240_SCAN_AUX_ADC	4
 #define ADIS16240_SCAN_TEMP	5
 
-#ifdef CONFIG_IIO_BUFFER
-void adis16240_remove_trigger(struct iio_dev *indio_dev);
-int adis16240_probe_trigger(struct iio_dev *indio_dev);
-
-ssize_t adis16240_read_data_from_ring(struct device *dev,
-				      struct device_attribute *attr,
-				      char *buf);
-
-
-int adis16240_configure_ring(struct iio_dev *indio_dev);
-void adis16240_unconfigure_ring(struct iio_dev *indio_dev);
-
-#else /* CONFIG_IIO_BUFFER */
-
-static inline void adis16240_remove_trigger(struct iio_dev *indio_dev)
-{
-}
-
-static inline int adis16240_probe_trigger(struct iio_dev *indio_dev)
-{
-	return 0;
-}
-
-static inline ssize_t
-adis16240_read_data_from_ring(struct device *dev,
-			      struct device_attribute *attr,
-			      char *buf)
-{
-	return 0;
-}
-
-static int adis16240_configure_ring(struct iio_dev *indio_dev)
-{
-	return 0;
-}
-
-static inline void adis16240_unconfigure_ring(struct iio_dev *indio_dev)
-{
-}
-
-#endif /* CONFIG_IIO_BUFFER */
 #endif /* SPI_ADIS16240_H_ */

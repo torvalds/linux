@@ -796,8 +796,6 @@ static int wireless_get_bssid(struct net_device *dev, struct iw_request_info *in
 
     	wl_act_int_off( lp );
 
-	memset( &ap_addr->sa_data, 0, ETH_ALEN );
-
 	ap_addr->sa_family = ARPHRD_ETHER;
 
 	/* Assume AP mode here, which means the BSSID is our own MAC address. In

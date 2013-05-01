@@ -104,10 +104,11 @@ EXPORT_SYMBOL_GPL(sirfsoc_rtc_iobrg_writel);
 
 static const struct of_device_id rtciobrg_ids[] = {
 	{ .compatible = "sirf,prima2-rtciobg" },
+	{ .compatible = "sirf,marco-rtciobg" },
 	{}
 };
 
-static int __devinit sirfsoc_rtciobrg_probe(struct platform_device *op)
+static int sirfsoc_rtciobrg_probe(struct platform_device *op)
 {
 	struct device_node *np = op->dev.of_node;
 

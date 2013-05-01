@@ -35,6 +35,7 @@
 
 #define EP_FLAG_ACTIVATED	0
 #define EP_FLAG_RUNNING		1
+#define EP_FLAG_STOPPING	2
 
 /*
  * snd_usb_endpoint is a model that abstracts everything related to an
@@ -484,15 +485,10 @@ __exit_unlock:
 static int wait_clear_urbs(struct snd_usb_endpoint *ep)
 {
 	unsigned long end_time = jiffies + msecs_to_jiffies(1000);
-	unsigned int i;
 	int alive;
 
 	do {
-		alive = 0;
-		for (i = 0; i < ep->nurbs; i++)
-			if (test_bit(i, &ep->active_mask))
-				alive++;
-
+		alive = bitmap_weight(&ep->active_mask, ep->nurbs);
 		if (!alive)
 			break;
 
@@ -502,22 +498,29 @@ static int wait_clear_urbs(struct snd_usb_endpoint *ep)
 	if (alive)
 		snd_printk(KERN_ERR "timeout: still %d active urbs on EP #%x\n",
 					alive, ep->ep_num);
+	clear_bit(EP_FLAG_STOPPING, &ep->flags);
 
 	return 0;
+}
+
+/* sync the pending stop operation;
+ * this function itself doesn't trigger the stop operation
+ */
+void snd_usb_endpoint_sync_pending_stop(struct snd_usb_endpoint *ep)
+{
+	if (ep && test_bit(EP_FLAG_STOPPING, &ep->flags))
+		wait_clear_urbs(ep);
 }
 
 /*
  * unlink active urbs.
  */
-static int deactivate_urbs(struct snd_usb_endpoint *ep, int force, int can_sleep)
+static int deactivate_urbs(struct snd_usb_endpoint *ep, bool force)
 {
 	unsigned int i;
-	int async;
 
 	if (!force && ep->chip->shutdown) /* to be sure... */
 		return -EBADFD;
-
-	async = !can_sleep && ep->chip->async_unlink;
 
 	clear_bit(EP_FLAG_RUNNING, &ep->flags);
 
@@ -525,17 +528,11 @@ static int deactivate_urbs(struct snd_usb_endpoint *ep, int force, int can_sleep
 	ep->next_packet_read_pos = 0;
 	ep->next_packet_write_pos = 0;
 
-	if (!async && in_interrupt())
-		return 0;
-
 	for (i = 0; i < ep->nurbs; i++) {
 		if (test_bit(i, &ep->active_mask)) {
 			if (!test_and_set_bit(i, &ep->unlink_mask)) {
 				struct urb *u = ep->urb[i].urb;
-				if (async)
-					usb_unlink_urb(u);
-				else
-					usb_kill_urb(u);
+				usb_unlink_urb(u);
 			}
 		}
 	}
@@ -555,7 +552,7 @@ static void release_urbs(struct snd_usb_endpoint *ep, int force)
 	ep->prepare_data_urb = NULL;
 
 	/* stop urbs */
-	deactivate_urbs(ep, force, 1);
+	deactivate_urbs(ep, force);
 	wait_clear_urbs(ep);
 
 	for (i = 0; i < ep->nurbs; i++)
@@ -818,7 +815,7 @@ int snd_usb_endpoint_set_params(struct snd_usb_endpoint *ep,
  *
  * Returns an error if the URB submission failed, 0 in all other cases.
  */
-int snd_usb_endpoint_start(struct snd_usb_endpoint *ep, int can_sleep)
+int snd_usb_endpoint_start(struct snd_usb_endpoint *ep, bool can_sleep)
 {
 	int err;
 	unsigned int i;
@@ -831,7 +828,7 @@ int snd_usb_endpoint_start(struct snd_usb_endpoint *ep, int can_sleep)
 		return 0;
 
 	/* just to be sure */
-	deactivate_urbs(ep, 0, can_sleep);
+	deactivate_urbs(ep, false);
 	if (can_sleep)
 		wait_clear_urbs(ep);
 
@@ -885,7 +882,7 @@ int snd_usb_endpoint_start(struct snd_usb_endpoint *ep, int can_sleep)
 __error:
 	clear_bit(EP_FLAG_RUNNING, &ep->flags);
 	ep->use_count--;
-	deactivate_urbs(ep, 0, 0);
+	deactivate_urbs(ep, false);
 	return -EPIPE;
 }
 
@@ -899,9 +896,11 @@ __error:
  * actually be deactivated.
  *
  * Must be balanced to calls of snd_usb_endpoint_start().
+ *
+ * The caller needs to synchronize the pending stop operation via
+ * snd_usb_endpoint_sync_pending_stop().
  */
-void snd_usb_endpoint_stop(struct snd_usb_endpoint *ep,
-			   int force, int can_sleep, int wait)
+void snd_usb_endpoint_stop(struct snd_usb_endpoint *ep)
 {
 	if (!ep)
 		return;
@@ -910,14 +909,12 @@ void snd_usb_endpoint_stop(struct snd_usb_endpoint *ep,
 		return;
 
 	if (--ep->use_count == 0) {
-		deactivate_urbs(ep, force, can_sleep);
+		deactivate_urbs(ep, false);
 		ep->data_subs = NULL;
 		ep->sync_slave = NULL;
 		ep->retire_data_urb = NULL;
 		ep->prepare_data_urb = NULL;
-
-		if (wait)
-			wait_clear_urbs(ep);
+		set_bit(EP_FLAG_STOPPING, &ep->flags);
 	}
 }
 
@@ -939,7 +936,7 @@ int snd_usb_endpoint_deactivate(struct snd_usb_endpoint *ep)
 	if (!ep)
 		return -EINVAL;
 
-	deactivate_urbs(ep, 1, 1);
+	deactivate_urbs(ep, true);
 	wait_clear_urbs(ep);
 
 	if (ep->use_count != 0)
@@ -1021,15 +1018,18 @@ void snd_usb_handle_sync_urb(struct snd_usb_endpoint *ep,
 		/*
 		 * Iterate through the inbound packet and prepare the lengths
 		 * for the output packet. The OUT packet we are about to send
-		 * will have the same amount of payload bytes than the IN
-		 * packet we just received.
+		 * will have the same amount of payload bytes per stride as the
+		 * IN packet we just received. Since the actual size is scaled
+		 * by the stride, use the sender stride to calculate the length
+		 * in case the number of channels differ between the implicitly
+		 * fed-back endpoint and the synchronizing endpoint.
 		 */
 
 		out_packet->packets = in_ctx->packets;
 		for (i = 0; i < in_ctx->packets; i++) {
 			if (urb->iso_frame_desc[i].status == 0)
 				out_packet->packet_size[i] =
-					urb->iso_frame_desc[i].actual_length / ep->stride;
+					urb->iso_frame_desc[i].actual_length / sender->stride;
 			else
 				out_packet->packet_size[i] = 0;
 		}

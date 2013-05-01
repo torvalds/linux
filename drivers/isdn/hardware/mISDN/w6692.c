@@ -1355,7 +1355,7 @@ error_setup:
 	return err;
 }
 
-static int __devinit
+static int
 w6692_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	int		err = -ENOMEM;
@@ -1387,7 +1387,7 @@ w6692_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	return err;
 }
 
-static void __devexit
+static void
 w6692_remove_pci(struct pci_dev *pdev)
 {
 	struct w6692_hw	*card = pci_get_drvdata(pdev);
@@ -1414,7 +1414,7 @@ MODULE_DEVICE_TABLE(pci, w6692_ids);
 static struct pci_driver w6692_driver = {
 	.name =  "w6692",
 	.probe = w6692_probe,
-	.remove = __devexit_p(w6692_remove_pci),
+	.remove = w6692_remove_pci,
 	.id_table = w6692_ids,
 };
 

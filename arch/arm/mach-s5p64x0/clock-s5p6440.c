@@ -23,7 +23,6 @@
 #include <mach/hardware.h>
 #include <mach/map.h>
 #include <mach/regs-clock.h>
-#include <mach/s5p64x0-clock.h>
 
 #include <plat/cpu-freq.h>
 #include <plat/clock.h>
@@ -32,6 +31,7 @@
 #include <plat/s5p-clock.h>
 #include <plat/clock-clksrc.h>
 
+#include "clock.h"
 #include "common.h"
 
 static u32 epll_div[][5] = {
@@ -243,12 +243,6 @@ static struct clk init_clocks_off[] = {
 		.enable		= s5p64x0_pclk_ctrl,
 		.ctrlbit	= (1 << 25),
 	}, {
-		.name		= "iis",
-		.devname	= "samsung-i2s.0",
-		.parent		= &clk_pclk_low.clk,
-		.enable		= s5p64x0_pclk_ctrl,
-		.ctrlbit	= (1 << 26),
-	}, {
 		.name		= "dsim",
 		.parent		= &clk_pclk_low.clk,
 		.enable		= s5p64x0_pclk_ctrl,
@@ -405,15 +399,6 @@ static struct clksrc_clk clksrcs[] = {
 		.sources = &clkset_group1,
 		.reg_src = { .reg = S5P64X0_CLK_SRC1, .shift = 8, .size = 2 },
 		.reg_div = { .reg = S5P64X0_CLK_DIV3, .shift = 4, .size = 4 },
-	}, {
-		.clk	= {
-			.name		= "sclk_audio2",
-			.ctrlbit	= (1 << 11),
-			.enable		= s5p64x0_sclk_ctrl,
-		},
-		.sources = &clkset_audio,
-		.reg_src = { .reg = S5P64X0_CLK_SRC1, .shift = 0, .size = 3 },
-		.reg_div = { .reg = S5P64X0_CLK_DIV2, .shift = 24, .size = 4 },
 	},
 };
 
@@ -464,6 +449,26 @@ static struct clksrc_clk clk_sclk_uclk = {
 	.reg_div = { .reg = S5P64X0_CLK_DIV2, .shift = 16, .size = 4 },
 };
 
+static struct clk clk_i2s0 = {
+	.name		= "iis",
+	.devname	= "samsung-i2s.0",
+	.parent		= &clk_pclk_low.clk,
+	.enable		= s5p64x0_pclk_ctrl,
+	.ctrlbit	= (1 << 26),
+};
+
+static struct clksrc_clk clk_audio_bus2 = {
+	.clk	= {
+		.name		= "sclk_audio2",
+		.devname	= "samsung-i2s.0",
+		.ctrlbit	= (1 << 11),
+		.enable		= s5p64x0_sclk_ctrl,
+	},
+	.sources = &clkset_audio,
+	.reg_src = { .reg = S5P64X0_CLK_SRC1, .shift = 0, .size = 3 },
+	.reg_div = { .reg = S5P64X0_CLK_DIV2, .shift = 24, .size = 4 },
+};
+
 static struct clksrc_clk clk_sclk_spi0 = {
 	.clk	= {
 		.name		= "sclk_spi",
@@ -506,13 +511,18 @@ static struct clk dummy_apb_pclk = {
 	.id		= -1,
 };
 
+static struct clk *clk_cdev[] = {
+	&clk_i2s0,
+};
+
 static struct clksrc_clk *clksrc_cdev[] = {
 	&clk_sclk_uclk,
 	&clk_sclk_spi0,
 	&clk_sclk_spi1,
 	&clk_sclk_mmc0,
 	&clk_sclk_mmc1,
-	&clk_sclk_mmc2
+	&clk_sclk_mmc2,
+	&clk_audio_bus2,
 };
 
 static struct clk_lookup s5p6440_clk_lookup[] = {
@@ -524,6 +534,8 @@ static struct clk_lookup s5p6440_clk_lookup[] = {
 	CLKDEV_INIT("s3c-sdhci.0", "mmc_busclk.2", &clk_sclk_mmc0.clk),
 	CLKDEV_INIT("s3c-sdhci.1", "mmc_busclk.2", &clk_sclk_mmc1.clk),
 	CLKDEV_INIT("s3c-sdhci.2", "mmc_busclk.2", &clk_sclk_mmc2.clk),
+	CLKDEV_INIT("samsung-i2s.0", "i2s_opclk0", &clk_i2s0),
+	CLKDEV_INIT("samsung-i2s.0", "i2s_opclk1", &clk_audio_bus2.clk),
 };
 
 void __init_or_cpufreq s5p6440_setup_clocks(void)
@@ -596,11 +608,16 @@ static struct clk *clks[] __initdata = {
 void __init s5p6440_register_clocks(void)
 {
 	int ptr;
+	unsigned int cnt;
 
 	s3c24xx_register_clocks(clks, ARRAY_SIZE(clks));
 
 	for (ptr = 0; ptr < ARRAY_SIZE(sysclks); ptr++)
 		s3c_register_clksrc(sysclks[ptr], 1);
+
+	s3c24xx_register_clocks(clk_cdev, ARRAY_SIZE(clk_cdev));
+	for (cnt = 0; cnt < ARRAY_SIZE(clk_cdev); cnt++)
+		s3c_disable_clocks(clk_cdev[cnt], 1);
 
 	s3c_register_clksrc(clksrcs, ARRAY_SIZE(clksrcs));
 	s3c_register_clocks(init_clocks, ARRAY_SIZE(init_clocks));

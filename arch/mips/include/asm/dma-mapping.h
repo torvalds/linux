@@ -5,7 +5,7 @@
 #include <asm/cache.h>
 #include <asm-generic/dma-coherent.h>
 
-#ifndef CONFIG_SGI_IP27	/* Kludge to fix 2.6.39 build for IP27 */
+#ifndef CONFIG_SGI_IP27 /* Kludge to fix 2.6.39 build for IP27 */
 #include <dma-coherence.h>
 #endif
 
@@ -40,6 +40,8 @@ static inline int dma_supported(struct device *dev, u64 mask)
 static inline int dma_mapping_error(struct device *dev, u64 mask)
 {
 	struct dma_map_ops *ops = get_dma_ops(dev);
+
+	debug_dma_mapping_error(dev, mask);
 	return ops->mapping_error(dev, mask);
 }
 

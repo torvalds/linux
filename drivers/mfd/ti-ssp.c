@@ -315,7 +315,7 @@ static irqreturn_t ti_ssp_interrupt(int irq, void *dev_data)
 	return IRQ_HANDLED;
 }
 
-static int __devinit ti_ssp_probe(struct platform_device *pdev)
+static int ti_ssp_probe(struct platform_device *pdev)
 {
 	static struct ti_ssp *ssp;
 	const struct ti_ssp_data *pdata = pdev->dev.platform_data;
@@ -433,7 +433,7 @@ error_res:
 	return error;
 }
 
-static int __devexit ti_ssp_remove(struct platform_device *pdev)
+static int ti_ssp_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct ti_ssp *ssp = dev_get_drvdata(dev);
@@ -451,7 +451,7 @@ static int __devexit ti_ssp_remove(struct platform_device *pdev)
 
 static struct platform_driver ti_ssp_driver = {
 	.probe		= ti_ssp_probe,
-	.remove		= __devexit_p(ti_ssp_remove),
+	.remove		= ti_ssp_remove,
 	.driver		= {
 		.name	= "ti-ssp",
 		.owner	= THIS_MODULE,

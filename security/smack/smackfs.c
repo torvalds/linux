@@ -2063,6 +2063,19 @@ static const struct file_operations smk_revoke_subj_ops = {
 	.llseek		= generic_file_llseek,
 };
 
+static struct kset *smackfs_kset;
+/**
+ * smk_init_sysfs - initialize /sys/fs/smackfs
+ *
+ */
+static int smk_init_sysfs(void)
+{
+	smackfs_kset = kset_create_and_add("smackfs", NULL, fs_kobj);
+	if (!smackfs_kset)
+		return -ENOMEM;
+	return 0;
+}
+
 /**
  * smk_fill_super - fill the /smackfs superblock
  * @sb: the empty superblock
@@ -2182,6 +2195,10 @@ static int __init init_smk_fs(void)
 
 	if (!security_module_enable(&smack_ops))
 		return 0;
+
+	err = smk_init_sysfs();
+	if (err)
+		printk(KERN_ERR "smackfs: sysfs mountpoint problem.\n");
 
 	err = register_filesystem(&smk_fs_type);
 	if (!err) {

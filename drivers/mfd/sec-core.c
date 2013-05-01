@@ -17,6 +17,7 @@
 #include <linux/err.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
+#include <linux/of_irq.h>
 #include <linux/interrupt.h>
 #include <linux/pm_runtime.h>
 #include <linux/mutex.h>
@@ -60,6 +61,15 @@ static struct mfd_cell s2mps11_devs[] = {
 	},
 };
 
+#ifdef CONFIG_OF
+static struct of_device_id sec_dt_match[] = {
+	{	.compatible = "samsung,s5m8767-pmic",
+		.data = (void *)S5M8767X,
+	},
+	{},
+};
+#endif
+
 int sec_reg_read(struct sec_pmic_dev *sec_pmic, u8 reg, void *dest)
 {
 	return regmap_read(sec_pmic->regmap, reg, dest);
@@ -95,6 +105,57 @@ static struct regmap_config sec_regmap_config = {
 	.val_bits = 8,
 };
 
+
+#ifdef CONFIG_OF
+/*
+ * Only the common platform data elements for s5m8767 are parsed here from the
+ * device tree. Other sub-modules of s5m8767 such as pmic, rtc , charger and
+ * others have to parse their own platform data elements from device tree.
+ *
+ * The s5m8767 platform data structure is instantiated here and the drivers for
+ * the sub-modules need not instantiate another instance while parsing their
+ * platform data.
+ */
+static struct sec_platform_data *sec_pmic_i2c_parse_dt_pdata(
+					struct device *dev)
+{
+	struct sec_platform_data *pd;
+
+	pd = devm_kzalloc(dev, sizeof(*pd), GFP_KERNEL);
+	if (!pd) {
+		dev_err(dev, "could not allocate memory for pdata\n");
+		return ERR_PTR(-ENOMEM);
+	}
+
+	/*
+	 * ToDo: the 'wakeup' member in the platform data is more of a linux
+	 * specfic information. Hence, there is no binding for that yet and
+	 * not parsed here.
+	 */
+
+	return pd;
+}
+#else
+static struct sec_platform_data *sec_pmic_i2c_parse_dt_pdata(
+					struct device *dev)
+{
+	return 0;
+}
+#endif
+
+static inline int sec_i2c_get_driver_data(struct i2c_client *i2c,
+						const struct i2c_device_id *id)
+{
+#ifdef CONFIG_OF
+	if (i2c->dev.of_node) {
+		const struct of_device_id *match;
+		match = of_match_node(sec_dt_match, i2c->dev.of_node);
+		return (int)match->data;
+	}
+#endif
+	return (int)id->driver_data;
+}
+
 static int sec_pmic_probe(struct i2c_client *i2c,
 			    const struct i2c_device_id *id)
 {
@@ -111,13 +172,22 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 	sec_pmic->dev = &i2c->dev;
 	sec_pmic->i2c = i2c;
 	sec_pmic->irq = i2c->irq;
-	sec_pmic->type = id->driver_data;
+	sec_pmic->type = sec_i2c_get_driver_data(i2c, id);
 
+	if (sec_pmic->dev->of_node) {
+		pdata = sec_pmic_i2c_parse_dt_pdata(sec_pmic->dev);
+		if (IS_ERR(pdata)) {
+			ret = PTR_ERR(pdata);
+			return ret;
+		}
+		pdata->device_type = sec_pmic->type;
+	}
 	if (pdata) {
 		sec_pmic->device_type = pdata->device_type;
 		sec_pmic->ono = pdata->ono;
 		sec_pmic->irq_base = pdata->irq_base;
 		sec_pmic->wakeup = pdata->wakeup;
+		sec_pmic->pdata = pdata;
 	}
 
 	sec_pmic->regmap = devm_regmap_init_i2c(i2c, &sec_regmap_config);
@@ -192,6 +262,7 @@ static struct i2c_driver sec_pmic_driver = {
 	.driver = {
 		   .name = "sec_pmic",
 		   .owner = THIS_MODULE,
+		   .of_match_table = of_match_ptr(sec_dt_match),
 	},
 	.probe = sec_pmic_probe,
 	.remove = sec_pmic_remove,

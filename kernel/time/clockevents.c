@@ -339,6 +339,7 @@ void clockevents_config_and_register(struct clock_event_device *dev,
 	clockevents_config(dev, freq);
 	clockevents_register_device(dev);
 }
+EXPORT_SYMBOL_GPL(clockevents_config_and_register);
 
 /**
  * clockevents_update_freq - Update frequency and reprogram a clock event device.

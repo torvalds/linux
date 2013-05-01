@@ -259,7 +259,7 @@ static ssize_t set_limit(struct device *dev, struct device_attribute *attr,
 
 	val /= 1000;
 
-	val = SENSORS_LIMIT(val, 0, (index == 6 ? 127 : 255));
+	val = clamp_val(val, 0, (index == 6 ? 127 : 255));
 
 	mutex_lock(&data->update_lock);
 
@@ -284,7 +284,7 @@ static ssize_t set_crit_hyst(struct device *dev, struct device_attribute *attr,
 
 	val /= 1000;
 
-	val = SENSORS_LIMIT(val, 0, 31);
+	val = clamp_val(val, 0, 31);
 
 	mutex_lock(&data->update_lock);
 

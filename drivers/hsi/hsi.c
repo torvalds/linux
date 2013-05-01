@@ -420,7 +420,7 @@ static int hsi_event_notifier_call(struct notifier_block *nb,
 /**
  * hsi_register_port_event - Register a client to receive port events
  * @cl: HSI client that wants to receive port events
- * @cb: Event handler callback
+ * @handler: Event handler callback
  *
  * Clients should register a callback to be able to receive
  * events from the ports. Registration should happen after

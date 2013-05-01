@@ -18,11 +18,11 @@
 #include <linux/fsl_devices.h>
 #include <linux/of_platform.h>
 
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/cpm2.h>
 #include <asm/udbg.h>
 #include <asm/machdep.h>
-#include <asm/time.h>
+#include <linux/time.h>
 #include <asm/mpc8260.h>
 #include <asm/prom.h>
 
@@ -36,7 +36,7 @@ static void __init km82xx_pic_init(void)
 	struct device_node *np = of_find_compatible_node(NULL, NULL,
 							"fsl,pq2-pic");
 	if (!np) {
-		printk(KERN_ERR "PIC init: can not find cpm-pic node\n");
+		pr_err("PIC init: can not find cpm-pic node\n");
 		return;
 	}
 

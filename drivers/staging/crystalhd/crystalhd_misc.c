@@ -960,7 +960,7 @@ void crystalhd_destroy_dio_pool(struct crystalhd_adp *adp)
  * Create general purpose list element pool to hold pending,
  * and active requests.
  */
-int __devinit crystalhd_create_elem_pool(struct crystalhd_adp *adp,
+int crystalhd_create_elem_pool(struct crystalhd_adp *adp,
 		uint32_t pool_size)
 {
 	uint32_t i;

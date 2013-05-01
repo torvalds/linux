@@ -14,7 +14,7 @@ struct nouveau_parent {
 	struct nouveau_object base;
 
 	struct nouveau_sclass *sclass;
-	u32 engine;
+	u64 engine;
 
 	int  (*context_attach)(struct nouveau_object *,
 			       struct nouveau_object *);

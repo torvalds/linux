@@ -125,8 +125,7 @@ int idset_is_empty(struct idset *set)
 
 void idset_add_set(struct idset *to, struct idset *from)
 {
-	int len = min(__BITOPS_WORDS(to->num_ssid * to->num_id),
-		      __BITOPS_WORDS(from->num_ssid * from->num_id));
+	int len = min(to->num_ssid * to->num_id, from->num_ssid * from->num_id);
 
 	bitmap_or(to->bitmap, to->bitmap, from->bitmap, len);
 }

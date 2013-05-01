@@ -79,18 +79,15 @@ cpu3_startup:
 	 nop
 
 	/* Start this processor. */
-	call	smp4m_callin
+	call	smp_callin
 	 nop
 
-	b,a	smp_do_cpu_idle
+	b,a	smp_panic
 
 	.text
 	.align	4
 
-smp_do_cpu_idle:
-	call	cpu_idle
-	 mov	0, %o0
-
+smp_panic:
 	call	cpu_panic
 	 nop
 
@@ -144,10 +141,10 @@ sun4d_cpu_startup:
 	 nop
 
 	/* Start this processor. */
-	call	smp4d_callin
+	call	smp_callin
 	 nop
 
-	b,a	smp_do_cpu_idle
+	b,a	smp_panic
 
 	__CPUINIT
 	.align	4
@@ -201,7 +198,7 @@ leon_smp_cpu_startup:
 	 nop
 
 	/* Start this processor. */
-	call	leon_callin
+	call	smp_callin
 	 nop
 
-	b,a	smp_do_cpu_idle
+	b,a	smp_panic

@@ -21,6 +21,7 @@
 #include <asm/cputhreads.h>
 #include <asm/page.h>
 #include <asm/hvcall.h>
+#include <asm/firmware.h>
 
 
 #define MODULE_VERS "1.0"
@@ -31,40 +32,6 @@
 static int sysfs_entries;
 
 /* Helper routines */
-
-/*
- * Routine to detect firmware support for hcall
- * return 1 if H_BEST_ENERGY is supported
- * else return 0
- */
-
-static int check_for_h_best_energy(void)
-{
-	struct device_node *rtas = NULL;
-	const char *hypertas, *s;
-	int length;
-	int rc = 0;
-
-	rtas = of_find_node_by_path("/rtas");
-	if (!rtas)
-		return 0;
-
-	hypertas = of_get_property(rtas, "ibm,hypertas-functions", &length);
-	if (!hypertas) {
-		of_node_put(rtas);
-		return 0;
-	}
-
-	/* hypertas will have list of strings with hcall names */
-	for (s = hypertas; s < hypertas + length; s += strlen(s) + 1) {
-		if (!strncmp("hcall-best-energy-1", s, 19)) {
-			rc = 1; /* Found the string */
-			break;
-		}
-	}
-	of_node_put(rtas);
-	return rc;
-}
 
 /* Helper Routines to convert between drc_index to cpu numbers */
 
@@ -262,7 +229,7 @@ static int __init pseries_energy_init(void)
 	int cpu, err;
 	struct device *cpu_dev;
 
-	if (!check_for_h_best_energy()) {
+	if (!firmware_has_feature(FW_FEATURE_BEST_ENERGY)) {
 		printk(KERN_INFO "Hypercall H_BEST_ENERGY not supported\n");
 		return 0;
 	}

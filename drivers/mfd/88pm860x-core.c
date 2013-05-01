@@ -28,111 +28,111 @@
 
 #define INT_STATUS_NUM			3
 
-static struct resource bk0_resources[] __devinitdata = {
+static struct resource bk0_resources[] = {
 	{2, 2, "duty cycle", IORESOURCE_REG, },
 	{3, 3, "always on",  IORESOURCE_REG, },
 	{3, 3, "current",    IORESOURCE_REG, },
 };
-static struct resource bk1_resources[] __devinitdata = {
+static struct resource bk1_resources[] = {
 	{4, 4, "duty cycle", IORESOURCE_REG, },
 	{5, 5, "always on",  IORESOURCE_REG, },
 	{5, 5, "current",    IORESOURCE_REG, },
 };
-static struct resource bk2_resources[] __devinitdata = {
+static struct resource bk2_resources[] = {
 	{6, 6, "duty cycle", IORESOURCE_REG, },
 	{7, 7, "always on",  IORESOURCE_REG, },
 	{5, 5, "current",    IORESOURCE_REG, },
 };
 
-static struct resource led0_resources[] __devinitdata = {
+static struct resource led0_resources[] = {
 	/* RGB1 Red LED */
 	{0xd, 0xd, "control", IORESOURCE_REG, },
 	{0xc, 0xc, "blink",   IORESOURCE_REG, },
 };
-static struct resource led1_resources[] __devinitdata = {
+static struct resource led1_resources[] = {
 	/* RGB1 Green LED */
 	{0xe, 0xe, "control", IORESOURCE_REG, },
 	{0xc, 0xc, "blink",   IORESOURCE_REG, },
 };
-static struct resource led2_resources[] __devinitdata = {
+static struct resource led2_resources[] = {
 	/* RGB1 Blue LED */
 	{0xf, 0xf, "control", IORESOURCE_REG, },
 	{0xc, 0xc, "blink",   IORESOURCE_REG, },
 };
-static struct resource led3_resources[] __devinitdata = {
+static struct resource led3_resources[] = {
 	/* RGB2 Red LED */
 	{0x9, 0x9, "control", IORESOURCE_REG, },
 	{0x8, 0x8, "blink",   IORESOURCE_REG, },
 };
-static struct resource led4_resources[] __devinitdata = {
+static struct resource led4_resources[] = {
 	/* RGB2 Green LED */
 	{0xa, 0xa, "control", IORESOURCE_REG, },
 	{0x8, 0x8, "blink",   IORESOURCE_REG, },
 };
-static struct resource led5_resources[] __devinitdata = {
+static struct resource led5_resources[] = {
 	/* RGB2 Blue LED */
 	{0xb, 0xb, "control", IORESOURCE_REG, },
 	{0x8, 0x8, "blink",   IORESOURCE_REG, },
 };
 
-static struct resource buck1_resources[] __devinitdata = {
+static struct resource buck1_resources[] = {
 	{0x24, 0x24, "buck set", IORESOURCE_REG, },
 };
-static struct resource buck2_resources[] __devinitdata = {
+static struct resource buck2_resources[] = {
 	{0x25, 0x25, "buck set", IORESOURCE_REG, },
 };
-static struct resource buck3_resources[] __devinitdata = {
+static struct resource buck3_resources[] = {
 	{0x26, 0x26, "buck set", IORESOURCE_REG, },
 };
-static struct resource ldo1_resources[] __devinitdata = {
+static struct resource ldo1_resources[] = {
 	{0x10, 0x10, "ldo set", IORESOURCE_REG, },
 };
-static struct resource ldo2_resources[] __devinitdata = {
+static struct resource ldo2_resources[] = {
 	{0x11, 0x11, "ldo set", IORESOURCE_REG, },
 };
-static struct resource ldo3_resources[] __devinitdata = {
+static struct resource ldo3_resources[] = {
 	{0x12, 0x12, "ldo set", IORESOURCE_REG, },
 };
-static struct resource ldo4_resources[] __devinitdata = {
+static struct resource ldo4_resources[] = {
 	{0x13, 0x13, "ldo set", IORESOURCE_REG, },
 };
-static struct resource ldo5_resources[] __devinitdata = {
+static struct resource ldo5_resources[] = {
 	{0x14, 0x14, "ldo set", IORESOURCE_REG, },
 };
-static struct resource ldo6_resources[] __devinitdata = {
+static struct resource ldo6_resources[] = {
 	{0x15, 0x15, "ldo set", IORESOURCE_REG, },
 };
-static struct resource ldo7_resources[] __devinitdata = {
+static struct resource ldo7_resources[] = {
 	{0x16, 0x16, "ldo set", IORESOURCE_REG, },
 };
-static struct resource ldo8_resources[] __devinitdata = {
+static struct resource ldo8_resources[] = {
 	{0x17, 0x17, "ldo set", IORESOURCE_REG, },
 };
-static struct resource ldo9_resources[] __devinitdata = {
+static struct resource ldo9_resources[] = {
 	{0x18, 0x18, "ldo set", IORESOURCE_REG, },
 };
-static struct resource ldo10_resources[] __devinitdata = {
+static struct resource ldo10_resources[] = {
 	{0x19, 0x19, "ldo set", IORESOURCE_REG, },
 };
-static struct resource ldo12_resources[] __devinitdata = {
+static struct resource ldo12_resources[] = {
 	{0x1a, 0x1a, "ldo set", IORESOURCE_REG, },
 };
-static struct resource ldo_vibrator_resources[] __devinitdata = {
+static struct resource ldo_vibrator_resources[] = {
 	{0x28, 0x28, "ldo set", IORESOURCE_REG, },
 };
-static struct resource ldo14_resources[] __devinitdata = {
+static struct resource ldo14_resources[] = {
 	{0x1b, 0x1b, "ldo set", IORESOURCE_REG, },
 };
 
-static struct resource touch_resources[] __devinitdata = {
+static struct resource touch_resources[] = {
 	{PM8607_IRQ_PEN, PM8607_IRQ_PEN, "touch", IORESOURCE_IRQ,},
 };
 
-static struct resource onkey_resources[] __devinitdata = {
+static struct resource onkey_resources[] = {
 	{PM8607_IRQ_ONKEY, PM8607_IRQ_ONKEY, "onkey", IORESOURCE_IRQ,},
 };
 
-static struct resource codec_resources[] __devinitdata = {
+static struct resource codec_resources[] = {
 	/* Headset microphone insertion or removal */
 	{PM8607_IRQ_MICIN,   PM8607_IRQ_MICIN,   "micin",   IORESOURCE_IRQ,},
 	/* Hook-switch press or release */
@@ -143,12 +143,12 @@ static struct resource codec_resources[] __devinitdata = {
 	{PM8607_IRQ_AUDIO_SHORT, PM8607_IRQ_AUDIO_SHORT, "audio-short", IORESOURCE_IRQ,},
 };
 
-static struct resource battery_resources[] __devinitdata = {
+static struct resource battery_resources[] = {
 	{PM8607_IRQ_CC,  PM8607_IRQ_CC,  "columb counter", IORESOURCE_IRQ,},
 	{PM8607_IRQ_BAT, PM8607_IRQ_BAT, "battery",        IORESOURCE_IRQ,},
 };
 
-static struct resource charger_resources[] __devinitdata = {
+static struct resource charger_resources[] = {
 	{PM8607_IRQ_CHG,  PM8607_IRQ_CHG,  "charger detect",  IORESOURCE_IRQ,},
 	{PM8607_IRQ_CHG_DONE,  PM8607_IRQ_CHG_DONE,  "charging done",       IORESOURCE_IRQ,},
 	{PM8607_IRQ_CHG_FAIL,  PM8607_IRQ_CHG_FAIL,  "charging timeout",    IORESOURCE_IRQ,},
@@ -158,11 +158,11 @@ static struct resource charger_resources[] __devinitdata = {
 	{PM8607_IRQ_VCHG, PM8607_IRQ_VCHG, "vchg voltage",    IORESOURCE_IRQ,},
 };
 
-static struct resource rtc_resources[] __devinitdata = {
+static struct resource rtc_resources[] = {
 	{PM8607_IRQ_RTC, PM8607_IRQ_RTC, "rtc", IORESOURCE_IRQ,},
 };
 
-static struct mfd_cell bk_devs[] __devinitdata = {
+static struct mfd_cell bk_devs[] = {
 	{
 		.name = "88pm860x-backlight",
 		.id = 0,
@@ -181,7 +181,7 @@ static struct mfd_cell bk_devs[] __devinitdata = {
 	},
 };
 
-static struct mfd_cell led_devs[] __devinitdata = {
+static struct mfd_cell led_devs[] = {
 	{
 		.name = "88pm860x-led",
 		.id = 0,
@@ -215,7 +215,7 @@ static struct mfd_cell led_devs[] __devinitdata = {
 	},
 };
 
-static struct mfd_cell reg_devs[] __devinitdata = {
+static struct mfd_cell reg_devs[] = {
 	{
 		.name = "88pm860x-regulator",
 		.id = 0,
@@ -565,7 +565,7 @@ static struct irq_domain_ops pm860x_irq_domain_ops = {
 	.xlate	= irq_domain_xlate_onetwocell,
 };
 
-static int __devinit device_irq_init(struct pm860x_chip *chip,
+static int device_irq_init(struct pm860x_chip *chip,
 				     struct pm860x_platform_data *pdata)
 {
 	struct i2c_client *i2c = (chip->id == CHIP_PM8607) ? chip->client \
@@ -730,7 +730,7 @@ out:
 }
 EXPORT_SYMBOL(pm8606_osc_disable);
 
-static void __devinit device_osc_init(struct i2c_client *i2c)
+static void device_osc_init(struct i2c_client *i2c)
 {
 	struct pm860x_chip *chip = i2c_get_clientdata(i2c);
 
@@ -745,7 +745,7 @@ static void __devinit device_osc_init(struct i2c_client *i2c)
 	chip->osc_status = PM8606_REF_GP_OSC_OFF;
 }
 
-static void __devinit device_bk_init(struct pm860x_chip *chip,
+static void device_bk_init(struct pm860x_chip *chip,
 				     struct pm860x_platform_data *pdata)
 {
 	int ret, i;
@@ -765,7 +765,7 @@ static void __devinit device_bk_init(struct pm860x_chip *chip,
 		dev_err(chip->dev, "Failed to add backlight subdev\n");
 }
 
-static void __devinit device_led_init(struct pm860x_chip *chip,
+static void device_led_init(struct pm860x_chip *chip,
 				      struct pm860x_platform_data *pdata)
 {
 	int ret, i;
@@ -787,7 +787,7 @@ static void __devinit device_led_init(struct pm860x_chip *chip,
 	}
 }
 
-static void __devinit device_regulator_init(struct pm860x_chip *chip,
+static void device_regulator_init(struct pm860x_chip *chip,
 					    struct pm860x_platform_data *pdata)
 {
 	int ret;
@@ -866,7 +866,7 @@ static void __devinit device_regulator_init(struct pm860x_chip *chip,
 	}
 }
 
-static void __devinit device_rtc_init(struct pm860x_chip *chip,
+static void device_rtc_init(struct pm860x_chip *chip,
 				      struct pm860x_platform_data *pdata)
 {
 	int ret;
@@ -885,7 +885,7 @@ static void __devinit device_rtc_init(struct pm860x_chip *chip,
 		dev_err(chip->dev, "Failed to add rtc subdev\n");
 }
 
-static void __devinit device_touch_init(struct pm860x_chip *chip,
+static void device_touch_init(struct pm860x_chip *chip,
 					struct pm860x_platform_data *pdata)
 {
 	int ret;
@@ -904,7 +904,7 @@ static void __devinit device_touch_init(struct pm860x_chip *chip,
 		dev_err(chip->dev, "Failed to add touch subdev\n");
 }
 
-static void __devinit device_power_init(struct pm860x_chip *chip,
+static void device_power_init(struct pm860x_chip *chip,
 					struct pm860x_platform_data *pdata)
 {
 	int ret;
@@ -951,7 +951,7 @@ static void __devinit device_power_init(struct pm860x_chip *chip,
 	}
 }
 
-static void __devinit device_onkey_init(struct pm860x_chip *chip,
+static void device_onkey_init(struct pm860x_chip *chip,
 					struct pm860x_platform_data *pdata)
 {
 	int ret;
@@ -965,7 +965,7 @@ static void __devinit device_onkey_init(struct pm860x_chip *chip,
 		dev_err(chip->dev, "Failed to add onkey subdev\n");
 }
 
-static void __devinit device_codec_init(struct pm860x_chip *chip,
+static void device_codec_init(struct pm860x_chip *chip,
 					struct pm860x_platform_data *pdata)
 {
 	int ret;
@@ -979,7 +979,7 @@ static void __devinit device_codec_init(struct pm860x_chip *chip,
 		dev_err(chip->dev, "Failed to add codec subdev\n");
 }
 
-static void __devinit device_8607_init(struct pm860x_chip *chip,
+static void device_8607_init(struct pm860x_chip *chip,
 				       struct i2c_client *i2c,
 				       struct pm860x_platform_data *pdata)
 {
@@ -1040,7 +1040,7 @@ out:
 	return;
 }
 
-static void __devinit device_8606_init(struct pm860x_chip *chip,
+static void device_8606_init(struct pm860x_chip *chip,
 				       struct i2c_client *i2c,
 				       struct pm860x_platform_data *pdata)
 {
@@ -1049,7 +1049,7 @@ static void __devinit device_8606_init(struct pm860x_chip *chip,
 	device_led_init(chip, pdata);
 }
 
-static int __devinit pm860x_device_init(struct pm860x_chip *chip,
+static int pm860x_device_init(struct pm860x_chip *chip,
 					struct pm860x_platform_data *pdata)
 {
 	chip->core_irq = 0;
@@ -1077,7 +1077,7 @@ static int __devinit pm860x_device_init(struct pm860x_chip *chip,
 	return 0;
 }
 
-static void __devexit pm860x_device_exit(struct pm860x_chip *chip)
+static void pm860x_device_exit(struct pm860x_chip *chip)
 {
 	device_irq_exit(chip);
 	mfd_remove_devices(chip->dev);
@@ -1109,7 +1109,7 @@ static struct regmap_config pm860x_regmap_config = {
 	.val_bits = 8,
 };
 
-static int __devinit pm860x_dt_init(struct device_node *np,
+static int pm860x_dt_init(struct device_node *np,
 				    struct device *dev,
 				    struct pm860x_platform_data *pdata)
 {
@@ -1127,7 +1127,7 @@ static int __devinit pm860x_dt_init(struct device_node *np,
 	return 0;
 }
 
-static int __devinit pm860x_probe(struct i2c_client *client,
+static int pm860x_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
 	struct pm860x_platform_data *pdata = client->dev.platform_data;
@@ -1200,7 +1200,7 @@ err:
 	return ret;
 }
 
-static int __devexit pm860x_remove(struct i2c_client *client)
+static int pm860x_remove(struct i2c_client *client)
 {
 	struct pm860x_chip *chip = i2c_get_clientdata(client);
 
@@ -1258,7 +1258,7 @@ static struct i2c_driver pm860x_driver = {
 		.of_match_table	= of_match_ptr(pm860x_dt_ids),
 	},
 	.probe		= pm860x_probe,
-	.remove		= __devexit_p(pm860x_remove),
+	.remove		= pm860x_remove,
 	.id_table	= pm860x_id_table,
 };
 

@@ -68,6 +68,10 @@ unsigned int fnic_log_level;
 module_param(fnic_log_level, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(fnic_log_level, "bit mask of fnic logging levels");
 
+unsigned int fnic_trace_max_pages = 16;
+module_param(fnic_trace_max_pages, uint, S_IRUGO|S_IWUSR);
+MODULE_PARM_DESC(fnic_trace_max_pages, "Total allocated memory pages "
+					"for fnic trace buffer");
 
 static struct libfc_function_template fnic_transport_template = {
 	.frame_send = fnic_send,
@@ -399,8 +403,7 @@ static u8 *fnic_get_mac(struct fc_lport *lport)
 	return fnic->data_src_addr;
 }
 
-static int __devinit fnic_probe(struct pci_dev *pdev,
-				const struct pci_device_id *ent)
+static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct Scsi_Host *host;
 	struct fc_lport *lp;
@@ -625,6 +628,9 @@ static int __devinit fnic_probe(struct pci_dev *pdev,
 	}
 	fnic->state = FNIC_IN_FC_MODE;
 
+	atomic_set(&fnic->in_flight, 0);
+	fnic->state_flags = FNIC_FLAGS_NONE;
+
 	/* Enable hardware stripping of vlan header on ingress */
 	fnic_set_nic_config(fnic, 0, 0, 0, 0, 0, 0, 1);
 
@@ -774,7 +780,7 @@ err_out:
 	return err;
 }
 
-static void __devexit fnic_remove(struct pci_dev *pdev)
+static void fnic_remove(struct pci_dev *pdev)
 {
 	struct fnic *fnic = pci_get_drvdata(pdev);
 	struct fc_lport *lp = fnic->lport;
@@ -849,7 +855,7 @@ static struct pci_driver fnic_driver = {
 	.name = DRV_NAME,
 	.id_table = fnic_id_table,
 	.probe = fnic_probe,
-	.remove = __devexit_p(fnic_remove),
+	.remove = fnic_remove,
 };
 
 static int __init fnic_init_module(void)
@@ -858,6 +864,14 @@ static int __init fnic_init_module(void)
 	int err = 0;
 
 	printk(KERN_INFO PFX "%s, ver %s\n", DRV_DESCRIPTION, DRV_VERSION);
+
+	/* Allocate memory for trace buffer */
+	err = fnic_trace_buf_init();
+	if (err < 0) {
+		printk(KERN_ERR PFX "Trace buffer initialization Failed "
+				  "Fnic Tracing utility is disabled\n");
+		fnic_trace_free();
+	}
 
 	/* Create a cache for allocation of default size sgls */
 	len = sizeof(struct fnic_dflt_sgl_list);
@@ -929,6 +943,7 @@ err_create_fnic_ioreq_slab:
 err_create_fnic_sgl_slab_max:
 	kmem_cache_destroy(fnic_sgl_cache[FNIC_SGL_CACHE_DFLT]);
 err_create_fnic_sgl_slab_dflt:
+	fnic_trace_free();
 	return err;
 }
 
@@ -940,6 +955,7 @@ static void __exit fnic_cleanup_module(void)
 	kmem_cache_destroy(fnic_sgl_cache[FNIC_SGL_CACHE_DFLT]);
 	kmem_cache_destroy(fnic_io_req_cache);
 	fc_release_transport(fnic_fc_transport);
+	fnic_trace_free();
 }
 
 module_init(fnic_init_module);

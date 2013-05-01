@@ -4,7 +4,7 @@
  * Generic driver for SMIA/SMIA++ compliant camera modules
  *
  * Copyright (C) 2011--2012 Nokia Corporation
- * Contact: Sakari Ailus <sakari.ailus@maxwell.research.nokia.com>
+ * Contact: Sakari Ailus <sakari.ailus@iki.fi>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -58,7 +58,7 @@ static int bounds_check(struct device *dev, uint32_t val,
 	if (val >= min && val <= max)
 		return 0;
 
-	dev_warn(dev, "%s out of bounds: %d (%d--%d)\n", str, val, min, max);
+	dev_dbg(dev, "%s out of bounds: %d (%d--%d)\n", str, val, min, max);
 
 	return -EINVAL;
 }
@@ -87,68 +87,20 @@ static void print_pll(struct device *dev, struct smiapp_pll *pll)
 	dev_dbg(dev, "vt_pix_clk_freq_hz \t%d\n", pll->vt_pix_clk_freq_hz);
 }
 
-int smiapp_pll_calculate(struct device *dev, struct smiapp_pll_limits *limits,
-			 struct smiapp_pll *pll)
+static int __smiapp_pll_calculate(struct device *dev,
+				  const struct smiapp_pll_limits *limits,
+				  struct smiapp_pll *pll, uint32_t mul,
+				  uint32_t div, uint32_t lane_op_clock_ratio)
 {
 	uint32_t sys_div;
 	uint32_t best_pix_div = INT_MAX >> 1;
 	uint32_t vt_op_binning_div;
-	uint32_t lane_op_clock_ratio;
-	uint32_t mul, div;
 	uint32_t more_mul_min, more_mul_max;
 	uint32_t more_mul_factor;
 	uint32_t min_vt_div, max_vt_div, vt_div;
 	uint32_t min_sys_div, max_sys_div;
 	unsigned int i;
 	int rval;
-
-	if (pll->flags & SMIAPP_PLL_FLAG_OP_PIX_CLOCK_PER_LANE)
-		lane_op_clock_ratio = pll->lanes;
-	else
-		lane_op_clock_ratio = 1;
-	dev_dbg(dev, "lane_op_clock_ratio: %d\n", lane_op_clock_ratio);
-
-	dev_dbg(dev, "binning: %dx%d\n", pll->binning_horizontal,
-		pll->binning_vertical);
-
-	/* CSI transfers 2 bits per clock per lane; thus times 2 */
-	pll->pll_op_clk_freq_hz = pll->link_freq * 2
-		* (pll->lanes / lane_op_clock_ratio);
-
-	/* Figure out limits for pre-pll divider based on extclk */
-	dev_dbg(dev, "min / max pre_pll_clk_div: %d / %d\n",
-		limits->min_pre_pll_clk_div, limits->max_pre_pll_clk_div);
-	limits->max_pre_pll_clk_div =
-		min_t(uint16_t, limits->max_pre_pll_clk_div,
-		      clk_div_even(pll->ext_clk_freq_hz /
-				   limits->min_pll_ip_freq_hz));
-	limits->min_pre_pll_clk_div =
-		max_t(uint16_t, limits->min_pre_pll_clk_div,
-		      clk_div_even_up(
-			      DIV_ROUND_UP(pll->ext_clk_freq_hz,
-					   limits->max_pll_ip_freq_hz)));
-	dev_dbg(dev, "pre-pll check: min / max pre_pll_clk_div: %d / %d\n",
-		limits->min_pre_pll_clk_div, limits->max_pre_pll_clk_div);
-
-	i = gcd(pll->pll_op_clk_freq_hz, pll->ext_clk_freq_hz);
-	mul = div_u64(pll->pll_op_clk_freq_hz, i);
-	div = pll->ext_clk_freq_hz / i;
-	dev_dbg(dev, "mul %d / div %d\n", mul, div);
-
-	limits->min_pre_pll_clk_div =
-		max_t(uint16_t, limits->min_pre_pll_clk_div,
-		      clk_div_even_up(
-			      DIV_ROUND_UP(mul * pll->ext_clk_freq_hz,
-					   limits->max_pll_op_freq_hz)));
-	dev_dbg(dev, "pll_op check: min / max pre_pll_clk_div: %d / %d\n",
-		limits->min_pre_pll_clk_div, limits->max_pre_pll_clk_div);
-
-	if (limits->min_pre_pll_clk_div > limits->max_pre_pll_clk_div) {
-		dev_err(dev, "unable to compute pre_pll divisor\n");
-		return -EINVAL;
-	}
-
-	pll->pre_pll_clk_div = limits->min_pre_pll_clk_div;
 
 	/*
 	 * Get pre_pll_clk_div so that our pll_op_clk_freq_hz won't be
@@ -162,7 +114,7 @@ int smiapp_pll_calculate(struct device *dev, struct smiapp_pll_limits *limits,
 		more_mul_max);
 	/* Don't go above max pll op frequency. */
 	more_mul_max =
-		min_t(int,
+		min_t(uint32_t,
 		      more_mul_max,
 		      limits->max_pll_op_freq_hz
 		      / (pll->ext_clk_freq_hz / pll->pre_pll_clk_div * mul));
@@ -170,7 +122,7 @@ int smiapp_pll_calculate(struct device *dev, struct smiapp_pll_limits *limits,
 		more_mul_max);
 	/* Don't go above the division capability of op sys clock divider. */
 	more_mul_max = min(more_mul_max,
-			   limits->max_op_sys_clk_div * pll->pre_pll_clk_div
+			   limits->op.max_sys_clk_div * pll->pre_pll_clk_div
 			   / div);
 	dev_dbg(dev, "more_mul_max: max_op_sys_clk_div check: %d\n",
 		more_mul_max);
@@ -193,14 +145,14 @@ int smiapp_pll_calculate(struct device *dev, struct smiapp_pll_limits *limits,
 		more_mul_min);
 
 	if (more_mul_min > more_mul_max) {
-		dev_warn(dev,
-			 "unable to compute more_mul_min and more_mul_max");
+		dev_dbg(dev,
+			"unable to compute more_mul_min and more_mul_max\n");
 		return -EINVAL;
 	}
 
 	more_mul_factor = lcm(div, pll->pre_pll_clk_div) / div;
 	dev_dbg(dev, "more_mul_factor: %d\n", more_mul_factor);
-	more_mul_factor = lcm(more_mul_factor, limits->min_op_sys_clk_div);
+	more_mul_factor = lcm(more_mul_factor, limits->op.min_sys_clk_div);
 	dev_dbg(dev, "more_mul_factor: min_op_sys_clk_div: %d\n",
 		more_mul_factor);
 	i = roundup(more_mul_min, more_mul_factor);
@@ -209,7 +161,7 @@ int smiapp_pll_calculate(struct device *dev, struct smiapp_pll_limits *limits,
 
 	dev_dbg(dev, "final more_mul: %d\n", i);
 	if (i > more_mul_max) {
-		dev_warn(dev, "final more_mul is bad, max %d", more_mul_max);
+		dev_dbg(dev, "final more_mul is bad, max %d\n", more_mul_max);
 		return -EINVAL;
 	}
 
@@ -268,19 +220,19 @@ int smiapp_pll_calculate(struct device *dev, struct smiapp_pll_limits *limits,
 	dev_dbg(dev, "min_vt_div: %d\n", min_vt_div);
 	min_vt_div = max(min_vt_div,
 			 DIV_ROUND_UP(pll->pll_op_clk_freq_hz,
-				      limits->max_vt_pix_clk_freq_hz));
+				      limits->vt.max_pix_clk_freq_hz));
 	dev_dbg(dev, "min_vt_div: max_vt_pix_clk_freq_hz: %d\n",
 		min_vt_div);
 	min_vt_div = max_t(uint32_t, min_vt_div,
-			   limits->min_vt_pix_clk_div
-			   * limits->min_vt_sys_clk_div);
+			   limits->vt.min_pix_clk_div
+			   * limits->vt.min_sys_clk_div);
 	dev_dbg(dev, "min_vt_div: min_vt_clk_div: %d\n", min_vt_div);
 
-	max_vt_div = limits->max_vt_sys_clk_div * limits->max_vt_pix_clk_div;
+	max_vt_div = limits->vt.max_sys_clk_div * limits->vt.max_pix_clk_div;
 	dev_dbg(dev, "max_vt_div: %d\n", max_vt_div);
 	max_vt_div = min(max_vt_div,
 			 DIV_ROUND_UP(pll->pll_op_clk_freq_hz,
-				      limits->min_vt_pix_clk_freq_hz));
+				      limits->vt.min_pix_clk_freq_hz));
 	dev_dbg(dev, "max_vt_div: min_vt_pix_clk_freq_hz: %d\n",
 		max_vt_div);
 
@@ -288,28 +240,28 @@ int smiapp_pll_calculate(struct device *dev, struct smiapp_pll_limits *limits,
 	 * Find limitsits for sys_clk_div. Not all values are possible
 	 * with all values of pix_clk_div.
 	 */
-	min_sys_div = limits->min_vt_sys_clk_div;
+	min_sys_div = limits->vt.min_sys_clk_div;
 	dev_dbg(dev, "min_sys_div: %d\n", min_sys_div);
 	min_sys_div = max(min_sys_div,
 			  DIV_ROUND_UP(min_vt_div,
-				       limits->max_vt_pix_clk_div));
+				       limits->vt.max_pix_clk_div));
 	dev_dbg(dev, "min_sys_div: max_vt_pix_clk_div: %d\n", min_sys_div);
 	min_sys_div = max(min_sys_div,
 			  pll->pll_op_clk_freq_hz
-			  / limits->max_vt_sys_clk_freq_hz);
+			  / limits->vt.max_sys_clk_freq_hz);
 	dev_dbg(dev, "min_sys_div: max_pll_op_clk_freq_hz: %d\n", min_sys_div);
 	min_sys_div = clk_div_even_up(min_sys_div);
 	dev_dbg(dev, "min_sys_div: one or even: %d\n", min_sys_div);
 
-	max_sys_div = limits->max_vt_sys_clk_div;
+	max_sys_div = limits->vt.max_sys_clk_div;
 	dev_dbg(dev, "max_sys_div: %d\n", max_sys_div);
 	max_sys_div = min(max_sys_div,
 			  DIV_ROUND_UP(max_vt_div,
-				       limits->min_vt_pix_clk_div));
+				       limits->vt.min_pix_clk_div));
 	dev_dbg(dev, "max_sys_div: min_vt_pix_clk_div: %d\n", max_sys_div);
 	max_sys_div = min(max_sys_div,
 			  DIV_ROUND_UP(pll->pll_op_clk_freq_hz,
-				       limits->min_vt_pix_clk_freq_hz));
+				       limits->vt.min_pix_clk_freq_hz));
 	dev_dbg(dev, "max_sys_div: min_vt_pix_clk_freq_hz: %d\n", max_sys_div);
 
 	/*
@@ -322,15 +274,15 @@ int smiapp_pll_calculate(struct device *dev, struct smiapp_pll_limits *limits,
 		for (sys_div = min_sys_div;
 		     sys_div <= max_sys_div;
 		     sys_div += 2 - (sys_div & 1)) {
-			int pix_div = DIV_ROUND_UP(vt_div, sys_div);
+			uint16_t pix_div = DIV_ROUND_UP(vt_div, sys_div);
 
-			if (pix_div < limits->min_vt_pix_clk_div
-			    || pix_div > limits->max_vt_pix_clk_div) {
+			if (pix_div < limits->vt.min_pix_clk_div
+			    || pix_div > limits->vt.max_pix_clk_div) {
 				dev_dbg(dev,
 					"pix_div %d too small or too big (%d--%d)\n",
 					pix_div,
-					limits->min_vt_pix_clk_div,
-					limits->max_vt_pix_clk_div);
+					limits->vt.min_pix_clk_div,
+					limits->vt.max_pix_clk_div);
 				continue;
 			}
 
@@ -354,16 +306,10 @@ int smiapp_pll_calculate(struct device *dev, struct smiapp_pll_limits *limits,
 	pll->pixel_rate_csi =
 		pll->op_pix_clk_freq_hz * lane_op_clock_ratio;
 
-	print_pll(dev, pll);
-
-	rval = bounds_check(dev, pll->pre_pll_clk_div,
-			    limits->min_pre_pll_clk_div,
-			    limits->max_pre_pll_clk_div, "pre_pll_clk_div");
-	if (!rval)
-		rval = bounds_check(
-			dev, pll->pll_ip_clk_freq_hz,
-			limits->min_pll_ip_freq_hz, limits->max_pll_ip_freq_hz,
-			"pll_ip_clk_freq_hz");
+	rval = bounds_check(dev, pll->pll_ip_clk_freq_hz,
+			    limits->min_pll_ip_freq_hz,
+			    limits->max_pll_ip_freq_hz,
+			    "pll_ip_clk_freq_hz");
 	if (!rval)
 		rval = bounds_check(
 			dev, pll->pll_multiplier,
@@ -377,42 +323,121 @@ int smiapp_pll_calculate(struct device *dev, struct smiapp_pll_limits *limits,
 	if (!rval)
 		rval = bounds_check(
 			dev, pll->op_sys_clk_div,
-			limits->min_op_sys_clk_div, limits->max_op_sys_clk_div,
+			limits->op.min_sys_clk_div, limits->op.max_sys_clk_div,
 			"op_sys_clk_div");
 	if (!rval)
 		rval = bounds_check(
 			dev, pll->op_pix_clk_div,
-			limits->min_op_pix_clk_div, limits->max_op_pix_clk_div,
+			limits->op.min_pix_clk_div, limits->op.max_pix_clk_div,
 			"op_pix_clk_div");
 	if (!rval)
 		rval = bounds_check(
 			dev, pll->op_sys_clk_freq_hz,
-			limits->min_op_sys_clk_freq_hz,
-			limits->max_op_sys_clk_freq_hz,
+			limits->op.min_sys_clk_freq_hz,
+			limits->op.max_sys_clk_freq_hz,
 			"op_sys_clk_freq_hz");
 	if (!rval)
 		rval = bounds_check(
 			dev, pll->op_pix_clk_freq_hz,
-			limits->min_op_pix_clk_freq_hz,
-			limits->max_op_pix_clk_freq_hz,
+			limits->op.min_pix_clk_freq_hz,
+			limits->op.max_pix_clk_freq_hz,
 			"op_pix_clk_freq_hz");
 	if (!rval)
 		rval = bounds_check(
 			dev, pll->vt_sys_clk_freq_hz,
-			limits->min_vt_sys_clk_freq_hz,
-			limits->max_vt_sys_clk_freq_hz,
+			limits->vt.min_sys_clk_freq_hz,
+			limits->vt.max_sys_clk_freq_hz,
 			"vt_sys_clk_freq_hz");
 	if (!rval)
 		rval = bounds_check(
 			dev, pll->vt_pix_clk_freq_hz,
-			limits->min_vt_pix_clk_freq_hz,
-			limits->max_vt_pix_clk_freq_hz,
+			limits->vt.min_pix_clk_freq_hz,
+			limits->vt.max_pix_clk_freq_hz,
 			"vt_pix_clk_freq_hz");
 
 	return rval;
 }
+
+int smiapp_pll_calculate(struct device *dev,
+			 const struct smiapp_pll_limits *limits,
+			 struct smiapp_pll *pll)
+{
+	uint16_t min_pre_pll_clk_div;
+	uint16_t max_pre_pll_clk_div;
+	uint32_t lane_op_clock_ratio;
+	uint32_t mul, div;
+	unsigned int i;
+	int rval = -EINVAL;
+
+	if (pll->flags & SMIAPP_PLL_FLAG_OP_PIX_CLOCK_PER_LANE)
+		lane_op_clock_ratio = pll->csi2.lanes;
+	else
+		lane_op_clock_ratio = 1;
+	dev_dbg(dev, "lane_op_clock_ratio: %d\n", lane_op_clock_ratio);
+
+	dev_dbg(dev, "binning: %dx%d\n", pll->binning_horizontal,
+		pll->binning_vertical);
+
+	switch (pll->bus_type) {
+	case SMIAPP_PLL_BUS_TYPE_CSI2:
+		/* CSI transfers 2 bits per clock per lane; thus times 2 */
+		pll->pll_op_clk_freq_hz = pll->link_freq * 2
+			* (pll->csi2.lanes / lane_op_clock_ratio);
+		break;
+	case SMIAPP_PLL_BUS_TYPE_PARALLEL:
+		pll->pll_op_clk_freq_hz = pll->link_freq * pll->bits_per_pixel
+			/ DIV_ROUND_UP(pll->bits_per_pixel,
+				       pll->parallel.bus_width);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* Figure out limits for pre-pll divider based on extclk */
+	dev_dbg(dev, "min / max pre_pll_clk_div: %d / %d\n",
+		limits->min_pre_pll_clk_div, limits->max_pre_pll_clk_div);
+	max_pre_pll_clk_div =
+		min_t(uint16_t, limits->max_pre_pll_clk_div,
+		      clk_div_even(pll->ext_clk_freq_hz /
+				   limits->min_pll_ip_freq_hz));
+	min_pre_pll_clk_div =
+		max_t(uint16_t, limits->min_pre_pll_clk_div,
+		      clk_div_even_up(
+			      DIV_ROUND_UP(pll->ext_clk_freq_hz,
+					   limits->max_pll_ip_freq_hz)));
+	dev_dbg(dev, "pre-pll check: min / max pre_pll_clk_div: %d / %d\n",
+		min_pre_pll_clk_div, max_pre_pll_clk_div);
+
+	i = gcd(pll->pll_op_clk_freq_hz, pll->ext_clk_freq_hz);
+	mul = div_u64(pll->pll_op_clk_freq_hz, i);
+	div = pll->ext_clk_freq_hz / i;
+	dev_dbg(dev, "mul %d / div %d\n", mul, div);
+
+	min_pre_pll_clk_div =
+		max_t(uint16_t, min_pre_pll_clk_div,
+		      clk_div_even_up(
+			      DIV_ROUND_UP(mul * pll->ext_clk_freq_hz,
+					   limits->max_pll_op_freq_hz)));
+	dev_dbg(dev, "pll_op check: min / max pre_pll_clk_div: %d / %d\n",
+		min_pre_pll_clk_div, max_pre_pll_clk_div);
+
+	for (pll->pre_pll_clk_div = min_pre_pll_clk_div;
+	     pll->pre_pll_clk_div <= max_pre_pll_clk_div;
+	     pll->pre_pll_clk_div += 2 - (pll->pre_pll_clk_div & 1)) {
+		rval = __smiapp_pll_calculate(dev, limits, pll, mul, div,
+					      lane_op_clock_ratio);
+		if (rval)
+			continue;
+
+		print_pll(dev, pll);
+		return 0;
+	}
+
+	dev_info(dev, "unable to compute pre_pll divisor\n");
+	return rval;
+}
 EXPORT_SYMBOL_GPL(smiapp_pll_calculate);
 
-MODULE_AUTHOR("Sakari Ailus <sakari.ailus@maxwell.research.nokia.com>");
+MODULE_AUTHOR("Sakari Ailus <sakari.ailus@iki.fi>");
 MODULE_DESCRIPTION("Generic SMIA/SMIA++ PLL calculator");
 MODULE_LICENSE("GPL");

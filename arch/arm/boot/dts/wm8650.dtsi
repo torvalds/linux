@@ -75,6 +75,22 @@
 					reg = <0x204>;
 				};
 
+				clkuart0: uart0 {
+ 					#clock-cells = <0>;
+ 					compatible = "via,vt8500-device-clock";
+					clocks = <&ref24>;
+					enable-reg = <0x250>;
+					enable-bit = <1>;
+ 				};
+
+				clkuart1: uart1 {
+					#clock-cells = <0>;
+					compatible = "via,vt8500-device-clock";
+					clocks = <&ref24>;
+					enable-reg = <0x250>;
+					enable-bit = <2>;
+				};
+
 				arm: arm {
 					#clock-cells = <0>;
 					compatible = "via,vt8500-device-clock";
@@ -128,14 +144,14 @@
 			compatible = "via,vt8500-uart";
 			reg = <0xd8200000 0x1040>;
 			interrupts = <32>;
-			clocks = <&ref24>;
+			clocks = <&clkuart0>;
 		};
 
 		uart@d82b0000 {
 			compatible = "via,vt8500-uart";
 			reg = <0xd82b0000 0x1040>;
 			interrupts = <33>;
-			clocks = <&ref24>;
+			clocks = <&clkuart1>;
 		};
 
 		rtc@d8100000 {

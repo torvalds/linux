@@ -22,7 +22,7 @@ config I2C_ALI1535
 
 config I2C_ALI1563
 	tristate "ALI 1563"
-	depends on PCI && EXPERIMENTAL
+	depends on PCI
 	help
 	  If you say yes to this option, support will be included for the SMB
 	  Host controller on Acer Labs Inc. (ALI) M1563 South Bridges.  The SMB
@@ -56,7 +56,7 @@ config I2C_AMD756
 
 config I2C_AMD756_S4882
 	tristate "SMBus multiplexing on the Tyan S4882"
-	depends on I2C_AMD756 && X86 && EXPERIMENTAL
+	depends on I2C_AMD756 && X86
 	help
 	  Enabling this option will add specific SMBus support for the Tyan
 	  S4882 motherboard.  On this 4-CPU board, the SMBus is multiplexed
@@ -106,6 +106,8 @@ config I2C_I801
 	    Panther Point (PCH)
 	    Lynx Point (PCH)
 	    Lynx Point-LP (PCH)
+	    Avoton (SOC)
+	    Wellsburg (PCH)
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
@@ -120,6 +122,16 @@ config I2C_ISCH
 
 	  This driver can also be built as a module. If so, the module
 	  will be called i2c-isch.
+
+config I2C_ISMT
+	tristate "Intel iSMT SMBus Controller"
+	depends on PCI && X86
+	help
+	  If you say yes to this option, support will be included for the Intel
+	  iSMT SMBus host controller interface.
+
+	  This driver can also be built as a module.  If so, the module will be
+	  called i2c-ismt.
 
 config I2C_PIIX4
 	tristate "Intel PIIX4 and compatible (ATI/AMD/Serverworks/Broadcom/SMSC)"
@@ -164,7 +176,7 @@ config I2C_NFORCE2
 
 config I2C_NFORCE2_S4985
 	tristate "SMBus multiplexing on the Tyan S4985"
-	depends on I2C_NFORCE2 && X86 && EXPERIMENTAL
+	depends on I2C_NFORCE2 && X86
 	help
 	  Enabling this option will add specific SMBus support for the Tyan
 	  S4985 motherboard.  On this 4-CPU board, the SMBus is multiplexed
@@ -186,11 +198,11 @@ config I2C_SIS5595
 	  will be called i2c-sis5595.
 
 config I2C_SIS630
-	tristate "SiS 630/730"
+	tristate "SiS 630/730/964"
 	depends on PCI
 	help
 	  If you say yes to this option, support will be included for the
-	  SiS630 and SiS730 SMBus (a subset of I2C) interface.
+	  SiS630, SiS730 and SiS964 SMBus (a subset of I2C) interface.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-sis630.
@@ -215,7 +227,7 @@ config I2C_SIS96X
 
 config I2C_VIA
 	tristate "VIA VT82C586B"
-	depends on PCI && EXPERIMENTAL
+	depends on PCI
 	select I2C_ALGOBIT
 	help
 	  If you say yes to this option, support will be included for the VIA
@@ -267,7 +279,7 @@ comment "Mac SMBus host controller drivers"
 
 config I2C_HYDRA
 	tristate "CHRP Apple Hydra Mac I/O I2C interface"
-	depends on PCI && PPC_CHRP && EXPERIMENTAL
+	depends on PCI && PPC_CHRP
 	select I2C_ALGOBIT
 	help
 	  This supports the use of the I2C interface in the Apple Hydra Mac
@@ -293,7 +305,7 @@ comment "I2C system bus drivers (mostly embedded / system-on-chip)"
 
 config I2C_AT91
 	tristate "Atmel AT91 I2C Two-Wire interface (TWI)"
-	depends on ARCH_AT91 && EXPERIMENTAL
+	depends on ARCH_AT91
 	help
 	  This supports the use of the I2C interface on Atmel AT91
 	  processors.
@@ -319,6 +331,18 @@ config I2C_AU1550
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-au1550.
 
+config I2C_BCM2835
+	tristate "Broadcom BCM2835 I2C controller"
+	depends on ARCH_BCM2835
+	help
+	  If you say yes to this option, support will be included for the
+	  BCM2835 I2C controller.
+
+	  If you don't know what to do here, say N.
+
+	  This support is also available as a module.  If so, the module
+	  will be called i2c-bcm2835.
+
 config I2C_BLACKFIN_TWI
 	tristate "Blackfin TWI I2C support"
 	depends on BLACKFIN
@@ -336,6 +360,16 @@ config I2C_BLACKFIN_TWI_CLK_KHZ
 	default 50
 	help
 	  The unit of the TWI clock is kHz.
+
+config I2C_CBUS_GPIO
+	tristate "CBUS I2C driver"
+	depends on GENERIC_GPIO
+	help
+	  Support for CBUS access using I2C API. Mostly relevant for Nokia
+	  Internet Tablets (770, N800 and N810).
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-cbus-gpio.
 
 config I2C_CPM
 	tristate "Freescale CPM1 or CPM2 (MPC8xx/826x)"
@@ -509,7 +543,6 @@ config I2C_NUC900
 
 config I2C_OCORES
 	tristate "OpenCores I2C Controller"
-	depends on EXPERIMENTAL
 	help
 	  If you say yes to this option, support will be included for the
 	  OpenCores I2C controller. For details see
@@ -702,7 +735,7 @@ config I2C_OCTEON
 
 config I2C_XILINX
 	tristate "Xilinx I2C Controller"
-	depends on EXPERIMENTAL && HAS_IOMEM
+	depends on HAS_IOMEM
 	help
 	  If you say yes to this option, support will be included for the
 	  Xilinx I2C controller.
@@ -793,7 +826,7 @@ config I2C_PARPORT_LIGHT
 
 config I2C_TAOS_EVM
 	tristate "TAOS evaluation module"
-	depends on EXPERIMENTAL
+	depends on TTY
 	select SERIO
 	select SERIO_SERPORT
 	default n
@@ -817,6 +850,16 @@ config I2C_TINY_USB
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-tiny-usb.
+
+config I2C_VIPERBOARD
+	tristate "Viperboard I2C master support"
+	depends on MFD_VIPERBOARD && USB
+	help
+	  Say yes here to access the I2C part of the Nano River
+	  Technologies Viperboard as I2C master.
+          See viperboard API specification and Nano
+          River Tech's viperboard.h for detailed meaning
+          of the module parameters.
 
 comment "Other I2C/SMBus bus drivers"
 

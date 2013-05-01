@@ -27,14 +27,13 @@
 #include <linux/err.h>
 #include <linux/platform_device.h>
 
-#include <plat/omap_hwmod.h>
-#include <plat/omap_device.h>
+#include "soc.h"
+#include "omap_hwmod.h"
+#include "omap_device.h"
 #include "hdq1w.h"
 
+#include "prm.h"
 #include "common.h"
-
-/* Maximum microseconds to wait for OMAP module to softreset */
-#define MAX_MODULE_SOFTRESET_WAIT	10000
 
 /**
  * omap_hdq1w_reset - reset the OMAP HDQ1W module
@@ -89,10 +88,10 @@ static int __init omap_init_hdq(void)
 	if (!oh)
 		return 0;
 
-	pdev = omap_device_build(devname, id, oh, NULL, 0, NULL, 0, 0);
+	pdev = omap_device_build(devname, id, oh, NULL, 0);
 	WARN(IS_ERR(pdev), "Can't build omap_device for %s:%s.\n",
 	     devname, oh->name);
 
 	return 0;
 }
-arch_initcall(omap_init_hdq);
+omap_arch_initcall(omap_init_hdq);

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2012, Intel Corp.
+ * Copyright (C) 2000 - 2013, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -172,6 +172,7 @@ static struct acpi_fadt_pm_info fadt_pm_info_table[] = {
  * FUNCTION:    acpi_tb_init_generic_address
  *
  * PARAMETERS:  generic_address     - GAS struct to be initialized
+ *              space_id            - ACPI Space ID for this register
  *              byte_width          - Width of this register
  *              address             - Address of the register
  *
@@ -407,8 +408,8 @@ static void acpi_tb_convert_fadt(void)
 	 * should be zero are indeed zero. This will workaround BIOSs that
 	 * inadvertently place values in these fields.
 	 *
-	 * The ACPI 1.0 reserved fields that will be zeroed are the bytes located at
-	 * offset 45, 55, 95, and the word located at offset 109, 110.
+	 * The ACPI 1.0 reserved fields that will be zeroed are the bytes located
+	 * at offset 45, 55, 95, and the word located at offset 109, 110.
 	 *
 	 * Note: The FADT revision value is unreliable. Only the length can be
 	 * trusted.

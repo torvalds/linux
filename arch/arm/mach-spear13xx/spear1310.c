@@ -14,8 +14,9 @@
 #define pr_fmt(fmt) "SPEAr1310: " fmt
 
 #include <linux/amba/pl022.h>
+#include <linux/irqchip.h>
 #include <linux/of_platform.h>
-#include <asm/hardware/gic.h>
+#include <linux/pata_arasan_cf_data.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <mach/generic.h>
@@ -27,16 +28,25 @@
 #define SPEAR1310_SATA1_BASE			UL(0xB1800000)
 #define SPEAR1310_SATA2_BASE			UL(0xB4000000)
 
+#define SPEAR1310_RAS_GRP1_BASE			UL(0xD8000000)
+#define VA_SPEAR1310_RAS_GRP1_BASE		UL(0xFA000000)
+#define SPEAR1310_RAS_BASE			UL(0xD8400000)
+#define VA_SPEAR1310_RAS_BASE			IOMEM(UL(0xFA400000))
+
+static struct arasan_cf_pdata cf_pdata = {
+	.cf_if_clk = CF_IF_CLK_166M,
+	.quirk = CF_BROKEN_UDMA,
+	.dma_priv = &cf_dma_priv,
+};
+
 /* ssp device registration */
 static struct pl022_ssp_controller ssp1_plat_data = {
-	.bus_id = 0,
 	.enable_dma = 0,
-	.num_chipselect = 3,
 };
 
 /* Add SPEAr1310 auxdata to pass platform data */
 static struct of_dev_auxdata spear1310_auxdata_lookup[] __initdata = {
-	OF_DEV_AUXDATA("arasan,cf-spear1340", MCIF_CF_BASE, NULL, &cf_dma_priv),
+	OF_DEV_AUXDATA("arasan,cf-spear1340", MCIF_CF_BASE, NULL, &cf_pdata),
 	OF_DEV_AUXDATA("snps,dma-spear1340", DMAC0_BASE, NULL, &dmac_plat_data),
 	OF_DEV_AUXDATA("snps,dma-spear1340", DMAC1_BASE, NULL, &dmac_plat_data),
 	OF_DEV_AUXDATA("arm,pl022", SSP_BASE, NULL, &pl022_plat_data),
@@ -80,9 +90,8 @@ static void __init spear1310_map_io(void)
 DT_MACHINE_START(SPEAR1310_DT, "ST SPEAr1310 SoC with Flattened Device Tree")
 	.smp		=	smp_ops(spear13xx_smp_ops),
 	.map_io		=	spear1310_map_io,
-	.init_irq	=	spear13xx_dt_init_irq,
-	.handle_irq	=	gic_handle_irq,
-	.timer		=	&spear13xx_timer,
+	.init_irq	=	irqchip_init,
+	.init_time	=	spear13xx_timer_init,
 	.init_machine	=	spear1310_dt_init,
 	.restart	=	spear_restart,
 	.dt_compat	=	spear1310_dt_board_compat,

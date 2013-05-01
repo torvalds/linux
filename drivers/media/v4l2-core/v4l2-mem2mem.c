@@ -62,7 +62,7 @@ struct v4l2_m2m_dev {
 	struct list_head	job_queue;
 	spinlock_t		job_spinlock;
 
-	struct v4l2_m2m_ops	*m2m_ops;
+	const struct v4l2_m2m_ops *m2m_ops;
 };
 
 static struct v4l2_m2m_queue_ctx *get_queue_ctx(struct v4l2_m2m_ctx *m2m_ctx,
@@ -369,6 +369,19 @@ int v4l2_m2m_dqbuf(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 EXPORT_SYMBOL_GPL(v4l2_m2m_dqbuf);
 
 /**
+ * v4l2_m2m_expbuf() - export a source or destination buffer, depending on
+ * the type
+ */
+int v4l2_m2m_expbuf(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
+		  struct v4l2_exportbuffer *eb)
+{
+	struct vb2_queue *vq;
+
+	vq = v4l2_m2m_get_vq(m2m_ctx, eb->type);
+	return vb2_expbuf(vq, eb);
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_expbuf);
+/**
  * v4l2_m2m_streamon() - turn on streaming for a video queue
  */
 int v4l2_m2m_streamon(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
@@ -506,15 +519,13 @@ EXPORT_SYMBOL(v4l2_m2m_mmap);
  *
  * Usually called from driver's probe() function.
  */
-struct v4l2_m2m_dev *v4l2_m2m_init(struct v4l2_m2m_ops *m2m_ops)
+struct v4l2_m2m_dev *v4l2_m2m_init(const struct v4l2_m2m_ops *m2m_ops)
 {
 	struct v4l2_m2m_dev *m2m_dev;
 
-	if (!m2m_ops)
+	if (!m2m_ops || WARN_ON(!m2m_ops->device_run) ||
+			WARN_ON(!m2m_ops->job_abort))
 		return ERR_PTR(-EINVAL);
-
-	BUG_ON(!m2m_ops->device_run);
-	BUG_ON(!m2m_ops->job_abort);
 
 	m2m_dev = kzalloc(sizeof *m2m_dev, GFP_KERNEL);
 	if (!m2m_dev)

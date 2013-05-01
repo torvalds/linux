@@ -151,9 +151,6 @@ int wl1271_ps_elp_wakeup(struct wl1271 *wl)
 			wl12xx_queue_recovery_work(wl);
 			ret = -ETIMEDOUT;
 			goto err;
-		} else if (ret < 0) {
-			wl1271_error("ELP wakeup completion error.");
-			goto err;
 		}
 	}
 
@@ -242,11 +239,12 @@ static void wl1271_ps_filter_frames(struct wl1271 *wl, u8 hlid)
 	struct ieee80211_tx_info *info;
 	unsigned long flags;
 	int filtered[NUM_TX_QUEUES];
+	struct wl1271_link *lnk = &wl->links[hlid];
 
 	/* filter all frames currently in the low level queues for this hlid */
 	for (i = 0; i < NUM_TX_QUEUES; i++) {
 		filtered[i] = 0;
-		while ((skb = skb_dequeue(&wl->links[hlid].tx_queue[i]))) {
+		while ((skb = skb_dequeue(&lnk->tx_queue[i]))) {
 			filtered[i]++;
 
 			if (WARN_ON(wl12xx_is_dummy_packet(wl, skb)))
@@ -260,8 +258,11 @@ static void wl1271_ps_filter_frames(struct wl1271 *wl, u8 hlid)
 	}
 
 	spin_lock_irqsave(&wl->wl_lock, flags);
-	for (i = 0; i < NUM_TX_QUEUES; i++)
+	for (i = 0; i < NUM_TX_QUEUES; i++) {
 		wl->tx_queue_count[i] -= filtered[i];
+		if (lnk->wlvif)
+			lnk->wlvif->tx_queue_count[i] -= filtered[i];
+	}
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
 
 	wl1271_handle_tx_low_watermark(wl);

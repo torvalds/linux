@@ -50,10 +50,6 @@ static bool stats;
 static int interval;
 static bool unstable_bauds;
 
-/*
- * Version Information
- */
-#define DRIVER_VERSION "v1.10"
 #define DRIVER_AUTHOR "Lonnie Mendez <dignome@gmail.com>, Neil Whelchel <koyama@firstlight.net>"
 #define DRIVER_DESC "Cypress USB to Serial Driver"
 
@@ -1218,10 +1214,10 @@ static void cypress_read_int_callback(struct urb *urb)
 		spin_unlock_irqrestore(&priv->lock, flags);
 
 	/* process read if there is data other than line status */
-	if (tty && bytes > i) {
-		tty_insert_flip_string_fixed_flag(tty, data + i,
+	if (bytes > i) {
+		tty_insert_flip_string_fixed_flag(&port->port, data + i,
 				tty_flag, bytes - i);
-		tty_flip_buffer_push(tty);
+		tty_flip_buffer_push(&port->port);
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);
@@ -1303,7 +1299,6 @@ module_usb_serial_driver(serial_drivers, id_table_combined);
 
 MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
-MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
 
 module_param(stats, bool, S_IRUGO | S_IWUSR);

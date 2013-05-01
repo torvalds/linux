@@ -748,7 +748,7 @@ int shmob_drm_connector_create(struct shmob_drm_device *sdev,
 	connector->encoder = encoder;
 
 	drm_helper_connector_dpms(connector, DRM_MODE_DPMS_OFF);
-	drm_connector_property_set_value(connector,
+	drm_object_property_set_value(&connector->base,
 		sdev->ddev->mode_config.dpms_property, DRM_MODE_DPMS_OFF);
 
 	return 0;

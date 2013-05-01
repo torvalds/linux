@@ -151,16 +151,25 @@ void sctp_transport_free(struct sctp_transport *transport)
 	 * structure hang around in memory since we know
 	 * the tranport is going away.
 	 */
-	if (timer_pending(&transport->T3_rtx_timer) &&
-	    del_timer(&transport->T3_rtx_timer))
+	if (del_timer(&transport->T3_rtx_timer))
 		sctp_transport_put(transport);
 
 	/* Delete the ICMP proto unreachable timer if it's active. */
-	if (timer_pending(&transport->proto_unreach_timer) &&
-	    del_timer(&transport->proto_unreach_timer))
+	if (del_timer(&transport->proto_unreach_timer))
 		sctp_association_put(transport->asoc);
 
 	sctp_transport_put(transport);
+}
+
+static void sctp_transport_destroy_rcu(struct rcu_head *head)
+{
+	struct sctp_transport *transport;
+
+	transport = container_of(head, struct sctp_transport, rcu);
+
+	dst_release(transport->dst);
+	kfree(transport);
+	SCTP_DBG_OBJCNT_DEC(transport);
 }
 
 /* Destroy the transport data structure.
@@ -170,14 +179,12 @@ static void sctp_transport_destroy(struct sctp_transport *transport)
 {
 	SCTP_ASSERT(transport->dead, "Transport is not dead", return);
 
-	if (transport->asoc)
-		sctp_association_put(transport->asoc);
+	call_rcu(&transport->rcu, sctp_transport_destroy_rcu);
 
 	sctp_packet_free(&transport->packet);
 
-	dst_release(transport->dst);
-	kfree(transport);
-	SCTP_DBG_OBJCNT_DEC(transport);
+	if (transport->asoc)
+		sctp_association_put(transport->asoc);
 }
 
 /* Start T3_rtx timer if it is not already running and update the heartbeat
@@ -331,7 +338,7 @@ void sctp_transport_update_rto(struct sctp_transport *tp, __u32 rtt)
 		 * 1/8, rto_alpha would be expressed as 3.
 		 */
 		tp->rttvar = tp->rttvar - (tp->rttvar >> net->sctp.rto_beta)
-			+ ((abs(tp->srtt - rtt)) >> net->sctp.rto_beta);
+			+ (((__u32)abs64((__s64)tp->srtt - (__s64)rtt)) >> net->sctp.rto_beta);
 		tp->srtt = tp->srtt - (tp->srtt >> net->sctp.rto_alpha)
 			+ (rtt >> net->sctp.rto_alpha);
 	} else {
@@ -363,6 +370,7 @@ void sctp_transport_update_rto(struct sctp_transport *tp, __u32 rtt)
 	if (tp->rto > tp->asoc->rto_max)
 		tp->rto = tp->asoc->rto_max;
 
+	sctp_max_rto(tp->asoc, tp);
 	tp->rtt = rtt;
 
 	/* Reset rto_pending so that a new RTT measurement is started when a
@@ -620,6 +628,7 @@ void sctp_transport_reset(struct sctp_transport *t)
 	t->burst_limited = 0;
 	t->ssthresh = asoc->peer.i.a_rwnd;
 	t->rto = asoc->rto_initial;
+	sctp_max_rto(asoc, t);
 	t->rtt = 0;
 	t->srtt = 0;
 	t->rttvar = 0;
@@ -644,10 +653,9 @@ void sctp_transport_reset(struct sctp_transport *t)
 void sctp_transport_immediate_rtx(struct sctp_transport *t)
 {
 	/* Stop pending T3_rtx_timer */
-	if (timer_pending(&t->T3_rtx_timer)) {
-		(void)del_timer(&t->T3_rtx_timer);
+	if (del_timer(&t->T3_rtx_timer))
 		sctp_transport_put(t);
-	}
+
 	sctp_retransmit(&t->asoc->outqueue, t, SCTP_RTXR_T3_RTX);
 	if (!timer_pending(&t->T3_rtx_timer)) {
 		if (!mod_timer(&t->T3_rtx_timer, jiffies + t->rto))

@@ -1,6 +1,6 @@
 /*
  * QLogic Fibre Channel HBA Driver
- * Copyright (c)  2003-2012 QLogic Corporation
+ * Copyright (c)  2003-2013 QLogic Corporation
  *
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
@@ -55,7 +55,7 @@ extern void qla2x00_update_fcport(scsi_qla_host_t *, fc_port_t *);
 extern void qla2x00_alloc_fw_dump(scsi_qla_host_t *);
 extern void qla2x00_try_to_stop_firmware(scsi_qla_host_t *);
 
-extern int qla2x00_get_thermal_temp(scsi_qla_host_t *, uint16_t *, uint16_t *);
+extern int qla2x00_get_thermal_temp(scsi_qla_host_t *, uint16_t *);
 
 extern void qla84xx_put_chip(struct scsi_qla_host *);
 
@@ -84,6 +84,9 @@ extern int qla83xx_nic_core_reset(scsi_qla_host_t *);
 extern void qla83xx_reset_ownership(scsi_qla_host_t *);
 extern int qla2xxx_mctp_dump(scsi_qla_host_t *);
 
+extern int
+qla2x00_alloc_outstanding_cmds(struct qla_hw_data *, struct req_que *);
+
 /*
  * Global Data in qla_os.c source file.
  */
@@ -94,6 +97,7 @@ extern int qlport_down_retry;
 extern int ql2xplogiabsentdevice;
 extern int ql2xloginretrycount;
 extern int ql2xfdmienable;
+extern int ql2xmaxqdepth;
 extern int ql2xallocfwdump;
 extern int ql2xextended_error_logging;
 extern int ql2xiidmaenable;
@@ -278,6 +282,9 @@ extern int
 qla2x00_get_port_name(scsi_qla_host_t *, uint16_t, uint8_t *, uint8_t);
 
 extern int
+qla24xx_link_initialize(scsi_qla_host_t *);
+
+extern int
 qla2x00_lip_reset(scsi_qla_host_t *);
 
 extern int
@@ -351,6 +358,9 @@ extern int
 qla2x00_disable_fce_trace(scsi_qla_host_t *, uint64_t *, uint64_t *);
 
 extern int
+qla2x00_set_driver_version(scsi_qla_host_t *, char *);
+
+extern int
 qla2x00_read_sfp(scsi_qla_host_t *, dma_addr_t, uint8_t *,
 	uint16_t, uint16_t, uint16_t, uint16_t);
 
@@ -416,7 +426,7 @@ extern int qla2x00_request_irqs(struct qla_hw_data *, struct rsp_que *);
 extern void qla2x00_free_irqs(scsi_qla_host_t *);
 
 extern int qla2x00_get_data_rate(scsi_qla_host_t *);
-extern char *qla2x00_get_link_speed_str(struct qla_hw_data *);
+extern const char *qla2x00_get_link_speed_str(struct qla_hw_data *, uint16_t);
 
 /*
  * Global Function Prototypes in qla_sup.c source file.
@@ -436,6 +446,7 @@ extern uint8_t *qla25xx_read_nvram_data(scsi_qla_host_t *, uint8_t *, uint32_t,
     uint32_t);
 extern int qla25xx_write_nvram_data(scsi_qla_host_t *, uint8_t *, uint32_t,
     uint32_t);
+extern int qla2x00_is_a_vp_did(scsi_qla_host_t *, uint32_t);
 
 extern int qla2x00_beacon_on(struct scsi_qla_host *);
 extern int qla2x00_beacon_off(struct scsi_qla_host *);
@@ -598,7 +609,6 @@ extern void qla82xx_init_flags(struct qla_hw_data *);
 
 /* ISP 8021 hardware related */
 extern void qla82xx_set_drv_active(scsi_qla_host_t *);
-extern void qla82xx_crb_win_unlock(struct qla_hw_data *);
 extern int qla82xx_wr_32(struct qla_hw_data *, ulong, u32);
 extern int qla82xx_rd_32(struct qla_hw_data *, ulong);
 extern int qla82xx_rdmem(struct qla_hw_data *, u64, void *, int);

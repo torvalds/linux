@@ -177,8 +177,8 @@ struct irq_domain *irq_domain_add_simple(struct device_node *of_node,
 			irq_base = irq_alloc_descs(first_irq, first_irq, size,
 						   of_node_to_nid(of_node));
 			if (irq_base < 0) {
-				WARN(1, "Cannot allocate irq_descs @ IRQ%d, assuming pre-allocated\n",
-				     first_irq);
+				pr_info("Cannot allocate irq_descs @ IRQ%d, assuming pre-allocated\n",
+					first_irq);
 				irq_base = first_irq;
 			}
 		} else

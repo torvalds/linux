@@ -86,7 +86,7 @@ struct uhid_feature_answer_req {
 	__u16 err;
 	__u16 size;
 	__u8 data[UHID_DATA_MAX];
-};
+} __attribute__((__packed__));
 
 struct uhid_event {
 	__u32 type;

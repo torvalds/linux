@@ -421,11 +421,8 @@ static int cp_tm1217_probe(struct i2c_client *client,
 	pdata = client->dev.platform_data;
 
 	ts = kzalloc(sizeof(struct cp_tm1217_device), GFP_KERNEL);
-	if (!ts) {
-		dev_err(&client->dev,
-			"cp_tm1217: Private Device Struct alloc failed\n");
+	if (!ts)
 		return -ENOMEM;
-	}
 
 	ts->client = client;
 	ts->dev = &client->dev;

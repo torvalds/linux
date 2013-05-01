@@ -15,9 +15,9 @@
 
 #include <linux/platform_device.h>
 #include <linux/io.h>
-
-#include <mach/hardware.h>
 #include <linux/platform_data/usb-ehci-mxc.h>
+
+#include "hardware.h"
 
 #define USBCTRL_OTGBASE_OFFSET	0x600
 
@@ -30,7 +30,7 @@
 #define MX35_H1_SIC_SHIFT	21
 #define MX35_H1_SIC_MASK	(0x3 << MX35_H1_SIC_SHIFT)
 #define MX35_H1_PP_BIT		(1 << 18)
-#define MX35_H1_PM_BIT		(1 << 8)
+#define MX35_H1_PM_BIT		(1 << 16)
 #define MX35_H1_IPPUE_UP_BIT	(1 << 7)
 #define MX35_H1_IPPUE_DOWN_BIT	(1 << 6)
 #define MX35_H1_TLL_BIT		(1 << 5)

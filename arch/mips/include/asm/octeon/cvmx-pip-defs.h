@@ -44,7 +44,7 @@ enum cvmx_pip_port_parse_mode {
 	 */
 	CVMX_PIP_PORT_CFG_MODE_SKIPL2 = 1ull,
 	/*
-	 * Input packets are assumed to be IP.  Results from non IP
+	 * Input packets are assumed to be IP.	Results from non IP
 	 * packets is undefined. Pointers reference the beginning of
 	 * the IP header.
 	 */

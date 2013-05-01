@@ -259,13 +259,12 @@ __ip_vs_conn_in_get(const struct ip_vs_conn_param *p)
 {
 	unsigned int hash;
 	struct ip_vs_conn *cp;
-	struct hlist_node *n;
 
 	hash = ip_vs_conn_hashkey_param(p, false);
 
 	ct_read_lock(hash);
 
-	hlist_for_each_entry(cp, n, &ip_vs_conn_tab[hash], c_list) {
+	hlist_for_each_entry(cp, &ip_vs_conn_tab[hash], c_list) {
 		if (cp->af == p->af &&
 		    p->cport == cp->cport && p->vport == cp->vport &&
 		    ip_vs_addr_equal(p->af, p->caddr, &cp->caddr) &&
@@ -308,13 +307,12 @@ struct ip_vs_conn *ip_vs_conn_in_get(const struct ip_vs_conn_param *p)
 static int
 ip_vs_conn_fill_param_proto(int af, const struct sk_buff *skb,
 			    const struct ip_vs_iphdr *iph,
-			    unsigned int proto_off, int inverse,
-			    struct ip_vs_conn_param *p)
+			    int inverse, struct ip_vs_conn_param *p)
 {
 	__be16 _ports[2], *pptr;
 	struct net *net = skb_net(skb);
 
-	pptr = skb_header_pointer(skb, proto_off, sizeof(_ports), _ports);
+	pptr = frag_safe_skb_hp(skb, iph->len, sizeof(_ports), _ports, iph);
 	if (pptr == NULL)
 		return 1;
 
@@ -329,12 +327,11 @@ ip_vs_conn_fill_param_proto(int af, const struct sk_buff *skb,
 
 struct ip_vs_conn *
 ip_vs_conn_in_get_proto(int af, const struct sk_buff *skb,
-			const struct ip_vs_iphdr *iph,
-			unsigned int proto_off, int inverse)
+			const struct ip_vs_iphdr *iph, int inverse)
 {
 	struct ip_vs_conn_param p;
 
-	if (ip_vs_conn_fill_param_proto(af, skb, iph, proto_off, inverse, &p))
+	if (ip_vs_conn_fill_param_proto(af, skb, iph, inverse, &p))
 		return NULL;
 
 	return ip_vs_conn_in_get(&p);
@@ -346,13 +343,12 @@ struct ip_vs_conn *ip_vs_ct_in_get(const struct ip_vs_conn_param *p)
 {
 	unsigned int hash;
 	struct ip_vs_conn *cp;
-	struct hlist_node *n;
 
 	hash = ip_vs_conn_hashkey_param(p, false);
 
 	ct_read_lock(hash);
 
-	hlist_for_each_entry(cp, n, &ip_vs_conn_tab[hash], c_list) {
+	hlist_for_each_entry(cp, &ip_vs_conn_tab[hash], c_list) {
 		if (!ip_vs_conn_net_eq(cp, p->net))
 			continue;
 		if (p->pe_data && p->pe->ct_match) {
@@ -396,7 +392,6 @@ struct ip_vs_conn *ip_vs_conn_out_get(const struct ip_vs_conn_param *p)
 {
 	unsigned int hash;
 	struct ip_vs_conn *cp, *ret=NULL;
-	struct hlist_node *n;
 
 	/*
 	 *	Check for "full" addressed entries
@@ -405,7 +400,7 @@ struct ip_vs_conn *ip_vs_conn_out_get(const struct ip_vs_conn_param *p)
 
 	ct_read_lock(hash);
 
-	hlist_for_each_entry(cp, n, &ip_vs_conn_tab[hash], c_list) {
+	hlist_for_each_entry(cp, &ip_vs_conn_tab[hash], c_list) {
 		if (cp->af == p->af &&
 		    p->vport == cp->cport && p->cport == cp->dport &&
 		    ip_vs_addr_equal(p->af, p->vaddr, &cp->caddr) &&
@@ -432,12 +427,11 @@ struct ip_vs_conn *ip_vs_conn_out_get(const struct ip_vs_conn_param *p)
 
 struct ip_vs_conn *
 ip_vs_conn_out_get_proto(int af, const struct sk_buff *skb,
-			 const struct ip_vs_iphdr *iph,
-			 unsigned int proto_off, int inverse)
+			 const struct ip_vs_iphdr *iph, int inverse)
 {
 	struct ip_vs_conn_param p;
 
-	if (ip_vs_conn_fill_param_proto(af, skb, iph, proto_off, inverse, &p))
+	if (ip_vs_conn_fill_param_proto(af, skb, iph, inverse, &p))
 		return NULL;
 
 	return ip_vs_conn_out_get(&p);
@@ -799,8 +793,7 @@ static void ip_vs_conn_expire(unsigned long data)
 	 */
 	if (likely(atomic_read(&cp->refcnt) == 1)) {
 		/* delete the timer if it is activated by other users */
-		if (timer_pending(&cp->timer))
-			del_timer(&cp->timer);
+		del_timer(&cp->timer);
 
 		/* does anybody control me? */
 		if (cp->control)
@@ -957,11 +950,10 @@ static void *ip_vs_conn_array(struct seq_file *seq, loff_t pos)
 	int idx;
 	struct ip_vs_conn *cp;
 	struct ip_vs_iter_state *iter = seq->private;
-	struct hlist_node *n;
 
 	for (idx = 0; idx < ip_vs_conn_tab_size; idx++) {
 		ct_read_lock_bh(idx);
-		hlist_for_each_entry(cp, n, &ip_vs_conn_tab[idx], c_list) {
+		hlist_for_each_entry(cp, &ip_vs_conn_tab[idx], c_list) {
 			if (pos-- == 0) {
 				iter->l = &ip_vs_conn_tab[idx];
 				return cp;
@@ -985,7 +977,6 @@ static void *ip_vs_conn_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 {
 	struct ip_vs_conn *cp = v;
 	struct ip_vs_iter_state *iter = seq->private;
-	struct hlist_node *e;
 	struct hlist_head *l = iter->l;
 	int idx;
 
@@ -994,15 +985,15 @@ static void *ip_vs_conn_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 		return ip_vs_conn_array(seq, 0);
 
 	/* more on same hash chain? */
-	if ((e = cp->c_list.next))
-		return hlist_entry(e, struct ip_vs_conn, c_list);
+	if (cp->c_list.next)
+		return hlist_entry(cp->c_list.next, struct ip_vs_conn, c_list);
 
 	idx = l - ip_vs_conn_tab;
 	ct_read_unlock_bh(idx);
 
 	while (++idx < ip_vs_conn_tab_size) {
 		ct_read_lock_bh(idx);
-		hlist_for_each_entry(cp, e, &ip_vs_conn_tab[idx], c_list) {
+		hlist_for_each_entry(cp, &ip_vs_conn_tab[idx], c_list) {
 			iter->l = &ip_vs_conn_tab[idx];
 			return cp;
 		}
@@ -1204,14 +1195,13 @@ void ip_vs_random_dropentry(struct net *net)
 	 */
 	for (idx = 0; idx < (ip_vs_conn_tab_size>>5); idx++) {
 		unsigned int hash = net_random() & ip_vs_conn_tab_mask;
-		struct hlist_node *n;
 
 		/*
 		 *  Lock is actually needed in this loop.
 		 */
 		ct_write_lock_bh(hash);
 
-		hlist_for_each_entry(cp, n, &ip_vs_conn_tab[hash], c_list) {
+		hlist_for_each_entry(cp, &ip_vs_conn_tab[hash], c_list) {
 			if (cp->flags & IP_VS_CONN_F_TEMPLATE)
 				/* connection template */
 				continue;
@@ -1259,14 +1249,12 @@ static void ip_vs_conn_flush(struct net *net)
 
 flush_again:
 	for (idx = 0; idx < ip_vs_conn_tab_size; idx++) {
-		struct hlist_node *n;
-
 		/*
 		 *  Lock is actually needed in this loop.
 		 */
 		ct_write_lock_bh(idx);
 
-		hlist_for_each_entry(cp, n, &ip_vs_conn_tab[idx], c_list) {
+		hlist_for_each_entry(cp, &ip_vs_conn_tab[idx], c_list) {
 			if (!ip_vs_conn_net_eq(cp, net))
 				continue;
 			IP_VS_DBG(4, "del connection\n");
@@ -1295,8 +1283,8 @@ int __net_init ip_vs_conn_net_init(struct net *net)
 
 	atomic_set(&ipvs->conn_count, 0);
 
-	proc_net_fops_create(net, "ip_vs_conn", 0, &ip_vs_conn_fops);
-	proc_net_fops_create(net, "ip_vs_conn_sync", 0, &ip_vs_conn_sync_fops);
+	proc_create("ip_vs_conn", 0, net->proc_net, &ip_vs_conn_fops);
+	proc_create("ip_vs_conn_sync", 0, net->proc_net, &ip_vs_conn_sync_fops);
 	return 0;
 }
 
@@ -1304,8 +1292,8 @@ void __net_exit ip_vs_conn_net_cleanup(struct net *net)
 {
 	/* flush all the connection entries first */
 	ip_vs_conn_flush(net);
-	proc_net_remove(net, "ip_vs_conn");
-	proc_net_remove(net, "ip_vs_conn_sync");
+	remove_proc_entry("ip_vs_conn", net->proc_net);
+	remove_proc_entry("ip_vs_conn_sync", net->proc_net);
 }
 
 int __init ip_vs_conn_init(void)

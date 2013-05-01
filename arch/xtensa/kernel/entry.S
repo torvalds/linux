@@ -7,7 +7,7 @@
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
  *
- * Copyright (C) 2004-2007 by Tensilica Inc.
+ * Copyright (C) 2004 - 2008 by Tensilica Inc.
  *
  * Chris Zankel <chris@zankel.net>
  *
@@ -130,6 +130,11 @@ _user_exception:
 	s32i	a3, a1, PT_SAR
 	s32i	a2, a1, PT_ICOUNTLEVEL
 
+#if XCHAL_HAVE_THREADPTR
+	rur	a2, threadptr
+	s32i	a2, a1, PT_THREADPTR
+#endif
+
 	/* Rotate ws so that the current windowbase is at bit0. */
 	/* Assume ws = xxwww1yyyy. Rotate ws right, so that a2 = yyyyxxwww1 */
 
@@ -219,6 +224,7 @@ _user_exception:
 
 	j	common_exception
 
+ENDPROC(user_exception)
 
 /*
  * First-level exit handler for kernel exceptions
@@ -348,15 +354,16 @@ common_exception:
 	 * so we can allow exceptions and interrupts (*) again.
 	 * Set PS(EXCM = 0, UM = 0, RING = 0, OWB = 0, WOE = 1, INTLEVEL = X)
 	 *
-	 * (*) We only allow interrupts if PS.INTLEVEL was not set to 1 before
-	 *     (interrupts disabled) and if this exception is not an interrupt.
+	 * (*) We only allow interrupts of higher priority than current IRQ
 	 */
 
 	rsr	a3, ps
 	addi	a0, a0, -4
 	movi	a2, 1
-	extui	a3, a3, 0, 1		# a3 = PS.INTLEVEL[0]
-	moveqz	a3, a2, a0		# a3 = 1 iff interrupt exception
+	extui	a3, a3, PS_INTLEVEL_SHIFT, PS_INTLEVEL_WIDTH
+					# a3 = PS.INTLEVEL
+	movnez	a2, a3, a3		# a2 = 1: level-1, > 1: high priority
+	moveqz	a3, a2, a0		# a3 = IRQ level iff interrupt
 	movi	a2, 1 << PS_WOE_BIT
 	or	a3, a3, a2
 	rsr	a0, exccause
@@ -370,6 +377,13 @@ common_exception:
 	rsr	a3, lend
 	s32i	a2, a1, PT_LBEG
 	s32i	a3, a1, PT_LEND
+
+	/* Save SCOMPARE1 */
+
+#if XCHAL_HAVE_S32C1I
+	rsr     a2, scompare1
+	s32i    a2, a1, PT_SCOMPARE1
+#endif
 
 	/* Save optional registers. */
 
@@ -390,7 +404,7 @@ common_exception:
 	callx4	a4
 
 	/* Jump here for exception exit */
-
+	.global common_exception_return
 common_exception_return:
 
 	/* Jump if we are returning from kernel exceptions. */
@@ -432,6 +446,12 @@ common_exception_return:
 
 	load_xtregs_opt a1 a2 a4 a5 a6 a7 PT_XTREGS_OPT
 
+	/* Restore SCOMPARE1 */
+
+#if XCHAL_HAVE_S32C1I
+	l32i    a2, a1, PT_SCOMPARE1
+	wsr     a2, scompare1
+#endif
 	wsr	a3, ps		/* disable interrupts */
 
 	_bbci.l	a3, PS_UM_BIT, kernel_exception_exit
@@ -494,6 +514,11 @@ user_exception_exit:
 	 *	 frame where we had loaded a2), or at least the lower 4 bits
 	 *	 (if we have restored WSBITS-1 frames).
 	 */
+
+#if XCHAL_HAVE_THREADPTR
+	l32i	a3, a1, PT_THREADPTR
+	wur	a3, threadptr
+#endif
 
 2:	j	common_exception_exit
 
@@ -627,19 +652,53 @@ common_exception_exit:
 
 	l32i	a0, a1, PT_DEPC
 	l32i	a3, a1, PT_AREG3
-	l32i	a2, a1, PT_AREG2
-	_bgeui	a0, VALID_DOUBLE_EXCEPTION_ADDRESS, 1f
+	_bltui	a0, VALID_DOUBLE_EXCEPTION_ADDRESS, 1f
 
+	wsr	a0, depc
+	l32i	a2, a1, PT_AREG2
+	l32i	a0, a1, PT_AREG0
+	l32i	a1, a1, PT_AREG1
+	rfde
+
+1:
 	/* Restore a0...a3 and return */
 
+	rsr	a0, ps
+	extui	a2, a0, PS_INTLEVEL_SHIFT, PS_INTLEVEL_WIDTH
+	movi	a0, 2f
+	slli	a2, a2, 4
+	add	a0, a2, a0
+	l32i	a2, a1, PT_AREG2
+	jx	a0
+
+	.macro	irq_exit_level level
+	.align	16
+	.if	XCHAL_EXCM_LEVEL >= \level
+	l32i	a0, a1, PT_PC
+	wsr	a0, epc\level
+	l32i	a0, a1, PT_AREG0
+	l32i	a1, a1, PT_AREG1
+	rfi	\level
+	.endif
+	.endm
+
+	.align	16
+2:
 	l32i	a0, a1, PT_AREG0
 	l32i	a1, a1, PT_AREG1
 	rfe
 
-1:	wsr	a0, depc
-	l32i	a0, a1, PT_AREG0
-	l32i	a1, a1, PT_AREG1
-	rfde
+	.align	16
+	/* no rfi for level-1 irq, handled by rfe above*/
+	nop
+
+	irq_exit_level 2
+	irq_exit_level 3
+	irq_exit_level 4
+	irq_exit_level 5
+	irq_exit_level 6
+
+ENDPROC(kernel_exception)
 
 /*
  * Debug exception handler.
@@ -701,6 +760,7 @@ ENTRY(debug_exception)
 	/* Debug exception while in exception mode. */
 1:	j	1b	// FIXME!!
 
+ENDPROC(debug_exception)
 
 /*
  * We get here in case of an unrecoverable exception.
@@ -736,7 +796,7 @@ ENTRY(unrecoverable_exception)
 	wsr	a1, windowbase
 	rsync
 
-	movi	a1, (1 << PS_WOE_BIT) | 1
+	movi	a1, (1 << PS_WOE_BIT) | LOCKLEVEL
 	wsr	a1, ps
 	rsync
 
@@ -751,6 +811,7 @@ ENTRY(unrecoverable_exception)
 
 1:	j	1b
 
+ENDPROC(unrecoverable_exception)
 
 /* -------------------------- FAST EXCEPTION HANDLERS ----------------------- */
 
@@ -856,7 +917,7 @@ ENTRY(fast_alloca)
 
 	_bnei	a0, 1, 1f		# no 'movsp a1, ax': jump
 
-        /* Move the save area. This implies the use of the L32E
+	/* Move the save area. This implies the use of the L32E
 	 * and S32E instructions, because this move must be done with
 	 * the user's PS.RING privilege levels, not with ring 0
 	 * (kernel's) privileges currently active with PS.EXCM
@@ -929,6 +990,7 @@ ENTRY(fast_alloca)
 	l32i	a2, a2, PT_AREG2
 	rfe
 
+ENDPROC(fast_alloca)
 
 /*
  * fast system calls.
@@ -966,6 +1028,8 @@ ENTRY(fast_syscall_kernel)
 
 	j	kernel_exception
 
+ENDPROC(fast_syscall_kernel)
+
 ENTRY(fast_syscall_user)
 
 	/* Skip syscall. */
@@ -983,19 +1047,21 @@ ENTRY(fast_syscall_user)
 
 	j	user_exception
 
+ENDPROC(fast_syscall_user)
+
 ENTRY(fast_syscall_unrecoverable)
 
-        /* Restore all states. */
+	/* Restore all states. */
 
-        l32i    a0, a2, PT_AREG0        # restore a0
-        xsr     a2, depc                # restore a2, depc
-        rsr     a3, excsave1
+	l32i    a0, a2, PT_AREG0        # restore a0
+	xsr     a2, depc                # restore a2, depc
+	rsr     a3, excsave1
 
-        wsr     a0, excsave1
-        movi    a0, unrecoverable_exception
-        callx0  a0
+	wsr     a0, excsave1
+	movi    a0, unrecoverable_exception
+	callx0  a0
 
-
+ENDPROC(fast_syscall_unrecoverable)
 
 /*
  * sysxtensa syscall handler
@@ -1101,7 +1167,7 @@ CATCH
 	movi	a2, -EINVAL
 	rfe
 
-
+ENDPROC(fast_syscall_xtensa)
 
 
 /* fast_syscall_spill_registers.
@@ -1159,6 +1225,8 @@ ENTRY(fast_syscall_spill_registers)
 
 	movi	a2, 0
 	rfe
+
+ENDPROC(fast_syscall_spill_registers)
 
 /* Fixup handler.
  *
@@ -1228,9 +1296,9 @@ fast_syscall_spill_registers_fixup:
 
 	movi	a3, exc_table
 	rsr	a0, exccause
-        addx4	a0, a0, a3              	# find entry in table
-        l32i	a0, a0, EXC_TABLE_FAST_USER     # load handler
-        jx	a0
+	addx4	a0, a0, a3              	# find entry in table
+	l32i	a0, a0, EXC_TABLE_FAST_USER     # load handler
+	jx	a0
 
 fast_syscall_spill_registers_fixup_return:
 
@@ -1432,7 +1500,7 @@ ENTRY(_spill_registers)
 	rsr	a0, ps
 	_bbci.l	a0, PS_UM_BIT, 1f
 
- 	/* User space: Setup a dummy frame and kill application.
+	/* User space: Setup a dummy frame and kill application.
 	 * Note: We assume EXC_TABLE_KSTK contains a valid stack pointer.
 	 */
 
@@ -1449,7 +1517,7 @@ ENTRY(_spill_registers)
 	l32i	a1, a3, EXC_TABLE_KSTK
 	wsr	a3, excsave1
 
-	movi	a4, (1 << PS_WOE_BIT) | 1
+	movi	a4, (1 << PS_WOE_BIT) | LOCKLEVEL
 	wsr	a4, ps
 	rsync
 
@@ -1464,6 +1532,8 @@ ENTRY(_spill_registers)
 	callx0	a0		# should not return
 1:	j	1b
 
+ENDPROC(_spill_registers)
+
 #ifdef CONFIG_MMU
 /*
  * We should never get here. Bail out!
@@ -1474,6 +1544,8 @@ ENTRY(fast_second_level_miss_double_kernel)
 1:	movi	a0, unrecoverable_exception
 	callx0	a0		# should not return
 1:	j	1b
+
+ENDPROC(fast_second_level_miss_double_kernel)
 
 /* First-level entry handler for user, kernel, and double 2nd-level
  * TLB miss exceptions.  Note that for now, user and kernel miss
@@ -1682,6 +1754,7 @@ ENTRY(fast_second_level_miss)
 	j	_kernel_exception
 1:	j	_user_exception
 
+ENDPROC(fast_second_level_miss)
 
 /*
  * StoreProhibitedException
@@ -1777,6 +1850,9 @@ ENTRY(fast_store_prohibited)
 	bbsi.l	a2, PS_UM_BIT, 1f
 	j	_kernel_exception
 1:	j	_user_exception
+
+ENDPROC(fast_store_prohibited)
+
 #endif /* CONFIG_MMU */
 
 /*
@@ -1787,6 +1863,7 @@ ENTRY(fast_store_prohibited)
  */
 
 ENTRY(system_call)
+
 	entry	a1, 32
 
 	/* regs->syscall = regs->areg[2] */
@@ -1830,6 +1907,8 @@ ENTRY(system_call)
 	mov	a6, a2
 	callx4	a4
 	retw
+
+ENDPROC(system_call)
 
 
 /*
@@ -1886,7 +1965,7 @@ ENTRY(_switch_to)
 	s32i	a6, a3, EXC_TABLE_FIXUP
 	s32i	a7, a3, EXC_TABLE_KSTK
 
-	/* restore context of the task that 'next' addresses */
+	/* restore context of the task 'next' */
 
 	l32i	a0, a13, THREAD_RA	# restore return address
 	l32i	a1, a13, THREAD_SP	# restore stack pointer
@@ -1899,6 +1978,7 @@ ENTRY(_switch_to)
 
 	retw
 
+ENDPROC(_switch_to)
 
 ENTRY(ret_from_fork)
 
@@ -1913,6 +1993,8 @@ ENTRY(ret_from_fork)
 	callx4	a4
 
 	j	common_exception_return
+
+ENDPROC(ret_from_fork)
 
 /*
  * Kernel thread creation helper

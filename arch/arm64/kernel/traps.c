@@ -242,7 +242,7 @@ void die(const char *str, struct pt_regs *regs, int err)
 		crash_kexec(regs);
 
 	bust_spinlocks(0);
-	add_taint(TAINT_DIE);
+	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
 	raw_spin_unlock_irq(&die_lock);
 	oops_exit();
 

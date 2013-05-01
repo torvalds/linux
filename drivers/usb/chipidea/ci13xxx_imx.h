@@ -19,7 +19,7 @@ struct usbmisc_usb_device {
 	struct device *dev; /* usb controller device */
 	int index;
 
-	int disable_oc:1; /* over current detect disabled */
+	unsigned int disable_oc:1; /* over current detect disabled */
 };
 
 int usbmisc_set_ops(const struct usbmisc_ops *ops);

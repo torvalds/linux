@@ -574,8 +574,7 @@ free_buffers(struct platform_device *dev,
 	priv->free = NULL;
 }
 
-static int __devinit
-pxa3xx_gcu_probe(struct platform_device *dev)
+static int pxa3xx_gcu_probe(struct platform_device *dev)
 {
 	int i, ret, irq;
 	struct resource *r;
@@ -714,8 +713,7 @@ err_free_priv:
 	return ret;
 }
 
-static int __devexit
-pxa3xx_gcu_remove(struct platform_device *dev)
+static int pxa3xx_gcu_remove(struct platform_device *dev)
 {
 	struct pxa3xx_gcu_priv *priv = platform_get_drvdata(dev);
 	struct resource *r = priv->resource_mem;
@@ -737,7 +735,7 @@ pxa3xx_gcu_remove(struct platform_device *dev)
 
 static struct platform_driver pxa3xx_gcu_driver = {
 	.probe	  = pxa3xx_gcu_probe,
-	.remove	 = __devexit_p(pxa3xx_gcu_remove),
+	.remove	 = pxa3xx_gcu_remove,
 	.driver	 = {
 		.owner  = THIS_MODULE,
 		.name   = DRV_NAME,

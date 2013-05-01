@@ -116,15 +116,6 @@ static const struct comedi_lrange range_adq12b_ai_unipolar = { 4, {
 								   }
 };
 
-struct adq12b_board {
-	const char *name;
-	int ai_se_chans;
-	int ai_diff_chans;
-	int ai_bits;
-	int di_chans;
-	int do_chans;
-};
-
 struct adq12b_private {
 	int unipolar;		/* option 2 of comedi_config (1 is iobase) */
 	int differential;	/* option 3 of comedi_config */
@@ -220,12 +211,13 @@ static int adq12b_do_insn_bits(struct comedi_device *dev,
 
 static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	const struct adq12b_board *board = comedi_board(dev);
 	struct adq12b_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned long iobase;
 	int unipolar, differential;
 	int ret;
+
+	dev->board_name = dev->driver->driver_name;
 
 	iobase = it->options[0];
 	unipolar = it->options[1];
@@ -251,12 +243,10 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	}
 	dev->iobase = iobase;
 
-	dev->board_name = board->name;
-
-	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret)
-		return ret;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	devpriv->unipolar = unipolar;
 	devpriv->differential = differential;
@@ -277,10 +267,10 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->type = COMEDI_SUBD_AI;
 	if (differential) {
 		s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DIFF;
-		s->n_chan = board->ai_diff_chans;
+		s->n_chan = 8;
 	} else {
 		s->subdev_flags = SDF_READABLE | SDF_GROUND;
-		s->n_chan = board->ai_se_chans;
+		s->n_chan = 16;
 	}
 
 	if (unipolar)
@@ -288,7 +278,7 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	else
 		s->range_table = &range_adq12b_ai_bipolar;
 
-	s->maxdata = (1 << board->ai_bits) - 1;
+	s->maxdata = 0xfff;
 
 	s->len_chanlist = 4;	/* This is the maximum chanlist length that
 				   the board can handle */
@@ -298,7 +288,7 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* digital input subdevice */
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
-	s->n_chan = board->di_chans;
+	s->n_chan = 5;
 	s->maxdata = 1;
 	s->range_table = &range_digital;
 	s->insn_bits = adq12b_di_insn_bits;
@@ -307,7 +297,7 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	/* digital output subdevice */
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITABLE;
-	s->n_chan = board->do_chans;
+	s->n_chan = 8;
 	s->maxdata = 1;
 	s->range_table = &range_digital;
 	s->insn_bits = adq12b_do_insn_bits;
@@ -323,25 +313,11 @@ static void adq12b_detach(struct comedi_device *dev)
 		release_region(dev->iobase, ADQ12B_SIZE);
 }
 
-static const struct adq12b_board adq12b_boards[] = {
-	{
-		.name		= "adq12b",
-		.ai_se_chans	= 16,
-		.ai_diff_chans	= 8,
-		.ai_bits	= 12,
-		.di_chans	= 5,
-		.do_chans	= 8,
-	},
-};
-
 static struct comedi_driver adq12b_driver = {
 	.driver_name	= "adq12b",
 	.module		= THIS_MODULE,
 	.attach		= adq12b_attach,
 	.detach		= adq12b_detach,
-	.board_name	= &adq12b_boards[0].name,
-	.offset		= sizeof(struct adq12b_board),
-	.num_names	= ARRAY_SIZE(adq12b_boards),
 };
 module_comedi_driver(adq12b_driver);
 

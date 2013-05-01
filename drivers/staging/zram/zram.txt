@@ -23,17 +23,17 @@ Following shows a typical sequence of steps for using zram.
 	This creates 4 devices: /dev/zram{0,1,2,3}
 	(num_devices parameter is optional. Default: 1)
 
-2) Set Disksize (Optional):
-	Set disk size by writing the value to sysfs node 'disksize'
-	(in bytes). If disksize is not given, default value of 25%
-	of RAM is used.
+2) Set Disksize
+        Set disk size by writing the value to sysfs node 'disksize'.
+        The value can be either in bytes or you can use mem suffixes.
+        Examples:
+            # Initialize /dev/zram0 with 50MB disksize
+            echo $((50*1024*1024)) > /sys/block/zram0/disksize
 
-	# Initialize /dev/zram0 with 50MB disksize
-	echo $((50*1024*1024)) > /sys/block/zram0/disksize
-
-	NOTE: disksize cannot be changed if the disk contains any
-	data. So, for such a disk, you need to issue 'reset' (see below)
-	before you can change its disksize.
+            # Using mem suffixes
+            echo 256K > /sys/block/zram0/disksize
+            echo 512M > /sys/block/zram0/disksize
+            echo 1G > /sys/block/zram0/disksize
 
 3) Activate:
 	mkswap /dev/zram0
@@ -65,8 +65,9 @@ Following shows a typical sequence of steps for using zram.
 	echo 1 > /sys/block/zram0/reset
 	echo 1 > /sys/block/zram1/reset
 
-	(This frees all the memory allocated for the given device).
-
+	This frees all the memory allocated for the given device and
+	resets the disksize to zero. You must set the disksize again
+	before reusing the device.
 
 Please report any problems at:
  - Mailing list: linux-mm-cc at laptop dot org

@@ -681,7 +681,11 @@ static void usbduxsub_ao_IsocIrq(struct urb *urb)
 static int usbduxsub_start(struct usbduxsub *usbduxsub)
 {
 	int errcode = 0;
-	uint8_t local_transfer_buffer[16];
+	uint8_t *local_transfer_buffer;
+
+	local_transfer_buffer = kmalloc(16, GFP_KERNEL);
+	if (!local_transfer_buffer)
+		return -ENOMEM;
 
 	/* 7f92 to zero */
 	local_transfer_buffer[0] = 0;
@@ -702,19 +706,22 @@ static int usbduxsub_start(struct usbduxsub *usbduxsub)
 				  1,
 				  /* Timeout */
 				  BULK_TIMEOUT);
-	if (errcode < 0) {
+	if (errcode < 0)
 		dev_err(&usbduxsub->interface->dev,
 			"comedi_: control msg failed (start)\n");
-		return errcode;
-	}
-	return 0;
+
+	kfree(local_transfer_buffer);
+	return errcode;
 }
 
 static int usbduxsub_stop(struct usbduxsub *usbduxsub)
 {
 	int errcode = 0;
+	uint8_t *local_transfer_buffer;
 
-	uint8_t local_transfer_buffer[16];
+	local_transfer_buffer = kmalloc(16, GFP_KERNEL);
+	if (!local_transfer_buffer)
+		return -ENOMEM;
 
 	/* 7f92 to one */
 	local_transfer_buffer[0] = 1;
@@ -732,12 +739,12 @@ static int usbduxsub_stop(struct usbduxsub *usbduxsub)
 				  1,
 				  /* Timeout */
 				  BULK_TIMEOUT);
-	if (errcode < 0) {
+	if (errcode < 0)
 		dev_err(&usbduxsub->interface->dev,
 			"comedi_: control msg failed (stop)\n");
-		return errcode;
-	}
-	return 0;
+
+	kfree(local_transfer_buffer);
+	return errcode;
 }
 
 static int usbduxsub_upload(struct usbduxsub *usbduxsub,
@@ -904,9 +911,6 @@ static int usbdux_ai_cmdtest(struct comedi_device *dev,
 	if (!(this_usbduxsub->probed))
 		return -ENODEV;
 
-	dev_dbg(&this_usbduxsub->interface->dev,
-		"comedi%d: usbdux_ai_cmdtest\n", dev->minor);
-
 	/* Step 1 : check if triggers are trivially valid */
 
 	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_INT);
@@ -928,19 +932,12 @@ static int usbdux_ai_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 2;
 
-	/* step 3: make sure arguments are trivially compatible */
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
+	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->scan_begin_src == TRIG_FOLLOW) {
-		/* internal trigger */
-		if (cmd->scan_begin_arg != 0) {
-			cmd->scan_begin_arg = 0;
-			err++;
-		}
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
+
+	if (cmd->scan_begin_src == TRIG_FOLLOW)	/* internal trigger */
+		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		if (this_usbduxsub->high_speed) {
@@ -951,51 +948,35 @@ static int usbdux_ai_cmdtest(struct comedi_device *dev,
 			 * are in the channel list the more time we need.
 			 */
 			i = chanToInterval(cmd->chanlist_len);
-			if (cmd->scan_begin_arg < (1000000 / 8 * i)) {
-				cmd->scan_begin_arg = 1000000 / 8 * i;
-				err++;
-			}
+			err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+							 (1000000 / 8 * i));
 			/* now calc the real sampling rate with all the
 			 * rounding errors */
 			tmpTimer =
 			    ((unsigned int)(cmd->scan_begin_arg / 125000)) *
 			    125000;
-			if (cmd->scan_begin_arg != tmpTimer) {
-				cmd->scan_begin_arg = tmpTimer;
-				err++;
-			}
 		} else {
 			/* full speed */
 			/* 1kHz scans every USB frame */
-			if (cmd->scan_begin_arg < 1000000) {
-				cmd->scan_begin_arg = 1000000;
-				err++;
-			}
+			err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+							 1000000);
 			/*
 			 * calc the real sampling rate with the rounding errors
 			 */
 			tmpTimer = ((unsigned int)(cmd->scan_begin_arg /
 						   1000000)) * 1000000;
-			if (cmd->scan_begin_arg != tmpTimer) {
-				cmd->scan_begin_arg = tmpTimer;
-				err++;
-			}
 		}
+		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg,
+						tmpTimer);
 	}
-	/* the same argument */
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
+
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 
 	if (cmd->stop_src == TRIG_COUNT) {
 		/* any count is allowed */
 	} else {
 		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 	}
 
 	if (err)
@@ -1576,56 +1557,29 @@ static int usbdux_ao_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 2;
 
-	/* step 3: make sure arguments are trivially compatible */
+	/* Step 3: check if arguments are trivially valid */
 
-	if (cmd->start_arg != 0) {
-		cmd->start_arg = 0;
-		err++;
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->start_arg, 0);
 
-	if (cmd->scan_begin_src == TRIG_FOLLOW) {
-		/* internal trigger */
-		if (cmd->scan_begin_arg != 0) {
-			cmd->scan_begin_arg = 0;
-			err++;
-		}
-	}
+	if (cmd->scan_begin_src == TRIG_FOLLOW)	/* internal trigger */
+		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 
-	if (cmd->scan_begin_src == TRIG_TIMER) {
-		/* timer */
-		if (cmd->scan_begin_arg < 1000000) {
-			cmd->scan_begin_arg = 1000000;
-			err++;
-		}
-	}
+	if (cmd->scan_begin_src == TRIG_TIMER)
+		err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
+						 1000000);
+
 	/* not used now, is for later use */
-	if (cmd->convert_src == TRIG_TIMER) {
-		if (cmd->convert_arg < 125000) {
-			cmd->convert_arg = 125000;
-			err++;
-		}
-	}
+	if (cmd->convert_src == TRIG_TIMER)
+		err |= cfc_check_trigger_arg_min(&cmd->convert_arg, 125000);
 
-	/* the same argument */
-	if (cmd->scan_end_arg != cmd->chanlist_len) {
-		cmd->scan_end_arg = cmd->chanlist_len;
-		err++;
-	}
+	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 
 	if (cmd->stop_src == TRIG_COUNT) {
 		/* any count is allowed */
 	} else {
 		/* TRIG_NONE */
-		if (cmd->stop_arg != 0) {
-			cmd->stop_arg = 0;
-			err++;
-		}
+		err |= cfc_check_trigger_arg_is(&cmd->stop_arg, 0);
 	}
-
-	dev_dbg(&this_usbduxsub->interface->dev, "comedi%d: err=%d, "
-		"scan_begin_src=%d, scan_begin_arg=%d, convert_src=%d, "
-		"convert_arg=%d\n", dev->minor, err, cmd->scan_begin_src,
-		cmd->scan_begin_arg, cmd->convert_src, cmd->convert_arg);
 
 	if (err)
 		return 3;
@@ -2359,9 +2313,10 @@ static int usbduxsigma_attach_common(struct comedi_device *dev,
 	return 0;
 }
 
-static int usbduxsigma_attach_usb(struct comedi_device *dev,
-				  struct usb_interface *uinterf)
+static int usbduxsigma_auto_attach(struct comedi_device *dev,
+				   unsigned long context_unused)
 {
+	struct usb_interface *uinterf = comedi_to_usb_interface(dev);
 	int ret;
 	struct usbduxsub *uds;
 
@@ -2370,11 +2325,11 @@ static int usbduxsigma_attach_usb(struct comedi_device *dev,
 	uds = usb_get_intfdata(uinterf);
 	if (!uds || !uds->probed) {
 		dev_err(dev->class_dev,
-			"usbduxsigma: error: attach_usb failed, not connected\n");
+			"usbduxsigma: error: auto_attach failed, not connected\n");
 		ret = -ENODEV;
 	} else if (uds->attached) {
 		dev_err(dev->class_dev,
-		       "usbduxsigma: error: attach_usb failed, already attached\n");
+		       "usbduxsigma: error: auto_attach failed, already attached\n");
 		ret = -ENODEV;
 	} else
 		ret = usbduxsigma_attach_common(dev, uds);
@@ -2398,7 +2353,7 @@ static void usbduxsigma_detach(struct comedi_device *dev)
 static struct comedi_driver usbduxsigma_driver = {
 	.driver_name	= "usbduxsigma",
 	.module		= THIS_MODULE,
-	.attach_usb	= usbduxsigma_attach_usb,
+	.auto_attach	= usbduxsigma_auto_attach,
 	.detach		= usbduxsigma_detach,
 };
 
@@ -2426,7 +2381,7 @@ static void usbdux_firmware_request_complete_handler(const struct firmware *fw,
 			"Could not upload firmware (err=%d)\n", ret);
 		goto out;
 	}
-	comedi_usb_auto_config(uinterf, &usbduxsigma_driver);
+	comedi_usb_auto_config(uinterf, &usbduxsigma_driver, 0);
 out:
 	release_firmware(fw);
 }
@@ -2483,8 +2438,6 @@ static int usbduxsigma_usb_probe(struct usb_interface *uinterf,
 	/* create space for the commands of the DA converter */
 	usbduxsub[index].dac_commands = kzalloc(NUMOUTCHANNELS, GFP_KERNEL);
 	if (!usbduxsub[index].dac_commands) {
-		dev_err(dev, "comedi_: usbduxsigma: "
-			"error alloc space for dac commands\n");
 		tidy_up(&(usbduxsub[index]));
 		up(&start_stop_sem);
 		return -ENOMEM;
@@ -2492,8 +2445,6 @@ static int usbduxsigma_usb_probe(struct usb_interface *uinterf,
 	/* create space for the commands going to the usb device */
 	usbduxsub[index].dux_commands = kzalloc(SIZEOFDUXBUFFER, GFP_KERNEL);
 	if (!usbduxsub[index].dux_commands) {
-		dev_err(dev, "comedi_: usbduxsigma: "
-			"error alloc space for dux commands\n");
 		tidy_up(&(usbduxsub[index]));
 		up(&start_stop_sem);
 		return -ENOMEM;
@@ -2501,8 +2452,6 @@ static int usbduxsigma_usb_probe(struct usb_interface *uinterf,
 	/* create space for the in buffer and set it to zero */
 	usbduxsub[index].inBuffer = kzalloc(SIZEINBUF, GFP_KERNEL);
 	if (!(usbduxsub[index].inBuffer)) {
-		dev_err(dev, "comedi_: usbduxsigma: "
-			"could not alloc space for inBuffer\n");
 		tidy_up(&(usbduxsub[index]));
 		up(&start_stop_sem);
 		return -ENOMEM;
@@ -2510,8 +2459,6 @@ static int usbduxsigma_usb_probe(struct usb_interface *uinterf,
 	/* create space of the instruction buffer */
 	usbduxsub[index].insnBuffer = kzalloc(SIZEINSNBUF, GFP_KERNEL);
 	if (!(usbduxsub[index].insnBuffer)) {
-		dev_err(dev, "comedi_: usbduxsigma: "
-			"could not alloc space for insnBuffer\n");
 		tidy_up(&(usbduxsub[index]));
 		up(&start_stop_sem);
 		return -ENOMEM;
@@ -2519,8 +2466,6 @@ static int usbduxsigma_usb_probe(struct usb_interface *uinterf,
 	/* create space for the outbuffer */
 	usbduxsub[index].outBuffer = kzalloc(SIZEOUTBUF, GFP_KERNEL);
 	if (!(usbduxsub[index].outBuffer)) {
-		dev_err(dev, "comedi_: usbduxsigma: "
-			"could not alloc space for outBuffer\n");
 		tidy_up(&(usbduxsub[index]));
 		up(&start_stop_sem);
 		return -ENOMEM;
@@ -2541,12 +2486,10 @@ static int usbduxsigma_usb_probe(struct usb_interface *uinterf,
 	else
 		usbduxsub[index].numOfInBuffers = NUMOFINBUFFERSFULL;
 
-	usbduxsub[index].urbIn =
-	    kzalloc(sizeof(struct urb *) * usbduxsub[index].numOfInBuffers,
-		    GFP_KERNEL);
+	usbduxsub[index].urbIn = kcalloc(usbduxsub[index].numOfInBuffers,
+					 sizeof(struct urb *),
+					 GFP_KERNEL);
 	if (!(usbduxsub[index].urbIn)) {
-		dev_err(dev, "comedi_: usbduxsigma: "
-			"Could not alloc. urbIn array\n");
 		tidy_up(&(usbduxsub[index]));
 		up(&start_stop_sem);
 		return -ENOMEM;
@@ -2571,8 +2514,6 @@ static int usbduxsigma_usb_probe(struct usb_interface *uinterf,
 		usbduxsub[index].urbIn[i]->transfer_buffer =
 		    kzalloc(SIZEINBUF, GFP_KERNEL);
 		if (!(usbduxsub[index].urbIn[i]->transfer_buffer)) {
-			dev_err(dev, "comedi_: usbduxsigma%d: "
-				"could not alloc. transb.\n", index);
 			tidy_up(&(usbduxsub[index]));
 			up(&start_stop_sem);
 			return -ENOMEM;
@@ -2591,12 +2532,9 @@ static int usbduxsigma_usb_probe(struct usb_interface *uinterf,
 	else
 		usbduxsub[index].numOfOutBuffers = NUMOFOUTBUFFERSFULL;
 
-	usbduxsub[index].urbOut =
-	    kzalloc(sizeof(struct urb *) * usbduxsub[index].numOfOutBuffers,
-		    GFP_KERNEL);
+	usbduxsub[index].urbOut = kcalloc(usbduxsub[index].numOfOutBuffers,
+					  sizeof(struct urb *), GFP_KERNEL);
 	if (!(usbduxsub[index].urbOut)) {
-		dev_err(dev, "comedi_: usbduxsigma: "
-			"Could not alloc. urbOut array\n");
 		tidy_up(&(usbduxsub[index]));
 		up(&start_stop_sem);
 		return -ENOMEM;
@@ -2621,8 +2559,6 @@ static int usbduxsigma_usb_probe(struct usb_interface *uinterf,
 		usbduxsub[index].urbOut[i]->transfer_buffer =
 		    kzalloc(SIZEOUTBUF, GFP_KERNEL);
 		if (!(usbduxsub[index].urbOut[i]->transfer_buffer)) {
-			dev_err(dev, "comedi_: usbduxsigma%d: "
-				"could not alloc. transb.\n", index);
 			tidy_up(&(usbduxsub[index]));
 			up(&start_stop_sem);
 			return -ENOMEM;
@@ -2658,8 +2594,6 @@ static int usbduxsigma_usb_probe(struct usb_interface *uinterf,
 		usbduxsub[index].urbPwm->transfer_buffer =
 		    kzalloc(usbduxsub[index].sizePwmBuf, GFP_KERNEL);
 		if (!(usbduxsub[index].urbPwm->transfer_buffer)) {
-			dev_err(dev, "comedi_: usbduxsigma%d: "
-				"could not alloc. transb. for pwm\n", index);
 			tidy_up(&(usbduxsub[index]));
 			up(&start_stop_sem);
 			return -ENOMEM;

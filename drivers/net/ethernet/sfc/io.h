@@ -22,22 +22,21 @@
  *
  * Notes on locking strategy:
  *
- * Most CSRs are 128-bit (oword) and therefore cannot be read or
- * written atomically.  Access from the host is buffered by the Bus
- * Interface Unit (BIU).  Whenever the host reads from the lowest
- * address of such a register, or from the address of a different such
- * register, the BIU latches the register's value.  Subsequent reads
- * from higher addresses of the same register will read the latched
- * value.  Whenever the host writes part of such a register, the BIU
- * collects the written value and does not write to the underlying
- * register until all 4 dwords have been written.  A similar buffering
- * scheme applies to host access to the NIC's 64-bit SRAM.
+ * Many CSRs are very wide and cannot be read or written atomically.
+ * Writes from the host are buffered by the Bus Interface Unit (BIU)
+ * up to 128 bits.  Whenever the host writes part of such a register,
+ * the BIU collects the written value and does not write to the
+ * underlying register until all 4 dwords have been written.  A
+ * similar buffering scheme applies to host access to the NIC's 64-bit
+ * SRAM.
  *
- * Access to different CSRs and 64-bit SRAM words must be serialised,
- * since interleaved access can result in lost writes or lost
- * information from read-to-clear fields.  We use efx_nic::biu_lock
- * for this.  (We could use separate locks for read and write, but
- * this is not normally a performance bottleneck.)
+ * Writes to different CSRs and 64-bit SRAM words must be serialised,
+ * since interleaved access can result in lost writes.  We use
+ * efx_nic::biu_lock for this.
+ *
+ * We also serialise reads from 128-bit CSRs and SRAM with the same
+ * spinlock.  This may not be necessary, but it doesn't really matter
+ * as there are no such reads on the fast path.
  *
  * The DMA descriptor pointers (RX_DESC_UPD and TX_DESC_UPD) are
  * 128-bit but are special-cased in the BIU to avoid the need for
@@ -202,20 +201,6 @@ static inline void efx_reado_table(struct efx_nic *efx, efx_oword_t *value,
 				     unsigned int reg, unsigned int index)
 {
 	efx_reado(efx, value, reg + index * sizeof(efx_oword_t));
-}
-
-/* Write a 32-bit CSR forming part of a table, or 32-bit SRAM */
-static inline void efx_writed_table(struct efx_nic *efx, efx_dword_t *value,
-				       unsigned int reg, unsigned int index)
-{
-	efx_writed(efx, value, reg + index * sizeof(efx_oword_t));
-}
-
-/* Read a 32-bit CSR forming part of a table, or 32-bit SRAM */
-static inline void efx_readd_table(struct efx_nic *efx, efx_dword_t *value,
-				   unsigned int reg, unsigned int index)
-{
-	efx_readd(efx, value, reg + index * sizeof(efx_dword_t));
 }
 
 /* Page-mapped register block size */

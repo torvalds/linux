@@ -130,15 +130,12 @@ static int ad2s1210_config_read(struct ad2s1210_state *st,
 		.rx_buf = st->rx,
 		.tx_buf = st->tx,
 	};
-	struct spi_message msg;
 	int ret = 0;
 
 	ad2s1210_set_mode(MOD_CONFIG, st);
-	spi_message_init(&msg);
-	spi_message_add_tail(&xfer, &msg);
 	st->tx[0] = address | AD2S1210_MSB_IS_HIGH;
 	st->tx[1] = AD2S1210_REG_FAULT;
-	ret = spi_sync(st->sdev, &msg);
+	ret = spi_sync_transfer(st->sdev, &xfer, 1);
 	if (ret < 0)
 		return ret;
 	st->old_data = true;
@@ -610,7 +607,7 @@ static const struct attribute_group ad2s1210_attribute_group = {
 	.attrs = ad2s1210_attributes,
 };
 
-static int __devinit ad2s1210_initial(struct ad2s1210_state *st)
+static int ad2s1210_initial(struct ad2s1210_state *st)
 {
 	unsigned char data;
 	int ret;
@@ -681,7 +678,7 @@ static void ad2s1210_free_gpios(struct ad2s1210_state *st)
 	gpio_free_array(ad2s1210_gpios, ARRAY_SIZE(ad2s1210_gpios));
 }
 
-static int __devinit ad2s1210_probe(struct spi_device *spi)
+static int ad2s1210_probe(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev;
 	struct ad2s1210_state *st;
@@ -736,7 +733,7 @@ error_ret:
 	return ret;
 }
 
-static int __devexit ad2s1210_remove(struct spi_device *spi)
+static int ad2s1210_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 
@@ -759,7 +756,7 @@ static struct spi_driver ad2s1210_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = ad2s1210_probe,
-	.remove = __devexit_p(ad2s1210_remove),
+	.remove = ad2s1210_remove,
 	.id_table = ad2s1210_id,
 };
 module_spi_driver(ad2s1210_driver);

@@ -34,34 +34,67 @@ static struct fuse_conn *fuse_get_conn(struct file *file)
 	return file->private_data;
 }
 
-static void fuse_request_init(struct fuse_req *req)
+static void fuse_request_init(struct fuse_req *req, struct page **pages,
+			      struct fuse_page_desc *page_descs,
+			      unsigned npages)
 {
 	memset(req, 0, sizeof(*req));
+	memset(pages, 0, sizeof(*pages) * npages);
+	memset(page_descs, 0, sizeof(*page_descs) * npages);
 	INIT_LIST_HEAD(&req->list);
 	INIT_LIST_HEAD(&req->intr_entry);
 	init_waitqueue_head(&req->waitq);
 	atomic_set(&req->count, 1);
+	req->pages = pages;
+	req->page_descs = page_descs;
+	req->max_pages = npages;
 }
 
-struct fuse_req *fuse_request_alloc(void)
+static struct fuse_req *__fuse_request_alloc(unsigned npages, gfp_t flags)
 {
-	struct fuse_req *req = kmem_cache_alloc(fuse_req_cachep, GFP_KERNEL);
-	if (req)
-		fuse_request_init(req);
+	struct fuse_req *req = kmem_cache_alloc(fuse_req_cachep, flags);
+	if (req) {
+		struct page **pages;
+		struct fuse_page_desc *page_descs;
+
+		if (npages <= FUSE_REQ_INLINE_PAGES) {
+			pages = req->inline_pages;
+			page_descs = req->inline_page_descs;
+		} else {
+			pages = kmalloc(sizeof(struct page *) * npages, flags);
+			page_descs = kmalloc(sizeof(struct fuse_page_desc) *
+					     npages, flags);
+		}
+
+		if (!pages || !page_descs) {
+			kfree(pages);
+			kfree(page_descs);
+			kmem_cache_free(fuse_req_cachep, req);
+			return NULL;
+		}
+
+		fuse_request_init(req, pages, page_descs, npages);
+	}
 	return req;
+}
+
+struct fuse_req *fuse_request_alloc(unsigned npages)
+{
+	return __fuse_request_alloc(npages, GFP_KERNEL);
 }
 EXPORT_SYMBOL_GPL(fuse_request_alloc);
 
-struct fuse_req *fuse_request_alloc_nofs(void)
+struct fuse_req *fuse_request_alloc_nofs(unsigned npages)
 {
-	struct fuse_req *req = kmem_cache_alloc(fuse_req_cachep, GFP_NOFS);
-	if (req)
-		fuse_request_init(req);
-	return req;
+	return __fuse_request_alloc(npages, GFP_NOFS);
 }
 
 void fuse_request_free(struct fuse_req *req)
 {
+	if (req->pages != req->inline_pages) {
+		kfree(req->pages);
+		kfree(req->page_descs);
+	}
 	kmem_cache_free(fuse_req_cachep, req);
 }
 
@@ -92,12 +125,12 @@ static void __fuse_put_request(struct fuse_req *req)
 
 static void fuse_req_init_context(struct fuse_req *req)
 {
-	req->in.h.uid = current_fsuid();
-	req->in.h.gid = current_fsgid();
+	req->in.h.uid = from_kuid_munged(&init_user_ns, current_fsuid());
+	req->in.h.gid = from_kgid_munged(&init_user_ns, current_fsgid());
 	req->in.h.pid = current->pid;
 }
 
-struct fuse_req *fuse_get_req(struct fuse_conn *fc)
+struct fuse_req *fuse_get_req(struct fuse_conn *fc, unsigned npages)
 {
 	struct fuse_req *req;
 	sigset_t oldset;
@@ -116,7 +149,7 @@ struct fuse_req *fuse_get_req(struct fuse_conn *fc)
 	if (!fc->connected)
 		goto out;
 
-	req = fuse_request_alloc();
+	req = fuse_request_alloc(npages);
 	err = -ENOMEM;
 	if (!req)
 		goto out;
@@ -165,7 +198,7 @@ static void put_reserved_req(struct fuse_conn *fc, struct fuse_req *req)
 	struct fuse_file *ff = file->private_data;
 
 	spin_lock(&fc->lock);
-	fuse_request_init(req);
+	fuse_request_init(req, req->pages, req->page_descs, req->max_pages);
 	BUG_ON(ff->reserved_req);
 	ff->reserved_req = req;
 	wake_up_all(&fc->reserved_req_waitq);
@@ -186,13 +219,14 @@ static void put_reserved_req(struct fuse_conn *fc, struct fuse_req *req)
  * filesystem should not have it's own file open.  If deadlock is
  * intentional, it can still be broken by "aborting" the filesystem.
  */
-struct fuse_req *fuse_get_req_nofail(struct fuse_conn *fc, struct file *file)
+struct fuse_req *fuse_get_req_nofail_nopages(struct fuse_conn *fc,
+					     struct file *file)
 {
 	struct fuse_req *req;
 
 	atomic_inc(&fc->num_waiting);
 	wait_event(fc->blocked_waitq, !fc->blocked);
-	req = fuse_request_alloc();
+	req = fuse_request_alloc(0);
 	if (!req)
 		req = get_reserved_req(fc, file);
 
@@ -406,9 +440,8 @@ __acquires(fc->lock)
 	}
 }
 
-void fuse_request_send(struct fuse_conn *fc, struct fuse_req *req)
+static void __fuse_request_send(struct fuse_conn *fc, struct fuse_req *req)
 {
-	req->isreply = 1;
 	spin_lock(&fc->lock);
 	if (!fc->connected)
 		req->out.h.error = -ENOTCONN;
@@ -424,6 +457,12 @@ void fuse_request_send(struct fuse_conn *fc, struct fuse_req *req)
 		request_wait_answer(fc, req);
 	}
 	spin_unlock(&fc->lock);
+}
+
+void fuse_request_send(struct fuse_conn *fc, struct fuse_req *req)
+{
+	req->isreply = 1;
+	__fuse_request_send(fc, req);
 }
 EXPORT_SYMBOL_GPL(fuse_request_send);
 
@@ -489,6 +528,27 @@ void fuse_request_send_background_locked(struct fuse_conn *fc,
 {
 	req->isreply = 1;
 	fuse_request_send_nowait_locked(fc, req);
+}
+
+void fuse_force_forget(struct file *file, u64 nodeid)
+{
+	struct inode *inode = file_inode(file);
+	struct fuse_conn *fc = get_fuse_conn(inode);
+	struct fuse_req *req;
+	struct fuse_forget_in inarg;
+
+	memset(&inarg, 0, sizeof(inarg));
+	inarg.nlookup = 1;
+	req = fuse_get_req_nofail_nopages(fc, file);
+	req->in.h.opcode = FUSE_FORGET;
+	req->in.h.nodeid = nodeid;
+	req->in.numargs = 1;
+	req->in.args[0].size = sizeof(inarg);
+	req->in.args[0].value = &inarg;
+	req->isreply = 0;
+	__fuse_request_send(fc, req);
+	/* ignore errors */
+	fuse_put_request(fc, req);
 }
 
 /*
@@ -692,8 +752,6 @@ static int fuse_try_move_page(struct fuse_copy_state *cs, struct page **pagep)
 	struct page *oldpage = *pagep;
 	struct page *newpage;
 	struct pipe_buffer *buf = cs->pipebufs;
-	struct address_space *mapping;
-	pgoff_t index;
 
 	unlock_request(cs->fc, cs->req);
 	fuse_copy_finish(cs);
@@ -723,9 +781,6 @@ static int fuse_try_move_page(struct fuse_copy_state *cs, struct page **pagep)
 
 	if (fuse_check_page(newpage) != 0)
 		goto out_fallback_unlock;
-
-	mapping = oldpage->mapping;
-	index = oldpage->index;
 
 	/*
 	 * This is a new and locked page, it shouldn't be mapped or
@@ -855,11 +910,11 @@ static int fuse_copy_pages(struct fuse_copy_state *cs, unsigned nbytes,
 {
 	unsigned i;
 	struct fuse_req *req = cs->req;
-	unsigned offset = req->page_offset;
-	unsigned count = min(nbytes, (unsigned) PAGE_SIZE - offset);
 
 	for (i = 0; i < req->num_pages && (nbytes || zeroing); i++) {
 		int err;
+		unsigned offset = req->page_descs[i].offset;
+		unsigned count = min(nbytes, req->page_descs[i].length);
 
 		err = fuse_copy_page(cs, &req->pages[i], offset, count,
 				     zeroing);
@@ -867,8 +922,6 @@ static int fuse_copy_pages(struct fuse_copy_state *cs, unsigned nbytes,
 			return err;
 
 		nbytes -= count;
-		count = min(nbytes, (unsigned) PAGE_SIZE);
-		offset = 0;
 	}
 	return 0;
 }
@@ -1541,29 +1594,34 @@ static int fuse_retrieve(struct fuse_conn *fc, struct inode *inode,
 	unsigned int num;
 	unsigned int offset;
 	size_t total_len = 0;
-
-	req = fuse_get_req(fc);
-	if (IS_ERR(req))
-		return PTR_ERR(req);
+	int num_pages;
 
 	offset = outarg->offset & ~PAGE_CACHE_MASK;
-
-	req->in.h.opcode = FUSE_NOTIFY_REPLY;
-	req->in.h.nodeid = outarg->nodeid;
-	req->in.numargs = 2;
-	req->in.argpages = 1;
-	req->page_offset = offset;
-	req->end = fuse_retrieve_end;
-
-	index = outarg->offset >> PAGE_CACHE_SHIFT;
 	file_size = i_size_read(inode);
+
 	num = outarg->size;
 	if (outarg->offset > file_size)
 		num = 0;
 	else if (outarg->offset + num > file_size)
 		num = file_size - outarg->offset;
 
-	while (num && req->num_pages < FUSE_MAX_PAGES_PER_REQ) {
+	num_pages = (num + offset + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	num_pages = min(num_pages, FUSE_MAX_PAGES_PER_REQ);
+
+	req = fuse_get_req(fc, num_pages);
+	if (IS_ERR(req))
+		return PTR_ERR(req);
+
+	req->in.h.opcode = FUSE_NOTIFY_REPLY;
+	req->in.h.nodeid = outarg->nodeid;
+	req->in.numargs = 2;
+	req->in.argpages = 1;
+	req->page_descs[0].offset = offset;
+	req->end = fuse_retrieve_end;
+
+	index = outarg->offset >> PAGE_CACHE_SHIFT;
+
+	while (num && req->num_pages < num_pages) {
 		struct page *page;
 		unsigned int this_num;
 
@@ -1573,6 +1631,7 @@ static int fuse_retrieve(struct fuse_conn *fc, struct inode *inode,
 
 		this_num = min_t(unsigned, num, PAGE_CACHE_SIZE - offset);
 		req->pages[req->num_pages] = page;
+		req->page_descs[req->num_pages].length = this_num;
 		req->num_pages++;
 
 		offset = 0;

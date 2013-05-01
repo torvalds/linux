@@ -73,7 +73,7 @@ static struct clocksource clocksource_acpi_pm = {
 
 
 #ifdef CONFIG_PCI
-static int __devinitdata acpi_pm_good;
+static int acpi_pm_good;
 static int __init acpi_pm_good_setup(char *__str)
 {
 	acpi_pm_good = 1;
@@ -102,7 +102,7 @@ static inline void acpi_pm_need_workaround(void)
  * incorrect when read). As a result, the ACPI free running count up
  * timer specification is violated due to erroneous reads.
  */
-static void __devinit acpi_pm_check_blacklist(struct pci_dev *dev)
+static void acpi_pm_check_blacklist(struct pci_dev *dev)
 {
 	if (acpi_pm_good)
 		return;
@@ -120,7 +120,7 @@ static void __devinit acpi_pm_check_blacklist(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82371AB_3,
 			acpi_pm_check_blacklist);
 
-static void __devinit acpi_pm_check_graylist(struct pci_dev *dev)
+static void acpi_pm_check_graylist(struct pci_dev *dev)
 {
 	if (acpi_pm_good)
 		return;
@@ -233,16 +233,15 @@ fs_initcall(init_acpi_pm_clocksource);
  */
 static int __init parse_pmtmr(char *arg)
 {
-	unsigned long base;
+	unsigned int base;
+	int ret;
 
-	if (strict_strtoul(arg, 16, &base))
-		return -EINVAL;
-#ifdef CONFIG_X86_64
-	if (base > UINT_MAX)
-		return -ERANGE;
-#endif
-	printk(KERN_INFO "PMTMR IOPort override: 0x%04x -> 0x%04lx\n",
-	       pmtmr_ioport, base);
+	ret = kstrtouint(arg, 16, &base);
+	if (ret)
+		return ret;
+
+	pr_info("PMTMR IOPort override: 0x%04x -> 0x%04x\n", pmtmr_ioport,
+		base);
 	pmtmr_ioport = base;
 
 	return 1;

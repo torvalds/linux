@@ -277,7 +277,7 @@ static struct miscdevice ibwdt_miscdev = {
  *	Init & exit routines
  */
 
-static int __devinit ibwdt_probe(struct platform_device *dev)
+static int ibwdt_probe(struct platform_device *dev)
 {
 	int res;
 
@@ -319,7 +319,7 @@ out_nostopreg:
 	return res;
 }
 
-static int __devexit ibwdt_remove(struct platform_device *dev)
+static int ibwdt_remove(struct platform_device *dev)
 {
 	misc_deregister(&ibwdt_miscdev);
 	release_region(WDT_START, 1);
@@ -337,7 +337,7 @@ static void ibwdt_shutdown(struct platform_device *dev)
 
 static struct platform_driver ibwdt_driver = {
 	.probe		= ibwdt_probe,
-	.remove		= __devexit_p(ibwdt_remove),
+	.remove		= ibwdt_remove,
 	.shutdown	= ibwdt_shutdown,
 	.driver		= {
 		.owner	= THIS_MODULE,

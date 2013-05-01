@@ -63,7 +63,7 @@ int fsl_ifc_find(phys_addr_t addr_base)
 		return -ENODEV;
 
 	for (i = 0; i < ARRAY_SIZE(fsl_ifc_ctrl_dev->regs->cspr_cs); i++) {
-		__be32 cspr = in_be32(&fsl_ifc_ctrl_dev->regs->cspr_cs[i].cspr);
+		u32 cspr = in_be32(&fsl_ifc_ctrl_dev->regs->cspr_cs[i].cspr);
 		if (cspr & CSPR_V && (cspr & CSPR_BA) ==
 				convert_ifc_address(addr_base))
 			return i;
@@ -73,7 +73,7 @@ int fsl_ifc_find(phys_addr_t addr_base)
 }
 EXPORT_SYMBOL(fsl_ifc_find);
 
-static int __devinit fsl_ifc_ctrl_init(struct fsl_ifc_ctrl *ctrl)
+static int fsl_ifc_ctrl_init(struct fsl_ifc_ctrl *ctrl)
 {
 	struct fsl_ifc_regs __iomem *ifc = ctrl->regs;
 
@@ -211,7 +211,7 @@ static irqreturn_t fsl_ifc_ctrl_irq(int irqno, void *data)
  * resources for the NAND banks themselves are allocated
  * in the chip probe function.
 */
-static int __devinit fsl_ifc_ctrl_probe(struct platform_device *dev)
+static int fsl_ifc_ctrl_probe(struct platform_device *dev)
 {
 	int ret = 0;
 

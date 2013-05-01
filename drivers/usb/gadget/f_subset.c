@@ -236,7 +236,7 @@ static struct usb_descriptor_header *ss_eth_function[] = {
 
 static struct usb_string geth_string_defs[] = {
 	[0].s = "CDC Ethernet Subset/SAFE",
-	[1].s = NULL /* DYNAMIC */,
+	[1].s = "",
 	{  } /* end of list */
 };
 
@@ -319,38 +319,22 @@ geth_bind(struct usb_configuration *c, struct usb_function *f)
 	geth->port.out_ep = ep;
 	ep->driver_data = cdev;	/* claim */
 
-	/* copy descriptors, and track endpoint copies */
-	f->descriptors = usb_copy_descriptors(fs_eth_function);
-	if (!f->descriptors)
-		goto fail;
-
 	/* support all relevant hardware speeds... we expect that when
 	 * hardware is dual speed, all bulk-capable endpoints work at
 	 * both speeds
 	 */
-	if (gadget_is_dualspeed(c->cdev->gadget)) {
-		hs_subset_in_desc.bEndpointAddress =
-				fs_subset_in_desc.bEndpointAddress;
-		hs_subset_out_desc.bEndpointAddress =
-				fs_subset_out_desc.bEndpointAddress;
+	hs_subset_in_desc.bEndpointAddress = fs_subset_in_desc.bEndpointAddress;
+	hs_subset_out_desc.bEndpointAddress =
+		fs_subset_out_desc.bEndpointAddress;
 
-		/* copy descriptors, and track endpoint copies */
-		f->hs_descriptors = usb_copy_descriptors(hs_eth_function);
-		if (!f->hs_descriptors)
-			goto fail;
-	}
+	ss_subset_in_desc.bEndpointAddress = fs_subset_in_desc.bEndpointAddress;
+	ss_subset_out_desc.bEndpointAddress =
+		fs_subset_out_desc.bEndpointAddress;
 
-	if (gadget_is_superspeed(c->cdev->gadget)) {
-		ss_subset_in_desc.bEndpointAddress =
-				fs_subset_in_desc.bEndpointAddress;
-		ss_subset_out_desc.bEndpointAddress =
-				fs_subset_out_desc.bEndpointAddress;
-
-		/* copy descriptors, and track endpoint copies */
-		f->ss_descriptors = usb_copy_descriptors(ss_eth_function);
-		if (!f->ss_descriptors)
-			goto fail;
-	}
+	status = usb_assign_descriptors(f, fs_eth_function, hs_eth_function,
+			ss_eth_function);
+	if (status)
+		goto fail;
 
 	/* NOTE:  all that is done without knowing or caring about
 	 * the network link ... which is unavailable to this code
@@ -364,15 +348,11 @@ geth_bind(struct usb_configuration *c, struct usb_function *f)
 	return 0;
 
 fail:
-	if (f->descriptors)
-		usb_free_descriptors(f->descriptors);
-	if (f->hs_descriptors)
-		usb_free_descriptors(f->hs_descriptors);
-
+	usb_free_all_descriptors(f);
 	/* we might as well release our claims on endpoints */
-	if (geth->port.out_ep->desc)
+	if (geth->port.out_ep)
 		geth->port.out_ep->driver_data = NULL;
-	if (geth->port.in_ep->desc)
+	if (geth->port.in_ep)
 		geth->port.in_ep->driver_data = NULL;
 
 	ERROR(cdev, "%s: can't bind, err %d\n", f->name, status);
@@ -383,12 +363,8 @@ fail:
 static void
 geth_unbind(struct usb_configuration *c, struct usb_function *f)
 {
-	if (gadget_is_superspeed(c->cdev->gadget))
-		usb_free_descriptors(f->ss_descriptors);
-	if (gadget_is_dualspeed(c->cdev->gadget))
-		usb_free_descriptors(f->hs_descriptors);
-	usb_free_descriptors(f->descriptors);
-	geth_string_defs[1].s = NULL;
+	geth_string_defs[0].id = 0;
+	usb_free_all_descriptors(f);
 	kfree(func_to_geth(f));
 }
 
@@ -414,20 +390,11 @@ int geth_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN])
 
 	/* maybe allocate device-global string IDs */
 	if (geth_string_defs[0].id == 0) {
-
-		/* interface label */
-		status = usb_string_id(c->cdev);
+		status = usb_string_ids_tab(c->cdev, geth_string_defs);
 		if (status < 0)
 			return status;
-		geth_string_defs[0].id = status;
-		subset_data_intf.iInterface = status;
-
-		/* MAC address */
-		status = usb_string_id(c->cdev);
-		if (status < 0)
-			return status;
-		geth_string_defs[1].id = status;
-		ether_desc.iMACAddress = status;
+		subset_data_intf.iInterface = geth_string_defs[0].id;
+		ether_desc.iMACAddress = geth_string_defs[1].id;
 	}
 
 	/* allocate and initialize one new instance */
@@ -449,9 +416,7 @@ int geth_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN])
 	geth->port.func.disable = geth_disable;
 
 	status = usb_add_function(c, &geth->port.func);
-	if (status) {
-		geth_string_defs[1].s = NULL;
+	if (status)
 		kfree(geth);
-	}
 	return status;
 }

@@ -1,5 +1,5 @@
 
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING_NATIVE
 /* read ar.itc in advance, and use it before leaving bank 0 */
 #define XEN_ACCOUNT_GET_STAMP		\
 	MOV_FROM_ITC(pUStk, p6, r20, r2);

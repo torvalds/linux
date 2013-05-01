@@ -12,19 +12,34 @@
 
 /include/ "mpc5200b.dtsi"
 
+&gpt0 { fsl,has-wdt; };
+&gpt2 { gpio-controller; };
+&gpt3 { gpio-controller; };
+
 / {
 	model = "fsl,lite5200b";
 	compatible = "fsl,lite5200b";
+
+	leds {
+		compatible = "gpio-leds";
+		tmr2 {
+			gpios = <&gpt2 0 1>;
+		};
+		tmr3 {
+			gpios = <&gpt3 0 1>;
+			linux,default-trigger = "heartbeat";
+		};
+		led1 { gpios = <&gpio_wkup 2 1>; };
+		led2 { gpios = <&gpio_simple 3 1>; };
+		led3 { gpios = <&gpio_wkup 3 1>; };
+		led4 { gpios = <&gpio_simple 2 1>; };
+	};
 
 	memory {
 		reg = <0x00000000 0x10000000>;	// 256MB
 	};
 
 	soc5200@f0000000 {
-		timer@600 {	// General Purpose Timer
-			fsl,has-wdt;
-		};
-
 		psc@2000 {		// PSC1
 			compatible = "fsl,mpc5200b-psc-uart","fsl,mpc5200-psc-uart";
 			cell-index = <0>;

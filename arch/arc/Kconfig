@@ -1,0 +1,453 @@
+#
+# Copyright (C) 2004, 2007-2010, 2011-2012 Synopsys, Inc. (www.synopsys.com)
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License version 2 as
+# published by the Free Software Foundation.
+#
+
+config ARC
+	def_bool y
+	select CLONE_BACKWARDS
+	# ARC Busybox based initramfs absolutely relies on DEVTMPFS for /dev
+	select DEVTMPFS if !INITRAMFS_SOURCE=""
+	select GENERIC_ATOMIC64
+	select GENERIC_CLOCKEVENTS
+	select GENERIC_FIND_FIRST_BIT
+	# for now, we don't need GENERIC_IRQ_PROBE, CONFIG_GENERIC_IRQ_CHIP
+	select GENERIC_IRQ_SHOW
+	select GENERIC_KERNEL_EXECVE
+	select GENERIC_KERNEL_THREAD
+	select GENERIC_PENDING_IRQ if SMP
+	select GENERIC_SMP_IDLE_THREAD
+	select HAVE_ARCH_KGDB
+	select HAVE_ARCH_TRACEHOOK
+	select HAVE_GENERIC_HARDIRQS
+	select HAVE_IOREMAP_PROT
+	select HAVE_KPROBES
+	select HAVE_KRETPROBES
+	select HAVE_MEMBLOCK
+	select HAVE_MOD_ARCH_SPECIFIC if ARC_DW2_UNWIND
+	select HAVE_OPROFILE
+	select HAVE_PERF_EVENTS
+	select IRQ_DOMAIN
+	select MODULES_USE_ELF_RELA
+	select NO_BOOTMEM
+	select OF
+	select OF_EARLY_FLATTREE
+	select PERF_USE_VMALLOC
+
+config SCHED_OMIT_FRAME_POINTER
+	def_bool y
+
+config GENERIC_CSUM
+	def_bool y
+
+config RWSEM_GENERIC_SPINLOCK
+	def_bool y
+
+config ARCH_FLATMEM_ENABLE
+	def_bool y
+
+config MMU
+	def_bool y
+
+config NO_IOPORT
+	def_bool y
+
+config GENERIC_CALIBRATE_DELAY
+	def_bool y
+
+config GENERIC_HWEIGHT
+	def_bool y
+
+config BINFMT_ELF
+	def_bool y
+
+config STACKTRACE_SUPPORT
+	def_bool y
+	select STACKTRACE
+
+config HAVE_LATENCYTOP_SUPPORT
+	def_bool y
+
+config NO_DMA
+	def_bool n
+
+source "init/Kconfig"
+source "kernel/Kconfig.freezer"
+
+menu "ARC Architecture Configuration"
+
+menu "ARC Platform/SoC/Board"
+
+source "arch/arc/plat-arcfpga/Kconfig"
+#New platform adds here
+
+endmenu
+
+menu "ARC CPU Configuration"
+
+choice
+	prompt "ARC Core"
+	default ARC_CPU_770
+
+config ARC_CPU_750D
+	bool "ARC750D"
+	help
+	  Support for ARC750 core
+
+config ARC_CPU_770
+	bool "ARC770"
+	select ARC_CPU_REL_4_10
+	help
+	  Support for ARC770 core introduced with Rel 4.10 (Summer 2011)
+	  This core has a bunch of cool new features:
+	  -MMU-v3: Variable Page Sz (4k, 8k, 16k), bigger J-TLB (128x4)
+                   Shared Address Spaces (for sharing TLB entires in MMU)
+	  -Caches: New Prog Model, Region Flush
+	  -Insns: endian swap, load-locked/store-conditional, time-stamp-ctr
+
+endchoice
+
+config CPU_BIG_ENDIAN
+	bool "Enable Big Endian Mode"
+	default n
+	help
+	  Build kernel for Big Endian Mode of ARC CPU
+
+# If a platform can't work with 0x8000_0000 based dma_addr_t
+config ARC_PLAT_NEEDS_CPU_TO_DMA
+	bool
+
+config SMP
+	bool "Symmetric Multi-Processing (Incomplete)"
+	default n
+	select USE_GENERIC_SMP_HELPERS
+	help
+	  This enables support for systems with more than one CPU. If you have
+	  a system with only one CPU, like most personal computers, say N. If
+	  you have a system with more than one CPU, say Y.
+
+if SMP
+
+config ARC_HAS_COH_CACHES
+	def_bool n
+
+config ARC_HAS_COH_LLSC
+	def_bool n
+
+config ARC_HAS_COH_RTSC
+	def_bool n
+
+config ARC_HAS_REENTRANT_IRQ_LV2
+	def_bool n
+
+endif
+
+config NR_CPUS
+	int "Maximum number of CPUs (2-32)"
+	range 2 32
+	depends on SMP
+	default "2"
+
+menuconfig ARC_CACHE
+	bool "Enable Cache Support"
+	default y
+	# if SMP, cache enabled ONLY if ARC implementation has cache coherency
+	depends on !SMP || ARC_HAS_COH_CACHES
+
+if ARC_CACHE
+
+config ARC_CACHE_LINE_SHIFT
+	int "Cache Line Length (as power of 2)"
+	range 5 7
+	default "6"
+	help
+	  Starting with ARC700 4.9, Cache line length is configurable,
+	  This option specifies "N", with Line-len = 2 power N
+	  So line lengths of 32, 64, 128 are specified by 5,6,7, respectively
+	  Linux only supports same line lengths for I and D caches.
+
+config ARC_HAS_ICACHE
+	bool "Use Instruction Cache"
+	default y
+
+config ARC_HAS_DCACHE
+	bool "Use Data Cache"
+	default y
+
+config ARC_CACHE_PAGES
+	bool "Per Page Cache Control"
+	default y
+	depends on ARC_HAS_ICACHE || ARC_HAS_DCACHE
+	help
+	  This can be used to over-ride the global I/D Cache Enable on a
+	  per-page basis (but only for pages accessed via MMU such as
+	  Kernel Virtual address or User Virtual Address)
+	  TLB entries have a per-page Cache Enable Bit.
+	  Note that Global I/D ENABLE + Per Page DISABLE works but corollary
+	  Global DISABLE + Per Page ENABLE won't work
+
+endif	#ARC_CACHE
+
+config ARC_HAS_ICCM
+	bool "Use ICCM"
+	help
+	  Single Cycle RAMS to store Fast Path Code
+	default n
+
+config ARC_ICCM_SZ
+	int "ICCM Size in KB"
+	default "64"
+	depends on ARC_HAS_ICCM
+
+config ARC_HAS_DCCM
+	bool "Use DCCM"
+	help
+	  Single Cycle RAMS to store Fast Path Data
+	default n
+
+config ARC_DCCM_SZ
+	int "DCCM Size in KB"
+	default "64"
+	depends on ARC_HAS_DCCM
+
+config ARC_DCCM_BASE
+	hex "DCCM map address"
+	default "0xA0000000"
+	depends on ARC_HAS_DCCM
+
+config ARC_HAS_HW_MPY
+	bool "Use Hardware Multiplier (Normal or Faster XMAC)"
+	default y
+	help
+	  Influences how gcc generates code for MPY operations.
+	  If enabled, MPYxx insns are generated, provided by Standard/XMAC
+	  Multipler. Otherwise software multipy lib is used
+
+choice
+	prompt "ARC700 MMU Version"
+	default ARC_MMU_V3 if ARC_CPU_770
+	default ARC_MMU_V2 if ARC_CPU_750D
+
+config ARC_MMU_V1
+	bool "MMU v1"
+	help
+	  Orig ARC700 MMU
+
+config ARC_MMU_V2
+	bool "MMU v2"
+	help
+	  Fixed the deficiency of v1 - possible thrashing in memcpy sceanrio
+	  when 2 D-TLB and 1 I-TLB entries index into same 2way set.
+
+config ARC_MMU_V3
+	bool "MMU v3"
+	depends on ARC_CPU_770
+	help
+	  Introduced with ARC700 4.10: New Features
+	  Variable Page size (1k-16k), var JTLB size 128 x (2 or 4)
+	  Shared Address Spaces (SASID)
+
+endchoice
+
+
+choice
+	prompt "MMU Page Size"
+	default ARC_PAGE_SIZE_8K
+
+config ARC_PAGE_SIZE_8K
+	bool "8KB"
+	help
+	  Choose between 8k vs 16k
+
+config ARC_PAGE_SIZE_16K
+	bool "16KB"
+	depends on ARC_MMU_V3
+
+config ARC_PAGE_SIZE_4K
+	bool "4KB"
+	depends on ARC_MMU_V3
+
+endchoice
+
+config ARC_COMPACT_IRQ_LEVELS
+	bool "ARCompact IRQ Priorities: High(2)/Low(1)"
+	default n
+	# Timer HAS to be high priority, for any other high priority config
+	select ARC_IRQ3_LV2
+	# if SMP, LV2 enabled ONLY if ARC implementation has LV2 re-entrancy
+	depends on !SMP || ARC_HAS_REENTRANT_IRQ_LV2
+
+if ARC_COMPACT_IRQ_LEVELS
+
+config ARC_IRQ3_LV2
+	bool
+
+config ARC_IRQ5_LV2
+	bool
+
+config ARC_IRQ6_LV2
+	bool
+
+endif
+
+config ARC_FPU_SAVE_RESTORE
+	bool "Enable FPU state persistence across context switch"
+	default n
+	help
+	  Double Precision Floating Point unit had dedictaed regs which
+	  need to be saved/restored across context-switch.
+	  Note that ARC FPU is overly simplistic, unlike say x86, which has
+	  hardware pieces to allow software to conditionally save/restore,
+	  based on actual usage of FPU by a task. Thus our implemn does
+	  this for all tasks in system.
+
+menuconfig ARC_CPU_REL_4_10
+	bool "Enable support for Rel 4.10 features"
+	default n
+	help
+	  -ARC770 (and dependent features) enabled
+	  -ARC750 also shares some of the new features with 770
+
+config ARC_HAS_LLSC
+	bool "Insn: LLOCK/SCOND (efficient atomic ops)"
+	default y
+	depends on ARC_CPU_770
+	# if SMP, enable LLSC ONLY if ARC implementation has coherent atomics
+	depends on !SMP || ARC_HAS_COH_LLSC
+
+config ARC_HAS_SWAPE
+	bool "Insn: SWAPE (endian-swap)"
+	default y
+	depends on ARC_CPU_REL_4_10
+
+config ARC_HAS_RTSC
+	bool "Insn: RTSC (64-bit r/o cycle counter)"
+	default y
+	depends on ARC_CPU_REL_4_10
+	# if SMP, enable RTSC only if counter is coherent across cores
+	depends on !SMP || ARC_HAS_COH_RTSC
+
+endmenu   # "ARC CPU Configuration"
+
+config LINUX_LINK_BASE
+	hex "Linux Link Address"
+	default "0x80000000"
+	help
+	  ARC700 divides the 32 bit phy address space into two equal halves
+	  -Lower 2G (0 - 0x7FFF_FFFF ) is user virtual, translated by MMU
+	  -Upper 2G (0x8000_0000 onwards) is untranslated, for kernel
+	  Typically Linux kernel is linked at the start of untransalted addr,
+	  hence the default value of 0x8zs.
+	  However some customers have peripherals mapped at this addr, so
+	  Linux needs to be scooted a bit.
+	  If you don't know what the above means, leave this setting alone.
+
+config ARC_CURR_IN_REG
+	bool "Dedicate Register r25 for current_task pointer"
+	default y
+	help
+	  This reserved Register R25 to point to Current Task in
+	  kernel mode. This saves memory access for each such access
+
+
+config ARC_MISALIGN_ACCESS
+	bool "Emulate unaligned memory access (userspace only)"
+	default N
+	select SYSCTL_ARCH_UNALIGN_NO_WARN
+	select SYSCTL_ARCH_UNALIGN_ALLOW
+	help
+	  This enables misaligned 16 & 32 bit memory access from user space.
+	  Use ONLY-IF-ABS-NECESSARY as it will be very slow and also can hide
+	  potential bugs in code
+
+config ARC_STACK_NONEXEC
+	bool "Make stack non-executable"
+	default n
+	help
+	  To disable the execute permissions of stack/heap of processes
+	  which are enabled by default.
+
+config HZ
+	int "Timer Frequency"
+	default 100
+
+config ARC_METAWARE_HLINK
+	bool "Support for Metaware debugger assisted Host access"
+	default n
+	help
+	  This options allows a Linux userland apps to directly access
+	  host file system (open/creat/read/write etc) with help from
+	  Metaware Debugger. This can come in handy for Linux-host communication
+	  when there is no real usable peripheral such as EMAC.
+
+menuconfig ARC_DBG
+	bool "ARC debugging"
+	default y
+
+config ARC_DW2_UNWIND
+	bool "Enable DWARF specific kernel stack unwind"
+	depends on ARC_DBG
+	default y
+	select KALLSYMS
+	help
+	  Compiles the kernel with DWARF unwind information and can be used
+	  to get stack backtraces.
+
+	  If you say Y here the resulting kernel image will be slightly larger
+	  but not slower, and it will give very useful debugging information.
+	  If you don't debug the kernel, you can say N, but we may not be able
+	  to solve problems without frame unwind information
+
+config ARC_DBG_TLB_PARANOIA
+	bool "Paranoia Checks in Low Level TLB Handlers"
+	depends on ARC_DBG
+	default n
+
+config ARC_DBG_TLB_MISS_COUNT
+	bool "Profile TLB Misses"
+	default n
+	select DEBUG_FS
+	depends on ARC_DBG
+	help
+	  Counts number of I and D TLB Misses and exports them via Debugfs
+	  The counters can be cleared via Debugfs as well
+
+config CMDLINE
+	string "Kernel command line to built-in"
+	default "print-fatal-signals=1"
+	help
+	  The default command line which will be appended to the optional
+	  u-boot provided command line (see below)
+
+config CMDLINE_UBOOT
+	bool "Support U-boot kernel command line passing"
+	default n
+	help
+	  If you are using U-boot (www.denx.de) and wish to pass the kernel
+	  command line from the U-boot environment to the Linux kernel then
+	  switch this option on.
+	  ARC U-boot will setup the cmdline in RAM/flash and set r2 to point
+	  to it. kernel startup code will copy the string into cmdline buffer
+	  and also append CONFIG_CMDLINE.
+
+config ARC_BUILTIN_DTB_NAME
+	string "Built in DTB"
+	help
+	  Set the name of the DTB to embed in the vmlinux binary
+	  Leaving it blank selects the minimal "skeleton" dtb
+
+source "kernel/Kconfig.preempt"
+
+endmenu	 # "ARC Architecture Configuration"
+
+source "mm/Kconfig"
+source "net/Kconfig"
+source "drivers/Kconfig"
+source "fs/Kconfig"
+source "arch/arc/Kconfig.debug"
+source "security/Kconfig"
+source "crypto/Kconfig"
+source "lib/Kconfig"

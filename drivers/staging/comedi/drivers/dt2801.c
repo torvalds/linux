@@ -233,8 +233,6 @@ struct dt2801_private {
 	unsigned int ao_readback[2];
 };
 
-#define devpriv ((struct dt2801_private *)dev->private)
-
 /* These are the low-level routines:
    writecommand: write a command to the board
    writedata: write data byte
@@ -508,6 +506,8 @@ static int dt2801_ao_insn_read(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
+	struct dt2801_private *devpriv = dev->private;
+
 	data[0] = devpriv->ao_readback[CR_CHAN(insn->chanspec)];
 
 	return 1;
@@ -517,6 +517,8 @@ static int dt2801_ao_insn_write(struct comedi_device *dev,
 				struct comedi_subdevice *s,
 				struct comedi_insn *insn, unsigned int *data)
 {
+	struct dt2801_private *devpriv = dev->private;
+
 	dt2801_writecmd(dev, DT_C_WRITE_DAIM);
 	dt2801_writedata(dev, CR_CHAN(insn->chanspec));
 	dt2801_writedata2(dev, data[0]);
@@ -590,6 +592,7 @@ static int dt2801_dio_insn_config(struct comedi_device *dev,
 */
 static int dt2801_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	struct dt2801_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned long iobase;
 	int board_code, type;
@@ -630,9 +633,10 @@ havetype:
 	if (ret)
 		goto out;
 
-	ret = alloc_private(dev, sizeof(struct dt2801_private));
-	if (ret < 0)
-		return ret;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	dev->board_name = boardtype.name;
 

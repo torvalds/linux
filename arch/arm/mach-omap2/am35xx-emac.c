@@ -18,7 +18,7 @@
 #include <linux/err.h>
 #include <linux/davinci_emac.h>
 #include <asm/system.h>
-#include <plat/omap_device.h>
+#include "omap_device.h"
 #include "am35xx.h"
 #include "control.h"
 #include "am35xx-emac.h"
@@ -62,8 +62,7 @@ static int __init omap_davinci_emac_dev_init(struct omap_hwmod *oh,
 {
 	struct platform_device *pdev;
 
-	pdev = omap_device_build(oh->class->name, 0, oh, pdata, pdata_len,
-				 NULL, 0, false);
+	pdev = omap_device_build(oh->class->name, 0, oh, pdata, pdata_len);
 	if (IS_ERR(pdev)) {
 		WARN(1, "Can't build omap_device for %s:%s.\n",
 		     oh->class->name, oh->name);

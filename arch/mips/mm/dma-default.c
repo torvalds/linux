@@ -4,7 +4,7 @@
  * for more details.
  *
  * Copyright (C) 2000  Ani Joshi <ajoshi@unixbox.com>
- * Copyright (C) 2000, 2001, 06  Ralf Baechle <ralf@linux-mips.org>
+ * Copyright (C) 2000, 2001, 06	 Ralf Baechle <ralf@linux-mips.org>
  * swiped from i386, and cloned for MIPS by Geert, polished by Ralf.
  */
 

@@ -22,6 +22,7 @@ extern int show_fiq_list(struct seq_file *, int);
 
 #ifdef CONFIG_MULTI_IRQ_HANDLER
 extern void (*handle_arch_irq)(struct pt_regs *);
+extern void set_handle_irq(void (*handle_irq)(struct pt_regs *));
 #endif
 
 /*

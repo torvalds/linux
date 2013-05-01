@@ -96,10 +96,13 @@ do { \
 }
 
 
+#define DLM_RTF_SHRINK		0x00000001
+
 struct dlm_rsbtable {
 	struct rb_root		keep;
 	struct rb_root		toss;
 	spinlock_t		lock;
+	uint32_t		flags;
 };
 
 
@@ -337,6 +340,7 @@ enum rsb_flags {
 	RSB_NEW_MASTER2,
 	RSB_RECOVER_CONVERT,
 	RSB_RECOVER_GRANT,
+	RSB_RECOVER_LVB_INVAL,
 };
 
 static inline void rsb_set_flag(struct dlm_rsb *r, enum rsb_flags flag)

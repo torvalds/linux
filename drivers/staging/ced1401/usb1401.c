@@ -89,14 +89,11 @@ synchronous non-Urb based transfers.
 #include <linux/mutex.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>
-#include <linux/version.h>
-#if ( LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,35) )
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/kref.h>
 #include <linux/uaccess.h>
-#endif
 
 #include "usb1401.h"
 
@@ -122,19 +119,6 @@ MODULE_DEVICE_TABLE(usb, ced_table);
    is an integer 512 is the largest possible packet on EHCI */
 #define WRITES_IN_FLIGHT	8
 /* arbitrarily chosen */
-
-/* 
-The cause for these errors is that the driver makes use of the functions usb_buffer_alloc() and usb_buffer_free() which got renamed in kernel 2.6.35. This is stated in the Changelog:   USB: rename usb_buffer_alloc() and usb_buffer_free() users
-    For more clearance what the functions actually do,
-      usb_buffer_alloc() is renamed to usb_alloc_coherent()
-      usb_buffer_free()  is renamed to usb_free_coherent()
-   This is needed on Debian 2.6.32-5-amd64
-*/
-#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,35) )
-#define usb_alloc_coherent usb_buffer_alloc
-#define usb_free_coherent  usb_buffer_free
-#define noop_llseek NULL
-#endif
 
 static struct usb_driver ced_driver;
 
@@ -713,7 +697,7 @@ static void staged_callback(struct urb *pUrb)
 	// in Allowi as if it were protected by the char lock. In any case, most systems will
 	// not be upset by char input during DMA... sigh. Needs sorting out.
 	if (bRestartCharInput)	// may be out of date, but...
-		Allowi(pdx, true);	// ...Allowi tests a lock too.
+		Allowi(pdx);	// ...Allowi tests a lock too.
 	dev_dbg(&pdx->interface->dev, "%s done", __func__);
 }
 
@@ -927,9 +911,9 @@ static bool ReadWord(unsigned short *pWord, char *pBuf, unsigned int *pdDone,
 ** ReadHuff
 **
 ** Reads a coded number in and returns it, Code is:
-** If data is in range 0..127 we recieve 1 byte. If data in range 128-16383
-** we recieve two bytes, top bit of first indicates another on its way. If
-** data in range 16383-4194303 we get three bytes, top two bits of first set
+** If data is in range 0..127 we receive 1 byte. If data in range 128-16383
+** we receive two bytes, top bit of first indicates another on its way. If
+** data in range 16384-4194303 we get three bytes, top two bits of first set
 ** to indicate three byte total.
 **
 *****************************************************************************/
@@ -1188,7 +1172,7 @@ static void ced_readchar_callback(struct urb *pUrb)
 	pdx->bReadCharsPending = false;	// No longer have a pending read
 	spin_unlock(&pdx->charInLock);	// already at irq level
 
-	Allowi(pdx, true);	// see if we can do the next one
+	Allowi(pdx);	// see if we can do the next one
 }
 
 /****************************************************************************
@@ -1198,7 +1182,7 @@ static void ced_readchar_callback(struct urb *pUrb)
 ** we can pick up any inward transfers. This can be called in multiple contexts
 ** so we use the irqsave version of the spinlock.
 ****************************************************************************/
-int Allowi(DEVICE_EXTENSION * pdx, bool bInCallback)
+int Allowi(DEVICE_EXTENSION * pdx)
 {
 	int iReturn = U14ERR_NOERROR;
 	unsigned long flags;
@@ -1227,9 +1211,7 @@ int Allowi(DEVICE_EXTENSION * pdx, bool bInCallback)
 				 pdx, pdx->bInterval);
 		pdx->pUrbCharIn->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;	// short xfers are OK by default
 		usb_anchor_urb(pdx->pUrbCharIn, &pdx->submitted);	// in case we need to kill it
-		iReturn =
-		    usb_submit_urb(pdx->pUrbCharIn,
-				   bInCallback ? GFP_ATOMIC : GFP_KERNEL);
+		iReturn = usb_submit_urb(pdx->pUrbCharIn, GFP_ATOMIC);
 		if (iReturn) {
 			usb_unanchor_urb(pdx->pUrbCharIn);	// remove from list of active Urbs
 			pdx->bPipeError[nPipe] = 1;	// Flag an error to be handled later
@@ -1252,12 +1234,7 @@ int Allowi(DEVICE_EXTENSION * pdx, bool bInCallback)
 ** ulArg    The argument passed in. Note that long is 64-bits in 64-bit system, i.e. it is big
 **          enough for a 64-bit pointer.
 *****************************************************************************/
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
 static long ced_ioctl(struct file *file, unsigned int cmd, unsigned long ulArg)
-#else
-static int ced_ioctl(struct inode *node, struct file *file, unsigned int cmd,
-		     unsigned long ulArg)
-#endif
 {
 	int err = 0;
 	DEVICE_EXTENSION *pdx = file->private_data;
@@ -1388,11 +1365,7 @@ static const struct file_operations ced_fops = {
 	.release = ced_release,
 	.flush = ced_flush,
 	.llseek = noop_llseek,
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,36)
 	.unlocked_ioctl = ced_ioctl,
-#else
-	.ioctl = ced_ioctl,
-#endif
 };
 
 /*
@@ -1418,10 +1391,8 @@ static int ced_probe(struct usb_interface *interface,
 
 	// allocate memory for our device extension and initialize it
 	pdx = kzalloc(sizeof(*pdx), GFP_KERNEL);
-	if (!pdx) {
-		dev_err(&interface->dev, "Out of memory\n");
+	if (!pdx)
 		goto error;
-	}
 
 	for (i = 0; i < MAX_TRANSAREAS; ++i)	// Initialise the wait queues
 	{
@@ -1537,7 +1508,7 @@ error:
 static void ced_disconnect(struct usb_interface *interface)
 {
 	DEVICE_EXTENSION *pdx = usb_get_intfdata(interface);
-	int minor = interface->minor;	// save for message at the end
+	int minor = interface->minor;
 	int i;
 
 	usb_set_intfdata(interface, NULL);	// remove the pdx from the interface
@@ -1572,8 +1543,7 @@ void ced_draw_down(DEVICE_EXTENSION * pdx)
 
 	pdx->bInDrawDown = true;
 	time = usb_wait_anchor_empty_timeout(&pdx->submitted, 3000);
-	if (!time)		// if we timed out we kill the urbs
-	{
+	if (!time) {		// if we timed out we kill the urbs
 		usb_kill_anchored_urbs(&pdx->submitted);
 		dev_err(&pdx->interface->dev, "%s timed out", __func__);
 	}

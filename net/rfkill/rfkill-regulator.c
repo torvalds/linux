@@ -55,7 +55,7 @@ struct rfkill_ops rfkill_regulator_ops = {
 	.set_block = rfkill_regulator_set_block,
 };
 
-static int __devinit rfkill_regulator_probe(struct platform_device *pdev)
+static int rfkill_regulator_probe(struct platform_device *pdev)
 {
 	struct rfkill_regulator_platform_data *pdata = pdev->dev.platform_data;
 	struct rfkill_regulator_data *rfkill_data;
@@ -122,7 +122,7 @@ out:
 	return ret;
 }
 
-static int __devexit rfkill_regulator_remove(struct platform_device *pdev)
+static int rfkill_regulator_remove(struct platform_device *pdev)
 {
 	struct rfkill_regulator_data *rfkill_data = platform_get_drvdata(pdev);
 	struct rfkill *rf_kill = rfkill_data->rf_kill;
@@ -137,7 +137,7 @@ static int __devexit rfkill_regulator_remove(struct platform_device *pdev)
 
 static struct platform_driver rfkill_regulator_driver = {
 	.probe = rfkill_regulator_probe,
-	.remove = __devexit_p(rfkill_regulator_remove),
+	.remove = rfkill_regulator_remove,
 	.driver = {
 		.name = "rfkill-regulator",
 		.owner = THIS_MODULE,

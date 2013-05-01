@@ -84,7 +84,7 @@ static void copy_vbi_data(struct cx18 *cx, int lines, u32 pts_stamp)
 		   (the max size of the VBI data is 36 * 43 + 4 bytes).
 		   So in this case we use the magic number 'ITV0'. */
 		memcpy(dst + sd, "ITV0", 4);
-		memcpy(dst + sd + 4, dst + sd + 12, line * 43);
+		memmove(dst + sd + 4, dst + sd + 12, line * 43);
 		size = 4 + ((43 * line + 3) & ~3);
 	} else {
 		memcpy(dst + sd, "itv0", 4);

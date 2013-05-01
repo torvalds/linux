@@ -18,4 +18,7 @@ struct clk;
 extern int clk_register(struct clk *clk);
 extern void clk_unregister(struct clk *clk);
 
+int davinci_clk_reset_assert(struct clk *c);
+int davinci_clk_reset_deassert(struct clk *c);
+
 #endif

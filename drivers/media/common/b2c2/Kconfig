@@ -17,11 +17,6 @@ config DVB_B2C2_FLEXCOP
 	select DVB_CX24123 if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_SIMPLE if MEDIA_SUBDRV_AUTOSELECT
 	select DVB_TUNER_CX24113 if MEDIA_SUBDRV_AUTOSELECT
-	help
-	  Support for the digital TV receiver chip made by B2C2 Inc. included in
-	  Technisats PCI cards and USB boxes.
-
-	  Say Y if you own such a device and want to use it.
 
 # Selected via the PCI or USB flexcop drivers
 config DVB_B2C2_FLEXCOP_DEBUG

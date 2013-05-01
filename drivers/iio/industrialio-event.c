@@ -239,13 +239,13 @@ static ssize_t iio_ev_value_store(struct device *dev,
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct iio_dev_attr *this_attr = to_iio_dev_attr(attr);
-	unsigned long val;
+	int val;
 	int ret;
 
 	if (!indio_dev->info->write_event_value)
 		return -EINVAL;
 
-	ret = strict_strtoul(buf, 10, &val);
+	ret = kstrtoint(buf, 10, &val);
 	if (ret)
 		return ret;
 
@@ -350,15 +350,10 @@ static inline int __iio_add_event_config_attrs(struct iio_dev *indio_dev)
 		ret = iio_device_add_event_sysfs(indio_dev,
 						 &indio_dev->channels[j]);
 		if (ret < 0)
-			goto error_clear_attrs;
+			return ret;
 		attrcount += ret;
 	}
 	return attrcount;
-
-error_clear_attrs:
-	__iio_remove_event_config_attrs(indio_dev);
-
-	return ret;
 }
 
 static bool iio_check_for_dynamic_events(struct iio_dev *indio_dev)

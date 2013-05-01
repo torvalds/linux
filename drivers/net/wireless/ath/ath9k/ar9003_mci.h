@@ -18,6 +18,7 @@
 #define AR9003_MCI_H
 
 #define MCI_FLAG_DISABLE_TIMESTAMP      0x00000001      /* Disable time stamp */
+#define MCI_RECOVERY_DUR_TSF		(100 * 1000)    /* 100 ms */
 
 /* Default remote BT device MCI COEX version */
 #define MCI_GPM_COEX_MAJOR_VERSION_DEFAULT  3
@@ -125,6 +126,7 @@ enum ath_mci_gpm_coex_profile_type {
 	MCI_GPM_COEX_PROFILE_HID,
 	MCI_GPM_COEX_PROFILE_BNEP,
 	MCI_GPM_COEX_PROFILE_VOICE,
+	MCI_GPM_COEX_PROFILE_A2DPVO,
 	MCI_GPM_COEX_PROFILE_MAX
 };
 
@@ -196,7 +198,6 @@ enum mci_state_type {
 	MCI_STATE_SEND_WLAN_COEX_VERSION,
 	MCI_STATE_SEND_VERSION_QUERY,
 	MCI_STATE_SEND_STATUS_QUERY,
-	MCI_STATE_SET_CONCUR_TX_PRI,
 	MCI_STATE_RECOVER_RX,
 	MCI_STATE_NEED_FTP_STOMP,
 	MCI_STATE_DEBUG,
@@ -278,6 +279,7 @@ void ar9003_mci_get_isr(struct ath_hw *ah, enum ath9k_int *masked);
 void ar9003_mci_bt_gain_ctrl(struct ath_hw *ah);
 void ar9003_mci_set_power_awake(struct ath_hw *ah);
 void ar9003_mci_check_gpm_offset(struct ath_hw *ah);
+u16 ar9003_mci_get_max_txpower(struct ath_hw *ah, u8 ctlmode);
 
 #else
 
@@ -323,6 +325,10 @@ static inline void ar9003_mci_set_power_awake(struct ath_hw *ah)
 }
 static inline void ar9003_mci_check_gpm_offset(struct ath_hw *ah)
 {
+}
+static inline u16 ar9003_mci_get_max_txpower(struct ath_hw *ah, u8 ctlmode)
+{
+	return -1;
 }
 #endif /* CONFIG_ATH9K_BTCOEX_SUPPORT */
 

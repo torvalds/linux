@@ -250,3 +250,38 @@ struct prov_record {
 	struct list_head list;
 	u8 *pprov_data;
 };
+
+struct ft1000_info {
+	void *priv;
+	struct net_device_stats stats;
+	u16 DrvErrNum;
+	u16 AsicID;
+	int CardReady;
+	int registered;
+	int mediastate;
+	u8 squeseqnum;			/* sequence number on slow queue */
+	spinlock_t dpram_lock;
+	u16 fifo_cnt;
+	u8 DspVer[DSPVERSZ];		/* DSP version number */
+	u8 HwSerNum[HWSERNUMSZ];	/* Hardware Serial Number */
+	u8 Sku[SKUSZ];			/* SKU */
+	u8 eui64[EUISZ];		/* EUI64 */
+	time_t ConTm;			/* Connection Time */
+	u8 ProductMode[MODESZ];
+	u8 RfCalVer[CALVERSZ];
+	u8 RfCalDate[CALDATESZ];
+	u16 DSP_TIME[4];
+	u16 LedStat;
+	u16 ConStat;
+	u16 ProgConStat;
+	struct list_head prov_list;
+	u16 DSPInfoBlklen;
+	int (*ft1000_reset)(void *);
+	u16 DSPInfoBlk[MAX_DSP_SESS_REC];
+	union {
+		u16 Rec[MAX_DSP_SESS_REC];
+		u32 MagRec[MAX_DSP_SESS_REC/2];
+	} DSPSess;
+	struct proc_dir_entry *ft1000_proc_dir;
+	char netdevname[IFNAMSIZ];
+};

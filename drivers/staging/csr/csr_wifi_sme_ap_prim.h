@@ -20,10 +20,6 @@
 #include "csr_wifi_fsm_event.h"
 #include "csr_wifi_sme_prim.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #ifndef CSR_WIFI_AP_ENABLE
 #error CSR_WIFI_AP_ENABLE MUST be defined inorder to use csr_wifi_sme_ap_prim.h
 #endif
@@ -1029,10 +1025,6 @@ typedef struct
     CsrWifiSmeApBaSession baSession;
 } CsrWifiSmeApBaDeleteCfm;
 
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* CSR_WIFI_SME_AP_PRIM_H__ */
 

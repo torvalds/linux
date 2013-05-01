@@ -21,7 +21,6 @@
 #include <linux/timex.h>
 #include <linux/errno.h>
 #include <linux/profile.h>
-#include <linux/syscore_ops.h>
 #include <linux/timer.h>
 #include <linux/irq.h>
 
@@ -30,11 +29,6 @@
 #include <asm/stacktrace.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
-
-/*
- * Our system timer.
- */
-static struct sys_timer *system_timer;
 
 #if defined(CONFIG_RTC_DRV_CMOS) || defined(CONFIG_RTC_DRV_CMOS_MODULE) || \
     defined(CONFIG_NVRAM) || defined(CONFIG_NVRAM_MODULE)
@@ -68,16 +62,6 @@ unsigned long profile_pc(struct pt_regs *regs)
 }
 EXPORT_SYMBOL(profile_pc);
 #endif
-
-#ifdef CONFIG_ARCH_USES_GETTIMEOFFSET
-u32 arch_gettimeoffset(void)
-{
-	if (system_timer->offset != NULL)
-		return system_timer->offset() * 1000;
-
-	return 0;
-}
-#endif /* CONFIG_ARCH_USES_GETTIMEOFFSET */
 
 #ifndef CONFIG_GENERIC_CLOCKEVENTS
 /*
@@ -129,43 +113,8 @@ int __init register_persistent_clock(clock_access_fn read_boot,
 	return -EINVAL;
 }
 
-#if defined(CONFIG_PM) && !defined(CONFIG_GENERIC_CLOCKEVENTS)
-static int timer_suspend(void)
-{
-	if (system_timer->suspend)
-		system_timer->suspend();
-
-	return 0;
-}
-
-static void timer_resume(void)
-{
-	if (system_timer->resume)
-		system_timer->resume();
-}
-#else
-#define timer_suspend NULL
-#define timer_resume NULL
-#endif
-
-static struct syscore_ops timer_syscore_ops = {
-	.suspend	= timer_suspend,
-	.resume		= timer_resume,
-};
-
-static int __init timer_init_syscore_ops(void)
-{
-	register_syscore_ops(&timer_syscore_ops);
-
-	return 0;
-}
-
-device_initcall(timer_init_syscore_ops);
-
 void __init time_init(void)
 {
-	system_timer = machine_desc->timer;
-	system_timer->init();
+	machine_desc->init_time();
 	sched_clock_postinit();
 }
-

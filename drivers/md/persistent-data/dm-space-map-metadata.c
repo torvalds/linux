@@ -337,7 +337,7 @@ static int sm_metadata_new_block(struct dm_space_map *sm, dm_block_t *b)
 {
 	int r = sm_metadata_new_block_(sm, b);
 	if (r)
-		DMERR("out of metadata space");
+		DMERR("unable to allocate new metadata block");
 	return r;
 }
 

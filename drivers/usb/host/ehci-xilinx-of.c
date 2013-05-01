@@ -25,6 +25,7 @@
  *
  */
 
+#include <linux/err.h>
 #include <linux/signal.h>
 
 #include <linux/of.h>
@@ -125,7 +126,7 @@ static const struct hc_driver ehci_xilinx_of_hc_driver = {
  * as HS only or HS/FS only, it checks the configuration in the device tree
  * entry, and sets an appropriate value for hcd->has_tt.
  */
-static int __devinit ehci_hcd_xilinx_of_probe(struct platform_device *op)
+static int ehci_hcd_xilinx_of_probe(struct platform_device *op)
 {
 	struct device_node *dn = op->dev.of_node;
 	struct usb_hcd *hcd;
@@ -159,10 +160,9 @@ static int __devinit ehci_hcd_xilinx_of_probe(struct platform_device *op)
 		goto err_irq;
 	}
 
-	hcd->regs = devm_request_and_ioremap(&op->dev, &res);
-	if (!hcd->regs) {
-		pr_err("%s: devm_request_and_ioremap failed\n", __FILE__);
-		rv = -ENOMEM;
+	hcd->regs = devm_ioremap_resource(&op->dev, &res);
+	if (IS_ERR(hcd->regs)) {
+		rv = PTR_ERR(hcd->regs);
 		goto err_irq;
 	}
 

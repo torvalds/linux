@@ -230,7 +230,7 @@ static int xen_hvm_console_init(void)
 	if (r < 0 || v == 0)
 		goto err;
 	mfn = v;
-	info->intf = ioremap(mfn << PAGE_SHIFT, PAGE_SIZE);
+	info->intf = xen_remap(mfn << PAGE_SHIFT, PAGE_SIZE);
 	if (info->intf == NULL)
 		goto err;
 	info->vtermno = HVC_COOKIE;
@@ -422,7 +422,7 @@ static int xencons_connect_backend(struct xenbus_device *dev,
 	return ret;
 }
 
-static int __devinit xencons_probe(struct xenbus_device *dev,
+static int xencons_probe(struct xenbus_device *dev,
 				  const struct xenbus_device_id *id)
 {
 	int ret, devid;

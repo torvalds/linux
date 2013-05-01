@@ -213,7 +213,7 @@ static const struct file_operations misc_fops = {
 	.llseek = default_llseek,
 };
 
-static void __devinit mbxfb_debugfs_init(struct fb_info *fbi)
+static void mbxfb_debugfs_init(struct fb_info *fbi)
 {
 	struct mbxfb_info *mfbi = fbi->par;
 	struct mbxfb_debugfs_data *dbg;
@@ -236,7 +236,7 @@ static void __devinit mbxfb_debugfs_init(struct fb_info *fbi)
 					fbi, &misc_fops);
 }
 
-static void __devexit mbxfb_debugfs_remove(struct fb_info *fbi)
+static void mbxfb_debugfs_remove(struct fb_info *fbi)
 {
 	struct mbxfb_info *mfbi = fbi->par;
 	struct mbxfb_debugfs_data *dbg = mfbi->debugfs_data;

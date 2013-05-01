@@ -101,7 +101,7 @@ static int lbs_mesh_config(struct lbs_private *priv, uint16_t action,
 
 	switch (action) {
 	case CMD_ACT_MESH_CONFIG_START:
-		ie->id = WLAN_EID_GENERIC;
+		ie->id = WLAN_EID_VENDOR_SPECIFIC;
 		ie->val.oui[0] = 0x00;
 		ie->val.oui[1] = 0x50;
 		ie->val.oui[2] = 0x43;

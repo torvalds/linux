@@ -47,7 +47,6 @@
 #include <asm/irq.h>
 
 #include <mach/hardware.h>
-#include <mach/map.h>
 
 #include <plat/regs-serial.h>
 #include <plat/clock.h>
@@ -221,9 +220,11 @@ s3c24xx_serial_rx_chars(int irq, void *dev_id)
 {
 	struct s3c24xx_uart_port *ourport = dev_id;
 	struct uart_port *port = &ourport->port;
-	struct tty_struct *tty = port->state->port.tty;
 	unsigned int ufcon, ch, flag, ufstat, uerstat;
+	unsigned long flags;
 	int max_count = 64;
+
+	spin_lock_irqsave(&port->lock, flags);
 
 	while (max_count-- > 0) {
 		ufcon = rd_regl(port, S3C2410_UFCON);
@@ -296,9 +297,10 @@ s3c24xx_serial_rx_chars(int irq, void *dev_id)
  ignore_char:
 		continue;
 	}
-	tty_flip_buffer_push(tty);
+	tty_flip_buffer_push(&port->state->port);
 
  out:
+	spin_unlock_irqrestore(&port->lock, flags);
 	return IRQ_HANDLED;
 }
 
@@ -307,7 +309,10 @@ static irqreturn_t s3c24xx_serial_tx_chars(int irq, void *id)
 	struct s3c24xx_uart_port *ourport = id;
 	struct uart_port *port = &ourport->port;
 	struct circ_buf *xmit = &port->state->xmit;
+	unsigned long flags;
 	int count = 256;
+
+	spin_lock_irqsave(&port->lock, flags);
 
 	if (port->x_char) {
 		wr_regb(port, S3C2410_UTXH, port->x_char);
@@ -336,13 +341,17 @@ static irqreturn_t s3c24xx_serial_tx_chars(int irq, void *id)
 		port->icount.tx++;
 	}
 
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS) {
+		spin_unlock(&port->lock);
 		uart_write_wakeup(port);
+		spin_lock(&port->lock);
+	}
 
 	if (uart_circ_empty(xmit))
 		s3c24xx_serial_stop_tx(port);
 
  out:
+	spin_unlock_irqrestore(&port->lock, flags);
 	return IRQ_HANDLED;
 }
 
@@ -352,10 +361,8 @@ static irqreturn_t s3c64xx_serial_handle_irq(int irq, void *id)
 	struct s3c24xx_uart_port *ourport = id;
 	struct uart_port *port = &ourport->port;
 	unsigned int pend = rd_regl(port, S3C64XX_UINTP);
-	unsigned long flags;
 	irqreturn_t ret = IRQ_HANDLED;
 
-	spin_lock_irqsave(&port->lock, flags);
 	if (pend & S3C64XX_UINTM_RXD_MSK) {
 		ret = s3c24xx_serial_rx_chars(irq, id);
 		wr_regl(port, S3C64XX_UINTP, S3C64XX_UINTM_RXD_MSK);
@@ -364,7 +371,6 @@ static irqreturn_t s3c64xx_serial_handle_irq(int irq, void *id)
 		ret = s3c24xx_serial_tx_chars(irq, id);
 		wr_regl(port, S3C64XX_UINTP, S3C64XX_UINTM_TXD_MSK);
 	}
-	spin_unlock_irqrestore(&port->lock, flags);
 	return ret;
 }
 
@@ -530,16 +536,16 @@ static void s3c24xx_serial_pm(struct uart_port *port, unsigned int level,
 	switch (level) {
 	case 3:
 		if (!IS_ERR(ourport->baudclk))
-			clk_disable(ourport->baudclk);
+			clk_disable_unprepare(ourport->baudclk);
 
-		clk_disable(ourport->clk);
+		clk_disable_unprepare(ourport->clk);
 		break;
 
 	case 0:
-		clk_enable(ourport->clk);
+		clk_prepare_enable(ourport->clk);
 
 		if (!IS_ERR(ourport->baudclk))
-			clk_enable(ourport->baudclk);
+			clk_prepare_enable(ourport->baudclk);
 
 		break;
 	default:
@@ -713,11 +719,11 @@ static void s3c24xx_serial_set_termios(struct uart_port *port,
 		s3c24xx_serial_setsource(port, clk_sel);
 
 		if (!IS_ERR(ourport->baudclk)) {
-			clk_disable(ourport->baudclk);
+			clk_disable_unprepare(ourport->baudclk);
 			ourport->baudclk = ERR_PTR(-EINVAL);
 		}
 
-		clk_enable(clk);
+		clk_prepare_enable(clk);
 
 		ourport->baudclk = clk;
 		ourport->baudclk_rate = clk ? clk_get_rate(clk) : 0;
@@ -998,7 +1004,6 @@ static void s3c24xx_serial_resetport(struct uart_port *port,
 
 	ucon &= ucon_mask;
 	wr_regl(port, S3C2410_UCON,  ucon | cfg->ucon);
-	wr_regl(port, S3C2410_ULCON, cfg->ulcon);
 
 	/* reset both fifos */
 	wr_regl(port, S3C2410_UFCON, cfg->ufcon | S3C2410_UFCON_RESETBOTH);
@@ -1136,8 +1141,13 @@ static int s3c24xx_serial_init_port(struct s3c24xx_uart_port *ourport,
 
 	dbg("resource %p (%lx..%lx)\n", res, res->start, res->end);
 
+	port->membase = devm_ioremap(port->dev, res->start, resource_size(res));
+	if (!port->membase) {
+		dev_err(port->dev, "failed to remap controller address\n");
+		return -EBUSY;
+	}
+
 	port->mapbase = res->start;
-	port->membase = S3C_VA_UART + (res->start & 0xfffff);
 	ret = platform_get_irq(platdev, 0);
 	if (ret < 0)
 		port->irq = 0;
@@ -1256,7 +1266,7 @@ static int s3c24xx_serial_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int __devexit s3c24xx_serial_remove(struct platform_device *dev)
+static int s3c24xx_serial_remove(struct platform_device *dev)
 {
 	struct uart_port *port = s3c24xx_dev_to_port(&dev->dev);
 
@@ -1287,9 +1297,9 @@ static int s3c24xx_serial_resume(struct device *dev)
 	struct s3c24xx_uart_port *ourport = to_ourport(port);
 
 	if (port) {
-		clk_enable(ourport->clk);
+		clk_prepare_enable(ourport->clk);
 		s3c24xx_serial_resetport(port, s3c24xx_port_to_cfg(port));
-		clk_disable(ourport->clk);
+		clk_disable_unprepare(ourport->clk);
 
 		uart_resume_port(&s3c24xx_uart_drv, port);
 	}
@@ -1646,7 +1656,8 @@ static struct s3c24xx_serial_drv_data s5pv210_serial_drv_data = {
 #endif
 
 #if defined(CONFIG_CPU_EXYNOS4210) || defined(CONFIG_SOC_EXYNOS4212) || \
-	defined(CONFIG_SOC_EXYNOS4412) || defined(CONFIG_SOC_EXYNOS5250)
+	defined(CONFIG_SOC_EXYNOS4412) || defined(CONFIG_SOC_EXYNOS5250) || \
+	defined(CONFIG_SOC_EXYNOS5440)
 static struct s3c24xx_serial_drv_data exynos4210_serial_drv_data = {
 	.info = &(struct s3c24xx_uart_info) {
 		.name		= "Samsung Exynos4 UART",
@@ -1701,24 +1712,32 @@ MODULE_DEVICE_TABLE(platform, s3c24xx_serial_driver_ids);
 
 #ifdef CONFIG_OF
 static const struct of_device_id s3c24xx_uart_dt_match[] = {
+	{ .compatible = "samsung,s3c2410-uart",
+		.data = (void *)S3C2410_SERIAL_DRV_DATA },
+	{ .compatible = "samsung,s3c2412-uart",
+		.data = (void *)S3C2412_SERIAL_DRV_DATA },
+	{ .compatible = "samsung,s3c2440-uart",
+		.data = (void *)S3C2440_SERIAL_DRV_DATA },
+	{ .compatible = "samsung,s3c6400-uart",
+		.data = (void *)S3C6400_SERIAL_DRV_DATA },
+	{ .compatible = "samsung,s5pv210-uart",
+		.data = (void *)S5PV210_SERIAL_DRV_DATA },
 	{ .compatible = "samsung,exynos4210-uart",
 		.data = (void *)EXYNOS4210_SERIAL_DRV_DATA },
 	{},
 };
 MODULE_DEVICE_TABLE(of, s3c24xx_uart_dt_match);
-#else
-#define s3c24xx_uart_dt_match NULL
 #endif
 
 static struct platform_driver samsung_serial_driver = {
 	.probe		= s3c24xx_serial_probe,
-	.remove		= __devexit_p(s3c24xx_serial_remove),
+	.remove		= s3c24xx_serial_remove,
 	.id_table	= s3c24xx_serial_driver_ids,
 	.driver		= {
 		.name	= "samsung-uart",
 		.owner	= THIS_MODULE,
 		.pm	= SERIAL_SAMSUNG_PM_OPS,
-		.of_match_table	= s3c24xx_uart_dt_match,
+		.of_match_table	= of_match_ptr(s3c24xx_uart_dt_match),
 	},
 };
 

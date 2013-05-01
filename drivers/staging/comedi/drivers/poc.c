@@ -57,13 +57,18 @@ struct boarddef_struct {
 	const struct comedi_lrange *range;
 };
 
+struct poc_private {
+	unsigned int ao_readback[32];
+};
+
 static int readback_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 			 struct comedi_insn *insn, unsigned int *data)
 {
+	struct poc_private *devpriv = dev->private;
 	int chan;
 
 	chan = CR_CHAN(insn->chanspec);
-	data[0] = ((unsigned int *)dev->private)[chan];
+	data[0] = devpriv->ao_readback[chan];
 
 	return 1;
 }
@@ -75,12 +80,13 @@ static int readback_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 static int dac02_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
+	struct poc_private *devpriv = dev->private;
 	int temp;
 	int chan;
 	int output;
 
 	chan = CR_CHAN(insn->chanspec);
-	((unsigned int *)dev->private)[chan] = data[0];
+	devpriv->ao_readback[chan] = data[0];
 	output = data[0];
 #ifdef wrong
 	/*  convert to complementary binary if range is bipolar */
@@ -131,6 +137,7 @@ static int pcl734_insn_bits(struct comedi_device *dev,
 static int poc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct boarddef_struct *board = comedi_board(dev);
+	struct poc_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned long iobase;
 	unsigned int iosize;
@@ -160,8 +167,10 @@ static int poc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (ret)
 		return ret;
 
-	if (alloc_private(dev, sizeof(unsigned int) * board->n_chan) < 0)
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
 		return -ENOMEM;
+	dev->private = devpriv;
 
 	/* analog output subdevice */
 	s = &dev->subdevices[0];

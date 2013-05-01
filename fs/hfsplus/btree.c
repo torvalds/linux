@@ -98,6 +98,14 @@ struct hfs_btree *hfs_btree_open(struct super_block *sb, u32 id)
 			set_bit(HFSPLUS_SB_CASEFOLD, &HFSPLUS_SB(sb)->flags);
 		}
 		break;
+	case HFSPLUS_ATTR_CNID:
+		if (tree->max_key_len != HFSPLUS_ATTR_KEYLEN - sizeof(u16)) {
+			printk(KERN_ERR "hfs: invalid attributes max_key_len %d\n",
+				tree->max_key_len);
+			goto fail_page;
+		}
+		tree->keycmp = hfsplus_attr_bin_cmp_key;
+		break;
 	default:
 		printk(KERN_ERR "hfs: unknown B*Tree requested\n");
 		goto fail_page;
@@ -159,7 +167,7 @@ void hfs_btree_close(struct hfs_btree *tree)
 	kfree(tree);
 }
 
-void hfs_btree_write(struct hfs_btree *tree)
+int hfs_btree_write(struct hfs_btree *tree)
 {
 	struct hfs_btree_header_rec *head;
 	struct hfs_bnode *node;
@@ -168,7 +176,7 @@ void hfs_btree_write(struct hfs_btree *tree)
 	node = hfs_bnode_find(tree, 0);
 	if (IS_ERR(node))
 		/* panic? */
-		return;
+		return -EIO;
 	/* Load the header */
 	page = node->page[0];
 	head = (struct hfs_btree_header_rec *)(kmap(page) +
@@ -186,6 +194,7 @@ void hfs_btree_write(struct hfs_btree *tree)
 	kunmap(page);
 	set_page_dirty(page);
 	hfs_bnode_put(node);
+	return 0;
 }
 
 static struct hfs_bnode *hfs_bmap_new_bmap(struct hfs_bnode *prev, u32 idx)

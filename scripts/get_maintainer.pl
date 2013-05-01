@@ -433,7 +433,7 @@ foreach my $file (@ARGV) {
 
 	while (<$patch>) {
 	    my $patch_line = $_;
-	    if (m/^\+\+\+\s+(\S+)/) {
+	    if (m/^\+\+\+\s+(\S+)/ or m/^---\s+(\S+)/) {
 		my $filename = $1;
 		$filename =~ s@^[^/]*/@@;
 		$filename =~ s@\n@@;
@@ -610,6 +610,10 @@ sub get_maintainers {
 				    (($file_pd - $value_pd) < $pattern_depth)) {
 				    $hash{$tvi} = $value_pd;
 				}
+			    }
+			} elsif ($type eq 'K') {
+			    if ($file =~ m/$value/x) {
+				$hash{$tvi} = 0;
 			    }
 			}
 		    }

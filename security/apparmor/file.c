@@ -449,8 +449,8 @@ int aa_file_perm(int op, struct aa_profile *profile, struct file *file,
 		 u32 request)
 {
 	struct path_cond cond = {
-		.uid = file->f_path.dentry->d_inode->i_uid,
-		.mode = file->f_path.dentry->d_inode->i_mode
+		.uid = file_inode(file)->i_uid,
+		.mode = file_inode(file)->i_mode
 	};
 
 	return aa_path_perm(op, profile, &file->f_path, PATH_DELEGATE_DELETED,

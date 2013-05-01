@@ -410,19 +410,12 @@ static int acm_submit_read_urbs(struct acm *acm, gfp_t mem_flags)
 
 static void acm_process_read_urb(struct acm *acm, struct urb *urb)
 {
-	struct tty_struct *tty;
-
 	if (!urb->actual_length)
 		return;
 
-	tty = tty_port_tty_get(&acm->port);
-	if (!tty)
-		return;
-
-	tty_insert_flip_string(tty, urb->transfer_buffer, urb->actual_length);
-	tty_flip_buffer_push(tty);
-
-	tty_kref_put(tty);
+	tty_insert_flip_string(&acm->port, urb->transfer_buffer,
+			urb->actual_length);
+	tty_flip_buffer_push(&acm->port);
 }
 
 static void acm_read_bulk_callback(struct urb *urb)
@@ -787,11 +780,46 @@ static int get_serial_info(struct acm *acm, struct serial_struct __user *info)
 	tmp.flags = ASYNC_LOW_LATENCY;
 	tmp.xmit_fifo_size = acm->writesize;
 	tmp.baud_base = le32_to_cpu(acm->line.dwDTERate);
+	tmp.close_delay	= acm->port.close_delay / 10;
+	tmp.closing_wait = acm->port.closing_wait == ASYNC_CLOSING_WAIT_NONE ?
+				ASYNC_CLOSING_WAIT_NONE :
+				acm->port.closing_wait / 10;
 
 	if (copy_to_user(info, &tmp, sizeof(tmp)))
 		return -EFAULT;
 	else
 		return 0;
+}
+
+static int set_serial_info(struct acm *acm,
+				struct serial_struct __user *newinfo)
+{
+	struct serial_struct new_serial;
+	unsigned int closing_wait, close_delay;
+	int retval = 0;
+
+	if (copy_from_user(&new_serial, newinfo, sizeof(new_serial)))
+		return -EFAULT;
+
+	close_delay = new_serial.close_delay * 10;
+	closing_wait = new_serial.closing_wait == ASYNC_CLOSING_WAIT_NONE ?
+			ASYNC_CLOSING_WAIT_NONE : new_serial.closing_wait * 10;
+
+	mutex_lock(&acm->port.mutex);
+
+	if (!capable(CAP_SYS_ADMIN)) {
+		if ((close_delay != acm->port.close_delay) ||
+		    (closing_wait != acm->port.closing_wait))
+			retval = -EPERM;
+		else
+			retval = -EOPNOTSUPP;
+	} else {
+		acm->port.close_delay  = close_delay;
+		acm->port.closing_wait = closing_wait;
+	}
+
+	mutex_unlock(&acm->port.mutex);
+	return retval;
 }
 
 static int acm_tty_ioctl(struct tty_struct *tty,
@@ -803,6 +831,9 @@ static int acm_tty_ioctl(struct tty_struct *tty,
 	switch (cmd) {
 	case TIOCGSERIAL: /* gets serial port data */
 		rv = get_serial_info(acm, (struct serial_struct __user *) arg);
+		break;
+	case TIOCSSERIAL:
+		rv = set_serial_info(acm, (struct serial_struct __user *) arg);
 		break;
 	}
 
@@ -949,6 +980,10 @@ static int acm_probe(struct usb_interface *intf,
 
 	/* normal quirks */
 	quirks = (unsigned long)id->driver_info;
+
+	if (quirks == IGNORE_DEVICE)
+		return -ENODEV;
+
 	num_rx_buf = (quirks == SINGLE_RX_URB) ? 1 : ACM_NR;
 
 	/* handle quirks deadly to normal probing*/
@@ -1564,6 +1599,9 @@ static const struct usb_device_id acm_ids[] = {
 	{ USB_DEVICE(0x0572, 0x1340), /* Conexant CX93010-2x UCMxx */
 	.driver_info = NO_UNION_NORMAL,
 	},
+	{ USB_DEVICE(0x05f9, 0x4002), /* PSC Scanning, Magellan 800i */
+	.driver_info = NO_UNION_NORMAL,
+	},
 	{ USB_DEVICE(0x1bbb, 0x0003), /* Alcatel OT-I650 */
 	.driver_info = NO_UNION_NORMAL, /* reports zero length descriptor */
 	},
@@ -1649,6 +1687,15 @@ static const struct usb_device_id acm_ids[] = {
 	{ USB_DEVICE(0x04d8, 0x000b),
 	.driver_info = NO_DATA_INTERFACE,
 	},
+
+#if IS_ENABLED(CONFIG_INPUT_IMS_PCU)
+	{ USB_DEVICE(0x04d8, 0x0082),	/* Application mode */
+	.driver_info = IGNORE_DEVICE,
+	},
+	{ USB_DEVICE(0x04d8, 0x0083),	/* Bootloader mode */
+	.driver_info = IGNORE_DEVICE,
+	},
+#endif
 
 	/* control interfaces without any protocol set */
 	{ USB_INTERFACE_INFO(USB_CLASS_COMM, USB_CDC_SUBCLASS_ACM,

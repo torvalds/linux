@@ -19,6 +19,7 @@
 #include <sysfs/libsysfs.h>
 
 #include <ctype.h>
+#include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -46,6 +47,7 @@ static int detach_port(char *port)
 {
 	int ret;
 	uint8_t portnum;
+	char path[PATH_MAX+1];
 
 	for (unsigned int i=0; i < strlen(port); i++)
 		if (!isdigit(port[i])) {
@@ -56,6 +58,13 @@ static int detach_port(char *port)
 	/* check max port */
 
 	portnum = atoi(port);
+
+	/* remove the port state file */
+
+	snprintf(path, PATH_MAX, VHCI_STATE_PATH"/port%d", portnum);
+
+	remove(path);
+	rmdir(VHCI_STATE_PATH);
 
 	ret = usbip_vhci_driver_open();
 	if (ret < 0) {

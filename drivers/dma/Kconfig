@@ -51,7 +51,7 @@ config ASYNC_TX_ENABLE_CHANNEL_SWITCH
 
 config AMBA_PL08X
 	bool "ARM PrimeCell PL080 or PL081 support"
-	depends on ARM_AMBA && EXPERIMENTAL
+	depends on ARM_AMBA
 	select DMA_ENGINE
 	select DMA_VIRTUAL_CHANNELS
 	help
@@ -83,7 +83,6 @@ config INTEL_IOP_ADMA
 
 config DW_DMAC
 	tristate "Synopsys DesignWare AHB DMA support"
-	depends on HAVE_CLK
 	select DMA_ENGINE
 	default y if CPU_AT32AP7000
 	help
@@ -124,6 +123,8 @@ config MPC512X_DMA
 	select DMA_ENGINE
 	---help---
 	  Enable support for the Freescale MPC512x built-in DMA engine.
+
+source "drivers/dma/bestcomm/Kconfig"
 
 config MV_XOR
 	bool "Marvell XOR engine support"
@@ -213,8 +214,8 @@ config TIMB_DMA
 	  Enable support for the Timberdale FPGA DMA engine.
 
 config SIRF_DMA
-	tristate "CSR SiRFprimaII DMA support"
-	depends on ARCH_PRIMA2
+	tristate "CSR SiRFprimaII/SiRFmarco DMA support"
+	depends on ARCH_SIRF
 	select DMA_ENGINE
 	help
 	  Enable support for the CSR SiRFprimaII DMA engine.
@@ -325,6 +326,10 @@ config DMA_ENGINE
 
 config DMA_VIRTUAL_CHANNELS
 	tristate
+
+config DMA_OF
+	def_bool y
+	depends on OF
 
 comment "DMA Clients"
 	depends on DMA_ENGINE

@@ -13,7 +13,7 @@
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/sunrpc/svc.h>
-#include <linux/sunrpc/clnt.h>
+#include <linux/sunrpc/addr.h>
 #include <linux/nfsd/nfsfh.h>
 #include <linux/nfsd/export.h>
 #include <linux/lockd/lockd.h>
@@ -45,7 +45,7 @@ static inline void nlm_debug_print_fh(char *msg, struct nfs_fh *f)
 
 static inline void nlm_debug_print_file(char *msg, struct nlm_file *file)
 {
-	struct inode *inode = file->f_file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file->f_file);
 
 	dprintk("lockd: %s %s/%ld\n",
 		msg, inode->i_sb->s_id, inode->i_ino);
@@ -84,7 +84,6 @@ __be32
 nlm_lookup_file(struct svc_rqst *rqstp, struct nlm_file **result,
 					struct nfs_fh *f)
 {
-	struct hlist_node *pos;
 	struct nlm_file	*file;
 	unsigned int	hash;
 	__be32		nfserr;
@@ -96,7 +95,7 @@ nlm_lookup_file(struct svc_rqst *rqstp, struct nlm_file **result,
 	/* Lock file table */
 	mutex_lock(&nlm_file_mutex);
 
-	hlist_for_each_entry(file, pos, &nlm_files[hash], f_list)
+	hlist_for_each_entry(file, &nlm_files[hash], f_list)
 		if (!nfs_compare_fh(&file->f_handle, f))
 			goto found;
 
@@ -248,13 +247,13 @@ static int
 nlm_traverse_files(void *data, nlm_host_match_fn_t match,
 		int (*is_failover_file)(void *data, struct nlm_file *file))
 {
-	struct hlist_node *pos, *next;
+	struct hlist_node *next;
 	struct nlm_file	*file;
 	int i, ret = 0;
 
 	mutex_lock(&nlm_file_mutex);
 	for (i = 0; i < FILE_NRHASH; i++) {
-		hlist_for_each_entry_safe(file, pos, next, &nlm_files[i], f_list) {
+		hlist_for_each_entry_safe(file, next, &nlm_files[i], f_list) {
 			if (is_failover_file && !is_failover_file(data, file))
 				continue;
 			file->f_count++;

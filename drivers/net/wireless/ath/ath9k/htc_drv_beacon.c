@@ -33,7 +33,7 @@ void ath9k_htc_beaconq_config(struct ath9k_htc_priv *priv)
 		qi.tqi_cwmin = 0;
 		qi.tqi_cwmax = 0;
 	} else if (priv->ah->opmode == NL80211_IFTYPE_ADHOC) {
-		int qnum = priv->hwq_map[WME_AC_BE];
+		int qnum = priv->hwq_map[IEEE80211_AC_BE];
 
 		ath9k_hw_get_txq_props(ah, qnum, &qi_be);
 
@@ -587,9 +587,9 @@ static bool ath9k_htc_check_beacon_config(struct ath9k_htc_priv *priv,
 	    (priv->num_sta_vif > 1) &&
 	    (vif->type == NL80211_IFTYPE_STATION)) {
 		beacon_configured = false;
-		ieee80211_iterate_active_interfaces_atomic(priv->hw,
-							   ath9k_htc_beacon_iter,
-							   &beacon_configured);
+		ieee80211_iterate_active_interfaces_atomic(
+			priv->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+			ath9k_htc_beacon_iter, &beacon_configured);
 
 		if (beacon_configured) {
 			ath_dbg(common, CONFIG,

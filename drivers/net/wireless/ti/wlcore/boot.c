@@ -84,47 +84,57 @@ out:
 static int wlcore_validate_fw_ver(struct wl1271 *wl)
 {
 	unsigned int *fw_ver = wl->chip.fw_ver;
-	unsigned int *min_ver = wl->min_fw_ver;
+	unsigned int *min_ver = (wl->fw_type == WL12XX_FW_TYPE_MULTI) ?
+		wl->min_mr_fw_ver : wl->min_sr_fw_ver;
+	char min_fw_str[32] = "";
+	int i;
 
 	/* the chip must be exactly equal */
-	if (min_ver[FW_VER_CHIP] != fw_ver[FW_VER_CHIP])
+	if ((min_ver[FW_VER_CHIP] != WLCORE_FW_VER_IGNORE) &&
+	    (min_ver[FW_VER_CHIP] != fw_ver[FW_VER_CHIP]))
 		goto fail;
 
-	/* always check the next digit if all previous ones are equal */
-
-	if (min_ver[FW_VER_IF_TYPE] < fw_ver[FW_VER_IF_TYPE])
-		goto out;
-	else if (min_ver[FW_VER_IF_TYPE] > fw_ver[FW_VER_IF_TYPE])
+	/* the firmware type must be equal */
+	if ((min_ver[FW_VER_IF_TYPE] != WLCORE_FW_VER_IGNORE) &&
+	    (min_ver[FW_VER_IF_TYPE] != fw_ver[FW_VER_IF_TYPE]))
 		goto fail;
 
-	if (min_ver[FW_VER_MAJOR] < fw_ver[FW_VER_MAJOR])
-		goto out;
-	else if (min_ver[FW_VER_MAJOR] > fw_ver[FW_VER_MAJOR])
+	/* the project number must be equal */
+	if ((min_ver[FW_VER_SUBTYPE] != WLCORE_FW_VER_IGNORE) &&
+	    (min_ver[FW_VER_SUBTYPE] != fw_ver[FW_VER_SUBTYPE]))
 		goto fail;
 
-	if (min_ver[FW_VER_SUBTYPE] < fw_ver[FW_VER_SUBTYPE])
-		goto out;
-	else if (min_ver[FW_VER_SUBTYPE] > fw_ver[FW_VER_SUBTYPE])
+	/* the API version must be greater or equal */
+	if ((min_ver[FW_VER_MAJOR] != WLCORE_FW_VER_IGNORE) &&
+		 (min_ver[FW_VER_MAJOR] > fw_ver[FW_VER_MAJOR]))
 		goto fail;
 
-	if (min_ver[FW_VER_MINOR] < fw_ver[FW_VER_MINOR])
-		goto out;
-	else if (min_ver[FW_VER_MINOR] > fw_ver[FW_VER_MINOR])
+	/* if the API version is equal... */
+	if (((min_ver[FW_VER_MAJOR] == WLCORE_FW_VER_IGNORE) ||
+	     (min_ver[FW_VER_MAJOR] == fw_ver[FW_VER_MAJOR])) &&
+	    /* ...the minor must be greater or equal */
+	    ((min_ver[FW_VER_MINOR] != WLCORE_FW_VER_IGNORE) &&
+	     (min_ver[FW_VER_MINOR] > fw_ver[FW_VER_MINOR])))
 		goto fail;
 
-out:
 	return 0;
 
 fail:
-	wl1271_error("Your WiFi FW version (%u.%u.%u.%u.%u) is outdated.\n"
-		     "Please use at least FW %u.%u.%u.%u.%u.\n"
-		     "You can get more information at:\n"
-		     "http://wireless.kernel.org/en/users/Drivers/wl12xx",
+	for (i = 0; i < NUM_FW_VER; i++)
+		if (min_ver[i] == WLCORE_FW_VER_IGNORE)
+			snprintf(min_fw_str, sizeof(min_fw_str),
+				  "%s*.", min_fw_str);
+		else
+			snprintf(min_fw_str, sizeof(min_fw_str),
+				  "%s%u.", min_fw_str, min_ver[i]);
+
+	wl1271_error("Your WiFi FW version (%u.%u.%u.%u.%u) is invalid.\n"
+		     "Please use at least FW %s\n"
+		     "You can get the latest firmwares at:\n"
+		     "git://github.com/TI-OpenLink/firmwares.git",
 		     fw_ver[FW_VER_CHIP], fw_ver[FW_VER_IF_TYPE],
 		     fw_ver[FW_VER_MAJOR], fw_ver[FW_VER_SUBTYPE],
-		     fw_ver[FW_VER_MINOR], min_ver[FW_VER_CHIP],
-		     min_ver[FW_VER_IF_TYPE], min_ver[FW_VER_MAJOR],
-		     min_ver[FW_VER_SUBTYPE], min_ver[FW_VER_MINOR]);
+		     fw_ver[FW_VER_MINOR], min_fw_str);
 	return -EINVAL;
 }
 
@@ -491,7 +501,7 @@ int wlcore_boot_run_firmware(struct wl1271 *wl)
 	if (ret < 0)
 		return ret;
 
-	wl->mbox_ptr[1] = wl->mbox_ptr[0] + sizeof(struct event_mailbox);
+	wl->mbox_ptr[1] = wl->mbox_ptr[0] + wl->mbox_size;
 
 	wl1271_debug(DEBUG_MAILBOX, "MBOX ptrs: 0x%x 0x%x",
 		     wl->mbox_ptr[0], wl->mbox_ptr[1]);
@@ -508,23 +518,6 @@ int wlcore_boot_run_firmware(struct wl1271 *wl)
 	 */
 
 	/* unmask required mbox events  */
-	wl->event_mask = BSS_LOSE_EVENT_ID |
-		REGAINED_BSS_EVENT_ID |
-		SCAN_COMPLETE_EVENT_ID |
-		ROLE_STOP_COMPLETE_EVENT_ID |
-		RSSI_SNR_TRIGGER_0_EVENT_ID |
-		PSPOLL_DELIVERY_FAILURE_EVENT_ID |
-		SOFT_GEMINI_SENSE_EVENT_ID |
-		PERIODIC_SCAN_REPORT_EVENT_ID |
-		PERIODIC_SCAN_COMPLETE_EVENT_ID |
-		DUMMY_PACKET_EVENT_ID |
-		PEER_REMOVE_COMPLETE_EVENT_ID |
-		BA_SESSION_RX_CONSTRAINT_EVENT_ID |
-		REMAIN_ON_CHANNEL_COMPLETE_EVENT_ID |
-		INACTIVE_STA_EVENT_ID |
-		MAX_TX_RETRY_EVENT_ID |
-		CHANNEL_SWITCH_COMPLETE_EVENT_ID;
-
 	ret = wl1271_event_unmask(wl);
 	if (ret < 0) {
 		wl1271_error("EVENT mask setting failed");

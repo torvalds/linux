@@ -161,8 +161,8 @@ typedef struct ax25_uid_assoc {
 	ax25_address		call;
 } ax25_uid_assoc;
 
-#define ax25_uid_for_each(__ax25, node, list) \
-	hlist_for_each_entry(__ax25, node, list, uid_node)
+#define ax25_uid_for_each(__ax25, list) \
+	hlist_for_each_entry(__ax25, list, uid_node)
 
 #define ax25_uid_hold(ax25) \
 	atomic_inc(&((ax25)->refcount))
@@ -247,8 +247,8 @@ typedef struct ax25_cb {
 
 #define ax25_sk(__sk) ((ax25_cb *)(__sk)->sk_protinfo)
 
-#define ax25_for_each(__ax25, node, list) \
-	hlist_for_each_entry(__ax25, node, list, ax25_node)
+#define ax25_for_each(__ax25, list) \
+	hlist_for_each_entry(__ax25, list, ax25_node)
 
 #define ax25_cb_hold(__ax25) \
 	atomic_inc(&((__ax25)->refcount))

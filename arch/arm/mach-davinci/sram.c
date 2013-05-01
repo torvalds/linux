@@ -10,12 +10,18 @@
  */
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/genalloc.h>
 
 #include <mach/common.h>
 #include <mach/sram.h>
 
 static struct gen_pool *sram_pool;
+
+struct gen_pool *sram_get_gen_pool(void)
+{
+	return sram_pool;
+}
 
 void *sram_alloc(size_t len, dma_addr_t *dma)
 {
@@ -32,7 +38,7 @@ void *sram_alloc(size_t len, dma_addr_t *dma)
 		return NULL;
 
 	if (dma)
-		*dma = dma_base + (vaddr - SRAM_VIRT);
+		*dma = gen_pool_virt_to_phys(sram_pool, vaddr);
 	return (void *)vaddr;
 
 }
@@ -53,8 +59,10 @@ EXPORT_SYMBOL(sram_free);
  */
 static int __init sram_init(void)
 {
+	phys_addr_t phys = davinci_soc_info.sram_dma;
 	unsigned len = davinci_soc_info.sram_len;
 	int status = 0;
+	void *addr;
 
 	if (len) {
 		len = min_t(unsigned, len, SRAM_SIZE);
@@ -62,8 +70,17 @@ static int __init sram_init(void)
 		if (!sram_pool)
 			status = -ENOMEM;
 	}
-	if (sram_pool)
-		status = gen_pool_add(sram_pool, SRAM_VIRT, len, -1);
+
+	if (sram_pool) {
+		addr = ioremap(phys, len);
+		if (!addr)
+			return -ENOMEM;
+		status = gen_pool_add_virt(sram_pool, (unsigned)addr,
+					   phys, len, -1);
+		if (status < 0)
+			iounmap(addr);
+	}
+
 	WARN_ON(status < 0);
 	return status;
 }

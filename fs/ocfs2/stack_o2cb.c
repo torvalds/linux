@@ -376,7 +376,7 @@ static int o2cb_cluster_connect(struct ocfs2_cluster_connection *conn)
 	dlm_register_eviction_cb(dlm, &priv->op_eviction_cb);
 
 out_free:
-	if (rc && conn->cc_private)
+	if (rc)
 		kfree(conn->cc_private);
 
 out:

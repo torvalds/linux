@@ -64,7 +64,7 @@ bool pnp_attached;
 #define FMI_BIT_VOL_SW		(1 << 3)
 #define FMI_BIT_TUN_STRQ	(1 << 4)
 
-void fmi_set_pins(void *handle, u8 pins)
+static void fmi_set_pins(void *handle, u8 pins)
 {
 	struct fmi *fmi = handle;
 	u8 bits = FMI_BIT_TUN_STRQ;
@@ -265,7 +265,7 @@ static const struct v4l2_ioctl_ops fmi_ioctl_ops = {
 };
 
 /* ladis: this is my card. does any other types exist? */
-static struct isapnp_device_id id_table[] __devinitdata = {
+static struct isapnp_device_id id_table[] = {
 		/* SF16-FMI */
 	{	ISAPNP_ANY_ID, ISAPNP_ANY_ID,
 		ISAPNP_VENDOR('M','F','R'), ISAPNP_FUNCTION(0xad10), 0},

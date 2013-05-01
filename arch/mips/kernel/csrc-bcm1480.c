@@ -35,7 +35,7 @@ static cycle_t bcm1480_hpt_read(struct clocksource *cs)
 
 struct clocksource bcm1480_clocksource = {
 	.name	= "zbbus-cycles",
-	.rating	= 200,
+	.rating = 200,
 	.read	= bcm1480_hpt_read,
 	.mask	= CLOCKSOURCE_MASK(64),
 	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,

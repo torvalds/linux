@@ -64,7 +64,7 @@ extern void __raw_readsl(const void __iomem *addr, void *data, int longlen);
 static inline void __raw_writew(u16 val, volatile void __iomem *addr)
 {
 	asm volatile("strh %1, %0"
-		     : "+Qo" (*(volatile u16 __force *)addr)
+		     : "+Q" (*(volatile u16 __force *)addr)
 		     : "r" (val));
 }
 
@@ -72,7 +72,7 @@ static inline u16 __raw_readw(const volatile void __iomem *addr)
 {
 	u16 val;
 	asm volatile("ldrh %1, %0"
-		     : "+Qo" (*(volatile u16 __force *)addr),
+		     : "+Q" (*(volatile u16 __force *)addr),
 		       "=r" (val));
 	return val;
 }
@@ -374,7 +374,7 @@ extern void pci_iounmap(struct pci_dev *dev, void __iomem *addr);
 
 #ifdef CONFIG_MMU
 #define ARCH_HAS_VALID_PHYS_ADDR_RANGE
-extern int valid_phys_addr_range(unsigned long addr, size_t size);
+extern int valid_phys_addr_range(phys_addr_t addr, size_t size);
 extern int valid_mmap_phys_addr_range(unsigned long pfn, size_t size);
 extern int devmem_is_allowed(unsigned long pfn);
 #endif

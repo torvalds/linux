@@ -1557,8 +1557,8 @@ static struct snd_soc_codec_driver soc_codec_dev_da732x = {
 	.reg_cache_size		= ARRAY_SIZE(da732x_reg_cache),
 };
 
-static __devinit int da732x_i2c_probe(struct i2c_client *i2c,
-				      const struct i2c_device_id *id)
+static int da732x_i2c_probe(struct i2c_client *i2c,
+			    const struct i2c_device_id *id)
 {
 	struct da732x_priv *da732x;
 	unsigned int reg;
@@ -1596,7 +1596,7 @@ err:
 	return ret;
 }
 
-static __devexit int da732x_i2c_remove(struct i2c_client *client)
+static int da732x_i2c_remove(struct i2c_client *client)
 {
 	snd_soc_unregister_codec(&client->dev);
 
@@ -1615,7 +1615,7 @@ static struct i2c_driver da732x_i2c_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= da732x_i2c_probe,
-	.remove		= __devexit_p(da732x_i2c_remove),
+	.remove		= da732x_i2c_remove,
 	.id_table	= da732x_i2c_id,
 };
 

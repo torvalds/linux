@@ -17,8 +17,8 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301 USA
  *
- * Author:       Ken Eppinett
- *               David Schleef <ds@schleef.org>
+ * Author:	 Ken Eppinett
+ *		 David Schleef <ds@schleef.org>
  */
 
 #include <linux/init.h>
@@ -78,7 +78,7 @@ struct resource dvr_zeus_resources[] __initdata =
 	 *
 	 *  This memory area is used for allocating buffers for Video decoding
 	 *  purposes.  Allocation/De-allocation within this buffer is managed
-	 *  by the STAVMEM driver of the STAPI.  They could be Decimated
+	 *  by the STAVMEM driver of the STAPI.	 They could be Decimated
 	 *  Picture Buffers, Intermediate Buffers, as deemed necessary for
 	 *  video decoding purposes, for any video decoders on Zeus.
 	 */
@@ -175,7 +175,7 @@ struct resource dvr_zeus_resources[] __initdata =
 	 * End of Resource marker
 	 */
 	{
-		.flags  = 0,
+		.flags	= 0,
 	},
 };
 
@@ -299,6 +299,6 @@ struct resource non_dvr_zeus_resources[] __initdata =
 	 * End of Resource marker
 	 */
 	{
-		.flags  = 0,
+		.flags	= 0,
 	},
 };

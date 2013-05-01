@@ -57,12 +57,12 @@
 /*
  * System Control & Status Register bits.
  */
-#define KN01_CSR_MNFMOD		(1<<15)	/* MNFMOD manufacturing jumper */
-#define KN01_CSR_STATUS		(1<<14)	/* self-test result status output */
-#define KN01_CSR_PARDIS		(1<<13)	/* parity error disable */
-#define KN01_CSR_CRSRTST	(1<<12)	/* PCC test output */
-#define KN01_CSR_MONO		(1<<11)	/* mono/color fb SIMM installed */
-#define KN01_CSR_MEMERR		(1<<10)	/* write timeout error status & ack*/
+#define KN01_CSR_MNFMOD		(1<<15) /* MNFMOD manufacturing jumper */
+#define KN01_CSR_STATUS		(1<<14) /* self-test result status output */
+#define KN01_CSR_PARDIS		(1<<13) /* parity error disable */
+#define KN01_CSR_CRSRTST	(1<<12) /* PCC test output */
+#define KN01_CSR_MONO		(1<<11) /* mono/color fb SIMM installed */
+#define KN01_CSR_MEMERR		(1<<10) /* write timeout error status & ack*/
 #define KN01_CSR_VINT		(1<<9)	/* PCC area detect #2 status & ack */
 #define KN01_CSR_TXDIS		(1<<8)	/* DZ11 transmit disable */
 #define KN01_CSR_VBGTRG		(1<<2)	/* blue DAC voltage over green (r/o) */

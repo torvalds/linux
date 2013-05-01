@@ -249,3 +249,24 @@ int drm_gem_cma_dumb_destroy(struct drm_file *file_priv,
 	return drm_gem_handle_delete(file_priv, handle);
 }
 EXPORT_SYMBOL_GPL(drm_gem_cma_dumb_destroy);
+
+#ifdef CONFIG_DEBUG_FS
+void drm_gem_cma_describe(struct drm_gem_cma_object *cma_obj, struct seq_file *m)
+{
+	struct drm_gem_object *obj = &cma_obj->base;
+	struct drm_device *dev = obj->dev;
+	uint64_t off = 0;
+
+	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
+
+	if (obj->map_list.map)
+		off = (uint64_t)obj->map_list.hash.key;
+
+	seq_printf(m, "%2d (%2d) %08llx %08Zx %p %d",
+			obj->name, obj->refcount.refcount.counter,
+			off, cma_obj->paddr, cma_obj->vaddr, obj->size);
+
+	seq_printf(m, "\n");
+}
+EXPORT_SYMBOL_GPL(drm_gem_cma_describe);
+#endif

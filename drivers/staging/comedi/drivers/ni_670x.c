@@ -41,8 +41,10 @@ Commands are not supported.
 
 */
 
+#include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
+
 #include "../comedidev.h"
 
 #include "mite.h"
@@ -201,19 +203,21 @@ ni_670x_find_boardinfo(struct pci_dev *pcidev)
 	return NULL;
 }
 
-static int __devinit ni_670x_attach_pci(struct comedi_device *dev,
-					struct pci_dev *pcidev)
+static int ni_670x_auto_attach(struct comedi_device *dev,
+					 unsigned long context_unused)
 {
+	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	const struct ni_670x_board *thisboard;
 	struct ni_670x_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 	int i;
 
-	ret = alloc_private(dev, sizeof(*devpriv));
-	if (ret < 0)
-		return ret;
-	devpriv = dev->private;
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
+
 	dev->board_ptr = ni_670x_find_boardinfo(pcidev);
 	if (!dev->board_ptr)
 		return -ENODEV;
@@ -297,19 +301,14 @@ static void ni_670x_detach(struct comedi_device *dev)
 static struct comedi_driver ni_670x_driver = {
 	.driver_name	= "ni_670x",
 	.module		= THIS_MODULE,
-	.attach_pci	= ni_670x_attach_pci,
+	.auto_attach	= ni_670x_auto_attach,
 	.detach		= ni_670x_detach,
 };
 
-static int __devinit ni_670x_pci_probe(struct pci_dev *dev,
+static int ni_670x_pci_probe(struct pci_dev *dev,
 				       const struct pci_device_id *ent)
 {
 	return comedi_pci_auto_config(dev, &ni_670x_driver);
-}
-
-static void __devexit ni_670x_pci_remove(struct pci_dev *dev)
-{
-	comedi_pci_auto_unconfig(dev);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(ni_670x_pci_table) = {
@@ -320,10 +319,10 @@ static DEFINE_PCI_DEVICE_TABLE(ni_670x_pci_table) = {
 MODULE_DEVICE_TABLE(pci, ni_670x_pci_table);
 
 static struct pci_driver ni_670x_pci_driver = {
-	.name		="ni_670x",
+	.name		= "ni_670x",
 	.id_table	= ni_670x_pci_table,
 	.probe		= ni_670x_pci_probe,
-	.remove		= __devexit_p(ni_670x_pci_remove),
+	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(ni_670x_driver, ni_670x_pci_driver);
 

@@ -12,6 +12,7 @@
 #ifndef _IIO_TRIGGER_H_
 #define _IIO_TRIGGER_H_
 
+#ifdef CONFIG_IIO_TRIGGER
 struct iio_subirq {
 	bool enabled;
 };
@@ -117,4 +118,8 @@ irqreturn_t iio_trigger_generic_data_rdy_poll(int irq, void *private);
 __printf(1, 2) struct iio_trigger *iio_trigger_alloc(const char *fmt, ...);
 void iio_trigger_free(struct iio_trigger *trig);
 
+#else
+struct iio_trigger;
+struct iio_trigger_ops;
+#endif
 #endif /* _IIO_TRIGGER_H_ */

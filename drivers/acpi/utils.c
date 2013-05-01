@@ -28,6 +28,8 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/types.h>
+#include <linux/hardirq.h>
+#include <linux/acpi.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 
@@ -457,3 +459,39 @@ acpi_evaluate_hotplug_ost(acpi_handle handle, u32 source_event,
 #endif
 }
 EXPORT_SYMBOL(acpi_evaluate_hotplug_ost);
+
+/**
+ * acpi_handle_printk: Print message with ACPI prefix and object path
+ *
+ * This function is called through acpi_handle_<level> macros and prints
+ * a message with ACPI prefix and object path.  This function acquires
+ * the global namespace mutex to obtain an object path.  In interrupt
+ * context, it shows the object path as <n/a>.
+ */
+void
+acpi_handle_printk(const char *level, acpi_handle handle, const char *fmt, ...)
+{
+	struct va_format vaf;
+	va_list args;
+	struct acpi_buffer buffer = {
+		.length = ACPI_ALLOCATE_BUFFER,
+		.pointer = NULL
+	};
+	const char *path;
+
+	va_start(args, fmt);
+	vaf.fmt = fmt;
+	vaf.va = &args;
+
+	if (in_interrupt() ||
+	    acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer) != AE_OK)
+		path = "<n/a>";
+	else
+		path = buffer.pointer;
+
+	printk("%sACPI: %s: %pV", level, path, &vaf);
+
+	va_end(args);
+	kfree(buffer.pointer);
+}
+EXPORT_SYMBOL(acpi_handle_printk);

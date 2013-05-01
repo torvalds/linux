@@ -54,8 +54,8 @@ static int ssb_pcihost_resume(struct pci_dev *dev)
 # define ssb_pcihost_resume	NULL
 #endif /* CONFIG_PM */
 
-static int __devinit ssb_pcihost_probe(struct pci_dev *dev,
-				       const struct pci_device_id *id)
+static int ssb_pcihost_probe(struct pci_dev *dev,
+			     const struct pci_device_id *id)
 {
 	struct ssb_bus *ssb;
 	int err = -ENOMEM;
@@ -111,7 +111,7 @@ static void ssb_pcihost_remove(struct pci_dev *dev)
 	pci_set_drvdata(dev, NULL);
 }
 
-int __devinit ssb_pcihost_register(struct pci_driver *driver)
+int ssb_pcihost_register(struct pci_driver *driver)
 {
 	driver->probe = ssb_pcihost_probe;
 	driver->remove = ssb_pcihost_remove;

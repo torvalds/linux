@@ -136,7 +136,7 @@ static void gef_sbc610_show_cpuinfo(struct seq_file *m)
 	seq_printf(m, "SVR\t\t: 0x%x\n", svid);
 }
 
-static void __devinit gef_sbc610_nec_fixup(struct pci_dev *pdev)
+static void gef_sbc610_nec_fixup(struct pci_dev *pdev)
 {
 	unsigned int val;
 

@@ -1748,7 +1748,8 @@ static int DRX_Stop(struct drxd_state *state)
 	return status;
 }
 
-int SetOperationMode(struct drxd_state *state, int oMode)
+#if 0	/* Currently unused */
+static int SetOperationMode(struct drxd_state *state, int oMode)
 {
 	int status;
 
@@ -1788,6 +1789,7 @@ int SetOperationMode(struct drxd_state *state, int oMode)
 		state->operation_mode = oMode;
 	return status;
 }
+#endif
 
 static int StartDiversity(struct drxd_state *state)
 {
@@ -2612,7 +2614,7 @@ static int CDRXD(struct drxd_state *state, u32 IntermediateFrequency)
 	return 0;
 }
 
-int DRXD_init(struct drxd_state *state, const u8 * fw, u32 fw_size)
+static int DRXD_init(struct drxd_state *state, const u8 *fw, u32 fw_size)
 {
 	int status = 0;
 	u32 driverVersion;
@@ -2774,7 +2776,7 @@ int DRXD_init(struct drxd_state *state, const u8 * fw, u32 fw_size)
 	return status;
 }
 
-int DRXD_status(struct drxd_state *state, u32 * pLockStatus)
+static int DRXD_status(struct drxd_state *state, u32 *pLockStatus)
 {
 	DRX_GetLockStatus(state, pLockStatus);
 
@@ -2963,7 +2965,7 @@ struct dvb_frontend *drxd_attach(const struct drxd_config *config,
 		return NULL;
 	memset(state, 0, sizeof(*state));
 
-	memcpy(&state->ops, &drxd_ops, sizeof(struct dvb_frontend_ops));
+	state->ops = drxd_ops;
 	state->dev = dev;
 	state->config = *config;
 	state->i2c = i2c;
@@ -2974,10 +2976,13 @@ struct dvb_frontend *drxd_attach(const struct drxd_config *config,
 	if (Read16(state, 0, 0, 0) < 0)
 		goto error;
 
-	memcpy(&state->frontend.ops, &drxd_ops,
-	       sizeof(struct dvb_frontend_ops));
+	state->frontend.ops = drxd_ops;
 	state->frontend.demodulator_priv = state;
 	ConfigureMPEGOutput(state, 0);
+	/* add few initialization to allow gate control */
+	CDRXD(state, state->config.IF ? state->config.IF : 36000000);
+	InitHI(state);
+
 	return &state->frontend;
 
 error:

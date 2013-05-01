@@ -16,6 +16,7 @@
 
 #include <linux/gpio.h>
 #include <linux/irqdomain.h>
+#include <linux/pwm.h>
 #include <linux/regmap.h>
 
 #define LP8788_DEV_BUCK		"lp8788-buck"
@@ -124,11 +125,6 @@ enum lp8788_bl_ramp_step {
 	LP8788_RAMP_65538us,
 };
 
-enum lp8788_bl_pwm_polarity {
-	LP8788_PWM_ACTIVE_HIGH,
-	LP8788_PWM_ACTIVE_LOW,
-};
-
 enum lp8788_isink_scale {
 	LP8788_ISINK_SCALE_100mA,
 	LP8788_ISINK_SCALE_120mA,
@@ -211,31 +207,21 @@ struct lp8788_chg_param {
 
 /*
  * struct lp8788_charger_platform_data
- * @vbatt_adc         : adc selection id for battery voltage
- * @batt_temp_adc     : adc selection id for battery temperature
+ * @adc_vbatt         : adc channel name for battery voltage
+ * @adc_batt_temp     : adc channel name for battery temperature
  * @max_vbatt_mv      : used for calculating battery capacity
  * @chg_params        : initial charging parameters
  * @num_chg_params    : numbers of charging parameters
  * @charger_event     : the charger event can be reported to the platform side
  */
 struct lp8788_charger_platform_data {
-	enum lp8788_adc_id vbatt_adc;
-	enum lp8788_adc_id batt_temp_adc;
+	const char *adc_vbatt;
+	const char *adc_batt_temp;
 	unsigned int max_vbatt_mv;
 	struct lp8788_chg_param *chg_params;
 	int num_chg_params;
 	void (*charger_event) (struct lp8788 *lp,
 				enum lp8788_charger_event event);
-};
-
-/*
- * struct lp8788_bl_pwm_data
- * @pwm_set_intensity     : set duty of pwm
- * @pwm_get_intensity     : get current duty of pwm
- */
-struct lp8788_bl_pwm_data {
-	void (*pwm_set_intensity) (int brightness, int max_brightness);
-	int (*pwm_get_intensity) (int max_brightness);
 };
 
 /*
@@ -248,8 +234,8 @@ struct lp8788_bl_pwm_data {
  * @rise_time             : brightness ramp up step time
  * @fall_time             : brightness ramp down step time
  * @pwm_pol               : pwm polarity setting when bl_mode is pwm based
- * @pwm_data              : platform specific pwm generation functions
- *                          only valid when bl_mode is pwm based
+ * @period_ns             : platform specific pwm period value. unit is nano.
+			    Only valid when bl_mode is LP8788_BL_COMB_PWM_BASED
  */
 struct lp8788_backlight_platform_data {
 	char *name;
@@ -259,8 +245,8 @@ struct lp8788_backlight_platform_data {
 	enum lp8788_bl_full_scale_current full_scale;
 	enum lp8788_bl_ramp_step rise_time;
 	enum lp8788_bl_ramp_step fall_time;
-	enum lp8788_bl_pwm_polarity pwm_pol;
-	struct lp8788_bl_pwm_data pwm_data;
+	enum pwm_polarity pwm_pol;
+	unsigned int period_ns;
 };
 
 /*

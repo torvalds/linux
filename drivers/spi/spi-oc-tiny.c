@@ -54,7 +54,7 @@ struct tiny_spi {
 	unsigned int txc, rxc;
 	const u8 *txp;
 	u8 *rxp;
-	unsigned int gpio_cs_count;
+	int gpio_cs_count;
 	int *gpio_cs;
 };
 
@@ -74,7 +74,7 @@ static void tiny_spi_chipselect(struct spi_device *spi, int is_active)
 {
 	struct tiny_spi *hw = tiny_spi_to_hw(spi);
 
-	if (hw->gpio_cs_count) {
+	if (hw->gpio_cs_count > 0) {
 		gpio_set_value(hw->gpio_cs[spi->chip_select],
 			(spi->mode & SPI_CS_HIGH) ? is_active : !is_active);
 	}
@@ -243,7 +243,7 @@ static irqreturn_t tiny_spi_irq(int irq, void *dev)
 #ifdef CONFIG_OF
 #include <linux/of_gpio.h>
 
-static int __devinit tiny_spi_of_probe(struct platform_device *pdev)
+static int tiny_spi_of_probe(struct platform_device *pdev)
 {
 	struct tiny_spi *hw = platform_get_drvdata(pdev);
 	struct device_node *np = pdev->dev.of_node;
@@ -254,7 +254,7 @@ static int __devinit tiny_spi_of_probe(struct platform_device *pdev)
 	if (!np)
 		return 0;
 	hw->gpio_cs_count = of_gpio_count(np);
-	if (hw->gpio_cs_count) {
+	if (hw->gpio_cs_count > 0) {
 		hw->gpio_cs = devm_kzalloc(&pdev->dev,
 				hw->gpio_cs_count * sizeof(unsigned int),
 				GFP_KERNEL);
@@ -277,13 +277,13 @@ static int __devinit tiny_spi_of_probe(struct platform_device *pdev)
 	return 0;
 }
 #else /* !CONFIG_OF */
-static int __devinit tiny_spi_of_probe(struct platform_device *pdev)
+static int tiny_spi_of_probe(struct platform_device *pdev)
 {
 	return 0;
 }
 #endif /* CONFIG_OF */
 
-static int __devinit tiny_spi_probe(struct platform_device *pdev)
+static int tiny_spi_probe(struct platform_device *pdev)
 {
 	struct tiny_spi_platform_data *platp = pdev->dev.platform_data;
 	struct tiny_spi *hw;
@@ -352,7 +352,7 @@ static int __devinit tiny_spi_probe(struct platform_device *pdev)
 			goto exit_gpio;
 		gpio_direction_output(hw->gpio_cs[i], 1);
 	}
-	hw->bitbang.master->num_chipselect = max(1U, hw->gpio_cs_count);
+	hw->bitbang.master->num_chipselect = max(1, hw->gpio_cs_count);
 
 	/* register our spi controller */
 	err = spi_bitbang_start(&hw->bitbang);
@@ -373,7 +373,7 @@ exit:
 	return err;
 }
 
-static int __devexit tiny_spi_remove(struct platform_device *pdev)
+static int tiny_spi_remove(struct platform_device *pdev)
 {
 	struct tiny_spi *hw = platform_get_drvdata(pdev);
 	struct spi_master *master = hw->bitbang.master;
@@ -399,7 +399,7 @@ MODULE_DEVICE_TABLE(of, tiny_spi_match);
 
 static struct platform_driver tiny_spi_driver = {
 	.probe = tiny_spi_probe,
-	.remove = __devexit_p(tiny_spi_remove),
+	.remove = tiny_spi_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.owner = THIS_MODULE,

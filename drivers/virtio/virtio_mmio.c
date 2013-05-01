@@ -75,7 +75,7 @@
  *
  * 0x050  W  QueueNotify      Queue notifier
  * 0x060  R  InterruptStatus  Interrupt status register
- * 0x060  W  InterruptACK     Interrupt acknowledge register
+ * 0x064  W  InterruptACK     Interrupt acknowledge register
  * 0x070  RW Status           Device status register
  *
  * 0x100+ RW                  Device-specific configuration space
@@ -225,7 +225,7 @@ static void vm_notify(struct virtqueue *vq)
 
 	/* We write the queue's selector into the notification register to
 	 * signal the other end */
-	writel(virtqueue_get_queue_index(vq), vm_dev->base + VIRTIO_MMIO_QUEUE_NOTIFY);
+	writel(vq->index, vm_dev->base + VIRTIO_MMIO_QUEUE_NOTIFY);
 }
 
 /* Notify all virtqueues on an interrupt. */
@@ -266,7 +266,7 @@ static void vm_del_vq(struct virtqueue *vq)
 	struct virtio_mmio_device *vm_dev = to_virtio_mmio_device(vq->vdev);
 	struct virtio_mmio_vq_info *info = vq->priv;
 	unsigned long flags, size;
-	unsigned int index = virtqueue_get_queue_index(vq);
+	unsigned int index = vq->index;
 
 	spin_lock_irqsave(&vm_dev->lock, flags);
 	list_del(&info->node);
@@ -423,7 +423,7 @@ static const char *vm_bus_name(struct virtio_device *vdev)
 	return vm_dev->pdev->name;
 }
 
-static struct virtio_config_ops virtio_mmio_config_ops = {
+static const struct virtio_config_ops virtio_mmio_config_ops = {
 	.get		= vm_get,
 	.set		= vm_set,
 	.get_status	= vm_get_status,
@@ -440,7 +440,7 @@ static struct virtio_config_ops virtio_mmio_config_ops = {
 
 /* Platform device */
 
-static int __devinit virtio_mmio_probe(struct platform_device *pdev)
+static int virtio_mmio_probe(struct platform_device *pdev)
 {
 	struct virtio_mmio_device *vm_dev;
 	struct resource *mem;
@@ -493,7 +493,7 @@ static int __devinit virtio_mmio_probe(struct platform_device *pdev)
 	return register_virtio_device(&vm_dev->vdev);
 }
 
-static int __devexit virtio_mmio_remove(struct platform_device *pdev)
+static int virtio_mmio_remove(struct platform_device *pdev)
 {
 	struct virtio_mmio_device *vm_dev = platform_get_drvdata(pdev);
 
@@ -521,25 +521,33 @@ static int vm_cmdline_set(const char *device,
 	int err;
 	struct resource resources[2] = {};
 	char *str;
-	long long int base;
+	long long int base, size;
+	unsigned int irq;
 	int processed, consumed = 0;
 	struct platform_device *pdev;
 
-	resources[0].flags = IORESOURCE_MEM;
-	resources[1].flags = IORESOURCE_IRQ;
+	/* Consume "size" part of the command line parameter */
+	size = memparse(device, &str);
 
-	resources[0].end = memparse(device, &str) - 1;
-
+	/* Get "@<base>:<irq>[:<id>]" chunks */
 	processed = sscanf(str, "@%lli:%u%n:%d%n",
-			&base, &resources[1].start, &consumed,
+			&base, &irq, &consumed,
 			&vm_cmdline_id, &consumed);
 
-	if (processed < 2 || processed > 3 || str[consumed])
+	/*
+	 * sscanf() must processes at least 2 chunks; also there
+	 * must be no extra characters after the last chunk, so
+	 * str[consumed] must be '\0'
+	 */
+	if (processed < 2 || str[consumed])
 		return -EINVAL;
 
+	resources[0].flags = IORESOURCE_MEM;
 	resources[0].start = base;
-	resources[0].end += base;
-	resources[1].end = resources[1].start;
+	resources[0].end = base + size - 1;
+
+	resources[1].flags = IORESOURCE_IRQ;
+	resources[1].start = resources[1].end = irq;
 
 	if (!vm_cmdline_parent_registered) {
 		err = device_register(&vm_cmdline_parent);
@@ -630,7 +638,7 @@ MODULE_DEVICE_TABLE(of, virtio_mmio_match);
 
 static struct platform_driver virtio_mmio_driver = {
 	.probe		= virtio_mmio_probe,
-	.remove		= __devexit_p(virtio_mmio_remove),
+	.remove		= virtio_mmio_remove,
 	.driver		= {
 		.name	= "virtio-mmio",
 		.owner	= THIS_MODULE,

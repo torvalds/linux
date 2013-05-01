@@ -13,9 +13,9 @@
 #include <linux/smp.h>
 #include <linux/io.h>
 #include <linux/of_fdt.h>
+#include <linux/vexpress.h>
 
 #include <asm/smp_scu.h>
-#include <asm/hardware/gic.h>
 #include <asm/mach/map.h>
 
 #include <mach/motherboard.h>
@@ -127,8 +127,6 @@ static void __init vexpress_dt_smp_init_cpus(void)
 
 	for (i = 0; i < ncores; ++i)
 		set_cpu_possible(i, true);
-
-	set_smp_cross_call(gic_raise_softirq);
 }
 
 static void __init vexpress_dt_smp_prepare_cpus(unsigned int max_cpus)
@@ -193,7 +191,7 @@ static void __init vexpress_smp_prepare_cpus(unsigned int max_cpus)
 	 * until it receives a soft interrupt, and then the
 	 * secondary CPU branches to this address.
 	 */
-	v2m_flags_set(virt_to_phys(versatile_secondary_startup));
+	vexpress_flags_set(virt_to_phys(versatile_secondary_startup));
 }
 
 struct smp_operations __initdata vexpress_smp_ops = {

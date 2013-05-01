@@ -143,3 +143,176 @@ ipv6:
 	return true;
 }
 EXPORT_SYMBOL(skb_flow_dissect);
+
+static u32 hashrnd __read_mostly;
+
+/*
+ * __skb_get_rxhash: calculate a flow hash based on src/dst addresses
+ * and src/dst port numbers.  Sets rxhash in skb to non-zero hash value
+ * on success, zero indicates no valid hash.  Also, sets l4_rxhash in skb
+ * if hash is a canonical 4-tuple hash over transport ports.
+ */
+void __skb_get_rxhash(struct sk_buff *skb)
+{
+	struct flow_keys keys;
+	u32 hash;
+
+	if (!skb_flow_dissect(skb, &keys))
+		return;
+
+	if (keys.ports)
+		skb->l4_rxhash = 1;
+
+	/* get a consistent hash (same value on both flow directions) */
+	if (((__force u32)keys.dst < (__force u32)keys.src) ||
+	    (((__force u32)keys.dst == (__force u32)keys.src) &&
+	     ((__force u16)keys.port16[1] < (__force u16)keys.port16[0]))) {
+		swap(keys.dst, keys.src);
+		swap(keys.port16[0], keys.port16[1]);
+	}
+
+	hash = jhash_3words((__force u32)keys.dst,
+			    (__force u32)keys.src,
+			    (__force u32)keys.ports, hashrnd);
+	if (!hash)
+		hash = 1;
+
+	skb->rxhash = hash;
+}
+EXPORT_SYMBOL(__skb_get_rxhash);
+
+/*
+ * Returns a Tx hash based on the given packet descriptor a Tx queues' number
+ * to be used as a distribution range.
+ */
+u16 __skb_tx_hash(const struct net_device *dev, const struct sk_buff *skb,
+		  unsigned int num_tx_queues)
+{
+	u32 hash;
+	u16 qoffset = 0;
+	u16 qcount = num_tx_queues;
+
+	if (skb_rx_queue_recorded(skb)) {
+		hash = skb_get_rx_queue(skb);
+		while (unlikely(hash >= num_tx_queues))
+			hash -= num_tx_queues;
+		return hash;
+	}
+
+	if (dev->num_tc) {
+		u8 tc = netdev_get_prio_tc_map(dev, skb->priority);
+		qoffset = dev->tc_to_txq[tc].offset;
+		qcount = dev->tc_to_txq[tc].count;
+	}
+
+	if (skb->sk && skb->sk->sk_hash)
+		hash = skb->sk->sk_hash;
+	else
+		hash = (__force u16) skb->protocol;
+	hash = jhash_1word(hash, hashrnd);
+
+	return (u16) (((u64) hash * qcount) >> 32) + qoffset;
+}
+EXPORT_SYMBOL(__skb_tx_hash);
+
+static inline u16 dev_cap_txqueue(struct net_device *dev, u16 queue_index)
+{
+	if (unlikely(queue_index >= dev->real_num_tx_queues)) {
+		net_warn_ratelimited("%s selects TX queue %d, but real number of TX queues is %d\n",
+				     dev->name, queue_index,
+				     dev->real_num_tx_queues);
+		return 0;
+	}
+	return queue_index;
+}
+
+static inline int get_xps_queue(struct net_device *dev, struct sk_buff *skb)
+{
+#ifdef CONFIG_XPS
+	struct xps_dev_maps *dev_maps;
+	struct xps_map *map;
+	int queue_index = -1;
+
+	rcu_read_lock();
+	dev_maps = rcu_dereference(dev->xps_maps);
+	if (dev_maps) {
+		map = rcu_dereference(
+		    dev_maps->cpu_map[raw_smp_processor_id()]);
+		if (map) {
+			if (map->len == 1)
+				queue_index = map->queues[0];
+			else {
+				u32 hash;
+				if (skb->sk && skb->sk->sk_hash)
+					hash = skb->sk->sk_hash;
+				else
+					hash = (__force u16) skb->protocol ^
+					    skb->rxhash;
+				hash = jhash_1word(hash, hashrnd);
+				queue_index = map->queues[
+				    ((u64)hash * map->len) >> 32];
+			}
+			if (unlikely(queue_index >= dev->real_num_tx_queues))
+				queue_index = -1;
+		}
+	}
+	rcu_read_unlock();
+
+	return queue_index;
+#else
+	return -1;
+#endif
+}
+
+u16 __netdev_pick_tx(struct net_device *dev, struct sk_buff *skb)
+{
+	struct sock *sk = skb->sk;
+	int queue_index = sk_tx_queue_get(sk);
+
+	if (queue_index < 0 || skb->ooo_okay ||
+	    queue_index >= dev->real_num_tx_queues) {
+		int new_index = get_xps_queue(dev, skb);
+		if (new_index < 0)
+			new_index = skb_tx_hash(dev, skb);
+
+		if (queue_index != new_index && sk) {
+			struct dst_entry *dst =
+				    rcu_dereference_check(sk->sk_dst_cache, 1);
+
+			if (dst && skb_dst(skb) == dst)
+				sk_tx_queue_set(sk, queue_index);
+
+		}
+
+		queue_index = new_index;
+	}
+
+	return queue_index;
+}
+EXPORT_SYMBOL(__netdev_pick_tx);
+
+struct netdev_queue *netdev_pick_tx(struct net_device *dev,
+				    struct sk_buff *skb)
+{
+	int queue_index = 0;
+
+	if (dev->real_num_tx_queues != 1) {
+		const struct net_device_ops *ops = dev->netdev_ops;
+		if (ops->ndo_select_queue)
+			queue_index = ops->ndo_select_queue(dev, skb);
+		else
+			queue_index = __netdev_pick_tx(dev, skb);
+		queue_index = dev_cap_txqueue(dev, queue_index);
+	}
+
+	skb_set_queue_mapping(skb, queue_index);
+	return netdev_get_tx_queue(dev, queue_index);
+}
+
+static int __init initialize_hashrnd(void)
+{
+	get_random_bytes(&hashrnd, sizeof(hashrnd));
+	return 0;
+}
+
+late_initcall_sync(initialize_hashrnd);

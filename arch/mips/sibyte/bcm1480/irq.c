@@ -283,10 +283,10 @@ void __init arch_init_irq(void)
 	for (cpu = 0; cpu < 4; cpu++) {
 		__raw_writeq(IMR_IP3_VAL, IOADDR(A_BCM1480_IMR_REGISTER(cpu, R_BCM1480_IMR_INTERRUPT_MAP_BASE_H) +
 						 (K_BCM1480_INT_MBOX_0_0 << 3)));
-        }
+	}
 
 
-	/* Clear the mailboxes.  The firmware may leave them dirty */
+	/* Clear the mailboxes.	 The firmware may leave them dirty */
 	for (cpu = 0; cpu < 4; cpu++) {
 		__raw_writeq(0xffffffffffffffffULL,
 			     IOADDR(A_BCM1480_IMR_REGISTER(cpu, R_BCM1480_IMR_MAILBOX_0_CLR_CPU)));
@@ -307,7 +307,7 @@ void __init arch_init_irq(void)
 
 	/*
 	 * Note that the timer interrupts are also mapped, but this is
-	 * done in bcm1480_time_init().  Also, the profiling driver
+	 * done in bcm1480_time_init().	 Also, the profiling driver
 	 * does its own management of IP7.
 	 */
 
@@ -325,7 +325,7 @@ static inline void dispatch_ip2(void)
 
 	/*
 	 * Default...we've hit an IP[2] interrupt, which means we've got to
-	 * check the 1480 interrupt registers to figure out what to do.  Need
+	 * check the 1480 interrupt registers to figure out what to do.	 Need
 	 * to detect which CPU we're on, now that smp_affinity is supported.
 	 */
 	base = A_BCM1480_IMR_MAPPER(cpu);

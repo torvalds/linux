@@ -17,15 +17,15 @@
 #include <asm/xtalk/xtalk.h>
 
 
-#define XBOW_WIDGET_PART_NUM    0x0
-#define XXBOW_WIDGET_PART_NUM   0xd000  /* Xbow in Xbridge */
-#define BASE_XBOW_PORT  	8     /* Lowest external port */
+#define XBOW_WIDGET_PART_NUM	0x0
+#define XXBOW_WIDGET_PART_NUM	0xd000	/* Xbow in Xbridge */
+#define BASE_XBOW_PORT		8     /* Lowest external port */
 
 extern int bridge_probe(nasid_t nasid, int widget, int masterwid);
 
 static int __cpuinit probe_one_port(nasid_t nasid, int widget, int masterwid)
 {
-	widgetreg_t 		widget_id;
+	widgetreg_t		widget_id;
 	xwidget_part_num_t	partnum;
 
 	widget_id = *(volatile widgetreg_t *)
@@ -102,10 +102,10 @@ static int __cpuinit xbow_probe(nasid_t nasid)
 
 void __cpuinit xtalk_probe_node(cnodeid_t nid)
 {
-	volatile u64 		hubreg;
-	nasid_t	 		nasid;
+	volatile u64		hubreg;
+	nasid_t			nasid;
 	xwidget_part_num_t	partnum;
-	widgetreg_t 		widget_id;
+	widgetreg_t		widget_id;
 
 	nasid = COMPACT_TO_NASID_NODEID(nid);
 	hubreg = REMOTE_HUB_L(nasid, IIO_LLP_CSR);
@@ -115,7 +115,7 @@ void __cpuinit xtalk_probe_node(cnodeid_t nid)
 		return;
 
 	widget_id = *(volatile widgetreg_t *)
-                       (RAW_NODE_SWIN_BASE(nasid, 0x0) + WIDGET_ID);
+		       (RAW_NODE_SWIN_BASE(nasid, 0x0) + WIDGET_ID);
 	partnum = XWIDGET_PART_NUM(widget_id);
 
 	printk(KERN_INFO "Cpu %d, Nasid 0x%x: partnum 0x%x is ",

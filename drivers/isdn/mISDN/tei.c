@@ -250,7 +250,7 @@ tei_debug(struct FsmInst *fi, char *fmt, ...)
 static int
 get_free_id(struct manager *mgr)
 {
-	u64		ids = 0;
+	DECLARE_BITMAP(ids, 64) = { [0 ... BITS_TO_LONGS(64) - 1] = 0 };
 	int		i;
 	struct layer2	*l2;
 
@@ -261,11 +261,11 @@ get_free_id(struct manager *mgr)
 			       __func__);
 			return -EBUSY;
 		}
-		test_and_set_bit(l2->ch.nr, (u_long *)&ids);
+		__set_bit(l2->ch.nr, ids);
 	}
-	for (i = 1; i < 64; i++)
-		if (!test_bit(i, (u_long *)&ids))
-			return i;
+	i = find_next_zero_bit(ids, 64, 1);
+	if (i < 64)
+		return i;
 	printk(KERN_WARNING "%s: more as 63 layer2 for one device\n",
 	       __func__);
 	return -EBUSY;
@@ -274,7 +274,7 @@ get_free_id(struct manager *mgr)
 static int
 get_free_tei(struct manager *mgr)
 {
-	u64		ids = 0;
+	DECLARE_BITMAP(ids, 64) = { [0 ... BITS_TO_LONGS(64) - 1] = 0 };
 	int		i;
 	struct layer2	*l2;
 
@@ -288,11 +288,11 @@ get_free_tei(struct manager *mgr)
 			continue;
 		i -= 64;
 
-		test_and_set_bit(i, (u_long *)&ids);
+		__set_bit(i, ids);
 	}
-	for (i = 0; i < 64; i++)
-		if (!test_bit(i, (u_long *)&ids))
-			return i + 64;
+	i = find_first_zero_bit(ids, 64);
+	if (i < 64)
+		return i + 64;
 	printk(KERN_WARNING "%s: more as 63 dynamic tei for one device\n",
 	       __func__);
 	return -1;

@@ -83,6 +83,10 @@ struct cache_detail {
 	int			(*cache_upcall)(struct cache_detail *,
 						struct cache_head *);
 
+	void			(*cache_request)(struct cache_detail *cd,
+						 struct cache_head *ch,
+						 char **bpp, int *blen);
+
 	int			(*cache_parse)(struct cache_detail *,
 					       char *buf, int len);
 
@@ -157,11 +161,7 @@ sunrpc_cache_update(struct cache_detail *detail,
 		    struct cache_head *new, struct cache_head *old, int hash);
 
 extern int
-sunrpc_cache_pipe_upcall(struct cache_detail *detail, struct cache_head *h,
-		void (*cache_request)(struct cache_detail *,
-				      struct cache_head *,
-				      char **,
-				      int *));
+sunrpc_cache_pipe_upcall(struct cache_detail *detail, struct cache_head *h);
 
 
 extern void cache_clean_deferred(void *owner);
@@ -217,6 +217,8 @@ extern int qword_get(char **bpp, char *dest, int bufsize);
 static inline int get_int(char **bpp, int *anint)
 {
 	char buf[50];
+	char *ep;
+	int rv;
 	int len = qword_get(bpp, buf, sizeof(buf));
 
 	if (len < 0)
@@ -224,9 +226,11 @@ static inline int get_int(char **bpp, int *anint)
 	if (len == 0)
 		return -ENOENT;
 
-	if (kstrtoint(buf, 0, anint))
+	rv = simple_strtol(buf, &ep, 0);
+	if (*ep)
 		return -EINVAL;
 
+	*anint = rv;
 	return 0;
 }
 

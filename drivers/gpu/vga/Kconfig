@@ -1,7 +1,7 @@
 config VGA_ARB
 	bool "VGA Arbitration" if EXPERT
 	default y
-	depends on PCI
+	depends on (PCI && !S390)
 	help
 	  Some "legacy" VGA devices implemented on PCI typically have the same
 	  hard-decoded addresses as they did on ISA. When multiple PCI devices

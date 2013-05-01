@@ -8,11 +8,13 @@
  * Driver is originally developed by Pavel Sokolov <psokolov@synopsys.com>
  */
 
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
 #include <linux/serio.h>
 #include <linux/platform_device.h>
+#include <linux/of.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -206,9 +208,9 @@ static int arc_ps2_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	arc_ps2->addr = devm_request_and_ioremap(&pdev->dev, res);
-	if (!arc_ps2->addr)
-		return -EBUSY;
+	arc_ps2->addr = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(arc_ps2->addr))
+		return PTR_ERR(arc_ps2->addr);
 
 	dev_info(&pdev->dev, "irq = %d, address = 0x%p, ports = %i\n",
 		 irq, arc_ps2->addr, ARC_PS2_PORTS);
@@ -258,10 +260,19 @@ static int arc_ps2_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id arc_ps2_match[] = {
+	{ .compatible = "snps,arc_ps2" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, arc_ps2_match);
+#endif
+
 static struct platform_driver arc_ps2_driver = {
 	.driver	= {
-		.name	= "arc_ps2",
-		.owner	= THIS_MODULE,
+		.name		= "arc_ps2",
+		.owner		= THIS_MODULE,
+		.of_match_table	= of_match_ptr(arc_ps2_match),
 	},
 	.probe	= arc_ps2_probe,
 	.remove	= arc_ps2_remove,

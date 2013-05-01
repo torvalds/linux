@@ -1352,7 +1352,7 @@ static const struct snd_pcm_chmap_elem side_map[] = {
 	{ }
 };
 
-static int __devinit snd_ca0106_pcm(struct snd_ca0106 *emu, int device)
+static int snd_ca0106_pcm(struct snd_ca0106 *emu, int device)
 {
 	struct snd_pcm *pcm;
 	struct snd_pcm_substream *substream;
@@ -1650,7 +1650,7 @@ static void ca0106_stop_chip(struct snd_ca0106 *chip)
 	 */
 }
 
-static int __devinit snd_ca0106_create(int dev, struct snd_card *card,
+static int snd_ca0106_create(int dev, struct snd_card *card,
 					 struct pci_dev *pci,
 					 struct snd_ca0106 **rchip)
 {
@@ -1777,7 +1777,7 @@ static int ca0106_dev_id_port(void *dev_id)
 	return ((struct snd_ca0106 *)dev_id)->port;
 }
 
-static int __devinit snd_ca0106_midi(struct snd_ca0106 *chip, unsigned int channel)
+static int snd_ca0106_midi(struct snd_ca0106 *chip, unsigned int channel)
 {
 	struct snd_ca_midi *midi;
 	char *name;
@@ -1828,7 +1828,7 @@ static int __devinit snd_ca0106_midi(struct snd_ca0106 *chip, unsigned int chann
 }
 
 
-static int __devinit snd_ca0106_probe(struct pci_dev *pci,
+static int snd_ca0106_probe(struct pci_dev *pci,
 					const struct pci_device_id *pci_id)
 {
 	static int dev;
@@ -1893,7 +1893,7 @@ static int __devinit snd_ca0106_probe(struct pci_dev *pci,
 	return err;
 }
 
-static void __devexit snd_ca0106_remove(struct pci_dev *pci)
+static void snd_ca0106_remove(struct pci_dev *pci)
 {
 	snd_card_free(pci_get_drvdata(pci));
 	pci_set_drvdata(pci, NULL);
@@ -1971,7 +1971,7 @@ static struct pci_driver ca0106_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_ca0106_ids,
 	.probe = snd_ca0106_probe,
-	.remove = __devexit_p(snd_ca0106_remove),
+	.remove = snd_ca0106_remove,
 	.driver = {
 		.pm = SND_CA0106_PM_OPS,
 	},

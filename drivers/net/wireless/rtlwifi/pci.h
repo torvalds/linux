@@ -79,6 +79,7 @@
 #define RTL_PCI_8173_DID	0x8173	/*8191 SE Crab */
 #define RTL_PCI_8172_DID	0x8172	/*8191 SE RE */
 #define RTL_PCI_8171_DID	0x8171	/*8191 SE Unicron */
+#define RTL_PCI_8723AE_DID	0x8723	/*8723AE */
 #define RTL_PCI_0045_DID	0x0045	/*8190 PCI for Ceraga */
 #define RTL_PCI_0046_DID	0x0046	/*8190 Cardbus for Ceraga */
 #define RTL_PCI_0044_DID	0x0044	/*8192e PCIE for Ceraga */
@@ -152,6 +153,7 @@ struct rtl8192_rx_ring {
 
 struct rtl_pci {
 	struct pci_dev *pdev;
+	bool irq_enabled;
 
 	bool driver_is_goingto_unload;
 	bool up_first_time;
@@ -234,11 +236,13 @@ int rtl_pci_reset_trx_ring(struct ieee80211_hw *hw);
 
 extern struct rtl_intf_ops rtl_pci_ops;
 
-int __devinit rtl_pci_probe(struct pci_dev *pdev,
+int rtl_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *id);
 void rtl_pci_disconnect(struct pci_dev *pdev);
+#ifdef CONFIG_PM_SLEEP
 int rtl_pci_suspend(struct device *dev);
 int rtl_pci_resume(struct device *dev);
+#endif /* CONFIG_PM_SLEEP */
 static inline u8 pci_read8_sync(struct rtl_priv *rtlpriv, u32 addr)
 {
 	return readb((u8 __iomem *) rtlpriv->io.pci_mem_start + addr);

@@ -185,8 +185,8 @@ static int pcf8583_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	if (ctrl & (CTRL_STOP | CTRL_HOLD)) {
 		unsigned char new_ctrl = ctrl & ~(CTRL_STOP | CTRL_HOLD);
 
-		printk(KERN_WARNING "RTC: resetting control %02x -> %02x\n",
-		       ctrl, new_ctrl);
+		dev_warn(dev, "resetting control %02x -> %02x\n",
+			ctrl, new_ctrl);
 
 		if ((err = pcf8583_set_ctrl(client, &new_ctrl)) < 0)
 			return err;
@@ -294,7 +294,7 @@ exit_kfree:
 	return err;
 }
 
-static int __devexit pcf8583_remove(struct i2c_client *client)
+static int pcf8583_remove(struct i2c_client *client)
 {
 	struct pcf8583 *pcf8583 = i2c_get_clientdata(client);
 
@@ -316,7 +316,7 @@ static struct i2c_driver pcf8583_driver = {
 		.owner	= THIS_MODULE,
 	},
 	.probe		= pcf8583_probe,
-	.remove		= __devexit_p(pcf8583_remove),
+	.remove		= pcf8583_remove,
 	.id_table	= pcf8583_id,
 };
 

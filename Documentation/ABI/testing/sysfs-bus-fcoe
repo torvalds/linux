@@ -1,13 +1,52 @@
-What:		/sys/bus/fcoe/ctlr_X
+What:		/sys/bus/fcoe/
+Date:		August 2012
+KernelVersion:	TBD
+Contact:	Robert Love <robert.w.love@intel.com>, devel@open-fcoe.org
+Description:	The FCoE bus. Attributes in this directory are control interfaces.
+Attributes:
+
+	ctlr_create: 'FCoE Controller' instance creation interface. Writing an
+		     <ifname> to this file will allocate and populate sysfs with a
+		     fcoe_ctlr_device (ctlr_X). The user can then configure any
+		     per-port settings and finally write to the fcoe_ctlr_device's
+		     'start' attribute to begin the kernel's discovery and login
+		     process.
+
+	ctlr_destroy: 'FCoE Controller' instance removal interface. Writing a
+		       fcoe_ctlr_device's sysfs name to this file will log the
+		       fcoe_ctlr_device out of the fabric or otherwise connected
+		       FCoE devices. It will also free all kernel memory allocated
+		       for this fcoe_ctlr_device and any structures associated
+		       with it, this includes the scsi_host.
+
+What:		/sys/bus/fcoe/devices/ctlr_X
 Date:		March 2012
 KernelVersion:	TBD
 Contact:	Robert Love <robert.w.love@intel.com>, devel@open-fcoe.org
-Description:	'FCoE Controller' instances on the fcoe bus
+Description:	'FCoE Controller' instances on the fcoe bus.
+		The FCoE Controller now has a three stage creation process.
+		1) Write interface name to ctlr_create 2) Configure the FCoE
+		Controller (ctlr_X) 3) Enable the FCoE Controller to begin
+		discovery and login. The FCoE Controller is destroyed by
+		writing it's name, i.e. ctlr_X to the ctlr_delete file.
+
 Attributes:
 
 	fcf_dev_loss_tmo: Device loss timeout peroid (see below). Changing
 			  this value will change the dev_loss_tmo for all
 			  FCFs discovered by this controller.
+
+	mode:		  Display or change the FCoE Controller's mode. Possible
+			  modes are 'Fabric' and 'VN2VN'. If a FCoE Controller
+			  is started in 'Fabric' mode then FIP FCF discovery is
+			  initiated and ultimately a fabric login is attempted.
+			  If a FCoE Controller is started in 'VN2VN' mode then
+			  FIP VN2VN discovery and login is performed. A FCoE
+			  Controller only supports one mode at a time.
+
+	enabled:	  Whether an FCoE controller is enabled or disabled.
+			  0 if disabled, 1 if enabled. Writing either 0 or 1
+			  to this file will enable or disable the FCoE controller.
 
 	lesb/link_fail:   Link Error Status Block (LESB) link failure count.
 
@@ -26,7 +65,7 @@ Attributes:
 
 Notes: ctlr_X (global increment starting at 0)
 
-What:		/sys/bus/fcoe/fcf_X
+What:		/sys/bus/fcoe/devices/fcf_X
 Date:		March 2012
 KernelVersion:	TBD
 Contact:	Robert Love <robert.w.love@intel.com>, devel@open-fcoe.org

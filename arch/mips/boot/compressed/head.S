@@ -32,8 +32,8 @@ start:
 	bne	a2, a0, 1b
 	 addiu	a0, a0, 4
 
-	PTR_LA	a0, (.heap)          /* heap address */
-	PTR_LA  sp, (.stack + 8192)  /* stack address */
+	PTR_LA	a0, (.heap)	     /* heap address */
+	PTR_LA	sp, (.stack + 8192)  /* stack address */
 
 	PTR_LA	ra, 2f
 	PTR_LA	k0, decompress_kernel

@@ -53,6 +53,14 @@
  * as opposed to devices that do something strangely or wrongly.
  */
 
+/* In-kernel mode switching is deprecated.  Do not add new devices to
+ * this list for the sole purpose of switching them to a different
+ * mode.  Existing userspace solutions are superior.
+ *
+ * New mode switching devices should instead be added to the database
+ * maintained at http://www.draisberghof.de/usb_modeswitch/
+ */
+
 #if !defined(CONFIG_USB_STORAGE_SDDR09) && \
 		!defined(CONFIG_USB_STORAGE_SDDR09_MODULE)
 #define NO_SDDR09

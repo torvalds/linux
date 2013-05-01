@@ -24,6 +24,7 @@
 #include "main.h"
 #include "wmm.h"
 #include "11n.h"
+#include "11ac.h"
 
 /*
  * This function initializes a command node.
@@ -334,20 +335,15 @@ static int mwifiex_dnld_sleep_confirm_cmd(struct mwifiex_adapter *adapter)
 int mwifiex_alloc_cmd_buffer(struct mwifiex_adapter *adapter)
 {
 	struct cmd_ctrl_node *cmd_array;
-	u32 buf_size;
 	u32 i;
 
 	/* Allocate and initialize struct cmd_ctrl_node */
-	buf_size = sizeof(struct cmd_ctrl_node) * MWIFIEX_NUM_OF_CMD_BUFFER;
-	cmd_array = kzalloc(buf_size, GFP_KERNEL);
-	if (!cmd_array) {
-		dev_err(adapter->dev, "%s: failed to alloc cmd_array\n",
-			__func__);
+	cmd_array = kcalloc(MWIFIEX_NUM_OF_CMD_BUFFER,
+			    sizeof(struct cmd_ctrl_node), GFP_KERNEL);
+	if (!cmd_array)
 		return -ENOMEM;
-	}
 
 	adapter->cmd_pool = cmd_array;
-	memset(adapter->cmd_pool, 0, buf_size);
 
 	/* Allocate and initialize command buffers */
 	for (i = 0; i < MWIFIEX_NUM_OF_CMD_BUFFER; i++) {
@@ -890,9 +886,6 @@ mwifiex_cmd_timeout_func(unsigned long function_context)
 		return;
 	}
 	cmd_node = adapter->curr_cmd;
-	if (cmd_node->wait_q_enabled)
-		adapter->cmd_wait_q.status = -ETIMEDOUT;
-
 	if (cmd_node) {
 		adapter->dbg.timeout_cmd_id =
 			adapter->dbg.last_cmd_id[adapter->dbg.last_cmd_index];
@@ -917,30 +910,44 @@ mwifiex_cmd_timeout_func(unsigned long function_context)
 
 		dev_err(adapter->dev, "last_cmd_index = %d\n",
 			adapter->dbg.last_cmd_index);
-		print_hex_dump_bytes("last_cmd_id: ", DUMP_PREFIX_OFFSET,
-				     adapter->dbg.last_cmd_id, DBG_CMD_NUM);
-		print_hex_dump_bytes("last_cmd_act: ", DUMP_PREFIX_OFFSET,
-				     adapter->dbg.last_cmd_act, DBG_CMD_NUM);
+		dev_err(adapter->dev, "last_cmd_id: %*ph\n",
+			(int)sizeof(adapter->dbg.last_cmd_id),
+			adapter->dbg.last_cmd_id);
+		dev_err(adapter->dev, "last_cmd_act: %*ph\n",
+			(int)sizeof(adapter->dbg.last_cmd_act),
+			adapter->dbg.last_cmd_act);
 
 		dev_err(adapter->dev, "last_cmd_resp_index = %d\n",
 			adapter->dbg.last_cmd_resp_index);
-		print_hex_dump_bytes("last_cmd_resp_id: ", DUMP_PREFIX_OFFSET,
-				     adapter->dbg.last_cmd_resp_id,
-				     DBG_CMD_NUM);
+		dev_err(adapter->dev, "last_cmd_resp_id: %*ph\n",
+			(int)sizeof(adapter->dbg.last_cmd_resp_id),
+			adapter->dbg.last_cmd_resp_id);
 
 		dev_err(adapter->dev, "last_event_index = %d\n",
 			adapter->dbg.last_event_index);
-		print_hex_dump_bytes("last_event: ", DUMP_PREFIX_OFFSET,
-				     adapter->dbg.last_event, DBG_CMD_NUM);
+		dev_err(adapter->dev, "last_event: %*ph\n",
+			(int)sizeof(adapter->dbg.last_event),
+			adapter->dbg.last_event);
 
 		dev_err(adapter->dev, "data_sent=%d cmd_sent=%d\n",
 			adapter->data_sent, adapter->cmd_sent);
 
 		dev_err(adapter->dev, "ps_mode=%d ps_state=%d\n",
 			adapter->ps_mode, adapter->ps_state);
+
+		if (cmd_node->wait_q_enabled) {
+			adapter->cmd_wait_q.status = -ETIMEDOUT;
+			wake_up_interruptible(&adapter->cmd_wait_q.wait);
+			mwifiex_cancel_pending_ioctl(adapter);
+			/* reset cmd_sent flag to unblock new commands */
+			adapter->cmd_sent = false;
+		}
 	}
 	if (adapter->hw_status == MWIFIEX_HW_STATUS_INITIALIZING)
 		mwifiex_init_fw_complete(adapter);
+
+	if (adapter->if_ops.card_reset)
+		adapter->if_ops.card_reset(adapter);
 }
 
 /*
@@ -1458,6 +1465,24 @@ int mwifiex_ret_get_hw_spec(struct mwifiex_private *priv,
 
 	adapter->fw_release_number = le32_to_cpu(hw_spec->fw_release_number);
 	adapter->number_of_antenna = le16_to_cpu(hw_spec->number_of_antenna);
+
+	if (le32_to_cpu(hw_spec->dot_11ac_dev_cap)) {
+		adapter->is_hw_11ac_capable = true;
+
+		/* Copy 11AC cap */
+		adapter->hw_dot_11ac_dev_cap =
+					le32_to_cpu(hw_spec->dot_11ac_dev_cap);
+		adapter->usr_dot_11ac_dev_cap_bg = adapter->hw_dot_11ac_dev_cap;
+		adapter->usr_dot_11ac_dev_cap_a = adapter->hw_dot_11ac_dev_cap;
+
+		/* Copy 11AC mcs */
+		adapter->hw_dot_11ac_mcs_support =
+				le32_to_cpu(hw_spec->dot_11ac_mcs_support);
+		adapter->usr_dot_11ac_mcs_support =
+					adapter->hw_dot_11ac_mcs_support;
+	} else {
+		adapter->is_hw_11ac_capable = false;
+	}
 
 	dev_dbg(adapter->dev, "info: GET_HW_SPEC: fw_release_number- %#x\n",
 		adapter->fw_release_number);

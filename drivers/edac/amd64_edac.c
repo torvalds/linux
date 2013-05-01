@@ -31,7 +31,7 @@ static struct ecc_settings **ecc_stngs;
  *
  *FIXME: Produce a better mapping/linearisation.
  */
-struct scrubrate {
+static const struct scrubrate {
        u32 scrubval;           /* bit pattern for scrub rate */
        u32 bandwidth;          /* bandwidth consumed (bytes/sec) */
 } scrubrates[] = {
@@ -60,8 +60,8 @@ struct scrubrate {
 	{ 0x00, 0UL},        /* scrubbing off */
 };
 
-static int __amd64_read_pci_cfg_dword(struct pci_dev *pdev, int offset,
-				      u32 *val, const char *func)
+int __amd64_read_pci_cfg_dword(struct pci_dev *pdev, int offset,
+			       u32 *val, const char *func)
 {
 	int err = 0;
 
@@ -239,7 +239,7 @@ static int amd64_get_scrub_rate(struct mem_ctl_info *mci)
  * DRAM base/limit associated with node_id
  */
 static bool amd64_base_limit_match(struct amd64_pvt *pvt, u64 sys_addr,
-				   unsigned nid)
+				   u8 nid)
 {
 	u64 addr;
 
@@ -265,7 +265,7 @@ static struct mem_ctl_info *find_mc_by_sys_addr(struct mem_ctl_info *mci,
 						u64 sys_addr)
 {
 	struct amd64_pvt *pvt;
-	unsigned node_id;
+	u8 node_id;
 	u32 intlv_en, bits;
 
 	/*
@@ -423,7 +423,6 @@ int amd64_get_dram_hole_info(struct mem_ctl_info *mci, u64 *hole_base,
 			     u64 *hole_offset, u64 *hole_size)
 {
 	struct amd64_pvt *pvt = mci->pvt_info;
-	u64 base;
 
 	/* only revE and later have the DRAM Hole Address Register */
 	if (boot_cpu_data.x86 == 0xf && pvt->ext_model < K8_REV_E) {
@@ -462,10 +461,8 @@ int amd64_get_dram_hole_info(struct mem_ctl_info *mci, u64 *hole_base,
 	 * addresses in the hole so that they start at 0x100000000.
 	 */
 
-	base = dhar_base(pvt);
-
-	*hole_base = base;
-	*hole_size = (0x1ull << 32) - base;
+	*hole_base = dhar_base(pvt);
+	*hole_size = (1ULL << 32) - *hole_base;
 
 	if (boot_cpu_data.x86 > 0xf)
 		*hole_offset = f10_dhar_offset(pvt);
@@ -513,15 +510,15 @@ static u64 sys_addr_to_dram_addr(struct mem_ctl_info *mci, u64 sys_addr)
 {
 	struct amd64_pvt *pvt = mci->pvt_info;
 	u64 dram_base, hole_base, hole_offset, hole_size, dram_addr;
-	int ret = 0;
+	int ret;
 
 	dram_base = get_dram_base(pvt, pvt->mc_node_id);
 
 	ret = amd64_get_dram_hole_info(mci, &hole_base, &hole_offset,
 				      &hole_size);
 	if (!ret) {
-		if ((sys_addr >= (1ull << 32)) &&
-		    (sys_addr < ((1ull << 32) + hole_size))) {
+		if ((sys_addr >= (1ULL << 32)) &&
+		    (sys_addr < ((1ULL << 32) + hole_size))) {
 			/* use DHAR to translate SysAddr to DramAddr */
 			dram_addr = sys_addr - hole_offset;
 
@@ -605,117 +602,12 @@ static u64 sys_addr_to_input_addr(struct mem_ctl_info *mci, u64 sys_addr)
 	return input_addr;
 }
 
-
-/*
- * @input_addr is an InputAddr associated with the node represented by mci.
- * Translate @input_addr to a DramAddr and return the result.
- */
-static u64 input_addr_to_dram_addr(struct mem_ctl_info *mci, u64 input_addr)
-{
-	struct amd64_pvt *pvt;
-	unsigned node_id, intlv_shift;
-	u64 bits, dram_addr;
-	u32 intlv_sel;
-
-	/*
-	 * Near the start of section 3.4.4 (p. 70, BKDG #26094, K8, revA-E)
-	 * shows how to translate a DramAddr to an InputAddr. Here we reverse
-	 * this procedure. When translating from a DramAddr to an InputAddr, the
-	 * bits used for node interleaving are discarded.  Here we recover these
-	 * bits from the IntlvSel field of the DRAM Limit register (section
-	 * 3.4.4.2) for the node that input_addr is associated with.
-	 */
-	pvt = mci->pvt_info;
-	node_id = pvt->mc_node_id;
-
-	BUG_ON(node_id > 7);
-
-	intlv_shift = num_node_interleave_bits(dram_intlv_en(pvt, 0));
-	if (intlv_shift == 0) {
-		edac_dbg(1, "    InputAddr 0x%lx translates to DramAddr of same value\n",
-			 (unsigned long)input_addr);
-
-		return input_addr;
-	}
-
-	bits = ((input_addr & GENMASK(12, 35)) << intlv_shift) +
-		(input_addr & 0xfff);
-
-	intlv_sel = dram_intlv_sel(pvt, node_id) & ((1 << intlv_shift) - 1);
-	dram_addr = bits + (intlv_sel << 12);
-
-	edac_dbg(1, "InputAddr 0x%lx translates to DramAddr 0x%lx (%d node interleave bits)\n",
-		 (unsigned long)input_addr,
-		 (unsigned long)dram_addr, intlv_shift);
-
-	return dram_addr;
-}
-
-/*
- * @dram_addr is a DramAddr that maps to the node represented by mci. Convert
- * @dram_addr to a SysAddr.
- */
-static u64 dram_addr_to_sys_addr(struct mem_ctl_info *mci, u64 dram_addr)
-{
-	struct amd64_pvt *pvt = mci->pvt_info;
-	u64 hole_base, hole_offset, hole_size, base, sys_addr;
-	int ret = 0;
-
-	ret = amd64_get_dram_hole_info(mci, &hole_base, &hole_offset,
-				      &hole_size);
-	if (!ret) {
-		if ((dram_addr >= hole_base) &&
-		    (dram_addr < (hole_base + hole_size))) {
-			sys_addr = dram_addr + hole_offset;
-
-			edac_dbg(1, "using DHAR to translate DramAddr 0x%lx to SysAddr 0x%lx\n",
-				 (unsigned long)dram_addr,
-				 (unsigned long)sys_addr);
-
-			return sys_addr;
-		}
-	}
-
-	base     = get_dram_base(pvt, pvt->mc_node_id);
-	sys_addr = dram_addr + base;
-
-	/*
-	 * The sys_addr we have computed up to this point is a 40-bit value
-	 * because the k8 deals with 40-bit values.  However, the value we are
-	 * supposed to return is a full 64-bit physical address.  The AMD
-	 * x86-64 architecture specifies that the most significant implemented
-	 * address bit through bit 63 of a physical address must be either all
-	 * 0s or all 1s.  Therefore we sign-extend the 40-bit sys_addr to a
-	 * 64-bit value below.  See section 3.4.2 of AMD publication 24592:
-	 * AMD x86-64 Architecture Programmer's Manual Volume 1 Application
-	 * Programming.
-	 */
-	sys_addr |= ~((sys_addr & (1ull << 39)) - 1);
-
-	edac_dbg(1, "    Node %d, DramAddr 0x%lx to SysAddr 0x%lx\n",
-		 pvt->mc_node_id, (unsigned long)dram_addr,
-		 (unsigned long)sys_addr);
-
-	return sys_addr;
-}
-
-/*
- * @input_addr is an InputAddr associated with the node given by mci. Translate
- * @input_addr to a SysAddr.
- */
-static inline u64 input_addr_to_sys_addr(struct mem_ctl_info *mci,
-					 u64 input_addr)
-{
-	return dram_addr_to_sys_addr(mci,
-				     input_addr_to_dram_addr(mci, input_addr));
-}
-
 /* Map the Error address to a PAGE and PAGE OFFSET. */
 static inline void error_address_to_page_and_offset(u64 error_address,
-						    u32 *page, u32 *offset)
+						    struct err_info *err)
 {
-	*page = (u32) (error_address >> PAGE_SHIFT);
-	*offset = ((u32) error_address) & ~PAGE_MASK;
+	err->page = (u32) (error_address >> PAGE_SHIFT);
+	err->offset = ((u32) error_address) & ~PAGE_MASK;
 }
 
 /*
@@ -942,7 +834,8 @@ static u64 get_error_address(struct mce *m)
 		struct amd64_pvt *pvt;
 		u64 cc6_base, tmp_addr;
 		u32 tmp;
-		u8 mce_nid, intlv_en;
+		u16 mce_nid;
+		u8 intlv_en;
 
 		if ((addr & GENMASK(24, 47)) >> 24 != 0x00fdf7)
 			return addr;
@@ -982,10 +875,29 @@ static u64 get_error_address(struct mce *m)
 	return addr;
 }
 
+static struct pci_dev *pci_get_related_function(unsigned int vendor,
+						unsigned int device,
+						struct pci_dev *related)
+{
+	struct pci_dev *dev = NULL;
+
+	while ((dev = pci_get_device(vendor, device, dev))) {
+		if (pci_domain_nr(dev->bus) == pci_domain_nr(related->bus) &&
+		    (dev->bus->number == related->bus->number) &&
+		    (PCI_SLOT(dev->devfn) == PCI_SLOT(related->devfn)))
+			break;
+	}
+
+	return dev;
+}
+
 static void read_dram_base_limit_regs(struct amd64_pvt *pvt, unsigned range)
 {
+	struct amd_northbridge *nb;
+	struct pci_dev *misc, *f1 = NULL;
 	struct cpuinfo_x86 *c = &boot_cpu_data;
 	int off = range << 3;
+	u32 llim;
 
 	amd64_read_pci_cfg(pvt->F1, DRAM_BASE_LO + off,  &pvt->ranges[range].base.lo);
 	amd64_read_pci_cfg(pvt->F1, DRAM_LIMIT_LO + off, &pvt->ranges[range].lim.lo);
@@ -999,86 +911,73 @@ static void read_dram_base_limit_regs(struct amd64_pvt *pvt, unsigned range)
 	amd64_read_pci_cfg(pvt->F1, DRAM_BASE_HI + off,  &pvt->ranges[range].base.hi);
 	amd64_read_pci_cfg(pvt->F1, DRAM_LIMIT_HI + off, &pvt->ranges[range].lim.hi);
 
-	/* Factor in CC6 save area by reading dst node's limit reg */
-	if (c->x86 == 0x15) {
-		struct pci_dev *f1 = NULL;
-		u8 nid = dram_dst_node(pvt, range);
-		u32 llim;
+	/* F15h: factor in CC6 save area by reading dst node's limit reg */
+	if (c->x86 != 0x15)
+		return;
 
-		f1 = pci_get_domain_bus_and_slot(0, 0, PCI_DEVFN(0x18 + nid, 1));
-		if (WARN_ON(!f1))
-			return;
+	nb = node_to_amd_nb(dram_dst_node(pvt, range));
+	if (WARN_ON(!nb))
+		return;
 
-		amd64_read_pci_cfg(f1, DRAM_LOCAL_NODE_LIM, &llim);
+	misc = nb->misc;
+	f1 = pci_get_related_function(misc->vendor, PCI_DEVICE_ID_AMD_15H_NB_F1, misc);
+	if (WARN_ON(!f1))
+		return;
 
-		pvt->ranges[range].lim.lo &= GENMASK(0, 15);
+	amd64_read_pci_cfg(f1, DRAM_LOCAL_NODE_LIM, &llim);
 
-					    /* {[39:27],111b} */
-		pvt->ranges[range].lim.lo |= ((llim & 0x1fff) << 3 | 0x7) << 16;
+	pvt->ranges[range].lim.lo &= GENMASK(0, 15);
 
-		pvt->ranges[range].lim.hi &= GENMASK(0, 7);
+				    /* {[39:27],111b} */
+	pvt->ranges[range].lim.lo |= ((llim & 0x1fff) << 3 | 0x7) << 16;
 
-					    /* [47:40] */
-		pvt->ranges[range].lim.hi |= llim >> 13;
+	pvt->ranges[range].lim.hi &= GENMASK(0, 7);
 
-		pci_dev_put(f1);
-	}
+				    /* [47:40] */
+	pvt->ranges[range].lim.hi |= llim >> 13;
+
+	pci_dev_put(f1);
 }
 
 static void k8_map_sysaddr_to_csrow(struct mem_ctl_info *mci, u64 sys_addr,
-				    u16 syndrome)
+				    struct err_info *err)
 {
-	struct mem_ctl_info *src_mci;
 	struct amd64_pvt *pvt = mci->pvt_info;
-	int channel, csrow;
-	u32 page, offset;
 
-	error_address_to_page_and_offset(sys_addr, &page, &offset);
+	error_address_to_page_and_offset(sys_addr, err);
 
 	/*
 	 * Find out which node the error address belongs to. This may be
 	 * different from the node that detected the error.
 	 */
-	src_mci = find_mc_by_sys_addr(mci, sys_addr);
-	if (!src_mci) {
+	err->src_mci = find_mc_by_sys_addr(mci, sys_addr);
+	if (!err->src_mci) {
 		amd64_mc_err(mci, "failed to map error addr 0x%lx to a node\n",
 			     (unsigned long)sys_addr);
-		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1,
-				     page, offset, syndrome,
-				     -1, -1, -1,
-				     "failed to map error addr to a node",
-				     "");
+		err->err_code = ERR_NODE;
 		return;
 	}
 
 	/* Now map the sys_addr to a CSROW */
-	csrow = sys_addr_to_csrow(src_mci, sys_addr);
-	if (csrow < 0) {
-		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1,
-				     page, offset, syndrome,
-				     -1, -1, -1,
-				     "failed to map error addr to a csrow",
-				     "");
+	err->csrow = sys_addr_to_csrow(err->src_mci, sys_addr);
+	if (err->csrow < 0) {
+		err->err_code = ERR_CSROW;
 		return;
 	}
 
 	/* CHIPKILL enabled */
 	if (pvt->nbcfg & NBCFG_CHIPKILL) {
-		channel = get_channel_from_ecc_syndrome(mci, syndrome);
-		if (channel < 0) {
+		err->channel = get_channel_from_ecc_syndrome(mci, err->syndrome);
+		if (err->channel < 0) {
 			/*
 			 * Syndrome didn't map, so we don't know which of the
 			 * 2 DIMMs is in error. So we need to ID 'both' of them
 			 * as suspect.
 			 */
-			amd64_mc_warn(src_mci, "unknown syndrome 0x%04x - "
+			amd64_mc_warn(err->src_mci, "unknown syndrome 0x%04x - "
 				      "possible error reporting race\n",
-				      syndrome);
-			edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1,
-					     page, offset, syndrome,
-					     csrow, -1, -1,
-					     "unknown syndrome - possible error reporting race",
-					     "");
+				      err->syndrome);
+			err->err_code = ERR_CHANNEL;
 			return;
 		}
 	} else {
@@ -1090,13 +989,8 @@ static void k8_map_sysaddr_to_csrow(struct mem_ctl_info *mci, u64 sys_addr,
 		 * was obtained from email communication with someone at AMD.
 		 * (Wish the email was placed in this comment - norsk)
 		 */
-		channel = ((sys_addr & BIT(3)) != 0);
+		err->channel = ((sys_addr & BIT(3)) != 0);
 	}
-
-	edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, src_mci, 1,
-			     page, offset, syndrome,
-			     csrow, channel, -1,
-			     "", "");
 }
 
 static int ddr2_cs_size(unsigned i, bool dct_width)
@@ -1328,7 +1222,7 @@ static u8 f1x_determine_channel(struct amd64_pvt *pvt, u64 sys_addr,
 }
 
 /* Convert the sys_addr to the normalized DCT address */
-static u64 f1x_get_norm_dct_addr(struct amd64_pvt *pvt, unsigned range,
+static u64 f1x_get_norm_dct_addr(struct amd64_pvt *pvt, u8 range,
 				 u64 sys_addr, bool hi_rng,
 				 u32 dct_sel_base_addr)
 {
@@ -1404,7 +1298,7 @@ static int f10_process_possible_spare(struct amd64_pvt *pvt, u8 dct, int csrow)
  *	-EINVAL:  NOT FOUND
  *	0..csrow = Chip-Select Row
  */
-static int f1x_lookup_addr_in_dct(u64 in_addr, u32 nid, u8 dct)
+static int f1x_lookup_addr_in_dct(u64 in_addr, u8 nid, u8 dct)
 {
 	struct mem_ctl_info *mci;
 	struct amd64_pvt *pvt;
@@ -1482,7 +1376,7 @@ static u64 f1x_swap_interleaved_region(struct amd64_pvt *pvt, u64 sys_addr)
 
 /* For a given @dram_range, check if @sys_addr falls within it. */
 static int f1x_match_to_this_node(struct amd64_pvt *pvt, unsigned range,
-				  u64 sys_addr, int *nid, int *chan_sel)
+				  u64 sys_addr, int *chan_sel)
 {
 	int cs_found = -EINVAL;
 	u64 chan_addr;
@@ -1555,15 +1449,14 @@ static int f1x_match_to_this_node(struct amd64_pvt *pvt, unsigned range,
 
 	cs_found = f1x_lookup_addr_in_dct(chan_addr, node_id, channel);
 
-	if (cs_found >= 0) {
-		*nid = node_id;
+	if (cs_found >= 0)
 		*chan_sel = channel;
-	}
+
 	return cs_found;
 }
 
 static int f1x_translate_sysaddr_to_cs(struct amd64_pvt *pvt, u64 sys_addr,
-				       int *node, int *chan_sel)
+				       int *chan_sel)
 {
 	int cs_found = -EINVAL;
 	unsigned range;
@@ -1577,8 +1470,7 @@ static int f1x_translate_sysaddr_to_cs(struct amd64_pvt *pvt, u64 sys_addr,
 		    (get_dram_limit(pvt, range) >= sys_addr)) {
 
 			cs_found = f1x_match_to_this_node(pvt, range,
-							  sys_addr, node,
-							  chan_sel);
+							  sys_addr, chan_sel);
 			if (cs_found >= 0)
 				break;
 		}
@@ -1594,22 +1486,15 @@ static int f1x_translate_sysaddr_to_cs(struct amd64_pvt *pvt, u64 sys_addr,
  * (MCX_ADDR).
  */
 static void f1x_map_sysaddr_to_csrow(struct mem_ctl_info *mci, u64 sys_addr,
-				     u16 syndrome)
+				     struct err_info *err)
 {
 	struct amd64_pvt *pvt = mci->pvt_info;
-	u32 page, offset;
-	int nid, csrow, chan = 0;
 
-	error_address_to_page_and_offset(sys_addr, &page, &offset);
+	error_address_to_page_and_offset(sys_addr, err);
 
-	csrow = f1x_translate_sysaddr_to_cs(pvt, sys_addr, &nid, &chan);
-
-	if (csrow < 0) {
-		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1,
-				     page, offset, syndrome,
-				     -1, -1, -1,
-				     "failed to map error addr to a csrow",
-				     "");
+	err->csrow = f1x_translate_sysaddr_to_cs(pvt, sys_addr, &err->channel);
+	if (err->csrow < 0) {
+		err->err_code = ERR_CSROW;
 		return;
 	}
 
@@ -1619,12 +1504,7 @@ static void f1x_map_sysaddr_to_csrow(struct mem_ctl_info *mci, u64 sys_addr,
 	 * this point.
 	 */
 	if (dct_ganging_enabled(pvt))
-		chan = get_channel_from_ecc_syndrome(mci, syndrome);
-
-	edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1,
-			     page, offset, syndrome,
-			     csrow, chan, -1,
-			     "", "");
+		err->channel = get_channel_from_ecc_syndrome(mci, err->syndrome);
 }
 
 /*
@@ -1633,14 +1513,11 @@ static void f1x_map_sysaddr_to_csrow(struct mem_ctl_info *mci, u64 sys_addr,
  */
 static void amd64_debug_display_dimm_sizes(struct amd64_pvt *pvt, u8 ctrl)
 {
-	int dimm, size0, size1, factor = 0;
+	int dimm, size0, size1;
 	u32 *dcsb = ctrl ? pvt->csels[1].csbases : pvt->csels[0].csbases;
 	u32 dbam  = ctrl ? pvt->dbam1 : pvt->dbam0;
 
 	if (boot_cpu_data.x86 == 0xf) {
-		if (pvt->dclr0 & WIDTH_128)
-			factor = 1;
-
 		/* K8 families < revF not supported yet */
 	       if (pvt->ext_model < K8_REV_F)
 			return;
@@ -1671,8 +1548,8 @@ static void amd64_debug_display_dimm_sizes(struct amd64_pvt *pvt, u8 ctrl)
 						     DBAM_DIMM(dimm, dbam));
 
 		amd64_info(EDAC_MC ": %d: %5dMB %d: %5dMB\n",
-				dimm * 2,     size0 << factor,
-				dimm * 2 + 1, size1 << factor);
+				dimm * 2,     size0,
+				dimm * 2 + 1, size1);
 	}
 }
 
@@ -1712,23 +1589,6 @@ static struct amd64_family_type amd64_family_types[] = {
 	},
 };
 
-static struct pci_dev *pci_get_related_function(unsigned int vendor,
-						unsigned int device,
-						struct pci_dev *related)
-{
-	struct pci_dev *dev = NULL;
-
-	dev = pci_get_device(vendor, device, dev);
-	while (dev) {
-		if ((dev->bus->number == related->bus->number) &&
-		    (PCI_SLOT(dev->devfn) == PCI_SLOT(related->devfn)))
-			break;
-		dev = pci_get_device(vendor, device, dev);
-	}
-
-	return dev;
-}
-
 /*
  * These are tables of eigenvectors (one per line) which can be used for the
  * construction of the syndrome tables. The modified syndrome search algorithm
@@ -1736,7 +1596,7 @@ static struct pci_dev *pci_get_related_function(unsigned int vendor,
  *
  * Algorithm courtesy of Ross LaFetra from AMD.
  */
-static u16 x4_vectors[] = {
+static const u16 x4_vectors[] = {
 	0x2f57, 0x1afe, 0x66cc, 0xdd88,
 	0x11eb, 0x3396, 0x7f4c, 0xeac8,
 	0x0001, 0x0002, 0x0004, 0x0008,
@@ -1775,7 +1635,7 @@ static u16 x4_vectors[] = {
 	0x19a9, 0x2efe, 0xb5cc, 0x6f88,
 };
 
-static u16 x8_vectors[] = {
+static const u16 x8_vectors[] = {
 	0x0145, 0x028a, 0x2374, 0x43c8, 0xa1f0, 0x0520, 0x0a40, 0x1480,
 	0x0211, 0x0422, 0x0844, 0x1088, 0x01b0, 0x44e0, 0x23c0, 0xed80,
 	0x1011, 0x0116, 0x022c, 0x0458, 0x08b0, 0x8c60, 0x2740, 0x4e80,
@@ -1797,7 +1657,7 @@ static u16 x8_vectors[] = {
 	0x0100, 0x0200, 0x0400, 0x0800, 0x1000, 0x2000, 0x4000, 0x8000,
 };
 
-static int decode_syndrome(u16 syndrome, u16 *vectors, unsigned num_vecs,
+static int decode_syndrome(u16 syndrome, const u16 *vectors, unsigned num_vecs,
 			   unsigned v_dim)
 {
 	unsigned int i, err_sym;
@@ -1893,101 +1753,56 @@ static int get_channel_from_ecc_syndrome(struct mem_ctl_info *mci, u16 syndrome)
 	return map_err_sym_to_channel(err_sym, pvt->ecc_sym_sz);
 }
 
-/*
- * Handle any Correctable Errors (CEs) that have occurred. Check for valid ERROR
- * ADDRESS and process.
- */
-static void amd64_handle_ce(struct mem_ctl_info *mci, struct mce *m)
+static void __log_bus_error(struct mem_ctl_info *mci, struct err_info *err,
+			    u8 ecc_type)
 {
-	struct amd64_pvt *pvt = mci->pvt_info;
-	u64 sys_addr;
-	u16 syndrome;
+	enum hw_event_mc_err_type err_type;
+	const char *string;
 
-	/* Ensure that the Error Address is VALID */
-	if (!(m->status & MCI_STATUS_ADDRV)) {
-		amd64_mc_err(mci, "HW has no ERROR_ADDRESS available\n");
-		edac_mc_handle_error(HW_EVENT_ERR_CORRECTED, mci, 1,
-				     0, 0, 0,
-				     -1, -1, -1,
-				     "HW has no ERROR_ADDRESS available",
-				     "");
+	if (ecc_type == 2)
+		err_type = HW_EVENT_ERR_CORRECTED;
+	else if (ecc_type == 1)
+		err_type = HW_EVENT_ERR_UNCORRECTED;
+	else {
+		WARN(1, "Something is rotten in the state of Denmark.\n");
 		return;
 	}
 
-	sys_addr = get_error_address(m);
-	syndrome = extract_syndrome(m->status);
-
-	amd64_mc_err(mci, "CE ERROR_ADDRESS= 0x%llx\n", sys_addr);
-
-	pvt->ops->map_sysaddr_to_csrow(mci, sys_addr, syndrome);
-}
-
-/* Handle any Un-correctable Errors (UEs) */
-static void amd64_handle_ue(struct mem_ctl_info *mci, struct mce *m)
-{
-	struct mem_ctl_info *log_mci, *src_mci = NULL;
-	int csrow;
-	u64 sys_addr;
-	u32 page, offset;
-
-	log_mci = mci;
-
-	if (!(m->status & MCI_STATUS_ADDRV)) {
-		amd64_mc_err(mci, "HW has no ERROR_ADDRESS available\n");
-		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1,
-				     0, 0, 0,
-				     -1, -1, -1,
-				     "HW has no ERROR_ADDRESS available",
-				     "");
-		return;
+	switch (err->err_code) {
+	case DECODE_OK:
+		string = "";
+		break;
+	case ERR_NODE:
+		string = "Failed to map error addr to a node";
+		break;
+	case ERR_CSROW:
+		string = "Failed to map error addr to a csrow";
+		break;
+	case ERR_CHANNEL:
+		string = "unknown syndrome - possible error reporting race";
+		break;
+	default:
+		string = "WTF error";
+		break;
 	}
 
-	sys_addr = get_error_address(m);
-	error_address_to_page_and_offset(sys_addr, &page, &offset);
-
-	/*
-	 * Find out which node the error address belongs to. This may be
-	 * different from the node that detected the error.
-	 */
-	src_mci = find_mc_by_sys_addr(mci, sys_addr);
-	if (!src_mci) {
-		amd64_mc_err(mci, "ERROR ADDRESS (0x%lx) NOT mapped to a MC\n",
-				  (unsigned long)sys_addr);
-		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1,
-				     page, offset, 0,
-				     -1, -1, -1,
-				     "ERROR ADDRESS NOT mapped to a MC",
-				     "");
-		return;
-	}
-
-	log_mci = src_mci;
-
-	csrow = sys_addr_to_csrow(log_mci, sys_addr);
-	if (csrow < 0) {
-		amd64_mc_err(mci, "ERROR_ADDRESS (0x%lx) NOT mapped to CS\n",
-				  (unsigned long)sys_addr);
-		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1,
-				     page, offset, 0,
-				     -1, -1, -1,
-				     "ERROR ADDRESS NOT mapped to CS",
-				     "");
-	} else {
-		edac_mc_handle_error(HW_EVENT_ERR_UNCORRECTED, mci, 1,
-				     page, offset, 0,
-				     csrow, -1, -1,
-				     "", "");
-	}
+	edac_mc_handle_error(err_type, mci, 1,
+			     err->page, err->offset, err->syndrome,
+			     err->csrow, err->channel, -1,
+			     string, "");
 }
 
 static inline void __amd64_decode_bus_error(struct mem_ctl_info *mci,
 					    struct mce *m)
 {
-	u16 ec = EC(m->status);
-	u8 xec = XEC(m->status, 0x1f);
+	struct amd64_pvt *pvt = mci->pvt_info;
 	u8 ecc_type = (m->status >> 45) & 0x3;
+	u8 xec = XEC(m->status, 0x1f);
+	u16 ec = EC(m->status);
+	u64 sys_addr;
+	struct err_info err;
 
-	/* Bail early out if this was an 'observed' error */
+	/* Bail out early if this was an 'observed' error */
 	if (PP(ec) == NBSL_PP_OBS)
 		return;
 
@@ -1995,10 +1810,16 @@ static inline void __amd64_decode_bus_error(struct mem_ctl_info *mci,
 	if (xec && xec != F10_NBSL_EXT_ERR_ECC)
 		return;
 
+	memset(&err, 0, sizeof(err));
+
+	sys_addr = get_error_address(m);
+
 	if (ecc_type == 2)
-		amd64_handle_ce(mci, m);
-	else if (ecc_type == 1)
-		amd64_handle_ue(mci, m);
+		err.syndrome = extract_syndrome(m->status);
+
+	pvt->ops->map_sysaddr_to_csrow(mci, sys_addr, &err);
+
+	__log_bus_error(mci, &err, ecc_type);
 }
 
 void amd64_decode_bus_error(int node_id, struct mce *m)
@@ -2166,6 +1987,7 @@ static u32 amd64_csrow_nr_pages(struct amd64_pvt *pvt, u8 dct, int csrow_nr)
 	u32 cs_mode, nr_pages;
 	u32 dbam = dct ? pvt->dbam1 : pvt->dbam0;
 
+
 	/*
 	 * The math on this doesn't look right on the surface because x/2*4 can
 	 * be simplified to x*2 but this expression makes use of the fact that
@@ -2173,13 +1995,13 @@ static u32 amd64_csrow_nr_pages(struct amd64_pvt *pvt, u8 dct, int csrow_nr)
 	 * number of bits to shift the DBAM register to extract the proper CSROW
 	 * field.
 	 */
-	cs_mode =  (dbam >> ((csrow_nr / 2) * 4)) & 0xF;
+	cs_mode = DBAM_DIMM(csrow_nr / 2, dbam);
 
 	nr_pages = pvt->ops->dbam_to_cs(pvt, dct, cs_mode) << (20 - PAGE_SHIFT);
 
-	edac_dbg(0, "  (csrow=%d) DBAM map index= %d\n", csrow_nr, cs_mode);
-	edac_dbg(0, "    nr_pages/channel= %u  channel-count = %d\n",
-		 nr_pages, pvt->channel_count);
+	edac_dbg(0, "csrow: %d, channel: %d, DBAM idx: %d\n",
+		    csrow_nr, dct,  cs_mode);
+	edac_dbg(0, "nr_pages/channel: %u\n", nr_pages);
 
 	return nr_pages;
 }
@@ -2190,15 +2012,14 @@ static u32 amd64_csrow_nr_pages(struct amd64_pvt *pvt, u8 dct, int csrow_nr)
  */
 static int init_csrows(struct mem_ctl_info *mci)
 {
+	struct amd64_pvt *pvt = mci->pvt_info;
 	struct csrow_info *csrow;
 	struct dimm_info *dimm;
-	struct amd64_pvt *pvt = mci->pvt_info;
-	u64 base, mask;
-	u32 val;
-	int i, j, empty = 1;
-	enum mem_type mtype;
 	enum edac_type edac_mode;
+	enum mem_type mtype;
+	int i, j, empty = 1;
 	int nr_pages = 0;
+	u32 val;
 
 	amd64_read_pci_cfg(pvt->F3, NBCFG, &val);
 
@@ -2208,29 +2029,35 @@ static int init_csrows(struct mem_ctl_info *mci)
 		 pvt->mc_node_id, val,
 		 !!(val & NBCFG_CHIPKILL), !!(val & NBCFG_ECC_ENABLE));
 
+	/*
+	 * We iterate over DCT0 here but we look at DCT1 in parallel, if needed.
+	 */
 	for_each_chip_select(i, 0, pvt) {
-		csrow = mci->csrows[i];
+		bool row_dct0 = !!csrow_enabled(i, 0, pvt);
+		bool row_dct1 = false;
 
-		if (!csrow_enabled(i, 0, pvt) && !csrow_enabled(i, 1, pvt)) {
-			edac_dbg(1, "----CSROW %d VALID for MC node %d\n",
-				 i, pvt->mc_node_id);
+		if (boot_cpu_data.x86 != 0xf)
+			row_dct1 = !!csrow_enabled(i, 1, pvt);
+
+		if (!row_dct0 && !row_dct1)
 			continue;
-		}
 
+		csrow = mci->csrows[i];
 		empty = 0;
-		if (csrow_enabled(i, 0, pvt))
-			nr_pages = amd64_csrow_nr_pages(pvt, 0, i);
-		if (csrow_enabled(i, 1, pvt))
-			nr_pages += amd64_csrow_nr_pages(pvt, 1, i);
 
-		get_cs_base_and_mask(pvt, i, 0, &base, &mask);
-		/* 8 bytes of resolution */
+		edac_dbg(1, "MC node: %d, csrow: %d\n",
+			    pvt->mc_node_id, i);
+
+		if (row_dct0)
+			nr_pages = amd64_csrow_nr_pages(pvt, 0, i);
+
+		/* K8 has only one DCT */
+		if (boot_cpu_data.x86 != 0xf && row_dct1)
+			nr_pages += amd64_csrow_nr_pages(pvt, 1, i);
 
 		mtype = amd64_determine_memory_type(pvt, i);
 
-		edac_dbg(1, "  for MC node %d csrow %d:\n", pvt->mc_node_id, i);
-		edac_dbg(1, "    nr_pages: %u\n",
-			 nr_pages * pvt->channel_count);
+		edac_dbg(1, "Total csrow%d pages: %u\n", i, nr_pages);
 
 		/*
 		 * determine whether CHIPKILL or JUST ECC or NO ECC is operating
@@ -2247,13 +2074,14 @@ static int init_csrows(struct mem_ctl_info *mci)
 			dimm->edac_mode = edac_mode;
 			dimm->nr_pages = nr_pages;
 		}
+		csrow->nr_pages = nr_pages;
 	}
 
 	return empty;
 }
 
 /* get all cores on this DCT */
-static void get_cpus_on_this_dct_cpumask(struct cpumask *mask, unsigned nid)
+static void get_cpus_on_this_dct_cpumask(struct cpumask *mask, u16 nid)
 {
 	int cpu;
 
@@ -2263,7 +2091,7 @@ static void get_cpus_on_this_dct_cpumask(struct cpumask *mask, unsigned nid)
 }
 
 /* check MCG_CTL on all the cpus on this node */
-static bool amd64_nb_mce_bank_enabled_on_node(unsigned nid)
+static bool amd64_nb_mce_bank_enabled_on_node(u16 nid)
 {
 	cpumask_var_t mask;
 	int cpu, nbe;
@@ -2296,7 +2124,7 @@ out:
 	return ret;
 }
 
-static int toggle_ecc_err_reporting(struct ecc_settings *s, u8 nid, bool on)
+static int toggle_ecc_err_reporting(struct ecc_settings *s, u16 nid, bool on)
 {
 	cpumask_var_t cmask;
 	int cpu;
@@ -2334,7 +2162,7 @@ static int toggle_ecc_err_reporting(struct ecc_settings *s, u8 nid, bool on)
 	return 0;
 }
 
-static bool enable_ecc_error_reporting(struct ecc_settings *s, u8 nid,
+static bool enable_ecc_error_reporting(struct ecc_settings *s, u16 nid,
 				       struct pci_dev *F3)
 {
 	bool ret = true;
@@ -2386,7 +2214,7 @@ static bool enable_ecc_error_reporting(struct ecc_settings *s, u8 nid,
 	return ret;
 }
 
-static void restore_ecc_error_reporting(struct ecc_settings *s, u8 nid,
+static void restore_ecc_error_reporting(struct ecc_settings *s, u16 nid,
 					struct pci_dev *F3)
 {
 	u32 value, mask = 0x3;		/* UECC/CECC enable */
@@ -2425,7 +2253,7 @@ static const char *ecc_msg =
 	"'ecc_enable_override'.\n"
 	" (Note that use of the override may cause unknown side effects.)\n";
 
-static bool ecc_enabled(struct pci_dev *F3, u8 nid)
+static bool ecc_enabled(struct pci_dev *F3, u16 nid)
 {
 	u32 value;
 	u8 ecc_en = 0;
@@ -2546,7 +2374,7 @@ static int amd64_init_one_instance(struct pci_dev *F2)
 	struct mem_ctl_info *mci = NULL;
 	struct edac_mc_layer layers[2];
 	int err = 0, ret;
-	u8 nid = get_node_id(F2);
+	u16 nid = amd_get_node_id(F2);
 
 	ret = -ENOMEM;
 	pvt = kzalloc(sizeof(struct amd64_pvt), GFP_KERNEL);
@@ -2591,6 +2419,7 @@ static int amd64_init_one_instance(struct pci_dev *F2)
 
 	mci->pvt_info = pvt;
 	mci->pdev = &pvt->F2->dev;
+	mci->csbased = 1;
 
 	setup_mci_misc_attrs(mci, fam_type);
 
@@ -2634,10 +2463,10 @@ err_ret:
 	return ret;
 }
 
-static int __devinit amd64_probe_one_instance(struct pci_dev *pdev,
-					     const struct pci_device_id *mc_type)
+static int amd64_probe_one_instance(struct pci_dev *pdev,
+				    const struct pci_device_id *mc_type)
 {
-	u8 nid = get_node_id(pdev);
+	u16 nid = amd_get_node_id(pdev);
 	struct pci_dev *F3 = node_to_amd_nb(nid)->misc;
 	struct ecc_settings *s;
 	int ret = 0;
@@ -2683,11 +2512,11 @@ err_out:
 	return ret;
 }
 
-static void __devexit amd64_remove_one_instance(struct pci_dev *pdev)
+static void amd64_remove_one_instance(struct pci_dev *pdev)
 {
 	struct mem_ctl_info *mci;
 	struct amd64_pvt *pvt;
-	u8 nid = get_node_id(pdev);
+	u16 nid = amd_get_node_id(pdev);
 	struct pci_dev *F3 = node_to_amd_nb(nid)->misc;
 	struct ecc_settings *s = ecc_stngs[nid];
 
@@ -2757,7 +2586,7 @@ MODULE_DEVICE_TABLE(pci, amd64_pci_table);
 static struct pci_driver amd64_pci_driver = {
 	.name		= EDAC_MOD_STR,
 	.probe		= amd64_probe_one_instance,
-	.remove		= __devexit_p(amd64_remove_one_instance),
+	.remove		= amd64_remove_one_instance,
 	.id_table	= amd64_pci_table,
 };
 

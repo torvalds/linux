@@ -91,7 +91,7 @@ MACHINE_START(LITE300, "SecureComputing/SG300")
 	.map_io		= ks8695_map_io,
 	.init_irq	= ks8695_init_irq,
 	.init_machine	= sg_init,
-	.timer		= &ks8695_timer,
+	.init_time	= ks8695_timer_init,
 	.restart	= ks8695_restart,
 MACHINE_END
 #endif
@@ -103,7 +103,7 @@ MACHINE_START(SG310, "McAfee/SG310")
 	.map_io		= ks8695_map_io,
 	.init_irq	= ks8695_init_irq,
 	.init_machine	= sg_init,
-	.timer		= &ks8695_timer,
+	.init_time	= ks8695_timer_init,
 	.restart	= ks8695_restart,
 MACHINE_END
 #endif
@@ -115,7 +115,7 @@ MACHINE_START(SE4200, "SecureComputing/SE4200")
 	.map_io		= ks8695_map_io,
 	.init_irq	= ks8695_init_irq,
 	.init_machine	= sg_init,
-	.timer		= &ks8695_timer,
+	.init_time	= ks8695_timer_init,
 	.restart	= ks8695_restart,
 MACHINE_END
 #endif

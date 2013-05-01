@@ -20,9 +20,7 @@
 #include <asm/cpu.h>
 
 #define KVM_MAX_VCPUS 64
-#define KVM_MEMORY_SLOTS 32
-/* memory slots that does not exposed to userspace */
-#define KVM_PRIVATE_MEM_SLOTS 4
+#define KVM_USER_MEM_SLOTS 32
 
 struct sca_entry {
 	atomic_t scn;
@@ -76,8 +74,11 @@ struct kvm_s390_sie_block {
 	__u64	epoch;			/* 0x0038 */
 	__u8	reserved40[4];		/* 0x0040 */
 #define LCTL_CR0	0x8000
+#define LCTL_CR6	0x0200
+#define LCTL_CR14	0x0002
 	__u16   lctl;			/* 0x0044 */
 	__s16	icpua;			/* 0x0046 */
+#define ICTL_LPSW 0x00400000
 	__u32	ictl;			/* 0x0048 */
 	__u32	eca;			/* 0x004c */
 	__u8	icptcode;		/* 0x0050 */
@@ -127,6 +128,7 @@ struct kvm_vcpu_stat {
 	u32 deliver_prefix_signal;
 	u32 deliver_restart_signal;
 	u32 deliver_program_int;
+	u32 deliver_io_int;
 	u32 exit_wait_state;
 	u32 instruction_stidp;
 	u32 instruction_spx;
@@ -187,6 +189,11 @@ struct kvm_s390_emerg_info {
 	__u16 code;
 };
 
+struct kvm_s390_mchk_info {
+	__u64 cr14;
+	__u64 mcic;
+};
+
 struct kvm_s390_interrupt_info {
 	struct list_head list;
 	u64	type;
@@ -197,6 +204,7 @@ struct kvm_s390_interrupt_info {
 		struct kvm_s390_emerg_info emerg;
 		struct kvm_s390_extcall_info extcall;
 		struct kvm_s390_prefix_info prefix;
+		struct kvm_s390_mchk_info mchk;
 	};
 };
 
@@ -254,6 +262,7 @@ struct kvm_arch{
 	debug_info_t *dbf;
 	struct kvm_s390_float_interrupt float_int;
 	struct gmap *gmap;
+	int css_support;
 };
 
 extern int sie64a(struct kvm_s390_sie_block *, u64 *);

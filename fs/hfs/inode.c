@@ -35,6 +35,16 @@ static int hfs_readpage(struct file *file, struct page *page)
 	return block_read_full_page(page, hfs_get_block);
 }
 
+static void hfs_write_failed(struct address_space *mapping, loff_t to)
+{
+	struct inode *inode = mapping->host;
+
+	if (to > inode->i_size) {
+		truncate_pagecache(inode, to, inode->i_size);
+		hfs_file_truncate(inode);
+	}
+}
+
 static int hfs_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
 			struct page **pagep, void **fsdata)
@@ -45,11 +55,8 @@ static int hfs_write_begin(struct file *file, struct address_space *mapping,
 	ret = cont_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
 				hfs_get_block,
 				&HFS_I(mapping->host)->phys_size);
-	if (unlikely(ret)) {
-		loff_t isize = mapping->host->i_size;
-		if (pos + len > isize)
-			vmtruncate(mapping->host, isize);
-	}
+	if (unlikely(ret))
+		hfs_write_failed(mapping, pos + len);
 
 	return ret;
 }
@@ -120,7 +127,8 @@ static ssize_t hfs_direct_IO(int rw, struct kiocb *iocb,
 		const struct iovec *iov, loff_t offset, unsigned long nr_segs)
 {
 	struct file *file = iocb->ki_filp;
-	struct inode *inode = file->f_path.dentry->d_inode->i_mapping->host;
+	struct address_space *mapping = file->f_mapping;
+	struct inode *inode = file_inode(file)->i_mapping->host;
 	ssize_t ret;
 
 	ret = blockdev_direct_IO(rw, iocb, inode, iov, offset, nr_segs,
@@ -135,7 +143,7 @@ static ssize_t hfs_direct_IO(int rw, struct kiocb *iocb,
 		loff_t end = offset + iov_length(iov, nr_segs);
 
 		if (end > isize)
-			vmtruncate(inode, isize);
+			hfs_write_failed(mapping, end);
 	}
 
 	return ret;
@@ -617,9 +625,12 @@ int hfs_inode_setattr(struct dentry *dentry, struct iattr * attr)
 	    attr->ia_size != i_size_read(inode)) {
 		inode_dio_wait(inode);
 
-		error = vmtruncate(inode, attr->ia_size);
+		error = inode_newsize_ok(inode, attr->ia_size);
 		if (error)
 			return error;
+
+		truncate_setsize(inode, attr->ia_size);
+		hfs_file_truncate(inode);
 	}
 
 	setattr_copy(inode, attr);
@@ -668,7 +679,6 @@ static const struct file_operations hfs_file_operations = {
 
 static const struct inode_operations hfs_file_inode_operations = {
 	.lookup		= hfs_file_lookup,
-	.truncate	= hfs_file_truncate,
 	.setattr	= hfs_inode_setattr,
 	.setxattr	= hfs_setxattr,
 	.getxattr	= hfs_getxattr,

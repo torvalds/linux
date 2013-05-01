@@ -55,7 +55,7 @@ enum country_code_type_t {
 };
 
 int rtl_regd_init(struct ieee80211_hw *hw,
-		  int (*reg_notifier) (struct wiphy *wiphy,
-				       struct regulatory_request *request));
-int rtl_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request);
+		  void (*reg_notifier) (struct wiphy *wiphy,
+					struct regulatory_request *request));
+void rtl_reg_notifier(struct wiphy *wiphy, struct regulatory_request *request);
 #endif

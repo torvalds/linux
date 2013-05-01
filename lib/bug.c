@@ -55,6 +55,7 @@ static inline unsigned long bug_addr(const struct bug_entry *bug)
 }
 
 #ifdef CONFIG_MODULES
+/* Updates are protected by module mutex */
 static LIST_HEAD(module_bug_list);
 
 static const struct bug_entry *module_find_bug(unsigned long bugaddr)
@@ -165,7 +166,8 @@ enum bug_trap_type report_bug(unsigned long bugaddr, struct pt_regs *regs)
 		print_modules();
 		show_regs(regs);
 		print_oops_end_marker();
-		add_taint(BUG_GET_TAINT(bug));
+		/* Just a warning, don't kill lockdep. */
+		add_taint(BUG_GET_TAINT(bug), LOCKDEP_STILL_OK);
 		return BUG_TRAP_TYPE_WARN;
 	}
 

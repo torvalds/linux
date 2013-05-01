@@ -889,23 +889,6 @@ static struct hid_driver pk_driver = {
 	.probe = pk_probe,
 	.remove = pk_remove,
 };
+module_hid_driver(pk_driver);
 
-static int pk_init(void)
-{
-	int ret;
-
-	ret = hid_register_driver(&pk_driver);
-	if (ret)
-		pr_err("can't register prodikeys driver\n");
-
-	return ret;
-}
-
-static void pk_exit(void)
-{
-	hid_unregister_driver(&pk_driver);
-}
-
-module_init(pk_init);
-module_exit(pk_exit);
 MODULE_LICENSE("GPL");

@@ -8,7 +8,7 @@ config SPEAKUP
 		video console for blind people.  If built in to the
 		kernel, it can speak everything on the text console from
 		boot up to shutdown.  For more information on Speakup,
-		point your browser at http://www.linux-speakup.org/.
+		point your browser at <http://www.linux-speakup.org/>.
 		There is also a mailing list at the above url that you
 		can subscribe to.
 		

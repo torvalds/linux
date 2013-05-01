@@ -68,7 +68,6 @@ static void vhci_recv_ret_submit(struct vhci_device *vdev,
 {
 	struct usbip_device *ud = &vdev->ud;
 	struct urb *urb;
-	unsigned long flags;
 
 	spin_lock(&vdev->priv_lock);
 	urb = pickup_urb_and_free_priv(vdev, pdu->base.seqnum);
@@ -101,9 +100,9 @@ static void vhci_recv_ret_submit(struct vhci_device *vdev,
 
 	usbip_dbg_vhci_rx("now giveback urb %p\n", urb);
 
-	spin_lock_irqsave(&the_controller->lock, flags);
+	spin_lock(&the_controller->lock);
 	usb_hcd_unlink_urb_from_ep(vhci_to_hcd(the_controller), urb);
-	spin_unlock_irqrestore(&the_controller->lock, flags);
+	spin_unlock(&the_controller->lock);
 
 	usb_hcd_giveback_urb(vhci_to_hcd(the_controller), urb, urb->status);
 
@@ -141,7 +140,6 @@ static void vhci_recv_ret_unlink(struct vhci_device *vdev,
 {
 	struct vhci_unlink *unlink;
 	struct urb *urb;
-	unsigned long flags;
 
 	usbip_dump_header(pdu);
 
@@ -167,13 +165,13 @@ static void vhci_recv_ret_unlink(struct vhci_device *vdev,
 	} else {
 		usbip_dbg_vhci_rx("now giveback urb %p\n", urb);
 
-		/* If unlink is succeed, status is -ECONNRESET */
+		/* If unlink is successful, status is -ECONNRESET */
 		urb->status = pdu->u.ret_unlink.status;
 		pr_info("urb->status %d\n", urb->status);
 
-		spin_lock_irqsave(&the_controller->lock, flags);
+		spin_lock(&the_controller->lock);
 		usb_hcd_unlink_urb_from_ep(vhci_to_hcd(the_controller), urb);
-		spin_unlock_irqrestore(&the_controller->lock, flags);
+		spin_unlock(&the_controller->lock);
 
 		usb_hcd_giveback_urb(vhci_to_hcd(the_controller), urb,
 				     urb->status);

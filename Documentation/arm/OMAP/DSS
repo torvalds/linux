@@ -285,7 +285,10 @@ FB0 +-- GFX  ---- LCD ---- LCD
 Misc notes
 ----------
 
-OMAP FB allocates the framebuffer memory using the OMAP VRAM allocator.
+OMAP FB allocates the framebuffer memory using the standard dma allocator. You
+can enable Contiguous Memory Allocator (CONFIG_CMA) to improve the dma
+allocator, and if CMA is enabled, you use "cma=" kernel parameter to increase
+the global memory area for CMA.
 
 Using DSI DPLL to generate pixel clock it is possible produce the pixel clock
 of 86.5MHz (max possible), and with that you get 1280x1024@57 output from DVI.
@@ -300,11 +303,6 @@ framebuffer parameters.
 
 Kernel boot arguments
 ---------------------
-
-vram=<size>[,<physaddr>]
-	- Amount of total VRAM to preallocate and optionally a physical start
-	  memory address. For example, "10M". omapfb allocates memory for
-	  framebuffers from VRAM.
 
 omapfb.mode=<display>:<mode>[,...]
 	- Default video mode for specified displays. For example,

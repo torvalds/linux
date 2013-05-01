@@ -11,6 +11,10 @@ the motherboard file using a /include/ directive. As the motherboard
 can be initialized in one of two different configurations ("memory
 maps"), care must be taken to include the correct one.
 
+
+Root node
+---------
+
 Required properties in the root node:
 - compatible value:
 	compatible = "arm,vexpress,<model>", "arm,vexpress";
@@ -45,6 +49,10 @@ Optional properties in the root node:
   - Coretile Express A9x4 (V2P-CA9) HBI-0225:
 	arm,hbi = <0x225>;
 
+
+CPU nodes
+---------
+
 Top-level standard "cpus" node is required. It must contain a node
 with device_type = "cpu" property for every available core, eg.:
 
@@ -58,6 +66,52 @@ with device_type = "cpu" property for every available core, eg.:
 			reg = <0>;
 		};
 	};
+
+
+Configuration infrastructure
+----------------------------
+
+The platform has an elaborated configuration system, consisting of
+microcontrollers residing on the mother- and daughterboards known
+as Motherboard/Daughterboard Configuration Controller (MCC and DCC).
+The controllers are responsible for the platform initialization
+(reset generation, flash programming, FPGA bitfiles loading etc.)
+but also control clock generators, voltage regulators, gather
+environmental data like temperature, power consumption etc. Even
+the video output switch (FPGA) is controlled that way.
+
+Nodes describing devices controlled by this infrastructure should
+point at the bridge device node:
+- bridge phandle:
+	arm,vexpress,config-bridge = <phandle>;
+This property can be also defined in a parent node (eg. for a DCC)
+and is effective for all children.
+
+
+Platform topology
+-----------------
+
+As Versatile Express can be configured in number of physically
+different setups, the device tree should describe platform topology.
+Root node and main motherboard node must define the following
+property, describing physical location of the children nodes:
+- site number:
+	arm,vexpress,site = <number>;
+  where 0 means motherboard, 1 or 2 are daugtherboard sites,
+  0xf means "master" site (site containing main CPU tile)
+- when daughterboards are stacked on one site, their position
+  in the stack be be described with:
+	arm,vexpress,position = <number>;
+- when describing tiles consisting more than one DCC, its number
+  can be described with:
+	arm,vexpress,dcc = <number>;
+
+Any of the numbers above defaults to zero if not defined in
+the node or any of its parent.
+
+
+Motherboard
+-----------
 
 The motherboard description file provides a single "motherboard" node
 using 2 address cells corresponding to the Static Memory Bus used
@@ -87,22 +141,30 @@ can be used to obtain required phandle in the tile's "aliases" node:
 - SP804 timers:
 	v2m_timer01 and v2m_timer23
 
-Current Linux implementation requires a "arm,v2m_timer" alias
-pointing at one of the motherboard's SP804 timers, if it is to be
-used as the system timer. This alias should be defined in the
-motherboard files.
+The tile description should define a "smb" node, describing the
+Static Memory Bus between the tile and motherboard. It must define
+the following properties:
+- "simple-bus" compatible value (to ensure creation of the children)
+	compatible = "simple-bus";
+- mapping of the SMB CS/offset addresses into main address space:
+	#address-cells = <2>;
+	#size-cells = <1>;
+	ranges = <...>;
+- interrupts mapping:
+	#interrupt-cells = <1>;
+	interrupt-map-mask = <0 0 63>;
+	interrupt-map = <...>;
 
-The tile description must define "ranges", "interrupt-map-mask" and
-"interrupt-map" properties to translate the motherboard's address
-and interrupt space into one used by the tile's processor.
 
-Abbreviated example:
+Example of a VE tile description (simplified)
+---------------------------------------------
 
 /dts-v1/;
 
 / {
 	model = "V2P-CA5s";
 	arm,hbi = <0x225>;
+	arm,vexpress,site = <0xf>;
 	compatible = "arm,vexpress-v2p-ca5s", "arm,vexpress";
 	interrupt-parent = <&gic>;
 	#address-cells = <1>;
@@ -134,13 +196,29 @@ Abbreviated example:
 		      <0x2c000100 0x100>;
 	};
 
-	motherboard {
+	dcc {
+		compatible = "simple-bus";
+		arm,vexpress,config-bridge = <&v2m_sysreg>;
+
+		osc@0 {
+			compatible = "arm,vexpress-osc";
+		};
+	};
+
+	smb {
+		compatible = "simple-bus";
+
+		#address-cells = <2>;
+		#size-cells = <1>;
 		/* CS0 is visible at 0x08000000 */
 		ranges = <0 0 0x08000000 0x04000000>;
+
+		#interrupt-cells = <1>;
 		interrupt-map-mask = <0 0 63>;
 		/* Active high IRQ 0 is connected to GIC's SPI0 */
 		interrupt-map = <0 0 0 &gic 0 0 4>;
+
+		/include/ "vexpress-v2m-rs1.dtsi"
 	};
 };
 
-/include/ "vexpress-v2m-rs1.dtsi"

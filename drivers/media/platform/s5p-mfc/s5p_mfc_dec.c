@@ -636,6 +636,19 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 	return -EINVAL;
 }
 
+/* Export DMA buffer */
+static int vidioc_expbuf(struct file *file, void *priv,
+	struct v4l2_exportbuffer *eb)
+{
+	struct s5p_mfc_ctx *ctx = fh_to_ctx(priv);
+
+	if (eb->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE)
+		return vb2_expbuf(&ctx->vq_src, eb);
+	if (eb->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
+		return vb2_expbuf(&ctx->vq_dst, eb);
+	return -EINVAL;
+}
+
 /* Stream on */
 static int vidioc_streamon(struct file *file, void *priv,
 			   enum v4l2_buf_type type)
@@ -813,6 +826,7 @@ static const struct v4l2_ioctl_ops s5p_mfc_dec_ioctl_ops = {
 	.vidioc_querybuf = vidioc_querybuf,
 	.vidioc_qbuf = vidioc_qbuf,
 	.vidioc_dqbuf = vidioc_dqbuf,
+	.vidioc_expbuf = vidioc_expbuf,
 	.vidioc_streamon = vidioc_streamon,
 	.vidioc_streamoff = vidioc_streamoff,
 	.vidioc_g_crop = vidioc_g_crop,
@@ -977,24 +991,35 @@ static int s5p_mfc_stop_streaming(struct vb2_queue *q)
 					S5P_MFC_R2H_CMD_FRAME_DONE_RET, 0);
 		aborted = 1;
 	}
-	spin_lock_irqsave(&dev->irqlock, flags);
 	if (q->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
+		spin_lock_irqsave(&dev->irqlock, flags);
 		s5p_mfc_hw_call(dev->mfc_ops, cleanup_queue, &ctx->dst_queue,
 				&ctx->vq_dst);
 		INIT_LIST_HEAD(&ctx->dst_queue);
 		ctx->dst_queue_cnt = 0;
 		ctx->dpb_flush_flag = 1;
 		ctx->dec_dst_flag = 0;
+		spin_unlock_irqrestore(&dev->irqlock, flags);
+		if (IS_MFCV6(dev) && (ctx->state == MFCINST_RUNNING)) {
+			ctx->state = MFCINST_FLUSH;
+			set_work_bit_irqsave(ctx);
+			s5p_mfc_clean_ctx_int_flags(ctx);
+			s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
+			if (s5p_mfc_wait_for_done_ctx(ctx,
+				S5P_MFC_R2H_CMD_DPB_FLUSH_RET, 0))
+				mfc_err("Err flushing buffers\n");
+		}
 	}
 	if (q->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
+		spin_lock_irqsave(&dev->irqlock, flags);
 		s5p_mfc_hw_call(dev->mfc_ops, cleanup_queue, &ctx->src_queue,
 				&ctx->vq_src);
 		INIT_LIST_HEAD(&ctx->src_queue);
 		ctx->src_queue_cnt = 0;
+		spin_unlock_irqrestore(&dev->irqlock, flags);
 	}
 	if (aborted)
 		ctx->state = MFCINST_RUNNING;
-	spin_unlock_irqrestore(&dev->irqlock, flags);
 	return 0;
 }
 

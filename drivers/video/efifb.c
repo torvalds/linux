@@ -20,7 +20,7 @@ static bool request_mem_succeeded = false;
 
 static struct pci_dev *default_vga;
 
-static struct fb_var_screeninfo efifb_defined __devinitdata = {
+static struct fb_var_screeninfo efifb_defined = {
 	.activate		= FB_ACTIVATE_NOW,
 	.height			= -1,
 	.width			= -1,
@@ -31,7 +31,7 @@ static struct fb_var_screeninfo efifb_defined __devinitdata = {
 	.vmode			= FB_VMODE_NONINTERLACED,
 };
 
-static struct fb_fix_screeninfo efifb_fix __devinitdata = {
+static struct fb_fix_screeninfo efifb_fix = {
 	.id			= "EFI VGA",
 	.type			= FB_TYPE_PACKED_PIXELS,
 	.accel			= FB_ACCEL_NONE,

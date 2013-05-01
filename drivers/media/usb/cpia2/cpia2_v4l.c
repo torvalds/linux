@@ -825,6 +825,8 @@ static int cpia2_querybuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 	else
 		buf->flags = 0;
 
+	buf->flags |= V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+
 	switch (cam->buffers[buf->index].status) {
 	case FRAME_EMPTY:
 	case FRAME_ERROR:
@@ -943,7 +945,8 @@ static int cpia2_dqbuf(struct file *file, void *fh, struct v4l2_buffer *buf)
 
 	buf->index = frame;
 	buf->bytesused = cam->buffers[buf->index].length;
-	buf->flags = V4L2_BUF_FLAG_MAPPED | V4L2_BUF_FLAG_DONE;
+	buf->flags = V4L2_BUF_FLAG_MAPPED | V4L2_BUF_FLAG_DONE
+		| V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	buf->field = V4L2_FIELD_NONE;
 	buf->timestamp = cam->buffers[buf->index].timestamp;
 	buf->sequence = cam->buffers[buf->index].seq;

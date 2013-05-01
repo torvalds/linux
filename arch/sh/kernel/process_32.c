@@ -68,38 +68,6 @@ void show_regs(struct pt_regs * regs)
 	show_code(regs);
 }
 
-/*
- * Create a kernel thread
- */
-__noreturn void kernel_thread_helper(void *arg, int (*fn)(void *))
-{
-	do_exit(fn(arg));
-}
-
-/* Don't use this in BL=1(cli).  Or else, CPU resets! */
-int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
-{
-	struct pt_regs regs;
-	int pid;
-
-	memset(&regs, 0, sizeof(regs));
-	regs.regs[4] = (unsigned long)arg;
-	regs.regs[5] = (unsigned long)fn;
-
-	regs.pc = (unsigned long)kernel_thread_helper;
-	regs.sr = SR_MD;
-#if defined(CONFIG_SH_FPU)
-	regs.sr |= SR_FD;
-#endif
-
-	/* Ok, create the new process.. */
-	pid = do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0,
-		      &regs, 0, NULL, NULL);
-
-	return pid;
-}
-EXPORT_SYMBOL(kernel_thread);
-
 void start_thread(struct pt_regs *regs, unsigned long new_pc,
 		  unsigned long new_sp)
 {
@@ -157,10 +125,10 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
 EXPORT_SYMBOL(dump_fpu);
 
 asmlinkage void ret_from_fork(void);
+asmlinkage void ret_from_kernel_thread(void);
 
 int copy_thread(unsigned long clone_flags, unsigned long usp,
-		unsigned long unused,
-		struct task_struct *p, struct pt_regs *regs)
+		unsigned long arg, struct task_struct *p)
 {
 	struct thread_info *ti = task_thread_info(p);
 	struct pt_regs *childregs;
@@ -177,29 +145,35 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	}
 #endif
 
-	childregs = task_pt_regs(p);
-	*childregs = *regs;
+	memset(p->thread.ptrace_bps, 0, sizeof(p->thread.ptrace_bps));
 
-	if (user_mode(regs)) {
-		childregs->regs[15] = usp;
-		ti->addr_limit = USER_DS;
-	} else {
-		childregs->regs[15] = (unsigned long)childregs;
+	childregs = task_pt_regs(p);
+	p->thread.sp = (unsigned long) childregs;
+	if (unlikely(p->flags & PF_KTHREAD)) {
+		memset(childregs, 0, sizeof(struct pt_regs));
+		p->thread.pc = (unsigned long) ret_from_kernel_thread;
+		childregs->regs[4] = arg;
+		childregs->regs[5] = usp;
+		childregs->sr = SR_MD;
+#if defined(CONFIG_SH_FPU)
+		childregs->sr |= SR_FD;
+#endif
 		ti->addr_limit = KERNEL_DS;
 		ti->status &= ~TS_USEDFPU;
 		p->fpu_counter = 0;
+		return 0;
 	}
+	*childregs = *current_pt_regs();
+
+	if (usp)
+		childregs->regs[15] = usp;
+	ti->addr_limit = USER_DS;
 
 	if (clone_flags & CLONE_SETTLS)
 		childregs->gbr = childregs->regs[0];
 
 	childregs->regs[0] = 0; /* Set return value for child */
-
-	p->thread.sp = (unsigned long) childregs;
 	p->thread.pc = (unsigned long) ret_from_fork;
-
-	memset(p->thread.ptrace_bps, 0, sizeof(p->thread.ptrace_bps));
-
 	return 0;
 }
 
@@ -241,74 +215,6 @@ __switch_to(struct task_struct *prev, struct task_struct *next)
 		__fpu_state_restore();
 
 	return prev;
-}
-
-asmlinkage int sys_fork(unsigned long r4, unsigned long r5,
-			unsigned long r6, unsigned long r7,
-			struct pt_regs __regs)
-{
-#ifdef CONFIG_MMU
-	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
-	return do_fork(SIGCHLD, regs->regs[15], regs, 0, NULL, NULL);
-#else
-	/* fork almost works, enough to trick you into looking elsewhere :-( */
-	return -EINVAL;
-#endif
-}
-
-asmlinkage int sys_clone(unsigned long clone_flags, unsigned long newsp,
-			 unsigned long parent_tidptr,
-			 unsigned long child_tidptr,
-			 struct pt_regs __regs)
-{
-	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
-	if (!newsp)
-		newsp = regs->regs[15];
-	return do_fork(clone_flags, newsp, regs, 0,
-			(int __user *)parent_tidptr,
-			(int __user *)child_tidptr);
-}
-
-/*
- * This is trivial, and on the face of it looks like it
- * could equally well be done in user mode.
- *
- * Not so, for quite unobvious reasons - register pressure.
- * In user mode vfork() cannot have a stack frame, and if
- * done by calling the "clone()" system call directly, you
- * do not have enough call-clobbered registers to hold all
- * the information you need.
- */
-asmlinkage int sys_vfork(unsigned long r4, unsigned long r5,
-			 unsigned long r6, unsigned long r7,
-			 struct pt_regs __regs)
-{
-	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs->regs[15], regs,
-		       0, NULL, NULL);
-}
-
-/*
- * sys_execve() executes a new program.
- */
-asmlinkage int sys_execve(const char __user *ufilename,
-			  const char __user *const __user *uargv,
-			  const char __user *const __user *uenvp,
-			  unsigned long r7, struct pt_regs __regs)
-{
-	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
-	int error;
-	struct filename *filename;
-
-	filename = getname(ufilename);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		goto out;
-
-	error = do_execve(filename->name, uargv, uenvp, regs);
-	putname(filename);
-out:
-	return error;
 }
 
 unsigned long get_wchan(struct task_struct *p)

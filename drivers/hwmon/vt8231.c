@@ -147,7 +147,7 @@ static inline u8 FAN_TO_REG(long rpm, int div)
 {
 	if (rpm == 0)
 		return 0;
-	return SENSORS_LIMIT(1310720 / (rpm * div), 1, 255);
+	return clamp_val(1310720 / (rpm * div), 1, 255);
 }
 
 #define FAN_FROM_REG(val, div) ((val) == 0 ? 0 : 1310720 / ((val) * (div)))
@@ -176,7 +176,7 @@ struct vt8231_data {
 
 static struct pci_dev *s_bridge;
 static int vt8231_probe(struct platform_device *pdev);
-static int __devexit vt8231_remove(struct platform_device *pdev);
+static int vt8231_remove(struct platform_device *pdev);
 static struct vt8231_data *vt8231_update_device(struct device *dev);
 static void vt8231_init_device(struct vt8231_data *data);
 
@@ -236,7 +236,7 @@ static ssize_t set_in_min(struct device *dev, struct device_attribute *attr,
 		return err;
 
 	mutex_lock(&data->update_lock);
-	data->in_min[nr] = SENSORS_LIMIT(((val * 958) / 10000) + 3, 0, 255);
+	data->in_min[nr] = clamp_val(((val * 958) / 10000) + 3, 0, 255);
 	vt8231_write_value(data, regvoltmin[nr], data->in_min[nr]);
 	mutex_unlock(&data->update_lock);
 	return count;
@@ -256,7 +256,7 @@ static ssize_t set_in_max(struct device *dev, struct device_attribute *attr,
 		return err;
 
 	mutex_lock(&data->update_lock);
-	data->in_max[nr] = SENSORS_LIMIT(((val * 958) / 10000) + 3, 0, 255);
+	data->in_max[nr] = clamp_val(((val * 958) / 10000) + 3, 0, 255);
 	vt8231_write_value(data, regvoltmax[nr], data->in_max[nr]);
 	mutex_unlock(&data->update_lock);
 	return count;
@@ -302,8 +302,8 @@ static ssize_t set_in5_min(struct device *dev, struct device_attribute *attr,
 		return err;
 
 	mutex_lock(&data->update_lock);
-	data->in_min[5] = SENSORS_LIMIT(((val * 958 * 34) / (10000 * 54)) + 3,
-					0, 255);
+	data->in_min[5] = clamp_val(((val * 958 * 34) / (10000 * 54)) + 3,
+				    0, 255);
 	vt8231_write_value(data, regvoltmin[5], data->in_min[5]);
 	mutex_unlock(&data->update_lock);
 	return count;
@@ -321,8 +321,8 @@ static ssize_t set_in5_max(struct device *dev, struct device_attribute *attr,
 		return err;
 
 	mutex_lock(&data->update_lock);
-	data->in_max[5] = SENSORS_LIMIT(((val * 958 * 34) / (10000 * 54)) + 3,
-					0, 255);
+	data->in_max[5] = clamp_val(((val * 958 * 34) / (10000 * 54)) + 3,
+				    0, 255);
 	vt8231_write_value(data, regvoltmax[5], data->in_max[5]);
 	mutex_unlock(&data->update_lock);
 	return count;
@@ -380,7 +380,7 @@ static ssize_t set_temp0_max(struct device *dev, struct device_attribute *attr,
 		return err;
 
 	mutex_lock(&data->update_lock);
-	data->temp_max[0] = SENSORS_LIMIT((val + 500) / 1000, 0, 255);
+	data->temp_max[0] = clamp_val((val + 500) / 1000, 0, 255);
 	vt8231_write_value(data, regtempmax[0], data->temp_max[0]);
 	mutex_unlock(&data->update_lock);
 	return count;
@@ -397,7 +397,7 @@ static ssize_t set_temp0_min(struct device *dev, struct device_attribute *attr,
 		return err;
 
 	mutex_lock(&data->update_lock);
-	data->temp_min[0] = SENSORS_LIMIT((val + 500) / 1000, 0, 255);
+	data->temp_min[0] = clamp_val((val + 500) / 1000, 0, 255);
 	vt8231_write_value(data, regtempmin[0], data->temp_min[0]);
 	mutex_unlock(&data->update_lock);
 	return count;
@@ -444,7 +444,7 @@ static ssize_t set_temp_max(struct device *dev, struct device_attribute *attr,
 		return err;
 
 	mutex_lock(&data->update_lock);
-	data->temp_max[nr] = SENSORS_LIMIT(TEMP_MAXMIN_TO_REG(val), 0, 255);
+	data->temp_max[nr] = clamp_val(TEMP_MAXMIN_TO_REG(val), 0, 255);
 	vt8231_write_value(data, regtempmax[nr], data->temp_max[nr]);
 	mutex_unlock(&data->update_lock);
 	return count;
@@ -463,7 +463,7 @@ static ssize_t set_temp_min(struct device *dev, struct device_attribute *attr,
 		return err;
 
 	mutex_lock(&data->update_lock);
-	data->temp_min[nr] = SENSORS_LIMIT(TEMP_MAXMIN_TO_REG(val), 0, 255);
+	data->temp_min[nr] = clamp_val(TEMP_MAXMIN_TO_REG(val), 0, 255);
 	vt8231_write_value(data, regtempmin[nr], data->temp_min[nr]);
 	mutex_unlock(&data->update_lock);
 	return count;
@@ -762,7 +762,7 @@ static struct platform_driver vt8231_driver = {
 		.name	= "vt8231",
 	},
 	.probe	= vt8231_probe,
-	.remove	= __devexit_p(vt8231_remove),
+	.remove	= vt8231_remove,
 };
 
 static DEFINE_PCI_DEVICE_TABLE(vt8231_pci_ids) = {
@@ -772,7 +772,7 @@ static DEFINE_PCI_DEVICE_TABLE(vt8231_pci_ids) = {
 
 MODULE_DEVICE_TABLE(pci, vt8231_pci_ids);
 
-static int __devinit vt8231_pci_probe(struct pci_dev *dev,
+static int vt8231_pci_probe(struct pci_dev *dev,
 				      const struct pci_device_id *id);
 
 static struct pci_driver vt8231_pci_driver = {
@@ -851,7 +851,7 @@ exit_remove_files:
 	return err;
 }
 
-static int __devexit vt8231_remove(struct platform_device *pdev)
+static int vt8231_remove(struct platform_device *pdev)
 {
 	struct vt8231_data *data = platform_get_drvdata(pdev);
 	int i;
@@ -943,7 +943,7 @@ static struct vt8231_data *vt8231_update_device(struct device *dev)
 	return data;
 }
 
-static int __devinit vt8231_device_add(unsigned short address)
+static int vt8231_device_add(unsigned short address)
 {
 	struct resource res = {
 		.start	= address,
@@ -984,7 +984,7 @@ exit:
 	return err;
 }
 
-static int __devinit vt8231_pci_probe(struct pci_dev *dev,
+static int vt8231_pci_probe(struct pci_dev *dev,
 				const struct pci_device_id *id)
 {
 	u16 address, val;

@@ -700,7 +700,8 @@ static void pdc_ata_setup_port(struct ata_ioports *port, void __iomem *base)
  * @pdev: instance of pci_dev found
  * @ent:  matching entry in the id_tbl[]
  */
-static int __devinit pdc2027x_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
+static int pdc2027x_init_one(struct pci_dev *pdev,
+			     const struct pci_device_id *ent)
 {
 	static const unsigned long cmd_offset[] = { 0x17c0, 0x15c0 };
 	static const unsigned long bmdma_offset[] = { 0x1000, 0x1008 };

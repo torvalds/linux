@@ -98,7 +98,7 @@
 
 #ifndef CONFIG_PPC_PMAC
 /* default mode */
-static struct fb_var_screeninfo default_var __devinitdata = {
+static struct fb_var_screeninfo default_var = {
 	/* 640x480, 60 Hz, Non-Interlaced (25.175 MHz dotclock) */
 	640, 480, 640, 480, 0, 0, 8, 0,
 	{0, 8, 0}, {0, 8, 0}, {0, 8, 0}, {0, 0, 0},
@@ -121,7 +121,7 @@ static struct fb_var_screeninfo default_var = {
 
 /* default modedb mode */
 /* 640x480, 60 Hz, Non-Interlaced (25.172 MHz dotclock) */
-static struct fb_videomode defaultmode __devinitdata = {
+static struct fb_videomode defaultmode = {
 	.refresh =	60,
 	.xres =		640,
 	.yres =		480,
@@ -149,7 +149,7 @@ enum {
 };
 
 /* Must match above enum */
-static char * const r128_family[] __devinitconst = {
+static char * const r128_family[] = {
 	"AGP",
 	"PCI",
 	"PRO AGP",
@@ -275,7 +275,7 @@ static struct pci_driver aty128fb_driver = {
 	.name		= "aty128fb",
 	.id_table	= aty128_pci_tbl,
 	.probe		= aty128_probe,
-	.remove		= __devexit_p(aty128_remove),
+	.remove		= aty128_remove,
 	.suspend	= aty128_pci_suspend,
 	.resume		= aty128_pci_resume,
 };
@@ -333,7 +333,7 @@ static const struct aty128_meminfo sdr_sgram =
 static const struct aty128_meminfo ddr_sgram =
 	{ 4, 4, 3, 3, 2, 3, 1, 16, 31, 16, "64-bit DDR SGRAM" };
 
-static struct fb_fix_screeninfo aty128fb_fix __devinitdata = {
+static struct fb_fix_screeninfo aty128fb_fix = {
 	.id		= "ATY Rage128",
 	.type		= FB_TYPE_PACKED_PIXELS,
 	.visual		= FB_VISUAL_PSEUDOCOLOR,
@@ -343,24 +343,24 @@ static struct fb_fix_screeninfo aty128fb_fix __devinitdata = {
 	.accel		= FB_ACCEL_ATI_RAGE128,
 };
 
-static char *mode_option __devinitdata = NULL;
+static char *mode_option = NULL;
 
 #ifdef CONFIG_PPC_PMAC
-static int default_vmode __devinitdata = VMODE_1024_768_60;
-static int default_cmode __devinitdata = CMODE_8;
+static int default_vmode = VMODE_1024_768_60;
+static int default_cmode = CMODE_8;
 #endif
 
-static int default_crt_on __devinitdata = 0;
-static int default_lcd_on __devinitdata = 1;
+static int default_crt_on = 0;
+static int default_lcd_on = 1;
 
 #ifdef CONFIG_MTRR
 static bool mtrr = true;
 #endif
 
 #ifdef CONFIG_PMAC_BACKLIGHT
-static int backlight __devinitdata = 1;
+static int backlight = 1;
 #else
-static int backlight __devinitdata = 0;
+static int backlight = 0;
 #endif
 
 /* PLL constants */
@@ -449,10 +449,9 @@ static int aty128_encode_var(struct fb_var_screeninfo *var,
 static int aty128_decode_var(struct fb_var_screeninfo *var,
                              struct aty128fb_par *par);
 #if 0
-static void __devinit aty128_get_pllinfo(struct aty128fb_par *par,
-					 void __iomem *bios);
-static void __devinit __iomem *aty128_map_ROM(struct pci_dev *pdev,
-					      const struct aty128fb_par *par);
+static void aty128_get_pllinfo(struct aty128fb_par *par, void __iomem *bios);
+static void __iomem *aty128_map_ROM(struct pci_dev *pdev,
+				    const struct aty128fb_par *par);
 #endif
 static void aty128_timings(struct aty128fb_par *par);
 static void aty128_init_engine(struct aty128fb_par *par);
@@ -582,7 +581,7 @@ static void aty_pll_writeupdate(const struct aty128fb_par *par)
 
 
 /* write to the scratch register to test r/w functionality */
-static int __devinit register_test(const struct aty128fb_par *par)
+static int register_test(const struct aty128fb_par *par)
 {
 	u32 val;
 	int flag = 0;
@@ -781,8 +780,8 @@ static u32 depth_to_dst(u32 depth)
 
 
 #ifndef __sparc__
-static void __iomem * __devinit aty128_map_ROM(const struct aty128fb_par *par,
-					       struct pci_dev *dev)
+static void __iomem *aty128_map_ROM(const struct aty128fb_par *par,
+				    struct pci_dev *dev)
 {
 	u16 dptr;
 	u8 rom_type;
@@ -868,8 +867,8 @@ static void __iomem * __devinit aty128_map_ROM(const struct aty128fb_par *par,
 	return NULL;
 }
 
-static void __devinit aty128_get_pllinfo(struct aty128fb_par *par,
-					 unsigned char __iomem *bios)
+static void aty128_get_pllinfo(struct aty128fb_par *par,
+			       unsigned char __iomem *bios)
 {
 	unsigned int bios_hdr;
 	unsigned int bios_pll;
@@ -891,7 +890,7 @@ static void __devinit aty128_get_pllinfo(struct aty128fb_par *par,
 }           
 
 #ifdef CONFIG_X86
-static void __iomem *  __devinit aty128_find_mem_vbios(struct aty128fb_par *par)
+static void __iomem *aty128_find_mem_vbios(struct aty128fb_par *par)
 {
 	/* I simplified this code as we used to miss the signatures in
 	 * a lot of case. It's now closer to XFree, we just don't check
@@ -916,7 +915,7 @@ static void __iomem *  __devinit aty128_find_mem_vbios(struct aty128fb_par *par)
 #endif /* ndef(__sparc__) */
 
 /* fill in known card constants if pll_block is not available */
-static void __devinit aty128_timings(struct aty128fb_par *par)
+static void aty128_timings(struct aty128fb_par *par)
 {
 #ifdef CONFIG_PPC_OF
 	/* instead of a table lookup, assume OF has properly
@@ -1658,7 +1657,7 @@ static int aty128fb_sync(struct fb_info *info)
 }
 
 #ifndef MODULE
-static int __devinit aty128fb_setup(char *options)
+static int aty128fb_setup(char *options)
 {
 	char *this_opt;
 
@@ -1888,8 +1887,7 @@ static void aty128_early_resume(void *data)
 }
 #endif /* CONFIG_PPC_PMAC */
 
-static int __devinit aty128_init(struct pci_dev *pdev,
-				 const struct pci_device_id *ent)
+static int aty128_init(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct fb_info *info = pci_get_drvdata(pdev);
 	struct aty128fb_par *par = info->par;
@@ -2039,8 +2037,7 @@ static int __devinit aty128_init(struct pci_dev *pdev,
 
 #ifdef CONFIG_PCI
 /* register a card    ++ajoshi */
-static int __devinit aty128_probe(struct pci_dev *pdev,
-				  const struct pci_device_id *ent)
+static int aty128_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	unsigned long fb_addr, reg_addr;
 	struct aty128fb_par *par;
@@ -2156,7 +2153,7 @@ err_free_fb:
 	return -ENODEV;
 }
 
-static void __devexit aty128_remove(struct pci_dev *pdev)
+static void aty128_remove(struct pci_dev *pdev)
 {
 	struct fb_info *info = pci_get_drvdata(pdev);
 	struct aty128fb_par *par;
@@ -2558,7 +2555,7 @@ static int aty128_pci_resume(struct pci_dev *pdev)
 }
 
 
-static int __devinit aty128fb_init(void)
+static int aty128fb_init(void)
 {
 #ifndef MODULE
 	char *option = NULL;

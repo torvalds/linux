@@ -116,7 +116,7 @@ static const struct seq_operations cplbinfo_sops = {
 
 static int cplbinfo_open(struct inode *inode, struct file *file)
 {
-	struct proc_dir_entry *pde = PDE(file->f_path.dentry->d_inode);
+	struct proc_dir_entry *pde = PDE(file_inode(file));
 	char cplb_type;
 	unsigned int cpu;
 	int ret;

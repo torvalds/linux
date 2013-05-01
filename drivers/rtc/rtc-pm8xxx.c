@@ -382,7 +382,7 @@ rtc_alarm_handled:
 	return IRQ_HANDLED;
 }
 
-static int __devinit pm8xxx_rtc_probe(struct platform_device *pdev)
+static int pm8xxx_rtc_probe(struct platform_device *pdev)
 {
 	int rc;
 	u8 ctrl_reg;
@@ -485,7 +485,7 @@ fail_rtc_enable:
 	return rc;
 }
 
-static int __devexit pm8xxx_rtc_remove(struct platform_device *pdev)
+static int pm8xxx_rtc_remove(struct platform_device *pdev)
 {
 	struct pm8xxx_rtc *rtc_dd = platform_get_drvdata(pdev);
 
@@ -524,7 +524,7 @@ static SIMPLE_DEV_PM_OPS(pm8xxx_rtc_pm_ops, pm8xxx_rtc_suspend, pm8xxx_rtc_resum
 
 static struct platform_driver pm8xxx_rtc_driver = {
 	.probe		= pm8xxx_rtc_probe,
-	.remove		= __devexit_p(pm8xxx_rtc_remove),
+	.remove		= pm8xxx_rtc_remove,
 	.driver	= {
 		.name	= PM8XXX_RTC_DEV_NAME,
 		.owner	= THIS_MODULE,

@@ -5,7 +5,7 @@
  * MIPS doesn't need any special per-pte or per-vma handling, except
  * we need to flush cache for area to be unmapped.
  */
-#define tlb_start_vma(tlb, vma) 				\
+#define tlb_start_vma(tlb, vma)					\
 	do {							\
 		if (!tlb->fullmm)				\
 			flush_cache_range(vma, vma->vm_start, vma->vm_end); \

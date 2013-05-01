@@ -41,19 +41,18 @@
 #include <linux/regulator/machine.h>
 #include <linux/regulator/fixed.h>
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/memory.h>
 #include <asm/mach/map.h>
 
-#include <mach/common.h>
-#include <mach/iomux-mx3.h>
-#include <mach/ulpi.h>
-
+#include "common.h"
 #include "devices-imx31.h"
 #include "crmregs-imx3.h"
+#include "hardware.h"
+#include "iomux-mx3.h"
+#include "ulpi.h"
 
 static int armadillo5x0_pins[] = {
 	/* UART1 */
@@ -558,10 +557,6 @@ static void __init armadillo5x0_timer_init(void)
 	mx31_clocks_init(26000000);
 }
 
-static struct sys_timer armadillo5x0_timer = {
-	.init	= armadillo5x0_timer_init,
-};
-
 MACHINE_START(ARMADILLO5X0, "Armadillo-500")
 	/* Maintainer: Alberto Panizzo  */
 	.atag_offset = 0x100,
@@ -569,7 +564,7 @@ MACHINE_START(ARMADILLO5X0, "Armadillo-500")
 	.init_early = imx31_init_early,
 	.init_irq = mx31_init_irq,
 	.handle_irq = imx31_handle_irq,
-	.timer = &armadillo5x0_timer,
+	.init_time	= armadillo5x0_timer_init,
 	.init_machine = armadillo5x0_init,
 	.restart	= mxc_restart,
 MACHINE_END

@@ -301,7 +301,7 @@ salinfo_event_open(struct inode *inode, struct file *file)
 static ssize_t
 salinfo_event_read(struct file *file, char __user *buffer, size_t count, loff_t *ppos)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct proc_dir_entry *entry = PDE(inode);
 	struct salinfo_data *data = entry->data;
 	char cmd[32];
@@ -463,7 +463,7 @@ retry:
 static ssize_t
 salinfo_log_read(struct file *file, char __user *buffer, size_t count, loff_t *ppos)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct proc_dir_entry *entry = PDE(inode);
 	struct salinfo_data *data = entry->data;
 	u8 *buf;
@@ -524,7 +524,7 @@ salinfo_log_clear(struct salinfo_data *data, int cpu)
 static ssize_t
 salinfo_log_write(struct file *file, const char __user *buffer, size_t count, loff_t *ppos)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(file);
 	struct proc_dir_entry *entry = PDE(inode);
 	struct salinfo_data *data = entry->data;
 	char cmd[32];

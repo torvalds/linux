@@ -3,6 +3,8 @@
  * Copyright (C) 2008 David S. Miller <davem@davemloft.net>
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -26,10 +28,10 @@ retry:
 			udelay(100);
 			goto retry;
 		}
-		printk(KERN_WARNING "SUN4V: tod_get() timed out.\n");
+		pr_warn("tod_get() timed out.\n");
 		return 0;
 	}
-	printk(KERN_WARNING "SUN4V: tod_get() not supported.\n");
+	pr_warn("tod_get() not supported.\n");
 	return 0;
 }
 
@@ -53,10 +55,10 @@ retry:
 			udelay(100);
 			goto retry;
 		}
-		printk(KERN_WARNING "SUN4V: tod_set() timed out.\n");
+		pr_warn("tod_set() timed out.\n");
 		return -EAGAIN;
 	}
-	printk(KERN_WARNING "SUN4V: tod_set() not supported.\n");
+	pr_warn("tod_set() not supported.\n");
 	return -EOPNOTSUPP;
 }
 

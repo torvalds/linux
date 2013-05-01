@@ -80,6 +80,7 @@ struct nv04_display {
 	struct nv04_mode_state saved_reg;
 	uint32_t saved_vga_font[4][16384];
 	uint32_t dac_users[4];
+	struct nouveau_object *core;
 };
 
 static inline struct nv04_display *

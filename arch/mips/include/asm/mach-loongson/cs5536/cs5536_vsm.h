@@ -5,8 +5,8 @@
  * Author: Wu Zhangjin <wuzhangjin@gmail.com>
  */
 
-#ifndef	_CS5536_VSM_H
-#define	_CS5536_VSM_H
+#ifndef _CS5536_VSM_H
+#define _CS5536_VSM_H
 
 #include <linux/types.h>
 

@@ -8,7 +8,6 @@
 
 /* Functions internal to the PCI core code */
 
-extern int pci_uevent(struct device *dev, struct kobj_uevent_env *env);
 extern int pci_create_sysfs_dev_files(struct pci_dev *pdev);
 extern void pci_remove_sysfs_dev_files(struct pci_dev *pdev);
 #if !defined(CONFIG_DMI) && !defined(CONFIG_ACPI)
@@ -44,9 +43,6 @@ int pci_probe_reset_function(struct pci_dev *dev);
  *                platform; to be used during system-wide transitions from a
  *                sleeping state to the working state and vice versa
  *
- * @can_wakeup: returns 'true' if given device is capable of waking up the
- *              system from a sleeping state
- *
  * @sleep_wake: enables/disables the system wake up capability of given device
  *
  * @run_wake: enables/disables the platform to generate run-time wake-up events
@@ -60,7 +56,6 @@ struct pci_platform_pm_ops {
 	bool (*is_manageable)(struct pci_dev *dev);
 	int (*set_state)(struct pci_dev *dev, pci_power_t state);
 	pci_power_t (*choose_state)(struct pci_dev *dev);
-	bool (*can_wakeup)(struct pci_dev *dev);
 	int (*sleep_wake)(struct pci_dev *dev, bool enable);
 	int (*run_wake)(struct pci_dev *dev, bool enable);
 };
@@ -72,8 +67,9 @@ extern void pci_disable_enabled_device(struct pci_dev *dev);
 extern int pci_finish_runtime_suspend(struct pci_dev *dev);
 extern int __pci_pme_wakeup(struct pci_dev *dev, void *ign);
 extern void pci_wakeup_bus(struct pci_bus *bus);
+extern void pci_config_pm_runtime_get(struct pci_dev *dev);
+extern void pci_config_pm_runtime_put(struct pci_dev *dev);
 extern void pci_pm_init(struct pci_dev *dev);
-extern void platform_pci_wakeup_init(struct pci_dev *dev);
 extern void pci_allocate_cap_save_buffers(struct pci_dev *dev);
 void pci_free_cap_save_buffers(struct pci_dev *dev);
 
@@ -157,11 +153,8 @@ static inline int pci_no_d1d2(struct pci_dev *dev)
 }
 extern struct device_attribute pci_dev_attrs[];
 extern struct device_attribute pcibus_dev_attrs[];
-#ifdef CONFIG_HOTPLUG
+extern struct device_type pci_dev_type;
 extern struct bus_attribute pci_bus_attrs[];
-#else
-#define pci_bus_attrs	NULL
-#endif
 
 
 /**
@@ -210,8 +203,8 @@ extern int __pci_read_base(struct pci_dev *dev, enum pci_bar_type type,
 				struct resource *res, unsigned int reg);
 extern int pci_resource_bar(struct pci_dev *dev, int resno,
 			    enum pci_bar_type *type);
-extern int pci_bus_add_child(struct pci_bus *bus);
-extern void pci_enable_ari(struct pci_dev *dev);
+extern void pci_configure_ari(struct pci_dev *dev);
+
 /**
  * pci_ari_enabled - query ARI forwarding status
  * @bus: the PCI bus
@@ -232,13 +225,14 @@ struct pci_sriov {
 	int nres;		/* number of resources */
 	u32 cap;		/* SR-IOV Capabilities */
 	u16 ctrl;		/* SR-IOV Control */
-	u16 total;		/* total VFs associated with the PF */
-	u16 initial;		/* initial VFs associated with the PF */
-	u16 nr_virtfn;		/* number of VFs available */
+	u16 total_VFs;		/* total VFs associated with the PF */
+	u16 initial_VFs;	/* initial VFs associated with the PF */
+	u16 num_VFs;		/* number of VFs available */
 	u16 offset;		/* first VF Routing ID offset */
 	u16 stride;		/* following VF stride */
 	u32 pgsz;		/* page size for BAR alignment */
 	u8 link;		/* Function Dependency Link */
+	u16 driver_max_VFs;	/* max num VFs driver supports */
 	struct pci_dev *dev;	/* lowest numbered PF */
 	struct pci_dev *self;	/* this PF */
 	struct mutex lock;	/* lock for VF bus */

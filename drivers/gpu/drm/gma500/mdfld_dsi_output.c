@@ -265,13 +265,13 @@ static int mdfld_dsi_connector_set_property(struct drm_connector *connector,
 			goto set_prop_error;
 		}
 
-		if (drm_connector_property_get_value(connector, property, &val))
+		if (drm_object_property_get_value(&connector->base, property, &val))
 			goto set_prop_error;
 
 		if (val == value)
 			goto set_prop_done;
 
-		if (drm_connector_property_set_value(connector,
+		if (drm_object_property_set_value(&connector->base,
 							property, value))
 			goto set_prop_error;
 
@@ -296,7 +296,7 @@ static int mdfld_dsi_connector_set_property(struct drm_connector *connector,
 			}
 		}
 	} else if (!strcmp(property->name, "backlight") && encoder) {
-		if (drm_connector_property_set_value(connector, property,
+		if (drm_object_property_set_value(&connector->base, property,
 									value))
 			goto set_prop_error;
 		else
@@ -506,7 +506,7 @@ void mdfld_dsi_output_init(struct drm_device *dev,
 
 	dev_dbg(dev->dev, "init DSI output on pipe %d\n", pipe);
 
-	if (!dev || ((pipe != 0) && (pipe != 2))) {
+	if (pipe != 0 && pipe != 2) {
 		DRM_ERROR("Invalid parameter\n");
 		return;
 	}
@@ -572,10 +572,10 @@ void mdfld_dsi_output_init(struct drm_device *dev,
 	connector->doublescan_allowed = false;
 
 	/*attach properties*/
-	drm_connector_attach_property(connector,
+	drm_object_attach_property(&connector->base,
 				dev->mode_config.scaling_mode_property,
 				DRM_MODE_SCALE_FULLSCREEN);
-	drm_connector_attach_property(connector,
+	drm_object_attach_property(&connector->base,
 				dev_priv->backlight_property,
 				MDFLD_DSI_BRIGHTNESS_MAX_LEVEL);
 

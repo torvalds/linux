@@ -52,7 +52,7 @@ static int power7_marked_instr_event(u64 mmcr1)
 	for (pmc = 0; pmc < 4; pmc++) {
 		psel = mmcr1 & (OPROFILE_PM_PMCSEL_MSK
 				<< (OPROFILE_MAX_PMC_NUM - pmc)
-				* OPROFILE_MAX_PMC_NUM);
+				* OPROFILE_PMSEL_FIELD_WIDTH);
 		psel = (psel >> ((OPROFILE_MAX_PMC_NUM - pmc)
 				 * OPROFILE_PMSEL_FIELD_WIDTH)) & ~1ULL;
 		unit = mmcr1 & (OPROFILE_PM_UNIT_MSK

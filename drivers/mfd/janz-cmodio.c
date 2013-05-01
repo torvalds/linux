@@ -63,7 +63,7 @@ struct cmodio_device {
  * Subdevices using the mfd-core API
  */
 
-static int __devinit cmodio_setup_subdevice(struct cmodio_device *priv,
+static int cmodio_setup_subdevice(struct cmodio_device *priv,
 					    char *name, unsigned int devno,
 					    unsigned int modno)
 {
@@ -120,7 +120,7 @@ static int __devinit cmodio_setup_subdevice(struct cmodio_device *priv,
 }
 
 /* Probe each submodule using kernel parameters */
-static int __devinit cmodio_probe_submodules(struct cmodio_device *priv)
+static int cmodio_probe_submodules(struct cmodio_device *priv)
 {
 	struct pci_dev *pdev = priv->pdev;
 	unsigned int num_probed = 0;
@@ -177,7 +177,7 @@ static const struct attribute_group cmodio_sysfs_attr_group = {
  * PCI Driver
  */
 
-static int __devinit cmodio_pci_probe(struct pci_dev *dev,
+static int cmodio_pci_probe(struct pci_dev *dev,
 				      const struct pci_device_id *id)
 {
 	struct cmodio_device *priv;
@@ -254,7 +254,7 @@ out_return:
 	return ret;
 }
 
-static void __devexit cmodio_pci_remove(struct pci_dev *dev)
+static void cmodio_pci_remove(struct pci_dev *dev)
 {
 	struct cmodio_device *priv = pci_get_drvdata(dev);
 
@@ -280,7 +280,7 @@ static struct pci_driver cmodio_pci_driver = {
 	.name     = DRV_NAME,
 	.id_table = cmodio_pci_ids,
 	.probe    = cmodio_pci_probe,
-	.remove   = __devexit_p(cmodio_pci_remove),
+	.remove   = cmodio_pci_remove,
 };
 
 module_pci_driver(cmodio_pci_driver);

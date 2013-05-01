@@ -1763,7 +1763,7 @@ static void mv_u3d_gadget_release(struct device *dev)
 	dev_dbg(dev, "%s\n", __func__);
 }
 
-static __devexit int mv_u3d_remove(struct platform_device *dev)
+static int mv_u3d_remove(struct platform_device *dev)
 {
 	struct mv_u3d *u3d = platform_get_drvdata(dev);
 

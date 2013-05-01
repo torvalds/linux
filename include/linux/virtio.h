@@ -16,12 +16,20 @@
  * @name: the name of this virtqueue (mainly for debugging)
  * @vdev: the virtio device this queue was created for.
  * @priv: a pointer for the virtqueue implementation to use.
+ * @index: the zero-based ordinal number for this queue.
+ * @num_free: number of elements we expect to be able to fit.
+ *
+ * A note on @num_free: with indirect buffers, each buffer needs one
+ * element in the queue, otherwise a buffer will need one element per
+ * sg element.
  */
 struct virtqueue {
 	struct list_head list;
 	void (*callback)(struct virtqueue *vq);
 	const char *name;
 	struct virtio_device *vdev;
+	unsigned int index;
+	unsigned int num_free;
 	void *priv;
 };
 
@@ -50,7 +58,11 @@ void *virtqueue_detach_unused_buf(struct virtqueue *vq);
 
 unsigned int virtqueue_get_vring_size(struct virtqueue *vq);
 
-int virtqueue_get_queue_index(struct virtqueue *vq);
+/* FIXME: Obsolete accessor, but required for virtio_net merge. */
+static inline unsigned int virtqueue_get_queue_index(struct virtqueue *vq)
+{
+	return vq->index;
+}
 
 /**
  * virtio_device - representation of a device using virtio
@@ -66,14 +78,18 @@ struct virtio_device {
 	int index;
 	struct device dev;
 	struct virtio_device_id id;
-	struct virtio_config_ops *config;
+	const struct virtio_config_ops *config;
 	struct list_head vqs;
 	/* Note that this is a Linux set_bit-style bitmap. */
 	unsigned long features[1];
 	void *priv;
 };
 
-#define dev_to_virtio(dev) container_of(dev, struct virtio_device, dev)
+static inline struct virtio_device *dev_to_virtio(struct device *_dev)
+{
+	return container_of(_dev, struct virtio_device, dev);
+}
+
 int register_virtio_device(struct virtio_device *dev);
 void unregister_virtio_device(struct virtio_device *dev);
 
@@ -103,6 +119,20 @@ struct virtio_driver {
 #endif
 };
 
+static inline struct virtio_driver *drv_to_virtio(struct device_driver *drv)
+{
+	return container_of(drv, struct virtio_driver, driver);
+}
+
 int register_virtio_driver(struct virtio_driver *drv);
 void unregister_virtio_driver(struct virtio_driver *drv);
+
+/* module_virtio_driver() - Helper macro for drivers that don't do
+ * anything special in module init/exit.  This eliminates a lot of
+ * boilerplate.  Each module may only use this macro once, and
+ * calling it replaces module_init() and module_exit()
+ */
+#define module_virtio_driver(__virtio_driver) \
+	module_driver(__virtio_driver, register_virtio_driver, \
+			unregister_virtio_driver)
 #endif /* _LINUX_VIRTIO_H */

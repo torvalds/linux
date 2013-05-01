@@ -29,6 +29,7 @@
 #include <linux/skbuff.h>
 #include <linux/inet.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 #include <net/net_namespace.h>
 #include <net/netns/generic.h>
 
@@ -310,6 +311,14 @@ out:
 	return ret;
 }
 
+static void recent_table_free(void *addr)
+{
+	if (is_vmalloc_addr(addr))
+		vfree(addr);
+	else
+		kfree(addr);
+}
+
 static int recent_mt_check(const struct xt_mtchk_param *par,
 			   const struct xt_recent_mtinfo_v1 *info)
 {
@@ -322,6 +331,7 @@ static int recent_mt_check(const struct xt_mtchk_param *par,
 #endif
 	unsigned int i;
 	int ret = -EINVAL;
+	size_t sz;
 
 	if (unlikely(!hash_rnd_inited)) {
 		get_random_bytes(&hash_rnd, sizeof(hash_rnd));
@@ -360,8 +370,11 @@ static int recent_mt_check(const struct xt_mtchk_param *par,
 		goto out;
 	}
 
-	t = kzalloc(sizeof(*t) + sizeof(t->iphash[0]) * ip_list_hash_size,
-		    GFP_KERNEL);
+	sz = sizeof(*t) + sizeof(t->iphash[0]) * ip_list_hash_size;
+	if (sz <= PAGE_SIZE)
+		t = kzalloc(sz, GFP_KERNEL);
+	else
+		t = vzalloc(sz);
 	if (t == NULL) {
 		ret = -ENOMEM;
 		goto out;
@@ -377,14 +390,14 @@ static int recent_mt_check(const struct xt_mtchk_param *par,
 	uid = make_kuid(&init_user_ns, ip_list_uid);
 	gid = make_kgid(&init_user_ns, ip_list_gid);
 	if (!uid_valid(uid) || !gid_valid(gid)) {
-		kfree(t);
+		recent_table_free(t);
 		ret = -EINVAL;
 		goto out;
 	}
 	pde = proc_create_data(t->name, ip_list_perms, recent_net->xt_recent,
 		  &recent_mt_fops, t);
 	if (pde == NULL) {
-		kfree(t);
+		recent_table_free(t);
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -431,10 +444,11 @@ static void recent_mt_destroy(const struct xt_mtdtor_param *par)
 		list_del(&t->list);
 		spin_unlock_bh(&recent_lock);
 #ifdef CONFIG_PROC_FS
-		remove_proc_entry(t->name, recent_net->xt_recent);
+		if (recent_net->xt_recent != NULL)
+			remove_proc_entry(t->name, recent_net->xt_recent);
 #endif
 		recent_table_flush(t);
-		kfree(t);
+		recent_table_free(t);
 	}
 	mutex_unlock(&recent_mutex);
 }
@@ -526,7 +540,7 @@ static ssize_t
 recent_mt_proc_write(struct file *file, const char __user *input,
 		     size_t size, loff_t *loff)
 {
-	const struct proc_dir_entry *pde = PDE(file->f_path.dentry->d_inode);
+	const struct proc_dir_entry *pde = PDE(file_inode(file));
 	struct recent_table *t = pde->data;
 	struct recent_entry *e;
 	char buf[sizeof("+b335:1d35:1e55:dead:c0de:1715:5afe:c0de")];
@@ -615,7 +629,21 @@ static int __net_init recent_proc_net_init(struct net *net)
 
 static void __net_exit recent_proc_net_exit(struct net *net)
 {
-	proc_net_remove(net, "xt_recent");
+	struct recent_net *recent_net = recent_pernet(net);
+	struct recent_table *t;
+
+	/* recent_net_exit() is called before recent_mt_destroy(). Make sure
+	 * that the parent xt_recent proc entry is is empty before trying to
+	 * remove it.
+	 */
+	spin_lock_bh(&recent_lock);
+	list_for_each_entry(t, &recent_net->tables, list)
+	        remove_proc_entry(t->name, recent_net->xt_recent);
+
+	recent_net->xt_recent = NULL;
+	spin_unlock_bh(&recent_lock);
+
+	remove_proc_entry("xt_recent", net->proc_net);
 }
 #else
 static inline int recent_proc_net_init(struct net *net)
@@ -638,9 +666,6 @@ static int __net_init recent_net_init(struct net *net)
 
 static void __net_exit recent_net_exit(struct net *net)
 {
-	struct recent_net *recent_net = recent_pernet(net);
-
-	BUG_ON(!list_empty(&recent_net->tables));
 	recent_proc_net_exit(net);
 }
 

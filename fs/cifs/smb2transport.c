@@ -39,7 +39,7 @@
 #include "smb2status.h"
 #include "smb2glob.h"
 
-static int
+int
 smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 {
 	int i, rc;
@@ -116,6 +116,13 @@ smb2_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 	return rc;
 }
 
+int
+smb3_calc_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
+{
+	cFYI(1, "smb3 signatures not supported yet");
+	return -EOPNOTSUPP;
+}
+
 /* must be called with server->srv_mutex held */
 static int
 smb2_sign_rqst(struct smb_rqst *rqst, struct TCP_Server_Info *server)
@@ -132,7 +139,7 @@ smb2_sign_rqst(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 		return rc;
 	}
 
-	rc = smb2_calc_signature(rqst, server);
+	rc = server->ops->calc_signature(rqst, server);
 
 	return rc;
 }
@@ -168,7 +175,7 @@ smb2_verify_signature(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 	memset(smb2_pdu->Signature, 0, SMB2_SIGNATURE_SIZE);
 
 	mutex_lock(&server->srv_mutex);
-	rc = smb2_calc_signature(rqst, server);
+	rc = server->ops->calc_signature(rqst, server);
 	mutex_unlock(&server->srv_mutex);
 
 	if (rc)

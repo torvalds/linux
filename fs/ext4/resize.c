@@ -333,8 +333,8 @@ static struct buffer_head *bclean(handle_t *handle, struct super_block *sb,
 	int err;
 
 	bh = sb_getblk(sb, blk);
-	if (!bh)
-		return ERR_PTR(-EIO);
+	if (unlikely(!bh))
+		return ERR_PTR(-ENOMEM);
 	if ((err = ext4_journal_get_write_access(handle, bh))) {
 		brelse(bh);
 		bh = ERR_PTR(err);
@@ -410,8 +410,8 @@ static int set_flexbg_block_bitmap(struct super_block *sb, handle_t *handle,
 			return err;
 
 		bh = sb_getblk(sb, flex_gd->groups[group].block_bitmap);
-		if (!bh)
-			return -EIO;
+		if (unlikely(!bh))
+			return -ENOMEM;
 
 		err = ext4_journal_get_write_access(handle, bh);
 		if (err)
@@ -466,7 +466,7 @@ static int setup_new_flex_group_blocks(struct super_block *sb,
 	meta_bg = EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_META_BG);
 
 	/* This transaction may be extended/restarted along the way */
-	handle = ext4_journal_start_sb(sb, EXT4_MAX_TRANS_DATA);
+	handle = ext4_journal_start_sb(sb, EXT4_HT_RESIZE, EXT4_MAX_TRANS_DATA);
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 
@@ -500,8 +500,8 @@ static int setup_new_flex_group_blocks(struct super_block *sb,
 				goto out;
 
 			gdb = sb_getblk(sb, block);
-			if (!gdb) {
-				err = -EIO;
+			if (unlikely(!gdb)) {
+				err = -ENOMEM;
 				goto out;
 			}
 
@@ -783,7 +783,7 @@ static int add_new_gdb(handle_t *handle, struct inode *inode,
 
 	err = ext4_journal_get_write_access(handle, gdb_bh);
 	if (unlikely(err))
-		goto exit_sbh;
+		goto exit_dind;
 
 	err = ext4_journal_get_write_access(handle, dind);
 	if (unlikely(err))
@@ -792,7 +792,7 @@ static int add_new_gdb(handle_t *handle, struct inode *inode,
 	/* ext4_reserve_inode_write() gets a reference on the iloc */
 	err = ext4_reserve_inode_write(handle, inode, &iloc);
 	if (unlikely(err))
-		goto exit_dindj;
+		goto exit_dind;
 
 	n_group_desc = ext4_kvmalloc((gdb_num + 1) *
 				     sizeof(struct buffer_head *),
@@ -846,12 +846,7 @@ static int add_new_gdb(handle_t *handle, struct inode *inode,
 
 exit_inode:
 	ext4_kvfree(n_group_desc);
-	/* ext4_handle_release_buffer(handle, iloc.bh); */
 	brelse(iloc.bh);
-exit_dindj:
-	/* ext4_handle_release_buffer(handle, dind); */
-exit_sbh:
-	/* ext4_handle_release_buffer(handle, EXT4_SB(sb)->s_sbh); */
 exit_dind:
 	brelse(dind);
 exit_bh:
@@ -969,14 +964,8 @@ static int reserve_backup_gdb(handle_t *handle, struct inode *inode,
 	}
 
 	for (i = 0; i < reserved_gdb; i++) {
-		if ((err = ext4_journal_get_write_access(handle, primary[i]))) {
-			/*
-			int j;
-			for (j = 0; j < i; j++)
-				ext4_handle_release_buffer(handle, primary[j]);
-			 */
+		if ((err = ext4_journal_get_write_access(handle, primary[i])))
 			goto exit_bh;
-		}
 	}
 
 	if ((err = ext4_reserve_inode_write(handle, inode, &iloc)))
@@ -1042,7 +1031,7 @@ static void update_backups(struct super_block *sb, int blk_off, char *data,
 	handle_t *handle;
 	int err = 0, err2;
 
-	handle = ext4_journal_start_sb(sb, EXT4_MAX_TRANS_DATA);
+	handle = ext4_journal_start_sb(sb, EXT4_HT_RESIZE, EXT4_MAX_TRANS_DATA);
 	if (IS_ERR(handle)) {
 		group = 1;
 		err = PTR_ERR(handle);
@@ -1075,8 +1064,8 @@ static void update_backups(struct super_block *sb, int blk_off, char *data,
 					ext4_bg_has_super(sb, group));
 
 		bh = sb_getblk(sb, backup_block);
-		if (!bh) {
-			err = -EIO;
+		if (unlikely(!bh)) {
+			err = -ENOMEM;
 			break;
 		}
 		ext4_debug("update metadata backup %llu(+%llu)\n",
@@ -1179,7 +1168,7 @@ static int ext4_add_new_descs(handle_t *handle, struct super_block *sb,
 static struct buffer_head *ext4_get_bitmap(struct super_block *sb, __u64 block)
 {
 	struct buffer_head *bh = sb_getblk(sb, block);
-	if (!bh)
+	if (unlikely(!bh))
 		return NULL;
 	if (!bh_uptodate_or_lock(bh)) {
 		if (bh_submit_read(bh) < 0) {
@@ -1258,7 +1247,7 @@ static int ext4_setup_new_descs(handle_t *handle, struct super_block *sb,
 
 		ext4_inode_table_set(sb, gdp, group_data->inode_table);
 		ext4_free_group_clusters_set(sb, gdp,
-					     EXT4_B2C(sbi, group_data->free_blocks_count));
+			EXT4_NUM_B2C(sbi, group_data->free_blocks_count));
 		ext4_free_inodes_set(sb, gdp, EXT4_INODES_PER_GROUP(sb));
 		if (ext4_has_group_desc_csum(sb))
 			ext4_itable_unused_set(sb, gdp,
@@ -1360,7 +1349,7 @@ static void ext4_update_super(struct super_block *sb,
 
 	/* Update the free space counts */
 	percpu_counter_add(&sbi->s_freeclusters_counter,
-			   EXT4_B2C(sbi, free_blocks));
+			   EXT4_NUM_B2C(sbi, free_blocks));
 	percpu_counter_add(&sbi->s_freeinodes_counter,
 			   EXT4_INODES_PER_GROUP(sb) * flex_gd->count);
 
@@ -1371,7 +1360,7 @@ static void ext4_update_super(struct super_block *sb,
 	    sbi->s_log_groups_per_flex) {
 		ext4_group_t flex_group;
 		flex_group = ext4_flex_group(sbi, group_data[0].group);
-		atomic_add(EXT4_B2C(sbi, free_blocks),
+		atomic_add(EXT4_NUM_B2C(sbi, free_blocks),
 			   &sbi->s_flex_groups[flex_group].free_clusters);
 		atomic_add(EXT4_INODES_PER_GROUP(sb) * flex_gd->count,
 			   &sbi->s_flex_groups[flex_group].free_inodes);
@@ -1423,7 +1412,7 @@ static int ext4_flex_group_add(struct super_block *sb,
 	 * modify each of the reserved GDT dindirect blocks.
 	 */
 	credit = flex_gd->count * 4 + reserved_gdb;
-	handle = ext4_journal_start_sb(sb, credit);
+	handle = ext4_journal_start_sb(sb, EXT4_HT_RESIZE, credit);
 	if (IS_ERR(handle)) {
 		err = PTR_ERR(handle);
 		goto exit;
@@ -1517,10 +1506,12 @@ static int ext4_setup_next_flex_gd(struct super_block *sb,
 		group_data[i].blocks_count = blocks_per_group;
 		overhead = ext4_group_overhead_blocks(sb, group + i);
 		group_data[i].free_blocks_count = blocks_per_group - overhead;
-		if (ext4_has_group_desc_csum(sb))
+		if (ext4_has_group_desc_csum(sb)) {
 			flex_gd->bg_flags[i] = EXT4_BG_BLOCK_UNINIT |
 					       EXT4_BG_INODE_UNINIT;
-		else
+			if (!test_opt(sb, INIT_INODE_TABLE))
+				flex_gd->bg_flags[i] |= EXT4_BG_INODE_ZEROED;
+		} else
 			flex_gd->bg_flags[i] = EXT4_BG_INODE_ZEROED;
 	}
 
@@ -1605,7 +1596,7 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
 
 	err = ext4_alloc_flex_bg_array(sb, input->group + 1);
 	if (err)
-		return err;
+		goto out;
 
 	err = ext4_mb_alloc_groupinfo(sb, input->group + 1);
 	if (err)
@@ -1633,7 +1624,7 @@ static int ext4_group_extend_no_check(struct super_block *sb,
 	/* We will update the superblock, one block bitmap, and
 	 * one group descriptor via ext4_group_add_blocks().
 	 */
-	handle = ext4_journal_start_sb(sb, 3);
+	handle = ext4_journal_start_sb(sb, EXT4_HT_RESIZE, 3);
 	if (IS_ERR(handle)) {
 		err = PTR_ERR(handle);
 		ext4_warning(sb, "error %d on journal start", err);
@@ -1797,7 +1788,7 @@ static int ext4_convert_meta_bg(struct super_block *sb, struct inode *inode)
 		credits += 3;	/* block bitmap, bg descriptor, resize inode */
 	}
 
-	handle = ext4_journal_start_sb(sb, credits);
+	handle = ext4_journal_start_sb(sb, EXT4_HT_RESIZE, credits);
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 

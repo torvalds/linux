@@ -37,16 +37,14 @@
 
 #define KVM_MAX_VCPUS		NR_CPUS
 #define KVM_MAX_VCORES		NR_CPUS
-#define KVM_MEMORY_SLOTS 32
-/* memory slots that does not exposed to userspace */
-#define KVM_PRIVATE_MEM_SLOTS 4
-#define KVM_MEM_SLOTS_NUM (KVM_MEMORY_SLOTS + KVM_PRIVATE_MEM_SLOTS)
+#define KVM_USER_MEM_SLOTS 32
+#define KVM_MEM_SLOTS_NUM KVM_USER_MEM_SLOTS
 
 #ifdef CONFIG_KVM_MMIO
 #define KVM_COALESCED_MMIO_PAGE_OFFSET 1
 #endif
 
-#ifdef CONFIG_KVM_BOOK3S_64_HV
+#if !defined(CONFIG_KVM_440)
 #include <linux/mmu_notifier.h>
 
 #define KVM_ARCH_WANT_MMU_NOTIFIER
@@ -204,7 +202,7 @@ struct revmap_entry {
 };
 
 /*
- * We use the top bit of each memslot->rmap entry as a lock bit,
+ * We use the top bit of each memslot->arch.rmap entry as a lock bit,
  * and bit 32 as a present flag.  The bottom 32 bits are the
  * index in the guest HPT of a HPTE that points to the page.
  */
@@ -215,14 +213,17 @@ struct revmap_entry {
 #define KVMPPC_RMAP_PRESENT	0x100000000ul
 #define KVMPPC_RMAP_INDEX	0xfffffffful
 
-/* Low-order bits in kvm->arch.slot_phys[][] */
+/* Low-order bits in memslot->arch.slot_phys[] */
 #define KVMPPC_PAGE_ORDER_MASK	0x1f
 #define KVMPPC_PAGE_NO_CACHE	HPTE_R_I	/* 0x20 */
 #define KVMPPC_PAGE_WRITETHRU	HPTE_R_W	/* 0x40 */
 #define KVMPPC_GOT_PAGE		0x80
 
 struct kvm_arch_memory_slot {
+#ifdef CONFIG_KVM_BOOK3S_64_HV
 	unsigned long *rmap;
+	unsigned long *slot_phys;
+#endif /* CONFIG_KVM_BOOK3S_64_HV */
 };
 
 struct kvm_arch {
@@ -243,12 +244,12 @@ struct kvm_arch {
 	int using_mmu_notifiers;
 	u32 hpt_order;
 	atomic_t vcpus_running;
+	u32 online_vcores;
 	unsigned long hpt_npte;
 	unsigned long hpt_mask;
+	atomic_t hpte_mod_interest;
 	spinlock_t slot_phys_lock;
-	unsigned long *slot_phys[KVM_MEM_SLOTS_NUM];
-	int slot_npages[KVM_MEM_SLOTS_NUM];
-	unsigned short last_vcpu[NR_CPUS];
+	cpumask_t need_tlb_flush;
 	struct kvmppc_vcore *vcores[KVM_MAX_VCORES];
 	struct kvmppc_linear_info *hpt_li;
 #endif /* CONFIG_KVM_BOOK3S_64_HV */
@@ -273,6 +274,7 @@ struct kvmppc_vcore {
 	int nap_count;
 	int napping_threads;
 	u16 pcpu;
+	u16 last_cpu;
 	u8 vcore_state;
 	u8 in_guest;
 	struct list_head runnable_threads;
@@ -288,9 +290,10 @@ struct kvmppc_vcore {
 
 /* Values for vcore_state */
 #define VCORE_INACTIVE	0
-#define VCORE_RUNNING	1
-#define VCORE_EXITING	2
-#define VCORE_SLEEPING	3
+#define VCORE_SLEEPING	1
+#define VCORE_STARTING	2
+#define VCORE_RUNNING	3
+#define VCORE_EXITING	4
 
 /*
  * Struct used to manage memory for a virtual processor area
@@ -346,6 +349,27 @@ struct kvmppc_slb {
 	bool class	: 1;
 };
 
+# ifdef CONFIG_PPC_FSL_BOOK3E
+#define KVMPPC_BOOKE_IAC_NUM	2
+#define KVMPPC_BOOKE_DAC_NUM	2
+# else
+#define KVMPPC_BOOKE_IAC_NUM	4
+#define KVMPPC_BOOKE_DAC_NUM	2
+# endif
+#define KVMPPC_BOOKE_MAX_IAC	4
+#define KVMPPC_BOOKE_MAX_DAC	2
+
+struct kvmppc_booke_debug_reg {
+	u32 dbcr0;
+	u32 dbcr1;
+	u32 dbcr2;
+#ifdef CONFIG_KVM_E500MC
+	u32 dbcr4;
+#endif
+	u64 iac[KVMPPC_BOOKE_MAX_IAC];
+	u64 dac[KVMPPC_BOOKE_MAX_DAC];
+};
+
 struct kvm_vcpu_arch {
 	ulong host_stack;
 	u32 host_pid;
@@ -380,11 +404,16 @@ struct kvm_vcpu_arch {
 	u32 host_mas4;
 	u32 host_mas6;
 	u32 shadow_epcr;
-	u32 epcr;
 	u32 shadow_msrp;
 	u32 eplc;
 	u32 epsc;
 	u32 oldpir;
+#endif
+
+#if defined(CONFIG_BOOKE)
+#if defined(CONFIG_KVM_BOOKE_HV) || defined(CONFIG_64BIT)
+	u32 epcr;
+#endif
 #endif
 
 #ifdef CONFIG_PPC_BOOK3S
@@ -409,6 +438,7 @@ struct kvm_vcpu_arch {
 	ulong uamor;
 	u32 ctrl;
 	ulong dabr;
+	ulong cfar;
 #endif
 	u32 vrsave; /* also USPRG0 */
 	u32 mmucr;
@@ -440,8 +470,6 @@ struct kvm_vcpu_arch {
 
 	u32 ccr0;
 	u32 ccr1;
-	u32 dbcr0;
-	u32 dbcr1;
 	u32 dbsr;
 
 	u64 mmcr[3];
@@ -471,9 +499,12 @@ struct kvm_vcpu_arch {
 	ulong fault_esr;
 	ulong queued_dear;
 	ulong queued_esr;
+	spinlock_t wdt_lock;
+	struct timer_list wdt_timer;
 	u32 tlbcfg[4];
 	u32 mmucfg;
 	u32 epr;
+	struct kvmppc_booke_debug_reg dbg_reg;
 #endif
 	gpa_t paddr_accessed;
 	gva_t vaddr_accessed;
@@ -486,9 +517,12 @@ struct kvm_vcpu_arch {
 	u8 osi_needed;
 	u8 osi_enabled;
 	u8 papr_enabled;
+	u8 watchdog_enabled;
 	u8 sane;
 	u8 cpu_type;
 	u8 hcall_needed;
+	u8 epr_enabled;
+	u8 epr_needed;
 
 	u32 cpr0_cfgaddr; /* holds the last set cpr0_cfgaddr */
 
@@ -497,7 +531,6 @@ struct kvm_vcpu_arch {
 	u64 dec_jiffies;
 	u64 dec_expires;
 	unsigned long pending_exceptions;
-	u16 last_cpu;
 	u8 ceded;
 	u8 prodded;
 	u32 last_inst;
@@ -534,13 +567,17 @@ struct kvm_vcpu_arch {
 	unsigned long dtl_index;
 	u64 stolen_logged;
 	struct kvmppc_vpa slb_shadow;
+
+	spinlock_t tbacct_lock;
+	u64 busy_stolen;
+	u64 busy_preempt;
 #endif
 };
 
 /* Values for vcpu->arch.state */
-#define KVMPPC_VCPU_STOPPED		0
-#define KVMPPC_VCPU_BUSY_IN_HOST	1
-#define KVMPPC_VCPU_RUNNABLE		2
+#define KVMPPC_VCPU_NOTREADY		0
+#define KVMPPC_VCPU_RUNNABLE		1
+#define KVMPPC_VCPU_BUSY_IN_HOST	2
 
 /* Values for vcpu->arch.io_gpr */
 #define KVM_MMIO_REG_MASK	0x001f

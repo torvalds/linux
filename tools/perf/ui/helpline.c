@@ -16,9 +16,16 @@ static void nop_helpline__push(const char *msg __maybe_unused)
 {
 }
 
+static int nop_helpline__show(const char *fmt __maybe_unused,
+			       va_list ap __maybe_unused)
+{
+	return 0;
+}
+
 static struct ui_helpline default_helpline_fns = {
 	.pop	= nop_helpline__pop,
 	.push	= nop_helpline__push,
+	.show	= nop_helpline__show,
 };
 
 struct ui_helpline *helpline_fns = &default_helpline_fns;
@@ -58,4 +65,9 @@ void ui_helpline__puts(const char *msg)
 {
 	ui_helpline__pop();
 	ui_helpline__push(msg);
+}
+
+int ui_helpline__vshow(const char *fmt, va_list ap)
+{
+	return helpline_fns->show(fmt, ap);
 }

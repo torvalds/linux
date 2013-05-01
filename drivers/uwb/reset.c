@@ -97,6 +97,7 @@ int uwb_rc_cmd_async(struct uwb_rc *rc, const char *cmd_name,
 	neh = uwb_rc_neh_add(rc, cmd, expected_type, expected_event, cb, arg);
 	if (IS_ERR(neh)) {
 		result = PTR_ERR(neh);
+		uwb_dev_unlock(&rc->uwb_dev);
 		goto out;
 	}
 

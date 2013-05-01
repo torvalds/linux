@@ -1185,8 +1185,14 @@ static void rt2400pci_write_beacon(struct queue_entry *entry,
 	rt2x00_set_field32(&reg, CSR14_BEACON_GEN, 0);
 	rt2x00pci_register_write(rt2x00dev, CSR14, reg);
 
-	rt2x00queue_map_txskb(entry);
-
+	if (rt2x00queue_map_txskb(entry)) {
+		ERROR(rt2x00dev, "Fail to map beacon, aborting\n");
+		goto out;
+	}
+	/*
+	 * Enable beaconing again.
+	 */
+	rt2x00_set_field32(&reg, CSR14_BEACON_GEN, 1);
 	/*
 	 * Write the TX descriptor for the beacon.
 	 */
@@ -1196,7 +1202,7 @@ static void rt2400pci_write_beacon(struct queue_entry *entry,
 	 * Dump beacon to userspace through debugfs.
 	 */
 	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_BEACON, entry->skb);
-
+out:
 	/*
 	 * Enable beaconing again.
 	 */
@@ -1831,7 +1837,7 @@ static struct pci_driver rt2400pci_driver = {
 	.name		= KBUILD_MODNAME,
 	.id_table	= rt2400pci_device_table,
 	.probe		= rt2400pci_probe,
-	.remove		= __devexit_p(rt2x00pci_remove),
+	.remove		= rt2x00pci_remove,
 	.suspend	= rt2x00pci_suspend,
 	.resume		= rt2x00pci_resume,
 };

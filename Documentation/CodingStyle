@@ -546,15 +546,7 @@ config AUDIT
 	  logging of avc messages output).  Does not do system-call
 	  auditing without CONFIG_AUDITSYSCALL.
 
-Features that might still be considered unstable should be defined as
-dependent on "EXPERIMENTAL":
-
-config SLUB
-	depends on EXPERIMENTAL && !ARCH_USES_SLAB_PAGE_STRUCT
-	bool "SLUB (Unqueued Allocator)"
-	...
-
-while seriously dangerous features (such as write support for certain
+Seriously dangerous features (such as write support for certain
 filesystems) should advertise this prominently in their prompt string:
 
 config ADFS_FS_RW

@@ -52,6 +52,9 @@ struct macvlan_pcpu_stats {
  */
 #define MAX_MACVTAP_QUEUES	(NR_CPUS < 16 ? NR_CPUS : 16)
 
+#define MACVLAN_MC_FILTER_BITS	8
+#define MACVLAN_MC_FILTER_SZ	(1 << MACVLAN_MC_FILTER_BITS)
+
 struct macvlan_dev {
 	struct net_device	*dev;
 	struct list_head	list;
@@ -59,6 +62,9 @@ struct macvlan_dev {
 	struct macvlan_port	*port;
 	struct net_device	*lowerdev;
 	struct macvlan_pcpu_stats __percpu *pcpu_stats;
+
+	DECLARE_BITMAP(mc_filter, MACVLAN_MC_FILTER_SZ);
+
 	enum macvlan_mode	mode;
 	u16			flags;
 	int (*receive)(struct sk_buff *skb);

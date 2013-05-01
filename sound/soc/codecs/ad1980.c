@@ -255,13 +255,13 @@ static struct snd_soc_codec_driver soc_codec_dev_ad1980 = {
 	.read = ac97_read,
 };
 
-static __devinit int ad1980_probe(struct platform_device *pdev)
+static int ad1980_probe(struct platform_device *pdev)
 {
 	return snd_soc_register_codec(&pdev->dev,
 			&soc_codec_dev_ad1980, &ad1980_dai, 1);
 }
 
-static int __devexit ad1980_remove(struct platform_device *pdev)
+static int ad1980_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_codec(&pdev->dev);
 	return 0;
@@ -274,7 +274,7 @@ static struct platform_driver ad1980_codec_driver = {
 	},
 
 	.probe = ad1980_probe,
-	.remove = __devexit_p(ad1980_remove),
+	.remove = ad1980_remove,
 };
 
 module_platform_driver(ad1980_codec_driver);

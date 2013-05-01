@@ -91,39 +91,37 @@ static ssize_t uuid_show(struct gfs2_sbd *sdp, char *buf)
 
 static ssize_t freeze_show(struct gfs2_sbd *sdp, char *buf)
 {
-	unsigned int count;
+	struct super_block *sb = sdp->sd_vfs;
+	int frozen = (sb->s_writers.frozen == SB_UNFROZEN) ? 0 : 1;
 
-	mutex_lock(&sdp->sd_freeze_lock);
-	count = sdp->sd_freeze_count;
-	mutex_unlock(&sdp->sd_freeze_lock);
-
-	return snprintf(buf, PAGE_SIZE, "%u\n", count);
+	return snprintf(buf, PAGE_SIZE, "%u\n", frozen);
 }
 
 static ssize_t freeze_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
 {
-	ssize_t ret = len;
-	int error = 0;
+	int error;
 	int n = simple_strtol(buf, NULL, 0);
 
 	if (!capable(CAP_SYS_ADMIN))
-		return -EACCES;
+		return -EPERM;
 
 	switch (n) {
 	case 0:
-		gfs2_unfreeze_fs(sdp);
+		error = thaw_super(sdp->sd_vfs);
 		break;
 	case 1:
-		error = gfs2_freeze_fs(sdp);
+		error = freeze_super(sdp->sd_vfs);
 		break;
 	default:
-		ret = -EINVAL;
+		return -EINVAL;
 	}
 
-	if (error)
+	if (error) {
 		fs_warn(sdp, "freeze %d error %d", n, error);
+		return error;
+	}
 
-	return ret;
+	return len;
 }
 
 static ssize_t withdraw_show(struct gfs2_sbd *sdp, char *buf)
@@ -135,7 +133,7 @@ static ssize_t withdraw_show(struct gfs2_sbd *sdp, char *buf)
 static ssize_t withdraw_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
 {
 	if (!capable(CAP_SYS_ADMIN))
-		return -EACCES;
+		return -EPERM;
 
 	if (simple_strtol(buf, NULL, 0) != 1)
 		return -EINVAL;
@@ -150,7 +148,7 @@ static ssize_t statfs_sync_store(struct gfs2_sbd *sdp, const char *buf,
 				 size_t len)
 {
 	if (!capable(CAP_SYS_ADMIN))
-		return -EACCES;
+		return -EPERM;
 
 	if (simple_strtol(buf, NULL, 0) != 1)
 		return -EINVAL;
@@ -163,7 +161,7 @@ static ssize_t quota_sync_store(struct gfs2_sbd *sdp, const char *buf,
 				size_t len)
 {
 	if (!capable(CAP_SYS_ADMIN))
-		return -EACCES;
+		return -EPERM;
 
 	if (simple_strtol(buf, NULL, 0) != 1)
 		return -EINVAL;
@@ -175,30 +173,40 @@ static ssize_t quota_sync_store(struct gfs2_sbd *sdp, const char *buf,
 static ssize_t quota_refresh_user_store(struct gfs2_sbd *sdp, const char *buf,
 					size_t len)
 {
+	struct kqid qid;
 	int error;
 	u32 id;
 
 	if (!capable(CAP_SYS_ADMIN))
-		return -EACCES;
+		return -EPERM;
 
 	id = simple_strtoul(buf, NULL, 0);
 
-	error = gfs2_quota_refresh(sdp, 1, id);
+	qid = make_kqid(current_user_ns(), USRQUOTA, id);
+	if (!qid_valid(qid))
+		return -EINVAL;
+
+	error = gfs2_quota_refresh(sdp, qid);
 	return error ? error : len;
 }
 
 static ssize_t quota_refresh_group_store(struct gfs2_sbd *sdp, const char *buf,
 					 size_t len)
 {
+	struct kqid qid;
 	int error;
 	u32 id;
 
 	if (!capable(CAP_SYS_ADMIN))
-		return -EACCES;
+		return -EPERM;
 
 	id = simple_strtoul(buf, NULL, 0);
 
-	error = gfs2_quota_refresh(sdp, 0, id);
+	qid = make_kqid(current_user_ns(), GRPQUOTA, id);
+	if (!qid_valid(qid))
+		return -EINVAL;
+
+	error = gfs2_quota_refresh(sdp, qid);
 	return error ? error : len;
 }
 
@@ -213,7 +221,7 @@ static ssize_t demote_rq_store(struct gfs2_sbd *sdp, const char *buf, size_t len
 	int rv;
 
 	if (!capable(CAP_SYS_ADMIN))
-		return -EACCES;
+		return -EPERM;
 
 	rv = sscanf(buf, "%u:%llu %15s", &gltype, &glnum,
 		    mode);
@@ -329,6 +337,28 @@ static ssize_t block_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
 	} else {
 		ret = -EINVAL;
 	}
+	return ret;
+}
+
+static ssize_t wdack_show(struct gfs2_sbd *sdp, char *buf)
+{
+	int val = completion_done(&sdp->sd_wdack) ? 1 : 0;
+
+	return sprintf(buf, "%d\n", val);
+}
+
+static ssize_t wdack_store(struct gfs2_sbd *sdp, const char *buf, size_t len)
+{
+	ssize_t ret = len;
+	int val;
+
+	val = simple_strtol(buf, NULL, 0);
+
+	if ((val == 1) &&
+	    !strcmp(sdp->sd_lockstruct.ls_ops->lm_proto_name, "lock_dlm"))
+		complete(&sdp->sd_wdack);
+	else
+		ret = -EINVAL;
 	return ret;
 }
 
@@ -463,7 +493,7 @@ static struct gfs2_attr gdlm_attr_##_name = __ATTR(_name,_mode,_show,_store)
 
 GDLM_ATTR(proto_name,		0444, proto_name_show,		NULL);
 GDLM_ATTR(block,		0644, block_show,		block_store);
-GDLM_ATTR(withdraw,		0644, withdraw_show,		withdraw_store);
+GDLM_ATTR(withdraw,		0644, wdack_show,		wdack_store);
 GDLM_ATTR(jid,			0644, jid_show,			jid_store);
 GDLM_ATTR(first,		0644, lkfirst_show,		lkfirst_store);
 GDLM_ATTR(first_done,		0444, first_done_show,		NULL);
@@ -502,7 +532,7 @@ static ssize_t quota_scale_store(struct gfs2_sbd *sdp, const char *buf,
 	unsigned int x, y;
 
 	if (!capable(CAP_SYS_ADMIN))
-		return -EACCES;
+		return -EPERM;
 
 	if (sscanf(buf, "%u %u", &x, &y) != 2 || !y)
 		return -EINVAL;
@@ -521,7 +551,7 @@ static ssize_t tune_set(struct gfs2_sbd *sdp, unsigned int *field,
 	unsigned int x;
 
 	if (!capable(CAP_SYS_ADMIN))
-		return -EACCES;
+		return -EPERM;
 
 	x = simple_strtoul(buf, NULL, 0);
 

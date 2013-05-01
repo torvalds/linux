@@ -755,7 +755,6 @@ err_mem_ioremap:
 	clk_put(dev->clk);
 	dev->clk = NULL;
 err_free_mem:
-	platform_set_drvdata(pdev, NULL);
 	put_device(&pdev->dev);
 	kfree(dev);
 err_release_region:
@@ -771,7 +770,6 @@ static int davinci_i2c_remove(struct platform_device *pdev)
 
 	i2c_davinci_cpufreq_deregister(dev);
 
-	platform_set_drvdata(pdev, NULL);
 	i2c_del_adapter(&dev->adapter);
 	put_device(&pdev->dev);
 

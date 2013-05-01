@@ -1,5 +1,4 @@
-/* linux/arch/arm/mach-s3c2410/mach-vr1000.c
- *
+/*
  * Copyright (c) 2003-2008 Simtec Electronics
  *   Ben Dooks <ben@simtec.co.uk>
  *
@@ -32,27 +31,25 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <mach/bast-map.h>
-#include <mach/vr1000-map.h>
-#include <mach/vr1000-irq.h>
-#include <mach/vr1000-cpld.h>
-
-#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
-#include <plat/regs-serial.h>
-#include <mach/regs-gpio.h>
 #include <linux/platform_data/leds-s3c24xx.h>
-
-#include <plat/clock.h>
-#include <plat/devs.h>
-#include <plat/cpu.h>
 #include <linux/platform_data/i2c-s3c2410.h>
 #include <linux/platform_data/asoc-s3c24xx_simtec.h>
 
-#include "simtec.h"
+#include <mach/hardware.h>
+#include <mach/regs-gpio.h>
+
+#include <plat/clock.h>
+#include <plat/cpu.h>
+#include <plat/devs.h>
+#include <plat/regs-serial.h>
+
+#include "bast.h"
 #include "common.h"
+#include "simtec.h"
+#include "vr1000.h"
 
 /* macros for virtual address mods for the io space entries */
 #define VA_C5(item) ((unsigned long)(item) + BAST_VAM_CS5)
@@ -143,7 +140,7 @@ static struct s3c2410_uartcfg vr1000_uartcfgs[] __initdata = {
 static struct plat_serial8250_port serial_platform_data[] = {
 	[0] = {
 		.mapbase	= VR1000_SERIAL_MAPBASE(0),
-		.irq		= IRQ_VR1000_SERIAL + 0,
+		.irq		= VR1000_IRQ_SERIAL + 0,
 		.flags		= UPF_BOOT_AUTOCONF | UPF_IOREMAP,
 		.iotype		= UPIO_MEM,
 		.regshift	= 0,
@@ -151,7 +148,7 @@ static struct plat_serial8250_port serial_platform_data[] = {
 	},
 	[1] = {
 		.mapbase	= VR1000_SERIAL_MAPBASE(1),
-		.irq		= IRQ_VR1000_SERIAL + 1,
+		.irq		= VR1000_IRQ_SERIAL + 1,
 		.flags		= UPF_BOOT_AUTOCONF | UPF_IOREMAP,
 		.iotype		= UPIO_MEM,
 		.regshift	= 0,
@@ -159,7 +156,7 @@ static struct plat_serial8250_port serial_platform_data[] = {
 	},
 	[2] = {
 		.mapbase	= VR1000_SERIAL_MAPBASE(2),
-		.irq		= IRQ_VR1000_SERIAL + 2,
+		.irq		= VR1000_IRQ_SERIAL + 2,
 		.flags		= UPF_BOOT_AUTOCONF | UPF_IOREMAP,
 		.iotype		= UPIO_MEM,
 		.regshift	= 0,
@@ -167,7 +164,7 @@ static struct plat_serial8250_port serial_platform_data[] = {
 	},
 	[3] = {
 		.mapbase	= VR1000_SERIAL_MAPBASE(3),
-		.irq		= IRQ_VR1000_SERIAL + 3,
+		.irq		= VR1000_IRQ_SERIAL + 3,
 		.flags		= UPF_BOOT_AUTOCONF | UPF_IOREMAP,
 		.iotype		= UPIO_MEM,
 		.regshift	= 0,
@@ -189,14 +186,14 @@ static struct platform_device serial_device = {
 static struct resource vr1000_dm9k0_resource[] = {
 	[0] = DEFINE_RES_MEM(S3C2410_CS5 + VR1000_PA_DM9000, 4),
 	[1] = DEFINE_RES_MEM(S3C2410_CS5 + VR1000_PA_DM9000 + 0x40, 0x40),
-	[2] = DEFINE_RES_NAMED(IRQ_VR1000_DM9000A, 1, NULL, IORESOURCE_IRQ \
+	[2] = DEFINE_RES_NAMED(VR1000_IRQ_DM9000A, 1, NULL, IORESOURCE_IRQ \
 						| IORESOURCE_IRQ_HIGHLEVEL),
 };
 
 static struct resource vr1000_dm9k1_resource[] = {
 	[0] = DEFINE_RES_MEM(S3C2410_CS5 + VR1000_PA_DM9000 + 0x80, 4),
 	[1] = DEFINE_RES_MEM(S3C2410_CS5 + VR1000_PA_DM9000 + 0xC0, 0x40),
-	[2] = DEFINE_RES_NAMED(IRQ_VR1000_DM9000N, 1, NULL, IORESOURCE_IRQ \
+	[2] = DEFINE_RES_NAMED(VR1000_IRQ_DM9000N, 1, NULL, IORESOURCE_IRQ \
 						| IORESOURCE_IRQ_HIGHLEVEL),
 };
 
@@ -357,6 +354,6 @@ MACHINE_START(VR1000, "Thorcom-VR1000")
 	.map_io		= vr1000_map_io,
 	.init_machine	= vr1000_init,
 	.init_irq	= s3c24xx_init_irq,
-	.timer		= &s3c24xx_timer,
+	.init_time	= s3c24xx_timer_init,
 	.restart	= s3c2410_restart,
 MACHINE_END

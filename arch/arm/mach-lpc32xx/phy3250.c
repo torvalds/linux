@@ -263,7 +263,7 @@ DT_MACHINE_START(LPC32XX_DT, "LPC32XX SoC (Flattened Device Tree)")
 	.atag_offset	= 0x100,
 	.map_io		= lpc32xx_map_io,
 	.init_irq	= lpc32xx_init_irq,
-	.timer		= &lpc32xx_timer,
+	.init_time	= lpc32xx_timer_init,
 	.init_machine	= lpc3250_machine_init,
 	.dt_compat	= lpc32xx_dt_compat,
 	.restart	= lpc23xx_restart,

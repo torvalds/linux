@@ -82,7 +82,7 @@ static struct stmpe_client_info spi_ci = {
 	.init = spi_init,
 };
 
-static int __devinit
+static int
 stmpe_spi_probe(struct spi_device *spi)
 {
 	const struct spi_device_id *id = spi_get_device_id(spi);
@@ -101,7 +101,7 @@ stmpe_spi_probe(struct spi_device *spi)
 	return stmpe_probe(&spi_ci, id->driver_data);
 }
 
-static int __devexit stmpe_spi_remove(struct spi_device *spi)
+static int stmpe_spi_remove(struct spi_device *spi)
 {
 	struct stmpe *stmpe = dev_get_drvdata(&spi->dev);
 
@@ -128,7 +128,7 @@ static struct spi_driver stmpe_spi_driver = {
 #endif
 	},
 	.probe		= stmpe_spi_probe,
-	.remove		= __devexit_p(stmpe_spi_remove),
+	.remove		= stmpe_spi_remove,
 	.id_table	= stmpe_spi_id,
 };
 

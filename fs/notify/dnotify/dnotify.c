@@ -174,7 +174,7 @@ void dnotify_flush(struct file *filp, fl_owner_t id)
 	struct dnotify_struct **prev;
 	struct inode *inode;
 
-	inode = filp->f_path.dentry->d_inode;
+	inode = file_inode(filp);
 	if (!S_ISDIR(inode->i_mode))
 		return;
 
@@ -201,7 +201,7 @@ void dnotify_flush(struct file *filp, fl_owner_t id)
 
 	/* nothing else could have found us thanks to the dnotify_mark_mutex */
 	if (dn_mark->dn == NULL)
-		fsnotify_destroy_mark(fsn_mark);
+		fsnotify_destroy_mark(fsn_mark, dnotify_group);
 
 	mutex_unlock(&dnotify_mark_mutex);
 
@@ -296,7 +296,7 @@ int fcntl_dirnotify(int fd, struct file *filp, unsigned long arg)
 	}
 
 	/* dnotify only works on directories */
-	inode = filp->f_path.dentry->d_inode;
+	inode = file_inode(filp);
 	if (!S_ISDIR(inode->i_mode)) {
 		error = -ENOTDIR;
 		goto out_err;
@@ -385,7 +385,7 @@ out:
 	spin_unlock(&fsn_mark->lock);
 
 	if (destroy)
-		fsnotify_destroy_mark(fsn_mark);
+		fsnotify_destroy_mark(fsn_mark, dnotify_group);
 
 	mutex_unlock(&dnotify_mark_mutex);
 	fsnotify_put_mark(fsn_mark);

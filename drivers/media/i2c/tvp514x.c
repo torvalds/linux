@@ -951,7 +951,7 @@ tvp514x_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		return -ENODEV;
 	}
 
-	decoder = kzalloc(sizeof(*decoder), GFP_KERNEL);
+	decoder = devm_kzalloc(&client->dev, sizeof(*decoder), GFP_KERNEL);
 	if (!decoder)
 		return -ENOMEM;
 
@@ -998,7 +998,6 @@ tvp514x_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		int err = decoder->hdl.error;
 
 		v4l2_ctrl_handler_free(&decoder->hdl);
-		kfree(decoder);
 		return err;
 	}
 	v4l2_ctrl_handler_setup(&decoder->hdl);
@@ -1023,7 +1022,6 @@ static int tvp514x_remove(struct i2c_client *client)
 
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&decoder->hdl);
-	kfree(decoder);
 	return 0;
 }
 /* TVP5146 Init/Power on Sequence */

@@ -58,10 +58,11 @@
 			#size-cells = <1>;
 			ranges = <0x88000000 0x88000000 0x40000>;
 
-			clock-controller@88000000 {
+			clks: clock-controller@88000000 {
 				compatible = "sirf,prima2-clkc";
 				reg = <0x88000000 0x1000>;
 				interrupts = <3>;
+				#clock-cells = <1>;
 			};
 
 			reset-controller@88010000 {
@@ -85,6 +86,7 @@
 				compatible = "sirf,prima2-memc";
 				reg = <0x90000000 0x10000>;
 				interrupts = <27>;
+				clocks = <&clks 5>;
 			};
 		};
 
@@ -104,6 +106,7 @@
 				compatible = "sirf,prima2-vpp";
 				reg = <0x90020000 0x10000>;
 				interrupts = <31>;
+				clocks = <&clks 35>;
 			};
 		};
 
@@ -117,6 +120,7 @@
 				compatible = "powervr,sgx531";
 				reg = <0x98000000 0x8000000>;
 				interrupts = <6>;
+				clocks = <&clks 32>;
 			};
 		};
 
@@ -130,6 +134,7 @@
 				compatible = "sirf,prima2-video-codec";
 				reg = <0xa0000000 0x8000000>;
 				interrupts = <5>;
+				clocks = <&clks 33>;
 			};
 		};
 
@@ -149,12 +154,14 @@
 				compatible = "sirf,prima2-gps";
 				reg = <0xa8010000 0x10000>;
 				interrupts = <7>;
+				clocks = <&clks 9>;
 			};
 
 			dsp@a9000000 {
 				compatible = "sirf,prima2-dsp";
 				reg = <0xa9000000 0x1000000>;
 				interrupts = <8>;
+				clocks = <&clks 8>;
 			};
 		};
 
@@ -174,12 +181,14 @@
 				compatible = "sirf,prima2-nand";
 				reg = <0xb0030000 0x10000>;
 				interrupts = <41>;
+				clocks = <&clks 26>;
 			};
 
 			audio@b0040000 {
 				compatible = "sirf,prima2-audio";
 				reg = <0xb0040000 0x10000>;
 				interrupts = <35>;
+				clocks = <&clks 27>;
 			};
 
 			uart0: uart@b0050000 {
@@ -187,6 +196,7 @@
 				compatible = "sirf,prima2-uart";
 				reg = <0xb0050000 0x10000>;
 				interrupts = <17>;
+				clocks = <&clks 13>;
 			};
 
 			uart1: uart@b0060000 {
@@ -194,6 +204,7 @@
 				compatible = "sirf,prima2-uart";
 				reg = <0xb0060000 0x10000>;
 				interrupts = <18>;
+				clocks = <&clks 14>;
 			};
 
 			uart2: uart@b0070000 {
@@ -201,6 +212,7 @@
 				compatible = "sirf,prima2-uart";
 				reg = <0xb0070000 0x10000>;
 				interrupts = <19>;
+				clocks = <&clks 15>;
 			};
 
 			usp0: usp@b0080000 {
@@ -208,6 +220,7 @@
 				compatible = "sirf,prima2-usp";
 				reg = <0xb0080000 0x10000>;
 				interrupts = <20>;
+				clocks = <&clks 28>;
 			};
 
 			usp1: usp@b0090000 {
@@ -215,6 +228,7 @@
 				compatible = "sirf,prima2-usp";
 				reg = <0xb0090000 0x10000>;
 				interrupts = <21>;
+				clocks = <&clks 29>;
 			};
 
 			usp2: usp@b00a0000 {
@@ -222,6 +236,7 @@
 				compatible = "sirf,prima2-usp";
 				reg = <0xb00a0000 0x10000>;
 				interrupts = <22>;
+				clocks = <&clks 30>;
 			};
 
 			dmac0: dma-controller@b00b0000 {
@@ -229,6 +244,7 @@
 				compatible = "sirf,prima2-dmac";
 				reg = <0xb00b0000 0x10000>;
 				interrupts = <12>;
+				clocks = <&clks 24>;
 			};
 
 			dmac1: dma-controller@b0160000 {
@@ -236,11 +252,13 @@
 				compatible = "sirf,prima2-dmac";
 				reg = <0xb0160000 0x10000>;
 				interrupts = <13>;
+				clocks = <&clks 25>;
 			};
 
 			vip@b00C0000 {
 				compatible = "sirf,prima2-vip";
 				reg = <0xb00C0000 0x10000>;
+				clocks = <&clks 31>;
 			};
 
 			spi0: spi@b00d0000 {
@@ -248,6 +266,7 @@
 				compatible = "sirf,prima2-spi";
 				reg = <0xb00d0000 0x10000>;
 				interrupts = <15>;
+				clocks = <&clks 19>;
 			};
 
 			spi1: spi@b0170000 {
@@ -255,6 +274,7 @@
 				compatible = "sirf,prima2-spi";
 				reg = <0xb0170000 0x10000>;
 				interrupts = <16>;
+				clocks = <&clks 20>;
 			};
 
 			i2c0: i2c@b00e0000 {
@@ -262,6 +282,7 @@
 				compatible = "sirf,prima2-i2c";
 				reg = <0xb00e0000 0x10000>;
 				interrupts = <24>;
+				clocks = <&clks 17>;
 			};
 
 			i2c1: i2c@b00f0000 {
@@ -269,12 +290,14 @@
 				compatible = "sirf,prima2-i2c";
 				reg = <0xb00f0000 0x10000>;
 				interrupts = <25>;
+				clocks = <&clks 18>;
 			};
 
 			tsc@b0110000 {
 				compatible = "sirf,prima2-tsc";
 				reg = <0xb0110000 0x10000>;
 				interrupts = <33>;
+				clocks = <&clks 16>;
 			};
 
 			gpio: pinctrl@b0120000 {
@@ -507,17 +530,20 @@
 			pwm@b0130000 {
 				compatible = "sirf,prima2-pwm";
 				reg = <0xb0130000 0x10000>;
+				clocks = <&clks 21>;
 			};
 
 			efusesys@b0140000 {
 				compatible = "sirf,prima2-efuse";
 				reg = <0xb0140000 0x10000>;
+				clocks = <&clks 22>;
 			};
 
 			pulsec@b0150000 {
 				compatible = "sirf,prima2-pulsec";
 				reg = <0xb0150000 0x10000>;
 				interrupts = <48>;
+				clocks = <&clks 23>;
 			};
 
 			pci-iobg {
@@ -616,12 +642,14 @@
 				compatible = "chipidea,ci13611a-prima2";
 				reg = <0xb8000000 0x10000>;
 				interrupts = <10>;
+				clocks = <&clks 40>;
 			};
 
 			usb1: usb@b00f0000 {
 				compatible = "chipidea,ci13611a-prima2";
 				reg = <0xb8010000 0x10000>;
 				interrupts = <11>;
+				clocks = <&clks 41>;
 			};
 
 			sata@b00f0000 {
@@ -634,6 +662,7 @@
 				compatible = "sirf,prima2-security";
 				reg = <0xb8030000 0x10000>;
 				interrupts = <42>;
+				clocks = <&clks 7>;
 			};
 		};
 	};

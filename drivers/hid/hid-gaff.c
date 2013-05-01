@@ -176,17 +176,6 @@ static struct hid_driver ga_driver = {
 	.id_table = ga_devices,
 	.probe = ga_probe,
 };
+module_hid_driver(ga_driver);
 
-static int __init ga_init(void)
-{
-	return hid_register_driver(&ga_driver);
-}
-
-static void __exit ga_exit(void)
-{
-	hid_unregister_driver(&ga_driver);
-}
-
-module_init(ga_init);
-module_exit(ga_exit);
 MODULE_LICENSE("GPL");

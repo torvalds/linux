@@ -143,6 +143,8 @@ static inline struct sk_buff *ip_finish_skb(struct sock *sk, struct flowi4 *fl4)
 extern int		ip4_datagram_connect(struct sock *sk, 
 					     struct sockaddr *uaddr, int addr_len);
 
+extern void ip4_datagram_release_cb(struct sock *sk);
+
 struct ip_reply_arg {
 	struct kvec iov[1];   
 	int	    flags;

@@ -111,9 +111,7 @@ EXPORT_SYMBOL_GPL(raw_unhash_sk);
 static struct sock *__raw_v4_lookup(struct net *net, struct sock *sk,
 		unsigned short num, __be32 raddr, __be32 laddr, int dif)
 {
-	struct hlist_node *node;
-
-	sk_for_each_from(sk, node) {
+	sk_for_each_from(sk) {
 		struct inet_sock *inet = inet_sk(sk);
 
 		if (net_eq(sock_net(sk), net) && inet->inet_num == num	&&
@@ -894,6 +892,7 @@ struct proto raw_prot = {
 	.recvmsg	   = raw_recvmsg,
 	.bind		   = raw_bind,
 	.backlog_rcv	   = raw_rcv_skb,
+	.release_cb	   = ip4_datagram_release_cb,
 	.hash		   = raw_hash_sk,
 	.unhash		   = raw_unhash_sk,
 	.obj_size	   = sizeof(struct raw_sock),
@@ -913,9 +912,7 @@ static struct sock *raw_get_first(struct seq_file *seq)
 
 	for (state->bucket = 0; state->bucket < RAW_HTABLE_SIZE;
 			++state->bucket) {
-		struct hlist_node *node;
-
-		sk_for_each(sk, node, &state->h->ht[state->bucket])
+		sk_for_each(sk, &state->h->ht[state->bucket])
 			if (sock_net(sk) == seq_file_net(seq))
 				goto found;
 	}
@@ -1049,7 +1046,7 @@ static const struct file_operations raw_seq_fops = {
 
 static __net_init int raw_init_net(struct net *net)
 {
-	if (!proc_net_fops_create(net, "raw", S_IRUGO, &raw_seq_fops))
+	if (!proc_create("raw", S_IRUGO, net->proc_net, &raw_seq_fops))
 		return -ENOMEM;
 
 	return 0;
@@ -1057,7 +1054,7 @@ static __net_init int raw_init_net(struct net *net)
 
 static __net_exit void raw_exit_net(struct net *net)
 {
-	proc_net_remove(net, "raw");
+	remove_proc_entry("raw", net->proc_net);
 }
 
 static __net_initdata struct pernet_operations raw_net_ops = {

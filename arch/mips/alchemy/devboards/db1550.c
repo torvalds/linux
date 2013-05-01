@@ -67,7 +67,7 @@ int __init db1550_board_setup(void)
 		bcsr_init(PB1550_BCSR_PHYS_ADDR,
 			  PB1550_BCSR_PHYS_ADDR + PB1550_BCSR_HEXLED_OFS);
 
-	pr_info("Alchemy/AMD %s Board, CPLD Rev %d Board-ID %d  "	\
+	pr_info("Alchemy/AMD %s Board, CPLD Rev %d Board-ID %d	"	\
 		"Daughtercard ID %d\n", get_system_type(),
 		(whoami >> 4) & 0xf, (whoami >> 8) & 0xf, whoami & 0xf);
 
@@ -80,7 +80,7 @@ int __init db1550_board_setup(void)
 static struct mtd_partition db1550_spiflash_parts[] = {
 	{
 		.name	= "spi_flash",
-		.offset	= 0,
+		.offset = 0,
 		.size	= MTDPART_SIZ_FULL,
 	},
 };
@@ -151,12 +151,12 @@ static int au1550_nand_device_ready(struct mtd_info *mtd)
 static struct mtd_partition db1550_nand_parts[] = {
 	{
 		.name	= "NAND FS 0",
-		.offset	= 0,
+		.offset = 0,
 		.size	= 8 * 1024 * 1024,
 	},
 	{
 		.name	= "NAND FS 1",
-		.offset	= MTDPART_OFS_APPEND,
+		.offset = MTDPART_OFS_APPEND,
 		.size	= MTDPART_SIZ_FULL
 	},
 };
@@ -495,10 +495,10 @@ static void __init db1550_devices(void)
 {
 	alchemy_gpio_direction_output(203, 0);	/* red led on */
 
-	irq_set_irq_type(AU1550_GPIO0_INT, IRQ_TYPE_EDGE_BOTH);  /* CD0# */
-	irq_set_irq_type(AU1550_GPIO1_INT, IRQ_TYPE_EDGE_BOTH);  /* CD1# */
-	irq_set_irq_type(AU1550_GPIO3_INT, IRQ_TYPE_LEVEL_LOW);  /* CARD0# */
-	irq_set_irq_type(AU1550_GPIO5_INT, IRQ_TYPE_LEVEL_LOW);  /* CARD1# */
+	irq_set_irq_type(AU1550_GPIO0_INT, IRQ_TYPE_EDGE_BOTH);	 /* CD0# */
+	irq_set_irq_type(AU1550_GPIO1_INT, IRQ_TYPE_EDGE_BOTH);	 /* CD1# */
+	irq_set_irq_type(AU1550_GPIO3_INT, IRQ_TYPE_LEVEL_LOW);	 /* CARD0# */
+	irq_set_irq_type(AU1550_GPIO5_INT, IRQ_TYPE_LEVEL_LOW);	 /* CARD1# */
 	irq_set_irq_type(AU1550_GPIO21_INT, IRQ_TYPE_LEVEL_LOW); /* STSCHG0# */
 	irq_set_irq_type(AU1550_GPIO22_INT, IRQ_TYPE_LEVEL_LOW); /* STSCHG1# */
 
@@ -539,7 +539,7 @@ static void __init pb1550_devices(void)
 
 	/* Pb1550, like all others, also has statuschange irqs; however they're
 	* wired up on one of the Au1550's shared GPIO201_205 line, which also
-	* services the PCMCIA card interrupts.  So we ignore statuschange and
+	* services the PCMCIA card interrupts.	So we ignore statuschange and
 	* use the GPIO201_205 exclusively for card interrupts, since a) pcmcia
 	* drivers are used to shared irqs and b) statuschange isn't really use-
 	* ful anyway.

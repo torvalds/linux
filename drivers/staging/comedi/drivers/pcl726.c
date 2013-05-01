@@ -152,11 +152,10 @@ struct pcl726_private {
 	unsigned int ao_readback[12];
 };
 
-#define devpriv ((struct pcl726_private *)dev->private)
-
 static int pcl726_ao_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data)
 {
+	struct pcl726_private *devpriv = dev->private;
 	int hi, lo;
 	int n;
 	int chan = CR_CHAN(insn->chanspec);
@@ -183,6 +182,7 @@ static int pcl726_ao_insn_read(struct comedi_device *dev,
 			       struct comedi_subdevice *s,
 			       struct comedi_insn *insn, unsigned int *data)
 {
+	struct pcl726_private *devpriv = dev->private;
 	int chan = CR_CHAN(insn->chanspec);
 	int n;
 
@@ -226,6 +226,7 @@ static int pcl726_do_insn_bits(struct comedi_device *dev,
 static int pcl726_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	const struct pcl726_board *board = comedi_board(dev);
+	struct pcl726_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned long iobase;
 	unsigned int iorange;
@@ -247,9 +248,10 @@ static int pcl726_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	dev->board_name = board->name;
 
-	ret = alloc_private(dev, sizeof(struct pcl726_private));
-	if (ret < 0)
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
 		return -ENOMEM;
+	dev->private = devpriv;
 
 	for (i = 0; i < 12; i++) {
 		devpriv->bipolar[i] = 0;

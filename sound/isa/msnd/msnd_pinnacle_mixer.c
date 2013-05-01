@@ -302,7 +302,7 @@ DUMMY_VOLUME("Monitor",	0, MSND_MIXER_IMIX),
 };
 
 
-int __devinit snd_msndmix_new(struct snd_card *card)
+int snd_msndmix_new(struct snd_card *card)
 {
 	struct snd_msnd *chip = card->private_data;
 	unsigned int idx;

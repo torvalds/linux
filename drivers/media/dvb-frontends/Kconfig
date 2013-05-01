@@ -207,6 +207,13 @@ config DVB_SI21XX
 	help
 	  A DVB-S tuner module. Say Y when you want to support this frontend.
 
+config DVB_TS2020
+	tristate "Montage Tehnology TS2020 based tuners"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A DVB-S/S2 silicon tuner. Say Y when you want to support this tuner.
+
 config DVB_DS3000
 	tristate "Montage Tehnology DS3000 based"
 	depends on DVB_CORE && I2C

@@ -27,18 +27,18 @@
 #include <linux/usb/otg.h>
 #include <linux/usb/ulpi.h>
 
-#include <mach/eukrea-baseboards.h>
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/memory.h>
 #include <asm/mach/map.h>
-#include <mach/common.h>
-#include <mach/mx25.h>
-#include <mach/iomux-mx25.h>
 
+#include "common.h"
 #include "devices-imx25.h"
+#include "eukrea-baseboards.h"
+#include "hardware.h"
+#include "iomux-mx25.h"
+#include "mx25.h"
 
 static const struct imxuart_platform_data uart_pdata __initconst = {
 	.flags = IMXUART_HAVE_RTSCTS,
@@ -159,10 +159,6 @@ static void __init eukrea_cpuimx25_timer_init(void)
 	mx25_clocks_init();
 }
 
-static struct sys_timer eukrea_cpuimx25_timer = {
-	.init   = eukrea_cpuimx25_timer_init,
-};
-
 MACHINE_START(EUKREA_CPUIMX25SD, "Eukrea CPUIMX25")
 	/* Maintainer: Eukrea Electromatique */
 	.atag_offset = 0x100,
@@ -170,7 +166,7 @@ MACHINE_START(EUKREA_CPUIMX25SD, "Eukrea CPUIMX25")
 	.init_early = imx25_init_early,
 	.init_irq = mx25_init_irq,
 	.handle_irq = imx25_handle_irq,
-	.timer = &eukrea_cpuimx25_timer,
+	.init_time = eukrea_cpuimx25_timer_init,
 	.init_machine = eukrea_cpuimx25_init,
 	.restart	= mxc_restart,
 MACHINE_END

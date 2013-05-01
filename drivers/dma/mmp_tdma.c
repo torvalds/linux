@@ -9,6 +9,7 @@
  *
  */
 
+#include <linux/err.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/types.h>
@@ -467,7 +468,7 @@ static void mmp_tdma_issue_pending(struct dma_chan *chan)
 	mmp_tdma_enable_chan(tdmac);
 }
 
-static int __devexit mmp_tdma_remove(struct platform_device *pdev)
+static int mmp_tdma_remove(struct platform_device *pdev)
 {
 	struct mmp_tdma_device *tdev = platform_get_drvdata(pdev);
 
@@ -475,7 +476,7 @@ static int __devexit mmp_tdma_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __devinit mmp_tdma_chan_init(struct mmp_tdma_device *tdev,
+static int mmp_tdma_chan_init(struct mmp_tdma_device *tdev,
 						int idx, int irq, int type)
 {
 	struct mmp_tdma_chan *tdmac;
@@ -515,7 +516,7 @@ static struct of_device_id mmp_tdma_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, mmp_tdma_dt_ids);
 
-static int __devinit mmp_tdma_probe(struct platform_device *pdev)
+static int mmp_tdma_probe(struct platform_device *pdev)
 {
 	enum mmp_tdma_type type;
 	const struct of_device_id *of_id;
@@ -547,9 +548,9 @@ static int __devinit mmp_tdma_probe(struct platform_device *pdev)
 	if (!iores)
 		return -EINVAL;
 
-	tdev->base = devm_request_and_ioremap(&pdev->dev, iores);
-	if (!tdev->base)
-		return -EADDRNOTAVAIL;
+	tdev->base = devm_ioremap_resource(&pdev->dev, iores);
+	if (IS_ERR(tdev->base))
+		return PTR_ERR(tdev->base);
 
 	INIT_LIST_HEAD(&tdev->device.channels);
 
@@ -609,7 +610,7 @@ static struct platform_driver mmp_tdma_driver = {
 	},
 	.id_table	= mmp_tdma_id_table,
 	.probe		= mmp_tdma_probe,
-	.remove		= __devexit_p(mmp_tdma_remove),
+	.remove		= mmp_tdma_remove,
 };
 
 module_platform_driver(mmp_tdma_driver);

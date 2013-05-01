@@ -31,8 +31,8 @@
 
 /*
  * mt9t031 i2c address 0x5d
- * The platform has to define i2c_board_info and link to it from
- * struct soc_camera_link
+ * The platform has to define struct i2c_board_info objects and link to them
+ * from struct soc_camera_host_desc
  */
 
 /* mt9t031 selected register addresses */
@@ -608,18 +608,18 @@ static struct device_type mt9t031_dev_type = {
 static int mt9t031_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
+	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
 	struct video_device *vdev = soc_camera_i2c_to_vdev(client);
 	int ret;
 
 	if (on) {
-		ret = soc_camera_power_on(&client->dev, icl);
+		ret = soc_camera_power_on(&client->dev, ssdd);
 		if (ret < 0)
 			return ret;
 		vdev->dev.type = &mt9t031_dev_type;
 	} else {
 		vdev->dev.type = NULL;
-		soc_camera_power_off(&client->dev, icl);
+		soc_camera_power_off(&client->dev, ssdd);
 	}
 
 	return 0;
@@ -707,13 +707,13 @@ static int mt9t031_g_mbus_config(struct v4l2_subdev *sd,
 				struct v4l2_mbus_config *cfg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
+	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
 
 	cfg->flags = V4L2_MBUS_MASTER | V4L2_MBUS_PCLK_SAMPLE_RISING |
 		V4L2_MBUS_PCLK_SAMPLE_FALLING | V4L2_MBUS_HSYNC_ACTIVE_HIGH |
 		V4L2_MBUS_VSYNC_ACTIVE_HIGH | V4L2_MBUS_DATA_ACTIVE_HIGH;
 	cfg->type = V4L2_MBUS_PARALLEL;
-	cfg->flags = soc_camera_apply_board_flags(icl, cfg);
+	cfg->flags = soc_camera_apply_board_flags(ssdd, cfg);
 
 	return 0;
 }
@@ -722,9 +722,9 @@ static int mt9t031_s_mbus_config(struct v4l2_subdev *sd,
 				const struct v4l2_mbus_config *cfg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
+	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
 
-	if (soc_camera_apply_board_flags(icl, cfg) &
+	if (soc_camera_apply_board_flags(ssdd, cfg) &
 	    V4L2_MBUS_PCLK_SAMPLE_FALLING)
 		return reg_clear(client, MT9T031_PIXEL_CLOCK_CONTROL, 0x8000);
 	else
@@ -758,11 +758,11 @@ static int mt9t031_probe(struct i2c_client *client,
 			 const struct i2c_device_id *did)
 {
 	struct mt9t031 *mt9t031;
-	struct soc_camera_link *icl = soc_camera_i2c_to_link(client);
+	struct soc_camera_subdev_desc *ssdd = soc_camera_i2c_to_desc(client);
 	struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
 	int ret;
 
-	if (!icl) {
+	if (!ssdd) {
 		dev_err(&client->dev, "MT9T031 driver needs platform data\n");
 		return -EINVAL;
 	}
@@ -773,7 +773,7 @@ static int mt9t031_probe(struct i2c_client *client,
 		return -EIO;
 	}
 
-	mt9t031 = kzalloc(sizeof(struct mt9t031), GFP_KERNEL);
+	mt9t031 = devm_kzalloc(&client->dev, sizeof(struct mt9t031), GFP_KERNEL);
 	if (!mt9t031)
 		return -ENOMEM;
 
@@ -797,12 +797,9 @@ static int mt9t031_probe(struct i2c_client *client,
 			V4L2_CID_EXPOSURE, 1, 255, 1, 255);
 
 	mt9t031->subdev.ctrl_handler = &mt9t031->hdl;
-	if (mt9t031->hdl.error) {
-		int err = mt9t031->hdl.error;
+	if (mt9t031->hdl.error)
+		return mt9t031->hdl.error;
 
-		kfree(mt9t031);
-		return err;
-	}
 	v4l2_ctrl_auto_cluster(2, &mt9t031->autoexposure,
 				V4L2_EXPOSURE_MANUAL, true);
 
@@ -816,10 +813,8 @@ static int mt9t031_probe(struct i2c_client *client,
 	mt9t031->yskip = 1;
 
 	ret = mt9t031_video_probe(client);
-	if (ret) {
+	if (ret)
 		v4l2_ctrl_handler_free(&mt9t031->hdl);
-		kfree(mt9t031);
-	}
 
 	return ret;
 }
@@ -830,7 +825,6 @@ static int mt9t031_remove(struct i2c_client *client)
 
 	v4l2_device_unregister_subdev(&mt9t031->subdev);
 	v4l2_ctrl_handler_free(&mt9t031->hdl);
-	kfree(mt9t031);
 
 	return 0;
 }

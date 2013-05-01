@@ -28,7 +28,7 @@ static const char *part_probe_types[] = { "cmdlinepart", NULL };
 /*
  * Probe for the NAND device.
  */
-static int __devinit plat_nand_probe(struct platform_device *pdev)
+static int plat_nand_probe(struct platform_device *pdev)
 {
 	struct platform_nand_data *pdata = pdev->dev.platform_data;
 	struct mtd_part_parser_data ppdata;
@@ -134,7 +134,7 @@ out_free:
 /*
  * Remove a NAND device.
  */
-static int __devexit plat_nand_remove(struct platform_device *pdev)
+static int plat_nand_remove(struct platform_device *pdev)
 {
 	struct plat_nand_data *data = platform_get_drvdata(pdev);
 	struct platform_nand_data *pdata = pdev->dev.platform_data;
@@ -160,7 +160,7 @@ MODULE_DEVICE_TABLE(of, plat_nand_match);
 
 static struct platform_driver plat_nand_driver = {
 	.probe	= plat_nand_probe,
-	.remove	= __devexit_p(plat_nand_remove),
+	.remove	= plat_nand_remove,
 	.driver	= {
 		.name		= "gen_nand",
 		.owner		= THIS_MODULE,

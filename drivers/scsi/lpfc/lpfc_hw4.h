@@ -106,6 +106,7 @@ struct lpfc_sli_intf {
 
 #define LPFC_SLI4_MB_WORD_COUNT		64
 #define LPFC_MAX_MQ_PAGE		8
+#define LPFC_MAX_WQ_PAGE_V0		4
 #define LPFC_MAX_WQ_PAGE		8
 #define LPFC_MAX_CQ_PAGE		4
 #define LPFC_MAX_EQ_PAGE		8
@@ -703,24 +704,41 @@ struct lpfc_register {
  * BAR0.  The offsets are the same so the driver must account for
  * any base address difference.
  */
-#define LPFC_RQ_DOORBELL		0x00A0
-#define lpfc_rq_doorbell_num_posted_SHIFT	16
-#define lpfc_rq_doorbell_num_posted_MASK	0x3FFF
-#define lpfc_rq_doorbell_num_posted_WORD	word0
-#define lpfc_rq_doorbell_id_SHIFT		0
-#define lpfc_rq_doorbell_id_MASK		0xFFFF
-#define lpfc_rq_doorbell_id_WORD		word0
+#define LPFC_ULP0_RQ_DOORBELL		0x00A0
+#define LPFC_ULP1_RQ_DOORBELL		0x00C0
+#define lpfc_rq_db_list_fm_num_posted_SHIFT	24
+#define lpfc_rq_db_list_fm_num_posted_MASK	0x00FF
+#define lpfc_rq_db_list_fm_num_posted_WORD	word0
+#define lpfc_rq_db_list_fm_index_SHIFT		16
+#define lpfc_rq_db_list_fm_index_MASK		0x00FF
+#define lpfc_rq_db_list_fm_index_WORD		word0
+#define lpfc_rq_db_list_fm_id_SHIFT		0
+#define lpfc_rq_db_list_fm_id_MASK		0xFFFF
+#define lpfc_rq_db_list_fm_id_WORD		word0
+#define lpfc_rq_db_ring_fm_num_posted_SHIFT	16
+#define lpfc_rq_db_ring_fm_num_posted_MASK	0x3FFF
+#define lpfc_rq_db_ring_fm_num_posted_WORD	word0
+#define lpfc_rq_db_ring_fm_id_SHIFT		0
+#define lpfc_rq_db_ring_fm_id_MASK		0xFFFF
+#define lpfc_rq_db_ring_fm_id_WORD		word0
 
-#define LPFC_WQ_DOORBELL		0x0040
-#define lpfc_wq_doorbell_num_posted_SHIFT	24
-#define lpfc_wq_doorbell_num_posted_MASK	0x00FF
-#define lpfc_wq_doorbell_num_posted_WORD	word0
-#define lpfc_wq_doorbell_index_SHIFT		16
-#define lpfc_wq_doorbell_index_MASK		0x00FF
-#define lpfc_wq_doorbell_index_WORD		word0
-#define lpfc_wq_doorbell_id_SHIFT		0
-#define lpfc_wq_doorbell_id_MASK		0xFFFF
-#define lpfc_wq_doorbell_id_WORD		word0
+#define LPFC_ULP0_WQ_DOORBELL		0x0040
+#define LPFC_ULP1_WQ_DOORBELL		0x0060
+#define lpfc_wq_db_list_fm_num_posted_SHIFT	24
+#define lpfc_wq_db_list_fm_num_posted_MASK	0x00FF
+#define lpfc_wq_db_list_fm_num_posted_WORD	word0
+#define lpfc_wq_db_list_fm_index_SHIFT		16
+#define lpfc_wq_db_list_fm_index_MASK		0x00FF
+#define lpfc_wq_db_list_fm_index_WORD		word0
+#define lpfc_wq_db_list_fm_id_SHIFT		0
+#define lpfc_wq_db_list_fm_id_MASK		0xFFFF
+#define lpfc_wq_db_list_fm_id_WORD		word0
+#define lpfc_wq_db_ring_fm_num_posted_SHIFT     16
+#define lpfc_wq_db_ring_fm_num_posted_MASK      0x3FFF
+#define lpfc_wq_db_ring_fm_num_posted_WORD      word0
+#define lpfc_wq_db_ring_fm_id_SHIFT             0
+#define lpfc_wq_db_ring_fm_id_MASK              0xFFFF
+#define lpfc_wq_db_ring_fm_id_WORD              word0
 
 #define LPFC_EQCQ_DOORBELL		0x0120
 #define lpfc_eqcq_doorbell_se_SHIFT		31
@@ -1131,12 +1149,22 @@ struct lpfc_mbx_wq_create {
 		struct {	/* Version 0 Request */
 			uint32_t word0;
 #define lpfc_mbx_wq_create_num_pages_SHIFT	0
-#define lpfc_mbx_wq_create_num_pages_MASK	0x0000FFFF
+#define lpfc_mbx_wq_create_num_pages_MASK	0x000000FF
 #define lpfc_mbx_wq_create_num_pages_WORD	word0
+#define lpfc_mbx_wq_create_dua_SHIFT		8
+#define lpfc_mbx_wq_create_dua_MASK		0x00000001
+#define lpfc_mbx_wq_create_dua_WORD		word0
 #define lpfc_mbx_wq_create_cq_id_SHIFT		16
 #define lpfc_mbx_wq_create_cq_id_MASK		0x0000FFFF
 #define lpfc_mbx_wq_create_cq_id_WORD		word0
-			struct dma_address page[LPFC_MAX_WQ_PAGE];
+			struct dma_address page[LPFC_MAX_WQ_PAGE_V0];
+			uint32_t word9;
+#define lpfc_mbx_wq_create_bua_SHIFT		0
+#define lpfc_mbx_wq_create_bua_MASK		0x00000001
+#define lpfc_mbx_wq_create_bua_WORD		word9
+#define lpfc_mbx_wq_create_ulp_num_SHIFT	8
+#define lpfc_mbx_wq_create_ulp_num_MASK		0x000000FF
+#define lpfc_mbx_wq_create_ulp_num_WORD		word9
 		} request;
 		struct {	/* Version 1 Request */
 			uint32_t word0;	/* Word 0 is the same as in v0 */
@@ -1160,6 +1188,17 @@ struct lpfc_mbx_wq_create {
 #define lpfc_mbx_wq_create_q_id_SHIFT	0
 #define lpfc_mbx_wq_create_q_id_MASK	0x0000FFFF
 #define lpfc_mbx_wq_create_q_id_WORD	word0
+			uint32_t doorbell_offset;
+			uint32_t word2;
+#define lpfc_mbx_wq_create_bar_set_SHIFT	0
+#define lpfc_mbx_wq_create_bar_set_MASK		0x0000FFFF
+#define lpfc_mbx_wq_create_bar_set_WORD		word2
+#define WQ_PCI_BAR_0_AND_1	0x00
+#define WQ_PCI_BAR_2_AND_3	0x01
+#define WQ_PCI_BAR_4_AND_5	0x02
+#define lpfc_mbx_wq_create_db_format_SHIFT	16
+#define lpfc_mbx_wq_create_db_format_MASK	0x0000FFFF
+#define lpfc_mbx_wq_create_db_format_WORD	word2
 		} response;
 	} u;
 };
@@ -1223,14 +1262,31 @@ struct lpfc_mbx_rq_create {
 #define lpfc_mbx_rq_create_num_pages_SHIFT	0
 #define lpfc_mbx_rq_create_num_pages_MASK	0x0000FFFF
 #define lpfc_mbx_rq_create_num_pages_WORD	word0
+#define lpfc_mbx_rq_create_dua_SHIFT		16
+#define lpfc_mbx_rq_create_dua_MASK		0x00000001
+#define lpfc_mbx_rq_create_dua_WORD		word0
+#define lpfc_mbx_rq_create_bqu_SHIFT		17
+#define lpfc_mbx_rq_create_bqu_MASK		0x00000001
+#define lpfc_mbx_rq_create_bqu_WORD		word0
+#define lpfc_mbx_rq_create_ulp_num_SHIFT	24
+#define lpfc_mbx_rq_create_ulp_num_MASK		0x000000FF
+#define lpfc_mbx_rq_create_ulp_num_WORD		word0
 			struct rq_context context;
 			struct dma_address page[LPFC_MAX_WQ_PAGE];
 		} request;
 		struct {
 			uint32_t word0;
-#define lpfc_mbx_rq_create_q_id_SHIFT	0
-#define lpfc_mbx_rq_create_q_id_MASK	0x0000FFFF
-#define lpfc_mbx_rq_create_q_id_WORD	word0
+#define lpfc_mbx_rq_create_q_id_SHIFT		0
+#define lpfc_mbx_rq_create_q_id_MASK		0x0000FFFF
+#define lpfc_mbx_rq_create_q_id_WORD		word0
+			uint32_t doorbell_offset;
+			uint32_t word2;
+#define lpfc_mbx_rq_create_bar_set_SHIFT	0
+#define lpfc_mbx_rq_create_bar_set_MASK		0x0000FFFF
+#define lpfc_mbx_rq_create_bar_set_WORD		word2
+#define lpfc_mbx_rq_create_db_format_SHIFT	16
+#define lpfc_mbx_rq_create_db_format_MASK	0x0000FFFF
+#define lpfc_mbx_rq_create_db_format_WORD	word2
 		} response;
 	} u;
 };
@@ -1386,6 +1442,33 @@ struct lpfc_mbx_get_rsrc_extent_info {
 #define lpfc_mbx_get_rsrc_extent_info_size_WORD		word4
 		} rsp;
 	} u;
+};
+
+struct lpfc_mbx_query_fw_config {
+	struct mbox_header header;
+	struct {
+		uint32_t config_number;
+#define	LPFC_FC_FCOE		0x00000007
+		uint32_t asic_revision;
+		uint32_t physical_port;
+		uint32_t function_mode;
+#define LPFC_FCOE_INI_MODE	0x00000040
+#define LPFC_FCOE_TGT_MODE	0x00000080
+#define LPFC_DUA_MODE		0x00000800
+		uint32_t ulp0_mode;
+#define LPFC_ULP_FCOE_INIT_MODE	0x00000040
+#define LPFC_ULP_FCOE_TGT_MODE	0x00000080
+		uint32_t ulp0_nap_words[12];
+		uint32_t ulp1_mode;
+		uint32_t ulp1_nap_words[12];
+		uint32_t function_capabilities;
+		uint32_t cqid_base;
+		uint32_t cqid_tot;
+		uint32_t eqid_base;
+		uint32_t eqid_tot;
+		uint32_t ulp0_nap2_words[2];
+		uint32_t ulp1_nap2_words[2];
+	} rsp;
 };
 
 struct lpfc_id_range {
@@ -1801,51 +1884,6 @@ struct lpfc_mbx_redisc_fcf_tbl {
 #define lpfc_mbx_redisc_fcf_index_SHIFT		0
 #define lpfc_mbx_redisc_fcf_index_MASK		0x0000FFFF
 #define lpfc_mbx_redisc_fcf_index_WORD		word12
-};
-
-struct lpfc_mbx_query_fw_cfg {
-	struct mbox_header header;
-	uint32_t config_number;
-	uint32_t asic_rev;
-	uint32_t phys_port;
-	uint32_t function_mode;
-/* firmware Function Mode */
-#define lpfc_function_mode_toe_SHIFT		0
-#define lpfc_function_mode_toe_MASK		0x00000001
-#define lpfc_function_mode_toe_WORD		function_mode
-#define lpfc_function_mode_nic_SHIFT		1
-#define lpfc_function_mode_nic_MASK		0x00000001
-#define lpfc_function_mode_nic_WORD		function_mode
-#define lpfc_function_mode_rdma_SHIFT		2
-#define lpfc_function_mode_rdma_MASK		0x00000001
-#define lpfc_function_mode_rdma_WORD		function_mode
-#define lpfc_function_mode_vm_SHIFT		3
-#define lpfc_function_mode_vm_MASK		0x00000001
-#define lpfc_function_mode_vm_WORD		function_mode
-#define lpfc_function_mode_iscsi_i_SHIFT	4
-#define lpfc_function_mode_iscsi_i_MASK		0x00000001
-#define lpfc_function_mode_iscsi_i_WORD		function_mode
-#define lpfc_function_mode_iscsi_t_SHIFT	5
-#define lpfc_function_mode_iscsi_t_MASK		0x00000001
-#define lpfc_function_mode_iscsi_t_WORD		function_mode
-#define lpfc_function_mode_fcoe_i_SHIFT		6
-#define lpfc_function_mode_fcoe_i_MASK		0x00000001
-#define lpfc_function_mode_fcoe_i_WORD		function_mode
-#define lpfc_function_mode_fcoe_t_SHIFT		7
-#define lpfc_function_mode_fcoe_t_MASK		0x00000001
-#define lpfc_function_mode_fcoe_t_WORD		function_mode
-#define lpfc_function_mode_dal_SHIFT		8
-#define lpfc_function_mode_dal_MASK		0x00000001
-#define lpfc_function_mode_dal_WORD		function_mode
-#define lpfc_function_mode_lro_SHIFT		9
-#define lpfc_function_mode_lro_MASK		0x00000001
-#define lpfc_function_mode_lro_WORD		function_mode
-#define lpfc_function_mode_flex10_SHIFT		10
-#define lpfc_function_mode_flex10_MASK		0x00000001
-#define lpfc_function_mode_flex10_WORD		function_mode
-#define lpfc_function_mode_ncsi_SHIFT		11
-#define lpfc_function_mode_ncsi_MASK		0x00000001
-#define lpfc_function_mode_ncsi_WORD		function_mode
 };
 
 /* Status field for embedded SLI_CONFIG mailbox command */
@@ -2965,7 +3003,7 @@ struct lpfc_mqe {
 		struct lpfc_mbx_read_config rd_config;
 		struct lpfc_mbx_request_features req_ftrs;
 		struct lpfc_mbx_post_hdr_tmpl hdr_tmpl;
-		struct lpfc_mbx_query_fw_cfg query_fw_cfg;
+		struct lpfc_mbx_query_fw_config query_fw_cfg;
 		struct lpfc_mbx_supp_pages supp_pages;
 		struct lpfc_mbx_pc_sli4_params sli4_params;
 		struct lpfc_mbx_get_sli4_parameters get_sli4_parameters;
@@ -3219,6 +3257,9 @@ struct wqe_common {
 #define wqe_dif_SHIFT         0
 #define wqe_dif_MASK          0x00000003
 #define wqe_dif_WORD          word7
+#define LPFC_WQE_DIF_PASSTHRU	1
+#define LPFC_WQE_DIF_STRIP	2
+#define LPFC_WQE_DIF_INSERT	3
 #define wqe_ct_SHIFT          2
 #define wqe_ct_MASK           0x00000003
 #define wqe_ct_WORD           word7

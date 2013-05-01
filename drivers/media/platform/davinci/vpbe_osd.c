@@ -39,7 +39,22 @@
 #include <linux/io.h>
 #include "vpbe_osd_regs.h"
 
-#define MODULE_NAME	VPBE_OSD_SUBDEV_NAME
+#define MODULE_NAME	"davinci-vpbe-osd"
+
+static struct platform_device_id vpbe_osd_devtype[] = {
+	{
+		.name = DM644X_VPBE_OSD_SUBDEV_NAME,
+		.driver_data = VPBE_VERSION_1,
+	}, {
+		.name = DM365_VPBE_OSD_SUBDEV_NAME,
+		.driver_data = VPBE_VERSION_2,
+	}, {
+		.name = DM355_VPBE_OSD_SUBDEV_NAME,
+		.driver_data = VPBE_VERSION_3,
+	},
+};
+
+MODULE_DEVICE_TABLE(platform, vpbe_osd_devtype);
 
 /* register access routines */
 static inline u32 osd_read(struct osd_state *sd, u32 offset)
@@ -62,7 +77,7 @@ static inline u32 osd_set(struct osd_state *sd, u32 mask, u32 offset)
 {
 	struct osd_state *osd = sd;
 
-	u32 addr = osd->osd_base + offset;
+	void __iomem *addr = osd->osd_base + offset;
 	u32 val = readl(addr) | mask;
 
 	writel(val, addr);
@@ -74,7 +89,7 @@ static inline u32 osd_clear(struct osd_state *sd, u32 mask, u32 offset)
 {
 	struct osd_state *osd = sd;
 
-	u32 addr = osd->osd_base + offset;
+	void __iomem *addr = osd->osd_base + offset;
 	u32 val = readl(addr) & ~mask;
 
 	writel(val, addr);
@@ -87,7 +102,7 @@ static inline u32 osd_modify(struct osd_state *sd, u32 mask, u32 val,
 {
 	struct osd_state *osd = sd;
 
-	u32 addr = osd->osd_base + offset;
+	void __iomem *addr = osd->osd_base + offset;
 	u32 new_val = (readl(addr) & ~mask) | (val & mask);
 
 	writel(new_val, addr);
@@ -129,7 +144,7 @@ static int _osd_dm6446_vid0_pingpong(struct osd_state *sd,
 	struct osd_platform_data *pdata;
 
 	pdata = (struct osd_platform_data *)sd->dev->platform_data;
-	if (pdata->field_inv_wa_enable) {
+	if (pdata != NULL && pdata->field_inv_wa_enable) {
 
 		if (!field_inversion || !lconfig->interlaced) {
 			osd_write(sd, fb_base_phys & ~0x1F, OSD_VIDWIN0ADR);
@@ -1526,7 +1541,7 @@ static const struct vpbe_osd_ops osd_ops = {
 
 static int osd_probe(struct platform_device *pdev)
 {
-	struct osd_platform_data *pdata;
+	const struct platform_device_id *pdev_id;
 	struct osd_state *osd;
 	struct resource *res;
 	int ret = 0;
@@ -1535,15 +1550,14 @@ static int osd_probe(struct platform_device *pdev)
 	if (osd == NULL)
 		return -ENOMEM;
 
-	osd->dev = &pdev->dev;
-	pdata = (struct osd_platform_data *)pdev->dev.platform_data;
-	osd->vpbe_type = (enum vpbe_version)pdata->vpbe_type;
-	if (NULL == pdev->dev.platform_data) {
-		dev_err(osd->dev, "No platform data defined for OSD"
-			" sub device\n");
-		ret = -ENOENT;
+	pdev_id = platform_get_device_id(pdev);
+	if (!pdev_id) {
+		ret = -EINVAL;
 		goto free_mem;
 	}
+
+	osd->dev = &pdev->dev;
+	osd->vpbe_type = pdev_id->driver_data;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -1559,8 +1573,7 @@ static int osd_probe(struct platform_device *pdev)
 		ret = -ENODEV;
 		goto free_mem;
 	}
-	osd->osd_base = (unsigned long)ioremap_nocache(res->start,
-							osd->osd_size);
+	osd->osd_base = ioremap_nocache(res->start, osd->osd_size);
 	if (!osd->osd_base) {
 		dev_err(osd->dev, "Unable to map the OSD region\n");
 		ret = -ENODEV;
@@ -1596,6 +1609,7 @@ static struct platform_driver osd_driver = {
 		.name	= MODULE_NAME,
 		.owner	= THIS_MODULE,
 	},
+	.id_table	= vpbe_osd_devtype
 };
 
 module_platform_driver(osd_driver);

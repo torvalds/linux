@@ -666,7 +666,7 @@ static struct bin_attribute pch_bin_attr = {
 	.write = pch_phub_bin_write,
 };
 
-static int __devinit pch_phub_probe(struct pci_dev *pdev,
+static int pch_phub_probe(struct pci_dev *pdev,
 				    const struct pci_device_id *id)
 {
 	int retval;
@@ -819,7 +819,7 @@ err_pci_enable_dev:
 	return ret;
 }
 
-static void __devexit pch_phub_remove(struct pci_dev *pdev)
+static void pch_phub_remove(struct pci_dev *pdev)
 {
 	struct pch_phub_reg *chip = pci_get_drvdata(pdev);
 
@@ -888,7 +888,7 @@ static struct pci_driver pch_phub_driver = {
 	.name = "pch_phub",
 	.id_table = pch_phub_pcidev_id,
 	.probe = pch_phub_probe,
-	.remove = __devexit_p(pch_phub_remove),
+	.remove = pch_phub_remove,
 	.suspend = pch_phub_suspend,
 	.resume = pch_phub_resume
 };

@@ -978,7 +978,7 @@ extern void libipw_network_reset(struct libipw_network *network);
 /* libipw_geo.c */
 extern const struct libipw_geo *libipw_get_geo(struct libipw_device
 						     *ieee);
-extern int libipw_set_geo(struct libipw_device *ieee,
+extern void libipw_set_geo(struct libipw_device *ieee,
 			     const struct libipw_geo *geo);
 
 extern int libipw_is_valid_channel(struct libipw_device *ieee,

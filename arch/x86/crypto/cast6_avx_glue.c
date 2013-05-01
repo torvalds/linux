@@ -40,70 +40,25 @@
 
 #define CAST6_PARALLEL_BLOCKS 8
 
-asmlinkage void __cast6_enc_blk_8way(struct cast6_ctx *ctx, u8 *dst,
-				     const u8 *src, bool xor);
-asmlinkage void cast6_dec_blk_8way(struct cast6_ctx *ctx, u8 *dst,
+asmlinkage void cast6_ecb_enc_8way(struct cast6_ctx *ctx, u8 *dst,
+				   const u8 *src);
+asmlinkage void cast6_ecb_dec_8way(struct cast6_ctx *ctx, u8 *dst,
 				   const u8 *src);
 
-static inline void cast6_enc_blk_xway(struct cast6_ctx *ctx, u8 *dst,
-				      const u8 *src)
-{
-	__cast6_enc_blk_8way(ctx, dst, src, false);
-}
+asmlinkage void cast6_cbc_dec_8way(struct cast6_ctx *ctx, u8 *dst,
+				   const u8 *src);
+asmlinkage void cast6_ctr_8way(struct cast6_ctx *ctx, u8 *dst, const u8 *src,
+			       le128 *iv);
 
-static inline void cast6_enc_blk_xway_xor(struct cast6_ctx *ctx, u8 *dst,
-					  const u8 *src)
-{
-	__cast6_enc_blk_8way(ctx, dst, src, true);
-}
-
-static inline void cast6_dec_blk_xway(struct cast6_ctx *ctx, u8 *dst,
-				      const u8 *src)
-{
-	cast6_dec_blk_8way(ctx, dst, src);
-}
-
-
-static void cast6_decrypt_cbc_xway(void *ctx, u128 *dst, const u128 *src)
-{
-	u128 ivs[CAST6_PARALLEL_BLOCKS - 1];
-	unsigned int j;
-
-	for (j = 0; j < CAST6_PARALLEL_BLOCKS - 1; j++)
-		ivs[j] = src[j];
-
-	cast6_dec_blk_xway(ctx, (u8 *)dst, (u8 *)src);
-
-	for (j = 0; j < CAST6_PARALLEL_BLOCKS - 1; j++)
-		u128_xor(dst + (j + 1), dst + (j + 1), ivs + j);
-}
-
-static void cast6_crypt_ctr(void *ctx, u128 *dst, const u128 *src, u128 *iv)
+static void cast6_crypt_ctr(void *ctx, u128 *dst, const u128 *src, le128 *iv)
 {
 	be128 ctrblk;
 
-	u128_to_be128(&ctrblk, iv);
-	u128_inc(iv);
+	le128_to_be128(&ctrblk, iv);
+	le128_inc(iv);
 
 	__cast6_encrypt(ctx, (u8 *)&ctrblk, (u8 *)&ctrblk);
 	u128_xor(dst, src, (u128 *)&ctrblk);
-}
-
-static void cast6_crypt_ctr_xway(void *ctx, u128 *dst, const u128 *src,
-				   u128 *iv)
-{
-	be128 ctrblks[CAST6_PARALLEL_BLOCKS];
-	unsigned int i;
-
-	for (i = 0; i < CAST6_PARALLEL_BLOCKS; i++) {
-		if (dst != src)
-			dst[i] = src[i];
-
-		u128_to_be128(&ctrblks[i], iv);
-		u128_inc(iv);
-	}
-
-	cast6_enc_blk_xway_xor(ctx, (u8 *)dst, (u8 *)ctrblks);
 }
 
 static const struct common_glue_ctx cast6_enc = {
@@ -112,7 +67,7 @@ static const struct common_glue_ctx cast6_enc = {
 
 	.funcs = { {
 		.num_blocks = CAST6_PARALLEL_BLOCKS,
-		.fn_u = { .ecb = GLUE_FUNC_CAST(cast6_enc_blk_xway) }
+		.fn_u = { .ecb = GLUE_FUNC_CAST(cast6_ecb_enc_8way) }
 	}, {
 		.num_blocks = 1,
 		.fn_u = { .ecb = GLUE_FUNC_CAST(__cast6_encrypt) }
@@ -125,7 +80,7 @@ static const struct common_glue_ctx cast6_ctr = {
 
 	.funcs = { {
 		.num_blocks = CAST6_PARALLEL_BLOCKS,
-		.fn_u = { .ctr = GLUE_CTR_FUNC_CAST(cast6_crypt_ctr_xway) }
+		.fn_u = { .ctr = GLUE_CTR_FUNC_CAST(cast6_ctr_8way) }
 	}, {
 		.num_blocks = 1,
 		.fn_u = { .ctr = GLUE_CTR_FUNC_CAST(cast6_crypt_ctr) }
@@ -138,7 +93,7 @@ static const struct common_glue_ctx cast6_dec = {
 
 	.funcs = { {
 		.num_blocks = CAST6_PARALLEL_BLOCKS,
-		.fn_u = { .ecb = GLUE_FUNC_CAST(cast6_dec_blk_xway) }
+		.fn_u = { .ecb = GLUE_FUNC_CAST(cast6_ecb_dec_8way) }
 	}, {
 		.num_blocks = 1,
 		.fn_u = { .ecb = GLUE_FUNC_CAST(__cast6_decrypt) }
@@ -151,7 +106,7 @@ static const struct common_glue_ctx cast6_dec_cbc = {
 
 	.funcs = { {
 		.num_blocks = CAST6_PARALLEL_BLOCKS,
-		.fn_u = { .cbc = GLUE_CBC_FUNC_CAST(cast6_decrypt_cbc_xway) }
+		.fn_u = { .cbc = GLUE_CBC_FUNC_CAST(cast6_cbc_dec_8way) }
 	}, {
 		.num_blocks = 1,
 		.fn_u = { .cbc = GLUE_CBC_FUNC_CAST(__cast6_decrypt) }
@@ -215,7 +170,7 @@ static void encrypt_callback(void *priv, u8 *srcdst, unsigned int nbytes)
 	ctx->fpu_enabled = cast6_fpu_begin(ctx->fpu_enabled, nbytes);
 
 	if (nbytes == bsize * CAST6_PARALLEL_BLOCKS) {
-		cast6_enc_blk_xway(ctx->ctx, srcdst, srcdst);
+		cast6_ecb_enc_8way(ctx->ctx, srcdst, srcdst);
 		return;
 	}
 
@@ -232,7 +187,7 @@ static void decrypt_callback(void *priv, u8 *srcdst, unsigned int nbytes)
 	ctx->fpu_enabled = cast6_fpu_begin(ctx->fpu_enabled, nbytes);
 
 	if (nbytes == bsize * CAST6_PARALLEL_BLOCKS) {
-		cast6_dec_blk_xway(ctx->ctx, srcdst, srcdst);
+		cast6_ecb_dec_8way(ctx->ctx, srcdst, srcdst);
 		return;
 	}
 

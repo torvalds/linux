@@ -83,21 +83,12 @@ static int v9fs_cached_dentry_delete(const struct dentry *dentry)
 
 static void v9fs_dentry_release(struct dentry *dentry)
 {
-	struct v9fs_dentry *dent;
-	struct p9_fid *temp, *current_fid;
-
+	struct hlist_node *p, *n;
 	p9_debug(P9_DEBUG_VFS, " dentry: %s (%p)\n",
 		 dentry->d_name.name, dentry);
-	dent = dentry->d_fsdata;
-	if (dent) {
-		list_for_each_entry_safe(current_fid, temp, &dent->fidlist,
-									dlist) {
-			p9_client_clunk(current_fid);
-		}
-
-		kfree(dent);
-		dentry->d_fsdata = NULL;
-	}
+	hlist_for_each_safe(p, n, (struct hlist_head *)&dentry->d_fsdata)
+		p9_client_clunk(hlist_entry(p, struct p9_fid, dlist));
+	dentry->d_fsdata = NULL;
 }
 
 static int v9fs_lookup_revalidate(struct dentry *dentry, unsigned int flags)
@@ -137,6 +128,7 @@ out_valid:
 
 const struct dentry_operations v9fs_cached_dentry_operations = {
 	.d_revalidate = v9fs_lookup_revalidate,
+	.d_weak_revalidate = v9fs_lookup_revalidate,
 	.d_delete = v9fs_cached_dentry_delete,
 	.d_release = v9fs_dentry_release,
 };

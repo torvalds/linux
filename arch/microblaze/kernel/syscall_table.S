@@ -2,11 +2,7 @@ ENTRY(sys_call_table)
 	.long sys_restart_syscall	/* 0 - old "setup()" system call,
 					 * used for restarting */
 	.long sys_exit
-#ifdef CONFIG_MMU
-	.long sys_fork_wrapper
-#else
-	.long sys_ni_syscall
-#endif
+	.long sys_fork
 	.long sys_read
 	.long sys_write
 	.long sys_open			/* 5 */
@@ -383,3 +379,5 @@ ENTRY(sys_call_table)
 	.long sys_sendmmsg
 	.long sys_process_vm_readv
 	.long sys_process_vm_writev
+	.long sys_kcmp
+	.long sys_finit_module

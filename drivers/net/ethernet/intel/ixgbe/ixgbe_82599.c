@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2012 Intel Corporation.
+  Copyright(c) 1999 - 2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -45,24 +45,19 @@ static void ixgbe_enable_tx_laser_multispeed_fiber(struct ixgbe_hw *hw);
 static void ixgbe_flap_tx_laser_multispeed_fiber(struct ixgbe_hw *hw);
 static s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 						 ixgbe_link_speed speed,
-						 bool autoneg,
 						 bool autoneg_wait_to_complete);
 static s32 ixgbe_setup_mac_link_smartspeed(struct ixgbe_hw *hw,
                                            ixgbe_link_speed speed,
-                                           bool autoneg,
                                            bool autoneg_wait_to_complete);
 static s32 ixgbe_start_mac_link_82599(struct ixgbe_hw *hw,
 				      bool autoneg_wait_to_complete);
 static s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw,
                                ixgbe_link_speed speed,
-                               bool autoneg,
                                bool autoneg_wait_to_complete);
 static s32 ixgbe_setup_copper_link_82599(struct ixgbe_hw *hw,
                                          ixgbe_link_speed speed,
-                                         bool autoneg,
                                          bool autoneg_wait_to_complete);
 static s32 ixgbe_verify_fw_version_82599(struct ixgbe_hw *hw);
-static bool ixgbe_verify_lesm_fw_enabled_82599(struct ixgbe_hw *hw);
 
 static void ixgbe_init_mac_link_ops_82599(struct ixgbe_hw *hw)
 {
@@ -99,9 +94,8 @@ static void ixgbe_init_mac_link_ops_82599(struct ixgbe_hw *hw)
 static s32 ixgbe_setup_sfp_modules_82599(struct ixgbe_hw *hw)
 {
 	s32 ret_val = 0;
-	u32 reg_anlp1 = 0;
-	u32 i = 0;
 	u16 list_offset, data_offset, data_value;
+	bool got_lock = false;
 
 	if (hw->phy.sfp_type != ixgbe_sfp_type_unknown) {
 		ixgbe_init_mac_link_ops_82599(hw);
@@ -137,28 +131,36 @@ static s32 ixgbe_setup_sfp_modules_82599(struct ixgbe_hw *hw)
 		usleep_range(hw->eeprom.semaphore_delay * 1000,
 			     hw->eeprom.semaphore_delay * 2000);
 
-		/* Now restart DSP by setting Restart_AN and clearing LMS */
-		IXGBE_WRITE_REG(hw, IXGBE_AUTOC, ((IXGBE_READ_REG(hw,
-		                IXGBE_AUTOC) & ~IXGBE_AUTOC_LMS_MASK) |
-		                IXGBE_AUTOC_AN_RESTART));
+		/* Need SW/FW semaphore around AUTOC writes if LESM on,
+		 * likewise reset_pipeline requires lock as it also writes
+		 * AUTOC.
+		 */
+		if (ixgbe_verify_lesm_fw_enabled_82599(hw)) {
+			ret_val = hw->mac.ops.acquire_swfw_sync(hw,
+							IXGBE_GSSR_MAC_CSR_SM);
+			if (ret_val)
+				goto setup_sfp_out;
 
-		/* Wait for AN to leave state 0 */
-		for (i = 0; i < 10; i++) {
-			usleep_range(4000, 8000);
-			reg_anlp1 = IXGBE_READ_REG(hw, IXGBE_ANLP1);
-			if (reg_anlp1 & IXGBE_ANLP1_AN_STATE_MASK)
-				break;
+			got_lock = true;
 		}
-		if (!(reg_anlp1 & IXGBE_ANLP1_AN_STATE_MASK)) {
-			hw_dbg(hw, "sfp module setup not complete\n");
+
+		/* Restart DSP and set SFI mode */
+		IXGBE_WRITE_REG(hw, IXGBE_AUTOC, (IXGBE_READ_REG(hw,
+				IXGBE_AUTOC) | IXGBE_AUTOC_LMS_10G_SERIAL));
+
+		ret_val = ixgbe_reset_pipeline_82599(hw);
+
+		if (got_lock) {
+			hw->mac.ops.release_swfw_sync(hw,
+						      IXGBE_GSSR_MAC_CSR_SM);
+			got_lock = false;
+		}
+
+		if (ret_val) {
+			hw_dbg(hw, " sfp module setup not complete\n");
 			ret_val = IXGBE_ERR_SFP_SETUP_NOT_COMPLETE;
 			goto setup_sfp_out;
 		}
-
-		/* Restart DSP by setting Restart_AN and return to SFI mode */
-		IXGBE_WRITE_REG(hw, IXGBE_AUTOC, (IXGBE_READ_REG(hw,
-		                IXGBE_AUTOC) | IXGBE_AUTOC_LMS_10G_SERIAL |
-		                IXGBE_AUTOC_AN_RESTART));
 	}
 
 setup_sfp_out:
@@ -228,13 +230,13 @@ static s32 ixgbe_init_phy_ops_82599(struct ixgbe_hw *hw)
  *  ixgbe_get_link_capabilities_82599 - Determines link capabilities
  *  @hw: pointer to hardware structure
  *  @speed: pointer to link speed
- *  @negotiation: true when autoneg or autotry is enabled
+ *  @autoneg: true when autoneg or autotry is enabled
  *
  *  Determines the link capabilities by reading the AUTOC register.
  **/
 static s32 ixgbe_get_link_capabilities_82599(struct ixgbe_hw *hw,
                                              ixgbe_link_speed *speed,
-                                             bool *negotiation)
+					     bool *autoneg)
 {
 	s32 status = 0;
 	u32 autoc = 0;
@@ -245,7 +247,7 @@ static s32 ixgbe_get_link_capabilities_82599(struct ixgbe_hw *hw,
 	    hw->phy.sfp_type == ixgbe_sfp_type_1g_sx_core0 ||
 	    hw->phy.sfp_type == ixgbe_sfp_type_1g_sx_core1) {
 		*speed = IXGBE_LINK_SPEED_1GB_FULL;
-		*negotiation = true;
+		*autoneg = true;
 		goto out;
 	}
 
@@ -262,22 +264,22 @@ static s32 ixgbe_get_link_capabilities_82599(struct ixgbe_hw *hw,
 	switch (autoc & IXGBE_AUTOC_LMS_MASK) {
 	case IXGBE_AUTOC_LMS_1G_LINK_NO_AN:
 		*speed = IXGBE_LINK_SPEED_1GB_FULL;
-		*negotiation = false;
+		*autoneg = false;
 		break;
 
 	case IXGBE_AUTOC_LMS_10G_LINK_NO_AN:
 		*speed = IXGBE_LINK_SPEED_10GB_FULL;
-		*negotiation = false;
+		*autoneg = false;
 		break;
 
 	case IXGBE_AUTOC_LMS_1G_AN:
 		*speed = IXGBE_LINK_SPEED_1GB_FULL;
-		*negotiation = true;
+		*autoneg = true;
 		break;
 
 	case IXGBE_AUTOC_LMS_10G_SERIAL:
 		*speed = IXGBE_LINK_SPEED_10GB_FULL;
-		*negotiation = false;
+		*autoneg = false;
 		break;
 
 	case IXGBE_AUTOC_LMS_KX4_KX_KR:
@@ -289,7 +291,7 @@ static s32 ixgbe_get_link_capabilities_82599(struct ixgbe_hw *hw,
 			*speed |= IXGBE_LINK_SPEED_10GB_FULL;
 		if (autoc & IXGBE_AUTOC_KX_SUPP)
 			*speed |= IXGBE_LINK_SPEED_1GB_FULL;
-		*negotiation = true;
+		*autoneg = true;
 		break;
 
 	case IXGBE_AUTOC_LMS_KX4_KX_KR_SGMII:
@@ -300,12 +302,12 @@ static s32 ixgbe_get_link_capabilities_82599(struct ixgbe_hw *hw,
 			*speed |= IXGBE_LINK_SPEED_10GB_FULL;
 		if (autoc & IXGBE_AUTOC_KX_SUPP)
 			*speed |= IXGBE_LINK_SPEED_1GB_FULL;
-		*negotiation = true;
+		*autoneg = true;
 		break;
 
 	case IXGBE_AUTOC_LMS_SGMII_1G_100M:
 		*speed = IXGBE_LINK_SPEED_1GB_FULL | IXGBE_LINK_SPEED_100_FULL;
-		*negotiation = false;
+		*autoneg = false;
 		break;
 
 	default:
@@ -317,7 +319,7 @@ static s32 ixgbe_get_link_capabilities_82599(struct ixgbe_hw *hw,
 	if (hw->phy.multispeed_fiber) {
 		*speed |= IXGBE_LINK_SPEED_10GB_FULL |
 		          IXGBE_LINK_SPEED_1GB_FULL;
-		*negotiation = true;
+		*autoneg = true;
 	}
 
 out:
@@ -394,14 +396,26 @@ static s32 ixgbe_start_mac_link_82599(struct ixgbe_hw *hw,
 	u32 links_reg;
 	u32 i;
 	s32 status = 0;
+	bool got_lock = false;
+
+	if (ixgbe_verify_lesm_fw_enabled_82599(hw)) {
+		status = hw->mac.ops.acquire_swfw_sync(hw,
+						IXGBE_GSSR_MAC_CSR_SM);
+		if (status)
+			goto out;
+
+		got_lock = true;
+	}
 
 	/* Restart link */
-	autoc_reg = IXGBE_READ_REG(hw, IXGBE_AUTOC);
-	autoc_reg |= IXGBE_AUTOC_AN_RESTART;
-	IXGBE_WRITE_REG(hw, IXGBE_AUTOC, autoc_reg);
+	ixgbe_reset_pipeline_82599(hw);
+
+	if (got_lock)
+		hw->mac.ops.release_swfw_sync(hw, IXGBE_GSSR_MAC_CSR_SM);
 
 	/* Only poll for autoneg to complete if specified to do so */
 	if (autoneg_wait_to_complete) {
+		autoc_reg = IXGBE_READ_REG(hw, IXGBE_AUTOC);
 		if ((autoc_reg & IXGBE_AUTOC_LMS_MASK) ==
 		     IXGBE_AUTOC_LMS_KX4_KX_KR ||
 		    (autoc_reg & IXGBE_AUTOC_LMS_MASK) ==
@@ -425,6 +439,7 @@ static s32 ixgbe_start_mac_link_82599(struct ixgbe_hw *hw,
 	/* Add delay to filter out noises during initial link setup */
 	msleep(50);
 
+out:
 	return status;
 }
 
@@ -491,14 +506,12 @@ static void ixgbe_flap_tx_laser_multispeed_fiber(struct ixgbe_hw *hw)
  *  ixgbe_setup_mac_link_multispeed_fiber - Set MAC link speed
  *  @hw: pointer to hardware structure
  *  @speed: new link speed
- *  @autoneg: true if autonegotiation enabled
  *  @autoneg_wait_to_complete: true when waiting for completion is needed
  *
  *  Set the link speed in the AUTOC register and restarts link.
  **/
 static s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
                                           ixgbe_link_speed speed,
-                                          bool autoneg,
                                           bool autoneg_wait_to_complete)
 {
 	s32 status = 0;
@@ -508,11 +521,11 @@ static s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 	u32 esdp_reg = IXGBE_READ_REG(hw, IXGBE_ESDP);
 	u32 i = 0;
 	bool link_up = false;
-	bool negotiation;
+	bool autoneg = false;
 
 	/* Mask off requested but non-supported speeds */
 	status = hw->mac.ops.get_link_capabilities(hw, &link_speed,
-						   &negotiation);
+						   &autoneg);
 	if (status != 0)
 		return status;
 
@@ -545,7 +558,6 @@ static s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 
 		status = ixgbe_setup_mac_link_82599(hw,
 						    IXGBE_LINK_SPEED_10GB_FULL,
-						    autoneg,
 						    autoneg_wait_to_complete);
 		if (status != 0)
 			return status;
@@ -598,7 +610,6 @@ static s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 
 		status = ixgbe_setup_mac_link_82599(hw,
 						    IXGBE_LINK_SPEED_1GB_FULL,
-						    autoneg,
 						    autoneg_wait_to_complete);
 		if (status != 0)
 			return status;
@@ -627,7 +638,6 @@ static s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 	if (speedcnt > 1)
 		status = ixgbe_setup_mac_link_multispeed_fiber(hw,
 		                                               highest_link_speed,
-		                                               autoneg,
 		                                               autoneg_wait_to_complete);
 
 out:
@@ -647,13 +657,12 @@ out:
  *  ixgbe_setup_mac_link_smartspeed - Set MAC link speed using SmartSpeed
  *  @hw: pointer to hardware structure
  *  @speed: new link speed
- *  @autoneg: true if autonegotiation enabled
  *  @autoneg_wait_to_complete: true when waiting for completion is needed
  *
  *  Implements the Intel SmartSpeed algorithm.
  **/
 static s32 ixgbe_setup_mac_link_smartspeed(struct ixgbe_hw *hw,
-				     ixgbe_link_speed speed, bool autoneg,
+				     ixgbe_link_speed speed,
 				     bool autoneg_wait_to_complete)
 {
 	s32 status = 0;
@@ -684,7 +693,7 @@ static s32 ixgbe_setup_mac_link_smartspeed(struct ixgbe_hw *hw,
 	/* First, try to get link with full advertisement */
 	hw->phy.smart_speed_active = false;
 	for (j = 0; j < IXGBE_SMARTSPEED_MAX_RETRIES; j++) {
-		status = ixgbe_setup_mac_link_82599(hw, speed, autoneg,
+		status = ixgbe_setup_mac_link_82599(hw, speed,
 						    autoneg_wait_to_complete);
 		if (status != 0)
 			goto out;
@@ -719,7 +728,7 @@ static s32 ixgbe_setup_mac_link_smartspeed(struct ixgbe_hw *hw,
 
 	/* Turn SmartSpeed on to disable KR support */
 	hw->phy.smart_speed_active = true;
-	status = ixgbe_setup_mac_link_82599(hw, speed, autoneg,
+	status = ixgbe_setup_mac_link_82599(hw, speed,
 					    autoneg_wait_to_complete);
 	if (status != 0)
 		goto out;
@@ -745,7 +754,7 @@ static s32 ixgbe_setup_mac_link_smartspeed(struct ixgbe_hw *hw,
 
 	/* We didn't get link.  Turn SmartSpeed back off. */
 	hw->phy.smart_speed_active = false;
-	status = ixgbe_setup_mac_link_82599(hw, speed, autoneg,
+	status = ixgbe_setup_mac_link_82599(hw, speed,
 					    autoneg_wait_to_complete);
 
 out:
@@ -759,14 +768,13 @@ out:
  *  ixgbe_setup_mac_link_82599 - Set MAC link speed
  *  @hw: pointer to hardware structure
  *  @speed: new link speed
- *  @autoneg: true if autonegotiation enabled
  *  @autoneg_wait_to_complete: true when waiting for completion is needed
  *
  *  Set the link speed in the AUTOC register and restarts link.
  **/
 static s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw,
-                               ixgbe_link_speed speed, bool autoneg,
-                               bool autoneg_wait_to_complete)
+				      ixgbe_link_speed speed,
+				      bool autoneg_wait_to_complete)
 {
 	s32 status = 0;
 	u32 autoc = IXGBE_READ_REG(hw, IXGBE_AUTOC);
@@ -779,6 +787,8 @@ static s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw,
 	u32 links_reg;
 	u32 i;
 	ixgbe_link_speed link_capabilities = IXGBE_LINK_SPEED_UNKNOWN;
+	bool got_lock = false;
+	bool autoneg = false;
 
 	/* Check to see if speed passed in is supported. */
 	status = hw->mac.ops.get_link_capabilities(hw, &link_capabilities,
@@ -836,9 +846,26 @@ static s32 ixgbe_setup_mac_link_82599(struct ixgbe_hw *hw,
 	}
 
 	if (autoc != start_autoc) {
+		/* Need SW/FW semaphore around AUTOC writes if LESM is on,
+		 * likewise reset_pipeline requires us to hold this lock as
+		 * it also writes to AUTOC.
+		 */
+		if (ixgbe_verify_lesm_fw_enabled_82599(hw)) {
+			status = hw->mac.ops.acquire_swfw_sync(hw,
+							IXGBE_GSSR_MAC_CSR_SM);
+			if (status != 0)
+				goto out;
+
+			got_lock = true;
+		}
+
 		/* Restart link */
-		autoc |= IXGBE_AUTOC_AN_RESTART;
 		IXGBE_WRITE_REG(hw, IXGBE_AUTOC, autoc);
+		ixgbe_reset_pipeline_82599(hw);
+
+		if (got_lock)
+			hw->mac.ops.release_swfw_sync(hw,
+						      IXGBE_GSSR_MAC_CSR_SM);
 
 		/* Only poll for autoneg to complete if specified to do so */
 		if (autoneg_wait_to_complete) {
@@ -874,20 +901,18 @@ out:
  *  ixgbe_setup_copper_link_82599 - Set the PHY autoneg advertised field
  *  @hw: pointer to hardware structure
  *  @speed: new link speed
- *  @autoneg: true if autonegotiation enabled
  *  @autoneg_wait_to_complete: true if waiting is needed to complete
  *
  *  Restarts link on PHY and MAC based on settings passed in.
  **/
 static s32 ixgbe_setup_copper_link_82599(struct ixgbe_hw *hw,
                                          ixgbe_link_speed speed,
-                                         bool autoneg,
                                          bool autoneg_wait_to_complete)
 {
 	s32 status;
 
 	/* Setup the PHY according to input speed */
-	status = hw->phy.ops.setup_link_speed(hw, speed, autoneg,
+	status = hw->phy.ops.setup_link_speed(hw, speed,
 	                                      autoneg_wait_to_complete);
 	/* Set up MAC */
 	ixgbe_start_mac_link_82599(hw, autoneg_wait_to_complete);
@@ -994,9 +1019,28 @@ mac_reset_top:
 		hw->mac.orig_autoc2 = autoc2;
 		hw->mac.orig_link_settings_stored = true;
 	} else {
-		if (autoc != hw->mac.orig_autoc)
-			IXGBE_WRITE_REG(hw, IXGBE_AUTOC, (hw->mac.orig_autoc |
-			                IXGBE_AUTOC_AN_RESTART));
+		if (autoc != hw->mac.orig_autoc) {
+			/* Need SW/FW semaphore around AUTOC writes if LESM is
+			 * on, likewise reset_pipeline requires us to hold
+			 * this lock as it also writes to AUTOC.
+			 */
+			bool got_lock = false;
+			if (ixgbe_verify_lesm_fw_enabled_82599(hw)) {
+				status = hw->mac.ops.acquire_swfw_sync(hw,
+							IXGBE_GSSR_MAC_CSR_SM);
+				if (status)
+					goto reset_hw_out;
+
+				got_lock = true;
+			}
+
+			IXGBE_WRITE_REG(hw, IXGBE_AUTOC, hw->mac.orig_autoc);
+			ixgbe_reset_pipeline_82599(hw);
+
+			if (got_lock)
+				hw->mac.ops.release_swfw_sync(hw,
+							IXGBE_GSSR_MAC_CSR_SM);
+		}
 
 		if ((autoc2 & IXGBE_AUTOC2_UPPER_MASK) !=
 		    (hw->mac.orig_autoc2 & IXGBE_AUTOC2_UPPER_MASK)) {
@@ -1022,7 +1066,7 @@ mac_reset_top:
 	hw->mac.ops.get_san_mac_addr(hw, hw->mac.san_addr);
 
 	/* Add the SAN MAC address to the RAR only if it's a valid address */
-	if (ixgbe_validate_mac_addr(hw->mac.san_addr) == 0) {
+	if (is_valid_ether_addr(hw->mac.san_addr)) {
 		hw->mac.ops.set_rar(hw, hw->mac.num_rar_entries - 1,
 		                    hw->mac.san_addr, 0, IXGBE_RAH_AV);
 
@@ -1983,7 +2027,7 @@ fw_version_out:
  *  Returns true if the LESM FW module is present and enabled. Otherwise
  *  returns false. Smart Speed must be disabled if LESM FW module is enabled.
  **/
-static bool ixgbe_verify_lesm_fw_enabled_82599(struct ixgbe_hw *hw)
+bool ixgbe_verify_lesm_fw_enabled_82599(struct ixgbe_hw *hw)
 {
 	bool lesm_enabled = false;
 	u16 fw_offset, fw_lesm_param_offset, fw_lesm_state;
@@ -2080,6 +2124,50 @@ static s32 ixgbe_read_eeprom_82599(struct ixgbe_hw *hw,
 	return ret_val;
 }
 
+/**
+ * ixgbe_reset_pipeline_82599 - perform pipeline reset
+ *
+ * @hw: pointer to hardware structure
+ *
+ * Reset pipeline by asserting Restart_AN together with LMS change to ensure
+ * full pipeline reset.  Note - We must hold the SW/FW semaphore before writing
+ * to AUTOC, so this function assumes the semaphore is held.
+ **/
+s32 ixgbe_reset_pipeline_82599(struct ixgbe_hw *hw)
+{
+	s32 i, autoc_reg, ret_val;
+	s32 anlp1_reg = 0;
+
+	autoc_reg = IXGBE_READ_REG(hw, IXGBE_AUTOC);
+	autoc_reg |= IXGBE_AUTOC_AN_RESTART;
+
+	/* Write AUTOC register with toggled LMS[2] bit and Restart_AN */
+	IXGBE_WRITE_REG(hw, IXGBE_AUTOC, autoc_reg ^ IXGBE_AUTOC_LMS_1G_AN);
+
+	/* Wait for AN to leave state 0 */
+	for (i = 0; i < 10; i++) {
+		usleep_range(4000, 8000);
+		anlp1_reg = IXGBE_READ_REG(hw, IXGBE_ANLP1);
+		if (anlp1_reg & IXGBE_ANLP1_AN_STATE_MASK)
+			break;
+	}
+
+	if (!(anlp1_reg & IXGBE_ANLP1_AN_STATE_MASK)) {
+		hw_dbg(hw, "auto negotiation not completed\n");
+		ret_val = IXGBE_ERR_RESET_FAILED;
+		goto reset_pipeline_out;
+	}
+
+	ret_val = 0;
+
+reset_pipeline_out:
+	/* Write AUTOC register with original LMS field and Restart_AN */
+	IXGBE_WRITE_REG(hw, IXGBE_AUTOC, autoc_reg);
+	IXGBE_WRITE_FLUSH(hw);
+
+	return ret_val;
+}
+
 static struct ixgbe_mac_operations mac_ops_82599 = {
 	.init_hw                = &ixgbe_init_hw_generic,
 	.reset_hw               = &ixgbe_reset_hw_82599,
@@ -2153,6 +2241,7 @@ static struct ixgbe_phy_operations phy_ops_82599 = {
 	.setup_link_speed	= &ixgbe_setup_phy_link_speed_generic,
 	.read_i2c_byte		= &ixgbe_read_i2c_byte_generic,
 	.write_i2c_byte		= &ixgbe_write_i2c_byte_generic,
+	.read_i2c_sff8472	= &ixgbe_read_i2c_sff8472_generic,
 	.read_i2c_eeprom	= &ixgbe_read_i2c_eeprom_generic,
 	.write_i2c_eeprom	= &ixgbe_write_i2c_eeprom_generic,
 	.check_overtemp		= &ixgbe_tn_check_overtemp,

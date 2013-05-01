@@ -27,22 +27,10 @@
 #include <linux/slab.h>
 #include <linux/rbtree.h>
 #include "ext4.h"
-
-static unsigned char ext4_filetype_table[] = {
-	DT_UNKNOWN, DT_REG, DT_DIR, DT_CHR, DT_BLK, DT_FIFO, DT_SOCK, DT_LNK
-};
+#include "xattr.h"
 
 static int ext4_dx_readdir(struct file *filp,
 			   void *dirent, filldir_t filldir);
-
-static unsigned char get_dtype(struct super_block *sb, int filetype)
-{
-	if (!EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_FILETYPE) ||
-	    (filetype >= EXT4_FT_MAX))
-		return DT_UNKNOWN;
-
-	return (ext4_filetype_table[filetype]);
-}
 
 /**
  * Check if the given dir-inode refers to an htree-indexed directory
@@ -68,11 +56,14 @@ static int is_dx_dir(struct inode *inode)
  * Return 0 if the directory entry is OK, and 1 if there is a problem
  *
  * Note: this is the opposite of what ext2 and ext3 historically returned...
+ *
+ * bh passed here can be an inode block or a dir data block, depending
+ * on the inode inline data flag.
  */
 int __ext4_check_dir_entry(const char *function, unsigned int line,
 			   struct inode *dir, struct file *filp,
 			   struct ext4_dir_entry_2 *de,
-			   struct buffer_head *bh,
+			   struct buffer_head *bh, char *buf, int size,
 			   unsigned int offset)
 {
 	const char *error_msg = NULL;
@@ -85,9 +76,8 @@ int __ext4_check_dir_entry(const char *function, unsigned int line,
 		error_msg = "rec_len % 4 != 0";
 	else if (unlikely(rlen < EXT4_DIR_REC_LEN(de->name_len)))
 		error_msg = "rec_len is too small for name_len";
-	else if (unlikely(((char *) de - bh->b_data) + rlen >
-			  dir->i_sb->s_blocksize))
-		error_msg = "directory entry across blocks";
+	else if (unlikely(((char *) de - buf) + rlen > size))
+		error_msg = "directory entry across range";
 	else if (unlikely(le32_to_cpu(de->inode) >
 			le32_to_cpu(EXT4_SB(dir->i_sb)->s_es->s_inodes_count)))
 		error_msg = "inode out of bounds";
@@ -98,14 +88,14 @@ int __ext4_check_dir_entry(const char *function, unsigned int line,
 		ext4_error_file(filp, function, line, bh->b_blocknr,
 				"bad entry in directory: %s - offset=%u(%u), "
 				"inode=%u, rec_len=%d, name_len=%d",
-				error_msg, (unsigned) (offset % bh->b_size),
+				error_msg, (unsigned) (offset % size),
 				offset, le32_to_cpu(de->inode),
 				rlen, de->name_len);
 	else
 		ext4_error_inode(dir, function, line, bh->b_blocknr,
 				"bad entry in directory: %s - offset=%u(%u), "
 				"inode=%u, rec_len=%d, name_len=%d",
-				error_msg, (unsigned) (offset % bh->b_size),
+				error_msg, (unsigned) (offset % size),
 				offset, le32_to_cpu(de->inode),
 				rlen, de->name_len);
 
@@ -120,10 +110,18 @@ static int ext4_readdir(struct file *filp,
 	int i, stored;
 	struct ext4_dir_entry_2 *de;
 	int err;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct super_block *sb = inode->i_sb;
 	int ret = 0;
 	int dir_has_error = 0;
+
+	if (ext4_has_inline_data(inode)) {
+		int has_inline_data = 1;
+		ret = ext4_read_inline_dir(filp, dirent, filldir,
+					   &has_inline_data);
+		if (has_inline_data)
+			return ret;
+	}
 
 	if (is_dx_dir(inode)) {
 		err = ext4_dx_readdir(filp, dirent, filldir);
@@ -135,7 +133,7 @@ static int ext4_readdir(struct file *filp,
 		 * We don't set the inode dirty flag since it's not
 		 * critical that it get flushed back to the disk.
 		 */
-		ext4_clear_inode_flag(filp->f_path.dentry->d_inode,
+		ext4_clear_inode_flag(file_inode(filp),
 				      EXT4_INODE_INDEX);
 	}
 	stored = 0;
@@ -187,6 +185,7 @@ static int ext4_readdir(struct file *filp,
 					"at offset %llu",
 					(unsigned long long)filp->f_pos);
 			filp->f_pos += sb->s_blocksize - offset;
+			brelse(bh);
 			continue;
 		}
 		set_buffer_verified(bh);
@@ -221,8 +220,9 @@ revalidate:
 		while (!error && filp->f_pos < inode->i_size
 		       && offset < sb->s_blocksize) {
 			de = (struct ext4_dir_entry_2 *) (bh->b_data + offset);
-			if (ext4_check_dir_entry(inode, filp, de,
-						 bh, offset)) {
+			if (ext4_check_dir_entry(inode, filp, de, bh,
+						 bh->b_data, bh->b_size,
+						 offset)) {
 				/*
 				 * On error, skip the f_pos to the next block
 				 */
@@ -334,17 +334,17 @@ static inline loff_t ext4_get_htree_eof(struct file *filp)
  *
  * For non-htree, ext4_llseek already chooses the proper max offset.
  */
-loff_t ext4_dir_llseek(struct file *file, loff_t offset, int origin)
+static loff_t ext4_dir_llseek(struct file *file, loff_t offset, int whence)
 {
 	struct inode *inode = file->f_mapping->host;
 	int dx_dir = is_dx_dir(inode);
 	loff_t htree_max = ext4_get_htree_eof(file);
 
 	if (likely(dx_dir))
-		return generic_file_llseek_size(file, offset, origin,
+		return generic_file_llseek_size(file, offset, whence,
 						    htree_max, htree_max);
 	else
-		return ext4_llseek(file, offset, origin);
+		return ext4_llseek(file, offset, whence);
 }
 
 /*
@@ -495,7 +495,7 @@ static int call_filldir(struct file *filp, void *dirent,
 {
 	struct dir_private_info *info = filp->private_data;
 	loff_t	curr_pos;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct super_block *sb;
 	int error;
 
@@ -527,7 +527,7 @@ static int ext4_dx_readdir(struct file *filp,
 			 void *dirent, filldir_t filldir)
 {
 	struct dir_private_info *info = filp->private_data;
-	struct inode *inode = filp->f_path.dentry->d_inode;
+	struct inode *inode = file_inode(filp);
 	struct fname *fname;
 	int	ret;
 

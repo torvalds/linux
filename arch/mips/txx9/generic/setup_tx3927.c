@@ -132,6 +132,6 @@ void __init tx3927_mtd_init(int ch)
 	unsigned long size = txx9_ce_res[ch].end - start + 1;
 
 	if (!(tx3927_romcptr->cr[ch] & 0x8))
-		return;	/* disabled */
+		return; /* disabled */
 	txx9_physmap_flash_init(ch, start, size, &pdata);
 }

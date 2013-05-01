@@ -134,7 +134,7 @@ static ssize_t set_analog_out(struct device *dev,
 		return err;
 
 	mutex_lock(&data->update_lock);
-	data->analog_out = SENSORS_LIMIT(tmp, 0, 255);
+	data->analog_out = clamp_val(tmp, 0, 255);
 	i2c_smbus_write_byte_data(client, THMC50_REG_ANALOG_OUT,
 				  data->analog_out);
 
@@ -187,7 +187,7 @@ static ssize_t set_temp_min(struct device *dev, struct device_attribute *attr,
 		return err;
 
 	mutex_lock(&data->update_lock);
-	data->temp_min[nr] = SENSORS_LIMIT(val / 1000, -128, 127);
+	data->temp_min[nr] = clamp_val(val / 1000, -128, 127);
 	i2c_smbus_write_byte_data(client, THMC50_REG_TEMP_MIN[nr],
 				  data->temp_min[nr]);
 	mutex_unlock(&data->update_lock);
@@ -216,7 +216,7 @@ static ssize_t set_temp_max(struct device *dev, struct device_attribute *attr,
 		return err;
 
 	mutex_lock(&data->update_lock);
-	data->temp_max[nr] = SENSORS_LIMIT(val / 1000, -128, 127);
+	data->temp_max[nr] = clamp_val(val / 1000, -128, 127);
 	i2c_smbus_write_byte_data(client, THMC50_REG_TEMP_MAX[nr],
 				  data->temp_max[nr]);
 	mutex_unlock(&data->update_lock);

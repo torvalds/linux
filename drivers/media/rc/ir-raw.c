@@ -31,11 +31,6 @@ static DEFINE_MUTEX(ir_raw_handler_lock);
 static LIST_HEAD(ir_raw_handler_list);
 static u64 available_protocols;
 
-#ifdef MODULE
-/* Used to load the decoders */
-static struct work_struct wq_load;
-#endif
-
 static int ir_raw_event_thread(void *data)
 {
 	struct ir_raw_event ev;
@@ -347,8 +342,7 @@ void ir_raw_handler_unregister(struct ir_raw_handler *ir_raw_handler)
 }
 EXPORT_SYMBOL(ir_raw_handler_unregister);
 
-#ifdef MODULE
-static void init_decoders(struct work_struct *work)
+void ir_raw_init(void)
 {
 	/* Load the decoder modules */
 
@@ -364,13 +358,4 @@ static void init_decoders(struct work_struct *work)
 	/* If needed, we may later add some init code. In this case,
 	   it is needed to change the CONFIG_MODULE test at rc-core.h
 	 */
-}
-#endif
-
-void ir_raw_init(void)
-{
-#ifdef MODULE
-	INIT_WORK(&wq_load, init_decoders);
-	schedule_work(&wq_load);
-#endif
 }

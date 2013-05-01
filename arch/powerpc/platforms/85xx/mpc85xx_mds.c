@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006-2010, 2012 Freescale Semicondutor, Inc.
+ * Copyright (C) 2006-2010, 2012 Freescale Semiconductor, Inc.
  * All rights reserved.
  *
  * Author: Andy Fleming <afleming@freescale.com>
@@ -206,9 +206,7 @@ static void __init mpc85xx_mds_reset_ucc_phys(void)
 		setbits8(&bcsr_regs[7], BCSR7_UCC12_GETHnRST);
 		clrbits8(&bcsr_regs[8], BCSR8_UEM_MARVELL_RST);
 
-		for (np = NULL; (np = of_find_compatible_node(np,
-						"network",
-						"ucc_geth")) != NULL;) {
+		for_each_compatible_node(np, "network", "ucc_geth") {
 			const unsigned int *prop;
 			int ucc_num;
 

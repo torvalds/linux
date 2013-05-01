@@ -85,7 +85,7 @@ time_sched_init(irqreturn_t(*timer_routine) (int, void *))
 /*
  * Should return useconds since last timer tick
  */
-u32 arch_gettimeoffset(void)
+static u32 blackfin_gettimeoffset(void)
 {
 	unsigned long offset;
 	unsigned long clocks_per_jiffy;
@@ -141,6 +141,10 @@ void read_persistent_clock(struct timespec *ts)
 
 void __init time_init(void)
 {
+#ifdef CONFIG_ARCH_USES_GETTIMEOFFSET
+	arch_gettimeoffset = blackfin_gettimeoffset;
+#endif
+
 #ifdef CONFIG_RTC_DRV_BFIN
 	/* [#2663] hack to filter junk RTC values that would cause
 	 * userspace to have to deal with time values greater than

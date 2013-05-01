@@ -23,7 +23,17 @@
  *
  */
 
+#include <linux/linkage.h>
+#include "glue_helper-asm-avx.S"
+
 .file "twofish-avx-x86_64-asm_64.S"
+
+.data
+.align 16
+
+.Lbswap128_mask:
+	.byte 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0
+
 .text
 
 /* structure of crypto context */
@@ -217,68 +227,42 @@
 	vpunpcklqdq		x3, t2, x2; \
 	vpunpckhqdq		x3, t2, x3;
 
-#define inpack_blocks(in, x0, x1, x2, x3, wkey, t0, t1, t2) \
-	vpxor (0*4*4)(in),	wkey, x0; \
-	vpxor (1*4*4)(in),	wkey, x1; \
-	vpxor (2*4*4)(in),	wkey, x2; \
-	vpxor (3*4*4)(in),	wkey, x3; \
+#define inpack_blocks(x0, x1, x2, x3, wkey, t0, t1, t2) \
+	vpxor		x0, wkey, x0; \
+	vpxor		x1, wkey, x1; \
+	vpxor		x2, wkey, x2; \
+	vpxor		x3, wkey, x3; \
 	\
 	transpose_4x4(x0, x1, x2, x3, t0, t1, t2)
 
-#define outunpack_blocks(out, x0, x1, x2, x3, wkey, t0, t1, t2) \
+#define outunpack_blocks(x0, x1, x2, x3, wkey, t0, t1, t2) \
 	transpose_4x4(x0, x1, x2, x3, t0, t1, t2) \
 	\
-	vpxor		x0, wkey, x0;     \
-	vmovdqu 	x0, (0*4*4)(out); \
-	vpxor		x1, wkey, x1;     \
-	vmovdqu		x1, (1*4*4)(out); \
-	vpxor		x2, wkey, x2;     \
-	vmovdqu		x2, (2*4*4)(out); \
-	vpxor		x3, wkey, x3;     \
-	vmovdqu		x3, (3*4*4)(out);
-
-#define outunpack_xor_blocks(out, x0, x1, x2, x3, wkey, t0, t1, t2) \
-	transpose_4x4(x0, x1, x2, x3, t0, t1, t2) \
-	\
-	vpxor		x0, wkey, x0;         \
-	vpxor		(0*4*4)(out), x0, x0; \
-	vmovdqu 	x0, (0*4*4)(out);     \
-	vpxor		x1, wkey, x1;         \
-	vpxor		(1*4*4)(out), x1, x1; \
-	vmovdqu	        x1, (1*4*4)(out);     \
-	vpxor		x2, wkey, x2;         \
-	vpxor           (2*4*4)(out), x2, x2; \
-	vmovdqu		x2, (2*4*4)(out);     \
-	vpxor		x3, wkey, x3;         \
-	vpxor           (3*4*4)(out), x3, x3; \
-	vmovdqu		x3, (3*4*4)(out);
+	vpxor		x0, wkey, x0; \
+	vpxor		x1, wkey, x1; \
+	vpxor		x2, wkey, x2; \
+	vpxor		x3, wkey, x3;
 
 .align 8
-.global __twofish_enc_blk_8way
-.type   __twofish_enc_blk_8way,@function;
-
-__twofish_enc_blk_8way:
+__twofish_enc_blk8:
 	/* input:
 	 *	%rdi: ctx, CTX
-	 *	%rsi: dst
-	 *	%rdx: src
-	 *	%rcx: bool, if true: xor output
+	 *	RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2: blocks
+	 * output:
+	 *	RC1, RD1, RA1, RB1, RC2, RD2, RA2, RB2: encrypted blocks
 	 */
+
+	vmovdqu w(CTX), RK1;
 
 	pushq %rbp;
 	pushq %rbx;
 	pushq %rcx;
 
-	vmovdqu w(CTX), RK1;
-
-	leaq (4*4*4)(%rdx), %rax;
-	inpack_blocks(%rdx, RA1, RB1, RC1, RD1, RK1, RX0, RY0, RK2);
+	inpack_blocks(RA1, RB1, RC1, RD1, RK1, RX0, RY0, RK2);
 	preload_rgi(RA1);
 	rotate_1l(RD1);
-	inpack_blocks(%rax, RA2, RB2, RC2, RD2, RK1, RX0, RY0, RK2);
+	inpack_blocks(RA2, RB2, RC2, RD2, RK1, RX0, RY0, RK2);
 	rotate_1l(RD2);
-
-	movq %rsi, %r11;
 
 	encrypt_cycle(0);
 	encrypt_cycle(1);
@@ -295,46 +279,31 @@ __twofish_enc_blk_8way:
 	popq %rbx;
 	popq %rbp;
 
-	leaq (4*4*4)(%r11), %rax;
-
-	testb %cl, %cl;
-	jnz __enc_xor8;
-
-	outunpack_blocks(%r11, RC1, RD1, RA1, RB1, RK1, RX0, RY0, RK2);
-	outunpack_blocks(%rax, RC2, RD2, RA2, RB2, RK1, RX0, RY0, RK2);
+	outunpack_blocks(RC1, RD1, RA1, RB1, RK1, RX0, RY0, RK2);
+	outunpack_blocks(RC2, RD2, RA2, RB2, RK1, RX0, RY0, RK2);
 
 	ret;
-
-__enc_xor8:
-	outunpack_xor_blocks(%r11, RC1, RD1, RA1, RB1, RK1, RX0, RY0, RK2);
-	outunpack_xor_blocks(%rax, RC2, RD2, RA2, RB2, RK1, RX0, RY0, RK2);
-
-	ret;
+ENDPROC(__twofish_enc_blk8)
 
 .align 8
-.global twofish_dec_blk_8way
-.type   twofish_dec_blk_8way,@function;
-
-twofish_dec_blk_8way:
+__twofish_dec_blk8:
 	/* input:
 	 *	%rdi: ctx, CTX
-	 *	%rsi: dst
-	 *	%rdx: src
+	 *	RC1, RD1, RA1, RB1, RC2, RD2, RA2, RB2: encrypted blocks
+	 * output:
+	 *	RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2: decrypted blocks
 	 */
+
+	vmovdqu (w+4*4)(CTX), RK1;
 
 	pushq %rbp;
 	pushq %rbx;
 
-	vmovdqu (w+4*4)(CTX), RK1;
-
-	leaq (4*4*4)(%rdx), %rax;
-	inpack_blocks(%rdx, RC1, RD1, RA1, RB1, RK1, RX0, RY0, RK2);
+	inpack_blocks(RC1, RD1, RA1, RB1, RK1, RX0, RY0, RK2);
 	preload_rgi(RC1);
 	rotate_1l(RA1);
-	inpack_blocks(%rax, RC2, RD2, RA2, RB2, RK1, RX0, RY0, RK2);
+	inpack_blocks(RC2, RD2, RA2, RB2, RK1, RX0, RY0, RK2);
 	rotate_1l(RA2);
-
-	movq %rsi, %r11;
 
 	decrypt_cycle(7);
 	decrypt_cycle(6);
@@ -350,8 +319,92 @@ twofish_dec_blk_8way:
 	popq %rbx;
 	popq %rbp;
 
-	leaq (4*4*4)(%r11), %rax;
-	outunpack_blocks(%r11, RA1, RB1, RC1, RD1, RK1, RX0, RY0, RK2);
-	outunpack_blocks(%rax, RA2, RB2, RC2, RD2, RK1, RX0, RY0, RK2);
+	outunpack_blocks(RA1, RB1, RC1, RD1, RK1, RX0, RY0, RK2);
+	outunpack_blocks(RA2, RB2, RC2, RD2, RK1, RX0, RY0, RK2);
 
 	ret;
+ENDPROC(__twofish_dec_blk8)
+
+ENTRY(twofish_ecb_enc_8way)
+	/* input:
+	 *	%rdi: ctx, CTX
+	 *	%rsi: dst
+	 *	%rdx: src
+	 */
+
+	movq %rsi, %r11;
+
+	load_8way(%rdx, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2);
+
+	call __twofish_enc_blk8;
+
+	store_8way(%r11, RC1, RD1, RA1, RB1, RC2, RD2, RA2, RB2);
+
+	ret;
+ENDPROC(twofish_ecb_enc_8way)
+
+ENTRY(twofish_ecb_dec_8way)
+	/* input:
+	 *	%rdi: ctx, CTX
+	 *	%rsi: dst
+	 *	%rdx: src
+	 */
+
+	movq %rsi, %r11;
+
+	load_8way(%rdx, RC1, RD1, RA1, RB1, RC2, RD2, RA2, RB2);
+
+	call __twofish_dec_blk8;
+
+	store_8way(%r11, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2);
+
+	ret;
+ENDPROC(twofish_ecb_dec_8way)
+
+ENTRY(twofish_cbc_dec_8way)
+	/* input:
+	 *	%rdi: ctx, CTX
+	 *	%rsi: dst
+	 *	%rdx: src
+	 */
+
+	pushq %r12;
+
+	movq %rsi, %r11;
+	movq %rdx, %r12;
+
+	load_8way(%rdx, RC1, RD1, RA1, RB1, RC2, RD2, RA2, RB2);
+
+	call __twofish_dec_blk8;
+
+	store_cbc_8way(%r12, %r11, RA1, RB1, RC1, RD1, RA2, RB2, RC2, RD2);
+
+	popq %r12;
+
+	ret;
+ENDPROC(twofish_cbc_dec_8way)
+
+ENTRY(twofish_ctr_8way)
+	/* input:
+	 *	%rdi: ctx, CTX
+	 *	%rsi: dst
+	 *	%rdx: src
+	 *	%rcx: iv (little endian, 128bit)
+	 */
+
+	pushq %r12;
+
+	movq %rsi, %r11;
+	movq %rdx, %r12;
+
+	load_ctr_8way(%rcx, .Lbswap128_mask, RA1, RB1, RC1, RD1, RA2, RB2, RC2,
+		      RD2, RX0, RX1, RY0);
+
+	call __twofish_enc_blk8;
+
+	store_ctr_8way(%r12, %r11, RC1, RD1, RA1, RB1, RC2, RD2, RA2, RB2);
+
+	popq %r12;
+
+	ret;
+ENDPROC(twofish_ctr_8way)

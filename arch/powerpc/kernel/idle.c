@@ -55,9 +55,6 @@ __setup("powersave=off", powersave_off);
  */
 void cpu_idle(void)
 {
-	if (ppc_md.idle_loop)
-		ppc_md.idle_loop();	/* doesn't return */
-
 	set_thread_flag(TIF_POLLING_NRFLAG);
 	while (1) {
 		tick_nohz_idle_enter();

@@ -74,8 +74,8 @@ struct autofs_info {
 	unsigned long last_used;
 	atomic_t count;
 
-	uid_t uid;
-	gid_t gid;
+	kuid_t uid;
+	kgid_t gid;
 };
 
 #define AUTOFS_INF_EXPIRING	(1<<0) /* dentry is in the process of expiring */
@@ -89,8 +89,8 @@ struct autofs_wait_queue {
 	struct qstr name;
 	u32 dev;
 	u64 ino;
-	uid_t uid;
-	gid_t gid;
+	kuid_t uid;
+	kgid_t gid;
 	pid_t pid;
 	pid_t tgid;
 	/* This is for status reporting upon return */
@@ -273,7 +273,7 @@ static inline int autofs_prepare_pipe(struct file *pipe)
 {
 	if (!pipe->f_op || !pipe->f_op->write)
 		return -EINVAL;
-	if (!S_ISFIFO(pipe->f_dentry->d_inode->i_mode))
+	if (!S_ISFIFO(file_inode(pipe)->i_mode))
 		return -EINVAL;
 	/* We want a packet pipe */
 	pipe->f_flags |= O_DIRECT;

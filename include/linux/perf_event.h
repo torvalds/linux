@@ -135,16 +135,21 @@ struct hw_perf_event {
 		struct { /* software */
 			struct hrtimer	hrtimer;
 		};
+		struct { /* tracepoint */
+			struct task_struct	*tp_target;
+			/* for tp_event->class */
+			struct list_head	tp_list;
+		};
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 		struct { /* breakpoint */
-			struct arch_hw_breakpoint	info;
-			struct list_head		bp_list;
 			/*
 			 * Crufty hack to avoid the chicken and egg
 			 * problem hw_breakpoint has with context
 			 * creation and event initalization.
 			 */
 			struct task_struct		*bp_target;
+			struct arch_hw_breakpoint	info;
+			struct list_head		bp_list;
 		};
 #endif
 	};
@@ -794,6 +799,12 @@ static inline int __perf_event_disable(void *info)			{ return -1; }
 static inline void perf_event_task_tick(void)				{ }
 #endif
 
+#if defined(CONFIG_PERF_EVENTS) && defined(CONFIG_CPU_SUP_INTEL)
+extern void perf_restore_debug_store(void);
+#else
+static inline void perf_restore_debug_store(void)			{ }
+#endif
+
 #define perf_output_put(handle, x) perf_output_copy((handle), &(x), sizeof(x))
 
 /*
@@ -816,6 +827,17 @@ do {									\
 	register_cpu_notifier(&fn##_nb);				\
 } while (0)
 
+
+struct perf_pmu_events_attr {
+	struct device_attribute attr;
+	u64 id;
+};
+
+#define PMU_EVENT_ATTR(_name, _var, _id, _show)				\
+static struct perf_pmu_events_attr _var = {				\
+	.attr = __ATTR(_name, 0444, _show, NULL),			\
+	.id   =  _id,							\
+};
 
 #define PMU_FORMAT_ATTR(_name, _format)					\
 static ssize_t								\

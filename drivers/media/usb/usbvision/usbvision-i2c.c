@@ -189,8 +189,7 @@ int usbvision_i2c_register(struct usb_usbvision *usbvision)
 	if (usbvision->registered_i2c)
 		return 0;
 
-	memcpy(&usbvision->i2c_adap, &i2c_adap_template,
-	       sizeof(struct i2c_adapter));
+	usbvision->i2c_adap = i2c_adap_template;
 
 	sprintf(usbvision->i2c_adap.name, "%s-%d-%s", i2c_adap_template.name,
 		usbvision->dev->bus->busnum, usbvision->dev->devpath);

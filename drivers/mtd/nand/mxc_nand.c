@@ -37,14 +37,8 @@
 
 #include <asm/mach/flash.h>
 #include <linux/platform_data/mtd-mxc_nand.h>
-#include <mach/hardware.h>
 
 #define DRIVER_NAME "mxc_nand"
-
-#define nfc_is_v21()		(cpu_is_mx25() || cpu_is_mx35())
-#define nfc_is_v1()		(cpu_is_mx31() || cpu_is_mx27() || cpu_is_mx21())
-#define nfc_is_v3_2a()		cpu_is_mx51()
-#define nfc_is_v3_2b()		cpu_is_mx53()
 
 /* Addresses for NFC registers */
 #define NFC_V1_V2_BUF_SIZE		(host->regs + 0x00)
@@ -272,7 +266,8 @@ static struct nand_ecclayout nandv2_hw_eccoob_4k = {
 	}
 };
 
-static const char *part_probes[] = { "RedBoot", "cmdlinepart", "ofpart", NULL };
+static const char const *part_probes[] = {
+	"cmdlinepart", "RedBoot", "ofpart", NULL };
 
 static void memcpy32_fromio(void *trg, const void __iomem  *src, size_t size)
 {
@@ -535,12 +530,23 @@ static void send_page_v1(struct mtd_info *mtd, unsigned int ops)
 
 static void send_read_id_v3(struct mxc_nand_host *host)
 {
+	struct nand_chip *this = &host->nand;
+
 	/* Read ID into main buffer */
 	writel(NFC_ID, NFC_V3_LAUNCH);
 
 	wait_op_done(host, true);
 
 	memcpy32_fromio(host->data_buf, host->main_area0, 16);
+
+	if (this->options & NAND_BUSWIDTH_16) {
+		/* compress the ID info */
+		host->data_buf[1] = host->data_buf[2];
+		host->data_buf[2] = host->data_buf[4];
+		host->data_buf[3] = host->data_buf[6];
+		host->data_buf[4] = host->data_buf[8];
+		host->data_buf[5] = host->data_buf[10];
+	}
 }
 
 /* Request the NANDFC to perform a read of the NAND device ID. */
@@ -1283,6 +1289,53 @@ static const struct mxc_nand_devtype_data imx53_nand_devtype_data = {
 	.ppb_shift = 8,
 };
 
+static inline int is_imx21_nfc(struct mxc_nand_host *host)
+{
+	return host->devtype_data == &imx21_nand_devtype_data;
+}
+
+static inline int is_imx27_nfc(struct mxc_nand_host *host)
+{
+	return host->devtype_data == &imx27_nand_devtype_data;
+}
+
+static inline int is_imx25_nfc(struct mxc_nand_host *host)
+{
+	return host->devtype_data == &imx25_nand_devtype_data;
+}
+
+static inline int is_imx51_nfc(struct mxc_nand_host *host)
+{
+	return host->devtype_data == &imx51_nand_devtype_data;
+}
+
+static inline int is_imx53_nfc(struct mxc_nand_host *host)
+{
+	return host->devtype_data == &imx53_nand_devtype_data;
+}
+
+static struct platform_device_id mxcnd_devtype[] = {
+	{
+		.name = "imx21-nand",
+		.driver_data = (kernel_ulong_t) &imx21_nand_devtype_data,
+	}, {
+		.name = "imx27-nand",
+		.driver_data = (kernel_ulong_t) &imx27_nand_devtype_data,
+	}, {
+		.name = "imx25-nand",
+		.driver_data = (kernel_ulong_t) &imx25_nand_devtype_data,
+	}, {
+		.name = "imx51-nand",
+		.driver_data = (kernel_ulong_t) &imx51_nand_devtype_data,
+	}, {
+		.name = "imx53-nand",
+		.driver_data = (kernel_ulong_t) &imx53_nand_devtype_data,
+	}, {
+		/* sentinel */
+	}
+};
+MODULE_DEVICE_TABLE(platform, mxcnd_devtype);
+
 #ifdef CONFIG_OF_MTD
 static const struct of_device_id mxcnd_dt_ids[] = {
 	{
@@ -1337,33 +1390,7 @@ static int __init mxcnd_probe_dt(struct mxc_nand_host *host)
 }
 #endif
 
-static int __init mxcnd_probe_pdata(struct mxc_nand_host *host)
-{
-	struct mxc_nand_platform_data *pdata = host->dev->platform_data;
-
-	if (!pdata)
-		return -ENODEV;
-
-	host->pdata = *pdata;
-
-	if (nfc_is_v1()) {
-		if (cpu_is_mx21())
-			host->devtype_data = &imx21_nand_devtype_data;
-		else
-			host->devtype_data = &imx27_nand_devtype_data;
-	} else if (nfc_is_v21()) {
-		host->devtype_data = &imx25_nand_devtype_data;
-	} else if (nfc_is_v3_2a()) {
-		host->devtype_data = &imx51_nand_devtype_data;
-	} else if (nfc_is_v3_2b()) {
-		host->devtype_data = &imx53_nand_devtype_data;
-	} else
-		BUG();
-
-	return 0;
-}
-
-static int __devinit mxcnd_probe(struct platform_device *pdev)
+static int mxcnd_probe(struct platform_device *pdev)
 {
 	struct nand_chip *this;
 	struct mtd_info *mtd;
@@ -1404,8 +1431,16 @@ static int __devinit mxcnd_probe(struct platform_device *pdev)
 		return PTR_ERR(host->clk);
 
 	err = mxcnd_probe_dt(host);
-	if (err > 0)
-		err = mxcnd_probe_pdata(host);
+	if (err > 0) {
+		struct mxc_nand_platform_data *pdata = pdev->dev.platform_data;
+		if (pdata) {
+			host->pdata = *pdata;
+			host->devtype_data = (struct mxc_nand_devtype_data *)
+						pdev->id_entry->driver_data;
+		} else {
+			err = -ENODEV;
+		}
+	}
 	if (err < 0)
 		return err;
 
@@ -1413,9 +1448,9 @@ static int __devinit mxcnd_probe(struct platform_device *pdev)
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 		if (!res)
 			return -ENODEV;
-		host->regs_ip = devm_request_and_ioremap(&pdev->dev, res);
-		if (!host->regs_ip)
-			return -ENOMEM;
+		host->regs_ip = devm_ioremap_resource(&pdev->dev, res);
+		if (IS_ERR(host->regs_ip))
+			return PTR_ERR(host->regs_ip);
 
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	} else {
@@ -1425,9 +1460,9 @@ static int __devinit mxcnd_probe(struct platform_device *pdev)
 	if (!res)
 		return -ENODEV;
 
-	host->base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!host->base)
-		return -ENOMEM;
+	host->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(host->base))
+		return PTR_ERR(host->base);
 
 	host->main_area0 = host->base;
 
@@ -1494,7 +1529,7 @@ static int __devinit mxcnd_probe(struct platform_device *pdev)
 	}
 
 	/* first scan to find the device and get the page size */
-	if (nand_scan_ident(mtd, nfc_is_v21() ? 4 : 1, NULL)) {
+	if (nand_scan_ident(mtd, is_imx25_nfc(host) ? 4 : 1, NULL)) {
 		err = -ENXIO;
 		goto escan;
 	}
@@ -1508,7 +1543,7 @@ static int __devinit mxcnd_probe(struct platform_device *pdev)
 		this->ecc.layout = host->devtype_data->ecclayout_4k;
 
 	if (this->ecc.mode == NAND_ECC_HW) {
-		if (nfc_is_v1())
+		if (is_imx21_nfc(host) || is_imx27_nfc(host))
 			this->ecc.strength = 1;
 		else
 			this->ecc.strength = (host->eccsize == 4) ? 4 : 8;
@@ -1533,12 +1568,13 @@ static int __devinit mxcnd_probe(struct platform_device *pdev)
 	return 0;
 
 escan:
-	clk_disable_unprepare(host->clk);
+	if (host->clk_act)
+		clk_disable_unprepare(host->clk);
 
 	return err;
 }
 
-static int __devexit mxcnd_remove(struct platform_device *pdev)
+static int mxcnd_remove(struct platform_device *pdev)
 {
 	struct mxc_nand_host *host = platform_get_drvdata(pdev);
 
@@ -1555,8 +1591,9 @@ static struct platform_driver mxcnd_driver = {
 		   .owner = THIS_MODULE,
 		   .of_match_table = of_match_ptr(mxcnd_dt_ids),
 	},
+	.id_table = mxcnd_devtype,
 	.probe = mxcnd_probe,
-	.remove = __devexit_p(mxcnd_remove),
+	.remove = mxcnd_remove,
 };
 module_platform_driver(mxcnd_driver);
 

@@ -620,7 +620,7 @@ static UNIVERSAL_DEV_PM_OPS(sh_mobile_meram_dev_pm_ops,
  * Probe/remove and driver init/exit
  */
 
-static int __devinit sh_mobile_meram_probe(struct platform_device *pdev)
+static int sh_mobile_meram_probe(struct platform_device *pdev)
 {
 	struct sh_mobile_meram_priv *priv;
 	struct sh_mobile_meram_info *pdata = pdev->dev.platform_data;

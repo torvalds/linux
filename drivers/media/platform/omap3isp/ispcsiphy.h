@@ -32,14 +32,6 @@
 struct isp_csi2_device;
 struct regulator;
 
-struct isp_csiphy_dphy_cfg {
-	u8 ths_term;
-	u8 ths_settle;
-	u8 tclk_term;
-	unsigned tclk_miss:1;
-	u8 tclk_settle;
-};
-
 struct isp_csiphy {
 	struct isp_device *isp;
 	struct mutex mutex;	/* serialize csiphy configuration */
@@ -52,8 +44,6 @@ struct isp_csiphy {
 	unsigned int phy_regs;
 
 	u8 num_data_lanes;	/* number of CSI2 Data Lanes supported */
-	struct isp_csiphy_lanes_cfg lanes;
-	struct isp_csiphy_dphy_cfg dphy;
 };
 
 int omap3isp_csiphy_acquire(struct isp_csiphy *phy);

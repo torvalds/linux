@@ -51,8 +51,8 @@
 	 * We might not get launched at the address the kernel is linked to,
 	 * so we jump there.
 	 */
-	PTR_LA  t0, 0f
-	jr      t0
+	PTR_LA	t0, 0f
+	jr	t0
 0:
 	.endm
 

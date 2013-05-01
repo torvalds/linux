@@ -468,18 +468,6 @@ static struct hid_driver tpkbd_driver = {
 	.probe = tpkbd_probe,
 	.remove = tpkbd_remove,
 };
-
-static int __init tpkbd_init(void)
-{
-	return hid_register_driver(&tpkbd_driver);
-}
-
-static void __exit tpkbd_exit(void)
-{
-	hid_unregister_driver(&tpkbd_driver);
-}
-
-module_init(tpkbd_init);
-module_exit(tpkbd_exit);
+module_hid_driver(tpkbd_driver);
 
 MODULE_LICENSE("GPL");

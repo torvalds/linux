@@ -57,7 +57,7 @@ static int t3e3_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return 0;
 }
 
-static struct net_device_stats* t3e3_get_stats(struct net_device *dev)
+static struct net_device_stats *t3e3_get_stats(struct net_device *dev)
 {
 	struct net_device_stats *nstats = &dev->stats;
 	struct channel *sc = dev_to_priv(dev);
@@ -134,7 +134,8 @@ int setup_device(struct net_device *dev, struct channel *sc)
 	dev->tx_queue_len = 100;
 	hdlc->xmit = t3e3_if_start_xmit;
 	hdlc->attach = t3e3_attach;
-	if ((retval = register_hdlc_device(dev))) {
+	retval = register_hdlc_device(dev);
+	if (retval) {
 		dev_err(&sc->pdev->dev, "error registering HDLC device\n");
 		return retval;
 	}

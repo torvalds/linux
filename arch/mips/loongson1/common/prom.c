@@ -3,8 +3,8 @@
  *
  * Modified from arch/mips/pnx833x/common/prom.c.
  *
- * This program is free software; you can redistribute  it and/or modify it
- * under  the terms of  the GNU General  Public License as published by the
+ * This program is free software; you can redistribute	it and/or modify it
+ * under  the terms of	the GNU General	 Public License as published by the
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  */
@@ -73,7 +73,7 @@ void __init prom_free_prom_memory(void)
 
 #define PORT(offset)	(u8 *)(KSEG1ADDR(LS1X_UART0_BASE + offset))
 
-void __init prom_putchar(char c)
+void prom_putchar(char c)
 {
 	int timeout;
 

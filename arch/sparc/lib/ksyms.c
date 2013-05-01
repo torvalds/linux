@@ -116,6 +116,7 @@ EXPORT_SYMBOL(atomic64_add);
 EXPORT_SYMBOL(atomic64_add_ret);
 EXPORT_SYMBOL(atomic64_sub);
 EXPORT_SYMBOL(atomic64_sub_ret);
+EXPORT_SYMBOL(atomic64_dec_if_positive);
 
 /* Atomic bit operations. */
 EXPORT_SYMBOL(test_and_set_bit);

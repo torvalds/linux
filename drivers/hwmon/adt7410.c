@@ -78,10 +78,6 @@ enum adt7410_type {		/* keep sorted in alphabetical order */
 	adt7410,
 };
 
-/* Addresses scanned */
-static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b,
-					I2C_CLIENT_END };
-
 static const u8 ADT7410_REG_TEMP[4] = {
 	ADT7410_TEMPERATURE,		/* input */
 	ADT7410_T_ALARM_HIGH,		/* high */
@@ -173,8 +169,8 @@ abort:
 
 static s16 ADT7410_TEMP_TO_REG(long temp)
 {
-	return DIV_ROUND_CLOSEST(SENSORS_LIMIT(temp, ADT7410_TEMP_MIN,
-					       ADT7410_TEMP_MAX) * 128, 1000);
+	return DIV_ROUND_CLOSEST(clamp_val(temp, ADT7410_TEMP_MIN,
+					   ADT7410_TEMP_MAX) * 128, 1000);
 }
 
 static int ADT7410_REG_TO_TEMP(struct adt7410_data *data, s16 reg)
@@ -269,9 +265,9 @@ static ssize_t adt7410_set_t_hyst(struct device *dev,
 		return ret;
 	/* convert absolute hysteresis value to a 4 bit delta value */
 	limit = ADT7410_REG_TO_TEMP(data, data->temp[1]);
-	hyst = SENSORS_LIMIT(hyst, ADT7410_TEMP_MIN, ADT7410_TEMP_MAX);
-	data->hyst = SENSORS_LIMIT(DIV_ROUND_CLOSEST(limit - hyst, 1000),
-				   0, ADT7410_T_HYST_MASK);
+	hyst = clamp_val(hyst, ADT7410_TEMP_MIN, ADT7410_TEMP_MAX);
+	data->hyst = clamp_val(DIV_ROUND_CLOSEST(limit - hyst, 1000), 0,
+			       ADT7410_T_HYST_MASK);
 	ret = i2c_smbus_write_byte_data(client, ADT7410_T_HYST, data->hyst);
 	if (ret)
 		return ret;
@@ -364,6 +360,7 @@ static int adt7410_probe(struct i2c_client *client,
 	/*
 	 * Set to 16 bit resolution, continous conversion and comparator mode.
 	 */
+	ret &= ~ADT7410_MODE_MASK;
 	data->config = ret | ADT7410_FULL | ADT7410_RESOLUTION |
 			ADT7410_EVENT_MODE;
 	if (data->config != data->oldconfig) {
@@ -410,11 +407,12 @@ static int adt7410_remove(struct i2c_client *client)
 
 static const struct i2c_device_id adt7410_ids[] = {
 	{ "adt7410", adt7410, },
+	{ "adt7420", adt7410, },
 	{ /* LIST END */ }
 };
 MODULE_DEVICE_TABLE(i2c, adt7410_ids);
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int adt7410_suspend(struct device *dev)
 {
 	int ret;
@@ -436,10 +434,8 @@ static int adt7410_resume(struct device *dev)
 	return ret;
 }
 
-static const struct dev_pm_ops adt7410_dev_pm_ops = {
-	.suspend	= adt7410_suspend,
-	.resume		= adt7410_resume,
-};
+static SIMPLE_DEV_PM_OPS(adt7410_dev_pm_ops, adt7410_suspend, adt7410_resume);
+
 #define ADT7410_DEV_PM_OPS (&adt7410_dev_pm_ops)
 #else
 #define ADT7410_DEV_PM_OPS NULL
@@ -454,11 +450,11 @@ static struct i2c_driver adt7410_driver = {
 	.probe		= adt7410_probe,
 	.remove		= adt7410_remove,
 	.id_table	= adt7410_ids,
-	.address_list	= normal_i2c,
+	.address_list	= I2C_ADDRS(0x48, 0x49, 0x4a, 0x4b),
 };
 
 module_i2c_driver(adt7410_driver);
 
 MODULE_AUTHOR("Hartmut Knaack");
-MODULE_DESCRIPTION("ADT7410 driver");
+MODULE_DESCRIPTION("ADT7410/ADT7420 driver");
 MODULE_LICENSE("GPL");

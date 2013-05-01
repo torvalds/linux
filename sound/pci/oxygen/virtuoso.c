@@ -52,13 +52,14 @@ static DEFINE_PCI_DEVICE_TABLE(xonar_ids) = {
 	{ OXYGEN_PCI_SUBID(0x1043, 0x835d) },
 	{ OXYGEN_PCI_SUBID(0x1043, 0x835e) },
 	{ OXYGEN_PCI_SUBID(0x1043, 0x838e) },
+	{ OXYGEN_PCI_SUBID(0x1043, 0x8522) },
 	{ OXYGEN_PCI_SUBID_BROKEN_EEPROM },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, xonar_ids);
 
-static int __devinit get_xonar_model(struct oxygen *chip,
-				     const struct pci_device_id *id)
+static int get_xonar_model(struct oxygen *chip,
+			   const struct pci_device_id *id)
 {
 	if (get_xonar_pcm179x_model(chip, id) >= 0)
 		return 0;
@@ -69,8 +70,8 @@ static int __devinit get_xonar_model(struct oxygen *chip,
 	return -EINVAL;
 }
 
-static int __devinit xonar_probe(struct pci_dev *pci,
-				 const struct pci_device_id *pci_id)
+static int xonar_probe(struct pci_dev *pci,
+		       const struct pci_device_id *pci_id)
 {
 	static int dev;
 	int err;
@@ -92,7 +93,7 @@ static struct pci_driver xonar_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = xonar_ids,
 	.probe = xonar_probe,
-	.remove = __devexit_p(oxygen_pci_remove),
+	.remove = oxygen_pci_remove,
 #ifdef CONFIG_PM_SLEEP
 	.driver = {
 		.pm = &oxygen_pci_pm,

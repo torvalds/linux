@@ -673,6 +673,7 @@ access the palette, this must be done with ioctls of the Linux framebuffer API.<
     &sub-srggb8;
     &sub-sbggr16;
     &sub-srggb10;
+    &sub-srggb10alaw8;
     &sub-srggb10dpcm8;
     &sub-srggb12;
   </section>
@@ -701,6 +702,7 @@ information.</para>
     &sub-y12;
     &sub-y10b;
     &sub-y16;
+    &sub-uv8;
     &sub-yuyv;
     &sub-uyvy;
     &sub-yvyu;

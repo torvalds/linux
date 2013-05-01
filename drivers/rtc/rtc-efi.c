@@ -13,6 +13,8 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/time.h>
@@ -47,7 +49,7 @@ compute_wday(efi_time_t *eft)
 	int ndays = 0;
 
 	if (eft->year < 1998) {
-		printk(KERN_ERR "efirtc: EFI year < 1998, invalid date\n");
+		pr_err("EFI year < 1998, invalid date\n");
 		return -1;
 	}
 
@@ -70,7 +72,7 @@ convert_to_efi_time(struct rtc_time *wtime, efi_time_t *eft)
 	eft->day	= wtime->tm_mday;
 	eft->hour	= wtime->tm_hour;
 	eft->minute	= wtime->tm_min;
-	eft->second 	= wtime->tm_sec;
+	eft->second	= wtime->tm_sec;
 	eft->nanosecond = 0;
 	eft->daylight	= wtime->tm_isdst ? EFI_ISDST : 0;
 	eft->timezone	= EFI_UNSPECIFIED_TIMEZONE;
@@ -142,7 +144,7 @@ static int efi_set_alarm(struct device *dev, struct rtc_wkalrm *wkalrm)
 	 */
 	status = efi.set_wakeup_time((efi_bool_t)wkalrm->enabled, &eft);
 
-	printk(KERN_WARNING "write status is %d\n", (int)status);
+	dev_warn(dev, "write status is %d\n", (int)status);
 
 	return status == EFI_SUCCESS ? 0 : -EINVAL;
 }
@@ -157,7 +159,7 @@ static int efi_read_time(struct device *dev, struct rtc_time *tm)
 
 	if (status != EFI_SUCCESS) {
 		/* should never happen */
-		printk(KERN_ERR "efitime: can't read time\n");
+		dev_err(dev, "can't read time\n");
 		return -EINVAL;
 	}
 

@@ -365,7 +365,7 @@ static int pxa2xx_i2s_drv_probe(struct platform_device *pdev)
 	return snd_soc_register_dai(&pdev->dev, &pxa_i2s_dai);
 }
 
-static int __devexit pxa2xx_i2s_drv_remove(struct platform_device *pdev)
+static int pxa2xx_i2s_drv_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_dai(&pdev->dev);
 	return 0;
@@ -373,7 +373,7 @@ static int __devexit pxa2xx_i2s_drv_remove(struct platform_device *pdev)
 
 static struct platform_driver pxa2xx_i2s_driver = {
 	.probe = pxa2xx_i2s_drv_probe,
-	.remove = __devexit_p(pxa2xx_i2s_drv_remove),
+	.remove = pxa2xx_i2s_drv_remove,
 
 	.driver = {
 		.name = "pxa2xx-i2s",

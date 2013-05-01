@@ -1,0 +1,32 @@
+if RALINK
+
+choice
+	prompt "Ralink SoC selection"
+	default SOC_RT305X
+	help
+	  Select Ralink MIPS SoC type.
+
+	config SOC_RT305X
+		bool "RT305x"
+		select USB_ARCH_HAS_HCD
+		select USB_ARCH_HAS_OHCI
+		select USB_ARCH_HAS_EHCI
+
+endchoice
+
+choice
+	prompt "Devicetree selection"
+	default DTB_RT_NONE
+	help
+	  Select the devicetree.
+
+	config DTB_RT_NONE
+		bool "None"
+
+	config DTB_RT305X_EVAL
+		bool "RT305x eval kit"
+		depends on SOC_RT305X
+
+endchoice
+
+endif

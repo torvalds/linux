@@ -119,6 +119,11 @@
 #define MC13XXX_REVISION_FAB		(0x03 << 11)
 #define MC13XXX_REVISION_ICIDCODE	(0x3f << 13)
 
+#define MC34708_REVISION_REVMETAL	(0x07 <<  0)
+#define MC34708_REVISION_REVFULL	(0x07 <<  3)
+#define MC34708_REVISION_FIN		(0x07 <<  6)
+#define MC34708_REVISION_FAB		(0x07 <<  9)
+
 #define MC13XXX_ADC1		44
 #define MC13XXX_ADC1_ADEN		(1 << 0)
 #define MC13XXX_ADC1_RAND		(1 << 1)
@@ -410,62 +415,52 @@ static irqreturn_t mc13xxx_irq_thread(int irq, void *data)
 	return IRQ_RETVAL(handled);
 }
 
-static const char *mc13xxx_chipname[] = {
-	[MC13XXX_ID_MC13783] = "mc13783",
-	[MC13XXX_ID_MC13892] = "mc13892",
-};
-
 #define maskval(reg, mask)	(((reg) & (mask)) >> __ffs(mask))
-static int mc13xxx_identify(struct mc13xxx *mc13xxx)
+static void mc13xxx_print_revision(struct mc13xxx *mc13xxx, u32 revision)
 {
-	u32 icid;
-	u32 revision;
-	int ret;
-
-	/*
-	 * Get the generation ID from register 46, as apparently some older
-	 * IC revisions only have this info at this location. Newer ICs seem to
-	 * have both.
-	 */
-	ret = mc13xxx_reg_read(mc13xxx, 46, &icid);
-	if (ret)
-		return ret;
-
-	icid = (icid >> 6) & 0x7;
-
-	switch (icid) {
-	case 2:
-		mc13xxx->ictype = MC13XXX_ID_MC13783;
-		break;
-	case 7:
-		mc13xxx->ictype = MC13XXX_ID_MC13892;
-		break;
-	default:
-		mc13xxx->ictype = MC13XXX_ID_INVALID;
-		break;
-	}
-
-	if (mc13xxx->ictype == MC13XXX_ID_MC13783 ||
-			mc13xxx->ictype == MC13XXX_ID_MC13892) {
-		ret = mc13xxx_reg_read(mc13xxx, MC13XXX_REVISION, &revision);
-
-		dev_info(mc13xxx->dev, "%s: rev: %d.%d, "
-				"fin: %d, fab: %d, icid: %d/%d\n",
-				mc13xxx_chipname[mc13xxx->ictype],
-				maskval(revision, MC13XXX_REVISION_REVFULL),
-				maskval(revision, MC13XXX_REVISION_REVMETAL),
-				maskval(revision, MC13XXX_REVISION_FIN),
-				maskval(revision, MC13XXX_REVISION_FAB),
-				maskval(revision, MC13XXX_REVISION_ICID),
-				maskval(revision, MC13XXX_REVISION_ICIDCODE));
-	}
-
-	return (mc13xxx->ictype == MC13XXX_ID_INVALID) ? -ENODEV : 0;
+	dev_info(mc13xxx->dev, "%s: rev: %d.%d, "
+			"fin: %d, fab: %d, icid: %d/%d\n",
+			mc13xxx->variant->name,
+			maskval(revision, MC13XXX_REVISION_REVFULL),
+			maskval(revision, MC13XXX_REVISION_REVMETAL),
+			maskval(revision, MC13XXX_REVISION_FIN),
+			maskval(revision, MC13XXX_REVISION_FAB),
+			maskval(revision, MC13XXX_REVISION_ICID),
+			maskval(revision, MC13XXX_REVISION_ICIDCODE));
 }
+
+static void mc34708_print_revision(struct mc13xxx *mc13xxx, u32 revision)
+{
+	dev_info(mc13xxx->dev, "%s: rev %d.%d, fin: %d, fab: %d\n",
+			mc13xxx->variant->name,
+			maskval(revision, MC34708_REVISION_REVFULL),
+			maskval(revision, MC34708_REVISION_REVMETAL),
+			maskval(revision, MC34708_REVISION_FIN),
+			maskval(revision, MC34708_REVISION_FAB));
+}
+
+/* These are only exported for mc13xxx-i2c and mc13xxx-spi */
+struct mc13xxx_variant mc13xxx_variant_mc13783 = {
+	.name = "mc13783",
+	.print_revision = mc13xxx_print_revision,
+};
+EXPORT_SYMBOL_GPL(mc13xxx_variant_mc13783);
+
+struct mc13xxx_variant mc13xxx_variant_mc13892 = {
+	.name = "mc13892",
+	.print_revision = mc13xxx_print_revision,
+};
+EXPORT_SYMBOL_GPL(mc13xxx_variant_mc13892);
+
+struct mc13xxx_variant mc13xxx_variant_mc34708 = {
+	.name = "mc34708",
+	.print_revision = mc34708_print_revision,
+};
+EXPORT_SYMBOL_GPL(mc13xxx_variant_mc34708);
 
 static const char *mc13xxx_get_chipname(struct mc13xxx *mc13xxx)
 {
-	return mc13xxx_chipname[mc13xxx->ictype];
+	return mc13xxx->variant->name;
 }
 
 int mc13xxx_get_flags(struct mc13xxx *mc13xxx)
@@ -653,12 +648,15 @@ int mc13xxx_common_init(struct mc13xxx *mc13xxx,
 		struct mc13xxx_platform_data *pdata, int irq)
 {
 	int ret;
+	u32 revision;
 
 	mc13xxx_lock(mc13xxx);
 
-	ret = mc13xxx_identify(mc13xxx);
+	ret = mc13xxx_reg_read(mc13xxx, MC13XXX_REVISION, &revision);
 	if (ret)
 		goto err_revision;
+
+	mc13xxx->variant->print_revision(mc13xxx, revision);
 
 	/* mask all irqs */
 	ret = mc13xxx_reg_write(mc13xxx, MC13XXX_IRQMASK0, 0x00ffffff);

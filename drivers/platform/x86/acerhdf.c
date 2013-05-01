@@ -515,7 +515,7 @@ static int acerhdf_suspend(struct device *dev)
 	return 0;
 }
 
-static int __devinit acerhdf_probe(struct platform_device *device)
+static int acerhdf_probe(struct platform_device *device)
 {
 	return 0;
 }
@@ -662,7 +662,7 @@ static int acerhdf_register_thermal(void)
 		return -EINVAL;
 
 	thz_dev = thermal_zone_device_register("acerhdf", 1, 0, NULL,
-					      &acerhdf_dev_ops, 0,
+					      &acerhdf_dev_ops, NULL, 0,
 					      (kernelmode) ? interval*1000 : 0);
 	if (IS_ERR(thz_dev))
 		return -EINVAL;

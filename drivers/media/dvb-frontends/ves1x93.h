@@ -40,7 +40,7 @@ struct ves1x93_config
 	u8 invert_pwm:1;
 };
 
-#if defined(CONFIG_DVB_VES1X93) || (defined(CONFIG_DVB_VES1X93_MODULE) && defined(MODULE))
+#if IS_ENABLED(CONFIG_DVB_VES1X93)
 extern struct dvb_frontend* ves1x93_attach(const struct ves1x93_config* config,
 					   struct i2c_adapter* i2c);
 #else

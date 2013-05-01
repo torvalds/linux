@@ -11,10 +11,12 @@ ssb-$(CONFIG_SSB_SDIOHOST)		+= sdio.o
 # built-in drivers
 ssb-y					+= driver_chipcommon.o
 ssb-y					+= driver_chipcommon_pmu.o
+ssb-$(CONFIG_SSB_SFLASH)		+= driver_chipcommon_sflash.o
 ssb-$(CONFIG_SSB_DRIVER_MIPS)		+= driver_mipscore.o
 ssb-$(CONFIG_SSB_DRIVER_EXTIF)		+= driver_extif.o
 ssb-$(CONFIG_SSB_DRIVER_PCICORE)	+= driver_pcicore.o
 ssb-$(CONFIG_SSB_DRIVER_GIGE)		+= driver_gige.o
+ssb-$(CONFIG_SSB_DRIVER_GPIO)		+= driver_gpio.o
 
 # b43 pci-ssb-bridge driver
 # Not strictly a part of SSB, but kept here for convenience

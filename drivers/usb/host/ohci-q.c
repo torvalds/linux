@@ -44,6 +44,7 @@ __acquires(ohci->lock)
 	// ASSERT (urb->hcpriv != 0);
 
 	urb_free_priv (ohci, urb->hcpriv);
+	urb->hcpriv = NULL;
 	if (likely(status == -EINPROGRESS))
 		status = 0;
 
@@ -596,7 +597,6 @@ static void td_submit_urb (
 		urb_priv->ed->hwHeadP &= ~cpu_to_hc32 (ohci, ED_C);
 	}
 
-	urb_priv->td_cnt = 0;
 	list_add (&urb_priv->pending, &ohci->pending);
 
 	if (data_len)
@@ -672,7 +672,8 @@ static void td_submit_urb (
 	 * we could often reduce the number of TDs here.
 	 */
 	case PIPE_ISOCHRONOUS:
-		for (cnt = 0; cnt < urb->number_of_packets; cnt++) {
+		for (cnt = urb_priv->td_cnt; cnt < urb->number_of_packets;
+				cnt++) {
 			int	frame = urb->start_frame;
 
 			// FIXME scheduling should handle frame counter
@@ -1128,6 +1129,25 @@ dl_done_list (struct ohci_hcd *ohci)
 
 	while (td) {
 		struct td	*td_next = td->next_dl_td;
+		struct ed	*ed = td->ed;
+
+		/*
+		 * Some OHCI controllers (NVIDIA for sure, maybe others)
+		 * occasionally forget to add TDs to the done queue.  Since
+		 * TDs for a given endpoint are always processed in order,
+		 * if we find a TD on the donelist then all of its
+		 * predecessors must be finished as well.
+		 */
+		for (;;) {
+			struct td	*td2;
+
+			td2 = list_first_entry(&ed->td_list, struct td,
+					td_list);
+			if (td2 == td)
+				break;
+			takeback_td(ohci, td2);
+		}
+
 		takeback_td(ohci, td);
 		td = td_next;
 	}

@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2012 Intel Corporation.
+  Copyright(c) 1999 - 2013 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -35,12 +35,11 @@
 #include <linux/cpumask.h>
 #include <linux/aer.h>
 #include <linux/if_vlan.h>
+#include <linux/jiffies.h>
 
-#ifdef CONFIG_IXGBE_PTP
 #include <linux/clocksource.h>
 #include <linux/net_tstamp.h>
 #include <linux/ptp_clock_kernel.h>
-#endif /* CONFIG_IXGBE_PTP */
 
 #include "ixgbe_type.h"
 #include "ixgbe_common.h"
@@ -93,21 +92,26 @@
  */
 #define IXGBE_RX_HDR_SIZE IXGBE_RXBUFFER_256
 
-#define MAXIMUM_ETHERNET_VLAN_SIZE (ETH_FRAME_LEN + ETH_FCS_LEN + VLAN_HLEN)
-
 /* How many Rx Buffers do we bundle into one write to the hardware ? */
 #define IXGBE_RX_BUFFER_WRITE	16	/* Must be power of 2 */
 
-#define IXGBE_TX_FLAGS_CSUM		(u32)(1)
-#define IXGBE_TX_FLAGS_HW_VLAN		(u32)(1 << 1)
-#define IXGBE_TX_FLAGS_SW_VLAN		(u32)(1 << 2)
-#define IXGBE_TX_FLAGS_TSO		(u32)(1 << 3)
-#define IXGBE_TX_FLAGS_IPV4		(u32)(1 << 4)
-#define IXGBE_TX_FLAGS_FCOE		(u32)(1 << 5)
-#define IXGBE_TX_FLAGS_FSO		(u32)(1 << 6)
-#define IXGBE_TX_FLAGS_TXSW		(u32)(1 << 7)
-#define IXGBE_TX_FLAGS_TSTAMP		(u32)(1 << 8)
-#define IXGBE_TX_FLAGS_NO_IFCS		(u32)(1 << 9)
+enum ixgbe_tx_flags {
+	/* cmd_type flags */
+	IXGBE_TX_FLAGS_HW_VLAN	= 0x01,
+	IXGBE_TX_FLAGS_TSO	= 0x02,
+	IXGBE_TX_FLAGS_TSTAMP	= 0x04,
+
+	/* olinfo flags */
+	IXGBE_TX_FLAGS_CC	= 0x08,
+	IXGBE_TX_FLAGS_IPV4	= 0x10,
+	IXGBE_TX_FLAGS_CSUM	= 0x20,
+
+	/* software defined flags */
+	IXGBE_TX_FLAGS_SW_VLAN	= 0x40,
+	IXGBE_TX_FLAGS_FCOE	= 0x80,
+};
+
+/* VLAN info */
 #define IXGBE_TX_FLAGS_VLAN_MASK	0xffff0000
 #define IXGBE_TX_FLAGS_VLAN_PRIO_MASK	0xe0000000
 #define IXGBE_TX_FLAGS_VLAN_PRIO_SHIFT  29
@@ -135,6 +139,7 @@ struct vf_data_storage {
 	u16 tx_rate;
 	u16 vlan_count;
 	u8 spoofchk_enabled;
+	unsigned int vf_api;
 };
 
 struct vf_macvlans {
@@ -151,7 +156,7 @@ struct vf_macvlans {
 
 /* Tx Descriptors needed, worst case */
 #define TXD_USE_COUNT(S) DIV_ROUND_UP((S), IXGBE_MAX_DATA_PER_TXD)
-#define DESC_NEEDED ((MAX_SKB_FRAGS * TXD_USE_COUNT(PAGE_SIZE)) + 4)
+#define DESC_NEEDED (MAX_SKB_FRAGS + 4)
 
 /* wrapper around a pointer to a socket buffer,
  * so a DMA handle can be stored along with the buffer */
@@ -196,6 +201,7 @@ struct ixgbe_rx_queue_stats {
 
 enum ixgbe_ring_state_t {
 	__IXGBE_TX_FDIR_INIT_DONE,
+	__IXGBE_TX_XPS_INIT_DONE,
 	__IXGBE_TX_DETECT_HANG,
 	__IXGBE_HANG_CHECK_ARMED,
 	__IXGBE_RX_RSC_ENABLED,
@@ -225,6 +231,7 @@ struct ixgbe_ring {
 		struct ixgbe_tx_buffer *tx_buffer_info;
 		struct ixgbe_rx_buffer *rx_buffer_info;
 	};
+	unsigned long last_rx_timestamp;
 	unsigned long state;
 	u8 __iomem *tail;
 	dma_addr_t dma;			/* phys. address of descriptor ring */
@@ -272,15 +279,10 @@ enum ixgbe_ring_f_enum {
 
 #define IXGBE_MAX_RSS_INDICES  16
 #define IXGBE_MAX_VMDQ_INDICES 64
-#define IXGBE_MAX_FDIR_INDICES 64
-#ifdef IXGBE_FCOE
+#define IXGBE_MAX_FDIR_INDICES 63	/* based on q_vector limit */
 #define IXGBE_MAX_FCOE_INDICES  8
-#define MAX_RX_QUEUES (IXGBE_MAX_FDIR_INDICES + IXGBE_MAX_FCOE_INDICES)
-#define MAX_TX_QUEUES (IXGBE_MAX_FDIR_INDICES + IXGBE_MAX_FCOE_INDICES)
-#else
-#define MAX_RX_QUEUES IXGBE_MAX_FDIR_INDICES
-#define MAX_TX_QUEUES IXGBE_MAX_FDIR_INDICES
-#endif /* IXGBE_FCOE */
+#define MAX_RX_QUEUES (IXGBE_MAX_FDIR_INDICES + 1)
+#define MAX_TX_QUEUES (IXGBE_MAX_FDIR_INDICES + 1)
 struct ixgbe_ring_feature {
 	u16 limit;	/* upper limit on feature indices */
 	u16 indices;	/* current value of indices */
@@ -482,8 +484,9 @@ struct ixgbe_adapter {
 #define IXGBE_FLAG2_FDIR_REQUIRES_REINIT        (u32)(1 << 7)
 #define IXGBE_FLAG2_RSS_FIELD_IPV4_UDP		(u32)(1 << 8)
 #define IXGBE_FLAG2_RSS_FIELD_IPV6_UDP		(u32)(1 << 9)
-#define IXGBE_FLAG2_OVERFLOW_CHECK_ENABLED	(u32)(1 << 10)
+#define IXGBE_FLAG2_PTP_ENABLED			(u32)(1 << 10)
 #define IXGBE_FLAG2_PTP_PPS_ENABLED		(u32)(1 << 11)
+#define IXGBE_FLAG2_BRIDGE_MODE_VEB		(u32)(1 << 12)
 
 	/* Tx fast path data */
 	int num_tx_queues;
@@ -571,17 +574,17 @@ struct ixgbe_adapter {
 	u32 interrupt_event;
 	u32 led_reg;
 
-#ifdef CONFIG_IXGBE_PTP
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_caps;
+	struct work_struct ptp_tx_work;
+	struct sk_buff *ptp_tx_skb;
+	unsigned long ptp_tx_start;
 	unsigned long last_overflow_check;
+	unsigned long last_rx_ptp_check;
 	spinlock_t tmreg_lock;
 	struct cyclecounter cc;
 	struct timecounter tc;
-	int rx_hwtstamp_filter;
 	u32 base_incval;
-	u32 cycle_speed;
-#endif /* CONFIG_IXGBE_PTP */
 
 	/* SR-IOV */
 	DECLARE_BITMAP(active_vfs, IXGBE_MAX_VF_FUNCTIONS);
@@ -600,6 +603,8 @@ struct ixgbe_adapter {
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *ixgbe_dbg_adapter;
 #endif /*CONFIG_DEBUG_FS*/
+
+	u8 default_up;
 };
 
 struct ixgbe_fdir_filter {
@@ -615,6 +620,7 @@ enum ixgbe_state_t {
 	__IXGBE_DOWN,
 	__IXGBE_SERVICE_SCHED,
 	__IXGBE_IN_SFP_INIT,
+	__IXGBE_READ_I2C,
 };
 
 struct ixgbe_cb {
@@ -691,11 +697,12 @@ extern s32 ixgbe_fdir_erase_perfect_filter_82599(struct ixgbe_hw *hw,
 						 u16 soft_id);
 extern void ixgbe_atr_compute_perfect_hash_82599(union ixgbe_atr_input *input,
 						 union ixgbe_atr_input *mask);
+extern bool ixgbe_verify_lesm_fw_enabled_82599(struct ixgbe_hw *hw);
 extern void ixgbe_set_rx_mode(struct net_device *netdev);
 #ifdef CONFIG_IXGBE_DCB
 extern void ixgbe_set_rx_drop_en(struct ixgbe_adapter *adapter);
-extern int ixgbe_setup_tc(struct net_device *dev, u8 tc);
 #endif
+extern int ixgbe_setup_tc(struct net_device *dev, u8 tc);
 extern void ixgbe_tx_ctxtdesc(struct ixgbe_ring *, u32, u32, u32, u32);
 extern void ixgbe_do_reset(struct net_device *netdev);
 #ifdef CONFIG_IXGBE_HWMON
@@ -739,19 +746,35 @@ static inline struct netdev_queue *txring_txq(const struct ixgbe_ring *ring)
 	return netdev_get_tx_queue(ring->netdev, ring->queue_index);
 }
 
-#ifdef CONFIG_IXGBE_PTP
 extern void ixgbe_ptp_init(struct ixgbe_adapter *adapter);
 extern void ixgbe_ptp_stop(struct ixgbe_adapter *adapter);
 extern void ixgbe_ptp_overflow_check(struct ixgbe_adapter *adapter);
-extern void ixgbe_ptp_tx_hwtstamp(struct ixgbe_q_vector *q_vector,
-				  struct sk_buff *skb);
-extern void ixgbe_ptp_rx_hwtstamp(struct ixgbe_q_vector *q_vector,
-				  union ixgbe_adv_rx_desc *rx_desc,
-				  struct sk_buff *skb);
+extern void ixgbe_ptp_rx_hang(struct ixgbe_adapter *adapter);
+extern void __ixgbe_ptp_rx_hwtstamp(struct ixgbe_q_vector *q_vector,
+				    struct sk_buff *skb);
+static inline void ixgbe_ptp_rx_hwtstamp(struct ixgbe_ring *rx_ring,
+					 union ixgbe_adv_rx_desc *rx_desc,
+					 struct sk_buff *skb)
+{
+	if (unlikely(!ixgbe_test_staterr(rx_desc, IXGBE_RXDADV_STAT_TS)))
+		return;
+
+	__ixgbe_ptp_rx_hwtstamp(rx_ring->q_vector, skb);
+
+	/*
+	 * Update the last_rx_timestamp timer in order to enable watchdog check
+	 * for error case of latched timestamp on a dropped packet.
+	 */
+	rx_ring->last_rx_timestamp = jiffies;
+}
+
 extern int ixgbe_ptp_hwtstamp_ioctl(struct ixgbe_adapter *adapter,
 				    struct ifreq *ifr, int cmd);
 extern void ixgbe_ptp_start_cyclecounter(struct ixgbe_adapter *adapter);
+extern void ixgbe_ptp_reset(struct ixgbe_adapter *adapter);
 extern void ixgbe_ptp_check_pps_event(struct ixgbe_adapter *adapter, u32 eicr);
-#endif /* CONFIG_IXGBE_PTP */
+#ifdef CONFIG_PCI_IOV
+void ixgbe_sriov_reinit(struct ixgbe_adapter *adapter);
+#endif
 
 #endif /* _IXGBE_H_ */

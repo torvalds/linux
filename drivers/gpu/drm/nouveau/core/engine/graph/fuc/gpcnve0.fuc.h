@@ -34,13 +34,16 @@ uint32_t nve0_grgpc_data[] = {
 	0x00000000,
 /* 0x0064: chipsets */
 	0x000000e4,
-	0x01040080,
-	0x014c0104,
+	0x0110008c,
+	0x01580110,
 	0x000000e7,
-	0x01040080,
-	0x014c0104,
+	0x0110008c,
+	0x01580110,
+	0x000000e6,
+	0x0110008c,
+	0x01580110,
 	0x00000000,
-/* 0x0080: nve4_gpc_mmio_head */
+/* 0x008c: nve4_gpc_mmio_head */
 	0x00000380,
 	0x04000400,
 	0x0800040c,
@@ -74,8 +77,8 @@ uint32_t nve0_grgpc_data[] = {
 	0x14003100,
 	0x000031d0,
 	0x040031e0,
-/* 0x0104: nve4_gpc_mmio_tail */
-/* 0x0104: nve4_tpc_mmio_head */
+/* 0x0110: nve4_gpc_mmio_tail */
+/* 0x0110: nve4_tpc_mmio_head */
 	0x00000048,
 	0x00000064,
 	0x00000088,

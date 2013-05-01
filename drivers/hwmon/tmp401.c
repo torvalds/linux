@@ -142,10 +142,10 @@ static int tmp401_register_to_temp(u16 reg, u8 config)
 static u16 tmp401_temp_to_register(long temp, u8 config)
 {
 	if (config & TMP401_CONFIG_RANGE) {
-		temp = SENSORS_LIMIT(temp, -64000, 191000);
+		temp = clamp_val(temp, -64000, 191000);
 		temp += 64000;
 	} else
-		temp = SENSORS_LIMIT(temp, 0, 127000);
+		temp = clamp_val(temp, 0, 127000);
 
 	return (temp * 160 + 312) / 625;
 }
@@ -163,10 +163,10 @@ static int tmp401_crit_register_to_temp(u8 reg, u8 config)
 static u8 tmp401_crit_temp_to_register(long temp, u8 config)
 {
 	if (config & TMP401_CONFIG_RANGE) {
-		temp = SENSORS_LIMIT(temp, -64000, 191000);
+		temp = clamp_val(temp, -64000, 191000);
 		temp += 64000;
 	} else
-		temp = SENSORS_LIMIT(temp, 0, 127000);
+		temp = clamp_val(temp, 0, 127000);
 
 	return (temp + 500) / 1000;
 }
@@ -417,14 +417,14 @@ static ssize_t store_temp_crit_hyst(struct device *dev, struct device_attribute
 		return -EINVAL;
 
 	if (data->config & TMP401_CONFIG_RANGE)
-		val = SENSORS_LIMIT(val, -64000, 191000);
+		val = clamp_val(val, -64000, 191000);
 	else
-		val = SENSORS_LIMIT(val, 0, 127000);
+		val = clamp_val(val, 0, 127000);
 
 	mutex_lock(&data->update_lock);
 	temp = tmp401_crit_register_to_temp(data->temp_crit[index],
 						data->config);
-	val = SENSORS_LIMIT(val, temp - 255000, temp);
+	val = clamp_val(val, temp - 255000, temp);
 	reg = ((temp - val) + 500) / 1000;
 
 	i2c_smbus_write_byte_data(to_i2c_client(dev),

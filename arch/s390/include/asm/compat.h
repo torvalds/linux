@@ -7,6 +7,9 @@
 #include <linux/sched.h>
 #include <linux/thread_info.h>
 
+#define __TYPE_IS_PTR(t) (!__builtin_types_compatible_p(typeof(0?(t)0:0ULL), u64))
+#define __SC_DELOUSE(t,v) (t)(__TYPE_IS_PTR(t) ? ((v) & 0x7fffffff) : (v))
+
 #define PSW32_MASK_PER		0x40000000UL
 #define PSW32_MASK_DAT		0x04000000UL
 #define PSW32_MASK_IO		0x02000000UL
@@ -20,7 +23,7 @@
 #define PSW32_MASK_CC		0x00003000UL
 #define PSW32_MASK_PM		0x00000f00UL
 
-#define PSW32_MASK_USER		0x00003F00UL
+#define PSW32_MASK_USER		0x0000FF00UL
 
 #define PSW32_ADDR_AMODE	0x80000000UL
 #define PSW32_ADDR_INSN		0x7FFFFFFFUL

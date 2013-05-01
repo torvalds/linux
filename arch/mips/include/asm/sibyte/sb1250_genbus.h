@@ -1,7 +1,7 @@
 /*  *********************************************************************
     *  SB1250 Board Support Package
     *
-    *  Generic Bus Constants                     File: sb1250_genbus.h
+    *  Generic Bus Constants			 File: sb1250_genbus.h
     *
     *  This module contains constants and macros useful for
     *  manipulating the SB1250's Generic Bus interface
@@ -40,10 +40,10 @@
  * Generic Bus Region Configuration Registers (Table 11-4)
  */
 
-#define S_IO_RDY_ACTIVE         0
+#define S_IO_RDY_ACTIVE		0
 #define M_IO_RDY_ACTIVE		_SB_MAKEMASK1(S_IO_RDY_ACTIVE)
 
-#define S_IO_ENA_RDY            1
+#define S_IO_ENA_RDY		1
 #define M_IO_ENA_RDY		_SB_MAKEMASK1(S_IO_ENA_RDY)
 
 #define S_IO_WIDTH_SEL		2
@@ -52,7 +52,7 @@
 #define K_IO_WIDTH_SEL_2	1
 #if SIBYTE_HDR_FEATURE(1250, PASS2) || SIBYTE_HDR_FEATURE(112x, PASS1) \
     || SIBYTE_HDR_FEATURE_CHIP(1480)
-#define K_IO_WIDTH_SEL_1L       2
+#define K_IO_WIDTH_SEL_1L	2
 #endif /* 1250 PASS2 || 112x PASS1 || 1480 */
 #define K_IO_WIDTH_SEL_4	3
 #define V_IO_WIDTH_SEL(x)	_SB_MAKEVALUE(x, S_IO_WIDTH_SEL)
@@ -111,7 +111,7 @@
 
 #if SIBYTE_HDR_FEATURE(1250, PASS2) || SIBYTE_HDR_FEATURE(112x, PASS1) \
     || SIBYTE_HDR_FEATURE_CHIP(1480)
-#define M_IO_EARLY_CS	        _SB_MAKEMASK1(3)
+#define M_IO_EARLY_CS		_SB_MAKEMASK1(3)
 #endif /* 1250 PASS2 || 112x PASS1 || 1480 */
 
 #define S_IO_ALE_TO_CS		4
@@ -121,10 +121,10 @@
 
 #if SIBYTE_HDR_FEATURE(1250, PASS2) || SIBYTE_HDR_FEATURE(112x, PASS1) \
     || SIBYTE_HDR_FEATURE_CHIP(1480)
-#define S_IO_BURST_WIDTH           _SB_MAKE64(6)
-#define M_IO_BURST_WIDTH           _SB_MAKEMASK(2, S_IO_BURST_WIDTH)
-#define V_IO_BURST_WIDTH(x)        _SB_MAKEVALUE(x, S_IO_BURST_WIDTH)
-#define G_IO_BURST_WIDTH(x)        _SB_GETVALUE(x, S_IO_BURST_WIDTH, M_IO_BURST_WIDTH)
+#define S_IO_BURST_WIDTH	   _SB_MAKE64(6)
+#define M_IO_BURST_WIDTH	   _SB_MAKEMASK(2, S_IO_BURST_WIDTH)
+#define V_IO_BURST_WIDTH(x)	   _SB_MAKEVALUE(x, S_IO_BURST_WIDTH)
+#define G_IO_BURST_WIDTH(x)	   _SB_GETVALUE(x, S_IO_BURST_WIDTH, M_IO_BURST_WIDTH)
 #endif /* 1250 PASS2 || 112x PASS1 || 1480 */
 
 #define S_IO_CS_WIDTH		8
@@ -149,7 +149,7 @@
 
 #if SIBYTE_HDR_FEATURE(1250, PASS2) || SIBYTE_HDR_FEATURE(112x, PASS1) \
     || SIBYTE_HDR_FEATURE_CHIP(1480)
-#define M_IO_RDY_SYNC	        _SB_MAKEMASK1(3)
+#define M_IO_RDY_SYNC		_SB_MAKEMASK1(3)
 #endif /* 1250 PASS2 || 112x PASS1 || 1480 */
 
 #define S_IO_WRITE_WIDTH	4
@@ -191,7 +191,7 @@
 #define M_IO_ILL_ADDR_INT	_SB_MAKEMASK1(11)
 #define M_IO_MULT_CS_INT	_SB_MAKEMASK1(12)
 #if SIBYTE_HDR_FEATURE(1250, PASS2) || SIBYTE_HDR_FEATURE(112x, PASS1) || SIBYTE_HDR_FEATURE_CHIP(1480)
-#define M_IO_COH_ERR	        _SB_MAKEMASK1(14)
+#define M_IO_COH_ERR		_SB_MAKEMASK1(14)
 #endif /* 1250 PASS2 || 112x PASS1 || 1480 */
 
 
@@ -370,8 +370,8 @@
 
 #define S_GPIO_INTR_TYPEX(n)	(((n)/2)*2)
 #define M_GPIO_INTR_TYPEX(n)	_SB_MAKEMASK(2, S_GPIO_INTR_TYPEX(n))
-#define V_GPIO_INTR_TYPEX(n, x)	_SB_MAKEVALUE(x, S_GPIO_INTR_TYPEX(n))
-#define G_GPIO_INTR_TYPEX(n, x)	_SB_GETVALUE(x, S_GPIO_INTR_TYPEX(n), M_GPIO_INTR_TYPEX(n))
+#define V_GPIO_INTR_TYPEX(n, x) _SB_MAKEVALUE(x, S_GPIO_INTR_TYPEX(n))
+#define G_GPIO_INTR_TYPEX(n, x) _SB_GETVALUE(x, S_GPIO_INTR_TYPEX(n), M_GPIO_INTR_TYPEX(n))
 
 #define S_GPIO_INTR_TYPE0	0
 #define M_GPIO_INTR_TYPE0	_SB_MAKEMASK(2, S_GPIO_INTR_TYPE0)

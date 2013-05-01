@@ -39,7 +39,6 @@ config SOC_AT91RM9200
 config SOC_AT91SAM9260
 	bool "AT91SAM9260, AT91SAM9XE or AT91SAM9G20"
 	select HAVE_AT91_DBGU0
-	select HAVE_NET_MACB
 	select SOC_AT91SAM9
 	help
 	  Select this if you are using one of Atmel's AT91SAM9260, AT91SAM9XE
@@ -57,7 +56,6 @@ config SOC_AT91SAM9263
 	bool "AT91SAM9263"
 	select HAVE_AT91_DBGU1
 	select HAVE_FB_ATMEL
-	select HAVE_NET_MACB
 	select SOC_AT91SAM9
 
 config SOC_AT91SAM9RL
@@ -70,7 +68,6 @@ config SOC_AT91SAM9G45
 	bool "AT91SAM9G45 or AT91SAM9M10 families"
 	select HAVE_AT91_DBGU1
 	select HAVE_FB_ATMEL
-	select HAVE_NET_MACB
 	select SOC_AT91SAM9
 	help
 	  Select this if you are using one of Atmel's AT91SAM9G45 family SoC.
@@ -80,7 +77,6 @@ config SOC_AT91SAM9X5
 	bool "AT91SAM9x5 family"
 	select HAVE_AT91_DBGU0
 	select HAVE_FB_ATMEL
-	select HAVE_NET_MACB
 	select SOC_AT91SAM9
 	help
 	  Select this if you are using one of Atmel's AT91SAM9x5 family SoC.
@@ -356,12 +352,6 @@ config MACH_USB_A9263
 	  Select this if you are using a Calao Systems USB-A9263.
 	  <http://www.calao-systems.com>
 
-config MACH_NEOCORE926
-	bool "Adeneo NEOCORE926"
-	select HAVE_AT91_DATAFLASH_CARD
-	help
-	  Select this if you are using the Adeneo Neocore 926 board.
-
 endif
 
 # ----------------------------------------------------------
@@ -494,8 +484,17 @@ endif
 
 comment "Generic Board Type"
 
+config MACH_AT91RM9200_DT
+	bool "Atmel AT91RM9200 Evaluation Kits with device-tree support"
+	depends on SOC_AT91RM9200
+	select USE_OF
+	help
+	  Select this if you want to experiment device-tree with
+	  an Atmel RM9200 Evaluation Kit.
+
 config MACH_AT91SAM_DT
 	bool "Atmel AT91SAM Evaluation Kits with device-tree support"
+	depends on SOC_AT91SAM9
 	select USE_OF
 	help
 	  Select this if you want to experiment device-tree with

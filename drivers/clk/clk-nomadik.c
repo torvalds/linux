@@ -20,6 +20,7 @@ void __init nomadik_clk_init(void)
 	clk_register_clkdev(clk, NULL, "gpio.2");
 	clk_register_clkdev(clk, NULL, "gpio.3");
 	clk_register_clkdev(clk, NULL, "rng");
+	clk_register_clkdev(clk, NULL, "fsmc-nand");
 
 	/*
 	 * The 2.4 MHz TIMCLK reference clock is active at boot time, this is

@@ -123,8 +123,7 @@ config IFB
 source "drivers/net/team/Kconfig"
 
 config MACVLAN
-	tristate "MAC-VLAN support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	tristate "MAC-VLAN support"
 	---help---
 	  This allows one to create virtual interfaces that map packets to
 	  or from specific MAC addresses to a particular interface.
@@ -138,7 +137,7 @@ config MACVLAN
 	  will be called macvlan.
 
 config MACVTAP
-	tristate "MAC-VLAN based tap driver (EXPERIMENTAL)"
+	tristate "MAC-VLAN based tap driver"
 	depends on MACVLAN
 	help
 	  This adds a specialized tap character device driver that is based
@@ -151,7 +150,7 @@ config MACVTAP
 
 config VXLAN
        tristate "Virtual eXtensible Local Area Network (VXLAN)"
-       depends on EXPERIMENTAL && INET
+       depends on INET
        ---help---
 	  This allows one to create vxlan virtual interfaces that provide
 	  Layer 2 Networks over Layer 3 Networks. VXLAN is often used
@@ -188,6 +187,10 @@ config NETPOLL_TRAP
 
 config NET_POLL_CONTROLLER
 	def_bool NETPOLL
+
+config NTB_NETDEV
+	tristate "Virtual Ethernet over NTB"
+	depends on NTB
 
 config RIONET
 	tristate "RapidIO Ethernet over messaging driver support"
@@ -234,8 +237,8 @@ config VETH
 	  versa.
 
 config VIRTIO_NET
-	tristate "Virtio network driver (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && VIRTIO
+	tristate "Virtio network driver"
+	depends on VIRTIO
 	---help---
 	  This is the virtual network driver for virtio.  It can be used with
 	  lguest or QEMU based VMMs (like KVM or Xen).  Say Y or M.

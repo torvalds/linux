@@ -6,9 +6,15 @@ Required properties:
 - interrupt-controller: Identifies the node as an interrupt controller.
 - #interrupt-cells: The number of cells to define the interrupts. Should be 1.
   The cell is the IRQ number
+
 - reg: Should contain PMIC registers location and length. First pair
   for the main interrupt registers, second pair for the per-CPU
-  interrupt registers
+  interrupt registers. For this last pair, to be compliant with SMP
+  support, the "virtual" must be use (For the record, these registers
+  automatically map to the interrupt controller registers of the
+  current CPU)
+
+
 
 Example:
 
@@ -18,6 +24,6 @@ Example:
               #address-cells = <1>;
               #size-cells = <1>;
               interrupt-controller;
-              reg = <0xd0020000 0x1000>,
-                    <0xd0021000 0x1000>;
+              reg = <0xd0020a00 0x1d0>,
+                    <0xd0021070 0x58>;
         };

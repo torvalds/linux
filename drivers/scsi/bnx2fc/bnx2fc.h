@@ -64,7 +64,7 @@
 #include "bnx2fc_constants.h"
 
 #define BNX2FC_NAME		"bnx2fc"
-#define BNX2FC_VERSION		"1.0.12"
+#define BNX2FC_VERSION		"1.0.13"
 
 #define PFX			"bnx2fc: "
 
@@ -156,6 +156,18 @@
 #define BNX2FC_RELOGIN_WAIT_TIME	200
 #define BNX2FC_RELOGIN_WAIT_CNT		10
 
+#define BNX2FC_STATS(hba, stat, cnt)					\
+	do {								\
+		u32 val;						\
+									\
+		val = fw_stats->stat.cnt;				\
+		if (hba->prev_stats.stat.cnt <= val)			\
+			val -= hba->prev_stats.stat.cnt;		\
+		else							\
+			val += (0xfffffff - hba->prev_stats.stat.cnt);	\
+		hba->bfw_stats.cnt += val;				\
+	} while (0)
+
 /* bnx2fc driver uses only one instance of fcoe_percpu_s */
 extern struct fcoe_percpu_s bnx2fc_global;
 
@@ -165,6 +177,14 @@ struct bnx2fc_percpu_s {
 	struct task_struct *iothread;
 	struct list_head work_list;
 	spinlock_t fp_work_lock;
+};
+
+struct bnx2fc_fw_stats {
+	u64	fc_crc_cnt;
+	u64	fcoe_tx_pkt_cnt;
+	u64	fcoe_rx_pkt_cnt;
+	u64	fcoe_tx_byte_cnt;
+	u64	fcoe_rx_byte_cnt;
 };
 
 struct bnx2fc_hba {
@@ -207,6 +227,8 @@ struct bnx2fc_hba {
 	struct bnx2fc_rport **tgt_ofld_list;
 
 	/* statistics */
+	struct bnx2fc_fw_stats bfw_stats;
+	struct fcoe_statistics_params prev_stats;
 	struct fcoe_statistics_params *stats_buffer;
 	dma_addr_t stats_buf_dma;
 	struct completion stat_req_done;
@@ -280,6 +302,7 @@ struct bnx2fc_rport {
 #define BNX2FC_FLAG_UPLD_REQ_COMPL	0x7
 #define BNX2FC_FLAG_EXPL_LOGO		0x8
 #define BNX2FC_FLAG_DISABLE_FAILED	0x9
+#define BNX2FC_FLAG_ENABLED		0xa
 
 	u8 src_addr[ETH_ALEN];
 	u32 max_sqes;
@@ -467,6 +490,8 @@ int bnx2fc_queuecommand(struct Scsi_Host *host, struct scsi_cmnd *sc_cmd);
 int bnx2fc_send_fw_fcoe_init_msg(struct bnx2fc_hba *hba);
 int bnx2fc_send_fw_fcoe_destroy_msg(struct bnx2fc_hba *hba);
 int bnx2fc_send_session_ofld_req(struct fcoe_port *port,
+					struct bnx2fc_rport *tgt);
+int bnx2fc_send_session_enable_req(struct fcoe_port *port,
 					struct bnx2fc_rport *tgt);
 int bnx2fc_send_session_disable_req(struct fcoe_port *port,
 				    struct bnx2fc_rport *tgt);

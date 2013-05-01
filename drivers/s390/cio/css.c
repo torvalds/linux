@@ -780,7 +780,7 @@ static int __init setup_css(int nr)
 	css->cssid = nr;
 	dev_set_name(&css->device, "css%x", nr);
 	css->device.release = channel_subsystem_release;
-	tod_high = (u32) (get_clock() >> 32);
+	tod_high = (u32) (get_tod_clock() >> 32);
 	css_generate_pgid(css, tod_high);
 	return 0;
 }

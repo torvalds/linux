@@ -18,11 +18,22 @@
 #define TS_FPRWIDTH 1
 #endif
 
+#ifdef CONFIG_PPC64
+/* Default SMT priority is set to 3. Use 11- 13bits to save priority. */
+#define PPR_PRIORITY 3
+#ifdef __ASSEMBLY__
+#define INIT_PPR (PPR_PRIORITY << 50)
+#else
+#define INIT_PPR ((u64)PPR_PRIORITY << 50)
+#endif /* __ASSEMBLY__ */
+#endif /* CONFIG_PPC64 */
+
 #ifndef __ASSEMBLY__
 #include <linux/compiler.h>
 #include <linux/cache.h>
 #include <asm/ptrace.h>
 #include <asm/types.h>
+#include <asm/hw_breakpoint.h>
 
 /* We do _not_ want to define new machine types at all, those must die
  * in favor of using the device-tree
@@ -141,6 +152,7 @@ typedef struct {
 #define TS_FPROFFSET 0
 #define TS_VSRLOWOFFSET 1
 #define TS_FPR(i) fpr[i][TS_FPROFFSET]
+#define TS_TRANS_FPR(i) transact_fpr[i][TS_FPROFFSET]
 
 struct thread_struct {
 	unsigned long	ksp;		/* Kernel stack pointer */
@@ -215,8 +227,7 @@ struct thread_struct {
 	struct perf_event *last_hit_ubp;
 #endif /* CONFIG_HAVE_HW_BREAKPOINT */
 #endif
-	unsigned long	dabr;		/* Data address breakpoint register */
-	unsigned long	dabrx;		/*      ... extension  */
+	struct arch_hw_breakpoint hw_brk; /* info on the hardware breakpoint */
 	unsigned long	trap_nr;	/* last trap # on this thread */
 #ifdef CONFIG_ALTIVEC
 	/* Complete AltiVec register set */
@@ -236,6 +247,34 @@ struct thread_struct {
 	unsigned long	spefscr;	/* SPE & eFP status */
 	int		used_spe;	/* set if process has used spe */
 #endif /* CONFIG_SPE */
+#ifdef CONFIG_PPC_TRANSACTIONAL_MEM
+	u64		tm_tfhar;	/* Transaction fail handler addr */
+	u64		tm_texasr;	/* Transaction exception & summary */
+	u64		tm_tfiar;	/* Transaction fail instr address reg */
+	unsigned long	tm_orig_msr;	/* Thread's MSR on ctx switch */
+	struct pt_regs	ckpt_regs;	/* Checkpointed registers */
+
+	/*
+	 * Transactional FP and VSX 0-31 register set.
+	 * NOTE: the sense of these is the opposite of the integer ckpt_regs!
+	 *
+	 * When a transaction is active/signalled/scheduled etc., *regs is the
+	 * most recent set of/speculated GPRs with ckpt_regs being the older
+	 * checkpointed regs to which we roll back if transaction aborts.
+	 *
+	 * However, fpr[] is the checkpointed 'base state' of FP regs, and
+	 * transact_fpr[] is the new set of transactional values.
+	 * VRs work the same way.
+	 */
+	double		transact_fpr[32][TS_FPRWIDTH];
+	struct {
+		unsigned int pad;
+		unsigned int val;	/* Floating point status */
+	} transact_fpscr;
+	vector128	transact_vr[32] __attribute__((aligned(16)));
+	vector128	transact_vscr __attribute__((aligned(16)));
+	unsigned long	transact_vrsave;
+#endif /* CONFIG_PPC_TRANSACTIONAL_MEM */
 #ifdef CONFIG_KVM_BOOK3S_32_HANDLER
 	void*		kvm_shadow_vcpu; /* KVM internal data */
 #endif /* CONFIG_KVM_BOOK3S_32_HANDLER */
@@ -245,6 +284,10 @@ struct thread_struct {
 #ifdef CONFIG_PPC64
 	unsigned long	dscr;
 	int		dscr_inherit;
+	unsigned long	ppr;	/* used to save/restore SMT priority */
+#endif
+#ifdef CONFIG_PPC_BOOK3S_64
+	unsigned long	tar;
 #endif
 };
 
@@ -278,6 +321,7 @@ struct thread_struct {
 	.fpr = {{0}}, \
 	.fpscr = { .val = 0, }, \
 	.fpexc_mode = 0, \
+	.ppr = INIT_PPR, \
 }
 #endif
 

@@ -11,7 +11,7 @@ What:		/sys/class/devfreq/.../governor
 Date:		September 2011
 Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
 Description:
-		The /sys/class/devfreq/.../governor shows the name of the
+		The /sys/class/devfreq/.../governor show or set the name of the
 		governor used by the corresponding devfreq object.
 
 What:		/sys/class/devfreq/.../cur_freq
@@ -19,15 +19,16 @@ Date:		September 2011
 Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
 Description:
 		The /sys/class/devfreq/.../cur_freq shows the current
-		frequency of the corresponding devfreq object.
+		frequency of the corresponding devfreq object. Same as
+		target_freq when get_cur_freq() is not implemented by
+		devfreq driver.
 
-What:		/sys/class/devfreq/.../central_polling
-Date:		September 2011
-Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
+What:		/sys/class/devfreq/.../target_freq
+Date:		September 2012
+Contact:	Rajagopal Venkat <rajagopal.venkat@linaro.org>
 Description:
-		The /sys/class/devfreq/.../central_polling shows whether
-		the devfreq ojbect is using devfreq-provided central
-		polling mechanism or not.
+		The /sys/class/devfreq/.../target_freq shows the next governor
+		predicted target frequency of the corresponding devfreq object.
 
 What:		/sys/class/devfreq/.../polling_interval
 Date:		September 2011
@@ -43,6 +44,17 @@ Description:
 		(/sys/class/devfreq/.../central_polling is 0), this value
 		may be useless.
 
+What:		/sys/class/devfreq/.../trans_stat
+Date:		October 2012
+Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
+Descrtiption:
+		This ABI shows the statistics of devfreq behavior on a
+		specific device. It shows the time spent in each state and
+		the number of transitions between states.
+		In order to activate this ABI, the devfreq target device
+		driver should provide the list of available frequencies
+		with its profile.
+
 What:		/sys/class/devfreq/.../userspace/set_freq
 Date:		September 2011
 Contact:	MyungJoo Ham <myungjoo.ham@samsung.com>
@@ -50,3 +62,19 @@ Description:
 		The /sys/class/devfreq/.../userspace/set_freq shows and
 		sets the requested frequency for the devfreq object if
 		userspace governor is in effect.
+
+What:		/sys/class/devfreq/.../available_frequencies
+Date:		October 2012
+Contact:	Nishanth Menon <nm@ti.com>
+Description:
+		The /sys/class/devfreq/.../available_frequencies shows
+		the available frequencies of the corresponding devfreq object.
+		This is a snapshot of available frequencies and not limited
+		by the min/max frequency restrictions.
+
+What:		/sys/class/devfreq/.../available_governors
+Date:		October 2012
+Contact:	Nishanth Menon <nm@ti.com>
+Description:
+		The /sys/class/devfreq/.../available_governors shows
+		currently available governors in the system.

@@ -31,6 +31,7 @@
 #include <asm/pgtable-hwdef.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
+#include <asm/virt.h>
 
 /*
  * swapper_pg_dir is the virtual address of the initial page table. We place
@@ -81,10 +82,8 @@
 
 #ifdef CONFIG_ARM64_64K_PAGES
 #define MM_MMUFLAGS	PTE_ATTRINDX(MT_NORMAL) | PTE_FLAGS
-#define IO_MMUFLAGS	PTE_ATTRINDX(MT_DEVICE_nGnRE) | PTE_XN | PTE_FLAGS
 #else
 #define MM_MMUFLAGS	PMD_ATTRINDX(MT_NORMAL) | PMD_FLAGS
-#define IO_MMUFLAGS	PMD_ATTRINDX(MT_DEVICE_nGnRE) | PMD_SECT_XN | PMD_FLAGS
 #endif
 
 /*
@@ -115,13 +114,13 @@
 
 ENTRY(stext)
 	mov	x21, x0				// x21=FDT
+	bl	__calc_phys_offset		// x24=PHYS_OFFSET, x28=PHYS_OFFSET-PAGE_OFFSET
 	bl	el2_setup			// Drop to EL1
 	mrs	x22, midr_el1			// x22=cpuid
 	mov	x0, x22
 	bl	lookup_processor_type
 	mov	x23, x0				// x23=current cpu_table
 	cbz	x23, __error_p			// invalid processor (x23=0)?
-	bl	__calc_phys_offset		// x24=PHYS_OFFSET, x28=PHYS_OFFSET-PAGE_OFFSET
 	bl	__vet_fdt
 	bl	__create_page_tables		// x25=TTBR0, x26=TTBR1
 	/*
@@ -147,17 +146,23 @@ ENTRY(el2_setup)
 	mrs	x0, CurrentEL
 	cmp	x0, #PSR_MODE_EL2t
 	ccmp	x0, #PSR_MODE_EL2h, #0x4, ne
+	ldr	x0, =__boot_cpu_mode		// Compute __boot_cpu_mode
+	add	x0, x0, x28
 	b.eq	1f
+	str	wzr, [x0]			// Remember we don't have EL2...
 	ret
 
 	/* Hyp configuration. */
-1:	mov	x0, #(1 << 31)			// 64-bit EL1
+1:	ldr	w1, =BOOT_CPU_MODE_EL2
+	str	w1, [x0, #4]			// This CPU has EL2
+	mov	x0, #(1 << 31)			// 64-bit EL1
 	msr	hcr_el2, x0
 
 	/* Generic timers. */
 	mrs	x0, cnthctl_el2
 	orr	x0, x0, #3			// Enable EL1 physical timers
 	msr	cnthctl_el2, x0
+	msr	cntvoff_el2, xzr		// Clear virtual offset
 
 	/* Populate ID registers. */
 	mrs	x0, midr_el1
@@ -178,6 +183,13 @@ ENTRY(el2_setup)
 	msr	hstr_el2, xzr			// Disable CP15 traps to EL2
 #endif
 
+	/* Stage-2 translation */
+	msr	vttbr_el2, xzr
+
+	/* Hypervisor stub */
+	adr	x0, __hyp_stub_vectors
+	msr	vbar_el2, x0
+
 	/* spsr */
 	mov	x0, #(PSR_F_BIT | PSR_I_BIT | PSR_A_BIT | PSR_D_BIT |\
 		      PSR_MODE_EL1h)
@@ -185,6 +197,19 @@ ENTRY(el2_setup)
 	msr	elr_el2, lr
 	eret
 ENDPROC(el2_setup)
+
+/*
+ * We need to find out the CPU boot mode long after boot, so we need to
+ * store it in a writable variable.
+ *
+ * This is not in .bss, because we set it sufficiently early that the boot-time
+ * zeroing of .bss would clobber it.
+ */
+	.pushsection	.data
+ENTRY(__boot_cpu_mode)
+	.long	BOOT_CPU_MODE_EL2
+	.long	0
+	.popsection
 
 	.align	3
 2:	.quad	.
@@ -201,6 +226,7 @@ ENDPROC(el2_setup)
 	 * cores are held until we're ready for them to initialise.
 	 */
 ENTRY(secondary_holding_pen)
+	bl	__calc_phys_offset		// x24=phys offset
 	bl	el2_setup			// Drop to EL1
 	mrs	x0, mpidr_el1
 	and	x0, x0, #15			// CPU number
@@ -226,7 +252,6 @@ ENTRY(secondary_startup)
 	mov	x23, x0				// x23=current cpu_table
 	cbz	x23, __error_p			// invalid processor (x23=0)?
 
-	bl	__calc_phys_offset		// x24=phys offset
 	pgtbl	x25, x26, x24			// x25=TTBR0, x26=TTBR1
 	ldr	x12, [x23, #CPU_INFO_SETUP]
 	add	x12, x12, x28			// __virt_to_phys
@@ -341,6 +366,7 @@ ENDPROC(__calc_phys_offset)
  *   - identity mapping to enable the MMU (low address, TTBR0)
  *   - first few MB of the kernel linear mapping to jump to once the MMU has
  *     been enabled, including the FDT blob (TTBR1)
+ *   - UART mapping if CONFIG_EARLY_PRINTK is enabled (TTBR1)
  */
 __create_page_tables:
 	pgtbl	x25, x26, x24			// idmap_pg_dir and swapper_pg_dir addresses
@@ -393,6 +419,15 @@ __create_page_tables:
 	sub	x6, x6, #1			// inclusive range
 	create_block_map x0, x7, x3, x5, x6
 1:
+#ifdef CONFIG_EARLY_PRINTK
+	/*
+	 * Create the pgd entry for the UART mapping. The full mapping is done
+	 * later based earlyprintk kernel parameter.
+	 */
+	ldr	x5, =EARLYCON_IOBASE		// UART virtual address
+	add	x0, x26, #2 * PAGE_SIZE		// section table address
+	create_pgd_entry x26, x0, x5, x6, x7
+#endif
 	ret
 ENDPROC(__create_page_tables)
 	.ltorg

@@ -64,7 +64,7 @@ static int pvc_line_proc_open(struct inode *inode, struct file *file)
 static ssize_t pvc_line_proc_write(struct file *file, const char __user *buf,
 				   size_t count, loff_t *pos)
 {
-	int lineno = *(int *)PDE(file->f_path.dentry->d_inode)->data;
+	int lineno = *(int *)PDE(file_inode(file))->data;
 	char kbuf[PVC_LINELEN];
 	size_t len;
 

@@ -85,11 +85,11 @@ void __cvmx_interrupt_gmxx_enable(int interface)
 	if (OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN52XX)) {
 		if (mode.s.en) {
 			switch (mode.cn56xx.mode) {
-			case 1:	/* XAUI */
+			case 1: /* XAUI */
 				num_ports = 1;
 				break;
-			case 2:	/* SGMII */
-			case 3:	/* PICMG */
+			case 2: /* SGMII */
+			case 3: /* PICMG */
 				num_ports = 4;
 				break;
 			default:	/* Disabled */

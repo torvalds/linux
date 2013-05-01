@@ -7,7 +7,7 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/module.h>
+#include <linux/export.h>
 #include <linux/moduleloader.h>
 #include <linux/kernel.h>
 #include <linux/elf.h>
@@ -108,8 +108,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs, const char *strtab,
 			break;
 
 		default:
-			printk(KERN_ERR "module %s: "
-				"Unknown relocation: %u\n",
+			pr_err("module %s: Unknown relocation: %u\n",
 				module->name,
 				ELF32_R_TYPE(rela[i].r_info));
 			return -ENOEXEC;

@@ -53,7 +53,7 @@ ALC882/883/885/888/889
   acer-aspire-8930g	Acer Aspire 8330G/6935G
   acer-aspire		Acer Aspire others
   inv-dmic	Inverted internal mic workaround
-  no-primary-hp		VAIO Z workaround (for fixed speaker DAC)
+  no-primary-hp		VAIO Z/VGC-LN51JGB workaround (for fixed speaker DAC)
 
 ALC861/660
 ==========

@@ -557,7 +557,7 @@ static int ccdc_config_vdfc(struct ccdc_vertical_dft *dfc)
  */
 static void ccdc_config_csc(struct ccdc_csc *csc)
 {
-	u32 val1, val2;
+	u32 val1 = 0, val2;
 	int i;
 
 	if (!csc->enable)
@@ -965,7 +965,7 @@ static struct ccdc_hw_device ccdc_hw_dev = {
 	},
 };
 
-static int __devinit dm355_ccdc_probe(struct platform_device *pdev)
+static int dm355_ccdc_probe(struct platform_device *pdev)
 {
 	void (*setup_pinmux)(void);
 	struct resource	*res;
@@ -1003,7 +1003,7 @@ static int __devinit dm355_ccdc_probe(struct platform_device *pdev)
 		status = PTR_ERR(ccdc_cfg.mclk);
 		goto fail_nomap;
 	}
-	if (clk_enable(ccdc_cfg.mclk)) {
+	if (clk_prepare_enable(ccdc_cfg.mclk)) {
 		status = -ENODEV;
 		goto fail_mclk;
 	}
@@ -1014,7 +1014,7 @@ static int __devinit dm355_ccdc_probe(struct platform_device *pdev)
 		status = PTR_ERR(ccdc_cfg.sclk);
 		goto fail_mclk;
 	}
-	if (clk_enable(ccdc_cfg.sclk)) {
+	if (clk_prepare_enable(ccdc_cfg.sclk)) {
 		status = -ENODEV;
 		goto fail_sclk;
 	}
@@ -1034,8 +1034,10 @@ static int __devinit dm355_ccdc_probe(struct platform_device *pdev)
 	printk(KERN_NOTICE "%s is registered with vpfe.\n", ccdc_hw_dev.name);
 	return 0;
 fail_sclk:
+	clk_disable_unprepare(ccdc_cfg.sclk);
 	clk_put(ccdc_cfg.sclk);
 fail_mclk:
+	clk_disable_unprepare(ccdc_cfg.mclk);
 	clk_put(ccdc_cfg.mclk);
 fail_nomap:
 	iounmap(ccdc_cfg.base_addr);
@@ -1050,6 +1052,8 @@ static int dm355_ccdc_remove(struct platform_device *pdev)
 {
 	struct resource	*res;
 
+	clk_disable_unprepare(ccdc_cfg.sclk);
+	clk_disable_unprepare(ccdc_cfg.mclk);
 	clk_put(ccdc_cfg.mclk);
 	clk_put(ccdc_cfg.sclk);
 	iounmap(ccdc_cfg.base_addr);
@@ -1065,7 +1069,7 @@ static struct platform_driver dm355_ccdc_driver = {
 		.name	= "dm355_ccdc",
 		.owner = THIS_MODULE,
 	},
-	.remove = __devexit_p(dm355_ccdc_remove),
+	.remove = dm355_ccdc_remove,
 	.probe = dm355_ccdc_probe,
 };
 

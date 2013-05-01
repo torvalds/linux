@@ -117,6 +117,8 @@ enum {
 #define	IPOIB_OP_CM     (0)
 #endif
 
+#define IPOIB_QPN_MASK ((__force u32) cpu_to_be32(0xFFFFFF))
+
 /* structs */
 
 struct ipoib_header {
@@ -759,5 +761,7 @@ extern int ipoib_debug_level;
 #endif /* CONFIG_INFINIBAND_IPOIB_DEBUG_DATA */
 
 #define IPOIB_QPN(ha) (be32_to_cpup((__be32 *) ha) & 0xffffff)
+
+extern const char ipoib_driver_version[];
 
 #endif /* _IPOIB_H */

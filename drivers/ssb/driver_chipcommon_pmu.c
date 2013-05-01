@@ -14,7 +14,7 @@
 #include <linux/delay.h>
 #include <linux/export.h>
 #ifdef CONFIG_BCM47XX
-#include <asm/mach-bcm47xx/nvram.h>
+#include <bcm47xx_nvram.h>
 #endif
 
 #include "ssb_private.h"
@@ -322,7 +322,7 @@ static void ssb_pmu_pll_init(struct ssb_chipcommon *cc)
 	if (bus->bustype == SSB_BUSTYPE_SSB) {
 #ifdef CONFIG_BCM47XX
 		char buf[20];
-		if (nvram_getenv("xtalfreq", buf, sizeof(buf)) >= 0)
+		if (bcm47xx_nvram_getenv("xtalfreq", buf, sizeof(buf)) >= 0)
 			crystalfreq = simple_strtoul(buf, NULL, 0);
 #endif
 	}
@@ -345,6 +345,8 @@ static void ssb_pmu_pll_init(struct ssb_chipcommon *cc)
 			chipco_write32(cc, SSB_CHIPCO_PLLCTL_ADDR, 0x0000000A);
 			chipco_write32(cc, SSB_CHIPCO_PLLCTL_DATA, 0x380005C0);
 		}
+		break;
+	case 43222:
 		break;
 	default:
 		ssb_printk(KERN_ERR PFX
@@ -434,6 +436,7 @@ static void ssb_pmu_resources_init(struct ssb_chipcommon *cc)
 		 min_msk = 0xCBB;
 		 break;
 	case 0x4322:
+	case 43222:
 		/* We keep the default settings:
 		 * min_msk = 0xCBB
 		 * max_msk = 0x7FFFF
@@ -614,6 +617,33 @@ void ssb_pmu_set_ldo_paref(struct ssb_chipcommon *cc, bool on)
 
 EXPORT_SYMBOL(ssb_pmu_set_ldo_voltage);
 EXPORT_SYMBOL(ssb_pmu_set_ldo_paref);
+
+static u32 ssb_pmu_get_alp_clock_clk0(struct ssb_chipcommon *cc)
+{
+	u32 crystalfreq;
+	const struct pmu0_plltab_entry *e = NULL;
+
+	crystalfreq = chipco_read32(cc, SSB_CHIPCO_PMU_CTL) &
+		      SSB_CHIPCO_PMU_CTL_XTALFREQ >> SSB_CHIPCO_PMU_CTL_XTALFREQ_SHIFT;
+	e = pmu0_plltab_find_entry(crystalfreq);
+	BUG_ON(!e);
+	return e->freq * 1000;
+}
+
+u32 ssb_pmu_get_alp_clock(struct ssb_chipcommon *cc)
+{
+	struct ssb_bus *bus = cc->dev->bus;
+
+	switch (bus->chip_id) {
+	case 0x5354:
+		ssb_pmu_get_alp_clock_clk0(cc);
+	default:
+		ssb_printk(KERN_ERR PFX
+			   "ERROR: PMU alp clock unknown for device %04X\n",
+			   bus->chip_id);
+		return 0;
+	}
+}
 
 u32 ssb_pmu_get_cpu_clock(struct ssb_chipcommon *cc)
 {

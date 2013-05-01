@@ -53,6 +53,14 @@ Struct Resources:
 	For printing struct resources. The 'R' and 'r' specifiers result in a
 	printed resource with ('R') or without ('r') a decoded flags member.
 
+Physical addresses:
+
+	%pa	0x01234567 or 0x0123456789abcdef
+
+	For printing a phys_addr_t type (and its derivatives, such as
+	resource_size_t) which can vary based on build options, regardless of
+	the width of the CPU data path. Passed by reference.
+
 Raw buffer as a hex string:
 	%*ph	00 01 02  ...  3f
 	%*phC	00:01:02: ... :3f
@@ -150,9 +158,9 @@ s64 SHOULD be printed with %lld/%llx, (long long):
 	printk("%lld", (long long)s64_var);
 
 If <type> is dependent on a config option for its size (e.g., sector_t,
-blkcnt_t, phys_addr_t, resource_size_t) or is architecture-dependent
-for its size (e.g., tcflag_t), use a format specifier of its largest
-possible type and explicitly cast to it.  Example:
+blkcnt_t) or is architecture-dependent for its size (e.g., tcflag_t), use a
+format specifier of its largest possible type and explicitly cast to it.
+Example:
 
 	printk("test: sector number/total blocks: %llu/%llu\n",
 		(unsigned long long)sector, (unsigned long long)blockcount);
@@ -162,5 +170,5 @@ Reminder: sizeof() result is of type size_t.
 Thank you for your cooperation and attention.
 
 
-By Randy Dunlap <rdunlap@xenotime.net> and
+By Randy Dunlap <rdunlap@infradead.org> and
 Andrew Murray <amurray@mpc-data.co.uk>

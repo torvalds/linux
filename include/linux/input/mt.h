@@ -19,6 +19,7 @@
 #define INPUT_MT_DIRECT		0x0002	/* direct device, e.g. touchscreen */
 #define INPUT_MT_DROP_UNUSED	0x0004	/* drop contacts not seen in frame */
 #define INPUT_MT_TRACK		0x0008	/* use in-kernel tracking */
+#define INPUT_MT_SEMI_MT	0x0010	/* semi-mt device, finger count handled manually */
 
 /**
  * struct input_mt_slot - represents the state of an input MT slot
@@ -67,6 +68,12 @@ static inline int input_mt_get_value(const struct input_mt_slot *slot,
 static inline bool input_mt_is_active(const struct input_mt_slot *slot)
 {
 	return input_mt_get_value(slot, ABS_MT_TRACKING_ID) >= 0;
+}
+
+static inline bool input_mt_is_used(const struct input_mt *mt,
+				    const struct input_mt_slot *slot)
+{
+	return slot->frame == mt->frame;
 }
 
 int input_mt_init_slots(struct input_dev *dev, unsigned int num_slots,

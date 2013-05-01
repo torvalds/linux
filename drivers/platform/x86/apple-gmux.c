@@ -411,8 +411,7 @@ static int gmux_resume(struct pnp_dev *pnp)
 	return 0;
 }
 
-static int __devinit gmux_probe(struct pnp_dev *pnp,
-				const struct pnp_device_id *id)
+static int gmux_probe(struct pnp_dev *pnp, const struct pnp_device_id *id)
 {
 	struct apple_gmux_data *gmux_data;
 	struct resource *res;
@@ -577,7 +576,7 @@ err_free:
 	return ret;
 }
 
-static void __devexit gmux_remove(struct pnp_dev *pnp)
+static void gmux_remove(struct pnp_dev *pnp)
 {
 	struct apple_gmux_data *gmux_data = pnp_get_drvdata(pnp);
 
@@ -609,7 +608,7 @@ static const struct pnp_device_id gmux_device_ids[] = {
 static struct pnp_driver gmux_pnp_driver = {
 	.name		= "apple-gmux",
 	.probe		= gmux_probe,
-	.remove		= __devexit_p(gmux_remove),
+	.remove		= gmux_remove,
 	.id_table	= gmux_device_ids,
 	.suspend	= gmux_suspend,
 	.resume		= gmux_resume

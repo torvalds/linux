@@ -115,11 +115,13 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
 	sldi	r29,r5,SID_SHIFT - VPN_SHIFT
 	rldicl  r28,r3,64 - VPN_SHIFT,64 - (SID_SHIFT - VPN_SHIFT)
 	or	r29,r28,r29
-
-	/* Calculate hash value for primary slot and store it in r28 */
-	rldicl	r5,r5,0,25		/* vsid & 0x0000007fffffffff */
-	rldicl	r0,r3,64-12,48		/* (ea >> 12) & 0xffff */
-	xor	r28,r5,r0
+	/*
+	 * Calculate hash value for primary slot and store it in r28
+	 * r3 = va, r5 = vsid
+	 * r0 = (va >> 12) & ((1ul << (28 - 12)) -1)
+	 */
+	rldicl	r0,r3,64-12,48
+	xor	r28,r5,r0		/* hash */
 	b	4f
 
 3:	/* Calc vpn and put it in r29 */
@@ -130,11 +132,12 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
 	/*
 	 * calculate hash value for primary slot and
 	 * store it in r28 for 1T segment
+	 * r3 = va, r5 = vsid
 	 */
-	rldic	r28,r5,25,25		/* (vsid << 25) & 0x7fffffffff */
-	clrldi	r5,r5,40		/* vsid & 0xffffff */
-	rldicl	r0,r3,64-12,36		/* (ea >> 12) & 0xfffffff */
-	xor	r28,r28,r5
+	sldi	r28,r5,25		/* vsid << 25 */
+	/* r0 =  (va >> 12) & ((1ul << (40 - 12)) -1) */
+	rldicl	r0,r3,64-12,36
+	xor	r28,r28,r5		/* vsid ^ ( vsid << 25) */
 	xor	r28,r28,r0		/* hash */
 
 	/* Convert linux PTE bits into HW equivalents */
@@ -407,11 +410,13 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
 	 */
 	rldicl  r28,r3,64 - VPN_SHIFT,64 - (SID_SHIFT - VPN_SHIFT)
 	or	r29,r28,r29
-
-	/* Calculate hash value for primary slot and store it in r28 */
-	rldicl	r5,r5,0,25		/* vsid & 0x0000007fffffffff */
-	rldicl	r0,r3,64-12,48		/* (ea >> 12) & 0xffff */
-	xor	r28,r5,r0
+	/*
+	 * Calculate hash value for primary slot and store it in r28
+	 * r3 = va, r5 = vsid
+	 * r0 = (va >> 12) & ((1ul << (28 - 12)) -1)
+	 */
+	rldicl	r0,r3,64-12,48
+	xor	r28,r5,r0		/* hash */
 	b	4f
 
 3:	/* Calc vpn and put it in r29 */
@@ -426,11 +431,12 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
 	/*
 	 * Calculate hash value for primary slot and
 	 * store it in r28  for 1T segment
+	 * r3 = va, r5 = vsid
 	 */
-	rldic	r28,r5,25,25		/* (vsid << 25) & 0x7fffffffff */
-	clrldi	r5,r5,40		/* vsid & 0xffffff */
-	rldicl	r0,r3,64-12,36		/* (ea >> 12) & 0xfffffff */
-	xor	r28,r28,r5
+	sldi	r28,r5,25		/* vsid << 25 */
+	/* r0 = (va >> 12) & ((1ul << (40 - 12)) -1) */
+	rldicl	r0,r3,64-12,36
+	xor	r28,r28,r5		/* vsid ^ ( vsid << 25) */
 	xor	r28,r28,r0		/* hash */
 
 	/* Convert linux PTE bits into HW equivalents */
@@ -752,25 +758,27 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
 	rldicl  r28,r3,64 - VPN_SHIFT,64 - (SID_SHIFT - VPN_SHIFT)
 	or	r29,r28,r29
 
-	/* Calculate hash value for primary slot and store it in r28 */
-	rldicl	r5,r5,0,25		/* vsid & 0x0000007fffffffff */
-	rldicl	r0,r3,64-16,52		/* (ea >> 16) & 0xfff */
-	xor	r28,r5,r0
+	/* Calculate hash value for primary slot and store it in r28
+	 * r3 = va, r5 = vsid
+	 * r0 = (va >> 16) & ((1ul << (28 - 16)) -1)
+	 */
+	rldicl	r0,r3,64-16,52
+	xor	r28,r5,r0		/* hash */
 	b	4f
 
 3:	/* Calc vpn and put it in r29 */
 	sldi	r29,r5,SID_SHIFT_1T - VPN_SHIFT
 	rldicl  r28,r3,64 - VPN_SHIFT,64 - (SID_SHIFT_1T - VPN_SHIFT)
 	or	r29,r28,r29
-
 	/*
 	 * calculate hash value for primary slot and
 	 * store it in r28 for 1T segment
+	 * r3 = va, r5 = vsid
 	 */
-	rldic	r28,r5,25,25		/* (vsid << 25) & 0x7fffffffff */
-	clrldi	r5,r5,40		/* vsid & 0xffffff */
-	rldicl	r0,r3,64-16,40		/* (ea >> 16) & 0xffffff */
-	xor	r28,r28,r5
+	sldi	r28,r5,25		/* vsid << 25 */
+	/* r0 = (va >> 16) & ((1ul << (40 - 16)) -1) */
+	rldicl	r0,r3,64-16,40
+	xor	r28,r28,r5		/* vsid ^ ( vsid << 25) */
 	xor	r28,r28,r0		/* hash */
 
 	/* Convert linux PTE bits into HW equivalents */

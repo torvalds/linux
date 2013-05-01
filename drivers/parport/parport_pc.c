@@ -953,7 +953,7 @@ static struct superio_struct *find_free_superio(void)
 
 
 /* Super-IO chipset detection, Winbond, SMSC */
-static void __devinit show_parconfig_smsc37c669(int io, int key)
+static void show_parconfig_smsc37c669(int io, int key)
 {
 	int cr1, cr4, cra, cr23, cr26, cr27;
 	struct superio_struct *s;
@@ -1038,7 +1038,7 @@ static void __devinit show_parconfig_smsc37c669(int io, int key)
 }
 
 
-static void __devinit show_parconfig_winbond(int io, int key)
+static void show_parconfig_winbond(int io, int key)
 {
 	int cr30, cr60, cr61, cr70, cr74, crf0;
 	struct superio_struct *s;
@@ -1106,8 +1106,7 @@ static void __devinit show_parconfig_winbond(int io, int key)
 	}
 }
 
-static void __devinit decode_winbond(int efer, int key, int devid,
-							int devrev, int oldid)
+static void decode_winbond(int efer, int key, int devid, int devrev, int oldid)
 {
 	const char *type = "unknown";
 	int id, progif = 2;
@@ -1159,7 +1158,7 @@ static void __devinit decode_winbond(int efer, int key, int devid,
 		show_parconfig_winbond(efer, key);
 }
 
-static void __devinit decode_smsc(int efer, int key, int devid, int devrev)
+static void decode_smsc(int efer, int key, int devid, int devrev)
 {
 	const char *type = "unknown";
 	void (*func)(int io, int key);
@@ -1193,7 +1192,7 @@ static void __devinit decode_smsc(int efer, int key, int devid, int devrev)
 }
 
 
-static void __devinit winbond_check(int io, int key)
+static void winbond_check(int io, int key)
 {
 	int origval, devid, devrev, oldid, x_devid, x_devrev, x_oldid;
 
@@ -1231,7 +1230,7 @@ out:
 	release_region(io, 3);
 }
 
-static void __devinit winbond_check2(int io, int key)
+static void winbond_check2(int io, int key)
 {
 	int origval[3], devid, devrev, oldid, x_devid, x_devrev, x_oldid;
 
@@ -1272,7 +1271,7 @@ out:
 	release_region(io, 3);
 }
 
-static void __devinit smsc_check(int io, int key)
+static void smsc_check(int io, int key)
 {
 	int origval, id, rev, oldid, oldrev, x_id, x_rev, x_oldid, x_oldrev;
 
@@ -1316,7 +1315,7 @@ out:
 }
 
 
-static void __devinit detect_and_report_winbond(void)
+static void detect_and_report_winbond(void)
 {
 	if (verbose_probing)
 		printk(KERN_DEBUG "Winbond Super-IO detection, now testing ports 3F0,370,250,4E,2E ...\n");
@@ -1329,7 +1328,7 @@ static void __devinit detect_and_report_winbond(void)
 	winbond_check2(0x250, 0x89);
 }
 
-static void __devinit detect_and_report_smsc(void)
+static void detect_and_report_smsc(void)
 {
 	if (verbose_probing)
 		printk(KERN_DEBUG "SMSC Super-IO detection, now testing Ports 2F0, 370 ...\n");
@@ -1339,7 +1338,7 @@ static void __devinit detect_and_report_smsc(void)
 	smsc_check(0x370, 0x44);
 }
 
-static void __devinit detect_and_report_it87(void)
+static void detect_and_report_it87(void)
 {
 	u16 dev;
 	u8 origval, r;
@@ -1796,24 +1795,24 @@ static int parport_ECPEPP_supported(struct parport *pb)
 #else /* No IEEE 1284 support */
 
 /* Don't bother probing for modes we know we won't use. */
-static int __devinit parport_PS2_supported(struct parport *pb) { return 0; }
+static int parport_PS2_supported(struct parport *pb) { return 0; }
 #ifdef CONFIG_PARPORT_PC_FIFO
 static int parport_ECP_supported(struct parport *pb)
 {
 	return 0;
 }
 #endif
-static int __devinit parport_EPP_supported(struct parport *pb)
+static int parport_EPP_supported(struct parport *pb)
 {
 	return 0;
 }
 
-static int __devinit parport_ECPEPP_supported(struct parport *pb)
+static int parport_ECPEPP_supported(struct parport *pb)
 {
 	return 0;
 }
 
-static int __devinit parport_ECPPS2_supported(struct parport *pb)
+static int parport_ECPPS2_supported(struct parport *pb)
 {
 	return 0;
 }
@@ -2269,9 +2268,8 @@ EXPORT_SYMBOL(parport_pc_unregister_port);
 #ifdef CONFIG_PCI
 
 /* ITE support maintained by Rich Liu <richliu@poorman.org> */
-static int __devinit sio_ite_8872_probe(struct pci_dev *pdev, int autoirq,
-					 int autodma,
-					 const struct parport_pc_via_data *via)
+static int sio_ite_8872_probe(struct pci_dev *pdev, int autoirq, int autodma,
+			      const struct parport_pc_via_data *via)
 {
 	short inta_addr[6] = { 0x2A0, 0x2C0, 0x220, 0x240, 0x1E0 };
 	u32 ite8872set;
@@ -2377,10 +2375,10 @@ static int __devinit sio_ite_8872_probe(struct pci_dev *pdev, int autoirq,
 
 /* VIA 8231 support by Pavel Fedin <sonic_amiga@rambler.ru>
    based on VIA 686a support code by Jeff Garzik <jgarzik@pobox.com> */
-static int __devinitdata parport_init_mode;
+static int parport_init_mode;
 
 /* Data for two known VIA chips */
-static struct parport_pc_via_data via_686a_data __devinitdata = {
+static struct parport_pc_via_data via_686a_data = {
 	0x51,
 	0x50,
 	0x85,
@@ -2389,7 +2387,7 @@ static struct parport_pc_via_data via_686a_data __devinitdata = {
 	0xF0,
 	0xE6
 };
-static struct parport_pc_via_data via_8231_data __devinitdata = {
+static struct parport_pc_via_data via_8231_data = {
 	0x45,
 	0x44,
 	0x50,
@@ -2399,9 +2397,8 @@ static struct parport_pc_via_data via_8231_data __devinitdata = {
 	0xF6
 };
 
-static int __devinit sio_via_probe(struct pci_dev *pdev, int autoirq,
-				    int autodma,
-				    const struct parport_pc_via_data *via)
+static int sio_via_probe(struct pci_dev *pdev, int autoirq, int autodma,
+			 const struct parport_pc_via_data *via)
 {
 	u8 tmp, tmp2, siofunc;
 	u8 ppcontrol = 0;
@@ -2575,7 +2572,7 @@ static struct parport_pc_superio {
 	int (*probe) (struct pci_dev *pdev, int autoirq, int autodma,
 		      const struct parport_pc_via_data *via);
 	const struct parport_pc_via_data *via;
-} parport_pc_superio_info[] __devinitdata = {
+} parport_pc_superio_info[] = {
 	{ sio_via_probe, &via_686a_data, },
 	{ sio_via_probe, &via_8231_data, },
 	{ sio_ite_8872_probe, NULL, },
@@ -2860,7 +2857,7 @@ static int parport_pc_pci_probe(struct pci_dev *dev,
 	return -ENODEV;
 }
 
-static void __devexit parport_pc_pci_remove(struct pci_dev *dev)
+static void parport_pc_pci_remove(struct pci_dev *dev)
 {
 	struct pci_parport_data *data = pci_get_drvdata(dev);
 	int i;
@@ -2879,7 +2876,7 @@ static struct pci_driver parport_pc_pci_driver = {
 	.name		= "parport_pc",
 	.id_table	= parport_pc_pci_tbl,
 	.probe		= parport_pc_pci_probe,
-	.remove		= __devexit_p(parport_pc_pci_remove),
+	.remove		= parport_pc_pci_remove,
 };
 
 static int __init parport_pc_init_superio(int autoirq, int autodma)
@@ -2983,7 +2980,7 @@ static struct pnp_driver parport_pc_pnp_driver = {
 static struct pnp_driver parport_pc_pnp_driver;
 #endif /* CONFIG_PNP */
 
-static int __devinit parport_pc_platform_probe(struct platform_device *pdev)
+static int parport_pc_platform_probe(struct platform_device *pdev)
 {
 	/* Always succeed, the actual probing is done in
 	 * parport_pc_probe_port(). */
@@ -2999,7 +2996,7 @@ static struct platform_driver parport_pc_platform_driver = {
 };
 
 /* This is called by parport_pc_find_nonpci_ports (in asm/parport.h) */
-static int __devinit __attribute__((unused))
+static int __attribute__((unused))
 parport_pc_find_isa_ports(int autoirq, int autodma)
 {
 	int count = 0;

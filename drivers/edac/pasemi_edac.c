@@ -188,8 +188,8 @@ static int pasemi_edac_init_csrows(struct mem_ctl_info *mci,
 	return 0;
 }
 
-static int __devinit pasemi_edac_probe(struct pci_dev *pdev,
-		const struct pci_device_id *ent)
+static int pasemi_edac_probe(struct pci_dev *pdev,
+			     const struct pci_device_id *ent)
 {
 	struct mem_ctl_info *mci = NULL;
 	struct edac_mc_layer layers[2];
@@ -266,7 +266,7 @@ fail:
 	return -ENODEV;
 }
 
-static void __devexit pasemi_edac_remove(struct pci_dev *pdev)
+static void pasemi_edac_remove(struct pci_dev *pdev)
 {
 	struct mem_ctl_info *mci = edac_mc_del_mc(&pdev->dev);
 
@@ -287,7 +287,7 @@ MODULE_DEVICE_TABLE(pci, pasemi_edac_pci_tbl);
 static struct pci_driver pasemi_edac_driver = {
 	.name = MODULE_NAME,
 	.probe = pasemi_edac_probe,
-	.remove = __devexit_p(pasemi_edac_remove),
+	.remove = pasemi_edac_remove,
 	.id_table = pasemi_edac_pci_tbl,
 };
 

@@ -114,18 +114,15 @@ static int max77693_i2c_probe(struct i2c_client *i2c,
 	u8 reg_data;
 	int ret = 0;
 
+	if (!pdata) {
+		dev_err(&i2c->dev, "No platform data found.\n");
+		return -EINVAL;
+	}
+
 	max77693 = devm_kzalloc(&i2c->dev,
 			sizeof(struct max77693_dev), GFP_KERNEL);
 	if (max77693 == NULL)
 		return -ENOMEM;
-
-	max77693->regmap = devm_regmap_init_i2c(i2c, &max77693_regmap_config);
-	if (IS_ERR(max77693->regmap)) {
-		ret = PTR_ERR(max77693->regmap);
-		dev_err(max77693->dev,"failed to allocate register map: %d\n",
-				ret);
-		goto err_regmap;
-	}
 
 	i2c_set_clientdata(i2c, max77693);
 	max77693->dev = &i2c->dev;
@@ -133,16 +130,21 @@ static int max77693_i2c_probe(struct i2c_client *i2c,
 	max77693->irq = i2c->irq;
 	max77693->type = id->driver_data;
 
-	if (!pdata)
-		goto err_regmap;
+	max77693->regmap = devm_regmap_init_i2c(i2c, &max77693_regmap_config);
+	if (IS_ERR(max77693->regmap)) {
+		ret = PTR_ERR(max77693->regmap);
+		dev_err(max77693->dev, "failed to allocate register map: %d\n",
+				ret);
+		return ret;
+	}
 
 	max77693->wakeup = pdata->wakeup;
 
-	if (max77693_read_reg(max77693->regmap,
-				MAX77693_PMIC_REG_PMIC_ID2, &reg_data) < 0) {
+	ret = max77693_read_reg(max77693->regmap, MAX77693_PMIC_REG_PMIC_ID2,
+				&reg_data);
+	if (ret < 0) {
 		dev_err(max77693->dev, "device not found on this channel\n");
-		ret = -ENODEV;
-		goto err_regmap;
+		return ret;
 	} else
 		dev_info(max77693->dev, "device ID: 0x%x\n", reg_data);
 
@@ -163,7 +165,7 @@ static int max77693_i2c_probe(struct i2c_client *i2c,
 		ret = PTR_ERR(max77693->regmap_muic);
 		dev_err(max77693->dev,
 			"failed to allocate register map: %d\n", ret);
-		goto err_regmap;
+		goto err_regmap_muic;
 	}
 
 	ret = max77693_irq_init(max77693);
@@ -184,9 +186,9 @@ static int max77693_i2c_probe(struct i2c_client *i2c,
 err_mfd:
 	max77693_irq_exit(max77693);
 err_irq:
+err_regmap_muic:
 	i2c_unregister_device(max77693->muic);
 	i2c_unregister_device(max77693->haptic);
-err_regmap:
 	return ret;
 }
 

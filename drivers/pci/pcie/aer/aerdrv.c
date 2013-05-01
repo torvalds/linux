@@ -41,7 +41,7 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 
-static int __devinit aer_probe(struct pcie_device *dev);
+static int aer_probe(struct pcie_device *dev);
 static void aer_remove(struct pcie_device *dev);
 static pci_ers_result_t aer_error_detected(struct pci_dev *dev,
 	enum pci_channel_state error);
@@ -300,7 +300,7 @@ static void aer_remove(struct pcie_device *dev)
  *
  * Invoked when PCI Express bus loads AER service driver.
  */
-static int __devinit aer_probe(struct pcie_device *dev)
+static int aer_probe(struct pcie_device *dev)
 {
 	int status;
 	struct aer_rpc *rpc;

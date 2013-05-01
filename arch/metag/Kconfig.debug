@@ -1,0 +1,40 @@
+menu "Kernel hacking"
+
+config TRACE_IRQFLAGS_SUPPORT
+	bool
+	default y
+
+source "lib/Kconfig.debug"
+
+config DEBUG_STACKOVERFLOW
+	bool "Check for stack overflows"
+	depends on DEBUG_KERNEL
+	help
+	  This option will cause messages to be printed if free stack space
+	  drops below a certain limit.
+
+config 4KSTACKS
+	bool "Use 4Kb for kernel stacks instead of 8Kb"
+	depends on DEBUG_KERNEL
+	help
+	  If you say Y here the kernel will use a 4Kb stacksize for the
+	  kernel stack attached to each process/thread. This facilitates
+	  running more threads on a system and also reduces the pressure
+	  on the VM subsystem for higher order allocations. This option
+	  will also use IRQ stacks to compensate for the reduced stackspace.
+
+config METAG_FUNCTION_TRACE
+	bool "Output Meta real-time trace data for function entry/exit"
+	help
+	  If you say Y here the kernel will use the Meta hardware trace
+	  unit to output information about function entry and exit that
+	  can be used by a debugger for profiling and call-graphs.
+
+config METAG_POISON_CATCH_BUFFERS
+	bool "Poison catch buffer contents on kernel entry"
+	help
+	  If you say Y here the kernel will write poison data to the
+	  catch buffer registers on kernel entry. This will make any
+	  problem with catch buffer handling much more apparent.
+
+endmenu

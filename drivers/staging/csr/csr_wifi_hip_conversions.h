@@ -23,10 +23,6 @@
 #ifndef __CSR_WIFI_HIP_CONVERSIONS_H__
 #define __CSR_WIFI_HIP_CONVERSIONS_H__
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #define SIZEOF_UINT16           2
 #define SIZEOF_UINT32           4
 #define SIZEOF_UINT64           8
@@ -72,10 +68,6 @@ extern "C" {
 s32 get_packed_struct_size(const u8 *buf);
 CsrResult read_unpack_signal(const u8 *ptr, CSR_SIGNAL *sig);
 CsrResult write_pack(const CSR_SIGNAL *sig, u8 *ptr, u16 *sig_len);
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* __CSR_WIFI_HIP_CONVERSIONS_H__ */
 

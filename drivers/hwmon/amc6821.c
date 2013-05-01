@@ -241,7 +241,7 @@ static ssize_t set_temp(
 	int ret = kstrtol(buf, 10, &val);
 	if (ret)
 		return ret;
-	val = SENSORS_LIMIT(val / 1000, -128, 127);
+	val = clamp_val(val / 1000, -128, 127);
 
 	mutex_lock(&data->update_lock);
 	data->temp[ix] = val;
@@ -332,7 +332,7 @@ static ssize_t set_pwm1(
 		return ret;
 
 	mutex_lock(&data->update_lock);
-	data->pwm1 = SENSORS_LIMIT(val , 0, 255);
+	data->pwm1 = clamp_val(val , 0, 255);
 	i2c_smbus_write_byte_data(client, AMC6821_REG_DCY, data->pwm1);
 	mutex_unlock(&data->update_lock);
 	return count;
@@ -499,11 +499,11 @@ static ssize_t set_temp_auto_point_temp(
 	mutex_lock(&data->update_lock);
 	switch (ix) {
 	case 0:
-		ptemp[0] = SENSORS_LIMIT(val / 1000, 0,
-				data->temp1_auto_point_temp[1]);
-		ptemp[0] = SENSORS_LIMIT(ptemp[0], 0,
-				data->temp2_auto_point_temp[1]);
-		ptemp[0] = SENSORS_LIMIT(ptemp[0], 0, 63);
+		ptemp[0] = clamp_val(val / 1000, 0,
+				     data->temp1_auto_point_temp[1]);
+		ptemp[0] = clamp_val(ptemp[0], 0,
+				     data->temp2_auto_point_temp[1]);
+		ptemp[0] = clamp_val(ptemp[0], 0, 63);
 		if (i2c_smbus_write_byte_data(
 					client,
 					AMC6821_REG_PSV_TEMP,
@@ -515,20 +515,12 @@ static ssize_t set_temp_auto_point_temp(
 		goto EXIT;
 		break;
 	case 1:
-		ptemp[1] = SENSORS_LIMIT(
-					val / 1000,
-					(ptemp[0] & 0x7C) + 4,
-					124);
+		ptemp[1] = clamp_val(val / 1000, (ptemp[0] & 0x7C) + 4, 124);
 		ptemp[1] &= 0x7C;
-		ptemp[2] = SENSORS_LIMIT(
-					ptemp[2], ptemp[1] + 1,
-					255);
+		ptemp[2] = clamp_val(ptemp[2], ptemp[1] + 1, 255);
 		break;
 	case 2:
-		ptemp[2] = SENSORS_LIMIT(
-					val / 1000,
-					ptemp[1]+1,
-					255);
+		ptemp[2] = clamp_val(val / 1000, ptemp[1]+1, 255);
 		break;
 	default:
 		dev_dbg(dev, "Unknown attr->index (%d).\n", ix);
@@ -561,7 +553,7 @@ static ssize_t set_pwm1_auto_point_pwm(
 		return ret;
 
 	mutex_lock(&data->update_lock);
-	data->pwm1_auto_point_pwm[1] = SENSORS_LIMIT(val, 0, 254);
+	data->pwm1_auto_point_pwm[1] = clamp_val(val, 0, 254);
 	if (i2c_smbus_write_byte_data(client, AMC6821_REG_DCY_LOW_TEMP,
 			data->pwm1_auto_point_pwm[1])) {
 		dev_err(&client->dev, "Register write error, aborting.\n");
@@ -629,7 +621,7 @@ static ssize_t set_fan(
 	val = 1 > val ? 0xFFFF : 6000000/val;
 
 	mutex_lock(&data->update_lock);
-	data->fan[ix] = (u16) SENSORS_LIMIT(val, 1, 0xFFFF);
+	data->fan[ix] = (u16) clamp_val(val, 1, 0xFFFF);
 	if (i2c_smbus_write_byte_data(client, fan_reg_low[ix],
 			data->fan[ix] & 0xFF)) {
 		dev_err(&client->dev, "Register write error, aborting.\n");

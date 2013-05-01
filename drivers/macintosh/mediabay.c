@@ -556,7 +556,8 @@ static int media_bay_task(void *x)
 	return 0;
 }
 
-static int __devinit media_bay_attach(struct macio_dev *mdev, const struct of_device_id *match)
+static int media_bay_attach(struct macio_dev *mdev,
+			    const struct of_device_id *match)
 {
 	struct media_bay_info* bay;
 	u32 __iomem *regbase;

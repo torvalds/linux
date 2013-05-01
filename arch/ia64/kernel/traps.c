@@ -72,7 +72,7 @@ die (const char *str, struct pt_regs *regs, long err)
 
 	bust_spinlocks(0);
 	die.lock_owner = -1;
-	add_taint(TAINT_DIE);
+	add_taint(TAINT_DIE, LOCKDEP_NOW_UNRELIABLE);
 	spin_unlock_irq(&die.lock);
 
 	if (!regs)

@@ -50,10 +50,9 @@ static inline void show_leds(int cpuid)
 			      "i" (ASI_M_CTL));
 }
 
-void __cpuinit smp4d_callin(void)
+void __cpuinit sun4d_cpu_pre_starting(void *arg)
 {
 	int cpuid = hard_smp_processor_id();
-	unsigned long flags;
 
 	/* Show we are alive */
 	cpu_leds[cpuid] = 0x6;
@@ -61,26 +60,20 @@ void __cpuinit smp4d_callin(void)
 
 	/* Enable level15 interrupt, disable level14 interrupt for now */
 	cc_set_imsk((cc_get_imsk() & ~0x8000) | 0x4000);
+}
 
-	local_ops->cache_all();
-	local_ops->tlb_all();
+void __cpuinit sun4d_cpu_pre_online(void *arg)
+{
+	unsigned long flags;
+	int cpuid;
 
-	notify_cpu_starting(cpuid);
-	/*
-	 * Unblock the master CPU _only_ when the scheduler state
+	cpuid = hard_smp_processor_id();
+
+	/* Unblock the master CPU _only_ when the scheduler state
 	 * of all secondary CPUs will be up-to-date, so after
 	 * the SMP initialization the master will be just allowed
 	 * to call the scheduler code.
 	 */
-	/* Get our local ticker going. */
-	register_percpu_ce(cpuid);
-
-	calibrate_delay();
-	smp_store_cpu_info(cpuid);
-	local_ops->cache_all();
-	local_ops->tlb_all();
-
-	/* Allow master to continue. */
 	sun4d_swap((unsigned long *)&cpu_callin_map[cpuid], 1);
 	local_ops->cache_all();
 	local_ops->tlb_all();
@@ -106,16 +99,12 @@ void __cpuinit smp4d_callin(void)
 	local_ops->cache_all();
 	local_ops->tlb_all();
 
-	local_irq_enable();	/* We don't allow PIL 14 yet */
-
 	while (!cpumask_test_cpu(cpuid, &smp_commenced_mask))
 		barrier();
 
 	spin_lock_irqsave(&sun4d_imsk_lock, flags);
 	cc_set_imsk(cc_get_imsk() & ~0x4000); /* Allow PIL 14 as well */
 	spin_unlock_irqrestore(&sun4d_imsk_lock, flags);
-	set_cpu_online(cpuid, true);
-
 }
 
 /*

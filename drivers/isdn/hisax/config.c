@@ -338,11 +338,11 @@ static int io[HISAX_MAX_CARDS] = { 0, };
 #define IO0_IO1
 #endif
 #ifdef IO0_IO1
-static int io0[HISAX_MAX_CARDS] __devinitdata = { 0, };
-static int io1[HISAX_MAX_CARDS] __devinitdata = { 0, };
+static int io0[HISAX_MAX_CARDS] = { 0, };
+static int io1[HISAX_MAX_CARDS] = { 0, };
 #endif
-static int irq[HISAX_MAX_CARDS] __devinitdata = { 0, };
-static int mem[HISAX_MAX_CARDS] __devinitdata = { 0, };
+static int irq[HISAX_MAX_CARDS] = { 0, };
+static int mem[HISAX_MAX_CARDS] = { 0, };
 static char *id = HiSaxID;
 
 MODULE_DESCRIPTION("ISDN4Linux: Driver for passive ISDN cards");
@@ -852,7 +852,7 @@ static int init_card(struct IsdnCardState *cs)
 	return 3;
 }
 
-static int __devinit hisax_cs_setup_card(struct IsdnCard *card)
+static int hisax_cs_setup_card(struct IsdnCard *card)
 {
 	int ret;
 
@@ -1171,12 +1171,8 @@ outf_cs:
 	return 0;
 }
 
-/* Used from an exported function but calls __devinit functions.
- * Tell modpost not to warn (__ref)
- */
-static int __ref checkcard(int cardnr, char *id, int *busy_flag,
-			   struct module *lockowner,
-			   hisax_setup_func_t card_setup)
+static int checkcard(int cardnr, char *id, int *busy_flag,
+		     struct module *lockowner, hisax_setup_func_t card_setup)
 {
 	int ret;
 	struct IsdnCard *card = cards + cardnr;
@@ -1547,9 +1543,7 @@ static void __exit HiSax_exit(void)
 	printk(KERN_INFO "HiSax module removed\n");
 }
 
-#ifdef CONFIG_HOTPLUG
-
-int __devinit hisax_init_pcmcia(void *pcm_iob, int *busy_flag, struct IsdnCard *card)
+int hisax_init_pcmcia(void *pcm_iob, int *busy_flag, struct IsdnCard *card)
 {
 	u_char ids[16];
 	int ret = -1;
@@ -1568,9 +1562,7 @@ int __devinit hisax_init_pcmcia(void *pcm_iob, int *busy_flag, struct IsdnCard *
 error:
 	return ret;
 }
-
 EXPORT_SYMBOL(hisax_init_pcmcia);
-#endif
 
 EXPORT_SYMBOL(HiSax_closecard);
 
@@ -1917,7 +1909,7 @@ static void EChannel_proc_rcv(struct hisax_d_if *d_if)
 #ifdef CONFIG_PCI
 #include <linux/pci.h>
 
-static struct pci_device_id hisax_pci_tbl[] __devinitdata __used = {
+static struct pci_device_id hisax_pci_tbl[] __used = {
 #ifdef CONFIG_HISAX_FRITZPCI
 	{PCI_VDEVICE(AVM,      PCI_DEVICE_ID_AVM_A1)			},
 #endif

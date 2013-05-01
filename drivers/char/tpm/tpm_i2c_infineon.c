@@ -505,6 +505,11 @@ out_err:
 	return rc;
 }
 
+static bool tpm_tis_i2c_req_canceled(struct tpm_chip *chip, u8 status)
+{
+	return (status == TPM_STS_COMMAND_READY);
+}
+
 static const struct file_operations tis_ops = {
 	.owner = THIS_MODULE,
 	.llseek = no_llseek,
@@ -550,12 +555,12 @@ static struct tpm_vendor_specific tpm_tis_i2c = {
 	.cancel = tpm_tis_i2c_ready,
 	.req_complete_mask = TPM_STS_DATA_AVAIL | TPM_STS_VALID,
 	.req_complete_val = TPM_STS_DATA_AVAIL | TPM_STS_VALID,
-	.req_canceled = TPM_STS_COMMAND_READY,
+	.req_canceled = tpm_tis_i2c_req_canceled,
 	.attr_group = &tis_attr_grp,
 	.miscdev.fops = &tis_ops,
 };
 
-static int __devinit tpm_tis_i2c_init(struct device *dev)
+static int tpm_tis_i2c_init(struct device *dev)
 {
 	u32 vendor;
 	int rc = 0;
@@ -632,7 +637,7 @@ static const struct i2c_device_id tpm_tis_i2c_table[] = {
 MODULE_DEVICE_TABLE(i2c, tpm_tis_i2c_table);
 static SIMPLE_DEV_PM_OPS(tpm_tis_i2c_ops, tpm_pm_suspend, tpm_pm_resume);
 
-static int __devinit tpm_tis_i2c_probe(struct i2c_client *client,
+static int tpm_tis_i2c_probe(struct i2c_client *client,
 			     const struct i2c_device_id *id)
 {
 	int rc;
@@ -656,7 +661,7 @@ static int __devinit tpm_tis_i2c_probe(struct i2c_client *client,
 	return rc;
 }
 
-static int __devexit tpm_tis_i2c_remove(struct i2c_client *client)
+static int tpm_tis_i2c_remove(struct i2c_client *client)
 {
 	struct tpm_chip *chip = tpm_dev.chip;
 	release_locality(chip, chip->vendor.locality, 1);

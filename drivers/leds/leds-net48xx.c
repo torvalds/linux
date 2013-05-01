@@ -15,7 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/leds.h>
 #include <linux/err.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/nsc_gpio.h>
 #include <linux/scx200_gpio.h>
 #include <linux/module.h>

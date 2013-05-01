@@ -186,6 +186,7 @@ struct team {
 
 	const struct team_mode *mode;
 	struct team_mode_ops ops;
+	bool user_carrier_enabled;
 	bool queue_override_enabled;
 	struct list_head *qom_lists; /* array of queue override mapping lists */
 	long mode_priv[TEAM_MODE_PRIV_LONGS];
@@ -215,11 +216,10 @@ static inline struct hlist_head *team_port_index_hash(struct team *team,
 static inline struct team_port *team_get_port_by_index(struct team *team,
 						       int port_index)
 {
-	struct hlist_node *p;
 	struct team_port *port;
 	struct hlist_head *head = team_port_index_hash(team, port_index);
 
-	hlist_for_each_entry(port, p, head, hlist)
+	hlist_for_each_entry(port, head, hlist)
 		if (port->index == port_index)
 			return port;
 	return NULL;
@@ -227,11 +227,10 @@ static inline struct team_port *team_get_port_by_index(struct team *team,
 static inline struct team_port *team_get_port_by_index_rcu(struct team *team,
 							   int port_index)
 {
-	struct hlist_node *p;
 	struct team_port *port;
 	struct hlist_head *head = team_port_index_hash(team, port_index);
 
-	hlist_for_each_entry_rcu(port, p, head, hlist)
+	hlist_for_each_entry_rcu(port, head, hlist)
 		if (port->index == port_index)
 			return port;
 	return NULL;

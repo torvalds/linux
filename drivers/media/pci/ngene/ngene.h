@@ -887,9 +887,8 @@ struct ngene_buffer {
 
 
 /* Provided by ngene-core.c */
-int __devinit ngene_probe(struct pci_dev *pci_dev,
-			  const struct pci_device_id *id);
-void __devexit ngene_remove(struct pci_dev *pdev);
+int ngene_probe(struct pci_dev *pci_dev, const struct pci_device_id *id);
+void ngene_remove(struct pci_dev *pdev);
 void ngene_shutdown(struct pci_dev *pdev);
 int ngene_command(struct ngene *dev, struct ngene_command *com);
 int ngene_command_gpio_set(struct ngene *dev, u8 select, u8 level);

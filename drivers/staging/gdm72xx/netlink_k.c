@@ -11,6 +11,8 @@
  * GNU General Public License for more details.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/etherdevice.h>
 #include <linux/netlink.h>
@@ -54,8 +56,8 @@ static void netlink_rcv_cb(struct sk_buff *skb)
 
 		if (skb->len < nlh->nlmsg_len ||
 		nlh->nlmsg_len > ND_MAX_MSG_LEN) {
-			printk(KERN_ERR "Invalid length (%d,%d)\n", skb->len,
-				nlh->nlmsg_len);
+			netdev_err(skb->dev, "Invalid length (%d,%d)\n",
+				   skb->len, nlh->nlmsg_len);
 			return;
 		}
 
@@ -69,10 +71,11 @@ static void netlink_rcv_cb(struct sk_buff *skb)
 				rcv_cb(dev, nlh->nlmsg_type, msg, mlen);
 				dev_put(dev);
 			} else
-				printk(KERN_ERR "dev_get_by_index(%d) "
-					"is not found.\n", ifindex);
+				netdev_err(skb->dev,
+					   "dev_get_by_index(%d) is not found.\n",
+					   ifindex);
 		} else
-			printk(KERN_ERR "Unregistered Callback\n");
+			netdev_err(skb->dev, "Unregistered Callback\n");
 	}
 }
 
@@ -116,14 +119,14 @@ int netlink_send(struct sock *sock, int group, u16 type, void *msg, int len)
 	int ret = 0;
 
 	if (group > ND_MAX_GROUP) {
-		printk(KERN_ERR "Group %d is invalied.\n", group);
-		printk(KERN_ERR "Valid group is 0 ~ %d.\n", ND_MAX_GROUP);
+		pr_err("Group %d is invalied.\n", group);
+		pr_err("Valid group is 0 ~ %d.\n", ND_MAX_GROUP);
 		return -EINVAL;
 	}
 
 	skb = alloc_skb(NLMSG_SPACE(len), GFP_ATOMIC);
 	if (!skb) {
-		printk(KERN_ERR "netlink_broadcast ret=%d\n", ret);
+		pr_err("netlink_broadcast ret=%d\n", ret);
 		return -ENOMEM;
 	}
 
@@ -144,8 +147,8 @@ int netlink_send(struct sock *sock, int group, u16 type, void *msg, int len)
 		return len;
 	else {
 		if (ret != -ESRCH) {
-			printk(KERN_ERR "netlink_broadcast g=%d, t=%d, l=%d, r=%d\n",
-				group, type, len, ret);
+			pr_err("netlink_broadcast g=%d, t=%d, l=%d, r=%d\n",
+			       group, type, len, ret);
 		}
 		ret = 0;
 	}

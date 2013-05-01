@@ -17,6 +17,7 @@
 #include <linux/elfcore.h>
 #include <linux/vmalloc.h>
 #include <linux/highmem.h>
+#include <linux/printk.h>
 #include <linux/bootmem.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -249,7 +250,7 @@ static int kcore_update_ram(void)
 	/* Not inialized....update now */
 	/* find out "max pfn" */
 	end_pfn = 0;
-	for_each_node_state(nid, N_HIGH_MEMORY) {
+	for_each_node_state(nid, N_MEMORY) {
 		unsigned long node_end;
 		node_end  = NODE_DATA(nid)->node_start_pfn +
 			NODE_DATA(nid)->node_spanned_pages;
@@ -619,7 +620,7 @@ static int __init proc_kcore_init(void)
 	proc_root_kcore = proc_create("kcore", S_IRUSR, NULL,
 				      &proc_kcore_operations);
 	if (!proc_root_kcore) {
-		printk(KERN_ERR "couldn't create /proc/kcore\n");
+		pr_err("couldn't create /proc/kcore\n");
 		return 0; /* Always returns 0. */
 	}
 	/* Store text area if it's special */

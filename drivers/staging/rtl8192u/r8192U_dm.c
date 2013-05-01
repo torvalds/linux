@@ -8,7 +8,7 @@ Abstract:
 	HW dynamic mechanism.
 
 Major Change History:
-	When      	Who				What
+	When		Who				What
 	----------	--------------- -------------------------------
 	2008-05-14	amy                     create version 0 porting from windows code.
 
@@ -25,9 +25,9 @@ Major Change History:
 // Indicate different AP vendor for IOT issue.
 //
 static u32 edca_setting_DL[HT_IOT_PEER_MAX] =
-		{ 0x5e4322, 	0x5e4322, 	0x5e4322, 	0x604322, 	0xa44f, 	0x5ea44f};
+		{ 0x5e4322,	0x5e4322,	0x5e4322,	0x604322,	0xa44f,		0x5ea44f};
 static u32 edca_setting_UL[HT_IOT_PEER_MAX] =
-		{ 0x5e4322, 	0xa44f, 	0x5e4322, 	0x604322, 	0x5ea44f, 	0x5ea44f};
+		{ 0x5e4322,	0xa44f,		0x5e4322,	0x604322,	0x5ea44f,	0x5ea44f};
 
 
 #define RTK_UL_EDCA 0xa44f
@@ -134,7 +134,7 @@ static	void dm_check_pbc_gpio(struct net_device *dev);
 
 // DM --> Check current RX RF path state
 static	void	dm_check_rx_path_selection(struct net_device *dev);
-static 	void dm_init_rxpath_selection(struct net_device *dev);
+static	void dm_init_rxpath_selection(struct net_device *dev);
 static	void dm_rxpath_sel_byrssi(struct net_device *dev);
 
 
@@ -201,8 +201,8 @@ extern void deinit_hal_dm(struct net_device *dev)
 void dm_CheckRxAggregation(struct net_device *dev) {
 	struct r8192_priv *priv = ieee80211_priv((struct net_device *)dev);
 	PRT_HIGH_THROUGHPUT	pHTInfo = priv->ieee80211->pHTInfo;
-	static unsigned long	lastTxOkCnt = 0;
-	static unsigned long	lastRxOkCnt = 0;
+	static unsigned long	lastTxOkCnt;
+	static unsigned long	lastRxOkCnt;
 	unsigned long		curTxOkCnt = 0;
 	unsigned long		curRxOkCnt = 0;
 
@@ -259,7 +259,7 @@ extern  void    hal_dm_watchdog(struct net_device *dev)
 {
 	//struct r8192_priv *priv = ieee80211_priv(dev);
 
-	//static u8 	previous_bssid[6] ={0};
+	//static u8	previous_bssid[6] ={0};
 
 	/*Add by amy 2008/05/15 ,porting from windows code.*/
 	dm_check_rate_adaptive(dev);
@@ -315,21 +315,21 @@ extern void init_rate_adaptive(struct net_device * dev)
 	{
 		// 07/10/08 MH Modify for RA smooth scheme.
 		/* 2008/01/11 MH Modify 2T RATR table for different RSSI. 080515 porting by amy from windows code.*/
-		pra->upper_rssi_threshold_ratr		= 	0x8f0f0000;
-		pra->middle_rssi_threshold_ratr		= 	0x8f0ff000;
-		pra->low_rssi_threshold_ratr		= 	0x8f0ff001;
-		pra->low_rssi_threshold_ratr_40M	= 	0x8f0ff005;
-		pra->low_rssi_threshold_ratr_20M	= 	0x8f0ff001;
-		pra->ping_rssi_ratr	= 	0x0000000d;//cosa add for test
+		pra->upper_rssi_threshold_ratr		=	0x8f0f0000;
+		pra->middle_rssi_threshold_ratr		=	0x8f0ff000;
+		pra->low_rssi_threshold_ratr		=	0x8f0ff001;
+		pra->low_rssi_threshold_ratr_40M	=	0x8f0ff005;
+		pra->low_rssi_threshold_ratr_20M	=	0x8f0ff001;
+		pra->ping_rssi_ratr	=	0x0000000d;//cosa add for test
 	}
 	else if (priv->rf_type == RF_1T2R)
 	{
-		pra->upper_rssi_threshold_ratr		= 	0x000f0000;
-		pra->middle_rssi_threshold_ratr		= 	0x000ff000;
-		pra->low_rssi_threshold_ratr		= 	0x000ff001;
-		pra->low_rssi_threshold_ratr_40M	= 	0x000ff005;
-		pra->low_rssi_threshold_ratr_20M	= 	0x000ff001;
-		pra->ping_rssi_ratr	= 	0x0000000d;//cosa add for test
+		pra->upper_rssi_threshold_ratr		=	0x000f0000;
+		pra->middle_rssi_threshold_ratr		=	0x000ff000;
+		pra->low_rssi_threshold_ratr		=	0x000ff001;
+		pra->low_rssi_threshold_ratr_40M	=	0x000ff005;
+		pra->low_rssi_threshold_ratr_20M	=	0x000ff001;
+		pra->ping_rssi_ratr	=	0x0000000d;//cosa add for test
 	}
 
 }	// InitRateAdaptive
@@ -348,7 +348,7 @@ extern void init_rate_adaptive(struct net_device * dev)
  *
  * Revised History:
  *	When		Who		Remark
- *	05/26/08	amy 	Create version 0 porting from windows code.
+ *	05/26/08	amy	Create version 0 porting from windows code.
  *
  *---------------------------------------------------------------------------*/
 static void dm_check_rate_adaptive(struct net_device * dev)
@@ -359,7 +359,7 @@ static void dm_check_rate_adaptive(struct net_device * dev)
 	u32						currentRATR, targetRATR = 0;
 	u32						LowRSSIThreshForRA = 0, HighRSSIThreshForRA = 0;
 	bool						bshort_gi_enabled = false;
-	static u8					ping_rssi_state=0;
+	static u8					ping_rssi_state;
 
 
 	if(!priv->up)
@@ -413,14 +413,14 @@ static void dm_check_rate_adaptive(struct net_device * dev)
 		   to prevent jumping frequently. */
 		if (pra->ratr_state == DM_RATR_STA_HIGH)
 		{
-			HighRSSIThreshForRA 	= pra->high2low_rssi_thresh_for_ra;
+			HighRSSIThreshForRA	= pra->high2low_rssi_thresh_for_ra;
 			LowRSSIThreshForRA	= (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20)?
 					(pra->low_rssi_thresh_for_ra40M):(pra->low_rssi_thresh_for_ra20M);
 		}
 		else if (pra->ratr_state == DM_RATR_STA_LOW)
 		{
 			HighRSSIThreshForRA	= pra->high_rssi_thresh_for_ra;
-			LowRSSIThreshForRA 	= (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20)?
+			LowRSSIThreshForRA	= (priv->CurrentChannelBW != HT_CHANNEL_WIDTH_20)?
 					(pra->low2high_rssi_thresh_for_ra40M):(pra->low2high_rssi_thresh_for_ra20M);
 		}
 		else
@@ -599,7 +599,7 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device * dev)
 	u32						Value;
 	u8						Pwr_Flag;
 	u16						Avg_TSSI_Meas, TSSI_13dBm, Avg_TSSI_Meas_from_driver=0;
-	//RT_STATUS 				rtStatus = RT_STATUS_SUCCESS;
+	//RT_STATUS				rtStatus = RT_STATUS_SUCCESS;
 	bool rtStatus = true;
 	u32						delta=0;
 
@@ -954,79 +954,79 @@ static void dm_InitializeTXPowerTracking_TSSI(struct net_device *dev)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
 	//Initial the Tx BB index and mapping value
-	priv->txbbgain_table[0].txbb_iq_amplifygain = 			12;
+	priv->txbbgain_table[0].txbb_iq_amplifygain =			12;
 	priv->txbbgain_table[0].txbbgain_value=0x7f8001fe;
-	priv->txbbgain_table[1].txbb_iq_amplifygain = 			11;
+	priv->txbbgain_table[1].txbb_iq_amplifygain =			11;
 	priv->txbbgain_table[1].txbbgain_value=0x788001e2;
-	priv->txbbgain_table[2].txbb_iq_amplifygain = 			10;
+	priv->txbbgain_table[2].txbb_iq_amplifygain =			10;
 	priv->txbbgain_table[2].txbbgain_value=0x71c001c7;
-	priv->txbbgain_table[3].txbb_iq_amplifygain = 			9;
+	priv->txbbgain_table[3].txbb_iq_amplifygain =			9;
 	priv->txbbgain_table[3].txbbgain_value=0x6b8001ae;
-	priv->txbbgain_table[4].txbb_iq_amplifygain = 		       8;
+	priv->txbbgain_table[4].txbb_iq_amplifygain =		       8;
 	priv->txbbgain_table[4].txbbgain_value=0x65400195;
-	priv->txbbgain_table[5].txbb_iq_amplifygain = 		       7;
+	priv->txbbgain_table[5].txbb_iq_amplifygain =		       7;
 	priv->txbbgain_table[5].txbbgain_value=0x5fc0017f;
-	priv->txbbgain_table[6].txbb_iq_amplifygain = 		       6;
+	priv->txbbgain_table[6].txbb_iq_amplifygain =		       6;
 	priv->txbbgain_table[6].txbbgain_value=0x5a400169;
-	priv->txbbgain_table[7].txbb_iq_amplifygain = 		       5;
+	priv->txbbgain_table[7].txbb_iq_amplifygain =		       5;
 	priv->txbbgain_table[7].txbbgain_value=0x55400155;
-	priv->txbbgain_table[8].txbb_iq_amplifygain = 		       4;
+	priv->txbbgain_table[8].txbb_iq_amplifygain =		       4;
 	priv->txbbgain_table[8].txbbgain_value=0x50800142;
-	priv->txbbgain_table[9].txbb_iq_amplifygain = 		       3;
+	priv->txbbgain_table[9].txbb_iq_amplifygain =		       3;
 	priv->txbbgain_table[9].txbbgain_value=0x4c000130;
-	priv->txbbgain_table[10].txbb_iq_amplifygain = 		       2;
+	priv->txbbgain_table[10].txbb_iq_amplifygain =		       2;
 	priv->txbbgain_table[10].txbbgain_value=0x47c0011f;
-	priv->txbbgain_table[11].txbb_iq_amplifygain = 		       1;
+	priv->txbbgain_table[11].txbb_iq_amplifygain =		       1;
 	priv->txbbgain_table[11].txbbgain_value=0x43c0010f;
-	priv->txbbgain_table[12].txbb_iq_amplifygain = 		       0;
+	priv->txbbgain_table[12].txbb_iq_amplifygain =		       0;
 	priv->txbbgain_table[12].txbbgain_value=0x40000100;
-	priv->txbbgain_table[13].txbb_iq_amplifygain = 		       -1;
+	priv->txbbgain_table[13].txbb_iq_amplifygain =		       -1;
 	priv->txbbgain_table[13].txbbgain_value=0x3c8000f2;
-	priv->txbbgain_table[14].txbb_iq_amplifygain = 		     -2;
+	priv->txbbgain_table[14].txbb_iq_amplifygain =		     -2;
 	priv->txbbgain_table[14].txbbgain_value=0x390000e4;
-	priv->txbbgain_table[15].txbb_iq_amplifygain = 		     -3;
+	priv->txbbgain_table[15].txbb_iq_amplifygain =		     -3;
 	priv->txbbgain_table[15].txbbgain_value=0x35c000d7;
-	priv->txbbgain_table[16].txbb_iq_amplifygain = 		     -4;
+	priv->txbbgain_table[16].txbb_iq_amplifygain =		     -4;
 	priv->txbbgain_table[16].txbbgain_value=0x32c000cb;
-	priv->txbbgain_table[17].txbb_iq_amplifygain = 		     -5;
+	priv->txbbgain_table[17].txbb_iq_amplifygain =		     -5;
 	priv->txbbgain_table[17].txbbgain_value=0x300000c0;
-	priv->txbbgain_table[18].txbb_iq_amplifygain = 			    -6;
+	priv->txbbgain_table[18].txbb_iq_amplifygain =			    -6;
 	priv->txbbgain_table[18].txbbgain_value=0x2d4000b5;
-	priv->txbbgain_table[19].txbb_iq_amplifygain = 		     -7;
+	priv->txbbgain_table[19].txbb_iq_amplifygain =		     -7;
 	priv->txbbgain_table[19].txbbgain_value=0x2ac000ab;
-	priv->txbbgain_table[20].txbb_iq_amplifygain = 		     -8;
+	priv->txbbgain_table[20].txbb_iq_amplifygain =		     -8;
 	priv->txbbgain_table[20].txbbgain_value=0x288000a2;
-	priv->txbbgain_table[21].txbb_iq_amplifygain = 		     -9;
+	priv->txbbgain_table[21].txbb_iq_amplifygain =		     -9;
 	priv->txbbgain_table[21].txbbgain_value=0x26000098;
-	priv->txbbgain_table[22].txbb_iq_amplifygain = 		     -10;
+	priv->txbbgain_table[22].txbb_iq_amplifygain =		     -10;
 	priv->txbbgain_table[22].txbbgain_value=0x24000090;
-	priv->txbbgain_table[23].txbb_iq_amplifygain = 		     -11;
+	priv->txbbgain_table[23].txbb_iq_amplifygain =		     -11;
 	priv->txbbgain_table[23].txbbgain_value=0x22000088;
-	priv->txbbgain_table[24].txbb_iq_amplifygain = 		     -12;
+	priv->txbbgain_table[24].txbb_iq_amplifygain =		     -12;
 	priv->txbbgain_table[24].txbbgain_value=0x20000080;
-	priv->txbbgain_table[25].txbb_iq_amplifygain = 		     -13;
+	priv->txbbgain_table[25].txbb_iq_amplifygain =		     -13;
 	priv->txbbgain_table[25].txbbgain_value=0x1a00006c;
-	priv->txbbgain_table[26].txbb_iq_amplifygain = 		     -14;
+	priv->txbbgain_table[26].txbb_iq_amplifygain =		     -14;
 	priv->txbbgain_table[26].txbbgain_value=0x1c800072;
-	priv->txbbgain_table[27].txbb_iq_amplifygain = 		     -15;
+	priv->txbbgain_table[27].txbb_iq_amplifygain =		     -15;
 	priv->txbbgain_table[27].txbbgain_value=0x18000060;
-	priv->txbbgain_table[28].txbb_iq_amplifygain = 		     -16;
+	priv->txbbgain_table[28].txbb_iq_amplifygain =		     -16;
 	priv->txbbgain_table[28].txbbgain_value=0x19800066;
-	priv->txbbgain_table[29].txbb_iq_amplifygain = 		     -17;
+	priv->txbbgain_table[29].txbb_iq_amplifygain =		     -17;
 	priv->txbbgain_table[29].txbbgain_value=0x15800056;
-	priv->txbbgain_table[30].txbb_iq_amplifygain = 		     -18;
+	priv->txbbgain_table[30].txbb_iq_amplifygain =		     -18;
 	priv->txbbgain_table[30].txbbgain_value=0x26c0005b;
-	priv->txbbgain_table[31].txbb_iq_amplifygain = 		     -19;
+	priv->txbbgain_table[31].txbb_iq_amplifygain =		     -19;
 	priv->txbbgain_table[31].txbbgain_value=0x14400051;
-	priv->txbbgain_table[32].txbb_iq_amplifygain = 		     -20;
+	priv->txbbgain_table[32].txbb_iq_amplifygain =		     -20;
 	priv->txbbgain_table[32].txbbgain_value=0x24400051;
-	priv->txbbgain_table[33].txbb_iq_amplifygain = 		     -21;
+	priv->txbbgain_table[33].txbb_iq_amplifygain =		     -21;
 	priv->txbbgain_table[33].txbbgain_value=0x1300004c;
-	priv->txbbgain_table[34].txbb_iq_amplifygain = 		     -22;
+	priv->txbbgain_table[34].txbb_iq_amplifygain =		     -22;
 	priv->txbbgain_table[34].txbbgain_value=0x12000048;
-	priv->txbbgain_table[35].txbb_iq_amplifygain = 		     -23;
+	priv->txbbgain_table[35].txbb_iq_amplifygain =		     -23;
 	priv->txbbgain_table[35].txbbgain_value=0x11000044;
-	priv->txbbgain_table[36].txbb_iq_amplifygain = 		     -24;
+	priv->txbbgain_table[36].txbb_iq_amplifygain =		     -24;
 	priv->txbbgain_table[36].txbbgain_value=0x10000040;
 
 	//ccktxbb_valuearray[0] is 0xA22 [1] is 0xA24 ...[7] is 0xA29
@@ -1486,7 +1486,7 @@ void dm_initialize_txpower_tracking(struct net_device *dev)
 static void dm_CheckTXPowerTracking_TSSI(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	static u32 tx_power_track_counter = 0;
+	static u32 tx_power_track_counter;
 
 	if(!priv->btxpower_tracking)
 		return;
@@ -1505,7 +1505,7 @@ static void dm_CheckTXPowerTracking_TSSI(struct net_device *dev)
 static void dm_CheckTXPowerTracking_ThermalMeter(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	static u8 	TM_Trigger=0;
+	static u8	TM_Trigger;
 	//DbgPrint("dm_CheckTXPowerTracking() \n");
 	if(!priv->btxpower_tracking)
 		return;
@@ -1564,40 +1564,40 @@ static void dm_CCKTxPowerAdjust_TSSI(struct net_device *dev, bool  bInCH14)
 	TempVal = 0;
 	if(!bInCH14){
 		//Write 0xa22 0xa23
-		TempVal = 	priv->cck_txbbgain_table[priv->cck_present_attentuation].ccktxbb_valuearray[0] +
+		TempVal =	priv->cck_txbbgain_table[priv->cck_present_attentuation].ccktxbb_valuearray[0] +
 					(priv->cck_txbbgain_table[priv->cck_present_attentuation].ccktxbb_valuearray[1]<<8) ;
 
 		rtl8192_setBBreg(dev, rCCK0_TxFilter1,bMaskHWord, TempVal);
 		//Write 0xa24 ~ 0xa27
 		TempVal = 0;
-		TempVal = 	priv->cck_txbbgain_table[priv->cck_present_attentuation].ccktxbb_valuearray[2] +
+		TempVal =	priv->cck_txbbgain_table[priv->cck_present_attentuation].ccktxbb_valuearray[2] +
 					(priv->cck_txbbgain_table[priv->cck_present_attentuation].ccktxbb_valuearray[3]<<8) +
 					(priv->cck_txbbgain_table[priv->cck_present_attentuation].ccktxbb_valuearray[4]<<16 )+
 					(priv->cck_txbbgain_table[priv->cck_present_attentuation].ccktxbb_valuearray[5]<<24);
 		rtl8192_setBBreg(dev, rCCK0_TxFilter2,bMaskDWord, TempVal);
 		//Write 0xa28  0xa29
 		TempVal = 0;
-		TempVal = 	priv->cck_txbbgain_table[priv->cck_present_attentuation].ccktxbb_valuearray[6] +
+		TempVal =	priv->cck_txbbgain_table[priv->cck_present_attentuation].ccktxbb_valuearray[6] +
 					(priv->cck_txbbgain_table[priv->cck_present_attentuation].ccktxbb_valuearray[7]<<8) ;
 
 		rtl8192_setBBreg(dev, rCCK0_DebugPort,bMaskLWord, TempVal);
 	}
 	else
 	{
-		TempVal = 	priv->cck_txbbgain_ch14_table[priv->cck_present_attentuation].ccktxbb_valuearray[0] +
+		TempVal =	priv->cck_txbbgain_ch14_table[priv->cck_present_attentuation].ccktxbb_valuearray[0] +
 					(priv->cck_txbbgain_ch14_table[priv->cck_present_attentuation].ccktxbb_valuearray[1]<<8) ;
 
 		rtl8192_setBBreg(dev, rCCK0_TxFilter1,bMaskHWord, TempVal);
 		//Write 0xa24 ~ 0xa27
 		TempVal = 0;
-		TempVal = 	priv->cck_txbbgain_ch14_table[priv->cck_present_attentuation].ccktxbb_valuearray[2] +
+		TempVal =	priv->cck_txbbgain_ch14_table[priv->cck_present_attentuation].ccktxbb_valuearray[2] +
 					(priv->cck_txbbgain_ch14_table[priv->cck_present_attentuation].ccktxbb_valuearray[3]<<8) +
 					(priv->cck_txbbgain_ch14_table[priv->cck_present_attentuation].ccktxbb_valuearray[4]<<16 )+
 					(priv->cck_txbbgain_ch14_table[priv->cck_present_attentuation].ccktxbb_valuearray[5]<<24);
 		rtl8192_setBBreg(dev, rCCK0_TxFilter2,bMaskDWord, TempVal);
 		//Write 0xa28  0xa29
 		TempVal = 0;
-		TempVal = 	priv->cck_txbbgain_ch14_table[priv->cck_present_attentuation].ccktxbb_valuearray[6] +
+		TempVal =	priv->cck_txbbgain_ch14_table[priv->cck_present_attentuation].ccktxbb_valuearray[6] +
 					(priv->cck_txbbgain_ch14_table[priv->cck_present_attentuation].ccktxbb_valuearray[7]<<8) ;
 
 		rtl8192_setBBreg(dev, rCCK0_DebugPort,bMaskLWord, TempVal);
@@ -1615,14 +1615,14 @@ static void dm_CCKTxPowerAdjust_ThermalMeter(struct net_device *dev,	bool  bInCH
 	if(!bInCH14)
 	{
 		//Write 0xa22 0xa23
-		TempVal = 	CCKSwingTable_Ch1_Ch13[priv->CCK_index][0] +
+		TempVal =	CCKSwingTable_Ch1_Ch13[priv->CCK_index][0] +
 					(CCKSwingTable_Ch1_Ch13[priv->CCK_index][1]<<8) ;
 		rtl8192_setBBreg(dev, rCCK0_TxFilter1, bMaskHWord, TempVal);
 		RT_TRACE(COMP_POWER_TRACKING, "CCK not chnl 14, reg 0x%x = 0x%x\n",
 			rCCK0_TxFilter1, TempVal);
 		//Write 0xa24 ~ 0xa27
 		TempVal = 0;
-		TempVal = 	CCKSwingTable_Ch1_Ch13[priv->CCK_index][2] +
+		TempVal =	CCKSwingTable_Ch1_Ch13[priv->CCK_index][2] +
 					(CCKSwingTable_Ch1_Ch13[priv->CCK_index][3]<<8) +
 					(CCKSwingTable_Ch1_Ch13[priv->CCK_index][4]<<16 )+
 					(CCKSwingTable_Ch1_Ch13[priv->CCK_index][5]<<24);
@@ -1631,7 +1631,7 @@ static void dm_CCKTxPowerAdjust_ThermalMeter(struct net_device *dev,	bool  bInCH
 			rCCK0_TxFilter2, TempVal);
 		//Write 0xa28  0xa29
 		TempVal = 0;
-		TempVal = 	CCKSwingTable_Ch1_Ch13[priv->CCK_index][6] +
+		TempVal =	CCKSwingTable_Ch1_Ch13[priv->CCK_index][6] +
 					(CCKSwingTable_Ch1_Ch13[priv->CCK_index][7]<<8) ;
 
 		rtl8192_setBBreg(dev, rCCK0_DebugPort, bMaskLWord, TempVal);
@@ -1642,7 +1642,7 @@ static void dm_CCKTxPowerAdjust_ThermalMeter(struct net_device *dev,	bool  bInCH
 	{
 //		priv->CCKTxPowerAdjustCntNotCh14++;	//cosa add for debug.
 		//Write 0xa22 0xa23
-		TempVal = 	CCKSwingTable_Ch14[priv->CCK_index][0] +
+		TempVal =	CCKSwingTable_Ch14[priv->CCK_index][0] +
 					(CCKSwingTable_Ch14[priv->CCK_index][1]<<8) ;
 
 		rtl8192_setBBreg(dev, rCCK0_TxFilter1, bMaskHWord, TempVal);
@@ -1650,7 +1650,7 @@ static void dm_CCKTxPowerAdjust_ThermalMeter(struct net_device *dev,	bool  bInCH
 			rCCK0_TxFilter1, TempVal);
 		//Write 0xa24 ~ 0xa27
 		TempVal = 0;
-		TempVal = 	CCKSwingTable_Ch14[priv->CCK_index][2] +
+		TempVal =	CCKSwingTable_Ch14[priv->CCK_index][2] +
 					(CCKSwingTable_Ch14[priv->CCK_index][3]<<8) +
 					(CCKSwingTable_Ch14[priv->CCK_index][4]<<16 )+
 					(CCKSwingTable_Ch14[priv->CCK_index][5]<<24);
@@ -1659,7 +1659,7 @@ static void dm_CCKTxPowerAdjust_ThermalMeter(struct net_device *dev,	bool  bInCH
 			rCCK0_TxFilter2, TempVal);
 		//Write 0xa28  0xa29
 		TempVal = 0;
-		TempVal = 	CCKSwingTable_Ch14[priv->CCK_index][6] +
+		TempVal =	CCKSwingTable_Ch14[priv->CCK_index][6] +
 					(CCKSwingTable_Ch14[priv->CCK_index][7]<<8) ;
 
 		rtl8192_setBBreg(dev, rCCK0_DebugPort, bMaskLWord, TempVal);
@@ -1713,7 +1713,7 @@ static void dm_txpower_reset_recovery(
 extern void dm_restore_dynamic_mechanism_state(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	u32 	reg_ratr = priv->rate_adaptive.last_ratr;
+	u32	reg_ratr = priv->rate_adaptive.last_ratr;
 
 	if(!priv->up)
 	{
@@ -1934,7 +1934,7 @@ dm_change_rxpath_selection_setting(
 	s32		DM_Value)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	prate_adaptive 	pRA = (prate_adaptive)&(priv->rate_adaptive);
+	prate_adaptive	pRA = (prate_adaptive)&(priv->rate_adaptive);
 
 
 	if(DM_Type == 0)
@@ -2036,8 +2036,8 @@ static void dm_dig_init(struct net_device *dev)
 	dm_digtable.dig_highpwr_state	= DM_STA_DIG_MAX;
 	dm_digtable.initialgain_lowerbound_state = false;
 
-	dm_digtable.rssi_low_thresh 	= DM_DIG_THRESH_LOW;
-	dm_digtable.rssi_high_thresh 	= DM_DIG_THRESH_HIGH;
+	dm_digtable.rssi_low_thresh	= DM_DIG_THRESH_LOW;
+	dm_digtable.rssi_high_thresh	= DM_DIG_THRESH_HIGH;
 
 	dm_digtable.rssi_high_power_lowthresh = DM_DIG_HIGH_PWR_THRESH_LOW;
 	dm_digtable.rssi_high_power_highthresh = DM_DIG_HIGH_PWR_THRESH_HIGH;
@@ -2091,7 +2091,7 @@ static void dm_ctrl_initgain_byrssi_by_driverrssi(
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u8 i;
-	static u8 	fw_dig=0;
+	static u8	fw_dig;
 
 	if (dm_digtable.dig_enable_flag == false)
 		return;
@@ -2131,7 +2131,7 @@ static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
 	struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	static u32 reset_cnt = 0;
+	static u32 reset_cnt;
 	u8 i;
 
 	if (dm_digtable.dig_enable_flag == false)
@@ -2319,7 +2319,7 @@ static void dm_ctrl_initgain_byrssi_highpwr(
 	struct net_device * dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	static u32 reset_cnt_highpwr = 0;
+	static u32 reset_cnt_highpwr;
 
 	// For smooth, we can not change high power DIG state in the range.
 	if ((priv->undecorated_smoothed_pwdb > dm_digtable.rssi_high_power_lowthresh) &&
@@ -2395,8 +2395,8 @@ static void dm_initial_gain(
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u8					initial_gain=0;
-	static u8				initialized=0, force_write=0;
-	static u32			reset_cnt=0;
+	static u8				initialized, force_write;
+	static u32			reset_cnt;
 
 	if(dm_digtable.dig_algorithm_switch)
 	{
@@ -2462,8 +2462,8 @@ static void dm_pd_th(
 	struct net_device * dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	static u8				initialized=0, force_write=0;
-	static u32			reset_cnt = 0;
+	static u8				initialized, force_write;
+	static u32			reset_cnt;
 
 	if(dm_digtable.dig_algorithm_switch)
 	{
@@ -2574,8 +2574,8 @@ static	void dm_cs_ratio(
 	struct net_device * dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	static u8				initialized=0,force_write=0;
-	static u32			reset_cnt = 0;
+	static u8				initialized,force_write;
+	static u32			reset_cnt;
 
 	if(dm_digtable.dig_algorithm_switch)
 	{
@@ -2651,8 +2651,8 @@ static void dm_check_edca_turbo(
 	//PSTA_QOS			pStaQos = pMgntInfo->pStaQos;
 
 	// Keep past Tx/Rx packet count for RT-to-RT EDCA turbo.
-	static unsigned long			lastTxOkCnt = 0;
-	static unsigned long			lastRxOkCnt = 0;
+	static unsigned long			lastTxOkCnt;
+	static unsigned long			lastRxOkCnt;
 	unsigned long				curTxOkCnt = 0;
 	unsigned long				curRxOkCnt = 0;
 
@@ -2785,8 +2785,8 @@ static void dm_ctstoself(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv((struct net_device *)dev);
 	PRT_HIGH_THROUGHPUT	pHTInfo = priv->ieee80211->pHTInfo;
-	static unsigned long				lastTxOkCnt = 0;
-	static unsigned long				lastRxOkCnt = 0;
+	static unsigned long				lastTxOkCnt;
+	static unsigned long				lastRxOkCnt;
 	unsigned long						curTxOkCnt = 0;
 	unsigned long						curRxOkCnt = 0;
 
@@ -2871,7 +2871,7 @@ static void dm_check_rfctrl_gpio(struct net_device * dev)
  *
  * Revised History:
  *	When		Who		Remark
- *	05/28/2008	amy 	Create Version 0 porting from windows code.
+ *	05/28/2008	amy	Create Version 0 porting from windows code.
  *
  *---------------------------------------------------------------------------*/
 static	void	dm_check_pbc_gpio(struct net_device *dev)
@@ -3044,7 +3044,7 @@ static void dm_rxpath_sel_byrssi(struct net_device * dev)
 	u8				cck_rx_ver2_max_index=0, cck_rx_ver2_min_index=0, cck_rx_ver2_sec_index=0;
 	u8				cur_rf_rssi;
 	long				cur_cck_pwdb;
-	static u8			disabled_rf_cnt=0, cck_Rx_Path_initialized=0;
+	static u8			disabled_rf_cnt, cck_Rx_Path_initialized;
 	u8				update_cck_rx_path;
 
 	if(priv->rf_type != RF_2T4R)
@@ -3517,8 +3517,8 @@ static void dm_EndSWFsync(struct net_device *dev)
 static void dm_StartSWFsync(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	u32 			rateIndex;
-	u32 			rateBitmap;
+	u32			rateIndex;
+	u32			rateBitmap;
 
 	RT_TRACE(COMP_HALDM,"%s\n", __FUNCTION__);
 	// Initial rate record to zero, start to record.
@@ -3569,9 +3569,9 @@ void dm_check_fsync(struct net_device *dev)
 #define	RegC38_NonFsync_Other_AP	1
 #define	RegC38_Fsync_AP_BCM		2
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	//u32 			framesyncC34;
+	//u32			framesyncC34;
 	static u8		reg_c38_State=RegC38_Default;
-	static u32	reset_cnt=0;
+	static u32	reset_cnt;
 
 	RT_TRACE(COMP_HALDM, "RSSI %d TimeInterval %d MultipleTimeInterval %d\n", priv->ieee80211->fsync_rssi_threshold, priv->ieee80211->fsync_time_interval, priv->ieee80211->fsync_multiple_timeinterval);
 	RT_TRACE(COMP_HALDM, "RateBitmap 0x%x FirstDiffRateThreshold %d SecondDiffRateThreshold %d\n", priv->ieee80211->fsync_rate_bitmap, priv->ieee80211->fsync_firstdiff_ratethreshold, priv->ieee80211->fsync_seconddiff_ratethreshold);
@@ -3887,4 +3887,3 @@ static void dm_send_rssi_tofw(struct net_device *dev)
 }
 
 /*---------------------------Define function prototype------------------------*/
-

@@ -28,15 +28,13 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <mach/bast-map.h>
-#include <mach/bast-irq.h>
-
 #include <mach/hardware.h>
 #include <asm/irq.h>
 
 #include <linux/platform_data/usb-ohci-s3c2410.h>
 #include <plat/devs.h>
 
+#include "bast.h"
 #include "simtec.h"
 
 /* control power and monitor over-current events on various Simtec
@@ -79,7 +77,7 @@ static void usb_simtec_enableoc(struct s3c2410_hcd_info *info, int on)
 	int ret;
 
 	if (on) {
-		ret = request_irq(IRQ_USBOC, usb_simtec_ocirq,
+		ret = request_irq(BAST_IRQ_USBOC, usb_simtec_ocirq,
 				  IRQF_DISABLED | IRQF_TRIGGER_RISING |
 				   IRQF_TRIGGER_FALLING,
 				  "USB Over-current", info);
@@ -87,7 +85,7 @@ static void usb_simtec_enableoc(struct s3c2410_hcd_info *info, int on)
 			printk(KERN_ERR "failed to request usb oc irq\n");
 		}
 	} else {
-		free_irq(IRQ_USBOC, info);
+		free_irq(BAST_IRQ_USBOC, info);
 	}
 }
 

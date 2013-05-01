@@ -71,7 +71,6 @@
 #define PMD_PADDR	_AC(0xfffffffe,UL)
 #define PMD_PADDR_SHIFT	_AC(11,UL)
 
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
 #define PMD_ISHUGE	_AC(0x00000001,UL)
 
 /* This is the PMD layout when PMD_ISHUGE is set.  With 4MB huge
@@ -86,7 +85,6 @@
 #define PMD_HUGE_ACCESSED	_AC(0x00000080,UL)
 #define PMD_HUGE_EXEC		_AC(0x00000040,UL)
 #define PMD_HUGE_SPLITTING	_AC(0x00000020,UL)
-#endif
 
 /* PGDs point to PMD tables which are 8K aligned.  */
 #define PGD_PADDR	_AC(0xfffffffc,UL)
@@ -617,9 +615,21 @@ static inline unsigned long pte_present(pte_t pte)
 	return val;
 }
 
+#define pte_accessible pte_accessible
+static inline unsigned long pte_accessible(pte_t a)
+{
+	return pte_val(a) & _PAGE_VALID;
+}
+
 static inline unsigned long pte_special(pte_t pte)
 {
 	return pte_val(pte) & _PAGE_SPECIAL;
+}
+
+static inline int pmd_large(pmd_t pmd)
+{
+	return (pmd_val(pmd) & (PMD_ISHUGE | PMD_HUGE_PRESENT)) ==
+		(PMD_ISHUGE | PMD_HUGE_PRESENT);
 }
 
 #ifdef CONFIG_TRANSPARENT_HUGEPAGE
@@ -638,12 +648,6 @@ static inline unsigned long pmd_pfn(pmd_t pmd)
 	unsigned long val = pmd_val(pmd) & PMD_HUGE_PADDR;
 
 	return val >> (PAGE_SHIFT - PMD_PADDR_SHIFT);
-}
-
-static inline int pmd_large(pmd_t pmd)
-{
-	return (pmd_val(pmd) & (PMD_ISHUGE | PMD_HUGE_PRESENT)) ==
-		(PMD_ISHUGE | PMD_HUGE_PRESENT);
 }
 
 static inline int pmd_trans_splitting(pmd_t pmd)
@@ -802,7 +806,7 @@ static inline void __set_pte_at(struct mm_struct *mm, unsigned long addr,
 	 * SUN4V NOTE: _PAGE_VALID is the same value in both the SUN4U
 	 *             and SUN4V pte layout, so this inline test is fine.
 	 */
-	if (likely(mm != &init_mm) && (pte_val(orig) & _PAGE_VALID))
+	if (likely(mm != &init_mm) && pte_accessible(orig))
 		tlb_batch_add(mm, addr, ptep, orig, fullmm);
 }
 

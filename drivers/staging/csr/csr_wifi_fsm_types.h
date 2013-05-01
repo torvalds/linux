@@ -11,13 +11,8 @@
 #ifndef CSR_WIFI_FSM_TYPES_H
 #define CSR_WIFI_FSM_TYPES_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <linux/types.h>
 #include "csr_macro.h"
-#include "csr_panic.h"
 #include "csr_sched.h"
 
 #ifdef CSR_WIFI_FSM_MUTEX_ENABLE
@@ -431,10 +426,5 @@ struct CsrWifiFsmContext
     u16 masterTransitionNumber;                  /* Increments on every transition              */
 #endif
 };
-
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* CSR_WIFI_FSM_TYPES_H */

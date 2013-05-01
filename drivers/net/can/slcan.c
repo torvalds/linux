@@ -55,6 +55,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/can.h>
+#include <linux/can/skb.h>
 
 static __initconst const char banner[] =
 	KERN_INFO "slcan: serial line CAN interface driver\n";
@@ -184,7 +185,8 @@ static void slc_bump(struct slcan *sl)
 		cf.data[i] |= tmp;
 	}
 
-	skb = dev_alloc_skb(sizeof(struct can_frame));
+	skb = dev_alloc_skb(sizeof(struct can_frame) +
+			    sizeof(struct can_skb_priv));
 	if (!skb)
 		return;
 
@@ -192,6 +194,10 @@ static void slc_bump(struct slcan *sl)
 	skb->protocol = htons(ETH_P_CAN);
 	skb->pkt_type = PACKET_BROADCAST;
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
+
+	can_skb_reserve(skb);
+	can_skb_prv(skb)->ifindex = sl->dev->ifindex;
+
 	memcpy(skb_put(skb, sizeof(struct can_frame)),
 	       &cf, sizeof(struct can_frame));
 	netif_rx_ni(skb);

@@ -296,7 +296,7 @@ int ttm_tt_swapin(struct ttm_tt *ttm)
 	swap_storage = ttm->swap_storage;
 	BUG_ON(swap_storage == NULL);
 
-	swap_space = swap_storage->f_path.dentry->d_inode->i_mapping;
+	swap_space = file_inode(swap_storage)->i_mapping;
 
 	for (i = 0; i < ttm->num_pages; ++i) {
 		from_page = shmem_read_mapping_page(swap_space, i);
@@ -308,9 +308,7 @@ int ttm_tt_swapin(struct ttm_tt *ttm)
 		if (unlikely(to_page == NULL))
 			goto out_err;
 
-		preempt_disable();
 		copy_highpage(to_page, from_page);
-		preempt_enable();
 		page_cache_release(from_page);
 	}
 
@@ -347,7 +345,7 @@ int ttm_tt_swapout(struct ttm_tt *ttm, struct file *persistent_swap_storage)
 	} else
 		swap_storage = persistent_swap_storage;
 
-	swap_space = swap_storage->f_path.dentry->d_inode->i_mapping;
+	swap_space = file_inode(swap_storage)->i_mapping;
 
 	for (i = 0; i < ttm->num_pages; ++i) {
 		from_page = ttm->pages[i];
@@ -358,9 +356,7 @@ int ttm_tt_swapout(struct ttm_tt *ttm, struct file *persistent_swap_storage)
 			ret = PTR_ERR(to_page);
 			goto out_err;
 		}
-		preempt_disable();
 		copy_highpage(to_page, from_page);
-		preempt_enable();
 		set_page_dirty(to_page);
 		mark_page_accessed(to_page);
 		page_cache_release(to_page);

@@ -164,7 +164,6 @@ static irqreturn_t adjd_s311_trigger_handler(int irq, void *p)
 	struct iio_poll_func *pf = p;
 	struct iio_dev *indio_dev = pf->indio_dev;
 	struct adjd_s311_data *data = iio_priv(indio_dev);
-	struct iio_buffer *buffer = indio_dev->buffer;
 	s64 time_ns = iio_get_time_ns();
 	int len = 0;
 	int i, j = 0;
@@ -187,7 +186,7 @@ static irqreturn_t adjd_s311_trigger_handler(int irq, void *p)
 	if (indio_dev->scan_timestamp)
 		*(s64 *)((u8 *)data->buffer + ALIGN(len, sizeof(s64)))
 			= time_ns;
-	iio_push_to_buffer(buffer, (u8 *)data->buffer);
+	iio_push_to_buffers(indio_dev, (u8 *)data->buffer);
 
 done:
 	iio_trigger_notify_done(indio_dev->trig);
@@ -287,8 +286,8 @@ static const struct iio_info adjd_s311_info = {
 	.driver_module = THIS_MODULE,
 };
 
-static int __devinit adjd_s311_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int adjd_s311_probe(struct i2c_client *client,
+			   const struct i2c_device_id *id)
 {
 	struct adjd_s311_data *data;
 	struct iio_dev *indio_dev;
@@ -331,7 +330,7 @@ exit:
 	return err;
 }
 
-static int __devexit adjd_s311_remove(struct i2c_client *client)
+static int adjd_s311_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct adjd_s311_data *data = iio_priv(indio_dev);
@@ -355,7 +354,7 @@ static struct i2c_driver adjd_s311_driver = {
 		.name	= ADJD_S311_DRV_NAME,
 	},
 	.probe		= adjd_s311_probe,
-	.remove		= __devexit_p(adjd_s311_remove),
+	.remove		= adjd_s311_remove,
 	.id_table	= adjd_s311_id,
 };
 module_i2c_driver(adjd_s311_driver);

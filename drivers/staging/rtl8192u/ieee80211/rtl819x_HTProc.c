@@ -21,7 +21,7 @@ u16 MCS_DATA_RATE[2][2][77] =
 			81, 162, 243, 324, 486, 648, 729, 810, 108, 216, 324, 432, 648, 864, 972, 1080,
 			12, 162, 216, 270, 243, 324, 405, 216, 270, 270, 324, 378, 378, 432, 324, 405,
 			405, 486, 567, 567, 648, 270, 324, 378, 324, 378, 432, 486, 432, 486, 540, 540,
-			594, 405, 486, 567, 486, 567, 648, 729, 648, 729, 810, 810, 891}, 	// Long GI, 40MHz
+			594, 405, 486, 567, 486, 567, 648, 729, 648, 729, 810, 810, 891},	// Long GI, 40MHz
 			{30, 60, 90, 120, 180, 240, 270, 300, 60, 120, 180, 240, 360, 480, 540, 600,
 			90, 180, 270, 360, 540, 720, 810, 900, 120, 240, 360, 480, 720, 960, 1080, 1200,
 			13, 180, 240, 300, 270, 360, 450, 240, 300, 300, 360, 420, 420, 480, 360, 450,
@@ -88,7 +88,7 @@ void HTUpdateDefaultSetting(struct ieee80211_device* ieee)
 	ieee->bTxDisableRateFallBack = 0;
 	ieee->bTxUseDriverAssingedRate = 0;
 
-#ifdef 	TO_DO_LIST
+#ifdef	TO_DO_LIST
 	// 8190 only. Assign duration operation mode to firmware
 	pMgntInfo->bTxEnableFwCalcDur = (BOOLEAN)pNdisCommon->bRegTxEnableFwCalcDur;
 #endif
@@ -116,7 +116,7 @@ void HTUpdateDefaultSetting(struct ieee80211_device* ieee)
 /********************************************************************************************************************
  *function:  This function print out each field on HT capability IE mainly from (Beacon/ProbeRsp/AssocReq)
  *   input:  u8*	CapIE       //Capability IE to be printed out
- *   	     u8* 	TitleString //mainly print out caller function
+ *	     u8*	TitleString //mainly print out caller function
  *  output:  none
  *  return:  none
  *  notice:  Driver should not print out this message by default.
@@ -125,7 +125,7 @@ void HTDebugHTCapability(u8* CapIE, u8* TitleString )
 {
 
 	static u8	EWC11NHTCap[] = {0x00, 0x90, 0x4c, 0x33};	// For 11n EWC definition, 2007.07.17, by Emily
-	PHT_CAPABILITY_ELE 		pCapELE;
+	PHT_CAPABILITY_ELE		pCapELE;
 
 	if(!memcmp(CapIE, EWC11NHTCap, sizeof(EWC11NHTCap)))
 	{
@@ -153,7 +153,7 @@ void HTDebugHTCapability(u8* CapIE, u8* TitleString )
 /********************************************************************************************************************
  *function:  This function print out each field on HT Information IE mainly from (Beacon/ProbeRsp)
  *   input:  u8*	InfoIE       //Capability IE to be printed out
- *   	     u8* 	TitleString //mainly print out caller function
+ *	     u8*	TitleString //mainly print out caller function
  *  output:  none
  *  return:  none
  *  notice:  Driver should not print out this message by default.
@@ -217,7 +217,7 @@ void HTDebugHTInfo(u8*	InfoIE, u8* TitleString)
 }
 
 /*
-*	Return:     	true if station in half n mode and AP supports 40 bw
+*	Return:		true if station in half n mode and AP supports 40 bw
 */
 bool IsHTHalfNmode40Bandwidth(struct ieee80211_device* ieee)
 {
@@ -228,7 +228,7 @@ bool IsHTHalfNmode40Bandwidth(struct ieee80211_device* ieee)
 		retValue = false;
 	else if(pHTInfo->bRegBW40MHz == false)	// station supports 40 bw
 		retValue = false;
-	else if(!ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev)) 	// station in half n mode
+	else if(!ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev))	// station in half n mode
 		retValue = false;
 	else if(((PHT_CAPABILITY_ELE)(pHTInfo->PeerHTCapBuf))->ChlWidth) // ap support 40 bw
 		retValue = true;
@@ -245,7 +245,7 @@ bool IsHTHalfNmodeSGI(struct ieee80211_device* ieee, bool is40MHz)
 
 	if(pHTInfo->bCurrentHTSupport == false )	// wireless is n mode
 		retValue = false;
-	else if(!ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev)) 	// station in half n mode
+	else if(!ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev))	// station in half n mode
 		retValue = false;
 	else if(is40MHz) // ap support 40 bw
 	{
@@ -265,7 +265,7 @@ bool IsHTHalfNmodeSGI(struct ieee80211_device* ieee, bool is40MHz)
 	return retValue;
 }
 
-u16 HTHalfMcsToDataRate(struct ieee80211_device* ieee, 	u8	nMcsRate)
+u16 HTHalfMcsToDataRate(struct ieee80211_device* ieee,	u8	nMcsRate)
 {
 
 	u8	is40MHz;
@@ -291,8 +291,8 @@ u16 HTMcsToDataRate( struct ieee80211_device* ieee, u8 nMcsRate)
 
 /********************************************************************************************************************
  *function:  This function returns current datarate.
- *   input:  struct ieee80211_device* 	ieee
- *   	     u8 			nDataRate
+ *   input:  struct ieee80211_device*	ieee
+ *	     u8				nDataRate
  *  output:  none
  *  return:  tx rate
  *  notice:  quite unsure about how to use this function //wb
@@ -371,7 +371,7 @@ bool IsHTHalfNmodeAPs(struct ieee80211_device* ieee)
 
 /********************************************************************************************************************
  *function:  This function returns peer IOT.
- *   input:  struct ieee80211_device* 	ieee
+ *   input:  struct ieee80211_device*	ieee
  *  output:  none
  *  return:
  *  notice:
@@ -408,8 +408,8 @@ void HTIOTPeerDetermine(struct ieee80211_device* ieee)
 /********************************************************************************************************************
  *function:  Check whether driver should declare received rate up to MCS13 only since some chipset is not good
  *	     at receiving MCS14~15 frame from some AP.
- *   input:  struct ieee80211_device* 	ieee
- *   	     u8 *			PeerMacAddr
+ *   input:  struct ieee80211_device*	ieee
+ *	     u8 *			PeerMacAddr
  *  output:  none
  *  return:  return 1 if driver should declare MCS13 only(otherwise return 0)
   * *****************************************************************************************************************/
@@ -429,7 +429,7 @@ u8 HTIOTActIsDisableMCS14(struct ieee80211_device* ieee, u8* PeerMacAddr)
 *			PADAPTER		Adapter,
 *
 * Output:		None
-* Return:     	true if driver should disable MCS15
+* Return:	true if driver should disable MCS15
 * 2008.04.15	Emily
 */
 bool HTIOTActIsDisableMCS15(struct ieee80211_device* ieee)
@@ -466,7 +466,7 @@ bool HTIOTActIsDisableMCS15(struct ieee80211_device* ieee)
 *			PADAPTER		Adapter,
 *
 * Output:		None
-* Return:     	true if driver should disable all two spatial stream packet
+* Return:	true if driver should disable all two spatial stream packet
 * 2008.04.21	Emily
 */
 bool HTIOTActIsDisableMCSTwoSpatialStream(struct ieee80211_device* ieee, u8 *PeerMacAddr)
@@ -481,12 +481,12 @@ bool HTIOTActIsDisableMCSTwoSpatialStream(struct ieee80211_device* ieee, u8 *Pee
 
 /********************************************************************************************************************
  *function:  Check whether driver should disable EDCA turbo mode
- *   input:  struct ieee80211_device* 	ieee
- *   	     u8* 			PeerMacAddr
+ *   input:  struct ieee80211_device*	ieee
+ *	     u8*			PeerMacAddr
  *  output:  none
  *  return:  return 1 if driver should disable EDCA turbo mode(otherwise return 0)
   * *****************************************************************************************************************/
-u8 HTIOTActIsDisableEDCATurbo(struct ieee80211_device* 	ieee, u8* PeerMacAddr)
+u8 HTIOTActIsDisableEDCATurbo(struct ieee80211_device*	ieee, u8* PeerMacAddr)
 {
 	u8	retValue = false;	// default enable EDCA Turbo mode.
 	// Set specific EDCA parameter for different AP in DM handler.
@@ -539,10 +539,10 @@ void HTResetIOTSetting(
 
 /********************************************************************************************************************
  *function:  Construct Capablility Element in Beacon... if HTEnable is turned on
- *   input:  struct ieee80211_device* 	ieee
- *   	     u8* 			posHTCap //pointer to store Capability Ele
- *   	     u8*			len //store length of CE
- *   	     u8				IsEncrypt //whether encrypt, needed further
+ *   input:  struct ieee80211_device*	ieee
+ *	     u8*			posHTCap //pointer to store Capability Ele
+ *	     u8*			len //store length of CE
+ *	     u8				IsEncrypt //whether encrypt, needed further
  *  output:  none
  *  return:  none
  *  notice:  posHTCap can't be null and should be initialized before.
@@ -550,7 +550,7 @@ void HTResetIOTSetting(
 void HTConstructCapabilityElement(struct ieee80211_device* ieee, u8* posHTCap, u8* len, u8 IsEncrypt)
 {
 	PRT_HIGH_THROUGHPUT	pHT = ieee->pHTInfo;
-	PHT_CAPABILITY_ELE 	pCapELE = NULL;
+	PHT_CAPABILITY_ELE	pCapELE = NULL;
 	//u8 bIsDeclareMCS13;
 
 	if ((posHTCap == NULL) || (pHT == NULL))
@@ -571,7 +571,7 @@ void HTConstructCapabilityElement(struct ieee80211_device* ieee, u8* posHTCap, u
 
 
 	//HT capability info
-	pCapELE->AdvCoding 		= 0; // This feature is not supported now!!
+	pCapELE->AdvCoding		= 0; // This feature is not supported now!!
 	if(ieee->GetHalfNmodeSupportByAPsHandler(ieee->dev))
 	{
 		pCapELE->ChlWidth = 0;
@@ -581,18 +581,18 @@ void HTConstructCapabilityElement(struct ieee80211_device* ieee, u8* posHTCap, u
 		pCapELE->ChlWidth = (pHT->bRegBW40MHz?1:0);
 	}
 
-//	pCapELE->ChlWidth 		= (pHT->bRegBW40MHz?1:0);
-	pCapELE->MimoPwrSave 		= pHT->SelfMimoPs;
+//	pCapELE->ChlWidth		= (pHT->bRegBW40MHz?1:0);
+	pCapELE->MimoPwrSave		= pHT->SelfMimoPs;
 	pCapELE->GreenField		= 0; // This feature is not supported now!!
 	pCapELE->ShortGI20Mhz		= 1; // We can receive Short GI!!
 	pCapELE->ShortGI40Mhz		= 1; // We can receive Short GI!!
 	//DbgPrint("TX HT cap/info ele BW=%d SG20=%d SG40=%d\n\r",
 		//pCapELE->ChlWidth, pCapELE->ShortGI20Mhz, pCapELE->ShortGI40Mhz);
-	pCapELE->TxSTBC 		= 1;
-	pCapELE->RxSTBC 		= 0;
+	pCapELE->TxSTBC			= 1;
+	pCapELE->RxSTBC			= 0;
 	pCapELE->DelayBA		= 0;	// Do not support now!!
 	pCapELE->MaxAMSDUSize	= (MAX_RECEIVE_BUFFER_SIZE>=7935)?1:0;
-	pCapELE->DssCCk 		= ((pHT->bRegBW40MHz)?(pHT->bRegSuppCCK?1:0):0);
+	pCapELE->DssCCk			= ((pHT->bRegBW40MHz)?(pHT->bRegSuppCCK?1:0):0);
 	pCapELE->PSMP			= 0; // Do not support now!!
 	pCapELE->LSigTxopProtect	= 0; // Do not support now!!
 
@@ -603,13 +603,13 @@ void HTConstructCapabilityElement(struct ieee80211_device* ieee, u8* posHTCap, u
 
 	if( IsEncrypt)
 	{
-		pCapELE->MPDUDensity 	= 7; // 8us
-		pCapELE->MaxRxAMPDUFactor 	= 2; // 2 is for 32 K and 3 is 64K
+		pCapELE->MPDUDensity	= 7; // 8us
+		pCapELE->MaxRxAMPDUFactor	= 2; // 2 is for 32 K and 3 is 64K
 	}
 	else
 	{
-		pCapELE->MaxRxAMPDUFactor 	= 3; // 2 is for 32 K and 3 is 64K
-		pCapELE->MPDUDensity 	= 0; // no density
+		pCapELE->MaxRxAMPDUFactor	= 3; // 2 is for 32 K and 3 is 64K
+		pCapELE->MPDUDensity	= 0; // no density
 	}
 
 	//Supported MCS set
@@ -658,10 +658,10 @@ void HTConstructCapabilityElement(struct ieee80211_device* ieee, u8* posHTCap, u
 }
 /********************************************************************************************************************
  *function:  Construct  Information Element in Beacon... if HTEnable is turned on
- *   input:  struct ieee80211_device* 	ieee
- *   	     u8* 			posHTCap //pointer to store Information Ele
- *   	     u8*			len   //store len of
- *   	     u8				IsEncrypt //whether encrypt, needed further
+ *   input:  struct ieee80211_device*	ieee
+ *	     u8*			posHTCap //pointer to store Information Ele
+ *	     u8*			len   //store len of
+ *	     u8				IsEncrypt //whether encrypt, needed further
  *  output:  none
  *  return:  none
  *  notice:  posHTCap can't be null and be initialized before. only AP and IBSS sta should do this
@@ -679,12 +679,12 @@ void HTConstructInfoElement(struct ieee80211_device* ieee, u8* posHTInfo, u8* le
 	memset(posHTInfo, 0, *len);
 	if ( (ieee->iw_mode == IW_MODE_ADHOC) || (ieee->iw_mode == IW_MODE_MASTER)) //ap mode is not currently supported
 	{
-		pHTInfoEle->ControlChl 			= ieee->current_network.channel;
-		pHTInfoEle->ExtChlOffset 			= ((pHT->bRegBW40MHz == false)?HT_EXTCHNL_OFFSET_NO_EXT:
+		pHTInfoEle->ControlChl			= ieee->current_network.channel;
+		pHTInfoEle->ExtChlOffset			= ((pHT->bRegBW40MHz == false)?HT_EXTCHNL_OFFSET_NO_EXT:
 											(ieee->current_network.channel<=6)?
 												HT_EXTCHNL_OFFSET_UPPER:HT_EXTCHNL_OFFSET_LOWER);
 		pHTInfoEle->RecommemdedTxWidth	= pHT->bRegBW40MHz;
-		pHTInfoEle->RIFS 					= 0;
+		pHTInfoEle->RIFS					= 0;
 		pHTInfoEle->PSMPAccessOnly		= 0;
 		pHTInfoEle->SrvIntGranularity		= 0;
 		pHTInfoEle->OptMode				= pHT->CurrentOpMode;
@@ -723,17 +723,17 @@ void HTConstructInfoElement(struct ieee80211_device* ieee, u8* posHTInfo, u8* le
   *  Element ID		Length		OUI			Type1		Reserved
   *  1 byte			1 byte		3 bytes		1 byte		1 byte
   *
-  *  OUI 		= 0x00, 0xe0, 0x4c,
-  *  Type 	= 0x02
-  *  Reserved 	= 0x00
+  *  OUI		= 0x00, 0xe0, 0x4c,
+  *  Type	= 0x02
+  *  Reserved	= 0x00
   *
   *  2007.8.21 by Emily
 */
 /********************************************************************************************************************
  *function:  Construct  Information Element in Beacon... in RT2RT condition
- *   input:  struct ieee80211_device* 	ieee
- *   	     u8* 			posRT2RTAgg //pointer to store Information Ele
- *   	     u8*			len   //store len
+ *   input:  struct ieee80211_device*	ieee
+ *	     u8*			posRT2RTAgg //pointer to store Information Ele
+ *	     u8*			len   //store len
  *  output:  none
  *  return:  none
  *  notice:
@@ -787,8 +787,8 @@ void HTConstructRT2RTAggElement(struct ieee80211_device* ieee, u8* posRT2RTAgg, 
 
 /********************************************************************************************************************
  *function:  Pick the right Rate Adaptive table to use
- *   input:  struct ieee80211_device* 	ieee
- *   	     u8* 			pOperateMCS //A pointer to MCS rate bitmap
+ *   input:  struct ieee80211_device*	ieee
+ *	     u8*			pOperateMCS //A pointer to MCS rate bitmap
  *  return:  always we return true
  *  notice:
   * *****************************************************************************************************************/
@@ -840,7 +840,7 @@ u8 HT_PickMCSRate(struct ieee80211_device* ieee, u8* pOperateMCS)
 *	Description:
 *		This function will get the highest speed rate in input MCS set.
 *
-*	/param 	Adapter			Pionter to Adapter entity
+*	/param	Adapter			Pionter to Adapter entity
 *			pMCSRateSet		Pointer to MCS rate bitmap
 *			pMCSFilter		Pointer to MCS rate filter
 *
@@ -849,9 +849,9 @@ u8 HT_PickMCSRate(struct ieee80211_device* ieee, u8* pOperateMCS)
 */
 /********************************************************************************************************************
  *function:  This function will get the highest speed rate in input MCS set.
- *   input:  struct ieee80211_device* 	ieee
- *   	     u8* 			pMCSRateSet //Pointer to MCS rate bitmap
- *   	     u8*			pMCSFilter //Pointer to MCS rate filter
+ *   input:  struct ieee80211_device*	ieee
+ *	     u8*			pMCSRateSet //Pointer to MCS rate bitmap
+ *	     u8*			pMCSFilter //Pointer to MCS rate filter
  *  return:  Highest MCS rate included in pMCSRateSet and filtered by pMCSFilter
  *  notice:
   * *****************************************************************************************************************/
@@ -1062,7 +1062,7 @@ void HTOnAssocRsp(struct ieee80211_device *ieee)
 	else
 		pHTInfo->CurrentMPDUDensity = pPeerHTCap->MPDUDensity;
 	if(ieee->pairwise_key_type != KEY_TYPE_NA )
-		pHTInfo->CurrentMPDUDensity 	= 7; // 8us
+		pHTInfo->CurrentMPDUDensity	= 7; // 8us
 	// Force TX AMSDU
 
 	// Lanhsin: mark for tmp to avoid deauth by ap from  s3
@@ -1118,7 +1118,7 @@ void HTOnAssocRsp(struct ieee80211_device *ieee)
 void HTSetConnectBwModeCallback(struct ieee80211_device* ieee);
 /********************************************************************************************************************
  *function:  initialize HT info(struct PRT_HIGH_THROUGHPUT)
- *   input:  struct ieee80211_device* 	ieee
+ *   input:  struct ieee80211_device*	ieee
  *  output:  none
  *  return:  none
  *  notice: This function is called when *  (1) MPInitialization Phase *  (2) Receiving of Deauthentication from AP
@@ -1208,13 +1208,13 @@ void HTInitializeBssDesc(PBSS_HT pBssHT)
 }
 /********************************************************************************************************************
  *function:  initialize Bss HT structure(struct PBSS_HT)
- *   input:  struct ieee80211_device 	*ieee
- *   	     struct ieee80211_network 	*pNetwork //usually current network we are live in
+ *   input:  struct ieee80211_device	*ieee
+ *	     struct ieee80211_network	*pNetwork //usually current network we are live in
  *  output:  none
  *  return:  none
  *  notice: This function should ONLY be called before association
 ********************************************************************************************************************/
-void HTResetSelfAndSavePeerSetting(struct ieee80211_device* ieee, 	struct ieee80211_network * pNetwork)
+void HTResetSelfAndSavePeerSetting(struct ieee80211_device* ieee,	struct ieee80211_network * pNetwork)
 {
 	PRT_HIGH_THROUGHPUT		pHTInfo = ieee->pHTInfo;
 //	u16						nMaxAMSDUSize;
@@ -1235,7 +1235,7 @@ void HTResetSelfAndSavePeerSetting(struct ieee80211_device* ieee, 	struct ieee80
 		pHTInfo->ePeerHTSpecVer = pNetwork->bssht.bdHTSpecVer;
 
 		// Save HTCap and HTInfo information Element
-		if(pNetwork->bssht.bdHTCapLen > 0 && 	pNetwork->bssht.bdHTCapLen <= sizeof(pHTInfo->PeerHTCapBuf))
+		if(pNetwork->bssht.bdHTCapLen > 0 &&	pNetwork->bssht.bdHTCapLen <= sizeof(pHTInfo->PeerHTCapBuf))
 			memcpy(pHTInfo->PeerHTCapBuf, pNetwork->bssht.bdHTCapBuf, pNetwork->bssht.bdHTCapLen);
 
 		if(pNetwork->bssht.bdHTInfoLen > 0 && pNetwork->bssht.bdHTInfoLen <= sizeof(pHTInfo->PeerHTInfoBuf))
@@ -1297,7 +1297,7 @@ void HTResetSelfAndSavePeerSetting(struct ieee80211_device* ieee, 	struct ieee80
 
 }
 
-void HTUpdateSelfAndPeerSetting(struct ieee80211_device* ieee, 	struct ieee80211_network * pNetwork)
+void HTUpdateSelfAndPeerSetting(struct ieee80211_device* ieee,	struct ieee80211_network * pNetwork)
 {
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
 //	PHT_CAPABILITY_ELE		pPeerHTCap = (PHT_CAPABILITY_ELE)pNetwork->bssht.bdHTCapBuf;
@@ -1364,8 +1364,8 @@ void HTUseDefaultSetting(struct ieee80211_device* ieee)
 }
 /********************************************************************************************************************
  *function:  check whether HT control field exists
- *   input:  struct ieee80211_device 	*ieee
- *   	     u8*			pFrame //coming skb->data
+ *   input:  struct ieee80211_device	*ieee
+ *	     u8*			pFrame //coming skb->data
  *  output:  none
  *  return:  return true if HT control field exists(false otherwise)
  *  notice:

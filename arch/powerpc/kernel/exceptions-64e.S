@@ -159,8 +159,9 @@ exc_##n##_common:							    \
 	std	r9,GPR9(r1);		/* save r9 in stackframe */	    \
 	std	r10,_NIP(r1);		/* save SRR0 to stackframe */	    \
 	std	r11,_MSR(r1);		/* save SRR1 to stackframe */	    \
+	beq	2f;			/* if from kernel mode */	    \
 	ACCOUNT_CPU_USER_ENTRY(r10,r11);/* accounting (uses cr0+eq) */	    \
-	ld	r3,excf+EX_R10(r13);	/* get back r10 */		    \
+2:	ld	r3,excf+EX_R10(r13);	/* get back r10 */		    \
 	ld	r4,excf+EX_R11(r13);	/* get back r11 */		    \
 	mfspr	r5,SPRN_SPRG_GEN_SCRATCH;/* get back r13 */		    \
 	std	r12,GPR12(r1);		/* save r12 in stackframe */	    \

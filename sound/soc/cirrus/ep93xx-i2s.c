@@ -380,9 +380,9 @@ static int ep93xx_i2s_probe(struct platform_device *pdev)
 	if (!res)
 		return -ENODEV;
 
-	info->regs = devm_request_and_ioremap(&pdev->dev, res);
-	if (!info->regs)
-		return -ENXIO;
+	info->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(info->regs))
+		return PTR_ERR(info->regs);
 
 	info->mclk = clk_get(&pdev->dev, "mclk");
 	if (IS_ERR(info->mclk)) {
@@ -422,7 +422,7 @@ fail:
 	return err;
 }
 
-static int __devexit ep93xx_i2s_remove(struct platform_device *pdev)
+static int ep93xx_i2s_remove(struct platform_device *pdev)
 {
 	struct ep93xx_i2s_info *info = dev_get_drvdata(&pdev->dev);
 
@@ -436,7 +436,7 @@ static int __devexit ep93xx_i2s_remove(struct platform_device *pdev)
 
 static struct platform_driver ep93xx_i2s_driver = {
 	.probe	= ep93xx_i2s_probe,
-	.remove	= __devexit_p(ep93xx_i2s_remove),
+	.remove	= ep93xx_i2s_remove,
 	.driver	= {
 		.name	= "ep93xx-i2s",
 		.owner	= THIS_MODULE,

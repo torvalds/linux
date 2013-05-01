@@ -728,7 +728,7 @@ static struct cbe_iommu * __init cell_iommu_alloc(struct device_node *np)
 		 nid, np->full_name);
 
 	/* XXX todo: If we can have multiple windows on the same IOMMU, which
-	 * isn't the case today, we probably want here to check wether the
+	 * isn't the case today, we probably want here to check whether the
 	 * iommu for that node is already setup.
 	 * However, there might be issue with getting the size right so let's
 	 * ignore that for now. We might want to completely get rid of the

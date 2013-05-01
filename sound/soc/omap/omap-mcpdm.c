@@ -429,7 +429,7 @@ void omap_mcpdm_configure_dn_offsets(struct snd_soc_pcm_runtime *rtd,
 }
 EXPORT_SYMBOL_GPL(omap_mcpdm_configure_dn_offsets);
 
-static __devinit int asoc_mcpdm_probe(struct platform_device *pdev)
+static int asoc_mcpdm_probe(struct platform_device *pdev)
 {
 	struct omap_mcpdm *mcpdm;
 	struct resource *res;
@@ -448,10 +448,6 @@ static __devinit int asoc_mcpdm_probe(struct platform_device *pdev)
 
 	omap_mcpdm_dai_dma_params[0].port_addr = res->start + MCPDM_REG_DN_DATA;
 	omap_mcpdm_dai_dma_params[1].port_addr = res->start + MCPDM_REG_UP_DATA;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL)
-		return -ENOMEM;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_DMA, "dn_link");
 	if (!res)
@@ -487,7 +483,7 @@ static __devinit int asoc_mcpdm_probe(struct platform_device *pdev)
 	return snd_soc_register_dai(&pdev->dev, &omap_mcpdm_dai);
 }
 
-static int __devexit asoc_mcpdm_remove(struct platform_device *pdev)
+static int asoc_mcpdm_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_dai(&pdev->dev);
 	return 0;
@@ -507,7 +503,7 @@ static struct platform_driver asoc_mcpdm_driver = {
 	},
 
 	.probe	= asoc_mcpdm_probe,
-	.remove	= __devexit_p(asoc_mcpdm_remove),
+	.remove	= asoc_mcpdm_remove,
 };
 
 module_platform_driver(asoc_mcpdm_driver);

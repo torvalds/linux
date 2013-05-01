@@ -3,8 +3,7 @@ extra-y := head.o vmlinux.lds
 obj-$(CONFIG_SMP) += smp.o topology.o
 
 obj-y += setup.o irq_cpu.o traps.o syscalltab.o signal.o time.o
-obj-y += process.o syscall.o trampoline.o reset.o ptrace.o
-obj-y += vdso.o
+obj-y += process.o trampoline.o reset.o ptrace.o vdso.o
 
 obj-$(CONFIG_KGDB)    += kgdb.o
 obj-$(CONFIG_MODULES) += module.o hexagon_ksyms.o

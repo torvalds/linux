@@ -91,7 +91,7 @@ static struct pcmcia_low_level jornada720_pcmcia_ops = {
 	.nr			= 2,
 };
 
-int __devinit pcmcia_jornada720_init(struct device *dev)
+int pcmcia_jornada720_init(struct device *dev)
 {
 	int ret = -ENODEV;
 

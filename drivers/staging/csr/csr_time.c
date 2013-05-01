@@ -9,25 +9,24 @@
 *****************************************************************************/
 
 #include <linux/kernel.h>
-#include <linux/version.h>
 #include <linux/time.h>
 #include <linux/module.h>
 
 #include "csr_time.h"
 
-CsrTime CsrTimeGet(CsrTime *high)
+u32 CsrTimeGet(u32 *high)
 {
 	struct timespec ts;
 	u64 time;
-	CsrTime low;
+	u32 low;
 
 	ts = current_kernel_time();
 	time = (u64) ts.tv_sec * 1000000 + ts.tv_nsec / 1000;
 
 	if (high != NULL)
-		*high = (CsrTime) ((time >> 32) & 0xFFFFFFFF);
+		*high = (u32) ((time >> 32) & 0xFFFFFFFF);
 
-	low = (CsrTime) (time & 0xFFFFFFFF);
+	low = (u32) (time & 0xFFFFFFFF);
 
 	return low;
 }

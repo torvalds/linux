@@ -272,6 +272,18 @@ struct sctp_mib {
         unsigned long   mibs[SCTP_MIB_MAX];
 };
 
+/* helper function to track stats about max rto and related transport */
+static inline void sctp_max_rto(struct sctp_association *asoc,
+				struct sctp_transport *trans)
+{
+	if (asoc->stats.max_obs_rto < (__u64)trans->rto) {
+		asoc->stats.max_obs_rto = trans->rto;
+		memset(&asoc->stats.obs_rto_ipaddr, 0,
+			sizeof(struct sockaddr_storage));
+		memcpy(&asoc->stats.obs_rto_ipaddr, &trans->ipaddr,
+			trans->af_specific->sockaddr_len);
+	}
+}
 
 /* Print debugging messages.  */
 #if SCTP_DEBUG
@@ -663,8 +675,8 @@ static inline int sctp_vtag_hashfn(__u16 lport, __u16 rport, __u32 vtag)
 	return h & (sctp_assoc_hashsize - 1);
 }
 
-#define sctp_for_each_hentry(epb, node, head) \
-	hlist_for_each_entry(epb, node, head, node)
+#define sctp_for_each_hentry(epb, head) \
+	hlist_for_each_entry(epb, head, node)
 
 /* Is a socket of this style? */
 #define sctp_style(sk, style) __sctp_style((sk), (SCTP_SOCKET_##style))

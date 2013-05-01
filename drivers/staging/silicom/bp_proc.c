@@ -10,21 +10,20 @@
 /*                                                                            */
 /******************************************************************************/
 
-#include <linux/version.h>
-#if defined(CONFIG_SMP) && ! defined(__SMP__)
+#if defined(CONFIG_SMP) && !defined(__SMP__)
 #define __SMP__
 #endif
 
 #include <linux/proc_fs.h>
 #include <linux/netdevice.h>
 #include <asm/uaccess.h>
-//#include <linux/smp_lock.h>
+/* #include <linux/smp_lock.h> */
 #include "bp_mod.h"
 
 #define BP_PROC_DIR "bypass"
-//#define BYPASS_SUPPORT "bypass"
+/* #define BYPASS_SUPPORT "bypass" */
 
-#ifdef  BYPASS_SUPPORT
+#ifdef BYPASS_SUPPORT
 
 #define GPIO6_SET_ENTRY_SD           "gpio6_set"
 #define GPIO6_CLEAR_ENTRY_SD         "gpio6_clear"
@@ -70,7 +69,7 @@
 #define DISC_CHANGE_ENTRY_SD      "disc_change"
 #define DIS_DISC_ENTRY_SD         "dis_disc"
 #define DISC_PWUP_ENTRY_SD        "disc_pwup"
-#endif				//bypass_support
+
 static struct proc_dir_entry *bp_procfs_dir;
 
 static struct proc_dir_entry *proc_getdir(char *name,
@@ -86,20 +85,17 @@ static struct proc_dir_entry *proc_getdir(char *name,
 	if (pde == (struct proc_dir_entry *)0) {
 		/* create the directory */
 		pde = create_proc_entry(name, S_IFDIR, proc_dir);
-		if (pde == (struct proc_dir_entry *)0) {
-			return (pde);
-		}
+		if (pde == (struct proc_dir_entry *)0)
+			return pde;
 	}
-	return (pde);
+	return pde;
 }
-
-#ifdef BYPASS_SUPPORT
 
 int
 bypass_proc_create_entry_sd(struct pfs_unit *pfs_unit_curr,
 			    char *proc_name,
-			    write_proc_t * write_proc,
-			    read_proc_t * read_proc,
+			    write_proc_t *write_proc,
+			    read_proc_t *read_proc,
 			    struct proc_dir_entry *parent_pfs, void *data)
 {
 	strcpy(pfs_unit_curr->proc_name, proc_name);
@@ -107,10 +103,8 @@ bypass_proc_create_entry_sd(struct pfs_unit *pfs_unit_curr,
 						      S_IFREG | S_IRUSR |
 						      S_IWUSR | S_IRGRP |
 						      S_IROTH, parent_pfs);
-	if (pfs_unit_curr->proc_entry == 0) {
-
+	if (pfs_unit_curr->proc_entry == 0)
 		return -1;
-	}
 
 	pfs_unit_curr->proc_entry->read_proc = read_proc;
 	pfs_unit_curr->proc_entry->write_proc = write_proc;
@@ -207,9 +201,8 @@ set_bypass_pfs(struct file *file, const char *buffer,
 	if (count > (sizeof(kbuf) - 1))
 		return -1;
 
-	if (copy_from_user(&kbuf, buffer, count)) {
+	if (copy_from_user(&kbuf, buffer, count))
 		return -1;
-	}
 
 	kbuf[count] = '\0';
 	length = strlen(kbuf);
@@ -239,9 +232,8 @@ set_tap_pfs(struct file *file, const char *buffer,
 	if (count > (sizeof(kbuf) - 1))
 		return -1;
 
-	if (copy_from_user(&kbuf, buffer, count)) {
+	if (copy_from_user(&kbuf, buffer, count))
 		return -1;
-	}
 
 	kbuf[count] = '\0';
 	length = strlen(kbuf);
@@ -271,9 +263,8 @@ set_disc_pfs(struct file *file, const char *buffer,
 	if (count > (sizeof(kbuf) - 1))
 		return -1;
 
-	if (copy_from_user(&kbuf, buffer, count)) {
+	if (copy_from_user(&kbuf, buffer, count))
 		return -1;
-	}
 
 	kbuf[count] = '\0';
 	length = strlen(kbuf);
@@ -421,9 +412,8 @@ set_bypass_wd_pfs(struct file *file, const char *buffer,
 	unsigned int timeout = 0;
 	char *timeout_ptr = kbuf;
 
-	if (copy_from_user(&kbuf, buffer, count)) {
+	if (copy_from_user(&kbuf, buffer, count))
 		return -1;
-	}
 
 	timeout_ptr = kbuf;
 	timeout = atoi(&timeout_ptr);
@@ -570,9 +560,8 @@ set_dis_bypass_pfs(struct file *file, const char *buffer,
 
 	int bypass_param = 0, length = 0;
 
-	if (copy_from_user(&kbuf, buffer, count)) {
+	if (copy_from_user(&kbuf, buffer, count))
 		return -1;
-	}
 
 	kbuf[count] = '\0';
 	length = strlen(kbuf);
@@ -599,9 +588,8 @@ set_dis_tap_pfs(struct file *file, const char *buffer,
 
 	int tap_param = 0, length = 0;
 
-	if (copy_from_user(&kbuf, buffer, count)) {
+	if (copy_from_user(&kbuf, buffer, count))
 		return -1;
-	}
 
 	kbuf[count] = '\0';
 	length = strlen(kbuf);
@@ -628,9 +616,8 @@ set_dis_disc_pfs(struct file *file, const char *buffer,
 
 	int tap_param = 0, length = 0;
 
-	if (copy_from_user(&kbuf, buffer, count)) {
+	if (copy_from_user(&kbuf, buffer, count))
 		return -1;
-	}
 
 	kbuf[count] = '\0';
 	length = strlen(kbuf);
@@ -717,9 +704,8 @@ set_bypass_pwup_pfs(struct file *file, const char *buffer,
 
 	int bypass_param = 0, length = 0;
 
-	if (copy_from_user(&kbuf, buffer, count)) {
+	if (copy_from_user(&kbuf, buffer, count))
 		return -1;
-	}
 
 	kbuf[count] = '\0';
 	length = strlen(kbuf);
@@ -746,9 +732,8 @@ set_bypass_pwoff_pfs(struct file *file, const char *buffer,
 
 	int bypass_param = 0, length = 0;
 
-	if (copy_from_user(&kbuf, buffer, count)) {
+	if (copy_from_user(&kbuf, buffer, count))
 		return -1;
-	}
 
 	kbuf[count] = '\0';
 	length = strlen(kbuf);
@@ -775,9 +760,8 @@ set_tap_pwup_pfs(struct file *file, const char *buffer,
 
 	int tap_param = 0, length = 0;
 
-	if (copy_from_user(&kbuf, buffer, count)) {
+	if (copy_from_user(&kbuf, buffer, count))
 		return -1;
-	}
 
 	kbuf[count] = '\0';
 	length = strlen(kbuf);
@@ -804,9 +788,8 @@ set_disc_pwup_pfs(struct file *file, const char *buffer,
 
 	int tap_param = 0, length = 0;
 
-	if (copy_from_user(&kbuf, buffer, count)) {
+	if (copy_from_user(&kbuf, buffer, count))
 		return -1;
-	}
 
 	kbuf[count] = '\0';
 	length = strlen(kbuf);
@@ -913,9 +896,8 @@ set_std_nic_pfs(struct file *file, const char *buffer,
 
 	int bypass_param = 0, length = 0;
 
-	if (copy_from_user(&kbuf, buffer, count)) {
+	if (copy_from_user(&kbuf, buffer, count))
 		return -1;
-	}
 
 	kbuf[count] = '\0';
 	length = strlen(kbuf);
@@ -988,9 +970,8 @@ set_wd_exp_mode_pfs(struct file *file, const char *buffer,
 	if (count > (sizeof(kbuf) - 1))
 		return -1;
 
-	if (copy_from_user(&kbuf, buffer, count)) {
+	if (copy_from_user(&kbuf, buffer, count))
 		return -1;
-	}
 
 	kbuf[count] = '\0';
 	length = strlen(kbuf);
@@ -1036,9 +1017,8 @@ set_wd_autoreset_pfs(struct file *file, const char *buffer,
 	u32 timeout = 0;
 	char *timeout_ptr = kbuf;
 
-	if (copy_from_user(&kbuf, buffer, count)) {
+	if (copy_from_user(&kbuf, buffer, count))
 		return -1;
-	}
 
 	timeout_ptr = kbuf;
 	timeout = atoi(&timeout_ptr);
@@ -1061,9 +1041,8 @@ set_tpl_pfs(struct file *file, const char *buffer,
 	if (count > (sizeof(kbuf) - 1))
 		return -1;
 
-	if (copy_from_user(&kbuf, buffer, count)) {
+	if (copy_from_user(&kbuf, buffer, count))
 		return -1;
-	}
 
 	kbuf[count] = '\0';
 	length = strlen(kbuf);
@@ -1094,9 +1073,8 @@ set_wait_at_pwup_pfs(struct file *file, const char *buffer,
 	if (count > (sizeof(kbuf) - 1))
 		return -1;
 
-	if (copy_from_user(&kbuf, buffer, count)) {
+	if (copy_from_user(&kbuf, buffer, count))
 		return -1;
-	}
 
 	kbuf[count] = '\0';
 	length = strlen(kbuf);
@@ -1126,9 +1104,8 @@ set_hw_reset_pfs(struct file *file, const char *buffer,
 	if (count > (sizeof(kbuf) - 1))
 		return -1;
 
-	if (copy_from_user(&kbuf, buffer, count)) {
+	if (copy_from_user(&kbuf, buffer, count))
 		return -1;
-	}
 
 	kbuf[count] = '\0';
 	length = strlen(kbuf);
@@ -1147,10 +1124,10 @@ set_hw_reset_pfs(struct file *file, const char *buffer,
 
 #endif				/*PMC_FIX_FLAG */
 
-int bypass_proc_create_dev_sd(bpctl_dev_t * pbp_device_block)
+int bypass_proc_create_dev_sd(bpctl_dev_t *pbp_device_block)
 {
 	struct bypass_pfs_sd *current_pfs = &(pbp_device_block->bypass_pfs_set);
-	static struct proc_dir_entry *procfs_dir = NULL;
+	static struct proc_dir_entry *procfs_dir;
 	int ret = 0;
 
 	sprintf(current_pfs->dir_name, "bypass_%s", dev->name);
@@ -1327,7 +1304,7 @@ int bypass_proc_create_dev_sd(bpctl_dev_t * pbp_device_block)
 	return ret;
 }
 
-int bypass_proc_remove_dev_sd(bpctl_dev_t * pbp_device_block)
+int bypass_proc_remove_dev_sd(bpctl_dev_t *pbp_device_block)
 {
 
 	struct bypass_pfs_sd *current_pfs = &pbp_device_block->bypass_pfs_set;

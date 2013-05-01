@@ -127,8 +127,9 @@ static void ath9k_htc_vif_reconfig(struct ath9k_htc_priv *priv)
 	priv->rearm_ani = false;
 	priv->reconfig_beacon = false;
 
-	ieee80211_iterate_active_interfaces_atomic(priv->hw,
-						   ath9k_htc_vif_iter, priv);
+	ieee80211_iterate_active_interfaces_atomic(
+		priv->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+		ath9k_htc_vif_iter, priv);
 	if (priv->rearm_ani)
 		ath9k_htc_start_ani(priv);
 
@@ -165,8 +166,9 @@ static void ath9k_htc_set_bssid_mask(struct ath9k_htc_priv *priv,
 		ath9k_htc_bssid_iter(&iter_data, vif->addr, vif);
 
 	/* Get list of all active MAC addresses */
-	ieee80211_iterate_active_interfaces_atomic(priv->hw, ath9k_htc_bssid_iter,
-						   &iter_data);
+	ieee80211_iterate_active_interfaces_atomic(
+		priv->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+		ath9k_htc_bssid_iter, &iter_data);
 
 	memcpy(common->bssidmask, iter_data.mask, ETH_ALEN);
 	ath_hw_setbssidmask(common);
@@ -1036,26 +1038,6 @@ static int ath9k_htc_add_interface(struct ieee80211_hw *hw,
 
 	mutex_lock(&priv->mutex);
 
-	if (priv->nvifs >= ATH9K_HTC_MAX_VIF) {
-		mutex_unlock(&priv->mutex);
-		return -ENOBUFS;
-	}
-
-	if (priv->num_ibss_vif ||
-	    (priv->nvifs && vif->type == NL80211_IFTYPE_ADHOC)) {
-		ath_err(common, "IBSS coexistence with other modes is not allowed\n");
-		mutex_unlock(&priv->mutex);
-		return -ENOBUFS;
-	}
-
-	if (((vif->type == NL80211_IFTYPE_AP) ||
-	     (vif->type == NL80211_IFTYPE_ADHOC)) &&
-	    ((priv->num_ap_vif + priv->num_ibss_vif) >= ATH9K_HTC_MAX_BCN_VIF)) {
-		ath_err(common, "Max. number of beaconing interfaces reached\n");
-		mutex_unlock(&priv->mutex);
-		return -ENOBUFS;
-	}
-
 	ath9k_htc_ps_wakeup(priv);
 	memset(&hvif, 0, sizeof(struct ath9k_htc_target_vif));
 	memcpy(&hvif.myaddr, vif->addr, ETH_ALEN);
@@ -1164,8 +1146,9 @@ static void ath9k_htc_remove_interface(struct ieee80211_hw *hw,
 	 */
 	if ((vif->type == NL80211_IFTYPE_AP) && (priv->num_ap_vif == 0)) {
 		priv->rearm_ani = false;
-		ieee80211_iterate_active_interfaces_atomic(priv->hw,
-						   ath9k_htc_vif_iter, priv);
+		ieee80211_iterate_active_interfaces_atomic(
+			priv->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+			ath9k_htc_vif_iter, priv);
 		if (!priv->rearm_ani)
 			ath9k_htc_stop_ani(priv);
 	}
@@ -1366,7 +1349,7 @@ static int ath9k_htc_conf_tx(struct ieee80211_hw *hw,
 	struct ath9k_tx_queue_info qi;
 	int ret = 0, qnum;
 
-	if (queue >= WME_NUM_AC)
+	if (queue >= IEEE80211_NUM_ACS)
 		return 0;
 
 	mutex_lock(&priv->mutex);
@@ -1393,7 +1376,7 @@ static int ath9k_htc_conf_tx(struct ieee80211_hw *hw,
 	}
 
 	if ((priv->ah->opmode == NL80211_IFTYPE_ADHOC) &&
-	    (qnum == priv->hwq_map[WME_AC_BE]))
+	    (qnum == priv->hwq_map[IEEE80211_AC_BE]))
 		    ath9k_htc_beaconq_config(priv);
 out:
 	ath9k_htc_ps_restore(priv);
@@ -1486,8 +1469,9 @@ static void ath9k_htc_bss_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
 static void ath9k_htc_choose_set_bssid(struct ath9k_htc_priv *priv)
 {
 	if (priv->num_sta_assoc_vif == 1) {
-		ieee80211_iterate_active_interfaces_atomic(priv->hw,
-							   ath9k_htc_bss_iter, priv);
+		ieee80211_iterate_active_interfaces_atomic(
+			priv->hw, IEEE80211_IFACE_ITER_RESUME_ALL,
+			ath9k_htc_bss_iter, priv);
 		ath9k_htc_set_bssid(priv);
 	}
 }
@@ -1644,7 +1628,9 @@ static int ath9k_htc_ampdu_action(struct ieee80211_hw *hw,
 		if (!ret)
 			ieee80211_start_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;
-	case IEEE80211_AMPDU_TX_STOP:
+	case IEEE80211_AMPDU_TX_STOP_CONT:
+	case IEEE80211_AMPDU_TX_STOP_FLUSH:
+	case IEEE80211_AMPDU_TX_STOP_FLUSH_CONT:
 		ath9k_htc_tx_aggr_oper(priv, vif, sta, action, tid);
 		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		break;

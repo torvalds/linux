@@ -53,7 +53,9 @@ mwifiex_fill_cap_info(struct mwifiex_private *priv, u8 radio_type,
 	       sizeof(sband->ht_cap.mcs));
 
 	if (priv->bss_mode == NL80211_IFTYPE_STATION ||
-	    sband->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40)
+	    (sband->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40 &&
+	     (priv->adapter->sec_chan_offset !=
+					IEEE80211_HT_PARAM_CHA_SEC_NONE)))
 		/* Set MCS32 for infra mode or ad-hoc mode with 40MHz support */
 		SETHT_MCS32(ht_cap->ht_cap.mcs.rx_mask);
 
@@ -248,7 +250,8 @@ int mwifiex_cmd_amsdu_aggr_ctrl(struct host_cmd_ds_command *cmd,
  *      - Setting HT Tx capability and HT Tx information fields
  *      - Ensuring correct endian-ness
  */
-int mwifiex_cmd_11n_cfg(struct host_cmd_ds_command *cmd, u16 cmd_action,
+int mwifiex_cmd_11n_cfg(struct mwifiex_private *priv,
+			struct host_cmd_ds_command *cmd, u16 cmd_action,
 			struct mwifiex_ds_11n_tx_cfg *txcfg)
 {
 	struct host_cmd_ds_11n_cfg *htcfg = &cmd->params.htcfg;
@@ -258,6 +261,10 @@ int mwifiex_cmd_11n_cfg(struct host_cmd_ds_command *cmd, u16 cmd_action,
 	htcfg->action = cpu_to_le16(cmd_action);
 	htcfg->ht_tx_cap = cpu_to_le16(txcfg->tx_htcap);
 	htcfg->ht_tx_info = cpu_to_le16(txcfg->tx_htinfo);
+
+	if (priv->adapter->is_hw_11ac_capable)
+		htcfg->misc_config = cpu_to_le16(txcfg->misc_config);
+
 	return 0;
 }
 
@@ -398,45 +405,6 @@ mwifiex_cmd_append_11n_tlv(struct mwifiex_private *priv,
 }
 
 /*
- * This function reconfigures the Tx buffer size in firmware.
- *
- * This function prepares a firmware command and issues it, if
- * the current Tx buffer size is different from the one requested.
- * Maximum configurable Tx buffer size is limited by the HT capability
- * field value.
- */
-void
-mwifiex_cfg_tx_buf(struct mwifiex_private *priv,
-		   struct mwifiex_bssdescriptor *bss_desc)
-{
-	u16 max_amsdu = MWIFIEX_TX_DATA_BUF_SIZE_2K;
-	u16 tx_buf, curr_tx_buf_size = 0;
-
-	if (bss_desc->bcn_ht_cap) {
-		if (le16_to_cpu(bss_desc->bcn_ht_cap->cap_info) &
-				IEEE80211_HT_CAP_MAX_AMSDU)
-			max_amsdu = MWIFIEX_TX_DATA_BUF_SIZE_8K;
-		else
-			max_amsdu = MWIFIEX_TX_DATA_BUF_SIZE_4K;
-	}
-
-	tx_buf = min(priv->adapter->max_tx_buf_size, max_amsdu);
-
-	dev_dbg(priv->adapter->dev, "info: max_amsdu=%d, max_tx_buf=%d\n",
-		max_amsdu, priv->adapter->max_tx_buf_size);
-
-	if (priv->adapter->curr_tx_buf_size <= MWIFIEX_TX_DATA_BUF_SIZE_2K)
-		curr_tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_2K;
-	else if (priv->adapter->curr_tx_buf_size <= MWIFIEX_TX_DATA_BUF_SIZE_4K)
-		curr_tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_4K;
-	else if (priv->adapter->curr_tx_buf_size <= MWIFIEX_TX_DATA_BUF_SIZE_8K)
-		curr_tx_buf_size = MWIFIEX_TX_DATA_BUF_SIZE_8K;
-	if (curr_tx_buf_size != tx_buf)
-		mwifiex_send_cmd_async(priv, HostCmd_CMD_RECONFIGURE_TX_BUFF,
-				       HostCmd_ACT_GEN_SET, 0, &tx_buf);
-}
-
-/*
  * This function checks if the given pointer is valid entry of
  * Tx BA Stream table.
  */
@@ -531,11 +499,8 @@ void mwifiex_create_ba_tbl(struct mwifiex_private *priv, u8 *ra, int tid,
 	if (!mwifiex_get_ba_tbl(priv, tid, ra)) {
 		new_node = kzalloc(sizeof(struct mwifiex_tx_ba_stream_tbl),
 				   GFP_ATOMIC);
-		if (!new_node) {
-			dev_err(priv->adapter->dev,
-				"%s: failed to alloc new_node\n", __func__);
+		if (!new_node)
 			return;
-		}
 
 		INIT_LIST_HEAD(&new_node->list);
 

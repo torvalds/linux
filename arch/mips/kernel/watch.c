@@ -12,7 +12,7 @@
 #include <asm/watch.h>
 
 /*
- * Install the watch registers for the current thread.  A maximum of
+ * Install the watch registers for the current thread.	A maximum of
  * four registers are installed although the machine may have more.
  */
 void mips_install_watch_registers(void)
@@ -72,7 +72,7 @@ void mips_read_watch_registers(void)
  }
 
 /*
- * Disable all watch registers.  Although only four registers are
+ * Disable all watch registers.	 Although only four registers are
  * installed, all are cleared to eliminate the possibility of endless
  * looping in the watch handler.
  */

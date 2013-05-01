@@ -907,7 +907,7 @@ static int snd_echo_preallocate_pages(struct snd_pcm *pcm, struct device *dev)
 
 
 /*<--snd_echo_probe() */
-static int __devinit snd_echo_new_pcm(struct echoaudio *chip)
+static int snd_echo_new_pcm(struct echoaudio *chip)
 {
 	struct snd_pcm *pcm;
 	int err;
@@ -1050,7 +1050,7 @@ static int snd_echo_output_gain_put(struct snd_kcontrol *kcontrol,
 
 #ifdef ECHOCARD_HAS_LINE_OUT_GAIN
 /* On the Mia this one controls the line-out volume */
-static struct snd_kcontrol_new snd_echo_line_output_gain __devinitdata = {
+static struct snd_kcontrol_new snd_echo_line_output_gain = {
 	.name = "Line Playback Volume",
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE |
@@ -1061,7 +1061,7 @@ static struct snd_kcontrol_new snd_echo_line_output_gain __devinitdata = {
 	.tlv = {.p = db_scale_output_gain},
 };
 #else
-static struct snd_kcontrol_new snd_echo_pcm_output_gain __devinitdata = {
+static struct snd_kcontrol_new snd_echo_pcm_output_gain = {
 	.name = "PCM Playback Volume",
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_TLV_READ,
@@ -1131,7 +1131,7 @@ static int snd_echo_input_gain_put(struct snd_kcontrol *kcontrol,
 
 static const DECLARE_TLV_DB_SCALE(db_scale_input_gain, -2500, 50, 0);
 
-static struct snd_kcontrol_new snd_echo_line_input_gain __devinitdata = {
+static struct snd_kcontrol_new snd_echo_line_input_gain = {
 	.name = "Line Capture Volume",
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_TLV_READ,
@@ -1195,7 +1195,7 @@ static int snd_echo_output_nominal_put(struct snd_kcontrol *kcontrol,
 	return changed;
 }
 
-static struct snd_kcontrol_new snd_echo_output_nominal_level __devinitdata = {
+static struct snd_kcontrol_new snd_echo_output_nominal_level = {
 	.name = "Line Playback Switch (-10dBV)",
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.info = snd_echo_output_nominal_info,
@@ -1261,7 +1261,7 @@ static int snd_echo_input_nominal_put(struct snd_kcontrol *kcontrol,
 	return changed;
 }
 
-static struct snd_kcontrol_new snd_echo_intput_nominal_level __devinitdata = {
+static struct snd_kcontrol_new snd_echo_intput_nominal_level = {
 	.name = "Line Capture Switch (-10dBV)",
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.info = snd_echo_input_nominal_info,
@@ -1327,7 +1327,7 @@ static int snd_echo_mixer_put(struct snd_kcontrol *kcontrol,
 	return changed;
 }
 
-static struct snd_kcontrol_new snd_echo_monitor_mixer __devinitdata = {
+static struct snd_kcontrol_new snd_echo_monitor_mixer = {
 	.name = "Monitor Mixer Volume",
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_TLV_READ,
@@ -1395,7 +1395,7 @@ static int snd_echo_vmixer_put(struct snd_kcontrol *kcontrol,
 	return changed;
 }
 
-static struct snd_kcontrol_new snd_echo_vmixer __devinitdata = {
+static struct snd_kcontrol_new snd_echo_vmixer = {
 	.name = "VMixer Volume",
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = SNDRV_CTL_ELEM_ACCESS_READWRITE | SNDRV_CTL_ELEM_ACCESS_TLV_READ,
@@ -1490,7 +1490,7 @@ static int snd_echo_digital_mode_put(struct snd_kcontrol *kcontrol,
 	return changed;
 }
 
-static struct snd_kcontrol_new snd_echo_digital_mode_switch __devinitdata = {
+static struct snd_kcontrol_new snd_echo_digital_mode_switch = {
 	.name = "Digital mode Switch",
 	.iface = SNDRV_CTL_ELEM_IFACE_CARD,
 	.info = snd_echo_digital_mode_info,
@@ -1547,7 +1547,7 @@ static int snd_echo_spdif_mode_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static struct snd_kcontrol_new snd_echo_spdif_mode_switch __devinitdata = {
+static struct snd_kcontrol_new snd_echo_spdif_mode_switch = {
 	.name = "S/PDIF mode Switch",
 	.iface = SNDRV_CTL_ELEM_IFACE_CARD,
 	.info = snd_echo_spdif_mode_info,
@@ -1626,7 +1626,7 @@ static int snd_echo_clock_source_put(struct snd_kcontrol *kcontrol,
 	return changed;
 }
 
-static struct snd_kcontrol_new snd_echo_clock_source_switch __devinitdata = {
+static struct snd_kcontrol_new snd_echo_clock_source_switch = {
 	.name = "Sample Clock Source",
 	.iface = SNDRV_CTL_ELEM_IFACE_PCM,
 	.info = snd_echo_clock_source_info,
@@ -1669,7 +1669,7 @@ static int snd_echo_phantom_power_put(struct snd_kcontrol *kcontrol,
 	return changed;
 }
 
-static struct snd_kcontrol_new snd_echo_phantom_power_switch __devinitdata = {
+static struct snd_kcontrol_new snd_echo_phantom_power_switch = {
 	.name = "Phantom power Switch",
 	.iface = SNDRV_CTL_ELEM_IFACE_CARD,
 	.info = snd_echo_phantom_power_info,
@@ -1712,7 +1712,7 @@ static int snd_echo_automute_put(struct snd_kcontrol *kcontrol,
 	return changed;
 }
 
-static struct snd_kcontrol_new snd_echo_automute_switch __devinitdata = {
+static struct snd_kcontrol_new snd_echo_automute_switch = {
 	.name = "Digital Capture Switch (automute)",
 	.iface = SNDRV_CTL_ELEM_IFACE_CARD,
 	.info = snd_echo_automute_info,
@@ -1739,7 +1739,7 @@ static int snd_echo_vumeters_switch_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static struct snd_kcontrol_new snd_echo_vumeters_switch __devinitdata = {
+static struct snd_kcontrol_new snd_echo_vumeters_switch = {
 	.name = "VU-meters Switch",
 	.iface = SNDRV_CTL_ELEM_IFACE_CARD,
 	.access = SNDRV_CTL_ELEM_ACCESS_WRITE,
@@ -1780,7 +1780,7 @@ static int snd_echo_vumeters_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static struct snd_kcontrol_new snd_echo_vumeters __devinitdata = {
+static struct snd_kcontrol_new snd_echo_vumeters = {
 	.name = "VU-meters",
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	.access = SNDRV_CTL_ELEM_ACCESS_READ |
@@ -1836,7 +1836,7 @@ static int snd_echo_channels_info_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static struct snd_kcontrol_new snd_echo_channels_info __devinitdata = {
+static struct snd_kcontrol_new snd_echo_channels_info = {
 	.name = "Channels info",
 	.iface = SNDRV_CTL_ELEM_IFACE_HWDEP,
 	.access = SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE,
@@ -1940,9 +1940,9 @@ static int snd_echo_dev_free(struct snd_device *device)
 
 
 /* <--snd_echo_probe() */
-static __devinit int snd_echo_create(struct snd_card *card,
-				     struct pci_dev *pci,
-				     struct echoaudio **rchip)
+static int snd_echo_create(struct snd_card *card,
+			   struct pci_dev *pci,
+			   struct echoaudio **rchip)
 {
 	struct echoaudio *chip;
 	int err;
@@ -2040,8 +2040,8 @@ static __devinit int snd_echo_create(struct snd_card *card,
 
 
 /* constructor */
-static int __devinit snd_echo_probe(struct pci_dev *pci,
-				    const struct pci_device_id *pci_id)
+static int snd_echo_probe(struct pci_dev *pci,
+			  const struct pci_device_id *pci_id)
 {
 	static int dev;
 	struct snd_card *card;
@@ -2316,7 +2316,7 @@ static SIMPLE_DEV_PM_OPS(snd_echo_pm, snd_echo_suspend, snd_echo_resume);
 #endif /* CONFIG_PM_SLEEP */
 
 
-static void __devexit snd_echo_remove(struct pci_dev *pci)
+static void snd_echo_remove(struct pci_dev *pci)
 {
 	struct echoaudio *chip;
 
@@ -2337,7 +2337,7 @@ static struct pci_driver echo_driver = {
 	.name = KBUILD_MODNAME,
 	.id_table = snd_echo_ids,
 	.probe = snd_echo_probe,
-	.remove = __devexit_p(snd_echo_remove),
+	.remove = snd_echo_remove,
 	.driver = {
 		.pm = SND_ECHO_PM_OPS,
 	},

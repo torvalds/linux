@@ -33,8 +33,3 @@ config WLCORE_SDIO
 
 	  If you choose to build a module, it'll be called wlcore_sdio.
 	  Say N if unsure.
-
-config WL12XX_PLATFORM_DATA
-	bool
-	depends on WLCORE_SDIO != n || WL1251_SDIO != n
-	default y

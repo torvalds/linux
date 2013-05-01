@@ -483,7 +483,6 @@ int dn_fib_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	unsigned int h, s_h;
 	unsigned int e = 0, s_e;
 	struct dn_fib_table *tb;
-	struct hlist_node *node;
 	int dumped = 0;
 
 	if (!net_eq(net, &init_net))
@@ -498,7 +497,7 @@ int dn_fib_dump(struct sk_buff *skb, struct netlink_callback *cb)
 
 	for (h = s_h; h < DN_FIB_TABLE_HASHSZ; h++, s_h = 0) {
 		e = 0;
-		hlist_for_each_entry(tb, node, &dn_fib_table_hash[h], hlist) {
+		hlist_for_each_entry(tb, &dn_fib_table_hash[h], hlist) {
 			if (e < s_e)
 				goto next;
 			if (dumped)
@@ -828,7 +827,6 @@ out:
 struct dn_fib_table *dn_fib_get_table(u32 n, int create)
 {
 	struct dn_fib_table *t;
-	struct hlist_node *node;
 	unsigned int h;
 
 	if (n < RT_TABLE_MIN)
@@ -839,7 +837,7 @@ struct dn_fib_table *dn_fib_get_table(u32 n, int create)
 
 	h = n & (DN_FIB_TABLE_HASHSZ - 1);
 	rcu_read_lock();
-	hlist_for_each_entry_rcu(t, node, &dn_fib_table_hash[h], hlist) {
+	hlist_for_each_entry_rcu(t, &dn_fib_table_hash[h], hlist) {
 		if (t->n == n) {
 			rcu_read_unlock();
 			return t;
@@ -885,11 +883,10 @@ void dn_fib_flush(void)
 {
 	int flushed = 0;
 	struct dn_fib_table *tb;
-	struct hlist_node *node;
 	unsigned int h;
 
 	for (h = 0; h < DN_FIB_TABLE_HASHSZ; h++) {
-		hlist_for_each_entry(tb, node, &dn_fib_table_hash[h], hlist)
+		hlist_for_each_entry(tb, &dn_fib_table_hash[h], hlist)
 			flushed += tb->flush(tb);
 	}
 
@@ -908,12 +905,12 @@ void __init dn_fib_table_init(void)
 void __exit dn_fib_table_cleanup(void)
 {
 	struct dn_fib_table *t;
-	struct hlist_node *node, *next;
+	struct hlist_node *next;
 	unsigned int h;
 
 	write_lock(&dn_fib_tables_lock);
 	for (h = 0; h < DN_FIB_TABLE_HASHSZ; h++) {
-		hlist_for_each_entry_safe(t, node, next, &dn_fib_table_hash[h],
+		hlist_for_each_entry_safe(t, next, &dn_fib_table_hash[h],
 					  hlist) {
 			hlist_del(&t->hlist);
 			kfree(t);

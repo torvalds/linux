@@ -11,16 +11,16 @@ turbostat \- Report processor frequency and idle statistics
 .RB [ Options ]
 .RB [ "\-i interval_sec" ]
 .SH DESCRIPTION
-\fBturbostat \fP reports processor topology, frequency
-and idle power state statistics on modern X86 processors.
+\fBturbostat \fP reports processor topology, frequency,
+idle power-state statistics, temperature and power on modern X86 processors.
 Either \fBcommand\fP is forked and statistics are printed
 upon its completion, or statistics are printed periodically.
 
 \fBturbostat \fP
-requires that the processor
+must be run on root, and
+minimally requires that the processor
 supports an "invariant" TSC, plus the APERF and MPERF MSRs.
-\fBturbostat \fP will report idle cpu power state residency
-on processors that additionally support C-state residency counters.
+Additional information is reported depending on hardware counter support.
 
 .SS Options
 The \fB-p\fP option limits output to the 1st thread in 1st core of each package.
@@ -30,8 +30,6 @@ The \fB-P\fP option limits output to the 1st thread in each Package.
 The \fB-S\fP option limits output to a 1-line System Summary for each interval.
 .PP
 The \fB-v\fP option increases verbosity.
-.PP
-The \fB-s\fP option prints the SMI counter, equivalent to "-c 0x34"
 .PP
 The \fB-c MSR#\fP option includes the delta of the specified 32-bit MSR counter.
 .PP
@@ -57,7 +55,15 @@ Note that multiple CPUs per core indicate support for Intel(R) Hyper-Threading T
 \fBGHz\fP average clock rate while the CPU was in c0 state.
 \fBTSC\fP average GHz that the TSC ran during the entire interval.
 \fB%c1, %c3, %c6, %c7\fP show the percentage residency in hardware core idle states.
+\fBCTMP\fP Degrees Celsius reported by the per-core Digital Thermal Sensor.
+\fBPTMP\fP Degrees Celsius reported by the per-package Package Thermal Monitor.
 \fB%pc2, %pc3, %pc6, %pc7\fP percentage residency in hardware package idle states.
+\fBPkg_W\fP Watts consumed by the whole package.
+\fBCor_W\fP Watts consumed by the core part of the package.
+\fBGFX_W\fP Watts consumed by the Graphics part of the package -- available only on client processors.
+\fBRAM_W\fP Watts consumed by the DRAM DIMMS -- available only on server processors.
+\fBPKG_%\fP percent of the interval that RAPL throttling was active on the Package.
+\fBRAM_%\fP percent of the interval that RAPL throttling was active on DRAM.
 .fi
 .PP
 .SH EXAMPLE
@@ -66,50 +72,73 @@ Without any parameters, turbostat prints out counters ever 5 seconds.
 for turbostat to fork).
 
 The first row of statistics is a summary for the entire system.
-Note that the summary is a weighted average.
+For residency % columns, the summary is a weighted average.
+For Temperature columns, the summary is the column maximum.
+For Watts columns, the summary is a system total.
 Subsequent rows show per-CPU statistics.
 
 .nf
-[root@x980]# ./turbostat
-cor CPU    %c0  GHz  TSC    %c1    %c3    %c6   %pc3   %pc6
-          0.09 1.62 3.38   1.83   0.32  97.76   1.26  83.61
-  0   0   0.15 1.62 3.38  10.23   0.05  89.56   1.26  83.61
-  0   6   0.05 1.62 3.38  10.34
-  1   2   0.03 1.62 3.38   0.07   0.05  99.86
-  1   8   0.03 1.62 3.38   0.06
-  2   4   0.21 1.62 3.38   0.10   1.49  98.21
-  2  10   0.02 1.62 3.38   0.29
-  8   1   0.04 1.62 3.38   0.04   0.08  99.84
-  8   7   0.01 1.62 3.38   0.06
-  9   3   0.53 1.62 3.38   0.10   0.20  99.17
-  9   9   0.02 1.62 3.38   0.60
- 10   5   0.01 1.62 3.38   0.02   0.04  99.92
- 10  11   0.02 1.62 3.38   0.02
+[root@sandy]# ./turbostat
+cor CPU    %c0  GHz  TSC    %c1    %c3    %c6    %c7 CTMP PTMP   %pc2   %pc3   %pc6   %pc7  Pkg_W  Cor_W GFX_W
+          0.06 0.80 2.29   0.11   0.00   0.00  99.83   47   40   0.26   0.01   0.44  98.78   3.49   0.12  0.14
+  0   0   0.07 0.80 2.29   0.07   0.00   0.00  99.86   40   40   0.26   0.01   0.44  98.78   3.49   0.12  0.14
+  0   4   0.03 0.80 2.29   0.12
+  1   1   0.04 0.80 2.29   0.25   0.01   0.00  99.71   40
+  1   5   0.16 0.80 2.29   0.13
+  2   2   0.05 0.80 2.29   0.06   0.01   0.00  99.88   40
+  2   6   0.03 0.80 2.29   0.08
+  3   3   0.05 0.80 2.29   0.08   0.00   0.00  99.87   47
+  3   7   0.04 0.84 2.29   0.09
 .fi
 .SH SUMMARY EXAMPLE
 The "-s" option prints the column headers just once,
 and then the one line system summary for each sample interval.
 
 .nf
-[root@x980]# ./turbostat -s
-   %c0  GHz  TSC    %c1    %c3    %c6   %pc3   %pc6
-  0.23 1.67 3.38   2.00   0.30  97.47   1.07  82.12
-  0.10 1.62 3.38   1.87   2.25  95.77  12.02  72.60
-  0.20 1.64 3.38   1.98   0.11  97.72   0.30  83.36
-  0.11 1.70 3.38   1.86   1.81  96.22   9.71  74.90
+[root@wsm]# turbostat -S
+   %c0  GHz  TSC    %c1    %c3    %c6 CTMP   %pc3   %pc6
+  1.40 2.81 3.38  10.78  43.47  44.35   42  13.67   2.09
+  1.34 2.90 3.38  11.48  58.96  28.23   41  19.89   0.15
+  1.55 2.72 3.38  26.73  37.66  34.07   42   2.53   2.80
+  1.37 2.83 3.38  16.95  60.05  21.63   42   5.76   0.20
 .fi
 .SH VERBOSE EXAMPLE
 The "-v" option adds verbosity to the output:
 
 .nf
-GenuineIntel 11 CPUID levels; family:model:stepping 0x6:2c:2 (6:44:2)
-12 * 133 = 1600 MHz max efficiency
-25 * 133 = 3333 MHz TSC frequency
-26 * 133 = 3467 MHz max turbo 4 active cores
-26 * 133 = 3467 MHz max turbo 3 active cores
-27 * 133 = 3600 MHz max turbo 2 active cores
-27 * 133 = 3600 MHz max turbo 1 active cores
-
+[root@ivy]# turbostat -v
+turbostat v3.0 November 23, 2012 - Len Brown <lenb@kernel.org>
+CPUID(0): GenuineIntel 13 CPUID levels; family:model:stepping 0x6:3a:9 (6:58:9)
+CPUID(6): APERF, DTS, PTM, EPB
+RAPL: 851 sec. Joule Counter Range
+cpu0: MSR_NHM_PLATFORM_INFO: 0x81010f0012300
+16 * 100 = 1600 MHz max efficiency
+35 * 100 = 3500 MHz TSC frequency
+cpu0: MSR_NHM_SNB_PKG_CST_CFG_CTL: 0x1e008402 (UNdemote-C3, UNdemote-C1, demote-C3, demote-C1, locked: pkg-cstate-limit=2: pc6-noret)
+cpu0: MSR_NHM_TURBO_RATIO_LIMIT: 0x25262727
+37 * 100 = 3700 MHz max turbo 4 active cores
+38 * 100 = 3800 MHz max turbo 3 active cores
+39 * 100 = 3900 MHz max turbo 2 active cores
+39 * 100 = 3900 MHz max turbo 1 active cores
+cpu0: MSR_IA32_ENERGY_PERF_BIAS: 0x00000006 (balanced)
+cpu0: MSR_RAPL_POWER_UNIT: 0x000a1003 (0.125000 Watts, 0.000015 Joules, 0.000977 sec.)
+cpu0: MSR_PKG_POWER_INFO: 0x01e00268 (77 W TDP, RAPL 60 - 0 W, 0.000000 sec.)
+cpu0: MSR_PKG_POWER_LIMIT: 0x830000148268 (UNlocked)
+cpu0: PKG Limit #1: ENabled (77.000000 Watts, 1.000000 sec, clamp DISabled)
+cpu0: PKG Limit #2: ENabled (96.000000 Watts, 0.000977* sec, clamp DISabled)
+cpu0: MSR_PP0_POLICY: 0
+cpu0: MSR_PP0_POWER_LIMIT: 0x00000000 (UNlocked)
+cpu0: Cores Limit: DISabled (0.000000 Watts, 0.000977 sec, clamp DISabled)
+cpu0: MSR_PP1_POLICY: 0
+cpu0: MSR_PP1_POWER_LIMIT: 0x00000000 (UNlocked)
+cpu0: GFX Limit: DISabled (0.000000 Watts, 0.000977 sec, clamp DISabled)
+cpu0: MSR_IA32_TEMPERATURE_TARGET: 0x00691400 (105 C)
+cpu0: MSR_IA32_PACKAGE_THERM_STATUS: 0x884e0000 (27 C)
+cpu0: MSR_IA32_THERM_STATUS: 0x88560000 (19 C +/- 1)
+cpu1: MSR_IA32_THERM_STATUS: 0x88560000 (19 C +/- 1)
+cpu2: MSR_IA32_THERM_STATUS: 0x88540000 (21 C +/- 1)
+cpu3: MSR_IA32_THERM_STATUS: 0x884e0000 (27 C +/- 1)
+ ...
 .fi
 The \fBmax efficiency\fP frequency, a.k.a. Low Frequency Mode, is the frequency
 available at the minimum package voltage.  The \fBTSC frequency\fP is the nominal
@@ -142,7 +171,7 @@ cor CPU    %c0  GHz  TSC    %c1    %c3    %c6   %pc3   %pc6
  10   5   1.42 3.43 3.38   2.14  30.99  65.44
  10  11   0.16 2.88 3.38   3.40
 .fi
-Above the cycle soaker drives cpu7 up its 3.6 Ghz turbo limit
+Above the cycle soaker drives cpu7 up its 3.6 GHz turbo limit
 while the other processors are generally in various states of idle.
 
 Note that cpu1 and cpu7 are HT siblings within core8.
@@ -155,26 +184,24 @@ This is a weighted average, where the weight is %c0.  ie. it is the total number
 un-halted cycles elapsed per time divided by the number of CPUs.
 .SH SMI COUNTING EXAMPLE
 On Intel Nehalem and newer processors, MSR 0x34 is a System Management Mode Interrupt (SMI) counter.
-Using the -m option, you can display how many SMIs have fired since reset, or if there
-are SMIs during the measurement interval, you can display the delta using the -d option.
+This counter is shown by default under the "SMI" column.
 .nf
-[root@x980 ~]# turbostat -m 0x34
-cor CPU    %c0  GHz  TSC   MSR 0x034    %c1    %c3    %c6   %pc3   %pc6
-          1.41 1.82 3.38  0x00000000   8.92  37.82  51.85  17.37   0.55
-  0   0   3.73 2.03 3.38  0x00000055   1.72  48.25  46.31  17.38   0.55
-  0   6   0.14 1.63 3.38  0x00000056   5.30
-  1   2   2.51 1.80 3.38  0x00000056  15.65  29.33  52.52
-  1   8   0.10 1.65 3.38  0x00000056  18.05
-  2   4   1.16 1.68 3.38  0x00000056   5.87  24.47  68.50
-  2  10   0.10 1.63 3.38  0x00000056   6.93
-  8   1   3.84 1.91 3.38  0x00000056   1.36  50.65  44.16
-  8   7   0.08 1.64 3.38  0x00000056   5.12
-  9   3   1.82 1.73 3.38  0x00000056   7.59  24.21  66.38
-  9   9   0.09 1.68 3.38  0x00000056   9.32
- 10   5   1.66 1.65 3.38  0x00000056  15.10  50.00  33.23
- 10  11   1.72 1.65 3.38  0x00000056  15.05
+[root@x980 ~]# turbostat
+cor CPU    %c0  GHz  TSC SMI    %c1    %c3    %c6 CTMP   %pc3   %pc6
+          0.11 1.91 3.38   0   1.84   0.26  97.79   29   0.82  83.87
+  0   0   0.40 1.63 3.38   0  10.27   0.12  89.20   20   0.82  83.88
+  0   6   0.06 1.63 3.38   0  10.61
+  1   2   0.37 2.63 3.38   0   0.02   0.10  99.51   22
+  1   8   0.01 1.62 3.38   0   0.39
+  2   4   0.07 1.62 3.38   0   0.04   0.07  99.82   23
+  2  10   0.02 1.62 3.38   0   0.09
+  8   1   0.23 1.64 3.38   0   0.10   1.07  98.60   24
+  8   7   0.02 1.64 3.38   0   0.31
+  9   3   0.03 1.62 3.38   0   0.03   0.05  99.89   29
+  9   9   0.02 1.62 3.38   0   0.05
+ 10   5   0.07 1.62 3.38   0   0.08   0.12  99.73   27
+ 10  11   0.03 1.62 3.38   0   0.13
 ^C
-[root@x980 ~]# 
 .fi
 .SH NOTES
 

@@ -32,6 +32,16 @@ config SENSORS_LM3533
 	  changes. The ALS-control output values can be set per zone for the
 	  three current output channels.
 
+config SENSORS_TSL2563
+	tristate "TAOS TSL2560, TSL2561, TSL2562 and TSL2563 ambient light sensors"
+	depends on I2C
+	help
+	 If you say yes here you get support for the Taos TSL2560,
+	 TSL2561, TSL2562 and TSL2563 ambient light sensors.
+
+	 This driver can also be built as a module.  If so, the module
+	 will be called tsl2563.
+
 config VCNL4000
 	tristate "VCNL4000 combined ALS and proximity sensor"
 	depends on I2C
@@ -47,6 +57,7 @@ config HID_SENSOR_ALS
 	select IIO_BUFFER
 	select IIO_TRIGGERED_BUFFER
 	select HID_SENSOR_IIO_COMMON
+	select HID_SENSOR_IIO_TRIGGER
 	tristate "HID ALS"
 	help
 	  Say yes here to build support for the HID SENSOR

@@ -1,0 +1,48 @@
+/*
+ * Device Tree for DA850 EVM board
+ *
+ * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ * This program is free software; you can redistribute  it and/or modify it
+ * under  the terms of  the GNU General  Public License as published by the
+ * Free Software Foundation, version 2.
+ */
+/dts-v1/;
+/include/ "da850.dtsi"
+
+/ {
+	compatible = "ti,da850-evm", "ti,da850";
+	model = "DA850/AM1808/OMAP-L138 EVM";
+
+	soc {
+		pmx_core: pinmux@1c14120 {
+			status = "okay";
+		};
+		serial0: serial@1c42000 {
+			status = "okay";
+		};
+		serial1: serial@1d0c000 {
+			status = "okay";
+		};
+		serial2: serial@1d0d000 {
+			status = "okay";
+		};
+		rtc0: rtc@1c23000 {
+			status = "okay";
+		};
+		i2c0: i2c@1c22000 {
+			status = "okay";
+			clock-frequency = <100000>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&i2c0_pins>;
+		};
+		wdt: wdt@1c21000 {
+			status = "okay";
+		};
+	};
+	nand_cs3@62000000 {
+		status = "okay";
+		pinctrl-names = "default";
+		pinctrl-0 = <&nand_cs3_pins>;
+	};
+};

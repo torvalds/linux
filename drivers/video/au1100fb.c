@@ -83,7 +83,7 @@ struct fb_bitfield rgb_bitfields[][4] =
 	{ { 8, 4, 0 },  { 4, 4, 0 }, { 0, 4, 0 }, { 0, 0, 0 } },
 };
 
-static struct fb_fix_screeninfo au1100fb_fix __devinitdata = {
+static struct fb_fix_screeninfo au1100fb_fix = {
 	.id		= "AU1100 FB",
 	.xpanstep 	= 1,
 	.ypanstep 	= 1,
@@ -91,7 +91,7 @@ static struct fb_fix_screeninfo au1100fb_fix __devinitdata = {
 	.accel		= FB_ACCEL_NONE,
 };
 
-static struct fb_var_screeninfo au1100fb_var __devinitdata = {
+static struct fb_var_screeninfo au1100fb_var = {
 	.activate	= FB_ACTIVATE_NOW,
 	.height		= -1,
 	.width		= -1,
@@ -469,7 +469,7 @@ static int au1100fb_setup(struct au1100fb_device *fbdev)
 	return 0;
 }
 
-static int __devinit au1100fb_drv_probe(struct platform_device *dev)
+static int au1100fb_drv_probe(struct platform_device *dev)
 {
 	struct au1100fb_device *fbdev = NULL;
 	struct resource *regs_res;

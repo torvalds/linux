@@ -1,0 +1,84 @@
+/include/ "kirkwood.dtsi"
+/include/ "kirkwood-6281.dtsi"
+
+/ {
+	chosen {
+		bootargs = "console=ttyS0,115200n8";
+	};
+
+	ocp@f1000000 {
+		pinctrl: pinctrl@10000 {
+			pinctrl-0 = < &pmx_spi &pmx_twsi0 &pmx_uart0
+					&pmx_ns2_sata0 &pmx_ns2_sata1>;
+			pinctrl-names = "default";
+
+			pmx_ns2_sata0: pmx-ns2-sata0 {
+				marvell,pins = "mpp21";
+				marvell,function = "sata0";
+			};
+			pmx_ns2_sata1: pmx-ns2-sata1 {
+				marvell,pins = "mpp20";
+				marvell,function = "sata1";
+			};
+		};
+
+		serial@12000 {
+			status = "okay";
+		};
+
+		spi@10600 {
+			status = "okay";
+
+			flash@0 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				compatible = "mx25l4005a";
+				reg = <0>;
+				spi-max-frequency = <20000000>;
+				mode = <0>;
+
+				partition@0 {
+					reg = <0x0 0x80000>;
+					label = "u-boot";
+				};
+			};
+		};
+
+		i2c@11000 {
+			status = "okay";
+
+			eeprom@50 {
+				compatible = "at,24c04";
+				pagesize = <16>;
+				reg = <0x50>;
+			};
+		};
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		button@1 {
+			label = "Power push button";
+			linux,code = <116>;
+			gpios = <&gpio1 0 0>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		red-fail {
+			label = "ns2:red:fail";
+			gpios = <&gpio0 12 0>;
+		};
+	};
+
+	gpio_poweroff {
+		compatible = "gpio-poweroff";
+		gpios = <&gpio0 31 0>;
+	};
+
+};

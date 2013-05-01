@@ -511,7 +511,7 @@ int exynos_sysmmu_enable(struct device *dev, unsigned long pgtable)
 	return ret;
 }
 
-bool exynos_sysmmu_disable(struct device *dev)
+static bool exynos_sysmmu_disable(struct device *dev)
 {
 	struct sysmmu_drvdata *data = dev_get_drvdata(dev->archdata.iommu);
 	bool disabled;

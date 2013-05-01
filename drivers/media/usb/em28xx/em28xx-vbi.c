@@ -41,105 +41,72 @@ MODULE_PARM_DESC(vbi_debug, "enable debug messages [vbi]");
 
 /* ------------------------------------------------------------------ */
 
-static void
-free_buffer(struct videobuf_queue *vq, struct em28xx_buffer *buf)
+static int vbi_queue_setup(struct vb2_queue *vq, const struct v4l2_format *fmt,
+			   unsigned int *nbuffers, unsigned int *nplanes,
+			   unsigned int sizes[], void *alloc_ctxs[])
 {
-	struct em28xx_fh     *fh  = vq->priv_data;
-	struct em28xx        *dev = fh->dev;
-	unsigned long flags = 0;
-	if (in_interrupt())
-		BUG();
+	struct em28xx *dev = vb2_get_drv_priv(vq);
+	unsigned long size;
 
-	/* We used to wait for the buffer to finish here, but this didn't work
-	   because, as we were keeping the state as VIDEOBUF_QUEUED,
-	   videobuf_queue_cancel marked it as finished for us.
-	   (Also, it could wedge forever if the hardware was misconfigured.)
+	if (fmt)
+		size = fmt->fmt.pix.sizeimage;
+	else
+		size = dev->vbi_width * dev->vbi_height * 2;
 
-	   This should be safe; by the time we get here, the buffer isn't
-	   queued anymore. If we ever start marking the buffers as
-	   VIDEOBUF_ACTIVE, it won't be, though.
-	*/
-	spin_lock_irqsave(&dev->slock, flags);
-	if (dev->isoc_ctl.vbi_buf == buf)
-		dev->isoc_ctl.vbi_buf = NULL;
-	spin_unlock_irqrestore(&dev->slock, flags);
+	if (0 == *nbuffers)
+		*nbuffers = 32;
+	if (*nbuffers < 2)
+		*nbuffers = 2;
+	if (*nbuffers > 32)
+		*nbuffers = 32;
 
-	videobuf_vmalloc_free(&buf->vb);
-	buf->vb.state = VIDEOBUF_NEEDS_INIT;
-}
+	*nplanes = 1;
+	sizes[0] = size;
 
-static int
-vbi_setup(struct videobuf_queue *q, unsigned int *count, unsigned int *size)
-{
-	struct em28xx_fh     *fh  = q->priv_data;
-	struct em28xx        *dev = fh->dev;
-
-	*size = dev->vbi_width * dev->vbi_height * 2;
-
-	if (0 == *count)
-		*count = vbibufs;
-	if (*count < 2)
-		*count = 2;
-	if (*count > 32)
-		*count = 32;
 	return 0;
 }
 
-static int
-vbi_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
-	    enum v4l2_field field)
+static int vbi_buffer_prepare(struct vb2_buffer *vb)
 {
-	struct em28xx_fh     *fh  = q->priv_data;
-	struct em28xx        *dev = fh->dev;
+	struct em28xx        *dev = vb2_get_drv_priv(vb->vb2_queue);
 	struct em28xx_buffer *buf = container_of(vb, struct em28xx_buffer, vb);
-	int                  rc = 0;
+	unsigned long        size;
 
-	buf->vb.size = dev->vbi_width * dev->vbi_height * 2;
+	size = dev->vbi_width * dev->vbi_height * 2;
 
-	if (0 != buf->vb.baddr  &&  buf->vb.bsize < buf->vb.size)
+	if (vb2_plane_size(vb, 0) < size) {
+		printk(KERN_INFO "%s data will not fit into plane (%lu < %lu)\n",
+		       __func__, vb2_plane_size(vb, 0), size);
 		return -EINVAL;
-
-	buf->vb.width  = dev->vbi_width;
-	buf->vb.height = dev->vbi_height;
-	buf->vb.field  = field;
-
-	if (VIDEOBUF_NEEDS_INIT == buf->vb.state) {
-		rc = videobuf_iolock(q, &buf->vb, NULL);
-		if (rc < 0)
-			goto fail;
 	}
+	vb2_set_plane_payload(&buf->vb, 0, size);
 
-	buf->vb.state = VIDEOBUF_PREPARED;
 	return 0;
-
-fail:
-	free_buffer(q, buf);
-	return rc;
 }
 
 static void
-vbi_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
+vbi_buffer_queue(struct vb2_buffer *vb)
 {
-	struct em28xx_buffer    *buf     = container_of(vb,
-							struct em28xx_buffer,
-							vb);
-	struct em28xx_fh        *fh      = vq->priv_data;
-	struct em28xx           *dev     = fh->dev;
-	struct em28xx_dmaqueue  *vbiq    = &dev->vbiq;
-
-	buf->vb.state = VIDEOBUF_QUEUED;
-	list_add_tail(&buf->vb.queue, &vbiq->active);
-}
-
-static void vbi_release(struct videobuf_queue *q, struct videobuf_buffer *vb)
-{
+	struct em28xx *dev = vb2_get_drv_priv(vb->vb2_queue);
 	struct em28xx_buffer *buf = container_of(vb, struct em28xx_buffer, vb);
-	free_buffer(q, buf);
+	struct em28xx_dmaqueue *vbiq = &dev->vbiq;
+	unsigned long flags = 0;
+
+	buf->mem = vb2_plane_vaddr(vb, 0);
+	buf->length = vb2_plane_size(vb, 0);
+
+	spin_lock_irqsave(&dev->slock, flags);
+	list_add_tail(&buf->list, &vbiq->active);
+	spin_unlock_irqrestore(&dev->slock, flags);
 }
 
-struct videobuf_queue_ops em28xx_vbi_qops = {
-	.buf_setup    = vbi_setup,
-	.buf_prepare  = vbi_prepare,
-	.buf_queue    = vbi_queue,
-	.buf_release  = vbi_release,
+
+struct vb2_ops em28xx_vbi_qops = {
+	.queue_setup    = vbi_queue_setup,
+	.buf_prepare    = vbi_buffer_prepare,
+	.buf_queue      = vbi_buffer_queue,
+	.start_streaming = em28xx_start_analog_streaming,
+	.stop_streaming = em28xx_stop_vbi_streaming,
+	.wait_prepare   = vb2_ops_wait_prepare,
+	.wait_finish    = vb2_ops_wait_finish,
 };

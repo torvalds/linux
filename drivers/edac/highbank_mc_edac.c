@@ -113,19 +113,13 @@ static ssize_t highbank_mc_err_inject_write(struct file *file,
 	return count;
 }
 
-static int debugfs_open(struct inode *inode, struct file *file)
-{
-	file->private_data = inode->i_private;
-	return 0;
-}
-
 static const struct file_operations highbank_mc_debug_inject_fops = {
-	.open = debugfs_open,
+	.open = simple_open,
 	.write = highbank_mc_err_inject_write,
 	.llseek = generic_file_llseek,
 };
 
-static void __devinit highbank_mc_create_debugfs_nodes(struct mem_ctl_info *mci)
+static void highbank_mc_create_debugfs_nodes(struct mem_ctl_info *mci)
 {
 	if (mci->debugfs)
 		debugfs_create_file("inject_ctrl", S_IWUSR, mci->debugfs, mci,
@@ -133,11 +127,11 @@ static void __devinit highbank_mc_create_debugfs_nodes(struct mem_ctl_info *mci)
 ;
 }
 #else
-static void __devinit highbank_mc_create_debugfs_nodes(struct mem_ctl_info *mci)
+static void highbank_mc_create_debugfs_nodes(struct mem_ctl_info *mci)
 {}
 #endif
 
-static int __devinit highbank_mc_probe(struct platform_device *pdev)
+static int highbank_mc_probe(struct platform_device *pdev)
 {
 	struct edac_mc_layer layers[2];
 	struct mem_ctl_info *mci;

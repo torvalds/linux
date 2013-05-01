@@ -115,8 +115,8 @@ static __inline__ int __atomic_add_unless(atomic_t *v, int a, int u)
 }
 
 
-#define atomic_add(i,v)	((void)(__atomic_add_return( (i),(v))))
-#define atomic_sub(i,v)	((void)(__atomic_add_return(-(i),(v))))
+#define atomic_add(i,v)	((void)(__atomic_add_return(        (i),(v))))
+#define atomic_sub(i,v)	((void)(__atomic_add_return(-((int) (i)),(v))))
 #define atomic_inc(v)	((void)(__atomic_add_return(   1,(v))))
 #define atomic_dec(v)	((void)(__atomic_add_return(  -1,(v))))
 

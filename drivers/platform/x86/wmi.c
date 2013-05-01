@@ -92,7 +92,7 @@ module_param(debug_dump_wdg, bool, 0444);
 MODULE_PARM_DESC(debug_dump_wdg,
 		 "Dump available WMI interfaces [0/1]");
 
-static int acpi_wmi_remove(struct acpi_device *device, int type);
+static int acpi_wmi_remove(struct acpi_device *device);
 static int acpi_wmi_add(struct acpi_device *device);
 static void acpi_wmi_notify(struct acpi_device *device, u32 event);
 
@@ -917,7 +917,7 @@ static void acpi_wmi_notify(struct acpi_device *device, u32 event)
 	}
 }
 
-static int acpi_wmi_remove(struct acpi_device *device, int type)
+static int acpi_wmi_remove(struct acpi_device *device)
 {
 	acpi_remove_address_space_handler(device->handle,
 				ACPI_ADR_SPACE_EC, &acpi_wmi_ec_space_handler);

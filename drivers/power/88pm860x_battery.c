@@ -901,7 +901,7 @@ static enum power_supply_property pm860x_batt_props[] = {
 	POWER_SUPPLY_PROP_TEMP,
 };
 
-static __devinit int pm860x_battery_probe(struct platform_device *pdev)
+static int pm860x_battery_probe(struct platform_device *pdev)
 {
 	struct pm860x_chip *chip = dev_get_drvdata(pdev->dev.parent);
 	struct pm860x_battery_info *info;
@@ -915,15 +915,13 @@ static __devinit int pm860x_battery_probe(struct platform_device *pdev)
 	info->irq_cc = platform_get_irq(pdev, 0);
 	if (info->irq_cc <= 0) {
 		dev_err(&pdev->dev, "No IRQ resource!\n");
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
 	info->irq_batt = platform_get_irq(pdev, 1);
 	if (info->irq_batt <= 0) {
 		dev_err(&pdev->dev, "No IRQ resource!\n");
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
 	info->chip = chip;
@@ -957,7 +955,7 @@ static __devinit int pm860x_battery_probe(struct platform_device *pdev)
 
 	ret = power_supply_register(&pdev->dev, &info->battery);
 	if (ret)
-		goto out;
+		return ret;
 	info->battery.dev->parent = &pdev->dev;
 
 	ret = request_threaded_irq(info->irq_cc, NULL,
@@ -984,19 +982,16 @@ out_coulomb:
 	free_irq(info->irq_cc, info);
 out_reg:
 	power_supply_unregister(&info->battery);
-out:
-	kfree(info);
 	return ret;
 }
 
-static int __devexit pm860x_battery_remove(struct platform_device *pdev)
+static int pm860x_battery_remove(struct platform_device *pdev)
 {
 	struct pm860x_battery_info *info = platform_get_drvdata(pdev);
 
-	power_supply_unregister(&info->battery);
 	free_irq(info->irq_batt, info);
 	free_irq(info->irq_cc, info);
-	kfree(info);
+	power_supply_unregister(&info->battery);
 	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
@@ -1033,7 +1028,7 @@ static struct platform_driver pm860x_battery_driver = {
 		   .pm = &pm860x_battery_pm_ops,
 	},
 	.probe = pm860x_battery_probe,
-	.remove = __devexit_p(pm860x_battery_remove),
+	.remove = pm860x_battery_remove,
 };
 module_platform_driver(pm860x_battery_driver);
 

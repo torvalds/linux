@@ -12,6 +12,7 @@
 #define _XTENSA_CHECKSUM_H
 
 #include <linux/in6.h>
+#include <asm/uaccess.h>
 #include <variant/core.h>
 
 /*
@@ -36,8 +37,9 @@ asmlinkage __wsum csum_partial(const void *buff, int len, __wsum sum);
  * better 64-bit) boundary
  */
 
-asmlinkage __wsum csum_partial_copy_generic(const void *src, void *dst, int len, __wsum sum,
-						   int *src_err_ptr, int *dst_err_ptr);
+asmlinkage __wsum csum_partial_copy_generic(const void *src, void *dst,
+					    int len, __wsum sum,
+					    int *src_err_ptr, int *dst_err_ptr);
 
 /*
  *	Note: when you get a NULL pointer exception here this means someone
@@ -54,7 +56,7 @@ __wsum csum_partial_copy_nocheck(const void *src, void *dst,
 
 static inline
 __wsum csum_partial_copy_from_user(const void __user *src, void *dst,
-						int len, __wsum sum, int *err_ptr)
+				   int len, __wsum sum, int *err_ptr)
 {
 	return csum_partial_copy_generic((__force const void *)src, dst,
 					len, sum, err_ptr, NULL);
@@ -112,7 +114,8 @@ static __inline__ __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 	/* Since the input registers which are loaded with iph and ihl
 	   are modified, we must also specify them as outputs, or gcc
 	   will assume they contain their original values. */
-		: "=r" (sum), "=r" (iph), "=r" (ihl), "=&r" (tmp), "=&r" (endaddr)
+		: "=r" (sum), "=r" (iph), "=r" (ihl), "=&r" (tmp),
+		  "=&r" (endaddr)
 		: "1" (iph), "2" (ihl)
 		: "memory");
 
@@ -168,7 +171,7 @@ static __inline__ __sum16 csum_tcpudp_magic(__be32 saddr, __be32 daddr,
 
 static __inline__ __sum16 ip_compute_csum(const void *buff, int len)
 {
-    return csum_fold (csum_partial(buff, len, 0));
+	return csum_fold (csum_partial(buff, len, 0));
 }
 
 #define _HAVE_ARCH_IPV6_CSUM
@@ -238,11 +241,12 @@ static __inline__ __sum16 csum_ipv6_magic(const struct in6_addr *saddr,
  *	Copy and checksum to user
  */
 #define HAVE_CSUM_COPY_USER
-static __inline__ __wsum csum_and_copy_to_user(const void *src, void __user *dst,
-				    int len, __wsum sum, int *err_ptr)
+static __inline__ __wsum csum_and_copy_to_user(const void *src,
+					       void __user *dst, int len,
+					       __wsum sum, int *err_ptr)
 {
 	if (access_ok(VERIFY_WRITE, dst, len))
-		return csum_partial_copy_generic(src, dst, len, sum, NULL, err_ptr);
+		return csum_partial_copy_generic(src,dst,len,sum,NULL,err_ptr);
 
 	if (len)
 		*err_ptr = -EFAULT;

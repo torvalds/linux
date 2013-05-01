@@ -8,4 +8,4 @@ config W35UND
 	  Hardware is present in some Kohjinsha subnotebooks, and in some
 	  stand-alone USB modules. Chipset name seems to be w89c35d.
 
-	  Check http://code.google.com/p/winbondport/ for new version.
+	  Check <http://code.google.com/p/winbondport/> for new version.

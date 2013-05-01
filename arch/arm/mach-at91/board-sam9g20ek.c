@@ -43,11 +43,11 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <mach/board.h>
-#include <mach/at91_aic.h>
 #include <mach/at91sam9_smc.h>
 #include <mach/system_rev.h>
 
+#include "at91_aic.h"
+#include "board.h"
 #include "sam9_smc.h"
 #include "generic.h"
 
@@ -353,6 +353,16 @@ static struct i2c_board_info __initdata ek_i2c_devices[] = {
         },
 };
 
+static struct platform_device sam9g20ek_audio_device = {
+	.name   = "at91sam9g20ek-audio",
+	.id     = -1,
+};
+
+static void __init ek_add_device_audio(void)
+{
+	platform_device_register(&sam9g20ek_audio_device);
+}
+
 
 static void __init ek_board_init(void)
 {
@@ -394,11 +404,12 @@ static void __init ek_board_init(void)
 	at91_set_B_periph(AT91_PIN_PC1, 0);
 	/* SSC (for WM8731) */
 	at91_add_device_ssc(AT91SAM9260_ID_SSC, ATMEL_SSC_TX);
+	ek_add_device_audio();
 }
 
 MACHINE_START(AT91SAM9G20EK, "Atmel AT91SAM9G20-EK")
 	/* Maintainer: Atmel */
-	.timer		= &at91sam926x_timer,
+	.init_time	= at91sam926x_pit_init,
 	.map_io		= at91_map_io,
 	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= ek_init_early,
@@ -408,7 +419,7 @@ MACHINE_END
 
 MACHINE_START(AT91SAM9G20EK_2MMC, "Atmel AT91SAM9G20-EK 2 MMC Slot Mod")
 	/* Maintainer: Atmel */
-	.timer		= &at91sam926x_timer,
+	.init_time	= at91sam926x_pit_init,
 	.map_io		= at91_map_io,
 	.handle_irq	= at91_aic_handle_irq,
 	.init_early	= ek_init_early,

@@ -1941,8 +1941,8 @@ static const struct net_device_ops netdev_ops = {
 	.ndo_tx_timeout		= ns83820_tx_timeout,
 };
 
-static int __devinit ns83820_init_one(struct pci_dev *pci_dev,
-				      const struct pci_device_id *id)
+static int ns83820_init_one(struct pci_dev *pci_dev,
+			    const struct pci_device_id *id)
 {
 	struct net_device *ndev;
 	struct ns83820 *dev;
@@ -2241,7 +2241,7 @@ out:
 	return err;
 }
 
-static void __devexit ns83820_remove_one(struct pci_dev *pci_dev)
+static void ns83820_remove_one(struct pci_dev *pci_dev)
 {
 	struct net_device *ndev = pci_get_drvdata(pci_dev);
 	struct ns83820 *dev = PRIV(ndev); /* ok even if NULL */
@@ -2272,7 +2272,7 @@ static struct pci_driver driver = {
 	.name		= "ns83820",
 	.id_table	= ns83820_pci_tbl,
 	.probe		= ns83820_init_one,
-	.remove		= __devexit_p(ns83820_remove_one),
+	.remove		= ns83820_remove_one,
 #if 0	/* FIXME: implement */
 	.suspend	= ,
 	.resume		= ,

@@ -329,7 +329,6 @@ __find_vcc(struct he_dev *he_dev, unsigned cid)
 {
 	struct hlist_head *head;
 	struct atm_vcc *vcc;
-	struct hlist_node *node;
 	struct sock *s;
 	short vpi;
 	int vci;
@@ -338,7 +337,7 @@ __find_vcc(struct he_dev *he_dev, unsigned cid)
 	vci = cid & ((1 << he_dev->vcibits) - 1);
 	head = &vcc_hash[vci & (VCC_HTABLE_SIZE -1)];
 
-	sk_for_each(s, node, head) {
+	sk_for_each(s, head) {
 		vcc = atm_sk(s);
 		if (vcc->dev == he_dev->atm_dev &&
 		    vcc->vci == vci && vcc->vpi == vpi &&
@@ -349,8 +348,8 @@ __find_vcc(struct he_dev *he_dev, unsigned cid)
 	return NULL;
 }
 
-static int __devinit
-he_init_one(struct pci_dev *pci_dev, const struct pci_device_id *pci_ent)
+static int he_init_one(struct pci_dev *pci_dev,
+		       const struct pci_device_id *pci_ent)
 {
 	struct atm_dev *atm_dev = NULL;
 	struct he_dev *he_dev = NULL;
@@ -406,8 +405,7 @@ init_one_failure:
 	return err;
 }
 
-static void __devexit
-he_remove_one (struct pci_dev *pci_dev)
+static void he_remove_one(struct pci_dev *pci_dev)
 {
 	struct atm_dev *atm_dev;
 	struct he_dev *he_dev;
@@ -445,8 +443,7 @@ rate_to_atmf(unsigned rate)		/* cps to atm forum format */
 	return (NONZERO | (exp << 9) | (rate & 0x1ff));
 }
 
-static void __devinit
-he_init_rx_lbfp0(struct he_dev *he_dev)
+static void he_init_rx_lbfp0(struct he_dev *he_dev)
 {
 	unsigned i, lbm_offset, lbufd_index, lbuf_addr, lbuf_count;
 	unsigned lbufs_per_row = he_dev->cells_per_row / he_dev->cells_per_lbuf;
@@ -476,8 +473,7 @@ he_init_rx_lbfp0(struct he_dev *he_dev)
 	he_writel(he_dev, he_dev->r0_numbuffs, RLBF0_C);
 }
 
-static void __devinit
-he_init_rx_lbfp1(struct he_dev *he_dev)
+static void he_init_rx_lbfp1(struct he_dev *he_dev)
 {
 	unsigned i, lbm_offset, lbufd_index, lbuf_addr, lbuf_count;
 	unsigned lbufs_per_row = he_dev->cells_per_row / he_dev->cells_per_lbuf;
@@ -507,8 +503,7 @@ he_init_rx_lbfp1(struct he_dev *he_dev)
 	he_writel(he_dev, he_dev->r1_numbuffs, RLBF1_C);
 }
 
-static void __devinit
-he_init_tx_lbfp(struct he_dev *he_dev)
+static void he_init_tx_lbfp(struct he_dev *he_dev)
 {
 	unsigned i, lbm_offset, lbufd_index, lbuf_addr, lbuf_count;
 	unsigned lbufs_per_row = he_dev->cells_per_row / he_dev->cells_per_lbuf;
@@ -537,8 +532,7 @@ he_init_tx_lbfp(struct he_dev *he_dev)
 	he_writel(he_dev, lbufd_index - 1, TLBF_T);
 }
 
-static int __devinit
-he_init_tpdrq(struct he_dev *he_dev)
+static int he_init_tpdrq(struct he_dev *he_dev)
 {
 	he_dev->tpdrq_base = pci_alloc_consistent(he_dev->pci_dev,
 		CONFIG_TPDRQ_SIZE * sizeof(struct he_tpdrq), &he_dev->tpdrq_phys);
@@ -559,8 +553,7 @@ he_init_tpdrq(struct he_dev *he_dev)
 	return 0;
 }
 
-static void __devinit
-he_init_cs_block(struct he_dev *he_dev)
+static void he_init_cs_block(struct he_dev *he_dev)
 {
 	unsigned clock, rate, delta;
 	int reg;
@@ -655,8 +648,7 @@ he_init_cs_block(struct he_dev *he_dev)
 
 }
 
-static int __devinit
-he_init_cs_block_rcm(struct he_dev *he_dev)
+static int he_init_cs_block_rcm(struct he_dev *he_dev)
 {
 	unsigned (*rategrid)[16][16];
 	unsigned rate, delta;
@@ -776,8 +768,7 @@ he_init_cs_block_rcm(struct he_dev *he_dev)
 	return 0;
 }
 
-static int __devinit
-he_init_group(struct he_dev *he_dev, int group)
+static int he_init_group(struct he_dev *he_dev, int group)
 {
 	struct he_buff *heb, *next;
 	dma_addr_t mapping;
@@ -915,8 +906,7 @@ out_free_rbpl_table:
 	return -ENOMEM;
 }
 
-static int __devinit
-he_init_irq(struct he_dev *he_dev)
+static int he_init_irq(struct he_dev *he_dev)
 {
 	int i;
 
@@ -978,8 +968,7 @@ he_init_irq(struct he_dev *he_dev)
 	return 0;
 }
 
-static int __devinit
-he_start(struct atm_dev *dev)
+static int he_start(struct atm_dev *dev)
 {
 	struct he_dev *he_dev;
 	struct pci_dev *pci_dev;
@@ -2879,7 +2868,7 @@ MODULE_DEVICE_TABLE(pci, he_pci_tbl);
 static struct pci_driver he_driver = {
 	.name =		"he",
 	.probe =	he_init_one,
-	.remove =	__devexit_p(he_remove_one),
+	.remove =	he_remove_one,
 	.id_table =	he_pci_tbl,
 };
 

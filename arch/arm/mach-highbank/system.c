@@ -14,7 +14,6 @@
  * this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 #include <linux/io.h>
-#include <asm/smp_scu.h>
 #include <asm/proc-fns.h>
 
 #include "core.h"
@@ -23,11 +22,11 @@
 void highbank_restart(char mode, const char *cmd)
 {
 	if (mode == 'h')
-		hignbank_set_pwr_hard_reset();
+		highbank_set_pwr_hard_reset();
 	else
-		hignbank_set_pwr_soft_reset();
+		highbank_set_pwr_soft_reset();
 
-	scu_power_mode(scu_base_addr, SCU_PM_POWEROFF);
-	cpu_do_idle();
+	while (1)
+		cpu_do_idle();
 }
 

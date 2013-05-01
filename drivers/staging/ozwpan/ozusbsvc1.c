@@ -71,7 +71,7 @@ int oz_usb_get_desc_req(void *hpd, u8 req_id, u8 req_type, u8 desc_type,
 	oz_trace("    len = 0x%x\n", len);
 	if (len > 200)
 		len = 200;
-	if (ei == 0)
+	if (ei == NULL)
 		return -1;
 	elt = (struct oz_elt *)ei->data;
 	elt->length = sizeof(struct oz_get_desc_req);
@@ -97,7 +97,7 @@ static int oz_usb_set_config_req(void *hpd, u8 req_id, u8 index)
 	struct oz_elt_buf *eb = &pd->elt_buff;
 	struct oz_elt_info *ei = oz_elt_info_alloc(&pd->elt_buff);
 	struct oz_set_config_req *body;
-	if (ei == 0)
+	if (ei == NULL)
 		return -1;
 	elt = (struct oz_elt *)ei->data;
 	elt->length = sizeof(struct oz_set_config_req);
@@ -118,7 +118,7 @@ static int oz_usb_set_interface_req(void *hpd, u8 req_id, u8 index, u8 alt)
 	struct oz_elt_buf *eb = &pd->elt_buff;
 	struct oz_elt_info *ei = oz_elt_info_alloc(&pd->elt_buff);
 	struct oz_set_interface_req *body;
-	if (ei == 0)
+	if (ei == NULL)
 		return -1;
 	elt = (struct oz_elt *)ei->data;
 	elt->length = sizeof(struct oz_set_interface_req);
@@ -141,7 +141,7 @@ static int oz_usb_set_clear_feature_req(void *hpd, u8 req_id, u8 type,
 	struct oz_elt_buf *eb = &pd->elt_buff;
 	struct oz_elt_info *ei = oz_elt_info_alloc(&pd->elt_buff);
 	struct oz_feature_req *body;
-	if (ei == 0)
+	if (ei == NULL)
 		return -1;
 	elt = (struct oz_elt *)ei->data;
 	elt->length = sizeof(struct oz_feature_req);
@@ -157,7 +157,7 @@ static int oz_usb_set_clear_feature_req(void *hpd, u8 req_id, u8 type,
  * Context: tasklet
  */
 static int oz_usb_vendor_class_req(void *hpd, u8 req_id, u8 req_type,
-	u8 request, __le16 value, __le16 index, u8 *data, int data_len)
+	u8 request, __le16 value, __le16 index, const u8 *data, int data_len)
 {
 	struct oz_usb_ctx *usb_ctx = (struct oz_usb_ctx *)hpd;
 	struct oz_pd *pd = usb_ctx->pd;
@@ -165,7 +165,7 @@ static int oz_usb_vendor_class_req(void *hpd, u8 req_id, u8 req_type,
 	struct oz_elt_buf *eb = &pd->elt_buff;
 	struct oz_elt_info *ei = oz_elt_info_alloc(&pd->elt_buff);
 	struct oz_vendor_class_req *body;
-	if (ei == 0)
+	if (ei == NULL)
 		return -1;
 	elt = (struct oz_elt *)ei->data;
 	elt->length = sizeof(struct oz_vendor_class_req) - 1 + data_len;
@@ -184,7 +184,7 @@ static int oz_usb_vendor_class_req(void *hpd, u8 req_id, u8 req_type,
  * Context: tasklet
  */
 int oz_usb_control_req(void *hpd, u8 req_id, struct usb_ctrlrequest *setup,
-			u8 *data, int data_len)
+			const u8 *data, int data_len)
 {
 	unsigned wvalue = le16_to_cpu(setup->wValue);
 	unsigned windex = le16_to_cpu(setup->wIndex);
@@ -264,7 +264,7 @@ int oz_usb_send_isoc(void *hpd, u8 ep_num, struct urb *urb)
 		int unit_count;
 		int unit_size;
 		int rem;
-		if (ei == 0)
+		if (ei == NULL)
 			return -1;
 		rem = MAX_ISOC_FIXED_DATA;
 		elt = (struct oz_elt *)ei->data;
@@ -305,7 +305,7 @@ int oz_usb_send_isoc(void *hpd, u8 ep_num, struct urb *urb)
 /*------------------------------------------------------------------------------
  * Context: softirq-serialized
  */
-void oz_usb_handle_ep_data(struct oz_usb_ctx *usb_ctx,
+static void oz_usb_handle_ep_data(struct oz_usb_ctx *usb_ctx,
 	struct oz_usb_hdr *usb_hdr, int len)
 {
 	struct oz_data *data_hdr = (struct oz_data *)usb_hdr;
@@ -359,7 +359,7 @@ void oz_usb_rx(struct oz_pd *pd, struct oz_elt *elt)
 	if (usb_ctx)
 		oz_usb_get(usb_ctx);
 	spin_unlock_bh(&pd->app_lock[OZ_APPID_USB-1]);
-	if (usb_ctx == 0)
+	if (usb_ctx == NULL)
 		return; /* Context has gone so nothing to do. */
 	if (usb_ctx->stopped)
 		goto done;
@@ -391,14 +391,14 @@ void oz_usb_rx(struct oz_pd *pd, struct oz_elt *elt)
 			struct oz_set_config_rsp *body =
 				(struct oz_set_config_rsp *)usb_hdr;
 			oz_hcd_control_cnf(usb_ctx->hport, body->req_id,
-				body->rcode, 0, 0);
+				body->rcode, NULL, 0);
 		}
 		break;
 	case OZ_SET_INTERFACE_RSP: {
 			struct oz_set_interface_rsp *body =
 				(struct oz_set_interface_rsp *)usb_hdr;
 			oz_hcd_control_cnf(usb_ctx->hport,
-				body->req_id, body->rcode, 0, 0);
+				body->req_id, body->rcode, NULL, 0);
 		}
 		break;
 	case OZ_VENDOR_CLASS_RSP: {
@@ -427,7 +427,7 @@ void oz_usb_farewell(struct oz_pd *pd, u8 ep_num, u8 *data, u8 len)
 	if (usb_ctx)
 		oz_usb_get(usb_ctx);
 	spin_unlock_bh(&pd->app_lock[OZ_APPID_USB-1]);
-	if (usb_ctx == 0)
+	if (usb_ctx == NULL)
 		return; /* Context has gone so nothing to do. */
 	if (!usb_ctx->stopped) {
 		oz_trace("Farewell indicated ep = 0x%x\n", ep_num);

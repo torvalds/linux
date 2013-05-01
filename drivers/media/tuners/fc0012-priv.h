@@ -21,20 +21,9 @@
 #ifndef _FC0012_PRIV_H_
 #define _FC0012_PRIV_H_
 
-#define LOG_PREFIX "fc0012"
-
-#undef err
-#define err(f, arg...)  printk(KERN_ERR     LOG_PREFIX": " f "\n" , ## arg)
-#undef info
-#define info(f, arg...) printk(KERN_INFO    LOG_PREFIX": " f "\n" , ## arg)
-#undef warn
-#define warn(f, arg...) printk(KERN_WARNING LOG_PREFIX": " f "\n" , ## arg)
-
 struct fc0012_priv {
 	struct i2c_adapter *i2c;
-	u8 addr;
-	u8 dual_master;
-	u8 xtal_freq;
+	const struct fc0012_config *cfg;
 
 	u32 frequency;
 	u32 bandwidth;

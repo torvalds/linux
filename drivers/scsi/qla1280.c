@@ -1438,7 +1438,7 @@ qla1280_return_status(struct response * sts, struct scsi_cmnd *cp)
  * Returns:
  *      0 = success
  */
-static int __devinit
+static int
 qla1280_initialize_adapter(struct scsi_qla_host *ha)
 {
 	struct device_reg __iomem *reg;
@@ -4230,7 +4230,7 @@ static struct scsi_host_template qla1280_driver_template = {
 };
 
 
-static int __devinit
+static int
 qla1280_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	int devnum = id->driver_data;
@@ -4399,7 +4399,7 @@ qla1280_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 }
 
 
-static void __devexit
+static void
 qla1280_remove_one(struct pci_dev *pdev)
 {
 	struct Scsi_Host *host = pci_get_drvdata(pdev);
@@ -4433,7 +4433,7 @@ static struct pci_driver qla1280_pci_driver = {
 	.name		= "qla1280",
 	.id_table	= qla1280_pci_tbl,
 	.probe		= qla1280_probe_one,
-	.remove		= __devexit_p(qla1280_remove_one),
+	.remove		= qla1280_remove_one,
 };
 
 static int __init

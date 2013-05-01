@@ -217,7 +217,6 @@ static void purge_vcc(struct atm_vcc *vcc)
 
 static void sigd_close(struct atm_vcc *vcc)
 {
-	struct hlist_node *node;
 	struct sock *s;
 	int i;
 
@@ -231,7 +230,7 @@ static void sigd_close(struct atm_vcc *vcc)
 	for (i = 0; i < VCC_HTABLE_SIZE; ++i) {
 		struct hlist_head *head = &vcc_hash[i];
 
-		sk_for_each(s, node, head) {
+		sk_for_each(s, head) {
 			vcc = atm_sk(s);
 
 			purge_vcc(vcc);

@@ -32,13 +32,14 @@
 /* L2CAP defaults */
 #define L2CAP_DEFAULT_MTU		672
 #define L2CAP_DEFAULT_MIN_MTU		48
-#define L2CAP_DEFAULT_FLUSH_TO		0xffff
+#define L2CAP_DEFAULT_FLUSH_TO		0xFFFF
+#define L2CAP_EFS_DEFAULT_FLUSH_TO	0xFFFFFFFF
 #define L2CAP_DEFAULT_TX_WINDOW		63
 #define L2CAP_DEFAULT_EXT_WINDOW	0x3FFF
 #define L2CAP_DEFAULT_MAX_TX		3
 #define L2CAP_DEFAULT_RETRANS_TO	2000    /* 2 seconds */
 #define L2CAP_DEFAULT_MONITOR_TO	12000   /* 12 seconds */
-#define L2CAP_DEFAULT_MAX_PDU_SIZE	1009    /* Sized for 3-DH5 packet */
+#define L2CAP_DEFAULT_MAX_PDU_SIZE	1492    /* Sized for AMP packet */
 #define L2CAP_DEFAULT_ACK_TO		200
 #define L2CAP_DEFAULT_MAX_SDU_SIZE	0xFFFF
 #define L2CAP_DEFAULT_SDU_ITIME		0xFFFFFFFF
@@ -51,6 +52,8 @@
 #define L2CAP_ENC_TIMEOUT		msecs_to_jiffies(5000)
 #define L2CAP_CONN_TIMEOUT		msecs_to_jiffies(40000)
 #define L2CAP_INFO_TIMEOUT		msecs_to_jiffies(4000)
+#define L2CAP_MOVE_TIMEOUT		msecs_to_jiffies(4000)
+#define L2CAP_MOVE_ERTX_TIMEOUT		msecs_to_jiffies(60000)
 
 #define L2CAP_A2MP_DEFAULT_MTU		670
 
@@ -433,6 +436,8 @@ struct l2cap_chan {
 	struct sock *sk;
 
 	struct l2cap_conn	*conn;
+	struct hci_conn		*hs_hcon;
+	struct hci_chan		*hs_hchan;
 	struct kref	kref;
 
 	__u8		state;
@@ -476,6 +481,12 @@ struct l2cap_chan {
 	unsigned long	conn_state;
 	unsigned long	flags;
 
+	__u8		remote_amp_id;
+	__u8		local_amp_id;
+	__u8		move_id;
+	__u8		move_state;
+	__u8		move_role;
+
 	__u16		next_tx_seq;
 	__u16		expected_ack_seq;
 	__u16		expected_tx_seq;
@@ -485,7 +496,6 @@ struct l2cap_chan {
 	__u16		frames_sent;
 	__u16		unacked_frames;
 	__u8		retry_count;
-	__u16		srej_queue_next;
 	__u16		sdu_len;
 	struct sk_buff	*sdu;
 	struct sk_buff	*sdu_last_frag;
@@ -538,6 +548,7 @@ struct l2cap_ops {
 	void			(*state_change) (struct l2cap_chan *chan,
 						 int state);
 	void			(*ready) (struct l2cap_chan *chan);
+	void			(*defer) (struct l2cap_chan *chan);
 	struct sk_buff		*(*alloc_skb) (struct l2cap_chan *chan,
 					       unsigned long len, int nb);
 };
@@ -599,7 +610,7 @@ enum {
 	CONF_MTU_DONE,
 	CONF_MODE_DONE,
 	CONF_CONNECT_PEND,
-	CONF_NO_FCS_RECV,
+	CONF_RECV_NO_FCS,
 	CONF_STATE2_DEVICE,
 	CONF_EWS_RECV,
 	CONF_LOC_CONF_PEND,
@@ -640,6 +651,9 @@ enum {
 enum {
 	L2CAP_RX_STATE_RECV,
 	L2CAP_RX_STATE_SREJ_SENT,
+	L2CAP_RX_STATE_MOVE,
+	L2CAP_RX_STATE_WAIT_P,
+	L2CAP_RX_STATE_WAIT_F,
 };
 
 enum {
@@ -668,6 +682,25 @@ enum {
 	L2CAP_EV_RECV_RNR,
 	L2CAP_EV_RECV_SREJ,
 	L2CAP_EV_RECV_FRAME,
+};
+
+enum {
+	L2CAP_MOVE_ROLE_NONE,
+	L2CAP_MOVE_ROLE_INITIATOR,
+	L2CAP_MOVE_ROLE_RESPONDER,
+};
+
+enum {
+	L2CAP_MOVE_STABLE,
+	L2CAP_MOVE_WAIT_REQ,
+	L2CAP_MOVE_WAIT_RSP,
+	L2CAP_MOVE_WAIT_RSP_SUCCESS,
+	L2CAP_MOVE_WAIT_CONFIRM,
+	L2CAP_MOVE_WAIT_CONFIRM_RSP,
+	L2CAP_MOVE_WAIT_LOGICAL_COMP,
+	L2CAP_MOVE_WAIT_LOGICAL_CFM,
+	L2CAP_MOVE_WAIT_LOCAL_BUSY,
+	L2CAP_MOVE_WAIT_PREPARE,
 };
 
 void l2cap_chan_hold(struct l2cap_chan *c);
@@ -745,6 +778,10 @@ static inline void l2cap_chan_no_ready(struct l2cap_chan *chan)
 {
 }
 
+static inline void l2cap_chan_no_defer(struct l2cap_chan *chan)
+{
+}
+
 extern bool disable_ertm;
 
 int l2cap_init_sockets(void);
@@ -767,6 +804,12 @@ int l2cap_chan_check_security(struct l2cap_chan *chan);
 void l2cap_chan_set_defaults(struct l2cap_chan *chan);
 int l2cap_ertm_init(struct l2cap_chan *chan);
 void l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan);
+void __l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan);
 void l2cap_chan_del(struct l2cap_chan *chan, int err);
+void l2cap_send_conn_req(struct l2cap_chan *chan);
+void l2cap_move_start(struct l2cap_chan *chan);
+void l2cap_logical_cfm(struct l2cap_chan *chan, struct hci_chan *hchan,
+		       u8 status);
+void __l2cap_physical_cfm(struct l2cap_chan *chan, int result);
 
 #endif /* __L2CAP_H */

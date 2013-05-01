@@ -32,7 +32,7 @@ do {								\
 #define D_USBO 0x00
 #define D_V4L2 0x0100
 #else
-#define PDEBUG(level, fmt, ...)
+#define PDEBUG(level, fmt, ...) do {} while(0)
 #endif
 
 #define GSPCA_MAX_FRAMES 16	/* maximum number of video frame buffers */
@@ -138,7 +138,7 @@ struct sd_desc {
 	cam_reg_op get_register;
 #endif
 	cam_ident_op get_chip_ident;
-#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
+#if IS_ENABLED(CONFIG_INPUT)
 	cam_int_pkt_op int_pkt_scan;
 	/* other_input makes the gspca core create gspca_dev->input even when
 	   int_pkt_scan is NULL, for cams with non interrupt driven buttons */
@@ -167,7 +167,7 @@ struct gspca_dev {
 	struct usb_device *dev;
 	struct file *capt_file;		/* file doing video capture */
 					/* protected by queue_lock */
-#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
+#if IS_ENABLED(CONFIG_INPUT)
 	struct input_dev *input_dev;
 	char phys[64];			/* physical device path */
 #endif
@@ -190,7 +190,7 @@ struct gspca_dev {
 #define USB_BUF_SZ 64
 	__u8 *usb_buf;				/* buffer for USB exchanges */
 	struct urb *urb[MAX_NURBS];
-#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
+#if IS_ENABLED(CONFIG_INPUT)
 	struct urb *int_urb;
 #endif
 

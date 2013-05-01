@@ -26,12 +26,12 @@
 #include <linux/io.h>
 #include <linux/seq_file.h>
 #include <linux/spinlock.h>
+#include <linux/clk/tegra.h>
 
-#include <mach/clk.h>
-#include <mach/iomap.h>
 #include <mach/powergate.h>
 
 #include "fuse.h"
+#include "iomap.h"
 
 #define PWRGATE_TOGGLE		0x30
 #define  PWRGATE_TOGGLE_START	(1 << 8)

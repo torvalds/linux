@@ -167,7 +167,7 @@ enum {
 
 /* This macro restricts an int variable to an inclusive range */
 #define RESTRICT_TO_RANGE(v, mi, ma) \
-	{ if ((v) < (mi)) (v) = (mi); else if ((v) > (ma)) (v) = (ma); }
+	{ if (((int)v) < (mi)) (v) = (mi); else if ((v) > (ma)) (v) = (ma); }
 
 /*
  * We use macros to do YUV -> RGB conversion because this is

@@ -17,11 +17,16 @@ config W1_SLAVE_SMEM
 	  simple 64bit memory rom(ds2401/ds2411/ds1990*) to your wire.
 
 config W1_SLAVE_DS2408
-        tristate "8-Channel Addressable Switch (IO Expander) 0x29 family support (DS2408)"
-        help
-          Say Y here if you want to use a 1-wire
+	tristate "8-Channel Addressable Switch (IO Expander) 0x29 family support (DS2408)"
+	help
+	  Say Y here if you want to use a 1-wire
+	  DS2408 8-Channel Addressable Switch device support
 
-		  DS2408 8-Channel Addressable Switch device support
+config W1_SLAVE_DS2413
+	tristate "Dual Channel Addressable Switch 0x3a family support (DS2413)"
+	help
+	  Say Y here if you want to use a 1-wire
+	  DS2413 Dual Channel Addressable Switch device support
 
 config W1_SLAVE_DS2423
 	tristate "Counter 1-wire device (DS2423)"

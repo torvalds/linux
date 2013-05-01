@@ -10,7 +10,7 @@
  * Please see Documentation/filesystems/sysfs.txt for more information.
  */
 
-#define DEBUG 
+#define DEBUG
 
 #include <linux/fs.h>
 #include <linux/mount.h>
@@ -149,6 +149,7 @@ static struct file_system_type sysfs_fs_type = {
 	.name		= "sysfs",
 	.mount		= sysfs_mount,
 	.kill_sb	= sysfs_kill_sb,
+	.fs_flags	= FS_USERNS_MOUNT,
 };
 
 int __init sysfs_init(void)

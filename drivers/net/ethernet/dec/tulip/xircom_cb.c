@@ -148,7 +148,7 @@ static struct pci_driver xircom_ops = {
 	.name		= "xircom_cb",
 	.id_table	= xircom_pci_table,
 	.probe		= xircom_probe,
-	.remove		= __devexit_p(xircom_remove),
+	.remove		= xircom_remove,
 };
 
 
@@ -190,7 +190,7 @@ static const struct net_device_ops netdev_ops = {
          first two packets that get send, and pump hates that.
 
  */
-static int __devinit xircom_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+static int xircom_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct device *d = &pdev->dev;
 	struct net_device *dev = NULL;
@@ -312,7 +312,7 @@ err_disable:
  Interrupts and such are already stopped in the "ifconfig ethX down"
  code.
  */
-static void __devexit xircom_remove(struct pci_dev *pdev)
+static void xircom_remove(struct pci_dev *pdev)
 {
 	struct net_device *dev = pci_get_drvdata(pdev);
 	struct xircom_private *card = netdev_priv(dev);

@@ -66,4 +66,15 @@ extern volatile unsigned long secondary_holding_pen_release;
 extern void arch_send_call_function_single_ipi(int cpu);
 extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
 
+struct device_node;
+
+struct smp_enable_ops {
+	const char	*name;
+	int		(*init_cpu)(struct device_node *, int);
+	int		(*prepare_cpu)(int);
+};
+
+extern const struct smp_enable_ops smp_spin_table_ops;
+extern const struct smp_enable_ops smp_psci_ops;
+
 #endif /* ifndef __ASM_SMP_H */

@@ -38,6 +38,7 @@ show up in /proc/sys/kernel:
 - l2cr                        [ PPC only ]
 - modprobe                    ==> Documentation/debugging-modules.txt
 - modules_disabled
+- msg_next_id		      [ sysv ipc ]
 - msgmax
 - msgmnb
 - msgmni
@@ -62,7 +63,9 @@ show up in /proc/sys/kernel:
 - rtsig-max
 - rtsig-nr
 - sem
+- sem_next_id		      [ sysv ipc ]
 - sg-big-buff                 [ generic SCSI device (sg) ]
+- shm_next_id		      [ sysv ipc ]
 - shm_rmid_forced
 - shmall
 - shmmax                      [ sysv ipc ]
@@ -320,6 +323,22 @@ to false.
 
 ==============================================================
 
+msg_next_id, sem_next_id, and shm_next_id:
+
+These three toggles allows to specify desired id for next allocated IPC
+object: message, semaphore or shared memory respectively.
+
+By default they are equal to -1, which means generic allocation logic.
+Possible values to set are in range {0..INT_MAX}.
+
+Notes:
+1) kernel doesn't guarantee, that new object will have desired id. So,
+it's up to userspace, how to handle an object with "wrong" id.
+2) Toggle with non-default value will be set back to -1 by kernel after
+successful IPC object allocation.
+
+==============================================================
+
 nmi_watchdog:
 
 Enables/Disables the NMI watchdog on x86 systems. When the value is
@@ -539,6 +558,19 @@ the value of SG_BIG_BUFF.
 There shouldn't be any reason to change this value. If
 you can come up with one, you probably know what you
 are doing anyway :)
+
+==============================================================
+
+shmall:
+
+This parameter sets the total amount of shared memory pages that
+can be used system wide. Hence, SHMALL should always be at least
+ceil(shmmax/PAGE_SIZE).
+
+If you are not sure what the default PAGE_SIZE is on your Linux
+system, you can run the following command:
+
+# getconf PAGE_SIZE
 
 ==============================================================
 

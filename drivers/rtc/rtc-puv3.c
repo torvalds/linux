@@ -220,7 +220,7 @@ static void puv3_rtc_enable(struct platform_device *pdev, int en)
 	}
 }
 
-static int __devexit puv3_rtc_remove(struct platform_device *dev)
+static int puv3_rtc_remove(struct platform_device *dev)
 {
 	struct rtc_device *rtc = platform_get_drvdata(dev);
 
@@ -236,7 +236,7 @@ static int __devexit puv3_rtc_remove(struct platform_device *dev)
 	return 0;
 }
 
-static int __devinit puv3_rtc_probe(struct platform_device *pdev)
+static int puv3_rtc_probe(struct platform_device *pdev)
 {
 	struct rtc_device *rtc;
 	struct resource *res;
@@ -328,7 +328,7 @@ static int puv3_rtc_resume(struct platform_device *pdev)
 
 static struct platform_driver puv3_rtc_driver = {
 	.probe		= puv3_rtc_probe,
-	.remove		= __devexit_p(puv3_rtc_remove),
+	.remove		= puv3_rtc_remove,
 	.suspend	= puv3_rtc_suspend,
 	.resume		= puv3_rtc_resume,
 	.driver		= {

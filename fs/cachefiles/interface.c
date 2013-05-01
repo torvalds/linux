@@ -41,12 +41,12 @@ static struct fscache_object *cachefiles_alloc_object(
 
 	_enter("{%s},%p,", cache->cache.identifier, cookie);
 
-	lookup_data = kmalloc(sizeof(*lookup_data), GFP_KERNEL);
+	lookup_data = kmalloc(sizeof(*lookup_data), cachefiles_gfp);
 	if (!lookup_data)
 		goto nomem_lookup_data;
 
 	/* create a new object record and a temporary leaf image */
-	object = kmem_cache_alloc(cachefiles_object_jar, GFP_KERNEL);
+	object = kmem_cache_alloc(cachefiles_object_jar, cachefiles_gfp);
 	if (!object)
 		goto nomem_object;
 
@@ -63,7 +63,7 @@ static struct fscache_object *cachefiles_alloc_object(
 	 * - stick the length on the front and leave space on the back for the
 	 *   encoder
 	 */
-	buffer = kmalloc((2 + 512) + 3, GFP_KERNEL);
+	buffer = kmalloc((2 + 512) + 3, cachefiles_gfp);
 	if (!buffer)
 		goto nomem_buffer;
 
@@ -219,7 +219,7 @@ static void cachefiles_update_object(struct fscache_object *_object)
 		return;
 	}
 
-	auxdata = kmalloc(2 + 512 + 3, GFP_KERNEL);
+	auxdata = kmalloc(2 + 512 + 3, cachefiles_gfp);
 	if (!auxdata) {
 		_leave(" [nomem]");
 		return;
@@ -441,6 +441,54 @@ truncate_failed:
 }
 
 /*
+ * Invalidate an object
+ */
+static void cachefiles_invalidate_object(struct fscache_operation *op)
+{
+	struct cachefiles_object *object;
+	struct cachefiles_cache *cache;
+	const struct cred *saved_cred;
+	struct path path;
+	uint64_t ni_size;
+	int ret;
+
+	object = container_of(op->object, struct cachefiles_object, fscache);
+	cache = container_of(object->fscache.cache,
+			     struct cachefiles_cache, cache);
+
+	op->object->cookie->def->get_attr(op->object->cookie->netfs_data,
+					  &ni_size);
+
+	_enter("{OBJ%x},[%llu]",
+	       op->object->debug_id, (unsigned long long)ni_size);
+
+	if (object->backer) {
+		ASSERT(S_ISREG(object->backer->d_inode->i_mode));
+
+		fscache_set_store_limit(&object->fscache, ni_size);
+
+		path.dentry = object->backer;
+		path.mnt = cache->mnt;
+
+		cachefiles_begin_secure(cache, &saved_cred);
+		ret = vfs_truncate(&path, 0);
+		if (ret == 0)
+			ret = vfs_truncate(&path, ni_size);
+		cachefiles_end_secure(cache, saved_cred);
+
+		if (ret != 0) {
+			fscache_set_store_limit(&object->fscache, 0);
+			if (ret == -EIO)
+				cachefiles_io_error_obj(object,
+							"Invalidate failed");
+		}
+	}
+
+	fscache_op_complete(op, true);
+	_leave("");
+}
+
+/*
  * dissociate a cache from all the pages it was backing
  */
 static void cachefiles_dissociate_pages(struct fscache_cache *cache)
@@ -455,6 +503,7 @@ const struct fscache_cache_ops cachefiles_cache_ops = {
 	.lookup_complete	= cachefiles_lookup_complete,
 	.grab_object		= cachefiles_grab_object,
 	.update_object		= cachefiles_update_object,
+	.invalidate_object	= cachefiles_invalidate_object,
 	.drop_object		= cachefiles_drop_object,
 	.put_object		= cachefiles_put_object,
 	.sync_cache		= cachefiles_sync_cache,

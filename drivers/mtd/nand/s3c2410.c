@@ -730,11 +730,14 @@ static int s3c2410_nand_add_partition(struct s3c2410_nand_info *info,
 				      struct s3c2410_nand_mtd *mtd,
 				      struct s3c2410_nand_set *set)
 {
-	if (set)
+	if (set) {
 		mtd->mtd.name = set->name;
 
-	return mtd_device_parse_register(&mtd->mtd, NULL, NULL,
+		return mtd_device_parse_register(&mtd->mtd, NULL, NULL,
 					 set->partitions, set->nr_partitions);
+	}
+
+	return -ENODEV;
 }
 
 /**
@@ -879,7 +882,7 @@ static void s3c2410_nand_update_chip(struct s3c2410_nand_info *info,
 	if (chip->ecc.mode != NAND_ECC_HW)
 		return;
 
-		/* change the behaviour depending on wether we are using
+		/* change the behaviour depending on whether we are using
 		 * the large or small page nand device */
 
 	if (chip->page_shift > 10) {
@@ -949,10 +952,9 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 	info->platform	= plat;
 	info->cpu_type	= cpu_type;
 
-	info->regs	= devm_request_and_ioremap(&pdev->dev, res);
-	if (info->regs == NULL) {
-		dev_err(&pdev->dev, "cannot reserve register region\n");
-		err = -EIO;
+	info->regs = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(info->regs)) {
+		err = PTR_ERR(info->regs);
 		goto exit_error;
 	}
 

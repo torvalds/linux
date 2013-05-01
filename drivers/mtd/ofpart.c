@@ -71,7 +71,10 @@ static int parse_ofpart_partitions(struct mtd_info *master,
 		(*pparts)[i].name = (char *)partname;
 
 		if (of_get_property(pp, "read-only", &len))
-			(*pparts)[i].mask_flags = MTD_WRITEABLE;
+			(*pparts)[i].mask_flags |= MTD_WRITEABLE;
+
+		if (of_get_property(pp, "lock", &len))
+			(*pparts)[i].mask_flags |= MTD_POWERUP_LOCK;
 
 		i++;
 	}
@@ -121,7 +124,7 @@ static int parse_ofoldpart_partitions(struct mtd_info *master,
 	nr_parts = plen / sizeof(part[0]);
 
 	*pparts = kzalloc(nr_parts * sizeof(*(*pparts)), GFP_KERNEL);
-	if (!pparts)
+	if (!*pparts)
 		return -ENOMEM;
 
 	names = of_get_property(dp, "partition-names", &plen);
@@ -171,7 +174,14 @@ out:
 	return rc;
 }
 
+static void __exit ofpart_parser_exit(void)
+{
+	deregister_mtd_parser(&ofpart_parser);
+	deregister_mtd_parser(&ofoldpart_parser);
+}
+
 module_init(ofpart_parser_init);
+module_exit(ofpart_parser_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Parser for MTD partitioning information in device tree");

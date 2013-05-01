@@ -459,7 +459,7 @@ static struct regulator_ops tps65912_ops_ldo = {
 	.list_voltage = tps65912_list_voltage,
 };
 
-static __devinit int tps65912_probe(struct platform_device *pdev)
+static int tps65912_probe(struct platform_device *pdev)
 {
 	struct tps65912 *tps65912 = dev_get_drvdata(pdev->dev.parent);
 	struct regulator_config config = { };
@@ -525,7 +525,7 @@ err:
 	return err;
 }
 
-static int __devexit tps65912_remove(struct platform_device *pdev)
+static int tps65912_remove(struct platform_device *pdev)
 {
 	struct tps65912_reg *tps65912_reg = platform_get_drvdata(pdev);
 	int i;
@@ -541,7 +541,7 @@ static struct platform_driver tps65912_driver = {
 		.owner = THIS_MODULE,
 	},
 	.probe = tps65912_probe,
-	.remove = __devexit_p(tps65912_remove),
+	.remove = tps65912_remove,
 };
 
 static int __init tps65912_init(void)

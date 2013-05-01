@@ -41,7 +41,17 @@
 
 /* number of config options in the config structure */
 #define COMEDI_NDEVCONFOPTS 32
-/*length of nth chunk of firmware data*/
+
+/*
+ * NOTE: 'comedi_config --init-data' is deprecated
+ *
+ * The following indexes in the config options were used by
+ * comedi_config to pass firmware blobs from user space to the
+ * comedi drivers. The request_firmware() hotplug interface is
+ * now used by all comedi drivers instead.
+ */
+
+/* length of nth chunk of firmware data -*/
 #define COMEDI_DEVCONF_AUX_DATA3_LENGTH		25
 #define COMEDI_DEVCONF_AUX_DATA2_LENGTH		26
 #define COMEDI_DEVCONF_AUX_DATA1_LENGTH		27
@@ -281,6 +291,44 @@ enum configuration_ids {
 	INSN_CONFIG_PWM_SET_H_BRIDGE = 5003,
 	/* gets H bridge data: duty cycle and the sign bit */
 	INSN_CONFIG_PWM_GET_H_BRIDGE = 5004
+};
+
+/*
+ * Settings for INSN_CONFIG_DIGITAL_TRIG:
+ * data[0] = INSN_CONFIG_DIGITAL_TRIG
+ * data[1] = trigger ID
+ * data[2] = configuration operation
+ * data[3] = configuration parameter 1
+ * data[4] = configuration parameter 2
+ * data[5] = configuration parameter 3
+ *
+ * operation                           parameter 1   parameter 2   parameter 3
+ * ---------------------------------   -----------   -----------   -----------
+ * COMEDI_DIGITAL_TRIG_DISABLE
+ * COMEDI_DIGITAL_TRIG_ENABLE_EDGES    left-shift    rising-edges  falling-edges
+ * COMEDI_DIGITAL_TRIG_ENABLE_LEVELS   left-shift    high-levels   low-levels
+ *
+ * COMEDI_DIGITAL_TRIG_DISABLE returns the trigger to its default, inactive,
+ * unconfigured state.
+ *
+ * COMEDI_DIGITAL_TRIG_ENABLE_EDGES sets the rising and/or falling edge inputs
+ * that each can fire the trigger.
+ *
+ * COMEDI_DIGITAL_TRIG_ENABLE_LEVELS sets a combination of high and/or low
+ * level inputs that can fire the trigger.
+ *
+ * "left-shift" is useful if the trigger has more than 32 inputs to specify the
+ * first input for this configuration.
+ *
+ * Some sequences of INSN_CONFIG_DIGITAL_TRIG instructions may have a (partly)
+ * accumulative effect, depending on the low-level driver.  This is useful
+ * when setting up a trigger that has more than 32 inputs or has a combination
+ * of edge and level triggered inputs.
+ */
+enum comedi_digital_trig_op {
+	COMEDI_DIGITAL_TRIG_DISABLE = 0,
+	COMEDI_DIGITAL_TRIG_ENABLE_EDGES = 1,
+	COMEDI_DIGITAL_TRIG_ENABLE_LEVELS = 2
 };
 
 enum comedi_io_direction {
@@ -888,7 +936,20 @@ enum amplc_dio_clock_source {
 				   subdevice, preceding counter
 				   subdevice is the last counter
 				   subdevice) */
-	AMPLC_DIO_CLK_EXT	/* per chip external input pin */
+	AMPLC_DIO_CLK_EXT,	/* per chip external input pin */
+	/* the following are "enhanced" clock sources for PCIe models */
+	AMPLC_DIO_CLK_VCC,	/* clock input HIGH */
+	AMPLC_DIO_CLK_GND,	/* clock input LOW */
+	AMPLC_DIO_CLK_PAT_PRESENT, /* "pattern present" signal */
+	AMPLC_DIO_CLK_20MHZ	/* 20 MHz internal clock */
+};
+
+/* Values for setting a clock source with INSN_CONFIG_SET_CLOCK_SRC for
+ * timer subdevice on some Amplicon DIO PCIe boards (amplc_dio200 driver). */
+enum amplc_dio_ts_clock_src {
+	AMPLC_DIO_TS_CLK_1GHZ,	/* 1 ns period with 20 ns granularity */
+	AMPLC_DIO_TS_CLK_1MHZ,	/* 1 us period */
+	AMPLC_DIO_TS_CLK_1KHZ	/* 1 ms period */
 };
 
 /* Values for setting a gate source with INSN_CONFIG_SET_GATE_SRC for
@@ -907,7 +968,17 @@ enum amplc_dio_gate_source {
 	AMPLC_DIO_GAT_RESERVED4,
 	AMPLC_DIO_GAT_RESERVED5,
 	AMPLC_DIO_GAT_RESERVED6,
-	AMPLC_DIO_GAT_RESERVED7
+	AMPLC_DIO_GAT_RESERVED7,
+	/* the following are "enhanced" gate sources for PCIe models */
+	AMPLC_DIO_GAT_NGATN = 6, /* negated per channel gate input */
+	AMPLC_DIO_GAT_OUTNM2,	/* non-negated output of counter
+				   channel minus 2 */
+	AMPLC_DIO_GAT_PAT_PRESENT, /* "pattern present" signal */
+	AMPLC_DIO_GAT_PAT_OCCURRED, /* "pattern occurred" latched */
+	AMPLC_DIO_GAT_PAT_GONE,	/* "pattern gone away" latched */
+	AMPLC_DIO_GAT_NPAT_PRESENT, /* negated "pattern present" */
+	AMPLC_DIO_GAT_NPAT_OCCURRED, /* negated "pattern occurred" */
+	AMPLC_DIO_GAT_NPAT_GONE	/* negated "pattern gone away" */
 };
 
 #endif /* _COMEDI_H */

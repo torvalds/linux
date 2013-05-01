@@ -589,7 +589,7 @@ MACHINE_START(N30, "Acer-N30")
 				Ben Dooks <ben-linux@fluff.org>
 	*/
 	.atag_offset	= 0x100,
-	.timer		= &s3c24xx_timer,
+	.init_time	= s3c24xx_timer_init,
 	.init_machine	= n30_init,
 	.init_irq	= s3c24xx_init_irq,
 	.map_io		= n30_map_io,
@@ -600,7 +600,7 @@ MACHINE_START(N35, "Acer-N35")
 	/* Maintainer: Christer Weinigel <christer@weinigel.se>
 	*/
 	.atag_offset	= 0x100,
-	.timer		= &s3c24xx_timer,
+	.init_time	= s3c24xx_timer_init,
 	.init_machine	= n30_init,
 	.init_irq	= s3c24xx_init_irq,
 	.map_io		= n30_map_io,

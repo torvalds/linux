@@ -39,7 +39,7 @@
 "	.popsection\n"							\
 	: "=&r" (ret), "=&r" (oldval), "+Q" (*uaddr), "=&r" (tmp)	\
 	: "r" (oparg), "Ir" (-EFAULT)					\
-	: "cc")
+	: "cc", "memory")
 
 static inline int
 futex_atomic_op_inuser (int encoded_op, u32 __user *uaddr)

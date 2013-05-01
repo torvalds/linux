@@ -9,9 +9,11 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/dmaengine.h>
 #include <linux/dw_dmac.h>
 
 #define DW_DMA_MAX_NR_CHANNELS	8
+#define DW_DMA_MAX_NR_REQUESTS	16
 
 /* flow controller */
 enum dw_dma_fc {
@@ -184,15 +186,15 @@ enum dw_dmac_flags {
 };
 
 struct dw_dma_chan {
-	struct dma_chan		chan;
-	void __iomem		*ch_regs;
-	u8			mask;
-	u8			priority;
-	bool			paused;
-	bool			initialized;
+	struct dma_chan			chan;
+	void __iomem			*ch_regs;
+	u8				mask;
+	u8				priority;
+	enum dma_transfer_direction	direction;
+	bool				paused;
+	bool				initialized;
 
 	/* software emulation of the LLP transfers */
-	struct list_head	*tx_list;
 	struct list_head	*tx_node_active;
 
 	spinlock_t		lock;
@@ -202,6 +204,7 @@ struct dw_dma_chan {
 	struct list_head	active_list;
 	struct list_head	queue;
 	struct list_head	free_list;
+	u32			residue;
 	struct dw_cyclic_desc	*cdesc;
 
 	unsigned int		descs_allocated;
@@ -209,12 +212,11 @@ struct dw_dma_chan {
 	/* hardware configuration */
 	unsigned int		block_size;
 	bool			nollp;
+	unsigned int		request_line;
+	struct dw_dma_slave	slave;
 
 	/* configuration passed via DMA_SLAVE_CONFIG */
 	struct dma_slave_config dma_sconfig;
-
-	/* backlink to dw_dma */
-	struct dw_dma		*dw;
 };
 
 static inline struct dw_dma_chan_regs __iomem *
@@ -236,6 +238,7 @@ static inline struct dw_dma_chan *to_dw_dma_chan(struct dma_chan *chan)
 struct dw_dma {
 	struct dma_device	dma;
 	void __iomem		*regs;
+	struct dma_pool		*desc_pool;
 	struct tasklet_struct	tasklet;
 	struct clk		*clk;
 
@@ -293,7 +296,10 @@ struct dw_desc {
 	struct list_head		tx_list;
 	struct dma_async_tx_descriptor	txd;
 	size_t				len;
+	size_t				total_len;
 };
+
+#define to_dw_desc(h)	list_entry(h, struct dw_desc, desc_node)
 
 static inline struct dw_desc *
 txd_to_dw_desc(struct dma_async_tx_descriptor *txd)

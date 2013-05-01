@@ -91,10 +91,10 @@ static uint32_t pseudo_palette[16];
 static uint32_t gbe_cmap[256];
 static int gbe_turned_on; /* 0 turned off, 1 turned on */
 
-static char *mode_option __devinitdata = NULL;
+static char *mode_option = NULL;
 
 /* default CRT mode */
-static struct fb_var_screeninfo default_var_CRT __devinitdata = {
+static struct fb_var_screeninfo default_var_CRT = {
 	/* 640x480, 60 Hz, Non-Interlaced (25.175 MHz dotclock) */
 	.xres		= 640,
 	.yres		= 480,
@@ -125,7 +125,7 @@ static struct fb_var_screeninfo default_var_CRT __devinitdata = {
 };
 
 /* default LCD mode */
-static struct fb_var_screeninfo default_var_LCD __devinitdata = {
+static struct fb_var_screeninfo default_var_LCD = {
 	/* 1600x1024, 8 bpp */
 	.xres		= 1600,
 	.yres		= 1024,
@@ -157,7 +157,7 @@ static struct fb_var_screeninfo default_var_LCD __devinitdata = {
 
 /* default modedb mode */
 /* 640x480, 60 Hz, Non-Interlaced (25.172 MHz dotclock) */
-static struct fb_videomode default_mode_CRT __devinitdata = {
+static struct fb_videomode default_mode_CRT = {
 	.refresh	= 60,
 	.xres		= 640,
 	.yres		= 480,
@@ -172,7 +172,7 @@ static struct fb_videomode default_mode_CRT __devinitdata = {
 	.vmode		= FB_VMODE_NONINTERLACED,
 };
 /* 1600x1024 SGI flatpanel 1600sw */
-static struct fb_videomode default_mode_LCD __devinitdata = {
+static struct fb_videomode default_mode_LCD = {
 	/* 1600x1024, 8 bpp */
 	.xres		= 1600,
 	.yres		= 1024,
@@ -186,8 +186,8 @@ static struct fb_videomode default_mode_LCD __devinitdata = {
 	.vmode		= FB_VMODE_NONINTERLACED,
 };
 
-static struct fb_videomode *default_mode __devinitdata = &default_mode_CRT;
-static struct fb_var_screeninfo *default_var __devinitdata = &default_var_CRT;
+static struct fb_videomode *default_mode = &default_mode_CRT;
+static struct fb_var_screeninfo *default_var = &default_var_CRT;
 
 static int flat_panel_enabled = 0;
 
@@ -1082,7 +1082,7 @@ static ssize_t gbefb_show_rev(struct device *device, struct device_attribute *at
 
 static DEVICE_ATTR(revision, S_IRUGO, gbefb_show_rev, NULL);
 
-static void __devexit gbefb_remove_sysfs(struct device *dev)
+static void gbefb_remove_sysfs(struct device *dev)
 {
 	device_remove_file(dev, &dev_attr_size);
 	device_remove_file(dev, &dev_attr_revision);
@@ -1098,7 +1098,7 @@ static void gbefb_create_sysfs(struct device *dev)
  * Initialization
  */
 
-static int __devinit gbefb_setup(char *options)
+static int gbefb_setup(char *options)
 {
 	char *this_opt;
 
@@ -1129,7 +1129,7 @@ static int __devinit gbefb_setup(char *options)
 	return 0;
 }
 
-static int __devinit gbefb_probe(struct platform_device *p_dev)
+static int gbefb_probe(struct platform_device *p_dev)
 {
 	int i, ret = 0;
 	struct fb_info *info;
@@ -1254,7 +1254,7 @@ out_release_framebuffer:
 	return ret;
 }
 
-static int __devexit gbefb_remove(struct platform_device* p_dev)
+static int gbefb_remove(struct platform_device* p_dev)
 {
 	struct fb_info *info = platform_get_drvdata(p_dev);
 
@@ -1273,7 +1273,7 @@ static int __devexit gbefb_remove(struct platform_device* p_dev)
 
 static struct platform_driver gbefb_driver = {
 	.probe = gbefb_probe,
-	.remove = __devexit_p(gbefb_remove),
+	.remove = gbefb_remove,
 	.driver	= {
 		.name = "gbefb",
 	},

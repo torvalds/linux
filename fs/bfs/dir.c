@@ -28,7 +28,7 @@ static struct buffer_head *bfs_find_entry(struct inode *dir,
 
 static int bfs_readdir(struct file *f, void *dirent, filldir_t filldir)
 {
-	struct inode *dir = f->f_path.dentry->d_inode;
+	struct inode *dir = file_inode(f);
 	struct buffer_head *bh;
 	struct bfs_dirent *de;
 	struct bfs_sb_info *info = BFS_SB(dir->i_sb);

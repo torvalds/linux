@@ -29,6 +29,7 @@
 #include <linux/security.h>
 #include <linux/syscalls.h>
 #include <linux/audit.h>
+#include <linux/sched/sysctl.h>
 
 #include <asm/uaccess.h>
 #include <asm/tlb.h>
@@ -65,6 +66,21 @@ int sysctl_nr_trim_pages = CONFIG_NOMMU_INITIAL_TRIM_EXCESS;
 int heap_stack_gap = 0;
 
 atomic_long_t mmap_pages_allocated;
+
+/*
+ * The global memory commitment made in the system can be a metric
+ * that can be used to drive ballooning decisions when Linux is hosted
+ * as a guest. On Hyper-V, the host implements a policy engine for dynamically
+ * balancing memory across competing virtual machines that are hosted.
+ * Several metrics drive this policy engine including the guest reported
+ * memory commitment.
+ */
+unsigned long vm_memory_committed(void)
+{
+	return percpu_counter_read_positive(&vm_committed_as);
+}
+
+EXPORT_SYMBOL_GPL(vm_memory_committed);
 
 EXPORT_SYMBOL(mem_map);
 EXPORT_SYMBOL(num_physpages);
@@ -124,10 +140,10 @@ unsigned int kobjsize(const void *objp)
 	return PAGE_SIZE << compound_order(page);
 }
 
-int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
-		     unsigned long start, int nr_pages, unsigned int foll_flags,
-		     struct page **pages, struct vm_area_struct **vmas,
-		     int *retry)
+long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+		      unsigned long start, unsigned long nr_pages,
+		      unsigned int foll_flags, struct page **pages,
+		      struct vm_area_struct **vmas, int *nonblocking)
 {
 	struct vm_area_struct *vma;
 	unsigned long vm_flags;
@@ -174,9 +190,10 @@ finish_or_fault:
  *   slab page or a secondary page from a compound page
  * - don't permit access to VMAs that don't support it, such as I/O mappings
  */
-int get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
-	unsigned long start, int nr_pages, int write, int force,
-	struct page **pages, struct vm_area_struct **vmas)
+long get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+		    unsigned long start, unsigned long nr_pages,
+		    int write, int force, struct page **pages,
+		    struct vm_area_struct **vmas)
 {
 	int flags = 0;
 
@@ -926,7 +943,7 @@ static int validate_mmap_request(struct file *file,
 		 */
 		mapping = file->f_mapping;
 		if (!mapping)
-			mapping = file->f_path.dentry->d_inode->i_mapping;
+			mapping = file_inode(file)->i_mapping;
 
 		capabilities = 0;
 		if (mapping && mapping->backing_dev_info)
@@ -935,7 +952,7 @@ static int validate_mmap_request(struct file *file,
 		if (!capabilities) {
 			/* no explicit capabilities set, so assume some
 			 * defaults */
-			switch (file->f_path.dentry->d_inode->i_mode & S_IFMT) {
+			switch (file_inode(file)->i_mode & S_IFMT) {
 			case S_IFREG:
 			case S_IFBLK:
 				capabilities = BDI_CAP_MAP_COPY;
@@ -970,11 +987,11 @@ static int validate_mmap_request(struct file *file,
 			    !(file->f_mode & FMODE_WRITE))
 				return -EACCES;
 
-			if (IS_APPEND(file->f_path.dentry->d_inode) &&
+			if (IS_APPEND(file_inode(file)) &&
 			    (file->f_mode & FMODE_WRITE))
 				return -EACCES;
 
-			if (locks_verify_locked(file->f_path.dentry->d_inode))
+			if (locks_verify_locked(file_inode(file)))
 				return -EAGAIN;
 
 			if (!(capabilities & BDI_CAP_MAP_DIRECT))
@@ -1234,7 +1251,8 @@ unsigned long do_mmap_pgoff(struct file *file,
 			    unsigned long len,
 			    unsigned long prot,
 			    unsigned long flags,
-			    unsigned long pgoff)
+			    unsigned long pgoff,
+			    unsigned long *populate)
 {
 	struct vm_area_struct *vma;
 	struct vm_region *region;
@@ -1243,6 +1261,8 @@ unsigned long do_mmap_pgoff(struct file *file,
 	int ret;
 
 	kenter(",%lx,%lx,%lx,%lx,%lx", addr, len, prot, flags, pgoff);
+
+	*populate = 0;
 
 	/* decide whether we should attempt the mapping, and if so what sort of
 	 * mapping */
@@ -1307,8 +1327,8 @@ unsigned long do_mmap_pgoff(struct file *file,
 				continue;
 
 			/* search for overlapping mappings on the same file */
-			if (pregion->vm_file->f_path.dentry->d_inode !=
-			    file->f_path.dentry->d_inode)
+			if (file_inode(pregion->vm_file) !=
+			    file_inode(file))
 				continue;
 
 			if (pregion->vm_pgoff >= pgend)
@@ -1799,9 +1819,11 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
 	return ret;
 }
 
-struct page *follow_page(struct vm_area_struct *vma, unsigned long address,
-			unsigned int foll_flags)
+struct page *follow_page_mask(struct vm_area_struct *vma,
+			      unsigned long address, unsigned int flags,
+			      unsigned int *page_mask)
 {
+	*page_mask = 0;
 	return NULL;
 }
 
@@ -1888,7 +1910,7 @@ int __vm_enough_memory(struct mm_struct *mm, long pages, int cap_sys_admin)
 		 */
 		free -= global_page_state(NR_SHMEM);
 
-		free += nr_swap_pages;
+		free += get_nr_swap_pages();
 
 		/*
 		 * Any slabs which are created with the

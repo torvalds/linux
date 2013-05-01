@@ -742,7 +742,7 @@ static void fm_irq_handle_rdsdata_getcmd_resp(struct fmdev *fmdev)
 		if ((meta_data & FM_RDS_STATUS_ERR_MASK) != 0)
 			break;
 
-		if (blk_idx < FM_RDS_BLK_IDX_A || blk_idx > FM_RDS_BLK_IDX_D) {
+		if (blk_idx > FM_RDS_BLK_IDX_D) {
 			fmdbg("Block sequence mismatch\n");
 			rds->last_blk_idx = -1;
 			break;
@@ -1563,8 +1563,7 @@ int fmc_prepare(struct fmdev *fmdev)
 	fmdev->irq_info.mask = FM_MAL_EVENT;
 
 	/* Region info */
-	memcpy(&fmdev->rx.region, &region_configs[default_radio_region],
-			sizeof(struct region_info));
+	fmdev->rx.region = region_configs[default_radio_region];
 
 	fmdev->rx.mute_mode = FM_MUTE_OFF;
 	fmdev->rx.rf_depend_mute = FM_RX_RF_DEPENDENT_MUTE_OFF;

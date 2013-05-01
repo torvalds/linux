@@ -126,12 +126,13 @@ static void send_reset(struct net *net, struct sk_buff *oldskb)
 	skb_put(nskb, sizeof(struct ipv6hdr));
 	skb_reset_network_header(nskb);
 	ip6h = ipv6_hdr(nskb);
-	*(__be32 *)ip6h =  htonl(0x60000000 | (tclass << 20));
+	ip6_flow_hdr(ip6h, tclass, 0);
 	ip6h->hop_limit = ip6_dst_hoplimit(dst);
 	ip6h->nexthdr = IPPROTO_TCP;
 	ip6h->saddr = oip6h->daddr;
 	ip6h->daddr = oip6h->saddr;
 
+	skb_reset_transport_header(nskb);
 	tcph = (struct tcphdr *)skb_put(nskb, sizeof(struct tcphdr));
 	/* Truncate to length (no data) */
 	tcph->doff = sizeof(struct tcphdr)/4;

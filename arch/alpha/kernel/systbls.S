@@ -12,7 +12,7 @@
 sys_call_table:
 	.quad alpha_ni_syscall			/* 0 */
 	.quad sys_exit
-	.quad sys_fork
+	.quad alpha_fork
 	.quad sys_read
 	.quad sys_write
 	.quad alpha_ni_syscall			/* 5 */
@@ -76,7 +76,7 @@ sys_call_table:
 	.quad sys_getpgrp
 	.quad sys_getpagesize
 	.quad alpha_ni_syscall			/* 65 */
-	.quad sys_vfork
+	.quad alpha_vfork
 	.quad sys_newstat
 	.quad sys_newlstat
 	.quad alpha_ni_syscall
@@ -330,7 +330,7 @@ sys_call_table:
 	.quad sys_ni_syscall			/* 309: old get_kernel_syms */
 	.quad sys_syslog			/* 310 */
 	.quad sys_reboot
-	.quad sys_clone
+	.quad alpha_clone
 	.quad sys_uselib
 	.quad sys_mlock
 	.quad sys_munlock			/* 315 */

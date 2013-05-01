@@ -471,12 +471,6 @@ struct usb_gadget_ops {
 			struct usb_gadget_driver *);
 	int	(*udc_stop)(struct usb_gadget *,
 			struct usb_gadget_driver *);
-
-	/* Those two are deprecated */
-	int	(*start)(struct usb_gadget_driver *,
-			int (*bind)(struct usb_gadget *,
-				struct usb_gadget_driver *driver));
-	int	(*stop)(struct usb_gadget_driver *);
 };
 
 /**
@@ -880,6 +874,8 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver);
 
 extern int usb_add_gadget_udc(struct device *parent, struct usb_gadget *gadget);
 extern void usb_del_gadget_udc(struct usb_gadget *gadget);
+extern int udc_attach_driver(const char *name,
+		struct usb_gadget_driver *driver);
 
 /*-------------------------------------------------------------------------*/
 
@@ -911,6 +907,11 @@ struct usb_gadget_strings {
 	struct usb_string	*strings;
 };
 
+struct usb_gadget_string_container {
+	struct list_head        list;
+	u8                      *stash[0];
+};
+
 /* put descriptor for string with that id into buf (buflen >= 256) */
 int usb_gadget_get_string(struct usb_gadget_strings *table, int id, u8 *buf);
 
@@ -938,6 +939,13 @@ static inline void usb_free_descriptors(struct usb_descriptor_header **v)
 {
 	kfree(v);
 }
+
+struct usb_function;
+int usb_assign_descriptors(struct usb_function *f,
+		struct usb_descriptor_header **fs,
+		struct usb_descriptor_header **hs,
+		struct usb_descriptor_header **ss);
+void usb_free_all_descriptors(struct usb_function *f);
 
 /*-------------------------------------------------------------------------*/
 

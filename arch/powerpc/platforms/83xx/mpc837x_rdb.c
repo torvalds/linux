@@ -1,7 +1,7 @@
 /*
  * arch/powerpc/platforms/83xx/mpc837x_rdb.c
  *
- * Copyright (C) 2007 Freescale Semicondutor, Inc. All rights reserved.
+ * Copyright (C) 2007 Freescale Semiconductor, Inc. All rights reserved.
  *
  * MPC837x RDB board specific routines
  *

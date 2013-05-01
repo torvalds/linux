@@ -53,7 +53,7 @@ static irqreturn_t irqhandler(int irq, struct uio_info *info)
 	return IRQ_HANDLED;
 }
 
-static int __devinit probe(struct pci_dev *pdev,
+static int probe(struct pci_dev *pdev,
 			   const struct pci_device_id *id)
 {
 	struct uio_pci_generic_dev *gdev;

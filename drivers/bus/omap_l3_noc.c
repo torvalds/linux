@@ -128,7 +128,7 @@ static irqreturn_t l3_interrupt_handler(int irq, void *_l3)
 	return IRQ_HANDLED;
 }
 
-static int __devinit omap4_l3_probe(struct platform_device *pdev)
+static int omap4_l3_probe(struct platform_device *pdev)
 {
 	static struct omap4_l3 *l3;
 	struct resource	*res;
@@ -219,7 +219,7 @@ err0:
 	return ret;
 }
 
-static int __devexit omap4_l3_remove(struct platform_device *pdev)
+static int omap4_l3_remove(struct platform_device *pdev)
 {
 	struct omap4_l3 *l3 = platform_get_drvdata(pdev);
 
@@ -245,7 +245,7 @@ MODULE_DEVICE_TABLE(of, l3_noc_match);
 
 static struct platform_driver omap4_l3_driver = {
 	.probe		= omap4_l3_probe,
-	.remove		= __devexit_p(omap4_l3_remove),
+	.remove		= omap4_l3_remove,
 	.driver		= {
 		.name		= "omap_l3_noc",
 		.owner		= THIS_MODULE,

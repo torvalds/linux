@@ -117,7 +117,7 @@ void release_thread(struct task_struct *dead_task)
 {
 	if (dead_task->mm) {
 		if (dead_task->mm->context.size) {
-			pr_warn("WARNING: dead process %8s still has LDT? <%p/%d>\n",
+			pr_warn("WARNING: dead process %s still has LDT? <%p/%d>\n",
 				dead_task->comm,
 				dead_task->mm->context.ldt,
 				dead_task->mm->context.size);
@@ -146,8 +146,7 @@ static inline u32 read_32bit_tls(struct task_struct *t, int tls)
 }
 
 int copy_thread(unsigned long clone_flags, unsigned long sp,
-		unsigned long arg,
-	struct task_struct *p, struct pt_regs *regs)
+		unsigned long arg, struct task_struct *p)
 {
 	int err;
 	struct pt_regs *childregs;
@@ -169,7 +168,7 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 	savesegment(ds, p->thread.ds);
 	memset(p->thread.ptrace_bps, 0, sizeof(p->thread.ptrace_bps));
 
-	if (unlikely(!regs)) {
+	if (unlikely(p->flags & PF_KTHREAD)) {
 		/* kernel thread */
 		memset(childregs, 0, sizeof(struct pt_regs));
 		childregs->sp = (unsigned long)childregs;
@@ -181,10 +180,11 @@ int copy_thread(unsigned long clone_flags, unsigned long sp,
 		childregs->flags = X86_EFLAGS_IF | X86_EFLAGS_BIT1;
 		return 0;
 	}
-	*childregs = *regs;
+	*childregs = *current_pt_regs();
 
 	childregs->ax = 0;
-	childregs->sp = sp;
+	if (sp)
+		childregs->sp = sp;
 
 	err = -ENOMEM;
 	memset(p->thread.ptrace_bps, 0, sizeof(p->thread.ptrace_bps));

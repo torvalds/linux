@@ -1251,13 +1251,11 @@ int cx25840_ir_probe(struct v4l2_subdev *sd)
 		cx25840_write4(ir_state->c, CX25840_IR_IRQEN_REG, 0);
 
 	mutex_init(&ir_state->rx_params_lock);
-	memcpy(&default_params, &default_rx_params,
-		       sizeof(struct v4l2_subdev_ir_parameters));
+	default_params = default_rx_params;
 	v4l2_subdev_call(sd, ir, rx_s_parameters, &default_params);
 
 	mutex_init(&ir_state->tx_params_lock);
-	memcpy(&default_params, &default_tx_params,
-		       sizeof(struct v4l2_subdev_ir_parameters));
+	default_params = default_tx_params;
 	v4l2_subdev_call(sd, ir, tx_s_parameters, &default_params);
 
 	return 0;

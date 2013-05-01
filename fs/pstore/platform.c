@@ -96,6 +96,27 @@ static const char *get_reason_str(enum kmsg_dump_reason reason)
 	}
 }
 
+bool pstore_cannot_block_path(enum kmsg_dump_reason reason)
+{
+	/*
+	 * In case of NMI path, pstore shouldn't be blocked
+	 * regardless of reason.
+	 */
+	if (in_nmi())
+		return true;
+
+	switch (reason) {
+	/* In panic case, other cpus are stopped by smp_send_stop(). */
+	case KMSG_DUMP_PANIC:
+	/* Emergency restart shouldn't be blocked by spin lock. */
+	case KMSG_DUMP_EMERG:
+		return true;
+	default:
+		return false;
+	}
+}
+EXPORT_SYMBOL_GPL(pstore_cannot_block_path);
+
 /*
  * callback from kmsg_dump. (s2,l2) has the most recently
  * written bytes, older bytes are in (s1,l1). Save as much
@@ -114,10 +135,12 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 
 	why = get_reason_str(reason);
 
-	if (in_nmi()) {
-		is_locked = spin_trylock(&psinfo->buf_lock);
-		if (!is_locked)
-			pr_err("pstore dump routine blocked in NMI, may corrupt error record\n");
+	if (pstore_cannot_block_path(reason)) {
+		is_locked = spin_trylock_irqsave(&psinfo->buf_lock, flags);
+		if (!is_locked) {
+			pr_err("pstore dump routine blocked in %s path, may corrupt error record\n"
+				       , in_nmi() ? "NMI" : why);
+		}
 	} else
 		spin_lock_irqsave(&psinfo->buf_lock, flags);
 	oopscount++;
@@ -136,16 +159,16 @@ static void pstore_dump(struct kmsg_dumper *dumper,
 			break;
 
 		ret = psinfo->write(PSTORE_TYPE_DMESG, reason, &id, part,
-				    hsize + len, psinfo);
+				    oopscount, hsize + len, psinfo);
 		if (ret == 0 && reason == KMSG_DUMP_OOPS && pstore_is_mounted())
 			pstore_new_entry = 1;
 
 		total += hsize + len;
 		part++;
 	}
-	if (in_nmi()) {
+	if (pstore_cannot_block_path(reason)) {
 		if (is_locked)
-			spin_unlock(&psinfo->buf_lock);
+			spin_unlock_irqrestore(&psinfo->buf_lock, flags);
 	} else
 		spin_unlock_irqrestore(&psinfo->buf_lock, flags);
 }
@@ -161,6 +184,7 @@ static void pstore_console_write(struct console *con, const char *s, unsigned c)
 
 	while (s < e) {
 		unsigned long flags;
+		u64 id;
 
 		if (c > psinfo->bufsize)
 			c = psinfo->bufsize;
@@ -172,7 +196,7 @@ static void pstore_console_write(struct console *con, const char *s, unsigned c)
 			spin_lock_irqsave(&psinfo->buf_lock, flags);
 		}
 		memcpy(psinfo->buf, s, c);
-		psinfo->write(PSTORE_TYPE_CONSOLE, 0, NULL, 0, c, psinfo);
+		psinfo->write(PSTORE_TYPE_CONSOLE, 0, &id, 0, 0, c, psinfo);
 		spin_unlock_irqrestore(&psinfo->buf_lock, flags);
 		s += c;
 		c = e - s;
@@ -196,7 +220,7 @@ static void pstore_register_console(void) {}
 
 static int pstore_write_compat(enum pstore_type_id type,
 			       enum kmsg_dump_reason reason,
-			       u64 *id, unsigned int part,
+			       u64 *id, unsigned int part, int count,
 			       size_t size, struct pstore_info *psi)
 {
 	return psi->write_buf(type, reason, id, part, psinfo->buf, size, psi);
@@ -266,6 +290,7 @@ void pstore_get_records(int quiet)
 	char			*buf = NULL;
 	ssize_t			size;
 	u64			id;
+	int			count;
 	enum pstore_type_id	type;
 	struct timespec		time;
 	int			failed = 0, rc;
@@ -277,9 +302,9 @@ void pstore_get_records(int quiet)
 	if (psi->open && psi->open(psi))
 		goto out;
 
-	while ((size = psi->read(&id, &type, &time, &buf, psi)) > 0) {
-		rc = pstore_mkfile(type, psi->name, id, buf, (size_t)size,
-				  time, psi);
+	while ((size = psi->read(&id, &type, &count, &time, &buf, psi)) > 0) {
+		rc = pstore_mkfile(type, psi->name, id, count, buf,
+				  (size_t)size, time, psi);
 		kfree(buf);
 		buf = NULL;
 		if (rc && (rc != -EEXIST || !quiet))

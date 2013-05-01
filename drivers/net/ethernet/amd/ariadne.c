@@ -682,7 +682,7 @@ static void set_multicast_list(struct net_device *dev)
 }
 
 
-static void __devexit ariadne_remove_one(struct zorro_dev *z)
+static void ariadne_remove_one(struct zorro_dev *z)
 {
 	struct net_device *dev = zorro_get_drvdata(z);
 
@@ -692,7 +692,7 @@ static void __devexit ariadne_remove_one(struct zorro_dev *z)
 	free_netdev(dev);
 }
 
-static struct zorro_device_id ariadne_zorro_tbl[] __devinitdata = {
+static struct zorro_device_id ariadne_zorro_tbl[] = {
 	{ ZORRO_PROD_VILLAGE_TRONIC_ARIADNE },
 	{ 0 }
 };
@@ -710,8 +710,8 @@ static const struct net_device_ops ariadne_netdev_ops = {
 	.ndo_set_mac_address	= eth_mac_addr,
 };
 
-static int __devinit ariadne_init_one(struct zorro_dev *z,
-				      const struct zorro_device_id *ent)
+static int ariadne_init_one(struct zorro_dev *z,
+			    const struct zorro_device_id *ent)
 {
 	unsigned long board = z->resource.start;
 	unsigned long base_addr = board + ARIADNE_LANCE;
@@ -774,7 +774,7 @@ static struct zorro_driver ariadne_driver = {
 	.name		= "ariadne",
 	.id_table	= ariadne_zorro_tbl,
 	.probe		= ariadne_init_one,
-	.remove		= __devexit_p(ariadne_remove_one),
+	.remove		= ariadne_remove_one,
 };
 
 static int __init ariadne_init_module(void)

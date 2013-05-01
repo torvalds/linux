@@ -63,7 +63,7 @@ static void dump_tlb(int first, int last)
 		tlb_read();
 		BARRIER();
 		pagemask = read_c0_pagemask();
-		entryhi  = read_c0_entryhi();
+		entryhi	 = read_c0_entryhi();
 		entrylo0 = read_c0_entrylo0();
 		entrylo1 = read_c0_entrylo1();
 

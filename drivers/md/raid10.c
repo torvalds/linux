@@ -38,21 +38,36 @@
  *    near_copies (stored in low byte of layout)
  *    far_copies (stored in second byte of layout)
  *    far_offset (stored in bit 16 of layout )
+ *    use_far_sets (stored in bit 17 of layout )
  *
- * The data to be stored is divided into chunks using chunksize.
- * Each device is divided into far_copies sections.
- * In each section, chunks are laid out in a style similar to raid0, but
- * near_copies copies of each chunk is stored (each on a different drive).
- * The starting device for each section is offset near_copies from the starting
- * device of the previous section.
- * Thus they are (near_copies*far_copies) of each chunk, and each is on a different
- * drive.
- * near_copies and far_copies must be at least one, and their product is at most
- * raid_disks.
+ * The data to be stored is divided into chunks using chunksize.  Each device
+ * is divided into far_copies sections.   In each section, chunks are laid out
+ * in a style similar to raid0, but near_copies copies of each chunk is stored
+ * (each on a different drive).  The starting device for each section is offset
+ * near_copies from the starting device of the previous section.  Thus there
+ * are (near_copies * far_copies) of each chunk, and each is on a different
+ * drive.  near_copies and far_copies must be at least one, and their product
+ * is at most raid_disks.
  *
  * If far_offset is true, then the far_copies are handled a bit differently.
- * The copies are still in different stripes, but instead of be very far apart
- * on disk, there are adjacent stripes.
+ * The copies are still in different stripes, but instead of being very far
+ * apart on disk, there are adjacent stripes.
+ *
+ * The far and offset algorithms are handled slightly differently if
+ * 'use_far_sets' is true.  In this case, the array's devices are grouped into
+ * sets that are (near_copies * far_copies) in size.  The far copied stripes
+ * are still shifted by 'near_copies' devices, but this shifting stays confined
+ * to the set rather than the entire array.  This is done to improve the number
+ * of device combinations that can fail without causing the array to fail.
+ * Example 'far' algorithm w/o 'use_far_sets' (each letter represents a chunk
+ * on a device):
+ *    A B C D    A B C D E
+ *      ...         ...
+ *    D A B C    E A B C D
+ * Example 'far' algorithm w/ 'use_far_sets' enabled (sets illustrated w/ []'s):
+ *    [A B] [C D]    [A B] [C D E]
+ *    |...| |...|    |...| | ... |
+ *    [B A] [D C]    [B A] [E C D]
  */
 
 /*
@@ -499,7 +514,7 @@ static void raid10_end_write_request(struct bio *bio, int error)
 	 */
 	one_write_done(r10_bio);
 	if (dec_rdev)
-		rdev_dec_pending(conf->mirrors[dev].rdev, conf->mddev);
+		rdev_dec_pending(rdev, conf->mddev);
 }
 
 /*
@@ -535,6 +550,13 @@ static void __raid10_find_phys(struct geom *geo, struct r10bio *r10bio)
 	sector_t stripe;
 	int dev;
 	int slot = 0;
+	int last_far_set_start, last_far_set_size;
+
+	last_far_set_start = (geo->raid_disks / geo->far_set_size) - 1;
+	last_far_set_start *= geo->far_set_size;
+
+	last_far_set_size = geo->far_set_size;
+	last_far_set_size += (geo->raid_disks % geo->far_set_size);
 
 	/* now calculate first sector/dev */
 	chunk = r10bio->sector >> geo->chunk_shift;
@@ -551,15 +573,25 @@ static void __raid10_find_phys(struct geom *geo, struct r10bio *r10bio)
 	/* and calculate all the others */
 	for (n = 0; n < geo->near_copies; n++) {
 		int d = dev;
+		int set;
 		sector_t s = sector;
-		r10bio->devs[slot].addr = sector;
 		r10bio->devs[slot].devnum = d;
+		r10bio->devs[slot].addr = s;
 		slot++;
 
 		for (f = 1; f < geo->far_copies; f++) {
+			set = d / geo->far_set_size;
 			d += geo->near_copies;
-			if (d >= geo->raid_disks)
-				d -= geo->raid_disks;
+
+			if ((geo->raid_disks % geo->far_set_size) &&
+			    (d > last_far_set_start)) {
+				d -= last_far_set_start;
+				d %= last_far_set_size;
+				d += last_far_set_start;
+			} else {
+				d %= geo->far_set_size;
+				d += geo->far_set_size * set;
+			}
 			s += geo->stride;
 			r10bio->devs[slot].devnum = d;
 			r10bio->devs[slot].addr = s;
@@ -595,6 +627,20 @@ static sector_t raid10_find_virt(struct r10conf *conf, sector_t sector, int dev)
 	 * or recovery, so reshape isn't happening
 	 */
 	struct geom *geo = &conf->geo;
+	int far_set_start = (dev / geo->far_set_size) * geo->far_set_size;
+	int far_set_size = geo->far_set_size;
+	int last_far_set_start;
+
+	if (geo->raid_disks % geo->far_set_size) {
+		last_far_set_start = (geo->raid_disks / geo->far_set_size) - 1;
+		last_far_set_start *= geo->far_set_size;
+
+		if (dev >= last_far_set_start) {
+			far_set_size = geo->far_set_size;
+			far_set_size += (geo->raid_disks % geo->far_set_size);
+			far_set_start = last_far_set_start;
+		}
+	}
 
 	offset = sector & geo->chunk_mask;
 	if (geo->far_offset) {
@@ -602,13 +648,13 @@ static sector_t raid10_find_virt(struct r10conf *conf, sector_t sector, int dev)
 		chunk = sector >> geo->chunk_shift;
 		fc = sector_div(chunk, geo->far_copies);
 		dev -= fc * geo->near_copies;
-		if (dev < 0)
-			dev += geo->raid_disks;
+		if (dev < far_set_start)
+			dev += far_set_size;
 	} else {
 		while (sector >= geo->stride) {
 			sector -= geo->stride;
-			if (dev < geo->near_copies)
-				dev += geo->raid_disks - geo->near_copies;
+			if (dev < (geo->near_copies + far_set_start))
+				dev += far_set_size - geo->near_copies;
 			else
 				dev -= geo->near_copies;
 		}
@@ -952,7 +998,7 @@ static void raise_barrier(struct r10conf *conf, int force)
 
 	/* Wait until no block IO is waiting (unless 'force') */
 	wait_event_lock_irq(conf->wait_barrier, force || !conf->nr_waiting,
-			    conf->resync_lock, );
+			    conf->resync_lock);
 
 	/* block any new IO from starting */
 	conf->barrier++;
@@ -960,7 +1006,7 @@ static void raise_barrier(struct r10conf *conf, int force)
 	/* Now wait for all pending IO to complete */
 	wait_event_lock_irq(conf->wait_barrier,
 			    !conf->nr_pending && conf->barrier < RESYNC_DEPTH,
-			    conf->resync_lock, );
+			    conf->resync_lock);
 
 	spin_unlock_irq(&conf->resync_lock);
 }
@@ -993,8 +1039,7 @@ static void wait_barrier(struct r10conf *conf)
 				    (conf->nr_pending &&
 				     current->bio_list &&
 				     !bio_list_empty(current->bio_list)),
-				    conf->resync_lock,
-			);
+				    conf->resync_lock);
 		conf->nr_waiting--;
 	}
 	conf->nr_pending++;
@@ -1027,10 +1072,10 @@ static void freeze_array(struct r10conf *conf)
 	spin_lock_irq(&conf->resync_lock);
 	conf->barrier++;
 	conf->nr_waiting++;
-	wait_event_lock_irq(conf->wait_barrier,
-			    conf->nr_pending == conf->nr_queued+1,
-			    conf->resync_lock,
-			    flush_pending_writes(conf));
+	wait_event_lock_irq_cmd(conf->wait_barrier,
+				conf->nr_pending == conf->nr_queued+1,
+				conf->resync_lock,
+				flush_pending_writes(conf));
 
 	spin_unlock_irq(&conf->resync_lock);
 }
@@ -1069,11 +1114,12 @@ static void raid10_unplug(struct blk_plug_cb *cb, bool from_schedule)
 	struct r10conf *conf = mddev->private;
 	struct bio *bio;
 
-	if (from_schedule) {
+	if (from_schedule || current->bio_list) {
 		spin_lock_irq(&conf->device_lock);
 		bio_list_merge(&conf->pending_bio_list, &plug->pending);
 		conf->pending_count += plug->pending_cnt;
 		spin_unlock_irq(&conf->device_lock);
+		wake_up(&conf->wait_barrier);
 		md_wakeup_thread(mddev->thread);
 		kfree(plug);
 		return;
@@ -1106,6 +1152,7 @@ static void make_request(struct mddev *mddev, struct bio * bio)
 	const unsigned long do_fua = (bio->bi_rw & REQ_FUA);
 	const unsigned long do_discard = (bio->bi_rw
 					  & (REQ_DISCARD | REQ_SECURE));
+	const unsigned long do_same = (bio->bi_rw & REQ_WRITE_SAME);
 	unsigned long flags;
 	struct md_rdev *blocked_rdev;
 	struct blk_plug_cb *cb;
@@ -1334,18 +1381,21 @@ retry_write:
 			blocked_rdev = rrdev;
 			break;
 		}
+		if (rdev && (test_bit(Faulty, &rdev->flags)
+			     || test_bit(Unmerged, &rdev->flags)))
+			rdev = NULL;
 		if (rrdev && (test_bit(Faulty, &rrdev->flags)
 			      || test_bit(Unmerged, &rrdev->flags)))
 			rrdev = NULL;
 
 		r10_bio->devs[i].bio = NULL;
 		r10_bio->devs[i].repl_bio = NULL;
-		if (!rdev || test_bit(Faulty, &rdev->flags) ||
-		    test_bit(Unmerged, &rdev->flags)) {
+
+		if (!rdev && !rrdev) {
 			set_bit(R10BIO_Degraded, &r10_bio->state);
 			continue;
 		}
-		if (test_bit(WriteErrorSeen, &rdev->flags)) {
+		if (rdev && test_bit(WriteErrorSeen, &rdev->flags)) {
 			sector_t first_bad;
 			sector_t dev_sector = r10_bio->devs[i].addr;
 			int bad_sectors;
@@ -1387,8 +1437,10 @@ retry_write:
 					max_sectors = good_sectors;
 			}
 		}
-		r10_bio->devs[i].bio = bio;
-		atomic_inc(&rdev->nr_pending);
+		if (rdev) {
+			r10_bio->devs[i].bio = bio;
+			atomic_inc(&rdev->nr_pending);
+		}
 		if (rrdev) {
 			r10_bio->devs[i].repl_bio = bio;
 			atomic_inc(&rrdev->nr_pending);
@@ -1444,69 +1496,73 @@ retry_write:
 	for (i = 0; i < conf->copies; i++) {
 		struct bio *mbio;
 		int d = r10_bio->devs[i].devnum;
-		if (!r10_bio->devs[i].bio)
-			continue;
+		if (r10_bio->devs[i].bio) {
+			struct md_rdev *rdev = conf->mirrors[d].rdev;
+			mbio = bio_clone_mddev(bio, GFP_NOIO, mddev);
+			md_trim_bio(mbio, r10_bio->sector - bio->bi_sector,
+				    max_sectors);
+			r10_bio->devs[i].bio = mbio;
 
-		mbio = bio_clone_mddev(bio, GFP_NOIO, mddev);
-		md_trim_bio(mbio, r10_bio->sector - bio->bi_sector,
-			    max_sectors);
-		r10_bio->devs[i].bio = mbio;
+			mbio->bi_sector	= (r10_bio->devs[i].addr+
+					   choose_data_offset(r10_bio,
+							      rdev));
+			mbio->bi_bdev = rdev->bdev;
+			mbio->bi_end_io	= raid10_end_write_request;
+			mbio->bi_rw =
+				WRITE | do_sync | do_fua | do_discard | do_same;
+			mbio->bi_private = r10_bio;
 
-		mbio->bi_sector	= (r10_bio->devs[i].addr+
-				   choose_data_offset(r10_bio,
-						      conf->mirrors[d].rdev));
-		mbio->bi_bdev = conf->mirrors[d].rdev->bdev;
-		mbio->bi_end_io	= raid10_end_write_request;
-		mbio->bi_rw = WRITE | do_sync | do_fua | do_discard;
-		mbio->bi_private = r10_bio;
+			atomic_inc(&r10_bio->remaining);
 
-		atomic_inc(&r10_bio->remaining);
+			cb = blk_check_plugged(raid10_unplug, mddev,
+					       sizeof(*plug));
+			if (cb)
+				plug = container_of(cb, struct raid10_plug_cb,
+						    cb);
+			else
+				plug = NULL;
+			spin_lock_irqsave(&conf->device_lock, flags);
+			if (plug) {
+				bio_list_add(&plug->pending, mbio);
+				plug->pending_cnt++;
+			} else {
+				bio_list_add(&conf->pending_bio_list, mbio);
+				conf->pending_count++;
+			}
+			spin_unlock_irqrestore(&conf->device_lock, flags);
+			if (!plug)
+				md_wakeup_thread(mddev->thread);
+		}
 
-		cb = blk_check_plugged(raid10_unplug, mddev, sizeof(*plug));
-		if (cb)
-			plug = container_of(cb, struct raid10_plug_cb, cb);
-		else
-			plug = NULL;
-		spin_lock_irqsave(&conf->device_lock, flags);
-		if (plug) {
-			bio_list_add(&plug->pending, mbio);
-			plug->pending_cnt++;
-		} else {
+		if (r10_bio->devs[i].repl_bio) {
+			struct md_rdev *rdev = conf->mirrors[d].replacement;
+			if (rdev == NULL) {
+				/* Replacement just got moved to main 'rdev' */
+				smp_mb();
+				rdev = conf->mirrors[d].rdev;
+			}
+			mbio = bio_clone_mddev(bio, GFP_NOIO, mddev);
+			md_trim_bio(mbio, r10_bio->sector - bio->bi_sector,
+				    max_sectors);
+			r10_bio->devs[i].repl_bio = mbio;
+
+			mbio->bi_sector	= (r10_bio->devs[i].addr +
+					   choose_data_offset(
+						   r10_bio, rdev));
+			mbio->bi_bdev = rdev->bdev;
+			mbio->bi_end_io	= raid10_end_write_request;
+			mbio->bi_rw =
+				WRITE | do_sync | do_fua | do_discard | do_same;
+			mbio->bi_private = r10_bio;
+
+			atomic_inc(&r10_bio->remaining);
+			spin_lock_irqsave(&conf->device_lock, flags);
 			bio_list_add(&conf->pending_bio_list, mbio);
 			conf->pending_count++;
+			spin_unlock_irqrestore(&conf->device_lock, flags);
+			if (!mddev_check_plugged(mddev))
+				md_wakeup_thread(mddev->thread);
 		}
-		spin_unlock_irqrestore(&conf->device_lock, flags);
-		if (!plug)
-			md_wakeup_thread(mddev->thread);
-
-		if (!r10_bio->devs[i].repl_bio)
-			continue;
-
-		mbio = bio_clone_mddev(bio, GFP_NOIO, mddev);
-		md_trim_bio(mbio, r10_bio->sector - bio->bi_sector,
-			    max_sectors);
-		r10_bio->devs[i].repl_bio = mbio;
-
-		/* We are actively writing to the original device
-		 * so it cannot disappear, so the replacement cannot
-		 * become NULL here
-		 */
-		mbio->bi_sector	= (r10_bio->devs[i].addr +
-				   choose_data_offset(
-					   r10_bio,
-					   conf->mirrors[d].replacement));
-		mbio->bi_bdev = conf->mirrors[d].replacement->bdev;
-		mbio->bi_end_io	= raid10_end_write_request;
-		mbio->bi_rw = WRITE | do_sync | do_fua | do_discard;
-		mbio->bi_private = r10_bio;
-
-		atomic_inc(&r10_bio->remaining);
-		spin_lock_irqsave(&conf->device_lock, flags);
-		bio_list_add(&conf->pending_bio_list, mbio);
-		conf->pending_count++;
-		spin_unlock_irqrestore(&conf->device_lock, flags);
-		if (!mddev_check_plugged(mddev))
-			md_wakeup_thread(mddev->thread);
 	}
 
 	/* Don't remove the bias on 'remaining' (one_write_done) until
@@ -3430,7 +3486,7 @@ static int setup_geo(struct geom *geo, struct mddev *mddev, enum geo_type new)
 		disks = mddev->raid_disks + mddev->delta_disks;
 		break;
 	}
-	if (layout >> 17)
+	if (layout >> 18)
 		return -1;
 	if (chunk < (PAGE_SIZE >> 9) ||
 	    !is_power_of_2(chunk))
@@ -3442,6 +3498,7 @@ static int setup_geo(struct geom *geo, struct mddev *mddev, enum geo_type new)
 	geo->near_copies = nc;
 	geo->far_copies = fc;
 	geo->far_offset = fo;
+	geo->far_set_size = (layout & (1<<17)) ? disks / fc : disks;
 	geo->chunk_mask = chunk - 1;
 	geo->chunk_shift = ffz(~chunk);
 	return nc*fc;
@@ -3563,6 +3620,8 @@ static int run(struct mddev *mddev)
 	if (mddev->queue) {
 		blk_queue_max_discard_sectors(mddev->queue,
 					      mddev->chunk_sectors);
+		blk_queue_max_write_same_sectors(mddev->queue,
+						 mddev->chunk_sectors);
 		blk_queue_io_min(mddev->queue, chunk_size);
 		if (conf->geo.raid_disks % conf->geo.near_copies)
 			blk_queue_io_opt(mddev->queue, chunk_size * conf->geo.raid_disks);

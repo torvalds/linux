@@ -85,7 +85,7 @@ enum chips { lm78, lm79 };
  */
 static inline u8 IN_TO_REG(unsigned long val)
 {
-	unsigned long nval = SENSORS_LIMIT(val, 0, 4080);
+	unsigned long nval = clamp_val(val, 0, 4080);
 	return (nval + 8) / 16;
 }
 #define IN_FROM_REG(val) ((val) *  16)
@@ -94,7 +94,7 @@ static inline u8 FAN_TO_REG(long rpm, int div)
 {
 	if (rpm <= 0)
 		return 255;
-	return SENSORS_LIMIT((1350000 + rpm * div / 2) / (rpm * div), 1, 254);
+	return clamp_val((1350000 + rpm * div / 2) / (rpm * div), 1, 254);
 }
 
 static inline int FAN_FROM_REG(u8 val, int div)
@@ -108,7 +108,7 @@ static inline int FAN_FROM_REG(u8 val, int div)
  */
 static inline s8 TEMP_TO_REG(int val)
 {
-	int nval = SENSORS_LIMIT(val, -128000, 127000) ;
+	int nval = clamp_val(val, -128000, 127000) ;
 	return nval < 0 ? (nval - 500) / 1000 : (nval + 500) / 1000;
 }
 
@@ -833,7 +833,7 @@ static struct lm78_data *lm78_update_device(struct device *dev)
 }
 
 #ifdef CONFIG_ISA
-static int __devinit lm78_isa_probe(struct platform_device *pdev)
+static int lm78_isa_probe(struct platform_device *pdev)
 {
 	int err;
 	struct lm78_data *data;
@@ -886,7 +886,7 @@ static int __devinit lm78_isa_probe(struct platform_device *pdev)
 	return err;
 }
 
-static int __devexit lm78_isa_remove(struct platform_device *pdev)
+static int lm78_isa_remove(struct platform_device *pdev)
 {
 	struct lm78_data *data = platform_get_drvdata(pdev);
 
@@ -903,7 +903,7 @@ static struct platform_driver lm78_isa_driver = {
 		.name	= "lm78",
 	},
 	.probe		= lm78_isa_probe,
-	.remove		= __devexit_p(lm78_isa_remove),
+	.remove		= lm78_isa_remove,
 };
 
 /* return 1 if a supported chip is found, 0 otherwise */
