@@ -381,7 +381,7 @@ struct amap_cq_context_be {
 	u8 rsvd5[32];		/* dword 3*/
 } __packed;
 
-struct amap_cq_context_lancer {
+struct amap_cq_context_v2 {
 	u8 rsvd0[12];		/* dword 0*/
 	u8 coalescwm[2];	/* dword 0*/
 	u8 nodelay;		/* dword 0*/
