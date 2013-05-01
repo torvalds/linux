@@ -665,6 +665,12 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 		 */
 		regs->flags &= ~X86_EFLAGS_DF;
 		/*
+		 * Clear RF when entering the signal handler, because
+		 * it might disable possible debug exception from the
+		 * signal handler.
+		 */
+		regs->flags &= ~X86_EFLAGS_RF;
+		/*
 		 * Clear TF when entering the signal handler, but
 		 * notify any tracer that was single-stepping it.
 		 * The tracer may want to single-step inside the
