@@ -107,6 +107,7 @@ struct fimd_context {
 	atomic_t			wait_vsync_event;
 
 	struct exynos_drm_panel_info *panel;
+	struct fimd_driver_data *driver_data;
 };
 
 #ifdef CONFIG_OF
@@ -239,10 +240,9 @@ static void fimd_commit(struct device *dev)
 	struct exynos_drm_panel_info *panel = ctx->panel;
 	struct fb_videomode *timing = &panel->timing;
 	struct fimd_driver_data *driver_data;
-	struct platform_device *pdev = to_platform_device(dev);
 	u32 val;
 
-	driver_data = drm_fimd_get_driver_data(pdev);
+	driver_data = ctx->driver_data;
 	if (ctx->suspended)
 		return;
 
@@ -949,6 +949,7 @@ static int fimd_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	ctx->driver_data = drm_fimd_get_driver_data(pdev);
 	ctx->vidcon0 = pdata->vidcon0;
 	ctx->vidcon1 = pdata->vidcon1;
 	ctx->default_win = pdata->default_win;
