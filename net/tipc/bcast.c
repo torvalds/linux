@@ -611,6 +611,7 @@ static int tipc_bcbearer_send(struct sk_buff *buf,
 		struct tipc_bearer *p = bcbearer->bpairs[bp_index].primary;
 		struct tipc_bearer *s = bcbearer->bpairs[bp_index].secondary;
 		struct tipc_bearer *b = p;
+		struct sk_buff *tbuf;
 
 		if (!p)
 			break; /* No more bearers to try */
@@ -626,7 +627,17 @@ static int tipc_bcbearer_send(struct sk_buff *buf,
 		if (bcbearer->remains_new.count == bcbearer->remains.count)
 			continue; /* Nothing added by bearer pair */
 
-		tipc_bearer_send(b, buf, &b->bcast_addr);
+		if (bp_index == 0) {
+			/* Use original buffer for first bearer */
+			tipc_bearer_send(b, buf, &b->bcast_addr);
+		} else {
+			/* Avoid concurrent buffer access */
+			tbuf = pskb_copy(buf, GFP_ATOMIC);
+			if (!tbuf)
+				break;
+			tipc_bearer_send(b, tbuf, &b->bcast_addr);
+			kfree_skb(tbuf); /* Bearer keeps a clone */
+		}
 
 		/* Swap bearers for next packet */
 		if (s) {
