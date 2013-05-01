@@ -2221,6 +2221,9 @@ static int kvm_device_release(struct inode *inode, struct file *filp)
 
 static const struct file_operations kvm_device_fops = {
 	.unlocked_ioctl = kvm_device_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = kvm_device_ioctl,
+#endif
 	.release = kvm_device_release,
 };
 
