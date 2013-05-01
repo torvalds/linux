@@ -824,11 +824,28 @@ struct kern_ipc_perm *ipcctl_pre_down(struct ipc_namespace *ns,
 				      struct ipc64_perm *perm, int extra_perm)
 {
 	struct kern_ipc_perm *ipcp;
+
+	ipcp = ipcctl_pre_down_nolock(ns, ids, id, cmd, perm, extra_perm);
+	if (IS_ERR(ipcp))
+		goto out;
+
+	spin_lock(&ipcp->lock);
+out:
+	return ipcp;
+}
+
+struct kern_ipc_perm *ipcctl_pre_down_nolock(struct ipc_namespace *ns,
+					     struct ipc_ids *ids, int id, int cmd,
+					     struct ipc64_perm *perm, int extra_perm)
+{
 	kuid_t euid;
-	int err;
+	int err = -EPERM;
+	struct kern_ipc_perm *ipcp;
 
 	down_write(&ids->rw_mutex);
-	ipcp = ipc_lock_check(ids, id);
+	rcu_read_lock();
+
+	ipcp = ipc_obtain_object_check(ids, id);
 	if (IS_ERR(ipcp)) {
 		err = PTR_ERR(ipcp);
 		goto out_up;
@@ -837,17 +854,21 @@ struct kern_ipc_perm *ipcctl_pre_down(struct ipc_namespace *ns,
 	audit_ipc_obj(ipcp);
 	if (cmd == IPC_SET)
 		audit_ipc_set_perm(extra_perm, perm->uid,
-					 perm->gid, perm->mode);
+				   perm->gid, perm->mode);
 
 	euid = current_euid();
 	if (uid_eq(euid, ipcp->cuid) || uid_eq(euid, ipcp->uid)  ||
 	    ns_capable(ns->user_ns, CAP_SYS_ADMIN))
 		return ipcp;
 
-	err = -EPERM;
-	ipc_unlock(ipcp);
 out_up:
+	/*
+	 * Unsuccessful lookup, unlock and return
+	 * the corresponding error.
+	 */
+	rcu_read_unlock();
 	up_write(&ids->rw_mutex);
+
 	return ERR_PTR(err);
 }
 
