@@ -862,16 +862,8 @@ long do_msgrcv(int msqid, void __user *buf, size_t bufsz, long msgtyp,
 						walk_msg->m_type != 1) {
 					msgtyp = walk_msg->m_type - 1;
 				} else if (msgflg & MSG_COPY) {
-					if (copy_number == msg_counter) {
-						/*
-						 * Found requested message.
-						 * Copy it.
-						 */
-						msg = copy_msg(msg, copy);
-						if (IS_ERR(msg))
-							goto out_unlock;
+					if (copy_number == msg_counter)
 						break;
-					}
 					msg = ERR_PTR(-EAGAIN);
 				} else
 					break;
@@ -892,8 +884,10 @@ long do_msgrcv(int msqid, void __user *buf, size_t bufsz, long msgtyp,
 			 * If we are copying, then do not unlink message and do
 			 * not update queue parameters.
 			 */
-			if (msgflg & MSG_COPY)
+			if (msgflg & MSG_COPY) {
+				msg = copy_msg(msg, copy);
 				goto out_unlock;
+			}
 			list_del(&msg->m_list);
 			msq->q_qnum--;
 			msq->q_rtime = get_seconds();
