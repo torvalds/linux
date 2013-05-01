@@ -3989,7 +3989,7 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		last_for_get_extent = isize;
 	}
 
-	lock_extent_bits(&BTRFS_I(inode)->io_tree, start, start + len, 0,
+	lock_extent_bits(&BTRFS_I(inode)->io_tree, start, start + len - 1, 0,
 			 &cached_state);
 
 	em = get_extent_skip_holes(inode, start, last_for_get_extent,
@@ -4076,7 +4076,7 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 out_free:
 	free_extent_map(em);
 out:
-	unlock_extent_cached(&BTRFS_I(inode)->io_tree, start, start + len,
+	unlock_extent_cached(&BTRFS_I(inode)->io_tree, start, start + len - 1,
 			     &cached_state, GFP_NOFS);
 	return ret;
 }
