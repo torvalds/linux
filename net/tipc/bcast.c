@@ -584,8 +584,7 @@ static int tipc_bcbearer_send(struct sk_buff *buf,
 {
 	int bp_index;
 
-	/*
-	 * Prepare broadcast link message for reliable transmission,
+	/* Prepare broadcast link message for reliable transmission,
 	 * if first time trying to send it;
 	 * preparation is skipped for broadcast link protocol messages
 	 * since they are sent in an unreliable manner and don't need it
@@ -613,11 +612,12 @@ static int tipc_bcbearer_send(struct sk_buff *buf,
 		struct tipc_bearer *s = bcbearer->bpairs[bp_index].secondary;
 
 		if (!p)
-			break;	/* no more bearers to try */
+			break; /* No more bearers to try */
 
-		tipc_nmap_diff(&bcbearer->remains, &p->nodes, &bcbearer->remains_new);
+		tipc_nmap_diff(&bcbearer->remains, &p->nodes,
+			       &bcbearer->remains_new);
 		if (bcbearer->remains_new.count == bcbearer->remains.count)
-			continue;	/* bearer pair doesn't add anything */
+			continue; /* Nothing added by bearer pair */
 
 		if (!tipc_bearer_blocked(p))
 			tipc_bearer_send(p, buf, &p->bcast_addr);
@@ -628,13 +628,14 @@ static int tipc_bcbearer_send(struct sk_buff *buf,
 			/* unable to send on either bearer */
 			continue;
 
+		/* Swap bearers for next packet */
 		if (s) {
 			bcbearer->bpairs[bp_index].primary = s;
 			bcbearer->bpairs[bp_index].secondary = p;
 		}
 
 		if (bcbearer->remains_new.count == 0)
-			break;	/* all targets reached */
+			break; /* All targets reached */
 
 		bcbearer->remains = bcbearer->remains_new;
 	}
