@@ -1332,7 +1332,13 @@ s32 igb_id_led_init(struct e1000_hw *hw)
 	u16 data, i, temp;
 	const u16 led_mask = 0x0F;
 
-	ret_val = igb_valid_led_default(hw, &data);
+	/* i210 and i211 devices have different LED mechanism */
+	if ((hw->mac.type == e1000_i210) ||
+	    (hw->mac.type == e1000_i211))
+		ret_val = igb_valid_led_default_i210(hw, &data);
+	else
+		ret_val = igb_valid_led_default(hw, &data);
+
 	if (ret_val)
 		goto out;
 
