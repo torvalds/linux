@@ -82,10 +82,10 @@ module_param_named(max_lun, iscsi_max_lun, uint, S_IRUGO);
 
 int iser_debug_level = 0;
 
-MODULE_DESCRIPTION("iSER (iSCSI Extensions for RDMA) Datamover "
-		   "v" DRV_VER " (" DRV_DATE ")");
+MODULE_DESCRIPTION("iSER (iSCSI Extensions for RDMA) Datamover");
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_AUTHOR("Alex Nezhinsky, Dan Bar Dov, Or Gerlitz");
+MODULE_VERSION(DRV_VER);
 
 module_param_named(debug_level, iser_debug_level, int, 0644);
 MODULE_PARM_DESC(debug_level, "Enable debug tracing if > 0 (default:disabled)");
@@ -682,7 +682,7 @@ static umode_t iser_attr_is_visible(int param_type, int param)
 
 static struct scsi_host_template iscsi_iser_sht = {
 	.module                 = THIS_MODULE,
-	.name                   = "iSCSI Initiator over iSER, v." DRV_VER,
+	.name                   = "iSCSI Initiator over iSER",
 	.queuecommand           = iscsi_queuecommand,
 	.change_queue_depth	= iscsi_change_queue_depth,
 	.sg_tablesize           = ISCSI_ISER_SG_TABLESIZE,

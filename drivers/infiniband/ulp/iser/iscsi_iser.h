@@ -65,8 +65,7 @@
 
 #define DRV_NAME	"iser"
 #define PFX		DRV_NAME ": "
-#define DRV_VER		"0.1"
-#define DRV_DATE	"May 7th, 2006"
+#define DRV_VER		"1.1"
 
 #define iser_dbg(fmt, arg...)				\
 	do {						\
