@@ -2371,14 +2371,14 @@ fuse_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 			loff_t offset, unsigned long nr_segs)
 {
 	ssize_t ret = 0;
-	struct file *file = NULL;
+	struct file *file = iocb->ki_filp;
+	struct fuse_file *ff = file->private_data;
 	loff_t pos = 0;
 	struct inode *inode;
 	loff_t i_size;
 	size_t count = iov_length(iov, nr_segs);
 	struct fuse_io_priv *io;
 
-	file = iocb->ki_filp;
 	pos = offset;
 	inode = file->f_mapping->host;
 	i_size = i_size_read(inode);
@@ -2403,9 +2403,9 @@ fuse_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 	io->file = file;
 	/*
 	 * By default, we want to optimize all I/Os with async request
-	 * submission to the client filesystem.
+	 * submission to the client filesystem if supported.
 	 */
-	io->async = 1;
+	io->async = ff->fc->async_dio;
 	io->iocb = iocb;
 
 	/*

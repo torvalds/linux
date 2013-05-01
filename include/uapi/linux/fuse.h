@@ -90,6 +90,9 @@
  * 7.21
  *  - add FUSE_READDIRPLUS
  *  - send the requested events in POLL request
+ *
+ * 7.22
+ *  - add FUSE_ASYNC_DIO
  */
 
 #ifndef _LINUX_FUSE_H
@@ -125,7 +128,7 @@
 #define FUSE_KERNEL_VERSION 7
 
 /** Minor version number of this interface */
-#define FUSE_KERNEL_MINOR_VERSION 21
+#define FUSE_KERNEL_MINOR_VERSION 22
 
 /** The node ID of the root inode */
 #define FUSE_ROOT_ID 1
@@ -215,6 +218,7 @@ struct fuse_file_lock {
  * FUSE_AUTO_INVAL_DATA: automatically invalidate cached pages
  * FUSE_DO_READDIRPLUS: do READDIRPLUS (READDIR+LOOKUP in one)
  * FUSE_READDIRPLUS_AUTO: adaptive readdirplus
+ * FUSE_ASYNC_DIO: asynchronous direct I/O submission
  */
 #define FUSE_ASYNC_READ		(1 << 0)
 #define FUSE_POSIX_LOCKS	(1 << 1)
@@ -231,6 +235,7 @@ struct fuse_file_lock {
 #define FUSE_AUTO_INVAL_DATA	(1 << 12)
 #define FUSE_DO_READDIRPLUS	(1 << 13)
 #define FUSE_READDIRPLUS_AUTO	(1 << 14)
+#define FUSE_ASYNC_DIO		(1 << 15)
 
 /**
  * CUSE INIT request/reply flags

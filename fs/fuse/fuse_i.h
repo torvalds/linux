@@ -541,6 +541,9 @@ struct fuse_conn {
 	/** Does the filesystem want adaptive readdirplus? */
 	unsigned readdirplus_auto:1;
 
+	/** Does the filesystem support asynchronous direct-IO submission? */
+	unsigned async_dio:1;
+
 	/** The number of requests waiting for completion */
 	atomic_t num_waiting;
 
