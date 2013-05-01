@@ -15,14 +15,11 @@
 #define asmlinkage CPP_ASMLINKAGE
 #endif
 
-#ifndef SYMBOL_NAME
 #ifdef CONFIG_SYMBOL_PREFIX
-#define SYMBOL_NAME(x) CONFIG_SYMBOL_PREFIX ## x
+#define __SYMBOL_NAME(x) CONFIG_SYMBOL_PREFIX __stringify(x)
 #else
-#define SYMBOL_NAME(x) x
+#define __SYMBOL_NAME(x) __stringify(x)
 #endif
-#endif
-#define __SYMBOL_NAME(x) __stringify(SYMBOL_NAME(x))
 
 #ifndef cond_syscall
 #define cond_syscall(x) asm(".weak\t" __SYMBOL_NAME(x) \
