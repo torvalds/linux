@@ -471,11 +471,26 @@ static void accumulate_16bit_val(u32 *acc, u16 val)
 	ACCESS_ONCE(*acc) = newacc;
 }
 
+void populate_erx_stats(struct be_adapter *adapter,
+			struct be_rx_obj *rxo,
+			u32 erx_stat)
+{
+	if (!BEx_chip(adapter))
+		rx_stats(rxo)->rx_drops_no_frags = erx_stat;
+	else
+		/* below erx HW counter can actually wrap around after
+		 * 65535. Driver accumulates a 32-bit value
+		 */
+		accumulate_16bit_val(&rx_stats(rxo)->rx_drops_no_frags,
+				     (u16)erx_stat);
+}
+
 void be_parse_stats(struct be_adapter *adapter)
 {
 	struct be_erx_stats_v1 *erx = be_erx_stats_from_cmd(adapter);
 	struct be_rx_obj *rxo;
 	int i;
+	u32 erx_stat;
 
 	if (lancer_chip(adapter)) {
 		populate_lancer_stats(adapter);
@@ -488,12 +503,8 @@ void be_parse_stats(struct be_adapter *adapter)
 
 		/* as erx_v1 is longer than v0, ok to use v1 for v0 access */
 		for_all_rx_queues(adapter, rxo, i) {
-			/* below erx HW counter can actually wrap around after
-			 * 65535. Driver accumulates a 32-bit value
-			 */
-			accumulate_16bit_val(&rx_stats(rxo)->rx_drops_no_frags,
-					     (u16)erx->rx_drops_no_fragments \
-					     [rxo->q.id]);
+			erx_stat = erx->rx_drops_no_fragments[rxo->q.id];
+			populate_erx_stats(adapter, rxo, erx_stat);
 		}
 	}
 }
