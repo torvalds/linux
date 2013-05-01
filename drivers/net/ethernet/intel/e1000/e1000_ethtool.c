@@ -1020,12 +1020,11 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 	txdr->size = txdr->count * sizeof(struct e1000_tx_desc);
 	txdr->size = ALIGN(txdr->size, 4096);
 	txdr->desc = dma_alloc_coherent(&pdev->dev, txdr->size, &txdr->dma,
-					GFP_KERNEL);
+					GFP_KERNEL | __GFP_ZERO);
 	if (!txdr->desc) {
 		ret_val = 2;
 		goto err_nomem;
 	}
-	memset(txdr->desc, 0, txdr->size);
 	txdr->next_to_use = txdr->next_to_clean = 0;
 
 	ew32(TDBAL, ((u64)txdr->dma & 0x00000000FFFFFFFF));
@@ -1079,12 +1078,11 @@ static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
 
 	rxdr->size = rxdr->count * sizeof(struct e1000_rx_desc);
 	rxdr->desc = dma_alloc_coherent(&pdev->dev, rxdr->size, &rxdr->dma,
-					GFP_KERNEL);
+					GFP_KERNEL | __GFP_ZERO);
 	if (!rxdr->desc) {
 		ret_val = 6;
 		goto err_nomem;
 	}
-	memset(rxdr->desc, 0, rxdr->size);
 	rxdr->next_to_use = rxdr->next_to_clean = 0;
 
 	rctl = er32(RCTL);

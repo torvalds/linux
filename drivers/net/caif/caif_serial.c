@@ -1,6 +1,6 @@
 /*
  * Copyright (C) ST-Ericsson AB 2010
- * Author:	Sjur Brendeland / sjur.brandeland@stericsson.com
+ * Author:	Sjur Brendeland
  * License terms: GNU General Public License (GPL) version 2
  */
 
@@ -21,7 +21,7 @@
 #include <linux/debugfs.h>
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Sjur Brendeland<sjur.brandeland@stericsson.com>");
+MODULE_AUTHOR("Sjur Brendeland");
 MODULE_DESCRIPTION("CAIF serial device TTY line discipline");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_LDISC(N_CAIF);

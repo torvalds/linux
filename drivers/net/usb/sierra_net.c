@@ -413,11 +413,10 @@ static void sierra_net_handle_lsi(struct usbnet *dev, char *data,
 	if (link_up) {
 		sierra_net_set_ctx_index(priv, hh->msgspecific.byte);
 		priv->link_up = 1;
-		netif_carrier_on(dev->net);
 	} else {
 		priv->link_up = 0;
-		netif_carrier_off(dev->net);
 	}
+	usbnet_link_change(dev, link_up, 0);
 }
 
 static void sierra_net_dosync(struct usbnet *dev)

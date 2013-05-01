@@ -88,6 +88,9 @@ struct cfg80211_registered_device {
 
 	struct delayed_work dfs_update_channels_wk;
 
+	/* netlink port which started critical protocol (0 means not started) */
+	u32 crit_proto_nlportid;
+
 	/* must be last because of the way we do wiphy_priv(),
 	 * and it should at least be aligned to NETDEV_ALIGN */
 	struct wiphy wiphy __aligned(NETDEV_ALIGN);
@@ -330,20 +333,15 @@ int cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 int __cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 			  struct net_device *dev,
 			  struct ieee80211_channel *chan,
-			  const u8 *bssid, const u8 *prev_bssid,
+			  const u8 *bssid,
 			  const u8 *ssid, int ssid_len,
-			  const u8 *ie, int ie_len, bool use_mfp,
-			  struct cfg80211_crypto_settings *crypt,
-			  u32 assoc_flags, struct ieee80211_ht_cap *ht_capa,
-			  struct ieee80211_ht_cap *ht_capa_mask);
+			  struct cfg80211_assoc_request *req);
 int cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
-			struct net_device *dev, struct ieee80211_channel *chan,
-			const u8 *bssid, const u8 *prev_bssid,
+			struct net_device *dev,
+			struct ieee80211_channel *chan,
+			const u8 *bssid,
 			const u8 *ssid, int ssid_len,
-			const u8 *ie, int ie_len, bool use_mfp,
-			struct cfg80211_crypto_settings *crypt,
-			u32 assoc_flags, struct ieee80211_ht_cap *ht_capa,
-			struct ieee80211_ht_cap *ht_capa_mask);
+			struct cfg80211_assoc_request *req);
 int __cfg80211_mlme_deauth(struct cfg80211_registered_device *rdev,
 			   struct net_device *dev, const u8 *bssid,
 			   const u8 *ie, int ie_len, u16 reason,
@@ -375,6 +373,8 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 			  bool no_cck, bool dont_wait_for_ack, u64 *cookie);
 void cfg80211_oper_and_ht_capa(struct ieee80211_ht_cap *ht_capa,
 			       const struct ieee80211_ht_cap *ht_capa_mask);
+void cfg80211_oper_and_vht_capa(struct ieee80211_vht_cap *vht_capa,
+				const struct ieee80211_vht_cap *vht_capa_mask);
 
 /* SME */
 int __cfg80211_connect(struct cfg80211_registered_device *rdev,
@@ -502,6 +502,9 @@ int cfg80211_validate_beacon_int(struct cfg80211_registered_device *rdev,
 
 void cfg80211_update_iface_num(struct cfg80211_registered_device *rdev,
 			       enum nl80211_iftype iftype, int num);
+
+void cfg80211_leave(struct cfg80211_registered_device *rdev,
+		    struct wireless_dev *wdev);
 
 void cfg80211_stop_p2p_device(struct cfg80211_registered_device *rdev,
 			      struct wireless_dev *wdev);

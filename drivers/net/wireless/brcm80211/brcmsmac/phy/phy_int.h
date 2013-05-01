@@ -488,7 +488,6 @@ struct lcnphy_cal_results {
 struct shared_phy {
 	struct brcms_phy *phy_head;
 	uint unit;
-	struct si_pub *sih;
 	struct phy_shim_info *physhim;
 	uint corerev;
 	u32 machwcap;

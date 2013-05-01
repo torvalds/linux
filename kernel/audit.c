@@ -58,7 +58,7 @@
 #ifdef CONFIG_SECURITY
 #include <linux/security.h>
 #endif
-#include <linux/netlink.h>
+#include <net/netlink.h>
 #include <linux/freezer.h>
 #include <linux/tty.h>
 #include <linux/pid_namespace.h>
@@ -910,7 +910,7 @@ static void audit_receive_skb(struct sk_buff *skb)
 {
 	struct nlmsghdr *nlh;
 	/*
-	 * len MUST be signed for NLMSG_NEXT to be able to dec it below 0
+	 * len MUST be signed for nlmsg_next to be able to dec it below 0
 	 * if the nlmsg_len was not aligned
 	 */
 	int len;
@@ -919,13 +919,13 @@ static void audit_receive_skb(struct sk_buff *skb)
 	nlh = nlmsg_hdr(skb);
 	len = skb->len;
 
-	while (NLMSG_OK(nlh, len)) {
+	while (nlmsg_ok(nlh, len)) {
 		err = audit_receive_msg(skb, nlh);
 		/* if err or if this message says it wants a response */
 		if (err || (nlh->nlmsg_flags & NLM_F_ACK))
 			netlink_ack(skb, nlh, err);
 
-		nlh = NLMSG_NEXT(nlh, len);
+		nlh = nlmsg_next(nlh, &len);
 	}
 }
 
@@ -1483,7 +1483,7 @@ void audit_log_end(struct audit_buffer *ab)
 		audit_log_lost("rate limit exceeded");
 	} else {
 		struct nlmsghdr *nlh = nlmsg_hdr(ab->skb);
-		nlh->nlmsg_len = ab->skb->len - NLMSG_SPACE(0);
+		nlh->nlmsg_len = ab->skb->len - NLMSG_HDRLEN;
 
 		if (audit_pid) {
 			skb_queue_tail(&audit_skb_queue, ab->skb);

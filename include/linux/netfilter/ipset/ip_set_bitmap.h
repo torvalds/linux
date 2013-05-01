@@ -5,6 +5,12 @@
 
 #define IPSET_BITMAP_MAX_RANGE	0x0000FFFF
 
+enum {
+	IPSET_ADD_FAILED = 1,
+	IPSET_ADD_STORE_PLAIN_TIMEOUT,
+	IPSET_ADD_START_STORED_TIMEOUT,
+};
+
 /* Common functions */
 
 static inline u32

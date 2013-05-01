@@ -92,23 +92,14 @@ int bt_sock_register(int proto, const struct net_proto_family *ops)
 }
 EXPORT_SYMBOL(bt_sock_register);
 
-int bt_sock_unregister(int proto)
+void bt_sock_unregister(int proto)
 {
-	int err = 0;
-
 	if (proto < 0 || proto >= BT_MAX_PROTO)
-		return -EINVAL;
+		return;
 
 	write_lock(&bt_proto_lock);
-
-	if (!bt_proto[proto])
-		err = -ENOENT;
-	else
-		bt_proto[proto] = NULL;
-
+	bt_proto[proto] = NULL;
 	write_unlock(&bt_proto_lock);
-
-	return err;
 }
 EXPORT_SYMBOL(bt_sock_unregister);
 
@@ -422,7 +413,8 @@ unsigned int bt_sock_poll(struct file *file, struct socket *sock,
 		return bt_accept_poll(sk);
 
 	if (sk->sk_err || !skb_queue_empty(&sk->sk_error_queue))
-		mask |= POLLERR;
+		mask |= POLLERR |
+			(sock_flag(sk, SOCK_SELECT_ERR_QUEUE) ? POLLPRI : 0);
 
 	if (sk->sk_shutdown & RCV_SHUTDOWN)
 		mask |= POLLRDHUP | POLLIN | POLLRDNORM;

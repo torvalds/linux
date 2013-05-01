@@ -38,7 +38,7 @@
 
 #include "ucc_geth.h"
 
-static char hw_stat_gstrings[][ETH_GSTRING_LEN] = {
+static const char hw_stat_gstrings[][ETH_GSTRING_LEN] = {
 	"tx-64-frames",
 	"tx-65-127-frames",
 	"tx-128-255-frames",
@@ -59,7 +59,7 @@ static char hw_stat_gstrings[][ETH_GSTRING_LEN] = {
 	"rx-dropped-frames",
 };
 
-static char tx_fw_stat_gstrings[][ETH_GSTRING_LEN] = {
+static const char tx_fw_stat_gstrings[][ETH_GSTRING_LEN] = {
 	"tx-single-collision",
 	"tx-multiple-collision",
 	"tx-late-collsion",
@@ -74,7 +74,7 @@ static char tx_fw_stat_gstrings[][ETH_GSTRING_LEN] = {
 	"tx-jumbo-frames",
 };
 
-static char rx_fw_stat_gstrings[][ETH_GSTRING_LEN] = {
+static const char rx_fw_stat_gstrings[][ETH_GSTRING_LEN] = {
 	"rx-crc-errors",
 	"rx-alignment-errors",
 	"rx-in-range-length-errors",
@@ -160,8 +160,7 @@ uec_set_pauseparam(struct net_device *netdev,
 	if (ugeth->phydev->autoneg) {
 		if (netif_running(netdev)) {
 			/* FIXME: automatically restart */
-			printk(KERN_INFO
-				"Please re-open the interface.\n");
+			netdev_info(netdev, "Please re-open the interface\n");
 		}
 	} else {
 		struct ucc_geth_info *ug_info = ugeth->ug_info;
@@ -240,18 +239,18 @@ uec_set_ringparam(struct net_device *netdev,
 	int queue = 0, ret = 0;
 
 	if (ring->rx_pending < UCC_GETH_RX_BD_RING_SIZE_MIN) {
-		printk("%s: RxBD ring size must be no smaller than %d.\n",
-			       	netdev->name, UCC_GETH_RX_BD_RING_SIZE_MIN);
+		netdev_info(netdev, "RxBD ring size must be no smaller than %d\n",
+			    UCC_GETH_RX_BD_RING_SIZE_MIN);
 		return -EINVAL;
 	}
 	if (ring->rx_pending % UCC_GETH_RX_BD_RING_SIZE_ALIGNMENT) {
-		printk("%s: RxBD ring size must be multiple of %d.\n",
-			netdev->name, UCC_GETH_RX_BD_RING_SIZE_ALIGNMENT);
+		netdev_info(netdev, "RxBD ring size must be multiple of %d\n",
+			    UCC_GETH_RX_BD_RING_SIZE_ALIGNMENT);
 		return -EINVAL;
 	}
 	if (ring->tx_pending < UCC_GETH_TX_BD_RING_SIZE_MIN) {
-		printk("%s: TxBD ring size must be no smaller than %d.\n",
-				netdev->name, UCC_GETH_TX_BD_RING_SIZE_MIN);
+		netdev_info(netdev, "TxBD ring size must be no smaller than %d\n",
+			    UCC_GETH_TX_BD_RING_SIZE_MIN);
 		return -EINVAL;
 	}
 
@@ -260,8 +259,7 @@ uec_set_ringparam(struct net_device *netdev,
 
 	if (netif_running(netdev)) {
 		/* FIXME: restart automatically */
-		printk(KERN_INFO
-			"Please re-open the interface.\n");
+		netdev_info(netdev, "Please re-open the interface\n");
 	}
 
 	return ret;

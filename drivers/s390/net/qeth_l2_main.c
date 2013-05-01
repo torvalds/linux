@@ -302,7 +302,8 @@ static void qeth_l2_process_vlans(struct qeth_card *card)
 	spin_unlock_bh(&card->vlanlock);
 }
 
-static int qeth_l2_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
+static int qeth_l2_vlan_rx_add_vid(struct net_device *dev,
+				   __be16 proto, u16 vid)
 {
 	struct qeth_card *card = dev->ml_priv;
 	struct qeth_vlan_vid *id;
@@ -331,7 +332,8 @@ static int qeth_l2_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 	return 0;
 }
 
-static int qeth_l2_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
+static int qeth_l2_vlan_rx_kill_vid(struct net_device *dev,
+				    __be16 proto, u16 vid)
 {
 	struct qeth_vlan_vid *id, *tmpid = NULL;
 	struct qeth_card *card = dev->ml_priv;
@@ -771,8 +773,7 @@ static int qeth_l2_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 
-	elements = qeth_get_elements_no(card, (void *)hdr, new_skb,
-						elements_needed);
+	elements = qeth_get_elements_no(card, new_skb, elements_needed);
 	if (!elements) {
 		if (data_offset >= 0)
 			kmem_cache_free(qeth_core_header_cache, hdr);
@@ -780,7 +781,7 @@ static int qeth_l2_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	if (card->info.type != QETH_CARD_TYPE_IQD) {
-		if (qeth_hdr_chk_and_bounce(new_skb,
+		if (qeth_hdr_chk_and_bounce(new_skb, &hdr,
 		    sizeof(struct qeth_hdr_layer2)))
 			goto tx_drop;
 		rc = qeth_do_send_packet(card, queue, new_skb, hdr,
@@ -959,7 +960,7 @@ static int qeth_l2_setup_netdev(struct qeth_card *card)
 		SET_ETHTOOL_OPS(card->dev, &qeth_l2_ethtool_ops);
 	else
 		SET_ETHTOOL_OPS(card->dev, &qeth_l2_osn_ops);
-	card->dev->features |= NETIF_F_HW_VLAN_FILTER;
+	card->dev->features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 	card->info.broadcast_capable = 1;
 	qeth_l2_request_initial_mac(card);
 	SET_NETDEV_DEV(card->dev, &card->gdev->dev);
