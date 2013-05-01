@@ -3114,6 +3114,25 @@ static int rbd_dev_v1_refresh(struct rbd_device *rbd_dev)
 	return ret;
 }
 
+/*
+ * Clear the rbd device's EXISTS flag if the snapshot it's mapped to
+ * has disappeared from the (just updated) snapshot context.
+ */
+static void rbd_exists_validate(struct rbd_device *rbd_dev)
+{
+	u64 snap_id;
+
+	if (!test_bit(RBD_DEV_FLAG_EXISTS, &rbd_dev->flags))
+		return;
+
+	snap_id = rbd_dev->spec->snap_id;
+	if (snap_id == CEPH_NOSNAP)
+		return;
+
+	if (rbd_dev_snap_index(rbd_dev, snap_id) == BAD_SNAP_INDEX)
+		clear_bit(RBD_DEV_FLAG_EXISTS, &rbd_dev->flags);
+}
+
 static int rbd_dev_refresh(struct rbd_device *rbd_dev)
 {
 	u64 image_size;
@@ -3126,6 +3145,10 @@ static int rbd_dev_refresh(struct rbd_device *rbd_dev)
 		ret = rbd_dev_v1_refresh(rbd_dev);
 	else
 		ret = rbd_dev_v2_refresh(rbd_dev);
+
+	/* If it's a mapped snapshot, validate its EXISTS flag */
+
+	rbd_exists_validate(rbd_dev);
 	mutex_unlock(&ctl_mutex);
 	if (ret)
 		rbd_warn(rbd_dev, "got notification but failed to "
