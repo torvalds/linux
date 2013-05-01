@@ -43,12 +43,6 @@
 
 #include <asm/sigframe.h>
 
-#ifdef CONFIG_X86_32
-# define FIX_EFLAGS	(__FIX_EFLAGS | X86_EFLAGS_RF)
-#else
-# define FIX_EFLAGS	__FIX_EFLAGS
-#endif
-
 #define COPY(x)			do {			\
 	get_user_ex(regs->x, &sc->x);			\
 } while (0)
