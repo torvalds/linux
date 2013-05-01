@@ -110,15 +110,7 @@ static const char *read_super(struct cache_sb *sb, struct block_device *bdev,
 
 	sb->flags		= le64_to_cpu(s->flags);
 	sb->seq			= le64_to_cpu(s->seq);
-
-	sb->nbuckets		= le64_to_cpu(s->nbuckets);
-	sb->block_size		= le16_to_cpu(s->block_size);
-	sb->bucket_size		= le16_to_cpu(s->bucket_size);
-
-	sb->nr_in_set		= le16_to_cpu(s->nr_in_set);
-	sb->nr_this_dev		= le16_to_cpu(s->nr_this_dev);
 	sb->last_mount		= le32_to_cpu(s->last_mount);
-
 	sb->first_bucket	= le16_to_cpu(s->first_bucket);
 	sb->keys		= le16_to_cpu(s->keys);
 
@@ -147,53 +139,81 @@ static const char *read_super(struct cache_sb *sb, struct block_device *bdev,
 	if (bch_is_zero(sb->uuid, 16))
 		goto err;
 
-	err = "Unsupported superblock version";
-	if (sb->version > BCACHE_SB_VERSION)
+	sb->block_size	= le16_to_cpu(s->block_size);
+
+	err = "Superblock block size smaller than device block size";
+	if (sb->block_size << 9 < bdev_logical_block_size(bdev))
 		goto err;
 
-	err = "Bad block/bucket size";
-	if (!is_power_of_2(sb->block_size) || sb->block_size > PAGE_SECTORS ||
-	    !is_power_of_2(sb->bucket_size) || sb->bucket_size < PAGE_SECTORS)
-		goto err;
+	switch (sb->version) {
+	case BCACHE_SB_VERSION_BDEV:
+		sb->data_offset	= BDEV_DATA_START_DEFAULT;
+		break;
+	case BCACHE_SB_VERSION_BDEV_WITH_OFFSET:
+		sb->data_offset	= le64_to_cpu(s->data_offset);
 
-	err = "Too many buckets";
-	if (sb->nbuckets > LONG_MAX)
-		goto err;
-
-	err = "Not enough buckets";
-	if (sb->nbuckets < 1 << 7)
-		goto err;
-
-	err = "Invalid superblock: device too small";
-	if (get_capacity(bdev->bd_disk) < sb->bucket_size * sb->nbuckets)
-		goto err;
-
-	if (sb->version == CACHE_BACKING_DEV)
-		goto out;
-
-	err = "Bad UUID";
-	if (bch_is_zero(sb->set_uuid, 16))
-		goto err;
-
-	err = "Bad cache device number in set";
-	if (!sb->nr_in_set ||
-	    sb->nr_in_set <= sb->nr_this_dev ||
-	    sb->nr_in_set > MAX_CACHES_PER_SET)
-		goto err;
-
-	err = "Journal buckets not sequential";
-	for (i = 0; i < sb->keys; i++)
-		if (sb->d[i] != sb->first_bucket + i)
+		err = "Bad data offset";
+		if (sb->data_offset < BDEV_DATA_START_DEFAULT)
 			goto err;
 
-	err = "Too many journal buckets";
-	if (sb->first_bucket + sb->keys > sb->nbuckets)
-		goto err;
+		break;
+	case BCACHE_SB_VERSION_CDEV:
+	case BCACHE_SB_VERSION_CDEV_WITH_UUID:
+		sb->nbuckets	= le64_to_cpu(s->nbuckets);
+		sb->block_size	= le16_to_cpu(s->block_size);
+		sb->bucket_size	= le16_to_cpu(s->bucket_size);
 
-	err = "Invalid superblock: first bucket comes before end of super";
-	if (sb->first_bucket * sb->bucket_size < 16)
+		sb->nr_in_set	= le16_to_cpu(s->nr_in_set);
+		sb->nr_this_dev	= le16_to_cpu(s->nr_this_dev);
+
+		err = "Too many buckets";
+		if (sb->nbuckets > LONG_MAX)
+			goto err;
+
+		err = "Not enough buckets";
+		if (sb->nbuckets < 1 << 7)
+			goto err;
+
+		err = "Bad block/bucket size";
+		if (!is_power_of_2(sb->block_size) ||
+		    sb->block_size > PAGE_SECTORS ||
+		    !is_power_of_2(sb->bucket_size) ||
+		    sb->bucket_size < PAGE_SECTORS)
+			goto err;
+
+		err = "Invalid superblock: device too small";
+		if (get_capacity(bdev->bd_disk) < sb->bucket_size * sb->nbuckets)
+			goto err;
+
+		err = "Bad UUID";
+		if (bch_is_zero(sb->set_uuid, 16))
+			goto err;
+
+		err = "Bad cache device number in set";
+		if (!sb->nr_in_set ||
+		    sb->nr_in_set <= sb->nr_this_dev ||
+		    sb->nr_in_set > MAX_CACHES_PER_SET)
+			goto err;
+
+		err = "Journal buckets not sequential";
+		for (i = 0; i < sb->keys; i++)
+			if (sb->d[i] != sb->first_bucket + i)
+				goto err;
+
+		err = "Too many journal buckets";
+		if (sb->first_bucket + sb->keys > sb->nbuckets)
+			goto err;
+
+		err = "Invalid superblock: first bucket comes before end of super";
+		if (sb->first_bucket * sb->bucket_size < 16)
+			goto err;
+
+		break;
+	default:
+		err = "Unsupported superblock version";
 		goto err;
-out:
+	}
+
 	sb->last_mount = get_seconds();
 	err = NULL;
 
@@ -286,7 +306,7 @@ void bcache_write_super(struct cache_set *c)
 	for_each_cache(ca, c, i) {
 		struct bio *bio = &ca->sb_bio;
 
-		ca->sb.version		= BCACHE_SB_VERSION;
+		ca->sb.version		= BCACHE_SB_VERSION_CDEV_WITH_UUID;
 		ca->sb.seq		= c->sb.seq;
 		ca->sb.last_mount	= c->sb.last_mount;
 
@@ -641,6 +661,35 @@ void bcache_device_stop(struct bcache_device *d)
 		closure_queue(&d->cl);
 }
 
+static void bcache_device_unlink(struct bcache_device *d)
+{
+	unsigned i;
+	struct cache *ca;
+
+	sysfs_remove_link(&d->c->kobj, d->name);
+	sysfs_remove_link(&d->kobj, "cache");
+
+	for_each_cache(ca, d->c, i)
+		bd_unlink_disk_holder(ca->bdev, d->disk);
+}
+
+static void bcache_device_link(struct bcache_device *d, struct cache_set *c,
+			       const char *name)
+{
+	unsigned i;
+	struct cache *ca;
+
+	for_each_cache(ca, d->c, i)
+		bd_link_disk_holder(ca->bdev, d->disk);
+
+	snprintf(d->name, BCACHEDEVNAME_SIZE,
+		 "%s%u", name, d->id);
+
+	WARN(sysfs_create_link(&d->kobj, &c->kobj, "cache") ||
+	     sysfs_create_link(&c->kobj, &d->kobj, d->name),
+	     "Couldn't create device <-> cache set symlinks");
+}
+
 static void bcache_device_detach(struct bcache_device *d)
 {
 	lockdep_assert_held(&bch_register_lock);
@@ -655,6 +704,8 @@ static void bcache_device_detach(struct bcache_device *d)
 
 		atomic_set(&d->detaching, 0);
 	}
+
+	bcache_device_unlink(d);
 
 	d->c->devices[d->id] = NULL;
 	closure_put(&d->c->caching);
@@ -671,17 +722,6 @@ static void bcache_device_attach(struct bcache_device *d, struct cache_set *c,
 	c->devices[id] = d;
 
 	closure_get(&c->caching);
-}
-
-static void bcache_device_link(struct bcache_device *d, struct cache_set *c,
-			       const char *name)
-{
-	snprintf(d->name, BCACHEDEVNAME_SIZE,
-		 "%s%u", name, d->id);
-
-	WARN(sysfs_create_link(&d->kobj, &c->kobj, "cache") ||
-	     sysfs_create_link(&c->kobj, &d->kobj, d->name),
-	     "Couldn't create device <-> cache set symlinks");
 }
 
 static void bcache_device_free(struct bcache_device *d)
@@ -784,6 +824,7 @@ void bch_cached_dev_run(struct cached_dev *dc)
 	}
 
 	add_disk(d->disk);
+	bd_link_disk_holder(dc->bdev, dc->disk.disk);
 #if 0
 	char *env[] = { "SYMLINK=label" , NULL };
 	kobject_uevent_env(&disk_to_dev(d->disk)->kobj, KOBJ_CHANGE, env);
@@ -802,9 +843,6 @@ static void cached_dev_detach_finish(struct work_struct *w)
 
 	BUG_ON(!atomic_read(&dc->disk.detaching));
 	BUG_ON(atomic_read(&dc->count));
-
-	sysfs_remove_link(&dc->disk.c->kobj, dc->disk.name);
-	sysfs_remove_link(&dc->disk.kobj, "cache");
 
 	mutex_lock(&bch_register_lock);
 
@@ -920,7 +958,6 @@ int bch_cached_dev_attach(struct cached_dev *dc, struct cache_set *c)
 	}
 
 	bcache_device_attach(&dc->disk, c, u - c->uuids);
-	bcache_device_link(&dc->disk, c, "bdev");
 	list_move(&dc->list, &c->cached_devs);
 	calc_cached_dev_sectors(c);
 
@@ -938,6 +975,7 @@ int bch_cached_dev_attach(struct cached_dev *dc, struct cache_set *c)
 	}
 
 	bch_cached_dev_run(dc);
+	bcache_device_link(&dc->disk, c, "bdev");
 
 	pr_info("Caching %s as %s on set %pU",
 		bdevname(dc->bdev, buf), dc->disk.disk->disk_name,
@@ -961,6 +999,7 @@ static void cached_dev_free(struct closure *cl)
 
 	mutex_lock(&bch_register_lock);
 
+	bd_unlink_disk_holder(dc->bdev, dc->disk.disk);
 	bcache_device_free(&dc->disk);
 	list_del(&dc->list);
 
@@ -1049,7 +1088,11 @@ static const char *register_bdev(struct cache_sb *sb, struct page *sb_page,
 
 	g = dc->disk.disk;
 
-	set_capacity(g, dc->bdev->bd_part->nr_sects - 16);
+	set_capacity(g, dc->bdev->bd_part->nr_sects - dc->sb.data_offset);
+
+	g->queue->backing_dev_info.ra_pages =
+		max(g->queue->backing_dev_info.ra_pages,
+		    bdev->bd_queue->backing_dev_info.ra_pages);
 
 	bch_cached_dev_request_init(dc);
 
@@ -1099,8 +1142,7 @@ static void flash_dev_flush(struct closure *cl)
 {
 	struct bcache_device *d = container_of(cl, struct bcache_device, cl);
 
-	sysfs_remove_link(&d->c->kobj, d->name);
-	sysfs_remove_link(&d->kobj, "cache");
+	bcache_device_unlink(d);
 	kobject_del(&d->kobj);
 	continue_at(cl, flash_dev_free, system_wq);
 }
@@ -1802,7 +1844,7 @@ static ssize_t register_bcache(struct kobject *k, struct kobj_attribute *attr,
 	if (err)
 		goto err_close;
 
-	if (sb->version == CACHE_BACKING_DEV) {
+	if (SB_IS_BDEV(sb)) {
 		struct cached_dev *dc = kzalloc(sizeof(*dc), GFP_KERNEL);
 
 		err = register_bdev(sb, sb_page, bdev, dc);

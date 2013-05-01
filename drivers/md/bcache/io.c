@@ -38,6 +38,15 @@ static void bch_generic_make_request_hack(struct bio *bio)
 		bio = clone;
 	}
 
+	/*
+	 * Hack, since drivers that clone bios clone up to bi_max_vecs, but our
+	 * bios might have had more than that (before we split them per device
+	 * limitations).
+	 *
+	 * To be taken out once immutable bvec stuff is in.
+	 */
+	bio->bi_max_vecs = bio->bi_vcnt;
+
 	generic_make_request(bio);
 }
 
@@ -149,34 +158,32 @@ static unsigned bch_bio_max_sectors(struct bio *bio)
 {
 	unsigned ret = bio_sectors(bio);
 	struct request_queue *q = bdev_get_queue(bio->bi_bdev);
+	unsigned max_segments = min_t(unsigned, BIO_MAX_PAGES,
+				      queue_max_segments(q));
 	struct bio_vec *bv, *end = bio_iovec(bio) +
-		min_t(int, bio_segments(bio), queue_max_segments(q));
-
-	struct bvec_merge_data bvm = {
-		.bi_bdev	= bio->bi_bdev,
-		.bi_sector	= bio->bi_sector,
-		.bi_size	= 0,
-		.bi_rw		= bio->bi_rw,
-	};
+		min_t(int, bio_segments(bio), max_segments);
 
 	if (bio->bi_rw & REQ_DISCARD)
 		return min(ret, q->limits.max_discard_sectors);
 
-	if (bio_segments(bio) > queue_max_segments(q) ||
+	if (bio_segments(bio) > max_segments ||
 	    q->merge_bvec_fn) {
 		ret = 0;
 
 		for (bv = bio_iovec(bio); bv < end; bv++) {
+			struct bvec_merge_data bvm = {
+				.bi_bdev	= bio->bi_bdev,
+				.bi_sector	= bio->bi_sector,
+				.bi_size	= ret << 9,
+				.bi_rw		= bio->bi_rw,
+			};
+
 			if (q->merge_bvec_fn &&
 			    q->merge_bvec_fn(q, &bvm, bv) < (int) bv->bv_len)
 				break;
 
-			ret		+= bv->bv_len >> 9;
-			bvm.bi_size	+= bv->bv_len;
+			ret += bv->bv_len >> 9;
 		}
-
-		if (ret >= (BIO_MAX_PAGES * PAGE_SIZE) >> 9)
-			return (BIO_MAX_PAGES * PAGE_SIZE) >> 9;
 	}
 
 	ret = min(ret, queue_max_sectors(q));

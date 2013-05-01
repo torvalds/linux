@@ -984,7 +984,7 @@ static void btree_node_free(struct btree *b, struct btree_op *op)
 
 	if (b->prio_blocked &&
 	    !atomic_sub_return(b->prio_blocked, &b->c->prio_blocked))
-		closure_wake_up(&b->c->bucket_wait);
+		wake_up(&b->c->alloc_wait);
 
 	b->prio_blocked = 0;
 
@@ -1548,7 +1548,6 @@ static void bch_btree_gc(struct closure *cl)
 
 	trace_bcache_gc_end(c->sb.set_uuid);
 	wake_up(&c->alloc_wait);
-	closure_wake_up(&c->bucket_wait);
 
 	continue_at(cl, bch_moving_gc, bch_gc_wq);
 }
