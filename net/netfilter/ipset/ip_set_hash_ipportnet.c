@@ -196,8 +196,8 @@ hash_ipportnet4_uadt(struct ip_set *set, struct nlattr *tb[],
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_ipportnet4_elem e = { .cidr = HOST_MASK - 1 };
 	struct ip_set_ext ext = IP_SET_INIT_UEXT(h);
-	u32 ip, ip_to, p = 0, port, port_to;
-	u32 ip2_from, ip2_to, ip2_last, ip2;
+	u32 ip = 0, ip_to = 0, p = 0, port, port_to;
+	u32 ip2_from = 0, ip2_to = 0, ip2_last, ip2;
 	bool with_ports = false;
 	u8 cidr;
 	int ret;

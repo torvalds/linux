@@ -246,7 +246,7 @@ bitmap_ipmac_uadt(struct ip_set *set, struct nlattr *tb[],
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct bitmap_ipmac_adt_elem e = {};
 	struct ip_set_ext ext = IP_SET_INIT_UEXT(map);
-	u32 ip;
+	u32 ip = 0;
 	int ret = 0;
 
 	if (unlikely(!tb[IPSET_ATTR_IP] ||
@@ -355,7 +355,7 @@ static int
 bitmap_ipmac_create(struct ip_set *set, struct nlattr *tb[],
 		    u32 flags)
 {
-	u32 first_ip, last_ip, cadt_flags = 0;
+	u32 first_ip = 0, last_ip = 0, cadt_flags = 0;
 	u64 elements;
 	struct bitmap_ipmac *map;
 	int ret;

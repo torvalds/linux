@@ -131,7 +131,7 @@ bitmap_ip_uadt(struct ip_set *set, struct nlattr *tb[],
 {
 	struct bitmap_ip *map = set->data;
 	ipset_adtfn adtfn = set->variant->adt[adt];
-	u32 ip, ip_to;
+	u32 ip = 0, ip_to = 0;
 	struct bitmap_ip_adt_elem e = { };
 	struct ip_set_ext ext = IP_SET_INIT_UEXT(map);
 	int ret = 0;
@@ -264,7 +264,7 @@ static int
 bitmap_ip_create(struct ip_set *set, struct nlattr *tb[], u32 flags)
 {
 	struct bitmap_ip *map;
-	u32 first_ip, last_ip, hosts, cadt_flags = 0;
+	u32 first_ip = 0, last_ip = 0, hosts, cadt_flags = 0;
 	u64 elements;
 	u8 netmask = 32;
 	int ret;

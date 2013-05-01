@@ -320,7 +320,7 @@ hash_netiface4_uadt(struct ip_set *set, struct nlattr *tb[],
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_netiface4_elem e = { .cidr = HOST_MASK, .elem = 1 };
 	struct ip_set_ext ext = IP_SET_INIT_UEXT(h);
-	u32 ip = 0, ip_to, last;
+	u32 ip = 0, ip_to = 0, last;
 	char iface[IFNAMSIZ];
 	int ret;
 

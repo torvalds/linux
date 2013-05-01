@@ -166,7 +166,7 @@ hash_net4_uadt(struct ip_set *set, struct nlattr *tb[],
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_net4_elem e = { .cidr = HOST_MASK };
 	struct ip_set_ext ext = IP_SET_INIT_UEXT(h);
-	u32 ip = 0, ip_to, last;
+	u32 ip = 0, ip_to = 0, last;
 	int ret;
 
 	if (unlikely(!tb[IPSET_ATTR_IP] ||

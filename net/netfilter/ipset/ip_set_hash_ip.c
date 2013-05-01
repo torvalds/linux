@@ -119,7 +119,7 @@ hash_ip4_uadt(struct ip_set *set, struct nlattr *tb[],
 	ipset_adtfn adtfn = set->variant->adt[adt];
 	struct hash_ip4_elem e = {};
 	struct ip_set_ext ext = IP_SET_INIT_UEXT(h);
-	u32 ip, ip_to, hosts;
+	u32 ip = 0, ip_to = 0, hosts;
 	int ret = 0;
 
 	if (unlikely(!tb[IPSET_ATTR_IP] ||
