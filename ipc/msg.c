@@ -836,7 +836,7 @@ long do_msgrcv(int msqid, void __user *buf, size_t bufsz, long msgtyp,
 
 	for (;;) {
 		struct msg_receiver msr_d;
-		struct list_head *tmp;
+		struct msg_msg *walk_msg;
 		long msg_counter = 0;
 
 		msg = ERR_PTR(-EACCES);
@@ -844,11 +844,8 @@ long do_msgrcv(int msqid, void __user *buf, size_t bufsz, long msgtyp,
 			goto out_unlock;
 
 		msg = ERR_PTR(-EAGAIN);
-		tmp = msq->q_messages.next;
-		while (tmp != &msq->q_messages) {
-			struct msg_msg *walk_msg;
+		list_for_each_entry(walk_msg, &msq->q_messages, m_list) {
 
-			walk_msg = list_entry(tmp, struct msg_msg, m_list);
 			if (testmsg(walk_msg, msgtyp, mode) &&
 			    !security_msg_queue_msgrcv(msq, walk_msg, current,
 						       msgtyp, mode)) {
@@ -865,7 +862,6 @@ long do_msgrcv(int msqid, void __user *buf, size_t bufsz, long msgtyp,
 					break;
 				msg_counter++;
 			}
-			tmp = tmp->next;
 		}
 		if (!IS_ERR(msg)) {
 			/*
