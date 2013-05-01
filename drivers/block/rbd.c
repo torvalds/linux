@@ -33,6 +33,7 @@
 #include <linux/ceph/mon_client.h>
 #include <linux/ceph/decode.h>
 #include <linux/parser.h>
+#include <linux/bsearch.h>
 
 #include <linux/kernel.h>
 #include <linux/device.h>
@@ -819,16 +820,39 @@ static const char *_rbd_dev_v1_snap_name(struct rbd_device *rbd_dev, u32 which)
 	return kstrdup(snap_name, GFP_KERNEL);
 }
 
+/*
+ * Snapshot id comparison function for use with qsort()/bsearch().
+ * Note that result is for snapshots in *descending* order.
+ */
+static int snapid_compare_reverse(const void *s1, const void *s2)
+{
+	u64 snap_id1 = *(u64 *)s1;
+	u64 snap_id2 = *(u64 *)s2;
+
+	if (snap_id1 < snap_id2)
+		return 1;
+	return snap_id1 == snap_id2 ? 0 : -1;
+}
+
+/*
+ * Search a snapshot context to see if the given snapshot id is
+ * present.
+ *
+ * Returns the position of the snapshot id in the array if it's found,
+ * or BAD_SNAP_INDEX otherwise.
+ *
+ * Note: The snapshot array is in kept sorted (by the osd) in
+ * reverse order, highest snapshot id first.
+ */
 static u32 rbd_dev_snap_index(struct rbd_device *rbd_dev, u64 snap_id)
 {
 	struct ceph_snap_context *snapc = rbd_dev->header.snapc;
-	u32 which;
+	u64 *found;
 
-	for (which = 0; which < snapc->num_snaps; which++)
-		if (snapc->snaps[which] == snap_id)
-			return which;
+	found = bsearch(&snap_id, &snapc->snaps, snapc->num_snaps,
+				sizeof (snap_id), snapid_compare_reverse);
 
-	return BAD_SNAP_INDEX;
+	return found ? (u32)(found - &snapc->snaps[0]) : BAD_SNAP_INDEX;
 }
 
 static const char *rbd_dev_v1_snap_name(struct rbd_device *rbd_dev,
