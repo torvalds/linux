@@ -2673,7 +2673,7 @@ static int e1000e_poll(struct napi_struct *napi, int weight)
 }
 
 static int e1000_vlan_rx_add_vid(struct net_device *netdev,
-				 __be16 proto, u16 vid)
+				 __always_unused __be16 proto, u16 vid)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
@@ -2699,7 +2699,7 @@ static int e1000_vlan_rx_add_vid(struct net_device *netdev,
 }
 
 static int e1000_vlan_rx_kill_vid(struct net_device *netdev,
-				  __be16 proto, u16 vid)
+				  __always_unused __be16 proto, u16 vid)
 {
 	struct e1000_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
