@@ -1196,7 +1196,7 @@ static bool e1000_clean_tx_irq(struct e1000_ring *tx_ring)
 	while ((eop_desc->upper.data & cpu_to_le32(E1000_TXD_STAT_DD)) &&
 	       (count < tx_ring->count)) {
 		bool cleaned = false;
-		rmb(); /* read buffer_info after eop_desc */
+		rmb();		/* read buffer_info after eop_desc */
 		for (; !cleaned; count++) {
 			tx_desc = E1000_TX_DESC(*tx_ring, i);
 			buffer_info = &tx_ring->buffer_info[i];
@@ -1385,7 +1385,7 @@ static bool e1000_clean_rx_irq_ps(struct e1000_ring *rx_ring, int *work_done,
 
 				skb_put(skb, l1);
 				goto copydone;
-			} /* if */
+			}	/* if */
 		}
 
 		for (j = 0; j < PS_PAGE_BUFFERS; j++) {
@@ -1800,7 +1800,7 @@ static irqreturn_t e1000_intr(int __always_unused irq, void *data)
 	u32 rctl, icr = er32(ICR);
 
 	if (!icr || test_bit(__E1000_DOWN, &adapter->state))
-		return IRQ_NONE;  /* Not our interrupt */
+		return IRQ_NONE;	/* Not our interrupt */
 
 	/* IMS will not auto-mask if INT_ASSERTED is not set, and if it is
 	 * not set, then the adapter didn't send an interrupt
@@ -2487,7 +2487,7 @@ static unsigned int e1000_update_itr(u16 itr_setting, int packets, int bytes)
 		else if ((packets < 5) && (bytes > 512))
 			retval = low_latency;
 		break;
-	case low_latency:  /* 50 usec aka 20000 ints/s */
+	case low_latency:	/* 50 usec aka 20000 ints/s */
 		if (bytes > 10000) {
 			/* this if handles the TSO accounting */
 			if (bytes / packets > 8000)
@@ -2502,7 +2502,7 @@ static unsigned int e1000_update_itr(u16 itr_setting, int packets, int bytes)
 			retval = lowest_latency;
 		}
 		break;
-	case bulk_latency: /* 250 usec aka 4000 ints/s */
+	case bulk_latency:	/* 250 usec aka 4000 ints/s */
 		if (bytes > 25000) {
 			if (packets > 35)
 				retval = low_latency;
@@ -2554,7 +2554,7 @@ static void e1000_set_itr(struct e1000_adapter *adapter)
 		new_itr = 70000;
 		break;
 	case low_latency:
-		new_itr = 20000; /* aka hwitr = ~200 */
+		new_itr = 20000;	/* aka hwitr = ~200 */
 		break;
 	case bulk_latency:
 		new_itr = 4000;
@@ -3104,13 +3104,13 @@ static void e1000_setup_rctl(struct e1000_adapter *adapter)
 		/* UPE and MPE will be handled by normal PROMISC logic
 		 * in e1000e_set_rx_mode
 		 */
-		rctl |= (E1000_RCTL_SBP | /* Receive bad packets */
-			 E1000_RCTL_BAM | /* RX All Bcast Pkts */
-			 E1000_RCTL_PMCF); /* RX All MAC Ctrl Pkts */
+		rctl |= (E1000_RCTL_SBP |	/* Receive bad packets */
+			 E1000_RCTL_BAM |	/* RX All Bcast Pkts */
+			 E1000_RCTL_PMCF);	/* RX All MAC Ctrl Pkts */
 
-		rctl &= ~(E1000_RCTL_VFE | /* Disable VLAN filter */
-			  E1000_RCTL_DPF | /* Allow filtered pause */
-			  E1000_RCTL_CFIEN); /* Dis VLAN CFIEN Filter */
+		rctl &= ~(E1000_RCTL_VFE |	/* Disable VLAN filter */
+			  E1000_RCTL_DPF |	/* Allow filtered pause */
+			  E1000_RCTL_CFIEN);	/* Dis VLAN CFIEN Filter */
 		/* Do not mess with E1000_CTRL_VME, it affects transmit as well,
 		 * and that breaks VLANs.
 		 */
@@ -3799,7 +3799,7 @@ void e1000e_reset(struct e1000_adapter *adapter)
 		hwm = min(((pba << 10) * 9 / 10),
 			  ((pba << 10) - adapter->max_frame_size));
 
-		fc->high_water = hwm & E1000_FCRTH_RTH; /* 8-byte granularity */
+		fc->high_water = hwm & E1000_FCRTH_RTH;	/* 8-byte granularity */
 		fc->low_water = fc->high_water - 8;
 		break;
 	case e1000_pchlan:
@@ -3808,10 +3808,10 @@ void e1000e_reset(struct e1000_adapter *adapter)
 		 */
 		if (adapter->netdev->mtu > ETH_DATA_LEN) {
 			fc->high_water = 0x3500;
-			fc->low_water  = 0x1500;
+			fc->low_water = 0x1500;
 		} else {
 			fc->high_water = 0x5000;
-			fc->low_water  = 0x3000;
+			fc->low_water = 0x3000;
 		}
 		fc->refresh_time = 0x1000;
 		break;
@@ -4581,7 +4581,7 @@ static void e1000e_update_stats(struct e1000_adapter *adapter)
 	adapter->stats.crcerrs += er32(CRCERRS);
 	adapter->stats.gprc += er32(GPRC);
 	adapter->stats.gorc += er32(GORCL);
-	er32(GORCH); /* Clear gorc */
+	er32(GORCH);		/* Clear gorc */
 	adapter->stats.bprc += er32(BPRC);
 	adapter->stats.mprc += er32(MPRC);
 	adapter->stats.roc += er32(ROC);
@@ -4614,7 +4614,7 @@ static void e1000e_update_stats(struct e1000_adapter *adapter)
 	adapter->stats.xofftxc += er32(XOFFTXC);
 	adapter->stats.gptc += er32(GPTC);
 	adapter->stats.gotc += er32(GOTCL);
-	er32(GOTCH); /* Clear gotc */
+	er32(GOTCH);		/* Clear gotc */
 	adapter->stats.rnbc += er32(RNBC);
 	adapter->stats.ruc += er32(RUC);
 
@@ -5106,13 +5106,13 @@ static int e1000_tso(struct e1000_ring *tx_ring, struct sk_buff *skb)
 	context_desc = E1000_CONTEXT_DESC(*tx_ring, i);
 	buffer_info = &tx_ring->buffer_info[i];
 
-	context_desc->lower_setup.ip_fields.ipcss  = ipcss;
-	context_desc->lower_setup.ip_fields.ipcso  = ipcso;
-	context_desc->lower_setup.ip_fields.ipcse  = cpu_to_le16(ipcse);
+	context_desc->lower_setup.ip_fields.ipcss = ipcss;
+	context_desc->lower_setup.ip_fields.ipcso = ipcso;
+	context_desc->lower_setup.ip_fields.ipcse = cpu_to_le16(ipcse);
 	context_desc->upper_setup.tcp_fields.tucss = tucss;
 	context_desc->upper_setup.tcp_fields.tucso = tucso;
 	context_desc->upper_setup.tcp_fields.tucse = 0;
-	context_desc->tcp_seg_setup.fields.mss     = cpu_to_le16(mss);
+	context_desc->tcp_seg_setup.fields.mss = cpu_to_le16(mss);
 	context_desc->tcp_seg_setup.fields.hdr_len = hdr_len;
 	context_desc->cmd_and_length = cpu_to_le32(cmd_length);
 
@@ -5363,7 +5363,7 @@ static void e1000_tx_queue(struct e1000_ring *tx_ring, int tx_flags, int count)
 static int e1000_transfer_dhcp_info(struct e1000_adapter *adapter,
 				    struct sk_buff *skb)
 {
-	struct e1000_hw *hw =  &adapter->hw;
+	struct e1000_hw *hw = &adapter->hw;
 	u16 length, offset;
 
 	if (vlan_tx_tag_present(skb) &&
@@ -6259,7 +6259,7 @@ static void e1000_netpoll(struct net_device *netdev)
 		e1000_intr_msi(adapter->pdev->irq, netdev);
 		enable_irq(adapter->pdev->irq);
 		break;
-	default: /* E1000E_INT_MODE_LEGACY */
+	default:		/* E1000E_INT_MODE_LEGACY */
 		disable_irq(adapter->pdev->irq);
 		e1000_intr(adapter->pdev->irq, netdev);
 		enable_irq(adapter->pdev->irq);
@@ -6589,9 +6589,9 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		adapter->eee_advert = MDIO_EEE_100TX | MDIO_EEE_1000T;
 
 	/* construct the net_device struct */
-	netdev->netdev_ops		= &e1000e_netdev_ops;
+	netdev->netdev_ops = &e1000e_netdev_ops;
 	e1000e_set_ethtool_ops(netdev);
-	netdev->watchdog_timeo		= 5 * HZ;
+	netdev->watchdog_timeo = 5 * HZ;
 	netif_napi_add(netdev, &adapter->napi, e1000e_poll, 64);
 	strlcpy(netdev->name, pci_name(pdev), sizeof(netdev->name));
 
@@ -7033,7 +7033,6 @@ static void __exit e1000_exit_module(void)
 	pci_unregister_driver(&e1000_driver);
 }
 module_exit(e1000_exit_module);
-
 
 MODULE_AUTHOR("Intel Corporation, <linux.nics@intel.com>");
 MODULE_DESCRIPTION("Intel(R) PRO/1000 Network Driver");
