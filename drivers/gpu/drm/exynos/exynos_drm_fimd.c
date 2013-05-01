@@ -63,14 +63,18 @@
 
 struct fimd_driver_data {
 	unsigned int timing_base;
+
+	unsigned int has_shadowcon:1;
 };
 
 static struct fimd_driver_data exynos4_fimd_driver_data = {
 	.timing_base = 0x0,
+	.has_shadowcon = 1,
 };
 
 static struct fimd_driver_data exynos5_fimd_driver_data = {
 	.timing_base = 0x20000,
+	.has_shadowcon = 1,
 };
 
 struct fimd_win_data {
@@ -489,6 +493,33 @@ static void fimd_win_set_colkey(struct device *dev, unsigned int win)
 	writel(keycon1, ctx->regs + WKEYCON1_BASE(win));
 }
 
+/**
+ * shadow_protect_win() - disable updating values from shadow registers at vsync
+ *
+ * @win: window to protect registers for
+ * @protect: 1 to protect (disable updates)
+ */
+static void fimd_shadow_protect_win(struct fimd_context *ctx,
+							int win, bool protect)
+{
+	u32 reg, bits, val;
+
+	if (ctx->driver_data->has_shadowcon) {
+		reg = SHADOWCON;
+		bits = SHADOWCON_WINx_PROTECT(win);
+	} else {
+		reg = PRTCON;
+		bits = PRTCON_PROTECT;
+	}
+
+	val = readl(ctx->regs + reg);
+	if (protect)
+		val |= bits;
+	else
+		val &= ~bits;
+	writel(val, ctx->regs + reg);
+}
+
 static void fimd_win_commit(struct device *dev, int zpos)
 {
 	struct fimd_context *ctx = get_fimd_context(dev);
@@ -512,7 +543,7 @@ static void fimd_win_commit(struct device *dev, int zpos)
 	win_data = &ctx->win_data[win];
 
 	/*
-	 * SHADOWCON register is used for enabling timing.
+	 * SHADOWCON/PRTCON register is used for enabling timing.
 	 *
 	 * for example, once only width value of a register is set,
 	 * if the dma is started then fimd hardware could malfunction so
@@ -522,9 +553,7 @@ static void fimd_win_commit(struct device *dev, int zpos)
 	 */
 
 	/* protect windows */
-	val = readl(ctx->regs + SHADOWCON);
-	val |= SHADOWCON_WINx_PROTECT(win);
-	writel(val, ctx->regs + SHADOWCON);
+	fimd_shadow_protect_win(ctx, win, true);
 
 	/* buffer start address */
 	val = (unsigned long)win_data->dma_addr;
@@ -602,10 +631,13 @@ static void fimd_win_commit(struct device *dev, int zpos)
 	writel(val, ctx->regs + WINCON(win));
 
 	/* Enable DMA channel and unprotect windows */
-	val = readl(ctx->regs + SHADOWCON);
-	val |= SHADOWCON_CHx_ENABLE(win);
-	val &= ~SHADOWCON_WINx_PROTECT(win);
-	writel(val, ctx->regs + SHADOWCON);
+	fimd_shadow_protect_win(ctx, win, false);
+
+	if (ctx->driver_data->has_shadowcon) {
+		val = readl(ctx->regs + SHADOWCON);
+		val |= SHADOWCON_CHx_ENABLE(win);
+		writel(val, ctx->regs + SHADOWCON);
+	}
 
 	win_data->enabled = true;
 }
@@ -634,9 +666,7 @@ static void fimd_win_disable(struct device *dev, int zpos)
 	}
 
 	/* protect windows */
-	val = readl(ctx->regs + SHADOWCON);
-	val |= SHADOWCON_WINx_PROTECT(win);
-	writel(val, ctx->regs + SHADOWCON);
+	fimd_shadow_protect_win(ctx, win, true);
 
 	/* wincon */
 	val = readl(ctx->regs + WINCON(win));
@@ -644,10 +674,13 @@ static void fimd_win_disable(struct device *dev, int zpos)
 	writel(val, ctx->regs + WINCON(win));
 
 	/* unprotect windows */
-	val = readl(ctx->regs + SHADOWCON);
-	val &= ~SHADOWCON_CHx_ENABLE(win);
-	val &= ~SHADOWCON_WINx_PROTECT(win);
-	writel(val, ctx->regs + SHADOWCON);
+	if (ctx->driver_data->has_shadowcon) {
+		val = readl(ctx->regs + SHADOWCON);
+		val &= ~SHADOWCON_CHx_ENABLE(win);
+		writel(val, ctx->regs + SHADOWCON);
+	}
+
+	fimd_shadow_protect_win(ctx, win, false);
 
 	win_data->enabled = false;
 }
@@ -777,8 +810,6 @@ static int fimd_calc_clkdiv(struct fimd_context *ctx,
 
 static void fimd_clear_win(struct fimd_context *ctx, int win)
 {
-	u32 val;
-
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
 	writel(0, ctx->regs + WINCON(win));
@@ -789,9 +820,7 @@ static void fimd_clear_win(struct fimd_context *ctx, int win)
 	if (win == 1 || win == 2)
 		writel(0, ctx->regs + VIDOSD_D(win));
 
-	val = readl(ctx->regs + SHADOWCON);
-	val &= ~SHADOWCON_WINx_PROTECT(win);
-	writel(val, ctx->regs + SHADOWCON);
+	fimd_shadow_protect_win(ctx, win, false);
 }
 
 static int fimd_clock(struct fimd_context *ctx, bool enable)
