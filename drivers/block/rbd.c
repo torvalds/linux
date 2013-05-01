@@ -346,6 +346,7 @@ static LIST_HEAD(rbd_client_list);		/* clients */
 static DEFINE_SPINLOCK(rbd_client_list_lock);
 
 static struct kmem_cache	*rbd_img_request_cache;
+static struct kmem_cache	*rbd_obj_request_cache;
 
 static int rbd_img_request_submit(struct rbd_img_request *img_request);
 
@@ -1762,7 +1763,7 @@ static struct rbd_obj_request *rbd_obj_request_create(const char *object_name,
 	if (!name)
 		return NULL;
 
-	obj_request = kzalloc(sizeof (*obj_request), GFP_KERNEL);
+	obj_request = kmem_cache_zalloc(rbd_obj_request_cache, GFP_KERNEL);
 	if (!obj_request) {
 		kfree(name);
 		return NULL;
@@ -1814,7 +1815,8 @@ static void rbd_obj_request_destroy(struct kref *kref)
 	}
 
 	kfree(obj_request->object_name);
-	kfree(obj_request);
+	obj_request->object_name = NULL;
+	kmem_cache_free(rbd_obj_request_cache, obj_request);
 }
 
 /*
@@ -5008,14 +5010,29 @@ static int rbd_slab_init(void)
 					sizeof (struct rbd_img_request),
 					__alignof__(struct rbd_img_request),
 					0, NULL);
-	if (rbd_img_request_cache)
+	if (!rbd_img_request_cache)
+		return -ENOMEM;
+
+	rbd_assert(!rbd_obj_request_cache);
+	rbd_obj_request_cache = kmem_cache_create("rbd_obj_request",
+					sizeof (struct rbd_obj_request),
+					__alignof__(struct rbd_obj_request),
+					0, NULL);
+	if (rbd_obj_request_cache)
 		return 0;
+
+	kmem_cache_destroy(rbd_img_request_cache);
+	rbd_img_request_cache = NULL;
 
 	return -ENOMEM;
 }
 
 static void rbd_slab_exit(void)
 {
+	rbd_assert(rbd_obj_request_cache);
+	kmem_cache_destroy(rbd_obj_request_cache);
+	rbd_obj_request_cache = NULL;
+
 	rbd_assert(rbd_img_request_cache);
 	kmem_cache_destroy(rbd_img_request_cache);
 	rbd_img_request_cache = NULL;
