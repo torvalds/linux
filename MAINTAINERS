@@ -3025,8 +3025,17 @@ F:	arch/ia64/kernel/efi.c
 F:	arch/x86/boot/compressed/eboot.[ch]
 F:	arch/x86/include/asm/efi.h
 F:	arch/x86/platform/efi/*
-F:	drivers/firmware/efivars.c
+F:	drivers/firmware/efi/*
 F:	include/linux/efi*.h
+
+EFI VARIABLE FILESYSTEM
+M:	Matthew Garrett <matthew.garrett@nebula.com>
+M:	Jeremy Kerr <jk@ozlabs.org>
+M:	Matt Fleming <matt.fleming@intel.com>
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mfleming/efi.git
+L:	linux-efi@vger.kernel.org
+S:	Maintained
+F:	fs/efivarfs/
 
 EFIFB FRAMEBUFFER DRIVER
 L:	linux-fbdev@vger.kernel.org
@@ -6391,7 +6400,7 @@ S:	Maintained
 T:	git git://git.infradead.org/users/cbou/linux-pstore.git
 F:	fs/pstore/
 F:	include/linux/pstore*
-F:	drivers/firmware/efivars.c
+F:	drivers/firmware/efi/efi-pstore.c
 F:	drivers/acpi/apei/erst.c
 
 PTP HARDWARE CLOCK SUPPORT
