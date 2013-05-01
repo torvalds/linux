@@ -662,21 +662,17 @@ handle_signal(struct ksignal *ksig, struct pt_regs *regs)
 	if (!failed) {
 		/*
 		 * Clear the direction flag as per the ABI for function entry.
-		 */
-		regs->flags &= ~X86_EFLAGS_DF;
-		/*
+		 *
 		 * Clear RF when entering the signal handler, because
 		 * it might disable possible debug exception from the
 		 * signal handler.
-		 */
-		regs->flags &= ~X86_EFLAGS_RF;
-		/*
+		 *
 		 * Clear TF when entering the signal handler, but
 		 * notify any tracer that was single-stepping it.
 		 * The tracer may want to single-step inside the
 		 * handler too.
 		 */
-		regs->flags &= ~X86_EFLAGS_TF;
+		regs->flags &= ~(X86_EFLAGS_DF|X86_EFLAGS_RF|X86_EFLAGS_TF);
 	}
 	signal_setup_done(failed, ksig, test_thread_flag(TIF_SINGLESTEP));
 }
