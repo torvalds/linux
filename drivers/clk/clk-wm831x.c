@@ -97,7 +97,7 @@ static int wm831x_fll_prepare(struct clk_hw *hw)
 	struct wm831x *wm831x = clkdata->wm831x;
 	int ret;
 
-	ret = wm831x_set_bits(wm831x, WM831X_FLL_CONTROL_2,
+	ret = wm831x_set_bits(wm831x, WM831X_FLL_CONTROL_1,
 			      WM831X_FLL_ENA, WM831X_FLL_ENA);
 	if (ret != 0)
 		dev_crit(wm831x->dev, "Failed to enable FLL: %d\n", ret);
@@ -114,9 +114,9 @@ static void wm831x_fll_unprepare(struct clk_hw *hw)
 	struct wm831x *wm831x = clkdata->wm831x;
 	int ret;
 
-	ret = wm831x_set_bits(wm831x, WM831X_FLL_CONTROL_2, WM831X_FLL_ENA, 0);
+	ret = wm831x_set_bits(wm831x, WM831X_FLL_CONTROL_1, WM831X_FLL_ENA, 0);
 	if (ret != 0)
-		dev_crit(wm831x->dev, "Failed to disaable FLL: %d\n", ret);
+		dev_crit(wm831x->dev, "Failed to disable FLL: %d\n", ret);
 }
 
 static unsigned long wm831x_fll_recalc_rate(struct clk_hw *hw,
