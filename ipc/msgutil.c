@@ -84,7 +84,7 @@ struct msg_msg *load_msg(const void __user *src, int len)
 {
 	struct msg_msg *msg;
 	struct msg_msgseg *seg;
-	int err;
+	int err = -EFAULT;
 	int alen;
 
 	msg = alloc_msg(len);
@@ -92,19 +92,15 @@ struct msg_msg *load_msg(const void __user *src, int len)
 		return ERR_PTR(-ENOMEM);
 
 	alen = min(len, DATALEN_MSG);
-	if (copy_from_user(msg + 1, src, alen)) {
-		err = -EFAULT;
+	if (copy_from_user(msg + 1, src, alen))
 		goto out_err;
-	}
 
 	for (seg = msg->next; seg != NULL; seg = seg->next) {
 		len -= alen;
 		src = (char __user *)src + alen;
 		alen = min(len, DATALEN_SEG);
-		if (copy_from_user(seg + 1, src, alen)) {
-			err = -EFAULT;
+		if (copy_from_user(seg + 1, src, alen))
 			goto out_err;
-		}
 	}
 
 	err = security_msg_msg_alloc(msg);
