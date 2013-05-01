@@ -1054,13 +1054,18 @@ static int nvme_configure_admin_queue(struct nvme_dev *dev)
 		}
 	}
 
-	if (result) {
-		nvme_free_queue_mem(nvmeq);
-		return result;
-	}
+	if (result)
+		goto free_q;
 
 	result = queue_request_irq(dev, nvmeq, "nvme admin");
+	if (result)
+		goto free_q;
+
 	dev->queues[0] = nvmeq;
+	return result;
+
+ free_q:
+	nvme_free_queue_mem(nvmeq);
 	return result;
 }
 
