@@ -43,6 +43,7 @@ nxp	NXP Semiconductors
 onnn	ON Semiconductor Corp.
 picochip	Picochip Ltd
 powervr	PowerVR (deprecated, use img)
+qca	Qualcomm Atheros, Inc.
 qcom	Qualcomm, Inc.
 ralink	Mediatek/Ralink Technology Corp.
 ramtron	Ramtron International
