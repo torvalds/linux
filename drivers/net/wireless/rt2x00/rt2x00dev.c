@@ -1077,7 +1077,7 @@ static int rt2x00lib_probe_hw(struct rt2x00_dev *rt2x00dev)
 		 */
 		int kfifo_size =
 			roundup_pow_of_two(rt2x00dev->ops->tx_queues *
-					   rt2x00dev->ops->tx->entry_num *
+					   rt2x00dev->tx->limit *
 					   sizeof(u32));
 
 		status = kfifo_alloc(&rt2x00dev->txstatus_fifo, kfifo_size,
