@@ -155,6 +155,7 @@ static bool con_flag_test_and_set(struct ceph_connection *con,
 /* Slab caches for frequently-allocated structures */
 
 static struct kmem_cache	*ceph_msg_cache;
+static struct kmem_cache	*ceph_msg_data_cache;
 
 /* static tag bytes (protocol control messages) */
 static char tag_msg = CEPH_MSGR_TAG_MSG;
@@ -236,11 +237,30 @@ static int ceph_msgr_slab_init(void)
 	ceph_msg_cache = kmem_cache_create("ceph_msg",
 					sizeof (struct ceph_msg),
 					__alignof__(struct ceph_msg), 0, NULL);
-	return ceph_msg_cache ? 0 : -ENOMEM;
+
+	if (!ceph_msg_cache)
+		return -ENOMEM;
+
+	BUG_ON(ceph_msg_data_cache);
+	ceph_msg_data_cache = kmem_cache_create("ceph_msg_data",
+					sizeof (struct ceph_msg_data),
+					__alignof__(struct ceph_msg_data),
+					0, NULL);
+	if (ceph_msg_data_cache)
+		return 0;
+
+	kmem_cache_destroy(ceph_msg_cache);
+	ceph_msg_cache = NULL;
+
+	return -ENOMEM;
 }
 
 static void ceph_msgr_slab_exit(void)
 {
+	BUG_ON(!ceph_msg_data_cache);
+	kmem_cache_destroy(ceph_msg_data_cache);
+	ceph_msg_data_cache = NULL;
+
 	BUG_ON(!ceph_msg_cache);
 	kmem_cache_destroy(ceph_msg_cache);
 	ceph_msg_cache = NULL;
@@ -3008,7 +3028,7 @@ static struct ceph_msg_data *ceph_msg_data_create(enum ceph_msg_data_type type)
 	if (WARN_ON(!ceph_msg_data_type_valid(type)))
 		return NULL;
 
-	data = kzalloc(sizeof (*data), GFP_NOFS);
+	data = kmem_cache_zalloc(ceph_msg_data_cache, GFP_NOFS);
 	if (data)
 		data->type = type;
 	INIT_LIST_HEAD(&data->links);
@@ -3026,7 +3046,7 @@ static void ceph_msg_data_destroy(struct ceph_msg_data *data)
 		ceph_pagelist_release(data->pagelist);
 		kfree(data->pagelist);
 	}
-	kfree(data);
+	kmem_cache_free(ceph_msg_data_cache, data);
 }
 
 void ceph_msg_data_add_pages(struct ceph_msg *msg, struct page **pages,
