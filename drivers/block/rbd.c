@@ -1758,11 +1758,16 @@ static struct rbd_obj_request *rbd_obj_request_create(const char *object_name,
 	rbd_assert(obj_request_type_valid(type));
 
 	size = strlen(object_name) + 1;
-	obj_request = kzalloc(sizeof (*obj_request) + size, GFP_KERNEL);
-	if (!obj_request)
+	name = kmalloc(size, GFP_KERNEL);
+	if (!name)
 		return NULL;
 
-	name = (char *)(obj_request + 1);
+	obj_request = kzalloc(sizeof (*obj_request), GFP_KERNEL);
+	if (!obj_request) {
+		kfree(name);
+		return NULL;
+	}
+
 	obj_request->object_name = memcpy(name, object_name, size);
 	obj_request->offset = offset;
 	obj_request->length = length;
@@ -1808,6 +1813,7 @@ static void rbd_obj_request_destroy(struct kref *kref)
 		break;
 	}
 
+	kfree(obj_request->object_name);
 	kfree(obj_request);
 }
 
