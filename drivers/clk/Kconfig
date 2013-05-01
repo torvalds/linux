@@ -58,7 +58,6 @@ config COMMON_CLK_MAX77686
 config COMMON_CLK_SI5351
 	tristate "Clock driver for SiLabs 5351A/B/C"
 	depends on I2C
-	depends on OF
 	select REGMAP_I2C
 	select RATIONAL
 	---help---
