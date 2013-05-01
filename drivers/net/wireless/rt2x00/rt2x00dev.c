@@ -1301,23 +1301,6 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 		(rt2x00dev->ops->max_ap_intf - 1);
 
 	/*
-	 * Determine which operating modes are supported, all modes
-	 * which require beaconing, depend on the availability of
-	 * beacon entries.
-	 */
-	rt2x00dev->hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
-	if (rt2x00dev->ops->bcn->entry_num > 0)
-		rt2x00dev->hw->wiphy->interface_modes |=
-		    BIT(NL80211_IFTYPE_ADHOC) |
-		    BIT(NL80211_IFTYPE_AP) |
-#ifdef CONFIG_MAC80211_MESH
-		    BIT(NL80211_IFTYPE_MESH_POINT) |
-#endif
-		    BIT(NL80211_IFTYPE_WDS);
-
-	rt2x00dev->hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
-
-	/*
 	 * Initialize work.
 	 */
 	rt2x00dev->workqueue =
@@ -1346,6 +1329,23 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 	retval = rt2x00queue_allocate(rt2x00dev);
 	if (retval)
 		goto exit;
+
+	/*
+	 * Determine which operating modes are supported, all modes
+	 * which require beaconing, depend on the availability of
+	 * beacon entries.
+	 */
+	rt2x00dev->hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
+	if (rt2x00dev->ops->bcn->entry_num > 0)
+		rt2x00dev->hw->wiphy->interface_modes |=
+		    BIT(NL80211_IFTYPE_ADHOC) |
+		    BIT(NL80211_IFTYPE_AP) |
+#ifdef CONFIG_MAC80211_MESH
+		    BIT(NL80211_IFTYPE_MESH_POINT) |
+#endif
+		    BIT(NL80211_IFTYPE_WDS);
+
+	rt2x00dev->hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
 
 	/*
 	 * Initialize ieee80211 structure.
