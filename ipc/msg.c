@@ -238,14 +238,9 @@ static inline void ss_del(struct msg_sender *mss)
 
 static void ss_wakeup(struct list_head *h, int kill)
 {
-	struct list_head *tmp;
+	struct msg_sender *mss, *t;
 
-	tmp = h->next;
-	while (tmp != h) {
-		struct msg_sender *mss;
-
-		mss = list_entry(tmp, struct msg_sender, list);
-		tmp = tmp->next;
+	list_for_each_entry_safe(mss, t, h, list) {
 		if (kill)
 			mss->list.next = NULL;
 		wake_up_process(mss->tsk);
@@ -254,14 +249,9 @@ static void ss_wakeup(struct list_head *h, int kill)
 
 static void expunge_all(struct msg_queue *msq, int res)
 {
-	struct list_head *tmp;
+	struct msg_receiver *msr, *t;
 
-	tmp = msq->q_receivers.next;
-	while (tmp != &msq->q_receivers) {
-		struct msg_receiver *msr;
-
-		msr = list_entry(tmp, struct msg_receiver, r_list);
-		tmp = tmp->next;
+	list_for_each_entry_safe(msr, t, &msq->q_receivers, r_list) {
 		msr->r_msg = NULL;
 		wake_up_process(msr->r_tsk);
 		smp_mb();
@@ -279,7 +269,7 @@ static void expunge_all(struct msg_queue *msq, int res)
  */
 static void freeque(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp)
 {
-	struct list_head *tmp;
+	struct msg_msg *msg, *t;
 	struct msg_queue *msq = container_of(ipcp, struct msg_queue, q_perm);
 
 	expunge_all(msq, -EIDRM);
@@ -287,11 +277,7 @@ static void freeque(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp)
 	msg_rmid(ns, msq);
 	msg_unlock(msq);
 
-	tmp = msq->q_messages.next;
-	while (tmp != &msq->q_messages) {
-		struct msg_msg *msg = list_entry(tmp, struct msg_msg, m_list);
-
-		tmp = tmp->next;
+	list_for_each_entry_safe(msg, t, &msq->q_messages, m_list) {
 		atomic_dec(&ns->msg_hdrs);
 		free_msg(msg);
 	}
@@ -604,14 +590,9 @@ static int testmsg(struct msg_msg *msg, long type, int mode)
 
 static inline int pipelined_send(struct msg_queue *msq, struct msg_msg *msg)
 {
-	struct list_head *tmp;
+	struct msg_receiver *msr, *t;
 
-	tmp = msq->q_receivers.next;
-	while (tmp != &msq->q_receivers) {
-		struct msg_receiver *msr;
-
-		msr = list_entry(tmp, struct msg_receiver, r_list);
-		tmp = tmp->next;
+	list_for_each_entry_safe(msr, t, &msq->q_receivers, r_list) {
 		if (testmsg(msg, msr->r_msgtype, msr->r_mode) &&
 		    !security_msg_queue_msgrcv(msq, msg, msr->r_tsk,
 					       msr->r_msgtype, msr->r_mode)) {
