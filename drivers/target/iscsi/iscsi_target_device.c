@@ -60,8 +60,13 @@ void iscsit_increment_maxcmdsn(struct iscsi_cmd *cmd, struct iscsi_session *sess
 
 	cmd->maxcmdsn_inc = 1;
 
-	mutex_lock(&sess->cmdsn_mutex);
+	if (!mutex_trylock(&sess->cmdsn_mutex)) {
+		sess->max_cmd_sn += 1;
+		pr_debug("Updated MaxCmdSN to 0x%08x\n", sess->max_cmd_sn);
+		return;
+	}
 	sess->max_cmd_sn += 1;
 	pr_debug("Updated MaxCmdSN to 0x%08x\n", sess->max_cmd_sn);
 	mutex_unlock(&sess->cmdsn_mutex);
 }
+EXPORT_SYMBOL(iscsit_increment_maxcmdsn);
