@@ -140,6 +140,15 @@ struct iser_hdr {
 	__be64  read_va;
 } __attribute__((packed));
 
+
+#define ISER_ZBVA_NOT_SUPPORTED		0x80
+#define ISER_SEND_W_INV_NOT_SUPPORTED	0x40
+
+struct iser_cm_hdr {
+	u8      flags;
+	u8      rsvd[3];
+} __packed;
+
 /* Constant PDU lengths calculations */
 #define ISER_HEADERS_LEN  (sizeof(struct iser_hdr) + sizeof(struct iscsi_hdr))
 

@@ -499,6 +499,7 @@ static int iser_route_handler(struct rdma_cm_id *cma_id)
 {
 	struct rdma_conn_param conn_param;
 	int    ret;
+	struct iser_cm_hdr req_hdr;
 
 	ret = iser_create_ib_conn_res((struct iser_conn *)cma_id->context);
 	if (ret)
@@ -509,6 +510,12 @@ static int iser_route_handler(struct rdma_cm_id *cma_id)
 	conn_param.initiator_depth     = 1;
 	conn_param.retry_count	       = 7;
 	conn_param.rnr_retry_count     = 6;
+
+	memset(&req_hdr, 0, sizeof(req_hdr));
+	req_hdr.flags = (ISER_ZBVA_NOT_SUPPORTED |
+			ISER_SEND_W_INV_NOT_SUPPORTED);
+	conn_param.private_data		= (void *)&req_hdr;
+	conn_param.private_data_len	= sizeof(struct iser_cm_hdr);
 
 	ret = rdma_connect(cma_id, &conn_param);
 	if (ret) {
