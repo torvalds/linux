@@ -77,14 +77,12 @@ void __flush_dcache_page(struct page *page)
 
 void __sync_icache_dcache(pte_t pte, unsigned long addr)
 {
-	unsigned long pfn;
-	struct page *page;
+	struct page *page = pte_page(pte);
 
-	pfn = pte_pfn(pte);
-	if (!pfn_valid(pfn))
+	/* no flushing needed for anonymous pages */
+	if (!page_mapping(page))
 		return;
 
-	page = pfn_to_page(pfn);
 	if (!test_and_set_bit(PG_dcache_clean, &page->flags)) {
 		__flush_dcache_page(page);
 		__flush_icache_all();

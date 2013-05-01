@@ -339,7 +339,6 @@ void __init paging_init(void)
 	bootmem_init();
 
 	empty_zero_page = virt_to_page(zero_page);
-	__flush_dcache_page(empty_zero_page);
 
 	/*
 	 * TTBR0 is only used for the identity mapping at this stage. Make it
