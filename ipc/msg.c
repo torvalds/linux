@@ -687,7 +687,12 @@ long do_msgsnd(int msqid, long mtype, void __user *mtext,
 			goto out_unlock_free;
 		}
 		ss_add(msq, &s);
-		ipc_rcu_getref(msq);
+
+		if (!ipc_rcu_getref(msq)) {
+			err = -EIDRM;
+			goto out_unlock_free;
+		}
+
 		msg_unlock(msq);
 		schedule();
 

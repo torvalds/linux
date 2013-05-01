@@ -119,7 +119,7 @@ void ipc_free(void* ptr, int size);
  * to 0 schedules the rcu destruction. Caller must guarantee locking.
  */
 void* ipc_rcu_alloc(int size);
-void ipc_rcu_getref(void *ptr);
+int ipc_rcu_getref(void *ptr);
 void ipc_rcu_putref(void *ptr);
 
 struct kern_ipc_perm *ipc_lock(struct ipc_ids *, int);

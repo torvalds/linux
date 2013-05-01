@@ -439,9 +439,9 @@ void ipc_rmid(struct ipc_ids *ids, struct kern_ipc_perm *ipcp)
  *	NULL is returned if the allocation fails
  */
  
-void* ipc_alloc(int size)
+void *ipc_alloc(int size)
 {
-	void* out;
+	void *out;
 	if(size > PAGE_SIZE)
 		out = vmalloc(size);
 	else
@@ -478,7 +478,7 @@ void ipc_free(void* ptr, int size)
  */
 struct ipc_rcu_hdr
 {
-	int refcount;
+	atomic_t refcount;
 	int is_vmalloc;
 	void *data[0];
 };
@@ -516,39 +516,41 @@ static inline int rcu_use_vmalloc(int size)
  *	@size: size desired
  *
  *	Allocate memory for the rcu header structure +  the object.
- *	Returns the pointer to the object.
- *	NULL is returned if the allocation fails. 
+ *	Returns the pointer to the object or NULL upon failure.
  */
- 
-void* ipc_rcu_alloc(int size)
+void *ipc_rcu_alloc(int size)
 {
-	void* out;
-	/* 
+	void *out;
+
+	/*
 	 * We prepend the allocation with the rcu struct, and
-	 * workqueue if necessary (for vmalloc). 
+	 * workqueue if necessary (for vmalloc).
 	 */
 	if (rcu_use_vmalloc(size)) {
 		out = vmalloc(HDRLEN_VMALLOC + size);
-		if (out) {
-			out += HDRLEN_VMALLOC;
-			container_of(out, struct ipc_rcu_hdr, data)->is_vmalloc = 1;
-			container_of(out, struct ipc_rcu_hdr, data)->refcount = 1;
-		}
+		if (!out)
+			goto done;
+
+		out += HDRLEN_VMALLOC;
+		container_of(out, struct ipc_rcu_hdr, data)->is_vmalloc = 1;
 	} else {
 		out = kmalloc(HDRLEN_KMALLOC + size, GFP_KERNEL);
-		if (out) {
-			out += HDRLEN_KMALLOC;
-			container_of(out, struct ipc_rcu_hdr, data)->is_vmalloc = 0;
-			container_of(out, struct ipc_rcu_hdr, data)->refcount = 1;
-		}
+		if (!out)
+			goto done;
+
+		out += HDRLEN_KMALLOC;
+		container_of(out, struct ipc_rcu_hdr, data)->is_vmalloc = 0;
 	}
 
+	/* set reference counter no matter what kind of allocation was done */
+	atomic_set(&container_of(out, struct ipc_rcu_hdr, data)->refcount, 1);
+done:
 	return out;
 }
 
-void ipc_rcu_getref(void *ptr)
+int ipc_rcu_getref(void *ptr)
 {
-	container_of(ptr, struct ipc_rcu_hdr, data)->refcount++;
+	return atomic_inc_not_zero(&container_of(ptr, struct ipc_rcu_hdr, data)->refcount);
 }
 
 static void ipc_do_vfree(struct work_struct *work)
@@ -578,7 +580,7 @@ static void ipc_schedule_free(struct rcu_head *head)
 
 void ipc_rcu_putref(void *ptr)
 {
-	if (--container_of(ptr, struct ipc_rcu_hdr, data)->refcount > 0)
+	if (!atomic_dec_and_test(&container_of(ptr, struct ipc_rcu_hdr, data)->refcount))
 		return;
 
 	if (container_of(ptr, struct ipc_rcu_hdr, data)->is_vmalloc) {
