@@ -150,14 +150,9 @@ static inline int ipc_buildid(int id, int seq)
 	return SEQ_MULTIPLIER * seq + id;
 }
 
-/*
- * Must be called with ipcp locked
- */
 static inline int ipc_checkid(struct kern_ipc_perm *ipcp, int uid)
 {
-	if (uid / SEQ_MULTIPLIER != ipcp->seq)
-		return 1;
-	return 0;
+	return uid / SEQ_MULTIPLIER != ipcp->seq;
 }
 
 static inline void ipc_lock_by_ptr(struct kern_ipc_perm *perm)
