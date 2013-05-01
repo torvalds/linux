@@ -1477,7 +1477,7 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 
 	/* usbnet already took usb runtime pm, so have to enable the feature
 	 * for usb interface, otherwise usb_autopm_get_interface may return
-	 * failure if USB_SUSPEND(RUNTIME_PM) is enabled.
+	 * failure if RUNTIME_PM is enabled.
 	 */
 	if (!driver->supports_autosuspend) {
 		driver->supports_autosuspend = 1;
