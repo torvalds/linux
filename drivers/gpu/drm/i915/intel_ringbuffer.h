@@ -135,7 +135,7 @@ struct  intel_ring_buffer {
 	 */
 	bool itlb_before_ctx_switch;
 	struct i915_hw_context *default_context;
-	struct drm_i915_gem_object *last_context_obj;
+	struct i915_hw_context *last_context;
 
 	void *private;
 };

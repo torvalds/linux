@@ -359,13 +359,13 @@ mi_set_context(struct intel_ring_buffer *ring,
 static int do_switch(struct i915_hw_context *to)
 {
 	struct intel_ring_buffer *ring = to->ring;
-	struct drm_i915_gem_object *from_obj = ring->last_context_obj;
+	struct i915_hw_context *from = ring->last_context;
 	u32 hw_flags = 0;
 	int ret;
 
-	BUG_ON(from_obj != NULL && from_obj->pin_count == 0);
+	BUG_ON(from != NULL && from->obj != NULL && from->obj->pin_count == 0);
 
-	if (from_obj == to->obj)
+	if (from == to)
 		return 0;
 
 	ret = i915_gem_object_pin(to->obj, CONTEXT_ALIGN, false, false);
@@ -388,7 +388,7 @@ static int do_switch(struct i915_hw_context *to)
 
 	if (!to->is_initialized || is_default_context(to))
 		hw_flags |= MI_RESTORE_INHIBIT;
-	else if (WARN_ON_ONCE(from_obj == to->obj)) /* not yet expected */
+	else if (WARN_ON_ONCE(from == to)) /* not yet expected */
 		hw_flags |= MI_FORCE_RESTORE;
 
 	ret = mi_set_context(ring, to, hw_flags);
@@ -403,9 +403,9 @@ static int do_switch(struct i915_hw_context *to)
 	 * is a bit suboptimal because the retiring can occur simply after the
 	 * MI_SET_CONTEXT instead of when the next seqno has completed.
 	 */
-	if (from_obj != NULL) {
-		from_obj->base.read_domains = I915_GEM_DOMAIN_INSTRUCTION;
-		i915_gem_object_move_to_active(from_obj, ring);
+	if (from != NULL) {
+		from->obj->base.read_domains = I915_GEM_DOMAIN_INSTRUCTION;
+		i915_gem_object_move_to_active(from->obj, ring);
 		/* As long as MI_SET_CONTEXT is serializing, ie. it flushes the
 		 * whole damn pipeline, we don't need to explicitly mark the
 		 * object dirty. The only exception is that the context must be
@@ -413,15 +413,26 @@ static int do_switch(struct i915_hw_context *to)
 		 * able to defer doing this until we know the object would be
 		 * swapped, but there is no way to do that yet.
 		 */
-		from_obj->dirty = 1;
-		BUG_ON(from_obj->ring != ring);
-		i915_gem_object_unpin(from_obj);
+		from->obj->dirty = 1;
+		BUG_ON(from->obj->ring != ring);
 
-		drm_gem_object_unreference(&from_obj->base);
+		ret = i915_add_request(ring, NULL, NULL);
+		if (ret) {
+			/* Too late, we've already scheduled a context switch.
+			 * Try to undo the change so that the hw state is
+			 * consistent with out tracking. In case of emergency,
+			 * scream.
+			 */
+			WARN_ON(mi_set_context(ring, from, MI_RESTORE_INHIBIT));
+			return ret;
+		}
+
+		i915_gem_object_unpin(from->obj);
+		i915_gem_context_unreference(from);
 	}
 
-	drm_gem_object_reference(&to->obj->base);
-	ring->last_context_obj = to->obj;
+	i915_gem_context_reference(to);
+	ring->last_context = to;
 	to->is_initialized = true;
 
 	return 0;
