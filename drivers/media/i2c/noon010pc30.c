@@ -772,7 +772,7 @@ static int noon010_probe(struct i2c_client *client,
 	for (i = 0; i < NOON010_NUM_SUPPLIES; i++)
 		info->supply[i].supply = noon010_supply_name[i];
 
-	ret = regulator_bulk_get(&client->dev, NOON010_NUM_SUPPLIES,
+	ret = devm_regulator_bulk_get(&client->dev, NOON010_NUM_SUPPLIES,
 				 info->supply);
 	if (ret)
 		goto np_err;
@@ -781,14 +781,12 @@ static int noon010_probe(struct i2c_client *client,
 	sd->entity.type = MEDIA_ENT_T_V4L2_SUBDEV_SENSOR;
 	ret = media_entity_init(&sd->entity, 1, &info->pad, 0);
 	if (ret < 0)
-		goto np_me_err;
+		goto np_err;
 
 	ret = noon010_detect(client, info);
 	if (!ret)
 		return 0;
 
-np_me_err:
-	regulator_bulk_free(NOON010_NUM_SUPPLIES, info->supply);
 np_err:
 	v4l2_ctrl_handler_free(&info->hdl);
 	v4l2_device_unregister_subdev(sd);
@@ -802,8 +800,6 @@ static int noon010_remove(struct i2c_client *client)
 
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&info->hdl);
-
-	regulator_bulk_free(NOON010_NUM_SUPPLIES, info->supply);
 	media_entity_cleanup(&sd->entity);
 
 	return 0;

@@ -966,7 +966,8 @@ static int m5mols_probe(struct i2c_client *client,
 		return ret;
 	}
 
-	ret = regulator_bulk_get(&client->dev, ARRAY_SIZE(supplies), supplies);
+	ret = devm_regulator_bulk_get(&client->dev, ARRAY_SIZE(supplies),
+				      supplies);
 	if (ret) {
 		dev_err(&client->dev, "Failed to get regulators: %d\n", ret);
 		return ret;
@@ -981,7 +982,7 @@ static int m5mols_probe(struct i2c_client *client,
 	info->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ret = media_entity_init(&sd->entity, 1, &info->pad, 0);
 	if (ret < 0)
-		goto out_reg;
+		return ret;
 	sd->entity.type = MEDIA_ENT_T_V4L2_SUBDEV_SENSOR;
 
 	init_waitqueue_head(&info->irq_waitq);
@@ -1012,8 +1013,6 @@ out_irq:
 	free_irq(client->irq, sd);
 out_me:
 	media_entity_cleanup(&sd->entity);
-out_reg:
-	regulator_bulk_free(ARRAY_SIZE(supplies), supplies);
 	return ret;
 }
 
@@ -1025,7 +1024,6 @@ static int m5mols_remove(struct i2c_client *client)
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
 	free_irq(client->irq, sd);
 
-	regulator_bulk_free(ARRAY_SIZE(supplies), supplies);
 	media_entity_cleanup(&sd->entity);
 
 	return 0;
