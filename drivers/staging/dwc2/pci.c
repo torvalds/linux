@@ -130,9 +130,9 @@ static int dwc2_driver_probe(struct pci_dev *dev,
 	pci_set_power_state(dev, PCI_D0);
 
 	hsotg->dev = &dev->dev;
-	hsotg->regs = devm_request_and_ioremap(&dev->dev, &dev->resource[0]);
-	if (!hsotg->regs)
-		return -ENOMEM;
+	hsotg->regs = devm_ioremap_resource(&dev->dev, &dev->resource[0]);
+	if (IS_ERR(hsotg->regs))
+		return PTR_ERR(hsotg->regs);
 
 	dev_dbg(&dev->dev, "mapped PA %08lx to VA %p\n",
 		(unsigned long)pci_resource_start(dev, 0), hsotg->regs);
