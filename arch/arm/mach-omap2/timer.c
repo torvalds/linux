@@ -287,7 +287,7 @@ static int __init omap_dm_timer_init_one(struct omap_dm_timer *timer,
 			r = -EINVAL;
 		} else {
 			r = clk_set_parent(timer->fclk, src);
-			if (IS_ERR_VALUE(r))
+			if (r < 0)
 				pr_warn("%s: %s cannot set source\n",
 					__func__, oh->name);
 			clk_put(src);

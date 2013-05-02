@@ -1251,7 +1251,7 @@ static void __init nuri_camera_init(void)
 	}
 
 	m5mols_board_info.irq = s5p_register_gpio_interrupt(GPIO_CAM_8M_ISP_INT);
-	if (!IS_ERR_VALUE(m5mols_board_info.irq))
+	if (m5mols_board_info.irq >= 0)
 		s3c_gpio_cfgpin(GPIO_CAM_8M_ISP_INT, S3C_GPIO_SFN(0xF));
 	else
 		pr_err("%s: Failed to configure 8M_ISP_INT GPIO\n", __func__);

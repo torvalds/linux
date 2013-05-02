@@ -131,7 +131,7 @@ static int omap_device_build_from_dt(struct platform_device *pdev)
 	int oh_cnt, i, ret = 0;
 
 	oh_cnt = of_property_count_strings(node, "ti,hwmods");
-	if (!oh_cnt || IS_ERR_VALUE(oh_cnt)) {
+	if (oh_cnt <= 0) {
 		dev_dbg(&pdev->dev, "No 'hwmods' to build omap_device\n");
 		return -ENODEV;
 	}
@@ -815,19 +815,16 @@ struct device *omap_device_get_by_hwmod_name(const char *oh_name)
 	}
 
 	oh = omap_hwmod_lookup(oh_name);
-	if (IS_ERR_OR_NULL(oh)) {
+	if (!oh) {
 		WARN(1, "%s: no hwmod for %s\n", __func__,
 			oh_name);
-		return ERR_PTR(oh ? PTR_ERR(oh) : -ENODEV);
+		return ERR_PTR(-ENODEV);
 	}
-	if (IS_ERR_OR_NULL(oh->od)) {
+	if (!oh->od) {
 		WARN(1, "%s: no omap_device for %s\n", __func__,
 			oh_name);
-		return ERR_PTR(oh->od ? PTR_ERR(oh->od) : -ENODEV);
+		return ERR_PTR(-ENODEV);
 	}
-
-	if (IS_ERR_OR_NULL(oh->od->pdev))
-		return ERR_PTR(oh->od->pdev ? PTR_ERR(oh->od->pdev) : -ENODEV);
 
 	return &oh->od->pdev->dev;
 }
