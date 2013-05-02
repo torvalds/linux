@@ -191,10 +191,8 @@ static int crosstest(void)
 
 	pr_info("crosstest\n");
 	pp1 = kmalloc(pgsize * 4, GFP_KERNEL);
-	if (!pp1) {
-		pr_err("error: cannot allocate memory\n");
+	if (!pp1)
 		return -ENOMEM;
-	}
 	pp2 = pp1 + pgsize;
 	pp3 = pp2 + pgsize;
 	pp4 = pp3 + pgsize;
@@ -456,10 +454,8 @@ static int scan_for_bad_eraseblocks(void)
 	int i, bad = 0;
 
 	bbt = kzalloc(ebcnt, GFP_KERNEL);
-	if (!bbt) {
-		pr_err("error: cannot allocate memory\n");
+	if (!bbt)
 		return -ENOMEM;
-	}
 
 	pr_info("scanning for bad eraseblocks\n");
 	for (i = 0; i < ebcnt; ++i) {
@@ -516,20 +512,14 @@ static int __init mtd_pagetest_init(void)
 	err = -ENOMEM;
 	bufsize = pgsize * 2;
 	writebuf = kmalloc(mtd->erasesize, GFP_KERNEL);
-	if (!writebuf) {
-		pr_err("error: cannot allocate memory\n");
+	if (!writebuf)
 		goto out;
-	}
 	twopages = kmalloc(bufsize, GFP_KERNEL);
-	if (!twopages) {
-		pr_err("error: cannot allocate memory\n");
+	if (!twopages)
 		goto out;
-	}
 	boundary = kmalloc(bufsize, GFP_KERNEL);
-	if (!boundary) {
-		pr_err("error: cannot allocate memory\n");
+	if (!boundary)
 		goto out;
-	}
 
 	err = scan_for_bad_eraseblocks();
 	if (err)

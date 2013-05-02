@@ -202,10 +202,8 @@ static int scan_for_bad_eraseblocks(void)
 	int i, bad = 0;
 
 	bbt = kzalloc(ebcnt, GFP_KERNEL);
-	if (!bbt) {
-		pr_err("error: cannot allocate memory\n");
+	if (!bbt)
 		return -ENOMEM;
-	}
 
 	if (!mtd_can_have_bb(mtd))
 		return 0;
@@ -276,10 +274,8 @@ static int __init mtd_stresstest_init(void)
 	readbuf = vmalloc(bufsize);
 	writebuf = vmalloc(bufsize);
 	offsets = kmalloc(ebcnt * sizeof(int), GFP_KERNEL);
-	if (!readbuf || !writebuf || !offsets) {
-		pr_err("error: cannot allocate memory\n");
+	if (!readbuf || !writebuf || !offsets)
 		goto out;
-	}
 	for (i = 0; i < ebcnt; i++)
 		offsets[i] = mtd->erasesize;
 	prandom_bytes(writebuf, bufsize);

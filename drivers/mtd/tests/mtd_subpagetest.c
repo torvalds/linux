@@ -333,10 +333,8 @@ static int scan_for_bad_eraseblocks(void)
 	int i, bad = 0;
 
 	bbt = kzalloc(ebcnt, GFP_KERNEL);
-	if (!bbt) {
-		pr_err("error: cannot allocate memory\n");
+	if (!bbt)
 		return -ENOMEM;
-	}
 
 	pr_info("scanning for bad eraseblocks\n");
 	for (i = 0; i < ebcnt; ++i) {
@@ -393,15 +391,11 @@ static int __init mtd_subpagetest_init(void)
 	err = -ENOMEM;
 	bufsize = subpgsize * 32;
 	writebuf = kmalloc(bufsize, GFP_KERNEL);
-	if (!writebuf) {
-		pr_info("error: cannot allocate memory\n");
+	if (!writebuf)
 		goto out;
-	}
 	readbuf = kmalloc(bufsize, GFP_KERNEL);
-	if (!readbuf) {
-		pr_info("error: cannot allocate memory\n");
+	if (!readbuf)
 		goto out;
-	}
 
 	err = scan_for_bad_eraseblocks();
 	if (err)

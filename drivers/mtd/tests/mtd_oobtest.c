@@ -320,10 +320,8 @@ static int scan_for_bad_eraseblocks(void)
 	int i, bad = 0;
 
 	bbt = kmalloc(ebcnt, GFP_KERNEL);
-	if (!bbt) {
-		pr_err("error: cannot allocate memory\n");
+	if (!bbt)
 		return -ENOMEM;
-	}
 
 	pr_info("scanning for bad eraseblocks\n");
 	for (i = 0; i < ebcnt; ++i) {
@@ -380,15 +378,11 @@ static int __init mtd_oobtest_init(void)
 
 	err = -ENOMEM;
 	readbuf = kmalloc(mtd->erasesize, GFP_KERNEL);
-	if (!readbuf) {
-		pr_err("error: cannot allocate memory\n");
+	if (!readbuf)
 		goto out;
-	}
 	writebuf = kmalloc(mtd->erasesize, GFP_KERNEL);
-	if (!writebuf) {
-		pr_err("error: cannot allocate memory\n");
+	if (!writebuf)
 		goto out;
-	}
 
 	err = scan_for_bad_eraseblocks();
 	if (err)

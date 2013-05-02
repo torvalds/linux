@@ -313,10 +313,8 @@ static int scan_for_bad_eraseblocks(void)
 	int i, bad = 0;
 
 	bbt = kzalloc(ebcnt, GFP_KERNEL);
-	if (!bbt) {
-		pr_err("error: cannot allocate memory\n");
+	if (!bbt)
 		return -ENOMEM;
-	}
 
 	if (!mtd_can_have_bb(mtd))
 		goto out;
@@ -384,10 +382,8 @@ static int __init mtd_speedtest_init(void)
 
 	err = -ENOMEM;
 	iobuf = kmalloc(mtd->erasesize, GFP_KERNEL);
-	if (!iobuf) {
-		pr_err("error: cannot allocate memory\n");
+	if (!iobuf)
 		goto out;
-	}
 
 	prandom_bytes(iobuf, mtd->erasesize);
 
