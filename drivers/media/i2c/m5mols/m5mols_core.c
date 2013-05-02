@@ -950,7 +950,7 @@ static int m5mols_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	info = kzalloc(sizeof(struct m5mols_info), GFP_KERNEL);
+	info = devm_kzalloc(&client->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
@@ -962,7 +962,7 @@ static int m5mols_probe(struct i2c_client *client,
 	ret = gpio_request_one(pdata->gpio_reset, gpio_flags, "M5MOLS_NRST");
 	if (ret) {
 		dev_err(&client->dev, "Failed to request gpio: %d\n", ret);
-		goto out_free;
+		return ret;
 	}
 
 	ret = regulator_bulk_get(&client->dev, ARRAY_SIZE(supplies), supplies);
@@ -1015,8 +1015,6 @@ out_reg:
 	regulator_bulk_free(ARRAY_SIZE(supplies), supplies);
 out_gpio:
 	gpio_free(pdata->gpio_reset);
-out_free:
-	kfree(info);
 	return ret;
 }
 
@@ -1032,7 +1030,7 @@ static int m5mols_remove(struct i2c_client *client)
 	regulator_bulk_free(ARRAY_SIZE(supplies), supplies);
 	gpio_free(info->pdata->gpio_reset);
 	media_entity_cleanup(&sd->entity);
-	kfree(info);
+
 	return 0;
 }
 

@@ -1188,15 +1188,14 @@ static int ad9389b_probe(struct i2c_client *client, const struct i2c_device_id *
 	v4l_dbg(1, debug, client, "detecting ad9389b client on address 0x%x\n",
 			client->addr << 1);
 
-	state = kzalloc(sizeof(struct ad9389b_state), GFP_KERNEL);
+	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
 	if (!state)
 		return -ENOMEM;
 
 	/* Platform data */
 	if (pdata == NULL) {
 		v4l_err(client, "No platform data!\n");
-		err = -ENODEV;
-		goto err_free;
+		return -ENODEV;
 	}
 	memcpy(&state->pdata, pdata, sizeof(state->pdata));
 
@@ -1276,8 +1275,6 @@ err_entity:
 	media_entity_cleanup(&sd->entity);
 err_hdl:
 	v4l2_ctrl_handler_free(&state->hdl);
-err_free:
-	kfree(state);
 	return err;
 }
 
@@ -1302,7 +1299,6 @@ static int ad9389b_remove(struct i2c_client *client)
 	v4l2_device_unregister_subdev(sd);
 	media_entity_cleanup(&sd->entity);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
-	kfree(get_ad9389b_state(sd));
 	return 0;
 }
 

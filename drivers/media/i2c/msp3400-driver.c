@@ -707,7 +707,7 @@ static int msp_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		return -ENODEV;
 	}
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
 	if (!state)
 		return -ENOMEM;
 
@@ -732,7 +732,6 @@ static int msp_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (state->rev1 == -1 || (state->rev1 == 0 && state->rev2 == 0)) {
 		v4l_dbg(1, msp_debug, client,
 				"not an msp3400 (cannot read chip version)\n");
-		kfree(state);
 		return -ENODEV;
 	}
 
@@ -827,7 +826,6 @@ static int msp_probe(struct i2c_client *client, const struct i2c_device_id *id)
 		int err = hdl->error;
 
 		v4l2_ctrl_handler_free(hdl);
-		kfree(state);
 		return err;
 	}
 
@@ -889,7 +887,6 @@ static int msp_remove(struct i2c_client *client)
 	msp_reset(client);
 
 	v4l2_ctrl_handler_free(&state->hdl);
-	kfree(state);
 	return 0;
 }
 

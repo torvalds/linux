@@ -355,7 +355,7 @@ static int sony_btf_mpx_probe(struct i2c_client *client,
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
-	t = kzalloc(sizeof(struct sony_btf_mpx), GFP_KERNEL);
+	t = devm_kzalloc(&client->dev, sizeof(*t), GFP_KERNEL);
 	if (t == NULL)
 		return -ENOMEM;
 
@@ -374,7 +374,6 @@ static int sony_btf_mpx_remove(struct i2c_client *client)
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 
 	v4l2_device_unregister_subdev(sd);
-	kfree(to_state(sd));
 
 	return 0;
 }

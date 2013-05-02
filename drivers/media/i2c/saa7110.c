@@ -406,7 +406,7 @@ static int saa7110_probe(struct i2c_client *client,
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
-	decoder = kzalloc(sizeof(struct saa7110), GFP_KERNEL);
+	decoder = devm_kzalloc(&client->dev, sizeof(*decoder), GFP_KERNEL);
 	if (!decoder)
 		return -ENOMEM;
 	sd = &decoder->sd;
@@ -428,7 +428,6 @@ static int saa7110_probe(struct i2c_client *client,
 		int err = decoder->hdl.error;
 
 		v4l2_ctrl_handler_free(&decoder->hdl);
-		kfree(decoder);
 		return err;
 	}
 	v4l2_ctrl_handler_setup(&decoder->hdl);
@@ -469,7 +468,6 @@ static int saa7110_remove(struct i2c_client *client)
 
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&decoder->hdl);
-	kfree(decoder);
 	return 0;
 }
 

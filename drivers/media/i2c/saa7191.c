@@ -605,7 +605,7 @@ static int saa7191_probe(struct i2c_client *client,
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
-	decoder = kzalloc(sizeof(*decoder), GFP_KERNEL);
+	decoder = devm_kzalloc(&client->dev, sizeof(*decoder), GFP_KERNEL);
 	if (!decoder)
 		return -ENOMEM;
 
@@ -615,7 +615,6 @@ static int saa7191_probe(struct i2c_client *client,
 	err = saa7191_write_block(sd, sizeof(initseq), initseq);
 	if (err) {
 		printk(KERN_ERR "SAA7191 initialization failed\n");
-		kfree(decoder);
 		return err;
 	}
 
@@ -636,7 +635,6 @@ static int saa7191_remove(struct i2c_client *client)
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 
 	v4l2_device_unregister_subdev(sd);
-	kfree(to_saa7191(sd));
 	return 0;
 }
 

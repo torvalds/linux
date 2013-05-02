@@ -685,7 +685,7 @@ static int ks0127_probe(struct i2c_client *client, const struct i2c_device_id *i
 		client->addr == (I2C_KS0127_ADDON >> 1) ? "addon" : "on-board",
 		client->addr << 1, client->adapter->name);
 
-	ks = kzalloc(sizeof(*ks), GFP_KERNEL);
+	ks = devm_kzalloc(&client->dev, sizeof(*ks), GFP_KERNEL);
 	if (ks == NULL)
 		return -ENOMEM;
 	sd = &ks->sd;
@@ -708,7 +708,6 @@ static int ks0127_remove(struct i2c_client *client)
 	v4l2_device_unregister_subdev(sd);
 	ks0127_write(sd, KS_OFMTA, 0x20); /* tristate */
 	ks0127_write(sd, KS_CMDA, 0x2c | 0x80); /* power down */
-	kfree(to_ks0127(sd));
 	return 0;
 }
 

@@ -1552,7 +1552,7 @@ static int ov7670_probe(struct i2c_client *client,
 	struct ov7670_info *info;
 	int ret;
 
-	info = kzalloc(sizeof(struct ov7670_info), GFP_KERNEL);
+	info = devm_kzalloc(&client->dev, sizeof(*info), GFP_KERNEL);
 	if (info == NULL)
 		return -ENOMEM;
 	sd = &info->sd;
@@ -1590,7 +1590,6 @@ static int ov7670_probe(struct i2c_client *client,
 		v4l_dbg(1, debug, client,
 			"chip found @ 0x%x (%s) is not an ov7670 chip.\n",
 			client->addr << 1, client->adapter->name);
-		kfree(info);
 		return ret;
 	}
 	v4l_info(client, "chip found @ 0x%02x (%s)\n",
@@ -1635,7 +1634,6 @@ static int ov7670_probe(struct i2c_client *client,
 		int err = info->hdl.error;
 
 		v4l2_ctrl_handler_free(&info->hdl);
-		kfree(info);
 		return err;
 	}
 	/*
@@ -1659,7 +1657,6 @@ static int ov7670_remove(struct i2c_client *client)
 
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&info->hdl);
-	kfree(info);
 	return 0;
 }
 

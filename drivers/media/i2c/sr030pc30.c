@@ -820,7 +820,7 @@ static int sr030pc30_probe(struct i2c_client *client,
 	if (ret)
 		return ret;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc(&client->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
@@ -841,10 +841,8 @@ static int sr030pc30_probe(struct i2c_client *client,
 static int sr030pc30_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct sr030pc30_info *info = to_sr030pc30(sd);
 
 	v4l2_device_unregister_subdev(sd);
-	kfree(info);
 	return 0;
 }
 

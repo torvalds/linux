@@ -409,7 +409,7 @@ static int adv7175_probe(struct i2c_client *client,
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
-	encoder = kzalloc(sizeof(struct adv7175), GFP_KERNEL);
+	encoder = devm_kzalloc(&client->dev, sizeof(*encoder), GFP_KERNEL);
 	if (encoder == NULL)
 		return -ENOMEM;
 	sd = &encoder->sd;
@@ -434,7 +434,6 @@ static int adv7175_remove(struct i2c_client *client)
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 
 	v4l2_device_unregister_subdev(sd);
-	kfree(to_adv7175(sd));
 	return 0;
 }
 

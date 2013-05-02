@@ -712,7 +712,7 @@ static int noon010_probe(struct i2c_client *client,
 		return -EIO;
 	}
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
+	info = devm_kzalloc(&client->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
@@ -796,7 +796,6 @@ np_gpio_err:
 np_err:
 	v4l2_ctrl_handler_free(&info->hdl);
 	v4l2_device_unregister_subdev(sd);
-	kfree(info);
 	return ret;
 }
 
@@ -817,7 +816,7 @@ static int noon010_remove(struct i2c_client *client)
 		gpio_free(info->gpio_nstby);
 
 	media_entity_cleanup(&sd->entity);
-	kfree(info);
+
 	return 0;
 }
 

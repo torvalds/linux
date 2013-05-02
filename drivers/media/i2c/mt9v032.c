@@ -744,7 +744,7 @@ static int mt9v032_probe(struct i2c_client *client,
 		return -EIO;
 	}
 
-	mt9v032 = kzalloc(sizeof(*mt9v032), GFP_KERNEL);
+	mt9v032 = devm_kzalloc(&client->dev, sizeof(*mt9v032), GFP_KERNEL);
 	if (!mt9v032)
 		return -ENOMEM;
 
@@ -831,10 +831,8 @@ static int mt9v032_probe(struct i2c_client *client,
 	mt9v032->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ret = media_entity_init(&mt9v032->subdev.entity, 1, &mt9v032->pad, 0);
 
-	if (ret < 0) {
+	if (ret < 0)
 		v4l2_ctrl_handler_free(&mt9v032->ctrls);
-		kfree(mt9v032);
-	}
 
 	return ret;
 }
@@ -847,7 +845,6 @@ static int mt9v032_remove(struct i2c_client *client)
 	v4l2_ctrl_handler_free(&mt9v032->ctrls);
 	v4l2_device_unregister_subdev(subdev);
 	media_entity_cleanup(&subdev->entity);
-	kfree(mt9v032);
 
 	return 0;
 }

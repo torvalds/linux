@@ -478,17 +478,15 @@ static int saa6588_probe(struct i2c_client *client,
 	v4l_info(client, "saa6588 found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
-	s = kzalloc(sizeof(*s), GFP_KERNEL);
+	s = devm_kzalloc(&client->dev, sizeof(*s), GFP_KERNEL);
 	if (s == NULL)
 		return -ENOMEM;
 
 	s->buf_size = bufblocks * 3;
 
-	s->buffer = kmalloc(s->buf_size, GFP_KERNEL);
-	if (s->buffer == NULL) {
-		kfree(s);
+	s->buffer = devm_kzalloc(&client->dev, s->buf_size, GFP_KERNEL);
+	if (s->buffer == NULL)
 		return -ENOMEM;
-	}
 	sd = &s->sd;
 	v4l2_i2c_subdev_init(sd, client, &saa6588_ops);
 	spin_lock_init(&s->lock);
@@ -516,8 +514,6 @@ static int saa6588_remove(struct i2c_client *client)
 
 	cancel_delayed_work_sync(&s->work);
 
-	kfree(s->buffer);
-	kfree(s);
 	return 0;
 }
 

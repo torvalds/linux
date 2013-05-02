@@ -264,7 +264,7 @@ static int ak881x_probe(struct i2c_client *client,
 		return -EIO;
 	}
 
-	ak881x = kzalloc(sizeof(struct ak881x), GFP_KERNEL);
+	ak881x = devm_kzalloc(&client->dev, sizeof(*ak881x), GFP_KERNEL);
 	if (!ak881x)
 		return -ENOMEM;
 
@@ -282,7 +282,6 @@ static int ak881x_probe(struct i2c_client *client,
 	default:
 		dev_err(&client->dev,
 			"No ak881x chip detected, register read %x\n", data);
-		kfree(ak881x);
 		return -ENODEV;
 	}
 
@@ -331,7 +330,6 @@ static int ak881x_remove(struct i2c_client *client)
 	struct ak881x *ak881x = to_ak881x(client);
 
 	v4l2_device_unregister_subdev(&ak881x->subdev);
-	kfree(ak881x);
 
 	return 0;
 }

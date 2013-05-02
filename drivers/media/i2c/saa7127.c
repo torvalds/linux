@@ -752,7 +752,7 @@ static int saa7127_probe(struct i2c_client *client,
 	v4l_dbg(1, debug, client, "detecting saa7127 client on address 0x%x\n",
 			client->addr << 1);
 
-	state = kzalloc(sizeof(struct saa7127_state), GFP_KERNEL);
+	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
 	if (state == NULL)
 		return -ENOMEM;
 
@@ -767,7 +767,6 @@ static int saa7127_probe(struct i2c_client *client,
 	if ((saa7127_read(sd, 0) & 0xe4) != 0 ||
 			(saa7127_read(sd, 0x29) & 0x3f) != 0x1d) {
 		v4l2_dbg(1, debug, sd, "saa7127 not found\n");
-		kfree(state);
 		return -ENODEV;
 	}
 
@@ -823,7 +822,6 @@ static int saa7127_remove(struct i2c_client *client)
 	v4l2_device_unregister_subdev(sd);
 	/* Turn off TV output */
 	saa7127_set_video_enable(sd, 0);
-	kfree(to_state(sd));
 	return 0;
 }
 

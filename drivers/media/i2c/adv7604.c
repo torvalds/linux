@@ -1968,7 +1968,7 @@ static int adv7604_probe(struct i2c_client *client,
 	v4l_dbg(1, debug, client, "detecting adv7604 client on address 0x%x\n",
 			client->addr << 1);
 
-	state = kzalloc(sizeof(struct adv7604_state), GFP_KERNEL);
+	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
 	if (!state) {
 		v4l_err(client, "Could not allocate adv7604_state memory!\n");
 		return -ENOMEM;
@@ -1977,8 +1977,7 @@ static int adv7604_probe(struct i2c_client *client,
 	/* platform data */
 	if (!pdata) {
 		v4l_err(client, "No platform data!\n");
-		err = -ENODEV;
-		goto err_state;
+		return -ENODEV;
 	}
 	memcpy(&state->pdata, pdata, sizeof(state->pdata));
 
@@ -1991,8 +1990,7 @@ static int adv7604_probe(struct i2c_client *client,
 	if (adv_smbus_read_byte_data_check(client, 0xfb, false) != 0x68) {
 		v4l2_info(sd, "not an adv7604 on address 0x%x\n",
 				client->addr << 1);
-		err = -ENODEV;
-		goto err_state;
+		return -ENODEV;
 	}
 
 	/* control handlers */
@@ -2093,8 +2091,6 @@ err_i2c:
 	adv7604_unregister_clients(state);
 err_hdl:
 	v4l2_ctrl_handler_free(hdl);
-err_state:
-	kfree(state);
 	return err;
 }
 
@@ -2111,7 +2107,6 @@ static int adv7604_remove(struct i2c_client *client)
 	media_entity_cleanup(&sd->entity);
 	adv7604_unregister_clients(to_state(sd));
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
-	kfree(to_state(sd));
 	return 0;
 }
 

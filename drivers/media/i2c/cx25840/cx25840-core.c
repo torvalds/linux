@@ -5190,7 +5190,7 @@ static int cx25840_probe(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	state = kzalloc(sizeof(struct cx25840_state), GFP_KERNEL);
+	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
 	if (state == NULL)
 		return -ENOMEM;
 
@@ -5292,7 +5292,6 @@ static int cx25840_probe(struct i2c_client *client,
 		int err = state->hdl.error;
 
 		v4l2_ctrl_handler_free(&state->hdl);
-		kfree(state);
 		return err;
 	}
 	if (!is_cx2583x(state))
@@ -5317,7 +5316,6 @@ static int cx25840_remove(struct i2c_client *client)
 	cx25840_ir_remove(sd);
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(&state->hdl);
-	kfree(state);
 	return 0;
 }
 

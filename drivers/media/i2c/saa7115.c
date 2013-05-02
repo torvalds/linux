@@ -1614,7 +1614,7 @@ static int saa711x_probe(struct i2c_client *client,
 	v4l_info(client, "saa711%c found (%s) @ 0x%x (%s)\n", chip_id, name,
 		 client->addr << 1, client->adapter->name);
 
-	state = kzalloc(sizeof(struct saa711x_state), GFP_KERNEL);
+	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
 	if (state == NULL)
 		return -ENOMEM;
 	sd = &state->sd;
@@ -1640,7 +1640,6 @@ static int saa711x_probe(struct i2c_client *client,
 		int err = hdl->error;
 
 		v4l2_ctrl_handler_free(hdl);
-		kfree(state);
 		return err;
 	}
 	v4l2_ctrl_auto_cluster(2, &state->agc, 0, true);
@@ -1712,7 +1711,6 @@ static int saa711x_remove(struct i2c_client *client)
 
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
-	kfree(to_state(sd));
 	return 0;
 }
 

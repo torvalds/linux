@@ -326,7 +326,7 @@ static int saa7185_probe(struct i2c_client *client,
 	v4l_info(client, "chip found @ 0x%x (%s)\n",
 			client->addr << 1, client->adapter->name);
 
-	encoder = kzalloc(sizeof(struct saa7185), GFP_KERNEL);
+	encoder = devm_kzalloc(&client->dev, sizeof(*encoder), GFP_KERNEL);
 	if (encoder == NULL)
 		return -ENOMEM;
 	encoder->norm = V4L2_STD_NTSC;
@@ -352,7 +352,6 @@ static int saa7185_remove(struct i2c_client *client)
 	v4l2_device_unregister_subdev(sd);
 	/* SW: output off is active */
 	saa7185_write(sd, 0x61, (encoder->reg[0x61]) | 0x40);
-	kfree(encoder);
 	return 0;
 }
 

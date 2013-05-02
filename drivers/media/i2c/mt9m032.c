@@ -730,7 +730,7 @@ static int mt9m032_probe(struct i2c_client *client,
 	if (!client->dev.platform_data)
 		return -ENODEV;
 
-	sensor = kzalloc(sizeof(*sensor), GFP_KERNEL);
+	sensor = devm_kzalloc(&client->dev, sizeof(*sensor), GFP_KERNEL);
 	if (sensor == NULL)
 		return -ENOMEM;
 
@@ -860,7 +860,6 @@ error_ctrl:
 	v4l2_ctrl_handler_free(&sensor->ctrls);
 error_sensor:
 	mutex_destroy(&sensor->lock);
-	kfree(sensor);
 	return ret;
 }
 
@@ -873,7 +872,6 @@ static int mt9m032_remove(struct i2c_client *client)
 	v4l2_ctrl_handler_free(&sensor->ctrls);
 	media_entity_cleanup(&subdev->entity);
 	mutex_destroy(&sensor->lock);
-	kfree(sensor);
 	return 0;
 }
 
