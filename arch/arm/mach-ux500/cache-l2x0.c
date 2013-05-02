@@ -9,8 +9,8 @@
 
 #include <asm/cacheflush.h>
 #include <asm/hardware/cache-l2x0.h>
-#include <mach/hardware.h>
 
+#include "db8500-regs.h"
 #include "id.h"
 
 static void __iomem *l2x0_base;

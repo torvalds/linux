@@ -20,6 +20,7 @@
 #include <linux/io.h>
 
 #include <mach/map.h>
+#include <mach/irqs.h>
 #include <plat/cpu.h>
 #include <plat/irq-vic-timer.h>
 #include <plat/regs-timer.h>

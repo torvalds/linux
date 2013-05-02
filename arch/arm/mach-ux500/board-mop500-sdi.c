@@ -14,9 +14,9 @@
 #include <linux/platform_data/dma-ste-dma40.h>
 
 #include <asm/mach-types.h>
-#include <mach/devices.h>
-#include <mach/hardware.h>
+#include "devices.h"
 
+#include "db8500-regs.h"
 #include "devices-db8500.h"
 #include "board-mop500.h"
 #include "ste-dma40-db8500.h"

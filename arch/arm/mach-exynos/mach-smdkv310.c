@@ -43,6 +43,7 @@
 #include <plat/clock.h>
 #include <plat/hdmi.h>
 
+#include <mach/irqs.h>
 #include <mach/map.h>
 
 #include <drm/exynos_drm.h>

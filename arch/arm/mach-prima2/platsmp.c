@@ -17,7 +17,6 @@
 #include <asm/smp_scu.h>
 #include <asm/cacheflush.h>
 #include <asm/cputype.h>
-#include <mach/map.h>
 
 #include "common.h"
 

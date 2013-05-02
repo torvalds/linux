@@ -26,7 +26,6 @@
 #include <linux/fs.h>
 #include <linux/platform_device.h>
 #include <linux/uaccess.h>
-#include <linux/irqchip/arm-gic.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/dbx500-prcmu.h>
 #include <linux/mfd/abx500/ab8500.h>
@@ -34,9 +33,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/cpufreq.h>
 #include <linux/platform_data/ux500_wdt.h>
-#include <mach/hardware.h>
-#include <mach/irqs.h>
-#include <mach/db8500-regs.h>
+#include <linux/platform_data/db8500_thermal.h>
 #include "dbx500-prcmu-regs.h"
 
 /* Index of different voltages to be used when accessing AVSData */
@@ -276,8 +273,34 @@ static struct irq_domain *db8500_irq_domain;
  * the bits in the bit field are not. (The bits also have a tendency to move
  * around, to further complicate matters.)
  */
-#define IRQ_INDEX(_name) ((IRQ_PRCMU_##_name) - IRQ_PRCMU_BASE)
+#define IRQ_INDEX(_name) ((IRQ_PRCMU_##_name))
 #define IRQ_ENTRY(_name)[IRQ_INDEX(_name)] = (WAKEUP_BIT_##_name)
+
+#define IRQ_PRCMU_RTC 0
+#define IRQ_PRCMU_RTT0 1
+#define IRQ_PRCMU_RTT1 2
+#define IRQ_PRCMU_HSI0 3
+#define IRQ_PRCMU_HSI1 4
+#define IRQ_PRCMU_CA_WAKE 5
+#define IRQ_PRCMU_USB 6
+#define IRQ_PRCMU_ABB 7
+#define IRQ_PRCMU_ABB_FIFO 8
+#define IRQ_PRCMU_ARM 9
+#define IRQ_PRCMU_MODEM_SW_RESET_REQ 10
+#define IRQ_PRCMU_GPIO0 11
+#define IRQ_PRCMU_GPIO1 12
+#define IRQ_PRCMU_GPIO2 13
+#define IRQ_PRCMU_GPIO3 14
+#define IRQ_PRCMU_GPIO4 15
+#define IRQ_PRCMU_GPIO5 16
+#define IRQ_PRCMU_GPIO6 17
+#define IRQ_PRCMU_GPIO7 18
+#define IRQ_PRCMU_GPIO8 19
+#define IRQ_PRCMU_CA_SLEEP 20
+#define IRQ_PRCMU_HOTMON_LOW 21
+#define IRQ_PRCMU_HOTMON_HIGH 22
+#define NUM_PRCMU_WAKEUPS 23
+
 static u32 prcmu_irq_bit[NUM_PRCMU_WAKEUPS] = {
 	IRQ_ENTRY(RTC),
 	IRQ_ENTRY(RTT0),
@@ -422,9 +445,10 @@ static DEFINE_SPINLOCK(clkout_lock);
 
 /* Global var to runtime determine TCDM base for v2 or v1 */
 static __iomem void *tcdm_base;
+static __iomem void *prcmu_base;
 
 struct clk_mgt {
-	void __iomem *reg;
+	u32 offset;
 	u32 pllsw;
 	int branch;
 	bool clk38div;
@@ -599,9 +623,9 @@ int db8500_prcmu_set_display_clocks(void)
 	while ((readl(PRCM_SEM) & PRCM_SEM_PRCM_SEM) != 0)
 		cpu_relax();
 
-	writel(PRCMU_DSI_CLOCK_SETTING, PRCM_HDMICLK_MGT);
-	writel(PRCMU_DSI_LP_CLOCK_SETTING, PRCM_TVCLK_MGT);
-	writel(PRCMU_DPI_CLOCK_SETTING, PRCM_LCDCLK_MGT);
+	writel(PRCMU_DSI_CLOCK_SETTING, prcmu_base + PRCM_HDMICLK_MGT);
+	writel(PRCMU_DSI_LP_CLOCK_SETTING, prcmu_base + PRCM_TVCLK_MGT);
+	writel(PRCMU_DPI_CLOCK_SETTING, prcmu_base + PRCM_LCDCLK_MGT);
 
 	/* Release the HW semaphore. */
 	writel(0, PRCM_SEM);
@@ -613,7 +637,7 @@ int db8500_prcmu_set_display_clocks(void)
 
 u32 db8500_prcmu_read(unsigned int reg)
 {
-	return readl(_PRCMU_BASE + reg);
+	return readl(prcmu_base + reg);
 }
 
 void db8500_prcmu_write(unsigned int reg, u32 value)
@@ -621,7 +645,7 @@ void db8500_prcmu_write(unsigned int reg, u32 value)
 	unsigned long flags;
 
 	spin_lock_irqsave(&prcmu_lock, flags);
-	writel(value, (_PRCMU_BASE + reg));
+	writel(value, (prcmu_base + reg));
 	spin_unlock_irqrestore(&prcmu_lock, flags);
 }
 
@@ -631,9 +655,9 @@ void db8500_prcmu_write_masked(unsigned int reg, u32 mask, u32 value)
 	unsigned long flags;
 
 	spin_lock_irqsave(&prcmu_lock, flags);
-	val = readl(_PRCMU_BASE + reg);
+	val = readl(prcmu_base + reg);
 	val = ((val & ~mask) | (value & mask));
-	writel(val, (_PRCMU_BASE + reg));
+	writel(val, (prcmu_base + reg));
 	spin_unlock_irqrestore(&prcmu_lock, flags);
 }
 
@@ -793,119 +817,6 @@ u8 db8500_prcmu_get_power_state_result(void)
 	return readb(tcdm_base + PRCM_ACK_MB0_AP_PWRSTTR_STATUS);
 }
 
-/* This function decouple the gic from the prcmu */
-int db8500_prcmu_gic_decouple(void)
-{
-	u32 val = readl(PRCM_A9_MASK_REQ);
-
-	/* Set bit 0 register value to 1 */
-	writel(val | PRCM_A9_MASK_REQ_PRCM_A9_MASK_REQ,
-	       PRCM_A9_MASK_REQ);
-
-	/* Make sure the register is updated */
-	readl(PRCM_A9_MASK_REQ);
-
-	/* Wait a few cycles for the gic mask completion */
-	udelay(1);
-
-	return 0;
-}
-
-/* This function recouple the gic with the prcmu */
-int db8500_prcmu_gic_recouple(void)
-{
-	u32 val = readl(PRCM_A9_MASK_REQ);
-
-	/* Set bit 0 register value to 0 */
-	writel(val & ~PRCM_A9_MASK_REQ_PRCM_A9_MASK_REQ, PRCM_A9_MASK_REQ);
-
-	return 0;
-}
-
-#define PRCMU_GIC_NUMBER_REGS 5
-
-/*
- * This function checks if there are pending irq on the gic. It only
- * makes sense if the gic has been decoupled before with the
- * db8500_prcmu_gic_decouple function. Disabling an interrupt only
- * disables the forwarding of the interrupt to any CPU interface. It
- * does not prevent the interrupt from changing state, for example
- * becoming pending, or active and pending if it is already
- * active. Hence, we have to check the interrupt is pending *and* is
- * active.
- */
-bool db8500_prcmu_gic_pending_irq(void)
-{
-	u32 pr; /* Pending register */
-	u32 er; /* Enable register */
-	void __iomem *dist_base = __io_address(U8500_GIC_DIST_BASE);
-	int i;
-
-        /* 5 registers. STI & PPI not skipped */
-	for (i = 0; i < PRCMU_GIC_NUMBER_REGS; i++) {
-
-		pr = readl_relaxed(dist_base + GIC_DIST_PENDING_SET + i * 4);
-		er = readl_relaxed(dist_base + GIC_DIST_ENABLE_SET + i * 4);
-
-		if (pr & er)
-			return true; /* There is a pending interrupt */
-	}
-
-	return false;
-}
-
-/*
- * This function checks if there are pending interrupt on the
- * prcmu which has been delegated to monitor the irqs with the
- * db8500_prcmu_copy_gic_settings function.
- */
-bool db8500_prcmu_pending_irq(void)
-{
-	u32 it, im;
-	int i;
-
-	for (i = 0; i < PRCMU_GIC_NUMBER_REGS - 1; i++) {
-		it = readl(PRCM_ARMITVAL31TO0 + i * 4);
-		im = readl(PRCM_ARMITMSK31TO0 + i * 4);
-		if (it & im)
-			return true; /* There is a pending interrupt */
-	}
-
-	return false;
-}
-
-/*
- * This function checks if the specified cpu is in in WFI. It's usage
- * makes sense only if the gic is decoupled with the db8500_prcmu_gic_decouple
- * function. Of course passing smp_processor_id() to this function will
- * always return false...
- */
-bool db8500_prcmu_is_cpu_in_wfi(int cpu)
-{
-	return readl(PRCM_ARM_WFI_STANDBY) & cpu ? PRCM_ARM_WFI_STANDBY_WFI1 :
-		     PRCM_ARM_WFI_STANDBY_WFI0;
-}
-
-/*
- * This function copies the gic SPI settings to the prcmu in order to
- * monitor them and abort/finish the retention/off sequence or state.
- */
-int db8500_prcmu_copy_gic_settings(void)
-{
-	u32 er; /* Enable register */
-	void __iomem *dist_base = __io_address(U8500_GIC_DIST_BASE);
-	int i;
-
-        /* We skip the STI and PPI */
-	for (i = 0; i < PRCMU_GIC_NUMBER_REGS - 1; i++) {
-		er = readl_relaxed(dist_base +
-				   GIC_DIST_ENABLE_SET + (i + 1) * 4);
-		writel(er, PRCM_ARMITMSK31TO0 + i * 4);
-	}
-
-	return 0;
-}
-
 /* This function should only be called while mb0_transfer.lock is held. */
 static void config_wakeups(void)
 {
@@ -1059,7 +970,7 @@ int db8500_prcmu_set_ddr_opp(u8 opp)
 /* Divide the frequency of certain clocks by 2 for APE_50_PARTLY_25_OPP. */
 static void request_even_slower_clocks(bool enable)
 {
-	void __iomem *clock_reg[] = {
+	u32 clock_reg[] = {
 		PRCM_ACLK_MGT,
 		PRCM_DMACLK_MGT
 	};
@@ -1076,7 +987,7 @@ static void request_even_slower_clocks(bool enable)
 		u32 val;
 		u32 div;
 
-		val = readl(clock_reg[i]);
+		val = readl(prcmu_base + clock_reg[i]);
 		div = (val & PRCM_CLK_MGT_CLKPLLDIV_MASK);
 		if (enable) {
 			if ((div <= 1) || (div > 15)) {
@@ -1092,7 +1003,7 @@ static void request_even_slower_clocks(bool enable)
 		}
 		val = ((val & ~PRCM_CLK_MGT_CLKPLLDIV_MASK) |
 			(div & PRCM_CLK_MGT_CLKPLLDIV_MASK));
-		writel(val, clock_reg[i]);
+		writel(val, prcmu_base + clock_reg[i]);
 	}
 
 unlock_and_return:
@@ -1446,14 +1357,14 @@ static int request_clock(u8 clock, bool enable)
 	while ((readl(PRCM_SEM) & PRCM_SEM_PRCM_SEM) != 0)
 		cpu_relax();
 
-	val = readl(clk_mgt[clock].reg);
+	val = readl(prcmu_base + clk_mgt[clock].offset);
 	if (enable) {
 		val |= (PRCM_CLK_MGT_CLKEN | clk_mgt[clock].pllsw);
 	} else {
 		clk_mgt[clock].pllsw = (val & PRCM_CLK_MGT_CLKPLLSW_MASK);
 		val &= ~(PRCM_CLK_MGT_CLKEN | PRCM_CLK_MGT_CLKPLLSW_MASK);
 	}
-	writel(val, clk_mgt[clock].reg);
+	writel(val, prcmu_base + clk_mgt[clock].offset);
 
 	/* Release the HW semaphore. */
 	writel(0, PRCM_SEM);
@@ -1629,7 +1540,7 @@ static unsigned long clock_rate(u8 clock)
 	u32 pllsw;
 	unsigned long rate = ROOT_CLOCK_RATE;
 
-	val = readl(clk_mgt[clock].reg);
+	val = readl(prcmu_base + clk_mgt[clock].offset);
 
 	if (val & PRCM_CLK_MGT_CLK38) {
 		if (clk_mgt[clock].clk38div && (val & PRCM_CLK_MGT_CLK38DIV))
@@ -1785,7 +1696,7 @@ static long round_clock_rate(u8 clock, unsigned long rate)
 	unsigned long src_rate;
 	long rounded_rate;
 
-	val = readl(clk_mgt[clock].reg);
+	val = readl(prcmu_base + clk_mgt[clock].offset);
 	src_rate = clock_source_rate((val | clk_mgt[clock].pllsw),
 		clk_mgt[clock].branch);
 	div = clock_divider(src_rate, rate);
@@ -1933,7 +1844,7 @@ static void set_clock_rate(u8 clock, unsigned long rate)
 	while ((readl(PRCM_SEM) & PRCM_SEM_PRCM_SEM) != 0)
 		cpu_relax();
 
-	val = readl(clk_mgt[clock].reg);
+	val = readl(prcmu_base + clk_mgt[clock].offset);
 	src_rate = clock_source_rate((val | clk_mgt[clock].pllsw),
 		clk_mgt[clock].branch);
 	div = clock_divider(src_rate, rate);
@@ -1961,7 +1872,7 @@ static void set_clock_rate(u8 clock, unsigned long rate)
 		val &= ~PRCM_CLK_MGT_CLKPLLDIV_MASK;
 		val |= min(div, (u32)31);
 	}
-	writel(val, clk_mgt[clock].reg);
+	writel(val, prcmu_base + clk_mgt[clock].offset);
 
 	/* Release the HW semaphore. */
 	writel(0, PRCM_SEM);
@@ -2764,14 +2675,13 @@ static struct irq_domain_ops db8500_irq_ops = {
 	.xlate  = irq_domain_xlate_twocell,
 };
 
-static int db8500_irq_init(struct device_node *np)
+static int db8500_irq_init(struct device_node *np, int irq_base)
 {
-	int irq_base = 0;
 	int i;
 
 	/* In the device tree case, just take some IRQs */
-	if (!np)
-		irq_base = IRQ_PRCMU_BASE;
+	if (np)
+		irq_base = 0;
 
 	db8500_irq_domain = irq_domain_add_simple(
 		np, NUM_PRCMU_WAKEUPS, irq_base,
@@ -2825,8 +2735,19 @@ static void dbx500_fw_version_init(struct platform_device *pdev,
 	}
 }
 
-void __init db8500_prcmu_early_init(void)
+void __init db8500_prcmu_early_init(u32 phy_base, u32 size)
 {
+	/*
+	 * This is a temporary remap to bring up the clocks. It is
+	 * subsequently replaces with a real remap. After the merge of
+	 * the mailbox subsystem all of this early code goes away, and the
+	 * clock driver can probe independently. An early initcall will
+	 * still be needed, but it can be diverted into drivers/clk/ux500.
+	 */
+	prcmu_base = ioremap(phy_base, size);
+	if (!prcmu_base)
+		pr_err("%s: ioremap() of prcmu registers failed!\n", __func__);
+
 	spin_lock_init(&mb0_transfer.lock);
 	spin_lock_init(&mb0_transfer.dbb_irqs_lock);
 	mutex_init(&mb0_transfer.ac_wake_lock);
@@ -3092,17 +3013,56 @@ static struct regulator_init_data db8500_regulators[DB8500_NUM_REGULATORS] = {
 	},
 };
 
-static struct resource ab8500_resources[] = {
-	[0] = {
-		.start	= IRQ_DB8500_AB8500,
-		.end	= IRQ_DB8500_AB8500,
-		.flags	= IORESOURCE_IRQ
-	}
-};
-
 static struct ux500_wdt_data db8500_wdt_pdata = {
 	.timeout = 600, /* 10 minutes */
 	.has_28_bits_resolution = true,
+};
+/*
+ * Thermal Sensor
+ */
+
+static struct resource db8500_thsens_resources[] = {
+	{
+		.name = "IRQ_HOTMON_LOW",
+		.start  = IRQ_PRCMU_HOTMON_LOW,
+		.end    = IRQ_PRCMU_HOTMON_LOW,
+		.flags  = IORESOURCE_IRQ,
+	},
+	{
+		.name = "IRQ_HOTMON_HIGH",
+		.start  = IRQ_PRCMU_HOTMON_HIGH,
+		.end    = IRQ_PRCMU_HOTMON_HIGH,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct db8500_thsens_platform_data db8500_thsens_data = {
+	.trip_points[0] = {
+		.temp = 70000,
+		.type = THERMAL_TRIP_ACTIVE,
+		.cdev_name = {
+			[0] = "thermal-cpufreq-0",
+		},
+	},
+	.trip_points[1] = {
+		.temp = 75000,
+		.type = THERMAL_TRIP_ACTIVE,
+		.cdev_name = {
+			[0] = "thermal-cpufreq-0",
+		},
+	},
+	.trip_points[2] = {
+		.temp = 80000,
+		.type = THERMAL_TRIP_ACTIVE,
+		.cdev_name = {
+			[0] = "thermal-cpufreq-0",
+		},
+	},
+	.trip_points[3] = {
+		.temp = 85000,
+		.type = THERMAL_TRIP_CRITICAL,
+	},
+	.num_trips = 4,
 };
 
 static struct mfd_cell db8500_prcmu_devs[] = {
@@ -3125,11 +3085,10 @@ static struct mfd_cell db8500_prcmu_devs[] = {
 		.id = -1,
 	},
 	{
-		.name = "ab8500-core",
-		.of_compatible = "stericsson,ab8500",
-		.num_resources = ARRAY_SIZE(ab8500_resources),
-		.resources = ab8500_resources,
-		.id = AB8500_VERSION_AB8500,
+		.name = "db8500-thermal",
+		.num_resources = ARRAY_SIZE(db8500_thsens_resources),
+		.resources = db8500_thsens_resources,
+		.platform_data = &db8500_thsens_data,
 	},
 };
 
@@ -3141,6 +3100,24 @@ static void db8500_prcmu_update_cpufreq(void)
 	}
 }
 
+static int db8500_prcmu_register_ab8500(struct device *parent,
+					struct ab8500_platform_data *pdata,
+					int irq)
+{
+	struct resource ab8500_resource = DEFINE_RES_IRQ(irq);
+	struct mfd_cell ab8500_cell = {
+		.name = "ab8500-core",
+		.of_compatible = "stericsson,ab8500",
+		.id = AB8500_VERSION_AB8500,
+		.platform_data = pdata,
+		.pdata_size = sizeof(struct ab8500_platform_data),
+		.resources = &ab8500_resource,
+		.num_resources = 1,
+	};
+
+	return mfd_add_devices(parent, 0, &ab8500_cell, 1, NULL, 0, NULL);
+}
+
 /**
  * prcmu_fw_init - arch init call for the Linux PRCMU fw init logic
  *
@@ -3149,11 +3126,21 @@ static int db8500_prcmu_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct prcmu_pdata *pdata = dev_get_platdata(&pdev->dev);
-	int irq = 0, err = 0, i;
+	int irq = 0, err = 0;
 	struct resource *res;
 
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "prcmu");
+	if (!res) {
+		dev_err(&pdev->dev, "no prcmu memory region provided\n");
+		return -ENOENT;
+	}
+	prcmu_base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
+	if (!prcmu_base) {
+		dev_err(&pdev->dev,
+			"failed to ioremap prcmu register memory\n");
+		return -ENOENT;
+	}
 	init_prcm_registers();
-
 	dbx500_fw_version_init(pdev, pdata->version_offset);
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "prcmu-tcdm");
 	if (!res) {
@@ -3180,24 +3167,25 @@ static int db8500_prcmu_probe(struct platform_device *pdev)
 		goto no_irq_return;
 	}
 
-	db8500_irq_init(np);
-
-	for (i = 0; i < ARRAY_SIZE(db8500_prcmu_devs); i++) {
-		if (!strcmp(db8500_prcmu_devs[i].name, "ab8500-core")) {
-			db8500_prcmu_devs[i].platform_data = pdata->ab_platdata;
-			db8500_prcmu_devs[i].pdata_size = sizeof(struct ab8500_platform_data);
-		}
-	}
+	db8500_irq_init(np, pdata->irq_base);
 
 	prcmu_config_esram0_deep_sleep(ESRAM0_DEEP_SLEEP_STATE_RET);
 
 	db8500_prcmu_update_cpufreq();
 
 	err = mfd_add_devices(&pdev->dev, 0, db8500_prcmu_devs,
-			      ARRAY_SIZE(db8500_prcmu_devs), NULL, 0, NULL);
+			      ARRAY_SIZE(db8500_prcmu_devs), NULL, 0, db8500_irq_domain);
 	if (err) {
 		pr_err("prcmu: Failed to add subdevices\n");
 		return err;
+	}
+
+	err = db8500_prcmu_register_ab8500(&pdev->dev, pdata->ab_platdata,
+					   pdata->ab_irq);
+	if (err) {
+		mfd_remove_devices(&pdev->dev);
+		pr_err("prcmu: Failed to add ab8500 subdevice\n");
+		goto no_irq_return;
 	}
 
 	pr_info("DB8500 PRCMU initialized\n");

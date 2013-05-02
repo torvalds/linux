@@ -466,7 +466,10 @@
 #define IRQ_TIMER_BASE			(IRQ_GPIO_END + 64)
 
 /* Set the default NR_IRQS */
+#define EXYNOS_NR_IRQS			(IRQ_TIMER_BASE + IRQ_TIMER_COUNT)
 
-#define NR_IRQS				(IRQ_TIMER_BASE + IRQ_TIMER_COUNT)
+#ifndef CONFIG_SPARSE_IRQ
+#define NR_IRQS				EXYNOS_NR_IRQS
+#endif
 
 #endif /* __ASM_ARCH_IRQS_H */

@@ -29,9 +29,8 @@
 #include <linux/uaccess.h>
 #include <linux/io.h>
 
-#include <mach/hardware.h>
 #include <asm/irq.h>
-#include <plat/regs-rtc.h>
+#include "rtc-s3c.h"
 
 enum s3c_cpu_type {
 	TYPE_S3C2410,

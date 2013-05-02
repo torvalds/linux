@@ -11,8 +11,8 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/atomic.h>
-#include <mach/cns3xxx.h>
-#include <mach/pm.h>
+#include "cns3xxx.h"
+#include "pm.h"
 #include "core.h"
 
 void cns3xxx_pwr_clk_en(unsigned int block)

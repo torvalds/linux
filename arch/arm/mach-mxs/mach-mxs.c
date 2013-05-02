@@ -32,6 +32,8 @@
 #include <asm/mach/time.h>
 #include <asm/system_misc.h>
 
+#include "pm.h"
+
 /* MXS DIGCTL SAIF CLKMUX */
 #define MXS_DIGCTL_SAIF_CLKMUX_DIRECT		0x0
 #define MXS_DIGCTL_SAIF_CLKMUX_CROSSINPUT	0x1
@@ -607,6 +609,7 @@ DT_MACHINE_START(MXS, "Freescale MXS (Device Tree)")
 	.handle_irq	= icoll_handle_irq,
 	.init_time	= mxs_timer_init,
 	.init_machine	= mxs_machine_init,
+	.init_late      = mxs_pm_init,
 	.dt_compat	= mxs_dt_compat,
 	.restart	= mxs_restart,
 MACHINE_END

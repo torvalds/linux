@@ -9,6 +9,8 @@ config ARCH_VEXPRESS
 	select COMMON_CLK_VERSATILE
 	select CPU_V7
 	select GENERIC_CLOCKEVENTS
+	select HAVE_ARM_SCU if SMP
+	select HAVE_ARM_TWD if LOCAL_TIMERS
 	select HAVE_CLK
 	select HAVE_PATA_PLATFORM
 	select HAVE_SMP

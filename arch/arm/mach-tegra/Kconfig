@@ -1,13 +1,30 @@
-if ARCH_TEGRA
+config ARCH_TEGRA
+	bool "NVIDIA Tegra" if ARCH_MULTI_V7
+	select ARCH_HAS_CPUFREQ
+	select ARCH_REQUIRE_GPIOLIB
+	select CLKDEV_LOOKUP
+	select CLKSRC_MMIO
+	select CLKSRC_OF
+	select COMMON_CLK
+	select GENERIC_CLOCKEVENTS
+	select HAVE_ARM_SCU if SMP
+	select HAVE_ARM_TWD if LOCAL_TIMERS
+	select HAVE_CLK
+	select HAVE_SMP
+	select MIGHT_HAVE_CACHE_L2X0
+	select SOC_BUS
+	select SPARSE_IRQ
+	select USE_OF
+	help
+	  This enables support for NVIDIA Tegra based systems.
 
-comment "NVIDIA Tegra options"
+menu "NVIDIA Tegra options"
+	depends on ARCH_TEGRA
 
 config ARCH_TEGRA_2x_SOC
 	bool "Enable support for Tegra20 family"
 	select ARCH_NEEDS_CPU_IDLE_COUPLED if SMP
 	select ARM_ERRATA_720789
-	select ARM_ERRATA_742230 if SMP
-	select ARM_ERRATA_751472
 	select ARM_ERRATA_754327 if SMP
 	select ARM_ERRATA_764369 if SMP
 	select ARM_GIC
@@ -26,8 +43,6 @@ config ARCH_TEGRA_2x_SOC
 
 config ARCH_TEGRA_3x_SOC
 	bool "Enable support for Tegra30 family"
-	select ARM_ERRATA_743622
-	select ARM_ERRATA_751472
 	select ARM_ERRATA_754322
 	select ARM_ERRATA_764369 if SMP
 	select ARM_GIC
@@ -71,4 +86,4 @@ config TEGRA_AHB
 config TEGRA_EMC_SCALING_ENABLE
 	bool "Enable scaling the memory frequency"
 
-endif
+endmenu

@@ -1347,7 +1347,7 @@ static inline int sirfsoc_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 	struct sirfsoc_gpio_bank *bank = container_of(to_of_mm_gpio_chip(chip),
 		struct sirfsoc_gpio_bank, chip);
 
-	return irq_find_mapping(bank->domain, offset);
+	return irq_create_mapping(bank->domain, offset);
 }
 
 static inline int sirfsoc_gpio_to_offset(unsigned int gpio)
@@ -1485,7 +1485,6 @@ static void sirfsoc_gpio_handle_irq(unsigned int irq, struct irq_desc *desc)
 	struct sirfsoc_gpio_bank *bank = irq_get_handler_data(irq);
 	u32 status, ctrl;
 	int idx = 0;
-	unsigned int first_irq;
 	struct irq_chip *chip = irq_get_chip(irq);
 
 	chained_irq_enter(chip, desc);
@@ -1499,8 +1498,6 @@ static void sirfsoc_gpio_handle_irq(unsigned int irq, struct irq_desc *desc)
 		return;
 	}
 
-	first_irq = bank->domain->revmap_data.legacy.first_irq;
-
 	while (status) {
 		ctrl = readl(bank->chip.regs + SIRFSOC_GPIO_CTRL(bank->id, idx));
 
@@ -1511,7 +1508,7 @@ static void sirfsoc_gpio_handle_irq(unsigned int irq, struct irq_desc *desc)
 		if ((status & 0x1) && (ctrl & SIRFSOC_GPIO_CTL_INTR_EN_MASK)) {
 			pr_debug("%s: gpio id %d idx %d happens\n",
 				__func__, bank->id, idx);
-			generic_handle_irq(first_irq + idx);
+			generic_handle_irq(irq_find_mapping(bank->domain, idx));
 		}
 
 		idx++;
@@ -1764,9 +1761,8 @@ static int sirfsoc_gpio_probe(struct device_node *np)
 			goto out;
 		}
 
-		bank->domain = irq_domain_add_legacy(np, SIRFSOC_GPIO_BANK_SIZE,
-			SIRFSOC_GPIO_IRQ_START + i * SIRFSOC_GPIO_BANK_SIZE, 0,
-			&sirfsoc_gpio_irq_simple_ops, bank);
+		bank->domain = irq_domain_add_linear(np, SIRFSOC_GPIO_BANK_SIZE,
+						&sirfsoc_gpio_irq_simple_ops, bank);
 
 		if (!bank->domain) {
 			pr_err("%s: Failed to create irqdomain\n", np->full_name);

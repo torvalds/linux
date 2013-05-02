@@ -6,6 +6,7 @@
  * Licensed under GPLv2 or later.
  */
 
+#include <linux/clocksource.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/irqchip.h>
@@ -31,6 +32,13 @@ void __init sirfsoc_init_late(void)
 	sirfsoc_pm_init();
 }
 
+static __init void sirfsoc_init_time(void)
+{
+	/* initialize clocking early, we want to set the OS timer */
+	sirfsoc_of_clk_init();
+	clocksource_of_init();
+}
+
 static __init void sirfsoc_map_io(void)
 {
 	sirfsoc_map_lluart();
@@ -45,12 +53,10 @@ static const char *atlas6_dt_match[] __initdata = {
 
 DT_MACHINE_START(ATLAS6_DT, "Generic ATLAS6 (Flattened Device Tree)")
 	/* Maintainer: Barry Song <baohua.song@csr.com> */
+	.nr_irqs	= 128,
 	.map_io         = sirfsoc_map_io,
-	.init_irq	= sirfsoc_of_irq_init,
-	.init_time	= sirfsoc_prima2_timer_init,
-#ifdef CONFIG_MULTI_IRQ_HANDLER
-	.handle_irq     = sirfsoc_handle_irq,
-#endif
+	.init_irq	= irqchip_init,
+	.init_time	= sirfsoc_init_time,
 	.init_machine	= sirfsoc_mach_init,
 	.init_late	= sirfsoc_init_late,
 	.dt_compat      = atlas6_dt_match,
@@ -66,12 +72,10 @@ static const char *prima2_dt_match[] __initdata = {
 
 DT_MACHINE_START(PRIMA2_DT, "Generic PRIMA2 (Flattened Device Tree)")
 	/* Maintainer: Barry Song <baohua.song@csr.com> */
+	.nr_irqs	= 128,
 	.map_io         = sirfsoc_map_io,
-	.init_irq	= sirfsoc_of_irq_init,
-	.init_time	= sirfsoc_prima2_timer_init,
-#ifdef CONFIG_MULTI_IRQ_HANDLER
-	.handle_irq     = sirfsoc_handle_irq,
-#endif
+	.init_irq	= irqchip_init,
+	.init_time	= sirfsoc_init_time,
 	.dma_zone_size	= SZ_256M,
 	.init_machine	= sirfsoc_mach_init,
 	.init_late	= sirfsoc_init_late,
@@ -91,7 +95,7 @@ DT_MACHINE_START(MARCO_DT, "Generic MARCO (Flattened Device Tree)")
 	.smp            = smp_ops(sirfsoc_smp_ops),
 	.map_io         = sirfsoc_map_io,
 	.init_irq	= irqchip_init,
-	.init_time	= sirfsoc_marco_timer_init,
+	.init_time	= sirfsoc_init_time,
 	.init_machine	= sirfsoc_mach_init,
 	.init_late	= sirfsoc_init_late,
 	.dt_compat      = marco_dt_match,

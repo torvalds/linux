@@ -14,6 +14,7 @@ menu "SAMSUNG EXYNOS SoCs Support"
 config ARCH_EXYNOS4
 	bool "SAMSUNG EXYNOS4"
 	default y
+	select HAVE_ARM_SCU if SMP
 	select HAVE_SMP
 	select MIGHT_HAVE_CACHE_L2X0
 	help
@@ -21,6 +22,7 @@ config ARCH_EXYNOS4
 
 config ARCH_EXYNOS5
 	bool "SAMSUNG EXYNOS5"
+	select HAVE_ARM_SCU if SMP
 	select HAVE_SMP
 	help
 	  Samsung EXYNOS5 (Cortex-A15) SoC based systems
@@ -86,6 +88,19 @@ config EXYNOS4_MCT
 	default y
 	help
 	  Use MCT (Multi Core Timer) as kernel timers
+
+config EXYNOS_ATAGS
+	bool "ATAGS based boot for EXYNOS (deprecated)"
+	depends on !ARCH_MULTIPLATFORM
+	depends on ATAGS
+	default y
+	help
+	  The EXYNOS platform is moving towards being completely probed
+	  through device tree. This enables support for board files using
+	  the traditional ATAGS boot format.
+	  Note that this option is not available for multiplatform builds.
+
+if EXYNOS_ATAGS
 
 config EXYNOS_DEV_DMA
 	bool
@@ -389,6 +404,8 @@ config MACH_SMDK4412
 	select SOC_EXYNOS4412
 	help
 	  Machine support for Samsung SMDK4412
+endif
+
 endif
 
 comment "Flattened Device Tree based board for EXYNOS SoCs"

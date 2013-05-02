@@ -53,6 +53,7 @@
 #include <plat/fimc-core.h>
 #include <plat/camport.h>
 
+#include <mach/irqs.h>
 #include <mach/map.h>
 
 #include "common.h"
