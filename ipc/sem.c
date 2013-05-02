@@ -328,25 +328,9 @@ static inline void sem_lock_and_putref(struct sem_array *sma)
 	ipc_rcu_putref(sma);
 }
 
-static inline void sem_getref_and_unlock(struct sem_array *sma)
-{
-	WARN_ON_ONCE(!ipc_rcu_getref(sma));
-	sem_unlock(sma, -1);
-}
-
 static inline void sem_putref(struct sem_array *sma)
 {
 	sem_lock_and_putref(sma);
-	sem_unlock(sma, -1);
-}
-
-/*
- * Call inside the rcu read section.
- */
-static inline void sem_getref(struct sem_array *sma)
-{
-	sem_lock(sma, NULL, -1);
-	WARN_ON_ONCE(!ipc_rcu_getref(sma));
 	sem_unlock(sma, -1);
 }
 
@@ -1116,9 +1100,14 @@ static int semctl_main(struct ipc_namespace *ns, int semid, int semnum,
 		ushort __user *array = p;
 		int i;
 
+		sem_lock(sma, NULL, -1);
 		if(nsems > SEMMSL_FAST) {
-			sem_getref(sma);
-
+			if (!ipc_rcu_getref(sma)) {
+				sem_unlock(sma, -1);
+				err = -EIDRM;
+				goto out_free;
+			}
+			sem_unlock(sma, -1);
 			sem_io = ipc_alloc(sizeof(ushort)*nsems);
 			if(sem_io == NULL) {
 				sem_putref(sma);
@@ -1131,9 +1120,7 @@ static int semctl_main(struct ipc_namespace *ns, int semid, int semnum,
 				err = -EIDRM;
 				goto out_free;
 			}
-		} else
-			sem_lock(sma, NULL, -1);
-
+		}
 		for (i = 0; i < sma->sem_nsems; i++)
 			sem_io[i] = sma->sem_base[i].semval;
 		sem_unlock(sma, -1);
