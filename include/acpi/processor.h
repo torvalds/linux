@@ -6,6 +6,10 @@
 #include <linux/thermal.h>
 #include <asm/acpi.h>
 
+#define ACPI_PROCESSOR_CLASS		"processor"
+#define ACPI_PROCESSOR_DEVICE_NAME	"Processor"
+#define ACPI_PROCESSOR_DEVICE_HID	"ACPI0007"
+
 #define ACPI_PROCESSOR_BUSY_METRIC	10
 
 #define ACPI_PROCESSOR_MAX_POWER	8
@@ -207,6 +211,7 @@ struct acpi_processor {
 	struct acpi_processor_throttling throttling;
 	struct acpi_processor_limit limit;
 	struct thermal_cooling_device *cdev;
+	struct device *dev; /* Processor device. */
 };
 
 struct acpi_processor_errata {

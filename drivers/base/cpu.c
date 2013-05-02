@@ -13,10 +13,20 @@
 #include <linux/gfp.h>
 #include <linux/slab.h>
 #include <linux/percpu.h>
+#include <linux/acpi.h>
 
 #include "base.h"
 
 static DEFINE_PER_CPU(struct device *, cpu_sys_devices);
+
+static int cpu_subsys_match(struct device *dev, struct device_driver *drv)
+{
+	/* ACPI style match is the only one that may succeed. */
+	if (acpi_driver_match_device(dev, drv))
+		return 1;
+
+	return 0;
+}
 
 #ifdef CONFIG_HOTPLUG_CPU
 static void change_cpu_under_node(struct cpu *cpu,
@@ -98,6 +108,7 @@ static DEVICE_ATTR(release, S_IWUSR, NULL, cpu_release_store);
 struct bus_type cpu_subsys = {
 	.name = "cpu",
 	.dev_name = "cpu",
+	.match = cpu_subsys_match,
 #ifdef CONFIG_HOTPLUG_CPU
 	.online = cpu_subsys_online,
 	.offline = cpu_subsys_offline,
