@@ -3083,7 +3083,7 @@ check_query:
 						nd->nd_hw_ver = (b[8] << 8) | b[9];
 						nd->nd_sw_ver = (b[10] << 8) | b[11];
 						nd->nd_hw_id = b[6];
-						desclen = ((plen - 12) > MAX_DESC_LEN) ? MAX_DESC_LEN :
+						desclen = (plen - 12 > MAX_DESC_LEN - 1) ? MAX_DESC_LEN - 1 :
 							plen - 12;
 
 						if (desclen <= 0) {
