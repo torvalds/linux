@@ -2902,7 +2902,18 @@ static void valleyview_enable_rps(struct drm_device *dev)
 		   GEN7_RC_CTL_TO_MODE);
 
 	valleyview_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS, &val);
-	dev_priv->mem_freq = 800 + (266 * (val >> 6) & 3);
+	switch ((val >> 6) & 3) {
+	case 0:
+	case 1:
+		dev_priv->mem_freq = 800;
+		break;
+	case 2:
+		dev_priv->mem_freq = 1066;
+		break;
+	case 3:
+		dev_priv->mem_freq = 1333;
+		break;
+	}
 	DRM_DEBUG_DRIVER("DDR speed: %d MHz", dev_priv->mem_freq);
 
 	DRM_DEBUG_DRIVER("GPLL enabled? %s\n", val & 0x10 ? "yes" : "no");
