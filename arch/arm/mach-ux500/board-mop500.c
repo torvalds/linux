@@ -403,8 +403,8 @@ static int mop500_prox_activate(struct device *dev)
 			"no regulator\n");
 		return PTR_ERR(prox_regulator);
 	}
-	regulator_enable(prox_regulator);
-	return 0;
+
+	return regulator_enable(prox_regulator);
 }
 
 static void mop500_prox_deactivate(struct device *dev)
