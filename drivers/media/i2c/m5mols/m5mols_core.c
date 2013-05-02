@@ -959,7 +959,8 @@ static int m5mols_probe(struct i2c_client *client,
 
 	gpio_flags = pdata->reset_polarity
 		   ? GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW;
-	ret = gpio_request_one(pdata->gpio_reset, gpio_flags, "M5MOLS_NRST");
+	ret = devm_gpio_request_one(&client->dev, pdata->gpio_reset, gpio_flags,
+				    "M5MOLS_NRST");
 	if (ret) {
 		dev_err(&client->dev, "Failed to request gpio: %d\n", ret);
 		return ret;
@@ -968,7 +969,7 @@ static int m5mols_probe(struct i2c_client *client,
 	ret = regulator_bulk_get(&client->dev, ARRAY_SIZE(supplies), supplies);
 	if (ret) {
 		dev_err(&client->dev, "Failed to get regulators: %d\n", ret);
-		goto out_gpio;
+		return ret;
 	}
 
 	sd = &info->sd;
@@ -1013,22 +1014,18 @@ out_me:
 	media_entity_cleanup(&sd->entity);
 out_reg:
 	regulator_bulk_free(ARRAY_SIZE(supplies), supplies);
-out_gpio:
-	gpio_free(pdata->gpio_reset);
 	return ret;
 }
 
 static int m5mols_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct m5mols_info *info = to_m5mols(sd);
 
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
 	free_irq(client->irq, sd);
 
 	regulator_bulk_free(ARRAY_SIZE(supplies), supplies);
-	gpio_free(info->pdata->gpio_reset);
 	media_entity_cleanup(&sd->entity);
 
 	return 0;

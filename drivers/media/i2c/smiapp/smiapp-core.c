@@ -2383,8 +2383,9 @@ static int smiapp_registered(struct v4l2_subdev *subdev)
 	}
 
 	if (sensor->platform_data->xshutdown != SMIAPP_NO_XSHUTDOWN) {
-		if (gpio_request_one(sensor->platform_data->xshutdown, 0,
-				     "SMIA++ xshutdown") != 0) {
+		if (devm_gpio_request_one(&client->dev,
+					  sensor->platform_data->xshutdown, 0,
+					  "SMIA++ xshutdown") != 0) {
 			dev_err(&client->dev,
 				"unable to acquire reset gpio %d\n",
 				sensor->platform_data->xshutdown);
@@ -2393,10 +2394,8 @@ static int smiapp_registered(struct v4l2_subdev *subdev)
 	}
 
 	rval = smiapp_power_on(sensor);
-	if (rval) {
-		rval = -ENODEV;
-		goto out_smiapp_power_on;
-	}
+	if (rval)
+		return -ENODEV;
 
 	rval = smiapp_identify_module(subdev);
 	if (rval) {
@@ -2656,11 +2655,6 @@ out_ident_release:
 
 out_power_off:
 	smiapp_power_off(sensor);
-
-out_smiapp_power_on:
-	if (sensor->platform_data->xshutdown != SMIAPP_NO_XSHUTDOWN)
-		gpio_free(sensor->platform_data->xshutdown);
-
 	return rval;
 }
 
@@ -2858,8 +2852,6 @@ static int smiapp_remove(struct i2c_client *client)
 		v4l2_device_unregister_subdev(&sensor->ssds[i].sd);
 	}
 	smiapp_free_controls(sensor);
-	if (sensor->platform_data->xshutdown != SMIAPP_NO_XSHUTDOWN)
-		gpio_free(sensor->platform_data->xshutdown);
 
 	return 0;
 }

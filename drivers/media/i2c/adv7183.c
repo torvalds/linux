@@ -580,17 +580,17 @@ static int adv7183_probe(struct i2c_client *client,
 	decoder->reset_pin = pin_array[0];
 	decoder->oe_pin = pin_array[1];
 
-	if (gpio_request_one(decoder->reset_pin, GPIOF_OUT_INIT_LOW,
-			     "ADV7183 Reset")) {
+	if (devm_gpio_request_one(&client->dev, decoder->reset_pin,
+				  GPIOF_OUT_INIT_LOW, "ADV7183 Reset")) {
 		v4l_err(client, "failed to request GPIO %d\n", decoder->reset_pin);
 		return -EBUSY;
 	}
 
-	if (gpio_request_one(decoder->oe_pin, GPIOF_OUT_INIT_HIGH,
-			     "ADV7183 Output Enable")) {
+	if (devm_gpio_request_one(&client->dev, decoder->oe_pin,
+				  GPIOF_OUT_INIT_HIGH,
+				  "ADV7183 Output Enable")) {
 		v4l_err(client, "failed to request GPIO %d\n", decoder->oe_pin);
-		ret = -EBUSY;
-		goto err_free_reset;
+		return -EBUSY;
 	}
 
 	sd = &decoder->sd;
@@ -612,7 +612,7 @@ static int adv7183_probe(struct i2c_client *client,
 		ret = hdl->error;
 
 		v4l2_ctrl_handler_free(hdl);
-		goto err_free_oe;
+		return ret;
 	}
 
 	/* v4l2 doesn't support an autodetect standard, pick PAL as default */
@@ -637,26 +637,18 @@ static int adv7183_probe(struct i2c_client *client,
 	ret = v4l2_ctrl_handler_setup(hdl);
 	if (ret) {
 		v4l2_ctrl_handler_free(hdl);
-		goto err_free_oe;
+		return ret;
 	}
 
 	return 0;
-err_free_oe:
-	gpio_free(decoder->oe_pin);
-err_free_reset:
-	gpio_free(decoder->reset_pin);
-	return ret;
 }
 
 static int adv7183_remove(struct i2c_client *client)
 {
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
-	struct adv7183 *decoder = to_adv7183(sd);
 
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
-	gpio_free(decoder->oe_pin);
-	gpio_free(decoder->reset_pin);
 	return 0;
 }
 

@@ -746,8 +746,9 @@ static int noon010_probe(struct i2c_client *client,
 	info->curr_win		= &noon010_sizes[0];
 
 	if (gpio_is_valid(pdata->gpio_nreset)) {
-		ret = gpio_request_one(pdata->gpio_nreset, GPIOF_OUT_INIT_LOW,
-				       "NOON010PC30 NRST");
+		ret = devm_gpio_request_one(&client->dev, pdata->gpio_nreset,
+					    GPIOF_OUT_INIT_LOW,
+					    "NOON010PC30 NRST");
 		if (ret) {
 			dev_err(&client->dev, "GPIO request error: %d\n", ret);
 			goto np_err;
@@ -757,11 +758,12 @@ static int noon010_probe(struct i2c_client *client,
 	}
 
 	if (gpio_is_valid(pdata->gpio_nstby)) {
-		ret = gpio_request_one(pdata->gpio_nstby, GPIOF_OUT_INIT_LOW,
-				      "NOON010PC30 NSTBY");
+		ret = devm_gpio_request_one(&client->dev, pdata->gpio_nstby,
+					    GPIOF_OUT_INIT_LOW,
+					    "NOON010PC30 NSTBY");
 		if (ret) {
 			dev_err(&client->dev, "GPIO request error: %d\n", ret);
-			goto np_gpio_err;
+			goto np_err;
 		}
 		info->gpio_nstby = pdata->gpio_nstby;
 		gpio_export(info->gpio_nstby, 0);
@@ -773,7 +775,7 @@ static int noon010_probe(struct i2c_client *client,
 	ret = regulator_bulk_get(&client->dev, NOON010_NUM_SUPPLIES,
 				 info->supply);
 	if (ret)
-		goto np_reg_err;
+		goto np_err;
 
 	info->pad.flags = MEDIA_PAD_FL_SOURCE;
 	sd->entity.type = MEDIA_ENT_T_V4L2_SUBDEV_SENSOR;
@@ -787,12 +789,6 @@ static int noon010_probe(struct i2c_client *client,
 
 np_me_err:
 	regulator_bulk_free(NOON010_NUM_SUPPLIES, info->supply);
-np_reg_err:
-	if (gpio_is_valid(info->gpio_nstby))
-		gpio_free(info->gpio_nstby);
-np_gpio_err:
-	if (gpio_is_valid(info->gpio_nreset))
-		gpio_free(info->gpio_nreset);
 np_err:
 	v4l2_ctrl_handler_free(&info->hdl);
 	v4l2_device_unregister_subdev(sd);
@@ -808,13 +804,6 @@ static int noon010_remove(struct i2c_client *client)
 	v4l2_ctrl_handler_free(&info->hdl);
 
 	regulator_bulk_free(NOON010_NUM_SUPPLIES, info->supply);
-
-	if (gpio_is_valid(info->gpio_nreset))
-		gpio_free(info->gpio_nreset);
-
-	if (gpio_is_valid(info->gpio_nstby))
-		gpio_free(info->gpio_nstby);
-
 	media_entity_cleanup(&sd->entity);
 
 	return 0;
