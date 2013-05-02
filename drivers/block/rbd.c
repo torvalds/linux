@@ -2547,6 +2547,7 @@ static void rbd_img_parent_read_callback(struct rbd_img_request *img_request)
 		obj_request->xferred = img_request->xferred;
 	}
 out:
+	rbd_img_request_put(img_request);
 	rbd_img_obj_request_read_callback(obj_request);
 	rbd_obj_request_complete(obj_request);
 }
