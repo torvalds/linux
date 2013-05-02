@@ -260,8 +260,8 @@ static int __devinit rk616_hdmi_probe (struct platform_device *pdev)
 		debugfs_create_file("hdmi", S_IRUSR,rk616->debugfs_dir,rk616,&rk616_hdmi_reg_fops);
 	}
 #endif
-	rk616_irq_work_func(NULL);
-	//queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, msecs_to_jiffies(10));	
+	//rk616_irq_work_func(NULL);
+	queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, msecs_to_jiffies(10));	
 	dev_info(hdmi->dev, "rk616 hdmi probe success.\n");
 	return 0;
 err1:
