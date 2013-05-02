@@ -1003,8 +1003,6 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 	default:
 		break;
 	}
-	if (ret_val)
-		e_dbg("Cannot acquire MDIO ownership\n");
 
 	ctrl = er32(CTRL);
 
@@ -1015,7 +1013,9 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 	switch (hw->mac.type) {
 	case e1000_82574:
 	case e1000_82583:
-		e1000_put_hw_semaphore_82574(hw);
+		/* Release mutex only if the hw semaphore is acquired */
+		if (!ret_val)
+			e1000_put_hw_semaphore_82574(hw);
 		break;
 	default:
 		break;
