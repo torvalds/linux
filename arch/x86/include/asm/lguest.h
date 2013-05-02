@@ -11,18 +11,11 @@
 
 #define GUEST_PL 1
 
-/* Every guest maps the core switcher code. */
-#define SHARED_SWITCHER_PAGES \
-	DIV_ROUND_UP(end_switcher_text - start_switcher_text, PAGE_SIZE)
-/* Pages for switcher itself, then two pages per cpu */
-#define TOTAL_SWITCHER_PAGES (SHARED_SWITCHER_PAGES + 2 * nr_cpu_ids)
+/* Page for Switcher text itself, then two pages per cpu */
+#define TOTAL_SWITCHER_PAGES (1 + 2 * nr_cpu_ids)
 
-/* We map at -4M (-2M for PAE) for ease of mapping (one PTE page). */
-#ifdef CONFIG_X86_PAE
-#define SWITCHER_ADDR 0xFFE00000
-#else
-#define SWITCHER_ADDR 0xFFC00000
-#endif
+/* Where we map the Switcher, in both Host and Guest. */
+extern unsigned long switcher_addr;
 
 /* Found in switcher.S */
 extern unsigned long default_idt_entries[];

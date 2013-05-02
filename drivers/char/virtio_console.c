@@ -78,8 +78,8 @@ struct ports_driver_data {
 };
 static struct ports_driver_data pdrvdata;
 
-DEFINE_SPINLOCK(pdrvdata_lock);
-DECLARE_COMPLETION(early_console_added);
+static DEFINE_SPINLOCK(pdrvdata_lock);
+static DECLARE_COMPLETION(early_console_added);
 
 /* This struct holds information that's relevant only for console ports */
 struct console {
@@ -503,7 +503,7 @@ static int add_inbuf(struct virtqueue *vq, struct port_buffer *buf)
 
 	sg_init_one(sg, buf->buf, buf->size);
 
-	ret = virtqueue_add_buf(vq, sg, 0, 1, buf, GFP_ATOMIC);
+	ret = virtqueue_add_inbuf(vq, sg, 1, buf, GFP_ATOMIC);
 	virtqueue_kick(vq);
 	if (!ret)
 		ret = vq->num_free;
@@ -572,7 +572,7 @@ static ssize_t __send_control_msg(struct ports_device *portdev, u32 port_id,
 	sg_init_one(sg, &cpkt, sizeof(cpkt));
 
 	spin_lock(&portdev->c_ovq_lock);
-	if (virtqueue_add_buf(vq, sg, 1, 0, &cpkt, GFP_ATOMIC) == 0) {
+	if (virtqueue_add_outbuf(vq, sg, 1, &cpkt, GFP_ATOMIC) == 0) {
 		virtqueue_kick(vq);
 		while (!virtqueue_get_buf(vq, &len))
 			cpu_relax();
@@ -622,7 +622,7 @@ static ssize_t __send_to_port(struct port *port, struct scatterlist *sg,
 
 	reclaim_consumed_buffers(port);
 
-	err = virtqueue_add_buf(out_vq, sg, nents, 0, data, GFP_ATOMIC);
+	err = virtqueue_add_outbuf(out_vq, sg, nents, data, GFP_ATOMIC);
 
 	/* Tell Host to go! */
 	virtqueue_kick(out_vq);
@@ -1040,7 +1040,7 @@ static int port_fops_open(struct inode *inode, struct file *filp)
 	spin_lock_irq(&port->inbuf_lock);
 	if (port->guest_connected) {
 		spin_unlock_irq(&port->inbuf_lock);
-		ret = -EMFILE;
+		ret = -EBUSY;
 		goto out;
 	}
 
@@ -1202,7 +1202,7 @@ int __init virtio_cons_early_init(int (*put_chars)(u32, const char *, int))
 	return hvc_instantiate(0, 0, &hv_ops);
 }
 
-int init_port_console(struct port *port)
+static int init_port_console(struct port *port)
 {
 	int ret;
 

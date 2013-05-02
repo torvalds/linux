@@ -9,3 +9,6 @@ obj-$(CONFIG_CAIF_SPI_SLAVE) += cfspi_slave.o
 
 # HSI interface
 obj-$(CONFIG_CAIF_HSI) += caif_hsi.o
+
+# Virtio interface
+obj-$(CONFIG_CAIF_VIRTIO) += caif_virtio.o

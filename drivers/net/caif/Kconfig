@@ -40,3 +40,17 @@ config CAIF_HSI
        The caif low level driver for CAIF over HSI.
        Be aware that if you enable this then you also need to
        enable a low-level HSI driver.
+
+config CAIF_VIRTIO
+	tristate "CAIF virtio transport driver"
+	depends on CAIF
+	select VHOST_RING
+	select VIRTIO
+	select GENERIC_ALLOCATOR
+	default n
+	---help---
+	The caif driver for CAIF over Virtio.
+
+if CAIF_VIRTIO
+source "drivers/vhost/Kconfig"
+endif
