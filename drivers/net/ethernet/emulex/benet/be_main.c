@@ -2548,8 +2548,11 @@ static int be_close(struct net_device *netdev)
 
 	be_roce_dev_close(adapter);
 
-	for_all_evt_queues(adapter, eqo, i)
-		napi_disable(&eqo->napi);
+	if (adapter->flags & BE_FLAGS_NAPI_ENABLED) {
+		for_all_evt_queues(adapter, eqo, i)
+			napi_disable(&eqo->napi);
+		adapter->flags &= ~BE_FLAGS_NAPI_ENABLED;
+	}
 
 	be_async_mcc_disable(adapter);
 
@@ -2657,6 +2660,7 @@ static int be_open(struct net_device *netdev)
 		napi_enable(&eqo->napi);
 		be_eq_notify(adapter, eqo->q.id, true, false, 0);
 	}
+	adapter->flags |= BE_FLAGS_NAPI_ENABLED;
 
 	status = be_cmd_link_status_query(adapter, NULL, &link_status, 0);
 	if (!status)
