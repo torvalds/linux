@@ -242,11 +242,8 @@ static void go7007_remove(struct v4l2_device *v4l2_dev)
 	if (go->hpi_ops->release)
 		go->hpi_ops->release(go);
 	if (go->i2c_adapter_online) {
-		if (i2c_del_adapter(&go->i2c_adapter) == 0)
-			go->i2c_adapter_online = 0;
-		else
-			v4l2_err(&go->v4l2_dev,
-				"error removing I2C adapter!\n");
+		i2c_del_adapter(&go->i2c_adapter);
+		go->i2c_adapter_online = 0;
 	}
 
 	kfree(go->boot_fw);
