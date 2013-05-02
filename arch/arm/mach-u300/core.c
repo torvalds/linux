@@ -22,7 +22,31 @@
 #include <asm/mach/arch.h>
 
 #include <mach/u300-regs.h>
-#include <mach/syscon.h>
+
+/*
+ * SYSCON addresses applicable to the core machine.
+ */
+
+/* Chip ID register 16bit (R/-) */
+#define U300_SYSCON_CIDR					(0x400)
+/* SMCR */
+#define U300_SYSCON_SMCR					(0x4d0)
+#define U300_SYSCON_SMCR_FIELD_MASK				(0x000e)
+#define U300_SYSCON_SMCR_SEMI_SREFACK_IND			(0x0008)
+#define U300_SYSCON_SMCR_SEMI_SREFREQ_ENABLE			(0x0004)
+#define U300_SYSCON_SMCR_SEMI_EXT_BOOT_MODE_ENABLE		(0x0002)
+/* CPU_SW_DBGEN Software Debug Enable 16bit (R/W) */
+#define U300_SYSCON_CSDR					(0x4f0)
+#define U300_SYSCON_CSDR_SW_DEBUG_ENABLE			(0x0001)
+/* PRINT_CONTROL Print Control 16bit (R/-) */
+#define U300_SYSCON_PCR						(0x4f8)
+#define U300_SYSCON_PCR_SERV_IND				(0x0001)
+/* BOOT_CONTROL 16bit (R/-) */
+#define U300_SYSCON_BCR						(0x4fc)
+#define U300_SYSCON_BCR_ACC_CPU_SUBSYS_VINITHI_IND		(0x0400)
+#define U300_SYSCON_BCR_APP_CPU_SUBSYS_VINITHI_IND		(0x0200)
+#define U300_SYSCON_BCR_EXTRA_BOOT_OPTION_MASK			(0x01FC)
+#define U300_SYSCON_BCR_APP_BOOT_SERV_MASK			(0x0003)
 
 /*
  * Static I/O mappings that are needed for booting the U300 platforms. The

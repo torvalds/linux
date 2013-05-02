@@ -17,9 +17,12 @@
 #include <linux/regulator/consumer.h>
 /* Those are just for writing in syscon */
 #include <linux/io.h>
-#include <asm/mach-types.h>
-#include <mach/hardware.h>
-#include <mach/syscon.h>
+#include <mach/u300-regs.h>
+
+/* Power Management Control 16bit (R/W) */
+#define U300_SYSCON_PMCR					(0x50)
+#define U300_SYSCON_PMCR_DCON_ENABLE				(0x0002)
+#define U300_SYSCON_PMCR_PWR_MGNT_ENABLE			(0x0001)
 
 /*
  * Regulators that power the board and chip and which are
