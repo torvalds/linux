@@ -141,7 +141,7 @@ config XEN_GRANT_DEV_ALLOC
 
 config SWIOTLB_XEN
 	def_bool y
-	depends on PCI
+	depends on PCI && X86
 	select SWIOTLB
 
 config XEN_TMEM
