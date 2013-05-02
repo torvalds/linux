@@ -55,6 +55,11 @@
 #include "cache.h"
 #include "netns.h"
 
+#ifdef CONFIG_NFSD_V4_SECURITY_LABEL
+#include <linux/security.h>
+#endif
+
+
 #define NFSDDBG_FACILITY		NFSDDBG_XDR
 
 /*
@@ -242,7 +247,8 @@ nfsd4_decode_bitmap(struct nfsd4_compoundargs *argp, u32 *bmval)
 
 static __be32
 nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
-		   struct iattr *iattr, struct nfs4_acl **acl)
+		   struct iattr *iattr, struct nfs4_acl **acl,
+		   struct xdr_netobj *label)
 {
 	int expected_len, len = 0;
 	u32 dummy32;
@@ -380,6 +386,32 @@ nfsd4_decode_fattr(struct nfsd4_compoundargs *argp, u32 *bmval,
 			goto xdr_error;
 		}
 	}
+
+	label->len = 0;
+#ifdef CONFIG_NFSD_V4_SECURITY_LABEL
+	if (bmval[2] & FATTR4_WORD2_SECURITY_LABEL) {
+		READ_BUF(4);
+		len += 4;
+		READ32(dummy32); /* lfs: we don't use it */
+		READ_BUF(4);
+		len += 4;
+		READ32(dummy32); /* pi: we don't use it either */
+		READ_BUF(4);
+		len += 4;
+		READ32(dummy32);
+		READ_BUF(dummy32);
+		if (dummy32 > NFSD4_MAX_SEC_LABEL_LEN)
+			return nfserr_badlabel;
+		len += (XDR_QUADLEN(dummy32) << 2);
+		READMEM(buf, dummy32);
+		label->data = kzalloc(dummy32 + 1, GFP_KERNEL);
+		if (!label->data)
+			return nfserr_jukebox;
+		defer_free(argp, kfree, label->data);
+		memcpy(label->data, buf, dummy32);
+	}
+#endif
+
 	if (bmval[0] & ~NFSD_WRITEABLE_ATTRS_WORD0
 	    || bmval[1] & ~NFSD_WRITEABLE_ATTRS_WORD1
 	    || bmval[2] & ~NFSD_WRITEABLE_ATTRS_WORD2)
@@ -576,7 +608,7 @@ nfsd4_decode_create(struct nfsd4_compoundargs *argp, struct nfsd4_create *create
 		return status;
 
 	status = nfsd4_decode_fattr(argp, create->cr_bmval, &create->cr_iattr,
-				    &create->cr_acl);
+				    &create->cr_acl, &create->cr_label);
 	if (status)
 		goto out;
 
@@ -827,7 +859,7 @@ nfsd4_decode_open(struct nfsd4_compoundargs *argp, struct nfsd4_open *open)
 		case NFS4_CREATE_UNCHECKED:
 		case NFS4_CREATE_GUARDED:
 			status = nfsd4_decode_fattr(argp, open->op_bmval,
-				&open->op_iattr, &open->op_acl);
+				&open->op_iattr, &open->op_acl, &open->op_label);
 			if (status)
 				goto out;
 			break;
@@ -841,7 +873,7 @@ nfsd4_decode_open(struct nfsd4_compoundargs *argp, struct nfsd4_open *open)
 			READ_BUF(NFS4_VERIFIER_SIZE);
 			COPYMEM(open->op_verf.data, NFS4_VERIFIER_SIZE);
 			status = nfsd4_decode_fattr(argp, open->op_bmval,
-				&open->op_iattr, &open->op_acl);
+				&open->op_iattr, &open->op_acl, &open->op_label);
 			if (status)
 				goto out;
 			break;
@@ -1063,7 +1095,7 @@ nfsd4_decode_setattr(struct nfsd4_compoundargs *argp, struct nfsd4_setattr *seta
 	if (status)
 		return status;
 	return nfsd4_decode_fattr(argp, setattr->sa_bmval, &setattr->sa_iattr,
-				  &setattr->sa_acl);
+				  &setattr->sa_acl, &setattr->sa_label);
 }
 
 static __be32
@@ -1954,6 +1986,36 @@ nfsd4_encode_aclname(struct svc_rqst *rqstp, struct nfs4_ace *ace,
 			      FATTR4_WORD0_RDATTR_ERROR)
 #define WORD1_ABSENT_FS_ATTRS FATTR4_WORD1_MOUNTED_ON_FILEID
 
+#ifdef CONFIG_NFSD_V4_SECURITY_LABEL
+static inline __be32
+nfsd4_encode_security_label(struct svc_rqst *rqstp, void *context, int len, __be32 **pp, int *buflen)
+{
+	__be32 *p = *pp;
+
+	if (*buflen < ((XDR_QUADLEN(len) << 2) + 4 + 4 + 4))
+		return nfserr_resource;
+
+	/*
+	 * For now we use a 0 here to indicate the null translation; in
+	 * the future we may place a call to translation code here.
+	 */
+	if ((*buflen -= 8) < 0)
+		return nfserr_resource;
+
+	WRITE32(0); /* lfs */
+	WRITE32(0); /* pi */
+	p = xdr_encode_opaque(p, context, len);
+	*buflen -= (XDR_QUADLEN(len) << 2) + 4;
+
+	*pp = p;
+	return 0;
+}
+#else
+static inline __be32
+nfsd4_encode_security_label(struct svc_rqst *rqstp, struct dentry *dentry, __be32 **pp, int *buflen)
+{ return 0; }
+#endif
+
 static __be32 fattr_handle_absent_fs(u32 *bmval0, u32 *bmval1, u32 *rdattr_err)
 {
 	/* As per referral draft:  */
@@ -2013,6 +2075,9 @@ nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
 	int err;
 	int aclsupport = 0;
 	struct nfs4_acl *acl = NULL;
+	void *context = NULL;
+	int contextlen;
+	bool contextsupport = false;
 	struct nfsd4_compoundres *resp = rqstp->rq_resp;
 	u32 minorversion = resp->cstate.minorversion;
 	struct path path = {
@@ -2066,6 +2131,21 @@ nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
 		}
 	}
 
+#ifdef CONFIG_NFSD_V4_SECURITY_LABEL
+	if ((bmval[2] & FATTR4_WORD2_SECURITY_LABEL) ||
+			bmval[0] & FATTR4_WORD0_SUPPORTED_ATTRS) {
+		err = security_inode_getsecctx(dentry->d_inode,
+						&context, &contextlen);
+		contextsupport = (err == 0);
+		if (bmval2 & FATTR4_WORD2_SECURITY_LABEL) {
+			if (err == -EOPNOTSUPP)
+				bmval2 &= ~FATTR4_WORD2_SECURITY_LABEL;
+			else if (err)
+				goto out_nfserr;
+		}
+	}
+#endif /* CONFIG_NFSD_V4_SECURITY_LABEL */
+
 	if (bmval2) {
 		if ((buflen -= 16) < 0)
 			goto out_resource;
@@ -2094,6 +2174,8 @@ nfsd4_encode_fattr(struct svc_fh *fhp, struct svc_export *exp,
 
 		if (!aclsupport)
 			word0 &= ~FATTR4_WORD0_ACL;
+		if (!contextsupport)
+			word2 &= ~FATTR4_WORD2_SECURITY_LABEL;
 		if (!word2) {
 			if ((buflen -= 12) < 0)
 				goto out_resource;
@@ -2401,6 +2483,12 @@ out_acl:
 			get_parent_attributes(exp, &stat);
 		WRITE64(stat.ino);
 	}
+	if (bmval2 & FATTR4_WORD2_SECURITY_LABEL) {
+		status = nfsd4_encode_security_label(rqstp, context,
+				contextlen, &p, &buflen);
+		if (status)
+			goto out;
+	}
 	if (bmval2 & FATTR4_WORD2_SUPPATTR_EXCLCREAT) {
 		WRITE32(3);
 		WRITE32(NFSD_SUPPATTR_EXCLCREAT_WORD0);
@@ -2413,6 +2501,8 @@ out_acl:
 	status = nfs_ok;
 
 out:
+	if (context)
+		security_release_secctx(context, contextlen);
 	kfree(acl);
 	if (fhp == &tempfh)
 		fh_put(&tempfh);
@@ -3177,16 +3267,18 @@ nfsd4_encode_setattr(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4
 {
 	__be32 *p;
 
-	RESERVE_SPACE(12);
+	RESERVE_SPACE(16);
 	if (nfserr) {
-		WRITE32(2);
+		WRITE32(3);
+		WRITE32(0);
 		WRITE32(0);
 		WRITE32(0);
 	}
 	else {
-		WRITE32(2);
+		WRITE32(3);
 		WRITE32(setattr->sa_bmval[0]);
 		WRITE32(setattr->sa_bmval[1]);
+		WRITE32(setattr->sa_bmval[2]);
 	}
 	ADJUST_ARGS();
 	return nfserr;

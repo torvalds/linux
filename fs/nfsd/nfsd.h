@@ -328,6 +328,13 @@ void		nfsd_lockd_shutdown(void);
 #define NFSD4_1_SUPPORTED_ATTRS_WORD2 \
 	(NFSD4_SUPPORTED_ATTRS_WORD2 | FATTR4_WORD2_SUPPATTR_EXCLCREAT)
 
+#ifdef CONFIG_NFSD_V4_SECURITY_LABEL
+#define NFSD4_2_SUPPORTED_ATTRS_WORD2 \
+	(NFSD4_1_SUPPORTED_ATTRS_WORD2 | FATTR4_WORD2_SECURITY_LABEL)
+#else
+#define NFSD4_2_SUPPORTED_ATTRS_WORD2 0
+#endif
+
 static inline u32 nfsd_suppattrs0(u32 minorversion)
 {
 	return minorversion ? NFSD4_1_SUPPORTED_ATTRS_WORD0
@@ -342,8 +349,11 @@ static inline u32 nfsd_suppattrs1(u32 minorversion)
 
 static inline u32 nfsd_suppattrs2(u32 minorversion)
 {
-	return minorversion ? NFSD4_1_SUPPORTED_ATTRS_WORD2
-			    : NFSD4_SUPPORTED_ATTRS_WORD2;
+	switch (minorversion) {
+	default: return NFSD4_2_SUPPORTED_ATTRS_WORD2;
+	case 1:  return NFSD4_1_SUPPORTED_ATTRS_WORD2;
+	case 0:  return NFSD4_SUPPORTED_ATTRS_WORD2;
+	}
 }
 
 /* These will return ERR_INVAL if specified in GETATTR or READDIR. */
@@ -356,7 +366,11 @@ static inline u32 nfsd_suppattrs2(u32 minorversion)
 #define NFSD_WRITEABLE_ATTRS_WORD1 \
 	(FATTR4_WORD1_MODE | FATTR4_WORD1_OWNER | FATTR4_WORD1_OWNER_GROUP \
 	| FATTR4_WORD1_TIME_ACCESS_SET | FATTR4_WORD1_TIME_MODIFY_SET)
+#ifdef CONFIG_NFSD_V4_SECURITY_LABEL
+#define NFSD_WRITEABLE_ATTRS_WORD2 FATTR4_WORD2_SECURITY_LABEL
+#else
 #define NFSD_WRITEABLE_ATTRS_WORD2 0
+#endif
 
 #define NFSD_SUPPATTR_EXCLCREAT_WORD0 \
 	NFSD_WRITEABLE_ATTRS_WORD0
