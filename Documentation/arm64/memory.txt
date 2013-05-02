@@ -102,3 +102,10 @@ Translation table lookup with 64KB pages:
  |                 |    +--------------------------> [41:29] L2 index (only 38:29 used)
  |                 +-------------------------------> [47:42] L1 index (not used)
  +-------------------------------------------------> [63] TTBR0/1
+
+When using KVM, the hypervisor maps kernel pages in EL2, at a fixed
+offset from the kernel VA (top 24bits of the kernel VA set to zero):
+
+Start			End			Size		Use
+-----------------------------------------------------------------------
+0000004000000000	0000007fffffffff	 256GB		kernel objects mapped in HYP
