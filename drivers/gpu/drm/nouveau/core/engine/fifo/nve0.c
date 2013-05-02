@@ -221,8 +221,10 @@ nve0_fifo_chan_ctor(struct nouveau_object *parent,
 		}
 	}
 
-	if (i == FIFO_ENGINE_NR)
+	if (i == FIFO_ENGINE_NR) {
+		nv_error(priv, "unsupported engines 0x%08x\n", args->engine);
 		return -ENODEV;
+	}
 
 	ret = nouveau_fifo_channel_create(parent, engine, oclass, 1,
 					  priv->user.bar.offset, 0x200,
