@@ -988,11 +988,11 @@ static int m5mols_probe(struct i2c_client *client,
 	init_waitqueue_head(&info->irq_waitq);
 	mutex_init(&info->lock);
 
-	ret = request_irq(client->irq, m5mols_irq_handler,
-			  IRQF_TRIGGER_RISING, MODULE_NAME, sd);
+	ret = devm_request_irq(&client->dev, client->irq, m5mols_irq_handler,
+			       IRQF_TRIGGER_RISING, MODULE_NAME, sd);
 	if (ret) {
 		dev_err(&client->dev, "Interrupt request failed: %d\n", ret);
-		goto out_me;
+		goto error;
 	}
 	info->res_type = M5MOLS_RESTYPE_MONITOR;
 	info->ffmt[0] = m5mols_default_ffmt[0];
@@ -1000,7 +1000,7 @@ static int m5mols_probe(struct i2c_client *client,
 
 	ret = m5mols_sensor_power(info, true);
 	if (ret)
-		goto out_irq;
+		goto error;
 
 	ret = m5mols_fw_start(sd);
 	if (!ret)
@@ -1009,9 +1009,7 @@ static int m5mols_probe(struct i2c_client *client,
 	ret = m5mols_sensor_power(info, false);
 	if (!ret)
 		return 0;
-out_irq:
-	free_irq(client->irq, sd);
-out_me:
+error:
 	media_entity_cleanup(&sd->entity);
 	return ret;
 }
@@ -1022,8 +1020,6 @@ static int m5mols_remove(struct i2c_client *client)
 
 	v4l2_device_unregister_subdev(sd);
 	v4l2_ctrl_handler_free(sd->ctrl_handler);
-	free_irq(client->irq, sd);
-
 	media_entity_cleanup(&sd->entity);
 
 	return 0;
