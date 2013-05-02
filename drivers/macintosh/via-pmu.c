@@ -869,7 +869,7 @@ static int pmu_battery_proc_show(struct seq_file *m, void *v)
 
 static int pmu_battery_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, pmu_battery_proc_show, PDE(inode)->data);
+	return single_open(file, pmu_battery_proc_show, PDE_DATA(inode));
 }
 
 static const struct file_operations pmu_battery_proc_fops = {

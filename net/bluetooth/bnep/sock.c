@@ -234,7 +234,7 @@ int __init bnep_sock_init(void)
 		goto error;
 	}
 
-	err = bt_procfs_init(THIS_MODULE, &init_net, "bnep", &bnep_sk_list, NULL);
+	err = bt_procfs_init(&init_net, "bnep", &bnep_sk_list, NULL);
 	if (err < 0) {
 		BT_ERR("Failed to create BNEP proc file");
 		bt_sock_unregister(BTPROTO_BNEP);

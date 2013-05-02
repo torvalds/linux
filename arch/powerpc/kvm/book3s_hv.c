@@ -1483,7 +1483,7 @@ static int kvm_rma_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static struct file_operations kvm_rma_fops = {
+static const struct file_operations kvm_rma_fops = {
 	.mmap           = kvm_rma_mmap,
 	.release	= kvm_rma_release,
 };

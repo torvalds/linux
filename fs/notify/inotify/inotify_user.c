@@ -287,9 +287,6 @@ static int inotify_release(struct inode *ignored, struct file *file)
 
 	pr_debug("%s: group=%p\n", __func__, group);
 
-	if (file->f_flags & FASYNC)
-		fsnotify_fasync(-1, file, 0);
-
 	/* free this group, matching get was inotify_init->fsnotify_obtain_group */
 	fsnotify_destroy_group(group);
 

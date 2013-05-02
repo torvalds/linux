@@ -929,7 +929,7 @@ static int acpi_battery_read_##_name(struct seq_file *seq, void *offset) \
 } \
 static int acpi_battery_##_name##_open_fs(struct inode *inode, struct file *file) \
 { \
-	return single_open(file, acpi_battery_read_##_name, PDE(inode)->data); \
+	return single_open(file, acpi_battery_read_##_name, PDE_DATA(inode)); \
 }
 
 DECLARE_FILE_FUNCTIONS(info);

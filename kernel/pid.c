@@ -36,6 +36,7 @@
 #include <linux/pid_namespace.h>
 #include <linux/init_task.h>
 #include <linux/syscalls.h>
+#include <linux/proc_ns.h>
 #include <linux/proc_fs.h>
 
 #define pid_hashfn(nr, ns)	\

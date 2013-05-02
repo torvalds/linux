@@ -609,7 +609,7 @@ static int bt_seq_open(struct inode *inode, struct file *file)
 	struct bt_sock_list *sk_list;
 	struct bt_seq_state *s;
 
-	sk_list = PDE(inode)->data;
+	sk_list = PDE_DATA(inode);
 	s = __seq_open_private(file, &bt_seq_ops,
 			       sizeof(struct bt_seq_state));
 	if (!s)
@@ -619,26 +619,21 @@ static int bt_seq_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-int bt_procfs_init(struct module* module, struct net *net, const char *name,
+static const struct file_operations bt_fops = {
+	.open = bt_seq_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = seq_release_private
+};
+
+int bt_procfs_init(struct net *net, const char *name,
 		   struct bt_sock_list* sk_list,
 		   int (* seq_show)(struct seq_file *, void *))
 {
-	struct proc_dir_entry * pde;
-
 	sk_list->custom_seq_show = seq_show;
 
-	sk_list->fops.owner     = module;
-	sk_list->fops.open      = bt_seq_open;
-	sk_list->fops.read      = seq_read;
-	sk_list->fops.llseek    = seq_lseek;
-	sk_list->fops.release   = seq_release_private;
-
-	pde = proc_create(name, 0, net->proc_net, &sk_list->fops);
-	if (!pde)
+	if (!proc_create_data(name, 0, net->proc_net, &bt_fops, sk_list))
 		return -ENOMEM;
-
-	pde->data = sk_list;
-
 	return 0;
 }
 
@@ -647,7 +642,7 @@ void bt_procfs_cleanup(struct net *net, const char *name)
 	remove_proc_entry(name, net->proc_net);
 }
 #else
-int bt_procfs_init(struct module* module, struct net *net, const char *name,
+int bt_procfs_init(struct net *net, const char *name,
 		   struct bt_sock_list* sk_list,
 		   int (* seq_show)(struct seq_file *, void *))
 {

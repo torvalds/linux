@@ -15,7 +15,7 @@
 #include <linux/err.h>
 #include <linux/acct.h>
 #include <linux/slab.h>
-#include <linux/proc_fs.h>
+#include <linux/proc_ns.h>
 #include <linux/reboot.h>
 #include <linux/export.h>
 

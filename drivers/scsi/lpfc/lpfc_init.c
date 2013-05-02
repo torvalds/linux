@@ -10394,36 +10394,6 @@ lpfc_io_resume(struct pci_dev *pdev)
 	return;
 }
 
-/**
- * lpfc_mgmt_open - method called when 'lpfcmgmt' is opened from userspace
- * @inode: pointer to the inode representing the lpfcmgmt device
- * @filep: pointer to the file representing the open lpfcmgmt device
- *
- * This routine puts a reference count on the lpfc module whenever the
- * character device is opened
- **/
-static int
-lpfc_mgmt_open(struct inode *inode, struct file *filep)
-{
-	try_module_get(THIS_MODULE);
-	return 0;
-}
-
-/**
- * lpfc_mgmt_release - method called when 'lpfcmgmt' is closed in userspace
- * @inode: pointer to the inode representing the lpfcmgmt device
- * @filep: pointer to the file representing the open lpfcmgmt device
- *
- * This routine removes a reference count from the lpfc module when the
- * character device is closed
- **/
-static int
-lpfc_mgmt_release(struct inode *inode, struct file *filep)
-{
-	module_put(THIS_MODULE);
-	return 0;
-}
-
 static struct pci_device_id lpfc_id_table[] = {
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_VIPER,
 		PCI_ANY_ID, PCI_ANY_ID, },
@@ -10541,8 +10511,7 @@ static struct pci_driver lpfc_driver = {
 };
 
 static const struct file_operations lpfc_mgmt_fop = {
-	.open = lpfc_mgmt_open,
-	.release = lpfc_mgmt_release,
+	.owner = THIS_MODULE,
 };
 
 static struct miscdevice lpfc_mgmt_dev = {

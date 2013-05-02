@@ -847,7 +847,7 @@ void do_exit(long code)
 		exit_io_context(tsk);
 
 	if (tsk->splice_pipe)
-		__free_pipe_info(tsk->splice_pipe);
+		free_pipe_info(tsk->splice_pipe);
 
 	if (tsk->task_frag.page)
 		put_page(tsk->task_frag.page);

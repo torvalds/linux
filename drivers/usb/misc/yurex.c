@@ -407,8 +407,6 @@ static int yurex_release(struct inode *inode, struct file *file)
 	if (dev == NULL)
 		return -ENODEV;
 
-	yurex_fasync(-1, file, 0);
-
 	/* decrement the count on our device */
 	kref_put(&dev->kref, yurex_delete);
 	return 0;

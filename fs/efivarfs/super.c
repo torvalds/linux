@@ -13,6 +13,8 @@
 #include <linux/module.h>
 #include <linux/pagemap.h>
 #include <linux/ucs2_string.h>
+#include <linux/slab.h>
+#include <linux/magic.h>
 
 #include "internal.h"
 

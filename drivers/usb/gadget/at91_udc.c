@@ -221,7 +221,7 @@ static int proc_udc_show(struct seq_file *s, void *unused)
 
 static int proc_udc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, proc_udc_show, PDE(inode)->data);
+	return single_open(file, proc_udc_show, PDE_DATA(inode));
 }
 
 static const struct file_operations proc_ops = {

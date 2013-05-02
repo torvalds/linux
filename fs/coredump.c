@@ -432,9 +432,7 @@ static bool dump_interrupted(void)
 
 static void wait_for_dump_helpers(struct file *file)
 {
-	struct pipe_inode_info *pipe;
-
-	pipe = file_inode(file)->i_pipe;
+	struct pipe_inode_info *pipe = file->private_data;
 
 	pipe_lock(pipe);
 	pipe->readers++;
@@ -656,7 +654,9 @@ void do_coredump(siginfo_t *siginfo)
 		goto close_fail;
 	if (displaced)
 		put_files_struct(displaced);
+	file_start_write(cprm.file);
 	core_dumped = !dump_interrupted() && binfmt->core_dump(&cprm);
+	file_end_write(cprm.file);
 
 	if (ispipe && core_pipe_limit)
 		wait_for_dump_helpers(cprm.file);

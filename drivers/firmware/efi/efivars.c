@@ -67,6 +67,7 @@
 
 #include <linux/efi.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/ucs2_string.h>
 
 #define EFIVARS_VERSION "0.08"

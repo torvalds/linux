@@ -9,6 +9,7 @@
 
 #include <linux/efi.h>
 #include <linux/fs.h>
+#include <linux/slab.h>
 
 #include "internal.h"
 

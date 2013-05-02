@@ -405,6 +405,37 @@ static const struct file_operations proc_lstats_operations = {
 
 #endif
 
+#ifdef CONFIG_CGROUPS
+static int cgroup_open(struct inode *inode, struct file *file)
+{
+	struct pid *pid = PROC_I(inode)->pid;
+	return single_open(file, proc_cgroup_show, pid);
+}
+
+static const struct file_operations proc_cgroup_operations = {
+	.open		= cgroup_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+#endif
+
+#ifdef CONFIG_PROC_PID_CPUSET
+
+static int cpuset_open(struct inode *inode, struct file *file)
+{
+	struct pid *pid = PROC_I(inode)->pid;
+	return single_open(file, proc_cpuset_show, pid);
+}
+
+static const struct file_operations proc_cpuset_operations = {
+	.open		= cpuset_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+#endif
+
 static int proc_oom_score(struct task_struct *task, char *buffer)
 {
 	unsigned long totalpages = totalram_pages + total_swap_pages;
@@ -1619,6 +1650,15 @@ int pid_revalidate(struct dentry *dentry, unsigned int flags)
 	}
 	d_drop(dentry);
 	return 0;
+}
+
+int pid_delete_dentry(const struct dentry *dentry)
+{
+	/* Is the task we represent dead?
+	 * If so, then don't put the dentry on the lru list,
+	 * kill it immediately.
+	 */
+	return !proc_pid(dentry->d_inode)->tasks[PIDTYPE_PID].first;
 }
 
 const struct dentry_operations pid_dentry_operations =
@@ -2893,7 +2933,7 @@ retry:
 	return iter;
 }
 
-#define TGID_OFFSET (FIRST_PROCESS_ENTRY)
+#define TGID_OFFSET (FIRST_PROCESS_ENTRY + 1)
 
 static int proc_pid_fill_cache(struct file *filp, void *dirent, filldir_t filldir,
 	struct tgid_iter iter)
@@ -2916,13 +2956,21 @@ int proc_pid_readdir(struct file * filp, void * dirent, filldir_t filldir)
 	struct tgid_iter iter;
 	struct pid_namespace *ns;
 	filldir_t __filldir;
+	loff_t pos = filp->f_pos;
 
-	if (filp->f_pos >= PID_MAX_LIMIT + TGID_OFFSET)
+	if (pos >= PID_MAX_LIMIT + TGID_OFFSET)
 		goto out;
 
-	ns = filp->f_dentry->d_sb->s_fs_info;
+	if (pos == TGID_OFFSET - 1) {
+		if (proc_fill_cache(filp, dirent, filldir, "self", 4,
+					NULL, NULL, NULL) < 0)
+			goto out;
+		iter.tgid = 0;
+	} else {
+		iter.tgid = pos - TGID_OFFSET;
+	}
 	iter.task = NULL;
-	iter.tgid = filp->f_pos - TGID_OFFSET;
+	ns = filp->f_dentry->d_sb->s_fs_info;
 	for (iter = next_tgid(ns, iter);
 	     iter.task;
 	     iter.tgid += 1, iter = next_tgid(ns, iter)) {

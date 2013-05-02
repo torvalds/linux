@@ -508,7 +508,7 @@ out:
 
 static int pgctrl_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, pgctrl_show, PDE(inode)->data);
+	return single_open(file, pgctrl_show, PDE_DATA(inode));
 }
 
 static const struct file_operations pktgen_fops = {
@@ -1685,7 +1685,7 @@ static ssize_t pktgen_if_write(struct file *file,
 
 static int pktgen_if_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, pktgen_if_show, PDE(inode)->data);
+	return single_open(file, pktgen_if_show, PDE_DATA(inode));
 }
 
 static const struct file_operations pktgen_if_fops = {
@@ -1823,7 +1823,7 @@ out:
 
 static int pktgen_thread_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, pktgen_thread_show, PDE(inode)->data);
+	return single_open(file, pktgen_thread_show, PDE_DATA(inode));
 }
 
 static const struct file_operations pktgen_thread_fops = {
@@ -1904,7 +1904,7 @@ static void pktgen_change_name(const struct pktgen_net *pn, struct net_device *d
 			if (pkt_dev->odev != dev)
 				continue;
 
-			remove_proc_entry(pkt_dev->entry->name, pn->proc_dir);
+			proc_remove(pkt_dev->entry);
 
 			pkt_dev->entry = proc_create_data(dev->name, 0600,
 							  pn->proc_dir,
@@ -3574,8 +3574,6 @@ static void _rem_dev_from_if_list(struct pktgen_thread *t,
 static int pktgen_remove_device(struct pktgen_thread *t,
 				struct pktgen_dev *pkt_dev)
 {
-	struct pktgen_net *pn = t->net;
-
 	pr_debug("remove_device pkt_dev=%p\n", pkt_dev);
 
 	if (pkt_dev->running) {
@@ -3595,7 +3593,7 @@ static int pktgen_remove_device(struct pktgen_thread *t,
 	_rem_dev_from_if_list(t, pkt_dev);
 
 	if (pkt_dev->entry)
-		remove_proc_entry(pkt_dev->entry->name, pn->proc_dir);
+		proc_remove(pkt_dev->entry);
 
 #ifdef CONFIG_XFRM
 	free_SAs(pkt_dev);

@@ -416,7 +416,6 @@
    /*
     * Scsi_Host Template
     */
-   static int ips_proc_info(struct Scsi_Host *, char *, char **, off_t, int, int);
    static int ips_biosparam(struct scsi_device *sdev, struct block_device *bdev,
 		sector_t capacity, int geom[]);
    static int ips_slave_configure(struct scsi_device *SDptr);
@@ -958,14 +957,6 @@ typedef union {
    IPS_STD_SG_LIST  *std_list;
    IPS_ENH_SG_LIST  *enh_list;
 } IPS_SG_LIST;
-
-typedef struct _IPS_INFOSTR {
-   char *buffer;
-   int   length;
-   int   offset;
-   int   pos;
-   int   localpos;
-} IPS_INFOSTR;
 
 typedef struct {
    char *option_name;

@@ -1000,7 +1000,7 @@ static int xt_table_open(struct inode *inode, struct file *file)
 			   sizeof(struct xt_names_priv));
 	if (!ret) {
 		priv = ((struct seq_file *)file->private_data)->private;
-		priv->af = (unsigned long)PDE(inode)->data;
+		priv->af = (unsigned long)PDE_DATA(inode);
 	}
 	return ret;
 }
@@ -1148,7 +1148,7 @@ static int xt_match_open(struct inode *inode, struct file *file)
 
 	seq = file->private_data;
 	seq->private = trav;
-	trav->nfproto = (unsigned long)PDE(inode)->data;
+	trav->nfproto = (unsigned long)PDE_DATA(inode);
 	return 0;
 }
 
@@ -1212,7 +1212,7 @@ static int xt_target_open(struct inode *inode, struct file *file)
 
 	seq = file->private_data;
 	seq->private = trav;
-	trav->nfproto = (unsigned long)PDE(inode)->data;
+	trav->nfproto = (unsigned long)PDE_DATA(inode);
 	return 0;
 }
 

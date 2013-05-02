@@ -31,7 +31,7 @@
 #include <linux/mm.h>
 #include <linux/mman.h>
 #include <linux/pagemap.h>
-#include <linux/proc_fs.h>
+#include <linux/kcore.h>
 #include <linux/sched.h>
 #include <linux/initrd.h>
 

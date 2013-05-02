@@ -1941,7 +1941,7 @@ uf_sme_queue_message(unifi_priv_t *priv, u8 *buffer, int length)
  *
  ****************************************************************************
  */
-static struct file_operations unifi_fops = {
+static const struct file_operations unifi_fops = {
     .owner      = THIS_MODULE,
     .open       = unifi_open,
     .release    = unifi_release,
@@ -2041,7 +2041,7 @@ void uf_destroy_device_nodes(unifi_priv_t *priv)
  * ----------------------------------------------------------------
  */
 static int
-uf_create_debug_device(struct file_operations *fops)
+uf_create_debug_device(const struct file_operations *fops)
 {
     int ret;
 
