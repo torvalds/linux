@@ -129,7 +129,7 @@ struct pinctrl_dev *get_pinctrl_dev_from_of_node(struct device_node *np)
 			return pctldev;
 		}
 
-	mutex_lock(&pinctrldev_list_mutex);
+	mutex_unlock(&pinctrldev_list_mutex);
 
 	return NULL;
 }
