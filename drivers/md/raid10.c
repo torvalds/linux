@@ -1819,15 +1819,17 @@ static int raid10_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 			set_bit(Replacement, &rdev->flags);
 			rdev->raid_disk = mirror;
 			err = 0;
-			disk_stack_limits(mddev->gendisk, rdev->bdev,
-					  rdev->data_offset << 9);
+			if (mddev->gendisk)
+				disk_stack_limits(mddev->gendisk, rdev->bdev,
+						  rdev->data_offset << 9);
 			conf->fullsync = 1;
 			rcu_assign_pointer(p->replacement, rdev);
 			break;
 		}
 
-		disk_stack_limits(mddev->gendisk, rdev->bdev,
-				  rdev->data_offset << 9);
+		if (mddev->gendisk)
+			disk_stack_limits(mddev->gendisk, rdev->bdev,
+					  rdev->data_offset << 9);
 
 		p->head_position = 0;
 		p->recovery_disabled = mddev->recovery_disabled - 1;

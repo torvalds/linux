@@ -1574,12 +1574,54 @@ static void raid_postsuspend(struct dm_target *ti)
 
 static void raid_resume(struct dm_target *ti)
 {
+	int i;
+	uint64_t failed_devices, cleared_failed_devices = 0;
+	unsigned long flags;
+	struct dm_raid_superblock *sb;
 	struct raid_set *rs = ti->private;
+	struct md_rdev *r;
 
 	set_bit(MD_CHANGE_DEVS, &rs->md.flags);
 	if (!rs->bitmap_loaded) {
 		bitmap_load(&rs->md);
 		rs->bitmap_loaded = 1;
+	} else {
+		/*
+		 * A secondary resume while the device is active.
+		 * Take this opportunity to check whether any failed
+		 * devices are reachable again.
+		 */
+		for (i = 0; i < rs->md.raid_disks; i++) {
+			r = &rs->dev[i].rdev;
+			if (test_bit(Faulty, &r->flags) && r->sb_page &&
+			    sync_page_io(r, 0, r->sb_size,
+					 r->sb_page, READ, 1)) {
+				DMINFO("Faulty device #%d has readable super"
+				       "block.  Attempting to revive it.", i);
+				r->raid_disk = i;
+				r->saved_raid_disk = i;
+				flags = r->flags;
+				clear_bit(Faulty, &r->flags);
+				clear_bit(WriteErrorSeen, &r->flags);
+				clear_bit(In_sync, &r->flags);
+				if (r->mddev->pers->hot_add_disk(r->mddev, r)) {
+					r->raid_disk = -1;
+					r->saved_raid_disk = -1;
+					r->flags = flags;
+				} else {
+					r->recovery_offset = 0;
+					cleared_failed_devices |= 1 << i;
+				}
+			}
+		}
+		if (cleared_failed_devices) {
+			rdev_for_each(r, &rs->md) {
+				sb = page_address(r->sb_page);
+				failed_devices = le64_to_cpu(sb->failed_devices);
+				failed_devices &= ~cleared_failed_devices;
+				sb->failed_devices = cpu_to_le64(failed_devices);
+			}
+		}
 	}
 
 	clear_bit(MD_RECOVERY_FROZEN, &rs->md.recovery);
@@ -1588,7 +1630,7 @@ static void raid_resume(struct dm_target *ti)
 
 static struct target_type raid_target = {
 	.name = "raid",
-	.version = {1, 5, 0},
+	.version = {1, 5, 1},
 	.module = THIS_MODULE,
 	.ctr = raid_ctr,
 	.dtr = raid_dtr,
