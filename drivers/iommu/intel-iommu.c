@@ -47,6 +47,7 @@
 #include <asm/iommu.h>
 
 #include "irq_remapping.h"
+#include "pci.h"
 
 #define ROOT_SIZE		VTD_PAGE_SIZE
 #define CONTEXT_SIZE		VTD_PAGE_SIZE
@@ -4126,7 +4127,7 @@ static size_t intel_iommu_unmap(struct iommu_domain *domain,
 }
 
 static phys_addr_t intel_iommu_iova_to_phys(struct iommu_domain *domain,
-					    unsigned long iova)
+					    dma_addr_t iova)
 {
 	struct dmar_domain *dmar_domain = domain->priv;
 	struct dma_pte *pte;
@@ -4150,12 +4151,6 @@ static int intel_iommu_domain_has_cap(struct iommu_domain *domain,
 		return irq_remapping_enabled;
 
 	return 0;
-}
-
-static void swap_pci_ref(struct pci_dev **from, struct pci_dev *to)
-{
-	pci_dev_put(*from);
-	*from = to;
 }
 
 #define REQ_ACS_FLAGS	(PCI_ACS_SV | PCI_ACS_RR | PCI_ACS_CR | PCI_ACS_UF)

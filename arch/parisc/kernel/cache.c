@@ -421,14 +421,11 @@ void purge_tlb_entries(struct mm_struct *mm, unsigned long addr)
 	/* Note: purge_tlb_entries can be called at startup with
 	   no context.  */
 
-	/* Disable preemption while we play with %sr1.  */
-	preempt_disable();
-	mtsp(mm->context, 1);
 	purge_tlb_start(flags);
+	mtsp(mm->context, 1);
 	pdtlb(addr);
 	pitlb(addr);
 	purge_tlb_end(flags);
-	preempt_enable();
 }
 EXPORT_SYMBOL(purge_tlb_entries);
 

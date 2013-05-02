@@ -3779,6 +3779,28 @@ int xhci_address_device(struct usb_hcd *hcd, struct usb_device *udev)
 	return 0;
 }
 
+/*
+ * Transfer the port index into real index in the HW port status
+ * registers. Caculate offset between the port's PORTSC register
+ * and port status base. Divide the number of per port register
+ * to get the real index. The raw port number bases 1.
+ */
+int xhci_find_raw_port_number(struct usb_hcd *hcd, int port1)
+{
+	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
+	__le32 __iomem *base_addr = &xhci->op_regs->port_status_base;
+	__le32 __iomem *addr;
+	int raw_port;
+
+	if (hcd->speed != HCD_USB3)
+		addr = xhci->usb2_ports[port1 - 1];
+	else
+		addr = xhci->usb3_ports[port1 - 1];
+
+	raw_port = (addr - base_addr)/NUM_PORT_REGS + 1;
+	return raw_port;
+}
+
 #ifdef CONFIG_USB_SUSPEND
 
 /* BESL to HIRD Encoding array for USB2 LPM */

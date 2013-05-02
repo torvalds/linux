@@ -3317,15 +3317,15 @@ static int _brcmf_sdbrcm_download_firmware(struct brcmf_sdio *bus)
 		goto err;
 	}
 
-	/* External image takes precedence if specified */
 	if (brcmf_sdbrcm_download_code_file(bus)) {
 		brcmf_err("dongle image file download failed\n");
 		goto err;
 	}
 
-	/* External nvram takes precedence if specified */
-	if (brcmf_sdbrcm_download_nvram(bus))
+	if (brcmf_sdbrcm_download_nvram(bus)) {
 		brcmf_err("dongle nvram file download failed\n");
+		goto err;
+	}
 
 	/* Take arm out of reset */
 	if (brcmf_sdbrcm_download_state(bus, false)) {

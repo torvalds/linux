@@ -423,7 +423,7 @@ static int fdb_insert(struct net_bridge *br, struct net_bridge_port *source,
 			return 0;
 		br_warn(br, "adding interface %s with same address "
 		       "as a received packet\n",
-		       source->dev->name);
+		       source ? source->dev->name : br->dev->name);
 		fdb_delete(br, fdb);
 	}
 
