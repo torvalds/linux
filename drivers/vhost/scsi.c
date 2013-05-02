@@ -2136,7 +2136,8 @@ static void tcm_vhost_exit(void)
 	destroy_workqueue(tcm_vhost_workqueue);
 };
 
-MODULE_DESCRIPTION("TCM_VHOST series fabric driver");
+MODULE_DESCRIPTION("VHOST_SCSI series fabric driver");
+MODULE_ALIAS("tcm_vhost");
 MODULE_LICENSE("GPL");
 module_init(tcm_vhost_init);
 module_exit(tcm_vhost_exit);
