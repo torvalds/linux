@@ -34,6 +34,7 @@
 #include <linux/delay.h>
 #include <linux/capability.h>
 #include <linux/compat.h>
+#include <linux/pm_runtime.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/mmc.h>
@@ -223,7 +224,7 @@ static ssize_t power_ro_lock_store(struct device *dev,
 	md = mmc_blk_get(dev_to_disk(dev));
 	card = md->queue.card;
 
-	mmc_claim_host(card->host);
+	mmc_get_card(card);
 
 	ret = mmc_switch(card, EXT_CSD_CMD_SET_NORMAL, EXT_CSD_BOOT_WP,
 				card->ext_csd.boot_ro_lock |
@@ -234,7 +235,7 @@ static ssize_t power_ro_lock_store(struct device *dev,
 	else
 		card->ext_csd.boot_ro_lock |= EXT_CSD_BOOT_WP_B_PWR_WP_EN;
 
-	mmc_release_host(card->host);
+	mmc_put_card(card);
 
 	if (!ret) {
 		pr_info("%s: Locking boot partition ro until next power on\n",
@@ -521,7 +522,7 @@ static int mmc_blk_ioctl_cmd(struct block_device *bdev,
 
 	mrq.cmd = &cmd;
 
-	mmc_claim_host(card->host);
+	mmc_get_card(card);
 
 	err = mmc_blk_part_switch(card, md);
 	if (err)
@@ -598,7 +599,7 @@ static int mmc_blk_ioctl_cmd(struct block_device *bdev,
 	}
 
 cmd_rel_host:
-	mmc_release_host(card->host);
+	mmc_put_card(card);
 
 cmd_done:
 	mmc_blk_put(md);
@@ -1968,7 +1969,7 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 
 	if (req && !mq->mqrq_prev->req)
 		/* claim host only for the first request */
-		mmc_claim_host(card->host);
+		mmc_get_card(card);
 
 	ret = mmc_blk_part_switch(card, md);
 	if (ret) {
@@ -2012,7 +2013,7 @@ out:
 		 * In case sepecial request, there is no reentry to
 		 * the 'mmc_blk_issue_rq' with 'mqrq_prev->req'.
 		 */
-		mmc_release_host(card->host);
+		mmc_put_card(card);
 	return ret;
 }
 
@@ -2413,6 +2414,19 @@ static int mmc_blk_probe(struct mmc_card *card)
 		if (mmc_add_disk(part_md))
 			goto out;
 	}
+
+	pm_runtime_set_autosuspend_delay(&card->dev, 3000);
+	pm_runtime_use_autosuspend(&card->dev);
+
+	/*
+	 * Don't enable runtime PM for SD-combo cards here. Leave that
+	 * decision to be taken during the SDIO init sequence instead.
+	 */
+	if (card->type != MMC_TYPE_SD_COMBO) {
+		pm_runtime_set_active(&card->dev);
+		pm_runtime_enable(&card->dev);
+	}
+
 	return 0;
 
  out:
@@ -2426,9 +2440,13 @@ static void mmc_blk_remove(struct mmc_card *card)
 	struct mmc_blk_data *md = mmc_get_drvdata(card);
 
 	mmc_blk_remove_parts(card, md);
+	pm_runtime_get_sync(&card->dev);
 	mmc_claim_host(card->host);
 	mmc_blk_part_switch(card, md);
 	mmc_release_host(card->host);
+	if (card->type != MMC_TYPE_SD_COMBO)
+		pm_runtime_disable(&card->dev);
+	pm_runtime_put_noidle(&card->dev);
 	mmc_blk_remove_req(md);
 	mmc_set_drvdata(card, NULL);
 #ifdef CONFIG_MMC_BLOCK_DEFERRED_RESUME
@@ -2443,6 +2461,7 @@ static int mmc_blk_suspend(struct mmc_card *card)
 	struct mmc_blk_data *md = mmc_get_drvdata(card);
 
 	if (md) {
+		pm_runtime_get_sync(&card->dev);
 		mmc_queue_suspend(&md->queue);
 		list_for_each_entry(part_md, &md->part, part) {
 			mmc_queue_suspend(&part_md->queue);
@@ -2466,6 +2485,7 @@ static int mmc_blk_resume(struct mmc_card *card)
 		list_for_each_entry(part_md, &md->part, part) {
 			mmc_queue_resume(&part_md->queue);
 		}
+		pm_runtime_put(&card->dev);
 	}
 	return 0;
 }
