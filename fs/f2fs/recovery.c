@@ -53,7 +53,7 @@ static int recover_dentry(struct page *ipage, struct inode *inode)
 
 	dir = f2fs_iget(inode->i_sb, le32_to_cpu(raw_inode->i_pino));
 	if (IS_ERR(dir)) {
-		err = -EINVAL;
+		err = PTR_ERR(dir);
 		goto out;
 	}
 
@@ -156,8 +156,12 @@ static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head)
 		}
 		if (IS_INODE(page)) {
 			err = recover_inode(entry->inode, page);
-			if (err)
+			if (err == -ENOENT) {
+				goto next;
+			} else if (err) {
+				err = -EINVAL;
 				goto unlock_out;
+			}
 		}
 next:
 		/* check next segment */
