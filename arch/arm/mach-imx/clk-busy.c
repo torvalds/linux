@@ -147,7 +147,7 @@ static int clk_busy_mux_set_parent(struct clk_hw *hw, u8 index)
 	return ret;
 }
 
-struct clk_ops clk_busy_mux_ops = {
+static struct clk_ops clk_busy_mux_ops = {
 	.get_parent = clk_busy_mux_get_parent,
 	.set_parent = clk_busy_mux_set_parent,
 };

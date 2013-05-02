@@ -32,16 +32,6 @@ static struct map_desc cns3xxx_io_desc[] __initdata = {
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
 	}, {
-		.virtual	= CNS3XXX_GPIOA_BASE_VIRT,
-		.pfn		= __phys_to_pfn(CNS3XXX_GPIOA_BASE),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= CNS3XXX_GPIOB_BASE_VIRT,
-		.pfn		= __phys_to_pfn(CNS3XXX_GPIOB_BASE),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE,
-	}, {
 		.virtual	= CNS3XXX_MISC_BASE_VIRT,
 		.pfn		= __phys_to_pfn(CNS3XXX_MISC_BASE),
 		.length		= SZ_4K,

@@ -73,7 +73,7 @@ static int imx6q_revision(void)
 	}
 }
 
-void imx6q_restart(char mode, const char *cmd)
+static void imx6q_restart(char mode, const char *cmd)
 {
 	struct device_node *np;
 	void __iomem *wdog_base;
@@ -256,7 +256,7 @@ put_node:
 	of_node_put(np);
 }
 
-struct platform_device imx6q_cpufreq_pdev = {
+static struct platform_device imx6q_cpufreq_pdev = {
 	.name = "imx6q-cpufreq",
 };
 

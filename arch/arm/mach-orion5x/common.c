@@ -19,6 +19,7 @@
 #include <linux/ata_platform.h>
 #include <linux/delay.h>
 #include <linux/clk-provider.h>
+#include <linux/cpu.h>
 #include <net/dsa.h>
 #include <asm/page.h>
 #include <asm/setup.h>
