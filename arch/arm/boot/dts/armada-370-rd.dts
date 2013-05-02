@@ -73,4 +73,15 @@
 			status = "okay";
 		};
 	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		button@1 {
+			label = "Software Button";
+			linux,code = <116>;
+			gpios = <&gpio0 6 1>;
+		};
+	};
 };

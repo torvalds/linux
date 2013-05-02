@@ -10,7 +10,7 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
-/include/ "skeleton.dtsi"
+#include "skeleton.dtsi"
 
 / {
 	aliases {
@@ -100,6 +100,11 @@
 			interrupts = <0 92 0x04>;
 			cache-unified;
 			cache-level = <2>;
+		};
+
+		pmu {
+			compatible = "arm,cortex-a9-pmu";
+			interrupts = <0 94 0x04>;
 		};
 
 		aips-bus@02000000 { /* AIPS1 */
@@ -278,6 +283,8 @@
 				compatible = "fsl,imx6q-gpt";
 				reg = <0x02098000 0x4000>;
 				interrupts = <0 55 0x04>;
+				clocks = <&clks 119>, <&clks 120>;
+				clock-names = "ipg", "per";
 			};
 
 			gpio1: gpio@0209c000 {
@@ -514,9 +521,10 @@
 			};
 
 			src: src@020d8000 {
-				compatible = "fsl,imx6q-src";
+				compatible = "fsl,imx6q-src", "fsl,imx51-src";
 				reg = <0x020d8000 0x4000>;
 				interrupts = <0 91 0x04 0 96 0x04>;
+				#reset-cells = <1>;
 			};
 
 			gpc: gpc@020dc000 {
@@ -528,6 +536,26 @@
 			gpr: iomuxc-gpr@020e0000 {
 				compatible = "fsl,imx6q-iomuxc-gpr", "syscon";
 				reg = <0x020e0000 0x38>;
+			};
+
+			ldb: ldb@020e0008 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx6q-ldb", "fsl,imx53-ldb";
+				gpr = <&gpr>;
+				status = "disabled";
+
+				lvds-channel@0 {
+					reg = <0>;
+					crtcs = <&ipu1 0>;
+					status = "disabled";
+				};
+
+				lvds-channel@1 {
+					reg = <1>;
+					crtcs = <&ipu1 1>;
+					status = "disabled";
+				};
 			};
 
 			dcic1: dcic@020e4000 {
@@ -796,6 +824,7 @@
 			interrupts = <0 6 0x4 0 5 0x4>;
 			clocks = <&clks 130>, <&clks 131>, <&clks 132>;
 			clock-names = "bus", "di0", "di1";
+			resets = <&src 2>;
 		};
 	};
 };
