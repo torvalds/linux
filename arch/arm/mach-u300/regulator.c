@@ -17,7 +17,7 @@
 #include <linux/regulator/consumer.h>
 /* Those are just for writing in syscon */
 #include <linux/io.h>
-#include <mach/u300-regs.h>
+#include "u300-regs.h"
 
 /* Power Management Control 16bit (R/W) */
 #define U300_SYSCON_PMCR					(0x50)

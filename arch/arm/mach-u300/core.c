@@ -21,7 +21,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/arch.h>
 
-#include <mach/u300-regs.h>
+#include "u300-regs.h"
 
 /*
  * SYSCON addresses applicable to the core machine.
