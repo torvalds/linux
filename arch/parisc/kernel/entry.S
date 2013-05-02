@@ -400,7 +400,15 @@
 #if PT_NLEVELS == 3
 	extru		\va,31-ASM_PMD_SHIFT,ASM_BITS_PER_PMD,\index
 #else
+# if defined(CONFIG_64BIT)
+	extrd,u		\va,63-ASM_PGDIR_SHIFT,ASM_BITS_PER_PGD,\index
+  #else
+  # if PAGE_SIZE > 4096
+	extru		\va,31-ASM_PGDIR_SHIFT,32-ASM_PGDIR_SHIFT,\index
+  # else
 	extru		\va,31-ASM_PGDIR_SHIFT,ASM_BITS_PER_PGD,\index
+  # endif
+# endif
 #endif
 	dep             %r0,31,PAGE_SHIFT,\pmd  /* clear offset */
 	copy		%r0,\pte
@@ -615,7 +623,7 @@
 
 	.text
 
-	.align	PAGE_SIZE
+	.align 4096
 
 ENTRY(fault_vector_20)
 	/* First vector is invalid (0) */

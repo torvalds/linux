@@ -15,6 +15,7 @@
 #include <asm/thread_info.h>
 #include <asm/assembly.h>
 #include <asm/processor.h>
+#include <asm/cache.h>
 
 #include <linux/linkage.h>
 
@@ -643,7 +644,7 @@ ENTRY(end_linux_gateway_page)
 
 	.section .rodata,"a"
 
-	.align PAGE_SIZE
+	.align 8
 	/* Light-weight-syscall table */
 	/* Start of lws table. */
 ENTRY(lws_table)
@@ -652,13 +653,13 @@ ENTRY(lws_table)
 END(lws_table)
 	/* End of lws table */
 
-	.align PAGE_SIZE
+	.align 8
 ENTRY(sys_call_table)
 #include "syscall_table.S"
 END(sys_call_table)
 
 #ifdef CONFIG_64BIT
-	.align PAGE_SIZE
+	.align 8
 ENTRY(sys_call_table64)
 #define SYSCALL_TABLE_64BIT
 #include "syscall_table.S"
@@ -674,7 +675,7 @@ END(sys_call_table64)
 		with ldcw.
 	*/
 	.section .data
-	.align	PAGE_SIZE
+	.align	L1_CACHE_BYTES
 ENTRY(lws_lock_start)
 	/* lws locks */
 	.rept 16
