@@ -105,7 +105,8 @@ static void xen_update_blkif_status(struct xen_blkif *blkif)
 static struct xen_blkif *xen_blkif_alloc(domid_t domid)
 {
 	struct xen_blkif *blkif;
-	int i;
+	struct pending_req *req, *n;
+	int i, j;
 
 	BUILD_BUG_ON(MAX_INDIRECT_PAGES > BLKIF_MAX_INDIRECT_PAGES_PER_REQUEST);
 
@@ -127,22 +128,51 @@ static struct xen_blkif *xen_blkif_alloc(domid_t domid)
 	blkif->free_pages_num = 0;
 	atomic_set(&blkif->persistent_gnt_in_use, 0);
 
-	blkif->pending_reqs = kcalloc(XEN_BLKIF_REQS,
-	                              sizeof(blkif->pending_reqs[0]),
-	                              GFP_KERNEL);
-	if (!blkif->pending_reqs) {
-		kmem_cache_free(xen_blkif_cachep, blkif);
-		return ERR_PTR(-ENOMEM);
-	}
 	INIT_LIST_HEAD(&blkif->pending_free);
+
+	for (i = 0; i < XEN_BLKIF_REQS; i++) {
+		req = kzalloc(sizeof(*req), GFP_KERNEL);
+		if (!req)
+			goto fail;
+		list_add_tail(&req->free_list,
+		              &blkif->pending_free);
+		for (j = 0; j < MAX_INDIRECT_SEGMENTS; j++) {
+			req->segments[j] = kzalloc(sizeof(*req->segments[0]),
+			                           GFP_KERNEL);
+			if (!req->segments[j])
+				goto fail;
+		}
+		for (j = 0; j < MAX_INDIRECT_PAGES; j++) {
+			req->indirect_pages[j] = kzalloc(sizeof(*req->indirect_pages[0]),
+			                                 GFP_KERNEL);
+			if (!req->indirect_pages[j])
+				goto fail;
+		}
+	}
 	spin_lock_init(&blkif->pending_free_lock);
 	init_waitqueue_head(&blkif->pending_free_wq);
 
-	for (i = 0; i < XEN_BLKIF_REQS; i++)
-		list_add_tail(&blkif->pending_reqs[i].free_list,
-			      &blkif->pending_free);
-
 	return blkif;
+
+fail:
+	list_for_each_entry_safe(req, n, &blkif->pending_free, free_list) {
+		list_del(&req->free_list);
+		for (j = 0; j < MAX_INDIRECT_SEGMENTS; j++) {
+			if (!req->segments[j])
+				break;
+			kfree(req->segments[j]);
+		}
+		for (j = 0; j < MAX_INDIRECT_PAGES; j++) {
+			if (!req->indirect_pages[j])
+				break;
+			kfree(req->indirect_pages[j]);
+		}
+		kfree(req);
+	}
+
+	kmem_cache_free(xen_blkif_cachep, blkif);
+
+	return ERR_PTR(-ENOMEM);
 }
 
 static int xen_blkif_map(struct xen_blkif *blkif, unsigned long shared_page,
@@ -221,18 +251,28 @@ static void xen_blkif_disconnect(struct xen_blkif *blkif)
 
 static void xen_blkif_free(struct xen_blkif *blkif)
 {
-	struct pending_req *req;
-	int i = 0;
+	struct pending_req *req, *n;
+	int i = 0, j;
 
 	if (!atomic_dec_and_test(&blkif->refcnt))
 		BUG();
 
 	/* Check that there is no request in use */
-	list_for_each_entry(req, &blkif->pending_free, free_list)
-		i++;
-	BUG_ON(i != XEN_BLKIF_REQS);
+	list_for_each_entry_safe(req, n, &blkif->pending_free, free_list) {
+		list_del(&req->free_list);
 
-	kfree(blkif->pending_reqs);
+		for (j = 0; j < MAX_INDIRECT_SEGMENTS; j++)
+			kfree(req->segments[j]);
+
+		for (j = 0; j < MAX_INDIRECT_PAGES; j++)
+			kfree(req->indirect_pages[j]);
+
+		kfree(req);
+		i++;
+	}
+
+	WARN_ON(i != XEN_BLKIF_REQS);
+
 	kmem_cache_free(xen_blkif_cachep, blkif);
 }
 

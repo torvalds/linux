@@ -297,8 +297,6 @@ struct xen_blkif {
 	int			free_pages_num;
 	struct list_head	free_pages;
 
-	/* Allocation of pending_reqs */
-	struct pending_req	*pending_reqs;
 	/* List of all 'pending_req' available */
 	struct list_head	pending_free;
 	/* And its spinlock. */
@@ -323,6 +321,13 @@ struct seg_buf {
 	unsigned int nsec;
 };
 
+struct grant_page {
+	struct page 		*page;
+	struct persistent_gnt	*persistent_gnt;
+	grant_handle_t		handle;
+	grant_ref_t		gref;
+};
+
 /*
  * Each outstanding request that we've passed to the lower device layers has a
  * 'pending_req' allocated to it. Each buffer_head that completes decrements
@@ -337,14 +342,9 @@ struct pending_req {
 	unsigned short		operation;
 	int			status;
 	struct list_head	free_list;
-	struct page		*pages[MAX_INDIRECT_SEGMENTS];
-	struct persistent_gnt	*persistent_gnts[MAX_INDIRECT_SEGMENTS];
-	grant_handle_t		grant_handles[MAX_INDIRECT_SEGMENTS];
-	grant_ref_t		grefs[MAX_INDIRECT_SEGMENTS];
+	struct grant_page	*segments[MAX_INDIRECT_SEGMENTS];
 	/* Indirect descriptors */
-	struct persistent_gnt	*indirect_persistent_gnts[MAX_INDIRECT_PAGES];
-	struct page		*indirect_pages[MAX_INDIRECT_PAGES];
-	grant_handle_t		indirect_handles[MAX_INDIRECT_PAGES];
+	struct grant_page	*indirect_pages[MAX_INDIRECT_PAGES];
 	struct seg_buf		seg[MAX_INDIRECT_SEGMENTS];
 	struct bio		*biolist[MAX_INDIRECT_SEGMENTS];
 };
