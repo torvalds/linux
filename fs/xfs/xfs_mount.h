@@ -192,8 +192,6 @@ typedef struct xfs_mount {
 	xfs_dablk_t		m_dirleafblk;	/* blockno of dir non-data v2 */
 	xfs_dablk_t		m_dirfreeblk;	/* blockno of dirfreeindex v2 */
 	uint			m_chsize;	/* size of next field */
-	struct xfs_chash	*m_chash;	/* fs private inode per-cluster
-						 * hash table */
 	atomic_t		m_active_trans;	/* number trans frozen */
 #ifdef HAVE_PERCPU_SB
 	xfs_icsb_cnts_t __percpu *m_sb_cnts;	/* per-cpu superblock counters */
