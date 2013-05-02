@@ -33,6 +33,7 @@
 
 #include <engine/device.h>
 #include <engine/disp.h>
+#include <engine/fifo.h>
 
 #include <subdev/vm.h>
 
@@ -164,7 +165,7 @@ nouveau_accel_init(struct nouveau_drm *drm)
 	u32 arg0, arg1;
 	int ret;
 
-	if (nouveau_noaccel)
+	if (nouveau_noaccel || !nouveau_fifo(device) /*XXX*/)
 		return;
 
 	/* initialise synchronisation routines */
