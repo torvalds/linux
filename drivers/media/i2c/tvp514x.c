@@ -1120,7 +1120,6 @@ tvp514x_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	if (ret < 0) {
 		v4l2_err(sd, "%s decoder driver failed to register !!\n",
 			 sd->name);
-		kfree(decoder);
 		return ret;
 	}
 #endif
