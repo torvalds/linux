@@ -1059,11 +1059,27 @@ out:
 	return ret;
 }
 
+static int mmc_sdio_runtime_suspend(struct mmc_host *host)
+{
+	/* No references to the card, cut the power to it. */
+	mmc_power_off(host);
+	return 0;
+}
+
+static int mmc_sdio_runtime_resume(struct mmc_host *host)
+{
+	/* Restore power and re-initialize. */
+	mmc_power_up(host);
+	return mmc_sdio_power_restore(host);
+}
+
 static const struct mmc_bus_ops mmc_sdio_ops = {
 	.remove = mmc_sdio_remove,
 	.detect = mmc_sdio_detect,
 	.suspend = mmc_sdio_suspend,
 	.resume = mmc_sdio_resume,
+	.runtime_suspend = mmc_sdio_runtime_suspend,
+	.runtime_resume = mmc_sdio_runtime_resume,
 	.power_restore = mmc_sdio_power_restore,
 	.alive = mmc_sdio_alive,
 };
