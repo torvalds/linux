@@ -1454,6 +1454,54 @@ static int mmc_resume(struct mmc_host *host)
 	return err;
 }
 
+
+/*
+ * Callback for runtime_suspend.
+ */
+static int mmc_runtime_suspend(struct mmc_host *host)
+{
+	int err;
+
+	if (!(host->caps & MMC_CAP_AGGRESSIVE_PM))
+		return 0;
+
+	mmc_claim_host(host);
+
+	err = mmc_suspend(host);
+	if (err) {
+		pr_err("%s: error %d doing aggessive suspend\n",
+			mmc_hostname(host), err);
+		goto out;
+	}
+	mmc_power_off(host);
+
+out:
+	mmc_release_host(host);
+	return err;
+}
+
+/*
+ * Callback for runtime_resume.
+ */
+static int mmc_runtime_resume(struct mmc_host *host)
+{
+	int err;
+
+	if (!(host->caps & MMC_CAP_AGGRESSIVE_PM))
+		return 0;
+
+	mmc_claim_host(host);
+
+	mmc_power_up(host);
+	err = mmc_resume(host);
+	if (err)
+		pr_err("%s: error %d doing aggessive resume\n",
+			mmc_hostname(host), err);
+
+	mmc_release_host(host);
+	return 0;
+}
+
 static int mmc_power_restore(struct mmc_host *host)
 {
 	int ret;
@@ -1514,6 +1562,8 @@ static const struct mmc_bus_ops mmc_ops_unsafe = {
 	.detect = mmc_detect,
 	.suspend = mmc_suspend,
 	.resume = mmc_resume,
+	.runtime_suspend = mmc_runtime_suspend,
+	.runtime_resume = mmc_runtime_resume,
 	.power_restore = mmc_power_restore,
 	.alive = mmc_alive,
 };

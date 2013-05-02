@@ -1100,6 +1100,53 @@ static int mmc_sd_resume(struct mmc_host *host)
 	return err;
 }
 
+/*
+ * Callback for runtime_suspend.
+ */
+static int mmc_sd_runtime_suspend(struct mmc_host *host)
+{
+	int err;
+
+	if (!(host->caps & MMC_CAP_AGGRESSIVE_PM))
+		return 0;
+
+	mmc_claim_host(host);
+
+	err = mmc_sd_suspend(host);
+	if (err) {
+		pr_err("%s: error %d doing aggessive suspend\n",
+			mmc_hostname(host), err);
+		goto out;
+	}
+	mmc_power_off(host);
+
+out:
+	mmc_release_host(host);
+	return err;
+}
+
+/*
+ * Callback for runtime_resume.
+ */
+static int mmc_sd_runtime_resume(struct mmc_host *host)
+{
+	int err;
+
+	if (!(host->caps & MMC_CAP_AGGRESSIVE_PM))
+		return 0;
+
+	mmc_claim_host(host);
+
+	mmc_power_up(host);
+	err = mmc_sd_resume(host);
+	if (err)
+		pr_err("%s: error %d doing aggessive resume\n",
+			mmc_hostname(host), err);
+
+	mmc_release_host(host);
+	return 0;
+}
+
 static int mmc_sd_power_restore(struct mmc_host *host)
 {
 	int ret;
@@ -1124,6 +1171,8 @@ static const struct mmc_bus_ops mmc_sd_ops = {
 static const struct mmc_bus_ops mmc_sd_ops_unsafe = {
 	.remove = mmc_sd_remove,
 	.detect = mmc_sd_detect,
+	.runtime_suspend = mmc_sd_runtime_suspend,
+	.runtime_resume = mmc_sd_runtime_resume,
 	.suspend = mmc_sd_suspend,
 	.resume = mmc_sd_resume,
 	.power_restore = mmc_sd_power_restore,
