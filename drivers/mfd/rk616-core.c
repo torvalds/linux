@@ -364,9 +364,6 @@ static int rk616_i2c_probe(struct i2c_client *client,const struct i2c_device_id 
 	i2c_set_clientdata(client, rk616);
 	dev_set_drvdata(rk616->dev,rk616);
 	
-	if(rk616->pdata->power_init)
-		rk616->pdata->power_init();
-
 #if defined(CONFIG_SND_RK29_SOC_I2S_8CH)        
 	iis_clk = clk_get_sys("rk29_i2s.0", "i2s");
 #elif defined(CONFIG_SND_RK29_SOC_I2S_2CH)
@@ -390,6 +387,11 @@ static int rk616_i2c_probe(struct i2c_client *client,const struct i2c_device_id 
 		clk_set_rate(iis_clk, 11289600);
 		clk_put(iis_clk);
 	}
+
+	
+	if(rk616->pdata->power_init)
+		rk616->pdata->power_init();
+	
 	rk616->read_dev = rk616_i2c_read_reg;
 	rk616->write_dev = rk616_i2c_write_reg;
 	
