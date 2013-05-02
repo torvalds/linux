@@ -987,42 +987,27 @@ xfs_update_alignment(xfs_mount_t *mp)
 		 */
 		if ((BBTOB(mp->m_dalign) & mp->m_blockmask) ||
 		    (BBTOB(mp->m_swidth) & mp->m_blockmask)) {
-			if (mp->m_flags & XFS_MOUNT_RETERR) {
-				xfs_warn(mp, "alignment check failed: "
-					 "(sunit/swidth vs. blocksize)");
-				return XFS_ERROR(EINVAL);
-			}
-			mp->m_dalign = mp->m_swidth = 0;
+			xfs_warn(mp,
+		"alignment check failed: sunit/swidth vs. blocksize(%d)",
+				sbp->sb_blocksize);
+			return XFS_ERROR(EINVAL);
 		} else {
 			/*
 			 * Convert the stripe unit and width to FSBs.
 			 */
 			mp->m_dalign = XFS_BB_TO_FSBT(mp, mp->m_dalign);
 			if (mp->m_dalign && (sbp->sb_agblocks % mp->m_dalign)) {
-				if (mp->m_flags & XFS_MOUNT_RETERR) {
-					xfs_warn(mp, "alignment check failed: "
-						 "(sunit/swidth vs. ag size)");
-					return XFS_ERROR(EINVAL);
-				}
 				xfs_warn(mp,
-		"stripe alignment turned off: sunit(%d)/swidth(%d) "
-		"incompatible with agsize(%d)",
-					mp->m_dalign, mp->m_swidth,
-					sbp->sb_agblocks);
-
-				mp->m_dalign = 0;
-				mp->m_swidth = 0;
+			"alignment check failed: sunit/swidth vs. agsize(%d)",
+					 sbp->sb_agblocks);
+				return XFS_ERROR(EINVAL);
 			} else if (mp->m_dalign) {
 				mp->m_swidth = XFS_BB_TO_FSBT(mp, mp->m_swidth);
 			} else {
-				if (mp->m_flags & XFS_MOUNT_RETERR) {
-					xfs_warn(mp, "alignment check failed: "
-						"sunit(%d) less than bsize(%d)",
-						mp->m_dalign,
-						mp->m_blockmask +1);
-					return XFS_ERROR(EINVAL);
-				}
-				mp->m_swidth = 0;
+				xfs_warn(mp,
+			"alignment check failed: sunit(%d) less than bsize(%d)",
+					 mp->m_dalign, sbp->sb_blocksize);
+				return XFS_ERROR(EINVAL);
 			}
 		}
 

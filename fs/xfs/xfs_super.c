@@ -439,20 +439,15 @@ xfs_parseargs(
 	}
 
 done:
-	if (!(mp->m_flags & XFS_MOUNT_NOALIGN)) {
+	if (dsunit && !(mp->m_flags & XFS_MOUNT_NOALIGN)) {
 		/*
 		 * At this point the superblock has not been read
 		 * in, therefore we do not know the block size.
 		 * Before the mount call ends we will convert
 		 * these to FSBs.
 		 */
-		if (dsunit) {
-			mp->m_dalign = dsunit;
-			mp->m_flags |= XFS_MOUNT_RETERR;
-		}
-
-		if (dswidth)
-			mp->m_swidth = dswidth;
+		mp->m_dalign = dsunit;
+		mp->m_swidth = dswidth;
 	}
 
 	if (mp->m_logbufs != -1 &&
