@@ -22,8 +22,6 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 
-#include <mach/irqs.h>
-
 /* Generic stuff */
 #include <asm/sched_clock.h>
 #include <asm/mach/map.h>
