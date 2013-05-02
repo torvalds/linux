@@ -1,24 +1,45 @@
-if ARCH_U300
-
 menu "ST-Ericsson AB U300/U335 Platform"
 
 comment "ST-Ericsson Mobile Platform Products"
 
-config MACH_U300
-	bool "U300"
+config ARCH_U300
+	bool "ST-Ericsson U300 Series"
+	depends on MMU
+	select ARCH_REQUIRE_GPIOLIB
+	select ARM_AMBA
+	select ARM_PATCH_PHYS_VIRT
+	select ARM_VIC
+	select CLKDEV_LOOKUP
+	select CLKSRC_MMIO
+	select CLKSRC_OF
+	select COMMON_CLK
+	select CPU_ARM926T
+	select GENERIC_CLOCKEVENTS
+	select HAVE_TCM
 	select PINCTRL
 	select PINCTRL_COH901
 	select PINCTRL_U300
+	select SPARSE_IRQ
+	select USE_OF
+	help
+	  Support for ST-Ericsson U300 series mobile platforms.
 
 comment "ST-Ericsson U300/U335 Feature Selections"
 
+config MACH_U300
+	depends on ARCH_U300
+	bool "U300"
+	default y
+
 config U300_DEBUG
+	depends on ARCH_U300
 	bool "Debug support for U300"
 	depends on PM
 	help
 		Debug support for U300 in sysfs, procfs etc.
 
 config MACH_U300_SPIDUMMY
+	depends on ARCH_U300
 	bool "SSP/SPI dummy chip"
 	select SPI
 	select SPI_MASTER
@@ -31,5 +52,3 @@ config MACH_U300_SPIDUMMY
 		SPI framework and ARM PL022 support.
 
 endmenu
-
-endif
