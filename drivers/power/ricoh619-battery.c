@@ -1370,6 +1370,21 @@ static void low_battery_irq_work(struct work_struct *work)
 }
 #endif
 
+extern int dwc_vbus_status(void);
+static void ricoh619_usb_charge_det(void)
+{
+	struct ricoh619 *ricoh619 = g_ricoh619;
+	ricoh619_set_bits(ricoh619->dev,REGISET2_REG,(1 << 7));  //set usb limit current  when SDP or other mode
+	if(2 == dwc_vbus_status()){
+	ricoh619_write(ricoh619->dev,REGISET2_REG,0x13);  //set usb limit current  2A
+	ricoh619_write(ricoh619->dev,CHGISET_REG,0x13);  //set charge current  2A
+	}
+	else if(1 == dwc_vbus_status()){
+	ricoh619_write(ricoh619->dev,REGISET2_REG,0x04);  //set usb limit current  500ma
+	ricoh619_write(ricoh619->dev,CHGISET_REG,0x04);  //set charge current	500ma
+	}
+}
+
 static void usb_det_irq_work(struct work_struct *work)
 {
 	struct ricoh619_battery_info *info = container_of(work,
@@ -1400,6 +1415,12 @@ static void usb_det_irq_work(struct work_struct *work)
 
 	sts &= 0x02;
 	if (sts) {
+		time = 60;
+		do {
+		ricoh619_usb_charge_det();
+		time --;
+		mdelay(1000);
+		}while(time >0);
 	
 	} else {
 		/*********************/
@@ -1414,11 +1435,27 @@ extern void rk28_send_wakeup_key(void);
 static irqreturn_t charger_in_isr(int irq, void *battery_info)
 {
 	struct ricoh619_battery_info *info = battery_info;
-	printk("PMU:%s\n", __func__);
+	struct ricoh619 *ricoh619 = g_ricoh619;
+	uint8_t reg_val;
+	int ret;
+	printk("PMU:%s\n", __func__); 
 
 	info->chg_stat1 |= 0x01;
 	queue_work(info->workqueue, &info->irq_work);
-	 rk28_send_wakeup_key(); 
+	rk28_send_wakeup_key();
+	 
+	 ricoh619_read(ricoh619->dev, 0xbd, &reg_val);
+	if ( reg_val & 0x40)
+	{
+	/* set adp limit current 2A */
+	ricoh619_write(ricoh619->dev, 0xb6, 0x13);
+	/* set charge current 2A */
+	ricoh619_write(ricoh619->dev, 0xb8, 0x13);
+	}
+	else if (reg_val & 0x80)
+	{
+	queue_work(info->usb_workqueue, &info->usb_irq_work);
+	}
 	return IRQ_HANDLED;
 }
 
@@ -1439,9 +1476,9 @@ static irqreturn_t charger_usb_isr(int irq, void *battery_info)
 	printk("PMU:%s\n", __func__);
 
 	info->chg_ctr |= 0x02;
-	queue_work(info->usb_workqueue, &info->usb_irq_work);
-	 rk28_send_wakeup_key(); 
-
+//	queue_work(info->usb_workqueue, &info->usb_irq_work);
+	rk28_send_wakeup_key(); 
+	 
 	if (RICOH619_SOCA_UNSTABLE == info->soca->status
 		|| RICOH619_SOCA_FG_RESET == info->soca->status)
 		info->soca->stable_count = 11;
@@ -1457,16 +1494,14 @@ static irqreturn_t charger_adp_isr(int irq, void *battery_info)
 
 	info->chg_ctr |= 0x01;
 	queue_work(info->workqueue, &info->irq_work);
-	rk28_send_wakeup_key(); 
 	/* clr usb det irq */
 	ricoh619_clr_bits(ricoh619->dev, RICOH619_INT_IR_CHGCTR,
 							 info->chg_ctr);
-
 	/* set adp limit current 2A */
-	ricoh619_write(ricoh619->dev, 0xb6, 0x13);
+//	ricoh619_write(ricoh619->dev, 0xb6, 0x13);
 	/* set charge current 2A */
-	ricoh619_write(ricoh619->dev, 0xb8, 0x13);
-
+//	ricoh619_write(ricoh619->dev, 0xb8, 0x13);
+	rk28_send_wakeup_key(); 
 	if (RICOH619_SOCA_UNSTABLE == info->soca->status
 		|| RICOH619_SOCA_FG_RESET == info->soca->status)
 		info->soca->stable_count = 11;

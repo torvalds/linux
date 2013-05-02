@@ -800,6 +800,11 @@ static int ricoh619_i2c_resume(struct i2c_client *client)
 		__ricoh619_write(client, RICOH619_INT_IR_SYS, 0x0); //Clear PWR_KEY IRQ
 	}
 
+	__ricoh619_write(client, RICOH619_INT_IR_CHGCTR, 0);
+	__ricoh619_write(client, RICOH619_INT_IR_CHGSTS1, 0);
+	__ricoh619_write(client, RICOH619_INT_IR_ADCL, 0);
+	__ricoh619_write(client, RICOH619_INT_IR_ADCH, 0);
+
 	enable_irq(client->irq);
 	return 0;
 }
