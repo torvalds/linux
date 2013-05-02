@@ -61,29 +61,37 @@ enum rk_plls_id {
 
 #define PLL_CLKR_SET(val)	(PLL_CLKR(val) | CRU_W_MSK(PLL_NR_SHIFT, PLL_NR_MSK))
 
+#define PLUS_PLL_OD_MSK		(0xf)
+#define PLUS_PLL_NO(reg)	(PLL_NO(reg) & PLUS_PLL_OD_MSK)
+
+#define PLUS_PLL_NR_MSK		(0x3f)
+#define PLUS_PLL_NR(reg)	(PLL_NO(reg) & PLUS_PLL_NR_MSK)
+
+#define PLUS_PLL_CLKR_SET(val)	PLL_CLKR_SET(val & PLUS_PLL_NR_MSK)
+#define PLUS_PLL_CLKOD_SET(val)	PLL_CLKOD_SET(val & PLUS_PLL_OD_MSK)
 /*******************PLL CON1 BITS***************************/
 
 #define PLL_NF_MSK		(0xffff)
 #define PLL_NF_SHIFT		(0)
 #define PLL_CLKF(val)		PLL_CLKFACTOR_SET(val, PLL_NF_SHIFT, PLL_NF_MSK)
 #define PLL_NF(reg)		PLL_CLKFACTOR_GET(reg, PLL_NF_SHIFT, PLL_NF_MSK)
-
 #define PLL_CLKF_SET(val)	(PLL_CLKF(val) | CRU_W_MSK(PLL_NF_SHIFT, PLL_NF_MSK))
 
+#define PLUS_PLL_NF_MSK		(0x1ff)
+#define PLUS_PLL_NF(reg)	(PLL_NF(reg) & PLUS_PLL_NF_MSK)
+#define PLUS_PLL_CLKF_SET(val)	PLL_CLKF_SET(val & PLUS_PLL_NF_MSK)
 /*******************PLL CON2 BITS***************************/
-#if 0
+
 #define PLL_BWADJ_MSK		(0xfff)
 #define PLL_BWADJ_SHIFT		(0)
 #define PLL_CLK_BWADJ_SET(val)	((val) | CRU_W_MSK(PLL_BWADJ_SHIFT, PLL_BWADJ_MSK))
-#endif
+
 /*******************PLL CON3 BITS***************************/
 
-#if 0
-#define PLL_REST_MSK		(1 << 5)
-#define PLL_REST_W_MSK		(PLL_REST_MSK << 16)
-#define PLL_REST		(1 << 5)
-#define PLL_REST_RESM		(0 << 5)
-#endif
+#define PLL_RESET_MSK		(1 << 5)
+#define PLL_RESET_W_MSK		(PLL_RESET_MSK << 16)
+#define PLL_RESET		(1 << 5)
+#define PLL_RESET_RESUME	(0 << 5)
 
 #define PLL_BYPASS_MSK		(1 << 0)
 #define PLL_BYPASS		(1 << 0)

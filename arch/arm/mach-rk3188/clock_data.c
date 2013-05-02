@@ -27,6 +27,7 @@
 #include <mach/pmu.h>
 #include <mach/dvfs.h>
 #include <mach/ddr.h>
+#include <mach/cpu.h>
 
 #define MHZ			(1000UL * 1000UL)
 #define KHZ			(1000UL)
@@ -78,6 +79,7 @@ struct pll_clk_set {
 	.rate	= (_mhz) * KHZ, \
 	.pllcon0 = PLL_CLKR_SET(nr)|PLL_CLKOD_SET(no), \
 	.pllcon1 = PLL_CLKF_SET(nf),\
+	.pllcon2 = PLL_CLK_BWADJ_SET(nf >> 1),\
 	.rst_dly=((nr*500)/24+1),\
 }
 
@@ -92,6 +94,7 @@ struct pll_clk_set {
 	.rate	= _mhz * MHZ, \
 	.pllcon0 = PLL_CLKR_SET(nr) | PLL_CLKOD_SET(no), \
 	.pllcon1 = PLL_CLKF_SET(nf),\
+	.pllcon2 = PLL_CLK_BWADJ_SET(nf >> 1),\
 	.clksel0 = CORE_PERIPH_W_MSK | CORE_PERIPH_##_periph_div,\
 	.clksel1 = CORE_ACLK_W_MSK | CORE_ACLK_##_axi_core_div,\
 	_APLL_SET_LPJ(_mhz),\
@@ -657,6 +660,31 @@ static unsigned long plls_clk_recalc(struct clk *clk)
 {
 	return pll_clk_recalc(clk->pll->id, clk->parent->rate);
 }
+static unsigned long plus_pll_clk_recalc(u32 pll_id, unsigned long parent_rate)
+{
+	unsigned long rate;
+
+	if (PLLS_IN_NORM(pll_id)) {
+		u32 pll_con0 = cru_readl(PLL_CONS(pll_id, 0));
+		u32 pll_con1 = cru_readl(PLL_CONS(pll_id, 1));
+
+		u64 rate64 = (u64)parent_rate * PLUS_PLL_NF(pll_con1);
+
+		do_div(rate64, PLUS_PLL_NR(pll_con0));
+		do_div(rate64, PLUS_PLL_NO(pll_con0));
+
+		rate = rate64;
+	} else {
+		rate = parent_rate;
+		CLKDATA_DBG("pll_clk_recalc id=%d rate=%lu by pass mode\n", pll_id, rate);
+	}
+	return rate;
+}
+static unsigned long plus_plls_clk_recalc(struct clk *clk)
+{
+	DVFS_DBG("%s: for rk3188 plus\n", __func__);
+	return plus_pll_clk_recalc(clk->pll->id, clk->parent->rate);
+}
 
 static int pll_clk_set_rate(struct pll_clk_set *clk_set, u8 pll_id)
 {
@@ -687,6 +715,32 @@ static int pll_clk_set_rate(struct pll_clk_set *clk_set, u8 pll_id)
 
 	return 0;
 }
+
+static int plus_pll_clk_set_rate(struct pll_clk_set *clk_set, u8 pll_id)
+{
+	//enter slowmode
+	cru_writel(PLL_MODE_SLOW(pll_id), CRU_MODE_CON);
+
+	//enter rest
+	cru_writel(PLL_RESET_W_MSK | PLL_RESET, PLL_CONS(pll_id, 3));
+	cru_writel(clk_set->pllcon0, PLL_CONS(pll_id, 0));
+	cru_writel(clk_set->pllcon1, PLL_CONS(pll_id, 1));
+	cru_writel(clk_set->pllcon2, PLL_CONS(pll_id, 2));
+	rk30_clock_udelay(5);
+	
+	//return form rest
+	cru_writel(PLL_RESET_W_MSK | PLL_RESET_RESUME, PLL_CONS(pll_id, 3));
+	
+	//wating lock state
+	rk30_clock_udelay(clk_set->rst_dly);
+	pll_wait_lock(pll_id);
+
+	//return form slow
+	cru_writel(PLL_MODE_NORM(pll_id), CRU_MODE_CON);
+	
+	return 0;
+}
+
 static int gpll_clk_set_rate(struct clk *c, unsigned long rate)
 {
 	struct _pll_data *pll_data = c->pll;
@@ -708,6 +762,27 @@ static int gpll_clk_set_rate(struct clk *c, unsigned long rate)
 	return 0;
 }
 
+static int plus_gpll_clk_set_rate(struct clk *c, unsigned long rate)
+{
+	struct _pll_data *pll_data = c->pll;
+	struct pll_clk_set *clk_set = (struct pll_clk_set *)pll_data->table;
+	DVFS_DBG("%s: for rk3188 plus\n", __func__);
+
+	while(clk_set->rate) {
+		if (clk_set->rate == rate) {
+			break;
+		}
+		clk_set++;
+	}
+	if(clk_set->rate == rate) {
+		plus_pll_clk_set_rate(clk_set, pll_data->id);
+		lpj_gpll = CLK_LOOPS_RECALC(rate);
+	} else {
+		CLKDATA_ERR("gpll is no corresponding rate=%lu\n", rate);
+		return -1;
+	}
+	return 0;
+}
 #define PLL_FREF_MIN (183*KHZ)
 #define PLL_FREF_MAX (1500*MHZ)
 
@@ -821,6 +896,39 @@ static int cpll_clk_set_rate(struct clk *c, unsigned long rate)
 		temp_clk_set.pllcon1 = PLL_CLKF_SET(clk_nf);
 		temp_clk_set.rst_dly = (clk_nr * 500) / 24 + 1;
 		pll_clk_set_rate(&temp_clk_set, pll_data->id);
+
+	}
+	return 0;
+}
+static int plus_cpll_clk_set_rate(struct clk *c, unsigned long rate)
+{
+	struct _pll_data *pll_data = c->pll;
+	struct pll_clk_set *clk_set = (struct pll_clk_set *)pll_data->table;
+	struct pll_clk_set temp_clk_set;
+	u32 clk_nr, clk_nf, clk_no;
+	DVFS_DBG("%s: for rk3188 plus\n", __func__);
+
+	while(clk_set->rate) {
+		if (clk_set->rate == rate) {
+			break;
+		}
+		clk_set++;
+	}
+	if(clk_set->rate == rate) {
+		CLKDATA_DBG("cpll get a rate\n");
+		plus_pll_clk_set_rate(clk_set, pll_data->id);
+
+	} else {
+		CLKDATA_DBG("cpll get auto calc a rate\n");
+		if(pll_clk_get_set(c->parent->rate, rate, &clk_nr, &clk_nf, &clk_no) == 0) {
+			pr_err("cpll auto set rate error\n");
+			return -ENOENT;
+		}
+		CLKDATA_DBG("cpll auto ger rate set nr=%d,nf=%d,no=%d\n", clk_nr, clk_nf, clk_no);
+		temp_clk_set.pllcon0 = PLL_CLKR_SET(clk_nr) | PLL_CLKOD_SET(clk_no);
+		temp_clk_set.pllcon1 = PLL_CLKF_SET(clk_nf);
+		temp_clk_set.rst_dly = (clk_nr * 500) / 24 + 1;
+		plus_pll_clk_set_rate(&temp_clk_set, pll_data->id);
 
 	}
 	return 0;
@@ -993,6 +1101,90 @@ static int arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 	return 0;
 }
 
+static int plus_arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
+{
+	unsigned long flags;
+	const struct apll_clk_set *ps;
+	u32 pll_id = clk->pll->id;
+	u32 temp_div;
+	u32 old_aclk_div = 0, new_aclk_div;
+	DVFS_DBG("%s: for rk3188 plus\n", __func__);
+
+	ps = arm_pll_clk_get_best_pll_set(rate, (struct apll_clk_set *)clk->pll->table);
+
+	old_aclk_div = GET_CORE_ACLK_VAL(cru_readl(CRU_CLKSELS_CON(1))&CORE_ACLK_MSK);
+	new_aclk_div = GET_CORE_ACLK_VAL(ps->clksel1 & CORE_ACLK_MSK);
+
+	CLKDATA_LOG("apll will set rate(%lu) tlb con(%x,%x,%x),sel(%x,%x)\n",
+			ps->rate, ps->pllcon0, ps->pllcon1, ps->pllcon2, ps->clksel0, ps->clksel1);
+
+	if(general_pll_clk.rate > clk->rate) {
+		temp_div = clk_get_freediv(clk->rate, general_pll_clk.rate, 10);
+	} else {
+		temp_div = 1;
+	}
+
+	// ungating cpu gpll path
+	//cru_writel(CLK_GATE_W_MSK(CLK_GATE_CPU_GPLL_PATH) | CLK_UN_GATE(CLK_GATE_CPU_GPLL_PATH), 
+	//	CLK_GATE_CLKID_CONS(CLK_GATE_CPU_GPLL_PATH));
+
+	local_irq_save(flags);
+	//div arm clk for gpll
+
+	cru_writel(CORE_CLK_DIV_W_MSK | CORE_CLK_DIV(temp_div), CRU_CLKSELS_CON(0));
+	cru_writel(CORE_SEL_PLL_W_MSK | CORE_SEL_GPLL, CRU_CLKSELS_CON(0));
+
+	loops_per_jiffy = lpj_gpll / temp_div;
+	smp_wmb();
+
+	/*if core src don't select gpll ,apll neet to enter slow mode */
+	//cru_writel(PLL_MODE_SLOW(APLL_ID), CRU_MODE_CON);
+	
+	//enter rest
+	cru_writel(PLL_RESET_W_MSK | PLL_RESET, PLL_CONS(pll_id, 3));
+	cru_writel(ps->pllcon0, PLL_CONS(pll_id, 0));
+	cru_writel(ps->pllcon1, PLL_CONS(pll_id, 1));
+	cru_writel(ps->pllcon2, PLL_CONS(pll_id, 2));
+	rk30_clock_udelay(5);
+	
+	//return form rest
+	cru_writel(PLL_RESET_W_MSK | PLL_RESET_RESUME, PLL_CONS(pll_id, 3));
+	
+	//wating lock state
+	rk30_clock_udelay(ps->rst_dly);
+	pll_wait_lock(pll_id);
+
+	if(new_aclk_div>=old_aclk_div) {
+		cru_writel(ps->clksel0, CRU_CLKSELS_CON(0));
+		cru_writel(ps->clksel1, CRU_CLKSELS_CON(1));
+	}
+
+	cru_writel(CORE_SEL_PLL_W_MSK | CORE_SEL_APLL, CRU_CLKSELS_CON(0));
+	if(old_aclk_div>new_aclk_div) {
+		cru_writel(ps->clksel0, CRU_CLKSELS_CON(0));
+		cru_writel(ps->clksel1, CRU_CLKSELS_CON(1));
+	}
+
+	cru_writel(CORE_CLK_DIV_W_MSK|CORE_CLK_DIV(1), CRU_CLKSELS_CON(0));
+
+	loops_per_jiffy = ps->lpj;
+	smp_wmb();
+
+	//CLKDATA_DBG("apll set loops_per_jiffy =%lu,rate(%lu)\n",loops_per_jiffy,ps->rate);
+
+	local_irq_restore(flags);
+
+	//gate gpll path
+	// FIXME
+	//cru_writel(CLK_GATE_W_MSK(CLK_GATE_CPU_GPLL_PATH) | CLK_GATE(CLK_GATE_CPU_GPLL_PATH)
+	//		, CLK_GATE_CLKID_CONS(CLK_GATE_CPU_GPLL_PATH));
+
+	CLKDATA_LOG("apll set over con(%x,%x,%x,%x),sel(%x,%x)\n", cru_readl(PLL_CONS(pll_id, 0)),
+			cru_readl(PLL_CONS(pll_id, 1)), cru_readl(PLL_CONS(pll_id, 2)),
+			cru_readl(PLL_CONS(pll_id, 3)), cru_readl(CRU_CLKSELS_CON(0)),
+			cru_readl(CRU_CLKSELS_CON(1)));
+	return 0;
+}
 
 /************************************pll clocks***************************/
 
@@ -3223,11 +3415,20 @@ static struct clk def_ops_clk = {
 struct clk_dump_ops dump_ops;
 #endif
 void rk_dump_clock_info(void);
-
 void __init _rk30_clock_data_init(unsigned long gpll, unsigned long cpll, int flags)
 {
 	struct clk_lookup *lk;
 
+	if (soc_is_rk3188plus()) {
+		arm_pll_clk.recalc = plus_plls_clk_recalc;
+		ddr_pll_clk.recalc = plus_plls_clk_recalc;
+		codec_pll_clk.recalc = plus_plls_clk_recalc;
+		general_pll_clk.recalc = plus_plls_clk_recalc;
+
+		arm_pll_clk.set_rate = plus_arm_pll_clk_set_rate;
+		codec_pll_clk.set_rate = plus_cpll_clk_set_rate;
+		general_pll_clk.set_rate = plus_gpll_clk_set_rate;
+	}
 	clk_register_dump_ops(&dump_ops);
 	clk_register_default_ops_clk(&def_ops_clk);
 	rk30_clock_flags = flags;
@@ -3272,7 +3473,8 @@ extern int rk3188_dvfs_init(void);
 
 void __init rk30_clock_data_init(unsigned long gpll, unsigned long cpll, u32 flags)
 {
-	printk("clock: gpll %lu cpll %lu flags 0x%x con2 0x%x/0x%x\n", gpll, cpll, flags, cru_readl(PLL_CONS(DPLL_ID, 2)), cru_readl(PLL_CONS(CPLL_ID, 2)));
+	DVFS_DBG("clock: gpll %lu cpll %lu flags 0x%x con2 0x%x/0x%x\n", 
+			gpll, cpll, flags, cru_readl(PLL_CONS(DPLL_ID, 2)), cru_readl(PLL_CONS(CPLL_ID, 2)));
 	_rk30_clock_data_init(gpll, cpll, flags);
 	rk3188_dvfs_init();
 }
