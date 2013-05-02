@@ -272,7 +272,7 @@ static inline int mt9p031_pll_disable(struct mt9p031 *mt9p031)
 static int mt9p031_power_on(struct mt9p031 *mt9p031)
 {
 	/* Ensure RESET_BAR is low */
-	if (mt9p031->reset != -1) {
+	if (gpio_is_valid(mt9p031->reset)) {
 		gpio_set_value(mt9p031->reset, 0);
 		usleep_range(1000, 2000);
 	}
@@ -287,7 +287,7 @@ static int mt9p031_power_on(struct mt9p031 *mt9p031)
 		clk_prepare_enable(mt9p031->clk);
 
 	/* Now RESET_BAR must be high */
-	if (mt9p031->reset != -1) {
+	if (gpio_is_valid(mt9p031->reset)) {
 		gpio_set_value(mt9p031->reset, 1);
 		usleep_range(1000, 2000);
 	}
@@ -297,7 +297,7 @@ static int mt9p031_power_on(struct mt9p031 *mt9p031)
 
 static void mt9p031_power_off(struct mt9p031 *mt9p031)
 {
-	if (mt9p031->reset != -1) {
+	if (gpio_is_valid(mt9p031->reset)) {
 		gpio_set_value(mt9p031->reset, 0);
 		usleep_range(1000, 2000);
 	}
@@ -1031,7 +1031,7 @@ static int mt9p031_probe(struct i2c_client *client,
 	mt9p031->format.field = V4L2_FIELD_NONE;
 	mt9p031->format.colorspace = V4L2_COLORSPACE_SRGB;
 
-	if (pdata->reset != -1) {
+	if (gpio_is_valid(pdata->reset)) {
 		ret = devm_gpio_request_one(&client->dev, pdata->reset,
 					    GPIOF_OUT_INIT_LOW, "mt9p031_rst");
 		if (ret < 0)
