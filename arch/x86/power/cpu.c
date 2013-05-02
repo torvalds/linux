@@ -25,16 +25,12 @@
 #include <asm/cpu.h>
 
 #ifdef CONFIG_X86_32
-static struct saved_context saved_context;
-
 unsigned long saved_context_ebx;
 unsigned long saved_context_esp, saved_context_ebp;
 unsigned long saved_context_esi, saved_context_edi;
 unsigned long saved_context_eflags;
-#else
-/* CONFIG_X86_64 */
-struct saved_context saved_context;
 #endif
+struct saved_context saved_context;
 
 /**
  *	__save_processor_state - save CPU registers before creating a
@@ -67,6 +63,15 @@ static void __save_processor_state(struct saved_context *ctxt)
 /* CONFIG_X86_64 */
 	store_idt((struct desc_ptr *)&ctxt->idt_limit);
 #endif
+	/*
+	 * We save it here, but restore it only in the hibernate case.
+	 * For ACPI S3 resume, this is loaded via 'early_gdt_desc' in 64-bit
+	 * mode in "secondary_startup_64". In 32-bit mode it is done via
+	 * 'pmode_gdt' in wakeup_start.
+	 */
+	ctxt->gdt_desc.size = GDT_SIZE - 1;
+	ctxt->gdt_desc.address = (unsigned long)get_cpu_gdt_table(smp_processor_id());
+
 	store_tr(ctxt->tr);
 
 	/* XMM0..XMM15 should be handled by kernel_fpu_begin(). */
