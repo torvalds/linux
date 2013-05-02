@@ -555,8 +555,8 @@ static int cpsw_poll(struct napi_struct *napi, int budget)
 		cpdma_ctlr_eoi(priv->dma, CPDMA_EOI_RX);
 		prim_cpsw = cpsw_get_slave_priv(priv, 0);
 		if (prim_cpsw->irq_enabled == false) {
-			cpsw_enable_irq(priv);
 			prim_cpsw->irq_enabled = true;
+			cpsw_enable_irq(priv);
 		}
 	}
 
