@@ -95,9 +95,6 @@ static const struct acpi_device_id processor_device_ids[] = {
 };
 MODULE_DEVICE_TABLE(acpi, processor_device_ids);
 
-static SIMPLE_DEV_PM_OPS(acpi_processor_pm,
-			 acpi_processor_suspend, acpi_processor_resume);
-
 static struct acpi_driver acpi_processor_driver = {
 	.name = "processor",
 	.class = ACPI_PROCESSOR_CLASS,
@@ -107,7 +104,6 @@ static struct acpi_driver acpi_processor_driver = {
 		.remove = acpi_processor_remove,
 		.notify = acpi_processor_notify,
 		},
-	.drv.pm = &acpi_processor_pm,
 };
 
 #define INSTALL_NOTIFY_HANDLER		1
@@ -934,6 +930,8 @@ static int __init acpi_processor_init(void)
 	if (result < 0)
 		return result;
 
+	acpi_processor_syscore_init();
+
 	acpi_processor_install_hotplug_notify();
 
 	acpi_thermal_cpufreq_init();
@@ -955,6 +953,8 @@ static void __exit acpi_processor_exit(void)
 	acpi_thermal_cpufreq_exit();
 
 	acpi_processor_uninstall_hotplug_notify();
+
+	acpi_processor_syscore_exit();
 
 	acpi_bus_unregister_driver(&acpi_processor_driver);
 
