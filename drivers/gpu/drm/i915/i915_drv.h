@@ -1270,6 +1270,9 @@ struct drm_i915_gem_request {
 	/** Postion in the ringbuffer of the end of the request */
 	u32 tail;
 
+	/** Context related to this request */
+	struct i915_hw_context *ctx;
+
 	/** Time at which this request was emitted, in jiffies. */
 	unsigned long emitted_jiffies;
 
