@@ -4474,10 +4474,13 @@ static void vlv_update_pll(struct intel_crtc *crtc)
 	mdiv |= ((bestp1 << DPIO_P1_SHIFT) | (bestp2 << DPIO_P2_SHIFT));
 	mdiv |= ((bestn << DPIO_N_SHIFT));
 	mdiv |= (1 << DPIO_K_SHIFT);
-	if (intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_HDMI) ||
-	    intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_EDP) ||
-	    intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_DISPLAYPORT))
-		mdiv |= (DPIO_POST_DIV_HDMIDP << DPIO_POST_DIV_SHIFT);
+
+	/*
+	 * Post divider depends on pixel clock rate, DAC vs digital (and LVDS,
+	 * but we don't support that).
+	 * Note: don't use the DAC post divider as it seems unstable.
+	 */
+	mdiv |= (DPIO_POST_DIV_HDMIDP << DPIO_POST_DIV_SHIFT);
 	intel_dpio_write(dev_priv, DPIO_DIV(pipe), mdiv);
 
 	mdiv |= DPIO_ENABLE_CALIBRATION;
