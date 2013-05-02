@@ -1686,10 +1686,9 @@ static int omap_sham_probe(struct platform_device *pdev)
 	if (err)
 		goto res_err;
 
-	dd->io_base = devm_request_and_ioremap(dev, &res);
-	if (!dd->io_base) {
-		dev_err(dev, "can't ioremap\n");
-		err = -ENOMEM;
+	dd->io_base = devm_ioremap_resource(dev, &res);
+	if (IS_ERR(dd->io_base)) {
+		err = PTR_ERR(dd->io_base);
 		goto res_err;
 	}
 	dd->phys_base = res.start;
