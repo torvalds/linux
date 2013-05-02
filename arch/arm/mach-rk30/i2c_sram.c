@@ -228,10 +228,19 @@ void __sramfunc sram_i2c_get_ipd_event(int type)
 	do{
 		sram_udelay(10);
 		con = readl_relaxed(SRAM_I2C_ADDRBASE + I2C_IPD);
-	}while(((--time) & (~(con & type))));
+	}while(((--time) && (~(con & type))));
 	writel_relaxed(type,SRAM_I2C_ADDRBASE + I2C_IPD);
 	
 	if(time <= 0){
+	if (type == I2C_STARTIPD){
+	sram_printch('S');
+	}else if (type == I2C_STOPIPD){
+	sram_printch('P');
+	}else if (type == I2C_MBTFIPD){
+	sram_printch('W');
+	}else if (type == I2C_MBRFIPD){
+	sram_printch('R');
+	}
 	sram_printch('T');
 	}
 }
