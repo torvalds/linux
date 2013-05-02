@@ -286,6 +286,7 @@ struct acpi_device_physical_node {
 	u8 node_id;
 	struct list_head node;
 	struct device *dev;
+	bool put_online:1;
 };
 
 /* set maximum of physical nodes to 32 for expansibility */

@@ -27,6 +27,12 @@ extern struct acpi_device *acpi_root;
 
 #define ACPI_IS_ROOT_DEVICE(device)    (!(device)->parent)
 
+/*
+ * If set, devices will be hot-removed even if they cannot be put offline
+ * gracefully (from the kernel's standpoint).
+ */
+bool acpi_force_hot_remove;
+
 static const char *dummy_hid = "device";
 
 static LIST_HEAD(acpi_device_list);
@@ -120,6 +126,59 @@ acpi_device_modalias_show(struct device *dev, struct device_attribute *attr, cha
 }
 static DEVICE_ATTR(modalias, 0444, acpi_device_modalias_show, NULL);
 
+static acpi_status acpi_bus_offline_companions(acpi_handle handle, u32 lvl,
+					       void *data, void **ret_p)
+{
+	struct acpi_device *device = NULL;
+	struct acpi_device_physical_node *pn;
+	acpi_status status = AE_OK;
+
+	if (acpi_bus_get_device(handle, &device))
+		return AE_OK;
+
+	mutex_lock(&device->physical_node_lock);
+
+	list_for_each_entry(pn, &device->physical_node_list, node) {
+		int ret;
+
+		ret = device_offline(pn->dev);
+		if (acpi_force_hot_remove)
+			continue;
+
+		if (ret < 0) {
+			status = AE_ERROR;
+			break;
+		}
+		pn->put_online = !ret;
+	}
+
+	mutex_unlock(&device->physical_node_lock);
+
+	return status;
+}
+
+static acpi_status acpi_bus_online_companions(acpi_handle handle, u32 lvl,
+					      void *data, void **ret_p)
+{
+	struct acpi_device *device = NULL;
+	struct acpi_device_physical_node *pn;
+
+	if (acpi_bus_get_device(handle, &device))
+		return AE_OK;
+
+	mutex_lock(&device->physical_node_lock);
+
+	list_for_each_entry(pn, &device->physical_node_list, node)
+		if (pn->put_online) {
+			device_online(pn->dev);
+			pn->put_online = false;
+		}
+
+	mutex_unlock(&device->physical_node_lock);
+
+	return AE_OK;
+}
+
 static int acpi_scan_hot_remove(struct acpi_device *device)
 {
 	acpi_handle handle = device->handle;
@@ -136,10 +195,33 @@ static int acpi_scan_hot_remove(struct acpi_device *device)
 		return -EINVAL;
 	}
 
+	lock_device_hotplug();
+
+	status = acpi_walk_namespace(ACPI_TYPE_ANY, handle, ACPI_UINT32_MAX,
+				     NULL, acpi_bus_offline_companions, NULL,
+				     NULL);
+	if (ACPI_SUCCESS(status) || acpi_force_hot_remove)
+		status = acpi_bus_offline_companions(handle, 0, NULL, NULL);
+
+	if (ACPI_FAILURE(status) && !acpi_force_hot_remove) {
+		acpi_bus_online_companions(handle, 0, NULL, NULL);
+		acpi_walk_namespace(ACPI_TYPE_ANY, handle, ACPI_UINT32_MAX,
+				    acpi_bus_online_companions, NULL, NULL,
+				    NULL);
+
+		unlock_device_hotplug();
+
+		put_device(&device->dev);
+		return -EBUSY;
+	}
+
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 		"Hot-removing device %s...\n", dev_name(&device->dev)));
 
 	acpi_bus_trim(device);
+
+	unlock_device_hotplug();
+
 	/* Device node has been unregistered. */
 	put_device(&device->dev);
 	device = NULL;
@@ -236,6 +318,7 @@ static void acpi_scan_bus_device_check(acpi_handle handle, u32 ost_source)
 	int error;
 
 	mutex_lock(&acpi_scan_lock);
+	lock_device_hotplug();
 
 	acpi_bus_get_device(handle, &device);
 	if (device) {
@@ -259,6 +342,7 @@ static void acpi_scan_bus_device_check(acpi_handle handle, u32 ost_source)
 		kobject_uevent(&device->dev.kobj, KOBJ_ONLINE);
 
  out:
+	unlock_device_hotplug();
 	acpi_evaluate_hotplug_ost(handle, ost_source, ost_code, NULL);
 	mutex_unlock(&acpi_scan_lock);
 }
