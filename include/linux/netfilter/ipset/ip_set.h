@@ -67,7 +67,7 @@ enum ip_set_offset {
 #define SET_WITH_COUNTER(s)	((s)->extensions & IPSET_EXT_COUNTER)
 
 struct ip_set_ext {
-	unsigned long timeout;
+	u32 timeout;
 	u64 packets;
 	u64 bytes;
 };
