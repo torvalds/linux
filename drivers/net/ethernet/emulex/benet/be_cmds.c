@@ -2087,7 +2087,7 @@ int lancer_cmd_write_object(struct be_adapter *adapter, struct be_dma_mem *cmd,
 	spin_unlock_bh(&adapter->mcc_lock);
 
 	if (!wait_for_completion_timeout(&adapter->flash_compl,
-					 msecs_to_jiffies(30000)))
+					 msecs_to_jiffies(60000)))
 		status = -1;
 	else
 		status = adapter->flash_status;
