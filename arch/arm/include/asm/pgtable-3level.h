@@ -33,7 +33,7 @@
 #define PTRS_PER_PMD		512
 #define PTRS_PER_PGD		4
 
-#define PTE_HWTABLE_PTRS	(PTRS_PER_PTE)
+#define PTE_HWTABLE_PTRS	(0)
 #define PTE_HWTABLE_OFF		(0)
 #define PTE_HWTABLE_SIZE	(PTRS_PER_PTE * sizeof(u64))
 
