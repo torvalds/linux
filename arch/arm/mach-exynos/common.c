@@ -463,6 +463,8 @@ void __init exynos4_init_irq(void)
 	 * uses GIC instead of VIC.
 	 */
 	s5p_init_irq(NULL, 0);
+
+	gic_arch_extn.irq_set_wake = s3c_irq_wake;
 }
 
 void __init exynos5_init_irq(void)

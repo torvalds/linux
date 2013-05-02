@@ -75,6 +75,9 @@ extern void __iomem *at91_pmc_base;
 #define		AT91_PMC_PLLCOUNT	(0x3f  <<  8)		/* PLL Counter */
 #define		AT91_PMC_OUT		(3     << 14)		/* PLL Clock Frequency Range */
 #define		AT91_PMC_MUL		(0x7ff << 16)		/* PLL Multiplier */
+#define		AT91_PMC_MUL_GET(n)	((n) >> 16 & 0x7ff)
+#define		AT91_PMC3_MUL		(0x7f  << 18)		/* PLL Multiplier [SAMA5 only] */
+#define		AT91_PMC3_MUL_GET(n)	((n) >> 18 & 0x7f)
 #define		AT91_PMC_USBDIV		(3     << 28)		/* USB Divisor (PLLB only) */
 #define			AT91_PMC_USBDIV_1		(0 << 28)
 #define			AT91_PMC_USBDIV_2		(1 << 28)
@@ -167,11 +170,18 @@ extern void __iomem *at91_pmc_base;
 #define		AT91_PMC_WPVS		(0x1  <<  0)		/* Write Protect Violation Status */
 #define		AT91_PMC_WPVSRC		(0xffff  <<  8)		/* Write Protect Violation Source */
 
-#define AT91_PMC_PCR		0x10c			/* Peripheral Control Register [some SAM9] */
+#define AT91_PMC_PCER1		0x100			/* Peripheral Clock Enable Register 1 [SAMA5 only]*/
+#define AT91_PMC_PCDR1		0x104			/* Peripheral Clock Enable Register 1 */
+#define AT91_PMC_PCSR1		0x108			/* Peripheral Clock Enable Register 1 */
+
+#define AT91_PMC_PCR		0x10c			/* Peripheral Control Register [some SAM9 and SAMA5] */
 #define		AT91_PMC_PCR_PID	(0x3f  <<  0)		/* Peripheral ID */
-#define		AT91_PMC_PCR_CMD	(0x1  <<  12)		/* Command */
-#define		AT91_PMC_PCR_DIV	(0x3  <<  16)		/* Divisor Value */
-#define		AT91_PMC_PCRDIV(n)	(((n) <<  16) & AT91_PMC_PCR_DIV)
+#define		AT91_PMC_PCR_CMD	(0x1  <<  12)		/* Command (read=0, write=1) */
+#define		AT91_PMC_PCR_DIV(n)	((n)  <<  16)		/* Divisor Value */
+#define			AT91_PMC_PCR_DIV0	0x0			/* Peripheral clock is MCK */
+#define			AT91_PMC_PCR_DIV2	0x2			/* Peripheral clock is MCK/2 */
+#define			AT91_PMC_PCR_DIV4	0x4			/* Peripheral clock is MCK/4 */
+#define			AT91_PMC_PCR_DIV8	0x8			/* Peripheral clock is MCK/8 */
 #define		AT91_PMC_PCR_EN		(0x1  <<  28)		/* Enable */
 
 #endif

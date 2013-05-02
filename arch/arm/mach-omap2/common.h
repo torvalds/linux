@@ -110,6 +110,14 @@ void am35xx_init_late(void);
 void ti81xx_init_late(void);
 int omap2_common_pm_late_init(void);
 
+#ifdef CONFIG_SOC_BUS
+void omap_soc_device_init(void);
+#else
+static inline void omap_soc_device_init(void)
+{
+}
+#endif
+
 #if defined(CONFIG_SOC_OMAP2420) || defined(CONFIG_SOC_OMAP2430)
 void omap2xxx_restart(char mode, const char *cmd);
 #else

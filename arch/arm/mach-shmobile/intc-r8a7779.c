@@ -24,6 +24,7 @@
 #include <linux/io.h>
 #include <linux/irqchip/arm-gic.h>
 #include <mach/common.h>
+#include <linux/irqchip.h>
 #include <mach/intc.h>
 #include <mach/r8a7779.h>
 #include <asm/mach-types.h>
@@ -43,13 +44,8 @@ static int r8a7779_set_wake(struct irq_data *data, unsigned int on)
 	return 0; /* always allow wakeup */
 }
 
-void __init r8a7779_init_irq(void)
+static void __init r8a7779_init_irq_common(void)
 {
-	void __iomem *gic_dist_base = IOMEM(0xf0001000);
-	void __iomem *gic_cpu_base = IOMEM(0xf0000100);
-
-	/* use GIC to handle interrupts */
-	gic_init(0, 29, gic_dist_base, gic_cpu_base);
 	gic_arch_extn.irq_set_wake = r8a7779_set_wake;
 
 	/* route all interrupts to ARM */
@@ -63,3 +59,22 @@ void __init r8a7779_init_irq(void)
 	__raw_writel(0xbffffffc, INT2SMSKCR3);
 	__raw_writel(0x003fee3f, INT2SMSKCR4);
 }
+
+void __init r8a7779_init_irq(void)
+{
+	void __iomem *gic_dist_base = IOMEM(0xf0001000);
+	void __iomem *gic_cpu_base = IOMEM(0xf0000100);
+
+	/* use GIC to handle interrupts */
+	gic_init(0, 29, gic_dist_base, gic_cpu_base);
+
+	r8a7779_init_irq_common();
+}
+
+#ifdef CONFIG_OF
+void __init r8a7779_init_irq_dt(void)
+{
+	irqchip_init();
+	r8a7779_init_irq_common();
+}
+#endif

@@ -255,7 +255,6 @@ static struct davinci_mmc_config dm365evm_mmc_config = {
 	.wires		= 4,
 	.max_freq	= 50000000,
 	.caps		= MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED,
-	.version	= MMC_CTLR_VERSION_2,
 };
 
 static void dm365evm_emac_configure(void)

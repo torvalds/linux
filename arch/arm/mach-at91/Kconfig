@@ -6,6 +6,10 @@ config HAVE_AT91_DBGU0
 config HAVE_AT91_DBGU1
 	bool
 
+config AT91_PMC_UNIT
+	bool
+	default !ARCH_AT91X40
+
 config AT91_SAM9_ALT_RESET
 	bool
 	default !ARCH_AT91X40
@@ -14,17 +18,59 @@ config AT91_SAM9G45_RESET
 	bool
 	default !ARCH_AT91X40
 
+config AT91_SAM9_TIME
+	bool
+
 config SOC_AT91SAM9
 	bool
+	select AT91_SAM9_TIME
 	select CPU_ARM926T
+	select GENERIC_CLOCKEVENTS
+	select MULTI_IRQ_HANDLER
+	select SPARSE_IRQ
+
+config SOC_SAMA5
+	bool
+	select AT91_SAM9_TIME
+	select CPU_V7
 	select GENERIC_CLOCKEVENTS
 	select MULTI_IRQ_HANDLER
 	select SPARSE_IRQ
 
 menu "Atmel AT91 System-on-Chip"
 
+choice
+
+	prompt "Core type"
+
+config SOC_SAM_V4_V5
+	bool "ARM7/ARM9"
+	help
+	  Select this if you are using one of Atmel's AT91SAM9, AT91RM9200
+	  or AT91X40 SoC.
+
+config SOC_SAM_V7
+	bool "Cortex A5"
+	help
+	  Select this if you are using one of Atmel's SAMA5D3 SoC.
+
+endchoice
+
 comment "Atmel AT91 Processor"
 
+if SOC_SAM_V7
+config SOC_SAMA5D3
+	bool "SAMA5D3 family"
+	depends on SOC_SAM_V7
+	select SOC_SAMA5
+	select HAVE_FB_ATMEL
+	select HAVE_AT91_DBGU1
+	help
+	  Select this if you are using one of Atmel's SAMA5D3 family SoC.
+	  This support covers SAMA5D31, SAMA5D33, SAMA5D34, SAMA5D35.
+endif
+
+if SOC_SAM_V4_V5
 config SOC_AT91RM9200
 	bool "AT91RM9200"
 	select CPU_ARM920T
@@ -90,13 +136,10 @@ config SOC_AT91SAM9N12
 	help
 	  Select this if you are using Atmel's AT91SAM9N12 SoC.
 
-config AT91_PMC_UNIT
-	bool
-	default !ARCH_AT91X40
-
 # ----------------------------------------------------------
 
 source arch/arm/mach-at91/Kconfig.non_dt
+endif # SOC_SAM_V4_V5
 
 comment "Generic Board Type"
 
@@ -111,6 +154,14 @@ config MACH_AT91RM9200_DT
 config MACH_AT91SAM9_DT
 	bool "Atmel AT91SAM Evaluation Kits with device-tree support"
 	depends on SOC_AT91SAM9
+	select USE_OF
+	help
+	  Select this if you want to experiment device-tree with
+	  an Atmel Evaluation Kit.
+
+config MACH_SAMA5_DT
+	bool "Atmel SAMA5 Evaluation Kits with device-tree support"
+	depends on SOC_SAMA5
 	select USE_OF
 	help
 	  Select this if you want to experiment device-tree with

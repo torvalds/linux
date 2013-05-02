@@ -47,8 +47,8 @@ static int __init ux500_l2x0_init(void)
 	/* Unlock before init */
 	ux500_l2x0_unlock();
 
-	/* DB9540's L2 has 128KB way size */
-	if (cpu_is_u9540())
+	/* DBx540's L2 has 128KB way size */
+	if (cpu_is_ux540_family())
 		/* 128KB way size */
 		aux_val |= (0x4 << L2X0_AUX_CTRL_WAY_SIZE_SHIFT);
 	else

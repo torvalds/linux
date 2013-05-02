@@ -509,6 +509,7 @@ int s3c2410_dma_request(enum dma_ch channel,
 	chan->client = client;
 	chan->in_use = 1;
 	chan->peripheral = channel;
+	chan->flags = 0;
 
 	local_irq_restore(flags);
 

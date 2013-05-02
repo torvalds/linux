@@ -447,6 +447,19 @@
 		cd-gpios = <&gpio 23 1>; /* gpio PC7 */
 	};
 
+	clocks {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		clk32k_in: clock {
+			compatible = "fixed-clock";
+			reg=<0>;
+			#clock-cells = <0>;
+			clock-frequency = <32768>;
+		};
+	};
+
 	sound {
 		compatible = "nvidia,tegra-audio-wm9712-colibri_t20",
 			         "nvidia,tegra-audio-wm9712";

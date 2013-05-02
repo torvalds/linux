@@ -33,6 +33,7 @@
 #include "common.h"
 #include "fuse.h"
 #include "iomap.h"
+#include "irq.h"
 #include "pmc.h"
 #include "apbio.h"
 #include "sleep.h"
@@ -61,8 +62,10 @@ u32 tegra_uart_config[4] = {
 void __init tegra_dt_init_irq(void)
 {
 	tegra_clocks_init();
+	tegra_pmc_init();
 	tegra_init_irq();
 	irqchip_init();
+	tegra_legacy_irq_syscore_init();
 }
 #endif
 
@@ -100,12 +103,12 @@ void __init tegra_init_early(void)
 	tegra_apb_io_init();
 	tegra_init_fuse();
 	tegra_init_cache();
-	tegra_pmc_init();
 	tegra_powergate_init();
 	tegra_hotplug_init();
 }
 
 void __init tegra_init_late(void)
 {
+	tegra_init_suspend();
 	tegra_powergate_debugfs_init();
 }
