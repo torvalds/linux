@@ -866,10 +866,12 @@ static long restore_tm_user_regs(struct pt_regs *regs,
 		do_load_up_transact_fpu(&current->thread);
 		regs->msr |= (MSR_FP | current->thread.fpexc_mode);
 	}
+#ifdef CONFIG_ALTIVEC
 	if (msr & MSR_VEC) {
 		do_load_up_transact_altivec(&current->thread);
 		regs->msr |= MSR_VEC;
 	}
+#endif
 
 	return 0;
 }

@@ -145,6 +145,7 @@ static int rcar_thermal_update_temp(struct rcar_thermal_priv *priv)
 	struct device *dev = rcar_priv_to_dev(priv);
 	int i;
 	int ctemp, old, new;
+	int ret = -EINVAL;
 
 	mutex_lock(&priv->lock);
 
@@ -174,7 +175,7 @@ static int rcar_thermal_update_temp(struct rcar_thermal_priv *priv)
 
 	if (!ctemp) {
 		dev_err(dev, "thermal sensor was broken\n");
-		return -EINVAL;
+		goto err_out_unlock;
 	}
 
 	/*
@@ -192,10 +193,10 @@ static int rcar_thermal_update_temp(struct rcar_thermal_priv *priv)
 	dev_dbg(dev, "thermal%d  %d -> %d\n", priv->id, priv->ctemp, ctemp);
 
 	priv->ctemp = ctemp;
-
+	ret = 0;
+err_out_unlock:
 	mutex_unlock(&priv->lock);
-
-	return 0;
+	return ret;
 }
 
 static int rcar_thermal_get_temp(struct thermal_zone_device *zone,
@@ -363,6 +364,7 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 	struct resource *res, *irq;
 	int mres = 0;
 	int i;
+	int ret = -ENODEV;
 	int idle = IDLE_INTERVAL;
 
 	common = devm_kzalloc(dev, sizeof(*common), GFP_KERNEL);
@@ -399,11 +401,9 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 		/*
 		 * rcar_has_irq_support() will be enabled
 		 */
-		common->base = devm_request_and_ioremap(dev, res);
-		if (!common->base) {
-			dev_err(dev, "Unable to ioremap thermal register\n");
-			return -ENOMEM;
-		}
+		common->base = devm_ioremap_resource(dev, res);
+		if (IS_ERR(common->base))
+			return PTR_ERR(common->base);
 
 		/* enable temperature comparation */
 		rcar_thermal_common_write(common, ENR, 0x00030303);
@@ -422,11 +422,9 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 			return -ENOMEM;
 		}
 
-		priv->base = devm_request_and_ioremap(dev, res);
-		if (!priv->base) {
-			dev_err(dev, "Unable to ioremap priv register\n");
-			return -ENOMEM;
-		}
+		priv->base = devm_ioremap_resource(dev, res);
+		if (IS_ERR(priv->base))
+			return PTR_ERR(priv->base);
 
 		priv->common = common;
 		priv->id = i;
@@ -441,6 +439,7 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 						idle);
 		if (IS_ERR(priv->zone)) {
 			dev_err(dev, "can't register thermal zone\n");
+			ret = PTR_ERR(priv->zone);
 			goto error_unregister;
 		}
 
@@ -460,7 +459,7 @@ error_unregister:
 	rcar_thermal_for_each_priv(priv, common)
 		thermal_zone_device_unregister(priv->zone);
 
-	return -ENODEV;
+	return ret;
 }
 
 static int rcar_thermal_remove(struct platform_device *pdev)

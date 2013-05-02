@@ -1214,6 +1214,7 @@ itd_urb_transaction (
 
 		memset (itd, 0, sizeof *itd);
 		itd->itd_dma = itd_dma;
+		itd->frame = 9999;		/* an invalid value */
 		list_add (&itd->itd_list, &sched->td_list);
 	}
 	spin_unlock_irqrestore (&ehci->lock, flags);
@@ -1915,6 +1916,7 @@ sitd_urb_transaction (
 
 		memset (sitd, 0, sizeof *sitd);
 		sitd->sitd_dma = sitd_dma;
+		sitd->frame = 9999;		/* an invalid value */
 		list_add (&sitd->sitd_list, &iso_sched->td_list);
 	}
 

@@ -403,11 +403,23 @@ static void unmask_evtchn(int port)
 
 	if (unlikely((cpu != cpu_from_evtchn(port))))
 		do_hypercall = 1;
-	else
+	else {
+		/*
+		 * Need to clear the mask before checking pending to
+		 * avoid a race with an event becoming pending.
+		 *
+		 * EVTCHNOP_unmask will only trigger an upcall if the
+		 * mask bit was set, so if a hypercall is needed
+		 * remask the event.
+		 */
+		sync_clear_bit(port, BM(&s->evtchn_mask[0]));
 		evtchn_pending = sync_test_bit(port, BM(&s->evtchn_pending[0]));
 
-	if (unlikely(evtchn_pending && xen_hvm_domain()))
-		do_hypercall = 1;
+		if (unlikely(evtchn_pending && xen_hvm_domain())) {
+			sync_set_bit(port, BM(&s->evtchn_mask[0]));
+			do_hypercall = 1;
+		}
+	}
 
 	/* Slow path (hypercall) if this is a non-local port or if this is
 	 * an hvm domain and an event is pending (hvm domains don't have
@@ -417,8 +429,6 @@ static void unmask_evtchn(int port)
 		(void)HYPERVISOR_event_channel_op(EVTCHNOP_unmask, &unmask);
 	} else {
 		struct vcpu_info *vcpu_info = __this_cpu_read(xen_vcpu);
-
-		sync_clear_bit(port, BM(&s->evtchn_mask[0]));
 
 		/*
 		 * The following is basically the equivalent of
@@ -1306,7 +1316,7 @@ static void __xen_evtchn_do_upcall(void)
 {
 	int start_word_idx, start_bit_idx;
 	int word_idx, bit_idx;
-	int i;
+	int i, irq;
 	int cpu = get_cpu();
 	struct shared_info *s = HYPERVISOR_shared_info;
 	struct vcpu_info *vcpu_info = __this_cpu_read(xen_vcpu);
@@ -1314,6 +1324,8 @@ static void __xen_evtchn_do_upcall(void)
 
 	do {
 		xen_ulong_t pending_words;
+		xen_ulong_t pending_bits;
+		struct irq_desc *desc;
 
 		vcpu_info->evtchn_upcall_pending = 0;
 
@@ -1325,6 +1337,17 @@ static void __xen_evtchn_do_upcall(void)
 		 * selector flag. xchg_xen_ulong must contain an
 		 * appropriate barrier.
 		 */
+		if ((irq = per_cpu(virq_to_irq, cpu)[VIRQ_TIMER]) != -1) {
+			int evtchn = evtchn_from_irq(irq);
+			word_idx = evtchn / BITS_PER_LONG;
+			pending_bits = evtchn % BITS_PER_LONG;
+			if (active_evtchns(cpu, s, word_idx) & (1ULL << pending_bits)) {
+				desc = irq_to_desc(irq);
+				if (desc)
+					generic_handle_irq_desc(irq, desc);
+			}
+		}
+
 		pending_words = xchg_xen_ulong(&vcpu_info->evtchn_pending_sel, 0);
 
 		start_word_idx = __this_cpu_read(current_word_idx);
@@ -1333,7 +1356,6 @@ static void __xen_evtchn_do_upcall(void)
 		word_idx = start_word_idx;
 
 		for (i = 0; pending_words != 0; i++) {
-			xen_ulong_t pending_bits;
 			xen_ulong_t words;
 
 			words = MASK_LSBS(pending_words, word_idx);
@@ -1362,8 +1384,7 @@ static void __xen_evtchn_do_upcall(void)
 
 			do {
 				xen_ulong_t bits;
-				int port, irq;
-				struct irq_desc *desc;
+				int port;
 
 				bits = MASK_LSBS(pending_bits, bit_idx);
 

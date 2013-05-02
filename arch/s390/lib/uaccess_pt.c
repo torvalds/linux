@@ -77,41 +77,68 @@ static size_t copy_in_kernel(size_t count, void __user *to,
  * >= -4095 (IS_ERR_VALUE(x) returns true), a fault has occured and the address
  * contains the (negative) exception code.
  */
-static __always_inline unsigned long follow_table(struct mm_struct *mm,
-						  unsigned long addr, int write)
+#ifdef CONFIG_64BIT
+static unsigned long follow_table(struct mm_struct *mm,
+				  unsigned long address, int write)
 {
-	pgd_t *pgd;
-	pud_t *pud;
-	pmd_t *pmd;
-	pte_t *ptep;
+	unsigned long *table = (unsigned long *)__pa(mm->pgd);
 
-	pgd = pgd_offset(mm, addr);
-	if (pgd_none(*pgd) || unlikely(pgd_bad(*pgd)))
-		return -0x3aUL;
-
-	pud = pud_offset(pgd, addr);
-	if (pud_none(*pud) || unlikely(pud_bad(*pud)))
-		return -0x3bUL;
-
-	pmd = pmd_offset(pud, addr);
-	if (pmd_none(*pmd))
-		return -0x10UL;
-	if (pmd_large(*pmd)) {
-		if (write && (pmd_val(*pmd) & _SEGMENT_ENTRY_RO))
-			return -0x04UL;
-		return (pmd_val(*pmd) & HPAGE_MASK) + (addr & ~HPAGE_MASK);
+	switch (mm->context.asce_bits & _ASCE_TYPE_MASK) {
+	case _ASCE_TYPE_REGION1:
+		table = table + ((address >> 53) & 0x7ff);
+		if (unlikely(*table & _REGION_ENTRY_INV))
+			return -0x39UL;
+		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
+	case _ASCE_TYPE_REGION2:
+		table = table + ((address >> 42) & 0x7ff);
+		if (unlikely(*table & _REGION_ENTRY_INV))
+			return -0x3aUL;
+		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
+	case _ASCE_TYPE_REGION3:
+		table = table + ((address >> 31) & 0x7ff);
+		if (unlikely(*table & _REGION_ENTRY_INV))
+			return -0x3bUL;
+		table = (unsigned long *)(*table & _REGION_ENTRY_ORIGIN);
+	case _ASCE_TYPE_SEGMENT:
+		table = table + ((address >> 20) & 0x7ff);
+		if (unlikely(*table & _SEGMENT_ENTRY_INV))
+			return -0x10UL;
+		if (unlikely(*table & _SEGMENT_ENTRY_LARGE)) {
+			if (write && (*table & _SEGMENT_ENTRY_RO))
+				return -0x04UL;
+			return (*table & _SEGMENT_ENTRY_ORIGIN_LARGE) +
+				(address & ~_SEGMENT_ENTRY_ORIGIN_LARGE);
+		}
+		table = (unsigned long *)(*table & _SEGMENT_ENTRY_ORIGIN);
 	}
-	if (unlikely(pmd_bad(*pmd)))
-		return -0x10UL;
-
-	ptep = pte_offset_map(pmd, addr);
-	if (!pte_present(*ptep))
+	table = table + ((address >> 12) & 0xff);
+	if (unlikely(*table & _PAGE_INVALID))
 		return -0x11UL;
-	if (write && (!pte_write(*ptep) || !pte_dirty(*ptep)))
+	if (write && (*table & _PAGE_RO))
 		return -0x04UL;
-
-	return (pte_val(*ptep) & PAGE_MASK) + (addr & ~PAGE_MASK);
+	return (*table & PAGE_MASK) + (address & ~PAGE_MASK);
 }
+
+#else /* CONFIG_64BIT */
+
+static unsigned long follow_table(struct mm_struct *mm,
+				  unsigned long address, int write)
+{
+	unsigned long *table = (unsigned long *)__pa(mm->pgd);
+
+	table = table + ((address >> 20) & 0x7ff);
+	if (unlikely(*table & _SEGMENT_ENTRY_INV))
+		return -0x10UL;
+	table = (unsigned long *)(*table & _SEGMENT_ENTRY_ORIGIN);
+	table = table + ((address >> 12) & 0xff);
+	if (unlikely(*table & _PAGE_INVALID))
+		return -0x11UL;
+	if (write && (*table & _PAGE_RO))
+		return -0x04UL;
+	return (*table & PAGE_MASK) + (address & ~PAGE_MASK);
+}
+
+#endif /* CONFIG_64BIT */
 
 static __always_inline size_t __user_copy_pt(unsigned long uaddr, void *kptr,
 					     size_t n, int write_user)
@@ -197,7 +224,7 @@ size_t copy_to_user_pt(size_t n, void __user *to, const void *from)
 
 static size_t clear_user_pt(size_t n, void __user *to)
 {
-	void *zpage = &empty_zero_page;
+	void *zpage = (void *) empty_zero_page;
 	long done, size, ret;
 
 	done = 0;

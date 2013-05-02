@@ -12,7 +12,6 @@
 #include <linux/smp.h>
 #include <linux/clk/tegra.h>
 
-#include <asm/cacheflush.h>
 #include <asm/smp_plat.h>
 
 #include "sleep.h"
@@ -45,15 +44,6 @@ void __ref tegra_cpu_die(unsigned int cpu)
 
 	/* Should never return here. */
 	BUG();
-}
-
-int tegra_cpu_disable(unsigned int cpu)
-{
-	/*
-	 * we don't allow CPU 0 to be shutdown (it is still too special
-	 * e.g. clock tick interrupts)
-	 */
-	return cpu == 0 ? -EPERM : 0;
 }
 
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC

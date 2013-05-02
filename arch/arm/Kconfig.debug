@@ -495,6 +495,7 @@ config DEBUG_IMX_UART_PORT
 						DEBUG_IMX53_UART || \
 						DEBUG_IMX6Q_UART
 	default 1
+	depends on ARCH_MXC
 	help
 	  Choose UART port on which kernel low-level debug messages
 	  should be output.
@@ -600,6 +601,17 @@ config DEBUG_LL_INCLUDE
 	default "debug/tegra.S" if DEBUG_TEGRA_UART
 	default "debug/zynq.S" if DEBUG_ZYNQ_UART0 || DEBUG_ZYNQ_UART1
 	default "mach/debug-macro.S"
+
+config DEBUG_UNCOMPRESS
+	bool
+	default y if ARCH_MULTIPLATFORM && DEBUG_LL && \
+		     !DEBUG_OMAP2PLUS_UART && \
+		     !DEBUG_TEGRA_UART
+
+config UNCOMPRESS_INCLUDE
+	string
+	default "debug/uncompress.h" if ARCH_MULTIPLATFORM
+	default "mach/uncompress.h"
 
 config EARLY_PRINTK
 	bool "Early printk"

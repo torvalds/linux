@@ -482,7 +482,11 @@ static __be16 parse_ethertype(struct sk_buff *skb)
 		return htons(ETH_P_802_2);
 
 	__skb_pull(skb, sizeof(struct llc_snap_hdr));
-	return llc->ethertype;
+
+	if (ntohs(llc->ethertype) >= 1536)
+		return llc->ethertype;
+
+	return htons(ETH_P_802_2);
 }
 
 static int parse_icmpv6(struct sk_buff *skb, struct sw_flow_key *key,
@@ -791,9 +795,9 @@ void ovs_flow_tbl_insert(struct flow_table *table, struct sw_flow *flow)
 
 void ovs_flow_tbl_remove(struct flow_table *table, struct sw_flow *flow)
 {
+	BUG_ON(table->count == 0);
 	hlist_del_rcu(&flow->hash_node[table->node_ver]);
 	table->count--;
-	BUG_ON(table->count < 0);
 }
 
 /* The size of the argument for each %OVS_KEY_ATTR_* Netlink attribute.  */

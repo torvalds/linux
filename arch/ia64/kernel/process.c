@@ -291,7 +291,6 @@ cpu_idle (void)
 		}
 
 		if (!need_resched()) {
-			void (*idle)(void);
 #ifdef CONFIG_SMP
 			min_xtp();
 #endif
@@ -299,9 +298,7 @@ cpu_idle (void)
 			if (mark_idle)
 				(*mark_idle)(1);
 
-			if (!idle)
-				idle = default_idle;
-			(*idle)();
+			default_idle();
 			if (mark_idle)
 				(*mark_idle)(0);
 #ifdef CONFIG_SMP

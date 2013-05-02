@@ -1264,6 +1264,32 @@ static bool obj_request_done_test(struct rbd_obj_request *obj_request)
 	return atomic_read(&obj_request->done) != 0;
 }
 
+static void
+rbd_img_obj_request_read_callback(struct rbd_obj_request *obj_request)
+{
+	dout("%s: obj %p img %p result %d %llu/%llu\n", __func__,
+		obj_request, obj_request->img_request, obj_request->result,
+		obj_request->xferred, obj_request->length);
+	/*
+	 * ENOENT means a hole in the image.  We zero-fill the
+	 * entire length of the request.  A short read also implies
+	 * zero-fill to the end of the request.  Either way we
+	 * update the xferred count to indicate the whole request
+	 * was satisfied.
+	 */
+	BUG_ON(obj_request->type != OBJ_REQUEST_BIO);
+	if (obj_request->result == -ENOENT) {
+		zero_bio_chain(obj_request->bio_list, 0);
+		obj_request->result = 0;
+		obj_request->xferred = obj_request->length;
+	} else if (obj_request->xferred < obj_request->length &&
+			!obj_request->result) {
+		zero_bio_chain(obj_request->bio_list, obj_request->xferred);
+		obj_request->xferred = obj_request->length;
+	}
+	obj_request_done_set(obj_request);
+}
+
 static void rbd_obj_request_complete(struct rbd_obj_request *obj_request)
 {
 	dout("%s: obj %p cb %p\n", __func__, obj_request,
@@ -1284,23 +1310,10 @@ static void rbd_osd_read_callback(struct rbd_obj_request *obj_request)
 {
 	dout("%s: obj %p result %d %llu/%llu\n", __func__, obj_request,
 		obj_request->result, obj_request->xferred, obj_request->length);
-	/*
-	 * ENOENT means a hole in the object.  We zero-fill the
-	 * entire length of the request.  A short read also implies
-	 * zero-fill to the end of the request.  Either way we
-	 * update the xferred count to indicate the whole request
-	 * was satisfied.
-	 */
-	if (obj_request->result == -ENOENT) {
-		zero_bio_chain(obj_request->bio_list, 0);
-		obj_request->result = 0;
-		obj_request->xferred = obj_request->length;
-	} else if (obj_request->xferred < obj_request->length &&
-			!obj_request->result) {
-		zero_bio_chain(obj_request->bio_list, obj_request->xferred);
-		obj_request->xferred = obj_request->length;
-	}
-	obj_request_done_set(obj_request);
+	if (obj_request->img_request)
+		rbd_img_obj_request_read_callback(obj_request);
+	else
+		obj_request_done_set(obj_request);
 }
 
 static void rbd_osd_write_callback(struct rbd_obj_request *obj_request)
@@ -1729,9 +1742,10 @@ static int rbd_img_request_submit(struct rbd_img_request *img_request)
 	struct rbd_device *rbd_dev = img_request->rbd_dev;
 	struct ceph_osd_client *osdc = &rbd_dev->rbd_client->client->osdc;
 	struct rbd_obj_request *obj_request;
+	struct rbd_obj_request *next_obj_request;
 
 	dout("%s: img %p\n", __func__, img_request);
-	for_each_obj_request(img_request, obj_request) {
+	for_each_obj_request_safe(img_request, obj_request, next_obj_request) {
 		int ret;
 
 		obj_request->callback = rbd_img_obj_callback;
