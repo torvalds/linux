@@ -474,9 +474,9 @@ static int adv7183_s_stream(struct v4l2_subdev *sd, int enable)
 	struct adv7183 *decoder = to_adv7183(sd);
 
 	if (enable)
-		gpio_direction_output(decoder->oe_pin, 0);
+		gpio_set_value(decoder->oe_pin, 0);
 	else
-		gpio_direction_output(decoder->oe_pin, 1);
+		gpio_set_value(decoder->oe_pin, 1);
 	udelay(1);
 	return 0;
 }
@@ -580,13 +580,15 @@ static int adv7183_probe(struct i2c_client *client,
 	decoder->reset_pin = pin_array[0];
 	decoder->oe_pin = pin_array[1];
 
-	if (gpio_request(decoder->reset_pin, "ADV7183 Reset")) {
+	if (gpio_request_one(decoder->reset_pin, GPIOF_OUT_INIT_LOW,
+			     "ADV7183 Reset")) {
 		v4l_err(client, "failed to request GPIO %d\n", decoder->reset_pin);
 		ret = -EBUSY;
 		goto err_free_decoder;
 	}
 
-	if (gpio_request(decoder->oe_pin, "ADV7183 Output Enable")) {
+	if (gpio_request_one(decoder->oe_pin, GPIOF_OUT_INIT_HIGH,
+			     "ADV7183 Output Enable")) {
 		v4l_err(client, "failed to request GPIO %d\n", decoder->oe_pin);
 		ret = -EBUSY;
 		goto err_free_reset;
@@ -619,12 +621,10 @@ static int adv7183_probe(struct i2c_client *client,
 	decoder->input = ADV7183_COMPOSITE4;
 	decoder->output = ADV7183_8BIT_OUT;
 
-	gpio_direction_output(decoder->oe_pin, 1);
 	/* reset chip */
-	gpio_direction_output(decoder->reset_pin, 0);
 	/* reset pulse width at least 5ms */
 	mdelay(10);
-	gpio_direction_output(decoder->reset_pin, 1);
+	gpio_set_value(decoder->reset_pin, 1);
 	/* wait 5ms before any further i2c writes are performed */
 	mdelay(5);
 

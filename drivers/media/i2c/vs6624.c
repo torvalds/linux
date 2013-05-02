@@ -805,12 +805,11 @@ static int vs6624_probe(struct i2c_client *client,
 	if (ce == NULL)
 		return -EINVAL;
 
-	ret = gpio_request(*ce, "VS6624 Chip Enable");
+	ret = gpio_request_one(*ce, GPIOF_OUT_INIT_HIGH, "VS6624 Chip Enable");
 	if (ret) {
 		v4l_err(client, "failed to request GPIO %d\n", *ce);
 		return ret;
 	}
-	gpio_direction_output(*ce, 1);
 	/* wait 100ms before any further i2c writes are performed */
 	mdelay(100);
 

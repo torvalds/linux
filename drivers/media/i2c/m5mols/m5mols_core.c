@@ -930,6 +930,7 @@ static int m5mols_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
 	const struct m5mols_platform_data *pdata = client->dev.platform_data;
+	unsigned long gpio_flags;
 	struct m5mols_info *info;
 	struct v4l2_subdev *sd;
 	int ret;
@@ -956,12 +957,13 @@ static int m5mols_probe(struct i2c_client *client,
 	info->pdata = pdata;
 	info->set_power	= pdata->set_power;
 
-	ret = gpio_request(pdata->gpio_reset, "M5MOLS_NRST");
+	gpio_flags = pdata->reset_polarity
+		   ? GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW;
+	ret = gpio_request_one(pdata->gpio_reset, gpio_flags, "M5MOLS_NRST");
 	if (ret) {
 		dev_err(&client->dev, "Failed to request gpio: %d\n", ret);
 		goto out_free;
 	}
-	gpio_direction_output(pdata->gpio_reset, pdata->reset_polarity);
 
 	ret = regulator_bulk_get(&client->dev, ARRAY_SIZE(supplies), supplies);
 	if (ret) {

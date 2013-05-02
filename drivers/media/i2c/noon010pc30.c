@@ -746,24 +746,24 @@ static int noon010_probe(struct i2c_client *client,
 	info->curr_win		= &noon010_sizes[0];
 
 	if (gpio_is_valid(pdata->gpio_nreset)) {
-		ret = gpio_request(pdata->gpio_nreset, "NOON010PC30 NRST");
+		ret = gpio_request_one(pdata->gpio_nreset, GPIOF_OUT_INIT_LOW,
+				       "NOON010PC30 NRST");
 		if (ret) {
 			dev_err(&client->dev, "GPIO request error: %d\n", ret);
 			goto np_err;
 		}
 		info->gpio_nreset = pdata->gpio_nreset;
-		gpio_direction_output(info->gpio_nreset, 0);
 		gpio_export(info->gpio_nreset, 0);
 	}
 
 	if (gpio_is_valid(pdata->gpio_nstby)) {
-		ret = gpio_request(pdata->gpio_nstby, "NOON010PC30 NSTBY");
+		ret = gpio_request_one(pdata->gpio_nstby, GPIOF_OUT_INIT_LOW,
+				      "NOON010PC30 NSTBY");
 		if (ret) {
 			dev_err(&client->dev, "GPIO request error: %d\n", ret);
 			goto np_gpio_err;
 		}
 		info->gpio_nstby = pdata->gpio_nstby;
-		gpio_direction_output(info->gpio_nstby, 0);
 		gpio_export(info->gpio_nstby, 0);
 	}
 
