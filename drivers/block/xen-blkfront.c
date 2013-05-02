@@ -76,6 +76,7 @@ struct blk_shadow {
 	struct request *request;
 	struct grant **grants_used;
 	struct grant **indirect_grants;
+	struct scatterlist *sg;
 };
 
 struct split_bio {
@@ -113,7 +114,6 @@ struct blkfront_info
 	enum blkif_state connected;
 	int ring_ref;
 	struct blkif_front_ring ring;
-	struct scatterlist *sg;
 	unsigned int evtchn, irq;
 	struct request_queue *rq;
 	struct work_struct work;
@@ -438,7 +438,7 @@ static int blkif_queue_request(struct request *req)
 		       req->nr_phys_segments > BLKIF_MAX_SEGMENTS_PER_REQUEST);
 		BUG_ON(info->max_indirect_segments &&
 		       req->nr_phys_segments > info->max_indirect_segments);
-		nseg = blk_rq_map_sg(req->q, req, info->sg);
+		nseg = blk_rq_map_sg(req->q, req, info->shadow[id].sg);
 		ring_req->u.rw.id = id;
 		if (nseg > BLKIF_MAX_SEGMENTS_PER_REQUEST) {
 			/*
@@ -469,7 +469,7 @@ static int blkif_queue_request(struct request *req)
 			}
 			ring_req->u.rw.nr_segments = nseg;
 		}
-		for_each_sg(info->sg, sg, nseg, i) {
+		for_each_sg(info->shadow[id].sg, sg, nseg, i) {
 			fsect = sg->offset >> 9;
 			lsect = fsect + (sg->length >> 9) - 1;
 
@@ -914,8 +914,6 @@ static void blkif_free(struct blkfront_info *info, int suspend)
 	}
 	BUG_ON(info->persistent_gnts_c != 0);
 
-	kfree(info->sg);
-	info->sg = NULL;
 	for (i = 0; i < BLK_RING_SIZE; i++) {
 		/*
 		 * Clear persistent grants present in requests already
@@ -953,6 +951,8 @@ free_shadow:
 		info->shadow[i].grants_used = NULL;
 		kfree(info->shadow[i].indirect_grants);
 		info->shadow[i].indirect_grants = NULL;
+		kfree(info->shadow[i].sg);
+		info->shadow[i].sg = NULL;
 	}
 
 	/* No more gnttab callback work. */
@@ -979,12 +979,9 @@ static void blkif_completion(struct blk_shadow *s, struct blkfront_info *info,
 			     struct blkif_response *bret)
 {
 	int i = 0;
-	struct bio_vec *bvec;
-	struct req_iterator iter;
-	unsigned long flags;
+	struct scatterlist *sg;
 	char *bvec_data;
 	void *shared_data;
-	unsigned int offset = 0;
 	int nseg;
 
 	nseg = s->req.operation == BLKIF_OP_INDIRECT ?
@@ -997,19 +994,16 @@ static void blkif_completion(struct blk_shadow *s, struct blkfront_info *info,
 		 * than PAGE_SIZE, we have to keep track of the current offset,
 		 * to be sure we are copying the data from the right shared page.
 		 */
-		rq_for_each_segment(bvec, s->request, iter) {
-			BUG_ON((bvec->bv_offset + bvec->bv_len) > PAGE_SIZE);
-			if (bvec->bv_offset < offset)
-				i++;
-			BUG_ON(i >= nseg);
+		for_each_sg(s->sg, sg, nseg, i) {
+			BUG_ON(sg->offset + sg->length > PAGE_SIZE);
 			shared_data = kmap_atomic(
 				pfn_to_page(s->grants_used[i]->pfn));
-			bvec_data = bvec_kmap_irq(bvec, &flags);
-			memcpy(bvec_data, shared_data + bvec->bv_offset,
-				bvec->bv_len);
-			bvec_kunmap_irq(bvec_data, &flags);
+			bvec_data = kmap_atomic(sg_page(sg));
+			memcpy(bvec_data   + sg->offset,
+			       shared_data + sg->offset,
+			       sg->length);
+			kunmap_atomic(bvec_data);
 			kunmap_atomic(shared_data);
-			offset = bvec->bv_offset + bvec->bv_len;
 		}
 	}
 	/* Add the persistent grant into the list of free grants */
@@ -1656,10 +1650,6 @@ static int blkfront_setup_indirect(struct blkfront_info *info)
 						  xen_blkif_max_segments);
 		segs = info->max_indirect_segments;
 	}
-	info->sg = kzalloc(sizeof(info->sg[0]) * segs, GFP_KERNEL);
-	if (info->sg == NULL)
-		goto out_of_memory;
-	sg_init_table(info->sg, segs);
 
 	err = fill_grant_buffer(info, (segs + INDIRECT_GREFS(segs)) * BLK_RING_SIZE);
 	if (err)
@@ -1669,26 +1659,29 @@ static int blkfront_setup_indirect(struct blkfront_info *info)
 		info->shadow[i].grants_used = kzalloc(
 			sizeof(info->shadow[i].grants_used[0]) * segs,
 			GFP_NOIO);
+		info->shadow[i].sg = kzalloc(sizeof(info->shadow[i].sg[0]) * segs, GFP_NOIO);
 		if (info->max_indirect_segments)
 			info->shadow[i].indirect_grants = kzalloc(
 				sizeof(info->shadow[i].indirect_grants[0]) *
 				INDIRECT_GREFS(segs),
 				GFP_NOIO);
 		if ((info->shadow[i].grants_used == NULL) ||
+			(info->shadow[i].sg == NULL) ||
 		     (info->max_indirect_segments &&
 		     (info->shadow[i].indirect_grants == NULL)))
 			goto out_of_memory;
+		sg_init_table(info->shadow[i].sg, segs);
 	}
 
 
 	return 0;
 
 out_of_memory:
-	kfree(info->sg);
-	info->sg = NULL;
 	for (i = 0; i < BLK_RING_SIZE; i++) {
 		kfree(info->shadow[i].grants_used);
 		info->shadow[i].grants_used = NULL;
+		kfree(info->shadow[i].sg);
+		info->shadow[i].sg = NULL;
 		kfree(info->shadow[i].indirect_grants);
 		info->shadow[i].indirect_grants = NULL;
 	}
