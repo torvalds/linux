@@ -50,9 +50,10 @@ static int sram_probe(struct platform_device *pdev)
 
 	size = resource_size(res);
 
-	virt_base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!virt_base)
-		return -EADDRNOTAVAIL;
+	virt_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(virt_base))
+		return PTR_ERR(virt_base);
+
 
 	sram = devm_kzalloc(&pdev->dev, sizeof(*sram), GFP_KERNEL);
 	if (!sram)
