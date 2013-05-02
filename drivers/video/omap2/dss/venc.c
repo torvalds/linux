@@ -633,7 +633,7 @@ void omapdss_venc_invert_vid_out_polarity(struct omap_dss_device *dssdev,
 	mutex_unlock(&venc.venc_lock);
 }
 
-static int __init venc_init_display(struct omap_dss_device *dssdev)
+static int venc_init_display(struct omap_dss_device *dssdev)
 {
 	DSSDBG("init_display\n");
 
@@ -726,7 +726,7 @@ static int venc_get_clocks(struct platform_device *pdev)
 	return 0;
 }
 
-static struct omap_dss_device * __init venc_find_dssdev(struct platform_device *pdev)
+static struct omap_dss_device *venc_find_dssdev(struct platform_device *pdev)
 {
 	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
 	const char *def_disp_name = omapdss_get_default_display_name();
@@ -754,7 +754,7 @@ static struct omap_dss_device * __init venc_find_dssdev(struct platform_device *
 	return def_dssdev;
 }
 
-static void __init venc_probe_pdata(struct platform_device *vencdev)
+static void venc_probe_pdata(struct platform_device *vencdev)
 {
 	struct omap_dss_device *plat_dssdev;
 	struct omap_dss_device *dssdev;
@@ -795,7 +795,7 @@ static void __init venc_probe_pdata(struct platform_device *vencdev)
 	}
 }
 
-static void __init venc_init_output(struct platform_device *pdev)
+static void venc_init_output(struct platform_device *pdev)
 {
 	struct omap_dss_output *out = &venc.output;
 
@@ -816,7 +816,7 @@ static void __exit venc_uninit_output(struct platform_device *pdev)
 }
 
 /* VENC HW IP initialisation */
-static int __init omap_venchw_probe(struct platform_device *pdev)
+static int omap_venchw_probe(struct platform_device *pdev)
 {
 	u8 rev_id;
 	struct resource *venc_mem;
@@ -922,6 +922,7 @@ static const struct dev_pm_ops venc_pm_ops = {
 };
 
 static struct platform_driver omap_venchw_driver = {
+	.probe		= omap_venchw_probe,
 	.remove         = __exit_p(omap_venchw_remove),
 	.driver         = {
 		.name   = "omapdss_venc",
@@ -932,7 +933,7 @@ static struct platform_driver omap_venchw_driver = {
 
 int __init venc_init_platform_driver(void)
 {
-	return platform_driver_probe(&omap_venchw_driver, omap_venchw_probe);
+	return platform_driver_register(&omap_venchw_driver);
 }
 
 void __exit venc_uninit_platform_driver(void)
