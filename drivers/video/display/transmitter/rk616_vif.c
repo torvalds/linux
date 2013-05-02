@@ -2,10 +2,10 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <linux/mfd/rk616.h>
 #include <linux/rk_fb.h>
+#include "rk616_vif.h"
 
-struct mfd_rk616 *g_rk616;
+struct rk616_vif *g_vif;
 extern int rk616_pll_set_rate(struct mfd_rk616 *rk616,int id,u32 cfg_val,u32 frac);
 
 /*rk616 video interface config*/
@@ -663,27 +663,70 @@ static int rk616_display_router_cfg(struct mfd_rk616 *rk616,rk_screen *screen,bo
 int rk610_lcd_scaler_set_param(rk_screen *screen,bool enable )//enable:0 bypass 1: scale
 {
 	int ret;
-	struct mfd_rk616 *rk616 = g_rk616;
+	struct mfd_rk616 *rk616 = g_vif->rk616;
 	if(!rk616)
 	{
 		printk(KERN_ERR "%s:mfd rk616 is null!\n",__func__);
 		return -1;
 	}
+	g_vif->screen = screen;
 	ret = rk616_display_router_cfg(rk616,screen,enable);
 	return ret;
 }
 
+
+#if	defined(CONFIG_HAS_EARLYSUSPEND)
+static void rk616_vif_early_suspend(struct early_suspend *h)
+{
+	struct rk616_vif *vif = container_of(h, struct rk616_vif,early_suspend);
+	struct mfd_rk616 *rk616 = vif->rk616;
+	u32 val = 0;
+	int ret = 0;
+
+	val &= ~(LVDS_CH1_PWR_EN | LVDS_CH0_PWR_EN | LVDS_CBG_PWR_EN);
+	val |= LVDS_PLL_PWR_DN |(LVDS_CH1_PWR_EN << 16) | (LVDS_CH0_PWR_EN << 16) |
+		(LVDS_CBG_PWR_EN << 16) | (LVDS_PLL_PWR_DN << 16);
+	ret = rk616->write_dev(rk616,CRU_LVDS_CON0,&val);
+	
+}
+
+static void rk616_vif_late_resume(struct early_suspend *h)
+{
+	struct rk616_vif *vif = container_of(h, struct rk616_vif,early_suspend);
+	struct mfd_rk616 *rk616 = vif->rk616;
+	rk616_lvds_cfg(rk616,vif->screen);
+}
+
+#endif
+
 static int rk616_vif_probe(struct platform_device *pdev)
 {
+	struct rk616_vif *vif = NULL; 
+	struct mfd_rk616 *rk616 = NULL;
 
-	struct mfd_rk616 *rk616 = dev_get_drvdata(pdev->dev.parent);
+	vif = kzalloc(sizeof(struct rk616_vif),GFP_KERNEL);
+	if(!vif)
+	{
+		printk(KERN_ALERT "alloc for struct rk616_vif fail\n");
+		return  -ENOMEM;
+	}
+
+	rk616 = dev_get_drvdata(pdev->dev.parent);
 	if(!rk616)
 	{
 		dev_err(&pdev->dev,"null mfd device rk616!\n");
 		return -ENODEV;
 	}
 	else
-		g_rk616 = rk616;
+		g_vif = vif;
+		vif->rk616 = rk616;
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	vif->early_suspend.suspend = rk616_vif_early_suspend;
+	vif->early_suspend.resume = rk616_vif_late_resume;
+    	vif->early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB - 1;
+	register_early_suspend(&vif->early_suspend);
+#endif
 	
 
 	dev_info(&pdev->dev,"rk616 vif probe success!\n");
