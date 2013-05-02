@@ -144,9 +144,10 @@ static void hdmi_early_resume(struct early_suspend *h)
 	mutex_lock(&hdmi->enable_mutex);
 
 	hdmi->suspend = 0;
-//	rk616_hdmi_initial();
+	rk616_hdmi_initial();
 	if(hdmi->enable) {
 		enable_irq(hdmi->irq);
+		queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, 0);
 	}
 	mutex_unlock(&hdmi->enable_mutex);
 	return;
