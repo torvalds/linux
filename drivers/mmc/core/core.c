@@ -2651,14 +2651,8 @@ int mmc_suspend_host(struct mmc_host *host)
 
 	mmc_bus_get(host);
 	if (host->bus_ops && !host->bus_dead) {
-		if (host->bus_ops->suspend) {
-			if (mmc_card_doing_bkops(host->card)) {
-				err = mmc_stop_bkops(host->card);
-				if (err)
-					goto out;
-			}
+		if (host->bus_ops->suspend)
 			err = host->bus_ops->suspend(host);
-		}
 
 		if (err == -ENOSYS || !host->bus_ops->resume) {
 			/*
@@ -2682,10 +2676,8 @@ int mmc_suspend_host(struct mmc_host *host)
 	if (!err && !mmc_card_keep_power(host))
 		mmc_power_off(host);
 
-out:
 	return err;
 }
-
 EXPORT_SYMBOL(mmc_suspend_host);
 
 /**
@@ -2740,22 +2732,10 @@ int mmc_pm_notify(struct notifier_block *notify_block,
 	struct mmc_host *host = container_of(
 		notify_block, struct mmc_host, pm_notify);
 	unsigned long flags;
-	int err = 0;
 
 	switch (mode) {
 	case PM_HIBERNATION_PREPARE:
 	case PM_SUSPEND_PREPARE:
-		if (host->card && mmc_card_mmc(host->card) &&
-		    mmc_card_doing_bkops(host->card)) {
-			err = mmc_stop_bkops(host->card);
-			if (err) {
-				pr_err("%s: didn't stop bkops\n",
-					mmc_hostname(host));
-				return err;
-			}
-			mmc_card_clr_doing_bkops(host->card);
-		}
-
 		spin_lock_irqsave(&host->lock, flags);
 		host->rescan_disable = 1;
 		spin_unlock_irqrestore(&host->lock, flags);
