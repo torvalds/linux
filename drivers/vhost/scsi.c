@@ -45,14 +45,116 @@
 #include <target/target_core_configfs.h>
 #include <target/configfs_macros.h>
 #include <linux/vhost.h>
-#include <linux/virtio_net.h> /* TODO vhost.h currently depends on this */
 #include <linux/virtio_scsi.h>
 #include <linux/llist.h>
 #include <linux/bitmap.h>
 
 #include "vhost.c"
 #include "vhost.h"
-#include "tcm_vhost.h"
+
+#define TCM_VHOST_VERSION  "v0.1"
+#define TCM_VHOST_NAMELEN 256
+#define TCM_VHOST_MAX_CDB_SIZE 32
+
+struct vhost_scsi_inflight {
+	/* Wait for the flush operation to finish */
+	struct completion comp;
+	/* Refcount for the inflight reqs */
+	struct kref kref;
+};
+
+struct tcm_vhost_cmd {
+	/* Descriptor from vhost_get_vq_desc() for virt_queue segment */
+	int tvc_vq_desc;
+	/* virtio-scsi initiator task attribute */
+	int tvc_task_attr;
+	/* virtio-scsi initiator data direction */
+	enum dma_data_direction tvc_data_direction;
+	/* Expected data transfer length from virtio-scsi header */
+	u32 tvc_exp_data_len;
+	/* The Tag from include/linux/virtio_scsi.h:struct virtio_scsi_cmd_req */
+	u64 tvc_tag;
+	/* The number of scatterlists associated with this cmd */
+	u32 tvc_sgl_count;
+	/* Saved unpacked SCSI LUN for tcm_vhost_submission_work() */
+	u32 tvc_lun;
+	/* Pointer to the SGL formatted memory from virtio-scsi */
+	struct scatterlist *tvc_sgl;
+	/* Pointer to response */
+	struct virtio_scsi_cmd_resp __user *tvc_resp;
+	/* Pointer to vhost_scsi for our device */
+	struct vhost_scsi *tvc_vhost;
+	/* Pointer to vhost_virtqueue for the cmd */
+	struct vhost_virtqueue *tvc_vq;
+	/* Pointer to vhost nexus memory */
+	struct tcm_vhost_nexus *tvc_nexus;
+	/* The TCM I/O descriptor that is accessed via container_of() */
+	struct se_cmd tvc_se_cmd;
+	/* work item used for cmwq dispatch to tcm_vhost_submission_work() */
+	struct work_struct work;
+	/* Copy of the incoming SCSI command descriptor block (CDB) */
+	unsigned char tvc_cdb[TCM_VHOST_MAX_CDB_SIZE];
+	/* Sense buffer that will be mapped into outgoing status */
+	unsigned char tvc_sense_buf[TRANSPORT_SENSE_BUFFER];
+	/* Completed commands list, serviced from vhost worker thread */
+	struct llist_node tvc_completion_list;
+	/* Used to track inflight cmd */
+	struct vhost_scsi_inflight *inflight;
+};
+
+struct tcm_vhost_nexus {
+	/* Pointer to TCM session for I_T Nexus */
+	struct se_session *tvn_se_sess;
+};
+
+struct tcm_vhost_nacl {
+	/* Binary World Wide unique Port Name for Vhost Initiator port */
+	u64 iport_wwpn;
+	/* ASCII formatted WWPN for Sas Initiator port */
+	char iport_name[TCM_VHOST_NAMELEN];
+	/* Returned by tcm_vhost_make_nodeacl() */
+	struct se_node_acl se_node_acl;
+};
+
+struct vhost_scsi;
+struct tcm_vhost_tpg {
+	/* Vhost port target portal group tag for TCM */
+	u16 tport_tpgt;
+	/* Used to track number of TPG Port/Lun Links wrt to explict I_T Nexus shutdown */
+	int tv_tpg_port_count;
+	/* Used for vhost_scsi device reference to tpg_nexus, protected by tv_tpg_mutex */
+	int tv_tpg_vhost_count;
+	/* list for tcm_vhost_list */
+	struct list_head tv_tpg_list;
+	/* Used to protect access for tpg_nexus */
+	struct mutex tv_tpg_mutex;
+	/* Pointer to the TCM VHost I_T Nexus for this TPG endpoint */
+	struct tcm_vhost_nexus *tpg_nexus;
+	/* Pointer back to tcm_vhost_tport */
+	struct tcm_vhost_tport *tport;
+	/* Returned by tcm_vhost_make_tpg() */
+	struct se_portal_group se_tpg;
+	/* Pointer back to vhost_scsi, protected by tv_tpg_mutex */
+	struct vhost_scsi *vhost_scsi;
+};
+
+struct tcm_vhost_tport {
+	/* SCSI protocol the tport is providing */
+	u8 tport_proto_id;
+	/* Binary World Wide unique Port Name for Vhost Target port */
+	u64 tport_wwpn;
+	/* ASCII formatted WWPN for Vhost Target port */
+	char tport_name[TCM_VHOST_NAMELEN];
+	/* Returned by tcm_vhost_make_tport() */
+	struct se_wwn tport_wwn;
+};
+
+struct tcm_vhost_evt {
+	/* event to be sent to guest */
+	struct virtio_scsi_event event;
+	/* event list, serviced from vhost worker thread */
+	struct llist_node list;
+};
 
 enum {
 	VHOST_SCSI_VQ_CTL = 0,
@@ -74,13 +176,28 @@ enum {
 #define VHOST_SCSI_MAX_VQ	128
 #define VHOST_SCSI_MAX_EVENT	128
 
+struct vhost_scsi_virtqueue {
+	struct vhost_virtqueue vq;
+	/*
+	 * Reference counting for inflight reqs, used for flush operation. At
+	 * each time, one reference tracks new commands submitted, while we
+	 * wait for another one to reach 0.
+	 */
+	struct vhost_scsi_inflight inflights[2];
+	/*
+	 * Indicate current inflight in use, protected by vq->mutex.
+	 * Writers must also take dev mutex and flush under it.
+	 */
+	int inflight_idx;
+};
+
 struct vhost_scsi {
 	/* Protected by vhost_scsi->dev.mutex */
 	struct tcm_vhost_tpg **vs_tpg;
 	char vs_vhost_wwpn[TRANSPORT_IQN_LEN];
 
 	struct vhost_dev dev;
-	struct vhost_virtqueue vqs[VHOST_SCSI_MAX_VQ];
+	struct vhost_scsi_virtqueue vqs[VHOST_SCSI_MAX_VQ];
 
 	struct vhost_work vs_completion_work; /* cmd completion work item */
 	struct llist_head vs_completion_list; /* cmd completion queue */
@@ -105,6 +222,59 @@ static int iov_num_pages(struct iovec *iov)
 {
 	return (PAGE_ALIGN((unsigned long)iov->iov_base + iov->iov_len) -
 	       ((unsigned long)iov->iov_base & PAGE_MASK)) >> PAGE_SHIFT;
+}
+
+void tcm_vhost_done_inflight(struct kref *kref)
+{
+	struct vhost_scsi_inflight *inflight;
+
+	inflight = container_of(kref, struct vhost_scsi_inflight, kref);
+	complete(&inflight->comp);
+}
+
+static void tcm_vhost_init_inflight(struct vhost_scsi *vs,
+				    struct vhost_scsi_inflight *old_inflight[])
+{
+	struct vhost_scsi_inflight *new_inflight;
+	struct vhost_virtqueue *vq;
+	int idx, i;
+
+	for (i = 0; i < VHOST_SCSI_MAX_VQ; i++) {
+		vq = &vs->vqs[i].vq;
+
+		mutex_lock(&vq->mutex);
+
+		/* store old infight */
+		idx = vs->vqs[i].inflight_idx;
+		if (old_inflight)
+			old_inflight[i] = &vs->vqs[i].inflights[idx];
+
+		/* setup new infight */
+		vs->vqs[i].inflight_idx = idx ^ 1;
+		new_inflight = &vs->vqs[i].inflights[idx ^ 1];
+		kref_init(&new_inflight->kref);
+		init_completion(&new_inflight->comp);
+
+		mutex_unlock(&vq->mutex);
+	}
+}
+
+static struct vhost_scsi_inflight *
+tcm_vhost_get_inflight(struct vhost_virtqueue *vq)
+{
+	struct vhost_scsi_inflight *inflight;
+	struct vhost_scsi_virtqueue *svq;
+
+	svq = container_of(vq, struct vhost_scsi_virtqueue, vq);
+	inflight = &svq->inflights[svq->inflight_idx];
+	kref_get(&inflight->kref);
+
+	return inflight;
+}
+
+static void tcm_vhost_put_inflight(struct vhost_scsi_inflight *inflight)
+{
+	kref_put(&inflight->kref, tcm_vhost_done_inflight);
 }
 
 static int tcm_vhost_check_true(struct se_portal_group *se_tpg)
@@ -366,7 +536,7 @@ static void tcm_vhost_free_evt(struct vhost_scsi *vs, struct tcm_vhost_evt *evt)
 static struct tcm_vhost_evt *tcm_vhost_allocate_evt(struct vhost_scsi *vs,
 	u32 event, u32 reason)
 {
-	struct vhost_virtqueue *vq = &vs->vqs[VHOST_SCSI_VQ_EVT];
+	struct vhost_virtqueue *vq = &vs->vqs[VHOST_SCSI_VQ_EVT].vq;
 	struct tcm_vhost_evt *evt;
 
 	if (vs->vs_events_nr > VHOST_SCSI_MAX_EVENT) {
@@ -403,13 +573,15 @@ static void vhost_scsi_free_cmd(struct tcm_vhost_cmd *tv_cmd)
 		kfree(tv_cmd->tvc_sgl);
 	}
 
+	tcm_vhost_put_inflight(tv_cmd->inflight);
+
 	kfree(tv_cmd);
 }
 
 static void tcm_vhost_do_evt_work(struct vhost_scsi *vs,
 	struct tcm_vhost_evt *evt)
 {
-	struct vhost_virtqueue *vq = &vs->vqs[VHOST_SCSI_VQ_EVT];
+	struct vhost_virtqueue *vq = &vs->vqs[VHOST_SCSI_VQ_EVT].vq;
 	struct virtio_scsi_event *event = &evt->event;
 	struct virtio_scsi_event __user *eventp;
 	unsigned out, in;
@@ -460,7 +632,7 @@ static void tcm_vhost_evt_work(struct vhost_work *work)
 {
 	struct vhost_scsi *vs = container_of(work, struct vhost_scsi,
 					vs_event_work);
-	struct vhost_virtqueue *vq = &vs->vqs[VHOST_SCSI_VQ_EVT];
+	struct vhost_virtqueue *vq = &vs->vqs[VHOST_SCSI_VQ_EVT].vq;
 	struct tcm_vhost_evt *evt;
 	struct llist_node *llnode;
 
@@ -511,8 +683,10 @@ static void vhost_scsi_complete_cmd_work(struct vhost_work *work)
 		       v_rsp.sense_len);
 		ret = copy_to_user(tv_cmd->tvc_resp, &v_rsp, sizeof(v_rsp));
 		if (likely(ret == 0)) {
+			struct vhost_scsi_virtqueue *q;
 			vhost_add_used(tv_cmd->tvc_vq, tv_cmd->tvc_vq_desc, 0);
-			vq = tv_cmd->tvc_vq - vs->vqs;
+			q = container_of(tv_cmd->tvc_vq, struct vhost_scsi_virtqueue, vq);
+			vq = q - vs->vqs;
 			__set_bit(vq, signal);
 		} else
 			pr_err("Faulted on virtio_scsi_cmd_resp\n");
@@ -523,10 +697,11 @@ static void vhost_scsi_complete_cmd_work(struct vhost_work *work)
 	vq = -1;
 	while ((vq = find_next_bit(signal, VHOST_SCSI_MAX_VQ, vq + 1))
 		< VHOST_SCSI_MAX_VQ)
-		vhost_signal(&vs->dev, &vs->vqs[vq]);
+		vhost_signal(&vs->dev, &vs->vqs[vq].vq);
 }
 
 static struct tcm_vhost_cmd *vhost_scsi_allocate_cmd(
+	struct vhost_virtqueue *vq,
 	struct tcm_vhost_tpg *tv_tpg,
 	struct virtio_scsi_cmd_req *v_req,
 	u32 exp_data_len,
@@ -551,6 +726,7 @@ static struct tcm_vhost_cmd *vhost_scsi_allocate_cmd(
 	tv_cmd->tvc_exp_data_len = exp_data_len;
 	tv_cmd->tvc_data_direction = data_direction;
 	tv_cmd->tvc_nexus = tv_nexus;
+	tv_cmd->inflight = tcm_vhost_get_inflight(vq);
 
 	return tv_cmd;
 }
@@ -806,7 +982,7 @@ static void vhost_scsi_handle_vq(struct vhost_scsi *vs,
 		for (i = 0; i < data_num; i++)
 			exp_data_len += vq->iov[data_first + i].iov_len;
 
-		tv_cmd = vhost_scsi_allocate_cmd(tv_tpg, &v_req,
+		tv_cmd = vhost_scsi_allocate_cmd(vq, tv_tpg, &v_req,
 					exp_data_len, data_direction);
 		if (IS_ERR(tv_cmd)) {
 			vq_err(vq, "vhost_scsi_allocate_cmd failed %ld\n",
@@ -938,17 +1114,35 @@ static void vhost_scsi_handle_kick(struct vhost_work *work)
 
 static void vhost_scsi_flush_vq(struct vhost_scsi *vs, int index)
 {
-	vhost_poll_flush(&vs->dev.vqs[index].poll);
+	vhost_poll_flush(&vs->vqs[index].vq.poll);
 }
 
+/* Callers must hold dev mutex */
 static void vhost_scsi_flush(struct vhost_scsi *vs)
 {
+	struct vhost_scsi_inflight *old_inflight[VHOST_SCSI_MAX_VQ];
 	int i;
 
+	/* Init new inflight and remember the old inflight */
+	tcm_vhost_init_inflight(vs, old_inflight);
+
+	/*
+	 * The inflight->kref was initialized to 1. We decrement it here to
+	 * indicate the start of the flush operation so that it will reach 0
+	 * when all the reqs are finished.
+	 */
+	for (i = 0; i < VHOST_SCSI_MAX_VQ; i++)
+		kref_put(&old_inflight[i]->kref, tcm_vhost_done_inflight);
+
+	/* Flush both the vhost poll and vhost work */
 	for (i = 0; i < VHOST_SCSI_MAX_VQ; i++)
 		vhost_scsi_flush_vq(vs, i);
 	vhost_work_flush(&vs->dev, &vs->vs_completion_work);
 	vhost_work_flush(&vs->dev, &vs->vs_event_work);
+
+	/* Wait for all reqs issued before the flush to be finished */
+	for (i = 0; i < VHOST_SCSI_MAX_VQ; i++)
+		wait_for_completion(&old_inflight[i]->comp);
 }
 
 /*
@@ -975,7 +1169,7 @@ static int vhost_scsi_set_endpoint(
 	/* Verify that ring has been setup correctly. */
 	for (index = 0; index < vs->dev.nvqs; ++index) {
 		/* Verify that ring has been setup correctly. */
-		if (!vhost_vq_access_ok(&vs->vqs[index])) {
+		if (!vhost_vq_access_ok(&vs->vqs[index].vq)) {
 			ret = -EFAULT;
 			goto out;
 		}
@@ -1022,7 +1216,7 @@ static int vhost_scsi_set_endpoint(
 		memcpy(vs->vs_vhost_wwpn, t->vhost_wwpn,
 		       sizeof(vs->vs_vhost_wwpn));
 		for (i = 0; i < VHOST_SCSI_MAX_VQ; i++) {
-			vq = &vs->vqs[i];
+			vq = &vs->vqs[i].vq;
 			/* Flushing the vhost_work acts as synchronize_rcu */
 			mutex_lock(&vq->mutex);
 			rcu_assign_pointer(vq->private_data, vs_tpg);
@@ -1063,7 +1257,7 @@ static int vhost_scsi_clear_endpoint(
 	mutex_lock(&vs->dev.mutex);
 	/* Verify that ring has been setup correctly. */
 	for (index = 0; index < vs->dev.nvqs; ++index) {
-		if (!vhost_vq_access_ok(&vs->vqs[index])) {
+		if (!vhost_vq_access_ok(&vs->vqs[index].vq)) {
 			ret = -EFAULT;
 			goto err_dev;
 		}
@@ -1103,7 +1297,7 @@ static int vhost_scsi_clear_endpoint(
 	}
 	if (match) {
 		for (i = 0; i < VHOST_SCSI_MAX_VQ; i++) {
-			vq = &vs->vqs[i];
+			vq = &vs->vqs[i].vq;
 			/* Flushing the vhost_work acts as synchronize_rcu */
 			mutex_lock(&vq->mutex);
 			rcu_assign_pointer(vq->private_data, NULL);
@@ -1151,11 +1345,18 @@ static int vhost_scsi_set_features(struct vhost_scsi *vs, u64 features)
 static int vhost_scsi_open(struct inode *inode, struct file *f)
 {
 	struct vhost_scsi *s;
+	struct vhost_virtqueue **vqs;
 	int r, i;
 
 	s = kzalloc(sizeof(*s), GFP_KERNEL);
 	if (!s)
 		return -ENOMEM;
+
+	vqs = kmalloc(VHOST_SCSI_MAX_VQ * sizeof(*vqs), GFP_KERNEL);
+	if (!vqs) {
+		kfree(s);
+		return -ENOMEM;
+	}
 
 	vhost_work_init(&s->vs_completion_work, vhost_scsi_complete_cmd_work);
 	vhost_work_init(&s->vs_event_work, tcm_vhost_evt_work);
@@ -1163,12 +1364,20 @@ static int vhost_scsi_open(struct inode *inode, struct file *f)
 	s->vs_events_nr = 0;
 	s->vs_events_missed = false;
 
-	s->vqs[VHOST_SCSI_VQ_CTL].handle_kick = vhost_scsi_ctl_handle_kick;
-	s->vqs[VHOST_SCSI_VQ_EVT].handle_kick = vhost_scsi_evt_handle_kick;
-	for (i = VHOST_SCSI_VQ_IO; i < VHOST_SCSI_MAX_VQ; i++)
-		s->vqs[i].handle_kick = vhost_scsi_handle_kick;
-	r = vhost_dev_init(&s->dev, s->vqs, VHOST_SCSI_MAX_VQ);
+	vqs[VHOST_SCSI_VQ_CTL] = &s->vqs[VHOST_SCSI_VQ_CTL].vq;
+	vqs[VHOST_SCSI_VQ_EVT] = &s->vqs[VHOST_SCSI_VQ_EVT].vq;
+	s->vqs[VHOST_SCSI_VQ_CTL].vq.handle_kick = vhost_scsi_ctl_handle_kick;
+	s->vqs[VHOST_SCSI_VQ_EVT].vq.handle_kick = vhost_scsi_evt_handle_kick;
+	for (i = VHOST_SCSI_VQ_IO; i < VHOST_SCSI_MAX_VQ; i++) {
+		vqs[i] = &s->vqs[i].vq;
+		s->vqs[i].vq.handle_kick = vhost_scsi_handle_kick;
+	}
+	r = vhost_dev_init(&s->dev, vqs, VHOST_SCSI_MAX_VQ);
+
+	tcm_vhost_init_inflight(s, NULL);
+
 	if (r < 0) {
+		kfree(vqs);
 		kfree(s);
 		return r;
 	}
@@ -1190,6 +1399,7 @@ static int vhost_scsi_release(struct inode *inode, struct file *f)
 	vhost_dev_cleanup(&s->dev, false);
 	/* Jobs can re-queue themselves in evt kick handler. Do extra flush. */
 	vhost_scsi_flush(s);
+	kfree(s->dev.vqs);
 	kfree(s);
 	return 0;
 }
@@ -1205,7 +1415,7 @@ static long vhost_scsi_ioctl(struct file *f, unsigned int ioctl,
 	u32 events_missed;
 	u64 features;
 	int r, abi_version = VHOST_SCSI_ABI_VERSION;
-	struct vhost_virtqueue *vq = &vs->vqs[VHOST_SCSI_VQ_EVT];
+	struct vhost_virtqueue *vq = &vs->vqs[VHOST_SCSI_VQ_EVT].vq;
 
 	switch (ioctl) {
 	case VHOST_SCSI_SET_ENDPOINT:
@@ -1333,7 +1543,7 @@ static void tcm_vhost_do_plug(struct tcm_vhost_tpg *tpg,
 	else
 		reason = VIRTIO_SCSI_EVT_RESET_REMOVED;
 
-	vq = &vs->vqs[VHOST_SCSI_VQ_EVT];
+	vq = &vs->vqs[VHOST_SCSI_VQ_EVT].vq;
 	mutex_lock(&vq->mutex);
 	tcm_vhost_send_evt(vs, tpg, lun,
 			VIRTIO_SCSI_T_TRANSPORT_RESET, reason);
@@ -1926,7 +2136,8 @@ static void tcm_vhost_exit(void)
 	destroy_workqueue(tcm_vhost_workqueue);
 };
 
-MODULE_DESCRIPTION("TCM_VHOST series fabric driver");
+MODULE_DESCRIPTION("VHOST_SCSI series fabric driver");
+MODULE_ALIAS("tcm_vhost");
 MODULE_LICENSE("GPL");
 module_init(tcm_vhost_init);
 module_exit(tcm_vhost_exit);
