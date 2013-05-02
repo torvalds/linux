@@ -754,7 +754,7 @@ static struct omap_dss_device *venc_find_dssdev(struct platform_device *pdev)
 	return def_dssdev;
 }
 
-static void venc_probe_pdata(struct platform_device *vencdev)
+static int venc_probe_pdata(struct platform_device *vencdev)
 {
 	struct omap_dss_device *plat_dssdev;
 	struct omap_dss_device *dssdev;
@@ -763,11 +763,11 @@ static void venc_probe_pdata(struct platform_device *vencdev)
 	plat_dssdev = venc_find_dssdev(vencdev);
 
 	if (!plat_dssdev)
-		return;
+		return 0;
 
 	dssdev = dss_alloc_and_init_device(&vencdev->dev);
 	if (!dssdev)
-		return;
+		return -ENOMEM;
 
 	dss_copy_device_pdata(dssdev, plat_dssdev);
 
@@ -775,7 +775,7 @@ static void venc_probe_pdata(struct platform_device *vencdev)
 	if (r) {
 		DSSERR("device %s init failed: %d\n", dssdev->name, r);
 		dss_put_device(dssdev);
-		return;
+		return r;
 	}
 
 	r = omapdss_output_set_device(&venc.output, dssdev);
@@ -783,7 +783,7 @@ static void venc_probe_pdata(struct platform_device *vencdev)
 		DSSERR("failed to connect output to new device: %s\n",
 				dssdev->name);
 		dss_put_device(dssdev);
-		return;
+		return r;
 	}
 
 	r = dss_add_device(dssdev);
@@ -791,8 +791,10 @@ static void venc_probe_pdata(struct platform_device *vencdev)
 		DSSERR("device %s register failed: %d\n", dssdev->name, r);
 		omapdss_output_unset_device(&venc.output);
 		dss_put_device(dssdev);
-		return;
+		return r;
 	}
+
+	return 0;
 }
 
 static void venc_init_output(struct platform_device *pdev)
@@ -864,7 +866,13 @@ static int omap_venchw_probe(struct platform_device *pdev)
 
 	venc_init_output(pdev);
 
-	venc_probe_pdata(pdev);
+	r = venc_probe_pdata(pdev);
+	if (r) {
+		venc_panel_exit();
+		venc_uninit_output(pdev);
+		pm_runtime_disable(&pdev->dev);
+		return r;
+	}
 
 	return 0;
 
