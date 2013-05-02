@@ -52,9 +52,8 @@
 #include <plat/devs.h>
 #include <plat/cpu.h>
 
-#include <plat/common-smdk.h>
-
 #include "common.h"
+#include "common-smdk.h"
 
 static struct map_desc smdk2410_iodesc[] __initdata = {
   /* nothing here yet */

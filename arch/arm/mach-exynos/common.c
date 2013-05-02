@@ -23,9 +23,9 @@
 #include <linux/of_irq.h>
 #include <linux/export.h>
 #include <linux/irqdomain.h>
-#include <linux/irqchip.h>
 #include <linux/of_address.h>
 #include <linux/irqchip/arm-gic.h>
+#include <linux/irqchip/chained_irq.h>
 
 #include <asm/proc-fns.h>
 #include <asm/exception.h>

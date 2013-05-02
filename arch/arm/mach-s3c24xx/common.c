@@ -47,13 +47,10 @@
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/clock.h>
-#include <plat/s3c2410.h>
-#include <plat/s3c2412.h>
-#include <plat/s3c2416.h>
-#include <plat/s3c244x.h>
-#include <plat/s3c2443.h>
 #include <plat/cpu-freq.h>
 #include <plat/pll.h>
+
+#include "common.h"
 
 /* table of supported CPUs */
 

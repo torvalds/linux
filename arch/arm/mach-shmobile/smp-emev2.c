@@ -23,7 +23,6 @@
 #include <linux/spinlock.h>
 #include <linux/io.h>
 #include <linux/delay.h>
-#include <linux/irqchip/arm-gic.h>
 #include <mach/common.h>
 #include <mach/emev2.h>
 #include <asm/smp_plat.h>
@@ -85,11 +84,6 @@ static int __maybe_unused emev2_cpu_kill(unsigned int cpu)
 }
 
 
-static void __cpuinit emev2_secondary_init(unsigned int cpu)
-{
-	gic_secondary_init(0);
-}
-
 static int __cpuinit emev2_boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	cpu = cpu_logical_map(cpu);
@@ -124,7 +118,6 @@ static void __init emev2_smp_init_cpus(void)
 struct smp_operations emev2_smp_ops __initdata = {
 	.smp_init_cpus		= emev2_smp_init_cpus,
 	.smp_prepare_cpus	= emev2_smp_prepare_cpus,
-	.smp_secondary_init	= emev2_secondary_init,
 	.smp_boot_secondary	= emev2_boot_secondary,
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_kill		= emev2_cpu_kill,

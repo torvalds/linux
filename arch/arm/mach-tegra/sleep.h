@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2012, NVIDIA Corporation. All rights reserved.
+ * Copyright (c) 2010-2013, NVIDIA Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -124,11 +124,11 @@ int tegra_sleep_cpu_finish(unsigned long);
 void tegra_disable_clean_inv_dcache(void);
 
 #ifdef CONFIG_HOTPLUG_CPU
-void tegra20_hotplug_init(void);
-void tegra30_hotplug_init(void);
+void tegra20_hotplug_shutdown(void);
+void tegra30_hotplug_shutdown(void);
+void tegra_hotplug_init(void);
 #else
-static inline void tegra20_hotplug_init(void) {}
-static inline void tegra30_hotplug_init(void) {}
+static inline void tegra_hotplug_init(void) {}
 #endif
 
 void tegra20_cpu_shutdown(int cpu);

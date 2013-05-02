@@ -25,7 +25,7 @@ config DW_APB_TIMER_OF
 config ARMADA_370_XP_TIMER
 	bool
 
-config SUNXI_TIMER
+config SUN4I_TIMER
 	bool
 
 config VT8500_TIMER

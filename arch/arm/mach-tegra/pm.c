@@ -169,12 +169,7 @@ int tegra_cpu_do_idle(void)
 
 static int tegra_sleep_cpu(unsigned long v2p)
 {
-	/* Switch to the identity mapping. */
-	cpu_switch_mm(idmap_pgd, &init_mm);
-
-	/* Flush the TLB. */
-	local_flush_tlb_all();
-
+	setup_mm_for_reboot();
 	tegra_sleep_cpu_finish(v2p);
 
 	/* should never here */

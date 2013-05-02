@@ -26,12 +26,12 @@
 #include <linux/clockchips.h>
 #include <linux/clk.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/stmp_device.h>
 
 #include <asm/mach/time.h>
 #include <asm/sched_clock.h>
-#include <mach/mxs.h>
-#include <mach/common.h>
 
 /*
  * There are 2 versions of the timrot on Freescale MXS-based SoCs.
@@ -79,25 +79,25 @@
 static struct clock_event_device mxs_clockevent_device;
 static enum clock_event_mode mxs_clockevent_mode = CLOCK_EVT_MODE_UNUSED;
 
-static void __iomem *mxs_timrot_base = MXS_IO_ADDRESS(MXS_TIMROT_BASE_ADDR);
+static void __iomem *mxs_timrot_base;
 static u32 timrot_major_version;
 
 static inline void timrot_irq_disable(void)
 {
-	__mxs_clrl(BM_TIMROT_TIMCTRLn_IRQ_EN,
-			mxs_timrot_base + HW_TIMROT_TIMCTRLn(0));
+	__raw_writel(BM_TIMROT_TIMCTRLn_IRQ_EN, mxs_timrot_base +
+		     HW_TIMROT_TIMCTRLn(0) + STMP_OFFSET_REG_CLR);
 }
 
 static inline void timrot_irq_enable(void)
 {
-	__mxs_setl(BM_TIMROT_TIMCTRLn_IRQ_EN,
-			mxs_timrot_base + HW_TIMROT_TIMCTRLn(0));
+	__raw_writel(BM_TIMROT_TIMCTRLn_IRQ_EN, mxs_timrot_base +
+		     HW_TIMROT_TIMCTRLn(0) + STMP_OFFSET_REG_SET);
 }
 
 static void timrot_irq_acknowledge(void)
 {
-	__mxs_clrl(BM_TIMROT_TIMCTRLn_IRQ,
-			mxs_timrot_base + HW_TIMROT_TIMCTRLn(0));
+	__raw_writel(BM_TIMROT_TIMCTRLn_IRQ, mxs_timrot_base +
+		     HW_TIMROT_TIMCTRLn(0) + STMP_OFFSET_REG_CLR);
 }
 
 static cycle_t timrotv1_get_cycles(struct clocksource *cs)
@@ -242,19 +242,15 @@ static int __init mxs_clocksource_init(struct clk *timer_clk)
 	return 0;
 }
 
-void __init mxs_timer_init(void)
+static void __init mxs_timer_init(struct device_node *np)
 {
-	struct device_node *np;
 	struct clk *timer_clk;
 	int irq;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,timrot");
-	if (!np) {
-		pr_err("%s: failed find timrot node\n", __func__);
-		return;
-	}
+	mxs_timrot_base = of_iomap(np, 0);
+	WARN_ON(!mxs_timrot_base);
 
-	timer_clk = clk_get_sys("timrot", NULL);
+	timer_clk = of_clk_get(np, 0);
 	if (IS_ERR(timer_clk)) {
 		pr_err("%s: failed to get clk\n", __func__);
 		return;
@@ -265,11 +261,12 @@ void __init mxs_timer_init(void)
 	/*
 	 * Initialize timers to a known state
 	 */
-	mxs_reset_block(mxs_timrot_base + HW_TIMROT_ROTCTRL);
+	stmp_reset_block(mxs_timrot_base + HW_TIMROT_ROTCTRL);
 
 	/* get timrot version */
 	timrot_major_version = __raw_readl(mxs_timrot_base +
-				(cpu_is_mx23() ? MX23_TIMROT_VERSION_OFFSET :
+			(of_device_is_compatible(np, "fsl,imx23-timrot") ?
+						MX23_TIMROT_VERSION_OFFSET :
 						MX28_TIMROT_VERSION_OFFSET));
 	timrot_major_version >>= BP_TIMROT_MAJOR_VERSION;
 
@@ -304,3 +301,4 @@ void __init mxs_timer_init(void)
 	irq = irq_of_parse_and_map(np, 0);
 	setup_irq(irq, &mxs_timer_irq);
 }
+CLOCKSOURCE_OF_DECLARE(mxs, "fsl,timrot", mxs_timer_init);
