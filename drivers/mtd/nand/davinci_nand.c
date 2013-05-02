@@ -623,11 +623,14 @@ static int __init nand_davinci_probe(struct platform_device *pdev)
 		goto err_nomem;
 	}
 
-	vaddr = devm_request_and_ioremap(&pdev->dev, res1);
-	base = devm_request_and_ioremap(&pdev->dev, res2);
-	if (!vaddr || !base) {
-		dev_err(&pdev->dev, "ioremap failed\n");
-		ret = -EADDRNOTAVAIL;
+	vaddr = devm_ioremap_resource(&pdev->dev, res1);
+	if (IS_ERR(vaddr)) {
+		ret = PTR_ERR(vaddr);
+		goto err_ioremap;
+	}
+	base = devm_ioremap_resource(&pdev->dev, res2);
+	if (IS_ERR(base)) {
+		ret = PTR_ERR(base);
 		goto err_ioremap;
 	}
 
