@@ -5918,7 +5918,6 @@ static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
 
 static void haswell_modeset_global_resources(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
 	bool enable = false;
 	struct intel_crtc *crtc;
 	struct intel_encoder *encoder;
@@ -5930,7 +5929,7 @@ static void haswell_modeset_global_resources(struct drm_device *dev)
 		 * sequence that's not yet available. Just in case desktop eDP
 		 * on PORT D is possible on haswell, too. */
 		/* Even the eDP panel fitter is outside the always-on well. */
-		if (I915_READ(PF_WIN_SZ(crtc->pipe)))
+		if (crtc->config.pch_pfit.size && crtc->base.enabled)
 			enable = true;
 	}
 
