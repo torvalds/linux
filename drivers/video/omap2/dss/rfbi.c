@@ -977,7 +977,7 @@ static struct omap_dss_device *rfbi_find_dssdev(struct platform_device *pdev)
 	return def_dssdev;
 }
 
-static void rfbi_probe_pdata(struct platform_device *rfbidev)
+static int rfbi_probe_pdata(struct platform_device *rfbidev)
 {
 	struct omap_dss_device *plat_dssdev;
 	struct omap_dss_device *dssdev;
@@ -986,11 +986,11 @@ static void rfbi_probe_pdata(struct platform_device *rfbidev)
 	plat_dssdev = rfbi_find_dssdev(rfbidev);
 
 	if (!plat_dssdev)
-		return;
+		return 0;
 
 	dssdev = dss_alloc_and_init_device(&rfbidev->dev);
 	if (!dssdev)
-		return;
+		return -ENOMEM;
 
 	dss_copy_device_pdata(dssdev, plat_dssdev);
 
@@ -998,7 +998,7 @@ static void rfbi_probe_pdata(struct platform_device *rfbidev)
 	if (r) {
 		DSSERR("device %s init failed: %d\n", dssdev->name, r);
 		dss_put_device(dssdev);
-		return;
+		return r;
 	}
 
 	r = omapdss_output_set_device(&rfbi.output, dssdev);
@@ -1006,7 +1006,7 @@ static void rfbi_probe_pdata(struct platform_device *rfbidev)
 		DSSERR("failed to connect output to new device: %s\n",
 				dssdev->name);
 		dss_put_device(dssdev);
-		return;
+		return r;
 	}
 
 	r = dss_add_device(dssdev);
@@ -1014,8 +1014,10 @@ static void rfbi_probe_pdata(struct platform_device *rfbidev)
 		DSSERR("device %s register failed: %d\n", dssdev->name, r);
 		omapdss_output_unset_device(&rfbi.output);
 		dss_put_device(dssdev);
-		return;
+		return r;
 	}
+
+	return 0;
 }
 
 static void rfbi_init_output(struct platform_device *pdev)
@@ -1091,7 +1093,12 @@ static int omap_rfbihw_probe(struct platform_device *pdev)
 
 	rfbi_init_output(pdev);
 
-	rfbi_probe_pdata(pdev);
+	r = rfbi_probe_pdata(pdev);
+	if (r) {
+		rfbi_uninit_output(pdev);
+		pm_runtime_disable(&pdev->dev);
+		return r;
+	}
 
 	return 0;
 
