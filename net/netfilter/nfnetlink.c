@@ -62,11 +62,6 @@ void nfnl_unlock(__u8 subsys_id)
 }
 EXPORT_SYMBOL_GPL(nfnl_unlock);
 
-static struct mutex *nfnl_get_lock(__u8 subsys_id)
-{
-	return &table[subsys_id].mutex;
-}
-
 int nfnetlink_subsys_register(const struct nfnetlink_subsystem *n)
 {
 	nfnl_lock(n->subsys_id);
@@ -199,7 +194,7 @@ replay:
 			rcu_read_unlock();
 			nfnl_lock(subsys_id);
 			if (rcu_dereference_protected(table[subsys_id].subsys,
-				lockdep_is_held(nfnl_get_lock(subsys_id))) != ss ||
+				lockdep_is_held(&table[subsys_id].mutex)) != ss ||
 			    nfnetlink_find_client(type, ss) != nc)
 				err = -EAGAIN;
 			else if (nc->call)

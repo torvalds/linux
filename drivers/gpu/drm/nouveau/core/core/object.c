@@ -278,7 +278,6 @@ nouveau_object_del(struct nouveau_object *client, u32 _parent, u32 _handle)
 	struct nouveau_object *parent = NULL;
 	struct nouveau_object *namedb = NULL;
 	struct nouveau_handle *handle = NULL;
-	int ret = -EINVAL;
 
 	parent = nouveau_handle_ref(client, _parent);
 	if (!parent)
@@ -295,7 +294,7 @@ nouveau_object_del(struct nouveau_object *client, u32 _parent, u32 _handle)
 	}
 
 	nouveau_object_ref(NULL, &parent);
-	return ret;
+	return handle ? 0 : -EINVAL;
 }
 
 int

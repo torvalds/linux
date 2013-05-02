@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/i2c.h>
 #include <linux/platform_data/i2c-nomadik.h>
@@ -198,10 +199,7 @@ static struct platform_device snowball_sbnet_dev = {
 
 struct ab8500_platform_data ab8500_platdata = {
 	.irq_base	= MOP500_AB8500_IRQ_BASE,
-	.regulator_reg_init = ab8500_regulator_reg_init,
-	.num_regulator_reg_init	= ARRAY_SIZE(ab8500_regulator_reg_init),
-	.regulator	= ab8500_regulators,
-	.num_regulator	= ARRAY_SIZE(ab8500_regulators),
+	.regulator	= &ab8500_regulator_plat_data,
 	.gpio		= &ab8500_gpio_pdata,
 	.codec		= &ab8500_codec_pdata,
 };
@@ -437,6 +435,15 @@ static void mop500_prox_deactivate(struct device *dev)
 {
 	regulator_disable(prox_regulator);
 	regulator_put(prox_regulator);
+}
+
+void mop500_snowball_ethernet_clock_enable(void)
+{
+	struct clk *clk;
+
+	clk = clk_get_sys("fsmc", NULL);
+	if (!IS_ERR(clk))
+		clk_prepare_enable(clk);
 }
 
 static struct cryp_platform_data u8500_cryp1_platform_data = {
@@ -682,6 +689,8 @@ static void __init snowball_init_machine(void)
 	mop500_spi_init(parent);
 	mop500_audio_init(parent);
 	mop500_uart_init(parent);
+
+	mop500_snowball_ethernet_clock_enable();
 
 	/* This board has full regulator constraints */
 	regulator_has_full_constraints();

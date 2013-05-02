@@ -761,6 +761,10 @@ S: Northampton
 S: NN1 3QT
 S: United Kingdom
 
+N: Massimo Dal Zotto
+E: dz@debian.org
+D: i8k Dell laptop SMM driver
+
 N: Uwe Dannowski
 E: Uwe.Dannowski@ira.uka.de
 W: http://i30www.ira.uka.de/~dannowsk/
@@ -953,11 +957,11 @@ S: Blacksburg, Virginia 24061
 S: USA
 
 N: Randy Dunlap
-E: rdunlap@xenotime.net
-W: http://www.xenotime.net/linux/linux.html
-W: http://www.linux-usb.org
+E: rdunlap@infradead.org
+W: http://www.infradead.org/~rdunlap/
 D: Linux-USB subsystem, USB core/UHCI/printer/storage drivers
 D: x86 SMP, ACPI, bootflag hacking
+D: documentation, builds
 S: (ask for current address)
 S: USA
 
@@ -1509,6 +1513,14 @@ W: http://www.hockin.org/~thockin
 D: Natsemi ethernet
 D: Cobalt Networks (x86) support
 D: This-and-That
+
+N: Mark M. Hoffman
+E: mhoffman@lightlink.com
+D: asb100, lm93 and smsc47b397 hardware monitoring drivers
+D: hwmon subsystem core
+D: hwmon subsystem maintainer
+D: i2c-sis96x and i2c-stub SMBus drivers
+S: USA
 
 N: Dirk Hohndel
 E: hohndel@suse.de

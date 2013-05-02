@@ -124,8 +124,6 @@ static void oti6858_close(struct usb_serial_port *port);
 static void oti6858_set_termios(struct tty_struct *tty,
 			struct usb_serial_port *port, struct ktermios *old);
 static void oti6858_init_termios(struct tty_struct *tty);
-static int oti6858_ioctl(struct tty_struct *tty,
-			unsigned int cmd, unsigned long arg);
 static void oti6858_read_int_callback(struct urb *urb);
 static void oti6858_read_bulk_callback(struct urb *urb);
 static void oti6858_write_bulk_callback(struct urb *urb);
@@ -136,6 +134,7 @@ static int oti6858_chars_in_buffer(struct tty_struct *tty);
 static int oti6858_tiocmget(struct tty_struct *tty);
 static int oti6858_tiocmset(struct tty_struct *tty,
 				unsigned int set, unsigned int clear);
+static int oti6858_tiocmiwait(struct tty_struct *tty, unsigned long arg);
 static int oti6858_port_probe(struct usb_serial_port *port);
 static int oti6858_port_remove(struct usb_serial_port *port);
 
@@ -150,11 +149,11 @@ static struct usb_serial_driver oti6858_device = {
 	.open =			oti6858_open,
 	.close =		oti6858_close,
 	.write =		oti6858_write,
-	.ioctl =		oti6858_ioctl,
 	.set_termios =		oti6858_set_termios,
 	.init_termios = 	oti6858_init_termios,
 	.tiocmget =		oti6858_tiocmget,
 	.tiocmset =		oti6858_tiocmset,
+	.tiocmiwait =		oti6858_tiocmiwait,
 	.read_bulk_callback =	oti6858_read_bulk_callback,
 	.read_int_callback =	oti6858_read_int_callback,
 	.write_bulk_callback =	oti6858_write_bulk_callback,
@@ -188,7 +187,6 @@ struct oti6858_private {
 	u8 setup_done;
 	struct delayed_work delayed_setup_work;
 
-	wait_queue_head_t intr_wait;
 	struct usb_serial_port *port;   /* USB port with which associated */
 };
 
@@ -339,7 +337,6 @@ static int oti6858_port_probe(struct usb_serial_port *port)
 		return -ENOMEM;
 
 	spin_lock_init(&priv->lock);
-	init_waitqueue_head(&priv->intr_wait);
 	priv->port = port;
 	INIT_DELAYED_WORK(&priv->delayed_setup_work, setup_line);
 	INIT_DELAYED_WORK(&priv->delayed_write_work, send_data);
@@ -652,8 +649,9 @@ static int oti6858_tiocmget(struct tty_struct *tty)
 	return result;
 }
 
-static int wait_modem_info(struct usb_serial_port *port, unsigned int arg)
+static int oti6858_tiocmiwait(struct tty_struct *tty, unsigned long arg)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct oti6858_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
 	unsigned int prev, status;
@@ -664,10 +662,14 @@ static int wait_modem_info(struct usb_serial_port *port, unsigned int arg)
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	while (1) {
-		wait_event_interruptible(priv->intr_wait,
+		wait_event_interruptible(port->port.delta_msr_wait,
+					port->serial->disconnected ||
 					priv->status.pin_state != prev);
 		if (signal_pending(current))
 			return -ERESTARTSYS;
+
+		if (port->serial->disconnected)
+			return -EIO;
 
 		spin_lock_irqsave(&priv->lock, flags);
 		status = priv->status.pin_state & PIN_MASK;
@@ -685,24 +687,6 @@ static int wait_modem_info(struct usb_serial_port *port, unsigned int arg)
 
 	/* NOTREACHED */
 	return 0;
-}
-
-static int oti6858_ioctl(struct tty_struct *tty,
-			unsigned int cmd, unsigned long arg)
-{
-	struct usb_serial_port *port = tty->driver_data;
-
-	dev_dbg(&port->dev, "%s(cmd = 0x%04x, arg = 0x%08lx)\n", __func__, cmd, arg);
-
-	switch (cmd) {
-	case TIOCMIWAIT:
-		dev_dbg(&port->dev, "%s(): TIOCMIWAIT\n", __func__);
-		return wait_modem_info(port, arg);
-	default:
-		dev_dbg(&port->dev, "%s(): 0x%04x not supported\n", __func__, cmd);
-		break;
-	}
-	return -ENOIOCTLCMD;
 }
 
 static void oti6858_read_int_callback(struct urb *urb)
@@ -763,7 +747,7 @@ static void oti6858_read_int_callback(struct urb *urb)
 
 		if (!priv->transient) {
 			if (xs->pin_state != priv->status.pin_state)
-				wake_up_interruptible(&priv->intr_wait);
+				wake_up_interruptible(&port->port.delta_msr_wait);
 			memcpy(&priv->status, xs, OTI6858_CTRL_PKT_SIZE);
 		}
 

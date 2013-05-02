@@ -801,7 +801,7 @@ nv50_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 		stride  = 16 * 4;
 		height  = amount / stride;
 
-		if (new_mem->mem_type == TTM_PL_VRAM &&
+		if (old_mem->mem_type == TTM_PL_VRAM &&
 		    nouveau_bo_tile_layout(nvbo)) {
 			ret = RING_SPACE(chan, 8);
 			if (ret)
@@ -823,7 +823,7 @@ nv50_bo_move_m2mf(struct nouveau_channel *chan, struct ttm_buffer_object *bo,
 			BEGIN_NV04(chan, NvSubCopy, 0x0200, 1);
 			OUT_RING  (chan, 1);
 		}
-		if (old_mem->mem_type == TTM_PL_VRAM &&
+		if (new_mem->mem_type == TTM_PL_VRAM &&
 		    nouveau_bo_tile_layout(nvbo)) {
 			ret = RING_SPACE(chan, 8);
 			if (ret)

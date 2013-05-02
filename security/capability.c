@@ -737,6 +737,11 @@ static int cap_tun_dev_open(void *security)
 {
 	return 0;
 }
+
+static void cap_skb_owned_by(struct sk_buff *skb, struct sock *sk)
+{
+}
+
 #endif	/* CONFIG_SECURITY_NETWORK */
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
@@ -1071,6 +1076,7 @@ void __init security_fixup_ops(struct security_operations *ops)
 	set_to_cap_if_null(ops, tun_dev_open);
 	set_to_cap_if_null(ops, tun_dev_attach_queue);
 	set_to_cap_if_null(ops, tun_dev_attach);
+	set_to_cap_if_null(ops, skb_owned_by);
 #endif	/* CONFIG_SECURITY_NETWORK */
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 	set_to_cap_if_null(ops, xfrm_policy_alloc_security);

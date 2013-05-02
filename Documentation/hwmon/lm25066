@@ -1,7 +1,13 @@
-Kernel driver max8688
+Kernel driver lm25066
 =====================
 
 Supported chips:
+  * TI LM25056
+    Prefix: 'lm25056'
+    Addresses scanned: -
+    Datasheets:
+	http://www.ti.com/lit/gpn/lm25056
+	http://www.ti.com/lit/gpn/lm25056a
   * National Semiconductor LM25066
     Prefix: 'lm25066'
     Addresses scanned: -
@@ -19,14 +25,15 @@ Supported chips:
     Datasheet:
 	http://www.national.com/pf/LM/LM5066.html
 
-Author: Guenter Roeck <guenter.roeck@ericsson.com>
+Author: Guenter Roeck <linux@roeck-us.net>
 
 
 Description
 -----------
 
-This driver supports hardware montoring for National Semiconductor LM25066,
-LM5064, and LM5064 Power Management, Monitoring, Control, and Protection ICs.
+This driver supports hardware montoring for National Semiconductor / TI LM25056,
+LM25066, LM5064, and LM5064 Power Management, Monitoring, Control, and
+Protection ICs.
 
 The driver is a client driver to the core PMBus driver. Please see
 Documentation/hwmon/pmbus for details on PMBus client drivers.
@@ -60,14 +67,19 @@ in1_max			Maximum input voltage.
 in1_min_alarm		Input voltage low alarm.
 in1_max_alarm		Input voltage high alarm.
 
-in2_label		"vout1"
-in2_input		Measured output voltage.
-in2_average		Average measured output voltage.
-in2_min			Minimum output voltage.
-in2_min_alarm		Output voltage low alarm.
+in2_label		"vmon"
+in2_input		Measured voltage on VAUX pin
+in2_min			Minimum VAUX voltage (LM25056 only).
+in2_max			Maximum VAUX voltage (LM25056 only).
+in2_min_alarm		VAUX voltage low alarm (LM25056 only).
+in2_max_alarm		VAUX voltage high alarm (LM25056 only).
 
-in3_label		"vout2"
-in3_input		Measured voltage on vaux pin
+in3_label		"vout1"
+			Not supported on LM25056.
+in3_input		Measured output voltage.
+in3_average		Average measured output voltage.
+in3_min			Minimum output voltage.
+in3_min_alarm		Output voltage low alarm.
 
 curr1_label		"iin"
 curr1_input		Measured input current.

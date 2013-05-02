@@ -573,11 +573,18 @@ static const struct reg_default wm5102_sysclk_reva_patch[] = {
 	{ 0x025e, 0x0112 },
 };
 
+static const struct reg_default wm5102_sysclk_revb_patch[] = {
+	{ 0x3081, 0x08FE },
+	{ 0x3083, 0x00ED },
+	{ 0x30C1, 0x08FE },
+	{ 0x30C3, 0x00ED },
+};
+
 static int wm5102_sysclk_ev(struct snd_soc_dapm_widget *w,
 			    struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = w->codec;
-	struct arizona *arizona = dev_get_drvdata(codec->dev);
+	struct arizona *arizona = dev_get_drvdata(codec->dev->parent);
 	struct regmap *regmap = codec->control_data;
 	const struct reg_default *patch = NULL;
 	int i, patch_size;
@@ -586,6 +593,10 @@ static int wm5102_sysclk_ev(struct snd_soc_dapm_widget *w,
 	case 0:
 		patch = wm5102_sysclk_reva_patch;
 		patch_size = ARRAY_SIZE(wm5102_sysclk_reva_patch);
+		break;
+	default:
+		patch = wm5102_sysclk_revb_patch;
+		patch_size = ARRAY_SIZE(wm5102_sysclk_revb_patch);
 		break;
 	}
 
@@ -755,7 +766,7 @@ SOC_SINGLE("SPKDAT1 High Performance Switch", ARIZONA_OUTPUT_PATH_CONFIG_5L,
 
 SOC_DOUBLE_R("HPOUT1 Digital Switch", ARIZONA_DAC_DIGITAL_VOLUME_1L,
 	     ARIZONA_DAC_DIGITAL_VOLUME_1R, ARIZONA_OUT1L_MUTE_SHIFT, 1, 1),
-SOC_DOUBLE_R("OUT2 Digital Switch", ARIZONA_DAC_DIGITAL_VOLUME_2L,
+SOC_DOUBLE_R("HPOUT2 Digital Switch", ARIZONA_DAC_DIGITAL_VOLUME_2L,
 	     ARIZONA_DAC_DIGITAL_VOLUME_2R, ARIZONA_OUT2L_MUTE_SHIFT, 1, 1),
 SOC_SINGLE("EPOUT Digital Switch", ARIZONA_DAC_DIGITAL_VOLUME_3L,
 	   ARIZONA_OUT3L_MUTE_SHIFT, 1, 1),
@@ -767,7 +778,7 @@ SOC_DOUBLE_R("SPKDAT1 Digital Switch", ARIZONA_DAC_DIGITAL_VOLUME_5L,
 SOC_DOUBLE_R_TLV("HPOUT1 Digital Volume", ARIZONA_DAC_DIGITAL_VOLUME_1L,
 		 ARIZONA_DAC_DIGITAL_VOLUME_1R, ARIZONA_OUT1L_VOL_SHIFT,
 		 0xbf, 0, digital_tlv),
-SOC_DOUBLE_R_TLV("OUT2 Digital Volume", ARIZONA_DAC_DIGITAL_VOLUME_2L,
+SOC_DOUBLE_R_TLV("HPOUT2 Digital Volume", ARIZONA_DAC_DIGITAL_VOLUME_2L,
 		 ARIZONA_DAC_DIGITAL_VOLUME_2R, ARIZONA_OUT2L_VOL_SHIFT,
 		 0xbf, 0, digital_tlv),
 SOC_SINGLE_TLV("EPOUT Digital Volume", ARIZONA_DAC_DIGITAL_VOLUME_3L,
@@ -1120,11 +1131,11 @@ ARIZONA_DSP_WIDGETS(DSP1, "DSP1"),
 SND_SOC_DAPM_VALUE_MUX("AEC Loopback", ARIZONA_DAC_AEC_CONTROL_1,
 		       ARIZONA_AEC_LOOPBACK_ENA, 0, &wm5102_aec_loopback_mux),
 
-SND_SOC_DAPM_PGA_E("OUT1L", ARIZONA_OUTPUT_ENABLES_1,
-		   ARIZONA_OUT1L_ENA_SHIFT, 0, NULL, 0, arizona_out_ev,
+SND_SOC_DAPM_PGA_E("OUT1L", SND_SOC_NOPM,
+		   ARIZONA_OUT1L_ENA_SHIFT, 0, NULL, 0, arizona_hp_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
-SND_SOC_DAPM_PGA_E("OUT1R", ARIZONA_OUTPUT_ENABLES_1,
-		   ARIZONA_OUT1R_ENA_SHIFT, 0, NULL, 0, arizona_out_ev,
+SND_SOC_DAPM_PGA_E("OUT1R", SND_SOC_NOPM,
+		   ARIZONA_OUT1R_ENA_SHIFT, 0, NULL, 0, arizona_hp_ev,
 		   SND_SOC_DAPM_PRE_PMD | SND_SOC_DAPM_POST_PMU),
 SND_SOC_DAPM_PGA_E("OUT2L", ARIZONA_OUTPUT_ENABLES_1,
 		   ARIZONA_OUT2L_ENA_SHIFT, 0, NULL, 0, arizona_out_ev,

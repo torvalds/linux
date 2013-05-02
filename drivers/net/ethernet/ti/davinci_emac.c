@@ -1053,7 +1053,7 @@ static void emac_tx_handler(void *token, int len, int status)
 	 * queue is stopped then start the queue as we have free desc for tx
 	 */
 	if (unlikely(netif_queue_stopped(ndev)))
-		netif_start_queue(ndev);
+		netif_wake_queue(ndev);
 	ndev->stats.tx_packets++;
 	ndev->stats.tx_bytes += len;
 	dev_kfree_skb_any(skb);
@@ -1102,7 +1102,7 @@ static int emac_dev_xmit(struct sk_buff *skb, struct net_device *ndev)
 	/* If there is no more tx desc left free then we need to
 	 * tell the kernel to stop sending us tx frames.
 	 */
-	if (unlikely(cpdma_check_free_tx_desc(priv->txchan)))
+	if (unlikely(!cpdma_check_free_tx_desc(priv->txchan)))
 		netif_stop_queue(ndev);
 
 	return NETDEV_TX_OK;

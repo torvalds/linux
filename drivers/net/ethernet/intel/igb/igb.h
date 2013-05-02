@@ -284,17 +284,9 @@ struct igb_q_vector {
 enum e1000_ring_flags_t {
 	IGB_RING_FLAG_RX_SCTP_CSUM,
 	IGB_RING_FLAG_RX_LB_VLAN_BSWAP,
-	IGB_RING_FLAG_RX_BUILD_SKB_ENABLED,
 	IGB_RING_FLAG_TX_CTX_IDX,
 	IGB_RING_FLAG_TX_DETECT_HANG
 };
-
-#define ring_uses_build_skb(ring) \
-	test_bit(IGB_RING_FLAG_RX_BUILD_SKB_ENABLED, &(ring)->flags)
-#define set_ring_build_skb_enabled(ring) \
-	set_bit(IGB_RING_FLAG_RX_BUILD_SKB_ENABLED, &(ring)->flags)
-#define clear_ring_build_skb_enabled(ring) \
-	clear_bit(IGB_RING_FLAG_RX_BUILD_SKB_ENABLED, &(ring)->flags)
 
 #define IGB_TXD_DCMD (E1000_ADVTXD_DCMD_EOP | E1000_ADVTXD_DCMD_RS)
 
@@ -447,7 +439,7 @@ struct igb_adapter {
 #endif
 	struct i2c_algo_bit_data i2c_algo;
 	struct i2c_adapter i2c_adap;
-	struct igb_i2c_client_list *i2c_clients;
+	struct i2c_client *i2c_client;
 };
 
 #define IGB_FLAG_HAS_MSI		(1 << 0)

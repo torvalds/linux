@@ -143,22 +143,18 @@ static int dove_thermal_probe(struct platform_device *pdev)
 	if (!priv)
 		return -ENOMEM;
 
-	priv->sensor = devm_request_and_ioremap(&pdev->dev, res);
-	if (!priv->sensor) {
-		dev_err(&pdev->dev, "Failed to request_ioremap memory\n");
-		return -EADDRNOTAVAIL;
-	}
+	priv->sensor = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(priv->sensor))
+		return PTR_ERR(priv->sensor);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (!res) {
 		dev_err(&pdev->dev, "Failed to get platform resource\n");
 		return -ENODEV;
 	}
-	priv->control = devm_request_and_ioremap(&pdev->dev, res);
-	if (!priv->control) {
-		dev_err(&pdev->dev, "Failed to request_ioremap memory\n");
-		return -EADDRNOTAVAIL;
-	}
+	priv->control = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(priv->control))
+		return PTR_ERR(priv->control);
 
 	ret = dove_init_sensor(priv);
 	if (ret) {

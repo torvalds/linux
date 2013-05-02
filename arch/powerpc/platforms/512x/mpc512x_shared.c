@@ -172,12 +172,9 @@ static struct fsl_diu_shared_fb __attribute__ ((__aligned__(8))) diu_shared_fb;
 
 static inline void mpc512x_free_bootmem(struct page *page)
 {
-	__ClearPageReserved(page);
 	BUG_ON(PageTail(page));
 	BUG_ON(atomic_read(&page->_count) > 1);
-	atomic_set(&page->_count, 1);
-	__free_page(page);
-	totalram_pages++;
+	free_reserved_page(page);
 }
 
 void mpc512x_release_bootmem(void)

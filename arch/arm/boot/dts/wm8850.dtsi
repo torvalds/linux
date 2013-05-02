@@ -135,11 +135,9 @@
 			};
 		};
 
-		fb@d8051700 {
+		fb: fb@d8051700 {
 			compatible = "wm,wm8505-fb";
 			reg = <0xd8051700 0x200>;
-			display = <&display>;
-			default-mode = <&mode0>;
 		};
 
 		ge_rops@d8050400 {

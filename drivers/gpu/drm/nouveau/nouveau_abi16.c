@@ -116,6 +116,11 @@ nouveau_abi16_chan_fini(struct nouveau_abi16 *abi16,
 {
 	struct nouveau_abi16_ntfy *ntfy, *temp;
 
+	/* wait for all activity to stop before releasing notify object, which
+	 * may be still in use */
+	if (chan->chan && chan->ntfy)
+		nouveau_channel_idle(chan->chan);
+
 	/* cleanup notifier state */
 	list_for_each_entry_safe(ntfy, temp, &chan->notifiers, head) {
 		nouveau_abi16_ntfy_fini(chan, ntfy);
@@ -386,7 +391,7 @@ nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_device *device = nv_device(drm->device);
 	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv, dev);
-	struct nouveau_abi16_chan *chan, *temp;
+	struct nouveau_abi16_chan *chan = NULL, *temp;
 	struct nouveau_abi16_ntfy *ntfy;
 	struct nouveau_object *object;
 	struct nv_dma_class args = {};
@@ -399,10 +404,11 @@ nouveau_abi16_ioctl_notifierobj_alloc(ABI16_IOCTL_ARGS)
 	if (unlikely(nv_device(abi16->device)->card_type >= NV_C0))
 		return nouveau_abi16_put(abi16, -EINVAL);
 
-	list_for_each_entry_safe(chan, temp, &abi16->channels, head) {
-		if (chan->chan->handle == (NVDRM_CHAN | info->channel))
+	list_for_each_entry(temp, &abi16->channels, head) {
+		if (temp->chan->handle == (NVDRM_CHAN | info->channel)) {
+			chan = temp;
 			break;
-		chan = NULL;
+		}
 	}
 
 	if (!chan)
@@ -454,17 +460,18 @@ nouveau_abi16_ioctl_gpuobj_free(ABI16_IOCTL_ARGS)
 {
 	struct drm_nouveau_gpuobj_free *fini = data;
 	struct nouveau_abi16 *abi16 = nouveau_abi16_get(file_priv, dev);
-	struct nouveau_abi16_chan *chan, *temp;
+	struct nouveau_abi16_chan *chan = NULL, *temp;
 	struct nouveau_abi16_ntfy *ntfy;
 	int ret;
 
 	if (unlikely(!abi16))
 		return -ENOMEM;
 
-	list_for_each_entry_safe(chan, temp, &abi16->channels, head) {
-		if (chan->chan->handle == (NVDRM_CHAN | fini->channel))
+	list_for_each_entry(temp, &abi16->channels, head) {
+		if (temp->chan->handle == (NVDRM_CHAN | fini->channel)) {
+			chan = temp;
 			break;
-		chan = NULL;
+		}
 	}
 
 	if (!chan)

@@ -43,8 +43,6 @@
 static const struct snd_pcm_hardware tegra_pcm_hardware = {
 	.info			= SNDRV_PCM_INFO_MMAP |
 				  SNDRV_PCM_INFO_MMAP_VALID |
-				  SNDRV_PCM_INFO_PAUSE |
-				  SNDRV_PCM_INFO_RESUME |
 				  SNDRV_PCM_INFO_INTERLEAVED,
 	.formats		= SNDRV_PCM_FMTBIT_S16_LE,
 	.channels_min		= 2,
@@ -127,26 +125,6 @@ static int tegra_pcm_hw_free(struct snd_pcm_substream *substream)
 	return 0;
 }
 
-static int tegra_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
-{
-	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_START:
-	case SNDRV_PCM_TRIGGER_RESUME:
-	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		return snd_dmaengine_pcm_trigger(substream,
-					SNDRV_PCM_TRIGGER_START);
-
-	case SNDRV_PCM_TRIGGER_STOP:
-	case SNDRV_PCM_TRIGGER_SUSPEND:
-	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		return snd_dmaengine_pcm_trigger(substream,
-					SNDRV_PCM_TRIGGER_STOP);
-	default:
-		return -EINVAL;
-	}
-	return 0;
-}
-
 static int tegra_pcm_mmap(struct snd_pcm_substream *substream,
 				struct vm_area_struct *vma)
 {
@@ -164,7 +142,7 @@ static struct snd_pcm_ops tegra_pcm_ops = {
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= tegra_pcm_hw_params,
 	.hw_free	= tegra_pcm_hw_free,
-	.trigger	= tegra_pcm_trigger,
+	.trigger	= snd_dmaengine_pcm_trigger,
 	.pointer	= snd_dmaengine_pcm_pointer,
 	.mmap		= tegra_pcm_mmap,
 };

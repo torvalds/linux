@@ -13,6 +13,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/errno.h>
+#include <linux/ioctl.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
@@ -56,6 +57,7 @@ MODULE_DEVICE_TABLE (usb, wdm_ids);
 #define WDM_RESPONDING		7
 #define WDM_SUSPENDING		8
 #define WDM_RESETTING		9
+#define WDM_OVERFLOW		10
 
 #define WDM_MAX			16
 
@@ -155,6 +157,7 @@ static void wdm_in_callback(struct urb *urb)
 {
 	struct wdm_device *desc = urb->context;
 	int status = urb->status;
+	int length = urb->actual_length;
 
 	spin_lock(&desc->iuspin);
 	clear_bit(WDM_RESPONDING, &desc->flags);
@@ -185,9 +188,17 @@ static void wdm_in_callback(struct urb *urb)
 	}
 
 	desc->rerr = status;
-	desc->reslength = urb->actual_length;
-	memmove(desc->ubuf + desc->length, desc->inbuf, desc->reslength);
-	desc->length += desc->reslength;
+	if (length + desc->length > desc->wMaxCommand) {
+		/* The buffer would overflow */
+		set_bit(WDM_OVERFLOW, &desc->flags);
+	} else {
+		/* we may already be in overflow */
+		if (!test_bit(WDM_OVERFLOW, &desc->flags)) {
+			memmove(desc->ubuf + desc->length, desc->inbuf, length);
+			desc->length += length;
+			desc->reslength = length;
+		}
+	}
 skip_error:
 	wake_up(&desc->wait);
 
@@ -435,6 +446,11 @@ retry:
 			rv = -ENODEV;
 			goto err;
 		}
+		if (test_bit(WDM_OVERFLOW, &desc->flags)) {
+			clear_bit(WDM_OVERFLOW, &desc->flags);
+			rv = -ENOBUFS;
+			goto err;
+		}
 		i++;
 		if (file->f_flags & O_NONBLOCK) {
 			if (!test_bit(WDM_READ, &desc->flags)) {
@@ -478,6 +494,7 @@ retry:
 			spin_unlock_irq(&desc->iuspin);
 			goto retry;
 		}
+
 		if (!desc->reslength) { /* zero length read */
 			dev_dbg(&desc->intf->dev, "%s: zero length - clearing WDM_READ\n", __func__);
 			clear_bit(WDM_READ, &desc->flags);
@@ -628,6 +645,22 @@ static int wdm_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static long wdm_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	struct wdm_device *desc = file->private_data;
+	int rv = 0;
+
+	switch (cmd) {
+	case IOCTL_WDM_MAX_COMMAND:
+		if (copy_to_user((void __user *)arg, &desc->wMaxCommand, sizeof(desc->wMaxCommand)))
+			rv = -EFAULT;
+		break;
+	default:
+		rv = -ENOTTY;
+	}
+	return rv;
+}
+
 static const struct file_operations wdm_fops = {
 	.owner =	THIS_MODULE,
 	.read =		wdm_read,
@@ -636,6 +669,8 @@ static const struct file_operations wdm_fops = {
 	.flush =	wdm_flush,
 	.release =	wdm_release,
 	.poll =		wdm_poll,
+	.unlocked_ioctl = wdm_ioctl,
+	.compat_ioctl = wdm_ioctl,
 	.llseek =	noop_llseek,
 };
 
@@ -1004,6 +1039,7 @@ static int wdm_post_reset(struct usb_interface *intf)
 	struct wdm_device *desc = wdm_find_device(intf);
 	int rv;
 
+	clear_bit(WDM_OVERFLOW, &desc->flags);
 	clear_bit(WDM_RESETTING, &desc->flags);
 	rv = recover_from_urb_loss(desc);
 	mutex_unlock(&desc->wlock);

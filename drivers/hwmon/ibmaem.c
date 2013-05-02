@@ -289,8 +289,9 @@ static int aem_init_ipmi_data(struct aem_ipmi_data *data, int iface,
 	err = ipmi_create_user(data->interface, &driver_data.ipmi_hndlrs,
 			       data, &data->user);
 	if (err < 0) {
-		dev_err(bmc, "Unable to register user with IPMI "
-			"interface %d\n", data->interface);
+		dev_err(bmc,
+			"Unable to register user with IPMI interface %d\n",
+			data->interface);
 		return -EACCES;
 	}
 
@@ -328,8 +329,8 @@ static void aem_msg_handler(struct ipmi_recv_msg *msg, void *user_msg_data)
 	struct aem_ipmi_data *data = user_msg_data;
 
 	if (msg->msgid != data->tx_msgid) {
-		dev_err(data->bmc_device, "Mismatch between received msgid "
-			"(%02x) and transmitted msgid (%02x)!\n",
+		dev_err(data->bmc_device,
+			"Mismatch between received msgid (%02x) and transmitted msgid (%02x)!\n",
 			(int)msg->msgid,
 			(int)data->tx_msgid);
 		ipmi_free_recv_msg(msg);
@@ -575,8 +576,8 @@ static int aem_init_aem1_inst(struct aem_ipmi_data *probe, u8 module_handle)
 	/* Register with hwmon */
 	data->hwmon_dev = hwmon_device_register(&data->pdev->dev);
 	if (IS_ERR(data->hwmon_dev)) {
-		dev_err(&data->pdev->dev, "Unable to register hwmon "
-			"device for IPMI interface %d\n",
+		dev_err(&data->pdev->dev,
+			"Unable to register hwmon device for IPMI interface %d\n",
 			probe->interface);
 		res = PTR_ERR(data->hwmon_dev);
 		goto hwmon_reg_err;
@@ -715,8 +716,8 @@ static int aem_init_aem2_inst(struct aem_ipmi_data *probe,
 	/* Register with hwmon */
 	data->hwmon_dev = hwmon_device_register(&data->pdev->dev);
 	if (IS_ERR(data->hwmon_dev)) {
-		dev_err(&data->pdev->dev, "Unable to register hwmon "
-			"device for IPMI interface %d\n",
+		dev_err(&data->pdev->dev,
+			"Unable to register hwmon device for IPMI interface %d\n",
 			probe->interface);
 		res = PTR_ERR(data->hwmon_dev);
 		goto hwmon_reg_err;
@@ -768,8 +769,8 @@ static void aem_init_aem2(struct aem_ipmi_data *probe)
 
 	while (!aem_find_aem2(probe, &fi_resp, i)) {
 		if (fi_resp.major != 2) {
-			dev_err(probe->bmc_device, "Unknown AEM v%d; please "
-				"report this to the maintainer.\n",
+			dev_err(probe->bmc_device,
+				"Unknown AEM v%d; please report this to the maintainer.\n",
 				fi_resp.major);
 			i++;
 			continue;

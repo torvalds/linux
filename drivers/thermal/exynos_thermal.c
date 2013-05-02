@@ -476,7 +476,7 @@ static int exynos_register_thermal(struct thermal_sensor_conf *sensor_conf)
 
 	if (IS_ERR(th_zone->therm_dev)) {
 		pr_err("Failed to register thermal zone device\n");
-		ret = -EINVAL;
+		ret = PTR_ERR(th_zone->therm_dev);
 		goto err_unregister;
 	}
 	th_zone->mode = THERMAL_DEVICE_ENABLED;

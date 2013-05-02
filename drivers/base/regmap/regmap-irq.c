@@ -184,6 +184,7 @@ static irqreturn_t regmap_irq_thread(int irq, void *d)
 		if (ret < 0) {
 			dev_err(map->dev, "IRQ thread failed to resume: %d\n",
 				ret);
+			pm_runtime_put(map->dev);
 			return IRQ_NONE;
 		}
 	}
@@ -459,7 +460,8 @@ int regmap_add_irq_chip(struct regmap *map, int irq, int irq_flags,
 	ret = request_threaded_irq(irq, NULL, regmap_irq_thread, irq_flags,
 				   chip->name, d);
 	if (ret != 0) {
-		dev_err(map->dev, "Failed to request IRQ %d: %d\n", irq, ret);
+		dev_err(map->dev, "Failed to request IRQ %d for %s: %d\n",
+			irq, chip->name, ret);
 		goto err_domain;
 	}
 

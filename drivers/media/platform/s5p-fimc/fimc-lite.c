@@ -1408,6 +1408,7 @@ static const struct v4l2_ctrl_config fimc_lite_ctrl = {
 	.id	= V4L2_CTRL_CLASS_USER | 0x1001,
 	.type	= V4L2_CTRL_TYPE_BOOLEAN,
 	.name	= "Test Pattern 640x480",
+	.step	= 1,
 };
 
 static int fimc_lite_create_capture_subdev(struct fimc_lite *fimc)

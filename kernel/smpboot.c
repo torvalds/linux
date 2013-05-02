@@ -131,7 +131,7 @@ static int smpboot_thread_fn(void *data)
 			continue;
 		}
 
-		//BUG_ON(td->cpu != smp_processor_id());
+		BUG_ON(td->cpu != smp_processor_id());
 
 		/* Check for state change setup */
 		switch (td->status) {
@@ -185,8 +185,18 @@ __smpboot_create_thread(struct smp_hotplug_thread *ht, unsigned int cpu)
 	}
 	get_task_struct(tsk);
 	*per_cpu_ptr(ht->store, cpu) = tsk;
-	if (ht->create)
-		ht->create(cpu);
+	if (ht->create) {
+		/*
+		 * Make sure that the task has actually scheduled out
+		 * into park position, before calling the create
+		 * callback. At least the migration thread callback
+		 * requires that the task is off the runqueue.
+		 */
+		if (!wait_task_inactive(tsk, TASK_PARKED))
+			WARN_ON(1);
+		else
+			ht->create(cpu);
+	}
 	return 0;
 }
 
@@ -209,6 +219,8 @@ static void smpboot_unpark_thread(struct smp_hotplug_thread *ht, unsigned int cp
 {
 	struct task_struct *tsk = *per_cpu_ptr(ht->store, cpu);
 
+	if (ht->pre_unpark)
+		ht->pre_unpark(cpu);
 	kthread_unpark(tsk);
 }
 

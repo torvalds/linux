@@ -852,6 +852,7 @@ static size_t account(struct entropy_store *r, size_t nbytes, int min,
 		      int reserved)
 {
 	unsigned long flags;
+	int wakeup_write = 0;
 
 	/* Hold lock while accounting */
 	spin_lock_irqsave(&r->lock, flags);
@@ -873,16 +874,19 @@ static size_t account(struct entropy_store *r, size_t nbytes, int min,
 		else
 			r->entropy_count = reserved;
 
-		if (r->entropy_count < random_write_wakeup_thresh) {
-			wake_up_interruptible(&random_write_wait);
-			kill_fasync(&fasync, SIGIO, POLL_OUT);
-		}
+		if (r->entropy_count < random_write_wakeup_thresh)
+			wakeup_write = 1;
 	}
 
 	DEBUG_ENT("debiting %zu entropy credits from %s%s\n",
 		  nbytes * 8, r->name, r->limit ? "" : " (unlimited)");
 
 	spin_unlock_irqrestore(&r->lock, flags);
+
+	if (wakeup_write) {
+		wake_up_interruptible(&random_write_wait);
+		kill_fasync(&fasync, SIGIO, POLL_OUT);
+	}
 
 	return nbytes;
 }

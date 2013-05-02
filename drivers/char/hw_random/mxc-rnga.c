@@ -228,18 +228,7 @@ static struct platform_driver mxc_rnga_driver = {
 	.remove = __exit_p(mxc_rnga_remove),
 };
 
-static int __init mod_init(void)
-{
-	return platform_driver_probe(&mxc_rnga_driver, mxc_rnga_probe);
-}
-
-static void __exit mod_exit(void)
-{
-	platform_driver_unregister(&mxc_rnga_driver);
-}
-
-module_init(mod_init);
-module_exit(mod_exit);
+module_platform_driver_probe(mxc_rnga_driver, mxc_rnga_probe);
 
 MODULE_AUTHOR("Freescale Semiconductor, Inc.");
 MODULE_DESCRIPTION("H/W RNGA driver for i.MX");

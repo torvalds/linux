@@ -1027,7 +1027,7 @@ static void ata_acpi_register_power_resource(struct ata_device *dev)
 
 	handle = ata_dev_acpi_handle(dev);
 	if (handle)
-		acpi_dev_pm_remove_dependent(handle, &sdev->sdev_gendev);
+		acpi_dev_pm_add_dependent(handle, &sdev->sdev_gendev);
 }
 
 static void ata_acpi_unregister_power_resource(struct ata_device *dev)
@@ -1144,13 +1144,8 @@ static int ata_acpi_find_device(struct device *dev, acpi_handle *handle)
 		return -ENODEV;
 }
 
-static int ata_acpi_find_dummy(struct device *dev, acpi_handle *handle)
-{
-	return -ENODEV;
-}
-
 static struct acpi_bus_type ata_acpi_bus = {
-	.find_bridge = ata_acpi_find_dummy,
+	.name = "ATA",
 	.find_device = ata_acpi_find_device,
 };
 

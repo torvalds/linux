@@ -91,7 +91,7 @@ void dgrp_register_net_hook(struct proc_dir_entry *de)
 	struct nd_struct *node = de->data;
 
 	de->proc_iops = &net_inode_ops;
-	de->proc_fops = &net_ops;
+	rcu_assign_pointer(de->proc_fops, &net_ops);
 	node->nd_net_de = de;
 	sema_init(&node->nd_net_semaphore, 1);
 	node->nd_state = NS_CLOSED;
@@ -3405,7 +3405,7 @@ static long dgrp_net_ioctl(struct file *file, unsigned int cmd,
 		if (size != sizeof(struct link_struct))
 			return -EINVAL;
 
-		if (copy_from_user((void *)(&link), (void __user *) arg, size))
+		if (copy_from_user(&link, (void __user *)arg, size))
 			return -EFAULT;
 
 		if (link.lk_fast_rate < 9600)

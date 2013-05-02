@@ -533,12 +533,12 @@ static int ams369fg06_remove(struct spi_device *spi)
 	return 0;
 }
 
-#if defined(CONFIG_PM)
-static int ams369fg06_suspend(struct spi_device *spi, pm_message_t mesg)
+#ifdef CONFIG_PM_SLEEP
+static int ams369fg06_suspend(struct device *dev)
 {
-	struct ams369fg06 *lcd = spi_get_drvdata(spi);
+	struct ams369fg06 *lcd = dev_get_drvdata(dev);
 
-	dev_dbg(&spi->dev, "lcd->power = %d\n", lcd->power);
+	dev_dbg(dev, "lcd->power = %d\n", lcd->power);
 
 	/*
 	 * when lcd panel is suspend, lcd panel becomes off
@@ -547,18 +547,18 @@ static int ams369fg06_suspend(struct spi_device *spi, pm_message_t mesg)
 	return ams369fg06_power(lcd, FB_BLANK_POWERDOWN);
 }
 
-static int ams369fg06_resume(struct spi_device *spi)
+static int ams369fg06_resume(struct device *dev)
 {
-	struct ams369fg06 *lcd = spi_get_drvdata(spi);
+	struct ams369fg06 *lcd = dev_get_drvdata(dev);
 
 	lcd->power = FB_BLANK_POWERDOWN;
 
 	return ams369fg06_power(lcd, FB_BLANK_UNBLANK);
 }
-#else
-#define ams369fg06_suspend	NULL
-#define ams369fg06_resume	NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(ams369fg06_pm_ops, ams369fg06_suspend,
+			ams369fg06_resume);
 
 static void ams369fg06_shutdown(struct spi_device *spi)
 {
@@ -571,12 +571,11 @@ static struct spi_driver ams369fg06_driver = {
 	.driver = {
 		.name	= "ams369fg06",
 		.owner	= THIS_MODULE,
+		.pm	= &ams369fg06_pm_ops,
 	},
 	.probe		= ams369fg06_probe,
 	.remove		= ams369fg06_remove,
 	.shutdown	= ams369fg06_shutdown,
-	.suspend	= ams369fg06_suspend,
-	.resume		= ams369fg06_resume,
 };
 
 module_spi_driver(ams369fg06_driver);

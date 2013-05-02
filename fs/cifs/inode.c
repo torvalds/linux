@@ -995,6 +995,15 @@ cifs_rename_pending_delete(const char *full_path, struct dentry *dentry,
 		return PTR_ERR(tlink);
 	tcon = tlink_tcon(tlink);
 
+	/*
+	 * We cannot rename the file if the server doesn't support
+	 * CAP_INFOLEVEL_PASSTHRU
+	 */
+	if (!(tcon->ses->capabilities & CAP_INFOLEVEL_PASSTHRU)) {
+		rc = -EBUSY;
+		goto out;
+	}
+
 	rc = CIFSSMBOpen(xid, tcon, full_path, FILE_OPEN,
 			 DELETE|FILE_WRITE_ATTRIBUTES, CREATE_NOT_DIR,
 			 &netfid, &oplock, NULL, cifs_sb->local_nls,
@@ -1023,7 +1032,7 @@ cifs_rename_pending_delete(const char *full_path, struct dentry *dentry,
 					current->tgid);
 		/* although we would like to mark the file hidden
  		   if that fails we will still try to rename it */
-		if (rc != 0)
+		if (!rc)
 			cifsInode->cifsAttrs = dosattr;
 		else
 			dosattr = origattr; /* since not able to change them */
@@ -1034,7 +1043,7 @@ cifs_rename_pending_delete(const char *full_path, struct dentry *dentry,
 				   cifs_sb->mnt_cifs_flags &
 					    CIFS_MOUNT_MAP_SPECIAL_CHR);
 	if (rc != 0) {
-		rc = -ETXTBSY;
+		rc = -EBUSY;
 		goto undo_setattr;
 	}
 
@@ -1053,7 +1062,7 @@ cifs_rename_pending_delete(const char *full_path, struct dentry *dentry,
 		if (rc == -ENOENT)
 			rc = 0;
 		else if (rc != 0) {
-			rc = -ETXTBSY;
+			rc = -EBUSY;
 			goto undo_rename;
 		}
 		cifsInode->delete_pending = true;
@@ -1160,15 +1169,13 @@ psx_del_no_retry:
 			cifs_drop_nlink(inode);
 	} else if (rc == -ENOENT) {
 		d_drop(dentry);
-	} else if (rc == -ETXTBSY) {
+	} else if (rc == -EBUSY) {
 		if (server->ops->rename_pending_delete) {
 			rc = server->ops->rename_pending_delete(full_path,
 								dentry, xid);
 			if (rc == 0)
 				cifs_drop_nlink(inode);
 		}
-		if (rc == -ETXTBSY)
-			rc = -EBUSY;
 	} else if ((rc == -EACCES) && (dosattr == 0) && inode) {
 		attrs = kzalloc(sizeof(*attrs), GFP_KERNEL);
 		if (attrs == NULL) {
@@ -1509,7 +1516,7 @@ cifs_do_rename(const unsigned int xid, struct dentry *from_dentry,
 	 * source. Note that cross directory moves do not work with
 	 * rename by filehandle to various Windows servers.
 	 */
-	if (rc == 0 || rc != -ETXTBSY)
+	if (rc == 0 || rc != -EBUSY)
 		goto do_rename_exit;
 
 	/* open-file renames don't work across directories */

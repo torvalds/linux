@@ -53,8 +53,8 @@
  * using 2 wire for device control, so we cache them instead.
  */
 static const struct reg_default wm8960_reg_defaults[] = {
-	{  0x0, 0x0097 },
-	{  0x1, 0x0097 },
+	{  0x0, 0x00a7 },
+	{  0x1, 0x00a7 },
 	{  0x2, 0x0000 },
 	{  0x3, 0x0000 },
 	{  0x4, 0x0000 },
@@ -323,8 +323,8 @@ SND_SOC_DAPM_MIXER("Left Input Mixer", WM8960_POWER3, 5, 0,
 SND_SOC_DAPM_MIXER("Right Input Mixer", WM8960_POWER3, 4, 0,
 		   wm8960_rin, ARRAY_SIZE(wm8960_rin)),
 
-SND_SOC_DAPM_ADC("Left ADC", "Capture", WM8960_POWER2, 3, 0),
-SND_SOC_DAPM_ADC("Right ADC", "Capture", WM8960_POWER2, 2, 0),
+SND_SOC_DAPM_ADC("Left ADC", "Capture", WM8960_POWER1, 3, 0),
+SND_SOC_DAPM_ADC("Right ADC", "Capture", WM8960_POWER1, 2, 0),
 
 SND_SOC_DAPM_DAC("Left DAC", "Playback", WM8960_POWER2, 8, 0),
 SND_SOC_DAPM_DAC("Right DAC", "Playback", WM8960_POWER2, 7, 0),

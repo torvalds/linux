@@ -425,7 +425,7 @@ static void flush_to_ldisc(struct work_struct *work)
 	struct tty_ldisc *disc;
 
 	tty = port->itty;
-	if (WARN_RATELIMIT(tty == NULL, "tty is NULL\n"))
+	if (tty == NULL)
 		return;
 
 	disc = tty_ldisc_ref(tty);
@@ -449,11 +449,6 @@ static void flush_to_ldisc(struct work_struct *work)
 				tty_buffer_free(port, head);
 				continue;
 			}
-			/* Ldisc or user is trying to flush the buffers
-			   we are feeding to the ldisc, stop feeding the
-			   line discipline as we want to empty the queue */
-			if (test_bit(TTYP_FLUSHPENDING, &port->iflags))
-				break;
 			if (!tty->receive_room)
 				break;
 			if (count > tty->receive_room)
@@ -465,17 +460,20 @@ static void flush_to_ldisc(struct work_struct *work)
 			disc->ops->receive_buf(tty, char_buf,
 							flag_buf, count);
 			spin_lock_irqsave(&buf->lock, flags);
+			/* Ldisc or user is trying to flush the buffers.
+			   We may have a deferred request to flush the
+			   input buffer, if so pull the chain under the lock
+			   and empty the queue */
+			if (test_bit(TTYP_FLUSHPENDING, &port->iflags)) {
+				__tty_buffer_flush(port);
+				clear_bit(TTYP_FLUSHPENDING, &port->iflags);
+				wake_up(&tty->read_wait);
+				break;
+			}
 		}
 		clear_bit(TTYP_FLUSHING, &port->iflags);
 	}
 
-	/* We may have a deferred request to flush the input buffer,
-	   if so pull the chain under the lock and empty the queue */
-	if (test_bit(TTYP_FLUSHPENDING, &port->iflags)) {
-		__tty_buffer_flush(port);
-		clear_bit(TTYP_FLUSHPENDING, &port->iflags);
-		wake_up(&tty->read_wait);
-	}
 	spin_unlock_irqrestore(&buf->lock, flags);
 
 	tty_ldisc_deref(disc);

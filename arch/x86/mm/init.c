@@ -410,9 +410,8 @@ void __init init_mem_mapping(void)
 	/* the ISA range is always mapped regardless of memory holes */
 	init_memory_mapping(0, ISA_END_ADDRESS);
 
-	/* xen has big range in reserved near end of ram, skip it at first */
-	addr = memblock_find_in_range(ISA_END_ADDRESS, end, PMD_SIZE,
-			 PAGE_SIZE);
+	/* xen has big range in reserved near end of ram, skip it at first.*/
+	addr = memblock_find_in_range(ISA_END_ADDRESS, end, PMD_SIZE, PMD_SIZE);
 	real_end = addr + PMD_SIZE;
 
 	/* step_size need to be small so pgt_buf from BRK could cover it */
@@ -516,11 +515,8 @@ void free_init_pages(char *what, unsigned long begin, unsigned long end)
 	printk(KERN_INFO "Freeing %s: %luk freed\n", what, (end - begin) >> 10);
 
 	for (; addr < end; addr += PAGE_SIZE) {
-		ClearPageReserved(virt_to_page(addr));
-		init_page_count(virt_to_page(addr));
 		memset((void *)addr, POISON_FREE_INITMEM, PAGE_SIZE);
-		free_page(addr);
-		totalram_pages++;
+		free_reserved_page(virt_to_page(addr));
 	}
 #endif
 }

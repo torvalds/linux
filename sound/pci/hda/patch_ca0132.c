@@ -2298,6 +2298,11 @@ static int dspxfr_one_seg(struct hda_codec *codec,
 	hda_frame_size_words = ((sample_rate_div == 0) ? 0 :
 			(num_chans * sample_rate_mul / sample_rate_div));
 
+	if (hda_frame_size_words == 0) {
+		snd_printdd(KERN_ERR "frmsz zero\n");
+		return -EINVAL;
+	}
+
 	buffer_size_words = min(buffer_size_words,
 				(unsigned int)(UC_RANGE(chip_addx, 1) ?
 				65536 : 32768));
@@ -2308,8 +2313,7 @@ static int dspxfr_one_seg(struct hda_codec *codec,
 		   chip_addx, hda_frame_size_words, num_chans,
 		   sample_rate_mul, sample_rate_div, buffer_size_words);
 
-	if ((buffer_addx == NULL) || (hda_frame_size_words == 0) ||
-	    (buffer_size_words < hda_frame_size_words)) {
+	if (buffer_size_words < hda_frame_size_words) {
 		snd_printdd(KERN_ERR "dspxfr_one_seg:failed\n");
 		return -EINVAL;
 	}
@@ -3235,7 +3239,7 @@ static int ca0132_set_vipsource(struct hda_codec *codec, int val)
 	struct ca0132_spec *spec = codec->spec;
 	unsigned int tmp;
 
-	if (!dspload_is_loaded(codec))
+	if (spec->dsp_state != DSP_DOWNLOADED)
 		return 0;
 
 	/* if CrystalVoice if off, vipsource should be 0 */
@@ -4263,11 +4267,12 @@ static void ca0132_refresh_widget_caps(struct hda_codec *codec)
  */
 static void ca0132_setup_defaults(struct hda_codec *codec)
 {
+	struct ca0132_spec *spec = codec->spec;
 	unsigned int tmp;
 	int num_fx;
 	int idx, i;
 
-	if (!dspload_is_loaded(codec))
+	if (spec->dsp_state != DSP_DOWNLOADED)
 		return;
 
 	/* out, in effects + voicefx */
@@ -4347,11 +4352,15 @@ static bool ca0132_download_dsp_images(struct hda_codec *codec)
 		return false;
 
 	dsp_os_image = (struct dsp_image_seg *)(fw_entry->data);
-	dspload_image(codec, dsp_os_image, 0, 0, true, 0);
+	if (dspload_image(codec, dsp_os_image, 0, 0, true, 0)) {
+		pr_err("ca0132 dspload_image failed.\n");
+		goto exit_download;
+	}
+
 	dsp_loaded = dspload_wait_loaded(codec);
 
+exit_download:
 	release_firmware(fw_entry);
-
 
 	return dsp_loaded;
 }
@@ -4363,16 +4372,13 @@ static void ca0132_download_dsp(struct hda_codec *codec)
 #ifndef CONFIG_SND_HDA_CODEC_CA0132_DSP
 	return; /* NOP */
 #endif
-	spec->dsp_state = DSP_DOWNLOAD_INIT;
 
-	if (spec->dsp_state == DSP_DOWNLOAD_INIT) {
-		chipio_enable_clocks(codec);
-		spec->dsp_state = DSP_DOWNLOADING;
-		if (!ca0132_download_dsp_images(codec))
-			spec->dsp_state = DSP_DOWNLOAD_FAILED;
-		else
-			spec->dsp_state = DSP_DOWNLOADED;
-	}
+	chipio_enable_clocks(codec);
+	spec->dsp_state = DSP_DOWNLOADING;
+	if (!ca0132_download_dsp_images(codec))
+		spec->dsp_state = DSP_DOWNLOAD_FAILED;
+	else
+		spec->dsp_state = DSP_DOWNLOADED;
 
 	if (spec->dsp_state == DSP_DOWNLOADED)
 		ca0132_set_dsp_msr(codec, true);

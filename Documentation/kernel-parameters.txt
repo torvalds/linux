@@ -44,6 +44,7 @@ parameter is applicable:
 	AVR32	AVR32 architecture is enabled.
 	AX25	Appropriate AX.25 support is enabled.
 	BLACKFIN Blackfin architecture is enabled.
+	CLK	Common clock infrastructure is enabled.
 	DRM	Direct Rendering Management support is enabled.
 	DYNAMIC_DEBUG Build in debug messages and enable them at runtime
 	EDD	BIOS Enhanced Disk Drive Services (EDD) is enabled
@@ -320,6 +321,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			on: enable for both 32- and 64-bit processes
 			off: disable for both 32- and 64-bit processes
 
+	alloc_snapshot	[FTRACE]
+			Allocate the ftrace snapshot buffer on boot up when the
+			main buffer is allocated. This is handy if debugging
+			and you need to use tracing_snapshot() on boot up, and
+			do not want to use tracing_snapshot_alloc() as it needs
+			to be done where GFP_KERNEL allocations are allowed.
+
 	amd_iommu=	[HW,X86-64]
 			Pass parameters to the AMD IOMMU driver in the system.
 			Possible values are:
@@ -465,6 +473,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	cio_ignore=	[S390]
 			See Documentation/s390/CommonIO for details.
+	clk_ignore_unused
+			[CLK]
+			Keep all clocks already enabled by bootloader on,
+			even if no driver has claimed them. This is useful
+			for debug and development, but should not be
+			needed on a platform with proper driver support.
+			For more information, see Documentation/clk.txt.
 
 	clock=		[BUGS=X86-32, HW] gettimeofday clocksource override.
 			[Deprecated]
@@ -596,15 +611,32 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			is selected automatically. Check
 			Documentation/kdump/kdump.txt for further details.
 
-	crashkernel_low=size[KMG]
-			[KNL, x86] parts under 4G.
-
 	crashkernel=range1:size1[,range2:size2,...][@offset]
 			[KNL] Same as above, but depends on the memory
 			in the running system. The syntax of range is
 			start-[end] where start and end are both
 			a memory unit (amount[KMG]). See also
 			Documentation/kdump/kdump.txt for an example.
+
+	crashkernel=size[KMG],high
+			[KNL, x86_64] range could be above 4G. Allow kernel
+			to allocate physical memory region from top, so could
+			be above 4G if system have more than 4G ram installed.
+			Otherwise memory region will be allocated below 4G, if
+			available.
+			It will be ignored if crashkernel=X is specified.
+	crashkernel=size[KMG],low
+			[KNL, x86_64] range under 4G. When crashkernel=X,high
+			is passed, kernel could allocate physical memory region
+			above 4G, that cause second kernel crash on system
+			that require some amount of low memory, e.g. swiotlb
+			requires at least 64M+32K low memory.  Kernel would
+			try to allocate 72M below 4G automatically.
+			This one let user to specify own low range under 4G
+			for second kernel instead.
+			0: to disable low allocation.
+			It will be ignored when crashkernel=X,high is not used
+			or memory reserved is below 4G.
 
 	cs89x0_dma=	[HW,NET]
 			Format: <dma>
@@ -787,6 +819,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	edd=		[EDD]
 			Format: {"off" | "on" | "skip[mbr]"}
+
+	efi_no_storage_paranoia [EFI; X86]
+			Using this parameter you can use more than 50% of
+			your efi variable storage. Use this parameter only if
+			you are really sure that your UEFI does sane gc and
+			fulfills the spec otherwise your board may brick.
 
 	eisa_irq_edge=	[PARISC,HW]
 			See header of drivers/parisc/eisa.c.
@@ -2469,9 +2507,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			In kernels built with CONFIG_RCU_NOCB_CPU=y, set
 			the specified list of CPUs to be no-callback CPUs.
 			Invocation of these CPUs' RCU callbacks will
-			be offloaded to "rcuoN" kthreads created for
-			that purpose.  This reduces OS jitter on the
+			be offloaded to "rcuox/N" kthreads created for
+			that purpose, where "x" is "b" for RCU-bh, "p"
+			for RCU-preempt, and "s" for RCU-sched, and "N"
+			is the CPU number.  This reduces OS jitter on the
 			offloaded CPUs, which can be useful for HPC and
+
 			real-time workloads.  It can also improve energy
 			efficiency for asymmetric multiprocessors.
 
@@ -2495,6 +2536,17 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			leaf rcu_node structure.  Useful for very large
 			systems.
 
+	rcutree.jiffies_till_first_fqs= [KNL,BOOT]
+			Set delay from grace-period initialization to
+			first attempt to force quiescent states.
+			Units are jiffies, minimum value is zero,
+			and maximum value is HZ.
+
+	rcutree.jiffies_till_next_fqs= [KNL,BOOT]
+			Set delay between subsequent attempts to force
+			quiescent states.  Units are jiffies, minimum
+			value is one, and maximum value is HZ.
+
 	rcutree.qhimark=	[KNL,BOOT]
 			Set threshold of queued
 			RCU callbacks over which batch limiting is disabled.
@@ -2509,16 +2561,15 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	rcutree.rcu_cpu_stall_timeout= [KNL,BOOT]
 			Set timeout for RCU CPU stall warning messages.
 
-	rcutree.jiffies_till_first_fqs= [KNL,BOOT]
-			Set delay from grace-period initialization to
-			first attempt to force quiescent states.
-			Units are jiffies, minimum value is zero,
-			and maximum value is HZ.
+	rcutree.rcu_idle_gp_delay=	[KNL,BOOT]
+			Set wakeup interval for idle CPUs that have
+			RCU callbacks (RCU_FAST_NO_HZ=y).
 
-	rcutree.jiffies_till_next_fqs= [KNL,BOOT]
-			Set delay between subsequent attempts to force
-			quiescent states.  Units are jiffies, minimum
-			value is one, and maximum value is HZ.
+	rcutree.rcu_idle_lazy_gp_delay=	[KNL,BOOT]
+			Set wakeup interval for idle CPUs that have
+			only "lazy" RCU callbacks (RCU_FAST_NO_HZ=y).
+			Lazy RCU callbacks are those which RCU can
+			prove do nothing more than free memory.
 
 	rcutorture.fqs_duration= [KNL,BOOT]
 			Set duration of force_quiescent_state bursts.
@@ -3229,6 +3280,15 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			see Documentation/watchdog/watchdog-parameters.txt
 			or other driver-specific files in the
 			Documentation/watchdog/ directory.
+
+	workqueue.disable_numa
+			By default, all work items queued to unbound
+			workqueues are affine to the NUMA nodes they're
+			issued on, which results in better behavior in
+			general.  If NUMA affinity needs to be disabled for
+			whatever reason, this option can be used.  Note
+			that this also can be controlled per-workqueue for
+			workqueues visible under /sys/bus/workqueue/.
 
 	x2apic_phys	[X86-64,APIC] Use x2apic physical mode instead of
 			default x2apic cluster mode on platforms

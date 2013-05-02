@@ -52,8 +52,21 @@ enum KTHREAD_BITS {
 	KTHREAD_IS_PARKED,
 };
 
-#define to_kthread(tsk)	\
-	container_of((tsk)->vfork_done, struct kthread, exited)
+#define __to_kthread(vfork)	\
+	container_of(vfork, struct kthread, exited)
+
+static inline struct kthread *to_kthread(struct task_struct *k)
+{
+	return __to_kthread(k->vfork_done);
+}
+
+static struct kthread *to_live_kthread(struct task_struct *k)
+{
+	struct completion *vfork = ACCESS_ONCE(k->vfork_done);
+	if (likely(vfork))
+		return __to_kthread(vfork);
+	return NULL;
+}
 
 /**
  * kthread_should_stop - should this kthread return now?
@@ -124,12 +137,12 @@ void *kthread_data(struct task_struct *task)
 
 static void __kthread_parkme(struct kthread *self)
 {
-	__set_current_state(TASK_INTERRUPTIBLE);
+	__set_current_state(TASK_PARKED);
 	while (test_bit(KTHREAD_SHOULD_PARK, &self->flags)) {
 		if (!test_and_set_bit(KTHREAD_IS_PARKED, &self->flags))
 			complete(&self->parked);
 		schedule();
-		__set_current_state(TASK_INTERRUPTIBLE);
+		__set_current_state(TASK_PARKED);
 	}
 	clear_bit(KTHREAD_IS_PARKED, &self->flags);
 	__set_current_state(TASK_RUNNING);
@@ -256,11 +269,16 @@ struct task_struct *kthread_create_on_node(int (*threadfn)(void *data),
 }
 EXPORT_SYMBOL(kthread_create_on_node);
 
-static void __kthread_bind(struct task_struct *p, unsigned int cpu)
+static void __kthread_bind(struct task_struct *p, unsigned int cpu, long state)
 {
+	/* Must have done schedule() in kthread() before we set_task_cpu */
+	if (!wait_task_inactive(p, state)) {
+		WARN_ON(1);
+		return;
+	}
 	/* It's safe because the task is inactive. */
 	do_set_cpus_allowed(p, cpumask_of(cpu));
-	p->flags |= PF_THREAD_BOUND;
+	p->flags |= PF_NO_SETAFFINITY;
 }
 
 /**
@@ -274,12 +292,7 @@ static void __kthread_bind(struct task_struct *p, unsigned int cpu)
  */
 void kthread_bind(struct task_struct *p, unsigned int cpu)
 {
-	/* Must have done schedule() in kthread() before we set_task_cpu */
-	if (!wait_task_inactive(p, TASK_UNINTERRUPTIBLE)) {
-		WARN_ON(1);
-		return;
-	}
-	__kthread_bind(p, cpu);
+	__kthread_bind(p, cpu, TASK_UNINTERRUPTIBLE);
 }
 EXPORT_SYMBOL(kthread_bind);
 
@@ -311,17 +324,20 @@ struct task_struct *kthread_create_on_cpu(int (*threadfn)(void *data),
 	return p;
 }
 
-static struct kthread *task_get_live_kthread(struct task_struct *k)
+static void __kthread_unpark(struct task_struct *k, struct kthread *kthread)
 {
-	struct kthread *kthread;
-
-	get_task_struct(k);
-	kthread = to_kthread(k);
-	/* It might have exited */
-	barrier();
-	if (k->vfork_done != NULL)
-		return kthread;
-	return NULL;
+	clear_bit(KTHREAD_SHOULD_PARK, &kthread->flags);
+	/*
+	 * We clear the IS_PARKED bit here as we don't wait
+	 * until the task has left the park code. So if we'd
+	 * park before that happens we'd see the IS_PARKED bit
+	 * which might be about to be cleared.
+	 */
+	if (test_and_clear_bit(KTHREAD_IS_PARKED, &kthread->flags)) {
+		if (test_bit(KTHREAD_IS_PER_CPU, &kthread->flags))
+			__kthread_bind(k, kthread->cpu, TASK_PARKED);
+		wake_up_state(k, TASK_PARKED);
+	}
 }
 
 /**
@@ -334,23 +350,10 @@ static struct kthread *task_get_live_kthread(struct task_struct *k)
  */
 void kthread_unpark(struct task_struct *k)
 {
-	struct kthread *kthread = task_get_live_kthread(k);
+	struct kthread *kthread = to_live_kthread(k);
 
-	if (kthread) {
-		clear_bit(KTHREAD_SHOULD_PARK, &kthread->flags);
-		/*
-		 * We clear the IS_PARKED bit here as we don't wait
-		 * until the task has left the park code. So if we'd
-		 * park before that happens we'd see the IS_PARKED bit
-		 * which might be about to be cleared.
-		 */
-		if (test_and_clear_bit(KTHREAD_IS_PARKED, &kthread->flags)) {
-			if (test_bit(KTHREAD_IS_PER_CPU, &kthread->flags))
-				__kthread_bind(k, kthread->cpu);
-			wake_up_process(k);
-		}
-	}
-	put_task_struct(k);
+	if (kthread)
+		__kthread_unpark(k, kthread);
 }
 
 /**
@@ -367,7 +370,7 @@ void kthread_unpark(struct task_struct *k)
  */
 int kthread_park(struct task_struct *k)
 {
-	struct kthread *kthread = task_get_live_kthread(k);
+	struct kthread *kthread = to_live_kthread(k);
 	int ret = -ENOSYS;
 
 	if (kthread) {
@@ -380,7 +383,6 @@ int kthread_park(struct task_struct *k)
 		}
 		ret = 0;
 	}
-	put_task_struct(k);
 	return ret;
 }
 
@@ -401,21 +403,23 @@ int kthread_park(struct task_struct *k)
  */
 int kthread_stop(struct task_struct *k)
 {
-	struct kthread *kthread = task_get_live_kthread(k);
+	struct kthread *kthread;
 	int ret;
 
 	trace_sched_kthread_stop(k);
+
+	get_task_struct(k);
+	kthread = to_live_kthread(k);
 	if (kthread) {
 		set_bit(KTHREAD_SHOULD_STOP, &kthread->flags);
-		clear_bit(KTHREAD_SHOULD_PARK, &kthread->flags);
+		__kthread_unpark(k, kthread);
 		wake_up_process(k);
 		wait_for_completion(&kthread->exited);
 	}
 	ret = k->exit_code;
-
 	put_task_struct(k);
-	trace_sched_kthread_stop_ret(ret);
 
+	trace_sched_kthread_stop_ret(ret);
 	return ret;
 }
 EXPORT_SYMBOL(kthread_stop);

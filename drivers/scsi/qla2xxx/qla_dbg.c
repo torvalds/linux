@@ -15,6 +15,7 @@
  * | Mailbox commands             |       0x115b       | 0x111a-0x111b  |
  * |                              |                    | 0x112c-0x112e  |
  * |                              |                    | 0x113a         |
+ * |                              |                    | 0x1155-0x1158  |
  * | Device Discovery             |       0x2087       | 0x2020-0x2022, |
  * |                              |                    | 0x2016         |
  * | Queue Command and IO tracing |       0x3031       | 0x3006-0x300b  |
@@ -401,7 +402,7 @@ qla2xxx_copy_atioqueues(struct qla_hw_data *ha, void *ptr,
 		void *ring;
 	} aq, *aqp;
 
-	if (!ha->tgt.atio_q_length)
+	if (!ha->tgt.atio_ring)
 		return ptr;
 
 	num_queues = 1;

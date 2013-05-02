@@ -14,7 +14,6 @@
 
 #include <asm/glue.h>
 
-#define TLB_V3_PAGE	(1 << 0)
 #define TLB_V4_U_PAGE	(1 << 1)
 #define TLB_V4_D_PAGE	(1 << 2)
 #define TLB_V4_I_PAGE	(1 << 3)
@@ -22,7 +21,6 @@
 #define TLB_V6_D_PAGE	(1 << 5)
 #define TLB_V6_I_PAGE	(1 << 6)
 
-#define TLB_V3_FULL	(1 << 8)
 #define TLB_V4_U_FULL	(1 << 9)
 #define TLB_V4_D_FULL	(1 << 10)
 #define TLB_V4_I_FULL	(1 << 11)
@@ -34,10 +32,13 @@
 #define TLB_V6_D_ASID	(1 << 17)
 #define TLB_V6_I_ASID	(1 << 18)
 
+#define TLB_V6_BP	(1 << 19)
+
 /* Unified Inner Shareable TLB operations (ARMv7 MP extensions) */
-#define TLB_V7_UIS_PAGE	(1 << 19)
-#define TLB_V7_UIS_FULL (1 << 20)
-#define TLB_V7_UIS_ASID (1 << 21)
+#define TLB_V7_UIS_PAGE	(1 << 20)
+#define TLB_V7_UIS_FULL (1 << 21)
+#define TLB_V7_UIS_ASID (1 << 22)
+#define TLB_V7_UIS_BP	(1 << 23)
 
 #define TLB_BARRIER	(1 << 28)
 #define TLB_L2CLEAN_FR	(1 << 29)		/* Feroceon */
@@ -49,7 +50,6 @@
  *	=============
  *
  *	We have the following to choose from:
- *	  v3    - ARMv3
  *	  v4    - ARMv4 without write buffer
  *	  v4wb  - ARMv4 with write buffer without I TLB flush entry instruction
  *	  v4wbi - ARMv4 with write buffer with I TLB flush entry instruction
@@ -150,7 +150,8 @@
 #define v6wbi_tlb_flags (TLB_WB | TLB_DCLEAN | TLB_BARRIER | \
 			 TLB_V6_I_FULL | TLB_V6_D_FULL | \
 			 TLB_V6_I_PAGE | TLB_V6_D_PAGE | \
-			 TLB_V6_I_ASID | TLB_V6_D_ASID)
+			 TLB_V6_I_ASID | TLB_V6_D_ASID | \
+			 TLB_V6_BP)
 
 #ifdef CONFIG_CPU_TLB_V6
 # define v6wbi_possible_flags	v6wbi_tlb_flags
@@ -166,9 +167,11 @@
 #endif
 
 #define v7wbi_tlb_flags_smp	(TLB_WB | TLB_DCLEAN | TLB_BARRIER | \
-			 TLB_V7_UIS_FULL | TLB_V7_UIS_PAGE | TLB_V7_UIS_ASID)
+				 TLB_V7_UIS_FULL | TLB_V7_UIS_PAGE | \
+				 TLB_V7_UIS_ASID | TLB_V7_UIS_BP)
 #define v7wbi_tlb_flags_up	(TLB_WB | TLB_DCLEAN | TLB_BARRIER | \
-			 TLB_V6_U_FULL | TLB_V6_U_PAGE | TLB_V6_U_ASID)
+				 TLB_V6_U_FULL | TLB_V6_U_PAGE | \
+				 TLB_V6_U_ASID | TLB_V6_BP)
 
 #ifdef CONFIG_CPU_TLB_V7
 
@@ -324,7 +327,6 @@ static inline void local_flush_tlb_all(void)
 	if (tlb_flag(TLB_WB))
 		dsb();
 
-	tlb_op(TLB_V3_FULL, "c6, c0, 0", zero);
 	tlb_op(TLB_V4_U_FULL | TLB_V6_U_FULL, "c8, c7, 0", zero);
 	tlb_op(TLB_V4_D_FULL | TLB_V6_D_FULL, "c8, c6, 0", zero);
 	tlb_op(TLB_V4_I_FULL | TLB_V6_I_FULL, "c8, c5, 0", zero);
@@ -345,9 +347,8 @@ static inline void local_flush_tlb_mm(struct mm_struct *mm)
 	if (tlb_flag(TLB_WB))
 		dsb();
 
-	if (possible_tlb_flags & (TLB_V3_FULL|TLB_V4_U_FULL|TLB_V4_D_FULL|TLB_V4_I_FULL)) {
+	if (possible_tlb_flags & (TLB_V4_U_FULL|TLB_V4_D_FULL|TLB_V4_I_FULL)) {
 		if (cpumask_test_cpu(get_cpu(), mm_cpumask(mm))) {
-			tlb_op(TLB_V3_FULL, "c6, c0, 0", zero);
 			tlb_op(TLB_V4_U_FULL, "c8, c7, 0", zero);
 			tlb_op(TLB_V4_D_FULL, "c8, c6, 0", zero);
 			tlb_op(TLB_V4_I_FULL, "c8, c5, 0", zero);
@@ -379,9 +380,8 @@ local_flush_tlb_page(struct vm_area_struct *vma, unsigned long uaddr)
 	if (tlb_flag(TLB_WB))
 		dsb();
 
-	if (possible_tlb_flags & (TLB_V3_PAGE|TLB_V4_U_PAGE|TLB_V4_D_PAGE|TLB_V4_I_PAGE|TLB_V4_I_FULL) &&
+	if (possible_tlb_flags & (TLB_V4_U_PAGE|TLB_V4_D_PAGE|TLB_V4_I_PAGE|TLB_V4_I_FULL) &&
 	    cpumask_test_cpu(smp_processor_id(), mm_cpumask(vma->vm_mm))) {
-		tlb_op(TLB_V3_PAGE, "c6, c0, 0", uaddr);
 		tlb_op(TLB_V4_U_PAGE, "c8, c7, 1", uaddr);
 		tlb_op(TLB_V4_D_PAGE, "c8, c6, 1", uaddr);
 		tlb_op(TLB_V4_I_PAGE, "c8, c5, 1", uaddr);
@@ -412,7 +412,6 @@ static inline void local_flush_tlb_kernel_page(unsigned long kaddr)
 	if (tlb_flag(TLB_WB))
 		dsb();
 
-	tlb_op(TLB_V3_PAGE, "c6, c0, 0", kaddr);
 	tlb_op(TLB_V4_U_PAGE, "c8, c7, 1", kaddr);
 	tlb_op(TLB_V4_D_PAGE, "c8, c6, 1", kaddr);
 	tlb_op(TLB_V4_I_PAGE, "c8, c5, 1", kaddr);
@@ -429,6 +428,35 @@ static inline void local_flush_tlb_kernel_page(unsigned long kaddr)
 		isb();
 	}
 }
+
+static inline void local_flush_bp_all(void)
+{
+	const int zero = 0;
+	const unsigned int __tlb_flag = __cpu_tlb_flags;
+
+	if (tlb_flag(TLB_V7_UIS_BP))
+		asm("mcr p15, 0, %0, c7, c1, 6" : : "r" (zero));
+	else if (tlb_flag(TLB_V6_BP))
+		asm("mcr p15, 0, %0, c7, c5, 6" : : "r" (zero));
+
+	if (tlb_flag(TLB_BARRIER))
+		isb();
+}
+
+#ifdef CONFIG_ARM_ERRATA_798181
+static inline void dummy_flush_tlb_a15_erratum(void)
+{
+	/*
+	 * Dummy TLBIMVAIS. Using the unmapped address 0 and ASID 0.
+	 */
+	asm("mcr p15, 0, %0, c8, c3, 1" : : "r" (0));
+	dsb();
+}
+#else
+static inline void dummy_flush_tlb_a15_erratum(void)
+{
+}
+#endif
 
 /*
  *	flush_pmd_entry
@@ -480,6 +508,7 @@ static inline void clean_pmd_entry(void *pmd)
 #define flush_tlb_kernel_page	local_flush_tlb_kernel_page
 #define flush_tlb_range		local_flush_tlb_range
 #define flush_tlb_kernel_range	local_flush_tlb_kernel_range
+#define flush_bp_all		local_flush_bp_all
 #else
 extern void flush_tlb_all(void);
 extern void flush_tlb_mm(struct mm_struct *mm);
@@ -487,6 +516,7 @@ extern void flush_tlb_page(struct vm_area_struct *vma, unsigned long uaddr);
 extern void flush_tlb_kernel_page(unsigned long kaddr);
 extern void flush_tlb_range(struct vm_area_struct *vma, unsigned long start, unsigned long end);
 extern void flush_tlb_kernel_range(unsigned long start, unsigned long end);
+extern void flush_bp_all(void);
 #endif
 
 /*

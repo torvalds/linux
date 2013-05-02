@@ -869,7 +869,7 @@ init_idx_addr_latched(struct nvbios_init *init)
 		init->offset += 2;
 
 		init_wr32(init, dreg, idata);
-		init_mask(init, creg, ~mask, data | idata);
+		init_mask(init, creg, ~mask, data | iaddr);
 	}
 }
 

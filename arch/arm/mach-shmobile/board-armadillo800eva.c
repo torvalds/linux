@@ -169,7 +169,7 @@ static int usbhsf_get_id(struct platform_device *pdev)
 	return USBHS_GADGET;
 }
 
-static void usbhsf_power_ctrl(struct platform_device *pdev,
+static int usbhsf_power_ctrl(struct platform_device *pdev,
 			      void __iomem *base, int enable)
 {
 	struct usbhsf_private *priv = usbhsf_get_priv(pdev);
@@ -223,6 +223,8 @@ static void usbhsf_power_ctrl(struct platform_device *pdev,
 		clk_disable(priv->pci);		/* usb work around */
 		clk_disable(priv->usb24);	/* usb work around */
 	}
+
+	return 0;
 }
 
 static int usbhsf_get_vbus(struct platform_device *pdev)
@@ -239,7 +241,7 @@ static irqreturn_t usbhsf_interrupt(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static void usbhsf_hardware_exit(struct platform_device *pdev)
+static int usbhsf_hardware_exit(struct platform_device *pdev)
 {
 	struct usbhsf_private *priv = usbhsf_get_priv(pdev);
 
@@ -264,6 +266,8 @@ static void usbhsf_hardware_exit(struct platform_device *pdev)
 	priv->usbh_base	= NULL;
 
 	free_irq(IRQ7, pdev);
+
+	return 0;
 }
 
 static int usbhsf_hardware_init(struct platform_device *pdev)

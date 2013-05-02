@@ -117,9 +117,9 @@ typedef enum
     UNIFI_TRAFFIC_Q_BE,
     UNIFI_TRAFFIC_Q_VI,
     UNIFI_TRAFFIC_Q_VO,
-    UNIFI_TRAFFIC_Q_EAPOL,    /* Non existant in HIP */
-    UNIFI_TRAFFIC_Q_MAX,      /* Non existant */
-    UNIFI_TRAFFIC_Q_MLME      /* Non existant */
+    UNIFI_TRAFFIC_Q_EAPOL,    /* Non existent in HIP */
+    UNIFI_TRAFFIC_Q_MAX,      /* Non existent */
+    UNIFI_TRAFFIC_Q_MLME      /* Non existent */
 } unifi_TrafficQueue;
 
 /*
@@ -263,7 +263,7 @@ card_t* unifi_alloc_card(CsrSdioFunction *sdiopriv, void *ospriv);
  *
  * @return \b 0 if UniFi is initialized.
  *
- * @return \b -CSR_EIO if an I/O error occured while initializing UniFi
+ * @return \b -CSR_EIO if an I/O error occurred while initializing UniFi
  *
  * @return \b -CSR_ENODEV if the card is no longer present.
  *
@@ -311,7 +311,7 @@ void unifi_cancel_pending_signals(card_t *card);
  *
  * @return \b 0 signal is sent.
  *
- * @return \b -CSR_EIO if an error occured while sending the signal
+ * @return \b -CSR_EIO if an error occurred while sending the signal
  *
  * @return \b -CSR_ENODEV if the card is no longer present.
  *
@@ -361,7 +361,7 @@ void unifi_card_info(card_t *card, card_info_t *card_info);
  *
  * @return \b 0 if the check was performed.
  *
- * @return \b -CSR_EIO if an error occured while checking the status.
+ * @return \b -CSR_EIO if an error occurred while checking the status.
  *
  * @return \b -CSR_ENODEV if the card is no longer present.
  *
@@ -383,11 +383,11 @@ CsrResult unifi_check_io_status(card_t *card, s32 *status);
  * is required. If unifi_bh() is called before the timeout expires,
  * the caller must pass in the remaining time.
  *
- * @return \b 0 if no error occured.
+ * @return \b 0 if no error occurred.
  *
  * @return \b -CSR_ENODEV if the card is no longer present.
  *
- * @return \b -CSR_E* if an error occured while running the bottom half.
+ * @return \b -CSR_E* if an error occurred while running the bottom half.
  *
  * @ingroup upperedge
  */
@@ -439,7 +439,7 @@ enum unifi_periodic_wake_mode
  *
  * @param periodic_wake_mode the Periodic Wake Mode.
  *
- * @return \b 0 if no error occured.
+ * @return \b 0 if no error occurred.
  *
  * @return \b -CSR_E* if the request failed.
  *
@@ -458,7 +458,7 @@ CsrResult unifi_configure_low_power_mode(card_t                       *card,
  *
  * @param card the HIP core lib API context.
  *
- * @return \b 0 if no error occured.
+ * @return \b 0 if no error occurred.
  *
  * @return \b -CSR_ENODEV if the card is no longer present.
  *

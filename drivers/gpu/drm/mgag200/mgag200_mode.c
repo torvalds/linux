@@ -382,19 +382,19 @@ static int mga_g200eh_set_plls(struct mga_device *mdev, long clock)
 	m = n = p = 0;
 	vcomax = 800000;
 	vcomin = 400000;
-	pllreffreq = 3333;
+	pllreffreq = 33333;
 
 	delta = 0xffffffff;
 	permitteddelta = clock * 5 / 1000;
 
-	for (testp = 16; testp > 0; testp--) {
+	for (testp = 16; testp > 0; testp >>= 1) {
 		if (clock * testp > vcomax)
 			continue;
 		if (clock * testp < vcomin)
 			continue;
 
 		for (testm = 1; testm < 33; testm++) {
-			for (testn = 1; testn < 257; testn++) {
+			for (testn = 17; testn < 257; testn++) {
 				computed = (pllreffreq * testn) /
 					(testm * testp);
 				if (computed > clock)
@@ -404,11 +404,11 @@ static int mga_g200eh_set_plls(struct mga_device *mdev, long clock)
 				if (tmpdelta < delta) {
 					delta = tmpdelta;
 					n = testn - 1;
-					m = (testm - 1) | ((n >> 1) & 0x80);
+					m = (testm - 1);
 					p = testp - 1;
 				}
 				if ((clock * testp) >= 600000)
-					p |= 80;
+					p |= 0x80;
 			}
 		}
 	}
@@ -751,8 +751,6 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 	int i;
 	unsigned char misc = 0;
 	unsigned char ext_vga[6];
-	unsigned char ext_vga_index24;
-	unsigned char dac_index90 = 0;
 	u8 bppshift;
 
 	static unsigned char dacvalue[] = {
@@ -803,7 +801,6 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 		option2 = 0x0000b000;
 		break;
 	case G200_ER:
-		dac_index90 = 0;
 		break;
 	}
 
@@ -852,10 +849,8 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 		WREG_DAC(i, dacvalue[i]);
 	}
 
-	if (mdev->type == G200_ER) {
-		WREG_DAC(0x90, dac_index90);
-	}
-
+	if (mdev->type == G200_ER)
+		WREG_DAC(0x90, 0);
 
 	if (option)
 		pci_write_config_dword(dev->pdev, PCI_MGA_OPTION, option);
@@ -952,8 +947,6 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 	if (mdev->type == G200_WB)
 		ext_vga[1] |= 0x88;
 
-	ext_vga_index24 = 0x05;
-
 	/* Set pixel clocks */
 	misc = 0x2d;
 	WREG8(MGA_MISC_OUT, misc);
@@ -965,7 +958,7 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 	}
 
 	if (mdev->type == G200_ER)
-		WREG_ECRT(24, ext_vga_index24);
+		WREG_ECRT(0x24, 0x5);
 
 	if (mdev->type == G200_EV) {
 		WREG_ECRT(6, 0);
@@ -1406,12 +1399,39 @@ static int mga_vga_get_modes(struct drm_connector *connector)
 static int mga_vga_mode_valid(struct drm_connector *connector,
 				 struct drm_display_mode *mode)
 {
+	struct drm_device *dev = connector->dev;
+	struct mga_device *mdev = (struct mga_device*)dev->dev_private;
+	struct mga_fbdev *mfbdev = mdev->mfbdev;
+	struct drm_fb_helper *fb_helper = &mfbdev->helper;
+	struct drm_fb_helper_connector *fb_helper_conn = NULL;
+	int bpp = 32;
+	int i = 0;
+
 	/* FIXME: Add bandwidth and g200se limitations */
 
 	if (mode->crtc_hdisplay > 2048 || mode->crtc_hsync_start > 4096 ||
 	    mode->crtc_hsync_end > 4096 || mode->crtc_htotal > 4096 ||
 	    mode->crtc_vdisplay > 2048 || mode->crtc_vsync_start > 4096 ||
 	    mode->crtc_vsync_end > 4096 || mode->crtc_vtotal > 4096) {
+		return MODE_BAD;
+	}
+
+	/* Validate the mode input by the user */
+	for (i = 0; i < fb_helper->connector_count; i++) {
+		if (fb_helper->connector_info[i]->connector == connector) {
+			/* Found the helper for this connector */
+			fb_helper_conn = fb_helper->connector_info[i];
+			if (fb_helper_conn->cmdline_mode.specified) {
+				if (fb_helper_conn->cmdline_mode.bpp_specified) {
+					bpp = fb_helper_conn->cmdline_mode.bpp;
+				}
+			}
+		}
+	}
+
+	if ((mode->hdisplay * mode->vdisplay * (bpp/8)) > mdev->mc.vram_size) {
+		if (fb_helper_conn)
+			fb_helper_conn->cmdline_mode.specified = false;
 		return MODE_BAD;
 	}
 

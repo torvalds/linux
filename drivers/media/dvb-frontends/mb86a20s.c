@@ -610,7 +610,7 @@ static void mb86a20s_layer_bitrate(struct dvb_frontend *fe, u32 layer,
 	       __func__, 'A' + layer, segment * isdbt_rate[m][f][i]/1000,
 		rate, rate);
 
-	state->estimated_rate[i] = rate;
+	state->estimated_rate[layer] = rate;
 }
 
 

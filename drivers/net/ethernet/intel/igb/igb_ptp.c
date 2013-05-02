@@ -740,7 +740,7 @@ void igb_ptp_init(struct igb_adapter *adapter)
 	case e1000_82576:
 		snprintf(adapter->ptp_caps.name, 16, "%pm", netdev->dev_addr);
 		adapter->ptp_caps.owner = THIS_MODULE;
-		adapter->ptp_caps.max_adj = 1000000000;
+		adapter->ptp_caps.max_adj = 999999881;
 		adapter->ptp_caps.n_ext_ts = 0;
 		adapter->ptp_caps.pps = 0;
 		adapter->ptp_caps.adjfreq = igb_ptp_adjfreq_82576;

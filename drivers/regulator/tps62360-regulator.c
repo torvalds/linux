@@ -278,7 +278,7 @@ static int tps62360_init_dcdc(struct tps62360_chip *tps,
 			__func__, REG_RAMPCTRL, ret);
 		return ret;
 	}
-	ramp_ctrl = (ramp_ctrl >> 4) & 0x7;
+	ramp_ctrl = (ramp_ctrl >> 5) & 0x7;
 
 	/* ramp mV/us = 32/(2^ramp_ctrl) */
 	tps->desc.ramp_delay = DIV_ROUND_UP(32000, BIT(ramp_ctrl));

@@ -22,7 +22,7 @@ config ANDROID_BINDER_IPC
 config ASHMEM
 	bool "Enable the Anonymous Shared Memory Subsystem"
 	default n
-	depends on SHMEM || TINY_SHMEM
+	depends on SHMEM
 	---help---
 	  The ashmem subsystem is a new shared memory allocator, similar to
 	  POSIX SHM but with different behavior and sporting a simpler
@@ -71,6 +71,33 @@ config ANDROID_INTF_ALARM_DEV
 	  Provides non-wakeup and rtc backed wakeup alarms based on rtc or
 	  elapsed realtime, and a non-wakeup alarm on the monotonic clock.
 	  Also exports the alarm interface to user-space.
+
+config SYNC
+	bool "Synchronization framework"
+	default n
+	select ANON_INODES
+	help
+	  This option enables the framework for synchronization between multiple
+	  drivers.  Sync implementations can take advantage of hardware
+	  synchronization built into devices like GPUs.
+
+config SW_SYNC
+	bool "Software synchronization objects"
+	default n
+	depends on SYNC
+	help
+	  A sync object driver that uses a 32bit counter to coordinate
+	  syncrhronization.  Useful when there is no hardware primitive backing
+	  the synchronization.
+
+config SW_SYNC_USER
+	bool "Userspace API for SW_SYNC"
+	default n
+	depends on SW_SYNC
+	help
+	  Provides a user space API to the sw sync object.
+	  *WARNING* improper use of this can result in deadlocking kernel
+	  drivers from userspace.
 
 endif # if ANDROID
 

@@ -54,7 +54,7 @@ http://archive.ericsson.net/service/internet/picov/get?DocNo=28701-EN/LZT146401
 http://archive.ericsson.net/service/internet/picov/get?DocNo=28701-EN/LZT146256
 
 
-Author: Guenter Roeck <guenter.roeck@ericsson.com>
+Author: Guenter Roeck <linux@roeck-us.net>
 
 
 Description
@@ -125,7 +125,7 @@ in2_label		"vmon"
 in2_input		Measured voltage on VMON (ZL2004) or VDRV (ZL9101M,
 			ZL9117M) pin. Reported voltage is 16x the voltage on the
 			pin (adjusted internally by the chip).
-in2_lcrit		Critical minumum VMON/VDRV Voltage.
+in2_lcrit		Critical minimum VMON/VDRV Voltage.
 in2_crit		Critical maximum VMON/VDRV voltage.
 in2_lcrit_alarm		VMON/VDRV voltage critical low alarm.
 in2_crit_alarm		VMON/VDRV voltage critical high alarm.

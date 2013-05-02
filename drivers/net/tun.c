@@ -747,6 +747,8 @@ static netdev_tx_t tun_net_xmit(struct sk_buff *skb, struct net_device *dev)
 		goto drop;
 	skb_orphan(skb);
 
+	nf_reset(skb);
+
 	/* Enqueue packet */
 	skb_queue_tail(&tfile->socket.sk->sk_receive_queue, skb);
 
@@ -1592,7 +1594,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 
 		if (tun->flags & TUN_TAP_MQ &&
 		    (tun->numqueues + tun->numdisabled > 1))
-			return err;
+			return -EBUSY;
 	}
 	else {
 		char *name;

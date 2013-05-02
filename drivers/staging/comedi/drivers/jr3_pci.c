@@ -700,16 +700,12 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 		return -EINVAL;
 		break;
 	}
-	dev->board_name = "jr3_pci";
 
-	result = comedi_pci_enable(pcidev, "jr3_pci");
-	if (result < 0)
+	result = comedi_pci_enable(dev);
+	if (result)
 		return result;
 
-	dev->iobase = 1;	/* the "detach" needs this */
-	devpriv->iobase = ioremap(pci_resource_start(pcidev, 0),
-				  offsetof(struct jr3_t,
-					   channel[devpriv->n_channels]));
+	devpriv->iobase = pci_ioremap_bar(pcidev, 0);
 	if (!devpriv->iobase)
 		return -ENOMEM;
 
@@ -816,7 +812,6 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 static void jr3_pci_detach(struct comedi_device *dev)
 {
 	int i;
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct jr3_pci_dev_private *devpriv = dev->private;
 
 	if (devpriv) {
@@ -828,9 +823,8 @@ static void jr3_pci_detach(struct comedi_device *dev)
 		}
 		if (devpriv->iobase)
 			iounmap(devpriv->iobase);
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
 	}
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver jr3_pci_driver = {
@@ -841,9 +835,9 @@ static struct comedi_driver jr3_pci_driver = {
 };
 
 static int jr3_pci_pci_probe(struct pci_dev *dev,
-				       const struct pci_device_id *ent)
+			     const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &jr3_pci_driver);
+	return comedi_pci_auto_config(dev, &jr3_pci_driver, id->driver_data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(jr3_pci_pci_table) = {

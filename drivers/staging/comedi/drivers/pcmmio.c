@@ -1034,24 +1034,14 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 	int sdev_no, chans_left, n_dio_subdevs, n_subdevs, port, asic,
 	    thisasic_chanct = 0;
-	unsigned long iobase;
 	unsigned int irq[MAX_ASICS];
 	int ret;
 
-	dev->board_name = dev->driver->driver_name;
-
-	iobase = it->options[0];
 	irq[0] = it->options[1];
 
-	printk(KERN_INFO "comedi%d: %s: io: %lx attaching...\n", dev->minor,
-			dev->board_name, iobase);
-
-	dev->iobase = iobase;
-
-	if (!iobase || !request_region(iobase, 32, dev->board_name)) {
-		printk(KERN_ERR "comedi%d: I/O port conflict\n", dev->minor);
-		return -EIO;
-	}
+	ret = comedi_request_region(dev, it->options[0], 32);
+	if (ret)
+		return ret;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
@@ -1203,13 +1193,6 @@ static int pcmmio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		devpriv->asics[asic].irq = irq[asic];
 	}
 
-	dev->irq = irq[0];	/*
-				 * grr.. wish comedi dev struct supported
-				 * multiple irqs..
-				 */
-
-	printk(KERN_INFO "comedi%d: attached\n", dev->minor);
-
 	return 1;
 }
 
@@ -1218,14 +1201,13 @@ static void pcmmio_detach(struct comedi_device *dev)
 	struct pcmmio_private *devpriv = dev->private;
 	int i;
 
-	if (dev->iobase)
-		release_region(dev->iobase, 32);
 	for (i = 0; i < MAX_ASICS; ++i) {
 		if (devpriv && devpriv->asics[i].irq)
 			free_irq(devpriv->asics[i].irq, dev);
 	}
 	if (devpriv && devpriv->sprivs)
 		kfree(devpriv->sprivs);
+	comedi_legacy_detach(dev);
 }
 
 static struct comedi_driver pcmmio_driver = {

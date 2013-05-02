@@ -80,6 +80,7 @@
 #include <linux/slab.h>
 #include <linux/pstore.h>
 #include <linux/ctype.h>
+#include <linux/ucs2_string.h>
 
 #include <linux/fs.h>
 #include <linux/ramfs.h>
@@ -102,6 +103,11 @@ MODULE_VERSION(EFIVARS_VERSION);
  * not including trailing NUL
  */
 #define GUID_LEN 36
+
+static bool efivars_pstore_disable =
+	IS_ENABLED(CONFIG_EFI_VARS_PSTORE_DEFAULT_DISABLE);
+
+module_param_named(pstore_disable, efivars_pstore_disable, bool, 0644);
 
 /*
  * The maximum size of VariableName + Data = 1024
@@ -165,51 +171,7 @@ efivar_create_sysfs_entry(struct efivars *efivars,
 
 static void efivar_update_sysfs_entries(struct work_struct *);
 static DECLARE_WORK(efivar_work, efivar_update_sysfs_entries);
-
-/* Return the number of unicode characters in data */
-static unsigned long
-utf16_strnlen(efi_char16_t *s, size_t maxlength)
-{
-	unsigned long length = 0;
-
-	while (*s++ != 0 && length < maxlength)
-		length++;
-	return length;
-}
-
-static inline unsigned long
-utf16_strlen(efi_char16_t *s)
-{
-	return utf16_strnlen(s, ~0UL);
-}
-
-/*
- * Return the number of bytes is the length of this string
- * Note: this is NOT the same as the number of unicode characters
- */
-static inline unsigned long
-utf16_strsize(efi_char16_t *data, unsigned long maxlength)
-{
-	return utf16_strnlen(data, maxlength/sizeof(efi_char16_t)) * sizeof(efi_char16_t);
-}
-
-static inline int
-utf16_strncmp(const efi_char16_t *a, const efi_char16_t *b, size_t len)
-{
-	while (1) {
-		if (len == 0)
-			return 0;
-		if (*a < *b)
-			return -1;
-		if (*a > *b)
-			return 1;
-		if (*a == 0) /* implies *b == 0 */
-			return 0;
-		a++;
-		b++;
-		len--;
-	}
-}
+static bool efivar_wq_enabled = true;
 
 static bool
 validate_device_path(struct efi_variable *var, int match, u8 *buffer,
@@ -262,7 +224,7 @@ validate_load_option(struct efi_variable *var, int match, u8 *buffer,
 	u16 filepathlength;
 	int i, desclength = 0, namelen;
 
-	namelen = utf16_strnlen(var->VariableName, sizeof(var->VariableName));
+	namelen = ucs2_strnlen(var->VariableName, sizeof(var->VariableName));
 
 	/* Either "Boot" or "Driver" followed by four digits of hex */
 	for (i = match; i < match+4; i++) {
@@ -285,7 +247,7 @@ validate_load_option(struct efi_variable *var, int match, u8 *buffer,
 	 * There's no stored length for the description, so it has to be
 	 * found by hand
 	 */
-	desclength = utf16_strsize((efi_char16_t *)(buffer + 6), len - 6) + 2;
+	desclength = ucs2_strsize((efi_char16_t *)(buffer + 6), len - 6) + 2;
 
 	/* Each boot entry must have a descriptor */
 	if (!desclength)
@@ -426,6 +388,32 @@ get_var_data(struct efivars *efivars, struct efi_variable *var)
 	return status;
 }
 
+static efi_status_t
+check_var_size_locked(struct efivars *efivars, u32 attributes,
+			unsigned long size)
+{
+	const struct efivar_operations *fops = efivars->ops;
+
+	if (!efivars->ops->query_variable_store)
+		return EFI_UNSUPPORTED;
+
+	return fops->query_variable_store(attributes, size);
+}
+
+
+static efi_status_t
+check_var_size(struct efivars *efivars, u32 attributes, unsigned long size)
+{
+	efi_status_t status;
+	unsigned long flags;
+
+	spin_lock_irqsave(&efivars->lock, flags);
+	status = check_var_size_locked(efivars, attributes, size);
+	spin_unlock_irqrestore(&efivars->lock, flags);
+
+	return status;
+}
+
 static ssize_t
 efivar_guid_read(struct efivar_entry *entry, char *buf)
 {
@@ -547,11 +535,16 @@ efivar_store_raw(struct efivar_entry *entry, const char *buf, size_t count)
 	}
 
 	spin_lock_irq(&efivars->lock);
-	status = efivars->ops->set_variable(new_var->VariableName,
-					    &new_var->VendorGuid,
-					    new_var->Attributes,
-					    new_var->DataSize,
-					    new_var->Data);
+
+	status = check_var_size_locked(efivars, new_var->Attributes,
+	       new_var->DataSize + ucs2_strsize(new_var->VariableName, 1024));
+
+	if (status == EFI_SUCCESS || status == EFI_UNSUPPORTED)
+		status = efivars->ops->set_variable(new_var->VariableName,
+						    &new_var->VendorGuid,
+						    new_var->Attributes,
+						    new_var->DataSize,
+						    new_var->Data);
 
 	spin_unlock_irq(&efivars->lock);
 
@@ -702,8 +695,7 @@ static ssize_t efivarfs_file_write(struct file *file,
 	u32 attributes;
 	struct inode *inode = file->f_mapping->host;
 	unsigned long datasize = count - sizeof(attributes);
-	unsigned long newdatasize;
-	u64 storage_size, remaining_size, max_size;
+	unsigned long newdatasize, varsize;
 	ssize_t bytes = 0;
 
 	if (count < sizeof(attributes))
@@ -722,27 +714,17 @@ static ssize_t efivarfs_file_write(struct file *file,
 	 * amounts of memory. Pick a default size of 64K if
 	 * QueryVariableInfo() isn't supported by the firmware.
 	 */
-	spin_lock_irq(&efivars->lock);
 
-	if (!efivars->ops->query_variable_info)
-		status = EFI_UNSUPPORTED;
-	else {
-		const struct efivar_operations *fops = efivars->ops;
-		status = fops->query_variable_info(attributes, &storage_size,
-						   &remaining_size, &max_size);
-	}
-
-	spin_unlock_irq(&efivars->lock);
+	varsize = datasize + ucs2_strsize(var->var.VariableName, 1024);
+	status = check_var_size(efivars, attributes, varsize);
 
 	if (status != EFI_SUCCESS) {
 		if (status != EFI_UNSUPPORTED)
 			return efi_status_to_err(status);
 
-		remaining_size = 65536;
+		if (datasize > 65536)
+			return -ENOSPC;
 	}
-
-	if (datasize > remaining_size)
-		return -ENOSPC;
 
 	data = kmalloc(datasize, GFP_KERNEL);
 	if (!data)
@@ -764,6 +746,19 @@ static ssize_t efivarfs_file_write(struct file *file,
 	 * list (in the case of an authenticated delete).
 	 */
 	spin_lock_irq(&efivars->lock);
+
+	/*
+	 * Ensure that the available space hasn't shrunk below the safe level
+	 */
+
+	status = check_var_size_locked(efivars, attributes, varsize);
+
+	if (status != EFI_SUCCESS && status != EFI_UNSUPPORTED) {
+		spin_unlock_irq(&efivars->lock);
+		kfree(data);
+
+		return efi_status_to_err(status);
+	}
 
 	status = efivars->ops->set_variable(var->var.VariableName,
 					    &var->var.VendorGuid,
@@ -929,8 +924,8 @@ static bool efivarfs_valid_name(const char *str, int len)
 	if (len < GUID_LEN + 2)
 		return false;
 
-	/* GUID should be right after the first '-' */
-	if (s - 1 != strchr(str, '-'))
+	/* GUID must be preceded by a '-' */
+	if (*(s - 1) != '-')
 		return false;
 
 	/*
@@ -1118,15 +1113,22 @@ static struct dentry_operations efivarfs_d_ops = {
 
 static struct dentry *efivarfs_alloc_dentry(struct dentry *parent, char *name)
 {
+	struct dentry *d;
 	struct qstr q;
+	int err;
 
 	q.name = name;
 	q.len = strlen(name);
 
-	if (efivarfs_d_hash(NULL, NULL, &q))
-		return NULL;
+	err = efivarfs_d_hash(NULL, NULL, &q);
+	if (err)
+		return ERR_PTR(err);
 
-	return d_alloc(parent, &q);
+	d = d_alloc(parent, &q);
+	if (d)
+		return d;
+
+	return ERR_PTR(-ENOMEM);
 }
 
 static int efivarfs_fill_super(struct super_block *sb, void *data, int silent)
@@ -1136,6 +1138,7 @@ static int efivarfs_fill_super(struct super_block *sb, void *data, int silent)
 	struct efivar_entry *entry, *n;
 	struct efivars *efivars = &__efivars;
 	char *name;
+	int err = -ENOMEM;
 
 	efivarfs_sb = sb;
 
@@ -1164,7 +1167,7 @@ static int efivarfs_fill_super(struct super_block *sb, void *data, int silent)
 
 		inode = NULL;
 
-		len = utf16_strlen(entry->var.VariableName);
+		len = ucs2_strlen(entry->var.VariableName);
 
 		/* name, plus '-', plus GUID, plus NUL*/
 		name = kmalloc(len + 1 + GUID_LEN + 1, GFP_ATOMIC);
@@ -1186,8 +1189,10 @@ static int efivarfs_fill_super(struct super_block *sb, void *data, int silent)
 			goto fail_name;
 
 		dentry = efivarfs_alloc_dentry(root, name);
-		if (!dentry)
+		if (IS_ERR(dentry)) {
+			err = PTR_ERR(dentry);
 			goto fail_inode;
+		}
 
 		/* copied by the above to local storage in the dentry. */
 		kfree(name);
@@ -1214,7 +1219,7 @@ fail_inode:
 fail_name:
 	kfree(name);
 fail:
-	return -ENOMEM;
+	return err;
 }
 
 static struct dentry *efivarfs_mount(struct file_system_type *fs_type,
@@ -1234,6 +1239,7 @@ static struct file_system_type efivarfs_type = {
 	.mount   = efivarfs_mount,
 	.kill_sb = efivarfs_kill_sb,
 };
+MODULE_ALIAS_FS("efivarfs");
 
 /*
  * Handle negative dentry.
@@ -1253,9 +1259,7 @@ static const struct inode_operations efivarfs_dir_inode_operations = {
 	.create = efivarfs_create,
 };
 
-static struct pstore_info efi_pstore_info;
-
-#ifdef CONFIG_PSTORE
+#ifdef CONFIG_EFI_VARS_PSTORE
 
 static int efi_pstore_open(struct pstore_info *psi)
 {
@@ -1345,7 +1349,6 @@ static int efi_pstore_write(enum pstore_type_id type,
 	efi_guid_t vendor = LINUX_EFI_CRASH_GUID;
 	struct efivars *efivars = psi->data;
 	int i, ret = 0;
-	u64 storage_space, remaining_space, max_variable_size;
 	efi_status_t status = EFI_NOT_FOUND;
 	unsigned long flags;
 
@@ -1365,11 +1368,11 @@ static int efi_pstore_write(enum pstore_type_id type,
 	 * size: a size of logging data
 	 * DUMP_NAME_LEN * 2: a maximum size of variable name
 	 */
-	status = efivars->ops->query_variable_info(PSTORE_EFI_ATTRIBUTES,
-						   &storage_space,
-						   &remaining_space,
-						   &max_variable_size);
-	if (status || remaining_space < size + DUMP_NAME_LEN * 2) {
+
+	status = check_var_size_locked(efivars, PSTORE_EFI_ATTRIBUTES,
+					 size + DUMP_NAME_LEN * 2);
+
+	if (status) {
 		spin_unlock_irqrestore(&efivars->lock, flags);
 		*id = part;
 		return -ENOSPC;
@@ -1386,7 +1389,7 @@ static int efi_pstore_write(enum pstore_type_id type,
 
 	spin_unlock_irqrestore(&efivars->lock, flags);
 
-	if (reason == KMSG_DUMP_OOPS)
+	if (reason == KMSG_DUMP_OOPS && efivar_wq_enabled)
 		schedule_work(&efivar_work);
 
 	*id = part;
@@ -1422,8 +1425,8 @@ static int efi_pstore_erase(enum pstore_type_id type, u64 id, int count,
 
 		if (efi_guidcmp(entry->var.VendorGuid, vendor))
 			continue;
-		if (utf16_strncmp(entry->var.VariableName, efi_name,
-				  utf16_strlen(efi_name))) {
+		if (ucs2_strncmp(entry->var.VariableName, efi_name,
+				  ucs2_strlen(efi_name))) {
 			/*
 			 * Check if an old format,
 			 * which doesn't support holding
@@ -1435,8 +1438,8 @@ static int efi_pstore_erase(enum pstore_type_id type, u64 id, int count,
 			for (i = 0; i < DUMP_NAME_LEN; i++)
 				efi_name_old[i] = name_old[i];
 
-			if (utf16_strncmp(entry->var.VariableName, efi_name_old,
-					  utf16_strlen(efi_name_old)))
+			if (ucs2_strncmp(entry->var.VariableName, efi_name_old,
+					  ucs2_strlen(efi_name_old)))
 				continue;
 		}
 
@@ -1459,38 +1462,6 @@ static int efi_pstore_erase(enum pstore_type_id type, u64 id, int count,
 
 	return 0;
 }
-#else
-static int efi_pstore_open(struct pstore_info *psi)
-{
-	return 0;
-}
-
-static int efi_pstore_close(struct pstore_info *psi)
-{
-	return 0;
-}
-
-static ssize_t efi_pstore_read(u64 *id, enum pstore_type_id *type, int *count,
-			       struct timespec *timespec,
-			       char **buf, struct pstore_info *psi)
-{
-	return -1;
-}
-
-static int efi_pstore_write(enum pstore_type_id type,
-		enum kmsg_dump_reason reason, u64 *id,
-		unsigned int part, int count, size_t size,
-		struct pstore_info *psi)
-{
-	return 0;
-}
-
-static int efi_pstore_erase(enum pstore_type_id type, u64 id, int count,
-			    struct timespec time, struct pstore_info *psi)
-{
-	return 0;
-}
-#endif
 
 static struct pstore_info efi_pstore_info = {
 	.owner		= THIS_MODULE,
@@ -1501,6 +1472,24 @@ static struct pstore_info efi_pstore_info = {
 	.write		= efi_pstore_write,
 	.erase		= efi_pstore_erase,
 };
+
+static void efivar_pstore_register(struct efivars *efivars)
+{
+	efivars->efi_pstore_info = efi_pstore_info;
+	efivars->efi_pstore_info.buf = kmalloc(4096, GFP_KERNEL);
+	if (efivars->efi_pstore_info.buf) {
+		efivars->efi_pstore_info.bufsize = 1024;
+		efivars->efi_pstore_info.data = efivars;
+		spin_lock_init(&efivars->efi_pstore_info.buf_lock);
+		pstore_register(&efivars->efi_pstore_info);
+	}
+}
+#else
+static void efivar_pstore_register(struct efivars *efivars)
+{
+	return;
+}
+#endif
 
 static ssize_t efivar_create(struct file *filp, struct kobject *kobj,
 			     struct bin_attribute *bin_attr,
@@ -1528,8 +1517,8 @@ static ssize_t efivar_create(struct file *filp, struct kobject *kobj,
 	 * Does this variable already exist?
 	 */
 	list_for_each_entry_safe(search_efivar, n, &efivars->list, list) {
-		strsize1 = utf16_strsize(search_efivar->var.VariableName, 1024);
-		strsize2 = utf16_strsize(new_var->VariableName, 1024);
+		strsize1 = ucs2_strsize(search_efivar->var.VariableName, 1024);
+		strsize2 = ucs2_strsize(new_var->VariableName, 1024);
 		if (strsize1 == strsize2 &&
 			!memcmp(&(search_efivar->var.VariableName),
 				new_var->VariableName, strsize1) &&
@@ -1542,6 +1531,14 @@ static ssize_t efivar_create(struct file *filp, struct kobject *kobj,
 	if (found) {
 		spin_unlock_irq(&efivars->lock);
 		return -EINVAL;
+	}
+
+	status = check_var_size_locked(efivars, new_var->Attributes,
+	       new_var->DataSize + ucs2_strsize(new_var->VariableName, 1024));
+
+	if (status && status != EFI_UNSUPPORTED) {
+		spin_unlock_irq(&efivars->lock);
+		return efi_status_to_err(status);
 	}
 
 	/* now *really* create the variable via EFI */
@@ -1561,7 +1558,7 @@ static ssize_t efivar_create(struct file *filp, struct kobject *kobj,
 
 	/* Create the entry in sysfs.  Locking is not required here */
 	status = efivar_create_sysfs_entry(efivars,
-					   utf16_strsize(new_var->VariableName,
+					   ucs2_strsize(new_var->VariableName,
 							 1024),
 					   new_var->VariableName,
 					   &new_var->VendorGuid);
@@ -1591,8 +1588,8 @@ static ssize_t efivar_delete(struct file *filp, struct kobject *kobj,
 	 * Does this variable already exist?
 	 */
 	list_for_each_entry_safe(search_efivar, n, &efivars->list, list) {
-		strsize1 = utf16_strsize(search_efivar->var.VariableName, 1024);
-		strsize2 = utf16_strsize(del_var->VariableName, 1024);
+		strsize1 = ucs2_strsize(search_efivar->var.VariableName, 1024);
+		strsize2 = ucs2_strsize(del_var->VariableName, 1024);
 		if (strsize1 == strsize2 &&
 			!memcmp(&(search_efivar->var.VariableName),
 				del_var->VariableName, strsize1) &&
@@ -1631,16 +1628,17 @@ static ssize_t efivar_delete(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static bool variable_is_present(efi_char16_t *variable_name, efi_guid_t *vendor)
+static bool variable_is_present(struct efivars *efivars,
+				efi_char16_t *variable_name,
+				efi_guid_t *vendor)
 {
 	struct efivar_entry *entry, *n;
-	struct efivars *efivars = &__efivars;
 	unsigned long strsize1, strsize2;
 	bool found = false;
 
-	strsize1 = utf16_strsize(variable_name, 1024);
+	strsize1 = ucs2_strsize(variable_name, 1024);
 	list_for_each_entry_safe(entry, n, &efivars->list, list) {
-		strsize2 = utf16_strsize(entry->var.VariableName, 1024);
+		strsize2 = ucs2_strsize(entry->var.VariableName, 1024);
 		if (strsize1 == strsize2 &&
 			!memcmp(variable_name, &(entry->var.VariableName),
 				strsize2) &&
@@ -1651,6 +1649,31 @@ static bool variable_is_present(efi_char16_t *variable_name, efi_guid_t *vendor)
 		}
 	}
 	return found;
+}
+
+/*
+ * Returns the size of variable_name, in bytes, including the
+ * terminating NULL character, or variable_name_size if no NULL
+ * character is found among the first variable_name_size bytes.
+ */
+static unsigned long var_name_strnsize(efi_char16_t *variable_name,
+				       unsigned long variable_name_size)
+{
+	unsigned long len;
+	efi_char16_t c;
+
+	/*
+	 * The variable name is, by definition, a NULL-terminated
+	 * string, so make absolutely sure that variable_name_size is
+	 * the value we expect it to be. If not, return the real size.
+	 */
+	for (len = 2; len <= variable_name_size; len += sizeof(c)) {
+		c = variable_name[(len / sizeof(c)) - 1];
+		if (!c)
+			break;
+	}
+
+	return min(len, variable_name_size);
 }
 
 static void efivar_update_sysfs_entries(struct work_struct *work)
@@ -1681,8 +1704,8 @@ static void efivar_update_sysfs_entries(struct work_struct *work)
 			if (status != EFI_SUCCESS) {
 				break;
 			} else {
-				if (!variable_is_present(variable_name,
-				    &vendor)) {
+				if (!variable_is_present(efivars,
+				    variable_name, &vendor)) {
 					found = true;
 					break;
 				}
@@ -1693,10 +1716,13 @@ static void efivar_update_sysfs_entries(struct work_struct *work)
 		if (!found) {
 			kfree(variable_name);
 			break;
-		} else
+		} else {
+			variable_name_size = var_name_strnsize(variable_name,
+							       variable_name_size);
 			efivar_create_sysfs_entry(efivars,
 						  variable_name_size,
 						  variable_name, &vendor);
+		}
 	}
 }
 
@@ -1895,6 +1921,35 @@ void unregister_efivars(struct efivars *efivars)
 }
 EXPORT_SYMBOL_GPL(unregister_efivars);
 
+/*
+ * Print a warning when duplicate EFI variables are encountered and
+ * disable the sysfs workqueue since the firmware is buggy.
+ */
+static void dup_variable_bug(efi_char16_t *s16, efi_guid_t *vendor_guid,
+			     unsigned long len16)
+{
+	size_t i, len8 = len16 / sizeof(efi_char16_t);
+	char *s8;
+
+	/*
+	 * Disable the workqueue since the algorithm it uses for
+	 * detecting new variables won't work with this buggy
+	 * implementation of GetNextVariableName().
+	 */
+	efivar_wq_enabled = false;
+
+	s8 = kzalloc(len8, GFP_KERNEL);
+	if (!s8)
+		return;
+
+	for (i = 0; i < len8; i++)
+		s8[i] = s16[i];
+
+	printk(KERN_WARNING "efivars: duplicate variable: %s-%pUl\n",
+	       s8, vendor_guid);
+	kfree(s8);
+}
+
 int register_efivars(struct efivars *efivars,
 		     const struct efivar_operations *ops,
 		     struct kobject *parent_kobj)
@@ -1943,6 +1998,25 @@ int register_efivars(struct efivars *efivars,
 						&vendor_guid);
 		switch (status) {
 		case EFI_SUCCESS:
+			variable_name_size = var_name_strnsize(variable_name,
+							       variable_name_size);
+
+			/*
+			 * Some firmware implementations return the
+			 * same variable name on multiple calls to
+			 * get_next_variable(). Terminate the loop
+			 * immediately as there is no guarantee that
+			 * we'll ever see a different variable name,
+			 * and may end up looping here forever.
+			 */
+			if (variable_is_present(efivars, variable_name,
+						&vendor_guid)) {
+				dup_variable_bug(variable_name, &vendor_guid,
+						 variable_name_size);
+				status = EFI_NOT_FOUND;
+				break;
+			}
+
 			efivar_create_sysfs_entry(efivars,
 						  variable_name_size,
 						  variable_name,
@@ -1962,15 +2036,8 @@ int register_efivars(struct efivars *efivars,
 	if (error)
 		unregister_efivars(efivars);
 
-	efivars->efi_pstore_info = efi_pstore_info;
-
-	efivars->efi_pstore_info.buf = kmalloc(4096, GFP_KERNEL);
-	if (efivars->efi_pstore_info.buf) {
-		efivars->efi_pstore_info.bufsize = 1024;
-		efivars->efi_pstore_info.data = efivars;
-		spin_lock_init(&efivars->efi_pstore_info.buf_lock);
-		pstore_register(&efivars->efi_pstore_info);
-	}
+	if (!efivars_pstore_disable)
+		efivar_pstore_register(efivars);
 
 	register_filesystem(&efivarfs_type);
 
@@ -2010,7 +2077,7 @@ efivars_init(void)
 	ops.get_variable = efi.get_variable;
 	ops.set_variable = efi.set_variable;
 	ops.get_next_variable = efi.get_next_variable;
-	ops.query_variable_info = efi.query_variable_info;
+	ops.query_variable_store = efi_query_variable_store;
 
 	error = register_efivars(&__efivars, &ops, efi_kobj);
 	if (error)

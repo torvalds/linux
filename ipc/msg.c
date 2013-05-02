@@ -820,15 +820,17 @@ long do_msgrcv(int msqid, void __user *buf, size_t bufsz, long msgtyp,
 	struct msg_msg *copy = NULL;
 	unsigned long copy_number = 0;
 
+	ns = current->nsproxy->ipc_ns;
+
 	if (msqid < 0 || (long) bufsz < 0)
 		return -EINVAL;
 	if (msgflg & MSG_COPY) {
-		copy = prepare_copy(buf, bufsz, msgflg, &msgtyp, &copy_number);
+		copy = prepare_copy(buf, min_t(size_t, bufsz, ns->msg_ctlmax),
+				    msgflg, &msgtyp, &copy_number);
 		if (IS_ERR(copy))
 			return PTR_ERR(copy);
 	}
 	mode = convert_mode(&msgtyp, msgflg);
-	ns = current->nsproxy->ipc_ns;
 
 	msq = msg_lock_check(ns, msqid);
 	if (IS_ERR(msq)) {
@@ -870,6 +872,7 @@ long do_msgrcv(int msqid, void __user *buf, size_t bufsz, long msgtyp,
 							goto out_unlock;
 						break;
 					}
+					msg = ERR_PTR(-EAGAIN);
 				} else
 					break;
 				msg_counter++;

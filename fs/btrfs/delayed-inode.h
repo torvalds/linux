@@ -43,6 +43,7 @@ struct btrfs_delayed_root {
 	 */
 	struct list_head prepare_list;
 	atomic_t items;		/* for delayed items */
+	atomic_t items_seq;	/* for delayed items */
 	int nodes;		/* for delayed nodes */
 	wait_queue_head_t wait;
 };
@@ -86,6 +87,7 @@ static inline void btrfs_init_delayed_root(
 				struct btrfs_delayed_root *delayed_root)
 {
 	atomic_set(&delayed_root->items, 0);
+	atomic_set(&delayed_root->items_seq, 0);
 	delayed_root->nodes = 0;
 	spin_lock_init(&delayed_root->lock);
 	init_waitqueue_head(&delayed_root->wait);

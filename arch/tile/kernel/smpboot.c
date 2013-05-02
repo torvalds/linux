@@ -207,9 +207,7 @@ void __cpuinit online_secondary(void)
 	/* Set up tile-timer clock-event device on this cpu */
 	setup_tile_timer();
 
-	preempt_enable();
-
-	cpu_idle();
+	cpu_startup_entry(CPUHP_ONLINE);
 }
 
 int __cpuinit __cpu_up(unsigned int cpu, struct task_struct *tidle)

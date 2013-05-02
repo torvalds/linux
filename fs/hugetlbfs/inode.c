@@ -110,7 +110,7 @@ static int hugetlbfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 	 * way when do_mmap_pgoff unwinds (may be important on powerpc
 	 * and ia64).
 	 */
-	vma->vm_flags |= VM_HUGETLB | VM_DONTEXPAND | VM_DONTDUMP;
+	vma->vm_flags |= VM_HUGETLB | VM_DONTEXPAND;
 	vma->vm_ops = &hugetlb_vm_ops;
 
 	if (vma->vm_pgoff & (~huge_page_mask(h) >> PAGE_SHIFT))
@@ -896,6 +896,7 @@ static struct file_system_type hugetlbfs_fs_type = {
 	.mount		= hugetlbfs_mount,
 	.kill_sb	= kill_litter_super,
 };
+MODULE_ALIAS_FS("hugetlbfs");
 
 static struct vfsmount *hugetlbfs_vfsmount[HUGE_MAX_HSTATE];
 

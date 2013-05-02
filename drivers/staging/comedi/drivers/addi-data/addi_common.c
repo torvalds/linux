@@ -84,37 +84,16 @@ static int i_ADDI_Reset(struct comedi_device *dev)
 	return 0;
 }
 
-static const void *addi_find_boardinfo(struct comedi_device *dev,
-				       struct pci_dev *pcidev)
-{
-	const void *p = dev->driver->board_name;
-	const struct addi_board *this_board;
-	int i;
-
-	for (i = 0; i < dev->driver->num_names; i++) {
-		this_board = p;
-		if (this_board->i_VendorId == pcidev->vendor &&
-		    this_board->i_DeviceId == pcidev->device)
-			return this_board;
-		p += dev->driver->offset;
-	}
-	return NULL;
-}
-
 static int addi_auto_attach(struct comedi_device *dev,
 				      unsigned long context_unused)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct addi_board *this_board;
+	const struct addi_board *this_board = comedi_board(dev);
 	struct addi_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret, n_subdevices;
 	unsigned int dw_Dummy;
 
-	this_board = addi_find_boardinfo(dev, pcidev);
-	if (!this_board)
-		return -ENODEV;
-	dev->board_ptr = this_board;
 	dev->board_name = this_board->pc_DriverName;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
@@ -122,7 +101,7 @@ static int addi_auto_attach(struct comedi_device *dev,
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	ret = comedi_pci_enable(pcidev, dev->board_name);
+	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
 
@@ -141,8 +120,7 @@ static int addi_auto_attach(struct comedi_device *dev,
 		/* board has an ADDIDATA_9054 eeprom */
 		dev->iobase = pci_resource_start(pcidev, 2);
 		devpriv->iobase = pci_resource_start(pcidev, 2);
-		devpriv->dw_AiBase = ioremap(pci_resource_start(pcidev, 3),
-					     this_board->i_IorangeBase3);
+		devpriv->dw_AiBase = pci_ioremap_bar(pcidev, 3);
 	}
 	devpriv->i_IobaseReserved = pci_resource_start(pcidev, 3);
 
@@ -338,7 +316,6 @@ static int addi_auto_attach(struct comedi_device *dev,
 
 static void i_ADDI_Detach(struct comedi_device *dev)
 {
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct addi_private *devpriv = dev->private;
 
 	if (devpriv) {
@@ -349,8 +326,5 @@ static void i_ADDI_Detach(struct comedi_device *dev)
 		if (devpriv->dw_AiBase)
 			iounmap(devpriv->dw_AiBase);
 	}
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-	}
+	comedi_pci_disable(dev);
 }

@@ -1101,41 +1101,25 @@ static int omapfb_mmap(struct fb_info *fbi, struct vm_area_struct *vma)
 	struct omapfb_info *ofbi = FB2OFB(fbi);
 	struct fb_fix_screeninfo *fix = &fbi->fix;
 	struct omapfb2_mem_region *rg;
-	unsigned long off;
 	unsigned long start;
 	u32 len;
-	int r = -EINVAL;
-
-	if (vma->vm_end - vma->vm_start == 0)
-		return 0;
-	if (vma->vm_pgoff > (~0UL >> PAGE_SHIFT))
-		return -EINVAL;
-	off = vma->vm_pgoff << PAGE_SHIFT;
+	int r;
 
 	rg = omapfb_get_mem_region(ofbi->region);
 
 	start = omapfb_get_region_paddr(ofbi);
 	len = fix->smem_len;
-	if (off >= len)
-		goto error;
-	if ((vma->vm_end - vma->vm_start + off) > len)
-		goto error;
 
-	off += start;
+	DBG("user mmap region start %lx, len %d, off %lx\n", start, len,
+			vma->vm_pgoff << PAGE_SHIFT);
 
-	DBG("user mmap region start %lx, len %d, off %lx\n", start, len, off);
-
-	vma->vm_pgoff = off >> PAGE_SHIFT;
-	/* VM_IO | VM_DONTEXPAND | VM_DONTDUMP are set by remap_pfn_range() */
 	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 	vma->vm_ops = &mmap_user_ops;
 	vma->vm_private_data = rg;
-	if (io_remap_pfn_range(vma, vma->vm_start, off >> PAGE_SHIFT,
-			       vma->vm_end - vma->vm_start,
-			       vma->vm_page_prot)) {
-		r = -EAGAIN;
+
+	r = vm_iomap_memory(vma, start, len);
+	if (r)
 		goto error;
-	}
 
 	/* vm_ops.open won't be called for mmap itself. */
 	atomic_inc(&rg->map_count);
@@ -1144,7 +1128,7 @@ static int omapfb_mmap(struct fb_info *fbi, struct vm_area_struct *vma)
 
 	return 0;
 
- error:
+error:
 	omapfb_put_mem_region(ofbi->region);
 
 	return r;

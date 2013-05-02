@@ -759,8 +759,9 @@ static struct sk_buff *be_insert_vlan_in_pkt(struct be_adapter *adapter,
 
 	if (vlan_tx_tag_present(skb)) {
 		vlan_tag = be_get_tx_vlan_tag(adapter, skb);
-		__vlan_put_tag(skb, vlan_tag);
-		skb->vlan_tci = 0;
+		skb = __vlan_put_tag(skb, vlan_tag);
+		if (skb)
+			skb->vlan_tci = 0;
 	}
 
 	return skb;
@@ -3688,6 +3689,8 @@ static void be_netdev_init(struct net_device *netdev)
 
 static void be_unmap_pci_bars(struct be_adapter *adapter)
 {
+	if (adapter->csr)
+		pci_iounmap(adapter->pdev, adapter->csr);
 	if (adapter->db)
 		pci_iounmap(adapter->pdev, adapter->db);
 }
@@ -3720,6 +3723,12 @@ static int be_map_pci_bars(struct be_adapter *adapter)
 	pci_read_config_dword(adapter->pdev, SLI_INTF_REG_OFFSET, &sli_intf);
 	adapter->if_type = (sli_intf & SLI_INTF_IF_TYPE_MASK) >>
 				SLI_INTF_IF_TYPE_SHIFT;
+
+	if (BEx_chip(adapter) && be_physfn(adapter)) {
+		adapter->csr = pci_iomap(adapter->pdev, 2, 0);
+		if (adapter->csr == NULL)
+			return -ENOMEM;
+	}
 
 	addr = pci_iomap(adapter->pdev, db_bar(adapter), 0);
 	if (addr == NULL)
@@ -4329,6 +4338,8 @@ static pci_ers_result_t be_eeh_reset(struct pci_dev *pdev)
 	pci_restore_state(pdev);
 
 	/* Check if card is ok and fw is ready */
+	dev_info(&adapter->pdev->dev,
+		 "Waiting for FW to be ready after EEH reset\n");
 	status = be_fw_wait_ready(adapter);
 	if (status)
 		return PCI_ERS_RESULT_DISCONNECT;

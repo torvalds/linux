@@ -49,7 +49,7 @@ Supported chips:
     Addresses scanned: I2C 0x18 - 0x1f
 
 Author:
-	Guenter Roeck <guenter.roeck@ericsson.com>
+	Guenter Roeck <linux@roeck-us.net>
 
 
 Description

@@ -191,8 +191,8 @@
 
 		prcmu: prcmu@80157000 {
 			compatible = "stericsson,db8500-prcmu";
-			reg = <0x80157000 0x1000>;
-			reg-names = "prcmu";
+			reg = <0x80157000 0x1000>, <0x801b0000 0x8000>, <0x801b8000 0x1000>;
+			reg-names = "prcmu", "prcmu-tcpm", "prcmu-tcdm";
 			interrupts = <0 47 0x4>;
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -319,9 +319,8 @@
 				};
 			};
 
-			ab8500@5 {
+			ab8500 {
 				compatible = "stericsson,ab8500";
-				reg = <5>; /* mailbox 5 is i2c */
 				interrupt-parent = <&intc>;
 				interrupts = <0 40 0x4>;
 				interrupt-controller;

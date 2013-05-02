@@ -1732,7 +1732,7 @@ lpfc_check_pending_fcoe_event(struct lpfc_hba *phba, uint8_t unreg_fcf)
  * use through a sequence of @fcf_cnt eligible FCF records with equal
  * probability. To perform integer manunipulation of random numbers with
  * size unit32_t, the lower 16 bits of the 32-bit random number returned
- * from random32() are taken as the random random number generated.
+ * from prandom_u32() are taken as the random random number generated.
  *
  * Returns true when outcome is for the newly read FCF record should be
  * chosen; otherwise, return false when outcome is for keeping the previously
@@ -1744,7 +1744,7 @@ lpfc_sli4_new_fcf_random_select(struct lpfc_hba *phba, uint32_t fcf_cnt)
 	uint32_t rand_num;
 
 	/* Get 16-bit uniform random number */
-	rand_num = (0xFFFF & random32());
+	rand_num = 0xFFFF & prandom_u32();
 
 	/* Decision with probability 1/fcf_cnt */
 	if ((fcf_cnt * rand_num) < 0xFFFF)
@@ -2380,7 +2380,7 @@ lpfc_mbx_cmpl_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		phba->fcf.eligible_fcf_cnt = 1;
 		/* Seeding the random number generator for random selection */
 		seed = (uint32_t)(0xFFFFFFFF & jiffies);
-		srandom32(seed);
+		prandom_seed(seed);
 	}
 	spin_unlock_irq(&phba->hbalock);
 	goto read_next_fcf;

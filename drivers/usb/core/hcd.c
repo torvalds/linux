@@ -2125,7 +2125,7 @@ int hcd_bus_resume(struct usb_device *rhdev, pm_message_t msg)
 
 #endif	/* CONFIG_PM */
 
-#ifdef	CONFIG_USB_SUSPEND
+#ifdef	CONFIG_PM_RUNTIME
 
 /* Workqueue routine for root-hub remote wakeup */
 static void hcd_resume_work(struct work_struct *work)
@@ -2160,7 +2160,7 @@ void usb_hcd_resume_root_hub (struct usb_hcd *hcd)
 }
 EXPORT_SYMBOL_GPL(usb_hcd_resume_root_hub);
 
-#endif	/* CONFIG_USB_SUSPEND */
+#endif	/* CONFIG_PM_RUNTIME */
 
 /*-------------------------------------------------------------------------*/
 
@@ -2336,7 +2336,7 @@ struct usb_hcd *usb_create_shared_hcd(const struct hc_driver *driver,
 	init_timer(&hcd->rh_timer);
 	hcd->rh_timer.function = rh_timer_func;
 	hcd->rh_timer.data = (unsigned long) hcd;
-#ifdef CONFIG_USB_SUSPEND
+#ifdef CONFIG_PM_RUNTIME
 	INIT_WORK(&hcd->wakeup_work, hcd_resume_work);
 #endif
 
@@ -2411,6 +2411,14 @@ int usb_hcd_is_primary_hcd(struct usb_hcd *hcd)
 	return hcd == hcd->primary_hcd;
 }
 EXPORT_SYMBOL_GPL(usb_hcd_is_primary_hcd);
+
+int usb_hcd_find_raw_port_number(struct usb_hcd *hcd, int port1)
+{
+	if (!hcd->driver->find_raw_port_number)
+		return port1;
+
+	return hcd->driver->find_raw_port_number(hcd, port1);
+}
 
 static int usb_hcd_request_irqs(struct usb_hcd *hcd,
 		unsigned int irqnum, unsigned long irqflags)
@@ -2582,7 +2590,7 @@ error_create_attr_group:
 	hcd->rh_registered = 0;
 	spin_unlock_irq(&hcd_root_hub_lock);
 
-#ifdef CONFIG_USB_SUSPEND
+#ifdef CONFIG_PM_RUNTIME
 	cancel_work_sync(&hcd->wakeup_work);
 #endif
 	mutex_lock(&usb_bus_list_lock);
@@ -2637,7 +2645,7 @@ void usb_remove_hcd(struct usb_hcd *hcd)
 	hcd->rh_registered = 0;
 	spin_unlock_irq (&hcd_root_hub_lock);
 
-#ifdef CONFIG_USB_SUSPEND
+#ifdef CONFIG_PM_RUNTIME
 	cancel_work_sync(&hcd->wakeup_work);
 #endif
 

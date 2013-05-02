@@ -110,7 +110,6 @@ static const struct tty_operations console_ops = {
 	.set_termios 		= line_set_termios,
 	.throttle 		= line_throttle,
 	.unthrottle 		= line_unthrottle,
-	.cleanup		= line_cleanup,
 	.hangup			= line_hangup,
 };
 

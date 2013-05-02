@@ -151,9 +151,10 @@ print_cfs_rq(struct seq_file *m, int cpu, struct cfs_rq *cfs_rq);
 #define TASK_DEAD		64
 #define TASK_WAKEKILL		128
 #define TASK_WAKING		256
-#define TASK_STATE_MAX		512
+#define TASK_PARKED		512
+#define TASK_STATE_MAX		1024
 
-#define TASK_STATE_TO_CHAR_STR "RSDTtZXxKW"
+#define TASK_STATE_TO_CHAR_STR "RSDTtZXxKWP"
 
 extern char ___assert_task_state[1 - 2*!!(
 		sizeof(TASK_STATE_TO_CHAR_STR)-1 != ilog2(TASK_STATE_MAX)+1)];
@@ -308,7 +309,6 @@ extern signed long schedule_timeout_killable(signed long timeout);
 extern signed long schedule_timeout_uninterruptible(signed long timeout);
 asmlinkage void schedule(void);
 extern void schedule_preempt_disabled(void);
-extern int mutex_spin_on_owner(struct mutex *lock, struct task_struct *owner);
 
 struct nsproxy;
 struct user_namespace;
@@ -808,6 +808,8 @@ struct sched_domain {
 	unsigned int wake_idx;
 	unsigned int forkexec_idx;
 	unsigned int smt_gain;
+
+	int nohz_idle;			/* NOHZ IDLE status */
 	int flags;			/* See SD_* */
 	int level;
 
@@ -1105,8 +1107,10 @@ struct task_struct {
 	int exit_code, exit_signal;
 	int pdeath_signal;  /*  The signal sent when the parent dies  */
 	unsigned int jobctl;	/* JOBCTL_*, siglock protected */
-	/* ??? */
+
+	/* Used for emulating ABI behavior of previous Linux versions */
 	unsigned int personality;
+
 	unsigned did_exec:1;
 	unsigned in_execve:1;	/* Tell the LSMs that the process is doing an
 				 * execve */
@@ -1624,7 +1628,7 @@ extern void thread_group_cputime_adjusted(struct task_struct *p, cputime_t *ut, 
 #define PF_SWAPWRITE	0x00800000	/* Allowed to write to swap */
 #define PF_SPREAD_PAGE	0x01000000	/* Spread page cache over cpuset */
 #define PF_SPREAD_SLAB	0x02000000	/* Spread some slab caches over cpuset */
-#define PF_THREAD_BOUND	0x04000000	/* Thread bound to specific cpu */
+#define PF_NO_SETAFFINITY 0x04000000	/* Userland is not allowed to meddle with cpus_allowed */
 #define PF_MCE_EARLY    0x08000000      /* Early kill for mce process policy */
 #define PF_MEMPOLICY	0x10000000	/* Non-default NUMA mempolicy */
 #define PF_MUTEX_TESTER	0x20000000	/* Thread belongs to the rt mutex tester */
@@ -2457,6 +2461,47 @@ static inline int spin_needbreak(spinlock_t *lock)
 	return 0;
 #endif
 }
+
+/*
+ * Idle thread specific functions to determine the need_resched
+ * polling state. We have two versions, one based on TS_POLLING in
+ * thread_info.status and one based on TIF_POLLING_NRFLAG in
+ * thread_info.flags
+ */
+#ifdef TS_POLLING
+static inline int tsk_is_polling(struct task_struct *p)
+{
+	return task_thread_info(p)->status & TS_POLLING;
+}
+static inline void current_set_polling(void)
+{
+	current_thread_info()->status |= TS_POLLING;
+}
+
+static inline void current_clr_polling(void)
+{
+	current_thread_info()->status &= ~TS_POLLING;
+	smp_mb__after_clear_bit();
+}
+#elif defined(TIF_POLLING_NRFLAG)
+static inline int tsk_is_polling(struct task_struct *p)
+{
+	return test_tsk_thread_flag(p, TIF_POLLING_NRFLAG);
+}
+static inline void current_set_polling(void)
+{
+	set_thread_flag(TIF_POLLING_NRFLAG);
+}
+
+static inline void current_clr_polling(void)
+{
+	clear_thread_flag(TIF_POLLING_NRFLAG);
+}
+#else
+static inline int tsk_is_polling(struct task_struct *p) { return 0; }
+static inline void current_set_polling(void) { }
+static inline void current_clr_polling(void) { }
+#endif
 
 /*
  * Thread group CPU time accounting.

@@ -23,6 +23,7 @@
 #include <linux/msg.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
+#include <linux/notifier.h>
 #include <linux/capability.h>
 #include <linux/highuid.h>
 #include <linux/security.h>
@@ -47,19 +48,16 @@ struct ipc_proc_iface {
 	int (*show)(struct seq_file *, void *);
 };
 
-#ifdef CONFIG_MEMORY_HOTPLUG
-
 static void ipc_memory_notifier(struct work_struct *work)
 {
 	ipcns_notify(IPCNS_MEMCHANGED);
 }
 
-static DECLARE_WORK(ipc_memory_wq, ipc_memory_notifier);
-
-
 static int ipc_memory_callback(struct notifier_block *self,
 				unsigned long action, void *arg)
 {
+	static DECLARE_WORK(ipc_memory_wq, ipc_memory_notifier);
+
 	switch (action) {
 	case MEM_ONLINE:    /* memory successfully brought online */
 	case MEM_OFFLINE:   /* or offline: it's time to recompute msgmni */
@@ -85,7 +83,10 @@ static int ipc_memory_callback(struct notifier_block *self,
 	return NOTIFY_OK;
 }
 
-#endif /* CONFIG_MEMORY_HOTPLUG */
+static struct notifier_block ipc_memory_nb = {
+	.notifier_call = ipc_memory_callback,
+	.priority = IPC_CALLBACK_PRI,
+};
 
 /**
  *	ipc_init	-	initialise IPC subsystem
@@ -102,7 +103,7 @@ static int __init ipc_init(void)
 	sem_init();
 	msg_init();
 	shm_init();
-	hotplug_memory_notifier(ipc_memory_callback, IPC_CALLBACK_PRI);
+	register_hotmemory_notifier(&ipc_memory_nb);
 	register_ipcns_notifier(&init_ipc_ns);
 	return 0;
 }

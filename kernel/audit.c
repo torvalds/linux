@@ -660,14 +660,14 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 
 	/* As soon as there's any sign of userspace auditd,
 	 * start kauditd to talk to it */
-	if (!kauditd_task)
+	if (!kauditd_task) {
 		kauditd_task = kthread_run(kauditd_thread, NULL, "kauditd");
-	if (IS_ERR(kauditd_task)) {
-		err = PTR_ERR(kauditd_task);
-		kauditd_task = NULL;
-		return err;
+		if (IS_ERR(kauditd_task)) {
+			err = PTR_ERR(kauditd_task);
+			kauditd_task = NULL;
+			return err;
+		}
 	}
-
 	loginuid = audit_get_loginuid(current);
 	sessionid = audit_get_sessionid(current);
 	security_task_getsecid(current, &sid);

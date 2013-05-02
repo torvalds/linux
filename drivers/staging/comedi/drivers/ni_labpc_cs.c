@@ -73,17 +73,15 @@ NI manuals:
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
 
-static const struct labpc_board_struct labpc_cs_boards[] = {
+static const struct labpc_boardinfo labpc_cs_boards[] = {
 	{
 		.name			= "daqcard-1200",
 		.device_id		= 0x103,
 		.ai_speed		= 10000,
-		.bustype		= pcmcia_bustype,
 		.register_layout	= labpc_1200_layout,
 		.has_ao			= 1,
 		.ai_range_table		= &range_labpc_1200_ai,
 		.ai_range_code		= labpc_1200_ai_gain_bits,
-		.ai_range_is_unipolar	= labpc_1200_is_unipolar,
 	},
 };
 
@@ -112,7 +110,7 @@ static int labpc_auto_attach(struct comedi_device *dev,
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	return labpc_common_attach(dev, dev->iobase, link->irq, 0);
+	return labpc_common_attach(dev, link->irq, IRQF_SHARED);
 }
 
 static void labpc_detach(struct comedi_device *dev)

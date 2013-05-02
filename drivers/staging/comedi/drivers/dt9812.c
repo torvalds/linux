@@ -303,26 +303,6 @@ struct slot_dt9812 {
 	struct comedi_dt9812 *comedi;
 };
 
-static const struct comedi_lrange dt9812_10_ain_range = { 1, {
-							      BIP_RANGE(10),
-							      }
-};
-
-static const struct comedi_lrange dt9812_2pt5_ain_range = { 1, {
-								UNI_RANGE(2.5),
-								}
-};
-
-static const struct comedi_lrange dt9812_10_aout_range = { 1, {
-							       BIP_RANGE(10),
-							       }
-};
-
-static const struct comedi_lrange dt9812_2pt5_aout_range = { 1, {
-								 UNI_RANGE(2.5),
-								 }
-};
-
 static struct slot_dt9812 dt9812[DT9812_NUM_SLOTS];
 
 static inline struct usb_dt9812 *to_dt9812_dev(struct kref *d)
@@ -912,12 +892,12 @@ static int dt9812_comedi_open(struct comedi_device *dev)
 		switch (devpriv->slot->usb->device) {
 		case 0:{
 				s->maxdata = 4095;
-				s->range_table = &dt9812_10_ain_range;
+				s->range_table = &range_bipolar10;
 			}
 			break;
 		case 1:{
 				s->maxdata = 4095;
-				s->range_table = &dt9812_2pt5_ain_range;
+				s->range_table = &range_unipolar2_5;
 			}
 			break;
 		}
@@ -927,12 +907,12 @@ static int dt9812_comedi_open(struct comedi_device *dev)
 		switch (devpriv->slot->usb->device) {
 		case 0:{
 				s->maxdata = 4095;
-				s->range_table = &dt9812_10_aout_range;
+				s->range_table = &range_bipolar10;
 			}
 			break;
 		case 1:{
 				s->maxdata = 4095;
-				s->range_table = &dt9812_2pt5_aout_range;
+				s->range_table = &range_unipolar2_5;
 			}
 			break;
 		}
@@ -947,12 +927,13 @@ static int dt9812_di_rinsn(struct comedi_device *dev,
 			   unsigned int *data)
 {
 	struct comedi_dt9812 *devpriv = dev->private;
+	unsigned int channel = CR_CHAN(insn->chanspec);
 	int n;
 	u8 bits = 0;
 
 	dt9812_digital_in(devpriv->slot, &bits);
 	for (n = 0; n < insn->n; n++)
-		data[n] = ((1 << insn->chanspec) & bits) != 0;
+		data[n] = ((1 << channel) & bits) != 0;
 	return n;
 }
 
@@ -961,12 +942,13 @@ static int dt9812_do_winsn(struct comedi_device *dev,
 			   unsigned int *data)
 {
 	struct comedi_dt9812 *devpriv = dev->private;
+	unsigned int channel = CR_CHAN(insn->chanspec);
 	int n;
 	u8 bits = 0;
 
 	dt9812_digital_out_shadow(devpriv->slot, &bits);
 	for (n = 0; n < insn->n; n++) {
-		u8 mask = 1 << insn->chanspec;
+		u8 mask = 1 << channel;
 
 		bits &= ~mask;
 		if (data[n])
@@ -981,13 +963,13 @@ static int dt9812_ai_rinsn(struct comedi_device *dev,
 			   unsigned int *data)
 {
 	struct comedi_dt9812 *devpriv = dev->private;
+	unsigned int channel = CR_CHAN(insn->chanspec);
 	int n;
 
 	for (n = 0; n < insn->n; n++) {
 		u16 value = 0;
 
-		dt9812_analog_in(devpriv->slot, insn->chanspec, &value,
-				 DT9812_GAIN_1);
+		dt9812_analog_in(devpriv->slot, channel, &value, DT9812_GAIN_1);
 		data[n] = value;
 	}
 	return n;
@@ -998,12 +980,13 @@ static int dt9812_ao_rinsn(struct comedi_device *dev,
 			   unsigned int *data)
 {
 	struct comedi_dt9812 *devpriv = dev->private;
+	unsigned int channel = CR_CHAN(insn->chanspec);
 	int n;
 	u16 value;
 
 	for (n = 0; n < insn->n; n++) {
 		value = 0;
-		dt9812_analog_out_shadow(devpriv->slot, insn->chanspec, &value);
+		dt9812_analog_out_shadow(devpriv->slot, channel, &value);
 		data[n] = value;
 	}
 	return n;
@@ -1014,10 +997,11 @@ static int dt9812_ao_winsn(struct comedi_device *dev,
 			   unsigned int *data)
 {
 	struct comedi_dt9812 *devpriv = dev->private;
+	unsigned int channel = CR_CHAN(insn->chanspec);
 	int n;
 
 	for (n = 0; n < insn->n; n++)
-		dt9812_analog_out(devpriv->slot, insn->chanspec, data[n]);
+		dt9812_analog_out(devpriv->slot, channel, data[n]);
 	return n;
 }
 
@@ -1027,8 +1011,6 @@ static int dt9812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	int i;
 	struct comedi_subdevice *s;
 	int ret;
-
-	dev->board_name = "dt9812";
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)

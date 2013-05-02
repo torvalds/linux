@@ -1563,6 +1563,27 @@ static inline void dequeue_entity_load_avg(struct cfs_rq *cfs_rq,
 		se->avg.decay_count = atomic64_read(&cfs_rq->decay_counter);
 	} /* migrations, e.g. sleep=0 leave decay_count == 0 */
 }
+
+/*
+ * Update the rq's load with the elapsed running time before entering
+ * idle. if the last scheduled task is not a CFS task, idle_enter will
+ * be the only way to update the runnable statistic.
+ */
+void idle_enter_fair(struct rq *this_rq)
+{
+	update_rq_runnable_avg(this_rq, 1);
+}
+
+/*
+ * Update the rq's load with the elapsed idle time before a task is
+ * scheduled. if the newly scheduled task is not a CFS task, idle_exit will
+ * be the only way to update the runnable statistic.
+ */
+void idle_exit_fair(struct rq *this_rq)
+{
+	update_rq_runnable_avg(this_rq, 0);
+}
+
 #else
 static inline void update_entity_load_avg(struct sched_entity *se,
 					  int update_cfs_rq) {}
@@ -3875,12 +3896,16 @@ int can_migrate_task(struct task_struct *p, struct lb_env *env)
 	int tsk_cache_hot = 0;
 	/*
 	 * We do not migrate tasks that are:
-	 * 1) running (obviously), or
+	 * 1) throttled_lb_pair, or
 	 * 2) cannot be migrated to this CPU due to cpus_allowed, or
-	 * 3) are cache-hot on their current CPU.
+	 * 3) running (obviously), or
+	 * 4) are cache-hot on their current CPU.
 	 */
+	if (throttled_lb_pair(task_group(p), env->src_cpu, env->dst_cpu))
+		return 0;
+
 	if (!cpumask_test_cpu(env->dst_cpu, tsk_cpus_allowed(p))) {
-		int new_dst_cpu;
+		int cpu;
 
 		schedstat_inc(p, se.statistics.nr_failed_migrations_affine);
 
@@ -3895,12 +3920,15 @@ int can_migrate_task(struct task_struct *p, struct lb_env *env)
 		if (!env->dst_grpmask || (env->flags & LBF_SOME_PINNED))
 			return 0;
 
-		new_dst_cpu = cpumask_first_and(env->dst_grpmask,
-						tsk_cpus_allowed(p));
-		if (new_dst_cpu < nr_cpu_ids) {
-			env->flags |= LBF_SOME_PINNED;
-			env->new_dst_cpu = new_dst_cpu;
+		/* Prevent to re-select dst_cpu via env's cpus */
+		for_each_cpu_and(cpu, env->dst_grpmask, env->cpus) {
+			if (cpumask_test_cpu(cpu, tsk_cpus_allowed(p))) {
+				env->flags |= LBF_SOME_PINNED;
+				env->new_dst_cpu = cpu;
+				break;
+			}
 		}
+
 		return 0;
 	}
 
@@ -3921,20 +3949,17 @@ int can_migrate_task(struct task_struct *p, struct lb_env *env)
 	tsk_cache_hot = task_hot(p, env->src_rq->clock_task, env->sd);
 	if (!tsk_cache_hot ||
 		env->sd->nr_balance_failed > env->sd->cache_nice_tries) {
-#ifdef CONFIG_SCHEDSTATS
+
 		if (tsk_cache_hot) {
 			schedstat_inc(env->sd, lb_hot_gained[env->idle]);
 			schedstat_inc(p, se.statistics.nr_forced_migrations);
 		}
-#endif
+
 		return 1;
 	}
 
-	if (tsk_cache_hot) {
-		schedstat_inc(p, se.statistics.nr_failed_migrations_hot);
-		return 0;
-	}
-	return 1;
+	schedstat_inc(p, se.statistics.nr_failed_migrations_hot);
+	return 0;
 }
 
 /*
@@ -3949,9 +3974,6 @@ static int move_one_task(struct lb_env *env)
 	struct task_struct *p, *n;
 
 	list_for_each_entry_safe(p, n, &env->src_rq->cfs_tasks, se.group_node) {
-		if (throttled_lb_pair(task_group(p), env->src_rq->cpu, env->dst_cpu))
-			continue;
-
 		if (!can_migrate_task(p, env))
 			continue;
 
@@ -4003,7 +4025,7 @@ static int move_tasks(struct lb_env *env)
 			break;
 		}
 
-		if (throttled_lb_pair(task_group(p), env->src_cpu, env->dst_cpu))
+		if (!can_migrate_task(p, env))
 			goto next;
 
 		load = task_h_load(p);
@@ -4012,9 +4034,6 @@ static int move_tasks(struct lb_env *env)
 			goto next;
 
 		if ((load / 2) > env->imbalance)
-			goto next;
-
-		if (!can_migrate_task(p, env))
 			goto next;
 
 		move_task(p, env);
@@ -4961,7 +4980,7 @@ static struct rq *find_busiest_queue(struct lb_env *env,
 #define MAX_PINNED_INTERVAL	512
 
 /* Working cpumask for load_balance and load_balance_newidle. */
-DEFINE_PER_CPU(cpumask_var_t, load_balance_tmpmask);
+DEFINE_PER_CPU(cpumask_var_t, load_balance_mask);
 
 static int need_active_balance(struct lb_env *env)
 {
@@ -4992,11 +5011,10 @@ static int load_balance(int this_cpu, struct rq *this_rq,
 			int *balance)
 {
 	int ld_moved, cur_ld_moved, active_balance = 0;
-	int lb_iterations, max_lb_iterations;
 	struct sched_group *group;
 	struct rq *busiest;
 	unsigned long flags;
-	struct cpumask *cpus = __get_cpu_var(load_balance_tmpmask);
+	struct cpumask *cpus = __get_cpu_var(load_balance_mask);
 
 	struct lb_env env = {
 		.sd		= sd,
@@ -5008,8 +5026,14 @@ static int load_balance(int this_cpu, struct rq *this_rq,
 		.cpus		= cpus,
 	};
 
+	/*
+	 * For NEWLY_IDLE load_balancing, we don't need to consider
+	 * other cpus in our group
+	 */
+	if (idle == CPU_NEWLY_IDLE)
+		env.dst_grpmask = NULL;
+
 	cpumask_copy(cpus, cpu_active_mask);
-	max_lb_iterations = cpumask_weight(env.dst_grpmask);
 
 	schedstat_inc(sd, lb_count[idle]);
 
@@ -5035,7 +5059,6 @@ redo:
 	schedstat_add(sd, lb_imbalance[idle], env.imbalance);
 
 	ld_moved = 0;
-	lb_iterations = 1;
 	if (busiest->nr_running > 1) {
 		/*
 		 * Attempt to move tasks. If find_busiest_group has found
@@ -5062,16 +5085,16 @@ more_balance:
 		double_rq_unlock(env.dst_rq, busiest);
 		local_irq_restore(flags);
 
-		if (env.flags & LBF_NEED_BREAK) {
-			env.flags &= ~LBF_NEED_BREAK;
-			goto more_balance;
-		}
-
 		/*
 		 * some other cpu did the load balance for us.
 		 */
 		if (cur_ld_moved && env.dst_cpu != smp_processor_id())
 			resched_cpu(env.dst_cpu);
+
+		if (env.flags & LBF_NEED_BREAK) {
+			env.flags &= ~LBF_NEED_BREAK;
+			goto more_balance;
+		}
 
 		/*
 		 * Revisit (affine) tasks on src_cpu that couldn't be moved to
@@ -5092,14 +5115,17 @@ more_balance:
 		 * moreover subsequent load balance cycles should correct the
 		 * excess load moved.
 		 */
-		if ((env.flags & LBF_SOME_PINNED) && env.imbalance > 0 &&
-				lb_iterations++ < max_lb_iterations) {
+		if ((env.flags & LBF_SOME_PINNED) && env.imbalance > 0) {
 
 			env.dst_rq	 = cpu_rq(env.new_dst_cpu);
 			env.dst_cpu	 = env.new_dst_cpu;
 			env.flags	&= ~LBF_SOME_PINNED;
 			env.loop	 = 0;
 			env.loop_break	 = sched_nr_migrate_break;
+
+			/* Prevent to re-select dst_cpu via env's cpus */
+			cpumask_clear_cpu(env.dst_cpu, env.cpus);
+
 			/*
 			 * Go back to "more_balance" rather than "redo" since we
 			 * need to continue with same src_cpu.
@@ -5219,8 +5245,6 @@ void idle_balance(int this_cpu, struct rq *this_rq)
 
 	if (this_rq->avg_idle < sysctl_sched_migration_cost)
 		return;
-
-	update_rq_runnable_avg(this_rq, 1);
 
 	/*
 	 * Drop the rq->lock, but keep IRQ/preempt disabled.
@@ -5396,13 +5420,16 @@ static inline void set_cpu_sd_state_busy(void)
 	struct sched_domain *sd;
 	int cpu = smp_processor_id();
 
-	if (!test_bit(NOHZ_IDLE, nohz_flags(cpu)))
-		return;
-	clear_bit(NOHZ_IDLE, nohz_flags(cpu));
-
 	rcu_read_lock();
-	for_each_domain(cpu, sd)
+	sd = rcu_dereference_check_sched_domain(cpu_rq(cpu)->sd);
+
+	if (!sd || !sd->nohz_idle)
+		goto unlock;
+	sd->nohz_idle = 0;
+
+	for (; sd; sd = sd->parent)
 		atomic_inc(&sd->groups->sgp->nr_busy_cpus);
+unlock:
 	rcu_read_unlock();
 }
 
@@ -5411,13 +5438,16 @@ void set_cpu_sd_state_idle(void)
 	struct sched_domain *sd;
 	int cpu = smp_processor_id();
 
-	if (test_bit(NOHZ_IDLE, nohz_flags(cpu)))
-		return;
-	set_bit(NOHZ_IDLE, nohz_flags(cpu));
-
 	rcu_read_lock();
-	for_each_domain(cpu, sd)
+	sd = rcu_dereference_check_sched_domain(cpu_rq(cpu)->sd);
+
+	if (!sd || sd->nohz_idle)
+		goto unlock;
+	sd->nohz_idle = 1;
+
+	for (; sd; sd = sd->parent)
 		atomic_dec(&sd->groups->sgp->nr_busy_cpus);
+unlock:
 	rcu_read_unlock();
 }
 
@@ -5469,7 +5499,7 @@ void update_max_interval(void)
  * It checks each scheduling domain to see if it is due to be balanced,
  * and initiates a balancing operation if so.
  *
- * Balancing parameters are set up in arch_init_sched_domains.
+ * Balancing parameters are set up in init_sched_domains.
  */
 static void rebalance_domains(int cpu, enum cpu_idle_type idle)
 {
@@ -5507,10 +5537,11 @@ static void rebalance_domains(int cpu, enum cpu_idle_type idle)
 		if (time_after_eq(jiffies, sd->last_balance + interval)) {
 			if (load_balance(cpu, rq, sd, idle, &balance)) {
 				/*
-				 * We've pulled tasks over so either we're no
-				 * longer idle.
+				 * The LBF_SOME_PINNED logic could have changed
+				 * env->dst_cpu, so we can't know our idle
+				 * state even if we migrated tasks. Update it.
 				 */
-				idle = CPU_NOT_IDLE;
+				idle = idle_cpu(cpu) ? CPU_IDLE : CPU_NOT_IDLE;
 			}
 			sd->last_balance = jiffies;
 		}

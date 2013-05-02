@@ -377,11 +377,14 @@ static void __init setup_lowcore(void)
 		PSW_MASK_DAT | PSW_MASK_MCHECK;
 	lc->io_new_psw.addr = PSW_ADDR_AMODE | (unsigned long) io_int_handler;
 	lc->clock_comparator = -1ULL;
-	lc->kernel_stack = ((unsigned long) &init_thread_union) + THREAD_SIZE;
+	lc->kernel_stack = ((unsigned long) &init_thread_union)
+		+ THREAD_SIZE - STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
 	lc->async_stack = (unsigned long)
-		__alloc_bootmem(ASYNC_SIZE, ASYNC_SIZE, 0) + ASYNC_SIZE;
+		__alloc_bootmem(ASYNC_SIZE, ASYNC_SIZE, 0)
+		+ ASYNC_SIZE - STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
 	lc->panic_stack = (unsigned long)
-		__alloc_bootmem(PAGE_SIZE, PAGE_SIZE, 0) + PAGE_SIZE;
+		__alloc_bootmem(PAGE_SIZE, PAGE_SIZE, 0)
+		+ PAGE_SIZE - STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
 	lc->current_task = (unsigned long) init_thread_union.thread_info.task;
 	lc->thread_info = (unsigned long) &init_thread_union;
 	lc->machine_flags = S390_lowcore.machine_flags;
@@ -571,6 +574,8 @@ static void __init setup_memory_end(void)
 
 	/* Split remaining virtual space between 1:1 mapping & vmemmap array */
 	tmp = VMALLOC_START / (PAGE_SIZE + sizeof(struct page));
+	/* vmemmap contains a multiple of PAGES_PER_SECTION struct pages */
+	tmp = SECTION_ALIGN_UP(tmp);
 	tmp = VMALLOC_START - tmp * sizeof(struct page);
 	tmp &= ~((vmax >> 11) - 1);	/* align to page table level */
 	tmp = min(tmp, 1UL << MAX_PHYSMEM_BITS);

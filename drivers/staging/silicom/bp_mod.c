@@ -6983,7 +6983,7 @@ static void __exit bypass_cleanup_module(void)
 /*	spin_lock_irqsave(&bpvm_lock, flags);
 	rcu_read_lock(); */
 		bypass_proc_remove_dev_sd(&bpctl_dev_arr[i]);
-/*	spin_unlock_irqrestore(&bpvm_lock, flags);        
+/*	spin_unlock_irqrestore(&bpvm_lock, flags);
 	rcu_read_unlock(); */
 #endif
 		remove_bypass_wd_auto(&bpctl_dev_arr[i]);
@@ -6995,18 +6995,16 @@ static void __exit bypass_cleanup_module(void)
 	/* unmap all devices */
 	for (i = 0; i < device_num; i++) {
 #ifdef BP_SELF_TEST
-		if (bpctl_dev_arr[i].bp_tx_data)
-			kfree(bpctl_dev_arr[i].bp_tx_data);
+		kfree(bpctl_dev_arr[i].bp_tx_data);
 #endif
 		iounmap((void *)(bpctl_dev_arr[i].mem_map));
 	}
 
 	/* free all devices space */
-	if (bpctl_dev_arr)
-		kfree(bpctl_dev_arr);
+	kfree(bpctl_dev_arr);
 
 /*
-* Unregister the device                             
+* Unregister the device
 */
 	unregister_chrdev(major_num, DEVICE_NAME);
 }
