@@ -41,6 +41,8 @@ void doorbell_exception(struct pt_regs *regs)
 
 	may_hard_irq_enable();
 
+	__get_cpu_var(irq_stat).doorbell_irqs++;
+
 	smp_ipi_demux();
 
 	irq_exit();

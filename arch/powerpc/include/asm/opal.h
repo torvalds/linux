@@ -117,6 +117,7 @@ extern int opal_enter_rtas(struct rtas_args *args,
 #define OPAL_SET_SLOT_LED_STATUS		55
 #define OPAL_GET_EPOW_STATUS			56
 #define OPAL_SET_SYSTEM_ATTENTION_LED		57
+#define OPAL_PCI_MSI_EOI			63
 
 #ifndef __ASSEMBLY__
 
@@ -506,6 +507,7 @@ int64_t opal_pci_get_xive_reissue(uint64_t phb_id, uint32_t xive_number,
 				  uint8_t *p_bit, uint8_t *q_bit);
 int64_t opal_pci_set_xive_reissue(uint64_t phb_id, uint32_t xive_number,
 				  uint8_t p_bit, uint8_t q_bit);
+int64_t opal_pci_msi_eoi(uint64_t phb_id, uint32_t hw_irq);
 int64_t opal_pci_set_xive_pe(uint64_t phb_id, uint32_t pe_number,
 			     uint32_t xive_num);
 int64_t opal_get_xive_source(uint64_t phb_id, uint32_t xive_num,

@@ -13,7 +13,7 @@
 
 / {
 	model = "mpc5121ads";
-	compatible = "fsl,mpc5121ads";
+	compatible = "fsl,mpc5121ads", "fsl,mpc5121";
 
 	nfc@40000000 {
 		/*

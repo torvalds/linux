@@ -750,8 +750,9 @@ done_battery_state_smart(struct adb_request* req)
 				voltage = (req->reply[8] << 8) | req->reply[9];
 				break;
 			default:
-				printk(KERN_WARNING "pmu.c : unrecognized battery info, len: %d, %02x %02x %02x %02x\n",
-					req->reply_len, req->reply[0], req->reply[1], req->reply[2], req->reply[3]);
+				pr_warn("pmu.c: unrecognized battery info, "
+					"len: %d, %4ph\n", req->reply_len,
+							   req->reply);
 				break;
 		}
 	}
