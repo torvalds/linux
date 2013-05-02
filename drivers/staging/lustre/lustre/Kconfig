@@ -1,0 +1,33 @@
+config LUSTRE_FS
+	tristate "Lustre file system client support"
+	depends on STAGING && INET && BROKEN
+	select LNET
+	help
+	  This option enables Lustre file system client support. Choose Y
+	  here if you want to access a Lustre file system cluster. To compile
+	  this file system support as a module, choose M here: the module will
+	  be called lustre.
+
+	  To mount Lustre file systems , you also need to install the user space
+	  mount.lustre and other user space commands which can be found in the
+	  lustre-client package, available from
+	  http://downloads.whamcloud.com/public/lustre/
+
+	  Lustre file system is the most popular cluster file system in high
+	  performance computing. Source code of both kernel space and user space
+	  Lustre components can also be found at
+	  http://git.whamcloud.com/?p=fs/lustre-release.git;a=summary
+
+	  If unsure, say N.
+
+	  See also http://wiki.lustre.org/
+
+config LUSTRE_OBD_MAX_IOCTL_BUFFER
+	int "Lustre obd max ioctl buffer bytes (default 8KB)"
+	depends on LUSTRE_FS
+	default 8192
+	help
+	  This option defines the maximum size of buffer in bytes that user space
+	  applications can pass to Lustre kernel module through ioctl interface.
+
+	  If unsure, use default.
