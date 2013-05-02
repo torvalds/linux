@@ -199,6 +199,11 @@
 #define I2S_TX_TRAN_STOP        (0<<0)
 #define I2S_TX_TRAN_START       (1<<0)
 
+//I2S_CLR
+#define I2S_RX_CLEAR	(1<<1)
+#define I2S_TX_CLEAR	1
+
+
 #ifdef CONFIG_ARCH_RK29
 #define I2S_TXR_BUFF            0x20
 #define I2S_RXR_BUFF            0x24
