@@ -108,7 +108,6 @@ static int kirkwood_thermal_exit(struct platform_device *pdev)
 		platform_get_drvdata(pdev);
 
 	thermal_zone_device_unregister(kirkwood_thermal);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
