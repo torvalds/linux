@@ -39,6 +39,7 @@
 #include "testmode.h"
 #include "scan.h"
 #include "hw_ops.h"
+#include "sysfs.h"
 
 #define WL1271_BOOT_RETRIES 3
 
@@ -5387,151 +5388,6 @@ u8 wlcore_rate_to_idx(struct wl1271 *wl, u8 rate, enum ieee80211_band band)
 	return idx;
 }
 
-static ssize_t wl1271_sysfs_show_bt_coex_state(struct device *dev,
-					       struct device_attribute *attr,
-					       char *buf)
-{
-	struct wl1271 *wl = dev_get_drvdata(dev);
-	ssize_t len;
-
-	len = PAGE_SIZE;
-
-	mutex_lock(&wl->mutex);
-	len = snprintf(buf, len, "%d\n\n0 - off\n1 - on\n",
-		       wl->sg_enabled);
-	mutex_unlock(&wl->mutex);
-
-	return len;
-
-}
-
-static ssize_t wl1271_sysfs_store_bt_coex_state(struct device *dev,
-						struct device_attribute *attr,
-						const char *buf, size_t count)
-{
-	struct wl1271 *wl = dev_get_drvdata(dev);
-	unsigned long res;
-	int ret;
-
-	ret = kstrtoul(buf, 10, &res);
-	if (ret < 0) {
-		wl1271_warning("incorrect value written to bt_coex_mode");
-		return count;
-	}
-
-	mutex_lock(&wl->mutex);
-
-	res = !!res;
-
-	if (res == wl->sg_enabled)
-		goto out;
-
-	wl->sg_enabled = res;
-
-	if (unlikely(wl->state != WLCORE_STATE_ON))
-		goto out;
-
-	ret = wl1271_ps_elp_wakeup(wl);
-	if (ret < 0)
-		goto out;
-
-	wl1271_acx_sg_enable(wl, wl->sg_enabled);
-	wl1271_ps_elp_sleep(wl);
-
- out:
-	mutex_unlock(&wl->mutex);
-	return count;
-}
-
-static DEVICE_ATTR(bt_coex_state, S_IRUGO | S_IWUSR,
-		   wl1271_sysfs_show_bt_coex_state,
-		   wl1271_sysfs_store_bt_coex_state);
-
-static ssize_t wl1271_sysfs_show_hw_pg_ver(struct device *dev,
-					   struct device_attribute *attr,
-					   char *buf)
-{
-	struct wl1271 *wl = dev_get_drvdata(dev);
-	ssize_t len;
-
-	len = PAGE_SIZE;
-
-	mutex_lock(&wl->mutex);
-	if (wl->hw_pg_ver >= 0)
-		len = snprintf(buf, len, "%d\n", wl->hw_pg_ver);
-	else
-		len = snprintf(buf, len, "n/a\n");
-	mutex_unlock(&wl->mutex);
-
-	return len;
-}
-
-static DEVICE_ATTR(hw_pg_ver, S_IRUGO,
-		   wl1271_sysfs_show_hw_pg_ver, NULL);
-
-static ssize_t wl1271_sysfs_read_fwlog(struct file *filp, struct kobject *kobj,
-				       struct bin_attribute *bin_attr,
-				       char *buffer, loff_t pos, size_t count)
-{
-	struct device *dev = container_of(kobj, struct device, kobj);
-	struct wl1271 *wl = dev_get_drvdata(dev);
-	ssize_t len;
-	int ret;
-
-	ret = mutex_lock_interruptible(&wl->mutex);
-	if (ret < 0)
-		return -ERESTARTSYS;
-
-	/* Let only one thread read the log at a time, blocking others */
-	while (wl->fwlog_size == 0) {
-		DEFINE_WAIT(wait);
-
-		prepare_to_wait_exclusive(&wl->fwlog_waitq,
-					  &wait,
-					  TASK_INTERRUPTIBLE);
-
-		if (wl->fwlog_size != 0) {
-			finish_wait(&wl->fwlog_waitq, &wait);
-			break;
-		}
-
-		mutex_unlock(&wl->mutex);
-
-		schedule();
-		finish_wait(&wl->fwlog_waitq, &wait);
-
-		if (signal_pending(current))
-			return -ERESTARTSYS;
-
-		ret = mutex_lock_interruptible(&wl->mutex);
-		if (ret < 0)
-			return -ERESTARTSYS;
-	}
-
-	/* Check if the fwlog is still valid */
-	if (wl->fwlog_size < 0) {
-		mutex_unlock(&wl->mutex);
-		return 0;
-	}
-
-	/* Seeking is not supported - old logs are not kept. Disregard pos. */
-	len = min(count, (size_t)wl->fwlog_size);
-	wl->fwlog_size -= len;
-	memcpy(buffer, wl->fwlog, len);
-
-	/* Make room for new messages */
-	memmove(wl->fwlog, wl->fwlog + len, wl->fwlog_size);
-
-	mutex_unlock(&wl->mutex);
-
-	return len;
-}
-
-static struct bin_attribute fwlog_attr = {
-	.attr = {.name = "fwlog", .mode = S_IRUSR},
-	.read = wl1271_sysfs_read_fwlog,
-};
-
 static void wl12xx_derive_mac_addresses(struct wl1271 *wl, u32 oui, u32 nic)
 {
 	int i;
@@ -5970,11 +5826,8 @@ int wlcore_free_hw(struct wl1271 *wl)
 	wake_up_interruptible_all(&wl->fwlog_waitq);
 	mutex_unlock(&wl->mutex);
 
-	device_remove_bin_file(wl->dev, &fwlog_attr);
+	wlcore_sysfs_free(wl);
 
-	device_remove_file(wl->dev, &dev_attr_hw_pg_ver);
-
-	device_remove_file(wl->dev, &dev_attr_bt_coex_state);
 	kfree(wl->buffer_32);
 	kfree(wl->mbox);
 	free_page((unsigned long)wl->fwlog);
@@ -6086,35 +5939,12 @@ static void wlcore_nvs_cb(const struct firmware *fw, void *context)
 	if (ret)
 		goto out_irq;
 
-	/* Create sysfs file to control bt coex state */
-	ret = device_create_file(wl->dev, &dev_attr_bt_coex_state);
-	if (ret < 0) {
-		wl1271_error("failed to create sysfs file bt_coex_state");
+	ret = wlcore_sysfs_init(wl);
+	if (ret)
 		goto out_unreg;
-	}
-
-	/* Create sysfs file to get HW PG version */
-	ret = device_create_file(wl->dev, &dev_attr_hw_pg_ver);
-	if (ret < 0) {
-		wl1271_error("failed to create sysfs file hw_pg_ver");
-		goto out_bt_coex_state;
-	}
-
-	/* Create sysfs file for the FW log */
-	ret = device_create_bin_file(wl->dev, &fwlog_attr);
-	if (ret < 0) {
-		wl1271_error("failed to create sysfs file fwlog");
-		goto out_hw_pg_ver;
-	}
 
 	wl->initialized = true;
 	goto out;
-
-out_hw_pg_ver:
-	device_remove_file(wl->dev, &dev_attr_hw_pg_ver);
-
-out_bt_coex_state:
-	device_remove_file(wl->dev, &dev_attr_bt_coex_state);
 
 out_unreg:
 	wl1271_unregister_hw(wl);
