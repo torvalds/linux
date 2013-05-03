@@ -277,6 +277,12 @@ int sdi_init_platform_driver(void) __init;
 void sdi_uninit_platform_driver(void) __exit;
 
 /* DSI */
+
+typedef bool (*dsi_pll_calc_func)(int regn, int regm, unsigned long fint,
+		unsigned long pll, void *data);
+typedef bool (*dsi_hsdiv_calc_func)(int regm_dispc, unsigned long dispc,
+		void *data);
+
 #ifdef CONFIG_OMAP2_DSS_DSI
 
 struct dentry;
@@ -295,10 +301,6 @@ u8 dsi_get_pixel_size(enum omap_dss_dsi_pixel_format fmt);
 
 unsigned long dsi_get_pll_clkin(struct platform_device *dsidev);
 
-typedef bool (*dsi_pll_calc_func)(int regn, int regm, unsigned long fint,
-		unsigned long pll, void *data);
-typedef bool (*dsi_hsdiv_calc_func)(int regm_dispc, unsigned long dispc,
-		void *data);
 bool dsi_hsdiv_calc(struct platform_device *dsidev, unsigned long pll,
 		unsigned long out_min, dsi_hsdiv_calc_func func, void *data);
 bool dsi_pll_calc(struct platform_device *dsidev, unsigned long clkin,
@@ -358,6 +360,27 @@ static inline struct platform_device *dsi_get_dsidev_from_id(int module)
 {
 	return NULL;
 }
+
+static inline unsigned long dsi_get_pll_clkin(struct platform_device *dsidev)
+{
+	return 0;
+}
+
+static inline bool dsi_hsdiv_calc(struct platform_device *dsidev,
+		unsigned long pll, unsigned long out_min,
+		dsi_hsdiv_calc_func func, void *data)
+{
+	return false;
+}
+
+static inline bool dsi_pll_calc(struct platform_device *dsidev,
+		unsigned long clkin,
+		unsigned long pll_min, unsigned long pll_max,
+		dsi_pll_calc_func func, void *data)
+{
+	return false;
+}
+
 #endif
 
 /* DPI */

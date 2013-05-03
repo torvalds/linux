@@ -135,7 +135,7 @@ static int tfp410_probe(struct omap_dss_device *dssdev)
 		if (!adapter) {
 			dev_err(&dssdev->dev, "Failed to get I2C adapter, bus %d\n",
 					i2c_bus_num);
-			return -EINVAL;
+			return -EPROBE_DEFER;
 		}
 
 		ddata->i2c_adapter = adapter;

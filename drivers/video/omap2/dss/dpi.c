@@ -520,7 +520,7 @@ void omapdss_dpi_set_data_lines(struct omap_dss_device *dssdev, int data_lines)
 }
 EXPORT_SYMBOL(omapdss_dpi_set_data_lines);
 
-static int __init dpi_verify_dsi_pll(struct platform_device *dsidev)
+static int dpi_verify_dsi_pll(struct platform_device *dsidev)
 {
 	int r;
 
@@ -572,7 +572,7 @@ static enum omap_channel dpi_get_channel(void)
 	}
 }
 
-static int __init dpi_init_display(struct omap_dss_device *dssdev)
+static int dpi_init_display(struct omap_dss_device *dssdev)
 {
 	struct platform_device *dsidev;
 
@@ -607,7 +607,7 @@ static int __init dpi_init_display(struct omap_dss_device *dssdev)
 	return 0;
 }
 
-static struct omap_dss_device * __init dpi_find_dssdev(struct platform_device *pdev)
+static struct omap_dss_device *dpi_find_dssdev(struct platform_device *pdev)
 {
 	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
 	const char *def_disp_name = omapdss_get_default_display_name();
@@ -635,7 +635,7 @@ static struct omap_dss_device * __init dpi_find_dssdev(struct platform_device *p
 	return def_dssdev;
 }
 
-static void __init dpi_probe_pdata(struct platform_device *dpidev)
+static int dpi_probe_pdata(struct platform_device *dpidev)
 {
 	struct omap_dss_device *plat_dssdev;
 	struct omap_dss_device *dssdev;
@@ -644,11 +644,11 @@ static void __init dpi_probe_pdata(struct platform_device *dpidev)
 	plat_dssdev = dpi_find_dssdev(dpidev);
 
 	if (!plat_dssdev)
-		return;
+		return 0;
 
 	dssdev = dss_alloc_and_init_device(&dpidev->dev);
 	if (!dssdev)
-		return;
+		return -ENOMEM;
 
 	dss_copy_device_pdata(dssdev, plat_dssdev);
 
@@ -656,7 +656,7 @@ static void __init dpi_probe_pdata(struct platform_device *dpidev)
 	if (r) {
 		DSSERR("device %s init failed: %d\n", dssdev->name, r);
 		dss_put_device(dssdev);
-		return;
+		return r;
 	}
 
 	r = omapdss_output_set_device(&dpi.output, dssdev);
@@ -664,7 +664,7 @@ static void __init dpi_probe_pdata(struct platform_device *dpidev)
 		DSSERR("failed to connect output to new device: %s\n",
 				dssdev->name);
 		dss_put_device(dssdev);
-		return;
+		return r;
 	}
 
 	r = dss_add_device(dssdev);
@@ -672,11 +672,13 @@ static void __init dpi_probe_pdata(struct platform_device *dpidev)
 		DSSERR("device %s register failed: %d\n", dssdev->name, r);
 		omapdss_output_unset_device(&dpi.output);
 		dss_put_device(dssdev);
-		return;
+		return r;
 	}
+
+	return 0;
 }
 
-static void __init dpi_init_output(struct platform_device *pdev)
+static void dpi_init_output(struct platform_device *pdev)
 {
 	struct omap_dss_output *out = &dpi.output;
 
@@ -696,13 +698,19 @@ static void __exit dpi_uninit_output(struct platform_device *pdev)
 	dss_unregister_output(out);
 }
 
-static int __init omap_dpi_probe(struct platform_device *pdev)
+static int omap_dpi_probe(struct platform_device *pdev)
 {
+	int r;
+
 	mutex_init(&dpi.lock);
 
 	dpi_init_output(pdev);
 
-	dpi_probe_pdata(pdev);
+	r = dpi_probe_pdata(pdev);
+	if (r) {
+		dpi_uninit_output(pdev);
+		return r;
+	}
 
 	return 0;
 }
@@ -717,6 +725,7 @@ static int __exit omap_dpi_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver omap_dpi_driver = {
+	.probe		= omap_dpi_probe,
 	.remove         = __exit_p(omap_dpi_remove),
 	.driver         = {
 		.name   = "omapdss_dpi",
@@ -726,7 +735,7 @@ static struct platform_driver omap_dpi_driver = {
 
 int __init dpi_init_platform_driver(void)
 {
-	return platform_driver_probe(&omap_dpi_driver, omap_dpi_probe);
+	return platform_driver_register(&omap_dpi_driver);
 }
 
 void __exit dpi_uninit_platform_driver(void)
