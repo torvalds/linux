@@ -8332,11 +8332,6 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 
 		ret = intel_set_mode(set->crtc, set->mode,
 				     set->x, set->y, set->fb);
-		if (ret) {
-			DRM_ERROR("failed to set mode on [CRTC:%d], err = %d\n",
-				  set->crtc->base.id, ret);
-			goto fail;
-		}
 	} else if (config->fb_changed) {
 		intel_crtc_wait_for_pending_flips(set->crtc);
 
@@ -8344,18 +8339,18 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 					  set->x, set->y, set->fb);
 	}
 
-	intel_set_config_free(config);
-
-	return 0;
-
+	if (ret) {
+		DRM_ERROR("failed to set mode on [CRTC:%d], err = %d\n",
+			  set->crtc->base.id, ret);
 fail:
-	intel_set_config_restore_state(dev, config);
+		intel_set_config_restore_state(dev, config);
 
-	/* Try to restore the config */
-	if (config->mode_changed &&
-	    intel_set_mode(save_set.crtc, save_set.mode,
-			   save_set.x, save_set.y, save_set.fb))
-		DRM_ERROR("failed to restore config after modeset failure\n");
+		/* Try to restore the config */
+		if (config->mode_changed &&
+		    intel_set_mode(save_set.crtc, save_set.mode,
+				   save_set.x, save_set.y, save_set.fb))
+			DRM_ERROR("failed to restore config after modeset failure\n");
+	}
 
 out_config:
 	intel_set_config_free(config);
