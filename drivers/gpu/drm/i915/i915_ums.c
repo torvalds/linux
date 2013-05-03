@@ -149,12 +149,12 @@ void i915_save_display_reg(struct drm_device *dev)
 		dev_priv->regfile.savePFA_WIN_POS = I915_READ(_PFA_WIN_POS);
 
 		dev_priv->regfile.saveTRANSACONF = I915_READ(_PCH_TRANSACONF);
-		dev_priv->regfile.saveTRANS_HTOTAL_A = I915_READ(_TRANS_HTOTAL_A);
-		dev_priv->regfile.saveTRANS_HBLANK_A = I915_READ(_TRANS_HBLANK_A);
-		dev_priv->regfile.saveTRANS_HSYNC_A = I915_READ(_TRANS_HSYNC_A);
-		dev_priv->regfile.saveTRANS_VTOTAL_A = I915_READ(_TRANS_VTOTAL_A);
-		dev_priv->regfile.saveTRANS_VBLANK_A = I915_READ(_TRANS_VBLANK_A);
-		dev_priv->regfile.saveTRANS_VSYNC_A = I915_READ(_TRANS_VSYNC_A);
+		dev_priv->regfile.saveTRANS_HTOTAL_A = I915_READ(_PCH_TRANS_HTOTAL_A);
+		dev_priv->regfile.saveTRANS_HBLANK_A = I915_READ(_PCH_TRANS_HBLANK_A);
+		dev_priv->regfile.saveTRANS_HSYNC_A = I915_READ(_PCH_TRANS_HSYNC_A);
+		dev_priv->regfile.saveTRANS_VTOTAL_A = I915_READ(_PCH_TRANS_VTOTAL_A);
+		dev_priv->regfile.saveTRANS_VBLANK_A = I915_READ(_PCH_TRANS_VBLANK_A);
+		dev_priv->regfile.saveTRANS_VSYNC_A = I915_READ(_PCH_TRANS_VSYNC_A);
 	}
 
 	dev_priv->regfile.saveDSPACNTR = I915_READ(_DSPACNTR);
@@ -206,12 +206,12 @@ void i915_save_display_reg(struct drm_device *dev)
 		dev_priv->regfile.savePFB_WIN_POS = I915_READ(_PFB_WIN_POS);
 
 		dev_priv->regfile.saveTRANSBCONF = I915_READ(_PCH_TRANSBCONF);
-		dev_priv->regfile.saveTRANS_HTOTAL_B = I915_READ(_TRANS_HTOTAL_B);
-		dev_priv->regfile.saveTRANS_HBLANK_B = I915_READ(_TRANS_HBLANK_B);
-		dev_priv->regfile.saveTRANS_HSYNC_B = I915_READ(_TRANS_HSYNC_B);
-		dev_priv->regfile.saveTRANS_VTOTAL_B = I915_READ(_TRANS_VTOTAL_B);
-		dev_priv->regfile.saveTRANS_VBLANK_B = I915_READ(_TRANS_VBLANK_B);
-		dev_priv->regfile.saveTRANS_VSYNC_B = I915_READ(_TRANS_VSYNC_B);
+		dev_priv->regfile.saveTRANS_HTOTAL_B = I915_READ(_PCH_TRANS_HTOTAL_B);
+		dev_priv->regfile.saveTRANS_HBLANK_B = I915_READ(_PCH_TRANS_HBLANK_B);
+		dev_priv->regfile.saveTRANS_HSYNC_B = I915_READ(_PCH_TRANS_HSYNC_B);
+		dev_priv->regfile.saveTRANS_VTOTAL_B = I915_READ(_PCH_TRANS_VTOTAL_B);
+		dev_priv->regfile.saveTRANS_VBLANK_B = I915_READ(_PCH_TRANS_VBLANK_B);
+		dev_priv->regfile.saveTRANS_VSYNC_B = I915_READ(_PCH_TRANS_VSYNC_B);
 	}
 
 	dev_priv->regfile.saveDSPBCNTR = I915_READ(_DSPBCNTR);
@@ -380,12 +380,12 @@ void i915_restore_display_reg(struct drm_device *dev)
 		I915_WRITE(_PFA_WIN_POS, dev_priv->regfile.savePFA_WIN_POS);
 
 		I915_WRITE(_PCH_TRANSACONF, dev_priv->regfile.saveTRANSACONF);
-		I915_WRITE(_TRANS_HTOTAL_A, dev_priv->regfile.saveTRANS_HTOTAL_A);
-		I915_WRITE(_TRANS_HBLANK_A, dev_priv->regfile.saveTRANS_HBLANK_A);
-		I915_WRITE(_TRANS_HSYNC_A, dev_priv->regfile.saveTRANS_HSYNC_A);
-		I915_WRITE(_TRANS_VTOTAL_A, dev_priv->regfile.saveTRANS_VTOTAL_A);
-		I915_WRITE(_TRANS_VBLANK_A, dev_priv->regfile.saveTRANS_VBLANK_A);
-		I915_WRITE(_TRANS_VSYNC_A, dev_priv->regfile.saveTRANS_VSYNC_A);
+		I915_WRITE(_PCH_TRANS_HTOTAL_A, dev_priv->regfile.saveTRANS_HTOTAL_A);
+		I915_WRITE(_PCH_TRANS_HBLANK_A, dev_priv->regfile.saveTRANS_HBLANK_A);
+		I915_WRITE(_PCH_TRANS_HSYNC_A, dev_priv->regfile.saveTRANS_HSYNC_A);
+		I915_WRITE(_PCH_TRANS_VTOTAL_A, dev_priv->regfile.saveTRANS_VTOTAL_A);
+		I915_WRITE(_PCH_TRANS_VBLANK_A, dev_priv->regfile.saveTRANS_VBLANK_A);
+		I915_WRITE(_PCH_TRANS_VSYNC_A, dev_priv->regfile.saveTRANS_VSYNC_A);
 	}
 
 	/* Restore plane info */
@@ -449,12 +449,12 @@ void i915_restore_display_reg(struct drm_device *dev)
 		I915_WRITE(_PFB_WIN_POS, dev_priv->regfile.savePFB_WIN_POS);
 
 		I915_WRITE(_PCH_TRANSBCONF, dev_priv->regfile.saveTRANSBCONF);
-		I915_WRITE(_TRANS_HTOTAL_B, dev_priv->regfile.saveTRANS_HTOTAL_B);
-		I915_WRITE(_TRANS_HBLANK_B, dev_priv->regfile.saveTRANS_HBLANK_B);
-		I915_WRITE(_TRANS_HSYNC_B, dev_priv->regfile.saveTRANS_HSYNC_B);
-		I915_WRITE(_TRANS_VTOTAL_B, dev_priv->regfile.saveTRANS_VTOTAL_B);
-		I915_WRITE(_TRANS_VBLANK_B, dev_priv->regfile.saveTRANS_VBLANK_B);
-		I915_WRITE(_TRANS_VSYNC_B, dev_priv->regfile.saveTRANS_VSYNC_B);
+		I915_WRITE(_PCH_TRANS_HTOTAL_B, dev_priv->regfile.saveTRANS_HTOTAL_B);
+		I915_WRITE(_PCH_TRANS_HBLANK_B, dev_priv->regfile.saveTRANS_HBLANK_B);
+		I915_WRITE(_PCH_TRANS_HSYNC_B, dev_priv->regfile.saveTRANS_HSYNC_B);
+		I915_WRITE(_PCH_TRANS_VTOTAL_B, dev_priv->regfile.saveTRANS_VTOTAL_B);
+		I915_WRITE(_PCH_TRANS_VBLANK_B, dev_priv->regfile.saveTRANS_VBLANK_B);
+		I915_WRITE(_PCH_TRANS_VSYNC_B, dev_priv->regfile.saveTRANS_VSYNC_B);
 	}
 
 	/* Restore plane info */
