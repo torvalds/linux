@@ -146,22 +146,10 @@ static const dma_addr_t dma40_rx_map[DB8500_DMA_NR_DEV] = {
 	[DB8500_DMA_DEV48_CAC1_RX] = U8500_CRYP1_BASE + CRYP1_RX_REG_OFFSET,
 };
 
-/* Reserved event lines for memcpy only */
-static int dma40_memcpy_event[] = {
-	DB8500_DMA_MEMCPY_TX_0,
-	DB8500_DMA_MEMCPY_TX_1,
-	DB8500_DMA_MEMCPY_TX_2,
-	DB8500_DMA_MEMCPY_TX_3,
-	DB8500_DMA_MEMCPY_TX_4,
-	DB8500_DMA_MEMCPY_TX_5,
-};
-
 static struct stedma40_platform_data dma40_plat_data = {
 	.dev_len = DB8500_DMA_NR_DEV,
 	.dev_rx = dma40_rx_map,
 	.dev_tx = dma40_tx_map,
-	.memcpy = dma40_memcpy_event,
-	.memcpy_len = ARRAY_SIZE(dma40_memcpy_event),
 	.memcpy_conf_phy = &dma40_memcpy_conf_phy,
 	.memcpy_conf_log = &dma40_memcpy_conf_log,
 	.disabled_channels = {-1},

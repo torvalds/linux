@@ -55,6 +55,9 @@
 
 #define MAX(a, b) (((a) < (b)) ? (b) : (a))
 
+/* Reserved event lines for memcpy only. */
+static int dma40_memcpy_channels[] = { 56, 57, 58, 59, 60 };
+
 /**
  * enum 40_command - The different commands and/or statuses.
  *
@@ -2014,8 +2017,7 @@ static int d40_config_memcpy(struct d40_chan *d40c)
 	if (dma_has_cap(DMA_MEMCPY, cap) && !dma_has_cap(DMA_SLAVE, cap)) {
 		d40c->dma_cfg = *d40c->base->plat_data->memcpy_conf_log;
 		d40c->dma_cfg.src_dev_type = STEDMA40_DEV_SRC_MEMORY;
-		d40c->dma_cfg.dst_dev_type = d40c->base->plat_data->
-			memcpy[d40c->chan.chan_id];
+		d40c->dma_cfg.dst_dev_type = dma40_memcpy_channels[d40c->chan.chan_id];
 
 	} else if (dma_has_cap(DMA_MEMCPY, cap) &&
 		   dma_has_cap(DMA_SLAVE, cap)) {
@@ -2927,7 +2929,7 @@ static int __init d40_dmaengine_init(struct d40_base *base,
 	}
 
 	d40_chan_init(base, &base->dma_memcpy, base->log_chans,
-		      base->num_log_chans, base->plat_data->memcpy_len);
+		      base->num_log_chans, ARRAY_SIZE(dma40_memcpy_channels));
 
 	dma_cap_zero(base->dma_memcpy.cap_mask);
 	dma_cap_set(DMA_MEMCPY, base->dma_memcpy.cap_mask);
@@ -3215,7 +3217,7 @@ static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 			num_log_chans++;
 
 	base = kzalloc(ALIGN(sizeof(struct d40_base), 4) +
-		       (num_phy_chans + num_log_chans + plat_data->memcpy_len) *
+		       (num_phy_chans + num_log_chans + ARRAY_SIZE(dma40_memcpy_channels)) *
 		       sizeof(struct d40_chan), GFP_KERNEL);
 
 	if (base == NULL) {
@@ -3276,7 +3278,7 @@ static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 	if (!base->lookup_phy_chans)
 		goto failure;
 
-	if (num_log_chans + plat_data->memcpy_len) {
+	if (num_log_chans + ARRAY_SIZE(dma40_memcpy_channels)) {
 		/*
 		 * The max number of logical channels are event lines for all
 		 * src devices and dst devices
