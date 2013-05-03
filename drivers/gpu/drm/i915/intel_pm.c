@@ -3808,7 +3808,7 @@ static void ironlake_init_clock_gating(struct drm_device *dev)
 		   _3D_CHICKEN2_WM_READ_PIPELINED << 16 |
 		   _3D_CHICKEN2_WM_READ_PIPELINED);
 
-	/* WaDisableRenderCachePipelinedFlush */
+	/* WaDisableRenderCachePipelinedFlush:ilk */
 	I915_WRITE(CACHE_MODE_0,
 		   _MASKED_BIT_ENABLE(CM0_PIPELINED_RENDER_FLUSH_DISABLE));
 
@@ -3875,11 +3875,11 @@ static void gen6_init_clock_gating(struct drm_device *dev)
 		   I915_READ(ILK_DISPLAY_CHICKEN2) |
 		   ILK_ELPIN_409_SELECT);
 
-	/* WaDisableHiZPlanesWhenMSAAEnabled */
+	/* WaDisableHiZPlanesWhenMSAAEnabled:snb */
 	I915_WRITE(_3D_CHICKEN,
 		   _MASKED_BIT_ENABLE(_3D_CHICKEN_HIZ_PLANE_DISABLE_MSAA_4X_SNB));
 
-	/* WaSetupGtModeTdRowDispatch */
+	/* WaSetupGtModeTdRowDispatch:snb */
 	if (IS_SNB_GT1(dev))
 		I915_WRITE(GEN6_GT_MODE,
 			   _MASKED_BIT_ENABLE(GEN6_TD_FOUR_ROW_DISPATCH_DISABLE));
@@ -3906,8 +3906,8 @@ static void gen6_init_clock_gating(struct drm_device *dev)
 	 * According to the spec, bit 11 (RCCUNIT) must also be set,
 	 * but we didn't debug actual testcases to find it out.
 	 *
-	 * Also apply WaDisableVDSUnitClockGating and
-	 * WaDisableRCPBUnitClockGating.
+	 * Also apply WaDisableVDSUnitClockGating:snb and
+	 * WaDisableRCPBUnitClockGating:snb.
 	 */
 	I915_WRITE(GEN6_UCGCTL2,
 		   GEN7_VDSUNIT_CLOCK_GATE_DISABLE |
@@ -3938,7 +3938,7 @@ static void gen6_init_clock_gating(struct drm_device *dev)
 		   ILK_DPARBUNIT_CLOCK_GATE_ENABLE  |
 		   ILK_DPFDUNIT_CLOCK_GATE_ENABLE);
 
-	/* WaMbcDriverBootEnable */
+	/* WaMbcDriverBootEnable:snb */
 	I915_WRITE(GEN6_MBCTL, I915_READ(GEN6_MBCTL) |
 		   GEN6_MBCTL_ENABLE_BOOT_FETCH);
 
@@ -3968,7 +3968,6 @@ static void gen7_setup_fixed_func_scheduler(struct drm_i915_private *dev_priv)
 	reg |= GEN7_FF_VS_SCHED_HW;
 	reg |= GEN7_FF_DS_SCHED_HW;
 
-	/* WaVSRefCountFullforceMissDisable */
 	if (IS_HASWELL(dev_priv->dev))
 		reg &= ~GEN7_FF_VS_REF_CNT_FFME;
 
@@ -3999,21 +3998,21 @@ static void haswell_init_clock_gating(struct drm_device *dev)
 	I915_WRITE(WM1_LP_ILK, 0);
 
 	/* According to the spec, bit 13 (RCZUNIT) must be set on IVB.
-	 * This implements the WaDisableRCZUnitClockGating workaround.
+	 * This implements the WaDisableRCZUnitClockGating:hsw workaround.
 	 */
 	I915_WRITE(GEN6_UCGCTL2, GEN6_RCZUNIT_CLOCK_GATE_DISABLE);
 
-	/* Apply the WaDisableRHWOOptimizationForRenderHang workaround. */
+	/* Apply the WaDisableRHWOOptimizationForRenderHang:hsw workaround. */
 	I915_WRITE(GEN7_COMMON_SLICE_CHICKEN1,
 		   GEN7_CSC1_RHWO_OPT_DISABLE_IN_RCC);
 
-	/* WaApplyL3ControlAndL3ChickenMode requires those two on Ivy Bridge */
+	/* WaApplyL3ControlAndL3ChickenMode:hsw */
 	I915_WRITE(GEN7_L3CNTLREG1,
 			GEN7_WA_FOR_GEN7_L3_CONTROL);
 	I915_WRITE(GEN7_L3_CHICKEN_MODE_REGISTER,
 			GEN7_WA_L3_CHICKEN_MODE);
 
-	/* This is required by WaCatErrorRejectionIssue */
+	/* This is required by WaCatErrorRejectionIssue:hsw */
 	I915_WRITE(GEN7_SQ_CHICKEN_MBCUNIT_CONFIG,
 			I915_READ(GEN7_SQ_CHICKEN_MBCUNIT_CONFIG) |
 			GEN7_SQ_CHICKEN_MBCUNIT_SQINTMOB);
@@ -4025,17 +4024,18 @@ static void haswell_init_clock_gating(struct drm_device *dev)
 		intel_flush_display_plane(dev_priv, pipe);
 	}
 
+	/* WaVSRefCountFullforceMissDisable:hsw */
 	gen7_setup_fixed_func_scheduler(dev_priv);
 
-	/* WaDisable4x2SubspanOptimization */
+	/* WaDisable4x2SubspanOptimization:hsw */
 	I915_WRITE(CACHE_MODE_1,
 		   _MASKED_BIT_ENABLE(PIXEL_SUBSPAN_COLLECT_OPT_DISABLE));
 
-	/* WaMbcDriverBootEnable */
+	/* WaMbcDriverBootEnable:hsw */
 	I915_WRITE(GEN6_MBCTL, I915_READ(GEN6_MBCTL) |
 		   GEN6_MBCTL_ENABLE_BOOT_FETCH);
 
-	/* WaSwitchSolVfFArbitrationPriority */
+	/* WaSwitchSolVfFArbitrationPriority:hsw */
 	I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) | HSW_ECOCHK_ARB_PRIO_SOL);
 
 	/* XXX: This is a workaround for early silicon revisions and should be
@@ -4062,16 +4062,16 @@ static void ivybridge_init_clock_gating(struct drm_device *dev)
 
 	I915_WRITE(ILK_DSPCLK_GATE_D, ILK_VRHUNIT_CLOCK_GATE_DISABLE);
 
-	/* WaDisableEarlyCull */
+	/* WaDisableEarlyCull:ivb */
 	I915_WRITE(_3D_CHICKEN3,
 		   _MASKED_BIT_ENABLE(_3D_CHICKEN_SF_DISABLE_OBJEND_CULL));
 
-	/* WaDisableBackToBackFlipFix */
+	/* WaDisableBackToBackFlipFix:ivb */
 	I915_WRITE(IVB_CHICKEN3,
 		   CHICKEN3_DGMG_REQ_OUT_FIX_DISABLE |
 		   CHICKEN3_DGMG_DONE_FIX_DISABLE);
 
-	/* WaDisablePSDDualDispatchEnable */
+	/* WaDisablePSDDualDispatchEnable:ivb */
 	if (IS_IVB_GT1(dev))
 		I915_WRITE(GEN7_HALF_SLICE_CHICKEN1,
 			   _MASKED_BIT_ENABLE(GEN7_PSD_SINGLE_PORT_DISPATCH_ENABLE));
@@ -4079,11 +4079,11 @@ static void ivybridge_init_clock_gating(struct drm_device *dev)
 		I915_WRITE(GEN7_HALF_SLICE_CHICKEN1_GT2,
 			   _MASKED_BIT_ENABLE(GEN7_PSD_SINGLE_PORT_DISPATCH_ENABLE));
 
-	/* Apply the WaDisableRHWOOptimizationForRenderHang workaround. */
+	/* Apply the WaDisableRHWOOptimizationForRenderHang:ivb workaround. */
 	I915_WRITE(GEN7_COMMON_SLICE_CHICKEN1,
 		   GEN7_CSC1_RHWO_OPT_DISABLE_IN_RCC);
 
-	/* WaApplyL3ControlAndL3ChickenMode requires those two on Ivy Bridge */
+	/* WaApplyL3ControlAndL3ChickenMode:ivb */
 	I915_WRITE(GEN7_L3CNTLREG1,
 			GEN7_WA_FOR_GEN7_L3_CONTROL);
 	I915_WRITE(GEN7_L3_CHICKEN_MODE_REGISTER,
@@ -4096,7 +4096,7 @@ static void ivybridge_init_clock_gating(struct drm_device *dev)
 			   _MASKED_BIT_ENABLE(DOP_CLOCK_GATING_DISABLE));
 
 
-	/* WaForceL3Serialization */
+	/* WaForceL3Serialization:ivb */
 	I915_WRITE(GEN7_L3SQCREG4, I915_READ(GEN7_L3SQCREG4) &
 		   ~L3SQ_URB_READ_CAM_MATCH_DISABLE);
 
@@ -4111,13 +4111,13 @@ static void ivybridge_init_clock_gating(struct drm_device *dev)
 	 * but we didn't debug actual testcases to find it out.
 	 *
 	 * According to the spec, bit 13 (RCZUNIT) must be set on IVB.
-	 * This implements the WaDisableRCZUnitClockGating workaround.
+	 * This implements the WaDisableRCZUnitClockGating:ivb workaround.
 	 */
 	I915_WRITE(GEN6_UCGCTL2,
 		   GEN6_RCZUNIT_CLOCK_GATE_DISABLE |
 		   GEN6_RCCUNIT_CLOCK_GATE_DISABLE);
 
-	/* This is required by WaCatErrorRejectionIssue */
+	/* This is required by WaCatErrorRejectionIssue:ivb */
 	I915_WRITE(GEN7_SQ_CHICKEN_MBCUNIT_CONFIG,
 			I915_READ(GEN7_SQ_CHICKEN_MBCUNIT_CONFIG) |
 			GEN7_SQ_CHICKEN_MBCUNIT_SQINTMOB);
@@ -4129,13 +4129,14 @@ static void ivybridge_init_clock_gating(struct drm_device *dev)
 		intel_flush_display_plane(dev_priv, pipe);
 	}
 
-	/* WaMbcDriverBootEnable */
+	/* WaMbcDriverBootEnable:ivb */
 	I915_WRITE(GEN6_MBCTL, I915_READ(GEN6_MBCTL) |
 		   GEN6_MBCTL_ENABLE_BOOT_FETCH);
 
+	/* WaVSRefCountFullforceMissDisable:ivb */
 	gen7_setup_fixed_func_scheduler(dev_priv);
 
-	/* WaDisable4x2SubspanOptimization */
+	/* WaDisable4x2SubspanOptimization:ivb */
 	I915_WRITE(CACHE_MODE_1,
 		   _MASKED_BIT_ENABLE(PIXEL_SUBSPAN_COLLECT_OPT_DISABLE));
 
@@ -4161,46 +4162,46 @@ static void valleyview_init_clock_gating(struct drm_device *dev)
 
 	I915_WRITE(ILK_DSPCLK_GATE_D, ILK_VRHUNIT_CLOCK_GATE_DISABLE);
 
-	/* WaDisableEarlyCull */
+	/* WaDisableEarlyCull:vlv */
 	I915_WRITE(_3D_CHICKEN3,
 		   _MASKED_BIT_ENABLE(_3D_CHICKEN_SF_DISABLE_OBJEND_CULL));
 
-	/* WaDisableBackToBackFlipFix */
+	/* WaDisableBackToBackFlipFix:vlv */
 	I915_WRITE(IVB_CHICKEN3,
 		   CHICKEN3_DGMG_REQ_OUT_FIX_DISABLE |
 		   CHICKEN3_DGMG_DONE_FIX_DISABLE);
 
-	/* WaDisablePSDDualDispatchEnable */
+	/* WaDisablePSDDualDispatchEnable:vlv */
 	I915_WRITE(GEN7_HALF_SLICE_CHICKEN1,
 		   _MASKED_BIT_ENABLE(GEN7_MAX_PS_THREAD_DEP |
 				      GEN7_PSD_SINGLE_PORT_DISPATCH_ENABLE));
 
-	/* Apply the WaDisableRHWOOptimizationForRenderHang workaround. */
+	/* Apply the WaDisableRHWOOptimizationForRenderHang:vlv workaround. */
 	I915_WRITE(GEN7_COMMON_SLICE_CHICKEN1,
 		   GEN7_CSC1_RHWO_OPT_DISABLE_IN_RCC);
 
-	/* WaApplyL3ControlAndL3ChickenMode requires those two on Ivy Bridge */
+	/* WaApplyL3ControlAndL3ChickenMode:vlv */
 	I915_WRITE(GEN7_L3CNTLREG1, I915_READ(GEN7_L3CNTLREG1) | GEN7_L3AGDIS);
 	I915_WRITE(GEN7_L3_CHICKEN_MODE_REGISTER, GEN7_WA_L3_CHICKEN_MODE);
 
-	/* WaForceL3Serialization */
+	/* WaForceL3Serialization:vlv */
 	I915_WRITE(GEN7_L3SQCREG4, I915_READ(GEN7_L3SQCREG4) &
 		   ~L3SQ_URB_READ_CAM_MATCH_DISABLE);
 
-	/* WaDisableDopClockGating */
+	/* WaDisableDopClockGating:vlv */
 	I915_WRITE(GEN7_ROW_CHICKEN2,
 		   _MASKED_BIT_ENABLE(DOP_CLOCK_GATING_DISABLE));
 
-	/* WaForceL3Serialization */
+	/* WaForceL3Serialization:vlv */
 	I915_WRITE(GEN7_L3SQCREG4, I915_READ(GEN7_L3SQCREG4) &
 		   ~L3SQ_URB_READ_CAM_MATCH_DISABLE);
 
-	/* This is required by WaCatErrorRejectionIssue */
+	/* This is required by WaCatErrorRejectionIssue:vlv */
 	I915_WRITE(GEN7_SQ_CHICKEN_MBCUNIT_CONFIG,
 		   I915_READ(GEN7_SQ_CHICKEN_MBCUNIT_CONFIG) |
 		   GEN7_SQ_CHICKEN_MBCUNIT_SQINTMOB);
 
-	/* WaMbcDriverBootEnable */
+	/* WaMbcDriverBootEnable:vlv */
 	I915_WRITE(GEN6_MBCTL, I915_READ(GEN6_MBCTL) |
 		   GEN6_MBCTL_ENABLE_BOOT_FETCH);
 
@@ -4216,10 +4217,10 @@ static void valleyview_init_clock_gating(struct drm_device *dev)
 	 * but we didn't debug actual testcases to find it out.
 	 *
 	 * According to the spec, bit 13 (RCZUNIT) must be set on IVB.
-	 * This implements the WaDisableRCZUnitClockGating workaround.
+	 * This implements the WaDisableRCZUnitClockGating:vlv workaround.
 	 *
-	 * Also apply WaDisableVDSUnitClockGating and
-	 * WaDisableRCPBUnitClockGating.
+	 * Also apply WaDisableVDSUnitClockGating:vlv and
+	 * WaDisableRCPBUnitClockGating:vlv.
 	 */
 	I915_WRITE(GEN6_UCGCTL2,
 		   GEN7_VDSUNIT_CLOCK_GATE_DISABLE |
@@ -4241,7 +4242,7 @@ static void valleyview_init_clock_gating(struct drm_device *dev)
 		   _MASKED_BIT_ENABLE(PIXEL_SUBSPAN_COLLECT_OPT_DISABLE));
 
 	/*
-	 * WaDisableVLVClockGating_VBIIssue
+	 * WaDisableVLVClockGating_VBIIssue:vlv
 	 * Disable clock gating on th GCFG unit to prevent a delay
 	 * in the reporting of vblank events.
 	 */
