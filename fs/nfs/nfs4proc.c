@@ -6783,26 +6783,76 @@ static int nfs41_test_stateid(struct nfs_server *server, nfs4_stateid *stateid)
 	return err;
 }
 
-static int _nfs4_free_stateid(struct nfs_server *server, nfs4_stateid *stateid)
-{
-	struct nfs41_free_stateid_args args = {
-		.stateid = stateid,
-	};
+struct nfs_free_stateid_data {
+	struct nfs_server *server;
+	struct nfs41_free_stateid_args args;
 	struct nfs41_free_stateid_res res;
+};
+
+static void nfs41_free_stateid_prepare(struct rpc_task *task, void *calldata)
+{
+	struct nfs_free_stateid_data *data = calldata;
+	nfs41_setup_sequence(nfs4_get_session(data->server),
+			&data->args.seq_args,
+			&data->res.seq_res,
+			task);
+}
+
+static void nfs41_free_stateid_done(struct rpc_task *task, void *calldata)
+{
+	struct nfs_free_stateid_data *data = calldata;
+
+	nfs41_sequence_done(task, &data->res.seq_res);
+
+	switch (task->tk_status) {
+	case -NFS4ERR_DELAY:
+		if (nfs4_async_handle_error(task, data->server, NULL) == -EAGAIN)
+			rpc_restart_call_prepare(task);
+	}
+}
+
+static void nfs41_free_stateid_release(void *calldata)
+{
+	kfree(calldata);
+}
+
+const struct rpc_call_ops nfs41_free_stateid_ops = {
+	.rpc_call_prepare = nfs41_free_stateid_prepare,
+	.rpc_call_done = nfs41_free_stateid_done,
+	.rpc_release = nfs41_free_stateid_release,
+};
+
+static struct rpc_task *_nfs41_free_stateid(struct nfs_server *server,
+		nfs4_stateid *stateid,
+		bool privileged)
+{
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_FREE_STATEID],
-		.rpc_argp = &args,
-		.rpc_resp = &res,
 	};
-	int status;
+	struct rpc_task_setup task_setup = {
+		.rpc_client = server->client,
+		.rpc_message = &msg,
+		.callback_ops = &nfs41_free_stateid_ops,
+		.flags = RPC_TASK_ASYNC,
+	};
+	struct nfs_free_stateid_data *data;
 
 	dprintk("NFS call  free_stateid %p\n", stateid);
-	nfs41_init_sequence(&args.seq_args, &res.seq_res, 0);
-	nfs4_set_sequence_privileged(&args.seq_args);
-	status = nfs4_call_sync_sequence(server->client, server, &msg,
-			&args.seq_args, &res.seq_res);
-	dprintk("NFS reply free_stateid: %d\n", status);
-	return status;
+	data = kmalloc(sizeof(*data), GFP_NOFS);
+	if (!data)
+		return ERR_PTR(-ENOMEM);
+	data->server = server;
+	nfs4_stateid_copy(&data->args.stateid, stateid);
+
+	task_setup.callback_data = data;
+
+	msg.rpc_argp = &data->args;
+	msg.rpc_resp = &data->res;
+	nfs41_init_sequence(&data->args.seq_args, &data->res.seq_res, 0);
+	if (privileged)
+		nfs4_set_sequence_privileged(&data->args.seq_args);
+
+	return rpc_run_task(&task_setup);
 }
 
 /**
@@ -6816,15 +6866,17 @@ static int _nfs4_free_stateid(struct nfs_server *server, nfs4_stateid *stateid)
  */
 static int nfs41_free_stateid(struct nfs_server *server, nfs4_stateid *stateid)
 {
-	struct nfs4_exception exception = { };
-	int err;
-	do {
-		err = _nfs4_free_stateid(server, stateid);
-		if (err != -NFS4ERR_DELAY)
-			break;
-		nfs4_handle_exception(server, err, &exception);
-	} while (exception.retry);
-	return err;
+	struct rpc_task *task;
+	int ret;
+
+	task = _nfs41_free_stateid(server, stateid, true);
+	if (IS_ERR(task))
+		return PTR_ERR(task);
+	ret = rpc_wait_for_completion_task(task);
+	if (!ret)
+		ret = task->tk_status;
+	rpc_put_task(task);
+	return ret;
 }
 
 static bool nfs41_match_stateid(const nfs4_stateid *s1,
