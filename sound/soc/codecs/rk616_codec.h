@@ -30,6 +30,7 @@
 #define RK616_ADC_INT_CTL2			(RK616_CODEC_BASE + 0x0c)
 #define RK616_DAC_INT_CTL1			(RK616_CODEC_BASE + 0x10)
 #define RK616_DAC_INT_CTL2			(RK616_CODEC_BASE + 0x14)
+#define RK616_CLK_CHPUMP			(RK616_CODEC_BASE + 0x1c)
 #define RK616_PGA_AGC_CTL			(RK616_CODEC_BASE + 0x28)
 #define RK616_PWR_ADD1				(RK616_CODEC_BASE + 0x3c)
 #define RK616_BST_CTL				(RK616_CODEC_BASE + 0x40)
@@ -747,7 +748,7 @@ enum {
 
 struct rk616_reg_val_typ {
 	unsigned int reg;
-	unsigned int  value;
+	unsigned int value;
 };
 
 struct rk616_init_bit_typ {

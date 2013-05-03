@@ -81,6 +81,7 @@ static const unsigned int rk616_reg_defaults[RK616_PGAR_AGC_CTL5 + 1] = {
 	[RK616_ADC_INT_CTL2] = 0x000e,
 	[RK616_DAC_INT_CTL1] = 0x0050,
 	[RK616_DAC_INT_CTL2] = 0x000e,
+	[RK616_CLK_CHPUMP] = 0x0001,
 	[RK616_PGA_AGC_CTL] = 0x000c,
 	[RK616_PWR_ADD1] = 0x007c,
 	[RK616_BST_CTL] = 0x0099,
@@ -143,6 +144,12 @@ static struct rk616_reg_val_typ rk616_mfd_reg_defaults[] = {
 	{CRU_CFGMISC_CON, 0x00000000},
 };
 
+static struct rk616_reg_val_typ rk616_mfd_codec_bit_list[] = {
+	{CRU_CFGMISC_CON, AD_DA_LOOP | MICDET2_PIN_F_CODEC | MICDET1_PIN_F_CODEC},
+};
+
+#define RK616_MFD_CODEC_BIT_LEN ARRAY_SIZE(rk616_mfd_codec_bit_list)
+
 static struct rk616_reg_val_typ rk616_mfd_reg_cache[] = {
 	{CRU_CODEC_DIV, 0x00000000},
 	{CRU_IO_CON0, (I2S1_OUT_DISABLE | I2S0_OUT_DISABLE | I2S1_PD_DISABLE | I2S0_PD_DISABLE) |
@@ -153,6 +160,18 @@ static struct rk616_reg_val_typ rk616_mfd_reg_cache[] = {
 };
 
 #define RK616_MFD_REG_LEN ARRAY_SIZE(rk616_mfd_reg_cache)
+
+static int rk616_mfd_codec_bit(unsigned int reg)
+{
+	int i;
+
+	for (i = 0; i < RK616_MFD_CODEC_BIT_LEN; i++) {
+		if (rk616_mfd_codec_bit_list[i].reg == reg)
+			return i;
+	}
+
+	return -1;
+}
 
 static int rk616_mfd_register(unsigned int reg)
 {
@@ -204,7 +223,9 @@ static int rk616_volatile_register(struct snd_soc_codec *codec, unsigned int reg
 {
 	switch (reg) {
 	case RK616_RESET:
+	case RK616_CLK_CHPUMP:
 	case RK616_MICKEY_DET_CTL:
+	case CRU_CFGMISC_CON:
 		return 1;
 	default:
 		return 0;
@@ -220,6 +241,7 @@ static int rk616_codec_register(struct snd_soc_codec *codec, unsigned int reg)
 	case RK616_ADC_INT_CTL2:
 	case RK616_DAC_INT_CTL1:
 	case RK616_DAC_INT_CTL2:
+	case RK616_CLK_CHPUMP:
 	case RK616_PGA_AGC_CTL:
 	case RK616_PWR_ADD1:
 	case RK616_BST_CTL:
@@ -345,8 +367,7 @@ static unsigned int rk616_codec_read(struct snd_soc_codec *codec, unsigned int r
 		}
 	}
 
-	if (value <= 0xffff)
-		DBG("%s reg = 0x%x, val= 0x%x\n", __func__, reg, value);
+	DBG("%s reg = 0x%x, val= 0x%x\n", __func__, reg, value);
 
 	return value;
 }
@@ -365,20 +386,29 @@ static int rk616_codec_write(struct snd_soc_codec *codec, unsigned int reg, unsi
 		return -EINVAL;
 	}
 
-	if (rk616_mfd_mask_register(reg))
+	// set codec mask bit
+	i = rk616_mfd_codec_bit(reg);
+	if (i >= 0) {
+		set_bit = rk616_mfd_codec_bit_list[i].value;
+		read_value = rk616_codec_read(codec, reg);
+		value = (read_value & ~set_bit) | (value & set_bit);
+	} else if (rk616_mfd_mask_register(reg)) {
 		value = ((0xffff0000 & rk616_read_reg_cache(codec, reg)) | (value & 0x0000ffff));
+	}
 
+	// read codec init register
 	i = rk616_init_bit_register(reg);
-
 	if (i >= 0) {
 		read_value = rk616_codec_read(codec, reg);
 	}
 
+	// write i2c
 	if (rk616->write_dev(rk616, reg, &value) < 0) {
 		printk("%s reg = 0x%x failed\n", __func__, reg);
 		return -EIO;
 	}
 
+	// set codec init bit
 	// widget init bit should be setted 0 after widget power up or unmute,
 	// and should be setted 1 after widget power down or mute.
 	if (i >= 0) {
@@ -1524,8 +1554,9 @@ static int rk616_hw_params(struct snd_pcm_substream *substream,
 #ifdef RK616_FOR_MID
 static struct rk616_reg_val_typ power_up_list[] = {
 	{0x804, 0x46}, //DAC GSM, 0x06: x1, 0x26: x1.25, 0x46: x1.5, 0x66: x1.75
+	{0x828, 0x09}, //Set for Capture
 	{0x83c, 0x00}, //power up
-	{0x840, 0x69}, //BST_L power up, unmute, and Single-Ended(bit 6), volume 0-20dB(bit 5)
+	{0x840, 0x49}, //BST_L power up, unmute, and Single-Ended(bit 6), volume 0-20dB(bit 5)
 	{0x848, 0x06}, //MIXINL power up and unmute, MININL from MICMUX, MICMUX from BST_L
 	{0x84c, 0x3c}, //MIXINL from MIXMUX volume (bit 3-5)
 	{0x860, 0x1f}, //PGAL power up unmute,volume (bit 0-4)
@@ -1545,6 +1576,12 @@ static struct rk616_reg_val_typ power_up_list[] = {
 	{0x89c, 0x7f}, //MICBIAS1 power up (bit 7, Vout = 1.7 * Vref(1.65V) = 2.8V (bit 3-5)
 	{0x8a8, 0x09}, //ADCL/R power, and clear ADCL/R buf
 	{0x8a8, 0x00}, //ADCL/R power, and clear ADCL/R buf
+	{0x894, 0x75}, //power up HPOUTL (bit 7), volume (bit 0-4)
+	{0x898, 0x75}, //power up HPOUTR (bit 7), volume (bit 0-4)
+	{0x894, 0x35}, //INIT HPOUTL (bit 6), volume (bit 0-4)
+	{0x898, 0x35}, //INIT HPOUTR (bit 6), volume (bit 0-4)
+	{0x894, 0x15}, //unmute HPOUTL (bit 5), volume (bit 0-4)
+	{0x898, 0x15}, //unmute HPOUTR (bit 5), volume (bit 0-4)
 };
 
 #define RK616_CODEC_POWER_UP_LIST_LEN ARRAY_SIZE(power_up_list)
