@@ -356,7 +356,7 @@ static const struct file_operations snd_hwdep_f_ops =
  * The callbacks (hwdep->ops) must be set on the returned instance
  * after this call manually by the caller.
  *
- * Returns zero if successful, or a negative error code on failure.
+ * Return: Zero if successful, or a negative error code on failure.
  */
 int snd_hwdep_new(struct snd_card *card, char *id, int device,
 		  struct snd_hwdep **rhwdep)

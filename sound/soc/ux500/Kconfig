@@ -16,7 +16,7 @@ config SND_SOC_UX500_PLAT_MSP_I2S
 config SND_SOC_UX500_PLAT_DMA
 	tristate "Platform - DB8500 (DMA)"
 	depends on SND_SOC_UX500
-	select SND_SOC_DMAENGINE_PCM
+	select SND_SOC_GENERIC_DMAENGINE_PCM
 	help
 		Say Y if you want to enable the Ux500 platform-driver.
 

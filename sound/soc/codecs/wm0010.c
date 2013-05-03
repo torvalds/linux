@@ -342,7 +342,7 @@ static void byte_swap_64(u64 *data_in, u64 *data_out, u32 len)
 		data_out[i] = cpu_to_be64(le64_to_cpu(data_in[i]));
 }
 
-static int wm0010_firmware_load(char *name, struct snd_soc_codec *codec)
+static int wm0010_firmware_load(const char *name, struct snd_soc_codec *codec)
 {
 	struct spi_device *spi = to_spi_device(codec->dev);
 	struct wm0010_priv *wm0010 = snd_soc_codec_get_drvdata(codec);
@@ -361,8 +361,8 @@ static int wm0010_firmware_load(char *name, struct snd_soc_codec *codec)
 
 	ret = request_firmware(&fw, name, codec->dev);
 	if (ret != 0) {
-		dev_err(codec->dev, "Failed to request application: %d\n",
-			ret);
+		dev_err(codec->dev, "Failed to request application(%s): %d\n",
+			name, ret);
 		return ret;
 	}
 
