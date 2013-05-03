@@ -604,6 +604,11 @@
 			compatible = "arm,pl18x", "arm,primecell";
 			reg = <0x80126000 0x1000>;
 			interrupts = <0 60 0x4>;
+
+			dmas = <&dma 29 0 0x2>, /* Logical - DevToMem */
+			       <&dma 29 0 0x0>; /* Logical - MemToDev */
+			dma-names = "rx", "tx";
+
 			status = "disabled";
 		};
 
@@ -611,6 +616,11 @@
 			compatible = "arm,pl18x", "arm,primecell";
 			reg = <0x80118000 0x1000>;
 			interrupts = <0 50 0x4>;
+
+			dmas = <&dma 32 0 0x2>, /* Logical - DevToMem */
+			       <&dma 32 0 0x0>; /* Logical - MemToDev */
+			dma-names = "rx", "tx";
+
 			status = "disabled";
 		};
 
@@ -618,6 +628,11 @@
 			compatible = "arm,pl18x", "arm,primecell";
 			reg = <0x80005000 0x1000>;
 			interrupts = <0 41 0x4>;
+
+			dmas = <&dma 28 0 0x2>, /* Logical - DevToMem */
+			       <&dma 28 0 0x0>; /* Logical - MemToDev */
+			dma-names = "rx", "tx";
+
 			status = "disabled";
 		};
 
@@ -632,6 +647,11 @@
 			compatible = "arm,pl18x", "arm,primecell";
 			reg = <0x80114000 0x1000>;
 			interrupts = <0 99 0x4>;
+
+			dmas = <&dma 42 0 0x2>, /* Logical - DevToMem */
+			       <&dma 42 0 0x0>; /* Logical - MemToDev */
+			dma-names = "rx", "tx";
+
 			status = "disabled";
 		};
 
