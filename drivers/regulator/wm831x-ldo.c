@@ -338,8 +338,6 @@ static int wm831x_gp_ldo_remove(struct platform_device *pdev)
 {
 	struct wm831x_ldo *ldo = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(pdev, NULL);
-
 	free_irq(wm831x_irq(ldo->wm831x,
 			    platform_get_irq_byname(pdev, "UV")), ldo);
 	regulator_unregister(ldo->regulator);
