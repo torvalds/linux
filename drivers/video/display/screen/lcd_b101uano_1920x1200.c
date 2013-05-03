@@ -1,21 +1,23 @@
-#include <linux/fb.h>
+
 #include <linux/delay.h>
 #include <linux/rk_fb.h>
 #include <mach/gpio.h>
 #include <mach/iomux.h>
 #include <mach/board.h>
+#if defined(CONFIG_RK_HDMI)
 #include "../../rockchip/hdmi/rk_hdmi.h"
-#include "screen.h"
+#endif
 
-#ifdef CONFIG_RK610_LVDS
+ 
+#if  defined(CONFIG_RK610_LVDS) || defined(CONFIG_RK616_VIF) 
 #include "../transmitter/rk610_lcd.h"
 #endif
 
 
 /* Base */
-#ifdef CONFIG_RK610_LVDS
+#if  defined(CONFIG_RK610_LVDS) || defined(CONFIG_RK616_VIF)
 #define OUT_TYPE	    	SCREEN_LVDS
-#define OUT_FORMAT      	LVDS_8BIT_1
+#define LVDS_FORMAT      	LVDS_8BIT_1
 #else
 #define OUT_TYPE	    SCREEN_RGB
 #endif
@@ -40,13 +42,18 @@
 #define LCD_WIDTH          	217
 #define LCD_HEIGHT         	136
 /* Other */
-#ifdef CONFIG_RK610_LVDS
+#if defined(CONFIG_RK610_LVDS) || defined(CONFIG_RK616_VIF)  
 #define DCLK_POL	1
 #else
 #define DCLK_POL	0
 #endif
+#define DEN_POL		0
+#define VSYNC_POL	0
+#define HSYNC_POL	0
 
 #define SWAP_RB		0
+#define SWAP_RG		0
+#define SWAP_GB		0
 
 int dsp_lut[256] ={
 		0x00000000, 0x00010101, 0x00020202, 0x00030303, 0x00040404, 0x00050505, 0x00060606, 0x00070707, 
@@ -83,7 +90,7 @@ int dsp_lut[256] ={
 		0x00f8f8f8, 0x00f9f9f9, 0x00fafafa, 0x00fbfbfb, 0x00fcfcfc, 0x00fdfdfd, 0x00fefefe, 0x00ffffff, 
 };
 
-#if  defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)&& defined(CONFIG_RK610_LVDS)
+#if  defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)&& ( defined(CONFIG_RK610_LVDS) || defined(CONFIG_RK616_VIF))
 
 /* scaler Timing    */
 //1920*1080*60
@@ -102,6 +109,13 @@ int dsp_lut[256] ={
 #define S_H_ST			495
 #define S_V_ST			2
 
+#define S_PLL_CFG_VAL		0x01842016
+#define S_FRAC			0xc16c2d
+#define S_SCL_VST		0x25
+#define S_SCL_HST		0x4ba
+#define S_VIF_VST		0x1
+#define S_VIF_HST		0xca		
+
 //1920*1080*50
 #define S1_OUT_CLK		SCALE_RATE(148500000,57375000)  //m=17 n=11 no=4 
 #define S1_H_PW			10
@@ -116,6 +130,14 @@ int dsp_lut[256] ={
 
 #define S1_H_ST			459
 #define S1_V_ST			13
+
+#define S1_PLL_CFG_VAL		0x01c42016
+#define S1_FRAC			0x1f9ad4
+#define S1_SCL_VST		0x25
+#define S1_SCL_HST		0x5ab
+#define S1_VIF_VST		0x1
+#define S1_VIF_HST		0xca
+
 
 //1280*720*60
 #define S2_OUT_CLK		SCALE_RATE(74250000,74250000)  //m=32 n=9 no=4
@@ -132,6 +154,16 @@ int dsp_lut[256] ={
 #define S2_H_ST			495
 #define S2_V_ST			15
 
+
+//bellow are for jettaB
+#define S2_PLL_CFG_VAL		0x01822016
+#define S2_FRAC			0xc16c2d
+#define S2_SCL_VST		0x19
+#define S2_SCL_HST		0x483
+#define S2_VIF_VST		0x1
+#define S2_VIF_HST		0xcf
+
+
 //1280*720*50
 
 #define S3_OUT_CLK		SCALE_RATE(74250000,67500000)   // m=34 n=11 no=4
@@ -147,6 +179,12 @@ int dsp_lut[256] ={
 
 #define S3_H_ST			540
 #define S3_V_ST			14
+#define S3_PLL_CFG_VAL		0x01c22016
+#define S3_FRAC			0x1f9ad4
+#define S3_SCL_VST		0x19
+#define S3_SCL_HST		0x569
+#define S3_VIF_VST		0x1
+#define S3_VIF_HST		0xcf
 
 //720*576*50
 #define S4_OUT_CLK		SCALE_RATE(27000000,70312500)  //m=75 n=4 no=8
@@ -163,6 +201,14 @@ int dsp_lut[256] ={
 #define S4_H_ST			90
 #define S4_V_ST			2
 
+#define S4_PLL_CFG_VAL		0x01412016
+#define S4_FRAC			0xa23d09
+#define S4_SCL_VST		0x2d
+#define S4_SCL_HST		0x33d
+#define S4_VIF_VST		0x1
+#define S4_VIF_HST		0xc1
+
+
 //720*480*60
 #define S5_OUT_CLK		SCALE_RATE(27000000,75000000)  //m=100 n=9 no=4
 #define S5_H_PW			48
@@ -177,6 +223,14 @@ int dsp_lut[256] ={
 
 #define S5_H_ST			476
 #define S5_V_ST			12
+
+#define S5_PLL_CFG_VAL		0x01c11013
+#define S5_FRAC			0x25325e
+#define S5_SCL_VST		0x26
+#define S5_SCL_HST		0x2ae
+#define S5_VIF_VST		0x1
+#define S5_VIF_HST		0xc1
+
 
 #define S_DCLK_POL       1
 
@@ -290,8 +344,8 @@ void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
 	/* screen type & face */
 	screen->face = OUT_FACE;
 	screen->type = OUT_TYPE;
-#ifdef CONFIG_RK610_LVDS
-	screen->hw_format = OUT_FORMAT;
+#if defined(CONFIG_RK610_LVDS)|| defined(CONFIG_RK616_VIF)
+	screen->hw_format = LVDS_FORMAT;
 #endif
 	
 	/* Screen size */
@@ -312,15 +366,15 @@ void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
 	screen->vsync_len = V_PW;
 
 	/* Pin polarity */
-	screen->pin_hsync = 0;
-	screen->pin_vsync = 0;
-	screen->pin_den = 0;
+	screen->pin_hsync = HSYNC_POL;
+	screen->pin_vsync = VSYNC_POL;
+	screen->pin_den = DEN_POL;
 	screen->pin_dclk = DCLK_POL;
 
 	/* Swap rule */
 	screen->swap_rb = SWAP_RB;
-	screen->swap_rg = 0;
-	screen->swap_gb = 0;
+	screen->swap_rg = SWAP_RG;
+	screen->swap_gb = SWAP_GB;
 	screen->swap_delta = 0;
 	screen->swap_dumy = 0;
 
@@ -329,7 +383,7 @@ void set_lcd_info(struct rk29fb_screen *screen, struct rk29lcd_info *lcd_info )
 	screen->standby = NULL;
 	screen->dsp_lut = dsp_lut;
 	screen->sscreen_get = set_scaler_info;
-#ifdef CONFIG_RK610_LVDS
+#if defined(CONFIG_RK610_LVDS) || defined(CONFIG_RK616_VIF)
     	screen->sscreen_set = rk610_lcd_scaler_set_param;
 #endif
 }
