@@ -3249,8 +3249,7 @@ static void ironlake_pfit_enable(struct intel_crtc *crtc)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int pipe = crtc->pipe;
 
-	if (crtc->config.pch_pfit.size &&
-	    intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_EDP)) {
+	if (crtc->config.pch_pfit.size) {
 		/* Force use of hard-coded filter coefficients
 		 * as some pre-programmed values are broken,
 		 * e.g. x201.
