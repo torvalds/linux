@@ -72,6 +72,115 @@
 	};
 };
 
+&cspi1 {
+	fsl,spi-num-chipselects = <1>;
+	cs-gpios = <&gpio4 28 0>;
+	status = "okay";
+
+	pmic: mc13783@0 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "fsl,mc13783";
+		spi-max-frequency = <20000000>;
+		reg = <0>;
+		interrupt-parent = <&gpio2>;
+		interrupts = <23 0x4>;
+		fsl,mc13xxx-uses-adc;
+		fsl,mc13xxx-uses-rtc;
+
+		regulators {
+			sw1a_reg: sw1a {
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <1200000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			sw1b_reg: sw1b {
+				regulator-min-microvolt = <1200000>;
+				regulator-max-microvolt = <1200000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			sw2a_reg: sw2a {
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			sw2b_reg: sw2b {
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			sw3_reg: sw3 {
+				regulator-min-microvolt = <5000000>;
+				regulator-max-microvolt = <5000000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			vaudio_reg: vaudio {
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			violo_reg: violo {
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			viohi_reg: viohi {
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			vgen_reg: vgen {
+				regulator-min-microvolt = <1500000>;
+				regulator-max-microvolt = <1500000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			vcam_reg: vcam {
+				regulator-min-microvolt = <2800000>;
+				regulator-max-microvolt = <2800000>;
+			};
+
+			vrf1_reg: vrf1 {
+				regulator-min-microvolt = <2775000>;
+				regulator-max-microvolt = <2775000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			vrf2_reg: vrf2 {
+				regulator-min-microvolt = <2775000>;
+				regulator-max-microvolt = <2775000>;
+				regulator-always-on;
+				regulator-boot-on;
+			};
+
+			vmmc1_reg: vmmc1 {
+				regulator-min-microvolt = <1600000>;
+				regulator-max-microvolt = <3000000>;
+			};
+
+			gpo1_reg: gpo1 { };
+
+			pwgt1spi_reg: pwgt1spi {
+				regulator-always-on;
+			};
+		};
+	};
+};
+
 &nfc {
 	nand-bus-width = <8>;
 	nand-ecc-mode = "hw";
