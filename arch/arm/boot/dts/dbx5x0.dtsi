@@ -218,6 +218,7 @@
 			interrupts = <0 25 0x4>;
 
 			#dma-cells = <3>;
+			memcpy-channels = <56 57 58 59 60>;
 		};
 
 		prcmu: prcmu@80157000 {
