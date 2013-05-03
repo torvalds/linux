@@ -18,6 +18,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/err.h>
 #include <linux/of.h>
+#include <linux/of_dma.h>
 #include <linux/amba/bus.h>
 #include <linux/regulator/consumer.h>
 #include <linux/platform_data/dma-ste-dma40.h>
@@ -2422,6 +2423,50 @@ static void d40_set_prio_realtime(struct d40_chan *d40c)
 		__d40_set_prio_rt(d40c, d40c->dma_cfg.dev_type, false);
 }
 
+#define D40_DT_FLAGS_MODE(flags)       ((flags >> 0) & 0x1)
+#define D40_DT_FLAGS_DIR(flags)        ((flags >> 1) & 0x1)
+#define D40_DT_FLAGS_BIG_ENDIAN(flags) ((flags >> 2) & 0x1)
+#define D40_DT_FLAGS_FIXED_CHAN(flags) ((flags >> 3) & 0x1)
+
+static struct dma_chan *d40_xlate(struct of_phandle_args *dma_spec,
+				  struct of_dma *ofdma)
+{
+	struct stedma40_chan_cfg cfg;
+	dma_cap_mask_t cap;
+	u32 flags;
+
+	memset(&cfg, 0, sizeof(struct stedma40_chan_cfg));
+
+	dma_cap_zero(cap);
+	dma_cap_set(DMA_SLAVE, cap);
+
+	cfg.dev_type = dma_spec->args[0];
+	flags = dma_spec->args[2];
+
+	switch (D40_DT_FLAGS_MODE(flags)) {
+	case 0: cfg.mode = STEDMA40_MODE_LOGICAL; break;
+	case 1: cfg.mode = STEDMA40_MODE_PHYSICAL; break;
+	}
+
+	switch (D40_DT_FLAGS_DIR(flags)) {
+	case 0:
+		cfg.dir = STEDMA40_MEM_TO_PERIPH;
+		cfg.dst_info.big_endian = D40_DT_FLAGS_BIG_ENDIAN(flags);
+		break;
+	case 1:
+		cfg.dir = STEDMA40_PERIPH_TO_MEM;
+		cfg.src_info.big_endian = D40_DT_FLAGS_BIG_ENDIAN(flags);
+		break;
+	}
+
+	if (D40_DT_FLAGS_FIXED_CHAN(flags)) {
+		cfg.phy_channel = dma_spec->args[1];
+		cfg.use_fixed_channel = true;
+	}
+
+	return dma_request_channel(cap, stedma40_filter, &cfg);
+}
+
 /* DMA ENGINE functions */
 static int d40_alloc_chan_resources(struct dma_chan *chan)
 {
@@ -3637,6 +3682,13 @@ static int __init d40_probe(struct platform_device *pdev)
 	}
 
 	d40_hw_init(base);
+
+	if (np) {
+		err = of_dma_controller_register(np, d40_xlate, NULL);
+		if (err && err != -ENODEV)
+			dev_err(&pdev->dev,
+				"could not register of_dma_controller\n");
+	}
 
 	dev_info(base->dev, "initialized\n");
 	return 0;
