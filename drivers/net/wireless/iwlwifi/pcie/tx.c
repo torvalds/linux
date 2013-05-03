@@ -1522,6 +1522,7 @@ static int iwl_pcie_send_hcmd_sync(struct iwl_trans *trans,
 	if (test_bit(STATUS_FW_ERROR, &trans_pcie->status)) {
 		IWL_ERR(trans, "FW error in SYNC CMD %s\n",
 			get_cmd_string(trans_pcie, cmd->id));
+		dump_stack();
 		ret = -EIO;
 		goto cancel;
 	}
