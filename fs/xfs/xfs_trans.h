@@ -210,23 +210,18 @@ struct xfs_log_item_desc {
 /*
  * Per-extent log reservation for the allocation btree changes
  * involved in freeing or allocating an extent.
- * 2 trees * (2 blocks/level * max depth - 1) * block size
+ * 2 trees * (2 blocks/level * max depth - 1)
  */
-#define	XFS_ALLOCFREE_LOG_RES(mp,nx) \
-	((nx) * (2 * XFS_FSB_TO_B((mp), 2 * XFS_AG_MAXLEVELS(mp) - 1)))
 #define	XFS_ALLOCFREE_LOG_COUNT(mp,nx) \
 	((nx) * (2 * (2 * XFS_AG_MAXLEVELS(mp) - 1)))
 
 /*
  * Per-directory log reservation for any directory change.
- * dir blocks: (1 btree block per level + data block + free block) * dblock size
- * bmap btree: (levels + 2) * max depth * block size
+ * dir blocks: (1 btree block per level + data block + free block)
+ * bmap btree: (levels + 2) * max depth
  * v2 directory blocks can be fragmented below the dirblksize down to the fsb
  * size, so account for that in the DAENTER macros.
  */
-#define	XFS_DIROP_LOG_RES(mp)	\
-	(XFS_FSB_TO_B(mp, XFS_DAENTER_BLOCKS(mp, XFS_DATA_FORK)) + \
-	 (XFS_FSB_TO_B(mp, XFS_DAENTER_BMAPS(mp, XFS_DATA_FORK) + 1)))
 #define	XFS_DIROP_LOG_COUNT(mp)	\
 	(XFS_DAENTER_BLOCKS(mp, XFS_DATA_FORK) + \
 	 XFS_DAENTER_BMAPS(mp, XFS_DATA_FORK) + 1)
