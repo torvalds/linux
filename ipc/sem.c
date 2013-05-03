@@ -264,7 +264,6 @@ static inline void sem_unlock(struct sem_array *sma, int locknum)
 		struct sem *sem = sma->sem_base + locknum;
 		spin_unlock(&sem->lock);
 	}
-	rcu_read_unlock();
 }
 
 /*
@@ -332,6 +331,7 @@ static inline void sem_putref(struct sem_array *sma)
 {
 	sem_lock_and_putref(sma);
 	sem_unlock(sma, -1);
+	rcu_read_unlock();
 }
 
 static inline void sem_rmid(struct ipc_namespace *ns, struct sem_array *s)
@@ -435,6 +435,7 @@ static int newary(struct ipc_namespace *ns, struct ipc_params *params)
 	sma->sem_nsems = nsems;
 	sma->sem_ctime = get_seconds();
 	sem_unlock(sma, -1);
+	rcu_read_unlock();
 
 	return sma->sem_perm.id;
 }
@@ -874,6 +875,7 @@ static void freeary(struct ipc_namespace *ns, struct kern_ipc_perm *ipcp)
 	/* Remove the semaphore set from the IDR */
 	sem_rmid(ns, sma);
 	sem_unlock(sma, -1);
+	rcu_read_unlock();
 
 	wake_up_sem_queue_do(&tasks);
 	ns->used_sems -= sma->sem_nsems;
@@ -1055,6 +1057,7 @@ static int semctl_setval(struct ipc_namespace *ns, int semid, int semnum,
 	/* maybe some queued-up processes were waiting for this */
 	do_smart_update(sma, NULL, 0, 0, &tasks);
 	sem_unlock(sma, -1);
+	rcu_read_unlock();
 	wake_up_sem_queue_do(&tasks);
 	return 0;
 }
@@ -1104,10 +1107,12 @@ static int semctl_main(struct ipc_namespace *ns, int semid, int semnum,
 		if(nsems > SEMMSL_FAST) {
 			if (!ipc_rcu_getref(sma)) {
 				sem_unlock(sma, -1);
+				rcu_read_unlock();
 				err = -EIDRM;
 				goto out_free;
 			}
 			sem_unlock(sma, -1);
+			rcu_read_unlock();
 			sem_io = ipc_alloc(sizeof(ushort)*nsems);
 			if(sem_io == NULL) {
 				sem_putref(sma);
@@ -1117,6 +1122,7 @@ static int semctl_main(struct ipc_namespace *ns, int semid, int semnum,
 			sem_lock_and_putref(sma);
 			if (sma->sem_perm.deleted) {
 				sem_unlock(sma, -1);
+				rcu_read_unlock();
 				err = -EIDRM;
 				goto out_free;
 			}
@@ -1124,6 +1130,7 @@ static int semctl_main(struct ipc_namespace *ns, int semid, int semnum,
 		for (i = 0; i < sma->sem_nsems; i++)
 			sem_io[i] = sma->sem_base[i].semval;
 		sem_unlock(sma, -1);
+		rcu_read_unlock();
 		err = 0;
 		if(copy_to_user(array, sem_io, nsems*sizeof(ushort)))
 			err = -EFAULT;
@@ -1164,6 +1171,7 @@ static int semctl_main(struct ipc_namespace *ns, int semid, int semnum,
 		sem_lock_and_putref(sma);
 		if (sma->sem_perm.deleted) {
 			sem_unlock(sma, -1);
+			rcu_read_unlock();
 			err = -EIDRM;
 			goto out_free;
 		}
@@ -1210,6 +1218,7 @@ static int semctl_main(struct ipc_namespace *ns, int semid, int semnum,
 
 out_unlock:
 	sem_unlock(sma, -1);
+	rcu_read_unlock();
 out_wakeup:
 	wake_up_sem_queue_do(&tasks);
 out_free:
@@ -1295,6 +1304,7 @@ static int semctl_down(struct ipc_namespace *ns, int semid,
 
 out_unlock:
 	sem_unlock(sma, -1);
+	rcu_read_unlock();
 out_up:
 	up_write(&sem_ids(ns).rw_mutex);
 	return err;
@@ -1443,9 +1453,11 @@ static struct sem_undo *find_alloc_undo(struct ipc_namespace *ns, int semid)
 	}
 
 	/* step 3: Acquire the lock on semaphore array */
+	/* This also does the rcu_read_lock() */
 	sem_lock_and_putref(sma);
 	if (sma->sem_perm.deleted) {
 		sem_unlock(sma, -1);
+		rcu_read_unlock();
 		kfree(new);
 		un = ERR_PTR(-EIDRM);
 		goto out;
@@ -1472,7 +1484,6 @@ static struct sem_undo *find_alloc_undo(struct ipc_namespace *ns, int semid)
 
 success:
 	spin_unlock(&ulp->lock);
-	rcu_read_lock();
 	sem_unlock(sma, -1);
 out:
 	return un;
@@ -1648,6 +1659,7 @@ SYSCALL_DEFINE4(semtimedop, int, semid, struct sembuf __user *, tsops,
 sleep_again:
 	current->state = TASK_INTERRUPTIBLE;
 	sem_unlock(sma, locknum);
+	rcu_read_unlock();
 
 	if (timeout)
 		jiffies_left = schedule_timeout(jiffies_left);
@@ -1709,6 +1721,7 @@ sleep_again:
 
 out_unlock_free:
 	sem_unlock(sma, locknum);
+	rcu_read_unlock();
 out_wakeup:
 	wake_up_sem_queue_do(&tasks);
 out_free:
@@ -1801,6 +1814,7 @@ void exit_sem(struct task_struct *tsk)
 			 * exactly the same semid. Nothing to do.
 			 */
 			sem_unlock(sma, -1);
+			rcu_read_unlock();
 			continue;
 		}
 
@@ -1841,6 +1855,7 @@ void exit_sem(struct task_struct *tsk)
 		INIT_LIST_HEAD(&tasks);
 		do_smart_update(sma, NULL, 0, 1, &tasks);
 		sem_unlock(sma, -1);
+		rcu_read_unlock();
 		wake_up_sem_queue_do(&tasks);
 
 		kfree_rcu(un, rcu);
