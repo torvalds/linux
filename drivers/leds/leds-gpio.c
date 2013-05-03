@@ -282,8 +282,6 @@ static int gpio_led_remove(struct platform_device *pdev)
 	for (i = 0; i < priv->num_leds; i++)
 		delete_gpio_led(&priv->leds[i]);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 
