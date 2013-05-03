@@ -121,7 +121,8 @@ dtb-$(CONFIG_ARCH_MXC) += \
 	imx6q-sabreauto.dtb \
 	imx6q-sabrelite.dtb \
 	imx6q-sabresd.dtb \
-	imx6q-sbc6x.dtb
+	imx6q-sbc6x.dtb \
+	imx6sl-evk.dtb
 dtb-$(CONFIG_ARCH_MXS) += imx23-evk.dtb \
 	imx23-olinuxino.dtb \
 	imx23-stmp378x_devb.dtb \
