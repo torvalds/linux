@@ -1110,8 +1110,8 @@ void assert_pipe(struct drm_i915_private *dev_priv,
 	if (pipe == PIPE_A && dev_priv->quirks & QUIRK_PIPEA_FORCE)
 		state = true;
 
-	if (!intel_using_power_well(dev_priv->dev) &&
-	    cpu_transcoder != TRANSCODER_EDP) {
+	if (!intel_display_power_enabled(dev_priv->dev,
+				POWER_DOMAIN_TRANSCODER(cpu_transcoder))) {
 		cur_state = false;
 	} else {
 		reg = PIPECONF(cpu_transcoder);
@@ -3532,7 +3532,8 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 	/* XXX: Once we have proper panel fitter state tracking implemented with
 	 * hardware state read/check support we should switch to only disable
 	 * the panel fitter when we know it's used. */
-	if (intel_using_power_well(dev)) {
+	if (intel_display_power_enabled(dev,
+					POWER_DOMAIN_PIPE_PANEL_FITTER(pipe))) {
 		I915_WRITE(PF_CTL(pipe), 0);
 		I915_WRITE(PF_WIN_SZ(pipe), 0);
 	}
@@ -6051,8 +6052,8 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 	enum transcoder cpu_transcoder = crtc->config.cpu_transcoder;
 	uint32_t tmp;
 
-	if (!intel_using_power_well(dev_priv->dev) &&
-	    cpu_transcoder != TRANSCODER_EDP)
+	if (!intel_display_power_enabled(dev,
+			POWER_DOMAIN_TRANSCODER(cpu_transcoder)))
 		return false;
 
 	tmp = I915_READ(PIPECONF(cpu_transcoder));

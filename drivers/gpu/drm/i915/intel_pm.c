@@ -4344,15 +4344,31 @@ void intel_init_clock_gating(struct drm_device *dev)
  * enable it, so check if it's enabled and also check if we've requested it to
  * be enabled.
  */
-bool intel_using_power_well(struct drm_device *dev)
+bool intel_display_power_enabled(struct drm_device *dev,
+				 enum intel_display_power_domain domain)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (IS_HASWELL(dev))
+	if (!HAS_POWER_WELL(dev))
+		return true;
+
+	switch (domain) {
+	case POWER_DOMAIN_PIPE_A:
+	case POWER_DOMAIN_TRANSCODER_EDP:
+		return true;
+	case POWER_DOMAIN_PIPE_B:
+	case POWER_DOMAIN_PIPE_C:
+	case POWER_DOMAIN_PIPE_A_PANEL_FITTER:
+	case POWER_DOMAIN_PIPE_B_PANEL_FITTER:
+	case POWER_DOMAIN_PIPE_C_PANEL_FITTER:
+	case POWER_DOMAIN_TRANSCODER_A:
+	case POWER_DOMAIN_TRANSCODER_B:
+	case POWER_DOMAIN_TRANSCODER_C:
 		return I915_READ(HSW_PWR_WELL_DRIVER) ==
 		       (HSW_PWR_WELL_ENABLE | HSW_PWR_WELL_STATE);
-	else
-		return true;
+	default:
+		BUG();
+	}
 }
 
 void intel_set_power_well(struct drm_device *dev, bool enable)
