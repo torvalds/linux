@@ -3864,8 +3864,8 @@ static void intel_crtc_disable(struct drm_crtc *crtc)
 	/* crtc should still be enabled when we disable it. */
 	WARN_ON(!crtc->enabled);
 
-	intel_crtc->eld_vld = false;
 	dev_priv->display.crtc_disable(crtc);
+	intel_crtc->eld_vld = false;
 	intel_crtc_update_sarea(crtc, false);
 	dev_priv->display.off(crtc);
 
