@@ -1444,7 +1444,7 @@ static int pm860x_codec_probe(struct platform_device *pdev)
 		res = platform_get_resource(pdev, IORESOURCE_IRQ, i);
 		if (!res) {
 			dev_err(&pdev->dev, "Failed to get IRQ resources\n");
-			goto out;
+			return -EINVAL;
 		}
 		pm860x->irq[i] = res->start + chip->irq_base;
 		strncpy(pm860x->name[i], res->name, MAX_NAME_LEN);
@@ -1454,19 +1454,14 @@ static int pm860x_codec_probe(struct platform_device *pdev)
 				     pm860x_dai, ARRAY_SIZE(pm860x_dai));
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register codec\n");
-		goto out;
+		return -EINVAL;
 	}
 	return ret;
-
-out:
-	platform_set_drvdata(pdev, NULL);
-	return -EINVAL;
 }
 
 static int pm860x_codec_remove(struct platform_device *pdev)
 {
 	snd_soc_unregister_codec(&pdev->dev);
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 
