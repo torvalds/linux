@@ -435,22 +435,18 @@ void qxl_io_monitors_config(struct qxl_device *qdev)
 int qxl_surface_id_alloc(struct qxl_device *qdev,
 		      struct qxl_bo *surf)
 {
-	uint32_t handle = -ENOMEM;
+	uint32_t handle;
 	int idr_ret;
 	int count = 0;
 again:
-	if (idr_pre_get(&qdev->surf_id_idr, GFP_ATOMIC) == 0) {
-		DRM_ERROR("Out of memory for surf idr\n");
-		kfree(surf);
-		goto alloc_fail;
-	}
-
+	idr_preload(GFP_ATOMIC);
 	spin_lock(&qdev->surf_id_idr_lock);
-	idr_ret = idr_get_new_above(&qdev->surf_id_idr, NULL, 1, &handle);
+	idr_ret = idr_alloc(&qdev->surf_id_idr, NULL, 1, 0, GFP_NOWAIT);
 	spin_unlock(&qdev->surf_id_idr_lock);
-
-	if (idr_ret == -EAGAIN)
-		goto again;
+	idr_preload_end();
+	if (idr_ret < 0)
+		return idr_ret;
+	handle = idr_ret;
 
 	if (handle >= qdev->rom->n_surfaces) {
 		count++;
@@ -465,7 +461,6 @@ again:
 	spin_lock(&qdev->surf_id_idr_lock);
 	qdev->last_alloced_surf_id = handle;
 	spin_unlock(&qdev->surf_id_idr_lock);
- alloc_fail:
 	return 0;
 }
 

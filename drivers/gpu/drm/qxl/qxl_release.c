@@ -43,7 +43,7 @@ qxl_release_alloc(struct qxl_device *qdev, int type,
 		  struct qxl_release **ret)
 {
 	struct qxl_release *release;
-	int handle = 0;
+	int handle;
 	size_t size = sizeof(*release);
 	int idr_ret;
 
@@ -56,19 +56,16 @@ qxl_release_alloc(struct qxl_device *qdev, int type,
 	release->bo_count = 0;
 	release->release_offset = 0;
 	release->surface_release_id = 0;
-again:
-	if (idr_pre_get(&qdev->release_idr, GFP_KERNEL) == 0) {
-		DRM_ERROR("Out of memory for release idr\n");
-		kfree(release);
-		goto release_fail;
-	}
+
+	idr_preload(GFP_KERNEL);
 	spin_lock(&qdev->release_idr_lock);
-	idr_ret = idr_get_new_above(&qdev->release_idr, release, 1, &handle);
+	idr_ret = idr_alloc(&qdev->release_idr, release, 1, 0, GFP_NOWAIT);
 	spin_unlock(&qdev->release_idr_lock);
-	if (idr_ret == -EAGAIN)
-		goto again;
-	if (ret)
-		*ret = release;
+	idr_preload_end();
+	handle = idr_ret;
+	if (idr_ret < 0)
+		goto release_fail;
+	*ret = release;
 	QXL_INFO(qdev, "allocated release %lld\n", handle);
 	release->id = handle;
 release_fail:
