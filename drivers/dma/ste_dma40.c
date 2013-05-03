@@ -1302,21 +1302,17 @@ static void __d40_config_set_event(struct d40_chan *d40c,
 static void d40_config_set_event(struct d40_chan *d40c,
 				 enum d40_events event_type)
 {
+	u32 event = D40_TYPE_TO_EVENT(d40c->dma_cfg.dev_type);
+
 	/* Enable event line connected to device (or memcpy) */
 	if ((d40c->dma_cfg.dir ==  STEDMA40_PERIPH_TO_MEM) ||
-	    (d40c->dma_cfg.dir == STEDMA40_PERIPH_TO_PERIPH)) {
-		u32 event = D40_TYPE_TO_EVENT(d40c->dma_cfg.src_dev_type);
-
+	    (d40c->dma_cfg.dir == STEDMA40_PERIPH_TO_PERIPH))
 		__d40_config_set_event(d40c, event_type, event,
 				       D40_CHAN_REG_SSLNK);
-	}
 
-	if (d40c->dma_cfg.dir !=  STEDMA40_PERIPH_TO_MEM) {
-		u32 event = D40_TYPE_TO_EVENT(d40c->dma_cfg.dst_dev_type);
-
+	if (d40c->dma_cfg.dir !=  STEDMA40_PERIPH_TO_MEM)
 		__d40_config_set_event(d40c, event_type, event,
 				       D40_CHAN_REG_SDLNK);
-	}
 }
 
 static u32 d40_chan_has_events(struct d40_chan *d40c)
@@ -1758,8 +1754,6 @@ static int d40_validate_conf(struct d40_chan *d40c,
 			     struct stedma40_chan_cfg *conf)
 {
 	int res = 0;
-	u32 dst_event_group = D40_TYPE_TO_GROUP(conf->dst_dev_type);
-	u32 src_event_group = D40_TYPE_TO_GROUP(conf->src_dev_type);
 	bool is_log = conf->mode == STEDMA40_MODE_LOGICAL;
 
 	if (!conf->dir) {
@@ -1767,44 +1761,26 @@ static int d40_validate_conf(struct d40_chan *d40c,
 		res = -EINVAL;
 	}
 
-	if (conf->dst_dev_type != STEDMA40_DEV_DST_MEMORY &&
-	    d40c->base->plat_data->dev_tx[conf->dst_dev_type] == 0 &&
-	    d40c->runtime_addr == 0) {
-
-		chan_err(d40c, "Invalid TX channel address (%d)\n",
-			 conf->dst_dev_type);
-		res = -EINVAL;
-	}
-
-	if (conf->src_dev_type != STEDMA40_DEV_SRC_MEMORY &&
-	    d40c->base->plat_data->dev_rx[conf->src_dev_type] == 0 &&
-	    d40c->runtime_addr == 0) {
-		chan_err(d40c, "Invalid RX channel address (%d)\n",
-			conf->src_dev_type);
+	if ((is_log && conf->dev_type > d40c->base->num_log_chans)  ||
+	    (!is_log && conf->dev_type > d40c->base->num_phy_chans) ||
+	    (conf->dev_type < 0)) {
+		chan_err(d40c, "Invalid device type (%d)\n", conf->dev_type);
 		res = -EINVAL;
 	}
 
 	if (conf->dir == STEDMA40_MEM_TO_PERIPH &&
-	    conf->dst_dev_type == STEDMA40_DEV_DST_MEMORY) {
-		chan_err(d40c, "Invalid dst\n");
+	    d40c->base->plat_data->dev_tx[conf->dev_type] == 0 &&
+	    d40c->runtime_addr == 0) {
+		chan_err(d40c, "Invalid TX channel address (%d)\n",
+			 conf->dev_type);
 		res = -EINVAL;
 	}
 
 	if (conf->dir == STEDMA40_PERIPH_TO_MEM &&
-	    conf->src_dev_type == STEDMA40_DEV_SRC_MEMORY) {
-		chan_err(d40c, "Invalid src\n");
-		res = -EINVAL;
-	}
-
-	if (conf->src_dev_type == STEDMA40_DEV_SRC_MEMORY &&
-	    conf->dst_dev_type == STEDMA40_DEV_DST_MEMORY && is_log) {
-		chan_err(d40c, "No event line\n");
-		res = -EINVAL;
-	}
-
-	if (conf->dir == STEDMA40_PERIPH_TO_PERIPH &&
-	    (src_event_group != dst_event_group)) {
-		chan_err(d40c, "Invalid event group\n");
+	    d40c->base->plat_data->dev_rx[conf->dev_type] == 0 &&
+	    d40c->runtime_addr == 0) {
+		chan_err(d40c, "Invalid RX channel address (%d)\n",
+			 conf->dev_type);
 		res = -EINVAL;
 	}
 
@@ -1925,7 +1901,7 @@ out:
 
 static int d40_allocate_channel(struct d40_chan *d40c, bool *first_phy_user)
 {
-	int dev_type;
+	int dev_type = d40c->dma_cfg.dev_type;
 	int event_group;
 	int event_line;
 	struct d40_phy_res *phys;
@@ -1940,13 +1916,11 @@ static int d40_allocate_channel(struct d40_chan *d40c, bool *first_phy_user)
 	num_phy_chans = d40c->base->num_phy_chans;
 
 	if (d40c->dma_cfg.dir == STEDMA40_PERIPH_TO_MEM) {
-		dev_type = d40c->dma_cfg.src_dev_type;
 		log_num = 2 * dev_type;
 		is_src = true;
 	} else if (d40c->dma_cfg.dir == STEDMA40_MEM_TO_PERIPH ||
 		   d40c->dma_cfg.dir == STEDMA40_MEM_TO_MEM) {
 		/* dst event lines are used for logical memcpy */
-		dev_type = d40c->dma_cfg.dst_dev_type;
 		log_num = 2 * dev_type + 1;
 		is_src = false;
 	} else
@@ -2058,8 +2032,7 @@ static int d40_config_memcpy(struct d40_chan *d40c)
 
 	if (dma_has_cap(DMA_MEMCPY, cap) && !dma_has_cap(DMA_SLAVE, cap)) {
 		d40c->dma_cfg = dma40_memcpy_conf_log;
-		d40c->dma_cfg.src_dev_type = STEDMA40_DEV_SRC_MEMORY;
-		d40c->dma_cfg.dst_dev_type = dma40_memcpy_channels[d40c->chan.chan_id];
+		d40c->dma_cfg.dev_type = dma40_memcpy_channels[d40c->chan.chan_id];
 
 	} else if (dma_has_cap(DMA_MEMCPY, cap) &&
 		   dma_has_cap(DMA_SLAVE, cap)) {
@@ -2076,7 +2049,7 @@ static int d40_free_dma(struct d40_chan *d40c)
 {
 
 	int res = 0;
-	u32 event;
+	u32 event = D40_TYPE_TO_EVENT(d40c->dma_cfg.dev_type);
 	struct d40_phy_res *phy = d40c->phy_chan;
 	bool is_src;
 
@@ -2095,13 +2068,11 @@ static int d40_free_dma(struct d40_chan *d40c)
 	}
 
 	if (d40c->dma_cfg.dir == STEDMA40_MEM_TO_PERIPH ||
-	    d40c->dma_cfg.dir == STEDMA40_MEM_TO_MEM) {
-		event = D40_TYPE_TO_EVENT(d40c->dma_cfg.dst_dev_type);
+	    d40c->dma_cfg.dir == STEDMA40_MEM_TO_MEM)
 		is_src = false;
-	} else if (d40c->dma_cfg.dir == STEDMA40_PERIPH_TO_MEM) {
-		event = D40_TYPE_TO_EVENT(d40c->dma_cfg.src_dev_type);
+	else if (d40c->dma_cfg.dir == STEDMA40_PERIPH_TO_MEM)
 		is_src = true;
-	} else {
+	else {
 		chan_err(d40c, "Unknown direction\n");
 		return -EINVAL;
 	}
@@ -2142,7 +2113,7 @@ static bool d40_is_paused(struct d40_chan *d40c)
 	unsigned long flags;
 	void __iomem *active_reg;
 	u32 status;
-	u32 event;
+	u32 event = D40_TYPE_TO_EVENT(d40c->dma_cfg.dev_type);
 
 	spin_lock_irqsave(&d40c->lock, flags);
 
@@ -2163,10 +2134,8 @@ static bool d40_is_paused(struct d40_chan *d40c)
 
 	if (d40c->dma_cfg.dir == STEDMA40_MEM_TO_PERIPH ||
 	    d40c->dma_cfg.dir == STEDMA40_MEM_TO_MEM) {
-		event = D40_TYPE_TO_EVENT(d40c->dma_cfg.dst_dev_type);
 		status = readl(chanbase + D40_CHAN_REG_SDLNK);
 	} else if (d40c->dma_cfg.dir == STEDMA40_PERIPH_TO_MEM) {
-		event = D40_TYPE_TO_EVENT(d40c->dma_cfg.src_dev_type);
 		status = readl(chanbase + D40_CHAN_REG_SSLNK);
 	} else {
 		chan_err(d40c, "Unknown direction\n");
@@ -2308,9 +2277,9 @@ d40_get_dev_addr(struct d40_chan *chan, enum dma_transfer_direction direction)
 		return chan->runtime_addr;
 
 	if (direction == DMA_DEV_TO_MEM)
-		addr = plat->dev_rx[cfg->src_dev_type];
+		addr = plat->dev_rx[cfg->dev_type];
 	else if (direction == DMA_MEM_TO_DEV)
-		addr = plat->dev_tx[cfg->dst_dev_type];
+		addr = plat->dev_tx[cfg->dev_type];
 
 	return addr;
 }
@@ -2441,11 +2410,11 @@ static void d40_set_prio_realtime(struct d40_chan *d40c)
 
 	if ((d40c->dma_cfg.dir ==  STEDMA40_PERIPH_TO_MEM) ||
 	    (d40c->dma_cfg.dir == STEDMA40_PERIPH_TO_PERIPH))
-		__d40_set_prio_rt(d40c, d40c->dma_cfg.src_dev_type, true);
+		__d40_set_prio_rt(d40c, d40c->dma_cfg.dev_type, true);
 
 	if ((d40c->dma_cfg.dir ==  STEDMA40_MEM_TO_PERIPH) ||
 	    (d40c->dma_cfg.dir == STEDMA40_PERIPH_TO_PERIPH))
-		__d40_set_prio_rt(d40c, d40c->dma_cfg.dst_dev_type, false);
+		__d40_set_prio_rt(d40c, d40c->dma_cfg.dev_type, false);
 }
 
 /* DMA ENGINE functions */
@@ -2489,10 +2458,10 @@ static int d40_alloc_chan_resources(struct dma_chan *chan)
 
 		if (d40c->dma_cfg.dir == STEDMA40_PERIPH_TO_MEM)
 			d40c->lcpa = d40c->base->lcpa_base +
-				d40c->dma_cfg.src_dev_type * D40_LCPA_CHAN_SIZE;
+				d40c->dma_cfg.dev_type * D40_LCPA_CHAN_SIZE;
 		else
 			d40c->lcpa = d40c->base->lcpa_base +
-				d40c->dma_cfg.dst_dev_type *
+				d40c->dma_cfg.dev_type *
 				D40_LCPA_CHAN_SIZE + D40_LCPA_CHAN_DST_DELTA;
 	}
 
@@ -2755,7 +2724,7 @@ static int d40_set_runtime_config(struct dma_chan *chan,
 
 	if (config->direction == DMA_DEV_TO_MEM) {
 		dma_addr_t dev_addr_rx =
-			d40c->base->plat_data->dev_rx[cfg->src_dev_type];
+			d40c->base->plat_data->dev_rx[cfg->dev_type];
 
 		config_addr = config->src_addr;
 		if (dev_addr_rx)
@@ -2778,7 +2747,7 @@ static int d40_set_runtime_config(struct dma_chan *chan,
 
 	} else if (config->direction == DMA_MEM_TO_DEV) {
 		dma_addr_t dev_addr_tx =
-			d40c->base->plat_data->dev_tx[cfg->dst_dev_type];
+			d40c->base->plat_data->dev_tx[cfg->dev_type];
 
 		config_addr = config->dst_addr;
 		if (dev_addr_tx)

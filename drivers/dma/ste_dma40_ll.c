@@ -63,7 +63,7 @@ void d40_phy_cfg(struct stedma40_chan_cfg *cfg,
 		    (cfg->dir == STEDMA40_PERIPH_TO_PERIPH)) {
 			/* Set master port to 1 */
 			src |= 1 << D40_SREG_CFG_MST_POS;
-			src |= D40_TYPE_TO_EVENT(cfg->src_dev_type);
+			src |= D40_TYPE_TO_EVENT(cfg->dev_type);
 
 			if (cfg->src_info.flow_ctrl == STEDMA40_NO_FLOW_CTRL)
 				src |= 1 << D40_SREG_CFG_PHY_TM_POS;
@@ -74,7 +74,7 @@ void d40_phy_cfg(struct stedma40_chan_cfg *cfg,
 		    (cfg->dir == STEDMA40_PERIPH_TO_PERIPH)) {
 			/* Set master port to 1 */
 			dst |= 1 << D40_SREG_CFG_MST_POS;
-			dst |= D40_TYPE_TO_EVENT(cfg->dst_dev_type);
+			dst |= D40_TYPE_TO_EVENT(cfg->dev_type);
 
 			if (cfg->dst_info.flow_ctrl == STEDMA40_NO_FLOW_CTRL)
 				dst |= 1 << D40_SREG_CFG_PHY_TM_POS;

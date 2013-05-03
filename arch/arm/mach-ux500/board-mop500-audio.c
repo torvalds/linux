@@ -23,8 +23,7 @@ static struct stedma40_chan_cfg msp0_dma_rx = {
 	.high_priority = true,
 	.dir = STEDMA40_PERIPH_TO_MEM,
 
-	.src_dev_type = DB8500_DMA_DEV31_MSP0_RX_SLIM0_CH0_RX,
-	.dst_dev_type = STEDMA40_DEV_DST_MEMORY,
+	.dev_type = DB8500_DMA_DEV31_MSP0_SLIM0_CH0,
 
 	.src_info.psize = STEDMA40_PSIZE_LOG_4,
 	.dst_info.psize = STEDMA40_PSIZE_LOG_4,
@@ -36,8 +35,7 @@ static struct stedma40_chan_cfg msp0_dma_tx = {
 	.high_priority = true,
 	.dir = STEDMA40_MEM_TO_PERIPH,
 
-	.src_dev_type = STEDMA40_DEV_DST_MEMORY,
-	.dst_dev_type = DB8500_DMA_DEV31_MSP0_TX_SLIM0_CH0_TX,
+	.dev_type = DB8500_DMA_DEV31_MSP0_SLIM0_CH0,
 
 	.src_info.psize = STEDMA40_PSIZE_LOG_4,
 	.dst_info.psize = STEDMA40_PSIZE_LOG_4,
@@ -55,8 +53,7 @@ static struct stedma40_chan_cfg msp1_dma_rx = {
 	.high_priority = true,
 	.dir = STEDMA40_PERIPH_TO_MEM,
 
-	.src_dev_type = DB8500_DMA_DEV30_MSP3_RX,
-	.dst_dev_type = STEDMA40_DEV_DST_MEMORY,
+	.dev_type = DB8500_DMA_DEV30_MSP3,
 
 	.src_info.psize = STEDMA40_PSIZE_LOG_4,
 	.dst_info.psize = STEDMA40_PSIZE_LOG_4,
@@ -68,8 +65,7 @@ static struct stedma40_chan_cfg msp1_dma_tx = {
 	.high_priority = true,
 	.dir = STEDMA40_MEM_TO_PERIPH,
 
-	.src_dev_type = STEDMA40_DEV_DST_MEMORY,
-	.dst_dev_type = DB8500_DMA_DEV30_MSP1_TX,
+	.dev_type = DB8500_DMA_DEV30_MSP1,
 
 	.src_info.psize = STEDMA40_PSIZE_LOG_4,
 	.dst_info.psize = STEDMA40_PSIZE_LOG_4,
@@ -87,8 +83,7 @@ static struct stedma40_chan_cfg msp2_dma_rx = {
 	.high_priority = true,
 	.dir = STEDMA40_PERIPH_TO_MEM,
 
-	.src_dev_type = DB8500_DMA_DEV14_MSP2_RX,
-	.dst_dev_type = STEDMA40_DEV_DST_MEMORY,
+	.dev_type = DB8500_DMA_DEV14_MSP2,
 
 	/* MSP2 DMA doesn't work with PSIZE == 4 on DB8500v2 */
 	.src_info.psize = STEDMA40_PSIZE_LOG_1,
@@ -101,8 +96,7 @@ static struct stedma40_chan_cfg msp2_dma_tx = {
 	.high_priority = true,
 	.dir = STEDMA40_MEM_TO_PERIPH,
 
-	.src_dev_type = STEDMA40_DEV_DST_MEMORY,
-	.dst_dev_type = DB8500_DMA_DEV14_MSP2_TX,
+	.dev_type = DB8500_DMA_DEV14_MSP2,
 
 	.src_info.psize = STEDMA40_PSIZE_LOG_4,
 	.dst_info.psize = STEDMA40_PSIZE_LOG_4,

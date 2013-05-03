@@ -109,8 +109,7 @@ struct stedma40_half_channel_info {
  * version 3+, i.e DB8500v2+
  * @mode: channel mode: physical, logical, or operation
  * @mode_opt: options for the chosen channel mode
- * @src_dev_type: Src device type
- * @dst_dev_type: Dst device type
+ * @dev_type: src/dst device type (driver uses dir to figure out which)
  * @src_info: Parameters for dst half channel
  * @dst_info: Parameters for dst half channel
  * @use_fixed_channel: if true, use physical channel specified by phy_channel
@@ -126,8 +125,7 @@ struct stedma40_chan_cfg {
 	bool					 realtime;
 	enum stedma40_mode			 mode;
 	enum stedma40_mode_opt			 mode_opt;
-	int					 src_dev_type;
-	int					 dst_dev_type;
+	int					 dev_type;
 	struct stedma40_half_channel_info	 src_info;
 	struct stedma40_half_channel_info	 dst_info;
 

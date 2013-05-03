@@ -15,7 +15,6 @@
 #define MUSB_DMA40_RX_CH { \
 		.mode = STEDMA40_MODE_LOGICAL, \
 		.dir = STEDMA40_PERIPH_TO_MEM, \
-		.dst_dev_type = STEDMA40_DEV_DST_MEMORY, \
 		.src_info.data_width = STEDMA40_WORD_WIDTH, \
 		.dst_info.data_width = STEDMA40_WORD_WIDTH, \
 		.src_info.psize = STEDMA40_PSIZE_LOG_16, \
@@ -25,7 +24,6 @@
 #define MUSB_DMA40_TX_CH { \
 		.mode = STEDMA40_MODE_LOGICAL, \
 		.dir = STEDMA40_MEM_TO_PERIPH, \
-		.src_dev_type = STEDMA40_DEV_SRC_MEMORY, \
 		.src_info.data_width = STEDMA40_WORD_WIDTH, \
 		.dst_info.data_width = STEDMA40_WORD_WIDTH, \
 		.src_info.psize = STEDMA40_PSIZE_LOG_16, \
@@ -125,20 +123,20 @@ struct platform_device ux500_musb_device = {
 	.resource = usb_resources,
 };
 
-static inline void ux500_usb_dma_update_rx_ch_config(int *src_dev_type)
+static inline void ux500_usb_dma_update_rx_ch_config(int *dev_type)
 {
 	u32 idx;
 
 	for (idx = 0; idx < UX500_MUSB_DMA_NUM_RX_CHANNELS; idx++)
-		musb_dma_rx_ch[idx].src_dev_type = src_dev_type[idx];
+		musb_dma_rx_ch[idx].dev_type = dev_type[idx];
 }
 
-static inline void ux500_usb_dma_update_tx_ch_config(int *dst_dev_type)
+static inline void ux500_usb_dma_update_tx_ch_config(int *dev_type)
 {
 	u32 idx;
 
 	for (idx = 0; idx < UX500_MUSB_DMA_NUM_TX_CHANNELS; idx++)
-		musb_dma_tx_ch[idx].dst_dev_type = dst_dev_type[idx];
+		musb_dma_tx_ch[idx].dev_type = dev_type[idx];
 }
 
 void ux500_add_usb(struct device *parent, resource_size_t base, int irq,
