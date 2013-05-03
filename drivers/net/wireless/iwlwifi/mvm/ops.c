@@ -443,6 +443,10 @@ static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 
 	kfree(mvm->scan_cmd);
 
+#if defined(CONFIG_PM_SLEEP) && defined(CONFIG_IWLWIFI_DEBUGFS)
+	kfree(mvm->d3_resume_sram);
+#endif
+
 	iwl_trans_stop_hw(mvm->trans, true);
 
 	iwl_phy_db_free(mvm->phy_db);

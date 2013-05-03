@@ -344,6 +344,10 @@ struct iwl_mvm {
 
 #ifdef CONFIG_PM_SLEEP
 	int gtk_ivlen, gtk_icvlen, ptk_ivlen, ptk_icvlen;
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	bool store_d3_resume_sram;
+	void *d3_resume_sram;
+#endif
 #endif
 
 	/* BT-Coex */

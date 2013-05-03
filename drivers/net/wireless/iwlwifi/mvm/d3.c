@@ -1214,6 +1214,26 @@ static void iwl_mvm_query_wakeup_reasons(struct iwl_mvm *mvm,
 	iwl_free_resp(&cmd);
 }
 
+static void iwl_mvm_read_d3_sram(struct iwl_mvm *mvm)
+{
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+	const struct fw_img *img = &mvm->fw->img[IWL_UCODE_WOWLAN];
+	u32 len = img->sec[IWL_UCODE_SECTION_DATA].len;
+	u32 offs = img->sec[IWL_UCODE_SECTION_DATA].offset;
+
+	if (!mvm->store_d3_resume_sram)
+		return;
+
+	if (!mvm->d3_resume_sram) {
+		mvm->d3_resume_sram = kzalloc(len, GFP_KERNEL);
+		if (!mvm->d3_resume_sram)
+			return;
+	}
+
+	iwl_trans_read_mem_bytes(mvm->trans, offs, mvm->d3_resume_sram, len);
+#endif
+}
+
 int iwl_mvm_resume(struct ieee80211_hw *hw)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
@@ -1244,6 +1264,9 @@ int iwl_mvm_resume(struct ieee80211_hw *hw)
 		IWL_INFO(mvm, "Device was reset during suspend\n");
 		goto out_unlock;
 	}
+
+	/* query SRAM first in case we want event logging */
+	iwl_mvm_read_d3_sram(mvm);
 
 	iwl_mvm_query_wakeup_reasons(mvm, vif);
 

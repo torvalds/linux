@@ -482,6 +482,70 @@ static ssize_t iwl_dbgfs_fw_restart_write(struct file *file,
 	return count;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static ssize_t iwl_dbgfs_d3_sram_write(struct file *file,
+				       const char __user *user_buf,
+				       size_t count, loff_t *ppos)
+{
+	struct iwl_mvm *mvm = file->private_data;
+	char buf[8] = {};
+	int store;
+
+	if (copy_from_user(buf, user_buf, sizeof(buf)))
+		return -EFAULT;
+
+	if (sscanf(buf, "%d", &store) != 1)
+		return -EINVAL;
+
+	mvm->store_d3_resume_sram = store;
+
+	return count;
+}
+
+static ssize_t iwl_dbgfs_d3_sram_read(struct file *file, char __user *user_buf,
+				      size_t count, loff_t *ppos)
+{
+	struct iwl_mvm *mvm = file->private_data;
+	const struct fw_img *img;
+	int ofs, len, pos = 0;
+	size_t bufsz, ret;
+	char *buf;
+	u8 *ptr = mvm->d3_resume_sram;
+
+	img = &mvm->fw->img[IWL_UCODE_WOWLAN];
+	len = img->sec[IWL_UCODE_SECTION_DATA].len;
+
+	bufsz = len * 4 + 256;
+	buf = kzalloc(bufsz, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	pos += scnprintf(buf, bufsz, "D3 SRAM capture: %sabled\n",
+			 mvm->store_d3_resume_sram ? "en" : "dis");
+
+	if (ptr) {
+		for (ofs = 0; ofs < len; ofs += 16) {
+			pos += scnprintf(buf + pos, bufsz - pos,
+					 "0x%.4x ", ofs);
+			hex_dump_to_buffer(ptr + ofs, 16, 16, 1, buf + pos,
+					   bufsz - pos, false);
+			pos += strlen(buf + pos);
+			if (bufsz - pos > 0)
+				buf[pos++] = '\n';
+		}
+	} else {
+		pos += scnprintf(buf + pos, bufsz - pos,
+				 "(no data captured)\n");
+	}
+
+	ret = simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+
+	kfree(buf);
+
+	return ret;
+}
+#endif
+
 #define MVM_DEBUGFS_READ_FILE_OPS(name)					\
 static const struct file_operations iwl_dbgfs_##name##_ops = {	\
 	.read = iwl_dbgfs_##name##_read,				\
@@ -525,6 +589,9 @@ MVM_DEBUGFS_READ_FILE_OPS(bt_notif);
 MVM_DEBUGFS_WRITE_FILE_OPS(power_down_allow);
 MVM_DEBUGFS_WRITE_FILE_OPS(power_down_d3_allow);
 MVM_DEBUGFS_WRITE_FILE_OPS(fw_restart);
+#ifdef CONFIG_PM_SLEEP
+MVM_DEBUGFS_READ_WRITE_FILE_OPS(d3_sram);
+#endif
 
 /* Interface specific debugfs entries */
 MVM_DEBUGFS_READ_FILE_OPS(mac_params);
@@ -543,6 +610,9 @@ int iwl_mvm_dbgfs_register(struct iwl_mvm *mvm, struct dentry *dbgfs_dir)
 	MVM_DEBUGFS_ADD_FILE(power_down_allow, mvm->debugfs_dir, S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(power_down_d3_allow, mvm->debugfs_dir, S_IWUSR);
 	MVM_DEBUGFS_ADD_FILE(fw_restart, mvm->debugfs_dir, S_IWUSR);
+#ifdef CONFIG_PM_SLEEP
+	MVM_DEBUGFS_ADD_FILE(d3_sram, mvm->debugfs_dir, S_IRUSR | S_IWUSR);
+#endif
 
 	/*
 	 * Create a symlink with mac80211. It will be removed when mac80211
