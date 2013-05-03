@@ -88,7 +88,7 @@ struct regulator *dss_get_vdds_dsi(void)
 	if (core.vdds_dsi_reg != NULL)
 		return core.vdds_dsi_reg;
 
-	reg = regulator_get(&core.pdev->dev, "vdds_dsi");
+	reg = devm_regulator_get(&core.pdev->dev, "vdds_dsi");
 	if (!IS_ERR(reg))
 		core.vdds_dsi_reg = reg;
 
@@ -102,7 +102,7 @@ struct regulator *dss_get_vdds_sdi(void)
 	if (core.vdds_sdi_reg != NULL)
 		return core.vdds_sdi_reg;
 
-	reg = regulator_get(&core.pdev->dev, "vdds_sdi");
+	reg = devm_regulator_get(&core.pdev->dev, "vdds_sdi");
 	if (!IS_ERR(reg))
 		core.vdds_sdi_reg = reg;
 
@@ -664,16 +664,6 @@ static int __init omap_dss_init(void)
 
 static void __exit omap_dss_exit(void)
 {
-	if (core.vdds_dsi_reg != NULL) {
-		regulator_put(core.vdds_dsi_reg);
-		core.vdds_dsi_reg = NULL;
-	}
-
-	if (core.vdds_sdi_reg != NULL) {
-		regulator_put(core.vdds_sdi_reg);
-		core.vdds_sdi_reg = NULL;
-	}
-
 	omap_dss_unregister_drivers();
 
 	omap_dss_bus_unregister();
