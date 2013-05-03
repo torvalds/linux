@@ -148,7 +148,7 @@ void i915_save_display_reg(struct drm_device *dev)
 		dev_priv->regfile.savePFA_WIN_SZ = I915_READ(_PFA_WIN_SZ);
 		dev_priv->regfile.savePFA_WIN_POS = I915_READ(_PFA_WIN_POS);
 
-		dev_priv->regfile.saveTRANSACONF = I915_READ(_TRANSACONF);
+		dev_priv->regfile.saveTRANSACONF = I915_READ(_PCH_TRANSACONF);
 		dev_priv->regfile.saveTRANS_HTOTAL_A = I915_READ(_TRANS_HTOTAL_A);
 		dev_priv->regfile.saveTRANS_HBLANK_A = I915_READ(_TRANS_HBLANK_A);
 		dev_priv->regfile.saveTRANS_HSYNC_A = I915_READ(_TRANS_HSYNC_A);
@@ -205,7 +205,7 @@ void i915_save_display_reg(struct drm_device *dev)
 		dev_priv->regfile.savePFB_WIN_SZ = I915_READ(_PFB_WIN_SZ);
 		dev_priv->regfile.savePFB_WIN_POS = I915_READ(_PFB_WIN_POS);
 
-		dev_priv->regfile.saveTRANSBCONF = I915_READ(_TRANSBCONF);
+		dev_priv->regfile.saveTRANSBCONF = I915_READ(_PCH_TRANSBCONF);
 		dev_priv->regfile.saveTRANS_HTOTAL_B = I915_READ(_TRANS_HTOTAL_B);
 		dev_priv->regfile.saveTRANS_HBLANK_B = I915_READ(_TRANS_HBLANK_B);
 		dev_priv->regfile.saveTRANS_HSYNC_B = I915_READ(_TRANS_HSYNC_B);
@@ -379,7 +379,7 @@ void i915_restore_display_reg(struct drm_device *dev)
 		I915_WRITE(_PFA_WIN_SZ, dev_priv->regfile.savePFA_WIN_SZ);
 		I915_WRITE(_PFA_WIN_POS, dev_priv->regfile.savePFA_WIN_POS);
 
-		I915_WRITE(_TRANSACONF, dev_priv->regfile.saveTRANSACONF);
+		I915_WRITE(_PCH_TRANSACONF, dev_priv->regfile.saveTRANSACONF);
 		I915_WRITE(_TRANS_HTOTAL_A, dev_priv->regfile.saveTRANS_HTOTAL_A);
 		I915_WRITE(_TRANS_HBLANK_A, dev_priv->regfile.saveTRANS_HBLANK_A);
 		I915_WRITE(_TRANS_HSYNC_A, dev_priv->regfile.saveTRANS_HSYNC_A);
@@ -448,7 +448,7 @@ void i915_restore_display_reg(struct drm_device *dev)
 		I915_WRITE(_PFB_WIN_SZ, dev_priv->regfile.savePFB_WIN_SZ);
 		I915_WRITE(_PFB_WIN_POS, dev_priv->regfile.savePFB_WIN_POS);
 
-		I915_WRITE(_TRANSBCONF, dev_priv->regfile.saveTRANSBCONF);
+		I915_WRITE(_PCH_TRANSBCONF, dev_priv->regfile.saveTRANSBCONF);
 		I915_WRITE(_TRANS_HTOTAL_B, dev_priv->regfile.saveTRANS_HTOTAL_B);
 		I915_WRITE(_TRANS_HBLANK_B, dev_priv->regfile.saveTRANS_HBLANK_B);
 		I915_WRITE(_TRANS_HSYNC_B, dev_priv->regfile.saveTRANS_HSYNC_B);

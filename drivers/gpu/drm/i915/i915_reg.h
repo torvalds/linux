@@ -4060,9 +4060,10 @@
 #define TRANSDPLINK_M2(pipe) _PIPE(pipe, _TRANSA_DP_LINK_M2, _TRANSB_DP_LINK_M2)
 #define TRANSDPLINK_N2(pipe) _PIPE(pipe, _TRANSA_DP_LINK_N2, _TRANSB_DP_LINK_N2)
 
-#define _TRANSACONF              0xf0008
-#define _TRANSBCONF              0xf1008
-#define TRANSCONF(plane) _PIPE(plane, _TRANSACONF, _TRANSBCONF)
+#define _PCH_TRANSACONF              0xf0008
+#define _PCH_TRANSBCONF              0xf1008
+#define PCH_TRANSCONF(pipe) _PIPE(pipe, _PCH_TRANSACONF, _PCH_TRANSBCONF)
+#define LPT_TRANSCONF		_PCH_TRANSACONF /* lpt has only one transcoder */
 #define  TRANS_DISABLE          (0<<31)
 #define  TRANS_ENABLE           (1<<31)
 #define  TRANS_STATE_MASK       (1<<30)
