@@ -59,6 +59,7 @@ config ARM
 	select CLONE_BACKWARDS
 	select OLD_SIGSUSPEND3
 	select OLD_SIGACTION
+	select HAVE_CONTEXT_TRACKING
 	help
 	  The ARM series is a line of low-power-consumption RISC chip designs
 	  licensed by ARM Ltd and targeted at embedded applications and
@@ -1479,6 +1480,14 @@ config HAVE_ARM_TWD
 	help
 	  This options enables support for the ARM timer and watchdog unit
 
+config MCPM
+	bool "Multi-Cluster Power Management"
+	depends on CPU_V7 && SMP
+	help
+	  This option provides the common power management infrastructure
+	  for (multi-)cluster based systems, such as big.LITTLE based
+	  systems.
+
 choice
 	prompt "Memory split"
 	default VMSPLIT_3G
@@ -1565,8 +1574,9 @@ config SCHED_HRTICK
 	def_bool HIGH_RES_TIMERS
 
 config THUMB2_KERNEL
-	bool "Compile the kernel in Thumb-2 mode"
+	bool "Compile the kernel in Thumb-2 mode" if !CPU_THUMBONLY
 	depends on CPU_V7 && !CPU_V6 && !CPU_V6K
+	default y if CPU_THUMBONLY
 	select AEABI
 	select ARM_ASM_UNIFIED
 	select ARM_UNWIND
