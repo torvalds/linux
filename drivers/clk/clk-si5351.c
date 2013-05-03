@@ -851,6 +851,41 @@ static int _si5351_clkout_set_drive_strength(
 	return 0;
 }
 
+static int _si5351_clkout_set_disable_state(
+	struct si5351_driver_data *drvdata, int num,
+	enum si5351_disable_state state)
+{
+	u8 reg = (num < 4) ? SI5351_CLK3_0_DISABLE_STATE :
+		SI5351_CLK7_4_DISABLE_STATE;
+	u8 shift = (num < 4) ? (2 * num) : (2 * (num-4));
+	u8 mask = SI5351_CLK_DISABLE_STATE_MASK << shift;
+	u8 val;
+
+	if (num > 8)
+		return -EINVAL;
+
+	switch (state) {
+	case SI5351_DISABLE_LOW:
+		val = SI5351_CLK_DISABLE_STATE_LOW;
+		break;
+	case SI5351_DISABLE_HIGH:
+		val = SI5351_CLK_DISABLE_STATE_HIGH;
+		break;
+	case SI5351_DISABLE_FLOATING:
+		val = SI5351_CLK_DISABLE_STATE_FLOAT;
+		break;
+	case SI5351_DISABLE_NEVER:
+		val = SI5351_CLK_DISABLE_STATE_NEVER;
+		break;
+	default:
+		return 0;
+	}
+
+	si5351_set_bits(drvdata, reg, mask, val << shift);
+
+	return 0;
+}
+
 static int si5351_clkout_prepare(struct clk_hw *hw)
 {
 	struct si5351_hw_data *hwdata =
@@ -1225,6 +1260,33 @@ static int si5351_dt_parse(struct i2c_client *client)
 			}
 		}
 
+		if (!of_property_read_u32(child, "silabs,disable-state",
+					  &val)) {
+			switch (val) {
+			case 0:
+				pdata->clkout[num].disable_state =
+					SI5351_DISABLE_LOW;
+				break;
+			case 1:
+				pdata->clkout[num].disable_state =
+					SI5351_DISABLE_HIGH;
+				break;
+			case 2:
+				pdata->clkout[num].disable_state =
+					SI5351_DISABLE_FLOATING;
+				break;
+			case 3:
+				pdata->clkout[num].disable_state =
+					SI5351_DISABLE_NEVER;
+				break;
+			default:
+				dev_err(&client->dev,
+					"invalid disable state %d for clkout %d\n",
+					val, num);
+				return -EINVAL;
+			}
+		}
+
 		if (!of_property_read_u32(child, "clock-frequency", &val))
 			pdata->clkout[num].rate = val;
 
@@ -1281,9 +1343,6 @@ static int si5351_i2c_probe(struct i2c_client *client,
 
 	/* Disable interrupts */
 	si5351_reg_write(drvdata, SI5351_INTERRUPT_MASK, 0xf0);
-	/* Set disabled output drivers to drive low */
-	si5351_reg_write(drvdata, SI5351_CLK3_0_DISABLE_STATE, 0x00);
-	si5351_reg_write(drvdata, SI5351_CLK7_4_DISABLE_STATE, 0x00);
 	/* Ensure pll select is on XTAL for Si5351A/B */
 	if (drvdata->variant != SI5351_VARIANT_C)
 		si5351_set_bits(drvdata, SI5351_PLL_INPUT_SOURCE,
@@ -1325,6 +1384,15 @@ static int si5351_i2c_probe(struct i2c_client *client,
 			dev_err(&client->dev,
 				"failed set drive strength of clkout%d to %d\n",
 				n, pdata->clkout[n].drive);
+			return ret;
+		}
+
+		ret = _si5351_clkout_set_disable_state(drvdata, n,
+						pdata->clkout[n].disable_state);
+		if (ret) {
+			dev_err(&client->dev,
+				"failed set disable state of clkout%d to %d\n",
+				n, pdata->clkout[n].disable_state);
 			return ret;
 		}
 	}
