@@ -296,8 +296,6 @@ static int sh_wdt_remove(struct platform_device *pdev)
 {
 	struct sh_wdt *wdt = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(pdev, NULL);
-
 	watchdog_unregister_device(&sh_wdt_dev);
 
 	pm_runtime_disable(&pdev->dev);
