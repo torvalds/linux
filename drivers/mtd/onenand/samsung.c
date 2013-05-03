@@ -1073,7 +1073,6 @@ static int s3c_onenand_remove(struct platform_device *pdev)
 	release_mem_region(onenand->base_res->start,
 			   resource_size(onenand->base_res));
 
-	platform_set_drvdata(pdev, NULL);
 	kfree(onenand->oob_buf);
 	kfree(onenand->page_buf);
 	kfree(onenand);
