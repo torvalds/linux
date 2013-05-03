@@ -4125,8 +4125,8 @@ static int intel_crtc_compute_config(struct drm_crtc *crtc,
 	if (!pipe_config->timings_set)
 		drm_mode_set_crtcinfo(adjusted_mode, 0);
 
-	/* WaPruneModeWithIncorrectHsyncOffset: Cantiga+ cannot handle modes
-	 * with a hsync front porch of 0.
+	/* Cantiga+ cannot handle modes with a hsync front porch of 0.
+	 * WaPruneModeWithIncorrectHsyncOffset:ctg,elk,ilk,snb,ivb,vlv,hsw.
 	 */
 	if ((INTEL_INFO(dev)->gen > 4 || IS_G4X(dev)) &&
 		adjusted_mode->hsync_start == adjusted_mode->hdisplay)
