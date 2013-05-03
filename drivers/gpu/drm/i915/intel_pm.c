@@ -2093,7 +2093,7 @@ haswell_update_linetime_wm(struct drm_device *dev, struct drm_crtc *crtc)
 	 * row at the given clock rate, multiplied by 8.
 	 * */
 	temp |= PIPE_WM_LINETIME_TIME(
-		((mode->htotal * 1000) / mode->clock) * 8);
+		DIV_ROUND_CLOSEST(mode->htotal * 1000 * 8, mode->clock));
 
 	/* IPS watermarks are only used by pipe A, and are ignored by
 	 * pipes B and C.  They are calculated similarly to the common
