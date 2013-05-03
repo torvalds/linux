@@ -540,10 +540,15 @@ static void do_acct_process(struct bsd_acct_struct *acct,
 	ac.ac_swaps = encode_comp_t(0);
 
 	/*
+	 * Get freeze protection. If the fs is frozen, just skip the write
+	 * as we could deadlock the system otherwise.
+	 */
+	if (!file_start_write_trylock(file))
+		goto out;
+	/*
 	 * Kernel segment override to datasegment and write it
 	 * to the accounting file.
 	 */
-	file_start_write(file);
 	fs = get_fs();
 	set_fs(KERNEL_DS);
 	/*
