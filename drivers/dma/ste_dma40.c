@@ -1785,19 +1785,19 @@ static int d40_validate_conf(struct d40_chan *d40c,
 	}
 
 	if (conf->dir == STEDMA40_MEM_TO_PERIPH &&
-	    dst_event_group == STEDMA40_DEV_DST_MEMORY) {
+	    conf->dst_dev_type == STEDMA40_DEV_DST_MEMORY) {
 		chan_err(d40c, "Invalid dst\n");
 		res = -EINVAL;
 	}
 
 	if (conf->dir == STEDMA40_PERIPH_TO_MEM &&
-	    src_event_group == STEDMA40_DEV_SRC_MEMORY) {
+	    conf->src_dev_type == STEDMA40_DEV_SRC_MEMORY) {
 		chan_err(d40c, "Invalid src\n");
 		res = -EINVAL;
 	}
 
-	if (src_event_group == STEDMA40_DEV_SRC_MEMORY &&
-	    dst_event_group == STEDMA40_DEV_DST_MEMORY && is_log) {
+	if (conf->src_dev_type == STEDMA40_DEV_SRC_MEMORY &&
+	    conf->dst_dev_type == STEDMA40_DEV_DST_MEMORY && is_log) {
 		chan_err(d40c, "No event line\n");
 		res = -EINVAL;
 	}
