@@ -6,9 +6,8 @@
  * definitions of processors.
  *
  * Basic handling of the devices is done in drivers/base/cpu.c
- * and system devices are handled in drivers/base/sys.c. 
  *
- * CPUs are exported via sysfs in the class/cpu/devices/
+ * CPUs are exported via sysfs in the devices/system/cpu
  * directory. 
  */
 #ifndef _LINUX_CPU_H_
