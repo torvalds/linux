@@ -556,7 +556,6 @@ static int i5k_amb_probe(struct platform_device *pdev)
 
 err_init_failed:
 	iounmap(data->amb_mmio);
-	platform_set_drvdata(pdev, NULL);
 err_map_failed:
 	release_mem_region(data->amb_base, data->amb_len);
 err:
@@ -576,7 +575,6 @@ static int i5k_amb_remove(struct platform_device *pdev)
 	kfree(data->attrs);
 	iounmap(data->amb_mmio);
 	release_mem_region(data->amb_base, data->amb_len);
-	platform_set_drvdata(pdev, NULL);
 	kfree(data);
 	return 0;
 }
