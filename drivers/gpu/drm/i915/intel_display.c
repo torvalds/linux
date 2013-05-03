@@ -9756,6 +9756,9 @@ int intel_modeset_vga_set_state(struct drm_device *dev, bool state)
 #include <linux/seq_file.h>
 
 struct intel_display_error_state {
+
+	u32 power_well_driver;
+
 	struct intel_cursor_error_state {
 		u32 control;
 		u32 position;
@@ -9764,6 +9767,7 @@ struct intel_display_error_state {
 	} cursor[I915_MAX_PIPES];
 
 	struct intel_pipe_error_state {
+		enum transcoder cpu_transcoder;
 		u32 conf;
 		u32 source;
 
@@ -9798,8 +9802,12 @@ intel_display_capture_error_state(struct drm_device *dev)
 	if (error == NULL)
 		return NULL;
 
+	if (HAS_POWER_WELL(dev))
+		error->power_well_driver = I915_READ(HSW_PWR_WELL_DRIVER);
+
 	for_each_pipe(i) {
 		cpu_transcoder = intel_pipe_to_cpu_transcoder(dev_priv, i);
+		error->pipe[i].cpu_transcoder = cpu_transcoder;
 
 		if (INTEL_INFO(dev)->gen <= 6 || IS_VALLEYVIEW(dev)) {
 			error->cursor[i].control = I915_READ(CURCNTR(i));
@@ -9845,8 +9853,13 @@ intel_display_print_error_state(struct seq_file *m,
 	int i;
 
 	seq_printf(m, "Num Pipes: %d\n", INTEL_INFO(dev)->num_pipes);
+	if (HAS_POWER_WELL(dev))
+		seq_printf(m, "PWR_WELL_CTL2: %08x\n",
+			   error->power_well_driver);
 	for_each_pipe(i) {
 		seq_printf(m, "Pipe [%d]:\n", i);
+		seq_printf(m, "  CPU transcoder: %c\n",
+			   transcoder_name(error->pipe[i].cpu_transcoder));
 		seq_printf(m, "  CONF: %08x\n", error->pipe[i].conf);
 		seq_printf(m, "  SRC: %08x\n", error->pipe[i].source);
 		seq_printf(m, "  HTOTAL: %08x\n", error->pipe[i].htotal);
