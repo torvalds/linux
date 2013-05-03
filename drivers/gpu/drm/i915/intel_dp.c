@@ -319,7 +319,8 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 	 */
 	if (is_cpu_edp(intel_dp)) {
 		if (HAS_DDI(dev))
-			aux_clock_divider = intel_ddi_get_cdclk_freq(dev_priv) >> 1;
+			aux_clock_divider = DIV_ROUND_CLOSEST(
+				intel_ddi_get_cdclk_freq(dev_priv), 2000);
 		else if (IS_VALLEYVIEW(dev))
 			aux_clock_divider = 100;
 		else if (IS_GEN6(dev) || IS_GEN7(dev))

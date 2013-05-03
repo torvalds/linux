@@ -1153,14 +1153,14 @@ static void intel_disable_ddi(struct intel_encoder *intel_encoder)
 int intel_ddi_get_cdclk_freq(struct drm_i915_private *dev_priv)
 {
 	if (I915_READ(HSW_FUSE_STRAP) & HSW_CDCLK_LIMIT)
-		return 450;
+		return 450000;
 	else if ((I915_READ(LCPLL_CTL) & LCPLL_CLK_FREQ_MASK) ==
 		 LCPLL_CLK_FREQ_450)
-		return 450;
+		return 450000;
 	else if (IS_ULT(dev_priv->dev))
-		return 338;
+		return 337500;
 	else
-		return 540;
+		return 540000;
 }
 
 void intel_ddi_pll_init(struct drm_device *dev)
@@ -1173,7 +1173,7 @@ void intel_ddi_pll_init(struct drm_device *dev)
 	 * Don't even try to turn it on.
 	 */
 
-	DRM_DEBUG_KMS("CDCLK running at %dMHz\n",
+	DRM_DEBUG_KMS("CDCLK running at %dKHz\n",
 		      intel_ddi_get_cdclk_freq(dev_priv));
 
 	if (val & LCPLL_CD_SOURCE_FCLK)
