@@ -754,7 +754,8 @@ extern void intel_update_fbc(struct drm_device *dev);
 extern void intel_gpu_ips_init(struct drm_i915_private *dev_priv);
 extern void intel_gpu_ips_teardown(void);
 
-extern bool intel_using_power_well(struct drm_device *dev);
+extern bool intel_display_power_enabled(struct drm_device *dev,
+					enum intel_display_power_domain domain);
 extern void intel_init_power_well(struct drm_device *dev);
 extern void intel_set_power_well(struct drm_device *dev, bool enable);
 extern void intel_enable_gt_powersave(struct drm_device *dev);
