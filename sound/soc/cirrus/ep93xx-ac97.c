@@ -403,7 +403,6 @@ static int ep93xx_ac97_probe(struct platform_device *pdev)
 	return 0;
 
 fail:
-	platform_set_drvdata(pdev, NULL);
 	ep93xx_ac97_info = NULL;
 	dev_set_drvdata(&pdev->dev, NULL);
 	return ret;
@@ -418,7 +417,6 @@ static int ep93xx_ac97_remove(struct platform_device *pdev)
 	/* disable the AC97 controller */
 	ep93xx_ac97_write_reg(info, AC97GCR, 0);
 
-	platform_set_drvdata(pdev, NULL);
 	ep93xx_ac97_info = NULL;
 	dev_set_drvdata(&pdev->dev, NULL);
 
