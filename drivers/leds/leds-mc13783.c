@@ -371,7 +371,6 @@ static int mc13783_led_remove(struct platform_device *pdev)
 
 	mc13xxx_unlock(dev);
 
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 
