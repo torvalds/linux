@@ -56,7 +56,21 @@
 #define MAX(a, b) (((a) < (b)) ? (b) : (a))
 
 /* Reserved event lines for memcpy only. */
-static int dma40_memcpy_channels[] = { 56, 57, 58, 59, 60 };
+#define DB8500_DMA_MEMCPY_EV_0	51
+#define DB8500_DMA_MEMCPY_EV_1	56
+#define DB8500_DMA_MEMCPY_EV_2	57
+#define DB8500_DMA_MEMCPY_EV_3	58
+#define DB8500_DMA_MEMCPY_EV_4	59
+#define DB8500_DMA_MEMCPY_EV_5	60
+
+static int dma40_memcpy_channels[] = {
+	DB8500_DMA_MEMCPY_EV_0,
+	DB8500_DMA_MEMCPY_EV_1,
+	DB8500_DMA_MEMCPY_EV_2,
+	DB8500_DMA_MEMCPY_EV_3,
+	DB8500_DMA_MEMCPY_EV_4,
+	DB8500_DMA_MEMCPY_EV_5,
+};
 
 /**
  * enum 40_command - The different commands and/or statuses.
