@@ -174,6 +174,8 @@ void hsw_fdi_link_train(struct drm_crtc *crtc)
 	 * mode set "sequence for CRT port" document:
 	 * - TP1 to TP2 time with the default value
 	 * - FDI delay to 90h
+	 *
+	 * WaFDIAutoLinkSetTimingOverrride:hsw
 	 */
 	I915_WRITE(_FDI_RXA_MISC, FDI_RX_PWRDN_LANE1_VAL(2) |
 				  FDI_RX_PWRDN_LANE0_VAL(2) |
