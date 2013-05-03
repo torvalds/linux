@@ -329,9 +329,7 @@ static inline void sem_lock_and_putref(struct sem_array *sma)
 
 static inline void sem_putref(struct sem_array *sma)
 {
-	sem_lock_and_putref(sma);
-	sem_unlock(sma, -1);
-	rcu_read_unlock();
+	ipc_rcu_putref(sma);
 }
 
 static inline void sem_rmid(struct ipc_namespace *ns, struct sem_array *s)
