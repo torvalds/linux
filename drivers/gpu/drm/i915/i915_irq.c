@@ -375,6 +375,10 @@ i915_pipe_enabled(struct drm_device *dev, int pipe)
 	enum transcoder cpu_transcoder = intel_pipe_to_cpu_transcoder(dev_priv,
 								      pipe);
 
+	if (!intel_display_power_enabled(dev,
+		POWER_DOMAIN_TRANSCODER(cpu_transcoder)))
+		return false;
+
 	return I915_READ(PIPECONF(cpu_transcoder)) & PIPECONF_ENABLE;
 }
 
