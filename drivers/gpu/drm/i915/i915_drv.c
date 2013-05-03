@@ -1198,9 +1198,9 @@ MODULE_LICENSE("GPL and additional rights");
 static void
 ilk_dummy_write(struct drm_i915_private *dev_priv)
 {
-	/* WaIssueDummyWriteToWakeupFromRC6: Issue a dummy write to wake up the
-	 * chip from rc6 before touching it for real. MI_MODE is masked, hence
-	 * harmless to write 0 into. */
+	/* WaIssueDummyWriteToWakeupFromRC6:ilk Issue a dummy write to wake up
+	 * the chip from rc6 before touching it for real. MI_MODE is masked,
+	 * hence harmless to write 0 into. */
 	I915_WRITE_NOTRACE(MI_MODE, 0);
 }
 
