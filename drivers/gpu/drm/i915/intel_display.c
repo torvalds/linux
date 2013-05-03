@@ -3229,7 +3229,7 @@ prepare: /* separate function? */
 	return pll;
 }
 
-void intel_cpt_verify_modeset(struct drm_device *dev, int pipe)
+static void cpt_verify_modeset(struct drm_device *dev, int pipe)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int dslreg = PIPEDSL(pipe);
@@ -3334,7 +3334,7 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 		encoder->enable(encoder);
 
 	if (HAS_PCH_CPT(dev))
-		intel_cpt_verify_modeset(dev, intel_crtc->pipe);
+		cpt_verify_modeset(dev, intel_crtc->pipe);
 
 	/*
 	 * There seems to be a race in PCH platform hw (at least on some

@@ -719,7 +719,6 @@ extern void assert_pipe(struct drm_i915_private *dev_priv, enum pipe pipe,
 extern void intel_init_clock_gating(struct drm_device *dev);
 extern void intel_write_eld(struct drm_encoder *encoder,
 			    struct drm_display_mode *mode);
-extern void intel_cpt_verify_modeset(struct drm_device *dev, int pipe);
 extern void intel_prepare_ddi(struct drm_device *dev);
 extern void hsw_fdi_link_train(struct drm_crtc *crtc);
 extern void intel_ddi_init(struct drm_device *dev, enum port port);
