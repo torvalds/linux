@@ -22,25 +22,13 @@
 static struct stedma40_chan_cfg msp0_dma_rx = {
 	.high_priority = true,
 	.dir = STEDMA40_PERIPH_TO_MEM,
-
 	.dev_type = DB8500_DMA_DEV31_MSP0_SLIM0_CH0,
-
-	.src_info.psize = STEDMA40_PSIZE_LOG_4,
-	.dst_info.psize = STEDMA40_PSIZE_LOG_4,
-
-	/* data_width is set during configuration */
 };
 
 static struct stedma40_chan_cfg msp0_dma_tx = {
 	.high_priority = true,
 	.dir = STEDMA40_MEM_TO_PERIPH,
-
 	.dev_type = DB8500_DMA_DEV31_MSP0_SLIM0_CH0,
-
-	.src_info.psize = STEDMA40_PSIZE_LOG_4,
-	.dst_info.psize = STEDMA40_PSIZE_LOG_4,
-
-	/* data_width is set during configuration */
 };
 
 struct msp_i2s_platform_data msp0_platform_data = {
@@ -52,25 +40,13 @@ struct msp_i2s_platform_data msp0_platform_data = {
 static struct stedma40_chan_cfg msp1_dma_rx = {
 	.high_priority = true,
 	.dir = STEDMA40_PERIPH_TO_MEM,
-
 	.dev_type = DB8500_DMA_DEV30_MSP3,
-
-	.src_info.psize = STEDMA40_PSIZE_LOG_4,
-	.dst_info.psize = STEDMA40_PSIZE_LOG_4,
-
-	/* data_width is set during configuration */
 };
 
 static struct stedma40_chan_cfg msp1_dma_tx = {
 	.high_priority = true,
 	.dir = STEDMA40_MEM_TO_PERIPH,
-
 	.dev_type = DB8500_DMA_DEV30_MSP1,
-
-	.src_info.psize = STEDMA40_PSIZE_LOG_4,
-	.dst_info.psize = STEDMA40_PSIZE_LOG_4,
-
-	/* data_width is set during configuration */
 };
 
 struct msp_i2s_platform_data msp1_platform_data = {
@@ -82,29 +58,15 @@ struct msp_i2s_platform_data msp1_platform_data = {
 static struct stedma40_chan_cfg msp2_dma_rx = {
 	.high_priority = true,
 	.dir = STEDMA40_PERIPH_TO_MEM,
-
 	.dev_type = DB8500_DMA_DEV14_MSP2,
-
-	/* MSP2 DMA doesn't work with PSIZE == 4 on DB8500v2 */
-	.src_info.psize = STEDMA40_PSIZE_LOG_1,
-	.dst_info.psize = STEDMA40_PSIZE_LOG_1,
-
-	/* data_width is set during configuration */
 };
 
 static struct stedma40_chan_cfg msp2_dma_tx = {
 	.high_priority = true,
 	.dir = STEDMA40_MEM_TO_PERIPH,
-
 	.dev_type = DB8500_DMA_DEV14_MSP2,
-
-	.src_info.psize = STEDMA40_PSIZE_LOG_4,
-	.dst_info.psize = STEDMA40_PSIZE_LOG_4,
-
 	.use_fixed_channel = true,
 	.phy_channel = 1,
-
-	/* data_width is set during configuration */
 };
 
 static struct platform_device *db8500_add_msp_i2s(struct device *parent,
