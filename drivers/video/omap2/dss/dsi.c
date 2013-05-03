@@ -1114,6 +1114,30 @@ void dsi_runtime_put(struct platform_device *dsidev)
 	WARN_ON(r < 0 && r != -ENOSYS);
 }
 
+static int dsi_regulator_init(struct platform_device *dsidev)
+{
+	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
+	struct regulator *vdds_dsi;
+
+	if (dsi->vdds_dsi_reg != NULL)
+		return 0;
+
+	vdds_dsi = devm_regulator_get(&dsi->pdev->dev, "vdds_dsi");
+
+	/* DT HACK: try VCXIO to make omapdss work for o4 sdp/panda */
+	if (IS_ERR(vdds_dsi))
+		vdds_dsi = devm_regulator_get(&dsi->pdev->dev, "VCXIO");
+
+	if (IS_ERR(vdds_dsi)) {
+		DSSERR("can't get VDDS_DSI regulator\n");
+		return PTR_ERR(vdds_dsi);
+	}
+
+	dsi->vdds_dsi_reg = vdds_dsi;
+
+	return 0;
+}
+
 /* source clock for DSI PLL. this could also be PCLKFREE */
 static inline void dsi_enable_pll_clock(struct platform_device *dsidev,
 		bool enable)
@@ -1592,22 +1616,9 @@ int dsi_pll_init(struct platform_device *dsidev, bool enable_hsclk,
 	 */
 	enable_hsclk = enable_hsdiv = true;
 
-	if (dsi->vdds_dsi_reg == NULL) {
-		struct regulator *vdds_dsi;
-
-		vdds_dsi = regulator_get(&dsi->pdev->dev, "vdds_dsi");
-
-		/* DT HACK: try VCXIO to make omapdss work for o4 sdp/panda */
-		if (IS_ERR(vdds_dsi))
-			vdds_dsi = regulator_get(&dsi->pdev->dev, "VCXIO");
-
-		if (IS_ERR(vdds_dsi)) {
-			DSSERR("can't get VDDS_DSI regulator\n");
-			return PTR_ERR(vdds_dsi);
-		}
-
-		dsi->vdds_dsi_reg = vdds_dsi;
-	}
+	r = dsi_regulator_init(dsidev);
+	if (r)
+		return r;
 
 	dsi_enable_pll_clock(dsidev, 1);
 	/*
@@ -5225,34 +5236,6 @@ static enum omap_channel dsi_get_channel(int module_id)
 	}
 }
 
-static int dsi_init_display(struct omap_dss_device *dssdev)
-{
-	struct platform_device *dsidev =
-			dsi_get_dsidev_from_id(dssdev->phy.dsi.module);
-	struct dsi_data *dsi = dsi_get_dsidrv_data(dsidev);
-
-	DSSDBG("DSI init\n");
-
-	if (dsi->vdds_dsi_reg == NULL) {
-		struct regulator *vdds_dsi;
-
-		vdds_dsi = regulator_get(&dsi->pdev->dev, "vdds_dsi");
-
-		/* DT HACK: try VCXIO to make omapdss work for o4 sdp/panda */
-		if (IS_ERR(vdds_dsi))
-			vdds_dsi = regulator_get(&dsi->pdev->dev, "VCXIO");
-
-		if (IS_ERR(vdds_dsi)) {
-			DSSERR("can't get VDDS_DSI regulator\n");
-			return PTR_ERR(vdds_dsi);
-		}
-
-		dsi->vdds_dsi_reg = vdds_dsi;
-	}
-
-	return 0;
-}
-
 int omap_dsi_request_vc(struct omap_dss_device *dssdev, int *channel)
 {
 	struct platform_device *dsidev = dsi_get_dsidev_from_dssdev(dssdev);
@@ -5410,18 +5393,15 @@ static int dsi_probe_pdata(struct platform_device *dsidev)
 	if (!plat_dssdev)
 		return 0;
 
+	r = dsi_regulator_init(dsidev);
+	if (r)
+		return r;
+
 	dssdev = dss_alloc_and_init_device(&dsidev->dev);
 	if (!dssdev)
 		return -ENOMEM;
 
 	dss_copy_device_pdata(dssdev, plat_dssdev);
-
-	r = dsi_init_display(dssdev);
-	if (r) {
-		DSSERR("device %s init failed: %d\n", dssdev->name, r);
-		dss_put_device(dssdev);
-		return r;
-	}
 
 	r = omapdss_output_set_device(&dsi->output, dssdev);
 	if (r) {
@@ -5604,14 +5584,9 @@ static int __exit omap_dsihw_remove(struct platform_device *dsidev)
 
 	pm_runtime_disable(&dsidev->dev);
 
-	if (dsi->vdds_dsi_reg != NULL) {
-		if (dsi->vdds_dsi_enabled) {
-			regulator_disable(dsi->vdds_dsi_reg);
-			dsi->vdds_dsi_enabled = false;
-		}
-
-		regulator_put(dsi->vdds_dsi_reg);
-		dsi->vdds_dsi_reg = NULL;
+	if (dsi->vdds_dsi_reg != NULL && dsi->vdds_dsi_enabled) {
+		regulator_disable(dsi->vdds_dsi_reg);
+		dsi->vdds_dsi_enabled = false;
 	}
 
 	return 0;
