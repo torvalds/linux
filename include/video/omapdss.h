@@ -579,6 +579,8 @@ struct omap_dss_device {
 	/* new device, pointer to panel device */
 	struct device *dev;
 
+	struct module *owner;
+
 	struct list_head panel_list;
 
 	/* alias in the form of "display%d" */
