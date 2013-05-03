@@ -138,6 +138,7 @@ void tty_audit_fork(struct signal_struct *sig)
 
 	spin_lock_irqsave(&current->sighand->siglock, flags);
 	sig->audit_tty = current->signal->audit_tty;
+	sig->audit_tty_log_passwd = current->signal->audit_tty_log_passwd;
 	spin_unlock_irqrestore(&current->sighand->siglock, flags);
 }
 
@@ -275,8 +276,16 @@ void tty_audit_add_data(struct tty_struct *tty, unsigned char *data,
 {
 	struct tty_audit_buf *buf;
 	int major, minor;
+	int audit_log_tty_passwd;
+	unsigned long flags;
 
 	if (unlikely(size == 0))
+		return;
+
+	spin_lock_irqsave(&current->sighand->siglock, flags);
+	audit_log_tty_passwd = current->signal->audit_tty_log_passwd;
+	spin_unlock_irqrestore(&current->sighand->siglock, flags);
+	if (!audit_log_tty_passwd && icanon && !L_ECHO(tty))
 		return;
 
 	if (tty->driver->type == TTY_DRIVER_TYPE_PTY
