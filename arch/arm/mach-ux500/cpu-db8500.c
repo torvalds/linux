@@ -225,16 +225,6 @@ static struct device * __init u8500_of_init_devices(void)
 
 	db8500_add_usb(parent, usb_db8500_dma_cfg, usb_db8500_dma_cfg);
 
-	u8500_dma40_device.dev.parent = parent;
-
-	/*
-	 * Devices to be DT:ed:
-	 *   u8500_dma40_device  = todo
-	 *   db8500_pmu_device   = done
-	 *   db8500_prcmu_device = done
-	 */
-	platform_device_register(&u8500_dma40_device);
-
 	return parent;
 }
 
@@ -280,6 +270,9 @@ static struct of_dev_auxdata u8500_auxdata_lookup[] __initdata = {
 		"ux500-msp-i2s.2", &msp2_platform_data),
 	OF_DEV_AUXDATA("stericsson,ux500-msp-i2s", 0x80125000,
 		"ux500-msp-i2s.3", &msp3_platform_data),
+	/* Requires clock name bindings and channel address lookup table. */
+	OF_DEV_AUXDATA("stericsson,db8500-dma40", 0x801C0000,
+		       "dma40.0", &dma40_plat_data),
 	{},
 };
 
