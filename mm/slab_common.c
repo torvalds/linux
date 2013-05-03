@@ -442,17 +442,23 @@ void __init create_kmalloc_caches(unsigned long flags)
 		for (i = 128 + 8; i <= 192; i += 8)
 			size_index[size_index_elem(i)] = 8;
 	}
-	/* Caches that are not of the two-to-the-power-of size */
-	if (KMALLOC_MIN_SIZE <= 32 && !kmalloc_caches[1])
-		kmalloc_caches[1] = create_kmalloc_cache(NULL, 96, flags);
-
-	if (KMALLOC_MIN_SIZE <= 64 && !kmalloc_caches[2])
-		kmalloc_caches[2] = create_kmalloc_cache(NULL, 192, flags);
-
-	for (i = KMALLOC_SHIFT_LOW; i <= KMALLOC_SHIFT_HIGH; i++)
-		if (!kmalloc_caches[i])
+	for (i = KMALLOC_SHIFT_LOW; i <= KMALLOC_SHIFT_HIGH; i++) {
+		if (!kmalloc_caches[i]) {
 			kmalloc_caches[i] = create_kmalloc_cache(NULL,
 							1 << i, flags);
+
+			/*
+			 * Caches that are not of the two-to-the-power-of size.
+			 * These have to be created immediately after the
+			 * earlier power of two caches
+			 */
+			if (KMALLOC_MIN_SIZE <= 32 && !kmalloc_caches[1] && i == 6)
+				kmalloc_caches[1] = create_kmalloc_cache(NULL, 96, flags);
+
+			if (KMALLOC_MIN_SIZE <= 64 && !kmalloc_caches[2] && i == 7)
+				kmalloc_caches[2] = create_kmalloc_cache(NULL, 192, flags);
+		}
+	}
 
 	/* Kmalloc array is now usable */
 	slab_state = UP;
