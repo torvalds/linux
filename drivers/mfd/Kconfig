@@ -579,7 +579,7 @@ config AB8500_CORE
 
 config AB8500_DEBUG
        bool "Enable debug info via debugfs"
-       depends on AB8500_CORE && DEBUG_FS
+       depends on AB8500_GPADC && DEBUG_FS
        default y if DEBUG_FS
        help
          Select this option if you want debug information using the debug
