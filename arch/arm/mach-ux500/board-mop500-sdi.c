@@ -36,16 +36,12 @@ struct stedma40_chan_cfg mop500_sdi0_dma_cfg_rx = {
 	.mode = STEDMA40_MODE_LOGICAL,
 	.dir = STEDMA40_PERIPH_TO_MEM,
 	.dev_type = DB8500_DMA_DEV29_SD_MM0,
-	.src_info.data_width = STEDMA40_WORD_WIDTH,
-	.dst_info.data_width = STEDMA40_WORD_WIDTH,
 };
 
 static struct stedma40_chan_cfg mop500_sdi0_dma_cfg_tx = {
 	.mode = STEDMA40_MODE_LOGICAL,
 	.dir = STEDMA40_MEM_TO_PERIPH,
 	.dev_type = DB8500_DMA_DEV29_SD_MM0,
-	.src_info.data_width = STEDMA40_WORD_WIDTH,
-	.dst_info.data_width = STEDMA40_WORD_WIDTH,
 };
 #endif
 
@@ -87,16 +83,12 @@ static struct stedma40_chan_cfg sdi1_dma_cfg_rx = {
 	.mode = STEDMA40_MODE_LOGICAL,
 	.dir = STEDMA40_PERIPH_TO_MEM,
 	.dev_type = DB8500_DMA_DEV32_SD_MM1,
-	.src_info.data_width = STEDMA40_WORD_WIDTH,
-	.dst_info.data_width = STEDMA40_WORD_WIDTH,
 };
 
 static struct stedma40_chan_cfg sdi1_dma_cfg_tx = {
 	.mode = STEDMA40_MODE_LOGICAL,
 	.dir = STEDMA40_MEM_TO_PERIPH,
 	.dev_type = DB8500_DMA_DEV32_SD_MM1,
-	.src_info.data_width = STEDMA40_WORD_WIDTH,
-	.dst_info.data_width = STEDMA40_WORD_WIDTH,
 };
 #endif
 
@@ -122,16 +114,12 @@ struct stedma40_chan_cfg mop500_sdi2_dma_cfg_rx = {
 	.mode = STEDMA40_MODE_LOGICAL,
 	.dir = STEDMA40_PERIPH_TO_MEM,
 	.dev_type =  DB8500_DMA_DEV28_SD_MM2,
-	.src_info.data_width = STEDMA40_WORD_WIDTH,
-	.dst_info.data_width = STEDMA40_WORD_WIDTH,
 };
 
 static struct stedma40_chan_cfg mop500_sdi2_dma_cfg_tx = {
 	.mode = STEDMA40_MODE_LOGICAL,
 	.dir = STEDMA40_MEM_TO_PERIPH,
 	.dev_type = DB8500_DMA_DEV28_SD_MM2,
-	.src_info.data_width = STEDMA40_WORD_WIDTH,
-	.dst_info.data_width = STEDMA40_WORD_WIDTH,
 };
 #endif
 
@@ -158,16 +146,12 @@ struct stedma40_chan_cfg mop500_sdi4_dma_cfg_rx = {
 	.mode = STEDMA40_MODE_LOGICAL,
 	.dir = STEDMA40_PERIPH_TO_MEM,
 	.dev_type =  DB8500_DMA_DEV42_SD_MM4,
-	.src_info.data_width = STEDMA40_WORD_WIDTH,
-	.dst_info.data_width = STEDMA40_WORD_WIDTH,
 };
 
 static struct stedma40_chan_cfg mop500_sdi4_dma_cfg_tx = {
 	.mode = STEDMA40_MODE_LOGICAL,
 	.dir = STEDMA40_MEM_TO_PERIPH,
 	.dev_type = DB8500_DMA_DEV42_SD_MM4,
-	.src_info.data_width = STEDMA40_WORD_WIDTH,
-	.dst_info.data_width = STEDMA40_WORD_WIDTH,
 };
 #endif
 
