@@ -2768,8 +2768,8 @@
  * which is after the LUTs, so we want the bytes for our color format.
  * For our current usage, this is always 3, one byte for R, G and B.
  */
-#define _PIPEA_GMCH_DATA_M			0x70050
-#define _PIPEB_GMCH_DATA_M			0x71050
+#define _PIPEA_DATA_M_G4X	0x70050
+#define _PIPEB_DATA_M_G4X	0x71050
 
 /* Transfer unit size for display port - 1, default is 0x3f (for TU size 64) */
 #define   PIPE_GMCH_DATA_M_TU_SIZE_MASK		(0x3f << 25)
@@ -2778,8 +2778,8 @@
 
 #define   PIPE_GMCH_DATA_M_MASK			(0xffffff)
 
-#define _PIPEA_GMCH_DATA_N			0x70054
-#define _PIPEB_GMCH_DATA_N			0x71054
+#define _PIPEA_DATA_N_G4X	0x70054
+#define _PIPEB_DATA_N_G4X	0x71054
 #define   PIPE_GMCH_DATA_N_MASK			(0xffffff)
 
 /*
@@ -2793,18 +2793,18 @@
  * Attributes and VB-ID.
  */
 
-#define _PIPEA_DP_LINK_M				0x70060
-#define _PIPEB_DP_LINK_M				0x71060
+#define _PIPEA_LINK_M_G4X	0x70060
+#define _PIPEB_LINK_M_G4X	0x71060
 #define   PIPEA_DP_LINK_M_MASK			(0xffffff)
 
-#define _PIPEA_DP_LINK_N				0x70064
-#define _PIPEB_DP_LINK_N				0x71064
+#define _PIPEA_LINK_N_G4X	0x70064
+#define _PIPEB_LINK_N_G4X	0x71064
 #define   PIPEA_DP_LINK_N_MASK			(0xffffff)
 
-#define PIPE_GMCH_DATA_M(pipe) _PIPE(pipe, _PIPEA_GMCH_DATA_M, _PIPEB_GMCH_DATA_M)
-#define PIPE_GMCH_DATA_N(pipe) _PIPE(pipe, _PIPEA_GMCH_DATA_N, _PIPEB_GMCH_DATA_N)
-#define PIPE_DP_LINK_M(pipe) _PIPE(pipe, _PIPEA_DP_LINK_M, _PIPEB_DP_LINK_M)
-#define PIPE_DP_LINK_N(pipe) _PIPE(pipe, _PIPEA_DP_LINK_N, _PIPEB_DP_LINK_N)
+#define PIPE_DATA_M_G4X(pipe) _PIPE(pipe, _PIPEA_DATA_M_G4X, _PIPEB_DATA_M_G4X)
+#define PIPE_DATA_N_G4X(pipe) _PIPE(pipe, _PIPEA_DATA_N_G4X, _PIPEB_DATA_N_G4X)
+#define PIPE_LINK_M_G4X(pipe) _PIPE(pipe, _PIPEA_LINK_M_G4X, _PIPEB_LINK_M_G4X)
+#define PIPE_LINK_N_G4X(pipe) _PIPE(pipe, _PIPEA_LINK_N_G4X, _PIPEB_LINK_N_G4X)
 
 /* Display & cursor control */
 
@@ -3949,14 +3949,14 @@
 #define  TRANS_VSYNC_START_SHIFT	0
 #define _PCH_TRANS_VSYNCSHIFT_A		0xe0028
 
-#define _TRANSA_DATA_M1          0xe0030
-#define _TRANSA_DATA_N1          0xe0034
-#define _TRANSA_DATA_M2          0xe0038
-#define _TRANSA_DATA_N2          0xe003c
-#define _TRANSA_DP_LINK_M1       0xe0040
-#define _TRANSA_DP_LINK_N1       0xe0044
-#define _TRANSA_DP_LINK_M2       0xe0048
-#define _TRANSA_DP_LINK_N2       0xe004c
+#define _PCH_TRANSA_DATA_M1	0xe0030
+#define _PCH_TRANSA_DATA_N1	0xe0034
+#define _PCH_TRANSA_DATA_M2	0xe0038
+#define _PCH_TRANSA_DATA_N2	0xe003c
+#define _PCH_TRANSA_LINK_M1	0xe0040
+#define _PCH_TRANSA_LINK_N1	0xe0044
+#define _PCH_TRANSA_LINK_M2	0xe0048
+#define _PCH_TRANSA_LINK_N2	0xe004c
 
 /* Per-transcoder DIP controls */
 
@@ -4042,23 +4042,23 @@
 #define PCH_TRANS_VSYNCSHIFT(pipe) _PIPE(pipe, _PCH_TRANS_VSYNCSHIFT_A, \
 					 _PCH_TRANS_VSYNCSHIFT_B)
 
-#define _TRANSB_DATA_M1          0xe1030
-#define _TRANSB_DATA_N1          0xe1034
-#define _TRANSB_DATA_M2          0xe1038
-#define _TRANSB_DATA_N2          0xe103c
-#define _TRANSB_DP_LINK_M1       0xe1040
-#define _TRANSB_DP_LINK_N1       0xe1044
-#define _TRANSB_DP_LINK_M2       0xe1048
-#define _TRANSB_DP_LINK_N2       0xe104c
+#define _PCH_TRANSB_DATA_M1	0xe1030
+#define _PCH_TRANSB_DATA_N1	0xe1034
+#define _PCH_TRANSB_DATA_M2	0xe1038
+#define _PCH_TRANSB_DATA_N2	0xe103c
+#define _PCH_TRANSB_LINK_M1	0xe1040
+#define _PCH_TRANSB_LINK_N1	0xe1044
+#define _PCH_TRANSB_LINK_M2	0xe1048
+#define _PCH_TRANSB_LINK_N2	0xe104c
 
-#define TRANSDATA_M1(pipe) _PIPE(pipe, _TRANSA_DATA_M1, _TRANSB_DATA_M1)
-#define TRANSDATA_N1(pipe) _PIPE(pipe, _TRANSA_DATA_N1, _TRANSB_DATA_N1)
-#define TRANSDATA_M2(pipe) _PIPE(pipe, _TRANSA_DATA_M2, _TRANSB_DATA_M2)
-#define TRANSDATA_N2(pipe) _PIPE(pipe, _TRANSA_DATA_N2, _TRANSB_DATA_N2)
-#define TRANSDPLINK_M1(pipe) _PIPE(pipe, _TRANSA_DP_LINK_M1, _TRANSB_DP_LINK_M1)
-#define TRANSDPLINK_N1(pipe) _PIPE(pipe, _TRANSA_DP_LINK_N1, _TRANSB_DP_LINK_N1)
-#define TRANSDPLINK_M2(pipe) _PIPE(pipe, _TRANSA_DP_LINK_M2, _TRANSB_DP_LINK_M2)
-#define TRANSDPLINK_N2(pipe) _PIPE(pipe, _TRANSA_DP_LINK_N2, _TRANSB_DP_LINK_N2)
+#define PCH_TRANS_DATA_M1(pipe) _PIPE(pipe, _PCH_TRANSA_DATA_M1, _PCH_TRANSB_DATA_M1)
+#define PCH_TRANS_DATA_N1(pipe) _PIPE(pipe, _PCH_TRANSA_DATA_N1, _PCH_TRANSB_DATA_N1)
+#define PCH_TRANS_DATA_M2(pipe) _PIPE(pipe, _PCH_TRANSA_DATA_M2, _PCH_TRANSB_DATA_M2)
+#define PCH_TRANS_DATA_N2(pipe) _PIPE(pipe, _PCH_TRANSA_DATA_N2, _PCH_TRANSB_DATA_N2)
+#define PCH_TRANS_LINK_M1(pipe) _PIPE(pipe, _PCH_TRANSA_LINK_M1, _PCH_TRANSB_LINK_M1)
+#define PCH_TRANS_LINK_N1(pipe) _PIPE(pipe, _PCH_TRANSA_LINK_N1, _PCH_TRANSB_LINK_N1)
+#define PCH_TRANS_LINK_M2(pipe) _PIPE(pipe, _PCH_TRANSA_LINK_M2, _PCH_TRANSB_LINK_M2)
+#define PCH_TRANS_LINK_N2(pipe) _PIPE(pipe, _PCH_TRANSA_LINK_N2, _PCH_TRANSB_LINK_N2)
 
 #define _PCH_TRANSACONF              0xf0008
 #define _PCH_TRANSBCONF              0xf1008
