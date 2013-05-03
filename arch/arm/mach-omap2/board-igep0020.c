@@ -31,7 +31,7 @@
 #include <asm/mach/arch.h>
 
 #include <video/omapdss.h>
-#include <video/omap-panel-tfp410.h>
+#include <video/omap-panel-data.h>
 #include <linux/platform_data/mtd-onenand-omap2.h>
 
 #include "common.h"

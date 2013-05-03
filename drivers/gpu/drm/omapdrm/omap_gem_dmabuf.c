@@ -178,7 +178,7 @@ out_unlock:
 	return omap_gem_mmap_obj(obj, vma);
 }
 
-struct dma_buf_ops omap_dmabuf_ops = {
+static struct dma_buf_ops omap_dmabuf_ops = {
 		.map_dma_buf = omap_gem_map_dma_buf,
 		.unmap_dma_buf = omap_gem_unmap_dma_buf,
 		.release = omap_gem_dmabuf_release,
@@ -212,7 +212,6 @@ struct drm_gem_object *omap_gem_prime_import(struct drm_device *dev,
 			 * refcount on gem itself instead of f_count of dmabuf.
 			 */
 			drm_gem_object_reference(obj);
-			dma_buf_put(buffer);
 			return obj;
 		}
 	}

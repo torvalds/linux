@@ -656,6 +656,8 @@ static struct radeon_asic rs600_asic = {
 		.wait_for_vblank = &avivo_wait_for_vblank,
 		.set_backlight_level = &atombios_set_backlight_level,
 		.get_backlight_level = &atombios_get_backlight_level,
+		.hdmi_enable = &r600_hdmi_enable,
+		.hdmi_setmode = &r600_hdmi_setmode,
 	},
 	.copy = {
 		.blit = &r100_copy_blit,
@@ -732,6 +734,8 @@ static struct radeon_asic rs690_asic = {
 		.wait_for_vblank = &avivo_wait_for_vblank,
 		.set_backlight_level = &atombios_set_backlight_level,
 		.get_backlight_level = &atombios_get_backlight_level,
+		.hdmi_enable = &r600_hdmi_enable,
+		.hdmi_setmode = &r600_hdmi_setmode,
 	},
 	.copy = {
 		.blit = &r100_copy_blit,
@@ -970,6 +974,8 @@ static struct radeon_asic r600_asic = {
 		.wait_for_vblank = &avivo_wait_for_vblank,
 		.set_backlight_level = &atombios_set_backlight_level,
 		.get_backlight_level = &atombios_get_backlight_level,
+		.hdmi_enable = &r600_hdmi_enable,
+		.hdmi_setmode = &r600_hdmi_setmode,
 	},
 	.copy = {
 		.blit = &r600_copy_blit,
@@ -1056,6 +1062,8 @@ static struct radeon_asic rs780_asic = {
 		.wait_for_vblank = &avivo_wait_for_vblank,
 		.set_backlight_level = &atombios_set_backlight_level,
 		.get_backlight_level = &atombios_get_backlight_level,
+		.hdmi_enable = &r600_hdmi_enable,
+		.hdmi_setmode = &r600_hdmi_setmode,
 	},
 	.copy = {
 		.blit = &r600_copy_blit,
@@ -1130,6 +1138,15 @@ static struct radeon_asic rv770_asic = {
 			.ring_test = &r600_dma_ring_test,
 			.ib_test = &r600_dma_ib_test,
 			.is_lockup = &r600_dma_is_lockup,
+		},
+		[R600_RING_TYPE_UVD_INDEX] = {
+			.ib_execute = &r600_uvd_ib_execute,
+			.emit_fence = &r600_uvd_fence_emit,
+			.emit_semaphore = &r600_uvd_semaphore_emit,
+			.cs_parse = &radeon_uvd_cs_parse,
+			.ring_test = &r600_uvd_ring_test,
+			.ib_test = &r600_uvd_ib_test,
+			.is_lockup = &radeon_ring_test_lockup,
 		}
 	},
 	.irq = {
@@ -1142,6 +1159,8 @@ static struct radeon_asic rv770_asic = {
 		.wait_for_vblank = &avivo_wait_for_vblank,
 		.set_backlight_level = &atombios_set_backlight_level,
 		.get_backlight_level = &atombios_get_backlight_level,
+		.hdmi_enable = &r600_hdmi_enable,
+		.hdmi_setmode = &r600_hdmi_setmode,
 	},
 	.copy = {
 		.blit = &r600_copy_blit,
@@ -1174,6 +1193,7 @@ static struct radeon_asic rv770_asic = {
 		.get_pcie_lanes = &r600_get_pcie_lanes,
 		.set_pcie_lanes = &r600_set_pcie_lanes,
 		.set_clock_gating = &radeon_atom_set_clock_gating,
+		.set_uvd_clocks = &rv770_set_uvd_clocks,
 	},
 	.pflip = {
 		.pre_page_flip = &rs600_pre_page_flip,
@@ -1216,6 +1236,15 @@ static struct radeon_asic evergreen_asic = {
 			.ring_test = &r600_dma_ring_test,
 			.ib_test = &r600_dma_ib_test,
 			.is_lockup = &evergreen_dma_is_lockup,
+		},
+		[R600_RING_TYPE_UVD_INDEX] = {
+			.ib_execute = &r600_uvd_ib_execute,
+			.emit_fence = &r600_uvd_fence_emit,
+			.emit_semaphore = &r600_uvd_semaphore_emit,
+			.cs_parse = &radeon_uvd_cs_parse,
+			.ring_test = &r600_uvd_ring_test,
+			.ib_test = &r600_uvd_ib_test,
+			.is_lockup = &radeon_ring_test_lockup,
 		}
 	},
 	.irq = {
@@ -1228,6 +1257,8 @@ static struct radeon_asic evergreen_asic = {
 		.wait_for_vblank = &dce4_wait_for_vblank,
 		.set_backlight_level = &atombios_set_backlight_level,
 		.get_backlight_level = &atombios_get_backlight_level,
+		.hdmi_enable = &evergreen_hdmi_enable,
+		.hdmi_setmode = &evergreen_hdmi_setmode,
 	},
 	.copy = {
 		.blit = &r600_copy_blit,
@@ -1260,6 +1291,7 @@ static struct radeon_asic evergreen_asic = {
 		.get_pcie_lanes = &r600_get_pcie_lanes,
 		.set_pcie_lanes = &r600_set_pcie_lanes,
 		.set_clock_gating = NULL,
+		.set_uvd_clocks = &evergreen_set_uvd_clocks,
 	},
 	.pflip = {
 		.pre_page_flip = &evergreen_pre_page_flip,
@@ -1302,6 +1334,15 @@ static struct radeon_asic sumo_asic = {
 			.ring_test = &r600_dma_ring_test,
 			.ib_test = &r600_dma_ib_test,
 			.is_lockup = &evergreen_dma_is_lockup,
+		},
+		[R600_RING_TYPE_UVD_INDEX] = {
+			.ib_execute = &r600_uvd_ib_execute,
+			.emit_fence = &r600_uvd_fence_emit,
+			.emit_semaphore = &r600_uvd_semaphore_emit,
+			.cs_parse = &radeon_uvd_cs_parse,
+			.ring_test = &r600_uvd_ring_test,
+			.ib_test = &r600_uvd_ib_test,
+			.is_lockup = &radeon_ring_test_lockup,
 		}
 	},
 	.irq = {
@@ -1314,6 +1355,8 @@ static struct radeon_asic sumo_asic = {
 		.wait_for_vblank = &dce4_wait_for_vblank,
 		.set_backlight_level = &atombios_set_backlight_level,
 		.get_backlight_level = &atombios_get_backlight_level,
+		.hdmi_enable = &evergreen_hdmi_enable,
+		.hdmi_setmode = &evergreen_hdmi_setmode,
 	},
 	.copy = {
 		.blit = &r600_copy_blit,
@@ -1346,6 +1389,7 @@ static struct radeon_asic sumo_asic = {
 		.get_pcie_lanes = NULL,
 		.set_pcie_lanes = NULL,
 		.set_clock_gating = NULL,
+		.set_uvd_clocks = &sumo_set_uvd_clocks,
 	},
 	.pflip = {
 		.pre_page_flip = &evergreen_pre_page_flip,
@@ -1388,6 +1432,15 @@ static struct radeon_asic btc_asic = {
 			.ring_test = &r600_dma_ring_test,
 			.ib_test = &r600_dma_ib_test,
 			.is_lockup = &evergreen_dma_is_lockup,
+		},
+		[R600_RING_TYPE_UVD_INDEX] = {
+			.ib_execute = &r600_uvd_ib_execute,
+			.emit_fence = &r600_uvd_fence_emit,
+			.emit_semaphore = &r600_uvd_semaphore_emit,
+			.cs_parse = &radeon_uvd_cs_parse,
+			.ring_test = &r600_uvd_ring_test,
+			.ib_test = &r600_uvd_ib_test,
+			.is_lockup = &radeon_ring_test_lockup,
 		}
 	},
 	.irq = {
@@ -1400,6 +1453,8 @@ static struct radeon_asic btc_asic = {
 		.wait_for_vblank = &dce4_wait_for_vblank,
 		.set_backlight_level = &atombios_set_backlight_level,
 		.get_backlight_level = &atombios_get_backlight_level,
+		.hdmi_enable = &evergreen_hdmi_enable,
+		.hdmi_setmode = &evergreen_hdmi_setmode,
 	},
 	.copy = {
 		.blit = &r600_copy_blit,
@@ -1429,9 +1484,10 @@ static struct radeon_asic btc_asic = {
 		.set_engine_clock = &radeon_atom_set_engine_clock,
 		.get_memory_clock = &radeon_atom_get_memory_clock,
 		.set_memory_clock = &radeon_atom_set_memory_clock,
-		.get_pcie_lanes = NULL,
-		.set_pcie_lanes = NULL,
+		.get_pcie_lanes = &r600_get_pcie_lanes,
+		.set_pcie_lanes = &r600_set_pcie_lanes,
 		.set_clock_gating = NULL,
+		.set_uvd_clocks = &evergreen_set_uvd_clocks,
 	},
 	.pflip = {
 		.pre_page_flip = &evergreen_pre_page_flip,
@@ -1517,6 +1573,15 @@ static struct radeon_asic cayman_asic = {
 			.ib_test = &r600_dma_ib_test,
 			.is_lockup = &cayman_dma_is_lockup,
 			.vm_flush = &cayman_dma_vm_flush,
+		},
+		[R600_RING_TYPE_UVD_INDEX] = {
+			.ib_execute = &r600_uvd_ib_execute,
+			.emit_fence = &r600_uvd_fence_emit,
+			.emit_semaphore = &cayman_uvd_semaphore_emit,
+			.cs_parse = &radeon_uvd_cs_parse,
+			.ring_test = &r600_uvd_ring_test,
+			.ib_test = &r600_uvd_ib_test,
+			.is_lockup = &radeon_ring_test_lockup,
 		}
 	},
 	.irq = {
@@ -1529,6 +1594,8 @@ static struct radeon_asic cayman_asic = {
 		.wait_for_vblank = &dce4_wait_for_vblank,
 		.set_backlight_level = &atombios_set_backlight_level,
 		.get_backlight_level = &atombios_get_backlight_level,
+		.hdmi_enable = &evergreen_hdmi_enable,
+		.hdmi_setmode = &evergreen_hdmi_setmode,
 	},
 	.copy = {
 		.blit = &r600_copy_blit,
@@ -1558,9 +1625,10 @@ static struct radeon_asic cayman_asic = {
 		.set_engine_clock = &radeon_atom_set_engine_clock,
 		.get_memory_clock = &radeon_atom_get_memory_clock,
 		.set_memory_clock = &radeon_atom_set_memory_clock,
-		.get_pcie_lanes = NULL,
-		.set_pcie_lanes = NULL,
+		.get_pcie_lanes = &r600_get_pcie_lanes,
+		.set_pcie_lanes = &r600_set_pcie_lanes,
 		.set_clock_gating = NULL,
+		.set_uvd_clocks = &evergreen_set_uvd_clocks,
 	},
 	.pflip = {
 		.pre_page_flip = &evergreen_pre_page_flip,
@@ -1646,6 +1714,15 @@ static struct radeon_asic trinity_asic = {
 			.ib_test = &r600_dma_ib_test,
 			.is_lockup = &cayman_dma_is_lockup,
 			.vm_flush = &cayman_dma_vm_flush,
+		},
+		[R600_RING_TYPE_UVD_INDEX] = {
+			.ib_execute = &r600_uvd_ib_execute,
+			.emit_fence = &r600_uvd_fence_emit,
+			.emit_semaphore = &cayman_uvd_semaphore_emit,
+			.cs_parse = &radeon_uvd_cs_parse,
+			.ring_test = &r600_uvd_ring_test,
+			.ib_test = &r600_uvd_ib_test,
+			.is_lockup = &radeon_ring_test_lockup,
 		}
 	},
 	.irq = {
@@ -1690,6 +1767,7 @@ static struct radeon_asic trinity_asic = {
 		.get_pcie_lanes = NULL,
 		.set_pcie_lanes = NULL,
 		.set_clock_gating = NULL,
+		.set_uvd_clocks = &sumo_set_uvd_clocks,
 	},
 	.pflip = {
 		.pre_page_flip = &evergreen_pre_page_flip,
@@ -1775,6 +1853,15 @@ static struct radeon_asic si_asic = {
 			.ib_test = &r600_dma_ib_test,
 			.is_lockup = &si_dma_is_lockup,
 			.vm_flush = &si_dma_vm_flush,
+		},
+		[R600_RING_TYPE_UVD_INDEX] = {
+			.ib_execute = &r600_uvd_ib_execute,
+			.emit_fence = &r600_uvd_fence_emit,
+			.emit_semaphore = &cayman_uvd_semaphore_emit,
+			.cs_parse = &radeon_uvd_cs_parse,
+			.ring_test = &r600_uvd_ring_test,
+			.ib_test = &r600_uvd_ib_test,
+			.is_lockup = &radeon_ring_test_lockup,
 		}
 	},
 	.irq = {
@@ -1816,9 +1903,10 @@ static struct radeon_asic si_asic = {
 		.set_engine_clock = &radeon_atom_set_engine_clock,
 		.get_memory_clock = &radeon_atom_get_memory_clock,
 		.set_memory_clock = &radeon_atom_set_memory_clock,
-		.get_pcie_lanes = NULL,
-		.set_pcie_lanes = NULL,
+		.get_pcie_lanes = &r600_get_pcie_lanes,
+		.set_pcie_lanes = &r600_set_pcie_lanes,
 		.set_clock_gating = NULL,
+		.set_uvd_clocks = &si_set_uvd_clocks,
 	},
 	.pflip = {
 		.pre_page_flip = &evergreen_pre_page_flip,

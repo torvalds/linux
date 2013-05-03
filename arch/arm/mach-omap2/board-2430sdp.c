@@ -38,7 +38,7 @@
 #include "gpmc-smc91x.h"
 
 #include <video/omapdss.h>
-#include <video/omap-panel-generic-dpi.h>
+#include <video/omap-panel-data.h>
 
 #include "mux.h"
 #include "hsmmc.h"
