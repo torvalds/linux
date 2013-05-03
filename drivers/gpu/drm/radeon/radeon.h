@@ -358,7 +358,8 @@ struct radeon_bo {
 	struct radeon_device		*rdev;
 	struct drm_gem_object		gem_base;
 
-	struct ttm_bo_kmap_obj dma_buf_vmap;
+	struct ttm_bo_kmap_obj		dma_buf_vmap;
+	pid_t				pid;
 };
 #define gem_to_radeon_bo(gobj) container_of((gobj), struct radeon_bo, gem_base)
 
@@ -371,6 +372,8 @@ struct radeon_bo_list {
 	unsigned		alt_domain;
 	u32			tiling_flags;
 };
+
+int radeon_gem_debugfs_init(struct radeon_device *rdev);
 
 /* sub-allocation manager, it has to be protected by another lock.
  * By conception this is an helper for other part of the driver
@@ -1159,6 +1162,17 @@ void radeon_uvd_free_handles(struct radeon_device *rdev,
 			     struct drm_file *filp);
 int radeon_uvd_cs_parse(struct radeon_cs_parser *parser);
 void radeon_uvd_note_usage(struct radeon_device *rdev);
+int radeon_uvd_calc_upll_dividers(struct radeon_device *rdev,
+				  unsigned vclk, unsigned dclk,
+				  unsigned vco_min, unsigned vco_max,
+				  unsigned fb_factor, unsigned fb_mask,
+				  unsigned pd_min, unsigned pd_max,
+				  unsigned pd_even,
+				  unsigned *optimal_fb_div,
+				  unsigned *optimal_vclk_div,
+				  unsigned *optimal_dclk_div);
+int radeon_uvd_send_upll_ctlreq(struct radeon_device *rdev,
+                                unsigned cg_upll_func_cntl);
 
 struct r600_audio {
 	int			channels;

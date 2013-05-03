@@ -989,62 +989,10 @@ done:
 	return r;
 }
 
-static int evergreen_uvd_calc_post_div(unsigned target_freq,
-				       unsigned vco_freq,
-				       unsigned *div)
-{
-	/* target larger than vco frequency ? */
-	if (vco_freq < target_freq)
-		return -1; /* forget it */
-
-	/* Fclk = Fvco / PDIV */
-	*div = vco_freq / target_freq;
-
-	/* we alway need a frequency less than or equal the target */
-	if ((vco_freq / *div) > target_freq)
-		*div += 1;
-
-	/* dividers above 5 must be even */
-	if (*div > 5 && *div % 2)
-		*div += 1;
-
-	/* out of range ? */
-	if (*div >= 128)
-		return -1; /* forget it */
-
-	return vco_freq / *div;
-}
-
-static int evergreen_uvd_send_upll_ctlreq(struct radeon_device *rdev)
-{
-	unsigned i;
-
-	/* assert UPLL_CTLREQ */
-	WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_CTLREQ_MASK, ~UPLL_CTLREQ_MASK);
-
-	/* wait for CTLACK and CTLACK2 to get asserted */
-	for (i = 0; i < 100; ++i) {
-		uint32_t mask = UPLL_CTLACK_MASK | UPLL_CTLACK2_MASK;
-		if ((RREG32(CG_UPLL_FUNC_CNTL) & mask) == mask)
-			break;
-		mdelay(10);
-	}
-	if (i == 100)
-		return -ETIMEDOUT;
-
-	/* deassert UPLL_CTLREQ */
-	WREG32_P(CG_UPLL_FUNC_CNTL, 0, ~UPLL_CTLREQ_MASK);
-
-	return 0;
-}
-
 int evergreen_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk)
 {
 	/* start off with something large */
-	int optimal_diff_score = 0x7FFFFFF;
-	unsigned optimal_fb_div = 0, optimal_vclk_div = 0;
-	unsigned optimal_dclk_div = 0, optimal_vco_freq = 0;
-	unsigned vco_freq;
+	unsigned fb_div = 0, vclk_div = 0, dclk_div = 0;
 	int r;
 
 	/* bypass vclk and dclk with bclk */
@@ -1061,40 +1009,11 @@ int evergreen_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk)
 		return 0;
 	}
 
-	/* loop through vco from low to high */
-	for (vco_freq = 125000; vco_freq <= 250000; vco_freq += 100) {
-		unsigned fb_div = vco_freq / rdev->clock.spll.reference_freq * 16384;
-		int calc_clk, diff_score, diff_vclk, diff_dclk;
-		unsigned vclk_div, dclk_div;
-
-		/* fb div out of range ? */
-		if (fb_div > 0x03FFFFFF)
-			break; /* it can oly get worse */
-
-		/* calc vclk with current vco freq. */
-		calc_clk = evergreen_uvd_calc_post_div(vclk, vco_freq, &vclk_div);
-		if (calc_clk == -1)
-			break; /* vco is too big, it has to stop. */
-		diff_vclk = vclk - calc_clk;
-
-		/* calc dclk with current vco freq. */
-		calc_clk = evergreen_uvd_calc_post_div(dclk, vco_freq, &dclk_div);
-		if (calc_clk == -1)
-			break; /* vco is too big, it has to stop. */
-		diff_dclk = dclk - calc_clk;
-
-		/* determine if this vco setting is better than current optimal settings */
-		diff_score = abs(diff_vclk) + abs(diff_dclk);
-		if (diff_score < optimal_diff_score) {
-			optimal_fb_div = fb_div;
-			optimal_vclk_div = vclk_div;
-			optimal_dclk_div = dclk_div;
-			optimal_vco_freq = vco_freq;
-			optimal_diff_score = diff_score;
-			if (optimal_diff_score == 0)
-				break; /* it can't get better than this */
-		}
-	}
+	r = radeon_uvd_calc_upll_dividers(rdev, vclk, dclk, 125000, 250000,
+					  16384, 0x03FFFFFF, 0, 128, 5,
+					  &fb_div, &vclk_div, &dclk_div);
+	if (r)
+		return r;
 
 	/* set VCO_MODE to 1 */
 	WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_VCO_MODE_MASK, ~UPLL_VCO_MODE_MASK);
@@ -1108,7 +1027,7 @@ int evergreen_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk)
 
 	mdelay(1);
 
-	r = evergreen_uvd_send_upll_ctlreq(rdev);
+	r = radeon_uvd_send_upll_ctlreq(rdev, CG_UPLL_FUNC_CNTL);
 	if (r)
 		return r;
 
@@ -1119,19 +1038,19 @@ int evergreen_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk)
 	WREG32_P(CG_UPLL_SPREAD_SPECTRUM, 0, ~SSEN_MASK);
 
 	/* set feedback divider */
-	WREG32_P(CG_UPLL_FUNC_CNTL_3, UPLL_FB_DIV(optimal_fb_div), ~UPLL_FB_DIV_MASK);
+	WREG32_P(CG_UPLL_FUNC_CNTL_3, UPLL_FB_DIV(fb_div), ~UPLL_FB_DIV_MASK);
 
 	/* set ref divider to 0 */
 	WREG32_P(CG_UPLL_FUNC_CNTL, 0, ~UPLL_REF_DIV_MASK);
 
-	if (optimal_vco_freq < 187500)
+	if (fb_div < 307200)
 		WREG32_P(CG_UPLL_FUNC_CNTL_4, 0, ~UPLL_SPARE_ISPARE9);
 	else
 		WREG32_P(CG_UPLL_FUNC_CNTL_4, UPLL_SPARE_ISPARE9, ~UPLL_SPARE_ISPARE9);
 
 	/* set PDIV_A and PDIV_B */
 	WREG32_P(CG_UPLL_FUNC_CNTL_2,
-		UPLL_PDIV_A(optimal_vclk_div) | UPLL_PDIV_B(optimal_dclk_div),
+		UPLL_PDIV_A(vclk_div) | UPLL_PDIV_B(dclk_div),
 		~(UPLL_PDIV_A_MASK | UPLL_PDIV_B_MASK));
 
 	/* give the PLL some time to settle */
@@ -1145,7 +1064,7 @@ int evergreen_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk)
 	/* switch from bypass mode to normal mode */
 	WREG32_P(CG_UPLL_FUNC_CNTL, 0, ~UPLL_BYPASS_EN_MASK);
 
-	r = evergreen_uvd_send_upll_ctlreq(rdev);
+	r = radeon_uvd_send_upll_ctlreq(rdev, CG_UPLL_FUNC_CNTL);
 	if (r)
 		return r;
 

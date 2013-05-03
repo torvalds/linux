@@ -1178,6 +1178,11 @@ int radeon_device_init(struct radeon_device *rdev,
 	if (r)
 		DRM_ERROR("ib ring test failed (%d).\n", r);
 
+	r = radeon_gem_debugfs_init(rdev);
+	if (r) {
+		DRM_ERROR("registering gem debugfs failed (%d).\n", r);
+	}
+
 	if (rdev->flags & RADEON_IS_AGP && !rdev->accel_working) {
 		/* Acceleration not working on AGP card try again
 		 * with fallback to PCI or PCIE GART
