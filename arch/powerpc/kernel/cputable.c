@@ -103,6 +103,9 @@ extern void __restore_cpu_e6500(void);
 				 PPC_FEATURE_SMT | PPC_FEATURE_ICACHE_SNOOP | \
 				 PPC_FEATURE_TRUE_LE | \
 				 PPC_FEATURE_PSERIES_PERFMON_COMPAT)
+#define COMMON_USER2_POWER8	(PPC_FEATURE2_ARCH_2_07 | \
+				 PPC_FEATURE2_HTM_COMP | PPC_FEATURE2_DSCR | \
+				 PPC_FEATURE2_ISEL | PPC_FEATURE2_TAR)
 #define COMMON_USER_PA6T	(COMMON_USER_PPC64 | PPC_FEATURE_PA6T |\
 				 PPC_FEATURE_TRUE_LE | \
 				 PPC_FEATURE_HAS_ALTIVEC_COMP)
@@ -445,6 +448,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.cpu_name		= "POWER8 (architected)",
 		.cpu_features		= CPU_FTRS_POWER8,
 		.cpu_user_features	= COMMON_USER_POWER8,
+		.cpu_user_features2	= COMMON_USER2_POWER8,
 		.mmu_features		= MMU_FTRS_POWER8,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
@@ -496,6 +500,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.cpu_name		= "POWER8 (raw)",
 		.cpu_features		= CPU_FTRS_POWER8,
 		.cpu_user_features	= COMMON_USER_POWER8,
+		.cpu_user_features2	= COMMON_USER2_POWER8,
 		.mmu_features		= MMU_FTRS_POWER8,
 		.icache_bsize		= 128,
 		.dcache_bsize		= 128,
