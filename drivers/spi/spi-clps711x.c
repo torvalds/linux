@@ -254,7 +254,6 @@ err_out:
 		if (gpio_is_valid(hw->chipselect[i]))
 			gpio_free(hw->chipselect[i]);
 
-	platform_set_drvdata(pdev, NULL);
 	spi_master_put(master);
 	kfree(master);
 
@@ -274,7 +273,6 @@ static int spi_clps711x_remove(struct platform_device *pdev)
 			gpio_free(hw->chipselect[i]);
 
 	devm_clk_put(&pdev->dev, hw->spi_clk);
-	platform_set_drvdata(pdev, NULL);
 	spi_unregister_master(master);
 	kfree(master);
 

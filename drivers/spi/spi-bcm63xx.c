@@ -469,7 +469,6 @@ static int bcm63xx_spi_probe(struct platform_device *pdev)
 out_clk_disable:
 	clk_disable_unprepare(clk);
 out_err:
-	platform_set_drvdata(pdev, NULL);
 	spi_master_put(master);
 out_clk:
 	clk_put(clk);
@@ -490,8 +489,6 @@ static int bcm63xx_spi_remove(struct platform_device *pdev)
 	/* HW shutdown */
 	clk_disable_unprepare(bs->clk);
 	clk_put(bs->clk);
-
-	platform_set_drvdata(pdev, 0);
 
 	spi_master_put(master);
 

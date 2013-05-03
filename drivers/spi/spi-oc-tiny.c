@@ -368,7 +368,6 @@ exit_gpio:
 exit_busy:
 	err = -EBUSY;
 exit:
-	platform_set_drvdata(pdev, NULL);
 	spi_master_put(master);
 	return err;
 }
@@ -382,7 +381,6 @@ static int tiny_spi_remove(struct platform_device *pdev)
 	spi_bitbang_stop(&hw->bitbang);
 	for (i = 0; i < hw->gpio_cs_count; i++)
 		gpio_free(hw->gpio_cs[i]);
-	platform_set_drvdata(pdev, NULL);
 	spi_master_put(master);
 	return 0;
 }
