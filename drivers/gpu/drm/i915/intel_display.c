@@ -9842,6 +9842,13 @@ intel_display_capture_error_state(struct drm_device *dev)
 		error->pipe[i].vsync = I915_READ(VSYNC(cpu_transcoder));
 	}
 
+	/* In the code above we read the registers without checking if the power
+	 * well was on, so here we have to clear the FPGA_DBG_RM_NOCLAIM bit to
+	 * prevent the next I915_WRITE from detecting it and printing an error
+	 * message. */
+	if (HAS_POWER_WELL(dev))
+		I915_WRITE_NOTRACE(FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
+
 	return error;
 }
 
