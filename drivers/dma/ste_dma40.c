@@ -17,6 +17,7 @@
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/err.h>
+#include <linux/of.h>
 #include <linux/amba/bus.h>
 #include <linux/regulator/consumer.h>
 #include <linux/platform_data/dma-ste-dma40.h>
@@ -3471,17 +3472,52 @@ failure:
 	return ret;
 }
 
+static int __init d40_of_probe(struct platform_device *pdev,
+			       struct device_node *np)
+{
+	struct stedma40_platform_data *pdata;
+
+	/*
+	 * FIXME: Fill in this routine as more support is added.
+	 * First platform enabled (u8500) doens't need any extra
+	 * properties to run, so this is fairly sparce currently.
+	 */
+
+	pdata = devm_kzalloc(&pdev->dev,
+			     sizeof(struct stedma40_platform_data),
+			     GFP_KERNEL);
+	if (!pdata)
+		return -ENOMEM;
+
+	pdev->dev.platform_data = pdata;
+
+	return 0;
+}
+
 static int __init d40_probe(struct platform_device *pdev)
 {
+	struct stedma40_platform_data *plat_data = pdev->dev.platform_data;
+	struct device_node *np = pdev->dev.of_node;
 	int err;
 	int ret = -ENOENT;
-	struct d40_base *base;
+	struct d40_base *base = NULL;
 	struct resource *res = NULL;
 	int num_reserved_chans;
 	u32 val;
 
-	base = d40_hw_detect_init(pdev);
+	if (!plat_data) {
+		if (np) {
+			if(d40_of_probe(pdev, np)) {
+				ret = -ENOMEM;
+				goto failure;
+			}
+		} else {
+			d40_err(&pdev->dev, "No pdata or Device Tree provided\n");
+			goto failure;
+		}
+	}
 
+	base = d40_hw_detect_init(pdev);
 	if (!base)
 		goto failure;
 
@@ -3655,11 +3691,17 @@ failure:
 	return ret;
 }
 
+static const struct of_device_id d40_match[] = {
+        { .compatible = "stericsson,dma40", },
+        {}
+};
+
 static struct platform_driver d40_driver = {
 	.driver = {
 		.owner = THIS_MODULE,
 		.name  = D40_NAME,
 		.pm = DMA40_PM_OPS,
+		.of_match_table = d40_match,
 	},
 };
 
