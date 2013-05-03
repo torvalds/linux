@@ -4172,14 +4172,9 @@ static void haswell_init_clock_gating(struct drm_device *dev)
 	/* WaSwitchSolVfFArbitrationPriority:hsw */
 	I915_WRITE(GAM_ECOCHK, I915_READ(GAM_ECOCHK) | HSW_ECOCHK_ARB_PRIO_SOL);
 
-	/* XXX: This is a workaround for early silicon revisions and should be
-	 * removed later.
-	 */
-	I915_WRITE(WM_DBG,
-			I915_READ(WM_DBG) |
-			WM_DBG_DISALLOW_MULTIPLE_LP |
-			WM_DBG_DISALLOW_SPRITE |
-			WM_DBG_DISALLOW_MAXFIFO);
+	/* WaRsPkgCStateDisplayPMReq:hsw */
+	I915_WRITE(CHICKEN_PAR1_1,
+		   I915_READ(CHICKEN_PAR1_1) | FORCE_ARB_IDLE_PLANES);
 
 	lpt_init_clock_gating(dev);
 }
