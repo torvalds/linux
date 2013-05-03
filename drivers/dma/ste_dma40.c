@@ -3219,8 +3219,9 @@ static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 
 	num_log_chans = num_phy_chans * D40_MAX_LOG_CHAN_PER_PHY;
 
-	dev_info(&pdev->dev, "hardware revision: %d @ 0x%x with %d physical channels\n",
-		 rev, res->start, num_phy_chans);
+	dev_info(&pdev->dev,
+		 "hardware rev: %d @ 0x%x with %d physical and %d logical channels\n",
+		 rev, res->start, num_phy_chans, num_log_chans);
 
 	base = kzalloc(ALIGN(sizeof(struct d40_base), 4) +
 		       (num_phy_chans + num_log_chans + ARRAY_SIZE(dma40_memcpy_channels)) *
