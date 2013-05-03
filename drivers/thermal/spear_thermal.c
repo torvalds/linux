@@ -174,7 +174,6 @@ static int spear_thermal_exit(struct platform_device *pdev)
 	struct spear_thermal_dev *stdev = spear_thermal->devdata;
 
 	thermal_zone_device_unregister(spear_thermal);
-	platform_set_drvdata(pdev, NULL);
 
 	/* Disable SPEAr Thermal Sensor */
 	actual_mask = readl_relaxed(stdev->thermal_base);
