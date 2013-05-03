@@ -94,8 +94,6 @@ static int generic_onenand_remove(struct platform_device *pdev)
 	struct resource *res = pdev->resource;
 	unsigned long size = resource_size(res);
 
-	platform_set_drvdata(pdev, NULL);
-
 	if (info) {
 		onenand_release(&info->mtd);
 		release_mem_region(res->start, size);
