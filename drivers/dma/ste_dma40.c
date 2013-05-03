@@ -3138,7 +3138,7 @@ static int __init d40_phy_res_init(struct d40_base *base)
 
 static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 {
-	struct stedma40_platform_data *plat_data;
+	struct stedma40_platform_data *plat_data = pdev->dev.platform_data;
 	struct clk *clk = NULL;
 	void __iomem *virtbase = NULL;
 	struct resource *res = NULL;
@@ -3208,8 +3208,6 @@ static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 		d40_err(&pdev->dev, "hardware revision: %d is not supported", rev);
 		goto failure;
 	}
-
-	plat_data = pdev->dev.platform_data;
 
 	/* The number of physical channels on this HW */
 	if (plat_data->num_of_phy_chans)
