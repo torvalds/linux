@@ -72,6 +72,34 @@ static int dma40_memcpy_channels[] = {
 	DB8500_DMA_MEMCPY_EV_5,
 };
 
+/* Default configuration for physcial memcpy */
+struct stedma40_chan_cfg dma40_memcpy_conf_phy = {
+	.mode = STEDMA40_MODE_PHYSICAL,
+	.dir = STEDMA40_MEM_TO_MEM,
+
+	.src_info.data_width = STEDMA40_BYTE_WIDTH,
+	.src_info.psize = STEDMA40_PSIZE_PHY_1,
+	.src_info.flow_ctrl = STEDMA40_NO_FLOW_CTRL,
+
+	.dst_info.data_width = STEDMA40_BYTE_WIDTH,
+	.dst_info.psize = STEDMA40_PSIZE_PHY_1,
+	.dst_info.flow_ctrl = STEDMA40_NO_FLOW_CTRL,
+};
+
+/* Default configuration for logical memcpy */
+struct stedma40_chan_cfg dma40_memcpy_conf_log = {
+	.mode = STEDMA40_MODE_LOGICAL,
+	.dir = STEDMA40_MEM_TO_MEM,
+
+	.src_info.data_width = STEDMA40_BYTE_WIDTH,
+	.src_info.psize = STEDMA40_PSIZE_LOG_1,
+	.src_info.flow_ctrl = STEDMA40_NO_FLOW_CTRL,
+
+	.dst_info.data_width = STEDMA40_BYTE_WIDTH,
+	.dst_info.psize = STEDMA40_PSIZE_LOG_1,
+	.dst_info.flow_ctrl = STEDMA40_NO_FLOW_CTRL,
+};
+
 /**
  * enum 40_command - The different commands and/or statuses.
  *
@@ -2029,13 +2057,13 @@ static int d40_config_memcpy(struct d40_chan *d40c)
 	dma_cap_mask_t cap = d40c->chan.device->cap_mask;
 
 	if (dma_has_cap(DMA_MEMCPY, cap) && !dma_has_cap(DMA_SLAVE, cap)) {
-		d40c->dma_cfg = *d40c->base->plat_data->memcpy_conf_log;
+		d40c->dma_cfg = dma40_memcpy_conf_log;
 		d40c->dma_cfg.src_dev_type = STEDMA40_DEV_SRC_MEMORY;
 		d40c->dma_cfg.dst_dev_type = dma40_memcpy_channels[d40c->chan.chan_id];
 
 	} else if (dma_has_cap(DMA_MEMCPY, cap) &&
 		   dma_has_cap(DMA_SLAVE, cap)) {
-		d40c->dma_cfg = *d40c->base->plat_data->memcpy_conf_phy;
+		d40c->dma_cfg = dma40_memcpy_conf_phy;
 	} else {
 		chan_err(d40c, "No memcpy\n");
 		return -EINVAL;

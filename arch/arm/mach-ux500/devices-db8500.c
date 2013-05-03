@@ -42,32 +42,6 @@ static struct resource dma40_resources[] = {
 	}
 };
 
-/* Default configuration for physcial memcpy */
-struct stedma40_chan_cfg dma40_memcpy_conf_phy = {
-	.mode = STEDMA40_MODE_PHYSICAL,
-	.dir = STEDMA40_MEM_TO_MEM,
-
-	.src_info.data_width = STEDMA40_BYTE_WIDTH,
-	.src_info.psize = STEDMA40_PSIZE_PHY_1,
-	.src_info.flow_ctrl = STEDMA40_NO_FLOW_CTRL,
-
-	.dst_info.data_width = STEDMA40_BYTE_WIDTH,
-	.dst_info.psize = STEDMA40_PSIZE_PHY_1,
-	.dst_info.flow_ctrl = STEDMA40_NO_FLOW_CTRL,
-};
-/* Default configuration for logical memcpy */
-struct stedma40_chan_cfg dma40_memcpy_conf_log = {
-	.dir = STEDMA40_MEM_TO_MEM,
-
-	.src_info.data_width = STEDMA40_BYTE_WIDTH,
-	.src_info.psize = STEDMA40_PSIZE_LOG_1,
-	.src_info.flow_ctrl = STEDMA40_NO_FLOW_CTRL,
-
-	.dst_info.data_width = STEDMA40_BYTE_WIDTH,
-	.dst_info.psize = STEDMA40_PSIZE_LOG_1,
-	.dst_info.flow_ctrl = STEDMA40_NO_FLOW_CTRL,
-};
-
 /*
  * Mapping between destination event lines and physical device address.
  * The event line is tied to a device and therefore the address is constant.
@@ -150,8 +124,6 @@ static struct stedma40_platform_data dma40_plat_data = {
 	.dev_len = DB8500_DMA_NR_DEV,
 	.dev_rx = dma40_rx_map,
 	.dev_tx = dma40_tx_map,
-	.memcpy_conf_phy = &dma40_memcpy_conf_phy,
-	.memcpy_conf_log = &dma40_memcpy_conf_log,
 	.disabled_channels = {-1},
 };
 
