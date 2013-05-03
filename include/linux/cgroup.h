@@ -840,8 +840,6 @@ static inline void cgroup_fork(struct task_struct *p) {}
 static inline void cgroup_post_fork(struct task_struct *p) {}
 static inline void cgroup_exit(struct task_struct *p, int callbacks) {}
 
-static inline void cgroup_lock(void) {}
-static inline void cgroup_unlock(void) {}
 static inline int cgroupstats_build(struct cgroupstats *stats,
 					struct dentry *dentry)
 {
