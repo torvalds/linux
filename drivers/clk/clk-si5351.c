@@ -932,7 +932,7 @@ static unsigned long si5351_clkout_recalc_rate(struct clk_hw *hw,
 	unsigned char reg;
 	unsigned char rdiv;
 
-	if (hwdata->num > 5)
+	if (hwdata->num <= 5)
 		reg = si5351_msynth_params_address(hwdata->num) + 2;
 	else
 		reg = SI5351_CLK6_7_OUTPUT_DIVIDER;
