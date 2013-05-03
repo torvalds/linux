@@ -157,8 +157,9 @@
 #define CRU_I2C_CON0    	0x0080
 
 #define CRU_LVDS_CON0   	0x0084
+#define LVDS_HBP_ODD_MASK	(0x1<<30)
 #define LVDS_OUT_FORMAT_MASK	(3<<16)
-#define LVDS_CON_ST_PHASE 	(1<<14)
+#define LVDS_HBP_ODD(x)		(((x)&1)<<14)
 #define LVDS_DCLK_INV	  	(1<<13)
 #define LVDS_CH1_LOAD	  	(1<<12)
 #define LVDS_CH0_LOAD	  	(1<<11)

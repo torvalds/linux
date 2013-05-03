@@ -536,6 +536,7 @@ static int rk616_lvds_cfg(struct mfd_rk616 *rk616,rk_screen *screen)
 	struct rk616_route *route = &rk616->route;
 	u32 val = 0;
 	int ret;
+	int odd = (screen->left_margin&0x01)?0:1;
 	
 	if(!route->lvds_en)  //lvds port is not used ,power down lvds
 	{
@@ -559,12 +560,14 @@ static int rk616_lvds_cfg(struct mfd_rk616 *rk616,rk_screen *screen)
 
 			if(route->lvds_ch_nr == 2) //dual lvds channel
 			{
-				val &= ~(LVDS_CH0TTL_EN | LVDS_CH1TTL_EN);
-				val = (LVDS_DCLK_INV)  | (LVDS_CH1_PWR_EN) |(LVDS_CH0_PWR_EN) | 
+				val = 0;
+				val &= ~(LVDS_CH0TTL_EN | LVDS_CH1TTL_EN | LVDS_PLL_PWR_DN);
+				val = (LVDS_DCLK_INV)|(LVDS_CH1_PWR_EN) |(LVDS_CH0_PWR_EN) | LVDS_HBP_ODD(odd) |
 					(LVDS_CBG_PWR_EN) | (LVDS_CH_SEL) | (LVDS_OUT_FORMAT(screen->hw_format)) | 
 					(LVDS_CH0TTL_EN << 16) | (LVDS_CH1TTL_EN << 16) |(LVDS_CH1_PWR_EN << 16) | 
 					(LVDS_CH0_PWR_EN << 16) | (LVDS_CBG_PWR_EN << 16) | (LVDS_CH_SEL << 16) | 
-					(LVDS_OUT_FORMAT_MASK);
+					(LVDS_OUT_FORMAT_MASK) | (LVDS_DCLK_INV << 16) | (LVDS_PLL_PWR_DN << 16) |
+					(LVDS_HBP_ODD_MASK);
 				ret = rk616->write_dev(rk616,CRU_LVDS_CON0,&val);
 				
 				dev_info(rk616->dev,"rk616 use dual lvds channel.......\n");
