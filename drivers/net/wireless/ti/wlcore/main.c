@@ -1,10 +1,9 @@
 
 /*
- * This file is part of wl1271
+ * This file is part of wlcore
  *
  * Copyright (C) 2008-2010 Nokia Corporation
- *
- * Contact: Luciano Coelho <luciano.coelho@nokia.com>
+ * Copyright (C) 2011-2013 Texas Instruments Inc.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -24,34 +23,22 @@
 
 #include <linux/module.h>
 #include <linux/firmware.h>
-#include <linux/delay.h>
-#include <linux/spi/spi.h>
-#include <linux/crc32.h>
 #include <linux/etherdevice.h>
 #include <linux/vmalloc.h>
-#include <linux/platform_device.h>
-#include <linux/slab.h>
 #include <linux/wl12xx.h>
-#include <linux/sched.h>
 #include <linux/interrupt.h>
 
 #include "wlcore.h"
 #include "debug.h"
 #include "wl12xx_80211.h"
 #include "io.h"
-#include "event.h"
 #include "tx.h"
-#include "rx.h"
 #include "ps.h"
 #include "init.h"
 #include "debugfs.h"
-#include "cmd.h"
-#include "boot.h"
 #include "testmode.h"
 #include "scan.h"
 #include "hw_ops.h"
-
-#define WL1271_BOOT_RETRIES 3
 
 #define WL1271_BOOT_RETRIES 3
 
@@ -65,8 +52,7 @@ static void __wl1271_op_remove_interface(struct wl1271 *wl,
 static void wlcore_op_stop_locked(struct wl1271 *wl);
 static void wl1271_free_ap_keys(struct wl1271 *wl, struct wl12xx_vif *wlvif);
 
-static int wl12xx_set_authorized(struct wl1271 *wl,
-				 struct wl12xx_vif *wlvif)
+static int wl12xx_set_authorized(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	int ret;
 
@@ -1668,8 +1654,7 @@ static int wl1271_configure_suspend(struct wl1271 *wl,
 	return 0;
 }
 
-static void wl1271_configure_resume(struct wl1271 *wl,
-				    struct wl12xx_vif *wlvif)
+static void wl1271_configure_resume(struct wl1271 *wl, struct wl12xx_vif *wlvif)
 {
 	int ret = 0;
 	bool is_ap = wlvif->bss_type == BSS_TYPE_AP_BSS;
@@ -3782,8 +3767,7 @@ static int wlcore_set_beacon_template(struct wl1271 *wl,
 	struct ieee80211_hdr *hdr;
 	u32 min_rate;
 	int ret;
-	int ieoffset = offsetof(struct ieee80211_mgmt,
-				u.beacon.variable);
+	int ieoffset = offsetof(struct ieee80211_mgmt, u.beacon.variable);
 	struct sk_buff *beacon = ieee80211_beacon_get(wl->hw, vif);
 	u16 tmpl_id;
 
@@ -5827,8 +5811,6 @@ static int wl1271_init_ieee80211(struct wl1271 *wl)
 	return 0;
 }
 
-#define WL1271_DEFAULT_CHANNEL 0
-
 struct ieee80211_hw *wlcore_alloc_hw(size_t priv_size, u32 aggr_buf_size,
 				     u32 mbox_size)
 {
@@ -5881,7 +5863,7 @@ struct ieee80211_hw *wlcore_alloc_hw(size_t priv_size, u32 aggr_buf_size,
 		goto err_hw;
 	}
 
-	wl->channel = WL1271_DEFAULT_CHANNEL;
+	wl->channel = 0;
 	wl->rx_counter = 0;
 	wl->power_level = WL1271_DEFAULT_POWER_LEVEL;
 	wl->band = IEEE80211_BAND_2GHZ;
