@@ -4388,6 +4388,40 @@ static void vlv_pllb_recal_opamp(struct drm_i915_private *dev_priv)
 	intel_dpio_write(dev_priv, DPIO_CALIBRATION, reg_val);
 }
 
+static void intel_pch_transcoder_set_m_n(struct intel_crtc *crtc,
+					 struct intel_link_m_n *m_n)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int pipe = crtc->pipe;
+
+	I915_WRITE(TRANSDATA_M1(pipe), TU_SIZE(m_n->tu) | m_n->gmch_m);
+	I915_WRITE(TRANSDATA_N1(pipe), m_n->gmch_n);
+	I915_WRITE(TRANSDPLINK_M1(pipe), m_n->link_m);
+	I915_WRITE(TRANSDPLINK_N1(pipe), m_n->link_n);
+}
+
+static void intel_cpu_transcoder_set_m_n(struct intel_crtc *crtc,
+					 struct intel_link_m_n *m_n)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int pipe = crtc->pipe;
+	enum transcoder transcoder = crtc->config.cpu_transcoder;
+
+	if (INTEL_INFO(dev)->gen >= 5) {
+		I915_WRITE(PIPE_DATA_M1(transcoder), TU_SIZE(m_n->tu) | m_n->gmch_m);
+		I915_WRITE(PIPE_DATA_N1(transcoder), m_n->gmch_n);
+		I915_WRITE(PIPE_LINK_M1(transcoder), m_n->link_m);
+		I915_WRITE(PIPE_LINK_N1(transcoder), m_n->link_n);
+	} else {
+		I915_WRITE(PIPE_GMCH_DATA_M(pipe), TU_SIZE(m_n->tu) | m_n->gmch_m);
+		I915_WRITE(PIPE_GMCH_DATA_N(pipe), m_n->gmch_n);
+		I915_WRITE(PIPE_DP_LINK_M(pipe), m_n->link_m);
+		I915_WRITE(PIPE_DP_LINK_N(pipe), m_n->link_n);
+	}
+}
+
 static void intel_dp_set_m_n(struct intel_crtc *crtc)
 {
 	if (crtc->config.has_pch_encoder)
@@ -5616,40 +5650,6 @@ int ironlake_get_lanes_required(int target_clock, int link_bw, int bpp)
 	 */
 	u32 bps = target_clock * bpp * 21 / 20;
 	return bps / (link_bw * 8) + 1;
-}
-
-void intel_pch_transcoder_set_m_n(struct intel_crtc *crtc,
-				  struct intel_link_m_n *m_n)
-{
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	int pipe = crtc->pipe;
-
-	I915_WRITE(TRANSDATA_M1(pipe), TU_SIZE(m_n->tu) | m_n->gmch_m);
-	I915_WRITE(TRANSDATA_N1(pipe), m_n->gmch_n);
-	I915_WRITE(TRANSDPLINK_M1(pipe), m_n->link_m);
-	I915_WRITE(TRANSDPLINK_N1(pipe), m_n->link_n);
-}
-
-void intel_cpu_transcoder_set_m_n(struct intel_crtc *crtc,
-				  struct intel_link_m_n *m_n)
-{
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	int pipe = crtc->pipe;
-	enum transcoder transcoder = crtc->config.cpu_transcoder;
-
-	if (INTEL_INFO(dev)->gen >= 5) {
-		I915_WRITE(PIPE_DATA_M1(transcoder), TU_SIZE(m_n->tu) | m_n->gmch_m);
-		I915_WRITE(PIPE_DATA_N1(transcoder), m_n->gmch_n);
-		I915_WRITE(PIPE_LINK_M1(transcoder), m_n->link_m);
-		I915_WRITE(PIPE_LINK_N1(transcoder), m_n->link_n);
-	} else {
-		I915_WRITE(PIPE_GMCH_DATA_M(pipe), TU_SIZE(m_n->tu) | m_n->gmch_m);
-		I915_WRITE(PIPE_GMCH_DATA_N(pipe), m_n->gmch_n);
-		I915_WRITE(PIPE_DP_LINK_M(pipe), m_n->link_m);
-		I915_WRITE(PIPE_DP_LINK_N(pipe), m_n->link_n);
-	}
 }
 
 static bool ironlake_needs_fb_cb_tune(struct dpll *dpll, int factor)
