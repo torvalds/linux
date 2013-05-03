@@ -126,6 +126,9 @@ static __always_inline void *kmalloc(size_t size, gfp_t flags)
 		if (!size)
 			return ZERO_SIZE_PTR;
 
+		if (WARN_ON_ONCE(size > KMALLOC_MAX_SIZE))
+			return NULL;
+
 		i = kmalloc_index(size);
 
 #ifdef CONFIG_ZONE_DMA
@@ -171,6 +174,9 @@ static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
 
 		if (!size)
 			return ZERO_SIZE_PTR;
+
+		if (WARN_ON_ONCE(size > KMALLOC_MAX_SIZE))
+			return NULL;
 
 		i = kmalloc_index(size);
 
