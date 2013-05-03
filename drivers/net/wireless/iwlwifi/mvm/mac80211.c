@@ -803,6 +803,27 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 				return;
 			}
 			iwl_mvm_configure_mcast_filter(mvm, vif);
+
+			if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART,
+				     &mvm->status)) {
+				/*
+				 * If we're restarting then the firmware will
+				 * obviously have lost synchronisation with
+				 * the AP. It will attempt to synchronise by
+				 * itself, but we can make it more reliable by
+				 * scheduling a session protection time event.
+				 *
+				 * The firmware needs to receive a beacon to
+				 * catch up with synchronisation, use 110% of
+				 * the beacon interval.
+				 *
+				 * Set a large maximum delay to allow for more
+				 * than a single interface.
+				 */
+				u32 dur = (11 * vif->bss_conf.beacon_int) / 10;
+				iwl_mvm_protect_session(mvm, vif, dur, dur,
+							5 * dur);
+			}
 		} else if (mvmvif->ap_sta_id != IWL_MVM_STATION_COUNT) {
 			/* remove AP station now that the MAC is unassoc */
 			ret = iwl_mvm_rm_sta_id(mvm, vif, mvmvif->ap_sta_id);
@@ -1170,7 +1191,7 @@ static void iwl_mvm_mac_mgd_prepare_tx(struct ieee80211_hw *hw,
 
 	mutex_lock(&mvm->mutex);
 	/* Try really hard to protect the session and hear a beacon */
-	iwl_mvm_protect_session(mvm, vif, duration, min_duration);
+	iwl_mvm_protect_session(mvm, vif, duration, min_duration, 500);
 	mutex_unlock(&mvm->mutex);
 }
 
