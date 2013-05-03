@@ -342,6 +342,7 @@ static void sdi_init_output(struct platform_device *pdev)
 	out->output_type = OMAP_DISPLAY_TYPE_SDI;
 	out->name = "sdi.0";
 	out->dispc_channel = OMAP_DSS_CHANNEL_LCD;
+	out->owner = THIS_MODULE;
 
 	dss_register_output(out);
 }

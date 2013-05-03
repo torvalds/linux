@@ -687,6 +687,7 @@ static void dpi_init_output(struct platform_device *pdev)
 	out->output_type = OMAP_DISPLAY_TYPE_DPI;
 	out->name = "dpi.0";
 	out->dispc_channel = dpi_get_channel();
+	out->owner = THIS_MODULE;
 
 	dss_register_output(out);
 }

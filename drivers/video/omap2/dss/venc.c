@@ -792,6 +792,7 @@ static void venc_init_output(struct platform_device *pdev)
 	out->output_type = OMAP_DISPLAY_TYPE_VENC;
 	out->name = "venc.0";
 	out->dispc_channel = OMAP_DSS_CHANNEL_DIGIT;
+	out->owner = THIS_MODULE;
 
 	dss_register_output(out);
 }

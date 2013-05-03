@@ -5424,6 +5424,7 @@ static void dsi_init_output(struct platform_device *dsidev)
 	out->output_type = OMAP_DISPLAY_TYPE_DSI;
 	out->name = dsi->module_id == 0 ? "dsi.0" : "dsi.1";
 	out->dispc_channel = dsi_get_channel(dsi->module_id);
+	out->owner = THIS_MODULE;
 
 	dss_register_output(out);
 }
