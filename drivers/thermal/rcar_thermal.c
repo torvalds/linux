@@ -487,8 +487,6 @@ static int rcar_thermal_remove(struct platform_device *pdev)
 			rcar_thermal_irq_disable(priv);
 	}
 
-	platform_set_drvdata(pdev, NULL);
-
 	pm_runtime_put_sync(dev);
 	pm_runtime_disable(dev);
 
