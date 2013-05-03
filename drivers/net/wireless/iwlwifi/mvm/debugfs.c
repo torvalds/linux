@@ -147,10 +147,11 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file, char __user *user_buf,
 
 	/* default is to dump the entire data segment */
 	if (!mvm->dbgfs_sram_offset && !mvm->dbgfs_sram_len) {
-		mvm->dbgfs_sram_offset = 0x800000;
 		if (!mvm->ucode_loaded)
 			return -EINVAL;
 		img = &mvm->fw->img[mvm->cur_ucode];
+		mvm->dbgfs_sram_offset =
+			img->sec[IWL_UCODE_SECTION_DATA].offset;
 		mvm->dbgfs_sram_len = img->sec[IWL_UCODE_SECTION_DATA].len;
 	}
 	len = mvm->dbgfs_sram_len;
