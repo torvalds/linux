@@ -256,6 +256,7 @@ static inline int bc_prealloc(struct rpc_rqst *req)
 #endif /* CONFIG_SUNRPC_BACKCHANNEL */
 
 #define XPRT_CREATE_INFINITE_SLOTS	(1U)
+#define XPRT_CREATE_NO_IDLE_TIMEOUT	(1U << 1)
 
 struct xprt_create {
 	int			ident;		/* XPRT_TRANSPORT identifier */

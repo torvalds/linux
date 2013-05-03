@@ -48,6 +48,7 @@ int gss_import_sec_context(
 		size_t			bufsize,
 		struct gss_api_mech	*mech,
 		struct gss_ctx		**ctx_id,
+		time_t			*endtime,
 		gfp_t			gfp_mask);
 u32 gss_get_mic(
 		struct gss_ctx		*ctx_id,
@@ -105,6 +106,7 @@ struct gss_api_ops {
 			const void		*input_token,
 			size_t			bufsize,
 			struct gss_ctx		*ctx_id,
+			time_t			*endtime,
 			gfp_t			gfp_mask);
 	u32 (*gss_get_mic)(
 			struct gss_ctx		*ctx_id,
@@ -129,6 +131,10 @@ struct gss_api_ops {
 
 int gss_mech_register(struct gss_api_mech *);
 void gss_mech_unregister(struct gss_api_mech *);
+
+/* returns a mechanism descriptor given an OID, and increments the mechanism's
+ * reference count. */
+struct gss_api_mech * gss_mech_get_by_OID(struct rpcsec_gss_oid *);
 
 /* Given a GSS security tuple, look up a pseudoflavor */
 rpc_authflavor_t gss_mech_info2flavor(struct rpcsec_gss_info *);

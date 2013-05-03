@@ -986,8 +986,10 @@ static int cache_open(struct inode *inode, struct file *filp,
 	nonseekable_open(inode, filp);
 	if (filp->f_mode & FMODE_READ) {
 		rp = kmalloc(sizeof(*rp), GFP_KERNEL);
-		if (!rp)
+		if (!rp) {
+			module_put(cd->owner);
 			return -ENOMEM;
+		}
 		rp->offset = 0;
 		rp->q.reader = 1;
 		atomic_inc(&cd->readers);

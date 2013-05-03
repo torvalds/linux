@@ -413,6 +413,8 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 
 	if (args->flags & RPC_CLNT_CREATE_INFINITE_SLOTS)
 		xprtargs.flags |= XPRT_CREATE_INFINITE_SLOTS;
+	if (args->flags & RPC_CLNT_CREATE_NO_IDLE_TIMEOUT)
+		xprtargs.flags |= XPRT_CREATE_NO_IDLE_TIMEOUT;
 	/*
 	 * If the caller chooses not to specify a hostname, whip
 	 * up a string representation of the passed-in address.
@@ -681,6 +683,7 @@ rpc_release_client(struct rpc_clnt *clnt)
 	if (atomic_dec_and_test(&clnt->cl_count))
 		rpc_free_auth(clnt);
 }
+EXPORT_SYMBOL_GPL(rpc_release_client);
 
 /**
  * rpc_bind_new_program - bind a new RPC program to an existing client

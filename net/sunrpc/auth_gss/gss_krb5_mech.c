@@ -679,6 +679,7 @@ out_err:
 static int
 gss_import_sec_context_kerberos(const void *p, size_t len,
 				struct gss_ctx *ctx_id,
+				time_t *endtime,
 				gfp_t gfp_mask)
 {
 	const void *end = (const void *)((const char *)p + len);
@@ -694,9 +695,11 @@ gss_import_sec_context_kerberos(const void *p, size_t len,
 	else
 		ret = gss_import_v2_context(p, end, ctx, gfp_mask);
 
-	if (ret == 0)
+	if (ret == 0) {
 		ctx_id->internal_ctx_id = ctx;
-	else
+		if (endtime)
+			*endtime = ctx->endtime;
+	} else
 		kfree(ctx);
 
 	dprintk("RPC:       %s: returning %d\n", __func__, ret);
