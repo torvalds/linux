@@ -365,7 +365,7 @@ static int __init at32_wdt_probe(struct platform_device *pdev)
 	ret = misc_register(&wdt->miscdev);
 	if (ret) {
 		dev_dbg(&pdev->dev, "failed to register wdt miscdev\n");
-		goto err_register;
+		goto err_free;
 	}
 
 	dev_info(&pdev->dev,
@@ -374,8 +374,6 @@ static int __init at32_wdt_probe(struct platform_device *pdev)
 
 	return 0;
 
-err_register:
-	platform_set_drvdata(pdev, NULL);
 err_free:
 	wdt = NULL;
 	return ret;
@@ -390,7 +388,6 @@ static int __exit at32_wdt_remove(struct platform_device *pdev)
 
 		misc_deregister(&wdt->miscdev);
 		wdt = NULL;
-		platform_set_drvdata(pdev, NULL);
 	}
 	return 0;
 }
