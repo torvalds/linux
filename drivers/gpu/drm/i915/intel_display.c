@@ -4675,12 +4675,17 @@ static void intel_set_pipe_timings(struct intel_crtc *intel_crtc,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum pipe pipe = intel_crtc->pipe;
 	enum transcoder cpu_transcoder = intel_crtc->config.cpu_transcoder;
-	uint32_t vsyncshift;
+	uint32_t vsyncshift, crtc_vtotal, crtc_vblank_end;
+
+	/* We need to be careful not to changed the adjusted mode, for otherwise
+	 * the hw state checker will get angry at the mismatch. */
+	crtc_vtotal = adjusted_mode->crtc_vtotal;
+	crtc_vblank_end = adjusted_mode->crtc_vblank_end;
 
 	if (!IS_GEN2(dev) && adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
 		/* the chip adds 2 halflines automatically */
-		adjusted_mode->crtc_vtotal -= 1;
-		adjusted_mode->crtc_vblank_end -= 1;
+		crtc_vtotal -= 1;
+		crtc_vblank_end -= 1;
 		vsyncshift = adjusted_mode->crtc_hsync_start
 			     - adjusted_mode->crtc_htotal / 2;
 	} else {
@@ -4702,10 +4707,10 @@ static void intel_set_pipe_timings(struct intel_crtc *intel_crtc,
 
 	I915_WRITE(VTOTAL(cpu_transcoder),
 		   (adjusted_mode->crtc_vdisplay - 1) |
-		   ((adjusted_mode->crtc_vtotal - 1) << 16));
+		   ((crtc_vtotal - 1) << 16));
 	I915_WRITE(VBLANK(cpu_transcoder),
 		   (adjusted_mode->crtc_vblank_start - 1) |
-		   ((adjusted_mode->crtc_vblank_end - 1) << 16));
+		   ((crtc_vblank_end - 1) << 16));
 	I915_WRITE(VSYNC(cpu_transcoder),
 		   (adjusted_mode->crtc_vsync_start - 1) |
 		   ((adjusted_mode->crtc_vsync_end - 1) << 16));
