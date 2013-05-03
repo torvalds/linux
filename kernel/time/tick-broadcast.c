@@ -785,11 +785,11 @@ bool tick_broadcast_oneshot_available(void)
 
 void __init tick_broadcast_init(void)
 {
-	alloc_cpumask_var(&tick_broadcast_mask, GFP_NOWAIT);
-	alloc_cpumask_var(&tmpmask, GFP_NOWAIT);
+	zalloc_cpumask_var(&tick_broadcast_mask, GFP_NOWAIT);
+	zalloc_cpumask_var(&tmpmask, GFP_NOWAIT);
 #ifdef CONFIG_TICK_ONESHOT
-	alloc_cpumask_var(&tick_broadcast_oneshot_mask, GFP_NOWAIT);
-	alloc_cpumask_var(&tick_broadcast_pending_mask, GFP_NOWAIT);
-	alloc_cpumask_var(&tick_broadcast_force_mask, GFP_NOWAIT);
+	zalloc_cpumask_var(&tick_broadcast_oneshot_mask, GFP_NOWAIT);
+	zalloc_cpumask_var(&tick_broadcast_pending_mask, GFP_NOWAIT);
+	zalloc_cpumask_var(&tick_broadcast_force_mask, GFP_NOWAIT);
 #endif
 }
