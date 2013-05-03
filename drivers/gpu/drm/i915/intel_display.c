@@ -1206,14 +1206,14 @@ static void assert_pch_refclk_enabled(struct drm_i915_private *dev_priv)
 	WARN(!enabled, "PCH refclk assertion failure, should be active but is disabled\n");
 }
 
-static void assert_transcoder_disabled(struct drm_i915_private *dev_priv,
-				       enum pipe pipe)
+static void assert_pch_transcoder_disabled(struct drm_i915_private *dev_priv,
+					   enum pipe pipe)
 {
 	int reg;
 	u32 val;
 	bool enabled;
 
-	reg = TRANSCONF(pipe);
+	reg = PCH_TRANSCONF(pipe);
 	val = I915_READ(reg);
 	enabled = !!(val & TRANS_ENABLE);
 	WARN(enabled,
@@ -1565,7 +1565,7 @@ static void intel_disable_pch_pll(struct intel_crtc *intel_crtc)
 	DRM_DEBUG_KMS("disabling PCH PLL %x\n", pll->pll_reg);
 
 	/* Make sure transcoder isn't still depending on us */
-	assert_transcoder_disabled(dev_priv, intel_crtc->pipe);
+	assert_pch_transcoder_disabled(dev_priv, intel_crtc->pipe);
 
 	reg = pll->pll_reg;
 	val = I915_READ(reg);
@@ -1605,7 +1605,7 @@ static void ironlake_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 		I915_WRITE(reg, val);
 	}
 
-	reg = TRANSCONF(pipe);
+	reg = PCH_TRANSCONF(pipe);
 	val = I915_READ(reg);
 	pipeconf_val = I915_READ(PIPECONF(pipe));
 
@@ -1659,8 +1659,8 @@ static void lpt_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 	else
 		val |= TRANS_PROGRESSIVE;
 
-	I915_WRITE(TRANSCONF(TRANSCODER_A), val);
-	if (wait_for(I915_READ(_TRANSACONF) & TRANS_STATE_ENABLE, 100))
+	I915_WRITE(LPT_TRANSCONF, val);
+	if (wait_for(I915_READ(LPT_TRANSCONF) & TRANS_STATE_ENABLE, 100))
 		DRM_ERROR("Failed to enable PCH transcoder\n");
 }
 
@@ -1677,7 +1677,7 @@ static void ironlake_disable_pch_transcoder(struct drm_i915_private *dev_priv,
 	/* Ports must be off as well */
 	assert_pch_ports_disabled(dev_priv, pipe);
 
-	reg = TRANSCONF(pipe);
+	reg = PCH_TRANSCONF(pipe);
 	val = I915_READ(reg);
 	val &= ~TRANS_ENABLE;
 	I915_WRITE(reg, val);
@@ -1698,11 +1698,11 @@ static void lpt_disable_pch_transcoder(struct drm_i915_private *dev_priv)
 {
 	u32 val;
 
-	val = I915_READ(_TRANSACONF);
+	val = I915_READ(LPT_TRANSCONF);
 	val &= ~TRANS_ENABLE;
-	I915_WRITE(_TRANSACONF, val);
+	I915_WRITE(LPT_TRANSCONF, val);
 	/* wait for PCH transcoder off, transcoder state */
-	if (wait_for((I915_READ(_TRANSACONF) & TRANS_STATE_ENABLE) == 0, 50))
+	if (wait_for((I915_READ(LPT_TRANSCONF) & TRANS_STATE_ENABLE) == 0, 50))
 		DRM_ERROR("Failed to disable PCH transcoder\n");
 
 	/* Workaround: clear timing override bit. */
@@ -3011,7 +3011,7 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 	int pipe = intel_crtc->pipe;
 	u32 reg, temp;
 
-	assert_transcoder_disabled(dev_priv, pipe);
+	assert_pch_transcoder_disabled(dev_priv, pipe);
 
 	/* Write the TU size bits before fdi link training, so that error
 	 * detection works. */
@@ -3115,7 +3115,7 @@ static void lpt_pch_enable(struct drm_crtc *crtc)
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	enum transcoder cpu_transcoder = intel_crtc->config.cpu_transcoder;
 
-	assert_transcoder_disabled(dev_priv, TRANSCODER_A);
+	assert_pch_transcoder_disabled(dev_priv, TRANSCODER_A);
 
 	lpt_program_iclkip(crtc);
 
@@ -5906,7 +5906,7 @@ static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
 	if (!(tmp & PIPECONF_ENABLE))
 		return false;
 
-	if (I915_READ(TRANSCONF(crtc->pipe)) & TRANS_ENABLE) {
+	if (I915_READ(PCH_TRANSCONF(crtc->pipe)) & TRANS_ENABLE) {
 		pipe_config->has_pch_encoder = true;
 
 		tmp = I915_READ(FDI_RX_CTL(crtc->pipe));
@@ -6054,7 +6054,7 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 	 */
 	tmp = I915_READ(TRANS_DDI_FUNC_CTL(cpu_transcoder));
 	if ((tmp & TRANS_DDI_PORT_MASK) == TRANS_DDI_SELECT_PORT(PORT_E) &&
-	    I915_READ(TRANSCONF(PIPE_A)) & TRANS_ENABLE) {
+	    I915_READ(LPT_TRANSCONF) & TRANS_ENABLE) {
 		pipe_config->has_pch_encoder = true;
 
 		tmp = I915_READ(FDI_RX_CTL(PIPE_A));
