@@ -189,7 +189,8 @@ static int cpu0_cpufreq_probe(struct platform_device *pdev)
 
 	if (!np) {
 		pr_err("failed to find cpu0 node\n");
-		return -ENOENT;
+		ret = -ENOENT;
+		goto out_put_parent;
 	}
 
 	cpu_dev = &pdev->dev;
@@ -274,6 +275,8 @@ out_free_table:
 	opp_free_cpufreq_table(cpu_dev, &freq_table);
 out_put_node:
 	of_node_put(np);
+out_put_parent:
+	of_node_put(parent);
 	return ret;
 }
 
