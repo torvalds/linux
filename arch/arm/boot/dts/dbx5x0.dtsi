@@ -186,6 +186,7 @@
 			compatible = "stericsson,db8500-dma40",
 					"stericsson,dma40";
 			reg = <0x801C0000 0x1000 0x40010000 0x800>;
+			reg-names = "base", "lcpa";
 			interrupts = <0 25 0x4>;
 		};
 
