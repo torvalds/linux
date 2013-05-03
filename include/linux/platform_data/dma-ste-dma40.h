@@ -136,7 +136,6 @@ struct stedma40_chan_cfg {
 /**
  * struct stedma40_platform_data - Configuration struct for the dma device.
  *
- * @dev_len: length of dev_tx and dev_rx
  * @dev_tx: mapping between destination event line and io address
  * @dev_rx: mapping between source event line and io address
  * @disabled_channels: A vector, ending with -1, that marks physical channels
@@ -153,7 +152,6 @@ struct stedma40_chan_cfg {
  * for 'multiple of 4' channels, like 8.
  */
 struct stedma40_platform_data {
-	u32				 dev_len;
 	const dma_addr_t		*dev_tx;
 	const dma_addr_t		*dev_rx;
 	int				 disabled_channels[STEDMA40_MAX_PHYS];

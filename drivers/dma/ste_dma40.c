@@ -45,6 +45,9 @@
 #define D40_LCLA_LINK_PER_EVENT_GRP 128
 #define D40_LCLA_END D40_LCLA_LINK_PER_EVENT_GRP
 
+/* Max number of logical channels per physical channel */
+#define D40_MAX_LOG_CHAN_PER_PHY 32
+
 /* Attempts before giving up to trying to get pages that are aligned */
 #define MAX_LCLA_ALLOC_ATTEMPTS 256
 
@@ -3210,6 +3213,8 @@ static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 	else
 		num_phy_chans = 4 * (readl(virtbase + D40_DREG_ICFG) & 0x7) + 4;
 
+	num_log_chans = num_phy_chans * D40_MAX_LOG_CHAN_PER_PHY;
+
 	dev_info(&pdev->dev, "hardware revision: %d @ 0x%x with %d physical channels\n",
 		 rev, res->start, num_phy_chans);
 
@@ -3218,15 +3223,6 @@ static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 			rev);
 		goto failure;
 	}
-
-	/* Count the number of logical channels in use */
-	for (i = 0; i < plat_data->dev_len; i++)
-		if (plat_data->dev_rx[i] != 0)
-			num_log_chans++;
-
-	for (i = 0; i < plat_data->dev_len; i++)
-		if (plat_data->dev_tx[i] != 0)
-			num_log_chans++;
 
 	base = kzalloc(ALIGN(sizeof(struct d40_base), 4) +
 		       (num_phy_chans + num_log_chans + ARRAY_SIZE(dma40_memcpy_channels)) *
@@ -3295,7 +3291,7 @@ static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 		 * The max number of logical channels are event lines for all
 		 * src devices and dst devices
 		 */
-		base->lookup_log_chans = kzalloc(plat_data->dev_len * 2 *
+		base->lookup_log_chans = kzalloc(num_log_chans *
 						 sizeof(struct d40_chan *),
 						 GFP_KERNEL);
 		if (!base->lookup_log_chans)

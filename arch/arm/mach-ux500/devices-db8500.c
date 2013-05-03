@@ -121,7 +121,6 @@ static const dma_addr_t dma40_rx_map[DB8500_DMA_NR_DEV] = {
 };
 
 static struct stedma40_platform_data dma40_plat_data = {
-	.dev_len = DB8500_DMA_NR_DEV,
 	.dev_rx = dma40_rx_map,
 	.dev_tx = dma40_tx_map,
 	.disabled_channels = {-1},
