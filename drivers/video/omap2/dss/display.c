@@ -158,15 +158,24 @@ void omapdss_unregister_display(struct omap_dss_device *dssdev)
 }
 EXPORT_SYMBOL(omapdss_unregister_display);
 
-void omap_dss_get_device(struct omap_dss_device *dssdev)
+struct omap_dss_device *omap_dss_get_device(struct omap_dss_device *dssdev)
 {
-	get_device(dssdev->dev);
+	if (!try_module_get(dssdev->owner))
+		return NULL;
+
+	if (get_device(dssdev->dev) == NULL) {
+		module_put(dssdev->owner);
+		return NULL;
+	}
+
+	return dssdev;
 }
 EXPORT_SYMBOL(omap_dss_get_device);
 
 void omap_dss_put_device(struct omap_dss_device *dssdev)
 {
 	put_device(dssdev->dev);
+	module_put(dssdev->owner);
 }
 EXPORT_SYMBOL(omap_dss_put_device);
 
