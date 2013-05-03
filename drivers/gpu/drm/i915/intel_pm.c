@@ -4633,7 +4633,7 @@ void intel_init_pm(struct drm_device *dev)
 			}
 			dev_priv->display.init_clock_gating = ivybridge_init_clock_gating;
 		} else if (IS_HASWELL(dev)) {
-			if (SNB_READ_WM0_LATENCY()) {
+			if (I915_READ64(MCH_SSKPD)) {
 				dev_priv->display.update_wm = haswell_update_wm;
 				dev_priv->display.update_sprite_wm = sandybridge_update_sprite_wm;
 			} else {
