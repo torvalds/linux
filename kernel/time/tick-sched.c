@@ -600,6 +600,13 @@ static ktime_t tick_nohz_stop_sched_tick(struct tick_sched *ts,
 			time_delta = KTIME_MAX;
 		}
 
+#ifdef CONFIG_NO_HZ_FULL
+		if (!ts->inidle) {
+			time_delta = min(time_delta,
+					 scheduler_tick_max_deferment());
+		}
+#endif
+
 		/*
 		 * calculate the expiry time for the next timer wheel
 		 * timer. delta_jiffies >= NEXT_TIMER_MAX_DELTA signals

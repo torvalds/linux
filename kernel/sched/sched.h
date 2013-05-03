@@ -410,6 +410,9 @@ struct rq {
 	u64 nohz_stamp;
 	unsigned long nohz_flags;
 #endif
+#ifdef CONFIG_NO_HZ_FULL
+	unsigned long last_sched_tick;
+#endif
 	int skip_clock_update;
 
 	/* capture load from *all* tasks on this cpu: */
@@ -1088,6 +1091,13 @@ static inline void inc_nr_running(struct rq *rq)
 static inline void dec_nr_running(struct rq *rq)
 {
 	rq->nr_running--;
+}
+
+static inline void rq_last_tick_reset(struct rq *rq)
+{
+#ifdef CONFIG_NO_HZ_FULL
+	rq->last_sched_tick = jiffies;
+#endif
 }
 
 extern void update_rq_clock(struct rq *rq);

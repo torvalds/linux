@@ -17,6 +17,7 @@ select_task_rq_idle(struct task_struct *p, int sd_flag, int flags)
 static void pre_schedule_idle(struct rq *rq, struct task_struct *prev)
 {
 	idle_exit_fair(rq);
+	rq_last_tick_reset(rq);
 }
 
 static void post_schedule_idle(struct rq *rq)

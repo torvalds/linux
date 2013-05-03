@@ -2736,7 +2736,34 @@ void scheduler_tick(void)
 	rq->idle_balance = idle_cpu(cpu);
 	trigger_load_balance(rq, cpu);
 #endif
+	rq_last_tick_reset(rq);
 }
+
+#ifdef CONFIG_NO_HZ_FULL
+/**
+ * scheduler_tick_max_deferment
+ *
+ * Keep at least one tick per second when a single
+ * active task is running because the scheduler doesn't
+ * yet completely support full dynticks environment.
+ *
+ * This makes sure that uptime, CFS vruntime, load
+ * balancing, etc... continue to move forward, even
+ * with a very low granularity.
+ */
+u64 scheduler_tick_max_deferment(void)
+{
+	struct rq *rq = this_rq();
+	unsigned long next, now = ACCESS_ONCE(jiffies);
+
+	next = rq->last_sched_tick + HZ;
+
+	if (time_before_eq(next, now))
+		return 0;
+
+	return jiffies_to_usecs(next - now) * NSEC_PER_USEC;
+}
+#endif
 
 notrace unsigned long get_parent_ip(unsigned long addr)
 {
@@ -6992,6 +7019,9 @@ void __init sched_init(void)
 		rq_attach_root(rq, &def_root_domain);
 #ifdef CONFIG_NO_HZ_COMMON
 		rq->nohz_flags = 0;
+#endif
+#ifdef CONFIG_NO_HZ_FULL
+		rq->last_sched_tick = 0;
 #endif
 #endif
 		init_rq_hrtick(rq);
