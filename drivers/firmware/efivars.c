@@ -1628,10 +1628,11 @@ static ssize_t efivar_delete(struct file *filp, struct kobject *kobj,
 	return count;
 }
 
-static bool variable_is_present(efi_char16_t *variable_name, efi_guid_t *vendor)
+static bool variable_is_present(struct efivars *efivars,
+				efi_char16_t *variable_name,
+				efi_guid_t *vendor)
 {
 	struct efivar_entry *entry, *n;
-	struct efivars *efivars = &__efivars;
 	unsigned long strsize1, strsize2;
 	bool found = false;
 
@@ -1703,8 +1704,8 @@ static void efivar_update_sysfs_entries(struct work_struct *work)
 			if (status != EFI_SUCCESS) {
 				break;
 			} else {
-				if (!variable_is_present(variable_name,
-				    &vendor)) {
+				if (!variable_is_present(efivars,
+				    variable_name, &vendor)) {
 					found = true;
 					break;
 				}
@@ -2008,7 +2009,8 @@ int register_efivars(struct efivars *efivars,
 			 * we'll ever see a different variable name,
 			 * and may end up looping here forever.
 			 */
-			if (variable_is_present(variable_name, &vendor_guid)) {
+			if (variable_is_present(efivars, variable_name,
+						&vendor_guid)) {
 				dup_variable_bug(variable_name, &vendor_guid,
 						 variable_name_size);
 				status = EFI_NOT_FOUND;
