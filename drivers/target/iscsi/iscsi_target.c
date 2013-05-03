@@ -3557,11 +3557,11 @@ static int iscsit_send_reject(
 	struct iscsi_cmd *cmd,
 	struct iscsi_conn *conn)
 {
-	u32 iov_count = 0, tx_size = 0;
-	struct iscsi_reject *hdr;
+	struct iscsi_reject *hdr = (struct iscsi_reject *)&cmd->pdu[0];
 	struct kvec *iov;
+	u32 iov_count = 0, tx_size;
 
-	iscsit_build_reject(cmd, conn, (struct iscsi_reject *)&cmd->pdu[0]);
+	iscsit_build_reject(cmd, conn, hdr);
 
 	iov = &cmd->iov_misc[0];
 	iov[iov_count].iov_base = cmd->pdu;
