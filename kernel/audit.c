@@ -930,7 +930,7 @@ static int audit_receive_msg(struct sk_buff *skb, struct nlmsghdr *nlh)
 		struct task_struct *tsk = current;
 
 		spin_lock(&tsk->sighand->siglock);
-		s.enabled = tsk->signal->audit_tty != 0;
+		s.enabled = tsk->signal->audit_tty;
 		s.log_passwd = tsk->signal->audit_tty_log_passwd;
 		spin_unlock(&tsk->sighand->siglock);
 
