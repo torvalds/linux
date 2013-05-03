@@ -509,7 +509,6 @@ static int jz4740_i2s_dev_remove(struct platform_device *pdev)
 	iounmap(i2s->base);
 	release_mem_region(i2s->mem->start, resource_size(i2s->mem));
 
-	platform_set_drvdata(pdev, NULL);
 	kfree(i2s);
 
 	return 0;
