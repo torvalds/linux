@@ -1477,6 +1477,16 @@ static int si5351_i2c_probe(struct i2c_client *client,
 			return -EINVAL;
 		}
 		drvdata->onecell.clks[n] = clk;
+
+		/* set initial clkout rate */
+		if (pdata->clkout[n].rate != 0) {
+			int ret;
+			ret = clk_set_rate(clk, pdata->clkout[n].rate);
+			if (ret != 0) {
+				dev_err(&client->dev, "Cannot set rate : %d\n",
+					ret);
+			}
+		}
 	}
 
 	ret = of_clk_add_provider(client->dev.of_node, of_clk_src_onecell_get,
