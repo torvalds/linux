@@ -182,12 +182,13 @@
 			interrupts = <0 23 0x4>;
 		};
 
-		dma-controller@801C0000 {
-			compatible = "stericsson,db8500-dma40",
-					"stericsson,dma40";
+		dma: dma-controller@801C0000 {
+			compatible = "stericsson,db8500-dma40", "stericsson,dma40";
 			reg = <0x801C0000 0x1000 0x40010000 0x800>;
 			reg-names = "base", "lcpa";
 			interrupts = <0 25 0x4>;
+
+			#dma-cells = <3>;
 		};
 
 		prcmu: prcmu@80157000 {
