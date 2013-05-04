@@ -91,7 +91,7 @@ int x25_parse_address_block(struct sk_buff *skb,
 	int needed;
 	int rc;
 
-	if (skb->len < 1) {
+	if (!pskb_may_pull(skb, 1)) {
 		/* packet has no address block */
 		rc = 0;
 		goto empty;
@@ -100,7 +100,7 @@ int x25_parse_address_block(struct sk_buff *skb,
 	len = *skb->data;
 	needed = 1 + (len >> 4) + (len & 0x0f);
 
-	if (skb->len < needed) {
+	if (!pskb_may_pull(skb, needed)) {
 		/* packet is too short to hold the addresses it claims
 		   to hold */
 		rc = -1;
@@ -952,12 +952,25 @@ int x25_rx_call_request(struct sk_buff *skb, struct x25_neigh *nb,
 	 *
 	 *	Facilities length is mandatory in call request packets
 	 */
-	if (skb->len < 1)
+	if (!pskb_may_pull(skb, 1))
 		goto out_clear_request;
 	len = skb->data[0] + 1;
-	if (skb->len < len)
+	if (!pskb_may_pull(skb, len))
 		goto out_clear_request;
 	skb_pull(skb,len);
+
+	/*
+	 *	Ensure that the amount of call user data is valid.
+	 */
+	if (skb->len > X25_MAX_CUD_LEN)
+		goto out_clear_request;
+
+	/*
+	 *	Get all the call user data so it can be used in
+	 *	x25_find_listener and skb_copy_from_linear_data up ahead.
+	 */
+	if (!pskb_may_pull(skb, skb->len))
+		goto out_clear_request;
 
 	/*
 	 *	Find a listener for the particular address/cud pair.
@@ -1167,6 +1180,9 @@ static int x25_sendmsg(struct kiocb *iocb, struct socket *sock,
 	 *	byte of the user data is the logical value of the Q Bit.
 	 */
 	if (test_bit(X25_Q_BIT_FLAG, &x25->flags)) {
+		if (!pskb_may_pull(skb, 1))
+			goto out_kfree_skb;
+
 		qbit = skb->data[0];
 		skb_pull(skb, 1);
 	}
@@ -1245,7 +1261,9 @@ static int x25_recvmsg(struct kiocb *iocb, struct socket *sock,
 	struct x25_sock *x25 = x25_sk(sk);
 	struct sockaddr_x25 *sx25 = (struct sockaddr_x25 *)msg->msg_name;
 	size_t copied;
-	int qbit;
+	int qbit, header_len = x25->neighbour->extended ?
+		X25_EXT_MIN_LEN : X25_STD_MIN_LEN;
+
 	struct sk_buff *skb;
 	unsigned char *asmptr;
 	int rc = -ENOTCONN;
@@ -1265,6 +1283,9 @@ static int x25_recvmsg(struct kiocb *iocb, struct socket *sock,
 			goto out;
 
 		skb = skb_dequeue(&x25->interrupt_in_queue);
+
+		if (!pskb_may_pull(skb, X25_STD_MIN_LEN))
+			goto out_free_dgram;
 
 		skb_pull(skb, X25_STD_MIN_LEN);
 
@@ -1286,10 +1307,12 @@ static int x25_recvmsg(struct kiocb *iocb, struct socket *sock,
 		if (!skb)
 			goto out;
 
+		if (!pskb_may_pull(skb, header_len))
+			goto out_free_dgram;
+
 		qbit = (skb->data[0] & X25_Q_BIT) == X25_Q_BIT;
 
-		skb_pull(skb, x25->neighbour->extended ?
-				X25_EXT_MIN_LEN : X25_STD_MIN_LEN);
+		skb_pull(skb, header_len);
 
 		if (test_bit(X25_Q_BIT_FLAG, &x25->flags)) {
 			asmptr  = skb_push(skb, 1);
