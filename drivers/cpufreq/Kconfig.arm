@@ -3,17 +3,17 @@
 #
 
 config ARM_BIG_LITTLE_CPUFREQ
-	tristate
-	depends on ARM_CPU_TOPOLOGY
-	select PM_OPP
+	tristate "Generic ARM big LITTLE CPUfreq driver"
+	depends on ARM_CPU_TOPOLOGY && PM_OPP && HAVE_CLK
+	help
+	  This enables the Generic CPUfreq driver for ARM big.LITTLE platforms.
 
 config ARM_DT_BL_CPUFREQ
-	tristate "Generic ARM big LITTLE CPUfreq driver probed via DT"
-	select ARM_BIG_LITTLE_CPUFREQ
-	depends on OF && HAVE_CLK
+	tristate "Generic probing via DT for ARM big LITTLE CPUfreq driver"
+	depends on ARM_BIG_LITTLE_CPUFREQ && OF
 	help
-	  This enables the Generic CPUfreq driver for ARM big.LITTLE platform.
-	  This gets frequency tables from DT.
+	  This enables probing via DT for Generic CPUfreq driver for ARM
+	  big.LITTLE platform. This gets frequency tables from DT.
 
 config ARM_EXYNOS_CPUFREQ
 	bool "SAMSUNG EXYNOS SoCs"
