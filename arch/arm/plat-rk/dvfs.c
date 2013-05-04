@@ -27,7 +27,7 @@
 #include <linux/io.h>
 #include <linux/hrtimer.h>
 
-
+#define MHz	(1000 * 1000)
 static LIST_HEAD(rk_dvfs_tree);
 static DEFINE_MUTEX(mutex);
 static DEFINE_MUTEX(rk_dvfs_mutex);
@@ -338,7 +338,7 @@ int dvfs_vd_clk_disable(struct clk *clk, int on)
 		DVFS_WARNING("%s(%s),vd is no target callback\n", __func__, clk->name);	
 		return -1;
 	}
-	DVFS_DBG("%s(%s(%lu)),is end\n", __func__, dvfs_info->name, DVFS_STR_ON(on));
+	DVFS_DBG("%s(%s(%s)),is end\n", __func__, dvfs_info->name, DVFS_STR_DISABLE(on));
 
 	return ret;
 }
@@ -348,7 +348,7 @@ EXPORT_SYMBOL(dvfs_vd_clk_disable);
 static void dvfs_table_round_clk_rate(struct clk_node  *dvfs_clk)
 {
 	int i;
-	long temp_rate;
+	unsigned long temp_rate;
 	int rate;
 	int flags;
 	
@@ -366,7 +366,12 @@ static void dvfs_table_round_clk_rate(struct clk_node  *dvfs_clk)
 			DVFS_WARNING("clk %s:round_clk_rate : is %d,but round <=0",dvfs_clk->name,dvfs_clk->dvfs_table[i].frequency);
 			break;
 		}
-		temp_rate=(temp_rate/1000)+flags;
+		
+		/* Set rate unit as MHZ */
+		if (temp_rate % MHz != 0)
+			temp_rate = (temp_rate / MHz + 1) * MHz;
+
+		temp_rate = (temp_rate / 1000) + flags;
 		
 		DVFS_DBG("clk %s round_clk_rate %d to %d\n",
 			dvfs_clk->name,dvfs_clk->dvfs_table[i].frequency,(int)(temp_rate));
