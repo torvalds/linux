@@ -169,6 +169,7 @@ lm75_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	int status;
 	u8 set_mask, clr_mask;
 	int new;
+	enum lm75_type kind = id->driver_data;
 
 	if (!i2c_check_functionality(client->adapter,
 			I2C_FUNC_SMBUS_BYTE_DATA | I2C_FUNC_SMBUS_WORD_DATA))
@@ -187,29 +188,58 @@ lm75_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	set_mask = 0;
 	clr_mask = LM75_SHUTDOWN;		/* continuous conversions */
 
-	switch (id->driver_data) {
+	switch (kind) {
 	case adt75:
 		clr_mask |= 1 << 5;		/* not one-shot mode */
+		data->resolution = 12;
+		data->sample_time = HZ / 8;
 		break;
 	case ds1775:
 	case ds75:
 	case stds75:
-		clr_mask |= 3 << 5;		/* 9-bit mode */
+		clr_mask |= 3 << 5;
+		set_mask |= 2 << 5;		/* 11-bit mode */
+		data->resolution = 11;
+		data->sample_time = HZ;
+		break;
+	case lm75:
+	case lm75a:
+		data->resolution = 9;
+		data->sample_time = HZ / 2;
+		break;
+	case max6625:
+		data->resolution = 9;
+		data->sample_time = HZ / 4;
+		break;
+	case max6626:
+		data->resolution = 12;
+		data->resolution_limits = 9;
+		data->sample_time = HZ / 4;
+		break;
+	case tcn75:
+		data->resolution = 9;
+		data->sample_time = HZ / 8;
 		break;
 	case mcp980x:
+		data->resolution_limits = 9;
+		/* fall through */
 	case tmp100:
 	case tmp101:
+		set_mask |= 3 << 5;		/* 12-bit mode */
+		data->resolution = 12;
+		data->sample_time = HZ;
+		clr_mask |= 1 << 7;		/* not one-shot mode */
+		break;
 	case tmp105:
 	case tmp175:
 	case tmp275:
 	case tmp75:
-		clr_mask |= 3 << 5;		/* 9-bit mode */
+		set_mask |= 3 << 5;		/* 12-bit mode */
 		clr_mask |= 1 << 7;		/* not one-shot mode */
+		data->resolution = 12;
+		data->sample_time = HZ / 2;
 		break;
 	}
-
-	data->resolution = 9;
-	data->sample_time = HZ + HZ / 2;
 
 	/* configure as specified */
 	status = lm75_read_value(client, LM75_REG_CONF);
