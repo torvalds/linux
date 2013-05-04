@@ -260,7 +260,7 @@ static ssize_t show_max_alarm(struct device *dev,
 	return sprintf(buf, "%d\n", data->max_alarm[attr->index]);
 }
 
-static mode_t abx500_attrs_visible(struct kobject *kobj,
+static umode_t abx500_attrs_visible(struct kobject *kobj,
 				   struct attribute *attr, int n)
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
