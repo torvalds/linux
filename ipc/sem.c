@@ -1280,7 +1280,7 @@ static int semctl_down(struct ipc_namespace *ns, int semid,
 	err = security_sem_semctl(sma, cmd);
 	if (err) {
 		rcu_read_unlock();
-		goto out_unlock;
+		goto out_up;
 	}
 
 	switch(cmd){
