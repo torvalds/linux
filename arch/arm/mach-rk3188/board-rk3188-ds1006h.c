@@ -1266,6 +1266,36 @@ static struct platform_device device_mt6622 = {
 };	
 #endif
 
+#if defined CONFIG_TCC_BT_DEV
+static struct tcc_bt_platform_data tcc_bt_platdata = {
+
+    .power_gpio   = { // ldoon
+        .io             =  RK2928_PIN3_PC0,
+        .enable         = GPIO_HIGH,
+        .iomux          = {
+            .name       = NULL,
+            },
+        },
+
+    .wake_host_gpio  = { // BT_HOST_WAKE, for bt wakeup host when it is in deep sleep
+        .io         = RK2928_PIN0_PC5, // set io to INVALID_GPIO for disable it
+        .enable     = IRQF_TRIGGER_RISING,// set IRQF_TRIGGER_FALLING for falling, set IRQF_TRIGGER_RISING for rising
+        .iomux      = {
+            .name       = NULL,
+        },
+    },
+};
+
+static struct platform_device device_tcc_bt = {
+    .name   = "tcc_bt_dev",
+    .id     = -1,
+    .dev    = {
+        .platform_data = &tcc_bt_platdata,
+        },
+};
+#endif
+
+
 static struct platform_device *devices[] __initdata = {
 
 #ifdef CONFIG_ION
@@ -1298,6 +1328,9 @@ static struct platform_device *devices[] __initdata = {
 	&device_mali,
 #endif
 
+#ifdef CONFIG_TCC_BT_DEV
+        &device_tcc_bt,
+#endif
 };
 
 
