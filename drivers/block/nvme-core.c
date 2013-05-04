@@ -1137,7 +1137,10 @@ static int nvme_wait_ready(struct nvme_dev *dev, u64 cap, bool enabled)
  */
 static int nvme_disable_ctrl(struct nvme_dev *dev, u64 cap)
 {
-	writel(0, &dev->bar->cc);
+	u32 cc = readl(&dev->bar->cc);
+
+	if (cc & NVME_CC_ENABLE)
+		writel(cc & ~NVME_CC_ENABLE, &dev->bar->cc);
 	return nvme_wait_ready(dev, cap, false);
 }
 
