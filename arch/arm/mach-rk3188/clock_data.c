@@ -188,7 +188,7 @@ void rk30_clkdev_add(struct clk_lookup *cl);
 #define CLKDATA_LOG(fmt, args...) do {} while(0)
 #endif
 #define CLKDATA_ERR(fmt, args...) printk(KERN_ERR "CLKDATA_ERR:\t"fmt, ##args)
-#define CLKDATA_WARNNING(fmt, args...) printk("CLKDATA_WANNING:\t"fmt, ##args)
+#define CLKDATA_WARNING(fmt, args...) printk("CLKDATA_WANING:\t"fmt, ##args)
 
 
 #define get_cru_bits(con,mask,shift)\
@@ -874,7 +874,11 @@ static int cpll_clk_set_rate(struct clk *c, unsigned long rate)
 	struct pll_clk_set temp_clk_set;
 	u32 clk_nr, clk_nf, clk_no;
 
-
+	if(rate == 24 * MHZ) {	
+		cru_writel(PLL_MODE_SLOW(pll_data->id), CRU_MODE_CON);
+		cru_writel((0x1 << (16+1)) | (0x1<<1), PLL_CONS(pll_data->id, 3));
+		return 0;
+	}
 	while(clk_set->rate) {
 		if (clk_set->rate == rate) {
 			break;
@@ -1305,6 +1309,7 @@ static const struct pll_clk_set gpll_clks[] = {
 	_PLL_SET_CLKS(297000,	2,	198,	8),
 	_PLL_SET_CLKS(300000,	1,	50,	4),
 	_PLL_SET_CLKS(594000,	2,	198,	4),
+	_PLL_SET_CLKS(891000,	8,	594,	2),
 	_PLL_SET_CLKS(1188000,	2,	99,	1),
 	_PLL_SET_CLKS(1200000,	1,	50,	1),
 	_PLL_SET_CLKS(0,	0,	 0,	0),
@@ -1318,7 +1323,14 @@ static struct clk general_pll_clk = {
 	.pll 		= &gpll_data
 };
 /********************************clocks***********************************/
-GATE_CLK(ddr_gpll_path, general_pll_clk, DDR_GPLL);
+//GATE_CLK(ddr_gpll_path, general_pll_clk, DDR_GPLL);
+static struct clk clk_ddr_gpll_path = {
+	.name		= "ddr_gpll_path",
+	.parent		= &general_pll_clk,
+	.recalc		= clksel_recalc_parent_rate,
+	.gate_idx	= CLK_GATE_DDR_GPLL,
+	.mode		= gate_mode,
+};
 
 /* core and cpu setting */
 static int ddr_clk_set_rate(struct clk *c, unsigned long rate)
@@ -1335,14 +1347,19 @@ static long ddr_clk_round_rate(struct clk *clk, unsigned long rate)
 static unsigned long ddr_clk_recalc_rate(struct clk *clk)
 {
 	u32 shift = get_cru_bits(clk->clksel_con, clk->div_mask, clk->div_shift);
-	unsigned long rate = clk->parent->recalc(clk->parent) >> shift;
-	//CLKDATA_DBG("%s new clock rate is %lu (shift %u)\n", clk->name, rate, shift);
+	unsigned long rate = 0;
+	clk->parent = clk->get_parent(clk);
+	rate = clk->parent->recalc(clk->parent) >> shift;
+	CLKDATA_DBG("%s new clock rate is %lu (shift %u), parent=%s, rate=%lu\n", 
+			clk->name, rate, shift, clk->parent->name, clk->parent->rate);
 	return rate;
 }
 static struct clk *clk_ddr_parents[2] = {&ddr_pll_clk, &clk_ddr_gpll_path};
 static struct clk clk_ddr = {
 	.name		= "ddr",
 	.parent		= &ddr_pll_clk,
+	.get_parent	= clksel_get_parent,
+	.set_parent	= clksel_set_parent,
 	.recalc		= ddr_clk_recalc_rate,
 	.set_rate	= ddr_clk_set_rate,
 	.round_rate	= ddr_clk_round_rate,
@@ -3239,22 +3256,16 @@ static void periph_clk_set_init(void)
 
 	/* general pll */
 	switch (ppll_rate) {
-		case 148500* KHZ:
+		case 148500 * KHZ:
 			aclk_p = 148500 * KHZ;
 			hclk_p = aclk_p >> 1;
 			pclk_p = aclk_p >> 2;
 			break;
-		case 1188*MHZ:
-			aclk_p = aclk_p >> 3; // 0
-			hclk_p = aclk_p >> 1;
-			pclk_p = aclk_p >> 2;
-
 		case 297 * MHZ:
 			aclk_p = ppll_rate >> 1;
 			hclk_p = aclk_p >> 0;
 			pclk_p = aclk_p >> 1;
 			break;
-
 		case 300 * MHZ:
 			aclk_p = ppll_rate >> 1;
 			hclk_p = aclk_p >> 0;
@@ -3265,6 +3276,17 @@ static void periph_clk_set_init(void)
 			hclk_p = aclk_p >> 0;
 			pclk_p = aclk_p >> 1;
 			break;
+		case 891 * MHZ:
+			aclk_p = ppll_rate / 6;
+			hclk_p = aclk_p >> 0;
+			pclk_p = aclk_p >> 1;
+			break;
+		case 1188 * MHZ:
+			aclk_p = ppll_rate >> 3;
+			hclk_p = aclk_p >> 0;
+			pclk_p = aclk_p >> 1;
+			break;
+
 		default:
 			aclk_p = 150 * MHZ;
 			hclk_p = 150 * MHZ;
@@ -3296,6 +3318,21 @@ static void cpu_axi_init(void)
 			hclk_cpu_rate = aclk_cpu_rate >> 1;
 			pclk_cpu_rate = aclk_cpu_rate >> 2;
 			break;
+
+		case 891 * MHZ:
+			cpu_div_rate = gpll_rate / 3;
+			aclk_cpu_rate = cpu_div_rate >> 0;
+			hclk_cpu_rate = aclk_cpu_rate >> 1;
+			pclk_cpu_rate = aclk_cpu_rate >> 2;
+			break;
+
+		case 1188 * MHZ:
+			cpu_div_rate = gpll_rate >> 2;
+			aclk_cpu_rate = cpu_div_rate >> 0;
+			hclk_cpu_rate = aclk_cpu_rate >> 1;
+			pclk_cpu_rate = aclk_cpu_rate >> 2;
+			break;
+
 		default:
 			aclk_cpu_rate = 150 * MHZ;
 			hclk_cpu_rate = 150 * MHZ;
@@ -3340,9 +3377,90 @@ void rk30_clock_common_i2s_init(void)
 	}
 }
 
+static void inline clock_set_div(struct clk *clk,u32 div)
+{
+	set_cru_bits_w_msk(div - 1, clk->div_mask, clk->div_shift, clk->clksel_con);
+}
+
+static void inline clock_set_max_div(struct clk *clk)
+{
+	set_cru_bits_w_msk(clk->div_max - 1, clk->div_mask, clk->div_shift, clk->clksel_con);
+}
+
+static void div_clk_for_pll_init(void)
+{
+	clock_set_max_div(&clk_cpu_div);
+	clock_set_max_div(&aclk_vdpu);
+	clock_set_max_div(&aclk_vepu);
+	clock_set_max_div(&aclk_gpu);
+	clock_set_max_div(&aclk_lcdc0_pre);
+	clock_set_max_div(&aclk_lcdc1_pre);
+	clock_set_max_div(&aclk_periph);
+	clock_set_max_div(&dclk_lcdc0);
+	clock_set_max_div(&dclk_lcdc1);
+	clock_set_max_div(&cif0_out_div);
+	clock_set_max_div(&clk_i2s0_div);
+	clock_set_max_div(&clk_spdif_div);
+	clock_set_max_div(&clk_uart0_div);
+	clock_set_max_div(&clk_uart1_div);
+	clock_set_max_div(&clk_uart2_div);
+	clock_set_max_div(&clk_uart3_div);
+	clock_set_max_div(&clk_hsicphy_12m);
+	clock_set_max_div(&clk_hsadc_pll_div);
+	clock_set_max_div(&clk_saradc);
+}
+
+/************************************for cpll runing checking****************************************/
+/* eFuse controller register */
+#define EFUSE_A_SHIFT		(6)
+#define EFUSE_A_MASK		(0xFF)
+//#define EFUSE_PD		(1 << 5)
+//#define EFUSE_PS		(1 << 4)
+#define EFUSE_PGENB		(1 << 3)//active low
+#define EFUSE_LOAD		(1 << 2)
+#define EFUSE_STROBE		(1 << 1)  
+#define EFUSE_CSB		(1 << 0)  //active low
+
+#define REG_EFUSE_CTRL		(0x0000)
+#define REG_EFUSE_DOUT		(0x0004)
+
+#define efuse_readl(offset)		readl_relaxed(RK30_EFUSE_BASE + offset)
+#define efuse_writel(val, offset)	writel_relaxed(val, RK30_EFUSE_BASE + offset)
+int efuse_readregs(u32 addr, u32 length, u8 *pData)
+{
+	efuse_writel(EFUSE_CSB, REG_EFUSE_CTRL);
+	efuse_writel(EFUSE_LOAD | EFUSE_PGENB, REG_EFUSE_CTRL);
+	udelay(2);
+	do {
+		efuse_writel(efuse_readl(REG_EFUSE_CTRL) & (~(EFUSE_A_MASK << EFUSE_A_SHIFT)), REG_EFUSE_CTRL);
+		efuse_writel(efuse_readl(REG_EFUSE_CTRL) | ((addr & EFUSE_A_MASK) << EFUSE_A_SHIFT), REG_EFUSE_CTRL);
+		udelay(2);
+		efuse_writel(efuse_readl(REG_EFUSE_CTRL) | EFUSE_STROBE, REG_EFUSE_CTRL);
+		udelay(2);
+		*pData = efuse_readl(REG_EFUSE_DOUT);
+		efuse_writel(efuse_readl(REG_EFUSE_CTRL) & (~EFUSE_STROBE), REG_EFUSE_CTRL);
+		udelay(2);
+		pData++;
+		addr++;
+	} while(--length);
+	udelay(2);
+	efuse_writel(efuse_readl(REG_EFUSE_CTRL) | EFUSE_CSB, REG_EFUSE_CTRL);
+	udelay(1);
+	return 0;
+}
+static u8 pll_flag = 0;
+static int pll_get_flag(void)
+{
+	u8 data_buf[32 + 1];
+	efuse_readregs(0, 32, data_buf);
+
+	printk("pll_flag = 0x%02x\n", data_buf[22]);
+	return data_buf[22] & 0x3;
+}
+
 static void __init rk30_clock_common_init(unsigned long gpll_rate, unsigned long cpll_rate)
 {
-
+	div_clk_for_pll_init();
 	//general
 	clk_set_rate_nolock(&general_pll_clk, gpll_rate);
 	//code pll
@@ -3361,17 +3479,21 @@ static void __init rk30_clock_common_init(unsigned long gpll_rate, unsigned long
 	clk_set_rate_nolock(&clk_spi1, clk_spi1.parent->rate);
 
 	// uart
-	if(rk30_clock_flags & CLK_FLG_UART_1_3M)
+	if((rk30_clock_flags & CLK_FLG_UART_1_3M) && (cpll_rate != 24 * MHZ))
 		clk_set_parent_nolock(&clk_uart_pll, &codec_pll_clk);
 	else
 		clk_set_parent_nolock(&clk_uart_pll, &general_pll_clk);
 	//mac
-	if(!(gpll_rate % (50 * MHZ)))
+	if(!(gpll_rate % (50 * MHZ))) {
 		clk_set_parent_nolock(&clk_mac_pll_div, &general_pll_clk);
-	else if(!(ddr_pll_clk.rate % (50 * MHZ)))
+
+	} else if((!(ddr_pll_clk.rate % (50 * MHZ))) && (ddr_pll_clk.rate != 24 * MHZ) && ((pll_flag & 0x2) == 0)) {
 		clk_set_parent_nolock(&clk_mac_pll_div, &ddr_pll_clk);
-	else
-		CLKDATA_ERR("mac can't get 50mhz\n");
+
+	} else {
+		CLKDATA_DBG("mac can't get 50mhz, set to gpll\n");
+		clk_set_parent_nolock(&clk_mac_pll_div, &general_pll_clk);
+	}
 
 	//hsadc
 	//auto pll sel
@@ -3397,13 +3519,12 @@ static void __init rk30_clock_common_init(unsigned long gpll_rate, unsigned long
 	clk_set_rate_nolock(&aclk_vepu, 300 * MHZ);
 	clk_set_rate_nolock(&aclk_vdpu, 300 * MHZ);
 	//gpu auto sel
-	clk_set_parent_nolock(&aclk_gpu, &codec_pll_clk);
+	clk_set_parent_nolock(&aclk_gpu, &general_pll_clk);
 	clk_set_rate_nolock(&aclk_gpu, 200 * MHZ);
 	
 	clk_set_rate_nolock(&clk_uart0, 49500000);
 	clk_set_rate_nolock(&clk_sdmmc, 24750000);
 	clk_set_rate_nolock(&clk_sdio, 24750000);
-
 }
 
 static struct clk def_ops_clk = {
@@ -3429,6 +3550,15 @@ void __init _rk30_clock_data_init(unsigned long gpll, unsigned long cpll, int fl
 		codec_pll_clk.set_rate = plus_cpll_clk_set_rate;
 		general_pll_clk.set_rate = plus_gpll_clk_set_rate;
 	}
+
+	pll_flag = pll_get_flag();
+	if (0 != pll_flag) {
+		CLKDATA_DBG("CPLL=%lu, GPLL=%lu;CPLL CAN NOT LOCK, SET CPLL BY PASS, USE GPLL REPLACE CPLL\n",
+				cpll, gpll);
+		cpll = 24 * MHZ;
+		gpll = 891 * MHZ;
+	}
+
 	clk_register_dump_ops(&dump_ops);
 	clk_register_default_ops_clk(&def_ops_clk);
 	rk30_clock_flags = flags;
@@ -3448,6 +3578,7 @@ void __init _rk30_clock_data_init(unsigned long gpll, unsigned long cpll, int fl
 	 * Only enable those clocks we will need, let the drivers
 	 * enable other clocks as necessary
 	 */
+
 	rk30_init_enable_clocks();
 #if 0
 	// print loader config
@@ -3473,7 +3604,7 @@ extern int rk3188_dvfs_init(void);
 
 void __init rk30_clock_data_init(unsigned long gpll, unsigned long cpll, u32 flags)
 {
-	DVFS_DBG("clock: gpll %lu cpll %lu flags 0x%x con2 0x%x/0x%x\n", 
+	CLKDATA_DBG("clock: gpll %lu cpll %lu flags 0x%x con2 0x%x/0x%x\n", 
 			gpll, cpll, flags, cru_readl(PLL_CONS(DPLL_ID, 2)), cru_readl(PLL_CONS(CPLL_ID, 2)));
 	_rk30_clock_data_init(gpll, cpll, flags);
 	rk3188_dvfs_init();
