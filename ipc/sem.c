@@ -948,8 +948,8 @@ static int semctl_nolock(struct ipc_namespace *ns, int semid,
 
 		memset(&tbuf, 0, sizeof(tbuf));
 
+		rcu_read_lock();
 		if (cmd == SEM_STAT) {
-			rcu_read_lock();
 			sma = sem_obtain_object(ns, semid);
 			if (IS_ERR(sma)) {
 				err = PTR_ERR(sma);
@@ -957,7 +957,6 @@ static int semctl_nolock(struct ipc_namespace *ns, int semid,
 			}
 			id = sma->sem_perm.id;
 		} else {
-			rcu_read_lock();
 			sma = sem_obtain_object_check(ns, semid);
 			if (IS_ERR(sma)) {
 				err = PTR_ERR(sma);
