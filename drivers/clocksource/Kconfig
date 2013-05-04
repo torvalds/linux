@@ -31,6 +31,9 @@ config SUN4I_TIMER
 config VT8500_TIMER
 	bool
 
+config CADENCE_TTC_TIMER
+	bool
+
 config CLKSRC_NOMADIK_MTU
 	bool
 	depends on (ARCH_NOMADIK || ARCH_U8500)
@@ -67,3 +70,8 @@ config CLKSRC_METAG_GENERIC
 	def_bool y if METAG
 	help
 	  This option enables support for the Meta per-thread timers.
+
+config CLKSRC_EXYNOS_MCT
+	def_bool y if ARCH_EXYNOS
+	help
+	  Support for Multi Core Timer controller on Exynos SoCs.

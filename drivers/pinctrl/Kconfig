@@ -224,6 +224,7 @@ config PINCTRL_S3C64XX
 source "drivers/pinctrl/mvebu/Kconfig"
 source "drivers/pinctrl/sh-pfc/Kconfig"
 source "drivers/pinctrl/spear/Kconfig"
+source "drivers/pinctrl/vt8500/Kconfig"
 
 config PINCTRL_XWAY
 	bool

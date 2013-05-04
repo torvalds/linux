@@ -12,7 +12,6 @@
 
 	serial@70006300 {
 		status = "okay";
-		clock-frequency = <408000000>;
 	};
 
 	pmc {

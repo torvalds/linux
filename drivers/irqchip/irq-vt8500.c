@@ -37,6 +37,9 @@
 
 #include <asm/irq.h>
 #include <asm/exception.h>
+#include <asm/mach/irq.h>
+
+#include "irqchip.h"
 
 #define VT8500_ICPC_IRQ		0x20
 #define VT8500_ICPC_FIQ		0x24
@@ -225,6 +228,8 @@ int __init vt8500_irq_init(struct device_node *node, struct device_node *parent)
 		goto out;
 	}
 
+	set_handle_irq(vt8500_handle_irq);
+
 	vt8500_init_irq_hw(intc[active_cnt].base);
 
 	pr_info("vt8500-irq: Added interrupt controller\n");
@@ -251,3 +256,4 @@ out:
 	return 0;
 }
 
+IRQCHIP_DECLARE(vt8500_irq, "via,vt8500-intc", vt8500_irq_init);

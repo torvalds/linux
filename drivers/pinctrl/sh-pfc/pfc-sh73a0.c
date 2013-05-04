@@ -2733,9 +2733,9 @@ static struct pinmux_data_reg pinmux_data_regs[] = {
 	{ },
 };
 
-/* IRQ pins through INTCS with IRQ0->15 from 0x200 and IRQ16-31 from 0x3200 */
-#define EXT_IRQ16L(n) intcs_evt2irq(0x200 + ((n) << 5))
-#define EXT_IRQ16H(n) intcs_evt2irq(0x3200 + ((n - 16) << 5))
+/* External IRQ pins mapped at IRQPIN_BASE */
+#define EXT_IRQ16L(n) irq_pin(n)
+#define EXT_IRQ16H(n) irq_pin(n)
 
 static struct pinmux_irq pinmux_irqs[] = {
 	PINMUX_IRQ(EXT_IRQ16H(19), PORT9_FN0),
