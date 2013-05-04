@@ -12,11 +12,11 @@ Supported chips:
     Addresses scanned: I2C 0x48 - 0x4f
     Datasheet: Publicly available at the National Semiconductor website
                http://www.national.com/
-  * Dallas Semiconductor DS75, DS1775
-    Prefixes: 'ds75', 'ds1775'
+  * Dallas Semiconductor (now Maxim) DS75, DS1775, DS7505
+    Prefixes: 'ds75', 'ds1775', 'ds7505'
     Addresses scanned: none
-    Datasheet: Publicly available at the Dallas Semiconductor website
-               http://www.maxim-ic.com/
+    Datasheet: Publicly available at the Maxim website
+               http://www.maximintegrated.com/
   * Maxim MAX6625, MAX6626
     Prefixes: 'max6625', 'max6626'
     Addresses scanned: none
