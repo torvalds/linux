@@ -1540,12 +1540,16 @@ static void pcibios_setup_phb_resources(struct pci_controller *hose,
 		res->flags = IORESOURCE_IO;
 #endif /* CONFIG_PPC32 */
 	}
+	if (res->flags) {
+		pr_debug("PCI: PHB IO resource    = %016llx-%016llx [%lx]\n",
+			 (unsigned long long)res->start,
+			 (unsigned long long)res->end,
+			 (unsigned long)res->flags);
+		pci_add_resource_offset(resources, res, pcibios_io_space_offset(hose));
 
-	pr_debug("PCI: PHB IO resource    = %016llx-%016llx [%lx]\n",
-		 (unsigned long long)res->start,
-		 (unsigned long long)res->end,
-		 (unsigned long)res->flags);
-	pci_add_resource_offset(resources, res, pcibios_io_space_offset(hose));
+		pr_debug("PCI: PHB IO  offset     = %08lx\n",
+			 (unsigned long)hose->io_base_virt - _IO_BASE);
+	}
 
 	/* Hookup PHB Memory resources */
 	for (i = 0; i < 3; ++i) {
@@ -1563,19 +1567,17 @@ static void pcibios_setup_phb_resources(struct pci_controller *hose,
 			res->flags = IORESOURCE_MEM;
 #endif /* CONFIG_PPC32 */
 		}
-
-		pr_debug("PCI: PHB MEM resource %d = %016llx-%016llx [%lx]\n", i,
-			 (unsigned long long)res->start,
-			 (unsigned long long)res->end,
-			 (unsigned long)res->flags);
-		pci_add_resource_offset(resources, res, hose->pci_mem_offset);
+		if (res->flags) {
+			pr_debug("PCI: PHB MEM resource %d = %016llx-%016llx [%lx]\n", i,
+				 (unsigned long long)res->start,
+				 (unsigned long long)res->end,
+				 (unsigned long)res->flags);
+			pci_add_resource_offset(resources, res, hose->pci_mem_offset);
+		}
 	}
 
 	pr_debug("PCI: PHB MEM offset     = %016llx\n",
 		 (unsigned long long)hose->pci_mem_offset);
-	pr_debug("PCI: PHB IO  offset     = %08lx\n",
-		 (unsigned long)hose->io_base_virt - _IO_BASE);
-
 }
 
 /*
