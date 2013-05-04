@@ -1089,7 +1089,7 @@ void __init pnv_pci_init_ioda_phb(struct device_node *np, int ioda_type)
 	/* Detect specific models for error handling */
 	if (of_device_is_compatible(np, "ibm,p7ioc-pciex"))
 		phb->model = PNV_PHB_MODEL_P7IOC;
-	else if (of_device_is_compatible(np, "ibm,p8-pciex"))
+	else if (of_device_is_compatible(np, "ibm,power8-pciex"))
 		phb->model = PNV_PHB_MODEL_PHB3;
 	else
 		phb->model = PNV_PHB_MODEL_UNKNOWN;
