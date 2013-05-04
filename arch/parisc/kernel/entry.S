@@ -1702,7 +1702,8 @@ ENTRY(sys_\name\()_wrapper)
 	ldo	TASK_REGS(%r1),%r1
 	reg_save %r1
 	mfctl	%cr27, %r28
-	b	sys_\name
+	ldil	L%sys_\name, %r31
+	be	R%sys_\name(%sr4,%r31)
 	STREG	%r28, PT_CR27(%r1)
 ENDPROC(sys_\name\()_wrapper)
 	.endm
