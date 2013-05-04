@@ -25,8 +25,8 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/io.h>
-#include <linux/gpio.h>
 #include <linux/dma-mapping.h>
+#include <linux/pinctrl/machine.h>
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
 #include <linux/smsc911x.h>
@@ -327,6 +327,41 @@ void __init marzen_init_late(void)
 			     ARRAY_SIZE(marzen_late_devices));
 }
 
+static const struct pinctrl_map marzen_pinctrl_map[] = {
+	/* HSPI0 */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh-hspi.0", "pfc-r8a7779",
+				  "hspi0", "hspi0"),
+	/* SCIF2 (CN18: DEBUG0) */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh-sci.2", "pfc-r8a7779",
+				  "scif2_data_c", "scif2"),
+	/* SCIF4 (CN19: DEBUG1) */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh-sci.4", "pfc-r8a7779",
+				  "scif4_data", "scif4"),
+	/* SDHI0 */
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-r8a7779",
+				  "sdhi0_data4", "sdhi0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-r8a7779",
+				  "sdhi0_ctrl", "sdhi0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-r8a7779",
+				  "sdhi0_cd", "sdhi0"),
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-r8a7779",
+				  "sdhi0_wp", "sdhi0"),
+	/* SMSC */
+	PIN_MAP_MUX_GROUP_DEFAULT("smsc911x", "pfc-r8a7779",
+				  "intc_irq1_b", "intc"),
+	PIN_MAP_MUX_GROUP_DEFAULT("smsc911x", "pfc-r8a7779",
+				  "lbsc_ex_cs0", "lbsc"),
+	/* USB0 */
+	PIN_MAP_MUX_GROUP_DEFAULT("ehci-platform.0", "pfc-r8a7779",
+				  "usb0", "usb0"),
+	/* USB1 */
+	PIN_MAP_MUX_GROUP_DEFAULT("ehci-platform.0", "pfc-r8a7779",
+				  "usb1", "usb1"),
+	/* USB2 */
+	PIN_MAP_MUX_GROUP_DEFAULT("ehci-platform.1", "pfc-r8a7779",
+				  "usb2", "usb2"),
+};
+
 static void __init marzen_init(void)
 {
 	regulator_register_always_on(0, "fixed-3.3V", fixed3v3_power_consumers,
@@ -334,43 +369,9 @@ static void __init marzen_init(void)
 	regulator_register_fixed(1, dummy_supplies,
 				ARRAY_SIZE(dummy_supplies));
 
+	pinctrl_register_mappings(marzen_pinctrl_map,
+				  ARRAY_SIZE(marzen_pinctrl_map));
 	r8a7779_pinmux_init();
-
-	/* SCIF2 (CN18: DEBUG0) */
-	gpio_request(GPIO_FN_TX2_C, NULL);
-	gpio_request(GPIO_FN_RX2_C, NULL);
-
-	/* SCIF4 (CN19: DEBUG1) */
-	gpio_request(GPIO_FN_TX4, NULL);
-	gpio_request(GPIO_FN_RX4, NULL);
-
-	/* LAN89218 */
-	gpio_request(GPIO_FN_EX_CS0, NULL); /* nCS */
-	gpio_request(GPIO_FN_IRQ1_B, NULL); /* IRQ + PME */
-
-	/* SD0 (CN20) */
-	gpio_request(GPIO_FN_SD0_CLK, NULL);
-	gpio_request(GPIO_FN_SD0_CMD, NULL);
-	gpio_request(GPIO_FN_SD0_DAT0, NULL);
-	gpio_request(GPIO_FN_SD0_DAT1, NULL);
-	gpio_request(GPIO_FN_SD0_DAT2, NULL);
-	gpio_request(GPIO_FN_SD0_DAT3, NULL);
-	gpio_request(GPIO_FN_SD0_CD, NULL);
-	gpio_request(GPIO_FN_SD0_WP, NULL);
-
-	/* HSPI 0 */
-	gpio_request(GPIO_FN_HSPI_CLK0,	NULL);
-	gpio_request(GPIO_FN_HSPI_CS0,	NULL);
-	gpio_request(GPIO_FN_HSPI_TX0,	NULL);
-	gpio_request(GPIO_FN_HSPI_RX0,	NULL);
-
-	/* USB (CN21) */
-	gpio_request(GPIO_FN_USB_OVC0, NULL);
-	gpio_request(GPIO_FN_USB_OVC1, NULL);
-	gpio_request(GPIO_FN_USB_OVC2, NULL);
-
-	/* USB (CN22) */
-	gpio_request(GPIO_FN_USB_PENC2, NULL);
 
 	r8a7779_add_standard_devices();
 	platform_add_devices(marzen_devices, ARRAY_SIZE(marzen_devices));
