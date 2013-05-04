@@ -1999,6 +1999,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.cpu_user_features	= COMMON_USER_BOOKE |
 			PPC_FEATURE_HAS_SPE_COMP |
 			PPC_FEATURE_HAS_EFP_SINGLE_COMP,
+		.cpu_user_features2	= PPC_FEATURE2_ISEL,
 		.mmu_features		= MMU_FTR_TYPE_FSL_E,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
@@ -2018,6 +2019,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 			PPC_FEATURE_HAS_SPE_COMP |
 			PPC_FEATURE_HAS_EFP_SINGLE_COMP |
 			PPC_FEATURE_HAS_EFP_DOUBLE_COMP,
+		.cpu_user_features2	= PPC_FEATURE2_ISEL,
 		.mmu_features		= MMU_FTR_TYPE_FSL_E | MMU_FTR_BIG_PHYS,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 32,
@@ -2034,6 +2036,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.cpu_name		= "e500mc",
 		.cpu_features		= CPU_FTRS_E500MC,
 		.cpu_user_features	= COMMON_USER_BOOKE | PPC_FEATURE_HAS_FPU,
+		.cpu_user_features2	= PPC_FEATURE2_ISEL,
 		.mmu_features		= MMU_FTR_TYPE_FSL_E | MMU_FTR_BIG_PHYS |
 			MMU_FTR_USE_TLBILX,
 		.icache_bsize		= 64,
@@ -2052,6 +2055,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.cpu_name		= "e5500",
 		.cpu_features		= CPU_FTRS_E5500,
 		.cpu_user_features	= COMMON_USER_BOOKE | PPC_FEATURE_HAS_FPU,
+		.cpu_user_features2	= PPC_FEATURE2_ISEL,
 		.mmu_features		= MMU_FTR_TYPE_FSL_E | MMU_FTR_BIG_PHYS |
 			MMU_FTR_USE_TLBILX,
 		.icache_bsize		= 64,
@@ -2073,6 +2077,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.cpu_features		= CPU_FTRS_E6500,
 		.cpu_user_features	= COMMON_USER_BOOKE | PPC_FEATURE_HAS_FPU |
 			PPC_FEATURE_HAS_ALTIVEC_COMP,
+		.cpu_user_features2	= PPC_FEATURE2_ISEL,
 		.mmu_features		= MMU_FTR_TYPE_FSL_E | MMU_FTR_BIG_PHYS |
 			MMU_FTR_USE_TLBILX,
 		.icache_bsize		= 64,
