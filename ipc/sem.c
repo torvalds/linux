@@ -322,7 +322,6 @@ static inline struct sem_array *sem_obtain_object_check(struct ipc_namespace *ns
 
 static inline void sem_lock_and_putref(struct sem_array *sma)
 {
-	rcu_read_lock();
 	sem_lock(sma, NULL, -1);
 	ipc_rcu_putref(sma);
 }
@@ -1117,6 +1116,7 @@ static int semctl_main(struct ipc_namespace *ns, int semid, int semnum,
 				return -ENOMEM;
 			}
 
+			rcu_read_lock();
 			sem_lock_and_putref(sma);
 			if (sma->sem_perm.deleted) {
 				sem_unlock(sma, -1);
@@ -1166,6 +1166,7 @@ static int semctl_main(struct ipc_namespace *ns, int semid, int semnum,
 				goto out_free;
 			}
 		}
+		rcu_read_lock();
 		sem_lock_and_putref(sma);
 		if (sma->sem_perm.deleted) {
 			sem_unlock(sma, -1);
@@ -1451,7 +1452,7 @@ static struct sem_undo *find_alloc_undo(struct ipc_namespace *ns, int semid)
 	}
 
 	/* step 3: Acquire the lock on semaphore array */
-	/* This also does the rcu_read_lock() */
+	rcu_read_lock();
 	sem_lock_and_putref(sma);
 	if (sma->sem_perm.deleted) {
 		sem_unlock(sma, -1);
