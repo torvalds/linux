@@ -32,8 +32,10 @@
 #endif
 #include <linux/sensor-dev.h>
 
-#define KXTIK_DEVID_1004		0x05	//chip id
-#define KXTIK_DEVID_1013        	0x11    //chip id
+#define KXTIK_DEVID_1004		0x05	 //chip id
+#define KXTIK_DEVID_J9_1005		0x07	 //chip id
+#define KXTIK_DEVID_J2_1009		0x09	 //chip id
+#define KXTIK_DEVID_1013        	0x11     //chip id
 #define KXTIK_RANGE			2000000
 
 #define KXTIK_XOUT_HPF_L                (0x00)	/* 0000 0000 */
@@ -112,7 +114,6 @@
 #define KXTIK_GRAVITY_STEP    KXTIK_RANGE / KXTIK_BOUNDARY
 
 
-
 /****************operate according to sensor chip:start************/
 
 static int sensor_active(struct i2c_client *client, int enable, int rate)
@@ -149,7 +150,10 @@ static int sensor_init(struct i2c_client *client)
 {	
 	struct sensor_private_data *sensor =
 	    (struct sensor_private_data *) i2c_get_clientdata(client);	
-	int result = 0;
+	int result = 0;	
+	int i = 0;	
+	unsigned char id_reg = KXTIK_WHO_AM_I;
+	unsigned char id_data = 0;
 	
 	result = sensor->ops->active(client,0,0);
 	if(result)
@@ -159,6 +163,22 @@ static int sensor_init(struct i2c_client *client)
 	}
 	
 	sensor->status_cur = SENSOR_OFF;
+
+	for(i=0; i<3; i++)
+	{
+		result = sensor_rx_data(client, &id_reg, 1);
+		id_data = id_reg;
+		if(!result)
+		break;
+	}
+
+	if(result)
+	{
+		printk("%s:fail to read id,result=%d\n",__func__, result);
+		return result;
+	}
+
+	sensor->devid = id_data;
 	
 	result = sensor_write_reg(client, KXTIK_DATA_CTRL_REG, KXTIK_ODR400F);
 	if(result)
@@ -169,11 +189,12 @@ static int sensor_init(struct i2c_client *client)
 
 	if(sensor->pdata->irq_enable)	//open interrupt
 	{
-#if defined(CONFIG_GS_KXTIK_1013)
-		result = sensor_write_reg(client, KXTIK_INT_CTRL_REG1, 0x30);//enable int,active high,need read INT_REL
-#else
+
+		if (id_data == KXTIK_DEVID_1004)
 		result = sensor_write_reg(client, KXTIK_INT_CTRL_REG1, 0x34);//enable int,active high,need read INT_REL
-#endif
+		else
+		result = sensor_write_reg(client, KXTIK_INT_CTRL_REG1, 0x30);//enable int,active high,need read INT_REL
+		
 		if(result)
 		{
 			printk("%s:line=%d,error\n",__func__,__LINE__);
@@ -189,6 +210,7 @@ static int sensor_init(struct i2c_client *client)
 		return result;
 	}
 
+	printk("%s:%s id=0x%x\n",__func__,sensor->ops->name, id_data);
 	return result;
 }
 
@@ -201,6 +223,8 @@ static int sensor_convert_data(struct i2c_client *client, char high_byte, char l
 	switch (sensor->devid) {	
 		case KXTIK_DEVID_1004:	
 		case KXTIK_DEVID_1013:
+		case KXTIK_DEVID_J9_1005:
+		case KXTIK_DEVID_J2_1009:
 			result = (((int)high_byte << 8) | ((int)low_byte ))>>4;
 			if (result < KXTIK_BOUNDARY)
        			result = result* KXTIK_GRAVITY_STEP;
@@ -213,7 +237,6 @@ static int sensor_convert_data(struct i2c_client *client, char high_byte, char l
 			printk(KERN_ERR "%s: devid wasn't set correctly\n",__func__);
 			return -EFAULT;
     }
-
     return (int)result;
 }
 
@@ -298,13 +321,8 @@ struct sensor_operate gsensor_kxtik_ops = {
 	.id_i2c				= ACCEL_ID_KXTIK,		//i2c id number
 	.read_reg			= KXTIK_XOUT_L,			//read data
 	.read_len			= 6,				//data length
-	.id_reg				= KXTIK_WHO_AM_I,		//read device id from this register
-
-#if defined(CONFIG_GS_KXTIK_1013)
-	.id_data			= KXTIK_DEVID_1013,
-#else
-	.id_data 			= KXTIK_DEVID_1004,
-#endif
+	.id_reg				= SENSOR_UNKNOW_DATA,		//read device id from this register
+	.id_data			= SENSOR_UNKNOW_DATA,
 	.precision			= KXTIK_PRECISION,		//12 bits
 	.ctrl_reg 			= KXTIK_CTRL_REG1,		//enable or disable 
 	.int_status_reg 		= KXTIK_INT_REL,		//intterupt status register

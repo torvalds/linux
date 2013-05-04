@@ -15,25 +15,12 @@ config GS_MMA8452
 	  To have support for your specific gsesnor you will have to
 	  select the proper drivers which depend on this option.
 
-menuconfig GS_KXTIK
-    bool "gsensor kxtik products"
-	help
-	  To have support for your specific gsesnor you will have to
-	  select the proper drivers which depend on this option.
-if GS_KXTIK
-config GS_KXTIK_1004
-	bool "gsensor kxtik 1004"
-	default y
+config GS_KXTIK
+    bool "gsensor kxtik"
 	help
 	  To have support for your specific gsesnor you will have to
 	  select the proper drivers which depend on this option.
 
-config GS_KXTIK_1013
-  bool "gsensor kxtik 1013"
-  help
-    To have support for your specific gsesnor you will have to
-    select the proper drivers which depend on this option.
-endif
 
 config GS_KXTJ9
   bool "gsensor kxtj9"
