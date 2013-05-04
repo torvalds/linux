@@ -473,12 +473,14 @@ static int gpmi_get_clks(struct gpmi_nand_data *this)
 	struct resources *r = &this->resources;
 	char **extra_clks = NULL;
 	struct clk *clk;
-	int i;
+	int err, i;
 
 	/* The main clock is stored in the first. */
 	r->clock[0] = clk_get(this->dev, "gpmi_io");
-	if (IS_ERR(r->clock[0]))
+	if (IS_ERR(r->clock[0])) {
+		err = PTR_ERR(r->clock[0]);
 		goto err_clock;
+	}
 
 	/* Get extra clocks */
 	if (GPMI_IS_MX6Q(this))
@@ -491,8 +493,10 @@ static int gpmi_get_clks(struct gpmi_nand_data *this)
 			break;
 
 		clk = clk_get(this->dev, extra_clks[i - 1]);
-		if (IS_ERR(clk))
+		if (IS_ERR(clk)) {
+			err = PTR_ERR(clk);
 			goto err_clock;
+		}
 
 		r->clock[i] = clk;
 	}
@@ -511,7 +515,7 @@ static int gpmi_get_clks(struct gpmi_nand_data *this)
 err_clock:
 	dev_dbg(this->dev, "failed in finding the clocks.\n");
 	gpmi_put_clks(this);
-	return -ENOMEM;
+	return err;
 }
 
 static int acquire_resources(struct gpmi_nand_data *this)
