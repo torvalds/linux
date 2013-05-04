@@ -1049,7 +1049,7 @@ static void emac_tx_handler(void *token, int len, int status)
 	struct net_device	*ndev = skb->dev;
 
 	if (unlikely(netif_queue_stopped(ndev)))
-		netif_start_queue(ndev);
+		netif_wake_queue(ndev);
 	ndev->stats.tx_packets++;
 	ndev->stats.tx_bytes += len;
 	dev_kfree_skb_any(skb);
