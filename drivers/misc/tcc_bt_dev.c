@@ -1,3 +1,4 @@
+
 /*
  *  Copyright (C) 2010-2011  RDA Micro <anli@rdamicro.com>
  *  This file belong to RDA micro
@@ -10,261 +11,364 @@
 #include <asm/uaccess.h>
 #include <linux/ioctl.h>
 #include <linux/device.h>
-
-//#include <mach/bsp.h>
 #include <asm/io.h>
 #include <linux/delay.h>
-
-//#include <linux/tcc_bt_dev.h>
-//#include <mach/tcc_pca953x.h>
-
 #include <linux/gpio.h>
 #include <mach/gpio.h>
 #include <asm/mach-types.h>
-
 #include <mach/iomux.h>
 #include <linux/interrupt.h>
 #include <asm/irq.h>
 #include <linux/wakelock.h>
+#include <linux/rfkill-rk.h>
+#include <linux/platform_device.h>
 
-#ifndef ON
-#define ON 		1
+#include <net/bluetooth/bluetooth.h>
+#include <net/bluetooth/hci_core.h>
+
+
+#ifndef HOST_WAKE_DELAY
+#define HOST_WAKE_DELAY
 #endif
-
-#ifndef OFF
-#define OFF 	0
-#endif
-
-#define LDO_ON_PIN	       RK2928_PIN3_PC0
-#define RDA_BT_HOST_WAKE_PIN   RK2928_PIN0_PC5
-
-#define BT_DEV_ON					1
-#define BT_DEV_OFF					0
-
-#define BT_DEV_MAJOR_NUM			234
-#define BT_DEV_MINOR_NUM			0
-
-//#define IOCTL_BT_DEV_POWER			_IO(BT_DEV_MAJOR_NUM, 100)
-//#define IOCTL_BT_DEV_SPECIFIC		_IO(BT_DEV_MAJOR_NUM, 101)
-//#define IOCTL_BT_DEV_IS_POWER			_IO(BT_DEV_MAJOR_NUM, 102)
-
-
-#define IOCTL_BT_DEV_POWER   		_IO(BT_DEV_MAJOR_NUM, 100)
-#define IOCTL_BT_DEV_CTRL	        _IO(BT_DEV_MAJOR_NUM, 101)
-#define IOCTL_BT_SET_EINT               _IO(BT_DEV_MAJOR_NUM, 102)
-#define IOCTL_BT_DEV_SPECIFIC		_IO(BT_DEV_MAJOR_NUM, 103)
-
-
-static int bt_is_power = 0;
-static int rda_bt_irq = 0;
-static int irq_mask = 0;
-extern void export_bt_hci_wakeup_chip(void);
 
 #define DEV_NAME "tcc_bt_dev"
-static struct class *bt_dev_class;
 
-typedef struct {
-	int module;  // 0x12:CSR, 0x34:Broadcom
-	int TMP1;
-	int TMP2;
-} tcc_bt_info_t;
+#define BT_DEV_MAJOR_NUM		    234
+#define BT_DEV_MINOR_NUM		    0
+
+#define IOCTL_BT_DEV_POWER   	    _IO(BT_DEV_MAJOR_NUM, 100)
+#define IOCTL_BT_SET_EINT        _IO(BT_DEV_MAJOR_NUM, 101)
+
+static wait_queue_head_t        eint_wait;
+static struct work_struct       rda_bt_event_work;
+static struct workqueue_struct *rda_bt_workqueue;
+
+static int irq_num  = -1;
+static int eint_gen;
+static int eint_mask;
+static struct class *bt_dev_class;
+static struct mutex  sem;
+static struct tcc_bt_platform_data *tcc_bt_pdata = NULL;
+
+
+static void rda_bt_enable_irq(void)
+{
+    if(irq_num != -1) 
+    {
+        enable_irq(irq_num);
+    }
+}
+
+static void rda_bt_disable_irq(void)
+{
+    if(irq_num != -1)
+    {	
+        disable_irq_nosync(irq_num);
+    }        
+}
+
+static void rda_bt_work_fun(struct work_struct *work)
+{
+    struct hci_dev *hdev = NULL;
+
+    /* BlueZ stack, hci_uart driver */
+    hdev = hci_dev_get(0);
+    
+    if(hdev == NULL)
+    {
+        /* Avoid the early interrupt before hci0 registered */
+        //printk(KERN_ALERT "hdev is NULL\n ");
+    }
+    else
+    {
+        printk(KERN_ALERT "Send host wakeup command.\n");
+        hci_send_cmd(hdev, 0xC0FC, 0, NULL);
+    }
+    
+    rda_bt_enable_irq();
+}
+
 
 static int tcc_bt_dev_open(struct inode *inode, struct file *file)
 {
-	printk("[## BT ##] tcc_bt_dev_open\n");
-    	return 0;
+    printk("[## BT ##] tcc_bt_dev_open.\n");
+    eint_gen  = 0;
+    eint_mask = 0;
+    return 0;
 }
 
 static int tcc_bt_dev_release(struct inode *inode, struct file *file)
 {
-	printk("[## BT ##] tcc_bt_dev_release\n");
-    	return 0;
+    printk("[## BT ##] tcc_bt_dev_release.\n");
+    eint_gen  = 0;
+    eint_mask = 0;
+    return 0;
+}
+
+/*****************************************************************************
+ *  tcc_bt_dev_poll
+*****************************************************************************/
+
+static unsigned int tcc_bt_dev_poll(struct file *file, poll_table *wait)
+{
+    uint32_t mask = 0;
+    
+    printk("[## BT ##] tcc_bt_poll eint_gen %d, eint_mask %d ++\n", eint_gen, eint_mask);
+
+    wait_event_interruptible(eint_wait, (eint_gen == 1 || eint_mask == 1));
+    
+    printk("[## BT ##] tcc_bt_poll eint_gen %d, eint_mask %d --\n", eint_gen, eint_mask);
+    
+    if(eint_gen == 1)
+    {
+        mask = POLLIN|POLLRDNORM;
+        eint_gen = 0;
+    }
+    else if (eint_mask == 1)
+    {
+        mask = POLLERR;
+        eint_mask = 0;
+    }
+    
+    return mask;
 }
 
 static int tcc_bt_power_control(int on_off)
-{
-//	volatile PGPIO pGPIO = (volatile PGPIO)tcc_p2v(HwGPIO_BASE);
-    
-	printk("[## BT ##] tcc_bt_power_control input[%d]\n", on_off);
+{    
+    printk("[## BT ##] tcc_bt_power_control input[%d].\n", on_off);
 	
-	if(on_off == BT_DEV_ON)
-	{	    
- 		gpio_direction_output(LDO_ON_PIN, GPIO_HIGH);
-		bt_is_power = on_off;
-		msleep(500);
-	}
-	else if(on_off == BT_DEV_OFF)
-	{
-  		gpio_direction_output(LDO_ON_PIN, GPIO_LOW);
-		bt_is_power = BT_DEV_OFF;
-		msleep(500);
-	}
-	else
-	{
-		printk("[## BT_ERR ##] input_error On[%d] Off[%d]\n", BT_DEV_ON, BT_DEV_OFF);
-	}
-
-	return 0;
-}
-
-
-static int tcc_bt_get_info(tcc_bt_info_t* arg)
-{
-	tcc_bt_info_t *info_t;
-	int module_t;
-	
-	info_t = (tcc_bt_info_t *)arg;
-	copy_from_user(info_t, (tcc_bt_info_t *)arg, sizeof(tcc_bt_info_t));
-
-	module_t = 0x56;	
-
-	printk("[## BT ##] module[0x%x]\n", module_t);
-
-	info_t->module = module_t;
-
-	copy_to_user((tcc_bt_info_t *)arg, info_t, sizeof(tcc_bt_info_t));
-
-	return 0;
-}
-
-static long  tcc_bt_dev_ioctl(struct file *file, unsigned int cmd,unsigned long arg)
-{
-	void __user *argp = (void __user *)arg;
-	char msg[14];
-	int ret = -1;
-	char rate;
-	//printk("[## BT ##] tcc_bt_dev_ioctl cmd[%d] arg[%d]\n", cmd, arg);
-	switch(cmd)
-	{
-		case IOCTL_BT_DEV_POWER:			
-			if (copy_from_user(&rate, argp, sizeof(rate)))
-			return -EFAULT;
-			printk("[## BT ##] IOCTL_BT_DEV_POWER cmd[%d] parm1[%d]\n", cmd, rate);
-			tcc_bt_power_control(rate);
-			// GPIO Control
-			break;
-			
-		case IOCTL_BT_DEV_SPECIFIC:
-			printk("[## BT ##] IOCTL_BT_DEV_SPECIFIC cmd[%d]\n", cmd);
-			tcc_bt_get_info((tcc_bt_info_t*)arg);
-			break;
-
-		//case IOCTL_BT_DEV_IS_POWER:
-			//if (copy_to_user(argp, &bt_is_power, sizeof(bt_is_power)))
-			//return -EFAULT;
-                case IOCTL_BT_SET_EINT:
-                     printk("[## BT ##] IOCTL_BT_SET_EINT cmd[%d]\n", cmd);
-                     if (irq_mask)
-                     {
-                         irq_mask = 0;
-                         enable_irq(rda_bt_irq);
-                     }
-                     break;
-		default :
-			printk("[## BT ##] tcc_bt_dev_ioctl cmd[%d]\n", cmd);
-			break;
-	}
-
-	return 0;
-}
-
-
-struct file_operations tcc_bt_dev_ops = {
-    .owner      = THIS_MODULE,
-    .unlocked_ioctl      = tcc_bt_dev_ioctl,
-    .open       = tcc_bt_dev_open,
-    .release    = tcc_bt_dev_release,
-};
-
-struct wake_lock rda_bt_wakelock;
-static irqreturn_t rda_5876_host_wake_irq(int irq, void *dev)
-{
-	printk("rda_5876_host_wake_irq\n");
-	//export_bt_hci_wakeup_chip();
-        wake_lock_timeout(&rda_bt_wakelock, 3 * HZ); 
-        disable_irq(rda_bt_irq);
-        irq_mask = 1;       
-	return IRQ_HANDLED;
-}
-
-static int tcc_bt_init_module(void)
-{
-    int ret;
-
-        wake_lock_init(&rda_bt_wakelock, WAKE_LOCK_SUSPEND, "rda_bt_wake");
-	ret=gpio_request(LDO_ON_PIN, "ldoonpin");
-	if(ret < 0) {
-		printk("%s:fail to request gpio %d\n",__func__,LDO_ON_PIN);
-		return ret;
-	}
-	gpio_set_value(LDO_ON_PIN, GPIO_LOW);//GPIO_LOW
-	gpio_direction_output(LDO_ON_PIN, GPIO_LOW);//GPIO_LOW
-
-        if(rda_bt_irq == 0){
-		if(gpio_request(RDA_BT_HOST_WAKE_PIN, "bt_wake") != 0){
-			printk("RDA_BT_HOST_WAKE_PIN request fail!\n");
-			return -EIO;
-		}
-		gpio_direction_input(RDA_BT_HOST_WAKE_PIN);
-
-		rda_bt_irq = gpio_to_irq(RDA_BT_HOST_WAKE_PIN);
-		ret = request_irq(rda_bt_irq, rda_5876_host_wake_irq, IRQF_TRIGGER_RISING, "bt_host_wake",NULL);
-		if(ret){
-			printk("bt_host_wake irq request fail\n");
-			rda_bt_irq = 0;
-			gpio_free(RDA_BT_HOST_WAKE_PIN);
-			return -EIO;
-		}
-                enable_irq_wake(rda_bt_irq); //bt irq can wakeup host when host sleep
-                disable_irq(rda_bt_irq);
-                irq_mask = 1;
-            printk("request_irq bt_host_wake\n");
-	}
-
-	
-	printk("[## BT ##] init_module\n");
-    	ret = register_chrdev(BT_DEV_MAJOR_NUM, DEV_NAME, &tcc_bt_dev_ops);
-
-	bt_dev_class = class_create(THIS_MODULE, DEV_NAME);
-	device_create(bt_dev_class, NULL, MKDEV(BT_DEV_MAJOR_NUM, BT_DEV_MINOR_NUM), NULL, DEV_NAME);
-#if 0
-	if(machine_is_tcc8900()){
-	    gpio_request(TCC_GPB(25), "bt_power");
-	    gpio_request(TCC_GPEXT2(9), "bt_reset");
-		gpio_direction_output(TCC_GPB(25), 0); // output
-		gpio_direction_output(TCC_GPEXT2(9), 0);
-	}else if(machine_is_tcc9300() || machine_is_tcc8800()) {      // #elif defined (CONFIG_MACH_TCC9300)
-			//gpio_set_value(TCC_GPEXT1(7), 0);   /* BT-ON Disable */
-		gpio_request(TCC_GPEXT3(2), "bt_wake");
-	    gpio_request(TCC_GPEXT2(4), "bt_reset");
-		gpio_direction_output(TCC_GPEXT3(2), 0); // output
-		gpio_direction_output(TCC_GPEXT2(4), 0);
-	}
-	else if(machine_is_m801_88())
-	{
-		gpio_request(TCC_GPA(13), "bt_reset");
-		gpio_request(TCC_GPB(22), "BT WAKE");
-		gpio_direction_output(TCC_GPA(13), 0); // output
-		gpio_direction_output(TCC_GPB(22), 0); // output
-	}
-#endif	
-    if(ret < 0){
-        printk("[## BT ##] [%d]fail to register the character device\n", ret);
-        return ret;
+    if(on_off)
+    {	    
+     	 gpio_direction_output(tcc_bt_pdata->power_gpio.io, tcc_bt_pdata->power_gpio.enable);
+    	 msleep(500);
+        enable_irq(irq_num); 
+    }
+    else
+    {
+      	gpio_direction_output(tcc_bt_pdata->power_gpio.io, !tcc_bt_pdata->power_gpio.enable);
+    	disable_irq(irq_num);
+       msleep(500);
     }
 
     return 0;
 }
 
-static void tcc_bt_cleanup_module(void)
+
+static long  tcc_bt_dev_ioctl(struct file *file, unsigned int cmd,unsigned long arg)
 {
-	printk("[## BT ##] cleanup_module\n");
-    unregister_chrdev(BT_DEV_MAJOR_NUM, DEV_NAME);
-    wake_lock_destroy(&rda_bt_wakelock);
+    void __user *argp = (void __user *)arg;
+    int  ret   = -1;
+    int  rate  = 0;
+
+    switch(cmd)
+    {
+	case IOCTL_BT_DEV_POWER:
+ 	{
+       	    printk("[## BT ##] IOCTL_BT_DEV_POWER cmd[%d] parm1[%d].\n", cmd, rate);
+            if (copy_from_user(&rate, argp, sizeof(rate)))
+    		return -EFAULT;
+
+            mutex_lock(&sem);  
+            ret = tcc_bt_power_control(rate);
+            mutex_unlock(&sem);			
+            break;
+	}		
+		
+        case IOCTL_BT_SET_EINT:
+        {
+	        if (copy_from_user(&rate, argp, sizeof(rate)))
+                return -EFAULT;
+            printk("[## BT ##] IOCTL_BT_SET_EINT cmd[%d].\n", cmd);
+            mutex_lock(&sem); 
+
+            if(rate)
+            {
+                rda_bt_enable_irq();
+            }
+            else
+            {
+                rda_bt_disable_irq();
+                eint_mask = 1;
+                wake_up_interruptible(&eint_wait);
+            }             
+            mutex_unlock(&sem); 
+            ret = 0;
+            break;
+        }
+        
+        default :
+        {
+	         printk("[## BT ##] tcc_bt_dev_ioctl cmd[%d].\n", cmd);
+	         break;
+	    }
+    }
+
+    return ret;
 }
 
 
-late_initcall(tcc_bt_init_module);
+struct file_operations tcc_bt_dev_ops = 
+{
+    .owner           = THIS_MODULE,
+    .unlocked_ioctl  = tcc_bt_dev_ioctl,
+    .open            = tcc_bt_dev_open,
+    .release         = tcc_bt_dev_release,
+    .poll            = tcc_bt_dev_poll,
+};
+
+#ifdef HOST_WAKE_DELAY
+struct wake_lock rda_bt_wakelock;
+#endif
+
+static irqreturn_t rda_bt_host_wake_irq(int irq, void *dev)
+{
+    printk("rda_bt_host_wake_irq.\n");
+	
+#ifdef HOST_WAKE_DELAY
+    wake_lock_timeout(&rda_bt_wakelock, 3 * HZ); 
+#endif
+
+    if(irq_num != -1) 
+    {	
+        disable_irq_nosync(irq_num);
+    }   
+
+#ifdef CONFIG_BT_HCIUART
+    if(rda_bt_workqueue)
+        queue_work(rda_bt_workqueue, &rda_bt_event_work);
+#else
+    /* Maybe handle the interrupt in user space? */
+    eint_gen = 1;
+    wake_up_interruptible(&eint_wait);
+    /* Send host wakeup command in user space, enable irq then */
+#endif
+   
+    return IRQ_HANDLED;
+}
+
+static int tcc_bt_probe(struct platform_device *pdev)
+{
+    int ret;
+
+    struct tcc_bt_platform_data *pdata = pdev->dev.platform_data;
+    
+    printk("tcc_bt_probe.\n");
+    if(pdata == NULL) {
+    	printk("mt6622_probe failed.\n");
+    	return -1;
+    }
+    tcc_bt_pdata = pdata;
+    
+    if(pdata->power_gpio.io != INVALID_GPIO) {
+	if (gpio_request(pdata->power_gpio.io, "ldoonpin")){
+	    printk("tcc bt ldoonpin is busy!\n");
+	    return -1;
+	}
+    }
+    gpio_direction_output(pdata->power_gpio.io, !pdata->power_gpio.enable);//GPIO_LOW
+    
+#ifdef HOST_WAKE_DELAY
+    wake_lock_init(&rda_bt_wakelock, WAKE_LOCK_SUSPEND, "rda_bt_wake");
+#endif
+
+    if(pdata->wake_host_gpio.io != INVALID_GPIO) {
+	if (gpio_request(pdata->wake_host_gpio.io, "tcc_bt_wake")){
+	    printk("tcc bt wakeis busy!\n");
+	    gpio_free(pdata->wake_host_gpio.io);
+	    return -1;
+	}
+    }	
+
+    gpio_direction_input(pdata->wake_host_gpio.io);
+    irq_num = gpio_to_irq(pdata->wake_host_gpio.io);
+    ret = request_irq(irq_num, rda_bt_host_wake_irq, pdata->wake_host_gpio.enable, "tcc_bt_host_wake",NULL);	   
+    if(ret < 0)
+    {
+        printk("bt_host_wake irq request fail.\n");
+    	  irq_num = -1;
+        goto error;
+    }
+
+
+    mutex_init(&sem);	
+    printk("[## BT ##] init_module\n");
+	
+    ret = register_chrdev(BT_DEV_MAJOR_NUM, DEV_NAME, &tcc_bt_dev_ops);
+    if(ret < 0)
+    {
+        printk("[## BT ##] [%d]fail to register the character device.\n", ret);
+        goto error;
+    }
+    
+    bt_dev_class = class_create(THIS_MODULE, DEV_NAME);
+    if (IS_ERR(bt_dev_class)) 
+    {
+        printk("BT RDA class_create failed\n");
+        goto error;
+    }
+	
+    device_create(bt_dev_class, NULL, MKDEV(BT_DEV_MAJOR_NUM, BT_DEV_MINOR_NUM), NULL, DEV_NAME);
+
+    init_waitqueue_head(&eint_wait);
+    
+    INIT_WORK(&rda_bt_event_work, rda_bt_work_fun);
+    
+    rda_bt_workqueue = create_singlethread_workqueue("rda_bt");
+    
+    if (!rda_bt_workqueue)
+    {
+        printk("create_singlethread_workqueue failed.\n");
+        ret = -ESRCH;
+        goto error;
+    }  
+
+    return 0;
+    
+error:
+    gpio_free(pdata->power_gpio.io); 
+    gpio_free(pdata->wake_host_gpio.io);
+    return ret;    
+}
+
+static int tcc_bt_remove(struct platform_device *pdev)
+{
+    printk("[## BT ##] cleanup_module.\n");
+    unregister_chrdev(BT_DEV_MAJOR_NUM, DEV_NAME);
+    if(tcc_bt_pdata)
+        tcc_bt_pdata = NULL;
+
+    cancel_work_sync(&rda_bt_event_work);
+    destroy_workqueue(rda_bt_workqueue);    
+    
+#ifdef HOST_WAKE_DELAY    
+    wake_lock_destroy(&rda_bt_wakelock);
+#endif    
+
+    return 0;
+}
+
+static struct platform_driver tcc_bt_driver = {
+        .probe = tcc_bt_probe,
+        .remove = tcc_bt_remove,
+        .driver = {
+                .name = "tcc_bt_dev",
+                .owner = THIS_MODULE,
+        },
+};
+
+static int __init tcc_bt_init_module(void)
+{
+    printk("Enter %s\n", __func__);
+    return platform_driver_register(&tcc_bt_driver);
+}
+
+static void __exit tcc_bt_cleanup_module(void)
+{
+    printk("Enter %s\n", __func__);
+    platform_driver_unregister(&tcc_bt_driver);
+}
+
+module_init(tcc_bt_init_module);
 module_exit(tcc_bt_cleanup_module);
 
 
