@@ -24,7 +24,7 @@
 
 typedef uint32_t uint32;
 
-#define ENABLE_DDR_CLCOK_GPLL_PATH  //for RK3188
+//#define ENABLE_DDR_CLCOK_GPLL_PATH  //for RK3188
 
 #define DDR3_DDR2_DLL_DISABLE_FREQ    (125)
 #define DDR3_DDR2_ODT_DISABLE_FREQ    (333)
@@ -1452,6 +1452,7 @@ static __sramdata uint32_t clkod;
 
 static __sramdata uint32_t dpllvaluel=0;
 static __sramdata uint32_t gpllvaluel=0;
+static __sramdata uint32_t ddr_select_gpll_div=0; // 0-Disable, 1-1:1, 2-2:1, 4-4:1
 static __sramdata bool ddr_select_gpll=false;
 
 /*****************************************
@@ -1571,11 +1572,11 @@ uint32_t __sramlocalfunc ddr_set_pll_rk3066b(uint32_t nMHz, uint32_t set)
         else
             gpllvaluel = 24;
 
-        if(ddr_select_gpll == true)
+        if(ddr_select_gpll_div > 0)
         {
-            if(gpllvaluel > 800)
+            if(ddr_select_gpll_div == 4)
                 ret = gpllvaluel/4;       
-            else if(gpllvaluel > 400)
+            else if(ddr_select_gpll_div == 2)
                 ret = gpllvaluel/2;
             else
                 ret=gpllvaluel;
@@ -1614,16 +1615,16 @@ uint32_t __sramlocalfunc ddr_set_pll_rk3066b(uint32_t nMHz, uint32_t set)
     }
     else
     {
-         if(ddr_select_gpll == true)
+         if(ddr_select_gpll_div > 0)
         {
-            if(gpllvaluel > 800)
+            if(ddr_select_gpll_div == 4)
             {
                 pCRU_Reg->CRU_CLKGATE_CON[1] = 0x00800000;
                 pCRU_Reg->CRU_CLKSEL_CON[26] = ((0x3 | (0x1<<8))<<16)
                                                           | (0x1<<8)     //clk_ddr_src = G PLL
                                                           | 2;           //clk_ddr_src:clk_ddrphy = 4:1
             }
-            if(gpllvaluel > 400)
+            if(ddr_select_gpll_div == 2)
             {
                 pCRU_Reg->CRU_CLKGATE_CON[1] = 0x00800000;
                 pCRU_Reg->CRU_CLKSEL_CON[26] = ((0x3 | (0x1<<8))<<16)
@@ -3390,6 +3391,20 @@ void __sramlocalfunc ddr_set_pll_exit_3168(uint32 freq_slew,uint32_t dqstr_value
 }
 #endif
 
+extern int efuse_readregs(u32 addr, u32 length, u8 *pData);
+bool ddr_dpll_status = true;
+void ddr_get_dpll_status(void) //DPLL fial rerurn 0;DPLL good return 1;
+{  
+    uint8_t data_buf[32 + 1];    
+    efuse_readregs(0, 32, data_buf);   
+     
+    if (data_buf[22] & 0x2)    
+        ddr_dpll_status = false;    
+    else    
+        ddr_dpll_status = true;
+}
+
+
 uint32_t __sramfunc ddr_change_freq_sram(uint32_t nMHz)
 {
     uint32_t ret;
@@ -3490,11 +3505,9 @@ uint32_t __sramfunc ddr_change_freq_sram(uint32_t nMHz)
     return ret;
 }
 
-uint32_t ddr_change_freq(uint32_t nMHz)
+uint32_t ddr_change_freq_gpll_dpll(uint32_t nMHz)
 {
-#if defined(ENABLE_DDR_CLCOK_GPLL_PATH) && defined(CONFIG_ARCH_RK3188)
-
-    uint32_t freq_gpll;
+    uint32_t gpll_freq,gpll_div;
     int delay = 1000;
     uint32_t pll_id=1;  //DPLL
 
@@ -3505,19 +3518,28 @@ uint32_t ddr_change_freq(uint32_t nMHz)
     else
            gpllvaluel = 24;
 
-    if(200 < gpllvaluel <1600)      //GPLL:200MHz~1600MHz
+    if((200 < gpllvaluel) ||( gpllvaluel <1600))      //GPLL:200MHz~1600MHz
     {
         if( gpllvaluel > 800)
-            freq_gpll = gpllvaluel/4;
+        {
+            gpll_freq = gpllvaluel/4;
+            gpll_div = 4;
+        }
         else if( gpllvaluel > 400)
-            freq_gpll = gpllvaluel/2;
-        else            
-            freq_gpll = gpllvaluel;
+        {
+            gpll_freq = gpllvaluel/2;            
+            gpll_div = 2;
+        }
+        else
+        {
+            gpll_freq = gpllvaluel;            
+            gpll_div = 1;
+        }
         
-        ddr_select_gpll=true;
-        ddr_change_freq_sram(freq_gpll);
-        ddr_select_gpll=false;
-        
+        ddr_select_gpll_div=gpll_div;
+        ddr_change_freq_sram(gpll_freq);
+        ddr_select_gpll_div=0;
+
         //set DPLL,when ddr_clock select GPLL
         if(nMHz <= 150)
         {
@@ -3545,7 +3567,7 @@ uint32_t ddr_change_freq(uint32_t nMHz)
         }
         clkr = 1;
         clkf=(nMHz*clkr*clkod)/24;
-    
+
         pCRU_Reg->CRU_MODE_CON = (0x3<<((pll_id*4) +  16)) | (0x0<<(pll_id*4));            //PLL slow-mode
         dsb();
         
@@ -3571,10 +3593,38 @@ uint32_t ddr_change_freq(uint32_t nMHz)
     {
         ddr_print("GPLL frequency = %dMHz,Not suitable for ddr_clock \n",gpllvaluel);
     }
-#endif
 
     return ddr_change_freq_sram(nMHz);
 
+}
+
+
+uint32_t ddr_change_freq(uint32_t nMHz)
+{
+    
+    if(ddr_dpll_status == false)
+    {
+        uint32_t gpll_div_4,gpll_div_2,gpll_div_1;
+        if(((pCRU_Reg->CRU_MODE_CON>>12)&3) == 1)             // GPLL Normal mode
+                gpllvaluel= 24 *((pCRU_Reg->CRU_PLL_CON[3][1]&0xffff)+1)    // NF = 2*(CLKF+1)
+                       /((((pCRU_Reg->CRU_PLL_CON[3][0]>>8)&0x3f)+1)           // NR = CLKR+1
+                       *((pCRU_Reg->CRU_PLL_CON[3][0]&0x3F)+1));             // OD = 2^CLKOD
+        else
+               gpllvaluel = 24;
+        
+        if(nMHz > 300)
+            ddr_select_gpll_div=2;
+        else        
+            ddr_select_gpll_div=4;
+      
+        return ddr_change_freq_sram(gpllvaluel/ddr_select_gpll_div);      
+    }
+
+#if defined(ENABLE_DDR_CLCOK_GPLL_PATH) && defined(CONFIG_ARCH_RK3188)
+    return ddr_change_freq_gpll_dpll(nMHz);
+#else
+    return ddr_change_freq_sram(nMHz);
+#endif
 }
 EXPORT_SYMBOL(ddr_change_freq);
 
@@ -3757,6 +3807,7 @@ int ddr_init(uint32_t dram_speed_bin, uint32_t freq)
     uint32_t gsr,dqstr;
 
     ddr_print("version 1.00 20130427 \n");
+    ddr_get_dpll_status();
 
     mem_type = pPHY_Reg->DCR.b.DDRMD;
     ddr_speed_bin = dram_speed_bin;
@@ -3796,12 +3847,13 @@ int ddr_init(uint32_t dram_speed_bin, uint32_t freq)
                                                                     ddr_get_cs(), \
                                                                     (ddr_get_cap()>>20));
     ddr_adjust_config(mem_type);
-
-    if(freq != 0)
-        value=ddr_change_freq_sram(freq);
-    else
-        value=ddr_change_freq_sram(clk_get_rate(clk_get(NULL, "ddr_pll"))/1000000);
-
+    
+    if(ddr_dpll_status == true) {
+	    if(freq != 0)
+		    value=ddr_change_freq(freq);
+	    else
+		    value=ddr_change_freq(clk_get_rate(clk_get(NULL, "ddr"))/1000000);
+    }
     clk_set_rate(clk_get(NULL, "ddr_pll"), 0);
     ddr_print("init success!!! freq=%luMHz\n", clk_get_rate(clk_get(NULL, "ddr_pll"))/1000000);
 
