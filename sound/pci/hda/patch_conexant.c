@@ -64,6 +64,7 @@ struct conexant_spec {
 	/* extra EAPD pins */
 	unsigned int num_eapds;
 	hda_nid_t eapds[4];
+	bool dynamic_eapd;
 
 #ifdef ENABLE_CXT_STATIC_QUIRKS
 	const struct snd_kcontrol_new *mixers[5];
@@ -3155,7 +3156,7 @@ static void cx_auto_parse_eapd(struct hda_codec *codec)
 	 * thus it might control over all pins.
 	 */
 	if (spec->num_eapds > 2)
-		spec->gen.own_eapd_ctl = 1;
+		spec->dynamic_eapd = 1;
 }
 
 static void cx_auto_turn_eapd(struct hda_codec *codec, int num_pins,
@@ -3194,10 +3195,19 @@ static int cx_auto_build_controls(struct hda_codec *codec)
 	return 0;
 }
 
+static int cx_auto_init(struct hda_codec *codec)
+{
+	struct conexant_spec *spec = codec->spec;
+	snd_hda_gen_init(codec);
+	if (!spec->dynamic_eapd)
+		cx_auto_turn_eapd(codec, spec->num_eapds, spec->eapds, true);
+	return 0;
+}
+
 static const struct hda_codec_ops cx_auto_patch_ops = {
 	.build_controls = cx_auto_build_controls,
 	.build_pcms = snd_hda_gen_build_pcms,
-	.init = snd_hda_gen_init,
+	.init = cx_auto_init,
 	.free = snd_hda_gen_free,
 	.unsol_event = snd_hda_jack_unsol_event,
 #ifdef CONFIG_PM
@@ -3348,7 +3358,8 @@ static int patch_conexant_auto(struct hda_codec *codec)
 
 	cx_auto_parse_beep(codec);
 	cx_auto_parse_eapd(codec);
-	if (spec->gen.own_eapd_ctl)
+	spec->gen.own_eapd_ctl = 1;
+	if (spec->dynamic_eapd)
 		spec->gen.vmaster_mute.hook = cx_auto_vmaster_hook;
 
 	switch (codec->vendor_id) {
