@@ -2284,11 +2284,10 @@ long do_mount(const char *dev_name, const char *dir_name,
 
 	retval = security_sb_mount(dev_name, &path,
 				   type_page, flags, data_page);
+	if (!retval && !may_mount())
+		retval = -EPERM;
 	if (retval)
 		goto dput_out;
-
-	if (!may_mount())
-		return -EPERM;
 
 	/* Default to relatime unless overriden */
 	if (!(flags & MS_NOATIME))
