@@ -387,8 +387,8 @@ static int ti_abb_get_voltage_sel(struct regulator_dev *rdev)
 		return -EINVAL;
 	}
 
-	if (abb->current_info_idx > (int)desc->n_voltages) {
-		dev_err(dev, "%s: Corrupted data? idx(%d) > n_voltages(%d)\n",
+	if (abb->current_info_idx >= (int)desc->n_voltages) {
+		dev_err(dev, "%s: Corrupted data? idx(%d) >= n_voltages(%d)\n",
 			__func__, abb->current_info_idx, desc->n_voltages);
 		return -EINVAL;
 	}
