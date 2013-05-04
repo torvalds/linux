@@ -543,7 +543,7 @@ static void reg_from_run_to_done(vpu_reg *reg)
 	}
 	atomic_sub(1, &reg->session->task_running);
 	atomic_sub(1, &service.total_running);
-	wake_up_interruptible_sync(&reg->session->wait);
+	wake_up(&reg->session->wait);
 }
 
 static void vpu_service_set_freq(vpu_reg *reg)
@@ -826,7 +826,7 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd, unsigned long
 			pr_err("error: VPU_IOC_GET_REG copy_from_user failed\n");
 			return -EFAULT;
 		} else {
-			int ret = wait_event_interruptible_timeout(session->wait, !list_empty(&session->done), VPU_TIMEOUT_DELAY);
+			int ret = wait_event_timeout(session->wait, !list_empty(&session->done), VPU_TIMEOUT_DELAY);
 			if (!list_empty(&session->done)) {
 				if (ret < 0) {
 					pr_err("warning: pid %d wait task sucess but wait_evernt ret %d\n", session->pid, ret);
@@ -991,7 +991,7 @@ static int vpu_service_release(struct inode *inode, struct file *filp)
 		pr_err("error: vpu_service session %d still has %d task running when closing\n", session->pid, task_running);
 		msleep(50);
 	}
-	wake_up_interruptible_sync(&session->wait);
+	wake_up(&session->wait);
 
 	mutex_lock(&service.lock);
 	/* remove this filp from the asynchronusly notified filp's */
