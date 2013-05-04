@@ -1149,7 +1149,7 @@ static struct sh_mmcif_plat_data sh_mmcif_plat = {
 	.slave_id_rx	= SHDMA_SLAVE_MMCIF_RX,
 };
 
-static struct platform_device sh_mmcif_device = {
+static struct platform_device sh_mmcif_device __maybe_unused = {
 	.name		= "sh_mmcif",
 	.id		= 0,
 	.dev		= {

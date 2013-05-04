@@ -9,6 +9,7 @@
  *  publishhed by the Free Software Foundation.
  */
 #include <linux/gpio.h>
+#include <linux/gpio-pxa.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
@@ -108,6 +109,10 @@ static unsigned long common_pin_config[] __initdata = {
 	GPIO111_KP_MKOUT7,
 	GPIO112_KP_MKOUT6,
 	GPIO121_KP_MKIN4,
+};
+
+static struct pxa_gpio_platform_data pxa168_gpio_pdata = {
+	.irq_base	= MMP_GPIO_TO_IRQ(0),
 };
 
 static struct smc91x_platdata smc91x_info = {
@@ -242,6 +247,8 @@ static void __init common_init(void)
 	pxa168_add_nand(&aspenite_nand_info);
 	pxa168_add_fb(&aspenite_lcd_info);
 	pxa168_add_keypad(&aspenite_keypad_info);
+	platform_device_add_data(&pxa168_device_gpio, &pxa168_gpio_pdata,
+				 sizeof(struct pxa_gpio_platform_data));
 	platform_device_register(&pxa168_device_gpio);
 
 	/* off-chip devices */
