@@ -53,6 +53,7 @@ static struct map_desc rk30_io_desc[] __initdata = {
 	RK30_DEVICE(GPIO2),
 	RK30_DEVICE(GPIO3),
 	RK30_DEVICE(TIMER0),
+	RK30_DEVICE(EFUSE),
 	{
 		.virtual = (unsigned long) RK3188_TIMER3_BASE,
 		.pfn = __phys_to_pfn(RK3188_TIMER3_PHYS),
