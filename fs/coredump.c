@@ -654,10 +654,11 @@ void do_coredump(siginfo_t *siginfo)
 		goto close_fail;
 	if (displaced)
 		put_files_struct(displaced);
-	file_start_write(cprm.file);
-	core_dumped = !dump_interrupted() && binfmt->core_dump(&cprm);
-	file_end_write(cprm.file);
-
+	if (!dump_interrupted()) {
+		file_start_write(cprm.file);
+		core_dumped = binfmt->core_dump(&cprm);
+		file_end_write(cprm.file);
+	}
 	if (ispipe && core_pipe_limit)
 		wait_for_dump_helpers(cprm.file);
 close_fail:

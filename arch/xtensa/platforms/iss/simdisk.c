@@ -231,7 +231,7 @@ static ssize_t proc_read_simdisk(struct file *file, char __user *buf,
 }
 
 static ssize_t proc_write_simdisk(struct file *file, const char __user *buf,
-			size_t size, loff_t *ppos)
+			size_t count, loff_t *ppos)
 {
 	char *tmp = kmalloc(count + 1, GFP_KERNEL);
 	struct simdisk *dev = PDE_DATA(file_inode(file));
