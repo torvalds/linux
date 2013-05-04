@@ -269,6 +269,8 @@ static inline void sem_unlock(struct sem_array *sma, int locknum)
 /*
  * sem_lock_(check_) routines are called in the paths where the rw_mutex
  * is not held.
+ *
+ * The caller holds the RCU read lock.
  */
 static inline struct sem_array *sem_obtain_lock(struct ipc_namespace *ns,
 			int id, struct sembuf *sops, int nsops, int *locknum)
@@ -276,12 +278,9 @@ static inline struct sem_array *sem_obtain_lock(struct ipc_namespace *ns,
 	struct kern_ipc_perm *ipcp;
 	struct sem_array *sma;
 
-	rcu_read_lock();
 	ipcp = ipc_obtain_object(&sem_ids(ns), id);
-	if (IS_ERR(ipcp)) {
-		sma = ERR_CAST(ipcp);
-		goto err;
-	}
+	if (IS_ERR(ipcp))
+		return ERR_CAST(ipcp);
 
 	sma = container_of(ipcp, struct sem_array, sem_perm);
 	*locknum = sem_lock(sma, sops, nsops);
@@ -293,10 +292,7 @@ static inline struct sem_array *sem_obtain_lock(struct ipc_namespace *ns,
 		return container_of(ipcp, struct sem_array, sem_perm);
 
 	sem_unlock(sma, *locknum);
-	sma = ERR_PTR(-EINVAL);
-err:
-	rcu_read_unlock();
-	return sma;
+	return ERR_PTR(-EINVAL);
 }
 
 static inline struct sem_array *sem_obtain_object(struct ipc_namespace *ns, int id)
@@ -1680,6 +1676,7 @@ sleep_again:
 		goto out_free;
 	}
 
+	rcu_read_lock();
 	sma = sem_obtain_lock(ns, semid, sops, nsops, &locknum);
 
 	/*
@@ -1691,6 +1688,7 @@ sleep_again:
 	 * Array removed? If yes, leave without sem_unlock().
 	 */
 	if (IS_ERR(sma)) {
+		rcu_read_unlock();
 		goto out_free;
 	}
 
