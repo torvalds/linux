@@ -1108,15 +1108,57 @@ static struct nvme_queue *nvme_create_queue(struct nvme_dev *dev, int qid,
 	return ERR_PTR(result);
 }
 
+static int nvme_wait_ready(struct nvme_dev *dev, u64 cap, bool enabled)
+{
+	unsigned long timeout;
+	u32 bit = enabled ? NVME_CSTS_RDY : 0;
+
+	timeout = ((NVME_CAP_TIMEOUT(cap) + 1) * HZ / 2) + jiffies;
+
+	while ((readl(&dev->bar->csts) & NVME_CSTS_RDY) != bit) {
+		msleep(100);
+		if (fatal_signal_pending(current))
+			return -EINTR;
+		if (time_after(jiffies, timeout)) {
+			dev_err(&dev->pci_dev->dev,
+				"Device not ready; aborting initialisation\n");
+			return -ENODEV;
+		}
+	}
+
+	return 0;
+}
+
+/*
+ * If the device has been passed off to us in an enabled state, just clear
+ * the enabled bit.  The spec says we should set the 'shutdown notification
+ * bits', but doing so may cause the device to complete commands to the
+ * admin queue ... and we don't know what memory that might be pointing at!
+ */
+static int nvme_disable_ctrl(struct nvme_dev *dev, u64 cap)
+{
+	writel(0, &dev->bar->cc);
+	return nvme_wait_ready(dev, cap, false);
+}
+
+static int nvme_enable_ctrl(struct nvme_dev *dev, u64 cap)
+{
+	return nvme_wait_ready(dev, cap, true);
+}
+
 static int nvme_configure_admin_queue(struct nvme_dev *dev)
 {
-	int result = 0;
+	int result;
 	u32 aqa;
-	u64 cap;
-	unsigned long timeout;
+	u64 cap = readq(&dev->bar->cap);
 	struct nvme_queue *nvmeq;
 
 	dev->dbs = ((void __iomem *)dev->bar) + 4096;
+	dev->db_stride = NVME_CAP_STRIDE(cap);
+
+	result = nvme_disable_ctrl(dev, cap);
+	if (result < 0)
+		return result;
 
 	nvmeq = nvme_alloc_queue(dev, 0, 64, 0);
 	if (!nvmeq)
@@ -1130,27 +1172,12 @@ static int nvme_configure_admin_queue(struct nvme_dev *dev)
 	dev->ctrl_config |= NVME_CC_ARB_RR | NVME_CC_SHN_NONE;
 	dev->ctrl_config |= NVME_CC_IOSQES | NVME_CC_IOCQES;
 
-	writel(0, &dev->bar->cc);
 	writel(aqa, &dev->bar->aqa);
 	writeq(nvmeq->sq_dma_addr, &dev->bar->asq);
 	writeq(nvmeq->cq_dma_addr, &dev->bar->acq);
 	writel(dev->ctrl_config, &dev->bar->cc);
 
-	cap = readq(&dev->bar->cap);
-	timeout = ((NVME_CAP_TIMEOUT(cap) + 1) * HZ / 2) + jiffies;
-	dev->db_stride = NVME_CAP_STRIDE(cap);
-
-	while (!result && !(readl(&dev->bar->csts) & NVME_CSTS_RDY)) {
-		msleep(100);
-		if (fatal_signal_pending(current))
-			result = -EINTR;
-		if (time_after(jiffies, timeout)) {
-			dev_err(&dev->pci_dev->dev,
-				"Device not ready; aborting initialisation\n");
-			result = -ENODEV;
-		}
-	}
-
+	result = nvme_enable_ctrl(dev, cap);
 	if (result)
 		goto free_q;
 
