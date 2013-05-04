@@ -79,12 +79,12 @@ out:
 	host->clock = clock;
 }
 
-static struct sdhci_ops sdhci_cns3xxx_ops = {
+static const struct sdhci_ops sdhci_cns3xxx_ops = {
 	.get_max_clock	= sdhci_cns3xxx_get_max_clk,
 	.set_clock	= sdhci_cns3xxx_set_clock,
 };
 
-static struct sdhci_pltfm_data sdhci_cns3xxx_pdata = {
+static const struct sdhci_pltfm_data sdhci_cns3xxx_pdata = {
 	.ops = &sdhci_cns3xxx_ops,
 	.quirks = SDHCI_QUIRK_BROKEN_DMA |
 		  SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK |

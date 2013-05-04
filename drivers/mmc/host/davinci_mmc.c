@@ -1264,13 +1264,15 @@ static int __init davinci_mmcsd_probe(struct platform_device *pdev)
 
 	r = platform_get_resource(pdev, IORESOURCE_DMA, 0);
 	if (!r)
-		goto out;
-	host->rxdma = r->start;
+		dev_warn(&pdev->dev, "RX DMA resource not specified\n");
+	else
+		host->rxdma = r->start;
 
 	r = platform_get_resource(pdev, IORESOURCE_DMA, 1);
 	if (!r)
-		goto out;
-	host->txdma = r->start;
+		dev_warn(&pdev->dev, "TX DMA resource not specified\n");
+	else
+		host->txdma = r->start;
 
 	host->mem_res = mem;
 	host->base = ioremap(mem->start, mem_size);
@@ -1488,18 +1490,7 @@ static struct platform_driver davinci_mmcsd_driver = {
 	.id_table	= davinci_mmc_devtype,
 };
 
-static int __init davinci_mmcsd_init(void)
-{
-	return platform_driver_probe(&davinci_mmcsd_driver,
-				     davinci_mmcsd_probe);
-}
-module_init(davinci_mmcsd_init);
-
-static void __exit davinci_mmcsd_exit(void)
-{
-	platform_driver_unregister(&davinci_mmcsd_driver);
-}
-module_exit(davinci_mmcsd_exit);
+module_platform_driver_probe(davinci_mmcsd_driver, davinci_mmcsd_probe);
 
 MODULE_AUTHOR("Texas Instruments India");
 MODULE_LICENSE("GPL");
