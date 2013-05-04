@@ -630,7 +630,7 @@ config SENSORS_LM75
 	  temperature sensor chip, with models including:
 
 		- Analog Devices ADT75
-		- Dallas Semiconductor DS75 and DS1775
+		- Dallas Semiconductor DS75, DS1775 and DS7505
 		- Maxim MAX6625 and MAX6626
 		- Microchip MCP980x
 		- National Semiconductor LM75, LM75A
