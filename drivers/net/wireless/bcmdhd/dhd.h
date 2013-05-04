@@ -4,7 +4,7 @@
  * Provides type definitions and function prototypes used to link the
  * DHD OS, bus, and protocol modules.
  *
- * Copyright (C) 1999-2012, Broadcom Corporation
+ * Copyright (C) 1999-2013, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -24,7 +24,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd.h 373887 2012-12-10 21:58:02Z $
+ * $Id: dhd.h 393288 2013-03-27 01:02:25Z $
  */
 
 /****************
@@ -58,11 +58,22 @@ int setScheduler(struct task_struct *p, int policy, struct sched_param *param);
 #include <wlioctl.h>
 #include <wlfc_proto.h>
 
+#if 0 && (0>= 0x0600)
+#include <wdf.h>
+#include <WdfMiniport.h>
+#endif 
 
+#if defined(KEEP_ALIVE)
+/* Default KEEP_ALIVE Period is 55 sec to prevent AP from sending Keep Alive probe frame */
+#define KEEP_ALIVE_PERIOD 55000
+#define NULL_PKT_STR	"null_pkt"
+#endif /* KEEP_ALIVE */
 /* Forward decls */
 struct dhd_bus;
 struct dhd_prot;
 struct dhd_info;
+struct dhd_ioctl;
+struct dhd_cmn;
 
 /* The level of bus communication with the dongle */
 enum dhd_bus_state {
@@ -71,26 +82,40 @@ enum dhd_bus_state {
 	DHD_BUS_DATA		/* Ready for frame transfers */
 };
 
+#if 0 && (0>= 0x0600)
+/* Firmware requested operation mode */
+#define STA_MASK			0x0001
+#define HOSTAPD_MASK		0x0002
+#define WFD_MASK			0x0004
+#define SOFTAP_FW_MASK	0x0008
+#define P2P_GO_ENABLED		0x0010
+#define P2P_GC_ENABLED		0x0020
+#define CONCURENT_MASK		0x00F0
+#endif 
+
 enum dhd_op_flags {
 /* Firmware requested operation mode */
-	DHD_FLAG_STA_MODE				= BIT(0), /* STA only */
-	DHD_FLAG_HOSTAP_MODE				= BIT(1), /* SOFTAP only */
-	DHD_FLAG_P2P_MODE				= BIT(2), /* P2P Only */
+	DHD_FLAG_STA_MODE				= (1 << (0)), /* STA only */
+	DHD_FLAG_HOSTAP_MODE				= (1 << (1)), /* SOFTAP only */
+	DHD_FLAG_P2P_MODE				= (1 << (2)), /* P2P Only */
 	/* STA + P2P */
 	DHD_FLAG_CONCURR_SINGLE_CHAN_MODE = (DHD_FLAG_STA_MODE | DHD_FLAG_P2P_MODE),
-	DHD_FLAG_CONCURR_MULTI_CHAN_MODE		= BIT(4), /* STA + P2P */
+	DHD_FLAG_CONCURR_MULTI_CHAN_MODE		= (1 << (4)), /* STA + P2P */
 	/* Current P2P mode for P2P connection */
-	DHD_FLAG_P2P_GC_MODE				= BIT(5),
-	DHD_FLAG_P2P_GO_MODE				= BIT(6),
-	DHD_FLAG_MBSS_MODE				= BIT(7) /* MBSS in future */
+	DHD_FLAG_P2P_GC_MODE				= (1 << (5)),
+	DHD_FLAG_P2P_GO_MODE				= (1 << (6)),
+	DHD_FLAG_MBSS_MODE				= (1 << (7)) /* MBSS in future */
 };
 
 #define MANUFACTRING_FW 	"WLTEST"
 
-/* max sequential rxcntl timeouts to set HANG event */
-#ifndef MAX_CNTL_TIMEOUT
-#define MAX_CNTL_TIMEOUT  2
-#endif
+/* Max sequential TX/RX Control timeouts to set HANG event */
+#ifndef MAX_CNTL_TX_TIMEOUT
+#define MAX_CNTL_TX_TIMEOUT 2
+#endif /* MAX_CNTL_TX_TIMEOUT */
+#ifndef MAX_CNTL_RX_TIMEOUT
+#define MAX_CNTL_RX_TIMEOUT 1
+#endif /* MAX_CNTL_RX_TIMEOUT */
 
 #define DHD_SCAN_ASSOC_ACTIVE_TIME	40 /* ms: Embedded default Active setting from DHD */
 #define DHD_SCAN_UNASSOC_ACTIVE_TIME 80 /* ms: Embedded def. Unassoc Active setting from DHD */
@@ -100,7 +125,7 @@ enum dhd_op_flags {
 #define POWERUP_MAX_RETRY	3 /* how many times we retry to power up the chip */
 #endif
 #ifndef POWERUP_WAIT_MS
-#define POWERUP_WAIT_MS		2000	 /* ms: time out in waiting wifi to come up */
+#define POWERUP_WAIT_MS		2000 /* ms: time out in waiting wifi to come up */
 #endif
 
 enum dhd_bus_wake_state {
@@ -116,19 +141,16 @@ enum dhd_bus_wake_state {
 	WAKE_LOCK_SOFTAP_SET,
 	WAKE_LOCK_SOFTAP_STOP,
 	WAKE_LOCK_SOFTAP_START,
-	WAKE_LOCK_SOFTAP_THREAD,
-	WAKE_LOCK_MAX
+	WAKE_LOCK_SOFTAP_THREAD
 };
 
 enum dhd_prealloc_index {
 	DHD_PREALLOC_PROT = 0,
 	DHD_PREALLOC_RXBUF,
 	DHD_PREALLOC_DATABUF,
-#if defined(STATIC_WL_PRIV_STRUCT)
 	DHD_PREALLOC_OSL_BUF,
+#if defined(STATIC_WL_PRIV_STRUCT)
 	DHD_PREALLOC_WIPHY_ESCAN0 = 5,
-#else
-	DHD_PREALLOC_OSL_BUF
 #endif /* STATIC_WL_PRIV_STRUCT */
 };
 
@@ -171,6 +193,7 @@ typedef struct reorder_info {
 	uint8 pend_pkts;
 } reorder_info_t;
 
+
 /* Common structure for module and instance linkage */
 typedef struct dhd_pub {
 	/* Linkage ponters */
@@ -178,6 +201,7 @@ typedef struct dhd_pub {
 	struct dhd_bus *bus;	/* Bus module handle */
 	struct dhd_prot *prot;	/* Protocol module handle */
 	struct dhd_info  *info; /* Info module handle */
+	struct dhd_cmn	*cmn;	/* dhd_common module handle */
 
 	/* Internal dhd items */
 	bool up;		/* Driver up/down (to OS) */
@@ -257,27 +281,46 @@ typedef struct dhd_pub {
 	struct mutex 	wl_softap_lock;		 /* lock/unlock for any SoftAP/STA settings */
 #endif 
 
-#ifdef WLBTAMP
-	uint16	maxdatablks;
-#endif /* WLBTAMP */
 #ifdef PROP_TXSTATUS
-	int   wlfc_enabled;
-	void* wlfc_state;
+	int	wlfc_enabled;
+	void*	wlfc_state;
+	int	ptx_opt_enabled;
+	bool    pending_tx_pkts;
+
+	/*
+	 * implement below functions in each platform if needed.
+	 */
+	/* platform specific function whether to skip flow control */
+	bool (*skip_fc)(void);
+	/* platform specific function for wlfc_enable and wlfc_deinit */
+	void (*plat_enable)(void *dhd);
+	void (*plat_deinit)(void *dhd);
 #endif
 	bool	dongle_isolation;
 	bool	dongle_trap_occured;	/* flag for sending HANG event to upper layer */
 	int   hang_was_sent;
 	int   rxcnt_timeout;		/* counter rxcnt timeout to send HANG */
 	int   txcnt_timeout;		/* counter txcnt timeout to send HANG */
+	bool hang_report;		/* enable hang report by default */
 #ifdef WLMEDIA_HTSF
 	uint8 htsfdlystat_sz; /* Size of delay stats, max 255B */
 #endif
 	struct reorder_info *reorder_bufs[WLHOST_REORDERDATA_MAXFLOWS];
+#ifdef RXFRAME_THREAD
+#define MAXSKBPEND 1024
+	void *skbbuf[MAXSKBPEND];
+	uint32 store_idx;
+	uint32 sent_idx;
+#endif /* RXFRAME_THREAD */
 #if defined(ARP_OFFLOAD_SUPPORT)
 	uint32 arp_version;
 #endif
 } dhd_pub_t;
 
+typedef struct dhd_cmn {
+	osl_t *osh;		/* OSL handle */
+	dhd_pub_t *dhd;
+} dhd_cmn_t;
 
 	#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27)) && defined(CONFIG_PM_SLEEP)
 
@@ -467,6 +510,7 @@ extern void dhd_os_sdunlock_txq(dhd_pub_t * pub);
 extern void dhd_os_sdlock_rxq(dhd_pub_t * pub);
 extern void dhd_os_sdunlock_rxq(dhd_pub_t * pub);
 extern void dhd_os_sdlock_sndup_rxq(dhd_pub_t * pub);
+
 extern void dhd_customer_gpio_wlan_ctrl(int onoff);
 extern int dhd_custom_get_mac_address(unsigned char *buf);
 extern void dhd_os_sdunlock_sndup_rxq(dhd_pub_t * pub);
@@ -474,11 +518,15 @@ extern void dhd_os_sdlock_eventq(dhd_pub_t * pub);
 extern void dhd_os_sdunlock_eventq(dhd_pub_t * pub);
 extern bool dhd_os_check_hang(dhd_pub_t *dhdp, int ifidx, int ret);
 extern int dhd_os_send_hang_message(dhd_pub_t *dhdp);
-extern int net_os_send_hang_message(struct net_device *dev);
 extern void dhd_set_version_info(dhd_pub_t *pub, char *fw);
+
+#if defined(KEEP_ALIVE)
+extern int dhd_keep_alive_onoff(dhd_pub_t *dhd);
+#endif /* KEEP_ALIVE */
 
 #ifdef PNO_SUPPORT
 extern int dhd_pno_enable(dhd_pub_t *dhd, int pfn_enabled);
+extern int dhd_pnoenable(dhd_pub_t *dhd, int pfn_enabled);
 extern int dhd_pno_clean(dhd_pub_t *dhd);
 extern int dhd_pno_set(dhd_pub_t *dhd, wlc_ssid_t* ssids_local, int nssid,
                        ushort  scan_fr, int pno_repeat, int pno_freq_expo_max);
@@ -488,6 +536,10 @@ extern int dhd_dev_pno_set(struct net_device *dev, wlc_ssid_t* ssids_local,
                            int nssid, ushort  scan_fr, int pno_repeat, int pno_freq_expo_max);
 extern int dhd_dev_pno_enable(struct net_device *dev,  int pfn_enabled);
 extern int dhd_dev_get_pno_status(struct net_device *dev);
+extern int dhd_pno_set_add(dhd_pub_t *dhd, wl_pfn_t *netinfo, int nssid,
+	ushort scan_fr, ushort slowscan_fr, uint8 pno_repeat, uint8 pno_freq_expo_max, int16 flags);
+extern int dhd_pno_cfg(dhd_pub_t *dhd, wl_pfn_cfg_t *pcfg);
+extern int dhd_pno_suspend(dhd_pub_t *dhd, int pfn_suspend);
 #endif /* PNO_SUPPORT */
 
 #ifdef PKT_FILTER_SUPPORT
@@ -496,7 +548,7 @@ extern int dhd_dev_get_pno_status(struct net_device *dev);
 #define DHD_MULTICAST4_FILTER_NUM	2
 #define DHD_MULTICAST6_FILTER_NUM	3
 #define DHD_MDNS_FILTER_NUM		4
-extern int dhd_os_enable_packet_filter(dhd_pub_t *dhdp, int val);
+extern int 	dhd_os_enable_packet_filter(dhd_pub_t *dhdp, int val);
 extern void dhd_enable_packet_filter(int value, dhd_pub_t *dhd);
 extern int net_os_enable_packet_filter(struct net_device *dev, int val);
 extern int net_os_rxfilter_add_remove(struct net_device *dev, int val, int num);
@@ -510,7 +562,7 @@ extern int write_to_file(dhd_pub_t *dhd, uint8 *buf, int size);
 #endif /* DHD_DEBUG */
 #if defined(OOB_INTR_ONLY)
 extern int dhd_customer_oob_irq_map(unsigned long *irq_flags_ptr);
-#endif /* defined(OOB_INTR_ONLY) */
+#endif 
 extern void dhd_os_sdtxlock(dhd_pub_t * pub);
 extern void dhd_os_sdtxunlock(dhd_pub_t * pub);
 
@@ -527,6 +579,7 @@ extern int dhd_timeout_expired(dhd_timeout_t *tmo);
 extern int dhd_ifname2idx(struct dhd_info *dhd, char *name);
 extern int dhd_net2idx(struct dhd_info *dhd, struct net_device *net);
 extern struct net_device * dhd_idx2net(void *pub, int ifidx);
+extern int net_os_send_hang_message(struct net_device *dev);
 extern int wl_host_event(dhd_pub_t *dhd_pub, int *idx, void *pktdata,
                          wl_event_msg_t *, void **data_ptr);
 extern void wl_event_to_host_order(wl_event_msg_t * evt);
@@ -534,7 +587,6 @@ extern void wl_event_to_host_order(wl_event_msg_t * evt);
 extern int dhd_wl_ioctl(dhd_pub_t *dhd_pub, int ifindex, wl_ioctl_t *ioc, void *buf, int len);
 extern int dhd_wl_ioctl_cmd(dhd_pub_t *dhd_pub, int cmd, void *arg, int len, uint8 set,
                             int ifindex);
-
 extern void dhd_common_init(osl_t *osh);
 
 extern int dhd_do_driver_init(struct net_device *net);
@@ -649,7 +701,7 @@ extern uint dhd_force_tx_queueing;
 #ifndef CUSTOM_GLOM_SETTING
 #define CUSTOM_GLOM_SETTING 	DEFAULT_GLOM_VALUE
 #endif
-
+#define WL_AUTO_ROAM_TRIGGER -75
 /* hooks for custom Roaming Trigger  setting via Makefile */
 #define DEFAULT_ROAM_TRIGGER_VALUE -75 /* dBm default roam trigger all band */
 #define DEFAULT_ROAM_TRIGGER_SETTING 	-1
@@ -671,17 +723,32 @@ extern uint dhd_force_tx_queueing;
 #ifndef CUSTOM_PNO_EVENT_LOCK_xTIME
 #define CUSTOM_PNO_EVENT_LOCK_xTIME	 DEFAULT_PNO_EVENT_LOCK_xTIME
 #endif
-
 /* hooks for custom dhd_dpc_prio setting option via Makefile */
 #define DEFAULT_DHP_DPC_PRIO  1
 #ifndef CUSTOM_DPC_PRIO_SETTING
 #define CUSTOM_DPC_PRIO_SETTING 	DEFAULT_DHP_DPC_PRIO
 #endif
 
+#ifndef CUSTOM_LISTEN_INTERVAL
+#define CUSTOM_LISTEN_INTERVAL 		LISTEN_INTERVAL
+#endif /* CUSTOM_LISTEN_INTERVAL */
+
 #define DEFAULT_SUSPEND_BCN_LI_DTIM		3
 #ifndef CUSTOM_SUSPEND_BCN_LI_DTIM
 #define CUSTOM_SUSPEND_BCN_LI_DTIM		DEFAULT_SUSPEND_BCN_LI_DTIM
 #endif
+
+#ifdef RXFRAME_THREAD
+#ifndef CUSTOM_RXF_PRIO_SETTING
+#define CUSTOM_RXF_PRIO_SETTING 	(DEFAULT_DHP_DPC_PRIO + 1)
+#endif
+#endif /* RXFRAME_THREAD */
+
+#ifdef WLTDLS
+#ifndef CUSTOM_TDLS_IDLE_MODE_SETTING
+#define CUSTOM_TDLS_IDLE_MODE_SETTING  60000 /* 60sec to tear down TDLS of not active */
+#endif
+#endif /* WLTDLS */
 
 #define MAX_DTIM_SKIP_BEACON_ITERVAL	100 /* max allowed associated AP beacon for dtim skip */
 
@@ -701,7 +768,6 @@ extern char fw_path[MOD_PARAM_PATHLEN];
 extern char nv_path[MOD_PARAM_PATHLEN];
 
 #define MOD_PARAM_INFOLEN	512
-
 #ifdef SOFTAP
 extern char fw_path2[MOD_PARAM_PATHLEN];
 #endif
@@ -714,12 +780,13 @@ extern uint dhd_download_fw_on_driverload;
 #define DHD_MAX_IFS	16
 #define DHD_DEL_IF	-0xe
 #define DHD_BAD_IF	-0xf
-#define WL_AUTO_ROAM_TRIGGER -75
 
 #ifdef PROP_TXSTATUS
 /* Please be mindful that total pkttag space is 32 octets only */
 typedef struct dhd_pkttag {
 	/*
+	b[14:13]  - encryption exemption
+	b[12 ] - 1 = event channel
 	b[11 ] - 1 = this packet was sent in response to one time packet request,
 	do not increment credit on status for this one. [WLFC_CTL_TYPE_MAC_REQUEST_PACKET].
 	b[10 ] - 1 = signal-only-packet to firmware [i.e. nothing to piggyback on]
@@ -769,6 +836,12 @@ typedef struct dhd_pkttag {
 
 #define DHD_PKTTAG_ONETIMEPKTRQST_MASK		0x1
 #define DHD_PKTTAG_ONETIMEPKTRQST_SHIFT		11
+
+#define DHD_PKTTAG_EVENT_MASK				0x1
+#define DHD_PKTTAG_EVENT_SHIFT				12
+
+#define DHD_PKTTAG_EXEMPT_MASK				0x3
+#define DHD_PKTTAG_EXEMPT_SHIFT				13
 
 #define DHD_PKTTAG_PKTDIR_MASK			0x1
 #define DHD_PKTTAG_PKTDIR_SHIFT			9
@@ -823,11 +896,28 @@ typedef struct dhd_pkttag {
 #define DHD_PKTTAG_ONETIMEPKTRQST(tag)	((((dhd_pkttag_t*)(tag))->if_flags >> \
 	DHD_PKTTAG_ONETIMEPKTRQST_SHIFT) & DHD_PKTTAG_ONETIMEPKTRQST_MASK)
 
+#define DHD_PKTTAG_SETEVENT(tag, event)	((dhd_pkttag_t*)(tag))->if_flags = \
+	(((dhd_pkttag_t*)(tag))->if_flags & \
+	~(DHD_PKTTAG_EVENT_MASK << DHD_PKTTAG_EVENT_SHIFT)) | \
+	(((event) & DHD_PKTTAG_EVENT_MASK) << DHD_PKTTAG_EVENT_SHIFT)
+#define DHD_PKTTAG_EVENT(tag)	((((dhd_pkttag_t*)(tag))->if_flags >> \
+	DHD_PKTTAG_EVENT_SHIFT) & DHD_PKTTAG_EVENT_MASK)
+
+#define DHD_PKTTAG_EXEMPT_SET(tag, value)	((dhd_pkttag_t*)(tag))->if_flags = \
+	(((dhd_pkttag_t*)(tag))->if_flags & \
+	~(DHD_PKTTAG_EXEMPT_MASK << DHD_PKTTAG_EXEMPT_SHIFT)) | \
+	(((value) & DHD_PKTTAG_EXEMPT_MASK) << DHD_PKTTAG_EXEMPT_SHIFT)
+#define DHD_PKTTAG_EXEMPT(tag)	((((dhd_pkttag_t*)(tag))->if_flags >> \
+	DHD_PKTTAG_EXEMPT_SHIFT) & DHD_PKTTAG_EXEMPT_MASK)
+
 #define DHD_PKTTAG_SETDSTN(tag, dstn_MAC_ea)	memcpy(((dhd_pkttag_t*)((tag)))->dstn_ether, \
 	(dstn_MAC_ea), ETHER_ADDR_LEN)
 #define DHD_PKTTAG_DSTN(tag)	((dhd_pkttag_t*)(tag))->dstn_ether
 
 typedef int (*f_commitpkt_t)(void* ctx, void* p);
+int dhd_os_wlfc_block(dhd_pub_t *pub);
+int dhd_os_wlfc_unblock(dhd_pub_t *pub);
+void dhd_schedule_tx(struct dhd_info *dhd);
 
 #ifdef PROP_TXSTATUS_DEBUG
 #define DHD_WLFC_CTRINC_MAC_CLOSE(entry)	do { (entry)->closed_ct++; } while (0)
@@ -872,4 +962,11 @@ int dhd_arp_get_arp_hostip_table(dhd_pub_t *dhd, void *buf, int buflen, int idx)
 void dhd_arp_offload_add_ip(dhd_pub_t *dhd, uint32 ipaddr, int idx);
 #endif /* ARP_OFFLOAD_SUPPORT */
 
+/* ioctl processing for nl80211 */
+int dhd_ioctl_process(dhd_pub_t *pub, int ifidx, struct dhd_ioctl *ioc);
+
+void dhd_set_bus_state(void *bus, uint32 state);
+
+/* Remove proper pkts(either one no-frag pkt or whole fragmented pkts) */
+extern bool dhd_prec_drop_pkts(osl_t *osh, struct pktq *pq, int prec);
 #endif /* _dhd_h_ */

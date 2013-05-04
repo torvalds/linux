@@ -1,7 +1,7 @@
 /*
  * Broadcom Event  protocol definitions
  *
- * Copyright (C) 1999-2012, Broadcom Corporation
+ * Copyright (C) 1999-2013, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -23,7 +23,7 @@
  *
  * Dependencies: proto/bcmeth.h
  *
- * $Id: bcmevent.h 374275 2012-12-12 11:44:18Z $
+ * $Id: bcmevent.h 386716 2013-02-21 18:16:10Z $
  *
  */
 
@@ -38,6 +38,8 @@
 #ifndef _TYPEDEFS_H_
 #include <typedefs.h>
 #endif
+/* #include <ethernet.h> -- TODO: req., excluded to overwhelming coupling (break up ethernet.h) */
+#include <proto/bcmeth.h>
 
 /* This marks the start of a packed structure section. */
 #include <packed_section_start.h>
@@ -144,11 +146,8 @@ typedef BWL_PRE_PACKED_STRUCT struct bcm_event {
 #define	WLC_E_EXCEEDED_MEDIUM_TIME	48	/* WMMAC excedded medium time */
 #define WLC_E_ICV_ERROR		49	/* WEP ICV error occurred */
 #define WLC_E_UNICAST_DECODE_ERROR	50	/* Unsupported unicast encrypted frame */
-#define WLC_E_MULTICAST_DECODE_ERROR	51 /* Unsupported multicast encrypted frame */
+#define WLC_E_MULTICAST_DECODE_ERROR	51	/* Unsupported multicast encrypted frame */
 #define WLC_E_TRACE		52
-#ifdef WLBTAMP
-#define WLC_E_BTA_HCI_EVENT	53	/* BT-AMP HCI event */
-#endif
 #define WLC_E_IF		54	/* I/F change (for dongle host notification) */
 #define WLC_E_P2P_DISC_LISTEN_COMPLETE	55	/* listen state expires */
 #define WLC_E_RSSI		56	/* indicate RSSI change based on configured levels */
@@ -169,9 +168,7 @@ typedef BWL_PRE_PACKED_STRUCT struct bcm_event {
 #define WLC_E_PROBRESP_MSG	71	/* probe response received */
 #define WLC_E_P2P_PROBREQ_MSG	72	/* P2P Probe request received */
 #define WLC_E_DCS_REQUEST	73
-
 #define WLC_E_FIFO_CREDIT_MAP	74	/* credits for D11 FIFOs. [AC0,AC1,AC2,AC3,BC_MC,ATIM] */
-
 #define WLC_E_ACTION_FRAME_RX	75	/* Received action frame event WITH
 					 * wl_event_rx_frame_data_t header
 					 */
@@ -183,22 +180,50 @@ typedef BWL_PRE_PACKED_STRUCT struct bcm_event {
 #define WLC_E_EXCESS_PM_WAKE_EVENT	81	/* excess PM Wake Event to inform host  */
 #define WLC_E_PFN_SCAN_NONE		82	/* no PFN networks around */
 #define WLC_E_PFN_SCAN_ALLGONE		83	/* last found PFN network gets lost */
-#define WLC_E_GTK_PLUMBED 		84
+#define WLC_E_GTK_PLUMBED		84
 #define WLC_E_ASSOC_IND_NDIS		85	/* 802.11 ASSOC indication for NDIS only */
 #define WLC_E_REASSOC_IND_NDIS		86	/* 802.11 REASSOC indication for NDIS only */
-#define WLC_E_ASSOC_REQ_IE 		87
-#define WLC_E_ASSOC_RESP_IE 		88
-#define WLC_E_ASSOC_RECREATED	89	/* association recreated on resume */
+#define WLC_E_ASSOC_REQ_IE		87
+#define WLC_E_ASSOC_RESP_IE		88
+#define WLC_E_ASSOC_RECREATED		89	/* association recreated on resume */
 #define WLC_E_ACTION_FRAME_RX_NDIS	90	/* rx action frame event for NDIS only */
-#define WLC_E_AUTH_REQ		91	/* authentication request received */
-#define WLC_E_TDLS_PEER_EVENT 	92	/* discovered peer, connected or disconnected peer */
+#define WLC_E_AUTH_REQ			91	/* authentication request received */
+#define WLC_E_TDLS_PEER_EVENT		92	/* discovered peer, connected/disconnected peer */
 #define WLC_E_SPEEDY_RECREATE_FAIL	93	/* fast assoc recreation failed */
-#define WLC_E_SERVICE_FOUND     102     /* desired service found */
-#define WLC_E_GAS_FRAGMENT_RX   103     /* GAS fragment received */
-#define WLC_E_GAS_COMPLETE      104     /* GAS sessions all complete */
-#define WLC_E_P2PO_ADD_DEVICE	105		/* New device found by p2p offload */
-#define WLC_E_P2PO_DEL_DEVICE	106 	/* device has been removed by p2p offload */
-#define WLC_E_LAST              107     /* highest val + 1 for range checking */
+#define WLC_E_NATIVE			94	/* port-specific event and payload (e.g. NDIS) */
+#define WLC_E_PKTDELAY_IND		95	/* event for tx pkt delay suddently jump */
+#define WLC_E_AWDL_AW			96	/* AWDL AW period starts */
+#define WLC_E_AWDL_ROLE			97	/* AWDL Master/Slave/NE master role event */
+#define WLC_E_AWDL_EVENT		98	/* Generic AWDL event */
+#ifdef WLNIC
+#define WLC_E_NIC_AF_TXS		99	/* NIC AF txstatus */
+#define WLC_E_NIC_NIC_REPORT		100	/* NIC period report */
+#endif
+#define WLC_E_BEACON_FRAME_RX		101
+#define WLC_E_SERVICE_FOUND		102	/* desired service found */
+#define WLC_E_GAS_FRAGMENT_RX		103	/* GAS fragment received */
+#define WLC_E_GAS_COMPLETE		104	/* GAS sessions all complete */
+#define WLC_E_P2PO_ADD_DEVICE		105	/* New device found by p2p offload */
+#define WLC_E_P2PO_DEL_DEVICE		106	/* device has been removed by p2p offload */
+#define WLC_E_WNM_STA_SLEEP		107	/* WNM event to notify STA enter sleep mode */
+#define WLC_E_NONE			108	/* event removed, free to be reused */
+#define WLC_E_PROXD			109	/* Proximity Detection event */
+#define WLC_E_IBSS_COALESCE		110	/* IBSS Coalescing */
+#define WLC_E_AWDL_AW_EXT_END		111	/* AWDL extended period ends */
+#define WLC_E_AWDL_AW_EXT_START		112	/* SWDL AW extension start */
+#define WLC_E_AWDL_AW_START		113	/* AWDL start Event to inform host  */
+#define WLC_E_AWDL_RADIO_OFF		114	/* Radio Off  */
+#define WLC_E_AWDL_PEER_STATE		115	/* AWDL peer state open/close */
+#define WLC_E_AWDL_SYNC_STATE_CHANGED	116	/* AWDL sync role changed */
+#define WLC_E_AWDL_CHIP_RESET		117	/* infroms the interface of a chip rest */
+#define WLC_E_AWDL_INTERLEAVED_SCAN_START		118
+#define WLC_E_AWDL_INTERLEAVED_SCAN_STOP		119
+#define WLC_E_AWDL_PEER_CACHE_CONTROL			120
+#define WLC_E_CSA_START_IND		121
+#define WLC_E_CSA_DONE_IND		122
+#define WLC_E_CSA_FAILURE_IND		123
+#define WLC_E_CCA_CHAN_QUAL		124	/* CCA based channel quality report */
+#define WLC_E_LAST			125	/* highest val + 1 for range checking */
 
 
 /* Table of event name strings for UIs and debugging dumps */
@@ -234,17 +259,17 @@ extern const int		bcmevent_names_size;
 #define WLC_E_REASON_DEAUTH		2	/* roamed due to DEAUTH indication */
 #define WLC_E_REASON_DISASSOC		3	/* roamed due to DISASSOC indication */
 #define WLC_E_REASON_BCNS_LOST		4	/* roamed due to lost beacons */
-#define WLC_E_REASON_MINTXRATE		9	/* roamed because at mintxrate for too long */
-#define WLC_E_REASON_TXFAIL		10	/* We can hear AP, but AP can't hear us */
 
 /* Roam codes used primarily by CCX */
 #define WLC_E_REASON_FAST_ROAM_FAILED	5	/* roamed due to fast roam failure */
 #define WLC_E_REASON_DIRECTED_ROAM	6	/* roamed due to request by AP */
 #define WLC_E_REASON_TSPEC_REJECTED	7	/* roamed due to TSPEC rejection */
 #define WLC_E_REASON_BETTER_AP		8	/* roamed due to finding better AP */
-
+#define WLC_E_REASON_MINTXRATE		9	/* roamed because at mintxrate for too long */
+#define WLC_E_REASON_TXFAIL		10	/* We can hear AP, but AP can't hear us */
 
 #define WLC_E_REASON_REQUESTED_ROAM 11	/* roamed due to BSS Mgmt Transition request by AP */
+
 
 /* prune reason codes */
 #define WLC_E_PRUNE_ENCR_MISMATCH	1	/* encryption mismatch */
@@ -286,6 +311,14 @@ extern const int		bcmevent_names_size;
  * WLC_E_P2P_PROBREQ_MSG
  * WLC_E_ACTION_FRAME_RX
  */
+#ifdef WLAWDL
+#define WLC_E_AWDL_SCAN_START		1	/* Scan start indication to host */
+#define WLC_E_AWDL_SCAN_DONE		0	/* Scan Done indication to host */
+
+#define WLC_E_AWDL_RX_ACT_FRAME					1
+#define WLC_E_AWDL_RX_PRB_RESP					2
+
+#endif
 typedef BWL_PRE_PACKED_STRUCT struct wl_event_rx_frame_data {
 	uint16	version;
 	uint16	channel;	/* Matches chanspec_t format from bcmwifi_channels.h */
@@ -300,7 +333,7 @@ typedef BWL_PRE_PACKED_STRUCT struct wl_event_rx_frame_data {
 typedef struct wl_event_data_if {
 	uint8 ifidx;		/* RTE virtual device index (for dongle) */
 	uint8 opcode;		/* see I/F opcode */
-	uint8 reserved;
+	uint8 reserved;		/* bit mask (WLC_E_IF_FLAGS_XXX ) */
 	uint8 bssidx;		/* bsscfg index */
 	uint8 role;		/* see I/F role */
 } wl_event_data_if_t;
@@ -316,10 +349,16 @@ typedef struct wl_event_data_if {
 #define WLC_E_IF_ROLE_WDS		2	/* WDS link */
 #define WLC_E_IF_ROLE_P2P_GO		3	/* P2P Group Owner */
 #define WLC_E_IF_ROLE_P2P_CLIENT	4	/* P2P Client */
-#ifdef WLBTAMP
-#define WLC_E_IF_ROLE_BTA_CREATOR	5	/* BT-AMP Creator */
-#define WLC_E_IF_ROLE_BTA_ACCEPTOR	6	/* BT-AMP Acceptor */
-#endif
+
+/* WLC_E_RSSI event data */
+typedef struct wl_event_data_rssi {
+	int32 rssi;
+	int32 snr;
+	int32 noise;
+} wl_event_data_rssi_t;
+
+/* WLC_E_IF flag */
+#define WLC_E_IF_FLAGS_BSSCFG_NOIF	0x1	/* no host I/F creation needed */
 
 /* Reason codes for LINK */
 #define WLC_E_LINK_BCN_LOSS	1	/* Link down because of beacon loss */
@@ -335,6 +374,22 @@ typedef struct wl_event_data_if {
 #define WLC_E_TDLS_PEER_DISCOVERED		0	/* peer is ready to establish TDLS */
 #define WLC_E_TDLS_PEER_CONNECTED		1
 #define WLC_E_TDLS_PEER_DISCONNECTED	2
+
+#ifdef WLAWDL
+/* WLC_E_AWDL_EVENT subtypes */
+#define WLC_E_AWDL_SCAN_STATUS	0
+#define WLC_E_AWDL_RX_ACT_FRAME	1
+#define WLC_E_AWDL_RX_PRB_RESP	2
+#define WLC_E_AWDL_PHYCAL_STATUS	3
+#define WLC_E_AWDL_WOWL_NULLPKT	4
+#define WLC_E_AWDL_OOB_AF_STATUS	5
+
+/* WLC_E_AWDL_SCAN_STATUS status values */
+#define WLC_E_AWDL_SCAN_START		1	/* Scan start indication to host */
+#define WLC_E_AWDL_SCAN_DONE		0	/* Scan Done indication to host */
+#define WLC_E_AWDL_PHYCAL_START		1	/* Phy calibration start indication to host */
+#define WLC_E_AWDL_PHYCAL_DONE		0	/* Phy calibration done indication to host */
+#endif
 
 /* GAS event data */
 typedef BWL_PRE_PACKED_STRUCT struct wl_event_gas {
@@ -361,6 +416,24 @@ typedef BWL_PRE_PACKED_STRUCT struct wl_event_sd {
 	uint8	count;			/* number of tlvs */
 	wl_sd_tlv_t	tlv[1];		/* service discovery TLV */
 } BWL_POST_PACKED_STRUCT wl_event_sd_t;
+
+/* Reason codes for WLC_E_PROXD */
+#define WLC_E_PROXD_FOUND	1	/* Found a proximity device */
+#define WLC_E_PROXD_GONE	2	/* Lost a proximity device */
+
+/* WLC_E_AWDL_AW event data */
+typedef BWL_PRE_PACKED_STRUCT struct awdl_aws_event_data {
+	uint32	fw_time;			/* firmware PMU time */
+	struct	ether_addr current_master;	/* Current master Mac addr */
+	uint16	aw_counter;			/* AW seq# */
+	uint8	aw_ext_count;			/* AW extension count */
+	uint8	aw_role;			/* AW role */
+	uint8	flags;				/* AW event flag */
+	uint16	aw_chan;
+} BWL_POST_PACKED_STRUCT awdl_aws_event_data_t;
+
+/* For awdl_aws_event_data_t.flags */
+#define AWDL_AW_LAST_EXT	0x01
 
 /* This marks the end of a packed structure section. */
 #include <packed_section_end.h>

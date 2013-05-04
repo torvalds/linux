@@ -1,7 +1,7 @@
 /*
  * bcmevent read-only data shared by kernel or app layers
  *
- * Copyright (C) 1999-2012, Broadcom Corporation
+ * Copyright (C) 1999-2013, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -20,7 +20,7 @@
  *      Notwithstanding the above, under no circumstances may you combine this
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
- * $Id: bcmevent.c 370587 2012-11-22 09:32:38Z $
+ * $Id: bcmevent.c 389384 2013-03-06 12:20:17Z $
  */
 
 #include <typedefs.h>
@@ -29,7 +29,7 @@
 #include <proto/bcmeth.h>
 #include <proto/bcmevent.h>
 
-#if WLC_E_LAST != 107
+#if WLC_E_LAST != 125
 #error "You need to add an entry to bcmevent_names[] for the new event"
 #endif
 
@@ -83,9 +83,6 @@ const bcmevent_name_t bcmevent_names[] = {
 	{ WLC_E_UNICAST_DECODE_ERROR, "UNICAST_DECODE_ERROR" },
 	{ WLC_E_MULTICAST_DECODE_ERROR, "MULTICAST_DECODE_ERROR" },
 	{ WLC_E_TRACE, "TRACE" },
-#ifdef WLBTAMP
-	{ WLC_E_BTA_HCI_EVENT, "BTA_HCI_EVENT" },
-#endif
 	{ WLC_E_IF, "IF" },
 #ifdef WLP2P
 	{ WLC_E_P2P_DISC_LISTEN_COMPLETE, "WLC_E_P2P_DISC_LISTEN_COMPLETE" },
@@ -98,7 +95,7 @@ const bcmevent_name_t bcmevent_names[] = {
 	{ WLC_E_ACTION_FRAME_RX, "ACTION_FRAME_RX" },
 	{ WLC_E_ACTION_FRAME_COMPLETE, "ACTION_FRAME_COMPLETE" },
 #endif
-#if 0 && (NDISVER >= 0x0620)
+#if 0 && (0>= 0x0620)
 	{ WLC_E_PRE_ASSOC_IND, "ASSOC_RECV" },
 	{ WLC_E_PRE_REASSOC_IND, "REASSOC_RECV" },
 	{ WLC_E_CHANNEL_ADOPTED, "CHANNEL_ADOPTED" },
@@ -109,6 +106,7 @@ const bcmevent_name_t bcmevent_names[] = {
 	{ WLC_E_REASSOC_IND_NDIS, "REASSOC_IND_NDIS"},
 	{ WLC_E_ACTION_FRAME_RX_NDIS, "WLC_E_ACTION_FRAME_RX_NDIS" },
 	{ WLC_E_AUTH_REQ, "WLC_E_AUTH_REQ" },
+	{ WLC_E_IBSS_COALESCE, "IBSS COALESCE" },
 #endif 
 	{ WLC_E_ESCAN_RESULT, "WLC_E_ESCAN_RESULT" },
 	{ WLC_E_ACTION_FRAME_OFF_CHAN_COMPLETE, "WLC_E_AF_OFF_CHAN_COMPLETE" },
@@ -139,9 +137,22 @@ const bcmevent_name_t bcmevent_names[] = {
 #ifdef WLTDLS
 	{ WLC_E_TDLS_PEER_EVENT, "TDLS_PEER_EVENT" },
 #endif /* WLTDLS */
+	{ WLC_E_NATIVE, "NATIVE" },
+#ifdef WLPKTDLYSTAT
+	{ WLC_E_PKTDELAY_IND, "PKTDELAY_IND" },
+#endif /* WLPKTDLYSTAT */
 	{ WLC_E_SERVICE_FOUND, "SERVICE_FOUND" },
+	{ WLC_E_GAS_FRAGMENT_RX, "GAS_FRAGMENT_RX" },
+	{ WLC_E_GAS_COMPLETE, "GAS_COMPLETE" },
 	{ WLC_E_P2PO_ADD_DEVICE, "P2PO_DEV_FOUND" },
 	{ WLC_E_P2PO_DEL_DEVICE, "P2PO_DEV_LOST" },
+#ifdef WLWNM
+	{ WLC_E_WNM_STA_SLEEP, "WMM_STA_SLEEP" },
+#endif /* WLWNM */
+#if defined(WL_PROXDETECT)
+	{ WLC_E_PROXD, "WLC_E_PROXD" },
+#endif
+	{ WLC_E_CCA_CHAN_QUAL, "CCA_BASED_CHANNEL_QUALITY" },
 };
 
 const int bcmevent_names_size = ARRAYSIZE(bcmevent_names);

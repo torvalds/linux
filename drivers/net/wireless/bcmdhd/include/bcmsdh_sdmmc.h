@@ -1,7 +1,7 @@
 /*
  * BCMSDH Function Driver for the native SDIO/MMC driver in the Linux Kernel
  *
- * Copyright (C) 1999-2012, Broadcom Corporation
+ * Copyright (C) 1999-2013, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: bcmsdh_sdmmc.h 355594 2012-09-07 10:22:02Z $
+ * $Id: bcmsdh_sdmmc.h 393685 2013-03-28 11:04:06Z $
  */
 
 #ifndef __BCMSDH_SDMMC_H__
@@ -33,8 +33,6 @@
 #define sd_debug(x)
 #define sd_data(x)
 #define sd_ctrl(x)
-
-#define sd_trace_hw4	sd_trace
 
 #define sd_sync_dma(sd, read, nbytes)
 #define sd_init_dma(sd)
@@ -61,10 +59,11 @@ extern void sdioh_sdmmc_osfree(sdioh_info_t *sd);
 
 /* private bus modes */
 #define SDIOH_MODE_SD4		2
-#define CLIENT_INTR 		0x100	/* Get rid of this! */
+#define CLIENT_INTR			0x100	/* Get rid of this! */
+
 
 struct sdioh_info {
-	osl_t 		*osh;			/* osh handler */
+	osl_t		*osh;			/* osh handler */
 	bool		client_intr_enabled;	/* interrupt connnected flag */
 	bool		intr_handler_valid;	/* client driver interrupt handler valid */
 	sdioh_cb_fn_t	intr_handler;		/* registered interrupt handler */
@@ -72,22 +71,23 @@ struct sdioh_info {
 	uint16		intmask;		/* Current active interrupts */
 	void		*sdos_info;		/* Pointer to per-OS private data */
 
-	uint 		irq;			/* Client irq */
-	int 		intrcount;		/* Client interrupts */
+	uint		irq;			/* Client irq */
+	int			intrcount;		/* Client interrupts */
 
 	bool		sd_use_dma;		/* DMA on CMD53 */
-	bool 		sd_blockmode;		/* sd_blockmode == FALSE => 64 Byte Cmd 53s. */
+	bool		sd_blockmode;		/* sd_blockmode == FALSE => 64 Byte Cmd 53s. */
 						/*  Must be on for sd_multiblock to be effective */
 	bool 		use_client_ints;	/* If this is false, make sure to restore */
 	int 		sd_mode;		/* SD1/SD4/SPI */
 	int 		client_block_size[SDIOD_MAX_IOFUNCS];		/* Blocksize */
 	uint8 		num_funcs;		/* Supported funcs on client */
 	uint32 		com_cis_ptr;
-	uint32 		func_cis_ptr[SDIOD_MAX_IOFUNCS];
+	uint32		func_cis_ptr[SDIOD_MAX_IOFUNCS];
 
 #define SDIOH_SDMMC_MAX_SG_ENTRIES	32
 	struct scatterlist sg_list[SDIOH_SDMMC_MAX_SG_ENTRIES];
 	bool		use_rxchain;
+
 };
 
 /************************************************************

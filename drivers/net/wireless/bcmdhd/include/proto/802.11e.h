@@ -1,7 +1,7 @@
 /*
  * 802.11e protocol header file
  *
- * Copyright (C) 1999-2012, Broadcom Corporation
+ * Copyright (C) 1999-2013, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: 802.11e.h 241182 2011-02-17 21:50:03Z $
+ * $Id: 802.11e.h 382883 2013-02-04 23:26:09Z $
  */
 
 #ifndef _802_11e_H_
@@ -110,7 +110,8 @@ typedef BWL_PRE_PACKED_STRUCT struct tspec {
 #define QBSS_LOAD_IE_LEN		5	/* QBSS Load IE length */
 #define QBSS_LOAD_AAC_OFF		3	/* AAC offset in IE */
 
-#define CAC_ADDTS_RESP_TIMEOUT		300	/* default ADDTS response timeout in ms */
+#define CAC_ADDTS_RESP_TIMEOUT		1000	/* default ADDTS response timeout in ms */
+						/* DEFVAL dot11ADDTSResponseTimeout = 1s */
 
 /* 802.11e ADDTS status code */
 #define DOT11E_STATUS_ADMISSION_ACCEPTED	0	/* TSPEC Admission accepted status */

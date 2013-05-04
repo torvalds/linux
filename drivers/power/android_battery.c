@@ -47,8 +47,6 @@ struct android_bat_data {
 	struct device		*dev;
 
 	struct power_supply	psy_bat;
-	struct power_supply	psy_usb;
-	struct power_supply	psy_ac;
 
 	struct wake_lock	monitor_wake_lock;
 	struct wake_lock	charger_wake_lock;
@@ -74,10 +72,6 @@ struct android_bat_data {
 	struct dentry		*debugfs_entry;
 };
 
-static char *supply_list[] = {
-	"android-battery",
-};
-
 static enum power_supply_property android_battery_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_HEALTH,
@@ -88,10 +82,6 @@ static enum power_supply_property android_battery_props[] = {
 	POWER_SUPPLY_PROP_CAPACITY,
 	POWER_SUPPLY_PROP_TECHNOLOGY,
 	POWER_SUPPLY_PROP_CURRENT_NOW,
-};
-
-static enum power_supply_property android_power_props[] = {
-	POWER_SUPPLY_PROP_ONLINE,
 };
 
 static DEFINE_MUTEX(android_bat_state_lock);
@@ -160,36 +150,6 @@ static int android_bat_get_property(struct power_supply *ps,
 	default:
 		return -EINVAL;
 	}
-	return 0;
-}
-
-static int android_usb_get_property(struct power_supply *ps,
-		enum power_supply_property psp,
-		union power_supply_propval *val)
-{
-	struct android_bat_data *battery = container_of(ps,
-				struct android_bat_data, psy_usb);
-
-	if (psp != POWER_SUPPLY_PROP_ONLINE)
-		return -EINVAL;
-
-	val->intval = (battery->charge_source == CHARGE_SOURCE_USB);
-
-	return 0;
-}
-
-static int android_ac_get_property(struct power_supply *ps,
-		enum power_supply_property psp,
-		union power_supply_propval *val)
-{
-	struct android_bat_data *battery = container_of(ps,
-				struct android_bat_data, psy_ac);
-
-	if (psp != POWER_SUPPLY_PROP_ONLINE)
-		return -EINVAL;
-
-	val->intval = (battery->charge_source == CHARGE_SOURCE_AC);
-
 	return 0;
 }
 
@@ -439,8 +399,7 @@ static void android_bat_charger_work(struct work_struct *work)
 
 	mutex_unlock(&android_bat_state_lock);
 	wake_lock_timeout(&battery->charger_wake_lock, HZ * 2);
-	power_supply_changed(&battery->psy_ac);
-	power_supply_changed(&battery->psy_usb);
+	power_supply_changed(&battery->psy_bat);
 }
 
 
@@ -601,22 +560,6 @@ static __devinit int android_bat_probe(struct platform_device *pdev)
 	battery->psy_bat.num_properties = ARRAY_SIZE(android_battery_props),
 	battery->psy_bat.get_property = android_bat_get_property,
 
-	battery->psy_usb.name = "android-usb",
-	battery->psy_usb.type = POWER_SUPPLY_TYPE_USB,
-	battery->psy_usb.supplied_to = supply_list,
-	battery->psy_usb.num_supplicants = ARRAY_SIZE(supply_list),
-	battery->psy_usb.properties = android_power_props,
-	battery->psy_usb.num_properties = ARRAY_SIZE(android_power_props),
-	battery->psy_usb.get_property = android_usb_get_property,
-
-	battery->psy_ac.name = "android-ac",
-	battery->psy_ac.type = POWER_SUPPLY_TYPE_MAINS,
-	battery->psy_ac.supplied_to = supply_list,
-	battery->psy_ac.num_supplicants = ARRAY_SIZE(supply_list),
-	battery->psy_ac.properties = android_power_props,
-	battery->psy_ac.num_properties = ARRAY_SIZE(android_power_props),
-	battery->psy_ac.get_property = android_ac_get_property;
-
 	battery->batt_vcell = -1;
 	battery->batt_soc = -1;
 
@@ -630,20 +573,6 @@ static __devinit int android_bat_probe(struct platform_device *pdev)
 		dev_err(battery->dev, "%s: failed to register psy_bat\n",
 			__func__);
 		goto err_psy_bat_reg;
-	}
-
-	ret = power_supply_register(&pdev->dev, &battery->psy_usb);
-	if (ret) {
-		dev_err(battery->dev, "%s: failed to register psy_usb\n",
-				__func__);
-		goto err_psy_usb_reg;
-	}
-
-	ret = power_supply_register(&pdev->dev, &battery->psy_ac);
-	if (ret) {
-		dev_err(battery->dev, "%s: failed to register psy_ac\n",
-				__func__);
-		goto err_psy_ac_reg;
 	}
 
 	battery->monitor_wqueue =
@@ -686,10 +615,6 @@ static __devinit int android_bat_probe(struct platform_device *pdev)
 	return 0;
 
 err_wq:
-	power_supply_unregister(&battery->psy_ac);
-err_psy_ac_reg:
-	power_supply_unregister(&battery->psy_usb);
-err_psy_usb_reg:
 	power_supply_unregister(&battery->psy_bat);
 err_psy_bat_reg:
 	wake_lock_destroy(&battery->monitor_wake_lock);
