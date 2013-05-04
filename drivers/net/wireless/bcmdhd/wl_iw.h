@@ -1,7 +1,7 @@
 /*
  * Linux Wireless Extensions support
  *
- * Copyright (C) 1999-2012, Broadcom Corporation
+ * Copyright (C) 1999-2013, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -48,8 +48,8 @@
 #define DTIM_SKIP_SET_CMD			"DTIMSKIPSET"
 #define SETSUSPEND_CMD				"SETSUSPENDOPT"
 #define PNOSSIDCLR_SET_CMD			"PNOSSIDCLR"
-
-#define PNOSETUP_SET_CMD			"PNOSETUP " 
+/* Lin - Is the extra space needed? */
+#define PNOSETUP_SET_CMD			"PNOSETUP " /* TLV command has extra end space */
 #define PNOENABLE_SET_CMD			"PNOFORCE"
 #define PNODEBUG_SET_CMD			"PNODEBUG"
 #define TXPOWER_SET_CMD			"TXPOWER"
@@ -57,26 +57,26 @@
 #define MAC2STR(a) (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5]
 #define MACSTR "%02x:%02x:%02x:%02x:%02x:%02x"
 
-
+/* Structure to keep global parameters */
 typedef struct wl_iw_extra_params {
-	int 	target_channel; 
+	int 	target_channel; /* target channel */
 } wl_iw_extra_params_t;
 
 struct cntry_locales_custom {
-	char iso_abbrev[WLC_CNTRY_BUF_SZ];	
-	char custom_locale[WLC_CNTRY_BUF_SZ];	
-	int32 custom_locale_rev;		
+	char iso_abbrev[WLC_CNTRY_BUF_SZ];	/* ISO 3166-1 country abbreviation */
+	char custom_locale[WLC_CNTRY_BUF_SZ];	/* Custom firmware locale */
+	int32 custom_locale_rev;		/* Custom local revisin default -1 */
 };
-
-
-#define	WL_IW_RSSI_MINVAL		-200	
-#define	WL_IW_RSSI_NO_SIGNAL	-91	
-#define	WL_IW_RSSI_VERY_LOW	-80	
-#define	WL_IW_RSSI_LOW		-70	
-#define	WL_IW_RSSI_GOOD		-68	
-#define	WL_IW_RSSI_VERY_GOOD	-58	
-#define	WL_IW_RSSI_EXCELLENT	-57	
-#define	WL_IW_RSSI_INVALID	 0	
+/* ============================================== */
+/* Defines from wlc_pub.h */
+#define	WL_IW_RSSI_MINVAL		-200	/* Low value, e.g. for forcing roam */
+#define	WL_IW_RSSI_NO_SIGNAL	-91	/* NDIS RSSI link quality cutoffs */
+#define	WL_IW_RSSI_VERY_LOW	-80	/* Very low quality cutoffs */
+#define	WL_IW_RSSI_LOW		-70	/* Low quality cutoffs */
+#define	WL_IW_RSSI_GOOD		-68	/* Good quality cutoffs */
+#define	WL_IW_RSSI_VERY_GOOD	-58	/* Very good quality cutoffs */
+#define	WL_IW_RSSI_EXCELLENT	-57	/* Excellent quality cutoffs */
+#define	WL_IW_RSSI_INVALID	 0	/* invalid RSSI value */
 #define MAX_WX_STRING 80
 #define SSID_FMT_BUF_LEN	((4 * 32) + 1)
 #define isprint(c) bcm_isprint(c)
@@ -100,9 +100,9 @@ typedef struct wl_iw {
 	struct iw_statistics wstats;
 
 	int spy_num;
-	uint32 pwsec;			
-	uint32 gwsec;			
-	bool privacy_invoked; 		
+	uint32 pwsec;			/* pairwise wsec setting */
+	uint32 gwsec;			/* group wsec setting  */
+	bool privacy_invoked; 		/* IW_AUTH_PRIVACY_INVOKED setting */
 	struct ether_addr spy_addr[IW_MAX_SPY];
 	struct iw_quality spy_qual[IW_MAX_SPY];
 	void  *wlinfo;
@@ -120,7 +120,7 @@ struct wl_ctrl {
 #if WIRELESS_EXT > 12
 #include <net/iw_handler.h>
 extern const struct iw_handler_def wl_iw_handler_def;
-#endif 
+#endif /* WIRELESS_EXT > 12 */
 
 extern int wl_iw_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 extern void wl_iw_event(struct net_device *dev, wl_event_msg_t *e, void* data);
@@ -158,4 +158,4 @@ void wl_iw_detach(void);
 	iwe_stream_add_point(stream, ends, iwe, extra)
 #endif
 
-#endif 
+#endif /* _wl_iw_h_ */

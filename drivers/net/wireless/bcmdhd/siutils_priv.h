@@ -1,7 +1,7 @@
 /*
  * Include file private to the SOC Interconnect support files.
  *
- * Copyright (C) 1999-2012, Broadcom Corporation
+ * Copyright (C) 1999-2013, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: siutils_priv.h 309193 2012-01-19 00:03:57Z $
+ * $Id: siutils_priv.h 385510 2013-02-15 21:02:07Z $
  */
 
 #ifndef	_siutils_priv_h_
@@ -146,6 +146,7 @@ typedef struct si_info {
 #define	ILP_DIV_5MHZ		0		/* ILP = 5 MHz */
 #define	ILP_DIV_1MHZ		4		/* ILP = 1 MHz */
 
+/* Force fast clock for 4360b0 */
 #define PCI_FORCEHT(si)	\
 	(((PCIE_GEN1(si)) && (si->pub.chip == BCM4311_CHIP_ID) && ((si->pub.chiprev <= 1))) || \
 	((PCI(si) || PCIE_GEN1(si)) && (si->pub.chip == BCM4321_CHIP_ID)) || \
@@ -203,6 +204,7 @@ extern si_t *ai_kattach(osl_t *osh);
 extern void ai_scan(si_t *sih, void *regs, uint devid);
 
 extern uint ai_flag(si_t *sih);
+extern uint ai_flag_alt(si_t *sih);
 extern void ai_setint(si_t *sih, int siflag);
 extern uint ai_coreidx(si_t *sih);
 extern uint ai_corevendor(si_t *sih);

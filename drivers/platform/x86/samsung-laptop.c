@@ -26,6 +26,7 @@
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
 #include <linux/ctype.h>
+#include <linux/efi.h>
 #if (defined CONFIG_ACPI_VIDEO || defined CONFIG_ACPI_VIDEO_MODULE)
 #include <acpi/video.h>
 #endif
@@ -1526,6 +1527,9 @@ static int __init samsung_init(void)
 {
 	struct samsung_laptop *samsung;
 	int ret;
+
+	if (efi_enabled(EFI_BOOT))
+		return -ENODEV;
 
 	quirks = &samsung_unknown;
 	if (!force && !dmi_check_system(samsung_dmi_table))

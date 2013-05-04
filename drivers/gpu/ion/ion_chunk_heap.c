@@ -140,6 +140,10 @@ static struct ion_heap_ops chunk_heap_ops = {
 struct ion_heap *ion_chunk_heap_create(struct ion_platform_heap *heap_data)
 {
 	struct ion_chunk_heap *chunk_heap;
+	struct vm_struct *vm_struct;
+	pgprot_t pgprot = pgprot_writecombine(PAGE_KERNEL);
+	int i, ret;
+
 
 	chunk_heap = kzalloc(sizeof(struct ion_chunk_heap), GFP_KERNEL);
 	if (!chunk_heap)
@@ -149,21 +153,48 @@ struct ion_heap *ion_chunk_heap_create(struct ion_platform_heap *heap_data)
 	chunk_heap->pool = gen_pool_create(get_order(chunk_heap->chunk_size) +
 					   PAGE_SHIFT, -1);
 	if (!chunk_heap->pool) {
-		kfree(chunk_heap);
-		return ERR_PTR(-ENOMEM);
+		ret = -ENOMEM;
+		goto error_gen_pool_create;
 	}
 	chunk_heap->base = heap_data->base;
 	chunk_heap->size = heap_data->size;
 	chunk_heap->allocated = 0;
+
+	vm_struct = get_vm_area(PAGE_SIZE, VM_ALLOC);
+	if (!vm_struct) {
+		ret = -ENOMEM;
+		goto error;
+	}
+	for (i = 0; i < chunk_heap->size; i += PAGE_SIZE) {
+		struct page *page = phys_to_page(chunk_heap->base + i);
+		struct page **pages = &page;
+
+		ret = map_vm_area(vm_struct, pgprot, &pages);
+		if (ret)
+			goto error_map_vm_area;
+		memset(vm_struct->addr, 0, PAGE_SIZE);
+		unmap_kernel_range((unsigned long)vm_struct->addr, PAGE_SIZE);
+	}
+	free_vm_area(vm_struct);
+
 	__dma_page_cpu_to_dev(phys_to_page(heap_data->base), 0, heap_data->size,
 			      DMA_BIDIRECTIONAL);
 	gen_pool_add(chunk_heap->pool, chunk_heap->base, heap_data->size, -1);
 	chunk_heap->heap.ops = &chunk_heap_ops;
 	chunk_heap->heap.type = ION_HEAP_TYPE_CHUNK;
-	pr_info("%s: base %lu size %ld align %ld\n", __func__, chunk_heap->base,
+	chunk_heap->heap.flags = ION_HEAP_FLAG_DEFER_FREE;
+	pr_info("%s: base %lu size %u align %ld\n", __func__, chunk_heap->base,
 		heap_data->size, heap_data->align);
 
 	return &chunk_heap->heap;
+
+error_map_vm_area:
+	free_vm_area(vm_struct);
+error:
+	gen_pool_destroy(chunk_heap->pool);
+error_gen_pool_create:
+	kfree(chunk_heap);
+	return ERR_PTR(ret);
 }
 
 void ion_chunk_heap_destroy(struct ion_heap *heap)

@@ -543,7 +543,7 @@ static void ar9003_hw_init_bb(struct ath_hw *ah,
 	udelay(synthDelay + BASE_ACTIVATE_DELAY);
 }
 
-static void ar9003_hw_set_chain_masks(struct ath_hw *ah, u8 rx, u8 tx)
+void ar9003_hw_set_chain_masks(struct ath_hw *ah, u8 rx, u8 tx)
 {
 	switch (rx) {
 	case 0x5:

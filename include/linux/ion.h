@@ -48,7 +48,7 @@ enum ion_heap_type {
 #define ION_NUM_HEAP_IDS		sizeof(unsigned int) * 8
 
 /**
- * heap flags - the lower 16 bits are used by core ion, the upper 16
+ * allocation flags - the lower 16 bits are used by core ion, the upper 16
  * bits are reserved for use by the heaps themselves.
  */
 #define ION_FLAG_CACHED 1		/* mappings of this buffer should be
@@ -214,11 +214,19 @@ void *ion_map_kernel(struct ion_client *client, struct ion_handle *handle);
 void ion_unmap_kernel(struct ion_client *client, struct ion_handle *handle);
 
 /**
- * ion_share_dma_buf() - given an ion client, create a dma-buf fd
+ * ion_share_dma_buf() - share buffer as dma-buf
  * @client:	the client
  * @handle:	the handle
  */
-int ion_share_dma_buf(struct ion_client *client, struct ion_handle *handle);
+struct dma_buf *ion_share_dma_buf(struct ion_client *client,
+						struct ion_handle *handle);
+
+/**
+ * ion_share_dma_buf_fd() - given an ion client, create a dma-buf fd
+ * @client:	the client
+ * @handle:	the handle
+ */
+int ion_share_dma_buf_fd(struct ion_client *client, struct ion_handle *handle);
 
 /**
  * ion_import_dma_buf() - given an dma-buf fd from the ion exporter get handle

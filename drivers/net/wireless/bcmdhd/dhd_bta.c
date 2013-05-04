@@ -1,7 +1,7 @@
 /*
  * BT-AMP support routines
  *
- * Copyright (C) 1999-2012, Broadcom Corporation
+ * Copyright (C) 1999-2013, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -21,11 +21,9 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_bta.c 303834 2011-12-20 06:17:39Z $
+ * $Id: dhd_bta.c 379512 2013-01-17 22:49:08Z $
  */
-#ifndef WLBTAMP
 #error "WLBTAMP is not defined"
-#endif	/* WLBTAMP */
 
 #include <typedefs.h>
 #include <osl.h>
@@ -312,6 +310,9 @@ void
 dhd_bta_doevt(dhd_pub_t *dhdp, void *data_buf, uint data_len)
 {
 	amp_hci_event_t *evt = (amp_hci_event_t *)data_buf;
+
+	ASSERT(dhdp);
+	ASSERT(evt);
 
 	switch (evt->ecode) {
 	case HCI_Command_Complete: {
