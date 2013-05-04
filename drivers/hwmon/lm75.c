@@ -167,8 +167,28 @@ lm75_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	 * Then tweak to be more precise when appropriate.
 	 */
 	set_mask = 0;
-	clr_mask = (1 << 0)			/* continuous conversions */
-		| (1 << 6) | (1 << 5);		/* 9-bit mode */
+	clr_mask = LM75_SHUTDOWN;		/* continuous conversions */
+
+	switch (id->driver_data) {
+	case adt75:
+		clr_mask |= 1 << 5;		/* not one-shot mode */
+		break;
+	case ds1775:
+	case ds75:
+	case stds75:
+		clr_mask |= 3 << 5;		/* 9-bit mode */
+		break;
+	case mcp980x:
+	case tmp100:
+	case tmp101:
+	case tmp105:
+	case tmp175:
+	case tmp275:
+	case tmp75:
+		clr_mask |= 3 << 5;		/* 9-bit mode */
+		clr_mask |= 1 << 7;		/* not one-shot mode */
+		break;
+	}
 
 	/* configure as specified */
 	status = lm75_read_value(client, LM75_REG_CONF);
