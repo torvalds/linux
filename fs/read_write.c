@@ -16,11 +16,14 @@
 #include <linux/pagemap.h>
 #include <linux/splice.h>
 #include <linux/compat.h>
-#include "read_write.h"
 #include "internal.h"
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
+
+typedef ssize_t (*io_fn_t)(struct file *, char __user *, size_t, loff_t *);
+typedef ssize_t (*iov_fn_t)(struct kiocb *, const struct iovec *,
+		unsigned long, loff_t);
 
 const struct file_operations generic_ro_fops = {
 	.llseek		= generic_file_llseek,
