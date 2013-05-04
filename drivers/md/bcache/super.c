@@ -1786,6 +1786,36 @@ static ssize_t register_bcache(struct kobject *, struct kobj_attribute *,
 kobj_attribute_write(register,		register_bcache);
 kobj_attribute_write(register_quiet,	register_bcache);
 
+static bool bch_is_open_backing(struct block_device *bdev) {
+	struct cache_set *c, *tc;
+	struct cached_dev *dc, *t;
+
+	list_for_each_entry_safe(c, tc, &bch_cache_sets, list)
+		list_for_each_entry_safe(dc, t, &c->cached_devs, list)
+			if (dc->bdev == bdev)
+				return true;
+	list_for_each_entry_safe(dc, t, &uncached_devices, list)
+		if (dc->bdev == bdev)
+			return true;
+	return false;
+}
+
+static bool bch_is_open_cache(struct block_device *bdev) {
+	struct cache_set *c, *tc;
+	struct cache *ca;
+	unsigned i;
+
+	list_for_each_entry_safe(c, tc, &bch_cache_sets, list)
+		for_each_cache(ca, c, i)
+			if (ca->bdev == bdev)
+				return true;
+	return false;
+}
+
+static bool bch_is_open(struct block_device *bdev) {
+	return bch_is_open_cache(bdev) || bch_is_open_backing(bdev);
+}
+
 static ssize_t register_bcache(struct kobject *k, struct kobj_attribute *attr,
 			       const char *buffer, size_t size)
 {
@@ -1810,8 +1840,13 @@ static ssize_t register_bcache(struct kobject *k, struct kobj_attribute *attr,
 				  FMODE_READ|FMODE_WRITE|FMODE_EXCL,
 				  sb);
 	if (IS_ERR(bdev)) {
-		if (bdev == ERR_PTR(-EBUSY))
-			err = "device busy";
+		if (bdev == ERR_PTR(-EBUSY)) {
+			bdev = lookup_bdev(strim(path));
+			if (!IS_ERR(bdev) && bch_is_open(bdev))
+				err = "device already registered";
+			else
+				err = "device busy";
+		}
 		goto err;
 	}
 
