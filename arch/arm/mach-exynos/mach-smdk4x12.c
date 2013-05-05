@@ -39,6 +39,7 @@
 #include <plat/regs-serial.h>
 #include <plat/sdhci.h>
 
+#include <mach/irqs.h>
 #include <mach/map.h>
 
 #include <drm/exynos_drm.h>

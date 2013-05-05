@@ -13,8 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/platform_data/pinctrl-nomadik.h>
 
-#include <mach/hardware.h>
-#include <mach/irqs.h>
+#include "irqs.h"
 
 #include "devices-common.h"
 

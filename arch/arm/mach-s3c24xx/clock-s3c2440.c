@@ -123,6 +123,11 @@ static struct clk s3c2440_clk_ac97 = {
 	.ctrlbit	= S3C2440_CLKCON_AC97,
 };
 
+#define S3C24XX_VA_UART0      (S3C_VA_UART)
+#define S3C24XX_VA_UART1      (S3C_VA_UART + 0x4000 )
+#define S3C24XX_VA_UART2      (S3C_VA_UART + 0x8000 )
+#define S3C24XX_VA_UART3      (S3C_VA_UART + 0xC000 )
+
 static unsigned long  s3c2440_fclk_n_getrate(struct clk *clk)
 {
 	unsigned long ucon0, ucon1, ucon2, divisor;

@@ -40,6 +40,8 @@
 
 #include <linux/atomic.h>
 
+#include <linux/clocksource.h>
+
 #define MAX_MSIX_P_PORT		17
 #define MAX_MSIX		64
 #define MSIX_LEGACY_SZ		4
@@ -140,6 +142,7 @@ enum {
 	MLX4_DEV_CAP_FLAG_VEP_UC_STEER	= 1LL << 41,
 	MLX4_DEV_CAP_FLAG_VEP_MC_STEER	= 1LL << 42,
 	MLX4_DEV_CAP_FLAG_COUNTERS	= 1LL << 48,
+	MLX4_DEV_CAP_FLAG_SET_ETH_SCHED = 1LL << 53,
 	MLX4_DEV_CAP_FLAG_SENSE_SUPPORT	= 1LL << 55,
 	MLX4_DEV_CAP_FLAG_PORT_MNG_CHG_EV = 1LL << 59,
 	MLX4_DEV_CAP_FLAG_64B_EQE	= 1LL << 61,
@@ -151,7 +154,10 @@ enum {
 	MLX4_DEV_CAP_FLAG2_RSS_TOP		= 1LL <<  1,
 	MLX4_DEV_CAP_FLAG2_RSS_XOR		= 1LL <<  2,
 	MLX4_DEV_CAP_FLAG2_FS_EN		= 1LL <<  3,
-	MLX4_DEV_CAP_FLAGS2_REASSIGN_MAC_EN	= 1LL <<  4
+	MLX4_DEV_CAP_FLAGS2_REASSIGN_MAC_EN	= 1LL <<  4,
+	MLX4_DEV_CAP_FLAG2_TS			= 1LL <<  5,
+	MLX4_DEV_CAP_FLAG2_VLAN_CONTROL		= 1LL <<  6,
+	MLX4_DEV_CAP_FLAG2_FSM			= 1LL <<  7
 };
 
 enum {
@@ -443,6 +449,7 @@ struct mlx4_caps {
 	u8			eqe_factor;
 	u32			userspace_caps; /* userspace must be aware of these */
 	u32			function_caps;  /* VFs must be aware of these */
+	u16			hca_core_clock;
 };
 
 struct mlx4_buf_list {
@@ -837,7 +844,7 @@ void mlx4_free_hwq_res(struct mlx4_dev *mdev, struct mlx4_hwq_resources *wqres,
 
 int mlx4_cq_alloc(struct mlx4_dev *dev, int nent, struct mlx4_mtt *mtt,
 		  struct mlx4_uar *uar, u64 db_rec, struct mlx4_cq *cq,
-		  unsigned vector, int collapsed);
+		  unsigned vector, int collapsed, int timestamp_en);
 void mlx4_cq_free(struct mlx4_dev *dev, struct mlx4_cq *cq);
 
 int mlx4_qp_reserve_range(struct mlx4_dev *dev, int cnt, int align, int *base);
@@ -1027,5 +1034,7 @@ int set_and_calc_slave_port_state(struct mlx4_dev *dev, int slave, u8 port, int 
 
 void mlx4_put_slave_node_guid(struct mlx4_dev *dev, int slave, __be64 guid);
 __be64 mlx4_get_slave_node_guid(struct mlx4_dev *dev, int slave);
+
+cycle_t mlx4_read_clock(struct mlx4_dev *dev);
 
 #endif /* MLX4_DEVICE_H */

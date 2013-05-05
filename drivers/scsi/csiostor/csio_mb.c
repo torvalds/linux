@@ -182,7 +182,7 @@ csio_mb_reset(struct csio_hw *hw, struct csio_mb *mbp, uint32_t tmo,
  * @tmo: Command timeout.
  * @pf: PF number.
  * @vf: VF number.
- * @nparams: Number of paramters
+ * @nparams: Number of parameters
  * @params: Parameter mnemonic array.
  * @val: Parameter value array.
  * @wr: Write/Read PARAMS.
@@ -721,7 +721,7 @@ csio_mb_iq_free(struct csio_hw *hw, struct csio_mb *mbp, void *priv,
  * @mbp: Mailbox structure to initialize
  * @priv: Private data
  * @mb_tmo: Mailbox time-out period (in ms).
- * @eq_ofld_params: (Offload) Egress queue paramters.
+ * @eq_ofld_params: (Offload) Egress queue parameters.
  * @cbfn: The call-back function
  *
  *
@@ -752,7 +752,7 @@ csio_mb_eq_ofld_alloc(struct csio_hw *hw, struct csio_mb *mbp, void *priv,
  * @priv: Private data
  * @mb_tmo: Mailbox time-out period (in ms).
  * @cascaded_req: TRUE - if this request is cascased with Eq-alloc request.
- * @eq_ofld_params: (Offload) Egress queue paramters.
+ * @eq_ofld_params: (Offload) Egress queue parameters.
  * @cbfn: The call-back function
  *
  *
@@ -817,7 +817,7 @@ csio_mb_eq_ofld_write(struct csio_hw *hw, struct csio_mb *mbp, void *priv,
  * @mbp: Mailbox structure to initialize
  * @priv: Private data.
  * @mb_tmo: Mailbox time-out period (in ms).
- * @eq_ofld_params: (Offload) Egress queue paramters.
+ * @eq_ofld_params: (Offload) Egress queue parameters.
  * @cbfn: The call-back function
  *
  *
@@ -840,7 +840,7 @@ csio_mb_eq_ofld_alloc_write(struct csio_hw *hw, struct csio_mb *mbp,
  * @hw: The HW structure.
  * @mbp: Mailbox structure to initialize.
  * @retval: Firmware return value.
- * @eq_ofld_params: (Offload) Egress queue paramters.
+ * @eq_ofld_params: (Offload) Egress queue parameters.
  *
  */
 void
@@ -870,7 +870,7 @@ csio_mb_eq_ofld_alloc_write_rsp(struct csio_hw *hw,
  * @mbp: Mailbox structure to initialize
  * @priv: Private data area.
  * @mb_tmo: Mailbox time-out period (in ms).
- * @eq_ofld_params: (Offload) Egress queue paramters, that is to be freed.
+ * @eq_ofld_params: (Offload) Egress queue parameters, that is to be freed.
  * @cbfn: The call-back function
  *
  *

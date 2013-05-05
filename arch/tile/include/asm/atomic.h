@@ -131,4 +131,25 @@ static inline int atomic_read(const atomic_t *v)
 #include <asm/atomic_64.h>
 #endif
 
+#ifndef __ASSEMBLY__
+
+static inline long long atomic64_dec_if_positive(atomic64_t *v)
+{
+	long long c, old, dec;
+
+	c = atomic64_read(v);
+	for (;;) {
+		dec = c - 1;
+		if (unlikely(dec < 0))
+			break;
+		old = atomic64_cmpxchg((v), c, dec);
+		if (likely(old == c))
+			break;
+		c = old;
+	}
+	return dec;
+}
+
+#endif /* __ASSEMBLY__ */
+
 #endif /* _ASM_TILE_ATOMIC_H */

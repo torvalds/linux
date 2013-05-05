@@ -143,7 +143,7 @@ map_again:
 		}
 
 	ret = ppc_md.hpte_insert(hpteg, vpn, hpaddr, rflags, vflags,
-				 MMU_PAGE_4K, MMU_SEGSIZE_256M);
+				 MMU_PAGE_4K, MMU_PAGE_4K, MMU_SEGSIZE_256M);
 
 	if (ret < 0) {
 		/* If we couldn't map a primary PTE, try a secondary */

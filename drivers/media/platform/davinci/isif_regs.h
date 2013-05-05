@@ -203,8 +203,8 @@
 #define ISIF_LPF_MASK				1
 
 /* GAMMAWD registers */
-#define ISIF_ALAW_GAMA_WD_MASK			0xF
-#define ISIF_ALAW_GAMA_WD_SHIFT			1
+#define ISIF_ALAW_GAMMA_WD_MASK			0xF
+#define ISIF_ALAW_GAMMA_WD_SHIFT		1
 #define ISIF_ALAW_ENABLE			1
 #define ISIF_GAMMAWD_CFA_SHIFT			5
 

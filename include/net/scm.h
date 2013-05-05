@@ -26,7 +26,6 @@ struct scm_fp_list {
 
 struct scm_cookie {
 	struct pid		*pid;		/* Skb credentials */
-	const struct cred	*cred;
 	struct scm_fp_list	*fp;		/* Passed files		*/
 	struct scm_creds	creds;		/* Skb credentials	*/
 #ifdef CONFIG_SECURITY_NETWORK
@@ -51,23 +50,18 @@ static __inline__ void unix_get_peersec_dgram(struct socket *sock, struct scm_co
 #endif /* CONFIG_SECURITY_NETWORK */
 
 static __inline__ void scm_set_cred(struct scm_cookie *scm,
-				    struct pid *pid, const struct cred *cred)
+				    struct pid *pid, kuid_t uid, kgid_t gid)
 {
 	scm->pid  = get_pid(pid);
-	scm->cred = cred ? get_cred(cred) : NULL;
 	scm->creds.pid = pid_vnr(pid);
-	scm->creds.uid = cred ? cred->uid : INVALID_UID;
-	scm->creds.gid = cred ? cred->gid : INVALID_GID;
+	scm->creds.uid = uid;
+	scm->creds.gid = gid;
 }
 
 static __inline__ void scm_destroy_cred(struct scm_cookie *scm)
 {
 	put_pid(scm->pid);
 	scm->pid  = NULL;
-
-	if (scm->cred)
-		put_cred(scm->cred);
-	scm->cred = NULL;
 }
 
 static __inline__ void scm_destroy(struct scm_cookie *scm)
@@ -81,8 +75,10 @@ static __inline__ int scm_send(struct socket *sock, struct msghdr *msg,
 			       struct scm_cookie *scm, bool forcecreds)
 {
 	memset(scm, 0, sizeof(*scm));
+	scm->creds.uid = INVALID_UID;
+	scm->creds.gid = INVALID_GID;
 	if (forcecreds)
-		scm_set_cred(scm, task_tgid(current), current_cred());
+		scm_set_cred(scm, task_tgid(current), current_uid(), current_gid());
 	unix_get_peersec_dgram(sock, scm);
 	if (msg->msg_controllen <= 0)
 		return 0;

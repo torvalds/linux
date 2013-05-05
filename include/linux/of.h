@@ -540,4 +540,14 @@ static inline int of_property_read_u32(const struct device_node *np,
 	return of_property_read_u32_array(np, propname, out_value, 1);
 }
 
+#if defined(CONFIG_PROC_FS) && defined(CONFIG_PROC_DEVICETREE)
+extern void proc_device_tree_add_node(struct device_node *, struct proc_dir_entry *);
+extern void proc_device_tree_add_prop(struct proc_dir_entry *pde, struct property *prop);
+extern void proc_device_tree_remove_prop(struct proc_dir_entry *pde,
+					 struct property *prop);
+extern void proc_device_tree_update_prop(struct proc_dir_entry *pde,
+					 struct property *newprop,
+					 struct property *oldprop);
+#endif
+
 #endif /* _LINUX_OF_H */

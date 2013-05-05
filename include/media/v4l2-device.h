@@ -190,4 +190,17 @@ v4l2_device_register_subdev_nodes(struct v4l2_device *v4l2_dev);
 			##args);					\
 })
 
+#define v4l2_device_has_op(v4l2_dev, o, f)				\
+({									\
+	struct v4l2_subdev *__sd;					\
+	bool __result = false;						\
+	list_for_each_entry(__sd, &(v4l2_dev)->subdevs, list) {		\
+		if (v4l2_subdev_has_op(__sd, o, f)) {			\
+			__result = true;				\
+			break;						\
+		}							\
+	}								\
+	__result;							\
+})
+
 #endif

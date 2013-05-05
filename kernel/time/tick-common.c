@@ -323,6 +323,7 @@ static void tick_shutdown(unsigned int *cpup)
 		 */
 		dev->mode = CLOCK_EVT_MODE_UNUSED;
 		clockevents_exchange_device(dev, NULL);
+		dev->event_handler = clockevents_handle_noop;
 		td->evtdev = NULL;
 	}
 	raw_spin_unlock_irqrestore(&tick_device_lock, flags);
@@ -416,4 +417,5 @@ static struct notifier_block tick_notifier = {
 void __init tick_init(void)
 {
 	clockevents_register_notifier(&tick_notifier);
+	tick_broadcast_init();
 }

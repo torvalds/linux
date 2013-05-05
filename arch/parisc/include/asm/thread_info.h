@@ -77,8 +77,6 @@ struct thread_info {
 #define _TIF_SYSCALL_TRACE_MASK (_TIF_SYSCALL_TRACE | _TIF_SINGLESTEP |	\
 				 _TIF_BLOCKSTEP)
 
-#define tsk_is_polling(t) test_tsk_thread_flag(t, TIF_POLLING_NRFLAG)
-
 #endif /* __KERNEL__ */
 
 #endif /* _ASM_PARISC_THREAD_INFO_H */

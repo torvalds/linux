@@ -202,6 +202,12 @@ acpi_rs_get_aml_length(struct acpi_resource * resource, acpi_size * size_needed)
 			return_ACPI_STATUS(AE_AML_INVALID_RESOURCE_TYPE);
 		}
 
+		/* Sanity check the length. It must not be zero, or we loop forever */
+
+		if (!resource->length) {
+			return_ACPI_STATUS(AE_AML_BAD_RESOURCE_LENGTH);
+		}
+
 		/* Get the base size of the (external stream) resource descriptor */
 
 		total_size = acpi_gbl_aml_resource_sizes[resource->type];

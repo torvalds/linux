@@ -11,6 +11,8 @@
 #ifndef __S3C64XX_PLAT_SPI_H
 #define __S3C64XX_PLAT_SPI_H
 
+#include <linux/dmaengine.h>
+
 struct platform_device;
 
 /**
@@ -38,6 +40,7 @@ struct s3c64xx_spi_info {
 	int src_clk_nr;
 	int num_cs;
 	int (*cfg_gpio)(void);
+	dma_filter_fn filter;
 };
 
 /**

@@ -42,6 +42,7 @@ struct idr {
 	struct idr_layer	*id_free;
 	int			layers;	/* only valid w/o concurrent changes */
 	int			id_free_cnt;
+	int			cur;	/* current pos for cyclic allocation */
 	spinlock_t		lock;
 };
 
@@ -75,6 +76,7 @@ struct idr {
 void *idr_find_slowpath(struct idr *idp, int id);
 void idr_preload(gfp_t gfp_mask);
 int idr_alloc(struct idr *idp, void *ptr, int start, int end, gfp_t gfp_mask);
+int idr_alloc_cyclic(struct idr *idr, void *ptr, int start, int end, gfp_t gfp_mask);
 int idr_for_each(struct idr *idp,
 		 int (*fn)(int id, void *p, void *data), void *data);
 void *idr_get_next(struct idr *idp, int *nextid);

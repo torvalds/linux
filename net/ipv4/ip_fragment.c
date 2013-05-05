@@ -79,39 +79,10 @@ struct ipq {
 	struct inet_peer *peer;
 };
 
-/* RFC 3168 support :
- * We want to check ECN values of all fragments, do detect invalid combinations.
- * In ipq->ecn, we store the OR value of each ip4_frag_ecn() fragment value.
- */
-#define	IPFRAG_ECN_NOT_ECT	0x01 /* one frag had ECN_NOT_ECT */
-#define	IPFRAG_ECN_ECT_1	0x02 /* one frag had ECN_ECT_1 */
-#define	IPFRAG_ECN_ECT_0	0x04 /* one frag had ECN_ECT_0 */
-#define	IPFRAG_ECN_CE		0x08 /* one frag had ECN_CE */
-
 static inline u8 ip4_frag_ecn(u8 tos)
 {
 	return 1 << (tos & INET_ECN_MASK);
 }
-
-/* Given the OR values of all fragments, apply RFC 3168 5.3 requirements
- * Value : 0xff if frame should be dropped.
- *         0 or INET_ECN_CE value, to be ORed in to final iph->tos field
- */
-static const u8 ip4_frag_ecn_table[16] = {
-	/* at least one fragment had CE, and others ECT_0 or ECT_1 */
-	[IPFRAG_ECN_CE | IPFRAG_ECN_ECT_0]			= INET_ECN_CE,
-	[IPFRAG_ECN_CE | IPFRAG_ECN_ECT_1]			= INET_ECN_CE,
-	[IPFRAG_ECN_CE | IPFRAG_ECN_ECT_0 | IPFRAG_ECN_ECT_1]	= INET_ECN_CE,
-
-	/* invalid combinations : drop frame */
-	[IPFRAG_ECN_NOT_ECT | IPFRAG_ECN_CE] = 0xff,
-	[IPFRAG_ECN_NOT_ECT | IPFRAG_ECN_ECT_0] = 0xff,
-	[IPFRAG_ECN_NOT_ECT | IPFRAG_ECN_ECT_1] = 0xff,
-	[IPFRAG_ECN_NOT_ECT | IPFRAG_ECN_ECT_0 | IPFRAG_ECN_ECT_1] = 0xff,
-	[IPFRAG_ECN_NOT_ECT | IPFRAG_ECN_CE | IPFRAG_ECN_ECT_0] = 0xff,
-	[IPFRAG_ECN_NOT_ECT | IPFRAG_ECN_CE | IPFRAG_ECN_ECT_1] = 0xff,
-	[IPFRAG_ECN_NOT_ECT | IPFRAG_ECN_CE | IPFRAG_ECN_ECT_0 | IPFRAG_ECN_ECT_1] = 0xff,
-};
 
 static struct inet_frags ip4_frags;
 
@@ -557,7 +528,7 @@ static int ip_frag_reasm(struct ipq *qp, struct sk_buff *prev,
 
 	ipq_kill(qp);
 
-	ecn = ip4_frag_ecn_table[qp->ecn];
+	ecn = ip_frag_ecn_table[qp->ecn];
 	if (unlikely(ecn == 0xff)) {
 		err = -EINVAL;
 		goto out_fail;

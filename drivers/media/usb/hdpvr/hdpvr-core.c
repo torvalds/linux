@@ -174,6 +174,7 @@ static int device_authorization(struct hdpvr_device *dev)
 	case HDPVR_FIRMWARE_VERSION_AC3:
 	case HDPVR_FIRMWARE_VERSION_0X12:
 	case HDPVR_FIRMWARE_VERSION_0X15:
+	case HDPVR_FIRMWARE_VERSION_0X1E:
 		dev->flags |= HDPVR_FLAG_AC3_CAP;
 		break;
 	default:
@@ -196,6 +197,7 @@ static int device_authorization(struct hdpvr_device *dev)
 	hex_dump_to_buffer(response, 8, 16, 1, print_buf, 5*buf_size+1, 0);
 	v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev, " response: %s\n",
 		 print_buf);
+	kfree(print_buf);
 #endif
 
 	msleep(100);
@@ -385,12 +387,6 @@ static int hdpvr_probe(struct usb_interface *interface,
 	}
 	mutex_unlock(&dev->io_mutex);
 
-	if (hdpvr_register_videodev(dev, &interface->dev,
-				    video_nr[atomic_inc_return(&dev_nr)])) {
-		v4l2_err(&dev->v4l2_dev, "registering videodev failed\n");
-		goto error;
-	}
-
 #if IS_ENABLED(CONFIG_I2C)
 	retval = hdpvr_register_i2c_adapter(dev);
 	if (retval < 0) {
@@ -412,6 +408,13 @@ static int hdpvr_probe(struct usb_interface *interface,
 		goto reg_fail;
 	}
 #endif
+
+	retval = hdpvr_register_videodev(dev, &interface->dev,
+				    video_nr[atomic_inc_return(&dev_nr)]);
+	if (retval < 0) {
+		v4l2_err(&dev->v4l2_dev, "registering videodev failed\n");
+		goto error;
+	}
 
 	/* let the user know what node this device is now attached to */
 	v4l2_info(&dev->v4l2_dev, "device now attached to %s\n",

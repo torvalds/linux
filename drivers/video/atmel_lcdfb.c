@@ -1158,18 +1158,7 @@ static struct platform_driver atmel_lcdfb_driver = {
 	},
 };
 
-static int __init atmel_lcdfb_init(void)
-{
-	return platform_driver_probe(&atmel_lcdfb_driver, atmel_lcdfb_probe);
-}
-
-static void __exit atmel_lcdfb_exit(void)
-{
-	platform_driver_unregister(&atmel_lcdfb_driver);
-}
-
-module_init(atmel_lcdfb_init);
-module_exit(atmel_lcdfb_exit);
+module_platform_driver_probe(atmel_lcdfb_driver, atmel_lcdfb_probe);
 
 MODULE_DESCRIPTION("AT91/AT32 LCD Controller framebuffer driver");
 MODULE_AUTHOR("Nicolas Ferre <nicolas.ferre@atmel.com>");

@@ -322,10 +322,11 @@ static void __init_memblock memblock_merge_regions(struct memblock_type *type)
 
 /**
  * memblock_insert_region - insert new memblock region
- * @type: memblock type to insert into
- * @idx: index for the insertion point
- * @base: base address of the new region
- * @size: size of the new region
+ * @type:	memblock type to insert into
+ * @idx:	index for the insertion point
+ * @base:	base address of the new region
+ * @size:	size of the new region
+ * @nid:	node id of the new region
  *
  * Insert new memblock region [@base,@base+@size) into @type at @idx.
  * @type must already have extra room to accomodate the new region.
@@ -770,6 +771,9 @@ static phys_addr_t __init memblock_alloc_base_nid(phys_addr_t size,
 					int nid)
 {
 	phys_addr_t found;
+
+	if (WARN_ON(!align))
+		align = __alignof__(long long);
 
 	/* align @size to avoid excessive fragmentation on reserved array */
 	size = round_up(size, align);

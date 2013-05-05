@@ -20,12 +20,10 @@
 #ifndef _ASM_X86_HYPERVISOR_H
 #define _ASM_X86_HYPERVISOR_H
 
+#ifdef CONFIG_HYPERVISOR_GUEST
+
 #include <asm/kvm_para.h>
 #include <asm/xen/hypervisor.h>
-
-extern void init_hypervisor(struct cpuinfo_x86 *c);
-extern void init_hypervisor_platform(void);
-extern bool hypervisor_x2apic_available(void);
 
 /*
  * x86 hypervisor information
@@ -55,4 +53,12 @@ extern const struct hypervisor_x86 x86_hyper_ms_hyperv;
 extern const struct hypervisor_x86 x86_hyper_xen_hvm;
 extern const struct hypervisor_x86 x86_hyper_kvm;
 
-#endif
+extern void init_hypervisor(struct cpuinfo_x86 *c);
+extern void init_hypervisor_platform(void);
+extern bool hypervisor_x2apic_available(void);
+#else
+static inline void init_hypervisor(struct cpuinfo_x86 *c) { }
+static inline void init_hypervisor_platform(void) { }
+static inline bool hypervisor_x2apic_available(void) { return false; }
+#endif /* CONFIG_HYPERVISOR_GUEST */
+#endif /* _ASM_X86_HYPERVISOR_H */

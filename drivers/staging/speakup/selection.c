@@ -14,7 +14,7 @@
 unsigned short spk_xs, spk_ys, spk_xe, spk_ye; /* our region points */
 
 /* Variables for selection control. */
-/* must not be disallocated */
+/* must not be deallocated */
 struct vc_data *spk_sel_cons;
 /* cleared by clear_selection */
 static int sel_start = -1;

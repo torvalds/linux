@@ -505,6 +505,7 @@ config RCU_USER_QS
 config CONTEXT_TRACKING_FORCE
 	bool "Force context tracking"
 	depends on CONTEXT_TRACKING
+	default CONTEXT_TRACKING
 	help
 	  Probe on user/kernel boundaries by default in order to
 	  test the features that rely on it such as userspace RCU extended
@@ -1220,6 +1221,35 @@ config SYSCTL
 config ANON_INODES
 	bool
 
+config HAVE_UID16
+	bool
+
+config SYSCTL_EXCEPTION_TRACE
+	bool
+	help
+	  Enable support for /proc/sys/debug/exception-trace.
+
+config SYSCTL_ARCH_UNALIGN_NO_WARN
+	bool
+	help
+	  Enable support for /proc/sys/kernel/ignore-unaligned-usertrap
+	  Allows arch to define/use @no_unaligned_warning to possibly warn
+	  about unaligned access emulation going on under the hood.
+
+config SYSCTL_ARCH_UNALIGN_ALLOW
+	bool
+	help
+	  Enable support for /proc/sys/kernel/unaligned-trap
+	  Allows arches to define/use @unaligned_enabled to runtime toggle
+	  the unaligned access emulation.
+	  see arch/parisc/kernel/unaligned.c for reference
+
+config HOTPLUG
+	def_bool y
+
+config HAVE_PCSPKR_PLATFORM
+	bool
+
 menuconfig EXPERT
 	bool "Configure standard kernel features (expert users)"
 	# Unhide debug options, to make the on-by-default options visible
@@ -1229,9 +1259,6 @@ menuconfig EXPERT
           to be disabled or tweaked. This is for specialized
           environments which can tolerate a "non-standard" kernel.
           Only use this if you really know what you are doing.
-
-config HAVE_UID16
-	bool
 
 config UID16
 	bool "Enable 16-bit UID system calls" if EXPERT
@@ -1257,26 +1284,6 @@ config SYSCTL_SYSCALL
 
 	  If unsure say N here.
 
-config SYSCTL_EXCEPTION_TRACE
-	bool
-	help
-	  Enable support for /proc/sys/debug/exception-trace.
-
-config SYSCTL_ARCH_UNALIGN_NO_WARN
-	bool
-	help
-	  Enable support for /proc/sys/kernel/ignore-unaligned-usertrap
-	  Allows arch to define/use @no_unaligned_warning to possibly warn
-	  about unaligned access emulation going on under the hood.
-
-config SYSCTL_ARCH_UNALIGN_ALLOW
-	bool
-	help
-	  Enable support for /proc/sys/kernel/unaligned-trap
-	  Allows arches to define/use @unaligned_enabled to runtime toggle
-	  the unaligned access emulation.
-	  see arch/parisc/kernel/unaligned.c for reference
-
 config KALLSYMS
 	 bool "Load all symbols for debugging/ksymoops" if EXPERT
 	 default y
@@ -1301,9 +1308,6 @@ config KALLSYMS_ALL
 	   something like this).
 
 	   Say N unless you really need all symbols.
-
-config HOTPLUG
-	def_bool y
 
 config PRINTK
 	default y
@@ -1342,9 +1346,6 @@ config PCSPKR_PLATFORM
 	help
           This option allows to disable the internal PC-Speaker
           support, saving some memory.
-
-config HAVE_PCSPKR_PLATFORM
-	bool
 
 config BASE_FULL
 	default y
@@ -1417,8 +1418,17 @@ config AIO
 	default y
 	help
 	  This option enables POSIX asynchronous I/O which may by used
-          by some high performance threaded applications. Disabling
-          this option saves about 7k.
+	  by some high performance threaded applications. Disabling
+	  this option saves about 7k.
+
+config PCI_QUIRKS
+	default y
+	bool "Enable PCI quirk workarounds" if EXPERT
+	depends on PCI
+	help
+	  This enables workarounds for various PCI chipset
+	  bugs/quirks. Disable this only if your target machine is
+	  unaffected by PCI quirks.
 
 config EMBEDDED
 	bool "Embedded system"
@@ -1492,15 +1502,6 @@ config VM_EVENT_COUNTERS
 	  This option allows the disabling of the VM event counters
 	  on EXPERT systems.  /proc/vmstat will only show page counts
 	  if VM event counters are disabled.
-
-config PCI_QUIRKS
-	default y
-	bool "Enable PCI quirk workarounds" if EXPERT
-	depends on PCI
-	help
-	  This enables workarounds for various PCI chipset
-          bugs/quirks. Disable this only if your target machine is
-          unaffected by PCI quirks.
 
 config SLUB_DEBUG
 	default y

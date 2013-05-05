@@ -51,15 +51,12 @@
  */
 #include <linux/delay.h>
 #include <linux/device.h>
-#include <linux/dmapool.h>
 #include <linux/dma-mapping.h>
-#include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
 #include <linux/idr.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
@@ -158,7 +155,7 @@ int hw_port_test_set(struct ci13xxx *ci, u8 mode)
 	if (mode > TEST_MODE_MAX)
 		return -EINVAL;
 
-	hw_write(ci, OP_PORTSC, PORTSC_PTC, mode << ffs_nr(PORTSC_PTC));
+	hw_write(ci, OP_PORTSC, PORTSC_PTC, mode << __ffs(PORTSC_PTC));
 	return 0;
 }
 
@@ -169,7 +166,7 @@ int hw_port_test_set(struct ci13xxx *ci, u8 mode)
  */
 u8 hw_port_test_get(struct ci13xxx *ci)
 {
-	return hw_read(ci, OP_PORTSC, PORTSC_PTC) >> ffs_nr(PORTSC_PTC);
+	return hw_read(ci, OP_PORTSC, PORTSC_PTC) >> __ffs(PORTSC_PTC);
 }
 
 static int hw_device_init(struct ci13xxx *ci, void __iomem *base)
@@ -181,11 +178,11 @@ static int hw_device_init(struct ci13xxx *ci, void __iomem *base)
 
 	ci->hw_bank.cap = ci->hw_bank.abs;
 	ci->hw_bank.cap += ci->platdata->capoffset;
-	ci->hw_bank.op = ci->hw_bank.cap + ioread8(ci->hw_bank.cap);
+	ci->hw_bank.op = ci->hw_bank.cap + (ioread32(ci->hw_bank.cap) & 0xff);
 
 	hw_alloc_regmap(ci, false);
 	reg = hw_read(ci, CAP_HCCPARAMS, HCCPARAMS_LEN) >>
-		ffs_nr(HCCPARAMS_LEN);
+		__ffs(HCCPARAMS_LEN);
 	ci->hw_bank.lpm  = reg;
 	hw_alloc_regmap(ci, !!reg);
 	ci->hw_bank.size = ci->hw_bank.op - ci->hw_bank.abs;
@@ -193,7 +190,7 @@ static int hw_device_init(struct ci13xxx *ci, void __iomem *base)
 	ci->hw_bank.size /= sizeof(u32);
 
 	reg = hw_read(ci, CAP_DCCPARAMS, DCCPARAMS_DEN) >>
-		ffs_nr(DCCPARAMS_DEN);
+		__ffs(DCCPARAMS_DEN);
 	ci->hw_ep_max = reg * 2;   /* cache hw ENDPT_MAX */
 
 	if (ci->hw_ep_max > ENDPT_MAX)
@@ -282,38 +279,6 @@ static void ci_role_work(struct work_struct *work)
 		enable_irq(ci->irq);
 	}
 }
-
-static ssize_t show_role(struct device *dev, struct device_attribute *attr,
-			 char *buf)
-{
-	struct ci13xxx *ci = dev_get_drvdata(dev);
-
-	return sprintf(buf, "%s\n", ci_role(ci)->name);
-}
-
-static ssize_t store_role(struct device *dev, struct device_attribute *attr,
-			  const char *buf, size_t count)
-{
-	struct ci13xxx *ci = dev_get_drvdata(dev);
-	enum ci_role role;
-	int ret;
-
-	for (role = CI_ROLE_HOST; role < CI_ROLE_END; role++)
-		if (ci->roles[role] && !strcmp(buf, ci->roles[role]->name))
-			break;
-
-	if (role == CI_ROLE_END || role == ci->role)
-		return -EINVAL;
-
-	ci_role_stop(ci);
-	ret = ci_role_start(ci, role);
-	if (ret)
-		return ret;
-
-	return count;
-}
-
-static DEVICE_ATTR(role, S_IRUSR | S_IWUSR, show_role, store_role);
 
 static irqreturn_t ci_irq(int irq, void *data)
 {
@@ -410,11 +375,9 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	base = devm_request_and_ioremap(dev, res);
-	if (!base) {
-		dev_err(dev, "can't request and ioremap resource\n");
-		return -ENOMEM;
-	}
+	base = devm_ioremap_resource(dev, res);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
 
 	ci = devm_kzalloc(dev, sizeof(*ci), GFP_KERNEL);
 	if (!ci) {
@@ -489,17 +452,14 @@ static int ci_hdrc_probe(struct platform_device *pdev)
 	if (ret)
 		goto stop;
 
-	ret = device_create_file(dev, &dev_attr_role);
-	if (ret)
-		goto rm_attr;
-
 	if (ci->is_otg)
 		hw_write(ci, OP_OTGSC, OTGSC_IDIE, OTGSC_IDIE);
 
-	return ret;
+	ret = dbg_create_files(ci);
+	if (!ret)
+		return 0;
 
-rm_attr:
-	device_remove_file(dev, &dev_attr_role);
+	free_irq(ci->irq, ci);
 stop:
 	ci_role_stop(ci);
 rm_wq:
@@ -513,9 +473,9 @@ static int ci_hdrc_remove(struct platform_device *pdev)
 {
 	struct ci13xxx *ci = platform_get_drvdata(pdev);
 
+	dbg_remove_files(ci);
 	flush_workqueue(ci->wq);
 	destroy_workqueue(ci->wq);
-	device_remove_file(ci->dev, &dev_attr_role);
 	free_irq(ci->irq, ci);
 	ci_role_stop(ci);
 

@@ -124,6 +124,10 @@
 #define ARIZONA_MIC_DETECT_1                     0x2A3
 #define ARIZONA_MIC_DETECT_2                     0x2A4
 #define ARIZONA_MIC_DETECT_3                     0x2A5
+#define ARIZONA_MIC_DETECT_LEVEL_1		 0x2A6
+#define ARIZONA_MIC_DETECT_LEVEL_2		 0x2A7
+#define ARIZONA_MIC_DETECT_LEVEL_3		 0x2A8
+#define ARIZONA_MIC_DETECT_LEVEL_4		 0x2A9
 #define ARIZONA_MIC_NOISE_MIX_CONTROL_1          0x2C3
 #define ARIZONA_ISOLATION_CONTROL                0x2CB
 #define ARIZONA_JACK_DETECT_ANALOGUE             0x2D3

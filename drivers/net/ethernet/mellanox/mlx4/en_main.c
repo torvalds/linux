@@ -300,6 +300,11 @@ static void *mlx4_en_add(struct mlx4_dev *dev)
 		if (mlx4_en_init_netdev(mdev, i, &mdev->profile.prof[i]))
 			mdev->pndev[i] = NULL;
 	}
+
+	/* Initialize time stamp mechanism */
+	if (mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAG2_TS)
+		mlx4_en_init_timestamp(mdev);
+
 	return mdev;
 
 err_mr:

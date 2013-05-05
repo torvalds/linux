@@ -32,13 +32,6 @@ config CAIF_SPI_SYNC
 	help to synchronize to the next transfer in case of over or under-runs.
 	This option also needs to be enabled on the modem.
 
-config CAIF_SHM
-	tristate "CAIF shared memory protocol driver"
-	depends on CAIF && U5500_MBOX
-	default n
-	---help---
-	The CAIF shared memory protocol driver for the STE UX5500 platform.
-
 config CAIF_HSI
        tristate "CAIF HSI transport driver"
        depends on CAIF
@@ -47,3 +40,17 @@ config CAIF_HSI
        The caif low level driver for CAIF over HSI.
        Be aware that if you enable this then you also need to
        enable a low-level HSI driver.
+
+config CAIF_VIRTIO
+	tristate "CAIF virtio transport driver"
+	depends on CAIF
+	select VHOST_RING
+	select VIRTIO
+	select GENERIC_ALLOCATOR
+	default n
+	---help---
+	The caif driver for CAIF over Virtio.
+
+if CAIF_VIRTIO
+source "drivers/vhost/Kconfig"
+endif

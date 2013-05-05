@@ -22,6 +22,8 @@
 #ifndef CX24113_H
 #define CX24113_H
 
+#include <linux/kconfig.h>
+
 struct dvb_frontend;
 
 struct cx24113_config {
@@ -30,8 +32,7 @@ struct cx24113_config {
 	u32 xtal_khz;
 };
 
-#if defined(CONFIG_DVB_TUNER_CX24113) || \
-	(defined(CONFIG_DVB_TUNER_CX24113_MODULE) && defined(MODULE))
+#if IS_ENABLED(CONFIG_DVB_TUNER_CX24113)
 extern struct dvb_frontend *cx24113_attach(struct dvb_frontend *,
 	const struct cx24113_config *config, struct i2c_adapter *i2c);
 

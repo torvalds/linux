@@ -22,6 +22,8 @@
 /* size of the nodename buffer */
 #define UNX_MAXNODENAME	32
 
+struct rpcsec_gss_info;
+
 /* Work around the lack of a VFS credential */
 struct auth_cred {
 	kuid_t	uid;
@@ -103,6 +105,9 @@ struct rpc_authops {
 	int			(*pipes_create)(struct rpc_auth *);
 	void			(*pipes_destroy)(struct rpc_auth *);
 	int			(*list_pseudoflavors)(rpc_authflavor_t *, int);
+	rpc_authflavor_t	(*info2flavor)(struct rpcsec_gss_info *);
+	int			(*flavor2info)(rpc_authflavor_t,
+						struct rpcsec_gss_info *);
 };
 
 struct rpc_credops {
@@ -137,6 +142,10 @@ int			rpcauth_register(const struct rpc_authops *);
 int			rpcauth_unregister(const struct rpc_authops *);
 struct rpc_auth *	rpcauth_create(rpc_authflavor_t, struct rpc_clnt *);
 void			rpcauth_release(struct rpc_auth *);
+rpc_authflavor_t	rpcauth_get_pseudoflavor(rpc_authflavor_t,
+				struct rpcsec_gss_info *);
+int			rpcauth_get_gssinfo(rpc_authflavor_t,
+				struct rpcsec_gss_info *);
 int			rpcauth_list_flavors(rpc_authflavor_t *, int);
 struct rpc_cred *	rpcauth_lookup_credcache(struct rpc_auth *, struct auth_cred *, int);
 void			rpcauth_init_cred(struct rpc_cred *, const struct auth_cred *, struct rpc_auth *, const struct rpc_credops *);

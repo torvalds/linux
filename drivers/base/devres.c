@@ -671,6 +671,80 @@ int devres_release_group(struct device *dev, void *id)
 EXPORT_SYMBOL_GPL(devres_release_group);
 
 /*
+ * Custom devres actions allow inserting a simple function call
+ * into the teadown sequence.
+ */
+
+struct action_devres {
+	void *data;
+	void (*action)(void *);
+};
+
+static int devm_action_match(struct device *dev, void *res, void *p)
+{
+	struct action_devres *devres = res;
+	struct action_devres *target = p;
+
+	return devres->action == target->action &&
+	       devres->data == target->data;
+}
+
+static void devm_action_release(struct device *dev, void *res)
+{
+	struct action_devres *devres = res;
+
+	devres->action(devres->data);
+}
+
+/**
+ * devm_add_action() - add a custom action to list of managed resources
+ * @dev: Device that owns the action
+ * @action: Function that should be called
+ * @data: Pointer to data passed to @action implementation
+ *
+ * This adds a custom action to the list of managed resources so that
+ * it gets executed as part of standard resource unwinding.
+ */
+int devm_add_action(struct device *dev, void (*action)(void *), void *data)
+{
+	struct action_devres *devres;
+
+	devres = devres_alloc(devm_action_release,
+			      sizeof(struct action_devres), GFP_KERNEL);
+	if (!devres)
+		return -ENOMEM;
+
+	devres->data = data;
+	devres->action = action;
+
+	devres_add(dev, devres);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devm_add_action);
+
+/**
+ * devm_remove_action() - removes previously added custom action
+ * @dev: Device that owns the action
+ * @action: Function implementing the action
+ * @data: Pointer to data passed to @action implementation
+ *
+ * Removes instance of @action previously added by devm_add_action().
+ * Both action and data should match one of the existing entries.
+ */
+void devm_remove_action(struct device *dev, void (*action)(void *), void *data)
+{
+	struct action_devres devres = {
+		.data = data,
+		.action = action,
+	};
+
+	WARN_ON(devres_destroy(dev, devm_action_release, devm_action_match,
+			       &devres));
+
+}
+EXPORT_SYMBOL_GPL(devm_remove_action);
+
+/*
  * Managed kzalloc/kfree
  */
 static void devm_kzalloc_release(struct device *dev, void *res)

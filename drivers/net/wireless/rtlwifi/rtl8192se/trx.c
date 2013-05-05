@@ -30,6 +30,7 @@
 #include "../wifi.h"
 #include "../pci.h"
 #include "../base.h"
+#include "../stats.h"
 #include "reg.h"
 #include "def.h"
 #include "phy.h"
@@ -43,72 +44,13 @@ static u8 _rtl92se_map_hwqueue_to_fwqueue(struct sk_buff *skb,	u8 skb_queue)
 
 	if (unlikely(ieee80211_is_beacon(fc)))
 		return QSLT_BEACON;
-	if (ieee80211_is_mgmt(fc))
+	if (ieee80211_is_mgmt(fc) || ieee80211_is_ctl(fc))
 		return QSLT_MGNT;
 	if (ieee80211_is_nullfunc(fc))
 		return QSLT_HIGH;
 
 	return skb->priority;
 }
-
-static u8 _rtl92s_query_rxpwrpercentage(char antpower)
-{
-	if ((antpower <= -100) || (antpower >= 20))
-		return 0;
-	else if (antpower >= 0)
-		return 100;
-	else
-		return 100 + antpower;
-}
-
-static u8 _rtl92s_evm_db_to_percentage(char value)
-{
-	char ret_val;
-	ret_val = value;
-
-	if (ret_val >= 0)
-		ret_val = 0;
-
-	if (ret_val <= -33)
-		ret_val = -33;
-
-	ret_val = 0 - ret_val;
-	ret_val *= 3;
-
-	if (ret_val == 99)
-		ret_val = 100;
-
-	return ret_val;
-}
-
-static long _rtl92se_translate_todbm(struct ieee80211_hw *hw,
-				     u8 signal_strength_index)
-{
-	long signal_power;
-
-	signal_power = (long)((signal_strength_index + 1) >> 1);
-	signal_power -= 95;
-	return signal_power;
-}
-
-static long _rtl92se_signal_scale_mapping(struct ieee80211_hw *hw,
-		long currsig)
-{
-	long retsig = 0;
-
-	/* Step 1. Scale mapping. */
-	if (currsig > 47)
-		retsig = 100;
-	else if (currsig > 14 && currsig <= 47)
-		retsig = 100 - ((47 - currsig) * 3) / 2;
-	else if (currsig > 2 && currsig <= 14)
-		retsig = 48 - ((14 - currsig) * 15) / 7;
-	else if (currsig >= 0)
-		retsig = currsig * 9 + 1;
-
-	return retsig;
-}
-
 
 static void _rtl92se_query_rxphystatus(struct ieee80211_hw *hw,
 				       struct rtl_stats *pstats, u8 *pdesc,
@@ -119,11 +61,11 @@ static void _rtl92se_query_rxphystatus(struct ieee80211_hw *hw,
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct phy_sts_cck_8192s_t *cck_buf;
+	struct rtl_ps_ctl *ppsc = rtl_psc(rtlpriv);
 	s8 rx_pwr_all = 0, rx_pwr[4];
 	u8 rf_rx_num = 0, evm, pwdb_all;
 	u8 i, max_spatial_stream;
 	u32 rssi, total_rssi = 0;
-	bool in_powersavemode = false;
 	bool is_cck = pstats->is_cck;
 
 	pstats->packet_matchbssid = packet_match_bssid;
@@ -136,7 +78,7 @@ static void _rtl92se_query_rxphystatus(struct ieee80211_hw *hw,
 		u8 report, cck_highpwr;
 		cck_buf = (struct phy_sts_cck_8192s_t *)p_drvinfo;
 
-		if (!in_powersavemode)
+		if (ppsc->rfpwr_state == ERFON)
 			cck_highpwr = (u8) rtl_get_bbreg(hw,
 						RFPGA0_XA_HSSIPARAMETER2,
 						0x200);
@@ -181,7 +123,7 @@ static void _rtl92se_query_rxphystatus(struct ieee80211_hw *hw,
 			}
 		}
 
-		pwdb_all = _rtl92s_query_rxpwrpercentage(rx_pwr_all);
+		pwdb_all = rtl_query_rxpwrpercentage(rx_pwr_all);
 
 		/* CCK gain is smaller than OFDM/MCS gain,  */
 		/* so we add gain diff by experiences, the val is 6 */
@@ -222,13 +164,13 @@ static void _rtl92se_query_rxphystatus(struct ieee80211_hw *hw,
 	} else {
 		rtlpriv->dm.rfpath_rxenable[0] =
 		    rtlpriv->dm.rfpath_rxenable[1] = true;
-		for (i = RF90_PATH_A; i < RF90_PATH_MAX; i++) {
+		for (i = RF90_PATH_A; i < RF6052_MAX_PATH; i++) {
 			if (rtlpriv->dm.rfpath_rxenable[i])
 				rf_rx_num++;
 
 			rx_pwr[i] = ((p_drvinfo->gain_trsw[i] &
 				    0x3f) * 2) - 110;
-			rssi = _rtl92s_query_rxpwrpercentage(rx_pwr[i]);
+			rssi = rtl_query_rxpwrpercentage(rx_pwr[i]);
 			total_rssi += rssi;
 			rtlpriv->stats.rx_snr_db[i] =
 					 (long)(p_drvinfo->rxsnr[i] / 2);
@@ -238,7 +180,7 @@ static void _rtl92se_query_rxphystatus(struct ieee80211_hw *hw,
 		}
 
 		rx_pwr_all = ((p_drvinfo->pwdb_all >> 1) & 0x7f) - 110;
-		pwdb_all = _rtl92s_query_rxpwrpercentage(rx_pwr_all);
+		pwdb_all = rtl_query_rxpwrpercentage(rx_pwr_all);
 		pstats->rx_pwdb_all = pwdb_all;
 		pstats->rxpower = rx_pwr_all;
 		pstats->recvsignalpower = rx_pwr_all;
@@ -250,7 +192,7 @@ static void _rtl92se_query_rxphystatus(struct ieee80211_hw *hw,
 			max_spatial_stream = 1;
 
 		for (i = 0; i < max_spatial_stream; i++) {
-			evm = _rtl92s_evm_db_to_percentage(p_drvinfo->rxevm[i]);
+			evm = rtl_evm_db_to_percentage(p_drvinfo->rxevm[i]);
 
 			if (packet_match_bssid) {
 				if (i == 0)
@@ -262,210 +204,11 @@ static void _rtl92se_query_rxphystatus(struct ieee80211_hw *hw,
 	}
 
 	if (is_cck)
-		pstats->signalstrength = (u8)(_rtl92se_signal_scale_mapping(hw,
+		pstats->signalstrength = (u8)(rtl_signal_scale_mapping(hw,
 					 pwdb_all));
 	else if (rf_rx_num != 0)
-		pstats->signalstrength = (u8) (_rtl92se_signal_scale_mapping(hw,
+		pstats->signalstrength = (u8) (rtl_signal_scale_mapping(hw,
 				total_rssi /= rf_rx_num));
-}
-
-static void _rtl92se_process_ui_rssi(struct ieee80211_hw *hw,
-				     struct rtl_stats *pstats)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_phy *rtlphy = &(rtlpriv->phy);
-	u8 rfpath;
-	u32 last_rssi, tmpval;
-
-	if (pstats->packet_toself || pstats->packet_beacon) {
-		rtlpriv->stats.rssi_calculate_cnt++;
-
-		if (rtlpriv->stats.ui_rssi.total_num++ >=
-		    PHY_RSSI_SLID_WIN_MAX) {
-			rtlpriv->stats.ui_rssi.total_num =
-					 PHY_RSSI_SLID_WIN_MAX;
-			last_rssi = rtlpriv->stats.ui_rssi.elements[
-				rtlpriv->stats.ui_rssi.index];
-			rtlpriv->stats.ui_rssi.total_val -= last_rssi;
-		}
-
-		rtlpriv->stats.ui_rssi.total_val += pstats->signalstrength;
-		rtlpriv->stats.ui_rssi.elements[rtlpriv->stats.ui_rssi.index++]
-			 = pstats->signalstrength;
-
-		if (rtlpriv->stats.ui_rssi.index >= PHY_RSSI_SLID_WIN_MAX)
-			rtlpriv->stats.ui_rssi.index = 0;
-
-		tmpval = rtlpriv->stats.ui_rssi.total_val /
-			rtlpriv->stats.ui_rssi.total_num;
-		rtlpriv->stats.signal_strength = _rtl92se_translate_todbm(hw,
-								(u8) tmpval);
-		pstats->rssi = rtlpriv->stats.signal_strength;
-	}
-
-	if (!pstats->is_cck && pstats->packet_toself) {
-		for (rfpath = RF90_PATH_A; rfpath < rtlphy->num_total_rfpath;
-		     rfpath++) {
-			if (rtlpriv->stats.rx_rssi_percentage[rfpath] == 0) {
-				rtlpriv->stats.rx_rssi_percentage[rfpath] =
-				    pstats->rx_mimo_signalstrength[rfpath];
-
-			}
-
-			if (pstats->rx_mimo_signalstrength[rfpath] >
-			    rtlpriv->stats.rx_rssi_percentage[rfpath]) {
-				rtlpriv->stats.rx_rssi_percentage[rfpath] =
-				    ((rtlpriv->stats.rx_rssi_percentage[rfpath]
-				    * (RX_SMOOTH_FACTOR - 1)) +
-				    (pstats->rx_mimo_signalstrength[rfpath])) /
-				    (RX_SMOOTH_FACTOR);
-
-				rtlpriv->stats.rx_rssi_percentage[rfpath] =
-				    rtlpriv->stats.rx_rssi_percentage[rfpath]
-				    + 1;
-			} else {
-				rtlpriv->stats.rx_rssi_percentage[rfpath] =
-				    ((rtlpriv->stats.rx_rssi_percentage[rfpath]
-				    * (RX_SMOOTH_FACTOR - 1)) +
-				    (pstats->rx_mimo_signalstrength[rfpath])) /
-				    (RX_SMOOTH_FACTOR);
-			}
-
-		}
-	}
-}
-
-static void _rtl92se_update_rxsignalstatistics(struct ieee80211_hw *hw,
-					       struct rtl_stats *pstats)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	int weighting = 0;
-
-	if (rtlpriv->stats.recv_signal_power == 0)
-		rtlpriv->stats.recv_signal_power = pstats->recvsignalpower;
-
-	if (pstats->recvsignalpower > rtlpriv->stats.recv_signal_power)
-		weighting = 5;
-	else if (pstats->recvsignalpower < rtlpriv->stats.recv_signal_power)
-		weighting = (-5);
-
-	rtlpriv->stats.recv_signal_power = (rtlpriv->stats.recv_signal_power * 5
-					   + pstats->recvsignalpower +
-					   weighting) / 6;
-}
-
-static void _rtl92se_process_pwdb(struct ieee80211_hw *hw,
-				  struct rtl_stats *pstats)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
-	long undec_sm_pwdb = 0;
-
-	if (mac->opmode == NL80211_IFTYPE_ADHOC) {
-		return;
-	} else {
-		undec_sm_pwdb =
-		    rtlpriv->dm.undec_sm_pwdb;
-	}
-
-	if (pstats->packet_toself || pstats->packet_beacon) {
-		if (undec_sm_pwdb < 0)
-			undec_sm_pwdb = pstats->rx_pwdb_all;
-
-		if (pstats->rx_pwdb_all > (u32) undec_sm_pwdb) {
-			undec_sm_pwdb =
-			    (((undec_sm_pwdb) *
-			    (RX_SMOOTH_FACTOR - 1)) +
-			    (pstats->rx_pwdb_all)) / (RX_SMOOTH_FACTOR);
-
-			undec_sm_pwdb = undec_sm_pwdb + 1;
-		} else {
-			undec_sm_pwdb = (((undec_sm_pwdb) *
-			      (RX_SMOOTH_FACTOR - 1)) + (pstats->rx_pwdb_all)) /
-			      (RX_SMOOTH_FACTOR);
-		}
-
-		rtlpriv->dm.undec_sm_pwdb = undec_sm_pwdb;
-		_rtl92se_update_rxsignalstatistics(hw, pstats);
-	}
-}
-
-static void rtl_92s_process_streams(struct ieee80211_hw *hw,
-				    struct rtl_stats *pstats)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	u32 stream;
-
-	for (stream = 0; stream < 2; stream++) {
-		if (pstats->rx_mimo_sig_qual[stream] != -1) {
-			if (rtlpriv->stats.rx_evm_percentage[stream] == 0) {
-				rtlpriv->stats.rx_evm_percentage[stream] =
-				    pstats->rx_mimo_sig_qual[stream];
-			}
-
-			rtlpriv->stats.rx_evm_percentage[stream] =
-			    ((rtlpriv->stats.rx_evm_percentage[stream] *
-					(RX_SMOOTH_FACTOR - 1)) +
-			     (pstats->rx_mimo_sig_qual[stream] *
-					1)) / (RX_SMOOTH_FACTOR);
-		}
-	}
-}
-
-static void _rtl92se_process_ui_link_quality(struct ieee80211_hw *hw,
-					     struct rtl_stats *pstats)
-{
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	u32 last_evm = 0, tmpval;
-
-	if (pstats->signalquality != 0) {
-		if (pstats->packet_toself || pstats->packet_beacon) {
-
-			if (rtlpriv->stats.ui_link_quality.total_num++ >=
-			    PHY_LINKQUALITY_SLID_WIN_MAX) {
-				rtlpriv->stats.ui_link_quality.total_num =
-				    PHY_LINKQUALITY_SLID_WIN_MAX;
-				last_evm =
-				    rtlpriv->stats.ui_link_quality.elements[
-				    rtlpriv->stats.ui_link_quality.index];
-				rtlpriv->stats.ui_link_quality.total_val -=
-				    last_evm;
-			}
-
-			rtlpriv->stats.ui_link_quality.total_val +=
-			    pstats->signalquality;
-			rtlpriv->stats.ui_link_quality.elements[
-				rtlpriv->stats.ui_link_quality.index++] =
-			    pstats->signalquality;
-
-			if (rtlpriv->stats.ui_link_quality.index >=
-			    PHY_LINKQUALITY_SLID_WIN_MAX)
-				rtlpriv->stats.ui_link_quality.index = 0;
-
-			tmpval = rtlpriv->stats.ui_link_quality.total_val /
-			    rtlpriv->stats.ui_link_quality.total_num;
-			rtlpriv->stats.signal_quality = tmpval;
-
-			rtlpriv->stats.last_sigstrength_inpercent = tmpval;
-
-			rtl_92s_process_streams(hw, pstats);
-
-		}
-	}
-}
-
-static void _rtl92se_process_phyinfo(struct ieee80211_hw *hw,
-				     u8 *buffer,
-				     struct rtl_stats *pcurrent_stats)
-{
-
-	if (!pcurrent_stats->packet_matchbssid &&
-	    !pcurrent_stats->packet_beacon)
-		return;
-
-	_rtl92se_process_ui_rssi(hw, pcurrent_stats);
-	_rtl92se_process_pwdb(hw, pcurrent_stats);
-	_rtl92se_process_ui_link_quality(hw, pcurrent_stats);
 }
 
 static void _rtl92se_translate_rx_signal_stuff(struct ieee80211_hw *hw,
@@ -505,7 +248,7 @@ static void _rtl92se_translate_rx_signal_stuff(struct ieee80211_hw *hw,
 
 	_rtl92se_query_rxphystatus(hw, pstats, pdesc, p_drvinfo,
 			packet_matchbssid, packet_toself, packet_beacon);
-	_rtl92se_process_phyinfo(hw, tmp_buf, pstats);
+	rtl_process_phyinfo(hw, tmp_buf, pstats);
 }
 
 bool rtl92se_rx_query_desc(struct ieee80211_hw *hw, struct rtl_stats *stats,
@@ -538,11 +281,8 @@ bool rtl92se_rx_query_desc(struct ieee80211_hw *hw, struct rtl_stats *stats,
 	if (stats->hwerror)
 		return false;
 
-	rx_status->freq = hw->conf.channel->center_freq;
-	rx_status->band = hw->conf.channel->band;
-
-	hdr = (struct ieee80211_hdr *)(skb->data + stats->rx_drvinfo_size
-	      + stats->rx_bufshift);
+	rx_status->freq = hw->conf.chandef.chan->center_freq;
+	rx_status->band = hw->conf.chandef.chan->band;
 
 	if (stats->crc)
 		rx_status->flag |= RX_FLAG_FAILED_FCS_CRC;
@@ -563,6 +303,13 @@ bool rtl92se_rx_query_desc(struct ieee80211_hw *hw, struct rtl_stats *stats,
 	 * for IEEE80211w frame, and mac80211 sw will help
 	 * to decrypt it */
 	if (stats->decrypted) {
+		hdr = (struct ieee80211_hdr *)(skb->data +
+		       stats->rx_drvinfo_size + stats->rx_bufshift);
+
+		if (!hdr) {
+			/* during testing, hdr was NULL here */
+			return false;
+		}
 		if ((ieee80211_is_robust_mgmt_frame(hdr)) &&
 			(ieee80211_has_protected(hdr->frame_control)))
 			rx_status->flag &= ~RX_FLAG_DECRYPTED;
@@ -629,6 +376,11 @@ void rtl92se_tx_fill_desc(struct ieee80211_hw *hw,
 	rtl_get_tcb_desc(hw, info, sta, skb, ptcb_desc);
 
 	CLEAR_PCI_TX_DESC_CONTENT(pdesc, TX_DESC_SIZE_RTL8192S);
+
+	if (ieee80211_is_nullfunc(fc) || ieee80211_is_ctl(fc)) {
+		firstseg = true;
+		lastseg = true;
+	}
 
 	if (firstseg) {
 		if (rtlpriv->dm.useramask) {

@@ -379,7 +379,8 @@ static const struct abx500_function ab9540_functions[] = {
  *	alt_A	|       1       |          0          |          0
  */
 
-struct alternate_functions ab9540alternate_functions[AB9540_GPIO_MAX_NUMBER + 1] = {
+static struct
+alternate_functions ab9540alternate_functions[AB9540_GPIO_MAX_NUMBER + 1] = {
 	/* GPIOSEL1 - bits 4-7 are reserved */
 	ALTERNATE_FUNCTIONS(0, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO0 */
 	ALTERNATE_FUNCTIONS(1,	    0, UNUSED, UNUSED, 0, 0, 0), /* GPIO1, altA controlled by bit 0 */
@@ -393,7 +394,7 @@ struct alternate_functions ab9540alternate_functions[AB9540_GPIO_MAX_NUMBER + 1]
 	/* GPIOSEL2 - bits 0 and 3 are reserved */
 	ALTERNATE_FUNCTIONS(9, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO9 */
 	ALTERNATE_FUNCTIONS(10,      1,      0, UNUSED, 1, 0, 0), /* GPIO10, altA and altB controlled by bit 0 */
-	ALTERNATE_FUNCTIONS(11,      2, UNUSED, UNUSED, 0, 0, 0), /* GPIO11, altA controlled by bit 1 */
+	ALTERNATE_FUNCTIONS(11,      2,	     1, UNUSED, 0, 0, 0), /* GPIO11, altA controlled by bit 1 */
 	ALTERNATE_FUNCTIONS(12, UNUSED, UNUSED, UNUSED, 0, 0, 0), /* no GPIO12 */
 	ALTERNATE_FUNCTIONS(13,      4,      3,      4, 1, 0, 2), /* GPIO13, altA altB and altC controlled by bit 3 and 4 */
 	ALTERNATE_FUNCTIONS(14,      5, UNUSED, UNUSED, 0, 0, 0), /* GPIO14, altA controlled by bit 5 */
@@ -454,7 +455,7 @@ struct alternate_functions ab9540alternate_functions[AB9540_GPIO_MAX_NUMBER + 1]
 	ALTERNATE_FUNCTIONS(54,	     5, UNUSED, UNUSED, 0, 0, 0), /* GPIO54 = GPIO60, altA controlled by bit 5 */
 };
 
-struct abx500_gpio_irq_cluster ab9540_gpio_irq_cluster[] = {
+static struct abx500_gpio_irq_cluster ab9540_gpio_irq_cluster[] = {
 	GPIO_IRQ_CLUSTER(10, 13, AB8500_INT_GPIO10R),
 	GPIO_IRQ_CLUSTER(24, 25, AB8500_INT_GPIO24R),
 	GPIO_IRQ_CLUSTER(40, 41, AB8500_INT_GPIO40R),

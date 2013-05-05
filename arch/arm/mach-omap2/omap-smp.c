@@ -21,7 +21,6 @@
 #include <linux/io.h>
 #include <linux/irqchip/arm-gic.h>
 
-#include <asm/cacheflush.h>
 #include <asm/smp_scu.h>
 
 #include "omap-secure.h"
@@ -67,13 +66,6 @@ static void __cpuinit omap4_secondary_init(unsigned int cpu)
 							4, 0, 0, 0, 0, 0);
 
 	/*
-	 * If any interrupts are already enabled for the primary
-	 * core (e.g. timer irq), then they will not have been enabled
-	 * for us: do so
-	 */
-	gic_secondary_init(0);
-
-	/*
 	 * Synchronise with the boot thread.
 	 */
 	spin_lock(&boot_lock);
@@ -84,6 +76,7 @@ static int __cpuinit omap4_boot_secondary(unsigned int cpu, struct task_struct *
 {
 	static struct clockdomain *cpu1_clkdm;
 	static bool booted;
+	static struct powerdomain *cpu1_pwrdm;
 	void __iomem *base = omap_get_wakeupgen_base();
 
 	/*
@@ -103,11 +96,10 @@ static int __cpuinit omap4_boot_secondary(unsigned int cpu, struct task_struct *
 	else
 		__raw_writel(0x20, base + OMAP_AUX_CORE_BOOT_0);
 
-	flush_cache_all();
-	smp_wmb();
-
-	if (!cpu1_clkdm)
+	if (!cpu1_clkdm && !cpu1_pwrdm) {
 		cpu1_clkdm = clkdm_lookup("mpu1_clkdm");
+		cpu1_pwrdm = pwrdm_lookup("cpu1_pwrdm");
+	}
 
 	/*
 	 * The SGI(Software Generated Interrupts) are not wakeup capable
@@ -120,7 +112,7 @@ static int __cpuinit omap4_boot_secondary(unsigned int cpu, struct task_struct *
 	 * Section :
 	 *	4.3.4.2 Power States of CPU0 and CPU1
 	 */
-	if (booted) {
+	if (booted && cpu1_pwrdm && cpu1_clkdm) {
 		/*
 		 * GIC distributor control register has changed between
 		 * CortexA9 r1pX and r2pX. The Control Register secure
@@ -141,7 +133,12 @@ static int __cpuinit omap4_boot_secondary(unsigned int cpu, struct task_struct *
 			gic_dist_disable();
 		}
 
+		/*
+		 * Ensure that CPU power state is set to ON to avoid CPU
+		 * powerdomain transition on wfi
+		 */
 		clkdm_wakeup(cpu1_clkdm);
+		omap_set_pwrdm_state(cpu1_pwrdm, PWRDM_POWER_ON);
 		clkdm_allow_idle(cpu1_clkdm);
 
 		if (IS_PM44XX_ERRATUM(PM_OMAP4_ROM_SMP_BOOT_ERRATUM_GICD)) {
@@ -166,38 +163,6 @@ static int __cpuinit omap4_boot_secondary(unsigned int cpu, struct task_struct *
 	spin_unlock(&boot_lock);
 
 	return 0;
-}
-
-static void __init wakeup_secondary(void)
-{
-	void *startup_addr = omap_secondary_startup;
-	void __iomem *base = omap_get_wakeupgen_base();
-
-	if (cpu_is_omap446x()) {
-		startup_addr = omap_secondary_startup_4460;
-		pm44xx_errata |= PM_OMAP4_ROM_SMP_BOOT_ERRATUM_GICD;
-	}
-
-	/*
-	 * Write the address of secondary startup routine into the
-	 * AuxCoreBoot1 where ROM code will jump and start executing
-	 * on secondary core once out of WFE
-	 * A barrier is added to ensure that write buffer is drained
-	 */
-	if (omap_secure_apis_support())
-		omap_auxcoreboot_addr(virt_to_phys(startup_addr));
-	else
-		__raw_writel(virt_to_phys(omap5_secondary_startup),
-						base + OMAP_AUX_CORE_BOOT_1);
-
-	smp_wmb();
-
-	/*
-	 * Send a 'sev' to wake the secondary core from WFE.
-	 * Drain the outstanding writes to memory
-	 */
-	dsb_sev();
-	mb();
 }
 
 /*
@@ -235,6 +200,8 @@ static void __init omap4_smp_init_cpus(void)
 
 static void __init omap4_smp_prepare_cpus(unsigned int max_cpus)
 {
+	void *startup_addr = omap_secondary_startup;
+	void __iomem *base = omap_get_wakeupgen_base();
 
 	/*
 	 * Initialise the SCU and wake up the secondary core using
@@ -242,7 +209,24 @@ static void __init omap4_smp_prepare_cpus(unsigned int max_cpus)
 	 */
 	if (scu_base)
 		scu_enable(scu_base);
-	wakeup_secondary();
+
+	if (cpu_is_omap446x()) {
+		startup_addr = omap_secondary_startup_4460;
+		pm44xx_errata |= PM_OMAP4_ROM_SMP_BOOT_ERRATUM_GICD;
+	}
+
+	/*
+	 * Write the address of secondary startup routine into the
+	 * AuxCoreBoot1 where ROM code will jump and start executing
+	 * on secondary core once out of WFE
+	 * A barrier is added to ensure that write buffer is drained
+	 */
+	if (omap_secure_apis_support())
+		omap_auxcoreboot_addr(virt_to_phys(startup_addr));
+	else
+		__raw_writel(virt_to_phys(omap5_secondary_startup),
+						base + OMAP_AUX_CORE_BOOT_1);
+
 }
 
 struct smp_operations omap4_smp_ops __initdata = {

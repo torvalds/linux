@@ -23,15 +23,26 @@
 #include <linux/interrupt.h>
 #include <linux/irqdomain.h>
 #include <linux/irq.h>
+#include <linux/irqchip/chained_irq.h>
 #include <linux/of_irq.h>
 #include <linux/io.h>
 #include <linux/slab.h>
+#include <linux/spinlock.h>
 #include <linux/err.h>
-
-#include <asm/mach/irq.h>
 
 #include "pinctrl-samsung.h"
 #include "pinctrl-exynos.h"
+
+
+static struct samsung_pin_bank_type bank_type_off = {
+	.fld_width = { 4, 1, 2, 2, 2, 2, },
+	.reg_offset = { 0x00, 0x04, 0x08, 0x0c, 0x10, 0x14, },
+};
+
+static struct samsung_pin_bank_type bank_type_alive = {
+	.fld_width = { 4, 1, 2, 2, },
+	.reg_offset = { 0x00, 0x04, 0x08, 0x0c, },
+};
 
 /* list of external wakeup controllers supported */
 static const struct of_device_id exynos_wkup_irq_ids[] = {
@@ -75,12 +86,14 @@ static void exynos_gpio_irq_ack(struct irq_data *irqd)
 static int exynos_gpio_irq_set_type(struct irq_data *irqd, unsigned int type)
 {
 	struct samsung_pin_bank *bank = irq_data_get_irq_chip_data(irqd);
+	struct samsung_pin_bank_type *bank_type = bank->type;
 	struct samsung_pinctrl_drv_data *d = bank->drvdata;
 	struct samsung_pin_ctrl *ctrl = d->ctrl;
 	unsigned int pin = irqd->hwirq;
 	unsigned int shift = EXYNOS_EINT_CON_LEN * pin;
 	unsigned int con, trig_type;
 	unsigned long reg_con = ctrl->geint_con + bank->eint_offset;
+	unsigned long flags;
 	unsigned int mask;
 
 	switch (type) {
@@ -114,14 +127,18 @@ static int exynos_gpio_irq_set_type(struct irq_data *irqd, unsigned int type)
 	con |= trig_type << shift;
 	writel(con, d->virt_base + reg_con);
 
-	reg_con = bank->pctl_offset;
-	shift = pin * bank->func_width;
-	mask = (1 << bank->func_width) - 1;
+	reg_con = bank->pctl_offset + bank_type->reg_offset[PINCFG_TYPE_FUNC];
+	shift = pin * bank_type->fld_width[PINCFG_TYPE_FUNC];
+	mask = (1 << bank_type->fld_width[PINCFG_TYPE_FUNC]) - 1;
+
+	spin_lock_irqsave(&bank->slock, flags);
 
 	con = readl(d->virt_base + reg_con);
 	con &= ~(mask << shift);
 	con |= EXYNOS_EINT_FUNC << shift;
 	writel(con, d->virt_base + reg_con);
+
+	spin_unlock_irqrestore(&bank->slock, flags);
 
 	return 0;
 }
@@ -253,11 +270,13 @@ static void exynos_wkup_irq_ack(struct irq_data *irqd)
 static int exynos_wkup_irq_set_type(struct irq_data *irqd, unsigned int type)
 {
 	struct samsung_pin_bank *bank = irq_data_get_irq_chip_data(irqd);
+	struct samsung_pin_bank_type *bank_type = bank->type;
 	struct samsung_pinctrl_drv_data *d = bank->drvdata;
 	unsigned int pin = irqd->hwirq;
 	unsigned long reg_con = d->ctrl->weint_con + bank->eint_offset;
 	unsigned long shift = EXYNOS_EINT_CON_LEN * pin;
 	unsigned long con, trig_type;
+	unsigned long flags;
 	unsigned int mask;
 
 	switch (type) {
@@ -291,14 +310,18 @@ static int exynos_wkup_irq_set_type(struct irq_data *irqd, unsigned int type)
 	con |= trig_type << shift;
 	writel(con, d->virt_base + reg_con);
 
-	reg_con = bank->pctl_offset;
-	shift = pin * bank->func_width;
-	mask = (1 << bank->func_width) - 1;
+	reg_con = bank->pctl_offset + bank_type->reg_offset[PINCFG_TYPE_FUNC];
+	shift = pin * bank_type->fld_width[PINCFG_TYPE_FUNC];
+	mask = (1 << bank_type->fld_width[PINCFG_TYPE_FUNC]) - 1;
+
+	spin_lock_irqsave(&bank->slock, flags);
 
 	con = readl(d->virt_base + reg_con);
 	con &= ~(mask << shift);
 	con |= EXYNOS_EINT_FUNC << shift;
 	writel(con, d->virt_base + reg_con);
+
+	spin_unlock_irqrestore(&bank->slock, flags);
 
 	return 0;
 }

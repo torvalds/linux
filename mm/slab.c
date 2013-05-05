@@ -2040,11 +2040,9 @@ static void print_objinfo(struct kmem_cache *cachep, void *objp, int lines)
 	}
 
 	if (cachep->flags & SLAB_STORE_USER) {
-		printk(KERN_ERR "Last user: [<%p>]",
-			*dbg_userword(cachep, objp));
-		print_symbol("(%s)",
-				(unsigned long)*dbg_userword(cachep, objp));
-		printk("\n");
+		printk(KERN_ERR "Last user: [<%p>](%pSR)\n",
+		       *dbg_userword(cachep, objp),
+		       *dbg_userword(cachep, objp));
 	}
 	realobj = (char *)objp + obj_offset(cachep);
 	size = cachep->object_size;

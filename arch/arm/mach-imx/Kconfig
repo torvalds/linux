@@ -83,22 +83,10 @@ config ARCH_MXC_IOMUX_V3
 config ARCH_MX1
 	bool
 
-config MACH_MX21
-	bool
-
 config ARCH_MX25
 	bool
 
 config MACH_MX27
-	bool
-
-config ARCH_MX5
-	bool
-
-config ARCH_MX51
-	bool
-
-config ARCH_MX53
 	bool
 
 config SOC_IMX1
@@ -114,7 +102,6 @@ config SOC_IMX21
 	select COMMON_CLK
 	select CPU_ARM926T
 	select IMX_HAVE_IOMUX_V1
-	select MACH_MX21
 	select MXC_AVIC
 
 config SOC_IMX25
@@ -155,7 +142,6 @@ config SOC_IMX35
 config SOC_IMX5
 	bool
 	select ARCH_HAS_CPUFREQ
-	select ARCH_MX5
 	select ARCH_MXC_IOMUX_V3
 	select COMMON_CLK
 	select CPU_V7
@@ -163,8 +149,7 @@ config SOC_IMX5
 
 config	SOC_IMX51
 	bool
-	select ARCH_MX5
-	select ARCH_MX51
+	select HAVE_IMX_SRC
 	select PINCTRL
 	select PINCTRL_IMX51
 	select SOC_IMX5
@@ -789,9 +774,8 @@ comment "Device tree only"
 
 config	SOC_IMX53
 	bool "i.MX53 support"
-	select ARCH_MX5
-	select ARCH_MX53
 	select HAVE_CAN_FLEXCAN if CAN
+	select HAVE_IMX_SRC
 	select IMX_HAVE_PLATFORM_IMX2_WDT
 	select PINCTRL
 	select PINCTRL_IMX53
@@ -811,7 +795,8 @@ config SOC_IMX6Q
 	select ARM_GIC
 	select COMMON_CLK
 	select CPU_V7
-	select HAVE_ARM_SCU
+	select HAVE_ARM_SCU if SMP
+	select HAVE_ARM_TWD if LOCAL_TIMERS
 	select HAVE_CAN_FLEXCAN if CAN
 	select HAVE_IMX_GPC
 	select HAVE_IMX_MMDC

@@ -44,6 +44,8 @@ parameter is applicable:
 	AVR32	AVR32 architecture is enabled.
 	AX25	Appropriate AX.25 support is enabled.
 	BLACKFIN Blackfin architecture is enabled.
+	CLK	Common clock infrastructure is enabled.
+	CMA	Contiguous Memory Area support is enabled.
 	DRM	Direct Rendering Management support is enabled.
 	DYNAMIC_DEBUG Build in debug messages and enable them at runtime
 	EDD	BIOS Enhanced Disk Drive Services (EDD) is enabled
@@ -320,6 +322,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			on: enable for both 32- and 64-bit processes
 			off: disable for both 32- and 64-bit processes
 
+	alloc_snapshot	[FTRACE]
+			Allocate the ftrace snapshot buffer on boot up when the
+			main buffer is allocated. This is handy if debugging
+			and you need to use tracing_snapshot() on boot up, and
+			do not want to use tracing_snapshot_alloc() as it needs
+			to be done where GFP_KERNEL allocations are allowed.
+
 	amd_iommu=	[HW,X86-64]
 			Pass parameters to the AMD IOMMU driver in the system.
 			Possible values are:
@@ -465,6 +474,13 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	cio_ignore=	[S390]
 			See Documentation/s390/CommonIO for details.
+	clk_ignore_unused
+			[CLK]
+			Keep all clocks already enabled by bootloader on,
+			even if no driver has claimed them. This is useful
+			for debug and development, but should not be
+			needed on a platform with proper driver support.
+			For more information, see Documentation/clk.txt.
 
 	clock=		[BUGS=X86-32, HW] gettimeofday clocksource override.
 			[Deprecated]
@@ -774,19 +790,31 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			(mmio) or 32-bit (mmio32).
 			The options are the same as for ttyS, above.
 
-	earlyprintk=	[X86,SH,BLACKFIN]
+	earlyprintk=	[X86,SH,BLACKFIN,ARM]
 			earlyprintk=vga
 			earlyprintk=xen
 			earlyprintk=serial[,ttySn[,baudrate]]
+			earlyprintk=serial[,0x...[,baudrate]]
 			earlyprintk=ttySn[,baudrate]
 			earlyprintk=dbgp[debugController#]
+
+			earlyprintk is useful when the kernel crashes before
+			the normal console is initialized. It is not enabled by
+			default because it has some cosmetic problems.
 
 			Append ",keep" to not disable it when the real console
 			takes over.
 
 			Only vga or serial or usb debug port at a time.
 
-			Currently only ttyS0 and ttyS1 are supported.
+			Currently only ttyS0 and ttyS1 may be specified by
+			name.  Other I/O ports may be explicitly specified
+			on some architectures (x86 and arm at least) by
+			replacing ttySn with an I/O port address, like this:
+				earlyprintk=serial,0x1008,115200
+			You can find the port for a given device in
+			/proc/tty/driver/serial:
+				2: uart:ST16650V2 port:00001008 irq:18 ...
 
 			Interaction with the standard serial driver is not
 			very good.
@@ -1648,7 +1676,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	module.sig_enforce
 			[KNL] When CONFIG_MODULE_SIG is set, this means that
 			modules without (valid) signatures will fail to load.
-			Note that if CONFIG_MODULE_SIG_ENFORCE is set, that
+			Note that if CONFIG_MODULE_SIG_FORCE is set, that
 			is always true, so this option does nothing.
 
 	mousedev.tap_time=
@@ -1996,8 +2024,6 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	noreplace-smp	[X86-32,SMP] Don't replace SMP instructions
 			with UP alternatives
-
-	noresidual	[PPC] Don't use residual data on PReP machines.
 
 	nordrand	[X86] Disable the direct use of the RDRAND
 			instruction even if it is supported by the
@@ -2699,6 +2725,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			Useful for devices that are detected asynchronously
 			(e.g. USB and MMC devices).
 
+	rproc_mem=nn[KMG][@address]
+			[KNL,ARM,CMA] Remoteproc physical memory block.
+			Memory area to be used by remote processor image,
+			managed by CMA.
+
 	rw		[KNL] Mount root device read-write on boot
 
 	S		[KNL] Run init in single mode
@@ -3257,6 +3288,15 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			see Documentation/watchdog/watchdog-parameters.txt
 			or other driver-specific files in the
 			Documentation/watchdog/ directory.
+
+	workqueue.disable_numa
+			By default, all work items queued to unbound
+			workqueues are affine to the NUMA nodes they're
+			issued on, which results in better behavior in
+			general.  If NUMA affinity needs to be disabled for
+			whatever reason, this option can be used.  Note
+			that this also can be controlled per-workqueue for
+			workqueues visible under /sys/bus/workqueue/.
 
 	x2apic_phys	[X86-64,APIC] Use x2apic physical mode instead of
 			default x2apic cluster mode on platforms

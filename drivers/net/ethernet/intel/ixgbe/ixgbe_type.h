@@ -56,10 +56,13 @@
 #define IXGBE_SUBDEV_ID_82599_SFP        0x11A9
 #define IXGBE_SUBDEV_ID_82599_RNDC       0x1F72
 #define IXGBE_SUBDEV_ID_82599_560FLR     0x17D0
+#define IXGBE_SUBDEV_ID_82599_SP_560FLR  0x211B
 #define IXGBE_SUBDEV_ID_82599_ECNA_DP    0x0470
+#define IXGBE_SUBDEV_ID_82599_LOM_SFP    0x8976
 #define IXGBE_DEV_ID_82599_SFP_EM        0x1507
 #define IXGBE_DEV_ID_82599_SFP_SF2       0x154D
 #define IXGBE_DEV_ID_82599EN_SFP         0x1557
+#define IXGBE_SUBDEV_ID_82599EN_SFP_OCP1 0x0001
 #define IXGBE_DEV_ID_82599_XAUI_LOM      0x10FC
 #define IXGBE_DEV_ID_82599_COMBO_BACKPLANE 0x10F8
 #define IXGBE_SUBDEV_ID_82599_KX4_KR_MEZZ  0x000C
@@ -729,6 +732,13 @@ struct ixgbe_thermal_sensor_data {
 #define IXGBE_MDEF_EXT(_i) (0x05160 + ((_i) * 4)) /* 8 of these (0-7) */
 #define IXGBE_LSWFW     0x15014
 
+/* Management Bit Fields and Masks */
+#define IXGBE_MANC_RCV_TCO_EN	0x00020000 /* Rcv TCO packet enable */
+
+/* Firmware Semaphore Register */
+#define IXGBE_FWSM_MODE_MASK	0xE
+#define IXGBE_FWSM_FW_MODE_PT	0x4
+
 /* ARC Subsystem registers */
 #define IXGBE_HICR      0x15F00
 #define IXGBE_FWSTS     0x15F0C
@@ -1019,6 +1029,7 @@ struct ixgbe_thermal_sensor_data {
 #define IXGBE_CTRL_RST_MASK     (IXGBE_CTRL_LNK_RST | IXGBE_CTRL_RST)
 
 /* FACTPS */
+#define IXGBE_FACTPS_MNGCG      0x20000000 /* Manageblility Clock Gated */
 #define IXGBE_FACTPS_LFS        0x40000000 /* LAN Function Select */
 
 /* MHADD Bit Masks */
@@ -1582,6 +1593,7 @@ enum {
 #define IXGBE_AUTOC2_10G_KR  (0x0 << IXGBE_AUTOC2_10G_SERIAL_PMA_PMD_SHIFT)
 #define IXGBE_AUTOC2_10G_XFI (0x1 << IXGBE_AUTOC2_10G_SERIAL_PMA_PMD_SHIFT)
 #define IXGBE_AUTOC2_10G_SFI (0x2 << IXGBE_AUTOC2_10G_SERIAL_PMA_PMD_SHIFT)
+#define IXGBE_AUTOC2_LINK_DISABLE_MASK        0x70000000
 
 #define IXGBE_MACC_FLU       0x00000001
 #define IXGBE_MACC_FSV_10G   0x00030000
@@ -1827,6 +1839,7 @@ enum {
 #define IXGBE_PCI_LINK_SPEED      0xF
 #define IXGBE_PCI_LINK_SPEED_2500 0x1
 #define IXGBE_PCI_LINK_SPEED_5000 0x2
+#define IXGBE_PCI_LINK_SPEED_8000 0x3
 #define IXGBE_PCI_HEADER_TYPE_REGISTER  0x0E
 #define IXGBE_PCI_HEADER_TYPE_MULTIFUNC 0x80
 #define IXGBE_PCI_DEVICE_CONTROL2_16ms  0x0005
@@ -2600,6 +2613,8 @@ enum ixgbe_sfp_type {
 	ixgbe_sfp_type_1g_cu_core1 = 10,
 	ixgbe_sfp_type_1g_sx_core0 = 11,
 	ixgbe_sfp_type_1g_sx_core1 = 12,
+	ixgbe_sfp_type_1g_lx_core0 = 13,
+	ixgbe_sfp_type_1g_lx_core1 = 14,
 	ixgbe_sfp_type_not_present = 0xFFFE,
 	ixgbe_sfp_type_unknown = 0xFFFF
 };
@@ -2650,6 +2665,7 @@ enum ixgbe_bus_speed {
 	ixgbe_bus_speed_133     = 133,
 	ixgbe_bus_speed_2500    = 2500,
 	ixgbe_bus_speed_5000    = 5000,
+	ixgbe_bus_speed_8000    = 8000,
 	ixgbe_bus_speed_reserved
 };
 
@@ -2859,6 +2875,7 @@ struct ixgbe_mac_operations {
 	s32 (*set_fw_drv_ver)(struct ixgbe_hw *, u8, u8, u8, u8);
 	s32 (*get_thermal_sensor_data)(struct ixgbe_hw *);
 	s32 (*init_thermal_sensor_thresh)(struct ixgbe_hw *hw);
+	bool (*mng_fw_enabled)(struct ixgbe_hw *hw);
 };
 
 struct ixgbe_phy_operations {
@@ -2912,6 +2929,7 @@ struct ixgbe_mac_info {
 	u32                             max_tx_queues;
 	u32                             max_rx_queues;
 	u32                             orig_autoc;
+	u32                             cached_autoc;
 	u32                             orig_autoc2;
 	bool                            orig_link_settings_stored;
 	bool                            autotry_restart;
@@ -2986,6 +3004,8 @@ struct ixgbe_hw {
 	bool				adapter_stopped;
 	bool				force_full_reset;
 	bool				allow_unsupported_sfp;
+	bool				mng_fw_enabled;
+	bool				wol_enabled;
 };
 
 struct ixgbe_info {

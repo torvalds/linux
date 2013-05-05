@@ -124,6 +124,7 @@ struct rpc_create_args {
 #define RPC_CLNT_CREATE_NOPING		(1UL << 4)
 #define RPC_CLNT_CREATE_DISCRTRY	(1UL << 5)
 #define RPC_CLNT_CREATE_QUIET		(1UL << 6)
+#define RPC_CLNT_CREATE_INFINITE_SLOTS	(1UL << 7)
 
 struct rpc_clnt *rpc_create(struct rpc_create_args *args);
 struct rpc_clnt	*rpc_bind_new_program(struct rpc_clnt *,

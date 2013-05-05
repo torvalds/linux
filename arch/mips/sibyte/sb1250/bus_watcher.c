@@ -30,6 +30,7 @@
 #include <linux/interrupt.h>
 #include <linux/sched.h>
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include <asm/io.h>
 
 #include <asm/sibyte/sb1250.h>
@@ -99,63 +100,60 @@ void check_bus_watcher(void)
 		printk("Bus watcher indicates no error\n");
 }
 
-static int bw_print_buffer(char *page, struct bw_stats_struct *stats)
-{
-	int len;
-
-	len = sprintf(page, "SiByte Bus Watcher statistics\n");
-	len += sprintf(page+len, "-----------------------------\n");
-	len += sprintf(page+len, "L2-d-cor %8ld\nL2-d-bad %8ld\n",
-		       stats->l2_cor_d, stats->l2_bad_d);
-	len += sprintf(page+len, "L2-t-cor %8ld\nL2-t-bad %8ld\n",
-		       stats->l2_cor_t, stats->l2_bad_t);
-	len += sprintf(page+len, "MC-d-cor %8ld\nMC-d-bad %8ld\n",
-		       stats->mem_cor_d, stats->mem_bad_d);
-	len += sprintf(page+len, "IO-err   %8ld\n", stats->bus_error);
-	len += sprintf(page+len, "\nLast recorded signature:\n");
-	len += sprintf(page+len, "Request %02x from %d, answered by %d with Dcode %d\n",
-		       (unsigned int)(G_SCD_BERR_TID(stats->status) & 0x3f),
-		       (int)(G_SCD_BERR_TID(stats->status) >> 6),
-		       (int)G_SCD_BERR_RID(stats->status),
-		       (int)G_SCD_BERR_DCODE(stats->status));
-	/* XXXKW indicate multiple errors between printings, or stats
-	   collection (or both)? */
-	if (stats->status & M_SCD_BERR_MULTERRS)
-		len += sprintf(page+len, "Multiple errors observed since last check.\n");
-	if (stats->status_printed) {
-		len += sprintf(page+len, "(no change since last printing)\n");
-	} else {
-		stats->status_printed = 1;
-	}
-
-	return len;
-}
-
 #ifdef CONFIG_PROC_FS
 
 /* For simplicity, I want to assume a single read is required each
    time */
-static int bw_read_proc(char *page, char **start, off_t off,
-			int count, int *eof, void *data)
+static int bw_proc_show(struct seq_file *m, void *v)
 {
-	int len;
+	struct bw_stats_struct *stats = m->private;
 
-	if (off == 0) {
-		len = bw_print_buffer(page, data);
-		*start = page;
+	seq_puts(m, "SiByte Bus Watcher statistics\n");
+	seq_puts(m, "-----------------------------\n");
+	seq_printf(m, "L2-d-cor %8ld\nL2-d-bad %8ld\n",
+		   stats->l2_cor_d, stats->l2_bad_d);
+	seq_printf(m, "L2-t-cor %8ld\nL2-t-bad %8ld\n",
+		   stats->l2_cor_t, stats->l2_bad_t);
+	seq_printf(m, "MC-d-cor %8ld\nMC-d-bad %8ld\n",
+		   stats->mem_cor_d, stats->mem_bad_d);
+	seq_printf(m, "IO-err   %8ld\n", stats->bus_error);
+	seq_puts(m, "\nLast recorded signature:\n");
+	seq_printf(m, "Request %02x from %d, answered by %d with Dcode %d\n",
+		   (unsigned int)(G_SCD_BERR_TID(stats->status) & 0x3f),
+		   (int)(G_SCD_BERR_TID(stats->status) >> 6),
+		   (int)G_SCD_BERR_RID(stats->status),
+		   (int)G_SCD_BERR_DCODE(stats->status));
+	/* XXXKW indicate multiple errors between printings, or stats
+	   collection (or both)? */
+	if (stats->status & M_SCD_BERR_MULTERRS)
+		seq_puts(m, "Multiple errors observed since last check.\n");
+	if (stats->status_printed) {
+		seq_puts(m, "(no change since last printing)\n");
 	} else {
-		len = 0;
-		*eof = 1;
+		stats->status_printed = 1;
 	}
-	return len;
+
+	return 0;
 }
+
+static int bw_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, bw_proc_show, PDE_DATA(inode));
+}
+
+static const struct file_operations bw_proc_fops = {
+	.open		= bw_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
 
 static void create_proc_decoder(struct bw_stats_struct *stats)
 {
 	struct proc_dir_entry *ent;
 
-	ent = create_proc_read_entry("bus_watcher", S_IWUSR | S_IRUGO, NULL,
-				     bw_read_proc, stats);
+	ent = proc_create_data("bus_watcher", S_IWUSR | S_IRUGO, NULL,
+			       &bw_proc_fops, stats);
 	if (!ent) {
 		printk(KERN_INFO "Unable to initialize bus_watcher /proc entry\n");
 		return;
@@ -209,11 +207,6 @@ static irqreturn_t sibyte_bw_int(int irq, void *data)
 	stats->mem_bad_d += G_SCD_MEM_ECC_BAD(cntr);
 	stats->bus_error += G_SCD_MEM_BUSERR(cntr);
 	csr_out32(0, IOADDR(A_BUS_MEM_IO_ERRORS));
-
-#ifndef CONFIG_PROC_FS
-	bw_print_buffer(bw_buf, stats);
-	printk(bw_buf);
-#endif
 
 	return IRQ_HANDLED;
 }

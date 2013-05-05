@@ -1,5 +1,5 @@
 /*
- * Interface handling (except master interface)
+ * Interface handling
  *
  * Copyright 2002-2005, Instant802 Networks, Inc.
  * Copyright 2005-2006, Devicescape Software, Inc.
@@ -92,7 +92,7 @@ static u32 __ieee80211_idle_on(struct ieee80211_local *local)
 	if (local->hw.conf.flags & IEEE80211_CONF_IDLE)
 		return 0;
 
-	drv_flush(local, false);
+	ieee80211_flush_queues(local, NULL);
 
 	local->hw.conf.flags |= IEEE80211_CONF_IDLE;
 	return IEEE80211_CONF_CHANGE_IDLE;
@@ -357,7 +357,7 @@ static void ieee80211_set_default_queues(struct ieee80211_sub_if_data *sdata)
 	sdata->vif.cab_queue = IEEE80211_INVAL_HW_QUEUE;
 }
 
-static int ieee80211_add_virtual_monitor(struct ieee80211_local *local)
+int ieee80211_add_virtual_monitor(struct ieee80211_local *local)
 {
 	struct ieee80211_sub_if_data *sdata;
 	int ret;
@@ -410,7 +410,7 @@ static int ieee80211_add_virtual_monitor(struct ieee80211_local *local)
 	return 0;
 }
 
-static void ieee80211_del_virtual_monitor(struct ieee80211_local *local)
+void ieee80211_del_virtual_monitor(struct ieee80211_local *local)
 {
 	struct ieee80211_sub_if_data *sdata;
 
@@ -499,8 +499,6 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 		res = drv_start(local);
 		if (res)
 			goto err_del_bss;
-		if (local->ops->napi_poll)
-			napi_enable(&local->napi);
 		/* we're brought up, everything changes */
 		hw_reconf_flags = ~0;
 		ieee80211_led_radio(local, true);
@@ -573,8 +571,6 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 				goto err_del_interface;
 		}
 
-		drv_add_interface_debugfs(local, sdata);
-
 		if (sdata->vif.type == NL80211_IFTYPE_AP) {
 			local->fif_pspoll++;
 			local->fif_probe_req++;
@@ -599,7 +595,8 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 		case NL80211_IFTYPE_P2P_DEVICE:
 			break;
 		default:
-			netif_carrier_on(dev);
+			/* not reached */
+			WARN_ON(1);
 		}
 
 		/*
@@ -656,8 +653,28 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 
 	ieee80211_recalc_ps(local, -1);
 
-	if (dev)
-		netif_tx_start_all_queues(dev);
+	if (dev) {
+		unsigned long flags;
+		int n_acs = IEEE80211_NUM_ACS;
+		int ac;
+
+		if (local->hw.queues < IEEE80211_NUM_ACS)
+			n_acs = 1;
+
+		spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
+		if (sdata->vif.cab_queue == IEEE80211_INVAL_HW_QUEUE ||
+		    (local->queue_stop_reasons[sdata->vif.cab_queue] == 0 &&
+		     skb_queue_empty(&local->pending[sdata->vif.cab_queue]))) {
+			for (ac = 0; ac < n_acs; ac++) {
+				int ac_queue = sdata->vif.hw_queue[ac];
+
+				if (local->queue_stop_reasons[ac_queue] == 0 &&
+				    skb_queue_empty(&local->pending[ac_queue]))
+					netif_start_subqueue(dev, ac);
+			}
+		}
+		spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
+	}
 
 	return 0;
  err_del_interface:
@@ -711,7 +728,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 	if (sdata->dev)
 		netif_tx_stop_all_queues(sdata->dev);
 
-	ieee80211_roc_purge(sdata);
+	ieee80211_roc_purge(local, sdata);
 
 	if (sdata->vif.type == NL80211_IFTYPE_STATION)
 		ieee80211_mgd_stop(sdata);
@@ -736,12 +753,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 	WARN_ON_ONCE((sdata->vif.type != NL80211_IFTYPE_WDS && flushed > 0) ||
 		     (sdata->vif.type == NL80211_IFTYPE_WDS && flushed != 1));
 
-	/*
-	 * Don't count this interface for promisc/allmulti while it
-	 * is down. dev_mc_unsync() will invoke set_multicast_list
-	 * on the master interface which will sync these down to the
-	 * hardware as filter flags.
-	 */
+	/* don't count this interface for promisc/allmulti while it is down */
 	if (sdata->flags & IEEE80211_SDATA_ALLMULTI)
 		atomic_dec(&local->iff_allmultis);
 
@@ -762,8 +774,6 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 				 sdata->dev->addr_len);
 		spin_unlock_bh(&local->filter_lock);
 		netif_addr_unlock_bh(sdata->dev);
-
-		ieee80211_configure_filter(local);
 	}
 
 	del_timer_sync(&local->dynamic_ps_timer);
@@ -774,6 +784,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 	cancel_delayed_work_sync(&sdata->dfs_cac_timer_work);
 
 	if (sdata->wdev.cac_started) {
+		WARN_ON(local->suspended);
 		mutex_lock(&local->iflist_mtx);
 		ieee80211_vif_release_channel(sdata);
 		mutex_unlock(&local->iflist_mtx);
@@ -824,14 +835,9 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		if (local->monitors == 0) {
 			local->hw.conf.flags &= ~IEEE80211_CONF_MONITOR;
 			hw_reconf_flags |= IEEE80211_CONF_CHANGE_MONITOR;
-			ieee80211_del_virtual_monitor(local);
 		}
 
 		ieee80211_adjust_monitor_flags(sdata, -1);
-		ieee80211_configure_filter(local);
-		mutex_lock(&local->mtx);
-		ieee80211_recalc_idle(local);
-		mutex_unlock(&local->mtx);
 		break;
 	case NL80211_IFTYPE_P2P_DEVICE:
 		/* relies on synchronize_rcu() below */
@@ -844,45 +850,27 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 		 *
 		 * sta_info_flush_cleanup() requires rcu_barrier()
 		 * first to wait for the station call_rcu() calls
-		 * to complete, here we need at least sychronize_rcu()
-		 * it to wait for the RX path in case it is using the
+		 * to complete, and we also need synchronize_rcu()
+		 * to wait for the RX path in case it is using the
 		 * interface and enqueuing frames at this very time on
 		 * another CPU.
 		 */
+		synchronize_rcu();
 		rcu_barrier();
 		sta_info_flush_cleanup(sdata);
 
-		skb_queue_purge(&sdata->skb_queue);
-
 		/*
 		 * Free all remaining keys, there shouldn't be any,
-		 * except maybe group keys in AP more or WDS?
+		 * except maybe in WDS mode?
 		 */
 		ieee80211_free_keys(sdata);
 
-		drv_remove_interface_debugfs(local, sdata);
-
-		if (going_down)
-			drv_remove_interface(local, sdata);
+		/* fall through */
+	case NL80211_IFTYPE_AP:
+		skb_queue_purge(&sdata->skb_queue);
 	}
 
 	sdata->bss = NULL;
-
-	ieee80211_recalc_ps(local, -1);
-
-	if (local->open_count == 0) {
-		if (local->ops->napi_poll)
-			napi_disable(&local->napi);
-		ieee80211_clear_tx_pending(local);
-		ieee80211_stop_device(local);
-
-		/* no reconfiguring after stop! */
-		hw_reconf_flags = 0;
-	}
-
-	/* do after stop to avoid reconfiguring when we stop anyway */
-	if (hw_reconf_flags)
-		ieee80211_hw_config(local, hw_reconf_flags);
 
 	spin_lock_irqsave(&local->queue_stop_reason_lock, flags);
 	for (i = 0; i < IEEE80211_MAX_QUEUES; i++) {
@@ -896,7 +884,54 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 	}
 	spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
 
-	if (local->monitors == local->open_count && local->monitors > 0)
+	if (local->open_count == 0)
+		ieee80211_clear_tx_pending(local);
+
+	/*
+	 * If the interface goes down while suspended, presumably because
+	 * the device was unplugged and that happens before our resume,
+	 * then the driver is already unconfigured and the remainder of
+	 * this function isn't needed.
+	 * XXX: what about WoWLAN? If the device has software state, e.g.
+	 *	memory allocated, it might expect teardown commands from
+	 *	mac80211 here?
+	 */
+	if (local->suspended) {
+		WARN_ON(local->wowlan);
+		WARN_ON(rtnl_dereference(local->monitor_sdata));
+		return;
+	}
+
+	switch (sdata->vif.type) {
+	case NL80211_IFTYPE_AP_VLAN:
+		break;
+	case NL80211_IFTYPE_MONITOR:
+		if (local->monitors == 0)
+			ieee80211_del_virtual_monitor(local);
+
+		mutex_lock(&local->mtx);
+		ieee80211_recalc_idle(local);
+		mutex_unlock(&local->mtx);
+		break;
+	default:
+		if (going_down)
+			drv_remove_interface(local, sdata);
+	}
+
+	ieee80211_recalc_ps(local, -1);
+
+	if (local->open_count == 0) {
+		ieee80211_stop_device(local);
+
+		/* no reconfiguring after stop! */
+		return;
+	}
+
+	/* do after stop to avoid reconfiguring when we stop anyway */
+	ieee80211_configure_filter(local);
+	ieee80211_hw_config(local, hw_reconf_flags);
+
+	if (local->monitors == local->open_count)
 		ieee80211_add_virtual_monitor(local);
 }
 
@@ -935,6 +970,17 @@ static void ieee80211_set_multicast_list(struct net_device *dev)
 			atomic_dec(&local->iff_promiscs);
 		sdata->flags ^= IEEE80211_SDATA_PROMISC;
 	}
+
+	/*
+	 * TODO: If somebody needs this on AP interfaces,
+	 *	 it can be enabled easily but multicast
+	 *	 addresses from VLANs need to be synced.
+	 */
+	if (sdata->vif.type != NL80211_IFTYPE_MONITOR &&
+	    sdata->vif.type != NL80211_IFTYPE_AP_VLAN &&
+	    sdata->vif.type != NL80211_IFTYPE_AP)
+		drv_set_multicast_list(local, sdata, &dev->mc);
+
 	spin_lock_bh(&local->filter_lock);
 	__hw_addr_sync(&local->mc_list, &dev->mc, dev->addr_len);
 	spin_unlock_bh(&local->filter_lock);
@@ -1561,6 +1607,8 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 	INIT_WORK(&sdata->cleanup_stations_wk, ieee80211_cleanup_sdata_stas_wk);
 	INIT_DELAYED_WORK(&sdata->dfs_cac_timer_work,
 			  ieee80211_dfs_cac_timer_work);
+	INIT_DELAYED_WORK(&sdata->dec_tailroom_needed_wk,
+			  ieee80211_delayed_tailroom_dec);
 
 	for (i = 0; i < IEEE80211_NUM_BANDS; i++) {
 		struct ieee80211_supported_band *sband;

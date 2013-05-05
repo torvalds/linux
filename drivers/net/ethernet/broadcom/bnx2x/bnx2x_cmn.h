@@ -50,13 +50,13 @@ extern int int_mode;
 		} \
 	} while (0)
 
-#define BNX2X_PCI_ALLOC(x, y, size) \
-	do { \
-		x = dma_alloc_coherent(&bp->pdev->dev, size, y, GFP_KERNEL); \
-		if (x == NULL) \
-			goto alloc_mem_err; \
-		memset((void *)x, 0, size); \
-	} while (0)
+#define BNX2X_PCI_ALLOC(x, y, size)				\
+do {								\
+	x = dma_alloc_coherent(&bp->pdev->dev, size, y,		\
+			       GFP_KERNEL | __GFP_ZERO);	\
+	if (x == NULL)						\
+		goto alloc_mem_err;				\
+} while (0)
 
 #define BNX2X_ALLOC(x, size) \
 	do { \
@@ -295,16 +295,29 @@ void bnx2x_int_disable_sync(struct bnx2x *bp, int disable_hw);
 void bnx2x_nic_init_cnic(struct bnx2x *bp);
 
 /**
- * bnx2x_nic_init - init driver internals.
+ * bnx2x_preirq_nic_init - init driver internals.
  *
  * @bp:		driver handle
  *
  * Initializes:
- *  - rings
+ *  - fastpath object
+ *  - fastpath rings
+ *  etc.
+ */
+void bnx2x_pre_irq_nic_init(struct bnx2x *bp);
+
+/**
+ * bnx2x_postirq_nic_init - init driver internals.
+ *
+ * @bp:		driver handle
+ * @load_code:	COMMON, PORT or FUNCTION
+ *
+ * Initializes:
  *  - status blocks
+ *  - slowpath rings
  *  - etc.
  */
-void bnx2x_nic_init(struct bnx2x *bp, u32 load_code);
+void bnx2x_post_irq_nic_init(struct bnx2x *bp, u32 load_code);
 /**
  * bnx2x_alloc_mem_cnic - allocate driver's memory for cnic.
  *
@@ -496,7 +509,10 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev);
 /* setup_tc callback */
 int bnx2x_setup_tc(struct net_device *dev, u8 num_tc);
 
+int bnx2x_get_vf_config(struct net_device *dev, int vf,
+			struct ifla_vf_info *ivi);
 int bnx2x_set_vf_mac(struct net_device *dev, int queue, u8 *mac);
+int bnx2x_set_vf_vlan(struct net_device *netdev, int vf, u16 vlan, u8 qos);
 
 /* select_queue callback */
 u16 bnx2x_select_queue(struct net_device *dev, struct sk_buff *skb);
@@ -834,7 +850,7 @@ static inline void bnx2x_add_all_napi_cnic(struct bnx2x *bp)
 	/* Add NAPI objects */
 	for_each_rx_queue_cnic(bp, i)
 		netif_napi_add(bp->dev, &bnx2x_fp(bp, i, napi),
-			       bnx2x_poll, BNX2X_NAPI_WEIGHT);
+			       bnx2x_poll, NAPI_POLL_WEIGHT);
 }
 
 static inline void bnx2x_add_all_napi(struct bnx2x *bp)
@@ -844,7 +860,7 @@ static inline void bnx2x_add_all_napi(struct bnx2x *bp)
 	/* Add NAPI objects */
 	for_each_eth_queue(bp, i)
 		netif_napi_add(bp->dev, &bnx2x_fp(bp, i, napi),
-			       bnx2x_poll, BNX2X_NAPI_WEIGHT);
+			       bnx2x_poll, NAPI_POLL_WEIGHT);
 }
 
 static inline void bnx2x_del_all_napi_cnic(struct bnx2x *bp)
@@ -969,6 +985,9 @@ static inline int bnx2x_func_start(struct bnx2x *bp)
 		start_params->network_cos_mode = STATIC_COS;
 	else /* CHIP_IS_E1X */
 		start_params->network_cos_mode = FW_WRR;
+
+	start_params->gre_tunnel_mode = IPGRE_TUNNEL;
+	start_params->gre_tunnel_rss = GRE_INNER_HEADERS_RSS;
 
 	return bnx2x_func_state_change(bp, &func_params);
 }
@@ -1396,4 +1415,8 @@ static inline bool bnx2x_is_valid_ether_addr(struct bnx2x *bp, u8 *addr)
  *
  */
 void bnx2x_fill_fw_str(struct bnx2x *bp, char *buf, size_t buf_len);
+
+int bnx2x_drain_tx_queues(struct bnx2x *bp);
+void bnx2x_squeeze_objects(struct bnx2x *bp);
+
 #endif /* BNX2X_CMN_H */

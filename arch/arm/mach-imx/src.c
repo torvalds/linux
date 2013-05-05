@@ -16,6 +16,7 @@
 #include <linux/of_address.h>
 #include <linux/smp.h>
 #include <asm/smp_plat.h>
+#include "common.h"
 
 #define SRC_SCR				0x000
 #define SRC_GPR1			0x020
@@ -73,7 +74,9 @@ void __init imx_src_init(void)
 	struct device_node *np;
 	u32 val;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-src");
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx51-src");
+	if (!np)
+		return;
 	src_base = of_iomap(np, 0);
 	WARN_ON(!src_base);
 

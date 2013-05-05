@@ -104,6 +104,7 @@
 #define  BCMA_CC_CHIPST_4706_MIPS_BENDIAN	BIT(3) /* 0: little, 1: big endian */
 #define  BCMA_CC_CHIPST_4706_PCIE1_DISABLE	BIT(5) /* PCIE1 enable strap pin */
 #define  BCMA_CC_CHIPST_5357_NAND_BOOT		BIT(4) /* NAND boot, valid for CC rev 38 and/or BCM5357 */
+#define  BCMA_CC_CHIPST_4360_XTAL_40MZ		0x00000001
 #define BCMA_CC_JCMD			0x0030		/* Rev >= 10 only */
 #define  BCMA_CC_JCMD_START		0x80000000
 #define  BCMA_CC_JCMD_BUSY		0x80000000
@@ -315,6 +316,9 @@
 #define BCMA_CC_PMU_CTL			0x0600 /* PMU control */
 #define  BCMA_CC_PMU_CTL_ILP_DIV	0xFFFF0000 /* ILP div mask */
 #define  BCMA_CC_PMU_CTL_ILP_DIV_SHIFT	16
+#define  BCMA_CC_PMU_CTL_RES		0x00006000 /* reset control mask */
+#define  BCMA_CC_PMU_CTL_RES_SHIFT	13
+#define  BCMA_CC_PMU_CTL_RES_RELOAD	0x2	/* reload POR values */
 #define  BCMA_CC_PMU_CTL_PLL_UPD	0x00000400
 #define  BCMA_CC_PMU_CTL_NOILPONW	0x00000200 /* No ILP on wait */
 #define  BCMA_CC_PMU_CTL_HTREQEN	0x00000100 /* HT req enable */
@@ -606,6 +610,8 @@ extern void bcma_chipco_resume(struct bcma_drv_cc *cc);
 void bcma_chipco_bcm4331_ext_pa_lines_ctl(struct bcma_drv_cc *cc, bool enable);
 
 extern u32 bcma_chipco_watchdog_timer_set(struct bcma_drv_cc *cc, u32 ticks);
+
+extern u32 bcma_chipco_get_alp_clock(struct bcma_drv_cc *cc);
 
 void bcma_chipco_irq_mask(struct bcma_drv_cc *cc, u32 mask, u32 value);
 

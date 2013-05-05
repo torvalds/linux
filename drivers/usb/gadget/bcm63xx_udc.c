@@ -1819,7 +1819,6 @@ static int bcm63xx_udc_start(struct usb_gadget *gadget,
 
 	udc->driver = driver;
 	driver->driver.bus = NULL;
-	udc->gadget.dev.driver = &driver->driver;
 	udc->gadget.dev.of_node = udc->dev->of_node;
 
 	spin_unlock_irqrestore(&udc->lock, flags);
@@ -1841,7 +1840,6 @@ static int bcm63xx_udc_stop(struct usb_gadget *gadget,
 	spin_lock_irqsave(&udc->lock, flags);
 
 	udc->driver = NULL;
-	udc->gadget.dev.driver = NULL;
 
 	/*
 	 * If we switch the PHY too abruptly after dropping D+, the host
@@ -2306,17 +2304,6 @@ static void bcm63xx_udc_cleanup_debugfs(struct bcm63xx_udc *udc)
  ***********************************************************************/
 
 /**
- * bcm63xx_udc_gadget_release - Called from device_release().
- * @dev: Unused.
- *
- * We get a warning if this function doesn't exist, but it's empty because
- * we don't have to free any of the memory allocated with the devm_* APIs.
- */
-static void bcm63xx_udc_gadget_release(struct device *dev)
-{
-}
-
-/**
  * bcm63xx_udc_probe - Initialize a new instance of the UDC.
  * @pdev: Platform device struct from the bcm63xx BSP code.
  *
@@ -2368,13 +2355,9 @@ static int bcm63xx_udc_probe(struct platform_device *pdev)
 
 	spin_lock_init(&udc->lock);
 	INIT_WORK(&udc->ep0_wq, bcm63xx_ep0_process);
-	dev_set_name(&udc->gadget.dev, "gadget");
 
 	udc->gadget.ops = &bcm63xx_udc_ops;
 	udc->gadget.name = dev_name(dev);
-	udc->gadget.dev.parent = dev;
-	udc->gadget.dev.release = bcm63xx_udc_gadget_release;
-	udc->gadget.dev.dma_mask = dev->dma_mask;
 
 	if (!pd->use_fullspeed && !use_fullspeed)
 		udc->gadget.max_speed = USB_SPEED_HIGH;
@@ -2414,17 +2397,12 @@ static int bcm63xx_udc_probe(struct platform_device *pdev)
 		}
 	}
 
-	rc = device_register(&udc->gadget.dev);
-	if (rc)
-		goto out_uninit;
-
 	bcm63xx_udc_init_debugfs(udc);
 	rc = usb_add_gadget_udc(dev, &udc->gadget);
 	if (!rc)
 		return 0;
 
 	bcm63xx_udc_cleanup_debugfs(udc);
-	device_unregister(&udc->gadget.dev);
 out_uninit:
 	bcm63xx_uninit_udc_hw(udc);
 	return rc;
@@ -2440,7 +2418,6 @@ static int bcm63xx_udc_remove(struct platform_device *pdev)
 
 	bcm63xx_udc_cleanup_debugfs(udc);
 	usb_del_gadget_udc(&udc->gadget);
-	device_unregister(&udc->gadget.dev);
 	BUG_ON(udc->driver);
 
 	platform_set_drvdata(pdev, NULL);

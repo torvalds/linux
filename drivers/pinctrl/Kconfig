@@ -93,12 +93,20 @@ config PINCTRL_IMX53
 	  Say Y here to enable the imx53 pinctrl driver
 
 config PINCTRL_IMX6Q
-	bool "IMX6Q pinctrl driver"
+	bool "IMX6Q/DL pinctrl driver"
 	depends on OF
 	depends on SOC_IMX6Q
 	select PINCTRL_IMX
 	help
-	  Say Y here to enable the imx6q pinctrl driver
+	  Say Y here to enable the imx6q/dl pinctrl driver
+
+config PINCTRL_IMX6SL
+	bool "IMX6SL pinctrl driver"
+	depends on OF
+	depends on SOC_IMX6SL
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the imx6sl pinctrl driver
 
 config PINCTRL_LANTIQ
 	bool
@@ -106,19 +114,10 @@ config PINCTRL_LANTIQ
 	select PINMUX
 	select PINCONF
 
-config PINCTRL_PXA3xx
-	bool
-	select PINMUX
-
 config PINCTRL_FALCON
 	bool
 	depends on SOC_FALCON
 	depends on PINCTRL_LANTIQ
-
-config PINCTRL_MMP2
-	bool "MMP2 pin controller driver"
-	depends on ARCH_MMP
-	select PINCTRL_PXA3xx
 
 config PINCTRL_MXS
 	bool
@@ -151,21 +150,12 @@ config PINCTRL_DB8540
 	bool "DB8540 pin controller driver"
 	depends on PINCTRL_NOMADIK && ARCH_U8500
 
-config PINCTRL_PXA168
-	bool "PXA168 pin controller driver"
-	depends on ARCH_MMP
-	select PINCTRL_PXA3xx
-
-config PINCTRL_PXA910
-	bool "PXA910 pin controller driver"
-	depends on ARCH_MMP
-	select PINCTRL_PXA3xx
-
 config PINCTRL_SINGLE
 	tristate "One-register-per-pin type device tree based pinctrl driver"
 	depends on OF
 	select PINMUX
 	select PINCONF
+	select GENERIC_PINCONF
 	help
 	  This selects the device tree based generic pinctrl driver.
 
@@ -225,6 +215,11 @@ config PINCTRL_EXYNOS5440
 	bool "Samsung EXYNOS5440 SoC pinctrl driver"
 	select PINMUX
 	select PINCONF
+
+config PINCTRL_S3C64XX
+	bool "Samsung S3C64XX SoC pinctrl driver"
+	depends on ARCH_S3C64XX
+	select PINCTRL_SAMSUNG
 
 source "drivers/pinctrl/mvebu/Kconfig"
 source "drivers/pinctrl/sh-pfc/Kconfig"

@@ -49,71 +49,6 @@
 #include <asm/mmu_context.h>
 #include <asm/compat_signal.h>
 
-#ifdef CONFIG_SYSVIPC                                                        
-asmlinkage long compat_sys_ipc(u32 call, u32 first, u32 second, u32 third, compat_uptr_t ptr, u32 fifth)
-{
-	int version;
-
-	version = call >> 16; /* hack for backward compatibility */
-	call &= 0xffff;
-
-	switch (call) {
-	case SEMTIMEDOP:
-		if (fifth)
-			/* sign extend semid */
-			return compat_sys_semtimedop((int)first,
-						     compat_ptr(ptr), second,
-						     compat_ptr(fifth));
-		/* else fall through for normal semop() */
-	case SEMOP:
-		/* struct sembuf is the same on 32 and 64bit :)) */
-		/* sign extend semid */
-		return sys_semtimedop((int)first, compat_ptr(ptr), second,
-				      NULL);
-	case SEMGET:
-		/* sign extend key, nsems */
-		return sys_semget((int)first, (int)second, third);
-	case SEMCTL:
-		/* sign extend semid, semnum */
-		return compat_sys_semctl((int)first, (int)second, third,
-					 compat_ptr(ptr));
-
-	case MSGSND:
-		/* sign extend msqid */
-		return compat_sys_msgsnd((int)first, (int)second, third,
-					 compat_ptr(ptr));
-	case MSGRCV:
-		/* sign extend msqid, msgtyp */
-		return compat_sys_msgrcv((int)first, second, (int)fifth,
-					 third, version, compat_ptr(ptr));
-	case MSGGET:
-		/* sign extend key */
-		return sys_msgget((int)first, second);
-	case MSGCTL:
-		/* sign extend msqid */
-		return compat_sys_msgctl((int)first, second, compat_ptr(ptr));
-
-	case SHMAT:
-		/* sign extend shmid */
-		return compat_sys_shmat((int)first, second, third, version,
-					compat_ptr(ptr));
-	case SHMDT:
-		return sys_shmdt(compat_ptr(ptr));
-	case SHMGET:
-		/* sign extend key_t */
-		return sys_shmget((int)first, second, third);
-	case SHMCTL:
-		/* sign extend shmid */
-		return compat_sys_shmctl((int)first, second, compat_ptr(ptr));
-
-	default:
-		return -ENOSYS;
-	}
-
-	return -ENOSYS;
-}
-#endif
-
 asmlinkage long sys32_truncate64(const char __user * path, unsigned long high, unsigned long low)
 {
 	if ((int)high < 0)
@@ -303,15 +238,7 @@ long compat_sys_fadvise64_64(int fd,
 				advice);
 }
 
-long sys32_lookup_dcookie(unsigned long cookie_high,
-			  unsigned long cookie_low,
-			  char __user *buf, size_t len)
-{
-	return sys_lookup_dcookie((cookie_high << 32) | cookie_low,
-				  buf, len);
-}
-
-long compat_sync_file_range(int fd, unsigned long off_high, unsigned long off_low, unsigned long nb_high, unsigned long nb_low, int flags)
+long sys32_sync_file_range(unsigned int fd, unsigned long off_high, unsigned long off_low, unsigned long nb_high, unsigned long nb_low, unsigned int flags)
 {
 	return sys_sync_file_range(fd,
 				   (off_high << 32) | off_low,

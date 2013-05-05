@@ -412,19 +412,18 @@ static int rtllib_ccmp_get_key(void *key, int len, u8 *seq, void *priv)
 }
 
 
-static char *rtllib_ccmp_print_stats(char *p, void *priv)
+static void rtllib_ccmp_print_stats(struct seq_file *m, void *priv)
 {
 	struct rtllib_ccmp_data *ccmp = priv;
-	p += sprintf(p, "key[%d] alg=CCMP key_set=%d "
-		     "tx_pn=%pM rx_pn=%pM "
-		     "format_errors=%d replays=%d decrypt_errors=%d\n",
-		     ccmp->key_idx, ccmp->key_set,
-		     ccmp->tx_pn, ccmp->rx_pn,
-		     ccmp->dot11RSNAStatsCCMPFormatErrors,
-		     ccmp->dot11RSNAStatsCCMPReplays,
-		     ccmp->dot11RSNAStatsCCMPDecryptErrors);
-
-	return p;
+	seq_printf(m,
+		   "key[%d] alg=CCMP key_set=%d "
+		   "tx_pn=%pM rx_pn=%pM "
+		   "format_errors=%d replays=%d decrypt_errors=%d\n",
+		   ccmp->key_idx, ccmp->key_set,
+		   ccmp->tx_pn, ccmp->rx_pn,
+		   ccmp->dot11RSNAStatsCCMPFormatErrors,
+		   ccmp->dot11RSNAStatsCCMPReplays,
+		   ccmp->dot11RSNAStatsCCMPDecryptErrors);
 }
 
 static struct lib80211_crypto_ops rtllib_crypt_ccmp = {

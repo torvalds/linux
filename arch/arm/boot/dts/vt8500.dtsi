@@ -98,12 +98,10 @@
 			interrupts = <43>;
 		};
 
-		fb@d800e400 {
+		fb: fb@d8050800 {
 			compatible = "via,vt8500-fb";
 			reg = <0xd800e400 0x400>;
 			interrupts = <12>;
-			display = <&display>;
-			default-mode = <&mode0>;
 		};
 
 		ge_rops@d8050400 {

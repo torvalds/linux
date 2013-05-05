@@ -5,7 +5,7 @@
  * Kevin Kissell, kevink@mips.com and Carsten Langgaard, carstenl@mips.com
  * Copyright (C) 2000 MIPS Technologies, Inc.
  *
- * Copyright (c) 2010-2011, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2010-2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -44,7 +44,8 @@ int main(void)
 
 	COMMENT("Hexagon pt_regs definitions");
 	OFFSET(_PT_SYSCALL_NR, pt_regs, syscall_nr);
-	OFFSET(_PT_UGPGP, pt_regs, ugpgp);
+	OFFSET(_PT_GPUGP, pt_regs, gpugp);
+	OFFSET(_PT_CS1CS0, pt_regs, cs1cs0);
 	OFFSET(_PT_R3130, pt_regs, r3130);
 	OFFSET(_PT_R2928, pt_regs, r2928);
 	OFFSET(_PT_R2726, pt_regs, r2726);

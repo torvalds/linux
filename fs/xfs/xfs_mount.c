@@ -43,6 +43,8 @@
 #include "xfs_utils.h"
 #include "xfs_trace.h"
 #include "xfs_icache.h"
+#include "xfs_cksum.h"
+#include "xfs_buf_item.h"
 
 
 #ifdef HAVE_PERCPU_SB
@@ -109,6 +111,14 @@ static const struct {
     { offsetof(xfs_sb_t, sb_logsunit),	 0 },
     { offsetof(xfs_sb_t, sb_features2),	 0 },
     { offsetof(xfs_sb_t, sb_bad_features2), 0 },
+    { offsetof(xfs_sb_t, sb_features_compat), 0 },
+    { offsetof(xfs_sb_t, sb_features_ro_compat), 0 },
+    { offsetof(xfs_sb_t, sb_features_incompat), 0 },
+    { offsetof(xfs_sb_t, sb_features_log_incompat), 0 },
+    { offsetof(xfs_sb_t, sb_crc),	 0 },
+    { offsetof(xfs_sb_t, sb_pad),	 0 },
+    { offsetof(xfs_sb_t, sb_pquotino),	 0 },
+    { offsetof(xfs_sb_t, sb_lsn),	 0 },
     { sizeof(xfs_sb_t),			 0 }
 };
 
@@ -319,9 +329,52 @@ xfs_mount_validate_sb(
 		return XFS_ERROR(EWRONGFS);
 	}
 
+
 	if (!xfs_sb_good_version(sbp)) {
 		xfs_warn(mp, "bad version");
 		return XFS_ERROR(EWRONGFS);
+	}
+
+	/*
+	 * Version 5 superblock feature mask validation. Reject combinations the
+	 * kernel cannot support up front before checking anything else.
+	 */
+	if (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5) {
+		xfs_alert(mp,
+"Version 5 superblock detected. This kernel has EXPERIMENTAL support enabled!\n"
+"Use of these features in this kernel is at your own risk!");
+
+		if (xfs_sb_has_compat_feature(sbp,
+					XFS_SB_FEAT_COMPAT_UNKNOWN)) {
+			xfs_warn(mp,
+"Superblock has unknown compatible features (0x%x) enabled.\n"
+"Using a more recent kernel is recommended.",
+				(sbp->sb_features_compat &
+						XFS_SB_FEAT_COMPAT_UNKNOWN));
+		}
+
+		if (xfs_sb_has_ro_compat_feature(sbp,
+					XFS_SB_FEAT_RO_COMPAT_UNKNOWN)) {
+			xfs_alert(mp,
+"Superblock has unknown read-only compatible features (0x%x) enabled.",
+				(sbp->sb_features_ro_compat &
+						XFS_SB_FEAT_RO_COMPAT_UNKNOWN));
+			if (!(mp->m_flags & XFS_MOUNT_RDONLY)) {
+				xfs_warn(mp,
+"Attempted to mount read-only compatible filesystem read-write.\n"
+"Filesystem can only be safely mounted read only.");
+				return XFS_ERROR(EINVAL);
+			}
+		}
+		if (xfs_sb_has_incompat_feature(sbp,
+					XFS_SB_FEAT_INCOMPAT_UNKNOWN)) {
+			xfs_warn(mp,
+"Superblock has unknown incompatible features (0x%x) enabled.\n"
+"Filesystem can not be safely mounted by this kernel.",
+				(sbp->sb_features_incompat &
+						XFS_SB_FEAT_INCOMPAT_UNKNOWN));
+			return XFS_ERROR(EINVAL);
+		}
 	}
 
 	if (unlikely(
@@ -557,6 +610,14 @@ xfs_sb_from_disk(
 	to->sb_logsunit = be32_to_cpu(from->sb_logsunit);
 	to->sb_features2 = be32_to_cpu(from->sb_features2);
 	to->sb_bad_features2 = be32_to_cpu(from->sb_bad_features2);
+	to->sb_features_compat = be32_to_cpu(from->sb_features_compat);
+	to->sb_features_ro_compat = be32_to_cpu(from->sb_features_ro_compat);
+	to->sb_features_incompat = be32_to_cpu(from->sb_features_incompat);
+	to->sb_features_log_incompat =
+				be32_to_cpu(from->sb_features_log_incompat);
+	to->sb_pad = 0;
+	to->sb_pquotino = be64_to_cpu(from->sb_pquotino);
+	to->sb_lsn = be64_to_cpu(from->sb_lsn);
 }
 
 /*
@@ -612,13 +673,12 @@ xfs_sb_to_disk(
 	}
 }
 
-static void
+static int
 xfs_sb_verify(
 	struct xfs_buf	*bp)
 {
 	struct xfs_mount *mp = bp->b_target->bt_mount;
 	struct xfs_sb	sb;
-	int		error;
 
 	xfs_sb_from_disk(&sb, XFS_BUF_TO_SBP(bp));
 
@@ -626,16 +686,46 @@ xfs_sb_verify(
 	 * Only check the in progress field for the primary superblock as
 	 * mkfs.xfs doesn't clear it from secondary superblocks.
 	 */
-	error = xfs_mount_validate_sb(mp, &sb, bp->b_bn == XFS_SB_DADDR);
-	if (error)
-		xfs_buf_ioerror(bp, error);
+	return xfs_mount_validate_sb(mp, &sb, bp->b_bn == XFS_SB_DADDR);
 }
 
+/*
+ * If the superblock has the CRC feature bit set or the CRC field is non-null,
+ * check that the CRC is valid.  We check the CRC field is non-null because a
+ * single bit error could clear the feature bit and unused parts of the
+ * superblock are supposed to be zero. Hence a non-null crc field indicates that
+ * we've potentially lost a feature bit and we should check it anyway.
+ */
 static void
 xfs_sb_read_verify(
 	struct xfs_buf	*bp)
 {
-	xfs_sb_verify(bp);
+	struct xfs_mount *mp = bp->b_target->bt_mount;
+	struct xfs_dsb	*dsb = XFS_BUF_TO_SBP(bp);
+	int		error;
+
+	/*
+	 * open code the version check to avoid needing to convert the entire
+	 * superblock from disk order just to check the version number
+	 */
+	if (dsb->sb_magicnum == cpu_to_be32(XFS_SB_MAGIC) &&
+	    (((be16_to_cpu(dsb->sb_versionnum) & XFS_SB_VERSION_NUMBITS) ==
+						XFS_SB_VERSION_5) ||
+	     dsb->sb_crc != 0)) {
+
+		if (!xfs_verify_cksum(bp->b_addr, be16_to_cpu(dsb->sb_sectsize),
+				      offsetof(struct xfs_sb, sb_crc))) {
+			error = EFSCORRUPTED;
+			goto out_error;
+		}
+	}
+	error = xfs_sb_verify(bp);
+
+out_error:
+	if (error) {
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bp->b_addr);
+		xfs_buf_ioerror(bp, error);
+	}
 }
 
 /*
@@ -648,11 +738,10 @@ static void
 xfs_sb_quiet_read_verify(
 	struct xfs_buf	*bp)
 {
-	struct xfs_sb	sb;
+	struct xfs_dsb	*dsb = XFS_BUF_TO_SBP(bp);
 
-	xfs_sb_from_disk(&sb, XFS_BUF_TO_SBP(bp));
 
-	if (sb.sb_magicnum == XFS_SB_MAGIC) {
+	if (dsb->sb_magicnum == cpu_to_be32(XFS_SB_MAGIC)) {
 		/* XFS filesystem, verify noisily! */
 		xfs_sb_read_verify(bp);
 		return;
@@ -663,9 +752,27 @@ xfs_sb_quiet_read_verify(
 
 static void
 xfs_sb_write_verify(
-	struct xfs_buf	*bp)
+	struct xfs_buf		*bp)
 {
-	xfs_sb_verify(bp);
+	struct xfs_mount	*mp = bp->b_target->bt_mount;
+	struct xfs_buf_log_item	*bip = bp->b_fspriv;
+	int			error;
+
+	error = xfs_sb_verify(bp);
+	if (error) {
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bp->b_addr);
+		xfs_buf_ioerror(bp, error);
+		return;
+	}
+
+	if (!xfs_sb_version_hascrc(&mp->m_sb))
+		return;
+
+	if (bip)
+		XFS_BUF_TO_SBP(bp)->sb_lsn = cpu_to_be64(bip->bli_item.li_lsn);
+
+	xfs_update_cksum(bp->b_addr, BBTOB(bp->b_length),
+			 offsetof(struct xfs_sb, sb_crc));
 }
 
 const struct xfs_buf_ops xfs_sb_buf_ops = {
@@ -687,7 +794,8 @@ int
 xfs_readsb(xfs_mount_t *mp, int flags)
 {
 	unsigned int	sector_size;
-	xfs_buf_t	*bp;
+	struct xfs_buf	*bp;
+	struct xfs_sb	*sbp = &mp->m_sb;
 	int		error;
 	int		loud = !(flags & XFS_MFSI_QUIET);
 
@@ -714,7 +822,7 @@ reread:
 	if (bp->b_error) {
 		error = bp->b_error;
 		if (loud)
-			xfs_warn(mp, "SB validate failed");
+			xfs_warn(mp, "SB validate failed with error %d.", error);
 		goto release_buf;
 	}
 
@@ -726,10 +834,10 @@ reread:
 	/*
 	 * We must be able to do sector-sized and sector-aligned IO.
 	 */
-	if (sector_size > mp->m_sb.sb_sectsize) {
+	if (sector_size > sbp->sb_sectsize) {
 		if (loud)
 			xfs_warn(mp, "device supports %u byte sectors (not %u)",
-				sector_size, mp->m_sb.sb_sectsize);
+				sector_size, sbp->sb_sectsize);
 		error = ENOSYS;
 		goto release_buf;
 	}
@@ -738,14 +846,17 @@ reread:
 	 * If device sector size is smaller than the superblock size,
 	 * re-read the superblock so the buffer is correctly sized.
 	 */
-	if (sector_size < mp->m_sb.sb_sectsize) {
+	if (sector_size < sbp->sb_sectsize) {
 		xfs_buf_relse(bp);
-		sector_size = mp->m_sb.sb_sectsize;
+		sector_size = sbp->sb_sectsize;
 		goto reread;
 	}
 
 	/* Initialize per-cpu counters */
 	xfs_icsb_reinit_counters(mp);
+
+	/* no need to be quiet anymore, so reset the buf ops */
+	bp->b_ops = &xfs_sb_buf_ops;
 
 	mp->m_sb_bp = bp;
 	xfs_buf_unlock(bp);
@@ -1633,6 +1744,7 @@ xfs_mod_sb(xfs_trans_t *tp, __int64_t fields)
 	ASSERT((1LL << f) & XFS_SB_MOD_BITS);
 	first = xfs_sb_info[f].offset;
 
+	xfs_trans_buf_set_type(tp, bp, XFS_BLFT_SB_BUF);
 	xfs_trans_log_buf(tp, bp, first, last);
 }
 

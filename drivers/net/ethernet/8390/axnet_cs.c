@@ -728,19 +728,7 @@ static struct pcmcia_driver axnet_cs_driver = {
 	.suspend	= axnet_suspend,
 	.resume		= axnet_resume,
 };
-
-static int __init init_axnet_cs(void)
-{
-	return pcmcia_register_driver(&axnet_cs_driver);
-}
-
-static void __exit exit_axnet_cs(void)
-{
-	pcmcia_unregister_driver(&axnet_cs_driver);
-}
-
-module_init(init_axnet_cs);
-module_exit(exit_axnet_cs);
+module_pcmcia_driver(axnet_cs_driver);
 
 /*====================================================================*/
 

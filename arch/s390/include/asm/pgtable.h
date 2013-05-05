@@ -424,6 +424,13 @@ extern unsigned long MODULES_END;
 #define __S110	PAGE_RW
 #define __S111	PAGE_RW
 
+/*
+ * Segment entry (large page) protection definitions.
+ */
+#define SEGMENT_NONE	__pgprot(_HPAGE_TYPE_NONE)
+#define SEGMENT_RO	__pgprot(_HPAGE_TYPE_RO)
+#define SEGMENT_RW	__pgprot(_HPAGE_TYPE_RW)
+
 static inline int mm_exclusive(struct mm_struct *mm)
 {
 	return likely(mm == current->active_mm &&
@@ -764,6 +771,8 @@ void gmap_disable(struct gmap *gmap);
 int gmap_map_segment(struct gmap *gmap, unsigned long from,
 		     unsigned long to, unsigned long length);
 int gmap_unmap_segment(struct gmap *gmap, unsigned long to, unsigned long len);
+unsigned long __gmap_translate(unsigned long address, struct gmap *);
+unsigned long gmap_translate(unsigned long address, struct gmap *);
 unsigned long __gmap_fault(unsigned long address, struct gmap *);
 unsigned long gmap_fault(unsigned long address, struct gmap *);
 void gmap_discard(unsigned long from, unsigned long to, struct gmap *);
@@ -912,26 +921,6 @@ static inline pte_t pte_mkspecial(pte_t pte)
 #ifdef CONFIG_HUGETLB_PAGE
 static inline pte_t pte_mkhuge(pte_t pte)
 {
-	/*
-	 * PROT_NONE needs to be remapped from the pte type to the ste type.
-	 * The HW invalid bit is also different for pte and ste. The pte
-	 * invalid bit happens to be the same as the ste _SEGMENT_ENTRY_LARGE
-	 * bit, so we don't have to clear it.
-	 */
-	if (pte_val(pte) & _PAGE_INVALID) {
-		if (pte_val(pte) & _PAGE_SWT)
-			pte_val(pte) |= _HPAGE_TYPE_NONE;
-		pte_val(pte) |= _SEGMENT_ENTRY_INV;
-	}
-	/*
-	 * Clear SW pte bits, there are no SW bits in a segment table entry.
-	 */
-	pte_val(pte) &= ~(_PAGE_SWT | _PAGE_SWX | _PAGE_SWC |
-			  _PAGE_SWR | _PAGE_SWW);
-	/*
-	 * Also set the change-override bit because we don't need dirty bit
-	 * tracking for hugetlbfs pages.
-	 */
 	pte_val(pte) |= (_SEGMENT_ENTRY_LARGE | _SEGMENT_ENTRY_CO);
 	return pte;
 }
@@ -1276,31 +1265,7 @@ static inline void __pmd_idte(unsigned long address, pmd_t *pmdp)
 	}
 }
 
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-
-#define SEGMENT_NONE	__pgprot(_HPAGE_TYPE_NONE)
-#define SEGMENT_RO	__pgprot(_HPAGE_TYPE_RO)
-#define SEGMENT_RW	__pgprot(_HPAGE_TYPE_RW)
-
-#define __HAVE_ARCH_PGTABLE_DEPOSIT
-extern void pgtable_trans_huge_deposit(struct mm_struct *mm, pgtable_t pgtable);
-
-#define __HAVE_ARCH_PGTABLE_WITHDRAW
-extern pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm);
-
-static inline int pmd_trans_splitting(pmd_t pmd)
-{
-	return pmd_val(pmd) & _SEGMENT_ENTRY_SPLIT;
-}
-
-static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
-			      pmd_t *pmdp, pmd_t entry)
-{
-	if (!(pmd_val(entry) & _SEGMENT_ENTRY_INV) && MACHINE_HAS_EDAT1)
-		pmd_val(entry) |= _SEGMENT_ENTRY_CO;
-	*pmdp = entry;
-}
-
+#if defined(CONFIG_TRANSPARENT_HUGEPAGE) || defined(CONFIG_HUGETLB_PAGE)
 static inline unsigned long massage_pgprot_pmd(pgprot_t pgprot)
 {
 	/*
@@ -1321,10 +1286,11 @@ static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
 	return pmd;
 }
 
-static inline pmd_t pmd_mkhuge(pmd_t pmd)
+static inline pmd_t mk_pmd_phys(unsigned long physpage, pgprot_t pgprot)
 {
-	pmd_val(pmd) |= _SEGMENT_ENTRY_LARGE;
-	return pmd;
+	pmd_t __pmd;
+	pmd_val(__pmd) = physpage + massage_pgprot_pmd(pgprot);
+	return __pmd;
 }
 
 static inline pmd_t pmd_mkwrite(pmd_t pmd)
@@ -1332,6 +1298,34 @@ static inline pmd_t pmd_mkwrite(pmd_t pmd)
 	/* Do not clobber _HPAGE_TYPE_NONE pages! */
 	if (!(pmd_val(pmd) & _SEGMENT_ENTRY_INV))
 		pmd_val(pmd) &= ~_SEGMENT_ENTRY_RO;
+	return pmd;
+}
+#endif /* CONFIG_TRANSPARENT_HUGEPAGE || CONFIG_HUGETLB_PAGE */
+
+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
+
+#define __HAVE_ARCH_PGTABLE_DEPOSIT
+extern void pgtable_trans_huge_deposit(struct mm_struct *mm, pgtable_t pgtable);
+
+#define __HAVE_ARCH_PGTABLE_WITHDRAW
+extern pgtable_t pgtable_trans_huge_withdraw(struct mm_struct *mm);
+
+static inline int pmd_trans_splitting(pmd_t pmd)
+{
+	return pmd_val(pmd) & _SEGMENT_ENTRY_SPLIT;
+}
+
+static inline void set_pmd_at(struct mm_struct *mm, unsigned long addr,
+			      pmd_t *pmdp, pmd_t entry)
+{
+	if (!(pmd_val(entry) & _SEGMENT_ENTRY_INV) && MACHINE_HAS_EDAT1)
+		pmd_val(entry) |= _SEGMENT_ENTRY_CO;
+	*pmdp = entry;
+}
+
+static inline pmd_t pmd_mkhuge(pmd_t pmd)
+{
+	pmd_val(pmd) |= _SEGMENT_ENTRY_LARGE;
 	return pmd;
 }
 
@@ -1428,13 +1422,6 @@ static inline void pmdp_set_wrprotect(struct mm_struct *mm,
 		__pmd_idte(address, pmdp);
 		set_pmd_at(mm, address, pmdp, pmd_wrprotect(pmd));
 	}
-}
-
-static inline pmd_t mk_pmd_phys(unsigned long physpage, pgprot_t pgprot)
-{
-	pmd_t __pmd;
-	pmd_val(__pmd) = physpage + massage_pgprot_pmd(pgprot);
-	return __pmd;
 }
 
 #define pfn_pmd(pfn, pgprot)	mk_pmd_phys(__pa((pfn) << PAGE_SHIFT), (pgprot))

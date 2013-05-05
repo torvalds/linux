@@ -1500,43 +1500,22 @@ static int mwifiex_update_curr_bss_params(struct mwifiex_private *priv,
 	if (ret)
 		goto done;
 
-	/* Update current bss descriptor parameters */
 	spin_lock_irqsave(&priv->curr_bcn_buf_lock, flags);
-	priv->curr_bss_params.bss_descriptor.bcn_wpa_ie = NULL;
-	priv->curr_bss_params.bss_descriptor.wpa_offset = 0;
-	priv->curr_bss_params.bss_descriptor.bcn_rsn_ie = NULL;
-	priv->curr_bss_params.bss_descriptor.rsn_offset = 0;
-	priv->curr_bss_params.bss_descriptor.bcn_wapi_ie = NULL;
-	priv->curr_bss_params.bss_descriptor.wapi_offset = 0;
-	priv->curr_bss_params.bss_descriptor.bcn_ht_cap = NULL;
-	priv->curr_bss_params.bss_descriptor.ht_cap_offset = 0;
-	priv->curr_bss_params.bss_descriptor.bcn_ht_oper = NULL;
-	priv->curr_bss_params.bss_descriptor.ht_info_offset = 0;
-	priv->curr_bss_params.bss_descriptor.bcn_bss_co_2040 = NULL;
-	priv->curr_bss_params.bss_descriptor.bss_co_2040_offset = 0;
-	priv->curr_bss_params.bss_descriptor.bcn_ext_cap = NULL;
-	priv->curr_bss_params.bss_descriptor.ext_cap_offset = 0;
-	priv->curr_bss_params.bss_descriptor.beacon_buf = NULL;
-	priv->curr_bss_params.bss_descriptor.beacon_buf_size = 0;
-	priv->curr_bss_params.bss_descriptor.bcn_vht_cap = NULL;
-	priv->curr_bss_params.bss_descriptor.vht_cap_offset = 0;
-	priv->curr_bss_params.bss_descriptor.bcn_vht_oper = NULL;
-	priv->curr_bss_params.bss_descriptor.vht_info_offset = 0;
-	priv->curr_bss_params.bss_descriptor.oper_mode = NULL;
-	priv->curr_bss_params.bss_descriptor.oper_mode_offset = 0;
-
-	/* Disable 11ac by default. Enable it only where there
-	 * exist VHT_CAP IE in AP beacon
-	 */
-	priv->curr_bss_params.bss_descriptor.disable_11ac = true;
-
 	/* Make a copy of current BSSID descriptor */
 	memcpy(&priv->curr_bss_params.bss_descriptor, bss_desc,
 	       sizeof(priv->curr_bss_params.bss_descriptor));
+
+	/* The contents of beacon_ie will be copied to its own buffer
+	 * in mwifiex_save_curr_bcn()
+	 */
 	mwifiex_save_curr_bcn(priv);
 	spin_unlock_irqrestore(&priv->curr_bcn_buf_lock, flags);
 
 done:
+	/* beacon_ie buffer was allocated in function
+	 * mwifiex_fill_new_bss_desc(). Free it now.
+	 */
+	kfree(bss_desc->beacon_buf);
 	kfree(bss_desc);
 	return 0;
 }

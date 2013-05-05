@@ -596,12 +596,14 @@ static int usbhs_get_vbus(struct platform_device *pdev)
 	return usbhs_is_connected(usbhs_get_priv(pdev));
 }
 
-static void usbhs_phy_reset(struct platform_device *pdev)
+static int usbhs_phy_reset(struct platform_device *pdev)
 {
 	struct usbhs_private *priv = usbhs_get_priv(pdev);
 
 	/* init phy */
 	__raw_writew(0x8a0a, priv->usbcrcaddr);
+
+	return 0;
 }
 
 static int usbhs0_get_id(struct platform_device *pdev)
@@ -628,11 +630,13 @@ static int usbhs0_hardware_init(struct platform_device *pdev)
 	return 0;
 }
 
-static void usbhs0_hardware_exit(struct platform_device *pdev)
+static int usbhs0_hardware_exit(struct platform_device *pdev)
 {
 	struct usbhs_private *priv = usbhs_get_priv(pdev);
 
 	cancel_delayed_work_sync(&priv->work);
+
+	return 0;
 }
 
 static struct usbhs_private usbhs0_private = {
@@ -735,7 +739,7 @@ static int usbhs1_hardware_init(struct platform_device *pdev)
 	return 0;
 }
 
-static void usbhs1_hardware_exit(struct platform_device *pdev)
+static int usbhs1_hardware_exit(struct platform_device *pdev)
 {
 	struct usbhs_private *priv = usbhs_get_priv(pdev);
 
@@ -743,6 +747,8 @@ static void usbhs1_hardware_exit(struct platform_device *pdev)
 	__raw_writew(USB_PHY_MODE | USB_PHY_INT_CLR, priv->usbphyaddr);
 
 	free_irq(IRQ8, pdev);
+
+	return 0;
 }
 
 static int usbhs1_get_id(struct platform_device *pdev)

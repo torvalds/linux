@@ -517,14 +517,14 @@ static inline void abx500_gpio_dbg_show_one(struct seq_file *s,
 #define abx500_gpio_dbg_show	NULL
 #endif
 
-int abx500_gpio_request(struct gpio_chip *chip, unsigned offset)
+static int abx500_gpio_request(struct gpio_chip *chip, unsigned offset)
 {
 	int gpio = chip->base + offset;
 
 	return pinctrl_request_gpio(gpio);
 }
 
-void abx500_gpio_free(struct gpio_chip *chip, unsigned offset)
+static void abx500_gpio_free(struct gpio_chip *chip, unsigned offset)
 {
 	int gpio = chip->base + offset;
 
@@ -611,7 +611,7 @@ static void abx500_pmx_disable(struct pinctrl_dev *pctldev,
 	dev_dbg(pct->dev, "disable group %s, %u pins\n", g->name, g->npins);
 }
 
-int abx500_gpio_request_enable(struct pinctrl_dev *pctldev,
+static int abx500_gpio_request_enable(struct pinctrl_dev *pctldev,
 			       struct pinctrl_gpio_range *range,
 			       unsigned offset)
 {
@@ -656,7 +656,7 @@ static void abx500_gpio_disable_free(struct pinctrl_dev *pctldev,
 {
 }
 
-static struct pinmux_ops abx500_pinmux_ops = {
+static const struct pinmux_ops abx500_pinmux_ops = {
 	.get_functions_count = abx500_pmx_get_funcs_cnt,
 	.get_function_name = abx500_pmx_get_func_name,
 	.get_function_groups = abx500_pmx_get_func_groups,
@@ -704,21 +704,21 @@ static void abx500_pin_dbg_show(struct pinctrl_dev *pctldev,
 				 chip->base + offset - 1);
 }
 
-static struct pinctrl_ops abx500_pinctrl_ops = {
+static const struct pinctrl_ops abx500_pinctrl_ops = {
 	.get_groups_count = abx500_get_groups_cnt,
 	.get_group_name = abx500_get_group_name,
 	.get_group_pins = abx500_get_group_pins,
 	.pin_dbg_show = abx500_pin_dbg_show,
 };
 
-int abx500_pin_config_get(struct pinctrl_dev *pctldev,
+static int abx500_pin_config_get(struct pinctrl_dev *pctldev,
 			  unsigned pin,
 			  unsigned long *config)
 {
 	return -ENOSYS;
 }
 
-int abx500_pin_config_set(struct pinctrl_dev *pctldev,
+static int abx500_pin_config_set(struct pinctrl_dev *pctldev,
 			  unsigned pin,
 			  unsigned long config)
 {
@@ -778,7 +778,7 @@ int abx500_pin_config_set(struct pinctrl_dev *pctldev,
 	return ret;
 }
 
-static struct pinconf_ops abx500_pinconf_ops = {
+static const struct pinconf_ops abx500_pinconf_ops = {
 	.pin_config_get = abx500_pin_config_get,
 	.pin_config_set = abx500_pin_config_set,
 };
@@ -834,6 +834,7 @@ static const struct of_device_id abx500_gpio_match[] = {
 	{ .compatible = "stericsson,ab8505-gpio", .data = (void *)PINCTRL_AB8505, },
 	{ .compatible = "stericsson,ab8540-gpio", .data = (void *)PINCTRL_AB8540, },
 	{ .compatible = "stericsson,ab9540-gpio", .data = (void *)PINCTRL_AB9540, },
+	{ }
 };
 
 static int abx500_gpio_probe(struct platform_device *pdev)
@@ -879,7 +880,6 @@ static int abx500_gpio_probe(struct platform_device *pdev)
 	pct->parent = dev_get_drvdata(pdev->dev.parent);
 	pct->chip = abx500gpio_chip;
 	pct->chip.dev = &pdev->dev;
-	pct->chip.base = pdata->gpio_base;
 	pct->chip.base = (np) ? -1 : pdata->gpio_base;
 
 	/* initialize the lock */

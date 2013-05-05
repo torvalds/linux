@@ -44,7 +44,8 @@ typedef unsigned long pt_reg_t;
 struct pt_regs *get_pt_regs(struct pt_regs *);
 
 /* Trace the current syscall. */
-extern void do_syscall_trace(void);
+extern int do_syscall_trace_enter(struct pt_regs *regs);
+extern void do_syscall_trace_exit(struct pt_regs *regs);
 
 #define arch_has_single_step()	(1)
 

@@ -1482,7 +1482,7 @@ static int xgmac_set_features(struct net_device *dev, netdev_features_t features
 	u32 ctrl;
 	struct xgmac_priv *priv = netdev_priv(dev);
 	void __iomem *ioaddr = priv->base;
-	u32 changed = dev->features ^ features;
+	netdev_features_t changed = dev->features ^ features;
 
 	if (!(changed & NETIF_F_RXCSUM))
 		return 0;
@@ -1886,12 +1886,9 @@ static int xgmac_resume(struct device *dev)
 
 	return 0;
 }
+#endif /* CONFIG_PM_SLEEP */
 
 static SIMPLE_DEV_PM_OPS(xgmac_pm_ops, xgmac_suspend, xgmac_resume);
-#define XGMAC_PM_OPS (&xgmac_pm_ops)
-#else
-#define XGMAC_PM_OPS NULL
-#endif /* CONFIG_PM_SLEEP */
 
 static const struct of_device_id xgmac_of_match[] = {
 	{ .compatible = "calxeda,hb-xgmac", },
@@ -1906,7 +1903,7 @@ static struct platform_driver xgmac_driver = {
 	},
 	.probe = xgmac_probe,
 	.remove = xgmac_remove,
-	.driver.pm = XGMAC_PM_OPS,
+	.driver.pm = &xgmac_pm_ops,
 };
 
 module_platform_driver(xgmac_driver);

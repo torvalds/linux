@@ -119,7 +119,7 @@ static int rx51_battery_read_temperature(struct rx51_device_info *di)
 
 	/* First check for temperature in first direct table */
 	if (raw < ARRAY_SIZE(rx51_temp_table1))
-		return rx51_temp_table1[raw] * 100;
+		return rx51_temp_table1[raw] * 10;
 
 	/* Binary search RAW value in second inverse table */
 	while (max - min > 1) {
@@ -132,7 +132,7 @@ static int rx51_battery_read_temperature(struct rx51_device_info *di)
 			break;
 	}
 
-	return (rx51_temp_table2_first - min) * 100;
+	return (rx51_temp_table2_first - min) * 10;
 }
 
 /*
@@ -202,7 +202,7 @@ static int rx51_battery_probe(struct platform_device *pdev)
 	struct rx51_device_info *di;
 	int ret;
 
-	di = kzalloc(sizeof(*di), GFP_KERNEL);
+	di = devm_kzalloc(&pdev->dev, sizeof(*di), GFP_KERNEL);
 	if (!di)
 		return -ENOMEM;
 
@@ -217,7 +217,6 @@ static int rx51_battery_probe(struct platform_device *pdev)
 	ret = power_supply_register(di->dev, &di->bat);
 	if (ret) {
 		platform_set_drvdata(pdev, NULL);
-		kfree(di);
 		return ret;
 	}
 
@@ -230,7 +229,6 @@ static int rx51_battery_remove(struct platform_device *pdev)
 
 	power_supply_unregister(&di->bat);
 	platform_set_drvdata(pdev, NULL);
-	kfree(di);
 
 	return 0;
 }

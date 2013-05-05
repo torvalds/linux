@@ -59,9 +59,6 @@ int mwifiex_wait_queue_complete(struct mwifiex_adapter *adapter,
 {
 	int status;
 
-	dev_dbg(adapter->dev, "cmd pending\n");
-	atomic_inc(&adapter->cmd_pending);
-
 	/* Wait for completion */
 	status = wait_event_interruptible(adapter->cmd_wait_q.wait,
 					  *(cmd_queued->condition));
@@ -143,12 +140,13 @@ int mwifiex_request_set_multicast_list(struct mwifiex_private *priv,
 /*
  * This function fills bss descriptor structure using provided
  * information.
+ * beacon_ie buffer is allocated in this function. It is caller's
+ * responsibility to free the memory.
  */
 int mwifiex_fill_new_bss_desc(struct mwifiex_private *priv,
 			      struct cfg80211_bss *bss,
 			      struct mwifiex_bssdescriptor *bss_desc)
 {
-	int ret;
 	u8 *beacon_ie;
 	size_t beacon_ie_len;
 	struct mwifiex_bss_priv *bss_priv = (void *)bss->priv;
@@ -168,6 +166,7 @@ int mwifiex_fill_new_bss_desc(struct mwifiex_private *priv,
 
 	memcpy(bss_desc->mac_address, bss->bssid, ETH_ALEN);
 	bss_desc->rssi = bss->signal;
+	/* The caller of this function will free beacon_ie */
 	bss_desc->beacon_buf = beacon_ie;
 	bss_desc->beacon_buf_size = beacon_ie_len;
 	bss_desc->beacon_period = bss->beacon_interval;
@@ -185,10 +184,12 @@ int mwifiex_fill_new_bss_desc(struct mwifiex_private *priv,
 	else
 		bss_desc->bss_mode = NL80211_IFTYPE_STATION;
 
-	ret = mwifiex_update_bss_desc_with_ie(priv->adapter, bss_desc);
+	/* Disable 11ac by default. Enable it only where there
+	 * exist VHT_CAP IE in AP beacon
+	 */
+	bss_desc->disable_11ac = true;
 
-	kfree(beacon_ie);
-	return ret;
+	return mwifiex_update_bss_desc_with_ie(priv->adapter, bss_desc);
 }
 
 static int mwifiex_process_country_ie(struct mwifiex_private *priv,
@@ -352,6 +353,11 @@ int mwifiex_bss_start(struct mwifiex_private *priv, struct cfg80211_bss *bss,
 	}
 
 done:
+	/* beacon_ie buffer was allocated in function
+	 * mwifiex_fill_new_bss_desc(). Free it now.
+	 */
+	if (bss_desc)
+		kfree(bss_desc->beacon_buf);
 	kfree(bss_desc);
 	return ret;
 }
@@ -382,7 +388,7 @@ static int mwifiex_set_hs_params(struct mwifiex_private *priv, u16 action,
 			break;
 		}
 		if (hs_cfg->is_invoke_hostcmd) {
-			if (hs_cfg->conditions == HOST_SLEEP_CFG_CANCEL) {
+			if (hs_cfg->conditions == HS_CFG_CANCEL) {
 				if (!adapter->is_hs_configured)
 					/* Already cancelled */
 					break;
@@ -397,8 +403,8 @@ static int mwifiex_set_hs_params(struct mwifiex_private *priv, u16 action,
 				adapter->hs_cfg.gpio = (u8)hs_cfg->gpio;
 				if (hs_cfg->gap)
 					adapter->hs_cfg.gap = (u8)hs_cfg->gap;
-			} else if (adapter->hs_cfg.conditions
-				   == cpu_to_le32(HOST_SLEEP_CFG_CANCEL)) {
+			} else if (adapter->hs_cfg.conditions ==
+				   cpu_to_le32(HS_CFG_CANCEL)) {
 				/* Return failure if no parameters for HS
 				   enable */
 				status = -1;
@@ -414,7 +420,7 @@ static int mwifiex_set_hs_params(struct mwifiex_private *priv, u16 action,
 						HostCmd_CMD_802_11_HS_CFG_ENH,
 						HostCmd_ACT_GEN_SET, 0,
 						&adapter->hs_cfg);
-			if (hs_cfg->conditions == HOST_SLEEP_CFG_CANCEL)
+			if (hs_cfg->conditions == HS_CFG_CANCEL)
 				/* Restore previous condition */
 				adapter->hs_cfg.conditions =
 						cpu_to_le32(prev_cond);
@@ -448,7 +454,7 @@ int mwifiex_cancel_hs(struct mwifiex_private *priv, int cmd_type)
 {
 	struct mwifiex_ds_hs_cfg hscfg;
 
-	hscfg.conditions = HOST_SLEEP_CFG_CANCEL;
+	hscfg.conditions = HS_CFG_CANCEL;
 	hscfg.is_invoke_hostcmd = true;
 
 	return mwifiex_set_hs_params(priv, HostCmd_ACT_GEN_SET,

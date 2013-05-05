@@ -556,11 +556,9 @@ static int ibmveth_open(struct net_device *netdev)
 	adapter->rx_queue.queue_len = sizeof(struct ibmveth_rx_q_entry) *
 						rxq_entries;
 	adapter->rx_queue.queue_addr =
-	    dma_alloc_coherent(dev, adapter->rx_queue.queue_len,
-			       &adapter->rx_queue.queue_dma, GFP_KERNEL);
-
+		dma_alloc_coherent(dev, adapter->rx_queue.queue_len,
+				   &adapter->rx_queue.queue_dma, GFP_KERNEL);
 	if (!adapter->rx_queue.queue_addr) {
-		netdev_err(netdev, "unable to allocate rx queue pages\n");
 		rc = -ENOMEM;
 		goto err_out;
 	}

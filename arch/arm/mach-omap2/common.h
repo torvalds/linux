@@ -110,6 +110,14 @@ void am35xx_init_late(void);
 void ti81xx_init_late(void);
 int omap2_common_pm_late_init(void);
 
+#ifdef CONFIG_SOC_BUS
+void omap_soc_device_init(void);
+#else
+static inline void omap_soc_device_init(void)
+{
+}
+#endif
+
 #if defined(CONFIG_SOC_OMAP2420) || defined(CONFIG_SOC_OMAP2430)
 void omap2xxx_restart(char mode, const char *cmd);
 #else
@@ -249,7 +257,6 @@ extern int omap4_enter_lowpower(unsigned int cpu, unsigned int power_state);
 extern int omap4_finish_suspend(unsigned long cpu_state);
 extern void omap4_cpu_resume(void);
 extern int omap4_hotplug_cpu(unsigned int cpu, unsigned int power_state);
-extern u32 omap4_mpuss_read_prev_context_state(void);
 #else
 static inline int omap4_enter_lowpower(unsigned int cpu,
 					unsigned int power_state)
@@ -277,10 +284,6 @@ static inline int omap4_finish_suspend(unsigned long cpu_state)
 static inline void omap4_cpu_resume(void)
 {}
 
-static inline u32 omap4_mpuss_read_prev_context_state(void)
-{
-	return 0;
-}
 #endif
 
 struct omap_sdrc_params;

@@ -331,6 +331,10 @@ static const struct reg_default wm5102_reg_default[] = {
 	{ 0x000002A3, 0x1102 },   /* R675   - Mic Detect 1 */ 
 	{ 0x000002A4, 0x009F },   /* R676   - Mic Detect 2 */ 
 	{ 0x000002A5, 0x0000 },   /* R677   - Mic Detect 3 */ 
+	{ 0x000002A6, 0x3737 },   /* R678   - Mic Detect Level 1 */
+	{ 0x000002A7, 0x372C },   /* R679   - Mic Detect Level 2 */
+	{ 0x000002A8, 0x1422 },   /* R680   - Mic Detect Level 3 */
+	{ 0x000002A9, 0x030A },   /* R681   - Mic Detect Level 4 */
 	{ 0x000002C3, 0x0000 },   /* R707   - Mic noise mix control 1 */ 
 	{ 0x000002CB, 0x0000 },   /* R715   - Isolation control */ 
 	{ 0x000002D3, 0x0000 },   /* R723   - Jack detect analogue */ 
@@ -1090,6 +1094,10 @@ static bool wm5102_readable_register(struct device *dev, unsigned int reg)
 	case ARIZONA_MIC_DETECT_1:
 	case ARIZONA_MIC_DETECT_2:
 	case ARIZONA_MIC_DETECT_3:
+	case ARIZONA_MIC_DETECT_LEVEL_1:
+	case ARIZONA_MIC_DETECT_LEVEL_2:
+	case ARIZONA_MIC_DETECT_LEVEL_3:
+	case ARIZONA_MIC_DETECT_LEVEL_4:
 	case ARIZONA_MIC_NOISE_MIX_CONTROL_1:
 	case ARIZONA_ISOLATION_CONTROL:
 	case ARIZONA_JACK_DETECT_ANALOGUE:

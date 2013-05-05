@@ -214,20 +214,27 @@ static int simdisk_detach(struct simdisk *dev)
 	return err;
 }
 
-static int proc_read_simdisk(char *page, char **start, off_t off,
-		int count, int *eof, void *data)
+static ssize_t proc_read_simdisk(struct file *file, char __user *buf,
+			size_t size, loff_t *ppos)
 {
-	int len;
-	struct simdisk *dev = (struct simdisk *) data;
-	len = sprintf(page, "%s\n", dev->filename ? dev->filename : "");
-	return len;
+	struct simdisk *dev = PDE_DATA(file_inode(file));
+	char *s = dev->filename;
+	if (s) {
+		ssize_t n = simple_read_from_buffer(buf, size, ppos,
+							s, strlen(s));
+		if (n < 0)
+			return n;
+		buf += n;
+		size -= n;
+	}
+	return simple_read_from_buffer(buf, size, ppos, "\n", 1);
 }
 
-static int proc_write_simdisk(struct file *file, const char *buffer,
-		unsigned long count, void *data)
+static ssize_t proc_write_simdisk(struct file *file, const char __user *buf,
+			size_t size, loff_t *ppos)
 {
 	char *tmp = kmalloc(count + 1, GFP_KERNEL);
-	struct simdisk *dev = (struct simdisk *) data;
+	struct simdisk *dev = PDE_DATA(file_inode(file));
 	int err;
 
 	if (tmp == NULL)
@@ -255,6 +262,12 @@ out_free:
 	kfree(tmp);
 	return err;
 }
+
+static const struct file_operations fops = {
+	.read = proc_read_simdisk,
+	.write = proc_write_simdisk,
+	.llseek = default_llseek,
+};
 
 static int __init simdisk_setup(struct simdisk *dev, int which,
 		struct proc_dir_entry *procdir)
@@ -289,10 +302,7 @@ static int __init simdisk_setup(struct simdisk *dev, int which,
 	set_capacity(dev->gd, 0);
 	add_disk(dev->gd);
 
-	dev->procfile = create_proc_entry(tmp, 0644, procdir);
-	dev->procfile->data = dev;
-	dev->procfile->read_proc = proc_read_simdisk;
-	dev->procfile->write_proc = proc_write_simdisk;
+	dev->procfile = proc_create_data(tmp, 0644, procdir, &fops, dev);
 	return 0;
 
 out_alloc_disk:

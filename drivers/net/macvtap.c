@@ -725,6 +725,8 @@ static ssize_t macvtap_get_user(struct macvtap_queue *q, struct msghdr *m,
 			goto err_kfree;
 	}
 
+	skb_probe_transport_header(skb, ETH_HLEN);
+
 	rcu_read_lock_bh();
 	vlan = rcu_dereference_bh(q->vlan);
 	/* copy skb_ubuf_info for callback when skb has no error */

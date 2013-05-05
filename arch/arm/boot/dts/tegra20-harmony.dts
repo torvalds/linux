@@ -437,7 +437,7 @@
 
 	sdhci@c8000200 {
 		status = "okay";
-		cd-gpios = <&gpio 69 0>; /* gpio PI5 */
+		cd-gpios = <&gpio 69 1>; /* gpio PI5 */
 		wp-gpios = <&gpio 57 0>; /* gpio PH1 */
 		power-gpios = <&gpio 155 0>; /* gpio PT3 */
 		bus-width = <4>;
@@ -445,10 +445,23 @@
 
 	sdhci@c8000600 {
 		status = "okay";
-		cd-gpios = <&gpio 58 0>; /* gpio PH2 */
+		cd-gpios = <&gpio 58 1>; /* gpio PH2 */
 		wp-gpios = <&gpio 59 0>; /* gpio PH3 */
 		power-gpios = <&gpio 70 0>; /* gpio PI6 */
 		bus-width = <8>;
+	};
+
+	clocks {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		clk32k_in: clock {
+			compatible = "fixed-clock";
+			reg=<0>;
+			#clock-cells = <0>;
+			clock-frequency = <32768>;
+		};
 	};
 
 	kbc {

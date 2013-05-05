@@ -416,15 +416,16 @@ static __le32 ext4_dx_csum(struct inode *inode, struct ext4_dir_entry *dirent,
 {
 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 	struct ext4_inode_info *ei = EXT4_I(inode);
-	__u32 csum, old_csum;
+	__u32 csum;
+	__le32 save_csum;
 	int size;
 
 	size = count_offset + (count * sizeof(struct dx_entry));
-	old_csum = t->dt_checksum;
+	save_csum = t->dt_checksum;
 	t->dt_checksum = 0;
 	csum = ext4_chksum(sbi, ei->i_csum_seed, (__u8 *)dirent, size);
 	csum = ext4_chksum(sbi, csum, (__u8 *)t, sizeof(struct dx_tail));
-	t->dt_checksum = old_csum;
+	t->dt_checksum = save_csum;
 
 	return cpu_to_le32(csum);
 }
@@ -971,6 +972,17 @@ int ext4_htree_fill_tree(struct file *dir_file, __u32 start_hash,
 			hinfo.hash_version +=
 				EXT4_SB(dir->i_sb)->s_hash_unsigned;
 		hinfo.seed = EXT4_SB(dir->i_sb)->s_hash_seed;
+		if (ext4_has_inline_data(dir)) {
+			int has_inline_data = 1;
+			count = htree_inlinedir_to_tree(dir_file, dir, 0,
+							&hinfo, start_hash,
+							start_minor_hash,
+							&has_inline_data);
+			if (has_inline_data) {
+				*next_hash = ~0;
+				return count;
+			}
+		}
 		count = htree_dirblock_to_tree(dir_file, dir, 0, &hinfo,
 					       start_hash, start_minor_hash);
 		*next_hash = ~0;
@@ -1453,24 +1465,6 @@ struct dentry *ext4_get_parent(struct dentry *child)
 	}
 
 	return d_obtain_alias(ext4_iget(child->d_inode->i_sb, ino));
-}
-
-#define S_SHIFT 12
-static unsigned char ext4_type_by_mode[S_IFMT >> S_SHIFT] = {
-	[S_IFREG >> S_SHIFT]	= EXT4_FT_REG_FILE,
-	[S_IFDIR >> S_SHIFT]	= EXT4_FT_DIR,
-	[S_IFCHR >> S_SHIFT]	= EXT4_FT_CHRDEV,
-	[S_IFBLK >> S_SHIFT]	= EXT4_FT_BLKDEV,
-	[S_IFIFO >> S_SHIFT]	= EXT4_FT_FIFO,
-	[S_IFSOCK >> S_SHIFT]	= EXT4_FT_SOCK,
-	[S_IFLNK >> S_SHIFT]	= EXT4_FT_SYMLINK,
-};
-
-static inline void ext4_set_de_type(struct super_block *sb,
-				struct ext4_dir_entry_2 *de,
-				umode_t mode) {
-	if (EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_FILETYPE))
-		de->file_type = ext4_type_by_mode[(mode & S_IFMT)>>S_SHIFT];
 }
 
 /*
@@ -2251,8 +2245,7 @@ static int ext4_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 	dquot_initialize(dir);
 
 	credits = (EXT4_DATA_TRANS_BLOCKS(dir->i_sb) +
-		   EXT4_INDEX_EXTRA_TRANS_BLOCKS + 3 +
-		   EXT4_MAXQUOTAS_INIT_BLOCKS(dir->i_sb));
+		   EXT4_INDEX_EXTRA_TRANS_BLOCKS + 3);
 retry:
 	inode = ext4_new_inode_start_handle(dir, mode, &dentry->d_name, 0,
 					    NULL, EXT4_HT_DIR, credits);
@@ -2286,8 +2279,7 @@ static int ext4_mknod(struct inode *dir, struct dentry *dentry,
 	dquot_initialize(dir);
 
 	credits = (EXT4_DATA_TRANS_BLOCKS(dir->i_sb) +
-		   EXT4_INDEX_EXTRA_TRANS_BLOCKS + 3 +
-		   EXT4_MAXQUOTAS_INIT_BLOCKS(dir->i_sb));
+		   EXT4_INDEX_EXTRA_TRANS_BLOCKS + 3);
 retry:
 	inode = ext4_new_inode_start_handle(dir, mode, &dentry->d_name, 0,
 					    NULL, EXT4_HT_DIR, credits);
@@ -2396,8 +2388,7 @@ static int ext4_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	dquot_initialize(dir);
 
 	credits = (EXT4_DATA_TRANS_BLOCKS(dir->i_sb) +
-		   EXT4_INDEX_EXTRA_TRANS_BLOCKS + 3 +
-		   EXT4_MAXQUOTAS_INIT_BLOCKS(dir->i_sb));
+		   EXT4_INDEX_EXTRA_TRANS_BLOCKS + 3);
 retry:
 	inode = ext4_new_inode_start_handle(dir, S_IFDIR | mode,
 					    &dentry->d_name,
@@ -2826,8 +2817,7 @@ static int ext4_symlink(struct inode *dir,
 		 * quota blocks, sb is already counted in previous macros).
 		 */
 		credits = EXT4_DATA_TRANS_BLOCKS(dir->i_sb) +
-			  EXT4_INDEX_EXTRA_TRANS_BLOCKS + 3 +
-			  EXT4_MAXQUOTAS_INIT_BLOCKS(dir->i_sb);
+			  EXT4_INDEX_EXTRA_TRANS_BLOCKS + 3;
 	}
 retry:
 	inode = ext4_new_inode_start_handle(dir, S_IFLNK|S_IRWXUGO,

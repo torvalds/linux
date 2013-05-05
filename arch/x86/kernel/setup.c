@@ -82,7 +82,6 @@
 #include <asm/timer.h>
 #include <asm/i8259.h>
 #include <asm/sections.h>
-#include <asm/dmi.h>
 #include <asm/io_apic.h>
 #include <asm/ist.h>
 #include <asm/setup_arch.h>
@@ -173,12 +172,10 @@ static struct resource bss_resource = {
 /* cpu data as detected by the assembly code in head.S */
 struct cpuinfo_x86 new_cpu_data __cpuinitdata = {
 	.wp_works_ok = -1,
-	.fdiv_bug = -1,
 };
 /* common cpu data for all cpus */
 struct cpuinfo_x86 boot_cpu_data __read_mostly = {
 	.wp_works_ok = -1,
-	.fdiv_bug = -1,
 };
 EXPORT_SYMBOL(boot_cpu_data);
 
@@ -999,6 +996,7 @@ void __init setup_arch(char **cmdline_p)
 		efi_init();
 
 	dmi_scan_machine();
+	dmi_set_dump_stack_arch_desc();
 
 	/*
 	 * VMware detection requires dmi to be available, so this

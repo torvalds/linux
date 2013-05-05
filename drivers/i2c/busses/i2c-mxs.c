@@ -56,6 +56,7 @@
 #define MXS_I2C_CTRL1_SET	(0x44)
 #define MXS_I2C_CTRL1_CLR	(0x48)
 
+#define MXS_I2C_CTRL1_CLR_GOT_A_NAK		0x10000000
 #define MXS_I2C_CTRL1_BUS_FREE_IRQ		0x80
 #define MXS_I2C_CTRL1_DATA_ENGINE_CMPLT_IRQ	0x40
 #define MXS_I2C_CTRL1_NO_SLAVE_ACK_IRQ		0x20
@@ -64,6 +65,10 @@
 #define MXS_I2C_CTRL1_MASTER_LOSS_IRQ		0x04
 #define MXS_I2C_CTRL1_SLAVE_STOP_IRQ		0x02
 #define MXS_I2C_CTRL1_SLAVE_IRQ			0x01
+
+#define MXS_I2C_STAT		(0x50)
+#define MXS_I2C_STAT_BUS_BUSY			0x00000800
+#define MXS_I2C_STAT_CLK_GEN_BUSY		0x00000400
 
 #define MXS_I2C_DATA		(0xa0)
 
@@ -297,12 +302,10 @@ static int mxs_i2c_pio_wait_dmareq(struct mxs_i2c_dev *i2c)
 		cond_resched();
 	}
 
-	writel(MXS_I2C_DEBUG0_DMAREQ, i2c->regs + MXS_I2C_DEBUG0_CLR);
-
 	return 0;
 }
 
-static int mxs_i2c_pio_wait_cplt(struct mxs_i2c_dev *i2c)
+static int mxs_i2c_pio_wait_cplt(struct mxs_i2c_dev *i2c, int last)
 {
 	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
 
@@ -323,7 +326,48 @@ static int mxs_i2c_pio_wait_cplt(struct mxs_i2c_dev *i2c)
 	writel(MXS_I2C_CTRL1_DATA_ENGINE_CMPLT_IRQ,
 		i2c->regs + MXS_I2C_CTRL1_CLR);
 
+	/*
+	 * When ending a transfer with a stop, we have to wait for the bus to
+	 * go idle before we report the transfer as completed. Otherwise the
+	 * start of the next transfer may race with the end of the current one.
+	 */
+	while (last && (readl(i2c->regs + MXS_I2C_STAT) &
+			(MXS_I2C_STAT_BUS_BUSY | MXS_I2C_STAT_CLK_GEN_BUSY))) {
+		if (time_after(jiffies, timeout))
+			return -ETIMEDOUT;
+		cond_resched();
+	}
+
 	return 0;
+}
+
+static int mxs_i2c_pio_check_error_state(struct mxs_i2c_dev *i2c)
+{
+	u32 state;
+
+	state = readl(i2c->regs + MXS_I2C_CTRL1_CLR) & MXS_I2C_IRQ_MASK;
+
+	if (state & MXS_I2C_CTRL1_NO_SLAVE_ACK_IRQ)
+		i2c->cmd_err = -ENXIO;
+	else if (state & (MXS_I2C_CTRL1_EARLY_TERM_IRQ |
+			  MXS_I2C_CTRL1_MASTER_LOSS_IRQ |
+			  MXS_I2C_CTRL1_SLAVE_STOP_IRQ |
+			  MXS_I2C_CTRL1_SLAVE_IRQ))
+		i2c->cmd_err = -EIO;
+
+	return i2c->cmd_err;
+}
+
+static void mxs_i2c_pio_trigger_cmd(struct mxs_i2c_dev *i2c, u32 cmd)
+{
+	u32 reg;
+
+	writel(cmd, i2c->regs + MXS_I2C_CTRL0);
+
+	/* readback makes sure the write is latched into hardware */
+	reg = readl(i2c->regs + MXS_I2C_CTRL0);
+	reg |= MXS_I2C_CTRL0_RUN;
+	writel(reg, i2c->regs + MXS_I2C_CTRL0);
 }
 
 static int mxs_i2c_pio_setup_xfer(struct i2c_adapter *adap,
@@ -341,23 +385,26 @@ static int mxs_i2c_pio_setup_xfer(struct i2c_adapter *adap,
 		addr_data |= I2C_SMBUS_READ;
 
 		/* SELECT command. */
-		writel(MXS_I2C_CTRL0_RUN | MXS_CMD_I2C_SELECT,
-			i2c->regs + MXS_I2C_CTRL0);
+		mxs_i2c_pio_trigger_cmd(i2c, MXS_CMD_I2C_SELECT);
 
 		ret = mxs_i2c_pio_wait_dmareq(i2c);
 		if (ret)
 			return ret;
 
 		writel(addr_data, i2c->regs + MXS_I2C_DATA);
+		writel(MXS_I2C_DEBUG0_DMAREQ, i2c->regs + MXS_I2C_DEBUG0_CLR);
 
-		ret = mxs_i2c_pio_wait_cplt(i2c);
+		ret = mxs_i2c_pio_wait_cplt(i2c, 0);
 		if (ret)
 			return ret;
 
+		if (mxs_i2c_pio_check_error_state(i2c))
+			goto cleanup;
+
 		/* READ command. */
-		writel(MXS_I2C_CTRL0_RUN | MXS_CMD_I2C_READ | flags |
-			MXS_I2C_CTRL0_XFER_COUNT(msg->len),
-			i2c->regs + MXS_I2C_CTRL0);
+		mxs_i2c_pio_trigger_cmd(i2c,
+					MXS_CMD_I2C_READ | flags |
+					MXS_I2C_CTRL0_XFER_COUNT(msg->len));
 
 		for (i = 0; i < msg->len; i++) {
 			if ((i & 3) == 0) {
@@ -365,6 +412,8 @@ static int mxs_i2c_pio_setup_xfer(struct i2c_adapter *adap,
 				if (ret)
 					return ret;
 				data = readl(i2c->regs + MXS_I2C_DATA);
+				writel(MXS_I2C_DEBUG0_DMAREQ,
+				       i2c->regs + MXS_I2C_DEBUG0_CLR);
 			}
 			msg->buf[i] = data & 0xff;
 			data >>= 8;
@@ -373,9 +422,9 @@ static int mxs_i2c_pio_setup_xfer(struct i2c_adapter *adap,
 		addr_data |= I2C_SMBUS_WRITE;
 
 		/* WRITE command. */
-		writel(MXS_I2C_CTRL0_RUN | MXS_CMD_I2C_WRITE | flags |
-			MXS_I2C_CTRL0_XFER_COUNT(msg->len + 1),
-			i2c->regs + MXS_I2C_CTRL0);
+		mxs_i2c_pio_trigger_cmd(i2c,
+					MXS_CMD_I2C_WRITE | flags |
+					MXS_I2C_CTRL0_XFER_COUNT(msg->len + 1));
 
 		/*
 		 * The LSB of data buffer is the first byte blasted across
@@ -391,6 +440,8 @@ static int mxs_i2c_pio_setup_xfer(struct i2c_adapter *adap,
 				if (ret)
 					return ret;
 				writel(data, i2c->regs + MXS_I2C_DATA);
+				writel(MXS_I2C_DEBUG0_DMAREQ,
+				       i2c->regs + MXS_I2C_DEBUG0_CLR);
 			}
 		}
 
@@ -401,13 +452,19 @@ static int mxs_i2c_pio_setup_xfer(struct i2c_adapter *adap,
 			if (ret)
 				return ret;
 			writel(data, i2c->regs + MXS_I2C_DATA);
+			writel(MXS_I2C_DEBUG0_DMAREQ,
+			       i2c->regs + MXS_I2C_DEBUG0_CLR);
 		}
 	}
 
-	ret = mxs_i2c_pio_wait_cplt(i2c);
+	ret = mxs_i2c_pio_wait_cplt(i2c, flags & MXS_I2C_CTRL0_POST_SEND_STOP);
 	if (ret)
 		return ret;
 
+	/* make sure we capture any occurred error into cmd_err */
+	mxs_i2c_pio_check_error_state(i2c);
+
+cleanup:
 	/* Clear any dangling IRQs and re-enable interrupts. */
 	writel(MXS_I2C_IRQ_MASK, i2c->regs + MXS_I2C_CTRL1_CLR);
 	writel(MXS_I2C_IRQ_MASK << 8, i2c->regs + MXS_I2C_CTRL1_SET);
@@ -439,12 +496,12 @@ static int mxs_i2c_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg,
 	 * using PIO mode while longer transfers use DMA. The 8 byte border is
 	 * based on this empirical measurement and a lot of previous frobbing.
 	 */
+	i2c->cmd_err = 0;
 	if (msg->len < 8) {
 		ret = mxs_i2c_pio_setup_xfer(adap, msg, flags);
 		if (ret)
 			mxs_i2c_reset(i2c);
 	} else {
-		i2c->cmd_err = 0;
 		INIT_COMPLETION(i2c->cmd_complete);
 		ret = mxs_i2c_dma_setup_xfer(adap, msg, flags);
 		if (ret)
@@ -454,12 +511,18 @@ static int mxs_i2c_xfer_msg(struct i2c_adapter *adap, struct i2c_msg *msg,
 						msecs_to_jiffies(1000));
 		if (ret == 0)
 			goto timeout;
-
-		if (i2c->cmd_err == -ENXIO)
-			mxs_i2c_reset(i2c);
-
-		ret = i2c->cmd_err;
 	}
+
+	if (i2c->cmd_err == -ENXIO) {
+		/*
+		 * If the transfer fails with a NAK from the slave the
+		 * controller halts until it gets told to return to idle state.
+		 */
+		writel(MXS_I2C_CTRL1_CLR_GOT_A_NAK,
+		       i2c->regs + MXS_I2C_CTRL1_SET);
+	}
+
+	ret = i2c->cmd_err;
 
 	dev_dbg(i2c->dev, "Done with err=%d\n", ret);
 
@@ -686,11 +749,8 @@ static int mxs_i2c_probe(struct platform_device *pdev)
 static int mxs_i2c_remove(struct platform_device *pdev)
 {
 	struct mxs_i2c_dev *i2c = platform_get_drvdata(pdev);
-	int ret;
 
-	ret = i2c_del_adapter(&i2c->adapter);
-	if (ret)
-		return -EBUSY;
+	i2c_del_adapter(&i2c->adapter);
 
 	if (i2c->dmach)
 		dma_release_channel(i2c->dmach);

@@ -506,7 +506,7 @@ drm_gtf_mode(struct drm_device *dev, int hdisplay, int vdisplay, int vrefresh,
 }
 EXPORT_SYMBOL(drm_gtf_mode);
 
-#if IS_ENABLED(CONFIG_VIDEOMODE)
+#ifdef CONFIG_VIDEOMODE_HELPERS
 int drm_display_mode_from_videomode(const struct videomode *vm,
 				    struct drm_display_mode *dmode)
 {
@@ -523,26 +523,25 @@ int drm_display_mode_from_videomode(const struct videomode *vm,
 	dmode->clock = vm->pixelclock / 1000;
 
 	dmode->flags = 0;
-	if (vm->dmt_flags & VESA_DMT_HSYNC_HIGH)
+	if (vm->flags & DISPLAY_FLAGS_HSYNC_HIGH)
 		dmode->flags |= DRM_MODE_FLAG_PHSYNC;
-	else if (vm->dmt_flags & VESA_DMT_HSYNC_LOW)
+	else if (vm->flags & DISPLAY_FLAGS_HSYNC_LOW)
 		dmode->flags |= DRM_MODE_FLAG_NHSYNC;
-	if (vm->dmt_flags & VESA_DMT_VSYNC_HIGH)
+	if (vm->flags & DISPLAY_FLAGS_VSYNC_HIGH)
 		dmode->flags |= DRM_MODE_FLAG_PVSYNC;
-	else if (vm->dmt_flags & VESA_DMT_VSYNC_LOW)
+	else if (vm->flags & DISPLAY_FLAGS_VSYNC_LOW)
 		dmode->flags |= DRM_MODE_FLAG_NVSYNC;
-	if (vm->data_flags & DISPLAY_FLAGS_INTERLACED)
+	if (vm->flags & DISPLAY_FLAGS_INTERLACED)
 		dmode->flags |= DRM_MODE_FLAG_INTERLACE;
-	if (vm->data_flags & DISPLAY_FLAGS_DOUBLESCAN)
+	if (vm->flags & DISPLAY_FLAGS_DOUBLESCAN)
 		dmode->flags |= DRM_MODE_FLAG_DBLSCAN;
 	drm_mode_set_name(dmode);
 
 	return 0;
 }
 EXPORT_SYMBOL_GPL(drm_display_mode_from_videomode);
-#endif
 
-#if IS_ENABLED(CONFIG_OF_VIDEOMODE)
+#ifdef CONFIG_OF
 /**
  * of_get_drm_display_mode - get a drm_display_mode from devicetree
  * @np: device_node with the timing specification
@@ -572,7 +571,8 @@ int of_get_drm_display_mode(struct device_node *np,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(of_get_drm_display_mode);
-#endif
+#endif /* CONFIG_OF */
+#endif /* CONFIG_VIDEOMODE_HELPERS */
 
 /**
  * drm_mode_set_name - set the name on a mode
@@ -848,6 +848,26 @@ bool drm_mode_equal(const struct drm_display_mode *mode1, const struct drm_displ
 	} else if (mode1->clock != mode2->clock)
 		return false;
 
+	return drm_mode_equal_no_clocks(mode1, mode2);
+}
+EXPORT_SYMBOL(drm_mode_equal);
+
+/**
+ * drm_mode_equal_no_clocks - test modes for equality
+ * @mode1: first mode
+ * @mode2: second mode
+ *
+ * LOCKING:
+ * None.
+ *
+ * Check to see if @mode1 and @mode2 are equivalent, but
+ * don't check the pixel clocks.
+ *
+ * RETURNS:
+ * True if the modes are equal, false otherwise.
+ */
+bool drm_mode_equal_no_clocks(const struct drm_display_mode *mode1, const struct drm_display_mode *mode2)
+{
 	if (mode1->hdisplay == mode2->hdisplay &&
 	    mode1->hsync_start == mode2->hsync_start &&
 	    mode1->hsync_end == mode2->hsync_end &&
@@ -863,7 +883,7 @@ bool drm_mode_equal(const struct drm_display_mode *mode1, const struct drm_displ
 
 	return false;
 }
-EXPORT_SYMBOL(drm_mode_equal);
+EXPORT_SYMBOL(drm_mode_equal_no_clocks);
 
 /**
  * drm_mode_validate_size - make sure modes adhere to size constraints

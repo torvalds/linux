@@ -523,7 +523,7 @@ static int __init davinci_rtc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, davinci_rtc);
 
-	davinci_rtc->rtc = rtc_device_register(pdev->name, &pdev->dev,
+	davinci_rtc->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
 				    &davinci_rtc_ops, THIS_MODULE);
 	if (IS_ERR(davinci_rtc->rtc)) {
 		ret = PTR_ERR(davinci_rtc->rtc);
@@ -543,7 +543,7 @@ static int __init davinci_rtc_probe(struct platform_device *pdev)
 			  0, "davinci_rtc", davinci_rtc);
 	if (ret < 0) {
 		dev_err(dev, "unable to register davinci RTC interrupt\n");
-		goto fail2;
+		goto fail1;
 	}
 
 	/* Enable interrupts */
@@ -557,22 +557,18 @@ static int __init davinci_rtc_probe(struct platform_device *pdev)
 
 	return 0;
 
-fail2:
-	rtc_device_unregister(davinci_rtc->rtc);
 fail1:
 	platform_set_drvdata(pdev, NULL);
 	return ret;
 }
 
-static int davinci_rtc_remove(struct platform_device *pdev)
+static int __exit davinci_rtc_remove(struct platform_device *pdev)
 {
 	struct davinci_rtc *davinci_rtc = platform_get_drvdata(pdev);
 
 	device_init_wakeup(&pdev->dev, 0);
 
 	rtcif_write(davinci_rtc, 0, PRTCIF_INTEN);
-
-	rtc_device_unregister(davinci_rtc->rtc);
 
 	platform_set_drvdata(pdev, NULL);
 
@@ -581,24 +577,14 @@ static int davinci_rtc_remove(struct platform_device *pdev)
 
 static struct platform_driver davinci_rtc_driver = {
 	.probe		= davinci_rtc_probe,
-	.remove		= davinci_rtc_remove,
+	.remove		= __exit_p(davinci_rtc_remove),
 	.driver		= {
 		.name = "rtc_davinci",
 		.owner = THIS_MODULE,
 	},
 };
 
-static int __init rtc_init(void)
-{
-	return platform_driver_probe(&davinci_rtc_driver, davinci_rtc_probe);
-}
-module_init(rtc_init);
-
-static void __exit rtc_exit(void)
-{
-	platform_driver_unregister(&davinci_rtc_driver);
-}
-module_exit(rtc_exit);
+module_platform_driver_probe(davinci_rtc_driver, davinci_rtc_probe);
 
 MODULE_AUTHOR("Miguel Aguilar <miguel.aguilar@ridgerun.com>");
 MODULE_DESCRIPTION("Texas Instruments DaVinci PRTC Driver");

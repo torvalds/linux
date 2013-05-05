@@ -62,6 +62,7 @@
 #define OMAP2_MPU_SOURCE	"sys_ck"
 #define OMAP3_MPU_SOURCE	OMAP2_MPU_SOURCE
 #define OMAP4_MPU_SOURCE	"sys_clkin_ck"
+#define OMAP5_MPU_SOURCE	"sys_clkin"
 #define OMAP2_32K_SOURCE	"func_32k_ck"
 #define OMAP3_32K_SOURCE	"omap_32k_fck"
 #define OMAP4_32K_SOURCE	"sys_32k_ck"
@@ -487,7 +488,7 @@ static void __init realtime_counter_init(void)
 		pr_err("%s: ioremap failed\n", __func__);
 		return;
 	}
-	sys_clk = clk_get(NULL, "sys_clkin_ck");
+	sys_clk = clk_get(NULL, OMAP5_MPU_SOURCE);
 	if (IS_ERR(sys_clk)) {
 		pr_err("%s: failed to get system clock handle\n", __func__);
 		iounmap(base);
@@ -601,7 +602,7 @@ void __init omap4_local_timer_init(void)
 		int err;
 
 		if (of_have_populated_dt()) {
-			twd_local_timer_of_register();
+			clocksource_of_init();
 			return;
 		}
 
@@ -620,7 +621,7 @@ void __init omap4_local_timer_init(void)
 
 #ifdef CONFIG_SOC_OMAP5
 OMAP_SYS_32K_TIMER_INIT(5, 1, OMAP4_32K_SOURCE, "ti,timer-alwon",
-			2, OMAP4_MPU_SOURCE);
+			2, OMAP5_MPU_SOURCE);
 void __init omap5_realtime_timer_init(void)
 {
 	int err;

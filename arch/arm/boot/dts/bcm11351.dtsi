@@ -47,4 +47,12 @@
 		    cache-unified;
 		    cache-level = <2>;
 	};
+
+	timer@35006000 {
+		compatible = "bcm,kona-timer";
+		reg = <0x35006000 0x1000>;
+		interrupts = <0x0 7 0x4>;
+		clock-frequency = <32768>;
+	};
+
 };

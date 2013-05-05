@@ -36,6 +36,8 @@
 #include <linux/syscalls.h>
 #include <linux/eeprom_93cx6.h>
 #include <linux/interrupt.h>
+#include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 
 #include "r8180_hw.h"
 #include "r8180.h"
@@ -204,51 +206,35 @@ void rtl8180_start_tx_beacon(struct net_device *dev);
 
 static struct proc_dir_entry *rtl8180_proc;
 
-static int proc_get_registers(char *page, char **start,
-			  off_t offset, int count,
-			  int *eof, void *data)
+static int proc_get_registers(struct seq_file *m, void *v)
 {
-	struct net_device *dev = data;
-	int len = 0;
-	int i, n;
-	int max = 0xff;
+	struct net_device *dev = m->private;
+	int i, n, max = 0xff;
 
 	/* This dump the current register page */
 	for (n = 0; n <= max;) {
-		len += snprintf(page + len, count - len, "\nD:  %2x > ", n);
+		seq_printf(m, "\nD:  %2x > ", n);
 
 		for (i = 0; i < 16 && n <= max; i++, n++)
-			len += snprintf(page + len, count - len, "%2x ",
-					read_nic_byte(dev, n));
+			seq_printf(m, "%2x ", read_nic_byte(dev, n));
 	}
-	len += snprintf(page + len, count - len, "\n");
-
-	*eof = 1;
-	return len;
+	seq_putc(m, '\n');
+	return 0;
 }
 
 int get_curr_tx_free_desc(struct net_device *dev, int priority);
 
-static int proc_get_stats_hw(char *page, char **start,
-			  off_t offset, int count,
-			  int *eof, void *data)
+static int proc_get_stats_hw(struct seq_file *m, void *v)
 {
-	int len = 0;
-
-	*eof = 1;
-	return len;
+	return 0;
 }
 
-static int proc_get_stats_rx(char *page, char **start,
-			  off_t offset, int count,
-			  int *eof, void *data)
+static int proc_get_stats_rx(struct seq_file *m, void *v)
 {
-	struct net_device *dev = data;
+	struct net_device *dev = m->private;
 	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
 
-	int len = 0;
-
-	len += snprintf(page + len, count - len,
+	seq_printf(m,
 		"RX OK: %lu\n"
 		"RX Retry: %lu\n"
 		"RX CRC Error(0-500): %lu\n"
@@ -263,22 +249,17 @@ static int proc_get_stats_rx(char *page, char **start,
 		priv->stats.rxicverr
 		);
 
-	*eof = 1;
-	return len;
+	return 0;
 }
 
-static int proc_get_stats_tx(char *page, char **start,
-			  off_t offset, int count,
-			  int *eof, void *data)
+static int proc_get_stats_tx(struct seq_file *m, void *v)
 {
-	struct net_device *dev = data;
+	struct net_device *dev = m->private;
 	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
-
-	int len = 0;
 	unsigned long totalOK;
 
 	totalOK = priv->stats.txnpokint+priv->stats.txhpokint+priv->stats.txlpokint;
-	len += snprintf(page + len, count - len,
+	seq_printf(m,
 		"TX OK: %lu\n"
 		"TX Error: %lu\n"
 		"TX Retry: %lu\n"
@@ -291,8 +272,7 @@ static int proc_get_stats_tx(char *page, char **start,
 		priv->stats.txbeaconerr
 	);
 
-	*eof = 1;
-	return len;
+	return 0;
 }
 
 void rtl8180_proc_module_init(void)
@@ -308,59 +288,61 @@ void rtl8180_proc_module_remove(void)
 
 void rtl8180_proc_remove_one(struct net_device *dev)
 {
-	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
-	if (priv->dir_dev) {
-		remove_proc_entry("stats-hw", priv->dir_dev);
-		remove_proc_entry("stats-tx", priv->dir_dev);
-		remove_proc_entry("stats-rx", priv->dir_dev);
-		remove_proc_entry("registers", priv->dir_dev);
-		priv->dir_dev = NULL;
-	}
+	remove_proc_subtree(dev->name, rtl8180_proc);
 }
+
+/*
+ * seq_file wrappers for procfile show routines.
+ */
+static int rtl8180_proc_open(struct inode *inode, struct file *file)
+{
+	struct net_device *dev = proc_get_parent_data(inode);
+	int (*show)(struct seq_file *, void *) = PDE_DATA(inode);
+
+	return single_open(file, show, dev);
+}
+
+static const struct file_operations rtl8180_proc_fops = {
+	.open		= rtl8180_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
+
+/*
+ * Table of proc files we need to create.
+ */
+struct rtl8180_proc_file {
+	char name[12];
+	int (*show)(struct seq_file *, void *);
+};
+
+static const struct rtl8180_proc_file rtl8180_proc_files[] = {
+	{ "stats-hw",	&proc_get_stats_hw },
+	{ "stats-rx",	&proc_get_stats_rx },
+	{ "stats-tx",	&proc_get_stats_tx },
+	{ "registers",	&proc_get_registers },
+	{ "" }
+};
 
 void rtl8180_proc_init_one(struct net_device *dev)
 {
-	struct proc_dir_entry *e;
-	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
+	const struct rtl8180_proc_file *f;
+	struct proc_dir_entry *dir;
 
-	priv->dir_dev = rtl8180_proc;
-	if (!priv->dir_dev) {
-		DMESGE("Unable to initialize /proc/net/r8180/%s\n",
-		      dev->name);
+	dir = proc_mkdir_data(dev->name, 0, rtl8180_proc, dev);
+	if (!dir) {
+		DMESGE("Unable to initialize /proc/net/r8180/%s\n", dev->name);
 		return;
 	}
 
-	e = create_proc_read_entry("stats-hw", S_IFREG | S_IRUGO,
-				   priv->dir_dev, proc_get_stats_hw, dev);
-	if (!e) {
-		DMESGE("Unable to initialize "
-		      "/proc/net/r8180/%s/stats-hw\n",
-		      dev->name);
-	}
-
-	e = create_proc_read_entry("stats-rx", S_IFREG | S_IRUGO,
-				   priv->dir_dev, proc_get_stats_rx, dev);
-	if (!e) {
-		DMESGE("Unable to initialize "
-		      "/proc/net/r8180/%s/stats-rx\n",
-		      dev->name);
-	}
-
-
-	e = create_proc_read_entry("stats-tx", S_IFREG | S_IRUGO,
-				   priv->dir_dev, proc_get_stats_tx, dev);
-	if (!e) {
-		DMESGE("Unable to initialize "
-		      "/proc/net/r8180/%s/stats-tx\n",
-		      dev->name);
-	}
-
-	e = create_proc_read_entry("registers", S_IFREG | S_IRUGO,
-				   priv->dir_dev, proc_get_registers, dev);
-	if (!e) {
-		DMESGE("Unable to initialize "
-		      "/proc/net/r8180/%s/registers\n",
-		      dev->name);
+	for (f = rtl8180_proc_files; f->name[0]; f++) {
+		if (!proc_create_data(f->name, S_IFREG | S_IRUGO, dir,
+				      &rtl8180_proc_fops, f->show)) {
+			DMESGE("Unable to initialize /proc/net/r8180/%s/%s\n",
+			       dev->name, f->name);
+			return;
+		}
 	}
 }
 

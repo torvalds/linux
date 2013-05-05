@@ -95,8 +95,6 @@ register struct thread_info *__current_thread_info __asm__("$8");
 #define TS_POLLING		0x0010	/* idle task polling need_resched,
 					   skip sending interrupt */
 
-#define tsk_is_polling(t) (task_thread_info(t)->status & TS_POLLING)
-
 #ifndef __ASSEMBLY__
 #define HAVE_SET_RESTORE_SIGMASK	1
 static inline void set_restore_sigmask(void)

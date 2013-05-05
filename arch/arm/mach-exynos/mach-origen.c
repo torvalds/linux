@@ -26,7 +26,7 @@
 #include <linux/platform_data/i2c-s3c2410.h>
 #include <linux/platform_data/s3c-hsotg.h>
 #include <linux/platform_data/usb-ehci-s5p.h>
-#include <linux/platform_data/usb-exynos.h>
+#include <linux/platform_data/usb-ohci-exynos.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
@@ -46,6 +46,7 @@
 #include <plat/hdmi.h>
 
 #include <mach/map.h>
+#include <mach/irqs.h>
 
 #include <drm/exynos_drm.h>
 #include "common.h"

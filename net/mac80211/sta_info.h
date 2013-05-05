@@ -281,7 +281,6 @@ struct sta_ampdu_mlme {
  * @plink_state: peer link state
  * @plink_timeout: timeout of peer link
  * @plink_timer: peer link watch timer
- * @plink_timer_was_running: used by suspend/resume to restore timers
  * @t_offset: timing offset relative to this host
  * @t_offset_setpoint: reference timing offset of this sta to be used when
  * 	calculating clockdrift
@@ -334,7 +333,8 @@ struct sta_info {
 	unsigned long driver_buffered_tids;
 
 	/* Updated from RX path only, no locking requirements */
-	unsigned long rx_packets, rx_bytes;
+	unsigned long rx_packets;
+	u64 rx_bytes;
 	unsigned long wep_weak_iv_count;
 	unsigned long last_rx;
 	long last_connected;
@@ -354,9 +354,9 @@ struct sta_info {
 	unsigned int fail_avg;
 
 	/* Updated from TX path only, no locking requirements */
-	unsigned long tx_packets;
-	unsigned long tx_bytes;
-	unsigned long tx_fragments;
+	u32 tx_fragments;
+	u64 tx_packets[IEEE80211_NUM_ACS];
+	u64 tx_bytes[IEEE80211_NUM_ACS];
 	struct ieee80211_tx_rate last_tx_rate;
 	int last_rx_rate_idx;
 	u32 last_rx_rate_flag;
@@ -379,7 +379,6 @@ struct sta_info {
 	__le16 reason;
 	u8 plink_retries;
 	bool ignore_plink_timer;
-	bool plink_timer_was_running;
 	enum nl80211_plink_state plink_state;
 	u32 plink_timeout;
 	struct timer_list plink_timer;

@@ -34,6 +34,7 @@
 #include <linux/efi-bgrt.h>
 #include <linux/export.h>
 #include <linux/bootmem.h>
+#include <linux/slab.h>
 #include <linux/memblock.h>
 #include <linux/spinlock.h>
 #include <linux/uaccess.h>
@@ -49,6 +50,7 @@
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>
 #include <asm/x86_init.h>
+#include <asm/rtc.h>
 
 #define EFI_DEBUG	1
 
@@ -352,10 +354,10 @@ static efi_status_t __init phys_efi_get_time(efi_time_t *tm,
 
 int efi_set_rtc_mmss(unsigned long nowtime)
 {
-	int real_seconds, real_minutes;
 	efi_status_t 	status;
 	efi_time_t 	eft;
 	efi_time_cap_t 	cap;
+	struct rtc_time	tm;
 
 	status = efi.get_time(&eft, &cap);
 	if (status != EFI_SUCCESS) {
@@ -363,13 +365,20 @@ int efi_set_rtc_mmss(unsigned long nowtime)
 		return -1;
 	}
 
-	real_seconds = nowtime % 60;
-	real_minutes = nowtime / 60;
-	if (((abs(real_minutes - eft.minute) + 15)/30) & 1)
-		real_minutes += 30;
-	real_minutes %= 60;
-	eft.minute = real_minutes;
-	eft.second = real_seconds;
+	rtc_time_to_tm(nowtime, &tm);
+	if (!rtc_valid_tm(&tm)) {
+		eft.year = tm.tm_year + 1900;
+		eft.month = tm.tm_mon + 1;
+		eft.day = tm.tm_mday;
+		eft.minute = tm.tm_min;
+		eft.second = tm.tm_sec;
+		eft.nanosecond = 0;
+	} else {
+		printk(KERN_ERR
+		       "%s: Invalid EFI RTC value: write of %lx to EFI RTC failed\n",
+		       __FUNCTION__, nowtime);
+		return -1;
+	}
 
 	status = efi.set_time(&eft);
 	if (status != EFI_SUCCESS) {
@@ -445,24 +454,25 @@ static void __init do_add_efi_memmap(void)
 
 int __init efi_memblock_x86_reserve_range(void)
 {
+	struct efi_info *e = &boot_params.efi_info;
 	unsigned long pmap;
 
 #ifdef CONFIG_X86_32
 	/* Can't handle data above 4GB at this time */
-	if (boot_params.efi_info.efi_memmap_hi) {
+	if (e->efi_memmap_hi) {
 		pr_err("Memory map is above 4GB, disabling EFI.\n");
 		return -EINVAL;
 	}
-	pmap = boot_params.efi_info.efi_memmap;
+	pmap =  e->efi_memmap;
 #else
-	pmap = (boot_params.efi_info.efi_memmap |
-		((__u64)boot_params.efi_info.efi_memmap_hi<<32));
+	pmap = (e->efi_memmap |	((__u64)e->efi_memmap_hi << 32));
 #endif
-	memmap.phys_map = (void *)pmap;
-	memmap.nr_map = boot_params.efi_info.efi_memmap_size /
-		boot_params.efi_info.efi_memdesc_size;
-	memmap.desc_version = boot_params.efi_info.efi_memdesc_version;
-	memmap.desc_size = boot_params.efi_info.efi_memdesc_size;
+	memmap.phys_map		= (void *)pmap;
+	memmap.nr_map		= e->efi_memmap_size /
+				  e->efi_memdesc_size;
+	memmap.desc_size	= e->efi_memdesc_size;
+	memmap.desc_version	= e->efi_memdesc_version;
+
 	memblock_reserve(pmap, memmap.nr_map * memmap.desc_size);
 
 	return 0;

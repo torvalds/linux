@@ -76,7 +76,7 @@ static void bfa_ioc_pf_disabled(struct bfa_ioc *ioc);
 static void bfa_ioc_pf_failed(struct bfa_ioc *ioc);
 static void bfa_ioc_pf_hwfailed(struct bfa_ioc *ioc);
 static void bfa_ioc_pf_fwmismatch(struct bfa_ioc *ioc);
-static void bfa_ioc_boot(struct bfa_ioc *ioc, u32 boot_type,
+static void bfa_ioc_boot(struct bfa_ioc *ioc, enum bfi_fwboot_type boot_type,
 			 u32 boot_param);
 static u32 bfa_ioc_smem_pgnum(struct bfa_ioc *ioc, u32 fmaddr);
 static void bfa_ioc_get_adapter_serial_num(struct bfa_ioc *ioc,

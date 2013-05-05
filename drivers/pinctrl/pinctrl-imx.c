@@ -54,32 +54,6 @@ struct imx_pinctrl {
 	const struct imx_pinctrl_soc_info *info;
 };
 
-static const struct imx_pin_reg *imx_find_pin_reg(
-				const struct imx_pinctrl_soc_info *info,
-				unsigned pin, bool is_mux, unsigned mux)
-{
-	const struct imx_pin_reg *pin_reg = NULL;
-	int i;
-
-	for (i = 0; i < info->npin_regs; i++) {
-		pin_reg = &info->pin_regs[i];
-		if (pin_reg->pid != pin)
-			continue;
-		if (!is_mux)
-			break;
-		else if (pin_reg->mux_mode == (mux & IMX_MUX_MASK))
-			break;
-	}
-
-	if (i == info->npin_regs) {
-		dev_err(info->dev, "Pin(%s): unable to find pin reg map\n",
-			info->pins[pin].name);
-		return NULL;
-	}
-
-	return pin_reg;
-}
-
 static const inline struct imx_pin_group *imx_pinctrl_find_group_by_name(
 				const struct imx_pinctrl_soc_info *info,
 				const char *name)
@@ -207,7 +181,7 @@ static void imx_dt_free_map(struct pinctrl_dev *pctldev,
 	kfree(map);
 }
 
-static struct pinctrl_ops imx_pctrl_ops = {
+static const struct pinctrl_ops imx_pctrl_ops = {
 	.get_groups_count = imx_get_groups_count,
 	.get_group_name = imx_get_group_name,
 	.get_group_pins = imx_get_group_pins,
@@ -223,7 +197,8 @@ static int imx_pmx_enable(struct pinctrl_dev *pctldev, unsigned selector,
 	struct imx_pinctrl *ipctl = pinctrl_dev_get_drvdata(pctldev);
 	const struct imx_pinctrl_soc_info *info = ipctl->info;
 	const struct imx_pin_reg *pin_reg;
-	const unsigned *pins, *mux;
+	const unsigned *pins, *mux, *input_val;
+	u16 *input_reg;
 	unsigned int npins, pin_id;
 	int i;
 
@@ -234,18 +209,17 @@ static int imx_pmx_enable(struct pinctrl_dev *pctldev, unsigned selector,
 	pins = info->groups[group].pins;
 	npins = info->groups[group].npins;
 	mux = info->groups[group].mux_mode;
+	input_val = info->groups[group].input_val;
+	input_reg = info->groups[group].input_reg;
 
-	WARN_ON(!pins || !npins || !mux);
+	WARN_ON(!pins || !npins || !mux || !input_val || !input_reg);
 
 	dev_dbg(ipctl->dev, "enable function %s group %s\n",
 		info->functions[selector].name, info->groups[group].name);
 
 	for (i = 0; i < npins; i++) {
 		pin_id = pins[i];
-
-		pin_reg = imx_find_pin_reg(info, pin_id, 1, mux[i]);
-		if (!pin_reg)
-			return -EINVAL;
+		pin_reg = &info->pin_regs[pin_id];
 
 		if (!pin_reg->mux_reg) {
 			dev_err(ipctl->dev, "Pin(%s) does not support mux function\n",
@@ -258,11 +232,11 @@ static int imx_pmx_enable(struct pinctrl_dev *pctldev, unsigned selector,
 			pin_reg->mux_reg, mux[i]);
 
 		/* some pins also need select input setting, set it if found */
-		if (pin_reg->input_reg) {
-			writel(pin_reg->input_val, ipctl->base + pin_reg->input_reg);
+		if (input_reg[i]) {
+			writel(input_val[i], ipctl->base + input_reg[i]);
 			dev_dbg(ipctl->dev,
 				"==>select_input: offset 0x%x val 0x%x\n",
-				pin_reg->input_reg, pin_reg->input_val);
+				input_reg[i], input_val[i]);
 		}
 	}
 
@@ -299,7 +273,7 @@ static int imx_pmx_get_groups(struct pinctrl_dev *pctldev, unsigned selector,
 	return 0;
 }
 
-static struct pinmux_ops imx_pmx_ops = {
+static const struct pinmux_ops imx_pmx_ops = {
 	.get_functions_count = imx_pmx_get_funcs_count,
 	.get_function_name = imx_pmx_get_func_name,
 	.get_function_groups = imx_pmx_get_groups,
@@ -311,11 +285,7 @@ static int imx_pinconf_get(struct pinctrl_dev *pctldev,
 {
 	struct imx_pinctrl *ipctl = pinctrl_dev_get_drvdata(pctldev);
 	const struct imx_pinctrl_soc_info *info = ipctl->info;
-	const struct imx_pin_reg *pin_reg;
-
-	pin_reg = imx_find_pin_reg(info, pin_id, 0, 0);
-	if (!pin_reg)
-		return -EINVAL;
+	const struct imx_pin_reg *pin_reg = &info->pin_regs[pin_id];
 
 	if (!pin_reg->conf_reg) {
 		dev_err(info->dev, "Pin(%s) does not support config function\n",
@@ -333,11 +303,7 @@ static int imx_pinconf_set(struct pinctrl_dev *pctldev,
 {
 	struct imx_pinctrl *ipctl = pinctrl_dev_get_drvdata(pctldev);
 	const struct imx_pinctrl_soc_info *info = ipctl->info;
-	const struct imx_pin_reg *pin_reg;
-
-	pin_reg = imx_find_pin_reg(info, pin_id, 0, 0);
-	if (!pin_reg)
-		return -EINVAL;
+	const struct imx_pin_reg *pin_reg = &info->pin_regs[pin_id];
 
 	if (!pin_reg->conf_reg) {
 		dev_err(info->dev, "Pin(%s) does not support config function\n",
@@ -360,10 +326,9 @@ static void imx_pinconf_dbg_show(struct pinctrl_dev *pctldev,
 {
 	struct imx_pinctrl *ipctl = pinctrl_dev_get_drvdata(pctldev);
 	const struct imx_pinctrl_soc_info *info = ipctl->info;
-	const struct imx_pin_reg *pin_reg;
+	const struct imx_pin_reg *pin_reg = &info->pin_regs[pin_id];
 	unsigned long config;
 
-	pin_reg = imx_find_pin_reg(info, pin_id, 0, 0);
 	if (!pin_reg || !pin_reg->conf_reg) {
 		seq_printf(s, "N/A");
 		return;
@@ -397,7 +362,7 @@ static void imx_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
 	}
 }
 
-static struct pinconf_ops imx_pinconf_ops = {
+static const struct pinconf_ops imx_pinconf_ops = {
 	.pin_config_get = imx_pinconf_get,
 	.pin_config_set = imx_pinconf_set,
 	.pin_config_dbg_show = imx_pinconf_dbg_show,
@@ -411,29 +376,20 @@ static struct pinctrl_desc imx_pinctrl_desc = {
 	.owner = THIS_MODULE,
 };
 
-/* decode pin id and mux from pin function id got from device tree*/
-static int imx_pinctrl_get_pin_id_and_mux(const struct imx_pinctrl_soc_info *info,
-				unsigned int pin_func_id, unsigned int *pin_id,
-				unsigned int *mux)
-{
-	if (pin_func_id > info->npin_regs)
-		return -EINVAL;
-
-	*pin_id = info->pin_regs[pin_func_id].pid;
-	*mux = info->pin_regs[pin_func_id].mux_mode;
-
-	return 0;
-}
+/*
+ * Each pin represented in fsl,pins consists of 5 u32 PIN_FUNC_ID and
+ * 1 u32 CONFIG, so 24 types in total for each pin.
+ */
+#define FSL_PIN_SIZE 24
 
 static int imx_pinctrl_parse_groups(struct device_node *np,
 				    struct imx_pin_group *grp,
 				    struct imx_pinctrl_soc_info *info,
 				    u32 index)
 {
-	unsigned int pin_func_id;
-	int ret, size;
+	int size;
 	const __be32 *list;
-	int i, j;
+	int i;
 	u32 config;
 
 	dev_dbg(info->dev, "group(%d): %s\n", index, np->name);
@@ -447,32 +403,40 @@ static int imx_pinctrl_parse_groups(struct device_node *np,
 	 */
 	list = of_get_property(np, "fsl,pins", &size);
 	/* we do not check return since it's safe node passed down */
-	size /= sizeof(*list);
-	if (!size || size % 2) {
-		dev_err(info->dev, "wrong pins number or pins and configs should be pairs\n");
+	if (!size || size % FSL_PIN_SIZE) {
+		dev_err(info->dev, "Invalid fsl,pins property\n");
 		return -EINVAL;
 	}
 
-	grp->npins = size / 2;
+	grp->npins = size / FSL_PIN_SIZE;
 	grp->pins = devm_kzalloc(info->dev, grp->npins * sizeof(unsigned int),
 				GFP_KERNEL);
 	grp->mux_mode = devm_kzalloc(info->dev, grp->npins * sizeof(unsigned int),
 				GFP_KERNEL);
+	grp->input_reg = devm_kzalloc(info->dev, grp->npins * sizeof(u16),
+				GFP_KERNEL);
+	grp->input_val = devm_kzalloc(info->dev, grp->npins * sizeof(unsigned int),
+				GFP_KERNEL);
 	grp->configs = devm_kzalloc(info->dev, grp->npins * sizeof(unsigned long),
 				GFP_KERNEL);
-	for (i = 0, j = 0; i < size; i += 2, j++) {
-		pin_func_id = be32_to_cpu(*list++);
-		ret = imx_pinctrl_get_pin_id_and_mux(info, pin_func_id,
-					&grp->pins[j], &grp->mux_mode[j]);
-		if (ret) {
-			dev_err(info->dev, "get invalid pin function id\n");
-			return -EINVAL;
-		}
+	for (i = 0; i < grp->npins; i++) {
+		u32 mux_reg = be32_to_cpu(*list++);
+		u32 conf_reg = be32_to_cpu(*list++);
+		unsigned int pin_id = mux_reg ? mux_reg / 4 : conf_reg / 4;
+		struct imx_pin_reg *pin_reg = &info->pin_regs[pin_id];
+
+		grp->pins[i] = pin_id;
+		pin_reg->mux_reg = mux_reg;
+		pin_reg->conf_reg = conf_reg;
+		grp->input_reg[i] = be32_to_cpu(*list++);
+		grp->mux_mode[i] = be32_to_cpu(*list++);
+		grp->input_val[i] = be32_to_cpu(*list++);
+
 		/* SION bit is in mux register */
 		config = be32_to_cpu(*list++);
 		if (config & IMX_PAD_SION)
-			grp->mux_mode[j] |= IOMUXC_CONFIG_SION;
-		grp->configs[j] = config & ~IMX_PAD_SION;
+			grp->mux_mode[i] |= IOMUXC_CONFIG_SION;
+		grp->configs[i] = config & ~IMX_PAD_SION;
 	}
 
 #ifdef DEBUG
@@ -568,8 +532,7 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 	struct resource *res;
 	int ret;
 
-	if (!info || !info->pins || !info->npins
-		  || !info->pin_regs || !info->npin_regs) {
+	if (!info || !info->pins || !info->npins) {
 		dev_err(&pdev->dev, "wrong pinctrl info\n");
 		return -EINVAL;
 	}
@@ -578,6 +541,11 @@ int imx_pinctrl_probe(struct platform_device *pdev,
 	/* Create state holders etc for this driver */
 	ipctl = devm_kzalloc(&pdev->dev, sizeof(*ipctl), GFP_KERNEL);
 	if (!ipctl)
+		return -ENOMEM;
+
+	info->pin_regs = devm_kzalloc(&pdev->dev, sizeof(*info->pin_regs) *
+				      info->npins, GFP_KERNEL);
+	if (!info->pin_regs)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);

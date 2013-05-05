@@ -43,19 +43,19 @@ static const char * const input_names[] = {
 };
 
 /* Conversion function for VDDOUT and VBAT */
-static inline int volt_reg_to_mV(int value)
+static inline int volt_reg_to_mv(int value)
 {
 	return DIV_ROUND_CLOSEST(value * 1000, 512) + 2500;
 }
 
 /* Conversion function for ADC channels 4, 5 and 6 */
-static inline int input_reg_to_mV(int value)
+static inline int input_reg_to_mv(int value)
 {
 	return DIV_ROUND_CLOSEST(value * 2500, 1023);
 }
 
 /* Conversion function for VBBAT */
-static inline int vbbat_reg_to_mV(int value)
+static inline int vbbat_reg_to_mv(int value)
 {
 	return DIV_ROUND_CLOSEST(value * 2500, 512);
 }
@@ -96,7 +96,7 @@ static ssize_t da9052_read_vddout(struct device *dev,
 		goto hwmon_err;
 
 	mutex_unlock(&hwmon->hwmon_lock);
-	return sprintf(buf, "%d\n", volt_reg_to_mV(vdd));
+	return sprintf(buf, "%d\n", volt_reg_to_mv(vdd));
 
 hwmon_err_release:
 	da9052_disable_vddout_channel(hwmon->da9052);
@@ -137,7 +137,7 @@ static ssize_t da9052_read_vbat(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	return sprintf(buf, "%d\n", volt_reg_to_mV(ret));
+	return sprintf(buf, "%d\n", volt_reg_to_mv(ret));
 }
 
 static ssize_t da9052_read_misc_channel(struct device *dev,
@@ -152,7 +152,7 @@ static ssize_t da9052_read_misc_channel(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	return sprintf(buf, "%d\n", input_reg_to_mV(ret));
+	return sprintf(buf, "%d\n", input_reg_to_mv(ret));
 }
 
 static ssize_t da9052_read_tjunc(struct device *dev,
@@ -187,7 +187,7 @@ static ssize_t da9052_read_vbbat(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	return sprintf(buf, "%d\n", vbbat_reg_to_mV(ret));
+	return sprintf(buf, "%d\n", vbbat_reg_to_mv(ret));
 }
 
 static ssize_t da9052_hwmon_show_name(struct device *dev,

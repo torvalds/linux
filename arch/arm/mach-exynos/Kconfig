@@ -14,6 +14,7 @@ menu "SAMSUNG EXYNOS SoCs Support"
 config ARCH_EXYNOS4
 	bool "SAMSUNG EXYNOS4"
 	default y
+	select HAVE_ARM_SCU if SMP
 	select HAVE_SMP
 	select MIGHT_HAVE_CACHE_L2X0
 	help
@@ -21,6 +22,7 @@ config ARCH_EXYNOS4
 
 config ARCH_EXYNOS5
 	bool "SAMSUNG EXYNOS5"
+	select HAVE_ARM_SCU if SMP
 	select HAVE_SMP
 	help
 	  Samsung EXYNOS5 (Cortex-A15) SoC based systems
@@ -72,10 +74,12 @@ config SOC_EXYNOS5440
 	bool "SAMSUNG EXYNOS5440"
 	default y
 	depends on ARCH_EXYNOS5
+	select ARCH_HAS_OPP
 	select ARM_ARCH_TIMER
 	select AUTO_ZRELADDR
 	select PINCTRL
 	select PINCTRL_EXYNOS5440
+	select PM_OPP
 	help
 	  Enable EXYNOS5440 SoC support
 
@@ -84,6 +88,19 @@ config EXYNOS4_MCT
 	default y
 	help
 	  Use MCT (Multi Core Timer) as kernel timers
+
+config EXYNOS_ATAGS
+	bool "ATAGS based boot for EXYNOS (deprecated)"
+	depends on !ARCH_MULTIPLATFORM
+	depends on ATAGS
+	default y
+	help
+	  The EXYNOS platform is moving towards being completely probed
+	  through device tree. This enables support for board files using
+	  the traditional ATAGS boot format.
+	  Note that this option is not available for multiplatform builds.
+
+if EXYNOS_ATAGS
 
 config EXYNOS_DEV_DMA
 	bool
@@ -94,11 +111,6 @@ config EXYNOS4_DEV_AHCI
 	bool
 	help
 	  Compile in platform device definitions for AHCI
-
-config EXYNOS_DEV_DRM
-	bool
-	help
-	  Compile in platform device definitions for core DRM device
 
 config EXYNOS4_SETUP_FIMD0
 	bool
@@ -199,7 +211,6 @@ config MACH_SMDKV310
 	select EXYNOS4_SETUP_SDHCI
 	select EXYNOS4_SETUP_USB_PHY
 	select EXYNOS_DEV_DMA
-	select EXYNOS_DEV_DRM
 	select EXYNOS_DEV_SYSMMU
 	select S3C24XX_PWM
 	select S3C_DEV_HSMMC
@@ -253,9 +264,7 @@ config MACH_UNIVERSAL_C210
 	select EXYNOS4_SETUP_SDHCI
 	select EXYNOS4_SETUP_USB_PHY
 	select EXYNOS_DEV_DMA
-	select EXYNOS_DEV_DRM
 	select EXYNOS_DEV_SYSMMU
-	select HAVE_SCHED_CLOCK
 	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC2
 	select S3C_DEV_HSMMC3
@@ -294,7 +303,6 @@ config MACH_NURI
 	select EXYNOS4_SETUP_SDHCI
 	select EXYNOS4_SETUP_USB_PHY
 	select EXYNOS_DEV_DMA
-	select EXYNOS_DEV_DRM
 	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC2
 	select S3C_DEV_HSMMC3
@@ -330,7 +338,6 @@ config MACH_ORIGEN
 	select EXYNOS4_SETUP_SDHCI
 	select EXYNOS4_SETUP_USB_PHY
 	select EXYNOS_DEV_DMA
-	select EXYNOS_DEV_DRM
 	select EXYNOS_DEV_SYSMMU
 	select S3C24XX_PWM
 	select S3C_DEV_HSMMC
@@ -366,7 +373,6 @@ config MACH_SMDK4212
 	select EXYNOS4_SETUP_SDHCI
 	select EXYNOS4_SETUP_USB_PHY
 	select EXYNOS_DEV_DMA
-	select EXYNOS_DEV_DRM
 	select EXYNOS_DEV_SYSMMU
 	select S3C24XX_PWM
 	select S3C_DEV_HSMMC2
@@ -400,6 +406,8 @@ config MACH_SMDK4412
 	  Machine support for Samsung SMDK4412
 endif
 
+endif
+
 comment "Flattened Device Tree based board for EXYNOS SoCs"
 
 config MACH_EXYNOS4_DT
@@ -407,7 +415,7 @@ config MACH_EXYNOS4_DT
 	depends on ARCH_EXYNOS4
 	select ARM_AMBA
 	select CPU_EXYNOS4210
-	select HAVE_SAMSUNG_KEYPAD if INPUT_KEYBOARD
+	select KEYBOARD_SAMSUNG if INPUT_KEYBOARD
 	select PINCTRL
 	select PINCTRL_EXYNOS
 	select USE_OF

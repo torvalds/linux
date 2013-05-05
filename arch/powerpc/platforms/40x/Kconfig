@@ -20,7 +20,6 @@ config HOTFOOT
         bool "Hotfoot"
 	depends on 40x
 	default n
-	select 405EP
 	select PPC40x_SIMPLE
 	select PCI
         help
@@ -105,9 +104,6 @@ config 405GP
 	select IBM405_ERR51
 	select IBM_EMAC_ZMII
 
-config 405EP
-	bool
-
 config 405EX
 	bool
 	select IBM_EMAC_EMAC4
@@ -118,9 +114,6 @@ config 405EZ
 	select IBM_EMAC_NO_FLOW_CTRL
 	select IBM_EMAC_MAL_CLR_ICINTSTAT
 	select IBM_EMAC_MAL_COMMON_ERR
-
-config 405GPR
-	bool
 
 config XILINX_VIRTEX
 	bool

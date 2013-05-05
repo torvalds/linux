@@ -1693,22 +1693,7 @@ static struct platform_driver dm9000_driver = {
 	.remove  = dm9000_drv_remove,
 };
 
-static int __init
-dm9000_init(void)
-{
-	printk(KERN_INFO "%s Ethernet Driver, V%s\n", CARDNAME, DRV_VERSION);
-
-	return platform_driver_register(&dm9000_driver);
-}
-
-static void __exit
-dm9000_cleanup(void)
-{
-	platform_driver_unregister(&dm9000_driver);
-}
-
-module_init(dm9000_init);
-module_exit(dm9000_cleanup);
+module_platform_driver(dm9000_driver);
 
 MODULE_AUTHOR("Sascha Hauer, Ben Dooks");
 MODULE_DESCRIPTION("Davicom DM9000 network driver");

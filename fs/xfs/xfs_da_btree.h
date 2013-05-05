@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2000,2002,2005 Silicon Graphics, Inc.
+ * Copyright (c) 2013 Red Hat, Inc.
  * All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -20,7 +21,6 @@
 
 struct xfs_bmap_free;
 struct xfs_inode;
-struct xfs_mount;
 struct xfs_trans;
 struct zone;
 
@@ -47,6 +47,33 @@ typedef struct xfs_da_blkinfo {
 } xfs_da_blkinfo_t;
 
 /*
+ * CRC enabled directory structure types
+ *
+ * The headers change size for the additional verification information, but
+ * otherwise the tree layouts and contents are unchanged. Hence the da btree
+ * code can use the struct xfs_da_blkinfo for manipulating the tree links and
+ * magic numbers without modification for both v2 and v3 nodes.
+ */
+#define XFS_DA3_NODE_MAGIC	0x3ebe	/* magic number: non-leaf blocks */
+#define XFS_ATTR3_LEAF_MAGIC	0x3bee	/* magic number: attribute leaf blks */
+#define	XFS_DIR3_LEAF1_MAGIC	0x3df1	/* magic number: v2 dirlf single blks */
+#define	XFS_DIR3_LEAFN_MAGIC	0x3dff	/* magic number: v2 dirlf multi blks */
+
+struct xfs_da3_blkinfo {
+	/*
+	 * the node link manipulation code relies on the fact that the first
+	 * element of this structure is the struct xfs_da_blkinfo so it can
+	 * ignore the differences in the rest of the structures.
+	 */
+	struct xfs_da_blkinfo	hdr;
+	__be32			crc;	/* CRC of block */
+	__be64			blkno;	/* first block of the buffer */
+	__be64			lsn;	/* sequence number of last write */
+	uuid_t			uuid;	/* filesystem we belong to */
+	__be64			owner;	/* inode that owns the block */
+};
+
+/*
  * This is the structure of the root and intermediate nodes in the Btree.
  * The leaf nodes are defined above.
  *
@@ -57,19 +84,76 @@ typedef struct xfs_da_blkinfo {
  */
 #define	XFS_DA_NODE_MAXDEPTH	5	/* max depth of Btree */
 
+typedef struct xfs_da_node_hdr {
+	struct xfs_da_blkinfo	info;	/* block type, links, etc. */
+	__be16			__count; /* count of active entries */
+	__be16			__level; /* level above leaves (leaf == 0) */
+} xfs_da_node_hdr_t;
+
+struct xfs_da3_node_hdr {
+	struct xfs_da3_blkinfo	info;	/* block type, links, etc. */
+	__be16			__count; /* count of active entries */
+	__be16			__level; /* level above leaves (leaf == 0) */
+	__be32			__pad32;
+};
+
+#define XFS_DA3_NODE_CRC_OFF	(offsetof(struct xfs_da3_node_hdr, info.crc))
+
+typedef struct xfs_da_node_entry {
+	__be32	hashval;	/* hash value for this descendant */
+	__be32	before;		/* Btree block before this key */
+} xfs_da_node_entry_t;
+
 typedef struct xfs_da_intnode {
-	struct xfs_da_node_hdr {	/* constant-structure header block */
-		xfs_da_blkinfo_t info;	/* block type, links, etc. */
-		__be16	count;		/* count of active entries */
-		__be16	level;		/* level above leaves (leaf == 0) */
-	} hdr;
-	struct xfs_da_node_entry {
-		__be32	hashval;	/* hash value for this descendant */
-		__be32	before;		/* Btree block before this key */
-	} btree[1];			/* variable sized array of keys */
+	struct xfs_da_node_hdr	hdr;
+	struct xfs_da_node_entry __btree[];
 } xfs_da_intnode_t;
-typedef struct xfs_da_node_hdr xfs_da_node_hdr_t;
-typedef struct xfs_da_node_entry xfs_da_node_entry_t;
+
+struct xfs_da3_intnode {
+	struct xfs_da3_node_hdr	hdr;
+	struct xfs_da_node_entry __btree[];
+};
+
+/*
+ * In-core version of the node header to abstract the differences in the v2 and
+ * v3 disk format of the headers. Callers need to convert to/from disk format as
+ * appropriate.
+ */
+struct xfs_da3_icnode_hdr {
+	__uint32_t	forw;
+	__uint32_t	back;
+	__uint16_t	magic;
+	__uint16_t	count;
+	__uint16_t	level;
+};
+
+extern void xfs_da3_node_hdr_from_disk(struct xfs_da3_icnode_hdr *to,
+				       struct xfs_da_intnode *from);
+extern void xfs_da3_node_hdr_to_disk(struct xfs_da_intnode *to,
+				     struct xfs_da3_icnode_hdr *from);
+
+static inline int
+xfs_da3_node_hdr_size(struct xfs_da_intnode *dap)
+{
+	if (dap->hdr.info.magic == cpu_to_be16(XFS_DA3_NODE_MAGIC))
+		return sizeof(struct xfs_da3_node_hdr);
+	return sizeof(struct xfs_da_node_hdr);
+}
+
+static inline struct xfs_da_node_entry *
+xfs_da3_node_tree_p(struct xfs_da_intnode *dap)
+{
+	if (dap->hdr.info.magic == cpu_to_be16(XFS_DA3_NODE_MAGIC)) {
+		struct xfs_da3_intnode *dap3 = (struct xfs_da3_intnode *)dap;
+		return dap3->__btree;
+	}
+	return dap->__btree;
+}
+
+extern void xfs_da3_intnode_from_disk(struct xfs_da3_icnode_hdr *to,
+				      struct xfs_da_intnode *from);
+extern void xfs_da3_intnode_to_disk(struct xfs_da_intnode *to,
+				    struct xfs_da3_icnode_hdr *from);
 
 #define	XFS_LBSIZE(mp)	(mp)->m_sb.sb_blocksize
 
@@ -191,31 +275,33 @@ struct xfs_nameops {
 /*
  * Routines used for growing the Btree.
  */
-int	xfs_da_node_create(xfs_da_args_t *args, xfs_dablk_t blkno, int level,
-					 struct xfs_buf **bpp, int whichfork);
-int	xfs_da_split(xfs_da_state_t *state);
+int	xfs_da3_node_create(struct xfs_da_args *args, xfs_dablk_t blkno,
+			    int level, struct xfs_buf **bpp, int whichfork);
+int	xfs_da3_split(xfs_da_state_t *state);
 
 /*
  * Routines used for shrinking the Btree.
  */
-int	xfs_da_join(xfs_da_state_t *state);
-void	xfs_da_fixhashpath(xfs_da_state_t *state,
-					  xfs_da_state_path_t *path_to_to_fix);
+int	xfs_da3_join(xfs_da_state_t *state);
+void	xfs_da3_fixhashpath(struct xfs_da_state *state,
+			    struct xfs_da_state_path *path_to_to_fix);
 
 /*
  * Routines used for finding things in the Btree.
  */
-int	xfs_da_node_lookup_int(xfs_da_state_t *state, int *result);
-int	xfs_da_path_shift(xfs_da_state_t *state, xfs_da_state_path_t *path,
+int	xfs_da3_node_lookup_int(xfs_da_state_t *state, int *result);
+int	xfs_da3_path_shift(xfs_da_state_t *state, xfs_da_state_path_t *path,
 					 int forward, int release, int *result);
 /*
  * Utility routines.
  */
-int	xfs_da_blk_link(xfs_da_state_t *state, xfs_da_state_blk_t *old_blk,
+int	xfs_da3_blk_link(xfs_da_state_t *state, xfs_da_state_blk_t *old_blk,
 				       xfs_da_state_blk_t *new_blk);
-int	xfs_da_node_read(struct xfs_trans *tp, struct xfs_inode *dp,
+int	xfs_da3_node_read(struct xfs_trans *tp, struct xfs_inode *dp,
 			 xfs_dablk_t bno, xfs_daddr_t mappedbno,
 			 struct xfs_buf **bpp, int which_fork);
+
+extern const struct xfs_buf_ops xfs_da3_node_buf_ops;
 
 /*
  * Utility routines.

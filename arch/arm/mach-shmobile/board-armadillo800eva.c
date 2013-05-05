@@ -24,6 +24,7 @@
 #include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/input.h>
+#include <linux/platform_data/st1232_pdata.h>
 #include <linux/irq.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
@@ -169,7 +170,7 @@ static int usbhsf_get_id(struct platform_device *pdev)
 	return USBHS_GADGET;
 }
 
-static void usbhsf_power_ctrl(struct platform_device *pdev,
+static int usbhsf_power_ctrl(struct platform_device *pdev,
 			      void __iomem *base, int enable)
 {
 	struct usbhsf_private *priv = usbhsf_get_priv(pdev);
@@ -223,6 +224,8 @@ static void usbhsf_power_ctrl(struct platform_device *pdev,
 		clk_disable(priv->pci);		/* usb work around */
 		clk_disable(priv->usb24);	/* usb work around */
 	}
+
+	return 0;
 }
 
 static int usbhsf_get_vbus(struct platform_device *pdev)
@@ -239,7 +242,7 @@ static irqreturn_t usbhsf_interrupt(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static void usbhsf_hardware_exit(struct platform_device *pdev)
+static int usbhsf_hardware_exit(struct platform_device *pdev)
 {
 	struct usbhsf_private *priv = usbhsf_get_priv(pdev);
 
@@ -264,6 +267,8 @@ static void usbhsf_hardware_exit(struct platform_device *pdev)
 	priv->usbh_base	= NULL;
 
 	free_irq(IRQ7, pdev);
+
+	return 0;
 }
 
 static int usbhsf_hardware_init(struct platform_device *pdev)
@@ -878,10 +883,15 @@ static struct platform_device i2c_gpio_device = {
 };
 
 /* I2C */
+static struct st1232_pdata st1232_i2c0_pdata = {
+	.reset_gpio = 166,
+};
+
 static struct i2c_board_info i2c0_devices[] = {
 	{
 		I2C_BOARD_INFO("st1232-ts", 0x55),
 		.irq = evt2irq(0x0340),
+		.platform_data = &st1232_i2c0_pdata,
 	},
 	{
 		I2C_BOARD_INFO("wm8978", 0x1a),
@@ -1005,7 +1015,6 @@ static void __init eva_init(void)
 
 	/* Touchscreen */
 	gpio_request(GPIO_FN_IRQ10,	NULL); /* TP_INT */
-	gpio_request_one(GPIO_PORT166, GPIOF_OUT_INIT_HIGH, NULL); /* TP_RST_B */
 
 	/* GETHER */
 	gpio_request(GPIO_FN_ET_CRS,		NULL);

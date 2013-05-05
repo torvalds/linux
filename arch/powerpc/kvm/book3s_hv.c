@@ -1483,7 +1483,7 @@ static int kvm_rma_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-static struct file_operations kvm_rma_fops = {
+static const struct file_operations kvm_rma_fops = {
 	.mmap           = kvm_rma_mmap,
 	.release	= kvm_rma_release,
 };
@@ -1515,7 +1515,13 @@ static void kvmppc_add_seg_page_size(struct kvm_ppc_one_seg_page_size **sps,
 	(*sps)->page_shift = def->shift;
 	(*sps)->slb_enc = def->sllp;
 	(*sps)->enc[0].page_shift = def->shift;
-	(*sps)->enc[0].pte_enc = def->penc;
+	/*
+	 * Only return base page encoding. We don't want to return
+	 * all the supporting pte_enc, because our H_ENTER doesn't
+	 * support MPSS yet. Once they do, we can start passing all
+	 * support pte_enc here
+	 */
+	(*sps)->enc[0].pte_enc = def->penc[linux_psize];
 	(*sps)++;
 }
 

@@ -51,7 +51,7 @@
 #include "common.h"
 #include <linux/platform_data/spi-omap2-mcspi.h>
 #include <video/omapdss.h>
-#include <video/omap-panel-tfp410.h>
+#include <video/omap-panel-data.h>
 
 #include "soc.h"
 #include "mux.h"

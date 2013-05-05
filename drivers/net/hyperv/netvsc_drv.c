@@ -429,7 +429,7 @@ static int netvsc_probe(struct hv_device *dev,
 
 	/* TODO: Add GSO and Checksum offload */
 	net->hw_features = NETIF_F_SG;
-	net->features = NETIF_F_SG | NETIF_F_HW_VLAN_TX;
+	net->features = NETIF_F_SG | NETIF_F_HW_VLAN_CTAG_TX;
 
 	SET_ETHTOOL_OPS(net, &ethtool_ops);
 	SET_NETDEV_DEV(net, &dev->device);

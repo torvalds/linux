@@ -21,6 +21,7 @@
 #ifndef _FC0012_H_
 #define _FC0012_H_
 
+#include <linux/kconfig.h>
 #include "dvb_frontend.h"
 #include "fc001x-common.h"
 
@@ -48,8 +49,7 @@ struct fc0012_config {
 	bool clock_out;
 };
 
-#if defined(CONFIG_MEDIA_TUNER_FC0012) || \
-	(defined(CONFIG_MEDIA_TUNER_FC0012_MODULE) && defined(MODULE))
+#if IS_ENABLED(CONFIG_MEDIA_TUNER_FC0012)
 extern struct dvb_frontend *fc0012_attach(struct dvb_frontend *fe,
 					struct i2c_adapter *i2c,
 					const struct fc0012_config *cfg);

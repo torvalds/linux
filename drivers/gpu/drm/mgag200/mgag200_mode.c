@@ -1254,9 +1254,8 @@ static const struct drm_crtc_helper_funcs mga_helper_funcs = {
 };
 
 /* CRTC setup */
-static void mga_crtc_init(struct drm_device *dev)
+static void mga_crtc_init(struct mga_device *mdev)
 {
-	struct mga_device *mdev = dev->dev_private;
 	struct mga_crtc *mga_crtc;
 	int i;
 
@@ -1267,7 +1266,7 @@ static void mga_crtc_init(struct drm_device *dev)
 	if (mga_crtc == NULL)
 		return;
 
-	drm_crtc_init(dev, &mga_crtc->base, &mga_crtc_funcs);
+	drm_crtc_init(mdev->dev, &mga_crtc->base, &mga_crtc_funcs);
 
 	drm_mode_crtc_set_gamma_size(&mga_crtc->base, MGAG200_LUT_SIZE);
 	mdev->mode_info.crtc = mga_crtc;
@@ -1522,7 +1521,7 @@ int mgag200_modeset_init(struct mga_device *mdev)
 
 	mdev->dev->mode_config.fb_base = mdev->mc.vram_base;
 
-	mga_crtc_init(mdev->dev);
+	mga_crtc_init(mdev);
 
 	encoder = mga_encoder_init(mdev->dev);
 	if (!encoder) {

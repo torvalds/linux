@@ -223,13 +223,7 @@ static struct pxa27x_keypad_platform_data aspenite_keypad_info __initdata = {
 };
 
 #if defined(CONFIG_USB_EHCI_MV)
-static char *pxa168_sph_clock_name[] = {
-	[0] = "PXA168-USBCLK",
-};
-
 static struct mv_usb_platform_data pxa168_sph_pdata = {
-	.clknum         = 1,
-	.clkname        = pxa168_sph_clock_name,
 	.mode           = MV_USB_MODE_HOST,
 	.phy_init	= pxa_usb_phy_init,
 	.phy_deinit	= pxa_usb_phy_deinit,

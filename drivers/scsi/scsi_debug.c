@@ -2823,31 +2823,27 @@ static const char * scsi_debug_info(struct Scsi_Host * shp)
 /* scsi_debug_proc_info
  * Used if the driver currently has no own support for /proc/scsi
  */
-static int scsi_debug_proc_info(struct Scsi_Host *host, char *buffer, char **start, off_t offset,
-				int length, int inout)
+static int scsi_debug_write_info(struct Scsi_Host *host, char *buffer, int length)
 {
-	int len, pos, begin;
-	int orig_length;
+	char arr[16];
+	int opts;
+	int minLen = length > 15 ? 15 : length;
 
-	orig_length = length;
+	if (!capable(CAP_SYS_ADMIN) || !capable(CAP_SYS_RAWIO))
+		return -EACCES;
+	memcpy(arr, buffer, minLen);
+	arr[minLen] = '\0';
+	if (1 != sscanf(arr, "%d", &opts))
+		return -EINVAL;
+	scsi_debug_opts = opts;
+	if (scsi_debug_every_nth != 0)
+		scsi_debug_cmnd_count = 0;
+	return length;
+}
 
-	if (inout == 1) {
-		char arr[16];
-		int minLen = length > 15 ? 15 : length;
-
-		if (!capable(CAP_SYS_ADMIN) || !capable(CAP_SYS_RAWIO))
-			return -EACCES;
-		memcpy(arr, buffer, minLen);
-		arr[minLen] = '\0';
-		if (1 != sscanf(arr, "%d", &pos))
-			return -EINVAL;
-		scsi_debug_opts = pos;
-		if (scsi_debug_every_nth != 0)
-                        scsi_debug_cmnd_count = 0;
-		return length;
-	}
-	begin = 0;
-	pos = len = sprintf(buffer, "scsi_debug adapter driver, version "
+static int scsi_debug_show_info(struct seq_file *m, struct Scsi_Host *host)
+{
+	seq_printf(m, "scsi_debug adapter driver, version "
 	    "%s [%s]\n"
 	    "num_tgts=%d, shared (ram) size=%d MB, opts=0x%x, "
 	    "every_nth=%d(curr:%d)\n"
@@ -2862,15 +2858,7 @@ static int scsi_debug_proc_info(struct Scsi_Host *host, char *buffer, char **sta
 	    scsi_debug_sector_size, sdebug_cylinders_per, sdebug_heads,
 	    sdebug_sectors_per, num_aborts, num_dev_resets, num_bus_resets,
 	    num_host_resets, dix_reads, dix_writes, dif_errors);
-	if (pos < offset) {
-		len = 0;
-		begin = pos;
-	}
-	*start = buffer + (offset - begin);	/* Start of wanted data */
-	len -= (offset - begin);
-	if (len > length)
-		len = length;
-	return len;
+	return 0;
 }
 
 static ssize_t sdebug_delay_show(struct device_driver * ddp, char * buf)
@@ -3957,7 +3945,8 @@ write:
 static DEF_SCSI_QCMD(scsi_debug_queuecommand)
 
 static struct scsi_host_template sdebug_driver_template = {
-	.proc_info =		scsi_debug_proc_info,
+	.show_info =		scsi_debug_show_info,
+	.write_info =		scsi_debug_write_info,
 	.proc_name =		sdebug_proc_name,
 	.name =			"SCSI DEBUG",
 	.info =			scsi_debug_info,

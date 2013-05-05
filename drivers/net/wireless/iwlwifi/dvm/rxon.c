@@ -78,8 +78,9 @@ void iwl_connection_init_rx_config(struct iwl_priv *priv,
 		ctx->staging.flags |= RXON_FLG_SHORT_PREAMBLE_MSK;
 #endif
 
-	ctx->staging.channel = cpu_to_le16(priv->hw->conf.channel->hw_value);
-	priv->band = priv->hw->conf.channel->band;
+	ctx->staging.channel =
+		cpu_to_le16(priv->hw->conf.chandef.chan->hw_value);
+	priv->band = priv->hw->conf.chandef.chan->band;
 
 	iwl_set_flags_for_band(priv, ctx, priv->band, ctx->vif);
 
@@ -951,7 +952,7 @@ static void iwl_calc_basic_rates(struct iwl_priv *priv,
 		unsigned long basic = ctx->vif->bss_conf.basic_rates;
 		int i;
 
-		sband = priv->hw->wiphy->bands[priv->hw->conf.channel->band];
+		sband = priv->hw->wiphy->bands[priv->hw->conf.chandef.chan->band];
 
 		for_each_set_bit(i, &basic, BITS_PER_LONG) {
 			int hw = sband->bitrates[i].hw_value;
@@ -1159,7 +1160,7 @@ int iwlagn_commit_rxon(struct iwl_priv *priv, struct iwl_rxon_context *ctx)
 }
 
 void iwlagn_config_ht40(struct ieee80211_conf *conf,
-	struct iwl_rxon_context *ctx)
+			struct iwl_rxon_context *ctx)
 {
 	if (conf_is_ht40_minus(conf)) {
 		ctx->ht.extension_chan_offset =
@@ -1181,7 +1182,7 @@ int iwlagn_mac_config(struct ieee80211_hw *hw, u32 changed)
 	struct iwl_priv *priv = IWL_MAC80211_GET_DVM(hw);
 	struct iwl_rxon_context *ctx;
 	struct ieee80211_conf *conf = &hw->conf;
-	struct ieee80211_channel *channel = conf->channel;
+	struct ieee80211_channel *channel = conf->chandef.chan;
 	int ret = 0;
 
 	IWL_DEBUG_MAC80211(priv, "enter: changed %#x\n", changed);

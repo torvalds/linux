@@ -1398,7 +1398,7 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper)
 	struct drm_mode_set *modeset;
 	bool *enabled;
 	int width, height;
-	int i, ret;
+	int i;
 
 	DRM_DEBUG_KMS("\n");
 
@@ -1419,16 +1419,23 @@ static void drm_setup_crtcs(struct drm_fb_helper *fb_helper)
 
 	drm_enable_connectors(fb_helper, enabled);
 
-	ret = drm_target_cloned(fb_helper, modes, enabled, width, height);
-	if (!ret) {
-		ret = drm_target_preferred(fb_helper, modes, enabled, width, height);
-		if (!ret)
+	if (!(fb_helper->funcs->initial_config &&
+	      fb_helper->funcs->initial_config(fb_helper, crtcs, modes,
+					       enabled, width, height))) {
+		memset(modes, 0, dev->mode_config.num_connector*sizeof(modes[0]));
+		memset(crtcs, 0, dev->mode_config.num_connector*sizeof(crtcs[0]));
+
+		if (!drm_target_cloned(fb_helper,
+				       modes, enabled, width, height) &&
+		    !drm_target_preferred(fb_helper,
+					  modes, enabled, width, height))
 			DRM_ERROR("Unable to find initial modes\n");
+
+		DRM_DEBUG_KMS("picking CRTCs for %dx%d config\n",
+			      width, height);
+
+		drm_pick_crtcs(fb_helper, crtcs, modes, 0, width, height);
 	}
-
-	DRM_DEBUG_KMS("picking CRTCs for %dx%d config\n", width, height);
-
-	drm_pick_crtcs(fb_helper, crtcs, modes, 0, width, height);
 
 	/* need to set the modesets up here for use later */
 	/* fill out the connector<->crtc mappings into the modesets */

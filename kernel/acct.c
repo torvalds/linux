@@ -543,6 +543,7 @@ static void do_acct_process(struct bsd_acct_struct *acct,
 	 * Kernel segment override to datasegment and write it
 	 * to the accounting file.
 	 */
+	file_start_write(file);
 	fs = get_fs();
 	set_fs(KERNEL_DS);
 	/*
@@ -554,6 +555,7 @@ static void do_acct_process(struct bsd_acct_struct *acct,
 			       sizeof(acct_t), &file->f_pos);
 	current->signal->rlim[RLIMIT_FSIZE].rlim_cur = flim;
 	set_fs(fs);
+	file_end_write(file);
 out:
 	revert_creds(orig_cred);
 }

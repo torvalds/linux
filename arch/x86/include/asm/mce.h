@@ -146,13 +146,13 @@ DECLARE_PER_CPU(struct device *, mce_device);
 void mce_intel_feature_init(struct cpuinfo_x86 *c);
 void cmci_clear(void);
 void cmci_reenable(void);
-void cmci_rediscover(int dying);
+void cmci_rediscover(void);
 void cmci_recheck(void);
 #else
 static inline void mce_intel_feature_init(struct cpuinfo_x86 *c) { }
 static inline void cmci_clear(void) {}
 static inline void cmci_reenable(void) {}
-static inline void cmci_rediscover(int dying) {}
+static inline void cmci_rediscover(void) {}
 static inline void cmci_recheck(void) {}
 #endif
 

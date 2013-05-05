@@ -36,6 +36,7 @@
 extern int trout_init_mmc(unsigned int);
 
 static struct platform_device *devices[] __initdata = {
+	&msm_device_gpio_7201,
 	&msm_device_uart3,
 	&msm_device_smd,
 	&msm_device_nand,

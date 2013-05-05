@@ -22,8 +22,7 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/clk/tegra.h>
-
-#include <mach/powergate.h>
+#include <linux/tegra-powergate.h>
 
 #include "clk.h"
 

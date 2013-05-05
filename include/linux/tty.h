@@ -255,9 +255,9 @@ struct tty_struct {
 	int count;
 	struct winsize winsize;		/* termios mutex */
 	unsigned char stopped:1, hw_stopped:1, flow_stopped:1, packet:1;
-	unsigned char warned:1;
 	unsigned char ctrl_status;	/* ctrl_lock */
 	unsigned int receive_room;	/* Bytes free for queue */
+	int flow_change;
 
 	struct tty_struct *link;
 	struct fasync_struct *fasync;
@@ -315,8 +315,24 @@ struct tty_file_private {
 #define TTY_NO_WRITE_SPLIT 	17	/* Preserve write boundaries to driver */
 #define TTY_HUPPED 		18	/* Post driver->hangup() */
 #define TTY_HUPPING 		21	/* ->hangup() in progress */
+#define TTY_LDISC_HALTED	22	/* Line discipline is halted */
 
 #define TTY_WRITE_FLUSH(tty) tty_write_flush((tty))
+
+/* Values for tty->flow_change */
+#define TTY_THROTTLE_SAFE 1
+#define TTY_UNTHROTTLE_SAFE 2
+
+static inline void __tty_set_flow_change(struct tty_struct *tty, int val)
+{
+	tty->flow_change = val;
+}
+
+static inline void tty_set_flow_change(struct tty_struct *tty, int val)
+{
+	tty->flow_change = val;
+	smp_mb();
+}
 
 #ifdef CONFIG_TTY
 extern void console_init(void);
@@ -400,6 +416,8 @@ extern int tty_write_room(struct tty_struct *tty);
 extern void tty_driver_flush_buffer(struct tty_struct *tty);
 extern void tty_throttle(struct tty_struct *tty);
 extern void tty_unthrottle(struct tty_struct *tty);
+extern int tty_throttle_safe(struct tty_struct *tty);
+extern int tty_unthrottle_safe(struct tty_struct *tty);
 extern int tty_do_resize(struct tty_struct *tty, struct winsize *ws);
 extern void tty_driver_remove_tty(struct tty_driver *driver,
 				  struct tty_struct *tty);
@@ -419,13 +437,28 @@ extern void tty_flush_to_ldisc(struct tty_struct *tty);
 extern void tty_buffer_free_all(struct tty_port *port);
 extern void tty_buffer_flush(struct tty_struct *tty);
 extern void tty_buffer_init(struct tty_port *port);
-extern speed_t tty_get_baud_rate(struct tty_struct *tty);
 extern speed_t tty_termios_baud_rate(struct ktermios *termios);
 extern speed_t tty_termios_input_baud_rate(struct ktermios *termios);
 extern void tty_termios_encode_baud_rate(struct ktermios *termios,
 						speed_t ibaud, speed_t obaud);
 extern void tty_encode_baud_rate(struct tty_struct *tty,
 						speed_t ibaud, speed_t obaud);
+
+/**
+ *	tty_get_baud_rate	-	get tty bit rates
+ *	@tty: tty to query
+ *
+ *	Returns the baud rate as an integer for this terminal. The
+ *	termios lock must be held by the caller and the terminal bit
+ *	flags may be updated.
+ *
+ *	Locking: none
+ */
+static inline speed_t tty_get_baud_rate(struct tty_struct *tty)
+{
+	return tty_termios_baud_rate(&tty->termios);
+}
+
 extern void tty_termios_copy_hw(struct ktermios *new, struct ktermios *old);
 extern int tty_termios_hw_change(struct ktermios *a, struct ktermios *b);
 extern int tty_set_termios(struct tty_struct *tty, struct ktermios *kt);
@@ -502,6 +535,8 @@ extern int tty_port_carrier_raised(struct tty_port *port);
 extern void tty_port_raise_dtr_rts(struct tty_port *port);
 extern void tty_port_lower_dtr_rts(struct tty_port *port);
 extern void tty_port_hangup(struct tty_port *port);
+extern void tty_port_tty_hangup(struct tty_port *port, bool check_clocal);
+extern void tty_port_tty_wakeup(struct tty_port *port);
 extern int tty_port_block_til_ready(struct tty_port *port,
 				struct tty_struct *tty, struct file *filp);
 extern int tty_port_close_start(struct tty_port *port,
@@ -526,8 +561,6 @@ extern void tty_ldisc_release(struct tty_struct *tty, struct tty_struct *o_tty);
 extern void tty_ldisc_init(struct tty_struct *tty);
 extern void tty_ldisc_deinit(struct tty_struct *tty);
 extern void tty_ldisc_begin(void);
-/* This last one is just for the tty layer internals and shouldn't be used elsewhere */
-extern void tty_ldisc_enable(struct tty_struct *tty);
 
 
 /* n_tty.c */
@@ -658,5 +691,12 @@ do {									\
 	finish_wait(&wq, &__wait);					\
 } while (0)
 
+#ifdef CONFIG_PROC_FS
+extern void proc_tty_register_driver(struct tty_driver *);
+extern void proc_tty_unregister_driver(struct tty_driver *);
+#else
+static inline void proc_tty_register_driver(struct tty_driver *d) {}
+static inline void proc_tty_unregister_driver(struct tty_driver *d) {}
+#endif
 
 #endif

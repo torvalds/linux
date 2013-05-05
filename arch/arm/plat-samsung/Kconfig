@@ -37,14 +37,6 @@ if PLAT_SAMSUNG
 
 comment "Boot options"
 
-config S3C_BOOT_WATCHDOG
-	bool "S3C Initialisation watchdog"
-	depends on S3C2410_WATCHDOG
-	help
-	  Say y to enable the watchdog during the kernel decompression
-	  stage. If the kernel fails to uncompress, then the watchdog
-	  will trigger a reset and the system should restart.
-
 config S3C_BOOT_ERROR_RESET
 	bool "S3C Reboot on decompression error"
 	help
@@ -124,12 +116,6 @@ config SAMSUNG_GPIOLIB_4BIT
 	  GPIOlib file contains the 4 bit modification functions for gpio
 	  configuration. GPIOlib shall be compiled only for S3C64XX and S5P
 	  series of processors.
-
-config S3C_GPIO_CFG_S3C64XX
-	bool
-	help
-	  Internal configuration to enable S3C64XX style GPIO configuration
-	  functions.
 
 config S5P_GPIO_DRVSTR
 	bool

@@ -372,7 +372,6 @@ typedef struct r8180_priv
 	struct Stats stats;
 	struct _link_detect_t link_detect;  //YJ,add,080828
 	struct iw_statistics wstats;
-	struct proc_dir_entry *dir_dev;
 
 	/*RX stuff*/
 	u32 *rxring;

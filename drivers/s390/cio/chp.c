@@ -377,6 +377,26 @@ static void chp_release(struct device *dev)
 }
 
 /**
+ * chp_update_desc - update channel-path description
+ * @chp - channel-path
+ *
+ * Update the channel-path description of the specified channel-path.
+ * Return zero on success, non-zero otherwise.
+ */
+int chp_update_desc(struct channel_path *chp)
+{
+	int rc;
+
+	rc = chsc_determine_base_channel_path_desc(chp->chpid, &chp->desc);
+	if (rc)
+		return rc;
+
+	rc = chsc_determine_fmt1_channel_path_desc(chp->chpid, &chp->desc_fmt1);
+
+	return rc;
+}
+
+/**
  * chp_new - register a new channel-path
  * @chpid - channel-path ID
  *
@@ -403,7 +423,7 @@ int chp_new(struct chp_id chpid)
 	mutex_init(&chp->lock);
 
 	/* Obtain channel path description and fill it in. */
-	ret = chsc_determine_base_channel_path_desc(chpid, &chp->desc);
+	ret = chp_update_desc(chp);
 	if (ret)
 		goto out_free;
 	if ((chp->desc.flags & 0x80) == 0) {

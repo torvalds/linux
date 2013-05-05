@@ -818,8 +818,9 @@ static void kone_report_to_chrdev(struct kone_device const *kone,
 				(uint8_t *)&roccat_report);
 		break;
 	case kone_mouse_event_call_overlong_macro:
+	case kone_mouse_event_multimedia:
 		if (event->value == kone_keystroke_action_press) {
-			roccat_report.event = kone_mouse_event_call_overlong_macro;
+			roccat_report.event = event->event;
 			roccat_report.value = kone->actual_profile;
 			roccat_report.key = event->macro_key;
 			roccat_report_event(kone->chrdev_minor,

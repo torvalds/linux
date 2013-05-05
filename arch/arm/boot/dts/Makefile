@@ -3,6 +3,7 @@ ifeq ($(CONFIG_OF),y)
 # Keep at91 dtb files sorted alphabetically for each SoC
 # rm9200
 dtb-$(CONFIG_ARCH_AT91) += at91rm9200ek.dtb
+dtb-$(CONFIG_ARCH_AT91) += mpa1600.dtb
 # sam9260
 dtb-$(CONFIG_ARCH_AT91) += animeo_ip.dtb
 dtb-$(CONFIG_ARCH_AT91) += aks-cdu.dtb
@@ -26,11 +27,17 @@ dtb-$(CONFIG_ARCH_AT91) += pm9g45.dtb
 # sam9n12
 dtb-$(CONFIG_ARCH_AT91) += at91sam9n12ek.dtb
 # sam9x5
+dtb-$(CONFIG_ARCH_AT91) += at91-ariag25.dtb
 dtb-$(CONFIG_ARCH_AT91) += at91sam9g15ek.dtb
 dtb-$(CONFIG_ARCH_AT91) += at91sam9g25ek.dtb
 dtb-$(CONFIG_ARCH_AT91) += at91sam9g35ek.dtb
 dtb-$(CONFIG_ARCH_AT91) += at91sam9x25ek.dtb
 dtb-$(CONFIG_ARCH_AT91) += at91sam9x35ek.dtb
+# sama5d3
+dtb-$(CONFIG_ARCH_AT91)	+= sama5d31ek.dtb
+dtb-$(CONFIG_ARCH_AT91)	+= sama5d33ek.dtb
+dtb-$(CONFIG_ARCH_AT91)	+= sama5d34ek.dtb
+dtb-$(CONFIG_ARCH_AT91)	+= sama5d35ek.dtb
 
 dtb-$(CONFIG_ARCH_BCM2835) += bcm2835-rpi-b.dtb
 dtb-$(CONFIG_ARCH_BCM) += bcm11351-brt.dtb
@@ -87,19 +94,26 @@ dtb-$(CONFIG_ARCH_MXC) += \
 	imx25-karo-tx25.dtb \
 	imx25-pdk.dtb \
 	imx27-apf27.dtb \
+	imx27-apf27dev.dtb \
 	imx27-pdk.dtb \
+	imx27-phytec-phycore.dtb \
 	imx31-bug.dtb \
 	imx51-apf51.dtb \
+	imx51-apf51dev.dtb \
 	imx51-babbage.dtb \
 	imx53-ard.dtb \
 	imx53-evk.dtb \
 	imx53-mba53.dtb \
 	imx53-qsb.dtb \
 	imx53-smd.dtb \
+	imx6dl-sabreauto.dtb \
+	imx6dl-sabresd.dtb \
+	imx6dl-wandboard.dtb \
 	imx6q-arm2.dtb \
 	imx6q-sabreauto.dtb \
 	imx6q-sabrelite.dtb \
-	imx6q-sabresd.dtb
+	imx6q-sabresd.dtb \
+	imx6q-sbc6x.dtb
 dtb-$(CONFIG_ARCH_MXS) += imx23-evk.dtb \
 	imx23-olinuxino.dtb \
 	imx23-stmp378x_devb.dtb \

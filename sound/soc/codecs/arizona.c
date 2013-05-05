@@ -364,6 +364,39 @@ int arizona_out_ev(struct snd_soc_dapm_widget *w,
 }
 EXPORT_SYMBOL_GPL(arizona_out_ev);
 
+int arizona_hp_ev(struct snd_soc_dapm_widget *w,
+		   struct snd_kcontrol *kcontrol,
+		   int event)
+{
+	struct arizona_priv *priv = snd_soc_codec_get_drvdata(w->codec);
+	unsigned int mask = 1 << w->shift;
+	unsigned int val;
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		val = mask;
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		val = 0;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/* Store the desired state for the HP outputs */
+	priv->arizona->hp_ena &= ~mask;
+	priv->arizona->hp_ena |= val;
+
+	/* Force off if HPDET magic is active */
+	if (priv->arizona->hpdet_magic)
+		val = 0;
+
+	snd_soc_update_bits(w->codec, ARIZONA_OUTPUT_ENABLES_1, mask, val);
+
+	return arizona_out_ev(w, kcontrol, event);
+}
+EXPORT_SYMBOL_GPL(arizona_hp_ev);
+
 static unsigned int arizona_sysclk_48k_rates[] = {
 	6144000,
 	12288000,

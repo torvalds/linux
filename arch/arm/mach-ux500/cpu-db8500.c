@@ -28,15 +28,13 @@
 #include <asm/mach/map.h>
 #include <asm/mach/arch.h>
 
-#include <mach/hardware.h>
-#include <mach/setup.h>
-#include <mach/devices.h>
-#include <mach/db8500-regs.h>
-#include <mach/irqs.h>
+#include "setup.h"
+#include "devices.h"
+#include "irqs.h"
 
 #include "devices-db8500.h"
 #include "ste-dma40-db8500.h"
-
+#include "db8500-regs.h"
 #include "board-mop500.h"
 #include "id.h"
 
@@ -94,8 +92,6 @@ void __init u8500_map_io(void)
 		iotable_init(u9540_io_desc, ARRAY_SIZE(u9540_io_desc));
 	else
 		iotable_init(u8500_io_desc, ARRAY_SIZE(u8500_io_desc));
-
-	_PRCMU_BASE = __io_address(U8500_PRCMU_BASE);
 }
 
 static struct resource db8500_pmu_resources[] = {
@@ -282,6 +278,7 @@ static struct of_dev_auxdata u8500_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("st,nomadik-i2c", 0x8012a000, "nmk-i2c.4", NULL),
 	OF_DEV_AUXDATA("stericsson,db8500-prcmu", 0x80157000, "db8500-prcmu",
 			&db8500_prcmu_pdata),
+	OF_DEV_AUXDATA("smsc,lan9115", 0x50000000, "smsc911x", NULL),
 	/* Requires device name bindings. */
 	OF_DEV_AUXDATA("stericsson,nmk-pinctrl", U8500_PRCMU_BASE,
 		"pinctrl-db8500", NULL),

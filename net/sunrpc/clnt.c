@@ -411,6 +411,8 @@ struct rpc_clnt *rpc_create(struct rpc_create_args *args)
 	};
 	char servername[48];
 
+	if (args->flags & RPC_CLNT_CREATE_INFINITE_SLOTS)
+		xprtargs.flags |= XPRT_CREATE_INFINITE_SLOTS;
 	/*
 	 * If the caller chooses not to specify a hostname, whip
 	 * up a string representation of the passed-in address.
@@ -1301,6 +1303,8 @@ call_reserve(struct rpc_task *task)
 	xprt_reserve(task);
 }
 
+static void call_retry_reserve(struct rpc_task *task);
+
 /*
  * 1b.	Grok the result of xprt_reserve()
  */
@@ -1342,7 +1346,7 @@ call_reserveresult(struct rpc_task *task)
 	case -ENOMEM:
 		rpc_delay(task, HZ >> 2);
 	case -EAGAIN:	/* woken up; retry */
-		task->tk_action = call_reserve;
+		task->tk_action = call_retry_reserve;
 		return;
 	case -EIO:	/* probably a shutdown */
 		break;
@@ -1352,6 +1356,19 @@ call_reserveresult(struct rpc_task *task)
 		break;
 	}
 	rpc_exit(task, status);
+}
+
+/*
+ * 1c.	Retry reserving an RPC call slot
+ */
+static void
+call_retry_reserve(struct rpc_task *task)
+{
+	dprint_status(task);
+
+	task->tk_status  = 0;
+	task->tk_action  = call_reserveresult;
+	xprt_retry_reserve(task);
 }
 
 /*
@@ -1639,22 +1656,26 @@ call_connect_status(struct rpc_task *task)
 
 	dprint_status(task);
 
-	task->tk_status = 0;
-	if (status >= 0 || status == -EAGAIN) {
-		clnt->cl_stats->netreconn++;
-		task->tk_action = call_transmit;
-		return;
-	}
-
 	trace_rpc_connect_status(task, status);
 	switch (status) {
 		/* if soft mounted, test if we've timed out */
 	case -ETIMEDOUT:
 		task->tk_action = call_timeout;
-		break;
-	default:
-		rpc_exit(task, -EIO);
+		return;
+	case -ECONNREFUSED:
+	case -ECONNRESET:
+	case -ENETUNREACH:
+		if (RPC_IS_SOFTCONN(task))
+			break;
+		/* retry with existing socket, after a delay */
+	case 0:
+	case -EAGAIN:
+		task->tk_status = 0;
+		clnt->cl_stats->netreconn++;
+		task->tk_action = call_transmit;
+		return;
 	}
+	rpc_exit(task, status);
 }
 
 /*

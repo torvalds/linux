@@ -17,6 +17,7 @@
  */
 
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include <linux/delay.h>
 #include <linux/random.h>
 #include <linux/if_arp.h>
@@ -64,28 +65,32 @@ static void prism2_send_mgmt(struct net_device *dev,
 
 
 #ifndef PRISM2_NO_PROCFS_DEBUG
-static int ap_debug_proc_read(char *page, char **start, off_t off,
-			      int count, int *eof, void *data)
+static int ap_debug_proc_show(struct seq_file *m, void *v)
 {
-	char *p = page;
-	struct ap_data *ap = (struct ap_data *) data;
+	struct ap_data *ap = m->private;
 
-	if (off != 0) {
-		*eof = 1;
-		return 0;
-	}
-
-	p += sprintf(p, "BridgedUnicastFrames=%u\n", ap->bridged_unicast);
-	p += sprintf(p, "BridgedMulticastFrames=%u\n", ap->bridged_multicast);
-	p += sprintf(p, "max_inactivity=%u\n", ap->max_inactivity / HZ);
-	p += sprintf(p, "bridge_packets=%u\n", ap->bridge_packets);
-	p += sprintf(p, "nullfunc_ack=%u\n", ap->nullfunc_ack);
-	p += sprintf(p, "autom_ap_wds=%u\n", ap->autom_ap_wds);
-	p += sprintf(p, "auth_algs=%u\n", ap->local->auth_algs);
-	p += sprintf(p, "tx_drop_nonassoc=%u\n", ap->tx_drop_nonassoc);
-
-	return (p - page);
+	seq_printf(m, "BridgedUnicastFrames=%u\n", ap->bridged_unicast);
+	seq_printf(m, "BridgedMulticastFrames=%u\n", ap->bridged_multicast);
+	seq_printf(m, "max_inactivity=%u\n", ap->max_inactivity / HZ);
+	seq_printf(m, "bridge_packets=%u\n", ap->bridge_packets);
+	seq_printf(m, "nullfunc_ack=%u\n", ap->nullfunc_ack);
+	seq_printf(m, "autom_ap_wds=%u\n", ap->autom_ap_wds);
+	seq_printf(m, "auth_algs=%u\n", ap->local->auth_algs);
+	seq_printf(m, "tx_drop_nonassoc=%u\n", ap->tx_drop_nonassoc);
+	return 0;
 }
+
+static int ap_debug_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, ap_debug_proc_show, PDE_DATA(inode));
+}
+
+static const struct file_operations ap_debug_proc_fops = {
+	.open		= ap_debug_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
 #endif /* PRISM2_NO_PROCFS_DEBUG */
 
 
@@ -325,49 +330,80 @@ void hostap_deauth_all_stas(struct net_device *dev, struct ap_data *ap,
 }
 
 
-static int ap_control_proc_read(char *page, char **start, off_t off,
-				int count, int *eof, void *data)
+static int ap_control_proc_show(struct seq_file *m, void *v)
 {
-	char *p = page;
-	struct ap_data *ap = (struct ap_data *) data;
+	struct ap_data *ap = m->private;
 	char *policy_txt;
 	struct mac_entry *entry;
 
-	if (off != 0) {
-		*eof = 1;
+	if (v == SEQ_START_TOKEN) {
+		switch (ap->mac_restrictions.policy) {
+		case MAC_POLICY_OPEN:
+			policy_txt = "open";
+			break;
+		case MAC_POLICY_ALLOW:
+			policy_txt = "allow";
+			break;
+		case MAC_POLICY_DENY:
+			policy_txt = "deny";
+			break;
+		default:
+			policy_txt = "unknown";
+			break;
+		}
+		seq_printf(m, "MAC policy: %s\n", policy_txt);
+		seq_printf(m, "MAC entries: %u\n", ap->mac_restrictions.entries);
+		seq_puts(m, "MAC list:\n");
 		return 0;
 	}
 
-	switch (ap->mac_restrictions.policy) {
-	case MAC_POLICY_OPEN:
-		policy_txt = "open";
-		break;
-	case MAC_POLICY_ALLOW:
-		policy_txt = "allow";
-		break;
-	case MAC_POLICY_DENY:
-		policy_txt = "deny";
-		break;
-	default:
-		policy_txt = "unknown";
-		break;
-	}
-	p += sprintf(p, "MAC policy: %s\n", policy_txt);
-	p += sprintf(p, "MAC entries: %u\n", ap->mac_restrictions.entries);
-	p += sprintf(p, "MAC list:\n");
-	spin_lock_bh(&ap->mac_restrictions.lock);
-	list_for_each_entry(entry, &ap->mac_restrictions.mac_list, list) {
-		if (p - page > PAGE_SIZE - 80) {
-			p += sprintf(p, "All entries did not fit one page.\n");
-			break;
-		}
-
-		p += sprintf(p, "%pM\n", entry->addr);
-	}
-	spin_unlock_bh(&ap->mac_restrictions.lock);
-
-	return (p - page);
+	entry = v;
+	seq_printf(m, "%pM\n", entry->addr);
+	return 0;
 }
+
+static void *ap_control_proc_start(struct seq_file *m, loff_t *_pos)
+{
+	struct ap_data *ap = m->private;
+	spin_lock_bh(&ap->mac_restrictions.lock);
+	return seq_list_start_head(&ap->mac_restrictions.mac_list, *_pos);
+}
+
+static void *ap_control_proc_next(struct seq_file *m, void *v, loff_t *_pos)
+{
+	struct ap_data *ap = m->private;
+	return seq_list_next(v, &ap->mac_restrictions.mac_list, _pos);
+}
+
+static void ap_control_proc_stop(struct seq_file *m, void *v)
+{
+	struct ap_data *ap = m->private;
+	spin_unlock_bh(&ap->mac_restrictions.lock);
+}
+
+static const struct seq_operations ap_control_proc_seqops = {
+	.start	= ap_control_proc_start,
+	.next	= ap_control_proc_next,
+	.stop	= ap_control_proc_stop,
+	.show	= ap_control_proc_show,
+};
+
+static int ap_control_proc_open(struct inode *inode, struct file *file)
+{
+	int ret = seq_open(file, &ap_control_proc_seqops);
+	if (ret == 0) {
+		struct seq_file *m = file->private_data;
+		m->private = PDE_DATA(inode);
+	}
+	return ret;
+}
+
+static const struct file_operations ap_control_proc_fops = {
+	.open		= ap_control_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
 
 
 int ap_control_add_mac(struct mac_restrictions *mac_restrictions, u8 *mac)
@@ -510,61 +546,84 @@ void ap_control_kickall(struct ap_data *ap)
 
 #ifndef PRISM2_NO_KERNEL_IEEE80211_MGMT
 
-#define PROC_LIMIT (PAGE_SIZE - 80)
-
-static int prism2_ap_proc_read(char *page, char **start, off_t off,
-			       int count, int *eof, void *data)
+static int prism2_ap_proc_show(struct seq_file *m, void *v)
 {
-	char *p = page;
-	struct ap_data *ap = (struct ap_data *) data;
-	struct sta_info *sta;
+	struct sta_info *sta = v;
 	int i;
 
-	if (off > PROC_LIMIT) {
-		*eof = 1;
+	if (v == SEQ_START_TOKEN) {
+		seq_printf(m, "# BSSID CHAN SIGNAL NOISE RATE SSID FLAGS\n");
 		return 0;
 	}
 
-	p += sprintf(p, "# BSSID CHAN SIGNAL NOISE RATE SSID FLAGS\n");
-	spin_lock_bh(&ap->sta_table_lock);
-	list_for_each_entry(sta, &ap->sta_list, list) {
-		if (!sta->ap)
-			continue;
-
-		p += sprintf(p, "%pM %d %d %d %d '",
-			     sta->addr,
-			     sta->u.ap.channel, sta->last_rx_signal,
-			     sta->last_rx_silence, sta->last_rx_rate);
-		for (i = 0; i < sta->u.ap.ssid_len; i++)
-			p += sprintf(p, ((sta->u.ap.ssid[i] >= 32 &&
-					  sta->u.ap.ssid[i] < 127) ?
-					 "%c" : "<%02x>"),
-				     sta->u.ap.ssid[i]);
-		p += sprintf(p, "'");
-		if (sta->capability & WLAN_CAPABILITY_ESS)
-			p += sprintf(p, " [ESS]");
-		if (sta->capability & WLAN_CAPABILITY_IBSS)
-			p += sprintf(p, " [IBSS]");
-		if (sta->capability & WLAN_CAPABILITY_PRIVACY)
-			p += sprintf(p, " [WEP]");
-		p += sprintf(p, "\n");
-
-		if ((p - page) > PROC_LIMIT) {
-			printk(KERN_DEBUG "hostap: ap proc did not fit\n");
-			break;
-		}
-	}
-	spin_unlock_bh(&ap->sta_table_lock);
-
-	if ((p - page) <= off) {
-		*eof = 1;
+	if (!sta->ap)
 		return 0;
+
+	seq_printf(m, "%pM %d %d %d %d '",
+		   sta->addr,
+		   sta->u.ap.channel, sta->last_rx_signal,
+		   sta->last_rx_silence, sta->last_rx_rate);
+
+	for (i = 0; i < sta->u.ap.ssid_len; i++) {
+		if (sta->u.ap.ssid[i] >= 32 && sta->u.ap.ssid[i] < 127)
+			seq_putc(m, sta->u.ap.ssid[i]);
+		else
+			seq_printf(m, "<%02x>", sta->u.ap.ssid[i]);
 	}
 
-	*start = page + off;
-
-	return (p - page - off);
+	seq_putc(m, '\'');
+	if (sta->capability & WLAN_CAPABILITY_ESS)
+		seq_puts(m, " [ESS]");
+	if (sta->capability & WLAN_CAPABILITY_IBSS)
+		seq_puts(m, " [IBSS]");
+	if (sta->capability & WLAN_CAPABILITY_PRIVACY)
+		seq_puts(m, " [WEP]");
+	seq_putc(m, '\n');
+	return 0;
 }
+
+static void *prism2_ap_proc_start(struct seq_file *m, loff_t *_pos)
+{
+	struct ap_data *ap = m->private;
+	spin_lock_bh(&ap->sta_table_lock);
+	return seq_list_start_head(&ap->sta_list, *_pos);
+}
+
+static void *prism2_ap_proc_next(struct seq_file *m, void *v, loff_t *_pos)
+{
+	struct ap_data *ap = m->private;
+	return seq_list_next(v, &ap->sta_list, _pos);
+}
+
+static void prism2_ap_proc_stop(struct seq_file *m, void *v)
+{
+	struct ap_data *ap = m->private;
+	spin_unlock_bh(&ap->sta_table_lock);
+}
+
+static const struct seq_operations prism2_ap_proc_seqops = {
+	.start	= prism2_ap_proc_start,
+	.next	= prism2_ap_proc_next,
+	.stop	= prism2_ap_proc_stop,
+	.show	= prism2_ap_proc_show,
+};
+
+static int prism2_ap_proc_open(struct inode *inode, struct file *file)
+{
+	int ret = seq_open(file, &prism2_ap_proc_seqops);
+	if (ret == 0) {
+		struct seq_file *m = file->private_data;
+		m->private = PDE_DATA(inode);
+	}
+	return ret;
+}
+
+static const struct file_operations prism2_ap_proc_fops = {
+	.open		= prism2_ap_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
 #endif /* PRISM2_NO_KERNEL_IEEE80211_MGMT */
 
 
@@ -836,15 +895,12 @@ void hostap_init_ap_proc(local_info_t *local)
 		return;
 
 #ifndef PRISM2_NO_PROCFS_DEBUG
-	create_proc_read_entry("ap_debug", 0, ap->proc,
-			       ap_debug_proc_read, ap);
+	proc_create_data("ap_debug", 0, ap->proc, &ap_debug_proc_fops, ap);
 #endif /* PRISM2_NO_PROCFS_DEBUG */
 
 #ifndef PRISM2_NO_KERNEL_IEEE80211_MGMT
-	create_proc_read_entry("ap_control", 0, ap->proc,
-			       ap_control_proc_read, ap);
-	create_proc_read_entry("ap", 0, ap->proc,
-			       prism2_ap_proc_read, ap);
+	proc_create_data("ap_control", 0, ap->proc, &ap_control_proc_fops, ap);
+	proc_create_data("ap", 0, ap->proc, &prism2_ap_proc_fops, ap);
 #endif /* PRISM2_NO_KERNEL_IEEE80211_MGMT */
 
 }
@@ -982,79 +1038,86 @@ static void prism2_send_mgmt(struct net_device *dev,
 #endif /* PRISM2_NO_KERNEL_IEEE80211_MGMT */
 
 
-static int prism2_sta_proc_read(char *page, char **start, off_t off,
-				int count, int *eof, void *data)
+static int prism2_sta_proc_show(struct seq_file *m, void *v)
 {
-	char *p = page;
-	struct sta_info *sta = (struct sta_info *) data;
+	struct sta_info *sta = m->private;
 	int i;
 
 	/* FIX: possible race condition.. the STA data could have just expired,
 	 * but proc entry was still here so that the read could have started;
 	 * some locking should be done here.. */
 
-	if (off != 0) {
-		*eof = 1;
-		return 0;
-	}
-
-	p += sprintf(p, "%s=%pM\nusers=%d\naid=%d\n"
-		     "flags=0x%04x%s%s%s%s%s%s%s\n"
-		     "capability=0x%02x\nlisten_interval=%d\nsupported_rates=",
-		     sta->ap ? "AP" : "STA",
-		     sta->addr, atomic_read(&sta->users), sta->aid,
-		     sta->flags,
-		     sta->flags & WLAN_STA_AUTH ? " AUTH" : "",
-		     sta->flags & WLAN_STA_ASSOC ? " ASSOC" : "",
-		     sta->flags & WLAN_STA_PS ? " PS" : "",
-		     sta->flags & WLAN_STA_TIM ? " TIM" : "",
-		     sta->flags & WLAN_STA_PERM ? " PERM" : "",
-		     sta->flags & WLAN_STA_AUTHORIZED ? " AUTHORIZED" : "",
-		     sta->flags & WLAN_STA_PENDING_POLL ? " POLL" : "",
-		     sta->capability, sta->listen_interval);
+	seq_printf(m,
+		   "%s=%pM\nusers=%d\naid=%d\n"
+		   "flags=0x%04x%s%s%s%s%s%s%s\n"
+		   "capability=0x%02x\nlisten_interval=%d\nsupported_rates=",
+		   sta->ap ? "AP" : "STA",
+		   sta->addr, atomic_read(&sta->users), sta->aid,
+		   sta->flags,
+		   sta->flags & WLAN_STA_AUTH ? " AUTH" : "",
+		   sta->flags & WLAN_STA_ASSOC ? " ASSOC" : "",
+		   sta->flags & WLAN_STA_PS ? " PS" : "",
+		   sta->flags & WLAN_STA_TIM ? " TIM" : "",
+		   sta->flags & WLAN_STA_PERM ? " PERM" : "",
+		   sta->flags & WLAN_STA_AUTHORIZED ? " AUTHORIZED" : "",
+		   sta->flags & WLAN_STA_PENDING_POLL ? " POLL" : "",
+		   sta->capability, sta->listen_interval);
 	/* supported_rates: 500 kbit/s units with msb ignored */
 	for (i = 0; i < sizeof(sta->supported_rates); i++)
 		if (sta->supported_rates[i] != 0)
-			p += sprintf(p, "%d%sMbps ",
-				     (sta->supported_rates[i] & 0x7f) / 2,
-				     sta->supported_rates[i] & 1 ? ".5" : "");
-	p += sprintf(p, "\njiffies=%lu\nlast_auth=%lu\nlast_assoc=%lu\n"
-		     "last_rx=%lu\nlast_tx=%lu\nrx_packets=%lu\n"
-		     "tx_packets=%lu\n"
-		     "rx_bytes=%lu\ntx_bytes=%lu\nbuffer_count=%d\n"
-		     "last_rx: silence=%d dBm signal=%d dBm rate=%d%s Mbps\n"
-		     "tx_rate=%d\ntx[1M]=%d\ntx[2M]=%d\ntx[5.5M]=%d\n"
-		     "tx[11M]=%d\n"
-		     "rx[1M]=%d\nrx[2M]=%d\nrx[5.5M]=%d\nrx[11M]=%d\n",
-		     jiffies, sta->last_auth, sta->last_assoc, sta->last_rx,
-		     sta->last_tx,
-		     sta->rx_packets, sta->tx_packets, sta->rx_bytes,
-		     sta->tx_bytes, skb_queue_len(&sta->tx_buf),
-		     sta->last_rx_silence,
-		     sta->last_rx_signal, sta->last_rx_rate / 10,
-		     sta->last_rx_rate % 10 ? ".5" : "",
-		     sta->tx_rate, sta->tx_count[0], sta->tx_count[1],
-		     sta->tx_count[2], sta->tx_count[3],  sta->rx_count[0],
-		     sta->rx_count[1], sta->rx_count[2], sta->rx_count[3]);
+			seq_printf(m, "%d%sMbps ",
+				   (sta->supported_rates[i] & 0x7f) / 2,
+				   sta->supported_rates[i] & 1 ? ".5" : "");
+	seq_printf(m,
+		   "\njiffies=%lu\nlast_auth=%lu\nlast_assoc=%lu\n"
+		   "last_rx=%lu\nlast_tx=%lu\nrx_packets=%lu\n"
+		   "tx_packets=%lu\n"
+		   "rx_bytes=%lu\ntx_bytes=%lu\nbuffer_count=%d\n"
+		   "last_rx: silence=%d dBm signal=%d dBm rate=%d%s Mbps\n"
+		   "tx_rate=%d\ntx[1M]=%d\ntx[2M]=%d\ntx[5.5M]=%d\n"
+		   "tx[11M]=%d\n"
+		   "rx[1M]=%d\nrx[2M]=%d\nrx[5.5M]=%d\nrx[11M]=%d\n",
+		   jiffies, sta->last_auth, sta->last_assoc, sta->last_rx,
+		   sta->last_tx,
+		   sta->rx_packets, sta->tx_packets, sta->rx_bytes,
+		   sta->tx_bytes, skb_queue_len(&sta->tx_buf),
+		   sta->last_rx_silence,
+		   sta->last_rx_signal, sta->last_rx_rate / 10,
+		   sta->last_rx_rate % 10 ? ".5" : "",
+		   sta->tx_rate, sta->tx_count[0], sta->tx_count[1],
+		   sta->tx_count[2], sta->tx_count[3],  sta->rx_count[0],
+		   sta->rx_count[1], sta->rx_count[2], sta->rx_count[3]);
 	if (sta->crypt && sta->crypt->ops && sta->crypt->ops->print_stats)
-		p = sta->crypt->ops->print_stats(p, sta->crypt->priv);
+		sta->crypt->ops->print_stats(m, sta->crypt->priv);
 #ifndef PRISM2_NO_KERNEL_IEEE80211_MGMT
 	if (sta->ap) {
 		if (sta->u.ap.channel >= 0)
-			p += sprintf(p, "channel=%d\n", sta->u.ap.channel);
-		p += sprintf(p, "ssid=");
-		for (i = 0; i < sta->u.ap.ssid_len; i++)
-			p += sprintf(p, ((sta->u.ap.ssid[i] >= 32 &&
-					  sta->u.ap.ssid[i] < 127) ?
-					 "%c" : "<%02x>"),
-				     sta->u.ap.ssid[i]);
-		p += sprintf(p, "\n");
+			seq_printf(m, "channel=%d\n", sta->u.ap.channel);
+		seq_puts(m, "ssid=");
+		for (i = 0; i < sta->u.ap.ssid_len; i++) {
+			if (sta->u.ap.ssid[i] >= 32 && sta->u.ap.ssid[i] < 127)
+				seq_putc(m, sta->u.ap.ssid[i]);
+			else
+				seq_printf(m, "<%02x>", sta->u.ap.ssid[i]);
+		}
+		seq_putc(m, '\n');
 	}
 #endif /* PRISM2_NO_KERNEL_IEEE80211_MGMT */
 
-	return (p - page);
+	return 0;
 }
 
+static int prism2_sta_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, prism2_sta_proc_show, PDE_DATA(inode));
+}
+
+static const struct file_operations prism2_sta_proc_fops = {
+	.open		= prism2_sta_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
 
 static void handle_add_proc_queue(struct work_struct *work)
 {
@@ -1076,9 +1139,9 @@ static void handle_add_proc_queue(struct work_struct *work)
 
 		if (sta) {
 			sprintf(name, "%pM", sta->addr);
-			sta->proc = create_proc_read_entry(
+			sta->proc = proc_create_data(
 				name, 0, ap->proc,
-				prism2_sta_proc_read, sta);
+				&prism2_sta_proc_fops, sta);
 
 			atomic_dec(&sta->users);
 		}

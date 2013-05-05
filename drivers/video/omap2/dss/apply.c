@@ -435,20 +435,27 @@ static inline struct omap_dss_device *dss_mgr_get_device(struct omap_overlay_man
 static int dss_mgr_wait_for_vsync(struct omap_overlay_manager *mgr)
 {
 	unsigned long timeout = msecs_to_jiffies(500);
-	struct omap_dss_device *dssdev = mgr->get_device(mgr);
 	u32 irq;
 	int r;
+
+	if (mgr->output == NULL)
+		return -ENODEV;
 
 	r = dispc_runtime_get();
 	if (r)
 		return r;
 
-	if (dssdev->type == OMAP_DISPLAY_TYPE_VENC)
+	switch (mgr->output->id) {
+	case OMAP_DSS_OUTPUT_VENC:
 		irq = DISPC_IRQ_EVSYNC_ODD;
-	else if (dssdev->type == OMAP_DISPLAY_TYPE_HDMI)
+		break;
+	case OMAP_DSS_OUTPUT_HDMI:
 		irq = DISPC_IRQ_EVSYNC_EVEN;
-	else
+		break;
+	default:
 		irq = dispc_mgr_get_vsync_irq(mgr->id);
+		break;
+	}
 
 	r = omap_dispc_wait_for_irq_interruptible_timeout(irq, timeout);
 

@@ -522,7 +522,7 @@ int netvsc_send(struct hv_device *device,
 	sendMessage.msg.v1_msg.send_rndis_pkt.send_buf_section_size = 0;
 
 	if (packet->completion.send.send_completion)
-		req_id = (u64)packet;
+		req_id = (ulong)packet;
 	else
 		req_id = 0;
 

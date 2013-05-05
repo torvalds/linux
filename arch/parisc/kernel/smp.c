@@ -329,7 +329,7 @@ void __init smp_callin(void)
 
 	local_irq_enable();  /* Interrupts have been off until now */
 
-	cpu_idle();      /* Wait for timer to schedule some work */
+	cpu_startup_entry(CPUHP_ONLINE);
 
 	/* NOTREACHED */
 	panic("smp_callin() AAAAaaaaahhhh....\n");

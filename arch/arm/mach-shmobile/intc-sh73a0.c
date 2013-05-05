@@ -460,11 +460,3 @@ void __init sh73a0_init_irq(void)
 	sh73a0_pint1_cascade.handler = sh73a0_pint1_demux;
 	setup_irq(gic_spi(34), &sh73a0_pint1_cascade);
 }
-
-#ifdef CONFIG_OF
-void __init sh73a0_init_irq_dt(void)
-{
-	irqchip_init();
-	gic_arch_extn.irq_set_wake = sh73a0_set_wake;
-}
-#endif

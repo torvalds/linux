@@ -56,7 +56,7 @@
  * Make a summary from each cpu
  */
 static void ip_vs_read_cpu_stats(struct ip_vs_stats_user *sum,
-				 struct ip_vs_cpu_stats *stats)
+				 struct ip_vs_cpu_stats __percpu *stats)
 {
 	int i;
 

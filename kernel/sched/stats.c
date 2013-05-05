@@ -130,16 +130,11 @@ static int schedstat_open(struct inode *inode, struct file *file)
 	return seq_open(file, &schedstat_sops);
 }
 
-static int schedstat_release(struct inode *inode, struct file *file)
-{
-	return 0;
-};
-
 static const struct file_operations proc_schedstat_operations = {
 	.open    = schedstat_open,
 	.read    = seq_read,
 	.llseek  = seq_lseek,
-	.release = schedstat_release,
+	.release = seq_release,
 };
 
 static int __init proc_schedstat_init(void)
