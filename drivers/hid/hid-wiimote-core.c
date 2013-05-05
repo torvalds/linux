@@ -626,29 +626,10 @@ static int wiimote_ff_play(struct input_dev *dev, void *data,
 	return 0;
 }
 
-static int wiimote_input_open(struct input_dev *dev)
-{
-	struct wiimote_data *wdata = input_get_drvdata(dev);
-
-	return hid_hw_open(wdata->hdev);
-}
-
-static void wiimote_input_close(struct input_dev *dev)
-{
-	struct wiimote_data *wdata = input_get_drvdata(dev);
-
-	hid_hw_close(wdata->hdev);
-}
-
 static int wiimote_accel_open(struct input_dev *dev)
 {
 	struct wiimote_data *wdata = input_get_drvdata(dev);
-	int ret;
 	unsigned long flags;
-
-	ret = hid_hw_open(wdata->hdev);
-	if (ret)
-		return ret;
 
 	spin_lock_irqsave(&wdata->state.lock, flags);
 	wiiproto_req_accel(wdata, true);
@@ -665,26 +646,13 @@ static void wiimote_accel_close(struct input_dev *dev)
 	spin_lock_irqsave(&wdata->state.lock, flags);
 	wiiproto_req_accel(wdata, false);
 	spin_unlock_irqrestore(&wdata->state.lock, flags);
-
-	hid_hw_close(wdata->hdev);
 }
 
 static int wiimote_ir_open(struct input_dev *dev)
 {
 	struct wiimote_data *wdata = input_get_drvdata(dev);
-	int ret;
 
-	ret = hid_hw_open(wdata->hdev);
-	if (ret)
-		return ret;
-
-	ret = wiimote_init_ir(wdata, WIIPROTO_FLAG_IR_BASIC);
-	if (ret) {
-		hid_hw_close(wdata->hdev);
-		return ret;
-	}
-
-	return 0;
+	return wiimote_init_ir(wdata, WIIPROTO_FLAG_IR_BASIC);
 }
 
 static void wiimote_ir_close(struct input_dev *dev)
@@ -692,7 +660,6 @@ static void wiimote_ir_close(struct input_dev *dev)
 	struct wiimote_data *wdata = input_get_drvdata(dev);
 
 	wiimote_init_ir(wdata, 0);
-	hid_hw_close(wdata->hdev);
 }
 
 static void handler_keys(struct wiimote_data *wdata, const __u8 *payload)
@@ -1091,8 +1058,6 @@ static struct wiimote_data *wiimote_create(struct hid_device *hdev)
 	hid_set_drvdata(hdev, wdata);
 
 	input_set_drvdata(wdata->input, wdata);
-	wdata->input->open = wiimote_input_open;
-	wdata->input->close = wiimote_input_close;
 	wdata->input->dev.parent = &wdata->hdev->dev;
 	wdata->input->id.bustype = wdata->hdev->bus;
 	wdata->input->id.vendor = wdata->hdev->vendor;
@@ -1193,6 +1158,7 @@ static void wiimote_destroy(struct wiimote_data *wdata)
 	input_unregister_device(wdata->ir);
 	input_unregister_device(wdata->input);
 	cancel_work_sync(&wdata->queue.worker);
+	hid_hw_close(wdata->hdev);
 	hid_hw_stop(wdata->hdev);
 
 	kfree(wdata);
@@ -1224,10 +1190,16 @@ static int wiimote_hid_probe(struct hid_device *hdev,
 		goto err;
 	}
 
+	ret = hid_hw_open(hdev);
+	if (ret) {
+		hid_err(hdev, "cannot start hardware I/O\n");
+		goto err_stop;
+	}
+
 	ret = input_register_device(wdata->accel);
 	if (ret) {
 		hid_err(hdev, "Cannot register input device\n");
-		goto err_stop;
+		goto err_close;
 	}
 
 	ret = input_register_device(wdata->ir);
@@ -1298,6 +1270,8 @@ err_input:
 err_ir:
 	input_unregister_device(wdata->accel);
 	wdata->accel = NULL;
+err_close:
+	hid_hw_close(hdev);
 err_stop:
 	hid_hw_stop(hdev);
 err:

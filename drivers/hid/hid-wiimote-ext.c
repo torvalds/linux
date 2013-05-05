@@ -661,11 +661,6 @@ static DEVICE_ATTR(extension, S_IRUGO, wiiext_show, NULL);
 static int wiiext_input_open(struct input_dev *dev)
 {
 	struct wiimote_ext *ext = input_get_drvdata(dev);
-	int ret;
-
-	ret = hid_hw_open(ext->wdata->hdev);
-	if (ret)
-		return ret;
 
 	atomic_inc(&ext->opened);
 	wiiext_schedule(ext);
@@ -679,17 +674,11 @@ static void wiiext_input_close(struct input_dev *dev)
 
 	atomic_dec(&ext->opened);
 	wiiext_schedule(ext);
-	hid_hw_close(ext->wdata->hdev);
 }
 
 static int wiiext_mp_open(struct input_dev *dev)
 {
 	struct wiimote_ext *ext = input_get_drvdata(dev);
-	int ret;
-
-	ret = hid_hw_open(ext->wdata->hdev);
-	if (ret)
-		return ret;
 
 	atomic_inc(&ext->mp_opened);
 	wiiext_schedule(ext);
@@ -703,7 +692,6 @@ static void wiiext_mp_close(struct input_dev *dev)
 
 	atomic_dec(&ext->mp_opened);
 	wiiext_schedule(ext);
-	hid_hw_close(ext->wdata->hdev);
 }
 
 /* Initializes the extension driver of a wiimote */
