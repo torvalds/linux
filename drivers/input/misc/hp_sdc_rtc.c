@@ -515,7 +515,7 @@ static const struct file_operations hp_sdc_rtc_proc_fops = {
 	.open		= hp_sdc_rtc_proc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= single_release,
 };
 
 static int hp_sdc_rtc_ioctl(struct file *file, 
