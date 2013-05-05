@@ -141,7 +141,7 @@ static ssize_t wiidebug_drm_write(struct file *f, const char __user *u,
 	if (copy_from_user(buf, u, len))
 		return -EFAULT;
 
-	buf[15] = 0;
+	buf[len] = 0;
 
 	for (i = 0; i < WIIPROTO_REQ_MAX; ++i) {
 		if (!wiidebug_drmmap[i])
@@ -151,7 +151,7 @@ static ssize_t wiidebug_drm_write(struct file *f, const char __user *u,
 	}
 
 	if (i == WIIPROTO_REQ_MAX)
-		i = simple_strtoul(buf, NULL, 10);
+		i = simple_strtoul(buf, NULL, 16);
 
 	spin_lock_irqsave(&dbg->wdata->state.lock, flags);
 	dbg->wdata->state.flags &= ~WIIPROTO_FLAG_DRM_LOCKED;
