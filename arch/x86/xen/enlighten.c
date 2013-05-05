@@ -85,7 +85,29 @@
 
 EXPORT_SYMBOL_GPL(hypercall_page);
 
+/*
+ * Pointer to the xen_vcpu_info structure or
+ * &HYPERVISOR_shared_info->vcpu_info[cpu]. See xen_hvm_init_shared_info
+ * and xen_vcpu_setup for details. By default it points to share_info->vcpu_info
+ * but if the hypervisor supports VCPUOP_register_vcpu_info then it can point
+ * to xen_vcpu_info. The pointer is used in __xen_evtchn_do_upcall to
+ * acknowledge pending events.
+ * Also more subtly it is used by the patched version of irq enable/disable
+ * e.g. xen_irq_enable_direct and xen_iret in PV mode.
+ *
+ * The desire to be able to do those mask/unmask operations as a single
+ * instruction by using the per-cpu offset held in %gs is the real reason
+ * vcpu info is in a per-cpu pointer and the original reason for this
+ * hypercall.
+ *
+ */
 DEFINE_PER_CPU(struct vcpu_info *, xen_vcpu);
+
+/*
+ * Per CPU pages used if hypervisor supports VCPUOP_register_vcpu_info
+ * hypercall. This can be used both in PV and PVHVM mode. The structure
+ * overrides the default per_cpu(xen_vcpu, cpu) value.
+ */
 DEFINE_PER_CPU(struct vcpu_info, xen_vcpu_info);
 
 enum xen_domain_type xen_domain_type = XEN_NATIVE;
@@ -187,7 +209,12 @@ static void xen_vcpu_setup(int cpu)
 
 	/* Check to see if the hypervisor will put the vcpu_info
 	   structure where we want it, which allows direct access via
-	   a percpu-variable. */
+	   a percpu-variable.
+	   N.B. This hypercall can _only_ be called once per CPU. Subsequent
+	   calls will error out with -EINVAL. This is due to the fact that
+	   hypervisor has no unregister variant and this hypercall does not
+	   allow to over-write info.mfn and info.offset.
+	 */
 	err = HYPERVISOR_vcpu_op(VCPUOP_register_vcpu_info, cpu, &info);
 
 	if (err) {
