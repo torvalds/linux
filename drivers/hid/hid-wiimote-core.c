@@ -1166,11 +1166,18 @@ static void wiimote_init_worker(struct work_struct *work)
 {
 	struct wiimote_data *wdata = container_of(work, struct wiimote_data,
 						  init_worker);
+	bool changed = false;
 
-	if (wdata->state.devtype == WIIMOTE_DEV_PENDING)
+	if (wdata->state.devtype == WIIMOTE_DEV_PENDING) {
 		wiimote_init_detect(wdata);
+		changed = true;
+	}
+
 	if (!wiimote_init_check(wdata))
 		wiimote_init_hotplug(wdata);
+
+	if (changed)
+		kobject_uevent(&wdata->hdev->dev.kobj, KOBJ_CHANGE);
 }
 
 void __wiimote_schedule(struct wiimote_data *wdata)
@@ -1591,6 +1598,84 @@ static int wiimote_hid_event(struct hid_device *hdev, struct hid_report *report,
 	return 0;
 }
 
+static ssize_t wiimote_ext_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	struct wiimote_data *wdata = dev_to_wii(dev);
+	__u8 type;
+	unsigned long flags;
+
+	spin_lock_irqsave(&wdata->state.lock, flags);
+	type = wdata->state.exttype;
+	spin_unlock_irqrestore(&wdata->state.lock, flags);
+
+	switch (type) {
+	case WIIMOTE_EXT_NONE:
+		return sprintf(buf, "none\n");
+	case WIIMOTE_EXT_NUNCHUK:
+		return sprintf(buf, "nunchuk\n");
+	case WIIMOTE_EXT_CLASSIC_CONTROLLER:
+		return sprintf(buf, "classic\n");
+	case WIIMOTE_EXT_BALANCE_BOARD:
+		return sprintf(buf, "balanceboard\n");
+	case WIIMOTE_EXT_UNKNOWN:
+		/* fallthrough */
+	default:
+		return sprintf(buf, "unknown\n");
+	}
+}
+
+static ssize_t wiimote_ext_store(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t count)
+{
+	struct wiimote_data *wdata = dev_to_wii(dev);
+
+	if (!strcmp(buf, "scan")) {
+		wiimote_schedule(wdata);
+	} else {
+		return -EINVAL;
+	}
+
+	return strnlen(buf, PAGE_SIZE);
+}
+
+static DEVICE_ATTR(extension, S_IRUGO | S_IWUSR | S_IWGRP, wiimote_ext_show,
+		   wiimote_ext_store);
+
+static ssize_t wiimote_dev_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	struct wiimote_data *wdata = dev_to_wii(dev);
+	__u8 type;
+	unsigned long flags;
+
+	spin_lock_irqsave(&wdata->state.lock, flags);
+	type = wdata->state.devtype;
+	spin_unlock_irqrestore(&wdata->state.lock, flags);
+
+	switch (type) {
+	case WIIMOTE_DEV_GENERIC:
+		return sprintf(buf, "generic\n");
+	case WIIMOTE_DEV_GEN10:
+		return sprintf(buf, "gen10\n");
+	case WIIMOTE_DEV_GEN20:
+		return sprintf(buf, "gen20\n");
+	case WIIMOTE_DEV_BALANCE_BOARD:
+		return sprintf(buf, "balanceboard\n");
+	case WIIMOTE_DEV_PENDING:
+		return sprintf(buf, "pending\n");
+	case WIIMOTE_DEV_UNKNOWN:
+		/* fallthrough */
+	default:
+		return sprintf(buf, "unknown\n");
+	}
+}
+
+static DEVICE_ATTR(devtype, S_IRUGO, wiimote_dev_show, NULL);
+
 static struct wiimote_data *wiimote_create(struct hid_device *hdev)
 {
 	struct wiimote_data *wdata;
@@ -1630,6 +1715,9 @@ static void wiimote_destroy(struct wiimote_data *wdata)
 
 	cancel_work_sync(&wdata->init_worker);
 	del_timer_sync(&wdata->timer);
+
+	device_remove_file(&wdata->hdev->dev, &dev_attr_devtype);
+	device_remove_file(&wdata->hdev->dev, &dev_attr_extension);
 
 	wiimote_mp_unload(wdata);
 	wiimote_ext_unload(wdata);
@@ -1673,6 +1761,18 @@ static int wiimote_hid_probe(struct hid_device *hdev,
 		goto err_stop;
 	}
 
+	ret = device_create_file(&hdev->dev, &dev_attr_extension);
+	if (ret) {
+		hid_err(hdev, "cannot create sysfs attribute\n");
+		goto err_close;
+	}
+
+	ret = device_create_file(&hdev->dev, &dev_attr_devtype);
+	if (ret) {
+		hid_err(hdev, "cannot create sysfs attribute\n");
+		goto err_ext;
+	}
+
 	ret = wiidebug_init(wdata);
 	if (ret)
 		goto err_free;
@@ -1688,6 +1788,10 @@ err_free:
 	wiimote_destroy(wdata);
 	return ret;
 
+err_ext:
+	device_remove_file(&wdata->hdev->dev, &dev_attr_extension);
+err_close:
+	hid_hw_close(hdev);
 err_stop:
 	hid_hw_stop(hdev);
 err:
