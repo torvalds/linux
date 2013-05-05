@@ -557,7 +557,7 @@ static const struct file_operations omap_pm_debug_fops = {
 	.open		= omap_pm_debug_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= single_release,
 };
 
 static void omap_pm_init_debugfs(void)

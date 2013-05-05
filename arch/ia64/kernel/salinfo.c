@@ -694,7 +694,7 @@ static const struct file_operations proc_salinfo_fops = {
 	.open		= proc_salinfo_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= single_release,
 };
 
 module_init(salinfo_init);

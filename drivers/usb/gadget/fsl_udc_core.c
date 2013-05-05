@@ -2211,7 +2211,7 @@ static const struct file_operations fsl_proc_fops = {
 	.open		= fsl_proc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= single_release,
 };
 
 #define create_proc_file()	proc_create(proc_filename, 0, NULL, &fsl_proc_fops)

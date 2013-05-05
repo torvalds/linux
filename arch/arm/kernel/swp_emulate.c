@@ -99,7 +99,7 @@ static const struct file_operations proc_status_fops = {
 	.open		= proc_status_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= single_release,
 };
 #endif
 

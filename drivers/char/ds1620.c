@@ -355,7 +355,7 @@ static const struct file_operations ds1620_proc_therm_fops = {
 	.open		= ds1620_proc_therm_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= single_release,
 };
 #endif
 

@@ -86,7 +86,7 @@ static const struct file_operations comedi_proc_fops = {
 	.open		= comedi_proc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= single_release,
 };
 
 void comedi_proc_init(void)
