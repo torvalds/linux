@@ -139,6 +139,7 @@ struct wiimote_data {
 	struct input_dev *accel;
 	struct input_dev *ir;
 	struct power_supply battery;
+	struct input_dev *mp;
 	struct timer_list timer;
 	struct wiimote_ext *ext;
 	struct wiimote_debug *debug;
