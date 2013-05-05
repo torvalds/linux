@@ -446,6 +446,8 @@ static __u8 wiimote_cmd_read_ext(struct wiimote_data *wdata, __u8 *rmem)
 
 	if (rmem[4] == 0x00 && rmem[5] == 0x00)
 		return WIIMOTE_EXT_NUNCHUK;
+	if (rmem[4] == 0x01 && rmem[5] == 0x01)
+		return WIIMOTE_EXT_CLASSIC_CONTROLLER;
 	if (rmem[4] == 0x04 && rmem[5] == 0x02)
 		return WIIMOTE_EXT_BALANCE_BOARD;
 
@@ -480,6 +482,9 @@ static bool wiimote_cmd_map_mp(struct wiimote_data *wdata, __u8 exttype)
 
 	/* map MP with correct pass-through mode */
 	switch (exttype) {
+	case WIIMOTE_EXT_CLASSIC_CONTROLLER:
+		wmem = 0x07;
+		break;
 	case WIIMOTE_EXT_NUNCHUK:
 		wmem = 0x05;
 		break;
@@ -1040,6 +1045,7 @@ static const char *wiimote_exttype_names[WIIMOTE_EXT_NUM] = {
 	[WIIMOTE_EXT_NONE] = "None",
 	[WIIMOTE_EXT_UNKNOWN] = "Unknown",
 	[WIIMOTE_EXT_NUNCHUK] = "Nintendo Wii Nunchuk",
+	[WIIMOTE_EXT_CLASSIC_CONTROLLER] = "Nintendo Wii Classic Controller",
 	[WIIMOTE_EXT_BALANCE_BOARD] = "Nintendo Wii Balance Board",
 };
 
