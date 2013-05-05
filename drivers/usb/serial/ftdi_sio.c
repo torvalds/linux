@@ -925,7 +925,7 @@ static int  ftdi_ioctl(struct tty_struct *tty,
 			unsigned int cmd, unsigned long arg);
 static void ftdi_break_ctl(struct tty_struct *tty, int break_state);
 static int ftdi_chars_in_buffer(struct tty_struct *tty);
-static int ftdi_get_modem_status(struct tty_struct *tty,
+static int ftdi_get_modem_status(struct usb_serial_port *port,
 						unsigned char status[2]);
 
 static unsigned short int ftdi_232am_baud_base_to_divisor(int baud, int base);
@@ -2068,7 +2068,7 @@ static int ftdi_chars_in_buffer(struct tty_struct *tty)
 		goto out;
 
 	/* Check if hardware buffer is empty. */
-	ret = ftdi_get_modem_status(tty, buf);
+	ret = ftdi_get_modem_status(port, buf);
 	if (ret == 2) {
 		if (!(buf[1] & FTDI_RS_TEMT))
 			chars = 1;
@@ -2268,10 +2268,9 @@ no_c_cflag_changes:
  * Returns the number of status bytes retrieved (device dependant), or
  * negative error code.
  */
-static int ftdi_get_modem_status(struct tty_struct *tty,
+static int ftdi_get_modem_status(struct usb_serial_port *port,
 						unsigned char status[2])
 {
-	struct usb_serial_port *port = tty->driver_data;
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	unsigned char *buf;
 	int len;
@@ -2336,7 +2335,7 @@ static int ftdi_tiocmget(struct tty_struct *tty)
 	unsigned char buf[2];
 	int ret;
 
-	ret = ftdi_get_modem_status(tty, buf);
+	ret = ftdi_get_modem_status(port, buf);
 	if (ret < 0)
 		return ret;
 
