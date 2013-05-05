@@ -45,6 +45,21 @@
 /* return flag for led \num */
 #define WIIPROTO_FLAG_LED(num) (WIIPROTO_FLAG_LED1 << (num - 1))
 
+enum wiiproto_keys {
+	WIIPROTO_KEY_LEFT,
+	WIIPROTO_KEY_RIGHT,
+	WIIPROTO_KEY_UP,
+	WIIPROTO_KEY_DOWN,
+	WIIPROTO_KEY_PLUS,
+	WIIPROTO_KEY_MINUS,
+	WIIPROTO_KEY_ONE,
+	WIIPROTO_KEY_TWO,
+	WIIPROTO_KEY_A,
+	WIIPROTO_KEY_B,
+	WIIPROTO_KEY_HOME,
+	WIIPROTO_KEY_COUNT
+};
+
 enum wiimote_devtype {
 	WIIMOTE_DEV_PENDING,
 	WIIMOTE_DEV_UNKNOWN,
@@ -111,6 +126,8 @@ struct wiimote_data {
 /* wiimote modules */
 
 enum wiimod_module {
+	WIIMOD_KEYS,
+	WIIMOD_RUMBLE,
 	WIIMOD_NUM,
 	WIIMOD_NULL = WIIMOD_NUM,
 };
@@ -166,6 +183,7 @@ enum wiiproto_reqs {
 									dev))
 
 extern void wiiproto_req_drm(struct wiimote_data *wdata, __u8 drm);
+extern void wiiproto_req_rumble(struct wiimote_data *wdata, __u8 rumble);
 extern int wiimote_cmd_write(struct wiimote_data *wdata, __u32 offset,
 						const __u8 *wmem, __u8 size);
 extern ssize_t wiimote_cmd_read(struct wiimote_data *wdata, __u32 offset,
