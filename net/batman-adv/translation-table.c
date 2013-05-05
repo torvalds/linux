@@ -805,15 +805,17 @@ out:
  * If a TT local entry exists for this non-mesh client remove it.
  *
  * The caller must hold orig_node refcount.
+ *
+ * Return true if the new entry has been added, false otherwise
  */
-int batadv_tt_global_add(struct batadv_priv *bat_priv,
-			 struct batadv_orig_node *orig_node,
-			 const unsigned char *tt_addr, uint16_t flags,
-			 uint8_t ttvn)
+static bool batadv_tt_global_add(struct batadv_priv *bat_priv,
+				 struct batadv_orig_node *orig_node,
+				 const unsigned char *tt_addr, uint16_t flags,
+				 uint8_t ttvn)
 {
 	struct batadv_tt_global_entry *tt_global_entry;
 	struct batadv_tt_local_entry *tt_local_entry;
-	int ret = 0;
+	bool ret = false;
 	int hash_added;
 	struct batadv_tt_common_entry *common;
 	uint16_t local_flags;
@@ -914,7 +916,7 @@ add_orig_entry:
 	batadv_dbg(BATADV_DBG_TT, bat_priv,
 		   "Creating new global tt entry: %pM (via %pM)\n",
 		   common->addr, orig_node->orig);
-	ret = 1;
+	ret = true;
 
 out_remove:
 
