@@ -1540,6 +1540,78 @@ static const struct wiimod_ops wiimod_bboard = {
 };
 
 /*
+ * Builtin Motion Plus
+ * This module simply sets the WIIPROTO_FLAG_BUILTIN_MP protocol flag which
+ * disables polling for Motion-Plus. This should be set only for devices which
+ * don't allow MP hotplugging.
+ */
+
+static int wiimod_builtin_mp_probe(const struct wiimod_ops *ops,
+				   struct wiimote_data *wdata)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&wdata->state.lock, flags);
+	wdata->state.flags |= WIIPROTO_FLAG_BUILTIN_MP;
+	spin_unlock_irqrestore(&wdata->state.lock, flags);
+
+	return 0;
+}
+
+static void wiimod_builtin_mp_remove(const struct wiimod_ops *ops,
+				     struct wiimote_data *wdata)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&wdata->state.lock, flags);
+	wdata->state.flags |= WIIPROTO_FLAG_BUILTIN_MP;
+	spin_unlock_irqrestore(&wdata->state.lock, flags);
+}
+
+static const struct wiimod_ops wiimod_builtin_mp = {
+	.flags = 0,
+	.arg = 0,
+	.probe = wiimod_builtin_mp_probe,
+	.remove = wiimod_builtin_mp_remove,
+};
+
+/*
+ * No Motion Plus
+ * This module simply sets the WIIPROTO_FLAG_NO_MP protocol flag which
+ * disables motion-plus. This is needed for devices that advertise this but we
+ * don't know how to use it (or whether it is actually present).
+ */
+
+static int wiimod_no_mp_probe(const struct wiimod_ops *ops,
+			      struct wiimote_data *wdata)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&wdata->state.lock, flags);
+	wdata->state.flags |= WIIPROTO_FLAG_NO_MP;
+	spin_unlock_irqrestore(&wdata->state.lock, flags);
+
+	return 0;
+}
+
+static void wiimod_no_mp_remove(const struct wiimod_ops *ops,
+				struct wiimote_data *wdata)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&wdata->state.lock, flags);
+	wdata->state.flags |= WIIPROTO_FLAG_NO_MP;
+	spin_unlock_irqrestore(&wdata->state.lock, flags);
+}
+
+static const struct wiimod_ops wiimod_no_mp = {
+	.flags = 0,
+	.arg = 0,
+	.probe = wiimod_no_mp_probe,
+	.remove = wiimod_no_mp_remove,
+};
+
+/*
  * Motion Plus
  * The Motion Plus extension provides rotation sensors (gyro) as a small
  * extension device for Wii Remotes. Many devices have them built-in so
@@ -1706,6 +1778,8 @@ const struct wiimod_ops *wiimod_table[WIIMOD_NUM] = {
 	[WIIMOD_LED4] = &wiimod_leds[3],
 	[WIIMOD_ACCEL] = &wiimod_accel,
 	[WIIMOD_IR] = &wiimod_ir,
+	[WIIMOD_BUILTIN_MP] = &wiimod_builtin_mp,
+	[WIIMOD_NO_MP] = &wiimod_no_mp,
 };
 
 const struct wiimod_ops *wiimod_ext_table[WIIMOTE_EXT_NUM] = {

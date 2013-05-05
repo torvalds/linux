@@ -555,6 +555,7 @@ static const __u8 * const wiimote_devtype_mods[WIIMOTE_DEV_NUM] = {
 		WIIMOD_NULL,
 	},
 	[WIIMOTE_DEV_UNKNOWN] = (const __u8[]){
+		WIIMOD_NO_MP,
 		WIIMOD_NULL,
 	},
 	[WIIMOTE_DEV_GENERIC] = (const __u8[]){
@@ -591,11 +592,13 @@ static const __u8 * const wiimote_devtype_mods[WIIMOTE_DEV_NUM] = {
 		WIIMOD_LED4,
 		WIIMOD_ACCEL,
 		WIIMOD_IR,
+		WIIMOD_BUILTIN_MP,
 		WIIMOD_NULL,
 	},
 	[WIIMOTE_DEV_BALANCE_BOARD] = (const __u8[]) {
 		WIIMOD_BATTERY,
 		WIIMOD_LED1,
+		WIIMOD_NO_MP,
 		WIIMOD_NULL,
 	},
 };
@@ -867,8 +870,13 @@ static void wiimote_init_detect(struct wiimote_data *wdata)
 out_release:
 	wiimote_cmd_release(wdata);
 	wiimote_init_set_type(wdata, exttype);
+
 	/* schedule MP timer */
-	mod_timer(&wdata->timer, jiffies + HZ * 4);
+	spin_lock_irq(&wdata->state.lock);
+	if (!(wdata->state.flags & WIIPROTO_FLAG_BUILTIN_MP) &&
+	    !(wdata->state.flags & WIIPROTO_FLAG_NO_MP))
+		mod_timer(&wdata->timer, jiffies + HZ * 4);
+	spin_unlock_irq(&wdata->state.lock);
 }
 
 /*
@@ -1037,7 +1045,8 @@ out_release:
 	wiimote_cmd_release(wdata);
 
 	/* only poll for MP if requested and if state didn't change */
-	if (ret && poll_mp)
+	if (ret && poll_mp && !(flags & WIIPROTO_FLAG_BUILTIN_MP) &&
+	    !(flags & WIIPROTO_FLAG_NO_MP))
 		wiimote_init_poll_mp(wdata);
 
 	return ret;
@@ -1082,8 +1091,12 @@ static void wiimote_init_hotplug(struct wiimote_data *wdata)
 
 	/* init extension and MP (deactivates current extension or MP) */
 	wiimote_cmd_init_ext(wdata);
-	wiimote_cmd_init_mp(wdata);
-	mp = wiimote_cmd_read_mp(wdata, mpdata);
+	if (flags & WIIPROTO_FLAG_NO_MP) {
+		mp = false;
+	} else {
+		wiimote_cmd_init_mp(wdata);
+		mp = wiimote_cmd_read_mp(wdata, mpdata);
+	}
 	exttype = wiimote_cmd_read_ext(wdata, extdata);
 
 	wiimote_cmd_release(wdata);
@@ -1133,7 +1146,9 @@ static void wiimote_init_hotplug(struct wiimote_data *wdata)
 		del_timer_sync(&wdata->timer);
 	} else {
 		/* reschedule MP hotplug timer */
-		mod_timer(&wdata->timer, jiffies + HZ * 4);
+		if (!(flags & WIIPROTO_FLAG_BUILTIN_MP) &&
+		    !(flags & WIIPROTO_FLAG_NO_MP))
+			mod_timer(&wdata->timer, jiffies + HZ * 4);
 	}
 
 	spin_lock_irq(&wdata->state.lock);
