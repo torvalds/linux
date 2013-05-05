@@ -1502,7 +1502,7 @@ static const struct file_operations atmel_proc_fops = {
 	.open		= atmel_proc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= single_release,
 };
 
 static const struct net_device_ops atmel_netdev_ops = {

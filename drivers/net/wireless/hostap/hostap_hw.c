@@ -2957,7 +2957,7 @@ static const struct file_operations prism2_registers_proc_fops = {
 	.open		= prism2_registers_proc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= single_release,
 };
 
 #endif /* PRISM2_NO_PROCFS_DEBUG */
