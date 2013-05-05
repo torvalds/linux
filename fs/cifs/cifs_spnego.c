@@ -163,7 +163,7 @@ cifs_get_spnego_key(struct cifs_ses *sesInfo)
 	dp = description + strlen(description);
 	sprintf(dp, ";pid=0x%x", current->pid);
 
-	cFYI(1, "key description = %s", description);
+	cifs_dbg(FYI, "key description = %s\n", description);
 	spnego_key = request_key(&cifs_spnego_key_type, description, "");
 
 #ifdef CONFIG_CIFS_DEBUG2
