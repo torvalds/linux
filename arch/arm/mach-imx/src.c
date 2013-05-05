@@ -16,6 +16,7 @@
 #include <linux/of_address.h>
 #include <linux/smp.h>
 #include <asm/smp_plat.h>
+#include "common.h"
 
 #define SRC_SCR				0x000
 #define SRC_GPR1			0x020
@@ -43,6 +44,18 @@ void imx_set_cpu_jump(int cpu, void *jump_addr)
 		       src_base + SRC_GPR1 + cpu * 8);
 }
 
+u32 imx_get_cpu_arg(int cpu)
+{
+	cpu = cpu_logical_map(cpu);
+	return readl_relaxed(src_base + SRC_GPR1 + cpu * 8 + 4);
+}
+
+void imx_set_cpu_arg(int cpu, u32 arg)
+{
+	cpu = cpu_logical_map(cpu);
+	writel_relaxed(arg, src_base + SRC_GPR1 + cpu * 8 + 4);
+}
+
 void imx_src_prepare_restart(void)
 {
 	u32 val;
@@ -61,7 +74,9 @@ void __init imx_src_init(void)
 	struct device_node *np;
 	u32 val;
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-src");
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx51-src");
+	if (!np)
+		return;
 	src_base = of_iomap(np, 0);
 	WARN_ON(!src_base);
 

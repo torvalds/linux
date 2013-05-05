@@ -1514,8 +1514,6 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 	size_t count, ocount;
 	bool sync = (file->f_flags & O_DSYNC) || IS_SYNC(file->f_mapping->host);
 
-	sb_start_write(inode->i_sb);
-
 	mutex_lock(&inode->i_mutex);
 
 	err = generic_segment_checks(iov, &nr_segs, &ocount, VERIFY_READ);
@@ -1617,7 +1615,6 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 	if (sync)
 		atomic_dec(&BTRFS_I(inode)->sync_writers);
 out:
-	sb_end_write(inode->i_sb);
 	current->backing_dev_info = NULL;
 	return num_written ? num_written : err;
 }
@@ -2142,6 +2139,7 @@ static long btrfs_fallocate(struct file *file, int mode,
 {
 	struct inode *inode = file_inode(file);
 	struct extent_state *cached_state = NULL;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
 	u64 cur_offset;
 	u64 last_byte;
 	u64 alloc_start;
@@ -2169,6 +2167,11 @@ static long btrfs_fallocate(struct file *file, int mode,
 	ret = btrfs_check_data_free_space(inode, alloc_end - alloc_start);
 	if (ret)
 		return ret;
+	if (root->fs_info->quota_enabled) {
+		ret = btrfs_qgroup_reserve(root, alloc_end - alloc_start);
+		if (ret)
+			goto out_reserve_fail;
+	}
 
 	/*
 	 * wait for ordered IO before we have any locks.  We'll loop again
@@ -2272,6 +2275,9 @@ static long btrfs_fallocate(struct file *file, int mode,
 			     &cached_state, GFP_NOFS);
 out:
 	mutex_unlock(&inode->i_mutex);
+	if (root->fs_info->quota_enabled)
+		btrfs_qgroup_free(root, alloc_end - alloc_start);
+out_reserve_fail:
 	/* Let go of our reservation. */
 	btrfs_free_reserved_data_space(inode, alloc_end - alloc_start);
 	return ret;

@@ -67,6 +67,14 @@ Description:
                 Defines the penalty which will be applied to an
                 originator message's tq-field on every hop.
 
+What:           /sys/class/net/<mesh_iface>/mesh/network_coding
+Date:           Nov 2012
+Contact:        Martin Hundeboll <martin@hundeboll.net>
+Description:
+                Controls whether Network Coding (using some magic
+                to send fewer wifi packets but still the same
+                content) is enabled or not.
+
 What:           /sys/class/net/<mesh_iface>/mesh/orig_interval
 Date:           May 2010
 Contact:        Marek Lindner <lindner_marek@yahoo.de>

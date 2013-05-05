@@ -536,8 +536,8 @@ static int ad7291_read_raw(struct iio_dev *indio_dev,
 #define AD7291_VOLTAGE_CHAN(_chan)					\
 {									\
 	.type = IIO_VOLTAGE,						\
-	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |			\
-	IIO_CHAN_INFO_SCALE_SHARED_BIT,					\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),			\
+	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),		\
 	.indexed = 1,							\
 	.channel = _chan,						\
 	.event_mask = IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_RISING)|\
@@ -555,9 +555,9 @@ static const struct iio_chan_spec ad7291_channels[] = {
 	AD7291_VOLTAGE_CHAN(7),
 	{
 		.type = IIO_TEMP,
-		.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-				IIO_CHAN_INFO_AVERAGE_RAW_SEPARATE_BIT |
-				IIO_CHAN_INFO_SCALE_SEPARATE_BIT,
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+				BIT(IIO_CHAN_INFO_AVERAGE_RAW) |
+				BIT(IIO_CHAN_INFO_SCALE),
 		.indexed = 1,
 		.channel = 0,
 		.event_mask =

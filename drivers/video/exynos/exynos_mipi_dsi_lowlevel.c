@@ -26,8 +26,6 @@
 
 #include <video/exynos_mipi_dsim.h>
 
-#include <mach/map.h>
-
 #include "exynos_mipi_dsi_regs.h"
 
 void exynos_mipi_dsi_func_reset(struct mipi_dsim_device *dsim)

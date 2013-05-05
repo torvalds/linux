@@ -288,51 +288,13 @@ asmlinkage long sys32_getegid16(void)
 	return high2lowgid(from_kgid_munged(current_user_ns(), current_egid()));
 }
 
-/*
- * sys32_ipc() is the de-multiplexer for the SysV IPC calls in 32bit emulation.
- *
- * This is really horribly ugly.
- */
 #ifdef CONFIG_SYSVIPC
-asmlinkage long sys32_ipc(u32 call, int first, int second, int third, u32 ptr)
+COMPAT_SYSCALL_DEFINE5(s390_ipc, uint, call, int, first, unsigned long, second,
+		unsigned long, third, compat_uptr_t, ptr)
 {
 	if (call >> 16)		/* hack for backward compatibility */
 		return -EINVAL;
-	switch (call) {
-	case SEMTIMEDOP:
-		return compat_sys_semtimedop(first, compat_ptr(ptr),
-					     second, compat_ptr(third));
-	case SEMOP:
-		/* struct sembuf is the same on 32 and 64bit :)) */
-		return sys_semtimedop(first, compat_ptr(ptr),
-				      second, NULL);
-	case SEMGET:
-		return sys_semget(first, second, third);
-	case SEMCTL:
-		return compat_sys_semctl(first, second, third,
-					 compat_ptr(ptr));
-	case MSGSND:
-		return compat_sys_msgsnd(first, second, third,
-					 compat_ptr(ptr));
-	case MSGRCV:
-		return compat_sys_msgrcv(first, second, 0, third,
-					 0, compat_ptr(ptr));
-	case MSGGET:
-		return sys_msgget((key_t) first, second);
-	case MSGCTL:
-		return compat_sys_msgctl(first, second, compat_ptr(ptr));
-	case SHMAT:
-		return compat_sys_shmat(first, second, third,
-					0, compat_ptr(ptr));
-	case SHMDT:
-		return sys_shmdt(compat_ptr(ptr));
-	case SHMGET:
-		return sys_shmget(first, (unsigned)second, third);
-	case SHMCTL:
-		return compat_sys_shmctl(first, second, compat_ptr(ptr));
-	}
-
-	return -ENOSYS;
+	return compat_sys_ipc(call, first, second, third, ptr, third);
 }
 #endif
 
@@ -371,48 +333,6 @@ asmlinkage long sys32_pwrite64(unsigned int fd, const char __user *ubuf,
 asmlinkage compat_ssize_t sys32_readahead(int fd, u32 offhi, u32 offlo, s32 count)
 {
 	return sys_readahead(fd, ((loff_t)AA(offhi) << 32) | AA(offlo), count);
-}
-
-asmlinkage long sys32_sendfile(int out_fd, int in_fd, compat_off_t __user *offset, size_t count)
-{
-	mm_segment_t old_fs = get_fs();
-	int ret;
-	off_t of;
-	
-	if (offset && get_user(of, offset))
-		return -EFAULT;
-		
-	set_fs(KERNEL_DS);
-	ret = sys_sendfile(out_fd, in_fd,
-			   offset ? (off_t __force __user *) &of : NULL, count);
-	set_fs(old_fs);
-	
-	if (offset && put_user(of, offset))
-		return -EFAULT;
-		
-	return ret;
-}
-
-asmlinkage long sys32_sendfile64(int out_fd, int in_fd,
-				compat_loff_t __user *offset, s32 count)
-{
-	mm_segment_t old_fs = get_fs();
-	int ret;
-	loff_t lof;
-	
-	if (offset && get_user(lof, offset))
-		return -EFAULT;
-		
-	set_fs(KERNEL_DS);
-	ret = sys_sendfile64(out_fd, in_fd,
-			     offset ? (loff_t __force __user *) &lof : NULL,
-			     count);
-	set_fs(old_fs);
-	
-	if (offset && put_user(lof, offset))
-		return -EFAULT;
-		
-	return ret;
 }
 
 struct stat64_emu31 {

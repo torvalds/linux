@@ -71,7 +71,7 @@ void print_task_path_n_nm(struct task_struct *tsk, char *buf)
 	}
 
 done:
-	pr_info("%s, TGID %u\n", path_nm, tsk->tgid);
+	pr_info("Path: %s\n", path_nm);
 }
 EXPORT_SYMBOL(print_task_path_n_nm);
 
@@ -163,6 +163,7 @@ void show_regs(struct pt_regs *regs)
 		return;
 
 	print_task_path_n_nm(tsk, buf);
+	show_regs_print_info(KERN_INFO);
 
 	if (current->thread.cause_code)
 		show_ecr_verbose(regs);

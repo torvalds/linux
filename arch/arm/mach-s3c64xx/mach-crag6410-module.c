@@ -210,6 +210,7 @@ static struct arizona_pdata wm5102_reva_pdata = {
 	.gpio_base = CODEC_GPIO_BASE,
 	.irq_active_high = true,
 	.micd_pol_gpio = CODEC_GPIO_BASE + 4,
+	.micd_rate = 6,
 	.gpio_defaults = {
 		[2] = 0x10000, /* AIF3TXLRCLK */
 		[3] = 0x4,     /* OPCLK */

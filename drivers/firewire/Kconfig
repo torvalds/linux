@@ -47,9 +47,9 @@ config FIREWIRE_NET
 	tristate "IP networking over 1394"
 	depends on FIREWIRE && INET
 	help
-	  This enables IPv4 over IEEE 1394, providing IP connectivity with
-	  other implementations of RFC 2734 as found on several operating
-	  systems.  Multicast support is currently limited.
+	  This enables IPv4/IPv6 over IEEE 1394, providing IP connectivity
+	  with other implementations of RFC 2734/3146 as found on several
+	  operating systems.  Multicast support is currently limited.
 
 	  To compile this driver as a module, say M here:  The module will be
 	  called firewire-net.

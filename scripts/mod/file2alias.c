@@ -1133,6 +1133,18 @@ static int do_x86cpu_entry(const char *filename, void *symval,
 }
 ADD_TO_DEVTABLE("x86cpu", x86_cpu_id, do_x86cpu_entry);
 
+/* Looks like: mei:S */
+static int do_mei_entry(const char *filename, void *symval,
+			char *alias)
+{
+	DEF_FIELD_ADDR(symval, mei_cl_device_id, name);
+
+	sprintf(alias, MEI_CL_MODULE_PREFIX "%s", *name);
+
+	return 1;
+}
+ADD_TO_DEVTABLE("mei", mei_cl_device_id, do_mei_entry);
+
 /* Does namelen bytes of name exactly match the symbol? */
 static bool sym_is(const char *name, unsigned namelen, const char *symbol)
 {

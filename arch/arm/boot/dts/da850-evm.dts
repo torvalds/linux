@@ -35,14 +35,84 @@
 			clock-frequency = <100000>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&i2c0_pins>;
+
+			tps: tps@48 {
+				reg = <0x48>;
+			};
 		};
 		wdt: wdt@1c21000 {
 			status = "okay";
+		};
+		mmc0: mmc@1c40000 {
+			max-frequency = <50000000>;
+			bus-width = <4>;
+			status = "okay";
+			pinctrl-names = "default";
+			pinctrl-0 = <&mmc0_pins>;
 		};
 	};
 	nand_cs3@62000000 {
 		status = "okay";
 		pinctrl-names = "default";
 		pinctrl-0 = <&nand_cs3_pins>;
+	};
+	vbat: fixedregulator@0 {
+		compatible = "regulator-fixed";
+		regulator-name = "vbat";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-boot-on;
+	};
+};
+
+/include/ "tps6507x.dtsi"
+
+&tps {
+	vdcdc1_2-supply = <&vbat>;
+	vdcdc3-supply = <&vbat>;
+	vldo1_2-supply = <&vbat>;
+
+	regulators {
+		vdcdc1_reg: regulator@0 {
+			regulator-name = "VDCDC1_3.3V";
+			regulator-min-microvolt = <3150000>;
+			regulator-max-microvolt = <3450000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		vdcdc2_reg: regulator@1 {
+			regulator-name = "VDCDC2_3.3V";
+			regulator-min-microvolt = <1710000>;
+			regulator-max-microvolt = <3450000>;
+			regulator-always-on;
+			regulator-boot-on;
+			ti,defdcdc_default = <1>;
+		};
+
+		vdcdc3_reg: regulator@2 {
+			regulator-name = "VDCDC3_1.2V";
+			regulator-min-microvolt = <950000>;
+			regulator-max-microvolt = <1350000>;
+			regulator-always-on;
+			regulator-boot-on;
+			ti,defdcdc_default = <1>;
+		};
+
+		ldo1_reg: regulator@3 {
+			regulator-name = "LDO1_1.8V";
+			regulator-min-microvolt = <1710000>;
+			regulator-max-microvolt = <1890000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
+
+		ldo2_reg: regulator@4 {
+			regulator-name = "LDO2_1.2V";
+			regulator-min-microvolt = <1140000>;
+			regulator-max-microvolt = <1320000>;
+			regulator-always-on;
+			regulator-boot-on;
+		};
 	};
 };

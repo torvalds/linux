@@ -1000,13 +1000,19 @@ handle_syscall:
 
 	/* Trace syscalls, if requested. */
 	addi	r31, r31, THREAD_INFO_FLAGS_OFFSET
-	ld	r30, r31
-	andi    r30, r30, _TIF_SYSCALL_TRACE
+	{
+	 ld     r30, r31
+	 moveli r32, _TIF_SYSCALL_ENTRY_WORK
+	}
+	and     r30, r30, r32
 	{
 	 addi   r30, r31, THREAD_INFO_STATUS_OFFSET - THREAD_INFO_FLAGS_OFFSET
 	 beqzt	r30, .Lrestore_syscall_regs
 	}
-	jal	do_syscall_trace
+	{
+	 PTREGS_PTR(r0, PTREGS_OFFSET_BASE)
+	 jal    do_syscall_trace_enter
+	}
 	FEEDBACK_REENTER(handle_syscall)
 
 	/*
@@ -1071,13 +1077,19 @@ handle_syscall:
 	FEEDBACK_REENTER(handle_syscall)
 
 	/* Do syscall trace again, if requested. */
-	ld	r30, r31
-	andi    r0, r30, _TIF_SYSCALL_TRACE
+	{
+	 ld      r30, r31
+	 moveli  r32, _TIF_SYSCALL_EXIT_WORK
+	}
+	and      r0, r30, r32
 	{
 	 andi    r0, r30, _TIF_SINGLESTEP
 	 beqzt   r0, 1f
 	}
-	jal	do_syscall_trace
+	{
+	 PTREGS_PTR(r0, PTREGS_OFFSET_BASE)
+	 jal    do_syscall_trace_exit
+	}
 	FEEDBACK_REENTER(handle_syscall)
 	andi    r0, r30, _TIF_SINGLESTEP
 

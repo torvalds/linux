@@ -167,21 +167,22 @@ static void set_irq(struct ssb_device *dev, unsigned int irq)
 		irqflag |= (ipsflag & ~ipsflag_irq_mask[irq]);
 		ssb_write32(mdev, SSB_IPSFLAG, irqflag);
 	}
-	ssb_dprintk(KERN_INFO PFX
-		    "set_irq: core 0x%04x, irq %d => %d\n",
-		    dev->id.coreid, oldirq+2, irq+2);
+	ssb_dbg("set_irq: core 0x%04x, irq %d => %d\n",
+		dev->id.coreid, oldirq+2, irq+2);
 }
 
 static void print_irq(struct ssb_device *dev, unsigned int irq)
 {
-	int i;
 	static const char *irq_name[] = {"2(S)", "3", "4", "5", "6", "D", "I"};
-	ssb_dprintk(KERN_INFO PFX
-		"core 0x%04x, irq :", dev->id.coreid);
-	for (i = 0; i <= 6; i++) {
-		ssb_dprintk(" %s%s", irq_name[i], i==irq?"*":" ");
-	}
-	ssb_dprintk("\n");
+	ssb_dbg("core 0x%04x, irq : %s%s %s%s %s%s %s%s %s%s %s%s %s%s\n",
+		dev->id.coreid,
+		irq_name[0], irq == 0 ? "*" : " ",
+		irq_name[1], irq == 1 ? "*" : " ",
+		irq_name[2], irq == 2 ? "*" : " ",
+		irq_name[3], irq == 3 ? "*" : " ",
+		irq_name[4], irq == 4 ? "*" : " ",
+		irq_name[5], irq == 5 ? "*" : " ",
+		irq_name[6], irq == 6 ? "*" : " ");
 }
 
 static void dump_irq(struct ssb_bus *bus)
@@ -286,7 +287,7 @@ void ssb_mipscore_init(struct ssb_mipscore *mcore)
 	if (!mcore->dev)
 		return; /* We don't have a MIPS core */
 
-	ssb_dprintk(KERN_INFO PFX "Initializing MIPS core...\n");
+	ssb_dbg("Initializing MIPS core...\n");
 
 	bus = mcore->dev->bus;
 	hz = ssb_clockspeed(bus);
@@ -334,7 +335,7 @@ void ssb_mipscore_init(struct ssb_mipscore *mcore)
 			break;
 		}
 	}
-	ssb_dprintk(KERN_INFO PFX "after irq reconfiguration\n");
+	ssb_dbg("after irq reconfiguration\n");
 	dump_irq(bus);
 
 	ssb_mips_serial_init(mcore);

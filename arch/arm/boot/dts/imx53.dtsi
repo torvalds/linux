@@ -10,7 +10,8 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
-/include/ "skeleton.dtsi"
+#include "skeleton.dtsi"
+#include "imx53-pinfunc.h"
 
 / {
 	aliases {
@@ -72,6 +73,9 @@
 			compatible = "fsl,imx53-ipu";
 			reg = <0x18000000 0x080000000>;
 			interrupts = <11 10>;
+			clocks = <&clks 59>, <&clks 110>, <&clks 61>;
+			clock-names = "bus", "di0", "di1";
+			resets = <&src 2>;
 		};
 
 		aips@50000000 { /* AIPS1 */
@@ -242,6 +246,14 @@
 				status = "disabled";
 			};
 
+			gpt: timer@53fa0000 {
+				compatible = "fsl,imx53-gpt", "fsl,imx31-gpt";
+				reg = <0x53fa0000 0x4000>;
+				interrupts = <39>;
+				clocks = <&clks 36>, <&clks 41>;
+				clock-names = "ipg", "per";
+			};
+
 			iomuxc: iomuxc@53fa8000 {
 				compatible = "fsl,imx53-iomuxc";
 				reg = <0x53fa8000 0x4000>;
@@ -249,10 +261,10 @@
 				audmux {
 					pinctrl_audmux_1: audmuxgrp-1 {
 						fsl,pins = <
-							10 0x80000000	/* MX53_PAD_KEY_COL0__AUDMUX_AUD5_TXC */
-							17 0x80000000	/* MX53_PAD_KEY_ROW0__AUDMUX_AUD5_TXD */
-							23 0x80000000	/* MX53_PAD_KEY_COL1__AUDMUX_AUD5_TXFS */
-							30 0x80000000	/* MX53_PAD_KEY_ROW1__AUDMUX_AUD5_RXD */
+							MX53_PAD_KEY_COL0__AUDMUX_AUD5_TXC  0x80000000
+							MX53_PAD_KEY_ROW0__AUDMUX_AUD5_TXD  0x80000000
+							MX53_PAD_KEY_COL1__AUDMUX_AUD5_TXFS 0x80000000
+							MX53_PAD_KEY_ROW1__AUDMUX_AUD5_RXD  0x80000000
 						>;
 					};
 				};
@@ -260,16 +272,16 @@
 				fec {
 					pinctrl_fec_1: fecgrp-1 {
 						fsl,pins = <
-							820 0x80000000	/* MX53_PAD_FEC_MDC__FEC_MDC */
-							779 0x80000000	/* MX53_PAD_FEC_MDIO__FEC_MDIO */
-							786 0x80000000	/* MX53_PAD_FEC_REF_CLK__FEC_TX_CLK */
-							791 0x80000000	/* MX53_PAD_FEC_RX_ER__FEC_RX_ER */
-							796 0x80000000	/* MX53_PAD_FEC_CRS_DV__FEC_RX_DV */
-							799 0x80000000	/* MX53_PAD_FEC_RXD1__FEC_RDATA_1 */
-							804 0x80000000	/* MX53_PAD_FEC_RXD0__FEC_RDATA_0 */
-							808 0x80000000	/* MX53_PAD_FEC_TX_EN__FEC_TX_EN */
-							811 0x80000000	/* MX53_PAD_FEC_TXD1__FEC_TDATA_1 */
-							816 0x80000000	/* MX53_PAD_FEC_TXD0__FEC_TDATA_0 */
+							MX53_PAD_FEC_MDC__FEC_MDC	 0x80000000
+							MX53_PAD_FEC_MDIO__FEC_MDIO	 0x80000000
+							MX53_PAD_FEC_REF_CLK__FEC_TX_CLK 0x80000000
+							MX53_PAD_FEC_RX_ER__FEC_RX_ER    0x80000000
+							MX53_PAD_FEC_CRS_DV__FEC_RX_DV   0x80000000
+							MX53_PAD_FEC_RXD1__FEC_RDATA_1   0x80000000
+							MX53_PAD_FEC_RXD0__FEC_RDATA_0   0x80000000
+							MX53_PAD_FEC_TX_EN__FEC_TX_EN    0x80000000
+							MX53_PAD_FEC_TXD1__FEC_TDATA_1   0x80000000
+							MX53_PAD_FEC_TXD0__FEC_TDATA_0   0x80000000
 						>;
 					};
 				};
@@ -277,27 +289,27 @@
 				csi {
 					pinctrl_csi_1: csigrp-1 {
 						fsl,pins = <
-							286 0x1d5	/* MX53_PAD_CSI0_DATA_EN__IPU_CSI0_DATA_EN */
-							291 0x1d5	/* MX53_PAD_CSI0_VSYNC__IPU_CSI0_VSYNC */
-							280 0x1d5	/* MX53_PAD_CSI0_MCLK__IPU_CSI0_HSYNC */
-							276 0x1d5	/* MX53_PAD_CSI0_PIXCLK__IPU_CSI0_PIXCLK */
-							409 0x1d5	/* MX53_PAD_CSI0_DAT19__IPU_CSI0_D_19 */
-							402 0x1d5	/* MX53_PAD_CSI0_DAT18__IPU_CSI0_D_18 */
-							395 0x1d5	/* MX53_PAD_CSI0_DAT17__IPU_CSI0_D_17 */
-							388 0x1d5	/* MX53_PAD_CSI0_DAT16__IPU_CSI0_D_16 */
-							381 0x1d5	/* MX53_PAD_CSI0_DAT15__IPU_CSI0_D_15 */
-							374 0x1d5	/* MX53_PAD_CSI0_DAT14__IPU_CSI0_D_14 */
-							367 0x1d5	/* MX53_PAD_CSI0_DAT13__IPU_CSI0_D_13 */
-							360 0x1d5	/* MX53_PAD_CSI0_DAT12__IPU_CSI0_D_12 */
-							352 0x1d5	/* MX53_PAD_CSI0_DAT11__IPU_CSI0_D_11 */
-							344 0x1d5	/* MX53_PAD_CSI0_DAT10__IPU_CSI0_D_10 */
-							336 0x1d5	/* MX53_PAD_CSI0_DAT9__IPU_CSI0_D_9 */
-							328 0x1d5	/* MX53_PAD_CSI0_DAT8__IPU_CSI0_D_8 */
-							320 0x1d5	/* MX53_PAD_CSI0_DAT7__IPU_CSI0_D_7 */
-							312 0x1d5	/* MX53_PAD_CSI0_DAT6__IPU_CSI0_D_6 */
-							304 0x1d5	/* MX53_PAD_CSI0_DAT5__IPU_CSI0_D_5 */
-							296 0x1d5	/* MX53_PAD_CSI0_DAT4__IPU_CSI0_D_4 */
-							276 0x1d5	/* MX53_PAD_CSI0_PIXCLK__IPU_CSI0_PIXCLK */
+							MX53_PAD_CSI0_DATA_EN__IPU_CSI0_DATA_EN 0x1d5
+							MX53_PAD_CSI0_VSYNC__IPU_CSI0_VSYNC     0x1d5
+							MX53_PAD_CSI0_MCLK__IPU_CSI0_HSYNC      0x1d5
+							MX53_PAD_CSI0_PIXCLK__IPU_CSI0_PIXCLK   0x1d5
+							MX53_PAD_CSI0_DAT19__IPU_CSI0_D_19      0x1d5
+							MX53_PAD_CSI0_DAT18__IPU_CSI0_D_18      0x1d5
+							MX53_PAD_CSI0_DAT17__IPU_CSI0_D_17      0x1d5
+							MX53_PAD_CSI0_DAT16__IPU_CSI0_D_16      0x1d5
+							MX53_PAD_CSI0_DAT15__IPU_CSI0_D_15      0x1d5
+							MX53_PAD_CSI0_DAT14__IPU_CSI0_D_14      0x1d5
+							MX53_PAD_CSI0_DAT13__IPU_CSI0_D_13      0x1d5
+							MX53_PAD_CSI0_DAT12__IPU_CSI0_D_12      0x1d5
+							MX53_PAD_CSI0_DAT11__IPU_CSI0_D_11      0x1d5
+							MX53_PAD_CSI0_DAT10__IPU_CSI0_D_10      0x1d5
+							MX53_PAD_CSI0_DAT9__IPU_CSI0_D_9	0x1d5
+							MX53_PAD_CSI0_DAT8__IPU_CSI0_D_8	0x1d5
+							MX53_PAD_CSI0_DAT7__IPU_CSI0_D_7	0x1d5
+							MX53_PAD_CSI0_DAT6__IPU_CSI0_D_6	0x1d5
+							MX53_PAD_CSI0_DAT5__IPU_CSI0_D_5	0x1d5
+							MX53_PAD_CSI0_DAT4__IPU_CSI0_D_4	0x1d5
+							MX53_PAD_CSI0_PIXCLK__IPU_CSI0_PIXCLK   0x1d5
 						>;
 					};
 				};
@@ -305,9 +317,9 @@
 				cspi {
 					pinctrl_cspi_1: cspigrp-1 {
 						fsl,pins = <
-							998  0x1d5	/* MX53_PAD_SD1_DATA0__CSPI_MISO */
-							1008 0x1d5	/* MX53_PAD_SD1_CMD__CSPI_MOSI */
-							1022 0x1d5	/* MX53_PAD_SD1_CLK__CSPI_SCLK */
+							MX53_PAD_SD1_DATA0__CSPI_MISO 0x1d5
+							MX53_PAD_SD1_CMD__CSPI_MOSI   0x1d5
+							MX53_PAD_SD1_CLK__CSPI_SCLK   0x1d5
 						>;
 					};
 				};
@@ -315,9 +327,9 @@
 				ecspi1 {
 					pinctrl_ecspi1_1: ecspi1grp-1 {
 						fsl,pins = <
-							433 0x80000000	/* MX53_PAD_EIM_D16__ECSPI1_SCLK */
-							439 0x80000000	/* MX53_PAD_EIM_D17__ECSPI1_MISO */
-							445 0x80000000	/* MX53_PAD_EIM_D18__ECSPI1_MOSI */
+							MX53_PAD_EIM_D16__ECSPI1_SCLK 0x80000000
+							MX53_PAD_EIM_D17__ECSPI1_MISO 0x80000000
+							MX53_PAD_EIM_D18__ECSPI1_MOSI 0x80000000
 						>;
 					};
 				};
@@ -325,27 +337,27 @@
 				esdhc1 {
 					pinctrl_esdhc1_1: esdhc1grp-1 {
 						fsl,pins = <
-							995  0x1d5	/* MX53_PAD_SD1_DATA0__ESDHC1_DAT0 */
-							1000 0x1d5	/* MX53_PAD_SD1_DATA1__ESDHC1_DAT1 */
-							1010 0x1d5	/* MX53_PAD_SD1_DATA2__ESDHC1_DAT2 */
-							1024 0x1d5	/* MX53_PAD_SD1_DATA3__ESDHC1_DAT3 */
-							1005 0x1d5	/* MX53_PAD_SD1_CMD__ESDHC1_CMD */
-							1018 0x1d5	/* MX53_PAD_SD1_CLK__ESDHC1_CLK */
+							MX53_PAD_SD1_DATA0__ESDHC1_DAT0 0x1d5
+							MX53_PAD_SD1_DATA1__ESDHC1_DAT1 0x1d5
+							MX53_PAD_SD1_DATA2__ESDHC1_DAT2 0x1d5
+							MX53_PAD_SD1_DATA3__ESDHC1_DAT3 0x1d5
+							MX53_PAD_SD1_CMD__ESDHC1_CMD	0x1d5
+							MX53_PAD_SD1_CLK__ESDHC1_CLK	0x1d5
 						>;
 					};
 
 					pinctrl_esdhc1_2: esdhc1grp-2 {
 						fsl,pins = <
-							995  0x1d5	/* MX53_PAD_SD1_DATA0__ESDHC1_DAT0 */
-							1000 0x1d5	/* MX53_PAD_SD1_DATA1__ESDHC1_DAT1 */
-							1010 0x1d5	/* MX53_PAD_SD1_DATA2__ESDHC1_DAT2 */
-							1024 0x1d5	/* MX53_PAD_SD1_DATA3__ESDHC1_DAT3 */
-							941  0x1d5	/* MX53_PAD_PATA_DATA8__ESDHC1_DAT4 */
-							948  0x1d5	/* MX53_PAD_PATA_DATA9__ESDHC1_DAT5 */
-							955  0x1d5	/* MX53_PAD_PATA_DATA10__ESDHC1_DAT6 */
-							962  0x1d5	/* MX53_PAD_PATA_DATA11__ESDHC1_DAT7 */
-							1005 0x1d5	/* MX53_PAD_SD1_CMD__ESDHC1_CMD */
-							1018 0x1d5	/* MX53_PAD_SD1_CLK__ESDHC1_CLK */
+							MX53_PAD_SD1_DATA0__ESDHC1_DAT0   0x1d5
+							MX53_PAD_SD1_DATA1__ESDHC1_DAT1   0x1d5
+							MX53_PAD_SD1_DATA2__ESDHC1_DAT2   0x1d5
+							MX53_PAD_SD1_DATA3__ESDHC1_DAT3   0x1d5
+							MX53_PAD_PATA_DATA8__ESDHC1_DAT4  0x1d5
+							MX53_PAD_PATA_DATA9__ESDHC1_DAT5  0x1d5
+							MX53_PAD_PATA_DATA10__ESDHC1_DAT6 0x1d5
+							MX53_PAD_PATA_DATA11__ESDHC1_DAT7 0x1d5
+							MX53_PAD_SD1_CMD__ESDHC1_CMD	  0x1d5
+							MX53_PAD_SD1_CLK__ESDHC1_CLK	  0x1d5
 						>;
 					};
 				};
@@ -353,12 +365,12 @@
 				esdhc2 {
 					pinctrl_esdhc2_1: esdhc2grp-1 {
 						fsl,pins = <
-							1038 0x1d5	/* MX53_PAD_SD2_CMD__ESDHC2_CMD */
-							1032 0x1d5	/* MX53_PAD_SD2_CLK__ESDHC2_CLK */
-							1062 0x1d5	/* MX53_PAD_SD2_DATA0__ESDHC2_DAT0 */
-							1056 0x1d5	/* MX53_PAD_SD2_DATA1__ESDHC2_DAT1 */
-							1050 0x1d5	/* MX53_PAD_SD2_DATA2__ESDHC2_DAT2 */
-							1044 0x1d5	/* MX53_PAD_SD2_DATA3__ESDHC2_DAT3 */
+							MX53_PAD_SD2_CMD__ESDHC2_CMD	0x1d5
+							MX53_PAD_SD2_CLK__ESDHC2_CLK	0x1d5
+							MX53_PAD_SD2_DATA0__ESDHC2_DAT0 0x1d5
+							MX53_PAD_SD2_DATA1__ESDHC2_DAT1 0x1d5
+							MX53_PAD_SD2_DATA2__ESDHC2_DAT2 0x1d5
+							MX53_PAD_SD2_DATA3__ESDHC2_DAT3 0x1d5
 						>;
 					};
 				};
@@ -366,16 +378,16 @@
 				esdhc3 {
 					pinctrl_esdhc3_1: esdhc3grp-1 {
 						fsl,pins = <
-							943 0x1d5	/* MX53_PAD_PATA_DATA8__ESDHC3_DAT0 */
-							950 0x1d5	/* MX53_PAD_PATA_DATA9__ESDHC3_DAT1 */
-							957 0x1d5	/* MX53_PAD_PATA_DATA10__ESDHC3_DAT2 */
-							964 0x1d5	/* MX53_PAD_PATA_DATA11__ESDHC3_DAT3 */
-							893 0x1d5	/* MX53_PAD_PATA_DATA0__ESDHC3_DAT4 */
-							900 0x1d5	/* MX53_PAD_PATA_DATA1__ESDHC3_DAT5 */
-							906 0x1d5	/* MX53_PAD_PATA_DATA2__ESDHC3_DAT6 */
-							912 0x1d5	/* MX53_PAD_PATA_DATA3__ESDHC3_DAT7 */
-							857 0x1d5	/* MX53_PAD_PATA_RESET_B__ESDHC3_CMD */
-							863 0x1d5	/* MX53_PAD_PATA_IORDY__ESDHC3_CLK */
+							MX53_PAD_PATA_DATA8__ESDHC3_DAT0  0x1d5
+							MX53_PAD_PATA_DATA9__ESDHC3_DAT1  0x1d5
+							MX53_PAD_PATA_DATA10__ESDHC3_DAT2 0x1d5
+							MX53_PAD_PATA_DATA11__ESDHC3_DAT3 0x1d5
+							MX53_PAD_PATA_DATA0__ESDHC3_DAT4  0x1d5
+							MX53_PAD_PATA_DATA1__ESDHC3_DAT5  0x1d5
+							MX53_PAD_PATA_DATA2__ESDHC3_DAT6  0x1d5
+							MX53_PAD_PATA_DATA3__ESDHC3_DAT7  0x1d5
+							MX53_PAD_PATA_RESET_B__ESDHC3_CMD 0x1d5
+							MX53_PAD_PATA_IORDY__ESDHC3_CLK   0x1d5
 						>;
 					};
 				};
@@ -383,15 +395,15 @@
 				can1 {
 					pinctrl_can1_1: can1grp-1 {
 						fsl,pins = <
-							847 0x80000000  /* MX53_PAD_PATA_INTRQ__CAN1_TXCAN */
-							853 0x80000000  /* MX53_PAD_PATA_DIOR__CAN1_RXCAN */
+							MX53_PAD_PATA_INTRQ__CAN1_TXCAN 0x80000000
+							MX53_PAD_PATA_DIOR__CAN1_RXCAN  0x80000000
 						>;
 					};
 
 					pinctrl_can1_2: can1grp-2 {
 						fsl,pins = <
-							37  0x80000000  /* MX53_PAD_KEY_COL2__CAN1_TXCAN */
-							44  0x80000000  /* MX53_PAD_KEY_ROW2__CAN1_RXCAN */
+							MX53_PAD_KEY_COL2__CAN1_TXCAN 0x80000000
+							MX53_PAD_KEY_ROW2__CAN1_RXCAN 0x80000000
 						>;
 					};
 				};
@@ -399,8 +411,8 @@
 				can2 {
 					pinctrl_can2_1: can2grp-1 {
 						fsl,pins = <
-							67  0x80000000  /* MX53_PAD_KEY_COL4__CAN2_TXCAN */
-							74  0x80000000  /* MX53_PAD_KEY_ROW4__CAN2_RXCAN */
+							MX53_PAD_KEY_COL4__CAN2_TXCAN 0x80000000
+							MX53_PAD_KEY_ROW4__CAN2_RXCAN 0x80000000
 						>;
 					};
 				};
@@ -408,8 +420,8 @@
 				i2c1 {
 					pinctrl_i2c1_1: i2c1grp-1 {
 						fsl,pins = <
-							333 0xc0000000	/* MX53_PAD_CSI0_DAT8__I2C1_SDA */
-							341 0xc0000000	/* MX53_PAD_CSI0_DAT9__I2C1_SCL */
+							MX53_PAD_CSI0_DAT8__I2C1_SDA 0xc0000000
+							MX53_PAD_CSI0_DAT9__I2C1_SCL 0xc0000000
 						>;
 					};
 				};
@@ -417,8 +429,8 @@
 				i2c2 {
 					pinctrl_i2c2_1: i2c2grp-1 {
 						fsl,pins = <
-							61 0xc0000000	/* MX53_PAD_KEY_ROW3__I2C2_SDA */
-							53 0xc0000000	/* MX53_PAD_KEY_COL3__I2C2_SCL */
+							MX53_PAD_KEY_ROW3__I2C2_SDA 0xc0000000
+							MX53_PAD_KEY_COL3__I2C2_SCL 0xc0000000
 						>;
 					};
 				};
@@ -426,8 +438,8 @@
 				i2c3 {
 					pinctrl_i2c3_1: i2c3grp-1 {
 						fsl,pins = <
-							1102 0xc0000000	/* MX53_PAD_GPIO_6__I2C3_SDA */
-							1130 0xc0000000	/* MX53_PAD_GPIO_5__I2C3_SCL */
+							MX53_PAD_GPIO_6__I2C3_SDA 0xc0000000
+							MX53_PAD_GPIO_5__I2C3_SCL 0xc0000000
 						>;
 					};
 				};
@@ -435,7 +447,7 @@
 				owire {
 					pinctrl_owire_1: owiregrp-1 {
 						fsl,pins = <
-								1166 0x80000000 /* MX53_PAD_GPIO_18__OWIRE_LINE */
+							MX53_PAD_GPIO_18__OWIRE_LINE 0x80000000
 						>;
 					};
 				};
@@ -443,15 +455,15 @@
 				uart1 {
 					pinctrl_uart1_1: uart1grp-1 {
 						fsl,pins = <
-							346 0x1c5	/* MX53_PAD_CSI0_DAT10__UART1_TXD_MUX */
-							354 0x1c5	/* MX53_PAD_CSI0_DAT11__UART1_RXD_MUX */
+							MX53_PAD_CSI0_DAT10__UART1_TXD_MUX 0x1c5
+							MX53_PAD_CSI0_DAT11__UART1_RXD_MUX 0x1c5
 						>;
 					};
 
 					pinctrl_uart1_2: uart1grp-2 {
 						fsl,pins = <
-							828 0x1c5	/* MX53_PAD_PATA_DIOW__UART1_TXD_MUX */
-							832 0x1c5	/* MX53_PAD_PATA_DMACK__UART1_RXD_MUX */
+							MX53_PAD_PATA_DIOW__UART1_TXD_MUX  0x1c5
+							MX53_PAD_PATA_DMACK__UART1_RXD_MUX 0x1c5
 						>;
 					};
 				};
@@ -459,8 +471,8 @@
 				uart2 {
 					pinctrl_uart2_1: uart2grp-1 {
 						fsl,pins = <
-							841 0x1c5	/* MX53_PAD_PATA_BUFFER_EN__UART2_RXD_MUX */
-							836 0x1c5	/* MX53_PAD_PATA_DMARQ__UART2_TXD_MUX */
+							MX53_PAD_PATA_BUFFER_EN__UART2_RXD_MUX 0x1c5
+							MX53_PAD_PATA_DMARQ__UART2_TXD_MUX     0x1c5
 						>;
 					};
 				};
@@ -468,17 +480,17 @@
 				uart3 {
 					pinctrl_uart3_1: uart3grp-1 {
 						fsl,pins = <
-							884 0x1c5	/* MX53_PAD_PATA_CS_0__UART3_TXD_MUX */
-							888 0x1c5	/* MX53_PAD_PATA_CS_1__UART3_RXD_MUX */
-							875 0x1c5	/* MX53_PAD_PATA_DA_1__UART3_CTS */
-							880 0x1c5	/* MX53_PAD_PATA_DA_2__UART3_RTS */
+							MX53_PAD_PATA_CS_0__UART3_TXD_MUX 0x1c5
+							MX53_PAD_PATA_CS_1__UART3_RXD_MUX 0x1c5
+							MX53_PAD_PATA_DA_1__UART3_CTS	  0x1c5
+							MX53_PAD_PATA_DA_2__UART3_RTS	  0x1c5
 						>;
 					};
 
 					pinctrl_uart3_2: uart3grp-2 {
 						fsl,pins = <
-							884 0x1c5	/* MX53_PAD_PATA_CS_0__UART3_TXD_MUX */
-							888 0x1c5	/* MX53_PAD_PATA_CS_1__UART3_RXD_MUX */
+							MX53_PAD_PATA_CS_0__UART3_TXD_MUX 0x1c5
+							MX53_PAD_PATA_CS_1__UART3_RXD_MUX 0x1c5
 						>;
 					};
 
@@ -487,8 +499,8 @@
 				uart4 {
 					pinctrl_uart4_1: uart4grp-1 {
 						fsl,pins = <
-							11 0x1c5	/* MX53_PAD_KEY_COL0__UART4_TXD_MUX */
-							18 0x1c5	/* MX53_PAD_KEY_ROW0__UART4_RXD_MUX */
+							MX53_PAD_KEY_COL0__UART4_TXD_MUX 0x1c5
+							MX53_PAD_KEY_ROW0__UART4_RXD_MUX 0x1c5
 						>;
 					};
 				};
@@ -496,12 +508,44 @@
 				uart5 {
 					pinctrl_uart5_1: uart5grp-1 {
 						fsl,pins = <
-							24 0x1c5	/* MX53_PAD_KEY_COL1__UART5_TXD_MUX */
-							31 0x1c5	/* MX53_PAD_KEY_ROW1__UART5_RXD_MUX */
+							MX53_PAD_KEY_COL1__UART5_TXD_MUX 0x1c5
+							MX53_PAD_KEY_ROW1__UART5_RXD_MUX 0x1c5
 						>;
 					};
 				};
 
+			};
+
+			gpr: iomuxc-gpr@53fa8000 {
+				compatible = "fsl,imx53-iomuxc-gpr", "syscon";
+				reg = <0x53fa8000 0xc>;
+			};
+
+			ldb: ldb@53fa8008 {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				compatible = "fsl,imx53-ldb";
+				reg = <0x53fa8008 0x4>;
+				gpr = <&gpr>;
+				clocks = <&clks 122>, <&clks 120>,
+					 <&clks 115>, <&clks 116>,
+					 <&clks 123>, <&clks 85>;
+				clock-names = "di0_pll", "di1_pll",
+					      "di0_sel", "di1_sel",
+					      "di0", "di1";
+				status = "disabled";
+
+				lvds-channel@0 {
+					reg = <0>;
+					crtcs = <&ipu 0>;
+					status = "disabled";
+				};
+
+				lvds-channel@1 {
+					reg = <1>;
+					crtcs = <&ipu 1>;
+					status = "disabled";
+				};
 			};
 
 			pwm1: pwm@53fb4000 {
@@ -556,6 +600,12 @@
 				clocks = <&clks 87>, <&clks 86>;
 				clock-names = "ipg", "per";
 				status = "disabled";
+			};
+
+			src: src@53fd0000 {
+				compatible = "fsl,imx53-src", "fsl,imx51-src";
+				reg = <0x53fd0000 0x4000>;
+				#reset-cells = <1>;
 			};
 
 			clks: ccm@53fd4000{

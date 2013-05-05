@@ -322,10 +322,12 @@
  * where a pointer to an object of type union acpi_operand_object can also
  * appear. This macro is used to distinguish them.
  *
- * The "Descriptor" field is the first field in both structures.
+ * The "DescriptorType" field is the second field in both structures.
  */
+#define ACPI_GET_DESCRIPTOR_PTR(d)      (((union acpi_descriptor *)(void *)(d))->common.common_pointer)
+#define ACPI_SET_DESCRIPTOR_PTR(d, p)   (((union acpi_descriptor *)(void *)(d))->common.common_pointer = (p))
 #define ACPI_GET_DESCRIPTOR_TYPE(d)     (((union acpi_descriptor *)(void *)(d))->common.descriptor_type)
-#define ACPI_SET_DESCRIPTOR_TYPE(d, t)  (((union acpi_descriptor *)(void *)(d))->common.descriptor_type = t)
+#define ACPI_SET_DESCRIPTOR_TYPE(d, t)  (((union acpi_descriptor *)(void *)(d))->common.descriptor_type = (t))
 
 /*
  * Macros for the master AML opcode table

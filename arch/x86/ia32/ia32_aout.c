@@ -162,7 +162,6 @@ static int aout_core_dump(long signr, struct pt_regs *regs, struct file *file,
 	fs = get_fs();
 	set_fs(KERNEL_DS);
 	has_dumped = 1;
-	current->flags |= PF_DUMPCORE;
 	strncpy(dump.u_comm, current->comm, sizeof(current->comm));
 	dump.u_ar0 = offsetof(struct user32, regs);
 	dump.signal = signr;
@@ -323,11 +322,8 @@ static int load_aout_binary(struct linux_binprm *bprm)
 
 	if (N_MAGIC(ex) == OMAGIC) {
 		unsigned long text_addr, map_size;
-		loff_t pos;
 
 		text_addr = N_TXTADDR(ex);
-
-		pos = 32;
 		map_size = ex.a_text+ex.a_data;
 
 		error = vm_brk(text_addr & PAGE_MASK, map_size);
@@ -337,15 +333,12 @@ static int load_aout_binary(struct linux_binprm *bprm)
 			return error;
 		}
 
-		error = bprm->file->f_op->read(bprm->file,
-			 (char __user *)text_addr,
-			  ex.a_text+ex.a_data, &pos);
+		error = read_code(bprm->file, text_addr, 32,
+				  ex.a_text + ex.a_data);
 		if ((signed long)error < 0) {
 			send_sig(SIGKILL, current, 0);
 			return error;
 		}
-
-		flush_icache_range(text_addr, text_addr+ex.a_text+ex.a_data);
 	} else {
 #ifdef WARN_OLD
 		static unsigned long error_time, error_time2;
@@ -367,15 +360,9 @@ static int load_aout_binary(struct linux_binprm *bprm)
 #endif
 
 		if (!bprm->file->f_op->mmap || (fd_offset & ~PAGE_MASK) != 0) {
-			loff_t pos = fd_offset;
-
 			vm_brk(N_TXTADDR(ex), ex.a_text+ex.a_data);
-			bprm->file->f_op->read(bprm->file,
-					(char __user *)N_TXTADDR(ex),
-					ex.a_text+ex.a_data, &pos);
-			flush_icache_range((unsigned long) N_TXTADDR(ex),
-					   (unsigned long) N_TXTADDR(ex) +
-					   ex.a_text+ex.a_data);
+			read_code(bprm->file, N_TXTADDR(ex), fd_offset,
+					ex.a_text+ex.a_data);
 			goto beyond_if;
 		}
 
@@ -452,8 +439,6 @@ static int load_aout_library(struct file *file)
 	start_addr =  ex.a_entry & 0xfffff000;
 
 	if ((N_TXTOFF(ex) & ~PAGE_MASK) != 0) {
-		loff_t pos = N_TXTOFF(ex);
-
 #ifdef WARN_OLD
 		static unsigned long error_time;
 		if (time_after(jiffies, error_time + 5*HZ)) {
@@ -466,12 +451,8 @@ static int load_aout_library(struct file *file)
 #endif
 		vm_brk(start_addr, ex.a_text + ex.a_data + ex.a_bss);
 
-		file->f_op->read(file, (char __user *)start_addr,
-			ex.a_text + ex.a_data, &pos);
-		flush_icache_range((unsigned long) start_addr,
-				   (unsigned long) start_addr + ex.a_text +
-				   ex.a_data);
-
+		read_code(file, start_addr, N_TXTOFF(ex),
+			  ex.a_text + ex.a_data);
 		retval = 0;
 		goto out;
 	}

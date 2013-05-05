@@ -237,6 +237,8 @@ struct prcmu_pdata
 	bool enable_set_ddr_opp;
 	bool enable_ape_opp_100_voltage;
 	struct ab8500_platform_data *ab_platdata;
+	int ab_irq;
+	int irq_base;
 	u32 version_offset;
 	u32 legacy_offset;
 	u32 adt_offset;
@@ -276,9 +278,9 @@ struct prcmu_fw_version {
 
 #if defined(CONFIG_UX500_SOC_DB8500)
 
-static inline void __init prcmu_early_init(void)
+static inline void prcmu_early_init(u32 phy_base, u32 size)
 {
-	return db8500_prcmu_early_init();
+	return db8500_prcmu_early_init(phy_base, size);
 }
 
 static inline int prcmu_set_power_state(u8 state, bool keep_ulp_clk,
@@ -291,36 +293,6 @@ static inline int prcmu_set_power_state(u8 state, bool keep_ulp_clk,
 static inline u8 prcmu_get_power_state_result(void)
 {
 	return db8500_prcmu_get_power_state_result();
-}
-
-static inline int prcmu_gic_decouple(void)
-{
-	return db8500_prcmu_gic_decouple();
-}
-
-static inline int prcmu_gic_recouple(void)
-{
-	return db8500_prcmu_gic_recouple();
-}
-
-static inline bool prcmu_gic_pending_irq(void)
-{
-	return db8500_prcmu_gic_pending_irq();
-}
-
-static inline bool prcmu_is_cpu_in_wfi(int cpu)
-{
-	return db8500_prcmu_is_cpu_in_wfi(cpu);
-}
-
-static inline int prcmu_copy_gic_settings(void)
-{
-	return db8500_prcmu_copy_gic_settings();
-}
-
-static inline bool prcmu_pending_irq(void)
-{
-	return db8500_prcmu_pending_irq();
 }
 
 static inline int prcmu_set_epod(u16 epod_id, u8 epod_state)
@@ -500,7 +472,7 @@ static inline int prcmu_config_a9wdog(u8 num, bool sleep_auto_off)
 }
 #else
 
-static inline void __init prcmu_early_init(void) {}
+static inline void prcmu_early_init(u32 phy_base, u32 size) {}
 
 static inline int prcmu_set_power_state(u8 state, bool keep_ulp_clk,
 	bool keep_ap_pll)

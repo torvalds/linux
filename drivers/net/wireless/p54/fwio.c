@@ -402,7 +402,7 @@ int p54_scan(struct p54_common *priv, u16 mode, u16 dwell)
 	struct p54_rssi_db_entry *rssi_data;
 	unsigned int i;
 	void *entry;
-	__le16 freq = cpu_to_le16(priv->hw->conf.channel->center_freq);
+	__le16 freq = cpu_to_le16(priv->hw->conf.chandef.chan->center_freq);
 
 	skb = p54_alloc_skb(priv, P54_HDR_FLAG_CONTROL_OPSET, sizeof(*head) +
 			    2 + sizeof(*iq_autocal) + sizeof(*body) +
@@ -532,7 +532,7 @@ int p54_scan(struct p54_common *priv, u16 mode, u16 dwell)
 err:
 	wiphy_err(priv->hw->wiphy, "frequency change to channel %d failed.\n",
 		  ieee80211_frequency_to_channel(
-			  priv->hw->conf.channel->center_freq));
+			  priv->hw->conf.chandef.chan->center_freq));
 
 	dev_kfree_skb_any(skb);
 	return -EINVAL;

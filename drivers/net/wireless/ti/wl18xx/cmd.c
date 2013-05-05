@@ -42,11 +42,11 @@ int wl18xx_cmd_channel_switch(struct wl1271 *wl,
 	}
 
 	cmd->role_id = wlvif->role_id;
-	cmd->channel = ch_switch->channel->hw_value;
+	cmd->channel = ch_switch->chandef.chan->hw_value;
 	cmd->switch_time = ch_switch->count;
 	cmd->stop_tx = ch_switch->block_tx;
 
-	switch (ch_switch->channel->band) {
+	switch (ch_switch->chandef.chan->band) {
 	case IEEE80211_BAND_2GHZ:
 		cmd->band = WLCORE_BAND_2_4GHZ;
 		break;
@@ -55,7 +55,7 @@ int wl18xx_cmd_channel_switch(struct wl1271 *wl,
 		break;
 	default:
 		wl1271_error("invalid channel switch band: %d",
-			     ch_switch->channel->band);
+			     ch_switch->chandef.chan->band);
 		ret = -EINVAL;
 		goto out_free;
 	}

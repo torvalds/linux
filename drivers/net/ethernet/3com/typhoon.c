@@ -1690,7 +1690,7 @@ typhoon_rx(struct typhoon *tp, struct basic_ring *rxRing, volatile __le32 * read
 			skb_checksum_none_assert(new_skb);
 
 		if (rx->rxStatus & TYPHOON_RX_VLAN)
-			__vlan_hwaccel_put_tag(new_skb,
+			__vlan_hwaccel_put_tag(new_skb, htons(ETH_P_8021Q),
 					       ntohl(rx->vlanTag) & 0xffff);
 		netif_receive_skb(new_skb);
 
@@ -2445,9 +2445,9 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	 * settings -- so we only allow the user to toggle the TX processing.
 	 */
 	dev->hw_features = NETIF_F_SG | NETIF_F_IP_CSUM | NETIF_F_TSO |
-		NETIF_F_HW_VLAN_TX;
+		NETIF_F_HW_VLAN_CTAG_TX;
 	dev->features = dev->hw_features |
-		NETIF_F_HW_VLAN_RX | NETIF_F_RXCSUM;
+		NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_RXCSUM;
 
 	if(register_netdev(dev) < 0) {
 		err_msg = "unable to register netdev";

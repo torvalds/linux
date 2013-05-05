@@ -68,8 +68,6 @@ Configuration options: not applicable, uses PCI auto config
 #define ICP_MULTI_CNTR2		0x14	/* R/W: Counter 2 */
 #define ICP_MULTI_CNTR3		0x16	/* R/W: Counter 3 */
 
-#define ICP_MULTI_SIZE		0x20	/* 32 bytes */
-
 /*  Define bits from ADC command/status register */
 #define	ADC_ST		0x0001	/* Start ADC */
 #define	ADC_BSY		0x0001	/* ADC busy */
@@ -120,7 +118,7 @@ struct icp_multi_private {
 	unsigned int DacCmdStatus;	/*  DAC Command/Status register */
 	unsigned int IntEnable;	/*  Interrupt Enable register */
 	unsigned int IntStatus;	/*  Interrupt Status register */
-	unsigned int act_chanlist[32];	/*  list of scaned channel */
+	unsigned int act_chanlist[32];	/*  list of scanned channel */
 	unsigned char act_chanlist_len;	/*  len of scanlist */
 	unsigned char act_chanlist_pos;	/*  actual position in MUX list */
 	unsigned int *ai_chanlist;	/*  actaul chanlist */
@@ -500,23 +498,18 @@ static int icp_multi_auto_attach(struct comedi_device *dev,
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct icp_multi_private *devpriv;
 	struct comedi_subdevice *s;
-	resource_size_t iobase;
 	int ret;
-
-	dev->board_name = dev->driver->driver_name;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	ret = comedi_pci_enable(pcidev, dev->board_name);
+	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
-	iobase = pci_resource_start(pcidev, 2);
-	dev->iobase = iobase;
 
-	devpriv->io_addr = ioremap(iobase, ICP_MULTI_SIZE);
+	devpriv->io_addr = pci_ioremap_bar(pcidev, 2);
 	if (!devpriv->io_addr)
 		return -ENOMEM;
 
@@ -594,7 +587,6 @@ static int icp_multi_auto_attach(struct comedi_device *dev,
 
 static void icp_multi_detach(struct comedi_device *dev)
 {
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
 	struct icp_multi_private *devpriv = dev->private;
 
 	if (devpriv)
@@ -604,10 +596,7 @@ static void icp_multi_detach(struct comedi_device *dev)
 		free_irq(dev->irq, dev);
 	if (devpriv && devpriv->io_addr)
 		iounmap(devpriv->io_addr);
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-	}
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver icp_multi_driver = {
@@ -618,9 +607,9 @@ static struct comedi_driver icp_multi_driver = {
 };
 
 static int icp_multi_pci_probe(struct pci_dev *dev,
-					   const struct pci_device_id *ent)
+			       const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &icp_multi_driver);
+	return comedi_pci_auto_config(dev, &icp_multi_driver, id->driver_data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(icp_multi_pci_table) = {

@@ -643,12 +643,14 @@ static void mixer_win_reset(struct mixer_context *ctx)
 	/* setting graphical layers */
 	val  = MXR_GRP_CFG_COLOR_KEY_DISABLE; /* no blank key */
 	val |= MXR_GRP_CFG_WIN_BLEND_EN;
-	val |= MXR_GRP_CFG_BLEND_PRE_MUL;
-	val |= MXR_GRP_CFG_PIXEL_BLEND_EN;
 	val |= MXR_GRP_CFG_ALPHA_VAL(0xff); /* non-transparent alpha */
 
-	/* the same configuration for both layers */
+	/* Don't blend layer 0 onto the mixer background */
 	mixer_reg_write(res, MXR_GRAPHIC_CFG(0), val);
+
+	/* Blend layer 1 into layer 0 */
+	val |= MXR_GRP_CFG_BLEND_PRE_MUL;
+	val |= MXR_GRP_CFG_PIXEL_BLEND_EN;
 	mixer_reg_write(res, MXR_GRAPHIC_CFG(1), val);
 
 	/* setting video layers */
@@ -818,9 +820,8 @@ static void mixer_win_disable(void *ctx, int win)
 	mixer_ctx->win_data[win].enabled = false;
 }
 
-int mixer_check_timing(void *ctx, struct fb_videomode *timing)
+static int mixer_check_timing(void *ctx, struct fb_videomode *timing)
 {
-	struct mixer_context *mixer_ctx = ctx;
 	u32 w, h;
 
 	w = timing->xres;
@@ -830,9 +831,6 @@ int mixer_check_timing(void *ctx, struct fb_videomode *timing)
 		__func__, timing->xres, timing->yres,
 		timing->refresh, (timing->vmode &
 		FB_VMODE_INTERLACED) ? true : false);
-
-	if (mixer_ctx->mxr_ver == MXR_VER_0_0_0_16)
-		return 0;
 
 	if ((w >= 464 && w <= 720 && h >= 261 && h <= 576) ||
 		(w >= 1024 && w <= 1280 && h >= 576 && h <= 720) ||
@@ -1047,13 +1045,13 @@ static int mixer_resources_init(struct exynos_drm_hdmi_context *ctx,
 	spin_lock_init(&mixer_res->reg_slock);
 
 	mixer_res->mixer = devm_clk_get(dev, "mixer");
-	if (IS_ERR_OR_NULL(mixer_res->mixer)) {
+	if (IS_ERR(mixer_res->mixer)) {
 		dev_err(dev, "failed to get clock 'mixer'\n");
 		return -ENODEV;
 	}
 
 	mixer_res->sclk_hdmi = devm_clk_get(dev, "sclk_hdmi");
-	if (IS_ERR_OR_NULL(mixer_res->sclk_hdmi)) {
+	if (IS_ERR(mixer_res->sclk_hdmi)) {
 		dev_err(dev, "failed to get clock 'sclk_hdmi'\n");
 		return -ENODEV;
 	}
@@ -1096,17 +1094,17 @@ static int vp_resources_init(struct exynos_drm_hdmi_context *ctx,
 	struct resource *res;
 
 	mixer_res->vp = devm_clk_get(dev, "vp");
-	if (IS_ERR_OR_NULL(mixer_res->vp)) {
+	if (IS_ERR(mixer_res->vp)) {
 		dev_err(dev, "failed to get clock 'vp'\n");
 		return -ENODEV;
 	}
 	mixer_res->sclk_mixer = devm_clk_get(dev, "sclk_mixer");
-	if (IS_ERR_OR_NULL(mixer_res->sclk_mixer)) {
+	if (IS_ERR(mixer_res->sclk_mixer)) {
 		dev_err(dev, "failed to get clock 'sclk_mixer'\n");
 		return -ENODEV;
 	}
 	mixer_res->sclk_dac = devm_clk_get(dev, "sclk_dac");
-	if (IS_ERR_OR_NULL(mixer_res->sclk_dac)) {
+	if (IS_ERR(mixer_res->sclk_dac)) {
 		dev_err(dev, "failed to get clock 'sclk_dac'\n");
 		return -ENODEV;
 	}

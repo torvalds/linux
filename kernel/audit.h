@@ -59,10 +59,7 @@ struct audit_entry {
 	struct audit_krule	rule;
 };
 
-#ifdef CONFIG_AUDIT
-extern int audit_enabled;
 extern int audit_ever_enabled;
-#endif
 
 extern int audit_pid;
 

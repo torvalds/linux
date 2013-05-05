@@ -198,8 +198,6 @@ u16 read_radio_reg(struct brcms_phy *pi, u16 addr)
 
 void write_radio_reg(struct brcms_phy *pi, u16 addr, u16 val)
 {
-	struct si_info *sii = container_of(pi->sh->sih, struct si_info, pub);
-
 	if ((D11REV_GE(pi->sh->corerev, 24)) ||
 	    (D11REV_IS(pi->sh->corerev, 22)
 	     && (pi->pubpi.phy_type != PHY_TYPE_SSN))) {
@@ -211,7 +209,7 @@ void write_radio_reg(struct brcms_phy *pi, u16 addr, u16 val)
 		bcma_write16(pi->d11core, D11REGOFFS(phy4wdatalo), val);
 	}
 
-	if ((sii->icbus->hosttype == BCMA_HOSTTYPE_PCI) &&
+	if ((pi->d11core->bus->hosttype == BCMA_HOSTTYPE_PCI) &&
 	    (++pi->phy_wreg >= pi->phy_wreg_limit)) {
 		(void)bcma_read32(pi->d11core, D11REGOFFS(maccontrol));
 		pi->phy_wreg = 0;
@@ -297,10 +295,8 @@ void write_phy_reg(struct brcms_phy *pi, u16 addr, u16 val)
 	if (addr == 0x72)
 		(void)bcma_read16(pi->d11core, D11REGOFFS(phyregdata));
 #else
-	struct si_info *sii = container_of(pi->sh->sih, struct si_info, pub);
-
 	bcma_write32(pi->d11core, D11REGOFFS(phyregaddr), addr | (val << 16));
-	if ((sii->icbus->hosttype == BCMA_HOSTTYPE_PCI) &&
+	if ((pi->d11core->bus->hosttype == BCMA_HOSTTYPE_PCI) &&
 	    (++pi->phy_wreg >= pi->phy_wreg_limit)) {
 		pi->phy_wreg = 0;
 		(void)bcma_read16(pi->d11core, D11REGOFFS(phyversion));
@@ -374,7 +370,6 @@ struct shared_phy *wlc_phy_shared_attach(struct shared_phy_params *shp)
 	if (sh == NULL)
 		return NULL;
 
-	sh->sih = shp->sih;
 	sh->physhim = shp->physhim;
 	sh->unit = shp->unit;
 	sh->corerev = shp->corerev;
@@ -2911,29 +2906,24 @@ void wlc_lcnphy_epa_switch(struct brcms_phy *pi, bool mode)
 				mod_phy_reg(pi, 0x44c, (0x1 << 2), (1) << 2);
 
 			}
-			ai_cc_reg(pi->sh->sih,
-				  offsetof(struct chipcregs, gpiocontrol),
-				  ~0x0, 0x0);
-			ai_cc_reg(pi->sh->sih,
-				  offsetof(struct chipcregs, gpioout),
-				  0x40, 0x40);
-			ai_cc_reg(pi->sh->sih,
-				  offsetof(struct chipcregs, gpioouten),
-				  0x40, 0x40);
+
+			bcma_chipco_gpio_control(&pi->d11core->bus->drv_cc,
+						 0x0, 0x0);
+			bcma_chipco_gpio_out(&pi->d11core->bus->drv_cc,
+					     ~0x40, 0x40);
+			bcma_chipco_gpio_outen(&pi->d11core->bus->drv_cc,
+					       ~0x40, 0x40);
 		} else {
 			mod_phy_reg(pi, 0x44c, (0x1 << 2), (0) << 2);
 
 			mod_phy_reg(pi, 0x44d, (0x1 << 2), (0) << 2);
 
-			ai_cc_reg(pi->sh->sih,
-				  offsetof(struct chipcregs, gpioout),
-				  0x40, 0x00);
-			ai_cc_reg(pi->sh->sih,
-				  offsetof(struct chipcregs, gpioouten),
-				  0x40, 0x0);
-			ai_cc_reg(pi->sh->sih,
-				  offsetof(struct chipcregs, gpiocontrol),
-				  ~0x0, 0x40);
+			bcma_chipco_gpio_out(&pi->d11core->bus->drv_cc,
+					     ~0x40, 0x00);
+			bcma_chipco_gpio_outen(&pi->d11core->bus->drv_cc,
+					       ~0x40, 0x00);
+			bcma_chipco_gpio_control(&pi->d11core->bus->drv_cc,
+						 0x0, 0x40);
 		}
 	}
 }

@@ -325,9 +325,22 @@
 
 	sdhci@c8000600 {
 		status = "okay";
-		cd-gpios = <&gpio 121 0>; /* gpio PP1 */
+		cd-gpios = <&gpio 121 1>; /* gpio PP1 */
 		wp-gpios = <&gpio 122 0>; /* gpio PP2 */
 		bus-width = <4>;
+	};
+
+	clocks {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		clk32k_in: clock {
+			compatible = "fixed-clock";
+			reg=<0>;
+			#clock-cells = <0>;
+			clock-frequency = <32768>;
+		};
 	};
 
 	poweroff {

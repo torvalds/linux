@@ -49,6 +49,11 @@
 #include <linux/user_namespace.h>
 #include <linux/binfmts.h>
 
+#include <linux/sched.h>
+#include <linux/rcupdate.h>
+#include <linux/uidgid.h>
+#include <linux/cred.h>
+
 #include <linux/kmsg_dump.h>
 /* Move somewhere else to avoid recompiling? */
 #include <generated/utsrelease.h>
@@ -324,7 +329,6 @@ void kernel_restart_prepare(char *cmd)
 	system_state = SYSTEM_RESTART;
 	usermodehelper_disable();
 	device_shutdown();
-	syscore_shutdown();
 }
 
 /**
@@ -370,6 +374,7 @@ void kernel_restart(char *cmd)
 {
 	kernel_restart_prepare(cmd);
 	disable_nonboot_cpus();
+	syscore_shutdown();
 	if (!cmd)
 		printk(KERN_EMERG "Restarting system.\n");
 	else
@@ -395,6 +400,7 @@ static void kernel_shutdown_prepare(enum system_states state)
 void kernel_halt(void)
 {
 	kernel_shutdown_prepare(SYSTEM_HALT);
+	disable_nonboot_cpus();
 	syscore_shutdown();
 	printk(KERN_EMERG "System halted.\n");
 	kmsg_dump(KMSG_DUMP_HALT);
@@ -1041,6 +1047,67 @@ SYSCALL_DEFINE1(setfsgid, gid_t, gid)
 change_okay:
 	commit_creds(new);
 	return old_fsgid;
+}
+
+/**
+ * sys_getpid - return the thread group id of the current process
+ *
+ * Note, despite the name, this returns the tgid not the pid.  The tgid and
+ * the pid are identical unless CLONE_THREAD was specified on clone() in
+ * which case the tgid is the same in all threads of the same group.
+ *
+ * This is SMP safe as current->tgid does not change.
+ */
+SYSCALL_DEFINE0(getpid)
+{
+	return task_tgid_vnr(current);
+}
+
+/* Thread ID - the internal kernel "pid" */
+SYSCALL_DEFINE0(gettid)
+{
+	return task_pid_vnr(current);
+}
+
+/*
+ * Accessing ->real_parent is not SMP-safe, it could
+ * change from under us. However, we can use a stale
+ * value of ->real_parent under rcu_read_lock(), see
+ * release_task()->call_rcu(delayed_put_task_struct).
+ */
+SYSCALL_DEFINE0(getppid)
+{
+	int pid;
+
+	rcu_read_lock();
+	pid = task_tgid_vnr(rcu_dereference(current->real_parent));
+	rcu_read_unlock();
+
+	return pid;
+}
+
+SYSCALL_DEFINE0(getuid)
+{
+	/* Only we change this so SMP safe */
+	return from_kuid_munged(current_user_ns(), current_uid());
+}
+
+SYSCALL_DEFINE0(geteuid)
+{
+	/* Only we change this so SMP safe */
+	return from_kuid_munged(current_user_ns(), current_euid());
+}
+
+SYSCALL_DEFINE0(getgid)
+{
+	/* Only we change this so SMP safe */
+	return from_kgid_munged(current_user_ns(), current_gid());
+}
+
+SYSCALL_DEFINE0(getegid)
+{
+	/* Only we change this so SMP safe */
+	return from_kgid_munged(current_user_ns(), current_egid());
 }
 
 void do_sys_times(struct tms *tms)
@@ -1784,13 +1851,26 @@ SYSCALL_DEFINE2(getrusage, int, who, struct rusage __user *, ru)
 	return getrusage(current, who, ru);
 }
 
+#ifdef CONFIG_COMPAT
+COMPAT_SYSCALL_DEFINE2(getrusage, int, who, struct compat_rusage __user *, ru)
+{
+	struct rusage r;
+
+	if (who != RUSAGE_SELF && who != RUSAGE_CHILDREN &&
+	    who != RUSAGE_THREAD)
+		return -EINVAL;
+
+	k_getrusage(current, who, &r);
+	return put_compat_rusage(&r, ru);
+}
+#endif
+
 SYSCALL_DEFINE1(umask, int, mask)
 {
 	mask = xchg(&current->fs->umask, mask & S_IRWXUGO);
 	return mask;
 }
 
-#ifdef CONFIG_CHECKPOINT_RESTORE
 static int prctl_set_mm_exe_file(struct mm_struct *mm, unsigned int fd)
 {
 	struct fd exe;
@@ -1984,17 +2064,12 @@ out:
 	return error;
 }
 
+#ifdef CONFIG_CHECKPOINT_RESTORE
 static int prctl_get_tid_address(struct task_struct *me, int __user **tid_addr)
 {
 	return put_user(me->clear_child_tid, tid_addr);
 }
-
-#else /* CONFIG_CHECKPOINT_RESTORE */
-static int prctl_set_mm(int opt, unsigned long addr,
-			unsigned long arg4, unsigned long arg5)
-{
-	return -EINVAL;
-}
+#else
 static int prctl_get_tid_address(struct task_struct *me, int __user **tid_addr)
 {
 	return -EINVAL;
@@ -2185,9 +2260,8 @@ SYSCALL_DEFINE3(getcpu, unsigned __user *, cpup, unsigned __user *, nodep,
 
 char poweroff_cmd[POWEROFF_CMD_PATH_LEN] = "/sbin/poweroff";
 
-static int __orderly_poweroff(void)
+static int __orderly_poweroff(bool force)
 {
-	int argc;
 	char **argv;
 	static char *envp[] = {
 		"HOME=/",
@@ -2196,35 +2270,19 @@ static int __orderly_poweroff(void)
 	};
 	int ret;
 
-	argv = argv_split(GFP_ATOMIC, poweroff_cmd, &argc);
-	if (argv == NULL) {
+	argv = argv_split(GFP_KERNEL, poweroff_cmd, NULL);
+	if (argv) {
+		ret = call_usermodehelper(argv[0], argv, envp, UMH_WAIT_EXEC);
+		argv_free(argv);
+	} else {
 		printk(KERN_WARNING "%s failed to allocate memory for \"%s\"\n",
-		       __func__, poweroff_cmd);
-		return -ENOMEM;
+					 __func__, poweroff_cmd);
+		ret = -ENOMEM;
 	}
-
-	ret = call_usermodehelper_fns(argv[0], argv, envp, UMH_WAIT_EXEC,
-				      NULL, NULL, NULL);
-	argv_free(argv);
-
-	return ret;
-}
-
-/**
- * orderly_poweroff - Trigger an orderly system poweroff
- * @force: force poweroff if command execution fails
- *
- * This may be called from any context to trigger a system shutdown.
- * If the orderly shutdown fails, it will force an immediate shutdown.
- */
-int orderly_poweroff(bool force)
-{
-	int ret = __orderly_poweroff();
 
 	if (ret && force) {
 		printk(KERN_WARNING "Failed to start orderly shutdown: "
-		       "forcing the issue\n");
-
+					"forcing the issue\n");
 		/*
 		 * I guess this should try to kick off some daemon to sync and
 		 * poweroff asap.  Or not even bother syncing if we're doing an
@@ -2236,4 +2294,173 @@ int orderly_poweroff(bool force)
 
 	return ret;
 }
+
+static bool poweroff_force;
+
+static void poweroff_work_func(struct work_struct *work)
+{
+	__orderly_poweroff(poweroff_force);
+}
+
+static DECLARE_WORK(poweroff_work, poweroff_work_func);
+
+/**
+ * orderly_poweroff - Trigger an orderly system poweroff
+ * @force: force poweroff if command execution fails
+ *
+ * This may be called from any context to trigger a system shutdown.
+ * If the orderly shutdown fails, it will force an immediate shutdown.
+ */
+int orderly_poweroff(bool force)
+{
+	if (force) /* do not override the pending "true" */
+		poweroff_force = true;
+	schedule_work(&poweroff_work);
+	return 0;
+}
 EXPORT_SYMBOL_GPL(orderly_poweroff);
+
+/**
+ * do_sysinfo - fill in sysinfo struct
+ * @info: pointer to buffer to fill
+ */
+static int do_sysinfo(struct sysinfo *info)
+{
+	unsigned long mem_total, sav_total;
+	unsigned int mem_unit, bitcount;
+	struct timespec tp;
+
+	memset(info, 0, sizeof(struct sysinfo));
+
+	ktime_get_ts(&tp);
+	monotonic_to_bootbased(&tp);
+	info->uptime = tp.tv_sec + (tp.tv_nsec ? 1 : 0);
+
+	get_avenrun(info->loads, 0, SI_LOAD_SHIFT - FSHIFT);
+
+	info->procs = nr_threads;
+
+	si_meminfo(info);
+	si_swapinfo(info);
+
+	/*
+	 * If the sum of all the available memory (i.e. ram + swap)
+	 * is less than can be stored in a 32 bit unsigned long then
+	 * we can be binary compatible with 2.2.x kernels.  If not,
+	 * well, in that case 2.2.x was broken anyways...
+	 *
+	 *  -Erik Andersen <andersee@debian.org>
+	 */
+
+	mem_total = info->totalram + info->totalswap;
+	if (mem_total < info->totalram || mem_total < info->totalswap)
+		goto out;
+	bitcount = 0;
+	mem_unit = info->mem_unit;
+	while (mem_unit > 1) {
+		bitcount++;
+		mem_unit >>= 1;
+		sav_total = mem_total;
+		mem_total <<= 1;
+		if (mem_total < sav_total)
+			goto out;
+	}
+
+	/*
+	 * If mem_total did not overflow, multiply all memory values by
+	 * info->mem_unit and set it to 1.  This leaves things compatible
+	 * with 2.2.x, and also retains compatibility with earlier 2.4.x
+	 * kernels...
+	 */
+
+	info->mem_unit = 1;
+	info->totalram <<= bitcount;
+	info->freeram <<= bitcount;
+	info->sharedram <<= bitcount;
+	info->bufferram <<= bitcount;
+	info->totalswap <<= bitcount;
+	info->freeswap <<= bitcount;
+	info->totalhigh <<= bitcount;
+	info->freehigh <<= bitcount;
+
+out:
+	return 0;
+}
+
+SYSCALL_DEFINE1(sysinfo, struct sysinfo __user *, info)
+{
+	struct sysinfo val;
+
+	do_sysinfo(&val);
+
+	if (copy_to_user(info, &val, sizeof(struct sysinfo)))
+		return -EFAULT;
+
+	return 0;
+}
+
+#ifdef CONFIG_COMPAT
+struct compat_sysinfo {
+	s32 uptime;
+	u32 loads[3];
+	u32 totalram;
+	u32 freeram;
+	u32 sharedram;
+	u32 bufferram;
+	u32 totalswap;
+	u32 freeswap;
+	u16 procs;
+	u16 pad;
+	u32 totalhigh;
+	u32 freehigh;
+	u32 mem_unit;
+	char _f[20-2*sizeof(u32)-sizeof(int)];
+};
+
+COMPAT_SYSCALL_DEFINE1(sysinfo, struct compat_sysinfo __user *, info)
+{
+	struct sysinfo s;
+
+	do_sysinfo(&s);
+
+	/* Check to see if any memory value is too large for 32-bit and scale
+	 *  down if needed
+	 */
+	if ((s.totalram >> 32) || (s.totalswap >> 32)) {
+		int bitcount = 0;
+
+		while (s.mem_unit < PAGE_SIZE) {
+			s.mem_unit <<= 1;
+			bitcount++;
+		}
+
+		s.totalram >>= bitcount;
+		s.freeram >>= bitcount;
+		s.sharedram >>= bitcount;
+		s.bufferram >>= bitcount;
+		s.totalswap >>= bitcount;
+		s.freeswap >>= bitcount;
+		s.totalhigh >>= bitcount;
+		s.freehigh >>= bitcount;
+	}
+
+	if (!access_ok(VERIFY_WRITE, info, sizeof(struct compat_sysinfo)) ||
+	    __put_user(s.uptime, &info->uptime) ||
+	    __put_user(s.loads[0], &info->loads[0]) ||
+	    __put_user(s.loads[1], &info->loads[1]) ||
+	    __put_user(s.loads[2], &info->loads[2]) ||
+	    __put_user(s.totalram, &info->totalram) ||
+	    __put_user(s.freeram, &info->freeram) ||
+	    __put_user(s.sharedram, &info->sharedram) ||
+	    __put_user(s.bufferram, &info->bufferram) ||
+	    __put_user(s.totalswap, &info->totalswap) ||
+	    __put_user(s.freeswap, &info->freeswap) ||
+	    __put_user(s.procs, &info->procs) ||
+	    __put_user(s.totalhigh, &info->totalhigh) ||
+	    __put_user(s.freehigh, &info->freehigh) ||
+	    __put_user(s.mem_unit, &info->mem_unit))
+		return -EFAULT;
+
+	return 0;
+}
+#endif /* CONFIG_COMPAT */

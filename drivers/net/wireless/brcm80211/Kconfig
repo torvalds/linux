@@ -12,8 +12,9 @@ config BRCMSMAC
 	select CORDIC
 	---help---
 	  This module adds support for PCIe wireless adapters based on Broadcom
-	  IEEE802.11n SoftMAC chipsets.  If you choose to build a module, it'll
-	  be called brcmsmac.ko.
+	  IEEE802.11n SoftMAC chipsets. It also has WLAN led support, which will
+	  be available if you select BCMA_DRIVER_GPIO. If you choose to build a
+	  module, the driver will be called brcmsmac.ko.
 
 config BRCMFMAC
 	tristate "Broadcom IEEE802.11n embedded FullMAC WLAN driver"
@@ -35,15 +36,6 @@ config BRCMFMAC_SDIO
 	  This option enables the SDIO bus interface support for Broadcom
 	  IEEE802.11n embedded FullMAC WLAN driver. Say Y if you want to
 	  use the driver for a SDIO wireless card.
-
-config BRCMFMAC_SDIO_OOB
-	bool "Out of band interrupt support for SDIO interface chipset"
-	depends on BRCMFMAC_SDIO
-	---help---
-	  This option enables out-of-band interrupt support for Broadcom
-	  SDIO Wifi chipset using fullmac in order to gain better
-	  performance and deep sleep wake up capability on certain
-	  platforms. Say N if you are unsure.
 
 config BRCMFMAC_USB
 	bool "USB bus interface support for FullMAC driver"

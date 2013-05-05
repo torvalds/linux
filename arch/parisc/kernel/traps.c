@@ -126,6 +126,8 @@ void show_regs(struct pt_regs *regs)
 	user = user_mode(regs);
 	level = user ? KERN_DEBUG : KERN_CRIT;
 
+	show_regs_print_info(level);
+
 	print_gr(level, regs);
 
 	for (i = 0; i < 8; i += 4)
@@ -157,14 +159,6 @@ void show_regs(struct pt_regs *regs)
 		parisc_show_stack(current, NULL, regs);
 	}
 }
-
-
-void dump_stack(void)
-{
-	show_stack(NULL, NULL);
-}
-
-EXPORT_SYMBOL(dump_stack);
 
 static void do_show_stack(struct unwind_frame_info *info)
 {

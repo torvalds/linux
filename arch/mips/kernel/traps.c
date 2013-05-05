@@ -206,19 +206,6 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 	show_stacktrace(task, &regs);
 }
 
-/*
- * The architecture-independent dump_stack generator
- */
-void dump_stack(void)
-{
-	struct pt_regs regs;
-
-	prepare_frametrace(&regs);
-	show_backtrace(current, &regs);
-}
-
-EXPORT_SYMBOL(dump_stack);
-
 static void show_code(unsigned int __user *pc)
 {
 	long i;
@@ -244,7 +231,7 @@ static void __show_regs(const struct pt_regs *regs)
 	unsigned int cause = regs->cp0_cause;
 	int i;
 
-	printk("Cpu %d\n", smp_processor_id());
+	show_regs_print_info(KERN_DEFAULT);
 
 	/*
 	 * Saved main processor registers
@@ -1571,7 +1558,7 @@ void __cpuinit per_cpu_trap_init(bool is_boot_cpu)
 #ifdef CONFIG_64BIT
 	status_set |= ST0_FR|ST0_KX|ST0_SX|ST0_UX;
 #endif
-	if (current_cpu_data.isa_level == MIPS_CPU_ISA_IV)
+	if (current_cpu_data.isa_level & MIPS_CPU_ISA_IV)
 		status_set |= ST0_XX;
 	if (cpu_has_dsp)
 		status_set |= ST0_MX;

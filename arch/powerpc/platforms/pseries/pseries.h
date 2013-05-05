@@ -19,7 +19,10 @@ extern void request_event_sources_irqs(struct device_node *np,
 
 #include <linux/of.h>
 
-extern void __init fw_feature_init(const char *hypertas, unsigned long len);
+extern void __init fw_hypertas_feature_init(const char *hypertas,
+					    unsigned long len);
+extern void __init fw_vec5_feature_init(const char *hypertas,
+					unsigned long len);
 
 struct pt_regs;
 

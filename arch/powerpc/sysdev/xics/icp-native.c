@@ -81,7 +81,7 @@ static void icp_native_set_cpu_priority(unsigned char cppr)
 	iosync();
 }
 
-static void icp_native_eoi(struct irq_data *d)
+void icp_native_eoi(struct irq_data *d)
 {
 	unsigned int hw_irq = (unsigned int)irqd_to_hwirq(d);
 

@@ -86,7 +86,7 @@ static int stv_sndctrl(struct gspca_dev *gspca_dev, int set, u8 req, u16 val,
 static int stv0680_handle_error(struct gspca_dev *gspca_dev, int ret)
 {
 	stv_sndctrl(gspca_dev, 0, 0x80, 0, 0x02); /* Get Last Error */
-	PDEBUG(D_ERR, "last error: %i,  command = 0x%x",
+	PERR("last error: %i,  command = 0x%x",
 	       gspca_dev->usb_buf[0], gspca_dev->usb_buf[1]);
 	return ret;
 }
@@ -98,7 +98,7 @@ static int stv0680_get_video_mode(struct gspca_dev *gspca_dev)
 	gspca_dev->usb_buf[0] = 0x0f;
 
 	if (stv_sndctrl(gspca_dev, 0, 0x87, 0, 0x08) != 0x08) {
-		PDEBUG(D_ERR, "Get_Camera_Mode failed");
+		PERR("Get_Camera_Mode failed");
 		return stv0680_handle_error(gspca_dev, -EIO);
 	}
 
@@ -116,13 +116,13 @@ static int stv0680_set_video_mode(struct gspca_dev *gspca_dev, u8 mode)
 	gspca_dev->usb_buf[0] = mode;
 
 	if (stv_sndctrl(gspca_dev, 3, 0x07, 0x0100, 0x08) != 0x08) {
-		PDEBUG(D_ERR, "Set_Camera_Mode failed");
+		PERR("Set_Camera_Mode failed");
 		return stv0680_handle_error(gspca_dev, -EIO);
 	}
 
 	/* Verify we got what we've asked for */
 	if (stv0680_get_video_mode(gspca_dev) != mode) {
-		PDEBUG(D_ERR, "Error setting camera video mode!");
+		PERR("Error setting camera video mode!");
 		return -EIO;
 	}
 
@@ -146,7 +146,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	/* ping camera to be sure STV0680 is present */
 	if (stv_sndctrl(gspca_dev, 0, 0x88, 0x5678, 0x02) != 0x02 ||
 	    gspca_dev->usb_buf[0] != 0x56 || gspca_dev->usb_buf[1] != 0x78) {
-		PDEBUG(D_ERR, "STV(e): camera ping failed!!");
+		PERR("STV(e): camera ping failed!!");
 		return stv0680_handle_error(gspca_dev, -ENODEV);
 	}
 
@@ -156,7 +156,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	if (stv_sndctrl(gspca_dev, 2, 0x06, 0x0200, 0x22) != 0x22 ||
 	    gspca_dev->usb_buf[7] != 0xa0 || gspca_dev->usb_buf[8] != 0x23) {
-		PDEBUG(D_ERR, "Could not get descriptor 0200.");
+		PERR("Could not get descriptor 0200.");
 		return stv0680_handle_error(gspca_dev, -ENODEV);
 	}
 	if (stv_sndctrl(gspca_dev, 0, 0x8a, 0, 0x02) != 0x02)
@@ -167,7 +167,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		return stv0680_handle_error(gspca_dev, -ENODEV);
 
 	if (!(gspca_dev->usb_buf[7] & 0x09)) {
-		PDEBUG(D_ERR, "Camera supports neither CIF nor QVGA mode");
+		PERR("Camera supports neither CIF nor QVGA mode");
 		return -ENODEV;
 	}
 	if (gspca_dev->usb_buf[7] & 0x01)

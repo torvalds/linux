@@ -239,17 +239,15 @@ static int da9052_rtc_probe(struct platform_device *pdev)
 
 	rtc->da9052 = dev_get_drvdata(pdev->dev.parent);
 	platform_set_drvdata(pdev, rtc);
-	rtc->irq = platform_get_irq_byname(pdev, "ALM");
-	ret = devm_request_threaded_irq(&pdev->dev, rtc->irq, NULL,
-				da9052_rtc_irq,
-				IRQF_TRIGGER_LOW | IRQF_ONESHOT,
-				"ALM", rtc);
+	rtc->irq =  DA9052_IRQ_ALARM;
+	ret = da9052_request_irq(rtc->da9052, rtc->irq, "ALM",
+				da9052_rtc_irq, rtc);
 	if (ret != 0) {
 		rtc_err(rtc->da9052, "irq registration failed: %d\n", ret);
 		return ret;
 	}
 
-	rtc->rtc = rtc_device_register(pdev->name, &pdev->dev,
+	rtc->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
 				       &da9052_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc->rtc))
 		return PTR_ERR(rtc->rtc);
@@ -259,9 +257,6 @@ static int da9052_rtc_probe(struct platform_device *pdev)
 
 static int da9052_rtc_remove(struct platform_device *pdev)
 {
-	struct da9052_rtc *rtc = pdev->dev.platform_data;
-
-	rtc_device_unregister(rtc->rtc);
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;

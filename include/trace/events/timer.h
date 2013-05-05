@@ -123,7 +123,7 @@ DEFINE_EVENT(timer_class, timer_cancel,
 
 /**
  * hrtimer_init - called when the hrtimer is initialized
- * @timer:	pointer to struct hrtimer
+ * @hrtimer:	pointer to struct hrtimer
  * @clockid:	the hrtimers clock
  * @mode:	the hrtimers mode
  */
@@ -155,7 +155,7 @@ TRACE_EVENT(hrtimer_init,
 
 /**
  * hrtimer_start - called when the hrtimer is started
- * @timer: pointer to struct hrtimer
+ * @hrtimer: pointer to struct hrtimer
  */
 TRACE_EVENT(hrtimer_start,
 
@@ -186,8 +186,8 @@ TRACE_EVENT(hrtimer_start,
 );
 
 /**
- * htimmer_expire_entry - called immediately before the hrtimer callback
- * @timer:	pointer to struct hrtimer
+ * hrtimer_expire_entry - called immediately before the hrtimer callback
+ * @hrtimer:	pointer to struct hrtimer
  * @now:	pointer to variable which contains current time of the
  *		timers base.
  *
@@ -234,7 +234,7 @@ DECLARE_EVENT_CLASS(hrtimer_class,
 
 /**
  * hrtimer_expire_exit - called immediately after the hrtimer callback returns
- * @timer:	pointer to struct hrtimer
+ * @hrtimer:	pointer to struct hrtimer
  *
  * When used in combination with the hrtimer_expire_entry tracepoint we can
  * determine the runtime of the callback function.

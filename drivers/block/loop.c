@@ -230,9 +230,11 @@ static int __do_lo_send_write(struct file *file,
 	ssize_t bw;
 	mm_segment_t old_fs = get_fs();
 
+	file_start_write(file);
 	set_fs(get_ds());
 	bw = file->f_op->write(file, buf, len, &pos);
 	set_fs(old_fs);
+	file_end_write(file);
 	if (likely(bw == len))
 		return 0;
 	printk(KERN_ERR "loop: Write error at byte offset %llu, length %i.\n",
@@ -922,6 +924,11 @@ static int loop_set_fd(struct loop_device *lo, fmode_t mode,
 		lo->lo_flags |= LO_FLAGS_PARTSCAN;
 	if (lo->lo_flags & LO_FLAGS_PARTSCAN)
 		ioctl_by_bdev(bdev, BLKRRPART, 0);
+
+	/* Grab the block_device to prevent its destruction after we
+	 * put /dev/loopXX inode. Later in loop_clr_fd() we bdput(bdev).
+	 */
+	bdgrab(bdev);
 	return 0;
 
 out_clr:
@@ -1031,8 +1038,10 @@ static int loop_clr_fd(struct loop_device *lo)
 	memset(lo->lo_encrypt_key, 0, LO_KEY_SIZE);
 	memset(lo->lo_crypt_name, 0, LO_NAME_SIZE);
 	memset(lo->lo_file_name, 0, LO_NAME_SIZE);
-	if (bdev)
+	if (bdev) {
+		bdput(bdev);
 		invalidate_bdev(bdev);
+	}
 	set_capacity(lo->lo_disk, 0);
 	loop_sysfs_exit(lo);
 	if (bdev) {
@@ -1623,6 +1632,7 @@ static int loop_add(struct loop_device **l, int i)
 		goto out_free_dev;
 	i = err;
 
+	err = -ENOMEM;
 	lo->lo_queue = blk_alloc_queue(GFP_KERNEL);
 	if (!lo->lo_queue)
 		goto out_free_dev;

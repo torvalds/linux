@@ -24,6 +24,8 @@
 #ifndef __ALTERA_CI_H
 #define __ALTERA_CI_H
 
+#include <linux/kconfig.h>
+
 #define ALT_DATA	0x000000ff
 #define ALT_TDI		0x00008000
 #define ALT_TDO		0x00004000
@@ -41,8 +43,7 @@ struct altera_ci_config {
 	int (*fpga_rw) (void *dev, int ad_rg, int val, int rw);
 };
 
-#if defined(CONFIG_MEDIA_ALTERA_CI) || (defined(CONFIG_MEDIA_ALTERA_CI_MODULE) \
-							&& defined(MODULE))
+#if IS_ENABLED(CONFIG_MEDIA_ALTERA_CI)
 
 extern int altera_ci_init(struct altera_ci_config *config, int ci_nr);
 extern void altera_ci_release(void *dev, int ci_nr);

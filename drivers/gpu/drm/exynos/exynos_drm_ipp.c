@@ -47,6 +47,9 @@
 #define get_ipp_context(dev)	platform_get_drvdata(to_platform_device(dev))
 #define ipp_is_m2m_cmd(c)	(c == IPP_CMD_M2M)
 
+/* platform device pointer for ipp device. */
+static struct platform_device *exynos_drm_ipp_pdev;
+
 /*
  * A structure of event.
  *
@@ -101,6 +104,30 @@ struct ipp_context {
 static LIST_HEAD(exynos_drm_ippdrv_list);
 static DEFINE_MUTEX(exynos_drm_ippdrv_lock);
 static BLOCKING_NOTIFIER_HEAD(exynos_drm_ippnb_list);
+
+int exynos_platform_device_ipp_register(void)
+{
+	struct platform_device *pdev;
+
+	if (exynos_drm_ipp_pdev)
+		return -EEXIST;
+
+	pdev = platform_device_register_simple("exynos-drm-ipp", -1, NULL, 0);
+	if (IS_ERR(pdev))
+		return PTR_ERR(pdev);
+
+	exynos_drm_ipp_pdev = pdev;
+
+	return 0;
+}
+
+void exynos_platform_device_ipp_unregister(void)
+{
+	if (exynos_drm_ipp_pdev) {
+		platform_device_unregister(exynos_drm_ipp_pdev);
+		exynos_drm_ipp_pdev = NULL;
+	}
+}
 
 int exynos_drm_ippdrv_register(struct exynos_drm_ippdrv *ippdrv)
 {

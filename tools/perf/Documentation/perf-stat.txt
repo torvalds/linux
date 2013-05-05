@@ -52,7 +52,7 @@ OPTIONS
 
 -r::
 --repeat=<n>::
-	repeat command and print average + stddev (max: 100)
+	repeat command and print average + stddev (max: 100). 0 means forever.
 
 -B::
 --big-num::
@@ -119,12 +119,18 @@ perf stat --repeat 10 --null --sync --pre 'make -s O=defconfig-build/clean' -- m
 	Print count deltas every N milliseconds (minimum: 100ms)
 	example: perf stat -I 1000 -e cycles -a sleep 5
 
---aggr-socket::
+--per-socket::
 Aggregate counts per processor socket for system-wide mode measurements.  This
 is a useful mode to detect imbalance between sockets.  To enable this mode,
-use --aggr-socket in addition to -a. (system-wide).  The output includes the
+use --per-socket in addition to -a. (system-wide).  The output includes the
 socket number and the number of online processors on that socket. This is
 useful to gauge the amount of aggregation.
+
+--per-core::
+Aggregate counts per physical processor for system-wide mode measurements.  This
+is a useful mode to detect imbalance between physical cores.  To enable this mode,
+use --per-core in addition to -a. (system-wide).  The output includes the
+core number and the number of online logical processors on that physical processor.
 
 EXAMPLES
 --------

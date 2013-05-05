@@ -98,17 +98,21 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info * info)
 	info->return_object = NULL;
 	info->param_count = 0;
 
-	/*
-	 * Get the actual namespace node for the target object. Handles these cases:
-	 *
-	 * 1) Null node, Pathname (absolute path)
-	 * 2) Node, Pathname (path relative to Node)
-	 * 3) Node, Null Pathname
-	 */
-	status = acpi_ns_get_node(info->prefix_node, info->pathname,
-				  ACPI_NS_NO_UPSEARCH, &info->resolved_node);
-	if (ACPI_FAILURE(status)) {
-		return_ACPI_STATUS(status);
+	if (!info->resolved_node) {
+		/*
+		 * Get the actual namespace node for the target object if we need to.
+		 * Handles these cases:
+		 *
+		 * 1) Null node, Pathname (absolute path)
+		 * 2) Node, Pathname (path relative to Node)
+		 * 3) Node, Null Pathname
+		 */
+		status = acpi_ns_get_node(info->prefix_node, info->pathname,
+					  ACPI_NS_NO_UPSEARCH,
+					  &info->resolved_node);
+		if (ACPI_FAILURE(status)) {
+			return_ACPI_STATUS(status);
+		}
 	}
 
 	/*

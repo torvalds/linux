@@ -17,7 +17,6 @@
 #include <linux/pci.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
-#include <linux/pm_qos.h>
 #include <scsi/scsi_device.h>
 #include "libata.h"
 
@@ -61,7 +60,8 @@ acpi_handle ata_ap_acpi_handle(struct ata_port *ap)
 	if (ap->flags & ATA_FLAG_ACPI_SATA)
 		return NULL;
 
-	return acpi_get_child(DEVICE_ACPI_HANDLE(ap->host->dev), ap->port_no);
+	return ap->scsi_host ?
+		DEVICE_ACPI_HANDLE(&ap->scsi_host->shost_gendev) : NULL;
 }
 EXPORT_SYMBOL(ata_ap_acpi_handle);
 
@@ -77,7 +77,7 @@ acpi_handle ata_dev_acpi_handle(struct ata_device *dev)
 	acpi_integer adr;
 	struct ata_port *ap = dev->link->ap;
 
-	if (dev->flags & ATA_DFLAG_ACPI_DISABLED)
+	if (libata_noacpi || dev->flags & ATA_DFLAG_ACPI_DISABLED)
 		return NULL;
 
 	if (ap->flags & ATA_FLAG_ACPI_SATA) {
@@ -240,28 +240,15 @@ void ata_acpi_dissociate(struct ata_host *host)
 	}
 }
 
-/**
- * ata_acpi_gtm - execute _GTM
- * @ap: target ATA port
- * @gtm: out parameter for _GTM result
- *
- * Evaluate _GTM and store the result in @gtm.
- *
- * LOCKING:
- * EH context.
- *
- * RETURNS:
- * 0 on success, -ENOENT if _GTM doesn't exist, -errno on failure.
- */
-int ata_acpi_gtm(struct ata_port *ap, struct ata_acpi_gtm *gtm)
+static int __ata_acpi_gtm(struct ata_port *ap, acpi_handle handle,
+			  struct ata_acpi_gtm *gtm)
 {
 	struct acpi_buffer output = { .length = ACPI_ALLOCATE_BUFFER };
 	union acpi_object *out_obj;
 	acpi_status status;
 	int rc = 0;
 
-	status = acpi_evaluate_object(ata_ap_acpi_handle(ap), "_GTM", NULL,
-				      &output);
+	status = acpi_evaluate_object(handle, "_GTM", NULL, &output);
 
 	rc = -ENOENT;
 	if (status == AE_NOT_FOUND)
@@ -293,6 +280,27 @@ int ata_acpi_gtm(struct ata_port *ap, struct ata_acpi_gtm *gtm)
  out_free:
 	kfree(output.pointer);
 	return rc;
+}
+
+/**
+ * ata_acpi_gtm - execute _GTM
+ * @ap: target ATA port
+ * @gtm: out parameter for _GTM result
+ *
+ * Evaluate _GTM and store the result in @gtm.
+ *
+ * LOCKING:
+ * EH context.
+ *
+ * RETURNS:
+ * 0 on success, -ENOENT if _GTM doesn't exist, -errno on failure.
+ */
+int ata_acpi_gtm(struct ata_port *ap, struct ata_acpi_gtm *gtm)
+{
+	if (ata_ap_acpi_handle(ap))
+		return __ata_acpi_gtm(ap, ata_ap_acpi_handle(ap), gtm);
+	else
+		return -EINVAL;
 }
 
 EXPORT_SYMBOL_GPL(ata_acpi_gtm);
@@ -1020,38 +1028,6 @@ void ata_acpi_on_disable(struct ata_device *dev)
 	ata_acpi_clear_gtf(dev);
 }
 
-static void ata_acpi_register_power_resource(struct ata_device *dev)
-{
-	struct scsi_device *sdev = dev->sdev;
-	acpi_handle handle;
-
-	handle = ata_dev_acpi_handle(dev);
-	if (handle)
-		acpi_dev_pm_remove_dependent(handle, &sdev->sdev_gendev);
-}
-
-static void ata_acpi_unregister_power_resource(struct ata_device *dev)
-{
-	struct scsi_device *sdev = dev->sdev;
-	acpi_handle handle;
-
-	handle = ata_dev_acpi_handle(dev);
-	if (handle)
-		acpi_dev_pm_remove_dependent(handle, &sdev->sdev_gendev);
-}
-
-void ata_acpi_bind(struct ata_device *dev)
-{
-	ata_acpi_register_power_resource(dev);
-	if (zpodd_dev_enabled(dev))
-		dev_pm_qos_expose_flags(&dev->sdev->sdev_gendev, 0);
-}
-
-void ata_acpi_unbind(struct ata_device *dev)
-{
-	ata_acpi_unregister_power_resource(dev);
-}
-
 static int compat_pci_ata(struct ata_port *ap)
 {
 	struct device *dev = ap->tdev.parent;
@@ -1071,7 +1047,7 @@ static int compat_pci_ata(struct ata_port *ap)
 
 static int ata_acpi_bind_host(struct ata_port *ap, acpi_handle *handle)
 {
-	if (ap->flags & ATA_FLAG_ACPI_SATA)
+	if (libata_noacpi || ap->flags & ATA_FLAG_ACPI_SATA)
 		return -ENODEV;
 
 	*handle = acpi_get_child(DEVICE_ACPI_HANDLE(ap->tdev.parent),
@@ -1080,7 +1056,7 @@ static int ata_acpi_bind_host(struct ata_port *ap, acpi_handle *handle)
 	if (!*handle)
 		return -ENODEV;
 
-	if (ata_acpi_gtm(ap, &ap->__acpi_init_gtm) == 0)
+	if (__ata_acpi_gtm(ap, *handle, &ap->__acpi_init_gtm) == 0)
 		ap->pflags |= ATA_PFLAG_INIT_GTM_VALID;
 
 	return 0;

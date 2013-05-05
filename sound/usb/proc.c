@@ -73,20 +73,19 @@ void snd_usb_audio_create_proc(struct snd_usb_audio *chip)
  */
 static void proc_dump_substream_formats(struct snd_usb_substream *subs, struct snd_info_buffer *buffer)
 {
-	struct list_head *p;
+	struct audioformat *fp;
 	static char *sync_types[4] = {
 		"NONE", "ASYNC", "ADAPTIVE", "SYNC"
 	};
 
-	list_for_each(p, &subs->fmt_list) {
-		struct audioformat *fp;
+	list_for_each_entry(fp, &subs->fmt_list, list) {
 		snd_pcm_format_t fmt;
-		fp = list_entry(p, struct audioformat, list);
+
 		snd_iprintf(buffer, "  Interface %d\n", fp->iface);
 		snd_iprintf(buffer, "    Altset %d\n", fp->altsetting);
 		snd_iprintf(buffer, "    Format:");
 		for (fmt = 0; fmt <= SNDRV_PCM_FORMAT_LAST; ++fmt)
-			if (fp->formats & (1uLL << fmt))
+			if (fp->formats & pcm_format_to_bits(fmt))
 				snd_iprintf(buffer, " %s",
 					    snd_pcm_format_name(fmt));
 		snd_iprintf(buffer, "\n");

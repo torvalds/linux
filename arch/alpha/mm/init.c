@@ -31,6 +31,7 @@
 #include <asm/console.h>
 #include <asm/tlb.h>
 #include <asm/setup.h>
+#include <asm/sections.h>
 
 extern void die_if_kernel(char *,struct pt_regs *,long);
 
@@ -281,8 +282,6 @@ printk_memory_info(void)
 {
 	unsigned long codesize, reservedpages, datasize, initsize, tmp;
 	extern int page_is_ram(unsigned long) __init;
-	extern char _text, _etext, _data, _edata;
-	extern char __init_begin, __init_end;
 
 	/* printk all informations */
 	reservedpages = 0;
@@ -318,32 +317,15 @@ mem_init(void)
 #endif /* CONFIG_DISCONTIGMEM */
 
 void
-free_reserved_mem(void *start, void *end)
-{
-	void *__start = start;
-	for (; __start < end; __start += PAGE_SIZE) {
-		ClearPageReserved(virt_to_page(__start));
-		init_page_count(virt_to_page(__start));
-		free_page((long)__start);
-		totalram_pages++;
-	}
-}
-
-void
 free_initmem(void)
 {
-	extern char __init_begin, __init_end;
-
-	free_reserved_mem(&__init_begin, &__init_end);
-	printk ("Freeing unused kernel memory: %ldk freed\n",
-		(&__init_end - &__init_begin) >> 10);
+	free_initmem_default(0);
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
 void
 free_initrd_mem(unsigned long start, unsigned long end)
 {
-	free_reserved_mem((void *)start, (void *)end);
-	printk ("Freeing initrd memory: %ldk freed\n", (end - start) >> 10);
+	free_reserved_area(start, end, 0, "initrd");
 }
 #endif

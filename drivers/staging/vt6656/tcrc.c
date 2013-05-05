@@ -35,14 +35,8 @@
 
 #include "tcrc.h"
 
-/*---------------------  Static Definitions -------------------------*/
-
-/*---------------------  Static Classes  ----------------------------*/
-
-/*---------------------  Static Variables  --------------------------*/
-
 /* 32-bit CRC table */
-static const DWORD s_adwCrc32Table[256] = {
+static const u32 s_adwCrc32Table[256] = {
     0x00000000L, 0x77073096L, 0xEE0E612CL, 0x990951BAL,
     0x076DC419L, 0x706AF48FL, 0xE963A535L, 0x9E6495A3L,
     0x0EDB8832L, 0x79DCB8A4L, 0xE0D5E91EL, 0x97D2D988L,
@@ -109,13 +103,6 @@ static const DWORD s_adwCrc32Table[256] = {
     0xB40BBE37L, 0xC30C8EA1L, 0x5A05DF1BL, 0x2D02EF8DL
 };
 
-/*---------------------  Static Functions  --------------------------*/
-
-/*---------------------  Export Variables  --------------------------*/
-
-
-
-
 /*+
  *
  * Description:
@@ -132,20 +119,19 @@ static const DWORD s_adwCrc32Table[256] = {
  * Return Value: CRC-32
  *
 -*/
-DWORD CRCdwCrc32(PBYTE pbyData, unsigned int cbByte, DWORD dwCrcSeed)
+u32 CRCdwCrc32(u8 * pbyData, unsigned int cbByte, u32 dwCrcSeed)
 {
-	DWORD dwCrc;
+	u32 dwCrc;
 
 	dwCrc = dwCrcSeed;
 	while (cbByte--) {
-		dwCrc = s_adwCrc32Table[(BYTE)((dwCrc ^ (*pbyData)) & 0xFF)] ^
+		dwCrc = s_adwCrc32Table[(u8)((dwCrc ^ (*pbyData)) & 0xFF)] ^
 			(dwCrc >> 8);
 		pbyData++;
 	}
 
 	return dwCrc;
 }
-
 
 /*+
  *
@@ -165,11 +151,10 @@ DWORD CRCdwCrc32(PBYTE pbyData, unsigned int cbByte, DWORD dwCrcSeed)
  * Return Value: CRC-32
  *
 -*/
-DWORD CRCdwGetCrc32(PBYTE pbyData, unsigned int cbByte)
+u32 CRCdwGetCrc32(u8 * pbyData, unsigned int cbByte)
 {
     return ~CRCdwCrc32(pbyData, cbByte, 0xFFFFFFFFL);
 }
-
 
 /*+
  *
@@ -191,9 +176,8 @@ DWORD CRCdwGetCrc32(PBYTE pbyData, unsigned int cbByte)
  * Return Value: CRC-32
  *
 -*/
-DWORD CRCdwGetCrc32Ex(PBYTE pbyData, unsigned int cbByte, DWORD dwPreCRC)
+u32 CRCdwGetCrc32Ex(u8 * pbyData, unsigned int cbByte, u32 dwPreCRC)
 {
     return CRCdwCrc32(pbyData, cbByte, dwPreCRC);
 }
-
 

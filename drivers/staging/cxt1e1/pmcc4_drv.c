@@ -1545,6 +1545,7 @@ c4_get_iidinfo (ci_t * ci, struct sbe_iid_info * iip)
 
     np = dev->name;
     strncpy (iip->iname, np, CHNM_STRLEN - 1);
+    iip->iname[CHNM_STRLEN - 1] = '\0';
     return 0;
 }
 

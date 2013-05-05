@@ -426,8 +426,7 @@ static int max8660_remove(struct i2c_client *client)
 	int i;
 
 	for (i = 0; i < MAX8660_V_END; i++)
-		if (max8660->rdev[i])
-			regulator_unregister(max8660->rdev[i]);
+		regulator_unregister(max8660->rdev[i]);
 	return 0;
 }
 

@@ -565,7 +565,7 @@ static int proc_udc_show(struct seq_file *s, void *unused)
 
 static int proc_udc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, proc_udc_show, PDE(inode)->data);
+	return single_open(file, proc_udc_show, PDE_DATA(inode));
 }
 
 static const struct file_operations proc_ops = {
@@ -1469,23 +1469,7 @@ static void done(struct lpc32xx_ep *ep, struct lpc32xx_request *req, int status)
 		status = req->req.status;
 
 	if (ep->lep) {
-		enum dma_data_direction direction;
-
-		if (ep->is_in)
-			direction = DMA_TO_DEVICE;
-		else
-			direction = DMA_FROM_DEVICE;
-
-		if (req->mapped) {
-			dma_unmap_single(ep->udc->gadget.dev.parent,
-					req->req.dma, req->req.length,
-					direction);
-			req->req.dma = 0;
-			req->mapped = 0;
-		} else
-			dma_sync_single_for_cpu(ep->udc->gadget.dev.parent,
-						req->req.dma, req->req.length,
-						direction);
+		usb_gadget_unmap_request(&udc->gadget, &req->req, ep->is_in);
 
 		/* Free DDs */
 		udc_dd_free(udc, req->dd_desc_ptr);
@@ -1841,26 +1825,11 @@ static int lpc32xx_ep_queue(struct usb_ep *_ep,
 	}
 
 	if (ep->lep) {
-		enum dma_data_direction direction;
 		struct lpc32xx_usbd_dd_gad *dd;
 
-		/* Map DMA pointer */
-		if (ep->is_in)
-			direction = DMA_TO_DEVICE;
-		else
-			direction = DMA_FROM_DEVICE;
-
-		if (req->req.dma == 0) {
-			req->req.dma = dma_map_single(
-				ep->udc->gadget.dev.parent,
-				req->req.buf, req->req.length, direction);
-			req->mapped = 1;
-		} else {
-			dma_sync_single_for_device(
-				ep->udc->gadget.dev.parent, req->req.dma,
-				req->req.length, direction);
-			req->mapped = 0;
-		}
+		status = usb_gadget_map_request(&udc->gadget, _req, ep->is_in);
+		if (status)
+			return status;
 
 		/* For the request, build a list of DDs */
 		dd = udc_dd_alloc(udc);
@@ -2977,7 +2946,6 @@ static int lpc32xx_start(struct usb_gadget *gadget,
 	}
 
 	udc->driver = driver;
-	udc->gadget.dev.driver = &driver->driver;
 	udc->gadget.dev.of_node = udc->dev->of_node;
 	udc->enabled = 1;
 	udc->selfpowered = 1;
@@ -3026,7 +2994,6 @@ static int lpc32xx_stop(struct usb_gadget *gadget,
 	}
 
 	udc->enabled = 0;
-	udc->gadget.dev.driver = NULL;
 	udc->driver = NULL;
 
 	return 0;
@@ -3248,12 +3215,6 @@ static int __init lpc32xx_udc_probe(struct platform_device *pdev)
 	udc_disable(udc);
 	udc_reinit(udc);
 
-	retval = device_register(&udc->gadget.dev);
-	if (retval < 0) {
-		dev_err(udc->dev, "Device registration failure\n");
-		goto dev_register_fail;
-	}
-
 	/* Request IRQs - low and high priority USB device IRQs are routed to
 	 * the same handler, while the DMA interrupt is routed elsewhere */
 	retval = request_irq(udc->udp_irq[IRQ_USB_LP], lpc32xx_usb_lp_irq,
@@ -3320,8 +3281,6 @@ irq_dev_fail:
 irq_hp_fail:
 	free_irq(udc->udp_irq[IRQ_USB_LP], udc);
 irq_lp_fail:
-	device_unregister(&udc->gadget.dev);
-dev_register_fail:
 	dma_pool_destroy(udc->dd_cache);
 dma_alloc_fail:
 	dma_free_coherent(&pdev->dev, UDCA_BUFF_SIZE,
@@ -3375,8 +3334,6 @@ static int lpc32xx_udc_remove(struct platform_device *pdev)
 	free_irq(udc->udp_irq[IRQ_USB_DEVDMA], udc);
 	free_irq(udc->udp_irq[IRQ_USB_HP], udc);
 	free_irq(udc->udp_irq[IRQ_USB_LP], udc);
-
-	device_unregister(&udc->gadget.dev);
 
 	clk_disable(udc->usb_otg_clk);
 	clk_put(udc->usb_otg_clk);

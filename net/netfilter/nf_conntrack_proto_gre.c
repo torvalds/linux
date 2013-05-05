@@ -21,6 +21,7 @@
  *
  * Development of this code funded by Astaro AG (http://www.astaro.com/)
  *
+ * (C) 2006-2012 Patrick McHardy <kaber@trash.net>
  */
 
 #include <linux/module.h>
@@ -420,18 +421,18 @@ static int __init nf_ct_proto_gre_init(void)
 {
 	int ret;
 
-	ret = nf_ct_l4proto_register(&nf_conntrack_l4proto_gre4);
-	if (ret < 0)
-		goto out_gre4;
-
 	ret = register_pernet_subsys(&proto_gre_net_ops);
 	if (ret < 0)
 		goto out_pernet;
 
+	ret = nf_ct_l4proto_register(&nf_conntrack_l4proto_gre4);
+	if (ret < 0)
+		goto out_gre4;
+
 	return 0;
-out_pernet:
-	nf_ct_l4proto_unregister(&nf_conntrack_l4proto_gre4);
 out_gre4:
+	unregister_pernet_subsys(&proto_gre_net_ops);
+out_pernet:
 	return ret;
 }
 

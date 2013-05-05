@@ -117,6 +117,17 @@ access2
 ambient
 	This contains the Smack label applied to unlabeled network
 	packets.
+change-rule
+	This interface allows modification of existing access control rules.
+	The format accepted on write is:
+		"%s %s %s %s"
+	where the first string is the subject label, the second the
+	object label, the third the access to allow and the fourth the
+	access to deny. The access strings may contain only the characters
+	"rwxat-". If a rule for a given subject and object exists it will be
+	modified by enabling the permissions in the third string and disabling
+	those in the fourth string. If there is no such rule it will be
+	created using the access specified in the third and the fourth strings.
 cipso
 	This interface allows a specific CIPSO header to be assigned
 	to a Smack label. The format accepted on write is:

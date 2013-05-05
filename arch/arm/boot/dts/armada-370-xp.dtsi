@@ -181,6 +181,51 @@
 			clocks = <&coreclk 0>;
 			status = "disabled";
 		};
+
+		devbus-bootcs@d0010400 {
+			compatible = "marvell,mvebu-devbus";
+			reg = <0xd0010400 0x8>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			clocks = <&coreclk 0>;
+			status = "disabled";
+		};
+
+		devbus-cs0@d0010408 {
+			compatible = "marvell,mvebu-devbus";
+			reg = <0xd0010408 0x8>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			clocks = <&coreclk 0>;
+			status = "disabled";
+		};
+
+		devbus-cs1@d0010410 {
+			compatible = "marvell,mvebu-devbus";
+			reg = <0xd0010410 0x8>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			clocks = <&coreclk 0>;
+			status = "disabled";
+		};
+
+		devbus-cs2@d0010418 {
+			compatible = "marvell,mvebu-devbus";
+			reg = <0xd0010418 0x8>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			clocks = <&coreclk 0>;
+			status = "disabled";
+		};
+
+		devbus-cs3@d0010420 {
+			compatible = "marvell,mvebu-devbus";
+			reg = <0xd0010420 0x8>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			clocks = <&coreclk 0>;
+			status = "disabled";
+		};
 	};
 };
 

@@ -167,6 +167,27 @@ of load evaluation and helping the CPU stay at its top speed when truly
 busy, rather than shifting back and forth in speed. This tunable has no
 effect on behavior at lower speeds/lower CPU loads.
 
+powersave_bias: this parameter takes a value between 0 to 1000. It
+defines the percentage (times 10) value of the target frequency that
+will be shaved off of the target. For example, when set to 100 -- 10%,
+when ondemand governor would have targeted 1000 MHz, it will target
+1000 MHz - (10% of 1000 MHz) = 900 MHz instead. This is set to 0
+(disabled) by default.
+When AMD frequency sensitivity powersave bias driver --
+drivers/cpufreq/amd_freq_sensitivity.c is loaded, this parameter
+defines the workload frequency sensitivity threshold in which a lower
+frequency is chosen instead of ondemand governor's original target.
+The frequency sensitivity is a hardware reported (on AMD Family 16h
+Processors and above) value between 0 to 100% that tells software how
+the performance of the workload running on a CPU will change when
+frequency changes. A workload with sensitivity of 0% (memory/IO-bound)
+will not perform any better on higher core frequency, whereas a
+workload with sensitivity of 100% (CPU-bound) will perform better
+higher the frequency. When the driver is loaded, this is set to 400
+by default -- for CPUs running workloads with sensitivity value below
+40%, a lower frequency is chosen. Unloading the driver or writing 0
+will disable this feature.
+
 
 2.5 Conservative
 ----------------
@@ -190,6 +211,12 @@ down_threshold: same as the 'up_threshold' found for the "ondemand"
 governor but for the opposite direction.  For example when set to its
 default value of '20' it means that if the CPU usage needs to be below
 20% between samples to have the frequency decreased.
+
+sampling_down_factor: similar functionality as in "ondemand" governor.
+But in "conservative", it controls the rate at which the kernel makes
+a decision on when to decrease the frequency while running in any
+speed. Load for frequency increase is still evaluated every
+sampling rate.
 
 3. The Governor Interface in the CPUfreq Core
 =============================================

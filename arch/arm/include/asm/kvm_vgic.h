@@ -21,7 +21,6 @@
 
 #include <linux/kernel.h>
 #include <linux/kvm.h>
-#include <linux/kvm_host.h>
 #include <linux/irqreturn.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>

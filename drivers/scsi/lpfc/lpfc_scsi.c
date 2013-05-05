@@ -732,7 +732,7 @@ lpfc_sli4_fcp_xri_aborted(struct lpfc_hba *phba,
 		psb = container_of(iocbq, struct lpfc_scsi_buf, cur_iocbq);
 		psb->exch_busy = 0;
 		spin_unlock_irqrestore(&phba->hbalock, iflag);
-		if (pring->txq_cnt)
+		if (!list_empty(&pring->txq))
 			lpfc_worker_wake_up(phba);
 		return;
 
@@ -885,9 +885,9 @@ lpfc_sli4_repost_scsi_sgl_list(struct lpfc_hba *phba)
 	int num_posted, rc = 0;
 
 	/* get all SCSI buffers need to repost to a local list */
-	spin_lock(&phba->scsi_buf_list_lock);
+	spin_lock_irq(&phba->scsi_buf_list_lock);
 	list_splice_init(&phba->lpfc_scsi_buf_list, &post_sblist);
-	spin_unlock(&phba->scsi_buf_list_lock);
+	spin_unlock_irq(&phba->scsi_buf_list_lock);
 
 	/* post the list of scsi buffer sgls to port if available */
 	if (!list_empty(&post_sblist)) {
@@ -4246,7 +4246,7 @@ static __inline__ void lpfc_poll_rearm_timer(struct lpfc_hba * phba)
 	unsigned long  poll_tmo_expires =
 		(jiffies + msecs_to_jiffies(phba->cfg_poll_tmo));
 
-	if (phba->sli.ring[LPFC_FCP_RING].txcmplq_cnt)
+	if (!list_empty(&phba->sli.ring[LPFC_FCP_RING].txcmplq))
 		mod_timer(&phba->fcp_poll_timer,
 			  poll_tmo_expires);
 }

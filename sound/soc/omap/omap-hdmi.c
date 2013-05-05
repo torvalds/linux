@@ -32,15 +32,16 @@
 #include <sound/soc.h>
 #include <sound/asound.h>
 #include <sound/asoundef.h>
+#include <sound/dmaengine_pcm.h>
 #include <video/omapdss.h>
 
-#include "omap-pcm.h"
 #include "omap-hdmi.h"
 
 #define DRV_NAME "omap-hdmi-audio-dai"
 
 struct hdmi_priv {
-	struct omap_pcm_dma_data dma_params;
+	struct snd_dmaengine_dai_dma_data dma_data;
+	unsigned int dma_req;
 	struct omap_dss_audio dss_audio;
 	struct snd_aes_iec958 iec;
 	struct snd_cea_861_aud_if cea;
@@ -68,7 +69,7 @@ static int omap_hdmi_dai_startup(struct snd_pcm_substream *substream,
 		return -ENODEV;
 	}
 
-	snd_soc_dai_set_dma_data(dai, substream, &priv->dma_params);
+	snd_soc_dai_set_dma_data(dai, substream, &priv->dma_data);
 
 	return 0;
 }
@@ -88,24 +89,19 @@ static int omap_hdmi_dai_hw_params(struct snd_pcm_substream *substream,
 	struct hdmi_priv *priv = snd_soc_dai_get_drvdata(dai);
 	struct snd_aes_iec958 *iec = &priv->iec;
 	struct snd_cea_861_aud_if *cea = &priv->cea;
-	struct omap_pcm_dma_data *dma_data;
 	int err = 0;
-
-	dma_data = snd_soc_dai_get_dma_data(dai, substream);
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
-		dma_data->packet_size = 16;
+		priv->dma_data.maxburst = 16;
 		break;
 	case SNDRV_PCM_FORMAT_S24_LE:
-		dma_data->packet_size = 32;
+		priv->dma_data.maxburst = 32;
 		break;
 	default:
 		dev_err(dai->dev, "format not supported!\n");
 		return -EINVAL;
 	}
-
-	dma_data->data_type = 32;
 
 	/*
 	 * fill the IEC-60958 channel status word
@@ -264,6 +260,10 @@ static struct snd_soc_dai_driver omap_hdmi_dai = {
 	.ops = &omap_hdmi_dai_ops,
 };
 
+static const struct snd_soc_component_driver omap_hdmi_component = {
+	.name		= DRV_NAME,
+};
+
 static int omap_hdmi_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -283,8 +283,7 @@ static int omap_hdmi_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	hdmi_data->dma_params.port_addr =  hdmi_rsrc->start
-		+ OMAP_HDMI_AUDIO_DMA_PORT;
+	hdmi_data->dma_data.addr = hdmi_rsrc->start + OMAP_HDMI_AUDIO_DMA_PORT;
 
 	hdmi_rsrc = platform_get_resource(pdev, IORESOURCE_DMA, 0);
 	if (!hdmi_rsrc) {
@@ -292,8 +291,9 @@ static int omap_hdmi_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	hdmi_data->dma_params.dma_req =  hdmi_rsrc->start;
-	hdmi_data->dma_params.name = "HDMI playback";
+	hdmi_data->dma_req = hdmi_rsrc->start;
+	hdmi_data->dma_data.filter_data = &hdmi_data->dma_req;
+	hdmi_data->dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 
 	/*
 	 * TODO: We assume that there is only one DSS HDMI device. Future
@@ -321,7 +321,8 @@ static int omap_hdmi_probe(struct platform_device *pdev)
 	}
 
 	dev_set_drvdata(&pdev->dev, hdmi_data);
-	ret = snd_soc_register_dai(&pdev->dev, &omap_hdmi_dai);
+	ret = snd_soc_register_component(&pdev->dev, &omap_hdmi_component,
+					 &omap_hdmi_dai, 1);
 
 	return ret;
 }
@@ -330,7 +331,7 @@ static int omap_hdmi_remove(struct platform_device *pdev)
 {
 	struct hdmi_priv *hdmi_data = dev_get_drvdata(&pdev->dev);
 
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 
 	if (hdmi_data == NULL) {
 		dev_err(&pdev->dev, "cannot obtain HDMi data\n");

@@ -124,6 +124,9 @@ int main(void)
 
 #ifdef CONFIG_PPC_BOOK3S_64
 	DEFINE(THREAD_TAR, offsetof(struct thread_struct, tar));
+	DEFINE(THREAD_BESCR, offsetof(struct thread_struct, bescr));
+	DEFINE(THREAD_EBBHR, offsetof(struct thread_struct, ebbhr));
+	DEFINE(THREAD_EBBRR, offsetof(struct thread_struct, ebbrr));
 #endif
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	DEFINE(PACATMSCRATCH, offsetof(struct paca_struct, tm_scratch));

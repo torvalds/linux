@@ -1,6 +1,8 @@
-#include <linux/proc_fs.h>
 #include <linux/sched.h>
 #include <linux/namei.h>
+#include <linux/slab.h>
+#include <linux/pid_namespace.h>
+#include "internal.h"
 
 /*
  * /proc/self:
@@ -48,12 +50,43 @@ static const struct inode_operations proc_self_inode_operations = {
 	.put_link	= proc_self_put_link,
 };
 
+static unsigned self_inum;
+
+int proc_setup_self(struct super_block *s)
+{
+	struct inode *root_inode = s->s_root->d_inode;
+	struct pid_namespace *ns = s->s_fs_info;
+	struct dentry *self;
+	
+	mutex_lock(&root_inode->i_mutex);
+	self = d_alloc_name(s->s_root, "self");
+	if (self) {
+		struct inode *inode = new_inode_pseudo(s);
+		if (inode) {
+			inode->i_ino = self_inum;
+			inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
+			inode->i_mode = S_IFLNK | S_IRWXUGO;
+			inode->i_uid = GLOBAL_ROOT_UID;
+			inode->i_gid = GLOBAL_ROOT_GID;
+			inode->i_op = &proc_self_inode_operations;
+			d_add(self, inode);
+		} else {
+			dput(self);
+			self = ERR_PTR(-ENOMEM);
+		}
+	} else {
+		self = ERR_PTR(-ENOMEM);
+	}
+	mutex_unlock(&root_inode->i_mutex);
+	if (IS_ERR(self)) {
+		pr_err("proc_fill_super: can't allocate /proc/self\n");
+		return PTR_ERR(self);
+	}
+	ns->proc_self = self;
+	return 0;
+}
+
 void __init proc_self_init(void)
 {
-	struct proc_dir_entry *proc_self_symlink;
-	mode_t mode;
-
-	mode = S_IFLNK | S_IRWXUGO;
-	proc_self_symlink = proc_create("self", mode, NULL, NULL );
-	proc_self_symlink->proc_iops = &proc_self_inode_operations;
+	proc_alloc_inum(&self_inum);
 }

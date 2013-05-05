@@ -2459,7 +2459,7 @@ static int hardware_enable(void *garbage)
 		ept_sync_global();
 	}
 
-	store_gdt(&__get_cpu_var(host_gdt));
+	native_store_gdt(&__get_cpu_var(host_gdt));
 
 	return 0;
 }

@@ -11,37 +11,13 @@
  */
 
 /dts-v1/;
-/include/ "imx6q.dtsi"
+
+#include "imx6q.dtsi"
+#include "imx6qdl-sabresd.dtsi"
 
 / {
-	model = "Freescale i.MX6Q SABRE Smart Device Board";
+	model = "Freescale i.MX6 Quad SABRE Smart Device Board";
 	compatible = "fsl,imx6q-sabresd", "fsl,imx6q";
-
-	memory {
-		reg = <0x10000000 0x40000000>;
-	};
-
-	gpio-keys {
-		compatible = "gpio-keys";
-
-		volume-up {
-			label = "Volume Up";
-			gpios = <&gpio1 4 0>;
-			linux,code = <115>; /* KEY_VOLUMEUP */
-		};
-
-		volume-down {
-			label = "Volume Down";
-			gpios = <&gpio1 5 0>;
-			linux,code = <114>; /* KEY_VOLUMEDOWN */
-		};
-	};
-};
-
-&uart1 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_uart1_1>;
-	status = "okay";
 };
 
 &iomuxc {
@@ -51,36 +27,13 @@
 	hog {
 		pinctrl_hog: hoggrp {
 			fsl,pins = <
-				1004 0x80000000 /* MX6Q_PAD_GPIO_4__GPIO_1_4 */
-				1012 0x80000000 /* MX6Q_PAD_GPIO_5__GPIO_1_5 */
-				1402 0x80000000	/* MX6Q_PAD_NANDF_D0__GPIO_2_0 */
-				1410 0x80000000	/* MX6Q_PAD_NANDF_D1__GPIO_2_1 */
-				1418 0x80000000	/* MX6Q_PAD_NANDF_D2__GPIO_2_2 */
-				1426 0x80000000	/* MX6Q_PAD_NANDF_D3__GPIO_2_3 */
+				MX6Q_PAD_GPIO_4__GPIO1_IO04   0x80000000
+				MX6Q_PAD_GPIO_5__GPIO1_IO05   0x80000000
+				MX6Q_PAD_NANDF_D0__GPIO2_IO00 0x80000000
+				MX6Q_PAD_NANDF_D1__GPIO2_IO01 0x80000000
+				MX6Q_PAD_NANDF_D2__GPIO2_IO02 0x80000000
+				MX6Q_PAD_NANDF_D3__GPIO2_IO03 0x80000000
 			>;
 		};
 	};
-};
-
-&fec {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_enet_1>;
-	phy-mode = "rgmii";
-	status = "okay";
-};
-
-&usdhc2 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_usdhc2_1>;
-	cd-gpios = <&gpio2 2 0>;
-	wp-gpios = <&gpio2 3 0>;
-	status = "okay";
-};
-
-&usdhc3 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_usdhc3_1>;
-	cd-gpios = <&gpio2 0 0>;
-	wp-gpios = <&gpio2 1 0>;
-	status = "okay";
 };

@@ -19,7 +19,7 @@ static void scm_notify(struct scm_device *scmdev, enum scm_event event)
 
 	switch (event) {
 	case SCM_CHANGE:
-		pr_info("%lu: The capabilities of the SCM increment changed\n",
+		pr_info("%lx: The capabilities of the SCM increment changed\n",
 			(unsigned long) scmdev->address);
 		SCM_LOG(2, "State changed");
 		SCM_LOG_STATE(2, scmdev);

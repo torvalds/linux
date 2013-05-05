@@ -112,6 +112,7 @@ struct imon_context {
 	bool tx_control;
 	unsigned char usb_rx_buf[8];
 	unsigned char usb_tx_buf[8];
+	unsigned int send_packet_delay;
 
 	struct tx_t {
 		unsigned char data_buf[35];	/* user data buffer */
@@ -185,6 +186,10 @@ enum {
 	IMON_KEY_PANEL	= 2,
 };
 
+enum {
+	IMON_NEED_20MS_PKT_DELAY = 1
+};
+
 /*
  * USB Device ID for iMON USB Control Boards
  *
@@ -215,7 +220,7 @@ static struct usb_device_id imon_usb_id_table[] = {
 	/* SoundGraph iMON OEM Touch LCD (IR & 4.3" VGA LCD) */
 	{ USB_DEVICE(0x15c2, 0x0035) },
 	/* SoundGraph iMON OEM VFD (IR & VFD) */
-	{ USB_DEVICE(0x15c2, 0x0036) },
+	{ USB_DEVICE(0x15c2, 0x0036), .driver_info = IMON_NEED_20MS_PKT_DELAY },
 	/* device specifics unknown */
 	{ USB_DEVICE(0x15c2, 0x0037) },
 	/* SoundGraph iMON OEM LCD (IR & LCD) */
@@ -523,8 +528,10 @@ static int send_packet(struct imon_context *ictx)
 		mutex_unlock(&ictx->lock);
 		retval = wait_for_completion_interruptible(
 				&ictx->tx.finished);
-		if (retval)
+		if (retval) {
+			usb_kill_urb(ictx->tx_urb);
 			pr_err_ratelimited("task interrupted\n");
+		}
 		mutex_lock(&ictx->lock);
 
 		retval = ictx->tx.status;
@@ -535,12 +542,12 @@ static int send_packet(struct imon_context *ictx)
 	kfree(control_req);
 
 	/*
-	 * Induce a mandatory 5ms delay before returning, as otherwise,
+	 * Induce a mandatory delay before returning, as otherwise,
 	 * send_packet can get called so rapidly as to overwhelm the device,
 	 * particularly on faster systems and/or those with quirky usb.
 	 */
-	timeout = msecs_to_jiffies(5);
-	set_current_state(TASK_UNINTERRUPTIBLE);
+	timeout = msecs_to_jiffies(ictx->send_packet_delay);
+	set_current_state(TASK_INTERRUPTIBLE);
 	schedule_timeout(timeout);
 
 	return retval;
@@ -1568,11 +1575,6 @@ static void imon_incoming_packet(struct imon_context *ictx,
 	if (press_type < 0)
 		goto not_input_data;
 
-	spin_lock_irqsave(&ictx->kc_lock, flags);
-	if (ictx->kc == KEY_UNKNOWN)
-		goto unknown_key;
-	spin_unlock_irqrestore(&ictx->kc_lock, flags);
-
 	if (ktype != IMON_KEY_PANEL) {
 		if (press_type == 0)
 			rc_keyup(ictx->rdev);
@@ -1613,12 +1615,6 @@ static void imon_incoming_packet(struct imon_context *ictx,
 	ictx->last_keycode = kc;
 	spin_unlock_irqrestore(&ictx->kc_lock, flags);
 
-	return;
-
-unknown_key:
-	spin_unlock_irqrestore(&ictx->kc_lock, flags);
-	dev_info(dev, "%s: unknown keypress, code 0x%llx\n", __func__,
-		 (long long)scancode);
 	return;
 
 not_input_data:
@@ -2099,7 +2095,8 @@ static bool imon_find_endpoints(struct imon_context *ictx,
 
 }
 
-static struct imon_context *imon_init_intf0(struct usb_interface *intf)
+static struct imon_context *imon_init_intf0(struct usb_interface *intf,
+					    const struct usb_device_id *id)
 {
 	struct imon_context *ictx;
 	struct urb *rx_urb;
@@ -2138,6 +2135,10 @@ static struct imon_context *imon_init_intf0(struct usb_interface *intf)
 
 	ictx->vendor  = le16_to_cpu(ictx->usbdev_intf0->descriptor.idVendor);
 	ictx->product = le16_to_cpu(ictx->usbdev_intf0->descriptor.idProduct);
+
+	/* default send_packet delay is 5ms but some devices need more */
+	ictx->send_packet_delay = id->driver_info & IMON_NEED_20MS_PKT_DELAY ?
+				  20 : 5;
 
 	ret = -ENODEV;
 	iface_desc = intf->cur_altsetting;
@@ -2317,7 +2318,7 @@ static int imon_probe(struct usb_interface *interface,
 	first_if_ctx = usb_get_intfdata(first_if);
 
 	if (ifnum == 0) {
-		ictx = imon_init_intf0(interface);
+		ictx = imon_init_intf0(interface, id);
 		if (!ictx) {
 			pr_err("failed to initialize context!\n");
 			ret = -ENODEV;
@@ -2325,7 +2326,14 @@ static int imon_probe(struct usb_interface *interface,
 		}
 
 	} else {
-	/* this is the secondary interface on the device */
+		/* this is the secondary interface on the device */
+
+		/* fail early if first intf failed to register */
+		if (!first_if_ctx) {
+			ret = -ENODEV;
+			goto fail;
+		}
+
 		ictx = imon_init_intf1(interface, first_if_ctx);
 		if (!ictx) {
 			pr_err("failed to attach to context!\n");

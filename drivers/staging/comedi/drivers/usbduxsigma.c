@@ -176,12 +176,6 @@ static const struct comedi_lrange range_usbdux_ai_range = { 1, {
 								}
 };
 
-static const struct comedi_lrange range_usbdux_ao_range = { 1, {
-								UNI_RANGE
-								(2.5),
-							       }
-};
-
 /*
  * private structure of one subdevice
  */
@@ -1376,7 +1370,7 @@ static int usbdux_getstatusinfo(struct comedi_device *dev, int chan)
 
 	/* 32 bits big endian from the A/D converter */
 	one = be32_to_cpu(*((int32_t *)((this_usbduxsub->insnBuffer)+1)));
-	/* mask out the staus byte */
+	/* mask out the status byte */
 	one = one & 0x00ffffff;
 	one = one ^ 0x00800000;
 
@@ -2211,7 +2205,7 @@ static int usbduxsigma_attach_common(struct comedi_device *dev,
 	down(&uds->sem);
 	/* pointer back to the corresponding comedi device */
 	uds->comedidev = dev;
-	dev->board_name = "usbduxsigma";
+
 	/* set number of subdevices */
 	if (uds->high_speed)
 		n_subdevs = 4;	/* with pwm */
@@ -2269,7 +2263,7 @@ static int usbduxsigma_attach_common(struct comedi_device *dev,
 	/* 8 bit resolution */
 	s->maxdata = 0x00ff;
 	/* unipolar range */
-	s->range_table = (&range_usbdux_ao_range);
+	s->range_table = &range_unipolar2_5;
 	/* callback */
 	s->do_cmdtest = usbdux_ao_cmdtest;
 	s->do_cmd = usbdux_ao_cmd;

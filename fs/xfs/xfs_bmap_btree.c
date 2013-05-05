@@ -37,6 +37,7 @@
 #include "xfs_error.h"
 #include "xfs_quota.h"
 #include "xfs_trace.h"
+#include "xfs_cksum.h"
 
 /*
  * Determine the extent state.
@@ -59,24 +60,31 @@ xfs_extent_state(
  */
 void
 xfs_bmdr_to_bmbt(
-	struct xfs_mount	*mp,
+	struct xfs_inode	*ip,
 	xfs_bmdr_block_t	*dblock,
 	int			dblocklen,
 	struct xfs_btree_block	*rblock,
 	int			rblocklen)
 {
+	struct xfs_mount	*mp = ip->i_mount;
 	int			dmxr;
 	xfs_bmbt_key_t		*fkp;
 	__be64			*fpp;
 	xfs_bmbt_key_t		*tkp;
 	__be64			*tpp;
 
-	rblock->bb_magic = cpu_to_be32(XFS_BMAP_MAGIC);
+	if (xfs_sb_version_hascrc(&mp->m_sb))
+		xfs_btree_init_block_int(mp, rblock, XFS_BUF_DADDR_NULL,
+				 XFS_BMAP_CRC_MAGIC, 0, 0, ip->i_ino,
+				 XFS_BTREE_LONG_PTRS | XFS_BTREE_CRC_BLOCKS);
+	else
+		xfs_btree_init_block_int(mp, rblock, XFS_BUF_DADDR_NULL,
+				 XFS_BMAP_MAGIC, 0, 0, ip->i_ino,
+				 XFS_BTREE_LONG_PTRS);
+
 	rblock->bb_level = dblock->bb_level;
 	ASSERT(be16_to_cpu(rblock->bb_level) > 0);
 	rblock->bb_numrecs = dblock->bb_numrecs;
-	rblock->bb_u.l.bb_leftsib = cpu_to_be64(NULLDFSBNO);
-	rblock->bb_u.l.bb_rightsib = cpu_to_be64(NULLDFSBNO);
 	dmxr = xfs_bmdr_maxrecs(mp, dblocklen, 0);
 	fkp = XFS_BMDR_KEY_ADDR(dblock, 1);
 	tkp = XFS_BMBT_KEY_ADDR(mp, rblock, 1);
@@ -424,7 +432,13 @@ xfs_bmbt_to_bmdr(
 	xfs_bmbt_key_t		*tkp;
 	__be64			*tpp;
 
-	ASSERT(rblock->bb_magic == cpu_to_be32(XFS_BMAP_MAGIC));
+	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+		ASSERT(rblock->bb_magic == cpu_to_be32(XFS_BMAP_CRC_MAGIC));
+		ASSERT(uuid_equal(&rblock->bb_u.l.bb_uuid, &mp->m_sb.sb_uuid));
+		ASSERT(rblock->bb_u.l.bb_blkno ==
+		       cpu_to_be64(XFS_BUF_DADDR_NULL));
+	} else
+		ASSERT(rblock->bb_magic == cpu_to_be32(XFS_BMAP_MAGIC));
 	ASSERT(rblock->bb_u.l.bb_leftsib == cpu_to_be64(NULLDFSBNO));
 	ASSERT(rblock->bb_u.l.bb_rightsib == cpu_to_be64(NULLDFSBNO));
 	ASSERT(rblock->bb_level != 0);
@@ -708,59 +722,89 @@ xfs_bmbt_key_diff(
 				      cur->bc_rec.b.br_startoff;
 }
 
-static void
+static int
 xfs_bmbt_verify(
 	struct xfs_buf		*bp)
 {
 	struct xfs_mount	*mp = bp->b_target->bt_mount;
 	struct xfs_btree_block	*block = XFS_BUF_TO_BLOCK(bp);
 	unsigned int		level;
-	int			lblock_ok; /* block passes checks */
 
-	/* magic number and level verification.
+	switch (block->bb_magic) {
+	case cpu_to_be32(XFS_BMAP_CRC_MAGIC):
+		if (!xfs_sb_version_hascrc(&mp->m_sb))
+			return false;
+		if (!uuid_equal(&block->bb_u.l.bb_uuid, &mp->m_sb.sb_uuid))
+			return false;
+		if (be64_to_cpu(block->bb_u.l.bb_blkno) != bp->b_bn)
+			return false;
+		/*
+		 * XXX: need a better way of verifying the owner here. Right now
+		 * just make sure there has been one set.
+		 */
+		if (be64_to_cpu(block->bb_u.l.bb_owner) == 0)
+			return false;
+		/* fall through */
+	case cpu_to_be32(XFS_BMAP_MAGIC):
+		break;
+	default:
+		return false;
+	}
+
+	/*
+	 * numrecs and level verification.
 	 *
-	 * We don't know waht fork we belong to, so just verify that the level
+	 * We don't know what fork we belong to, so just verify that the level
 	 * is less than the maximum of the two. Later checks will be more
 	 * precise.
 	 */
 	level = be16_to_cpu(block->bb_level);
-	lblock_ok = block->bb_magic == cpu_to_be32(XFS_BMAP_MAGIC) &&
-		    level < max(mp->m_bm_maxlevels[0], mp->m_bm_maxlevels[1]);
-
-	/* numrecs verification */
-	lblock_ok = lblock_ok &&
-		be16_to_cpu(block->bb_numrecs) <= mp->m_bmap_dmxr[level != 0];
+	if (level > max(mp->m_bm_maxlevels[0], mp->m_bm_maxlevels[1]))
+		return false;
+	if (be16_to_cpu(block->bb_numrecs) > mp->m_bmap_dmxr[level != 0])
+		return false;
 
 	/* sibling pointer verification */
-	lblock_ok = lblock_ok &&
-		block->bb_u.l.bb_leftsib &&
-		(block->bb_u.l.bb_leftsib == cpu_to_be64(NULLDFSBNO) ||
-		 XFS_FSB_SANITY_CHECK(mp,
-			be64_to_cpu(block->bb_u.l.bb_leftsib))) &&
-		block->bb_u.l.bb_rightsib &&
-		(block->bb_u.l.bb_rightsib == cpu_to_be64(NULLDFSBNO) ||
-		 XFS_FSB_SANITY_CHECK(mp,
-			be64_to_cpu(block->bb_u.l.bb_rightsib)));
+	if (!block->bb_u.l.bb_leftsib ||
+	    (block->bb_u.l.bb_leftsib != cpu_to_be64(NULLDFSBNO) &&
+	     !XFS_FSB_SANITY_CHECK(mp, be64_to_cpu(block->bb_u.l.bb_leftsib))))
+		return false;
+	if (!block->bb_u.l.bb_rightsib ||
+	    (block->bb_u.l.bb_rightsib != cpu_to_be64(NULLDFSBNO) &&
+	     !XFS_FSB_SANITY_CHECK(mp, be64_to_cpu(block->bb_u.l.bb_rightsib))))
+		return false;
 
-	if (!lblock_ok) {
-		trace_xfs_btree_corrupt(bp, _RET_IP_);
-		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, block);
-		xfs_buf_ioerror(bp, EFSCORRUPTED);
-	}
+	return true;
+
 }
 
 static void
 xfs_bmbt_read_verify(
 	struct xfs_buf	*bp)
 {
-	xfs_bmbt_verify(bp);
+	if (!(xfs_btree_lblock_verify_crc(bp) &&
+	      xfs_bmbt_verify(bp))) {
+		trace_xfs_btree_corrupt(bp, _RET_IP_);
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW,
+				     bp->b_target->bt_mount, bp->b_addr);
+		xfs_buf_ioerror(bp, EFSCORRUPTED);
+	}
+
 }
 
 static void
 xfs_bmbt_write_verify(
 	struct xfs_buf	*bp)
 {
-	xfs_bmbt_verify(bp);
+	if (!xfs_bmbt_verify(bp)) {
+		xfs_warn(bp->b_target->bt_mount, "bmbt daddr 0x%llx failed", bp->b_bn);
+		trace_xfs_btree_corrupt(bp, _RET_IP_);
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW,
+				     bp->b_target->bt_mount, bp->b_addr);
+		xfs_buf_ioerror(bp, EFSCORRUPTED);
+		return;
+	}
+	xfs_btree_lblock_calc_crc(bp);
 }
 
 const struct xfs_buf_ops xfs_bmbt_buf_ops = {
@@ -838,6 +882,8 @@ xfs_bmbt_init_cursor(
 
 	cur->bc_ops = &xfs_bmbt_ops;
 	cur->bc_flags = XFS_BTREE_LONG_PTRS | XFS_BTREE_ROOT_IN_INODE;
+	if (xfs_sb_version_hascrc(&mp->m_sb))
+		cur->bc_flags |= XFS_BTREE_CRC_BLOCKS;
 
 	cur->bc_private.b.forksize = XFS_IFORK_SIZE(ip, whichfork);
 	cur->bc_private.b.ip = ip;

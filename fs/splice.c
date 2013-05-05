@@ -31,6 +31,8 @@
 #include <linux/security.h>
 #include <linux/gfp.h>
 #include <linux/socket.h>
+#include <linux/compat.h>
+#include "internal.h"
 
 /*
  * Attempt to steal a page from a pipe buffer. This should perhaps go into
@@ -217,7 +219,7 @@ ssize_t splice_to_pipe(struct pipe_inode_info *pipe,
 			page_nr++;
 			ret += buf->len;
 
-			if (pipe->inode)
+			if (pipe->files)
 				do_wakeup = 1;
 
 			if (!--spd->nr_pages)
@@ -827,7 +829,7 @@ int splice_from_pipe_feed(struct pipe_inode_info *pipe, struct splice_desc *sd,
 			ops->release(pipe, buf);
 			pipe->curbuf = (pipe->curbuf + 1) & (pipe->buffers - 1);
 			pipe->nrbufs--;
-			if (pipe->inode)
+			if (pipe->files)
 				sd->need_wakeup = true;
 		}
 
@@ -999,8 +1001,6 @@ generic_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 	};
 	ssize_t ret;
 
-	sb_start_write(inode->i_sb);
-
 	pipe_lock(pipe);
 
 	splice_from_pipe_begin(&sd);
@@ -1036,7 +1036,6 @@ generic_file_splice_write(struct pipe_inode_info *pipe, struct file *out,
 			*ppos += ret;
 		balance_dirty_pages_ratelimited(mapping);
 	}
-	sb_end_write(inode->i_sb);
 
 	return ret;
 }
@@ -1048,9 +1047,10 @@ static int write_pipe_buf(struct pipe_inode_info *pipe, struct pipe_buffer *buf,
 {
 	int ret;
 	void *data;
+	loff_t tmp = sd->pos;
 
 	data = buf->ops->map(pipe, buf, 0);
-	ret = kernel_write(sd->u.file, data + buf->offset, sd->len, sd->pos);
+	ret = __kernel_write(sd->u.file, data + buf->offset, sd->len, &tmp);
 	buf->ops->unmap(pipe, buf, data);
 
 	return ret;
@@ -1115,7 +1115,10 @@ static long do_splice_from(struct pipe_inode_info *pipe, struct file *out,
 	else
 		splice_write = default_file_splice_write;
 
-	return splice_write(pipe, out, ppos, len, flags);
+	file_start_write(out);
+	ret = splice_write(pipe, out, ppos, len, flags);
+	file_end_write(out);
+	return ret;
 }
 
 /*
@@ -1181,7 +1184,7 @@ ssize_t splice_direct_to_actor(struct file *in, struct splice_desc *sd,
 	 */
 	pipe = current->splice_pipe;
 	if (unlikely(!pipe)) {
-		pipe = alloc_pipe_info(NULL);
+		pipe = alloc_pipe_info();
 		if (!pipe)
 			return -ENOMEM;
 
@@ -1687,6 +1690,27 @@ SYSCALL_DEFINE4(vmsplice, int, fd, const struct iovec __user *, iov,
 
 	return error;
 }
+
+#ifdef CONFIG_COMPAT
+COMPAT_SYSCALL_DEFINE4(vmsplice, int, fd, const struct compat_iovec __user *, iov32,
+		    unsigned int, nr_segs, unsigned int, flags)
+{
+	unsigned i;
+	struct iovec __user *iov;
+	if (nr_segs > UIO_MAXIOV)
+		return -EINVAL;
+	iov = compat_alloc_user_space(nr_segs * sizeof(struct iovec));
+	for (i = 0; i < nr_segs; i++) {
+		struct compat_iovec v;
+		if (get_user(v.iov_base, &iov32[i].iov_base) ||
+		    get_user(v.iov_len, &iov32[i].iov_len) ||
+		    put_user(compat_ptr(v.iov_base), &iov[i].iov_base) ||
+		    put_user(v.iov_len, &iov[i].iov_len))
+			return -EFAULT;
+	}
+	return sys_vmsplice(fd, iov, nr_segs, flags);
+}
+#endif
 
 SYSCALL_DEFINE6(splice, int, fd_in, loff_t __user *, off_in,
 		int, fd_out, loff_t __user *, off_out,

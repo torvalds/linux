@@ -385,10 +385,7 @@ static void batadv_tt_prepare_packet_buff(struct batadv_priv *bat_priv,
 					  int *packet_buff_len,
 					  int min_packet_len)
 {
-	struct batadv_hard_iface *primary_if;
 	int req_len;
-
-	primary_if = batadv_primary_if_get_selected(bat_priv);
 
 	req_len = min_packet_len;
 	req_len += batadv_tt_len(atomic_read(&bat_priv->tt.local_changes));
@@ -396,14 +393,11 @@ static void batadv_tt_prepare_packet_buff(struct batadv_priv *bat_priv,
 	/* if we have too many changes for one packet don't send any
 	 * and wait for the tt table request which will be fragmented
 	 */
-	if ((!primary_if) || (req_len > primary_if->soft_iface->mtu))
+	if (req_len > bat_priv->soft_iface->mtu)
 		req_len = min_packet_len;
 
 	batadv_tt_realloc_packet_buff(packet_buff, packet_buff_len,
 				      min_packet_len, req_len);
-
-	if (primary_if)
-		batadv_hardif_free_ref(primary_if);
 }
 
 static int batadv_tt_changes_fill_buff(struct batadv_priv *bat_priv,
@@ -908,7 +902,7 @@ out_remove:
 	/* remove address from local hash if present */
 	local_flags = batadv_tt_local_remove(bat_priv, tt_addr,
 					     "global tt received",
-					     !!(flags & BATADV_TT_CLIENT_ROAM));
+					     flags & BATADV_TT_CLIENT_ROAM);
 	tt_global_entry->common.flags |= local_flags & BATADV_TT_CLIENT_WIFI;
 
 	if (!(flags & BATADV_TT_CLIENT_ROAM))
@@ -1580,7 +1574,7 @@ static int batadv_tt_global_valid(const void *entry_ptr,
 static struct sk_buff *
 batadv_tt_response_fill_table(uint16_t tt_len, uint8_t ttvn,
 			      struct batadv_hashtable *hash,
-			      struct batadv_hard_iface *primary_if,
+			      struct batadv_priv *bat_priv,
 			      int (*valid_cb)(const void *, const void *),
 			      void *cb_data)
 {
@@ -1594,8 +1588,8 @@ batadv_tt_response_fill_table(uint16_t tt_len, uint8_t ttvn,
 	uint32_t i;
 	size_t len;
 
-	if (tt_query_size + tt_len > primary_if->soft_iface->mtu) {
-		tt_len = primary_if->soft_iface->mtu - tt_query_size;
+	if (tt_query_size + tt_len > bat_priv->soft_iface->mtu) {
+		tt_len = bat_priv->soft_iface->mtu - tt_query_size;
 		tt_len -= tt_len % sizeof(struct batadv_tt_change);
 	}
 	tt_tot = tt_len / sizeof(struct batadv_tt_change);
@@ -1715,7 +1709,6 @@ batadv_send_other_tt_response(struct batadv_priv *bat_priv,
 {
 	struct batadv_orig_node *req_dst_orig_node;
 	struct batadv_orig_node *res_dst_orig_node = NULL;
-	struct batadv_hard_iface *primary_if = NULL;
 	uint8_t orig_ttvn, req_ttvn, ttvn;
 	int ret = false;
 	unsigned char *tt_buff;
@@ -1738,10 +1731,6 @@ batadv_send_other_tt_response(struct batadv_priv *bat_priv,
 
 	res_dst_orig_node = batadv_orig_hash_find(bat_priv, tt_request->src);
 	if (!res_dst_orig_node)
-		goto out;
-
-	primary_if = batadv_primary_if_get_selected(bat_priv);
-	if (!primary_if)
 		goto out;
 
 	orig_ttvn = (uint8_t)atomic_read(&req_dst_orig_node->last_ttvn);
@@ -1791,7 +1780,7 @@ batadv_send_other_tt_response(struct batadv_priv *bat_priv,
 
 		skb = batadv_tt_response_fill_table(tt_len, ttvn,
 						    bat_priv->tt.global_hash,
-						    primary_if,
+						    bat_priv,
 						    batadv_tt_global_valid,
 						    req_dst_orig_node);
 		if (!skb)
@@ -1828,8 +1817,6 @@ out:
 		batadv_orig_node_free_ref(res_dst_orig_node);
 	if (req_dst_orig_node)
 		batadv_orig_node_free_ref(req_dst_orig_node);
-	if (primary_if)
-		batadv_hardif_free_ref(primary_if);
 	if (!ret)
 		kfree_skb(skb);
 	return ret;
@@ -1907,7 +1894,7 @@ batadv_send_my_tt_response(struct batadv_priv *bat_priv,
 
 		skb = batadv_tt_response_fill_table(tt_len, ttvn,
 						    bat_priv->tt.local_hash,
-						    primary_if,
+						    bat_priv,
 						    batadv_tt_local_valid_entry,
 						    NULL);
 		if (!skb)
@@ -1953,7 +1940,7 @@ out:
 bool batadv_send_tt_response(struct batadv_priv *bat_priv,
 			     struct batadv_tt_query_packet *tt_request)
 {
-	if (batadv_is_my_mac(tt_request->dst)) {
+	if (batadv_is_my_mac(bat_priv, tt_request->dst)) {
 		/* don't answer backbone gws! */
 		if (batadv_bla_is_backbone_gw_orig(bat_priv, tt_request->src))
 			return true;
@@ -2528,7 +2515,7 @@ bool batadv_tt_global_client_is_roaming(struct batadv_priv *bat_priv,
 	if (!tt_global_entry)
 		goto out;
 
-	ret = !!(tt_global_entry->common.flags & BATADV_TT_CLIENT_ROAM);
+	ret = tt_global_entry->common.flags & BATADV_TT_CLIENT_ROAM;
 	batadv_tt_global_entry_free_ref(tt_global_entry);
 out:
 	return ret;

@@ -56,7 +56,6 @@
 #include <asm/virt.h>
 
 #include "atags.h"
-#include "tcm.h"
 
 
 #if defined(CONFIG_FPE_NWFPE) || defined(CONFIG_FPE_FASTFPE)
@@ -291,10 +290,10 @@ static int cpu_has_aliasing_icache(unsigned int arch)
 
 static void __init cacheid_init(void)
 {
-	unsigned int cachetype = read_cpuid_cachetype();
 	unsigned int arch = cpu_architecture();
 
 	if (arch >= CPU_ARCH_ARMv6) {
+		unsigned int cachetype = read_cpuid_cachetype();
 		if ((cachetype & (7 << 29)) == 4 << 29) {
 			/* ARMv7 register format */
 			arch = CPU_ARCH_ARMv7;
@@ -353,6 +352,23 @@ void __init early_print(const char *str, ...)
 	printk("%s", buf);
 }
 
+static void __init cpuid_init_hwcaps(void)
+{
+	unsigned int divide_instrs;
+
+	if (cpu_architecture() < CPU_ARCH_ARMv7)
+		return;
+
+	divide_instrs = (read_cpuid_ext(CPUID_EXT_ISAR0) & 0x0f000000) >> 24;
+
+	switch (divide_instrs) {
+	case 2:
+		elf_hwcap |= HWCAP_IDIVA;
+	case 1:
+		elf_hwcap |= HWCAP_IDIVT;
+	}
+}
+
 static void __init feat_v6_fixup(void)
 {
 	int id = read_cpuid_id();
@@ -373,7 +389,7 @@ static void __init feat_v6_fixup(void)
  *
  * cpu_init sets up the per-CPU stacks.
  */
-void cpu_init(void)
+void notrace cpu_init(void)
 {
 	unsigned int cpu = smp_processor_id();
 	struct stack *stk = &stacks[cpu];
@@ -483,8 +499,11 @@ static void __init setup_processor(void)
 	snprintf(elf_platform, ELF_PLATFORM_SIZE, "%s%c",
 		 list->elf_name, ENDIANNESS);
 	elf_hwcap = list->elf_hwcap;
+
+	cpuid_init_hwcaps();
+
 #ifndef CONFIG_ARM_THUMB
-	elf_hwcap &= ~HWCAP_THUMB;
+	elf_hwcap &= ~(HWCAP_THUMB | HWCAP_IDIVT);
 #endif
 
 	feat_v6_fixup();
@@ -524,7 +543,7 @@ int __init arm_add_memory(phys_addr_t start, phys_addr_t size)
 	size -= start & ~PAGE_MASK;
 	bank->start = PAGE_ALIGN(start);
 
-#ifndef CONFIG_LPAE
+#ifndef CONFIG_ARM_LPAE
 	if (bank->start + size < bank->start) {
 		printk(KERN_CRIT "Truncating memory at 0x%08llx to fit in "
 			"32-bit physical address space\n", (long long)start);
@@ -777,8 +796,6 @@ void __init setup_arch(char **cmdline_p)
 		hyp_mode_check();
 
 	reserve_crashkernel();
-
-	tcm_init();
 
 #ifdef CONFIG_MULTI_IRQ_HANDLER
 	handle_arch_irq = mdesc->handle_irq;

@@ -832,7 +832,7 @@ static int vidioc_g_std(struct file *file, void *fh, v4l2_std_id *norm)
 	}
 	*/
 
-static int vidioc_s_std(struct file *file, void *fh, v4l2_std_id *id)
+static int vidioc_s_std(struct file *file, void *fh, v4l2_std_id id)
 {
 	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
 	struct saa7146_vv *vv = dev->vv_data;
@@ -856,7 +856,7 @@ static int vidioc_s_std(struct file *file, void *fh, v4l2_std_id *id)
 	}
 
 	for (i = 0; i < dev->ext_vv_data->num_stds; i++)
-		if (*id & dev->ext_vv_data->stds[i].id)
+		if (id & dev->ext_vv_data->stds[i].id)
 			break;
 	if (i != dev->ext_vv_data->num_stds) {
 		vv->standard = &dev->ext_vv_data->stds[i];

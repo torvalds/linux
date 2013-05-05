@@ -493,7 +493,7 @@ static int cciss_seq_open(struct inode *inode, struct file *file)
 	struct seq_file *seq = file->private_data;
 
 	if (!ret)
-		seq->private = PDE(inode)->data;
+		seq->private = PDE_DATA(inode);
 
 	return ret;
 }
@@ -4206,7 +4206,7 @@ static int cciss_find_cfgtables(ctlr_info_t *h)
 	if (rc)
 		return rc;
 	h->cfgtable = remap_pci_mem(pci_resource_start(h->pdev,
-		cfg_base_addr_index) + cfg_offset, sizeof(h->cfgtable));
+		cfg_base_addr_index) + cfg_offset, sizeof(*h->cfgtable));
 	if (!h->cfgtable)
 		return -ENOMEM;
 	rc = write_driver_ver_to_cfgtable(h->cfgtable);

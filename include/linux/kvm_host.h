@@ -1,8 +1,6 @@
 #ifndef __KVM_HOST_H
 #define __KVM_HOST_H
 
-#if IS_ENABLED(CONFIG_KVM)
-
 /*
  * This work is licensed under the terms of the GNU GPL, version 2.  See
  * the COPYING file in the top-level directory.
@@ -520,7 +518,7 @@ int kvm_write_guest(struct kvm *kvm, gpa_t gpa, const void *data,
 int kvm_write_guest_cached(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
 			   void *data, unsigned long len);
 int kvm_gfn_to_hva_cache_init(struct kvm *kvm, struct gfn_to_hva_cache *ghc,
-			      gpa_t gpa);
+			      gpa_t gpa, unsigned long len);
 int kvm_clear_guest_page(struct kvm *kvm, gfn_t gfn, int offset, int len);
 int kvm_clear_guest(struct kvm *kvm, gpa_t gpa, unsigned long len);
 struct kvm_memory_slot *gfn_to_memslot(struct kvm *kvm, gfn_t gfn);
@@ -1057,8 +1055,5 @@ static inline bool kvm_vcpu_eligible_for_directed_yield(struct kvm_vcpu *vcpu)
 }
 
 #endif /* CONFIG_HAVE_KVM_CPU_RELAX_INTERCEPT */
-#else
-static inline void __guest_enter(void) { return; }
-static inline void __guest_exit(void) { return; }
-#endif /* IS_ENABLED(CONFIG_KVM) */
 #endif
+

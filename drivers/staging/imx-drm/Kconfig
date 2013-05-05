@@ -20,6 +20,13 @@ config DRM_IMX_PARALLEL_DISPLAY
 	tristate "Support for parallel displays"
 	depends on DRM_IMX
 
+config DRM_IMX_TVE
+	tristate "Support for TV and VGA displays"
+	depends on DRM_IMX
+	help
+	  Choose this to enable the internal Television Encoder (TVe)
+	  found on i.MX53 processors.
+
 config DRM_IMX_IPUV3_CORE
 	tristate "IPUv3 core support"
 	depends on DRM_IMX

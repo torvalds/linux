@@ -328,9 +328,15 @@ struct pf_vf_bulletin_content {
 #define MAC_ADDR_VALID		0	/* alert the vf that a new mac address
 					 * is available for it
 					 */
+#define VLAN_VALID		1	/* when set, the vf should not access
+					 * the vfpf channel
+					 */
 
 	u8 mac[ETH_ALEN];
-	u8 padding[2];
+	u8 mac_padding[2];
+
+	u16 vlan;
+	u8 vlan_padding[6];
 };
 
 union pf_vf_bulletin {
@@ -353,6 +359,7 @@ enum channel_tlvs {
 	CHANNEL_TLV_LIST_END,
 	CHANNEL_TLV_FLR,
 	CHANNEL_TLV_PF_SET_MAC,
+	CHANNEL_TLV_PF_SET_VLAN,
 	CHANNEL_TLV_MAX
 };
 

@@ -17,6 +17,8 @@
  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -379,7 +381,5 @@ void fec_ptp_init(struct net_device *ndev, struct platform_device *pdev)
 	if (IS_ERR(fep->ptp_clock)) {
 		fep->ptp_clock = NULL;
 		pr_err("ptp_clock_register failed\n");
-	} else {
-		pr_info("registered PHC device on %s\n", ndev->name);
 	}
 }

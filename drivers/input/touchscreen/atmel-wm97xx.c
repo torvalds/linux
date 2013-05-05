@@ -432,17 +432,7 @@ static struct platform_driver atmel_wm97xx_driver = {
 	},
 };
 
-static int __init atmel_wm97xx_init(void)
-{
-	return platform_driver_probe(&atmel_wm97xx_driver, atmel_wm97xx_probe);
-}
-module_init(atmel_wm97xx_init);
-
-static void __exit atmel_wm97xx_exit(void)
-{
-	platform_driver_unregister(&atmel_wm97xx_driver);
-}
-module_exit(atmel_wm97xx_exit);
+module_platform_driver_probe(atmel_wm97xx_driver, atmel_wm97xx_probe);
 
 MODULE_AUTHOR("Hans-Christian Egtvedt <egtvedt@samfundet.no>");
 MODULE_DESCRIPTION("wm97xx continuous touch driver for Atmel AT91 and AVR32");

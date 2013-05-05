@@ -647,6 +647,7 @@
 			};
 
 			digctl@8001c000 {
+				compatible = "fsl,imx28-digctl";
 				reg = <0x8001c000 0x2000>;
 				interrupts = <89>;
 				status = "disabled";
@@ -676,6 +677,7 @@
 			};
 
 			ocotp@8002c000 {
+				compatible = "fsl,ocotp";
 				reg = <0x8002c000 0x2000>;
 				status = "disabled";
 			};
@@ -755,7 +757,7 @@
 			ranges;
 
 			clks: clkctrl@80040000 {
-				compatible = "fsl,imx28-clkctrl";
+				compatible = "fsl,imx28-clkctrl", "fsl,clkctrl";
 				reg = <0x80040000 0x2000>;
 				#clock-cells = <1>;
 			};
@@ -838,6 +840,7 @@
 				compatible = "fsl,imx28-timrot", "fsl,timrot";
 				reg = <0x80068000 0x2000>;
 				interrupts = <48 49 50 51>;
+				clocks = <&clks 26>;
 			};
 
 			auart0: serial@8006a000 {
