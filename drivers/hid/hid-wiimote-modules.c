@@ -268,10 +268,150 @@ static const struct wiimod_ops wiimod_battery = {
 	.remove = wiimod_battery_remove,
 };
 
+/*
+ * LED
+ * 0 to 4 player LEDs are supported by devices. The "arg" field of the
+ * wiimod_ops structure specifies which LED this module controls. This allows
+ * to register a limited number of LEDs.
+ * State is managed by wiimote core.
+ */
+
+static enum led_brightness wiimod_led_get(struct led_classdev *led_dev)
+{
+	struct wiimote_data *wdata;
+	struct device *dev = led_dev->dev->parent;
+	int i;
+	unsigned long flags;
+	bool value = false;
+
+	wdata = hid_get_drvdata(container_of(dev, struct hid_device, dev));
+
+	for (i = 0; i < 4; ++i) {
+		if (wdata->leds[i] == led_dev) {
+			spin_lock_irqsave(&wdata->state.lock, flags);
+			value = wdata->state.flags & WIIPROTO_FLAG_LED(i + 1);
+			spin_unlock_irqrestore(&wdata->state.lock, flags);
+			break;
+		}
+	}
+
+	return value ? LED_FULL : LED_OFF;
+}
+
+static void wiimod_led_set(struct led_classdev *led_dev,
+			   enum led_brightness value)
+{
+	struct wiimote_data *wdata;
+	struct device *dev = led_dev->dev->parent;
+	int i;
+	unsigned long flags;
+	__u8 state, flag;
+
+	wdata = hid_get_drvdata(container_of(dev, struct hid_device, dev));
+
+	for (i = 0; i < 4; ++i) {
+		if (wdata->leds[i] == led_dev) {
+			flag = WIIPROTO_FLAG_LED(i + 1);
+			spin_lock_irqsave(&wdata->state.lock, flags);
+			state = wdata->state.flags;
+			if (value == LED_OFF)
+				wiiproto_req_leds(wdata, state & ~flag);
+			else
+				wiiproto_req_leds(wdata, state | flag);
+			spin_unlock_irqrestore(&wdata->state.lock, flags);
+			break;
+		}
+	}
+}
+
+static int wiimod_led_probe(const struct wiimod_ops *ops,
+			    struct wiimote_data *wdata)
+{
+	struct device *dev = &wdata->hdev->dev;
+	size_t namesz = strlen(dev_name(dev)) + 9;
+	struct led_classdev *led;
+	unsigned long flags;
+	char *name;
+	int ret;
+
+	led = kzalloc(sizeof(struct led_classdev) + namesz, GFP_KERNEL);
+	if (!led)
+		return -ENOMEM;
+
+	name = (void*)&led[1];
+	snprintf(name, namesz, "%s:blue:p%lu", dev_name(dev), ops->arg);
+	led->name = name;
+	led->brightness = 0;
+	led->max_brightness = 1;
+	led->brightness_get = wiimod_led_get;
+	led->brightness_set = wiimod_led_set;
+
+	wdata->leds[ops->arg] = led;
+	ret = led_classdev_register(dev, led);
+	if (ret)
+		goto err_free;
+
+	/* enable LED1 to stop initial LED-blinking */
+	if (ops->arg == 0) {
+		spin_lock_irqsave(&wdata->state.lock, flags);
+		wiiproto_req_leds(wdata, WIIPROTO_FLAG_LED1);
+		spin_unlock_irqrestore(&wdata->state.lock, flags);
+	}
+
+	return 0;
+
+err_free:
+	wdata->leds[ops->arg] = NULL;
+	kfree(led);
+	return ret;
+}
+
+static void wiimod_led_remove(const struct wiimod_ops *ops,
+			      struct wiimote_data *wdata)
+{
+	if (!wdata->leds[ops->arg])
+		return;
+
+	led_classdev_unregister(wdata->leds[ops->arg]);
+	kfree(wdata->leds[ops->arg]);
+	wdata->leds[ops->arg] = NULL;
+}
+
+static const struct wiimod_ops wiimod_leds[4] = {
+	{
+		.flags = 0,
+		.arg = 0,
+		.probe = wiimod_led_probe,
+		.remove = wiimod_led_remove,
+	},
+	{
+		.flags = 0,
+		.arg = 1,
+		.probe = wiimod_led_probe,
+		.remove = wiimod_led_remove,
+	},
+	{
+		.flags = 0,
+		.arg = 2,
+		.probe = wiimod_led_probe,
+		.remove = wiimod_led_remove,
+	},
+	{
+		.flags = 0,
+		.arg = 3,
+		.probe = wiimod_led_probe,
+		.remove = wiimod_led_remove,
+	},
+};
+
 /* module table */
 
 const struct wiimod_ops *wiimod_table[WIIMOD_NUM] = {
 	[WIIMOD_KEYS] = &wiimod_keys,
 	[WIIMOD_RUMBLE] = &wiimod_rumble,
 	[WIIMOD_BATTERY] = &wiimod_battery,
+	[WIIMOD_LED1] = &wiimod_leds[0],
+	[WIIMOD_LED2] = &wiimod_leds[1],
+	[WIIMOD_LED3] = &wiimod_leds[2],
+	[WIIMOD_LED4] = &wiimod_leds[3],
 };

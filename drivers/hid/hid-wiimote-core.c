@@ -14,7 +14,6 @@
 #include <linux/device.h>
 #include <linux/hid.h>
 #include <linux/input.h>
-#include <linux/leds.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
@@ -151,7 +150,7 @@ void wiiproto_req_rumble(struct wiimote_data *wdata, __u8 rumble)
 	wiimote_queue(wdata, cmd, sizeof(cmd));
 }
 
-static void wiiproto_req_leds(struct wiimote_data *wdata, int leds)
+void wiiproto_req_leds(struct wiimote_data *wdata, int leds)
 {
 	__u8 cmd[2];
 
@@ -529,54 +528,6 @@ unlock:
 	return ret;
 }
 
-static enum led_brightness wiimote_leds_get(struct led_classdev *led_dev)
-{
-	struct wiimote_data *wdata;
-	struct device *dev = led_dev->dev->parent;
-	int i;
-	unsigned long flags;
-	bool value = false;
-
-	wdata = hid_get_drvdata(container_of(dev, struct hid_device, dev));
-
-	for (i = 0; i < 4; ++i) {
-		if (wdata->leds[i] == led_dev) {
-			spin_lock_irqsave(&wdata->state.lock, flags);
-			value = wdata->state.flags & WIIPROTO_FLAG_LED(i + 1);
-			spin_unlock_irqrestore(&wdata->state.lock, flags);
-			break;
-		}
-	}
-
-	return value ? LED_FULL : LED_OFF;
-}
-
-static void wiimote_leds_set(struct led_classdev *led_dev,
-						enum led_brightness value)
-{
-	struct wiimote_data *wdata;
-	struct device *dev = led_dev->dev->parent;
-	int i;
-	unsigned long flags;
-	__u8 state, flag;
-
-	wdata = hid_get_drvdata(container_of(dev, struct hid_device, dev));
-
-	for (i = 0; i < 4; ++i) {
-		if (wdata->leds[i] == led_dev) {
-			flag = WIIPROTO_FLAG_LED(i + 1);
-			spin_lock_irqsave(&wdata->state.lock, flags);
-			state = wdata->state.flags;
-			if (value == LED_OFF)
-				wiiproto_req_leds(wdata, state & ~flag);
-			else
-				wiiproto_req_leds(wdata, state | flag);
-			spin_unlock_irqrestore(&wdata->state.lock, flags);
-			break;
-		}
-	}
-}
-
 static int wiimote_accel_open(struct input_dev *dev)
 {
 	struct wiimote_data *wdata = input_get_drvdata(dev);
@@ -626,18 +577,30 @@ static const __u8 * const wiimote_devtype_mods[WIIMOTE_DEV_NUM] = {
 		WIIMOD_KEYS,
 		WIIMOD_RUMBLE,
 		WIIMOD_BATTERY,
+		WIIMOD_LED1,
+		WIIMOD_LED2,
+		WIIMOD_LED3,
+		WIIMOD_LED4,
 		WIIMOD_NULL,
 	},
 	[WIIMOTE_DEV_GEN10] = (const __u8[]){
 		WIIMOD_KEYS,
 		WIIMOD_RUMBLE,
 		WIIMOD_BATTERY,
+		WIIMOD_LED1,
+		WIIMOD_LED2,
+		WIIMOD_LED3,
+		WIIMOD_LED4,
 		WIIMOD_NULL,
 	},
 	[WIIMOTE_DEV_GEN20] = (const __u8[]){
 		WIIMOD_KEYS,
 		WIIMOD_RUMBLE,
 		WIIMOD_BATTERY,
+		WIIMOD_LED1,
+		WIIMOD_LED2,
+		WIIMOD_LED3,
+		WIIMOD_LED4,
 		WIIMOD_NULL,
 	},
 };
@@ -1159,58 +1122,6 @@ static int wiimote_hid_event(struct hid_device *hdev, struct hid_report *report,
 	return 0;
 }
 
-static void wiimote_leds_destroy(struct wiimote_data *wdata)
-{
-	int i;
-	struct led_classdev *led;
-
-	for (i = 0; i < 4; ++i) {
-		if (wdata->leds[i]) {
-			led = wdata->leds[i];
-			wdata->leds[i] = NULL;
-			led_classdev_unregister(led);
-			kfree(led);
-		}
-	}
-}
-
-static int wiimote_leds_create(struct wiimote_data *wdata)
-{
-	int i, ret;
-	struct device *dev = &wdata->hdev->dev;
-	size_t namesz = strlen(dev_name(dev)) + 9;
-	struct led_classdev *led;
-	char *name;
-
-	for (i = 0; i < 4; ++i) {
-		led = kzalloc(sizeof(struct led_classdev) + namesz, GFP_KERNEL);
-		if (!led) {
-			ret = -ENOMEM;
-			goto err;
-		}
-		name = (void*)&led[1];
-		snprintf(name, namesz, "%s:blue:p%d", dev_name(dev), i);
-		led->name = name;
-		led->brightness = 0;
-		led->max_brightness = 1;
-		led->brightness_get = wiimote_leds_get;
-		led->brightness_set = wiimote_leds_set;
-
-		ret = led_classdev_register(dev, led);
-		if (ret) {
-			kfree(led);
-			goto err;
-		}
-		wdata->leds[i] = led;
-	}
-
-	return 0;
-
-err:
-	wiimote_leds_destroy(wdata);
-	return ret;
-}
-
 static struct wiimote_data *wiimote_create(struct hid_device *hdev)
 {
 	struct wiimote_data *wdata;
@@ -1300,7 +1211,6 @@ static void wiimote_destroy(struct wiimote_data *wdata)
 {
 	wiidebug_deinit(wdata);
 	wiiext_deinit(wdata);
-	wiimote_leds_destroy(wdata);
 
 	cancel_work_sync(&wdata->init_worker);
 	wiimote_modules_unload(wdata);
@@ -1357,10 +1267,6 @@ static int wiimote_hid_probe(struct hid_device *hdev,
 		goto err_ir;
 	}
 
-	ret = wiimote_leds_create(wdata);
-	if (ret)
-		goto err_free;
-
 	ret = wiiext_init(wdata);
 	if (ret)
 		goto err_free;
@@ -1370,11 +1276,6 @@ static int wiimote_hid_probe(struct hid_device *hdev,
 		goto err_free;
 
 	hid_info(hdev, "New device registered\n");
-
-	/* by default set led1 after device initialization */
-	spin_lock_irq(&wdata->state.lock);
-	wiiproto_req_leds(wdata, WIIPROTO_FLAG_LED1);
-	spin_unlock_irq(&wdata->state.lock);
 
 	/* schedule device detection */
 	schedule_work(&wdata->init_worker);
