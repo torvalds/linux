@@ -35,6 +35,8 @@
 #define WIIPROTO_FLAG_IR_BASIC		0x40
 #define WIIPROTO_FLAG_IR_EXT		0x80
 #define WIIPROTO_FLAG_IR_FULL		0xc0 /* IR_BASIC | IR_EXT */
+#define WIIPROTO_FLAG_EXT_PLUGGED	0x0100
+
 #define WIIPROTO_FLAGS_LEDS (WIIPROTO_FLAG_LED1 | WIIPROTO_FLAG_LED2 | \
 					WIIPROTO_FLAG_LED3 | WIIPROTO_FLAG_LED4)
 #define WIIPROTO_FLAGS_IR (WIIPROTO_FLAG_IR_BASIC | WIIPROTO_FLAG_IR_EXT | \
@@ -42,6 +44,21 @@
 
 /* return flag for led \num */
 #define WIIPROTO_FLAG_LED(num) (WIIPROTO_FLAG_LED1 << (num - 1))
+
+enum wiimote_devtype {
+	WIIMOTE_DEV_PENDING,
+	WIIMOTE_DEV_UNKNOWN,
+	WIIMOTE_DEV_GENERIC,
+	WIIMOTE_DEV_GEN10,
+	WIIMOTE_DEV_GEN20,
+	WIIMOTE_DEV_NUM,
+};
+
+enum wiimote_exttype {
+	WIIMOTE_EXT_NONE,
+	WIIMOTE_EXT_UNKNOWN,
+	WIIMOTE_EXT_NUM,
+};
 
 struct wiimote_buf {
 	__u8 data[HID_MAX_BUFFER_SIZE];
@@ -58,9 +75,10 @@ struct wiimote_queue {
 
 struct wiimote_state {
 	spinlock_t lock;
-	__u8 flags;
+	__u32 flags;
 	__u8 accel_split[2];
 	__u8 drm;
+	__u8 devtype;
 
 	/* synchronous cmd requests */
 	struct mutex sync;
@@ -87,6 +105,7 @@ struct wiimote_data {
 
 	struct wiimote_queue queue;
 	struct wiimote_state state;
+	struct work_struct init_worker;
 };
 
 enum wiiproto_reqs {
@@ -181,6 +200,11 @@ static inline int wiimote_cmd_acquire(struct wiimote_data *wdata)
 	return mutex_lock_interruptible(&wdata->state.sync) ? -ERESTARTSYS : 0;
 }
 
+static inline void wiimote_cmd_acquire_noint(struct wiimote_data *wdata)
+{
+	mutex_lock(&wdata->state.sync);
+}
+
 /* requires the state.lock spinlock to be held */
 static inline void wiimote_cmd_set(struct wiimote_data *wdata, int cmd,
 								__u32 opt)
@@ -203,6 +227,17 @@ static inline int wiimote_cmd_wait(struct wiimote_data *wdata)
 	if (ret < 0)
 		return -ERESTARTSYS;
 	else if (ret == 0)
+		return -EIO;
+	else
+		return 0;
+}
+
+static inline int wiimote_cmd_wait_noint(struct wiimote_data *wdata)
+{
+	unsigned long ret;
+
+	ret = wait_for_completion_timeout(&wdata->state.ready, HZ);
+	if (!ret)
 		return -EIO;
 	else
 		return 0;

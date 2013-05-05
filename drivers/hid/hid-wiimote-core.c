@@ -399,6 +399,45 @@ ssize_t wiimote_cmd_read(struct wiimote_data *wdata, __u32 offset, __u8 *rmem,
 	return ret;
 }
 
+/* requires the cmd-mutex to be held */
+static int wiimote_cmd_init_ext(struct wiimote_data *wdata)
+{
+	__u8 wmem;
+	int ret;
+
+	/* initialize extension */
+	wmem = 0x55;
+	ret = wiimote_cmd_write(wdata, 0xa400f0, &wmem, sizeof(wmem));
+	if (ret)
+		return ret;
+
+	/* disable default encryption */
+	wmem = 0x0;
+	ret = wiimote_cmd_write(wdata, 0xa400fb, &wmem, sizeof(wmem));
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+/* requires the cmd-mutex to be held */
+static __u8 wiimote_cmd_read_ext(struct wiimote_data *wdata)
+{
+	__u8 rmem[6];
+	int ret;
+
+	/* read extension ID */
+	ret = wiimote_cmd_read(wdata, 0xa400fa, rmem, 6);
+	if (ret != 6)
+		return WIIMOTE_EXT_NONE;
+
+	if (rmem[0] == 0xff && rmem[1] == 0xff && rmem[2] == 0xff &&
+	    rmem[3] == 0xff && rmem[4] == 0xff && rmem[5] == 0xff)
+		return WIIMOTE_EXT_NONE;
+
+	return WIIMOTE_EXT_UNKNOWN;
+}
+
 static int wiimote_battery_get_property(struct power_supply *psy,
 						enum power_supply_property psp,
 						union power_supply_propval *val)
@@ -662,6 +701,105 @@ static void wiimote_ir_close(struct input_dev *dev)
 	wiimote_init_ir(wdata, 0);
 }
 
+/* device (re-)initialization and detection */
+
+static const char *wiimote_devtype_names[WIIMOTE_DEV_NUM] = {
+	[WIIMOTE_DEV_PENDING] = "Pending",
+	[WIIMOTE_DEV_UNKNOWN] = "Unknown",
+	[WIIMOTE_DEV_GENERIC] = "Generic",
+	[WIIMOTE_DEV_GEN10] = "Nintendo Wii Remote (Gen 1)",
+	[WIIMOTE_DEV_GEN20] = "Nintendo Wii Remote Plus (Gen 2)",
+};
+
+/* Try to guess the device type based on all collected information. We
+ * first try to detect by static extension types, then VID/PID and the
+ * device name. If we cannot detect the device, we use
+ * WIIMOTE_DEV_GENERIC so all modules will get probed on the device. */
+static void wiimote_init_set_type(struct wiimote_data *wdata,
+				  __u8 exttype)
+{
+	__u8 devtype = WIIMOTE_DEV_GENERIC;
+	__u16 vendor, product;
+	const char *name;
+
+	vendor = wdata->hdev->vendor;
+	product = wdata->hdev->product;
+	name = wdata->hdev->name;
+
+	if (!strcmp(name, "Nintendo RVL-CNT-01")) {
+		devtype = WIIMOTE_DEV_GEN10;
+		goto done;
+	} else if (!strcmp(name, "Nintendo RVL-CNT-01-TR")) {
+		devtype = WIIMOTE_DEV_GEN20;
+		goto done;
+	}
+
+	if (vendor == USB_VENDOR_ID_NINTENDO) {
+		if (product == USB_DEVICE_ID_NINTENDO_WIIMOTE) {
+			devtype = WIIMOTE_DEV_GEN10;
+			goto done;
+		} else if (product == USB_DEVICE_ID_NINTENDO_WIIMOTE2) {
+			devtype = WIIMOTE_DEV_GEN20;
+			goto done;
+		}
+	}
+
+done:
+	if (devtype == WIIMOTE_DEV_GENERIC)
+		hid_info(wdata->hdev, "cannot detect device; NAME: %s VID: %04x PID: %04x EXT: %04x\n",
+			name, vendor, product, exttype);
+	else
+		hid_info(wdata->hdev, "detected device: %s\n",
+			 wiimote_devtype_names[devtype]);
+
+	spin_lock_irq(&wdata->state.lock);
+	wdata->state.devtype = devtype;
+	spin_unlock_irq(&wdata->state.lock);
+}
+
+static void wiimote_init_detect(struct wiimote_data *wdata)
+{
+	__u8 exttype = WIIMOTE_EXT_NONE;
+	bool ext;
+	int ret;
+
+	wiimote_cmd_acquire_noint(wdata);
+
+	spin_lock_irq(&wdata->state.lock);
+	wiimote_cmd_set(wdata, WIIPROTO_REQ_SREQ, 0);
+	wiiproto_req_status(wdata);
+	spin_unlock_irq(&wdata->state.lock);
+
+	ret = wiimote_cmd_wait_noint(wdata);
+	if (ret)
+		goto out_release;
+
+	spin_lock_irq(&wdata->state.lock);
+	ext = wdata->state.flags & WIIPROTO_FLAG_EXT_PLUGGED;
+	spin_unlock_irq(&wdata->state.lock);
+
+	if (!ext)
+		goto out_release;
+
+	wiimote_cmd_init_ext(wdata);
+	exttype = wiimote_cmd_read_ext(wdata);
+
+out_release:
+	wiimote_cmd_release(wdata);
+	wiimote_init_set_type(wdata, exttype);
+}
+
+static void wiimote_init_worker(struct work_struct *work)
+{
+	struct wiimote_data *wdata = container_of(work, struct wiimote_data,
+						  init_worker);
+
+	if (wdata->state.devtype == WIIMOTE_DEV_PENDING)
+		wiimote_init_detect(wdata);
+}
+
+/* protocol handlers */
+
 static void handler_keys(struct wiimote_data *wdata, const __u8 *payload)
 {
 	input_report_key(wdata->input, wiiproto_keymap[WIIPROTO_KEY_LEFT],
@@ -776,7 +914,14 @@ static void handler_status(struct wiimote_data *wdata, const __u8 *payload)
 {
 	handler_status_K(wdata, payload);
 
-	wiiext_event(wdata, payload[2] & 0x02);
+	/* update extension status */
+	if (payload[2] & 0x02) {
+		wdata->state.flags |= WIIPROTO_FLAG_EXT_PLUGGED;
+		wiiext_event(wdata, true);
+	} else {
+		wdata->state.flags &= ~WIIPROTO_FLAG_EXT_PLUGGED;
+		wiiext_event(wdata, false);
+	}
 
 	if (wiimote_cmd_pending(wdata, WIIPROTO_REQ_SREQ, 0)) {
 		wdata->state.cmd_battery = payload[5];
@@ -1135,6 +1280,8 @@ static struct wiimote_data *wiimote_create(struct hid_device *hdev)
 	mutex_init(&wdata->state.sync);
 	wdata->state.drm = WIIPROTO_REQ_DRM_K;
 
+	INIT_WORK(&wdata->init_worker, wiimote_init_worker);
+
 	return wdata;
 
 err_ir:
@@ -1157,6 +1304,7 @@ static void wiimote_destroy(struct wiimote_data *wdata)
 	input_unregister_device(wdata->accel);
 	input_unregister_device(wdata->ir);
 	input_unregister_device(wdata->input);
+	cancel_work_sync(&wdata->init_worker);
 	cancel_work_sync(&wdata->queue.worker);
 	hid_hw_close(wdata->hdev);
 	hid_hw_stop(wdata->hdev);
@@ -1252,6 +1400,9 @@ static int wiimote_hid_probe(struct hid_device *hdev,
 	spin_lock_irq(&wdata->state.lock);
 	wiiproto_req_leds(wdata, WIIPROTO_FLAG_LED1);
 	spin_unlock_irq(&wdata->state.lock);
+
+	/* schedule device detection */
+	schedule_work(&wdata->init_worker);
 
 	return 0;
 
