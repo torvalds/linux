@@ -141,14 +141,15 @@ static inline int sum_frag_mem_limit(struct netns_frags *nf)
 static inline void inet_frag_lru_move(struct inet_frag_queue *q)
 {
 	spin_lock(&q->net->lru_lock);
-	list_move_tail(&q->lru_list, &q->net->lru_list);
+	if (!list_empty(&q->lru_list))
+		list_move_tail(&q->lru_list, &q->net->lru_list);
 	spin_unlock(&q->net->lru_lock);
 }
 
 static inline void inet_frag_lru_del(struct inet_frag_queue *q)
 {
 	spin_lock(&q->net->lru_lock);
-	list_del(&q->lru_list);
+	list_del_init(&q->lru_list);
 	q->net->nqueues--;
 	spin_unlock(&q->net->lru_lock);
 }
