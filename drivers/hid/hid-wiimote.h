@@ -48,6 +48,14 @@ struct wiimote_buf {
 	size_t size;
 };
 
+struct wiimote_queue {
+	spinlock_t lock;
+	struct work_struct worker;
+	__u8 head;
+	__u8 tail;
+	struct wiimote_buf outq[WIIMOTE_BUFSIZE];
+};
+
 struct wiimote_state {
 	spinlock_t lock;
 	__u8 flags;
@@ -77,12 +85,7 @@ struct wiimote_data {
 	struct wiimote_ext *ext;
 	struct wiimote_debug *debug;
 
-	spinlock_t qlock;
-	__u8 head;
-	__u8 tail;
-	struct wiimote_buf outq[WIIMOTE_BUFSIZE];
-	struct work_struct worker;
-
+	struct wiimote_queue queue;
 	struct wiimote_state state;
 };
 

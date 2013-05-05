@@ -56,6 +56,8 @@ static enum power_supply_property wiimote_battery_props[] = {
 	POWER_SUPPLY_PROP_SCOPE,
 };
 
+/* output queue handling */
+
 static ssize_t wiimote_hid_send(struct hid_device *hdev, __u8 *buffer,
 								size_t count)
 {
@@ -75,24 +77,27 @@ static ssize_t wiimote_hid_send(struct hid_device *hdev, __u8 *buffer,
 	return ret;
 }
 
-static void wiimote_worker(struct work_struct *work)
+static void wiimote_queue_worker(struct work_struct *work)
 {
-	struct wiimote_data *wdata = container_of(work, struct wiimote_data,
-									worker);
+	struct wiimote_queue *queue = container_of(work, struct wiimote_queue,
+						   worker);
+	struct wiimote_data *wdata = container_of(queue, struct wiimote_data,
+						  queue);
 	unsigned long flags;
 
-	spin_lock_irqsave(&wdata->qlock, flags);
+	spin_lock_irqsave(&wdata->queue.lock, flags);
 
-	while (wdata->head != wdata->tail) {
-		spin_unlock_irqrestore(&wdata->qlock, flags);
-		wiimote_hid_send(wdata->hdev, wdata->outq[wdata->tail].data,
-						wdata->outq[wdata->tail].size);
-		spin_lock_irqsave(&wdata->qlock, flags);
+	while (wdata->queue.head != wdata->queue.tail) {
+		spin_unlock_irqrestore(&wdata->queue.lock, flags);
+		wiimote_hid_send(wdata->hdev,
+				 wdata->queue.outq[wdata->queue.tail].data,
+				 wdata->queue.outq[wdata->queue.tail].size);
+		spin_lock_irqsave(&wdata->queue.lock, flags);
 
-		wdata->tail = (wdata->tail + 1) % WIIMOTE_BUFSIZE;
+		wdata->queue.tail = (wdata->queue.tail + 1) % WIIMOTE_BUFSIZE;
 	}
 
-	spin_unlock_irqrestore(&wdata->qlock, flags);
+	spin_unlock_irqrestore(&wdata->queue.lock, flags);
 }
 
 static void wiimote_queue(struct wiimote_data *wdata, const __u8 *buffer,
@@ -116,22 +121,22 @@ static void wiimote_queue(struct wiimote_data *wdata, const __u8 *buffer,
 	 * will reschedule itself until the queue is empty.
 	 */
 
-	spin_lock_irqsave(&wdata->qlock, flags);
+	spin_lock_irqsave(&wdata->queue.lock, flags);
 
-	memcpy(wdata->outq[wdata->head].data, buffer, count);
-	wdata->outq[wdata->head].size = count;
-	newhead = (wdata->head + 1) % WIIMOTE_BUFSIZE;
+	memcpy(wdata->queue.outq[wdata->queue.head].data, buffer, count);
+	wdata->queue.outq[wdata->queue.head].size = count;
+	newhead = (wdata->queue.head + 1) % WIIMOTE_BUFSIZE;
 
-	if (wdata->head == wdata->tail) {
-		wdata->head = newhead;
-		schedule_work(&wdata->worker);
-	} else if (newhead != wdata->tail) {
-		wdata->head = newhead;
+	if (wdata->queue.head == wdata->queue.tail) {
+		wdata->queue.head = newhead;
+		schedule_work(&wdata->queue.worker);
+	} else if (newhead != wdata->queue.tail) {
+		wdata->queue.head = newhead;
 	} else {
 		hid_warn(wdata->hdev, "Output queue is full");
 	}
 
-	spin_unlock_irqrestore(&wdata->qlock, flags);
+	spin_unlock_irqrestore(&wdata->queue.lock, flags);
 }
 
 /*
@@ -1157,8 +1162,8 @@ static struct wiimote_data *wiimote_create(struct hid_device *hdev)
 	input_set_abs_params(wdata->ir, ABS_HAT3X, 0, 1023, 2, 4);
 	input_set_abs_params(wdata->ir, ABS_HAT3Y, 0, 767, 2, 4);
 
-	spin_lock_init(&wdata->qlock);
-	INIT_WORK(&wdata->worker, wiimote_worker);
+	spin_lock_init(&wdata->queue.lock);
+	INIT_WORK(&wdata->queue.worker, wiimote_queue_worker);
 
 	spin_lock_init(&wdata->state.lock);
 	init_completion(&wdata->state.ready);
@@ -1187,7 +1192,7 @@ static void wiimote_destroy(struct wiimote_data *wdata)
 	input_unregister_device(wdata->accel);
 	input_unregister_device(wdata->ir);
 	input_unregister_device(wdata->input);
-	cancel_work_sync(&wdata->worker);
+	cancel_work_sync(&wdata->queue.worker);
 	hid_hw_stop(wdata->hdev);
 
 	kfree(wdata);
