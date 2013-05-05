@@ -191,7 +191,7 @@ o	A CPU-bound real-time task in a CONFIG_PREEMPT_RT kernel that
 o	A hardware or software issue shuts off the scheduler-clock
 	interrupt on a CPU that is not in dyntick-idle mode.  This
 	problem really has happened, and seems to be most likely to
-	result in RCU CPU stall warnings for CONFIG_NO_HZ=n kernels.
+	result in RCU CPU stall warnings for CONFIG_NO_HZ_COMMON=n kernels.
 
 o	A bug in the RCU implementation.
 

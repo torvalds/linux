@@ -323,6 +323,27 @@ TRACE_EVENT(itimer_expire,
 		  (int) __entry->pid, (unsigned long long)__entry->now)
 );
 
+#ifdef CONFIG_NO_HZ_COMMON
+TRACE_EVENT(tick_stop,
+
+	TP_PROTO(int success, char *error_msg),
+
+	TP_ARGS(success, error_msg),
+
+	TP_STRUCT__entry(
+		__field( int ,		success	)
+		__string( msg, 		error_msg )
+	),
+
+	TP_fast_assign(
+		__entry->success	= success;
+		__assign_str(msg, error_msg);
+	),
+
+	TP_printk("success=%s msg=%s",  __entry->success ? "yes" : "no", __get_str(msg))
+);
+#endif
+
 #endif /*  _TRACE_TIMER_H */
 
 /* This part must be outside protection */
