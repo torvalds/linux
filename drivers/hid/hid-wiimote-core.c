@@ -202,6 +202,14 @@ static __u8 select_drm(struct wiimote_data *wdata)
 	ext = (wdata->state.flags & WIIPROTO_FLAG_EXT_USED) ||
 	      (wdata->state.flags & WIIPROTO_FLAG_MP_USED);
 
+	/* some 3rd-party balance-boards are hard-coded to KEE, *sigh* */
+	if (wdata->state.devtype == WIIMOTE_DEV_BALANCE_BOARD) {
+		if (ext)
+			return WIIPROTO_REQ_DRM_KEE;
+		else
+			return WIIPROTO_REQ_DRM_K;
+	}
+
 	if (ir == WIIPROTO_FLAG_IR_BASIC) {
 		if (wdata->state.flags & WIIPROTO_FLAG_ACCEL) {
 			if (ext)
@@ -436,6 +444,9 @@ static __u8 wiimote_cmd_read_ext(struct wiimote_data *wdata, __u8 *rmem)
 	    rmem[3] == 0xff && rmem[4] == 0xff && rmem[5] == 0xff)
 		return WIIMOTE_EXT_NONE;
 
+	if (rmem[4] == 0x04 && rmem[5] == 0x02)
+		return WIIMOTE_EXT_BALANCE_BOARD;
+
 	return WIIMOTE_EXT_UNKNOWN;
 }
 
@@ -568,6 +579,11 @@ static const __u8 * const wiimote_devtype_mods[WIIMOTE_DEV_NUM] = {
 		WIIMOD_LED4,
 		WIIMOD_ACCEL,
 		WIIMOD_IR,
+		WIIMOD_NULL,
+	},
+	[WIIMOTE_DEV_BALANCE_BOARD] = (const __u8[]) {
+		WIIMOD_BATTERY,
+		WIIMOD_LED1,
 		WIIMOD_NULL,
 	},
 };
@@ -753,6 +769,7 @@ static const char *wiimote_devtype_names[WIIMOTE_DEV_NUM] = {
 	[WIIMOTE_DEV_GENERIC] = "Generic",
 	[WIIMOTE_DEV_GEN10] = "Nintendo Wii Remote (Gen 1)",
 	[WIIMOTE_DEV_GEN20] = "Nintendo Wii Remote Plus (Gen 2)",
+	[WIIMOTE_DEV_BALANCE_BOARD] = "Nintendo Wii Balance Board",
 };
 
 /* Try to guess the device type based on all collected information. We
@@ -770,11 +787,19 @@ static void wiimote_init_set_type(struct wiimote_data *wdata,
 	product = wdata->hdev->product;
 	name = wdata->hdev->name;
 
+	if (exttype == WIIMOTE_EXT_BALANCE_BOARD) {
+		devtype = WIIMOTE_DEV_BALANCE_BOARD;
+		goto done;
+	}
+
 	if (!strcmp(name, "Nintendo RVL-CNT-01")) {
 		devtype = WIIMOTE_DEV_GEN10;
 		goto done;
 	} else if (!strcmp(name, "Nintendo RVL-CNT-01-TR")) {
 		devtype = WIIMOTE_DEV_GEN20;
+		goto done;
+	} else if (!strcmp(name, "Nintendo RVL-WBC-01")) {
+		devtype = WIIMOTE_DEV_BALANCE_BOARD;
 		goto done;
 	}
 
@@ -1009,6 +1034,7 @@ out_release:
 static const char *wiimote_exttype_names[WIIMOTE_EXT_NUM] = {
 	[WIIMOTE_EXT_NONE] = "None",
 	[WIIMOTE_EXT_UNKNOWN] = "Unknown",
+	[WIIMOTE_EXT_BALANCE_BOARD] = "Nintendo Wii Balance Board",
 };
 
 /*

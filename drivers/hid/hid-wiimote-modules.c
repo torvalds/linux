@@ -789,6 +789,216 @@ static const struct wiimod_ops wiimod_ir = {
 };
 
 /*
+ * Balance Board Extension
+ * The Nintendo Wii Balance Board provides four hardware weight sensor plus a
+ * single push button. No other peripherals are available. However, the
+ * balance-board data is sent via a standard Wii Remote extension. All other
+ * data for non-present hardware is zeroed out.
+ * Some 3rd party devices react allergic if we try to access normal Wii Remote
+ * hardware, so this extension module should be the only module that is loaded
+ * on balance boards.
+ * The balance board needs 8 bytes extension data instead of basic 6 bytes so
+ * it needs the WIIMOD_FLAG_EXT8 flag.
+ */
+
+static void wiimod_bboard_in_keys(struct wiimote_data *wdata, const __u8 *keys)
+{
+	input_report_key(wdata->extension.input, BTN_A,
+			 !!(keys[1] & 0x08));
+	input_sync(wdata->extension.input);
+}
+
+static void wiimod_bboard_in_ext(struct wiimote_data *wdata,
+				 const __u8 *ext)
+{
+	__s32 val[4], tmp, div;
+	unsigned int i;
+	struct wiimote_state *s = &wdata->state;
+
+	/*
+	 * Balance board data layout:
+	 *
+	 *   Byte |  8  7  6  5  4  3  2  1  |
+	 *   -----+--------------------------+
+	 *    1   |    Top Right <15:8>      |
+	 *    2   |    Top Right  <7:0>      |
+	 *   -----+--------------------------+
+	 *    3   | Bottom Right <15:8>      |
+	 *    4   | Bottom Right  <7:0>      |
+	 *   -----+--------------------------+
+	 *    5   |     Top Left <15:8>      |
+	 *    6   |     Top Left  <7:0>      |
+	 *   -----+--------------------------+
+	 *    7   |  Bottom Left <15:8>      |
+	 *    8   |  Bottom Left  <7:0>      |
+	 *   -----+--------------------------+
+	 *
+	 * These values represent the weight-measurements of the Wii-balance
+	 * board with 16bit precision.
+	 *
+	 * The balance-board is never reported interleaved with motionp.
+	 */
+
+	val[0] = ext[0];
+	val[0] <<= 8;
+	val[0] |= ext[1];
+
+	val[1] = ext[2];
+	val[1] <<= 8;
+	val[1] |= ext[3];
+
+	val[2] = ext[4];
+	val[2] <<= 8;
+	val[2] |= ext[5];
+
+	val[3] = ext[6];
+	val[3] <<= 8;
+	val[3] |= ext[7];
+
+	/* apply calibration data */
+	for (i = 0; i < 4; i++) {
+		if (val[i] <= s->calib_bboard[i][0]) {
+			tmp = 0;
+		} else if (val[i] < s->calib_bboard[i][1]) {
+			tmp = val[i] - s->calib_bboard[i][0];
+			tmp *= 1700;
+			div = s->calib_bboard[i][1] - s->calib_bboard[i][0];
+			tmp /= div ? div : 1;
+		} else {
+			tmp = val[i] - s->calib_bboard[i][1];
+			tmp *= 1700;
+			div = s->calib_bboard[i][2] - s->calib_bboard[i][1];
+			tmp /= div ? div : 1;
+			tmp += 1700;
+		}
+		val[i] = tmp;
+	}
+
+	input_report_abs(wdata->extension.input, ABS_HAT0X, val[0]);
+	input_report_abs(wdata->extension.input, ABS_HAT0Y, val[1]);
+	input_report_abs(wdata->extension.input, ABS_HAT1X, val[2]);
+	input_report_abs(wdata->extension.input, ABS_HAT1Y, val[3]);
+	input_sync(wdata->extension.input);
+}
+
+static int wiimod_bboard_open(struct input_dev *dev)
+{
+	struct wiimote_data *wdata = input_get_drvdata(dev);
+	unsigned long flags;
+
+	spin_lock_irqsave(&wdata->state.lock, flags);
+	wdata->state.flags |= WIIPROTO_FLAG_EXT_USED;
+	wiiproto_req_drm(wdata, WIIPROTO_REQ_NULL);
+	spin_unlock_irqrestore(&wdata->state.lock, flags);
+
+	return 0;
+}
+
+static void wiimod_bboard_close(struct input_dev *dev)
+{
+	struct wiimote_data *wdata = input_get_drvdata(dev);
+	unsigned long flags;
+
+	spin_lock_irqsave(&wdata->state.lock, flags);
+	wdata->state.flags &= ~WIIPROTO_FLAG_EXT_USED;
+	wiiproto_req_drm(wdata, WIIPROTO_REQ_NULL);
+	spin_unlock_irqrestore(&wdata->state.lock, flags);
+}
+
+static int wiimod_bboard_probe(const struct wiimod_ops *ops,
+			       struct wiimote_data *wdata)
+{
+	int ret, i, j;
+	__u8 buf[24], offs;
+
+	wiimote_cmd_acquire_noint(wdata);
+
+	ret = wiimote_cmd_read(wdata, 0xa40024, buf, 12);
+	if (ret != 12) {
+		wiimote_cmd_release(wdata);
+		return ret < 0 ? ret : -EIO;
+	}
+	ret = wiimote_cmd_read(wdata, 0xa40024 + 12, buf + 12, 12);
+	if (ret != 12) {
+		wiimote_cmd_release(wdata);
+		return ret < 0 ? ret : -EIO;
+	}
+
+	wiimote_cmd_release(wdata);
+
+	offs = 0;
+	for (i = 0; i < 3; ++i) {
+		for (j = 0; j < 4; ++j) {
+			wdata->state.calib_bboard[j][i] = buf[offs];
+			wdata->state.calib_bboard[j][i] <<= 8;
+			wdata->state.calib_bboard[j][i] |= buf[offs + 1];
+			offs += 2;
+		}
+	}
+
+	wdata->extension.input = input_allocate_device();
+	if (!wdata->extension.input)
+		return -ENOMEM;
+
+	input_set_drvdata(wdata->extension.input, wdata);
+	wdata->extension.input->open = wiimod_bboard_open;
+	wdata->extension.input->close = wiimod_bboard_close;
+	wdata->extension.input->dev.parent = &wdata->hdev->dev;
+	wdata->extension.input->id.bustype = wdata->hdev->bus;
+	wdata->extension.input->id.vendor = wdata->hdev->vendor;
+	wdata->extension.input->id.product = wdata->hdev->product;
+	wdata->extension.input->id.version = wdata->hdev->version;
+	wdata->extension.input->name = WIIMOTE_NAME " Balance Board";
+
+	set_bit(EV_KEY, wdata->extension.input->evbit);
+	set_bit(BTN_A, wdata->extension.input->keybit);
+
+	set_bit(EV_ABS, wdata->extension.input->evbit);
+	set_bit(ABS_HAT0X, wdata->extension.input->absbit);
+	set_bit(ABS_HAT0Y, wdata->extension.input->absbit);
+	set_bit(ABS_HAT1X, wdata->extension.input->absbit);
+	set_bit(ABS_HAT1Y, wdata->extension.input->absbit);
+	input_set_abs_params(wdata->extension.input,
+			     ABS_HAT0X, 0, 65535, 2, 4);
+	input_set_abs_params(wdata->extension.input,
+			     ABS_HAT0Y, 0, 65535, 2, 4);
+	input_set_abs_params(wdata->extension.input,
+			     ABS_HAT1X, 0, 65535, 2, 4);
+	input_set_abs_params(wdata->extension.input,
+			     ABS_HAT1Y, 0, 65535, 2, 4);
+
+	ret = input_register_device(wdata->extension.input);
+	if (ret)
+		goto err_free;
+
+	return 0;
+
+err_free:
+	input_free_device(wdata->extension.input);
+	wdata->extension.input = NULL;
+	return ret;
+}
+
+static void wiimod_bboard_remove(const struct wiimod_ops *ops,
+				 struct wiimote_data *wdata)
+{
+	if (!wdata->extension.input)
+		return;
+
+	input_unregister_device(wdata->extension.input);
+	wdata->extension.input = NULL;
+}
+
+static const struct wiimod_ops wiimod_bboard = {
+	.flags = WIIMOD_FLAG_EXT8,
+	.arg = 0,
+	.probe = wiimod_bboard_probe,
+	.remove = wiimod_bboard_remove,
+	.in_keys = wiimod_bboard_in_keys,
+	.in_ext = wiimod_bboard_in_ext,
+};
+
+/*
  * Motion Plus
  */
 
@@ -816,4 +1026,5 @@ const struct wiimod_ops *wiimod_table[WIIMOD_NUM] = {
 const struct wiimod_ops *wiimod_ext_table[WIIMOTE_EXT_NUM] = {
 	[WIIMOTE_EXT_NONE] = &wiimod_dummy,
 	[WIIMOTE_EXT_UNKNOWN] = &wiimod_dummy,
+	[WIIMOTE_EXT_BALANCE_BOARD] = &wiimod_bboard,
 };
