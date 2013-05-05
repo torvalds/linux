@@ -526,6 +526,268 @@ static const struct wiimod_ops wiimod_accel = {
 	.in_accel = wiimod_accel_in_accel,
 };
 
+/*
+ * IR Cam
+ * Up to 4 IR sources can be tracked by a normal Wii Remote. The IR cam needs
+ * to be initialized with a fairly complex procedure and consumes a lot of
+ * power. Therefore, as long as no application uses the IR input device, it is
+ * kept offline.
+ * Nearly no other device than the normal Wii Remotes supports the IR cam so
+ * you can disable this module for these devices.
+ */
+
+static void wiimod_ir_in_ir(struct wiimote_data *wdata, const __u8 *ir,
+			    bool packed, unsigned int id)
+{
+	__u16 x, y;
+	__u8 xid, yid;
+	bool sync = false;
+
+	if (!(wdata->state.flags & WIIPROTO_FLAGS_IR))
+		return;
+
+	switch (id) {
+	case 0:
+		xid = ABS_HAT0X;
+		yid = ABS_HAT0Y;
+		break;
+	case 1:
+		xid = ABS_HAT1X;
+		yid = ABS_HAT1Y;
+		break;
+	case 2:
+		xid = ABS_HAT2X;
+		yid = ABS_HAT2Y;
+		break;
+	case 3:
+		xid = ABS_HAT3X;
+		yid = ABS_HAT3Y;
+		sync = true;
+		break;
+	default:
+		return;
+	};
+
+	/*
+	 * Basic IR data is encoded into 3 bytes. The first two bytes are the
+	 * lower 8 bit of the X/Y data, the 3rd byte contains the upper 2 bits
+	 * of both.
+	 * If data is packed, then the 3rd byte is put first and slightly
+	 * reordered. This allows to interleave packed and non-packed data to
+	 * have two IR sets in 5 bytes instead of 6.
+	 * The resulting 10bit X/Y values are passed to the ABS_HAT? input dev.
+	 */
+
+	if (packed) {
+		x = ir[1] | ((ir[0] & 0x03) << 8);
+		y = ir[2] | ((ir[0] & 0x0c) << 6);
+	} else {
+		x = ir[0] | ((ir[2] & 0x30) << 4);
+		y = ir[1] | ((ir[2] & 0xc0) << 2);
+	}
+
+	input_report_abs(wdata->ir, xid, x);
+	input_report_abs(wdata->ir, yid, y);
+
+	if (sync)
+		input_sync(wdata->ir);
+}
+
+static int wiimod_ir_change(struct wiimote_data *wdata, __u16 mode)
+{
+	int ret;
+	unsigned long flags;
+	__u8 format = 0;
+	static const __u8 data_enable[] = { 0x01 };
+	static const __u8 data_sens1[] = { 0x02, 0x00, 0x00, 0x71, 0x01,
+						0x00, 0xaa, 0x00, 0x64 };
+	static const __u8 data_sens2[] = { 0x63, 0x03 };
+	static const __u8 data_fin[] = { 0x08 };
+
+	spin_lock_irqsave(&wdata->state.lock, flags);
+
+	if (mode == (wdata->state.flags & WIIPROTO_FLAGS_IR)) {
+		spin_unlock_irqrestore(&wdata->state.lock, flags);
+		return 0;
+	}
+
+	if (mode == 0) {
+		wdata->state.flags &= ~WIIPROTO_FLAGS_IR;
+		wiiproto_req_ir1(wdata, 0);
+		wiiproto_req_ir2(wdata, 0);
+		wiiproto_req_drm(wdata, WIIPROTO_REQ_NULL);
+		spin_unlock_irqrestore(&wdata->state.lock, flags);
+		return 0;
+	}
+
+	spin_unlock_irqrestore(&wdata->state.lock, flags);
+
+	ret = wiimote_cmd_acquire(wdata);
+	if (ret)
+		return ret;
+
+	/* send PIXEL CLOCK ENABLE cmd first */
+	spin_lock_irqsave(&wdata->state.lock, flags);
+	wiimote_cmd_set(wdata, WIIPROTO_REQ_IR1, 0);
+	wiiproto_req_ir1(wdata, 0x06);
+	spin_unlock_irqrestore(&wdata->state.lock, flags);
+
+	ret = wiimote_cmd_wait(wdata);
+	if (ret)
+		goto unlock;
+	if (wdata->state.cmd_err) {
+		ret = -EIO;
+		goto unlock;
+	}
+
+	/* enable IR LOGIC */
+	spin_lock_irqsave(&wdata->state.lock, flags);
+	wiimote_cmd_set(wdata, WIIPROTO_REQ_IR2, 0);
+	wiiproto_req_ir2(wdata, 0x06);
+	spin_unlock_irqrestore(&wdata->state.lock, flags);
+
+	ret = wiimote_cmd_wait(wdata);
+	if (ret)
+		goto unlock;
+	if (wdata->state.cmd_err) {
+		ret = -EIO;
+		goto unlock;
+	}
+
+	/* enable IR cam but do not make it send data, yet */
+	ret = wiimote_cmd_write(wdata, 0xb00030, data_enable,
+							sizeof(data_enable));
+	if (ret)
+		goto unlock;
+
+	/* write first sensitivity block */
+	ret = wiimote_cmd_write(wdata, 0xb00000, data_sens1,
+							sizeof(data_sens1));
+	if (ret)
+		goto unlock;
+
+	/* write second sensitivity block */
+	ret = wiimote_cmd_write(wdata, 0xb0001a, data_sens2,
+							sizeof(data_sens2));
+	if (ret)
+		goto unlock;
+
+	/* put IR cam into desired state */
+	switch (mode) {
+		case WIIPROTO_FLAG_IR_FULL:
+			format = 5;
+			break;
+		case WIIPROTO_FLAG_IR_EXT:
+			format = 3;
+			break;
+		case WIIPROTO_FLAG_IR_BASIC:
+			format = 1;
+			break;
+	}
+	ret = wiimote_cmd_write(wdata, 0xb00033, &format, sizeof(format));
+	if (ret)
+		goto unlock;
+
+	/* make IR cam send data */
+	ret = wiimote_cmd_write(wdata, 0xb00030, data_fin, sizeof(data_fin));
+	if (ret)
+		goto unlock;
+
+	/* request new DRM mode compatible to IR mode */
+	spin_lock_irqsave(&wdata->state.lock, flags);
+	wdata->state.flags &= ~WIIPROTO_FLAGS_IR;
+	wdata->state.flags |= mode & WIIPROTO_FLAGS_IR;
+	wiiproto_req_drm(wdata, WIIPROTO_REQ_NULL);
+	spin_unlock_irqrestore(&wdata->state.lock, flags);
+
+unlock:
+	wiimote_cmd_release(wdata);
+	return ret;
+}
+
+static int wiimod_ir_open(struct input_dev *dev)
+{
+	struct wiimote_data *wdata = input_get_drvdata(dev);
+
+	return wiimod_ir_change(wdata, WIIPROTO_FLAG_IR_BASIC);
+}
+
+static void wiimod_ir_close(struct input_dev *dev)
+{
+	struct wiimote_data *wdata = input_get_drvdata(dev);
+
+	wiimod_ir_change(wdata, 0);
+}
+
+static int wiimod_ir_probe(const struct wiimod_ops *ops,
+			   struct wiimote_data *wdata)
+{
+	int ret;
+
+	wdata->ir = input_allocate_device();
+	if (!wdata->ir)
+		return -ENOMEM;
+
+	input_set_drvdata(wdata->ir, wdata);
+	wdata->ir->open = wiimod_ir_open;
+	wdata->ir->close = wiimod_ir_close;
+	wdata->ir->dev.parent = &wdata->hdev->dev;
+	wdata->ir->id.bustype = wdata->hdev->bus;
+	wdata->ir->id.vendor = wdata->hdev->vendor;
+	wdata->ir->id.product = wdata->hdev->product;
+	wdata->ir->id.version = wdata->hdev->version;
+	wdata->ir->name = WIIMOTE_NAME " IR";
+
+	set_bit(EV_ABS, wdata->ir->evbit);
+	set_bit(ABS_HAT0X, wdata->ir->absbit);
+	set_bit(ABS_HAT0Y, wdata->ir->absbit);
+	set_bit(ABS_HAT1X, wdata->ir->absbit);
+	set_bit(ABS_HAT1Y, wdata->ir->absbit);
+	set_bit(ABS_HAT2X, wdata->ir->absbit);
+	set_bit(ABS_HAT2Y, wdata->ir->absbit);
+	set_bit(ABS_HAT3X, wdata->ir->absbit);
+	set_bit(ABS_HAT3Y, wdata->ir->absbit);
+	input_set_abs_params(wdata->ir, ABS_HAT0X, 0, 1023, 2, 4);
+	input_set_abs_params(wdata->ir, ABS_HAT0Y, 0, 767, 2, 4);
+	input_set_abs_params(wdata->ir, ABS_HAT1X, 0, 1023, 2, 4);
+	input_set_abs_params(wdata->ir, ABS_HAT1Y, 0, 767, 2, 4);
+	input_set_abs_params(wdata->ir, ABS_HAT2X, 0, 1023, 2, 4);
+	input_set_abs_params(wdata->ir, ABS_HAT2Y, 0, 767, 2, 4);
+	input_set_abs_params(wdata->ir, ABS_HAT3X, 0, 1023, 2, 4);
+	input_set_abs_params(wdata->ir, ABS_HAT3Y, 0, 767, 2, 4);
+
+	ret = input_register_device(wdata->ir);
+	if (ret) {
+		hid_err(wdata->hdev, "cannot register input device\n");
+		goto err_free;
+	}
+
+	return 0;
+
+err_free:
+	input_free_device(wdata->ir);
+	wdata->ir = NULL;
+	return ret;
+}
+
+static void wiimod_ir_remove(const struct wiimod_ops *ops,
+			     struct wiimote_data *wdata)
+{
+	if (!wdata->ir)
+		return;
+
+	input_unregister_device(wdata->ir);
+	wdata->ir = NULL;
+}
+
+static const struct wiimod_ops wiimod_ir = {
+	.flags = 0,
+	.arg = 0,
+	.probe = wiimod_ir_probe,
+	.remove = wiimod_ir_remove,
+	.in_ir = wiimod_ir_in_ir,
+};
+
 /* module table */
 
 const struct wiimod_ops *wiimod_table[WIIMOD_NUM] = {
@@ -537,4 +799,5 @@ const struct wiimod_ops *wiimod_table[WIIMOD_NUM] = {
 	[WIIMOD_LED3] = &wiimod_leds[2],
 	[WIIMOD_LED4] = &wiimod_leds[3],
 	[WIIMOD_ACCEL] = &wiimod_accel,
+	[WIIMOD_IR] = &wiimod_ir,
 };
