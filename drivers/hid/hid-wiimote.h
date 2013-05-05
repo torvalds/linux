@@ -142,7 +142,6 @@ struct wiimote_data {
 	struct power_supply battery;
 	struct input_dev *mp;
 	struct timer_list timer;
-	struct wiimote_ext *ext;
 	struct wiimote_debug *debug;
 
 	union {
@@ -269,24 +268,6 @@ extern ssize_t wiimote_cmd_read(struct wiimote_data *wdata, __u32 offset,
 				wiiproto_req_rmem((wdata), true, (os), (sz))
 extern void wiiproto_req_rmem(struct wiimote_data *wdata, bool eeprom,
 						__u32 offset, __u16 size);
-
-#ifdef CONFIG_HID_WIIMOTE_EXT
-
-extern int wiiext_init(struct wiimote_data *wdata);
-extern void wiiext_deinit(struct wiimote_data *wdata);
-extern void wiiext_event(struct wiimote_data *wdata, bool plugged);
-extern bool wiiext_active(struct wiimote_data *wdata);
-extern void wiiext_handle(struct wiimote_data *wdata, const __u8 *payload);
-
-#else
-
-static inline int wiiext_init(void *u) { return 0; }
-static inline void wiiext_deinit(void *u) { }
-static inline void wiiext_event(void *u, bool p) { }
-static inline bool wiiext_active(void *u) { return false; }
-static inline void wiiext_handle(void *u, const __u8 *p) { }
-
-#endif
 
 #ifdef CONFIG_DEBUG_FS
 

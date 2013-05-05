@@ -731,15 +731,6 @@ config HID_WIIMOTE
 	To compile this driver as a module, choose M here: the
 	module will be called hid-wiimote.
 
-config HID_WIIMOTE_EXT
-	bool "Nintendo Wii Remote Extension support"
-	depends on HID_WIIMOTE
-	default HID_WIIMOTE
-	---help---
-	Support for extension controllers of the Nintendo Wii Remote. Say yes
-	here if you want to use the Nintendo Motion+, Nunchuck or Classic
-	extension controllers with your Wii Remote.
-
 config HID_ZEROPLUS
 	tristate "Zeroplus based game controller support"
 	depends on HID

@@ -29,9 +29,6 @@ ifdef CONFIG_LOGIWHEELS_FF
 endif
 
 hid-wiimote-y		:= hid-wiimote-core.o hid-wiimote-modules.o
-ifdef CONFIG_HID_WIIMOTE_EXT
-	hid-wiimote-y	+= hid-wiimote-ext.o
-endif
 ifdef CONFIG_DEBUG_FS
 	hid-wiimote-y	+= hid-wiimote-debug.o
 endif
