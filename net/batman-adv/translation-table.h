@@ -27,9 +27,6 @@ uint16_t batadv_tt_local_remove(struct batadv_priv *bat_priv,
 				const uint8_t *addr, const char *message,
 				bool roaming);
 int batadv_tt_local_seq_print_text(struct seq_file *seq, void *offset);
-void batadv_tt_global_add_orig(struct batadv_priv *bat_priv,
-			       struct batadv_orig_node *orig_node,
-			       const unsigned char *tt_buff, int tt_buff_len);
 int batadv_tt_global_seq_print_text(struct seq_file *seq, void *offset);
 void batadv_tt_global_del_orig(struct batadv_priv *bat_priv,
 			       struct batadv_orig_node *orig_node,
