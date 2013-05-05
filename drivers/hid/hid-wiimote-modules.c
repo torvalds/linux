@@ -171,9 +171,107 @@ static const struct wiimod_ops wiimod_rumble = {
 	.remove = wiimod_rumble_remove,
 };
 
+/*
+ * Battery
+ * 1 byte of battery capacity information is sent along every protocol status
+ * report. The wiimote core caches it but we try to update it on every
+ * user-space request.
+ * This is supported by nearly every device so it's almost always enabled.
+ */
+
+static enum power_supply_property wiimod_battery_props[] = {
+	POWER_SUPPLY_PROP_CAPACITY,
+	POWER_SUPPLY_PROP_SCOPE,
+};
+
+static int wiimod_battery_get_property(struct power_supply *psy,
+				       enum power_supply_property psp,
+				       union power_supply_propval *val)
+{
+	struct wiimote_data *wdata = container_of(psy, struct wiimote_data,
+						  battery);
+	int ret = 0, state;
+	unsigned long flags;
+
+	if (psp == POWER_SUPPLY_PROP_SCOPE) {
+		val->intval = POWER_SUPPLY_SCOPE_DEVICE;
+		return 0;
+	} else if (psp != POWER_SUPPLY_PROP_CAPACITY) {
+		return -EINVAL;
+	}
+
+	ret = wiimote_cmd_acquire(wdata);
+	if (ret)
+		return ret;
+
+	spin_lock_irqsave(&wdata->state.lock, flags);
+	wiimote_cmd_set(wdata, WIIPROTO_REQ_SREQ, 0);
+	wiiproto_req_status(wdata);
+	spin_unlock_irqrestore(&wdata->state.lock, flags);
+
+	wiimote_cmd_wait(wdata);
+	wiimote_cmd_release(wdata);
+
+	spin_lock_irqsave(&wdata->state.lock, flags);
+	state = wdata->state.cmd_battery;
+	spin_unlock_irqrestore(&wdata->state.lock, flags);
+
+	val->intval = state * 100 / 255;
+	return ret;
+}
+
+static int wiimod_battery_probe(const struct wiimod_ops *ops,
+				struct wiimote_data *wdata)
+{
+	int ret;
+
+	wdata->battery.properties = wiimod_battery_props;
+	wdata->battery.num_properties = ARRAY_SIZE(wiimod_battery_props);
+	wdata->battery.get_property = wiimod_battery_get_property;
+	wdata->battery.type = POWER_SUPPLY_TYPE_BATTERY;
+	wdata->battery.use_for_apm = 0;
+	wdata->battery.name = kasprintf(GFP_KERNEL, "wiimote_battery_%s",
+					wdata->hdev->uniq);
+	if (!wdata->battery.name)
+		return -ENOMEM;
+
+	ret = power_supply_register(&wdata->hdev->dev, &wdata->battery);
+	if (ret) {
+		hid_err(wdata->hdev, "cannot register battery device\n");
+		goto err_free;
+	}
+
+	power_supply_powers(&wdata->battery, &wdata->hdev->dev);
+	return 0;
+
+err_free:
+	kfree(wdata->battery.name);
+	wdata->battery.name = NULL;
+	return ret;
+}
+
+static void wiimod_battery_remove(const struct wiimod_ops *ops,
+				  struct wiimote_data *wdata)
+{
+	if (!wdata->battery.name)
+		return;
+
+	power_supply_unregister(&wdata->battery);
+	kfree(wdata->battery.name);
+	wdata->battery.name = NULL;
+}
+
+static const struct wiimod_ops wiimod_battery = {
+	.flags = 0,
+	.arg = 0,
+	.probe = wiimod_battery_probe,
+	.remove = wiimod_battery_remove,
+};
+
 /* module table */
 
 const struct wiimod_ops *wiimod_table[WIIMOD_NUM] = {
 	[WIIMOD_KEYS] = &wiimod_keys,
 	[WIIMOD_RUMBLE] = &wiimod_rumble,
+	[WIIMOD_BATTERY] = &wiimod_battery,
 };

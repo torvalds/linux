@@ -17,15 +17,9 @@
 #include <linux/leds.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
-#include <linux/power_supply.h>
 #include <linux/spinlock.h>
 #include "hid-ids.h"
 #include "hid-wiimote.h"
-
-static enum power_supply_property wiimote_battery_props[] = {
-	POWER_SUPPLY_PROP_CAPACITY,
-	POWER_SUPPLY_PROP_SCOPE,
-};
 
 /* output queue handling */
 
@@ -232,7 +226,7 @@ void wiiproto_req_drm(struct wiimote_data *wdata, __u8 drm)
 	wiimote_queue(wdata, cmd, sizeof(cmd));
 }
 
-static void wiiproto_req_status(struct wiimote_data *wdata)
+void wiiproto_req_status(struct wiimote_data *wdata)
 {
 	__u8 cmd[2];
 
@@ -421,48 +415,6 @@ static __u8 wiimote_cmd_read_ext(struct wiimote_data *wdata)
 		return WIIMOTE_EXT_NONE;
 
 	return WIIMOTE_EXT_UNKNOWN;
-}
-
-static int wiimote_battery_get_property(struct power_supply *psy,
-						enum power_supply_property psp,
-						union power_supply_propval *val)
-{
-	struct wiimote_data *wdata = container_of(psy,
-						struct wiimote_data, battery);
-	int ret = 0, state;
-	unsigned long flags;
-
-	if (psp == POWER_SUPPLY_PROP_SCOPE) {
-		val->intval = POWER_SUPPLY_SCOPE_DEVICE;
-		return 0;
-	}
-
-	ret = wiimote_cmd_acquire(wdata);
-	if (ret)
-		return ret;
-
-	spin_lock_irqsave(&wdata->state.lock, flags);
-	wiimote_cmd_set(wdata, WIIPROTO_REQ_SREQ, 0);
-	wiiproto_req_status(wdata);
-	spin_unlock_irqrestore(&wdata->state.lock, flags);
-
-	wiimote_cmd_wait(wdata);
-	wiimote_cmd_release(wdata);
-
-	spin_lock_irqsave(&wdata->state.lock, flags);
-	state = wdata->state.cmd_battery;
-	spin_unlock_irqrestore(&wdata->state.lock, flags);
-
-	switch (psp) {
-		case POWER_SUPPLY_PROP_CAPACITY:
-			val->intval = state * 100 / 255;
-			break;
-		default:
-			ret = -EINVAL;
-			break;
-	}
-
-	return ret;
 }
 
 static int wiimote_init_ir(struct wiimote_data *wdata, __u16 mode)
@@ -673,16 +625,19 @@ static const __u8 * const wiimote_devtype_mods[WIIMOTE_DEV_NUM] = {
 	[WIIMOTE_DEV_GENERIC] = (const __u8[]){
 		WIIMOD_KEYS,
 		WIIMOD_RUMBLE,
+		WIIMOD_BATTERY,
 		WIIMOD_NULL,
 	},
 	[WIIMOTE_DEV_GEN10] = (const __u8[]){
 		WIIMOD_KEYS,
 		WIIMOD_RUMBLE,
+		WIIMOD_BATTERY,
 		WIIMOD_NULL,
 	},
 	[WIIMOTE_DEV_GEN20] = (const __u8[]){
 		WIIMOD_KEYS,
 		WIIMOD_RUMBLE,
+		WIIMOD_BATTERY,
 		WIIMOD_NULL,
 	},
 };
@@ -1349,8 +1304,6 @@ static void wiimote_destroy(struct wiimote_data *wdata)
 
 	cancel_work_sync(&wdata->init_worker);
 	wiimote_modules_unload(wdata);
-	power_supply_unregister(&wdata->battery);
-	kfree(wdata->battery.name);
 	input_unregister_device(wdata->accel);
 	input_unregister_device(wdata->ir);
 	cancel_work_sync(&wdata->queue.worker);
@@ -1404,26 +1357,6 @@ static int wiimote_hid_probe(struct hid_device *hdev,
 		goto err_ir;
 	}
 
-	wdata->battery.properties = wiimote_battery_props;
-	wdata->battery.num_properties = ARRAY_SIZE(wiimote_battery_props);
-	wdata->battery.get_property = wiimote_battery_get_property;
-	wdata->battery.type = POWER_SUPPLY_TYPE_BATTERY;
-	wdata->battery.use_for_apm = 0;
-	wdata->battery.name = kasprintf(GFP_KERNEL, "wiimote_battery_%s",
-					wdata->hdev->uniq);
-	if (!wdata->battery.name) {
-		ret = -ENOMEM;
-		goto err_battery_name;
-	}
-
-	ret = power_supply_register(&wdata->hdev->dev, &wdata->battery);
-	if (ret) {
-		hid_err(hdev, "Cannot register battery device\n");
-		goto err_battery;
-	}
-
-	power_supply_powers(&wdata->battery, &hdev->dev);
-
 	ret = wiimote_leds_create(wdata);
 	if (ret)
 		goto err_free;
@@ -1452,11 +1385,6 @@ err_free:
 	wiimote_destroy(wdata);
 	return ret;
 
-err_battery:
-	kfree(wdata->battery.name);
-err_battery_name:
-	input_unregister_device(wdata->ir);
-	wdata->ir = NULL;
 err_ir:
 	input_unregister_device(wdata->accel);
 	wdata->accel = NULL;

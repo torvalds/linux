@@ -128,6 +128,7 @@ struct wiimote_data {
 enum wiimod_module {
 	WIIMOD_KEYS,
 	WIIMOD_RUMBLE,
+	WIIMOD_BATTERY,
 	WIIMOD_NUM,
 	WIIMOD_NULL = WIIMOD_NUM,
 };
@@ -184,6 +185,7 @@ enum wiiproto_reqs {
 
 extern void wiiproto_req_drm(struct wiimote_data *wdata, __u8 drm);
 extern void wiiproto_req_rumble(struct wiimote_data *wdata, __u8 rumble);
+extern void wiiproto_req_status(struct wiimote_data *wdata);
 extern int wiimote_cmd_write(struct wiimote_data *wdata, __u32 offset,
 						const __u8 *wmem, __u8 size);
 extern ssize_t wiimote_cmd_read(struct wiimote_data *wdata, __u32 offset,
