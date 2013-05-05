@@ -42,3 +42,18 @@ Description:	While a device is initialized by the wiimote driver, we perform
 			gen10: First Wii Remote generation
 			gen20: Second Wii Remote Plus generation (builtin MP)
 			balanceboard: Wii Balance Board
+
+What:		/sys/bus/hid/drivers/wiimote/<dev>/bboard_calib
+Date:		May 2013
+KernelVersion:	3.11
+Contact:	David Herrmann <dh.herrmann@gmail.com>
+Description:	This attribute is only provided if the device was detected as a
+		balance board. It provides a single line with 3 calibration
+		values for all 4 sensors. The values are separated by colons and
+		are each 2 bytes long (encoded as 4 digit hexadecimal value).
+		First, 0kg values for all 4 sensors are written, followed by the
+		17kg values for all 4 sensors and last the 34kg values for all 4
+		sensors.
+		Calibration data is already applied by the kernel to all input
+		values but may be used by user-space to perform other
+		transformations.
