@@ -154,7 +154,10 @@ static ssize_t wiidebug_drm_write(struct file *f, const char __user *u,
 		i = simple_strtoul(buf, NULL, 10);
 
 	spin_lock_irqsave(&dbg->wdata->state.lock, flags);
+	dbg->wdata->state.flags &= ~WIIPROTO_FLAG_DRM_LOCKED;
 	wiiproto_req_drm(dbg->wdata, (__u8) i);
+	if (i != WIIPROTO_REQ_NULL)
+		dbg->wdata->state.flags |= WIIPROTO_FLAG_DRM_LOCKED;
 	spin_unlock_irqrestore(&dbg->wdata->state.lock, flags);
 
 	return len;

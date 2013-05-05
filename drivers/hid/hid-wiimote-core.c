@@ -242,7 +242,9 @@ void wiiproto_req_drm(struct wiimote_data *wdata, __u8 drm)
 {
 	__u8 cmd[3];
 
-	if (drm == WIIPROTO_REQ_NULL)
+	if (wdata->state.flags & WIIPROTO_FLAG_DRM_LOCKED)
+		drm = wdata->state.drm;
+	else if (drm == WIIPROTO_REQ_NULL)
 		drm = select_drm(wdata);
 
 	cmd[0] = WIIPROTO_REQ_DRM;
