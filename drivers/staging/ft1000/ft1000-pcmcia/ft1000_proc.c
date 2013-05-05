@@ -158,7 +158,7 @@ static const struct file_operations ft1000_proc_fops = {
 	.open		= ft1000_proc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= single_release,
 };
 
 static int ft1000NotifyProc(struct notifier_block *this, unsigned long event,

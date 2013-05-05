@@ -189,7 +189,7 @@ static const struct file_operations sbecom_proc_fops = {
 	.open		= sbecom_proc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= single_release,
 };
 
 /*
