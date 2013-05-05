@@ -149,7 +149,7 @@ static const struct file_operations proc_fit_fops = {
 	.open		= proc_fit_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= single_release,
 };
 
 static int proc_version_show(struct seq_file *m, void *v)
@@ -183,7 +183,7 @@ static const struct file_operations proc_version_fops = {
 	.open		= proc_version_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= single_release,
 };
 
 /* module entry points */
