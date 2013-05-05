@@ -410,6 +410,7 @@ static void populate_be_v1_stats(struct be_adapter *adapter)
 	drvs->rxpp_fifo_overflow_drop = port_stats->rxpp_fifo_overflow_drop;
 	drvs->tx_pauseframes = port_stats->tx_pauseframes;
 	drvs->tx_controlframes = port_stats->tx_controlframes;
+	drvs->tx_priority_pauseframes = port_stats->tx_priority_pauseframes;
 	drvs->jabber_events = port_stats->jabber_events;
 	drvs->rx_drops_no_pbuf = rxf_stats->rx_drops_no_pbuf;
 	drvs->rx_drops_no_erx_descr = rxf_stats->rx_drops_no_erx_descr;
@@ -471,11 +472,26 @@ static void accumulate_16bit_val(u32 *acc, u16 val)
 	ACCESS_ONCE(*acc) = newacc;
 }
 
+void populate_erx_stats(struct be_adapter *adapter,
+			struct be_rx_obj *rxo,
+			u32 erx_stat)
+{
+	if (!BEx_chip(adapter))
+		rx_stats(rxo)->rx_drops_no_frags = erx_stat;
+	else
+		/* below erx HW counter can actually wrap around after
+		 * 65535. Driver accumulates a 32-bit value
+		 */
+		accumulate_16bit_val(&rx_stats(rxo)->rx_drops_no_frags,
+				     (u16)erx_stat);
+}
+
 void be_parse_stats(struct be_adapter *adapter)
 {
 	struct be_erx_stats_v1 *erx = be_erx_stats_from_cmd(adapter);
 	struct be_rx_obj *rxo;
 	int i;
+	u32 erx_stat;
 
 	if (lancer_chip(adapter)) {
 		populate_lancer_stats(adapter);
@@ -488,12 +504,8 @@ void be_parse_stats(struct be_adapter *adapter)
 
 		/* as erx_v1 is longer than v0, ok to use v1 for v0 access */
 		for_all_rx_queues(adapter, rxo, i) {
-			/* below erx HW counter can actually wrap around after
-			 * 65535. Driver accumulates a 32-bit value
-			 */
-			accumulate_16bit_val(&rx_stats(rxo)->rx_drops_no_frags,
-					     (u16)erx->rx_drops_no_fragments \
-					     [rxo->q.id]);
+			erx_stat = erx->rx_drops_no_fragments[rxo->q.id];
+			populate_erx_stats(adapter, rxo, erx_stat);
 		}
 	}
 }
@@ -2378,7 +2390,7 @@ static uint be_num_rss_want(struct be_adapter *adapter)
 	return num;
 }
 
-static void be_msix_enable(struct be_adapter *adapter)
+static int be_msix_enable(struct be_adapter *adapter)
 {
 #define BE_MIN_MSIX_VECTORS		1
 	int i, status, num_vec, num_roce_vec = 0;
@@ -2403,13 +2415,17 @@ static void be_msix_enable(struct be_adapter *adapter)
 		goto done;
 	} else if (status >= BE_MIN_MSIX_VECTORS) {
 		num_vec = status;
-		if (pci_enable_msix(adapter->pdev, adapter->msix_entries,
-				num_vec) == 0)
+		status = pci_enable_msix(adapter->pdev, adapter->msix_entries,
+					 num_vec);
+		if (!status)
 			goto done;
 	}
 
 	dev_warn(dev, "MSIx enable failed\n");
-	return;
+	/* INTx is not supported in VFs, so fail probe if enable_msix fails */
+	if (!be_physfn(adapter))
+		return status;
+	return 0;
 done:
 	if (be_roce_supported(adapter)) {
 		if (num_vec > num_roce_vec) {
@@ -2423,7 +2439,7 @@ done:
 	} else
 		adapter->num_msix_vec = num_vec;
 	dev_info(dev, "enabled %d MSI-x vector(s)\n", adapter->num_msix_vec);
-	return;
+	return 0;
 }
 
 static inline int be_msix_vec_get(struct be_adapter *adapter,
@@ -2536,8 +2552,11 @@ static int be_close(struct net_device *netdev)
 
 	be_roce_dev_close(adapter);
 
-	for_all_evt_queues(adapter, eqo, i)
-		napi_disable(&eqo->napi);
+	if (adapter->flags & BE_FLAGS_NAPI_ENABLED) {
+		for_all_evt_queues(adapter, eqo, i)
+			napi_disable(&eqo->napi);
+		adapter->flags &= ~BE_FLAGS_NAPI_ENABLED;
+	}
 
 	be_async_mcc_disable(adapter);
 
@@ -2631,7 +2650,9 @@ static int be_open(struct net_device *netdev)
 	if (status)
 		goto err;
 
-	be_irq_register(adapter);
+	status = be_irq_register(adapter);
+	if (status)
+		goto err;
 
 	for_all_rx_queues(adapter, rxo, i)
 		be_cq_notify(adapter, rxo->cq.id, true, 0);
@@ -2645,6 +2666,7 @@ static int be_open(struct net_device *netdev)
 		napi_enable(&eqo->napi);
 		be_eq_notify(adapter, eqo->q.id, true, false, 0);
 	}
+	adapter->flags |= BE_FLAGS_NAPI_ENABLED;
 
 	status = be_cmd_link_status_query(adapter, NULL, &link_status, 0);
 	if (!status)
@@ -3100,7 +3122,9 @@ static int be_setup(struct be_adapter *adapter)
 	if (status)
 		goto err;
 
-	be_msix_enable(adapter);
+	status = be_msix_enable(adapter);
+	if (status)
+		goto err;
 
 	status = be_evt_queues_create(adapter);
 	if (status)
