@@ -1646,6 +1646,9 @@ void __ref xen_hvm_init_shared_info(void)
 	 * online but xen_hvm_init_shared_info is run at resume time too and
 	 * in that case multiple vcpus might be online. */
 	for_each_online_cpu(cpu) {
+		/* Leave it to be NULL. */
+		if (cpu >= MAX_VIRT_CPUS)
+			continue;
 		per_cpu(xen_vcpu, cpu) = &HYPERVISOR_shared_info->vcpu_info[cpu];
 	}
 }
