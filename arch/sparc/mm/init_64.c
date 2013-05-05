@@ -681,10 +681,9 @@ void get_new_mmu_context(struct mm_struct *mm)
 {
 	unsigned long ctx, new_ctx;
 	unsigned long orig_pgsz_bits;
-	unsigned long flags;
 	int new_version;
 
-	spin_lock_irqsave(&ctx_alloc_lock, flags);
+	spin_lock(&ctx_alloc_lock);
 	orig_pgsz_bits = (mm->context.sparc64_ctx_val & CTX_PGSZ_MASK);
 	ctx = (tlb_context_cache + 1) & CTX_NR_MASK;
 	new_ctx = find_next_zero_bit(mmu_context_bmap, 1 << CTX_NR_BITS, ctx);
@@ -720,7 +719,7 @@ void get_new_mmu_context(struct mm_struct *mm)
 out:
 	tlb_context_cache = new_ctx;
 	mm->context.sparc64_ctx_val = new_ctx | orig_pgsz_bits;
-	spin_unlock_irqrestore(&ctx_alloc_lock, flags);
+	spin_unlock(&ctx_alloc_lock);
 
 	if (unlikely(new_version))
 		smp_new_mmu_context_version();
@@ -2125,7 +2124,6 @@ void free_initmem(void)
 			ClearPageReserved(p);
 			init_page_count(p);
 			__free_page(p);
-			num_physpages++;
 			totalram_pages++;
 		}
 	}
@@ -2142,7 +2140,6 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 		ClearPageReserved(p);
 		init_page_count(p);
 		__free_page(p);
-		num_physpages++;
 		totalram_pages++;
 	}
 }
