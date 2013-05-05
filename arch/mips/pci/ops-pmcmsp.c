@@ -92,7 +92,7 @@ static const struct file_operations msp_pci_rd_cnt_fops = {
 	.open		= msp_pci_rd_cnt_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= single_release,
 };
 
 /*****************************************************************************
@@ -169,7 +169,7 @@ static const struct file_operations gen_pci_cfg_wr_fops = {
 	.open		= gen_pci_cfg_wr_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= single_release,
 };
 
 /*****************************************************************************
