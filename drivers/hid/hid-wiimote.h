@@ -22,6 +22,7 @@
 #include <linux/mutex.h>
 #include <linux/power_supply.h>
 #include <linux/spinlock.h>
+#include <linux/timer.h>
 
 #define WIIMOTE_NAME "Nintendo Wii Remote"
 #define WIIMOTE_BUFSIZE 32
@@ -36,6 +37,12 @@
 #define WIIPROTO_FLAG_IR_EXT		0x80
 #define WIIPROTO_FLAG_IR_FULL		0xc0 /* IR_BASIC | IR_EXT */
 #define WIIPROTO_FLAG_EXT_PLUGGED	0x0100
+#define WIIPROTO_FLAG_EXT_USED		0x0200
+#define WIIPROTO_FLAG_EXT_ACTIVE	0x0400
+#define WIIPROTO_FLAG_MP_PLUGGED	0x0800
+#define WIIPROTO_FLAG_MP_USED		0x1000
+#define WIIPROTO_FLAG_MP_ACTIVE		0x2000
+#define WIIPROTO_FLAG_EXITING		0x4000
 
 #define WIIPROTO_FLAGS_LEDS (WIIPROTO_FLAG_LED1 | WIIPROTO_FLAG_LED2 | \
 					WIIPROTO_FLAG_LED3 | WIIPROTO_FLAG_LED4)
@@ -75,6 +82,14 @@ enum wiimote_exttype {
 	WIIMOTE_EXT_NUM,
 };
 
+enum wiimote_mptype {
+	WIIMOTE_MP_NONE,
+	WIIMOTE_MP_UNKNOWN,
+	WIIMOTE_MP_SINGLE,
+	WIIMOTE_MP_PASSTHROUGH_NUNCHUK,
+	WIIMOTE_MP_PASSTHROUGH_CLASSIC,
+};
+
 struct wiimote_buf {
 	__u8 data[HID_MAX_BUFFER_SIZE];
 	size_t size;
@@ -94,6 +109,8 @@ struct wiimote_state {
 	__u8 accel_split[2];
 	__u8 drm;
 	__u8 devtype;
+	__u8 exttype;
+	__u8 mp;
 
 	/* synchronous cmd requests */
 	struct mutex sync;
@@ -115,6 +132,7 @@ struct wiimote_data {
 	struct input_dev *accel;
 	struct input_dev *ir;
 	struct power_supply battery;
+	struct timer_list timer;
 	struct wiimote_ext *ext;
 	struct wiimote_debug *debug;
 
@@ -140,6 +158,8 @@ enum wiimod_module {
 };
 
 #define WIIMOD_FLAG_INPUT		0x0001
+#define WIIMOD_FLAG_EXT8		0x0002
+#define WIIMOD_FLAG_EXT16		0x0004
 
 struct wiimod_ops {
 	__u16 flags;
@@ -153,9 +173,13 @@ struct wiimod_ops {
 	void (*in_accel) (struct wiimote_data *wdata, const __u8 *accel);
 	void (*in_ir) (struct wiimote_data *wdata, const __u8 *ir, bool packed,
 		       unsigned int id);
+	void (*in_mp) (struct wiimote_data *wdata, const __u8 *mp);
+	void (*in_ext) (struct wiimote_data *wdata, const __u8 *ext);
 };
 
 extern const struct wiimod_ops *wiimod_table[WIIMOD_NUM];
+extern const struct wiimod_ops *wiimod_ext_table[WIIMOTE_EXT_NUM];
+extern const struct wiimod_ops wiimod_mp;
 
 /* wiimote requests */
 
@@ -172,22 +196,47 @@ enum wiiproto_reqs {
 	WIIPROTO_REQ_STATUS = 0x20,
 	WIIPROTO_REQ_DATA = 0x21,
 	WIIPROTO_REQ_RETURN = 0x22,
+
+	/* DRM_K: BB*2 */
 	WIIPROTO_REQ_DRM_K = 0x30,
+
+	/* DRM_KA: BB*2 AA*3 */
 	WIIPROTO_REQ_DRM_KA = 0x31,
+
+	/* DRM_KE: BB*2 EE*8 */
 	WIIPROTO_REQ_DRM_KE = 0x32,
+
+	/* DRM_KAI: BB*2 AA*3 II*12 */
 	WIIPROTO_REQ_DRM_KAI = 0x33,
+
+	/* DRM_KEE: BB*2 EE*19 */
 	WIIPROTO_REQ_DRM_KEE = 0x34,
+
+	/* DRM_KAE: BB*2 AA*3 EE*16 */
 	WIIPROTO_REQ_DRM_KAE = 0x35,
+
+	/* DRM_KIE: BB*2 II*10 EE*9 */
 	WIIPROTO_REQ_DRM_KIE = 0x36,
+
+	/* DRM_KAIE: BB*2 AA*3 II*10 EE*6 */
 	WIIPROTO_REQ_DRM_KAIE = 0x37,
+
+	/* DRM_E: EE*21 */
 	WIIPROTO_REQ_DRM_E = 0x3d,
+
+	/* DRM_SKAI1: BB*2 AA*1 II*18 */
 	WIIPROTO_REQ_DRM_SKAI1 = 0x3e,
+
+	/* DRM_SKAI2: BB*2 AA*1 II*18 */
 	WIIPROTO_REQ_DRM_SKAI2 = 0x3f,
+
 	WIIPROTO_REQ_MAX
 };
 
 #define dev_to_wii(pdev) hid_get_drvdata(container_of(pdev, struct hid_device, \
 									dev))
+
+void __wiimote_schedule(struct wiimote_data *wdata);
 
 extern void wiiproto_req_drm(struct wiimote_data *wdata, __u8 drm);
 extern void wiiproto_req_rumble(struct wiimote_data *wdata, __u8 rumble);

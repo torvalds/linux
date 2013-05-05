@@ -788,7 +788,18 @@ static const struct wiimod_ops wiimod_ir = {
 	.in_ir = wiimod_ir_in_ir,
 };
 
+/*
+ * Motion Plus
+ */
+
+const struct wiimod_ops wiimod_mp = {
+	.flags = 0,
+	.arg = 0,
+};
+
 /* module table */
+
+static const struct wiimod_ops wiimod_dummy;
 
 const struct wiimod_ops *wiimod_table[WIIMOD_NUM] = {
 	[WIIMOD_KEYS] = &wiimod_keys,
@@ -800,4 +811,9 @@ const struct wiimod_ops *wiimod_table[WIIMOD_NUM] = {
 	[WIIMOD_LED4] = &wiimod_leds[3],
 	[WIIMOD_ACCEL] = &wiimod_accel,
 	[WIIMOD_IR] = &wiimod_ir,
+};
+
+const struct wiimod_ops *wiimod_ext_table[WIIMOTE_EXT_NUM] = {
+	[WIIMOTE_EXT_NONE] = &wiimod_dummy,
+	[WIIMOTE_EXT_UNKNOWN] = &wiimod_dummy,
 };
