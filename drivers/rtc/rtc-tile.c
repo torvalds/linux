@@ -151,6 +151,7 @@ exit_driver_unregister:
  */
 static void __exit tile_rtc_driver_exit(void)
 {
+	platform_device_unregister(tile_rtc_platform_device);
 	platform_driver_unregister(&tile_rtc_platform_driver);
 }
 
