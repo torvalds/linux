@@ -80,6 +80,7 @@ enum wiimote_devtype {
 enum wiimote_exttype {
 	WIIMOTE_EXT_NONE,
 	WIIMOTE_EXT_UNKNOWN,
+	WIIMOTE_EXT_NUNCHUK,
 	WIIMOTE_EXT_BALANCE_BOARD,
 	WIIMOTE_EXT_NUM,
 };
