@@ -195,6 +195,16 @@ static inline void wiimote_cmd_complete(struct wiimote_data *wdata)
 	complete(&wdata->state.ready);
 }
 
+/* requires the state.lock spinlock to be held */
+static inline void wiimote_cmd_abort(struct wiimote_data *wdata)
+{
+	/* Abort synchronous request by waking up the sleeping caller. But
+	 * reset the state.cmd field to an invalid value so no further event
+	 * handlers will work with it. */
+	wdata->state.cmd = WIIPROTO_REQ_MAX;
+	complete(&wdata->state.ready);
+}
+
 static inline int wiimote_cmd_acquire(struct wiimote_data *wdata)
 {
 	return mutex_lock_interruptible(&wdata->state.sync) ? -ERESTARTSYS : 0;
@@ -223,10 +233,16 @@ static inline int wiimote_cmd_wait(struct wiimote_data *wdata)
 {
 	int ret;
 
+	/* The completion acts as implicit memory barrier so we can safely
+	 * assume that state.cmd is set on success/failure and isn't accessed
+	 * by any other thread, anymore. */
+
 	ret = wait_for_completion_interruptible_timeout(&wdata->state.ready, HZ);
 	if (ret < 0)
 		return -ERESTARTSYS;
 	else if (ret == 0)
+		return -EIO;
+	else if (wdata->state.cmd != WIIPROTO_REQ_NULL)
 		return -EIO;
 	else
 		return 0;
@@ -236,8 +252,11 @@ static inline int wiimote_cmd_wait_noint(struct wiimote_data *wdata)
 {
 	unsigned long ret;
 
+	/* no locking needed; see wiimote_cmd_wait() */
 	ret = wait_for_completion_timeout(&wdata->state.ready, HZ);
 	if (!ret)
+		return -EIO;
+	else if (wdata->state.cmd != WIIPROTO_REQ_NULL)
 		return -EIO;
 	else
 		return 0;

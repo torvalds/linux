@@ -58,11 +58,11 @@ static enum power_supply_property wiimote_battery_props[] = {
 
 /* output queue handling */
 
-static ssize_t wiimote_hid_send(struct hid_device *hdev, __u8 *buffer,
-								size_t count)
+static int wiimote_hid_send(struct hid_device *hdev, __u8 *buffer,
+			    size_t count)
 {
 	__u8 *buf;
-	ssize_t ret;
+	int ret;
 
 	if (!hdev->hid_output_raw_report)
 		return -ENODEV;
@@ -84,14 +84,20 @@ static void wiimote_queue_worker(struct work_struct *work)
 	struct wiimote_data *wdata = container_of(queue, struct wiimote_data,
 						  queue);
 	unsigned long flags;
+	int ret;
 
 	spin_lock_irqsave(&wdata->queue.lock, flags);
 
 	while (wdata->queue.head != wdata->queue.tail) {
 		spin_unlock_irqrestore(&wdata->queue.lock, flags);
-		wiimote_hid_send(wdata->hdev,
+		ret = wiimote_hid_send(wdata->hdev,
 				 wdata->queue.outq[wdata->queue.tail].data,
 				 wdata->queue.outq[wdata->queue.tail].size);
+		if (ret < 0) {
+			spin_lock_irqsave(&wdata->state.lock, flags);
+			wiimote_cmd_abort(wdata);
+			spin_unlock_irqrestore(&wdata->state.lock, flags);
+		}
 		spin_lock_irqsave(&wdata->queue.lock, flags);
 
 		wdata->queue.tail = (wdata->queue.tail + 1) % WIIMOTE_BUFSIZE;
@@ -108,7 +114,9 @@ static void wiimote_queue(struct wiimote_data *wdata, const __u8 *buffer,
 
 	if (count > HID_MAX_BUFFER_SIZE) {
 		hid_warn(wdata->hdev, "Sending too large output report\n");
-		return;
+
+		spin_lock_irqsave(&wdata->queue.lock, flags);
+		goto out_error;
 	}
 
 	/*
@@ -134,8 +142,14 @@ static void wiimote_queue(struct wiimote_data *wdata, const __u8 *buffer,
 		wdata->queue.head = newhead;
 	} else {
 		hid_warn(wdata->hdev, "Output queue is full");
+		goto out_error;
 	}
 
+	goto out_unlock;
+
+out_error:
+	wiimote_cmd_abort(wdata);
+out_unlock:
 	spin_unlock_irqrestore(&wdata->queue.lock, flags);
 }
 
