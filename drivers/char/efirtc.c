@@ -369,7 +369,7 @@ static const struct file_operations efi_rtc_proc_fops = {
 	.open		= efi_rtc_proc_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= single_release,
 };
 
 static int __init 
