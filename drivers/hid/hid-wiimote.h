@@ -2,8 +2,8 @@
 #define __HID_WIIMOTE_H
 
 /*
- * HID driver for Nintendo Wiimote devices
- * Copyright (c) 2011 David Herrmann
+ * HID driver for Nintendo Wii / Wii U peripherals
+ * Copyright (c) 2011-2013 David Herrmann <dh.herrmann@gmail.com>
  */
 
 /*

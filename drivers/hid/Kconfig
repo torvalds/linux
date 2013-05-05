@@ -707,13 +707,29 @@ config HID_WACOM
 	Support for Wacom Graphire Bluetooth and Intuos4 WL tablets.
 
 config HID_WIIMOTE
-	tristate "Nintendo Wii Remote support"
+	tristate "Nintendo Wii / Wii U peripherals"
 	depends on HID
 	depends on LEDS_CLASS
 	select POWER_SUPPLY
 	select INPUT_FF_MEMLESS
 	---help---
-	Support for the Nintendo Wii Remote bluetooth device.
+	Support for Nintendo Wii and Wii U Bluetooth peripherals. Supported
+	devices are the Wii Remote and its extension devices, but also devices
+	based on the Wii Remote like the Wii U Pro Controller or the
+	Wii Balance Board.
+
+	Support for all official Nintendo extensions is available, however, 3rd
+	party extensions might not be supported. Please report these devices to:
+	  http://github.com/dvdhrm/xwiimote/issues
+
+	Other Nintendo Wii U peripherals that are IEEE 802.11 based (including
+	the Wii U Gamepad) might be supported in the future. But currently
+	support is limited to Bluetooth based devices.
+
+	If unsure, say N.
+
+	To compile this driver as a module, choose M here: the
+	module will be called hid-wiimote.
 
 config HID_WIIMOTE_EXT
 	bool "Nintendo Wii Remote Extension support"

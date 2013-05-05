@@ -1,6 +1,6 @@
 /*
- * HID driver for Nintendo Wiimote devices
- * Copyright (c) 2011 David Herrmann
+ * HID driver for Nintendo Wii / Wii U peripherals
+ * Copyright (c) 2011-2013 David Herrmann <dh.herrmann@gmail.com>
  */
 
 /*
@@ -1331,4 +1331,4 @@ module_hid_driver(wiimote_hid_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("David Herrmann <dh.herrmann@gmail.com>");
-MODULE_DESCRIPTION(WIIMOTE_NAME " Device Driver");
+MODULE_DESCRIPTION("Driver for Nintendo Wii / Wii U peripherals");

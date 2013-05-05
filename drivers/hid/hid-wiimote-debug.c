@@ -1,6 +1,6 @@
 /*
- * Debug support for HID Nintendo Wiimote devices
- * Copyright (c) 2011 David Herrmann
+ * Debug support for HID Nintendo Wii / Wii U peripherals
+ * Copyright (c) 2011-2013 David Herrmann <dh.herrmann@gmail.com>
  */
 
 /*

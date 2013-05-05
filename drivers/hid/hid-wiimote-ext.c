@@ -1,6 +1,6 @@
 /*
- * HID driver for Nintendo Wiimote extension devices
- * Copyright (c) 2011 David Herrmann
+ * HID driver for Nintendo Wii / Wii U peripheral extensions
+ * Copyright (c) 2011-2013 David Herrmann <dh.herrmann@gmail.com>
  */
 
 /*
