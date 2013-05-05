@@ -127,7 +127,8 @@ static int wiidebug_drm_open(struct inode *i, struct file *f)
 static ssize_t wiidebug_drm_write(struct file *f, const char __user *u,
 							size_t s, loff_t *off)
 {
-	struct wiimote_debug *dbg = f->private_data;
+	struct seq_file *sf = f->private_data;
+	struct wiimote_debug *dbg = sf->private;
 	unsigned long flags;
 	char buf[16];
 	ssize_t len;
