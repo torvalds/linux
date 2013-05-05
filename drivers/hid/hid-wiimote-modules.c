@@ -404,6 +404,128 @@ static const struct wiimod_ops wiimod_leds[4] = {
 	},
 };
 
+/*
+ * Accelerometer
+ * 3 axis accelerometer data is part of nearly all DRMs. If not supported by a
+ * device, it's mostly cleared to 0. This module parses this data and provides
+ * it via a separate input device.
+ */
+
+static void wiimod_accel_in_accel(struct wiimote_data *wdata,
+				  const __u8 *accel)
+{
+	__u16 x, y, z;
+
+	if (!(wdata->state.flags & WIIPROTO_FLAG_ACCEL))
+		return;
+
+	/*
+	 * payload is: BB BB XX YY ZZ
+	 * Accelerometer data is encoded into 3 10bit values. XX, YY and ZZ
+	 * contain the upper 8 bits of each value. The lower 2 bits are
+	 * contained in the buttons data BB BB.
+	 * Bits 6 and 7 of the first buttons byte BB is the lower 2 bits of the
+	 * X accel value. Bit 5 of the second buttons byte is the 2nd bit of Y
+	 * accel value and bit 6 is the second bit of the Z value.
+	 * The first bit of Y and Z values is not available and always set to 0.
+	 * 0x200 is returned on no movement.
+	 */
+
+	x = accel[2] << 2;
+	y = accel[3] << 2;
+	z = accel[4] << 2;
+
+	x |= (accel[0] >> 5) & 0x3;
+	y |= (accel[1] >> 4) & 0x2;
+	z |= (accel[1] >> 5) & 0x2;
+
+	input_report_abs(wdata->accel, ABS_RX, x - 0x200);
+	input_report_abs(wdata->accel, ABS_RY, y - 0x200);
+	input_report_abs(wdata->accel, ABS_RZ, z - 0x200);
+	input_sync(wdata->accel);
+}
+
+static int wiimod_accel_open(struct input_dev *dev)
+{
+	struct wiimote_data *wdata = input_get_drvdata(dev);
+	unsigned long flags;
+
+	spin_lock_irqsave(&wdata->state.lock, flags);
+	wiiproto_req_accel(wdata, true);
+	spin_unlock_irqrestore(&wdata->state.lock, flags);
+
+	return 0;
+}
+
+static void wiimod_accel_close(struct input_dev *dev)
+{
+	struct wiimote_data *wdata = input_get_drvdata(dev);
+	unsigned long flags;
+
+	spin_lock_irqsave(&wdata->state.lock, flags);
+	wiiproto_req_accel(wdata, false);
+	spin_unlock_irqrestore(&wdata->state.lock, flags);
+}
+
+static int wiimod_accel_probe(const struct wiimod_ops *ops,
+			      struct wiimote_data *wdata)
+{
+	int ret;
+
+	wdata->accel = input_allocate_device();
+	if (!wdata->accel)
+		return -ENOMEM;
+
+	input_set_drvdata(wdata->accel, wdata);
+	wdata->accel->open = wiimod_accel_open;
+	wdata->accel->close = wiimod_accel_close;
+	wdata->accel->dev.parent = &wdata->hdev->dev;
+	wdata->accel->id.bustype = wdata->hdev->bus;
+	wdata->accel->id.vendor = wdata->hdev->vendor;
+	wdata->accel->id.product = wdata->hdev->product;
+	wdata->accel->id.version = wdata->hdev->version;
+	wdata->accel->name = WIIMOTE_NAME " Accelerometer";
+
+	set_bit(EV_ABS, wdata->accel->evbit);
+	set_bit(ABS_RX, wdata->accel->absbit);
+	set_bit(ABS_RY, wdata->accel->absbit);
+	set_bit(ABS_RZ, wdata->accel->absbit);
+	input_set_abs_params(wdata->accel, ABS_RX, -500, 500, 2, 4);
+	input_set_abs_params(wdata->accel, ABS_RY, -500, 500, 2, 4);
+	input_set_abs_params(wdata->accel, ABS_RZ, -500, 500, 2, 4);
+
+	ret = input_register_device(wdata->accel);
+	if (ret) {
+		hid_err(wdata->hdev, "cannot register input device\n");
+		goto err_free;
+	}
+
+	return 0;
+
+err_free:
+	input_free_device(wdata->accel);
+	wdata->accel = NULL;
+	return ret;
+}
+
+static void wiimod_accel_remove(const struct wiimod_ops *ops,
+				struct wiimote_data *wdata)
+{
+	if (!wdata->accel)
+		return;
+
+	input_unregister_device(wdata->accel);
+	wdata->accel = NULL;
+}
+
+static const struct wiimod_ops wiimod_accel = {
+	.flags = 0,
+	.arg = 0,
+	.probe = wiimod_accel_probe,
+	.remove = wiimod_accel_remove,
+	.in_accel = wiimod_accel_in_accel,
+};
+
 /* module table */
 
 const struct wiimod_ops *wiimod_table[WIIMOD_NUM] = {
@@ -414,4 +536,5 @@ const struct wiimod_ops *wiimod_table[WIIMOD_NUM] = {
 	[WIIMOD_LED2] = &wiimod_leds[1],
 	[WIIMOD_LED3] = &wiimod_leds[2],
 	[WIIMOD_LED4] = &wiimod_leds[3],
+	[WIIMOD_ACCEL] = &wiimod_accel,
 };

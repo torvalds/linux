@@ -133,6 +133,7 @@ enum wiimod_module {
 	WIIMOD_LED2,
 	WIIMOD_LED3,
 	WIIMOD_LED4,
+	WIIMOD_ACCEL,
 	WIIMOD_NUM,
 	WIIMOD_NULL = WIIMOD_NUM,
 };
@@ -191,6 +192,7 @@ extern void wiiproto_req_drm(struct wiimote_data *wdata, __u8 drm);
 extern void wiiproto_req_rumble(struct wiimote_data *wdata, __u8 rumble);
 extern void wiiproto_req_leds(struct wiimote_data *wdata, int leds);
 extern void wiiproto_req_status(struct wiimote_data *wdata);
+extern void wiiproto_req_accel(struct wiimote_data *wdata, __u8 accel);
 extern int wiimote_cmd_write(struct wiimote_data *wdata, __u32 offset,
 						const __u8 *wmem, __u8 size);
 extern ssize_t wiimote_cmd_read(struct wiimote_data *wdata, __u32 offset,
