@@ -461,12 +461,12 @@ static int wiimote_battery_get_property(struct power_supply *psy,
 	wiiproto_req_status(wdata);
 	spin_unlock_irqrestore(&wdata->state.lock, flags);
 
-	ret = wiimote_cmd_wait(wdata);
-	state = wdata->state.cmd_battery;
+	wiimote_cmd_wait(wdata);
 	wiimote_cmd_release(wdata);
 
-	if (ret)
-		return ret;
+	spin_lock_irqsave(&wdata->state.lock, flags);
+	state = wdata->state.cmd_battery;
+	spin_unlock_irqrestore(&wdata->state.lock, flags);
 
 	switch (psp) {
 		case POWER_SUPPLY_PROP_CAPACITY:
@@ -923,10 +923,9 @@ static void handler_status(struct wiimote_data *wdata, const __u8 *payload)
 		wiiext_event(wdata, false);
 	}
 
-	if (wiimote_cmd_pending(wdata, WIIPROTO_REQ_SREQ, 0)) {
-		wdata->state.cmd_battery = payload[5];
+	wdata->state.cmd_battery = payload[5];
+	if (wiimote_cmd_pending(wdata, WIIPROTO_REQ_SREQ, 0))
 		wiimote_cmd_complete(wdata);
-	}
 }
 
 /* reduced generic report with "BB BB" key data only */
@@ -1279,6 +1278,7 @@ static struct wiimote_data *wiimote_create(struct hid_device *hdev)
 	init_completion(&wdata->state.ready);
 	mutex_init(&wdata->state.sync);
 	wdata->state.drm = WIIPROTO_REQ_DRM_K;
+	wdata->state.cmd_battery = 0xff;
 
 	INIT_WORK(&wdata->init_worker, wiimote_init_worker);
 
