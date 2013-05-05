@@ -275,7 +275,7 @@ static const struct file_operations pdc_chassis_warn_fops = {
 	.open		= pdc_chassis_warn_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
-	.release	= seq_release,
+	.release	= single_release,
 };
 
 static int __init pdc_chassis_create_procfs(void)
