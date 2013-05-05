@@ -108,6 +108,33 @@ struct wiimote_data {
 	struct work_struct init_worker;
 };
 
+/* wiimote modules */
+
+enum wiimod_module {
+	WIIMOD_NUM,
+	WIIMOD_NULL = WIIMOD_NUM,
+};
+
+#define WIIMOD_FLAG_INPUT		0x0001
+
+struct wiimod_ops {
+	__u16 flags;
+	unsigned long arg;
+	int (*probe) (const struct wiimod_ops *ops,
+		      struct wiimote_data *wdata);
+	void (*remove) (const struct wiimod_ops *ops,
+			struct wiimote_data *wdata);
+
+	void (*in_keys) (struct wiimote_data *wdata, const __u8 *keys);
+	void (*in_accel) (struct wiimote_data *wdata, const __u8 *accel);
+	void (*in_ir) (struct wiimote_data *wdata, const __u8 *ir, bool packed,
+		       unsigned int id);
+};
+
+extern const struct wiimod_ops *wiimod_table[WIIMOD_NUM];
+
+/* wiimote requests */
+
 enum wiiproto_reqs {
 	WIIPROTO_REQ_NULL = 0x0,
 	WIIPROTO_REQ_RUMBLE = 0x10,

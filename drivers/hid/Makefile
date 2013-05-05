@@ -28,7 +28,7 @@ ifdef CONFIG_LOGIWHEELS_FF
 	hid-logitech-y	+= hid-lg4ff.o
 endif
 
-hid-wiimote-y		:= hid-wiimote-core.o
+hid-wiimote-y		:= hid-wiimote-core.o hid-wiimote-modules.o
 ifdef CONFIG_HID_WIIMOTE_EXT
 	hid-wiimote-y	+= hid-wiimote-ext.o
 endif

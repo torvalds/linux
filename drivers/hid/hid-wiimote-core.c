@@ -715,6 +715,124 @@ static void wiimote_ir_close(struct input_dev *dev)
 	wiimote_init_ir(wdata, 0);
 }
 
+/* device module handling */
+
+static const __u8 * const wiimote_devtype_mods[WIIMOTE_DEV_NUM] = {
+	[WIIMOTE_DEV_PENDING] = (const __u8[]){
+		WIIMOD_NULL,
+	},
+	[WIIMOTE_DEV_UNKNOWN] = (const __u8[]){
+		WIIMOD_NULL,
+	},
+	[WIIMOTE_DEV_GENERIC] = (const __u8[]){
+		WIIMOD_NULL,
+	},
+	[WIIMOTE_DEV_GEN10] = (const __u8[]){
+		WIIMOD_NULL,
+	},
+	[WIIMOTE_DEV_GEN20] = (const __u8[]){
+		WIIMOD_NULL,
+	},
+};
+
+static void wiimote_modules_load(struct wiimote_data *wdata,
+				 unsigned int devtype)
+{
+	bool need_input = false;
+	const __u8 *mods, *iter;
+	const struct wiimod_ops *ops;
+	int ret;
+
+	mods = wiimote_devtype_mods[devtype];
+
+	for (iter = mods; *iter != WIIMOD_NULL; ++iter) {
+		if (wiimod_table[*iter]->flags & WIIMOD_FLAG_INPUT) {
+			need_input = true;
+			break;
+		}
+	}
+
+	if (need_input) {
+		wdata->input = input_allocate_device();
+		if (!wdata->input)
+			return;
+
+		input_set_drvdata(wdata->input, wdata);
+		wdata->input->dev.parent = &wdata->hdev->dev;
+		wdata->input->id.bustype = wdata->hdev->bus;
+		wdata->input->id.vendor = wdata->hdev->vendor;
+		wdata->input->id.product = wdata->hdev->product;
+		wdata->input->id.version = wdata->hdev->version;
+		wdata->input->name = WIIMOTE_NAME;
+	}
+
+	for (iter = mods; *iter != WIIMOD_NULL; ++iter) {
+		ops = wiimod_table[*iter];
+		if (!ops->probe)
+			continue;
+
+		ret = ops->probe(ops, wdata);
+		if (ret)
+			goto error;
+	}
+
+	if (wdata->input) {
+		ret = input_register_device(wdata->input);
+		if (ret)
+			goto error;
+	}
+
+	spin_lock_irq(&wdata->state.lock);
+	wdata->state.devtype = devtype;
+	spin_unlock_irq(&wdata->state.lock);
+	return;
+
+error:
+	for ( ; iter-- != mods; ) {
+		ops = wiimod_table[*iter];
+		if (ops->remove)
+			ops->remove(ops, wdata);
+	}
+
+	if (wdata->input) {
+		input_free_device(wdata->input);
+		wdata->input = NULL;
+	}
+}
+
+static void wiimote_modules_unload(struct wiimote_data *wdata)
+{
+	const __u8 *mods, *iter;
+	const struct wiimod_ops *ops;
+	unsigned long flags;
+
+	mods = wiimote_devtype_mods[wdata->state.devtype];
+
+	spin_lock_irqsave(&wdata->state.lock, flags);
+	wdata->state.devtype = WIIMOTE_DEV_UNKNOWN;
+	spin_unlock_irqrestore(&wdata->state.lock, flags);
+
+	/* find end of list */
+	for (iter = mods; *iter != WIIMOD_NULL; ++iter)
+		/* empty */ ;
+
+	if (wdata->input) {
+		input_get_device(wdata->input);
+		input_unregister_device(wdata->input);
+	}
+
+	for ( ; iter-- != mods; ) {
+		ops = wiimod_table[*iter];
+		if (ops->remove)
+			ops->remove(ops, wdata);
+	}
+
+	if (wdata->input) {
+		input_put_device(wdata->input);
+		wdata->input = NULL;
+	}
+}
+
 /* device (re-)initialization and detection */
 
 static const char *wiimote_devtype_names[WIIMOTE_DEV_NUM] = {
@@ -766,9 +884,7 @@ done:
 		hid_info(wdata->hdev, "detected device: %s\n",
 			 wiimote_devtype_names[devtype]);
 
-	spin_lock_irq(&wdata->state.lock);
-	wdata->state.devtype = devtype;
-	spin_unlock_irq(&wdata->state.lock);
+	wiimote_modules_load(wdata, devtype);
 }
 
 static void wiimote_init_detect(struct wiimote_data *wdata)
@@ -780,6 +896,7 @@ static void wiimote_init_detect(struct wiimote_data *wdata)
 	wiimote_cmd_acquire_noint(wdata);
 
 	spin_lock_irq(&wdata->state.lock);
+	wdata->state.devtype = WIIMOTE_DEV_UNKNOWN;
 	wiimote_cmd_set(wdata, WIIPROTO_REQ_SREQ, 0);
 	wiiproto_req_status(wdata);
 	spin_unlock_irq(&wdata->state.lock);
@@ -1313,6 +1430,7 @@ static void wiimote_destroy(struct wiimote_data *wdata)
 	wiiext_deinit(wdata);
 	wiimote_leds_destroy(wdata);
 
+	wiimote_modules_unload(wdata);
 	power_supply_unregister(&wdata->battery);
 	kfree(wdata->battery.name);
 	input_unregister_device(wdata->accel);
