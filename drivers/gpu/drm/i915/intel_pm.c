@@ -281,6 +281,10 @@ static void gen7_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 		I915_WRITE(ILK_DSPCLK_GATE_D,
 			   I915_READ(ILK_DSPCLK_GATE_D) |
 			   ILK_DPFCUNIT_CLOCK_GATE_DISABLE);
+	} else {
+		/* WaFbcAsynchFlipDisableFbcQueue */
+		I915_WRITE(HSW_PIPE_SLICE_CHICKEN_1(intel_crtc->pipe),
+			   HSW_BYPASS_FBC_QUEUE);
 	}
 
 	I915_WRITE(SNB_DPFC_CTL_SA,

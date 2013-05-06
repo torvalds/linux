@@ -980,6 +980,13 @@
 #define IVB_FBC_RT_BASE			0x7020
 
 
+#define _HSW_PIPE_SLICE_CHICKEN_1_A	0x420B0
+#define _HSW_PIPE_SLICE_CHICKEN_1_B	0x420B4
+#define   HSW_BYPASS_FBC_QUEUE		(1<<22)
+#define HSW_PIPE_SLICE_CHICKEN_1(pipe) _PIPE(pipe, + \
+					     _HSW_PIPE_SLICE_CHICKEN_1_A, + \
+					     _HSW_PIPE_SLICE_CHICKEN_1_B)
+
 /*
  * GPIO regs
  */
