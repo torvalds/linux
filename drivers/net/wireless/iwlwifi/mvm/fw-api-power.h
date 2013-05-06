@@ -193,4 +193,13 @@ struct iwl_beacon_filter_cmd {
 
 #define IWL_BA_ENABLE_BEACON_ABORT_DEFAULT 1
 
+#define IWL_BF_CMD_CONFIG_DEFAULTS					\
+	.bf_energy_delta = IWL_BF_ENERGY_DELTA_DEFAULT,			\
+	.bf_roaming_energy_delta = IWL_BF_ROAMING_ENERGY_DELTA_DEFAULT,	\
+	.bf_roaming_state = IWL_BF_ROAMING_STATE_DEFAULT,		\
+	.bf_temperature_delta = IWL_BF_TEMPERATURE_DELTA_DEFAULT,	\
+	.bf_debug_flag = IWL_BF_DEBUG_FLAG_DEFAULT,			\
+	.bf_escape_timer = cpu_to_le32(IWL_BF_ESCAPE_TIMER_DEFAULT),	\
+	.ba_escape_timer = cpu_to_le32(IWL_BA_ESCAPE_TIMER_DEFAULT)
+
 #endif

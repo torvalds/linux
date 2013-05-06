@@ -173,6 +173,8 @@ struct iwl_mvm_vif {
 	bool uploaded;
 	bool ap_active;
 	bool monitor_active;
+	/* indicate whether beacon filtering is enabled */
+	bool bf_enabled;
 
 	u32 ap_beacon_time;
 

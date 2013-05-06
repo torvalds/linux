@@ -75,6 +75,53 @@
 
 #define POWER_KEEP_ALIVE_PERIOD_SEC    25
 
+static int iwl_mvm_beacon_filter_send_cmd(struct iwl_mvm *mvm,
+					  struct iwl_beacon_filter_cmd *cmd)
+{
+	int ret;
+
+	ret = iwl_mvm_send_cmd_pdu(mvm, REPLY_BEACON_FILTERING_CMD, CMD_SYNC,
+				   sizeof(struct iwl_beacon_filter_cmd), cmd);
+
+	if (!ret) {
+		IWL_DEBUG_POWER(mvm, "ba_enable_beacon_abort is: %d\n",
+				cmd->ba_enable_beacon_abort);
+		IWL_DEBUG_POWER(mvm, "ba_escape_timer is: %d\n",
+				cmd->ba_escape_timer);
+		IWL_DEBUG_POWER(mvm, "bf_debug_flag is: %d\n",
+				cmd->bf_debug_flag);
+		IWL_DEBUG_POWER(mvm, "bf_enable_beacon_filter is: %d\n",
+				cmd->bf_enable_beacon_filter);
+		IWL_DEBUG_POWER(mvm, "bf_energy_delta is: %d\n",
+				cmd->bf_energy_delta);
+		IWL_DEBUG_POWER(mvm, "bf_escape_timer is: %d\n",
+				cmd->bf_escape_timer);
+		IWL_DEBUG_POWER(mvm, "bf_roaming_energy_delta is: %d\n",
+				cmd->bf_roaming_energy_delta);
+		IWL_DEBUG_POWER(mvm, "bf_roaming_state is: %d\n",
+				cmd->bf_roaming_state);
+		IWL_DEBUG_POWER(mvm, "bf_temperature_delta is: %d\n",
+				cmd->bf_temperature_delta);
+	}
+	return ret;
+}
+
+static int iwl_mvm_update_beacon_abort(struct iwl_mvm *mvm,
+				       struct ieee80211_vif *vif, bool enable)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_beacon_filter_cmd cmd = {
+		IWL_BF_CMD_CONFIG_DEFAULTS,
+		.bf_enable_beacon_filter = 1,
+		.ba_enable_beacon_abort = enable,
+	};
+
+	if (!mvmvif->bf_enabled)
+		return 0;
+
+	return iwl_mvm_beacon_filter_send_cmd(mvm, &cmd);
+}
+
 static void iwl_mvm_power_log(struct iwl_mvm *mvm,
 			      struct iwl_powertable_cmd *cmd)
 {
@@ -162,6 +209,8 @@ void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 int iwl_mvm_power_update_mode(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
+	int ret;
+	bool ba_enable;
 	struct iwl_powertable_cmd cmd = {};
 
 	if (vif->type != NL80211_IFTYPE_STATION || vif->p2p)
@@ -170,8 +219,15 @@ int iwl_mvm_power_update_mode(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	iwl_mvm_power_build_cmd(mvm, vif, &cmd);
 	iwl_mvm_power_log(mvm, &cmd);
 
-	return iwl_mvm_send_cmd_pdu(mvm, POWER_TABLE_CMD, CMD_SYNC,
-				    sizeof(cmd), &cmd);
+	ret = iwl_mvm_send_cmd_pdu(mvm, POWER_TABLE_CMD, CMD_SYNC,
+				   sizeof(cmd), &cmd);
+	if (ret)
+		return ret;
+
+	ba_enable = !!(cmd.flags &
+		       cpu_to_le16(POWER_FLAGS_POWER_MANAGEMENT_ENA_MSK));
+
+	return iwl_mvm_update_beacon_abort(mvm, vif, ba_enable);
 }
 
 int iwl_mvm_power_disable(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
@@ -190,69 +246,42 @@ int iwl_mvm_power_disable(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 				    sizeof(cmd), &cmd);
 }
 
-static int iwl_mvm_beacon_filter_send_cmd(struct iwl_mvm *mvm,
-					  struct iwl_beacon_filter_cmd *cmd)
-{
-	int ret;
-
-	ret = iwl_mvm_send_cmd_pdu(mvm, REPLY_BEACON_FILTERING_CMD, CMD_SYNC,
-				   sizeof(struct iwl_beacon_filter_cmd), cmd);
-
-	if (!ret) {
-		IWL_DEBUG_POWER(mvm, "ba_enable_beacon_abort is: %d\n",
-				cmd->ba_enable_beacon_abort);
-		IWL_DEBUG_POWER(mvm, "ba_escape_timer is: %d\n",
-				cmd->ba_escape_timer);
-		IWL_DEBUG_POWER(mvm, "bf_debug_flag is: %d\n",
-				cmd->bf_debug_flag);
-		IWL_DEBUG_POWER(mvm, "bf_enable_beacon_filter is: %d\n",
-				cmd->bf_enable_beacon_filter);
-		IWL_DEBUG_POWER(mvm, "bf_energy_delta is: %d\n",
-				cmd->bf_energy_delta);
-		IWL_DEBUG_POWER(mvm, "bf_escape_timer is: %d\n",
-				cmd->bf_escape_timer);
-		IWL_DEBUG_POWER(mvm, "bf_roaming_energy_delta is: %d\n",
-				cmd->bf_roaming_energy_delta);
-		IWL_DEBUG_POWER(mvm, "bf_roaming_state is: %d\n",
-				cmd->bf_roaming_state);
-		IWL_DEBUG_POWER(mvm, "bf_temperature_delta is: %d\n",
-				cmd->bf_temperature_delta);
-	}
-	return ret;
-}
-
 int iwl_mvm_enable_beacon_filter(struct iwl_mvm *mvm,
 				 struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_beacon_filter_cmd cmd = {
+		IWL_BF_CMD_CONFIG_DEFAULTS,
 		.bf_enable_beacon_filter = 1,
-		.bf_energy_delta = IWL_BF_ENERGY_DELTA_DEFAULT,
-		.bf_roaming_energy_delta = IWL_BF_ROAMING_ENERGY_DELTA_DEFAULT,
-		.bf_roaming_state = IWL_BF_ROAMING_STATE_DEFAULT,
-		.bf_temperature_delta = IWL_BF_TEMPERATURE_DELTA_DEFAULT,
-		.bf_debug_flag = IWL_BF_DEBUG_FLAG_DEFAULT,
-		.bf_escape_timer = cpu_to_le32(IWL_BF_ESCAPE_TIMER_DEFAULT),
-		.ba_escape_timer = cpu_to_le32(IWL_BA_ESCAPE_TIMER_DEFAULT),
-		.ba_enable_beacon_abort = IWL_BA_ENABLE_BEACON_ABORT_DEFAULT,
 	};
+	int ret;
 
 	if (mvmvif != mvm->bf_allowed_vif ||
 	    vif->type != NL80211_IFTYPE_STATION || vif->p2p)
 		return 0;
 
-	return iwl_mvm_beacon_filter_send_cmd(mvm, &cmd);
+	ret = iwl_mvm_beacon_filter_send_cmd(mvm, &cmd);
+
+	if (!ret)
+		mvmvif->bf_enabled = true;
+
+	return ret;
 }
 
 int iwl_mvm_disable_beacon_filter(struct iwl_mvm *mvm,
 				  struct ieee80211_vif *vif)
 {
-	struct iwl_beacon_filter_cmd cmd = {
-		.bf_enable_beacon_filter = 0,
-	};
+	struct iwl_beacon_filter_cmd cmd = {};
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	int ret;
 
 	if (vif->type != NL80211_IFTYPE_STATION || vif->p2p)
 		return 0;
 
-	return iwl_mvm_beacon_filter_send_cmd(mvm, &cmd);
+	ret = iwl_mvm_beacon_filter_send_cmd(mvm, &cmd);
+
+	if (!ret)
+		mvmvif->bf_enabled = false;
+
+	return ret;
 }
