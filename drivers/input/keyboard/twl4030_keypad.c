@@ -438,7 +438,6 @@ static int twl4030_kp_remove(struct platform_device *pdev)
 
 	free_irq(kp->irq, kp);
 	input_unregister_device(kp->input);
-	platform_set_drvdata(pdev, NULL);
 	kfree(kp);
 
 	return 0;
