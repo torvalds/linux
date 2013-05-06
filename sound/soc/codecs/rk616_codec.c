@@ -81,7 +81,7 @@ static const unsigned int rk616_reg_defaults[RK616_PGAR_AGC_CTL5 + 1] = {
 	[RK616_ADC_INT_CTL2] = 0x000e,
 	[RK616_DAC_INT_CTL1] = 0x0050,
 	[RK616_DAC_INT_CTL2] = 0x000e,
-	[RK616_CLK_CHPUMP] = 0x0001,
+	[RK616_CLK_CHPUMP] = 0x0021,
 	[RK616_PGA_AGC_CTL] = 0x000c,
 	[RK616_PWR_ADD1] = 0x007c,
 	[RK616_BST_CTL] = 0x0099,
@@ -1554,13 +1554,13 @@ static int rk616_hw_params(struct snd_pcm_substream *substream,
 #ifdef RK616_FOR_MID
 static struct rk616_reg_val_typ power_up_list[] = {
 	{0x804, 0x46}, //DAC GSM, 0x06: x1, 0x26: x1.25, 0x46: x1.5, 0x66: x1.75
-	{0x828, 0x09}, //Set for Capture
+	{0x828, 0x09}, //Set for Capture pop noise
 	{0x83c, 0x00}, //power up
 	{0x840, 0x49}, //BST_L power up, unmute, and Single-Ended(bit 6), volume 0-20dB(bit 5)
 	{0x848, 0x06}, //MIXINL power up and unmute, MININL from MICMUX, MICMUX from BST_L
 	{0x84c, 0x3c}, //MIXINL from MIXMUX volume (bit 3-5)
 	{0x860, 0x1f}, //PGAL power up unmute,volume (bit 0-4)
-	{0x868, 0x82}, //power up
+	{0x868, 0x02}, //power up
 	{0x86c, 0x0f}, //DACL/R UN INIT
 	{0x86c, 0x00}, //DACL/R and DACL/R CLK power up
 	{0x86c, 0x30}, //DACL/R INIT
