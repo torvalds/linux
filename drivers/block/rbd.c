@@ -4004,6 +4004,7 @@ static int rbd_dev_v2_snap_context(struct rbd_device *rbd_dev)
 	for (i = 0; i < snap_count; i++)
 		snapc->snaps[i] = ceph_decode_64(&p);
 
+	ceph_put_snap_context(rbd_dev->header.snapc);
 	rbd_dev->header.snapc = snapc;
 
 	dout("  snap context seq = %llu, snap_count = %u\n",
