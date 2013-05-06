@@ -4469,31 +4469,7 @@ static void rbd_dev_unprobe(struct rbd_device *rbd_dev)
 
 static int rbd_dev_v1_probe(struct rbd_device *rbd_dev)
 {
-	int ret;
-
-	/* Populate rbd image metadata */
-
-	ret = rbd_dev_v1_header_read(rbd_dev);
-	if (ret < 0)
-		goto out_err;
-
-	/* Version 1 images have no parent (no layering) */
-
-	rbd_dev->parent_spec = NULL;
-	rbd_dev->parent_overlap = 0;
-
-	dout("discovered version 1 image, header name is %s\n",
-		rbd_dev->header_name);
-
-	return 0;
-
-out_err:
-	kfree(rbd_dev->header_name);
-	rbd_dev->header_name = NULL;
-	kfree(rbd_dev->spec->image_id);
-	rbd_dev->spec->image_id = NULL;
-
-	return ret;
+	return rbd_dev_v1_header_read(rbd_dev);
 }
 
 static int rbd_dev_v2_probe(struct rbd_device *rbd_dev)
@@ -4552,9 +4528,6 @@ static int rbd_dev_v2_probe(struct rbd_device *rbd_dev)
 	ret = rbd_dev_v2_snap_context(rbd_dev);
 	if (ret)
 		goto out_err;
-
-	dout("discovered version 2 image, header name is %s\n",
-		rbd_dev->header_name);
 
 	return 0;
 out_err:
@@ -4758,9 +4731,13 @@ static int rbd_dev_image_probe(struct rbd_device *rbd_dev, bool read_only)
 	rbd_dev->mapping.read_only = read_only;
 
 	ret = rbd_dev_probe_parent(rbd_dev);
-	if (!ret)
-		return 0;
+	if (ret)
+		goto err_out_probe;
 
+	dout("discovered format %u image, header name is %s\n",
+		rbd_dev->image_format, rbd_dev->header_name);
+
+	return 0;
 err_out_probe:
 	rbd_dev_unprobe(rbd_dev);
 err_out_watch:
