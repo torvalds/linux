@@ -1501,8 +1501,6 @@ static int sh_mmcif_remove(struct platform_device *pdev)
 	if (irq[1] >= 0)
 		free_irq(irq[1], host);
 
-	platform_set_drvdata(pdev, NULL);
-
 	clk_disable(host->hclk);
 	mmc_free_host(host->mmc);
 	pm_runtime_put_sync(&pdev->dev);

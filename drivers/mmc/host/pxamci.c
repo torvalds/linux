@@ -834,8 +834,6 @@ static int pxamci_remove(struct platform_device *pdev)
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
 	int gpio_cd = -1, gpio_ro = -1, gpio_power = -1;
 
-	platform_set_drvdata(pdev, NULL);
-
 	if (mmc) {
 		struct pxamci_host *host = mmc_priv(mmc);
 

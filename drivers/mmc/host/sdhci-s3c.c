@@ -745,7 +745,6 @@ static int sdhci_s3c_remove(struct platform_device *pdev)
 	clk_disable_unprepare(sc->clk_io);
 
 	sdhci_free_host(host);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

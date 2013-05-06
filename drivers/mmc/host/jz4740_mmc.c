@@ -932,7 +932,6 @@ err_release_mem_region:
 err_clk_put:
 	clk_put(host->clk);
 err_free_host:
-	platform_set_drvdata(pdev, NULL);
 	mmc_free_host(mmc);
 
 	return ret;
@@ -960,7 +959,6 @@ static int jz4740_mmc_remove(struct platform_device *pdev)
 
 	clk_put(host->clk);
 
-	platform_set_drvdata(pdev, NULL);
 	mmc_free_host(host->mmc);
 
 	return 0;

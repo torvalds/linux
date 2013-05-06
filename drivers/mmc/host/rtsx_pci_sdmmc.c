@@ -1316,8 +1316,6 @@ static int rtsx_pci_sdmmc_drv_remove(struct platform_device *pdev)
 	mmc_remove_host(mmc);
 	mmc_free_host(mmc);
 
-	platform_set_drvdata(pdev, NULL);
-
 	dev_dbg(&(pdev->dev),
 		": Realtek PCI-E SDMMC controller has been removed\n");
 

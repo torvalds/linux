@@ -827,7 +827,6 @@ static int __exit mvsd_remove(struct platform_device *pdev)
 		clk_disable_unprepare(host->clk);
 	mmc_free_host(mmc);
 
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 
