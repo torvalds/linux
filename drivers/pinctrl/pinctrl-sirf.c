@@ -1280,9 +1280,8 @@ static int sirfsoc_pinmux_probe(struct platform_device *pdev)
 
 	spmx->gpio_virtbase = of_iomap(np, 0);
 	if (!spmx->gpio_virtbase) {
-		ret = -ENOMEM;
 		dev_err(&pdev->dev, "can't map gpio registers\n");
-		goto out_no_gpio_remap;
+		return -ENOMEM;
 	}
 
 	spmx->rsc_virtbase = sirfsoc_rsc_of_iomap();
@@ -1316,8 +1315,6 @@ out_no_pmx:
 	iounmap(spmx->rsc_virtbase);
 out_no_rsc_remap:
 	iounmap(spmx->gpio_virtbase);
-out_no_gpio_remap:
-	platform_set_drvdata(pdev, NULL);
 	return ret;
 }
 
