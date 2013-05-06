@@ -2574,7 +2574,7 @@ static void rbd_img_parent_read(struct rbd_obj_request *obj_request)
 	rbd_assert(obj_request_img_data_test(obj_request));
 	rbd_assert(obj_request->img_request != NULL);
 	rbd_assert(obj_request->result == (s32) -ENOENT);
-	rbd_assert(obj_request->type == OBJ_REQUEST_BIO);
+	rbd_assert(obj_request_type_valid(obj_request->type));
 
 	rbd_dev = obj_request->img_request->rbd_dev;
 	rbd_assert(rbd_dev->parent != NULL);
@@ -2590,8 +2590,12 @@ static void rbd_img_parent_read(struct rbd_obj_request *obj_request)
 	rbd_obj_request_get(obj_request);
 	img_request->obj_request = obj_request;
 
-	result = rbd_img_request_fill(img_request, OBJ_REQUEST_BIO,
-					obj_request->bio_list);
+	if (obj_request->type == OBJ_REQUEST_BIO)
+		result = rbd_img_request_fill(img_request, OBJ_REQUEST_BIO,
+						obj_request->bio_list);
+	else
+		result = rbd_img_request_fill(img_request, OBJ_REQUEST_PAGES,
+						obj_request->pages);
 	if (result)
 		goto out_err;
 
