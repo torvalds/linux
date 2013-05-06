@@ -6458,8 +6458,8 @@ S:	Maintained
 F:	drivers/media/usb/pwc/*
 
 PWM SUBSYSTEM
-M:	Thierry Reding <thierry.reding@avionic-design.de>
-L:	linux-kernel@vger.kernel.org
+M:	Thierry Reding <thierry.reding@gmail.com>
+L:	linux-pwm@vger.kernel.org
 S:	Maintained
 W:	http://gitorious.org/linux-pwm
 T:	git git://gitorious.org/linux-pwm/linux-pwm.git
