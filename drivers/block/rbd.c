@@ -100,21 +100,20 @@
  * block device image metadata (in-memory version)
  */
 struct rbd_image_header {
-	/* These four fields never change for a given rbd image */
+	/* These six fields never change for a given rbd image */
 	char *object_prefix;
-	u64 features;
 	__u8 obj_order;
 	__u8 crypt_type;
 	__u8 comp_type;
+	u64 stripe_unit;
+	u64 stripe_count;
+	u64 features;		/* Might be changeable someday? */
 
 	/* The remaining fields need to be updated occasionally */
 	u64 image_size;
 	struct ceph_snap_context *snapc;
-	char *snap_names;
-	u64 *snap_sizes;
-
-	u64 stripe_unit;
-	u64 stripe_count;
+	char *snap_names;	/* format 1 only */
+	u64 *snap_sizes;	/* format 1 only */
 };
 
 /*
@@ -4637,10 +4636,6 @@ static int rbd_dev_device_setup(struct rbd_device *rbd_dev)
 {
 	int ret;
 
-	ret = rbd_dev_mapping_set(rbd_dev);
-	if (ret)
-		return ret;
-
 	/* generate unique id: find highest unique id, add one */
 	rbd_dev_id_get(rbd_dev);
 
@@ -4662,13 +4657,17 @@ static int rbd_dev_device_setup(struct rbd_device *rbd_dev)
 	if (ret)
 		goto err_out_blkdev;
 
-	ret = rbd_bus_add_dev(rbd_dev);
+	ret = rbd_dev_mapping_set(rbd_dev);
 	if (ret)
 		goto err_out_disk;
+	set_capacity(rbd_dev->disk, rbd_dev->mapping.size / SECTOR_SIZE);
+
+	ret = rbd_bus_add_dev(rbd_dev);
+	if (ret)
+		goto err_out_mapping;
 
 	/* Everything's ready.  Announce the disk to the world. */
 
-	set_capacity(rbd_dev->disk, rbd_dev->mapping.size / SECTOR_SIZE);
 	set_bit(RBD_DEV_FLAG_EXISTS, &rbd_dev->flags);
 	add_disk(rbd_dev->disk);
 
@@ -4677,6 +4676,8 @@ static int rbd_dev_device_setup(struct rbd_device *rbd_dev)
 
 	return ret;
 
+err_out_mapping:
+	rbd_dev_mapping_clear(rbd_dev);
 err_out_disk:
 	rbd_free_disk(rbd_dev);
 err_out_blkdev:
