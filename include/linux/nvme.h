@@ -316,6 +316,9 @@ enum {
 	NVME_FEAT_WRITE_ATOMIC	= 0x0a,
 	NVME_FEAT_ASYNC_EVENT	= 0x0b,
 	NVME_FEAT_SW_PROGRESS	= 0x0c,
+	NVME_FWACT_REPL		= (0 << 3),
+	NVME_FWACT_REPL_ACTV	= (1 << 3),
+	NVME_FWACT_ACTV		= (2 << 3),
 };
 
 struct nvme_identify {

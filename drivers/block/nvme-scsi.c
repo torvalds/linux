@@ -1577,10 +1577,8 @@ static int nvme_trans_send_fw_cmd(struct nvme_ns *ns, struct sg_io_hdr *hdr,
 		c.dlfw.numd = cpu_to_le32((tot_len/BYTES_TO_DWORDS) - 1);
 		c.dlfw.offset = cpu_to_le32(offset/BYTES_TO_DWORDS);
 	} else if (opcode == nvme_admin_activate_fw) {
-		c.common.cdw10[0] = cpu_to_le32(buffer_id);
-		/* AA=01b Replace & activate at reset */
-		c.common.cdw10[0] = cpu_to_le32(le32_to_cpu(
-						c.common.cdw10[0]) | 0x00000008);
+		u32 cdw10 = buffer_id | NVME_FWACT_REPL_ACTV;
+		c.common.cdw10[0] = cpu_to_le32(cdw10);
 	}
 
 	nvme_sc = nvme_submit_admin_cmd(dev, &c, NULL);
