@@ -1001,7 +1001,6 @@ static int dummy_udc_remove(struct platform_device *pdev)
 	struct dummy	*dum = platform_get_drvdata(pdev);
 
 	usb_del_gadget_udc(&dum->gadget);
-	platform_set_drvdata(pdev, NULL);
 	device_remove_file(&dum->gadget.dev, &dev_attr_function);
 	return 0;
 }
