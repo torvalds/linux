@@ -139,13 +139,12 @@ static int simdisk_open(struct block_device *bdev, fmode_t mode)
 	return 0;
 }
 
-static int simdisk_release(struct gendisk *disk, fmode_t mode)
+static void simdisk_release(struct gendisk *disk, fmode_t mode)
 {
 	struct simdisk *dev = disk->private_data;
 	spin_lock(&dev->lock);
 	--dev->users;
 	spin_unlock(&dev->lock);
-	return 0;
 }
 
 static const struct block_device_operations simdisk_ops = {

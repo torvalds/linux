@@ -1422,7 +1422,7 @@ static int __blkdev_put(struct block_device *bdev, fmode_t mode, int for_part)
 	}
 	if (bdev->bd_contains == bdev) {
 		if (disk->fops->release)
-			ret = disk->fops->release(disk, mode);
+			disk->fops->release(disk, mode);
 	}
 	if (!bdev->bd_openers) {
 		struct module *owner = disk->fops->owner;

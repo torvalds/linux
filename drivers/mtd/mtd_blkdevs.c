@@ -237,12 +237,12 @@ error_put:
 	return ret;
 }
 
-static int blktrans_release(struct gendisk *disk, fmode_t mode)
+static void blktrans_release(struct gendisk *disk, fmode_t mode)
 {
 	struct mtd_blktrans_dev *dev = blktrans_dev_get(disk);
 
 	if (!dev)
-		return 0;
+		return;
 
 	mutex_lock(&dev->lock);
 
@@ -260,7 +260,6 @@ static int blktrans_release(struct gendisk *disk, fmode_t mode)
 unlock:
 	mutex_unlock(&dev->lock);
 	blktrans_dev_put(dev);
-	return 0;
 }
 
 static int blktrans_getgeo(struct block_device *bdev, struct hd_geometry *geo)

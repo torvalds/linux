@@ -123,10 +123,9 @@ static int scm_open(struct block_device *blkdev, fmode_t mode)
 	return scm_get_ref();
 }
 
-static int scm_release(struct gendisk *gendisk, fmode_t mode)
+static void scm_release(struct gendisk *gendisk, fmode_t mode)
 {
 	scm_put_ref();
-	return 0;
 }
 
 static const struct block_device_operations scm_blk_devops = {

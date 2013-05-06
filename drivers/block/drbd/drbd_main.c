@@ -63,7 +63,7 @@ int drbd_asender(struct drbd_thread *);
 
 int drbd_init(void);
 static int drbd_open(struct block_device *bdev, fmode_t mode);
-static int drbd_release(struct gendisk *gd, fmode_t mode);
+static void drbd_release(struct gendisk *gd, fmode_t mode);
 static int w_md_sync(struct drbd_work *w, int unused);
 static void md_sync_timer_fn(unsigned long data);
 static int w_bitmap_io(struct drbd_work *w, int unused);
@@ -1849,13 +1849,12 @@ static int drbd_open(struct block_device *bdev, fmode_t mode)
 	return rv;
 }
 
-static int drbd_release(struct gendisk *gd, fmode_t mode)
+static void drbd_release(struct gendisk *gd, fmode_t mode)
 {
 	struct drbd_conf *mdev = gd->private_data;
 	mutex_lock(&drbd_main_mutex);
 	mdev->open_cnt--;
 	mutex_unlock(&drbd_main_mutex);
-	return 0;
 }
 
 static void drbd_set_defaults(struct drbd_conf *mdev)
