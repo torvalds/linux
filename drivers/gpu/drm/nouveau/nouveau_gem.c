@@ -101,6 +101,41 @@ out:
 	return ret;
 }
 
+static void
+nouveau_gem_object_delete(void *data)
+{
+	struct nouveau_vma *vma = data;
+	nouveau_vm_unmap(vma);
+	nouveau_vm_put(vma);
+	kfree(vma);
+}
+
+static void
+nouveau_gem_object_unmap(struct nouveau_bo *nvbo, struct nouveau_vma *vma)
+{
+	const bool mapped = nvbo->bo.mem.mem_type != TTM_PL_SYSTEM;
+	struct nouveau_fence *fence = NULL;
+
+	list_del(&vma->head);
+
+	if (mapped) {
+		spin_lock(&nvbo->bo.bdev->fence_lock);
+		if (nvbo->bo.sync_obj)
+			fence = nouveau_fence_ref(nvbo->bo.sync_obj);
+		spin_unlock(&nvbo->bo.bdev->fence_lock);
+	}
+
+	if (fence) {
+		nouveau_fence_work(fence, nouveau_gem_object_delete, vma);
+	} else {
+		if (mapped)
+			nouveau_vm_unmap(vma);
+		nouveau_vm_put(vma);
+		kfree(vma);
+	}
+	nouveau_fence_unref(&fence);
+}
+
 void
 nouveau_gem_object_close(struct drm_gem_object *gem, struct drm_file *file_priv)
 {
@@ -118,10 +153,8 @@ nouveau_gem_object_close(struct drm_gem_object *gem, struct drm_file *file_priv)
 
 	vma = nouveau_bo_vma_find(nvbo, cli->base.vm);
 	if (vma) {
-		if (--vma->refcount == 0) {
-			nouveau_bo_vma_del(nvbo, vma);
-			kfree(vma);
-		}
+		if (--vma->refcount == 0)
+			nouveau_gem_object_unmap(nvbo, vma);
 	}
 	ttm_bo_unreserve(&nvbo->bo);
 }
