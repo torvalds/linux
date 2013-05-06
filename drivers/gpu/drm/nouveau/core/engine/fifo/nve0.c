@@ -97,18 +97,6 @@ nve0_fifo_playlist_update(struct nve0_fifo_priv *priv, u32 engine)
 
 	mutex_lock(&nv_subdev(priv)->mutex);
 	cur = engn->playlist[engn->cur_playlist];
-	if (unlikely(cur == NULL)) {
-		int ret = nouveau_gpuobj_new(nv_object(priv), NULL,
-					     0x8000, 0x1000, 0, &cur);
-		if (ret) {
-			mutex_unlock(&nv_subdev(priv)->mutex);
-			nv_error(priv, "playlist alloc failed\n");
-			return;
-		}
-
-		engn->playlist[engn->cur_playlist] = cur;
-	}
-
 	engn->cur_playlist = !engn->cur_playlist;
 
 	for (i = 0, p = 0; i < priv->base.max; i++) {
@@ -599,12 +587,24 @@ nve0_fifo_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	       struct nouveau_object **pobject)
 {
 	struct nve0_fifo_priv *priv;
-	int ret;
+	int ret, i;
 
 	ret = nouveau_fifo_create(parent, engine, oclass, 0, 4095, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
+
+	for (i = 0; i < FIFO_ENGINE_NR; i++) {
+		ret = nouveau_gpuobj_new(nv_object(priv), NULL, 0x8000, 0x1000,
+					 0, &priv->engine[i].playlist[0]);
+		if (ret)
+			return ret;
+
+		ret = nouveau_gpuobj_new(nv_object(priv), NULL, 0x8000, 0x1000,
+					 0, &priv->engine[i].playlist[1]);
+		if (ret)
+			return ret;
+	}
 
 	ret = nouveau_gpuobj_new(nv_object(priv), NULL, 4096 * 0x200, 0x1000,
 				 NVOBJ_FLAG_ZERO_ALLOC, &priv->user.mem);
@@ -636,7 +636,7 @@ nve0_fifo_dtor(struct nouveau_object *object)
 	nouveau_gpuobj_unmap(&priv->user.bar);
 	nouveau_gpuobj_ref(NULL, &priv->user.mem);
 
-	for (i = 0; i < ARRAY_SIZE(priv->engine); i++) {
+	for (i = 0; i < FIFO_ENGINE_NR; i++) {
 		nouveau_gpuobj_ref(NULL, &priv->engine[i].playlist[1]);
 		nouveau_gpuobj_ref(NULL, &priv->engine[i].playlist[0]);
 	}
