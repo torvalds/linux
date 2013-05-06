@@ -96,12 +96,12 @@ static int tef6862_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *v)
 	return 0;
 }
 
-static int tef6862_s_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *v)
+static int tef6862_s_tuner(struct v4l2_subdev *sd, const struct v4l2_tuner *v)
 {
 	return v->index ? -EINVAL : 0;
 }
 
-static int tef6862_s_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *f)
+static int tef6862_s_frequency(struct v4l2_subdev *sd, const struct v4l2_frequency *f)
 {
 	struct tef6862_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);

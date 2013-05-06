@@ -17,6 +17,4 @@
 #ifndef __MACH_ZYNQ_COMMON_H__
 #define __MACH_ZYNQ_COMMON_H__
 
-void __init xttcps_timer_init(void);
-
 #endif

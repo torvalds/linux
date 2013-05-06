@@ -379,10 +379,6 @@ static int __init isapnp_read_tag(unsigned char *type, unsigned short *size)
 		*type = (tag >> 3) & 0x0f;
 		*size = tag & 0x07;
 	}
-#if 0
-	printk(KERN_DEBUG "tag = 0x%x, type = 0x%x, size = %i\n", tag, *type,
-	       *size);
-#endif
 	if (*type == 0xff && *size == 0xffff)	/* probably invalid data */
 		return -1;
 	return 0;
@@ -813,13 +809,6 @@ static int __init isapnp_build_device_list(void)
 		if (!card)
 			continue;
 
-#if 0
-		dev_info(&card->dev,
-		       "vendor: %02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x\n",
-		       header[0], header[1], header[2], header[3], header[4],
-		       header[5], header[6], header[7], header[8]);
-		dev_info(&card->dev, "checksum = %#x\n", checksum);
-#endif
 		INIT_LIST_HEAD(&card->devices);
 		card->serial =
 		    (header[7] << 24) | (header[6] << 16) | (header[5] << 8) |

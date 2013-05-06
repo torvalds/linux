@@ -239,7 +239,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 
 /* vidioc_s_tuner - set tuner attributes */
 static int vidioc_s_tuner(struct file *file, void *priv,
-				struct v4l2_tuner *v)
+				const struct v4l2_tuner *v)
 {
 	struct ma901radio_device *radio = video_drvdata(file);
 
@@ -257,7 +257,7 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 
 /* vidioc_s_frequency - set tuner radio frequency */
 static int vidioc_s_frequency(struct file *file, void *priv,
-				struct v4l2_frequency *f)
+				const struct v4l2_frequency *f)
 {
 	struct ma901radio_device *radio = video_drvdata(file);
 

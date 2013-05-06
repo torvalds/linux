@@ -2,6 +2,7 @@
  * arch/arm/mach-tegra/fuse.c
  *
  * Copyright (C) 2010 Google, Inc.
+ * Copyright (c) 2013, NVIDIA CORPORATION.  All rights reserved.
  *
  * Author:
  *	Colin Cross <ccross@android.com>
@@ -136,6 +137,9 @@ void tegra_init_fuse(void)
 	case TEGRA30:
 		tegra_fuse_spare_bit = TEGRA30_FUSE_SPARE_BIT;
 		tegra_init_speedo_data = &tegra30_init_speedo_data;
+		break;
+	case TEGRA114:
+		tegra_init_speedo_data = &tegra114_init_speedo_data;
 		break;
 	default:
 		pr_warn("Tegra: unknown chip id %d\n", tegra_chip_id);

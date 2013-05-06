@@ -139,7 +139,7 @@ void __init fpga_irq_init(void __iomem *base, const char *name, int irq_start,
 	int i;
 
 	if (fpga_irq_id >= ARRAY_SIZE(fpga_irq_devices)) {
-		pr_err("%s: too few FPGA IRQ controllers, increase CONFIG_PLAT_VERSATILE_FPGA_IRQ_NR\n", __func__);
+		pr_err("%s: too few FPGA IRQ controllers, increase CONFIG_VERSATILE_FPGA_IRQ_NR\n", __func__);
 		return;
 	}
 	f = &fpga_irq_devices[fpga_irq_id];

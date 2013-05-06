@@ -2174,6 +2174,7 @@ int
 nv50_display_create(struct drm_device *dev)
 {
 	static const u16 oclass[] = {
+		NVF0_DISP_CLASS,
 		NVE0_DISP_CLASS,
 		NVD0_DISP_CLASS,
 		NVA3_DISP_CLASS,

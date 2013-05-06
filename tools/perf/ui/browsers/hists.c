@@ -2,7 +2,6 @@
 #include "../libslang.h"
 #include <stdlib.h>
 #include <string.h>
-#include <newt.h>
 #include <linux/rbtree.h>
 
 #include "../../util/evsel.h"
@@ -1193,7 +1192,7 @@ static int hists__browser_title(struct hists *hists, char *bf, size_t size,
 	char buf[512];
 	size_t buflen = sizeof(buf);
 
-	if (symbol_conf.event_group && evsel->nr_members > 1) {
+	if (perf_evsel__is_group_event(evsel)) {
 		struct perf_evsel *pos;
 
 		perf_evsel__group_desc(evsel, buf, buflen);
@@ -1599,7 +1598,7 @@ do_annotate:
 			 * Don't let this be freed, say, by hists__decay_entry.
 			 */
 			he->used = true;
-			err = hist_entry__tui_annotate(he, evsel->idx, hbt);
+			err = hist_entry__tui_annotate(he, evsel, hbt);
 			he->used = false;
 			/*
 			 * offer option to annotate the other branch source or target
@@ -1709,7 +1708,7 @@ static void perf_evsel_menu__write(struct ui_browser *browser,
 	ui_browser__set_color(browser, current_entry ? HE_COLORSET_SELECTED :
 						       HE_COLORSET_NORMAL);
 
-	if (symbol_conf.event_group && evsel->nr_members > 1) {
+	if (perf_evsel__is_group_event(evsel)) {
 		struct perf_evsel *pos;
 
 		ev_name = perf_evsel__group_name(evsel);

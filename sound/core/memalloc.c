@@ -81,7 +81,7 @@ static inline void dec_snd_pages(int order)
  *
  * Allocates the physically contiguous pages with the given size.
  *
- * Returns the pointer of the buffer, or NULL if no enoguh memory.
+ * Return: The pointer of the buffer, or %NULL if no enough memory.
  */
 void *snd_malloc_pages(size_t size, gfp_t gfp_flags)
 {
@@ -175,9 +175,9 @@ static void snd_free_dev_pages(struct device *dev, size_t size, void *ptr,
  *
  * Calls the memory-allocator function for the corresponding
  * buffer type.
- * 
- * Returns zero if the buffer with the given size is allocated successfully,
- * other a negative value at error.
+ *
+ * Return: Zero if the buffer with the given size is allocated successfully,
+ * otherwise a negative value on error.
  */
 int snd_dma_alloc_pages(int type, struct device *device, size_t size,
 			struct snd_dma_buffer *dmab)
@@ -229,9 +229,9 @@ int snd_dma_alloc_pages(int type, struct device *device, size_t size,
  * buffer type.  When no space is left, this function reduces the size and
  * tries to allocate again.  The size actually allocated is stored in
  * res_size argument.
- * 
- * Returns zero if the buffer with the given size is allocated successfully,
- * other a negative value at error.
+ *
+ * Return: Zero if the buffer with the given size is allocated successfully,
+ * otherwise a negative value on error.
  */
 int snd_dma_alloc_pages_fallback(int type, struct device *device, size_t size,
 				 struct snd_dma_buffer *dmab)
@@ -292,7 +292,7 @@ void snd_dma_free_pages(struct snd_dma_buffer *dmab)
  * Looks for the reserved-buffer list and re-uses if the same buffer
  * is found in the list.  When the buffer is found, it's removed from the free list.
  *
- * Returns the size of buffer if the buffer is found, or zero if not found.
+ * Return: The size of buffer if the buffer is found, or zero if not found.
  */
 size_t snd_dma_get_reserved_buf(struct snd_dma_buffer *dmab, unsigned int id)
 {
@@ -326,8 +326,8 @@ size_t snd_dma_get_reserved_buf(struct snd_dma_buffer *dmab, unsigned int id)
  * @id: the buffer id
  *
  * Reserves the given buffer as a reserved buffer.
- * 
- * Returns zero if successful, or a negative code at error.
+ *
+ * Return: Zero if successful, or a negative code on error.
  */
 int snd_dma_reserve_buf(struct snd_dma_buffer *dmab, unsigned int id)
 {

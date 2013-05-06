@@ -16,12 +16,15 @@ config TILE
 	select GENERIC_PENDING_IRQ if SMP
 	select GENERIC_IRQ_SHOW
 	select HAVE_DEBUG_BUGVERBOSE
-	select HAVE_SYSCALL_WRAPPERS if TILEGX
 	select VIRT_TO_BUS
 	select SYS_HYPERVISOR
+	select ARCH_HAS_DEBUG_STRICT_USER_COPY_CHECKS
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
 	select GENERIC_CLOCKEVENTS
 	select MODULES_USE_ELF_RELA
+	select HAVE_ARCH_TRACEHOOK
+	select HAVE_SYSCALL_TRACEPOINTS
+	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 
 # FIXME: investigate whether we need/want these options.
 #	select HAVE_IOREMAP_PROT
@@ -38,9 +41,6 @@ config MMU
 	def_bool y
 
 config GENERIC_CSUM
-	def_bool y
-
-config SEMAPHORE_SLEEPERS
 	def_bool y
 
 config HAVE_ARCH_ALLOC_REMAP
@@ -66,12 +66,6 @@ config HUGETLB_SUPER_PAGES
 # FIXME: tilegx can implement a more efficient rwsem.
 config RWSEM_GENERIC_SPINLOCK
 	def_bool y
-
-# We have a very flat architecture from a migration point of view,
-# so save boot time by presetting this (particularly useful on tile-sim).
-config DEFAULT_MIGRATION_COST
-	int
-	default "10000000"
 
 # We only support gcc 4.4 and above, so this should work.
 config ARCH_SUPPORTS_OPTIMIZED_INLINING
@@ -113,13 +107,6 @@ config STRICT_DEVMEM
 # SMP is required for Tilera Linux.
 config SMP
 	def_bool y
-
-# Allow checking for compile-time determined overflow errors in
-# copy_from_user().  There are still unprovable places in the
-# generic code as of 2.6.34, so this option is not really compatible
-# with -Werror, which is more useful in general.
-config DEBUG_COPY_FROM_USER
-	def_bool n
 
 config HVC_TILE
 	depends on TTY
@@ -419,11 +406,6 @@ source "drivers/pci/hotplug/Kconfig"
 endmenu
 
 menu "Executable file formats"
-
-# only elf supported
-config KCORE_ELF
-	def_bool y
-	depends on PROC_FS
 
 source "fs/Kconfig.binfmt"
 

@@ -143,7 +143,7 @@ nv34_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(parent, NULL, 32 * 4, 16,
+	ret = nouveau_gpuobj_new(nv_object(priv), NULL, 32 * 4, 16,
 				 NVOBJ_FLAG_ZERO_ALLOC, &priv->ctxtab);
 	if (ret)
 		return ret;

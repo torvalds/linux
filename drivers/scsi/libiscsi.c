@@ -507,7 +507,6 @@ static void iscsi_free_task(struct iscsi_task *task)
 	kfifo_in(&session->cmdpool.queue, (void*)&task, sizeof(void*));
 
 	if (sc) {
-		task->sc = NULL;
 		/* SCSI eh reuses commands to verify us */
 		sc->SCp.ptr = NULL;
 		/*
@@ -3142,7 +3141,7 @@ int iscsi_conn_bind(struct iscsi_cls_session *cls_session,
 }
 EXPORT_SYMBOL_GPL(iscsi_conn_bind);
 
-static int iscsi_switch_str_param(char **param, char *new_val_buf)
+int iscsi_switch_str_param(char **param, char *new_val_buf)
 {
 	char *new_val;
 
@@ -3159,6 +3158,7 @@ static int iscsi_switch_str_param(char **param, char *new_val_buf)
 	*param = new_val;
 	return 0;
 }
+EXPORT_SYMBOL_GPL(iscsi_switch_str_param);
 
 int iscsi_set_param(struct iscsi_cls_conn *cls_conn,
 		    enum iscsi_param param, char *buf, int buflen)

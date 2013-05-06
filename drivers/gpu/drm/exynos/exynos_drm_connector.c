@@ -124,7 +124,7 @@ static int exynos_drm_connector_get_modes(struct drm_connector *connector)
 		}
 
 		count = drm_add_edid_modes(connector, edid);
-		if (count < 0) {
+		if (!count) {
 			DRM_ERROR("Add edid modes failed %d\n", count);
 			goto out;
 		}

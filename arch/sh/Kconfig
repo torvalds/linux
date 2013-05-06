@@ -33,6 +33,7 @@ config SUPERH
 	select GENERIC_ATOMIC64
 	select GENERIC_IRQ_SHOW
 	select GENERIC_SMP_IDLE_THREAD
+	select GENERIC_IDLE_POLL_SETUP
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_CMOS_UPDATE if SH_SH03 || SH_DREAMCAST
 	select GENERIC_STRNCPY_FROM_USER
@@ -147,9 +148,6 @@ config ARCH_HAS_ILOG2_U32
 
 config ARCH_HAS_ILOG2_U64
 	def_bool n
-
-config ARCH_HAS_DEFAULT_IDLE
-	def_bool y
 
 config NO_IOPORT
 	def_bool !PCI
@@ -624,25 +622,7 @@ config SH_CLK_CPG_LEGACY
 endmenu
 
 menu "CPU Frequency scaling"
-
 source "drivers/cpufreq/Kconfig"
-
-config SH_CPU_FREQ
-	tristate "SuperH CPU Frequency driver"
-	depends on CPU_FREQ
-	select CPU_FREQ_TABLE
-	help
-	  This adds the cpufreq driver for SuperH. Any CPU that supports
-	  clock rate rounding through the clock framework can use this
-	  driver. While it will make the kernel slightly larger, this is
-	  harmless for CPUs that don't support rate rounding. The driver
-	  will also generate a notice in the boot log before disabling
-	  itself if the CPU in question is not capable of rate rounding.
-
-	  For details, take a look at <file:Documentation/cpu-freq>.
-
-	  If unsure, say N.
-
 endmenu
 
 source "arch/sh/drivers/Kconfig"

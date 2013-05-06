@@ -26,7 +26,7 @@
 #include "nouveau_drm.h"
 #include "nouveau_bios.h"
 #include "nouveau_pm.h"
-#include "nouveau_hw.h"
+#include "dispnv04/hw.h"
 
 #include <subdev/bios/pll.h>
 #include <subdev/clock.h>

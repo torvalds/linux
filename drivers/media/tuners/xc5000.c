@@ -422,13 +422,19 @@ static int xc_initialize(struct xc5000_priv *priv)
 }
 
 static int xc_SetTVStandard(struct xc5000_priv *priv,
-	u16 VideoMode, u16 AudioMode)
+	u16 VideoMode, u16 AudioMode, u8 RadioMode)
 {
 	int ret;
 	dprintk(1, "%s(0x%04x,0x%04x)\n", __func__, VideoMode, AudioMode);
-	dprintk(1, "%s() Standard = %s\n",
-		__func__,
-		XC5000_Standard[priv->video_standard].Name);
+	if (RadioMode) {
+		dprintk(1, "%s() Standard = %s\n",
+			__func__,
+			XC5000_Standard[RadioMode].Name);
+	} else {
+		dprintk(1, "%s() Standard = %s\n",
+			__func__,
+			XC5000_Standard[priv->video_standard].Name);
+	}
 
 	ret = xc_write_reg(priv, XREG_VIDEO_MODE, VideoMode);
 	if (ret == XC_RESULT_SUCCESS)
@@ -824,7 +830,7 @@ static int xc5000_set_params(struct dvb_frontend *fe)
 
 	ret = xc_SetTVStandard(priv,
 		XC5000_Standard[priv->video_standard].VideoMode,
-		XC5000_Standard[priv->video_standard].AudioMode);
+		XC5000_Standard[priv->video_standard].AudioMode, 0);
 	if (ret != XC_RESULT_SUCCESS) {
 		printk(KERN_ERR "xc5000: xc_SetTVStandard failed\n");
 		return -EREMOTEIO;
@@ -940,7 +946,7 @@ tune_channel:
 
 	ret = xc_SetTVStandard(priv,
 		XC5000_Standard[priv->video_standard].VideoMode,
-		XC5000_Standard[priv->video_standard].AudioMode);
+		XC5000_Standard[priv->video_standard].AudioMode, 0);
 	if (ret != XC_RESULT_SUCCESS) {
 		printk(KERN_ERR "xc5000: xc_SetTVStandard failed\n");
 		return -EREMOTEIO;
@@ -1003,7 +1009,7 @@ static int xc5000_set_radio_freq(struct dvb_frontend *fe,
 	priv->rf_mode = XC_RF_MODE_AIR;
 
 	ret = xc_SetTVStandard(priv, XC5000_Standard[radio_input].VideoMode,
-			       XC5000_Standard[radio_input].AudioMode);
+			       XC5000_Standard[radio_input].AudioMode, radio_input);
 
 	if (ret != XC_RESULT_SUCCESS) {
 		printk(KERN_ERR "xc5000: xc_SetTVStandard failed\n");

@@ -402,7 +402,7 @@ static void peak_pciec_write_reg(const struct sja1000_priv *priv,
 	int c = (priv->reg_base - card->reg_base) / PEAK_PCI_CHAN_SIZE;
 
 	/* sja1000 register changes control the leds state */
-	if (port == REG_MOD)
+	if (port == SJA1000_MOD)
 		switch (val) {
 		case MOD_RM:
 			/* Reset Mode: set led on */

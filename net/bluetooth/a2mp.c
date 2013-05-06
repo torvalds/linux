@@ -397,13 +397,12 @@ static int a2mp_getampassoc_rsp(struct amp_mgr *mgr, struct sk_buff *skb,
 	if (ctrl) {
 		u8 *assoc;
 
-		assoc = kzalloc(assoc_len, GFP_KERNEL);
+		assoc = kmemdup(rsp->amp_assoc, assoc_len, GFP_KERNEL);
 		if (!assoc) {
 			amp_ctrl_put(ctrl);
 			return -ENOMEM;
 		}
 
-		memcpy(assoc, rsp->amp_assoc, assoc_len);
 		ctrl->assoc = assoc;
 		ctrl->assoc_len = assoc_len;
 		ctrl->assoc_rem_len = assoc_len;
@@ -472,13 +471,12 @@ static int a2mp_createphyslink_req(struct amp_mgr *mgr, struct sk_buff *skb,
 		size_t assoc_len = le16_to_cpu(hdr->len) - sizeof(*req);
 		u8 *assoc;
 
-		assoc = kzalloc(assoc_len, GFP_KERNEL);
+		assoc = kmemdup(req->amp_assoc, assoc_len, GFP_KERNEL);
 		if (!assoc) {
 			amp_ctrl_put(ctrl);
 			return -ENOMEM;
 		}
 
-		memcpy(assoc, req->amp_assoc, assoc_len);
 		ctrl->assoc = assoc;
 		ctrl->assoc_len = assoc_len;
 		ctrl->assoc_rem_len = assoc_len;

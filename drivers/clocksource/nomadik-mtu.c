@@ -67,7 +67,7 @@ static u32 clk_prescale;
 static u32 nmdk_cycle;		/* write-once */
 static struct delay_timer mtu_delay_timer;
 
-#ifdef CONFIG_NOMADIK_MTU_SCHED_CLOCK
+#ifdef CONFIG_CLKSRC_NOMADIK_MTU_SCHED_CLOCK
 /*
  * Override the global weak sched_clock symbol with this
  * local implementation which uses the clocksource to get some
@@ -233,7 +233,7 @@ void __init nmdk_timer_init(void __iomem *base, int irq)
 		pr_err("timer: failed to initialize clock source %s\n",
 		       "mtu_0");
 
-#ifdef CONFIG_NOMADIK_MTU_SCHED_CLOCK
+#ifdef CONFIG_CLKSRC_NOMADIK_MTU_SCHED_CLOCK
 	setup_sched_clock(nomadik_read_sched_clock, 32, rate);
 #endif
 

@@ -166,18 +166,7 @@ static struct platform_driver tx4939_rng_driver = {
 	.remove = tx4939_rng_remove,
 };
 
-static int __init tx4939rng_init(void)
-{
-	return platform_driver_probe(&tx4939_rng_driver, tx4939_rng_probe);
-}
-
-static void __exit tx4939rng_exit(void)
-{
-	platform_driver_unregister(&tx4939_rng_driver);
-}
-
-module_init(tx4939rng_init);
-module_exit(tx4939rng_exit);
+module_platform_driver_probe(tx4939_rng_driver, tx4939_rng_probe);
 
 MODULE_DESCRIPTION("H/W Random Number Generator (RNG) driver for TX4939");
 MODULE_LICENSE("GPL");

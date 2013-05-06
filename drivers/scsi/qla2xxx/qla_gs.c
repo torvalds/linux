@@ -639,9 +639,14 @@ void
 qla2x00_get_sym_node_name(scsi_qla_host_t *vha, uint8_t *snn)
 {
 	struct qla_hw_data *ha = vha->hw;
-	sprintf(snn, "%s FW:v%d.%02d.%02d DVR:v%s",ha->model_number,
-	    ha->fw_major_version, ha->fw_minor_version,
-	    ha->fw_subminor_version, qla2x00_version_str);
+
+	if (IS_QLAFX00(ha))
+		sprintf(snn, "%s FW:v%s DVR:v%s", ha->model_number,
+		    ha->mr.fw_version, qla2x00_version_str);
+	else
+		sprintf(snn, "%s FW:v%d.%02d.%02d DVR:v%s", ha->model_number,
+		    ha->fw_major_version, ha->fw_minor_version,
+		    ha->fw_subminor_version, qla2x00_version_str);
 }
 
 /**
@@ -923,7 +928,7 @@ qla2x00_sns_gpn_id(scsi_qla_host_t *vha, sw_info_t *list)
 		    sns_cmd->p.gpn_data[9] != 0x02) {
 			ql_dbg(ql_dbg_disc + ql_dbg_buffer, vha, 0x207e,
 			    "GPN_ID failed, rejected request, gpn_rsp:\n");
-			ql_dump_buffer(ql_dbg_disc, vha, 0x207f,
+			ql_dump_buffer(ql_dbg_disc + ql_dbg_buffer, vha, 0x207f,
 			    sns_cmd->p.gpn_data, 16);
 			rval = QLA_FUNCTION_FAILED;
 		} else {
@@ -1718,7 +1723,8 @@ qla2x00_fdmi_register(scsi_qla_host_t *vha)
 	int rval;
        struct qla_hw_data *ha = vha->hw;
 
-	if (IS_QLA2100(ha) || IS_QLA2200(ha))
+	if (IS_QLA2100(ha) || IS_QLA2200(ha) ||
+	    IS_QLAFX00(ha))
 		return QLA_FUNCTION_FAILED;
 
 	rval = qla2x00_mgmt_svr_login(vha);

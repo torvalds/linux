@@ -51,6 +51,12 @@ static struct icp_ipl __iomem *icp_native_regs[NR_CPUS];
 static inline unsigned int icp_native_get_xirr(void)
 {
 	int cpu = smp_processor_id();
+	unsigned int xirr;
+
+	/* Handled an interrupt latched by KVM */
+	xirr = kvmppc_get_xics_latch();
+	if (xirr)
+		return xirr;
 
 	return in_be32(&icp_native_regs[cpu]->xirr.word);
 }
@@ -81,7 +87,7 @@ static void icp_native_set_cpu_priority(unsigned char cppr)
 	iosync();
 }
 
-static void icp_native_eoi(struct irq_data *d)
+void icp_native_eoi(struct irq_data *d)
 {
 	unsigned int hw_irq = (unsigned int)irqd_to_hwirq(d);
 
@@ -138,6 +144,7 @@ static unsigned int icp_native_get_irq(void)
 
 static void icp_native_cause_ipi(int cpu, unsigned long data)
 {
+	kvmppc_set_host_ipi(cpu, 1);
 	icp_native_set_qirr(cpu, IPI_PRIORITY);
 }
 
@@ -151,6 +158,7 @@ static irqreturn_t icp_native_ipi_action(int irq, void *dev_id)
 {
 	int cpu = smp_processor_id();
 
+	kvmppc_set_host_ipi(cpu, 0);
 	icp_native_set_qirr(cpu, 0xff);
 
 	return smp_ipi_demux();

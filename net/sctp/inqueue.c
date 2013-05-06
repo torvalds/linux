@@ -58,8 +58,6 @@ void sctp_inq_init(struct sctp_inq *queue)
 
 	/* Create a task for delivering data.  */
 	INIT_WORK(&queue->immediate, NULL);
-
-	queue->malloced = 0;
 }
 
 /* Release the memory associated with an SCTP inqueue.  */
@@ -79,11 +77,6 @@ void sctp_inq_free(struct sctp_inq *queue)
 	if (queue->in_progress) {
 		sctp_chunk_free(queue->in_progress);
 		queue->in_progress = NULL;
-	}
-
-	if (queue->malloced) {
-		/* Dump the master memory segment.  */
-		kfree(queue);
 	}
 }
 

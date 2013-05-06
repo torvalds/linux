@@ -4,13 +4,17 @@ dtb-y	+= skeleton.dtb
 builtindtb-y				:= skeleton
 
 ifneq ($(CONFIG_METAG_BUILTIN_DTB_NAME),"")
-	builtindtb-y			:= $(CONFIG_METAG_BUILTIN_DTB_NAME)
+	builtindtb-y			:= $(patsubst "%",%,$(CONFIG_METAG_BUILTIN_DTB_NAME))
 endif
-obj-$(CONFIG_METAG_BUILTIN_DTB)	+= $(patsubst "%",%,$(builtindtb-y)).dtb.o
+
+dtb-$(CONFIG_METAG_BUILTIN_DTB)	+= $(builtindtb-y).dtb
+obj-$(CONFIG_METAG_BUILTIN_DTB)	+= $(builtindtb-y).dtb.o
 
 targets	+= dtbs
 targets	+= $(dtb-y)
 
+.SECONDARY: $(obj)/$(builtindtb-y).dtb.S
+
 dtbs: $(addprefix $(obj)/, $(dtb-y))
 
-clean-files += *.dtb
+clean-files += *.dtb *.dtb.S

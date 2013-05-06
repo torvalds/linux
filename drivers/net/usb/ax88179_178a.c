@@ -352,11 +352,7 @@ static void ax88179_status(struct usbnet *dev, struct urb *urb)
 	link = (((__force u32)event->intdata1) & AX_INT_PPLS_LINK) >> 16;
 
 	if (netif_carrier_ok(dev->net) != link) {
-		if (link)
-			usbnet_defer_kevent(dev, EVENT_LINK_RESET);
-		else
-			netif_carrier_off(dev->net);
-
+		usbnet_link_change(dev, link, 1);
 		netdev_info(dev->net, "ax88179 - Link status is: %d\n", link);
 	}
 }
@@ -455,7 +451,7 @@ static int ax88179_resume(struct usb_interface *intf)
 	u16 tmp16;
 	u8 tmp8;
 
-	netif_carrier_off(dev->net);
+	usbnet_link_change(dev, 0, 0);
 
 	/* Power up ethernet PHY */
 	tmp16 = 0;
@@ -1068,7 +1064,7 @@ static int ax88179_bind(struct usbnet *dev, struct usb_interface *intf)
 	/* Restart autoneg */
 	mii_nway_restart(&dev->mii);
 
-	netif_carrier_off(dev->net);
+	usbnet_link_change(dev, 0, 0);
 
 	return 0;
 }
@@ -1356,7 +1352,7 @@ static int ax88179_reset(struct usbnet *dev)
 	/* Restart autoneg */
 	mii_nway_restart(&dev->mii);
 
-	netif_carrier_off(dev->net);
+	usbnet_link_change(dev, 0, 0);
 
 	return 0;
 }

@@ -337,23 +337,6 @@ static void dentry_lru_del(struct dentry *dentry)
 	}
 }
 
-/*
- * Remove a dentry that is unreferenced and about to be pruned
- * (unhashed and destroyed) from the LRU, and inform the file system.
- * This wrapper should be called _prior_ to unhashing a victim dentry.
- */
-static void dentry_lru_prune(struct dentry *dentry)
-{
-	if (!list_empty(&dentry->d_lru)) {
-		if (dentry->d_flags & DCACHE_OP_PRUNE)
-			dentry->d_op->d_prune(dentry);
-
-		spin_lock(&dcache_lru_lock);
-		__dentry_lru_del(dentry);
-		spin_unlock(&dcache_lru_lock);
-	}
-}
-
 static void dentry_lru_move_list(struct dentry *dentry, struct list_head *list)
 {
 	spin_lock(&dcache_lru_lock);
@@ -486,11 +469,13 @@ relock:
 	if (ref)
 		dentry->d_count--;
 	/*
-	 * if dentry was on the d_lru list delete it from there.
 	 * inform the fs via d_prune that this dentry is about to be
 	 * unhashed and destroyed.
 	 */
-	dentry_lru_prune(dentry);
+	if (dentry->d_flags & DCACHE_OP_PRUNE)
+		dentry->d_op->d_prune(dentry);
+
+	dentry_lru_del(dentry);
 	/* if it was on the hash then remove it */
 	__d_drop(dentry);
 	return d_kill(dentry, parent);
@@ -919,11 +904,13 @@ static void shrink_dcache_for_umount_subtree(struct dentry *dentry)
 			struct inode *inode;
 
 			/*
-			 * remove the dentry from the lru, and inform
-			 * the fs that this dentry is about to be
+			 * inform the fs that this dentry is about to be
 			 * unhashed and destroyed.
 			 */
-			dentry_lru_prune(dentry);
+			if (dentry->d_flags & DCACHE_OP_PRUNE)
+				dentry->d_op->d_prune(dentry);
+
+			dentry_lru_del(dentry);
 			__d_shrink(dentry);
 
 			if (dentry->d_count != 0) {
@@ -1230,8 +1217,10 @@ void shrink_dcache_parent(struct dentry * parent)
 	LIST_HEAD(dispose);
 	int found;
 
-	while ((found = select_parent(parent, &dispose)) != 0)
+	while ((found = select_parent(parent, &dispose)) != 0) {
 		shrink_dentry_list(&dispose);
+		cond_resched();
+	}
 }
 EXPORT_SYMBOL(shrink_dcache_parent);
 
@@ -2408,8 +2397,7 @@ static void __d_materialise_dentry(struct dentry *dentry, struct dentry *anon)
 	dentry->d_parent = dentry;
 	list_del_init(&dentry->d_u.d_child);
 	anon->d_parent = dparent;
-	list_del(&anon->d_u.d_child);
-	list_add(&anon->d_u.d_child, &dparent->d_subdirs);
+	list_move(&anon->d_u.d_child, &dparent->d_subdirs);
 
 	write_seqcount_end(&dentry->d_seq);
 	write_seqcount_end(&anon->d_seq);

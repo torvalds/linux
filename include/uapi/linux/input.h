@@ -702,6 +702,11 @@ struct input_keymap_entry {
 #define KEY_CAMERA_LEFT		0x219
 #define KEY_CAMERA_RIGHT	0x21a
 
+#define KEY_ATTENDANT_ON	0x21b
+#define KEY_ATTENDANT_OFF	0x21c
+#define KEY_ATTENDANT_TOGGLE	0x21d	/* Attendant call on or off */
+#define KEY_LIGHTS_TOGGLE	0x21e	/* Reading light on or off */
+
 #define BTN_TRIGGER_HAPPY		0x2c0
 #define BTN_TRIGGER_HAPPY1		0x2c0
 #define BTN_TRIGGER_HAPPY2		0x2c1

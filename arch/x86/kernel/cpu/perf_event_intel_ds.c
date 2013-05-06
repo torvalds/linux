@@ -24,6 +24,130 @@ struct pebs_record_32 {
 
  */
 
+union intel_x86_pebs_dse {
+	u64 val;
+	struct {
+		unsigned int ld_dse:4;
+		unsigned int ld_stlb_miss:1;
+		unsigned int ld_locked:1;
+		unsigned int ld_reserved:26;
+	};
+	struct {
+		unsigned int st_l1d_hit:1;
+		unsigned int st_reserved1:3;
+		unsigned int st_stlb_miss:1;
+		unsigned int st_locked:1;
+		unsigned int st_reserved2:26;
+	};
+};
+
+
+/*
+ * Map PEBS Load Latency Data Source encodings to generic
+ * memory data source information
+ */
+#define P(a, b) PERF_MEM_S(a, b)
+#define OP_LH (P(OP, LOAD) | P(LVL, HIT))
+#define SNOOP_NONE_MISS (P(SNOOP, NONE) | P(SNOOP, MISS))
+
+static const u64 pebs_data_source[] = {
+	P(OP, LOAD) | P(LVL, MISS) | P(LVL, L3) | P(SNOOP, NA),/* 0x00:ukn L3 */
+	OP_LH | P(LVL, L1)  | P(SNOOP, NONE),	/* 0x01: L1 local */
+	OP_LH | P(LVL, LFB) | P(SNOOP, NONE),	/* 0x02: LFB hit */
+	OP_LH | P(LVL, L2)  | P(SNOOP, NONE),	/* 0x03: L2 hit */
+	OP_LH | P(LVL, L3)  | P(SNOOP, NONE),	/* 0x04: L3 hit */
+	OP_LH | P(LVL, L3)  | P(SNOOP, MISS),	/* 0x05: L3 hit, snoop miss */
+	OP_LH | P(LVL, L3)  | P(SNOOP, HIT),	/* 0x06: L3 hit, snoop hit */
+	OP_LH | P(LVL, L3)  | P(SNOOP, HITM),	/* 0x07: L3 hit, snoop hitm */
+	OP_LH | P(LVL, REM_CCE1) | P(SNOOP, HIT),  /* 0x08: L3 miss snoop hit */
+	OP_LH | P(LVL, REM_CCE1) | P(SNOOP, HITM), /* 0x09: L3 miss snoop hitm*/
+	OP_LH | P(LVL, LOC_RAM)  | P(SNOOP, HIT),  /* 0x0a: L3 miss, shared */
+	OP_LH | P(LVL, REM_RAM1) | P(SNOOP, HIT),  /* 0x0b: L3 miss, shared */
+	OP_LH | P(LVL, LOC_RAM)  | SNOOP_NONE_MISS,/* 0x0c: L3 miss, excl */
+	OP_LH | P(LVL, REM_RAM1) | SNOOP_NONE_MISS,/* 0x0d: L3 miss, excl */
+	OP_LH | P(LVL, IO)  | P(SNOOP, NONE), /* 0x0e: I/O */
+	OP_LH | P(LVL, UNC) | P(SNOOP, NONE), /* 0x0f: uncached */
+};
+
+static u64 precise_store_data(u64 status)
+{
+	union intel_x86_pebs_dse dse;
+	u64 val = P(OP, STORE) | P(SNOOP, NA) | P(LVL, L1) | P(TLB, L2);
+
+	dse.val = status;
+
+	/*
+	 * bit 4: TLB access
+	 * 1 = stored missed 2nd level TLB
+	 *
+	 * so it either hit the walker or the OS
+	 * otherwise hit 2nd level TLB
+	 */
+	if (dse.st_stlb_miss)
+		val |= P(TLB, MISS);
+	else
+		val |= P(TLB, HIT);
+
+	/*
+	 * bit 0: hit L1 data cache
+	 * if not set, then all we know is that
+	 * it missed L1D
+	 */
+	if (dse.st_l1d_hit)
+		val |= P(LVL, HIT);
+	else
+		val |= P(LVL, MISS);
+
+	/*
+	 * bit 5: Locked prefix
+	 */
+	if (dse.st_locked)
+		val |= P(LOCK, LOCKED);
+
+	return val;
+}
+
+static u64 load_latency_data(u64 status)
+{
+	union intel_x86_pebs_dse dse;
+	u64 val;
+	int model = boot_cpu_data.x86_model;
+	int fam = boot_cpu_data.x86;
+
+	dse.val = status;
+
+	/*
+	 * use the mapping table for bit 0-3
+	 */
+	val = pebs_data_source[dse.ld_dse];
+
+	/*
+	 * Nehalem models do not support TLB, Lock infos
+	 */
+	if (fam == 0x6 && (model == 26 || model == 30
+	    || model == 31 || model == 46)) {
+		val |= P(TLB, NA) | P(LOCK, NA);
+		return val;
+	}
+	/*
+	 * bit 4: TLB access
+	 * 0 = did not miss 2nd level TLB
+	 * 1 = missed 2nd level TLB
+	 */
+	if (dse.ld_stlb_miss)
+		val |= P(TLB, MISS) | P(TLB, L2);
+	else
+		val |= P(TLB, HIT) | P(TLB, L1) | P(TLB, L2);
+
+	/*
+	 * bit 5: locked prefix
+	 */
+	if (dse.ld_locked)
+		val |= P(LOCK, LOCKED);
+
+	return val;
+}
+
 struct pebs_record_core {
 	u64 flags, ip;
 	u64 ax, bx, cx, dx;
@@ -365,7 +489,7 @@ struct event_constraint intel_atom_pebs_event_constraints[] = {
 };
 
 struct event_constraint intel_nehalem_pebs_event_constraints[] = {
-	INTEL_EVENT_CONSTRAINT(0x0b, 0xf),    /* MEM_INST_RETIRED.* */
+	INTEL_PLD_CONSTRAINT(0x100b, 0xf),      /* MEM_INST_RETIRED.* */
 	INTEL_EVENT_CONSTRAINT(0x0f, 0xf),    /* MEM_UNCORE_RETIRED.* */
 	INTEL_UEVENT_CONSTRAINT(0x010c, 0xf), /* MEM_STORE_RETIRED.DTLB_MISS */
 	INTEL_EVENT_CONSTRAINT(0xc0, 0xf),    /* INST_RETIRED.ANY */
@@ -380,7 +504,7 @@ struct event_constraint intel_nehalem_pebs_event_constraints[] = {
 };
 
 struct event_constraint intel_westmere_pebs_event_constraints[] = {
-	INTEL_EVENT_CONSTRAINT(0x0b, 0xf),    /* MEM_INST_RETIRED.* */
+	INTEL_PLD_CONSTRAINT(0x100b, 0xf),      /* MEM_INST_RETIRED.* */
 	INTEL_EVENT_CONSTRAINT(0x0f, 0xf),    /* MEM_UNCORE_RETIRED.* */
 	INTEL_UEVENT_CONSTRAINT(0x010c, 0xf), /* MEM_STORE_RETIRED.DTLB_MISS */
 	INTEL_EVENT_CONSTRAINT(0xc0, 0xf),    /* INSTR_RETIRED.* */
@@ -400,7 +524,8 @@ struct event_constraint intel_snb_pebs_event_constraints[] = {
 	INTEL_UEVENT_CONSTRAINT(0x02c2, 0xf), /* UOPS_RETIRED.RETIRE_SLOTS */
 	INTEL_EVENT_CONSTRAINT(0xc4, 0xf),    /* BR_INST_RETIRED.* */
 	INTEL_EVENT_CONSTRAINT(0xc5, 0xf),    /* BR_MISP_RETIRED.* */
-	INTEL_EVENT_CONSTRAINT(0xcd, 0x8),    /* MEM_TRANS_RETIRED.* */
+	INTEL_PLD_CONSTRAINT(0x01cd, 0x8),    /* MEM_TRANS_RETIRED.LAT_ABOVE_THR */
+	INTEL_PST_CONSTRAINT(0x02cd, 0x8),    /* MEM_TRANS_RETIRED.PRECISE_STORES */
 	INTEL_EVENT_CONSTRAINT(0xd0, 0xf),    /* MEM_UOP_RETIRED.* */
 	INTEL_EVENT_CONSTRAINT(0xd1, 0xf),    /* MEM_LOAD_UOPS_RETIRED.* */
 	INTEL_EVENT_CONSTRAINT(0xd2, 0xf),    /* MEM_LOAD_UOPS_LLC_HIT_RETIRED.* */
@@ -414,7 +539,8 @@ struct event_constraint intel_ivb_pebs_event_constraints[] = {
         INTEL_UEVENT_CONSTRAINT(0x02c2, 0xf), /* UOPS_RETIRED.RETIRE_SLOTS */
         INTEL_EVENT_CONSTRAINT(0xc4, 0xf),    /* BR_INST_RETIRED.* */
         INTEL_EVENT_CONSTRAINT(0xc5, 0xf),    /* BR_MISP_RETIRED.* */
-        INTEL_EVENT_CONSTRAINT(0xcd, 0x8),    /* MEM_TRANS_RETIRED.* */
+        INTEL_PLD_CONSTRAINT(0x01cd, 0x8),    /* MEM_TRANS_RETIRED.LAT_ABOVE_THR */
+	INTEL_PST_CONSTRAINT(0x02cd, 0x8),    /* MEM_TRANS_RETIRED.PRECISE_STORES */
         INTEL_EVENT_CONSTRAINT(0xd0, 0xf),    /* MEM_UOP_RETIRED.* */
         INTEL_EVENT_CONSTRAINT(0xd1, 0xf),    /* MEM_LOAD_UOPS_RETIRED.* */
         INTEL_EVENT_CONSTRAINT(0xd2, 0xf),    /* MEM_LOAD_UOPS_LLC_HIT_RETIRED.* */
@@ -431,8 +557,10 @@ struct event_constraint *intel_pebs_constraints(struct perf_event *event)
 
 	if (x86_pmu.pebs_constraints) {
 		for_each_event_constraint(c, x86_pmu.pebs_constraints) {
-			if ((event->hw.config & c->cmask) == c->code)
+			if ((event->hw.config & c->cmask) == c->code) {
+				event->hw.flags |= c->flags;
 				return c;
+			}
 		}
 	}
 
@@ -447,6 +575,11 @@ void intel_pmu_pebs_enable(struct perf_event *event)
 	hwc->config &= ~ARCH_PERFMON_EVENTSEL_INT;
 
 	cpuc->pebs_enabled |= 1ULL << hwc->idx;
+
+	if (event->hw.flags & PERF_X86_EVENT_PEBS_LDLAT)
+		cpuc->pebs_enabled |= 1ULL << (hwc->idx + 32);
+	else if (event->hw.flags & PERF_X86_EVENT_PEBS_ST)
+		cpuc->pebs_enabled |= 1ULL << 63;
 }
 
 void intel_pmu_pebs_disable(struct perf_event *event)
@@ -559,19 +692,50 @@ static void __intel_pmu_pebs_event(struct perf_event *event,
 				   struct pt_regs *iregs, void *__pebs)
 {
 	/*
-	 * We cast to pebs_record_core since that is a subset of
-	 * both formats and we don't use the other fields in this
-	 * routine.
+	 * We cast to pebs_record_nhm to get the load latency data
+	 * if extra_reg MSR_PEBS_LD_LAT_THRESHOLD used
 	 */
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
-	struct pebs_record_core *pebs = __pebs;
+	struct pebs_record_nhm *pebs = __pebs;
 	struct perf_sample_data data;
 	struct pt_regs regs;
+	u64 sample_type;
+	int fll, fst;
 
 	if (!intel_pmu_save_and_restart(event))
 		return;
 
+	fll = event->hw.flags & PERF_X86_EVENT_PEBS_LDLAT;
+	fst = event->hw.flags & PERF_X86_EVENT_PEBS_ST;
+
 	perf_sample_data_init(&data, 0, event->hw.last_period);
+
+	data.period = event->hw.last_period;
+	sample_type = event->attr.sample_type;
+
+	/*
+	 * if PEBS-LL or PreciseStore
+	 */
+	if (fll || fst) {
+		if (sample_type & PERF_SAMPLE_ADDR)
+			data.addr = pebs->dla;
+
+		/*
+		 * Use latency for weight (only avail with PEBS-LL)
+		 */
+		if (fll && (sample_type & PERF_SAMPLE_WEIGHT))
+			data.weight = pebs->lat;
+
+		/*
+		 * data.data_src encodes the data source
+		 */
+		if (sample_type & PERF_SAMPLE_DATA_SRC) {
+			if (fll)
+				data.data_src.val = load_latency_data(pebs->dse);
+			else
+				data.data_src.val = precise_store_data(pebs->dse);
+		}
+	}
 
 	/*
 	 * We use the interrupt regs as a base because the PEBS record

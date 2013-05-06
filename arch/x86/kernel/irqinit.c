@@ -172,6 +172,10 @@ static void __init apic_intr_init(void)
 
 	/* IPI for X86 platform specific use */
 	alloc_intr_gate(X86_PLATFORM_IPI_VECTOR, x86_platform_ipi);
+#ifdef CONFIG_HAVE_KVM
+	/* IPI for KVM to deliver posted interrupt */
+	alloc_intr_gate(POSTED_INTR_VECTOR, kvm_posted_intr_ipi);
+#endif
 
 	/* IPI vectors for APIC spurious and error interrupts */
 	alloc_intr_gate(SPURIOUS_APIC_VECTOR, spurious_interrupt);

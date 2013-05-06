@@ -691,12 +691,15 @@ lpfc_work_done(struct lpfc_hba *phba)
 			/* Set the lpfc data pending flag */
 			set_bit(LPFC_DATA_READY, &phba->data_flags);
 		} else {
-			pring->flag &= ~LPFC_DEFERRED_RING_EVENT;
-			lpfc_sli_handle_slow_ring_event(phba, pring,
-							(status &
-							 HA_RXMASK));
+			if (phba->link_state >= LPFC_LINK_UP) {
+				pring->flag &= ~LPFC_DEFERRED_RING_EVENT;
+				lpfc_sli_handle_slow_ring_event(phba, pring,
+								(status &
+								HA_RXMASK));
+			}
 		}
-		if ((phba->sli_rev == LPFC_SLI_REV4) && pring->txq_cnt)
+		if ((phba->sli_rev == LPFC_SLI_REV4) &
+				 (!list_empty(&pring->txq)))
 			lpfc_drain_txq(phba);
 		/*
 		 * Turn on Ring interrupts
@@ -1732,7 +1735,7 @@ lpfc_check_pending_fcoe_event(struct lpfc_hba *phba, uint8_t unreg_fcf)
  * use through a sequence of @fcf_cnt eligible FCF records with equal
  * probability. To perform integer manunipulation of random numbers with
  * size unit32_t, the lower 16 bits of the 32-bit random number returned
- * from random32() are taken as the random random number generated.
+ * from prandom_u32() are taken as the random random number generated.
  *
  * Returns true when outcome is for the newly read FCF record should be
  * chosen; otherwise, return false when outcome is for keeping the previously
@@ -1744,7 +1747,7 @@ lpfc_sli4_new_fcf_random_select(struct lpfc_hba *phba, uint32_t fcf_cnt)
 	uint32_t rand_num;
 
 	/* Get 16-bit uniform random number */
-	rand_num = (0xFFFF & random32());
+	rand_num = 0xFFFF & prandom_u32();
 
 	/* Decision with probability 1/fcf_cnt */
 	if ((fcf_cnt * rand_num) < 0xFFFF)
@@ -1792,6 +1795,8 @@ lpfc_sli4_fcf_rec_mbox_parse(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq,
 	virt_addr = mboxq->sge_array->addr[0];
 
 	shdr = (union lpfc_sli4_cfg_shdr *)virt_addr;
+	lpfc_sli_pcimem_bcopy(shdr, shdr,
+			      sizeof(union lpfc_sli4_cfg_shdr));
 	shdr_status = bf_get(lpfc_mbox_hdr_status, &shdr->response);
 	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status, &shdr->response);
 	if (shdr_status || shdr_add_status) {
@@ -2380,7 +2385,7 @@ lpfc_mbx_cmpl_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		phba->fcf.eligible_fcf_cnt = 1;
 		/* Seeding the random number generator for random selection */
 		seed = (uint32_t)(0xFFFFFFFF & jiffies);
-		srandom32(seed);
+		prandom_seed(seed);
 	}
 	spin_unlock_irq(&phba->hbalock);
 	goto read_next_fcf;
@@ -2888,6 +2893,11 @@ lpfc_mbx_cmpl_reg_vfi(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 		goto out_free_mem;
 	}
+
+	/* If the VFI is already registered, there is nothing else to do */
+	if (vport->fc_flag & FC_VFI_REGISTERED)
+		goto out_free_mem;
+
 	/* The VPI is implicitly registered when the VFI is registered */
 	spin_lock_irq(shost->host_lock);
 	vport->vpi_state |= LPFC_VPI_REGISTERED;
@@ -2980,6 +2990,7 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 	struct lpfc_dmabuf *mp;
 	int rc;
 	struct fcf_record *fcf_record;
+	uint32_t fc_flags = 0;
 
 	spin_lock_irq(&phba->hbalock);
 	switch (bf_get(lpfc_mbx_read_top_link_spd, la)) {
@@ -3011,11 +3022,8 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 				"1309 Link Up Event npiv not supported in loop "
 				"topology\n");
 				/* Get Loop Map information */
-		if (bf_get(lpfc_mbx_read_top_il, la)) {
-			spin_lock(shost->host_lock);
-			vport->fc_flag |= FC_LBIT;
-			spin_unlock(shost->host_lock);
-		}
+		if (bf_get(lpfc_mbx_read_top_il, la))
+			fc_flags |= FC_LBIT;
 
 		vport->fc_myDID = bf_get(lpfc_mbx_read_top_alpa_granted, la);
 		i = la->lilpBde64.tus.f.bdeSize;
@@ -3064,11 +3072,15 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, struct lpfc_mbx_read_top *la)
 				phba->sli3_options |= LPFC_SLI3_NPIV_ENABLED;
 		}
 		vport->fc_myDID = phba->fc_pref_DID;
-		spin_lock(shost->host_lock);
-		vport->fc_flag |= FC_LBIT;
-		spin_unlock(shost->host_lock);
+		fc_flags |= FC_LBIT;
 	}
 	spin_unlock_irq(&phba->hbalock);
+
+	if (fc_flags) {
+		spin_lock_irq(shost->host_lock);
+		vport->fc_flag |= fc_flags;
+		spin_unlock_irq(shost->host_lock);
+	}
 
 	lpfc_linkup(phba);
 	sparam_mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
@@ -3237,8 +3249,7 @@ lpfc_mbx_cmpl_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		vport->fc_flag &= ~FC_BYPASSED_MODE;
 	spin_unlock_irq(shost->host_lock);
 
-	if ((phba->fc_eventTag  < la->eventTag) ||
-	    (phba->fc_eventTag == la->eventTag)) {
+	if (phba->fc_eventTag <= la->eventTag) {
 		phba->fc_stat.LinkMultiEvent++;
 		if (bf_get(lpfc_mbx_read_top_att_type, la) == LPFC_ATT_LINK_UP)
 			if (phba->fc_eventTag != 0)
@@ -3246,16 +3257,18 @@ lpfc_mbx_cmpl_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	}
 
 	phba->fc_eventTag = la->eventTag;
-	spin_lock_irq(&phba->hbalock);
-	if (bf_get(lpfc_mbx_read_top_mm, la))
-		phba->sli.sli_flag |= LPFC_MENLO_MAINT;
-	else
-		phba->sli.sli_flag &= ~LPFC_MENLO_MAINT;
-	spin_unlock_irq(&phba->hbalock);
+	if (phba->sli_rev < LPFC_SLI_REV4) {
+		spin_lock_irq(&phba->hbalock);
+		if (bf_get(lpfc_mbx_read_top_mm, la))
+			phba->sli.sli_flag |= LPFC_MENLO_MAINT;
+		else
+			phba->sli.sli_flag &= ~LPFC_MENLO_MAINT;
+		spin_unlock_irq(&phba->hbalock);
+	}
 
 	phba->link_events++;
 	if ((bf_get(lpfc_mbx_read_top_att_type, la) == LPFC_ATT_LINK_UP) &&
-	    (!bf_get(lpfc_mbx_read_top_mm, la))) {
+	    !(phba->sli.sli_flag & LPFC_MENLO_MAINT)) {
 		phba->fc_stat.LinkUp++;
 		if (phba->link_flag & LS_LOOPBACK_MODE) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
@@ -3300,8 +3313,8 @@ lpfc_mbx_cmpl_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 				bf_get(lpfc_mbx_read_top_fa, la));
 		lpfc_mbx_issue_link_down(phba);
 	}
-	if ((bf_get(lpfc_mbx_read_top_mm, la)) &&
-	    (bf_get(lpfc_mbx_read_top_att_type, la) == LPFC_ATT_LINK_UP)) {
+	if ((phba->sli.sli_flag & LPFC_MENLO_MAINT) &&
+	    ((bf_get(lpfc_mbx_read_top_att_type, la) == LPFC_ATT_LINK_UP))) {
 		if (phba->link_state != LPFC_LINK_DOWN) {
 			phba->fc_stat.LinkDown++;
 			lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
@@ -3329,8 +3342,9 @@ lpfc_mbx_cmpl_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		}
 	}
 
-	if (bf_get(lpfc_mbx_read_top_fa, la)) {
-		if (bf_get(lpfc_mbx_read_top_mm, la))
+	if ((phba->sli_rev < LPFC_SLI_REV4) &&
+	    bf_get(lpfc_mbx_read_top_fa, la)) {
+		if (phba->sli.sli_flag & LPFC_MENLO_MAINT)
 			lpfc_issue_clear_la(phba, vport);
 		lpfc_printf_log(phba, KERN_INFO, LOG_LINK_EVENT,
 				"1311 fa %d\n",
@@ -4354,7 +4368,6 @@ lpfc_no_rpi(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 					   with an error */
 					list_move_tail(&iocb->list,
 						       &completions);
-					pring->txq_cnt--;
 				}
 			}
 			spin_unlock_irq(&phba->hbalock);
@@ -5055,7 +5068,6 @@ lpfc_free_tx(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp)
 		    (icmd->ulpCommand == CMD_XMIT_ELS_RSP64_CX)) {
 
 			list_move_tail(&iocb->list, &completions);
-			pring->txq_cnt--;
 		}
 	}
 

@@ -406,7 +406,7 @@ static int __init find_last_devid_on_pci(int bus, int dev, int fn, int cap_ptr)
 	u32 cap;
 
 	cap = read_pci_config(bus, dev, fn, cap_ptr+MMIO_RANGE_OFFSET);
-	update_last_devid(calc_devid(MMIO_GET_BUS(cap), MMIO_GET_LD(cap)));
+	update_last_devid(PCI_DEVID(MMIO_GET_BUS(cap), MMIO_GET_LD(cap)));
 
 	return 0;
 }
@@ -423,7 +423,7 @@ static int __init find_last_devid_from_ivhd(struct ivhd_header *h)
 	p += sizeof(*h);
 	end += h->length;
 
-	find_last_devid_on_pci(PCI_BUS(h->devid),
+	find_last_devid_on_pci(PCI_BUS_NUM(h->devid),
 			PCI_SLOT(h->devid),
 			PCI_FUNC(h->devid),
 			h->cap_ptr);
@@ -784,10 +784,10 @@ static int __init init_iommu_from_acpi(struct amd_iommu *iommu,
 
 			DUMP_printk("  DEV_ALL\t\t\t first devid: %02x:%02x.%x"
 				    " last device %02x:%02x.%x flags: %02x\n",
-				    PCI_BUS(iommu->first_device),
+				    PCI_BUS_NUM(iommu->first_device),
 				    PCI_SLOT(iommu->first_device),
 				    PCI_FUNC(iommu->first_device),
-				    PCI_BUS(iommu->last_device),
+				    PCI_BUS_NUM(iommu->last_device),
 				    PCI_SLOT(iommu->last_device),
 				    PCI_FUNC(iommu->last_device),
 				    e->flags);
@@ -801,7 +801,7 @@ static int __init init_iommu_from_acpi(struct amd_iommu *iommu,
 
 			DUMP_printk("  DEV_SELECT\t\t\t devid: %02x:%02x.%x "
 				    "flags: %02x\n",
-				    PCI_BUS(e->devid),
+				    PCI_BUS_NUM(e->devid),
 				    PCI_SLOT(e->devid),
 				    PCI_FUNC(e->devid),
 				    e->flags);
@@ -813,7 +813,7 @@ static int __init init_iommu_from_acpi(struct amd_iommu *iommu,
 
 			DUMP_printk("  DEV_SELECT_RANGE_START\t "
 				    "devid: %02x:%02x.%x flags: %02x\n",
-				    PCI_BUS(e->devid),
+				    PCI_BUS_NUM(e->devid),
 				    PCI_SLOT(e->devid),
 				    PCI_FUNC(e->devid),
 				    e->flags);
@@ -827,11 +827,11 @@ static int __init init_iommu_from_acpi(struct amd_iommu *iommu,
 
 			DUMP_printk("  DEV_ALIAS\t\t\t devid: %02x:%02x.%x "
 				    "flags: %02x devid_to: %02x:%02x.%x\n",
-				    PCI_BUS(e->devid),
+				    PCI_BUS_NUM(e->devid),
 				    PCI_SLOT(e->devid),
 				    PCI_FUNC(e->devid),
 				    e->flags,
-				    PCI_BUS(e->ext >> 8),
+				    PCI_BUS_NUM(e->ext >> 8),
 				    PCI_SLOT(e->ext >> 8),
 				    PCI_FUNC(e->ext >> 8));
 
@@ -846,11 +846,11 @@ static int __init init_iommu_from_acpi(struct amd_iommu *iommu,
 			DUMP_printk("  DEV_ALIAS_RANGE\t\t "
 				    "devid: %02x:%02x.%x flags: %02x "
 				    "devid_to: %02x:%02x.%x\n",
-				    PCI_BUS(e->devid),
+				    PCI_BUS_NUM(e->devid),
 				    PCI_SLOT(e->devid),
 				    PCI_FUNC(e->devid),
 				    e->flags,
-				    PCI_BUS(e->ext >> 8),
+				    PCI_BUS_NUM(e->ext >> 8),
 				    PCI_SLOT(e->ext >> 8),
 				    PCI_FUNC(e->ext >> 8));
 
@@ -864,7 +864,7 @@ static int __init init_iommu_from_acpi(struct amd_iommu *iommu,
 
 			DUMP_printk("  DEV_EXT_SELECT\t\t devid: %02x:%02x.%x "
 				    "flags: %02x ext: %08x\n",
-				    PCI_BUS(e->devid),
+				    PCI_BUS_NUM(e->devid),
 				    PCI_SLOT(e->devid),
 				    PCI_FUNC(e->devid),
 				    e->flags, e->ext);
@@ -877,7 +877,7 @@ static int __init init_iommu_from_acpi(struct amd_iommu *iommu,
 
 			DUMP_printk("  DEV_EXT_SELECT_RANGE\t devid: "
 				    "%02x:%02x.%x flags: %02x ext: %08x\n",
-				    PCI_BUS(e->devid),
+				    PCI_BUS_NUM(e->devid),
 				    PCI_SLOT(e->devid),
 				    PCI_FUNC(e->devid),
 				    e->flags, e->ext);
@@ -890,7 +890,7 @@ static int __init init_iommu_from_acpi(struct amd_iommu *iommu,
 		case IVHD_DEV_RANGE_END:
 
 			DUMP_printk("  DEV_RANGE_END\t\t devid: %02x:%02x.%x\n",
-				    PCI_BUS(e->devid),
+				    PCI_BUS_NUM(e->devid),
 				    PCI_SLOT(e->devid),
 				    PCI_FUNC(e->devid));
 
@@ -924,7 +924,7 @@ static int __init init_iommu_from_acpi(struct amd_iommu *iommu,
 
 			DUMP_printk("  DEV_SPECIAL(%s[%d])\t\tdevid: %02x:%02x.%x\n",
 				    var, (int)handle,
-				    PCI_BUS(devid),
+				    PCI_BUS_NUM(devid),
 				    PCI_SLOT(devid),
 				    PCI_FUNC(devid));
 
@@ -1086,7 +1086,7 @@ static int __init init_iommu_all(struct acpi_table_header *table)
 
 			DUMP_printk("device: %02x:%02x.%01x cap: %04x "
 				    "seg: %d flags: %01x info %04x\n",
-				    PCI_BUS(h->devid), PCI_SLOT(h->devid),
+				    PCI_BUS_NUM(h->devid), PCI_SLOT(h->devid),
 				    PCI_FUNC(h->devid), h->cap_ptr,
 				    h->pci_seg, h->flags, h->info);
 			DUMP_printk("       mmio-addr: %016llx\n",
@@ -1116,7 +1116,7 @@ static int iommu_init_pci(struct amd_iommu *iommu)
 	int cap_ptr = iommu->cap_ptr;
 	u32 range, misc, low, high;
 
-	iommu->dev = pci_get_bus_and_slot(PCI_BUS(iommu->devid),
+	iommu->dev = pci_get_bus_and_slot(PCI_BUS_NUM(iommu->devid),
 					  iommu->devid & 0xff);
 	if (!iommu->dev)
 		return -ENODEV;
@@ -1128,9 +1128,9 @@ static int iommu_init_pci(struct amd_iommu *iommu)
 	pci_read_config_dword(iommu->dev, cap_ptr + MMIO_MISC_OFFSET,
 			      &misc);
 
-	iommu->first_device = calc_devid(MMIO_GET_BUS(range),
+	iommu->first_device = PCI_DEVID(MMIO_GET_BUS(range),
 					 MMIO_GET_FD(range));
-	iommu->last_device = calc_devid(MMIO_GET_BUS(range),
+	iommu->last_device = PCI_DEVID(MMIO_GET_BUS(range),
 					MMIO_GET_LD(range));
 
 	if (!(iommu->cap & (1 << IOMMU_CAP_IOTLB)))
@@ -1388,8 +1388,8 @@ static int __init init_unity_map_range(struct ivmd_header *m)
 
 	DUMP_printk("%s devid_start: %02x:%02x.%x devid_end: %02x:%02x.%x"
 		    " range_start: %016llx range_end: %016llx flags: %x\n", s,
-		    PCI_BUS(e->devid_start), PCI_SLOT(e->devid_start),
-		    PCI_FUNC(e->devid_start), PCI_BUS(e->devid_end),
+		    PCI_BUS_NUM(e->devid_start), PCI_SLOT(e->devid_start),
+		    PCI_FUNC(e->devid_start), PCI_BUS_NUM(e->devid_end),
 		    PCI_SLOT(e->devid_end), PCI_FUNC(e->devid_end),
 		    e->address_start, e->address_end, m->flags);
 

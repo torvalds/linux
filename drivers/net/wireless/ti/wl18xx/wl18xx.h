@@ -29,7 +29,7 @@
 #define WL18XX_IFTYPE_VER	5
 #define WL18XX_MAJOR_VER	WLCORE_FW_VER_IGNORE
 #define WL18XX_SUBTYPE_VER	WLCORE_FW_VER_IGNORE
-#define WL18XX_MINOR_VER	28
+#define WL18XX_MINOR_VER	39
 
 #define WL18XX_CMD_MAX_SIZE          740
 
@@ -39,6 +39,8 @@
 #define WL18XX_NUM_RX_DESCRIPTORS 32
 
 #define WL18XX_NUM_MAC_ADDRESSES 3
+
+#define WL18XX_RX_BA_MAX_SESSIONS 5
 
 struct wl18xx_priv {
 	/* buffer for sending commands to FW */

@@ -17,6 +17,8 @@
  * 51 Franklin St - Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -128,7 +130,6 @@ void fec_ptp_start_cyclecounter(struct net_device *ndev)
 
 	spin_unlock_irqrestore(&fep->tmreg_lock, flags);
 }
-EXPORT_SYMBOL(fec_ptp_start_cyclecounter);
 
 /**
  * fec_ptp_adjfreq - adjust ptp cycle frequency
@@ -319,7 +320,6 @@ int fec_ptp_ioctl(struct net_device *ndev, struct ifreq *ifr, int cmd)
 	return copy_to_user(ifr->ifr_data, &config, sizeof(config)) ?
 	    -EFAULT : 0;
 }
-EXPORT_SYMBOL(fec_ptp_ioctl);
 
 /**
  * fec_time_keep - call timecounter_read every second to avoid timer overrun
@@ -381,8 +381,5 @@ void fec_ptp_init(struct net_device *ndev, struct platform_device *pdev)
 	if (IS_ERR(fep->ptp_clock)) {
 		fep->ptp_clock = NULL;
 		pr_err("ptp_clock_register failed\n");
-	} else {
-		pr_info("registered PHC device on %s\n", ndev->name);
 	}
 }
-EXPORT_SYMBOL(fec_ptp_init);

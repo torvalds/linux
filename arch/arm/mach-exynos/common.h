@@ -12,7 +12,11 @@
 #ifndef __ARCH_ARM_MACH_EXYNOS_COMMON_H
 #define __ARCH_ARM_MACH_EXYNOS_COMMON_H
 
-extern void exynos4_timer_init(void);
+#include <linux/of.h>
+
+extern void mct_init(void);
+void exynos_init_time(void);
+extern unsigned long xxti_f, xusbxti_f;
 
 struct map_desc;
 void exynos_init_io(struct map_desc *mach_desc, int size);
@@ -21,6 +25,12 @@ void exynos5_init_irq(void);
 void exynos4_restart(char mode, const char *cmd);
 void exynos5_restart(char mode, const char *cmd);
 void exynos_init_late(void);
+
+/* ToDo: remove these after migrating legacy exynos4 platforms to dt */
+void exynos4_clk_init(struct device_node *np);
+void exynos4_clk_register_fixed_ext(unsigned long, unsigned long);
+
+void exynos_firmware_init(void);
 
 #ifdef CONFIG_PM_GENERIC_DOMAINS
 int exynos_pm_late_initcall(void);

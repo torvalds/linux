@@ -21,6 +21,7 @@
 #ifndef E4000_H
 #define E4000_H
 
+#include <linux/kconfig.h>
 #include "dvb_frontend.h"
 
 struct e4000_config {
@@ -36,8 +37,7 @@ struct e4000_config {
 	u32 clock;
 };
 
-#if defined(CONFIG_MEDIA_TUNER_E4000) || \
-	(defined(CONFIG_MEDIA_TUNER_E4000_MODULE) && defined(MODULE))
+#if IS_ENABLED(CONFIG_MEDIA_TUNER_E4000)
 extern struct dvb_frontend *e4000_attach(struct dvb_frontend *fe,
 		struct i2c_adapter *i2c, const struct e4000_config *cfg);
 #else

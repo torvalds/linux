@@ -301,7 +301,7 @@ int wl12xx_cmd_channel_switch(struct wl1271 *wl,
 	}
 
 	cmd->role_id = wlvif->role_id;
-	cmd->channel = ch_switch->channel->hw_value;
+	cmd->channel = ch_switch->chandef.chan->hw_value;
 	cmd->switch_time = ch_switch->count;
 	cmd->stop_tx = ch_switch->block_tx;
 

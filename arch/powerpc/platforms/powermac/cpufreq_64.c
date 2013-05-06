@@ -339,11 +339,10 @@ static int g5_cpufreq_target(struct cpufreq_policy *policy,
 
 	freqs.old = g5_cpu_freqs[g5_pmode_cur].frequency;
 	freqs.new = g5_cpu_freqs[newstate].frequency;
-	freqs.cpu = 0;
 
-	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 	rc = g5_switch_freq(newstate);
-	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
 	mutex_unlock(&g5_switch_mutex);
 

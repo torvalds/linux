@@ -482,15 +482,13 @@ struct omap_hwmod_omap4_prcm {
  * These are for internal use only and are managed by the omap_hwmod code.
  *
  * _HWMOD_NO_MPU_PORT: no path exists for the MPU to write to this module
- * _HWMOD_WAKEUP_ENABLED: set when the omap_hwmod code has enabled ENAWAKEUP
  * _HWMOD_SYSCONFIG_LOADED: set when the OCP_SYSCONFIG value has been cached
  * _HWMOD_SKIP_ENABLE: set if hwmod enabled during init (HWMOD_INIT_NO_IDLE) -
  *     causes the first call to _enable() to only update the pinmux
  */
 #define _HWMOD_NO_MPU_PORT			(1 << 0)
-#define _HWMOD_WAKEUP_ENABLED			(1 << 1)
-#define _HWMOD_SYSCONFIG_LOADED			(1 << 2)
-#define _HWMOD_SKIP_ENABLE			(1 << 3)
+#define _HWMOD_SYSCONFIG_LOADED			(1 << 1)
+#define _HWMOD_SKIP_ENABLE			(1 << 2)
 
 /*
  * omap_hwmod._state definitions

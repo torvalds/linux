@@ -1595,11 +1595,15 @@ wlc_lcnphy_set_chanspec_tweaks(struct brcms_phy *pi, u16 chanspec)
 	if (channel == 1 || channel == 2 || channel == 3 ||
 	    channel == 4 || channel == 9 ||
 	    channel == 10 || channel == 11 || channel == 12) {
-		si_pmu_pllcontrol(pi->sh->sih, 0x2, 0xffffffff, 0x03000c04);
-		si_pmu_pllcontrol(pi->sh->sih, 0x3, 0xffffff, 0x0);
-		si_pmu_pllcontrol(pi->sh->sih, 0x4, 0xffffffff, 0x200005c0);
+		bcma_chipco_pll_write(&pi->d11core->bus->drv_cc, 0x2,
+				      0x03000c04);
+		bcma_chipco_pll_maskset(&pi->d11core->bus->drv_cc, 0x3,
+					~0x00ffffff, 0x0);
+		bcma_chipco_pll_write(&pi->d11core->bus->drv_cc, 0x4,
+				      0x200005c0);
 
-		si_pmu_pllupd(pi->sh->sih);
+		bcma_cc_set32(&pi->d11core->bus->drv_cc, BCMA_CC_PMU_CTL,
+			      BCMA_CC_PMU_CTL_PLL_UPD);
 		write_phy_reg(pi, 0x942, 0);
 		wlc_lcnphy_txrx_spur_avoidance_mode(pi, false);
 		pi_lcn->lcnphy_spurmod = false;
@@ -1607,11 +1611,15 @@ wlc_lcnphy_set_chanspec_tweaks(struct brcms_phy *pi, u16 chanspec)
 
 		write_phy_reg(pi, 0x425, 0x5907);
 	} else {
-		si_pmu_pllcontrol(pi->sh->sih, 0x2, 0xffffffff, 0x03140c04);
-		si_pmu_pllcontrol(pi->sh->sih, 0x3, 0xffffff, 0x333333);
-		si_pmu_pllcontrol(pi->sh->sih, 0x4, 0xffffffff, 0x202c2820);
+		bcma_chipco_pll_write(&pi->d11core->bus->drv_cc, 0x2,
+				      0x03140c04);
+		bcma_chipco_pll_maskset(&pi->d11core->bus->drv_cc, 0x3,
+					~0x00ffffff, 0x333333);
+		bcma_chipco_pll_write(&pi->d11core->bus->drv_cc, 0x4,
+				      0x202c2820);
 
-		si_pmu_pllupd(pi->sh->sih);
+		bcma_cc_set32(&pi->d11core->bus->drv_cc, BCMA_CC_PMU_CTL,
+			      BCMA_CC_PMU_CTL_PLL_UPD);
 		write_phy_reg(pi, 0x942, 0);
 		wlc_lcnphy_txrx_spur_avoidance_mode(pi, true);
 
@@ -4755,9 +4763,10 @@ void wlc_phy_init_lcnphy(struct brcms_phy *pi)
 
 	wlc_phy_chanspec_set((struct brcms_phy_pub *) pi, pi->radio_chanspec);
 
-	si_pmu_regcontrol(pi->sh->sih, 0, 0xf, 0x9);
+	bcma_chipco_regctl_maskset(&pi->d11core->bus->drv_cc, 0, ~0xf, 0x9);
 
-	si_pmu_chipcontrol(pi->sh->sih, 0, 0xffffffff, 0x03CDDDDD);
+	bcma_chipco_chipctl_maskset(&pi->d11core->bus->drv_cc, 0, 0x0,
+				    0x03CDDDDD);
 
 	if ((pi->sh->boardflags & BFL_FEM)
 	    && wlc_lcnphy_tempsense_based_pwr_ctrl_enabled(pi))
@@ -4968,7 +4977,7 @@ bool wlc_phy_attach_lcnphy(struct brcms_phy *pi)
 		pi->hwpwrctrl_capable = true;
 	}
 
-	pi->xtalfreq = si_pmu_alp_clock(pi->sh->sih);
+	pi->xtalfreq = bcma_chipco_get_alp_clock(&pi->d11core->bus->drv_cc);
 	pi_lcn->lcnphy_papd_rxGnCtrl_init = 0;
 
 	pi->pi_fptr.init = wlc_phy_init_lcnphy;

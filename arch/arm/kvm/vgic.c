@@ -1477,7 +1477,7 @@ int kvm_vgic_set_addr(struct kvm *kvm, unsigned long type, u64 addr)
 	if (addr & ~KVM_PHYS_MASK)
 		return -E2BIG;
 
-	if (addr & ~PAGE_MASK)
+	if (addr & (SZ_4K - 1))
 		return -EINVAL;
 
 	mutex_lock(&kvm->lock);

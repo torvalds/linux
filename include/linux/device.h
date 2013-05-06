@@ -25,6 +25,7 @@
 #include <linux/pm.h>
 #include <linux/atomic.h>
 #include <linux/ratelimit.h>
+#include <linux/uidgid.h>
 #include <asm/device.h>
 
 struct device;
@@ -111,17 +112,11 @@ struct bus_type {
 	struct iommu_ops *iommu_ops;
 
 	struct subsys_private *p;
+	struct lock_class_key lock_key;
 };
 
-/* This is a #define to keep the compiler from merging different
- * instances of the __key variable */
-#define bus_register(subsys)			\
-({						\
-	static struct lock_class_key __key;	\
-	__bus_register(subsys, &__key);	\
-})
-extern int __must_check __bus_register(struct bus_type *bus,
-				       struct lock_class_key *key);
+extern int __must_check bus_register(struct bus_type *bus);
+
 extern void bus_unregister(struct bus_type *bus);
 
 extern int __must_check bus_rescan_devices(struct bus_type *bus);
@@ -302,6 +297,8 @@ void subsys_interface_unregister(struct subsys_interface *sif);
 
 int subsys_system_register(struct bus_type *subsys,
 			   const struct attribute_group **groups);
+int subsys_virtual_register(struct bus_type *subsys,
+			    const struct attribute_group **groups);
 
 /**
  * struct class - device classes
@@ -471,7 +468,8 @@ struct device_type {
 	const char *name;
 	const struct attribute_group **groups;
 	int (*uevent)(struct device *dev, struct kobj_uevent_env *env);
-	char *(*devnode)(struct device *dev, umode_t *mode);
+	char *(*devnode)(struct device *dev, umode_t *mode,
+			 kuid_t *uid, kgid_t *gid);
 	void (*release)(struct device *dev);
 
 	const struct dev_pm_ops *pm;
@@ -577,6 +575,10 @@ extern void devm_kfree(struct device *dev, void *p);
 void __iomem *devm_ioremap_resource(struct device *dev, struct resource *res);
 void __iomem *devm_request_and_ioremap(struct device *dev,
 			struct resource *res);
+
+/* allows to add/remove a custom action to devres stack */
+int devm_add_action(struct device *dev, void (*action)(void *), void *data);
+void devm_remove_action(struct device *dev, void (*action)(void *), void *data);
 
 struct device_dma_parameters {
 	/*
@@ -849,7 +851,8 @@ extern int device_rename(struct device *dev, const char *new_name);
 extern int device_move(struct device *dev, struct device *new_parent,
 		       enum dpm_order dpm_order);
 extern const char *device_get_devnode(struct device *dev,
-				      umode_t *mode, const char **tmp);
+				      umode_t *mode, kuid_t *uid, kgid_t *gid,
+				      const char **tmp);
 extern void *dev_get_drvdata(const struct device *dev);
 extern int dev_set_drvdata(struct device *dev, void *data);
 

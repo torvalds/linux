@@ -99,7 +99,16 @@ source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"
 
-menu "System Type"
+menu "Platform selection"
+
+config ARCH_VEXPRESS
+	bool "ARMv8 software model (Versatile Express)"
+	select ARCH_REQUIRE_GPIOLIB
+	select COMMON_CLK_VERSATILE
+	select VEXPRESS_CONFIG
+	help
+	  This enables support for the ARMv8 software model (Versatile
+	  Express).
 
 endmenu
 

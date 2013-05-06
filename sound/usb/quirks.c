@@ -165,8 +165,10 @@ static int create_fixed_stream_quirk(struct snd_usb_audio *chip,
 		return -EINVAL;
 	}
 	alts = &iface->altsetting[fp->altset_idx];
-	fp->datainterval = snd_usb_parse_datainterval(chip, alts);
-	fp->maxpacksize = le16_to_cpu(get_endpoint(alts, 0)->wMaxPacketSize);
+	if (fp->datainterval == 0)
+		fp->datainterval = snd_usb_parse_datainterval(chip, alts);
+	if (fp->maxpacksize == 0)
+		fp->maxpacksize = le16_to_cpu(get_endpoint(alts, 0)->wMaxPacketSize);
 	usb_set_interface(chip->dev, fp->iface, 0);
 	snd_usb_init_pitch(chip, fp->iface, alts, fp);
 	snd_usb_init_sample_rate(chip, fp->iface, alts, fp, fp->rate_max);
@@ -443,6 +445,17 @@ static int snd_usb_cm6206_boot_quirk(struct usb_device *dev)
 	}
 
 	return err;
+}
+
+/*
+ * Novation Twitch DJ controller
+ */
+static int snd_usb_twitch_boot_quirk(struct usb_device *dev)
+{
+	/* preemptively set up the device because otherwise the
+	 * raw MIDI endpoints are not active */
+	usb_set_interface(dev, 0, 1);
+	return 0;
 }
 
 /*
@@ -746,6 +759,10 @@ int snd_usb_apply_boot_quirk(struct usb_device *dev,
 		/* Digidesign Mbox 2 */
 		return snd_usb_mbox2_boot_quirk(dev);
 
+	case USB_ID(0x1235, 0x0018):
+		/* Focusrite Novation Twitch */
+		return snd_usb_twitch_boot_quirk(dev);
+
 	case USB_ID(0x133e, 0x0815):
 		/* Access Music VirusTI Desktop */
 		return snd_usb_accessmusic_boot_quirk(dev);
@@ -837,6 +854,7 @@ static void set_format_emu_quirk(struct snd_usb_substream *subs,
 		break;
 	}
 	snd_emuusb_set_samplerate(subs->stream->chip, emu_samplerate_id);
+	subs->pkt_offset_adj = (emu_samplerate_id >= EMU_QUIRK_SR_176400HZ) ? 4 : 0;
 }
 
 void snd_usb_set_format_quirk(struct snd_usb_substream *subs,
@@ -875,6 +893,16 @@ void snd_usb_endpoint_start_quirk(struct snd_usb_endpoint *ep)
 		ep->skip_packets = 16;
 }
 
+void snd_usb_set_interface_quirk(struct usb_device *dev)
+{
+	/*
+	 * "Playback Design" products need a 50ms delay after setting the
+	 * USB interface.
+	 */
+	if (le16_to_cpu(dev->descriptor.idVendor) == 0x23ba)
+		mdelay(50);
+}
+
 void snd_usb_ctl_msg_quirk(struct usb_device *dev, unsigned int pipe,
 			   __u8 request, __u8 requesttype, __u16 value,
 			   __u16 index, void *data, __u16 size)
@@ -888,3 +916,31 @@ void snd_usb_ctl_msg_quirk(struct usb_device *dev, unsigned int pipe,
 		mdelay(20);
 }
 
+/*
+ * snd_usb_interface_dsd_format_quirks() is called from format.c to
+ * augment the PCM format bit-field for DSD types. The UAC standards
+ * don't have a designated bit field to denote DSD-capable interfaces,
+ * hence all hardware that is known to support this format has to be
+ * listed here.
+ */
+u64 snd_usb_interface_dsd_format_quirks(struct snd_usb_audio *chip,
+					struct audioformat *fp,
+					unsigned int sample_bytes)
+{
+	/* Playback Designs */
+	if (le16_to_cpu(chip->dev->descriptor.idVendor) == 0x23ba) {
+		switch (fp->altsetting) {
+		case 1:
+			fp->dsd_dop = true;
+			return SNDRV_PCM_FMTBIT_DSD_U16_LE;
+		case 2:
+			fp->dsd_bitrev = true;
+			return SNDRV_PCM_FMTBIT_DSD_U8;
+		case 3:
+			fp->dsd_bitrev = true;
+			return SNDRV_PCM_FMTBIT_DSD_U16_LE;
+		}
+	}
+
+	return 0;
+}

@@ -136,7 +136,6 @@ static struct davinci_mmc_config da850_mmc_config = {
 	.wires		= 4,
 	.max_freq	= 50000000,
 	.caps		= MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED,
-	.version	= MMC_CTLR_VERSION_2,
 };
 
 static __init void omapl138_hawk_mmc_init(void)
@@ -311,6 +310,11 @@ static __init void omapl138_hawk_init(void)
 	if (ret)
 		pr_warn("%s: watchdog registration failed: %d\n",
 			__func__, ret);
+
+	ret = da8xx_register_rproc();
+	if (ret)
+		pr_warn("%s: dsp/rproc registration failed: %d\n",
+			__func__, ret);
 }
 
 #ifdef CONFIG_SERIAL_8250_CONSOLE
@@ -338,4 +342,5 @@ MACHINE_START(OMAPL138_HAWKBOARD, "AM18x/OMAP-L138 Hawkboard")
 	.init_late	= davinci_init_late,
 	.dma_zone_size	= SZ_128M,
 	.restart	= da8xx_restart,
+	.reserve	= da8xx_rproc_reserve_cma,
 MACHINE_END

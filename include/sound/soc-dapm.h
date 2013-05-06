@@ -566,7 +566,6 @@ struct snd_soc_dapm_update {
 
 /* DAPM context */
 struct snd_soc_dapm_context {
-	int n_widgets; /* number of widgets in this context */
 	enum snd_soc_bias_level bias_level;
 	enum snd_soc_bias_level suspend_bias_level;
 	struct delayed_work delayed_work;

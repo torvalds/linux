@@ -30,6 +30,7 @@
 #include <linux/irq.h>
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
+#include <linux/vgaarb.h>
 
 #include <asm/processor.h>
 #include <asm/io.h>
@@ -1023,6 +1024,27 @@ void pcibios_setup_bus_self(struct pci_bus *bus)
 		ppc_md.pci_dma_bus_setup(bus);
 }
 
+void pcibios_setup_device(struct pci_dev *dev)
+{
+	/* Fixup NUMA node as it may not be setup yet by the generic
+	 * code and is needed by the DMA init
+	 */
+	set_dev_node(&dev->dev, pcibus_to_node(dev->bus));
+
+	/* Hook up default DMA ops */
+	set_dma_ops(&dev->dev, pci_dma_ops);
+	set_dma_offset(&dev->dev, PCI_DRAM_OFFSET);
+
+	/* Additional platform DMA/iommu setup */
+	if (ppc_md.pci_dma_dev_setup)
+		ppc_md.pci_dma_dev_setup(dev);
+
+	/* Read default IRQs and fixup if necessary */
+	pci_read_irq_line(dev);
+	if (ppc_md.pci_irq_fixup)
+		ppc_md.pci_irq_fixup(dev);
+}
+
 void pcibios_setup_bus_devices(struct pci_bus *bus)
 {
 	struct pci_dev *dev;
@@ -1037,23 +1059,7 @@ void pcibios_setup_bus_devices(struct pci_bus *bus)
 		if (dev->is_added)
 			continue;
 
-		/* Fixup NUMA node as it may not be setup yet by the generic
-		 * code and is needed by the DMA init
-		 */
-		set_dev_node(&dev->dev, pcibus_to_node(dev->bus));
-
-		/* Hook up default DMA ops */
-		set_dma_ops(&dev->dev, pci_dma_ops);
-		set_dma_offset(&dev->dev, PCI_DRAM_OFFSET);
-
-		/* Additional platform DMA/iommu setup */
-		if (ppc_md.pci_dma_dev_setup)
-			ppc_md.pci_dma_dev_setup(dev);
-
-		/* Read default IRQs and fixup if necessary */
-		pci_read_irq_line(dev);
-		if (ppc_md.pci_irq_fixup)
-			ppc_md.pci_irq_fixup(dev);
+		pcibios_setup_device(dev);
 	}
 }
 
@@ -1494,6 +1500,10 @@ int pcibios_enable_device(struct pci_dev *dev, int mask)
 		if (ppc_md.pcibios_enable_device_hook(dev))
 			return -EINVAL;
 
+	/* avoid pcie irq fix up impact on cardbus */
+	if (dev->hdr_type != PCI_HEADER_TYPE_CARDBUS)
+		pcibios_setup_device(dev);
+
 	return pci_enable_resources(dev, mask);
 }
 
@@ -1725,3 +1735,15 @@ static void fixup_hide_host_resource_fsl(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_MOTOROLA, PCI_ANY_ID, fixup_hide_host_resource_fsl);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_FREESCALE, PCI_ANY_ID, fixup_hide_host_resource_fsl);
+
+static void fixup_vga(struct pci_dev *pdev)
+{
+	u16 cmd;
+
+	pci_read_config_word(pdev, PCI_COMMAND, &cmd);
+	if ((cmd & (PCI_COMMAND_IO | PCI_COMMAND_MEMORY)) || !vga_default_device())
+		vga_set_default_device(pdev);
+
+}
+DECLARE_PCI_FIXUP_CLASS_FINAL(PCI_ANY_ID, PCI_ANY_ID,
+			      PCI_CLASS_DISPLAY_VGA, 8, fixup_vga);

@@ -134,11 +134,12 @@ void nouveau_therm_sensor_event(struct nouveau_therm *therm,
 			        enum nouveau_therm_thrs_direction dir);
 void nouveau_therm_program_alarms_polling(struct nouveau_therm *therm);
 
+void nv40_therm_intr(struct nouveau_subdev *);
 int nv50_fan_pwm_ctrl(struct nouveau_therm *, int, bool);
 int nv50_fan_pwm_get(struct nouveau_therm *, int, u32 *, u32 *);
 int nv50_fan_pwm_set(struct nouveau_therm *, int, u32, u32);
 int nv50_fan_pwm_clock(struct nouveau_therm *);
-int nv50_temp_get(struct nouveau_therm *therm);
+int nv84_temp_get(struct nouveau_therm *therm);
 
 int nva3_therm_fan_sense(struct nouveau_therm *);
 

@@ -414,7 +414,7 @@ static void qe_rx(struct sunqe *qep)
 	struct qe_rxd *this;
 	struct sunqe_buffers *qbufs = qep->buffers;
 	__u32 qbufs_dvma = qep->buffers_dvma;
-	int elem = qep->rx_new, drops = 0;
+	int elem = qep->rx_new;
 	u32 flags;
 
 	this = &rxbase[elem];
@@ -436,7 +436,6 @@ static void qe_rx(struct sunqe *qep)
 		} else {
 			skb = netdev_alloc_skb(dev, len + 2);
 			if (skb == NULL) {
-				drops++;
 				dev->stats.rx_dropped++;
 			} else {
 				skb_reserve(skb, 2);
@@ -456,8 +455,6 @@ static void qe_rx(struct sunqe *qep)
 		this = &rxbase[elem];
 	}
 	qep->rx_new = elem;
-	if (drops)
-		printk(KERN_NOTICE "%s: Memory squeeze, deferring packet.\n", qep->dev->name);
 }
 
 static void qe_tx_reclaim(struct sunqe *qep);

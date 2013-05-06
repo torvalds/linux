@@ -41,7 +41,3 @@ enum dwc3_omap_utmi_mode {
 	DWC3_OMAP_UTMI_MODE_HW,
 	DWC3_OMAP_UTMI_MODE_SW,
 };
-
-struct dwc3_omap_data {
-	enum dwc3_omap_utmi_mode	utmi_mode;
-};

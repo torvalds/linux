@@ -23,9 +23,11 @@
 #include <linux/of_irq.h>
 #include <linux/export.h>
 #include <linux/irqdomain.h>
-#include <linux/irqchip.h>
 #include <linux/of_address.h>
+#include <linux/clocksource.h>
+#include <linux/clk-provider.h>
 #include <linux/irqchip/arm-gic.h>
+#include <linux/irqchip/chained_irq.h>
 
 #include <asm/proc-fns.h>
 #include <asm/exception.h>
@@ -37,9 +39,9 @@
 #include <mach/regs-irq.h>
 #include <mach/regs-pmu.h>
 #include <mach/regs-gpio.h>
+#include <mach/irqs.h>
 
 #include <plat/cpu.h>
-#include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/pm.h>
 #include <plat/sdhci.h>
@@ -65,17 +67,16 @@ static const char name_exynos5440[] = "EXYNOS5440";
 static void exynos4_map_io(void);
 static void exynos5_map_io(void);
 static void exynos5440_map_io(void);
-static void exynos4_init_clocks(int xtal);
-static void exynos5_init_clocks(int xtal);
 static void exynos4_init_uarts(struct s3c2410_uartcfg *cfg, int no);
 static int exynos_init(void);
+
+unsigned long xxti_f = 0, xusbxti_f = 0;
 
 static struct cpu_table cpu_ids[] __initdata = {
 	{
 		.idcode		= EXYNOS4210_CPU_ID,
 		.idmask		= EXYNOS4_CPU_MASK,
 		.map_io		= exynos4_map_io,
-		.init_clocks	= exynos4_init_clocks,
 		.init_uarts	= exynos4_init_uarts,
 		.init		= exynos_init,
 		.name		= name_exynos4210,
@@ -83,7 +84,6 @@ static struct cpu_table cpu_ids[] __initdata = {
 		.idcode		= EXYNOS4212_CPU_ID,
 		.idmask		= EXYNOS4_CPU_MASK,
 		.map_io		= exynos4_map_io,
-		.init_clocks	= exynos4_init_clocks,
 		.init_uarts	= exynos4_init_uarts,
 		.init		= exynos_init,
 		.name		= name_exynos4212,
@@ -91,7 +91,6 @@ static struct cpu_table cpu_ids[] __initdata = {
 		.idcode		= EXYNOS4412_CPU_ID,
 		.idmask		= EXYNOS4_CPU_MASK,
 		.map_io		= exynos4_map_io,
-		.init_clocks	= exynos4_init_clocks,
 		.init_uarts	= exynos4_init_uarts,
 		.init		= exynos_init,
 		.name		= name_exynos4412,
@@ -99,7 +98,6 @@ static struct cpu_table cpu_ids[] __initdata = {
 		.idcode		= EXYNOS5250_SOC_ID,
 		.idmask		= EXYNOS5_SOC_MASK,
 		.map_io		= exynos5_map_io,
-		.init_clocks	= exynos5_init_clocks,
 		.init		= exynos_init,
 		.name		= name_exynos5250,
 	}, {
@@ -235,6 +233,33 @@ static struct map_desc exynos4_iodesc1[] __initdata = {
 	},
 };
 
+static struct map_desc exynos4210_iodesc[] __initdata = {
+	{
+		.virtual	= (unsigned long)S5P_VA_SYSRAM_NS,
+		.pfn		= __phys_to_pfn(EXYNOS4210_PA_SYSRAM_NS),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	},
+};
+
+static struct map_desc exynos4x12_iodesc[] __initdata = {
+	{
+		.virtual	= (unsigned long)S5P_VA_SYSRAM_NS,
+		.pfn		= __phys_to_pfn(EXYNOS4x12_PA_SYSRAM_NS),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	},
+};
+
+static struct map_desc exynos5250_iodesc[] __initdata = {
+	{
+		.virtual	= (unsigned long)S5P_VA_SYSRAM_NS,
+		.pfn		= __phys_to_pfn(EXYNOS5250_PA_SYSRAM_NS),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	},
+};
+
 static struct map_desc exynos5_iodesc[] __initdata = {
 	{
 		.virtual	= (unsigned long)S3C_VA_SYS,
@@ -254,11 +279,6 @@ static struct map_desc exynos5_iodesc[] __initdata = {
 	}, {
 		.virtual	= (unsigned long)S5P_VA_SROMC,
 		.pfn		= __phys_to_pfn(EXYNOS5_PA_SROMC),
-		.length		= SZ_4K,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= (unsigned long)S5P_VA_SYSTIMER,
-		.pfn		= __phys_to_pfn(EXYNOS5_PA_SYSTIMER),
 		.length		= SZ_4K,
 		.type		= MT_DEVICE,
 	}, {
@@ -368,6 +388,11 @@ static void __init exynos4_map_io(void)
 	else
 		iotable_init(exynos4_iodesc1, ARRAY_SIZE(exynos4_iodesc1));
 
+	if (soc_is_exynos4210())
+		iotable_init(exynos4210_iodesc, ARRAY_SIZE(exynos4210_iodesc));
+	if (soc_is_exynos4212() || soc_is_exynos4412())
+		iotable_init(exynos4x12_iodesc, ARRAY_SIZE(exynos4x12_iodesc));
+
 	/* initialize device information early */
 	exynos4_default_sdhci0();
 	exynos4_default_sdhci1();
@@ -400,22 +425,9 @@ static void __init exynos4_map_io(void)
 static void __init exynos5_map_io(void)
 {
 	iotable_init(exynos5_iodesc, ARRAY_SIZE(exynos5_iodesc));
-}
 
-static void __init exynos4_init_clocks(int xtal)
-{
-	printk(KERN_DEBUG "%s: initializing clocks\n", __func__);
-
-	s3c24xx_register_baseclocks(xtal);
-	s5p_register_clocks(xtal);
-
-	if (soc_is_exynos4210())
-		exynos4210_register_clocks();
-	else if (soc_is_exynos4212() || soc_is_exynos4412())
-		exynos4212_register_clocks();
-
-	exynos4_register_clocks();
-	exynos4_setup_clocks();
+	if (soc_is_exynos5250())
+		iotable_init(exynos5250_iodesc, ARRAY_SIZE(exynos5250_iodesc));
 }
 
 static void __init exynos5440_map_io(void)
@@ -423,22 +435,21 @@ static void __init exynos5440_map_io(void)
 	iotable_init(exynos5440_iodesc0, ARRAY_SIZE(exynos5440_iodesc0));
 }
 
-static void __init exynos5_init_clocks(int xtal)
+void __init exynos_init_time(void)
 {
-	printk(KERN_DEBUG "%s: initializing clocks\n", __func__);
-
-	/* EXYNOS5440 can support only common clock framework */
-
-	if (soc_is_exynos5440())
-		return;
-
-#ifdef CONFIG_SOC_EXYNOS5250
-	s3c24xx_register_baseclocks(xtal);
-	s5p_register_clocks(xtal);
-
-	exynos5_register_clocks();
-	exynos5_setup_clocks();
+	if (of_have_populated_dt()) {
+#ifdef CONFIG_OF
+		of_clk_init(NULL);
+		clocksource_of_init();
 #endif
+	} else {
+		/* todo: remove after migrating legacy E4 platforms to dt */
+#ifdef CONFIG_ARCH_EXYNOS4
+		exynos4_clk_init(NULL);
+		exynos4_clk_register_fixed_ext(xxti_f, xusbxti_f);
+#endif
+		mct_init();
+	}
 }
 
 void __init exynos4_init_irq(void)
@@ -463,6 +474,8 @@ void __init exynos4_init_irq(void)
 	 * uses GIC instead of VIC.
 	 */
 	s5p_init_irq(NULL, 0);
+
+	gic_arch_extn.irq_set_wake = s3c_irq_wake;
 }
 
 void __init exynos5_init_irq(void)
@@ -822,6 +835,7 @@ static int __init exynos_init_irq_eint(void)
 	static const struct of_device_id exynos_pinctrl_ids[] = {
 		{ .compatible = "samsung,exynos4210-pinctrl", },
 		{ .compatible = "samsung,exynos4x12-pinctrl", },
+		{ .compatible = "samsung,exynos5250-pinctrl", },
 	};
 	struct device_node *pctrl_np, *wkup_np;
 	const char *wkup_compat = "samsung,exynos4210-wakeup-eint";
@@ -875,3 +889,30 @@ static int __init exynos_init_irq_eint(void)
 	return 0;
 }
 arch_initcall(exynos_init_irq_eint);
+
+static struct resource exynos4_pmu_resource[] = {
+	DEFINE_RES_IRQ(EXYNOS4_IRQ_PMU),
+	DEFINE_RES_IRQ(EXYNOS4_IRQ_PMU_CPU1),
+#if defined(CONFIG_SOC_EXYNOS4412)
+	DEFINE_RES_IRQ(EXYNOS4_IRQ_PMU_CPU2),
+	DEFINE_RES_IRQ(EXYNOS4_IRQ_PMU_CPU3),
+#endif
+};
+
+static struct platform_device exynos4_device_pmu = {
+	.name		= "arm-pmu",
+	.num_resources	= ARRAY_SIZE(exynos4_pmu_resource),
+	.resource	= exynos4_pmu_resource,
+};
+
+static int __init exynos_armpmu_init(void)
+{
+	if (!of_have_populated_dt()) {
+		if (soc_is_exynos4210() || soc_is_exynos4212())
+			exynos4_device_pmu.num_resources = 2;
+		platform_device_register(&exynos4_device_pmu);
+	}
+
+	return 0;
+}
+arch_initcall(exynos_armpmu_init);

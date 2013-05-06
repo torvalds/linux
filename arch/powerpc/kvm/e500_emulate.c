@@ -284,6 +284,16 @@ int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, ulong *spr_val)
 	case SPRN_TLB1CFG:
 		*spr_val = vcpu->arch.tlbcfg[1];
 		break;
+	case SPRN_TLB0PS:
+		if (!has_feature(vcpu, VCPU_FTR_MMU_V2))
+			return EMULATE_FAIL;
+		*spr_val = vcpu->arch.tlbps[0];
+		break;
+	case SPRN_TLB1PS:
+		if (!has_feature(vcpu, VCPU_FTR_MMU_V2))
+			return EMULATE_FAIL;
+		*spr_val = vcpu->arch.tlbps[1];
+		break;
 	case SPRN_L1CSR0:
 		*spr_val = vcpu_e500->l1csr0;
 		break;
@@ -306,6 +316,15 @@ int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, ulong *spr_val)
 
 	case SPRN_MMUCFG:
 		*spr_val = vcpu->arch.mmucfg;
+		break;
+	case SPRN_EPTCFG:
+		if (!has_feature(vcpu, VCPU_FTR_MMU_V2))
+			return EMULATE_FAIL;
+		/*
+		 * Legacy Linux guests access EPTCFG register even if the E.PT
+		 * category is disabled in the VM. Give them a chance to live.
+		 */
+		*spr_val = vcpu->arch.eptcfg;
 		break;
 
 	/* extra exceptions */

@@ -38,7 +38,7 @@
 #include "gpmc-smc91x.h"
 
 #include <video/omapdss.h>
-#include <video/omap-panel-generic-dpi.h>
+#include <video/omap-panel-data.h>
 
 #include "mux.h"
 #include "hsmmc.h"
@@ -166,7 +166,7 @@ static void __init sdp2430_display_init(void)
 	omap_display_init(&sdp2430_dss_data);
 }
 
-#if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91x_MODULE)
+#if IS_ENABLED(CONFIG_SMC91X)
 
 static struct omap_smc91x_platform_data board_smc91x_data = {
 	.cs		= 5,

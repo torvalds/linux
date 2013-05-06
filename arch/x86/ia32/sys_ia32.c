@@ -166,12 +166,6 @@ asmlinkage long sys32_mmap(struct mmap_arg_struct32 __user *arg)
 			       a.offset>>PAGE_SHIFT);
 }
 
-asmlinkage long sys32_mprotect(unsigned long start, size_t len,
-			       unsigned long prot)
-{
-	return sys_mprotect(start, len, prot);
-}
-
 asmlinkage long sys32_waitpid(compat_pid_t pid, unsigned int __user *stat_addr,
 			      int options)
 {
@@ -194,35 +188,10 @@ asmlinkage long sys32_pwrite(unsigned int fd, const char __user *ubuf,
 }
 
 
-asmlinkage long sys32_sendfile(int out_fd, int in_fd,
-			       compat_off_t __user *offset, s32 count)
-{
-	mm_segment_t old_fs = get_fs();
-	int ret;
-	off_t of;
-
-	if (offset && get_user(of, offset))
-		return -EFAULT;
-
-	set_fs(KERNEL_DS);
-	ret = sys_sendfile(out_fd, in_fd, offset ? (off_t __user *)&of : NULL,
-			   count);
-	set_fs(old_fs);
-
-	if (offset && put_user(of, offset))
-		return -EFAULT;
-	return ret;
-}
-
 /*
  * Some system calls that need sign extended arguments. This could be
  * done by a generic wrapper.
  */
-long sys32_kill(int pid, int sig)
-{
-	return sys_kill(pid, sig);
-}
-
 long sys32_fadvise64_64(int fd, __u32 offset_low, __u32 offset_high,
 			__u32 len_low, __u32 len_high, int advice)
 {
@@ -244,12 +213,6 @@ long sys32_vm86_warning(void)
 		strncpy(lastcomm, me->comm, sizeof(lastcomm));
 	}
 	return -ENOSYS;
-}
-
-long sys32_lookup_dcookie(u32 addr_low, u32 addr_high,
-			  char __user *buf, size_t len)
-{
-	return sys_lookup_dcookie(((u64)addr_high << 32) | addr_low, buf, len);
 }
 
 asmlinkage ssize_t sys32_readahead(int fd, unsigned off_lo, unsigned off_hi,
