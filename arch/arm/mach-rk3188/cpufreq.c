@@ -217,7 +217,7 @@ static void rk3188_cpufreq_temp_limit_work_func(struct work_struct *work)
 				limits_size = ARRAY_SIZE(temp_limits_gpu_perf);
 			}
 		} else {
-			delay = HZ / 25; // 40ms
+			delay = HZ; // 1s
 			limits_table = temp_limits_cpu_perf;
 			limits_size = ARRAY_SIZE(temp_limits_cpu_perf);
 		}
