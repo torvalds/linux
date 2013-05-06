@@ -314,8 +314,6 @@ static int davinci_ks_remove(struct platform_device *pdev)
 	iounmap(davinci_ks->base);
 	release_mem_region(davinci_ks->pbase, davinci_ks->base_size);
 
-	platform_set_drvdata(pdev, NULL);
-
 	kfree(davinci_ks);
 
 	return 0;
