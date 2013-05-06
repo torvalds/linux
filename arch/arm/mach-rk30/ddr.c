@@ -22,6 +22,8 @@
 #include <mach/sram.h>
 #include <mach/ddr.h>
 
+#include <plat/efuse.h>
+
 typedef uint32_t uint32;
 
 //#define ENABLE_DDR_CLCOK_GPLL_PATH  //for RK3188
@@ -3393,13 +3395,9 @@ void __sramlocalfunc ddr_set_pll_exit_3168(uint32 freq_slew,uint32_t dqstr_value
 
 static bool ddr_dpll_status = true;
 #if defined(CONFIG_ARCH_RK3188)
-extern int efuse_readregs(u32 addr, u32 length, u8 *pData);
 void ddr_get_dpll_status(void) //DPLL fial rerurn 0;DPLL good return 1;
 {  
-    uint8_t data_buf[32 + 1];    
-    efuse_readregs(0, 32, data_buf);   
-     
-    if (data_buf[22] & 0x2)    
+    if (rk_pll_flag() & 0x2)
         ddr_dpll_status = false;    
     else    
         ddr_dpll_status = true;

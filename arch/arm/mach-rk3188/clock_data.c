@@ -3411,16 +3411,7 @@ static void div_clk_for_pll_init(void)
 	clock_set_max_div(&clk_saradc);
 }
 
-/************************************for cpll runing checking****************************************/
 static u8 pll_flag = 0;
-static int pll_get_flag(void)
-{
-	u8 data_buf[32 + 1];
-	efuse_readregs(0, 32, data_buf);
-
-	printk("pll_flag = 0x%02x\n", data_buf[22]);
-	return data_buf[22] & 0x3;
-}
 
 static void __init rk30_clock_common_init(unsigned long gpll_rate, unsigned long cpll_rate)
 {
@@ -3514,7 +3505,10 @@ void __init _rk30_clock_data_init(unsigned long gpll, unsigned long cpll, int fl
 		general_pll_clk.set_rate = plus_gpll_clk_set_rate;
 	}
 
-	pll_flag = pll_get_flag();
+	rk_efuse_init();
+	pll_flag = rk_pll_flag();
+	printk("CLKDATA_MSG: pll_flag = 0x%02x\n", pll_flag);
+
 	if (0 != pll_flag) {
 		CLKDATA_DBG("CPLL=%lu, GPLL=%lu;CPLL CAN NOT LOCK, SET CPLL BY PASS, USE GPLL REPLACE CPLL\n",
 				cpll, gpll);

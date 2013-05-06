@@ -12,25 +12,14 @@
 #include <linux/spinlock.h>
 #include <plat/efuse.h>
 
-/* eFuse controller register */
-#define EFUSE_A_SHIFT		(6)
-#define EFUSE_A_MASK		(0xFF)
-//#define EFUSE_PD		(1 << 5)
-//#define EFUSE_PS		(1 << 4)
-#define EFUSE_PGENB		(1 << 3) //active low
-#define EFUSE_LOAD		(1 << 2)
-#define EFUSE_STROBE		(1 << 1)
-#define EFUSE_CSB		(1 << 0) //active low
-
-#define REG_EFUSE_CTRL		(0x0000)
-#define REG_EFUSE_DOUT		(0x0004)
-
 #if defined(CONFIG_ARCH_RK3188)
 #define efuse_readl(offset)		readl_relaxed(RK30_EFUSE_BASE + offset)
 #define efuse_writel(val, offset)	writel_relaxed(val, RK30_EFUSE_BASE + offset)
 #endif
 
-int efuse_readregs(u32 addr, u32 length, u8 *buf)
+u8 efuse_buf[32 + 1] = {0, 0};
+
+static int efuse_readregs(u32 addr, u32 length, u8 *buf)
 {
 #ifndef efuse_readl
 	return 0;
@@ -66,4 +55,19 @@ int efuse_readregs(u32 addr, u32 length, u8 *buf)
 	spin_unlock_irqrestore(&efuse_lock, flags);
 	return ret;
 #endif
+}
+
+void rk_efuse_init(void)
+{
+	efuse_readregs(0x0, 32, efuse_buf);
+}
+
+int rk_pll_flag(void)
+{
+	return efuse_buf[22] & 0x3;
+}
+
+int rk_leakage_val(void)
+{
+	return (efuse_buf[22] >> 4) & 0x0f;
 }
