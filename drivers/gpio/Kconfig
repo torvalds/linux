@@ -297,11 +297,20 @@ config GPIO_GE_FPGA
 
 config GPIO_LYNXPOINT
 	bool "Intel Lynxpoint GPIO support"
-	depends on ACPI
+	depends on ACPI && X86
 	select IRQ_DOMAIN
 	help
 	  driver for GPIO functionality on Intel Lynxpoint PCH chipset
 	  Requires ACPI device enumeration code to set up a platform device.
+
+config GPIO_GRGPIO
+	tristate "Aeroflex Gaisler GRGPIO support"
+	depends on OF
+	select GPIO_GENERIC
+	select IRQ_DOMAIN
+	help
+	  Select this to support Aeroflex Gaisler GRGPIO cores from the GRLIB
+	  VHDL IP core library.
 
 comment "I2C GPIO expanders:"
 

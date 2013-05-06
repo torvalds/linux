@@ -199,6 +199,8 @@ the device to the driver. For example:
 	{
 		Name (SBUF, ResourceTemplate()
 		{
+			...
+			// Used to power on/off the device
 			GpioIo (Exclusive, PullDefault, 0x0000, 0x0000,
 				IoRestrictionOutputOnly, "\\_SB.PCI0.GPI0",
 				0x00, ResourceConsumer,,)
@@ -206,10 +208,20 @@ the device to the driver. For example:
 				// Pin List
 				0x0055
 			}
+
+			// Interrupt for the device
+			GpioInt (Edge, ActiveHigh, ExclusiveAndWake, PullNone,
+				 0x0000, "\\_SB.PCI0.GPI0", 0x00, ResourceConsumer,,)
+			{
+				// Pin list
+				0x0058
+			}
+
 			...
 
-			Return (SBUF)
 		}
+
+		Return (SBUF)
 	}
 
 These GPIO numbers are controller relative and path "\\_SB.PCI0.GPI0"
@@ -219,6 +231,24 @@ we need to translate them to the Linux GPIO numbers.
 The driver can do this by including <linux/acpi_gpio.h> and then calling
 acpi_get_gpio(path, gpio). This will return the Linux GPIO number or
 negative errno if there was no translation found.
+
+In a simple case of just getting the Linux GPIO number from device
+resources one can use acpi_get_gpio_by_index() helper function. It takes
+pointer to the device and index of the GpioIo/GpioInt descriptor in the
+device resources list. For example:
+
+	int gpio_irq, gpio_power;
+	int ret;
+
+	gpio_irq = acpi_get_gpio_by_index(dev, 1, NULL);
+	if (gpio_irq < 0)
+		/* handle error */
+
+	gpio_power = acpi_get_gpio_by_index(dev, 0, NULL);
+	if (gpio_power < 0)
+		/* handle error */
+
+	/* Now we can use the GPIO numbers */
 
 Other GpioIo parameters must be converted first by the driver to be
 suitable to the gpiolib before passing them.
