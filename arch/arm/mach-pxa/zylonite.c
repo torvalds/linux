@@ -263,7 +263,7 @@ static inline void zylonite_init_mmc(void) {}
 #endif
 
 #if defined(CONFIG_KEYBOARD_PXA27x) || defined(CONFIG_KEYBOARD_PXA27x_MODULE)
-static unsigned int zylonite_matrix_key_map[] = {
+static const unsigned int zylonite_matrix_key_map[] = {
 	/* KEY(row, col, key_code) */
 	KEY(0, 0, KEY_A), KEY(0, 1, KEY_B), KEY(0, 2, KEY_C), KEY(0, 5, KEY_D),
 	KEY(1, 0, KEY_E), KEY(1, 1, KEY_F), KEY(1, 2, KEY_G), KEY(1, 5, KEY_H),
@@ -306,11 +306,15 @@ static unsigned int zylonite_matrix_key_map[] = {
 	KEY(0, 3, KEY_AUX),	/* contact */
 };
 
+static struct matrix_keymap_data zylonite_matrix_keymap_data = {
+	.keymap			= zylonite_matrix_key_map,
+	.keymap_size		= ARRAY_SIZE(zylonite_matrix_key_map),
+};
+
 static struct pxa27x_keypad_platform_data zylonite_keypad_info = {
 	.matrix_key_rows	= 8,
 	.matrix_key_cols	= 8,
-	.matrix_key_map		= zylonite_matrix_key_map,
-	.matrix_key_map_size	= ARRAY_SIZE(zylonite_matrix_key_map),
+	.matrix_keymap_data	= &zylonite_matrix_keymap_data,
 
 	.enable_rotary0		= 1,
 	.rotary0_up_key		= KEY_UP,

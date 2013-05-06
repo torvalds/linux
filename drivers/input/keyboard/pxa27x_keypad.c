@@ -118,25 +118,30 @@ struct pxa27x_keypad {
 	unsigned int direct_key_mask;
 };
 
-static void pxa27x_keypad_build_keycode(struct pxa27x_keypad *keypad)
+static int pxa27x_keypad_build_keycode(struct pxa27x_keypad *keypad)
 {
 	struct pxa27x_keypad_platform_data *pdata = keypad->pdata;
 	struct input_dev *input_dev = keypad->input_dev;
+	const struct matrix_keymap_data *keymap_data =
+				pdata ? pdata->matrix_keymap_data : NULL;
 	unsigned short keycode;
 	int i;
+	int error;
 
-	for (i = 0; i < pdata->matrix_key_map_size; i++) {
-		unsigned int key = pdata->matrix_key_map[i];
-		unsigned int row = KEY_ROW(key);
-		unsigned int col = KEY_COL(key);
-		unsigned int scancode = MATRIX_SCAN_CODE(row, col,
-							 MATRIX_ROW_SHIFT);
+	error = matrix_keypad_build_keymap(keymap_data, NULL,
+					   pdata->matrix_key_rows,
+					   pdata->matrix_key_cols,
+					   keypad->keycodes, input_dev);
+	if (error)
+		return error;
 
-		keycode = KEY_VAL(key);
-		keypad->keycodes[scancode] = keycode;
-		__set_bit(keycode, input_dev->keybit);
-	}
+	/*
+	 * The keycodes may not only include matrix keys but also the direct
+	 * or rotary keys.
+	 */
+	input_dev->keycodemax = ARRAY_SIZE(keypad->keycodes);
 
+	/* For direct keys. */
 	for (i = 0; i < pdata->direct_key_num; i++) {
 		keycode = pdata->direct_key_map[i];
 		keypad->keycodes[MAX_MATRIX_KEY_NUM + i] = keycode;
@@ -178,6 +183,8 @@ static void pxa27x_keypad_build_keycode(struct pxa27x_keypad *keypad)
 	}
 
 	__clear_bit(KEY_RESERVED, input_dev->keybit);
+
+	return 0;
 }
 
 static void pxa27x_keypad_scan_matrix(struct pxa27x_keypad *keypad)
@@ -555,7 +562,11 @@ static int pxa27x_keypad_probe(struct platform_device *pdev)
 	input_dev->evbit[0] = BIT_MASK(EV_KEY) | BIT_MASK(EV_REP);
 	input_set_capability(input_dev, EV_MSC, MSC_SCAN);
 
-	pxa27x_keypad_build_keycode(keypad);
+	error = pxa27x_keypad_build_keycode(keypad);
+	if (error) {
+		dev_err(&pdev->dev, "failed to build keycode\n");
+		goto failed_put_clk;
+	}
 
 	if ((pdata->enable_rotary0 && keypad->rotary_rel_code[0] != -1) ||
 	    (pdata->enable_rotary1 && keypad->rotary_rel_code[1] != -1)) {
