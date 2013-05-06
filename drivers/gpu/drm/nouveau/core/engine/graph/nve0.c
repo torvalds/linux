@@ -709,6 +709,7 @@ nve0_graph_init_units(struct nvc0_graph_priv *priv)
 	nv_wr32(priv, 0x409ffc, 0x00000000);
 	nv_wr32(priv, 0x409c14, 0x00003e3e);
 	switch (nv_device(priv)->chipset) {
+	case 0xe7:
 	case 0xe6:
 		nv_wr32(priv, 0x409c24, 0x000f0001);
 		break;
@@ -723,6 +724,7 @@ nve0_graph_init_units(struct nvc0_graph_priv *priv)
 	nv_wr32(priv, 0x404490, 0xc0000000);
 	nv_wr32(priv, 0x406018, 0xc0000000);
 	switch (nv_device(priv)->chipset) {
+	case 0xe7:
 	case 0xe6:
 		nv_wr32(priv, 0x407020, 0x40000000);
 		break;
@@ -967,6 +969,7 @@ nve0_graph_init(struct nouveau_object *object)
 	nve0_graph_init_regs(priv);
 
 	switch (nv_device(priv)->chipset) {
+	case 0xe7:
 	case 0xe6:
 		nve0_graph_init_unk40xx(priv);
 		nve0_graph_init_unk44xx(priv);
