@@ -907,6 +907,10 @@ set_rcvbuf:
 		sock_valbool_flag(sk, SOCK_NOFCS, valbool);
 		break;
 
+	case SO_SELECT_ERR_QUEUE:
+		sock_valbool_flag(sk, SOCK_SELECT_ERR_QUEUE, valbool);
+		break;
+
 	default:
 		ret = -ENOPROTOOPT;
 		break;
@@ -1160,6 +1164,10 @@ int sock_getsockopt(struct socket *sock, int level, int optname,
 		v.val = sock_flag(sk, SOCK_FILTER_LOCKED);
 		break;
 
+	case SO_SELECT_ERR_QUEUE:
+		v.val = sock_flag(sk, SOCK_SELECT_ERR_QUEUE);
+		break;
+
 	default:
 		return -ENOPROTOOPT;
 	}
@@ -1298,13 +1306,12 @@ static void sk_prot_free(struct proto *prot, struct sock *sk)
 	module_put(owner);
 }
 
-#ifdef CONFIG_CGROUPS
 #if IS_ENABLED(CONFIG_NET_CLS_CGROUP)
-void sock_update_classid(struct sock *sk, struct task_struct *task)
+void sock_update_classid(struct sock *sk)
 {
 	u32 classid;
 
-	classid = task_cls_classid(task);
+	classid = task_cls_classid(current);
 	if (classid != sk->sk_classid)
 		sk->sk_classid = classid;
 }
@@ -1312,15 +1319,14 @@ EXPORT_SYMBOL(sock_update_classid);
 #endif
 
 #if IS_ENABLED(CONFIG_NETPRIO_CGROUP)
-void sock_update_netprioidx(struct sock *sk, struct task_struct *task)
+void sock_update_netprioidx(struct sock *sk)
 {
 	if (in_interrupt())
 		return;
 
-	sk->sk_cgrp_prioidx = task_netprioidx(task);
+	sk->sk_cgrp_prioidx = task_netprioidx(current);
 }
 EXPORT_SYMBOL_GPL(sock_update_netprioidx);
-#endif
 #endif
 
 /**
@@ -1347,8 +1353,8 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
 		sock_net_set(sk, get_net(net));
 		atomic_set(&sk->sk_wmem_alloc, 1);
 
-		sock_update_classid(sk, current);
-		sock_update_netprioidx(sk, current);
+		sock_update_classid(sk);
+		sock_update_netprioidx(sk);
 	}
 
 	return sk;

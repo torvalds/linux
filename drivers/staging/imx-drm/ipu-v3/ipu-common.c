@@ -25,8 +25,8 @@
 #include <linux/clk.h>
 #include <linux/list.h>
 #include <linux/irq.h>
+#include <linux/irqchip/chained_irq.h>
 #include <linux/of_device.h>
-#include <asm/mach/irq.h>
 
 #include "imx-ipu-v3.h"
 #include "ipu-prv.h"
@@ -225,7 +225,8 @@ int ipu_cpmem_set_format_passthrough(struct ipu_ch_param __iomem *p,
 }
 EXPORT_SYMBOL_GPL(ipu_cpmem_set_format_passthrough);
 
-void ipu_cpmem_set_yuv_interleaved(struct ipu_ch_param *p, u32 pixel_format)
+void ipu_cpmem_set_yuv_interleaved(struct ipu_ch_param __iomem *p,
+				   u32 pixel_format)
 {
 	switch (pixel_format) {
 	case V4L2_PIX_FMT_UYVY:

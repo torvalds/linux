@@ -441,8 +441,7 @@ static int isdn_divert_icall(isdn_ctrl *ic)
 
 		switch (dv->rule.action) {
 		case DEFLECT_IGNORE:
-			return (0);
-			break;
+			return 0;
 
 		case DEFLECT_ALERT:
 		case DEFLECT_PROCEED:
@@ -510,10 +509,9 @@ static int isdn_divert_icall(isdn_ctrl *ic)
 			break;
 
 		default:
-			return (0); /* ignore call */
-			break;
+			return 0; /* ignore call */
 		} /* switch action */
-		break;
+		break; /* will break the 'for' looping */
 	} /* scan_table */
 
 	if (cs) {

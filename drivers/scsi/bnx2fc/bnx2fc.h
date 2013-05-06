@@ -88,9 +88,6 @@
 
 #define BNX2FC_MAX_NPIV		256
 
-#define BNX2FC_MAX_OUTSTANDING_CMNDS	2048
-#define BNX2FC_CAN_QUEUE		BNX2FC_MAX_OUTSTANDING_CMNDS
-#define BNX2FC_ELSTM_XIDS		BNX2FC_CAN_QUEUE
 #define BNX2FC_MIN_PAYLOAD		256
 #define BNX2FC_MAX_PAYLOAD		2048
 #define BNX2FC_MFS			\
@@ -108,11 +105,8 @@
 #define BNX2FC_CONFQ_WQE_SIZE		(sizeof(struct fcoe_confqe))
 #define BNX2FC_5771X_DB_PAGE_SIZE	128
 
-#define BNX2FC_MAX_TASKS		\
-			     (BNX2FC_MAX_OUTSTANDING_CMNDS + BNX2FC_ELSTM_XIDS)
 #define BNX2FC_TASK_SIZE		128
 #define	BNX2FC_TASKS_PER_PAGE		(PAGE_SIZE/BNX2FC_TASK_SIZE)
-#define BNX2FC_TASK_CTX_ARR_SZ		(BNX2FC_MAX_TASKS/BNX2FC_TASKS_PER_PAGE)
 
 #define BNX2FC_MAX_ROWS_IN_HASH_TBL	8
 #define BNX2FC_HASH_TBL_CHUNK_SIZE	(16 * 1024)
@@ -125,12 +119,9 @@
 #define BNX2FC_WRITE			(1 << 0)
 
 #define BNX2FC_MIN_XID			0
-#define BNX2FC_MAX_XID			\
-			(BNX2FC_MAX_OUTSTANDING_CMNDS + BNX2FC_ELSTM_XIDS - 1)
 #define FCOE_MAX_NUM_XIDS		0x2000
-#define FCOE_MIN_XID			(BNX2FC_MAX_XID + 1)
-#define FCOE_MAX_XID			(FCOE_MIN_XID + FCOE_MAX_NUM_XIDS - 1)
-#define FCOE_XIDS_PER_CPU		(FCOE_MIN_XID + (512 * nr_cpu_ids) - 1)
+#define FCOE_MAX_XID_OFFSET		(FCOE_MAX_NUM_XIDS - 1)
+#define FCOE_XIDS_PER_CPU_OFFSET	((512 * nr_cpu_ids) - 1)
 #define BNX2FC_MAX_LUN			0xFFFF
 #define BNX2FC_MAX_FCP_TGT		256
 #define BNX2FC_MAX_CMD_LEN		16
@@ -206,6 +197,13 @@ struct bnx2fc_hba {
 		#define BNX2FC_FLAG_FW_INIT_DONE	0
 		#define BNX2FC_FLAG_DESTROY_CMPL	1
 	u32 next_conn_id;
+
+	/* xid resources */
+	u16 max_xid;
+	u32 max_tasks;
+	u32 max_outstanding_cmds;
+	u32 elstm_xids;
+
 	struct fcoe_task_ctx_entry **task_ctx;
 	dma_addr_t *task_ctx_dma;
 	struct regpair *task_ctx_bd_tbl;
@@ -504,8 +502,7 @@ int bnx2fc_setup_task_ctx(struct bnx2fc_hba *hba);
 void bnx2fc_free_task_ctx(struct bnx2fc_hba *hba);
 int bnx2fc_setup_fw_resc(struct bnx2fc_hba *hba);
 void bnx2fc_free_fw_resc(struct bnx2fc_hba *hba);
-struct bnx2fc_cmd_mgr *bnx2fc_cmd_mgr_alloc(struct bnx2fc_hba *hba,
-						u16 min_xid, u16 max_xid);
+struct bnx2fc_cmd_mgr *bnx2fc_cmd_mgr_alloc(struct bnx2fc_hba *hba);
 void bnx2fc_cmd_mgr_free(struct bnx2fc_cmd_mgr *cmgr);
 void bnx2fc_get_link_state(struct bnx2fc_hba *hba);
 char *bnx2fc_get_next_rqe(struct bnx2fc_rport *tgt, u8 num_items);

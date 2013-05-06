@@ -692,7 +692,7 @@ lpfc_do_offline(struct lpfc_hba *phba, uint32_t type)
 	 */
 	for (i = 0; i < psli->num_rings; i++) {
 		pring = &psli->ring[i];
-		while (pring->txcmplq_cnt) {
+		while (!list_empty(&pring->txcmplq)) {
 			msleep(10);
 			if (cnt++ > 500) {  /* 5 secs */
 				lpfc_printf_log(phba,
@@ -2302,11 +2302,17 @@ static DEVICE_ATTR(lpfc_enable_npiv, S_IRUGO, lpfc_enable_npiv_show, NULL);
 LPFC_ATTR_R(fcf_failover_policy, 1, 1, 2,
 	"FCF Fast failover=1 Priority failover=2");
 
-int lpfc_enable_rrq;
+int lpfc_enable_rrq = 2;
 module_param(lpfc_enable_rrq, int, S_IRUGO);
 MODULE_PARM_DESC(lpfc_enable_rrq, "Enable RRQ functionality");
 lpfc_param_show(enable_rrq);
-lpfc_param_init(enable_rrq, 0, 0, 1);
+/*
+# lpfc_enable_rrq: Track XRI/OXID reuse after IO failures
+#	0x0 = disabled, XRI/OXID use not tracked.
+#	0x1 = XRI/OXID reuse is timed with ratov, RRQ sent.
+#	0x2 = XRI/OXID reuse is timed with ratov, No RRQ sent.
+*/
+lpfc_param_init(enable_rrq, 2, 0, 2);
 static DEVICE_ATTR(lpfc_enable_rrq, S_IRUGO, lpfc_enable_rrq_show, NULL);
 
 /*

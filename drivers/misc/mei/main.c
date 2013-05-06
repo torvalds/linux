@@ -48,7 +48,7 @@
  *
  * @inode: pointer to inode structure
  * @file: pointer to file structure
- *
+ e
  * returns 0 on success, <0 on error
  */
 static int mei_open(struct inode *inode, struct file *file)
@@ -244,7 +244,7 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 		goto out;
 	}
 
-	err = mei_cl_read_start(cl);
+	err = mei_cl_read_start(cl, length);
 	if (err && err != -EBUSY) {
 		dev_dbg(&dev->pdev->dev,
 			"mei start read failure with status = %d\n", err);
@@ -292,9 +292,8 @@ static ssize_t mei_read(struct file *file, char __user *ubuf,
 	}
 	/* now copy the data to user space */
 copy_buffer:
-	dev_dbg(&dev->pdev->dev, "cb->response_buffer size - %d\n",
-	    cb->response_buffer.size);
-	dev_dbg(&dev->pdev->dev, "cb->buf_idx - %lu\n", cb->buf_idx);
+	dev_dbg(&dev->pdev->dev, "buf.size = %d buf.idx= %ld\n",
+	    cb->response_buffer.size, cb->buf_idx);
 	if (length == 0 || ubuf == NULL || *offset > cb->buf_idx) {
 		rets = -EMSGSIZE;
 		goto free;
@@ -342,11 +341,10 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 {
 	struct mei_cl *cl = file->private_data;
 	struct mei_cl_cb *write_cb = NULL;
-	struct mei_msg_hdr mei_hdr;
 	struct mei_device *dev;
 	unsigned long timeout = 0;
 	int rets;
-	int i;
+	int id;
 
 	if (WARN_ON(!cl || !cl->dev))
 		return -ENODEV;
@@ -357,24 +355,24 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 
 	if (dev->dev_state != MEI_DEV_ENABLED) {
 		rets = -ENODEV;
-		goto err;
+		goto out;
 	}
 
-	i = mei_me_cl_by_id(dev, cl->me_client_id);
-	if (i < 0) {
+	id = mei_me_cl_by_id(dev, cl->me_client_id);
+	if (id < 0) {
 		rets = -ENODEV;
-		goto err;
+		goto out;
 	}
-	if (length > dev->me_clients[i].props.max_msg_length || length <= 0) {
+	if (length > dev->me_clients[id].props.max_msg_length || length <= 0) {
 		rets = -EMSGSIZE;
-		goto err;
+		goto out;
 	}
 
 	if (cl->state != MEI_FILE_CONNECTED) {
-		rets = -ENODEV;
 		dev_err(&dev->pdev->dev, "host client = %d,  is not connected to ME client = %d",
 			cl->host_client_id, cl->me_client_id);
-		goto err;
+		rets = -ENODEV;
+		goto out;
 	}
 	if (cl == &dev->iamthif_cl) {
 		write_cb = mei_amthif_find_read_list_entry(dev, file);
@@ -412,17 +410,15 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 	if (!write_cb) {
 		dev_err(&dev->pdev->dev, "write cb allocation failed\n");
 		rets = -ENOMEM;
-		goto err;
+		goto out;
 	}
 	rets = mei_io_cb_alloc_req_buf(write_cb, length);
 	if (rets)
-		goto err;
-
-	dev_dbg(&dev->pdev->dev, "cb request size = %zd\n", length);
+		goto out;
 
 	rets = copy_from_user(write_cb->request_buffer.data, ubuf, length);
 	if (rets)
-		goto err;
+		goto out;
 
 	cl->sm_state = 0;
 	if (length == 4 &&
@@ -440,65 +436,17 @@ static ssize_t mei_write(struct file *file, const char __user *ubuf,
 		if (rets) {
 			dev_err(&dev->pdev->dev,
 				"amthif write failed with status = %d\n", rets);
-			goto err;
+			goto out;
 		}
 		mutex_unlock(&dev->device_lock);
 		return length;
 	}
 
-	write_cb->fop_type = MEI_FOP_WRITE;
-
-	dev_dbg(&dev->pdev->dev, "host client = %d, ME client = %d\n",
-	    cl->host_client_id, cl->me_client_id);
-	rets = mei_cl_flow_ctrl_creds(cl);
-	if (rets < 0)
-		goto err;
-
-	if (rets == 0 || !dev->hbuf_is_ready) {
-		write_cb->buf_idx = 0;
-		mei_hdr.msg_complete = 0;
-		cl->writing_state = MEI_WRITING;
-		goto out;
-	}
-
-	dev->hbuf_is_ready = false;
-	if (length >  mei_hbuf_max_len(dev)) {
-		mei_hdr.length = mei_hbuf_max_len(dev);
-		mei_hdr.msg_complete = 0;
-	} else {
-		mei_hdr.length = length;
-		mei_hdr.msg_complete = 1;
-	}
-	mei_hdr.host_addr = cl->host_client_id;
-	mei_hdr.me_addr = cl->me_client_id;
-	mei_hdr.reserved = 0;
-
-	dev_dbg(&dev->pdev->dev, "write " MEI_HDR_FMT "\n",
-		MEI_HDR_PRM(&mei_hdr));
-	if (mei_write_message(dev, &mei_hdr, write_cb->request_buffer.data)) {
-		rets = -ENODEV;
-		goto err;
-	}
-	cl->writing_state = MEI_WRITING;
-	write_cb->buf_idx = mei_hdr.length;
-
+	rets = mei_cl_write(cl, write_cb, false);
 out:
-	if (mei_hdr.msg_complete) {
-		if (mei_cl_flow_ctrl_reduce(cl)) {
-			rets = -ENODEV;
-			goto err;
-		}
-		list_add_tail(&write_cb->list, &dev->write_waiting_list.list);
-	} else {
-		list_add_tail(&write_cb->list, &dev->write_list.list);
-	}
-
 	mutex_unlock(&dev->device_lock);
-	return length;
-
-err:
-	mutex_unlock(&dev->device_lock);
-	mei_io_cb_free(write_cb);
+	if (rets < 0)
+		mei_io_cb_free(write_cb);
 	return rets;
 }
 
@@ -753,17 +701,44 @@ static struct miscdevice  mei_misc_device = {
 		.minor = MISC_DYNAMIC_MINOR,
 };
 
-int mei_register(struct device *dev)
-{
-	mei_misc_device.parent = dev;
-	return misc_register(&mei_misc_device);
-}
 
-void mei_deregister(void)
+int mei_register(struct mei_device *dev)
 {
+	int ret;
+	mei_misc_device.parent = &dev->pdev->dev;
+	ret = misc_register(&mei_misc_device);
+	if (ret)
+		return ret;
+
+	if (mei_dbgfs_register(dev, mei_misc_device.name))
+		dev_err(&dev->pdev->dev, "cannot register debugfs\n");
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mei_register);
+
+void mei_deregister(struct mei_device *dev)
+{
+	mei_dbgfs_deregister(dev);
 	misc_deregister(&mei_misc_device);
 	mei_misc_device.parent = NULL;
 }
+EXPORT_SYMBOL_GPL(mei_deregister);
 
+static int __init mei_init(void)
+{
+	return mei_cl_bus_init();
+}
+
+static void __exit mei_exit(void)
+{
+	mei_cl_bus_exit();
+}
+
+module_init(mei_init);
+module_exit(mei_exit);
+
+MODULE_AUTHOR("Intel Corporation");
+MODULE_DESCRIPTION("Intel(R) Management Engine Interface");
 MODULE_LICENSE("GPL v2");
 

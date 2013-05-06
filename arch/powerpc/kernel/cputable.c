@@ -74,7 +74,9 @@ extern void __restore_cpu_a2(void);
 #endif /* CONFIG_PPC64 */
 #if defined(CONFIG_E500)
 extern void __setup_cpu_e5500(unsigned long offset, struct cpu_spec* spec);
+extern void __setup_cpu_e6500(unsigned long offset, struct cpu_spec* spec);
 extern void __restore_cpu_e5500(void);
+extern void __restore_cpu_e6500(void);
 #endif /* CONFIG_E500 */
 
 /* This table only contains "desktop" CPUs, it need to be filled with embedded
@@ -2065,7 +2067,8 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.pvr_value		= 0x80400000,
 		.cpu_name		= "e6500",
 		.cpu_features		= CPU_FTRS_E6500,
-		.cpu_user_features	= COMMON_USER_BOOKE | PPC_FEATURE_HAS_FPU,
+		.cpu_user_features	= COMMON_USER_BOOKE | PPC_FEATURE_HAS_FPU |
+			PPC_FEATURE_HAS_ALTIVEC_COMP,
 		.mmu_features		= MMU_FTR_TYPE_FSL_E | MMU_FTR_BIG_PHYS |
 			MMU_FTR_USE_TLBILX,
 		.icache_bsize		= 64,
@@ -2073,9 +2076,9 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.num_pmcs		= 4,
 		.oprofile_cpu_type	= "ppc/e6500",
 		.oprofile_type		= PPC_OPROFILE_FSL_EMB,
-		.cpu_setup		= __setup_cpu_e5500,
+		.cpu_setup		= __setup_cpu_e6500,
 #ifndef CONFIG_PPC32
-		.cpu_restore		= __restore_cpu_e5500,
+		.cpu_restore		= __restore_cpu_e6500,
 #endif
 		.machine_check		= machine_check_e500mc,
 		.platform		= "ppce6500",

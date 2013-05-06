@@ -1065,8 +1065,14 @@ int snd_hda_add_pincfg(struct hda_codec *codec, struct snd_array *list,
 {
 	struct hda_pincfg *pin;
 
+	/* the check below may be invalid when pins are added by a fixup
+	 * dynamically (e.g. via snd_hda_codec_update_widgets()), so disabled
+	 * for now
+	 */
+	/*
 	if (get_wcaps_type(get_wcaps(codec, nid)) != AC_WID_PIN)
 		return -EINVAL;
+	*/
 
 	pin = look_up_pincfg(codec, list, nid);
 	if (!pin) {
@@ -1300,8 +1306,6 @@ static bool snd_hda_codec_get_supported_ps(struct hda_codec *codec,
 
 static unsigned int hda_set_power_state(struct hda_codec *codec,
 				unsigned int power_state);
-static unsigned int default_power_filter(struct hda_codec *codec, hda_nid_t nid,
-					 unsigned int power_state);
 
 /**
  * snd_hda_codec_new - create a HDA codec
@@ -1422,7 +1426,6 @@ int snd_hda_codec_new(struct hda_bus *bus,
 #endif
 	codec->epss = snd_hda_codec_get_supported_ps(codec, fg,
 					AC_PWRST_EPSS);
-	codec->power_filter = default_power_filter;
 
 	/* power-up all before initialization */
 	hda_set_power_state(codec, AC_PWRST_D0);
@@ -2787,6 +2790,11 @@ void snd_hda_sync_vmaster_hook(struct hda_vmaster_mute_hook *hook)
 {
 	if (!hook->hook || !hook->codec)
 		return;
+	/* don't call vmaster hook in the destructor since it might have
+	 * been already destroyed
+	 */
+	if (hook->codec->bus->shutdown)
+		return;
 	switch (hook->mute_mode) {
 	case HDA_VMUTE_FOLLOW_MASTER:
 		snd_ctl_sync_vmaster_hook(hook->sw_kctl);
@@ -3770,8 +3778,9 @@ static unsigned int hda_sync_power_state(struct hda_codec *codec,
 }
 
 /* don't power down the widget if it controls eapd and EAPD_BTLENABLE is set */
-static unsigned int default_power_filter(struct hda_codec *codec, hda_nid_t nid,
-					 unsigned int power_state)
+unsigned int snd_hda_codec_eapd_power_filter(struct hda_codec *codec,
+					     hda_nid_t nid,
+					     unsigned int power_state)
 {
 	if (power_state == AC_PWRST_D3 &&
 	    get_wcaps_type(get_wcaps(codec, nid)) == AC_WID_PIN &&
@@ -3783,6 +3792,7 @@ static unsigned int default_power_filter(struct hda_codec *codec, hda_nid_t nid,
 	}
 	return power_state;
 }
+EXPORT_SYMBOL_HDA(snd_hda_codec_eapd_power_filter);
 
 /*
  * set power state of the codec, and return the power state
@@ -3827,8 +3837,8 @@ static void sync_power_up_states(struct hda_codec *codec)
 	hda_nid_t nid = codec->start_nid;
 	int i;
 
-	/* don't care if no or standard filter is used */
-	if (!codec->power_filter || codec->power_filter == default_power_filter)
+	/* don't care if no filter is used */
+	if (!codec->power_filter)
 		return;
 
 	for (i = 0; i < codec->num_nodes; i++, nid++) {
@@ -5546,14 +5556,12 @@ void *snd_array_new(struct snd_array *array)
 	if (array->used >= array->alloced) {
 		int num = array->alloced + array->alloc_align;
 		int size = (num + 1) * array->elem_size;
-		int oldsize = array->alloced * array->elem_size;
 		void *nlist;
 		if (snd_BUG_ON(num >= 4096))
 			return NULL;
-		nlist = krealloc(array->list, size, GFP_KERNEL);
+		nlist = krealloc(array->list, size, GFP_KERNEL | __GFP_ZERO);
 		if (!nlist)
 			return NULL;
-		memset(nlist + oldsize, 0, size - oldsize);
 		array->list = nlist;
 		array->alloced = num;
 	}

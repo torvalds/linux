@@ -43,18 +43,12 @@
 #include <linux/rculist.h>
 #include <linux/poll.h>
 #include <linux/irq_work.h>
+#include <linux/utsname.h>
 
 #include <asm/uaccess.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/printk.h>
-
-/*
- * Architectures can override it:
- */
-void asmlinkage __attribute__((weak)) early_printk(const char *fmt, ...)
-{
-}
 
 /* printk's without a loglevel use this.. */
 #define DEFAULT_MESSAGE_LOGLEVEL CONFIG_DEFAULT_MESSAGE_LOGLEVEL
@@ -608,7 +602,8 @@ static unsigned int devkmsg_poll(struct file *file, poll_table *wait)
 		/* return error when data has vanished underneath us */
 		if (user->seq < log_first_seq)
 			ret = POLLIN|POLLRDNORM|POLLERR|POLLPRI;
-		ret = POLLIN|POLLRDNORM;
+		else
+			ret = POLLIN|POLLRDNORM;
 	}
 	raw_spin_unlock_irq(&logbuf_lock);
 
@@ -1265,7 +1260,7 @@ static void call_console_drivers(int level, const char *text, size_t len)
 {
 	struct console *con;
 
-	trace_console(text, 0, len, len);
+	trace_console(text, len);
 
 	if (level >= console_loglevel && !ignore_loglevel)
 		return;
@@ -1722,6 +1717,29 @@ static size_t msg_print_text(const struct log *msg, enum log_flags prev,
 static size_t cont_print_text(char *text, size_t size) { return 0; }
 
 #endif /* CONFIG_PRINTK */
+
+#ifdef CONFIG_EARLY_PRINTK
+struct console *early_console;
+
+void early_vprintk(const char *fmt, va_list ap)
+{
+	if (early_console) {
+		char buf[512];
+		int n = vscnprintf(buf, sizeof(buf), fmt, ap);
+
+		early_console->write(early_console, buf, n);
+	}
+}
+
+asmlinkage void early_printk(const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	early_vprintk(fmt, ap);
+	va_end(ap);
+}
+#endif
 
 static int __add_preferred_console(char *name, int idx, char *options,
 				   char *brl_options)
@@ -2832,4 +2850,65 @@ void kmsg_dump_rewind(struct kmsg_dumper *dumper)
 	raw_spin_unlock_irqrestore(&logbuf_lock, flags);
 }
 EXPORT_SYMBOL_GPL(kmsg_dump_rewind);
+
+static char dump_stack_arch_desc_str[128];
+
+/**
+ * dump_stack_set_arch_desc - set arch-specific str to show with task dumps
+ * @fmt: printf-style format string
+ * @...: arguments for the format string
+ *
+ * The configured string will be printed right after utsname during task
+ * dumps.  Usually used to add arch-specific system identifiers.  If an
+ * arch wants to make use of such an ID string, it should initialize this
+ * as soon as possible during boot.
+ */
+void __init dump_stack_set_arch_desc(const char *fmt, ...)
+{
+	va_list args;
+
+	va_start(args, fmt);
+	vsnprintf(dump_stack_arch_desc_str, sizeof(dump_stack_arch_desc_str),
+		  fmt, args);
+	va_end(args);
+}
+
+/**
+ * dump_stack_print_info - print generic debug info for dump_stack()
+ * @log_lvl: log level
+ *
+ * Arch-specific dump_stack() implementations can use this function to
+ * print out the same debug information as the generic dump_stack().
+ */
+void dump_stack_print_info(const char *log_lvl)
+{
+	printk("%sCPU: %d PID: %d Comm: %.20s %s %s %.*s\n",
+	       log_lvl, raw_smp_processor_id(), current->pid, current->comm,
+	       print_tainted(), init_utsname()->release,
+	       (int)strcspn(init_utsname()->version, " "),
+	       init_utsname()->version);
+
+	if (dump_stack_arch_desc_str[0] != '\0')
+		printk("%sHardware name: %s\n",
+		       log_lvl, dump_stack_arch_desc_str);
+
+	print_worker_info(log_lvl, current);
+}
+
+/**
+ * show_regs_print_info - print generic debug info for show_regs()
+ * @log_lvl: log level
+ *
+ * show_regs() implementations can use this function to print out generic
+ * debug information.
+ */
+void show_regs_print_info(const char *log_lvl)
+{
+	dump_stack_print_info(log_lvl);
+
+	printk("%stask: %p ti: %p task.ti: %p\n",
+	       log_lvl, current, current_thread_info(),
+	       task_thread_info(current));
+}
+
 #endif

@@ -27,11 +27,6 @@
 
 static const struct gre_protocol __rcu *gre_proto[GREPROTO_MAX] __read_mostly;
 static DEFINE_SPINLOCK(gre_proto_lock);
-struct gre_base_hdr {
-	__be16 flags;
-	__be16 protocol;
-};
-#define GRE_HEADER_SECTION 4
 
 int gre_add_protocol(const struct gre_protocol *proto, u8 version)
 {
@@ -126,6 +121,7 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 	int ghl = GRE_HEADER_SECTION;
 	struct gre_base_hdr *greh;
 	int mac_len = skb->mac_len;
+	__be16 protocol = skb->protocol;
 	int tnl_hlen;
 	bool csum;
 
@@ -155,7 +151,7 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 
 	/* setup inner skb. */
 	if (greh->protocol == htons(ETH_P_TEB)) {
-		struct ethhdr *eth = eth_hdr(skb);
+		struct ethhdr *eth = (struct ethhdr *)skb_inner_mac_header(skb);
 		skb->protocol = eth->h_proto;
 	} else {
 		skb->protocol = greh->protocol;
@@ -204,6 +200,7 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 		skb_reset_mac_header(skb);
 		skb_set_network_header(skb, mac_len);
 		skb->mac_len = mac_len;
+		skb->protocol = protocol;
 	} while ((skb = skb->next));
 out:
 	return segs;

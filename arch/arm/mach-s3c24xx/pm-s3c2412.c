@@ -29,7 +29,7 @@
 
 #include <plat/cpu.h>
 #include <plat/pm.h>
-#include <plat/s3c2412.h>
+#include <plat/wakeup-mask.h>
 
 #include "regs-dsc.h"
 #include "s3c2412-power.h"
@@ -52,8 +52,15 @@ static int s3c2412_cpu_suspend(unsigned long arg)
 	return 1; /* Aborting suspend */
 }
 
+/* mapping of interrupts to parts of the wakeup mask */
+static struct samsung_wakeup_mask wake_irqs[] = {
+	{ .irq = IRQ_RTC,	.bit = S3C2412_PWRCFG_RTC_MASKIRQ, },
+};
+
 static void s3c2412_pm_prepare(void)
 {
+	samsung_sync_wakemask(S3C2412_PWRCFG,
+			      wake_irqs, ARRAY_SIZE(wake_irqs));
 }
 
 static int s3c2412_pm_add(struct device *dev, struct subsys_interface *sif)

@@ -63,7 +63,7 @@
 		pinmux: pinmux@e0700000 {
 			compatible = "st,spear1340-pinmux";
 			reg = <0xe0700000 0x1000>;
-			#gpio-range-cells = <2>;
+			#gpio-range-cells = <3>;
 		};
 
 		pwm: pwm@e0180000 {
@@ -127,7 +127,7 @@
 				interrupt-controller;
 				gpio-controller;
 				#gpio-cells = <2>;
-				gpio-ranges = <&pinmux 0 252>;
+				gpio-ranges = <&pinmux 0 0 252>;
 				status = "disabled";
 
 				st-plgpio,ngpio = <250>;

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2010 Broadcom Corporation
+ * Copyright (c) 2013 Hauke Mehrtens <hauke@hauke-m.de>
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -34,6 +35,7 @@
 #include "mac80211_if.h"
 #include "main.h"
 #include "debug.h"
+#include "led.h"
 
 #define N_TX_QUEUES	4 /* #tx queues on mac80211<->driver interface */
 #define BRCMS_FLUSH_TIMEOUT	500 /* msec */
@@ -334,6 +336,7 @@ static void brcms_remove(struct bcma_device *pdev)
 	struct brcms_info *wl = hw->priv;
 
 	if (wl->wlc) {
+		brcms_led_unregister(wl);
 		wiphy_rfkill_set_hw_state(wl->pub->ieee_hw->wiphy, false);
 		wiphy_rfkill_stop_polling(wl->pub->ieee_hw->wiphy);
 		ieee80211_unregister_hw(hw);
@@ -487,18 +490,26 @@ brcms_ops_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 {
 	struct brcms_info *wl = hw->priv;
 
-	/* Just STA for now */
-	if (vif->type != NL80211_IFTYPE_STATION) {
+	/* Just STA, AP and ADHOC for now */
+	if (vif->type != NL80211_IFTYPE_STATION &&
+	    vif->type != NL80211_IFTYPE_AP &&
+	    vif->type != NL80211_IFTYPE_ADHOC) {
 		brcms_err(wl->wlc->hw->d11core,
-			  "%s: Attempt to add type %d, only STA for now\n",
+			  "%s: Attempt to add type %d, only STA, AP and AdHoc for now\n",
 			  __func__, vif->type);
 		return -EOPNOTSUPP;
 	}
 
 	spin_lock_bh(&wl->lock);
-	memcpy(wl->pub->cur_etheraddr, vif->addr, sizeof(vif->addr));
 	wl->mute_tx = false;
 	brcms_c_mute(wl->wlc, false);
+	if (vif->type == NL80211_IFTYPE_STATION)
+		brcms_c_start_station(wl->wlc, vif->addr);
+	else if (vif->type == NL80211_IFTYPE_AP)
+		brcms_c_start_ap(wl->wlc, vif->addr, vif->bss_conf.bssid,
+				 vif->bss_conf.ssid, vif->bss_conf.ssid_len);
+	else if (vif->type == NL80211_IFTYPE_ADHOC)
+		brcms_c_start_adhoc(wl->wlc, vif->addr);
 	spin_unlock_bh(&wl->lock);
 
 	return 0;
@@ -546,10 +557,10 @@ static int brcms_ops_config(struct ieee80211_hw *hw, u32 changed)
 				  new_int);
 	}
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
-		if (conf->channel_type == NL80211_CHAN_HT20 ||
-		    conf->channel_type == NL80211_CHAN_NO_HT)
+		if (conf->chandef.width == NL80211_CHAN_WIDTH_20 ||
+		    conf->chandef.width == NL80211_CHAN_WIDTH_20_NOHT)
 			err = brcms_c_set_channel(wl->wlc,
-						  conf->channel->hw_value);
+						  conf->chandef.chan->hw_value);
 		else
 			err = -ENOTSUPP;
 	}
@@ -650,14 +661,43 @@ brcms_ops_bss_info_changed(struct ieee80211_hw *hw,
 		brcms_c_set_addrmatch(wl->wlc, RCM_BSSID_OFFSET, info->bssid);
 		spin_unlock_bh(&wl->lock);
 	}
-	if (changed & BSS_CHANGED_BEACON)
+	if (changed & BSS_CHANGED_SSID) {
+		/* BSSID changed, for whatever reason (IBSS and managed mode) */
+		spin_lock_bh(&wl->lock);
+		brcms_c_set_ssid(wl->wlc, info->ssid, info->ssid_len);
+		spin_unlock_bh(&wl->lock);
+	}
+	if (changed & BSS_CHANGED_BEACON) {
 		/* Beacon data changed, retrieve new beacon (beaconing modes) */
-		brcms_err(core, "%s: beacon changed\n", __func__);
+		struct sk_buff *beacon;
+		u16 tim_offset = 0;
+
+		spin_lock_bh(&wl->lock);
+		beacon = ieee80211_beacon_get_tim(hw, vif, &tim_offset, NULL);
+		brcms_c_set_new_beacon(wl->wlc, beacon, tim_offset,
+				       info->dtim_period);
+		spin_unlock_bh(&wl->lock);
+	}
+
+	if (changed & BSS_CHANGED_AP_PROBE_RESP) {
+		struct sk_buff *probe_resp;
+
+		spin_lock_bh(&wl->lock);
+		probe_resp = ieee80211_proberesp_get(hw, vif);
+		brcms_c_set_new_probe_resp(wl->wlc, probe_resp);
+		spin_unlock_bh(&wl->lock);
+	}
 
 	if (changed & BSS_CHANGED_BEACON_ENABLED) {
 		/* Beaconing should be enabled/disabled (beaconing modes) */
 		brcms_err(core, "%s: Beacon enabled: %s\n", __func__,
 			  info->enable_beacon ? "true" : "false");
+		if (info->enable_beacon &&
+		    hw->wiphy->flags & WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD) {
+			brcms_c_enable_probe_resp(wl->wlc, true);
+		} else {
+			brcms_c_enable_probe_resp(wl->wlc, false);
+		}
 	}
 
 	if (changed & BSS_CHANGED_CQM) {
@@ -855,7 +895,7 @@ static bool brcms_tx_flush_completed(struct brcms_info *wl)
 	return result;
 }
 
-static void brcms_ops_flush(struct ieee80211_hw *hw, bool drop)
+static void brcms_ops_flush(struct ieee80211_hw *hw, u32 queues, bool drop)
 {
 	struct brcms_info *wl = hw->priv;
 	int ret;
@@ -868,6 +908,28 @@ static void brcms_ops_flush(struct ieee80211_hw *hw, bool drop)
 
 	brcms_dbg_mac80211(wl->wlc->hw->d11core,
 			   "ret=%d\n", jiffies_to_msecs(ret));
+}
+
+static u64 brcms_ops_get_tsf(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+{
+	struct brcms_info *wl = hw->priv;
+	u64 tsf;
+
+	spin_lock_bh(&wl->lock);
+	tsf = brcms_c_tsf_get(wl->wlc);
+	spin_unlock_bh(&wl->lock);
+
+	return tsf;
+}
+
+static void brcms_ops_set_tsf(struct ieee80211_hw *hw,
+			   struct ieee80211_vif *vif, u64 tsf)
+{
+	struct brcms_info *wl = hw->priv;
+
+	spin_lock_bh(&wl->lock);
+	brcms_c_tsf_set(wl->wlc, tsf);
+	spin_unlock_bh(&wl->lock);
 }
 
 static const struct ieee80211_ops brcms_ops = {
@@ -886,6 +948,8 @@ static const struct ieee80211_ops brcms_ops = {
 	.ampdu_action = brcms_ops_ampdu_action,
 	.rfkill_poll = brcms_ops_rfkill_poll,
 	.flush = brcms_ops_flush,
+	.get_tsf = brcms_ops_get_tsf,
+	.set_tsf = brcms_ops_set_tsf,
 };
 
 void brcms_dpc(unsigned long data)
@@ -1004,7 +1068,16 @@ static int ieee_hw_init(struct ieee80211_hw *hw)
 
 	/* channel change time is dependent on chip and band  */
 	hw->channel_change_time = 7 * 1000;
-	hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
+	hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
+				     BIT(NL80211_IFTYPE_AP) |
+				     BIT(NL80211_IFTYPE_ADHOC);
+
+	/*
+	 * deactivate sending probe responses by ucude, because this will
+	 * cause problems when WPS is used.
+	 *
+	 * hw->wiphy->flags |= WIPHY_FLAG_AP_PROBE_RESP_OFFLOAD;
+	 */
 
 	hw->rate_control_algorithm = "minstrel_ht";
 
@@ -1151,6 +1224,8 @@ static int brcms_bcma_probe(struct bcma_device *pdev)
 		pr_err("%s: brcms_attach failed!\n", __func__);
 		return -ENODEV;
 	}
+	brcms_led_register(wl);
+
 	return 0;
 }
 

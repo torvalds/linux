@@ -137,8 +137,12 @@ enum efx_loopback_mode {
  * Reset methods are numbered in order of increasing scope.
  *
  * @RESET_TYPE_INVISIBLE: Reset datapath and MAC (Falcon only)
+ * @RESET_TYPE_RECOVER_OR_ALL: Try to recover. Apply RESET_TYPE_ALL
+ * if unsuccessful.
  * @RESET_TYPE_ALL: Reset datapath, MAC and PHY
  * @RESET_TYPE_WORLD: Reset as much as possible
+ * @RESET_TYPE_RECOVER_OR_DISABLE: Try to recover. Apply RESET_TYPE_DISABLE if
+ * unsuccessful.
  * @RESET_TYPE_DISABLE: Reset datapath, MAC and PHY; leave NIC disabled
  * @RESET_TYPE_TX_WATCHDOG: reset due to TX watchdog
  * @RESET_TYPE_INT_ERROR: reset due to internal error
@@ -150,9 +154,11 @@ enum efx_loopback_mode {
  */
 enum reset_type {
 	RESET_TYPE_INVISIBLE = 0,
-	RESET_TYPE_ALL = 1,
-	RESET_TYPE_WORLD = 2,
-	RESET_TYPE_DISABLE = 3,
+	RESET_TYPE_RECOVER_OR_ALL = 1,
+	RESET_TYPE_ALL = 2,
+	RESET_TYPE_WORLD = 3,
+	RESET_TYPE_RECOVER_OR_DISABLE = 4,
+	RESET_TYPE_DISABLE = 5,
 	RESET_TYPE_MAX_METHOD,
 	RESET_TYPE_TX_WATCHDOG,
 	RESET_TYPE_INT_ERROR,

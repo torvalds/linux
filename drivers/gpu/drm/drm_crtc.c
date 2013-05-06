@@ -178,9 +178,6 @@ static struct drm_prop_enum_list drm_dirty_info_enum_list[] = {
 	{ DRM_MODE_DIRTY_ANNOTATE, "Annotate" },
 };
 
-DRM_ENUM_NAME_FN(drm_get_dirty_info_name,
-		 drm_dirty_info_enum_list)
-
 struct drm_conn_prop_enum_list {
 	int type;
 	char *name;
@@ -412,7 +409,7 @@ struct drm_framebuffer *drm_framebuffer_lookup(struct drm_device *dev,
 	mutex_lock(&dev->mode_config.fb_lock);
 	fb = __drm_framebuffer_lookup(dev, id);
 	if (fb)
-		kref_get(&fb->refcount);
+		drm_framebuffer_reference(fb);
 	mutex_unlock(&dev->mode_config.fb_lock);
 
 	return fb;
@@ -706,7 +703,6 @@ int drm_connector_init(struct drm_device *dev,
 	connector->connector_type = connector_type;
 	connector->connector_type_id =
 		++drm_connector_enum_list[connector_type].count; /* TODO */
-	INIT_LIST_HEAD(&connector->user_modes);
 	INIT_LIST_HEAD(&connector->probed_modes);
 	INIT_LIST_HEAD(&connector->modes);
 	connector->edid_blob_ptr = NULL;
@@ -745,9 +741,6 @@ void drm_connector_cleanup(struct drm_connector *connector)
 		drm_mode_remove(connector, mode);
 
 	list_for_each_entry_safe(mode, t, &connector->modes, head)
-		drm_mode_remove(connector, mode);
-
-	list_for_each_entry_safe(mode, t, &connector->user_modes, head)
 		drm_mode_remove(connector, mode);
 
 	drm_mode_object_put(dev, &connector->base);
@@ -1120,45 +1113,7 @@ int drm_mode_create_dirty_info_property(struct drm_device *dev)
 }
 EXPORT_SYMBOL(drm_mode_create_dirty_info_property);
 
-/**
- * drm_mode_config_init - initialize DRM mode_configuration structure
- * @dev: DRM device
- *
- * Initialize @dev's mode_config structure, used for tracking the graphics
- * configuration of @dev.
- *
- * Since this initializes the modeset locks, no locking is possible. Which is no
- * problem, since this should happen single threaded at init time. It is the
- * driver's problem to ensure this guarantee.
- *
- */
-void drm_mode_config_init(struct drm_device *dev)
-{
-	mutex_init(&dev->mode_config.mutex);
-	mutex_init(&dev->mode_config.idr_mutex);
-	mutex_init(&dev->mode_config.fb_lock);
-	INIT_LIST_HEAD(&dev->mode_config.fb_list);
-	INIT_LIST_HEAD(&dev->mode_config.crtc_list);
-	INIT_LIST_HEAD(&dev->mode_config.connector_list);
-	INIT_LIST_HEAD(&dev->mode_config.encoder_list);
-	INIT_LIST_HEAD(&dev->mode_config.property_list);
-	INIT_LIST_HEAD(&dev->mode_config.property_blob_list);
-	INIT_LIST_HEAD(&dev->mode_config.plane_list);
-	idr_init(&dev->mode_config.crtc_idr);
-
-	drm_modeset_lock_all(dev);
-	drm_mode_create_standard_connector_properties(dev);
-	drm_modeset_unlock_all(dev);
-
-	/* Just to be sure */
-	dev->mode_config.num_fb = 0;
-	dev->mode_config.num_connector = 0;
-	dev->mode_config.num_crtc = 0;
-	dev->mode_config.num_encoder = 0;
-}
-EXPORT_SYMBOL(drm_mode_config_init);
-
-int drm_mode_group_init(struct drm_device *dev, struct drm_mode_group *group)
+static int drm_mode_group_init(struct drm_device *dev, struct drm_mode_group *group)
 {
 	uint32_t total_objects = 0;
 
@@ -1201,69 +1156,6 @@ int drm_mode_group_init_legacy_group(struct drm_device *dev,
 	return 0;
 }
 EXPORT_SYMBOL(drm_mode_group_init_legacy_group);
-
-/**
- * drm_mode_config_cleanup - free up DRM mode_config info
- * @dev: DRM device
- *
- * Free up all the connectors and CRTCs associated with this DRM device, then
- * free up the framebuffers and associated buffer objects.
- *
- * Note that since this /should/ happen single-threaded at driver/device
- * teardown time, no locking is required. It's the driver's job to ensure that
- * this guarantee actually holds true.
- *
- * FIXME: cleanup any dangling user buffer objects too
- */
-void drm_mode_config_cleanup(struct drm_device *dev)
-{
-	struct drm_connector *connector, *ot;
-	struct drm_crtc *crtc, *ct;
-	struct drm_encoder *encoder, *enct;
-	struct drm_framebuffer *fb, *fbt;
-	struct drm_property *property, *pt;
-	struct drm_plane *plane, *plt;
-
-	list_for_each_entry_safe(encoder, enct, &dev->mode_config.encoder_list,
-				 head) {
-		encoder->funcs->destroy(encoder);
-	}
-
-	list_for_each_entry_safe(connector, ot,
-				 &dev->mode_config.connector_list, head) {
-		connector->funcs->destroy(connector);
-	}
-
-	list_for_each_entry_safe(property, pt, &dev->mode_config.property_list,
-				 head) {
-		drm_property_destroy(dev, property);
-	}
-
-	/*
-	 * Single-threaded teardown context, so it's not required to grab the
-	 * fb_lock to protect against concurrent fb_list access. Contrary, it
-	 * would actually deadlock with the drm_framebuffer_cleanup function.
-	 *
-	 * Also, if there are any framebuffers left, that's a driver leak now,
-	 * so politely WARN about this.
-	 */
-	WARN_ON(!list_empty(&dev->mode_config.fb_list));
-	list_for_each_entry_safe(fb, fbt, &dev->mode_config.fb_list, head) {
-		drm_framebuffer_remove(fb);
-	}
-
-	list_for_each_entry_safe(plane, plt, &dev->mode_config.plane_list,
-				 head) {
-		plane->funcs->destroy(plane);
-	}
-
-	list_for_each_entry_safe(crtc, ct, &dev->mode_config.crtc_list, head) {
-		crtc->funcs->destroy(crtc);
-	}
-
-	idr_destroy(&dev->mode_config.crtc_idr);
-}
-EXPORT_SYMBOL(drm_mode_config_cleanup);
 
 /**
  * drm_crtc_convert_to_umode - convert a drm_display_mode into a modeinfo
@@ -2717,192 +2609,6 @@ void drm_fb_release(struct drm_file *priv)
 	mutex_unlock(&priv->fbs_lock);
 }
 
-/**
- * drm_mode_attachmode - add a mode to the user mode list
- * @dev: DRM device
- * @connector: connector to add the mode to
- * @mode: mode to add
- *
- * Add @mode to @connector's user mode list.
- */
-static void drm_mode_attachmode(struct drm_device *dev,
-				struct drm_connector *connector,
-				struct drm_display_mode *mode)
-{
-	list_add_tail(&mode->head, &connector->user_modes);
-}
-
-int drm_mode_attachmode_crtc(struct drm_device *dev, struct drm_crtc *crtc,
-			     const struct drm_display_mode *mode)
-{
-	struct drm_connector *connector;
-	int ret = 0;
-	struct drm_display_mode *dup_mode, *next;
-	LIST_HEAD(list);
-
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		if (!connector->encoder)
-			continue;
-		if (connector->encoder->crtc == crtc) {
-			dup_mode = drm_mode_duplicate(dev, mode);
-			if (!dup_mode) {
-				ret = -ENOMEM;
-				goto out;
-			}
-			list_add_tail(&dup_mode->head, &list);
-		}
-	}
-
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		if (!connector->encoder)
-			continue;
-		if (connector->encoder->crtc == crtc)
-			list_move_tail(list.next, &connector->user_modes);
-	}
-
-	WARN_ON(!list_empty(&list));
-
- out:
-	list_for_each_entry_safe(dup_mode, next, &list, head)
-		drm_mode_destroy(dev, dup_mode);
-
-	return ret;
-}
-EXPORT_SYMBOL(drm_mode_attachmode_crtc);
-
-static int drm_mode_detachmode(struct drm_device *dev,
-			       struct drm_connector *connector,
-			       struct drm_display_mode *mode)
-{
-	int found = 0;
-	int ret = 0;
-	struct drm_display_mode *match_mode, *t;
-
-	list_for_each_entry_safe(match_mode, t, &connector->user_modes, head) {
-		if (drm_mode_equal(match_mode, mode)) {
-			list_del(&match_mode->head);
-			drm_mode_destroy(dev, match_mode);
-			found = 1;
-			break;
-		}
-	}
-
-	if (!found)
-		ret = -EINVAL;
-
-	return ret;
-}
-
-int drm_mode_detachmode_crtc(struct drm_device *dev, struct drm_display_mode *mode)
-{
-	struct drm_connector *connector;
-
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		drm_mode_detachmode(dev, connector, mode);
-	}
-	return 0;
-}
-EXPORT_SYMBOL(drm_mode_detachmode_crtc);
-
-/**
- * drm_fb_attachmode - Attach a user mode to an connector
- * @dev: drm device for the ioctl
- * @data: data pointer for the ioctl
- * @file_priv: drm file for the ioctl call
- *
- * This attaches a user specified mode to an connector.
- * Called by the user via ioctl.
- *
- * RETURNS:
- * Zero on success, errno on failure.
- */
-int drm_mode_attachmode_ioctl(struct drm_device *dev,
-			      void *data, struct drm_file *file_priv)
-{
-	struct drm_mode_mode_cmd *mode_cmd = data;
-	struct drm_connector *connector;
-	struct drm_display_mode *mode;
-	struct drm_mode_object *obj;
-	struct drm_mode_modeinfo *umode = &mode_cmd->mode;
-	int ret;
-
-	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
-
-	drm_modeset_lock_all(dev);
-
-	obj = drm_mode_object_find(dev, mode_cmd->connector_id, DRM_MODE_OBJECT_CONNECTOR);
-	if (!obj) {
-		ret = -EINVAL;
-		goto out;
-	}
-	connector = obj_to_connector(obj);
-
-	mode = drm_mode_create(dev);
-	if (!mode) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	ret = drm_crtc_convert_umode(mode, umode);
-	if (ret) {
-		DRM_DEBUG_KMS("Invalid mode\n");
-		drm_mode_destroy(dev, mode);
-		goto out;
-	}
-
-	drm_mode_attachmode(dev, connector, mode);
-out:
-	drm_modeset_unlock_all(dev);
-	return ret;
-}
-
-
-/**
- * drm_fb_detachmode - Detach a user specified mode from an connector
- * @dev: drm device for the ioctl
- * @data: data pointer for the ioctl
- * @file_priv: drm file for the ioctl call
- *
- * Called by the user via ioctl.
- *
- * RETURNS:
- * Zero on success, errno on failure.
- */
-int drm_mode_detachmode_ioctl(struct drm_device *dev,
-			      void *data, struct drm_file *file_priv)
-{
-	struct drm_mode_object *obj;
-	struct drm_mode_mode_cmd *mode_cmd = data;
-	struct drm_connector *connector;
-	struct drm_display_mode mode;
-	struct drm_mode_modeinfo *umode = &mode_cmd->mode;
-	int ret;
-
-	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -EINVAL;
-
-	drm_modeset_lock_all(dev);
-
-	obj = drm_mode_object_find(dev, mode_cmd->connector_id, DRM_MODE_OBJECT_CONNECTOR);
-	if (!obj) {
-		ret = -EINVAL;
-		goto out;
-	}
-	connector = obj_to_connector(obj);
-
-	ret = drm_crtc_convert_umode(&mode, umode);
-	if (ret) {
-		DRM_DEBUG_KMS("Invalid mode\n");
-		goto out;
-	}
-
-	ret = drm_mode_detachmode(dev, connector, &mode);
-out:
-	drm_modeset_unlock_all(dev);
-	return ret;
-}
-
 struct drm_property *drm_property_create(struct drm_device *dev, int flags,
 					 const char *name, int num_values)
 {
@@ -3739,6 +3445,12 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 		goto out;
 	}
 
+	if (crtc->fb->pixel_format != fb->pixel_format) {
+		DRM_DEBUG_KMS("Page flip is not allowed to change frame buffer format.\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
 	if (page_flip->flags & DRM_MODE_PAGE_FLIP_EVENT) {
 		ret = -ENOMEM;
 		spin_lock_irqsave(&dev->event_lock, flags);
@@ -4064,3 +3776,110 @@ int drm_format_vert_chroma_subsampling(uint32_t format)
 	}
 }
 EXPORT_SYMBOL(drm_format_vert_chroma_subsampling);
+
+/**
+ * drm_mode_config_init - initialize DRM mode_configuration structure
+ * @dev: DRM device
+ *
+ * Initialize @dev's mode_config structure, used for tracking the graphics
+ * configuration of @dev.
+ *
+ * Since this initializes the modeset locks, no locking is possible. Which is no
+ * problem, since this should happen single threaded at init time. It is the
+ * driver's problem to ensure this guarantee.
+ *
+ */
+void drm_mode_config_init(struct drm_device *dev)
+{
+	mutex_init(&dev->mode_config.mutex);
+	mutex_init(&dev->mode_config.idr_mutex);
+	mutex_init(&dev->mode_config.fb_lock);
+	INIT_LIST_HEAD(&dev->mode_config.fb_list);
+	INIT_LIST_HEAD(&dev->mode_config.crtc_list);
+	INIT_LIST_HEAD(&dev->mode_config.connector_list);
+	INIT_LIST_HEAD(&dev->mode_config.encoder_list);
+	INIT_LIST_HEAD(&dev->mode_config.property_list);
+	INIT_LIST_HEAD(&dev->mode_config.property_blob_list);
+	INIT_LIST_HEAD(&dev->mode_config.plane_list);
+	idr_init(&dev->mode_config.crtc_idr);
+
+	drm_modeset_lock_all(dev);
+	drm_mode_create_standard_connector_properties(dev);
+	drm_modeset_unlock_all(dev);
+
+	/* Just to be sure */
+	dev->mode_config.num_fb = 0;
+	dev->mode_config.num_connector = 0;
+	dev->mode_config.num_crtc = 0;
+	dev->mode_config.num_encoder = 0;
+}
+EXPORT_SYMBOL(drm_mode_config_init);
+
+/**
+ * drm_mode_config_cleanup - free up DRM mode_config info
+ * @dev: DRM device
+ *
+ * Free up all the connectors and CRTCs associated with this DRM device, then
+ * free up the framebuffers and associated buffer objects.
+ *
+ * Note that since this /should/ happen single-threaded at driver/device
+ * teardown time, no locking is required. It's the driver's job to ensure that
+ * this guarantee actually holds true.
+ *
+ * FIXME: cleanup any dangling user buffer objects too
+ */
+void drm_mode_config_cleanup(struct drm_device *dev)
+{
+	struct drm_connector *connector, *ot;
+	struct drm_crtc *crtc, *ct;
+	struct drm_encoder *encoder, *enct;
+	struct drm_framebuffer *fb, *fbt;
+	struct drm_property *property, *pt;
+	struct drm_property_blob *blob, *bt;
+	struct drm_plane *plane, *plt;
+
+	list_for_each_entry_safe(encoder, enct, &dev->mode_config.encoder_list,
+				 head) {
+		encoder->funcs->destroy(encoder);
+	}
+
+	list_for_each_entry_safe(connector, ot,
+				 &dev->mode_config.connector_list, head) {
+		connector->funcs->destroy(connector);
+	}
+
+	list_for_each_entry_safe(property, pt, &dev->mode_config.property_list,
+				 head) {
+		drm_property_destroy(dev, property);
+	}
+
+	list_for_each_entry_safe(blob, bt, &dev->mode_config.property_blob_list,
+				 head) {
+		drm_property_destroy_blob(dev, blob);
+	}
+
+	/*
+	 * Single-threaded teardown context, so it's not required to grab the
+	 * fb_lock to protect against concurrent fb_list access. Contrary, it
+	 * would actually deadlock with the drm_framebuffer_cleanup function.
+	 *
+	 * Also, if there are any framebuffers left, that's a driver leak now,
+	 * so politely WARN about this.
+	 */
+	WARN_ON(!list_empty(&dev->mode_config.fb_list));
+	list_for_each_entry_safe(fb, fbt, &dev->mode_config.fb_list, head) {
+		drm_framebuffer_remove(fb);
+	}
+
+	list_for_each_entry_safe(plane, plt, &dev->mode_config.plane_list,
+				 head) {
+		plane->funcs->destroy(plane);
+	}
+
+	list_for_each_entry_safe(crtc, ct, &dev->mode_config.crtc_list, head) {
+		crtc->funcs->destroy(crtc);
+	}
+
+	idr_destroy(&dev->mode_config.crtc_idr);
+}
+EXPORT_SYMBOL(drm_mode_config_cleanup);

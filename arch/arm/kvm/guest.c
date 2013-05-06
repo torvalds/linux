@@ -22,6 +22,7 @@
 #include <linux/module.h>
 #include <linux/vmalloc.h>
 #include <linux/fs.h>
+#include <asm/cputype.h>
 #include <asm/uaccess.h>
 #include <asm/kvm.h>
 #include <asm/kvm_asm.h>
@@ -178,6 +179,22 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 				  struct kvm_sregs *sregs)
 {
 	return -EINVAL;
+}
+
+int __attribute_const__ kvm_target_cpu(void)
+{
+	unsigned long implementor = read_cpuid_implementor();
+	unsigned long part_number = read_cpuid_part_number();
+
+	if (implementor != ARM_CPU_IMP_ARM)
+		return -EINVAL;
+
+	switch (part_number) {
+	case ARM_CPU_PART_CORTEX_A15:
+		return KVM_ARM_TARGET_CORTEX_A15;
+	default:
+		return -EINVAL;
+	}
 }
 
 int kvm_vcpu_set_target(struct kvm_vcpu *vcpu,

@@ -28,43 +28,53 @@ MODULE_PARM_DESC(cards_dbg, "set debug level (info=1, adv=2 (or-able))");
 static struct sms_board sms_boards[] = {
 	[SMS_BOARD_UNKNOWN] = {
 		.name	= "Unknown board",
+		.type = SMS_UNKNOWN_TYPE,
+		.default_mode = DEVICE_MODE_NONE,
 	},
 	[SMS1XXX_BOARD_SIANO_STELLAR] = {
 		.name	= "Siano Stellar Digital Receiver",
 		.type	= SMS_STELLAR,
+		.default_mode = DEVICE_MODE_DVBT_BDA,
 	},
 	[SMS1XXX_BOARD_SIANO_NOVA_A] = {
 		.name	= "Siano Nova A Digital Receiver",
 		.type	= SMS_NOVA_A0,
+		.default_mode = DEVICE_MODE_DVBT_BDA,
 	},
 	[SMS1XXX_BOARD_SIANO_NOVA_B] = {
 		.name	= "Siano Nova B Digital Receiver",
 		.type	= SMS_NOVA_B0,
+		.default_mode = DEVICE_MODE_DVBT_BDA,
 	},
 	[SMS1XXX_BOARD_SIANO_VEGA] = {
 		.name	= "Siano Vega Digital Receiver",
 		.type	= SMS_VEGA,
+		.default_mode = DEVICE_MODE_CMMB,
 	},
 	[SMS1XXX_BOARD_HAUPPAUGE_CATAMOUNT] = {
 		.name	= "Hauppauge Catamount",
 		.type	= SMS_STELLAR,
-		.fw[DEVICE_MODE_DVBT_BDA] = "sms1xxx-stellar-dvbt-01.fw",
+		.fw[DEVICE_MODE_DVBT_BDA] = SMS_FW_DVBT_STELLAR,
+		.default_mode = DEVICE_MODE_DVBT_BDA,
 	},
 	[SMS1XXX_BOARD_HAUPPAUGE_OKEMO_A] = {
 		.name	= "Hauppauge Okemo-A",
 		.type	= SMS_NOVA_A0,
-		.fw[DEVICE_MODE_DVBT_BDA] = "sms1xxx-nova-a-dvbt-01.fw",
+		.fw[DEVICE_MODE_DVBT_BDA] = SMS_FW_DVBT_NOVA_A,
+		.default_mode = DEVICE_MODE_DVBT_BDA,
 	},
 	[SMS1XXX_BOARD_HAUPPAUGE_OKEMO_B] = {
 		.name	= "Hauppauge Okemo-B",
 		.type	= SMS_NOVA_B0,
-		.fw[DEVICE_MODE_DVBT_BDA] = "sms1xxx-nova-b-dvbt-01.fw",
+		.fw[DEVICE_MODE_DVBT_BDA] = SMS_FW_DVBT_NOVA_B,
+		.default_mode = DEVICE_MODE_DVBT_BDA,
 	},
 	[SMS1XXX_BOARD_HAUPPAUGE_WINDHAM] = {
 		.name	= "Hauppauge WinTV MiniStick",
 		.type	= SMS_NOVA_B0,
-		.fw[DEVICE_MODE_ISDBT_BDA] = "sms1xxx-hcw-55xxx-isdbt-02.fw",
-		.fw[DEVICE_MODE_DVBT_BDA] = "sms1xxx-hcw-55xxx-dvbt-02.fw",
+		.fw[DEVICE_MODE_ISDBT_BDA] = SMS_FW_ISDBT_HCW_55XXX,
+		.fw[DEVICE_MODE_DVBT_BDA]  = SMS_FW_DVBT_HCW_55XXX,
+		.default_mode = DEVICE_MODE_DVBT_BDA,
 		.rc_codes = RC_MAP_HAUPPAUGE,
 		.board_cfg.leds_power = 26,
 		.board_cfg.led0 = 27,
@@ -77,7 +87,8 @@ static struct sms_board sms_boards[] = {
 	[SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD] = {
 		.name	= "Hauppauge WinTV MiniCard",
 		.type	= SMS_NOVA_B0,
-		.fw[DEVICE_MODE_DVBT_BDA] = "sms1xxx-hcw-55xxx-dvbt-02.fw",
+		.fw[DEVICE_MODE_DVBT_BDA] = SMS_FW_DVBT_HCW_55XXX,
+		.default_mode = DEVICE_MODE_DVBT_BDA,
 		.lna_ctrl  = 29,
 		.board_cfg.foreign_lna0_ctrl = 29,
 		.rf_switch = 17,
@@ -86,18 +97,65 @@ static struct sms_board sms_boards[] = {
 	[SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD_R2] = {
 		.name	= "Hauppauge WinTV MiniCard",
 		.type	= SMS_NOVA_B0,
-		.fw[DEVICE_MODE_DVBT_BDA] = "sms1xxx-hcw-55xxx-dvbt-02.fw",
+		.fw[DEVICE_MODE_DVBT_BDA] = SMS_FW_DVBT_HCW_55XXX,
+		.default_mode = DEVICE_MODE_DVBT_BDA,
 		.lna_ctrl  = -1,
 	},
 	[SMS1XXX_BOARD_SIANO_NICE] = {
-	/* 11 */
 		.name = "Siano Nice Digital Receiver",
 		.type = SMS_NOVA_B0,
+		.default_mode = DEVICE_MODE_DVBT_BDA,
 	},
 	[SMS1XXX_BOARD_SIANO_VENICE] = {
-	/* 12 */
 		.name = "Siano Venice Digital Receiver",
 		.type = SMS_VEGA,
+		.default_mode = DEVICE_MODE_CMMB,
+	},
+	[SMS1XXX_BOARD_SIANO_STELLAR_ROM] = {
+		.name = "Siano Stellar Digital Receiver ROM",
+		.type = SMS_STELLAR,
+		.default_mode = DEVICE_MODE_DVBT_BDA,
+		.intf_num = 1,
+	},
+	[SMS1XXX_BOARD_ZTE_DVB_DATA_CARD] = {
+		.name = "ZTE Data Card Digital Receiver",
+		.type = SMS_NOVA_B0,
+		.default_mode = DEVICE_MODE_DVBT_BDA,
+		.intf_num = 5,
+		.mtu = 15792,
+	},
+	[SMS1XXX_BOARD_ONDA_MDTV_DATA_CARD] = {
+		.name = "ONDA Data Card Digital Receiver",
+		.type = SMS_NOVA_B0,
+		.default_mode = DEVICE_MODE_DVBT_BDA,
+		.intf_num = 6,
+		.mtu = 15792,
+	},
+	[SMS1XXX_BOARD_SIANO_MING] = {
+		.name = "Siano Ming Digital Receiver",
+		.type = SMS_MING,
+		.default_mode = DEVICE_MODE_CMMB,
+	},
+	[SMS1XXX_BOARD_SIANO_PELE] = {
+		.name = "Siano Pele Digital Receiver",
+		.type = SMS_PELE,
+		.default_mode = DEVICE_MODE_ISDBT_BDA,
+	},
+	[SMS1XXX_BOARD_SIANO_RIO] = {
+		.name = "Siano Rio Digital Receiver",
+		.type = SMS_RIO,
+		.default_mode = DEVICE_MODE_ISDBT_BDA,
+	},
+	[SMS1XXX_BOARD_SIANO_DENVER_1530] = {
+		.name = "Siano Denver (ATSC-M/H) Digital Receiver",
+		.type = SMS_DENVER_1530,
+		.default_mode = DEVICE_MODE_ATSC,
+		.crystal = 2400,
+	},
+	[SMS1XXX_BOARD_SIANO_DENVER_2160] = {
+		.name = "Siano Denver (TDMB) Digital Receiver",
+		.type = SMS_DENVER_2160,
+		.default_mode = DEVICE_MODE_DAB_TDMB,
 	},
 };
 
@@ -109,20 +167,21 @@ struct sms_board *sms_get_board(unsigned id)
 }
 EXPORT_SYMBOL_GPL(sms_get_board);
 static inline void sms_gpio_assign_11xx_default_led_config(
-		struct smscore_gpio_config *pGpioConfig) {
-	pGpioConfig->Direction = SMS_GPIO_DIRECTION_OUTPUT;
-	pGpioConfig->InputCharacteristics =
-		SMS_GPIO_INPUT_CHARACTERISTICS_NORMAL;
-	pGpioConfig->OutputDriving = SMS_GPIO_OUTPUT_DRIVING_4mA;
-	pGpioConfig->OutputSlewRate = SMS_GPIO_OUTPUT_SLEW_RATE_0_45_V_NS;
-	pGpioConfig->PullUpDown = SMS_GPIO_PULL_UP_DOWN_NONE;
+		struct smscore_config_gpio *p_gpio_config) {
+	p_gpio_config->direction = SMS_GPIO_DIRECTION_OUTPUT;
+	p_gpio_config->inputcharacteristics =
+		SMS_GPIO_INPUTCHARACTERISTICS_NORMAL;
+	p_gpio_config->outputdriving = SMS_GPIO_OUTPUTDRIVING_4mA;
+	p_gpio_config->outputslewrate = SMS_GPIO_OUTPUT_SLEW_RATE_0_45_V_NS;
+	p_gpio_config->pullupdown = SMS_GPIO_PULLUPDOWN_NONE;
 }
 
 int sms_board_event(struct smscore_device_t *coredev,
-		enum SMS_BOARD_EVENTS gevent) {
-	struct smscore_gpio_config MyGpioConfig;
+		    enum SMS_BOARD_EVENTS gevent)
+{
+	struct smscore_config_gpio my_gpio_config;
 
-	sms_gpio_assign_11xx_default_led_config(&MyGpioConfig);
+	sms_gpio_assign_11xx_default_led_config(&my_gpio_config);
 
 	switch (gevent) {
 	case BOARD_EVENT_POWER_INIT: /* including hotplug */
@@ -182,8 +241,8 @@ static int sms_set_gpio(struct smscore_device_t *coredev, int pin, int enable)
 		.direction            = SMS_GPIO_DIRECTION_OUTPUT,
 		.pullupdown           = SMS_GPIO_PULLUPDOWN_NONE,
 		.inputcharacteristics = SMS_GPIO_INPUTCHARACTERISTICS_NORMAL,
-		.outputslewrate       = SMS_GPIO_OUTPUTSLEWRATE_FAST,
-		.outputdriving        = SMS_GPIO_OUTPUTDRIVING_4mA,
+		.outputslewrate       = SMS_GPIO_OUTPUT_SLEW_RATE_FAST,
+		.outputdriving        = SMS_GPIO_OUTPUTDRIVING_S_4mA,
 	};
 
 	if (pin == 0)
@@ -293,19 +352,7 @@ EXPORT_SYMBOL_GPL(sms_board_lna_control);
 
 int sms_board_load_modules(int id)
 {
-	switch (id) {
-	case SMS1XXX_BOARD_HAUPPAUGE_CATAMOUNT:
-	case SMS1XXX_BOARD_HAUPPAUGE_OKEMO_A:
-	case SMS1XXX_BOARD_HAUPPAUGE_OKEMO_B:
-	case SMS1XXX_BOARD_HAUPPAUGE_WINDHAM:
-	case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD:
-	case SMS1XXX_BOARD_HAUPPAUGE_TIGER_MINICARD_R2:
-		request_module("smsdvb");
-		break;
-	default:
-		/* do nothing */
-		break;
-	}
+	request_module("smsdvb");
 	return 0;
 }
 EXPORT_SYMBOL_GPL(sms_board_load_modules);

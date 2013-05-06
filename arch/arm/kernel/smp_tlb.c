@@ -98,21 +98,21 @@ static void broadcast_tlb_a15_erratum(void)
 		return;
 
 	dummy_flush_tlb_a15_erratum();
-	smp_call_function_many(cpu_online_mask, ipi_flush_tlb_a15_erratum,
-			       NULL, 1);
+	smp_call_function(ipi_flush_tlb_a15_erratum, NULL, 1);
 }
 
 static void broadcast_tlb_mm_a15_erratum(struct mm_struct *mm)
 {
-	int cpu;
+	int cpu, this_cpu;
 	cpumask_t mask = { CPU_BITS_NONE };
 
 	if (!erratum_a15_798181())
 		return;
 
 	dummy_flush_tlb_a15_erratum();
+	this_cpu = get_cpu();
 	for_each_online_cpu(cpu) {
-		if (cpu == smp_processor_id())
+		if (cpu == this_cpu)
 			continue;
 		/*
 		 * We only need to send an IPI if the other CPUs are running
@@ -127,6 +127,7 @@ static void broadcast_tlb_mm_a15_erratum(struct mm_struct *mm)
 			cpumask_set_cpu(cpu, &mask);
 	}
 	smp_call_function_many(&mask, ipi_flush_tlb_a15_erratum, NULL, 1);
+	put_cpu();
 }
 
 void flush_tlb_all(void)

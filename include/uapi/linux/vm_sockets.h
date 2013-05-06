@@ -13,12 +13,10 @@
  * more details.
  */
 
-#ifndef _VM_SOCKETS_H_
-#define _VM_SOCKETS_H_
+#ifndef _UAPI_VM_SOCKETS_H
+#define _UAPI_VM_SOCKETS_H
 
-#if !defined(__KERNEL__)
-#include <sys/socket.h>
-#endif
+#include <linux/socket.h>
 
 /* Option name for STREAM socket buffer size.  Use as the option name in
  * setsockopt(3) or getsockopt(3) to set or get an unsigned long long that
@@ -137,14 +135,13 @@
 #define VM_SOCKETS_VERSION_MINOR(_v) (((_v) & 0x0000FFFF))
 
 /* Address structure for vSockets.   The address family should be set to
- * whatever vmci_sock_get_af_value_fd() returns.  The structure members should
- * all align on their natural boundaries without resorting to compiler packing
- * directives.  The total size of this structure should be exactly the same as
- * that of struct sockaddr.
+ * AF_VSOCK.  The structure members should all align on their natural
+ * boundaries without resorting to compiler packing directives.  The total size
+ * of this structure should be exactly the same as that of struct sockaddr.
  */
 
 struct sockaddr_vm {
-	sa_family_t svm_family;
+	__kernel_sa_family_t svm_family;
 	unsigned short svm_reserved1;
 	unsigned int svm_port;
 	unsigned int svm_cid;
@@ -156,8 +153,4 @@ struct sockaddr_vm {
 
 #define IOCTL_VM_SOCKETS_GET_LOCAL_CID		_IO(7, 0xb9)
 
-#if defined(__KERNEL__)
-int vm_sockets_get_local_cid(void);
-#endif
-
-#endif
+#endif /* _UAPI_VM_SOCKETS_H */

@@ -138,7 +138,7 @@ ebt_basic_match(const struct ebt_entry *e, const struct sk_buff *skb,
 		ethproto = h->h_proto;
 
 	if (e->bitmask & EBT_802_3) {
-		if (FWINV2(ntohs(ethproto) >= 1536, EBT_IPROTO))
+		if (FWINV2(ntohs(ethproto) >= ETH_P_802_3_MIN, EBT_IPROTO))
 			return 1;
 	} else if (!(e->bitmask & EBT_NOPROTO) &&
 	   FWINV2(e->ethproto != ethproto, EBT_IPROTO))

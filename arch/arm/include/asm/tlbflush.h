@@ -166,7 +166,7 @@
 # define v6wbi_always_flags	(-1UL)
 #endif
 
-#define v7wbi_tlb_flags_smp	(TLB_WB | TLB_DCLEAN | TLB_BARRIER | \
+#define v7wbi_tlb_flags_smp	(TLB_WB | TLB_BARRIER | \
 				 TLB_V7_UIS_FULL | TLB_V7_UIS_PAGE | \
 				 TLB_V7_UIS_ASID | TLB_V7_UIS_BP)
 #define v7wbi_tlb_flags_up	(TLB_WB | TLB_DCLEAN | TLB_BARRIER | \

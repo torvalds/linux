@@ -238,7 +238,7 @@ gss_fill_context(const void *p, const void *end, struct gss_cl_ctx *ctx, struct 
 		p = ERR_PTR(-EFAULT);
 		goto err;
 	}
-	ret = gss_import_sec_context(p, seclen, gm, &ctx->gc_gss_ctx, GFP_NOFS);
+	ret = gss_import_sec_context(p, seclen, gm, &ctx->gc_gss_ctx, NULL, GFP_NOFS);
 	if (ret < 0) {
 		p = ERR_PTR(ret);
 		goto err;
@@ -1641,6 +1641,8 @@ static const struct rpc_authops authgss_ops = {
 	.pipes_create	= gss_pipes_dentries_create,
 	.pipes_destroy	= gss_pipes_dentries_destroy,
 	.list_pseudoflavors = gss_mech_list_pseudoflavors,
+	.info2flavor	= gss_mech_info2flavor,
+	.flavor2info	= gss_mech_flavor2info,
 };
 
 static const struct rpc_credops gss_credops = {
@@ -1733,6 +1735,7 @@ static void __exit exit_rpcsec_gss(void)
 	rcu_barrier(); /* Wait for completion of call_rcu()'s */
 }
 
+MODULE_ALIAS("rpc-auth-6");
 MODULE_LICENSE("GPL");
 module_param_named(expired_cred_retry_delay,
 		   gss_expired_cred_retry_delay,

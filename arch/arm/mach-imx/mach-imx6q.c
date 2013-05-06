@@ -12,6 +12,7 @@
 
 #include <linux/clk.h>
 #include <linux/clkdev.h>
+#include <linux/clocksource.h>
 #include <linux/cpu.h>
 #include <linux/delay.h>
 #include <linux/export.h>
@@ -28,11 +29,9 @@
 #include <linux/regmap.h>
 #include <linux/micrel_phy.h>
 #include <linux/mfd/syscon.h>
-#include <asm/smp_twd.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include <asm/mach/time.h>
 #include <asm/system_misc.h>
 
 #include "common.h"
@@ -73,7 +72,7 @@ static int imx6q_revision(void)
 	}
 }
 
-void imx6q_restart(char mode, const char *cmd)
+static void imx6q_restart(char mode, const char *cmd)
 {
 	struct device_node *np;
 	void __iomem *wdog_base;
@@ -256,7 +255,7 @@ put_node:
 	of_node_put(np);
 }
 
-struct platform_device imx6q_cpufreq_pdev = {
+static struct platform_device imx6q_cpufreq_pdev = {
 	.name = "imx6q-cpufreq",
 };
 
@@ -292,7 +291,7 @@ static void __init imx6q_init_irq(void)
 static void __init imx6q_timer_init(void)
 {
 	mx6q_clocks_init();
-	twd_local_timer_of_register();
+	clocksource_of_init();
 	imx_print_silicon_rev("i.MX6Q", imx6q_revision());
 }
 

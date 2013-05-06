@@ -182,7 +182,7 @@ static int atmel_ac97c_playback_open(struct snd_pcm_substream *substream)
 		runtime->hw.rate_max = chip->cur_rate;
 	}
 	if (chip->cur_format)
-		runtime->hw.formats = (1ULL << chip->cur_format);
+		runtime->hw.formats = pcm_format_to_bits(chip->cur_format);
 	mutex_unlock(&opened_mutex);
 	chip->playback_substream = substream;
 	return 0;
@@ -201,7 +201,7 @@ static int atmel_ac97c_capture_open(struct snd_pcm_substream *substream)
 		runtime->hw.rate_max = chip->cur_rate;
 	}
 	if (chip->cur_format)
-		runtime->hw.formats = (1ULL << chip->cur_format);
+		runtime->hw.formats = pcm_format_to_bits(chip->cur_format);
 	mutex_unlock(&opened_mutex);
 	chip->capture_substream = substream;
 	return 0;

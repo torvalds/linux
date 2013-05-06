@@ -71,7 +71,7 @@ static void bnx2fc_recv_frame(struct sk_buff *skb);
 static void bnx2fc_start_disc(struct bnx2fc_interface *interface);
 static int bnx2fc_shost_config(struct fc_lport *lport, struct device *dev);
 static int bnx2fc_lport_config(struct fc_lport *lport);
-static int bnx2fc_em_config(struct fc_lport *lport);
+static int bnx2fc_em_config(struct fc_lport *lport, struct bnx2fc_hba *hba);
 static int bnx2fc_bind_adapter_devices(struct bnx2fc_hba *hba);
 static void bnx2fc_unbind_adapter_devices(struct bnx2fc_hba *hba);
 static int bnx2fc_bind_pcidev(struct bnx2fc_hba *hba);
@@ -944,16 +944,17 @@ static int bnx2fc_libfc_config(struct fc_lport *lport)
 	return 0;
 }
 
-static int bnx2fc_em_config(struct fc_lport *lport)
+static int bnx2fc_em_config(struct fc_lport *lport, struct bnx2fc_hba *hba)
 {
-	int max_xid;
+	int fcoe_min_xid, fcoe_max_xid;
 
+	fcoe_min_xid = hba->max_xid + 1;
 	if (nr_cpu_ids <= 2)
-		max_xid = FCOE_XIDS_PER_CPU;
+		fcoe_max_xid = hba->max_xid + FCOE_XIDS_PER_CPU_OFFSET;
 	else
-		max_xid = FCOE_MAX_XID;
-	if (!fc_exch_mgr_alloc(lport, FC_CLASS_3, FCOE_MIN_XID,
-				max_xid, NULL)) {
+		fcoe_max_xid = hba->max_xid + FCOE_MAX_XID_OFFSET;
+	if (!fc_exch_mgr_alloc(lport, FC_CLASS_3, fcoe_min_xid,
+			       fcoe_max_xid, NULL)) {
 		printk(KERN_ERR PFX "em_config:fc_exch_mgr_alloc failed\n");
 		return -ENOMEM;
 	}
@@ -1300,6 +1301,12 @@ static struct bnx2fc_hba *bnx2fc_hba_create(struct cnic_dev *cnic)
 	mutex_init(&hba->hba_mutex);
 
 	hba->cnic = cnic;
+
+	hba->max_tasks = cnic->max_fcoe_exchanges;
+	hba->elstm_xids = (hba->max_tasks / 2);
+	hba->max_outstanding_cmds = hba->elstm_xids;
+	hba->max_xid = (hba->max_tasks - 1);
+
 	rc = bnx2fc_bind_pcidev(hba);
 	if (rc) {
 		printk(KERN_ERR PFX "create_adapter:  bind error\n");
@@ -1318,8 +1325,7 @@ static struct bnx2fc_hba *bnx2fc_hba_create(struct cnic_dev *cnic)
 
 	hba->num_ofld_sess = 0;
 
-	hba->cmd_mgr = bnx2fc_cmd_mgr_alloc(hba, BNX2FC_MIN_XID,
-						BNX2FC_MAX_XID);
+	hba->cmd_mgr = bnx2fc_cmd_mgr_alloc(hba);
 	if (!hba->cmd_mgr) {
 		printk(KERN_ERR PFX "em_config:bnx2fc_cmd_mgr_alloc failed\n");
 		goto cmgr_err;
@@ -1330,13 +1336,13 @@ static struct bnx2fc_hba *bnx2fc_hba_create(struct cnic_dev *cnic)
 					FCOE_IOS_PER_CONNECTION_SHIFT;
 	fcoe_cap->capability1 |= BNX2FC_NUM_MAX_SESS <<
 					FCOE_LOGINS_PER_PORT_SHIFT;
-	fcoe_cap->capability2 = BNX2FC_MAX_OUTSTANDING_CMNDS <<
+	fcoe_cap->capability2 = hba->max_outstanding_cmds <<
 					FCOE_NUMBER_OF_EXCHANGES_SHIFT;
 	fcoe_cap->capability2 |= BNX2FC_MAX_NPIV <<
 					FCOE_NPIV_WWN_PER_PORT_SHIFT;
 	fcoe_cap->capability3 = BNX2FC_NUM_MAX_SESS <<
 					FCOE_TARGETS_SUPPORTED_SHIFT;
-	fcoe_cap->capability3 |= BNX2FC_MAX_OUTSTANDING_CMNDS <<
+	fcoe_cap->capability3 |= hba->max_outstanding_cmds <<
 					FCOE_OUTSTANDING_COMMANDS_SHIFT;
 	fcoe_cap->capability4 = FCOE_CAPABILITY4_STATEFUL;
 
@@ -1416,7 +1422,7 @@ static struct fc_lport *bnx2fc_if_create(struct bnx2fc_interface *interface,
 	struct Scsi_Host	*shost;
 	struct fc_vport		*vport = dev_to_vport(parent);
 	struct bnx2fc_lport	*blport;
-	struct bnx2fc_hba	*hba;
+	struct bnx2fc_hba	*hba = interface->hba;
 	int			rc = 0;
 
 	blport = kzalloc(sizeof(struct bnx2fc_lport), GFP_KERNEL);
@@ -1426,6 +1432,7 @@ static struct fc_lport *bnx2fc_if_create(struct bnx2fc_interface *interface,
 	}
 
 	/* Allocate Scsi_Host structure */
+	bnx2fc_shost_template.can_queue = hba->max_outstanding_cmds;
 	if (!npiv)
 		lport = libfc_host_alloc(&bnx2fc_shost_template, sizeof(*port));
 	else
@@ -1477,7 +1484,7 @@ static struct fc_lport *bnx2fc_if_create(struct bnx2fc_interface *interface,
 
 	/* Allocate exchange manager */
 	if (!npiv)
-		rc = bnx2fc_em_config(lport);
+		rc = bnx2fc_em_config(lport, hba);
 	else {
 		shost = vport_to_shost(vport);
 		n_port = shost_priv(shost);
@@ -1491,7 +1498,6 @@ static struct fc_lport *bnx2fc_if_create(struct bnx2fc_interface *interface,
 
 	bnx2fc_interface_get(interface);
 
-	hba = interface->hba;
 	spin_lock_bh(&hba->hba_lock);
 	blport->lport = lport;
 	list_add_tail(&blport->list, &hba->vports);
@@ -2706,7 +2712,6 @@ static struct scsi_host_template bnx2fc_shost_template = {
 	.change_queue_type	= fc_change_queue_type,
 	.this_id		= -1,
 	.cmd_per_lun		= 3,
-	.can_queue		= BNX2FC_CAN_QUEUE,
 	.use_clustering		= ENABLE_CLUSTERING,
 	.sg_tablesize		= BNX2FC_MAX_BDS_PER_CMD,
 	.max_sectors		= 1024,

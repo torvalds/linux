@@ -131,7 +131,7 @@ config B43_PHY_LP
 
 config B43_PHY_HT
 	bool "Support for HT-PHY (high throughput) devices"
-	depends on B43
+	depends on B43 && B43_BCMA
 	---help---
 	  Support for the HT-PHY.
 
@@ -166,8 +166,8 @@ config B43_DEBUG
 	  Broadcom 43xx debugging.
 
 	  This adds additional runtime sanity checks and statistics to the driver.
-	  These checks and statistics might me expensive and hurt runtime performance
-	  of your system.
+	  These checks and statistics might be expensive and hurt the runtime
+	  performance of your system.
 	  This also adds the b43 debugfs interface.
 
 	  Do not enable this, unless you are debugging the driver.

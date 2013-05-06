@@ -423,7 +423,7 @@ static void musb_do_idle(unsigned long _musb)
 			&& (musb->idle_timeout == 0
 				|| time_after(jiffies, musb->idle_timeout))) {
 			dev_dbg(musb->controller, "Nothing connected %s, turning off VBUS\n",
-					otg_state_string(musb->xceiv->state));
+					usb_otg_state_string(musb->xceiv->state));
 		}
 		/* FALLTHROUGH */
 	case OTG_STATE_A_IDLE:
@@ -478,7 +478,7 @@ static void tusb_musb_try_idle(struct musb *musb, unsigned long timeout)
 	if (musb->is_active || ((musb->a_wait_bcon == 0)
 			&& (musb->xceiv->state == OTG_STATE_A_WAIT_BCON))) {
 		dev_dbg(musb->controller, "%s active, deleting timer\n",
-			otg_state_string(musb->xceiv->state));
+			usb_otg_state_string(musb->xceiv->state));
 		del_timer(&musb_idle_timer);
 		last_timer = jiffies;
 		return;
@@ -495,7 +495,7 @@ static void tusb_musb_try_idle(struct musb *musb, unsigned long timeout)
 	last_timer = timeout;
 
 	dev_dbg(musb->controller, "%s inactive, for idle timer for %lu ms\n",
-		otg_state_string(musb->xceiv->state),
+		usb_otg_state_string(musb->xceiv->state),
 		(unsigned long)jiffies_to_msecs(timeout - jiffies));
 	mod_timer(&musb_idle_timer, timeout);
 }
@@ -571,7 +571,7 @@ static void tusb_musb_set_vbus(struct musb *musb, int is_on)
 	musb_writeb(musb->mregs, MUSB_DEVCTL, devctl);
 
 	dev_dbg(musb->controller, "VBUS %s, devctl %02x otg %3x conf %08x prcm %08x\n",
-		otg_state_string(musb->xceiv->state),
+		usb_otg_state_string(musb->xceiv->state),
 		musb_readb(musb->mregs, MUSB_DEVCTL),
 		musb_readl(tbase, TUSB_DEV_OTG_STAT),
 		conf, prcm);
@@ -678,13 +678,13 @@ tusb_otg_ints(struct musb *musb, u32 int_src, void __iomem *tbase)
 				musb->is_active = 0;
 			}
 			dev_dbg(musb->controller, "vbus change, %s, otg %03x\n",
-				otg_state_string(musb->xceiv->state), otg_stat);
+				usb_otg_state_string(musb->xceiv->state), otg_stat);
 			idle_timeout = jiffies + (1 * HZ);
 			schedule_work(&musb->irq_work);
 
 		} else /* A-dev state machine */ {
 			dev_dbg(musb->controller, "vbus change, %s, otg %03x\n",
-				otg_state_string(musb->xceiv->state), otg_stat);
+				usb_otg_state_string(musb->xceiv->state), otg_stat);
 
 			switch (musb->xceiv->state) {
 			case OTG_STATE_A_IDLE:
@@ -733,7 +733,7 @@ tusb_otg_ints(struct musb *musb, u32 int_src, void __iomem *tbase)
 		u8	devctl;
 
 		dev_dbg(musb->controller, "%s timer, %03x\n",
-			otg_state_string(musb->xceiv->state), otg_stat);
+			usb_otg_state_string(musb->xceiv->state), otg_stat);
 
 		switch (musb->xceiv->state) {
 		case OTG_STATE_A_WAIT_VRISE:

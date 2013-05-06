@@ -23,6 +23,7 @@
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/io.h>
+#include <linux/irq.h>
 #include <linux/irqdomain.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -33,7 +34,7 @@
 #include <linux/irqchip/arm-vic.h>
 
 #include <asm/exception.h>
-#include <asm/mach/irq.h>
+#include <asm/irq.h>
 
 #include "irqchip.h"
 

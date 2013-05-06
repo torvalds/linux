@@ -86,6 +86,18 @@ config HW_RANDOM_BCM63XX
 
 	  If unusure, say Y.
 
+config HW_RANDOM_BCM2835
+	tristate "Broadcom BCM2835 Random Number Generator support"
+	depends on HW_RANDOM && ARCH_BCM2835
+	default HW_RANDOM
+	---help---
+	  This driver provides kernel-side support for the Random Number
+	  Generator hardware found on the Broadcom BCM2835 SoCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bcm2835-rng
+
+	  If unsure, say Y.
 
 config HW_RANDOM_GEODE
 	tristate "AMD Geode HW Random Number Generator support"

@@ -38,4 +38,4 @@
  * will be fine with us.
  */
 
-#include <plat/debug-macro.S>
+#include <debug/samsung.S>

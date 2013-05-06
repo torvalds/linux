@@ -29,21 +29,17 @@ config HEXAGON
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_CLOCKEVENTS_BROADCAST
 	select MODULES_USE_ELF_RELA
+	select GENERIC_CPU_DEVICES
+	select GENERIC_KERNEL_THREAD
+	select GENERIC_KERNEL_EXECVE
 	---help---
 	  Qualcomm Hexagon is a processor architecture designed for high
 	  performance and low power across a wide variety of applications.
 
-config HEXAGON_ARCH_V1
-	bool
-
-config HEXAGON_ARCH_V2
-	bool
-
-config HEXAGON_ARCH_V3
-	bool
-
-config HEXAGON_ARCH_V4
-	bool
+config HEXAGON_PHYS_OFFSET
+	def_bool y
+	---help---
+	  Platforms that don't load the kernel at zero set this.
 
 config FRAME_POINTER
 	def_bool y
@@ -81,9 +77,6 @@ config RWSEM_GENERIC_SPINLOCK
 config RWSEM_XCHGADD_ALGORITHM
 	def_bool y
 
-config GENERIC_FIND_NEXT_BIT
-	def_bool y
-
 config GENERIC_HWEIGHT
 	def_bool y
 
@@ -103,14 +96,14 @@ choice
 
 config HEXAGON_COMET
 	bool "Comet Board"
-	select HEXAGON_ARCH_V2
 	---help---
 	  Support for the Comet platform.
 
 endchoice
 
-config HEXAGON_VM
-	def_bool y
+config HEXAGON_ARCH_VERSION
+	int "Architecture version"
+	default 2
 
 config CMDLINE
 	string "Default kernel command string"
@@ -121,12 +114,6 @@ config CMDLINE
 	  command-line options at build time by entering them here.  At a
 	  minimum, you should specify the memory size and the root device
 	  (e.g., mem=64M root=/dev/nfs).
-
-config HEXAGON_ANGEL_TRAPS
-	bool "Use Angel Traps"
-	default n
-	---help---
-	  Enable angel debug traps (for printk's).
 
 config SMP
 	bool "Multi-Processing support"

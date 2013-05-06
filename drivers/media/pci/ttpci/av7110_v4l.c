@@ -366,7 +366,7 @@ static int vidioc_g_tuner(struct file *file, void *fh, struct v4l2_tuner *t)
 	return 0;
 }
 
-static int vidioc_s_tuner(struct file *file, void *fh, struct v4l2_tuner *t)
+static int vidioc_s_tuner(struct file *file, void *fh, const struct v4l2_tuner *t)
 {
 	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
 	struct av7110 *av7110 = (struct av7110 *)dev->ext_priv;
@@ -426,7 +426,7 @@ static int vidioc_g_frequency(struct file *file, void *fh, struct v4l2_frequency
 	return 0;
 }
 
-static int vidioc_s_frequency(struct file *file, void *fh, struct v4l2_frequency *f)
+static int vidioc_s_frequency(struct file *file, void *fh, const struct v4l2_frequency *f)
 {
 	struct saa7146_dev *dev = ((struct saa7146_fh *)fh)->dev;
 	struct av7110 *av7110 = (struct av7110 *)dev->ext_priv;

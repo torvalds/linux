@@ -145,13 +145,16 @@ static int s3c_adc_bat_get_property(struct power_supply *psy,
 
 	int new_level;
 	int full_volt;
-	const struct s3c_adc_bat_thresh *lut = bat->pdata->lut_noac;
-	unsigned int lut_size = bat->pdata->lut_noac_cnt;
+	const struct s3c_adc_bat_thresh *lut;
+	unsigned int lut_size;
 
 	if (!bat) {
 		dev_err(psy->dev, "no battery infos ?!\n");
 		return -EINVAL;
 	}
+
+	lut = bat->pdata->lut_noac;
+	lut_size = bat->pdata->lut_noac_cnt;
 
 	if (bat->volt_value < 0 || bat->cur_value < 0 ||
 		jiffies_to_msecs(jiffies - bat->timestamp) >

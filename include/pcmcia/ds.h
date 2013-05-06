@@ -65,6 +65,18 @@ struct pcmcia_driver {
 int pcmcia_register_driver(struct pcmcia_driver *driver);
 void pcmcia_unregister_driver(struct pcmcia_driver *driver);
 
+/**
+ * module_pcmcia_driver() - Helper macro for registering a pcmcia driver
+ * @__pcmcia_driver: pcmcia_driver struct
+ *
+ * Helper macro for pcmcia drivers which do not do anything special in module
+ * init/exit. This eliminates a lot of boilerplate. Each module may only use
+ * this macro once, and calling it replaces module_init() and module_exit().
+ */
+#define module_pcmcia_driver(__pcmcia_driver) \
+	module_driver(__pcmcia_driver, pcmcia_register_driver, \
+			pcmcia_unregister_driver)
+
 /* for struct resource * array embedded in struct pcmcia_device */
 enum {
 	PCMCIA_IOPORT_0,

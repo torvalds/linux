@@ -148,6 +148,8 @@ void rs690_pm_info(struct radeon_device *rdev)
 static void rs690_mc_init(struct radeon_device *rdev)
 {
 	u64 base;
+	uint32_t h_addr, l_addr;
+	unsigned long long k8_addr;
 
 	rs400_gart_adjust_size(rdev);
 	rdev->mc.vram_is_ddr = true;
@@ -160,6 +162,27 @@ static void rs690_mc_init(struct radeon_device *rdev)
 	base = RREG32_MC(R_000100_MCCFG_FB_LOCATION);
 	base = G_000100_MC_FB_START(base) << 16;
 	rdev->mc.igp_sideport_enabled = radeon_atombios_sideport_present(rdev);
+
+	/* Use K8 direct mapping for fast fb access. */ 
+	rdev->fastfb_working = false;
+	h_addr = G_00005F_K8_ADDR_EXT(RREG32_MC(R_00005F_MC_MISC_UMA_CNTL));
+	l_addr = RREG32_MC(R_00001E_K8_FB_LOCATION);
+	k8_addr = ((unsigned long long)h_addr) << 32 | l_addr;
+#if defined(CONFIG_X86_32) && !defined(CONFIG_X86_PAE)
+	if (k8_addr + rdev->mc.visible_vram_size < 0x100000000ULL)	
+#endif
+	{
+		/* FastFB shall be used with UMA memory. Here it is simply disabled when sideport 
+		 * memory is present.
+		 */
+		if (rdev->mc.igp_sideport_enabled == false && radeon_fastfb == 1) {
+			DRM_INFO("Direct mapping: aper base at 0x%llx, replaced by direct mapping base 0x%llx.\n", 
+					(unsigned long long)rdev->mc.aper_base, k8_addr);
+			rdev->mc.aper_base = (resource_size_t)k8_addr;
+			rdev->fastfb_working = true;
+		}
+	}  
+
 	rs690_pm_info(rdev);
 	radeon_vram_location(rdev, &rdev->mc, base);
 	rdev->mc.gtt_base_align = rdev->mc.gtt_size - 1;

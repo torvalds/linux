@@ -57,7 +57,7 @@ static struct irq_domain *armada_370_xp_mpic_domain;
 /*
  * In SMP mode:
  * For shared global interrupts, mask/unmask global enable bit
- * For CPU interrtups, mask/unmask the calling CPU's bit
+ * For CPU interrupts, mask/unmask the calling CPU's bit
  */
 static void armada_370_xp_irq_mask(struct irq_data *d)
 {

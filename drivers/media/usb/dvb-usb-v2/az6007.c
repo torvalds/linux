@@ -842,7 +842,7 @@ static int az6007_download_firmware(struct dvb_usb_device *d,
 {
 	pr_debug("Loading az6007 firmware\n");
 
-	return usbv2_cypress_load_firmware(d->udev, fw, CYPRESS_FX2);
+	return cypress_load_firmware(d->udev, fw, CYPRESS_FX2);
 }
 
 /* DVB USB Driver stuff */

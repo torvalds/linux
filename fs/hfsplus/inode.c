@@ -357,7 +357,7 @@ int hfsplus_file_fsync(struct file *file, loff_t start, loff_t end,
 			if (!error)
 				error = error2;
 		} else {
-			printk(KERN_ERR "hfs: sync non-existent attributes tree\n");
+			pr_err("sync non-existent attributes tree\n");
 		}
 	}
 
@@ -573,7 +573,7 @@ int hfsplus_cat_read_inode(struct inode *inode, struct hfs_find_data *fd)
 		inode->i_ctime = hfsp_mt2ut(file->attribute_mod_date);
 		HFSPLUS_I(inode)->create_date = file->create_date;
 	} else {
-		printk(KERN_ERR "hfs: bad catalog entry used to create inode\n");
+		pr_err("bad catalog entry used to create inode\n");
 		res = -EIO;
 	}
 	return res;

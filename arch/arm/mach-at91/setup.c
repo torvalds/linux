@@ -151,6 +151,11 @@ static void __init soc_detect(u32 dbgu_base)
 		at91_soc_initdata.type = AT91_SOC_SAM9N12;
 		at91_boot_soc = at91sam9n12_soc;
 		break;
+
+	case ARCH_ID_SAMA5D3:
+		at91_soc_initdata.type = AT91_SOC_SAMA5D3;
+		at91_boot_soc = sama5d3_soc;
+		break;
 	}
 
 	/* at91sam9g10 */
@@ -206,6 +211,23 @@ static void __init soc_detect(u32 dbgu_base)
 			break;
 		}
 	}
+
+	if (at91_soc_initdata.type == AT91_SOC_SAMA5D3) {
+		switch (at91_soc_initdata.exid) {
+		case ARCH_EXID_SAMA5D31:
+			at91_soc_initdata.subtype = AT91_SOC_SAMA5D31;
+			break;
+		case ARCH_EXID_SAMA5D33:
+			at91_soc_initdata.subtype = AT91_SOC_SAMA5D33;
+			break;
+		case ARCH_EXID_SAMA5D34:
+			at91_soc_initdata.subtype = AT91_SOC_SAMA5D34;
+			break;
+		case ARCH_EXID_SAMA5D35:
+			at91_soc_initdata.subtype = AT91_SOC_SAMA5D35;
+			break;
+		}
+	}
 }
 
 static const char *soc_name[] = {
@@ -219,6 +241,7 @@ static const char *soc_name[] = {
 	[AT91_SOC_SAM9RL]	= "at91sam9rl",
 	[AT91_SOC_SAM9X5]	= "at91sam9x5",
 	[AT91_SOC_SAM9N12]	= "at91sam9n12",
+	[AT91_SOC_SAMA5D3]	= "sama5d3",
 	[AT91_SOC_NONE]		= "Unknown"
 };
 
@@ -241,6 +264,10 @@ static const char *soc_subtype_name[] = {
 	[AT91_SOC_SAM9X35]	= "at91sam9x35",
 	[AT91_SOC_SAM9G25]	= "at91sam9g25",
 	[AT91_SOC_SAM9X25]	= "at91sam9x25",
+	[AT91_SOC_SAMA5D31]	= "sama5d31",
+	[AT91_SOC_SAMA5D33]	= "sama5d33",
+	[AT91_SOC_SAMA5D34]	= "sama5d34",
+	[AT91_SOC_SAMA5D35]	= "sama5d35",
 	[AT91_SOC_SUBTYPE_NONE]	= "Unknown"
 };
 
@@ -333,7 +360,7 @@ static void at91_dt_rstc(void)
 
 	of_id = of_match_node(rstc_ids, np);
 	if (!of_id)
-		panic("AT91: rtsc no restart function availlable\n");
+		panic("AT91: rtsc no restart function available\n");
 
 	arm_pm_restart = of_id->data;
 
@@ -353,7 +380,7 @@ static void at91_dt_ramc(void)
 
 	np = of_find_matching_node(NULL, ramc_ids);
 	if (!np)
-		panic("unable to find compatible ram conroller node in dtb\n");
+		panic("unable to find compatible ram controller node in dtb\n");
 
 	at91_ramc_base[0] = of_iomap(np, 0);
 	if (!at91_ramc_base[0])
@@ -403,7 +430,7 @@ static void at91_dt_shdwc(void)
 
 	np = of_find_matching_node(NULL, shdwc_ids);
 	if (!np) {
-		pr_debug("AT91: unable to find compatible shutdown (shdwc) conroller node in dtb\n");
+		pr_debug("AT91: unable to find compatible shutdown (shdwc) controller node in dtb\n");
 		return;
 	}
 
@@ -419,7 +446,7 @@ static void at91_dt_shdwc(void)
 
 	if (!of_property_read_u32(np, "atmel,wakeup-counter", &reg)) {
 		if (reg > AT91_SHDW_CPTWK0_MAX) {
-			pr_warn("AT91: shdwc wakeup conter 0x%x > 0x%x reduce it to 0x%x\n",
+			pr_warn("AT91: shdwc wakeup counter 0x%x > 0x%x reduce it to 0x%x\n",
 				reg, AT91_SHDW_CPTWK0_MAX, AT91_SHDW_CPTWK0_MAX);
 			reg = AT91_SHDW_CPTWK0_MAX;
 		}

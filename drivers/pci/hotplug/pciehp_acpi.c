@@ -90,7 +90,7 @@ static int __init dummy_probe(struct pcie_device *dev)
 	slot = kzalloc(sizeof(*slot), GFP_KERNEL);
 	if (!slot)
 		return -ENOMEM;
-	slot->number = slot_cap >> 19;
+	slot->number = (slot_cap & PCI_EXP_SLTCAP_PSN) >> 19;
 	list_for_each_entry(tmp, &dummy_slots, list) {
 		if (tmp->number == slot->number)
 			dup_slot_id++;

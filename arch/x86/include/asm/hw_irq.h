@@ -28,6 +28,7 @@
 /* Interrupt handlers registered during init_IRQ */
 extern void apic_timer_interrupt(void);
 extern void x86_platform_ipi(void);
+extern void kvm_posted_intr_ipi(void);
 extern void error_interrupt(void);
 extern void irq_work_interrupt(void);
 

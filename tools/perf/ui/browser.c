@@ -2,7 +2,6 @@
 #include "../cache.h"
 #include "../../perf.h"
 #include "libslang.h"
-#include <newt.h>
 #include "ui.h"
 #include "util.h"
 #include <linux/compiler.h>
@@ -234,7 +233,7 @@ void ui_browser__reset_index(struct ui_browser *browser)
 void __ui_browser__show_title(struct ui_browser *browser, const char *title)
 {
 	SLsmg_gotorc(0, 0);
-	ui_browser__set_color(browser, NEWT_COLORSET_ROOT);
+	ui_browser__set_color(browser, HE_COLORSET_ROOT);
 	slsmg_write_nstring(title, browser->width + 1);
 }
 
@@ -512,6 +511,12 @@ static struct ui_browser_colorset {
 		.name	  = "addr",
 		.fg	  = "magenta",
 		.bg	  = "default",
+	},
+	{
+		.colorset = HE_COLORSET_ROOT,
+		.name	  = "root",
+		.fg	  = "white",
+		.bg	  = "blue",
 	},
 	{
 		.name = NULL,

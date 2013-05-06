@@ -462,7 +462,6 @@ out:
 static int tcp_v6_send_synack(struct sock *sk, struct dst_entry *dst,
 			      struct flowi6 *fl6,
 			      struct request_sock *req,
-			      struct request_values *rvp,
 			      u16 queue_mapping)
 {
 	struct inet6_request_sock *treq = inet6_rsk(req);
@@ -474,7 +473,7 @@ static int tcp_v6_send_synack(struct sock *sk, struct dst_entry *dst,
 	if (!dst && (dst = inet6_csk_route_req(sk, fl6, req)) == NULL)
 		goto done;
 
-	skb = tcp_make_synack(sk, dst, req, rvp, NULL);
+	skb = tcp_make_synack(sk, dst, req, NULL);
 
 	if (skb) {
 		__tcp_v6_send_check(skb, &treq->loc_addr, &treq->rmt_addr);
@@ -489,13 +488,12 @@ done:
 	return err;
 }
 
-static int tcp_v6_rtx_synack(struct sock *sk, struct request_sock *req,
-			     struct request_values *rvp)
+static int tcp_v6_rtx_synack(struct sock *sk, struct request_sock *req)
 {
 	struct flowi6 fl6;
 	int res;
 
-	res = tcp_v6_send_synack(sk, NULL, &fl6, req, rvp, 0);
+	res = tcp_v6_send_synack(sk, NULL, &fl6, req, 0);
 	if (!res)
 		TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_RETRANSSEGS);
 	return res;
@@ -948,9 +946,7 @@ static struct sock *tcp_v6_hnd_req(struct sock *sk,struct sk_buff *skb)
  */
 static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 {
-	struct tcp_extend_values tmp_ext;
 	struct tcp_options_received tmp_opt;
-	const u8 *hash_location;
 	struct request_sock *req;
 	struct inet6_request_sock *treq;
 	struct ipv6_pinfo *np = inet6_sk(sk);
@@ -988,50 +984,7 @@ static int tcp_v6_conn_request(struct sock *sk, struct sk_buff *skb)
 	tcp_clear_options(&tmp_opt);
 	tmp_opt.mss_clamp = IPV6_MIN_MTU - sizeof(struct tcphdr) - sizeof(struct ipv6hdr);
 	tmp_opt.user_mss = tp->rx_opt.user_mss;
-	tcp_parse_options(skb, &tmp_opt, &hash_location, 0, NULL);
-
-	if (tmp_opt.cookie_plus > 0 &&
-	    tmp_opt.saw_tstamp &&
-	    !tp->rx_opt.cookie_out_never &&
-	    (sysctl_tcp_cookie_size > 0 ||
-	     (tp->cookie_values != NULL &&
-	      tp->cookie_values->cookie_desired > 0))) {
-		u8 *c;
-		u32 *d;
-		u32 *mess = &tmp_ext.cookie_bakery[COOKIE_DIGEST_WORDS];
-		int l = tmp_opt.cookie_plus - TCPOLEN_COOKIE_BASE;
-
-		if (tcp_cookie_generator(&tmp_ext.cookie_bakery[0]) != 0)
-			goto drop_and_free;
-
-		/* Secret recipe starts with IP addresses */
-		d = (__force u32 *)&ipv6_hdr(skb)->daddr.s6_addr32[0];
-		*mess++ ^= *d++;
-		*mess++ ^= *d++;
-		*mess++ ^= *d++;
-		*mess++ ^= *d++;
-		d = (__force u32 *)&ipv6_hdr(skb)->saddr.s6_addr32[0];
-		*mess++ ^= *d++;
-		*mess++ ^= *d++;
-		*mess++ ^= *d++;
-		*mess++ ^= *d++;
-
-		/* plus variable length Initiator Cookie */
-		c = (u8 *)mess;
-		while (l-- > 0)
-			*c++ ^= *hash_location++;
-
-		want_cookie = false;	/* not our kind of cookie */
-		tmp_ext.cookie_out_never = 0; /* false */
-		tmp_ext.cookie_plus = tmp_opt.cookie_plus;
-	} else if (!tp->rx_opt.cookie_in_always) {
-		/* redundant indications, but ensure initialization. */
-		tmp_ext.cookie_out_never = 1; /* true */
-		tmp_ext.cookie_plus = 0;
-	} else {
-		goto drop_and_free;
-	}
-	tmp_ext.cookie_in_always = tp->rx_opt.cookie_in_always;
+	tcp_parse_options(skb, &tmp_opt, 0, NULL);
 
 	if (want_cookie && !tmp_opt.saw_tstamp)
 		tcp_clear_options(&tmp_opt);
@@ -1109,7 +1062,6 @@ have_isn:
 		goto drop_and_release;
 
 	if (tcp_v6_send_synack(sk, dst, &fl6, req,
-			       (struct request_values *)&tmp_ext,
 			       skb_get_queue_mapping(skb)) ||
 	    want_cookie)
 		goto drop_and_free;
@@ -1453,6 +1405,7 @@ discard:
 	kfree_skb(skb);
 	return 0;
 csum_err:
+	TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_CSUMERRORS);
 	TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_INERRS);
 	goto discard;
 
@@ -1514,7 +1467,7 @@ static int tcp_v6_rcv(struct sk_buff *skb)
 		goto discard_it;
 
 	if (!skb_csum_unnecessary(skb) && tcp_v6_checksum_init(skb))
-		goto bad_packet;
+		goto csum_error;
 
 	th = tcp_hdr(skb);
 	hdr = ipv6_hdr(skb);
@@ -1578,6 +1531,8 @@ no_tcp_socket:
 		goto discard_it;
 
 	if (skb->len < (th->doff<<2) || tcp_checksum_complete(skb)) {
+csum_error:
+		TCP_INC_STATS_BH(net, TCP_MIB_CSUMERRORS);
 bad_packet:
 		TCP_INC_STATS_BH(net, TCP_MIB_INERRS);
 	} else {
@@ -1585,11 +1540,6 @@ bad_packet:
 	}
 
 discard_it:
-
-	/*
-	 *	Discard frame
-	 */
-
 	kfree_skb(skb);
 	return 0;
 
@@ -1603,10 +1553,13 @@ do_time_wait:
 		goto discard_it;
 	}
 
-	if (skb->len < (th->doff<<2) || tcp_checksum_complete(skb)) {
-		TCP_INC_STATS_BH(net, TCP_MIB_INERRS);
+	if (skb->len < (th->doff<<2)) {
 		inet_twsk_put(inet_twsk(sk));
-		goto discard_it;
+		goto bad_packet;
+	}
+	if (tcp_checksum_complete(skb)) {
+		inet_twsk_put(inet_twsk(sk));
+		goto csum_error;
 	}
 
 	switch (tcp_timewait_state_process(inet_twsk(sk), skb, th)) {

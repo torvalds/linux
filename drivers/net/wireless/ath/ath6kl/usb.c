@@ -856,11 +856,9 @@ static int ath6kl_usb_submit_ctrl_out(struct ath6kl_usb *ar_usb,
 	int ret;
 
 	if (size > 0) {
-		buf = kmalloc(size, GFP_KERNEL);
+		buf = kmemdup(data, size, GFP_KERNEL);
 		if (buf == NULL)
 			return -ENOMEM;
-
-		memcpy(buf, data, size);
 	}
 
 	/* note: if successful returns number of bytes transfered */
@@ -872,8 +870,9 @@ static int ath6kl_usb_submit_ctrl_out(struct ath6kl_usb *ar_usb,
 			      size, 1000);
 
 	if (ret < 0) {
-		ath6kl_dbg(ATH6KL_DBG_USB, "%s failed,result = %d\n",
-			   __func__, ret);
+		ath6kl_warn("Failed to submit usb control message: %d\n", ret);
+		kfree(buf);
+		return ret;
 	}
 
 	kfree(buf);
@@ -903,8 +902,9 @@ static int ath6kl_usb_submit_ctrl_in(struct ath6kl_usb *ar_usb,
 				 size, 2 * HZ);
 
 	if (ret < 0) {
-		ath6kl_dbg(ATH6KL_DBG_USB, "%s failed,result = %d\n",
-			   __func__, ret);
+		ath6kl_warn("Failed to read usb control message: %d\n", ret);
+		kfree(buf);
+		return ret;
 	}
 
 	memcpy((u8 *) data, buf, size);
@@ -961,8 +961,10 @@ static int ath6kl_usb_diag_read32(struct ath6kl *ar, u32 address, u32 *data)
 				ATH6KL_USB_CONTROL_REQ_DIAG_RESP,
 				ar_usb->diag_resp_buffer, &resp_len);
 
-	if (ret)
+	if (ret) {
+		ath6kl_warn("diag read32 failed: %d\n", ret);
 		return ret;
+	}
 
 	resp = (struct ath6kl_usb_ctrl_diag_resp_read *)
 		ar_usb->diag_resp_buffer;
@@ -976,6 +978,7 @@ static int ath6kl_usb_diag_write32(struct ath6kl *ar, u32 address, __le32 data)
 {
 	struct ath6kl_usb *ar_usb = ar->hif_priv;
 	struct ath6kl_usb_ctrl_diag_cmd_write *cmd;
+	int ret;
 
 	cmd = (struct ath6kl_usb_ctrl_diag_cmd_write *) ar_usb->diag_cmd_buffer;
 
@@ -984,12 +987,17 @@ static int ath6kl_usb_diag_write32(struct ath6kl *ar, u32 address, __le32 data)
 	cmd->address = cpu_to_le32(address);
 	cmd->value = data;
 
-	return ath6kl_usb_ctrl_msg_exchange(ar_usb,
-					    ATH6KL_USB_CONTROL_REQ_DIAG_CMD,
-					    (u8 *) cmd,
-					    sizeof(*cmd),
-					    0, NULL, NULL);
+	ret = ath6kl_usb_ctrl_msg_exchange(ar_usb,
+					   ATH6KL_USB_CONTROL_REQ_DIAG_CMD,
+					   (u8 *) cmd,
+					   sizeof(*cmd),
+					   0, NULL, NULL);
+	if (ret) {
+		ath6kl_warn("diag_write32 failed: %d\n", ret);
+		return ret;
+	}
 
+	return 0;
 }
 
 static int ath6kl_usb_bmi_read(struct ath6kl *ar, u8 *buf, u32 len)
@@ -1001,7 +1009,7 @@ static int ath6kl_usb_bmi_read(struct ath6kl *ar, u8 *buf, u32 len)
 	ret = ath6kl_usb_submit_ctrl_in(ar_usb,
 					ATH6KL_USB_CONTROL_REQ_RECV_BMI_RESP,
 					0, 0, buf, len);
-	if (ret != 0) {
+	if (ret) {
 		ath6kl_err("Unable to read the bmi data from the device: %d\n",
 			   ret);
 		return ret;
@@ -1019,7 +1027,7 @@ static int ath6kl_usb_bmi_write(struct ath6kl *ar, u8 *buf, u32 len)
 	ret = ath6kl_usb_submit_ctrl_out(ar_usb,
 					 ATH6KL_USB_CONTROL_REQ_SEND_BMI_CMD,
 					 0, 0, buf, len);
-	if (ret != 0) {
+	if (ret) {
 		ath6kl_err("unable to send the bmi data to the device: %d\n",
 			   ret);
 		return ret;

@@ -281,7 +281,7 @@ static void __init mx5_clocks_common_init(unsigned long rate_ckil,
 	clk_register_clkdev(clk[ssi_ext1_gate], "ssi_ext1", NULL);
 	clk_register_clkdev(clk[ssi_ext2_gate], "ssi_ext2", NULL);
 	clk_register_clkdev(clk[sdma_gate], NULL, "imx35-sdma");
-	clk_register_clkdev(clk[cpu_podf], "cpu", NULL);
+	clk_register_clkdev(clk[cpu_podf], NULL, "cpufreq-cpu0.0");
 	clk_register_clkdev(clk[iim_gate], "iim", NULL);
 	clk_register_clkdev(clk[dummy], NULL, "imx2-wdt.0");
 	clk_register_clkdev(clk[dummy], NULL, "imx2-wdt.1");
@@ -362,9 +362,6 @@ int __init mx51_clocks_init(unsigned long rate_ckil, unsigned long rate_osc,
 	clk_register_clkdev(clk[mx51_mipi], "mipi_hsp", NULL);
 	clk_register_clkdev(clk[vpu_gate], NULL, "imx51-vpu.0");
 	clk_register_clkdev(clk[fec_gate], NULL, "imx27-fec.0");
-	clk_register_clkdev(clk[ipu_gate], "bus", "40000000.ipu");
-	clk_register_clkdev(clk[ipu_di0_gate], "di0", "40000000.ipu");
-	clk_register_clkdev(clk[ipu_di1_gate], "di1", "40000000.ipu");
 	clk_register_clkdev(clk[usb_phy_gate], "phy", "mxc-ehci.0");
 	clk_register_clkdev(clk[esdhc1_ipg_gate], "ipg", "sdhci-esdhc-imx51.0");
 	clk_register_clkdev(clk[dummy], "ahb", "sdhci-esdhc-imx51.0");
@@ -471,10 +468,6 @@ int __init mx53_clocks_init(unsigned long rate_ckil, unsigned long rate_osc,
 	clk_register_clkdev(clk[vpu_gate], NULL, "imx53-vpu.0");
 	clk_register_clkdev(clk[i2c3_gate], NULL, "imx21-i2c.2");
 	clk_register_clkdev(clk[fec_gate], NULL, "imx25-fec.0");
-	clk_register_clkdev(clk[ipu_gate], "bus", "18000000.ipu");
-	clk_register_clkdev(clk[ipu_di0_gate], "di0", "18000000.ipu");
-	clk_register_clkdev(clk[ipu_di1_gate], "di1", "18000000.ipu");
-	clk_register_clkdev(clk[ipu_gate], "hsp", "18000000.ipu");
 	clk_register_clkdev(clk[usb_phy1_gate], "usb_phy1", "mxc-ehci.0");
 	clk_register_clkdev(clk[esdhc1_ipg_gate], "ipg", "sdhci-esdhc-imx53.0");
 	clk_register_clkdev(clk[dummy], "ahb", "sdhci-esdhc-imx53.0");

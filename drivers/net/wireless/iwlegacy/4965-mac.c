@@ -612,7 +612,7 @@ il4965_pass_packet_to_mac80211(struct il_priv *il, struct ieee80211_hdr *hdr,
 
 /* Called for N_RX (legacy ABG frames), or
  * N_RX_MPDU (HT high-throughput N frames). */
-void
+static void
 il4965_hdl_rx(struct il_priv *il, struct il_rx_buf *rxb)
 {
 	struct ieee80211_hdr *header;
@@ -744,7 +744,7 @@ il4965_hdl_rx(struct il_priv *il, struct il_rx_buf *rxb)
 
 /* Cache phy data (Rx signal strength, etc) for HT frame (N_RX_PHY).
  * This will be used later in il_hdl_rx() for N_RX_MPDU. */
-void
+static void
 il4965_hdl_rx_phy(struct il_priv *il, struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
@@ -1250,7 +1250,7 @@ il4965_dump_fh(struct il_priv *il, char **buf, bool display)
 	return 0;
 }
 
-void
+static void
 il4965_hdl_missed_beacon(struct il_priv *il, struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
@@ -1357,7 +1357,7 @@ il4965_accumulative_stats(struct il_priv *il, __le32 * stats)
 }
 #endif
 
-void
+static void
 il4965_hdl_stats(struct il_priv *il, struct il_rx_buf *rxb)
 {
 	const int recalib_seconds = 60;
@@ -1399,7 +1399,7 @@ il4965_hdl_stats(struct il_priv *il, struct il_rx_buf *rxb)
 		il4965_temperature_calib(il);
 }
 
-void
+static void
 il4965_hdl_c_stats(struct il_priv *il, struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
@@ -1921,8 +1921,8 @@ drop_unlock:
 static inline int
 il4965_alloc_dma_ptr(struct il_priv *il, struct il_dma_ptr *ptr, size_t size)
 {
-	ptr->addr =
-	    dma_alloc_coherent(&il->pci_dev->dev, size, &ptr->dma, GFP_KERNEL);
+	ptr->addr = dma_alloc_coherent(&il->pci_dev->dev, size, &ptr->dma,
+				       GFP_KERNEL);
 	if (!ptr->addr)
 		return -ENOMEM;
 	ptr->size = size;
@@ -2050,7 +2050,7 @@ il4965_txq_ctx_reset(struct il_priv *il)
 		il_tx_queue_reset(il, txq_id);
 }
 
-void
+static void
 il4965_txq_ctx_unmap(struct il_priv *il)
 {
 	int txq_id;
@@ -2258,7 +2258,7 @@ il4965_tx_agg_start(struct il_priv *il, struct ieee80211_vif *vif,
 
 	spin_lock_irqsave(&il->sta_lock, flags);
 	tid_data = &il->stations[sta_id].tid[tid];
-	*ssn = SEQ_TO_SN(tid_data->seq_number);
+	*ssn = IEEE80211_SEQ_TO_SN(tid_data->seq_number);
 	tid_data->agg.txq_id = txq_id;
 	il_set_swq_id(&il->txq[txq_id], il4965_get_ac_from_tid(tid), txq_id);
 	spin_unlock_irqrestore(&il->sta_lock, flags);
@@ -2408,7 +2408,7 @@ il4965_txq_check_empty(struct il_priv *il, int sta_id, u8 tid, int txq_id)
 		/* aggregated HW queue */
 		if (txq_id == tid_data->agg.txq_id &&
 		    q->read_ptr == q->write_ptr) {
-			u16 ssn = SEQ_TO_SN(tid_data->seq_number);
+			u16 ssn = IEEE80211_SEQ_TO_SN(tid_data->seq_number);
 			int tx_fifo = il4965_get_fifo_from_tid(tid);
 			D_HT("HW queue empty: continue DELBA flow\n");
 			il4965_txq_agg_disable(il, txq_id, ssn, tx_fifo);
@@ -2627,7 +2627,8 @@ il4965_get_ra_sta_id(struct il_priv *il, struct ieee80211_hdr *hdr)
 static inline u32
 il4965_get_scd_ssn(struct il4965_tx_resp *tx_resp)
 {
-	return le32_to_cpup(&tx_resp->u.status + tx_resp->frame_count) & MAX_SN;
+	return le32_to_cpup(&tx_resp->u.status +
+			    tx_resp->frame_count) & IEEE80211_MAX_SN;
 }
 
 static inline u32
@@ -2717,15 +2718,15 @@ il4965_tx_status_reply_tx(struct il_priv *il, struct il_ht_agg *agg,
 			hdr = (struct ieee80211_hdr *) skb->data;
 
 			sc = le16_to_cpu(hdr->seq_ctrl);
-			if (idx != (SEQ_TO_SN(sc) & 0xff)) {
+			if (idx != (IEEE80211_SEQ_TO_SN(sc) & 0xff)) {
 				IL_ERR("BUG_ON idx doesn't match seq control"
 				       " idx=%d, seq_idx=%d, seq=%d\n", idx,
-				       SEQ_TO_SN(sc), hdr->seq_ctrl);
+				       IEEE80211_SEQ_TO_SN(sc), hdr->seq_ctrl);
 				return -1;
 			}
 
 			D_TX_REPLY("AGG Frame i=%d idx %d seq=%d\n", i, idx,
-				   SEQ_TO_SN(sc));
+				   IEEE80211_SEQ_TO_SN(sc));
 
 			sh = idx - start;
 			if (sh > 64) {
@@ -2895,7 +2896,7 @@ il4965_hwrate_to_tx_control(struct il_priv *il, u32 rate_n_flags,
  * Handles block-acknowledge notification from device, which reports success
  * of frames sent via aggregation.
  */
-void
+static void
 il4965_hdl_compressed_ba(struct il_priv *il, struct il_rx_buf *rxb)
 {
 	struct il_rx_pkt *pkt = rxb_addr(rxb);
@@ -6056,7 +6057,7 @@ il4965_mac_channel_switch(struct ieee80211_hw *hw,
 	struct il_priv *il = hw->priv;
 	const struct il_channel_info *ch_info;
 	struct ieee80211_conf *conf = &hw->conf;
-	struct ieee80211_channel *channel = ch_switch->channel;
+	struct ieee80211_channel *channel = ch_switch->chandef.chan;
 	struct il_ht_config *ht_conf = &il->current_ht_config;
 	u16 ch;
 
@@ -6093,23 +6094,21 @@ il4965_mac_channel_switch(struct ieee80211_hw *hw,
 	il->current_ht_config.smps = conf->smps_mode;
 
 	/* Configure HT40 channels */
-	il->ht.enabled = conf_is_ht(conf);
-	if (il->ht.enabled) {
-		if (conf_is_ht40_minus(conf)) {
-			il->ht.extension_chan_offset =
-			    IEEE80211_HT_PARAM_CHA_SEC_BELOW;
-			il->ht.is_40mhz = true;
-		} else if (conf_is_ht40_plus(conf)) {
-			il->ht.extension_chan_offset =
-			    IEEE80211_HT_PARAM_CHA_SEC_ABOVE;
-			il->ht.is_40mhz = true;
-		} else {
-			il->ht.extension_chan_offset =
-			    IEEE80211_HT_PARAM_CHA_SEC_NONE;
-			il->ht.is_40mhz = false;
-		}
-	} else
+	switch (cfg80211_get_chandef_type(&ch_switch->chandef)) {
+	case NL80211_CHAN_NO_HT:
+	case NL80211_CHAN_HT20:
 		il->ht.is_40mhz = false;
+		il->ht.extension_chan_offset = IEEE80211_HT_PARAM_CHA_SEC_NONE;
+		break;
+	case NL80211_CHAN_HT40MINUS:
+		il->ht.extension_chan_offset = IEEE80211_HT_PARAM_CHA_SEC_BELOW;
+		il->ht.is_40mhz = true;
+		break;
+	case NL80211_CHAN_HT40PLUS:
+		il->ht.extension_chan_offset = IEEE80211_HT_PARAM_CHA_SEC_ABOVE;
+		il->ht.is_40mhz = true;
+		break;
+	}
 
 	if ((le16_to_cpu(il->staging.channel) != ch))
 		il->staging.flags = 0;
@@ -6316,7 +6315,7 @@ il4965_tx_queue_set_status(struct il_priv *il, struct il_tx_queue *txq,
 	       scd_retry ? "BA" : "AC", txq_id, tx_fifo_id);
 }
 
-const struct ieee80211_ops il4965_mac_ops = {
+static const struct ieee80211_ops il4965_mac_ops = {
 	.tx = il4965_mac_tx,
 	.start = il4965_mac_start,
 	.stop = il4965_mac_stop,

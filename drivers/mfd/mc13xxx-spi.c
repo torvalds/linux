@@ -131,7 +131,7 @@ static int mc13xxx_spi_probe(struct spi_device *spi)
 	if (!mc13xxx)
 		return -ENOMEM;
 
-	dev_set_drvdata(&spi->dev, mc13xxx);
+	spi_set_drvdata(spi, mc13xxx);
 	spi->mode = SPI_MODE_0 | SPI_CS_HIGH;
 
 	mc13xxx->dev = &spi->dev;
@@ -144,7 +144,7 @@ static int mc13xxx_spi_probe(struct spi_device *spi)
 		ret = PTR_ERR(mc13xxx->regmap);
 		dev_err(mc13xxx->dev, "Failed to initialize register map: %d\n",
 				ret);
-		dev_set_drvdata(&spi->dev, NULL);
+		spi_set_drvdata(spi, NULL);
 		return ret;
 	}
 
@@ -164,7 +164,7 @@ static int mc13xxx_spi_probe(struct spi_device *spi)
 
 static int mc13xxx_spi_remove(struct spi_device *spi)
 {
-	struct mc13xxx *mc13xxx = dev_get_drvdata(&spi->dev);
+	struct mc13xxx *mc13xxx = spi_get_drvdata(spi);
 
 	mc13xxx_common_cleanup(mc13xxx);
 

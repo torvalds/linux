@@ -124,6 +124,9 @@ int main(void)
 
 #ifdef CONFIG_PPC_BOOK3S_64
 	DEFINE(THREAD_TAR, offsetof(struct thread_struct, tar));
+	DEFINE(THREAD_BESCR, offsetof(struct thread_struct, bescr));
+	DEFINE(THREAD_EBBHR, offsetof(struct thread_struct, ebbhr));
+	DEFINE(THREAD_EBBRR, offsetof(struct thread_struct, ebbrr));
 #endif
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	DEFINE(PACATMSCRATCH, offsetof(struct paca_struct, tm_scratch));
@@ -477,6 +480,7 @@ int main(void)
 	DEFINE(VCPU_DSISR, offsetof(struct kvm_vcpu, arch.shregs.dsisr));
 	DEFINE(VCPU_DAR, offsetof(struct kvm_vcpu, arch.shregs.dar));
 	DEFINE(VCPU_VPA, offsetof(struct kvm_vcpu, arch.vpa.pinned_addr));
+	DEFINE(VCPU_VPA_DIRTY, offsetof(struct kvm_vcpu, arch.vpa.dirty));
 #endif
 #ifdef CONFIG_PPC_BOOK3S
 	DEFINE(VCPU_VCPUID, offsetof(struct kvm_vcpu, vcpu_id));
@@ -573,6 +577,8 @@ int main(void)
 	HSTATE_FIELD(HSTATE_KVM_VCPU, kvm_vcpu);
 	HSTATE_FIELD(HSTATE_KVM_VCORE, kvm_vcore);
 	HSTATE_FIELD(HSTATE_XICS_PHYS, xics_phys);
+	HSTATE_FIELD(HSTATE_SAVED_XIRR, saved_xirr);
+	HSTATE_FIELD(HSTATE_HOST_IPI, host_ipi);
 	HSTATE_FIELD(HSTATE_MMCR, host_mmcr);
 	HSTATE_FIELD(HSTATE_PMC, host_pmc);
 	HSTATE_FIELD(HSTATE_PURR, host_purr);
@@ -596,6 +602,7 @@ int main(void)
 	DEFINE(VCPU_LAST_INST, offsetof(struct kvm_vcpu, arch.last_inst));
 	DEFINE(VCPU_FAULT_DEAR, offsetof(struct kvm_vcpu, arch.fault_dear));
 	DEFINE(VCPU_FAULT_ESR, offsetof(struct kvm_vcpu, arch.fault_esr));
+	DEFINE(VCPU_CRIT_SAVE, offsetof(struct kvm_vcpu, arch.crit_save));
 #endif /* CONFIG_PPC_BOOK3S */
 #endif /* CONFIG_KVM */
 

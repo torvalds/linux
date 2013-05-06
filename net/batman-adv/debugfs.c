@@ -32,6 +32,7 @@
 #include "icmp_socket.h"
 #include "bridge_loop_avoidance.h"
 #include "distributed-arp-table.h"
+#include "network-coding.h"
 
 static struct dentry *batadv_debugfs;
 
@@ -310,6 +311,14 @@ struct batadv_debuginfo {
 	const struct file_operations fops;
 };
 
+#ifdef CONFIG_BATMAN_ADV_NC
+static int batadv_nc_nodes_open(struct inode *inode, struct file *file)
+{
+	struct net_device *net_dev = (struct net_device *)inode->i_private;
+	return single_open(file, batadv_nc_nodes_seq_print_text, net_dev);
+}
+#endif
+
 #define BATADV_DEBUGINFO(_name, _mode, _open)		\
 struct batadv_debuginfo batadv_debuginfo_##_name = {	\
 	.attr = { .name = __stringify(_name),		\
@@ -348,6 +357,9 @@ static BATADV_DEBUGINFO(dat_cache, S_IRUGO, batadv_dat_cache_open);
 static BATADV_DEBUGINFO(transtable_local, S_IRUGO,
 			batadv_transtable_local_open);
 static BATADV_DEBUGINFO(vis_data, S_IRUGO, batadv_vis_data_open);
+#ifdef CONFIG_BATMAN_ADV_NC
+static BATADV_DEBUGINFO(nc_nodes, S_IRUGO, batadv_nc_nodes_open);
+#endif
 
 static struct batadv_debuginfo *batadv_mesh_debuginfos[] = {
 	&batadv_debuginfo_originators,
@@ -362,6 +374,9 @@ static struct batadv_debuginfo *batadv_mesh_debuginfos[] = {
 #endif
 	&batadv_debuginfo_transtable_local,
 	&batadv_debuginfo_vis_data,
+#ifdef CONFIG_BATMAN_ADV_NC
+	&batadv_debuginfo_nc_nodes,
+#endif
 	NULL,
 };
 
@@ -430,6 +445,9 @@ int batadv_debugfs_add_meshif(struct net_device *dev)
 			goto rem_attr;
 		}
 	}
+
+	if (batadv_nc_init_debugfs(bat_priv) < 0)
+		goto rem_attr;
 
 	return 0;
 rem_attr:

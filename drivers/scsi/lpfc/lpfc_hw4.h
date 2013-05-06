@@ -1958,6 +1958,9 @@ struct lpfc_mbx_init_vfi {
 
 struct lpfc_mbx_reg_vfi {
 	uint32_t word1;
+#define lpfc_reg_vfi_upd_SHIFT		29
+#define lpfc_reg_vfi_upd_MASK		0x00000001
+#define lpfc_reg_vfi_upd_WORD		word1
 #define lpfc_reg_vfi_vp_SHIFT		28
 #define lpfc_reg_vfi_vp_MASK		0x00000001
 #define lpfc_reg_vfi_vp_WORD		word1

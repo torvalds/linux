@@ -24,10 +24,14 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/phy.h>
-#include <linux/of_address.h>
-#include <linux/of_mdio.h>
+#include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
+#include <linux/io.h>
+#include <linux/clk.h>
+#include <linux/of_mdio.h>
+#include <linux/sched.h>
+#include <linux/wait.h>
 
 #define MVMDIO_SMI_DATA_SHIFT              0
 #define MVMDIO_SMI_PHY_ADDR_SHIFT          16
@@ -36,11 +40,28 @@
 #define MVMDIO_SMI_WRITE_OPERATION         0
 #define MVMDIO_SMI_READ_VALID              BIT(27)
 #define MVMDIO_SMI_BUSY                    BIT(28)
+#define MVMDIO_ERR_INT_CAUSE		   0x007C
+#define  MVMDIO_ERR_INT_SMI_DONE	   0x00000010
+#define MVMDIO_ERR_INT_MASK		   0x0080
 
 struct orion_mdio_dev {
 	struct mutex lock;
-	void __iomem *smireg;
+	void __iomem *regs;
+	struct clk *clk;
+	/*
+	 * If we have access to the error interrupt pin (which is
+	 * somewhat misnamed as it not only reflects internal errors
+	 * but also reflects SMI completion), use that to wait for
+	 * SMI access completion instead of polling the SMI busy bit.
+	 */
+	int err_interrupt;
+	wait_queue_head_t smi_busy_wait;
 };
+
+static int orion_mdio_smi_is_done(struct orion_mdio_dev *dev)
+{
+	return !(readl(dev->regs) & MVMDIO_SMI_BUSY);
+}
 
 /* Wait for the SMI unit to be ready for another operation
  */
@@ -48,21 +69,30 @@ static int orion_mdio_wait_ready(struct mii_bus *bus)
 {
 	struct orion_mdio_dev *dev = bus->priv;
 	int count;
-	u32 val;
 
-	count = 0;
-	while (1) {
-		val = readl(dev->smireg);
-		if (!(val & MVMDIO_SMI_BUSY))
-			break;
+	if (dev->err_interrupt <= 0) {
+		count = 0;
+		while (1) {
+			if (orion_mdio_smi_is_done(dev))
+				break;
 
-		if (count > 100) {
-			dev_err(bus->parent, "Timeout: SMI busy for too long\n");
-			return -ETIMEDOUT;
+			if (count > 100) {
+				dev_err(bus->parent,
+					"Timeout: SMI busy for too long\n");
+				return -ETIMEDOUT;
+			}
+
+			udelay(10);
+			count++;
 		}
-
-		udelay(10);
-		count++;
+	} else {
+		if (!orion_mdio_smi_is_done(dev)) {
+			wait_event_timeout(dev->smi_busy_wait,
+				orion_mdio_smi_is_done(dev),
+				msecs_to_jiffies(100));
+			if (!orion_mdio_smi_is_done(dev))
+				return -ETIMEDOUT;
+		}
 	}
 
 	return 0;
@@ -87,12 +117,12 @@ static int orion_mdio_read(struct mii_bus *bus, int mii_id,
 	writel(((mii_id << MVMDIO_SMI_PHY_ADDR_SHIFT) |
 		(regnum << MVMDIO_SMI_PHY_REG_SHIFT)  |
 		MVMDIO_SMI_READ_OPERATION),
-	       dev->smireg);
+	       dev->regs);
 
 	/* Wait for the value to become available */
 	count = 0;
 	while (1) {
-		val = readl(dev->smireg);
+		val = readl(dev->regs);
 		if (val & MVMDIO_SMI_READ_VALID)
 			break;
 
@@ -129,7 +159,7 @@ static int orion_mdio_write(struct mii_bus *bus, int mii_id,
 		(regnum << MVMDIO_SMI_PHY_REG_SHIFT)  |
 		MVMDIO_SMI_WRITE_OPERATION            |
 		(value << MVMDIO_SMI_DATA_SHIFT)),
-	       dev->smireg);
+	       dev->regs);
 
 	mutex_unlock(&dev->lock);
 
@@ -141,12 +171,33 @@ static int orion_mdio_reset(struct mii_bus *bus)
 	return 0;
 }
 
+static irqreturn_t orion_mdio_err_irq(int irq, void *dev_id)
+{
+	struct orion_mdio_dev *dev = dev_id;
+
+	if (readl(dev->regs + MVMDIO_ERR_INT_CAUSE) &
+			MVMDIO_ERR_INT_SMI_DONE) {
+		writel(~MVMDIO_ERR_INT_SMI_DONE,
+				dev->regs + MVMDIO_ERR_INT_CAUSE);
+		wake_up(&dev->smi_busy_wait);
+		return IRQ_HANDLED;
+	}
+
+	return IRQ_NONE;
+}
+
 static int orion_mdio_probe(struct platform_device *pdev)
 {
-	struct device_node *np = pdev->dev.of_node;
+	struct resource *r;
 	struct mii_bus *bus;
 	struct orion_mdio_dev *dev;
 	int i, ret;
+
+	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!r) {
+		dev_err(&pdev->dev, "No SMI register address given\n");
+		return -ENODEV;
+	}
 
 	bus = mdiobus_alloc_size(sizeof(struct orion_mdio_dev));
 	if (!bus) {
@@ -172,36 +223,66 @@ static int orion_mdio_probe(struct platform_device *pdev)
 		bus->irq[i] = PHY_POLL;
 
 	dev = bus->priv;
-	dev->smireg = of_iomap(pdev->dev.of_node, 0);
-	if (!dev->smireg) {
-		dev_err(&pdev->dev, "No SMI register address given in DT\n");
-		kfree(bus->irq);
-		mdiobus_free(bus);
-		return -ENODEV;
+	dev->regs = devm_ioremap(&pdev->dev, r->start, resource_size(r));
+	if (!dev->regs) {
+		dev_err(&pdev->dev, "Unable to remap SMI register\n");
+		ret = -ENODEV;
+		goto out_mdio;
+	}
+
+	init_waitqueue_head(&dev->smi_busy_wait);
+
+	dev->clk = devm_clk_get(&pdev->dev, NULL);
+	if (!IS_ERR(dev->clk))
+		clk_prepare_enable(dev->clk);
+
+	dev->err_interrupt = platform_get_irq(pdev, 0);
+	if (dev->err_interrupt != -ENXIO) {
+		ret = devm_request_irq(&pdev->dev, dev->err_interrupt,
+					orion_mdio_err_irq,
+					IRQF_SHARED, pdev->name, dev);
+		if (ret)
+			goto out_mdio;
+
+		writel(MVMDIO_ERR_INT_SMI_DONE,
+			dev->regs + MVMDIO_ERR_INT_MASK);
 	}
 
 	mutex_init(&dev->lock);
 
-	ret = of_mdiobus_register(bus, np);
+	if (pdev->dev.of_node)
+		ret = of_mdiobus_register(bus, pdev->dev.of_node);
+	else
+		ret = mdiobus_register(bus);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Cannot register MDIO bus (%d)\n", ret);
-		iounmap(dev->smireg);
-		kfree(bus->irq);
-		mdiobus_free(bus);
-		return ret;
+		goto out_mdio;
 	}
 
 	platform_set_drvdata(pdev, bus);
 
 	return 0;
+
+out_mdio:
+	if (!IS_ERR(dev->clk))
+		clk_disable_unprepare(dev->clk);
+	kfree(bus->irq);
+	mdiobus_free(bus);
+	return ret;
 }
 
 static int orion_mdio_remove(struct platform_device *pdev)
 {
 	struct mii_bus *bus = platform_get_drvdata(pdev);
+	struct orion_mdio_dev *dev = bus->priv;
+
+	writel(0, dev->regs + MVMDIO_ERR_INT_MASK);
 	mdiobus_unregister(bus);
 	kfree(bus->irq);
 	mdiobus_free(bus);
+	if (!IS_ERR(dev->clk))
+		clk_disable_unprepare(dev->clk);
+
 	return 0;
 }
 
@@ -225,3 +306,4 @@ module_platform_driver(orion_mdio_driver);
 MODULE_DESCRIPTION("Marvell MDIO interface driver");
 MODULE_AUTHOR("Thomas Petazzoni <thomas.petazzoni@free-electrons.com>");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:orion-mdio");

@@ -54,46 +54,46 @@
 #define SJA1000_MAX_IRQ 20	/* max. number of interrupts handled in ISR */
 
 /* SJA1000 registers - manual section 6.4 (Pelican Mode) */
-#define REG_MOD		0x00
-#define REG_CMR		0x01
-#define SJA1000_REG_SR		0x02
-#define REG_IR		0x03
-#define REG_IER		0x04
-#define REG_ALC		0x0B
-#define REG_ECC		0x0C
-#define REG_EWL		0x0D
-#define REG_RXERR	0x0E
-#define REG_TXERR	0x0F
-#define REG_ACCC0	0x10
-#define REG_ACCC1	0x11
-#define REG_ACCC2	0x12
-#define REG_ACCC3	0x13
-#define REG_ACCM0	0x14
-#define REG_ACCM1	0x15
-#define REG_ACCM2	0x16
-#define REG_ACCM3	0x17
-#define REG_RMC		0x1D
-#define REG_RBSA	0x1E
+#define SJA1000_MOD		0x00
+#define SJA1000_CMR		0x01
+#define SJA1000_SR		0x02
+#define SJA1000_IR		0x03
+#define SJA1000_IER		0x04
+#define SJA1000_ALC		0x0B
+#define SJA1000_ECC		0x0C
+#define SJA1000_EWL		0x0D
+#define SJA1000_RXERR		0x0E
+#define SJA1000_TXERR		0x0F
+#define SJA1000_ACCC0		0x10
+#define SJA1000_ACCC1		0x11
+#define SJA1000_ACCC2		0x12
+#define SJA1000_ACCC3		0x13
+#define SJA1000_ACCM0		0x14
+#define SJA1000_ACCM1		0x15
+#define SJA1000_ACCM2		0x16
+#define SJA1000_ACCM3		0x17
+#define SJA1000_RMC		0x1D
+#define SJA1000_RBSA		0x1E
 
 /* Common registers - manual section 6.5 */
-#define REG_BTR0	0x06
-#define REG_BTR1	0x07
-#define REG_OCR		0x08
-#define REG_CDR		0x1F
+#define SJA1000_BTR0		0x06
+#define SJA1000_BTR1		0x07
+#define SJA1000_OCR		0x08
+#define SJA1000_CDR		0x1F
 
-#define REG_FI		0x10
-#define SFF_BUF		0x13
-#define EFF_BUF		0x15
+#define SJA1000_FI		0x10
+#define SJA1000_SFF_BUF		0x13
+#define SJA1000_EFF_BUF		0x15
 
-#define FI_FF		0x80
-#define FI_RTR		0x40
+#define SJA1000_FI_FF		0x80
+#define SJA1000_FI_RTR		0x40
 
-#define REG_ID1		0x11
-#define REG_ID2		0x12
-#define REG_ID3		0x13
-#define REG_ID4		0x14
+#define SJA1000_ID1		0x11
+#define SJA1000_ID2		0x12
+#define SJA1000_ID3		0x13
+#define SJA1000_ID4		0x14
 
-#define CAN_RAM		0x20
+#define SJA1000_CAN_RAM		0x20
 
 /* mode register */
 #define MOD_RM		0x01

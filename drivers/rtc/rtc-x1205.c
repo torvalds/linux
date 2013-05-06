@@ -630,8 +630,8 @@ static int x1205_probe(struct i2c_client *client,
 
 	dev_info(&client->dev, "chip found, driver version " DRV_VERSION "\n");
 
-	rtc = rtc_device_register(x1205_driver.driver.name, &client->dev,
-				&x1205_rtc_ops, THIS_MODULE);
+	rtc = devm_rtc_device_register(&client->dev, x1205_driver.driver.name,
+					&x1205_rtc_ops, THIS_MODULE);
 
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
@@ -653,21 +653,13 @@ static int x1205_probe(struct i2c_client *client,
 
 	err = x1205_sysfs_register(&client->dev);
 	if (err)
-		goto exit_devreg;
+		return err;
 
 	return 0;
-
-exit_devreg:
-	rtc_device_unregister(rtc);
-
-	return err;
 }
 
 static int x1205_remove(struct i2c_client *client)
 {
-	struct rtc_device *rtc = i2c_get_clientdata(client);
-
-	rtc_device_unregister(rtc);
 	x1205_sysfs_unregister(&client->dev);
 	return 0;
 }

@@ -7,8 +7,9 @@ CFLAGS_vmx.o := -I.
 
 kvm-y			+= $(addprefix ../../../virt/kvm/, kvm_main.o ioapic.o \
 				coalesced_mmio.o irq_comm.o eventfd.o \
-				assigned-dev.o)
-kvm-$(CONFIG_IOMMU_API)	+= $(addprefix ../../../virt/kvm/, iommu.o)
+				irqchip.o)
+kvm-$(CONFIG_KVM_DEVICE_ASSIGNMENT)	+= $(addprefix ../../../virt/kvm/, \
+				assigned-dev.o iommu.o)
 kvm-$(CONFIG_KVM_ASYNC_PF)	+= $(addprefix ../../../virt/kvm/, async_pf.o)
 
 kvm-y			+= x86.o mmu.o emulate.o i8259.o irq.o lapic.o \

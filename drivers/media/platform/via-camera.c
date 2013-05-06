@@ -847,7 +847,7 @@ static int viacam_s_input(struct file *filp, void *priv, unsigned int i)
 	return 0;
 }
 
-static int viacam_s_std(struct file *filp, void *priv, v4l2_std_id *std)
+static int viacam_s_std(struct file *filp, void *priv, v4l2_std_id std)
 {
 	return 0;
 }

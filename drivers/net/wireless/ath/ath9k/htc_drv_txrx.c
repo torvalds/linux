@@ -490,7 +490,7 @@ static void ath9k_htc_tx_process(struct ath9k_htc_priv *priv,
 		if (txs->ts_flags & ATH9K_HTC_TXSTAT_SGI)
 			rate->flags |= IEEE80211_TX_RC_SHORT_GI;
 	} else {
-		if (cur_conf->channel->band == IEEE80211_BAND_5GHZ)
+		if (cur_conf->chandef.chan->band == IEEE80211_BAND_5GHZ)
 			rate->idx += 4; /* No CCK rates */
 	}
 
@@ -939,7 +939,7 @@ static void ath9k_process_rate(struct ieee80211_hw *hw,
 		return;
 	}
 
-	band = hw->conf.channel->band;
+	band = hw->conf.chandef.chan->band;
 	sband = hw->wiphy->bands[band];
 
 	for (i = 0; i < sband->n_bitrates; i++) {
@@ -966,7 +966,7 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 	struct sk_buff *skb = rxbuf->skb;
 	struct ath_common *common = ath9k_hw_common(priv->ah);
 	struct ath_htc_rx_status *rxstatus;
-	int hdrlen, padpos, padsize;
+	int hdrlen, padsize;
 	int last_rssi = ATH_RSSI_DUMMY_MARKER;
 	__le16 fc;
 
@@ -996,11 +996,9 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 	fc = hdr->frame_control;
 	hdrlen = ieee80211_get_hdrlen_from_skb(skb);
 
-	padpos = ath9k_cmn_padpos(fc);
-
-	padsize = padpos & 3;
-	if (padsize && skb->len >= padpos+padsize+FCS_LEN) {
-		memmove(skb->data + padsize, skb->data, padpos);
+	padsize = hdrlen & 3;
+	if (padsize && skb->len >= hdrlen+padsize+FCS_LEN) {
+		memmove(skb->data + padsize, skb->data, hdrlen);
 		skb_pull(skb, padsize);
 	}
 
@@ -1082,8 +1080,8 @@ static bool ath9k_rx_prepare(struct ath9k_htc_priv *priv,
 	}
 
 	rx_status->mactime = be64_to_cpu(rxbuf->rxstatus.rs_tstamp);
-	rx_status->band = hw->conf.channel->band;
-	rx_status->freq = hw->conf.channel->center_freq;
+	rx_status->band = hw->conf.chandef.chan->band;
+	rx_status->freq = hw->conf.chandef.chan->center_freq;
 	rx_status->signal =  rxbuf->rxstatus.rs_rssi + ATH_DEFAULT_NOISE_FLOOR;
 	rx_status->antenna = rxbuf->rxstatus.rs_antenna;
 	rx_status->flag |= RX_FLAG_MACTIME_END;

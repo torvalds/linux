@@ -745,42 +745,36 @@ static inline int NCR5380_pwrite(struct Scsi_Host *instance, unsigned char *src,
  
 #include "NCR5380.c"
 
-#define PRINTP(x) len += sprintf(buffer+len, x)
+#define PRINTP(x) seq_printf(m, x)
 #define ANDP ,
 
-static int sprint_opcode(char *buffer, int len, int opcode)
+static void sprint_opcode(struct seq_file *m, int opcode)
 {
-	int start = len;
 	PRINTP("0x%02x " ANDP opcode);
-	return len - start;
 }
 
-static int sprint_command(char *buffer, int len, unsigned char *command)
+static void sprint_command(struct seq_file *m, unsigned char *command)
 {
-	int i, s, start = len;
-	len += sprint_opcode(buffer, len, command[0]);
+	int i, s;
+	sprint_opcode(m, command[0]);
 	for (i = 1, s = COMMAND_SIZE(command[0]); i < s; ++i)
 		PRINTP("%02x " ANDP command[i]);
 	PRINTP("\n");
-	return len - start;
 }
 
 /**
  *	sprintf_Scsi_Cmnd	-	print a scsi command
- *	@buffer: buffr to print into
- *	@len: buffer length
+ *	@m: seq_fil to print into
  *	@cmd: SCSI command block
  *	
  *	Print out the target and command data in hex
  */
 
-static int sprint_Scsi_Cmnd(char *buffer, int len, Scsi_Cmnd * cmd)
+static void sprint_Scsi_Cmnd(struct seq_file *m, Scsi_Cmnd * cmd)
 {
-	int start = len;
 	PRINTP("host number %d destination target %d, lun %d\n" ANDP cmd->device->host->host_no ANDP cmd->device->id ANDP cmd->device->lun);
 	PRINTP("        command = ");
-	len += sprint_command(buffer, len, cmd->cmnd);
-	return len - start;
+	sprint_command(m, cmd->cmnd);
 }
 
 /**
@@ -800,9 +794,8 @@ static int sprint_Scsi_Cmnd(char *buffer, int len, Scsi_Cmnd * cmd)
  *	Locks: global cli/lock for queue walk
  */
  
-static int generic_NCR5380_proc_info(struct Scsi_Host *scsi_ptr, char *buffer, char **start, off_t offset, int length, int inout)
+static int generic_NCR5380_show_info(struct seq_file *m, struct Scsi_Host *scsi_ptr)
 {
-	int len = 0;
 	NCR5380_local_declare();
 	unsigned long flags;
 	unsigned char status;
@@ -853,16 +846,16 @@ static int generic_NCR5380_proc_info(struct Scsi_Host *scsi_ptr, char *buffer, c
 		PRINTP("  T:%d %s " ANDP dev->id ANDP scsi_device_type(dev->type));
 		for (i = 0; i < 8; i++)
 			if (dev->vendor[i] >= 0x20)
-				*(buffer + (len++)) = dev->vendor[i];
-		*(buffer + (len++)) = ' ';
+				seq_putc(m, dev->vendor[i]);
+		seq_putc(m, ' ');
 		for (i = 0; i < 16; i++)
 			if (dev->model[i] >= 0x20)
-				*(buffer + (len++)) = dev->model[i];
-		*(buffer + (len++)) = ' ';
+				seq_putc(m, dev->model[i]);
+		seq_putc(m, ' ');
 		for (i = 0; i < 4; i++)
 			if (dev->rev[i] >= 0x20)
-				*(buffer + (len++)) = dev->rev[i];
-		*(buffer + (len++)) = ' ';
+				seq_putc(m, dev->rev[i]);
+		seq_putc(m, ' ');
 
 		PRINTP("\n%10ld kb read    in %5ld secs" ANDP br / 1024 ANDP tr);
 		if (tr)
@@ -886,32 +879,28 @@ static int generic_NCR5380_proc_info(struct Scsi_Host *scsi_ptr, char *buffer, c
 	if (!hostdata->connected) {
 		PRINTP("No currently connected command\n");
 	} else {
-		len += sprint_Scsi_Cmnd(buffer, len, (Scsi_Cmnd *) hostdata->connected);
+		sprint_Scsi_Cmnd(m, (Scsi_Cmnd *) hostdata->connected);
 	}
 
 	PRINTP("issue_queue\n");
 
 	for (ptr = (Scsi_Cmnd *) hostdata->issue_queue; ptr; ptr = (Scsi_Cmnd *) ptr->host_scribble)
-		len += sprint_Scsi_Cmnd(buffer, len, ptr);
+		sprint_Scsi_Cmnd(m, ptr);
 
 	PRINTP("disconnected_queue\n");
 
 	for (ptr = (Scsi_Cmnd *) hostdata->disconnected_queue; ptr; ptr = (Scsi_Cmnd *) ptr->host_scribble)
-		len += sprint_Scsi_Cmnd(buffer, len, ptr);
+		sprint_Scsi_Cmnd(m, ptr);
 
-	*start = buffer + offset;
-	len -= offset;
-	if (len > length)
-		len = length;
 	spin_unlock_irqrestore(scsi_ptr->host_lock, flags);
-	return len;
+	return 0;
 }
 
 #undef PRINTP
 #undef ANDP
 
 static struct scsi_host_template driver_template = {
-	.proc_info      	= generic_NCR5380_proc_info,
+	.show_info      	= generic_NCR5380_show_info,
 	.name           	= "Generic NCR5380/NCR53C400 Scsi Driver",
 	.detect         	= generic_NCR5380_detect,
 	.release        	= generic_NCR5380_release_resources,

@@ -1037,6 +1037,24 @@ __xfrm_policy_lookup(struct net *net, const struct flowi *fl, u16 family, u8 dir
 	return xfrm_policy_lookup_bytype(net, XFRM_POLICY_TYPE_MAIN, fl, family, dir);
 }
 
+static int flow_to_policy_dir(int dir)
+{
+	if (XFRM_POLICY_IN == FLOW_DIR_IN &&
+	    XFRM_POLICY_OUT == FLOW_DIR_OUT &&
+	    XFRM_POLICY_FWD == FLOW_DIR_FWD)
+		return dir;
+
+	switch (dir) {
+	default:
+	case FLOW_DIR_IN:
+		return XFRM_POLICY_IN;
+	case FLOW_DIR_OUT:
+		return XFRM_POLICY_OUT;
+	case FLOW_DIR_FWD:
+		return XFRM_POLICY_FWD;
+	}
+}
+
 static struct flow_cache_object *
 xfrm_policy_lookup(struct net *net, const struct flowi *fl, u16 family,
 		   u8 dir, struct flow_cache_object *old_obj, void *ctx)
@@ -1046,7 +1064,7 @@ xfrm_policy_lookup(struct net *net, const struct flowi *fl, u16 family,
 	if (old_obj)
 		xfrm_pol_put(container_of(old_obj, struct xfrm_policy, flo));
 
-	pol = __xfrm_policy_lookup(net, fl, family, dir);
+	pol = __xfrm_policy_lookup(net, fl, family, flow_to_policy_dir(dir));
 	if (IS_ERR_OR_NULL(pol))
 		return ERR_CAST(pol);
 
@@ -1932,7 +1950,8 @@ xfrm_bundle_lookup(struct net *net, const struct flowi *fl, u16 family, u8 dir,
 	 * previous cache entry */
 	if (xdst == NULL) {
 		num_pols = 1;
-		pols[0] = __xfrm_policy_lookup(net, fl, family, dir);
+		pols[0] = __xfrm_policy_lookup(net, fl, family,
+					       flow_to_policy_dir(dir));
 		err = xfrm_expand_policies(fl, family, pols,
 					   &num_pols, &num_xfrms);
 		if (err < 0)

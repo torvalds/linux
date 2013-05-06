@@ -30,8 +30,10 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/module.h>
+#include <linux/falloc.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
+#include <asm/unaligned.h>
 
 #include <target/target_core_base.h>
 #include <target/target_core_backend.h>
@@ -166,6 +168,33 @@ static int fd_configure_device(struct se_device *dev)
 			" block_device blocks: %llu logical_block_size: %d\n",
 			dev_size, div_u64(dev_size, fd_dev->fd_block_size),
 			fd_dev->fd_block_size);
+		/*
+		 * Check if the underlying struct block_device request_queue supports
+		 * the QUEUE_FLAG_DISCARD bit for UNMAP/WRITE_SAME in SCSI + TRIM
+		 * in ATA and we need to set TPE=1
+		 */
+		if (blk_queue_discard(q)) {
+			dev->dev_attrib.max_unmap_lba_count =
+				q->limits.max_discard_sectors;
+			/*
+			 * Currently hardcoded to 1 in Linux/SCSI code..
+			 */
+			dev->dev_attrib.max_unmap_block_desc_count = 1;
+			dev->dev_attrib.unmap_granularity =
+				q->limits.discard_granularity >> 9;
+			dev->dev_attrib.unmap_granularity_alignment =
+				q->limits.discard_alignment;
+			pr_debug("IFILE: BLOCK Discard support available,"
+					" disabled by default\n");
+		}
+		/*
+		 * Enable write same emulation for IBLOCK and use 0xFFFF as
+		 * the smaller WRITE_SAME(10) only has a two-byte block count.
+		 */
+		dev->dev_attrib.max_write_same_len = 0xFFFF;
+
+		if (blk_queue_nonrot(q))
+			dev->dev_attrib.is_nonrot = 1;
 	} else {
 		if (!(fd_dev->fbd_flags & FBDF_HAS_SIZE)) {
 			pr_err("FILEIO: Missing fd_dev_size="
@@ -176,6 +205,23 @@ static int fd_configure_device(struct se_device *dev)
 
 		dev->dev_attrib.hw_block_size = FD_BLOCKSIZE;
 		dev->dev_attrib.hw_max_sectors = FD_MAX_SECTORS;
+
+		/*
+		 * Limit UNMAP emulation to 8k Number of LBAs (NoLB)
+		 */
+		dev->dev_attrib.max_unmap_lba_count = 0x2000;
+		/*
+		 * Currently hardcoded to 1 in Linux/SCSI code..
+		 */
+		dev->dev_attrib.max_unmap_block_desc_count = 1;
+		dev->dev_attrib.unmap_granularity = 1;
+		dev->dev_attrib.unmap_granularity_alignment = 0;
+
+		/*
+		 * Limit WRITE_SAME w/ UNMAP=0 emulation to 8k Number of LBAs (NoLB)
+		 * based upon struct iovec limit for vfs_writev()
+		 */
+		dev->dev_attrib.max_write_same_len = 0x1000;
 	}
 
 	fd_dev->fd_block_size = dev->dev_attrib.hw_block_size;
@@ -190,11 +236,6 @@ static int fd_configure_device(struct se_device *dev)
 
 	fd_dev->fd_dev_id = fd_host->fd_host_dev_id_count++;
 	fd_dev->fd_queue_depth = dev->queue_depth;
-	/*
-	 * Limit WRITE_SAME w/ UNMAP=0 emulation to 8k Number of LBAs (NoLB)
-	 * based upon struct iovec limit for vfs_writev()
-	 */
-	dev->dev_attrib.max_write_same_len = 0x1000;
 
 	pr_debug("CORE_FILE[%u] - Added TCM FILEIO Device ID: %u at %s,"
 		" %llu total bytes\n", fd_host->fd_host_id, fd_dev->fd_dev_id,
@@ -442,6 +483,75 @@ fd_execute_write_same(struct se_cmd *cmd)
 }
 
 static sense_reason_t
+fd_do_unmap(struct se_cmd *cmd, void *priv, sector_t lba, sector_t nolb)
+{
+	struct file *file = priv;
+	struct inode *inode = file->f_mapping->host;
+	int ret;
+
+	if (S_ISBLK(inode->i_mode)) {
+		/* The backend is block device, use discard */
+		struct block_device *bdev = inode->i_bdev;
+
+		ret = blkdev_issue_discard(bdev, lba,
+				nolb, GFP_KERNEL, 0);
+		if (ret < 0) {
+			pr_warn("FILEIO: blkdev_issue_discard() failed: %d\n",
+				ret);
+			return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+		}
+	} else {
+		/* The backend is normal file, use fallocate */
+		struct se_device *se_dev = cmd->se_dev;
+		loff_t pos = lba * se_dev->dev_attrib.block_size;
+		unsigned int len = nolb * se_dev->dev_attrib.block_size;
+		int mode = FALLOC_FL_PUNCH_HOLE | FALLOC_FL_KEEP_SIZE;
+
+		if (!file->f_op->fallocate)
+			return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+
+		ret = file->f_op->fallocate(file, mode, pos, len);
+		if (ret < 0) {
+			pr_warn("FILEIO: fallocate() failed: %d\n", ret);
+			return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+		}
+	}
+
+	return 0;
+}
+
+static sense_reason_t
+fd_execute_write_same_unmap(struct se_cmd *cmd)
+{
+	struct se_device *se_dev = cmd->se_dev;
+	struct fd_dev *fd_dev = FD_DEV(se_dev);
+	struct file *file = fd_dev->fd_file;
+	sector_t lba = cmd->t_task_lba;
+	sector_t nolb = sbc_get_write_same_sectors(cmd);
+	int ret;
+
+	if (!nolb) {
+		target_complete_cmd(cmd, SAM_STAT_GOOD);
+		return 0;
+	}
+
+	ret = fd_do_unmap(cmd, file, lba, nolb);
+	if (ret)
+		return ret;
+
+	target_complete_cmd(cmd, GOOD);
+	return 0;
+}
+
+static sense_reason_t
+fd_execute_unmap(struct se_cmd *cmd)
+{
+	struct file *file = FD_DEV(cmd->se_dev)->fd_file;
+
+	return sbc_execute_unmap(cmd, fd_do_unmap, file);
+}
+
+static sense_reason_t
 fd_execute_rw(struct se_cmd *cmd)
 {
 	struct scatterlist *sgl = cmd->t_data_sg;
@@ -600,6 +710,8 @@ static struct sbc_ops fd_sbc_ops = {
 	.execute_rw		= fd_execute_rw,
 	.execute_sync_cache	= fd_execute_sync_cache,
 	.execute_write_same	= fd_execute_write_same,
+	.execute_write_same_unmap = fd_execute_write_same_unmap,
+	.execute_unmap		= fd_execute_unmap,
 };
 
 static sense_reason_t

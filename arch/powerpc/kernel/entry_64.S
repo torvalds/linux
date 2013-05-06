@@ -458,7 +458,15 @@ BEGIN_FTR_SECTION
 	 */
 	mfspr	r0,SPRN_TAR
 	std	r0,THREAD_TAR(r3)
-END_FTR_SECTION_IFSET(CPU_FTR_BCTAR)
+
+	/* Event based branch registers */
+	mfspr	r0, SPRN_BESCR
+	std	r0, THREAD_BESCR(r3)
+	mfspr	r0, SPRN_EBBHR
+	std	r0, THREAD_EBBHR(r3)
+	mfspr	r0, SPRN_EBBRR
+	std	r0, THREAD_EBBRR(r3)
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 #endif
 
 #ifdef CONFIG_SMP
@@ -545,9 +553,17 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_1T_SEGMENT)
 
 #ifdef CONFIG_PPC_BOOK3S_64
 BEGIN_FTR_SECTION
+	/* Event based branch registers */
+	ld	r0, THREAD_BESCR(r4)
+	mtspr	SPRN_BESCR, r0
+	ld	r0, THREAD_EBBHR(r4)
+	mtspr	SPRN_EBBHR, r0
+	ld	r0, THREAD_EBBRR(r4)
+	mtspr	SPRN_EBBRR, r0
+
 	ld	r0,THREAD_TAR(r4)
 	mtspr	SPRN_TAR,r0
-END_FTR_SECTION_IFSET(CPU_FTR_BCTAR)
+END_FTR_SECTION_IFSET(CPU_FTR_ARCH_207S)
 #endif
 
 #ifdef CONFIG_ALTIVEC

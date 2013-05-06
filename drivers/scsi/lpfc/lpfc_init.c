@@ -839,7 +839,6 @@ lpfc_hba_down_post_s3(struct lpfc_hba *phba)
 		 * way, nothing should be on txcmplq as it will NEVER complete.
 		 */
 		list_splice_init(&pring->txcmplq, &completions);
-		pring->txcmplq_cnt = 0;
 		spin_unlock_irq(&phba->hbalock);
 
 		/* Cancel all the IOCBs from the completions list */
@@ -2915,9 +2914,9 @@ lpfc_sli4_xri_sgl_update(struct lpfc_hba *phba)
 			sglq_entry->state = SGL_FREED;
 			list_add_tail(&sglq_entry->list, &els_sgl_list);
 		}
-		spin_lock(&phba->hbalock);
+		spin_lock_irq(&phba->hbalock);
 		list_splice_init(&els_sgl_list, &phba->sli4_hba.lpfc_sgl_list);
-		spin_unlock(&phba->hbalock);
+		spin_unlock_irq(&phba->hbalock);
 	} else if (els_xri_cnt < phba->sli4_hba.els_xri_cnt) {
 		/* els xri-sgl shrinked */
 		xri_cnt = phba->sli4_hba.els_xri_cnt - els_xri_cnt;
@@ -3015,9 +3014,9 @@ lpfc_sli4_xri_sgl_update(struct lpfc_hba *phba)
 		psb->cur_iocbq.sli4_lxritag = lxri;
 		psb->cur_iocbq.sli4_xritag = phba->sli4_hba.xri_ids[lxri];
 	}
-	spin_lock(&phba->scsi_buf_list_lock);
+	spin_lock_irq(&phba->scsi_buf_list_lock);
 	list_splice_init(&scsi_sgl_list, &phba->lpfc_scsi_buf_list);
-	spin_unlock(&phba->scsi_buf_list_lock);
+	spin_unlock_irq(&phba->scsi_buf_list_lock);
 
 	return 0;
 
@@ -4004,6 +4003,52 @@ lpfc_sli4_perform_all_vport_cvl(struct lpfc_hba *phba)
 }
 
 /**
+ * lpfc_sli4_perform_inuse_fcf_recovery - Perform inuse fcf recovery
+ * @vport: pointer to lpfc hba data structure.
+ *
+ * This routine is to perform FCF recovery when the in-use FCF either dead or
+ * got modified.
+ **/
+static void
+lpfc_sli4_perform_inuse_fcf_recovery(struct lpfc_hba *phba,
+				     struct lpfc_acqe_fip *acqe_fip)
+{
+	int rc;
+
+	spin_lock_irq(&phba->hbalock);
+	/* Mark the fast failover process in progress */
+	phba->fcf.fcf_flag |= FCF_DEAD_DISC;
+	spin_unlock_irq(&phba->hbalock);
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_FIP | LOG_DISCOVERY,
+			"2771 Start FCF fast failover process due to in-use "
+			"FCF DEAD/MODIFIED event: evt_tag:x%x, index:x%x\n",
+			acqe_fip->event_tag, acqe_fip->index);
+	rc = lpfc_sli4_redisc_fcf_table(phba);
+	if (rc) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_FIP | LOG_DISCOVERY,
+				"2772 Issue FCF rediscover mabilbox command "
+				"failed, fail through to FCF dead event\n");
+		spin_lock_irq(&phba->hbalock);
+		phba->fcf.fcf_flag &= ~FCF_DEAD_DISC;
+		spin_unlock_irq(&phba->hbalock);
+		/*
+		 * Last resort will fail over by treating this as a link
+		 * down to FCF registration.
+		 */
+		lpfc_sli4_fcf_dead_failthrough(phba);
+	} else {
+		/* Reset FCF roundrobin bmask for new discovery */
+		lpfc_sli4_clear_fcf_rr_bmask(phba);
+		/*
+		 * Handling fast FCF failover to a DEAD FCF event is
+		 * considered equalivant to receiving CVL to all vports.
+		 */
+		lpfc_sli4_perform_all_vport_cvl(phba);
+	}
+}
+
+/**
  * lpfc_sli4_async_fip_evt - Process the asynchronous FCoE FIP event
  * @phba: pointer to lpfc hba data structure.
  * @acqe_link: pointer to the async fcoe completion queue entry.
@@ -4068,9 +4113,22 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 			break;
 		}
 
-		/* If the FCF has been in discovered state, do nothing. */
-		if (phba->fcf.fcf_flag & FCF_SCAN_DONE) {
+		/* If FCF has been in discovered state, perform rediscovery
+		 * only if the FCF with the same index of the in-use FCF got
+		 * modified during normal operation. Otherwise, do nothing.
+		 */
+		if (phba->pport->port_state > LPFC_FLOGI) {
 			spin_unlock_irq(&phba->hbalock);
+			if (phba->fcf.current_rec.fcf_indx ==
+			    acqe_fip->index) {
+				lpfc_printf_log(phba, KERN_ERR, LOG_FIP,
+						"3300 In-use FCF (%d) "
+						"modified, perform FCF "
+						"rediscovery\n",
+						acqe_fip->index);
+				lpfc_sli4_perform_inuse_fcf_recovery(phba,
+								     acqe_fip);
+			}
 			break;
 		}
 		spin_unlock_irq(&phba->hbalock);
@@ -4123,39 +4181,7 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 		 * is no longer valid as we are not in the middle of FCF
 		 * failover process already.
 		 */
-		spin_lock_irq(&phba->hbalock);
-		/* Mark the fast failover process in progress */
-		phba->fcf.fcf_flag |= FCF_DEAD_DISC;
-		spin_unlock_irq(&phba->hbalock);
-
-		lpfc_printf_log(phba, KERN_INFO, LOG_FIP | LOG_DISCOVERY,
-				"2771 Start FCF fast failover process due to "
-				"FCF DEAD event: evt_tag:x%x, fcf_index:x%x "
-				"\n", acqe_fip->event_tag, acqe_fip->index);
-		rc = lpfc_sli4_redisc_fcf_table(phba);
-		if (rc) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_FIP |
-					LOG_DISCOVERY,
-					"2772 Issue FCF rediscover mabilbox "
-					"command failed, fail through to FCF "
-					"dead event\n");
-			spin_lock_irq(&phba->hbalock);
-			phba->fcf.fcf_flag &= ~FCF_DEAD_DISC;
-			spin_unlock_irq(&phba->hbalock);
-			/*
-			 * Last resort will fail over by treating this
-			 * as a link down to FCF registration.
-			 */
-			lpfc_sli4_fcf_dead_failthrough(phba);
-		} else {
-			/* Reset FCF roundrobin bmask for new discovery */
-			lpfc_sli4_clear_fcf_rr_bmask(phba);
-			/*
-			 * Handling fast FCF failover to a DEAD FCF event is
-			 * considered equalivant to receiving CVL to all vports.
-			 */
-			lpfc_sli4_perform_all_vport_cvl(phba);
-		}
+		lpfc_sli4_perform_inuse_fcf_recovery(phba, acqe_fip);
 		break;
 	case LPFC_FIP_EVENT_TYPE_CVL:
 		phba->fcoe_cvl_eventtag = acqe_fip->event_tag;
@@ -10368,36 +10394,6 @@ lpfc_io_resume(struct pci_dev *pdev)
 	return;
 }
 
-/**
- * lpfc_mgmt_open - method called when 'lpfcmgmt' is opened from userspace
- * @inode: pointer to the inode representing the lpfcmgmt device
- * @filep: pointer to the file representing the open lpfcmgmt device
- *
- * This routine puts a reference count on the lpfc module whenever the
- * character device is opened
- **/
-static int
-lpfc_mgmt_open(struct inode *inode, struct file *filep)
-{
-	try_module_get(THIS_MODULE);
-	return 0;
-}
-
-/**
- * lpfc_mgmt_release - method called when 'lpfcmgmt' is closed in userspace
- * @inode: pointer to the inode representing the lpfcmgmt device
- * @filep: pointer to the file representing the open lpfcmgmt device
- *
- * This routine removes a reference count from the lpfc module when the
- * character device is closed
- **/
-static int
-lpfc_mgmt_release(struct inode *inode, struct file *filep)
-{
-	module_put(THIS_MODULE);
-	return 0;
-}
-
 static struct pci_device_id lpfc_id_table[] = {
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_VIPER,
 		PCI_ANY_ID, PCI_ANY_ID, },
@@ -10515,8 +10511,7 @@ static struct pci_driver lpfc_driver = {
 };
 
 static const struct file_operations lpfc_mgmt_fop = {
-	.open = lpfc_mgmt_open,
-	.release = lpfc_mgmt_release,
+	.owner = THIS_MODULE,
 };
 
 static struct miscdevice lpfc_mgmt_dev = {

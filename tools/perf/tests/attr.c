@@ -147,10 +147,15 @@ void test_attr__open(struct perf_event_attr *attr, pid_t pid, int cpu,
 
 static int run_dir(const char *d, const char *perf)
 {
+	char v[] = "-vvvvv";
+	int vcnt = min(verbose, (int) sizeof(v) - 1);
 	char cmd[3*PATH_MAX];
 
-	snprintf(cmd, 3*PATH_MAX, PYTHON " %s/attr.py -d %s/attr/ -p %s %s",
-		 d, d, perf, verbose ? "-v" : "");
+	if (verbose)
+		vcnt++;
+
+	snprintf(cmd, 3*PATH_MAX, PYTHON " %s/attr.py -d %s/attr/ -p %s %.*s",
+		 d, d, perf, vcnt, v);
 
 	return system(cmd);
 }
@@ -173,6 +178,6 @@ int test__attr(void)
 	    !lstat(path_perf, &st))
 		return run_dir(path_dir, path_perf);
 
-	fprintf(stderr, " (ommitted)");
+	fprintf(stderr, " (omitted)");
 	return 0;
 }

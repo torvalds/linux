@@ -261,19 +261,13 @@ static int parport_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)
 {
 	struct parport_private *devpriv;
-	int ret;
-	unsigned int irq;
-	unsigned long iobase;
 	struct comedi_subdevice *s;
+	unsigned int irq;
+	int ret;
 
-	dev->board_name = dev->driver->driver_name;
-
-	iobase = it->options[0];
-	if (!request_region(iobase, PARPORT_SIZE, dev->board_name)) {
-		dev_err(dev->class_dev, "I/O port conflict\n");
-		return -EIO;
-	}
-	dev->iobase = iobase;
+	ret = comedi_request_region(dev, it->options[0], PARPORT_SIZE);
+	if (ret)
+		return ret;
 
 	irq = it->options[1];
 	if (irq) {
@@ -341,25 +335,14 @@ static int parport_attach(struct comedi_device *dev,
 	devpriv->c_data = 0;
 	outb(devpriv->c_data, dev->iobase + PARPORT_C);
 
-	dev_info(dev->class_dev, "%s: iobase=0x%04lx, irq %sabled",
-		dev->board_name, dev->iobase, dev->irq ? "en" : "dis");
-
 	return 0;
-}
-
-static void parport_detach(struct comedi_device *dev)
-{
-	if (dev->iobase)
-		release_region(dev->iobase, PARPORT_SIZE);
-	if (dev->irq)
-		free_irq(dev->irq, dev);
 }
 
 static struct comedi_driver parport_driver = {
 	.driver_name	= "comedi_parport",
 	.module		= THIS_MODULE,
 	.attach		= parport_attach,
-	.detach		= parport_detach,
+	.detach		= comedi_legacy_detach,
 };
 module_comedi_driver(parport_driver);
 

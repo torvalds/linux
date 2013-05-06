@@ -5,6 +5,18 @@
 menu "Multiplexer I2C Chip support"
 	depends on I2C_MUX
 
+config I2C_ARB_GPIO_CHALLENGE
+	tristate "GPIO-based I2C arbitration"
+	depends on GENERIC_GPIO && OF
+	help
+	  If you say yes to this option, support will be included for an
+	  I2C multimaster arbitration scheme using GPIOs and a challenge &
+	  response mechanism where masters have to claim the bus by asserting
+	  a GPIO.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-arb-gpio-challenge.
+
 config I2C_MUX_GPIO
 	tristate "GPIO-based I2C multiplexer"
 	depends on GENERIC_GPIO

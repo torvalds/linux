@@ -43,12 +43,10 @@ static int handle_lctlg(struct kvm_vcpu *vcpu)
 	trace_kvm_s390_handle_lctl(vcpu, 1, reg1, reg3, useraddr);
 
 	do {
-		rc = get_guest_u64(vcpu, useraddr,
-				   &vcpu->arch.sie_block->gcr[reg]);
-		if (rc == -EFAULT) {
-			kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
-			break;
-		}
+		rc = get_guest(vcpu, vcpu->arch.sie_block->gcr[reg],
+			       (u64 __user *) useraddr);
+		if (rc)
+			return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
 		useraddr += 8;
 		if (reg == reg3)
 			break;
@@ -78,11 +76,9 @@ static int handle_lctl(struct kvm_vcpu *vcpu)
 
 	reg = reg1;
 	do {
-		rc = get_guest_u32(vcpu, useraddr, &val);
-		if (rc == -EFAULT) {
-			kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
-			break;
-		}
+		rc = get_guest(vcpu, val, (u32 __user *) useraddr);
+		if (rc)
+			return kvm_s390_inject_program_int(vcpu, PGM_ADDRESSING);
 		vcpu->arch.sie_block->gcr[reg] &= 0xffffffff00000000ul;
 		vcpu->arch.sie_block->gcr[reg] |= val;
 		useraddr += 4;

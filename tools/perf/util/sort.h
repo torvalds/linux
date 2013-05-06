@@ -49,6 +49,7 @@ struct he_stat {
 	u64			period_us;
 	u64			period_guest_sys;
 	u64			period_guest_us;
+	u64			weight;
 	u32			nr_events;
 };
 
@@ -100,7 +101,8 @@ struct hist_entry {
 	struct rb_root		sorted_chain;
 	struct branch_info	*branch_info;
 	struct hists		*hists;
-	struct callchain_root	callchain[0];
+	struct mem_info		*mem_info;
+	struct callchain_root	callchain[0]; /* must be last member */
 };
 
 static inline bool hist_entry__has_pairs(struct hist_entry *he)
@@ -130,6 +132,14 @@ enum sort_type {
 	SORT_PARENT,
 	SORT_CPU,
 	SORT_SRCLINE,
+	SORT_LOCAL_WEIGHT,
+	SORT_GLOBAL_WEIGHT,
+	SORT_MEM_DADDR_SYMBOL,
+	SORT_MEM_DADDR_DSO,
+	SORT_MEM_LOCKED,
+	SORT_MEM_TLB,
+	SORT_MEM_LVL,
+	SORT_MEM_SNOOP,
 
 	/* branch stack specific sort keys */
 	__SORT_BRANCH_STACK,

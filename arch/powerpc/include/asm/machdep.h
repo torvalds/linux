@@ -50,7 +50,8 @@ struct machdep_calls {
 				       unsigned long prpn,
 				       unsigned long rflags,
 				       unsigned long vflags,
-				       int psize, int ssize);
+				       int psize, int apsize,
+				       int ssize);
 	long		(*hpte_remove)(unsigned long hpte_group);
 	void            (*hpte_removebolted)(unsigned long ea,
 					     int psize, int ssize);

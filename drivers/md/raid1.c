@@ -981,7 +981,12 @@ static void raid1_unplug(struct blk_plug_cb *cb, bool from_schedule)
 	while (bio) { /* submit pending writes */
 		struct bio *next = bio->bi_next;
 		bio->bi_next = NULL;
-		generic_make_request(bio);
+		if (unlikely((bio->bi_rw & REQ_DISCARD) &&
+		    !blk_queue_discard(bdev_get_queue(bio->bi_bdev))))
+			/* Just ignore it */
+			bio_endio(bio, 0);
+		else
+			generic_make_request(bio);
 		bio = next;
 	}
 	kfree(plug);
@@ -2901,6 +2906,7 @@ static int stop(struct mddev *mddev)
 	if (conf->r1bio_pool)
 		mempool_destroy(conf->r1bio_pool);
 	kfree(conf->mirrors);
+	safe_put_page(conf->tmppage);
 	kfree(conf->poolinfo);
 	kfree(conf);
 	mddev->private = NULL;

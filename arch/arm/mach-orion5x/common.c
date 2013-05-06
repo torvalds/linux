@@ -19,6 +19,7 @@
 #include <linux/ata_platform.h>
 #include <linux/delay.h>
 #include <linux/clk-provider.h>
+#include <linux/cpu.h>
 #include <net/dsa.h>
 #include <asm/page.h>
 #include <asm/setup.h>
@@ -293,7 +294,7 @@ void __init orion5x_init(void)
 	 */
 	if (dev == MV88F5281_DEV_ID && rev == MV88F5281_REV_D0) {
 		printk(KERN_INFO "Orion: Applying 5281 D0 WFI workaround.\n");
-		disable_hlt();
+		cpu_idle_poll_ctrl(true);
 	}
 
 	/*

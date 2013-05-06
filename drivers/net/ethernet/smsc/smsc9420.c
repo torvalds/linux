@@ -848,10 +848,8 @@ static int smsc9420_alloc_rx_buffer(struct smsc9420_pdata *pd, int index)
 	BUG_ON(pd->rx_buffers[index].skb);
 	BUG_ON(pd->rx_buffers[index].mapping);
 
-	if (unlikely(!skb)) {
-		smsc_warn(RX_ERR, "Failed to allocate new skb!");
+	if (unlikely(!skb))
 		return -ENOMEM;
-	}
 
 	mapping = pci_map_single(pd->pdev, skb_tail_pointer(skb),
 				 PKT_BUF_SZ, PCI_DMA_FROMDEVICE);

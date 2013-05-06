@@ -68,6 +68,10 @@ struct drm_fb_helper_funcs {
 
 	int (*fb_probe)(struct drm_fb_helper *helper,
 			struct drm_fb_helper_surface_size *sizes);
+	bool (*initial_config)(struct drm_fb_helper *fb_helper,
+			       struct drm_fb_helper_crtc **crtcs,
+			       struct drm_display_mode **modes,
+			       bool *enabled, int width, int height);
 };
 
 struct drm_fb_helper_connector {
@@ -101,12 +105,6 @@ int drm_fb_helper_pan_display(struct fb_var_screeninfo *var,
 			      struct fb_info *info);
 int drm_fb_helper_set_par(struct fb_info *info);
 int drm_fb_helper_check_var(struct fb_var_screeninfo *var,
-			    struct fb_info *info);
-int drm_fb_helper_setcolreg(unsigned regno,
-			    unsigned red,
-			    unsigned green,
-			    unsigned blue,
-			    unsigned transp,
 			    struct fb_info *info);
 
 bool drm_fb_helper_restore_fbdev_mode(struct drm_fb_helper *fb_helper);

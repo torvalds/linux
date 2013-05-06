@@ -31,21 +31,14 @@ struct journal_head {
 	/*
 	 * Journalling list for this buffer [jbd_lock_bh_state()]
 	 */
-	unsigned b_jlist;
+	unsigned b_jlist:4;
 
 	/*
 	 * This flag signals the buffer has been modified by
 	 * the currently running transaction
 	 * [jbd_lock_bh_state()]
 	 */
-	unsigned b_modified;
-
-	/*
-	 * This feild tracks the last transaction id in which this buffer
-	 * has been cowed
-	 * [jbd_lock_bh_state()]
-	 */
-	tid_t b_cow_tid;
+	unsigned b_modified:1;
 
 	/*
 	 * Copy of the buffer data frozen for writing to the log.

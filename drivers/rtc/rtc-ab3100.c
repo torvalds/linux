@@ -229,8 +229,8 @@ static int __init ab3100_rtc_probe(struct platform_device *pdev)
 		/* Ignore any error on this write */
 	}
 
-	rtc = rtc_device_register("ab3100-rtc", &pdev->dev, &ab3100_rtc_ops,
-				  THIS_MODULE);
+	rtc = devm_rtc_device_register(&pdev->dev, "ab3100-rtc",
+					&ab3100_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc)) {
 		err = PTR_ERR(rtc);
 		return err;
@@ -242,9 +242,6 @@ static int __init ab3100_rtc_probe(struct platform_device *pdev)
 
 static int __exit ab3100_rtc_remove(struct platform_device *pdev)
 {
-	struct rtc_device *rtc = platform_get_drvdata(pdev);
-
-	rtc_device_unregister(rtc);
 	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
@@ -257,19 +254,7 @@ static struct platform_driver ab3100_rtc_driver = {
 	.remove	 = __exit_p(ab3100_rtc_remove),
 };
 
-static int __init ab3100_rtc_init(void)
-{
-	return platform_driver_probe(&ab3100_rtc_driver,
-				     ab3100_rtc_probe);
-}
-
-static void __exit ab3100_rtc_exit(void)
-{
-	platform_driver_unregister(&ab3100_rtc_driver);
-}
-
-module_init(ab3100_rtc_init);
-module_exit(ab3100_rtc_exit);
+module_platform_driver_probe(ab3100_rtc_driver, ab3100_rtc_probe);
 
 MODULE_AUTHOR("Linus Walleij <linus.walleij@stericsson.com>");
 MODULE_DESCRIPTION("AB3100 RTC Driver");

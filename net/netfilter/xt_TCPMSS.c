@@ -2,6 +2,7 @@
  * This is a module which is used for setting the MSS option in TCP packets.
  *
  * Copyright (C) 2000 Marc Boucher <marc@mbsi.ca>
+ * Copyright (C) 2007 Patrick McHardy <kaber@trash.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as

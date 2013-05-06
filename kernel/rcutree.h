@@ -88,18 +88,13 @@ struct rcu_dynticks {
 	int dynticks_nmi_nesting;   /* Track NMI nesting level. */
 	atomic_t dynticks;	    /* Even value for idle, else odd. */
 #ifdef CONFIG_RCU_FAST_NO_HZ
-	int dyntick_drain;	    /* Prepare-for-idle state variable. */
-	unsigned long dyntick_holdoff;
-				    /* No retries for the jiffy of failure. */
-	struct timer_list idle_gp_timer;
-				    /* Wake up CPU sleeping with callbacks. */
-	unsigned long idle_gp_timer_expires;
-				    /* When to wake up CPU (for repost). */
-	bool idle_first_pass;	    /* First pass of attempt to go idle? */
+	bool all_lazy;		    /* Are all CPU's CBs lazy? */
 	unsigned long nonlazy_posted;
 				    /* # times non-lazy CBs posted to CPU. */
 	unsigned long nonlazy_posted_snap;
 				    /* idle-period nonlazy_posted snapshot. */
+	unsigned long last_accelerate;
+				    /* Last jiffy CBs were accelerated. */
 	int tick_nohz_enabled_snap; /* Previously seen value from sysfs. */
 #endif /* #ifdef CONFIG_RCU_FAST_NO_HZ */
 };
@@ -134,9 +129,6 @@ struct rcu_node {
 				/*  elements that need to drain to allow the */
 				/*  current expedited grace period to */
 				/*  complete (only for TREE_PREEMPT_RCU). */
-	atomic_t wakemask;	/* CPUs whose kthread needs to be awakened. */
-				/*  Since this has meaning only for leaf */
-				/*  rcu_node structures, 32 bits suffices. */
 	unsigned long qsmaskinit;
 				/* Per-GP initial value for qsmask & expmask. */
 	unsigned long grpmask;	/* Mask to apply to parent qsmask. */
@@ -196,6 +188,12 @@ struct rcu_node {
 				/* Refused to boost: not sure why, though. */
 				/*  This can happen due to race conditions. */
 #endif /* #ifdef CONFIG_RCU_BOOST */
+#ifdef CONFIG_RCU_NOCB_CPU
+	wait_queue_head_t nocb_gp_wq[2];
+				/* Place for rcu_nocb_kthread() to wait GP. */
+#endif /* #ifdef CONFIG_RCU_NOCB_CPU */
+	int need_future_gp[2];
+				/* Counts of upcoming no-CB GP requests. */
 	raw_spinlock_t fqslock ____cacheline_internodealigned_in_smp;
 } ____cacheline_internodealigned_in_smp;
 
@@ -328,6 +326,11 @@ struct rcu_data {
 	struct task_struct *nocb_kthread;
 #endif /* #ifdef CONFIG_RCU_NOCB_CPU */
 
+	/* 8) RCU CPU stall data. */
+#ifdef CONFIG_RCU_CPU_STALL_INFO
+	unsigned int softirq_snap;	/* Snapshot of softirq activity. */
+#endif /* #ifdef CONFIG_RCU_CPU_STALL_INFO */
+
 	int cpu;
 	struct rcu_state *rsp;
 };
@@ -375,12 +378,6 @@ struct rcu_state {
 	struct rcu_data __percpu *rda;		/* pointer of percu rcu_data. */
 	void (*call)(struct rcu_head *head,	/* call_rcu() flavor. */
 		     void (*func)(struct rcu_head *head));
-#ifdef CONFIG_RCU_NOCB_CPU
-	void (*call_remote)(struct rcu_head *head,
-		     void (*func)(struct rcu_head *head));
-						/* call_rcu() flavor, but for */
-						/*  placing on remote CPU. */
-#endif /* #ifdef CONFIG_RCU_NOCB_CPU */
 
 	/* The following fields are guarded by the root rcu_node's lock. */
 
@@ -443,6 +440,7 @@ struct rcu_state {
 	unsigned long gp_max;			/* Maximum GP duration in */
 						/*  jiffies. */
 	char *name;				/* Name of structure. */
+	char abbr;				/* Abbreviated name. */
 	struct list_head flavors;		/* List of RCU flavors. */
 };
 
@@ -520,7 +518,6 @@ static int __cpuinit rcu_spawn_one_boost_kthread(struct rcu_state *rsp,
 						 struct rcu_node *rnp);
 #endif /* #ifdef CONFIG_RCU_BOOST */
 static void __cpuinit rcu_prepare_kthreads(int cpu);
-static void rcu_prepare_for_idle_init(int cpu);
 static void rcu_cleanup_after_idle(int cpu);
 static void rcu_prepare_for_idle(int cpu);
 static void rcu_idle_count_callbacks_posted(void);
@@ -529,16 +526,18 @@ static void print_cpu_stall_info(struct rcu_state *rsp, int cpu);
 static void print_cpu_stall_info_end(void);
 static void zero_cpu_stall_ticks(struct rcu_data *rdp);
 static void increment_cpu_stall_ticks(void);
-static bool is_nocb_cpu(int cpu);
+static int rcu_nocb_needs_gp(struct rcu_state *rsp);
+static void rcu_nocb_gp_set(struct rcu_node *rnp, int nrq);
+static void rcu_nocb_gp_cleanup(struct rcu_state *rsp, struct rcu_node *rnp);
+static void rcu_init_one_nocb(struct rcu_node *rnp);
 static bool __call_rcu_nocb(struct rcu_data *rdp, struct rcu_head *rhp,
 			    bool lazy);
 static bool rcu_nocb_adopt_orphan_cbs(struct rcu_state *rsp,
 				      struct rcu_data *rdp);
-static bool nocb_cpu_expendable(int cpu);
 static void rcu_boot_init_nocb_percpu_data(struct rcu_data *rdp);
 static void rcu_spawn_nocb_kthreads(struct rcu_state *rsp);
-static void init_nocb_callback_list(struct rcu_data *rdp);
-static void __init rcu_init_nocb(void);
+static void rcu_kick_nohz_cpu(int cpu);
+static bool init_nocb_callback_list(struct rcu_data *rdp);
 
 #endif /* #ifndef RCU_TREE_NONCORE */
 

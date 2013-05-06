@@ -132,8 +132,9 @@
 #define Priv        (1<<27) /* instruction generates #GP if current CPL != 0 */
 #define No64	    (1<<28)
 #define PageTable   (1 << 29)   /* instruction used to write page table */
+#define NotImpl     (1 << 30)   /* instruction is not implemented */
 /* Source 2 operand type */
-#define Src2Shift   (30)
+#define Src2Shift   (31)
 #define Src2None    (OpNone << Src2Shift)
 #define Src2CL      (OpCL << Src2Shift)
 #define Src2ImmByte (OpImmByte << Src2Shift)
@@ -1578,11 +1579,20 @@ static int load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 
 	memset(&seg_desc, 0, sizeof seg_desc);
 
-	if ((seg <= VCPU_SREG_GS && ctxt->mode == X86EMUL_MODE_VM86)
-	    || ctxt->mode == X86EMUL_MODE_REAL) {
-		/* set real mode segment descriptor */
+	if (ctxt->mode == X86EMUL_MODE_REAL) {
+		/* set real mode segment descriptor (keep limit etc. for
+		 * unreal mode) */
 		ctxt->ops->get_segment(ctxt, &dummy, &seg_desc, NULL, seg);
 		set_desc_base(&seg_desc, selector << 4);
+		goto load;
+	} else if (seg <= VCPU_SREG_GS && ctxt->mode == X86EMUL_MODE_VM86) {
+		/* VM86 needs a clean new segment descriptor */
+		set_desc_base(&seg_desc, selector << 4);
+		set_desc_limit(&seg_desc, 0xffff);
+		seg_desc.type = 3;
+		seg_desc.p = 1;
+		seg_desc.s = 1;
+		seg_desc.dpl = 3;
 		goto load;
 	}
 
@@ -3615,7 +3625,7 @@ static int check_perm_out(struct x86_emulate_ctxt *ctxt)
 #define DI(_y, _i) { .flags = (_y), .intercept = x86_intercept_##_i }
 #define DIP(_y, _i, _p) { .flags = (_y), .intercept = x86_intercept_##_i, \
 		      .check_perm = (_p) }
-#define N    D(0)
+#define N    D(NotImpl)
 #define EXT(_f, _e) { .flags = ((_f) | RMExt), .u.group = (_e) }
 #define G(_f, _g) { .flags = ((_f) | Group | ModRM), .u.group = (_g) }
 #define GD(_f, _g) { .flags = ((_f) | GroupDual | ModRM), .u.gdual = (_g) }
@@ -3713,7 +3723,7 @@ static const struct opcode group5[] = {
 	I(SrcMemFAddr | ImplicitOps | Stack,	em_call_far),
 	I(SrcMem | Stack,			em_grp45),
 	I(SrcMemFAddr | ImplicitOps,		em_grp45),
-	I(SrcMem | Stack,			em_grp45), N,
+	I(SrcMem | Stack,			em_grp45), D(Undefined),
 };
 
 static const struct opcode group6[] = {
@@ -4162,6 +4172,10 @@ static int decode_operand(struct x86_emulate_ctxt *ctxt, struct operand *op,
 		break;
 	case OpMem8:
 		ctxt->memop.bytes = 1;
+		if (ctxt->memop.type == OP_REG) {
+			ctxt->memop.addr.reg = decode_register(ctxt, ctxt->modrm_rm, 1);
+			fetch_register_operand(&ctxt->memop);
+		}
 		goto mem_common;
 	case OpMem16:
 		ctxt->memop.bytes = 2;
@@ -4373,7 +4387,7 @@ done_prefixes:
 	ctxt->intercept = opcode.intercept;
 
 	/* Unrecognised? */
-	if (ctxt->d == 0 || (ctxt->d & Undefined))
+	if (ctxt->d == 0 || (ctxt->d & NotImpl))
 		return EMULATION_FAILED;
 
 	if (!(ctxt->d & VendorSpecific) && ctxt->only_vendor_specific_insn)
@@ -4511,7 +4525,8 @@ int x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 
 	ctxt->mem_read.pos = 0;
 
-	if (ctxt->mode == X86EMUL_MODE_PROT64 && (ctxt->d & No64)) {
+	if ((ctxt->mode == X86EMUL_MODE_PROT64 && (ctxt->d & No64)) ||
+			(ctxt->d & Undefined)) {
 		rc = emulate_ud(ctxt);
 		goto done;
 	}

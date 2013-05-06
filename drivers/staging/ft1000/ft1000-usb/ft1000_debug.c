@@ -55,7 +55,7 @@ int numofmsgbuf = 0;
 //
 // Table of entry-point routines for char device
 //
-static struct file_operations ft1000fops =
+static const struct file_operations ft1000fops =
 {
 	.unlocked_ioctl	= ft1000_ioctl,
 	.poll		= ft1000_poll_dev,

@@ -75,14 +75,14 @@ ENTRY(cpu_v7_do_idle)
 ENDPROC(cpu_v7_do_idle)
 
 ENTRY(cpu_v7_dcache_clean_area)
-#ifndef TLB_CAN_READ_FROM_L1_CACHE
+	ALT_SMP(mov	pc, lr)			@ MP extensions imply L1 PTW
+	ALT_UP(W(nop))
 	dcache_line_size r2, r3
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
 	add	r0, r0, r2
 	subs	r1, r1, r2
 	bhi	1b
 	dsb
-#endif
 	mov	pc, lr
 ENDPROC(cpu_v7_dcache_clean_area)
 
@@ -402,6 +402,8 @@ __v7_ca9mp_proc_info:
 	__v7_proc __v7_ca9mp_setup
 	.size	__v7_ca9mp_proc_info, . - __v7_ca9mp_proc_info
 
+#endif	/* CONFIG_ARM_LPAE */
+
 	/*
 	 * Marvell PJ4B processor.
 	 */
@@ -411,7 +413,6 @@ __v7_pj4b_proc_info:
 	.long	0xfffffff0
 	__v7_proc __v7_pj4b_setup
 	.size	__v7_pj4b_proc_info, . - __v7_pj4b_proc_info
-#endif	/* CONFIG_ARM_LPAE */
 
 	/*
 	 * ARM Ltd. Cortex A7 processor.

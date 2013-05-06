@@ -580,16 +580,48 @@ void hid_debug_event(struct hid_device *hdev, char *buf)
 	int i;
 	struct hid_debug_list *list;
 
+	mutex_lock(&hdev->debug_list_lock);
 	list_for_each_entry(list, &hdev->debug_list, node) {
 		for (i = 0; i < strlen(buf); i++)
 			list->hid_debug_buf[(list->tail + i) % HID_DEBUG_BUFSIZE] =
 				buf[i];
 		list->tail = (list->tail + i) % HID_DEBUG_BUFSIZE;
         }
+	mutex_unlock(&hdev->debug_list_lock);
 
 	wake_up_interruptible(&hdev->debug_wait);
 }
 EXPORT_SYMBOL_GPL(hid_debug_event);
+
+void hid_dump_report(struct hid_device *hid, int type, u8 *data,
+		int size)
+{
+	struct hid_report_enum *report_enum;
+	char *buf;
+	unsigned int i;
+
+	buf = kmalloc(sizeof(char) * HID_DEBUG_BUFSIZE, GFP_ATOMIC);
+
+	if (!buf)
+		return;
+
+	report_enum = hid->report_enum + type;
+
+	/* dump the report */
+	snprintf(buf, HID_DEBUG_BUFSIZE - 1,
+			"\nreport (size %u) (%snumbered) = ", size,
+			report_enum->numbered ? "" : "un");
+	hid_debug_event(hid, buf);
+
+	for (i = 0; i < size; i++) {
+		snprintf(buf, HID_DEBUG_BUFSIZE - 1,
+				" %02x", data[i]);
+		hid_debug_event(hid, buf);
+	}
+	hid_debug_event(hid, "\n");
+	kfree(buf);
+}
+EXPORT_SYMBOL_GPL(hid_dump_report);
 
 void hid_dump_input(struct hid_device *hdev, struct hid_usage *usage, __s32 value)
 {
@@ -960,7 +992,9 @@ static int hid_debug_events_open(struct inode *inode, struct file *file)
 	file->private_data = list;
 	mutex_init(&list->read_mutex);
 
+	mutex_lock(&list->hdev->debug_list_lock);
 	list_add_tail(&list->node, &list->hdev->debug_list);
+	mutex_unlock(&list->hdev->debug_list_lock);
 
 out:
 	return err;
@@ -1055,7 +1089,9 @@ static int hid_debug_events_release(struct inode *inode, struct file *file)
 {
 	struct hid_debug_list *list = file->private_data;
 
+	mutex_lock(&list->hdev->debug_list_lock);
 	list_del(&list->node);
+	mutex_unlock(&list->hdev->debug_list_lock);
 	kfree(list->hid_debug_buf);
 	kfree(list);
 

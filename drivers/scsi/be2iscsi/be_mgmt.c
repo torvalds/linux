@@ -1292,7 +1292,7 @@ beiscsi_adap_family_disp(struct device *dev, struct device_attribute *attr,
 		break;
 	default:
 		return snprintf(buf, PAGE_SIZE,
-				"Unkown Adapter Family: 0x%x\n", dev_id);
+				"Unknown Adapter Family: 0x%x\n", dev_id);
 		break;
 	}
 }

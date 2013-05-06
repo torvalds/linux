@@ -339,24 +339,59 @@ union vring_desc {
 	struct vring_rx_desc rx;
 } __packed;
 
-static inline int wil_rxdesc_phy_length(volatile struct vring_rx_desc *d)
+static inline int wil_rxdesc_tid(struct vring_rx_desc *d)
 {
-	return WIL_GET_BITS(d->dma.d0, 16, 29);
+	return WIL_GET_BITS(d->mac.d0, 0, 3);
 }
 
-static inline int wil_rxdesc_mcs(volatile struct vring_rx_desc *d)
+static inline int wil_rxdesc_cid(struct vring_rx_desc *d)
 {
-	return WIL_GET_BITS(d->mac.d1, 21, 24);
+	return WIL_GET_BITS(d->mac.d0, 4, 6);
 }
 
-static inline int wil_rxdesc_ds_bits(volatile struct vring_rx_desc *d)
+static inline int wil_rxdesc_mid(struct vring_rx_desc *d)
+{
+	return WIL_GET_BITS(d->mac.d0, 8, 9);
+}
+
+static inline int wil_rxdesc_ftype(struct vring_rx_desc *d)
+{
+	return WIL_GET_BITS(d->mac.d0, 10, 11);
+}
+
+static inline int wil_rxdesc_subtype(struct vring_rx_desc *d)
+{
+	return WIL_GET_BITS(d->mac.d0, 12, 15);
+}
+
+static inline int wil_rxdesc_seq(struct vring_rx_desc *d)
+{
+	return WIL_GET_BITS(d->mac.d0, 16, 27);
+}
+
+static inline int wil_rxdesc_ext_subtype(struct vring_rx_desc *d)
+{
+	return WIL_GET_BITS(d->mac.d0, 28, 31);
+}
+
+static inline int wil_rxdesc_ds_bits(struct vring_rx_desc *d)
 {
 	return WIL_GET_BITS(d->mac.d1, 8, 9);
 }
 
-static inline int wil_rxdesc_ftype(volatile struct vring_rx_desc *d)
+static inline int wil_rxdesc_mcs(struct vring_rx_desc *d)
 {
-	return WIL_GET_BITS(d->mac.d0, 10, 11);
+	return WIL_GET_BITS(d->mac.d1, 21, 24);
+}
+
+static inline int wil_rxdesc_phy_length(struct vring_rx_desc *d)
+{
+	return WIL_GET_BITS(d->dma.d0, 16, 29);
+}
+
+static inline struct vring_rx_desc *wil_skb_rxdesc(struct sk_buff *skb)
+{
+	return (void *)skb->cb;
 }
 
 #endif /* WIL6210_TXRX_H */

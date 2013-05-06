@@ -87,9 +87,27 @@
 #define MT9M032_RESTART					0x0b
 #define MT9M032_RESET					0x0d
 #define MT9M032_PLL_CONFIG1				0x11
-#define		MT9M032_PLL_CONFIG1_OUTDIV_MASK		0x3f
+#define		MT9M032_PLL_CONFIG1_PREDIV_MASK		0x3f
 #define		MT9M032_PLL_CONFIG1_MUL_SHIFT		8
 #define MT9M032_READ_MODE1				0x1e
+#define		MT9M032_READ_MODE1_OUTPUT_BAD_FRAMES	(1 << 13)
+#define		MT9M032_READ_MODE1_MAINTAIN_FRAME_RATE	(1 << 12)
+#define		MT9M032_READ_MODE1_XOR_LINE_VALID	(1 << 11)
+#define		MT9M032_READ_MODE1_CONT_LINE_VALID	(1 << 10)
+#define		MT9M032_READ_MODE1_INVERT_TRIGGER	(1 << 9)
+#define		MT9M032_READ_MODE1_SNAPSHOT		(1 << 8)
+#define		MT9M032_READ_MODE1_GLOBAL_RESET		(1 << 7)
+#define		MT9M032_READ_MODE1_BULB_EXPOSURE	(1 << 6)
+#define		MT9M032_READ_MODE1_INVERT_STROBE	(1 << 5)
+#define		MT9M032_READ_MODE1_STROBE_ENABLE	(1 << 4)
+#define		MT9M032_READ_MODE1_STROBE_START_TRIG1	(0 << 2)
+#define		MT9M032_READ_MODE1_STROBE_START_EXP	(1 << 2)
+#define		MT9M032_READ_MODE1_STROBE_START_SHUTTER	(2 << 2)
+#define		MT9M032_READ_MODE1_STROBE_START_TRIG2	(3 << 2)
+#define		MT9M032_READ_MODE1_STROBE_END_TRIG1	(0 << 0)
+#define		MT9M032_READ_MODE1_STROBE_END_EXP	(1 << 0)
+#define		MT9M032_READ_MODE1_STROBE_END_SHUTTER	(2 << 0)
+#define		MT9M032_READ_MODE1_STROBE_END_TRIG2	(3 << 0)
 #define MT9M032_READ_MODE2				0x20
 #define		MT9M032_READ_MODE2_VFLIP_SHIFT		15
 #define		MT9M032_READ_MODE2_HFLIP_SHIFT		14
@@ -106,6 +124,8 @@
 #define		MT9M032_GAIN_AMUL_SHIFT			6
 #define		MT9M032_GAIN_ANALOG_MASK		0x3f
 #define MT9M032_FORMATTER1				0x9e
+#define		MT9M032_FORMATTER1_PLL_P1_6		(1 << 8)
+#define		MT9M032_FORMATTER1_PARALLEL		(1 << 12)
 #define MT9M032_FORMATTER2				0x9f
 #define		MT9M032_FORMATTER2_DOUT_EN		0x1000
 #define		MT9M032_FORMATTER2_PIXCLK_EN		0x2000
@@ -121,8 +141,6 @@
 #define		MT9P031_PLL_CONTROL_PWROFF		0x0050
 #define		MT9P031_PLL_CONTROL_PWRON		0x0051
 #define		MT9P031_PLL_CONTROL_USEPLL		0x0052
-#define MT9P031_PLL_CONFIG2				0x11
-#define		MT9P031_PLL_CONFIG2_P1_DIV_MASK		0x1f
 
 struct mt9m032 {
 	struct v4l2_subdev subdev;
@@ -255,13 +273,14 @@ static int mt9m032_setup_pll(struct mt9m032 *sensor)
 		.n_max = 64,
 		.m_min = 16,
 		.m_max = 255,
-		.p1_min = 1,
-		.p1_max = 128,
+		.p1_min = 6,
+		.p1_max = 7,
 	};
 
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->subdev);
 	struct mt9m032_platform_data *pdata = sensor->pdata;
 	struct aptina_pll pll;
+	u16 reg_val;
 	int ret;
 
 	pll.ext_clock = pdata->ext_clock;
@@ -274,18 +293,21 @@ static int mt9m032_setup_pll(struct mt9m032 *sensor)
 	sensor->pix_clock = pdata->pix_clock;
 
 	ret = mt9m032_write(client, MT9M032_PLL_CONFIG1,
-			    (pll.m << MT9M032_PLL_CONFIG1_MUL_SHIFT)
-			    | (pll.p1 - 1));
-	if (!ret)
-		ret = mt9m032_write(client, MT9P031_PLL_CONFIG2, pll.n - 1);
+			    (pll.m << MT9M032_PLL_CONFIG1_MUL_SHIFT) |
+			    ((pll.n - 1) & MT9M032_PLL_CONFIG1_PREDIV_MASK));
 	if (!ret)
 		ret = mt9m032_write(client, MT9P031_PLL_CONTROL,
 				    MT9P031_PLL_CONTROL_PWRON |
 				    MT9P031_PLL_CONTROL_USEPLL);
 	if (!ret)		/* more reserved, Continuous, Master Mode */
-		ret = mt9m032_write(client, MT9M032_READ_MODE1, 0x8006);
-	if (!ret)		/* Set 14-bit mode, select 7 divider */
-		ret = mt9m032_write(client, MT9M032_FORMATTER1, 0x111e);
+		ret = mt9m032_write(client, MT9M032_READ_MODE1, 0x8000 |
+				    MT9M032_READ_MODE1_STROBE_START_EXP |
+				    MT9M032_READ_MODE1_STROBE_END_SHUTTER);
+	if (!ret) {
+		reg_val = (pll.p1 == 6 ? MT9M032_FORMATTER1_PLL_P1_6 : 0)
+			| MT9M032_FORMATTER1_PARALLEL | 0x001e; /* 14-bit */
+		ret = mt9m032_write(client, MT9M032_FORMATTER1, reg_val);
+	}
 
 	return ret;
 }
@@ -548,7 +570,7 @@ static int mt9m032_g_register(struct v4l2_subdev *sd,
 }
 
 static int mt9m032_s_register(struct v4l2_subdev *sd,
-			      struct v4l2_dbg_register *reg)
+			      const struct v4l2_dbg_register *reg)
 {
 	struct mt9m032 *sensor = to_mt9m032(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(&sensor->subdev);

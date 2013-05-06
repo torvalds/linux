@@ -5544,8 +5544,10 @@ static struct cnic_dev *init_bnx2x_cnic(struct net_device *dev)
 
 	if (!(ethdev->drv_state & CNIC_DRV_STATE_NO_ISCSI))
 		cdev->max_iscsi_conn = ethdev->max_iscsi_conn;
-	if (CNIC_SUPPORTS_FCOE(cp))
+	if (CNIC_SUPPORTS_FCOE(cp)) {
 		cdev->max_fcoe_conn = ethdev->max_fcoe_conn;
+		cdev->max_fcoe_exchanges = ethdev->max_fcoe_exchanges;
+	}
 
 	if (cdev->max_fcoe_conn > BNX2X_FCOE_NUM_CONNECTIONS)
 		cdev->max_fcoe_conn = BNX2X_FCOE_NUM_CONNECTIONS;

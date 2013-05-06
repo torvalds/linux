@@ -881,7 +881,7 @@ int icmp_rcv(struct sk_buff *skb)
 	case CHECKSUM_NONE:
 		skb->csum = 0;
 		if (__skb_checksum_complete(skb))
-			goto error;
+			goto csum_error;
 	}
 
 	if (!pskb_pull(skb, sizeof(*icmph)))
@@ -929,6 +929,8 @@ int icmp_rcv(struct sk_buff *skb)
 drop:
 	kfree_skb(skb);
 	return 0;
+csum_error:
+	ICMP_INC_STATS_BH(net, ICMP_MIB_CSUMERRORS);
 error:
 	ICMP_INC_STATS_BH(net, ICMP_MIB_INERRORS);
 	goto drop;
