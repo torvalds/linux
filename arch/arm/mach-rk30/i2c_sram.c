@@ -131,7 +131,7 @@ Params    : channel-determine which I2C bus we used
 Return    : none
 ------------------------------------------------------------------------------------------------------*/
 
-void __sramfunc sram_i2c_init()
+void __sramfunc sram_i2c_init(void)
 {
 	  unsigned int div, divl, divh;
     //enable cru_clkgate8 clock
@@ -176,10 +176,12 @@ Return    : none
 ------------------------------------------------------------------------------------------------------*/
 void __sramfunc sram_i2c_read_enable(void)
 {
+	writel_relaxed(I2C_STARTIEN, SRAM_I2C_ADDRBASE + I2C_IEN);
 	writel_relaxed(((((I2C_CON_EN | I2C_CON_MOD(1)) | I2C_CON_LASTACK) )| I2C_CON_START) & (~(I2C_CON_STOP)) , SRAM_I2C_ADDRBASE + I2C_CON);
 }
 void __sramfunc sram_i2c_write_enable(void)
 {
+	writel_relaxed(I2C_STARTIEN, SRAM_I2C_ADDRBASE + I2C_IEN);
 	writel_relaxed(((((I2C_CON_EN | I2C_CON_MOD(0)) | I2C_CON_LASTACK) )| I2C_CON_START) & (~(I2C_CON_STOP)) , SRAM_I2C_ADDRBASE + I2C_CON);
 }
 
@@ -210,6 +212,7 @@ void __sramfunc sram_i2c_send_stop(void)
         con |= I2C_CON_STOP;
         if(con & I2C_CON_START) 
 			sram_printch('E');
+	writel_relaxed(I2C_STOPIEN, SRAM_I2C_ADDRBASE + I2C_IEN);
         writel_relaxed(con, SRAM_I2C_ADDRBASE + I2C_CON);
 }
 void __sramfunc sram_i2c_clean_stop(void)
@@ -224,43 +227,45 @@ void __sramfunc sram_i2c_get_ipd_event(int type)
 {
 	int time = 2000;
 	unsigned int con = readl_relaxed(SRAM_I2C_ADDRBASE + I2C_IPD);
-	writel_relaxed(type, SRAM_I2C_ADDRBASE + I2C_IEN);
-	do{
+
+	while((--time) && (!(con & type))){
 		sram_udelay(10);
 		con = readl_relaxed(SRAM_I2C_ADDRBASE + I2C_IPD);
-	}while(((--time) && (~(con & type))));
+	}
 	writel_relaxed(type,SRAM_I2C_ADDRBASE + I2C_IPD);
 	
 	if(time <= 0){
-	if (type == I2C_STARTIPD){
-	sram_printch('S');
-	}else if (type == I2C_STOPIPD){
-	sram_printch('P');
-	}else if (type == I2C_MBTFIPD){
-	sram_printch('W');
-	}else if (type == I2C_MBRFIPD){
-	sram_printch('R');
-	}
-	sram_printch('T');
+		if (type == I2C_STARTIPD){
+			sram_printch('S');
+		}else if (type == I2C_STOPIPD){
+			sram_printch('P');
+		}else if (type == I2C_MBTFIPD){
+			sram_printch('W');
+		}else if (type == I2C_MBRFIPD){
+			sram_printch('R');
+		}
+		sram_printch('T');
 	}
 }
 
 void __sramfunc sram_i2c_write_prepare(uint8 I2CSlaveAddr, uint8 regAddr,uint8 pdata)
 {
-    u32 data = 0;
-    unsigned int addr = (I2CSlaveAddr & 0x7f) << 1;
+    	u32 data = 0;
+    	unsigned int addr = (I2CSlaveAddr & 0x7f) << 1;
 
+	writel_relaxed(I2C_MBTFIEN, SRAM_I2C_ADDRBASE + I2C_IEN);
  	data = (addr | (regAddr << 8))|(pdata << 16);
-    writel_relaxed(data , SRAM_I2C_ADDRBASE + I2C_TXDATA_BASE);
+    	writel_relaxed(data , SRAM_I2C_ADDRBASE + I2C_TXDATA_BASE);
    	writel_relaxed(3, SRAM_I2C_ADDRBASE + I2C_MTXCNT);
 }
 uint8 __sramfunc sram_i2c_read_prepare(uint8 I2CSlaveAddr, uint8 regAddr)
 {
 	unsigned int addr = (I2CSlaveAddr & 0x7f) << 1;
- 
-  	 writel_relaxed(addr | I2C_MRXADDR_LOW, SRAM_I2C_ADDRBASE + I2C_MRXADDR);
-     writel_relaxed(regAddr | I2C_MRXADDR_LOW, SRAM_I2C_ADDRBASE + I2C_MRXRADDR);
-    writel_relaxed(SRAM_I2C_DATA_BYTE, SRAM_I2C_ADDRBASE + I2C_MRXCNT);
+	
+	writel_relaxed(I2C_MBRFIEN, SRAM_I2C_ADDRBASE + I2C_IEN);
+	writel_relaxed(addr | I2C_MRXADDR_LOW, SRAM_I2C_ADDRBASE + I2C_MRXADDR);
+	writel_relaxed(regAddr | I2C_MRXADDR_LOW, SRAM_I2C_ADDRBASE + I2C_MRXRADDR);
+	writel_relaxed(SRAM_I2C_DATA_BYTE, SRAM_I2C_ADDRBASE + I2C_MRXCNT);
 	return 0;
 }
 
@@ -332,7 +337,7 @@ void __sramfunc rk30_suspend_voltage_resume(unsigned int vol)
 {
     uint8 slaveaddr;
     uint16 slavereg;
-    uint8 data,ret = 0;
+    uint8 data;//,ret = 0;
 	slaveaddr = I2C_SADDR;            //slave device addr
     slavereg = 0x22;            // reg addr  
    	
