@@ -320,7 +320,8 @@ nouveau_vm_get(struct nouveau_vm *vm, u64 size, u32 page_shift,
 	}
 	mutex_unlock(&nv_subdev(vmm)->mutex);
 
-	vma->vm     = vm;
+	vma->vm = NULL;
+	nouveau_vm_ref(vm, &vma->vm, NULL);
 	vma->offset = (u64)vma->node->offset << 12;
 	vma->access = access;
 	return 0;
@@ -342,6 +343,8 @@ nouveau_vm_put(struct nouveau_vma *vma)
 	nouveau_vm_unmap_pgt(vm, vma->node->type != vmm->spg_shift, fpde, lpde);
 	nouveau_mm_free(&vm->mm, &vma->node);
 	mutex_unlock(&nv_subdev(vmm)->mutex);
+
+	nouveau_vm_ref(NULL, &vma->vm, NULL);
 }
 
 int
