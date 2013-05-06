@@ -1929,6 +1929,11 @@ static void rbd_dev_parent_put(struct rbd_device *rbd_dev)
  * If an image has a non-zero parent overlap, get a reference to its
  * parent.
  *
+ * We must get the reference before checking for the overlap to
+ * coordinate properly with zeroing the parent overlap in
+ * rbd_dev_v2_parent_info() when an image gets flattened.  We
+ * drop it again if there is no overlap.
+ *
  * Returns true if the rbd device has a parent with a non-zero
  * overlap and a reference for it was successfully taken, or
  * false otherwise.
@@ -3782,8 +3787,26 @@ static int rbd_dev_v2_parent_info(struct rbd_device *rbd_dev)
 	end = reply_buf + ret;
 	ret = -ERANGE;
 	ceph_decode_64_safe(&p, end, pool_id, out_err);
-	if (pool_id == CEPH_NOPOOL)
+	if (pool_id == CEPH_NOPOOL) {
+		/*
+		 * Either the parent never existed, or we have
+		 * record of it but the image got flattened so it no
+		 * longer has a parent.  When the parent of a
+		 * layered image disappears we immediately set the
+		 * overlap to 0.  The effect of this is that all new
+		 * requests will be treated as if the image had no
+		 * parent.
+		 */
+		if (rbd_dev->parent_overlap) {
+			rbd_dev->parent_overlap = 0;
+			smp_mb();
+			rbd_dev_parent_put(rbd_dev);
+			pr_info("%s: clone image has been flattened\n",
+				rbd_dev->disk->disk_name);
+		}
+
 		goto out;	/* No parent?  No problem. */
+	}
 
 	/* The ceph file layout needs to fit pool id in 32 bits */
 
@@ -4633,7 +4656,10 @@ static void rbd_dev_unprobe(struct rbd_device *rbd_dev)
 {
 	struct rbd_image_header	*header;
 
-	rbd_dev_parent_put(rbd_dev);
+	/* Drop parent reference unless it's already been done (or none) */
+
+	if (rbd_dev->parent_overlap)
+		rbd_dev_parent_put(rbd_dev);
 
 	/* Free dynamic fields from the header, then zero it out */
 
