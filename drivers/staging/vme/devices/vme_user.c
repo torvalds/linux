@@ -109,7 +109,7 @@ struct driver_stats {
 	unsigned long ioctls;
 	unsigned long irqs;
 	unsigned long berrs;
-	unsigned long dmaErrors;
+	unsigned long dmaerrors;
 	unsigned long timeouts;
 	unsigned long external;
 };
@@ -160,7 +160,7 @@ static void reset_counters(void)
 	statistics.ioctls = 0;
 	statistics.irqs = 0;
 	statistics.berrs = 0;
-	statistics.dmaErrors = 0;
+	statistics.dmaerrors = 0;
 	statistics.timeouts = 0;
 }
 
