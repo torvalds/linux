@@ -136,10 +136,7 @@ static int gpio_nand_devready(struct mtd_info *mtd)
 {
 	struct gpiomtd *gpiomtd = gpio_nand_getpriv(mtd);
 
-	if (gpio_is_valid(gpiomtd->plat.gpio_rdy))
-		return gpio_get_value(gpiomtd->plat.gpio_rdy);
-
-	return 1;
+	return gpio_get_value(gpiomtd->plat.gpio_rdy);
 }
 
 #ifdef CONFIG_OF
@@ -307,6 +304,7 @@ static int gpio_nand_probe(struct platform_device *dev)
 		if (ret)
 			return ret;
 		gpio_direction_input(gpiomtd->plat.gpio_rdy);
+		this->dev_ready = gpio_nand_devready;
 	}
 
 	this->IO_ADDR_W  = this->IO_ADDR_R;
@@ -316,7 +314,6 @@ static int gpio_nand_probe(struct platform_device *dev)
 
 	/* install our routines */
 	this->cmd_ctrl   = gpio_nand_cmd_ctrl;
-	this->dev_ready  = gpio_nand_devready;
 
 	if (this->options & NAND_BUSWIDTH_16) {
 		this->read_buf   = gpio_nand_readbuf16;
