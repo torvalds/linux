@@ -65,7 +65,7 @@ enum rk_plls_id {
 #define PLUS_PLL_NO(reg)	(PLL_NO(reg) & PLUS_PLL_OD_MSK)
 
 #define PLUS_PLL_NR_MSK		(0x3f)
-#define PLUS_PLL_NR(reg)	(PLL_NO(reg) & PLUS_PLL_NR_MSK)
+#define PLUS_PLL_NR(reg)	(PLL_NR(reg) & PLUS_PLL_NR_MSK)
 
 #define PLUS_PLL_CLKR_SET(val)	PLL_CLKR_SET(val & PLUS_PLL_NR_MSK)
 #define PLUS_PLL_CLKOD_SET(val)	PLL_CLKOD_SET(val & PLUS_PLL_OD_MSK)
