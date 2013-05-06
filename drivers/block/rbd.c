@@ -730,9 +730,10 @@ static bool rbd_dev_ondisk_valid(struct rbd_image_header_ondisk *ondisk)
  * Fill an rbd image header with information from the given format 1
  * on-disk header.
  */
-static int rbd_header_from_disk(struct rbd_image_header *header,
+static int rbd_header_from_disk(struct rbd_device *rbd_dev,
 				 struct rbd_image_header_ondisk *ondisk)
 {
+	struct rbd_image_header *header = &rbd_dev->header;
 	bool first_time = header->object_prefix == NULL;
 	struct ceph_snap_context *snapc;
 	char *object_prefix = NULL;
@@ -802,6 +803,7 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 
 	/* We won't fail any more, fill in the header */
 
+	down_write(&rbd_dev->header_rwsem);
 	if (first_time) {
 		header->object_prefix = object_prefix;
 		header->obj_order = ondisk->options.order;
@@ -811,6 +813,10 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 		header->stripe_unit = 0;
 		header->stripe_count = 0;
 		header->features = 0;
+	} else {
+		ceph_put_snap_context(header->snapc);
+		kfree(header->snap_names);
+		kfree(header->snap_sizes);
 	}
 
 	/* The remaining fields always get updated (when we refresh) */
@@ -819,6 +825,14 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 	header->snapc = snapc;
 	header->snap_names = snap_names;
 	header->snap_sizes = snap_sizes;
+
+	/* Make sure mapping size is consistent with header info */
+
+	if (rbd_dev->spec->snap_id == CEPH_NOSNAP || first_time)
+		if (rbd_dev->mapping.size != header->image_size)
+			rbd_dev->mapping.size = header->image_size;
+
+	up_write(&rbd_dev->header_rwsem);
 
 	return 0;
 out_2big:
@@ -3032,17 +3046,11 @@ out:
 }
 
 /*
- * Read the complete header for the given rbd device.
- *
- * Returns a pointer to a dynamically-allocated buffer containing
- * the complete and validated header.  Caller can pass the address
- * of a variable that will be filled in with the version of the
- * header object at the time it was read.
- *
- * Returns a pointer-coded errno if a failure occurs.
+ * Read the complete header for the given rbd device.  On successful
+ * return, the rbd_dev->header field will contain up-to-date
+ * information about the image.
  */
-static struct rbd_image_header_ondisk *
-rbd_dev_v1_header_read(struct rbd_device *rbd_dev)
+static int rbd_dev_v1_header_read(struct rbd_device *rbd_dev)
 {
 	struct rbd_image_header_ondisk *ondisk = NULL;
 	u32 snap_count = 0;
@@ -3067,22 +3075,22 @@ rbd_dev_v1_header_read(struct rbd_device *rbd_dev)
 		size += names_size;
 		ondisk = kmalloc(size, GFP_KERNEL);
 		if (!ondisk)
-			return ERR_PTR(-ENOMEM);
+			return -ENOMEM;
 
 		ret = rbd_obj_read_sync(rbd_dev, rbd_dev->header_name,
 				       0, size, ondisk);
 		if (ret < 0)
-			goto out_err;
+			goto out;
 		if ((size_t)ret < size) {
 			ret = -ENXIO;
 			rbd_warn(rbd_dev, "short header read (want %zd got %d)",
 				size, ret);
-			goto out_err;
+			goto out;
 		}
 		if (!rbd_dev_ondisk_valid(ondisk)) {
 			ret = -ENXIO;
 			rbd_warn(rbd_dev, "invalid header");
-			goto out_err;
+			goto out;
 		}
 
 		names_size = le64_to_cpu(ondisk->snap_names_len);
@@ -3090,27 +3098,8 @@ rbd_dev_v1_header_read(struct rbd_device *rbd_dev)
 		snap_count = le32_to_cpu(ondisk->snap_count);
 	} while (snap_count != want_count);
 
-	return ondisk;
-
-out_err:
-	kfree(ondisk);
-
-	return ERR_PTR(ret);
-}
-
-/*
- * reload the ondisk the header
- */
-static int rbd_read_header(struct rbd_device *rbd_dev,
-			   struct rbd_image_header *header)
-{
-	struct rbd_image_header_ondisk *ondisk;
-	int ret;
-
-	ondisk = rbd_dev_v1_header_read(rbd_dev);
-	if (IS_ERR(ondisk))
-		return PTR_ERR(ondisk);
-	ret = rbd_header_from_disk(header, ondisk);
+	ret = rbd_header_from_disk(rbd_dev, ondisk);
+out:
 	kfree(ondisk);
 
 	return ret;
@@ -3121,40 +3110,7 @@ static int rbd_read_header(struct rbd_device *rbd_dev,
  */
 static int rbd_dev_v1_refresh(struct rbd_device *rbd_dev)
 {
-	int ret;
-	struct rbd_image_header h;
-
-	memset(&h, 0, sizeof (h));
-	ret = rbd_read_header(rbd_dev, &h);
-	if (ret < 0)
-		return ret;
-
-	down_write(&rbd_dev->header_rwsem);
-
-	/* Update image size, and check for resize of mapped image */
-	rbd_dev->header.image_size = h.image_size;
-	if (rbd_dev->spec->snap_id == CEPH_NOSNAP)
-		if (rbd_dev->mapping.size != rbd_dev->header.image_size)
-			rbd_dev->mapping.size = rbd_dev->header.image_size;
-
-	/* rbd_dev->header.object_prefix shouldn't change */
-	kfree(rbd_dev->header.snap_sizes);
-	kfree(rbd_dev->header.snap_names);
-	/* osd requests may still refer to snapc */
-	ceph_put_snap_context(rbd_dev->header.snapc);
-
-	rbd_dev->header.image_size = h.image_size;
-	rbd_dev->header.snapc = h.snapc;
-	rbd_dev->header.snap_names = h.snap_names;
-	rbd_dev->header.snap_sizes = h.snap_sizes;
-	/* Free the extra copy of the object prefix */
-	if (strcmp(rbd_dev->header.object_prefix, h.object_prefix))
-		rbd_warn(rbd_dev, "object prefix changed (ignoring)");
-	kfree(h.object_prefix);
-
-	up_write(&rbd_dev->header_rwsem);
-
-	return ret;
+	return rbd_dev_v1_header_read(rbd_dev);
 }
 
 /*
@@ -4517,7 +4473,7 @@ static int rbd_dev_v1_probe(struct rbd_device *rbd_dev)
 
 	/* Populate rbd image metadata */
 
-	ret = rbd_read_header(rbd_dev, &rbd_dev->header);
+	ret = rbd_dev_v1_header_read(rbd_dev);
 	if (ret < 0)
 		goto out_err;
 
