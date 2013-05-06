@@ -1390,6 +1390,9 @@ static bool ieee80211_powersave_allowed(struct ieee80211_sub_if_data *sdata)
 			  IEEE80211_STA_CONNECTION_POLL))
 		return false;
 
+	if (!sdata->vif.bss_conf.dtim_period)
+		return false;
+
 	rcu_read_lock();
 	sta = sta_info_get(sdata, mgd->bssid);
 	if (sta)
@@ -3126,6 +3129,7 @@ ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 		}
 
 		changed |= BSS_CHANGED_DTIM_PERIOD;
+		ieee80211_recalc_ps_vif(sdata);
 	}
 
 	if (elems.erp_info) {
