@@ -127,7 +127,7 @@ ipi_interrupt(int irq, void *dev_id)
 	unsigned long flags;
 
 	/* Count this now; we may make a call that never returns. */
-	p->ipi_count++;
+	inc_irq_stat(irq_call_count);
 
 	mb();	/* Order interrupt and bit testing. */
 
@@ -155,6 +155,7 @@ ipi_interrupt(int irq, void *dev_id)
 				
 			case IPI_RESCHEDULE:
 				smp_debug(100, KERN_DEBUG "CPU%d IPI_RESCHEDULE\n", this_cpu);
+				inc_irq_stat(irq_resched_count);
 				scheduler_ipi();
 				break;
 
