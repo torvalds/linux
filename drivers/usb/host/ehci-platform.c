@@ -146,7 +146,6 @@ static int ehci_platform_remove(struct platform_device *dev)
 
 	usb_remove_hcd(hcd);
 	usb_put_hcd(hcd);
-	platform_set_drvdata(dev, NULL);
 
 	if (pdata->power_off)
 		pdata->power_off(dev);
