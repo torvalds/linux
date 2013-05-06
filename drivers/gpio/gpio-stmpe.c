@@ -431,7 +431,6 @@ static int stmpe_gpio_remove(struct platform_device *pdev)
 	if (irq >= 0)
 		free_irq(irq, stmpe_gpio);
 
-	platform_set_drvdata(pdev, NULL);
 	kfree(stmpe_gpio);
 
 	return 0;
