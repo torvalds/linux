@@ -179,8 +179,6 @@ static int spear_ohci_hcd_drv_remove(struct platform_device *pdev)
 		spear_stop_ohci(ohci_p);
 
 	usb_put_hcd(hcd);
-
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 
