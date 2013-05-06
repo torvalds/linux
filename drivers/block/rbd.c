@@ -2628,6 +2628,7 @@ out:
 static void rbd_watch_cb(u64 ver, u64 notify_id, u8 opcode, void *data)
 {
 	struct rbd_device *rbd_dev = (struct rbd_device *)data;
+	int ret;
 
 	if (!rbd_dev)
 		return;
@@ -2635,7 +2636,9 @@ static void rbd_watch_cb(u64 ver, u64 notify_id, u8 opcode, void *data)
 	dout("%s: \"%s\" notify_id %llu opcode %u\n", __func__,
 		rbd_dev->header_name, (unsigned long long)notify_id,
 		(unsigned int)opcode);
-	(void)rbd_dev_refresh(rbd_dev);
+	ret = rbd_dev_refresh(rbd_dev);
+	if (ret)
+		rbd_warn(rbd_dev, ": header refresh error (%d)\n", ret);
 
 	rbd_obj_notify_ack(rbd_dev, notify_id);
 }
@@ -3182,11 +3185,11 @@ static void rbd_exists_validate(struct rbd_device *rbd_dev)
 
 static int rbd_dev_refresh(struct rbd_device *rbd_dev)
 {
-	u64 image_size;
+	u64 mapping_size;
 	int ret;
 
 	rbd_assert(rbd_image_format_valid(rbd_dev->image_format));
-	image_size = rbd_dev->header.image_size;
+	mapping_size = rbd_dev->mapping.size;
 	mutex_lock_nested(&ctl_mutex, SINGLE_DEPTH_NESTING);
 	if (rbd_dev->image_format == 1)
 		ret = rbd_dev_v1_refresh(rbd_dev);
@@ -3197,10 +3200,7 @@ static int rbd_dev_refresh(struct rbd_device *rbd_dev)
 
 	rbd_exists_validate(rbd_dev);
 	mutex_unlock(&ctl_mutex);
-	if (ret)
-		rbd_warn(rbd_dev, "got notification but failed to "
-			   " update snaps: %d\n", ret);
-	if (image_size != rbd_dev->header.image_size)
+	if (mapping_size != rbd_dev->mapping.size)
 		revalidate_disk(rbd_dev->disk);
 
 	return ret;
@@ -3405,6 +3405,8 @@ static ssize_t rbd_image_refresh(struct device *dev,
 	int ret;
 
 	ret = rbd_dev_refresh(rbd_dev);
+	if (ret)
+		rbd_warn(rbd_dev, ": manual header refresh error (%d)\n", ret);
 
 	return ret < 0 ? ret : size;
 }
