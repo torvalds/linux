@@ -318,8 +318,6 @@ static int w90x900ts_remove(struct platform_device *pdev)
 	input_unregister_device(w90p910_ts->input);
 	kfree(w90p910_ts);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 
