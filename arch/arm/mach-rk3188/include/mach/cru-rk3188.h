@@ -77,7 +77,7 @@ enum rk_plls_id {
 #define PLL_NF(reg)		PLL_CLKFACTOR_GET(reg, PLL_NF_SHIFT, PLL_NF_MSK)
 #define PLL_CLKF_SET(val)	(PLL_CLKF(val) | CRU_W_MSK(PLL_NF_SHIFT, PLL_NF_MSK))
 
-#define PLUS_PLL_NF_MSK		(0x1ff)
+#define PLUS_PLL_NF_MSK		(0x1fff)
 #define PLUS_PLL_NF(reg)	(PLL_NF(reg) & PLUS_PLL_NF_MSK)
 #define PLUS_PLL_CLKF_SET(val)	PLL_CLKF_SET(val & PLUS_PLL_NF_MSK)
 /*******************PLL CON2 BITS***************************/
