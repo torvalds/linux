@@ -251,17 +251,16 @@ static void vhost_vq_free_iovecs(struct vhost_virtqueue *vq)
 /* Helper to allocate iovec buffers for all vqs. */
 static long vhost_dev_alloc_iovecs(struct vhost_dev *dev)
 {
+	struct vhost_virtqueue *vq;
 	int i;
 
 	for (i = 0; i < dev->nvqs; ++i) {
-		dev->vqs[i]->indirect = kmalloc(sizeof *dev->vqs[i]->indirect *
-					       UIO_MAXIOV, GFP_KERNEL);
-		dev->vqs[i]->log = kmalloc(sizeof *dev->vqs[i]->log * UIO_MAXIOV,
-					  GFP_KERNEL);
-		dev->vqs[i]->heads = kmalloc(sizeof *dev->vqs[i]->heads *
-					    UIO_MAXIOV, GFP_KERNEL);
-		if (!dev->vqs[i]->indirect || !dev->vqs[i]->log ||
-			!dev->vqs[i]->heads)
+		vq = dev->vqs[i];
+		vq->indirect = kmalloc(sizeof *vq->indirect * UIO_MAXIOV,
+				       GFP_KERNEL);
+		vq->log = kmalloc(sizeof *vq->log * UIO_MAXIOV, GFP_KERNEL);
+		vq->heads = kmalloc(sizeof *vq->heads * UIO_MAXIOV, GFP_KERNEL);
+		if (!vq->indirect || !vq->log || !vq->heads)
 			goto err_nomem;
 	}
 	return 0;
@@ -283,6 +282,7 @@ static void vhost_dev_free_iovecs(struct vhost_dev *dev)
 long vhost_dev_init(struct vhost_dev *dev,
 		    struct vhost_virtqueue **vqs, int nvqs)
 {
+	struct vhost_virtqueue *vq;
 	int i;
 
 	dev->vqs = vqs;
@@ -297,15 +297,16 @@ long vhost_dev_init(struct vhost_dev *dev,
 	dev->worker = NULL;
 
 	for (i = 0; i < dev->nvqs; ++i) {
-		dev->vqs[i]->log = NULL;
-		dev->vqs[i]->indirect = NULL;
-		dev->vqs[i]->heads = NULL;
-		dev->vqs[i]->dev = dev;
-		mutex_init(&dev->vqs[i]->mutex);
-		vhost_vq_reset(dev, dev->vqs[i]);
-		if (dev->vqs[i]->handle_kick)
-			vhost_poll_init(&dev->vqs[i]->poll,
-					dev->vqs[i]->handle_kick, POLLIN, dev);
+		vq = dev->vqs[i];
+		vq->log = NULL;
+		vq->indirect = NULL;
+		vq->heads = NULL;
+		vq->dev = dev;
+		mutex_init(&vq->mutex);
+		vhost_vq_reset(dev, vq);
+		if (vq->handle_kick)
+			vhost_poll_init(&vq->poll, vq->handle_kick,
+					POLLIN, dev);
 	}
 
 	return 0;
