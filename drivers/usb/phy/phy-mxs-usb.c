@@ -180,8 +180,6 @@ static int mxs_phy_remove(struct platform_device *pdev)
 
 	usb_remove_phy(&mxs_phy->phy);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 
