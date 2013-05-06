@@ -407,7 +407,6 @@ static int tc3589x_gpio_remove(struct platform_device *pdev)
 
 	free_irq(irq, tc3589x_gpio);
 
-	platform_set_drvdata(pdev, NULL);
 	kfree(tc3589x_gpio);
 
 	return 0;
