@@ -856,7 +856,6 @@ static int __exit u300_gpio_remove(struct platform_device *pdev)
 	}
 	u300_gpio_free_ports(gpio);
 	clk_disable_unprepare(gpio->clk);
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 
