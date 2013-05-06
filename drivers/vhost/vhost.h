@@ -186,7 +186,4 @@ static inline int vhost_has_feature(struct vhost_dev *dev, int bit)
 	acked_features = rcu_dereference_index_check(dev->acked_features, 1);
 	return acked_features & (1 << bit);
 }
-
-void vhost_enable_zcopy(int vq);
-
 #endif
