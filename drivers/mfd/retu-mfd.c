@@ -1,5 +1,5 @@
 /*
- * Retu MFD driver
+ * Retu/Tahvo MFD driver
  *
  * Copyright (C) 2004, 2005 Nokia Corporation
  *
@@ -33,7 +33,8 @@
 #define RETU_REG_ASICR		0x00		/* ASIC ID and revision */
 #define RETU_REG_ASICR_VILMA	(1 << 7)	/* Bit indicating Vilma */
 #define RETU_REG_IDR		0x01		/* Interrupt ID */
-#define RETU_REG_IMR		0x02		/* Interrupt mask */
+#define RETU_REG_IMR		0x02		/* Interrupt mask (Retu) */
+#define TAHVO_REG_IMR		0x03		/* Interrupt mask (Tahvo) */
 
 /* Interrupt sources */
 #define RETU_INT_PWR		0		/* Power button */
@@ -83,6 +84,62 @@ static struct regmap_irq_chip retu_irq_chip = {
 
 /* Retu device registered for the power off. */
 static struct retu_dev *retu_pm_power_off;
+
+static struct resource tahvo_usb_res[] = {
+	{
+		.name	= "tahvo-usb",
+		.start	= TAHVO_INT_VBUS,
+		.end	= TAHVO_INT_VBUS,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct mfd_cell tahvo_devs[] = {
+	{
+		.name		= "tahvo-usb",
+		.resources	= tahvo_usb_res,
+		.num_resources	= ARRAY_SIZE(tahvo_usb_res),
+	},
+};
+
+static struct regmap_irq tahvo_irqs[] = {
+	[TAHVO_INT_VBUS] = {
+		.mask = 1 << TAHVO_INT_VBUS,
+	}
+};
+
+static struct regmap_irq_chip tahvo_irq_chip = {
+	.name		= "TAHVO",
+	.irqs		= tahvo_irqs,
+	.num_irqs	= ARRAY_SIZE(tahvo_irqs),
+	.num_regs	= 1,
+	.status_base	= RETU_REG_IDR,
+	.mask_base	= TAHVO_REG_IMR,
+	.ack_base	= RETU_REG_IDR,
+};
+
+static const struct retu_data {
+	char			*chip_name;
+	char			*companion_name;
+	struct regmap_irq_chip	*irq_chip;
+	struct mfd_cell		*children;
+	int			nchildren;
+} retu_data[] = {
+	[0] = {
+		.chip_name	= "Retu",
+		.companion_name	= "Vilma",
+		.irq_chip	= &retu_irq_chip,
+		.children	= retu_devs,
+		.nchildren	= ARRAY_SIZE(retu_devs),
+	},
+	[1] = {
+		.chip_name	= "Tahvo",
+		.companion_name	= "Betty",
+		.irq_chip	= &tahvo_irq_chip,
+		.children	= tahvo_devs,
+		.nchildren	= ARRAY_SIZE(tahvo_devs),
+	}
+};
 
 int retu_read(struct retu_dev *rdev, u8 reg)
 {
@@ -173,8 +230,13 @@ static struct regmap_config retu_config = {
 
 static int retu_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 {
+	struct retu_data const *rdat;
 	struct retu_dev *rdev;
 	int ret;
+
+	if (i2c->addr > ARRAY_SIZE(retu_data))
+		return -ENODEV;
+	rdat = &retu_data[i2c->addr - 1];
 
 	rdev = devm_kzalloc(&i2c->dev, sizeof(*rdev), GFP_KERNEL);
 	if (rdev == NULL)
@@ -190,25 +252,27 @@ static int retu_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 
 	ret = retu_read(rdev, RETU_REG_ASICR);
 	if (ret < 0) {
-		dev_err(rdev->dev, "could not read Retu revision: %d\n", ret);
+		dev_err(rdev->dev, "could not read %s revision: %d\n",
+			rdat->chip_name, ret);
 		return ret;
 	}
 
-	dev_info(rdev->dev, "Retu%s v%d.%d found\n",
-		 (ret & RETU_REG_ASICR_VILMA) ? " & Vilma" : "",
+	dev_info(rdev->dev, "%s%s%s v%d.%d found\n", rdat->chip_name,
+		 (ret & RETU_REG_ASICR_VILMA) ? " & " : "",
+		 (ret & RETU_REG_ASICR_VILMA) ? rdat->companion_name : "",
 		 (ret >> 4) & 0x7, ret & 0xf);
 
-	/* Mask all RETU interrupts. */
-	ret = retu_write(rdev, RETU_REG_IMR, 0xffff);
+	/* Mask all interrupts. */
+	ret = retu_write(rdev, rdat->irq_chip->mask_base, 0xffff);
 	if (ret < 0)
 		return ret;
 
 	ret = regmap_add_irq_chip(rdev->regmap, i2c->irq, IRQF_ONESHOT, -1,
-				  &retu_irq_chip, &rdev->irq_data);
+				  rdat->irq_chip, &rdev->irq_data);
 	if (ret < 0)
 		return ret;
 
-	ret = mfd_add_devices(rdev->dev, -1, retu_devs, ARRAY_SIZE(retu_devs),
+	ret = mfd_add_devices(rdev->dev, -1, rdat->children, rdat->nchildren,
 			      NULL, regmap_irq_chip_get_base(rdev->irq_data),
 			      NULL);
 	if (ret < 0) {
@@ -216,7 +280,7 @@ static int retu_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 		return ret;
 	}
 
-	if (!pm_power_off) {
+	if (i2c->addr == 1 && !pm_power_off) {
 		retu_pm_power_off = rdev;
 		pm_power_off	  = retu_power_off;
 	}
@@ -240,6 +304,7 @@ static int retu_remove(struct i2c_client *i2c)
 
 static const struct i2c_device_id retu_id[] = {
 	{ "retu-mfd", 0 },
+	{ "tahvo-mfd", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, retu_id);

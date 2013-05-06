@@ -458,22 +458,23 @@ static void update_latch_offset(u8 *offset, int i)
 static int ab8500_handle_hierarchical_line(struct ab8500 *ab8500,
 					int latch_offset, u8 latch_val)
 {
-	int int_bit = __ffs(latch_val);
-	int line, i;
+	int int_bit, line, i;
 
-	do {
+	for (i = 0; i < ab8500->mask_size; i++)
+		if (ab8500->irq_reg_offset[i] == latch_offset)
+			break;
+
+	if (i >= ab8500->mask_size) {
+		dev_err(ab8500->dev, "Register offset 0x%2x not declared\n",
+				latch_offset);
+		return -ENXIO;
+	}
+
+	/* ignore masked out interrupts */
+	latch_val &= ~ab8500->mask[i];
+
+	while (latch_val) {
 		int_bit = __ffs(latch_val);
-
-		for (i = 0; i < ab8500->mask_size; i++)
-			if (ab8500->irq_reg_offset[i] == latch_offset)
-				break;
-
-		if (i >= ab8500->mask_size) {
-			dev_err(ab8500->dev, "Register offset 0x%2x not declared\n",
-					latch_offset);
-			return -ENXIO;
-		}
-
 		line = (i << 3) + int_bit;
 		latch_val &= ~(1 << int_bit);
 
@@ -491,7 +492,7 @@ static int ab8500_handle_hierarchical_line(struct ab8500 *ab8500,
 			line += 1;
 
 		handle_nested_irq(ab8500->irq_base + line);
-	} while (latch_val);
+	}
 
 	return 0;
 }
@@ -1107,6 +1108,7 @@ static struct mfd_cell ab8500_devs[] = {
 	},
 	{
 		.name = "ab8500-usb",
+		.of_compatible = "stericsson,ab8500-usb",
 		.num_resources = ARRAY_SIZE(ab8500_usb_resources),
 		.resources = ab8500_usb_resources,
 	},
