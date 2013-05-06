@@ -2516,6 +2516,7 @@ out_err:
 static void rbd_img_obj_exists_callback(struct rbd_obj_request *obj_request)
 {
 	struct rbd_obj_request *orig_request;
+	struct rbd_device *rbd_dev;
 	int result;
 
 	rbd_assert(!obj_request_img_data_test(obj_request));
@@ -2538,8 +2539,21 @@ static void rbd_img_obj_exists_callback(struct rbd_obj_request *obj_request)
 		obj_request->xferred, obj_request->length);
 	rbd_obj_request_put(obj_request);
 
-	rbd_assert(orig_request);
-	rbd_assert(orig_request->img_request);
+	/*
+	 * If the overlap has become 0 (most likely because the
+	 * image has been flattened) we need to free the pages
+	 * and re-submit the original write request.
+	 */
+	rbd_dev = orig_request->img_request->rbd_dev;
+	if (!rbd_dev->parent_overlap) {
+		struct ceph_osd_client *osdc;
+
+		rbd_obj_request_put(orig_request);
+		osdc = &rbd_dev->rbd_client->client->osdc;
+		result = rbd_obj_request_submit(osdc, orig_request);
+		if (!result)
+			return;
+	}
 
 	/*
 	 * Our only purpose here is to determine whether the object
