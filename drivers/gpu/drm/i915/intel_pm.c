@@ -268,6 +268,8 @@ static void gen7_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 		   IVB_DPFC_CTL_FENCE_EN |
 		   intel_crtc->plane << IVB_DPFC_CTL_PLANE_SHIFT);
 
+	/* WaFbcAsynchFlipDisableFbcQueue */
+	I915_WRITE(ILK_DISPLAY_CHICKEN1, ILK_FBCQ_DIS);
 	I915_WRITE(SNB_DPFC_CTL_SA,
 		   SNB_CPU_FENCE_ENABLE | obj->fence_reg);
 	I915_WRITE(DPFC_CPU_FENCE_OFFSET, crtc->y);
