@@ -1254,7 +1254,7 @@ static int add_free_nid(struct f2fs_nm_info *nm_i, nid_t nid)
 	struct free_nid *i;
 
 	if (nm_i->fcnt > 2 * MAX_FREE_NIDS)
-		return 0;
+		return -1;
 
 	/* 0 nid should not be used */
 	if (nid == 0)
@@ -1302,12 +1302,16 @@ static void scan_nat_page(struct f2fs_nm_info *nm_i,
 	i = start_nid % NAT_ENTRY_PER_BLOCK;
 
 	for (; i < NAT_ENTRY_PER_BLOCK; i++, start_nid++) {
+
 		if (start_nid >= nm_i->max_nid)
 			break;
-		blk_addr  = le32_to_cpu(nat_blk->entries[i].block_addr);
+
+		blk_addr = le32_to_cpu(nat_blk->entries[i].block_addr);
 		BUG_ON(blk_addr == NEW_ADDR);
-		if (blk_addr == NULL_ADDR)
-			add_free_nid(nm_i, start_nid);
+		if (blk_addr == NULL_ADDR) {
+			if (add_free_nid(nm_i, start_nid) < 0)
+				break;
+		}
 	}
 }
 
@@ -1655,7 +1659,7 @@ flush_now:
 		}
 
 		if (nat_get_blkaddr(ne) == NULL_ADDR &&
-					!add_free_nid(NM_I(sbi), nid)) {
+				add_free_nid(NM_I(sbi), nid) <= 0) {
 			write_lock(&nm_i->nat_tree_lock);
 			__del_from_nat_cache(nm_i, ne);
 			write_unlock(&nm_i->nat_tree_lock);
