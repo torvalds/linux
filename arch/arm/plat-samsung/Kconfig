@@ -105,9 +105,9 @@ config SAMSUNG_IRQ_VIC_TIMER
          Internal configuration to build the VIC timer interrupt code.
 
 config S5P_IRQ
-	def_bool (ARCH_S5P64X0 || ARCH_S5PC100 || ARCH_S5PV210 || ARCH_EXYNOS)
+	def_bool (ARCH_S5P64X0 || ARCH_S5PC100 || ARCH_S5PV210)
 	help
-	  Support common interrup part for ARCH_S5P and ARCH_EXYNOS SoCs
+	  Support common interrupt part for ARCH_S5P SoCs
 
 config S5P_EXT_INT
 	bool
