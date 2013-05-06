@@ -116,7 +116,6 @@ struct tcm_vhost_nacl {
 	struct se_node_acl se_node_acl;
 };
 
-struct vhost_scsi;
 struct tcm_vhost_tpg {
 	/* Vhost port target portal group tag for TCM */
 	u16 tport_tpgt;
