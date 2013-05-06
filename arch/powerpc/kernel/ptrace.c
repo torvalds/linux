@@ -180,9 +180,10 @@ static int set_user_msr(struct task_struct *task, unsigned long msr)
 }
 
 #ifdef CONFIG_PPC64
-static unsigned long get_user_dscr(struct task_struct *task)
+static int get_user_dscr(struct task_struct *task, unsigned long *data)
 {
-	return task->thread.dscr;
+	*data = task->thread.dscr;
+	return 0;
 }
 
 static int set_user_dscr(struct task_struct *task, unsigned long dscr)
@@ -192,7 +193,7 @@ static int set_user_dscr(struct task_struct *task, unsigned long dscr)
 	return 0;
 }
 #else
-static unsigned long get_user_dscr(struct task_struct *task)
+static int get_user_dscr(struct task_struct *task, unsigned long *data)
 {
 	return -EIO;
 }
@@ -216,19 +217,23 @@ static int set_user_trap(struct task_struct *task, unsigned long trap)
 /*
  * Get contents of register REGNO in task TASK.
  */
-unsigned long ptrace_get_reg(struct task_struct *task, int regno)
+int ptrace_get_reg(struct task_struct *task, int regno, unsigned long *data)
 {
-	if (task->thread.regs == NULL)
+	if ((task->thread.regs == NULL) || !data)
 		return -EIO;
 
-	if (regno == PT_MSR)
-		return get_user_msr(task);
+	if (regno == PT_MSR) {
+		*data = get_user_msr(task);
+		return 0;
+	}
 
 	if (regno == PT_DSCR)
-		return get_user_dscr(task);
+		return get_user_dscr(task, data);
 
-	if (regno < (sizeof(struct pt_regs) / sizeof(unsigned long)))
-		return ((unsigned long *)task->thread.regs)[regno];
+	if (regno < (sizeof(struct pt_regs) / sizeof(unsigned long))) {
+		*data = ((unsigned long *)task->thread.regs)[regno];
+		return 0;
+	}
 
 	return -EIO;
 }
@@ -1560,7 +1565,9 @@ long arch_ptrace(struct task_struct *child, long request,
 
 		CHECK_FULL_REGS(child->thread.regs);
 		if (index < PT_FPR0) {
-			tmp = ptrace_get_reg(child, (int) index);
+			ret = ptrace_get_reg(child, (int) index, &tmp);
+			if (ret)
+				break;
 		} else {
 			unsigned int fpidx = index - PT_FPR0;
 
@@ -1637,6 +1644,8 @@ long arch_ptrace(struct task_struct *child, long request,
 		dbginfo.sizeof_condition = 0;
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 		dbginfo.features = PPC_DEBUG_FEATURE_DATA_BP_RANGE;
+		if (cpu_has_feature(CPU_FTR_DAWR))
+			dbginfo.features |= PPC_DEBUG_FEATURE_DATA_BP_DAWR;
 #else
 		dbginfo.features = 0;
 #endif /* CONFIG_HAVE_HW_BREAKPOINT */

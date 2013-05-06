@@ -83,7 +83,7 @@ static int iio_gpio_trigger_probe(struct platform_device *pdev)
 				ret = -ENOMEM;
 				goto error_put_trigger;
 			}
-			trig->private_data = trig_info;
+			iio_trigger_set_drvdata(trig, trig_info);
 			trig_info->irq = irq;
 			trig->ops = &iio_gpio_trigger_ops;
 			ret = request_irq(irq, iio_gpio_trigger_poll,
@@ -121,7 +121,7 @@ error_free_completed_registrations:
 				 trig2,
 				 &iio_gpio_trigger_list,
 				 alloc_list) {
-		trig_info = trig->private_data;
+		trig_info = iio_trigger_get_drvdata(trig);
 		free_irq(gpio_to_irq(trig_info->irq), trig);
 		kfree(trig_info);
 		iio_trigger_unregister(trig);
@@ -140,7 +140,7 @@ static int iio_gpio_trigger_remove(struct platform_device *pdev)
 				 trig2,
 				 &iio_gpio_trigger_list,
 				 alloc_list) {
-		trig_info = trig->private_data;
+		trig_info = iio_trigger_get_drvdata(trig);
 		iio_trigger_unregister(trig);
 		free_irq(trig_info->irq, trig);
 		kfree(trig_info);

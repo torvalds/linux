@@ -1756,10 +1756,11 @@ static const __u16 spca501c_mysterious_init_data[][3] = {
 	{}
 };
 
-static int reg_write(struct usb_device *dev,
-		     __u16 req, __u16 index, __u16 value)
+static int reg_write(struct gspca_dev *gspca_dev,
+					__u16 req, __u16 index, __u16 value)
 {
 	int ret;
+	struct usb_device *dev = gspca_dev->dev;
 
 	ret = usb_control_msg(dev,
 			usb_sndctrlpipe(dev, 0),
@@ -1774,17 +1775,15 @@ static int reg_write(struct usb_device *dev,
 }
 
 
-static int write_vector(struct gspca_dev *gspca_dev,
-			const __u16 data[][3])
+static int write_vector(struct gspca_dev *gspca_dev, const __u16 data[][3])
 {
-	struct usb_device *dev = gspca_dev->dev;
 	int ret, i = 0;
 
 	while (data[i][0] != 0 || data[i][1] != 0 || data[i][2] != 0) {
-		ret = reg_write(dev, data[i][0], data[i][2], data[i][1]);
+		ret = reg_write(gspca_dev, data[i][0], data[i][2],
+								data[i][1]);
 		if (ret < 0) {
-			PDEBUG(D_ERR,
-				"Reg write failed for 0x%02x,0x%02x,0x%02x",
+			PERR("Reg write failed for 0x%02x,0x%02x,0x%02x",
 				data[i][0], data[i][1], data[i][2]);
 			return ret;
 		}
@@ -1795,30 +1794,28 @@ static int write_vector(struct gspca_dev *gspca_dev,
 
 static void setbrightness(struct gspca_dev *gspca_dev, s32 val)
 {
-	reg_write(gspca_dev->dev, SPCA501_REG_CCDSP, 0x12, val);
+	reg_write(gspca_dev, SPCA501_REG_CCDSP, 0x12, val);
 }
 
 static void setcontrast(struct gspca_dev *gspca_dev, s32 val)
 {
-	reg_write(gspca_dev->dev, 0x00, 0x00,
-				  (val >> 8) & 0xff);
-	reg_write(gspca_dev->dev, 0x00, 0x01,
-				  val & 0xff);
+	reg_write(gspca_dev, 0x00, 0x00, (val >> 8) & 0xff);
+	reg_write(gspca_dev, 0x00, 0x01, val & 0xff);
 }
 
 static void setcolors(struct gspca_dev *gspca_dev, s32 val)
 {
-	reg_write(gspca_dev->dev, SPCA501_REG_CCDSP, 0x0c, val);
+	reg_write(gspca_dev, SPCA501_REG_CCDSP, 0x0c, val);
 }
 
 static void setblue_balance(struct gspca_dev *gspca_dev, s32 val)
 {
-	reg_write(gspca_dev->dev, SPCA501_REG_CCDSP, 0x11, val);
+	reg_write(gspca_dev, SPCA501_REG_CCDSP, 0x11, val);
 }
 
 static void setred_balance(struct gspca_dev *gspca_dev, s32 val)
 {
-	reg_write(gspca_dev->dev, SPCA501_REG_CCDSP, 0x13, val);
+	reg_write(gspca_dev, SPCA501_REG_CCDSP, 0x13, val);
 }
 
 /* this function is called at probe time */
@@ -1868,7 +1865,6 @@ error:
 static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	struct usb_device *dev = gspca_dev->dev;
 	int mode;
 
 	switch (sd->subtype) {
@@ -1895,20 +1891,20 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 	/* Enable ISO packet machine CTRL reg=2,
 	 * index=1 bitmask=0x2 (bit ordinal 1) */
-	reg_write(dev, SPCA50X_REG_USB, 0x6, 0x94);
+	reg_write(gspca_dev, SPCA50X_REG_USB, 0x6, 0x94);
 	switch (mode) {
 	case 0: /* 640x480 */
-		reg_write(dev, SPCA50X_REG_USB, 0x07, 0x004a);
+		reg_write(gspca_dev, SPCA50X_REG_USB, 0x07, 0x004a);
 		break;
 	case 1: /* 320x240 */
-		reg_write(dev, SPCA50X_REG_USB, 0x07, 0x104a);
+		reg_write(gspca_dev, SPCA50X_REG_USB, 0x07, 0x104a);
 		break;
 	default:
 /*	case 2:  * 160x120 */
-		reg_write(dev, SPCA50X_REG_USB, 0x07, 0x204a);
+		reg_write(gspca_dev, SPCA50X_REG_USB, 0x07, 0x204a);
 		break;
 	}
-	reg_write(dev, SPCA501_REG_CTLRL, 0x01, 0x02);
+	reg_write(gspca_dev, SPCA501_REG_CTLRL, 0x01, 0x02);
 
 	return 0;
 }
@@ -1917,7 +1913,7 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 {
 	/* Disable ISO packet
 	 * machine CTRL reg=2, index=1 bitmask=0x0 (bit ordinal 1) */
-	reg_write(gspca_dev->dev, SPCA501_REG_CTLRL, 0x01, 0x00);
+	reg_write(gspca_dev, SPCA501_REG_CTLRL, 0x01, 0x00);
 }
 
 /* called on streamoff with alt 0 and on disconnect */
@@ -1925,7 +1921,7 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 {
 	if (!gspca_dev->present)
 		return;
-	reg_write(gspca_dev->dev, SPCA501_REG_CTLRL, 0x05, 0x00);
+	reg_write(gspca_dev, SPCA501_REG_CTLRL, 0x05, 0x00);
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,

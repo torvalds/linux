@@ -31,9 +31,6 @@ Required Board Specific Properties:
 
 - #address-cells: should be 1.
 - #size-cells: should be 0.
-- gpios: The gpio specifier for clock, mosi and miso interface lines (in the
-  order specified). The format of the gpio specifier depends on the gpio
-  controller.
 
 Optional Board Specific Properties:
 
@@ -86,9 +83,8 @@ Example:
 	spi_0: spi@12d20000 {
 		#address-cells = <1>;
 		#size-cells = <0>;
-		gpios = <&gpa2 4 2 3 0>,
-			<&gpa2 6 2 3 0>,
-			<&gpa2 7 2 3 0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&spi0_bus>;
 
 		w25q80bw@0 {
 			#address-cells = <1>;

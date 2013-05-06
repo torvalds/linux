@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -62,6 +62,7 @@
 #include <linux/types.h>
 #include <linux/slab.h>
 #include <linux/export.h>
+#include "iwl-drv.h"
 #include "iwl-modparams.h"
 #include "iwl-eeprom-parse.h"
 
@@ -749,7 +750,7 @@ void iwl_init_ht_hw_capab(const struct iwl_cfg *cfg,
 	}
 
 	ht_info->ht_supported = true;
-	ht_info->cap = 0;
+	ht_info->cap = IEEE80211_HT_CAP_DSSSCCK40;
 
 	if (iwlwifi_mod_params.amsdu_size_8K)
 		ht_info->cap |= IEEE80211_HT_CAP_MAX_AMSDU;
@@ -909,7 +910,7 @@ iwl_parse_eeprom_data(struct device *dev, const struct iwl_cfg *cfg,
 	kfree(data);
 	return NULL;
 }
-EXPORT_SYMBOL_GPL(iwl_parse_eeprom_data);
+IWL_EXPORT_SYMBOL(iwl_parse_eeprom_data);
 
 /* helper functions */
 int iwl_nvm_check_version(struct iwl_nvm_data *data,
@@ -928,4 +929,4 @@ int iwl_nvm_check_version(struct iwl_nvm_data *data,
 		data->calib_version,  trans->cfg->nvm_calib_ver);
 	return -EINVAL;
 }
-EXPORT_SYMBOL_GPL(iwl_nvm_check_version);
+IWL_EXPORT_SYMBOL(iwl_nvm_check_version);

@@ -114,7 +114,7 @@ static inline pte_t huge_ptep_get_and_clear(struct mm_struct *mm,
 #define huge_ptep_set_wrprotect(__mm, __addr, __ptep)			\
 ({									\
 	pte_t __pte = huge_ptep_get(__ptep);				\
-	if (pte_write(__pte)) {						\
+	if (huge_pte_write(__pte)) {					\
 		huge_ptep_invalidate(__mm, __addr, __ptep);		\
 		set_huge_pte_at(__mm, __addr, __ptep,			\
 				huge_pte_wrprotect(__pte));		\
@@ -125,6 +125,60 @@ static inline void huge_ptep_clear_flush(struct vm_area_struct *vma,
 					 unsigned long address, pte_t *ptep)
 {
 	huge_ptep_invalidate(vma->vm_mm, address, ptep);
+}
+
+static inline pte_t mk_huge_pte(struct page *page, pgprot_t pgprot)
+{
+	pte_t pte;
+	pmd_t pmd;
+
+	pmd = mk_pmd_phys(page_to_phys(page), pgprot);
+	pte_val(pte) = pmd_val(pmd);
+	return pte;
+}
+
+static inline int huge_pte_write(pte_t pte)
+{
+	pmd_t pmd;
+
+	pmd_val(pmd) = pte_val(pte);
+	return pmd_write(pmd);
+}
+
+static inline int huge_pte_dirty(pte_t pte)
+{
+	/* No dirty bit in the segment table entry. */
+	return 0;
+}
+
+static inline pte_t huge_pte_mkwrite(pte_t pte)
+{
+	pmd_t pmd;
+
+	pmd_val(pmd) = pte_val(pte);
+	pte_val(pte) = pmd_val(pmd_mkwrite(pmd));
+	return pte;
+}
+
+static inline pte_t huge_pte_mkdirty(pte_t pte)
+{
+	/* No dirty bit in the segment table entry. */
+	return pte;
+}
+
+static inline pte_t huge_pte_modify(pte_t pte, pgprot_t newprot)
+{
+	pmd_t pmd;
+
+	pmd_val(pmd) = pte_val(pte);
+	pte_val(pte) = pmd_val(pmd_modify(pmd, newprot));
+	return pte;
+}
+
+static inline void huge_pte_clear(struct mm_struct *mm, unsigned long addr,
+				  pte_t *ptep)
+{
+	pmd_clear((pmd_t *) ptep);
 }
 
 #endif /* _ASM_S390_HUGETLB_H */

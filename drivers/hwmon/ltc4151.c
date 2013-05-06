@@ -146,14 +146,14 @@ static ssize_t ltc4151_show_value(struct device *dev,
 /*
  * Input voltages.
  */
-static SENSOR_DEVICE_ATTR(in1_input, S_IRUGO, \
-	ltc4151_show_value, NULL, LTC4151_VIN_H);
-static SENSOR_DEVICE_ATTR(in2_input, S_IRUGO, \
-	ltc4151_show_value, NULL, LTC4151_ADIN_H);
+static SENSOR_DEVICE_ATTR(in1_input, S_IRUGO, ltc4151_show_value, NULL,
+			  LTC4151_VIN_H);
+static SENSOR_DEVICE_ATTR(in2_input, S_IRUGO, ltc4151_show_value, NULL,
+			  LTC4151_ADIN_H);
 
 /* Currents (via sense resistor) */
-static SENSOR_DEVICE_ATTR(curr1_input, S_IRUGO, \
-	ltc4151_show_value, NULL, LTC4151_SENSE_H);
+static SENSOR_DEVICE_ATTR(curr1_input, S_IRUGO, ltc4151_show_value, NULL,
+			  LTC4151_SENSE_H);
 
 /*
  * Finally, construct an array of pointers to members of the above objects,

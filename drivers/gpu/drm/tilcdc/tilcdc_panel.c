@@ -173,7 +173,7 @@ static int panel_connector_get_modes(struct drm_connector *connector)
 		struct drm_display_mode *mode = drm_mode_create(dev);
 		struct videomode vm;
 
-		if (videomode_from_timing(timings, &vm, i))
+		if (videomode_from_timings(timings, &vm, i))
 			break;
 
 		drm_display_mode_from_videomode(&vm, mode);
@@ -305,7 +305,7 @@ static const struct tilcdc_module_ops panel_module_ops = {
  */
 
 /* maybe move this somewhere common if it is needed by other outputs? */
-static struct tilcdc_panel_info * of_get_panel_info(struct device_node *np)
+static struct tilcdc_panel_info *of_get_panel_info(struct device_node *np)
 {
 	struct device_node *info_np;
 	struct tilcdc_panel_info *info;
@@ -413,7 +413,6 @@ static struct of_device_id panel_of_match[] = {
 		{ .compatible = "ti,tilcdc,panel", },
 		{ },
 };
-MODULE_DEVICE_TABLE(of, panel_of_match);
 
 struct platform_driver panel_driver = {
 	.probe = panel_probe,

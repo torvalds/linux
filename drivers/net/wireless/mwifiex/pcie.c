@@ -36,8 +36,6 @@ static u8 user_rmmod;
 static struct mwifiex_if_ops pcie_ops;
 
 static struct semaphore add_remove_card_sem;
-static int mwifiex_pcie_enable_host_int(struct mwifiex_adapter *adapter);
-static int mwifiex_pcie_resume(struct pci_dev *pdev);
 
 static int
 mwifiex_map_pci_memory(struct mwifiex_adapter *adapter, struct sk_buff *skb,
@@ -77,6 +75,82 @@ static bool mwifiex_pcie_ok_to_access_hw(struct mwifiex_adapter *adapter)
 
 	return false;
 }
+
+#ifdef CONFIG_PM
+/*
+ * Kernel needs to suspend all functions separately. Therefore all
+ * registered functions must have drivers with suspend and resume
+ * methods. Failing that the kernel simply removes the whole card.
+ *
+ * If already not suspended, this function allocates and sends a host
+ * sleep activate request to the firmware and turns off the traffic.
+ */
+static int mwifiex_pcie_suspend(struct pci_dev *pdev, pm_message_t state)
+{
+	struct mwifiex_adapter *adapter;
+	struct pcie_service_card *card;
+	int hs_actived;
+
+	if (pdev) {
+		card = (struct pcie_service_card *) pci_get_drvdata(pdev);
+		if (!card || !card->adapter) {
+			pr_err("Card or adapter structure is not valid\n");
+			return 0;
+		}
+	} else {
+		pr_err("PCIE device is not specified\n");
+		return 0;
+	}
+
+	adapter = card->adapter;
+
+	hs_actived = mwifiex_enable_hs(adapter);
+
+	/* Indicate device suspended */
+	adapter->is_suspended = true;
+
+	return 0;
+}
+
+/*
+ * Kernel needs to suspend all functions separately. Therefore all
+ * registered functions must have drivers with suspend and resume
+ * methods. Failing that the kernel simply removes the whole card.
+ *
+ * If already not resumed, this function turns on the traffic and
+ * sends a host sleep cancel request to the firmware.
+ */
+static int mwifiex_pcie_resume(struct pci_dev *pdev)
+{
+	struct mwifiex_adapter *adapter;
+	struct pcie_service_card *card;
+
+	if (pdev) {
+		card = (struct pcie_service_card *) pci_get_drvdata(pdev);
+		if (!card || !card->adapter) {
+			pr_err("Card or adapter structure is not valid\n");
+			return 0;
+		}
+	} else {
+		pr_err("PCIE device is not specified\n");
+		return 0;
+	}
+
+	adapter = card->adapter;
+
+	if (!adapter->is_suspended) {
+		dev_warn(adapter->dev, "Device already resumed\n");
+		return 0;
+	}
+
+	adapter->is_suspended = false;
+
+	mwifiex_cancel_hs(mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA),
+			  MWIFIEX_ASYNC_CMD);
+
+	return 0;
+}
+#endif
 
 /*
  * This function probes an mwifiex device and registers it. It allocates
@@ -159,80 +233,6 @@ static void mwifiex_pcie_remove(struct pci_dev *pdev)
 	kfree(card);
 }
 
-/*
- * Kernel needs to suspend all functions separately. Therefore all
- * registered functions must have drivers with suspend and resume
- * methods. Failing that the kernel simply removes the whole card.
- *
- * If already not suspended, this function allocates and sends a host
- * sleep activate request to the firmware and turns off the traffic.
- */
-static int mwifiex_pcie_suspend(struct pci_dev *pdev, pm_message_t state)
-{
-	struct mwifiex_adapter *adapter;
-	struct pcie_service_card *card;
-	int hs_actived;
-
-	if (pdev) {
-		card = (struct pcie_service_card *) pci_get_drvdata(pdev);
-		if (!card || !card->adapter) {
-			pr_err("Card or adapter structure is not valid\n");
-			return 0;
-		}
-	} else {
-		pr_err("PCIE device is not specified\n");
-		return 0;
-	}
-
-	adapter = card->adapter;
-
-	hs_actived = mwifiex_enable_hs(adapter);
-
-	/* Indicate device suspended */
-	adapter->is_suspended = true;
-
-	return 0;
-}
-
-/*
- * Kernel needs to suspend all functions separately. Therefore all
- * registered functions must have drivers with suspend and resume
- * methods. Failing that the kernel simply removes the whole card.
- *
- * If already not resumed, this function turns on the traffic and
- * sends a host sleep cancel request to the firmware.
- */
-static int mwifiex_pcie_resume(struct pci_dev *pdev)
-{
-	struct mwifiex_adapter *adapter;
-	struct pcie_service_card *card;
-
-	if (pdev) {
-		card = (struct pcie_service_card *) pci_get_drvdata(pdev);
-		if (!card || !card->adapter) {
-			pr_err("Card or adapter structure is not valid\n");
-			return 0;
-		}
-	} else {
-		pr_err("PCIE device is not specified\n");
-		return 0;
-	}
-
-	adapter = card->adapter;
-
-	if (!adapter->is_suspended) {
-		dev_warn(adapter->dev, "Device already resumed\n");
-		return 0;
-	}
-
-	adapter->is_suspended = false;
-
-	mwifiex_cancel_hs(mwifiex_get_priv(adapter, MWIFIEX_BSS_ROLE_STA),
-			  MWIFIEX_ASYNC_CMD);
-
-	return 0;
-}
-
 static DEFINE_PCI_DEVICE_TABLE(mwifiex_ids) = {
 	{
 		PCIE_VENDOR_ID_MARVELL, PCIE_DEVICE_ID_MARVELL_88W8766P,
@@ -287,18 +287,13 @@ static int mwifiex_read_reg(struct mwifiex_adapter *adapter, int reg, u32 *data)
 }
 
 /*
- * This function wakes up the card.
- *
- * A host power up command is written to the card configuration
- * register to wake up the card.
+ * This function adds delay loop to ensure FW is awake before proceeding.
  */
-static int mwifiex_pm_wakeup_card(struct mwifiex_adapter *adapter)
+static void mwifiex_pcie_dev_wakeup_delay(struct mwifiex_adapter *adapter)
 {
 	int i = 0;
-	struct pcie_service_card *card = adapter->card;
-	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
 
-	while (reg->sleep_cookie && mwifiex_pcie_ok_to_access_hw(adapter)) {
+	while (mwifiex_pcie_ok_to_access_hw(adapter)) {
 		i++;
 		usleep_range(10, 20);
 		/* 50ms max wait */
@@ -306,16 +301,32 @@ static int mwifiex_pm_wakeup_card(struct mwifiex_adapter *adapter)
 			break;
 	}
 
+	return;
+}
+
+/* This function wakes up the card by reading fw_status register. */
+static int mwifiex_pm_wakeup_card(struct mwifiex_adapter *adapter)
+{
+	u32 fw_status;
+	struct pcie_service_card *card = adapter->card;
+	const struct mwifiex_pcie_card_reg *reg = card->pcie.reg;
+
 	dev_dbg(adapter->dev, "event: Wakeup device...\n");
 
-	/* Enable interrupts or any chip access will wakeup device */
-	if (mwifiex_write_reg(adapter, PCIE_HOST_INT_MASK, HOST_INTR_MASK)) {
-		dev_warn(adapter->dev, "Enable host interrupt failed\n");
+	if (reg->sleep_cookie)
+		mwifiex_pcie_dev_wakeup_delay(adapter);
+
+	/* Reading fw_status register will wakeup device */
+	if (mwifiex_read_reg(adapter, reg->fw_status, &fw_status)) {
+		dev_warn(adapter->dev, "Reading fw_status register failed\n");
 		return -1;
 	}
 
-	dev_dbg(adapter->dev, "PCIE wakeup: Setting PS_STATE_AWAKE\n");
-	adapter->ps_state = PS_STATE_AWAKE;
+	if (reg->sleep_cookie) {
+		mwifiex_pcie_dev_wakeup_delay(adapter);
+		dev_dbg(adapter->dev, "PCIE wakeup: Setting PS_STATE_AWAKE\n");
+		adapter->ps_state = PS_STATE_AWAKE;
+	}
 
 	return 0;
 }
@@ -561,7 +572,7 @@ static void mwifiex_cleanup_rxq_ring(struct mwifiex_adapter *adapter)
 			if (card->rx_buf_list[i]) {
 				skb = card->rx_buf_list[i];
 				pci_unmap_single(card->dev, desc2->paddr,
-						 skb->len, PCI_DMA_TODEVICE);
+						 skb->len, PCI_DMA_FROMDEVICE);
 				dev_kfree_skb_any(skb);
 			}
 			memset(desc2, 0, sizeof(*desc2));
@@ -570,7 +581,7 @@ static void mwifiex_cleanup_rxq_ring(struct mwifiex_adapter *adapter)
 			if (card->rx_buf_list[i]) {
 				skb = card->rx_buf_list[i];
 				pci_unmap_single(card->dev, desc->paddr,
-						 skb->len, PCI_DMA_TODEVICE);
+						 skb->len, PCI_DMA_FROMDEVICE);
 				dev_kfree_skb_any(skb);
 			}
 			memset(desc, 0, sizeof(*desc));
@@ -850,9 +861,8 @@ static int mwifiex_pcie_delete_cmdrsp_buf(struct mwifiex_adapter *adapter)
 
 	if (card && card->cmd_buf) {
 		MWIFIEX_SKB_PACB(card->cmd_buf, &buf_pa);
-		pci_unmap_single(card->dev, buf_pa, MWIFIEX_SIZE_OF_CMD_BUFFER,
+		pci_unmap_single(card->dev, buf_pa, card->cmd_buf->len,
 				 PCI_DMA_TODEVICE);
-		dev_kfree_skb_any(card->cmd_buf);
 	}
 	return 0;
 }
@@ -1030,8 +1040,8 @@ mwifiex_pcie_send_data(struct mwifiex_adapter *adapter, struct sk_buff *skb,
 	u32 wrindx, num_tx_buffs, rx_val;
 	int ret;
 	dma_addr_t buf_pa;
-	struct mwifiex_pcie_buf_desc *desc;
-	struct mwifiex_pfu_buf_desc *desc2;
+	struct mwifiex_pcie_buf_desc *desc = NULL;
+	struct mwifiex_pfu_buf_desc *desc2 = NULL;
 	__le16 *tmp;
 
 	if (!(skb->data && skb->len)) {
@@ -1562,7 +1572,7 @@ static int mwifiex_pcie_cmdrsp_complete(struct mwifiex_adapter *adapter,
 	skb_tmp = card->cmd_buf;
 	if (skb_tmp) {
 		MWIFIEX_SKB_PACB(skb_tmp, &buf_pa);
-		pci_unmap_single(card->dev, buf_pa, MWIFIEX_UPLD_SIZE,
+		pci_unmap_single(card->dev, buf_pa, skb_tmp->len,
 				 PCI_DMA_FROMDEVICE);
 		card->cmd_buf = NULL;
 	}
@@ -1984,12 +1994,13 @@ static void mwifiex_interrupt_status(struct mwifiex_adapter *adapter)
 				}
 			}
 		} else if (!adapter->pps_uapsd_mode &&
-			   adapter->ps_state == PS_STATE_SLEEP) {
+			   adapter->ps_state == PS_STATE_SLEEP &&
+			   mwifiex_pcie_ok_to_access_hw(adapter)) {
 				/* Potentially for PCIe we could get other
 				 * interrupts like shared. Don't change power
 				 * state until cookie is set */
-				if (mwifiex_pcie_ok_to_access_hw(adapter))
-					adapter->ps_state = PS_STATE_AWAKE;
+				adapter->ps_state = PS_STATE_AWAKE;
+				adapter->pm_wakeup_fw_try = false;
 		}
 	}
 }
@@ -2112,7 +2123,8 @@ static int mwifiex_process_int_status(struct mwifiex_adapter *adapter)
 	}
 	dev_dbg(adapter->dev, "info: cmd_sent=%d data_sent=%d\n",
 		adapter->cmd_sent, adapter->data_sent);
-	mwifiex_pcie_enable_host_int(adapter);
+	if (adapter->ps_state != PS_STATE_SLEEP)
+		mwifiex_pcie_enable_host_int(adapter);
 
 	return 0;
 }
@@ -2281,9 +2293,9 @@ static void mwifiex_pcie_cleanup(struct mwifiex_adapter *adapter)
 	if (pdev) {
 		pci_iounmap(pdev, card->pci_mmap);
 		pci_iounmap(pdev, card->pci_mmap1);
-
-		pci_release_regions(pdev);
 		pci_disable_device(pdev);
+		pci_release_region(pdev, 2);
+		pci_release_region(pdev, 0);
 		pci_set_drvdata(pdev, NULL);
 	}
 }

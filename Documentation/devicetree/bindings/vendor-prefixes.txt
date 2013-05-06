@@ -5,6 +5,7 @@ using them to avoid name-space collisions.
 
 ad	Avionic Design GmbH
 adi	Analog Devices, Inc.
+aeroflexgaisler	Aeroflex Gaisler AB
 ak	Asahi Kasei Corp.
 amcc	Applied Micro Circuits Corporation (APM, formally AMCC)
 apm	Applied Micro Circuits Corporation (APM)
@@ -48,6 +49,7 @@ samsung	Samsung Semiconductor
 sbs	Smart Battery System
 schindler	Schindler
 sil	Silicon Image
+silabs	Silicon Laboratories
 simtek
 sirf	SiRF Technology, Inc.
 snps 	Synopsys, Inc.

@@ -1037,7 +1037,7 @@ int __init rfcomm_init_sockets(void)
 		goto error;
 	}
 
-	err = bt_procfs_init(THIS_MODULE, &init_net, "rfcomm", &rfcomm_sk_list, NULL);
+	err = bt_procfs_init(&init_net, "rfcomm", &rfcomm_sk_list, NULL);
 	if (err < 0) {
 		BT_ERR("Failed to create RFCOMM proc file");
 		bt_sock_unregister(BTPROTO_RFCOMM);
@@ -1066,8 +1066,7 @@ void __exit rfcomm_cleanup_sockets(void)
 
 	debugfs_remove(rfcomm_sock_debugfs);
 
-	if (bt_sock_unregister(BTPROTO_RFCOMM) < 0)
-		BT_ERR("RFCOMM socket layer unregistration failed");
+	bt_sock_unregister(BTPROTO_RFCOMM);
 
 	proto_unregister(&rfcomm_proto);
 }

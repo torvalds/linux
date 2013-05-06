@@ -52,6 +52,7 @@
 #define FEC_R_FIFO_RSEM		0x194 /* Receive FIFO section empty threshold */
 #define FEC_R_FIFO_RAEM		0x198 /* Receive FIFO almost empty threshold */
 #define FEC_R_FIFO_RAFL		0x19c /* Receive FIFO almost full threshold */
+#define FEC_RACC		0x1C4 /* Receive Accelerator function */
 #define FEC_MIIGSK_CFGR		0x300 /* MIIGSK Configuration reg */
 #define FEC_MIIGSK_ENR		0x308 /* MIIGSK Enable reg */
 
@@ -164,9 +165,11 @@ struct bufdesc_ex {
 #define BD_ENET_TX_CSL          ((ushort)0x0001)
 #define BD_ENET_TX_STATS        ((ushort)0x03ff)        /* All status bits */
 
-/*enhanced buffer desciptor control/status used by Ethernet transmit*/
+/*enhanced buffer descriptor control/status used by Ethernet transmit*/
 #define BD_ENET_TX_INT          0x40000000
 #define BD_ENET_TX_TS           0x20000000
+#define BD_ENET_TX_PINS         0x10000000
+#define BD_ENET_TX_IINS         0x08000000
 
 
 /* This device has up to three irqs on some platforms */
@@ -190,6 +193,10 @@ struct bufdesc_ex {
 
 #define BD_ENET_RX_INT          0x00800000
 #define BD_ENET_RX_PTP          ((ushort)0x0400)
+#define BD_ENET_RX_ICE		0x00000020
+#define BD_ENET_RX_PCR		0x00000010
+#define FLAG_RX_CSUM_ENABLED	(BD_ENET_RX_ICE | BD_ENET_RX_PCR)
+#define FLAG_RX_CSUM_ERROR	(BD_ENET_RX_ICE | BD_ENET_RX_PCR)
 
 /* The FEC buffer descriptors track the ring buffers.  The rx_bd_base and
  * tx_bd_base always point to the base of the buffer descriptors.  The
@@ -247,6 +254,7 @@ struct fec_enet_private {
 	int	pause_flag;
 
 	struct	napi_struct napi;
+	int	csum_flags;
 
 	struct ptp_clock *ptp_clock;
 	struct ptp_clock_info ptp_caps;

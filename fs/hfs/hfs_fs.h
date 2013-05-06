@@ -9,6 +9,12 @@
 #ifndef _LINUX_HFS_FS_H
 #define _LINUX_HFS_FS_H
 
+#ifdef pr_fmt
+#undef pr_fmt
+#endif
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/mutex.h>
@@ -34,8 +40,18 @@
 //#define DBG_MASK	(DBG_CAT_MOD|DBG_BNODE_REFS|DBG_INODE|DBG_EXTENT)
 #define DBG_MASK	(0)
 
-#define dprint(flg, fmt, args...) \
-	if (flg & DBG_MASK) printk(fmt , ## args)
+#define hfs_dbg(flg, fmt, ...)					\
+do {								\
+	if (DBG_##flg & DBG_MASK)				\
+		printk(KERN_DEBUG pr_fmt(fmt), ##__VA_ARGS__);	\
+} while (0)
+
+#define hfs_dbg_cont(flg, fmt, ...)				\
+do {								\
+	if (DBG_##flg & DBG_MASK)				\
+		pr_cont(fmt, ##__VA_ARGS__);			\
+} while (0)
+
 
 /*
  * struct hfs_inode_info
@@ -174,7 +190,7 @@ extern const struct inode_operations hfs_dir_inode_operations;
 /* extent.c */
 extern int hfs_ext_keycmp(const btree_key *, const btree_key *);
 extern int hfs_free_fork(struct super_block *, struct hfs_cat_file *, int);
-extern void hfs_ext_write_extent(struct inode *);
+extern int hfs_ext_write_extent(struct inode *);
 extern int hfs_extend_file(struct inode *);
 extern void hfs_file_truncate(struct inode *);
 

@@ -1,6 +1,6 @@
 * Atmel AT91 Pinmux Controller
 
-The AT91 Pinmux Controler, enables the IC
+The AT91 Pinmux Controller, enables the IC
 to share one PAD to several functional blocks. The sharing is done by
 multiplexing the PAD input/output signals. For each PAD there are up to
 8 muxing options (called periph modes). Since different modules require

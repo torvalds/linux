@@ -34,7 +34,6 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/spi/spi.h>
-#include <linux/spi/spi-tegra.h>
 #include <linux/clk/tegra.h>
 
 #define SLINK_COMMAND			0x000
@@ -189,7 +188,6 @@ struct tegra_slink_data {
 	unsigned				dma_buf_size;
 	unsigned				max_buf_size;
 	bool					is_curr_dma_xfer;
-	bool					is_hw_based_cs;
 
 	struct completion			rx_dma_complete;
 	struct completion			tx_dma_complete;
@@ -375,9 +373,6 @@ static unsigned int tegra_slink_read_rx_fifo_to_client_rxbuf(
 		tspi->cur_rx_pos += tspi->curr_dma_words * tspi->bytes_per_word;
 		read_words += tspi->curr_dma_words;
 	} else {
-		unsigned int bits_per_word;
-
-		bits_per_word = t->bits_per_word;
 		for (count = 0; count < rx_full_count; count++) {
 			x = tegra_slink_readl(tspi, SLINK_RX_FIFO);
 			for (i = 0; (i < tspi->bytes_per_word); i++)
@@ -720,7 +715,6 @@ static int tegra_slink_start_transfer_one(struct spi_device *spi,
 	u8 bits_per_word;
 	unsigned total_fifo_words;
 	int ret;
-	struct tegra_spi_device_controller_data *cdata = spi->controller_data;
 	unsigned long command;
 	unsigned long command2;
 
@@ -743,38 +737,10 @@ static int tegra_slink_start_transfer_one(struct spi_device *spi,
 
 		command = tspi->def_command_reg;
 		command |= SLINK_BIT_LENGTH(bits_per_word - 1);
+		command |= SLINK_CS_SW | SLINK_CS_VALUE;
 
 		command2 = tspi->def_command2_reg;
 		command2 |= SLINK_SS_EN_CS(spi->chip_select);
-
-		/* possibly use the hw based chip select */
-		tspi->is_hw_based_cs = false;
-		if (cdata && cdata->is_hw_based_cs && is_single_xfer &&
-			((tspi->curr_dma_words * tspi->bytes_per_word) ==
-						(t->len - tspi->cur_pos))) {
-			int setup_count;
-			int sts2;
-
-			setup_count = cdata->cs_setup_clk_count >> 1;
-			setup_count = max(setup_count, 3);
-			command2 |= SLINK_SS_SETUP(setup_count);
-			if (tspi->chip_data->cs_hold_time) {
-				int hold_count;
-
-				hold_count = cdata->cs_hold_clk_count;
-				hold_count = max(hold_count, 0xF);
-				sts2 = tegra_slink_readl(tspi, SLINK_STATUS2);
-				sts2 &= ~SLINK_SS_HOLD_TIME(0xF);
-				sts2 |= SLINK_SS_HOLD_TIME(hold_count);
-				tegra_slink_writel(tspi, sts2, SLINK_STATUS2);
-			}
-			tspi->is_hw_based_cs = true;
-		}
-
-		if (tspi->is_hw_based_cs)
-			command &= ~SLINK_CS_SW;
-		else
-			command |= SLINK_CS_SW | SLINK_CS_VALUE;
 
 		command &= ~SLINK_MODES;
 		if (spi->mode & SPI_CPHA)
@@ -1065,36 +1031,25 @@ static irqreturn_t tegra_slink_isr(int irq, void *context_data)
 	return IRQ_WAKE_THREAD;
 }
 
-static struct tegra_spi_platform_data *tegra_slink_parse_dt(
-		struct platform_device *pdev)
+static void tegra_slink_parse_dt(struct tegra_slink_data *tspi)
 {
-	struct tegra_spi_platform_data *pdata;
-	const unsigned int *prop;
-	struct device_node *np = pdev->dev.of_node;
+	struct device_node *np = tspi->dev->of_node;
 	u32 of_dma[2];
-
-	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata) {
-		dev_err(&pdev->dev, "Memory alloc for pdata failed\n");
-		return NULL;
-	}
 
 	if (of_property_read_u32_array(np, "nvidia,dma-request-selector",
 				of_dma, 2) >= 0)
-		pdata->dma_req_sel = of_dma[1];
+		tspi->dma_req_sel = of_dma[1];
 
-	prop = of_get_property(np, "spi-max-frequency", NULL);
-	if (prop)
-		pdata->spi_max_frequency = be32_to_cpup(prop);
-
-	return pdata;
+	if (of_property_read_u32(np, "spi-max-frequency",
+					&tspi->spi_max_frequency))
+		tspi->spi_max_frequency = 25000000; /* 25MHz */
 }
 
-const struct tegra_slink_chip_data tegra30_spi_cdata = {
+static const struct tegra_slink_chip_data tegra30_spi_cdata = {
 	.cs_hold_time = true,
 };
 
-const struct tegra_slink_chip_data tegra20_spi_cdata = {
+static const struct tegra_slink_chip_data tegra20_spi_cdata = {
 	.cs_hold_time = false,
 };
 
@@ -1110,27 +1065,16 @@ static int tegra_slink_probe(struct platform_device *pdev)
 	struct spi_master	*master;
 	struct tegra_slink_data	*tspi;
 	struct resource		*r;
-	struct tegra_spi_platform_data *pdata = pdev->dev.platform_data;
 	int ret, spi_irq;
 	const struct tegra_slink_chip_data *cdata = NULL;
 	const struct of_device_id *match;
 
-	match = of_match_device(of_match_ptr(tegra_slink_of_match), &pdev->dev);
+	match = of_match_device(tegra_slink_of_match, &pdev->dev);
 	if (!match) {
 		dev_err(&pdev->dev, "Error: No device match found\n");
 		return -ENODEV;
 	}
 	cdata = match->data;
-	if (!pdata && pdev->dev.of_node)
-		pdata = tegra_slink_parse_dt(pdev);
-
-	if (!pdata) {
-		dev_err(&pdev->dev, "No platform data, exiting\n");
-		return -ENODEV;
-	}
-
-	if (!pdata->spi_max_frequency)
-		pdata->spi_max_frequency = 25000000; /* 25MHz */
 
 	master = spi_alloc_master(&pdev->dev, sizeof(*tspi));
 	if (!master) {
@@ -1148,10 +1092,11 @@ static int tegra_slink_probe(struct platform_device *pdev)
 	dev_set_drvdata(&pdev->dev, master);
 	tspi = spi_master_get_devdata(master);
 	tspi->master = master;
-	tspi->dma_req_sel = pdata->dma_req_sel;
 	tspi->dev = &pdev->dev;
 	tspi->chip_data = cdata;
 	spin_lock_init(&tspi->lock);
+
+	tegra_slink_parse_dt(tspi);
 
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!r) {
@@ -1186,9 +1131,8 @@ static int tegra_slink_probe(struct platform_device *pdev)
 
 	tspi->max_buf_size = SLINK_FIFO_DEPTH << 2;
 	tspi->dma_buf_size = DEFAULT_SPI_DMA_BUF_LEN;
-	tspi->spi_max_frequency = pdata->spi_max_frequency;
 
-	if (pdata->dma_req_sel) {
+	if (tspi->dma_req_sel) {
 		ret = tegra_slink_init_dma_param(tspi, true);
 		if (ret < 0) {
 			dev_err(&pdev->dev, "RxDma Init failed, err %d\n", ret);
@@ -1331,7 +1275,7 @@ static struct platform_driver tegra_slink_driver = {
 		.name		= "spi-tegra-slink",
 		.owner		= THIS_MODULE,
 		.pm		= &slink_pm_ops,
-		.of_match_table	= of_match_ptr(tegra_slink_of_match),
+		.of_match_table	= tegra_slink_of_match,
 	},
 	.probe =	tegra_slink_probe,
 	.remove =	tegra_slink_remove,

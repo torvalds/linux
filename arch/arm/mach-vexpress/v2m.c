@@ -5,6 +5,7 @@
 #include <linux/amba/bus.h>
 #include <linux/amba/mmci.h>
 #include <linux/io.h>
+#include <linux/clocksource.h>
 #include <linux/smp.h>
 #include <linux/init.h>
 #include <linux/irqchip.h>
@@ -21,11 +22,12 @@
 #include <linux/regulator/fixed.h>
 #include <linux/regulator/machine.h>
 #include <linux/vexpress.h>
+#include <linux/clk-provider.h>
+#include <linux/clkdev.h>
 
 #include <asm/arch_timer.h>
 #include <asm/mach-types.h>
 #include <asm/sizes.h>
-#include <asm/smp_twd.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
@@ -361,8 +363,6 @@ static void __init v2m_init(void)
 	for (i = 0; i < ARRAY_SIZE(v2m_amba_devs); i++)
 		amba_device_register(v2m_amba_devs[i], &iomem_resource);
 
-	pm_power_off = vexpress_power_off;
-
 	ct_desc->init_tile();
 }
 
@@ -374,7 +374,6 @@ MACHINE_START(VEXPRESS, "ARM-Versatile Express")
 	.init_irq	= v2m_init_irq,
 	.init_time	= v2m_timer_init,
 	.init_machine	= v2m_init,
-	.restart	= vexpress_restart,
 MACHINE_END
 
 static struct map_desc v2m_rs1_io_desc __initdata = {
@@ -433,20 +432,24 @@ static void __init v2m_dt_timer_init(void)
 {
 	struct device_node *node = NULL;
 
-	vexpress_clk_of_init();
+	of_clk_init(NULL);
 
+	clocksource_of_init();
 	do {
 		node = of_find_compatible_node(node, NULL, "arm,sp804");
 	} while (node && vexpress_get_site_by_node(node) != VEXPRESS_SITE_MB);
 	if (node) {
 		pr_info("Using SP804 '%s' as a clock & events source\n",
 				node->full_name);
+		WARN_ON(clk_register_clkdev(of_clk_get_by_name(node,
+				"timclken1"), "v2m-timer0", "sp804"));
+		WARN_ON(clk_register_clkdev(of_clk_get_by_name(node,
+				"timclken2"), "v2m-timer1", "sp804"));
 		v2m_sp804_init(of_iomap(node, 0),
 				irq_of_parse_and_map(node, 0));
 	}
 
-	if (arch_timer_of_register() != 0)
-		twd_local_timer_of_register();
+	arch_timer_of_register();
 
 	if (arch_timer_sched_clock_init() != 0)
 		versatile_sched_clock_init(vexpress_get_24mhz_clock_base(),
@@ -464,7 +467,6 @@ static void __init v2m_dt_init(void)
 {
 	l2x0_of_init(0x00400000, 0xfe0fffff);
 	of_platform_populate(NULL, v2m_dt_bus_match, NULL, NULL);
-	pm_power_off = vexpress_power_off;
 }
 
 static const char * const v2m_dt_match[] __initconst = {
@@ -481,5 +483,4 @@ DT_MACHINE_START(VEXPRESS_DT, "ARM-Versatile Express")
 	.init_irq	= irqchip_init,
 	.init_time	= v2m_dt_timer_init,
 	.init_machine	= v2m_dt_init,
-	.restart	= vexpress_restart,
 MACHINE_END

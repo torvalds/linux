@@ -1324,6 +1324,8 @@ static ssize_t aio_rw_vect_retry(struct kiocb *iocb)
 	if (iocb->ki_pos < 0)
 		return -EINVAL;
 
+	if (opcode == IOCB_CMD_PWRITEV)
+		file_start_write(file);
 	do {
 		ret = rw_op(iocb, &iocb->ki_iovec[iocb->ki_cur_seg],
 			    iocb->ki_nr_segs - iocb->ki_cur_seg,
@@ -1336,6 +1338,8 @@ static ssize_t aio_rw_vect_retry(struct kiocb *iocb)
 	} while (ret > 0 && iocb->ki_left > 0 &&
 		 (opcode == IOCB_CMD_PWRITEV ||
 		  (!S_ISFIFO(inode->i_mode) && !S_ISSOCK(inode->i_mode))));
+	if (opcode == IOCB_CMD_PWRITEV)
+		file_end_write(file);
 
 	/* This means we must have transferred all that we could */
 	/* No need to retry anymore */
@@ -1790,7 +1794,5 @@ SYSCALL_DEFINE5(io_getevents, aio_context_t, ctx_id,
 			ret = read_events(ioctx, min_nr, nr, events, timeout);
 		put_ioctx(ioctx);
 	}
-
-	asmlinkage_protect(5, ret, ctx_id, min_nr, nr, events, timeout);
 	return ret;
 }

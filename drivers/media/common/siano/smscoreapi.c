@@ -37,7 +37,6 @@
 #include "smscoreapi.h"
 #include "sms-cards.h"
 #include "smsir.h"
-#include "smsendian.h"
 
 static int sms_dbg;
 module_param_named(debug, sms_dbg, int, 0644);
@@ -58,10 +57,349 @@ struct smscore_client_t {
 	struct list_head entry;
 	struct smscore_device_t *coredev;
 	void			*context;
-	struct list_head 	idlist;
-	onresponse_t	onresponse_handler;
+	struct list_head	idlist;
+	onresponse_t		onresponse_handler;
 	onremove_t		onremove_handler;
 };
+
+static char *siano_msgs[] = {
+	[MSG_TYPE_BASE_VAL                           - MSG_TYPE_BASE_VAL] = "MSG_TYPE_BASE_VAL",
+	[MSG_SMS_GET_VERSION_REQ                     - MSG_TYPE_BASE_VAL] = "MSG_SMS_GET_VERSION_REQ",
+	[MSG_SMS_GET_VERSION_RES                     - MSG_TYPE_BASE_VAL] = "MSG_SMS_GET_VERSION_RES",
+	[MSG_SMS_MULTI_BRIDGE_CFG                    - MSG_TYPE_BASE_VAL] = "MSG_SMS_MULTI_BRIDGE_CFG",
+	[MSG_SMS_GPIO_CONFIG_REQ                     - MSG_TYPE_BASE_VAL] = "MSG_SMS_GPIO_CONFIG_REQ",
+	[MSG_SMS_GPIO_CONFIG_RES                     - MSG_TYPE_BASE_VAL] = "MSG_SMS_GPIO_CONFIG_RES",
+	[MSG_SMS_GPIO_SET_LEVEL_REQ                  - MSG_TYPE_BASE_VAL] = "MSG_SMS_GPIO_SET_LEVEL_REQ",
+	[MSG_SMS_GPIO_SET_LEVEL_RES                  - MSG_TYPE_BASE_VAL] = "MSG_SMS_GPIO_SET_LEVEL_RES",
+	[MSG_SMS_GPIO_GET_LEVEL_REQ                  - MSG_TYPE_BASE_VAL] = "MSG_SMS_GPIO_GET_LEVEL_REQ",
+	[MSG_SMS_GPIO_GET_LEVEL_RES                  - MSG_TYPE_BASE_VAL] = "MSG_SMS_GPIO_GET_LEVEL_RES",
+	[MSG_SMS_EEPROM_BURN_IND                     - MSG_TYPE_BASE_VAL] = "MSG_SMS_EEPROM_BURN_IND",
+	[MSG_SMS_LOG_ENABLE_CHANGE_REQ               - MSG_TYPE_BASE_VAL] = "MSG_SMS_LOG_ENABLE_CHANGE_REQ",
+	[MSG_SMS_LOG_ENABLE_CHANGE_RES               - MSG_TYPE_BASE_VAL] = "MSG_SMS_LOG_ENABLE_CHANGE_RES",
+	[MSG_SMS_SET_MAX_TX_MSG_LEN_REQ              - MSG_TYPE_BASE_VAL] = "MSG_SMS_SET_MAX_TX_MSG_LEN_REQ",
+	[MSG_SMS_SET_MAX_TX_MSG_LEN_RES              - MSG_TYPE_BASE_VAL] = "MSG_SMS_SET_MAX_TX_MSG_LEN_RES",
+	[MSG_SMS_SPI_HALFDUPLEX_TOKEN_HOST_TO_DEVICE - MSG_TYPE_BASE_VAL] = "MSG_SMS_SPI_HALFDUPLEX_TOKEN_HOST_TO_DEVICE",
+	[MSG_SMS_SPI_HALFDUPLEX_TOKEN_DEVICE_TO_HOST - MSG_TYPE_BASE_VAL] = "MSG_SMS_SPI_HALFDUPLEX_TOKEN_DEVICE_TO_HOST",
+	[MSG_SMS_BACKGROUND_SCAN_FLAG_CHANGE_REQ     - MSG_TYPE_BASE_VAL] = "MSG_SMS_BACKGROUND_SCAN_FLAG_CHANGE_REQ",
+	[MSG_SMS_BACKGROUND_SCAN_FLAG_CHANGE_RES     - MSG_TYPE_BASE_VAL] = "MSG_SMS_BACKGROUND_SCAN_FLAG_CHANGE_RES",
+	[MSG_SMS_BACKGROUND_SCAN_SIGNAL_DETECTED_IND - MSG_TYPE_BASE_VAL] = "MSG_SMS_BACKGROUND_SCAN_SIGNAL_DETECTED_IND",
+	[MSG_SMS_BACKGROUND_SCAN_NO_SIGNAL_IND       - MSG_TYPE_BASE_VAL] = "MSG_SMS_BACKGROUND_SCAN_NO_SIGNAL_IND",
+	[MSG_SMS_CONFIGURE_RF_SWITCH_REQ             - MSG_TYPE_BASE_VAL] = "MSG_SMS_CONFIGURE_RF_SWITCH_REQ",
+	[MSG_SMS_CONFIGURE_RF_SWITCH_RES             - MSG_TYPE_BASE_VAL] = "MSG_SMS_CONFIGURE_RF_SWITCH_RES",
+	[MSG_SMS_MRC_PATH_DISCONNECT_REQ             - MSG_TYPE_BASE_VAL] = "MSG_SMS_MRC_PATH_DISCONNECT_REQ",
+	[MSG_SMS_MRC_PATH_DISCONNECT_RES             - MSG_TYPE_BASE_VAL] = "MSG_SMS_MRC_PATH_DISCONNECT_RES",
+	[MSG_SMS_RECEIVE_1SEG_THROUGH_FULLSEG_REQ    - MSG_TYPE_BASE_VAL] = "MSG_SMS_RECEIVE_1SEG_THROUGH_FULLSEG_REQ",
+	[MSG_SMS_RECEIVE_1SEG_THROUGH_FULLSEG_RES    - MSG_TYPE_BASE_VAL] = "MSG_SMS_RECEIVE_1SEG_THROUGH_FULLSEG_RES",
+	[MSG_SMS_RECEIVE_VHF_VIA_VHF_INPUT_REQ       - MSG_TYPE_BASE_VAL] = "MSG_SMS_RECEIVE_VHF_VIA_VHF_INPUT_REQ",
+	[MSG_SMS_RECEIVE_VHF_VIA_VHF_INPUT_RES       - MSG_TYPE_BASE_VAL] = "MSG_SMS_RECEIVE_VHF_VIA_VHF_INPUT_RES",
+	[MSG_WR_REG_RFT_REQ                          - MSG_TYPE_BASE_VAL] = "MSG_WR_REG_RFT_REQ",
+	[MSG_WR_REG_RFT_RES                          - MSG_TYPE_BASE_VAL] = "MSG_WR_REG_RFT_RES",
+	[MSG_RD_REG_RFT_REQ                          - MSG_TYPE_BASE_VAL] = "MSG_RD_REG_RFT_REQ",
+	[MSG_RD_REG_RFT_RES                          - MSG_TYPE_BASE_VAL] = "MSG_RD_REG_RFT_RES",
+	[MSG_RD_REG_ALL_RFT_REQ                      - MSG_TYPE_BASE_VAL] = "MSG_RD_REG_ALL_RFT_REQ",
+	[MSG_RD_REG_ALL_RFT_RES                      - MSG_TYPE_BASE_VAL] = "MSG_RD_REG_ALL_RFT_RES",
+	[MSG_HELP_INT                                - MSG_TYPE_BASE_VAL] = "MSG_HELP_INT",
+	[MSG_RUN_SCRIPT_INT                          - MSG_TYPE_BASE_VAL] = "MSG_RUN_SCRIPT_INT",
+	[MSG_SMS_EWS_INBAND_REQ                      - MSG_TYPE_BASE_VAL] = "MSG_SMS_EWS_INBAND_REQ",
+	[MSG_SMS_EWS_INBAND_RES                      - MSG_TYPE_BASE_VAL] = "MSG_SMS_EWS_INBAND_RES",
+	[MSG_SMS_RFS_SELECT_REQ                      - MSG_TYPE_BASE_VAL] = "MSG_SMS_RFS_SELECT_REQ",
+	[MSG_SMS_RFS_SELECT_RES                      - MSG_TYPE_BASE_VAL] = "MSG_SMS_RFS_SELECT_RES",
+	[MSG_SMS_MB_GET_VER_REQ                      - MSG_TYPE_BASE_VAL] = "MSG_SMS_MB_GET_VER_REQ",
+	[MSG_SMS_MB_GET_VER_RES                      - MSG_TYPE_BASE_VAL] = "MSG_SMS_MB_GET_VER_RES",
+	[MSG_SMS_MB_WRITE_CFGFILE_REQ                - MSG_TYPE_BASE_VAL] = "MSG_SMS_MB_WRITE_CFGFILE_REQ",
+	[MSG_SMS_MB_WRITE_CFGFILE_RES                - MSG_TYPE_BASE_VAL] = "MSG_SMS_MB_WRITE_CFGFILE_RES",
+	[MSG_SMS_MB_READ_CFGFILE_REQ                 - MSG_TYPE_BASE_VAL] = "MSG_SMS_MB_READ_CFGFILE_REQ",
+	[MSG_SMS_MB_READ_CFGFILE_RES                 - MSG_TYPE_BASE_VAL] = "MSG_SMS_MB_READ_CFGFILE_RES",
+	[MSG_SMS_RD_MEM_REQ                          - MSG_TYPE_BASE_VAL] = "MSG_SMS_RD_MEM_REQ",
+	[MSG_SMS_RD_MEM_RES                          - MSG_TYPE_BASE_VAL] = "MSG_SMS_RD_MEM_RES",
+	[MSG_SMS_WR_MEM_REQ                          - MSG_TYPE_BASE_VAL] = "MSG_SMS_WR_MEM_REQ",
+	[MSG_SMS_WR_MEM_RES                          - MSG_TYPE_BASE_VAL] = "MSG_SMS_WR_MEM_RES",
+	[MSG_SMS_UPDATE_MEM_REQ                      - MSG_TYPE_BASE_VAL] = "MSG_SMS_UPDATE_MEM_REQ",
+	[MSG_SMS_UPDATE_MEM_RES                      - MSG_TYPE_BASE_VAL] = "MSG_SMS_UPDATE_MEM_RES",
+	[MSG_SMS_ISDBT_ENABLE_FULL_PARAMS_SET_REQ    - MSG_TYPE_BASE_VAL] = "MSG_SMS_ISDBT_ENABLE_FULL_PARAMS_SET_REQ",
+	[MSG_SMS_ISDBT_ENABLE_FULL_PARAMS_SET_RES    - MSG_TYPE_BASE_VAL] = "MSG_SMS_ISDBT_ENABLE_FULL_PARAMS_SET_RES",
+	[MSG_SMS_RF_TUNE_REQ                         - MSG_TYPE_BASE_VAL] = "MSG_SMS_RF_TUNE_REQ",
+	[MSG_SMS_RF_TUNE_RES                         - MSG_TYPE_BASE_VAL] = "MSG_SMS_RF_TUNE_RES",
+	[MSG_SMS_ISDBT_ENABLE_HIGH_MOBILITY_REQ      - MSG_TYPE_BASE_VAL] = "MSG_SMS_ISDBT_ENABLE_HIGH_MOBILITY_REQ",
+	[MSG_SMS_ISDBT_ENABLE_HIGH_MOBILITY_RES      - MSG_TYPE_BASE_VAL] = "MSG_SMS_ISDBT_ENABLE_HIGH_MOBILITY_RES",
+	[MSG_SMS_ISDBT_SB_RECEPTION_REQ              - MSG_TYPE_BASE_VAL] = "MSG_SMS_ISDBT_SB_RECEPTION_REQ",
+	[MSG_SMS_ISDBT_SB_RECEPTION_RES              - MSG_TYPE_BASE_VAL] = "MSG_SMS_ISDBT_SB_RECEPTION_RES",
+	[MSG_SMS_GENERIC_EPROM_WRITE_REQ             - MSG_TYPE_BASE_VAL] = "MSG_SMS_GENERIC_EPROM_WRITE_REQ",
+	[MSG_SMS_GENERIC_EPROM_WRITE_RES             - MSG_TYPE_BASE_VAL] = "MSG_SMS_GENERIC_EPROM_WRITE_RES",
+	[MSG_SMS_GENERIC_EPROM_READ_REQ              - MSG_TYPE_BASE_VAL] = "MSG_SMS_GENERIC_EPROM_READ_REQ",
+	[MSG_SMS_GENERIC_EPROM_READ_RES              - MSG_TYPE_BASE_VAL] = "MSG_SMS_GENERIC_EPROM_READ_RES",
+	[MSG_SMS_EEPROM_WRITE_REQ                    - MSG_TYPE_BASE_VAL] = "MSG_SMS_EEPROM_WRITE_REQ",
+	[MSG_SMS_EEPROM_WRITE_RES                    - MSG_TYPE_BASE_VAL] = "MSG_SMS_EEPROM_WRITE_RES",
+	[MSG_SMS_CUSTOM_READ_REQ                     - MSG_TYPE_BASE_VAL] = "MSG_SMS_CUSTOM_READ_REQ",
+	[MSG_SMS_CUSTOM_READ_RES                     - MSG_TYPE_BASE_VAL] = "MSG_SMS_CUSTOM_READ_RES",
+	[MSG_SMS_CUSTOM_WRITE_REQ                    - MSG_TYPE_BASE_VAL] = "MSG_SMS_CUSTOM_WRITE_REQ",
+	[MSG_SMS_CUSTOM_WRITE_RES                    - MSG_TYPE_BASE_VAL] = "MSG_SMS_CUSTOM_WRITE_RES",
+	[MSG_SMS_INIT_DEVICE_REQ                     - MSG_TYPE_BASE_VAL] = "MSG_SMS_INIT_DEVICE_REQ",
+	[MSG_SMS_INIT_DEVICE_RES                     - MSG_TYPE_BASE_VAL] = "MSG_SMS_INIT_DEVICE_RES",
+	[MSG_SMS_ATSC_SET_ALL_IP_REQ                 - MSG_TYPE_BASE_VAL] = "MSG_SMS_ATSC_SET_ALL_IP_REQ",
+	[MSG_SMS_ATSC_SET_ALL_IP_RES                 - MSG_TYPE_BASE_VAL] = "MSG_SMS_ATSC_SET_ALL_IP_RES",
+	[MSG_SMS_ATSC_START_ENSEMBLE_REQ             - MSG_TYPE_BASE_VAL] = "MSG_SMS_ATSC_START_ENSEMBLE_REQ",
+	[MSG_SMS_ATSC_START_ENSEMBLE_RES             - MSG_TYPE_BASE_VAL] = "MSG_SMS_ATSC_START_ENSEMBLE_RES",
+	[MSG_SMS_SET_OUTPUT_MODE_REQ                 - MSG_TYPE_BASE_VAL] = "MSG_SMS_SET_OUTPUT_MODE_REQ",
+	[MSG_SMS_SET_OUTPUT_MODE_RES                 - MSG_TYPE_BASE_VAL] = "MSG_SMS_SET_OUTPUT_MODE_RES",
+	[MSG_SMS_ATSC_IP_FILTER_GET_LIST_REQ         - MSG_TYPE_BASE_VAL] = "MSG_SMS_ATSC_IP_FILTER_GET_LIST_REQ",
+	[MSG_SMS_ATSC_IP_FILTER_GET_LIST_RES         - MSG_TYPE_BASE_VAL] = "MSG_SMS_ATSC_IP_FILTER_GET_LIST_RES",
+	[MSG_SMS_SUB_CHANNEL_START_REQ               - MSG_TYPE_BASE_VAL] = "MSG_SMS_SUB_CHANNEL_START_REQ",
+	[MSG_SMS_SUB_CHANNEL_START_RES               - MSG_TYPE_BASE_VAL] = "MSG_SMS_SUB_CHANNEL_START_RES",
+	[MSG_SMS_SUB_CHANNEL_STOP_REQ                - MSG_TYPE_BASE_VAL] = "MSG_SMS_SUB_CHANNEL_STOP_REQ",
+	[MSG_SMS_SUB_CHANNEL_STOP_RES                - MSG_TYPE_BASE_VAL] = "MSG_SMS_SUB_CHANNEL_STOP_RES",
+	[MSG_SMS_ATSC_IP_FILTER_ADD_REQ              - MSG_TYPE_BASE_VAL] = "MSG_SMS_ATSC_IP_FILTER_ADD_REQ",
+	[MSG_SMS_ATSC_IP_FILTER_ADD_RES              - MSG_TYPE_BASE_VAL] = "MSG_SMS_ATSC_IP_FILTER_ADD_RES",
+	[MSG_SMS_ATSC_IP_FILTER_REMOVE_REQ           - MSG_TYPE_BASE_VAL] = "MSG_SMS_ATSC_IP_FILTER_REMOVE_REQ",
+	[MSG_SMS_ATSC_IP_FILTER_REMOVE_RES           - MSG_TYPE_BASE_VAL] = "MSG_SMS_ATSC_IP_FILTER_REMOVE_RES",
+	[MSG_SMS_ATSC_IP_FILTER_REMOVE_ALL_REQ       - MSG_TYPE_BASE_VAL] = "MSG_SMS_ATSC_IP_FILTER_REMOVE_ALL_REQ",
+	[MSG_SMS_ATSC_IP_FILTER_REMOVE_ALL_RES       - MSG_TYPE_BASE_VAL] = "MSG_SMS_ATSC_IP_FILTER_REMOVE_ALL_RES",
+	[MSG_SMS_WAIT_CMD                            - MSG_TYPE_BASE_VAL] = "MSG_SMS_WAIT_CMD",
+	[MSG_SMS_ADD_PID_FILTER_REQ                  - MSG_TYPE_BASE_VAL] = "MSG_SMS_ADD_PID_FILTER_REQ",
+	[MSG_SMS_ADD_PID_FILTER_RES                  - MSG_TYPE_BASE_VAL] = "MSG_SMS_ADD_PID_FILTER_RES",
+	[MSG_SMS_REMOVE_PID_FILTER_REQ               - MSG_TYPE_BASE_VAL] = "MSG_SMS_REMOVE_PID_FILTER_REQ",
+	[MSG_SMS_REMOVE_PID_FILTER_RES               - MSG_TYPE_BASE_VAL] = "MSG_SMS_REMOVE_PID_FILTER_RES",
+	[MSG_SMS_FAST_INFORMATION_CHANNEL_REQ        - MSG_TYPE_BASE_VAL] = "MSG_SMS_FAST_INFORMATION_CHANNEL_REQ",
+	[MSG_SMS_FAST_INFORMATION_CHANNEL_RES        - MSG_TYPE_BASE_VAL] = "MSG_SMS_FAST_INFORMATION_CHANNEL_RES",
+	[MSG_SMS_DAB_CHANNEL                         - MSG_TYPE_BASE_VAL] = "MSG_SMS_DAB_CHANNEL",
+	[MSG_SMS_GET_PID_FILTER_LIST_REQ             - MSG_TYPE_BASE_VAL] = "MSG_SMS_GET_PID_FILTER_LIST_REQ",
+	[MSG_SMS_GET_PID_FILTER_LIST_RES             - MSG_TYPE_BASE_VAL] = "MSG_SMS_GET_PID_FILTER_LIST_RES",
+	[MSG_SMS_POWER_DOWN_REQ                      - MSG_TYPE_BASE_VAL] = "MSG_SMS_POWER_DOWN_REQ",
+	[MSG_SMS_POWER_DOWN_RES                      - MSG_TYPE_BASE_VAL] = "MSG_SMS_POWER_DOWN_RES",
+	[MSG_SMS_ATSC_SLT_EXIST_IND                  - MSG_TYPE_BASE_VAL] = "MSG_SMS_ATSC_SLT_EXIST_IND",
+	[MSG_SMS_ATSC_NO_SLT_IND                     - MSG_TYPE_BASE_VAL] = "MSG_SMS_ATSC_NO_SLT_IND",
+	[MSG_SMS_GET_STATISTICS_REQ                  - MSG_TYPE_BASE_VAL] = "MSG_SMS_GET_STATISTICS_REQ",
+	[MSG_SMS_GET_STATISTICS_RES                  - MSG_TYPE_BASE_VAL] = "MSG_SMS_GET_STATISTICS_RES",
+	[MSG_SMS_SEND_DUMP                           - MSG_TYPE_BASE_VAL] = "MSG_SMS_SEND_DUMP",
+	[MSG_SMS_SCAN_START_REQ                      - MSG_TYPE_BASE_VAL] = "MSG_SMS_SCAN_START_REQ",
+	[MSG_SMS_SCAN_START_RES                      - MSG_TYPE_BASE_VAL] = "MSG_SMS_SCAN_START_RES",
+	[MSG_SMS_SCAN_STOP_REQ                       - MSG_TYPE_BASE_VAL] = "MSG_SMS_SCAN_STOP_REQ",
+	[MSG_SMS_SCAN_STOP_RES                       - MSG_TYPE_BASE_VAL] = "MSG_SMS_SCAN_STOP_RES",
+	[MSG_SMS_SCAN_PROGRESS_IND                   - MSG_TYPE_BASE_VAL] = "MSG_SMS_SCAN_PROGRESS_IND",
+	[MSG_SMS_SCAN_COMPLETE_IND                   - MSG_TYPE_BASE_VAL] = "MSG_SMS_SCAN_COMPLETE_IND",
+	[MSG_SMS_LOG_ITEM                            - MSG_TYPE_BASE_VAL] = "MSG_SMS_LOG_ITEM",
+	[MSG_SMS_DAB_SUBCHANNEL_RECONFIG_REQ         - MSG_TYPE_BASE_VAL] = "MSG_SMS_DAB_SUBCHANNEL_RECONFIG_REQ",
+	[MSG_SMS_DAB_SUBCHANNEL_RECONFIG_RES         - MSG_TYPE_BASE_VAL] = "MSG_SMS_DAB_SUBCHANNEL_RECONFIG_RES",
+	[MSG_SMS_HO_PER_SLICES_IND                   - MSG_TYPE_BASE_VAL] = "MSG_SMS_HO_PER_SLICES_IND",
+	[MSG_SMS_HO_INBAND_POWER_IND                 - MSG_TYPE_BASE_VAL] = "MSG_SMS_HO_INBAND_POWER_IND",
+	[MSG_SMS_MANUAL_DEMOD_REQ                    - MSG_TYPE_BASE_VAL] = "MSG_SMS_MANUAL_DEMOD_REQ",
+	[MSG_SMS_HO_TUNE_ON_REQ                      - MSG_TYPE_BASE_VAL] = "MSG_SMS_HO_TUNE_ON_REQ",
+	[MSG_SMS_HO_TUNE_ON_RES                      - MSG_TYPE_BASE_VAL] = "MSG_SMS_HO_TUNE_ON_RES",
+	[MSG_SMS_HO_TUNE_OFF_REQ                     - MSG_TYPE_BASE_VAL] = "MSG_SMS_HO_TUNE_OFF_REQ",
+	[MSG_SMS_HO_TUNE_OFF_RES                     - MSG_TYPE_BASE_VAL] = "MSG_SMS_HO_TUNE_OFF_RES",
+	[MSG_SMS_HO_PEEK_FREQ_REQ                    - MSG_TYPE_BASE_VAL] = "MSG_SMS_HO_PEEK_FREQ_REQ",
+	[MSG_SMS_HO_PEEK_FREQ_RES                    - MSG_TYPE_BASE_VAL] = "MSG_SMS_HO_PEEK_FREQ_RES",
+	[MSG_SMS_HO_PEEK_FREQ_IND                    - MSG_TYPE_BASE_VAL] = "MSG_SMS_HO_PEEK_FREQ_IND",
+	[MSG_SMS_MB_ATTEN_SET_REQ                    - MSG_TYPE_BASE_VAL] = "MSG_SMS_MB_ATTEN_SET_REQ",
+	[MSG_SMS_MB_ATTEN_SET_RES                    - MSG_TYPE_BASE_VAL] = "MSG_SMS_MB_ATTEN_SET_RES",
+	[MSG_SMS_ENABLE_STAT_IN_I2C_REQ              - MSG_TYPE_BASE_VAL] = "MSG_SMS_ENABLE_STAT_IN_I2C_REQ",
+	[MSG_SMS_ENABLE_STAT_IN_I2C_RES              - MSG_TYPE_BASE_VAL] = "MSG_SMS_ENABLE_STAT_IN_I2C_RES",
+	[MSG_SMS_SET_ANTENNA_CONFIG_REQ              - MSG_TYPE_BASE_VAL] = "MSG_SMS_SET_ANTENNA_CONFIG_REQ",
+	[MSG_SMS_SET_ANTENNA_CONFIG_RES              - MSG_TYPE_BASE_VAL] = "MSG_SMS_SET_ANTENNA_CONFIG_RES",
+	[MSG_SMS_GET_STATISTICS_EX_REQ               - MSG_TYPE_BASE_VAL] = "MSG_SMS_GET_STATISTICS_EX_REQ",
+	[MSG_SMS_GET_STATISTICS_EX_RES               - MSG_TYPE_BASE_VAL] = "MSG_SMS_GET_STATISTICS_EX_RES",
+	[MSG_SMS_SLEEP_RESUME_COMP_IND               - MSG_TYPE_BASE_VAL] = "MSG_SMS_SLEEP_RESUME_COMP_IND",
+	[MSG_SMS_SWITCH_HOST_INTERFACE_REQ           - MSG_TYPE_BASE_VAL] = "MSG_SMS_SWITCH_HOST_INTERFACE_REQ",
+	[MSG_SMS_SWITCH_HOST_INTERFACE_RES           - MSG_TYPE_BASE_VAL] = "MSG_SMS_SWITCH_HOST_INTERFACE_RES",
+	[MSG_SMS_DATA_DOWNLOAD_REQ                   - MSG_TYPE_BASE_VAL] = "MSG_SMS_DATA_DOWNLOAD_REQ",
+	[MSG_SMS_DATA_DOWNLOAD_RES                   - MSG_TYPE_BASE_VAL] = "MSG_SMS_DATA_DOWNLOAD_RES",
+	[MSG_SMS_DATA_VALIDITY_REQ                   - MSG_TYPE_BASE_VAL] = "MSG_SMS_DATA_VALIDITY_REQ",
+	[MSG_SMS_DATA_VALIDITY_RES                   - MSG_TYPE_BASE_VAL] = "MSG_SMS_DATA_VALIDITY_RES",
+	[MSG_SMS_SWDOWNLOAD_TRIGGER_REQ              - MSG_TYPE_BASE_VAL] = "MSG_SMS_SWDOWNLOAD_TRIGGER_REQ",
+	[MSG_SMS_SWDOWNLOAD_TRIGGER_RES              - MSG_TYPE_BASE_VAL] = "MSG_SMS_SWDOWNLOAD_TRIGGER_RES",
+	[MSG_SMS_SWDOWNLOAD_BACKDOOR_REQ             - MSG_TYPE_BASE_VAL] = "MSG_SMS_SWDOWNLOAD_BACKDOOR_REQ",
+	[MSG_SMS_SWDOWNLOAD_BACKDOOR_RES             - MSG_TYPE_BASE_VAL] = "MSG_SMS_SWDOWNLOAD_BACKDOOR_RES",
+	[MSG_SMS_GET_VERSION_EX_REQ                  - MSG_TYPE_BASE_VAL] = "MSG_SMS_GET_VERSION_EX_REQ",
+	[MSG_SMS_GET_VERSION_EX_RES                  - MSG_TYPE_BASE_VAL] = "MSG_SMS_GET_VERSION_EX_RES",
+	[MSG_SMS_CLOCK_OUTPUT_CONFIG_REQ             - MSG_TYPE_BASE_VAL] = "MSG_SMS_CLOCK_OUTPUT_CONFIG_REQ",
+	[MSG_SMS_CLOCK_OUTPUT_CONFIG_RES             - MSG_TYPE_BASE_VAL] = "MSG_SMS_CLOCK_OUTPUT_CONFIG_RES",
+	[MSG_SMS_I2C_SET_FREQ_REQ                    - MSG_TYPE_BASE_VAL] = "MSG_SMS_I2C_SET_FREQ_REQ",
+	[MSG_SMS_I2C_SET_FREQ_RES                    - MSG_TYPE_BASE_VAL] = "MSG_SMS_I2C_SET_FREQ_RES",
+	[MSG_SMS_GENERIC_I2C_REQ                     - MSG_TYPE_BASE_VAL] = "MSG_SMS_GENERIC_I2C_REQ",
+	[MSG_SMS_GENERIC_I2C_RES                     - MSG_TYPE_BASE_VAL] = "MSG_SMS_GENERIC_I2C_RES",
+	[MSG_SMS_DVBT_BDA_DATA                       - MSG_TYPE_BASE_VAL] = "MSG_SMS_DVBT_BDA_DATA",
+	[MSG_SW_RELOAD_REQ                           - MSG_TYPE_BASE_VAL] = "MSG_SW_RELOAD_REQ",
+	[MSG_SMS_DATA_MSG                            - MSG_TYPE_BASE_VAL] = "MSG_SMS_DATA_MSG",
+	[MSG_TABLE_UPLOAD_REQ                        - MSG_TYPE_BASE_VAL] = "MSG_TABLE_UPLOAD_REQ",
+	[MSG_TABLE_UPLOAD_RES                        - MSG_TYPE_BASE_VAL] = "MSG_TABLE_UPLOAD_RES",
+	[MSG_SW_RELOAD_START_REQ                     - MSG_TYPE_BASE_VAL] = "MSG_SW_RELOAD_START_REQ",
+	[MSG_SW_RELOAD_START_RES                     - MSG_TYPE_BASE_VAL] = "MSG_SW_RELOAD_START_RES",
+	[MSG_SW_RELOAD_EXEC_REQ                      - MSG_TYPE_BASE_VAL] = "MSG_SW_RELOAD_EXEC_REQ",
+	[MSG_SW_RELOAD_EXEC_RES                      - MSG_TYPE_BASE_VAL] = "MSG_SW_RELOAD_EXEC_RES",
+	[MSG_SMS_SPI_INT_LINE_SET_REQ                - MSG_TYPE_BASE_VAL] = "MSG_SMS_SPI_INT_LINE_SET_REQ",
+	[MSG_SMS_SPI_INT_LINE_SET_RES                - MSG_TYPE_BASE_VAL] = "MSG_SMS_SPI_INT_LINE_SET_RES",
+	[MSG_SMS_GPIO_CONFIG_EX_REQ                  - MSG_TYPE_BASE_VAL] = "MSG_SMS_GPIO_CONFIG_EX_REQ",
+	[MSG_SMS_GPIO_CONFIG_EX_RES                  - MSG_TYPE_BASE_VAL] = "MSG_SMS_GPIO_CONFIG_EX_RES",
+	[MSG_SMS_WATCHDOG_ACT_REQ                    - MSG_TYPE_BASE_VAL] = "MSG_SMS_WATCHDOG_ACT_REQ",
+	[MSG_SMS_WATCHDOG_ACT_RES                    - MSG_TYPE_BASE_VAL] = "MSG_SMS_WATCHDOG_ACT_RES",
+	[MSG_SMS_LOOPBACK_REQ                        - MSG_TYPE_BASE_VAL] = "MSG_SMS_LOOPBACK_REQ",
+	[MSG_SMS_LOOPBACK_RES                        - MSG_TYPE_BASE_VAL] = "MSG_SMS_LOOPBACK_RES",
+	[MSG_SMS_RAW_CAPTURE_START_REQ               - MSG_TYPE_BASE_VAL] = "MSG_SMS_RAW_CAPTURE_START_REQ",
+	[MSG_SMS_RAW_CAPTURE_START_RES               - MSG_TYPE_BASE_VAL] = "MSG_SMS_RAW_CAPTURE_START_RES",
+	[MSG_SMS_RAW_CAPTURE_ABORT_REQ               - MSG_TYPE_BASE_VAL] = "MSG_SMS_RAW_CAPTURE_ABORT_REQ",
+	[MSG_SMS_RAW_CAPTURE_ABORT_RES               - MSG_TYPE_BASE_VAL] = "MSG_SMS_RAW_CAPTURE_ABORT_RES",
+	[MSG_SMS_RAW_CAPTURE_COMPLETE_IND            - MSG_TYPE_BASE_VAL] = "MSG_SMS_RAW_CAPTURE_COMPLETE_IND",
+	[MSG_SMS_DATA_PUMP_IND                       - MSG_TYPE_BASE_VAL] = "MSG_SMS_DATA_PUMP_IND",
+	[MSG_SMS_DATA_PUMP_REQ                       - MSG_TYPE_BASE_VAL] = "MSG_SMS_DATA_PUMP_REQ",
+	[MSG_SMS_DATA_PUMP_RES                       - MSG_TYPE_BASE_VAL] = "MSG_SMS_DATA_PUMP_RES",
+	[MSG_SMS_FLASH_DL_REQ                        - MSG_TYPE_BASE_VAL] = "MSG_SMS_FLASH_DL_REQ",
+	[MSG_SMS_EXEC_TEST_1_REQ                     - MSG_TYPE_BASE_VAL] = "MSG_SMS_EXEC_TEST_1_REQ",
+	[MSG_SMS_EXEC_TEST_1_RES                     - MSG_TYPE_BASE_VAL] = "MSG_SMS_EXEC_TEST_1_RES",
+	[MSG_SMS_ENBALE_TS_INTERFACE_REQ             - MSG_TYPE_BASE_VAL] = "MSG_SMS_ENBALE_TS_INTERFACE_REQ",
+	[MSG_SMS_ENBALE_TS_INTERFACE_RES             - MSG_TYPE_BASE_VAL] = "MSG_SMS_ENBALE_TS_INTERFACE_RES",
+	[MSG_SMS_SPI_SET_BUS_WIDTH_REQ               - MSG_TYPE_BASE_VAL] = "MSG_SMS_SPI_SET_BUS_WIDTH_REQ",
+	[MSG_SMS_SPI_SET_BUS_WIDTH_RES               - MSG_TYPE_BASE_VAL] = "MSG_SMS_SPI_SET_BUS_WIDTH_RES",
+	[MSG_SMS_SEND_EMM_REQ                        - MSG_TYPE_BASE_VAL] = "MSG_SMS_SEND_EMM_REQ",
+	[MSG_SMS_SEND_EMM_RES                        - MSG_TYPE_BASE_VAL] = "MSG_SMS_SEND_EMM_RES",
+	[MSG_SMS_DISABLE_TS_INTERFACE_REQ            - MSG_TYPE_BASE_VAL] = "MSG_SMS_DISABLE_TS_INTERFACE_REQ",
+	[MSG_SMS_DISABLE_TS_INTERFACE_RES            - MSG_TYPE_BASE_VAL] = "MSG_SMS_DISABLE_TS_INTERFACE_RES",
+	[MSG_SMS_IS_BUF_FREE_REQ                     - MSG_TYPE_BASE_VAL] = "MSG_SMS_IS_BUF_FREE_REQ",
+	[MSG_SMS_IS_BUF_FREE_RES                     - MSG_TYPE_BASE_VAL] = "MSG_SMS_IS_BUF_FREE_RES",
+	[MSG_SMS_EXT_ANTENNA_REQ                     - MSG_TYPE_BASE_VAL] = "MSG_SMS_EXT_ANTENNA_REQ",
+	[MSG_SMS_EXT_ANTENNA_RES                     - MSG_TYPE_BASE_VAL] = "MSG_SMS_EXT_ANTENNA_RES",
+	[MSG_SMS_CMMB_GET_NET_OF_FREQ_REQ_OBSOLETE   - MSG_TYPE_BASE_VAL] = "MSG_SMS_CMMB_GET_NET_OF_FREQ_REQ_OBSOLETE",
+	[MSG_SMS_CMMB_GET_NET_OF_FREQ_RES_OBSOLETE   - MSG_TYPE_BASE_VAL] = "MSG_SMS_CMMB_GET_NET_OF_FREQ_RES_OBSOLETE",
+	[MSG_SMS_BATTERY_LEVEL_REQ                   - MSG_TYPE_BASE_VAL] = "MSG_SMS_BATTERY_LEVEL_REQ",
+	[MSG_SMS_BATTERY_LEVEL_RES                   - MSG_TYPE_BASE_VAL] = "MSG_SMS_BATTERY_LEVEL_RES",
+	[MSG_SMS_CMMB_INJECT_TABLE_REQ_OBSOLETE      - MSG_TYPE_BASE_VAL] = "MSG_SMS_CMMB_INJECT_TABLE_REQ_OBSOLETE",
+	[MSG_SMS_CMMB_INJECT_TABLE_RES_OBSOLETE      - MSG_TYPE_BASE_VAL] = "MSG_SMS_CMMB_INJECT_TABLE_RES_OBSOLETE",
+	[MSG_SMS_FM_RADIO_BLOCK_IND                  - MSG_TYPE_BASE_VAL] = "MSG_SMS_FM_RADIO_BLOCK_IND",
+	[MSG_SMS_HOST_NOTIFICATION_IND               - MSG_TYPE_BASE_VAL] = "MSG_SMS_HOST_NOTIFICATION_IND",
+	[MSG_SMS_CMMB_GET_CONTROL_TABLE_REQ_OBSOLETE - MSG_TYPE_BASE_VAL] = "MSG_SMS_CMMB_GET_CONTROL_TABLE_REQ_OBSOLETE",
+	[MSG_SMS_CMMB_GET_CONTROL_TABLE_RES_OBSOLETE - MSG_TYPE_BASE_VAL] = "MSG_SMS_CMMB_GET_CONTROL_TABLE_RES_OBSOLETE",
+	[MSG_SMS_CMMB_GET_NETWORKS_REQ               - MSG_TYPE_BASE_VAL] = "MSG_SMS_CMMB_GET_NETWORKS_REQ",
+	[MSG_SMS_CMMB_GET_NETWORKS_RES               - MSG_TYPE_BASE_VAL] = "MSG_SMS_CMMB_GET_NETWORKS_RES",
+	[MSG_SMS_CMMB_START_SERVICE_REQ              - MSG_TYPE_BASE_VAL] = "MSG_SMS_CMMB_START_SERVICE_REQ",
+	[MSG_SMS_CMMB_START_SERVICE_RES              - MSG_TYPE_BASE_VAL] = "MSG_SMS_CMMB_START_SERVICE_RES",
+	[MSG_SMS_CMMB_STOP_SERVICE_REQ               - MSG_TYPE_BASE_VAL] = "MSG_SMS_CMMB_STOP_SERVICE_REQ",
+	[MSG_SMS_CMMB_STOP_SERVICE_RES               - MSG_TYPE_BASE_VAL] = "MSG_SMS_CMMB_STOP_SERVICE_RES",
+	[MSG_SMS_CMMB_ADD_CHANNEL_FILTER_REQ         - MSG_TYPE_BASE_VAL] = "MSG_SMS_CMMB_ADD_CHANNEL_FILTER_REQ",
+	[MSG_SMS_CMMB_ADD_CHANNEL_FILTER_RES         - MSG_TYPE_BASE_VAL] = "MSG_SMS_CMMB_ADD_CHANNEL_FILTER_RES",
+	[MSG_SMS_CMMB_REMOVE_CHANNEL_FILTER_REQ      - MSG_TYPE_BASE_VAL] = "MSG_SMS_CMMB_REMOVE_CHANNEL_FILTER_REQ",
+	[MSG_SMS_CMMB_REMOVE_CHANNEL_FILTER_RES      - MSG_TYPE_BASE_VAL] = "MSG_SMS_CMMB_REMOVE_CHANNEL_FILTER_RES",
+	[MSG_SMS_CMMB_START_CONTROL_INFO_REQ         - MSG_TYPE_BASE_VAL] = "MSG_SMS_CMMB_START_CONTROL_INFO_REQ",
+	[MSG_SMS_CMMB_START_CONTROL_INFO_RES         - MSG_TYPE_BASE_VAL] = "MSG_SMS_CMMB_START_CONTROL_INFO_RES",
+	[MSG_SMS_CMMB_STOP_CONTROL_INFO_REQ          - MSG_TYPE_BASE_VAL] = "MSG_SMS_CMMB_STOP_CONTROL_INFO_REQ",
+	[MSG_SMS_CMMB_STOP_CONTROL_INFO_RES          - MSG_TYPE_BASE_VAL] = "MSG_SMS_CMMB_STOP_CONTROL_INFO_RES",
+	[MSG_SMS_ISDBT_TUNE_REQ                      - MSG_TYPE_BASE_VAL] = "MSG_SMS_ISDBT_TUNE_REQ",
+	[MSG_SMS_ISDBT_TUNE_RES                      - MSG_TYPE_BASE_VAL] = "MSG_SMS_ISDBT_TUNE_RES",
+	[MSG_SMS_TRANSMISSION_IND                    - MSG_TYPE_BASE_VAL] = "MSG_SMS_TRANSMISSION_IND",
+	[MSG_SMS_PID_STATISTICS_IND                  - MSG_TYPE_BASE_VAL] = "MSG_SMS_PID_STATISTICS_IND",
+	[MSG_SMS_POWER_DOWN_IND                      - MSG_TYPE_BASE_VAL] = "MSG_SMS_POWER_DOWN_IND",
+	[MSG_SMS_POWER_DOWN_CONF                     - MSG_TYPE_BASE_VAL] = "MSG_SMS_POWER_DOWN_CONF",
+	[MSG_SMS_POWER_UP_IND                        - MSG_TYPE_BASE_VAL] = "MSG_SMS_POWER_UP_IND",
+	[MSG_SMS_POWER_UP_CONF                       - MSG_TYPE_BASE_VAL] = "MSG_SMS_POWER_UP_CONF",
+	[MSG_SMS_POWER_MODE_SET_REQ                  - MSG_TYPE_BASE_VAL] = "MSG_SMS_POWER_MODE_SET_REQ",
+	[MSG_SMS_POWER_MODE_SET_RES                  - MSG_TYPE_BASE_VAL] = "MSG_SMS_POWER_MODE_SET_RES",
+	[MSG_SMS_DEBUG_HOST_EVENT_REQ                - MSG_TYPE_BASE_VAL] = "MSG_SMS_DEBUG_HOST_EVENT_REQ",
+	[MSG_SMS_DEBUG_HOST_EVENT_RES                - MSG_TYPE_BASE_VAL] = "MSG_SMS_DEBUG_HOST_EVENT_RES",
+	[MSG_SMS_NEW_CRYSTAL_REQ                     - MSG_TYPE_BASE_VAL] = "MSG_SMS_NEW_CRYSTAL_REQ",
+	[MSG_SMS_NEW_CRYSTAL_RES                     - MSG_TYPE_BASE_VAL] = "MSG_SMS_NEW_CRYSTAL_RES",
+	[MSG_SMS_CONFIG_SPI_REQ                      - MSG_TYPE_BASE_VAL] = "MSG_SMS_CONFIG_SPI_REQ",
+	[MSG_SMS_CONFIG_SPI_RES                      - MSG_TYPE_BASE_VAL] = "MSG_SMS_CONFIG_SPI_RES",
+	[MSG_SMS_I2C_SHORT_STAT_IND                  - MSG_TYPE_BASE_VAL] = "MSG_SMS_I2C_SHORT_STAT_IND",
+	[MSG_SMS_START_IR_REQ                        - MSG_TYPE_BASE_VAL] = "MSG_SMS_START_IR_REQ",
+	[MSG_SMS_START_IR_RES                        - MSG_TYPE_BASE_VAL] = "MSG_SMS_START_IR_RES",
+	[MSG_SMS_IR_SAMPLES_IND                      - MSG_TYPE_BASE_VAL] = "MSG_SMS_IR_SAMPLES_IND",
+	[MSG_SMS_CMMB_CA_SERVICE_IND                 - MSG_TYPE_BASE_VAL] = "MSG_SMS_CMMB_CA_SERVICE_IND",
+	[MSG_SMS_SLAVE_DEVICE_DETECTED               - MSG_TYPE_BASE_VAL] = "MSG_SMS_SLAVE_DEVICE_DETECTED",
+	[MSG_SMS_INTERFACE_LOCK_IND                  - MSG_TYPE_BASE_VAL] = "MSG_SMS_INTERFACE_LOCK_IND",
+	[MSG_SMS_INTERFACE_UNLOCK_IND                - MSG_TYPE_BASE_VAL] = "MSG_SMS_INTERFACE_UNLOCK_IND",
+	[MSG_SMS_SEND_ROSUM_BUFF_REQ                 - MSG_TYPE_BASE_VAL] = "MSG_SMS_SEND_ROSUM_BUFF_REQ",
+	[MSG_SMS_SEND_ROSUM_BUFF_RES                 - MSG_TYPE_BASE_VAL] = "MSG_SMS_SEND_ROSUM_BUFF_RES",
+	[MSG_SMS_ROSUM_BUFF                          - MSG_TYPE_BASE_VAL] = "MSG_SMS_ROSUM_BUFF",
+	[MSG_SMS_SET_AES128_KEY_REQ                  - MSG_TYPE_BASE_VAL] = "MSG_SMS_SET_AES128_KEY_REQ",
+	[MSG_SMS_SET_AES128_KEY_RES                  - MSG_TYPE_BASE_VAL] = "MSG_SMS_SET_AES128_KEY_RES",
+	[MSG_SMS_MBBMS_WRITE_REQ                     - MSG_TYPE_BASE_VAL] = "MSG_SMS_MBBMS_WRITE_REQ",
+	[MSG_SMS_MBBMS_WRITE_RES                     - MSG_TYPE_BASE_VAL] = "MSG_SMS_MBBMS_WRITE_RES",
+	[MSG_SMS_MBBMS_READ_IND                      - MSG_TYPE_BASE_VAL] = "MSG_SMS_MBBMS_READ_IND",
+	[MSG_SMS_IQ_STREAM_START_REQ                 - MSG_TYPE_BASE_VAL] = "MSG_SMS_IQ_STREAM_START_REQ",
+	[MSG_SMS_IQ_STREAM_START_RES                 - MSG_TYPE_BASE_VAL] = "MSG_SMS_IQ_STREAM_START_RES",
+	[MSG_SMS_IQ_STREAM_STOP_REQ                  - MSG_TYPE_BASE_VAL] = "MSG_SMS_IQ_STREAM_STOP_REQ",
+	[MSG_SMS_IQ_STREAM_STOP_RES                  - MSG_TYPE_BASE_VAL] = "MSG_SMS_IQ_STREAM_STOP_RES",
+	[MSG_SMS_IQ_STREAM_DATA_BLOCK                - MSG_TYPE_BASE_VAL] = "MSG_SMS_IQ_STREAM_DATA_BLOCK",
+	[MSG_SMS_GET_EEPROM_VERSION_REQ              - MSG_TYPE_BASE_VAL] = "MSG_SMS_GET_EEPROM_VERSION_REQ",
+	[MSG_SMS_GET_EEPROM_VERSION_RES              - MSG_TYPE_BASE_VAL] = "MSG_SMS_GET_EEPROM_VERSION_RES",
+	[MSG_SMS_SIGNAL_DETECTED_IND                 - MSG_TYPE_BASE_VAL] = "MSG_SMS_SIGNAL_DETECTED_IND",
+	[MSG_SMS_NO_SIGNAL_IND                       - MSG_TYPE_BASE_VAL] = "MSG_SMS_NO_SIGNAL_IND",
+	[MSG_SMS_MRC_SHUTDOWN_SLAVE_REQ              - MSG_TYPE_BASE_VAL] = "MSG_SMS_MRC_SHUTDOWN_SLAVE_REQ",
+	[MSG_SMS_MRC_SHUTDOWN_SLAVE_RES              - MSG_TYPE_BASE_VAL] = "MSG_SMS_MRC_SHUTDOWN_SLAVE_RES",
+	[MSG_SMS_MRC_BRINGUP_SLAVE_REQ               - MSG_TYPE_BASE_VAL] = "MSG_SMS_MRC_BRINGUP_SLAVE_REQ",
+	[MSG_SMS_MRC_BRINGUP_SLAVE_RES               - MSG_TYPE_BASE_VAL] = "MSG_SMS_MRC_BRINGUP_SLAVE_RES",
+	[MSG_SMS_EXTERNAL_LNA_CTRL_REQ               - MSG_TYPE_BASE_VAL] = "MSG_SMS_EXTERNAL_LNA_CTRL_REQ",
+	[MSG_SMS_EXTERNAL_LNA_CTRL_RES               - MSG_TYPE_BASE_VAL] = "MSG_SMS_EXTERNAL_LNA_CTRL_RES",
+	[MSG_SMS_SET_PERIODIC_STATISTICS_REQ         - MSG_TYPE_BASE_VAL] = "MSG_SMS_SET_PERIODIC_STATISTICS_REQ",
+	[MSG_SMS_SET_PERIODIC_STATISTICS_RES         - MSG_TYPE_BASE_VAL] = "MSG_SMS_SET_PERIODIC_STATISTICS_RES",
+	[MSG_SMS_CMMB_SET_AUTO_OUTPUT_TS0_REQ        - MSG_TYPE_BASE_VAL] = "MSG_SMS_CMMB_SET_AUTO_OUTPUT_TS0_REQ",
+	[MSG_SMS_CMMB_SET_AUTO_OUTPUT_TS0_RES        - MSG_TYPE_BASE_VAL] = "MSG_SMS_CMMB_SET_AUTO_OUTPUT_TS0_RES",
+	[LOCAL_TUNE                                  - MSG_TYPE_BASE_VAL] = "LOCAL_TUNE",
+	[LOCAL_IFFT_H_ICI                            - MSG_TYPE_BASE_VAL] = "LOCAL_IFFT_H_ICI",
+	[MSG_RESYNC_REQ                              - MSG_TYPE_BASE_VAL] = "MSG_RESYNC_REQ",
+	[MSG_SMS_CMMB_GET_MRC_STATISTICS_REQ         - MSG_TYPE_BASE_VAL] = "MSG_SMS_CMMB_GET_MRC_STATISTICS_REQ",
+	[MSG_SMS_CMMB_GET_MRC_STATISTICS_RES         - MSG_TYPE_BASE_VAL] = "MSG_SMS_CMMB_GET_MRC_STATISTICS_RES",
+	[MSG_SMS_LOG_EX_ITEM                         - MSG_TYPE_BASE_VAL] = "MSG_SMS_LOG_EX_ITEM",
+	[MSG_SMS_DEVICE_DATA_LOSS_IND                - MSG_TYPE_BASE_VAL] = "MSG_SMS_DEVICE_DATA_LOSS_IND",
+	[MSG_SMS_MRC_WATCHDOG_TRIGGERED_IND          - MSG_TYPE_BASE_VAL] = "MSG_SMS_MRC_WATCHDOG_TRIGGERED_IND",
+	[MSG_SMS_USER_MSG_REQ                        - MSG_TYPE_BASE_VAL] = "MSG_SMS_USER_MSG_REQ",
+	[MSG_SMS_USER_MSG_RES                        - MSG_TYPE_BASE_VAL] = "MSG_SMS_USER_MSG_RES",
+	[MSG_SMS_SMART_CARD_INIT_REQ                 - MSG_TYPE_BASE_VAL] = "MSG_SMS_SMART_CARD_INIT_REQ",
+	[MSG_SMS_SMART_CARD_INIT_RES                 - MSG_TYPE_BASE_VAL] = "MSG_SMS_SMART_CARD_INIT_RES",
+	[MSG_SMS_SMART_CARD_WRITE_REQ                - MSG_TYPE_BASE_VAL] = "MSG_SMS_SMART_CARD_WRITE_REQ",
+	[MSG_SMS_SMART_CARD_WRITE_RES                - MSG_TYPE_BASE_VAL] = "MSG_SMS_SMART_CARD_WRITE_RES",
+	[MSG_SMS_SMART_CARD_READ_IND                 - MSG_TYPE_BASE_VAL] = "MSG_SMS_SMART_CARD_READ_IND",
+	[MSG_SMS_TSE_ENABLE_REQ                      - MSG_TYPE_BASE_VAL] = "MSG_SMS_TSE_ENABLE_REQ",
+	[MSG_SMS_TSE_ENABLE_RES                      - MSG_TYPE_BASE_VAL] = "MSG_SMS_TSE_ENABLE_RES",
+	[MSG_SMS_CMMB_GET_SHORT_STATISTICS_REQ       - MSG_TYPE_BASE_VAL] = "MSG_SMS_CMMB_GET_SHORT_STATISTICS_REQ",
+	[MSG_SMS_CMMB_GET_SHORT_STATISTICS_RES       - MSG_TYPE_BASE_VAL] = "MSG_SMS_CMMB_GET_SHORT_STATISTICS_RES",
+	[MSG_SMS_LED_CONFIG_REQ                      - MSG_TYPE_BASE_VAL] = "MSG_SMS_LED_CONFIG_REQ",
+	[MSG_SMS_LED_CONFIG_RES                      - MSG_TYPE_BASE_VAL] = "MSG_SMS_LED_CONFIG_RES",
+	[MSG_PWM_ANTENNA_REQ                         - MSG_TYPE_BASE_VAL] = "MSG_PWM_ANTENNA_REQ",
+	[MSG_PWM_ANTENNA_RES                         - MSG_TYPE_BASE_VAL] = "MSG_PWM_ANTENNA_RES",
+	[MSG_SMS_CMMB_SMD_SN_REQ                     - MSG_TYPE_BASE_VAL] = "MSG_SMS_CMMB_SMD_SN_REQ",
+	[MSG_SMS_CMMB_SMD_SN_RES                     - MSG_TYPE_BASE_VAL] = "MSG_SMS_CMMB_SMD_SN_RES",
+	[MSG_SMS_CMMB_SET_CA_CW_REQ                  - MSG_TYPE_BASE_VAL] = "MSG_SMS_CMMB_SET_CA_CW_REQ",
+	[MSG_SMS_CMMB_SET_CA_CW_RES                  - MSG_TYPE_BASE_VAL] = "MSG_SMS_CMMB_SET_CA_CW_RES",
+	[MSG_SMS_CMMB_SET_CA_SALT_REQ                - MSG_TYPE_BASE_VAL] = "MSG_SMS_CMMB_SET_CA_SALT_REQ",
+	[MSG_SMS_CMMB_SET_CA_SALT_RES                - MSG_TYPE_BASE_VAL] = "MSG_SMS_CMMB_SET_CA_SALT_RES",
+	[MSG_SMS_NSCD_INIT_REQ                       - MSG_TYPE_BASE_VAL] = "MSG_SMS_NSCD_INIT_REQ",
+	[MSG_SMS_NSCD_INIT_RES                       - MSG_TYPE_BASE_VAL] = "MSG_SMS_NSCD_INIT_RES",
+	[MSG_SMS_NSCD_PROCESS_SECTION_REQ            - MSG_TYPE_BASE_VAL] = "MSG_SMS_NSCD_PROCESS_SECTION_REQ",
+	[MSG_SMS_NSCD_PROCESS_SECTION_RES            - MSG_TYPE_BASE_VAL] = "MSG_SMS_NSCD_PROCESS_SECTION_RES",
+	[MSG_SMS_DBD_CREATE_OBJECT_REQ               - MSG_TYPE_BASE_VAL] = "MSG_SMS_DBD_CREATE_OBJECT_REQ",
+	[MSG_SMS_DBD_CREATE_OBJECT_RES               - MSG_TYPE_BASE_VAL] = "MSG_SMS_DBD_CREATE_OBJECT_RES",
+	[MSG_SMS_DBD_CONFIGURE_REQ                   - MSG_TYPE_BASE_VAL] = "MSG_SMS_DBD_CONFIGURE_REQ",
+	[MSG_SMS_DBD_CONFIGURE_RES                   - MSG_TYPE_BASE_VAL] = "MSG_SMS_DBD_CONFIGURE_RES",
+	[MSG_SMS_DBD_SET_KEYS_REQ                    - MSG_TYPE_BASE_VAL] = "MSG_SMS_DBD_SET_KEYS_REQ",
+	[MSG_SMS_DBD_SET_KEYS_RES                    - MSG_TYPE_BASE_VAL] = "MSG_SMS_DBD_SET_KEYS_RES",
+	[MSG_SMS_DBD_PROCESS_HEADER_REQ              - MSG_TYPE_BASE_VAL] = "MSG_SMS_DBD_PROCESS_HEADER_REQ",
+	[MSG_SMS_DBD_PROCESS_HEADER_RES              - MSG_TYPE_BASE_VAL] = "MSG_SMS_DBD_PROCESS_HEADER_RES",
+	[MSG_SMS_DBD_PROCESS_DATA_REQ                - MSG_TYPE_BASE_VAL] = "MSG_SMS_DBD_PROCESS_DATA_REQ",
+	[MSG_SMS_DBD_PROCESS_DATA_RES                - MSG_TYPE_BASE_VAL] = "MSG_SMS_DBD_PROCESS_DATA_RES",
+	[MSG_SMS_DBD_PROCESS_GET_DATA_REQ            - MSG_TYPE_BASE_VAL] = "MSG_SMS_DBD_PROCESS_GET_DATA_REQ",
+	[MSG_SMS_DBD_PROCESS_GET_DATA_RES            - MSG_TYPE_BASE_VAL] = "MSG_SMS_DBD_PROCESS_GET_DATA_RES",
+	[MSG_SMS_NSCD_OPEN_SESSION_REQ               - MSG_TYPE_BASE_VAL] = "MSG_SMS_NSCD_OPEN_SESSION_REQ",
+	[MSG_SMS_NSCD_OPEN_SESSION_RES               - MSG_TYPE_BASE_VAL] = "MSG_SMS_NSCD_OPEN_SESSION_RES",
+	[MSG_SMS_SEND_HOST_DATA_TO_DEMUX_REQ         - MSG_TYPE_BASE_VAL] = "MSG_SMS_SEND_HOST_DATA_TO_DEMUX_REQ",
+	[MSG_SMS_SEND_HOST_DATA_TO_DEMUX_RES         - MSG_TYPE_BASE_VAL] = "MSG_SMS_SEND_HOST_DATA_TO_DEMUX_RES",
+	[MSG_LAST_MSG_TYPE                           - MSG_TYPE_BASE_VAL] = "MSG_LAST_MSG_TYPE",
+};
+
+char *smscore_translate_msg(enum msg_types msgtype)
+{
+	int i = msgtype - MSG_TYPE_BASE_VAL;
+	char *msg;
+
+	if (i < 0 || i >= ARRAY_SIZE(siano_msgs))
+		return "Unknown msg type";
+
+	msg = siano_msgs[i];
+
+	if (!*msg)
+		return "Unknown msg type";
+
+	return msg;
+}
+EXPORT_SYMBOL_GPL(smscore_translate_msg);
 
 void smscore_set_board_id(struct smscore_device_t *core, int id)
 {
@@ -96,7 +434,7 @@ static struct mutex g_smscore_deviceslock;
 static struct list_head g_smscore_registry;
 static struct mutex g_smscore_registrylock;
 
-static int default_mode = 4;
+static int default_mode = DEVICE_MODE_NONE;
 
 module_param(default_mode, int, 0644);
 MODULE_PARM_DESC(default_mode, "default firmware id (device mode)");
@@ -151,10 +489,10 @@ static enum sms_device_type_st smscore_registry_gettype(char *devpath)
 	else
 		sms_err("No registry found.");
 
-	return -1;
+	return -EINVAL;
 }
 
-void smscore_registry_setmode(char *devpath, int mode)
+static void smscore_registry_setmode(char *devpath, int mode)
 {
 	struct smscore_registry_entry_t *entry;
 
@@ -294,10 +632,11 @@ static struct
 smscore_buffer_t *smscore_createbuffer(u8 *buffer, void *common_buffer,
 				       dma_addr_t common_buffer_phys)
 {
-	struct smscore_buffer_t *cb =
-		kmalloc(sizeof(struct smscore_buffer_t), GFP_KERNEL);
+	struct smscore_buffer_t *cb;
+
+	cb = kzalloc(sizeof(struct smscore_buffer_t), GFP_KERNEL);
 	if (!cb) {
-		sms_info("kmalloc(...) failed");
+		sms_info("kzalloc(...) failed");
 		return NULL;
 	}
 
@@ -344,6 +683,7 @@ int smscore_register_device(struct smsdevice_params_t *params,
 	/* init completion events */
 	init_completion(&dev->version_ex_done);
 	init_completion(&dev->data_download_done);
+	init_completion(&dev->data_validity_done);
 	init_completion(&dev->trigger_done);
 	init_completion(&dev->init_device_done);
 	init_completion(&dev->reload_start_done);
@@ -370,9 +710,10 @@ int smscore_register_device(struct smsdevice_params_t *params,
 	for (buffer = dev->common_buffer;
 	     dev->num_buffers < params->num_buffers;
 	     dev->num_buffers++, buffer += params->buffer_size) {
-		struct smscore_buffer_t *cb =
-			smscore_createbuffer(buffer, dev->common_buffer,
-					     dev->common_buffer_phys);
+		struct smscore_buffer_t *cb;
+
+		cb = smscore_createbuffer(buffer, dev->common_buffer,
+					  dev->common_buffer_phys);
 		if (!cb) {
 			smscore_unregister_device(dev);
 			return -ENOMEM;
@@ -384,6 +725,7 @@ int smscore_register_device(struct smsdevice_params_t *params,
 	sms_info("allocated %d buffers", dev->num_buffers);
 
 	dev->mode = DEVICE_MODE_NONE;
+	dev->board_id = SMS_BOARD_UNKNOWN;
 	dev->context = params->context;
 	dev->device = params->device;
 	dev->setmode_handler = params->setmode_handler;
@@ -413,7 +755,13 @@ EXPORT_SYMBOL_GPL(smscore_register_device);
 
 static int smscore_sendrequest_and_wait(struct smscore_device_t *coredev,
 		void *buffer, size_t size, struct completion *completion) {
-	int rc = coredev->sendrequest_handler(coredev->context, buffer, size);
+	int rc;
+
+	if (completion == NULL)
+		return -EINVAL;
+	init_completion(completion);
+
+	rc = coredev->sendrequest_handler(coredev->context, buffer, size);
 	if (rc < 0) {
 		sms_info("sendrequest returned error %d", rc);
 		return rc;
@@ -444,24 +792,22 @@ static int smscore_init_ir(struct smscore_device_t *coredev)
 		if	(rc != 0)
 			sms_err("Error initialization DTV IR sub-module");
 		else {
-			buffer = kmalloc(sizeof(struct SmsMsgData_ST2) +
+			buffer = kmalloc(sizeof(struct sms_msg_data2) +
 						SMS_DMA_ALIGNMENT,
 						GFP_KERNEL | GFP_DMA);
 			if (buffer) {
-				struct SmsMsgData_ST2 *msg =
-				(struct SmsMsgData_ST2 *)
+				struct sms_msg_data2 *msg =
+				(struct sms_msg_data2 *)
 				SMS_ALIGN_ADDRESS(buffer);
 
-				SMS_INIT_MSG(&msg->xMsgHeader,
+				SMS_INIT_MSG(&msg->x_msg_header,
 						MSG_SMS_START_IR_REQ,
-						sizeof(struct SmsMsgData_ST2));
-				msg->msgData[0] = coredev->ir.controller;
-				msg->msgData[1] = coredev->ir.timeout;
+						sizeof(struct sms_msg_data2));
+				msg->msg_data[0] = coredev->ir.controller;
+				msg->msg_data[1] = coredev->ir.timeout;
 
-				smsendian_handle_tx_message(
-					(struct SmsMsgHdr_ST2 *)msg);
 				rc = smscore_sendrequest_and_wait(coredev, msg,
-						msg->xMsgHeader. msgLength,
+						msg->x_msg_header. msg_length,
 						&coredev->ir_init_done);
 
 				kfree(buffer);
@@ -476,19 +822,80 @@ static int smscore_init_ir(struct smscore_device_t *coredev)
 }
 
 /**
+ * configures device features according to board configuration structure.
+ *
+ * @param coredev pointer to a coredev object returned by
+ *                smscore_register_device
+ *
+ * @return 0 on success, <0 on error.
+ */
+static int smscore_configure_board(struct smscore_device_t *coredev)
+{
+	struct sms_board *board;
+
+	board = sms_get_board(coredev->board_id);
+	if (!board) {
+		sms_err("no board configuration exist.");
+		return -EINVAL;
+	}
+
+	if (board->mtu) {
+		struct sms_msg_data mtu_msg;
+		sms_debug("set max transmit unit %d", board->mtu);
+
+		mtu_msg.x_msg_header.msg_src_id = 0;
+		mtu_msg.x_msg_header.msg_dst_id = HIF_TASK;
+		mtu_msg.x_msg_header.msg_flags = 0;
+		mtu_msg.x_msg_header.msg_type = MSG_SMS_SET_MAX_TX_MSG_LEN_REQ;
+		mtu_msg.x_msg_header.msg_length = sizeof(mtu_msg);
+		mtu_msg.msg_data[0] = board->mtu;
+
+		coredev->sendrequest_handler(coredev->context, &mtu_msg,
+					     sizeof(mtu_msg));
+	}
+
+	if (board->crystal) {
+		struct sms_msg_data crys_msg;
+		sms_debug("set crystal value %d", board->crystal);
+
+		SMS_INIT_MSG(&crys_msg.x_msg_header,
+				MSG_SMS_NEW_CRYSTAL_REQ,
+				sizeof(crys_msg));
+		crys_msg.msg_data[0] = board->crystal;
+
+		coredev->sendrequest_handler(coredev->context, &crys_msg,
+					     sizeof(crys_msg));
+	}
+
+	return 0;
+}
+
+/**
  * sets initial device mode and notifies client hotplugs that device is ready
  *
  * @param coredev pointer to a coredev object returned by
- * 		  smscore_register_device
+ *		  smscore_register_device
  *
  * @return 0 on success, <0 on error.
  */
 int smscore_start_device(struct smscore_device_t *coredev)
 {
-	int rc = smscore_set_device_mode(
-			coredev, smscore_registry_getmode(coredev->devpath));
+	int rc;
+	int board_id = smscore_get_board_id(coredev);
+	int mode = smscore_registry_getmode(coredev->devpath);
+
+	/* Device is initialized as DEVICE_MODE_NONE */
+	if (board_id != SMS_BOARD_UNKNOWN && mode == DEVICE_MODE_NONE)
+		mode = sms_get_board(board_id)->default_mode;
+
+	rc = smscore_set_device_mode(coredev, mode);
 	if (rc < 0) {
 		sms_info("set device mode faile , rc %d", rc);
+		return rc;
+	}
+	rc = smscore_configure_board(coredev);
+	if (rc < 0) {
+		sms_info("configure board failed , rc %d", rc);
 		return rc;
 	}
 
@@ -509,18 +916,19 @@ EXPORT_SYMBOL_GPL(smscore_start_device);
 static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
 					 void *buffer, size_t size)
 {
-	struct SmsFirmware_ST *firmware = (struct SmsFirmware_ST *) buffer;
-	struct SmsMsgHdr_ST *msg;
-	u32 mem_address;
-	u8 *payload = firmware->Payload;
+	struct sms_firmware *firmware = (struct sms_firmware *) buffer;
+	struct sms_msg_data4 *msg;
+	u32 mem_address,  calc_checksum = 0;
+	u32 i, *ptr;
+	u8 *payload = firmware->payload;
 	int rc = 0;
-	firmware->StartAddress = le32_to_cpu(firmware->StartAddress);
-	firmware->Length = le32_to_cpu(firmware->Length);
+	firmware->start_address = le32_to_cpu(firmware->start_address);
+	firmware->length = le32_to_cpu(firmware->length);
 
-	mem_address = firmware->StartAddress;
+	mem_address = firmware->start_address;
 
 	sms_info("loading FW to addr 0x%x size %d",
-		 mem_address, firmware->Length);
+		 mem_address, firmware->length);
 	if (coredev->preload_handler) {
 		rc = coredev->preload_handler(coredev->context);
 		if (rc < 0)
@@ -534,35 +942,36 @@ static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
 
 	if (coredev->mode != DEVICE_MODE_NONE) {
 		sms_debug("sending reload command.");
-		SMS_INIT_MSG(msg, MSG_SW_RELOAD_START_REQ,
-			     sizeof(struct SmsMsgHdr_ST));
+		SMS_INIT_MSG(&msg->x_msg_header, MSG_SW_RELOAD_START_REQ,
+			     sizeof(struct sms_msg_hdr));
 		rc = smscore_sendrequest_and_wait(coredev, msg,
-						  msg->msgLength,
+						  msg->x_msg_header.msg_length,
 						  &coredev->reload_start_done);
+		if (rc < 0) {
+			sms_err("device reload failed, rc %d", rc);
+			goto exit_fw_download;
+		}
 		mem_address = *(u32 *) &payload[20];
 	}
 
-	while (size && rc >= 0) {
-		struct SmsDataDownload_ST *DataMsg =
-			(struct SmsDataDownload_ST *) msg;
-		int payload_size = min((int) size, SMS_MAX_PAYLOAD_SIZE);
+	for (i = 0, ptr = (u32 *)firmware->payload; i < firmware->length/4 ;
+	     i++, ptr++)
+		calc_checksum += *ptr;
 
-		SMS_INIT_MSG(msg, MSG_SMS_DATA_DOWNLOAD_REQ,
-			     (u16)(sizeof(struct SmsMsgHdr_ST) +
+	while (size && rc >= 0) {
+		struct sms_data_download *data_msg =
+			(struct sms_data_download *) msg;
+		int payload_size = min_t(int, size, SMS_MAX_PAYLOAD_SIZE);
+
+		SMS_INIT_MSG(&msg->x_msg_header, MSG_SMS_DATA_DOWNLOAD_REQ,
+			     (u16)(sizeof(struct sms_msg_hdr) +
 				      sizeof(u32) + payload_size));
 
-		DataMsg->MemAddr = mem_address;
-		memcpy(DataMsg->Payload, payload, payload_size);
+		data_msg->mem_addr = mem_address;
+		memcpy(data_msg->payload, payload, payload_size);
 
-		if ((coredev->device_flags & SMS_ROM_NO_RESPONSE) &&
-		    (coredev->mode == DEVICE_MODE_NONE))
-			rc = coredev->sendrequest_handler(
-				coredev->context, DataMsg,
-				DataMsg->xMsgHeader.msgLength);
-		else
-			rc = smscore_sendrequest_and_wait(
-				coredev, DataMsg,
-				DataMsg->xMsgHeader.msgLength,
+		rc = smscore_sendrequest_and_wait(coredev, data_msg,
+				data_msg->x_msg_header.msg_length,
 				&coredev->data_download_done);
 
 		payload += payload_size;
@@ -570,50 +979,158 @@ static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
 		mem_address += payload_size;
 	}
 
-	if (rc >= 0) {
-		if (coredev->mode == DEVICE_MODE_NONE) {
-			struct SmsMsgData_ST *TriggerMsg =
-				(struct SmsMsgData_ST *) msg;
+	if (rc < 0)
+		goto exit_fw_download;
 
-			SMS_INIT_MSG(msg, MSG_SMS_SWDOWNLOAD_TRIGGER_REQ,
-				     sizeof(struct SmsMsgHdr_ST) +
-				     sizeof(u32) * 5);
+	sms_err("sending MSG_SMS_DATA_VALIDITY_REQ expecting 0x%x",
+		calc_checksum);
+	SMS_INIT_MSG(&msg->x_msg_header, MSG_SMS_DATA_VALIDITY_REQ,
+			sizeof(msg->x_msg_header) +
+			sizeof(u32) * 3);
+	msg->msg_data[0] = firmware->start_address;
+		/* Entry point */
+	msg->msg_data[1] = firmware->length;
+	msg->msg_data[2] = 0; /* Regular checksum*/
+	rc = smscore_sendrequest_and_wait(coredev, msg,
+					  msg->x_msg_header.msg_length,
+					  &coredev->data_validity_done);
+	if (rc < 0)
+		goto exit_fw_download;
 
-			TriggerMsg->msgData[0] = firmware->StartAddress;
-						/* Entry point */
-			TriggerMsg->msgData[1] = 5; /* Priority */
-			TriggerMsg->msgData[2] = 0x200; /* Stack size */
-			TriggerMsg->msgData[3] = 0; /* Parameter */
-			TriggerMsg->msgData[4] = 4; /* Task ID */
+	if (coredev->mode == DEVICE_MODE_NONE) {
+		struct sms_msg_data *trigger_msg =
+			(struct sms_msg_data *) msg;
 
-			if (coredev->device_flags & SMS_ROM_NO_RESPONSE) {
-				rc = coredev->sendrequest_handler(
-					coredev->context, TriggerMsg,
-					TriggerMsg->xMsgHeader.msgLength);
-				msleep(100);
-			} else
-				rc = smscore_sendrequest_and_wait(
-					coredev, TriggerMsg,
-					TriggerMsg->xMsgHeader.msgLength,
+		sms_debug("sending MSG_SMS_SWDOWNLOAD_TRIGGER_REQ");
+		SMS_INIT_MSG(&msg->x_msg_header,
+				MSG_SMS_SWDOWNLOAD_TRIGGER_REQ,
+				sizeof(struct sms_msg_hdr) +
+				sizeof(u32) * 5);
+
+		trigger_msg->msg_data[0] = firmware->start_address;
+					/* Entry point */
+		trigger_msg->msg_data[1] = 6; /* Priority */
+		trigger_msg->msg_data[2] = 0x200; /* Stack size */
+		trigger_msg->msg_data[3] = 0; /* Parameter */
+		trigger_msg->msg_data[4] = 4; /* Task ID */
+
+		rc = smscore_sendrequest_and_wait(coredev, trigger_msg,
+					trigger_msg->x_msg_header.msg_length,
 					&coredev->trigger_done);
-		} else {
-			SMS_INIT_MSG(msg, MSG_SW_RELOAD_EXEC_REQ,
-				     sizeof(struct SmsMsgHdr_ST));
-
-			rc = coredev->sendrequest_handler(coredev->context,
-							  msg, msg->msgLength);
-		}
-		msleep(500);
+	} else {
+		SMS_INIT_MSG(&msg->x_msg_header, MSG_SW_RELOAD_EXEC_REQ,
+				sizeof(struct sms_msg_hdr));
+		rc = coredev->sendrequest_handler(coredev->context, msg,
+				msg->x_msg_header.msg_length);
 	}
 
-	sms_debug("rc=%d, postload=%p ", rc,
-		  coredev->postload_handler);
+	if (rc < 0)
+		goto exit_fw_download;
 
+	/*
+	 * backward compatibility - wait to device_ready_done for
+	 * not more than 400 ms
+	 */
+	msleep(400);
+
+exit_fw_download:
 	kfree(msg);
 
-	return ((rc >= 0) && coredev->postload_handler) ?
-		coredev->postload_handler(coredev->context) :
-		rc;
+	if (coredev->postload_handler) {
+		sms_debug("rc=%d, postload=0x%p", rc, coredev->postload_handler);
+		if (rc >= 0)
+			return coredev->postload_handler(coredev->context);
+	}
+
+	sms_debug("rc=%d", rc);
+	return rc;
+}
+
+static char *smscore_fw_lkup[][DEVICE_MODE_MAX] = {
+	[SMS_NOVA_A0] = {
+		[DEVICE_MODE_DVBT]		= SMS_FW_DVB_NOVA_12MHZ,
+		[DEVICE_MODE_DVBH]		= SMS_FW_DVB_NOVA_12MHZ,
+		[DEVICE_MODE_DAB_TDMB]		= SMS_FW_TDMB_NOVA_12MHZ,
+		[DEVICE_MODE_DVBT_BDA]		= SMS_FW_DVB_NOVA_12MHZ,
+		[DEVICE_MODE_ISDBT]		= SMS_FW_ISDBT_NOVA_12MHZ,
+		[DEVICE_MODE_ISDBT_BDA]		= SMS_FW_ISDBT_NOVA_12MHZ,
+	},
+	[SMS_NOVA_B0] = {
+		[DEVICE_MODE_DVBT]		= SMS_FW_DVB_NOVA_12MHZ_B0,
+		[DEVICE_MODE_DVBH]		= SMS_FW_DVB_NOVA_12MHZ_B0,
+		[DEVICE_MODE_DAB_TDMB]		= SMS_FW_TDMB_NOVA_12MHZ_B0,
+		[DEVICE_MODE_DVBT_BDA]		= SMS_FW_DVB_NOVA_12MHZ_B0,
+		[DEVICE_MODE_ISDBT]		= SMS_FW_ISDBT_NOVA_12MHZ_B0,
+		[DEVICE_MODE_ISDBT_BDA]		= SMS_FW_ISDBT_NOVA_12MHZ_B0,
+		[DEVICE_MODE_FM_RADIO]		= SMS_FW_FM_RADIO,
+		[DEVICE_MODE_FM_RADIO_BDA]	= SMS_FW_FM_RADIO,
+	},
+	[SMS_VEGA] = {
+		[DEVICE_MODE_CMMB]		= SMS_FW_CMMB_VEGA_12MHZ,
+	},
+	[SMS_VENICE] = {
+		[DEVICE_MODE_CMMB]		= SMS_FW_CMMB_VENICE_12MHZ,
+	},
+	[SMS_MING] = {
+		[DEVICE_MODE_CMMB]		= SMS_FW_CMMB_MING_APP,
+	},
+	[SMS_PELE] = {
+		[DEVICE_MODE_ISDBT]		= SMS_FW_ISDBT_PELE,
+		[DEVICE_MODE_ISDBT_BDA]		= SMS_FW_ISDBT_PELE,
+	},
+	[SMS_RIO] = {
+		[DEVICE_MODE_DVBT]		= SMS_FW_DVB_RIO,
+		[DEVICE_MODE_DVBH]		= SMS_FW_DVBH_RIO,
+		[DEVICE_MODE_DVBT_BDA]		= SMS_FW_DVB_RIO,
+		[DEVICE_MODE_ISDBT]		= SMS_FW_ISDBT_RIO,
+		[DEVICE_MODE_ISDBT_BDA]		= SMS_FW_ISDBT_RIO,
+		[DEVICE_MODE_FM_RADIO]		= SMS_FW_FM_RADIO_RIO,
+		[DEVICE_MODE_FM_RADIO_BDA]	= SMS_FW_FM_RADIO_RIO,
+	},
+	[SMS_DENVER_1530] = {
+		[DEVICE_MODE_ATSC]		= SMS_FW_ATSC_DENVER,
+	},
+	[SMS_DENVER_2160] = {
+		[DEVICE_MODE_DAB_TDMB]		= SMS_FW_TDMB_DENVER,
+	},
+};
+
+/**
+ * get firmware file name from one of the two mechanisms : sms_boards or
+ * smscore_fw_lkup.
+ * @param coredev pointer to a coredev object returned by
+ *		  smscore_register_device
+ * @param mode requested mode of operation
+ * @param lookup if 1, always get the fw filename from smscore_fw_lkup
+ *	 table. if 0, try first to get from sms_boards
+ *
+ * @return 0 on success, <0 on error.
+ */
+static char *smscore_get_fw_filename(struct smscore_device_t *coredev,
+			      int mode)
+{
+	char **fw;
+	int board_id = smscore_get_board_id(coredev);
+	enum sms_device_type_st type;
+
+	type = smscore_registry_gettype(coredev->devpath);
+
+	/* Prevent looking outside the smscore_fw_lkup table */
+	if (type <= SMS_UNKNOWN_TYPE || type >= SMS_NUM_OF_DEVICE_TYPES)
+		return NULL;
+	if (mode <= DEVICE_MODE_NONE || mode >= DEVICE_MODE_MAX)
+		return NULL;
+
+	sms_debug("trying to get fw name from sms_boards board_id %d mode %d",
+		  board_id, mode);
+	fw = sms_get_board(board_id)->fw;
+	if (!fw || !fw[mode]) {
+		sms_debug("cannot find fw name in sms_boards, getting from lookup table mode %d type %d",
+			  mode, type);
+		return smscore_fw_lkup[type][mode];
+	}
+
+	return fw[mode];
 }
 
 /**
@@ -627,41 +1144,46 @@ static int smscore_load_firmware_family2(struct smscore_device_t *coredev,
  * @return 0 on success, <0 on error.
  */
 static int smscore_load_firmware_from_file(struct smscore_device_t *coredev,
-					   char *filename,
+					   int mode,
 					   loadfirmware_t loadfirmware_handler)
 {
 	int rc = -ENOENT;
+	u8 *fw_buf;
+	u32 fw_buf_size;
 	const struct firmware *fw;
-	u8 *fw_buffer;
 
-	if (loadfirmware_handler == NULL && !(coredev->device_flags &
-					      SMS_DEVICE_FAMILY2))
+	char *fw_filename = smscore_get_fw_filename(coredev, mode);
+	if (!fw_filename) {
+		sms_info("mode %d not supported on this device", mode);
+		return -ENOENT;
+	}
+	sms_debug("Firmware name: %s", fw_filename);
+
+	if (loadfirmware_handler == NULL && !(coredev->device_flags
+			& SMS_DEVICE_FAMILY2))
 		return -EINVAL;
 
-	rc = request_firmware(&fw, filename, coredev->device);
+	rc = request_firmware(&fw, fw_filename, coredev->device);
 	if (rc < 0) {
-		sms_info("failed to open \"%s\"", filename);
+		sms_info("failed to open \"%s\"", fw_filename);
 		return rc;
 	}
-	sms_info("read FW %s, size=%zd", filename, fw->size);
-	fw_buffer = kmalloc(ALIGN(fw->size, SMS_ALLOC_ALIGNMENT),
-			    GFP_KERNEL | GFP_DMA);
-	if (fw_buffer) {
-		memcpy(fw_buffer, fw->data, fw->size);
-
-		rc = (coredev->device_flags & SMS_DEVICE_FAMILY2) ?
-		      smscore_load_firmware_family2(coredev,
-						    fw_buffer,
-						    fw->size) :
-		      loadfirmware_handler(coredev->context,
-					   fw_buffer, fw->size);
-
-		kfree(fw_buffer);
-	} else {
+	sms_info("read fw %s, buffer size=0x%zx", fw_filename, fw->size);
+	fw_buf = kmalloc(ALIGN(fw->size, SMS_ALLOC_ALIGNMENT),
+			 GFP_KERNEL | GFP_DMA);
+	if (!fw_buf) {
 		sms_info("failed to allocate firmware buffer");
-		rc = -ENOMEM;
+		return -ENOMEM;
 	}
+	memcpy(fw_buf, fw->data, fw->size);
+	fw_buf_size = fw->size;
 
+	rc = (coredev->device_flags & SMS_DEVICE_FAMILY2) ?
+		smscore_load_firmware_family2(coredev, fw_buf, fw_buf_size)
+		: loadfirmware_handler(coredev->context, fw_buf,
+		fw_buf_size);
+
+	kfree(fw_buf);
 	release_firmware(fw);
 
 	return rc;
@@ -703,14 +1225,15 @@ void smscore_unregister_device(struct smscore_device_t *coredev)
 		if (num_buffers == coredev->num_buffers)
 			break;
 		if (++retry > 10) {
-			sms_info("exiting although "
-				 "not all buffers released.");
+			sms_info("exiting although not all buffers released.");
 			break;
 		}
 
 		sms_info("waiting for %d buffer(s)",
 			 coredev->num_buffers - num_buffers);
+		kmutex_unlock(&g_smscore_deviceslock);
 		msleep(100);
+		kmutex_lock(&g_smscore_deviceslock);
 	}
 
 	sms_info("freed %d buffers", num_buffers);
@@ -719,8 +1242,7 @@ void smscore_unregister_device(struct smscore_device_t *coredev)
 		dma_free_coherent(NULL, coredev->common_buffer_size,
 			coredev->common_buffer, coredev->common_buffer_phys);
 
-	if (coredev->fw_buf != NULL)
-		kfree(coredev->fw_buf);
+	kfree(coredev->fw_buf);
 
 	list_del(&coredev->entry);
 	kfree(coredev);
@@ -733,19 +1255,19 @@ EXPORT_SYMBOL_GPL(smscore_unregister_device);
 
 static int smscore_detect_mode(struct smscore_device_t *coredev)
 {
-	void *buffer = kmalloc(sizeof(struct SmsMsgHdr_ST) + SMS_DMA_ALIGNMENT,
+	void *buffer = kmalloc(sizeof(struct sms_msg_hdr) + SMS_DMA_ALIGNMENT,
 			       GFP_KERNEL | GFP_DMA);
-	struct SmsMsgHdr_ST *msg =
-		(struct SmsMsgHdr_ST *) SMS_ALIGN_ADDRESS(buffer);
+	struct sms_msg_hdr *msg =
+		(struct sms_msg_hdr *) SMS_ALIGN_ADDRESS(buffer);
 	int rc;
 
 	if (!buffer)
 		return -ENOMEM;
 
 	SMS_INIT_MSG(msg, MSG_SMS_GET_VERSION_EX_REQ,
-		     sizeof(struct SmsMsgHdr_ST));
+		     sizeof(struct sms_msg_hdr));
 
-	rc = smscore_sendrequest_and_wait(coredev, msg, msg->msgLength,
+	rc = smscore_sendrequest_and_wait(coredev, msg, msg->msg_length,
 					  &coredev->version_ex_done);
 	if (rc == -ETIME) {
 		sms_err("MSG_SMS_GET_VERSION_EX_REQ failed first try");
@@ -753,11 +1275,11 @@ static int smscore_detect_mode(struct smscore_device_t *coredev)
 		if (wait_for_completion_timeout(&coredev->resume_done,
 						msecs_to_jiffies(5000))) {
 			rc = smscore_sendrequest_and_wait(
-				coredev, msg, msg->msgLength,
+				coredev, msg, msg->msg_length,
 				&coredev->version_ex_done);
 			if (rc < 0)
-				sms_err("MSG_SMS_GET_VERSION_EX_REQ failed "
-					"second try, rc %d", rc);
+				sms_err("MSG_SMS_GET_VERSION_EX_REQ failed second try, rc %d",
+					rc);
 		} else
 			rc = -ETIME;
 	}
@@ -767,31 +1289,39 @@ static int smscore_detect_mode(struct smscore_device_t *coredev)
 	return rc;
 }
 
-static char *smscore_fw_lkup[][SMS_NUM_OF_DEVICE_TYPES] = {
-	/*Stellar		NOVA A0		Nova B0		VEGA*/
-	/*DVBT*/
-	{"none", "dvb_nova_12mhz.inp", "dvb_nova_12mhz_b0.inp", "none"},
-	/*DVBH*/
-	{"none", "dvb_nova_12mhz.inp", "dvb_nova_12mhz_b0.inp", "none"},
-	/*TDMB*/
-	{"none", "tdmb_nova_12mhz.inp", "tdmb_nova_12mhz_b0.inp", "none"},
-	/*DABIP*/
-	{"none", "none", "none", "none"},
-	/*BDA*/
-	{"none", "dvb_nova_12mhz.inp", "dvb_nova_12mhz_b0.inp", "none"},
-	/*ISDBT*/
-	{"none", "isdbt_nova_12mhz.inp", "isdbt_nova_12mhz_b0.inp", "none"},
-	/*ISDBTBDA*/
-	{"none", "isdbt_nova_12mhz.inp", "isdbt_nova_12mhz_b0.inp", "none"},
-	/*CMMB*/
-	{"none", "none", "none", "cmmb_vega_12mhz.inp"}
-};
-
-static inline char *sms_get_fw_name(struct smscore_device_t *coredev,
-				    int mode, enum sms_device_type_st type)
+/**
+ * send init device request and wait for response
+ *
+ * @param coredev pointer to a coredev object returned by
+ *                smscore_register_device
+ * @param mode requested mode of operation
+ *
+ * @return 0 on success, <0 on error.
+ */
+static int smscore_init_device(struct smscore_device_t *coredev, int mode)
 {
-	char **fw = sms_get_board(smscore_get_board_id(coredev))->fw;
-	return (fw && fw[mode]) ? fw[mode] : smscore_fw_lkup[mode][type];
+	void *buffer;
+	struct sms_msg_data *msg;
+	int rc = 0;
+
+	buffer = kmalloc(sizeof(struct sms_msg_data) +
+			SMS_DMA_ALIGNMENT, GFP_KERNEL | GFP_DMA);
+	if (!buffer) {
+		sms_err("Could not allocate buffer for init device message.");
+		return -ENOMEM;
+	}
+
+	msg = (struct sms_msg_data *)SMS_ALIGN_ADDRESS(buffer);
+	SMS_INIT_MSG(&msg->x_msg_header, MSG_SMS_INIT_DEVICE_REQ,
+			sizeof(struct sms_msg_data));
+	msg->msg_data[0] = mode;
+
+	rc = smscore_sendrequest_and_wait(coredev, msg,
+			msg->x_msg_header. msg_length,
+			&coredev->init_device_done);
+
+	kfree(buffer);
+	return rc;
 }
 
 /**
@@ -806,13 +1336,11 @@ static inline char *sms_get_fw_name(struct smscore_device_t *coredev,
  */
 int smscore_set_device_mode(struct smscore_device_t *coredev, int mode)
 {
-	void *buffer;
 	int rc = 0;
-	enum sms_device_type_st type;
 
 	sms_debug("set device mode to %d", mode);
 	if (coredev->device_flags & SMS_DEVICE_FAMILY2) {
-		if (mode < DEVICE_MODE_DVBT || mode >= DEVICE_MODE_RAW_TUNER) {
+		if (mode <= DEVICE_MODE_NONE || mode >= DEVICE_MODE_MAX) {
 			sms_err("invalid mode specified %d", mode);
 			return -EINVAL;
 		}
@@ -833,58 +1361,21 @@ int smscore_set_device_mode(struct smscore_device_t *coredev, int mode)
 		}
 
 		if (!(coredev->modes_supported & (1 << mode))) {
-			char *fw_filename;
-
-			type = smscore_registry_gettype(coredev->devpath);
-			fw_filename = sms_get_fw_name(coredev, mode, type);
-
 			rc = smscore_load_firmware_from_file(coredev,
-							     fw_filename, NULL);
-			if (rc < 0) {
-				sms_warn("error %d loading firmware: %s, "
-					 "trying again with default firmware",
-					 rc, fw_filename);
-
-				/* try again with the default firmware */
-				fw_filename = smscore_fw_lkup[mode][type];
-				rc = smscore_load_firmware_from_file(coredev,
-							     fw_filename, NULL);
-
-				if (rc < 0) {
-					sms_warn("error %d loading "
-						 "firmware: %s", rc,
-						 fw_filename);
-					return rc;
-				}
-			}
-			sms_log("firmware download success: %s", fw_filename);
-		} else
-			sms_info("mode %d supported by running "
-				 "firmware", mode);
-
-		buffer = kmalloc(sizeof(struct SmsMsgData_ST) +
-				 SMS_DMA_ALIGNMENT, GFP_KERNEL | GFP_DMA);
-		if (buffer) {
-			struct SmsMsgData_ST *msg =
-				(struct SmsMsgData_ST *)
-					SMS_ALIGN_ADDRESS(buffer);
-
-			SMS_INIT_MSG(&msg->xMsgHeader, MSG_SMS_INIT_DEVICE_REQ,
-				     sizeof(struct SmsMsgData_ST));
-			msg->msgData[0] = mode;
-
-			rc = smscore_sendrequest_and_wait(
-				coredev, msg, msg->xMsgHeader.msgLength,
-				&coredev->init_device_done);
-
-			kfree(buffer);
+							     mode, NULL);
+			if (rc >= 0)
+				sms_info("firmware download success");
 		} else {
-			sms_err("Could not allocate buffer for "
-				"init device message.");
-			rc = -ENOMEM;
+			sms_info("mode %d is already supported by running firmware",
+				 mode);
+		}
+		if (coredev->fw_version >= 0x800) {
+			rc = smscore_init_device(coredev, mode);
+			if (rc < 0)
+				sms_err("device init failed, rc %d.", rc);
 		}
 	} else {
-		if (mode < DEVICE_MODE_DVBT || mode > DEVICE_MODE_DVBT_BDA) {
+		if (mode <= DEVICE_MODE_NONE || mode >= DEVICE_MODE_MAX) {
 			sms_err("invalid mode specified %d", mode);
 			return -EINVAL;
 		}
@@ -900,12 +1391,32 @@ int smscore_set_device_mode(struct smscore_device_t *coredev, int mode)
 	}
 
 	if (rc >= 0) {
+		char *buffer;
 		coredev->mode = mode;
 		coredev->device_flags &= ~SMS_DEVICE_NOT_READY;
+
+		buffer = kmalloc(sizeof(struct sms_msg_data) +
+				 SMS_DMA_ALIGNMENT, GFP_KERNEL | GFP_DMA);
+		if (buffer) {
+			struct sms_msg_data *msg = (struct sms_msg_data *) SMS_ALIGN_ADDRESS(buffer);
+
+			SMS_INIT_MSG(&msg->x_msg_header, MSG_SMS_INIT_DEVICE_REQ,
+				     sizeof(struct sms_msg_data));
+			msg->msg_data[0] = mode;
+
+			rc = smscore_sendrequest_and_wait(
+				coredev, msg, msg->x_msg_header.msg_length,
+				&coredev->init_device_done);
+
+			kfree(buffer);
+		}
 	}
 
 	if (rc < 0)
 		sms_err("return error code %d.", rc);
+	else
+		sms_debug("Success setting device mode.");
+
 	return rc;
 }
 
@@ -971,7 +1482,7 @@ found:
  */
 void smscore_onresponse(struct smscore_device_t *coredev,
 		struct smscore_buffer_t *cb) {
-	struct SmsMsgHdr_ST *phdr = (struct SmsMsgHdr_ST *) ((u8 *) cb->p
+	struct sms_msg_hdr *phdr = (struct sms_msg_hdr *) ((u8 *) cb->p
 			+ cb->offset);
 	struct smscore_client_t *client;
 	int rc = -EBUSY;
@@ -983,7 +1494,7 @@ void smscore_onresponse(struct smscore_device_t *coredev,
 		last_sample_time = time_now;
 
 	if (time_now - last_sample_time > 10000) {
-		sms_debug("\ndata rate %d bytes/secs",
+		sms_debug("data rate %d bytes/secs",
 			  (int)((data_total * 1000) /
 				(time_now - last_sample_time)));
 
@@ -993,14 +1504,14 @@ void smscore_onresponse(struct smscore_device_t *coredev,
 
 	data_total += cb->size;
 	/* Do we need to re-route? */
-	if ((phdr->msgType == MSG_SMS_HO_PER_SLICES_IND) ||
-			(phdr->msgType == MSG_SMS_TRANSMISSION_IND)) {
+	if ((phdr->msg_type == MSG_SMS_HO_PER_SLICES_IND) ||
+			(phdr->msg_type == MSG_SMS_TRANSMISSION_IND)) {
 		if (coredev->mode == DEVICE_MODE_DVBT_BDA)
-			phdr->msgDstId = DVBT_BDA_CONTROL_MSG_ID;
+			phdr->msg_dst_id = DVBT_BDA_CONTROL_MSG_ID;
 	}
 
 
-	client = smscore_find_client(coredev, phdr->msgType, phdr->msgDstId);
+	client = smscore_find_client(coredev, phdr->msg_type, phdr->msg_dst_id);
 
 	/* If no client registered for type & id,
 	 * check for control client where type is not registered */
@@ -1008,57 +1519,75 @@ void smscore_onresponse(struct smscore_device_t *coredev,
 		rc = client->onresponse_handler(client->context, cb);
 
 	if (rc < 0) {
-		switch (phdr->msgType) {
+		switch (phdr->msg_type) {
+		case MSG_SMS_ISDBT_TUNE_RES:
+			break;
+		case MSG_SMS_RF_TUNE_RES:
+			break;
+		case MSG_SMS_SIGNAL_DETECTED_IND:
+			break;
+		case MSG_SMS_NO_SIGNAL_IND:
+			break;
+		case MSG_SMS_SPI_INT_LINE_SET_RES:
+			break;
+		case MSG_SMS_INTERFACE_LOCK_IND:
+			break;
+		case MSG_SMS_INTERFACE_UNLOCK_IND:
+			break;
 		case MSG_SMS_GET_VERSION_EX_RES:
 		{
-			struct SmsVersionRes_ST *ver =
-				(struct SmsVersionRes_ST *) phdr;
-			sms_debug("MSG_SMS_GET_VERSION_EX_RES "
-				  "id %d prots 0x%x ver %d.%d",
-				  ver->FirmwareId, ver->SupportedProtocols,
-				  ver->RomVersionMajor, ver->RomVersionMinor);
+			struct sms_version_res *ver =
+				(struct sms_version_res *) phdr;
+			sms_debug("Firmware id %d prots 0x%x ver %d.%d",
+				  ver->firmware_id, ver->supported_protocols,
+				  ver->rom_ver_major, ver->rom_ver_minor);
 
-			coredev->mode = ver->FirmwareId == 255 ?
-				DEVICE_MODE_NONE : ver->FirmwareId;
-			coredev->modes_supported = ver->SupportedProtocols;
+			coredev->mode = ver->firmware_id == 255 ?
+				DEVICE_MODE_NONE : ver->firmware_id;
+			coredev->modes_supported = ver->supported_protocols;
+			coredev->fw_version = ver->rom_ver_major << 8 |
+					      ver->rom_ver_minor;
 
 			complete(&coredev->version_ex_done);
 			break;
 		}
 		case MSG_SMS_INIT_DEVICE_RES:
-			sms_debug("MSG_SMS_INIT_DEVICE_RES");
 			complete(&coredev->init_device_done);
 			break;
 		case MSG_SW_RELOAD_START_RES:
-			sms_debug("MSG_SW_RELOAD_START_RES");
 			complete(&coredev->reload_start_done);
 			break;
+		case MSG_SMS_DATA_VALIDITY_RES:
+		{
+			struct sms_msg_data *validity = (struct sms_msg_data *) phdr;
+
+			sms_err("MSG_SMS_DATA_VALIDITY_RES, checksum = 0x%x",
+				validity->msg_data[0]);
+			complete(&coredev->data_validity_done);
+			break;
+		}
 		case MSG_SMS_DATA_DOWNLOAD_RES:
 			complete(&coredev->data_download_done);
 			break;
 		case MSG_SW_RELOAD_EXEC_RES:
-			sms_debug("MSG_SW_RELOAD_EXEC_RES");
 			break;
 		case MSG_SMS_SWDOWNLOAD_TRIGGER_RES:
-			sms_debug("MSG_SMS_SWDOWNLOAD_TRIGGER_RES");
 			complete(&coredev->trigger_done);
 			break;
 		case MSG_SMS_SLEEP_RESUME_COMP_IND:
 			complete(&coredev->resume_done);
 			break;
 		case MSG_SMS_GPIO_CONFIG_EX_RES:
-			sms_debug("MSG_SMS_GPIO_CONFIG_EX_RES");
 			complete(&coredev->gpio_configuration_done);
 			break;
 		case MSG_SMS_GPIO_SET_LEVEL_RES:
-			sms_debug("MSG_SMS_GPIO_SET_LEVEL_RES");
 			complete(&coredev->gpio_set_level_done);
 			break;
 		case MSG_SMS_GPIO_GET_LEVEL_RES:
 		{
 			u32 *msgdata = (u32 *) phdr;
 			coredev->gpio_get_res = msgdata[1];
-			sms_debug("MSG_SMS_GPIO_GET_LEVEL_RES gpio level %d",
+			sms_debug("gpio level %d",
 					coredev->gpio_get_res);
 			complete(&coredev->gpio_get_level_done);
 			break;
@@ -1070,12 +1599,24 @@ void smscore_onresponse(struct smscore_device_t *coredev,
 			sms_ir_event(coredev,
 				(const char *)
 				((char *)phdr
-				+ sizeof(struct SmsMsgHdr_ST)),
-				(int)phdr->msgLength
-				- sizeof(struct SmsMsgHdr_ST));
+				+ sizeof(struct sms_msg_hdr)),
+				(int)phdr->msg_length
+				- sizeof(struct sms_msg_hdr));
+			break;
+
+		case MSG_SMS_DVBT_BDA_DATA:
+			/*
+			 * It can be received here, if the frontend is
+			 * tuned into a valid channel and the proper firmware
+			 * is loaded. That happens when the module got removed
+			 * and re-inserted, without powering the device off
+			 */
 			break;
 
 		default:
+			sms_debug("message %s(%d) not handled.",
+				  smscore_translate_msg(phdr->msg_type),
+				  phdr->msg_type);
 			break;
 		}
 		smscore_putbuffer(coredev, cb);
@@ -1257,7 +1798,7 @@ int smsclient_sendrequest(struct smscore_client_t *client,
 			  void *buffer, size_t size)
 {
 	struct smscore_device_t *coredev;
-	struct SmsMsgHdr_ST *phdr = (struct SmsMsgHdr_ST *) buffer;
+	struct sms_msg_hdr *phdr = (struct sms_msg_hdr *) buffer;
 	int rc;
 
 	if (client == NULL) {
@@ -1274,7 +1815,7 @@ int smsclient_sendrequest(struct smscore_client_t *client,
 	}
 
 	rc = smscore_validate_client(client->coredev, client, 0,
-				     phdr->msgSrcId);
+				     phdr->msg_src_id);
 	if (rc < 0)
 		return rc;
 
@@ -1288,16 +1829,16 @@ int smscore_configure_gpio(struct smscore_device_t *coredev, u32 pin,
 			   struct smscore_config_gpio *pinconfig)
 {
 	struct {
-		struct SmsMsgHdr_ST hdr;
+		struct sms_msg_hdr hdr;
 		u32 data[6];
 	} msg;
 
 	if (coredev->device_flags & SMS_DEVICE_FAMILY2) {
-		msg.hdr.msgSrcId = DVBT_BDA_CONTROL_MSG_ID;
-		msg.hdr.msgDstId = HIF_TASK;
-		msg.hdr.msgFlags = 0;
-		msg.hdr.msgType  = MSG_SMS_GPIO_CONFIG_EX_REQ;
-		msg.hdr.msgLength = sizeof(msg);
+		msg.hdr.msg_src_id = DVBT_BDA_CONTROL_MSG_ID;
+		msg.hdr.msg_dst_id = HIF_TASK;
+		msg.hdr.msg_flags = 0;
+		msg.hdr.msg_type  = MSG_SMS_GPIO_CONFIG_EX_REQ;
+		msg.hdr.msg_length = sizeof(msg);
 
 		msg.data[0] = pin;
 		msg.data[1] = pinconfig->pullupdown;
@@ -1306,16 +1847,16 @@ int smscore_configure_gpio(struct smscore_device_t *coredev, u32 pin,
 		msg.data[2] = pinconfig->outputslewrate == 0 ? 3 : 0;
 
 		switch (pinconfig->outputdriving) {
-		case SMS_GPIO_OUTPUTDRIVING_16mA:
+		case SMS_GPIO_OUTPUTDRIVING_S_16mA:
 			msg.data[3] = 7; /* Nova - 16mA */
 			break;
-		case SMS_GPIO_OUTPUTDRIVING_12mA:
+		case SMS_GPIO_OUTPUTDRIVING_S_12mA:
 			msg.data[3] = 5; /* Nova - 11mA */
 			break;
-		case SMS_GPIO_OUTPUTDRIVING_8mA:
+		case SMS_GPIO_OUTPUTDRIVING_S_8mA:
 			msg.data[3] = 3; /* Nova - 7mA */
 			break;
-		case SMS_GPIO_OUTPUTDRIVING_4mA:
+		case SMS_GPIO_OUTPUTDRIVING_S_4mA:
 		default:
 			msg.data[3] = 2; /* Nova - 4mA */
 			break;
@@ -1333,18 +1874,18 @@ int smscore_configure_gpio(struct smscore_device_t *coredev, u32 pin,
 int smscore_set_gpio(struct smscore_device_t *coredev, u32 pin, int level)
 {
 	struct {
-		struct SmsMsgHdr_ST hdr;
+		struct sms_msg_hdr hdr;
 		u32 data[3];
 	} msg;
 
 	if (pin > MAX_GPIO_PIN_NUMBER)
 		return -EINVAL;
 
-	msg.hdr.msgSrcId = DVBT_BDA_CONTROL_MSG_ID;
-	msg.hdr.msgDstId = HIF_TASK;
-	msg.hdr.msgFlags = 0;
-	msg.hdr.msgType  = MSG_SMS_GPIO_SET_LEVEL_REQ;
-	msg.hdr.msgLength = sizeof(msg);
+	msg.hdr.msg_src_id = DVBT_BDA_CONTROL_MSG_ID;
+	msg.hdr.msg_dst_id = HIF_TASK;
+	msg.hdr.msg_flags = 0;
+	msg.hdr.msg_type  = MSG_SMS_GPIO_SET_LEVEL_REQ;
+	msg.hdr.msg_length = sizeof(msg);
 
 	msg.data[0] = pin;
 	msg.data[1] = level ? 1 : 0;
@@ -1355,122 +1896,121 @@ int smscore_set_gpio(struct smscore_device_t *coredev, u32 pin, int level)
 }
 
 /* new GPIO management implementation */
-static int GetGpioPinParams(u32 PinNum, u32 *pTranslatedPinNum,
-		u32 *pGroupNum, u32 *pGroupCfg) {
+static int get_gpio_pin_params(u32 pin_num, u32 *p_translatedpin_num,
+		u32 *p_group_num, u32 *p_group_cfg) {
 
-	*pGroupCfg = 1;
+	*p_group_cfg = 1;
 
-	if (PinNum <= 1)	{
-		*pTranslatedPinNum = 0;
-		*pGroupNum = 9;
-		*pGroupCfg = 2;
-	} else if (PinNum >= 2 && PinNum <= 6) {
-		*pTranslatedPinNum = 2;
-		*pGroupNum = 0;
-		*pGroupCfg = 2;
-	} else if (PinNum >= 7 && PinNum <= 11) {
-		*pTranslatedPinNum = 7;
-		*pGroupNum = 1;
-	} else if (PinNum >= 12 && PinNum <= 15) {
-		*pTranslatedPinNum = 12;
-		*pGroupNum = 2;
-		*pGroupCfg = 3;
-	} else if (PinNum == 16) {
-		*pTranslatedPinNum = 16;
-		*pGroupNum = 23;
-	} else if (PinNum >= 17 && PinNum <= 24) {
-		*pTranslatedPinNum = 17;
-		*pGroupNum = 3;
-	} else if (PinNum == 25) {
-		*pTranslatedPinNum = 25;
-		*pGroupNum = 6;
-	} else if (PinNum >= 26 && PinNum <= 28) {
-		*pTranslatedPinNum = 26;
-		*pGroupNum = 4;
-	} else if (PinNum == 29) {
-		*pTranslatedPinNum = 29;
-		*pGroupNum = 5;
-		*pGroupCfg = 2;
-	} else if (PinNum == 30) {
-		*pTranslatedPinNum = 30;
-		*pGroupNum = 8;
-	} else if (PinNum == 31) {
-		*pTranslatedPinNum = 31;
-		*pGroupNum = 17;
+	if (pin_num <= 1)	{
+		*p_translatedpin_num = 0;
+		*p_group_num = 9;
+		*p_group_cfg = 2;
+	} else if (pin_num >= 2 && pin_num <= 6) {
+		*p_translatedpin_num = 2;
+		*p_group_num = 0;
+		*p_group_cfg = 2;
+	} else if (pin_num >= 7 && pin_num <= 11) {
+		*p_translatedpin_num = 7;
+		*p_group_num = 1;
+	} else if (pin_num >= 12 && pin_num <= 15) {
+		*p_translatedpin_num = 12;
+		*p_group_num = 2;
+		*p_group_cfg = 3;
+	} else if (pin_num == 16) {
+		*p_translatedpin_num = 16;
+		*p_group_num = 23;
+	} else if (pin_num >= 17 && pin_num <= 24) {
+		*p_translatedpin_num = 17;
+		*p_group_num = 3;
+	} else if (pin_num == 25) {
+		*p_translatedpin_num = 25;
+		*p_group_num = 6;
+	} else if (pin_num >= 26 && pin_num <= 28) {
+		*p_translatedpin_num = 26;
+		*p_group_num = 4;
+	} else if (pin_num == 29) {
+		*p_translatedpin_num = 29;
+		*p_group_num = 5;
+		*p_group_cfg = 2;
+	} else if (pin_num == 30) {
+		*p_translatedpin_num = 30;
+		*p_group_num = 8;
+	} else if (pin_num == 31) {
+		*p_translatedpin_num = 31;
+		*p_group_num = 17;
 	} else
 		return -1;
 
-	*pGroupCfg <<= 24;
+	*p_group_cfg <<= 24;
 
 	return 0;
 }
 
-int smscore_gpio_configure(struct smscore_device_t *coredev, u8 PinNum,
-		struct smscore_gpio_config *pGpioConfig) {
+int smscore_gpio_configure(struct smscore_device_t *coredev, u8 pin_num,
+		struct smscore_config_gpio *p_gpio_config) {
 
-	u32 totalLen;
-	u32 TranslatedPinNum = 0;
-	u32 GroupNum = 0;
-	u32 ElectricChar;
-	u32 groupCfg;
+	u32 total_len;
+	u32 translatedpin_num = 0;
+	u32 group_num = 0;
+	u32 electric_char;
+	u32 group_cfg;
 	void *buffer;
 	int rc;
 
-	struct SetGpioMsg {
-		struct SmsMsgHdr_ST xMsgHeader;
-		u32 msgData[6];
-	} *pMsg;
+	struct set_gpio_msg {
+		struct sms_msg_hdr x_msg_header;
+		u32 msg_data[6];
+	} *p_msg;
 
 
-	if (PinNum > MAX_GPIO_PIN_NUMBER)
+	if (pin_num > MAX_GPIO_PIN_NUMBER)
 		return -EINVAL;
 
-	if (pGpioConfig == NULL)
+	if (p_gpio_config == NULL)
 		return -EINVAL;
 
-	totalLen = sizeof(struct SmsMsgHdr_ST) + (sizeof(u32) * 6);
+	total_len = sizeof(struct sms_msg_hdr) + (sizeof(u32) * 6);
 
-	buffer = kmalloc(totalLen + SMS_DMA_ALIGNMENT,
+	buffer = kmalloc(total_len + SMS_DMA_ALIGNMENT,
 			GFP_KERNEL | GFP_DMA);
 	if (!buffer)
 		return -ENOMEM;
 
-	pMsg = (struct SetGpioMsg *) SMS_ALIGN_ADDRESS(buffer);
+	p_msg = (struct set_gpio_msg *) SMS_ALIGN_ADDRESS(buffer);
 
-	pMsg->xMsgHeader.msgSrcId = DVBT_BDA_CONTROL_MSG_ID;
-	pMsg->xMsgHeader.msgDstId = HIF_TASK;
-	pMsg->xMsgHeader.msgFlags = 0;
-	pMsg->xMsgHeader.msgLength = (u16) totalLen;
-	pMsg->msgData[0] = PinNum;
+	p_msg->x_msg_header.msg_src_id = DVBT_BDA_CONTROL_MSG_ID;
+	p_msg->x_msg_header.msg_dst_id = HIF_TASK;
+	p_msg->x_msg_header.msg_flags = 0;
+	p_msg->x_msg_header.msg_length = (u16) total_len;
+	p_msg->msg_data[0] = pin_num;
 
 	if (!(coredev->device_flags & SMS_DEVICE_FAMILY2)) {
-		pMsg->xMsgHeader.msgType = MSG_SMS_GPIO_CONFIG_REQ;
-		if (GetGpioPinParams(PinNum, &TranslatedPinNum, &GroupNum,
-				&groupCfg) != 0) {
+		p_msg->x_msg_header.msg_type = MSG_SMS_GPIO_CONFIG_REQ;
+		if (get_gpio_pin_params(pin_num, &translatedpin_num, &group_num,
+				&group_cfg) != 0) {
 			rc = -EINVAL;
 			goto free;
 		}
 
-		pMsg->msgData[1] = TranslatedPinNum;
-		pMsg->msgData[2] = GroupNum;
-		ElectricChar = (pGpioConfig->PullUpDown)
-				| (pGpioConfig->InputCharacteristics << 2)
-				| (pGpioConfig->OutputSlewRate << 3)
-				| (pGpioConfig->OutputDriving << 4);
-		pMsg->msgData[3] = ElectricChar;
-		pMsg->msgData[4] = pGpioConfig->Direction;
-		pMsg->msgData[5] = groupCfg;
+		p_msg->msg_data[1] = translatedpin_num;
+		p_msg->msg_data[2] = group_num;
+		electric_char = (p_gpio_config->pullupdown)
+				| (p_gpio_config->inputcharacteristics << 2)
+				| (p_gpio_config->outputslewrate << 3)
+				| (p_gpio_config->outputdriving << 4);
+		p_msg->msg_data[3] = electric_char;
+		p_msg->msg_data[4] = p_gpio_config->direction;
+		p_msg->msg_data[5] = group_cfg;
 	} else {
-		pMsg->xMsgHeader.msgType = MSG_SMS_GPIO_CONFIG_EX_REQ;
-		pMsg->msgData[1] = pGpioConfig->PullUpDown;
-		pMsg->msgData[2] = pGpioConfig->OutputSlewRate;
-		pMsg->msgData[3] = pGpioConfig->OutputDriving;
-		pMsg->msgData[4] = pGpioConfig->Direction;
-		pMsg->msgData[5] = 0;
+		p_msg->x_msg_header.msg_type = MSG_SMS_GPIO_CONFIG_EX_REQ;
+		p_msg->msg_data[1] = p_gpio_config->pullupdown;
+		p_msg->msg_data[2] = p_gpio_config->outputslewrate;
+		p_msg->msg_data[3] = p_gpio_config->outputdriving;
+		p_msg->msg_data[4] = p_gpio_config->direction;
+		p_msg->msg_data[5] = 0;
 	}
 
-	smsendian_handle_tx_message((struct SmsMsgHdr_ST *)pMsg);
-	rc = smscore_sendrequest_and_wait(coredev, pMsg, totalLen,
+	rc = smscore_sendrequest_and_wait(coredev, p_msg, total_len,
 			&coredev->gpio_configuration_done);
 
 	if (rc != 0) {
@@ -1485,42 +2025,41 @@ free:
 	return rc;
 }
 
-int smscore_gpio_set_level(struct smscore_device_t *coredev, u8 PinNum,
-		u8 NewLevel) {
+int smscore_gpio_set_level(struct smscore_device_t *coredev, u8 pin_num,
+		u8 new_level) {
 
-	u32 totalLen;
+	u32 total_len;
 	int rc;
 	void *buffer;
 
-	struct SetGpioMsg {
-		struct SmsMsgHdr_ST xMsgHeader;
-		u32 msgData[3]; /* keep it 3 ! */
-	} *pMsg;
+	struct set_gpio_msg {
+		struct sms_msg_hdr x_msg_header;
+		u32 msg_data[3]; /* keep it 3 ! */
+	} *p_msg;
 
-	if ((NewLevel > 1) || (PinNum > MAX_GPIO_PIN_NUMBER))
+	if ((new_level > 1) || (pin_num > MAX_GPIO_PIN_NUMBER))
 		return -EINVAL;
 
-	totalLen = sizeof(struct SmsMsgHdr_ST) +
+	total_len = sizeof(struct sms_msg_hdr) +
 			(3 * sizeof(u32)); /* keep it 3 ! */
 
-	buffer = kmalloc(totalLen + SMS_DMA_ALIGNMENT,
+	buffer = kmalloc(total_len + SMS_DMA_ALIGNMENT,
 			GFP_KERNEL | GFP_DMA);
 	if (!buffer)
 		return -ENOMEM;
 
-	pMsg = (struct SetGpioMsg *) SMS_ALIGN_ADDRESS(buffer);
+	p_msg = (struct set_gpio_msg *) SMS_ALIGN_ADDRESS(buffer);
 
-	pMsg->xMsgHeader.msgSrcId = DVBT_BDA_CONTROL_MSG_ID;
-	pMsg->xMsgHeader.msgDstId = HIF_TASK;
-	pMsg->xMsgHeader.msgFlags = 0;
-	pMsg->xMsgHeader.msgType = MSG_SMS_GPIO_SET_LEVEL_REQ;
-	pMsg->xMsgHeader.msgLength = (u16) totalLen;
-	pMsg->msgData[0] = PinNum;
-	pMsg->msgData[1] = NewLevel;
+	p_msg->x_msg_header.msg_src_id = DVBT_BDA_CONTROL_MSG_ID;
+	p_msg->x_msg_header.msg_dst_id = HIF_TASK;
+	p_msg->x_msg_header.msg_flags = 0;
+	p_msg->x_msg_header.msg_type = MSG_SMS_GPIO_SET_LEVEL_REQ;
+	p_msg->x_msg_header.msg_length = (u16) total_len;
+	p_msg->msg_data[0] = pin_num;
+	p_msg->msg_data[1] = new_level;
 
 	/* Send message to SMS */
-	smsendian_handle_tx_message((struct SmsMsgHdr_ST *)pMsg);
-	rc = smscore_sendrequest_and_wait(coredev, pMsg, totalLen,
+	rc = smscore_sendrequest_and_wait(coredev, p_msg, total_len,
 			&coredev->gpio_set_level_done);
 
 	if (rc != 0) {
@@ -1534,42 +2073,41 @@ int smscore_gpio_set_level(struct smscore_device_t *coredev, u8 PinNum,
 	return rc;
 }
 
-int smscore_gpio_get_level(struct smscore_device_t *coredev, u8 PinNum,
+int smscore_gpio_get_level(struct smscore_device_t *coredev, u8 pin_num,
 		u8 *level) {
 
-	u32 totalLen;
+	u32 total_len;
 	int rc;
 	void *buffer;
 
-	struct SetGpioMsg {
-		struct SmsMsgHdr_ST xMsgHeader;
-		u32 msgData[2];
-	} *pMsg;
+	struct set_gpio_msg {
+		struct sms_msg_hdr x_msg_header;
+		u32 msg_data[2];
+	} *p_msg;
 
 
-	if (PinNum > MAX_GPIO_PIN_NUMBER)
+	if (pin_num > MAX_GPIO_PIN_NUMBER)
 		return -EINVAL;
 
-	totalLen = sizeof(struct SmsMsgHdr_ST) + (2 * sizeof(u32));
+	total_len = sizeof(struct sms_msg_hdr) + (2 * sizeof(u32));
 
-	buffer = kmalloc(totalLen + SMS_DMA_ALIGNMENT,
+	buffer = kmalloc(total_len + SMS_DMA_ALIGNMENT,
 			GFP_KERNEL | GFP_DMA);
 	if (!buffer)
 		return -ENOMEM;
 
-	pMsg = (struct SetGpioMsg *) SMS_ALIGN_ADDRESS(buffer);
+	p_msg = (struct set_gpio_msg *) SMS_ALIGN_ADDRESS(buffer);
 
-	pMsg->xMsgHeader.msgSrcId = DVBT_BDA_CONTROL_MSG_ID;
-	pMsg->xMsgHeader.msgDstId = HIF_TASK;
-	pMsg->xMsgHeader.msgFlags = 0;
-	pMsg->xMsgHeader.msgType = MSG_SMS_GPIO_GET_LEVEL_REQ;
-	pMsg->xMsgHeader.msgLength = (u16) totalLen;
-	pMsg->msgData[0] = PinNum;
-	pMsg->msgData[1] = 0;
+	p_msg->x_msg_header.msg_src_id = DVBT_BDA_CONTROL_MSG_ID;
+	p_msg->x_msg_header.msg_dst_id = HIF_TASK;
+	p_msg->x_msg_header.msg_flags = 0;
+	p_msg->x_msg_header.msg_type = MSG_SMS_GPIO_GET_LEVEL_REQ;
+	p_msg->x_msg_header.msg_length = (u16) total_len;
+	p_msg->msg_data[0] = pin_num;
+	p_msg->msg_data[1] = 0;
 
 	/* Send message to SMS */
-	smsendian_handle_tx_message((struct SmsMsgHdr_ST *)pMsg);
-	rc = smscore_sendrequest_and_wait(coredev, pMsg, totalLen,
+	rc = smscore_sendrequest_and_wait(coredev, p_msg, total_len,
 			&coredev->gpio_get_level_done);
 
 	if (rc != 0) {
@@ -1635,3 +2173,27 @@ module_exit(smscore_module_exit);
 MODULE_DESCRIPTION("Siano MDTV Core module");
 MODULE_AUTHOR("Siano Mobile Silicon, Inc. (uris@siano-ms.com)");
 MODULE_LICENSE("GPL");
+
+/* This should match what's defined at smscoreapi.h */
+MODULE_FIRMWARE(SMS_FW_ATSC_DENVER);
+MODULE_FIRMWARE(SMS_FW_CMMB_MING_APP);
+MODULE_FIRMWARE(SMS_FW_CMMB_VEGA_12MHZ);
+MODULE_FIRMWARE(SMS_FW_CMMB_VENICE_12MHZ);
+MODULE_FIRMWARE(SMS_FW_DVBH_RIO);
+MODULE_FIRMWARE(SMS_FW_DVB_NOVA_12MHZ_B0);
+MODULE_FIRMWARE(SMS_FW_DVB_NOVA_12MHZ);
+MODULE_FIRMWARE(SMS_FW_DVB_RIO);
+MODULE_FIRMWARE(SMS_FW_FM_RADIO);
+MODULE_FIRMWARE(SMS_FW_FM_RADIO_RIO);
+MODULE_FIRMWARE(SMS_FW_DVBT_HCW_55XXX);
+MODULE_FIRMWARE(SMS_FW_ISDBT_HCW_55XXX);
+MODULE_FIRMWARE(SMS_FW_ISDBT_NOVA_12MHZ_B0);
+MODULE_FIRMWARE(SMS_FW_ISDBT_NOVA_12MHZ);
+MODULE_FIRMWARE(SMS_FW_ISDBT_PELE);
+MODULE_FIRMWARE(SMS_FW_ISDBT_RIO);
+MODULE_FIRMWARE(SMS_FW_DVBT_NOVA_A);
+MODULE_FIRMWARE(SMS_FW_DVBT_NOVA_B);
+MODULE_FIRMWARE(SMS_FW_DVBT_STELLAR);
+MODULE_FIRMWARE(SMS_FW_TDMB_DENVER);
+MODULE_FIRMWARE(SMS_FW_TDMB_NOVA_12MHZ_B0);
+MODULE_FIRMWARE(SMS_FW_TDMB_NOVA_12MHZ);

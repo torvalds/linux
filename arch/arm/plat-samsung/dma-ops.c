@@ -23,23 +23,15 @@ static unsigned samsung_dmadev_request(enum dma_ch dma_ch,
 				struct device *dev, char *ch_name)
 {
 	dma_cap_mask_t mask;
-	void *filter_param;
 
 	dma_cap_zero(mask);
 	dma_cap_set(param->cap, mask);
-
-	/*
-	 * If a dma channel property of a device node from device tree is
-	 * specified, use that as the fliter parameter.
-	 */
-	filter_param = (dma_ch == DMACH_DT_PROP) ?
-		(void *)param->dt_dmach_prop : (void *)dma_ch;
 
 	if (dev->of_node)
 		return (unsigned)dma_request_slave_channel(dev, ch_name);
 	else
 		return (unsigned)dma_request_channel(mask, pl330_filter,
-							filter_param);
+							(void *)dma_ch);
 }
 
 static int samsung_dmadev_release(unsigned ch, void *param)

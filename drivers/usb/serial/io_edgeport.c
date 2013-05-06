@@ -111,7 +111,6 @@ struct edgeport_port {
 	wait_queue_head_t	wait_open;		/* for handling sleeping while waiting for open to finish */
 	wait_queue_head_t	wait_command;		/* for handling sleeping while waiting for command to finish */
 
-	struct async_icount	icount;
 	struct usb_serial_port	*port;			/* loop back to the owner of this object */
 };
 
@@ -215,8 +214,6 @@ static void edge_break(struct tty_struct *tty, int break_state);
 static int  edge_tiocmget(struct tty_struct *tty);
 static int  edge_tiocmset(struct tty_struct *tty,
 					unsigned int set, unsigned int clear);
-static int  edge_get_icount(struct tty_struct *tty,
-				struct serial_icounter_struct *icount);
 static int  edge_startup(struct usb_serial *serial);
 static void edge_disconnect(struct usb_serial *serial);
 static void edge_release(struct usb_serial *serial);
@@ -564,7 +561,6 @@ static void edge_interrupt_callback(struct urb *urb)
 	struct device *dev;
 	struct edgeport_port *edge_port;
 	struct usb_serial_port *port;
-	struct tty_struct *tty;
 	unsigned char *data = urb->transfer_buffer;
 	int length = urb->actual_length;
 	int bytes_avail;
@@ -643,12 +639,7 @@ static void edge_interrupt_callback(struct urb *urb)
 
 					/* tell the tty driver that something
 					   has changed */
-					tty = tty_port_tty_get(
-						&edge_port->port->port);
-					if (tty) {
-						tty_wakeup(tty);
-						tty_kref_put(tty);
-					}
+					tty_port_tty_wakeup(&edge_port->port->port);
 					/* Since we have more credit, check
 					   if more data can be sent */
 					send_more_port_data(edge_serial,
@@ -737,7 +728,6 @@ static void edge_bulk_in_callback(struct urb *urb)
 static void edge_bulk_out_data_callback(struct urb *urb)
 {
 	struct edgeport_port *edge_port = urb->context;
-	struct tty_struct *tty;
 	int status = urb->status;
 
 	if (status) {
@@ -746,14 +736,8 @@ static void edge_bulk_out_data_callback(struct urb *urb)
 			__func__, status);
 	}
 
-	tty = tty_port_tty_get(&edge_port->port->port);
-
-	if (tty && edge_port->open) {
-		/* let the tty driver wakeup if it has a special
-		   write_wakeup function */
-		tty_wakeup(tty);
-	}
-	tty_kref_put(tty);
+	if (edge_port->open)
+		tty_port_tty_wakeup(&edge_port->port->port);
 
 	/* Release the Write URB */
 	edge_port->write_in_progress = false;
@@ -772,7 +756,6 @@ static void edge_bulk_out_data_callback(struct urb *urb)
 static void edge_bulk_out_cmd_callback(struct urb *urb)
 {
 	struct edgeport_port *edge_port = urb->context;
-	struct tty_struct *tty;
 	int status = urb->status;
 
 	atomic_dec(&CmdUrbs);
@@ -793,13 +776,9 @@ static void edge_bulk_out_cmd_callback(struct urb *urb)
 		return;
 	}
 
-	/* Get pointer to tty */
-	tty = tty_port_tty_get(&edge_port->port->port);
-
 	/* tell the tty driver that something has changed */
-	if (tty && edge_port->open)
-		tty_wakeup(tty);
-	tty_kref_put(tty);
+	if (edge_port->open)
+		tty_port_tty_wakeup(&edge_port->port->port);
 
 	/* we have completed the command */
 	edge_port->commandPending = false;
@@ -884,9 +863,6 @@ static int edge_open(struct tty_struct *tty, struct usb_serial_port *port)
 	init_waitqueue_head(&edge_port->wait_open);
 	init_waitqueue_head(&edge_port->wait_chase);
 	init_waitqueue_head(&edge_port->wait_command);
-
-	/* initialize our icount structure */
-	memset(&(edge_port->icount), 0x00, sizeof(edge_port->icount));
 
 	/* initialize our port settings */
 	edge_port->txCredits = 0;	/* Can't send any data yet */
@@ -1314,7 +1290,7 @@ static void send_more_port_data(struct edgeport_serial *edge_serial,
 
 	/* decrement the number of credits we have by the number we just sent */
 	edge_port->txCredits -= count;
-	edge_port->icount.tx += count;
+	edge_port->port->icount.tx += count;
 
 	status = usb_submit_urb(urb, GFP_ATOMIC);
 	if (status) {
@@ -1326,7 +1302,7 @@ static void send_more_port_data(struct edgeport_serial *edge_serial,
 
 		/* revert the credits as something bad happened. */
 		edge_port->txCredits += count;
-		edge_port->icount.tx -= count;
+		edge_port->port->icount.tx -= count;
 	}
 	dev_dbg(dev, "%s wrote %d byte(s) TxCredit %d, Fifo %d\n",
 		__func__, count, edge_port->txCredits, fifo->count);
@@ -1588,31 +1564,6 @@ static int edge_tiocmget(struct tty_struct *tty)
 	return result;
 }
 
-static int edge_get_icount(struct tty_struct *tty,
-				struct serial_icounter_struct *icount)
-{
-	struct usb_serial_port *port = tty->driver_data;
-	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
-	struct async_icount cnow;
-	cnow = edge_port->icount;
-
-	icount->cts = cnow.cts;
-	icount->dsr = cnow.dsr;
-	icount->rng = cnow.rng;
-	icount->dcd = cnow.dcd;
-	icount->rx = cnow.rx;
-	icount->tx = cnow.tx;
-	icount->frame = cnow.frame;
-	icount->overrun = cnow.overrun;
-	icount->parity = cnow.parity;
-	icount->brk = cnow.brk;
-	icount->buf_overrun = cnow.buf_overrun;
-
-	dev_dbg(&port->dev, "%s (%d) TIOCGICOUNT RX=%d, TX=%d\n", __func__,
-		port->number, icount->rx, icount->tx);
-	return 0;
-}
-
 static int get_serial_info(struct edgeport_port *edge_port,
 				struct serial_struct __user *retinfo)
 {
@@ -1649,8 +1600,6 @@ static int edge_ioctl(struct tty_struct *tty,
 	struct usb_serial_port *port = tty->driver_data;
 	DEFINE_WAIT(wait);
 	struct edgeport_port *edge_port = usb_get_serial_port_data(port);
-	struct async_icount cnow;
-	struct async_icount cprev;
 
 	dev_dbg(&port->dev, "%s - port %d, cmd = 0x%x\n", __func__, port->number, cmd);
 
@@ -1662,37 +1611,6 @@ static int edge_ioctl(struct tty_struct *tty,
 	case TIOCGSERIAL:
 		dev_dbg(&port->dev, "%s (%d) TIOCGSERIAL\n", __func__,  port->number);
 		return get_serial_info(edge_port, (struct serial_struct __user *) arg);
-
-	case TIOCMIWAIT:
-		dev_dbg(&port->dev, "%s (%d) TIOCMIWAIT\n", __func__,  port->number);
-		cprev = edge_port->icount;
-		while (1) {
-			prepare_to_wait(&port->delta_msr_wait,
-						&wait, TASK_INTERRUPTIBLE);
-			schedule();
-			finish_wait(&port->delta_msr_wait, &wait);
-			/* see if a signal did it */
-			if (signal_pending(current))
-				return -ERESTARTSYS;
-
-			if (port->serial->disconnected)
-				return -EIO;
-
-			cnow = edge_port->icount;
-			if (cnow.rng == cprev.rng && cnow.dsr == cprev.dsr &&
-			    cnow.dcd == cprev.dcd && cnow.cts == cprev.cts)
-				return -EIO; /* no change => error */
-			if (((arg & TIOCM_RNG) && (cnow.rng != cprev.rng)) ||
-			    ((arg & TIOCM_DSR) && (cnow.dsr != cprev.dsr)) ||
-			    ((arg & TIOCM_CD)  && (cnow.dcd != cprev.dcd)) ||
-			    ((arg & TIOCM_CTS) && (cnow.cts != cprev.cts))) {
-				return 0;
-			}
-			cprev = cnow;
-		}
-		/* NOTREACHED */
-		break;
-
 	}
 	return -ENOIOCTLCMD;
 }
@@ -1866,7 +1784,7 @@ static void process_rcvd_data(struct edgeport_serial *edge_serial,
 						edge_serial->rxPort);
 					edge_tty_recv(edge_port->port, buffer,
 							rxLen);
-					edge_port->icount.rx += rxLen;
+					edge_port->port->icount.rx += rxLen;
 				}
 				buffer += rxLen;
 			}
@@ -2042,7 +1960,7 @@ static void handle_new_msr(struct edgeport_port *edge_port, __u8 newMsr)
 
 	if (newMsr & (EDGEPORT_MSR_DELTA_CTS | EDGEPORT_MSR_DELTA_DSR |
 			EDGEPORT_MSR_DELTA_RI | EDGEPORT_MSR_DELTA_CD)) {
-		icount = &edge_port->icount;
+		icount = &edge_port->port->icount;
 
 		/* update input line counters */
 		if (newMsr & EDGEPORT_MSR_DELTA_CTS)
@@ -2053,7 +1971,7 @@ static void handle_new_msr(struct edgeport_port *edge_port, __u8 newMsr)
 			icount->dcd++;
 		if (newMsr & EDGEPORT_MSR_DELTA_RI)
 			icount->rng++;
-		wake_up_interruptible(&edge_port->port->delta_msr_wait);
+		wake_up_interruptible(&edge_port->port->port.delta_msr_wait);
 	}
 
 	/* Save the new modem status */
@@ -2088,7 +2006,7 @@ static void handle_new_lsr(struct edgeport_port *edge_port, __u8 lsrData,
 		edge_tty_recv(edge_port->port, &data, 1);
 
 	/* update input line counters */
-	icount = &edge_port->icount;
+	icount = &edge_port->port->icount;
 	if (newLsr & LSR_BREAK)
 		icount->brk++;
 	if (newLsr & LSR_OVER_ERR)

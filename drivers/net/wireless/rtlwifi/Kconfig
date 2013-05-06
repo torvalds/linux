@@ -55,6 +55,15 @@ config RTL8723AE
 
 	If you choose to build it as a module, it will be called rtl8723ae
 
+config RTL8188EE
+	tristate "Realtek RTL8188EE Wireless Network Adapter"
+	depends on RTLWIFI && PCI
+	---help---
+	This is the driver for Realtek RTL8188EE 802.11n PCIe
+	wireless network adapters.
+
+	If you choose to build it as a module, it will be called rtl8188ee
+
 config RTL8192CU
 	tristate "Realtek RTL8192CU/RTL8188CU USB Wireless Network Adapter"
 	depends on RTLWIFI && USB

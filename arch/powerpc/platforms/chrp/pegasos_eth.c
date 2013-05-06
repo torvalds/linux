@@ -47,6 +47,25 @@ static struct platform_device mv643xx_eth_shared_device = {
 	.resource	= mv643xx_eth_shared_resources,
 };
 
+/*
+ * The orion mdio driver only covers shared + 0x4 up to shared + 0x84 - 1
+ */
+static struct resource mv643xx_eth_mvmdio_resources[] = {
+	[0] = {
+		.name	= "ethernet mdio base",
+		.start	= 0xf1000000 + MV643XX_ETH_SHARED_REGS + 0x4,
+		.end	= 0xf1000000 + MV643XX_ETH_SHARED_REGS + 0x83,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device mv643xx_eth_mvmdio_device = {
+	.name		= "orion-mdio",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(mv643xx_eth_mvmdio_resources),
+	.resource	= mv643xx_eth_shared_resources,
+};
+
 static struct resource mv643xx_eth_port1_resources[] = {
 	[0] = {
 		.name	= "eth port1 irq",
@@ -82,6 +101,7 @@ static struct platform_device eth_port1_device = {
 
 static struct platform_device *mv643xx_eth_pd_devs[] __initdata = {
 	&mv643xx_eth_shared_device,
+	&mv643xx_eth_mvmdio_device,
 	&eth_port1_device,
 };
 

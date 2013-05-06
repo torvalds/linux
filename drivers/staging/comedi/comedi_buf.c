@@ -192,7 +192,7 @@ unsigned int comedi_buf_write_alloc(struct comedi_async *async,
 {
 	return __comedi_buf_write_alloc(async, nbytes, 0);
 }
-EXPORT_SYMBOL(comedi_buf_write_alloc);
+EXPORT_SYMBOL_GPL(comedi_buf_write_alloc);
 
 /*
  * munging is applied to data by core as it passes between user
@@ -263,7 +263,7 @@ unsigned int comedi_buf_write_free(struct comedi_async *async,
 
 	return nbytes;
 }
-EXPORT_SYMBOL(comedi_buf_write_free);
+EXPORT_SYMBOL_GPL(comedi_buf_write_free);
 
 unsigned int comedi_buf_read_n_available(struct comedi_async *async)
 {
@@ -282,7 +282,7 @@ unsigned int comedi_buf_read_n_available(struct comedi_async *async)
 
 	return num_bytes;
 }
-EXPORT_SYMBOL(comedi_buf_read_n_available);
+EXPORT_SYMBOL_GPL(comedi_buf_read_n_available);
 
 /* allocates a chunk for the reader from filled (and munged) buffer space */
 unsigned int comedi_buf_read_alloc(struct comedi_async *async,
@@ -304,7 +304,7 @@ unsigned int comedi_buf_read_alloc(struct comedi_async *async,
 
 	return nbytes;
 }
-EXPORT_SYMBOL(comedi_buf_read_alloc);
+EXPORT_SYMBOL_GPL(comedi_buf_read_alloc);
 
 static unsigned int comedi_buf_read_n_allocated(struct comedi_async *async)
 {
@@ -332,7 +332,7 @@ unsigned int comedi_buf_read_free(struct comedi_async *async,
 	async->buf_read_ptr %= async->prealloc_bufsz;
 	return nbytes;
 }
-EXPORT_SYMBOL(comedi_buf_read_free);
+EXPORT_SYMBOL_GPL(comedi_buf_read_free);
 
 int comedi_buf_put(struct comedi_async *async, short x)
 {
@@ -346,7 +346,7 @@ int comedi_buf_put(struct comedi_async *async, short x)
 	comedi_buf_write_free(async, sizeof(short));
 	return 1;
 }
-EXPORT_SYMBOL(comedi_buf_put);
+EXPORT_SYMBOL_GPL(comedi_buf_put);
 
 int comedi_buf_get(struct comedi_async *async, short *x)
 {
@@ -359,7 +359,7 @@ int comedi_buf_get(struct comedi_async *async, short *x)
 	comedi_buf_read_free(async, sizeof(short));
 	return 1;
 }
-EXPORT_SYMBOL(comedi_buf_get);
+EXPORT_SYMBOL_GPL(comedi_buf_get);
 
 void comedi_buf_memcpy_to(struct comedi_async *async, unsigned int offset,
 			  const void *data, unsigned int num_bytes)
@@ -385,7 +385,7 @@ void comedi_buf_memcpy_to(struct comedi_async *async, unsigned int offset,
 		write_ptr = 0;
 	}
 }
-EXPORT_SYMBOL(comedi_buf_memcpy_to);
+EXPORT_SYMBOL_GPL(comedi_buf_memcpy_to);
 
 void comedi_buf_memcpy_from(struct comedi_async *async, unsigned int offset,
 			    void *dest, unsigned int nbytes)
@@ -412,4 +412,4 @@ void comedi_buf_memcpy_from(struct comedi_async *async, unsigned int offset,
 		read_ptr = 0;
 	}
 }
-EXPORT_SYMBOL(comedi_buf_memcpy_from);
+EXPORT_SYMBOL_GPL(comedi_buf_memcpy_from);

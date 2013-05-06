@@ -58,10 +58,6 @@
 #include "comedi_fc.h"
 #include "mite.h"
 
-#define PCI_MITE_SIZE		4096
-#define PCI_DAQ_SIZE		4096
-#define PCI_DAQ_SIZE_660X       8192
-
 #define TOP_OF_PAGE(x) ((x)|(~(PAGE_MASK)))
 
 struct mite_struct *mite_alloc(struct pci_dev *pcidev)
@@ -81,7 +77,7 @@ struct mite_struct *mite_alloc(struct pci_dev *pcidev)
 	}
 	return mite;
 }
-EXPORT_SYMBOL(mite_alloc);
+EXPORT_SYMBOL_GPL(mite_alloc);
 
 static void dump_chip_signature(u32 csigr_bits)
 {
@@ -104,40 +100,28 @@ static unsigned mite_fifo_size(struct mite_struct *mite, unsigned channel)
 int mite_setup2(struct mite_struct *mite, unsigned use_iodwbsr_1)
 {
 	unsigned long length;
-	resource_size_t addr;
 	int i;
 	u32 csigr_bits;
 	unsigned unknown_dma_burst_bits;
 
-	if (comedi_pci_enable(mite->pcidev, "mite")) {
-		dev_err(&mite->pcidev->dev,
-			"error enabling mite and requesting io regions\n");
-		return -EIO;
-	}
 	pci_set_master(mite->pcidev);
 
-	addr = pci_resource_start(mite->pcidev, 0);
-	mite->mite_phys_addr = addr;
-	mite->mite_io_addr = ioremap(addr, PCI_MITE_SIZE);
+	mite->mite_io_addr = pci_ioremap_bar(mite->pcidev, 0);
 	if (!mite->mite_io_addr) {
 		dev_err(&mite->pcidev->dev,
 			"Failed to remap mite io memory address\n");
 		return -ENOMEM;
 	}
+	mite->mite_phys_addr = pci_resource_start(mite->pcidev, 0);
 
-	addr = pci_resource_start(mite->pcidev, 1);
-	mite->daq_phys_addr = addr;
-	length = pci_resource_len(mite->pcidev, 1);
-	/*
-	 * In case of a 660x board, DAQ size is 8k instead of 4k
-	 * (see as shown by lspci output)
-	 */
-	mite->daq_io_addr = ioremap(mite->daq_phys_addr, length);
+	mite->daq_io_addr = pci_ioremap_bar(mite->pcidev, 1);
 	if (!mite->daq_io_addr) {
 		dev_err(&mite->pcidev->dev,
 			"Failed to remap daq io memory address\n");
 		return -ENOMEM;
 	}
+	mite->daq_phys_addr = pci_resource_start(mite->pcidev, 1);
+	length = pci_resource_len(mite->pcidev, 1);
 
 	if (use_iodwbsr_1) {
 		writel(0, mite->mite_io_addr + MITE_IODWBSR);
@@ -185,13 +169,13 @@ int mite_setup2(struct mite_struct *mite, unsigned use_iodwbsr_1)
 	dev_info(&mite->pcidev->dev, "fifo size is %i.\n", mite->fifo_size);
 	return 0;
 }
-EXPORT_SYMBOL(mite_setup2);
+EXPORT_SYMBOL_GPL(mite_setup2);
 
 int mite_setup(struct mite_struct *mite)
 {
 	return mite_setup2(mite, 0);
 }
-EXPORT_SYMBOL(mite_setup);
+EXPORT_SYMBOL_GPL(mite_setup);
 
 void mite_unsetup(struct mite_struct *mite)
 {
@@ -208,12 +192,10 @@ void mite_unsetup(struct mite_struct *mite)
 		iounmap(mite->daq_io_addr);
 		mite->daq_io_addr = NULL;
 	}
-	if (mite->mite_phys_addr) {
-		comedi_pci_disable(mite->pcidev);
+	if (mite->mite_phys_addr)
 		mite->mite_phys_addr = 0;
-	}
 }
-EXPORT_SYMBOL(mite_unsetup);
+EXPORT_SYMBOL_GPL(mite_unsetup);
 
 struct mite_dma_descriptor_ring *mite_alloc_ring(struct mite_struct *mite)
 {
@@ -232,7 +214,7 @@ struct mite_dma_descriptor_ring *mite_alloc_ring(struct mite_struct *mite)
 	ring->descriptors_dma_addr = 0;
 	return ring;
 };
-EXPORT_SYMBOL(mite_alloc_ring);
+EXPORT_SYMBOL_GPL(mite_alloc_ring);
 
 void mite_free_ring(struct mite_dma_descriptor_ring *ring)
 {
@@ -248,7 +230,7 @@ void mite_free_ring(struct mite_dma_descriptor_ring *ring)
 		kfree(ring);
 	}
 };
-EXPORT_SYMBOL(mite_free_ring);
+EXPORT_SYMBOL_GPL(mite_free_ring);
 
 struct mite_channel *mite_request_channel_in_range(struct mite_struct *mite,
 						   struct
@@ -275,7 +257,7 @@ struct mite_channel *mite_request_channel_in_range(struct mite_struct *mite,
 	spin_unlock_irqrestore(&mite->lock, flags);
 	return channel;
 }
-EXPORT_SYMBOL(mite_request_channel_in_range);
+EXPORT_SYMBOL_GPL(mite_request_channel_in_range);
 
 void mite_release_channel(struct mite_channel *mite_chan)
 {
@@ -302,7 +284,7 @@ void mite_release_channel(struct mite_channel *mite_chan)
 	}
 	spin_unlock_irqrestore(&mite->lock, flags);
 }
-EXPORT_SYMBOL(mite_release_channel);
+EXPORT_SYMBOL_GPL(mite_release_channel);
 
 void mite_dma_arm(struct mite_channel *mite_chan)
 {
@@ -325,7 +307,7 @@ void mite_dma_arm(struct mite_channel *mite_chan)
 	spin_unlock_irqrestore(&mite->lock, flags);
 /*       mite_dma_tcr(mite, channel); */
 }
-EXPORT_SYMBOL(mite_dma_arm);
+EXPORT_SYMBOL_GPL(mite_dma_arm);
 
 /**************************************/
 
@@ -382,7 +364,7 @@ int mite_buf_change(struct mite_dma_descriptor_ring *ring,
 	smp_wmb();
 	return 0;
 }
-EXPORT_SYMBOL(mite_buf_change);
+EXPORT_SYMBOL_GPL(mite_buf_change);
 
 void mite_prep_dma(struct mite_channel *mite_chan,
 		   unsigned int num_device_bits, unsigned int num_memory_bits)
@@ -473,7 +455,7 @@ void mite_prep_dma(struct mite_channel *mite_chan,
 
 	MDPRINTK("exit mite_prep_dma\n");
 }
-EXPORT_SYMBOL(mite_prep_dma);
+EXPORT_SYMBOL_GPL(mite_prep_dma);
 
 static u32 mite_device_bytes_transferred(struct mite_channel *mite_chan)
 {
@@ -487,7 +469,7 @@ u32 mite_bytes_in_transit(struct mite_channel *mite_chan)
 	return readl(mite->mite_io_addr +
 		     MITE_FCR(mite_chan->channel)) & 0x000000FF;
 }
-EXPORT_SYMBOL(mite_bytes_in_transit);
+EXPORT_SYMBOL_GPL(mite_bytes_in_transit);
 
 /* returns lower bound for number of bytes transferred from device to memory */
 u32 mite_bytes_written_to_memory_lb(struct mite_channel *mite_chan)
@@ -497,7 +479,7 @@ u32 mite_bytes_written_to_memory_lb(struct mite_channel *mite_chan)
 	device_byte_count = mite_device_bytes_transferred(mite_chan);
 	return device_byte_count - mite_bytes_in_transit(mite_chan);
 }
-EXPORT_SYMBOL(mite_bytes_written_to_memory_lb);
+EXPORT_SYMBOL_GPL(mite_bytes_written_to_memory_lb);
 
 /* returns upper bound for number of bytes transferred from device to memory */
 u32 mite_bytes_written_to_memory_ub(struct mite_channel *mite_chan)
@@ -507,7 +489,7 @@ u32 mite_bytes_written_to_memory_ub(struct mite_channel *mite_chan)
 	in_transit_count = mite_bytes_in_transit(mite_chan);
 	return mite_device_bytes_transferred(mite_chan) - in_transit_count;
 }
-EXPORT_SYMBOL(mite_bytes_written_to_memory_ub);
+EXPORT_SYMBOL_GPL(mite_bytes_written_to_memory_ub);
 
 /* returns lower bound for number of bytes read from memory to device */
 u32 mite_bytes_read_from_memory_lb(struct mite_channel *mite_chan)
@@ -517,7 +499,7 @@ u32 mite_bytes_read_from_memory_lb(struct mite_channel *mite_chan)
 	device_byte_count = mite_device_bytes_transferred(mite_chan);
 	return device_byte_count + mite_bytes_in_transit(mite_chan);
 }
-EXPORT_SYMBOL(mite_bytes_read_from_memory_lb);
+EXPORT_SYMBOL_GPL(mite_bytes_read_from_memory_lb);
 
 /* returns upper bound for number of bytes read from memory to device */
 u32 mite_bytes_read_from_memory_ub(struct mite_channel *mite_chan)
@@ -527,7 +509,7 @@ u32 mite_bytes_read_from_memory_ub(struct mite_channel *mite_chan)
 	in_transit_count = mite_bytes_in_transit(mite_chan);
 	return mite_device_bytes_transferred(mite_chan) + in_transit_count;
 }
-EXPORT_SYMBOL(mite_bytes_read_from_memory_ub);
+EXPORT_SYMBOL_GPL(mite_bytes_read_from_memory_ub);
 
 unsigned mite_dma_tcr(struct mite_channel *mite_chan)
 {
@@ -542,7 +524,7 @@ unsigned mite_dma_tcr(struct mite_channel *mite_chan)
 
 	return tcr;
 }
-EXPORT_SYMBOL(mite_dma_tcr);
+EXPORT_SYMBOL_GPL(mite_dma_tcr);
 
 void mite_dma_disarm(struct mite_channel *mite_chan)
 {
@@ -553,7 +535,7 @@ void mite_dma_disarm(struct mite_channel *mite_chan)
 	chor = CHOR_ABORT;
 	writel(chor, mite->mite_io_addr + MITE_CHOR(mite_chan->channel));
 }
-EXPORT_SYMBOL(mite_dma_disarm);
+EXPORT_SYMBOL_GPL(mite_dma_disarm);
 
 int mite_sync_input_dma(struct mite_channel *mite_chan,
 			struct comedi_async *async)
@@ -591,7 +573,7 @@ int mite_sync_input_dma(struct mite_channel *mite_chan,
 	async->events |= COMEDI_CB_BLOCK;
 	return 0;
 }
-EXPORT_SYMBOL(mite_sync_input_dma);
+EXPORT_SYMBOL_GPL(mite_sync_input_dma);
 
 int mite_sync_output_dma(struct mite_channel *mite_chan,
 			 struct comedi_async *async)
@@ -629,7 +611,7 @@ int mite_sync_output_dma(struct mite_channel *mite_chan,
 	}
 	return 0;
 }
-EXPORT_SYMBOL(mite_sync_output_dma);
+EXPORT_SYMBOL_GPL(mite_sync_output_dma);
 
 unsigned mite_get_status(struct mite_channel *mite_chan)
 {
@@ -648,7 +630,7 @@ unsigned mite_get_status(struct mite_channel *mite_chan)
 	spin_unlock_irqrestore(&mite->lock, flags);
 	return status;
 }
-EXPORT_SYMBOL(mite_get_status);
+EXPORT_SYMBOL_GPL(mite_get_status);
 
 int mite_done(struct mite_channel *mite_chan)
 {
@@ -662,7 +644,7 @@ int mite_done(struct mite_channel *mite_chan)
 	spin_unlock_irqrestore(&mite->lock, flags);
 	return done;
 }
-EXPORT_SYMBOL(mite_done);
+EXPORT_SYMBOL_GPL(mite_done);
 
 #ifdef DEBUG_MITE
 
@@ -795,7 +777,7 @@ void mite_dump_regs(struct mite_channel *mite_chan)
 	value = readl(mite_io_addr + offset);
 	pr_debug("mite status[FCR] at 0x%08x =0x%08x\n", offset, value);
 }
-EXPORT_SYMBOL(mite_dump_regs);
+EXPORT_SYMBOL_GPL(mite_dump_regs);
 #endif
 
 static int __init mite_module_init(void)

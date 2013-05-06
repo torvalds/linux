@@ -241,6 +241,22 @@ static inline u64 drv_prepare_multicast(struct ieee80211_local *local,
 	return ret;
 }
 
+static inline void drv_set_multicast_list(struct ieee80211_local *local,
+					  struct ieee80211_sub_if_data *sdata,
+					  struct netdev_hw_addr_list *mc_list)
+{
+	bool allmulti = sdata->flags & IEEE80211_SDATA_ALLMULTI;
+
+	trace_drv_set_multicast_list(local, sdata, mc_list->count);
+
+	check_sdata_in_driver(sdata);
+
+	if (local->ops->set_multicast_list)
+		local->ops->set_multicast_list(&local->hw, &sdata->vif,
+					       allmulti, mc_list);
+	trace_drv_return_void(local);
+}
+
 static inline void drv_configure_filter(struct ieee80211_local *local,
 					unsigned int changed_flags,
 					unsigned int *total_flags,
@@ -531,43 +547,6 @@ static inline void drv_sta_remove_debugfs(struct ieee80211_local *local,
 		local->ops->sta_remove_debugfs(&local->hw, &sdata->vif,
 					       sta, dir);
 }
-
-static inline
-void drv_add_interface_debugfs(struct ieee80211_local *local,
-			       struct ieee80211_sub_if_data *sdata)
-{
-	might_sleep();
-
-	check_sdata_in_driver(sdata);
-
-	if (!local->ops->add_interface_debugfs)
-		return;
-
-	local->ops->add_interface_debugfs(&local->hw, &sdata->vif,
-					  sdata->debugfs.dir);
-}
-
-static inline
-void drv_remove_interface_debugfs(struct ieee80211_local *local,
-				  struct ieee80211_sub_if_data *sdata)
-{
-	might_sleep();
-
-	check_sdata_in_driver(sdata);
-
-	if (!local->ops->remove_interface_debugfs)
-		return;
-
-	local->ops->remove_interface_debugfs(&local->hw, &sdata->vif,
-					     sdata->debugfs.dir);
-}
-#else
-static inline
-void drv_add_interface_debugfs(struct ieee80211_local *local,
-			       struct ieee80211_sub_if_data *sdata) {}
-static inline
-void drv_remove_interface_debugfs(struct ieee80211_local *local,
-				  struct ieee80211_sub_if_data *sdata) {}
 #endif
 
 static inline __must_check
@@ -741,13 +720,14 @@ static inline void drv_rfkill_poll(struct ieee80211_local *local)
 		local->ops->rfkill_poll(&local->hw);
 }
 
-static inline void drv_flush(struct ieee80211_local *local, bool drop)
+static inline void drv_flush(struct ieee80211_local *local,
+			     u32 queues, bool drop)
 {
 	might_sleep();
 
-	trace_drv_flush(local, drop);
+	trace_drv_flush(local, queues, drop);
 	if (local->ops->flush)
-		local->ops->flush(&local->hw, drop);
+		local->ops->flush(&local->hw, queues, drop);
 	trace_drv_return_void(local);
 }
 
@@ -787,15 +767,16 @@ static inline int drv_get_antenna(struct ieee80211_local *local,
 static inline int drv_remain_on_channel(struct ieee80211_local *local,
 					struct ieee80211_sub_if_data *sdata,
 					struct ieee80211_channel *chan,
-					unsigned int duration)
+					unsigned int duration,
+					enum ieee80211_roc_type type)
 {
 	int ret;
 
 	might_sleep();
 
-	trace_drv_remain_on_channel(local, sdata, chan, duration);
+	trace_drv_remain_on_channel(local, sdata, chan, duration, type);
 	ret = local->ops->remain_on_channel(&local->hw, &sdata->vif,
-					    chan, duration);
+					    chan, duration, type);
 	trace_drv_return_int(local, ret);
 
 	return ret;

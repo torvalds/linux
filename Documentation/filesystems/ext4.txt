@@ -494,6 +494,17 @@ Files in /sys/fs/ext4/<devname>
  session_write_kbytes         This file is read-only and shows the number of
                               kilobytes of data that have been written to this
                               filesystem since it was mounted.
+
+ reserved_clusters            This is RW file and contains number of reserved
+                              clusters in the file system which will be used
+                              in the specific situations to avoid costly
+                              zeroout, unexpected ENOSPC, or possible data
+                              loss. The default is 2% or 4096 clusters,
+                              whichever is smaller and this can be changed
+                              however it can never exceed number of clusters
+                              in the file system. If there is not enough space
+                              for the reserved space when mounting the file
+                              mount will _not_ fail.
 ..............................................................................
 
 Ioctls
@@ -586,6 +597,16 @@ Table of Ext4 specific ioctls
 			      64 bit integer argument.  The kernel allocates
 			      bitmaps and inode table, the userspace tool thus
 			      just passes the new number of blocks.
+
+EXT4_IOC_SWAP_BOOT	      Swap i_blocks and associated attributes
+			      (like i_blocks, i_size, i_flags, ...) from
+			      the specified inode with inode
+			      EXT4_BOOT_LOADER_INO (#5). This is typically
+			      used to store a boot loader in a secure part of
+			      the filesystem, where it can't be changed by a
+			      normal user by accident.
+			      The data blocks of the previous boot loader
+			      will be associated with the given inode.
 
 ..............................................................................
 

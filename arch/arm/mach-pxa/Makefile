@@ -7,12 +7,6 @@ obj-y				+= clock.o devices.o generic.o irq.o \
 				   time.o reset.o
 obj-$(CONFIG_PM)		+= pm.o sleep.o standby.o
 
-ifeq ($(CONFIG_CPU_FREQ),y)
-obj-$(CONFIG_PXA25x)		+= cpufreq-pxa2xx.o
-obj-$(CONFIG_PXA27x)		+= cpufreq-pxa2xx.o
-obj-$(CONFIG_PXA3xx)		+= cpufreq-pxa3xx.o
-endif
-
 # Generic drivers that other drivers may depend upon
 
 # SoC-specific code

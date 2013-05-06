@@ -22,6 +22,7 @@
 #include <scsi/iscsi_proto.h>
 #include <target/target_core_base.h>
 #include <target/target_core_fabric.h>
+#include <target/iscsi/iscsi_transport.h>
 
 #include "iscsi_target_core.h"
 #include "iscsi_target_seq_pdu_list.h"
@@ -52,6 +53,9 @@ int iscsit_dump_data_payload(
 	int ret = DATAOUT_WITHIN_COMMAND_RECOVERY, rx_got;
 	u32 length, padding, offset = 0, size;
 	struct kvec iov;
+
+	if (conn->sess->sess_ops->RDMAExtensions)
+		return 0;
 
 	length = (buf_len > OFFLOAD_BUF_SIZE) ? OFFLOAD_BUF_SIZE : buf_len;
 
@@ -919,6 +923,7 @@ int iscsit_execute_ooo_cmdsns(struct iscsi_session *sess)
 int iscsit_execute_cmd(struct iscsi_cmd *cmd, int ooo)
 {
 	struct se_cmd *se_cmd = &cmd->se_cmd;
+	struct iscsi_conn *conn = cmd->conn;
 	int lr = 0;
 
 	spin_lock_bh(&cmd->istate_lock);
@@ -981,7 +986,7 @@ int iscsit_execute_cmd(struct iscsi_cmd *cmd, int ooo)
 					return 0;
 
 				iscsit_set_dataout_sequence_values(cmd);
-				iscsit_build_r2ts_for_cmd(cmd, cmd->conn, false);
+				conn->conn_transport->iscsit_get_dataout(conn, cmd, false);
 			}
 			return 0;
 		}
@@ -999,10 +1004,7 @@ int iscsit_execute_cmd(struct iscsi_cmd *cmd, int ooo)
 			if (transport_check_aborted_status(se_cmd, 1) != 0)
 				return 0;
 
-			iscsit_set_dataout_sequence_values(cmd);
-			spin_lock_bh(&cmd->dataout_timeout_lock);
-			iscsit_start_dataout_timer(cmd, cmd->conn);
-			spin_unlock_bh(&cmd->dataout_timeout_lock);
+			iscsit_set_unsoliticed_dataout(cmd);
 		}
 		return transport_handle_cdb_direct(&cmd->se_cmd);
 
@@ -1290,3 +1292,4 @@ void iscsit_stop_dataout_timer(struct iscsi_cmd *cmd)
 			cmd->init_task_tag);
 	spin_unlock_bh(&cmd->dataout_timeout_lock);
 }
+EXPORT_SYMBOL(iscsit_stop_dataout_timer);

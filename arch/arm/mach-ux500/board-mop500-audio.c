@@ -10,10 +10,9 @@
 #include <linux/platform_data/pinctrl-nomadik.h>
 #include <linux/platform_data/dma-ste-dma40.h>
 
-#include <mach/devices.h>
-#include <mach/hardware.h>
-#include <mach/irqs.h>
-#include <mach/msp.h>
+#include "devices.h"
+#include "irqs.h"
+#include <linux/platform_data/asoc-ux500-msp.h>
 
 #include "ste-dma40-db8500.h"
 #include "board-mop500.h"

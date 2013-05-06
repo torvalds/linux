@@ -10,16 +10,12 @@
 #include <linux/errno.h>
 #include <linux/smp.h>
 
-#include <asm/cacheflush.h>
 #include <asm/smp_plat.h>
 
 #include "common.h"
 
 static inline void cpu_enter_lowpower(void)
 {
-	/* Just flush the cache. Changing the coherency is not yet
-	 * available on msm. */
-	flush_cache_all();
 }
 
 static inline void cpu_leave_lowpower(void)

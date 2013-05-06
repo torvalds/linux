@@ -1,7 +1,7 @@
 /*
  * Shared glue code for 128bit block ciphers, AVX assembler macros
  *
- * Copyright (c) 2012 Jussi Kivilinna <jussi.kivilinna@mbnet.fi>
+ * Copyright © 2012-2013 Jussi Kivilinna <jussi.kivilinna@iki.fi>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -88,4 +88,63 @@
 	vpxor (5*16)(src), x5, x5; \
 	vpxor (6*16)(src), x6, x6; \
 	vpxor (7*16)(src), x7, x7; \
+	store_8way(dst, x0, x1, x2, x3, x4, x5, x6, x7);
+
+#define gf128mul_x_ble(iv, mask, tmp) \
+	vpsrad $31, iv, tmp; \
+	vpaddq iv, iv, iv; \
+	vpshufd $0x13, tmp, tmp; \
+	vpand mask, tmp, tmp; \
+	vpxor tmp, iv, iv;
+
+#define load_xts_8way(iv, src, dst, x0, x1, x2, x3, x4, x5, x6, x7, tiv, t0, \
+		      t1, xts_gf128mul_and_shl1_mask) \
+	vmovdqa xts_gf128mul_and_shl1_mask, t0; \
+	\
+	/* load IV */ \
+	vmovdqu (iv), tiv; \
+	vpxor (0*16)(src), tiv, x0; \
+	vmovdqu tiv, (0*16)(dst); \
+	\
+	/* construct and store IVs, also xor with source */ \
+	gf128mul_x_ble(tiv, t0, t1); \
+	vpxor (1*16)(src), tiv, x1; \
+	vmovdqu tiv, (1*16)(dst); \
+	\
+	gf128mul_x_ble(tiv, t0, t1); \
+	vpxor (2*16)(src), tiv, x2; \
+	vmovdqu tiv, (2*16)(dst); \
+	\
+	gf128mul_x_ble(tiv, t0, t1); \
+	vpxor (3*16)(src), tiv, x3; \
+	vmovdqu tiv, (3*16)(dst); \
+	\
+	gf128mul_x_ble(tiv, t0, t1); \
+	vpxor (4*16)(src), tiv, x4; \
+	vmovdqu tiv, (4*16)(dst); \
+	\
+	gf128mul_x_ble(tiv, t0, t1); \
+	vpxor (5*16)(src), tiv, x5; \
+	vmovdqu tiv, (5*16)(dst); \
+	\
+	gf128mul_x_ble(tiv, t0, t1); \
+	vpxor (6*16)(src), tiv, x6; \
+	vmovdqu tiv, (6*16)(dst); \
+	\
+	gf128mul_x_ble(tiv, t0, t1); \
+	vpxor (7*16)(src), tiv, x7; \
+	vmovdqu tiv, (7*16)(dst); \
+	\
+	gf128mul_x_ble(tiv, t0, t1); \
+	vmovdqu tiv, (iv);
+
+#define store_xts_8way(dst, x0, x1, x2, x3, x4, x5, x6, x7) \
+	vpxor (0*16)(dst), x0, x0; \
+	vpxor (1*16)(dst), x1, x1; \
+	vpxor (2*16)(dst), x2, x2; \
+	vpxor (3*16)(dst), x3, x3; \
+	vpxor (4*16)(dst), x4, x4; \
+	vpxor (5*16)(dst), x5, x5; \
+	vpxor (6*16)(dst), x6, x6; \
+	vpxor (7*16)(dst), x7, x7; \
 	store_8way(dst, x0, x1, x2, x3, x4, x5, x6, x7);

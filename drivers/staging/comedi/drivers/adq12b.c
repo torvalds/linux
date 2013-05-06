@@ -213,43 +213,19 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct adq12b_private *devpriv;
 	struct comedi_subdevice *s;
-	unsigned long iobase;
-	int unipolar, differential;
 	int ret;
 
-	dev->board_name = dev->driver->driver_name;
-
-	iobase = it->options[0];
-	unipolar = it->options[1];
-	differential = it->options[2];
-
-	printk(KERN_INFO "comedi%d: adq12b called with options base=0x%03lx, "
-	       "%s and %s\n", dev->minor, iobase,
-	       (unipolar == 1) ? "unipolar" : "bipolar",
-	       (differential == 1) ? "differential" : "single-ended");
-
-	/* if no address was specified, try the default 0x300 */
-	if (iobase == 0) {
-		printk(KERN_WARNING "comedi%d: adq12b warning: I/O base "
-		       "address not specified. Trying the default 0x300.\n",
-		       dev->minor);
-		iobase = 0x300;
-	}
-
-	printk("comedi%d: adq12b: 0x%04lx ", dev->minor, iobase);
-	if (!request_region(iobase, ADQ12B_SIZE, "adq12b")) {
-		printk("I/O port conflict\n");
-		return -EIO;
-	}
-	dev->iobase = iobase;
+	ret = comedi_request_region(dev, it->options[0], ADQ12B_SIZE);
+	if (ret)
+		return ret;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	devpriv->unipolar = unipolar;
-	devpriv->differential = differential;
+	devpriv->unipolar = it->options[1];
+	devpriv->differential = it->options[2];
 	devpriv->digital_state = 0;
 	/*
 	 * initialize channel and range to -1 so we make sure we
@@ -265,7 +241,7 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s = &dev->subdevices[0];
 	/* analog input subdevice */
 	s->type = COMEDI_SUBD_AI;
-	if (differential) {
+	if (devpriv->differential) {
 		s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_DIFF;
 		s->n_chan = 8;
 	} else {
@@ -273,7 +249,7 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->n_chan = 16;
 	}
 
-	if (unipolar)
+	if (devpriv->unipolar)
 		s->range_table = &range_adq12b_ai_unipolar;
 	else
 		s->range_table = &range_adq12b_ai_bipolar;
@@ -302,22 +278,14 @@ static int adq12b_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->range_table = &range_digital;
 	s->insn_bits = adq12b_do_insn_bits;
 
-	printk(KERN_INFO "attached\n");
-
 	return 0;
-}
-
-static void adq12b_detach(struct comedi_device *dev)
-{
-	if (dev->iobase)
-		release_region(dev->iobase, ADQ12B_SIZE);
 }
 
 static struct comedi_driver adq12b_driver = {
 	.driver_name	= "adq12b",
 	.module		= THIS_MODULE,
 	.attach		= adq12b_attach,
-	.detach		= adq12b_detach,
+	.detach		= comedi_legacy_detach,
 };
 module_comedi_driver(adq12b_driver);
 

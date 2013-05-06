@@ -261,6 +261,8 @@ int mantis_i2c_exit(struct mantis_pci *mantis)
 	mmwrite((intmask & ~MANTIS_INT_I2CDONE), MANTIS_INT_MASK);
 
 	dprintk(MANTIS_DEBUG, 1, "Removing I2C adapter");
-	return i2c_del_adapter(&mantis->adapter);
+	i2c_del_adapter(&mantis->adapter);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(mantis_i2c_exit);

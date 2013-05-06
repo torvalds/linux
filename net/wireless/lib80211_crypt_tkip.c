@@ -703,30 +703,30 @@ static int lib80211_tkip_get_key(void *key, int len, u8 * seq, void *priv)
 	return TKIP_KEY_LEN;
 }
 
-static char *lib80211_tkip_print_stats(char *p, void *priv)
+static void lib80211_tkip_print_stats(struct seq_file *m, void *priv)
 {
 	struct lib80211_tkip_data *tkip = priv;
-	p += sprintf(p, "key[%d] alg=TKIP key_set=%d "
-		     "tx_pn=%02x%02x%02x%02x%02x%02x "
-		     "rx_pn=%02x%02x%02x%02x%02x%02x "
-		     "replays=%d icv_errors=%d local_mic_failures=%d\n",
-		     tkip->key_idx, tkip->key_set,
-		     (tkip->tx_iv32 >> 24) & 0xff,
-		     (tkip->tx_iv32 >> 16) & 0xff,
-		     (tkip->tx_iv32 >> 8) & 0xff,
-		     tkip->tx_iv32 & 0xff,
-		     (tkip->tx_iv16 >> 8) & 0xff,
-		     tkip->tx_iv16 & 0xff,
-		     (tkip->rx_iv32 >> 24) & 0xff,
-		     (tkip->rx_iv32 >> 16) & 0xff,
-		     (tkip->rx_iv32 >> 8) & 0xff,
-		     tkip->rx_iv32 & 0xff,
-		     (tkip->rx_iv16 >> 8) & 0xff,
-		     tkip->rx_iv16 & 0xff,
-		     tkip->dot11RSNAStatsTKIPReplays,
-		     tkip->dot11RSNAStatsTKIPICVErrors,
-		     tkip->dot11RSNAStatsTKIPLocalMICFailures);
-	return p;
+	seq_printf(m,
+		   "key[%d] alg=TKIP key_set=%d "
+		   "tx_pn=%02x%02x%02x%02x%02x%02x "
+		   "rx_pn=%02x%02x%02x%02x%02x%02x "
+		   "replays=%d icv_errors=%d local_mic_failures=%d\n",
+		   tkip->key_idx, tkip->key_set,
+		   (tkip->tx_iv32 >> 24) & 0xff,
+		   (tkip->tx_iv32 >> 16) & 0xff,
+		   (tkip->tx_iv32 >> 8) & 0xff,
+		   tkip->tx_iv32 & 0xff,
+		   (tkip->tx_iv16 >> 8) & 0xff,
+		   tkip->tx_iv16 & 0xff,
+		   (tkip->rx_iv32 >> 24) & 0xff,
+		   (tkip->rx_iv32 >> 16) & 0xff,
+		   (tkip->rx_iv32 >> 8) & 0xff,
+		   tkip->rx_iv32 & 0xff,
+		   (tkip->rx_iv16 >> 8) & 0xff,
+		   tkip->rx_iv16 & 0xff,
+		   tkip->dot11RSNAStatsTKIPReplays,
+		   tkip->dot11RSNAStatsTKIPICVErrors,
+		   tkip->dot11RSNAStatsTKIPLocalMICFailures);
 }
 
 static struct lib80211_crypto_ops lib80211_crypt_tkip = {

@@ -292,17 +292,7 @@ static int ehci_pci_setup(struct usb_hcd *hcd)
 		}
 	}
 
-#ifdef	CONFIG_USB_SUSPEND
-	/* REVISIT: the controller works fine for wakeup iff the root hub
-	 * itself is "globally" suspended, but usbcore currently doesn't
-	 * understand such things.
-	 *
-	 * System suspend currently expects to be able to suspend the entire
-	 * device tree, device-at-a-time.  If we failed selective suspend
-	 * reports, system suspend would fail; so the root hub code must claim
-	 * success.  That's lying to usbcore, and it matters for runtime
-	 * PM scenarios with selective suspend and remote wakeup...
-	 */
+#ifdef	CONFIG_PM_RUNTIME
 	if (ehci->no_selective_suspend && device_can_wakeup(&pdev->dev))
 		ehci_warn(ehci, "selective suspend/wakeup unavailable\n");
 #endif
@@ -385,7 +375,7 @@ static int ehci_pci_resume(struct usb_hcd *hcd, bool hibernated)
 
 static struct hc_driver __read_mostly ehci_pci_hc_driver;
 
-static const struct ehci_driver_overrides pci_overrides __initdata = {
+static const struct ehci_driver_overrides pci_overrides __initconst = {
 	.reset =		ehci_pci_setup,
 };
 

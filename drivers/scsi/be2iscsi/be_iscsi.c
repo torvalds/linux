@@ -369,7 +369,7 @@ beiscsi_set_vlan_tag(struct Scsi_Host *shost,
 		break;
 	default:
 		beiscsi_log(phba, KERN_WARNING, BEISCSI_LOG_CONFIG,
-			    "BS_%d : Unkown Param Type : %d\n",
+			    "BS_%d : Unknown Param Type : %d\n",
 			    iface_param->param);
 		return -ENOSYS;
 	}

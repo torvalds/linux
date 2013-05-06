@@ -259,7 +259,7 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 		    s32 *min, s32 *max, s32 *step, s32 *def, u32 *flags);
 
 
-/** v4l2_ctrl_handler_init() - Initialize the control handler.
+/** v4l2_ctrl_handler_init_class() - Initialize the control handler.
   * @hdl:	The control handler.
   * @nr_of_controls_hint: A hint of how many controls this handler is
   *		expected to refer to. This is the total number, so including
@@ -268,12 +268,35 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
   *		are allocated) or the control lookup becomes slower (not enough
   *		buckets are allocated, so there are more slow list lookups).
   *		It will always work, though.
+  * @key:	Used by the lock validator if CONFIG_LOCKDEP is set.
+  * @name:	Used by the lock validator if CONFIG_LOCKDEP is set.
   *
   * Returns an error if the buckets could not be allocated. This error will
   * also be stored in @hdl->error.
+  *
+  * Never use this call directly, always use the v4l2_ctrl_handler_init
+  * macro that hides the @key and @name arguments.
   */
-int v4l2_ctrl_handler_init(struct v4l2_ctrl_handler *hdl,
-			   unsigned nr_of_controls_hint);
+int v4l2_ctrl_handler_init_class(struct v4l2_ctrl_handler *hdl,
+				 unsigned nr_of_controls_hint,
+				 struct lock_class_key *key, const char *name);
+
+#ifdef CONFIG_LOCKDEP
+#define v4l2_ctrl_handler_init(hdl, nr_of_controls_hint)		\
+(									\
+	({								\
+		static struct lock_class_key _key;			\
+		v4l2_ctrl_handler_init_class(hdl, nr_of_controls_hint,	\
+					&_key,				\
+					KBUILD_BASENAME ":"		\
+					__stringify(__LINE__) ":"	\
+					"(" #hdl ")->_lock");		\
+	})								\
+)
+#else
+#define v4l2_ctrl_handler_init(hdl, nr_of_controls_hint)		\
+	v4l2_ctrl_handler_init_class(hdl, nr_of_controls_hint, NULL, NULL)
+#endif
 
 /** v4l2_ctrl_handler_free() - Free all controls owned by the handler and free
   * the control list.

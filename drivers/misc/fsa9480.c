@@ -474,10 +474,11 @@ static int fsa9480_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 
-static int fsa9480_suspend(struct i2c_client *client, pm_message_t state)
+static int fsa9480_suspend(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct fsa9480_usbsw *usbsw = i2c_get_clientdata(client);
 	struct fsa9480_platform_data *pdata = usbsw->pdata;
 
@@ -490,8 +491,9 @@ static int fsa9480_suspend(struct i2c_client *client, pm_message_t state)
 	return 0;
 }
 
-static int fsa9480_resume(struct i2c_client *client)
+static int fsa9480_resume(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct fsa9480_usbsw *usbsw = i2c_get_clientdata(client);
 	int dev1, dev2;
 
@@ -515,12 +517,14 @@ static int fsa9480_resume(struct i2c_client *client)
 	return 0;
 }
 
+static SIMPLE_DEV_PM_OPS(fsa9480_pm_ops, fsa9480_suspend, fsa9480_resume);
+#define FSA9480_PM_OPS (&fsa9480_pm_ops)
+
 #else
 
-#define fsa9480_suspend NULL
-#define fsa9480_resume NULL
+#define FSA9480_PM_OPS NULL
 
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 static const struct i2c_device_id fsa9480_id[] = {
 	{"fsa9480", 0},
@@ -531,11 +535,10 @@ MODULE_DEVICE_TABLE(i2c, fsa9480_id);
 static struct i2c_driver fsa9480_i2c_driver = {
 	.driver = {
 		.name = "fsa9480",
+		.pm = FSA9480_PM_OPS,
 	},
 	.probe = fsa9480_probe,
 	.remove = fsa9480_remove,
-	.resume = fsa9480_resume,
-	.suspend = fsa9480_suspend,
 	.id_table = fsa9480_id,
 };
 

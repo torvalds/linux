@@ -1671,7 +1671,7 @@ static int cx25840_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *
 	return 0;
 }
 
-static int cx25840_s_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
+static int cx25840_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_register *reg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
@@ -1835,7 +1835,7 @@ static int cx25840_s_audio_routing(struct v4l2_subdev *sd,
 	return set_input(client, state->vid_input, input);
 }
 
-static int cx25840_s_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *freq)
+static int cx25840_s_frequency(struct v4l2_subdev *sd, const struct v4l2_frequency *freq)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
@@ -1881,7 +1881,7 @@ static int cx25840_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	return 0;
 }
 
-static int cx25840_s_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
+static int cx25840_s_tuner(struct v4l2_subdev *sd, const struct v4l2_tuner *vt)
 {
 	struct cx25840_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);

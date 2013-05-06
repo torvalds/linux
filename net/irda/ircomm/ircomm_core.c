@@ -117,7 +117,7 @@ struct ircomm_cb *ircomm_open(notify_t *notify, __u8 service_type, int line)
 
 	IRDA_ASSERT(ircomm != NULL, return NULL;);
 
-	self = kzalloc(sizeof(struct ircomm_cb), GFP_ATOMIC);
+	self = kzalloc(sizeof(struct ircomm_cb), GFP_KERNEL);
 	if (self == NULL)
 		return NULL;
 

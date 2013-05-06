@@ -1031,8 +1031,7 @@ uf_glue_sdio_probe(struct sdio_func *func,
            sdio_func_id(func), instance);
 
     /* Allocate context */
-    sdio_ctx = (CsrSdioFunction *)kmalloc(sizeof(CsrSdioFunction),
-                                          GFP_KERNEL);
+    sdio_ctx = kmalloc(sizeof(CsrSdioFunction), GFP_KERNEL);
     if (sdio_ctx == NULL) {
         sdio_release_host(func);
         return -ENOMEM;

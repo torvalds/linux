@@ -103,7 +103,7 @@ static int inv_mpu6050_set_enable(struct iio_dev *indio_dev, bool enable)
 static int inv_mpu_data_rdy_trigger_set_state(struct iio_trigger *trig,
 						bool state)
 {
-	return inv_mpu6050_set_enable(trig->private_data, state);
+	return inv_mpu6050_set_enable(iio_trigger_get_drvdata(trig), state);
 }
 
 static const struct iio_trigger_ops inv_mpu_trigger_ops = {
@@ -130,8 +130,8 @@ int inv_mpu6050_probe_trigger(struct iio_dev *indio_dev)
 	if (ret)
 		goto error_free_trig;
 	st->trig->dev.parent = &st->client->dev;
-	st->trig->private_data = indio_dev;
 	st->trig->ops = &inv_mpu_trigger_ops;
+	iio_trigger_set_drvdata(st->trig, indio_dev);
 	ret = iio_trigger_register(st->trig);
 	if (ret)
 		goto error_free_irq;

@@ -778,8 +778,7 @@ static int cgw_parse_attr(struct nlmsghdr *nlh, struct cf_mod *mod,
 	return 0;
 }
 
-static int cgw_create_job(struct sk_buff *skb,  struct nlmsghdr *nlh,
-			  void *arg)
+static int cgw_create_job(struct sk_buff *skb,  struct nlmsghdr *nlh)
 {
 	struct rtcanmsg *r;
 	struct cgw_job *gwj;
@@ -868,7 +867,7 @@ static void cgw_remove_all_jobs(void)
 	}
 }
 
-static int cgw_remove_job(struct sk_buff *skb,  struct nlmsghdr *nlh, void *arg)
+static int cgw_remove_job(struct sk_buff *skb,  struct nlmsghdr *nlh)
 {
 	struct cgw_job *gwj = NULL;
 	struct hlist_node *nx;

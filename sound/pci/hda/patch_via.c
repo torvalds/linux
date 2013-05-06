@@ -626,10 +626,30 @@ static void via_set_jack_unsol_events(struct hda_codec *codec)
 	}
 }
 
+static const struct badness_table via_main_out_badness = {
+	.no_primary_dac = 0x10000,
+	.no_dac = 0x4000,
+	.shared_primary = 0x10000,
+	.shared_surr = 0x20,
+	.shared_clfe = 0x20,
+	.shared_surr_main = 0x20,
+};
+static const struct badness_table via_extra_out_badness = {
+	.no_primary_dac = 0x4000,
+	.no_dac = 0x4000,
+	.shared_primary = 0x12,
+	.shared_surr = 0x20,
+	.shared_clfe = 0x20,
+	.shared_surr_main = 0x10,
+};
+
 static int via_parse_auto_config(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
 	int err;
+
+	spec->gen.main_out_badness = &via_main_out_badness;
+	spec->gen.extra_out_badness = &via_extra_out_badness;
 
 	err = snd_hda_parse_pin_defcfg(codec, &spec->gen.autocfg, NULL, 0);
 	if (err < 0)

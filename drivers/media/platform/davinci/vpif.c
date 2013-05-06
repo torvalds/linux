@@ -23,8 +23,8 @@
 #include <linux/spinlock.h>
 #include <linux/kernel.h>
 #include <linux/io.h>
-#include <linux/clk.h>
 #include <linux/err.h>
+#include <linux/pm_runtime.h>
 #include <linux/v4l2-dv-timings.h>
 
 #include <mach/hardware.h>
@@ -44,13 +44,13 @@ static struct resource	*res;
 spinlock_t vpif_lock;
 
 void __iomem *vpif_base;
-struct clk *vpif_clk;
+EXPORT_SYMBOL_GPL(vpif_base);
 
 /**
- * ch_params: video standard configuration parameters for vpif
+ * vpif_ch_params: video standard configuration parameters for vpif
  * The table must include all presets from supported subdevices.
  */
-const struct vpif_channel_config_params ch_params[] = {
+const struct vpif_channel_config_params vpif_ch_params[] = {
 	/* HDTV formats */
 	{
 		.name = "480p59_94",
@@ -220,8 +220,10 @@ const struct vpif_channel_config_params ch_params[] = {
 		.stdid = V4L2_STD_625_50,
 	},
 };
+EXPORT_SYMBOL_GPL(vpif_ch_params);
 
-const unsigned int vpif_ch_params_count = ARRAY_SIZE(ch_params);
+const unsigned int vpif_ch_params_count = ARRAY_SIZE(vpif_ch_params);
+EXPORT_SYMBOL_GPL(vpif_ch_params_count);
 
 static inline void vpif_wr_bit(u32 reg, u32 bit, u32 val)
 {
@@ -439,19 +441,13 @@ static int vpif_probe(struct platform_device *pdev)
 		goto fail;
 	}
 
-	vpif_clk = clk_get(&pdev->dev, "vpif");
-	if (IS_ERR(vpif_clk)) {
-		status = PTR_ERR(vpif_clk);
-		goto clk_fail;
-	}
-	clk_prepare_enable(vpif_clk);
+	pm_runtime_enable(&pdev->dev);
+	pm_runtime_get(&pdev->dev);
 
 	spin_lock_init(&vpif_lock);
 	dev_info(&pdev->dev, "vpif probe success\n");
 	return 0;
 
-clk_fail:
-	iounmap(vpif_base);
 fail:
 	release_mem_region(res->start, res_len);
 	return status;
@@ -459,11 +455,7 @@ fail:
 
 static int vpif_remove(struct platform_device *pdev)
 {
-	if (vpif_clk) {
-		clk_disable_unprepare(vpif_clk);
-		clk_put(vpif_clk);
-	}
-
+	pm_runtime_disable(&pdev->dev);
 	iounmap(vpif_base);
 	release_mem_region(res->start, res_len);
 	return 0;
@@ -472,13 +464,13 @@ static int vpif_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int vpif_suspend(struct device *dev)
 {
-	clk_disable_unprepare(vpif_clk);
+	pm_runtime_put(dev);
 	return 0;
 }
 
 static int vpif_resume(struct device *dev)
 {
-	clk_prepare_enable(vpif_clk);
+	pm_runtime_get(dev);
 	return 0;
 }
 

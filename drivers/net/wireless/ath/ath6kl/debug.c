@@ -56,6 +56,60 @@ int ath6kl_printk(const char *level, const char *fmt, ...)
 }
 EXPORT_SYMBOL(ath6kl_printk);
 
+int ath6kl_info(const char *fmt, ...)
+{
+	struct va_format vaf = {
+		.fmt = fmt,
+	};
+	va_list args;
+	int ret;
+
+	va_start(args, fmt);
+	vaf.va = &args;
+	ret = ath6kl_printk(KERN_INFO, "%pV", &vaf);
+	trace_ath6kl_log_info(&vaf);
+	va_end(args);
+
+	return ret;
+}
+EXPORT_SYMBOL(ath6kl_info);
+
+int ath6kl_err(const char *fmt, ...)
+{
+	struct va_format vaf = {
+		.fmt = fmt,
+	};
+	va_list args;
+	int ret;
+
+	va_start(args, fmt);
+	vaf.va = &args;
+	ret = ath6kl_printk(KERN_ERR, "%pV", &vaf);
+	trace_ath6kl_log_err(&vaf);
+	va_end(args);
+
+	return ret;
+}
+EXPORT_SYMBOL(ath6kl_err);
+
+int ath6kl_warn(const char *fmt, ...)
+{
+	struct va_format vaf = {
+		.fmt = fmt,
+	};
+	va_list args;
+	int ret;
+
+	va_start(args, fmt);
+	vaf.va = &args;
+	ret = ath6kl_printk(KERN_WARNING, "%pV", &vaf);
+	trace_ath6kl_log_warn(&vaf);
+	va_end(args);
+
+	return ret;
+}
+EXPORT_SYMBOL(ath6kl_warn);
+
 #ifdef CONFIG_ATH6KL_DEBUG
 
 void ath6kl_dbg(enum ATH6K_DEBUG_MASK mask, const char *fmt, ...)
@@ -63,15 +117,15 @@ void ath6kl_dbg(enum ATH6K_DEBUG_MASK mask, const char *fmt, ...)
 	struct va_format vaf;
 	va_list args;
 
-	if (!(debug_mask & mask))
-		return;
-
 	va_start(args, fmt);
 
 	vaf.fmt = fmt;
 	vaf.va = &args;
 
-	ath6kl_printk(KERN_DEBUG, "%pV", &vaf);
+	if (debug_mask & mask)
+		ath6kl_printk(KERN_DEBUG, "%pV", &vaf);
+
+	trace_ath6kl_log_dbg(mask, &vaf);
 
 	va_end(args);
 }
@@ -87,6 +141,10 @@ void ath6kl_dbg_dump(enum ATH6K_DEBUG_MASK mask,
 
 		print_hex_dump_bytes(prefix, DUMP_PREFIX_OFFSET, buf, len);
 	}
+
+	/* tracing code doesn't like null strings :/ */
+	trace_ath6kl_log_dbg_dump(msg ? msg : "", prefix ? prefix : "",
+				  buf, len);
 }
 EXPORT_SYMBOL(ath6kl_dbg_dump);
 
@@ -1752,8 +1810,10 @@ int ath6kl_debug_init_fs(struct ath6kl *ar)
 	debugfs_create_file("tgt_stats", S_IRUSR, ar->debugfs_phy, ar,
 			    &fops_tgt_stats);
 
-	debugfs_create_file("credit_dist_stats", S_IRUSR, ar->debugfs_phy, ar,
-			    &fops_credit_dist_stats);
+	if (ar->hif_type == ATH6KL_HIF_TYPE_SDIO)
+		debugfs_create_file("credit_dist_stats", S_IRUSR,
+				    ar->debugfs_phy, ar,
+				    &fops_credit_dist_stats);
 
 	debugfs_create_file("endpoint_stats", S_IRUSR | S_IWUSR,
 			    ar->debugfs_phy, ar, &fops_endpoint_stats);
