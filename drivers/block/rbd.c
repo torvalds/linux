@@ -2186,12 +2186,12 @@ rbd_img_obj_parent_read_full_callback(struct rbd_img_request *img_request)
 	result = img_request->result;
 	obj_size = img_request->length;
 	xferred = img_request->xferred;
+	rbd_img_request_put(img_request);
 
-	rbd_dev = img_request->rbd_dev;
+	rbd_assert(orig_request->img_request);
+	rbd_dev = orig_request->img_request->rbd_dev;
 	rbd_assert(rbd_dev);
 	rbd_assert(obj_size == (u64)1 << rbd_dev->header.obj_order);
-
-	rbd_img_request_put(img_request);
 
 	if (result)
 		goto out_err;
