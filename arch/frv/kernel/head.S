@@ -479,11 +479,6 @@ __head_mmu_enabled:
 
 	LEDS		0x000c
 
-	# initialise the processor and the peripherals
-	#call		SYMBOL_NAME(processor_init)
-	#call		SYMBOL_NAME(unit_init)
-	#LEDS		0x0aff
-
 	sethi.p		#0xe5e5,gr3
 	setlo		#0xe5e5,gr3
 	or.p		gr3,gr0,gr4
