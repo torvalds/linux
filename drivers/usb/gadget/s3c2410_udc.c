@@ -1948,8 +1948,6 @@ static int s3c2410_udc_remove(struct platform_device *pdev)
 	iounmap(base_addr);
 	release_mem_region(rsrc_start, rsrc_len);
 
-	platform_set_drvdata(pdev, NULL);
-
 	if (!IS_ERR(udc_clock) && udc_clock != NULL) {
 		clk_disable(udc_clock);
 		clk_put(udc_clock);
