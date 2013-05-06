@@ -1256,14 +1256,21 @@ struct radeon_clock_voltage_dependency_table {
 	struct radeon_clock_voltage_dependency_entry *entries;
 };
 
-struct radeon_cac_leakage_entry {
-	u16 vddc;
-	u32 leakage;
+union radeon_cac_leakage_entry {
+	struct {
+		u16 vddc;
+		u32 leakage;
+	};
+	struct {
+		u16 vddc1;
+		u16 vddc2;
+		u16 vddc3;
+	};
 };
 
 struct radeon_cac_leakage_table {
 	u32 count;
-	struct radeon_cac_leakage_entry *entries;
+	union radeon_cac_leakage_entry *entries;
 };
 
 struct radeon_phase_shedding_limits_entry {

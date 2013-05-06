@@ -956,10 +956,19 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 				return -ENOMEM;
 			}
 			for (i = 0; i < cac_table->ucNumEntries; i++) {
-				rdev->pm.dpm.dyn_state.cac_leakage_table.entries[i].vddc =
-					le16_to_cpu(cac_table->entries[i].usVddc);
-				rdev->pm.dpm.dyn_state.cac_leakage_table.entries[i].leakage =
-					le32_to_cpu(cac_table->entries[i].ulLeakageValue);
+				if (rdev->pm.dpm.platform_caps & ATOM_PP_PLATFORM_CAP_EVV) {
+					rdev->pm.dpm.dyn_state.cac_leakage_table.entries[i].vddc1 =
+						le16_to_cpu(cac_table->entries[i].usVddc1);
+					rdev->pm.dpm.dyn_state.cac_leakage_table.entries[i].vddc2 =
+						le16_to_cpu(cac_table->entries[i].usVddc2);
+					rdev->pm.dpm.dyn_state.cac_leakage_table.entries[i].vddc3 =
+						le16_to_cpu(cac_table->entries[i].usVddc3);
+				} else {
+					rdev->pm.dpm.dyn_state.cac_leakage_table.entries[i].vddc =
+						le16_to_cpu(cac_table->entries[i].usVddc);
+					rdev->pm.dpm.dyn_state.cac_leakage_table.entries[i].leakage =
+						le32_to_cpu(cac_table->entries[i].ulLeakageValue);
+				}
 			}
 			rdev->pm.dpm.dyn_state.cac_leakage_table.count = cac_table->ucNumEntries;
 		}
