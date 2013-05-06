@@ -3518,10 +3518,11 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 	drm_vblank_off(dev, pipe);
 	intel_crtc_update_cursor(crtc, false);
 
-	intel_disable_plane(dev_priv, plane, pipe);
-
+	/* FBC must be disabled before disabling the plane on HSW. */
 	if (dev_priv->cfb_plane == plane)
 		intel_disable_fbc(dev);
+
+	intel_disable_plane(dev_priv, plane, pipe);
 
 	if (intel_crtc->config.has_pch_encoder)
 		intel_set_pch_fifo_underrun_reporting(dev, TRANSCODER_A, false);

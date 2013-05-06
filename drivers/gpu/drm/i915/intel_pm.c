@@ -274,12 +274,14 @@ static void gen7_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 		   IVB_DPFC_CTL_FENCE_EN |
 		   intel_crtc->plane << IVB_DPFC_CTL_PLANE_SHIFT);
 
-	/* WaFbcAsynchFlipDisableFbcQueue */
-	I915_WRITE(ILK_DISPLAY_CHICKEN1, ILK_FBCQ_DIS);
-	/* WaFbcDisableDpfcClockGating */
-	I915_WRITE(ILK_DSPCLK_GATE_D,
-		   I915_READ(ILK_DSPCLK_GATE_D) |
-		   ILK_DPFCUNIT_CLOCK_GATE_DISABLE);
+	if (IS_IVYBRIDGE(dev)) {
+		/* WaFbcAsynchFlipDisableFbcQueue */
+		I915_WRITE(ILK_DISPLAY_CHICKEN1, ILK_FBCQ_DIS);
+		/* WaFbcDisableDpfcClockGating */
+		I915_WRITE(ILK_DSPCLK_GATE_D,
+			   I915_READ(ILK_DSPCLK_GATE_D) |
+			   ILK_DPFCUNIT_CLOCK_GATE_DISABLE);
+	}
 
 	I915_WRITE(SNB_DPFC_CTL_SA,
 		   SNB_CPU_FENCE_ENABLE | obj->fence_reg);
@@ -476,7 +478,7 @@ void intel_update_fbc(struct drm_device *dev)
 	if (enable_fbc < 0) {
 		DRM_DEBUG_KMS("fbc set to per-chip default\n");
 		enable_fbc = 1;
-		if (INTEL_INFO(dev)->gen <= 7)
+		if (INTEL_INFO(dev)->gen <= 7 && !IS_HASWELL(dev))
 			enable_fbc = 0;
 	}
 	if (!enable_fbc) {
@@ -497,7 +499,8 @@ void intel_update_fbc(struct drm_device *dev)
 		dev_priv->no_fbc_reason = FBC_MODE_TOO_LARGE;
 		goto out_disable;
 	}
-	if ((IS_I915GM(dev) || IS_I945GM(dev)) && intel_crtc->plane != 0) {
+	if ((IS_I915GM(dev) || IS_I945GM(dev) || IS_HASWELL(dev)) &&
+	    intel_crtc->plane != 0) {
 		DRM_DEBUG_KMS("plane not 0, disabling compression\n");
 		dev_priv->no_fbc_reason = FBC_BAD_PLANE;
 		goto out_disable;
@@ -4544,7 +4547,7 @@ void intel_init_pm(struct drm_device *dev)
 	if (I915_HAS_FBC(dev)) {
 		if (HAS_PCH_SPLIT(dev)) {
 			dev_priv->display.fbc_enabled = ironlake_fbc_enabled;
-			if (IS_IVYBRIDGE(dev))
+			if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev))
 				dev_priv->display.enable_fbc =
 					gen7_enable_fbc;
 			else
