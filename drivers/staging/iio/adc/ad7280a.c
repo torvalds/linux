@@ -632,7 +632,7 @@ static ssize_t ad7280_write_channel_config(struct device *dev,
 	long val;
 	int ret;
 
-	ret = strict_strtol(buf, 10, &val);
+	ret = kstrtol(buf, 10, &val);
 	if (ret)
 		return ret;
 

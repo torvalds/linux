@@ -125,9 +125,12 @@ static ssize_t ad7606_store_range(struct device *dev,
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct ad7606_state *st = iio_priv(indio_dev);
 	unsigned long lval;
+	int ret;
 
-	if (strict_strtoul(buf, 10, &lval))
-		return -EINVAL;
+	ret = kstrtoul(buf, 10, &lval);
+	if (ret)
+		return ret;
+
 	if (!(lval == 5000 || lval == 10000)) {
 		dev_err(dev, "range is not supported\n");
 		return -EINVAL;
@@ -173,8 +176,9 @@ static ssize_t ad7606_store_oversampling_ratio(struct device *dev,
 	unsigned long lval;
 	int ret;
 
-	if (strict_strtoul(buf, 10, &lval))
-		return -EINVAL;
+	ret = kstrtoul(buf, 10, &lval);
+	if (ret)
+		return ret;
 
 	ret = ad7606_oversampling_get_index(lval);
 	if (ret < 0) {
