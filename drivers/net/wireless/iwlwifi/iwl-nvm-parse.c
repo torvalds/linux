@@ -89,6 +89,7 @@ enum nvm_sku_bits {
 	NVM_SKU_CAP_BAND_24GHZ	= BIT(0),
 	NVM_SKU_CAP_BAND_52GHZ	= BIT(1),
 	NVM_SKU_CAP_11N_ENABLE	= BIT(2),
+	NVM_SKU_CAP_11AC_ENABLE	= BIT(3),
 };
 
 /* radio config bits (actual values from NVM definition) */
@@ -258,8 +259,6 @@ static void iwl_init_vht_hw_capab(const struct iwl_cfg *cfg,
 				  struct iwl_nvm_data *data,
 				  struct ieee80211_sta_vht_cap *vht_cap)
 {
-	/* For now, assume new devices with NVM are VHT capable */
-
 	vht_cap->vht_supported = true;
 
 	vht_cap->cap = IEEE80211_VHT_CAP_SHORT_GI_80 |
@@ -292,7 +291,8 @@ static void iwl_init_vht_hw_capab(const struct iwl_cfg *cfg,
 }
 
 static void iwl_init_sbands(struct device *dev, const struct iwl_cfg *cfg,
-			    struct iwl_nvm_data *data, const __le16 *nvm_sw)
+			    struct iwl_nvm_data *data, const __le16 *nvm_sw,
+			    bool enable_vht)
 {
 	int n_channels = iwl_init_channel_map(dev, cfg, data,
 			&nvm_sw[NVM_CHANNELS]);
@@ -314,7 +314,8 @@ static void iwl_init_sbands(struct device *dev, const struct iwl_cfg *cfg,
 	n_used += iwl_init_sband_channels(data, sband, n_channels,
 					  IEEE80211_BAND_5GHZ);
 	iwl_init_ht_hw_capab(cfg, data, &sband->ht_cap, IEEE80211_BAND_5GHZ);
-	iwl_init_vht_hw_capab(cfg, data, &sband->vht_cap);
+	if (enable_vht)
+		iwl_init_vht_hw_capab(cfg, data, &sband->vht_cap);
 
 	if (n_channels != n_used)
 		IWL_ERR_DEV(dev, "NVM: used only %d of %d channels\n",
@@ -380,7 +381,8 @@ iwl_parse_nvm_data(struct device *dev, const struct iwl_cfg *cfg,
 	data->hw_addr[4] = hw_addr[5];
 	data->hw_addr[5] = hw_addr[4];
 
-	iwl_init_sbands(dev, cfg, data, nvm_sw);
+	iwl_init_sbands(dev, cfg, data, nvm_sw,
+			sku & NVM_SKU_CAP_11AC_ENABLE);
 
 	data->calib_version = 255;   /* TODO:
 					this value will prevent some checks from
