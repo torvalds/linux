@@ -13,7 +13,7 @@
 
 #include <linux/eventfd.h>
 #include <linux/vhost.h>
-#include <linux/virtio_net.h>
+#include <linux/socket.h> /* memcpy_fromiovec */
 #include <linux/mm.h>
 #include <linux/mmu_context.h>
 #include <linux/miscdevice.h>
