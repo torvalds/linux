@@ -1013,7 +1013,6 @@ config NETFILTER_XT_MATCH_IPVS
 
 config NETFILTER_XT_MATCH_LAYER7
 	tristate '"layer7" match support'
-	depends on EXPERIMENTAL
 	depends on NETFILTER_XTABLES
 	depends on NETFILTER_ADVANCED
 	depends on NF_CONNTRACK
