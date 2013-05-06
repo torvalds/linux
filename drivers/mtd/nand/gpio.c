@@ -87,51 +87,6 @@ static void gpio_nand_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
 	gpio_nand_dosync(gpiomtd);
 }
 
-static void gpio_nand_writebuf(struct mtd_info *mtd, const u_char *buf, int len)
-{
-	struct nand_chip *this = mtd->priv;
-
-	iowrite8_rep(this->IO_ADDR_W, buf, len);
-}
-
-static void gpio_nand_readbuf(struct mtd_info *mtd, u_char *buf, int len)
-{
-	struct nand_chip *this = mtd->priv;
-
-	ioread8_rep(this->IO_ADDR_R, buf, len);
-}
-
-static void gpio_nand_writebuf16(struct mtd_info *mtd, const u_char *buf,
-				 int len)
-{
-	struct nand_chip *this = mtd->priv;
-
-	if (IS_ALIGNED((unsigned long)buf, 2)) {
-		iowrite16_rep(this->IO_ADDR_W, buf, len>>1);
-	} else {
-		int i;
-		unsigned short *ptr = (unsigned short *)buf;
-
-		for (i = 0; i < len; i += 2, ptr++)
-			writew(*ptr, this->IO_ADDR_W);
-	}
-}
-
-static void gpio_nand_readbuf16(struct mtd_info *mtd, u_char *buf, int len)
-{
-	struct nand_chip *this = mtd->priv;
-
-	if (IS_ALIGNED((unsigned long)buf, 2)) {
-		ioread16_rep(this->IO_ADDR_R, buf, len>>1);
-	} else {
-		int i;
-		unsigned short *ptr = (unsigned short *)buf;
-
-		for (i = 0; i < len; i += 2, ptr++)
-			*ptr = readw(this->IO_ADDR_R);
-	}
-}
-
 static int gpio_nand_devready(struct mtd_info *mtd)
 {
 	struct gpiomtd *gpiomtd = gpio_nand_getpriv(mtd);
@@ -314,19 +269,8 @@ static int gpio_nand_probe(struct platform_device *dev)
 	this->ecc.mode   = NAND_ECC_SOFT;
 	this->options    = gpiomtd->plat.options;
 	this->chip_delay = gpiomtd->plat.chip_delay;
-
-	/* install our routines */
 	this->cmd_ctrl   = gpio_nand_cmd_ctrl;
 
-	if (this->options & NAND_BUSWIDTH_16) {
-		this->read_buf   = gpio_nand_readbuf16;
-		this->write_buf  = gpio_nand_writebuf16;
-	} else {
-		this->read_buf   = gpio_nand_readbuf;
-		this->write_buf  = gpio_nand_writebuf;
-	}
-
-	/* set the mtd private data for the nand driver */
 	gpiomtd->mtd_info.priv = this;
 	gpiomtd->mtd_info.owner = THIS_MODULE;
 
