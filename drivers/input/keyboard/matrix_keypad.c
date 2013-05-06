@@ -549,8 +549,6 @@ static int matrix_keypad_remove(struct platform_device *pdev)
 	input_unregister_device(keypad->input_dev);
 	kfree(keypad);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 
