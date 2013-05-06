@@ -16,7 +16,7 @@
 #include <linux/init.h>
 #include <linux/fb.h>
 #include <linux/leds.h>
-#include "leds.h"
+#include "../leds.h"
 
 #define BLANK		1
 #define UNBLANK		0

@@ -15,7 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/leds.h>
-#include "leds.h"
+#include "../leds.h"
 
 static void defon_trig_activate(struct led_classdev *led_cdev)
 {
