@@ -59,6 +59,12 @@ MODULE_PARM_DESC(experimental_zcopytx, "Enable Zero Copy TX;"
 #define VHOST_DMA_IS_DONE(len) ((len) >= VHOST_DMA_DONE_LEN)
 
 enum {
+	VHOST_NET_FEATURES = VHOST_FEATURES |
+			 (1ULL << VHOST_NET_F_VIRTIO_NET_HDR) |
+			 (1ULL << VIRTIO_NET_F_MRG_RXBUF),
+};
+
+enum {
 	VHOST_NET_VQ_RX = 0,
 	VHOST_NET_VQ_TX = 1,
 	VHOST_NET_VQ_MAX = 2,
