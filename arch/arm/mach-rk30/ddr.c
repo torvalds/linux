@@ -3391,8 +3391,9 @@ void __sramlocalfunc ddr_set_pll_exit_3168(uint32 freq_slew,uint32_t dqstr_value
 }
 #endif
 
+static bool ddr_dpll_status = true;
+#if defined(CONFIG_ARCH_RK3188)
 extern int efuse_readregs(u32 addr, u32 length, u8 *pData);
-bool ddr_dpll_status = true;
 void ddr_get_dpll_status(void) //DPLL fial rerurn 0;DPLL good return 1;
 {  
     uint8_t data_buf[32 + 1];    
@@ -3403,7 +3404,7 @@ void ddr_get_dpll_status(void) //DPLL fial rerurn 0;DPLL good return 1;
     else    
         ddr_dpll_status = true;
 }
-
+#endif
 
 uint32_t __sramfunc ddr_change_freq_sram(uint32_t nMHz)
 {
@@ -3807,8 +3808,9 @@ int ddr_init(uint32_t dram_speed_bin, uint32_t freq)
     uint32_t gsr,dqstr;
 
     ddr_print("version 1.00 20130427 \n");
+#if defined(CONFIG_ARCH_RK3188)
     ddr_get_dpll_status();
-
+#endif
     mem_type = pPHY_Reg->DCR.b.DDRMD;
     ddr_speed_bin = dram_speed_bin;
 
