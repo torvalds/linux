@@ -3665,9 +3665,13 @@ static int rbd_dev_v2_parent_info(struct rbd_device *rbd_dev)
 	ceph_decode_64_safe(&p, end, parent_spec->snap_id, out_err);
 	ceph_decode_64_safe(&p, end, overlap, out_err);
 
-	rbd_dev->parent_overlap = overlap;
-	rbd_dev->parent_spec = parent_spec;
-	parent_spec = NULL;	/* rbd_dev now owns this */
+	if (overlap) {
+		rbd_dev->parent_spec = parent_spec;
+		parent_spec = NULL;	/* rbd_dev now owns this */
+		rbd_dev->parent_overlap = overlap;
+	} else {
+		rbd_warn(rbd_dev, "ignoring parent of clone with overlap 0\n");
+	}
 out:
 	ret = 0;
 out_err:
