@@ -556,7 +556,6 @@ static int ohci_hcd_pxa27x_drv_remove(struct platform_device *pdev)
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 
 	usb_hcd_pxa27x_remove(hcd, pdev);
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 
