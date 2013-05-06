@@ -2319,7 +2319,7 @@ rbd_img_obj_parent_read_full_callback(struct rbd_img_request *img_request)
 	struct rbd_device *rbd_dev;
 	struct page **pages;
 	u32 page_count;
-	int result;
+	int img_result;
 	u64 parent_length;
 	u64 offset;
 	u64 length;
@@ -2338,7 +2338,7 @@ rbd_img_obj_parent_read_full_callback(struct rbd_img_request *img_request)
 	orig_request = img_request->obj_request;
 	rbd_assert(orig_request != NULL);
 	rbd_assert(obj_request_type_valid(orig_request->type));
-	result = img_request->result;
+	img_result = img_request->result;
 	parent_length = img_request->length;
 	rbd_assert(parent_length == img_request->xferred);
 	rbd_img_request_put(img_request);
@@ -2347,7 +2347,22 @@ rbd_img_obj_parent_read_full_callback(struct rbd_img_request *img_request)
 	rbd_dev = orig_request->img_request->rbd_dev;
 	rbd_assert(rbd_dev);
 
-	if (result)
+	/*
+	 * If the overlap has become 0 (most likely because the
+	 * image has been flattened) we need to free the pages
+	 * and re-submit the original write request.
+	 */
+	if (!rbd_dev->parent_overlap) {
+		struct ceph_osd_client *osdc;
+
+		ceph_release_page_vector(pages, page_count);
+		osdc = &rbd_dev->rbd_client->client->osdc;
+		img_result = rbd_obj_request_submit(osdc, orig_request);
+		if (!img_result)
+			return;
+	}
+
+	if (img_result)
 		goto out_err;
 
 	/*
@@ -2356,7 +2371,7 @@ rbd_img_obj_parent_read_full_callback(struct rbd_img_request *img_request)
 	 * request.  Allocate the new copyup osd request for the
 	 * original request, and release the old one.
 	 */
-	result = -ENOMEM;
+	img_result = -ENOMEM;
 	osd_req = rbd_osd_req_create_copyup(orig_request);
 	if (!osd_req)
 		goto out_err;
@@ -2391,13 +2406,13 @@ rbd_img_obj_parent_read_full_callback(struct rbd_img_request *img_request)
 
 	orig_request->callback = rbd_img_obj_copyup_callback;
 	osdc = &rbd_dev->rbd_client->client->osdc;
-	result = rbd_obj_request_submit(osdc, orig_request);
-	if (!result)
+	img_result = rbd_obj_request_submit(osdc, orig_request);
+	if (!img_result)
 		return;
 out_err:
 	/* Record the error code and complete the request */
 
-	orig_request->result = result;
+	orig_request->result = img_result;
 	orig_request->xferred = 0;
 	obj_request_done_set(orig_request);
 	rbd_obj_request_complete(orig_request);
