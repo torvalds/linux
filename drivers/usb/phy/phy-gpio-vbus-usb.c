@@ -343,7 +343,6 @@ err_irq:
 		gpio_free(pdata->gpio_pullup);
 	gpio_free(pdata->gpio_vbus);
 err_gpio:
-	platform_set_drvdata(pdev, NULL);
 	kfree(gpio_vbus->phy.otg);
 	kfree(gpio_vbus);
 	return err;
@@ -365,7 +364,6 @@ static int __exit gpio_vbus_remove(struct platform_device *pdev)
 	if (gpio_is_valid(pdata->gpio_pullup))
 		gpio_free(pdata->gpio_pullup);
 	gpio_free(gpio);
-	platform_set_drvdata(pdev, NULL);
 	kfree(gpio_vbus->phy.otg);
 	kfree(gpio_vbus);
 
