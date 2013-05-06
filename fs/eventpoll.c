@@ -29,6 +29,7 @@
 #include <linux/mutex.h>
 #include <linux/anon_inodes.h>
 #include <linux/device.h>
+#include <linux/freezer.h>
 #include <linux/uaccess.h>
 #include <asm/io.h>
 #include <asm/mman.h>
@@ -1839,8 +1840,8 @@ static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
 		write_unlock_irq(&ep->lock);
 
 		if (!eavail)
-			timed_out = !schedule_hrtimeout_range(to, slack,
-							      HRTIMER_MODE_ABS);
+			timed_out = !freezable_schedule_hrtimeout_range(to, slack,
+									HRTIMER_MODE_ABS);
 		__set_current_state(TASK_RUNNING);
 
 		/*
