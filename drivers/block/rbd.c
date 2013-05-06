@@ -425,7 +425,8 @@ static void rbd_img_parent_read(struct rbd_obj_request *obj_request);
 static void rbd_dev_remove_parent(struct rbd_device *rbd_dev);
 
 static int rbd_dev_refresh(struct rbd_device *rbd_dev);
-static int rbd_dev_v2_refresh(struct rbd_device *rbd_dev);
+static int rbd_dev_v2_header_onetime(struct rbd_device *rbd_dev);
+static int rbd_dev_v2_header_info(struct rbd_device *rbd_dev);
 static const char *rbd_dev_v2_snap_name(struct rbd_device *rbd_dev,
 					u64 snap_id);
 static int _rbd_dev_v2_snap_size(struct rbd_device *rbd_dev, u64 snap_id,
@@ -3135,7 +3136,7 @@ static int rbd_dev_refresh(struct rbd_device *rbd_dev)
 	if (rbd_dev->image_format == 1)
 		ret = rbd_dev_v1_header_info(rbd_dev);
 	else
-		ret = rbd_dev_v2_refresh(rbd_dev);
+		ret = rbd_dev_v2_header_info(rbd_dev);
 
 	/* If it's a mapped snapshot, validate its EXISTS flag */
 
@@ -4005,11 +4006,18 @@ out:
 	return snap_name;
 }
 
-static int rbd_dev_v2_refresh(struct rbd_device *rbd_dev)
+static int rbd_dev_v2_header_info(struct rbd_device *rbd_dev)
 {
+	bool first_time = rbd_dev->header.object_prefix == NULL;
 	int ret;
 
 	down_write(&rbd_dev->header_rwsem);
+
+	if (first_time) {
+		ret = rbd_dev_v2_header_onetime(rbd_dev);
+		if (ret)
+			goto out;
+	}
 
 	ret = rbd_dev_v2_image_size(rbd_dev);
 	if (ret)
@@ -4459,22 +4467,18 @@ static void rbd_dev_unprobe(struct rbd_device *rbd_dev)
 	memset(header, 0, sizeof (*header));
 }
 
-static int rbd_dev_v2_probe(struct rbd_device *rbd_dev)
+static int rbd_dev_v2_header_onetime(struct rbd_device *rbd_dev)
 {
 	int ret;
-
-	ret = rbd_dev_v2_image_size(rbd_dev);
-	if (ret)
-		goto out_err;
-
-	/* Get the object prefix (a.k.a. block_name) for the image */
 
 	ret = rbd_dev_v2_object_prefix(rbd_dev);
 	if (ret)
 		goto out_err;
 
-	/* Get the and check features for the image */
-
+	/*
+	 * Get the and check features for the image.  Currently the
+	 * features are assumed to never change.
+	 */
 	ret = rbd_dev_v2_features(rbd_dev);
 	if (ret)
 		goto out_err;
@@ -4504,17 +4508,7 @@ static int rbd_dev_v2_probe(struct rbd_device *rbd_dev)
 		if (ret < 0)
 			goto out_err;
 	}
-
-	/* crypto and compression type aren't (yet) supported for v2 images */
-
-	rbd_dev->header.crypt_type = 0;
-	rbd_dev->header.comp_type = 0;
-
-	/* Get the snapshot context, plus the header version */
-
-	ret = rbd_dev_v2_snap_context(rbd_dev);
-	if (ret)
-		goto out_err;
+	/* No support for crypto and compression type format 2 images */
 
 	return 0;
 out_err:
@@ -4703,7 +4697,7 @@ static int rbd_dev_image_probe(struct rbd_device *rbd_dev, bool read_only)
 	if (rbd_dev->image_format == 1)
 		ret = rbd_dev_v1_header_info(rbd_dev);
 	else
-		ret = rbd_dev_v2_probe(rbd_dev);
+		ret = rbd_dev_v2_header_info(rbd_dev);
 	if (ret)
 		goto err_out_watch;
 
