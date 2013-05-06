@@ -3424,7 +3424,6 @@ static int pll_get_flag(void)
 
 static void __init rk30_clock_common_init(unsigned long gpll_rate, unsigned long cpll_rate)
 {
-	div_clk_for_pll_init();
 	//general
 	clk_set_rate_nolock(&general_pll_clk, gpll_rate);
 	//code pll
@@ -3534,6 +3533,8 @@ void __init _rk30_clock_data_init(unsigned long gpll, unsigned long cpll, int fl
 #endif
 		clk_register(lk->clk);
 	}
+	
+	div_clk_for_pll_init();
 	clk_recalculate_root_clocks_nolock();
 
 	loops_per_jiffy = CLK_LOOPS_RECALC(arm_pll_clk.rate);
