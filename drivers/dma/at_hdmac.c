@@ -1570,7 +1570,6 @@ err_of_dma_controller_register:
 	dma_async_device_unregister(&atdma->dma_common);
 	dma_pool_destroy(atdma->dma_desc_pool);
 err_pool_create:
-	platform_set_drvdata(pdev, NULL);
 	free_irq(platform_get_irq(pdev, 0), atdma);
 err_irq:
 	clk_disable(atdma->clk);
@@ -1595,7 +1594,6 @@ static int at_dma_remove(struct platform_device *pdev)
 	dma_async_device_unregister(&atdma->dma_common);
 
 	dma_pool_destroy(atdma->dma_desc_pool);
-	platform_set_drvdata(pdev, NULL);
 	free_irq(platform_get_irq(pdev, 0), atdma);
 
 	list_for_each_entry_safe(chan, _chan, &atdma->dma_common.channels,
