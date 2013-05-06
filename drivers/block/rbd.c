@@ -358,7 +358,7 @@ static ssize_t rbd_add(struct bus_type *bus, const char *buf,
 		       size_t count);
 static ssize_t rbd_remove(struct bus_type *bus, const char *buf,
 			  size_t count);
-static int rbd_dev_image_probe(struct rbd_device *rbd_dev, bool read_only);
+static int rbd_dev_image_probe(struct rbd_device *rbd_dev);
 
 static struct bus_attribute rbd_bus_attrs[] = {
 	__ATTR(add, S_IWUSR, NULL, rbd_add),
@@ -4549,7 +4549,7 @@ static int rbd_dev_probe_parent(struct rbd_device *rbd_dev)
 	if (!parent)
 		goto out_err;
 
-	ret = rbd_dev_image_probe(parent, true);
+	ret = rbd_dev_image_probe(parent);
 	if (ret < 0)
 		goto out_err;
 	rbd_dev->parent = parent;
@@ -4671,10 +4671,9 @@ static void rbd_dev_image_release(struct rbd_device *rbd_dev)
 
 /*
  * Probe for the existence of the header object for the given rbd
- * device.  For format 2 images this includes determining the image
- * id.
+ * device.
  */
-static int rbd_dev_image_probe(struct rbd_device *rbd_dev, bool read_only)
+static int rbd_dev_image_probe(struct rbd_device *rbd_dev)
 {
 	int ret;
 	int tmp;
@@ -4708,12 +4707,6 @@ static int rbd_dev_image_probe(struct rbd_device *rbd_dev, bool read_only)
 	ret = rbd_dev_spec_update(rbd_dev);
 	if (ret)
 		goto err_out_probe;
-
-	/* If we are mapping a snapshot it must be marked read-only */
-
-	if (rbd_dev->spec->snap_id != CEPH_NOSNAP)
-		read_only = true;
-	rbd_dev->mapping.read_only = read_only;
 
 	ret = rbd_dev_probe_parent(rbd_dev);
 	if (ret)
@@ -4795,9 +4788,15 @@ static ssize_t rbd_add(struct bus_type *bus,
 	rbdc = NULL;		/* rbd_dev now owns this */
 	spec = NULL;		/* rbd_dev now owns this */
 
-	rc = rbd_dev_image_probe(rbd_dev, read_only);
+	rc = rbd_dev_image_probe(rbd_dev);
 	if (rc < 0)
 		goto err_out_rbd_dev;
+
+	/* If we are mapping a snapshot it must be marked read-only */
+
+	if (rbd_dev->spec->snap_id != CEPH_NOSNAP)
+		read_only = true;
+	rbd_dev->mapping.read_only = read_only;
 
 	rc = rbd_dev_device_setup(rbd_dev);
 	if (!rc)
