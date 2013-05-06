@@ -233,7 +233,6 @@ static int jornada680kbd_probe(struct platform_device *pdev)
  failed:
 	printk(KERN_ERR "Jornadakbd: failed to register driver, error: %d\n",
 		error);
-	platform_set_drvdata(pdev, NULL);
 	input_free_polled_device(poll_dev);
 	kfree(jornadakbd);
 	return error;
@@ -244,7 +243,6 @@ static int jornada680kbd_remove(struct platform_device *pdev)
 {
 	struct jornadakbd *jornadakbd = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(pdev, NULL);
 	input_unregister_polled_device(jornadakbd->poll_dev);
 	input_free_polled_device(jornadakbd->poll_dev);
 	kfree(jornadakbd);
