@@ -481,7 +481,6 @@ static int wp_gpio_remove(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to remove gpio_chip.\n");
 	iounmap(lnw->reg_base);
 	kfree(lnw);
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 
