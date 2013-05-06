@@ -2682,14 +2682,36 @@ static void rbd_img_parent_read_callback(struct rbd_img_request *img_request)
 	struct rbd_obj_request *obj_request;
 	struct rbd_device *rbd_dev;
 	u64 obj_end;
+	u64 img_xferred;
+	int img_result;
 
 	rbd_assert(img_request_child_test(img_request));
 
+	/* First get what we need from the image request and release it */
+
 	obj_request = img_request->obj_request;
+	img_xferred = img_request->xferred;
+	img_result = img_request->result;
+	rbd_img_request_put(img_request);
+
+	/*
+	 * If the overlap has become 0 (most likely because the
+	 * image has been flattened) we need to re-submit the
+	 * original request.
+	 */
 	rbd_assert(obj_request);
 	rbd_assert(obj_request->img_request);
+	rbd_dev = obj_request->img_request->rbd_dev;
+	if (!rbd_dev->parent_overlap) {
+		struct ceph_osd_client *osdc;
 
-	obj_request->result = img_request->result;
+		osdc = &rbd_dev->rbd_client->client->osdc;
+		img_result = rbd_obj_request_submit(osdc, obj_request);
+		if (!img_result)
+			return;
+	}
+
+	obj_request->result = img_result;
 	if (obj_request->result)
 		goto out;
 
@@ -2702,7 +2724,6 @@ static void rbd_img_parent_read_callback(struct rbd_img_request *img_request)
 	 */
 	rbd_assert(obj_request->img_offset < U64_MAX - obj_request->length);
 	obj_end = obj_request->img_offset + obj_request->length;
-	rbd_dev = obj_request->img_request->rbd_dev;
 	if (obj_end > rbd_dev->parent_overlap) {
 		u64 xferred = 0;
 
@@ -2710,12 +2731,11 @@ static void rbd_img_parent_read_callback(struct rbd_img_request *img_request)
 			xferred = rbd_dev->parent_overlap -
 					obj_request->img_offset;
 
-		obj_request->xferred = min(img_request->xferred, xferred);
+		obj_request->xferred = min(img_xferred, xferred);
 	} else {
-		obj_request->xferred = img_request->xferred;
+		obj_request->xferred = img_xferred;
 	}
 out:
-	rbd_img_request_put(img_request);
 	rbd_img_obj_request_read_callback(obj_request);
 	rbd_obj_request_complete(obj_request);
 }
