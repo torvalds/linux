@@ -2070,6 +2070,8 @@ out:
 	} else {
 		pr_err("btrfs: qgroup scan failed with %d\n", err);
 	}
+
+	complete_all(&fs_info->qgroup_rescan_completion);
 }
 
 static void
@@ -2110,6 +2112,7 @@ btrfs_qgroup_rescan(struct btrfs_fs_info *fs_info)
 	fs_info->qgroup_flags |= BTRFS_QGROUP_STATUS_FLAG_RESCAN;
 	memset(&fs_info->qgroup_rescan_progress, 0,
 		sizeof(fs_info->qgroup_rescan_progress));
+	init_completion(&fs_info->qgroup_rescan_completion);
 
 	/* clear all current qgroup tracking information */
 	for (n = rb_first(&fs_info->qgroup_tree); n; n = rb_next(n)) {
@@ -2125,4 +2128,22 @@ btrfs_qgroup_rescan(struct btrfs_fs_info *fs_info)
 	qgroup_rescan_start(fs_info, qscan);
 
 	return 0;
+}
+
+int btrfs_qgroup_wait_for_completion(struct btrfs_fs_info *fs_info)
+{
+	int running;
+	int ret = 0;
+
+	mutex_lock(&fs_info->qgroup_rescan_lock);
+	spin_lock(&fs_info->qgroup_lock);
+	running = fs_info->qgroup_flags & BTRFS_QGROUP_STATUS_FLAG_RESCAN;
+	spin_unlock(&fs_info->qgroup_lock);
+	mutex_unlock(&fs_info->qgroup_rescan_lock);
+
+	if (running)
+		ret = wait_for_completion_interruptible(
+					&fs_info->qgroup_rescan_completion);
+
+	return ret;
 }

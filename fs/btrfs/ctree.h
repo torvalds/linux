@@ -1613,6 +1613,7 @@ struct btrfs_fs_info {
 	struct mutex qgroup_rescan_lock; /* protects the progress item */
 	struct btrfs_key qgroup_rescan_progress;
 	struct btrfs_workers qgroup_rescan_workers;
+	struct completion qgroup_rescan_completion;
 
 	/* filesystem state */
 	unsigned long fs_state;
@@ -3820,6 +3821,7 @@ int btrfs_quota_enable(struct btrfs_trans_handle *trans,
 int btrfs_quota_disable(struct btrfs_trans_handle *trans,
 			struct btrfs_fs_info *fs_info);
 int btrfs_qgroup_rescan(struct btrfs_fs_info *fs_info);
+int btrfs_qgroup_wait_for_completion(struct btrfs_fs_info *fs_info);
 int btrfs_add_qgroup_relation(struct btrfs_trans_handle *trans,
 			      struct btrfs_fs_info *fs_info, u64 src, u64 dst);
 int btrfs_del_qgroup_relation(struct btrfs_trans_handle *trans,
