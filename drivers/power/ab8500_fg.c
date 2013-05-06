@@ -3070,7 +3070,6 @@ static int ab8500_fg_remove(struct platform_device *pdev)
 	flush_scheduled_work();
 	ab8500_fg_sysfs_psy_remove_attrs(di->fg_psy.dev);
 	power_supply_unregister(&di->fg_psy);
-	platform_set_drvdata(pdev, NULL);
 	return ret;
 }
 
