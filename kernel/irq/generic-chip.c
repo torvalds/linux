@@ -186,6 +186,19 @@ int irq_gc_set_wake(struct irq_data *d, unsigned int on)
 	return 0;
 }
 
+static void
+irq_init_generic_chip(struct irq_chip_generic *gc, const char *name,
+		      int num_ct, unsigned int irq_base,
+		      void __iomem *reg_base, irq_flow_handler_t handler)
+{
+	raw_spin_lock_init(&gc->lock);
+	gc->num_ct = num_ct;
+	gc->irq_base = irq_base;
+	gc->reg_base = reg_base;
+	gc->chip_types->chip.name = name;
+	gc->chip_types->handler = handler;
+}
+
 /**
  * irq_alloc_generic_chip - Allocate a generic chip and initialize it
  * @name:	Name of the irq chip
@@ -206,16 +219,30 @@ irq_alloc_generic_chip(const char *name, int num_ct, unsigned int irq_base,
 
 	gc = kzalloc(sz, GFP_KERNEL);
 	if (gc) {
-		raw_spin_lock_init(&gc->lock);
-		gc->num_ct = num_ct;
-		gc->irq_base = irq_base;
-		gc->reg_base = reg_base;
-		gc->chip_types->chip.name = name;
-		gc->chip_types->handler = handler;
+		irq_init_generic_chip(gc, name, num_ct, irq_base, reg_base,
+				      handler);
 	}
 	return gc;
 }
 EXPORT_SYMBOL_GPL(irq_alloc_generic_chip);
+
+static void
+irq_gc_init_mask_cache(struct irq_chip_generic *gc, enum irq_gc_flags flags)
+{
+	struct irq_chip_type *ct = gc->chip_types;
+	u32 *mskptr = &gc->mask_cache, mskreg = ct->regs.mask;
+	int i;
+
+	for (i = 0; i < gc->num_ct; i++) {
+		if (flags & IRQ_GC_MASK_CACHE_PER_TYPE) {
+			mskptr = &ct[i].mask_cache_priv;
+			mskreg = ct[i].regs.mask;
+		}
+		ct[i].mask_cache = mskptr;
+		if (flags & IRQ_GC_INIT_MASK_CACHE)
+			*mskptr = irq_reg_readl(gc->reg_base + mskreg);
+	}
+}
 
 /*
  * Separate lockdep class for interrupt chip which can nest irq_desc
@@ -242,21 +269,12 @@ void irq_setup_generic_chip(struct irq_chip_generic *gc, u32 msk,
 	struct irq_chip_type *ct = gc->chip_types;
 	struct irq_chip *chip = &ct->chip;
 	unsigned int i;
-	u32 *mskptr = &gc->mask_cache, mskreg = ct->regs.mask;
 
 	raw_spin_lock(&gc_lock);
 	list_add_tail(&gc->list, &gc_list);
 	raw_spin_unlock(&gc_lock);
 
-	for (i = 0; i < gc->num_ct; i++) {
-		if (flags & IRQ_GC_MASK_CACHE_PER_TYPE) {
-			mskptr = &ct[i].mask_cache_priv;
-			mskreg = ct[i].regs.mask;
-		}
-		ct[i].mask_cache = mskptr;
-		if (flags & IRQ_GC_INIT_MASK_CACHE)
-			*mskptr = irq_reg_readl(gc->reg_base + mskreg);
-	}
+	irq_gc_init_mask_cache(gc, flags);
 
 	for (i = gc->irq_base; msk; msk >>= 1, i++) {
 		if (!(msk & 0x01))
