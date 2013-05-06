@@ -877,6 +877,19 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 				return ret;
 			}
 		}
+		if (power_info->pplib4.usMvddDependencyOnMCLKOffset) {
+			dep_table = (ATOM_PPLIB_Clock_Voltage_Dependency_Table *)
+				(mode_info->atom_context->bios + data_offset +
+				 le16_to_cpu(power_info->pplib4.usMvddDependencyOnMCLKOffset));
+			ret = r600_parse_clk_voltage_dep_table(&rdev->pm.dpm.dyn_state.mvdd_dependency_on_mclk,
+							       dep_table);
+			if (ret) {
+				kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk.entries);
+				kfree(rdev->pm.dpm.dyn_state.vddci_dependency_on_mclk.entries);
+				kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_mclk.entries);
+				return ret;
+			}
+		}
 		if (power_info->pplib4.usMaxClockVoltageOnDCOffset) {
 			ATOM_PPLIB_Clock_Voltage_Limit_Table *clk_v =
 				(ATOM_PPLIB_Clock_Voltage_Limit_Table *)
@@ -909,6 +922,7 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 				kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk.entries);
 				kfree(rdev->pm.dpm.dyn_state.vddci_dependency_on_mclk.entries);
 				kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_mclk.entries);
+				kfree(rdev->pm.dpm.dyn_state.mvdd_dependency_on_mclk.entries);
 				return -ENOMEM;
 			}
 
@@ -953,6 +967,7 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 				kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk.entries);
 				kfree(rdev->pm.dpm.dyn_state.vddci_dependency_on_mclk.entries);
 				kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_mclk.entries);
+				kfree(rdev->pm.dpm.dyn_state.mvdd_dependency_on_mclk.entries);
 				return -ENOMEM;
 			}
 			for (i = 0; i < cac_table->ucNumEntries; i++) {
@@ -991,6 +1006,7 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 				kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk.entries);
 				kfree(rdev->pm.dpm.dyn_state.vddci_dependency_on_mclk.entries);
 				kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_mclk.entries);
+				kfree(rdev->pm.dpm.dyn_state.mvdd_dependency_on_mclk.entries);
 				kfree(rdev->pm.dpm.dyn_state.cac_leakage_table.entries);
 				return -ENOMEM;
 			}
@@ -1025,6 +1041,7 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 				kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk.entries);
 				kfree(rdev->pm.dpm.dyn_state.vddci_dependency_on_mclk.entries);
 				kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_mclk.entries);
+				kfree(rdev->pm.dpm.dyn_state.mvdd_dependency_on_mclk.entries);
 				kfree(rdev->pm.dpm.dyn_state.cac_leakage_table.entries);
 				kfree(rdev->pm.dpm.dyn_state.ppm_table);
 				return -ENOMEM;
@@ -1069,6 +1086,8 @@ void r600_free_extended_power_table(struct radeon_device *rdev)
 		kfree(rdev->pm.dpm.dyn_state.vddci_dependency_on_mclk.entries);
 	if (rdev->pm.dpm.dyn_state.vddc_dependency_on_mclk.entries)
 		kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_mclk.entries);
+	if (rdev->pm.dpm.dyn_state.mvdd_dependency_on_mclk.entries)
+		kfree(rdev->pm.dpm.dyn_state.mvdd_dependency_on_mclk.entries);
 	if (rdev->pm.dpm.dyn_state.cac_leakage_table.entries)
 		kfree(rdev->pm.dpm.dyn_state.cac_leakage_table.entries);
 	if (rdev->pm.dpm.dyn_state.phase_shedding_limits_table.entries)

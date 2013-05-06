@@ -1323,6 +1323,7 @@ struct radeon_dpm_dynamic_state {
 	struct radeon_clock_voltage_dependency_table vddc_dependency_on_sclk;
 	struct radeon_clock_voltage_dependency_table vddci_dependency_on_mclk;
 	struct radeon_clock_voltage_dependency_table vddc_dependency_on_mclk;
+	struct radeon_clock_voltage_dependency_table mvdd_dependency_on_mclk;
 	struct radeon_clock_voltage_dependency_table vddc_dependency_on_dispclk;
 	struct radeon_uvd_clock_voltage_dependency_table uvd_clock_voltage_dependency_table;
 	struct radeon_clock_array valid_sclk_values;
