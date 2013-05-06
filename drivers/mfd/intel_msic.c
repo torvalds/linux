@@ -438,7 +438,6 @@ static int intel_msic_remove(struct platform_device *pdev)
 	struct intel_msic *msic = platform_get_drvdata(pdev);
 
 	intel_msic_remove_devices(msic);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
