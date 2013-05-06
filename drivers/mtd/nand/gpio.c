@@ -151,6 +151,9 @@ static int gpio_nand_get_config_of(const struct device *dev,
 {
 	u32 val;
 
+	if (!dev->of_node)
+		return -ENODEV;
+
 	if (!of_property_read_u32(dev->of_node, "bank-width", &val)) {
 		if (val == 2) {
 			plat->options |= NAND_BUSWIDTH_16;
