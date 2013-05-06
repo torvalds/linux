@@ -3,6 +3,7 @@
 
 #include <asm/types.h>
 
-int efuse_readregs(u32 addr, u32 length, u8 *pData);
+/* On success, the number of bytes read is returned */
+int efuse_readregs(u32 addr, u32 length, u8 *buf);
 
 #endif

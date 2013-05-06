@@ -30,11 +30,14 @@
 #define efuse_writel(val, offset)	writel_relaxed(val, RK30_EFUSE_BASE + offset)
 #endif
 
-int efuse_readregs(u32 addr, u32 length, u8 *pData)
+int efuse_readregs(u32 addr, u32 length, u8 *buf)
 {
-#ifdef efuse_readl
+#ifndef efuse_readl
+	return 0;
+#else
 	unsigned long flags;
 	static DEFINE_SPINLOCK(efuse_lock);
+	int ret = length;
 
 	if (!length)
 		return 0;
@@ -50,10 +53,10 @@ int efuse_readregs(u32 addr, u32 length, u8 *pData)
 		udelay(2);
 		efuse_writel(efuse_readl(REG_EFUSE_CTRL) | EFUSE_STROBE, REG_EFUSE_CTRL);
 		udelay(2);
-		*pData = efuse_readl(REG_EFUSE_DOUT);
+		*buf = efuse_readl(REG_EFUSE_DOUT);
 		efuse_writel(efuse_readl(REG_EFUSE_CTRL) & (~EFUSE_STROBE), REG_EFUSE_CTRL);
 		udelay(2);
-		pData++;
+		buf++;
 		addr++;
 	} while(--length);
 	udelay(2);
@@ -61,6 +64,6 @@ int efuse_readregs(u32 addr, u32 length, u8 *pData)
 	udelay(1);
 
 	spin_unlock_irqrestore(&efuse_lock, flags);
+	return ret;
 #endif
-	return 0;
 }
