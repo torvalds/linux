@@ -1439,8 +1439,12 @@ void alloc_nid_failed(struct f2fs_sb_info *sbi, nid_t nid)
 	spin_lock(&nm_i->free_nid_list_lock);
 	i = __lookup_free_nid_list(nid, &nm_i->free_nid_list);
 	BUG_ON(!i || i->state != NID_ALLOC);
-	i->state = NID_NEW;
-	nm_i->fcnt++;
+	if (nm_i->fcnt > 2 * MAX_FREE_NIDS) {
+		__del_from_free_nid_list(i);
+	} else {
+		i->state = NID_NEW;
+		nm_i->fcnt++;
+	}
 	spin_unlock(&nm_i->free_nid_list_lock);
 }
 
