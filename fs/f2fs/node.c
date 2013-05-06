@@ -1292,12 +1292,11 @@ static void remove_free_nid(struct f2fs_nm_info *nm_i, nid_t nid)
 	spin_unlock(&nm_i->free_nid_list_lock);
 }
 
-static int scan_nat_page(struct f2fs_nm_info *nm_i,
+static void scan_nat_page(struct f2fs_nm_info *nm_i,
 			struct page *nat_page, nid_t start_nid)
 {
 	struct f2fs_nat_block *nat_blk = page_address(nat_page);
 	block_t blk_addr;
-	int fcnt = 0;
 	int i;
 
 	i = start_nid % NAT_ENTRY_PER_BLOCK;
@@ -1308,9 +1307,8 @@ static int scan_nat_page(struct f2fs_nm_info *nm_i,
 		blk_addr  = le32_to_cpu(nat_blk->entries[i].block_addr);
 		BUG_ON(blk_addr == NEW_ADDR);
 		if (blk_addr == NULL_ADDR)
-			fcnt += add_free_nid(nm_i, start_nid);
+			add_free_nid(nm_i, start_nid);
 	}
-	return fcnt;
 }
 
 static void build_free_nids(struct f2fs_sb_info *sbi)
@@ -1319,7 +1317,7 @@ static void build_free_nids(struct f2fs_sb_info *sbi)
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct curseg_info *curseg = CURSEG_I(sbi, CURSEG_HOT_DATA);
 	struct f2fs_summary_block *sum = curseg->sum_blk;
-	int fcnt = 0, i = 0;
+	int i = 0;
 	nid_t nid = nm_i->next_scan_nid;
 
 	/* Enough entries */
@@ -1332,7 +1330,7 @@ static void build_free_nids(struct f2fs_sb_info *sbi)
 	while (1) {
 		struct page *page = get_current_nat_page(sbi, nid);
 
-		fcnt += scan_nat_page(nm_i, page, nid);
+		scan_nat_page(nm_i, page, nid);
 		f2fs_put_page(page, 1);
 
 		nid += (NAT_ENTRY_PER_BLOCK - (nid % NAT_ENTRY_PER_BLOCK));
