@@ -446,19 +446,35 @@ done:
 }
 
 /*
- * Write commit callback, called if we requested both an ACK and
- * ONDISK commit reply from the OSD.
+ * Write commit request unsafe callback, called to tell us when a
+ * request is unsafe (that is, in flight--has been handed to the
+ * messenger to send to its target osd).  It is called again when
+ * we've received a response message indicating the request is
+ * "safe" (its CEPH_OSD_FLAG_ONDISK flag is set), or when a request
+ * is completed early (and unsuccessfully) due to a timeout or
+ * interrupt.
+ *
+ * This is used if we requested both an ACK and ONDISK commit reply
+ * from the OSD.
  */
-static void sync_write_commit(struct ceph_osd_request *req,
-			      struct ceph_msg *msg)
+static void ceph_sync_write_unsafe(struct ceph_osd_request *req, bool unsafe)
 {
 	struct ceph_inode_info *ci = ceph_inode(req->r_inode);
 
-	dout("sync_write_commit %p tid %llu\n", req, req->r_tid);
-	spin_lock(&ci->i_unsafe_lock);
-	list_del_init(&req->r_unsafe_item);
-	spin_unlock(&ci->i_unsafe_lock);
-	ceph_put_cap_refs(ci, CEPH_CAP_FILE_WR);
+	dout("%s %p tid %llu %ssafe\n", __func__, req, req->r_tid,
+		unsafe ? "un" : "");
+	if (unsafe) {
+		ceph_get_cap_refs(ci, CEPH_CAP_FILE_WR);
+		spin_lock(&ci->i_unsafe_lock);
+		list_add_tail(&req->r_unsafe_item,
+			      &ci->i_unsafe_writes);
+		spin_unlock(&ci->i_unsafe_lock);
+	} else {
+		spin_lock(&ci->i_unsafe_lock);
+		list_del_init(&req->r_unsafe_item);
+		spin_unlock(&ci->i_unsafe_lock);
+		ceph_put_cap_refs(ci, CEPH_CAP_FILE_WR);
+	}
 }
 
 /*
@@ -470,35 +486,32 @@ static void sync_write_commit(struct ceph_osd_request *req,
  * objects, rollback on failure, etc.)
  */
 static ssize_t ceph_sync_write(struct file *file, const char __user *data,
-			       size_t left, loff_t *offset)
+			       size_t left, loff_t pos, loff_t *ppos)
 {
 	struct inode *inode = file_inode(file);
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
+	struct ceph_snap_context *snapc;
+	struct ceph_vino vino;
 	struct ceph_osd_request *req;
+	int num_ops = 1;
 	struct page **pages;
 	int num_pages;
-	long long unsigned pos;
 	u64 len;
 	int written = 0;
 	int flags;
-	int do_sync = 0;
 	int check_caps = 0;
 	int page_align, io_align;
 	unsigned long buf_align;
 	int ret;
 	struct timespec mtime = CURRENT_TIME;
+	bool own_pages = false;
 
 	if (ceph_snap(file_inode(file)) != CEPH_NOSNAP)
 		return -EROFS;
 
-	dout("sync_write on file %p %lld~%u %s\n", file, *offset,
+	dout("sync_write on file %p %lld~%u %s\n", file, pos,
 	     (unsigned)left, (file->f_flags & O_DIRECT) ? "O_DIRECT" : "");
-
-	if (file->f_flags & O_APPEND)
-		pos = i_size_read(inode);
-	else
-		pos = *offset;
 
 	ret = filemap_write_and_wait_range(inode->i_mapping, pos, pos + left);
 	if (ret < 0)
@@ -516,7 +529,7 @@ static ssize_t ceph_sync_write(struct file *file, const char __user *data,
 	if ((file->f_flags & (O_SYNC|O_DIRECT)) == 0)
 		flags |= CEPH_OSD_FLAG_ACK;
 	else
-		do_sync = 1;
+		num_ops++;	/* Also include a 'startsync' command. */
 
 	/*
 	 * we may need to do multiple writes here if we span an object
@@ -526,25 +539,20 @@ more:
 	io_align = pos & ~PAGE_MASK;
 	buf_align = (unsigned long)data & ~PAGE_MASK;
 	len = left;
-	if (file->f_flags & O_DIRECT) {
-		/* write from beginning of first page, regardless of
-		   io alignment */
-		page_align = (pos - io_align + buf_align) & ~PAGE_MASK;
-		num_pages = calc_pages_for((unsigned long)data, len);
-	} else {
-		page_align = pos & ~PAGE_MASK;
-		num_pages = calc_pages_for(pos, len);
-	}
+
+	snapc = ci->i_snap_realm->cached_context;
+	vino = ceph_vino(inode);
 	req = ceph_osdc_new_request(&fsc->client->osdc, &ci->i_layout,
-				    ceph_vino(inode), pos, &len,
-				    CEPH_OSD_OP_WRITE, flags,
-				    ci->i_snap_realm->cached_context,
-				    do_sync,
+				    vino, pos, &len, num_ops,
+				    CEPH_OSD_OP_WRITE, flags, snapc,
 				    ci->i_truncate_seq, ci->i_truncate_size,
-				    &mtime, false, page_align);
+				    false);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
+	/* write from beginning of first page, regardless of io alignment */
+	page_align = file->f_flags & O_DIRECT ? buf_align : io_align;
+	num_pages = calc_pages_for(page_align, len);
 	if (file->f_flags & O_DIRECT) {
 		pages = ceph_get_direct_page_vector(data, num_pages, false);
 		if (IS_ERR(pages)) {
@@ -572,36 +580,20 @@ more:
 
 		if ((file->f_flags & O_SYNC) == 0) {
 			/* get a second commit callback */
-			req->r_safe_callback = sync_write_commit;
-			req->r_own_pages = 1;
+			req->r_unsafe_callback = ceph_sync_write_unsafe;
+			req->r_inode = inode;
+			own_pages = true;
 		}
 	}
-	req->r_pages = pages;
-	req->r_num_pages = num_pages;
-	req->r_inode = inode;
+	osd_req_op_extent_osd_data_pages(req, 0, pages, len, page_align,
+					false, own_pages);
+
+	/* BUG_ON(vino.snap != CEPH_NOSNAP); */
+	ceph_osdc_build_request(req, pos, snapc, vino.snap, &mtime);
 
 	ret = ceph_osdc_start_request(&fsc->client->osdc, req, false);
-	if (!ret) {
-		if (req->r_safe_callback) {
-			/*
-			 * Add to inode unsafe list only after we
-			 * start_request so that a tid has been assigned.
-			 */
-			spin_lock(&ci->i_unsafe_lock);
-			list_add_tail(&req->r_unsafe_item,
-				      &ci->i_unsafe_writes);
-			spin_unlock(&ci->i_unsafe_lock);
-			ceph_get_cap_refs(ci, CEPH_CAP_FILE_WR);
-		}
-		
+	if (!ret)
 		ret = ceph_osdc_wait_request(&fsc->client->osdc, req);
-		if (ret < 0 && req->r_safe_callback) {
-			spin_lock(&ci->i_unsafe_lock);
-			list_del_init(&req->r_unsafe_item);
-			spin_unlock(&ci->i_unsafe_lock);
-			ceph_put_cap_refs(ci, CEPH_CAP_FILE_WR);
-		}
-	}
 
 	if (file->f_flags & O_DIRECT)
 		ceph_put_page_vector(pages, num_pages, false);
@@ -614,12 +606,12 @@ out:
 		pos += len;
 		written += len;
 		left -= len;
-		data += written;
+		data += len;
 		if (left)
 			goto more;
 
 		ret = written;
-		*offset = pos;
+		*ppos = pos;
 		if (pos > i_size_read(inode))
 			check_caps = ceph_inode_set_size(inode, pos);
 		if (check_caps)
@@ -653,7 +645,6 @@ static ssize_t ceph_aio_read(struct kiocb *iocb, const struct iovec *iov,
 	dout("aio_read %p %llx.%llx %llu~%u trying to get caps on %p\n",
 	     inode, ceph_vinop(inode), pos, (unsigned)len, inode);
 again:
-	__ceph_do_pending_vmtruncate(inode);
 	if (fi->fmode & CEPH_FILE_MODE_LAZY)
 		want = CEPH_CAP_FILE_CACHE | CEPH_CAP_FILE_LAZYIO;
 	else
@@ -717,55 +708,75 @@ static ssize_t ceph_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_osd_client *osdc =
 		&ceph_sb_to_client(inode->i_sb)->client->osdc;
-	loff_t endoff = pos + iov->iov_len;
-	int got = 0;
-	int ret, err, written;
+	ssize_t count, written = 0;
+	int err, want, got;
+	bool hold_mutex;
 
 	if (ceph_snap(inode) != CEPH_NOSNAP)
 		return -EROFS;
 
-retry_snap:
-	written = 0;
-	if (ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_FULL))
-		return -ENOSPC;
-	__ceph_do_pending_vmtruncate(inode);
+	sb_start_write(inode->i_sb);
+	mutex_lock(&inode->i_mutex);
+	hold_mutex = true;
 
-	/*
-	 * try to do a buffered write.  if we don't have sufficient
-	 * caps, we'll get -EAGAIN from generic_file_aio_write, or a
-	 * short write if we only get caps for some pages.
-	 */
-	if (!(iocb->ki_filp->f_flags & O_DIRECT) &&
-	    !(inode->i_sb->s_flags & MS_SYNCHRONOUS) &&
-	    !(fi->flags & CEPH_F_SYNC)) {
-		ret = generic_file_aio_write(iocb, iov, nr_segs, pos);
-		if (ret >= 0)
-			written = ret;
-
-		if ((ret >= 0 || ret == -EIOCBQUEUED) &&
-		    ((file->f_flags & O_SYNC) || IS_SYNC(file->f_mapping->host)
-		     || ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_NEARFULL))) {
-			err = vfs_fsync_range(file, pos, pos + written - 1, 1);
-			if (err < 0)
-				ret = err;
-		}
-		if ((ret < 0 && ret != -EAGAIN) || pos + written >= endoff)
-			goto out;
-	}
-
-	dout("aio_write %p %llx.%llx %llu~%u getting caps. i_size %llu\n",
-	     inode, ceph_vinop(inode), pos + written,
-	     (unsigned)iov->iov_len - written, inode->i_size);
-	ret = ceph_get_caps(ci, CEPH_CAP_FILE_WR, 0, &got, endoff);
-	if (ret < 0)
+	err = generic_segment_checks(iov, &nr_segs, &count, VERIFY_READ);
+	if (err)
 		goto out;
 
-	dout("aio_write %p %llx.%llx %llu~%u  got cap refs on %s\n",
-	     inode, ceph_vinop(inode), pos + written,
-	     (unsigned)iov->iov_len - written, ceph_cap_string(got));
-	ret = ceph_sync_write(file, iov->iov_base + written,
-			      iov->iov_len - written, &iocb->ki_pos);
-	if (ret >= 0) {
+	/* We can write back this queue in page reclaim */
+	current->backing_dev_info = file->f_mapping->backing_dev_info;
+
+	err = generic_write_checks(file, &pos, &count, S_ISBLK(inode->i_mode));
+	if (err)
+		goto out;
+
+	if (count == 0)
+		goto out;
+
+	err = file_remove_suid(file);
+	if (err)
+		goto out;
+
+	err = file_update_time(file);
+	if (err)
+		goto out;
+
+retry_snap:
+	if (ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_FULL)) {
+		err = -ENOSPC;
+		goto out;
+	}
+
+	dout("aio_write %p %llx.%llx %llu~%zd getting caps. i_size %llu\n",
+	     inode, ceph_vinop(inode), pos, count, inode->i_size);
+	if (fi->fmode & CEPH_FILE_MODE_LAZY)
+		want = CEPH_CAP_FILE_BUFFER | CEPH_CAP_FILE_LAZYIO;
+	else
+		want = CEPH_CAP_FILE_BUFFER;
+	got = 0;
+	err = ceph_get_caps(ci, CEPH_CAP_FILE_WR, want, &got, pos + count);
+	if (err < 0)
+		goto out;
+
+	dout("aio_write %p %llx.%llx %llu~%zd got cap refs on %s\n",
+	     inode, ceph_vinop(inode), pos, count, ceph_cap_string(got));
+
+	if ((got & (CEPH_CAP_FILE_BUFFER|CEPH_CAP_FILE_LAZYIO)) == 0 ||
+	    (iocb->ki_filp->f_flags & O_DIRECT) ||
+	    (inode->i_sb->s_flags & MS_SYNCHRONOUS) ||
+	    (fi->flags & CEPH_F_SYNC)) {
+		mutex_unlock(&inode->i_mutex);
+		written = ceph_sync_write(file, iov->iov_base, count,
+					  pos, &iocb->ki_pos);
+	} else {
+		written = generic_file_buffered_write(iocb, iov, nr_segs,
+						      pos, &iocb->ki_pos,
+						      count, 0);
+		mutex_unlock(&inode->i_mutex);
+	}
+	hold_mutex = false;
+
+	if (written >= 0) {
 		int dirty;
 		spin_lock(&ci->i_ceph_lock);
 		dirty = __ceph_mark_dirty_caps(ci, CEPH_CAP_FILE_WR);
@@ -773,18 +784,34 @@ retry_snap:
 		if (dirty)
 			__mark_inode_dirty(inode, dirty);
 	}
+
 	dout("aio_write %p %llx.%llx %llu~%u  dropping cap refs on %s\n",
-	     inode, ceph_vinop(inode), pos + written,
-	     (unsigned)iov->iov_len - written, ceph_cap_string(got));
+	     inode, ceph_vinop(inode), pos, (unsigned)iov->iov_len,
+	     ceph_cap_string(got));
 	ceph_put_cap_refs(ci, got);
-out:
-	if (ret == -EOLDSNAPC) {
-		dout("aio_write %p %llx.%llx %llu~%u got EOLDSNAPC, retrying\n",
-		     inode, ceph_vinop(inode), pos, (unsigned)iov->iov_len);
-		goto retry_snap;
+
+	if (written >= 0 &&
+	    ((file->f_flags & O_SYNC) || IS_SYNC(file->f_mapping->host) ||
+	     ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_NEARFULL))) {
+		err = vfs_fsync_range(file, pos, pos + written - 1, 1);
+		if (err < 0)
+			written = err;
 	}
 
-	return ret;
+	if (written == -EOLDSNAPC) {
+		dout("aio_write %p %llx.%llx %llu~%u got EOLDSNAPC, retrying\n",
+		     inode, ceph_vinop(inode), pos, (unsigned)iov->iov_len);
+		mutex_lock(&inode->i_mutex);
+		hold_mutex = true;
+		goto retry_snap;
+	}
+out:
+	if (hold_mutex)
+		mutex_unlock(&inode->i_mutex);
+	sb_end_write(inode->i_sb);
+	current->backing_dev_info = NULL;
+
+	return written ? written : err;
 }
 
 /*
@@ -796,7 +823,7 @@ static loff_t ceph_llseek(struct file *file, loff_t offset, int whence)
 	int ret;
 
 	mutex_lock(&inode->i_mutex);
-	__ceph_do_pending_vmtruncate(inode);
+	__ceph_do_pending_vmtruncate(inode, false);
 
 	if (whence == SEEK_END || whence == SEEK_DATA || whence == SEEK_HOLE) {
 		ret = ceph_do_getattr(inode, CEPH_STAT_CAP_SIZE);
