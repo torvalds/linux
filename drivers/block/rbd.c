@@ -738,8 +738,6 @@ static int rbd_header_from_disk(struct rbd_image_header *header,
 	size_t size;
 	u32 i;
 
-	memset(header, 0, sizeof (*header));
-
 	snap_count = le32_to_cpu(ondisk->snap_count);
 
 	len = strnlen(ondisk->object_prefix, sizeof (ondisk->object_prefix));
@@ -3103,6 +3101,7 @@ static int rbd_dev_v1_refresh(struct rbd_device *rbd_dev)
 	int ret;
 	struct rbd_image_header h;
 
+	memset(&h, 0, sizeof (h));
 	ret = rbd_read_header(rbd_dev, &h);
 	if (ret < 0)
 		return ret;
