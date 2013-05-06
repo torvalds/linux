@@ -740,7 +740,7 @@ EXPORT_SYMBOL_HDA(snd_hda_activate_path);
 static void path_power_down_sync(struct hda_codec *codec, struct nid_path *path)
 {
 	struct hda_gen_spec *spec = codec->spec;
-	bool changed;
+	bool changed = false;
 	int i;
 
 	if (!spec->power_down_unused || path->active)

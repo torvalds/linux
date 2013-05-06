@@ -710,7 +710,7 @@ static void tegra20_pll_init(void)
 	clks[pll_a_out0] = clk;
 
 	/* PLLE */
-	clk = tegra_clk_register_plle("pll_e", "pll_ref", clk_base, NULL,
+	clk = tegra_clk_register_plle("pll_e", "pll_ref", clk_base, pmc_base,
 			     0, 100000000, &pll_e_params,
 			     0, pll_e_freq_table, NULL);
 	clk_register_clkdev(clk, "pll_e", NULL);

@@ -498,7 +498,7 @@ struct s3c_irq_intc *s3c24xx_init_intc(struct device_node *np,
 		base = (void *)0xfd000000;
 
 		intc->reg_mask = base + 0xa4;
-		intc->reg_pending = base + 0x08;
+		intc->reg_pending = base + 0xa8;
 		irq_num = 20;
 		irq_start = S3C2410_IRQ(32);
 		irq_offset = 4;

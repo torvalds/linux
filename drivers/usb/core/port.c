@@ -67,7 +67,6 @@ static void usb_port_device_release(struct device *dev)
 {
 	struct usb_port *port_dev = to_usb_port(dev);
 
-	dev_pm_qos_hide_flags(dev);
 	kfree(port_dev);
 }
 

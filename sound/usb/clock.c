@@ -253,7 +253,7 @@ static int set_sample_rate_v2(struct snd_usb_audio *chip, int iface,
 {
 	struct usb_device *dev = chip->dev;
 	unsigned char data[4];
-	int err, crate;
+	int err, cur_rate, prev_rate;
 	int clock = snd_usb_clock_find_source(chip, fmt->clock);
 
 	if (clock < 0)
@@ -264,6 +264,19 @@ static int set_sample_rate_v2(struct snd_usb_audio *chip, int iface,
 		snd_printk(KERN_ERR "%d:%d:%d: clock source %d is not valid, cannot use\n",
 			   dev->devnum, iface, fmt->altsetting, clock);
 		return -ENXIO;
+	}
+
+	err = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), UAC2_CS_CUR,
+			      USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_IN,
+			      UAC2_CS_CONTROL_SAM_FREQ << 8,
+			      snd_usb_ctrl_intf(chip) | (clock << 8),
+			      data, sizeof(data));
+	if (err < 0) {
+		snd_printk(KERN_WARNING "%d:%d:%d: cannot get freq (v2)\n",
+			   dev->devnum, iface, fmt->altsetting);
+		prev_rate = 0;
+	} else {
+		prev_rate = data[0] | (data[1] << 8) | (data[2] << 16) | (data[3] << 24);
 	}
 
 	data[0] = rate;
@@ -280,19 +293,31 @@ static int set_sample_rate_v2(struct snd_usb_audio *chip, int iface,
 		return err;
 	}
 
-	if ((err = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), UAC2_CS_CUR,
-				   USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_IN,
-				   UAC2_CS_CONTROL_SAM_FREQ << 8,
-				   snd_usb_ctrl_intf(chip) | (clock << 8),
-				   data, sizeof(data))) < 0) {
+	err = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), UAC2_CS_CUR,
+			      USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_IN,
+			      UAC2_CS_CONTROL_SAM_FREQ << 8,
+			      snd_usb_ctrl_intf(chip) | (clock << 8),
+			      data, sizeof(data));
+	if (err < 0) {
 		snd_printk(KERN_WARNING "%d:%d:%d: cannot get freq (v2)\n",
 			   dev->devnum, iface, fmt->altsetting);
-		return err;
+		cur_rate = 0;
+	} else {
+		cur_rate = data[0] | (data[1] << 8) | (data[2] << 16) | (data[3] << 24);
 	}
 
-	crate = data[0] | (data[1] << 8) | (data[2] << 16) | (data[3] << 24);
-	if (crate != rate)
-		snd_printd(KERN_WARNING "current rate %d is different from the runtime rate %d\n", crate, rate);
+	if (cur_rate != rate) {
+		snd_printd(KERN_WARNING
+			   "current rate %d is different from the runtime rate %d\n",
+			   cur_rate, rate);
+	}
+
+	/* Some devices doesn't respond to sample rate changes while the
+	 * interface is active. */
+	if (rate != prev_rate) {
+		usb_set_interface(dev, iface, 0);
+		usb_set_interface(dev, iface, fmt->altsetting);
+	}
 
 	return 0;
 }

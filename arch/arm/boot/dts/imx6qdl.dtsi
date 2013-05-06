@@ -97,6 +97,7 @@
 			compatible = "arm,cortex-a9-twd-timer";
 			reg = <0x00a00600 0x20>;
 			interrupts = <1 13 0xf01>;
+			clocks = <&clks 15>;
 		};
 
 		L2: l2-cache@00a02000 {
