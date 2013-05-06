@@ -1308,6 +1308,17 @@ struct radeon_ppm_table {
 	u32 tj_max;
 };
 
+struct radeon_cac_tdp_table {
+	u16 tdp;
+	u16 configurable_tdp;
+	u16 tdc;
+	u16 battery_power_limit;
+	u16 small_power_limit;
+	u16 low_cac_leakage;
+	u16 high_cac_leakage;
+	u16 maximum_power_delivery_limit;
+};
+
 struct radeon_dpm_dynamic_state {
 	struct radeon_clock_voltage_dependency_table vddc_dependency_on_sclk;
 	struct radeon_clock_voltage_dependency_table vddci_dependency_on_mclk;
@@ -1325,6 +1336,7 @@ struct radeon_dpm_dynamic_state {
 	struct radeon_cac_leakage_table cac_leakage_table;
 	struct radeon_phase_shedding_limits_table phase_shedding_limits_table;
 	struct radeon_ppm_table *ppm_table;
+	struct radeon_cac_tdp_table *cac_tdp_table;
 };
 
 struct radeon_dpm_fan {

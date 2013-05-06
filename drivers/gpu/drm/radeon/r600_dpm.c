@@ -1014,6 +1014,48 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 			rdev->pm.dpm.dyn_state.ppm_table->tj_max =
 				le32_to_cpu(ppm->ulTjmax);
 		}
+		if ((le16_to_cpu(ext_hdr->usSize) >= SIZE_OF_ATOM_PPLIB_EXTENDEDHEADER_V7) &&
+			ext_hdr->usPowerTuneTableOffset) {
+			u8 rev = *(u8 *)(mode_info->atom_context->bios + data_offset +
+					 le16_to_cpu(ext_hdr->usPowerTuneTableOffset));
+			ATOM_PowerTune_Table *pt;
+			rdev->pm.dpm.dyn_state.cac_tdp_table =
+				kzalloc(sizeof(struct radeon_cac_tdp_table), GFP_KERNEL);
+			if (!rdev->pm.dpm.dyn_state.cac_tdp_table) {
+				kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk.entries);
+				kfree(rdev->pm.dpm.dyn_state.vddci_dependency_on_mclk.entries);
+				kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_mclk.entries);
+				kfree(rdev->pm.dpm.dyn_state.cac_leakage_table.entries);
+				kfree(rdev->pm.dpm.dyn_state.ppm_table);
+				return -ENOMEM;
+			}
+			if (rev > 0) {
+				ATOM_PPLIB_POWERTUNE_Table_V1 *ppt = (ATOM_PPLIB_POWERTUNE_Table_V1 *)
+					(mode_info->atom_context->bios + data_offset +
+					 le16_to_cpu(ext_hdr->usPowerTuneTableOffset));
+				rdev->pm.dpm.dyn_state.cac_tdp_table->maximum_power_delivery_limit =
+					ppt->usMaximumPowerDeliveryLimit;
+				pt = &ppt->power_tune_table;
+			} else {
+				ATOM_PPLIB_POWERTUNE_Table *ppt = (ATOM_PPLIB_POWERTUNE_Table *)
+					(mode_info->atom_context->bios + data_offset +
+					 le16_to_cpu(ext_hdr->usPowerTuneTableOffset));
+				rdev->pm.dpm.dyn_state.cac_tdp_table->maximum_power_delivery_limit = 255;
+				pt = &ppt->power_tune_table;
+			}
+			rdev->pm.dpm.dyn_state.cac_tdp_table->tdp = le16_to_cpu(pt->usTDP);
+			rdev->pm.dpm.dyn_state.cac_tdp_table->configurable_tdp =
+				le16_to_cpu(pt->usConfigurableTDP);
+			rdev->pm.dpm.dyn_state.cac_tdp_table->tdc = le16_to_cpu(pt->usTDC);
+			rdev->pm.dpm.dyn_state.cac_tdp_table->battery_power_limit =
+				le16_to_cpu(pt->usBatteryPowerLimit);
+			rdev->pm.dpm.dyn_state.cac_tdp_table->small_power_limit =
+				le16_to_cpu(pt->usSmallPowerLimit);
+			rdev->pm.dpm.dyn_state.cac_tdp_table->low_cac_leakage =
+				le16_to_cpu(pt->usLowCACLeakage);
+			rdev->pm.dpm.dyn_state.cac_tdp_table->high_cac_leakage =
+				le16_to_cpu(pt->usHighCACLeakage);
+		}
 	}
 
 	return 0;
@@ -1033,6 +1075,8 @@ void r600_free_extended_power_table(struct radeon_device *rdev)
 		kfree(rdev->pm.dpm.dyn_state.phase_shedding_limits_table.entries);
 	if (rdev->pm.dpm.dyn_state.ppm_table)
 		kfree(rdev->pm.dpm.dyn_state.ppm_table);
+	if (rdev->pm.dpm.dyn_state.cac_tdp_table)
+		kfree(rdev->pm.dpm.dyn_state.cac_tdp_table);
 }
 
 enum radeon_pcie_gen r600_get_pcie_gen_support(struct radeon_device *rdev,
