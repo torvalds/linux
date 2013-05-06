@@ -13,17 +13,17 @@
 #include <asm/linkage.h>
 #include <asm/regs267x.h>
 	
-	.global SYMBOL_NAME(_start)
-	.global SYMBOL_NAME(_command_line)
-	.global SYMBOL_NAME(_platform_gpio_table)
-	.global SYMBOL_NAME(_target_name)
+	.global __start
+	.global __command_line
+	.global __platform_gpio_table
+	.global __target_name
 	
 	.h8300s
 	.section .text
 	.file	"crt0_rom.S"
 
 	/* CPU Reset entry */
-SYMBOL_NAME_LABEL(_start)
+__start:
 	mov.l	#__ramend,sp
 	ldc	#0x80,ccr
 	ldc	#0,exr
@@ -61,7 +61,7 @@ SYMBOL_NAME_LABEL(_start)
 
 	/* linux kernel start */
 	ldc	#0x90,ccr	/* running kernel */
-	mov.l	#SYMBOL_NAME(init_thread_union),sp
+	mov.l	#_init_thread_union,sp
 	add.l	#0x2000,sp
 	jsr	@_start_kernel
 _exit:
