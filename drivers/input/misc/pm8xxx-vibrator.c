@@ -249,8 +249,6 @@ static int pm8xxx_vib_remove(struct platform_device *pdev)
 	input_unregister_device(vib->vib_input_dev);
 	kfree(vib);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 
