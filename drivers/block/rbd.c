@@ -936,19 +936,10 @@ static int rbd_snap_features(struct rbd_device *rbd_dev, u64 snap_id,
 
 static int rbd_dev_mapping_set(struct rbd_device *rbd_dev)
 {
-	const char *snap_name = rbd_dev->spec->snap_name;
-	u64 snap_id;
+	u64 snap_id = rbd_dev->spec->snap_id;
 	u64 size = 0;
 	u64 features = 0;
 	int ret;
-
-	if (strcmp(snap_name, RBD_SNAP_HEAD_NAME)) {
-		snap_id = rbd_snap_id_by_name(rbd_dev, snap_name);
-		if (snap_id == CEPH_NOSNAP)
-			return -ENOENT;
-	} else {
-		snap_id = CEPH_NOSNAP;
-	}
 
 	ret = rbd_snap_size(rbd_dev, snap_id, &size);
 	if (ret)
