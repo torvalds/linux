@@ -1862,6 +1862,8 @@ void print_fn_code(unsigned char *code, unsigned long len)
 	while (len) {
 		ptr = buffer;
 		opsize = insn_length(*code);
+		if (opsize > len)
+			break;
 		ptr += sprintf(ptr, "%p: ", code);
 		for (i = 0; i < opsize; i++)
 			ptr += sprintf(ptr, "%02x", code[i]);
