@@ -925,7 +925,9 @@
 #define   DPFC_CTL_EN		(1<<31)
 #define   DPFC_CTL_PLANEA	(0<<30)
 #define   DPFC_CTL_PLANEB	(1<<30)
+#define   IVB_DPFC_CTL_PLANE_SHIFT	(29)
 #define   DPFC_CTL_FENCE_EN	(1<<29)
+#define   IVB_DPFC_CTL_FENCE_EN	(1<<28)
 #define   DPFC_CTL_PERSISTENT_MODE	(1<<25)
 #define   DPFC_SR_EN		(1<<10)
 #define   DPFC_CTL_LIMIT_1X	(0<<6)
@@ -958,6 +960,7 @@
 #define ILK_DPFC_CHICKEN	0x43224
 #define ILK_FBC_RT_BASE		0x2128
 #define   ILK_FBC_RT_VALID	(1<<0)
+#define   SNB_FBC_FRONT_BUFFER	(1<<1)
 
 #define ILK_DISPLAY_CHICKEN1	0x42000
 #define   ILK_FBCQ_DIS		(1<<22)
@@ -972,6 +975,9 @@
 #define SNB_DPFC_CTL_SA		0x100100
 #define   SNB_CPU_FENCE_ENABLE	(1<<29)
 #define DPFC_CPU_FENCE_OFFSET	0x100104
+
+/* Framebuffer compression for Ivybridge */
+#define IVB_FBC_RT_BASE			0x7020
 
 
 /*

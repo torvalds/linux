@@ -253,6 +253,30 @@ static bool ironlake_fbc_enabled(struct drm_device *dev)
 	return I915_READ(ILK_DPFC_CONTROL) & DPFC_CTL_EN;
 }
 
+static void gen7_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_framebuffer *fb = crtc->fb;
+	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
+	struct drm_i915_gem_object *obj = intel_fb->obj;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+
+	I915_WRITE(IVB_FBC_RT_BASE, obj->gtt_offset | ILK_FBC_RT_VALID);
+
+	I915_WRITE(ILK_DPFC_CONTROL, DPFC_CTL_EN | DPFC_CTL_LIMIT_1X |
+		   IVB_DPFC_CTL_FENCE_EN |
+		   intel_crtc->plane << IVB_DPFC_CTL_PLANE_SHIFT);
+
+	I915_WRITE(SNB_DPFC_CTL_SA,
+		   SNB_CPU_FENCE_ENABLE | obj->fence_reg);
+	I915_WRITE(DPFC_CPU_FENCE_OFFSET, crtc->y);
+
+	sandybridge_blit_fbc_update(dev);
+
+	DRM_DEBUG_KMS("enabled fbc on plane %d\n", intel_crtc->plane);
+}
+
 bool intel_fbc_enabled(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -439,7 +463,7 @@ void intel_update_fbc(struct drm_device *dev)
 	if (enable_fbc < 0) {
 		DRM_DEBUG_KMS("fbc set to per-chip default\n");
 		enable_fbc = 1;
-		if (INTEL_INFO(dev)->gen <= 6)
+		if (INTEL_INFO(dev)->gen <= 7)
 			enable_fbc = 0;
 	}
 	if (!enable_fbc) {
@@ -4507,7 +4531,12 @@ void intel_init_pm(struct drm_device *dev)
 	if (I915_HAS_FBC(dev)) {
 		if (HAS_PCH_SPLIT(dev)) {
 			dev_priv->display.fbc_enabled = ironlake_fbc_enabled;
-			dev_priv->display.enable_fbc = ironlake_enable_fbc;
+			if (IS_IVYBRIDGE(dev))
+				dev_priv->display.enable_fbc =
+					gen7_enable_fbc;
+			else
+				dev_priv->display.enable_fbc =
+					ironlake_enable_fbc;
 			dev_priv->display.disable_fbc = ironlake_disable_fbc;
 		} else if (IS_GM45(dev)) {
 			dev_priv->display.fbc_enabled = g4x_fbc_enabled;
