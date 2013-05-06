@@ -37,6 +37,15 @@ hub_mmio_list_tail:	.b32 0
 
 ctx_current:		.b32 0
 
+.align 256
+chan_data:
+chan_mmio_count:	.b32 0
+chan_mmio_address:	.b32 0
+
+.align 256
+xfer_data: 		.b32 0
+
+.align 256
 chipsets:
 .b8  0xe4 0 0 0
 .b16 #nve4_hub_mmio_head
@@ -47,6 +56,9 @@ chipsets:
 .b8  0xe6 0 0 0
 .b16 #nve4_hub_mmio_head
 .b16 #nve4_hub_mmio_tail
+.b8  0xf0 0 0 0
+.b16 #nvf0_hub_mmio_head
+.b16 #nvf0_hub_mmio_tail
 .b8  0 0 0 0
 
 nve4_hub_mmio_head:
@@ -103,13 +115,61 @@ mmctx_data(0x408900, 3)
 mmctx_data(0x408980, 1)
 nve4_hub_mmio_tail:
 
-.align 256
-chan_data:
-chan_mmio_count:	.b32 0
-chan_mmio_address:	.b32 0
-
-.align 256
-xfer_data: 		.b32 0
+nvf0_hub_mmio_head:
+mmctx_data(0x17e91c, 2)
+mmctx_data(0x400204, 2)
+mmctx_data(0x404004, 17)
+mmctx_data(0x4040a8, 9)
+mmctx_data(0x4040d0, 7)
+mmctx_data(0x4040f8, 1)
+mmctx_data(0x404100, 10)
+mmctx_data(0x404130, 3)
+mmctx_data(0x404150, 3)
+mmctx_data(0x404164, 1)
+mmctx_data(0x40417c, 2)
+mmctx_data(0x4041a0, 4)
+mmctx_data(0x404200, 4)
+mmctx_data(0x404404, 12)
+mmctx_data(0x404438, 1)
+mmctx_data(0x404460, 4)
+mmctx_data(0x404480, 1)
+mmctx_data(0x404498, 1)
+mmctx_data(0x404604, 4)
+mmctx_data(0x404618, 4)
+mmctx_data(0x40462c, 2)
+mmctx_data(0x404640, 1)
+mmctx_data(0x404654, 1)
+mmctx_data(0x404660, 1)
+mmctx_data(0x404678, 19)
+mmctx_data(0x4046c8, 3)
+mmctx_data(0x404700, 3)
+mmctx_data(0x404718, 10)
+mmctx_data(0x404744, 2)
+mmctx_data(0x404754, 1)
+mmctx_data(0x405800, 1)
+mmctx_data(0x405830, 3)
+mmctx_data(0x405854, 1)
+mmctx_data(0x405870, 4)
+mmctx_data(0x405a00, 2)
+mmctx_data(0x405a18, 1)
+mmctx_data(0x405b00, 1)
+mmctx_data(0x405b10, 1)
+mmctx_data(0x405b20, 1)
+mmctx_data(0x406020, 1)
+mmctx_data(0x406028, 4)
+mmctx_data(0x4064a8, 5)
+mmctx_data(0x4064c0, 12)
+mmctx_data(0x4064fc, 1)
+mmctx_data(0x407804, 1)
+mmctx_data(0x40780c, 6)
+mmctx_data(0x4078bc, 1)
+mmctx_data(0x408000, 7)
+mmctx_data(0x408064, 1)
+mmctx_data(0x408800, 3)
+mmctx_data(0x408840, 1)
+mmctx_data(0x408900, 3)
+mmctx_data(0x408980, 1)
+nvf0_hub_mmio_tail:
 
 .section #nve0_grhub_code
 bra #init
