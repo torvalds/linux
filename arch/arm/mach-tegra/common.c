@@ -33,6 +33,7 @@
 #include "common.h"
 #include "fuse.h"
 #include "iomap.h"
+#include "irq.h"
 #include "pmc.h"
 #include "apbio.h"
 #include "sleep.h"
@@ -61,8 +62,10 @@ u32 tegra_uart_config[4] = {
 void __init tegra_dt_init_irq(void)
 {
 	tegra_clocks_init();
+	tegra_pmc_init();
 	tegra_init_irq();
 	irqchip_init();
+	tegra_legacy_irq_syscore_init();
 }
 #endif
 
@@ -94,40 +97,18 @@ static void __init tegra_init_cache(void)
 
 }
 
-static void __init tegra_init_early(void)
+void __init tegra_init_early(void)
 {
 	tegra_cpu_reset_handler_init();
 	tegra_apb_io_init();
 	tegra_init_fuse();
 	tegra_init_cache();
-	tegra_pmc_init();
 	tegra_powergate_init();
+	tegra_hotplug_init();
 }
-
-#ifdef CONFIG_ARCH_TEGRA_2x_SOC
-void __init tegra20_init_early(void)
-{
-	tegra_init_early();
-	tegra20_hotplug_init();
-}
-#endif
-
-#ifdef CONFIG_ARCH_TEGRA_3x_SOC
-void __init tegra30_init_early(void)
-{
-	tegra_init_early();
-	tegra30_hotplug_init();
-}
-#endif
-
-#ifdef CONFIG_ARCH_TEGRA_114_SOC
-void __init tegra114_init_early(void)
-{
-	tegra_init_early();
-}
-#endif
 
 void __init tegra_init_late(void)
 {
+	tegra_init_suspend();
 	tegra_powergate_debugfs_init();
 }

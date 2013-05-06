@@ -30,6 +30,7 @@ config CPU_S3C2410
 	select S3C2410_CLOCK
 	select S3C2410_CPUFREQ if CPU_FREQ_S3C24XX
 	select S3C2410_PM if PM
+	select SAMSUNG_HRT
 	help
 	  Support for S3C2410 and S3C2410A family from the S3C24XX line
 	  of Samsung Mobile CPUs.
@@ -41,6 +42,7 @@ config CPU_S3C2412
 	select CPU_LLSERIAL_S3C2440
 	select S3C2412_DMA if S3C24XX_DMA
 	select S3C2412_PM if PM
+	select SAMSUNG_HRT
 	help
 	  Support for the S3C2412 and S3C2413 SoCs from the S3C24XX line
 
@@ -53,6 +55,7 @@ config CPU_S3C2416
 	select S3C2443_COMMON
 	select S3C2443_DMA if S3C24XX_DMA
 	select SAMSUNG_CLKSRC
+	select SAMSUNG_HRT
 	help
 	  Support for the S3C2416 SoC from the S3C24XX line
 
@@ -63,6 +66,7 @@ config CPU_S3C2440
 	select S3C2410_CLOCK
 	select S3C2410_PM if PM
 	select S3C2440_DMA if S3C24XX_DMA
+	select SAMSUNG_HRT
 	help
 	  Support for S3C2440 Samsung Mobile CPU based systems.
 
@@ -72,6 +76,7 @@ config CPU_S3C2442
 	select CPU_LLSERIAL_S3C2440
 	select S3C2410_CLOCK
 	select S3C2410_PM if PM
+	select SAMSUNG_HRT
 	help
 	  Support for S3C2442 Samsung Mobile CPU based systems.
 
@@ -87,6 +92,7 @@ config CPU_S3C2443
 	select S3C2443_COMMON
 	select S3C2443_DMA if S3C24XX_DMA
 	select SAMSUNG_CLKSRC
+	select SAMSUNG_HRT
 	help
 	  Support for the S3C2443 SoC from the S3C24XX line
 
@@ -401,6 +407,7 @@ config S3C2412_DMA
 config S3C2412_PM
 	bool
 	select S3C2412_PM_SLEEP
+	select SAMSUNG_WAKEMASK
 	help
 	  Internal config node to apply S3C2412 power management
 

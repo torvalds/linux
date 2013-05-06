@@ -34,6 +34,77 @@
 #define ATMEL_LCDC_DMA_BURST_LEN	8	/* words */
 #define ATMEL_LCDC_FIFO_SIZE		512	/* words */
 
+struct atmel_lcdfb_config {
+	bool have_alt_pixclock;
+	bool have_hozval;
+	bool have_intensity_bit;
+};
+
+static struct atmel_lcdfb_config at91sam9261_config = {
+	.have_hozval		= true,
+	.have_intensity_bit	= true,
+};
+
+static struct atmel_lcdfb_config at91sam9263_config = {
+	.have_intensity_bit	= true,
+};
+
+static struct atmel_lcdfb_config at91sam9g10_config = {
+	.have_hozval		= true,
+};
+
+static struct atmel_lcdfb_config at91sam9g45_config = {
+	.have_alt_pixclock	= true,
+};
+
+static struct atmel_lcdfb_config at91sam9g45es_config = {
+};
+
+static struct atmel_lcdfb_config at91sam9rl_config = {
+	.have_intensity_bit	= true,
+};
+
+static struct atmel_lcdfb_config at32ap_config = {
+	.have_hozval		= true,
+};
+
+static const struct platform_device_id atmel_lcdfb_devtypes[] = {
+	{
+		.name = "at91sam9261-lcdfb",
+		.driver_data = (unsigned long)&at91sam9261_config,
+	}, {
+		.name = "at91sam9263-lcdfb",
+		.driver_data = (unsigned long)&at91sam9263_config,
+	}, {
+		.name = "at91sam9g10-lcdfb",
+		.driver_data = (unsigned long)&at91sam9g10_config,
+	}, {
+		.name = "at91sam9g45-lcdfb",
+		.driver_data = (unsigned long)&at91sam9g45_config,
+	}, {
+		.name = "at91sam9g45es-lcdfb",
+		.driver_data = (unsigned long)&at91sam9g45es_config,
+	}, {
+		.name = "at91sam9rl-lcdfb",
+		.driver_data = (unsigned long)&at91sam9rl_config,
+	}, {
+		.name = "at32ap-lcdfb",
+		.driver_data = (unsigned long)&at32ap_config,
+	}, {
+		/* terminator */
+	}
+};
+
+static struct atmel_lcdfb_config *
+atmel_lcdfb_get_config(struct platform_device *pdev)
+{
+	unsigned long data;
+
+	data = platform_get_device_id(pdev)->driver_data;
+
+	return (struct atmel_lcdfb_config *)data;
+}
+
 #if defined(CONFIG_ARCH_AT91)
 #define	ATMEL_LCDFB_FBINFO_DEFAULT	(FBINFO_DEFAULT \
 					 | FBINFO_PARTIAL_PAN_OK \
@@ -193,14 +264,16 @@ static struct fb_fix_screeninfo atmel_lcdfb_fix __initdata = {
 	.accel		= FB_ACCEL_NONE,
 };
 
-static unsigned long compute_hozval(unsigned long xres, unsigned long lcdcon2)
+static unsigned long compute_hozval(struct atmel_lcdfb_info *sinfo,
+							unsigned long xres)
 {
+	unsigned long lcdcon2;
 	unsigned long value;
 
-	if (!(cpu_is_at91sam9261() || cpu_is_at91sam9g10()
-		|| cpu_is_at32ap7000()))
+	if (!sinfo->config->have_hozval)
 		return xres;
 
+	lcdcon2 = lcdc_readl(sinfo, ATMEL_LCDC_LCDCON2);
 	value = xres;
 	if ((lcdcon2 & ATMEL_LCDC_DISTYPE) != ATMEL_LCDC_DISTYPE_TFT) {
 		/* STN display */
@@ -423,7 +496,7 @@ static int atmel_lcdfb_check_var(struct fb_var_screeninfo *var,
 		break;
 	case 16:
 		/* Older SOCs use IBGR:555 rather than BGR:565. */
-		if (sinfo->have_intensity_bit)
+		if (sinfo->config->have_intensity_bit)
 			var->green.length = 5;
 		else
 			var->green.length = 6;
@@ -531,7 +604,7 @@ static int atmel_lcdfb_set_par(struct fb_info *info)
 	/* Now, the LCDC core... */
 
 	/* Set pixel clock */
-	if (cpu_is_at91sam9g45() && !cpu_is_at91sam9g45es())
+	if (sinfo->config->have_alt_pixclock)
 		pix_factor = 1;
 
 	clk_value_khz = clk_get_rate(sinfo->lcdc_clk) / 1000;
@@ -591,8 +664,7 @@ static int atmel_lcdfb_set_par(struct fb_info *info)
 	lcdc_writel(sinfo, ATMEL_LCDC_TIM2, value);
 
 	/* Horizontal value (aka line size) */
-	hozval_linesz = compute_hozval(info->var.xres,
-					lcdc_readl(sinfo, ATMEL_LCDC_LCDCON2));
+	hozval_linesz = compute_hozval(sinfo, info->var.xres);
 
 	/* Display size */
 	value = (hozval_linesz - 1) << ATMEL_LCDC_HOZVAL_OFFSET;
@@ -684,7 +756,7 @@ static int atmel_lcdfb_setcolreg(unsigned int regno, unsigned int red,
 
 	case FB_VISUAL_PSEUDOCOLOR:
 		if (regno < 256) {
-			if (sinfo->have_intensity_bit) {
+			if (sinfo->config->have_intensity_bit) {
 				/* old style I+BGR:555 */
 				val  = ((red   >> 11) & 0x001f);
 				val |= ((green >>  6) & 0x03e0);
@@ -821,15 +893,13 @@ static int __init atmel_lcdfb_init_fbinfo(struct atmel_lcdfb_info *sinfo)
 
 static void atmel_lcdfb_start_clock(struct atmel_lcdfb_info *sinfo)
 {
-	if (sinfo->bus_clk)
-		clk_enable(sinfo->bus_clk);
+	clk_enable(sinfo->bus_clk);
 	clk_enable(sinfo->lcdc_clk);
 }
 
 static void atmel_lcdfb_stop_clock(struct atmel_lcdfb_info *sinfo)
 {
-	if (sinfo->bus_clk)
-		clk_disable(sinfo->bus_clk);
+	clk_disable(sinfo->bus_clk);
 	clk_disable(sinfo->lcdc_clk);
 }
 
@@ -874,10 +944,9 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 	}
 	sinfo->info = info;
 	sinfo->pdev = pdev;
-	if (cpu_is_at91sam9261() || cpu_is_at91sam9263() ||
-							cpu_is_at91sam9rl()) {
-		sinfo->have_intensity_bit = true;
-	}
+	sinfo->config = atmel_lcdfb_get_config(pdev);
+	if (!sinfo->config)
+		goto free_info;
 
 	strcpy(info->fix.id, sinfo->pdev->name);
 	info->flags = ATMEL_LCDFB_FBINFO_DEFAULT;
@@ -888,13 +957,10 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 	info->fix = atmel_lcdfb_fix;
 
 	/* Enable LCDC Clocks */
-	if (cpu_is_at91sam9261() || cpu_is_at91sam9g10()
-	 || cpu_is_at32ap7000()) {
-		sinfo->bus_clk = clk_get(dev, "hck1");
-		if (IS_ERR(sinfo->bus_clk)) {
-			ret = PTR_ERR(sinfo->bus_clk);
-			goto free_info;
-		}
+	sinfo->bus_clk = clk_get(dev, "hclk");
+	if (IS_ERR(sinfo->bus_clk)) {
+		ret = PTR_ERR(sinfo->bus_clk);
+		goto free_info;
 	}
 	sinfo->lcdc_clk = clk_get(dev, "lcdc_clk");
 	if (IS_ERR(sinfo->lcdc_clk)) {
@@ -1055,8 +1121,7 @@ stop_clk:
 	atmel_lcdfb_stop_clock(sinfo);
 	clk_put(sinfo->lcdc_clk);
 put_bus_clk:
-	if (sinfo->bus_clk)
-		clk_put(sinfo->bus_clk);
+	clk_put(sinfo->bus_clk);
 free_info:
 	framebuffer_release(info);
 out:
@@ -1081,8 +1146,7 @@ static int __exit atmel_lcdfb_remove(struct platform_device *pdev)
 	unregister_framebuffer(info);
 	atmel_lcdfb_stop_clock(sinfo);
 	clk_put(sinfo->lcdc_clk);
-	if (sinfo->bus_clk)
-		clk_put(sinfo->bus_clk);
+	clk_put(sinfo->bus_clk);
 	fb_dealloc_cmap(&info->cmap);
 	free_irq(sinfo->irq_base, info);
 	iounmap(sinfo->mmio);
@@ -1151,7 +1215,7 @@ static struct platform_driver atmel_lcdfb_driver = {
 	.remove		= __exit_p(atmel_lcdfb_remove),
 	.suspend	= atmel_lcdfb_suspend,
 	.resume		= atmel_lcdfb_resume,
-
+	.id_table	= atmel_lcdfb_devtypes,
 	.driver		= {
 		.name	= "atmel_lcdfb",
 		.owner	= THIS_MODULE,

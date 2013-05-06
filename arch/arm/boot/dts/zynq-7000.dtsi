@@ -111,56 +111,23 @@
 		};
 
 		ttc0: ttc0@f8001000 {
-			#address-cells = <1>;
-			#size-cells = <0>;
-			compatible = "xlnx,ttc";
+			interrupt-parent = <&intc>;
+			interrupts = < 0 10 4 0 11 4 0 12 4 >;
+			compatible = "cdns,ttc";
 			reg = <0xF8001000 0x1000>;
 			clocks = <&cpu_clk 3>;
 			clock-names = "cpu_1x";
 			clock-ranges;
-
-			ttc0_0: ttc0.0 {
-				status = "disabled";
-				reg = <0>;
-				interrupts = <0 10 4>;
-			};
-			ttc0_1: ttc0.1 {
-				status = "disabled";
-				reg = <1>;
-				interrupts = <0 11 4>;
-			};
-			ttc0_2: ttc0.2 {
-				status = "disabled";
-				reg = <2>;
-				interrupts = <0 12 4>;
-			};
 		};
 
 		ttc1: ttc1@f8002000 {
-			#interrupt-parent = <&intc>;
-			#address-cells = <1>;
-			#size-cells = <0>;
-			compatible = "xlnx,ttc";
+			interrupt-parent = <&intc>;
+			interrupts = < 0 37 4 0 38 4 0 39 4 >;
+			compatible = "cdns,ttc";
 			reg = <0xF8002000 0x1000>;
 			clocks = <&cpu_clk 3>;
 			clock-names = "cpu_1x";
 			clock-ranges;
-
-			ttc1_0: ttc1.0 {
-				status = "disabled";
-				reg = <0>;
-				interrupts = <0 37 4>;
-			};
-			ttc1_1: ttc1.1 {
-				status = "disabled";
-				reg = <1>;
-				interrupts = <0 38 4>;
-			};
-			ttc1_2: ttc1.2 {
-				status = "disabled";
-				reg = <2>;
-				interrupts = <0 39 4>;
-			};
 		};
 	};
 };

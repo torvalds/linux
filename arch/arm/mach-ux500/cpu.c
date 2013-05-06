@@ -140,14 +140,13 @@ struct device * __init ux500_soc_device_init(const char *soc_id)
 	soc_info_populate(soc_dev_attr, soc_id);
 
 	soc_dev = soc_device_register(soc_dev_attr);
-	if (IS_ERR_OR_NULL(soc_dev)) {
+	if (IS_ERR(soc_dev)) {
 	        kfree(soc_dev_attr);
 		return NULL;
 	}
 
 	parent = soc_device_to_device(soc_dev);
-	if (!IS_ERR_OR_NULL(parent))
-		device_create_file(parent, &ux500_soc_attr);
+	device_create_file(parent, &ux500_soc_attr);
 
 	return parent;
 }

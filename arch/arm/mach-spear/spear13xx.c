@@ -15,13 +15,13 @@
 
 #include <linux/amba/pl022.h>
 #include <linux/clk.h>
+#include <linux/clocksource.h>
 #include <linux/err.h>
 #include <linux/of.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/map.h>
-#include <asm/smp_twd.h>
-#include "generic.h"
 #include <mach/spear.h>
+#include "generic.h"
 
 void __init spear13xx_l2x0_init(void)
 {
@@ -122,5 +122,5 @@ void __init spear13xx_timer_init(void)
 	clk_put(pclk);
 
 	spear_setup_of_timer();
-	twd_local_timer_of_register();
+	clocksource_of_init();
 }
