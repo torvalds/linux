@@ -1386,6 +1386,9 @@ config CRYPTO_USER_API_SKCIPHER
 	  This option enables the user-spaces interface for symmetric
 	  key cipher algorithms.
 
+config CRYPTO_HASH_INFO
+	bool
+
 source "drivers/crypto/Kconfig"
 source crypto/asymmetric_keys/Kconfig
 
