@@ -147,8 +147,9 @@ static void hdmi_early_resume(struct early_suspend *h)
 	rk616_hdmi_initial();
 	if(hdmi->enable) {
 		enable_irq(hdmi->irq);
-		queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, 0);
+		hdmi_irq();
 	}
+	queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, msecs_to_jiffies(10));	
 	mutex_unlock(&hdmi->enable_mutex);
 	return;
 }
@@ -260,8 +261,8 @@ static int __devinit rk616_hdmi_probe (struct platform_device *pdev)
 		debugfs_create_file("hdmi", S_IRUSR,rk616->debugfs_dir,rk616,&rk616_hdmi_reg_fops);
 	}
 #endif
-	//rk616_irq_work_func(NULL);
-	queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, msecs_to_jiffies(10));	
+	rk616_irq_work_func(NULL);
+	//queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, msecs_to_jiffies(10));	
 	dev_info(hdmi->dev, "rk616 hdmi probe success.\n");
 	return 0;
 err1:

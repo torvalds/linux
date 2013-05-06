@@ -83,6 +83,10 @@ static void rk616_hdmi_set_pwr_mode(int mode)
 int rk616_hdmi_detect_hotplug(void)
 {
 	int value = 0;
+	HDMIRdReg(INTERRUPT_STATUS1,&value);
+	if(value){
+		HDMIWrReg(INTERRUPT_STATUS1, value);
+	}
 	HDMIRdReg(HDMI_STATUS,&value);
 	
 	hdmi_dbg(hdmi->dev, "[%s] value %02x\n", __FUNCTION__, value);
@@ -353,14 +357,15 @@ static int rk616_hdmi_config_audio(struct hdmi_audio *audio)
 			return -ENOENT;
 	}
 
+	//set_audio source I2S
 	if(HDMI_CODEC_SOURCE_SELECT == INPUT_IIS){
-		//set_audio source I2S
+		HDMIWrReg(AUDIO_CTRL1, 0x00); 
 		HDMIWrReg(AUDIO_SAMPLE_RATE, rate);
 		HDMIWrReg(AUDIO_I2S_MODE, v_I2S_MODE(I2S_STANDARD) | v_I2S_CHANNEL(channel) );	
 		HDMIWrReg(AUDIO_I2S_MAP, 0x00); 
 		HDMIWrReg(AUDIO_I2S_SWAPS_SPDIF, 0); // no swap	
 	}else{
-		HDMIWrReg(AUDIO_CTRL1, 0x08); //internal CTS, disable down sample, i2s input, disable MCLK
+		HDMIWrReg(AUDIO_CTRL1, 0x08);
 		HDMIWrReg(AUDIO_I2S_SWAPS_SPDIF, 0); // no swap	
 	}
 		
@@ -423,11 +428,12 @@ void hdmi_irq(void)
 			rk616_hdmi_set_pwr_mode(NORMAL);
 		queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, msecs_to_jiffies(10));	
 	}
-	
+#if 0	
 	if(hdmi->state == HDMI_SLEEP) {
 //		hdmi_dbg(hdmi->dev, "hdmi return to sleep mode\n");
 		rk616_hdmi_set_pwr_mode(LOWER_PWR);
 	}
+#endif
 #if 0
 	if(hdmi->hdcp_irq_cb)
 		hdmi->hdcp_irq_cb(interrupt2);
