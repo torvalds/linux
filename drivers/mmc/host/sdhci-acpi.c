@@ -31,8 +31,10 @@
 #include <linux/bitops.h>
 #include <linux/types.h>
 #include <linux/err.h>
+#include <linux/gpio.h>
 #include <linux/interrupt.h>
 #include <linux/acpi.h>
+#include <linux/acpi_gpio.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 
@@ -101,6 +103,8 @@ static const struct sdhci_acpi_slot sdhci_acpi_slot_int_sdio = {
 };
 
 static const struct sdhci_acpi_slot sdhci_acpi_slot_int_sd = {
+	.flags   = SDHCI_ACPI_SD_CD | SDHCI_ACPI_RUNTIME_PM,
+	.quirks2 = SDHCI_QUIRK2_CARD_ON_NEEDS_BUS_ON,
 };
 
 struct sdhci_acpi_uid_slot {
@@ -161,6 +165,57 @@ static const struct sdhci_acpi_slot *sdhci_acpi_get_slot(acpi_handle handle,
 	return slot;
 }
 
+#ifdef CONFIG_PM_RUNTIME
+
+static irqreturn_t sdhci_acpi_sd_cd(int irq, void *dev_id)
+{
+	mmc_detect_change(dev_id, msecs_to_jiffies(200));
+	return IRQ_HANDLED;
+}
+
+static int sdhci_acpi_add_own_cd(struct device *dev, int gpio,
+				 struct mmc_host *mmc)
+{
+	unsigned long flags;
+	int err, irq;
+
+	if (gpio < 0) {
+		err = gpio;
+		goto out;
+	}
+
+	err = devm_gpio_request_one(dev, gpio, GPIOF_DIR_IN, "sd_cd");
+	if (err)
+		goto out;
+
+	irq = gpio_to_irq(gpio);
+	if (irq < 0)
+		goto out_free;
+
+	flags = IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING;
+	err = devm_request_irq(dev, irq, sdhci_acpi_sd_cd, flags, "sd_cd", mmc);
+	if (err)
+		goto out_free;
+
+	return 0;
+
+out_free:
+	devm_gpio_free(dev, gpio);
+out:
+	dev_warn(dev, "failed to setup card detect wake up\n");
+	return err;
+}
+
+#else
+
+static int sdhci_acpi_add_own_cd(struct device *dev, int gpio,
+				 struct mmc_host *mmc)
+{
+	return 0;
+}
+
+#endif
+
 static int sdhci_acpi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -171,7 +226,7 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 	struct resource *iomem;
 	resource_size_t len;
 	const char *hid;
-	int err;
+	int err, gpio;
 
 	if (acpi_bus_get_device(handle, &device))
 		return -ENODEV;
@@ -195,6 +250,8 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 	host = sdhci_alloc_host(dev, sizeof(struct sdhci_acpi_host));
 	if (IS_ERR(host))
 		return PTR_ERR(host);
+
+	gpio = acpi_get_gpio_by_index(dev, 0, NULL);
 
 	c = sdhci_priv(host);
 	c->host = host;
@@ -250,6 +307,11 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 	err = sdhci_add_host(host);
 	if (err)
 		goto err_free;
+
+	if (sdhci_acpi_flag(c, SDHCI_ACPI_SD_CD)) {
+		if (sdhci_acpi_add_own_cd(dev, gpio, host->mmc))
+			c->use_runtime_pm = false;
+	}
 
 	if (c->use_runtime_pm) {
 		pm_runtime_set_active(dev);
