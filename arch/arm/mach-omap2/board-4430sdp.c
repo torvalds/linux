@@ -724,7 +724,7 @@ static void __init omap_4430sdp_init(void)
 	omap4_sdp4430_wifi_init();
 	omap4_twl6030_hsmmc_init(mmc);
 
-	usb_bind_phy("musb-hdrc.0.auto", 0, "omap-usb2.1.auto");
+	usb_bind_phy("musb-hdrc.2.auto", 0, "omap-usb2.3.auto");
 	usb_musb_init(&musb_board_data);
 
 	status = omap_ethernet_init();
