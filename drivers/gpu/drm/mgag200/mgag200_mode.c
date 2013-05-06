@@ -46,29 +46,26 @@ static void mga_crtc_load_lut(struct drm_crtc *crtc)
 
 static inline void mga_wait_vsync(struct mga_device *mdev)
 {
-	unsigned int count = 0;
+	unsigned long timeout = jiffies + HZ/10;
 	unsigned int status = 0;
 
 	do {
 		status = RREG32(MGAREG_Status);
-		count++;
-	} while ((status & 0x08) && (count < 250000));
-	count = 0;
+	} while ((status & 0x08) && time_before(jiffies, timeout));
+	timeout = jiffies + HZ/10;
 	status = 0;
 	do {
 		status = RREG32(MGAREG_Status);
-		count++;
-	} while (!(status & 0x08) && (count < 250000));
+	} while (!(status & 0x08) && time_before(jiffies, timeout));
 }
 
 static inline void mga_wait_busy(struct mga_device *mdev)
 {
-	unsigned int count = 0;
+	unsigned long timeout = jiffies + HZ;
 	unsigned int status = 0;
 	do {
 		status = RREG8(MGAREG_Status + 2);
-		count++;
-	} while ((status & 0x01) && (count < 500000));
+	} while ((status & 0x01) && time_before(jiffies, timeout));
 }
 
 /*
