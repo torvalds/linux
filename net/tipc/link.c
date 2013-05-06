@@ -2306,8 +2306,11 @@ static int link_recv_changeover_msg(struct tipc_link **l_ptr,
 	struct tipc_msg *tunnel_msg = buf_msg(tunnel_buf);
 	u32 msg_typ = msg_type(tunnel_msg);
 	u32 msg_count = msg_msgcnt(tunnel_msg);
+	u32 bearer_id = msg_bearer_id(tunnel_msg);
 
-	dest_link = (*l_ptr)->owner->links[msg_bearer_id(tunnel_msg)];
+	if (bearer_id >= MAX_BEARERS)
+		goto exit;
+	dest_link = (*l_ptr)->owner->links[bearer_id];
 	if (!dest_link)
 		goto exit;
 	if (dest_link == *l_ptr) {
@@ -2521,14 +2524,16 @@ int tipc_link_recv_fragment(struct sk_buff **pending, struct sk_buff **fb,
 		struct tipc_msg *imsg = (struct tipc_msg *)msg_data(fragm);
 		u32 msg_sz = msg_size(imsg);
 		u32 fragm_sz = msg_data_sz(fragm);
-		u32 exp_fragm_cnt = msg_sz/fragm_sz + !!(msg_sz % fragm_sz);
+		u32 exp_fragm_cnt;
 		u32 max =  TIPC_MAX_USER_MSG_SIZE + NAMED_H_SIZE;
+
 		if (msg_type(imsg) == TIPC_MCAST_MSG)
 			max = TIPC_MAX_USER_MSG_SIZE + MCAST_H_SIZE;
-		if (msg_size(imsg) > max) {
+		if (fragm_sz == 0 || msg_size(imsg) > max) {
 			kfree_skb(fbuf);
 			return 0;
 		}
+		exp_fragm_cnt = msg_sz / fragm_sz + !!(msg_sz % fragm_sz);
 		pbuf = tipc_buf_acquire(msg_size(imsg));
 		if (pbuf != NULL) {
 			pbuf->next = *pending;
