@@ -4567,13 +4567,14 @@ static int rbd_dev_v2_probe(struct rbd_device *rbd_dev)
 		ret = rbd_dev_v2_parent_info(rbd_dev);
 		if (ret)
 			goto out_err;
-
 		/*
-		 * Don't print a warning for parent images.  We can
-		 * tell this point because we won't know its pool
-		 * name yet (just its pool id).
+		 * Print a warning if this image has a parent.
+		 * Don't print it if the image now being probed
+		 * is itself a parent.  We can tell at this point
+		 * because we won't know its pool name yet (just its
+		 * pool id).
 		 */
-		if (rbd_dev->spec->pool_name)
+		if (rbd_dev->parent_spec && rbd_dev->spec->pool_name)
 			rbd_warn(rbd_dev, "WARNING: kernel layering "
 					"is EXPERIMENTAL!");
 	}
