@@ -144,7 +144,7 @@ __v7m_proc_info:
 	b	__v7m_setup		@ proc_info_list.__cpu_flush
 	.long	cpu_arch_name
 	.long	cpu_elf_name
-	.long	HWCAP_HALF|HWCAP_THUMB|HWCAP_FAST_MULT|HWCAP_IDIVT
+	.long	HWCAP_HALF|HWCAP_THUMB|HWCAP_FAST_MULT
 	.long	cpu_v7m_name
 	.long	v7m_processor_functions	@ proc_info_list.proc
 	.long	0			@ proc_info_list.tlb
