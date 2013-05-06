@@ -39,11 +39,6 @@ struct pci_controller {
 	resource_size_t io_base_phys;
 	resource_size_t pci_io_size;
 
-	/* Some machines (PReP) have a non 1:1 mapping of
-	 * the PCI memory space in the CPU bus space
-	 */
-	resource_size_t pci_mem_offset;
-
 	/* Some machines have a special region to forward the ISA
 	 * "memory" cycles such as VGA memory regions. Left to 0
 	 * if unsupported
@@ -86,6 +81,7 @@ struct pci_controller {
 	 */
 	struct resource	io_resource;
 	struct resource mem_resources[3];
+	resource_size_t mem_offset[3];
 	int global_number;		/* PCI domain number */
 
 	resource_size_t dma_window_base_cur;

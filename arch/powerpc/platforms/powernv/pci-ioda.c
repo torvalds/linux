@@ -915,11 +915,14 @@ static void pnv_ioda_setup_pe_seg(struct pci_controller *hose,
 				index++;
 			}
 		} else if (res->flags & IORESOURCE_MEM) {
+			/* WARNING: Assumes M32 is mem region 0 in PHB. We need to
+			 * harden that algorithm when we start supporting M64
+			 */
 			region.start = res->start -
-				       hose->pci_mem_offset -
+				       hose->mem_offset[0] -
 				       phb->ioda.m32_pci_base;
 			region.end   = res->end -
-				       hose->pci_mem_offset -
+				       hose->mem_offset[0] -
 				       phb->ioda.m32_pci_base;
 			index = region.start / phb->ioda.m32_segsize;
 
@@ -1115,8 +1118,7 @@ void __init pnv_pci_init_ioda_phb(struct device_node *np, int ioda_type)
 	phb->ioda.m32_size += 0x10000;
 
 	phb->ioda.m32_segsize = phb->ioda.m32_size / phb->ioda.total_pe;
-	phb->ioda.m32_pci_base = hose->mem_resources[0].start -
-		hose->pci_mem_offset;
+	phb->ioda.m32_pci_base = hose->mem_resources[0].start - hose->mem_offset[0];
 	phb->ioda.io_size = hose->pci_io_size;
 	phb->ioda.io_segsize = phb->ioda.io_size / phb->ioda.total_pe;
 	phb->ioda.io_pci_base = 0; /* XXX calculate this ? */
