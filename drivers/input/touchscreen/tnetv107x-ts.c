@@ -351,7 +351,6 @@ error_clk:
 error_map:
 	release_mem_region(ts->res->start, resource_size(ts->res));
 error_res:
-	platform_set_drvdata(pdev, NULL);
 	kfree(ts);
 
 	return error;
@@ -366,7 +365,6 @@ static int tsc_remove(struct platform_device *pdev)
 	clk_put(ts->clk);
 	iounmap(ts->regs);
 	release_mem_region(ts->res->start, resource_size(ts->res));
-	platform_set_drvdata(pdev, NULL);
 	kfree(ts);
 
 	return 0;
