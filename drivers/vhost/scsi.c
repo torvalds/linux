@@ -49,7 +49,6 @@
 #include <linux/llist.h>
 #include <linux/bitmap.h>
 
-#include "vhost.c"
 #include "vhost.h"
 
 #define TCM_VHOST_VERSION  "v0.1"

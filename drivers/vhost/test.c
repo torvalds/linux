@@ -18,7 +18,7 @@
 #include <linux/slab.h>
 
 #include "test.h"
-#include "vhost.c"
+#include "vhost.h"
 
 /* Max number of bytes transferred before requeueing the job.
  * Using this limit prevents one virtqueue from starving others. */
