@@ -19,7 +19,6 @@
 #include <linux/of_gpio.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
-#include <linux/pinctrl/consumer.h>
 
 #define DRIVER_NAME "sirfsoc_spi"
 
@@ -127,7 +126,6 @@ struct sirfsoc_spi {
 	void __iomem *base;
 	u32 ctrl_freq;  /* SPI controller clock speed */
 	struct clk *clk;
-	struct pinctrl *p;
 
 	/* rx & tx bufs from the spi_transfer */
 	const void *tx;
@@ -558,15 +556,10 @@ static int spi_sirfsoc_probe(struct platform_device *pdev)
 	master->bus_num = pdev->id;
 	sspi->bitbang.master->dev.of_node = pdev->dev.of_node;
 
-	sspi->p = pinctrl_get_select_default(&pdev->dev);
-	ret = IS_ERR(sspi->p);
-	if (ret)
-		goto free_master;
-
 	sspi->clk = clk_get(&pdev->dev, NULL);
 	if (IS_ERR(sspi->clk)) {
 		ret = -EINVAL;
-		goto free_pin;
+		goto free_master;
 	}
 	clk_prepare_enable(sspi->clk);
 	sspi->ctrl_freq = clk_get_rate(sspi->clk);
@@ -594,8 +587,6 @@ static int spi_sirfsoc_probe(struct platform_device *pdev)
 free_clk:
 	clk_disable_unprepare(sspi->clk);
 	clk_put(sspi->clk);
-free_pin:
-	pinctrl_put(sspi->p);
 free_master:
 	spi_master_put(master);
 err_cs:
@@ -618,7 +609,6 @@ static int  spi_sirfsoc_remove(struct platform_device *pdev)
 	}
 	clk_disable_unprepare(sspi->clk);
 	clk_put(sspi->clk);
-	pinctrl_put(sspi->p);
 	spi_master_put(master);
 	return 0;
 }
