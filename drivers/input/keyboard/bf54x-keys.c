@@ -326,7 +326,6 @@ out0:
 	kfree(bf54x_kpad->keycode);
 out:
 	kfree(bf54x_kpad);
-	platform_set_drvdata(pdev, NULL);
 
 	return error;
 }
@@ -346,7 +345,6 @@ static int bfin_kpad_remove(struct platform_device *pdev)
 
 	kfree(bf54x_kpad->keycode);
 	kfree(bf54x_kpad);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
