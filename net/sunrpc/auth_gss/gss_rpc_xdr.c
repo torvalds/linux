@@ -264,25 +264,27 @@ static int gssx_dec_option_array(struct xdr_stream *xdr,
 	if (unlikely(p == NULL))
 		return -ENOSPC;
 	count = be32_to_cpup(p++);
-	if (count != 0) {
-		/* we recognize only 1 currently: CREDS_VALUE */
-		oa->count = 1;
+	if (!count)
+		return 0;
 
-		oa->data = kmalloc(sizeof(struct gssx_option), GFP_KERNEL);
-		if (!oa->data)
-			return -ENOMEM;
+	/* we recognize only 1 currently: CREDS_VALUE */
+	oa->count = 1;
 
-		creds = kmalloc(sizeof(struct svc_cred), GFP_KERNEL);
-		if (!creds) {
-			kfree(oa->data);
-			return -ENOMEM;
-		}
+	oa->data = kmalloc(sizeof(struct gssx_option), GFP_KERNEL);
+	if (!oa->data)
+		return -ENOMEM;
 
-		oa->data[0].option.data = CREDS_VALUE;
-		oa->data[0].option.len = sizeof(CREDS_VALUE);
-		oa->data[0].value.data = (void *)creds;
-		oa->data[0].value.len = 0;
+	creds = kmalloc(sizeof(struct svc_cred), GFP_KERNEL);
+	if (!creds) {
+		kfree(oa->data);
+		return -ENOMEM;
 	}
+
+	oa->data[0].option.data = CREDS_VALUE;
+	oa->data[0].option.len = sizeof(CREDS_VALUE);
+	oa->data[0].value.data = (void *)creds;
+	oa->data[0].value.len = 0;
+
 	for (i = 0; i < count; i++) {
 		gssx_buffer dummy = { 0, NULL };
 		u32 length;
