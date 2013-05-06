@@ -376,8 +376,6 @@ _GLOBAL(ret_from_fork)
 _GLOBAL(ret_from_kernel_thread)
 	bl	.schedule_tail
 	REST_NVGPRS(r1)
-	li	r3,0
-	std	r3,0(r1)
 	ld	r14, 0(r14)
 	mtlr	r14
 	mr	r3,r15

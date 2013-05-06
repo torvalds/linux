@@ -971,6 +971,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	 * do some house keeping and then return from the fork or clone
 	 * system call, using the stack frame created above.
 	 */
+	((unsigned long *)sp)[0] = 0;
 	sp -= sizeof(struct pt_regs);
 	kregs = (struct pt_regs *) sp;
 	sp -= STACK_FRAME_OVERHEAD;
