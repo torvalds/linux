@@ -2874,6 +2874,13 @@ static void rbd_request_fn(struct request_queue *q)
 			goto end_request;	/* Shouldn't happen */
 		}
 
+		result = -EIO;
+		if (offset + length > rbd_dev->mapping.size) {
+			rbd_warn(rbd_dev, "beyond EOD (%llu~%llu > %llu)\n",
+				offset, length, rbd_dev->mapping.size);
+			goto end_request;
+		}
+
 		result = -ENOMEM;
 		img_request = rbd_img_request_create(rbd_dev, offset, length,
 							write_request, false);
@@ -3116,14 +3123,8 @@ static void rbd_update_mapping_size(struct rbd_device *rbd_dev)
 	if (rbd_dev->spec->snap_id != CEPH_NOSNAP)
 		return;
 
-	if (rbd_dev->mapping.size != rbd_dev->header.image_size) {
-		sector_t size;
-
+	if (rbd_dev->mapping.size != rbd_dev->header.image_size)
 		rbd_dev->mapping.size = rbd_dev->header.image_size;
-		size = (sector_t)rbd_dev->mapping.size / SECTOR_SIZE;
-		dout("setting size to %llu sectors", (unsigned long long)size);
-		set_capacity(rbd_dev->disk, size);
-	}
 }
 
 /*
@@ -3200,8 +3201,14 @@ static int rbd_dev_refresh(struct rbd_device *rbd_dev)
 
 	rbd_exists_validate(rbd_dev);
 	mutex_unlock(&ctl_mutex);
-	if (mapping_size != rbd_dev->mapping.size)
+	if (mapping_size != rbd_dev->mapping.size) {
+		sector_t size;
+
+		size = (sector_t)rbd_dev->mapping.size / SECTOR_SIZE;
+		dout("setting size to %llu sectors", (unsigned long long)size);
+		set_capacity(rbd_dev->disk, size);
 		revalidate_disk(rbd_dev->disk);
+	}
 
 	return ret;
 }
