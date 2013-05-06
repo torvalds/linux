@@ -84,13 +84,10 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 		phy = get_phy_device(mdio, addr, is_c45);
 
 		if (!phy || IS_ERR(phy)) {
-			phy = phy_device_create(mdio, addr, 0, false, NULL);
-			if (!phy || IS_ERR(phy)) {
-				dev_err(&mdio->dev,
-					"error creating PHY at address %i\n",
-					addr);
-				continue;
-			}
+			dev_err(&mdio->dev,
+				"cannot get PHY at address %i\n",
+				addr);
+			continue;
 		}
 
 		/* Associate the OF node with the device structure so it
