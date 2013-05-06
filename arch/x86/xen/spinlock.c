@@ -364,7 +364,7 @@ void __cpuinit xen_init_lock_cpu(int cpu)
 	int irq;
 	const char *name;
 
-	WARN(per_cpu(lock_kicker_irq, cpu) > 0, "spinlock on CPU%d exists on IRQ%d!\n",
+	WARN(per_cpu(lock_kicker_irq, cpu) >= 0, "spinlock on CPU%d exists on IRQ%d!\n",
 	     cpu, per_cpu(lock_kicker_irq, cpu));
 
 	/*
