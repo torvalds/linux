@@ -36,18 +36,6 @@ const struct public_key_algorithm *pkey_algo[PKEY_ALGO__LAST] = {
 };
 EXPORT_SYMBOL_GPL(pkey_algo);
 
-const char *const pkey_hash_algo_name[PKEY_HASH__LAST] = {
-	[PKEY_HASH_MD4]		= "md4",
-	[PKEY_HASH_MD5]		= "md5",
-	[PKEY_HASH_SHA1]	= "sha1",
-	[PKEY_HASH_RIPE_MD_160]	= "rmd160",
-	[PKEY_HASH_SHA256]	= "sha256",
-	[PKEY_HASH_SHA384]	= "sha384",
-	[PKEY_HASH_SHA512]	= "sha512",
-	[PKEY_HASH_SHA224]	= "sha224",
-};
-EXPORT_SYMBOL_GPL(pkey_hash_algo_name);
-
 const char *const pkey_id_type_name[PKEY_ID_TYPE__LAST] = {
 	[PKEY_ID_PGP]		= "PGP",
 	[PKEY_ID_X509]		= "X509",

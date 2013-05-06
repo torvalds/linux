@@ -15,6 +15,7 @@
 #define _LINUX_PUBLIC_KEY_H
 
 #include <linux/mpi.h>
+#include <crypto/hash_info.h>
 
 enum pkey_algo {
 	PKEY_ALGO_DSA,
@@ -25,19 +26,8 @@ enum pkey_algo {
 extern const char *const pkey_algo_name[PKEY_ALGO__LAST];
 extern const struct public_key_algorithm *pkey_algo[PKEY_ALGO__LAST];
 
-enum pkey_hash_algo {
-	PKEY_HASH_MD4,
-	PKEY_HASH_MD5,
-	PKEY_HASH_SHA1,
-	PKEY_HASH_RIPE_MD_160,
-	PKEY_HASH_SHA256,
-	PKEY_HASH_SHA384,
-	PKEY_HASH_SHA512,
-	PKEY_HASH_SHA224,
-	PKEY_HASH__LAST
-};
-
-extern const char *const pkey_hash_algo_name[PKEY_HASH__LAST];
+/* asymmetric key implementation supports only up to SHA224 */
+#define PKEY_HASH__LAST		(HASH_ALGO_SHA224 + 1)
 
 enum pkey_id_type {
 	PKEY_ID_PGP,		/* OpenPGP generated key ID */
@@ -91,7 +81,7 @@ struct public_key_signature {
 	u8 digest_size;			/* Number of bytes in digest */
 	u8 nr_mpi;			/* Occupancy of mpi[] */
 	enum pkey_algo pkey_algo : 8;
-	enum pkey_hash_algo pkey_hash_algo : 8;
+	enum hash_algo pkey_hash_algo : 8;
 	union {
 		MPI mpi[2];
 		struct {
