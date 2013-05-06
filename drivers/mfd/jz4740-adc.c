@@ -294,7 +294,6 @@ static int jz4740_adc_probe(struct platform_device *pdev)
 err_clk_put:
 	clk_put(adc->clk);
 err_iounmap:
-	platform_set_drvdata(pdev, NULL);
 	iounmap(adc->base);
 err_release_mem_region:
 	release_mem_region(adc->mem->start, resource_size(adc->mem));
@@ -316,8 +315,6 @@ static int jz4740_adc_remove(struct platform_device *pdev)
 	release_mem_region(adc->mem->start, resource_size(adc->mem));
 
 	clk_put(adc->clk);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
