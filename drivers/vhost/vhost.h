@@ -135,6 +135,7 @@ struct vhost_dev {
 };
 
 long vhost_dev_init(struct vhost_dev *, struct vhost_virtqueue **vqs, int nvqs);
+long vhost_dev_set_owner(struct vhost_dev *dev);
 long vhost_dev_check_owner(struct vhost_dev *);
 struct vhost_memory *vhost_dev_reset_owner_prepare(void);
 void vhost_dev_reset_owner(struct vhost_dev *, struct vhost_memory *);

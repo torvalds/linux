@@ -344,7 +344,7 @@ static int vhost_attach_cgroups(struct vhost_dev *dev)
 }
 
 /* Caller should have device mutex */
-static long vhost_dev_set_owner(struct vhost_dev *dev)
+long vhost_dev_set_owner(struct vhost_dev *dev)
 {
 	struct task_struct *worker;
 	int err;
