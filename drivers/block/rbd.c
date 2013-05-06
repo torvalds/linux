@@ -966,13 +966,6 @@ static void rbd_dev_mapping_clear(struct rbd_device *rbd_dev)
 	rbd_dev->mapping.read_only = true;
 }
 
-static void rbd_dev_clear_mapping(struct rbd_device *rbd_dev)
-{
-	rbd_dev->mapping.size = 0;
-	rbd_dev->mapping.features = 0;
-	rbd_dev->mapping.read_only = true;
-}
-
 static const char *rbd_segment_name(struct rbd_device *rbd_dev, u64 offset)
 {
 	char *name;
@@ -4910,7 +4903,7 @@ static void rbd_dev_device_release(struct device *dev)
 
 	rbd_free_disk(rbd_dev);
 	clear_bit(RBD_DEV_FLAG_EXISTS, &rbd_dev->flags);
-	rbd_dev_clear_mapping(rbd_dev);
+	rbd_dev_mapping_clear(rbd_dev);
 	unregister_blkdev(rbd_dev->major, rbd_dev->name);
 	rbd_dev->major = 0;
 	rbd_dev_id_put(rbd_dev);
