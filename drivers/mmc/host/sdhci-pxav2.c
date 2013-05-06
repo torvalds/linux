@@ -253,8 +253,6 @@ static int sdhci_pxav2_remove(struct platform_device *pdev)
 	sdhci_pltfm_free(pdev);
 	kfree(pxa);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 

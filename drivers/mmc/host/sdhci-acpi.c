@@ -262,7 +262,6 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 	return 0;
 
 err_free:
-	platform_set_drvdata(pdev, NULL);
 	sdhci_free_host(c->host);
 	return err;
 }
@@ -281,7 +280,6 @@ static int sdhci_acpi_remove(struct platform_device *pdev)
 
 	dead = (sdhci_readl(c->host, SDHCI_INT_STATUS) == ~0);
 	sdhci_remove_host(c->host, dead);
-	platform_set_drvdata(pdev, NULL);
 	sdhci_free_host(c->host);
 
 	return 0;

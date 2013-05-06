@@ -2047,7 +2047,6 @@ err_irq:
 	}
 err1:
 	iounmap(host->base);
-	platform_set_drvdata(pdev, NULL);
 	mmc_free_host(mmc);
 err_alloc:
 	omap_hsmmc_gpio_free(pdata);
@@ -2093,7 +2092,6 @@ static int omap_hsmmc_remove(struct platform_device *pdev)
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res)
 		release_mem_region(res->start, resource_size(res));
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

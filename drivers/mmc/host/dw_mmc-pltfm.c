@@ -72,7 +72,6 @@ static int dw_mci_pltfm_remove(struct platform_device *pdev)
 {
 	struct dw_mci *host = platform_get_drvdata(pdev);
 
-	platform_set_drvdata(pdev, NULL);
 	dw_mci_remove(host);
 	return 0;
 }

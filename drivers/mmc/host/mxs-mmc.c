@@ -708,8 +708,6 @@ static int mxs_mmc_remove(struct platform_device *pdev)
 
 	mmc_remove_host(mmc);
 
-	platform_set_drvdata(pdev, NULL);
-
 	if (ssp->dmach)
 		dma_release_channel(ssp->dmach);
 
