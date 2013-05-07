@@ -882,9 +882,9 @@ static inline bool hotplug_irq_storm_detect(struct drm_device *dev,
 
 		if (!(hpd[i] & hotplug_trigger) ||
 		    dev_priv->hpd_stats[i].hpd_mark != HPD_ENABLED)
-			dev_priv->hpd_event_bits |= (1 << i);
 			continue;
 
+		dev_priv->hpd_event_bits |= (1 << i);
 		if (!time_in_range(jiffies, dev_priv->hpd_stats[i].hpd_last_jiffies,
 				   dev_priv->hpd_stats[i].hpd_last_jiffies
 				   + msecs_to_jiffies(HPD_STORM_DETECT_PERIOD))) {
