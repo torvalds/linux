@@ -152,6 +152,7 @@ config BATTERY_SBS
 
 config BATTERY_BQ27x00
 	tristate "BQ27x00 battery driver"
+	depends on I2C || I2C=n
 	help
 	  Say Y here to enable support for batteries with BQ27x00 (I2C/HDQ) chips.
 
