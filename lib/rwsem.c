@@ -68,20 +68,17 @@ __rwsem_do_wake(struct rw_semaphore *sem, int wake_type)
 	signed long woken, loop, adjustment;
 
 	waiter = list_entry(sem->wait_list.next, struct rwsem_waiter, list);
-	if (waiter->type != RWSEM_WAITING_FOR_WRITE)
-		goto readers_only;
-
-	if (wake_type == RWSEM_WAKE_READ_OWNED)
-		/* Another active reader was observed, so wakeup is not
-		 * likely to succeed. Save the atomic op.
-		 */
+	if (waiter->type == RWSEM_WAITING_FOR_WRITE) {
+		if (wake_type != RWSEM_WAKE_READ_OWNED)
+			/* Wake writer at the front of the queue, but do not
+			 * grant it the lock yet as we want other writers
+			 * to be able to steal it.  Readers, on the other hand,
+			 * will block as they will notice the queued writer.
+			 */
+			wake_up_process(waiter->task);
 		goto out;
+	}
 
-	/* Wake up the writing waiter and let the task grab the sem: */
-	wake_up_process(waiter->task);
-	goto out;
-
- readers_only:
 	/* If we come here from up_xxxx(), another thread might have reached
 	 * rwsem_down_failed_common() before we acquired the spinlock and
 	 * woken up a waiter, making it now active.  We prefer to check for
@@ -125,7 +122,8 @@ __rwsem_do_wake(struct rw_semaphore *sem, int wake_type)
 	rwsem_atomic_add(adjustment, sem);
 
 	next = sem->wait_list.next;
-	for (loop = woken; loop > 0; loop--) {
+	loop = woken;
+	do {
 		waiter = list_entry(next, struct rwsem_waiter, list);
 		next = waiter->list.next;
 		tsk = waiter->task;
@@ -133,7 +131,7 @@ __rwsem_do_wake(struct rw_semaphore *sem, int wake_type)
 		waiter->task = NULL;
 		wake_up_process(tsk);
 		put_task_struct(tsk);
-	}
+	} while (--loop);
 
 	sem->wait_list.next = next;
 	next->prev = &sem->wait_list;

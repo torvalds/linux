@@ -70,26 +70,17 @@ __rwsem_do_wake(struct rw_semaphore *sem, int wakewrite)
 
 	waiter = list_entry(sem->wait_list.next, struct rwsem_waiter, list);
 
-	if (!wakewrite) {
-		if (waiter->type == RWSEM_WAITING_FOR_WRITE)
-			goto out;
-		goto dont_wake_writers;
-	}
-
-	/*
-	 * as we support write lock stealing, we can't set sem->activity
-	 * to -1 here to indicate we get the lock. Instead, we wake it up
-	 * to let it go get it again.
-	 */
 	if (waiter->type == RWSEM_WAITING_FOR_WRITE) {
-		wake_up_process(waiter->task);
+		if (wakewrite)
+			/* Wake up a writer. Note that we do not grant it the
+			 * lock - it will have to acquire it when it runs. */
+			wake_up_process(waiter->task);
 		goto out;
 	}
 
 	/* grant an infinite number of read locks to the front of the queue */
- dont_wake_writers:
 	woken = 0;
-	while (waiter->type == RWSEM_WAITING_FOR_READ) {
+	do {
 		struct list_head *next = waiter->list.next;
 
 		list_del(&waiter->list);
@@ -99,10 +90,10 @@ __rwsem_do_wake(struct rw_semaphore *sem, int wakewrite)
 		wake_up_process(tsk);
 		put_task_struct(tsk);
 		woken++;
-		if (list_empty(&sem->wait_list))
+		if (next == &sem->wait_list)
 			break;
 		waiter = list_entry(next, struct rwsem_waiter, list);
-	}
+	} while (waiter->type != RWSEM_WAITING_FOR_WRITE);
 
 	sem->activity += woken;
 
