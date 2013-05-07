@@ -193,7 +193,6 @@ static bool ath_prepare_reset(struct ath_softc *sc)
 	ath_stop_ani(sc);
 	del_timer_sync(&sc->rx_poll_timer);
 
-	ath9k_debug_samp_bb_mac(sc);
 	ath9k_hw_disable_interrupts(ah);
 
 	if (!ath_drain_all_txq(sc))

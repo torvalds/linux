@@ -418,7 +418,6 @@ void ath_ani_calibrate(unsigned long data)
 		longcal ? "long" : "", shortcal ? "short" : "",
 		aniflag ? "ani" : "", common->ani.caldone ? "true" : "false");
 
-	ath9k_debug_samp_bb_mac(sc);
 	ath9k_ps_restore(sc);
 
 set_timer:
