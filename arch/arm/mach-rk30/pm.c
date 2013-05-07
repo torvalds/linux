@@ -23,6 +23,7 @@
 #include <mach/cru.h>
 #include <mach/ddr.h>
 #include <mach/debug_uart.h>
+#include <plat/efuse.h>
 
 #define cru_readl(offset)	readl_relaxed(RK30_CRU_BASE + offset)
 #define cru_writel(v, offset)	do { writel_relaxed(v, RK30_CRU_BASE + offset); dsb(); } while (0)
@@ -739,9 +740,12 @@ static void rk_pm_soc_pll_suspend(void)
 	cru_mode_con = cru_readl(CRU_MODE_CON);
 	
 		//cpll
+		if(rk_pll_flag()==0)
+		{	
 		cru_writel(PLL_MODE_SLOW(CPLL_ID), CRU_MODE_CON);
 		cpll_con3 = cru_readl(PLL_CONS(CPLL_ID, 3));
 		power_off_pll(CPLL_ID);
+		}
 	
 		//apll
 		clk_sel0 = cru_readl(CRU_CLKSELS_CON(0));
@@ -765,6 +769,8 @@ static void rk_pm_soc_pll_suspend(void)
 		power_off_pll(APLL_ID);
 	
 		//gpll
+		if(rk_pll_flag()==0)
+		{
 		cru_writel(PLL_MODE_SLOW(GPLL_ID), CRU_MODE_CON);
 		clk_sel10 = cru_readl(CRU_CLKSELS_CON(10));
 		cru_writel(CRU_W_MSK_SETBITS(0, PERI_ACLK_DIV_OFF, PERI_ACLK_DIV_MASK)
@@ -772,6 +778,7 @@ static void rk_pm_soc_pll_suspend(void)
 			   | CRU_W_MSK_SETBITS(0, PERI_PCLK_DIV_OFF, PERI_PCLK_DIV_MASK)
 			   , CRU_CLKSELS_CON(10));
 		power_off_pll(GPLL_ID);
+		}
 
 }
 
@@ -779,10 +786,12 @@ static void rk_pm_soc_pll_resume(void)
 {
 	
 	//gpll
+	if(rk_pll_flag()==0)
+	{
 	cru_writel(0xffff0000 | clk_sel10, CRU_CLKSELS_CON(10));
 	power_on_pll(GPLL_ID);
 	cru_writel((PLL_MODE_MSK(GPLL_ID) << 16) | (PLL_MODE_MSK(GPLL_ID) & cru_mode_con), CRU_MODE_CON);
-
+	}
 	//apll
 	cru_writel(0xffff0000 | clk_sel1, CRU_CLKSELS_CON(1));
 	cru_writel(0xffff0000 | clk_sel0, CRU_CLKSELS_CON(0));
@@ -790,11 +799,14 @@ static void rk_pm_soc_pll_resume(void)
 	cru_writel((PLL_MODE_MSK(APLL_ID) << 16) | (PLL_MODE_MSK(APLL_ID) & cru_mode_con), CRU_MODE_CON);
 
 	//cpll
+	if(rk_pll_flag()==0)
+	{	
 	if (((cpll_con3 & PLL_PWR_DN_MSK) == PLL_PWR_ON) &&
 		((PLL_MODE_NORM(CPLL_ID) & PLL_MODE_MSK(CPLL_ID)) == (cru_mode_con & PLL_MODE_MSK(CPLL_ID)))) {
 		power_on_pll(CPLL_ID);
 	}
 	cru_writel((PLL_MODE_MSK(CPLL_ID) << 16) | (PLL_MODE_MSK(CPLL_ID) & cru_mode_con), CRU_MODE_CON);
+	}
 
 
 }

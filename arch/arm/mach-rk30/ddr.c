@@ -3750,12 +3750,41 @@ void ddr_set_auto_self_refresh(bool en)
 }
 EXPORT_SYMBOL(ddr_set_auto_self_refresh);
 
+enum rk_plls_id {
+	APLL_IDX = 0,
+	DPLL_IDX,
+	CPLL_IDX,
+	GPLL_IDX,
+	END_PLL_IDX,
+};
+#define PLL_MODE_SLOW(id)	((0x0<<((id)*4))|(0x3<<(16+(id)*4)))
+#define PLL_MODE_NORM(id)	((0x1<<((id)*4))|(0x3<<(16+(id)*4)))
+
+#define CRU_W_MSK(bits_shift, msk)	((msk) << ((bits_shift) + 16))
+#define CRU_SET_BITS(val,bits_shift, msk)	(((val)&(msk)) << (bits_shift))
+
+#define CRU_W_MSK_SETBITS(val,bits_shift,msk) (CRU_W_MSK(bits_shift, msk)|CRU_SET_BITS(val,bits_shift, msk))
+
+#define PERI_ACLK_DIV_MASK 0x1f
+#define PERI_ACLK_DIV_OFF 0
+
+#define PERI_HCLK_DIV_MASK 0x3
+#define PERI_HCLK_DIV_OFF 8
+
+#define PERI_PCLK_DIV_MASK 0x3
+#define PERI_PCLK_DIV_OFF 12
+static __sramdata u32 cru_sel32_sram;
 void __sramfunc ddr_suspend(void)
 {
     u32 i;
     volatile u32 n;	
     volatile unsigned int * temp=(volatile unsigned int *)SRAM_CODE_OFFSET;
-    
+    int pll_idx;
+
+if(pCRU_Reg->CRU_CLKSEL_CON[26]&(1<<8))
+	pll_idx=GPLL_IDX;
+else
+	pll_idx=DPLL_IDX;
     /** 1. Make sure there is no host access */
     flush_cache_all();
     outer_flush_all();
@@ -3786,13 +3815,20 @@ void __sramfunc ddr_suspend(void)
     
     ddr_selfrefresh_enter(0);
 
-    pCRU_Reg->CRU_MODE_CON = (0x3<<((1*4) +  16)) | (0x0<<(1*4));   //PLL slow-mode
+    pCRU_Reg->CRU_MODE_CON = PLL_MODE_SLOW(pll_idx);   //PLL slow-mode
     dsb();
     ddr_delayus(1);    
-    pCRU_Reg->CRU_PLL_CON[1][3] = ((0x1<<1)<<16) | (0x1<<1);         //PLL power-down
+    pCRU_Reg->CRU_PLL_CON[pll_idx][3] = ((0x1<<1)<<16) | (0x1<<1);         //PLL power-down
     dsb();
     ddr_delayus(1);    
-
+    if(pll_idx==GPLL_IDX)
+    {	
+    	cru_sel32_sram=   pCRU_Reg->CRU_CLKSEL_CON[10];
+    
+    	pCRU_Reg->CRU_CLKSEL_CON[10]=CRU_W_MSK_SETBITS(0, PERI_ACLK_DIV_OFF, PERI_ACLK_DIV_MASK)
+    				   | CRU_W_MSK_SETBITS(0, PERI_HCLK_DIV_OFF, PERI_HCLK_DIV_MASK)
+    				   |CRU_W_MSK_SETBITS(0, PERI_PCLK_DIV_OFF, PERI_PCLK_DIV_MASK);
+    }
     pPHY_Reg->DSGCR = pPHY_Reg->DSGCR&(~((0x1<<28)|(0x1<<29)));  //CKOE
 }
 EXPORT_SYMBOL(ddr_suspend);
@@ -3800,25 +3836,48 @@ EXPORT_SYMBOL(ddr_suspend);
 void __sramfunc ddr_resume(void)
 {
     int delay=1000;
-    pPHY_Reg->DSGCR = pPHY_Reg->DSGCR|((0x1<<28)|(0x1<<29));  //CKOE
-    dsb();
-    
-    pCRU_Reg->CRU_PLL_CON[1][3] = ((0x1<<1)<<16) | (0x0<<1);         //PLL no power-down
+    int pll_idx;
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
+	u32 bit = 0x20 ;
+#else
+	u32 bit = 0x10;
+#endif
+
+	if(pCRU_Reg->CRU_CLKSEL_CON[26]&(1<<8))
+	{	
+		pll_idx=GPLL_IDX;
+		bit =bit<<3;
+	}
+	else
+	{
+		pll_idx=DPLL_IDX;
+		bit=bit<<0;
+	}
+	
+	pPHY_Reg->DSGCR = pPHY_Reg->DSGCR|((0x1<<28)|(0x1<<29));  //CKOE
+	dsb();
+	
+	if(pll_idx==GPLL_IDX)
+	pCRU_Reg->CRU_CLKSEL_CON[10]=0xffff0000|cru_sel32_sram;
+
+
+	
+    pCRU_Reg->CRU_PLL_CON[pll_idx][3] = ((0x1<<1)<<16) | (0x0<<1);         //PLL no power-down
     dsb();
     while (delay > 0) 
     {
 	ddr_delayus(1);
 #if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
-        if (pGRF_Reg_RK3066B->GRF_SOC_STATUS0 & (0x1<<5))
+        if (pGRF_Reg_RK3066B->GRF_SOC_STATUS0 & (1<<5))
             break;
 #else
-        if (pGRF_Reg->GRF_SOC_STATUS0 & (0x1<<4))
+        if (pGRF_Reg->GRF_SOC_STATUS0 & (1<<4))
             break;
 #endif
         delay--;
     }
     
-    pCRU_Reg->CRU_MODE_CON = (0x3<<((1*4) +  16))  | (0x1<<(1*4));   //PLL normal
+    pCRU_Reg->CRU_MODE_CON = PLL_MODE_NORM(pll_idx);   //PLL normal
     dsb();
 
     ddr_selfrefresh_exit();
