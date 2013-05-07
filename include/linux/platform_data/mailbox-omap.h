@@ -41,11 +41,16 @@ struct omap_mbox_dev_info {
  * struct omap_mbox_pdata - OMAP mailbox platform data
  * @intr_type:	type of interrupt configuration registers used
 			while programming mailbox queue interrupts
+ * @num_users:	number of users (processor devices) that the mailbox
+ *			h/w block can interrupt
+ * @num_fifos:	number of h/w fifos within the mailbox h/w block
  * @info_cnt:	number of mailbox devices for the platform
  * @info:	array of mailbox device attributes
  */
 struct omap_mbox_pdata {
 	u32 intr_type;
+	u32 num_users;
+	u32 num_fifos;
 	u32 info_cnt;
 	struct omap_mbox_dev_info *info;
 };
