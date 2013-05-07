@@ -50,6 +50,46 @@
 			pinctrl-names = "default";
 			pinctrl-0 = <&mmc0_pins>;
 		};
+		spi1: spi@1f0e000 {
+			status = "okay";
+			pinctrl-names = "default";
+			pinctrl-0 = <&spi1_pins &spi1_cs0_pin>;
+			flash: m25p80@0 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				compatible = "m25p64";
+				spi-max-frequency = <30000000>;
+				reg = <0>;
+				partition@0 {
+					label = "U-Boot-SPL";
+					reg = <0x00000000 0x00010000>;
+					read-only;
+				};
+				partition@1 {
+					label = "U-Boot";
+					reg = <0x00010000 0x00080000>;
+					read-only;
+				};
+				partition@2 {
+					label = "U-Boot-Env";
+					reg = <0x00090000 0x00010000>;
+					read-only;
+				};
+				partition@3 {
+					label = "Kernel";
+					reg = <0x000a0000 0x00280000>;
+				};
+				partition@4 {
+					label = "Filesystem";
+					reg = <0x00320000 0x00400000>;
+				};
+				partition@5 {
+					label = "MAC-Address";
+					reg = <0x007f0000 0x00010000>;
+					read-only;
+				};
+			};
+		};
 	};
 	nand_cs3@62000000 {
 		status = "okay";

@@ -38,6 +38,11 @@
 		i2c7 = &i2c_7;
 	};
 
+	chipid@10000000 {
+		compatible = "samsung,exynos4210-chipid";
+		reg = <0x10000000 0x100>;
+	};
+
 	pd_mfc: mfc-power-domain@10023C40 {
 		compatible = "samsung,exynos4210-pd";
 		reg = <0x10023C40 0x20>;
@@ -80,6 +85,11 @@
 		#interrupt-cells = <2>;
 		interrupt-controller;
 		reg = <0x10440000 0x1000>;
+	};
+
+	sys_reg: sysreg {
+		compatible = "samsung,exynos4-sysreg", "syscon";
+		reg = <0x10010000 0x400>;
 	};
 
 	watchdog@10060000 {
@@ -197,6 +207,8 @@
 		interrupts = <0 58 0>;
 		clocks = <&clock 317>;
 		clock-names = "i2c";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c0_bus>;
 		status = "disabled";
 	};
 
@@ -208,6 +220,8 @@
 		interrupts = <0 59 0>;
 		clocks = <&clock 318>;
 		clock-names = "i2c";
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c1_bus>;
 		status = "disabled";
 	};
 
@@ -287,6 +301,8 @@
 		#size-cells = <0>;
 		clocks = <&clock 327>, <&clock 159>;
 		clock-names = "spi", "spi_busclk0";
+		pinctrl-names = "default";
+		pinctrl-0 = <&spi0_bus>;
 		status = "disabled";
 	};
 
@@ -300,6 +316,8 @@
 		#size-cells = <0>;
 		clocks = <&clock 328>, <&clock 160>;
 		clock-names = "spi", "spi_busclk0";
+		pinctrl-names = "default";
+		pinctrl-0 = <&spi1_bus>;
 		status = "disabled";
 	};
 
@@ -313,6 +331,8 @@
 		#size-cells = <0>;
 		clocks = <&clock 329>, <&clock 161>;
 		clock-names = "spi", "spi_busclk0";
+		pinctrl-names = "default";
+		pinctrl-0 = <&spi2_bus>;
 		status = "disabled";
 	};
 
@@ -355,5 +375,17 @@
 			#dma-channels = <8>;
 			#dma-requests = <1>;
 		};
+	};
+
+	fimd: fimd@11c00000 {
+		compatible = "samsung,exynos4210-fimd";
+		interrupt-parent = <&combiner>;
+		reg = <0x11c00000 0x20000>;
+		interrupt-names = "fifo", "vsync", "lcd_sys";
+		interrupts = <11 0>, <11 1>, <11 2>;
+		clocks = <&clock 140>, <&clock 283>;
+		clock-names = "sclk_fimd", "fimd";
+		samsung,power-domain = <&pd_lcd0>;
+		status = "disabled";
 	};
 };

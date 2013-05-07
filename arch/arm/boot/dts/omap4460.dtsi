@@ -1,0 +1,32 @@
+/*
+ * Device Tree Source for OMAP4460 SoC
+ *
+ * Copyright (C) 2012 Texas Instruments Incorporated - http://www.ti.com/
+ *
+ * This file is licensed under the terms of the GNU General Public License
+ * version 2.  This program is licensed "as is" without any warranty of any
+ * kind, whether express or implied.
+ */
+/include/ "omap4.dtsi"
+
+/ {
+	cpus {
+		/* OMAP446x 'standard device' variants OPP50 to OPPTurbo */
+		cpu@0 {
+			operating-points = <
+				/* kHz    uV */
+				350000   975000
+				700000  1075000
+				920000  1200000
+			>;
+			clock-latency = <300000>; /* From legacy driver */
+		};
+	};
+
+	pmu {
+		compatible = "arm,cortex-a9-pmu";
+		interrupts = <0 54 0x4>,
+			     <0 55 0x4>;
+		ti,hwmods = "debugss";
+	};
+};

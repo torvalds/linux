@@ -133,7 +133,12 @@ static struct property device_disabled = {
 };
 
 static struct of_device_id omap_timer_match[] __initdata = {
-	{ .compatible = "ti,omap2-timer", },
+	{ .compatible = "ti,omap2420-timer", },
+	{ .compatible = "ti,omap3430-timer", },
+	{ .compatible = "ti,omap4430-timer", },
+	{ .compatible = "ti,omap5430-timer", },
+	{ .compatible = "ti,am335x-timer", },
+	{ .compatible = "ti,am335x-timer-1ms", },
 	{ }
 };
 
