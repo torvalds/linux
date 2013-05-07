@@ -29,38 +29,12 @@ struct kiocb;
 
 typedef int (kiocb_cancel_fn)(struct kiocb *, struct io_event *);
 
-/* is there a better place to document function pointer methods? */
-/**
- * ki_retry	-	iocb forward progress callback
- * @kiocb:	The kiocb struct to advance by performing an operation.
- *
- * This callback is called when the AIO core wants a given AIO operation
- * to make forward progress.  The kiocb argument describes the operation
- * that is to be performed.  As the operation proceeds, perhaps partially,
- * ki_retry is expected to update the kiocb with progress made.  Typically
- * ki_retry is set in the AIO core and it itself calls file_operations
- * helpers.
- *
- * ki_retry's return value determines when the AIO operation is completed
- * and an event is generated in the AIO event ring.  Except the special
- * return values described below, the value that is returned from ki_retry
- * is transferred directly into the completion ring as the operation's
- * resulting status.  Once this has happened ki_retry *MUST NOT* reference
- * the kiocb pointer again.
- *
- * If ki_retry returns -EIOCBQUEUED it has made a promise that aio_complete()
- * will be called on the kiocb pointer in the future.  The AIO core will
- * not ask the method again -- ki_retry must ensure forward progress.
- * aio_complete() must be called once and only once in the future, multiple
- * calls may result in undefined behaviour.
- */
 struct kiocb {
 	atomic_t		ki_users;
 
 	struct file		*ki_filp;
 	struct kioctx		*ki_ctx;	/* NULL for sync ops */
 	kiocb_cancel_fn		*ki_cancel;
-	ssize_t			(*ki_retry)(struct kiocb *);
 	void			(*ki_dtor)(struct kiocb *);
 
 	union {
