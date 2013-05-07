@@ -1249,15 +1249,29 @@ static void __del_from_free_nid_list(struct free_nid *i)
 	kmem_cache_free(free_nid_slab, i);
 }
 
-static int add_free_nid(struct f2fs_nm_info *nm_i, nid_t nid)
+static int add_free_nid(struct f2fs_nm_info *nm_i, nid_t nid, bool build)
 {
 	struct free_nid *i;
+	struct nat_entry *ne;
+	bool allocated = false;
 
 	if (nm_i->fcnt > 2 * MAX_FREE_NIDS)
 		return -1;
 
 	/* 0 nid should not be used */
 	if (nid == 0)
+		return 0;
+
+	if (!build)
+		goto retry;
+
+	/* do not add allocated nids */
+	read_lock(&nm_i->nat_tree_lock);
+	ne = __lookup_nat_cache(nm_i, nid);
+	if (ne && nat_get_blkaddr(ne) != NULL_ADDR)
+		allocated = true;
+	read_unlock(&nm_i->nat_tree_lock);
+	if (allocated)
 		return 0;
 retry:
 	i = kmem_cache_alloc(free_nid_slab, GFP_NOFS);
@@ -1309,7 +1323,7 @@ static void scan_nat_page(struct f2fs_nm_info *nm_i,
 		blk_addr = le32_to_cpu(nat_blk->entries[i].block_addr);
 		BUG_ON(blk_addr == NEW_ADDR);
 		if (blk_addr == NULL_ADDR) {
-			if (add_free_nid(nm_i, start_nid) < 0)
+			if (add_free_nid(nm_i, start_nid, true) < 0)
 				break;
 		}
 	}
@@ -1317,7 +1331,6 @@ static void scan_nat_page(struct f2fs_nm_info *nm_i,
 
 static void build_free_nids(struct f2fs_sb_info *sbi)
 {
-	struct free_nid *fnid, *next_fnid;
 	struct f2fs_nm_info *nm_i = NM_I(sbi);
 	struct curseg_info *curseg = CURSEG_I(sbi, CURSEG_HOT_DATA);
 	struct f2fs_summary_block *sum = curseg->sum_blk;
@@ -1354,22 +1367,11 @@ static void build_free_nids(struct f2fs_sb_info *sbi)
 		block_t addr = le32_to_cpu(nat_in_journal(sum, i).block_addr);
 		nid = le32_to_cpu(nid_in_journal(sum, i));
 		if (addr == NULL_ADDR)
-			add_free_nid(nm_i, nid);
+			add_free_nid(nm_i, nid, true);
 		else
 			remove_free_nid(nm_i, nid);
 	}
 	mutex_unlock(&curseg->curseg_mutex);
-
-	/* remove the free nids from current allocated nids */
-	list_for_each_entry_safe(fnid, next_fnid, &nm_i->free_nid_list, list) {
-		struct nat_entry *ne;
-
-		read_lock(&nm_i->nat_tree_lock);
-		ne = __lookup_nat_cache(nm_i, fnid->nid);
-		if (ne && nat_get_blkaddr(ne) != NULL_ADDR)
-			remove_free_nid(nm_i, fnid->nid);
-		read_unlock(&nm_i->nat_tree_lock);
-	}
 }
 
 /*
@@ -1659,7 +1661,7 @@ flush_now:
 		}
 
 		if (nat_get_blkaddr(ne) == NULL_ADDR &&
-				add_free_nid(NM_I(sbi), nid) <= 0) {
+				add_free_nid(NM_I(sbi), nid, false) <= 0) {
 			write_lock(&nm_i->nat_tree_lock);
 			__del_from_nat_cache(nm_i, ne);
 			write_unlock(&nm_i->nat_tree_lock);
