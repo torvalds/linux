@@ -4215,8 +4215,7 @@ static void wl1271_bss_info_changed_sta(struct wl1271 *wl,
 	}
 
 	/* Handle new association with HT. Do this after join. */
-	if (sta_exists &&
-	    (changed & BSS_CHANGED_HT)) {
+	if (sta_exists) {
 		bool enabled =
 			bss_conf->chandef.width != NL80211_CHAN_WIDTH_20_NOHT;
 
