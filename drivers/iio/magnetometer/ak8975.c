@@ -24,10 +24,11 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
+#include <linux/interrupt.h>
 #include <linux/err.h>
 #include <linux/mutex.h>
 #include <linux/delay.h>
-
+#include <linux/bitops.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
 
@@ -83,6 +84,7 @@
  */
 #define AK8975_MAX_CONVERSION_TIMEOUT	500
 #define AK8975_CONVERSION_DONE_POLL_TIME 10
+#define AK8975_DATA_READY_TIMEOUT	((100*HZ)/1000)
 
 /*
  * Per-instance context data for the device.
@@ -95,6 +97,9 @@ struct ak8975_data {
 	long			raw_to_gauss[3];
 	u8			reg_cache[AK8975_MAX_REGS];
 	int			eoc_gpio;
+	int			eoc_irq;
+	wait_queue_head_t	data_ready_queue;
+	unsigned long		flags;
 };
 
 static const int ak8975_index_to_reg[] = {
@@ -122,6 +127,51 @@ static int ak8975_write_data(struct i2c_client *client,
 
 	return 0;
 }
+
+/*
+ * Handle data ready irq
+ */
+static irqreturn_t ak8975_irq_handler(int irq, void *data)
+{
+	struct ak8975_data *ak8975 = data;
+
+	set_bit(0, &ak8975->flags);
+	wake_up(&ak8975->data_ready_queue);
+
+	return IRQ_HANDLED;
+}
+
+/*
+ * Install data ready interrupt handler
+ */
+static int ak8975_setup_irq(struct ak8975_data *data)
+{
+	struct i2c_client *client = data->client;
+	int rc;
+	int irq;
+
+	if (client->irq)
+		irq = client->irq;
+	else
+		irq = gpio_to_irq(data->eoc_gpio);
+
+	rc = request_irq(irq, ak8975_irq_handler,
+			 IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+			 dev_name(&client->dev), data);
+	if (rc < 0) {
+		dev_err(&client->dev,
+			"irq %d request failed, (gpio %d): %d\n",
+			irq, data->eoc_gpio, rc);
+		return rc;
+	}
+
+	init_waitqueue_head(&data->data_ready_queue);
+	clear_bit(0, &data->flags);
+	data->eoc_irq = irq;
+
+	return rc;
+}
+
 
 /*
  * Perform some start-of-day setup, including reading the asa calibration
@@ -171,6 +221,16 @@ static int ak8975_setup(struct i2c_client *client)
 				AK8975_REG_CNTL_MODE_POWER_DOWN,
 				AK8975_REG_CNTL_MODE_MASK,
 				AK8975_REG_CNTL_MODE_SHIFT);
+
+	if (data->eoc_gpio > 0 || client->irq) {
+		ret = ak8975_setup_irq(data);
+		if (ret < 0) {
+			dev_err(&client->dev,
+				"Error setting data ready interrupt\n");
+			return ret;
+		}
+	}
+
 	if (ret < 0) {
 		dev_err(&client->dev, "Error in setting power-down mode\n");
 		return ret;
@@ -267,7 +327,21 @@ static int wait_conversion_complete_polled(struct ak8975_data *data)
 		dev_err(&client->dev, "Conversion timeout happened\n");
 		return -EINVAL;
 	}
+
 	return read_status;
+}
+
+/* Returns 0 if the end of conversion interrupt occured or -ETIME otherwise */
+static int wait_conversion_complete_interrupt(struct ak8975_data *data)
+{
+	int ret;
+
+	ret = wait_event_timeout(data->data_ready_queue,
+				 test_bit(0, &data->flags),
+				 AK8975_DATA_READY_TIMEOUT);
+	clear_bit(0, &data->flags);
+
+	return ret > 0 ? 0 : -ETIME;
 }
 
 /*
@@ -295,13 +369,16 @@ static int ak8975_read_axis(struct iio_dev *indio_dev, int index, int *val)
 	}
 
 	/* Wait for the conversion to complete. */
-	if (gpio_is_valid(data->eoc_gpio))
+	if (data->eoc_irq)
+		ret = wait_conversion_complete_interrupt(data);
+	else if (gpio_is_valid(data->eoc_gpio))
 		ret = wait_conversion_complete_gpio(data);
 	else
 		ret = wait_conversion_complete_polled(data);
 	if (ret < 0)
 		goto exit;
 
+	/* This will be executed only for non-interrupt based waiting case */
 	if (ret & AK8975_REG_ST1_DRDY_MASK) {
 		ret = i2c_smbus_read_byte_data(client, AK8975_REG_ST2);
 		if (ret < 0) {
@@ -415,6 +492,11 @@ static int ak8975_probe(struct i2c_client *client,
 	}
 	data = iio_priv(indio_dev);
 	i2c_set_clientdata(client, indio_dev);
+
+	data->client = client;
+	data->eoc_gpio = eoc_gpio;
+	data->eoc_irq = 0;
+
 	/* Perform some basic start-of-day setup of the device. */
 	err = ak8975_setup(client);
 	if (err < 0) {
@@ -439,6 +521,8 @@ static int ak8975_probe(struct i2c_client *client,
 
 exit_free_iio:
 	iio_device_free(indio_dev);
+	if (data->eoc_irq)
+		free_irq(data->eoc_irq, data);
 exit_gpio:
 	if (gpio_is_valid(eoc_gpio))
 		gpio_free(eoc_gpio);
@@ -452,6 +536,9 @@ static int ak8975_remove(struct i2c_client *client)
 	struct ak8975_data *data = iio_priv(indio_dev);
 
 	iio_device_unregister(indio_dev);
+
+	if (data->eoc_irq)
+		free_irq(data->eoc_irq, data);
 
 	if (gpio_is_valid(data->eoc_gpio))
 		gpio_free(data->eoc_gpio);
