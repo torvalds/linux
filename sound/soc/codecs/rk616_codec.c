@@ -643,6 +643,36 @@ SOC_ENUM_SINGLE(RK616_PGAR_AGC_CTL5, RK616_PGA_AGC_SFT, 2, rk616_dis_en_sel),/*1
 static const struct soc_enum rk616_loop_enum =
 	SOC_ENUM_SINGLE(CRU_CFGMISC_CON, AD_DA_LOOP_SFT, 2, rk616_dis_en_sel);
 
+static int rk616_put_spk(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	int max = mc->max;
+	unsigned int mask = (1 << fls(max)) - 1;
+	unsigned int val, val2;
+
+	if (!rk616_priv) {
+		printk("rk616_put_spk : rk616_priv is NULL !\n");
+		goto __out;
+	}
+
+	val = (ucontrol->value.integer.value[0] & mask);
+	val2 = (ucontrol->value.integer.value[1] & mask);
+
+	if (val || val2) {
+		DBG("rk616_put_spk : set spk ctl gpio HIGH\n");
+		if (rk616_priv->spk_ctl_gpio != INVALID_GPIO)
+			gpio_set_value(rk616_priv->spk_ctl_gpio, GPIO_HIGH);
+	} else {
+		DBG("rk616_put_spk : set spk ctl gpio LOW\n");
+		if (rk616_priv->spk_ctl_gpio != INVALID_GPIO)
+			gpio_set_value(rk616_priv->spk_ctl_gpio, GPIO_LOW);
+	}
+__out:
+	return snd_soc_put_volsw_2r(kcontrol, ucontrol);
+}
+
 #ifdef RK616_REG_RW
 #define REGVAL_MAX 0xffff
 static unsigned int regctl_addr = 0x08;
@@ -697,8 +727,14 @@ static const struct snd_kcontrol_new rk616_snd_controls[] = {
 
 	SOC_DOUBLE_R_TLV("SPKOUT Playback Volume", RK616_SPKL_CTL,
 		RK616_SPKR_CTL, RK616_VOL_SFT, 31, 0, out_vol_tlv),
-	SOC_DOUBLE_R("SPKOUT Playback Switch", RK616_SPKL_CTL,
-		RK616_SPKR_CTL, RK616_MUTE_SFT, 1, 1),
+	{
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = ("SPKOUT Playback Switch"), \
+	.info = snd_soc_info_volsw_2r, \
+	.get = snd_soc_get_volsw_2r, .put = rk616_put_spk, \
+	.private_value = (unsigned long)&(struct soc_mixer_control) \
+		{.reg = RK616_SPKL_CTL, .rreg = RK616_SPKR_CTL, .shift = RK616_MUTE_SFT, \
+		.max = 1, .platform_max = 1, .invert = 1} 
+	},
 
 	SOC_DOUBLE_R_TLV("HPOUT Playback Volume", RK616_HPL_CTL,
 		RK616_HPR_CTL, RK616_VOL_SFT, 31, 0, out_vol_tlv),
@@ -741,7 +777,6 @@ static const struct snd_kcontrol_new rk616_snd_controls[] = {
 	SOC_ENUM("BST_R Mode",  rk616_bst_enum[1]),
 	SOC_ENUM("DIFFIN Mode",  rk616_diffin_enum),
 
-
 	SOC_SINGLE_TLV("MUXMIC to MIXINL Volume", RK616_MIXINL_VOL1,
 		RK616_MIL_F_MUX_VOL_SFT, 7, 0, mix_vol_tlv),
 	SOC_SINGLE_TLV("IN1P to MIXINL Volume", RK616_MIXINL_VOL1,
@@ -771,7 +806,7 @@ static const struct snd_kcontrol_new rk616_snd_controls[] = {
 		RK616_HMR_F_HMM_VOL_SFT, 7, 0, mix_vol_tlv),
 
 	SOC_ENUM("Micbias1 Voltage",  rk616_micbias_enum[0]),
-	SOC_ENUM("Micbias2 Voltage ",  rk616_micbias_enum[1]),
+	SOC_ENUM("Micbias2 Voltage",  rk616_micbias_enum[1]),
 
 	SOC_ENUM("MIC1 Key Detection Enable",  rk616_mickey_enum[0]),
 	SOC_ENUM("MIC2 Key Detection Enable",  rk616_mickey_enum[1]),
@@ -1161,10 +1196,10 @@ static const struct snd_soc_dapm_widget rk616_dapm_widgets[] = {
 				&hpmix_sel_mux),
 
 	/* Audio Interface */
-	SND_SOC_DAPM_AIF_IN("I2S0 DAC", "HIFI Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("I2S0 ADC", "HIFI Capture", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("I2S1 DAC", "VOICE Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("I2S1 ADC", "VOICE Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("I2S0 DAC", "HiFi Playback", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("I2S0 ADC", "HiFi Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("I2S1 DAC", "Voice Playback", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("I2S1 ADC", "Voice Capture", 0, SND_SOC_NOPM, 0, 0),
 
 	/* Input */
 	SND_SOC_DAPM_INPUT("IN3L"),
@@ -1559,7 +1594,7 @@ static struct rk616_reg_val_typ power_up_list[] = {
 	{0x840, 0x49}, //BST_L power up, unmute, and Single-Ended(bit 6), volume 0-20dB(bit 5)
 	{0x848, 0x06}, //MIXINL power up and unmute, MININL from MICMUX, MICMUX from BST_L
 	{0x84c, 0x3c}, //MIXINL from MIXMUX volume (bit 3-5)
-	{0x860, 0x1f}, //PGAL power up unmute,volume (bit 0-4)
+	{0x860, 0x14}, //PGAL power up unmute,volume (bit 0-4)
 	{0x868, 0x02}, //power up
 	{0x86c, 0x0f}, //DACL/R UN INIT
 	{0x86c, 0x00}, //DACL/R and DACL/R CLK power up
