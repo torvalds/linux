@@ -346,12 +346,11 @@ static void handle_tx(struct vhost_net *net)
 	struct vhost_net_ubuf_ref *uninitialized_var(ubufs);
 	bool zcopy, zcopy_used;
 
-	/* TODO: check that we are running from vhost_worker? */
-	sock = rcu_dereference_check(vq->private_data, 1);
-	if (!sock)
-		return;
-
 	mutex_lock(&vq->mutex);
+	sock = vq->private_data;
+	if (!sock)
+		goto out;
+
 	vhost_disable_notify(&net->dev, vq);
 
 	hdr_size = nvq->vhost_hlen;
@@ -461,7 +460,7 @@ static void handle_tx(struct vhost_net *net)
 			break;
 		}
 	}
-
+out:
 	mutex_unlock(&vq->mutex);
 }
 
@@ -570,14 +569,14 @@ static void handle_rx(struct vhost_net *net)
 	s16 headcount;
 	size_t vhost_hlen, sock_hlen;
 	size_t vhost_len, sock_len;
-	/* TODO: check that we are running from vhost_worker? */
-	struct socket *sock = rcu_dereference_check(vq->private_data, 1);
-
-	if (!sock)
-		return;
+	struct socket *sock;
 
 	mutex_lock(&vq->mutex);
+	sock = vq->private_data;
+	if (!sock)
+		goto out;
 	vhost_disable_notify(&net->dev, vq);
+
 	vhost_hlen = nvq->vhost_hlen;
 	sock_hlen = nvq->sock_hlen;
 
@@ -652,7 +651,7 @@ static void handle_rx(struct vhost_net *net)
 			break;
 		}
 	}
-
+out:
 	mutex_unlock(&vq->mutex);
 }
 
