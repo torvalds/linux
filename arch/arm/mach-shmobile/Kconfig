@@ -18,11 +18,28 @@ config ARCH_SH73A0
 	select SH_CLK_CPG
 	select RENESAS_INTC_IRQPIN
 
+config ARCH_R8A73A4
+	bool "R-Mobile APE6 (R8A73A40)"
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ARM_GIC
+	select CPU_V7
+	select ARM_ARCH_TIMER
+	select SH_CLK_CPG
+	select RENESAS_IRQC
+
 config ARCH_R8A7740
 	bool "R-Mobile A1 (R8A77400)"
 	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ARM_GIC
 	select CPU_V7
 	select SH_CLK_CPG
+	select RENESAS_INTC_IRQPIN
+
+config ARCH_R8A7778
+	bool "R-Car M1 (R8A77780)"
+	select CPU_V7
+	select SH_CLK_CPG
+	select ARM_GIC
 
 config ARCH_R8A7779
 	bool "R-Car H1 (R8A77790)"
@@ -33,6 +50,15 @@ config ARCH_R8A7779
 	select USB_ARCH_HAS_EHCI
 	select USB_ARCH_HAS_OHCI
 	select RENESAS_INTC_IRQPIN
+
+config ARCH_R8A7790
+	bool "R-Car H2 (R8A77900)"
+	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ARM_GIC
+	select CPU_V7
+	select ARM_ARCH_TIMER
+	select SH_CLK_CPG
+	select RENESAS_IRQC
 
 config ARCH_EMEV2
 	bool "Emma Mobile EV2"
@@ -70,6 +96,11 @@ config MACH_AG5EVM
 	select REGULATOR_FIXED_VOLTAGE if REGULATOR
 	select SH_LCD_MIPI_DSI
 
+config MACH_APE6EVM
+	bool "APE6EVM board"
+	depends on ARCH_R8A73A4
+	select USE_OF
+
 config MACH_MACKEREL
 	bool "mackerel board"
 	depends on ARCH_SH7372
@@ -98,6 +129,13 @@ config MACH_ARMADILLO800EVA
 	select SND_SOC_WM8978 if SND_SIMPLE_CARD
 	select USE_OF
 
+config MACH_BOCKW
+	bool "BOCK-W platform"
+	depends on ARCH_R8A7778
+	select ARCH_REQUIRE_GPIOLIB
+	select RENESAS_INTC_IRQPIN
+	select USE_OF
+
 config MACH_MARZEN
 	bool "MARZEN board"
 	depends on ARCH_R8A7779
@@ -116,6 +154,11 @@ config MACH_MARZEN_REFERENCE
 	   of not supporting a number of devices.
 
 	   This is intended to aid developers
+
+config MACH_LAGER
+	bool "Lager board"
+	depends on ARCH_R8A7790
+	select USE_OF
 
 config MACH_KZM9D
 	bool "KZM9D board"
@@ -157,7 +200,8 @@ config MEMORY_START
 	hex "Physical memory start address"
 	default "0x40000000" if MACH_AP4EVB || MACH_AG5EVM || \
 				MACH_MACKEREL || MACH_BONITO || \
-				MACH_ARMADILLO800EVA
+				MACH_ARMADILLO800EVA || MACH_APE6EVM || \
+				MACH_LAGER
 	default "0x41000000" if MACH_KOTA2
 	default "0x00000000"
 	---help---
@@ -167,6 +211,8 @@ config MEMORY_START
 
 config MEMORY_SIZE
 	hex "Physical memory size"
+	default "0x80000000" if MACH_LAGER
+	default "0x40000000" if MACH_APE6EVM
 	default "0x20000000" if MACH_AG5EVM || MACH_BONITO || \
 				MACH_ARMADILLO800EVA
 	default "0x1e000000" if MACH_KOTA2
