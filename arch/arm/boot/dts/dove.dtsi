@@ -197,6 +197,11 @@
 			status = "disabled";
 		};
 
+		rtc@d8500 {
+			compatible = "marvell,orion-rtc";
+			reg = <0xd8500 0x20>;
+		};
+
 		crypto: crypto@30000 {
 			compatible = "marvell,orion-crypto";
 			reg = <0x30000 0x10000>,

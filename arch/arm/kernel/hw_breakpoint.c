@@ -966,7 +966,7 @@ static void reset_ctrl_regs(void *unused)
 	}
 
 	if (err) {
-		pr_warning("CPU %d debug is powered down!\n", cpu);
+		pr_warn_once("CPU %d debug is powered down!\n", cpu);
 		cpumask_or(&debug_err_mask, &debug_err_mask, cpumask_of(cpu));
 		return;
 	}
@@ -987,7 +987,7 @@ clear_vcr:
 	isb();
 
 	if (cpumask_intersects(&debug_err_mask, cpumask_of(cpu))) {
-		pr_warning("CPU %d failed to disable vector catch\n", cpu);
+		pr_warn_once("CPU %d failed to disable vector catch\n", cpu);
 		return;
 	}
 
@@ -1007,7 +1007,7 @@ clear_vcr:
 	}
 
 	if (cpumask_intersects(&debug_err_mask, cpumask_of(cpu))) {
-		pr_warning("CPU %d failed to clear debug register pairs\n", cpu);
+		pr_warn_once("CPU %d failed to clear debug register pairs\n", cpu);
 		return;
 	}
 

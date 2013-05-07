@@ -137,10 +137,6 @@ static inline int iwl_queue_dec_wrap(int index, int n_bd)
 struct iwl_cmd_meta {
 	/* only for SYNC commands, iff the reply skb is wanted */
 	struct iwl_host_cmd *source;
-
-	DEFINE_DMA_UNMAP_ADDR(mapping);
-	DEFINE_DMA_UNMAP_LEN(len);
-
 	u32 flags;
 };
 
@@ -185,25 +181,36 @@ struct iwl_queue {
 /*
  * The FH will write back to the first TB only, so we need
  * to copy some data into the buffer regardless of whether
- * it should be mapped or not. This indicates how much to
- * copy, even for HCMDs it must be big enough to fit the
- * DRAM scratch from the TX cmd, at least 16 bytes.
+ * it should be mapped or not. This indicates how big the
+ * first TB must be to include the scratch buffer. Since
+ * the scratch is 4 bytes at offset 12, it's 16 now. If we
+ * make it bigger then allocations will be bigger and copy
+ * slower, so that's probably not useful.
  */
-#define IWL_HCMD_MIN_COPY_SIZE	16
+#define IWL_HCMD_SCRATCHBUF_SIZE	16
 
 struct iwl_pcie_txq_entry {
 	struct iwl_device_cmd *cmd;
-	struct iwl_device_cmd *copy_cmd;
 	struct sk_buff *skb;
 	/* buffer to free after command completes */
 	const void *free_buf;
 	struct iwl_cmd_meta meta;
 };
 
+struct iwl_pcie_txq_scratch_buf {
+	struct iwl_cmd_header hdr;
+	u8 buf[8];
+	__le32 scratch;
+};
+
 /**
  * struct iwl_txq - Tx Queue for DMA
  * @q: generic Rx/Tx queue descriptor
  * @tfds: transmit frame descriptors (DMA memory)
+ * @scratchbufs: start of command headers, including scratch buffers, for
+ *	the writeback -- this is DMA memory and an array holding one buffer
+ *	for each command on the queue
+ * @scratchbufs_dma: DMA address for the scratchbufs start
  * @entries: transmit entries (driver state)
  * @lock: queue lock
  * @stuck_timer: timer that fires if queue gets stuck
@@ -217,6 +224,8 @@ struct iwl_pcie_txq_entry {
 struct iwl_txq {
 	struct iwl_queue q;
 	struct iwl_tfd *tfds;
+	struct iwl_pcie_txq_scratch_buf *scratchbufs;
+	dma_addr_t scratchbufs_dma;
 	struct iwl_pcie_txq_entry *entries;
 	spinlock_t lock;
 	struct timer_list stuck_timer;
@@ -224,6 +233,13 @@ struct iwl_txq {
 	u8 need_update;
 	u8 active;
 };
+
+static inline dma_addr_t
+iwl_pcie_get_scratchbuf_dma(struct iwl_txq *txq, int idx)
+{
+	return txq->scratchbufs_dma +
+	       sizeof(struct iwl_pcie_txq_scratch_buf) * idx;
+}
 
 /**
  * struct iwl_trans_pcie - PCIe transport specific data

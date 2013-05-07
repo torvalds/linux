@@ -78,7 +78,7 @@ void ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata)
 		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_TXPOWER);
 }
 
-static u32 ieee80211_idle_off(struct ieee80211_local *local)
+u32 ieee80211_idle_off(struct ieee80211_local *local)
 {
 	if (!(local->hw.conf.flags & IEEE80211_CONF_IDLE))
 		return 0;
@@ -349,21 +349,19 @@ static void ieee80211_set_default_queues(struct ieee80211_sub_if_data *sdata)
 static int ieee80211_add_virtual_monitor(struct ieee80211_local *local)
 {
 	struct ieee80211_sub_if_data *sdata;
-	int ret = 0;
+	int ret;
 
 	if (!(local->hw.flags & IEEE80211_HW_WANT_MONITOR_VIF))
 		return 0;
 
-	mutex_lock(&local->iflist_mtx);
+	ASSERT_RTNL();
 
 	if (local->monitor_sdata)
-		goto out_unlock;
+		return 0;
 
 	sdata = kzalloc(sizeof(*sdata) + local->hw.vif_data_size, GFP_KERNEL);
-	if (!sdata) {
-		ret = -ENOMEM;
-		goto out_unlock;
-	}
+	if (!sdata)
+		return -ENOMEM;
 
 	/* set up data */
 	sdata->local = local;
@@ -377,13 +375,13 @@ static int ieee80211_add_virtual_monitor(struct ieee80211_local *local)
 	if (WARN_ON(ret)) {
 		/* ok .. stupid driver, it asked for this! */
 		kfree(sdata);
-		goto out_unlock;
+		return ret;
 	}
 
 	ret = ieee80211_check_queues(sdata);
 	if (ret) {
 		kfree(sdata);
-		goto out_unlock;
+		return ret;
 	}
 
 	ret = ieee80211_vif_use_channel(sdata, &local->monitor_chandef,
@@ -391,13 +389,14 @@ static int ieee80211_add_virtual_monitor(struct ieee80211_local *local)
 	if (ret) {
 		drv_remove_interface(local, sdata);
 		kfree(sdata);
-		goto out_unlock;
+		return ret;
 	}
 
+	mutex_lock(&local->iflist_mtx);
 	rcu_assign_pointer(local->monitor_sdata, sdata);
- out_unlock:
 	mutex_unlock(&local->iflist_mtx);
-	return ret;
+
+	return 0;
 }
 
 static void ieee80211_del_virtual_monitor(struct ieee80211_local *local)
@@ -407,14 +406,20 @@ static void ieee80211_del_virtual_monitor(struct ieee80211_local *local)
 	if (!(local->hw.flags & IEEE80211_HW_WANT_MONITOR_VIF))
 		return;
 
+	ASSERT_RTNL();
+
 	mutex_lock(&local->iflist_mtx);
 
 	sdata = rcu_dereference_protected(local->monitor_sdata,
 					  lockdep_is_held(&local->iflist_mtx));
-	if (!sdata)
-		goto out_unlock;
+	if (!sdata) {
+		mutex_unlock(&local->iflist_mtx);
+		return;
+	}
 
 	rcu_assign_pointer(local->monitor_sdata, NULL);
+	mutex_unlock(&local->iflist_mtx);
+
 	synchronize_net();
 
 	ieee80211_vif_release_channel(sdata);
@@ -422,8 +427,6 @@ static void ieee80211_del_virtual_monitor(struct ieee80211_local *local)
 	drv_remove_interface(local, sdata);
 
 	kfree(sdata);
- out_unlock:
-	mutex_unlock(&local->iflist_mtx);
 }
 
 /*
@@ -541,6 +544,9 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 
 		ieee80211_adjust_monitor_flags(sdata, 1);
 		ieee80211_configure_filter(local);
+		mutex_lock(&local->mtx);
+		ieee80211_recalc_idle(local);
+		mutex_unlock(&local->mtx);
 
 		netif_carrier_on(dev);
 		break;
@@ -812,6 +818,9 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 
 		ieee80211_adjust_monitor_flags(sdata, -1);
 		ieee80211_configure_filter(local);
+		mutex_lock(&local->mtx);
+		ieee80211_recalc_idle(local);
+		mutex_unlock(&local->mtx);
 		break;
 	case NL80211_IFTYPE_P2P_DEVICE:
 		/* relies on synchronize_rcu() below */

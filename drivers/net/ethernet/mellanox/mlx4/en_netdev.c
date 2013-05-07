@@ -411,8 +411,8 @@ static int mlx4_en_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 
 static void mlx4_en_u64_to_mac(unsigned char dst_mac[ETH_ALEN + 2], u64 src_mac)
 {
-	unsigned int i;
-	for (i = ETH_ALEN - 1; i; --i) {
+	int i;
+	for (i = ETH_ALEN - 1; i >= 0; --i) {
 		dst_mac[i] = src_mac & 0xff;
 		src_mac >>= 8;
 	}
@@ -565,34 +565,38 @@ static void mlx4_en_put_qp(struct mlx4_en_priv *priv)
 	struct mlx4_en_dev *mdev = priv->mdev;
 	struct mlx4_dev *dev = mdev->dev;
 	int qpn = priv->base_qpn;
-	u64 mac = mlx4_en_mac_to_u64(priv->dev->dev_addr);
+	u64 mac;
 
-	en_dbg(DRV, priv, "Registering MAC: %pM for deleting\n",
-	       priv->dev->dev_addr);
-	mlx4_unregister_mac(dev, priv->port, mac);
-
-	if (dev->caps.steering_mode != MLX4_STEERING_MODE_A0) {
+	if (dev->caps.steering_mode == MLX4_STEERING_MODE_A0) {
+		mac = mlx4_en_mac_to_u64(priv->dev->dev_addr);
+		en_dbg(DRV, priv, "Registering MAC: %pM for deleting\n",
+		       priv->dev->dev_addr);
+		mlx4_unregister_mac(dev, priv->port, mac);
+	} else {
 		struct mlx4_mac_entry *entry;
 		struct hlist_node *tmp;
 		struct hlist_head *bucket;
-		unsigned int mac_hash;
+		unsigned int i;
 
-		mac_hash = priv->dev->dev_addr[MLX4_EN_MAC_HASH_IDX];
-		bucket = &priv->mac_hash[mac_hash];
-		hlist_for_each_entry_safe(entry, tmp, bucket, hlist) {
-			if (ether_addr_equal_64bits(entry->mac,
-						    priv->dev->dev_addr)) {
-				en_dbg(DRV, priv, "Releasing qp: port %d, MAC %pM, qpn %d\n",
-				       priv->port, priv->dev->dev_addr, qpn);
+		for (i = 0; i < MLX4_EN_MAC_HASH_SIZE; ++i) {
+			bucket = &priv->mac_hash[i];
+			hlist_for_each_entry_safe(entry, tmp, bucket, hlist) {
+				mac = mlx4_en_mac_to_u64(entry->mac);
+				en_dbg(DRV, priv, "Registering MAC: %pM for deleting\n",
+				       entry->mac);
 				mlx4_en_uc_steer_release(priv, entry->mac,
 							 qpn, entry->reg_id);
-				mlx4_qp_release_range(dev, qpn, 1);
 
+				mlx4_unregister_mac(dev, priv->port, mac);
 				hlist_del_rcu(&entry->hlist);
 				kfree_rcu(entry, rcu);
-				break;
 			}
 		}
+
+		en_dbg(DRV, priv, "Releasing qp: port %d, qpn %d\n",
+		       priv->port, qpn);
+		mlx4_qp_release_range(dev, qpn, 1);
+		priv->flags &= ~MLX4_EN_FLAG_FORCE_PROMISC;
 	}
 }
 
@@ -650,28 +654,10 @@ u64 mlx4_en_mac_to_u64(u8 *addr)
 	return mac;
 }
 
-static int mlx4_en_set_mac(struct net_device *dev, void *addr)
+static int mlx4_en_do_set_mac(struct mlx4_en_priv *priv)
 {
-	struct mlx4_en_priv *priv = netdev_priv(dev);
-	struct mlx4_en_dev *mdev = priv->mdev;
-	struct sockaddr *saddr = addr;
-
-	if (!is_valid_ether_addr(saddr->sa_data))
-		return -EADDRNOTAVAIL;
-
-	memcpy(dev->dev_addr, saddr->sa_data, ETH_ALEN);
-	queue_work(mdev->workqueue, &priv->mac_task);
-	return 0;
-}
-
-static void mlx4_en_do_set_mac(struct work_struct *work)
-{
-	struct mlx4_en_priv *priv = container_of(work, struct mlx4_en_priv,
-						 mac_task);
-	struct mlx4_en_dev *mdev = priv->mdev;
 	int err = 0;
 
-	mutex_lock(&mdev->state_lock);
 	if (priv->port_up) {
 		/* Remove old MAC and insert the new one */
 		err = mlx4_en_replace_mac(priv, priv->base_qpn,
@@ -683,7 +669,26 @@ static void mlx4_en_do_set_mac(struct work_struct *work)
 	} else
 		en_dbg(HW, priv, "Port is down while registering mac, exiting...\n");
 
+	return err;
+}
+
+static int mlx4_en_set_mac(struct net_device *dev, void *addr)
+{
+	struct mlx4_en_priv *priv = netdev_priv(dev);
+	struct mlx4_en_dev *mdev = priv->mdev;
+	struct sockaddr *saddr = addr;
+	int err;
+
+	if (!is_valid_ether_addr(saddr->sa_data))
+		return -EADDRNOTAVAIL;
+
+	memcpy(dev->dev_addr, saddr->sa_data, ETH_ALEN);
+
+	mutex_lock(&mdev->state_lock);
+	err = mlx4_en_do_set_mac(priv);
 	mutex_unlock(&mdev->state_lock);
+
+	return err;
 }
 
 static void mlx4_en_clear_list(struct net_device *dev)
@@ -1348,7 +1353,7 @@ static void mlx4_en_do_get_stats(struct work_struct *work)
 		queue_delayed_work(mdev->workqueue, &priv->stats_task, STATS_DELAY);
 	}
 	if (mdev->mac_removed[MLX4_MAX_PORTS + 1 - priv->port]) {
-		queue_work(mdev->workqueue, &priv->mac_task);
+		mlx4_en_do_set_mac(priv);
 		mdev->mac_removed[MLX4_MAX_PORTS + 1 - priv->port] = 0;
 	}
 	mutex_unlock(&mdev->state_lock);
@@ -1632,6 +1637,17 @@ void mlx4_en_stop_port(struct net_device *dev, int detach)
 	/* Flush multicast filter */
 	mlx4_SET_MCAST_FLTR(mdev->dev, priv->port, 0, 1, MLX4_MCAST_CONFIG);
 
+	/* Remove flow steering rules for the port*/
+	if (mdev->dev->caps.steering_mode ==
+	    MLX4_STEERING_MODE_DEVICE_MANAGED) {
+		ASSERT_RTNL();
+		list_for_each_entry_safe(flow, tmp_flow,
+					 &priv->ethtool_list, list) {
+			mlx4_flow_detach(mdev->dev, flow->id);
+			list_del(&flow->list);
+		}
+	}
+
 	mlx4_en_destroy_drop_qp(priv);
 
 	/* Free TX Rings */
@@ -1651,17 +1667,6 @@ void mlx4_en_stop_port(struct net_device *dev, int detach)
 	mlx4_en_put_qp(priv);
 	if (!(mdev->dev->caps.flags2 & MLX4_DEV_CAP_FLAGS2_REASSIGN_MAC_EN))
 		mdev->mac_removed[priv->port] = 1;
-
-	/* Remove flow steering rules for the port*/
-	if (mdev->dev->caps.steering_mode ==
-	    MLX4_STEERING_MODE_DEVICE_MANAGED) {
-		ASSERT_RTNL();
-		list_for_each_entry_safe(flow, tmp_flow,
-					 &priv->ethtool_list, list) {
-			mlx4_flow_detach(mdev->dev, flow->id);
-			list_del(&flow->list);
-		}
-	}
 
 	/* Free RX Rings */
 	for (i = 0; i < priv->rx_ring_num; i++) {
@@ -1828,9 +1833,11 @@ int mlx4_en_alloc_resources(struct mlx4_en_priv *priv)
 	}
 
 #ifdef CONFIG_RFS_ACCEL
-	priv->dev->rx_cpu_rmap = alloc_irq_cpu_rmap(priv->mdev->dev->caps.comp_pool);
-	if (!priv->dev->rx_cpu_rmap)
-		goto err;
+	if (priv->mdev->dev->caps.comp_pool) {
+		priv->dev->rx_cpu_rmap = alloc_irq_cpu_rmap(priv->mdev->dev->caps.comp_pool);
+		if (!priv->dev->rx_cpu_rmap)
+			goto err;
+	}
 #endif
 
 	return 0;
@@ -2078,7 +2085,6 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	priv->msg_enable = MLX4_EN_MSG_LEVEL;
 	spin_lock_init(&priv->stats_lock);
 	INIT_WORK(&priv->rx_mode_task, mlx4_en_do_set_rx_mode);
-	INIT_WORK(&priv->mac_task, mlx4_en_do_set_mac);
 	INIT_WORK(&priv->watchdog_task, mlx4_en_restart);
 	INIT_WORK(&priv->linkstate_task, mlx4_en_linkstate);
 	INIT_DELAYED_WORK(&priv->stats_task, mlx4_en_do_get_stats);

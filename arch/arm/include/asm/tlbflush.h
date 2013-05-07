@@ -450,6 +450,21 @@ static inline void local_flush_bp_all(void)
 		isb();
 }
 
+#ifdef CONFIG_ARM_ERRATA_798181
+static inline void dummy_flush_tlb_a15_erratum(void)
+{
+	/*
+	 * Dummy TLBIMVAIS. Using the unmapped address 0 and ASID 0.
+	 */
+	asm("mcr p15, 0, %0, c8, c3, 1" : : "r" (0));
+	dsb();
+}
+#else
+static inline void dummy_flush_tlb_a15_erratum(void)
+{
+}
+#endif
+
 /*
  *	flush_pmd_entry
  *

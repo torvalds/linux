@@ -1338,12 +1338,6 @@ S:	Maintained
 F:	drivers/platform/x86/asus*.c
 F:	drivers/platform/x86/eeepc*.c
 
-ASUS ASB100 HARDWARE MONITOR DRIVER
-M:	"Mark M. Hoffman" <mhoffman@lightlink.com>
-L:	lm-sensors@lm-sensors.org
-S:	Maintained
-F:	drivers/hwmon/asb100.c
-
 ASYNCHRONOUS TRANSFERS/TRANSFORMS (IOAT) API
 M:	Dan Williams <djbw@fb.com>
 W:	http://sourceforge.net/projects/xscaleiop
@@ -1466,6 +1460,12 @@ S:	Supported
 F:	drivers/dma/at_hdmac.c
 F:	drivers/dma/at_hdmac_regs.h
 F:	include/linux/platform_data/dma-atmel.h
+
+ATMEL I2C DRIVER
+M:	Ludovic Desroches <ludovic.desroches@atmel.com>
+L:	linux-i2c@vger.kernel.org
+S:	Supported
+F:	drivers/i2c/busses/i2c-at91.c
 
 ATMEL ISI DRIVER
 M:	Josh Wu <josh.wu@atmel.com>
@@ -2629,7 +2629,7 @@ F:	include/uapi/drm/
 
 INTEL DRM DRIVERS (excluding Poulsbo, Moorestown and derivative chipsets)
 M:	Daniel Vetter <daniel.vetter@ffwll.ch>
-L:	intel-gfx@lists.freedesktop.org (subscribers-only)
+L:	intel-gfx@lists.freedesktop.org
 L:	dri-devel@lists.freedesktop.org
 T:	git git://people.freedesktop.org/~danvet/drm-intel
 S:	Supported
@@ -3242,6 +3242,12 @@ F:	Documentation/firmware_class/
 F:	drivers/base/firmware*.c
 F:	include/linux/firmware.h
 
+FLASHSYSTEM DRIVER (IBM FlashSystem 70/80 PCI SSD Flash Card)
+M:	Joshua Morris <josh.h.morris@us.ibm.com>
+M:	Philip Kelleher <pjk1939@linux.vnet.ibm.com>
+S:	Maintained
+F:	drivers/block/rsxx/
+
 FLOPPY DRIVER
 M:	Jiri Kosina <jkosina@suse.cz>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jikos/floppy.git
@@ -3851,7 +3857,7 @@ F:	drivers/i2c/busses/i2c-ismt.c
 F:	Documentation/i2c/busses/i2c-ismt
 
 I2C/SMBUS STUB DRIVER
-M:	"Mark M. Hoffman" <mhoffman@lightlink.com>
+M:	Jean Delvare <khali@linux-fr.org>
 L:	linux-i2c@vger.kernel.org
 S:	Maintained
 F:	drivers/i2c/i2c-stub.c
@@ -4004,6 +4010,22 @@ M:	Matthieu Castet <castet.matthieu@free.fr>
 M:	Stanislaw Gruszka <stf_xl@wp.pl>
 S:	Maintained
 F:	drivers/usb/atm/ueagle-atm.c
+
+INA209 HARDWARE MONITOR DRIVER
+M:	Guenter Roeck <linux@roeck-us.net>
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+F:	Documentation/hwmon/ina209
+F:	Documentation/devicetree/bindings/i2c/ina209.txt
+F:	drivers/hwmon/ina209.c
+
+INA2XX HARDWARE MONITOR DRIVER
+M:	Guenter Roeck <linux@roeck-us.net>
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+F:	Documentation/hwmon/ina2xx
+F:	drivers/hwmon/ina2xx.c
+F:	include/linux/platform_data/ina2xx.h
 
 INDUSTRY PACK SUBSYSTEM (IPACK)
 M:	Samuel Iglesias Gonsalvez <siglesias@igalia.com>
@@ -4919,6 +4941,12 @@ W:	logfs.org
 S:	Maintained
 F:	fs/logfs/
 
+LPC32XX MACHINE SUPPORT
+M:	Roland Stigge <stigge@antcom.de>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm/mach-lpc32xx/
+
 LSILOGIC MPT FUSION DRIVERS (FC/SAS/SPI)
 M:	Nagalakshmi Nandigama <Nagalakshmi.Nandigama@lsi.com>
 M:	Sreekanth Reddy <Sreekanth.Reddy@lsi.com>
@@ -5043,9 +5071,8 @@ S:	Maintained
 F:	drivers/net/ethernet/marvell/sk*
 
 MARVELL LIBERTAS WIRELESS DRIVER
-M:	Dan Williams <dcbw@redhat.com>
 L:	libertas-dev@lists.infradead.org
-S:	Maintained
+S:	Orphan
 F:	drivers/net/wireless/libertas/
 
 MARVELL MV643XX ETHERNET DRIVER
@@ -5097,6 +5124,15 @@ L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/max6650
 F:	drivers/hwmon/max6650.c
+
+MAX6697 HARDWARE MONITOR DRIVER
+M:	Guenter Roeck <linux@roeck-us.net>
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+F:	Documentation/hwmon/max6697
+F:	Documentation/devicetree/bindings/i2c/max6697.txt
+F:	drivers/hwmon/max6697.c
+F:	include/linux/platform_data/max6697.h
 
 MAXIRADIO FM RADIO RECEIVER DRIVER
 M:	Hans Verkuil <hverkuil@xs4all.nl>
@@ -5538,6 +5574,7 @@ F:	include/uapi/linux/if_*
 F:	include/uapi/linux/netdevice.h
 
 NETXEN (1/10) GbE SUPPORT
+M:	Manish Chopra <manish.chopra@qlogic.com>
 M:	Sony Chacko <sony.chacko@qlogic.com>
 M:	Rajesh Borundia <rajesh.borundia@qlogic.com>
 L:	netdev@vger.kernel.org
@@ -5622,6 +5659,14 @@ S:	Maintained
 F:	drivers/video/riva/
 F:	drivers/video/nvidia/
 
+NVM EXPRESS DRIVER
+M:	Matthew Wilcox <willy@linux.intel.com>
+L:	linux-nvme@lists.infradead.org
+T:	git git://git.infradead.org/users/willy/linux-nvme.git
+S:	Supported
+F:	drivers/block/nvme.c
+F:	include/linux/nvme.h
+
 OMAP SUPPORT
 M:	Tony Lindgren <tony@atomide.com>
 L:	linux-omap@vger.kernel.org
@@ -5650,7 +5695,7 @@ S:	Maintained
 F:	arch/arm/*omap*/*clock*
 
 OMAP POWER MANAGEMENT SUPPORT
-M:	Kevin Hilman <khilman@ti.com>
+M:	Kevin Hilman <khilman@deeprootsystems.com>
 L:	linux-omap@vger.kernel.org
 S:	Maintained
 F:	arch/arm/*omap*/*pm*
@@ -5744,7 +5789,7 @@ F:	arch/arm/*omap*/usb*
 
 OMAP GPIO DRIVER
 M:	Santosh Shilimkar <santosh.shilimkar@ti.com>
-M:	Kevin Hilman <khilman@ti.com>
+M:	Kevin Hilman <khilman@deeprootsystems.com>
 L:	linux-omap@vger.kernel.org
 S:	Maintained
 F:	drivers/gpio/gpio-omap.c
@@ -6176,7 +6221,7 @@ F:	include/linux/power_supply.h
 F:	drivers/power/
 
 PNP SUPPORT
-M:	Adam Belay <abelay@mit.edu>
+M:	Rafael J. Wysocki <rafael.j.wysocki@intel.com>
 M:	Bjorn Helgaas <bhelgaas@google.com>
 S:	Maintained
 F:	drivers/pnp/
@@ -6412,6 +6457,8 @@ F:	Documentation/networking/LICENSE.qla3xxx
 F:	drivers/net/ethernet/qlogic/qla3xxx.*
 
 QLOGIC QLCNIC (1/10)Gb ETHERNET DRIVER
+M:	Rajesh Borundia <rajesh.borundia@qlogic.com>
+M:	Shahed Shaikh <shahed.shaikh@qlogic.com>
 M:	Jitendra Kalsaria <jitendra.kalsaria@qlogic.com>
 M:	Sony Chacko <sony.chacko@qlogic.com>
 M:	linux-driver@qlogic.com
@@ -6516,12 +6563,6 @@ S:	Maintained
 F:	Documentation/blockdev/ramdisk.txt
 F:	drivers/block/brd.c
 
-RAMSAM DRIVER (IBM RamSan 70/80 PCI SSD Flash Card)
-M:	Joshua Morris <josh.h.morris@us.ibm.com>
-M:	Philip Kelleher <pjk1939@linux.vnet.ibm.com>
-S:	Maintained
-F:	drivers/block/rsxx/
-
 RANDOM NUMBER DRIVER
 M:	Theodore Ts'o" <tytso@mit.edu>
 S:	Maintained
@@ -6590,7 +6631,7 @@ S:	Supported
 F:	fs/reiserfs/
 
 REGISTER MAP ABSTRACTION
-M:	Mark Brown <broonie@opensource.wolfsonmicro.com>
+M:	Mark Brown <broonie@kernel.org>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/broonie/regmap.git
 S:	Supported
 F:	drivers/base/regmap/
@@ -6916,7 +6957,6 @@ F:	drivers/scsi/st*
 
 SCTP PROTOCOL
 M:	Vlad Yasevich <vyasevich@gmail.com>
-M:	Sridhar Samudrala <sri@us.ibm.com>
 M:	Neil Horman <nhorman@tuxdriver.com>
 L:	linux-sctp@vger.kernel.org
 W:	http://lksctp.sourceforge.net
@@ -7138,7 +7178,7 @@ F:	arch/arm/mach-s3c2410/bast-irq.c
 
 TI DAVINCI MACHINE SUPPORT
 M:	Sekhar Nori <nsekhar@ti.com>
-M:	Kevin Hilman <khilman@ti.com>
+M:	Kevin Hilman <khilman@deeprootsystems.com>
 L:	davinci-linux-open-source@linux.davincidsp.com (moderated for non-subscribers)
 T:	git git://gitorious.org/linux-davinci/linux-davinci.git
 Q:	http://patchwork.kernel.org/project/linux-davinci/list/
@@ -7170,13 +7210,6 @@ W:	http://www.brownhat.org/sis900.html
 L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/ethernet/sis/sis900.*
-
-SIS 96X I2C/SMBUS DRIVER
-M:	"Mark M. Hoffman" <mhoffman@lightlink.com>
-L:	linux-i2c@vger.kernel.org
-S:	Maintained
-F:	Documentation/i2c/busses/i2c-sis96x
-F:	drivers/i2c/busses/i2c-sis96x.c
 
 SIS FRAMEBUFFER DRIVER
 M:	Thomas Winischhofer <thomas@winischhofer.net>
@@ -7255,7 +7288,7 @@ F:	Documentation/hwmon/sch5627
 F:	drivers/hwmon/sch5627.c
 
 SMSC47B397 HARDWARE MONITOR DRIVER
-M:	"Mark M. Hoffman" <mhoffman@lightlink.com>
+M:	Jean Delvare <khali@linux-fr.org>
 L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	Documentation/hwmon/smsc47b397
@@ -7346,7 +7379,7 @@ F:	sound/
 
 SOUND - SOC LAYER / DYNAMIC AUDIO POWER MANAGEMENT (ASoC)
 M:	Liam Girdwood <lgirdwood@gmail.com>
-M:	Mark Brown <broonie@opensource.wolfsonmicro.com>
+M:	Mark Brown <broonie@kernel.org>
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/broonie/sound.git
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 W:	http://alsa-project.org/main/index.php/ASoC
@@ -7435,7 +7468,7 @@ F:	drivers/clk/spear/
 
 SPI SUBSYSTEM
 M:	Grant Likely <grant.likely@secretlab.ca>
-M:	Mark Brown <broonie@opensource.wolfsonmicro.com>
+M:	Mark Brown <broonie@kernel.org>
 L:	spi-devel-general@lists.sourceforge.net
 Q:	http://patchwork.kernel.org/project/spi-devel-general/list/
 T:	git git://git.secretlab.ca/git/linux-2.6.git
@@ -7678,9 +7711,10 @@ F:	include/linux/swiotlb.h
 
 SYNOPSYS ARC ARCHITECTURE
 M:	Vineet Gupta <vgupta@synopsys.com>
-L:	linux-snps-arc@vger.kernel.org
 S:	Supported
 F:	arch/arc/
+F:	Documentation/devicetree/bindings/arc/
+F:	drivers/tty/serial/arc-uart.c
 
 SYSV FILESYSTEM
 M:	Christoph Hellwig <hch@infradead.org>
@@ -8679,7 +8713,7 @@ F:	drivers/scsi/vmw_pvscsi.h
 
 VOLTAGE AND CURRENT REGULATOR FRAMEWORK
 M:	Liam Girdwood <lrg@ti.com>
-M:	Mark Brown <broonie@opensource.wolfsonmicro.com>
+M:	Mark Brown <broonie@kernel.org>
 W:	http://opensource.wolfsonmicro.com/node/15
 W:	http://www.slimlogic.co.uk/?p=48
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lrg/regulator.git

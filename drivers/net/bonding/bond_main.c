@@ -1746,6 +1746,8 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 
 	bond_compute_features(bond);
 
+	bond_update_speed_duplex(new_slave);
+
 	read_lock(&bond->lock);
 
 	new_slave->last_arp_rx = jiffies -
@@ -1797,8 +1799,6 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 	pr_debug("Initial state of slave_dev is BOND_LINK_%s\n",
 		new_slave->link == BOND_LINK_DOWN ? "DOWN" :
 			(new_slave->link == BOND_LINK_UP ? "UP" : "BACK"));
-
-	bond_update_speed_duplex(new_slave);
 
 	if (USES_PRIMARY(bond->params.mode) && bond->params.primary[0]) {
 		/* if there is a primary slave, remember it */
@@ -1964,7 +1964,6 @@ static int __bond_release_one(struct net_device *bond_dev,
 	}
 
 	block_netpoll_tx();
-	call_netdevice_notifiers(NETDEV_RELEASE, bond_dev);
 	write_lock_bh(&bond->lock);
 
 	slave = bond_get_slave_by_dev(bond, slave_dev);
@@ -1977,12 +1976,11 @@ static int __bond_release_one(struct net_device *bond_dev,
 		return -EINVAL;
 	}
 
+	write_unlock_bh(&bond->lock);
 	/* unregister rx_handler early so bond_handle_frame wouldn't be called
 	 * for this slave anymore.
 	 */
 	netdev_rx_handler_unregister(slave_dev);
-	write_unlock_bh(&bond->lock);
-	synchronize_net();
 	write_lock_bh(&bond->lock);
 
 	if (!all && !bond->params.fail_over_mac) {
@@ -2066,8 +2064,10 @@ static int __bond_release_one(struct net_device *bond_dev,
 	write_unlock_bh(&bond->lock);
 	unblock_netpoll_tx();
 
-	if (bond->slave_cnt == 0)
+	if (bond->slave_cnt == 0) {
 		call_netdevice_notifiers(NETDEV_CHANGEADDR, bond->dev);
+		call_netdevice_notifiers(NETDEV_RELEASE, bond->dev);
+	}
 
 	bond_compute_features(bond);
 	if (!(bond_dev->features & NETIF_F_VLAN_CHALLENGED) &&
@@ -2372,8 +2372,6 @@ static void bond_miimon_commit(struct bonding *bond)
 				/* prevent it from being the active one */
 				bond_set_backup_slave(slave);
 			}
-
-			bond_update_speed_duplex(slave);
 
 			pr_info("%s: link status definitely up for interface %s, %u Mbps %s duplex.\n",
 				bond->dev->name, slave->dev->name,
@@ -4848,9 +4846,18 @@ static int __net_init bond_net_init(struct net *net)
 static void __net_exit bond_net_exit(struct net *net)
 {
 	struct bond_net *bn = net_generic(net, bond_net_id);
+	struct bonding *bond, *tmp_bond;
+	LIST_HEAD(list);
 
 	bond_destroy_sysfs(bn);
 	bond_destroy_proc_dir(bn);
+
+	/* Kill off any bonds created after unregistering bond rtnl ops */
+	rtnl_lock();
+	list_for_each_entry_safe(bond, tmp_bond, &bn->dev_list, bond_list)
+		unregister_netdevice_queue(bond->dev, &list);
+	unregister_netdevice_many(&list);
+	rtnl_unlock();
 }
 
 static struct pernet_operations bond_net_ops = {

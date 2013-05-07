@@ -647,6 +647,9 @@ static void ieee80211_add_vht_ie(struct ieee80211_sub_if_data *sdata,
 		our_mcs = (le16_to_cpu(vht_cap.vht_mcs.rx_mcs_map) &
 								mask) >> shift;
 
+		if (our_mcs == IEEE80211_VHT_MCS_NOT_SUPPORTED)
+			continue;
+
 		switch (ap_mcs) {
 		default:
 			if (our_mcs <= ap_mcs)
@@ -3503,6 +3506,14 @@ void ieee80211_sta_quiesce(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 
 	/*
+	 * Stop timers before deleting work items, as timers
+	 * could race and re-add the work-items. They will be
+	 * re-established on connection.
+	 */
+	del_timer_sync(&ifmgd->conn_mon_timer);
+	del_timer_sync(&ifmgd->bcn_mon_timer);
+
+	/*
 	 * we need to use atomic bitops for the running bits
 	 * only because both timers might fire at the same
 	 * time -- the code here is properly synchronised.
@@ -3516,13 +3527,9 @@ void ieee80211_sta_quiesce(struct ieee80211_sub_if_data *sdata)
 	if (del_timer_sync(&ifmgd->timer))
 		set_bit(TMR_RUNNING_TIMER, &ifmgd->timers_running);
 
-	cancel_work_sync(&ifmgd->chswitch_work);
 	if (del_timer_sync(&ifmgd->chswitch_timer))
 		set_bit(TMR_RUNNING_CHANSW, &ifmgd->timers_running);
-
-	/* these will just be re-established on connection */
-	del_timer_sync(&ifmgd->conn_mon_timer);
-	del_timer_sync(&ifmgd->bcn_mon_timer);
+	cancel_work_sync(&ifmgd->chswitch_work);
 }
 
 void ieee80211_sta_restart(struct ieee80211_sub_if_data *sdata)
@@ -3601,8 +3608,10 @@ void ieee80211_mlme_notify_scan_completed(struct ieee80211_local *local)
 
 	/* Restart STA timers */
 	rcu_read_lock();
-	list_for_each_entry_rcu(sdata, &local->interfaces, list)
-		ieee80211_restart_sta_timer(sdata);
+	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
+		if (ieee80211_sdata_running(sdata))
+			ieee80211_restart_sta_timer(sdata);
+	}
 	rcu_read_unlock();
 }
 
@@ -4314,6 +4323,17 @@ int ieee80211_mgd_disassoc(struct ieee80211_sub_if_data *sdata,
 void ieee80211_mgd_stop(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+
+	/*
+	 * Make sure some work items will not run after this,
+	 * they will not do anything but might not have been
+	 * cancelled when disconnecting.
+	 */
+	cancel_work_sync(&ifmgd->monitor_work);
+	cancel_work_sync(&ifmgd->beacon_connection_loss_work);
+	cancel_work_sync(&ifmgd->request_smps_work);
+	cancel_work_sync(&ifmgd->csa_connection_drop_work);
+	cancel_work_sync(&ifmgd->chswitch_work);
 
 	mutex_lock(&ifmgd->mtx);
 	if (ifmgd->assoc_data)

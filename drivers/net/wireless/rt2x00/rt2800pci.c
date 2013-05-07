@@ -41,6 +41,7 @@
 #include <linux/eeprom_93cx6.h>
 
 #include "rt2x00.h"
+#include "rt2x00mmio.h"
 #include "rt2x00pci.h"
 #include "rt2x00soc.h"
 #include "rt2800lib.h"
@@ -89,7 +90,7 @@ static void rt2800pci_mcu_status(struct rt2x00_dev *rt2x00dev, const u8 token)
 	rt2x00pci_register_write(rt2x00dev, H2M_MAILBOX_CID, ~0);
 }
 
-#if defined(CONFIG_RALINK_RT288X) || defined(CONFIG_RALINK_RT305X)
+#if defined(CONFIG_SOC_RT288X) || defined(CONFIG_SOC_RT305X)
 static int rt2800pci_read_eeprom_soc(struct rt2x00_dev *rt2x00dev)
 {
 	void __iomem *base_addr = ioremap(0x1F040000, EEPROM_SIZE);
@@ -107,7 +108,7 @@ static inline int rt2800pci_read_eeprom_soc(struct rt2x00_dev *rt2x00dev)
 {
 	return -ENOMEM;
 }
-#endif /* CONFIG_RALINK_RT288X || CONFIG_RALINK_RT305X */
+#endif /* CONFIG_SOC_RT288X || CONFIG_SOC_RT305X */
 
 #ifdef CONFIG_PCI
 static void rt2800pci_eepromregister_read(struct eeprom_93cx6 *eeprom)
@@ -1177,7 +1178,7 @@ MODULE_DEVICE_TABLE(pci, rt2800pci_device_table);
 #endif /* CONFIG_PCI */
 MODULE_LICENSE("GPL");
 
-#if defined(CONFIG_RALINK_RT288X) || defined(CONFIG_RALINK_RT305X)
+#if defined(CONFIG_SOC_RT288X) || defined(CONFIG_SOC_RT305X)
 static int rt2800soc_probe(struct platform_device *pdev)
 {
 	return rt2x00soc_probe(pdev, &rt2800pci_ops);
@@ -1194,7 +1195,7 @@ static struct platform_driver rt2800soc_driver = {
 	.suspend	= rt2x00soc_suspend,
 	.resume		= rt2x00soc_resume,
 };
-#endif /* CONFIG_RALINK_RT288X || CONFIG_RALINK_RT305X */
+#endif /* CONFIG_SOC_RT288X || CONFIG_SOC_RT305X */
 
 #ifdef CONFIG_PCI
 static int rt2800pci_probe(struct pci_dev *pci_dev,
@@ -1217,7 +1218,7 @@ static int __init rt2800pci_init(void)
 {
 	int ret = 0;
 
-#if defined(CONFIG_RALINK_RT288X) || defined(CONFIG_RALINK_RT305X)
+#if defined(CONFIG_SOC_RT288X) || defined(CONFIG_SOC_RT305X)
 	ret = platform_driver_register(&rt2800soc_driver);
 	if (ret)
 		return ret;
@@ -1225,7 +1226,7 @@ static int __init rt2800pci_init(void)
 #ifdef CONFIG_PCI
 	ret = pci_register_driver(&rt2800pci_driver);
 	if (ret) {
-#if defined(CONFIG_RALINK_RT288X) || defined(CONFIG_RALINK_RT305X)
+#if defined(CONFIG_SOC_RT288X) || defined(CONFIG_SOC_RT305X)
 		platform_driver_unregister(&rt2800soc_driver);
 #endif
 		return ret;
@@ -1240,7 +1241,7 @@ static void __exit rt2800pci_exit(void)
 #ifdef CONFIG_PCI
 	pci_unregister_driver(&rt2800pci_driver);
 #endif
-#if defined(CONFIG_RALINK_RT288X) || defined(CONFIG_RALINK_RT305X)
+#if defined(CONFIG_SOC_RT288X) || defined(CONFIG_SOC_RT305X)
 	platform_driver_unregister(&rt2800soc_driver);
 #endif
 }

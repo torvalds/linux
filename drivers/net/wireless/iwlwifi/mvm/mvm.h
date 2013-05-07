@@ -80,7 +80,8 @@
 
 #define IWL_INVALID_MAC80211_QUEUE	0xff
 #define IWL_MVM_MAX_ADDRESSES		2
-#define IWL_RSSI_OFFSET 44
+/* RSSI offset for WkP */
+#define IWL_RSSI_OFFSET 50
 
 enum iwl_mvm_tx_fifo {
 	IWL_MVM_TX_FIFO_BK = 0,

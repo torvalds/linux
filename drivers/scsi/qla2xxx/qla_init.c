@@ -619,8 +619,6 @@ qla2x00_initialize_adapter(scsi_qla_host_t *vha)
 	if (IS_QLA24XX_TYPE(ha) || IS_QLA25XX(ha))
 		qla24xx_read_fcp_prio_cfg(vha);
 
-	qla2x00_set_driver_version(vha, QLA2XXX_VERSION);
-
 	return (rval);
 }
 
@@ -1399,7 +1397,7 @@ qla2x00_alloc_fw_dump(scsi_qla_host_t *vha)
 			mq_size += ha->max_rsp_queues *
 			    (rsp->length * sizeof(response_t));
 		}
-		if (ha->tgt.atio_q_length)
+		if (ha->tgt.atio_ring)
 			mq_size += ha->tgt.atio_q_length * sizeof(request_t);
 		/* Allocate memory for Fibre Channel Event Buffer. */
 		if (!IS_QLA25XX(ha) && !IS_QLA81XX(ha) && !IS_QLA83XX(ha))

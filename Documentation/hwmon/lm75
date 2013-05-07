@@ -23,7 +23,7 @@ Supported chips:
     Datasheet: Publicly available at the Maxim website
                http://www.maxim-ic.com/
   * Microchip (TelCom) TCN75
-    Prefix: 'lm75'
+    Prefix: 'tcn75'
     Addresses scanned: none
     Datasheet: Publicly available at the Microchip website
                http://www.microchip.com/

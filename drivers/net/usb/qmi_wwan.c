@@ -139,16 +139,9 @@ static int qmi_wwan_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	BUILD_BUG_ON((sizeof(((struct usbnet *)0)->data) < sizeof(struct qmi_wwan_state)));
 
-	/* control and data is shared? */
-	if (intf->cur_altsetting->desc.bNumEndpoints == 3) {
-		info->control = intf;
-		info->data = intf;
-		goto shared;
-	}
-
-	/* else require a single interrupt status endpoint on control intf */
-	if (intf->cur_altsetting->desc.bNumEndpoints != 1)
-		goto err;
+	/* set up initial state */
+	info->control = intf;
+	info->data = intf;
 
 	/* and a number of CDC descriptors */
 	while (len > 3) {
@@ -207,25 +200,14 @@ next_desc:
 		buf += h->bLength;
 	}
 
-	/* did we find all the required ones? */
-	if (!(found & (1 << USB_CDC_HEADER_TYPE)) ||
-	    !(found & (1 << USB_CDC_UNION_TYPE))) {
-		dev_err(&intf->dev, "CDC functional descriptors missing\n");
-		goto err;
-	}
-
-	/* verify CDC Union */
-	if (desc->bInterfaceNumber != cdc_union->bMasterInterface0) {
-		dev_err(&intf->dev, "bogus CDC Union: master=%u\n", cdc_union->bMasterInterface0);
-		goto err;
-	}
-
-	/* need to save these for unbind */
-	info->control = intf;
-	info->data = usb_ifnum_to_if(dev->udev,	cdc_union->bSlaveInterface0);
-	if (!info->data) {
-		dev_err(&intf->dev, "bogus CDC Union: slave=%u\n", cdc_union->bSlaveInterface0);
-		goto err;
+	/* Use separate control and data interfaces if we found a CDC Union */
+	if (cdc_union) {
+		info->data = usb_ifnum_to_if(dev->udev, cdc_union->bSlaveInterface0);
+		if (desc->bInterfaceNumber != cdc_union->bMasterInterface0 || !info->data) {
+			dev_err(&intf->dev, "bogus CDC Union: master=%u, slave=%u\n",
+				cdc_union->bMasterInterface0, cdc_union->bSlaveInterface0);
+			goto err;
+		}
 	}
 
 	/* errors aren't fatal - we can live with the dynamic address */
@@ -235,11 +217,12 @@ next_desc:
 	}
 
 	/* claim data interface and set it up */
-	status = usb_driver_claim_interface(driver, info->data, dev);
-	if (status < 0)
-		goto err;
+	if (info->control != info->data) {
+		status = usb_driver_claim_interface(driver, info->data, dev);
+		if (status < 0)
+			goto err;
+	}
 
-shared:
 	status = qmi_wwan_register_subdriver(dev);
 	if (status < 0 && info->control != info->data) {
 		usb_set_intfdata(info->data, NULL);

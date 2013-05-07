@@ -415,7 +415,6 @@ static int acpi_pci_root_add(struct acpi_device *device,
 	struct acpi_pci_root *root;
 	struct acpi_pci_driver *driver;
 	u32 flags, base_flags;
-	bool is_osc_granted = false;
 
 	root = kzalloc(sizeof(struct acpi_pci_root), GFP_KERNEL);
 	if (!root)
@@ -476,6 +475,30 @@ static int acpi_pci_root_add(struct acpi_device *device,
 	flags = base_flags = OSC_PCI_SEGMENT_GROUPS_SUPPORT;
 	acpi_pci_osc_support(root, flags);
 
+	/*
+	 * TBD: Need PCI interface for enumeration/configuration of roots.
+	 */
+
+	mutex_lock(&acpi_pci_root_lock);
+	list_add_tail(&root->node, &acpi_pci_roots);
+	mutex_unlock(&acpi_pci_root_lock);
+
+	/*
+	 * Scan the Root Bridge
+	 * --------------------
+	 * Must do this prior to any attempt to bind the root device, as the
+	 * PCI namespace does not get created until this call is made (and
+	 * thus the root bridge's pci_dev does not exist).
+	 */
+	root->bus = pci_acpi_scan_root(root);
+	if (!root->bus) {
+		printk(KERN_ERR PREFIX
+			    "Bus %04x:%02x not present in PCI namespace\n",
+			    root->segment, (unsigned int)root->secondary.start);
+		result = -ENODEV;
+		goto out_del_root;
+	}
+
 	/* Indicate support for various _OSC capabilities. */
 	if (pci_ext_cfg_avail())
 		flags |= OSC_EXT_PCI_CONFIG_SUPPORT;
@@ -494,6 +517,7 @@ static int acpi_pci_root_add(struct acpi_device *device,
 			flags = base_flags;
 		}
 	}
+
 	if (!pcie_ports_disabled
 	    && (flags & ACPI_PCIE_REQ_SUPPORT) == ACPI_PCIE_REQ_SUPPORT) {
 		flags = OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL
@@ -514,54 +538,28 @@ static int acpi_pci_root_add(struct acpi_device *device,
 		status = acpi_pci_osc_control_set(device->handle, &flags,
 				       OSC_PCI_EXPRESS_CAP_STRUCTURE_CONTROL);
 		if (ACPI_SUCCESS(status)) {
-			is_osc_granted = true;
 			dev_info(&device->dev,
 				"ACPI _OSC control (0x%02x) granted\n", flags);
+			if (acpi_gbl_FADT.boot_flags & ACPI_FADT_NO_ASPM) {
+				/*
+				 * We have ASPM control, but the FADT indicates
+				 * that it's unsupported. Clear it.
+				 */
+				pcie_clear_aspm(root->bus);
+			}
 		} else {
-			is_osc_granted = false;
 			dev_info(&device->dev,
 				"ACPI _OSC request failed (%s), "
 				"returned control mask: 0x%02x\n",
 				acpi_format_exception(status), flags);
+			pr_info("ACPI _OSC control for PCIe not granted, "
+				"disabling ASPM\n");
+			pcie_no_aspm();
 		}
 	} else {
 		dev_info(&device->dev,
-			"Unable to request _OSC control "
-			"(_OSC support mask: 0x%02x)\n", flags);
-	}
-
-	/*
-	 * TBD: Need PCI interface for enumeration/configuration of roots.
-	 */
-
-	mutex_lock(&acpi_pci_root_lock);
-	list_add_tail(&root->node, &acpi_pci_roots);
-	mutex_unlock(&acpi_pci_root_lock);
-
-	/*
-	 * Scan the Root Bridge
-	 * --------------------
-	 * Must do this prior to any attempt to bind the root device, as the
-	 * PCI namespace does not get created until this call is made (and 
-	 * thus the root bridge's pci_dev does not exist).
-	 */
-	root->bus = pci_acpi_scan_root(root);
-	if (!root->bus) {
-		printk(KERN_ERR PREFIX
-			    "Bus %04x:%02x not present in PCI namespace\n",
-			    root->segment, (unsigned int)root->secondary.start);
-		result = -ENODEV;
-		goto out_del_root;
-	}
-
-	/* ASPM setting */
-	if (is_osc_granted) {
-		if (acpi_gbl_FADT.boot_flags & ACPI_FADT_NO_ASPM)
-			pcie_clear_aspm(root->bus);
-	} else {
-		pr_info("ACPI _OSC control for PCIe not granted, "
-			"disabling ASPM\n");
-		pcie_no_aspm();
+			 "Unable to request _OSC control "
+			 "(_OSC support mask: 0x%02x)\n", flags);
 	}
 
 	pci_acpi_add_bus_pm_notifier(device, root->bus);
@@ -646,6 +644,7 @@ static void handle_root_bridge_insertion(acpi_handle handle)
 
 static void handle_root_bridge_removal(struct acpi_device *device)
 {
+	acpi_status status;
 	struct acpi_eject_event *ej_event;
 
 	ej_event = kmalloc(sizeof(*ej_event), GFP_KERNEL);
@@ -661,7 +660,9 @@ static void handle_root_bridge_removal(struct acpi_device *device)
 	ej_event->device = device;
 	ej_event->event = ACPI_NOTIFY_EJECT_REQUEST;
 
-	acpi_bus_hot_remove_device(ej_event);
+	status = acpi_os_hotplug_execute(acpi_bus_hot_remove_device, ej_event);
+	if (ACPI_FAILURE(status))
+		kfree(ej_event);
 }
 
 static void _handle_hotplug_event_root(struct work_struct *work)
@@ -676,8 +677,9 @@ static void _handle_hotplug_event_root(struct work_struct *work)
 	handle = hp_work->handle;
 	type = hp_work->type;
 
-	root = acpi_pci_find_root(handle);
+	acpi_scan_lock_acquire();
 
+	root = acpi_pci_find_root(handle);
 	acpi_get_name(handle, ACPI_FULL_PATHNAME, &buffer);
 
 	switch (type) {
@@ -711,6 +713,7 @@ static void _handle_hotplug_event_root(struct work_struct *work)
 		break;
 	}
 
+	acpi_scan_lock_release();
 	kfree(hp_work); /* allocated in handle_hotplug_event_bridge */
 	kfree(buffer.pointer);
 }

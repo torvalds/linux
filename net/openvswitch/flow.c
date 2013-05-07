@@ -482,7 +482,11 @@ static __be16 parse_ethertype(struct sk_buff *skb)
 		return htons(ETH_P_802_2);
 
 	__skb_pull(skb, sizeof(struct llc_snap_hdr));
-	return llc->ethertype;
+
+	if (ntohs(llc->ethertype) >= 1536)
+		return llc->ethertype;
+
+	return htons(ETH_P_802_2);
 }
 
 static int parse_icmpv6(struct sk_buff *skb, struct sw_flow_key *key,

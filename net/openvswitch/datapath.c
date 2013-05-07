@@ -394,6 +394,7 @@ static int queue_userspace_packet(struct net *net, int dp_ifindex,
 
 	skb_copy_and_csum_dev(skb, nla_data(nla));
 
+	genlmsg_end(user_skb, upcall);
 	err = genlmsg_unicast(net, user_skb, upcall_info->portid);
 
 out:
@@ -1690,6 +1691,7 @@ static int ovs_vport_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	if (IS_ERR(vport))
 		goto exit_unlock;
 
+	err = 0;
 	reply = ovs_vport_cmd_build_info(vport, info->snd_portid, info->snd_seq,
 					 OVS_VPORT_CMD_NEW);
 	if (IS_ERR(reply)) {
@@ -1771,6 +1773,7 @@ static int ovs_vport_cmd_del(struct sk_buff *skb, struct genl_info *info)
 	if (IS_ERR(reply))
 		goto exit_unlock;
 
+	err = 0;
 	ovs_dp_detach_port(vport);
 
 	genl_notify(reply, genl_info_net(info), info->snd_portid,

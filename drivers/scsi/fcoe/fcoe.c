@@ -490,7 +490,6 @@ static void fcoe_interface_cleanup(struct fcoe_interface *fcoe)
 {
 	struct net_device *netdev = fcoe->netdev;
 	struct fcoe_ctlr *fip = fcoe_to_ctlr(fcoe);
-	struct fcoe_ctlr_device *ctlr_dev = fcoe_ctlr_to_ctlr_dev(fip);
 
 	rtnl_lock();
 	if (!fcoe->removed)
@@ -501,7 +500,6 @@ static void fcoe_interface_cleanup(struct fcoe_interface *fcoe)
 	/* tear-down the FCoE controller */
 	fcoe_ctlr_destroy(fip);
 	scsi_host_put(fip->lp->host);
-	fcoe_ctlr_device_delete(ctlr_dev);
 	dev_put(netdev);
 	module_put(THIS_MODULE);
 }
@@ -2194,6 +2192,8 @@ out_nodev:
  */
 static void fcoe_destroy_work(struct work_struct *work)
 {
+	struct fcoe_ctlr_device *cdev;
+	struct fcoe_ctlr *ctlr;
 	struct fcoe_port *port;
 	struct fcoe_interface *fcoe;
 	struct Scsi_Host *shost;
@@ -2224,10 +2224,15 @@ static void fcoe_destroy_work(struct work_struct *work)
 	mutex_lock(&fcoe_config_mutex);
 
 	fcoe = port->priv;
+	ctlr = fcoe_to_ctlr(fcoe);
+	cdev = fcoe_ctlr_to_ctlr_dev(ctlr);
+
 	fcoe_if_destroy(port->lport);
 	fcoe_interface_cleanup(fcoe);
 
 	mutex_unlock(&fcoe_config_mutex);
+
+	fcoe_ctlr_device_delete(cdev);
 }
 
 /**
@@ -2335,7 +2340,9 @@ static int _fcoe_create(struct net_device *netdev, enum fip_state fip_mode,
 		rc = -EIO;
 		rtnl_unlock();
 		fcoe_interface_cleanup(fcoe);
-		goto out_nortnl;
+		mutex_unlock(&fcoe_config_mutex);
+		fcoe_ctlr_device_delete(ctlr_dev);
+		goto out;
 	}
 
 	/* Make this the "master" N_Port */
@@ -2375,8 +2382,8 @@ static int _fcoe_create(struct net_device *netdev, enum fip_state fip_mode,
 
 out_nodev:
 	rtnl_unlock();
-out_nortnl:
 	mutex_unlock(&fcoe_config_mutex);
+out:
 	return rc;
 }
 

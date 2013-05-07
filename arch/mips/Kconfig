@@ -38,7 +38,7 @@ config MIPS
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_CMOS_UPDATE
 	select HAVE_MOD_ARCH_SPECIFIC
-	select HAVE_VIRT_TO_BUS
+	select VIRT_TO_BUS
 	select MODULES_USE_ELF_REL if MODULES
 	select MODULES_USE_ELF_RELA if MODULES && 64BIT
 	select CLONE_BACKWARDS
@@ -306,7 +306,6 @@ config MIPS_MALTA
 	select HW_HAS_PCI
 	select I8253
 	select I8259
-	select MIPS_BOARDS_GEN
 	select MIPS_BONITO64
 	select MIPS_CPU_SCACHE
 	select PCI_GT64XXX_PCI0
@@ -342,7 +341,6 @@ config MIPS_SEAD3
 	select DMA_NONCOHERENT
 	select IRQ_CPU
 	select IRQ_GIC
-	select MIPS_BOARDS_GEN
 	select MIPS_CPU_SCACHE
 	select MIPS_MSC
 	select SYS_HAS_CPU_MIPS32_R1
@@ -657,7 +655,7 @@ config SNI_RM
 	bool "SNI RM200/300/400"
 	select FW_ARC if CPU_LITTLE_ENDIAN
 	select FW_ARC32 if CPU_LITTLE_ENDIAN
-	select SNIPROM if CPU_BIG_ENDIAN
+	select FW_SNIPROM if CPU_BIG_ENDIAN
 	select ARCH_MAY_HAVE_PC_FDC
 	select BOOT_ELF32
 	select CEVT_R4K
@@ -983,9 +981,6 @@ config MIPS_MSC
 config MIPS_NILE4
 	bool
 
-config MIPS_DISABLE_OBSOLETE_IDE
-	bool
-
 config SYNC_R4K
 	bool
 
@@ -1079,9 +1074,6 @@ config IRQ_GT641XX
 config IRQ_GIC
 	bool
 
-config MIPS_BOARDS_GEN
-	bool
-
 config PCI_GT64XXX_PCI0
 	bool
 
@@ -1144,7 +1136,7 @@ config DEFAULT_SGI_PARTITION
 config FW_ARC32
 	bool
 
-config SNIPROM
+config FW_SNIPROM
 	bool
 
 config BOOT_ELF32
@@ -1152,7 +1144,7 @@ config BOOT_ELF32
 
 config MIPS_L1_CACHE_SHIFT
 	int
-	default "4" if MACH_DECSTATION || MIKROTIK_RB532 || PMC_MSP4200_EVAL
+	default "4" if MACH_DECSTATION || MIKROTIK_RB532 || PMC_MSP4200_EVAL || SOC_RT288X
 	default "6" if MIPS_CPU_SCACHE
 	default "7" if SGI_IP22 || SGI_IP27 || SGI_IP28 || SNI_RM || CPU_CAVIUM_OCTEON
 	default "5"
