@@ -264,17 +264,6 @@ void arch_send_call_function_single_ipi(int cpu)
 }
 
 /*
- * Flush all other CPU's tlb and then mine.  Do this with on_each_cpu()
- * as we want to ensure all TLB's flushed before proceeding.
- */
-
-void
-smp_flush_tlb_all(void)
-{
-	on_each_cpu(flush_tlb_all_local, NULL, 1);
-}
-
-/*
  * Called by secondaries to update state and initialize CPU registers.
  */
 static void __init
