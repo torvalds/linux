@@ -391,9 +391,8 @@ static void intel_pstate_set_pstate(struct cpudata *cpu, int pstate)
 	if (pstate == cpu->pstate.current_pstate)
 		return;
 
-#ifndef MODULE
 	trace_cpu_frequency(pstate * 100000, cpu->cpu);
-#endif
+
 	cpu->pstate.current_pstate = pstate;
 	wrmsrl(MSR_IA32_PERF_CTL, pstate << 8);
 
