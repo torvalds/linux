@@ -338,7 +338,8 @@ static int dw8250_runtime_suspend(struct device *dev)
 {
 	struct dw8250_data *data = dev_get_drvdata(dev);
 
-	clk_disable_unprepare(data->clk);
+	if (!IS_ERR(data->clk))
+		clk_disable_unprepare(data->clk);
 
 	return 0;
 }
@@ -347,7 +348,8 @@ static int dw8250_runtime_resume(struct device *dev)
 {
 	struct dw8250_data *data = dev_get_drvdata(dev);
 
-	clk_prepare_enable(data->clk);
+	if (!IS_ERR(data->clk))
+		clk_prepare_enable(data->clk);
 
 	return 0;
 }
