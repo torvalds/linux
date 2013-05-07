@@ -1288,6 +1288,7 @@ static const struct pll_clk_set cpll_clks[] = {
 	_PLL_SET_CLKS(456000, 1,  76,	4),
 	_PLL_SET_CLKS(504000, 1,  84,	4),
 	_PLL_SET_CLKS(552000, 1,  46,	2),
+	_PLL_SET_CLKS(594000, 2,  198,	4),
 	_PLL_SET_CLKS(600000, 1,  50,	2),
 	_PLL_SET_CLKS(742500, 8,  495,	2),
 	_PLL_SET_CLKS(768000, 1,  64,	2),
@@ -1309,6 +1310,7 @@ static const struct pll_clk_set gpll_clks[] = {
 	_PLL_SET_CLKS(148500,	2,	99,	8),
 	_PLL_SET_CLKS(297000,	2,	198,	8),
 	_PLL_SET_CLKS(300000,	1,	50,	4),
+	_PLL_SET_CLKS(384000,	1,	64,	4),
 	_PLL_SET_CLKS(594000,	2,	198,	4),
 	_PLL_SET_CLKS(891000,	8,	594,	2),
 	_PLL_SET_CLKS(1188000,	2,	99,	1),
@@ -3272,6 +3274,11 @@ static void periph_clk_set_init(void)
 			hclk_p = aclk_p >> 0;
 			pclk_p = aclk_p >> 1;
 			break;
+		case 384 * MHZ: 
+			aclk_p = ppll_rate >> 1; 
+			hclk_p = aclk_p >> 1; 
+			pclk_p = aclk_p >> 2; 
+			break; 
 		case 594 * MHZ:
 			aclk_p = ppll_rate >> 2;
 			hclk_p = aclk_p >> 0;
@@ -3312,7 +3319,12 @@ static void cpu_axi_init(void)
 			hclk_cpu_rate = aclk_cpu_rate >> 1;
 			pclk_cpu_rate = aclk_cpu_rate >> 2;
 			break;
-
+		case 384 * MHZ:
+			cpu_div_rate = gpll_rate >> 1;
+			aclk_cpu_rate = cpu_div_rate >> 0;
+			hclk_cpu_rate = aclk_cpu_rate >> 1;
+			pclk_cpu_rate = aclk_cpu_rate >> 2;
+			break;
 		case 594 * MHZ:
 			cpu_div_rate = gpll_rate >> 1;
 			aclk_cpu_rate = cpu_div_rate >> 0;
@@ -3377,6 +3389,51 @@ void rk30_clock_common_i2s_init(void)
 			clk_set_parent_nolock(&clk_i2s_pll, &codec_pll_clk);
 	}
 }
+void rk30_clock_common_uart_init(struct clk *cpll_clk,struct clk *gpll_clk)
+{
+	struct clk *p_clk;
+	unsigned long rate;
+	if(!(gpll_clk->rate%(48*MHZ)))
+	{
+		p_clk=gpll_clk;
+		rate=48*MHZ;
+	}
+	else if(!(cpll_clk->rate%(48*MHZ)))
+	{
+		p_clk=cpll_clk;
+		rate=48*MHZ;
+	}
+	else if(!(gpll_clk->rate%(49500*KHZ)))
+	{
+		p_clk=gpll_clk;
+		rate=(49500*KHZ);
+	}
+	else if(!(cpll_clk->rate%(49500*KHZ)))
+	{
+		p_clk=cpll_clk;
+		rate=(49500*KHZ);
+	}
+	else
+	{
+		if(cpll_clk->rate>gpll_clk->rate)
+		{
+			p_clk=cpll_clk;
+		}
+		else
+		{
+			p_clk=gpll_clk;
+		}	
+		rate=50*MHZ;
+	}
+	printk("rk30_clock_common_uart_init\n");
+	printk("%s rate%lu,gpll_clk->rate=%lu\n",__FUNCTION__,rate,gpll_clk->rate);
+	clk_set_parent_nolock(&clk_uart_pll, p_clk);
+	clk_set_rate_nolock(&clk_uart0_div,rate);
+	clk_set_rate_nolock(&clk_uart1_div,rate);
+	clk_set_rate_nolock(&clk_uart2_div,rate);
+	clk_set_rate_nolock(&clk_uart3_div,rate);
+	clk_set_rate_nolock(&clk_uart1,rate);
+}
 
 static void inline clock_set_div(struct clk *clk,u32 div)
 {
@@ -3433,10 +3490,8 @@ static void __init rk30_clock_common_init(unsigned long gpll_rate, unsigned long
 	clk_set_rate_nolock(&clk_spi1, clk_spi1.parent->rate);
 
 	// uart
-	if((rk30_clock_flags & CLK_FLG_UART_1_3M) && (cpll_rate != 24 * MHZ))
-		clk_set_parent_nolock(&clk_uart_pll, &codec_pll_clk);
-	else
-		clk_set_parent_nolock(&clk_uart_pll, &general_pll_clk);
+	rk30_clock_common_uart_init(&codec_pll_clk,&general_pll_clk);
+
 	//mac
 	if(!(gpll_rate % (50 * MHZ))) {
 		clk_set_parent_nolock(&clk_mac_pll_div, &general_pll_clk);

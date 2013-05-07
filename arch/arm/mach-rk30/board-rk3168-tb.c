@@ -2579,7 +2579,8 @@ static struct cpufreq_frequency_table dvfs_ddr_table[] = {
 
 void __init board_clock_init(void)
 {
-	rk30_clock_data_init(periph_pll_default, codec_pll_default, RK30_CLOCKS_DEFAULT_FLAGS);
+	rk30_clock_data_init(periph_pll_384mhz, codec_pll_594mhz, RK30_CLOCKS_DEFAULT_FLAGS);
+	//rk30_clock_data_init(periph_pll_default, codec_pll_default, RK30_CLOCKS_DEFAULT_FLAGS);
 	//dvfs_set_arm_logic_volt(dvfs_cpu_logic_table, cpu_dvfs_table, dep_cpu2core_table);	
 	dvfs_set_freq_volt_table(clk_get(NULL, "cpu"), dvfs_arm_table);
 	dvfs_set_freq_volt_table(clk_get(NULL, "gpu"), dvfs_gpu_table);
