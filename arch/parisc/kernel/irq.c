@@ -330,6 +330,34 @@ static inline int eirr_to_irq(unsigned long eirr)
 	return (BITS_PER_LONG - bit) + TIMER_IRQ;
 }
 
+int sysctl_panic_on_stackoverflow = 1;
+
+static inline void stack_overflow_check(struct pt_regs *regs)
+{
+#ifdef CONFIG_DEBUG_STACKOVERFLOW
+	#define STACK_MARGIN	(256*6)
+
+	/* Our stack starts directly behind the thread_info struct. */
+	unsigned long stack_start = (unsigned long) current_thread_info();
+	unsigned long sp = regs->gr[30];
+
+	/* if sr7 != 0, we interrupted a userspace process which we do not want
+	 * to check for stack overflow. We will only check the kernel stack. */
+	if (regs->sr[7])
+		return;
+
+	if (likely((sp - stack_start) < (THREAD_SIZE - STACK_MARGIN)))
+		return;
+
+	pr_emerg("stackcheck: %s will most likely overflow kernel stack "
+		 "(sp:%lx, stk bottom-top:%lx-%lx)\n",
+		current->comm, sp, stack_start, stack_start + THREAD_SIZE);
+
+	if (sysctl_panic_on_stackoverflow)
+		panic("low stack detected by irq handler - check messages\n");
+#endif
+}
+
 /* ONLY called from entry.S:intr_extint() */
 void do_cpu_irq_mask(struct pt_regs *regs)
 {
@@ -364,6 +392,7 @@ void do_cpu_irq_mask(struct pt_regs *regs)
 		goto set_out;
 	}
 #endif
+	stack_overflow_check(regs);
 	generic_handle_irq(irq);
 
  out:
@@ -420,6 +449,4 @@ void __init init_IRQ(void)
 	cpu_eiem = EIEM_MASK(TIMER_IRQ);
 #endif
         set_eiem(cpu_eiem);	/* EIEM : enable all external intr */
-
 }
-
