@@ -295,6 +295,8 @@ source "drivers/net/wireless/wl12xx/Kconfig"
 source "drivers/net/wireless/zd1211rw/Kconfig"
 source "drivers/net/wireless/mwifiex/Kconfig"
 source "drivers/net/wireless/rtl8192cu/Kconfig"
+source "drivers/net/wireless/rtl8188eu/Kconfig"
+source "drivers/net/wireless/rtl8189es/Kconfig"
 source "drivers/net/wireless/rtl8723as/Kconfig"
 source "drivers/net/wireless/rtxx7x/Kconfig"
 

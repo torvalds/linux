@@ -1,7 +1,7 @@
-config RTL8188EU
-	tristate "Realtek 8188E USB WiFi"
+config RTL8189ES
+	tristate "Realtek 8189E SDIO WiFi"
 	depends on USB
     select WEXT_PRIV
 	---help---
-	  Help message of RTL8188EU
+	  Help message of RTL8189ES
 

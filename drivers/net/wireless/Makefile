@@ -26,6 +26,8 @@ obj-$(CONFIG_RTL8180)		+= rtl818x/
 obj-$(CONFIG_RTL8187)		+= rtl818x/
 obj-$(CONFIG_RTLWIFI)		+= rtlwifi/
 obj-$(CONFIG_RTL8192CU_SW)	+= rtl8192cu/
+obj-$(CONFIG_RTL8188EU)		+= rtl8188eu/
+obj-$(CONFIG_RTL8189ES)		+= rtl8189es/
 obj-$(CONFIG_RTL8723AS)		+= rtl8723as/
 
 # 16-bit wireless PCMCIA client drivers
