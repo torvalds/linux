@@ -4,6 +4,7 @@
 #include <linux/types.h>
 #include <linux/i2c.h>
 #include <linux/rk_fb.h>
+#include <linux/clk.h>
 
 #define VIF0_REG0 		0x0000
 #define VIF0_DDR_CLK_EN		(1<<3)
@@ -258,6 +259,7 @@ struct mfd_rk616 {
 	struct rk616_platform_data *pdata;
 	struct rk616_route route;  //display path router
 	struct i2c_client *client;
+	struct clk *mclk;
 	struct dentry *debugfs_dir;
 	int (*read_dev)(struct mfd_rk616 *rk616,u16 reg,u32 *pval);
 	int (*write_dev)(struct mfd_rk616 *rk616,u16 reg,u32 *pval);

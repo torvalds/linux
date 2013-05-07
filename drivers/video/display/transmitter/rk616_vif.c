@@ -23,6 +23,7 @@ static int rk616_vif_cfg(struct mfd_rk616 *rk616,rk_screen *fscreen,int id)
 		{
 			val = (VIF0_EN << 16); //disable vif0
 			ret = rk616->write_dev(rk616,VIF0_REG0,&val);
+			clk_set_rate(rk616->mclk, 11289600);
 			return 0;
 		}
 		offset = 0;
@@ -38,6 +39,7 @@ static int rk616_vif_cfg(struct mfd_rk616 *rk616,rk_screen *fscreen,int id)
 		{
 			val = (VIF0_EN << 16); //disabl VIF1
 			ret = rk616->write_dev(rk616,VIF1_REG0,&val);
+			clk_set_rate(rk616->mclk, 11289600);
 			return 0;
 		}
 		offset = 0x18;
@@ -48,6 +50,10 @@ static int rk616_vif_cfg(struct mfd_rk616 *rk616,rk_screen *fscreen,int id)
 			pll_use_mclk12m = false;
 	}
 
+	if(pll_use_mclk12m)
+	{
+		clk_set_rate(rk616->mclk, 12000000);
+	}
 	screen = fscreen->ext_screen;
 	if(!screen)
 	{
@@ -712,7 +718,7 @@ int rk616_set_vif(rk_screen *screen,bool connect)
 		pdata = rk616->pdata;
 		lcd_screen->ext_screen = screen;
 	}
-	
+
 	if((pdata->lcd0_func == INPUT) && (pdata->lcd1_func == INPUT))
 	{
 		

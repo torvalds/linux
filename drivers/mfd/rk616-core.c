@@ -5,7 +5,6 @@
 #include <linux/mfd/core.h>
 #include <linux/slab.h>
 #include <linux/mfd/rk616.h>
-#include <linux/clk.h>
 #include <mach/iomux.h>
 #include <linux/err.h>
 #include <linux/uaccess.h>
@@ -378,6 +377,8 @@ static int rk616_i2c_probe(struct i2c_client *client,const struct i2c_device_id 
 	}
 	else
 	{
+		rk616->mclk = iis_clk;
+		
 		#if defined(CONFIG_ARCH_RK29)
 		rk29_mux_api_set(GPIO2D0_I2S0CLK_MIIRXCLKIN_NAME, GPIO2H_I2S0_CLK);
 		#else
@@ -385,7 +386,7 @@ static int rk616_i2c_probe(struct i2c_client *client,const struct i2c_device_id 
 		#endif
 		clk_enable(iis_clk);
 		clk_set_rate(iis_clk, 11289600);
-		clk_put(iis_clk);
+		//clk_put(iis_clk);
 	}
 
 	
