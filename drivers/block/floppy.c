@@ -3601,7 +3601,7 @@ static void __init config_types(void)
 		pr_cont("\n");
 }
 
-static int floppy_release(struct gendisk *disk, fmode_t mode)
+static void floppy_release(struct gendisk *disk, fmode_t mode)
 {
 	int drive = (long)disk->private_data;
 
@@ -3615,8 +3615,6 @@ static int floppy_release(struct gendisk *disk, fmode_t mode)
 		opened_bdev[drive] = NULL;
 	mutex_unlock(&open_lock);
 	mutex_unlock(&floppy_mutex);
-
-	return 0;
 }
 
 /*

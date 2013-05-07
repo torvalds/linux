@@ -6674,15 +6674,13 @@ static int md_open(struct block_device *bdev, fmode_t mode)
 	return err;
 }
 
-static int md_release(struct gendisk *disk, fmode_t mode)
+static void md_release(struct gendisk *disk, fmode_t mode)
 {
  	struct mddev *mddev = disk->private_data;
 
 	BUG_ON(!mddev);
 	atomic_dec(&mddev->openers);
 	mddev_put(mddev);
-
-	return 0;
 }
 
 static int md_media_changed(struct gendisk *disk)
