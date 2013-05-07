@@ -117,6 +117,8 @@ struct perf_limits {
 	int min_perf_pct;
 	int32_t max_perf;
 	int32_t min_perf;
+	int max_policy_pct;
+	int max_sysfs_pct;
 };
 
 static struct perf_limits limits = {
@@ -125,6 +127,8 @@ static struct perf_limits limits = {
 	.max_perf = int_tofp(1),
 	.min_perf_pct = 0,
 	.min_perf = 0,
+	.max_policy_pct = 100,
+	.max_sysfs_pct = 100,
 };
 
 static inline void pid_reset(struct _pid *pid, int setpoint, int busy,
@@ -295,7 +299,8 @@ static ssize_t store_max_perf_pct(struct kobject *a, struct attribute *b,
 	if (ret != 1)
 		return -EINVAL;
 
-	limits.max_perf_pct = clamp_t(int, input, 0 , 100);
+	limits.max_sysfs_pct = clamp_t(int, input, 0 , 100);
+	limits.max_perf_pct = min(limits.max_policy_pct, limits.max_sysfs_pct);
 	limits.max_perf = div_fp(int_tofp(limits.max_perf_pct), int_tofp(100));
 	return count;
 }
@@ -646,8 +651,9 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 	limits.min_perf_pct = clamp_t(int, limits.min_perf_pct, 0 , 100);
 	limits.min_perf = div_fp(int_tofp(limits.min_perf_pct), int_tofp(100));
 
-	limits.max_perf_pct = policy->max * 100 / policy->cpuinfo.max_freq;
-	limits.max_perf_pct = clamp_t(int, limits.max_perf_pct, 0 , 100);
+	limits.max_policy_pct = policy->max * 100 / policy->cpuinfo.max_freq;
+	limits.max_policy_pct = clamp_t(int, limits.max_policy_pct, 0 , 100);
+	limits.max_perf_pct = min(limits.max_policy_pct, limits.max_sysfs_pct);
 	limits.max_perf = div_fp(int_tofp(limits.max_perf_pct), int_tofp(100));
 
 	return 0;
