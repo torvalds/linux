@@ -262,10 +262,22 @@ void intel_fbdev_fini(struct drm_device *dev)
 void intel_fbdev_set_suspend(struct drm_device *dev, int state)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	if (!dev_priv->fbdev)
+	struct intel_fbdev *ifbdev = dev_priv->fbdev;
+	struct fb_info *info;
+
+	if (!ifbdev)
 		return;
 
-	fb_set_suspend(dev_priv->fbdev->helper.fbdev, state);
+	info = ifbdev->helper.fbdev;
+
+	/* On resume from hibernation: If the object is shmemfs backed, it has
+	 * been restored from swap. If the object is stolen however, it will be
+	 * full of whatever garbage was left in there.
+	 */
+	if (!state && ifbdev->ifb.obj->stolen)
+		memset_io(info->screen_base, 0, info->screen_size);
+
+	fb_set_suspend(info, state);
 }
 
 MODULE_LICENSE("GPL and additional rights");
