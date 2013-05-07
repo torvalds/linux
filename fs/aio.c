@@ -67,13 +67,6 @@ struct kioctx {
 	unsigned long		user_id;
 	struct hlist_node	list;
 
-	wait_queue_head_t	wait;
-
-	spinlock_t		ctx_lock;
-
-	atomic_t		reqs_active;
-	struct list_head	active_reqs;	/* used for cancellation */
-
 	/*
 	 * This is what userspace passed to io_setup(), it's not used for
 	 * anything but counting against the global max_reqs quota.
@@ -92,19 +85,29 @@ struct kioctx {
 	struct page		**ring_pages;
 	long			nr_pages;
 
+	struct rcu_head		rcu_head;
+	struct work_struct	rcu_work;
+
+	struct {
+		atomic_t	reqs_active;
+	} ____cacheline_aligned_in_smp;
+
+	struct {
+		spinlock_t	ctx_lock;
+		struct list_head active_reqs;	/* used for cancellation */
+	} ____cacheline_aligned_in_smp;
+
 	struct {
 		struct mutex	ring_lock;
-	} ____cacheline_aligned;
+		wait_queue_head_t wait;
+	} ____cacheline_aligned_in_smp;
 
 	struct {
 		unsigned	tail;
 		spinlock_t	completion_lock;
-	} ____cacheline_aligned;
+	} ____cacheline_aligned_in_smp;
 
 	struct page		*internal_pages[AIO_RING_PAGES];
-
-	struct rcu_head		rcu_head;
-	struct work_struct	rcu_work;
 };
 
 /*------ sysctl variables----*/
