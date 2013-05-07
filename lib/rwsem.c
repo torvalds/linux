@@ -142,25 +142,6 @@ __rwsem_do_wake(struct rw_semaphore *sem, int wake_type)
 	return sem;
 }
 
-/* Try to get write sem, caller holds sem->wait_lock: */
-static int try_get_writer_sem(struct rw_semaphore *sem)
-{
-	long oldcount, adjustment;
-
-	adjustment = RWSEM_ACTIVE_WRITE_BIAS;
-	if (list_is_singular(&sem->wait_list))
-		adjustment -= RWSEM_WAITING_BIAS;
-
-try_again_write:
-	oldcount = rwsem_atomic_update(adjustment, sem) - adjustment;
-	if (!(oldcount & RWSEM_ACTIVE_MASK))
-		return 1;
-	/* some one grabbed the sem already */
-	if (rwsem_atomic_update(-adjustment, sem) & RWSEM_ACTIVE_MASK)
-		return 0;
-	goto try_again_write;
-}
-
 /*
  * wait for the read lock to be granted
  */
@@ -236,7 +217,12 @@ struct rw_semaphore __sched *rwsem_down_write_failed(struct rw_semaphore *sem)
 	while (true) {
 		set_task_state(tsk, TASK_UNINTERRUPTIBLE);
 
-		if (try_get_writer_sem(sem))
+		/* Try acquiring the write lock. */
+		count = RWSEM_ACTIVE_WRITE_BIAS;
+		if (!list_is_singular(&sem->wait_list))
+			count += RWSEM_WAITING_BIAS;
+		if (cmpxchg(&sem->count, RWSEM_WAITING_BIAS, count) ==
+							RWSEM_WAITING_BIAS)
 			break;
 
 		raw_spin_unlock_irq(&sem->wait_lock);
