@@ -115,7 +115,6 @@ struct nfc_dev {
 	struct nfc_genl_data genl_data;
 	u32 supported_protocols;
 
-	u32 supported_se;
 	u32 active_se;
 
 	int tx_headroom;
@@ -136,7 +135,6 @@ extern struct class nfc_class;
 
 struct nfc_dev *nfc_allocate_device(struct nfc_ops *ops,
 				    u32 supported_protocols,
-				    u32 supported_se,
 				    int tx_headroom,
 				    int tx_tailroom);
 

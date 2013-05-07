@@ -444,7 +444,6 @@ static int nfc_genl_send_device(struct sk_buff *msg, struct nfc_dev *dev,
 	if (nla_put_string(msg, NFC_ATTR_DEVICE_NAME, nfc_device_name(dev)) ||
 	    nla_put_u32(msg, NFC_ATTR_DEVICE_INDEX, dev->idx) ||
 	    nla_put_u32(msg, NFC_ATTR_PROTOCOLS, dev->supported_protocols) ||
-	    nla_put_u32(msg, NFC_ATTR_SE, dev->supported_se) ||
 	    nla_put_u8(msg, NFC_ATTR_DEVICE_POWERED, dev->dev_up) ||
 	    nla_put_u8(msg, NFC_ATTR_RF_MODE, dev->rf_mode))
 		goto nla_put_failure;

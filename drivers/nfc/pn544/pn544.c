@@ -803,7 +803,7 @@ int pn544_hci_probe(void *phy_id, struct nfc_phy_ops *phy_ops, char *llc_name,
 		    struct nfc_hci_dev **hdev)
 {
 	struct pn544_hci_info *info;
-	u32 protocols, se;
+	u32 protocols;
 	struct nfc_hci_init_data init_data;
 	int r;
 
@@ -836,10 +836,8 @@ int pn544_hci_probe(void *phy_id, struct nfc_phy_ops *phy_ops, char *llc_name,
 		    NFC_PROTO_ISO14443_B_MASK |
 		    NFC_PROTO_NFC_DEP_MASK;
 
-	se = NFC_SE_UICC | NFC_SE_EMBEDDED;
-
 	info->hdev = nfc_hci_allocate_device(&pn544_hci_ops, &init_data, 0,
-					     protocols, se, llc_name,
+					     protocols, llc_name,
 					     phy_headroom + PN544_CMDS_HEADROOM,
 					     phy_tailroom, phy_payload);
 	if (!info->hdev) {

@@ -2791,7 +2791,6 @@ static int pn533_probe(struct usb_interface *interface,
 
 
 	dev->nfc_dev = nfc_allocate_device(&pn533_nfc_ops, protocols,
-					   NFC_SE_NONE,
 					   dev->ops->tx_header_len +
 					   PN533_CMD_DATAEXCH_HEAD_LEN,
 					   dev->ops->tx_tail_len);

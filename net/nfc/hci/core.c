@@ -808,7 +808,6 @@ struct nfc_hci_dev *nfc_hci_allocate_device(struct nfc_hci_ops *ops,
 					    struct nfc_hci_init_data *init_data,
 					    unsigned long quirks,
 					    u32 protocols,
-					    u32 supported_se,
 					    const char *llc_name,
 					    int tx_headroom,
 					    int tx_tailroom,
@@ -834,7 +833,7 @@ struct nfc_hci_dev *nfc_hci_allocate_device(struct nfc_hci_ops *ops,
 		return NULL;
 	}
 
-	hdev->ndev = nfc_allocate_device(&hci_nfc_ops, protocols, supported_se,
+	hdev->ndev = nfc_allocate_device(&hci_nfc_ops, protocols,
 					 tx_headroom + HCI_CMDS_HEADROOM,
 					 tx_tailroom);
 	if (!hdev->ndev) {

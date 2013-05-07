@@ -535,7 +535,6 @@ static int nfcwilink_probe(struct platform_device *pdev)
 
 	drv->ndev = nci_allocate_device(&nfcwilink_ops,
 					protocols,
-					NFC_SE_NONE,
 					NFCWILINK_HDR_LEN,
 					0);
 	if (!drv->ndev) {

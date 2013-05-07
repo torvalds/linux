@@ -162,8 +162,7 @@ struct nci_spi_dev *nci_spi_allocate_device(struct spi_device *spi,
 		tailroom += NCI_SPI_CRC_LEN;
 
 	ndev->nci_dev = nci_allocate_device(&nci_spi_ops, supported_protocols,
-					    supported_se, NCI_SPI_HDR_LEN,
-					    tailroom);
+					    NCI_SPI_HDR_LEN, tailroom);
 	if (!ndev->nci_dev)
 		return NULL;
 
