@@ -29,6 +29,7 @@
 #include <linux/delay.h>
 
 #include <linux/gpio.h>
+#include <linux/of_gpio.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -384,10 +385,15 @@ static int ak8975_probe(struct i2c_client *client,
 	int err;
 
 	/* Grab and set up the supplied GPIO. */
-	if (client->dev.platform_data == NULL)
-		eoc_gpio = -1;
-	else
+	if (client->dev.platform_data)
 		eoc_gpio = *(int *)(client->dev.platform_data);
+	else if (client->dev.of_node)
+		eoc_gpio = of_get_gpio(client->dev.of_node, 0);
+	else
+		eoc_gpio = -1;
+
+	if (eoc_gpio == -EPROBE_DEFER)
+		return -EPROBE_DEFER;
 
 	/* We may not have a GPIO based IRQ to scan, that is fine, we will
 	   poll if so */

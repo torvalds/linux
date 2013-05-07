@@ -1,0 +1,18 @@
+* AsahiKASEI AK8975 magnetometer sensor
+
+Required properties:
+
+  - compatible : should be "asahi-kasei,ak8975"
+  - reg : the I2C address of the magnetometer
+
+Optional properties:
+
+  - gpios : should be device tree identifier of the magnetometer DRDY pin
+
+Example:
+
+ak8975@0c {
+        compatible = "asahi-kasei,ak8975";
+        reg = <0x0c>;
+        gpios = <&gpj0 7 0>;
+};
