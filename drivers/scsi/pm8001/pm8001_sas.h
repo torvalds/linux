@@ -103,7 +103,7 @@ do {						\
 #define PM8001_READ_VPD
 
 
-#define DEV_IS_EXPANDER(type)	((type == EDGE_DEV) || (type == FANOUT_DEV))
+#define DEV_IS_EXPANDER(type)	((type == SAS_EDGE_EXPANDER_DEVICE) || (type == SAS_FANOUT_EXPANDER_DEVICE))
 
 #define PM8001_NAME_LENGTH		32/* generic length of strings */
 extern struct list_head hba_list;
@@ -206,7 +206,7 @@ struct pm8001_phy {
 };
 
 struct pm8001_device {
-	enum sas_dev_type	dev_type;
+	enum sas_device_type	dev_type;
 	struct domain_device	*sas_device;
 	u32			attached_phy;
 	u32			id;

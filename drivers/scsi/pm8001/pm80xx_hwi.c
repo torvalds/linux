@@ -2684,7 +2684,7 @@ hw_event_sata_phy_up(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		sizeof(struct dev_to_host_fis));
 	phy->frame_rcvd_size = sizeof(struct dev_to_host_fis);
 	phy->identify.target_port_protocols = SAS_PROTOCOL_SATA;
-	phy->identify.device_type = SATA_DEV;
+	phy->identify.device_type = SAS_SATA_DEV;
 	pm8001_get_attached_sas_addr(phy, phy->sas_phy.attached_sas_addr);
 	spin_unlock_irqrestore(&phy->sas_phy.frame_rcvd_lock, flags);
 	pm8001_bytes_dmaed(pm8001_ha, phy_id);
@@ -3952,7 +3952,7 @@ pm80xx_chip_phy_start_req(struct pm8001_hba_info *pm8001_ha, u8 phy_id)
 	Have to add "SAS PHY Analog Setup SPASTI 1 Byte" Based on need
 	**/
 
-	payload.sas_identify.dev_type = SAS_END_DEV;
+	payload.sas_identify.dev_type = SAS_END_DEVICE;
 	payload.sas_identify.initiator_bits = SAS_PROTOCOL_ALL;
 	memcpy(payload.sas_identify.sas_addr,
 		pm8001_ha->sas_addr, SAS_ADDR_SIZE);
@@ -4015,11 +4015,11 @@ static int pm80xx_chip_reg_dev_req(struct pm8001_hba_info *pm8001_ha,
 	if (flag == 1) {
 		stp_sspsmp_sata = 0x02; /*direct attached sata */
 	} else {
-		if (pm8001_dev->dev_type == SATA_DEV)
+		if (pm8001_dev->dev_type == SAS_SATA_DEV)
 			stp_sspsmp_sata = 0x00; /* stp*/
-		else if (pm8001_dev->dev_type == SAS_END_DEV ||
-			pm8001_dev->dev_type == EDGE_DEV ||
-			pm8001_dev->dev_type == FANOUT_DEV)
+		else if (pm8001_dev->dev_type == SAS_END_DEVICE ||
+			pm8001_dev->dev_type == SAS_EDGE_EXPANDER_DEVICE ||
+			pm8001_dev->dev_type == SAS_FANOUT_EXPANDER_DEVICE)
 			stp_sspsmp_sata = 0x01; /*ssp or smp*/
 	}
 	if (parent_dev && DEV_IS_EXPANDER(parent_dev->dev_type))

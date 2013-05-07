@@ -361,7 +361,7 @@ static int pm8001_alloc(struct pm8001_hba_info *pm8001_ha,
 
 	pm8001_ha->devices = pm8001_ha->memoryMap.region[DEV_MEM].virt_ptr;
 	for (i = 0; i < PM8001_MAX_DEVICES; i++) {
-		pm8001_ha->devices[i].dev_type = NO_DEVICE;
+		pm8001_ha->devices[i].dev_type = SAS_PHY_UNUSED;
 		pm8001_ha->devices[i].id = i;
 		pm8001_ha->devices[i].device_id = PM8001_MAX_DEVICES;
 		pm8001_ha->devices[i].running_req = 0;

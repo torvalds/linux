@@ -357,7 +357,7 @@ static int sas_find_local_port_id(struct domain_device *dev)
   * @tmf: the task management IU
   */
 #define DEV_IS_GONE(pm8001_dev)	\
-	((!pm8001_dev || (pm8001_dev->dev_type == NO_DEVICE)))
+	((!pm8001_dev || (pm8001_dev->dev_type == SAS_PHY_UNUSED)))
 static int pm8001_task_exec(struct sas_task *task, const int num,
 	gfp_t gfp_flags, int is_tmf, struct pm8001_tmf_task *tmf)
 {
@@ -375,7 +375,7 @@ static int pm8001_task_exec(struct sas_task *task, const int num,
 		struct task_status_struct *tsm = &t->task_status;
 		tsm->resp = SAS_TASK_UNDELIVERED;
 		tsm->stat = SAS_PHY_DOWN;
-		if (dev->dev_type != SATA_DEV)
+		if (dev->dev_type != SAS_SATA_DEV)
 			t->task_done(t);
 		return 0;
 	}
@@ -553,7 +553,7 @@ struct pm8001_device *pm8001_alloc_dev(struct pm8001_hba_info *pm8001_ha)
 {
 	u32 dev;
 	for (dev = 0; dev < PM8001_MAX_DEVICES; dev++) {
-		if (pm8001_ha->devices[dev].dev_type == NO_DEVICE) {
+		if (pm8001_ha->devices[dev].dev_type == SAS_PHY_UNUSED) {
 			pm8001_ha->devices[dev].id = dev;
 			return &pm8001_ha->devices[dev];
 		}
@@ -589,7 +589,7 @@ static void pm8001_free_dev(struct pm8001_device *pm8001_dev)
 	u32 id = pm8001_dev->id;
 	memset(pm8001_dev, 0, sizeof(*pm8001_dev));
 	pm8001_dev->id = id;
-	pm8001_dev->dev_type = NO_DEVICE;
+	pm8001_dev->dev_type = SAS_PHY_UNUSED;
 	pm8001_dev->device_id = PM8001_MAX_DEVICES;
 	pm8001_dev->sas_device = NULL;
 }
@@ -647,7 +647,7 @@ static int pm8001_dev_found_notify(struct domain_device *dev)
 			res = -1;
 		}
 	} else {
-		if (dev->dev_type == SATA_DEV) {
+		if (dev->dev_type == SAS_SATA_DEV) {
 			pm8001_device->attached_phy =
 				dev->rphy->identify.phy_identifier;
 				flag = 1; /* directly sata*/
@@ -657,7 +657,7 @@ static int pm8001_dev_found_notify(struct domain_device *dev)
 	PM8001_CHIP_DISP->reg_dev_req(pm8001_ha, pm8001_device, flag);
 	spin_unlock_irqrestore(&pm8001_ha->lock, flags);
 	wait_for_completion(&completion);
-	if (dev->dev_type == SAS_END_DEV)
+	if (dev->dev_type == SAS_END_DEVICE)
 		msleep(50);
 	pm8001_ha->flags = PM8001F_RUN_TIME;
 	return 0;
@@ -927,7 +927,7 @@ void pm8001_open_reject_retry(
 		struct pm8001_ccb_info *ccb = &pm8001_ha->ccb_info[i];
 
 		pm8001_dev = ccb->device;
-		if (!pm8001_dev || (pm8001_dev->dev_type == NO_DEVICE))
+		if (!pm8001_dev || (pm8001_dev->dev_type == SAS_PHY_UNUSED))
 			continue;
 		if (!device_to_close) {
 			uintptr_t d = (uintptr_t)pm8001_dev
