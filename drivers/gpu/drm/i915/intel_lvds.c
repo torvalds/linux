@@ -116,6 +116,7 @@ static void intel_pre_pll_enable_lvds(struct intel_encoder *encoder)
 	}
 
 	/* set the corresponsding LVDS_BORDER bit */
+	temp &= ~LVDS_BORDER_ENABLE;
 	temp |= intel_crtc->config.gmch_pfit.lvds_border_bits;
 	/* Set the B0-B3 data pairs corresponding to whether we're going to
 	 * set the DPLLs for dual-channel mode or not.

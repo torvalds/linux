@@ -4986,6 +4986,36 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 	return ret;
 }
 
+static void i9xx_get_pfit_config(struct intel_crtc *crtc,
+				 struct intel_crtc_config *pipe_config)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t tmp;
+
+	tmp = I915_READ(PFIT_CONTROL);
+
+	if (INTEL_INFO(dev)->gen < 4) {
+		if (crtc->pipe != PIPE_B)
+			return;
+
+		/* gen2/3 store dither state in pfit control, needs to match */
+		pipe_config->gmch_pfit.control = tmp & PANEL_8TO6_DITHER_ENABLE;
+	} else {
+		if ((tmp & PFIT_PIPE_MASK) != (crtc->pipe << PFIT_PIPE_SHIFT))
+			return;
+	}
+
+	if (!(tmp & PFIT_ENABLE))
+		return;
+
+	pipe_config->gmch_pfit.control = I915_READ(PFIT_CONTROL);
+	pipe_config->gmch_pfit.pgm_ratios = I915_READ(PFIT_PGM_RATIOS);
+	if (INTEL_INFO(dev)->gen < 5)
+		pipe_config->gmch_pfit.lvds_border_bits =
+			I915_READ(LVDS) & LVDS_BORDER_ENABLE;
+}
+
 static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 				 struct intel_crtc_config *pipe_config)
 {
@@ -4998,6 +5028,8 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 		return false;
 
 	intel_get_pipe_timings(crtc, pipe_config);
+
+	i9xx_get_pfit_config(crtc, pipe_config);
 
 	return true;
 }
@@ -5830,6 +5862,21 @@ static void ironlake_get_fdi_m_n_config(struct intel_crtc *crtc,
 				   & TU_SIZE_MASK) >> TU_SIZE_SHIFT) + 1;
 }
 
+static void ironlake_get_pfit_config(struct intel_crtc *crtc,
+				     struct intel_crtc_config *pipe_config)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	uint32_t tmp;
+
+	tmp = I915_READ(PF_CTL(crtc->pipe));
+
+	if (tmp & PF_ENABLE) {
+		pipe_config->pch_pfit.pos = I915_READ(PF_WIN_POS(crtc->pipe));
+		pipe_config->pch_pfit.size = I915_READ(PF_WIN_SZ(crtc->pipe));
+	}
+}
+
 static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
 				     struct intel_crtc_config *pipe_config)
 {
@@ -5852,6 +5899,8 @@ static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
 	}
 
 	intel_get_pipe_timings(crtc, pipe_config);
+
+	ironlake_get_pfit_config(crtc, pipe_config);
 
 	return true;
 }
@@ -5972,6 +6021,7 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum transcoder cpu_transcoder = crtc->config.cpu_transcoder;
+	enum intel_display_power_domain pfit_domain;
 	uint32_t tmp;
 
 	if (!intel_display_power_enabled(dev,
@@ -6000,6 +6050,10 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 	}
 
 	intel_get_pipe_timings(crtc, pipe_config);
+
+	pfit_domain = POWER_DOMAIN_PIPE_PANEL_FITTER(crtc->pipe);
+	if (intel_display_power_enabled(dev, pfit_domain))
+		ironlake_get_pfit_config(crtc, pipe_config);
 
 	return true;
 }
@@ -7970,7 +8024,8 @@ intel_modeset_update_state(struct drm_device *dev, unsigned prepare_pipes)
 		if (mask & (1 <<(intel_crtc)->pipe))
 
 static bool
-intel_pipe_config_compare(struct intel_crtc_config *current_config,
+intel_pipe_config_compare(struct drm_device *dev,
+			  struct intel_crtc_config *current_config,
 			  struct intel_crtc_config *pipe_config)
 {
 #define PIPE_CONF_CHECK_I(name)	\
@@ -8018,6 +8073,14 @@ intel_pipe_config_compare(struct intel_crtc_config *current_config,
 
 	PIPE_CONF_CHECK_I(requested_mode.hdisplay);
 	PIPE_CONF_CHECK_I(requested_mode.vdisplay);
+
+	PIPE_CONF_CHECK_I(gmch_pfit.control);
+	/* pfit ratios are autocomputed by the hw on gen4+ */
+	if (INTEL_INFO(dev)->gen < 4)
+		PIPE_CONF_CHECK_I(gmch_pfit.pgm_ratios);
+	PIPE_CONF_CHECK_I(gmch_pfit.lvds_border_bits);
+	PIPE_CONF_CHECK_I(pch_pfit.pos);
+	PIPE_CONF_CHECK_I(pch_pfit.size);
 
 #undef PIPE_CONF_CHECK_I
 #undef PIPE_CONF_CHECK_FLAGS
@@ -8135,7 +8198,7 @@ intel_modeset_check_state(struct drm_device *dev)
 		     "(expected %i, found %i)\n", crtc->active, active);
 
 		WARN(active &&
-		     !intel_pipe_config_compare(&crtc->config, &pipe_config),
+		     !intel_pipe_config_compare(dev, &crtc->config, &pipe_config),
 		     "pipe state doesn't match!\n");
 	}
 }
