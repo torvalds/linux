@@ -2087,7 +2087,6 @@ static int omap_nand_remove(struct platform_device *pdev)
 							mtd);
 	omap3_free_bch(&info->mtd);
 
-	platform_set_drvdata(pdev, NULL);
 	if (info->dma)
 		dma_release_channel(info->dma);
 
