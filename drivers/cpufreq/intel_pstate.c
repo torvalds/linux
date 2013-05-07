@@ -48,12 +48,7 @@ static inline int32_t div_fp(int32_t x, int32_t y)
 }
 
 struct sample {
-	ktime_t start_time;
-	ktime_t end_time;
 	int core_pct_busy;
-	int pstate_pct_busy;
-	u64 duration_us;
-	u64 idletime_us;
 	u64 aperf;
 	u64 mperf;
 	int freq;
@@ -91,8 +86,6 @@ struct cpudata {
 	int min_pstate_count;
 	int idle_mode;
 
-	ktime_t prev_sample;
-	u64	prev_idle_time_us;
 	u64	prev_aperf;
 	u64	prev_mperf;
 	int	sample_ptr;
@@ -450,48 +443,26 @@ static inline void intel_pstate_calc_busy(struct cpudata *cpu,
 					struct sample *sample)
 {
 	u64 core_pct;
-	sample->pstate_pct_busy = 100 - div64_u64(
-					sample->idletime_us * 100,
-					sample->duration_us);
 	core_pct = div64_u64(sample->aperf * 100, sample->mperf);
 	sample->freq = cpu->pstate.max_pstate * core_pct * 1000;
 
-	sample->core_pct_busy = div_s64((sample->pstate_pct_busy * core_pct),
-					100);
+	sample->core_pct_busy = core_pct;
 }
 
 static inline void intel_pstate_sample(struct cpudata *cpu)
 {
-	ktime_t now;
-	u64 idle_time_us;
 	u64 aperf, mperf;
-
-	now = ktime_get();
-	idle_time_us = get_cpu_idle_time_us(cpu->cpu, NULL);
 
 	rdmsrl(MSR_IA32_APERF, aperf);
 	rdmsrl(MSR_IA32_MPERF, mperf);
-	/* for the first sample, don't actually record a sample, just
-	 * set the baseline */
-	if (cpu->prev_idle_time_us > 0) {
-		cpu->sample_ptr = (cpu->sample_ptr + 1) % SAMPLE_COUNT;
-		cpu->samples[cpu->sample_ptr].start_time = cpu->prev_sample;
-		cpu->samples[cpu->sample_ptr].end_time = now;
-		cpu->samples[cpu->sample_ptr].duration_us =
-			ktime_us_delta(now, cpu->prev_sample);
-		cpu->samples[cpu->sample_ptr].idletime_us =
-			idle_time_us - cpu->prev_idle_time_us;
+	cpu->sample_ptr = (cpu->sample_ptr + 1) % SAMPLE_COUNT;
+	cpu->samples[cpu->sample_ptr].aperf = aperf;
+	cpu->samples[cpu->sample_ptr].mperf = mperf;
+	cpu->samples[cpu->sample_ptr].aperf -= cpu->prev_aperf;
+	cpu->samples[cpu->sample_ptr].mperf -= cpu->prev_mperf;
 
-		cpu->samples[cpu->sample_ptr].aperf = aperf;
-		cpu->samples[cpu->sample_ptr].mperf = mperf;
-		cpu->samples[cpu->sample_ptr].aperf -= cpu->prev_aperf;
-		cpu->samples[cpu->sample_ptr].mperf -= cpu->prev_mperf;
+	intel_pstate_calc_busy(cpu, &cpu->samples[cpu->sample_ptr]);
 
-		intel_pstate_calc_busy(cpu, &cpu->samples[cpu->sample_ptr]);
-	}
-
-	cpu->prev_sample = now;
-	cpu->prev_idle_time_us = idle_time_us;
 	cpu->prev_aperf = aperf;
 	cpu->prev_mperf = mperf;
 }
