@@ -121,13 +121,13 @@ static const struct nouveau_enum nve0_sked_error[] = {
 };
 
 static void
-nve0_graph_mp_trap(struct nvc0_graph_priv *priv, int gpc, int tp)
+nve0_graph_mp_trap(struct nvc0_graph_priv *priv, int gpc, int tpc)
 {
+	u32 werr = nv_rd32(priv, TPC_UNIT(gpc, tpc, 0x648));
+	u32 gerr = nv_rd32(priv, TPC_UNIT(gpc, tpc, 0x650));
 	int i;
-	u32 werr = nv_rd32(priv, TPC_UNIT(gpc, tp, 0x648));
-	u32 gerr = nv_rd32(priv, TPC_UNIT(gpc, tp, 0x650));
 
-	nv_error(priv, "GPC%i/TP%i/MP trap:", gpc, tp);
+	nv_error(priv, "GPC%i/TPC%i/MP trap:", gpc, tpc);
 
 	for (i = 0; i <= 31; ++i) {
 		if (!(gerr & (1 << i)))
@@ -135,6 +135,7 @@ nve0_graph_mp_trap(struct nvc0_graph_priv *priv, int gpc, int tp)
 		pr_cont(" ");
 		nouveau_enum_print(nve0_mp_global_error, i);
 	}
+
 	if (werr) {
 		pr_cont(" ");
 		nouveau_enum_print(nve0_mp_warp_error, werr & 0xffff);
@@ -142,51 +143,51 @@ nve0_graph_mp_trap(struct nvc0_graph_priv *priv, int gpc, int tp)
 	pr_cont("\n");
 
 	/* disable MP trap to avoid spam */
-	nv_mask(priv, TPC_UNIT(gpc, tp, 0x50c), 0x2, 0x0);
+	nv_mask(priv, TPC_UNIT(gpc, tpc, 0x50c), 0x2, 0x0);
 
 	/* TODO: figure out how to resume after an MP trap */
 }
 
 static void
-nve0_graph_tp_trap(struct nvc0_graph_priv *priv, int gpc, int tp)
+nve0_graph_tpc_trap(struct nvc0_graph_priv *priv, int gpc, int tpc)
 {
-	u32 stat = nv_rd32(priv, TPC_UNIT(gpc, tp, 0x508));
+	u32 stat = nv_rd32(priv, TPC_UNIT(gpc, tpc, 0x508));
 
 	if (stat & 0x1) {
-		u32 trap = nv_rd32(priv, TPC_UNIT(gpc, tp, 0x224));
-		nv_error(priv, "GPC%i/TP%i/TEX trap: %08x\n",
-			 gpc, tp, trap);
+		u32 trap = nv_rd32(priv, TPC_UNIT(gpc, tpc, 0x224));
+		nv_error(priv, "GPC%i/TPC%i/TEX trap: %08x\n",
+			 gpc, tpc, trap);
 
-		nv_wr32(priv, TPC_UNIT(gpc, tp, 0x224), 0xc0000000);
+		nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x224), 0xc0000000);
 		stat &= ~0x1;
 	}
 
 	if (stat & 0x2) {
-		nve0_graph_mp_trap(priv, gpc, tp);
+		nve0_graph_mp_trap(priv, gpc, tpc);
 		stat &= ~0x2;
 	}
 
 	if (stat & 0x4) {
-		u32 trap = nv_rd32(priv, TPC_UNIT(gpc, tp, 0x084));
-		nv_error(priv, "GPC%i/TP%i/POLY trap: %08x\n",
-			 gpc, tp, trap);
+		u32 trap = nv_rd32(priv, TPC_UNIT(gpc, tpc, 0x084));
+		nv_error(priv, "GPC%i/TPC%i/POLY trap: %08x\n",
+			 gpc, tpc, trap);
 
-		nv_wr32(priv, TPC_UNIT(gpc, tp, 0x084), 0xc0000000);
+		nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x084), 0xc0000000);
 		stat &= ~0x4;
 	}
 
 	if (stat & 0x8) {
-		u32 trap = nv_rd32(priv, TPC_UNIT(gpc, tp, 0x48c));
-		nv_error(priv, "GPC%i/TP%i/L1C trap: %08x\n",
-			 gpc, tp, trap);
+		u32 trap = nv_rd32(priv, TPC_UNIT(gpc, tpc, 0x48c));
+		nv_error(priv, "GPC%i/TPC%i/L1C trap: %08x\n",
+			 gpc, tpc, trap);
 
-		nv_wr32(priv, TPC_UNIT(gpc, tp, 0x48c), 0xc0000000);
+		nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x48c), 0xc0000000);
 		stat &= ~0x8;
 	}
 
 	if (stat) {
-		nv_error(priv, "GPC%i/TP%i: unknown stat %08x\n",
-			 gpc, tp, stat);
+		nv_error(priv, "GPC%i/TPC%i: unknown stat %08x\n",
+			 gpc, tpc, stat);
 	}
 }
 
@@ -198,7 +199,7 @@ nve0_graph_gpc_trap(struct nvc0_graph_priv *priv)
 
 	for (gpc = 0; gpc < 4; ++gpc) {
 		u32 stat;
-		int tp;
+		int tpc;
 
 		if (!(mask & (1 << gpc)))
 			continue;
@@ -257,9 +258,9 @@ nve0_graph_gpc_trap(struct nvc0_graph_priv *priv)
 			stat &= ~0x0008;
 		}
 
-		for (tp = 0; tp < 8; ++tp) {
-			if (stat & (1 << (16 + tp)))
-				nve0_graph_tp_trap(priv, gpc, tp);
+		for (tpc = 0; tpc < 8; ++tpc) {
+			if (stat & (1 << (16 + tpc)))
+				nve0_graph_tpc_trap(priv, gpc, tpc);
 		}
 		stat &= ~0xff0000;
 
