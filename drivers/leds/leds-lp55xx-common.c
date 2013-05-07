@@ -557,51 +557,42 @@ EXPORT_SYMBOL_GPL(lp55xx_unregister_sysfs);
 
 int lp55xx_of_populate_pdata(struct device *dev, struct device_node *np)
 {
+	struct device_node *child;
 	struct lp55xx_platform_data *pdata;
-	u8 led_cur[3];
-	u8 max_cur[3];
-	u8 clock_mode;
-	u8 num_channel;
-	const char *label;
-	struct lp55xx_led_config *led_config;
-	int ret;
-	int i;
+	struct lp55xx_led_config *cfg;
+	int num_channels;
+	int i = 0;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
 
-	ret = of_property_read_u8(np, "num-channel", &num_channel);
-	if (ret < 0)
-		return ret;
-	ret = of_property_read_u8_array(np, "led-cur", led_cur, num_channel);
-	if (ret < 0)
-		return ret;
-	ret = of_property_read_u8_array(np, "max-cur", max_cur, num_channel);
-	if (ret < 0)
-		return ret;
-	ret = of_property_read_string(np, "label", &label);
-	if (ret < 0)
-		return ret;
-	ret = of_property_read_u8_array(np, "clock-mode", &clock_mode, 1);
-	if (ret < 0)
-		return ret;
+	num_channels = of_get_child_count(np);
+	if (num_channels == 0) {
+		dev_err(dev, "no LED channels\n");
+		return -EINVAL;
+	}
 
-	led_config = devm_kzalloc(dev, sizeof(*led_config) * num_channel,
-				  GFP_KERNEL);
-	if (!led_config)
+	cfg = devm_kzalloc(dev, sizeof(*cfg) * num_channels, GFP_KERNEL);
+	if (!cfg)
 		return -ENOMEM;
 
-	for (i = 0; i < num_channel; i++) {
-		led_config[i].chan_nr = i;
-		led_config[i].led_current = led_cur[i];
-		led_config[i].max_current = max_cur[i];
+	pdata->led_config = &cfg[0];
+	pdata->num_channels = num_channels;
+
+	for_each_child_of_node(np, child) {
+		cfg[i].chan_nr = i;
+
+		of_property_read_string(child, "chan-name", &cfg[i].name);
+		of_property_read_u8(child, "led-cur", &cfg[i].led_current);
+		of_property_read_u8(child, "max-cur", &cfg[i].max_current);
+
+		i++;
 	}
-	pdata->label = kzalloc(sizeof(char) * 32, GFP_KERNEL);
-	strcpy((char *)pdata->label, (char *) label);
-	pdata->led_config = &led_config[0];
-	pdata->num_channels = num_channel;
-	pdata->clock_mode = clock_mode;
+
+	of_property_read_string(np, "label", &pdata->label);
+	of_property_read_u8(np, "clock-mode", &pdata->clock_mode);
+
 	dev->platform_data = pdata;
 
 	return 0;
