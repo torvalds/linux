@@ -1106,7 +1106,7 @@ static struct mfd_cell ab8500_devs[] = {
 		.of_compatible = "stericsson,ab8500-denc",
 	},
 	{
-		.name = "ab8500-gpio",
+		.name = "pinctrl-ab8500",
 		.of_compatible = "stericsson,ab8500-gpio",
 	},
 	{
@@ -1243,7 +1243,7 @@ static struct mfd_cell ab8505_devs[] = {
 		.name = "ab8500-leds",
 	},
 	{
-		.name = "ab8500-gpio",
+		.name = "pinctrl-ab8505",
 	},
 	{
 		.name = "ab8500-usb",
@@ -1311,7 +1311,7 @@ static struct mfd_cell ab8540_devs[] = {
 		.resources = ab8500_temp_resources,
 	},
 	{
-		.name = "ab8500-gpio",
+		.name = "pinctrl-ab8540",
 	},
 	{
 		.name = "ab8540-usb",
