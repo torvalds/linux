@@ -1177,7 +1177,6 @@ static int pxa3xx_nand_remove(struct platform_device *pdev)
 		return 0;
 
 	pdata = pdev->dev.platform_data;
-	platform_set_drvdata(pdev, NULL);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq >= 0)
