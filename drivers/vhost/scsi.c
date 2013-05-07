@@ -1223,9 +1223,8 @@ vhost_scsi_set_endpoint(struct vhost_scsi *vs,
 		       sizeof(vs->vs_vhost_wwpn));
 		for (i = 0; i < VHOST_SCSI_MAX_VQ; i++) {
 			vq = &vs->vqs[i].vq;
-			/* Flushing the vhost_work acts as synchronize_rcu */
 			mutex_lock(&vq->mutex);
-			rcu_assign_pointer(vq->private_data, vs_tpg);
+			vq->private_data = vs_tpg;
 			vhost_init_used(vq);
 			mutex_unlock(&vq->mutex);
 		}
@@ -1304,9 +1303,8 @@ vhost_scsi_clear_endpoint(struct vhost_scsi *vs,
 	if (match) {
 		for (i = 0; i < VHOST_SCSI_MAX_VQ; i++) {
 			vq = &vs->vqs[i].vq;
-			/* Flushing the vhost_work acts as synchronize_rcu */
 			mutex_lock(&vq->mutex);
-			rcu_assign_pointer(vq->private_data, NULL);
+			vq->private_data = NULL;
 			mutex_unlock(&vq->mutex);
 		}
 	}

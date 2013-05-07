@@ -15,7 +15,6 @@
 #include <linux/moduleparam.h>
 #include <linux/mutex.h>
 #include <linux/workqueue.h>
-#include <linux/rcupdate.h>
 #include <linux/file.h>
 #include <linux/slab.h>
 
@@ -749,8 +748,7 @@ static int vhost_net_enable_vq(struct vhost_net *n,
 	struct vhost_poll *poll = n->poll + (nvq - n->vqs);
 	struct socket *sock;
 
-	sock = rcu_dereference_protected(vq->private_data,
-					 lockdep_is_held(&vq->mutex));
+	sock = vq->private_data;
 	if (!sock)
 		return 0;
 
@@ -763,10 +761,9 @@ static struct socket *vhost_net_stop_vq(struct vhost_net *n,
 	struct socket *sock;
 
 	mutex_lock(&vq->mutex);
-	sock = rcu_dereference_protected(vq->private_data,
-					 lockdep_is_held(&vq->mutex));
+	sock = vq->private_data;
 	vhost_net_disable_vq(n, vq);
-	rcu_assign_pointer(vq->private_data, NULL);
+	vq->private_data = NULL;
 	mutex_unlock(&vq->mutex);
 	return sock;
 }
@@ -922,8 +919,7 @@ static long vhost_net_set_backend(struct vhost_net *n, unsigned index, int fd)
 	}
 
 	/* start polling new socket */
-	oldsock = rcu_dereference_protected(vq->private_data,
-					    lockdep_is_held(&vq->mutex));
+	oldsock = vq->private_data;
 	if (sock != oldsock) {
 		ubufs = vhost_net_ubuf_alloc(vq,
 					     sock && vhost_sock_zcopy(sock));
@@ -933,7 +929,7 @@ static long vhost_net_set_backend(struct vhost_net *n, unsigned index, int fd)
 		}
 
 		vhost_net_disable_vq(n, vq);
-		rcu_assign_pointer(vq->private_data, sock);
+		vq->private_data = sock;
 		r = vhost_init_used(vq);
 		if (r)
 			goto err_used;
@@ -967,7 +963,7 @@ static long vhost_net_set_backend(struct vhost_net *n, unsigned index, int fd)
 	return 0;
 
 err_used:
-	rcu_assign_pointer(vq->private_data, oldsock);
+	vq->private_data = oldsock;
 	vhost_net_enable_vq(n, vq);
 	if (ubufs)
 		vhost_net_ubuf_put_wait_and_free(ubufs);
