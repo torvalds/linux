@@ -194,7 +194,6 @@ err_add:
 	nand_release(&sharpsl->mtd);
 
 err_scan:
-	platform_set_drvdata(pdev, NULL);
 	iounmap(sharpsl->io);
 err_ioremap:
 err_get_res:
@@ -211,8 +210,6 @@ static int sharpsl_nand_remove(struct platform_device *pdev)
 
 	/* Release resources, unregister device */
 	nand_release(&sharpsl->mtd);
-
-	platform_set_drvdata(pdev, NULL);
 
 	iounmap(sharpsl->io);
 
