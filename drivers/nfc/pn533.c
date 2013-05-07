@@ -2783,8 +2783,10 @@ static int pn533_probe(struct usb_interface *interface,
 					   dev->ops->tx_header_len +
 					   PN533_CMD_DATAEXCH_HEAD_LEN,
 					   dev->ops->tx_tail_len);
-	if (!dev->nfc_dev)
+	if (!dev->nfc_dev) {
+		rc = -ENOMEM;
 		goto destroy_wq;
+	}
 
 	nfc_set_parent_dev(dev->nfc_dev, &interface->dev);
 	nfc_set_drvdata(dev->nfc_dev, dev);
