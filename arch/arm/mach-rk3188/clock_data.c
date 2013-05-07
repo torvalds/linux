@@ -683,6 +683,7 @@ static unsigned long plus_pll_clk_recalc(u32 pll_id, unsigned long parent_rate)
 }
 static unsigned long plus_plls_clk_recalc(struct clk *clk)
 {
+	DVFS_DBG("%s: for rk3188 plus\n", __func__);
 	return plus_pll_clk_recalc(clk->pll->id, clk->parent->rate);
 }
 
@@ -766,6 +767,7 @@ static int plus_gpll_clk_set_rate(struct clk *c, unsigned long rate)
 {
 	struct _pll_data *pll_data = c->pll;
 	struct pll_clk_set *clk_set = (struct pll_clk_set *)pll_data->table;
+	DVFS_DBG("%s: for rk3188 plus\n", __func__);
 
 	while(clk_set->rate) {
 		if (clk_set->rate == rate) {
@@ -909,6 +911,7 @@ static int plus_cpll_clk_set_rate(struct clk *c, unsigned long rate)
 	struct pll_clk_set *clk_set = (struct pll_clk_set *)pll_data->table;
 	struct pll_clk_set temp_clk_set;
 	u32 clk_nr, clk_nf, clk_no;
+	DVFS_DBG("%s: for rk3188 plus\n", __func__);
 
 	while(clk_set->rate) {
 		if (clk_set->rate == rate) {
@@ -1110,6 +1113,7 @@ static int plus_arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 	u32 pll_id = clk->pll->id;
 	u32 temp_div;
 	u32 old_aclk_div = 0, new_aclk_div;
+	DVFS_DBG("%s: for rk3188 plus\n", __func__);
 
 	ps = arm_pll_clk_get_best_pll_set(rate, (struct apll_clk_set *)clk->pll->table);
 
@@ -1565,26 +1569,6 @@ static struct clk atclk_cpu = {
 	.name		= "atclk_cpu",
 	.parent		= &pclk_cpu,
 	.gate_idx	= CLK_GATE_ATCLK_CPU,
-};
-
-/*
- * This clock's base is 0x20009000, not RK30_CRU_BASE
- * .set_rate/.set_parent/.recalc/.clksel_con/.parents
- * will be assignment in <delay_line.c>'s prob function
- *
- * static struct clk *clk_delayline_parents[2] = {&xin24m, &aclk_cpu};
- *
- * */
-static struct clk clk_delayline = {
-	.name           = "clk_delayline",
-	.parent         = &xin24m,
-	.recalc		= NULL,
-	.set_rate	= NULL,
-	.set_parent	= NULL,
-	.get_parent	= NULL,
-	.clksel_con	= 0xffff,
-	CRU_DIV_SET(0xf, 0, 16),
-	CRU_SRC_SET(1, 4),
 };
 
 /* GPU setting */
@@ -2818,7 +2802,6 @@ static struct clk_lookup clks[] = {
 	CLK(NULL, "atclk_cpu", &atclk_cpu),
 	CLK(NULL, "hclk_cpu", &hclk_cpu),
 	CLK(NULL, "ahb2apb_cpu", &ahb2apb_cpu),
-	CLK(NULL, "delayline", &clk_delayline),
 
 	CLK(NULL, "gpu", 	&aclk_gpu),
 
