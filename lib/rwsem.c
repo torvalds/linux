@@ -143,20 +143,12 @@ __rwsem_do_wake(struct rw_semaphore *sem, int wake_type)
 }
 
 /* Try to get write sem, caller holds sem->wait_lock: */
-static int try_get_writer_sem(struct rw_semaphore *sem,
-					struct rwsem_waiter *waiter)
+static int try_get_writer_sem(struct rw_semaphore *sem)
 {
-	struct rwsem_waiter *fwaiter;
 	long oldcount, adjustment;
 
-	/* only steal when first waiter is writing */
-	fwaiter = list_entry(sem->wait_list.next, struct rwsem_waiter, list);
-	if (fwaiter->type != RWSEM_WAITING_FOR_WRITE)
-		return 0;
-
 	adjustment = RWSEM_ACTIVE_WRITE_BIAS;
-	/* Only one waiter in the queue: */
-	if (fwaiter == waiter && waiter->list.next == &sem->wait_list)
+	if (list_is_singular(&sem->wait_list))
 		adjustment -= RWSEM_WAITING_BIAS;
 
 try_again_write:
@@ -233,23 +225,18 @@ struct rw_semaphore __sched *rwsem_down_write_failed(struct rw_semaphore *sem)
 	/* we're now waiting on the lock, but no longer actively locking */
 	count = rwsem_atomic_update(adjustment, sem);
 
-	/* If there are no active locks, wake the front queued process(es) up.
-	 *
-	 * Alternatively, if we're called from a failed down_write(), there
-	 * were already threads queued before us and there are no active
-	 * writers, the lock must be read owned; so we try to wake any read
-	 * locks that were queued ahead of us. */
-	if (count == RWSEM_WAITING_BIAS)
-		sem = __rwsem_do_wake(sem, RWSEM_WAKE_NO_ACTIVE);
-	else if (count > RWSEM_WAITING_BIAS &&
-		 adjustment == -RWSEM_ACTIVE_WRITE_BIAS)
+	/* If there were already threads queued before us and there are no
+	 * active writers, the lock must be read owned; so we try to wake
+	 * any read locks that were queued ahead of us. */
+	if (count > RWSEM_WAITING_BIAS &&
+	    adjustment == -RWSEM_ACTIVE_WRITE_BIAS)
 		sem = __rwsem_do_wake(sem, RWSEM_WAKE_READ_OWNED);
 
 	/* wait until we successfully acquire the lock */
 	while (true) {
 		set_task_state(tsk, TASK_UNINTERRUPTIBLE);
 
-		if (try_get_writer_sem(sem, &waiter))
+		if (try_get_writer_sem(sem))
 			break;
 
 		raw_spin_unlock_irq(&sem->wait_lock);
