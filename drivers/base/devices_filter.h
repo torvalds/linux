@@ -80,7 +80,8 @@ static usb_parameter skip_device_list[] = {
 
 	{0x0685, 0x7000, NULL, NULL, NULL},
 
-//	{0x20A6, 0xF00E, NULL, NULL, NULL},
+	{0x20A6, 0xF00E, NULL, NULL, NULL},
+	{0x20A6, 0x1105, NULL, NULL, NULL},
 	{0x1614, 0x0800, NULL, NULL, NULL},
 	//begain add by xxh
         {0x1A8D, 0x2000, NULL, NULL, NULL},
@@ -104,7 +105,17 @@ static usb_parameter skip_device_list[] = {
 	    {0x19d2, 0x1216, NULL, NULL, NULL},         
 		{0x19d2, 0x1218, NULL, NULL, NULL},
 		{0x05c6, 0x9000, NULL, NULL, NULL},
-   //end xxh		 
+		{0x19d2, 0x0016, NULL, NULL, NULL},//MF110
+		{0x1C9E, 0x9914, NULL, NULL, NULL},//SMART BRO WM66E
+		{0x2077, 0xF000, NULL, NULL, NULL},
+        {0x2077, 0xA000, NULL, NULL, NULL},//beyond
+	    {0x12d1, 0x140b, NULL, NULL, NULL},//EC122 India
+	    {0x19D2, 0x1266, NULL, NULL, NULL},//MF190U
+	    {0x19D2, 0x1514, NULL, NULL, NULL},
+        {0x19D2, 0x1515, NULL, NULL, NULL},//MF195
+		{0x1bbb, 0xf017, NULL, NULL, NULL},
+		{0x19d2, 0x0117, NULL, NULL, NULL},
+		//end xxh
 };
 
 /* 1 - match

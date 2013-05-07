@@ -1371,6 +1371,9 @@ static const struct usb_device_id option_ids[] = {
    { USB_DEVICE(0x0421,0x0612)},
    { USB_DEVICE(0x19d2,0x1218)},
    { USB_DEVICE(HAIER_VENDOR_ID, HAIER_PRODUCT_IE701)},
+   { USB_DEVICE(0x1C9E,0x9914)},
+   { USB_DEVICE(0x19d2,0x1515)},
+   { USB_DEVICE(0x1bbb,0x0012)},
 //xxh end
 
 

@@ -176,3 +176,18 @@ int usb_stor_huawei_init(struct us_data *us)
 	}
 	return result;
 }
+
+int usb_stor_zte_k4505_init(struct us_data *us)
+ {
+		int result = 0;
+		int act_len = 0;
+		unsigned char cmd[32] = {
+				 0x55,0x53,0x42,0x43,0x12,0x34,0x56,0x78,
+				 0x00,0x00,0x00,0x00,0x00,0x00,0x06,0x1b,
+				 0x00,0x00,0x00,0x02,0x00,0x00,0x00,0x00,
+				 0x00,0x00,0x00,0x00,0x00,0x00,0x00
+				 };
+		result = usb_stor_bulk_transfer_buf (us, us->send_bulk_pipe, cmd, 31,&act_len);
+	    printk("usb_stor_bulk_transfer_buf performing result is %d, transfer the actual length=%d\n", result, act_len);
+		return (result ? 0 : -ENODEV);
+}
