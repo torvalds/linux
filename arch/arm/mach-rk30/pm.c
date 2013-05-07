@@ -459,10 +459,6 @@ static void rk30_pm_set_power_domain(u32 pmu_pwrdn_st, bool state)
 }
 static void __sramfunc rk_pm_soc_sram_volt_suspend(void)
 {
-	sram_printch('s');
-	sram_printch('v');
-	sram_printch('\n');
-
 	rk30_suspend_voltage_set(1000000);
 	rk30_pwm_logic_suspend_voltage();
 #ifdef CONFIG_ACT8846_SUPPORT_RESET

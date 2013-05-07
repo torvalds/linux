@@ -3425,8 +3425,6 @@ void rk30_clock_common_uart_init(struct clk *cpll_clk,struct clk *gpll_clk)
 		}	
 		rate=50*MHZ;
 	}
-	printk("rk30_clock_common_uart_init\n");
-	printk("%s rate%lu,gpll_clk->rate=%lu\n",__FUNCTION__,rate,gpll_clk->rate);
 	clk_set_parent_nolock(&clk_uart_pll, p_clk);
 	clk_set_rate_nolock(&clk_uart0_div,rate);
 	clk_set_rate_nolock(&clk_uart1_div,rate);
