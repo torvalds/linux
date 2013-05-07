@@ -42,6 +42,9 @@ config SND_RK_SOC_I2S2_2CH
 	help
 		This supports the use of the 2 Channel I2S2 interface on rk30 processors.
 
+config SND_ROCKCHIP_SPDIF
+	tristate
+	select SND_SOC_SPDIF
 if 	SND_RK29_SOC_I2S_2CH || SND_RK29_SOC_I2S_8CH || SND_RK_SOC_I2S2_2CH
 choice
   bool "Set i2s on DMA event mode"
@@ -53,7 +56,14 @@ choice
 		tristate  "static mode"
 endchoice
 endif
-
+config SND_RK_SOC_SPDIF
+	bool "spdif support for rockchip rk29 or rk30"
+	depends on SND_RK29_SOC 
+	select SND_ROCKCHIP_SPDIF
+	help
+	  Say Y if you want to add support for SoC audio on rockchip
+	  with the spdif.
+	  
 config SND_RK29_SOC_SPDIF
 	bool "Soc RK29 SPDIF support"
 	depends on SND_RK29_SOC
