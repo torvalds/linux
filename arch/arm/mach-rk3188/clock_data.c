@@ -3430,7 +3430,6 @@ void rk30_clock_common_uart_init(struct clk *cpll_clk,struct clk *gpll_clk)
 	clk_set_rate_nolock(&clk_uart1_div,rate);
 	clk_set_rate_nolock(&clk_uart2_div,rate);
 	clk_set_rate_nolock(&clk_uart3_div,rate);
-	clk_set_rate_nolock(&clk_uart1,rate);
 }
 
 static void inline clock_set_div(struct clk *clk,u32 div)
