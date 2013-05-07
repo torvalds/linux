@@ -27,6 +27,7 @@
 #include <mach/pmu.h>
 #include <mach/dvfs.h>
 #include <mach/ddr.h>
+#include <mach/board.h>
 
 #define MHZ			(1000*1000)
 #define KHZ			(1000)
@@ -34,7 +35,7 @@
 #define CLK_LOOPS_RATE_REF (1200) //Mhz
 #define CLK_LOOPS_RECALC(new_rate)  div_u64(CLK_LOOPS_JIFFY_REF*(new_rate),CLK_LOOPS_RATE_REF*MHZ)
 void rk30_clk_dump_regs(void);
-
+#if 0
 //flags bit
 //has extern 27mhz
 #define CLK_FLG_EXT_27MHZ 			(1<<0)
@@ -45,7 +46,7 @@ void rk30_clk_dump_regs(void);
 #define CLK_FLG_MAX_I2S_49152KHZ 	(1<<4)
 //uart 1m\3m
 #define CLK_FLG_UART_1_3M			(1<<5)
-
+#endif
 #define ARCH_RK31
 
 struct apll_clk_set {
@@ -1076,6 +1077,7 @@ static const struct pll_clk_set cpll_clks[] = {
 	_PLL_SET_CLKS(456000, 1,  76,	4),
 	_PLL_SET_CLKS(504000, 1,  84,	4),
 	_PLL_SET_CLKS(552000, 1,  46,	2),
+	_PLL_SET_CLKS(594000, 2,  198,	4),
 	_PLL_SET_CLKS(600000, 1,  50,	2),
 	_PLL_SET_CLKS(742500, 8,  495,	2),
 	_PLL_SET_CLKS(768000, 1,  64,	2),
@@ -1097,6 +1099,7 @@ static const struct pll_clk_set gpll_clks[] = {
 	_PLL_SET_CLKS(148500,	2,	99,	8),
 	_PLL_SET_CLKS(297000,	2,	198,	8),
 	_PLL_SET_CLKS(300000,	1,	50,	4),
+	_PLL_SET_CLKS(384000,	1,	64,	4),
 	_PLL_SET_CLKS(594000,	2,	198,	4),
 	_PLL_SET_CLKS(1188000,	2,	99,	1),
 	_PLL_SET_CLKS(1200000,	1,	50,	1),
@@ -3156,6 +3159,11 @@ static void periph_clk_set_init(void)
 			hclk_p = aclk_p >> 0;
 			pclk_p = aclk_p >> 1;
 			break;
+		case 384 * MHZ: 
+			aclk_p = ppll_rate >> 1; 
+			hclk_p = aclk_p >> 1; 
+			pclk_p = aclk_p >> 2; 
+			break; 
 		case 594 * MHZ:
 			aclk_p = ppll_rate >> 2;
 			hclk_p = aclk_p >> 0;
@@ -3181,6 +3189,12 @@ static void cpu_axi_init(void)
 	switch (gpll_rate) {
 		case 297 * MHZ:
 			cpu_div_rate = gpll_rate;
+			aclk_cpu_rate = cpu_div_rate >> 0;
+			hclk_cpu_rate = aclk_cpu_rate >> 1;
+			pclk_cpu_rate = aclk_cpu_rate >> 2;
+			break;
+		case 384 * MHZ:
+			cpu_div_rate = gpll_rate >> 1;
 			aclk_cpu_rate = cpu_div_rate >> 0;
 			hclk_cpu_rate = aclk_cpu_rate >> 1;
 			pclk_cpu_rate = aclk_cpu_rate >> 2;
@@ -3236,6 +3250,49 @@ void rk30_clock_common_i2s_init(void)
 	}
 }
 
+void rk_clock_common_uart_init(struct clk *cpll_clk,struct clk *gpll_clk)
+{
+	struct clk *p_clk;
+	unsigned long rate;
+	if(!(gpll_clk->rate%(48*MHZ)))
+	{
+		p_clk=gpll_clk;
+		rate=48*MHZ;
+	}
+	else if(!(cpll_clk->rate%(48*MHZ)))
+	{
+		p_clk=cpll_clk;
+		rate=48*MHZ;
+	}
+	else if(!(gpll_clk->rate%(49500*KHZ)))
+	{
+		p_clk=gpll_clk;
+		rate=(49500*KHZ);
+	}
+	else if(!(cpll_clk->rate%(49500*KHZ)))
+	{
+		p_clk=cpll_clk;
+		rate=(49500*KHZ);
+	}
+	else
+	{
+		if(cpll_clk->rate>gpll_clk->rate)
+		{
+			p_clk=cpll_clk;
+		}
+		else
+		{
+			p_clk=gpll_clk;
+		}	
+		rate=50*MHZ;
+	}
+	clk_set_parent_nolock(&clk_uart_pll, p_clk);
+	clk_set_rate_nolock(&clk_uart0_div,rate);
+	clk_set_rate_nolock(&clk_uart1_div,rate);
+	clk_set_rate_nolock(&clk_uart2_div,rate);
+	clk_set_rate_nolock(&clk_uart3_div,rate);
+	clk_set_rate_nolock(&clk_uart1,rate);
+}
 static void __init rk30_clock_common_init(unsigned long gpll_rate, unsigned long cpll_rate)
 {
 
@@ -3257,10 +3314,9 @@ static void __init rk30_clock_common_init(unsigned long gpll_rate, unsigned long
 	clk_set_rate_nolock(&clk_spi1, clk_spi1.parent->rate);
 
 	// uart
-	if(rk30_clock_flags & CLK_FLG_UART_1_3M)
-		clk_set_parent_nolock(&clk_uart_pll, &codec_pll_clk);
-	else
-		clk_set_parent_nolock(&clk_uart_pll, &general_pll_clk);
+	
+	rk_clock_common_uart_init(&codec_pll_clk,&general_pll_clk);
+	
 	//mac
 	if(!(gpll_rate % (50 * MHZ)))
 		clk_set_parent_nolock(&clk_mac_pll_div, &general_pll_clk);
@@ -3292,9 +3348,18 @@ static void __init rk30_clock_common_init(unsigned long gpll_rate, unsigned long
 
 	clk_set_rate_nolock(&aclk_vepu, 300 * MHZ);
 	clk_set_rate_nolock(&aclk_vdpu, 300 * MHZ);
-	//gpu auto sel
-	clk_set_parent_nolock(&clk_gpu, &codec_pll_clk);
-	clk_set_parent_nolock(&aclk_gpu, &codec_pll_clk);
+	
+	if(rk30_clock_flags&CLK_GPU_GPLL)
+	{
+		clk_set_parent_nolock(&clk_gpu, &general_pll_clk);
+		clk_set_parent_nolock(&aclk_gpu, &general_pll_clk);
+
+	}
+	else
+	{
+		clk_set_parent_nolock(&clk_gpu, &codec_pll_clk);
+		clk_set_parent_nolock(&aclk_gpu, &codec_pll_clk);
+	}	
 	clk_set_rate_nolock(&clk_gpu, 200 * MHZ);
 	clk_set_rate_nolock(&aclk_gpu, 200 * MHZ);
 	
