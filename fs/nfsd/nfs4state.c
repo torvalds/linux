@@ -1709,7 +1709,7 @@ out_new:
 		status = nfserr_jukebox;
 		goto out;
 	}
-	new->cl_minorversion = 1;
+	new->cl_minorversion = cstate->minorversion;
 
 	gen_clid(new, nn);
 	add_to_unconfirmed(new);
