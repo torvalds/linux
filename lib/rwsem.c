@@ -223,7 +223,9 @@ struct rw_semaphore __sched *rwsem_down_write_failed(struct rw_semaphore *sem)
 			count = RWSEM_ACTIVE_WRITE_BIAS;
 			if (!list_is_singular(&sem->wait_list))
 				count += RWSEM_WAITING_BIAS;
-			if (cmpxchg(&sem->count, RWSEM_WAITING_BIAS, count) ==
+
+			if (sem->count == RWSEM_WAITING_BIAS &&
+			    cmpxchg(&sem->count, RWSEM_WAITING_BIAS, count) ==
 							RWSEM_WAITING_BIAS)
 				break;
 		}
