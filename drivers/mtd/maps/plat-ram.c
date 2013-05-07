@@ -84,8 +84,6 @@ static int platram_remove(struct platform_device *pdev)
 {
 	struct platram_info *info = to_platram_info(pdev);
 
-	platform_set_drvdata(pdev, NULL);
-
 	dev_dbg(&pdev->dev, "removing device\n");
 
 	if (info == NULL)
