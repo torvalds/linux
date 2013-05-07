@@ -671,8 +671,6 @@ static int bf5xx_nand_remove(struct platform_device *pdev)
 {
 	struct bf5xx_nand_info *info = to_nand_info(pdev);
 
-	platform_set_drvdata(pdev, NULL);
-
 	/* first thing we need to do is release all our mtds
 	 * and their partitions, then go through freeing the
 	 * resources used
@@ -832,7 +830,6 @@ static int bf5xx_nand_probe(struct platform_device *pdev)
 out_err_nand_scan:
 	bf5xx_nand_dma_remove(info);
 out_err_hw_init:
-	platform_set_drvdata(pdev, NULL);
 	kfree(info);
 out_err_kzalloc:
 	peripheral_free_list(bfin_nfc_pin_req);
