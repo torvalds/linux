@@ -3,7 +3,7 @@
 
 #include <linux/types.h>
 #include <linux/i2c.h>
-
+#include <linux/rk_fb.h>
 
 #define VIF0_REG0 		0x0000
 #define VIF0_DDR_CLK_EN		(1<<3)
@@ -262,6 +262,8 @@ struct mfd_rk616 {
 	int (*read_dev)(struct mfd_rk616 *rk616,u16 reg,u32 *pval);
 	int (*write_dev)(struct mfd_rk616 *rk616,u16 reg,u32 *pval);
 };
+
+extern int rk616_set_vif(rk_screen * screen,bool connect);
 
 #endif
 

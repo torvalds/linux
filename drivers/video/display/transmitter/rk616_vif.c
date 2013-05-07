@@ -2,7 +2,6 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include <linux/rk_fb.h>
 #include "rk616_vif.h"
 
 struct rk616_vif *g_vif;
@@ -16,6 +15,7 @@ static int rk616_vif_cfg(struct mfd_rk616 *rk616,rk_screen *fscreen,int id)
 	int offset = 0;
 	int pll_id;
 	rk_screen *screen  = NULL;
+	bool pll_use_mclk12m = false;
 	
 	if(id == 0) //video interface 0
 	{
@@ -26,7 +26,11 @@ static int rk616_vif_cfg(struct mfd_rk616 *rk616,rk_screen *fscreen,int id)
 			return 0;
 		}
 		offset = 0;
-		pll_id = rk616->route.vif0_clk_sel; 
+		pll_id = rk616->route.vif0_clk_sel;
+		if(rk616->route.pll0_clk_sel == PLL0_CLK_SEL(MCLK_12M))
+			pll_use_mclk12m = true;
+		else
+			pll_use_mclk12m = false;
 	}
 	else       //vide0 interface 1
 	{
@@ -38,6 +42,10 @@ static int rk616_vif_cfg(struct mfd_rk616 *rk616,rk_screen *fscreen,int id)
 		}
 		offset = 0x18;
 		pll_id = (rk616->route.vif1_clk_sel >> 6);
+		if(rk616->route.pll1_clk_sel == PLL1_CLK_SEL(MCLK_12M))
+			pll_use_mclk12m = true;
+		else
+			pll_use_mclk12m = false;
 	}
 
 	screen = fscreen->ext_screen;
@@ -56,18 +64,28 @@ static int rk616_vif_cfg(struct mfd_rk616 *rk616,rk_screen *fscreen,int id)
 
 	if( (screen->x_res == 1920) && (screen->y_res == 1080))
 	{
-		rk616_pll_set_rate(rk616,pll_id,0x02bf5276,0);
+		if(pll_use_mclk12m)
+			rk616_pll_set_rate(rk616,pll_id,0xc11025,0x200000);
+		else
+			rk616_pll_set_rate(rk616,pll_id,0x02bf5276,0);
 	}
 	else if((screen->x_res == 1280) && (screen->y_res == 720))
 	{
-		rk616_pll_set_rate(rk616,pll_id,0x1422014,0);
+		if(pll_use_mclk12m)
+			rk616_pll_set_rate(rk616,pll_id,0x01811025,0x200000);
+		else
+			rk616_pll_set_rate(rk616,pll_id,0x1422014,0);
 	}
 	else if((screen->x_res == 720))
 	{
-		rk616_pll_set_rate(rk616,pll_id,0x1c13015,0);
+		if(pll_use_mclk12m)
+			rk616_pll_set_rate(rk616,pll_id,0x01413021,0xc00000);
+		else
+			rk616_pll_set_rate(rk616,pll_id,0x1c13015,0);
 	}
 
-	val = fscreen->vif_hst | (fscreen->vif_vst<<16);
+	//val = fscreen->vif_hst | (fscreen->vif_vst<<16);
+	val = (0xc1) | (0x01 <<16);
 	ret = rk616->write_dev(rk616,VIF0_REG1 + offset,&val);
 
 	val = (screen->hsync_len << 16) | (screen->hsync_len + screen->left_margin + 
@@ -289,7 +307,7 @@ static int rk616_dual_input_cfg(struct mfd_rk616 *rk616,rk_screen *screen,
 	route->vif0_en     = 0;
  	route->vif0_clk_sel = VIF0_CLKIN_SEL(VIF_CLKIN_SEL_PLL0);
 	route->pll0_clk_sel = PLL0_CLK_SEL(LCD0_DCLK);
-	route->pll1_clk_sel = PLL1_CLK_SEL(LCD1_DCLK);
+	route->pll1_clk_sel = PLL1_CLK_SEL(MCLK_12M);
 	route->vif1_clk_sel = VIF1_CLKIN_SEL(VIF_CLKIN_SEL_PLL1);
 	route->hdmi_sel     = HDMI_IN_SEL(HDMI_CLK_SEL_VIF1);
 	if(enable)  //hdmi plug in
@@ -663,6 +681,7 @@ static int rk616_display_router_cfg(struct mfd_rk616 *rk616,rk_screen *screen,bo
 	
 }
 
+
 int rk610_lcd_scaler_set_param(rk_screen *screen,bool enable )//enable:0 bypass 1: scale
 {
 	int ret;
@@ -675,6 +694,34 @@ int rk610_lcd_scaler_set_param(rk_screen *screen,bool enable )//enable:0 bypass 
 	g_vif->screen = screen;
 	ret = rk616_display_router_cfg(rk616,screen,enable);
 	return ret;
+}
+
+int rk616_set_vif(rk_screen *screen,bool connect)
+{
+	
+	struct rk616_platform_data *pdata;
+	rk_screen *lcd_screen = g_vif->screen;
+	struct mfd_rk616 *rk616 = g_vif->rk616;
+	if(!rk616 || !lcd_screen)
+	{
+		printk(KERN_ERR "%s:mfd rk616 is null!\n",__func__);
+		return -1;
+	}
+	else
+	{
+		pdata = rk616->pdata;
+		lcd_screen->ext_screen = screen;
+	}
+	
+	if((pdata->lcd0_func == INPUT) && (pdata->lcd1_func == INPUT))
+	{
+		
+		rk610_lcd_scaler_set_param(lcd_screen,connect);
+	}
+
+	return 0;
+	
+	
 }
 
 
