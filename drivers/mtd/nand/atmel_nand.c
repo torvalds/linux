@@ -1659,7 +1659,6 @@ err_hw_ecc:
 err_scan_ident:
 err_no_card:
 	atmel_nand_disable(host);
-	platform_set_drvdata(pdev, NULL);
 	if (host->dma_chan)
 		dma_release_channel(host->dma_chan);
 err_ecc_ioremap:
