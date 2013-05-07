@@ -107,8 +107,6 @@ static int pxa2xx_flash_remove(struct platform_device *dev)
 {
 	struct pxa2xx_flash_info *info = platform_get_drvdata(dev);
 
-	platform_set_drvdata(dev, NULL);
-
 	mtd_device_unregister(info->mtd);
 
 	map_destroy(info->mtd);
