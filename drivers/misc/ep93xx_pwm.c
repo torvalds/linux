@@ -347,7 +347,6 @@ static int __exit ep93xx_pwm_remove(struct platform_device *pdev)
 	ep93xx_pwm_disable(pwm);
 	clk_disable(pwm->clk);
 	clk_put(pwm->clk);
-	platform_set_drvdata(pdev, NULL);
 	sysfs_remove_group(&pdev->dev.kobj, &ep93xx_pwm_sysfs_files);
 	iounmap(pwm->mmio_base);
 	release_mem_region(res->start, resource_size(res));
