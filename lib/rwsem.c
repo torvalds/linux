@@ -214,8 +214,8 @@ struct rw_semaphore __sched *rwsem_down_write_failed(struct rw_semaphore *sem)
 		sem = __rwsem_do_wake(sem, RWSEM_WAKE_READ_OWNED);
 
 	/* wait until we successfully acquire the lock */
+	set_task_state(tsk, TASK_UNINTERRUPTIBLE);
 	while (true) {
-		set_task_state(tsk, TASK_UNINTERRUPTIBLE);
 
 		/* Try acquiring the write lock. */
 		count = RWSEM_ACTIVE_WRITE_BIAS;
@@ -226,7 +226,13 @@ struct rw_semaphore __sched *rwsem_down_write_failed(struct rw_semaphore *sem)
 			break;
 
 		raw_spin_unlock_irq(&sem->wait_lock);
-		schedule();
+
+		/* Block until there are no active lockers. */
+		do {
+			schedule();
+			set_task_state(tsk, TASK_UNINTERRUPTIBLE);
+		} while (sem->count & RWSEM_ACTIVE_MASK);
+
 		raw_spin_lock_irq(&sem->wait_lock);
 	}
 
