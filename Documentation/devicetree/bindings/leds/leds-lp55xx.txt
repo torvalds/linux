@@ -1,7 +1,7 @@
-Binding for National Semiconductor LP55xx Led Drivers
+Binding for TI/National Semiconductor LP55xx Led Drivers
 
 Required properties:
-- compatible: "national,lp5521" or "national,lp5523"
+- compatible: "national,lp5521" or "national,lp5523" or "ti,lp5562"
 - reg: I2C slave address
 - clock-mode: Input clock mode, (0: automode, 1: internal, 2: external)
 
@@ -110,5 +110,38 @@ lp5523@32 {
 		chan-name = "d9";
 		led-cur = /bits/ 8 <0x14>;
 		max-cur = /bits/ 8 <0x20>;
+	};
+};
+
+example 3) LP5562
+4 channels are defined.
+
+lp5562@30 {
+	compatible = "ti,lp5562";
+	reg = <0x30>;
+	clock-mode = /bits/8 <2>;
+
+	chan0 {
+		chan-name = "R";
+		led-cur = /bits/ 8 <0x20>;
+		max-cur = /bits/ 8 <0x60>;
+	};
+
+	chan1 {
+		chan-name = "G";
+		led-cur = /bits/ 8 <0x20>;
+		max-cur = /bits/ 8 <0x60>;
+	};
+
+	chan2 {
+		chan-name = "B";
+		led-cur = /bits/ 8 <0x20>;
+		max-cur = /bits/ 8 <0x60>;
+	};
+
+	chan3 {
+		chan-name = "W";
+		led-cur = /bits/ 8 <0x20>;
+		max-cur = /bits/ 8 <0x60>;
 	};
 };
