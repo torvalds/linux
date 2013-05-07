@@ -946,7 +946,7 @@ static void iwl_mvm_mac_sta_notify(struct ieee80211_hw *hw,
 
 	switch (cmd) {
 	case STA_NOTIFY_SLEEP:
-		if (atomic_read(&mvmsta->pending_frames) > 0)
+		if (atomic_read(&mvm->pending_frames[mvmsta->sta_id]) > 0)
 			ieee80211_sta_block_awake(hw, sta, true);
 		/*
 		 * The fw updates the STA to be asleep. Tx packets on the Tx
