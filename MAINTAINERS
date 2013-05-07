@@ -6716,6 +6716,14 @@ F:	drivers/remoteproc/
 F:	Documentation/remoteproc.txt
 F:	include/linux/remoteproc.h
 
+REMOTE PROCESSOR MESSAGING (RPMSG) SUBSYSTEM
+M:	Ohad Ben-Cohen <ohad@wizery.com>
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ohad/rpmsg.git
+S:	Maintained
+F:	drivers/rpmsg/
+F:	Documentation/rpmsg.txt
+F:	include/linux/rpmsg.h
+
 RFKILL
 M:	Johannes Berg <johannes@sipsolutions.net>
 L:	linux-wireless@vger.kernel.org
