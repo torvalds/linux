@@ -1,18 +1,27 @@
   <title>Codec Interface</title>
 
-  <note>
-    <title>Suspended</title>
-
-    <para>This interface has been be suspended from the V4L2 API
-implemented in Linux 2.6 until we have more experience with codec
-device interfaces.</para>
-  </note>
-
   <para>A V4L2 codec can compress, decompress, transform, or otherwise
-convert video data from one format into another format, in memory.
-Applications send data to be converted to the driver through a
-&func-write; call, and receive the converted data through a
-&func-read; call. For efficiency a driver may also support streaming
-I/O.</para>
+convert video data from one format into another format, in memory. Typically
+such devices are memory-to-memory devices (i.e. devices with the
+<constant>V4L2_CAP_VIDEO_M2M</constant> or <constant>V4L2_CAP_VIDEO_M2M_MPLANE</constant>
+capability set).
+</para>
 
-  <para>[to do]</para>
+  <para>A memory-to-memory video node acts just like a normal video node, but it
+supports both output (sending frames from memory to the codec hardware) and
+capture (receiving the processed frames from the codec hardware into memory)
+stream I/O. An application will have to setup the stream
+I/O for both sides and finally call &VIDIOC-STREAMON; for both capture and output
+to start the codec.</para>
+
+  <para>Video compression codecs use the MPEG controls to setup their codec parameters
+(note that the MPEG controls actually support many more codecs than just MPEG).
+See <xref linkend="mpeg-controls"></xref>.</para>
+
+  <para>Memory-to-memory devices can often be used as a shared resource: you can
+open the video node multiple times, each application setting up their own codec properties
+that are local to the file handle, and each can use it independently from the others.
+The driver will arbitrate access to the codec and reprogram it whenever another file
+handler gets access. This is different from the usual video node behavior where the video properties
+are global to the device (i.e. changing something through one file handle is visible
+through another file handle).</para>
