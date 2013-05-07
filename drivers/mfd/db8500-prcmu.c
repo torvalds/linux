@@ -3095,6 +3095,7 @@ static struct mfd_cell db8500_prcmu_devs[] = {
 		.num_resources = ARRAY_SIZE(db8500_thsens_resources),
 		.resources = db8500_thsens_resources,
 		.platform_data = &db8500_thsens_data,
+		.pdata_size = sizeof(db8500_thsens_data),
 	},
 };
 
