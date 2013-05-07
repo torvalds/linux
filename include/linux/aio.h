@@ -12,7 +12,7 @@
 struct kioctx;
 struct kiocb;
 
-#define KIOCB_SYNC_KEY		(~0U)
+#define KIOCB_KEY		0
 
 /*
  * We use ki_cancel == KIOCB_CANCELLED to indicate that a kiocb has been either
@@ -56,10 +56,9 @@ typedef int (kiocb_cancel_fn)(struct kiocb *, struct io_event *);
  */
 struct kiocb {
 	atomic_t		ki_users;
-	unsigned		ki_key;		/* id of this request */
 
 	struct file		*ki_filp;
-	struct kioctx		*ki_ctx;	/* may be NULL for sync ops */
+	struct kioctx		*ki_ctx;	/* NULL for sync ops */
 	kiocb_cancel_fn		*ki_cancel;
 	ssize_t			(*ki_retry)(struct kiocb *);
 	void			(*ki_dtor)(struct kiocb *);
@@ -95,14 +94,14 @@ struct kiocb {
 
 static inline bool is_sync_kiocb(struct kiocb *kiocb)
 {
-	return kiocb->ki_key == KIOCB_SYNC_KEY;
+	return kiocb->ki_ctx == NULL;
 }
 
 static inline void init_sync_kiocb(struct kiocb *kiocb, struct file *filp)
 {
 	*kiocb = (struct kiocb) {
 			.ki_users = ATOMIC_INIT(1),
-			.ki_key = KIOCB_SYNC_KEY,
+			.ki_ctx = NULL,
 			.ki_filp = filp,
 			.ki_obj.tsk = current,
 		};
