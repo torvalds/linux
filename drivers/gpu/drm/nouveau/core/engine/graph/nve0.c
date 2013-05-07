@@ -89,9 +89,9 @@ static const struct nouveau_enum nve0_mp_warp_error[] = {
 	{}
 };
 
-static const struct nouveau_enum nve0_mp_global_error[] = {
-	{ 2, "MULTIPLE_WARP_ERRORS" },
-	{ 3, "OUT_OF_STACK_SPACE" },
+static const struct nouveau_bitfield nve0_mp_global_error[] = {
+	{ 0x00000004, "MULTIPLE_WARP_ERRORS" },
+	{ 0x00000008, "OUT_OF_STACK_SPACE" },
 	{}
 };
 
@@ -125,27 +125,17 @@ nve0_graph_mp_trap(struct nvc0_graph_priv *priv, int gpc, int tpc)
 {
 	u32 werr = nv_rd32(priv, TPC_UNIT(gpc, tpc, 0x648));
 	u32 gerr = nv_rd32(priv, TPC_UNIT(gpc, tpc, 0x650));
-	int i;
 
 	nv_error(priv, "GPC%i/TPC%i/MP trap:", gpc, tpc);
-
-	for (i = 0; i <= 31; ++i) {
-		if (!(gerr & (1 << i)))
-			continue;
-		pr_cont(" ");
-		nouveau_enum_print(nve0_mp_global_error, i);
-	}
-
+	nouveau_bitfield_print(nve0_mp_global_error, gerr);
 	if (werr) {
 		pr_cont(" ");
 		nouveau_enum_print(nve0_mp_warp_error, werr & 0xffff);
 	}
 	pr_cont("\n");
 
-	/* disable MP trap to avoid spam */
-	nv_mask(priv, TPC_UNIT(gpc, tpc, 0x50c), 0x2, 0x0);
-
-	/* TODO: figure out how to resume after an MP trap */
+	nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x648), 0x00000000);
+	nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x650), gerr);
 }
 
 static void
