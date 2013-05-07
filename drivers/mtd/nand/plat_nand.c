@@ -122,7 +122,6 @@ static int plat_nand_probe(struct platform_device *pdev)
 out:
 	if (pdata->ctrl.remove)
 		pdata->ctrl.remove(pdev);
-	platform_set_drvdata(pdev, NULL);
 	iounmap(data->io_base);
 out_release_io:
 	release_mem_region(res->start, resource_size(res));
