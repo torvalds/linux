@@ -20,8 +20,6 @@
 
 #endif /* __ASSEMBLY__ */
 
-#define KERNEL_STACK_SIZE 	(4*PAGE_SIZE)
-
 /*
  * Default implementation of macro that returns current
  * instruction pointer ("program counter").
@@ -59,6 +57,23 @@
 #endif
 
 #ifndef __ASSEMBLY__
+
+/*
+ * IRQ STACK - used for irq handler
+ */
+#ifdef __KERNEL__
+
+#define IRQ_STACK_SIZE      (4096 << 2) /* 16k irq stack size */
+
+union irq_stack_union {
+	unsigned long stack[IRQ_STACK_SIZE/sizeof(unsigned long)];
+};
+
+DECLARE_PER_CPU(union irq_stack_union, irq_stack_union);
+
+void call_on_stack(unsigned long p1, void *func, unsigned long new_stack);
+
+#endif /* __KERNEL__ */
 
 /*
  * Data detected about CPUs at boot time which is the same for all CPU's.

@@ -243,6 +243,14 @@ config SMP
 
 	  If you don't know what to do here, say N.
 
+config IRQSTACKS
+	bool "Use separate kernel stacks when processing interrupts"
+	default n
+	help
+	  If you say Y here the kernel will use separate kernel stacks
+	  for handling hard and soft interrupts.  This can help avoid
+	  overflowing the process kernel stacks.
+
 config HOTPLUG_CPU
 	bool
 	default y if SMP

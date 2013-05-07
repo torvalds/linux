@@ -358,6 +358,29 @@ static inline void stack_overflow_check(struct pt_regs *regs)
 #endif
 }
 
+#ifdef CONFIG_IRQSTACKS
+DEFINE_PER_CPU(union irq_stack_union, irq_stack_union);
+
+static void execute_on_irq_stack(void *func, unsigned long param1)
+{
+	unsigned long *irq_stack_start;
+	unsigned long irq_stack;
+	int cpu = smp_processor_id();
+
+	irq_stack_start = &per_cpu(irq_stack_union, cpu).stack[0];
+	irq_stack = (unsigned long) irq_stack_start;
+	irq_stack = ALIGN(irq_stack, 16); /* align for stack frame usage */
+
+	BUG_ON(*irq_stack_start); /* report bug if we were called recursive. */
+	*irq_stack_start = 1;
+
+	/* This is where we switch to the IRQ stack. */
+	call_on_stack(param1, func, irq_stack);
+
+	*irq_stack_start = 0;
+}
+#endif /* CONFIG_IRQSTACKS */
+
 /* ONLY called from entry.S:intr_extint() */
 void do_cpu_irq_mask(struct pt_regs *regs)
 {
@@ -393,7 +416,12 @@ void do_cpu_irq_mask(struct pt_regs *regs)
 	}
 #endif
 	stack_overflow_check(regs);
+
+#ifdef CONFIG_IRQSTACKS
+	execute_on_irq_stack(&generic_handle_irq, irq);
+#else
 	generic_handle_irq(irq);
+#endif /* CONFIG_IRQSTACKS */
 
  out:
 	irq_exit();
