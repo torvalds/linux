@@ -76,3 +76,12 @@ config CLKSRC_EXYNOS_MCT
 	def_bool y if ARCH_EXYNOS
 	help
 	  Support for Multi Core Timer controller on Exynos SoCs.
+
+config CLKSRC_SAMSUNG_PWM
+	bool
+	select CLKSRC_MMIO
+	help
+	  This is a new clocksource driver for the PWM timer found in
+	  Samsung S3C, S5P and Exynos SoCs, replacing an earlier driver
+	  for all devicetree enabled platforms. This driver will be
+	  needed only on systems that do not have the Exynos MCT available.

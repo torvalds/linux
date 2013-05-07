@@ -25,11 +25,6 @@
 #include <linux/clocksource.h>
 
 #include <asm/localtimer.h>
-
-#include <plat/cpu.h>
-
-#include <mach/map.h>
-#include <mach/irqs.h>
 #include <asm/mach/time.h>
 
 #define EXYNOS4_MCTREG(x)		(x)
@@ -510,18 +505,14 @@ static void __init exynos4_timer_resources(struct device_node *np, void __iomem 
 #endif /* CONFIG_LOCAL_TIMERS */
 }
 
-void __init mct_init(void)
+void __init mct_init(void __iomem *base, int irq_g0, int irq_l0, int irq_l1)
 {
-	if (soc_is_exynos4210()) {
-		mct_irqs[MCT_G0_IRQ] = EXYNOS4_IRQ_MCT_G0;
-		mct_irqs[MCT_L0_IRQ] = EXYNOS4_IRQ_MCT_L0;
-		mct_irqs[MCT_L1_IRQ] = EXYNOS4_IRQ_MCT_L1;
-		mct_int_type = MCT_INT_SPI;
-	} else {
-		panic("unable to determine mct controller type\n");
-	}
+	mct_irqs[MCT_G0_IRQ] = irq_g0;
+	mct_irqs[MCT_L0_IRQ] = irq_l0;
+	mct_irqs[MCT_L1_IRQ] = irq_l1;
+	mct_int_type = MCT_INT_SPI;
 
-	exynos4_timer_resources(NULL, S5P_VA_SYSTIMER);
+	exynos4_timer_resources(NULL, base);
 	exynos4_clocksource_init();
 	exynos4_clockevent_init();
 }
