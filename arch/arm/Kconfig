@@ -1059,6 +1059,7 @@ config PLAT_VERSATILE
 config ARM_TIMER_SP804
 	bool
 	select CLKSRC_MMIO
+	select CLKSRC_OF if OF
 
 source arch/arm/mm/Kconfig
 

@@ -46,7 +46,6 @@
 #include <asm/smp_twd.h>
 #include <asm/sched_clock.h>
 
-#include <asm/arch_timer.h>
 #include "omap_hwmod.h"
 #include "omap_device.h"
 #include <plat/counter-32k.h>
@@ -627,14 +626,10 @@ void __init omap4_local_timer_init(void)
 #ifdef CONFIG_SOC_OMAP5
 void __init omap5_realtime_timer_init(void)
 {
-	int err;
-
 	omap4_sync32k_timer_init();
 	realtime_counter_init();
 
-	err = arch_timer_of_register();
-	if (err)
-		pr_err("%s: arch_timer_register failed %d\n", __func__, err);
+	clocksource_of_init();
 }
 #endif /* CONFIG_SOC_OMAP5 */
 

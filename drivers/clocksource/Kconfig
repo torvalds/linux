@@ -65,6 +65,7 @@ config CLKSRC_DBX500_PRCMU_SCHED_CLOCK
 
 config ARM_ARCH_TIMER
 	bool
+	select CLKSRC_OF if OF
 
 config CLKSRC_METAG_GENERIC
 	def_bool y if METAG

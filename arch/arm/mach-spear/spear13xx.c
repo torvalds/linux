@@ -16,70 +16,12 @@
 #include <linux/amba/pl022.h>
 #include <linux/clk.h>
 #include <linux/clocksource.h>
-#include <linux/dw_dmac.h>
 #include <linux/err.h>
 #include <linux/of.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/map.h>
-#include "generic.h"
 #include <mach/spear.h>
-
-#include "spear13xx-dma.h"
-
-/* common dw_dma filter routine to be used by peripherals */
-bool dw_dma_filter(struct dma_chan *chan, void *slave)
-{
-	struct dw_dma_slave *dws = (struct dw_dma_slave *)slave;
-
-	if (chan->device->dev == dws->dma_dev) {
-		chan->private = slave;
-		return true;
-	} else {
-		return false;
-	}
-}
-
-/* ssp device registration */
-static struct dw_dma_slave ssp_dma_param[] = {
-	{
-		/* Tx */
-		.cfg_hi = DWC_CFGH_DST_PER(DMA_REQ_SSP0_TX),
-		.cfg_lo = 0,
-		.src_master = DMA_MASTER_MEMORY,
-		.dst_master = DMA_MASTER_SSP0,
-	}, {
-		/* Rx */
-		.cfg_hi = DWC_CFGH_SRC_PER(DMA_REQ_SSP0_RX),
-		.cfg_lo = 0,
-		.src_master = DMA_MASTER_SSP0,
-		.dst_master = DMA_MASTER_MEMORY,
-	}
-};
-
-struct pl022_ssp_controller pl022_plat_data = {
-	.enable_dma = 1,
-	.dma_filter = dw_dma_filter,
-	.dma_rx_param = &ssp_dma_param[1],
-	.dma_tx_param = &ssp_dma_param[0],
-};
-
-/* CF device registration */
-struct dw_dma_slave cf_dma_priv = {
-	.cfg_hi = 0,
-	.cfg_lo = 0,
-	.src_master = 0,
-	.dst_master = 0,
-};
-
-/* dmac device registeration */
-struct dw_dma_platform_data dmac_plat_data = {
-	.nr_channels = 8,
-	.chan_allocation_order = CHAN_ALLOCATION_DESCENDING,
-	.chan_priority = CHAN_PRIORITY_DESCENDING,
-	.block_size = 4095U,
-	.nr_masters = 2,
-	.data_width = { 3, 3, 0, 0 },
-};
+#include "generic.h"
 
 void __init spear13xx_l2x0_init(void)
 {
