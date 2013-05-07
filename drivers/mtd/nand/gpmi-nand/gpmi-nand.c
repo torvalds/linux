@@ -1637,7 +1637,6 @@ static int gpmi_nand_probe(struct platform_device *pdev)
 exit_nfc_init:
 	release_resources(this);
 exit_acquire_resources:
-	platform_set_drvdata(pdev, NULL);
 	dev_err(this->dev, "driver registration failed: %d\n", ret);
 	kfree(this);
 
@@ -1650,7 +1649,6 @@ static int gpmi_nand_remove(struct platform_device *pdev)
 
 	gpmi_nfc_exit(this);
 	release_resources(this);
-	platform_set_drvdata(pdev, NULL);
 	kfree(this);
 	return 0;
 }
