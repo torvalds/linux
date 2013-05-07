@@ -217,6 +217,13 @@ config HID_ELECOM
 	---help---
 	Support for the ELECOM BM084 (bluetooth mouse).
 
+config HID_ELO
+	tristate "ELO USB 4000/4500 touchscreen"
+	depends on USB_HID
+	---help---
+	Support for the ELO USB 4000/4500 touchscreens. Note that this is for
+	different devices than those handled by CONFIG_TOUCHSCREEN_USB_ELO.
+
 config HID_EZKEY
 	tristate "Ezkey BTC 8193 keyboard" if EXPERT
 	depends on HID
