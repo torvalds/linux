@@ -475,6 +475,7 @@ nve0_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	case 0xe6:
 		priv->magic_not_rop_nr = 1;
 		break;
+	case 0xf0:
 	default:
 		break;
 	}
@@ -803,11 +804,12 @@ nve0_graph_init_units(struct nvc0_graph_priv *priv)
 	nv_wr32(priv, 0x409ffc, 0x00000000);
 	nv_wr32(priv, 0x409c14, 0x00003e3e);
 	switch (nv_device(priv)->chipset) {
+	case 0xe4:
 	case 0xe7:
 	case 0xe6:
 		nv_wr32(priv, 0x409c24, 0x000f0001);
 		break;
-	default:
+	case 0xf0:
 		nv_wr32(priv, 0x409c24, 0x000f0000);
 		break;
 	}
@@ -817,16 +819,7 @@ nve0_graph_init_units(struct nvc0_graph_priv *priv)
 	nv_wr32(priv, 0x408030, 0xc0000000);
 	nv_wr32(priv, 0x404490, 0xc0000000);
 	nv_wr32(priv, 0x406018, 0xc0000000);
-	switch (nv_device(priv)->chipset) {
-	case 0xe7:
-	case 0xe6:
-	case 0xf0:
-		nv_wr32(priv, 0x407020, 0x40000000);
-		break;
-	default:
-		nv_wr32(priv, 0x407020, 0xc0000000);
-		break;
-	}
+	nv_wr32(priv, 0x407020, 0x40000000);
 	nv_wr32(priv, 0x405840, 0xc0000000);
 	nv_wr32(priv, 0x405844, 0x00ffffff);
 
@@ -1062,29 +1055,19 @@ nve0_graph_init(struct nouveau_object *object)
 
 	nve0_graph_init_obj418880(priv);
 	nve0_graph_init_regs(priv);
-
-	switch (nv_device(priv)->chipset) {
-	case 0xe7:
-	case 0xe6:
-	case 0xf0:
-		nve0_graph_init_unk40xx(priv);
-		nve0_graph_init_unk44xx(priv);
-		nve0_graph_init_unk78xx(priv);
-		nve0_graph_init_unk60xx(priv);
-		nve0_graph_init_unk64xx(priv);
-		nve0_graph_init_unk58xx(priv);
-		nve0_graph_init_unk80xx(priv);
-		nve0_graph_init_unk70xx(priv);
-		nve0_graph_init_unk5bxx(priv);
-		nve0_graph_init_gpc(priv);
-		nve0_graph_init_tpc(priv);
-		nve0_graph_init_tpcunk(priv);
-		nve0_graph_init_unk88xx(priv);
-		break;
-	default:
-		break;
-	}
-
+	nve0_graph_init_unk40xx(priv);
+	nve0_graph_init_unk44xx(priv);
+	nve0_graph_init_unk78xx(priv);
+	nve0_graph_init_unk60xx(priv);
+	nve0_graph_init_unk64xx(priv);
+	nve0_graph_init_unk58xx(priv);
+	nve0_graph_init_unk80xx(priv);
+	nve0_graph_init_unk70xx(priv);
+	nve0_graph_init_unk5bxx(priv);
+	nve0_graph_init_gpc(priv);
+	nve0_graph_init_tpc(priv);
+	nve0_graph_init_tpcunk(priv);
+	nve0_graph_init_unk88xx(priv);
 	nve0_graph_init_gpc_0(priv);
 
 	nv_wr32(priv, 0x400500, 0x00010001);

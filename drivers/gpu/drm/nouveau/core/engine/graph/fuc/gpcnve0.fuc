@@ -55,13 +55,13 @@ chipsets:
 .b8  0xe7 0 0 0
 .b16 #nve4_gpc_mmio_head
 .b16 #nve4_gpc_mmio_tail
-.b16 #nve6_tpc_mmio_head
-.b16 #nve6_tpc_mmio_tail
+.b16 #nve4_tpc_mmio_head
+.b16 #nve4_tpc_mmio_tail
 .b8  0xe6 0 0 0
 .b16 #nve4_gpc_mmio_head
 .b16 #nve4_gpc_mmio_tail
-.b16 #nve6_tpc_mmio_head
-.b16 #nve6_tpc_mmio_tail
+.b16 #nve4_tpc_mmio_head
+.b16 #nve4_tpc_mmio_tail
 .b8  0xf0 0 0 0
 .b16 #nvf0_gpc_mmio_head
 .b16 #nvf0_gpc_mmio_tail
@@ -156,30 +156,9 @@ mmctx_data(0x0006ac, 2)
 mmctx_data(0x0006c8, 1)
 mmctx_data(0x000730, 8)
 mmctx_data(0x000758, 1)
-mmctx_data(0x000778, 1)
-nve4_tpc_mmio_tail:
-
-nve6_tpc_mmio_head:
-mmctx_data(0x000048, 1)
-mmctx_data(0x000064, 1)
-mmctx_data(0x000088, 1)
-mmctx_data(0x000200, 6)
-mmctx_data(0x00021c, 2)
-mmctx_data(0x000230, 1)
-mmctx_data(0x0002c4, 1)
-mmctx_data(0x000400, 3)
-mmctx_data(0x000420, 3)
-mmctx_data(0x0004e8, 1)
-mmctx_data(0x0004f4, 1)
-mmctx_data(0x000604, 4)
-mmctx_data(0x000644, 22)
-mmctx_data(0x0006ac, 2)
-mmctx_data(0x0006c8, 1)
-mmctx_data(0x000730, 8)
-mmctx_data(0x000758, 1)
 mmctx_data(0x000770, 1)
 mmctx_data(0x000778, 2)
-nve6_tpc_mmio_tail:
+nve4_tpc_mmio_tail:
 
 nvf0_tpc_mmio_head:
 mmctx_data(0x000048, 1)

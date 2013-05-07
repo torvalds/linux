@@ -749,38 +749,6 @@ nve0_grctx_generate_icmd(struct nvc0_graph_priv *priv)
 	nv_icmd(priv, 0x000841, 0x08000080);
 	nv_icmd(priv, 0x000842, 0x00400008);
 	nv_icmd(priv, 0x000843, 0x08000080);
-	switch (nv_device(priv)->chipset) {
-	case 0xe7:
-	case 0xe6:
-		break;
-	default:
-		nv_icmd(priv, 0x000818, 0x00000000);
-		nv_icmd(priv, 0x000819, 0x00000000);
-		nv_icmd(priv, 0x00081a, 0x00000000);
-		nv_icmd(priv, 0x00081b, 0x00000000);
-		nv_icmd(priv, 0x00081c, 0x00000000);
-		nv_icmd(priv, 0x00081d, 0x00000000);
-		nv_icmd(priv, 0x00081e, 0x00000000);
-		nv_icmd(priv, 0x00081f, 0x00000000);
-		nv_icmd(priv, 0x000848, 0x00000000);
-		nv_icmd(priv, 0x000849, 0x00000000);
-		nv_icmd(priv, 0x00084a, 0x00000000);
-		nv_icmd(priv, 0x00084b, 0x00000000);
-		nv_icmd(priv, 0x00084c, 0x00000000);
-		nv_icmd(priv, 0x00084d, 0x00000000);
-		nv_icmd(priv, 0x00084e, 0x00000000);
-		nv_icmd(priv, 0x00084f, 0x00000000);
-		nv_icmd(priv, 0x000850, 0x00000000);
-		nv_icmd(priv, 0x000851, 0x00000000);
-		nv_icmd(priv, 0x000852, 0x00000000);
-		nv_icmd(priv, 0x000853, 0x00000000);
-		nv_icmd(priv, 0x000854, 0x00000000);
-		nv_icmd(priv, 0x000855, 0x00000000);
-		nv_icmd(priv, 0x000856, 0x00000000);
-		nv_icmd(priv, 0x000857, 0x00000000);
-		nv_icmd(priv, 0x000738, 0x00000000);
-		break;
-	}
 	nv_icmd(priv, 0x0006aa, 0x00000001);
 	nv_icmd(priv, 0x0006ab, 0x00000002);
 	nv_icmd(priv, 0x0006ac, 0x00000080);
@@ -869,38 +837,6 @@ nve0_grctx_generate_icmd(struct nvc0_graph_priv *priv)
 	nv_icmd(priv, 0x000813, 0x00000006);
 	nv_icmd(priv, 0x000814, 0x00000008);
 	nv_icmd(priv, 0x000957, 0x00000003);
-	switch (nv_device(priv)->chipset) {
-	case 0xe7:
-	case 0xe6:
-		break;
-	default:
-		nv_icmd(priv, 0x000818, 0x00000000);
-		nv_icmd(priv, 0x000819, 0x00000000);
-		nv_icmd(priv, 0x00081a, 0x00000000);
-		nv_icmd(priv, 0x00081b, 0x00000000);
-		nv_icmd(priv, 0x00081c, 0x00000000);
-		nv_icmd(priv, 0x00081d, 0x00000000);
-		nv_icmd(priv, 0x00081e, 0x00000000);
-		nv_icmd(priv, 0x00081f, 0x00000000);
-		nv_icmd(priv, 0x000848, 0x00000000);
-		nv_icmd(priv, 0x000849, 0x00000000);
-		nv_icmd(priv, 0x00084a, 0x00000000);
-		nv_icmd(priv, 0x00084b, 0x00000000);
-		nv_icmd(priv, 0x00084c, 0x00000000);
-		nv_icmd(priv, 0x00084d, 0x00000000);
-		nv_icmd(priv, 0x00084e, 0x00000000);
-		nv_icmd(priv, 0x00084f, 0x00000000);
-		nv_icmd(priv, 0x000850, 0x00000000);
-		nv_icmd(priv, 0x000851, 0x00000000);
-		nv_icmd(priv, 0x000852, 0x00000000);
-		nv_icmd(priv, 0x000853, 0x00000000);
-		nv_icmd(priv, 0x000854, 0x00000000);
-		nv_icmd(priv, 0x000855, 0x00000000);
-		nv_icmd(priv, 0x000856, 0x00000000);
-		nv_icmd(priv, 0x000857, 0x00000000);
-		nv_icmd(priv, 0x000738, 0x00000000);
-		break;
-	}
 	nv_icmd(priv, 0x000b07, 0x00000002);
 	nv_icmd(priv, 0x000b08, 0x00000100);
 	nv_icmd(priv, 0x000b09, 0x00000100);
@@ -2180,6 +2116,7 @@ nve0_grctx_generate_902d(struct nvc0_graph_priv *priv)
 	case 0xe6:
 		nv_mthd(priv, 0x902d, 0x3410, 0x80002006);
 		break;
+	case 0xe4:
 	case 0xe7:
 	default:
 		nv_mthd(priv, 0x902d, 0x3410, 0x00000000);
@@ -2716,6 +2653,7 @@ nve0_graph_generate_tpc(struct nvc0_graph_priv *priv)
 	nv_wr32(priv, 0x419e94, 0x0);
 	nv_wr32(priv, 0x419e98, 0x0);
 	switch (nv_device(priv)->chipset) {
+	case 0xe4:
 	case 0xe7:
 	case 0xe6:
 		nv_wr32(priv, 0x419eac, 0x1f8f);
@@ -2725,10 +2663,6 @@ nve0_graph_generate_tpc(struct nvc0_graph_priv *priv)
 		nv_wr32(priv, 0x419eac, 0x1fcf);
 		nv_wr32(priv, 0x419eb0, 0xdb00da0);
 		nv_wr32(priv, 0x419eb8, 0x0);
-		break;
-	default:
-		nv_wr32(priv, 0x419eac, 0x1fcf);
-		nv_wr32(priv, 0x419eb0, 0xd3f);
 		break;
 	}
 	nv_wr32(priv, 0x419ec8, 0x1304f);
@@ -2749,6 +2683,7 @@ nve0_graph_generate_tpc(struct nvc0_graph_priv *priv)
 	nv_wr32(priv, 0x419f4c, 0x0);
 	nv_wr32(priv, 0x419f58, 0x0);
 	switch (nv_device(priv)->chipset) {
+	case 0xe4:
 	case 0xe7:
 	case 0xe6:
 		nv_wr32(priv, 0x419f70, 0x0);
@@ -2759,9 +2694,6 @@ nve0_graph_generate_tpc(struct nvc0_graph_priv *priv)
 		nv_wr32(priv, 0x419f70, 0x7300);
 		nv_wr32(priv, 0x419f78, 0xeb);
 		nv_wr32(priv, 0x419f7c, 0x404);
-		break;
-	default:
-		nv_wr32(priv, 0x419f78, 0xb);
 		break;
 	}
 }
