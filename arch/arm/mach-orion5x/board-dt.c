@@ -42,7 +42,7 @@ static void __init orion5x_dt_init(void)
 	/*
 	 * Setup Orion address map
 	 */
-	orion5x_setup_cpu_mbus_bridge();
+	orion5x_setup_wins();
 
 	/* Setup root of clk tree */
 	clk_init();

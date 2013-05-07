@@ -397,8 +397,8 @@ static void __init net2big_init(void)
 	net2big_sata_power_init();
 	orion5x_sata_init(&net2big_sata_data);
 
-	orion5x_setup_dev_boot_win(NET2BIG_NOR_BOOT_BASE,
-				   NET2BIG_NOR_BOOT_SIZE);
+	mvebu_mbus_add_window("devbus-boot", NET2BIG_NOR_BOOT_BASE,
+			      NET2BIG_NOR_BOOT_SIZE);
 	platform_device_register(&net2big_nor_flash);
 
 	platform_device_register(&net2big_gpio_buttons);

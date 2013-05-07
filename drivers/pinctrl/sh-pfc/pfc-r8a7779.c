@@ -2552,7 +2552,7 @@ static const char * const intc_groups[] = {
 	"intc_irq2",
 	"intc_irq2_b",
 	"intc_irq3",
-	"intc_irq4_b",
+	"intc_irq3_b",
 };
 
 static const char * const lbsc_groups[] = {
