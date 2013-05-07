@@ -61,24 +61,24 @@ EXPORT_SYMBOL_GPL(dev_pm_get_subsys_data);
 int dev_pm_put_subsys_data(struct device *dev)
 {
 	struct pm_subsys_data *psd;
-	int ret = 0;
+	int ret = 1;
 
 	spin_lock_irq(&dev->power.lock);
 
 	psd = dev_to_psd(dev);
-	if (!psd) {
-		ret = -EINVAL;
+	if (!psd)
 		goto out;
-	}
 
 	if (--psd->refcount == 0) {
 		dev->power.subsys_data = NULL;
-		kfree(psd);
-		ret = 1;
+	} else {
+		psd = NULL;
+		ret = 0;
 	}
 
  out:
 	spin_unlock_irq(&dev->power.lock);
+	kfree(psd);
 
 	return ret;
 }
