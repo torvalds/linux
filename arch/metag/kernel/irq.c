@@ -25,7 +25,7 @@ static union irq_ctx *hardirq_ctx[NR_CPUS] __read_mostly;
 static union irq_ctx *softirq_ctx[NR_CPUS] __read_mostly;
 #endif
 
-struct irq_domain *root_domain;
+static struct irq_domain *root_domain;
 
 static unsigned int startup_meta_irq(struct irq_data *data)
 {
