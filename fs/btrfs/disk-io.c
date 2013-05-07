@@ -383,6 +383,11 @@ static int btrfs_check_super_csum(char *raw_disk_sb)
 
 		if (memcmp(raw_disk_sb, result, csum_size))
 			ret = 1;
+
+		if (ret && btrfs_super_generation(disk_sb) < 10) {
+			printk(KERN_WARNING "btrfs: super block crcs don't match, older mkfs detected\n");
+			ret = 0;
+		}
 	}
 
 	if (csum_type >= ARRAY_SIZE(btrfs_csum_sizes)) {
