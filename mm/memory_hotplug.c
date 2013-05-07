@@ -1618,6 +1618,7 @@ int offline_pages(unsigned long start_pfn, unsigned long nr_pages)
 {
 	return __offline_pages(start_pfn, start_pfn + nr_pages, 120 * HZ);
 }
+#endif /* CONFIG_MEMORY_HOTREMOVE */
 
 /**
  * walk_memory_range - walks through all mem sections in [start_pfn, end_pfn)
@@ -1631,7 +1632,7 @@ int offline_pages(unsigned long start_pfn, unsigned long nr_pages)
  *
  * Returns the return value of func.
  */
-static int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
+int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
 		void *arg, int (*func)(struct memory_block *, void *))
 {
 	struct memory_block *mem = NULL;
@@ -1668,6 +1669,7 @@ static int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
 	return 0;
 }
 
+#ifdef CONFIG_MEMORY_HOTREMOVE
 /**
  * offline_memory_block_cb - callback function for offlining memory block
  * @mem: the memory block to be offlined
