@@ -1272,7 +1272,7 @@ static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
 				curchan->center_freq);
 		} else {
 			/* perform spectral scan if requested. */
-			if (sc->scanning &&
+			if (test_bit(SC_OP_SCANNING, &sc->sc_flags) &&
 			    sc->spectral_mode == SPECTRAL_CHANSCAN)
 				ath9k_spectral_scan_trigger(hw);
 		}
@@ -2334,15 +2334,13 @@ static void ath9k_set_wakeup(struct ieee80211_hw *hw, bool enabled)
 static void ath9k_sw_scan_start(struct ieee80211_hw *hw)
 {
 	struct ath_softc *sc = hw->priv;
-
-	sc->scanning = 1;
+	set_bit(SC_OP_SCANNING, &sc->sc_flags);
 }
 
 static void ath9k_sw_scan_complete(struct ieee80211_hw *hw)
 {
 	struct ath_softc *sc = hw->priv;
-
-	sc->scanning = 0;
+	clear_bit(SC_OP_SCANNING, &sc->sc_flags);
 }
 
 struct ieee80211_ops ath9k_ops = {
