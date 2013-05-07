@@ -1851,6 +1851,7 @@ static int s3c2410_udc_probe(struct platform_device *pdev)
 		irq = gpio_to_irq(udc_info->vbus_pin);
 		if (irq < 0) {
 			dev_err(dev, "no irq for gpio vbus pin\n");
+			retval = irq;
 			goto err_gpio_claim;
 		}
 
