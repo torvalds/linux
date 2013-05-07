@@ -5,7 +5,6 @@
 #include "rk616_hdmi_hw.h"
 
 static char edid_result = 0;
-static bool analog_sync = 0;
 
 
 static int rk616_hdmi_init_pol_set(struct mfd_rk616 * rk616,int pol)
@@ -49,7 +48,7 @@ static void rk616_hdmi_set_pwr_mode(int mode)
 	hdmi_dbg(hdmi->dev,"%s change pwr_mode %d --> %d\n",__FUNCTION__,hdmi->pwr_mode,mode);
     switch(mode){
      case NORMAL:
-		hdmi_dbg(hdmi->dev,"%s change pwr_mode NORMAL\n",__FUNCTION__,hdmi->pwr_mode,mode);
+	     hdmi_dbg(hdmi->dev,"%s change pwr_mode NORMAL\n",__FUNCTION__,hdmi->pwr_mode,mode);
 	   	rk616_hdmi_sys_power_down();
 		HDMIWrReg(PHY_DRIVER,0xaa);
 		HDMIWrReg(PHY_PRE_EMPHASIS,0x0f);
@@ -62,7 +61,6 @@ static void rk616_hdmi_set_pwr_mode(int mode)
 		HDMIWrReg(0xce, 0x01);
 		rk616_hdmi_av_mute(1);
 		rk616_hdmi_sys_power_up();
-		analog_sync = 1;
 		break;
 	case LOWER_PWR:
 		hdmi_dbg(hdmi->dev,"%s change pwr_mode LOWER_PWR\n",__FUNCTION__,hdmi->pwr_mode,mode);
@@ -388,16 +386,13 @@ void rk616_hdmi_control_output(int enable)
 		 HDMIRdReg(AV_MUTE,&mutestatus);
 		if(mutestatus && (m_AUDIO_MUTE | m_VIDEO_BLACK)) {
 			HDMIWrReg(AV_MUTE, v_AUDIO_MUTE(0) | v_VIDEO_MUTE(0));
-    		rk616_hdmi_sys_power_up();
-    		rk616_hdmi_sys_power_down();
-     		rk616_hdmi_sys_power_up();
-			if(analog_sync){
-				HDMIWrReg(0xce, 0x00);
-				delay100us();
-				HDMIWrReg(0xce, 0x01);
-				analog_sync = 0;
-			}
 		}
+		rk616_hdmi_sys_power_up();
+		rk616_hdmi_sys_power_down();
+		rk616_hdmi_sys_power_up();
+		HDMIWrReg(0xce, 0x00);
+		delay100us();
+		HDMIWrReg(0xce, 0x01);
 	}
 	else {
 		HDMIWrReg(AV_MUTE, v_AUDIO_MUTE(1) | v_VIDEO_MUTE(1));
@@ -467,6 +462,7 @@ int rk616_hdmi_initial(void)
 	hdmi->config_audio = rk616_hdmi_config_audio;
 	hdmi->detect_hotplug = rk616_hdmi_detect_hotplug;
 	hdmi->read_edid = rk616_hdmi_read_edid;
+	hdmi->set_vif = rk616_set_vif;
 	
 	rk616_hdmi_reset();
 

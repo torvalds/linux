@@ -301,6 +301,7 @@ struct hdmi {
 	int (*detect_hotplug)(void);
 	// call back for edid
 	int (*read_edid)(int block, unsigned char *buff);
+	int (*set_vif)(rk_screen * screen,bool connect);
 
 	// call back for hdcp operatoion
 	void (*hdcp_cb)(void);
