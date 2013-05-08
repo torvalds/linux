@@ -3624,8 +3624,7 @@ static void i9xx_pfit_enable(struct intel_crtc *crtc)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc_config *pipe_config = &crtc->config;
 
-	if (!(intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_EDP) ||
-	      intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_LVDS)))
+	if (!crtc->config.gmch_pfit.control)
 		return;
 
 	WARN_ON(I915_READ(PFIT_CONTROL) & PFIT_ENABLE);
@@ -3744,20 +3743,15 @@ static void i9xx_pfit_disable(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	enum pipe pipe;
-	uint32_t pctl = I915_READ(PFIT_CONTROL);
+
+	if (!crtc->config.gmch_pfit.control)
+		return;
 
 	assert_pipe_disabled(dev_priv, crtc->pipe);
 
-	if (INTEL_INFO(dev)->gen >= 4)
-		pipe = (pctl & PFIT_PIPE_MASK) >> PFIT_PIPE_SHIFT;
-	else
-		pipe = PIPE_B;
-
-	if (pipe == crtc->pipe) {
-		DRM_DEBUG_DRIVER("disabling pfit, current: 0x%08x\n", pctl);
-		I915_WRITE(PFIT_CONTROL, 0);
-	}
+	DRM_DEBUG_DRIVER("disabling pfit, current: 0x%08x\n",
+			 I915_READ(PFIT_CONTROL));
+	I915_WRITE(PFIT_CONTROL, 0);
 }
 
 static void i9xx_crtc_disable(struct drm_crtc *crtc)
