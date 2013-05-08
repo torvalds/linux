@@ -94,6 +94,28 @@ uint32_t pipe2vbl(struct drm_crtc *crtc)
 static struct omap_crtc *omap_crtcs[8];
 
 /* we can probably ignore these until we support command-mode panels: */
+static int omap_crtc_connect(struct omap_overlay_manager *mgr,
+		struct omap_dss_output *dst)
+{
+	if (mgr->output)
+		return -EINVAL;
+
+	if ((mgr->supported_outputs & dst->id) == 0)
+		return -EINVAL;
+
+	dst->manager = mgr;
+	mgr->output = dst;
+
+	return 0;
+}
+
+static void omap_crtc_disconnect(struct omap_overlay_manager *mgr,
+		struct omap_dss_output *dst)
+{
+	mgr->output->manager = NULL;
+	mgr->output = NULL;
+}
+
 static void omap_crtc_start_update(struct omap_overlay_manager *mgr)
 {
 }
@@ -138,6 +160,8 @@ static void omap_crtc_unregister_framedone_handler(
 }
 
 static const struct dss_mgr_ops mgr_ops = {
+		.connect = omap_crtc_connect,
+		.disconnect = omap_crtc_disconnect,
 		.start_update = omap_crtc_start_update,
 		.enable = omap_crtc_enable,
 		.disable = omap_crtc_disable,

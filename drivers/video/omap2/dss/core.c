@@ -379,6 +379,46 @@ static int dss_driver_remove(struct device *dev)
 	return 0;
 }
 
+static int omapdss_default_connect(struct omap_dss_device *dssdev)
+{
+	struct omap_dss_output *out;
+	struct omap_overlay_manager *mgr;
+	int r;
+
+	out = dssdev->output;
+
+	if (out == NULL)
+		return -ENODEV;
+
+	mgr = omap_dss_get_overlay_manager(out->dispc_channel);
+	if (!mgr)
+		return -ENODEV;
+
+	r = dss_mgr_connect(mgr, out);
+	if (r)
+		return r;
+
+	return 0;
+}
+
+static void omapdss_default_disconnect(struct omap_dss_device *dssdev)
+{
+	struct omap_dss_output *out;
+	struct omap_overlay_manager *mgr;
+
+	out = dssdev->output;
+
+	if (out == NULL)
+		return;
+
+	mgr = out->manager;
+
+	if (mgr == NULL)
+		return;
+
+	dss_mgr_disconnect(mgr, out);
+}
+
 int omap_dss_register_driver(struct omap_dss_driver *dssdriver)
 {
 	dssdriver->driver.bus = &dss_bus_type;
@@ -392,6 +432,10 @@ int omap_dss_register_driver(struct omap_dss_driver *dssdriver)
 			omapdss_default_get_recommended_bpp;
 	if (dssdriver->get_timings == NULL)
 		dssdriver->get_timings = omapdss_default_get_timings;
+	if (dssdriver->connect == NULL)
+		dssdriver->connect = omapdss_default_connect;
+	if (dssdriver->disconnect == NULL)
+		dssdriver->disconnect = omapdss_default_disconnect;
 
 	return driver_register(&dssdriver->driver);
 }

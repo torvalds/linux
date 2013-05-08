@@ -1853,6 +1853,8 @@ static void omapfb_free_resources(struct omapfb2_device *fbdev)
 		if (dssdev->state != OMAP_DSS_DISPLAY_DISABLED)
 			dssdev->driver->disable(dssdev);
 
+		dssdev->driver->disconnect(dssdev);
+
 		omap_dss_put_device(dssdev);
 	}
 
@@ -2363,22 +2365,23 @@ static int omapfb_init_connections(struct omapfb2_device *fbdev,
 	int i, r;
 	struct omap_overlay_manager *mgr;
 
+	r = def_dssdev->driver->connect(def_dssdev);
+	if (r) {
+		dev_err(fbdev->dev, "failed to connect default display\n");
+		return r;
+	}
+
 	for (i = 0; i < fbdev->num_displays; ++i) {
 		struct omap_dss_device *dssdev = fbdev->displays[i].dssdev;
-		struct omap_dss_output *out;
 
-		out = omapdss_find_output_from_display(dssdev);
-		if (!out)
+		if (dssdev == def_dssdev)
 			continue;
 
-		mgr = omap_dss_get_overlay_manager(out->dispc_channel);
-		if (!mgr)
-			continue;
-
-		if (mgr->output)
-			mgr->unset_output(mgr);
-
-		mgr->set_output(mgr, out);
+		/*
+		 * We don't care if the connect succeeds or not. We just want to
+		 * connect as many displays as possible.
+		 */
+		dssdev->driver->connect(dssdev);
 	}
 
 	mgr = omapdss_find_mgr_from_display(def_dssdev);

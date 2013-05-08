@@ -689,6 +689,9 @@ struct omap_dss_driver {
 	int (*probe)(struct omap_dss_device *);
 	void (*remove)(struct omap_dss_device *);
 
+	int (*connect)(struct omap_dss_device *dssdev);
+	void (*disconnect)(struct omap_dss_device *dssdev);
+
 	int (*enable)(struct omap_dss_device *display);
 	void (*disable)(struct omap_dss_device *display);
 	int (*run_test)(struct omap_dss_device *display, int test);
@@ -889,6 +892,11 @@ int omapdss_compat_init(void);
 void omapdss_compat_uninit(void);
 
 struct dss_mgr_ops {
+	int (*connect)(struct omap_overlay_manager *mgr,
+		struct omap_dss_output *dst);
+	void (*disconnect)(struct omap_overlay_manager *mgr,
+		struct omap_dss_output *dst);
+
 	void (*start_update)(struct omap_overlay_manager *mgr);
 	int (*enable)(struct omap_overlay_manager *mgr);
 	void (*disable)(struct omap_overlay_manager *mgr);
@@ -905,6 +913,10 @@ struct dss_mgr_ops {
 int dss_install_mgr_ops(const struct dss_mgr_ops *mgr_ops);
 void dss_uninstall_mgr_ops(void);
 
+int dss_mgr_connect(struct omap_overlay_manager *mgr,
+		struct omap_dss_output *dst);
+void dss_mgr_disconnect(struct omap_overlay_manager *mgr,
+		struct omap_dss_output *dst);
 void dss_mgr_set_timings(struct omap_overlay_manager *mgr,
 		const struct omap_video_timings *timings);
 void dss_mgr_set_lcd_config(struct omap_overlay_manager *mgr,
@@ -916,4 +928,15 @@ int dss_mgr_register_framedone_handler(struct omap_overlay_manager *mgr,
 		void (*handler)(void *), void *data);
 void dss_mgr_unregister_framedone_handler(struct omap_overlay_manager *mgr,
 		void (*handler)(void *), void *data);
+
+static inline bool omapdss_device_is_connected(struct omap_dss_device *dssdev)
+{
+	return dssdev->output;
+}
+
+static inline bool omapdss_device_is_enabled(struct omap_dss_device *dssdev)
+{
+	return dssdev->state == OMAP_DSS_DISPLAY_ACTIVE;
+}
+
 #endif

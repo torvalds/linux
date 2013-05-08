@@ -179,6 +179,20 @@ void dss_uninstall_mgr_ops(void)
 }
 EXPORT_SYMBOL(dss_uninstall_mgr_ops);
 
+int dss_mgr_connect(struct omap_overlay_manager *mgr,
+		struct omap_dss_output *dst)
+{
+	return dss_mgr_ops->connect(mgr, dst);
+}
+EXPORT_SYMBOL(dss_mgr_connect);
+
+void dss_mgr_disconnect(struct omap_overlay_manager *mgr,
+		struct omap_dss_output *dst)
+{
+	dss_mgr_ops->disconnect(mgr, dst);
+}
+EXPORT_SYMBOL(dss_mgr_disconnect);
+
 void dss_mgr_set_timings(struct omap_overlay_manager *mgr,
 		const struct omap_video_timings *timings)
 {

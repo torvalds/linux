@@ -790,6 +790,18 @@ static void mgr_clear_shadow_dirty(struct omap_overlay_manager *mgr)
 	}
 }
 
+static int dss_mgr_connect_compat(struct omap_overlay_manager *mgr,
+		struct omap_dss_output *dst)
+{
+	return mgr->set_output(mgr, dst);
+}
+
+static void dss_mgr_disconnect_compat(struct omap_overlay_manager *mgr,
+		struct omap_dss_output *dst)
+{
+	mgr->unset_output(mgr);
+}
+
 static void dss_mgr_start_update_compat(struct omap_overlay_manager *mgr)
 {
 	struct mgr_priv_data *mp = get_mgr_priv(mgr);
@@ -1552,6 +1564,8 @@ static void dss_mgr_unregister_framedone_handler_compat(struct omap_overlay_mana
 }
 
 static const struct dss_mgr_ops apply_mgr_ops = {
+	.connect = dss_mgr_connect_compat,
+	.disconnect = dss_mgr_disconnect_compat,
 	.start_update = dss_mgr_start_update_compat,
 	.enable = dss_mgr_enable_compat,
 	.disable = dss_mgr_disable_compat,

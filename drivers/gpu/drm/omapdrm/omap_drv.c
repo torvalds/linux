@@ -97,6 +97,7 @@ static int omap_modeset_init(struct drm_device *dev)
 	int num_mgrs = dss_feat_get_num_mgrs();
 	int num_crtcs;
 	int i, id = 0;
+	int r;
 
 	omap_crtc_pre_init();
 
@@ -118,6 +119,7 @@ static int omap_modeset_init(struct drm_device *dev)
 		struct drm_connector *connector;
 		struct drm_encoder *encoder;
 		enum omap_channel channel;
+		struct omap_overlay_manager *mgr;
 
 		if (!dssdev->driver) {
 			dev_warn(dev->dev, "%s has no driver.. skipping it\n",
@@ -130,6 +132,13 @@ static int omap_modeset_init(struct drm_device *dev)
 			dev_warn(dev->dev, "%s driver does not support "
 				"get_timings or read_edid.. skipping it!\n",
 				dssdev->name);
+			continue;
+		}
+
+		r = dssdev->driver->connect(dssdev);
+		if (r) {
+			dev_err(dev->dev, "could not connect display: %s\n",
+					dssdev->name);
 			continue;
 		}
 
@@ -174,8 +183,9 @@ static int omap_modeset_init(struct drm_device *dev)
 		 * other possible channels to which the encoder can connect are
 		 * not considered.
 		 */
-		channel = dssdev->output->dispc_channel;
 
+		mgr = omapdss_find_mgr_from_display(dssdev);
+		channel = mgr->id;
 		/*
 		 * if this channel hasn't already been taken by a previously
 		 * allocated crtc, we create a new crtc for it
