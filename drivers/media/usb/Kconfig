@@ -1,6 +1,8 @@
+if USB
+
 menuconfig MEDIA_USB_SUPPORT
 	bool "Media USB Adapters"
-	depends on USB && MEDIA_SUPPORT
+	depends on MEDIA_SUPPORT
 	help
 	  Enable media drivers for USB bus.
 	  If you have such devices, say Y.
@@ -52,3 +54,4 @@ source "drivers/media/usb/em28xx/Kconfig"
 endif
 
 endif #MEDIA_USB_SUPPORT
+endif #USB
