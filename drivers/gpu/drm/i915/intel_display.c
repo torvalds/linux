@@ -8860,10 +8860,8 @@ static void intel_setup_outputs(struct drm_device *dev)
 				intel_hdmi_init(dev, GEN4_HDMIB, PORT_B);
 			}
 
-			if (!found && SUPPORTS_INTEGRATED_DP(dev)) {
-				DRM_DEBUG_KMS("probing DP_B\n");
+			if (!found && SUPPORTS_INTEGRATED_DP(dev))
 				intel_dp_init(dev, DP_B, PORT_B);
-			}
 		}
 
 		/* Before G4X SDVOC doesn't have its own detect register */
@@ -8879,17 +8877,13 @@ static void intel_setup_outputs(struct drm_device *dev)
 				DRM_DEBUG_KMS("probing HDMI on SDVOC\n");
 				intel_hdmi_init(dev, GEN4_HDMIC, PORT_C);
 			}
-			if (SUPPORTS_INTEGRATED_DP(dev)) {
-				DRM_DEBUG_KMS("probing DP_C\n");
+			if (SUPPORTS_INTEGRATED_DP(dev))
 				intel_dp_init(dev, DP_C, PORT_C);
-			}
 		}
 
 		if (SUPPORTS_INTEGRATED_DP(dev) &&
-		    (I915_READ(DP_D) & DP_DETECTED)) {
-			DRM_DEBUG_KMS("probing DP_D\n");
+		    (I915_READ(DP_D) & DP_DETECTED))
 			intel_dp_init(dev, DP_D, PORT_D);
-		}
 	} else if (IS_GEN2(dev))
 		intel_dvo_init(dev);
 
