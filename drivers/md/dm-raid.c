@@ -1587,6 +1587,21 @@ static void attempt_restore_of_faulty_devices(struct raid_set *rs)
 			DMINFO("Faulty %s device #%d has readable super block."
 			       "  Attempting to revive it.",
 			       rs->raid_type->name, i);
+
+			/*
+			 * Faulty bit may be set, but sometimes the array can
+			 * be suspended before the personalities can respond
+			 * by removing the device from the array (i.e. calling
+			 * 'hot_remove_disk').  If they haven't yet removed
+			 * the failed device, its 'raid_disk' number will be
+			 * '>= 0' - meaning we must call this function
+			 * ourselves.
+			 */
+			if ((r->raid_disk >= 0) &&
+			    (r->mddev->pers->hot_remove_disk(r->mddev, r) != 0))
+				/* Failed to revive this device, try next */
+				continue;
+
 			r->raid_disk = i;
 			r->saved_raid_disk = i;
 			flags = r->flags;
