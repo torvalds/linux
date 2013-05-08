@@ -62,7 +62,10 @@ static unsigned long i915_stolen_to_physical(struct drm_device *dev)
 	 * its value of TOLUD.
 	 */
 	base = 0;
-	if (INTEL_INFO(dev)->gen >= 6) {
+	if (IS_VALLEYVIEW(dev)) {
+		pci_read_config_dword(dev->pdev, 0x5c, &base);
+		base &= ~((1<<20) - 1);
+	} else if (INTEL_INFO(dev)->gen >= 6) {
 		/* Read Base Data of Stolen Memory Register (BDSM) directly.
 		 * Note that there is also a MCHBAR miror at 0x1080c0 or
 		 * we could use device 2:0x5c instead.
@@ -183,6 +186,7 @@ void i915_gem_cleanup_stolen(struct drm_device *dev)
 int i915_gem_init_stolen(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	int bios_reserved = 0;
 
 	dev_priv->mm.stolen_base = i915_stolen_to_physical(dev);
 	if (dev_priv->mm.stolen_base == 0)
@@ -191,8 +195,12 @@ int i915_gem_init_stolen(struct drm_device *dev)
 	DRM_DEBUG_KMS("found %zd bytes of stolen memory at %08lx\n",
 		      dev_priv->gtt.stolen_size, dev_priv->mm.stolen_base);
 
+	if (IS_VALLEYVIEW(dev))
+		bios_reserved = 1024*1024; /* top 1M on VLV/BYT */
+
 	/* Basic memrange allocator for stolen space */
-	drm_mm_init(&dev_priv->mm.stolen, 0, dev_priv->gtt.stolen_size);
+	drm_mm_init(&dev_priv->mm.stolen, 0, dev_priv->gtt.stolen_size -
+		    bios_reserved);
 
 	return 0;
 }
