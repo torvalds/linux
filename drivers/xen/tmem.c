@@ -49,10 +49,8 @@ __setup("nocleancache", no_cleancache);
 
 #ifdef CONFIG_FRONTSWAP
 static bool disable_frontswap __read_mostly;
-static bool disable_frontswap_selfshrinking __read_mostly;
 #ifdef CONFIG_XEN_TMEM_MODULE
 module_param(disable_frontswap, bool, S_IRUGO);
-module_param(disable_frontswap_selfshrinking, bool, S_IRUGO);
 #else
 static int __init no_frontswap(char *s)
 {
@@ -61,8 +59,15 @@ static int __init no_frontswap(char *s)
 }
 __setup("nofrontswap", no_frontswap);
 #endif
-#else /* CONFIG_FRONTSWAP */
+#endif /* CONFIG_FRONTSWAP */
+
+#ifdef CONFIG_FRONTSWAP
+static bool disable_frontswap_selfshrinking __read_mostly;
+#ifdef CONFIG_XEN_TMEM_MODULE
+module_param(disable_frontswap_selfshrinking, bool, S_IRUGO);
+#else
 #define disable_frontswap_selfshrinking 1
+#endif
 #endif /* CONFIG_FRONTSWAP */
 
 #define TMEM_CONTROL               0
