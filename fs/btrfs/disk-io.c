@@ -3808,7 +3808,7 @@ static int btrfs_destroy_marked_extents(struct btrfs_root *root,
 		while (start <= end) {
 			eb = btrfs_find_tree_block(root, start,
 						   root->leafsize);
-			start += eb->len;
+			start += root->leafsize;
 			if (!eb)
 				continue;
 			wait_on_extent_buffer_writeback(eb);
