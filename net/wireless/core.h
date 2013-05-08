@@ -164,10 +164,6 @@ int get_wiphy_idx(struct wiphy *wiphy);
 /* requires cfg80211_rdev_mutex to be held! */
 struct wiphy *wiphy_idx_to_wiphy(int wiphy_idx);
 
-/* identical to cfg80211_get_dev_from_info but only operate on ifindex */
-extern struct cfg80211_registered_device *
-cfg80211_get_dev_from_ifindex(struct net *net, int ifindex);
-
 int cfg80211_switch_netns(struct cfg80211_registered_device *rdev,
 			  struct net *net);
 

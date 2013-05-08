@@ -90,27 +90,6 @@ struct wiphy *wiphy_idx_to_wiphy(int wiphy_idx)
 	return &rdev->wiphy;
 }
 
-struct cfg80211_registered_device *
-cfg80211_get_dev_from_ifindex(struct net *net, int ifindex)
-{
-	struct cfg80211_registered_device *rdev = ERR_PTR(-ENODEV);
-	struct net_device *dev;
-
-	mutex_lock(&cfg80211_mutex);
-	dev = dev_get_by_index(net, ifindex);
-	if (!dev)
-		goto out;
-	if (dev->ieee80211_ptr) {
-		rdev = wiphy_to_dev(dev->ieee80211_ptr->wiphy);
-		mutex_lock(&rdev->mtx);
-	} else
-		rdev = ERR_PTR(-ENODEV);
-	dev_put(dev);
- out:
-	mutex_unlock(&cfg80211_mutex);
-	return rdev;
-}
-
 /* requires cfg80211_mutex to be held */
 int cfg80211_dev_rename(struct cfg80211_registered_device *rdev,
 			char *newname)

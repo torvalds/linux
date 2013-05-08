@@ -1040,6 +1040,27 @@ void cfg80211_unlink_bss(struct wiphy *wiphy, struct cfg80211_bss *pub)
 EXPORT_SYMBOL(cfg80211_unlink_bss);
 
 #ifdef CONFIG_CFG80211_WEXT
+static struct cfg80211_registered_device *
+cfg80211_get_dev_from_ifindex(struct net *net, int ifindex)
+{
+	struct cfg80211_registered_device *rdev = ERR_PTR(-ENODEV);
+	struct net_device *dev;
+
+	mutex_lock(&cfg80211_mutex);
+	dev = dev_get_by_index(net, ifindex);
+	if (!dev)
+		goto out;
+	if (dev->ieee80211_ptr) {
+		rdev = wiphy_to_dev(dev->ieee80211_ptr->wiphy);
+		mutex_lock(&rdev->mtx);
+	} else
+		rdev = ERR_PTR(-ENODEV);
+	dev_put(dev);
+ out:
+	mutex_unlock(&cfg80211_mutex);
+	return rdev;
+}
+
 int cfg80211_wext_siwscan(struct net_device *dev,
 			  struct iw_request_info *info,
 			  union iwreq_data *wrqu, char *extra)
