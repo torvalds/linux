@@ -5981,7 +5981,7 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 	for_each_encoder_on_crtc(dev, crtc, encoder) {
 		switch (encoder->type) {
 		case INTEL_OUTPUT_EDP:
-			if (!intel_encoder_is_pch_edp(&encoder->base))
+			if (enc_to_dig_port(&encoder->base)->port == PORT_A)
 				is_cpu_edp = true;
 			break;
 		}
