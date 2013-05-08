@@ -654,12 +654,26 @@ static void mga_g200wb_commit(struct drm_crtc *crtc)
 	WREG_DAC(MGA1064_GEN_IO_DATA, tmp);
 }
 
-
+/*
+   This is how the framebuffer base address is stored in g200 cards:
+   * Assume @offset is the gpu_addr variable of the framebuffer object
+   * Then addr is the number of _pixels_ (not bytes) from the start of
+     VRAM to the first pixel we want to display. (divided by 2 for 32bit
+     framebuffers)
+   * addr is stored in the CRTCEXT0, CRTCC and CRTCD registers
+   addr<20> -> CRTCEXT0<6>
+   addr<19-16> -> CRTCEXT0<3-0>
+   addr<15-8> -> CRTCC<7-0>
+   addr<7-0> -> CRTCD<7-0>
+   CRTCEXT0 has to be programmed last to trigger an update and make the
+   new addr variable take effect.
+ */
 void mga_set_start_address(struct drm_crtc *crtc, unsigned offset)
 {
 	struct mga_device *mdev = crtc->dev->dev_private;
 	u32 addr;
 	int count;
+	u8 crtcext0;
 
 	while (RREG8(0x1fda) & 0x08);
 	while (!(RREG8(0x1fda) & 0x08));
@@ -667,10 +681,17 @@ void mga_set_start_address(struct drm_crtc *crtc, unsigned offset)
 	count = RREG8(MGAREG_VCOUNT) + 2;
 	while (RREG8(MGAREG_VCOUNT) < count);
 
-	addr = offset >> 2;
+	WREG8(MGAREG_CRTCEXT_INDEX, 0);
+	crtcext0 = RREG8(MGAREG_CRTCEXT_DATA);
+	crtcext0 &= 0xB0;
+	addr = offset / 8;
+	/* Can't store addresses any higher than that...
+	   but we also don't have more than 16MB of memory, so it should be fine. */
+	WARN_ON(addr > 0x1fffff);
+	crtcext0 |= (!!(addr & (1<<20)))<<6;
 	WREG_CRT(0x0d, (u8)(addr & 0xff));
 	WREG_CRT(0x0c, (u8)(addr >> 8) & 0xff);
-	WREG_CRT(0xaf, (u8)(addr >> 16) & 0xf);
+	WREG_ECRT(0x0, ((u8)(addr >> 16) & 0xf) | crtcext0);
 }
 
 
