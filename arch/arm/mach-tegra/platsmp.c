@@ -18,7 +18,6 @@
 #include <linux/jiffies.h>
 #include <linux/smp.h>
 #include <linux/io.h>
-#include <linux/irqchip/arm-gic.h>
 #include <linux/clk/tegra.h>
 
 #include <asm/cacheflush.h>
@@ -44,13 +43,6 @@ static cpumask_t tegra_cpu_init_mask;
 
 static void __cpuinit tegra_secondary_init(unsigned int cpu)
 {
-	/*
-	 * if any interrupts are already enabled for the primary
-	 * core (e.g. timer irq), then they will not have been enabled
-	 * for us: do so
-	 */
-	gic_secondary_init(0);
-
 	cpumask_set_cpu(cpu, &tegra_cpu_init_mask);
 }
 

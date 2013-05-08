@@ -33,7 +33,7 @@
 #include <linux/irqchip/arm-vic.h>
 
 #include <asm/exception.h>
-#include <asm/mach/irq.h>
+#include <asm/irq.h>
 
 #include "irqchip.h"
 

@@ -23,6 +23,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
+#include <linux/irqchip/chained_irq.h>
 #include <linux/slab.h>
 #include <linux/of_device.h>
 #include <linux/of_address.h>
@@ -33,7 +34,6 @@
 /* Since we request GPIOs from ourself */
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_data/pinctrl-nomadik.h>
-#include <asm/mach/irq.h>
 #include "pinctrl-nomadik.h"
 #include "core.h"
 

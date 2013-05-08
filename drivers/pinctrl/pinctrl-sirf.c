@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/irqdomain.h>
+#include <linux/irqchip/chained_irq.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/pinctrl/pinmux.h>
 #include <linux/pinctrl/consumer.h>
@@ -25,7 +26,6 @@
 #include <linux/bitops.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
-#include <asm/mach/irq.h>
 
 #define DRIVER_NAME "pinmux-sirf"
 
