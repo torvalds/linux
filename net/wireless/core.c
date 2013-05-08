@@ -289,7 +289,7 @@ static void cfg80211_event_work(struct work_struct *work)
 
 struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 {
-	static int wiphy_counter;
+	static atomic_t wiphy_counter = ATOMIC_INIT(0);
 
 	struct cfg80211_registered_device *rdev;
 	int alloc_size;
@@ -311,19 +311,14 @@ struct wiphy *wiphy_new(const struct cfg80211_ops *ops, int sizeof_priv)
 
 	rdev->ops = ops;
 
-	mutex_lock(&cfg80211_mutex);
-
-	rdev->wiphy_idx = wiphy_counter++;
+	rdev->wiphy_idx = atomic_inc_return(&wiphy_counter);
 
 	if (unlikely(rdev->wiphy_idx < 0)) {
-		wiphy_counter--;
-		mutex_unlock(&cfg80211_mutex);
 		/* ugh, wrapped! */
+		atomic_dec(&wiphy_counter);
 		kfree(rdev);
 		return NULL;
 	}
-
-	mutex_unlock(&cfg80211_mutex);
 
 	/* give it a proper name */
 	dev_set_name(&rdev->wiphy.dev, PHY_NAME "%d", rdev->wiphy_idx);
