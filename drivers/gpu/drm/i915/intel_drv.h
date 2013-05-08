@@ -451,7 +451,6 @@ struct intel_dp {
 	uint8_t downstream_ports[DP_MAX_DOWNSTREAM_PORTS];
 	struct i2c_adapter adapter;
 	struct i2c_algo_dp_aux_data algo;
-	bool is_pch_edp;
 	uint8_t train_set[4];
 	int panel_power_up_delay;
 	int panel_power_down_delay;
@@ -565,7 +564,6 @@ extern void ironlake_edp_panel_on(struct intel_dp *intel_dp);
 extern void ironlake_edp_panel_off(struct intel_dp *intel_dp);
 extern void ironlake_edp_panel_vdd_on(struct intel_dp *intel_dp);
 extern void ironlake_edp_panel_vdd_off(struct intel_dp *intel_dp, bool sync);
-extern bool intel_encoder_is_pch_edp(struct drm_encoder *encoder);
 extern int intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane);
 extern void intel_flush_display_plane(struct drm_i915_private *dev_priv,
 				      enum plane plane);
