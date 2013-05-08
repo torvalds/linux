@@ -496,6 +496,7 @@ level(__##fn);
 #define omap_subsys_initcall(fn)	omap_initcall(subsys_initcall, fn)
 #define omap_device_initcall(fn)	omap_initcall(device_initcall, fn)
 #define omap_late_initcall(fn)		omap_initcall(late_initcall, fn)
+#define omap_late_initcall_sync(fn)	omap_initcall(late_initcall_sync, fn)
 
 #endif	/* __ASSEMBLY__ */
 
