@@ -20,6 +20,51 @@
 #include <asm/xen/hypervisor.h>
 #include <xen/tmem.h>
 
+#ifndef CONFIG_XEN_TMEM_MODULE
+bool __read_mostly tmem_enabled = false;
+
+static int __init enable_tmem(char *s)
+{
+	tmem_enabled = true;
+	return 1;
+}
+__setup("tmem", enable_tmem);
+#endif
+
+#ifdef CONFIG_CLEANCACHE
+static bool disable_cleancache __read_mostly;
+static bool disable_selfballooning __read_mostly;
+#ifdef CONFIG_XEN_TMEM_MODULE
+module_param(disable_cleancache, bool, S_IRUGO);
+module_param(disable_selfballooning, bool, S_IRUGO);
+#else
+static int __init no_cleancache(char *s)
+{
+	disable_cleancache = true;
+	return 1;
+}
+__setup("nocleancache", no_cleancache);
+#endif
+#endif /* CONFIG_CLEANCACHE */
+
+#ifdef CONFIG_FRONTSWAP
+static bool disable_frontswap __read_mostly;
+static bool disable_frontswap_selfshrinking __read_mostly;
+#ifdef CONFIG_XEN_TMEM_MODULE
+module_param(disable_frontswap, bool, S_IRUGO);
+module_param(disable_frontswap_selfshrinking, bool, S_IRUGO);
+#else
+static int __init no_frontswap(char *s)
+{
+	disable_frontswap = true;
+	return 1;
+}
+__setup("nofrontswap", no_frontswap);
+#endif
+#else /* CONFIG_FRONTSWAP */
+#define disable_frontswap_selfshrinking 1
+#endif /* CONFIG_FRONTSWAP */
+
 #define TMEM_CONTROL               0
 #define TMEM_NEW_POOL              1
 #define TMEM_DESTROY_POOL          2
@@ -125,16 +170,6 @@ static int xen_tmem_flush_object(u32 pool_id, struct tmem_oid oid)
 	return xen_tmem_op(TMEM_FLUSH_OBJECT, pool_id, oid, 0, 0, 0, 0, 0);
 }
 
-#ifndef CONFIG_XEN_TMEM_MODULE
-bool __read_mostly tmem_enabled = false;
-
-static int __init enable_tmem(char *s)
-{
-	tmem_enabled = true;
-	return 1;
-}
-__setup("tmem", enable_tmem);
-#endif
 
 #ifdef CONFIG_CLEANCACHE
 static int xen_tmem_destroy_pool(u32 pool_id)
@@ -225,20 +260,6 @@ static int tmem_cleancache_init_shared_fs(char *uuid, size_t pagesize)
 	shared_uuid.uuid_hi = *(u64 *)(&uuid[8]);
 	return xen_tmem_new_pool(shared_uuid, TMEM_POOL_SHARED, pagesize);
 }
-
-static bool disable_cleancache __read_mostly;
-static bool disable_selfballooning __read_mostly;
-#ifdef CONFIG_XEN_TMEM_MODULE
-module_param(disable_cleancache, bool, S_IRUGO);
-module_param(disable_selfballooning, bool, S_IRUGO);
-#else
-static int __init no_cleancache(char *s)
-{
-	disable_cleancache = true;
-	return 1;
-}
-__setup("nocleancache", no_cleancache);
-#endif
 
 static struct cleancache_ops tmem_cleancache_ops = {
 	.put_page = tmem_cleancache_put_page,
@@ -357,20 +378,6 @@ static void tmem_frontswap_init(unsigned ignored)
 		    xen_tmem_new_pool(private, TMEM_POOL_PERSIST, PAGE_SIZE);
 }
 
-static bool disable_frontswap __read_mostly;
-static bool disable_frontswap_selfshrinking __read_mostly;
-#ifdef CONFIG_XEN_TMEM_MODULE
-module_param(disable_frontswap, bool, S_IRUGO);
-module_param(disable_frontswap_selfshrinking, bool, S_IRUGO);
-#else
-static int __init no_frontswap(char *s)
-{
-	disable_frontswap = true;
-	return 1;
-}
-__setup("nofrontswap", no_frontswap);
-#endif
-
 static struct frontswap_ops tmem_frontswap_ops = {
 	.store = tmem_frontswap_store,
 	.load = tmem_frontswap_load,
@@ -378,8 +385,6 @@ static struct frontswap_ops tmem_frontswap_ops = {
 	.invalidate_area = tmem_frontswap_flush_area,
 	.init = tmem_frontswap_init
 };
-#else	/* CONFIG_FRONTSWAP */
-#define disable_frontswap_selfshrinking 1
 #endif
 
 static int xen_tmem_init(void)
