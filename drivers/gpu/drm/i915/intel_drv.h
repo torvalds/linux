@@ -620,17 +620,15 @@ static inline struct intel_encoder *intel_attached_encoder(struct drm_connector 
 	return to_intel_connector(connector)->encoder;
 }
 
-static inline struct intel_dp *enc_to_intel_dp(struct drm_encoder *encoder)
-{
-	struct intel_digital_port *intel_dig_port =
-		container_of(encoder, struct intel_digital_port, base.base);
-	return &intel_dig_port->dp;
-}
-
 static inline struct intel_digital_port *
 enc_to_dig_port(struct drm_encoder *encoder)
 {
 	return container_of(encoder, struct intel_digital_port, base.base);
+}
+
+static inline struct intel_dp *enc_to_intel_dp(struct drm_encoder *encoder)
+{
+	return &enc_to_dig_port(encoder)->dp;
 }
 
 static inline struct intel_digital_port *
