@@ -57,9 +57,9 @@
  * configured, it is highly recommended that frontswap also be configured
  * and enabled when selfballooning is running.  So, selfballooning
  * is disabled by default if frontswap is not configured and can only
- * be enabled with the "selfballooning" kernel boot option; similarly
+ * be enabled with the "tmem.selfballooning=1" kernel boot option; similarly
  * selfballooning is enabled by default if frontswap is configured and
- * can be disabled with the "noselfballooning" kernel boot option.  Finally,
+ * can be disabled with the "tmem.selfballooning=0" kernel boot option.  Finally,
  * when frontswap is configured,frontswap-selfshrinking can be disabled
  * with the "tmem.selfshrink=0" kernel boot option.
  *
@@ -173,27 +173,6 @@ static void frontswap_selfshrink(void)
 	frontswap_shrink(tgt_frontswap_pages);
 }
 
-/* Disable with kernel boot option. */
-static bool use_selfballooning = true;
-
-static int __init xen_noselfballooning_setup(char *s)
-{
-	use_selfballooning = false;
-	return 1;
-}
-
-__setup("noselfballooning", xen_noselfballooning_setup);
-#else /* !CONFIG_FRONTSWAP */
-/* Enable with kernel boot option. */
-static bool use_selfballooning;
-
-static int __init xen_selfballooning_setup(char *s)
-{
-	use_selfballooning = true;
-	return 1;
-}
-
-__setup("selfballooning", xen_selfballooning_setup);
 #endif /* CONFIG_FRONTSWAP */
 
 #define MB2PAGES(mb)	((mb) << (20 - PAGE_SHIFT))
