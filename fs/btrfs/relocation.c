@@ -1773,7 +1773,7 @@ again:
 			if (!eb || !extent_buffer_uptodate(eb)) {
 				ret = (!eb) ? -ENOMEM : -EIO;
 				free_extent_buffer(eb);
-				return ret;
+				break;
 			}
 			btrfs_tree_lock(eb);
 			if (cow) {
