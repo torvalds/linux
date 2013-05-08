@@ -33,39 +33,19 @@ __setup("tmem", enable_tmem);
 
 #ifdef CONFIG_CLEANCACHE
 static bool cleancache __read_mostly = true;
-static bool selfballooning __read_mostly = true;
-#ifdef CONFIG_XEN_TMEM_MODULE
 module_param(cleancache, bool, S_IRUGO);
+static bool selfballooning __read_mostly = true;
 module_param(selfballooning, bool, S_IRUGO);
-#else
-static int __init no_cleancache(char *s)
-{
-	cleancache = false;
-	return 1;
-}
-__setup("nocleancache", no_cleancache);
-#endif
 #endif /* CONFIG_CLEANCACHE */
 
 #ifdef CONFIG_FRONTSWAP
 static bool frontswap __read_mostly = true;
-#ifdef CONFIG_XEN_TMEM_MODULE
 module_param(frontswap, bool, S_IRUGO);
-#else
-static int __init no_frontswap(char *s)
-{
-	frontswap = false;
-	return 1;
-}
-__setup("nofrontswap", no_frontswap);
-#endif
 #endif /* CONFIG_FRONTSWAP */
 
 #ifdef CONFIG_XEN_SELFBALLOONING
-static bool frontswap_selfshrinking __read_mostly = true;
-#ifdef CONFIG_XEN_TMEM_MODULE
-module_param(frontswap_selfshrinking, bool, S_IRUGO);
-#endif
+static bool selfshrinking __read_mostly = true;
+module_param(selfshrinking, bool, S_IRUGO);
 #endif /* CONFIG_XEN_SELFBALLOONING */
 
 #define TMEM_CONTROL               0
@@ -423,7 +403,7 @@ static int xen_tmem_init(void)
 	}
 #endif
 #ifdef CONFIG_XEN_SELFBALLOONING
-	xen_selfballoon_init(selfballooning, frontswap_selfshrinking);
+	xen_selfballoon_init(selfballooning, selfshrinking);
 #endif
 	return 0;
 }
