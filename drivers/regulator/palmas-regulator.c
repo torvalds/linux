@@ -840,7 +840,7 @@ static int palmas_regulators_probe(struct platform_device *pdev)
 			break;
 		}
 
-		if ((id == PALMAS_REG_SMPS6) && (id == PALMAS_REG_SMPS8))
+		if ((id == PALMAS_REG_SMPS6) || (id == PALMAS_REG_SMPS8))
 			ramp_delay_support = true;
 
 		if (ramp_delay_support) {
