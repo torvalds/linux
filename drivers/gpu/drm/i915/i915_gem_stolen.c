@@ -339,7 +339,6 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 
 	/* KISS and expect everything to be page-aligned */
 	BUG_ON(stolen_offset & 4095);
-	BUG_ON(gtt_offset & 4095);
 	BUG_ON(size & 4095);
 
 	if (WARN_ON(size == 0))
@@ -359,6 +358,10 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 		drm_mm_put_block(stolen);
 		return NULL;
 	}
+
+	/* Some objects just need physical mem from stolen space */
+	if (gtt_offset == -1)
+		return obj;
 
 	/* To simplify the initialisation sequence between KMS and GTT,
 	 * we allow construction of the stolen object prior to

@@ -2881,7 +2881,7 @@ static void valleyview_setup_pctx(struct drm_device *dev)
 		pcbr_offset = (pcbr & (~4095)) - dev_priv->mm.stolen_base;
 		pctx = i915_gem_object_create_stolen_for_preallocated(dev_priv->dev,
 								      pcbr_offset,
-								      pcbr_offset,
+								      -1,
 								      pctx_size);
 		goto out;
 	}
