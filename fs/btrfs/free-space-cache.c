@@ -920,10 +920,8 @@ static int __btrfs_write_out_cache(struct btrfs_root *root, struct inode *inode,
 
 	/* Make sure we can fit our crcs into the first page */
 	if (io_ctl.check_crcs &&
-	    (io_ctl.num_pages * sizeof(u32)) >= PAGE_CACHE_SIZE) {
-		WARN_ON(1);
+	    (io_ctl.num_pages * sizeof(u32)) >= PAGE_CACHE_SIZE)
 		goto out_nospc;
-	}
 
 	io_ctl_set_generation(&io_ctl, trans->transid);
 
