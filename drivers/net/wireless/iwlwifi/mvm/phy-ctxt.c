@@ -245,5 +245,9 @@ int iwl_mvm_phy_ctxt_changed(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
 void iwl_mvm_phy_ctxt_unref(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt)
 {
 	lockdep_assert_held(&mvm->mutex);
+
+	if (WARN_ON_ONCE(!ctxt))
+		return;
+
 	ctxt->ref--;
 }
