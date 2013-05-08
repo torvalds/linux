@@ -1827,7 +1827,7 @@ static void be_rx_cq_clean(struct be_rx_obj *rxo)
 			mdelay(1);
 		} else {
 			be_rx_compl_discard(rxo, rxcp);
-			be_cq_notify(adapter, rx_cq->id, true, 1);
+			be_cq_notify(adapter, rx_cq->id, false, 1);
 			if (rxcp->num_rcvd == 0)
 				break;
 		}
@@ -2533,11 +2533,6 @@ static void be_rx_qs_destroy(struct be_adapter *adapter)
 		q = &rxo->q;
 		if (q->created) {
 			be_cmd_rxq_destroy(adapter, q);
-			/* After the rxq is invalidated, wait for a grace time
-			 * of 1ms for all dma to end and the flush compl to
-			 * arrive
-			 */
-			mdelay(1);
 			be_rx_cq_clean(rxo);
 		}
 		be_queue_free(adapter, q);
