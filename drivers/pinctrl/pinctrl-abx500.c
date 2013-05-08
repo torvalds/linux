@@ -851,22 +851,11 @@ static int abx500_gpio_probe(struct platform_device *pdev)
 
 	if (abx500_pdata)
 		pdata = abx500_pdata->gpio;
-	if (!pdata) {
-		if (np) {
-			const struct of_device_id *match;
 
-			match = of_match_device(abx500_gpio_match, &pdev->dev);
-			if (!match)
-				return -ENODEV;
-			id = (unsigned long)match->data;
-		} else {
-			dev_err(&pdev->dev, "gpio dt and platform data missing\n");
-			return -ENODEV;
-		}
+	if (!(pdata || np)) {
+		dev_err(&pdev->dev, "gpio dt and platform data missing\n");
+		return -ENODEV;
 	}
-
-	if (platid)
-		id = platid->driver_data;
 
 	pct = devm_kzalloc(&pdev->dev, sizeof(struct abx500_pinctrl),
 				   GFP_KERNEL);
@@ -881,6 +870,16 @@ static int abx500_gpio_probe(struct platform_device *pdev)
 	pct->chip = abx500gpio_chip;
 	pct->chip.dev = &pdev->dev;
 	pct->chip.base = (np) ? -1 : pdata->gpio_base;
+
+	if (platid)
+		id = platid->driver_data;
+	else if (np) {
+		const struct of_device_id *match;
+
+		match = of_match_device(abx500_gpio_match, &pdev->dev);
+		if (match)
+			id = (unsigned long)match->data;
+	}
 
 	/* initialize the lock */
 	mutex_init(&pct->lock);
