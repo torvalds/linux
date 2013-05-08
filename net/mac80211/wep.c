@@ -28,7 +28,7 @@
 int ieee80211_wep_init(struct ieee80211_local *local)
 {
 	/* start WEP IV from a random value */
-	get_random_bytes(&local->wep_iv, WEP_IV_LEN);
+	get_random_bytes(&local->wep_iv, IEEE80211_WEP_IV_LEN);
 
 	local->wep_tx_tfm = crypto_alloc_cipher("arc4", 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(local->wep_tx_tfm)) {
@@ -98,20 +98,21 @@ static u8 *ieee80211_wep_add_iv(struct ieee80211_local *local,
 
 	hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_PROTECTED);
 
-	if (WARN_ON(skb_tailroom(skb) < WEP_ICV_LEN ||
-		    skb_headroom(skb) < WEP_IV_LEN))
+	if (WARN_ON(skb_tailroom(skb) < IEEE80211_WEP_ICV_LEN ||
+		    skb_headroom(skb) < IEEE80211_WEP_IV_LEN))
 		return NULL;
 
 	hdrlen = ieee80211_hdrlen(hdr->frame_control);
-	newhdr = skb_push(skb, WEP_IV_LEN);
-	memmove(newhdr, newhdr + WEP_IV_LEN, hdrlen);
+	newhdr = skb_push(skb, IEEE80211_WEP_IV_LEN);
+	memmove(newhdr, newhdr + IEEE80211_WEP_IV_LEN, hdrlen);
 
 	/* the HW only needs room for the IV, but not the actual IV */
 	if (info->control.hw_key &&
 	    (info->control.hw_key->flags & IEEE80211_KEY_FLAG_PUT_IV_SPACE))
 		return newhdr + hdrlen;
 
-	skb_set_network_header(skb, skb_network_offset(skb) + WEP_IV_LEN);
+	skb_set_network_header(skb, skb_network_offset(skb) +
+				    IEEE80211_WEP_IV_LEN);
 	ieee80211_wep_get_iv(local, keylen, keyidx, newhdr + hdrlen);
 	return newhdr + hdrlen;
 }
@@ -125,8 +126,8 @@ static void ieee80211_wep_remove_iv(struct ieee80211_local *local,
 	unsigned int hdrlen;
 
 	hdrlen = ieee80211_hdrlen(hdr->frame_control);
-	memmove(skb->data + WEP_IV_LEN, skb->data, hdrlen);
-	skb_pull(skb, WEP_IV_LEN);
+	memmove(skb->data + IEEE80211_WEP_IV_LEN, skb->data, hdrlen);
+	skb_pull(skb, IEEE80211_WEP_IV_LEN);
 }
 
 
@@ -146,7 +147,7 @@ int ieee80211_wep_encrypt_data(struct crypto_cipher *tfm, u8 *rc4key,
 	put_unaligned(icv, (__le32 *)(data + data_len));
 
 	crypto_cipher_setkey(tfm, rc4key, klen);
-	for (i = 0; i < data_len + WEP_ICV_LEN; i++)
+	for (i = 0; i < data_len + IEEE80211_WEP_ICV_LEN; i++)
 		crypto_cipher_encrypt_one(tfm, data + i, data + i);
 
 	return 0;
@@ -172,7 +173,7 @@ int ieee80211_wep_encrypt(struct ieee80211_local *local,
 	if (!iv)
 		return -1;
 
-	len = skb->len - (iv + WEP_IV_LEN - skb->data);
+	len = skb->len - (iv + IEEE80211_WEP_IV_LEN - skb->data);
 
 	/* Prepend 24-bit IV to RC4 key */
 	memcpy(rc4key, iv, 3);
@@ -181,10 +182,10 @@ int ieee80211_wep_encrypt(struct ieee80211_local *local,
 	memcpy(rc4key + 3, key, keylen);
 
 	/* Add room for ICV */
-	skb_put(skb, WEP_ICV_LEN);
+	skb_put(skb, IEEE80211_WEP_ICV_LEN);
 
 	return ieee80211_wep_encrypt_data(local->wep_tx_tfm, rc4key, keylen + 3,
-					  iv + WEP_IV_LEN, len);
+					  iv + IEEE80211_WEP_IV_LEN, len);
 }
 
 
@@ -201,11 +202,11 @@ int ieee80211_wep_decrypt_data(struct crypto_cipher *tfm, u8 *rc4key,
 		return -1;
 
 	crypto_cipher_setkey(tfm, rc4key, klen);
-	for (i = 0; i < data_len + WEP_ICV_LEN; i++)
+	for (i = 0; i < data_len + IEEE80211_WEP_ICV_LEN; i++)
 		crypto_cipher_decrypt_one(tfm, data + i, data + i);
 
 	crc = cpu_to_le32(~crc32_le(~0, data, data_len));
-	if (memcmp(&crc, data + data_len, WEP_ICV_LEN) != 0)
+	if (memcmp(&crc, data + data_len, IEEE80211_WEP_ICV_LEN) != 0)
 		/* ICV mismatch */
 		return -1;
 
@@ -237,10 +238,10 @@ static int ieee80211_wep_decrypt(struct ieee80211_local *local,
 		return -1;
 
 	hdrlen = ieee80211_hdrlen(hdr->frame_control);
-	if (skb->len < hdrlen + WEP_IV_LEN + WEP_ICV_LEN)
+	if (skb->len < hdrlen + IEEE80211_WEP_IV_LEN + IEEE80211_WEP_ICV_LEN)
 		return -1;
 
-	len = skb->len - hdrlen - WEP_IV_LEN - WEP_ICV_LEN;
+	len = skb->len - hdrlen - IEEE80211_WEP_IV_LEN - IEEE80211_WEP_ICV_LEN;
 
 	keyidx = skb->data[hdrlen + 3] >> 6;
 
@@ -256,16 +257,16 @@ static int ieee80211_wep_decrypt(struct ieee80211_local *local,
 	memcpy(rc4key + 3, key->conf.key, key->conf.keylen);
 
 	if (ieee80211_wep_decrypt_data(local->wep_rx_tfm, rc4key, klen,
-				       skb->data + hdrlen + WEP_IV_LEN,
-				       len))
+				       skb->data + hdrlen +
+				       IEEE80211_WEP_IV_LEN, len))
 		ret = -1;
 
 	/* Trim ICV */
-	skb_trim(skb, skb->len - WEP_ICV_LEN);
+	skb_trim(skb, skb->len - IEEE80211_WEP_ICV_LEN);
 
 	/* Remove IV */
-	memmove(skb->data + WEP_IV_LEN, skb->data, hdrlen);
-	skb_pull(skb, WEP_IV_LEN);
+	memmove(skb->data + IEEE80211_WEP_IV_LEN, skb->data, hdrlen);
+	skb_pull(skb, IEEE80211_WEP_IV_LEN);
 
 	return ret;
 }
@@ -305,13 +306,14 @@ ieee80211_crypto_wep_decrypt(struct ieee80211_rx_data *rx)
 		if (ieee80211_wep_decrypt(rx->local, rx->skb, rx->key))
 			return RX_DROP_UNUSABLE;
 	} else if (!(status->flag & RX_FLAG_IV_STRIPPED)) {
-		if (!pskb_may_pull(rx->skb, ieee80211_hdrlen(fc) + WEP_IV_LEN))
+		if (!pskb_may_pull(rx->skb, ieee80211_hdrlen(fc) +
+					    IEEE80211_WEP_IV_LEN))
 			return RX_DROP_UNUSABLE;
 		if (rx->sta && ieee80211_wep_is_weak_iv(rx->skb, rx->key))
 			rx->sta->wep_weak_iv_count++;
 		ieee80211_wep_remove_iv(rx->local, rx->skb, rx->key);
 		/* remove ICV */
-		if (pskb_trim(rx->skb, rx->skb->len - WEP_ICV_LEN))
+		if (pskb_trim(rx->skb, rx->skb->len - IEEE80211_WEP_ICV_LEN))
 			return RX_DROP_UNUSABLE;
 	}
 
