@@ -2980,23 +2980,34 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 		if (intel_dpd_is_edp(dev))
 			intel_dp->is_pch_edp = true;
 
+	type = DRM_MODE_CONNECTOR_DisplayPort;
 	/*
 	 * FIXME : We need to initialize built-in panels before external panels.
 	 * For X0, DP_C is fixed as eDP. Revisit this as part of VLV eDP cleanup
 	 */
-	if (IS_VALLEYVIEW(dev) && port == PORT_C) {
+	switch (port) {
+	case PORT_A:
 		type = DRM_MODE_CONNECTOR_eDP;
-		intel_encoder->type = INTEL_OUTPUT_EDP;
-	} else if (port == PORT_A || is_pch_edp(intel_dp)) {
-		type = DRM_MODE_CONNECTOR_eDP;
-		intel_encoder->type = INTEL_OUTPUT_EDP;
-	} else {
-		/* The intel_encoder->type value may be INTEL_OUTPUT_UNKNOWN for
-		 * DDI or INTEL_OUTPUT_DISPLAYPORT for the older gens, so don't
-		 * rewrite it.
-		 */
-		type = DRM_MODE_CONNECTOR_DisplayPort;
+		break;
+	case PORT_C:
+		if (IS_VALLEYVIEW(dev))
+			type = DRM_MODE_CONNECTOR_eDP;
+		break;
+	case PORT_D:
+		if (HAS_PCH_SPLIT(dev) && intel_dpd_is_edp(dev))
+			type = DRM_MODE_CONNECTOR_eDP;
+		break;
+	default:	/* silence GCC warning */
+		break;
 	}
+
+	/*
+	 * For eDP we always set the encoder type to INTEL_OUTPUT_EDP, but
+	 * for DP the encoder type can be set by the caller to
+	 * INTEL_OUTPUT_UNKNOWN for DDI, so don't rewrite it.
+	 */
+	if (type == DRM_MODE_CONNECTOR_eDP)
+		intel_encoder->type = INTEL_OUTPUT_EDP;
 
 	drm_connector_init(dev, connector, &intel_dp_connector_funcs, type);
 	drm_connector_helper_add(connector, &intel_dp_connector_helper_funcs);
