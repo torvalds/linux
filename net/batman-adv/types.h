@@ -24,13 +24,6 @@
 #include "bitarray.h"
 #include <linux/kernel.h>
 
-/**
- * Maximum overhead for the encapsulation for a payload packet
- */
-#define BATADV_HEADER_LEN \
-	(ETH_HLEN + max(sizeof(struct batadv_unicast_packet), \
-			sizeof(struct batadv_bcast_packet)))
-
 #ifdef CONFIG_BATMAN_ADV_DAT
 
 /* batadv_dat_addr_t is the type used for all DHT addresses. If it is changed,
