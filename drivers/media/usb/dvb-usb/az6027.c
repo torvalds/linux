@@ -264,7 +264,7 @@ struct stb0899_config az6027_stb0899_config = {
 	.demod_address 		= 0xd0, /* 0x68, 0xd0 >> 1 */
 
 	.xtal_freq		= 27000000,
-	.inversion		= IQ_SWAP_ON, /* 1 */
+	.inversion		= IQ_SWAP_ON,
 
 	.lo_clk			= 76500000,
 	.hi_clk			= 99000000,
