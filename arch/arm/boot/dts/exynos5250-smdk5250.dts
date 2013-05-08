@@ -214,7 +214,7 @@
 	};
 
 	usb@12110000 {
-		samsung,vbus-gpio = <&gpx2 6 1 3 3>;
+		samsung,vbus-gpio = <&gpx2 6 0>;
 	};
 
 	dp-controller {
