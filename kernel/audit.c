@@ -1388,7 +1388,7 @@ void audit_log_session_info(struct audit_buffer *ab)
 	u32 sessionid = audit_get_sessionid(current);
 	uid_t auid = from_kuid(&init_user_ns, audit_get_loginuid(current));
 
-	audit_log_format(ab, "auid=%u ses=%u\n", auid, sessionid);
+	audit_log_format(ab, " auid=%u ses=%u\n", auid, sessionid);
 }
 
 void audit_log_key(struct audit_buffer *ab, char *key)
