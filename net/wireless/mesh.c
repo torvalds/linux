@@ -82,6 +82,7 @@ const struct mesh_setup default_mesh_setup = {
 	.sync_method = IEEE80211_SYNC_METHOD_NEIGHBOR_OFFSET,
 	.path_sel_proto = IEEE80211_PATH_PROTOCOL_HWMP,
 	.path_metric = IEEE80211_PATH_METRIC_AIRTIME,
+	.auth_id = 0, /* open */
 	.ie = NULL,
 	.ie_len = 0,
 	.is_secure = false,

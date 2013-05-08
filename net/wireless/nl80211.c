@@ -4672,6 +4672,7 @@ static const struct nla_policy
 	[NL80211_MESH_SETUP_ENABLE_VENDOR_PATH_SEL] = { .type = NLA_U8 },
 	[NL80211_MESH_SETUP_ENABLE_VENDOR_METRIC] = { .type = NLA_U8 },
 	[NL80211_MESH_SETUP_USERSPACE_AUTH] = { .type = NLA_FLAG },
+	[NL80211_MESH_SETUP_AUTH_PROTOCOL] = { .type = NLA_U8 },
 	[NL80211_MESH_SETUP_USERSPACE_MPM] = { .type = NLA_FLAG },
 	[NL80211_MESH_SETUP_IE] = { .type = NLA_BINARY,
 				    .len = IEEE80211_MAX_DATA_LEN },
@@ -4856,6 +4857,13 @@ static int nl80211_parse_mesh_setup(struct genl_info *info,
 	setup->is_secure = nla_get_flag(tb[NL80211_MESH_SETUP_USERSPACE_AMPE]);
 	if (setup->is_secure)
 		setup->user_mpm = true;
+
+	if (tb[NL80211_MESH_SETUP_AUTH_PROTOCOL]) {
+		if (!setup->user_mpm)
+			return -EINVAL;
+		setup->auth_id =
+			nla_get_u8(tb[NL80211_MESH_SETUP_AUTH_PROTOCOL]);
+	}
 
 	return 0;
 }
