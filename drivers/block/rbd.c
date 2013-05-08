@@ -1357,13 +1357,6 @@ static void rbd_obj_request_put(struct rbd_obj_request *obj_request)
 	kref_put(&obj_request->kref, rbd_obj_request_destroy);
 }
 
-static void rbd_img_request_get(struct rbd_img_request *img_request)
-{
-	dout("%s: img %p (was %d)\n", __func__, img_request,
-		atomic_read(&img_request->kref.refcount));
-	kref_get(&img_request->kref);
-}
-
 static void rbd_img_request_destroy(struct kref *kref);
 static void rbd_img_request_put(struct rbd_img_request *img_request)
 {
@@ -1887,9 +1880,6 @@ static struct rbd_img_request *rbd_img_request_create(
 	img_request->obj_request_count = 0;
 	INIT_LIST_HEAD(&img_request->obj_requests);
 	kref_init(&img_request->kref);
-
-	rbd_img_request_get(img_request);	/* Avoid a warning */
-	rbd_img_request_put(img_request);	/* TEMPORARY */
 
 	dout("%s: rbd_dev %p %s %llu/%llu -> img %p\n", __func__, rbd_dev,
 		write_request ? "write" : "read", offset, length,
