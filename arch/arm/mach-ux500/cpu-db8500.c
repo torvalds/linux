@@ -206,7 +206,7 @@ static struct device * __init db8500_soc_device_init(void)
 /*
  * This function is called from the board init
  */
-struct device * __init u8500_init_devices(struct ab8500_platform_data *ab8500)
+struct device * __init u8500_init_devices(void)
 {
 	struct device *parent;
 	int i;
@@ -219,8 +219,6 @@ struct device * __init u8500_init_devices(struct ab8500_platform_data *ab8500)
 
 	for (i = 0; i < ARRAY_SIZE(platform_devs); i++)
 		platform_devs[i]->dev.parent = parent;
-
-	db8500_prcmu_device.dev.platform_data = ab8500;
 
 	platform_add_devices(platform_devs, ARRAY_SIZE(platform_devs));
 
