@@ -83,14 +83,14 @@
 
 				plla: plla {
 					#clock-cells = <0>;
-					compatible = "wm,wm8750-pll-clock";
+					compatible = "wm,wm8850-pll-clock";
 					clocks = <&ref25>;
 					reg = <0x200>;
 				};
 
 				pllb: pllb {
 					#clock-cells = <0>;
-					compatible = "wm,wm8750-pll-clock";
+					compatible = "wm,wm8850-pll-clock";
 					clocks = <&ref25>;
 					reg = <0x204>;
 				};
