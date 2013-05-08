@@ -15,22 +15,29 @@
 #include <linux/clk-provider.h>
 #include <linux/err.h>
 #include <linux/module.h>
+#include <linux/platform_data/clk-lpss.h>
 #include <linux/platform_device.h>
 
 #define PRV_CLOCK_PARAMS 0x800
 
 static int lpt_clk_probe(struct platform_device *pdev)
 {
+	struct lpss_clk_data *drvdata;
 	struct clk *clk;
 
+	drvdata = devm_kzalloc(&pdev->dev, sizeof(*drvdata), GFP_KERNEL);
+	if (!drvdata)
+		return -ENOMEM;
+
 	/* LPSS free running clock */
-	clk = clk_register_fixed_rate(&pdev->dev, "lpss_clk", NULL, CLK_IS_ROOT,
-				      100000000);
+	drvdata->name = "lpss_clk";
+	clk = clk_register_fixed_rate(&pdev->dev, drvdata->name, NULL,
+				      CLK_IS_ROOT, 100000000);
 	if (IS_ERR(clk))
 		return PTR_ERR(clk);
 
-	/* Shared DMA clock */
-	clk_register_clkdev(clk, "hclk", "INTL9C60.0.auto");
+	drvdata->clk = clk;
+	platform_set_drvdata(pdev, drvdata);
 	return 0;
 }
 
