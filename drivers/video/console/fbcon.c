@@ -3621,8 +3621,8 @@ static void __exit fb_console_exit(void)
 	fbcon_deinit_device();
 	device_destroy(fb_class, MKDEV(0, 0));
 	fbcon_exit();
+	do_unregister_con_driver(&fb_con);
 	console_unlock();
-	unregister_con_driver(&fb_con);
 }	
 
 module_exit(fb_console_exit);
