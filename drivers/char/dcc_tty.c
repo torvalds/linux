@@ -26,7 +26,7 @@ MODULE_DESCRIPTION("DCC TTY Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("1.0");
 
-static spinlock_t g_dcc_tty_lock = SPIN_LOCK_UNLOCKED;
+DEFINE_SPINLOCK(g_dcc_tty_lock);
 static struct hrtimer g_dcc_timer;
 static char g_dcc_buffer[16];
 static int g_dcc_buffer_head;
@@ -80,8 +80,8 @@ static void dcc_poll_locked(void)
 		);
 		if (rch >= 0) {
 			ch = rch;
-			tty_insert_flip_string(g_dcc_tty, &ch, 1);
-			tty_flip_buffer_push(g_dcc_tty);
+			tty_insert_flip_string(g_dcc_tty->port, &ch, 1);
+			tty_flip_buffer_push(g_dcc_tty->port);
 		}
 	}
 
