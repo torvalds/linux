@@ -121,6 +121,7 @@ int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
 		connector->helper_private;
 	int count = 0;
 	int mode_flags = 0;
+	bool verbose_prune = true;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n", connector->base.id,
 			drm_get_connector_name(connector));
@@ -149,6 +150,7 @@ int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
 		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] disconnected\n",
 			connector->base.id, drm_get_connector_name(connector));
 		drm_mode_connector_update_edid_property(connector, NULL);
+		verbose_prune = false;
 		goto prune;
 	}
 
@@ -182,7 +184,7 @@ int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
 	}
 
 prune:
-	drm_mode_prune_invalid(dev, &connector->modes, true);
+	drm_mode_prune_invalid(dev, &connector->modes, verbose_prune);
 
 	if (list_empty(&connector->modes))
 		return 0;
