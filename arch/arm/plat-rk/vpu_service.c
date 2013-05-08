@@ -439,6 +439,10 @@ static vpu_reg *reg_init(vpu_session *session, void __user *src, unsigned long s
 		return NULL;
 	}
 
+	if (size > service.reg_size) {
+		printk("warning: vpu reg size %lu is larger than hw reg size %lu\n", size, service.reg_size);
+		size = service.reg_size;
+	}
 	reg->session = session;
 	reg->type = session->type;
 	reg->size = size;
@@ -807,7 +811,6 @@ static long vpu_service_ioctl(struct file *filp, unsigned int cmd, unsigned long
 			pr_err("error: VPU_IOC_SET_REG copy_from_user failed\n");
 			return -EFAULT;
 		}
-
 		reg = reg_init(session, (void __user *)req.req, req.size);
 		if (NULL == reg) {
 			return -EFAULT;
