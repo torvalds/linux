@@ -11,11 +11,7 @@
 #include <linux/init.h>
 #include <linux/pagemap.h>
 #include <linux/cleancache.h>
-
-/* temporary ifdef until include/linux/frontswap.h is upstream */
-#ifdef CONFIG_FRONTSWAP
 #include <linux/frontswap.h>
-#endif
 
 #include <xen/xen.h>
 #include <xen/interface/xen.h>
