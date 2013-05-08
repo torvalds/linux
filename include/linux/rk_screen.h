@@ -149,7 +149,7 @@ typedef struct rk29fb_screen {
 	bool s_clk_inv;
 #endif
 
-#if defined(CONFIG_RK616_VIF)
+#if defined(CONFIG_MFD_RK616)
 	u32 pll_cfg_val;  //bellow are for jettaB
 	u32 frac;
 	u16 scl_vst;
