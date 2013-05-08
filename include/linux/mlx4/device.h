@@ -896,11 +896,12 @@ static inline int map_hw_to_sw_id(u16 header_id)
 }
 
 enum mlx4_net_trans_promisc_mode {
-	MLX4_FS_PROMISC_NONE = 0,
-	MLX4_FS_PROMISC_UPLINK,
-	/* For future use. Not implemented yet */
-	MLX4_FS_PROMISC_FUNCTION_PORT,
-	MLX4_FS_PROMISC_ALL_MULTI,
+	MLX4_FS_REGULAR = 1,
+	MLX4_FS_ALL_DEFAULT,
+	MLX4_FS_MC_DEFAULT,
+	MLX4_FS_UC_SNIFFER,
+	MLX4_FS_MC_SNIFFER,
+	MLX4_FS_MODE_NUM, /* should be last */
 };
 
 struct mlx4_spec_eth {
@@ -929,7 +930,7 @@ struct mlx4_spec_ipv4 {
 };
 
 struct mlx4_spec_ib {
-	__be32	r_qpn;
+	__be32  l3_qpn;
 	__be32	qpn_msk;
 	u8	dst_gid[16];
 	u8	dst_gid_msk[16];
@@ -960,6 +961,92 @@ struct mlx4_net_trans_rule {
 	u8	port;
 	u16	priority;
 	u32	qpn;
+};
+
+struct mlx4_net_trans_rule_hw_ctrl {
+	__be16 prio;
+	u8 type;
+	u8 flags;
+	u8 rsvd1;
+	u8 funcid;
+	u8 vep;
+	u8 port;
+	__be32 qpn;
+	__be32 rsvd2;
+};
+
+struct mlx4_net_trans_rule_hw_ib {
+	u8 size;
+	u8 rsvd1;
+	__be16 id;
+	u32 rsvd2;
+	__be32 l3_qpn;
+	__be32 qpn_mask;
+	u8 dst_gid[16];
+	u8 dst_gid_msk[16];
+} __packed;
+
+struct mlx4_net_trans_rule_hw_eth {
+	u8	size;
+	u8	rsvd;
+	__be16	id;
+	u8	rsvd1[6];
+	u8	dst_mac[6];
+	u16	rsvd2;
+	u8	dst_mac_msk[6];
+	u16	rsvd3;
+	u8	src_mac[6];
+	u16	rsvd4;
+	u8	src_mac_msk[6];
+	u8      rsvd5;
+	u8      ether_type_enable;
+	__be16  ether_type;
+	__be16  vlan_tag_msk;
+	__be16  vlan_tag;
+} __packed;
+
+struct mlx4_net_trans_rule_hw_tcp_udp {
+	u8	size;
+	u8	rsvd;
+	__be16	id;
+	__be16	rsvd1[3];
+	__be16	dst_port;
+	__be16	rsvd2;
+	__be16	dst_port_msk;
+	__be16	rsvd3;
+	__be16	src_port;
+	__be16	rsvd4;
+	__be16	src_port_msk;
+} __packed;
+
+struct mlx4_net_trans_rule_hw_ipv4 {
+	u8	size;
+	u8	rsvd;
+	__be16	id;
+	__be32	rsvd1;
+	__be32	dst_ip;
+	__be32	dst_ip_msk;
+	__be32	src_ip;
+	__be32	src_ip_msk;
+} __packed;
+
+struct _rule_hw {
+	union {
+		struct {
+			u8 size;
+			u8 rsvd;
+			__be16 id;
+		};
+		struct mlx4_net_trans_rule_hw_eth eth;
+		struct mlx4_net_trans_rule_hw_ib ib;
+		struct mlx4_net_trans_rule_hw_ipv4 ipv4;
+		struct mlx4_net_trans_rule_hw_tcp_udp tcp_udp;
+	};
+};
+
+/* translating DMFS verbs sniffer rule to the FW API would need two reg IDs */
+struct mlx4_flow_handle {
+	u64 reg_id[2];
 };
 
 int mlx4_flow_steer_promisc_add(struct mlx4_dev *dev, u8 port, u32 qpn,
@@ -1011,6 +1098,11 @@ void mlx4_counter_free(struct mlx4_dev *dev, u32 idx);
 int mlx4_flow_attach(struct mlx4_dev *dev,
 		     struct mlx4_net_trans_rule *rule, u64 *reg_id);
 int mlx4_flow_detach(struct mlx4_dev *dev, u64 reg_id);
+int mlx4_map_sw_to_hw_steering_mode(struct mlx4_dev *dev,
+				    enum mlx4_net_trans_promisc_mode flow_type);
+int mlx4_map_sw_to_hw_steering_id(struct mlx4_dev *dev,
+				  enum mlx4_net_trans_rule_id id);
+int mlx4_hw_rule_sz(struct mlx4_dev *dev, enum mlx4_net_trans_rule_id id);
 
 void mlx4_sync_pkey_table(struct mlx4_dev *dev, int slave, int port,
 			  int i, int val);
