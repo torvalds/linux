@@ -7,6 +7,12 @@
 static char edid_result = 0;
 
 
+static int rk616_hdmi_set_vif(rk_screen * screen,bool connect)
+{
+	rk616_set_vif(g_rk616_hdmi,screen,connect);
+	return 0;
+}
+
 static int rk616_hdmi_init_pol_set(struct mfd_rk616 * rk616,int pol)
 {
 	u32 val;
@@ -462,7 +468,7 @@ int rk616_hdmi_initial(void)
 	hdmi->config_audio = rk616_hdmi_config_audio;
 	hdmi->detect_hotplug = rk616_hdmi_detect_hotplug;
 	hdmi->read_edid = rk616_hdmi_read_edid;
-	hdmi->set_vif = rk616_set_vif;
+	hdmi->set_vif = rk616_hdmi_set_vif;
 	
 	rk616_hdmi_reset();
 
