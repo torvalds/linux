@@ -1620,6 +1620,13 @@ W:	http://www.baycom.org/~tom/ham/ham.html
 S:	Maintained
 F:	drivers/net/hamradio/baycom*
 
+BCACHE (BLOCK LAYER CACHE)
+M:	Kent Overstreet <koverstreet@google.com>
+L:	linux-bcache@vger.kernel.org
+W:	http://bcache.evilpiepirate.org
+S:	Maintained:
+F:	drivers/md/bcache/
+
 BEFS FILE SYSTEM
 S:	Orphan
 F:	Documentation/filesystems/befs.txt
