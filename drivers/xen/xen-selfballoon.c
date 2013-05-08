@@ -60,8 +60,8 @@
  * be enabled with the "selfballooning" kernel boot option; similarly
  * selfballooning is enabled by default if frontswap is configured and
  * can be disabled with the "noselfballooning" kernel boot option.  Finally,
- * when frontswap is configured, frontswap-selfshrinking can be disabled
- * with the "noselfshrink" kernel boot option.
+ * when frontswap is configured,frontswap-selfshrinking can be disabled
+ * with the "tmem.selfshrink=0" kernel boot option.
  *
  * Selfballooning is disallowed in domain0 and force-disabled.
  *
@@ -120,9 +120,6 @@ static DECLARE_DELAYED_WORK(selfballoon_worker, selfballoon_process);
 /* Enable/disable with sysfs. */
 static bool frontswap_selfshrinking __read_mostly;
 
-/* Enable/disable with kernel boot option. */
-static bool use_frontswap_selfshrink = true;
-
 /*
  * The default values for the following parameters were deemed reasonable
  * by experimentation, may be workload-dependent, and can all be
@@ -175,14 +172,6 @@ static void frontswap_selfshrink(void)
 			(cur_frontswap_pages / frontswap_hysteresis);
 	frontswap_shrink(tgt_frontswap_pages);
 }
-
-static int __init xen_nofrontswap_selfshrink_setup(char *s)
-{
-	use_frontswap_selfshrink = false;
-	return 1;
-}
-
-__setup("noselfshrink", xen_nofrontswap_selfshrink_setup);
 
 /* Disable with kernel boot option. */
 static bool use_selfballooning = true;

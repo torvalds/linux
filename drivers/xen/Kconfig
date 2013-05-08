@@ -22,7 +22,7 @@ config XEN_SELFBALLOONING
 	  ballooning is disabled by default but can be enabled with the
 	  'selfballooning' kernel boot parameter.  If FRONTSWAP is configured,
 	  frontswap-selfshrinking is enabled by default but can be disabled
-	  with the 'noselfshrink' kernel boot parameter; and self-ballooning
+	  with the 'tmem.selfshrink=0' kernel boot parameter; and self-ballooning
 	  is enabled by default but can be disabled with the 'noselfballooning'
 	  kernel boot parameter.  Note that systems without a sufficiently
 	  large swap device should not enable self-ballooning.
