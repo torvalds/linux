@@ -3088,17 +3088,6 @@ err:
 };
 
 
-static int bind_con_driver(const struct consw *csw, int first, int last,
-			   int deflt)
-{
-	int ret;
-
-	console_lock();
-	ret = do_bind_con_driver(csw, first, last, deflt);
-	console_unlock();
-	return ret;
-}
-
 #ifdef CONFIG_VT_HW_CONSOLE_BINDING
 static int con_is_graphics(const struct consw *csw, int first, int last)
 {
