@@ -68,6 +68,7 @@
 enum rtc_type {
 	rtc_undef = 0,
 	rtc_r2025sd,
+	rtc_r2221tl,
 	rtc_rs5c372a,
 	rtc_rs5c372b,
 	rtc_rv5c386,
@@ -76,6 +77,7 @@ enum rtc_type {
 
 static const struct i2c_device_id rs5c372_id[] = {
 	{ "r2025sd", rtc_r2025sd },
+	{ "r2221tl", rtc_r2221tl },
 	{ "rs5c372a", rtc_rs5c372a },
 	{ "rs5c372b", rtc_rs5c372b },
 	{ "rv5c386", rtc_rv5c386 },
@@ -529,6 +531,7 @@ static int rs5c_oscillator_setup(struct rs5c372 *rs5c372)
 		rs5c372->time24 = 1;
 		break;
 	case rtc_r2025sd:
+	case rtc_r2221tl:
 	case rtc_rv5c386:
 	case rtc_rv5c387a:
 		buf[0] |= RV5C387_CTRL1_24;
@@ -609,6 +612,7 @@ static int rs5c372_probe(struct i2c_client *client,
 			rs5c372->time24 = 1;
 		break;
 	case rtc_r2025sd:
+	case rtc_r2221tl:
 	case rtc_rv5c386:
 	case rtc_rv5c387a:
 		if (rs5c372->regs[RS5C_REG_CTRL1] & RV5C387_CTRL1_24)
@@ -640,6 +644,7 @@ static int rs5c372_probe(struct i2c_client *client,
 	dev_info(&client->dev, "%s found, %s, driver version " DRV_VERSION "\n",
 			({ char *s; switch (rs5c372->type) {
 			case rtc_r2025sd:	s = "r2025sd"; break;
+			case rtc_r2221tl:	s = "r2221tl"; break;
 			case rtc_rs5c372a:	s = "rs5c372a"; break;
 			case rtc_rs5c372b:	s = "rs5c372b"; break;
 			case rtc_rv5c386:	s = "rv5c386"; break;
