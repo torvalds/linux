@@ -1257,6 +1257,7 @@ struct cfg80211_ssid {
  * @scan_start: time (in jiffies) when the scan started
  * @wdev: the wireless device to scan for
  * @aborted: (internal) scan request was notified as aborted
+ * @notified: (internal) scan request was notified as done or aborted
  * @no_cck: used to send probe requests at non CCK rate in 2GHz band
  */
 struct cfg80211_scan_request {
@@ -1274,7 +1275,7 @@ struct cfg80211_scan_request {
 	/* internal */
 	struct wiphy *wiphy;
 	unsigned long scan_start;
-	bool aborted;
+	bool aborted, notified;
 	bool no_cck;
 
 	/* keep last */
@@ -2873,8 +2874,6 @@ struct wireless_dev {
 	spinlock_t mgmt_registrations_lock;
 
 	struct mutex mtx;
-
-	struct work_struct cleanup_work;
 
 	bool use_4addr, p2p_started;
 

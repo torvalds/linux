@@ -169,7 +169,7 @@ void ___cfg80211_scan_done(struct cfg80211_registered_device *rdev, bool leak)
 	union iwreq_data wrqu;
 #endif
 
-	lockdep_assert_held(&rdev->sched_scan_mtx);
+	ASSERT_RTNL();
 
 	request = rdev->scan_req;
 
@@ -230,9 +230,9 @@ void __cfg80211_scan_done(struct work_struct *wk)
 	rdev = container_of(wk, struct cfg80211_registered_device,
 			    scan_done_wk);
 
-	mutex_lock(&rdev->sched_scan_mtx);
+	rtnl_lock();
 	___cfg80211_scan_done(rdev, false);
-	mutex_unlock(&rdev->sched_scan_mtx);
+	rtnl_unlock();
 }
 
 void cfg80211_scan_done(struct cfg80211_scan_request *request, bool aborted)
@@ -241,6 +241,7 @@ void cfg80211_scan_done(struct cfg80211_scan_request *request, bool aborted)
 	WARN_ON(request != wiphy_to_dev(request->wiphy)->scan_req);
 
 	request->aborted = aborted;
+	request->notified = true;
 	queue_work(cfg80211_wq, &wiphy_to_dev(request->wiphy)->scan_done_wk);
 }
 EXPORT_SYMBOL(cfg80211_scan_done);
@@ -255,7 +256,7 @@ void __cfg80211_sched_scan_results(struct work_struct *wk)
 
 	request = rdev->sched_scan_req;
 
-	mutex_lock(&rdev->sched_scan_mtx);
+	rtnl_lock();
 
 	/* we don't have sched_scan_req anymore if the scan is stopping */
 	if (request) {
@@ -270,7 +271,7 @@ void __cfg80211_sched_scan_results(struct work_struct *wk)
 		nl80211_send_sched_scan_results(rdev, request->dev);
 	}
 
-	mutex_unlock(&rdev->sched_scan_mtx);
+	rtnl_unlock();
 }
 
 void cfg80211_sched_scan_results(struct wiphy *wiphy)
@@ -289,9 +290,9 @@ void cfg80211_sched_scan_stopped(struct wiphy *wiphy)
 
 	trace_cfg80211_sched_scan_stopped(wiphy);
 
-	mutex_lock(&rdev->sched_scan_mtx);
+	rtnl_lock();
 	__cfg80211_stop_sched_scan(rdev, true);
-	mutex_unlock(&rdev->sched_scan_mtx);
+	rtnl_unlock();
 }
 EXPORT_SYMBOL(cfg80211_sched_scan_stopped);
 
@@ -300,7 +301,7 @@ int __cfg80211_stop_sched_scan(struct cfg80211_registered_device *rdev,
 {
 	struct net_device *dev;
 
-	lockdep_assert_held(&rdev->sched_scan_mtx);
+	ASSERT_RTNL();
 
 	if (!rdev->sched_scan_req)
 		return -ENOENT;
@@ -1043,21 +1044,19 @@ EXPORT_SYMBOL(cfg80211_unlink_bss);
 static struct cfg80211_registered_device *
 cfg80211_get_dev_from_ifindex(struct net *net, int ifindex)
 {
-	struct cfg80211_registered_device *rdev = ERR_PTR(-ENODEV);
+	struct cfg80211_registered_device *rdev;
 	struct net_device *dev;
 
-	mutex_lock(&cfg80211_mutex);
+	ASSERT_RTNL();
+
 	dev = dev_get_by_index(net, ifindex);
 	if (!dev)
-		goto out;
-	if (dev->ieee80211_ptr) {
+		return ERR_PTR(-ENODEV);
+	if (dev->ieee80211_ptr)
 		rdev = wiphy_to_dev(dev->ieee80211_ptr->wiphy);
-		mutex_lock(&rdev->mtx);
-	} else
+	else
 		rdev = ERR_PTR(-ENODEV);
 	dev_put(dev);
- out:
-	mutex_unlock(&cfg80211_mutex);
 	return rdev;
 }
 
@@ -1083,7 +1082,6 @@ int cfg80211_wext_siwscan(struct net_device *dev,
 	if (IS_ERR(rdev))
 		return PTR_ERR(rdev);
 
-	mutex_lock(&rdev->sched_scan_mtx);
 	if (rdev->scan_req) {
 		err = -EBUSY;
 		goto out;
@@ -1190,9 +1188,7 @@ int cfg80211_wext_siwscan(struct net_device *dev,
 		dev_hold(dev);
 	}
  out:
-	mutex_unlock(&rdev->sched_scan_mtx);
 	kfree(creq);
-	cfg80211_unlock_rdev(rdev);
 	return err;
 }
 EXPORT_SYMBOL_GPL(cfg80211_wext_siwscan);
@@ -1491,10 +1487,8 @@ int cfg80211_wext_giwscan(struct net_device *dev,
 	if (IS_ERR(rdev))
 		return PTR_ERR(rdev);
 
-	if (rdev->scan_req) {
-		res = -EAGAIN;
-		goto out;
-	}
+	if (rdev->scan_req)
+		return -EAGAIN;
 
 	res = ieee80211_scan_results(rdev, info, extra, data->length);
 	data->length = 0;
@@ -1503,8 +1497,6 @@ int cfg80211_wext_giwscan(struct net_device *dev,
 		res = 0;
 	}
 
- out:
-	cfg80211_unlock_rdev(rdev);
 	return res;
 }
 EXPORT_SYMBOL_GPL(cfg80211_wext_giwscan);

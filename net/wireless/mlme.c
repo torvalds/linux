@@ -313,14 +313,14 @@ int cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 {
 	int err;
 
-	mutex_lock(&rdev->devlist_mtx);
+	ASSERT_RTNL();
+
 	wdev_lock(dev->ieee80211_ptr);
 	err = __cfg80211_mlme_auth(rdev, dev, chan, auth_type, bssid,
 				   ssid, ssid_len, ie, ie_len,
 				   key, key_len, key_idx,
 				   sae_data, sae_data_len);
 	wdev_unlock(dev->ieee80211_ptr);
-	mutex_unlock(&rdev->devlist_mtx);
 
 	return err;
 }
@@ -424,12 +424,12 @@ int cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	int err;
 
-	mutex_lock(&rdev->devlist_mtx);
+	ASSERT_RTNL();
+
 	wdev_lock(wdev);
 	err = __cfg80211_mlme_assoc(rdev, dev, chan, bssid,
 				    ssid, ssid_len, req);
 	wdev_unlock(wdev);
-	mutex_unlock(&rdev->devlist_mtx);
 
 	return err;
 }
@@ -844,7 +844,7 @@ void cfg80211_dfs_channels_update_work(struct work_struct *work)
 			    dfs_update_channels_wk);
 	wiphy = &rdev->wiphy;
 
-	mutex_lock(&cfg80211_mutex);
+	rtnl_lock();
 	for (bandid = 0; bandid < IEEE80211_NUM_BANDS; bandid++) {
 		sband = wiphy->bands[bandid];
 		if (!sband)
@@ -877,7 +877,7 @@ void cfg80211_dfs_channels_update_work(struct work_struct *work)
 			check_again = true;
 		}
 	}
-	mutex_unlock(&cfg80211_mutex);
+	rtnl_unlock();
 
 	/* reschedule if there are other channels waiting to be cleared again */
 	if (check_again)

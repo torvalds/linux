@@ -43,35 +43,29 @@ static bool cfg80211_is_all_idle(void)
 	struct wireless_dev *wdev;
 	bool is_all_idle = true;
 
-	mutex_lock(&cfg80211_mutex);
-
 	/*
 	 * All devices must be idle as otherwise if you are actively
 	 * scanning some new beacon hints could be learned and would
 	 * count as new regulatory hints.
 	 */
 	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
-		cfg80211_lock_rdev(rdev);
 		list_for_each_entry(wdev, &rdev->wdev_list, list) {
 			wdev_lock(wdev);
 			if (wdev->sme_state != CFG80211_SME_IDLE)
 				is_all_idle = false;
 			wdev_unlock(wdev);
 		}
-		cfg80211_unlock_rdev(rdev);
 	}
-
-	mutex_unlock(&cfg80211_mutex);
 
 	return is_all_idle;
 }
 
 static void disconnect_work(struct work_struct *work)
 {
-	if (!cfg80211_is_all_idle())
-		return;
-
-	regulatory_hint_disconnect();
+	rtnl_lock();
+	if (cfg80211_is_all_idle())
+		regulatory_hint_disconnect();
+	rtnl_unlock();
 }
 
 static DECLARE_WORK(cfg80211_disconnect_work, disconnect_work);
@@ -85,7 +79,6 @@ static int cfg80211_conn_scan(struct wireless_dev *wdev)
 	ASSERT_RTNL();
 	ASSERT_RDEV_LOCK(rdev);
 	ASSERT_WDEV_LOCK(wdev);
-	lockdep_assert_held(&rdev->sched_scan_mtx);
 
 	if (rdev->scan_req)
 		return -EBUSY;
@@ -226,9 +219,6 @@ void cfg80211_conn_work(struct work_struct *work)
 	u8 bssid_buf[ETH_ALEN], *bssid = NULL;
 
 	rtnl_lock();
-	cfg80211_lock_rdev(rdev);
-	mutex_lock(&rdev->devlist_mtx);
-	mutex_lock(&rdev->sched_scan_mtx);
 
 	list_for_each_entry(wdev, &rdev->wdev_list, list) {
 		if (!wdev->netdev)
@@ -256,9 +246,6 @@ void cfg80211_conn_work(struct work_struct *work)
 		wdev_unlock(wdev);
 	}
 
-	mutex_unlock(&rdev->sched_scan_mtx);
-	mutex_unlock(&rdev->devlist_mtx);
-	cfg80211_unlock_rdev(rdev);
 	rtnl_unlock();
 }
 
@@ -931,14 +918,9 @@ int cfg80211_connect(struct cfg80211_registered_device *rdev,
 {
 	int err;
 
-	mutex_lock(&rdev->devlist_mtx);
-	/* might request scan - scan_mtx -> wdev_mtx dependency */
-	mutex_lock(&rdev->sched_scan_mtx);
 	wdev_lock(dev->ieee80211_ptr);
 	err = __cfg80211_connect(rdev, dev, connect, connkeys, NULL);
 	wdev_unlock(dev->ieee80211_ptr);
-	mutex_unlock(&rdev->sched_scan_mtx);
-	mutex_unlock(&rdev->devlist_mtx);
 
 	return err;
 }
