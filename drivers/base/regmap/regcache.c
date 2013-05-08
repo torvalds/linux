@@ -359,6 +359,43 @@ out:
 EXPORT_SYMBOL_GPL(regcache_sync_region);
 
 /**
+ * regcache_drop_region: Discard part of the register cache
+ *
+ * @map: map to operate on
+ * @min: first register to discard
+ * @max: last register to discard
+ *
+ * Discard part of the register cache.
+ *
+ * Return a negative value on failure, 0 on success.
+ */
+int regcache_drop_region(struct regmap *map, unsigned int min,
+			 unsigned int max)
+{
+	unsigned int reg;
+	int ret = 0;
+
+	if (!map->cache_present && !(map->cache_ops && map->cache_ops->drop))
+		return -EINVAL;
+
+	map->lock(map);
+
+	trace_regcache_drop_region(map->dev, min, max);
+
+	if (map->cache_present)
+		for (reg = min; reg < max + 1; reg++)
+			clear_bit(reg, map->cache_present);
+
+	if (map->cache_ops && map->cache_ops->drop)
+		ret = map->cache_ops->drop(map, min, max);
+
+	map->unlock(map);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(regcache_drop_region);
+
+/**
  * regcache_cache_only: Put a register map into cache only mode
  *
  * @map: map to configure
