@@ -843,7 +843,7 @@ static int cap_inode_setsecctx(struct dentry *dentry, void *ctx, u32 ctxlen)
 
 static int cap_inode_getsecctx(struct inode *inode, void **ctx, u32 *ctxlen)
 {
-	return 0;
+	return -EOPNOTSUPP;
 }
 #ifdef CONFIG_KEYS
 static int cap_key_alloc(struct key *key, const struct cred *cred,
