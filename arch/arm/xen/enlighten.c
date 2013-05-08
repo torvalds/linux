@@ -165,13 +165,9 @@ static int __init xen_secondary_init(unsigned int cpu)
 	info.offset = offset_in_page(vcpup);
 
 	err = HYPERVISOR_vcpu_op(VCPUOP_register_vcpu_info, cpu, &info);
-	if (err) {
-		pr_debug("register_vcpu_info failed: err=%d\n", err);
-	} else {
-		/* This cpu is using the registered vcpu info, even if
-		   later ones fail to. */
-		per_cpu(xen_vcpu, cpu) = vcpup;
-	}
+	BUG_ON(err);
+	per_cpu(xen_vcpu, cpu) = vcpup;
+
 	return 0;
 }
 
