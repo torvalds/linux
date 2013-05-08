@@ -60,7 +60,7 @@ void mlx4_en_fill_qp_context(struct mlx4_en_priv *priv, int size, int stride,
 	context->pri_path.sched_queue = 0x83 | (priv->port - 1) << 6;
 	if (user_prio >= 0) {
 		context->pri_path.sched_queue |= user_prio << 3;
-		context->pri_path.feup = 1 << 6;
+		context->pri_path.feup = MLX4_FEUP_FORCE_ETH_UP;
 	}
 	context->pri_path.counter_index = 0xff;
 	context->cqn_send = cpu_to_be32(cqn);

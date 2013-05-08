@@ -372,14 +372,28 @@ static int update_vport_qp_param(struct mlx4_dev *dev,
 		if (MLX4_QP_ST_RC == qp_type)
 			return -EINVAL;
 
+		/* force strip vlan by clear vsd */
+		qpc->param3 &= ~cpu_to_be32(MLX4_STRIP_VLAN);
+		if (0 != vp_oper->state.default_vlan) {
+			qpc->pri_path.vlan_control =
+				MLX4_VLAN_CTRL_ETH_TX_BLOCK_TAGGED |
+				MLX4_VLAN_CTRL_ETH_RX_BLOCK_PRIO_TAGGED |
+				MLX4_VLAN_CTRL_ETH_RX_BLOCK_UNTAGGED;
+		} else { /* priority tagged */
+			qpc->pri_path.vlan_control =
+				MLX4_VLAN_CTRL_ETH_TX_BLOCK_TAGGED |
+				MLX4_VLAN_CTRL_ETH_RX_BLOCK_TAGGED;
+		}
+
+		qpc->pri_path.fvl_rx |= MLX4_FVL_RX_FORCE_ETH_VLAN;
 		qpc->pri_path.vlan_index = vp_oper->vlan_idx;
-		qpc->pri_path.fl = (1 << 6) | (1 << 2); /* set cv bit and hide_cqe_vlan bit*/
-		qpc->pri_path.feup |= 1 << 3; /* set fvl bit */
+		qpc->pri_path.fl |= MLX4_FL_CV | MLX4_FL_ETH_HIDE_CQE_VLAN;
+		qpc->pri_path.feup |= MLX4_FEUP_FORCE_ETH_UP | MLX4_FVL_FORCE_ETH_VLAN;
 		qpc->pri_path.sched_queue &= 0xC7;
 		qpc->pri_path.sched_queue |= (vp_oper->state.default_qos) << 3;
 	}
 	if (vp_oper->state.spoofchk) {
-		qpc->pri_path.feup |= 1 << 5; /* set fsm bit */;
+		qpc->pri_path.feup |= MLX4_FSM_FORCE_ETH_SRC_MAC;
 		qpc->pri_path.grh_mylmc = (0x80 & qpc->pri_path.grh_mylmc) + vp_oper->mac_idx;
 	}
 	return 0;
