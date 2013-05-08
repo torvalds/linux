@@ -25,7 +25,14 @@
 #define DRM_RECT_H
 
 /**
- * drm_rect - two dimensional rectangle
+ * DOC: rect utils
+ *
+ * Utility functions to help manage rectangular areas for
+ * clipping, scaling, etc. calculations.
+ */
+
+/**
+ * struct drm_rect - two dimensional rectangle
  * @x1: horizontal starting coordinate (inclusive)
  * @x2: horizontal ending coordinate (exclusive)
  * @y1: vertical starting coordinate (inclusive)
