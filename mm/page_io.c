@@ -36,7 +36,6 @@ static struct bio *get_swap_bio(gfp_t gfp_flags,
 		bio->bi_io_vec[0].bv_len = PAGE_SIZE;
 		bio->bi_io_vec[0].bv_offset = 0;
 		bio->bi_vcnt = 1;
-		bio->bi_idx = 0;
 		bio->bi_size = PAGE_SIZE;
 		bio->bi_end_io = end_io;
 	}

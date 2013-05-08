@@ -1143,7 +1143,7 @@ static struct bio *bio_clone_range(struct bio *bio_src,
 	/* Find first affected segment... */
 
 	resid = offset;
-	__bio_for_each_segment(bv, bio_src, idx, 0) {
+	bio_for_each_segment(bv, bio_src, idx) {
 		if (resid < bv->bv_len)
 			break;
 		resid -= bv->bv_len;

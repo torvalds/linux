@@ -5177,7 +5177,7 @@ static int bio_size_ok(struct block_device *bdev, struct bio *bio,
 	}
 
 	prev = &bio->bi_io_vec[bio->bi_vcnt - 1];
-	if ((bio->bi_size >> 9) > max_sectors)
+	if (bio_sectors(bio) > max_sectors)
 		return 0;
 
 	if (!q->merge_bvec_fn)

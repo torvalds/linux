@@ -300,7 +300,7 @@ static struct bio *gfs2_log_get_bio(struct gfs2_sbd *sdp, u64 blkno)
 	u64 nblk;
 
 	if (bio) {
-		nblk = bio->bi_sector + bio_sectors(bio);
+		nblk = bio_end_sector(bio);
 		nblk >>= sdp->sd_fsb2bb_shift;
 		if (blkno == nblk)
 			return bio;
