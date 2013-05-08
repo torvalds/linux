@@ -308,13 +308,34 @@ static struct regcache_rbtree_node *
 regcache_rbtree_node_alloc(struct regmap *map, unsigned int reg)
 {
 	struct regcache_rbtree_node *rbnode;
+	const struct regmap_range *range;
+	int i;
 
 	rbnode = kzalloc(sizeof(*rbnode), GFP_KERNEL);
 	if (!rbnode)
 		return NULL;
 
-	rbnode->blklen = sizeof(*rbnode);
-	rbnode->base_reg = reg;
+	/* If there is a read table then use it to guess at an allocation */
+	if (map->rd_table) {
+		for (i = 0; i < map->rd_table->n_yes_ranges; i++) {
+			if (regmap_reg_in_range(reg,
+						&map->rd_table->yes_ranges[i]))
+				break;
+		}
+
+		if (i != map->rd_table->n_yes_ranges) {
+			range = &map->rd_table->yes_ranges[i];
+			rbnode->blklen = range->range_max - range->range_min
+				+ 1;
+			rbnode->base_reg = range->range_min;
+		}
+	}
+
+	if (!rbnode->blklen) {
+		rbnode->blklen = sizeof(*rbnode);
+		rbnode->base_reg = reg;
+	}
+
 	rbnode->block = kmalloc(rbnode->blklen * map->cache_word_size,
 				GFP_KERNEL);
 	if (!rbnode->block) {
