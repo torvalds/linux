@@ -61,14 +61,12 @@ __setup("nofrontswap", no_frontswap);
 #endif
 #endif /* CONFIG_FRONTSWAP */
 
-#ifdef CONFIG_FRONTSWAP
+#ifdef CONFIG_XEN_SELFBALLOONING
 static bool disable_frontswap_selfshrinking __read_mostly;
 #ifdef CONFIG_XEN_TMEM_MODULE
 module_param(disable_frontswap_selfshrinking, bool, S_IRUGO);
-#else
-#define disable_frontswap_selfshrinking 1
 #endif
-#endif /* CONFIG_FRONTSWAP */
+#endif /* CONFIG_XEN_SELFBALLOONING */
 
 #define TMEM_CONTROL               0
 #define TMEM_NEW_POOL              1
