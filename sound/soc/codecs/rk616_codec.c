@@ -28,7 +28,6 @@
 
 #define RK616_FOR_MID
 
-#define RK616_REG_RW /* for debug */
 #define RK616_PROC
 #ifdef RK616_PROC
 #include <linux/proc_fs.h>
@@ -56,6 +55,7 @@ struct rk616_codec_priv {
 	int capture_active;
 #endif
 	int spk_ctl_gpio;
+	int hp_ctl_gpio;
 };
 
 static struct rk616_codec_priv *rk616_priv = NULL;
@@ -643,77 +643,6 @@ SOC_ENUM_SINGLE(RK616_PGAR_AGC_CTL5, RK616_PGA_AGC_SFT, 2, rk616_dis_en_sel),/*1
 static const struct soc_enum rk616_loop_enum =
 	SOC_ENUM_SINGLE(CRU_CFGMISC_CON, AD_DA_LOOP_SFT, 2, rk616_dis_en_sel);
 
-static int rk616_put_spk(struct snd_kcontrol *kcontrol,
-	struct snd_ctl_elem_value *ucontrol)
-{
-	struct soc_mixer_control *mc =
-		(struct soc_mixer_control *)kcontrol->private_value;
-	int max = mc->max;
-	unsigned int mask = (1 << fls(max)) - 1;
-	unsigned int val, val2;
-
-	if (!rk616_priv) {
-		printk("rk616_put_spk : rk616_priv is NULL !\n");
-		goto __out;
-	}
-
-	val = (ucontrol->value.integer.value[0] & mask);
-	val2 = (ucontrol->value.integer.value[1] & mask);
-
-	if (val || val2) {
-		DBG("rk616_put_spk : set spk ctl gpio HIGH\n");
-		if (rk616_priv->spk_ctl_gpio != INVALID_GPIO)
-			gpio_set_value(rk616_priv->spk_ctl_gpio, GPIO_HIGH);
-	} else {
-		DBG("rk616_put_spk : set spk ctl gpio LOW\n");
-		if (rk616_priv->spk_ctl_gpio != INVALID_GPIO)
-			gpio_set_value(rk616_priv->spk_ctl_gpio, GPIO_LOW);
-	}
-__out:
-	return snd_soc_put_volsw_2r(kcontrol, ucontrol);
-}
-
-#ifdef RK616_REG_RW
-#define REGVAL_MAX 0xffff
-static unsigned int regctl_addr = 0x08;
-
-static int rk616_regctl_info(struct snd_kcontrol *kcontrol,
-		struct snd_ctl_elem_info *uinfo)
-{
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
-	uinfo->count = 2;
-	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = REGVAL_MAX;
-	return 0;
-}
-
-static int rk616_regctl_get(struct snd_kcontrol *kcontrol,
-		struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	ucontrol->value.integer.value[0] = regctl_addr;
-	ucontrol->value.integer.value[1] = snd_soc_read(codec, regctl_addr);
-	return 0;
-}
-
-static int rk616_regctl_put(struct snd_kcontrol *kcontrol,
-		struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	unsigned int reg = ucontrol->value.integer.value[0];
-	unsigned int value = ucontrol->value.integer.value[0];
-
-	if (rk616_codec_register(codec, reg) ||
-		rk616_mfd_register(reg)) {
-		regctl_addr = reg;
-		if (value <= REGVAL_MAX)
-			snd_soc_write(codec, regctl_addr, value);
-	}
-
-	return 0;
-}
-#endif
-
 static const struct snd_kcontrol_new rk616_snd_controls[] = {
 
 	SOC_SINGLE("I2S0 schmitt input Switch", CRU_IO_CON1,
@@ -727,18 +656,28 @@ static const struct snd_kcontrol_new rk616_snd_controls[] = {
 
 	SOC_DOUBLE_R_TLV("SPKOUT Playback Volume", RK616_SPKL_CTL,
 		RK616_SPKR_CTL, RK616_VOL_SFT, 31, 0, out_vol_tlv),
-	{
-	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = ("SPKOUT Playback Switch"), \
-	.info = snd_soc_info_volsw_2r, \
-	.get = snd_soc_get_volsw_2r, .put = rk616_put_spk, \
-	.private_value = (unsigned long)&(struct soc_mixer_control) \
-		{.reg = RK616_SPKL_CTL, .rreg = RK616_SPKR_CTL, .shift = RK616_MUTE_SFT, \
-		.max = 1, .platform_max = 1, .invert = 1} 
-	},
+	SOC_DOUBLE_R("SPKOUT Playback Switch", RK616_SPKL_CTL,
+		RK616_SPKR_CTL, RK616_MUTE_SFT, 1, 1),
 
 	SOC_DOUBLE_R_TLV("HPOUT Playback Volume", RK616_HPL_CTL,
 		RK616_HPR_CTL, RK616_VOL_SFT, 31, 0, out_vol_tlv),
 	SOC_DOUBLE_R("HPOUT Playback Switch", RK616_HPL_CTL,
+		RK616_HPR_CTL, RK616_MUTE_SFT, 1, 1),
+
+	//Add for set voice volume
+	SOC_DOUBLE_R_TLV("Speaker Playback Volume", RK616_SPKL_CTL,
+		RK616_SPKR_CTL, RK616_VOL_SFT, 31, 0, out_vol_tlv),
+	SOC_DOUBLE_R("Speaker Playback Switch", RK616_SPKL_CTL,
+		RK616_SPKR_CTL, RK616_MUTE_SFT, 1, 1),
+
+	SOC_DOUBLE_R_TLV("Headphone Playback Volume", RK616_HPL_CTL,
+		RK616_HPR_CTL, RK616_VOL_SFT, 31, 0, out_vol_tlv),
+	SOC_DOUBLE_R("Headphone Playback Switch", RK616_HPL_CTL,
+		RK616_HPR_CTL, RK616_MUTE_SFT, 1, 1),
+
+	SOC_DOUBLE_R_TLV("Earpiece Playback Volume", RK616_HPL_CTL,
+		RK616_HPR_CTL, RK616_VOL_SFT, 31, 0, out_vol_tlv),
+	SOC_DOUBLE_R("Earpiece Playback Switch", RK616_HPL_CTL,
 		RK616_HPR_CTL, RK616_MUTE_SFT, 1, 1),
 
 	SOC_SINGLE_TLV("LINEOUT1 Playback Volume", RK616_LINEOUT1_CTL,
@@ -771,6 +710,16 @@ static const struct snd_kcontrol_new rk616_snd_controls[] = {
 	SOC_SINGLE_TLV("BST_R Capture Volume", RK616_BST_CTL,
 		RK616_BSTR_GAIN_SFT, 1, 0, bst_vol_tlv),
 	SOC_SINGLE("BST_R Capture Switch", RK616_BST_CTL,
+		RK616_BSTR_MUTE_SFT, 1, 1),
+
+	//Add for set capture mute
+	SOC_SINGLE_TLV("Main Mic Capture Volume", RK616_BST_CTL,
+		RK616_BSTL_GAIN_SFT, 1, 0, bst_vol_tlv),
+	SOC_SINGLE("Main Mic Capture Switch", RK616_BST_CTL,
+		RK616_BSTL_MUTE_SFT, 1, 1),
+	SOC_SINGLE_TLV("Headset Mic Capture Volume", RK616_BST_CTL,
+		RK616_BSTR_GAIN_SFT, 1, 0, bst_vol_tlv),
+	SOC_SINGLE("Headset Mic Capture Switch", RK616_BST_CTL,
 		RK616_BSTR_MUTE_SFT, 1, 1),
 
 	SOC_ENUM("BST_L Mode",  rk616_bst_enum[0]),
@@ -812,7 +761,6 @@ static const struct snd_kcontrol_new rk616_snd_controls[] = {
 	SOC_ENUM("MIC2 Key Detection Enable",  rk616_mickey_enum[1]),
 	SOC_ENUM("MIC1 Key Range",  rk616_mickey_enum[2]),
 	SOC_ENUM("MIC2 Key Range",  rk616_mickey_enum[3]),
-
 
 	SOC_ENUM("PGAL Gain Control",  rk616_agcl_enum[0]),
 	SOC_ENUM("PGAL AGC Way",  rk616_agcl_enum[1]),
@@ -881,16 +829,6 @@ static const struct snd_kcontrol_new rk616_snd_controls[] = {
 		RK616_PGA_AGC_MIN_G_SFT, 7, 0, pga_agc_min_vol_tlv),//AGC enable and 0x06 bit 4 is 1
 
 	SOC_ENUM("I2S Loop Enable",  rk616_loop_enum),
-
-#ifdef RK616_REG_RW
-	{
-		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Register Control",
-		.info = rk616_regctl_info,
-		.get = rk616_regctl_get,
-		.put = rk616_regctl_put,
-	},
-#endif
 };
 
 static int rk616_dacl_event(struct snd_soc_dapm_widget *w,
@@ -1116,15 +1054,15 @@ static const struct snd_kcontrol_new hpmix_sel_mux =
 static const struct snd_soc_dapm_widget rk616_dapm_widgets[] = {
 	/* supply */
 	SND_SOC_DAPM_SUPPLY("I2S0 Interface", CRU_IO_CON0,
-				3, 1, NULL, 0),
+		3, 1, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("I2S1 Interface", CRU_IO_CON0,
-				4, 1, NULL, 0),
+		4, 1, NULL, 0),
 
 	/* microphone bias */
 	SND_SOC_DAPM_MICBIAS("Mic1 Bias", RK616_MICBIAS_CTL,
-					RK616_MICBIAS1_PWRD_SFT, 1),
+		RK616_MICBIAS1_PWRD_SFT, 1),
 	SND_SOC_DAPM_MICBIAS("Mic2 Bias", RK616_MICBIAS_CTL,
-					RK616_MICBIAS2_PWRD_SFT, 1),
+		RK616_MICBIAS2_PWRD_SFT, 1),
 
 	/* DACs */
 	SND_SOC_DAPM_ADC_E("DACL", NULL, SND_SOC_NOPM,
@@ -1185,21 +1123,25 @@ static const struct snd_soc_dapm_widget rk616_dapm_widgets[] = {
 
 	/* MUX */
 	SND_SOC_DAPM_MUX("HPL Mux", SND_SOC_NOPM, 0, 0,
-				&hpl_sel_mux),
+		&hpl_sel_mux),
 	SND_SOC_DAPM_MUX("HPR Mux", SND_SOC_NOPM, 0, 0,
-				&hpr_sel_mux),
+		&hpr_sel_mux),
 	SND_SOC_DAPM_MUX("Mic Mux", SND_SOC_NOPM, 0, 0,
-				&mic_sel_mux),
+		&mic_sel_mux),
 	SND_SOC_DAPM_MUX("MIXINR Mux", SND_SOC_NOPM, 0, 0,
-				&mixinr_sel_mux),
+		&mixinr_sel_mux),
 	SND_SOC_DAPM_MUX("HPMix Mux", SND_SOC_NOPM, 0, 0,
-				&hpmix_sel_mux),
+		&hpmix_sel_mux),
 
 	/* Audio Interface */
-	SND_SOC_DAPM_AIF_IN("I2S0 DAC", "HiFi Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("I2S0 ADC", "HiFi Capture", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_IN("I2S1 DAC", "Voice Playback", 0, SND_SOC_NOPM, 0, 0),
-	SND_SOC_DAPM_AIF_OUT("I2S1 ADC", "Voice Capture", 0, SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("I2S0 DAC", "HiFi Playback", 0,
+		SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("I2S0 ADC", "HiFi Capture", 0,
+		SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_IN("I2S1 DAC", "Voice Playback", 0,
+		SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_AIF_OUT("I2S1 ADC", "Voice Capture", 0,
+		SND_SOC_NOPM, 0, 0),
 
 	/* Input */
 	SND_SOC_DAPM_INPUT("IN3L"),
@@ -1586,9 +1528,49 @@ static int rk616_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static int rk616_digital_mute(struct snd_soc_dai *dai, int mute)
+{
+	struct snd_soc_codec *codec = dai->codec;
+	unsigned int is_spk_pd, is_hp_pd;
+
+	is_spk_pd = RK616_PWRD & snd_soc_read(codec, RK616_SPKL_CTL);
+	is_spk_pd &= RK616_PWRD & snd_soc_read(codec, RK616_SPKR_CTL);
+
+	is_hp_pd = RK616_PWRD & snd_soc_read(codec, RK616_HPL_CTL);
+	is_hp_pd &= RK616_PWRD & snd_soc_read(codec, RK616_HPR_CTL);
+
+	if (mute) {
+		if (rk616_priv && rk616_priv->spk_ctl_gpio != INVALID_GPIO &&
+		    !is_spk_pd) {
+			DBG("rk616_digital_mute : set spk ctl gpio LOW\n");
+			gpio_set_value(rk616_priv->spk_ctl_gpio, GPIO_LOW);
+		}
+
+		if (rk616_priv && rk616_priv->hp_ctl_gpio != INVALID_GPIO &&
+		    !is_hp_pd) {
+			DBG("rk616_digital_mute : set hp ctl gpio LOW\n");
+			gpio_set_value(rk616_priv->hp_ctl_gpio, GPIO_LOW);
+		}
+	} else {
+		if (rk616_priv && rk616_priv->spk_ctl_gpio != INVALID_GPIO &&
+		    !is_spk_pd) {
+			DBG("rk616_digital_mute : set spk ctl gpio HIGH\n");
+			gpio_set_value(rk616_priv->spk_ctl_gpio, GPIO_HIGH);
+		}
+
+		if (rk616_priv && rk616_priv->hp_ctl_gpio != INVALID_GPIO &&
+		    !is_hp_pd) {
+			DBG("rk616_digital_mute : set hp ctl gpio HIGH\n");
+			gpio_set_value(rk616_priv->hp_ctl_gpio, GPIO_HIGH);
+		}
+	}
+
+	return 0;
+}
+
 #ifdef RK616_FOR_MID
 static struct rk616_reg_val_typ power_up_list[] = {
-	{0x804, 0x46}, //DAC GSM, 0x06: x1, 0x26: x1.25, 0x46: x1.5, 0x66: x1.75
+	{0x804, 0x46}, //DAC DSM, 0x06: x1, 0x26: x1.25, 0x46: x1.5, 0x66: x1.75
 	{0x828, 0x09}, //Set for Capture pop noise
 	{0x83c, 0x00}, //power up
 	{0x840, 0x49}, //BST_L power up, unmute, and Single-Ended(bit 6), volume 0-20dB(bit 5)
@@ -1638,9 +1620,6 @@ static int rk616_codec_power_up(void)
 		snd_soc_write(codec, power_up_list[i].reg, power_up_list[i].value);
 	}
 
-	if (rk616_priv->spk_ctl_gpio != INVALID_GPIO)
-		gpio_set_value(rk616_priv->spk_ctl_gpio, GPIO_HIGH);
-
 	return 0;
 }
 
@@ -1655,9 +1634,6 @@ static int rk616_codec_power_down(void)
 	}
 
 	printk("rk616_codec_power_down\n");
-
-	if (rk616_priv->spk_ctl_gpio != INVALID_GPIO)
-		gpio_set_value(rk616_priv->spk_ctl_gpio, GPIO_LOW);
 
 	rk616_reset(codec);
 
@@ -1798,6 +1774,7 @@ static struct snd_soc_dai_ops rk616_dai_ops = {
 	.hw_params	= rk616_hw_params,
 	.set_fmt	= rk616_set_dai_fmt,
 	.set_sysclk	= rk616_set_dai_sysclk,
+	.digital_mute	= rk616_digital_mute,
 #ifdef RK616_FOR_MID
 	.startup	= rk616_startup,
 	.shutdown	= rk616_shutdown,
@@ -1896,6 +1873,15 @@ static int rk616_probe(struct snd_soc_codec *codec)
 	} else {
 		printk("rk616_probe : rk616 or pdata or spk_ctl_gpio is NULL!\n");
 		rk616->spk_ctl_gpio = INVALID_GPIO;
+	}
+
+	if (rk616_mfd && rk616_mfd->pdata && rk616_mfd->pdata->hp_ctl_gpio) {
+		gpio_request(rk616_mfd->pdata->hp_ctl_gpio, NULL);
+		gpio_direction_output(rk616_mfd->pdata->hp_ctl_gpio, GPIO_LOW);
+		rk616->hp_ctl_gpio = rk616_mfd->pdata->hp_ctl_gpio;
+	} else {
+		printk("rk616_probe : rk616 or pdata or hp_ctl_gpio is NULL!\n");
+		rk616->hp_ctl_gpio = INVALID_GPIO;
 	}
 
 #ifdef RK616_FOR_MID
@@ -2019,17 +2005,7 @@ static __devexit int rk616_platform_remove(struct platform_device *pdev)
 
 void rk616_platform_shutdown(struct platform_device *pdev)
 {
-#ifdef RK616_FOR_MID
 	DBG("%s\n", __func__);
-
-	cancel_delayed_work_sync(&delayed_work);
-
-	if (rk616_codec_work_type != RK616_CODEC_WORK_NULL) {
-		rk616_codec_work_type = RK616_CODEC_WORK_NULL;
-		rk616_codec_power_down();
-	}
-#else
-	struct snd_soc_codec *codec = rk616_priv->codec;
 
 	if (!rk616_priv || !rk616_priv->codec) {
 		printk("rk616_hw_write : %s %s\n", rk616_priv ? "" : "rk616_priv is NULL",
@@ -2037,12 +2013,25 @@ void rk616_platform_shutdown(struct platform_device *pdev)
 		return;
 	}
 
-	DBG("%s\n", __func__);
+	if (rk616_priv->spk_ctl_gpio != INVALID_GPIO)
+		gpio_set_value(rk616_priv->spk_ctl_gpio, GPIO_LOW);
 
-	snd_soc_write(codec, RK616_RESET, 0xfc);
+	if (rk616_priv->hp_ctl_gpio != INVALID_GPIO)
+		gpio_set_value(rk616_priv->hp_ctl_gpio, GPIO_LOW);
+
 	mdelay(10);
-	snd_soc_write(codec, RK616_RESET, 0x3);
+
+#ifdef RK616_FOR_MID
+	cancel_delayed_work_sync(&delayed_work);
+
+	if (rk616_codec_work_type != RK616_CODEC_WORK_NULL) {
+		rk616_codec_work_type = RK616_CODEC_WORK_NULL;
+		rk616_codec_power_down();
+	}
+#else
+	snd_soc_write(rk616_priv->codec, RK616_RESET, 0xfc);
 	mdelay(10);
+	snd_soc_write(rk616_priv->codec, RK616_RESET, 0x3);
 #endif
 }
 

@@ -759,7 +759,8 @@ static struct rk616_platform_data rk616_pdata = {
 	.lcd1_func = INPUT,             //port lcd1 as input
 	.lvds_ch_nr = 0,		//the number of used lvds channel  
 	.hdmi_irq = RK30_PIN2_PD4,
-	.spk_ctl_gpio = RK30_PIN2_PD7,
+	.spk_ctl_gpio = RK30_PIN0_PD5,
+	.hp_ctl_gpio = RK30_PIN0_PD5,
 };
 #endif
 
