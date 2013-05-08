@@ -2978,6 +2978,10 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	if (type == DRM_MODE_CONNECTOR_eDP)
 		intel_encoder->type = INTEL_OUTPUT_EDP;
 
+	DRM_DEBUG_KMS("Adding %s connector on port %c\n",
+			type == DRM_MODE_CONNECTOR_eDP ? "eDP" : "DP",
+			port_name(port));
+
 	drm_connector_init(dev, connector, &intel_dp_connector_funcs, type);
 	drm_connector_helper_add(connector, &intel_dp_connector_helper_funcs);
 
