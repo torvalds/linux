@@ -52,19 +52,6 @@ static bool is_edp(struct intel_dp *intel_dp)
 	return intel_dig_port->base.type == INTEL_OUTPUT_EDP;
 }
 
-/**
- * is_pch_edp - is the port on the PCH and attached to an eDP panel?
- * @intel_dp: DP struct
- *
- * Returns true if the given DP struct corresponds to a PCH DP port attached
- * to an eDP panel, false otherwise.  Helpful for determining whether we
- * may need FDI resources for a given DP output or not.
- */
-static bool is_pch_edp(struct intel_dp *intel_dp)
-{
-	return intel_dp->is_pch_edp;
-}
-
 static struct drm_device *intel_dp_to_dev(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
@@ -91,25 +78,6 @@ static bool is_cpu_edp(struct intel_dp *intel_dp)
 static struct intel_dp *intel_attached_dp(struct drm_connector *connector)
 {
 	return enc_to_intel_dp(&intel_attached_encoder(connector)->base);
-}
-
-/**
- * intel_encoder_is_pch_edp - is the given encoder a PCH attached eDP?
- * @encoder: DRM encoder
- *
- * Return true if @encoder corresponds to a PCH attached eDP panel.  Needed
- * by intel_display.c.
- */
-bool intel_encoder_is_pch_edp(struct drm_encoder *encoder)
-{
-	struct intel_dp *intel_dp;
-
-	if (!encoder)
-		return false;
-
-	intel_dp = enc_to_intel_dp(encoder);
-
-	return is_pch_edp(intel_dp);
 }
 
 static void intel_dp_link_down(struct intel_dp *intel_dp);
@@ -3046,10 +3014,6 @@ intel_dp_init_connector(struct intel_digital_port *intel_dig_port,
 	/* Preserve the current hw state. */
 	intel_dp->DP = I915_READ(intel_dp->output_reg);
 	intel_dp->attached_connector = intel_connector;
-
-	if (HAS_PCH_SPLIT(dev) && port == PORT_D)
-		if (intel_dpd_is_edp(dev))
-			intel_dp->is_pch_edp = true;
 
 	type = DRM_MODE_CONNECTOR_DisplayPort;
 	/*
