@@ -111,6 +111,16 @@ static int alloc_host_sq(struct c4iw_rdev *rdev, struct t4_sq *sq)
 	return 0;
 }
 
+static int alloc_sq(struct c4iw_rdev *rdev, struct t4_sq *sq, int user)
+{
+	int ret = -ENOSYS;
+	if (user)
+		ret = alloc_oc_sq(rdev, sq);
+	if (ret)
+		ret = alloc_host_sq(rdev, sq);
+	return ret;
+}
+
 static int destroy_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 		      struct c4iw_dev_ucontext *uctx)
 {
@@ -179,15 +189,9 @@ static int create_qp(struct c4iw_rdev *rdev, struct t4_wq *wq,
 		goto free_sw_rq;
 	}
 
-	if (user) {
-		if (alloc_oc_sq(rdev, &wq->sq) && alloc_host_sq(rdev, &wq->sq))
-			goto free_hwaddr;
-	} else {
-		ret = alloc_host_sq(rdev, &wq->sq);
-		if (ret)
-			goto free_hwaddr;
-	}
-
+	ret = alloc_sq(rdev, &wq->sq, user);
+	if (ret)
+		goto free_hwaddr;
 	memset(wq->sq.queue, 0, wq->sq.memsize);
 	dma_unmap_addr_set(&wq->sq, mapping, wq->sq.dma_addr);
 
