@@ -3,6 +3,7 @@
  *
  * Copyright (C) 2013  Renesas Solutions Corp.
  * Copyright (C) 2013  Kuninori Morimoto <kuninori.morimoto.gx@renesas.com>
+ * Copyright (C) 2013  Cogent Embedded, Inc.
  *
  * based on
  * Copyright (C) 2011  Renesas Solutions Corp.
@@ -1316,6 +1317,11 @@ static struct sh_pfc_pin pinmux_pins[] = {
 #define SH_PFC_MUX4(name, arg1, arg2, arg3, arg4)			\
 	static const unsigned int name ##_mux[]  = { arg1##_MARK, arg2##_MARK, \
 						     arg3##_MARK, arg4##_MARK }
+#define SH_PFC_MUX8(name, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8) \
+	static const unsigned int name ##_mux[]  = { arg1##_MARK, arg2##_MARK, \
+						     arg3##_MARK, arg4##_MARK, \
+						     arg5##_MARK, arg6##_MARK, \
+						     arg7##_MARK, arg8##_MARK, }
 
 /* - SCIF macro ------------------------------------------------------------- */
 #define SCIF_PFC_PIN(name, args...)	SH_PFC_PINS(name, args)
@@ -1513,6 +1519,40 @@ SH_PFC_MUX1(usb1,		PENC1);
 SH_PFC_PINS(usb1_ovc,		RCAR_GP_PIN(0, 4));
 SH_PFC_MUX1(usb1_ovc,		USB_OVC1);
 
+/* - VIN macros ------------------------------------------------------------- */
+#define VIN_PFC_PINS(name, args...)		SH_PFC_PINS(name, args)
+#define VIN_PFC_DAT8(name, d0, d1, d2, d3, d4, d5, d6, d7)	\
+	SH_PFC_MUX8(name, d0, d1, d2, d3, d4, d5, d6, d7)
+#define VIN_PFC_CLK(name, clk)			SH_PFC_MUX1(name, clk)
+#define VIN_PFC_SYNC(name, hsync, vsync)	SH_PFC_MUX2(name, hsync, vsync)
+
+/* - VIN0 ------------------------------------------------------------------- */
+VIN_PFC_PINS(vin0_data8,	RCAR_GP_PIN(3, 29),	RCAR_GP_PIN(3, 30),
+				RCAR_GP_PIN(3, 31),	RCAR_GP_PIN(4, 0),
+				RCAR_GP_PIN(4, 1),	RCAR_GP_PIN(4, 2),
+				RCAR_GP_PIN(4, 3),	RCAR_GP_PIN(4, 4));
+VIN_PFC_DAT8(vin0_data8,	VI0_DATA0_VI0_B0,	VI0_DATA1_VI0_B1,
+				VI0_DATA2_VI0_B2,	VI0_DATA3_VI0_B3,
+				VI0_DATA4_VI0_B4,	VI0_DATA5_VI0_B5,
+				VI0_DATA6_VI0_G0,	VI0_DATA7_VI0_G1);
+VIN_PFC_PINS(vin0_clk,		RCAR_GP_PIN(3, 24));
+VIN_PFC_CLK(vin0_clk,		VI0_CLK);
+VIN_PFC_PINS(vin0_sync,		RCAR_GP_PIN(3, 27),	RCAR_GP_PIN(3, 28));
+VIN_PFC_SYNC(vin0_sync,		VI0_HSYNC,		VI0_VSYNC);
+/* - VIN1 ------------------------------------------------------------------- */
+VIN_PFC_PINS(vin1_data8,	RCAR_GP_PIN(3, 25),	RCAR_GP_PIN(3, 26),
+				RCAR_GP_PIN(3, 27),	RCAR_GP_PIN(3, 28),
+				RCAR_GP_PIN(4, 5),	RCAR_GP_PIN(4, 6),
+				RCAR_GP_PIN(4, 7),	RCAR_GP_PIN(4, 8));
+VIN_PFC_DAT8(vin1_data8,	VI1_DATA0,		VI1_DATA1,
+				VI1_DATA2,		VI1_DATA3,
+				VI1_DATA4,		VI1_DATA5,
+				VI1_DATA6,		VI1_DATA7);
+VIN_PFC_PINS(vin1_clk,		RCAR_GP_PIN(4, 9));
+VIN_PFC_CLK(vin1_clk,		VI1_CLK);
+VIN_PFC_PINS(vin1_sync,		RCAR_GP_PIN(3, 21),	RCAR_GP_PIN(3, 22));
+VIN_PFC_SYNC(vin1_sync,		VI1_HSYNC,		VI1_VSYNC);
+
 static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(hscif0_data_a),
 	SH_PFC_PIN_GROUP(hscif0_data_b),
@@ -1586,6 +1626,12 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(usb0_ovc),
 	SH_PFC_PIN_GROUP(usb1),
 	SH_PFC_PIN_GROUP(usb1_ovc),
+	SH_PFC_PIN_GROUP(vin0_data8),
+	SH_PFC_PIN_GROUP(vin0_clk),
+	SH_PFC_PIN_GROUP(vin0_sync),
+	SH_PFC_PIN_GROUP(vin1_data8),
+	SH_PFC_PIN_GROUP(vin1_clk),
+	SH_PFC_PIN_GROUP(vin1_sync),
 };
 
 static const char * const hscif0_groups[] = {
@@ -1703,6 +1749,18 @@ static const char * const usb1_groups[] = {
 	"usb1_ovc",
 };
 
+static const char * const vin0_groups[] = {
+	"vin0_data8",
+	"vin0_clk",
+	"vin0_sync",
+};
+
+static const char * const vin1_groups[] = {
+	"vin1_data8",
+	"vin1_clk",
+	"vin1_sync",
+};
+
 static const struct sh_pfc_function pinmux_functions[] = {
 	SH_PFC_FUNCTION(hscif0),
 	SH_PFC_FUNCTION(hscif1),
@@ -1718,6 +1776,8 @@ static const struct sh_pfc_function pinmux_functions[] = {
 	SH_PFC_FUNCTION(sdhi2),
 	SH_PFC_FUNCTION(usb0),
 	SH_PFC_FUNCTION(usb1),
+	SH_PFC_FUNCTION(vin0),
+	SH_PFC_FUNCTION(vin1),
 };
 
 static struct pinmux_cfg_reg pinmux_config_regs[] = {
