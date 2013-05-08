@@ -130,7 +130,7 @@ static int isl6271a_probe(struct i2c_client *i2c,
 		if (i == 0)
 			config.init_data = init_data;
 		else
-			config.init_data = 0;
+			config.init_data = NULL;
 		config.driver_data = pmic;
 
 		pmic->rdev[i] = regulator_register(&isl_rd[i], &config);
