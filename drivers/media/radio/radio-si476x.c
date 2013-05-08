@@ -44,7 +44,7 @@
 
 #define FREQ_MUL (10000000 / 625)
 
-#define SI476X_PHDIV_STATUS_LINK_LOCKED(status) (0b10000000 & (status))
+#define SI476X_PHDIV_STATUS_LINK_LOCKED(status) (0x80 & (status))
 
 #define DRIVER_NAME "si476x-radio"
 #define DRIVER_CARD "SI476x AM/FM Receiver"
