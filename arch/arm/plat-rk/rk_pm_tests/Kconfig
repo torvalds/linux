@@ -17,6 +17,12 @@ config PM_TEST_CLK_VOLT
 	help
 	  Use to set voltage domain's voltage
 
+config PM_TEST_MAXFREQ
+	bool "For max runable frequency test"
+	default y
+	help
+	  Use to test the max runable frequency of a fixed voltage
+
 config PM_TEST_FREQ_LIMIT
 	bool "Limit clocks' frequency"
 	help

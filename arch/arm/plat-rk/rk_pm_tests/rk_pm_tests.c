@@ -50,6 +50,7 @@ REVISION 0.01
 
 #include "clk_rate.h"
 #include "clk_volt.h"
+#include "maxfreq.h"
 #include "freq_limit.h"
 #include "cpu_usage.h"
 #include "rk_suspend_test.h"
@@ -77,6 +78,9 @@ static struct pm_attribute pm_attrs[] = {
 #endif
 #ifdef CONFIG_PM_TEST_CLK_VOLT
 	__ATTR(clk_volt, S_IRUGO | S_IWUSR, clk_volt_show, clk_volt_store),
+#endif
+#ifdef CONFIG_PM_TEST_MAXFREQ
+	__ATTR(maxfreq_volt, S_IRUGO | S_IWUSR, maxfreq_show, maxfreq_store),
 #endif
 #ifdef CONFIG_PM_TEST_FREQ_LIMIT
 	__ATTR(freq_limit, S_IRUGO | S_IWUSR, freq_limit_show, freq_limit_store),
