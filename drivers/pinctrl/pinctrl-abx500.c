@@ -900,8 +900,7 @@ static int abx500_gpio_probe(struct platform_device *pdev)
 		abx500_pinctrl_ab8505_init(&pct->soc);
 		break;
 	default:
-		dev_err(&pdev->dev, "Unsupported pinctrl sub driver (%d)\n",
-				(int) platid->driver_data);
+		dev_err(&pdev->dev, "Unsupported pinctrl sub driver (%d)\n", id);
 		mutex_destroy(&pct->lock);
 		return -EINVAL;
 	}
