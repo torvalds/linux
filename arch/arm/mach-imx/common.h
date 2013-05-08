@@ -12,6 +12,7 @@
 #define __ASM_ARCH_MXC_COMMON_H__
 
 struct platform_device;
+struct pt_regs;
 struct clk;
 enum mxc_cpu_pwr_mode;
 
