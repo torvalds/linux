@@ -1501,6 +1501,18 @@ SDHI_PFC_WPPN(sdhi2_wp_a,	SD2_WP_A);
 SDHI_PFC_PINS(sdhi2_wp_b,	RCAR_GP_PIN(3, 28));
 SDHI_PFC_WPPN(sdhi2_wp_b,	SD2_WP_B);
 
+/* - USB0 ------------------------------------------------------------------- */
+SH_PFC_PINS(usb0,		RCAR_GP_PIN(0, 1));
+SH_PFC_MUX1(usb0,		PENC0);
+SH_PFC_PINS(usb0_ovc,		RCAR_GP_PIN(0, 3));
+SH_PFC_MUX1(usb0_ovc,		USB_OVC0);
+
+/* - USB1 ------------------------------------------------------------------- */
+SH_PFC_PINS(usb1,		RCAR_GP_PIN(0, 2));
+SH_PFC_MUX1(usb1,		PENC1);
+SH_PFC_PINS(usb1_ovc,		RCAR_GP_PIN(0, 4));
+SH_PFC_MUX1(usb1_ovc,		USB_OVC1);
+
 static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(hscif0_data_a),
 	SH_PFC_PIN_GROUP(hscif0_data_b),
@@ -1570,6 +1582,10 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(sdhi2_data4_b),
 	SH_PFC_PIN_GROUP(sdhi2_wp_a),
 	SH_PFC_PIN_GROUP(sdhi2_wp_b),
+	SH_PFC_PIN_GROUP(usb0),
+	SH_PFC_PIN_GROUP(usb0_ovc),
+	SH_PFC_PIN_GROUP(usb1),
+	SH_PFC_PIN_GROUP(usb1_ovc),
 };
 
 static const char * const hscif0_groups[] = {
@@ -1677,6 +1693,16 @@ static const char * const sdhi2_groups[] = {
 	"sdhi2_wp_b",
 };
 
+static const char * const usb0_groups[] = {
+	"usb0",
+	"usb0_ovc",
+};
+
+static const char * const usb1_groups[] = {
+	"usb1",
+	"usb1_ovc",
+};
+
 static const struct sh_pfc_function pinmux_functions[] = {
 	SH_PFC_FUNCTION(hscif0),
 	SH_PFC_FUNCTION(hscif1),
@@ -1690,6 +1716,8 @@ static const struct sh_pfc_function pinmux_functions[] = {
 	SH_PFC_FUNCTION(sdhi0),
 	SH_PFC_FUNCTION(sdhi1),
 	SH_PFC_FUNCTION(sdhi2),
+	SH_PFC_FUNCTION(usb0),
+	SH_PFC_FUNCTION(usb1),
 };
 
 static struct pinmux_cfg_reg pinmux_config_regs[] = {
