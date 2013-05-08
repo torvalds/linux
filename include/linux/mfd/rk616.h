@@ -266,7 +266,10 @@ struct mfd_rk616 {
 	int (*write_dev)(struct mfd_rk616 *rk616,u16 reg,u32 *pval);
 };
 
-extern int rk616_set_vif(rk_screen * screen,bool connect);
+extern int rk616_set_vif(struct mfd_rk616 * rk616,rk_screen * screen,bool connect);
+extern int rk616_display_router_cfg(struct mfd_rk616 *rk616,rk_screen *screen,bool enable);
+
+
 
 #endif
 

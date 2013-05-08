@@ -20,7 +20,7 @@
 
 static struct mfd_cell rk616_devs[] = {
 	{
-		.name = "rk616-vif",
+		.name = "rk616-lvds",
 		.id = 0,
 	},
 	{

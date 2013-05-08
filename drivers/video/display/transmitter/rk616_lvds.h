@@ -5,7 +5,7 @@
 #include<linux/rk_screen.h>
 
 
-struct rk616_vif {
+struct rk616_lvds {
 	struct mfd_rk616 *rk616;
 	rk_screen *screen;
 #ifdef CONFIG_HAS_EARLYSUSPEND

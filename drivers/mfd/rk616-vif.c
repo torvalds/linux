@@ -2,19 +2,18 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
-#include "rk616_vif.h"
+#include <linux/mfd/rk616.h>
 
-struct rk616_vif *g_vif;
+
 extern int rk616_pll_set_rate(struct mfd_rk616 *rk616,int id,u32 cfg_val,u32 frac);
 
 /*rk616 video interface config*/
-static int rk616_vif_cfg(struct mfd_rk616 *rk616,rk_screen *fscreen,int id)
+int rk616_vif_cfg(struct mfd_rk616 *rk616,rk_screen *screen,int id)
 {
 	int ret = 0;
 	u32 val = 0;
 	int offset = 0;
 	int pll_id;
-	rk_screen *screen  = NULL;
 	bool pll_use_mclk12m = false;
 	
 	if(id == 0) //video interface 0
@@ -54,7 +53,8 @@ static int rk616_vif_cfg(struct mfd_rk616 *rk616,rk_screen *fscreen,int id)
 	{
 		clk_set_rate(rk616->mclk, 12000000);
 	}
-	screen = fscreen->ext_screen;
+
+	
 	if(!screen)
 	{
 		dev_err(rk616->dev,"%s:screen is null.........\n",__func__);
@@ -118,7 +118,16 @@ static int rk616_vif_cfg(struct mfd_rk616 *rk616,rk_screen *fscreen,int id)
 
 
 
-static int rk616_scaler_cfg(struct mfd_rk616 *rk616,rk_screen *screen)
+static int rk616_scaler_disable(struct mfd_rk616 *rk616)
+{
+	u32 val = 0;
+	int ret;
+	val &= (~SCL_EN);	//disable scaler
+	val |= (SCL_EN<<16);
+	ret = rk616->write_dev(rk616,SCL_REG0,&val);
+	return 0;
+}
+int rk616_scaler_cfg(struct mfd_rk616 *rk616,rk_screen *screen)
 {
 	u32 val = 0;
 	int ret = 0;
@@ -151,9 +160,7 @@ static int rk616_scaler_cfg(struct mfd_rk616 *rk616,rk_screen *screen)
 
 	if(!route->scl_en)
 	{
-		val &= (~SCL_EN);	//disable scaler
-		val |= (SCL_EN<<16);
-		ret = rk616->write_dev(rk616,SCL_REG0,&val);
+		rk616_scaler_disable(rk616);
 		return 0;
 	}
 	
@@ -407,11 +414,7 @@ static int rk616_lcd0_input_lcd1_unused_cfg(struct mfd_rk616 *rk616,rk_screen *s
 	{
 		route->lvds_en = 0;
 	}
-	else
-	{
-		dev_err(rk616->dev,"un supported interface:%d\n",screen->type);
-		return -EINVAL;
-	}
+	
 
 	return 0;
 }
@@ -508,7 +511,7 @@ static int rk616_lcd0_unused_lcd1_input_cfg(struct mfd_rk616 *rk616,rk_screen *s
 	return 0;
 }
 
-static int  rk616_set_router(struct mfd_rk616 *rk616,rk_screen *screen,bool enable)
+int  rk616_set_router(struct mfd_rk616 *rk616,rk_screen *screen,bool enable)
 {
 	struct rk616_platform_data *pdata = rk616->pdata;
 	int ret;
@@ -555,98 +558,7 @@ static int  rk616_set_router(struct mfd_rk616 *rk616,rk_screen *screen,bool enab
 }
 
 
-static int rk616_lvds_cfg(struct mfd_rk616 *rk616,rk_screen *screen)
-{
-	struct rk616_route *route = &rk616->route;
-	u32 val = 0;
-	int ret;
-	int odd = (screen->left_margin&0x01)?0:1;
-	
-	if(!route->lvds_en)  //lvds port is not used ,power down lvds
-	{
-		val &= ~(LVDS_CH1TTL_EN | LVDS_CH0TTL_EN | LVDS_CH1_PWR_EN |
-			LVDS_CH0_PWR_EN | LVDS_CBG_PWR_EN);
-		val |= LVDS_PLL_PWR_DN | (LVDS_CH1TTL_EN << 16) | (LVDS_CH0TTL_EN << 16) |
-			(LVDS_CH1_PWR_EN << 16) | (LVDS_CH0_PWR_EN << 16) |
-			(LVDS_CBG_PWR_EN << 16) | (LVDS_PLL_PWR_DN << 16);
-		ret = rk616->write_dev(rk616,CRU_LVDS_CON0,&val);
 
-		if(!route->lcd1_input)  //set lcd1 port for output as RGB interface
-		{
-			val = (LCD1_INPUT_EN << 16);
-			ret = rk616->write_dev(rk616,CRU_IO_CON0,&val);
-		}
-	}
-	else
-	{
-		if(route->lvds_mode)  //lvds mode
-		{
-
-			if(route->lvds_ch_nr == 2) //dual lvds channel
-			{
-				val = 0;
-				val &= ~(LVDS_CH0TTL_EN | LVDS_CH1TTL_EN | LVDS_PLL_PWR_DN);
-				val = (LVDS_DCLK_INV)|(LVDS_CH1_PWR_EN) |(LVDS_CH0_PWR_EN) | LVDS_HBP_ODD(odd) |
-					(LVDS_CBG_PWR_EN) | (LVDS_CH_SEL) | (LVDS_OUT_FORMAT(screen->hw_format)) | 
-					(LVDS_CH0TTL_EN << 16) | (LVDS_CH1TTL_EN << 16) |(LVDS_CH1_PWR_EN << 16) | 
-					(LVDS_CH0_PWR_EN << 16) | (LVDS_CBG_PWR_EN << 16) | (LVDS_CH_SEL << 16) | 
-					(LVDS_OUT_FORMAT_MASK) | (LVDS_DCLK_INV << 16) | (LVDS_PLL_PWR_DN << 16) |
-					(LVDS_HBP_ODD_MASK);
-				ret = rk616->write_dev(rk616,CRU_LVDS_CON0,&val);
-				
-				dev_info(rk616->dev,"rk616 use dual lvds channel.......\n");
-			}
-			else //single lvds channel
-			{
-				val = 0;
-				val &= ~(LVDS_CH0TTL_EN | LVDS_CH1TTL_EN | LVDS_CH1_PWR_EN | LVDS_PLL_PWR_DN | LVDS_CH_SEL); //use channel 0
-				val |= (LVDS_CH0_PWR_EN) |(LVDS_CBG_PWR_EN) | (LVDS_OUT_FORMAT(screen->hw_format)) | 
-				      (LVDS_CH0TTL_EN << 16) | (LVDS_CH1TTL_EN << 16) |(LVDS_CH0_PWR_EN << 16) | 
-				       (LVDS_DCLK_INV ) | (LVDS_CH0TTL_EN << 16) | (LVDS_CH1TTL_EN << 16) |(LVDS_CH0_PWR_EN << 16) | 
-				        (LVDS_CBG_PWR_EN << 16)|(LVDS_CH_SEL << 16) | (LVDS_PLL_PWR_DN << 16)| 
-				       (LVDS_OUT_FORMAT_MASK) | (LVDS_DCLK_INV << 16);
-				ret = rk616->write_dev(rk616,CRU_LVDS_CON0,&val);
-
-				dev_info(rk616->dev,"rk616 use single lvds channel.......\n");
-				
-			}
-
-		}
-		else //mux lvds port to RGB mode
-		{
-			val &= ~(LVDS_CBG_PWR_EN| LVDS_CH1_PWR_EN | LVDS_CH0_PWR_EN);
-			val |= (LVDS_CH0TTL_EN)|(LVDS_CH1TTL_EN )|(LVDS_PLL_PWR_DN)|
-				(LVDS_CH0TTL_EN<< 16)|(LVDS_CH1TTL_EN<< 16)|(LVDS_CH1_PWR_EN << 16) | 
-				(LVDS_CH0_PWR_EN << 16)|(LVDS_CBG_PWR_EN << 16)|(LVDS_PLL_PWR_DN << 16);
-			ret = rk616->write_dev(rk616,CRU_LVDS_CON0,&val);
-
-			val &= ~(LVDS_OUT_EN);
-			val |= (LVDS_OUT_EN << 16);
-			ret = rk616->write_dev(rk616,CRU_IO_CON0,&val);
-			dev_info(rk616->dev,"rk616 use RGB output.....\n");
-			
-		}
-	}
-
-	return 0;
-	
-}
-
-
-static int rk616_dither_cfg(struct mfd_rk616 *rk616,rk_screen *screen,bool enable)
-{
-	u32 val = 0;
-	int ret = 0;
-	val = FRC_DCLK_INV | (FRC_DCLK_INV << 16);
-	if((screen->face != OUT_P888) && enable)  //enable frc dither if the screen is not 24bit
-		val |= FRC_DITHER_EN | (FRC_DITHER_EN << 16);
-	else
-		val |= (FRC_DITHER_EN << 16);
-	ret = rk616->write_dev(rk616,FRC_REG,&val);
-
-	return 0;
-	
-}
 
 static int rk616_router_cfg(struct mfd_rk616 *rk616)
 {
@@ -669,18 +581,18 @@ static int rk616_router_cfg(struct mfd_rk616 *rk616)
 
 	return ret;
 }
-static int rk616_display_router_cfg(struct mfd_rk616 *rk616,rk_screen *screen,bool enable)
+
+
+int rk616_display_router_cfg(struct mfd_rk616 *rk616,rk_screen *screen,bool enable)
 {
 	int ret;
-	
+	rk_screen *hdmi_screen = screen->ext_screen;
 	ret = rk616_set_router(rk616,screen,enable);
 	if(ret < 0)
 		return ret;
 	ret = rk616_router_cfg(rk616);
-	ret = rk616_dither_cfg(rk616,screen,enable);
-	ret = rk616_lvds_cfg(rk616,screen);
-	ret = rk616_vif_cfg(rk616,screen,0);
-	ret = rk616_vif_cfg(rk616,screen,1);
+	ret = rk616_vif_cfg(rk616,hdmi_screen,0);
+	ret = rk616_vif_cfg(rk616,hdmi_screen,1);
 	ret = rk616_scaler_cfg(rk616,screen);
 
 	return 0;
@@ -688,27 +600,10 @@ static int rk616_display_router_cfg(struct mfd_rk616 *rk616,rk_screen *screen,bo
 }
 
 
-int rk610_lcd_scaler_set_param(rk_screen *screen,bool enable )//enable:0 bypass 1: scale
+int rk616_set_vif(struct mfd_rk616 *rk616,rk_screen *screen,bool connect)
 {
-	int ret;
-	struct mfd_rk616 *rk616 = g_vif->rk616;
-	if(!rk616)
-	{
-		printk(KERN_ERR "%s:mfd rk616 is null!\n",__func__);
-		return -1;
-	}
-	g_vif->screen = screen;
-	ret = rk616_display_router_cfg(rk616,screen,enable);
-	return ret;
-}
-
-int rk616_set_vif(rk_screen *screen,bool connect)
-{
-	
 	struct rk616_platform_data *pdata;
-	rk_screen *lcd_screen = g_vif->screen;
-	struct mfd_rk616 *rk616 = g_vif->rk616;
-	if(!rk616 || !lcd_screen)
+	if(!rk616)
 	{
 		printk(KERN_ERR "%s:mfd rk616 is null!\n",__func__);
 		return -1;
@@ -716,112 +611,31 @@ int rk616_set_vif(rk_screen *screen,bool connect)
 	else
 	{
 		pdata = rk616->pdata;
-		lcd_screen->ext_screen = screen;
 	}
-
+#if defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
+	return 0;
+#else
 	if((pdata->lcd0_func == INPUT) && (pdata->lcd1_func == INPUT))
 	{
 		
-		rk610_lcd_scaler_set_param(lcd_screen,connect);
+		rk616_dual_input_cfg(rk616,screen,connect);
+		dev_info(rk616->dev,"rk616 use dual input for dual display!\n");
 	}
-
-	return 0;
-	
-	
-}
-
-
-#if	defined(CONFIG_HAS_EARLYSUSPEND)
-static void rk616_vif_early_suspend(struct early_suspend *h)
-{
-	struct rk616_vif *vif = container_of(h, struct rk616_vif,early_suspend);
-	struct mfd_rk616 *rk616 = vif->rk616;
-	u32 val = 0;
-	int ret = 0;
-
-	val &= ~(LVDS_CH1_PWR_EN | LVDS_CH0_PWR_EN | LVDS_CBG_PWR_EN);
-	val |= LVDS_PLL_PWR_DN |(LVDS_CH1_PWR_EN << 16) | (LVDS_CH0_PWR_EN << 16) |
-		(LVDS_CBG_PWR_EN << 16) | (LVDS_PLL_PWR_DN << 16);
-	ret = rk616->write_dev(rk616,CRU_LVDS_CON0,&val);
-	
-}
-
-static void rk616_vif_late_resume(struct early_suspend *h)
-{
-	struct rk616_vif *vif = container_of(h, struct rk616_vif,early_suspend);
-	struct mfd_rk616 *rk616 = vif->rk616;
-	rk616_lvds_cfg(rk616,vif->screen);
-}
-
-#endif
-
-static int rk616_vif_probe(struct platform_device *pdev)
-{
-	struct rk616_vif *vif = NULL; 
-	struct mfd_rk616 *rk616 = NULL;
-
-	vif = kzalloc(sizeof(struct rk616_vif),GFP_KERNEL);
-	if(!vif)
+	else if((pdata->lcd0_func == INPUT) && (pdata->lcd1_func == UNUSED))
 	{
-		printk(KERN_ALERT "alloc for struct rk616_vif fail\n");
-		return  -ENOMEM;
+		rk616_lcd0_input_lcd1_unused_cfg(rk616,screen,connect);
+		dev_info(rk616->dev,"rk616 use lcd0 input for hdmi display!\n");
 	}
-
-	rk616 = dev_get_drvdata(pdev->dev.parent);
-	if(!rk616)
-	{
-		dev_err(&pdev->dev,"null mfd device rk616!\n");
-		return -ENODEV;
-	}
-	else
-		g_vif = vif;
-		vif->rk616 = rk616;
-
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	vif->early_suspend.suspend = rk616_vif_early_suspend;
-	vif->early_suspend.resume = rk616_vif_late_resume;
-    	vif->early_suspend.level = EARLY_SUSPEND_LEVEL_DISABLE_FB - 1;
-	register_early_suspend(&vif->early_suspend);
+	rk616_vif_cfg(rk616,screen,0);
+	rk616_vif_cfg(rk616,screen,1);
+	rk616_scaler_disable(rk616);
 #endif
 	
-
-	dev_info(&pdev->dev,"rk616 vif probe success!\n");
-
 	return 0;
 	
-}
-
-static int rk616_vif_remove(struct platform_device *pdev)
-{
 	
-	return 0;
 }
 
-static void rk616_vif_shutdown(struct platform_device *pdev)
-{
-	
-	return;
-}
 
-static struct platform_driver rk616_lvds_driver = {
-	.driver		= {
-		.name	= "rk616-vif",
-		.owner	= THIS_MODULE,
-	},
-	.probe		= rk616_vif_probe,
-	.remove		= rk616_vif_remove,
-	.shutdown	= rk616_vif_shutdown,
-};
 
-static int __init rk616_lvds_init(void)
-{
-	return platform_driver_register(&rk616_lvds_driver);
-}
-subsys_initcall_sync(rk616_lvds_init);
-
-static void __exit rk616_lvds_exit(void)
-{
-	platform_driver_unregister(&rk616_lvds_driver);
-}
-module_exit(rk616_lvds_exit);
 
