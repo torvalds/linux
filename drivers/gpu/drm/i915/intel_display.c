@@ -5045,7 +5045,6 @@ static void ironlake_init_pch_refclk(struct drm_device *dev)
 	u32 val, final;
 	bool has_lvds = false;
 	bool has_cpu_edp = false;
-	bool has_pch_edp = false;
 	bool has_panel = false;
 	bool has_ck505 = false;
 	bool can_ssc = false;
@@ -5060,9 +5059,7 @@ static void ironlake_init_pch_refclk(struct drm_device *dev)
 			break;
 		case INTEL_OUTPUT_EDP:
 			has_panel = true;
-			if (intel_encoder_is_pch_edp(&encoder->base))
-				has_pch_edp = true;
-			else
+			if (enc_to_dig_port(&encoder->base)->port == PORT_A)
 				has_cpu_edp = true;
 			break;
 		}
@@ -5076,9 +5073,8 @@ static void ironlake_init_pch_refclk(struct drm_device *dev)
 		can_ssc = true;
 	}
 
-	DRM_DEBUG_KMS("has_panel %d has_lvds %d has_pch_edp %d has_cpu_edp %d has_ck505 %d\n",
-		      has_panel, has_lvds, has_pch_edp, has_cpu_edp,
-		      has_ck505);
+	DRM_DEBUG_KMS("has_panel %d has_lvds %d has_ck505 %d\n",
+		      has_panel, has_lvds, has_ck505);
 
 	/* Ironlake: try to setup display ref clock before DPLL
 	 * enabling. This is only under driver's control after
