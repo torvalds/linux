@@ -3410,6 +3410,21 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	intel_wait_for_vblank(dev, intel_crtc->pipe);
 }
 
+static void ironlake_pfit_disable(struct intel_crtc *crtc)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int pipe = crtc->pipe;
+
+	/* To avoid upsetting the power well on haswell only disable the pfit if
+	 * it's in use. The hw state code will make sure we get this right. */
+	if (crtc->config.pch_pfit.size) {
+		I915_WRITE(PF_CTL(pipe), 0);
+		I915_WRITE(PF_WIN_POS(pipe), 0);
+		I915_WRITE(PF_WIN_SZ(pipe), 0);
+	}
+}
+
 static void ironlake_crtc_disable(struct drm_crtc *crtc)
 {
 	struct drm_device *dev = crtc->dev;
@@ -3439,9 +3454,7 @@ static void ironlake_crtc_disable(struct drm_crtc *crtc)
 	intel_set_pch_fifo_underrun_reporting(dev, pipe, false);
 	intel_disable_pipe(dev_priv, pipe);
 
-	/* Disable PF */
-	I915_WRITE(PF_CTL(pipe), 0);
-	I915_WRITE(PF_WIN_SZ(pipe), 0);
+	ironlake_pfit_disable(intel_crtc);
 
 	for_each_encoder_on_crtc(dev, crtc, encoder)
 		if (encoder->post_disable)
@@ -3524,14 +3537,7 @@ static void haswell_crtc_disable(struct drm_crtc *crtc)
 
 	intel_ddi_disable_transcoder_func(dev_priv, cpu_transcoder);
 
-	/* XXX: Once we have proper panel fitter state tracking implemented with
-	 * hardware state read/check support we should switch to only disable
-	 * the panel fitter when we know it's used. */
-	if (intel_display_power_enabled(dev,
-					POWER_DOMAIN_PIPE_PANEL_FITTER(pipe))) {
-		I915_WRITE(PF_CTL(pipe), 0);
-		I915_WRITE(PF_WIN_SZ(pipe), 0);
-	}
+	ironlake_pfit_disable(intel_crtc);
 
 	intel_ddi_disable_pipe_clock(intel_crtc);
 
