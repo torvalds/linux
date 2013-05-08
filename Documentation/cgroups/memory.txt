@@ -304,7 +304,7 @@ kernel memory, we prevent new processes from being created when the kernel
 memory usage is too high.
 
 * slab pages: pages allocated by the SLAB or SLUB allocator are tracked. A copy
-of each kmem_cache is created everytime the cache is touched by the first time
+of each kmem_cache is created every time the cache is touched by the first time
 from inside the memcg. The creation is done lazily, so some objects can still be
 skipped while the cache is being created. All objects in a slab page should
 belong to the same memcg. This only fails to hold when a task is migrated to a

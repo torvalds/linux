@@ -12,7 +12,7 @@ AM33XX MUSB GLUE
    represents PERIPHERAL.
  - port1-mode : Should be "1" to represent HOST. "3" signifies OTG and "2"
    represents PERIPHERAL.
- - power : Should be "250". This signifies the controller can supply upto
+ - power : Should be "250". This signifies the controller can supply up to
    500mA when operating in host mode.
 
 Example:

@@ -18,7 +18,7 @@ Abstract media device model
 
 Discovering a device internal topology, and configuring it at runtime, is one
 of the goals of the media framework. To achieve this, hardware devices are
-modeled as an oriented graph of building blocks called entities connected
+modelled as an oriented graph of building blocks called entities connected
 through pads.
 
 An entity is a basic media hardware building block. It can correspond to

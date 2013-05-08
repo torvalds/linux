@@ -181,7 +181,7 @@ want for getting the best possible numbers when benchmarking.
 
    In practice this isn't an issue because as soon as a write comes along it'll
    cause the btree node to be split, and you need almost no write traffic for
-   this to not show up enough to be noticable (especially since bcache's btree
+   this to not show up enough to be noticeable (especially since bcache's btree
    nodes are huge and index large regions of the device). But when you're
    benchmarking, if you're trying to warm the cache by reading a bunch of data
    and there's no other traffic - that can be a problem.
@@ -222,7 +222,7 @@ running
   it's in passthrough mode or caching).
 
 sequential_cutoff
-  A sequential IO will bypass the cache once it passes this threshhold; the
+  A sequential IO will bypass the cache once it passes this threshold; the
   most recent 128 IOs are tracked so sequential IO can be detected even when
   it isn't all done at once.
 
@@ -296,7 +296,7 @@ cache_miss_collisions
   since the synchronization for cache misses was rewritten)
 
 cache_readaheads
-  Count of times readahead occured.
+  Count of times readahead occurred.
 
 SYSFS - CACHE SET:
 
@@ -359,7 +359,7 @@ unregister
 SYSFS - CACHE SET INTERNAL:
 
 This directory also exposes timings for a number of internal operations, with
-separate files for average duration, average frequency, last occurence and max
+separate files for average duration, average frequency, last occurrence and max
 duration: garbage collection, btree read, btree node sorts and btree splits.
 
 active_journal_entries
@@ -414,7 +414,7 @@ freelist_percent
   space.
 
 io_errors
-  Number of errors that have occured, decayed by io_error_halflife.
+  Number of errors that have occurred, decayed by io_error_halflife.
 
 metadata_written
   Sum of all non data writes (btree writes and all other metadata).

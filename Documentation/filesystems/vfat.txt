@@ -307,7 +307,7 @@ the following:
 
                 <proceeding files...>
                 <slot #3, id = 0x43, characters = "h is long">
-                <slot #2, id = 0x02, characters = "xtension whic">
+                <slot #2, id = 0x02, characters = "xtension which">
                 <slot #1, id = 0x01, characters = "My Big File.E">
                 <directory entry, name = "MYBIGFIL.EXT">
 

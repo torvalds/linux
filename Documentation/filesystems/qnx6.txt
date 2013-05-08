@@ -148,7 +148,7 @@ smaller than addressing space in the bitmap.
 Bitmap system area
 ------------------
 
-The bitmap itself is devided into three parts.
+The bitmap itself is divided into three parts.
 First the system area, that is split into two halfs.
 Then userspace.
 
