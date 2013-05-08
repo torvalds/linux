@@ -231,7 +231,7 @@ static int spdif_in_probe(struct platform_device *pdev)
 	if (host->irq < 0)
 		return -EINVAL;
 
-	host->clk = clk_get(&pdev->dev, NULL);
+	host->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(host->clk))
 		return PTR_ERR(host->clk);
 
@@ -253,7 +253,6 @@ static int spdif_in_probe(struct platform_device *pdev)
 	ret = devm_request_irq(&pdev->dev, host->irq, spdif_in_irq, 0,
 			"spdif-in", host);
 	if (ret) {
-		clk_put(host->clk);
 		dev_warn(&pdev->dev, "request_irq failed\n");
 		return ret;
 	}
@@ -273,13 +272,9 @@ static int spdif_in_remove(struct platform_device *pdev)
 	struct spdif_in_dev *host = dev_get_drvdata(&pdev->dev);
 
 	snd_soc_unregister_component(&pdev->dev);
-	dev_set_drvdata(&pdev->dev, NULL);
-
-	clk_put(host->clk);
 
 	return 0;
 }
-
 
 static struct platform_driver spdif_in_driver = {
 	.probe		= spdif_in_probe,
