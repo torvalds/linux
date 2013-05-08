@@ -23,6 +23,7 @@
 #include <linux/platform_device.h>
 #include <linux/ip.h>
 #include <linux/firmware.h>
+#include <linux/etherdevice.h>
 
 #include "../wlcore/wlcore.h"
 #include "../wlcore/debug.h"
@@ -1317,6 +1318,16 @@ static int wl18xx_get_mac(struct wl1271 *wl)
 	wl->fuse_oui_addr = ((mac2 & 0xffff) << 8) +
 		((mac1 & 0xff000000) >> 24);
 	wl->fuse_nic_addr = (mac1 & 0xffffff);
+
+	if (!wl->fuse_oui_addr && !wl->fuse_nic_addr) {
+		u8 mac[ETH_ALEN];
+
+		eth_random_addr(mac);
+
+		wl->fuse_oui_addr = (mac[0] << 16) + (mac[1] << 8) + mac[2];
+		wl->fuse_nic_addr = (mac[3] << 16) + (mac[4] << 8) + mac[5];
+		wl1271_warning("MAC address from fuse not available, using random locally administered addresses.");
+	}
 
 	ret = wlcore_set_partition(wl, &wl->ptable[PART_DOWN]);
 
