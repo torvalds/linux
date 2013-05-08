@@ -2566,6 +2566,11 @@ static void valleyview_disable_rps(struct drm_device *dev)
 	spin_unlock_irq(&dev_priv->rps.lock);
 
 	I915_WRITE(GEN6_PMIIR, I915_READ(GEN6_PMIIR));
+
+	if (dev_priv->vlv_pctx) {
+		drm_gem_object_unreference(&dev_priv->vlv_pctx->base);
+		dev_priv->vlv_pctx = NULL;
+	}
 }
 
 int intel_enable_rc6(const struct drm_device *dev)
@@ -2860,6 +2865,48 @@ static void vlv_rps_timer_work(struct work_struct *work)
 	mutex_unlock(&dev_priv->rps.hw_lock);
 }
 
+static void valleyview_setup_pctx(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_gem_object *pctx;
+	unsigned long pctx_paddr;
+	u32 pcbr;
+	int pctx_size = 24*1024;
+
+	pcbr = I915_READ(VLV_PCBR);
+	if (pcbr) {
+		/* BIOS set it up already, grab the pre-alloc'd space */
+		int pcbr_offset;
+
+		pcbr_offset = (pcbr & (~4095)) - dev_priv->mm.stolen_base;
+		pctx = i915_gem_object_create_stolen_for_preallocated(dev_priv->dev,
+								      pcbr_offset,
+								      pcbr_offset,
+								      pctx_size);
+		goto out;
+	}
+
+	/*
+	 * From the Gunit register HAS:
+	 * The Gfx driver is expected to program this register and ensure
+	 * proper allocation within Gfx stolen memory.  For example, this
+	 * register should be programmed such than the PCBR range does not
+	 * overlap with other ranges, such as the frame buffer, protected
+	 * memory, or any other relevant ranges.
+	 */
+	pctx = i915_gem_object_create_stolen(dev, pctx_size);
+	if (!pctx) {
+		DRM_DEBUG("not enough stolen space for PCTX, disabling\n");
+		return;
+	}
+
+	pctx_paddr = dev_priv->mm.stolen_base + pctx->stolen->start;
+	I915_WRITE(VLV_PCBR, pctx_paddr);
+
+out:
+	dev_priv->vlv_pctx = pctx;
+}
+
 static void valleyview_enable_rps(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -2873,6 +2920,8 @@ static void valleyview_enable_rps(struct drm_device *dev)
 		DRM_ERROR("GT fifo had a previous error %x\n", gtfifodbg);
 		I915_WRITE(GTFIFODBG, gtfifodbg);
 	}
+
+	valleyview_setup_pctx(dev);
 
 	gen6_gt_force_wake_get(dev_priv);
 

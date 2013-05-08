@@ -1074,6 +1074,8 @@ typedef struct drm_i915_private {
 
 	struct i915_gpu_error gpu_error;
 
+	struct drm_i915_gem_object *vlv_pctx;
+
 	/* list of fbdev register on this device */
 	struct intel_fbdev *fbdev;
 
