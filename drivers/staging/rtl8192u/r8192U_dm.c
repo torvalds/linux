@@ -289,7 +289,7 @@ extern  void    hal_dm_watchdog(struct net_device *dev)
   *	01/16/2008	MHC		RF_Type is assigned in ReadAdapterInfo(). We must call
   *						the function after making sure RF_Type.
   */
-extern void init_rate_adaptive(struct net_device * dev)
+extern void init_rate_adaptive(struct net_device *dev)
 {
 
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -351,7 +351,7 @@ extern void init_rate_adaptive(struct net_device * dev)
  *	05/26/08	amy	Create version 0 porting from windows code.
  *
  *---------------------------------------------------------------------------*/
-static void dm_check_rate_adaptive(struct net_device * dev)
+static void dm_check_rate_adaptive(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	PRT_HIGH_THROUGHPUT	pHTInfo = priv->ieee80211->pHTInfo;
@@ -505,7 +505,7 @@ static void dm_check_rate_adaptive(struct net_device * dev)
 }	// dm_CheckRateAdaptive
 
 
-static void dm_init_bandwidth_autoswitch(struct net_device * dev)
+static void dm_init_bandwidth_autoswitch(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
@@ -517,7 +517,7 @@ static void dm_init_bandwidth_autoswitch(struct net_device * dev)
 }	// dm_init_bandwidth_autoswitch
 
 
-static void dm_bandwidth_autoswitch(struct net_device * dev)
+static void dm_bandwidth_autoswitch(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
@@ -588,7 +588,7 @@ static u8	CCKSwingTable_Ch14[CCK_Table_length][8] = {
 	{0x0f, 0x0f, 0x0d, 0x08, 0x00, 0x00, 0x00, 0x00}	// 11, -11db
 };
 
-static void dm_TXPowerTrackingCallback_TSSI(struct net_device * dev)
+static void dm_TXPowerTrackingCallback_TSSI(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	bool						bHighpowerstate, viviflag = FALSE;
@@ -627,7 +627,7 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device * dev)
 		RT_TRACE(COMP_POWER_TRACKING, "Set configuration with tx cmd queue fail!\n");
 	}
 #else
-	cmpk_message_handle_tx(dev, (u8*)&tx_cmd,
+	cmpk_message_handle_tx(dev, (u8 *)&tx_cmd,
 								DESC_PACKET_TYPE_INIT, sizeof(DCMD_TXCMD_T));
 #endif
 	mdelay(1);
@@ -816,7 +816,7 @@ static void dm_TXPowerTrackingCallback_TSSI(struct net_device * dev)
 		write_nic_byte(dev, 0x1ba, 0);
 }
 
-static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device * dev)
+static void dm_TXPowerTrackingCallback_ThermalMeter(struct net_device *dev)
 {
 #define ThermalMeterVal	9
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -2316,7 +2316,7 @@ static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
  *
  *---------------------------------------------------------------------------*/
 static void dm_ctrl_initgain_byrssi_highpwr(
-	struct net_device * dev)
+	struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	static u32 reset_cnt_highpwr;
@@ -2391,7 +2391,7 @@ static void dm_ctrl_initgain_byrssi_highpwr(
 
 
 static void dm_initial_gain(
-	struct net_device * dev)
+	struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u8					initial_gain=0;
@@ -2459,7 +2459,7 @@ static void dm_initial_gain(
 }
 
 static void dm_pd_th(
-	struct net_device * dev)
+	struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	static u8				initialized, force_write;
@@ -2571,7 +2571,7 @@ static void dm_pd_th(
 }
 
 static	void dm_cs_ratio(
-	struct net_device * dev)
+	struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	static u8				initialized,force_write;
@@ -2634,7 +2634,7 @@ static	void dm_cs_ratio(
 	}
 }
 
-extern void dm_init_edca_turbo(struct net_device * dev)
+extern void dm_init_edca_turbo(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
@@ -2644,7 +2644,7 @@ extern void dm_init_edca_turbo(struct net_device * dev)
 }	// dm_init_edca_turbo
 
 static void dm_check_edca_turbo(
-	struct net_device * dev)
+	struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	PRT_HIGH_THROUGHPUT	pHTInfo = priv->ieee80211->pHTInfo;
@@ -2753,7 +2753,7 @@ dm_CheckEdcaTurbo_EXIT:
 	lastRxOkCnt = priv->stats.rxbytesunicast;
 }	// dm_CheckEdcaTurbo
 
-extern void DM_CTSToSelfSetting(struct net_device * dev,u32 DM_Type, u32 DM_Value)
+extern void DM_CTSToSelfSetting(struct net_device *dev,u32 DM_Type, u32 DM_Value)
 {
 	struct r8192_priv *priv = ieee80211_priv((struct net_device *)dev);
 
@@ -2773,7 +2773,7 @@ extern void DM_CTSToSelfSetting(struct net_device * dev,u32 DM_Type, u32 DM_Valu
 	}
 }
 
-static void dm_init_ctstoself(struct net_device * dev)
+static void dm_init_ctstoself(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv((struct net_device *)dev);
 
@@ -2837,7 +2837,7 @@ static void dm_ctstoself(struct net_device *dev)
  *	05/28/2008	amy		Create Version 0 porting from windows code.
  *
  *---------------------------------------------------------------------------*/
-static void dm_check_rfctrl_gpio(struct net_device * dev)
+static void dm_check_rfctrl_gpio(struct net_device *dev)
 {
 	//struct r8192_priv *priv = ieee80211_priv(dev);
 
@@ -3012,7 +3012,7 @@ extern	void	dm_rf_pathcheck_workitemcallback(struct work_struct *work)
 	dm_rxpath_sel_byrssi(dev);
 }	/* DM_RFPathCheckWorkItemCallBack */
 
-static void dm_init_rxpath_selection(struct net_device * dev)
+static void dm_init_rxpath_selection(struct net_device *dev)
 {
 	u8 i;
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -3033,7 +3033,7 @@ static void dm_init_rxpath_selection(struct net_device * dev)
 	}
 }
 
-static void dm_rxpath_sel_byrssi(struct net_device * dev)
+static void dm_rxpath_sel_byrssi(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u8				i, max_rssi_index=0, min_rssi_index=0, sec_rssi_index=0, rf_num=0;
@@ -3852,10 +3852,10 @@ static void dm_dynamic_txpower(struct net_device *dev)
 }	/* dm_dynamic_txpower */
 
 //added by vivi, for read tx rate and retrycount
-static void dm_check_txrateandretrycount(struct net_device * dev)
+static void dm_check_txrateandretrycount(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	struct ieee80211_device* ieee = priv->ieee80211;
+	struct ieee80211_device *ieee = priv->ieee80211;
 	//for 11n tx rate
 //	priv->stats.CurrentShowTxate = read_nic_byte(dev, Current_Tx_Rate_Reg);
 	ieee->softmac_stats.CurrentShowTxate = read_nic_byte(dev, Current_Tx_Rate_Reg);
@@ -3882,7 +3882,7 @@ static void dm_send_rssi_tofw(struct net_device *dev)
 	tx_cmd.Length	= 4;
 	tx_cmd.Value		= priv->undecorated_smoothed_pwdb;
 
-	cmpk_message_handle_tx(dev, (u8*)&tx_cmd,
+	cmpk_message_handle_tx(dev, (u8 *)&tx_cmd,
 								DESC_PACKET_TYPE_INIT, sizeof(DCMD_TXCMD_T));
 }
 
