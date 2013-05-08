@@ -1621,8 +1621,8 @@ static struct pmu_info  wm8326_dcdc_info[] = {
 	#else
 	{
 		.name          = "dcdc4",   //vcc_io
-		.min_uv          = 3000000,
-		.max_uv         = 3000000,
+		.min_uv          = 3200000,
+		.max_uv         = 3200000,
 		.suspend_vol  =  2800000,
 	},
 	#endif
