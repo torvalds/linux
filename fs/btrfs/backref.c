@@ -918,7 +918,8 @@ again:
 							   ref->parent, bsz, 0);
 				if (!eb || !extent_buffer_uptodate(eb)) {
 					free_extent_buffer(eb);
-					return -EIO;
+					ret = -EIO;
+					goto out;
 				}
 				ret = find_extent_in_eb(eb, bytenr,
 							*extent_item_pos, &eie);
