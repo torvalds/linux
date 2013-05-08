@@ -144,6 +144,13 @@ int opal_put_chars(uint32_t vtermno, const char *data, int total_len)
 				rc == OPAL_BUSY_EVENT || rc == OPAL_SUCCESS)) {
 		len = total_len;
 		rc = opal_console_write(vtermno, &len, data);
+
+		/* Closed or other error drop */
+		if (rc != OPAL_SUCCESS && rc != OPAL_BUSY &&
+		    rc != OPAL_BUSY_EVENT) {
+			written = total_len;
+			break;
+		}
 		if (rc == OPAL_SUCCESS) {
 			total_len -= len;
 			data += len;
