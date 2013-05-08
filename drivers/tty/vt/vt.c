@@ -3576,26 +3576,6 @@ err:
 	return retval;
 }
 
-/**
- * register_con_driver - register console driver to console layer
- * @csw: console driver
- * @first: the first console to take over, minimum value is 0
- * @last: the last console to take over, maximum value is MAX_NR_CONSOLES -1
- *
- * DESCRIPTION: This function registers a console driver which can later
- * bind to a range of consoles specified by @first and @last. It will
- * also initialize the console driver by calling con_startup().
- */
-int register_con_driver(const struct consw *csw, int first, int last)
-{
-	int retval;
-
-	console_lock();
-	retval = do_register_con_driver(csw, first, last);
-	console_unlock();
-	return retval;
-}
-EXPORT_SYMBOL(register_con_driver);
 
 /**
  * unregister_con_driver - unregister console driver from console layer
@@ -3677,30 +3657,6 @@ int do_take_over_console(const struct consw *csw, int first, int last, int deflt
 }
 EXPORT_SYMBOL_GPL(do_take_over_console);
 
-/*
- *	If we support more console drivers, this function is used
- *	when a driver wants to take over some existing consoles
- *	and become default driver for newly opened ones.
- *
- *	take_over_console is basically a register followed by unbind
- */
-int take_over_console(const struct consw *csw, int first, int last, int deflt)
-{
-	int err;
-
-	err = register_con_driver(csw, first, last);
-	/*
-	 * If we get an busy error we still want to bind the console driver
-	 * and return success, as we may have unbound the console driver
-	 * but not unregistered it.
-	 */
-	if (err == -EBUSY)
-		err = 0;
-	if (!err)
-		bind_con_driver(csw, first, last, deflt);
-
-	return err;
-}
 
 /*
  * give_up_console is a wrapper to unregister_con_driver. It will only
@@ -4264,6 +4220,5 @@ EXPORT_SYMBOL(console_blanked);
 EXPORT_SYMBOL(vc_cons);
 EXPORT_SYMBOL(global_cursor_default);
 #ifndef VT_SINGLE_DRIVER
-EXPORT_SYMBOL(take_over_console);
 EXPORT_SYMBOL(give_up_console);
 #endif
