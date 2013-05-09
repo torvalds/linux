@@ -19,6 +19,8 @@ if ARCH_U8500
 config UX500_SOC_COMMON
 	bool
 	default y
+	select ABX500_CORE
+	select AB8500_CORE
 	select ARM_ERRATA_754322
 	select ARM_ERRATA_764369 if SMP
 	select ARM_GIC

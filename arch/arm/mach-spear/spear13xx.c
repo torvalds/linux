@@ -35,6 +35,8 @@ void __init spear13xx_l2x0_init(void)
 	 * write alloc and 'Full line of zero' options
 	 *
 	 */
+	if (!IS_ENABLED(CONFIG_CACHE_L2X0))
+		return;
 
 	writel_relaxed(0x06, VA_L2CC_BASE + L2X0_PREFETCH_CTRL);
 
