@@ -732,8 +732,6 @@ extern void intel_update_watermarks(struct drm_device *dev);
 extern void intel_update_sprite_watermarks(struct drm_device *dev, int pipe,
 					   uint32_t sprite_width,
 					   int pixel_size);
-extern void intel_update_linetime_watermarks(struct drm_device *dev, int pipe,
-			 struct drm_display_mode *mode);
 
 extern unsigned long intel_gen4_compute_page_offset(int *x, int *y,
 						    unsigned int tiling_mode,

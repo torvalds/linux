@@ -2073,11 +2073,18 @@ static void ivybridge_update_wm(struct drm_device *dev)
 }
 
 static void
-haswell_update_linetime_wm(struct drm_device *dev, int pipe,
-				 struct drm_display_mode *mode)
+haswell_update_linetime_wm(struct drm_device *dev, struct drm_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+	enum pipe pipe = intel_crtc->pipe;
+	struct drm_display_mode *mode = &intel_crtc->config.adjusted_mode;
 	u32 temp;
+
+	if (!intel_crtc_active(crtc)) {
+		I915_WRITE(PIPE_WM_LINETIME(pipe), 0);
+		return;
+	}
 
 	temp = I915_READ(PIPE_WM_LINETIME(pipe));
 	temp &= ~PIPE_WM_LINETIME_MASK;
@@ -2097,6 +2104,26 @@ haswell_update_linetime_wm(struct drm_device *dev, int pipe,
 	 */
 
 	I915_WRITE(PIPE_WM_LINETIME(pipe), temp);
+}
+
+static void haswell_update_wm(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_crtc *crtc;
+	enum pipe pipe;
+
+	/* Disable the LP WMs before changine the linetime registers. This is
+	 * just a temporary code that will be replaced soon. */
+	I915_WRITE(WM3_LP_ILK, 0);
+	I915_WRITE(WM2_LP_ILK, 0);
+	I915_WRITE(WM1_LP_ILK, 0);
+
+	for_each_pipe(pipe) {
+		crtc = dev_priv->pipe_to_crtc_mapping[pipe];
+		haswell_update_linetime_wm(dev, crtc);
+	}
+
+	sandybridge_update_wm(dev);
 }
 
 static bool
@@ -2292,15 +2319,6 @@ void intel_update_watermarks(struct drm_device *dev)
 
 	if (dev_priv->display.update_wm)
 		dev_priv->display.update_wm(dev);
-}
-
-void intel_update_linetime_watermarks(struct drm_device *dev,
-		int pipe, struct drm_display_mode *mode)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	if (dev_priv->display.update_linetime_wm)
-		dev_priv->display.update_linetime_wm(dev, pipe, mode);
 }
 
 void intel_update_sprite_watermarks(struct drm_device *dev, int pipe,
@@ -4624,9 +4642,8 @@ void intel_init_pm(struct drm_device *dev)
 			dev_priv->display.init_clock_gating = ivybridge_init_clock_gating;
 		} else if (IS_HASWELL(dev)) {
 			if (SNB_READ_WM0_LATENCY()) {
-				dev_priv->display.update_wm = sandybridge_update_wm;
+				dev_priv->display.update_wm = haswell_update_wm;
 				dev_priv->display.update_sprite_wm = sandybridge_update_sprite_wm;
-				dev_priv->display.update_linetime_wm = haswell_update_linetime_wm;
 			} else {
 				DRM_DEBUG_KMS("Failed to read display plane latency. "
 					      "Disable CxSR\n");

@@ -316,8 +316,6 @@ struct drm_i915_display_funcs {
 	void (*update_wm)(struct drm_device *dev);
 	void (*update_sprite_wm)(struct drm_device *dev, int pipe,
 				 uint32_t sprite_width, int pixel_size);
-	void (*update_linetime_wm)(struct drm_device *dev, int pipe,
-				 struct drm_display_mode *mode);
 	void (*modeset_global_resources)(struct drm_device *dev);
 	/* Returns the active state of the crtc, and if the crtc is active,
 	 * fills out the pipe-config with the hw state. */
