@@ -2996,6 +2996,28 @@ static int em_das(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
+static int em_aam(struct x86_emulate_ctxt *ctxt)
+{
+	u8 al, ah;
+
+	if (ctxt->src.val == 0)
+		return emulate_de(ctxt);
+
+	al = ctxt->dst.val & 0xff;
+	ah = al / ctxt->src.val;
+	al %= ctxt->src.val;
+
+	ctxt->dst.val = (ctxt->dst.val & 0xffff0000) | al | (ah << 8);
+
+	/* Set PF, ZF, SF */
+	ctxt->src.type = OP_IMM;
+	ctxt->src.val = 0;
+	ctxt->src.bytes = 1;
+	fastop(ctxt, em_or);
+
+	return X86EMUL_CONTINUE;
+}
+
 static int em_aad(struct x86_emulate_ctxt *ctxt)
 {
 	u8 al = ctxt->dst.val & 0xff;
@@ -3936,7 +3958,8 @@ static const struct opcode opcode_table[256] = {
 	/* 0xD0 - 0xD7 */
 	G(Src2One | ByteOp, group2), G(Src2One, group2),
 	G(Src2CL | ByteOp, group2), G(Src2CL, group2),
-	N, I(DstAcc | SrcImmByte | No64, em_aad), N, N,
+	I(DstAcc | SrcImmUByte | No64, em_aam),
+	I(DstAcc | SrcImmUByte | No64, em_aad), N, N,
 	/* 0xD8 - 0xDF */
 	N, E(0, &escape_d9), N, E(0, &escape_db), N, E(0, &escape_dd), N, N,
 	/* 0xE0 - 0xE7 */
