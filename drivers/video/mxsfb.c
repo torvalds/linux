@@ -42,7 +42,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/of_device.h>
-#include <video/of_display_timing.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
@@ -50,6 +49,7 @@
 #include <linux/pinctrl/consumer.h>
 #include <linux/fb.h>
 #include <linux/regulator/consumer.h>
+#include <video/of_display_timing.h>
 #include <video/videomode.h>
 
 #define REG_SET	4
@@ -777,16 +777,16 @@ static int mxsfb_init_fbinfo_dt(struct mxsfb_info *host)
 		struct videomode vm;
 		struct fb_videomode fb_vm;
 
-		ret = videomode_from_timing(timings, &vm, i);
+		ret = videomode_from_timings(timings, &vm, i);
 		if (ret < 0)
 			goto put_timings_node;
 		ret = fb_videomode_from_videomode(&vm, &fb_vm);
 		if (ret < 0)
 			goto put_timings_node;
 
-		if (vm.data_flags & DISPLAY_FLAGS_DE_HIGH)
+		if (vm.flags & DISPLAY_FLAGS_DE_HIGH)
 			host->sync |= MXSFB_SYNC_DATA_ENABLE_HIGH_ACT;
-		if (vm.data_flags & DISPLAY_FLAGS_PIXDATA_NEGEDGE)
+		if (vm.flags & DISPLAY_FLAGS_PIXDATA_NEGEDGE)
 			host->sync |= MXSFB_SYNC_DOTCLK_FALLING_ACT;
 		fb_add_videomode(&fb_vm, &fb_info->modelist);
 	}

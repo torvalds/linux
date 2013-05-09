@@ -183,7 +183,7 @@
 	};
 
 	usb@12110000 {
-		samsung,vbus-gpio = <&gpx1 1 1 3 3>;
+		samsung,vbus-gpio = <&gpx1 1 0>;
 	};
 
 	fixed-rate-clocks {

@@ -876,4 +876,4 @@ static int __init omap_device_late_init(void)
 	bus_for_each_dev(&platform_bus_type, NULL, NULL, omap_device_late_idle);
 	return 0;
 }
-omap_late_initcall(omap_device_late_init);
+omap_late_initcall_sync(omap_device_late_init);

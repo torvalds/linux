@@ -68,6 +68,7 @@
 
 &usb_otg_hs {
 	interface-type = <0>;
+	usb-phy = <&usb2_phy>;
 	mode = <3>;
 	power = <50>;
 };

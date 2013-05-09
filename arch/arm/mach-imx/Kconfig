@@ -5,6 +5,7 @@ config ARCH_MXC
 	select AUTO_ZRELADDR if !ZBOOT_ROM
 	select CLKDEV_LOOKUP
 	select CLKSRC_MMIO
+	select GENERIC_ALLOCATOR
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_IRQ_CHIP
 	select MULTI_IRQ_HANDLER
@@ -60,10 +61,6 @@ config MXC_ULPI
 
 config ARCH_HAS_RNGA
 	bool
-
-config IRAM_ALLOC
-	bool
-	select GENERIC_ALLOCATOR
 
 config HAVE_IMX_ANATOP
 	bool
