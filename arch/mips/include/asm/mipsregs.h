@@ -596,6 +596,7 @@
 #define MIPS_CONF3_RXI		(_ULCAST_(1) << 12)
 #define MIPS_CONF3_ULRI		(_ULCAST_(1) << 13)
 #define MIPS_CONF3_ISA		(_ULCAST_(3) << 14)
+#define MIPS_CONF3_ISA_OE	(_ULCAST_(3) << 16)
 #define MIPS_CONF3_VZ		(_ULCAST_(1) << 23)
 
 #define MIPS_CONF4_MMUSIZEEXT	(_ULCAST_(255) << 0)
@@ -621,6 +622,24 @@
 #define MIPS_FPIR_F64		(_ULCAST_(1) << 22)
 
 #ifndef __ASSEMBLY__
+
+/*
+ * Macros for handling the ISA mode bit for microMIPS.
+ */
+#define get_isa16_mode(x)		((x) & 0x1)
+#define msk_isa16_mode(x)		((x) & ~0x1)
+#define set_isa16_mode(x)		do { (x) |= 0x1; } while(0)
+
+/*
+ * microMIPS instructions can be 16-bit or 32-bit in length. This
+ * returns a 1 if the instruction is 16-bit and a 0 if 32-bit.
+ */
+static inline int mm_insn_16bit(u16 insn)
+{
+	u16 opcode = (insn >> 10) & 0x7;
+
+	return (opcode >= 1 && opcode <= 3) ? 1 : 0;
+}
 
 /*
  * Functions to access the R10000 performance counters.	 These are basically

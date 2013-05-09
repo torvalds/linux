@@ -33,6 +33,7 @@
 #include <asm/war.h>
 #include <asm/cacheflush.h> /* for run_uncached() */
 #include <asm/traps.h>
+#include <asm/dma-coherence.h>
 
 /*
  * Special Variant of smp_call_function for use by cache functions:
@@ -1379,20 +1380,6 @@ static void __cpuinit coherency_setup(void)
 	}
 }
 
-#if defined(CONFIG_DMA_NONCOHERENT)
-
-static int __cpuinitdata coherentio;
-
-static int __init setcoherentio(char *str)
-{
-	coherentio = 1;
-
-	return 0;
-}
-
-early_param("coherentio", setcoherentio);
-#endif
-
 static void __cpuinit r4k_cache_error_setup(void)
 {
 	extern char __weak except_vec2_generic;
@@ -1474,9 +1461,14 @@ void __cpuinit r4k_cache_init(void)
 
 	build_clear_page();
 	build_copy_page();
-#if !defined(CONFIG_MIPS_CMP)
+
+	/*
+	 * We want to run CMP kernels on core with and without coherent
+	 * caches. Therefore, do not use CONFIG_MIPS_CMP to decide whether
+	 * or not to flush caches.
+	 */
 	local_r4k___flush_cache_all(NULL);
-#endif
+
 	coherency_setup();
 	board_cache_error_setup = r4k_cache_error_setup;
 }

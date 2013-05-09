@@ -336,7 +336,7 @@ enum emulation_result {
 #define VPN2_MASK           0xffffe000
 #define TLB_IS_GLOBAL(x)    (((x).tlb_lo0 & MIPS3_PG_G) && ((x).tlb_lo1 & MIPS3_PG_G))
 #define TLB_VPN2(x)         ((x).tlb_hi & VPN2_MASK)
-#define TLB_ASID(x)         ((x).tlb_hi & ASID_MASK)
+#define TLB_ASID(x)         (ASID_MASK((x).tlb_hi))
 #define TLB_IS_VALID(x, va) (((va) & (1 << PAGE_SHIFT)) ? ((x).tlb_lo1 & MIPS3_PG_V) : ((x).tlb_lo0 & MIPS3_PG_V))
 
 struct kvm_mips_tlb {

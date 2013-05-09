@@ -2,6 +2,7 @@
 #define _ASM_DMA_MAPPING_H
 
 #include <asm/scatterlist.h>
+#include <asm/dma-coherence.h>
 #include <asm/cache.h>
 #include <asm-generic/dma-coherent.h>
 
