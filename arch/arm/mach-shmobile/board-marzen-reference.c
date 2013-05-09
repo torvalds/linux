@@ -28,24 +28,24 @@
 
 static const struct pinctrl_map marzen_pinctrl_map[] = {
 	/* SCIF2 (CN18: DEBUG0) */
-	PIN_MAP_MUX_GROUP_DEFAULT("sh-sci.2", "pfc-r8a7779",
+	PIN_MAP_MUX_GROUP_DEFAULT("sh-sci.2", "fffc0000.pfc",
 				  "scif2_data_c", "scif2"),
 	/* SCIF4 (CN19: DEBUG1) */
-	PIN_MAP_MUX_GROUP_DEFAULT("sh-sci.4", "pfc-r8a7779",
+	PIN_MAP_MUX_GROUP_DEFAULT("sh-sci.4", "fffc0000.pfc",
 				  "scif4_data", "scif4"),
 	/* SDHI0 */
-	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-r8a7779",
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "fffc0000.pfc",
 				  "sdhi0_data4", "sdhi0"),
-	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-r8a7779",
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "fffc0000.pfc",
 				  "sdhi0_ctrl", "sdhi0"),
-	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-r8a7779",
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "fffc0000.pfc",
 				  "sdhi0_cd", "sdhi0"),
-	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "pfc-r8a7779",
+	PIN_MAP_MUX_GROUP_DEFAULT("sh_mobile_sdhi.0", "fffc0000.pfc",
 				  "sdhi0_wp", "sdhi0"),
 	/* SMSC */
-	PIN_MAP_MUX_GROUP_DEFAULT("smsc911x", "pfc-r8a7779",
+	PIN_MAP_MUX_GROUP_DEFAULT("smsc911x", "fffc0000.pfc",
 				  "intc_irq1_b", "intc"),
-	PIN_MAP_MUX_GROUP_DEFAULT("smsc911x", "pfc-r8a7779",
+	PIN_MAP_MUX_GROUP_DEFAULT("smsc911x", "fffc0000.pfc",
 				  "lbsc_ex_cs0", "lbsc"),
 };
 
@@ -53,7 +53,6 @@ static void __init marzen_init(void)
 {
 	pinctrl_register_mappings(marzen_pinctrl_map,
 				  ARRAY_SIZE(marzen_pinctrl_map));
-	r8a7779_pinmux_init();
 
 	r8a7779_add_standard_devices_dt();
 }
