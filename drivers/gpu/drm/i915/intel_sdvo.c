@@ -1526,7 +1526,7 @@ intel_sdvo_get_analog_edid(struct drm_connector *connector)
 
 	return drm_get_edid(connector,
 			    intel_gmbus_get_adapter(dev_priv,
-						    dev_priv->crt_ddc_pin));
+						    dev_priv->vbt.crt_ddc_pin));
 }
 
 static enum drm_connector_status
@@ -1809,9 +1809,9 @@ static void intel_sdvo_get_lvds_modes(struct drm_connector *connector)
 		goto end;
 
 	/* Fetch modes from VBT */
-	if (dev_priv->sdvo_lvds_vbt_mode != NULL) {
+	if (dev_priv->vbt.sdvo_lvds_vbt_mode != NULL) {
 		newmode = drm_mode_duplicate(connector->dev,
-					     dev_priv->sdvo_lvds_vbt_mode);
+					     dev_priv->vbt.sdvo_lvds_vbt_mode);
 		if (newmode != NULL) {
 			/* Guarantee the mode is preferred */
 			newmode->type = (DRM_MODE_TYPE_PREFERRED |

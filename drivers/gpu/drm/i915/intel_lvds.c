@@ -735,11 +735,11 @@ static bool lvds_is_present_in_vbt(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int i;
 
-	if (!dev_priv->child_dev_num)
+	if (!dev_priv->vbt.child_dev_num)
 		return true;
 
-	for (i = 0; i < dev_priv->child_dev_num; i++) {
-		struct child_device_config *child = dev_priv->child_dev + i;
+	for (i = 0; i < dev_priv->vbt.child_dev_num; i++) {
+		struct child_device_config *child = dev_priv->vbt.child_dev + i;
 
 		/* If the device type is not LFP, continue.
 		 * We have to check both the new identifiers as well as the
@@ -827,7 +827,7 @@ static bool compute_is_dual_link_lvds(struct intel_lvds_encoder *lvds_encoder)
 	 */
 	val = I915_READ(lvds_encoder->reg);
 	if (!(val & ~(LVDS_PIPE_MASK | LVDS_DETECTED)))
-		val = dev_priv->bios_lvds_val;
+		val = dev_priv->vbt.bios_lvds_val;
 
 	return (val & LVDS_CLKB_POWER_MASK) == LVDS_CLKB_POWER_UP;
 }
@@ -887,7 +887,7 @@ bool intel_lvds_init(struct drm_device *dev)
 	if (HAS_PCH_SPLIT(dev)) {
 		if ((I915_READ(PCH_LVDS) & LVDS_DETECTED) == 0)
 			return false;
-		if (dev_priv->edp.support) {
+		if (dev_priv->vbt.edp_support) {
 			DRM_DEBUG_KMS("disable LVDS for eDP support\n");
 			return false;
 		}
@@ -1005,11 +1005,11 @@ bool intel_lvds_init(struct drm_device *dev)
 	}
 
 	/* Failed to get EDID, what about VBT? */
-	if (dev_priv->lfp_lvds_vbt_mode) {
+	if (dev_priv->vbt.lfp_lvds_vbt_mode) {
 		DRM_DEBUG_KMS("using mode from VBT: ");
-		drm_mode_debug_printmodeline(dev_priv->lfp_lvds_vbt_mode);
+		drm_mode_debug_printmodeline(dev_priv->vbt.lfp_lvds_vbt_mode);
 
-		fixed_mode = drm_mode_duplicate(dev, dev_priv->lfp_lvds_vbt_mode);
+		fixed_mode = drm_mode_duplicate(dev, dev_priv->vbt.lfp_lvds_vbt_mode);
 		if (fixed_mode) {
 			fixed_mode->type |= DRM_MODE_TYPE_PREFERRED;
 			goto out;

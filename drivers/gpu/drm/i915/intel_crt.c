@@ -442,7 +442,7 @@ static bool intel_crt_detect_ddc(struct drm_connector *connector)
 
 	BUG_ON(crt->base.type != INTEL_OUTPUT_ANALOG);
 
-	i2c = intel_gmbus_get_adapter(dev_priv, dev_priv->crt_ddc_pin);
+	i2c = intel_gmbus_get_adapter(dev_priv, dev_priv->vbt.crt_ddc_pin);
 	edid = intel_crt_get_edid(connector, i2c);
 
 	if (edid) {
@@ -648,7 +648,7 @@ static int intel_crt_get_modes(struct drm_connector *connector)
 	int ret;
 	struct i2c_adapter *i2c;
 
-	i2c = intel_gmbus_get_adapter(dev_priv, dev_priv->crt_ddc_pin);
+	i2c = intel_gmbus_get_adapter(dev_priv, dev_priv->vbt.crt_ddc_pin);
 	ret = intel_crt_ddc_get_modes(connector, i2c);
 	if (ret || !IS_G4X(dev))
 		return ret;

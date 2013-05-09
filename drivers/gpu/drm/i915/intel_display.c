@@ -4242,7 +4242,7 @@ static inline bool intel_panel_use_ssc(struct drm_i915_private *dev_priv)
 {
 	if (i915_panel_use_ssc >= 0)
 		return i915_panel_use_ssc != 0;
-	return dev_priv->lvds_use_ssc
+	return dev_priv->vbt.lvds_use_ssc
 		&& !(dev_priv->quirks & QUIRK_LVDS_SSC_DISABLE);
 }
 
@@ -4278,7 +4278,7 @@ static int i9xx_get_refclk(struct drm_crtc *crtc, int num_connectors)
 		refclk = vlv_get_refclk(crtc);
 	} else if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS) &&
 	    intel_panel_use_ssc(dev_priv) && num_connectors < 2) {
-		refclk = dev_priv->lvds_ssc_freq * 1000;
+		refclk = dev_priv->vbt.lvds_ssc_freq * 1000;
 		DRM_DEBUG_KMS("using SSC reference clock of %d MHz\n",
 			      refclk / 1000);
 	} else if (!IS_GEN2(dev)) {
@@ -5026,7 +5026,7 @@ static void ironlake_init_pch_refclk(struct drm_device *dev)
 	}
 
 	if (HAS_PCH_IBX(dev)) {
-		has_ck505 = dev_priv->display_clock_mode;
+		has_ck505 = dev_priv->vbt.display_clock_mode;
 		can_ssc = has_ck505;
 	} else {
 		has_ck505 = false;
@@ -5338,8 +5338,8 @@ static int ironlake_get_refclk(struct drm_crtc *crtc)
 
 	if (is_lvds && intel_panel_use_ssc(dev_priv) && num_connectors < 2) {
 		DRM_DEBUG_KMS("using SSC reference clock of %d MHz\n",
-			      dev_priv->lvds_ssc_freq);
-		return dev_priv->lvds_ssc_freq * 1000;
+			      dev_priv->vbt.lvds_ssc_freq);
+		return dev_priv->vbt.lvds_ssc_freq * 1000;
 	}
 
 	return 120000;
@@ -5618,7 +5618,7 @@ static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
 	factor = 21;
 	if (is_lvds) {
 		if ((intel_panel_use_ssc(dev_priv) &&
-		     dev_priv->lvds_ssc_freq == 100) ||
+		     dev_priv->vbt.lvds_ssc_freq == 100) ||
 		    (HAS_PCH_IBX(dev) && intel_is_dual_link_lvds(dev)))
 			factor = 25;
 	} else if (intel_crtc->config.sdvo_tv_clock)
