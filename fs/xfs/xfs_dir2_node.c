@@ -993,7 +993,7 @@ xfs_dir2_leafn_rebalance(
 	xfs_dir2_leaf_t		*leaf1;		/* first leaf structure */
 	xfs_dir2_leaf_t		*leaf2;		/* second leaf structure */
 	int			mid;		/* midpoint leaf index */
-#ifdef DEBUG
+#if defined(DEBUG) || defined(XFS_WARN)
 	int			oldstale;	/* old count of stale leaves */
 #endif
 	int			oldsum;		/* old total leaf count */
@@ -1022,7 +1022,7 @@ xfs_dir2_leafn_rebalance(
 	ents2 = xfs_dir3_leaf_ents_p(leaf2);
 
 	oldsum = hdr1.count + hdr2.count;
-#ifdef DEBUG
+#if defined(DEBUG) || defined(XFS_WARN)
 	oldstale = hdr1.stale + hdr2.stale;
 #endif
 	mid = oldsum >> 1;
