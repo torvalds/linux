@@ -158,7 +158,6 @@ clock_error:
  */
 static void __init eva_init(void)
 {
-
 	r8a7740_clock_init(MD_CK0 | MD_CK2);
 	eva_clock_init();
 
@@ -170,12 +169,6 @@ static void __init eva_init(void)
 #endif
 
 	r8a7740_add_standard_devices_dt();
-
-	/*
-	 * Touchscreen
-	 * TODO: Move reset GPIO over to .dts when we can reference it
-	 */
-	gpio_request_one(166, GPIOF_OUT_INIT_HIGH, NULL); /* TP_RST_B */
 
 	r8a7740_pm_init();
 }

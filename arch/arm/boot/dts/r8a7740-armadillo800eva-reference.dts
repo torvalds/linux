@@ -10,6 +10,7 @@
 
 /dts-v1/;
 /include/ "r8a7740.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "armadillo 800 eva reference";
@@ -43,6 +44,7 @@
 		interrupts = <2 0>; /* IRQ10: hwirq 2 on irqpin1 */
 		pinctrl-0 = <&st1232_pins>;
 		pinctrl-names = "default";
+		gpios = <&pfc 166 GPIO_ACTIVE_LOW>;
 	};
 };
 
