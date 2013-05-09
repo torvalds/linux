@@ -523,6 +523,147 @@ static void aurora_flush_range(unsigned long start, unsigned long end)
 	}
 }
 
+/*
+ * For certain Broadcom SoCs, depending on the address range, different offsets
+ * need to be added to the address before passing it to L2 for
+ * invalidation/clean/flush
+ *
+ * Section Address Range              Offset        EMI
+ *   1     0x00000000 - 0x3FFFFFFF    0x80000000    VC
+ *   2     0x40000000 - 0xBFFFFFFF    0x40000000    SYS
+ *   3     0xC0000000 - 0xFFFFFFFF    0x80000000    VC
+ *
+ * When the start and end addresses have crossed two different sections, we
+ * need to break the L2 operation into two, each within its own section.
+ * For example, if we need to invalidate addresses starts at 0xBFFF0000 and
+ * ends at 0xC0001000, we need do invalidate 1) 0xBFFF0000 - 0xBFFFFFFF and 2)
+ * 0xC0000000 - 0xC0001000
+ *
+ * Note 1:
+ * By breaking a single L2 operation into two, we may potentially suffer some
+ * performance hit, but keep in mind the cross section case is very rare
+ *
+ * Note 2:
+ * We do not need to handle the case when the start address is in
+ * Section 1 and the end address is in Section 3, since it is not a valid use
+ * case
+ *
+ * Note 3:
+ * Section 1 in practical terms can no longer be used on rev A2. Because of
+ * that the code does not need to handle section 1 at all.
+ *
+ */
+#define BCM_SYS_EMI_START_ADDR        0x40000000UL
+#define BCM_VC_EMI_SEC3_START_ADDR    0xC0000000UL
+
+#define BCM_SYS_EMI_OFFSET            0x40000000UL
+#define BCM_VC_EMI_OFFSET             0x80000000UL
+
+static inline int bcm_addr_is_sys_emi(unsigned long addr)
+{
+	return (addr >= BCM_SYS_EMI_START_ADDR) &&
+		(addr < BCM_VC_EMI_SEC3_START_ADDR);
+}
+
+static inline unsigned long bcm_l2_phys_addr(unsigned long addr)
+{
+	if (bcm_addr_is_sys_emi(addr))
+		return addr + BCM_SYS_EMI_OFFSET;
+	else
+		return addr + BCM_VC_EMI_OFFSET;
+}
+
+static void bcm_inv_range(unsigned long start, unsigned long end)
+{
+	unsigned long new_start, new_end;
+
+	BUG_ON(start < BCM_SYS_EMI_START_ADDR);
+
+	if (unlikely(end <= start))
+		return;
+
+	new_start = bcm_l2_phys_addr(start);
+	new_end = bcm_l2_phys_addr(end);
+
+	/* normal case, no cross section between start and end */
+	if (likely(bcm_addr_is_sys_emi(end) || !bcm_addr_is_sys_emi(start))) {
+		l2x0_inv_range(new_start, new_end);
+		return;
+	}
+
+	/* They cross sections, so it can only be a cross from section
+	 * 2 to section 3
+	 */
+	l2x0_inv_range(new_start,
+		bcm_l2_phys_addr(BCM_VC_EMI_SEC3_START_ADDR-1));
+	l2x0_inv_range(bcm_l2_phys_addr(BCM_VC_EMI_SEC3_START_ADDR),
+		new_end);
+}
+
+static void bcm_clean_range(unsigned long start, unsigned long end)
+{
+	unsigned long new_start, new_end;
+
+	BUG_ON(start < BCM_SYS_EMI_START_ADDR);
+
+	if (unlikely(end <= start))
+		return;
+
+	if ((end - start) >= l2x0_size) {
+		l2x0_clean_all();
+		return;
+	}
+
+	new_start = bcm_l2_phys_addr(start);
+	new_end = bcm_l2_phys_addr(end);
+
+	/* normal case, no cross section between start and end */
+	if (likely(bcm_addr_is_sys_emi(end) || !bcm_addr_is_sys_emi(start))) {
+		l2x0_clean_range(new_start, new_end);
+		return;
+	}
+
+	/* They cross sections, so it can only be a cross from section
+	 * 2 to section 3
+	 */
+	l2x0_clean_range(new_start,
+		bcm_l2_phys_addr(BCM_VC_EMI_SEC3_START_ADDR-1));
+	l2x0_clean_range(bcm_l2_phys_addr(BCM_VC_EMI_SEC3_START_ADDR),
+		new_end);
+}
+
+static void bcm_flush_range(unsigned long start, unsigned long end)
+{
+	unsigned long new_start, new_end;
+
+	BUG_ON(start < BCM_SYS_EMI_START_ADDR);
+
+	if (unlikely(end <= start))
+		return;
+
+	if ((end - start) >= l2x0_size) {
+		l2x0_flush_all();
+		return;
+	}
+
+	new_start = bcm_l2_phys_addr(start);
+	new_end = bcm_l2_phys_addr(end);
+
+	/* normal case, no cross section between start and end */
+	if (likely(bcm_addr_is_sys_emi(end) || !bcm_addr_is_sys_emi(start))) {
+		l2x0_flush_range(new_start, new_end);
+		return;
+	}
+
+	/* They cross sections, so it can only be a cross from section
+	 * 2 to section 3
+	 */
+	l2x0_flush_range(new_start,
+		bcm_l2_phys_addr(BCM_VC_EMI_SEC3_START_ADDR-1));
+	l2x0_flush_range(bcm_l2_phys_addr(BCM_VC_EMI_SEC3_START_ADDR),
+		new_end);
+}
+
 static void __init l2x0_of_setup(const struct device_node *np,
 				 u32 *aux_val, u32 *aux_mask)
 {
@@ -765,6 +906,21 @@ static const struct l2x0_of_data aurora_no_outer_data = {
 	},
 };
 
+static const struct l2x0_of_data bcm_l2x0_data = {
+	.setup = pl310_of_setup,
+	.save  = pl310_save,
+	.outer_cache = {
+		.resume      = pl310_resume,
+		.inv_range   = bcm_inv_range,
+		.clean_range = bcm_clean_range,
+		.flush_range = bcm_flush_range,
+		.sync        = l2x0_cache_sync,
+		.flush_all   = l2x0_flush_all,
+		.inv_all     = l2x0_inv_all,
+		.disable     = l2x0_disable,
+	},
+};
+
 static const struct of_device_id l2x0_ids[] __initconst = {
 	{ .compatible = "arm,pl310-cache", .data = (void *)&pl310_data },
 	{ .compatible = "arm,l220-cache", .data = (void *)&l2x0_data },
@@ -773,6 +929,8 @@ static const struct of_device_id l2x0_ids[] __initconst = {
 	  .data = (void *)&aurora_no_outer_data},
 	{ .compatible = "marvell,aurora-outer-cache",
 	  .data = (void *)&aurora_with_outer_data},
+	{ .compatible = "bcm,bcm11351-a2-pl310-cache",
+	  .data = (void *)&bcm_l2x0_data},
 	{}
 };
 

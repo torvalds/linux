@@ -47,10 +47,10 @@
 	};
 
 	L2: l2-cache {
-		    compatible = "arm,pl310-cache";
-		    reg = <0x3ff20000 0x1000>;
-		    cache-unified;
-		    cache-level = <2>;
+		compatible = "bcm,bcm11351-a2-pl310-cache";
+		reg = <0x3ff20000 0x1000>;
+		cache-unified;
+		cache-level = <2>;
 	};
 
 	timer@35006000 {
