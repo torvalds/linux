@@ -1338,6 +1338,8 @@ struct radeon_dpm_dynamic_state {
 	struct radeon_clock_voltage_dependency_table vddc_dependency_on_dispclk;
 	struct radeon_uvd_clock_voltage_dependency_table uvd_clock_voltage_dependency_table;
 	struct radeon_vce_clock_voltage_dependency_table vce_clock_voltage_dependency_table;
+	struct radeon_clock_voltage_dependency_table samu_clock_voltage_dependency_table;
+	struct radeon_clock_voltage_dependency_table acp_clock_voltage_dependency_table;
 	struct radeon_clock_array valid_sclk_values;
 	struct radeon_clock_array valid_mclk_values;
 	struct radeon_clock_and_voltage_limits max_clock_voltage_on_dc;
