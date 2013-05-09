@@ -421,7 +421,7 @@ static void __ic_line_inv_vaddr(unsigned long phy_start, unsigned long vaddr,
 	num_lines = DIV_ROUND_UP(sz, ARC_ICACHE_LINE_LEN);
 
 #if (CONFIG_ARC_MMU_VER > 2)
-	vaddr &= ~ICACHE_LINE_MASK;
+	vaddr &= ICACHE_LINE_MASK;
 	addr = phy_start;
 #else
 	/* bits 17:13 of vaddr go as bits 4:0 of paddr */
