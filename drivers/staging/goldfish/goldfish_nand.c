@@ -326,7 +326,7 @@ static int goldfish_nand_init_device(struct platform_device *pdev,
 			(mtd->writesize + mtd->oobsize) * mtd->writesize;
 	do_div(mtd->size, mtd->writesize + mtd->oobsize);
 	mtd->size *= mtd->writesize;
-	dev_dbg(&pdev->dev, 
+	dev_dbg(&pdev->dev,
 		"goldfish nand dev%d: size %llx, page %d, extra %d, erase %d\n",
 		       id, mtd->size, mtd->writesize, mtd->oobsize, mtd->erasesize);
 	spin_unlock_irqrestore(&nand->lock, irq_flags);
@@ -340,7 +340,7 @@ static int goldfish_nand_init_device(struct platform_device *pdev,
 	result = goldfish_nand_cmd(mtd, NAND_CMD_GET_DEV_NAME, 0, name_len,
 									name);
 	if (result != name_len) {
-		dev_err(&pdev->dev, 
+		dev_err(&pdev->dev,
 			"goldfish_nand_init_device failed to get dev name %d != %d\n",
 			       result, name_len);
 		return -ENODEV;
@@ -391,7 +391,7 @@ static int goldfish_nand_probe(struct platform_device *pdev)
 
 	version = readl(base + NAND_VERSION);
 	if (version != NAND_VERSION_CURRENT) {
-		dev_err(&pdev->dev, 
+		dev_err(&pdev->dev,
 			"goldfish_nand_init: version mismatch, got %d, expected %d\n",
 				version, NAND_VERSION_CURRENT);
 		return -ENODEV;
@@ -400,7 +400,7 @@ static int goldfish_nand_probe(struct platform_device *pdev)
 	if (num_dev == 0)
 		return -ENODEV;
 
-	nand = devm_kzalloc(&pdev->dev, sizeof(*nand) + 
+	nand = devm_kzalloc(&pdev->dev, sizeof(*nand) +
 				sizeof(struct mtd_info) * num_dev, GFP_KERNEL);
 	if (nand == NULL)
 		return -ENOMEM;
