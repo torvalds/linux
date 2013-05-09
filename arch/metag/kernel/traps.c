@@ -33,6 +33,7 @@
 #include <asm/siginfo.h>
 #include <asm/traps.h>
 #include <asm/hwthread.h>
+#include <asm/setup.h>
 #include <asm/switch.h>
 #include <asm/user_gateway.h>
 #include <asm/syscall.h>
