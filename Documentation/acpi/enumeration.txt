@@ -66,6 +66,83 @@ the ACPI device explicitly to acpi_platform_device_ids list defined in
 drivers/acpi/acpi_platform.c. This limitation is only for the platform
 devices, SPI and I2C devices are created automatically as described below.
 
+DMA support
+~~~~~~~~~~~
+DMA controllers enumerated via ACPI should be registered in the system to
+provide generic access to their resources. For example, a driver that would
+like to be accessible to slave devices via generic API call
+dma_request_slave_channel() must register itself at the end of the probe
+function like this:
+
+	err = devm_acpi_dma_controller_register(dev, xlate_func, dw);
+	/* Handle the error if it's not a case of !CONFIG_ACPI */
+
+and implement custom xlate function if needed (usually acpi_dma_simple_xlate()
+is enough) which converts the FixedDMA resource provided by struct
+acpi_dma_spec into the corresponding DMA channel. A piece of code for that case
+could look like:
+
+	#ifdef CONFIG_ACPI
+	struct filter_args {
+		/* Provide necessary information for the filter_func */
+		...
+	};
+
+	static bool filter_func(struct dma_chan *chan, void *param)
+	{
+		/* Choose the proper channel */
+		...
+	}
+
+	static struct dma_chan *xlate_func(struct acpi_dma_spec *dma_spec,
+			struct acpi_dma *adma)
+	{
+		dma_cap_mask_t cap;
+		struct filter_args args;
+
+		/* Prepare arguments for filter_func */
+		...
+		return dma_request_channel(cap, filter_func, &args);
+	}
+	#else
+	static struct dma_chan *xlate_func(struct acpi_dma_spec *dma_spec,
+			struct acpi_dma *adma)
+	{
+		return NULL;
+	}
+	#endif
+
+dma_request_slave_channel() will call xlate_func() for each registered DMA
+controller. In the xlate function the proper channel must be chosen based on
+information in struct acpi_dma_spec and the properties of the controller
+provided by struct acpi_dma.
+
+Clients must call dma_request_slave_channel() with the string parameter that
+corresponds to a specific FixedDMA resource. By default "tx" means the first
+entry of the FixedDMA resource array, "rx" means the second entry. The table
+below shows a layout:
+
+	Device (I2C0)
+	{
+		...
+		Method (_CRS, 0, NotSerialized)
+		{
+			Name (DBUF, ResourceTemplate ()
+			{
+				FixedDMA (0x0018, 0x0004, Width32bit, _Y48)
+				FixedDMA (0x0019, 0x0005, Width32bit, )
+			})
+		...
+		}
+	}
+
+So, the FixedDMA with request line 0x0018 is "tx" and next one is "rx" in
+this example.
+
+In robust cases the client unfortunately needs to call
+acpi_dma_request_slave_chan_by_index() directly and therefore choose the
+specific FixedDMA resource by its index.
+
 SPI serial bus support
 ~~~~~~~~~~~~~~~~~~~~~~
 Slave devices behind SPI bus have SpiSerialBus resource attached to them.

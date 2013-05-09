@@ -62,6 +62,8 @@
 #include <linux/rculist.h>
 #include <linux/idr.h>
 #include <linux/slab.h>
+#include <linux/acpi.h>
+#include <linux/acpi_dma.h>
 #include <linux/of_dma.h>
 
 static DEFINE_MUTEX(dma_list_mutex);
@@ -174,7 +176,8 @@ static struct class dma_devclass = {
 #define dma_device_satisfies_mask(device, mask) \
 	__dma_device_satisfies_mask((device), &(mask))
 static int
-__dma_device_satisfies_mask(struct dma_device *device, dma_cap_mask_t *want)
+__dma_device_satisfies_mask(struct dma_device *device,
+			    const dma_cap_mask_t *want)
 {
 	dma_cap_mask_t has;
 
@@ -463,7 +466,8 @@ static void dma_channel_rebalance(void)
 		}
 }
 
-static struct dma_chan *private_candidate(dma_cap_mask_t *mask, struct dma_device *dev,
+static struct dma_chan *private_candidate(const dma_cap_mask_t *mask,
+					  struct dma_device *dev,
 					  dma_filter_fn fn, void *fn_param)
 {
 	struct dma_chan *chan;
@@ -505,7 +509,8 @@ static struct dma_chan *private_candidate(dma_cap_mask_t *mask, struct dma_devic
  * @fn: optional callback to disposition available channels
  * @fn_param: opaque parameter to pass to dma_filter_fn
  */
-struct dma_chan *__dma_request_channel(dma_cap_mask_t *mask, dma_filter_fn fn, void *fn_param)
+struct dma_chan *__dma_request_channel(const dma_cap_mask_t *mask,
+				       dma_filter_fn fn, void *fn_param)
 {
 	struct dma_device *device, *_d;
 	struct dma_chan *chan = NULL;
@@ -555,11 +560,15 @@ EXPORT_SYMBOL_GPL(__dma_request_channel);
  * @dev:	pointer to client device structure
  * @name:	slave channel name
  */
-struct dma_chan *dma_request_slave_channel(struct device *dev, char *name)
+struct dma_chan *dma_request_slave_channel(struct device *dev, const char *name)
 {
 	/* If device-tree is present get slave info from here */
 	if (dev->of_node)
 		return of_dma_request_slave_channel(dev->of_node, name);
+
+	/* If device was enumerated by ACPI get slave info from here */
+	if (ACPI_HANDLE(dev))
+		return acpi_dma_request_slave_chan_by_name(dev, name);
 
 	return NULL;
 }
