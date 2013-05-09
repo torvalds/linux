@@ -43,8 +43,6 @@
 #include <linux/platform_data/atmel.h>
 #include <linux/pinctrl/consumer.h>
 
-#include <mach/cpu.h>
-
 static int use_dma = 1;
 module_param(use_dma, int, 0);
 
@@ -127,11 +125,6 @@ struct atmel_nand_host {
 };
 
 static struct nand_ecclayout atmel_pmecc_oobinfo;
-
-static int cpu_has_dma(void)
-{
-	return cpu_is_at91sam9rl() || cpu_is_at91sam9g45();
-}
 
 /*
  * Enable NAND.
@@ -1336,6 +1329,8 @@ static int atmel_of_init_port(struct atmel_nand_host *host,
 
 	board->on_flash_bbt = of_get_nand_on_flash_bbt(np);
 
+	board->has_dma = of_property_read_bool(np, "atmel,nand-has-dma");
+
 	if (of_get_nand_bus_width(np) == 16)
 		board->bus_width_16 = 1;
 
@@ -1600,7 +1595,7 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 		nand_chip->bbt_options |= NAND_BBT_USE_FLASH;
 	}
 
-	if (!cpu_has_dma())
+	if (!host->board.has_dma)
 		use_dma = 0;
 
 	if (use_dma) {

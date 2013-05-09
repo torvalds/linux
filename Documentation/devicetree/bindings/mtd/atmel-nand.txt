@@ -15,6 +15,7 @@ Required properties:
   optional gpio and may be set to 0 if not present.
 
 Optional properties:
+- atmel,nand-has-dma : boolean to support dma transfer for nand read/write.
 - nand-ecc-mode : String, operation mode of the NAND ecc mode, soft by default.
   Supported values are: "none", "soft", "hw", "hw_syndrome", "hw_oob_first",
   "soft_bch".
