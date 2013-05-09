@@ -73,10 +73,6 @@ static struct mfd_rk616 *rk616_mfd = NULL;
 
 static struct workqueue_struct *rk616_codec_workq;
 
-static void rk616_codec_palyback_work(struct work_struct *work);
-static DECLARE_DELAYED_WORK(delayed_palyback_work, rk616_codec_palyback_work);
-static int rk616_codec_palyback_work_type = RK616_CODEC_WORK_NULL;
-
 static void rk616_codec_capture_work(struct work_struct *work);
 static DECLARE_DELAYED_WORK(delayed_capture_work, rk616_codec_capture_work);
 static int rk616_codec_work_capture_type = RK616_CODEC_WORK_NULL;
@@ -1718,24 +1714,6 @@ static int rk616_codec_power_down(int type)
 	return 0;
 }
 
-static void rk616_codec_palyback_work(struct work_struct *work)
-{
-        DBG("Enter::%s : rk616_codec_palyback_work_type = %d\n", __FUNCTION__,rk616_codec_palyback_work_type);
-
-        switch (rk616_codec_palyback_work_type) {
-        case RK616_CODEC_WORK_POWER_DOWN:
-                rk616_codec_power_down(RK616_CODEC_PALYBACK);
-                break;
-        case RK616_CODEC_WORK_POWER_UP:
-                rk616_codec_power_up(RK616_CODEC_PALYBACK);
-                break;
-        default:
-                break;
-        }
-
-        rk616_codec_palyback_work_type = RK616_CODEC_WORK_NULL;
-}
-
 static void  rk616_codec_capture_work(struct work_struct *work)
 {
         DBG("Enter::%s : rk616_codec_work_capture_type = %d\n", __FUNCTION__,rk616_codec_work_capture_type);
@@ -1780,26 +1758,10 @@ static int rk616_startup(struct snd_pcm_substream *substream,
 
 	if (rk616->playback_active > 0 || rk616->capture_active > 0){
              if ( playback ){
-                    if(!is_codec_playback_running){
-                          if(rk616_codec_palyback_work_type != RK616_CODEC_WORK_POWER_UP){
-                                  cancel_delayed_work_sync(&delayed_palyback_work);
-                	             /*
-                			* if rk616_codec_palyback_work_type is NULL means codec already power down,
-                			* so power up codec.
-                			* if rk616_codec_palyback_work_type is RK616_CODEC_WORK_POWER_DOWN it means
-                			* codec haven't be powered down, so we don't need to power up codec.
-                			*/
-                	             if(rk616_codec_palyback_work_type == RK616_CODEC_WORK_NULL)
-                                        rk616_codec_power_up(RK616_CODEC_PALYBACK);
-                                  else{
-                                        rk616_codec_palyback_work_type = RK616_CODEC_WORK_NULL;
-                                        DBG("**** Warning :playback being  closed, so interrupt the shutdown process ! \n");
-                                  }
-                          }else
-                                  DBG("**** Warning :playback being opened , so return ! \n");
-                                  
-                    }else
-                          DBG("**** Warning :playback has been opened, so return  ! \n");
+                    if(!is_codec_playback_running)
+                          rk616_codec_power_up(RK616_CODEC_PALYBACK);
+                    else
+                          DBG(" Warning :playback has been opened, so return  ! \n");
              }else {//capture
                     if( !is_codec_capture_running ){
                          if(rk616_codec_work_capture_type != RK616_CODEC_WORK_POWER_UP){
@@ -1808,13 +1770,13 @@ static int rk616_startup(struct snd_pcm_substream *substream,
                                     rk616_codec_power_up(RK616_CODEC_CAPTURE);
                                  else{
                                      rk616_codec_work_capture_type = RK616_CODEC_WORK_NULL ;  
-                                     DBG("**** Warning :capture being  closed, so interrupt the shutdown process ! \n");
+                                     DBG(" Warning :capture being  closed, so interrupt the shutdown process ! \n");
                                  }
                          }else//RK616_CODEC_WORK_POWER_UP
-                                 DBG("**** Warning :capture being opened , so return ! \n");
+                                 DBG(" Warning :capture being opened , so return ! \n");
 
                      }else
-                         DBG("**** Warning :capture has been opened ,so return  !\n");
+                         DBG(" Warning :capture has been opened ,so return  !\n");
              }
              
 	}
@@ -1848,37 +1810,19 @@ static void rk616_shutdown(struct snd_pcm_substream *substream,
 
 	if (rk616->playback_active <= 0 || rk616->capture_active <= 0) {
             if ( playback ){
-                 if ((rk616_codec_palyback_work_type != RK616_CODEC_WORK_POWER_DOWN) &&
-    		       (is_codec_playback_running == true)) {
-                         cancel_delayed_work_sync(&delayed_palyback_work);
-                          /*
-        			* If rk616_codec_palyback_work_type is NULL means codec already power down,
-        			* so power up codec.
-        			* If rk616_codec_palyback_work_type is RK616_CODEC_WORK_POWER_UP it means
-        			* codec haven't be powered up, so we don't need to power down codec.
-        			* If is playback call power down, power down immediatly, because audioflinger
-        			* already has delay 3s.
-        			*/
-        			if (rk616_codec_palyback_work_type == RK616_CODEC_WORK_NULL) {
-        			        //rk616_codec_palyback_work_type = RK616_CODEC_WORK_POWER_DOWN;
-                                  //queue_delayed_work(rk616_codec_workq, &delayed_palyback_work,
-        				  //		msecs_to_jiffies(0));
-        				  rk616_codec_power_down(RK616_CODEC_PALYBACK);
-        			} else {
-        				rk616_codec_palyback_work_type = RK616_CODEC_WORK_NULL;
-        				DBG("**** Warning :playback being  opened, so interrupt the open process ! \n");
-        			}
-    		    }else
-                          DBG("**** Warning :playback has been closed or it being closed ,so return  !\n");
+                 if (is_codec_playback_running == true)
+                         rk616_codec_power_down(RK616_CODEC_PALYBACK);
+                else
+                          DBG(" Warning :playback has been closed or it being closed ,so return  !\n");
     		    
             }else{//capture
                  if ((rk616_codec_work_capture_type != RK616_CODEC_WORK_POWER_DOWN) &&
     		       (is_codec_capture_running == true)) {
     		             cancel_delayed_work_sync(&delayed_capture_work);
                           /*
-        			* If rk616_codec_palyback_work_type is NULL means codec already power down,
+                        * If rk616_codec_work_capture_type is NULL means codec already power down,
         			* so power up codec.
-        			* If rk616_codec_palyback_work_type is RK616_CODEC_WORK_POWER_UP it means
+                         * If rk616_codec_work_capture_type is RK616_CODEC_WORK_POWER_UP it means
         			* codec haven't be powered up, so we don't need to power down codec.
         			* If is playback call power down, power down immediatly, because audioflinger
         			* already has delay 3s.
@@ -1889,11 +1833,11 @@ static void rk616_shutdown(struct snd_pcm_substream *substream,
 						msecs_to_jiffies(3000));
         			} else {
         				rk616_codec_work_capture_type = RK616_CODEC_WORK_NULL;
-        				DBG("**** Warning :capture being  opened, so interrupt the open process ! \n");
+                                DBG(" Warning :capture being  opened, so interrupt the open process ! \n");
         			}
 
     		    }else
-    		             DBG("**** Warning :capture has been closed or it being closed ,so return  !\n");
+                        DBG(" Warning :capture has been closed or it being closed ,so return  !\n");
             }
 	}
 	
@@ -1975,11 +1919,6 @@ static struct snd_soc_dai_driver rk616_dai[] = {
 static int rk616_suspend(struct snd_soc_codec *codec, pm_message_t state)
 {
 #ifdef RK616_FOR_MID
-	cancel_delayed_work_sync(&delayed_palyback_work);
-	if (rk616_codec_palyback_work_type != RK616_CODEC_WORK_NULL) {
-		rk616_codec_palyback_work_type = RK616_CODEC_WORK_NULL;
-	}
-
 	cancel_delayed_work_sync(&delayed_capture_work);
       if (rk616_codec_work_capture_type != RK616_CODEC_WORK_NULL) {
 		rk616_codec_work_capture_type = RK616_CODEC_WORK_NULL;
@@ -2096,11 +2035,6 @@ static int rk616_remove(struct snd_soc_codec *codec)
 	DBG("%s\n", __func__);
 
 #ifdef RK616_FOR_MID
-	cancel_delayed_work_sync(&delayed_palyback_work);
-	if (rk616_codec_palyback_work_type != RK616_CODEC_WORK_NULL) {
-		rk616_codec_palyback_work_type = RK616_CODEC_WORK_NULL;
-	}
-
 	cancel_delayed_work_sync(&delayed_capture_work);
       if (rk616_codec_work_capture_type != RK616_CODEC_WORK_NULL) {
 		rk616_codec_work_capture_type = RK616_CODEC_WORK_NULL;
@@ -2181,11 +2115,6 @@ void rk616_platform_shutdown(struct platform_device *pdev)
 	mdelay(10);
 
 #ifdef RK616_FOR_MID
-	cancel_delayed_work_sync(&delayed_palyback_work);
-	if (rk616_codec_palyback_work_type != RK616_CODEC_WORK_NULL) {
-		rk616_codec_palyback_work_type = RK616_CODEC_WORK_NULL;
-	}
-
       cancel_delayed_work_sync(&delayed_capture_work);
       if (rk616_codec_work_capture_type != RK616_CODEC_WORK_NULL) {
 		rk616_codec_work_capture_type = RK616_CODEC_WORK_NULL;
