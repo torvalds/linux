@@ -111,6 +111,8 @@ int rk616_vif_cfg(struct mfd_rk616 *rk616,rk_screen *screen,int id)
 	val = ((screen->vsync_len + screen->upper_margin + screen->y_res)<<16) |
 		(screen->vsync_len + screen->upper_margin);
 	ret = rk616->write_dev(rk616,VIF0_REG5 + offset,&val);
+
+	dev_info(rk616->dev,"rk616 vif%d enable\n",id);
 	
 	return ret;
 	
@@ -660,6 +662,7 @@ int rk616_set_vif(struct mfd_rk616 *rk616,rk_screen *screen,bool connect)
 		rk616_lcd0_input_lcd1_unused_cfg(rk616,screen,connect);
 		dev_info(rk616->dev,"rk616 use lcd0 input for hdmi display!\n");
 	}
+	rk616_router_cfg(rk616);
 	rk616_vif_cfg(rk616,screen,0);
 	rk616_vif_cfg(rk616,screen,1);
 	rk616_scaler_disable(rk616);
