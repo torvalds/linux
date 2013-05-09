@@ -1276,11 +1276,13 @@ out:
 	return err;
 }
 
-static int qlcnic_83xx_diag_alloc_res(struct net_device *netdev, int test)
+static int qlcnic_83xx_diag_alloc_res(struct net_device *netdev, int test,
+				      int num_sds_ring)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct qlcnic_host_sds_ring *sds_ring;
 	struct qlcnic_host_rds_ring *rds_ring;
+	u16 adapter_state = adapter->is_up;
 	u8 ring;
 	int ret;
 
@@ -1304,6 +1306,10 @@ static int qlcnic_83xx_diag_alloc_res(struct net_device *netdev, int test)
 	ret = qlcnic_fw_create_ctx(adapter);
 	if (ret) {
 		qlcnic_detach(adapter);
+		if (adapter_state == QLCNIC_ADAPTER_UP_MAGIC) {
+			adapter->max_sds_rings = num_sds_ring;
+			qlcnic_attach(adapter);
+		}
 		netif_device_attach(netdev);
 		return ret;
 	}
@@ -1596,7 +1602,8 @@ int qlcnic_83xx_loopback_test(struct net_device *netdev, u8 mode)
 	if (test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
 		return -EBUSY;
 
-	ret = qlcnic_83xx_diag_alloc_res(netdev, QLCNIC_LOOPBACK_TEST);
+	ret = qlcnic_83xx_diag_alloc_res(netdev, QLCNIC_LOOPBACK_TEST,
+					 max_sds_rings);
 	if (ret)
 		goto fail_diag_alloc;
 
@@ -3112,7 +3119,8 @@ int qlcnic_83xx_interrupt_test(struct net_device *netdev)
 	if (test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
 		return -EIO;
 
-	ret = qlcnic_83xx_diag_alloc_res(netdev, QLCNIC_INTERRUPT_TEST);
+	ret = qlcnic_83xx_diag_alloc_res(netdev, QLCNIC_INTERRUPT_TEST,
+					 max_sds_rings);
 	if (ret)
 		goto fail_diag_irq;
 
