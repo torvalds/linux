@@ -535,6 +535,9 @@ FOP_SETCC(setle)
 FOP_SETCC(setnle)
 FOP_END;
 
+FOP_START(salc) "pushf; sbb %al, %al; popf \n\t" FOP_RET
+FOP_END;
+
 #define __emulate_1op_rax_rdx(ctxt, _op, _suffix, _ex)			\
 	do {								\
 		unsigned long _tmp;					\
@@ -3961,7 +3964,8 @@ static const struct opcode opcode_table[256] = {
 	G(Src2One | ByteOp, group2), G(Src2One, group2),
 	G(Src2CL | ByteOp, group2), G(Src2CL, group2),
 	I(DstAcc | SrcImmUByte | No64, em_aam),
-	I(DstAcc | SrcImmUByte | No64, em_aad), N,
+	I(DstAcc | SrcImmUByte | No64, em_aad),
+	F(DstAcc | ByteOp | No64, em_salc),
 	I(DstAcc | SrcXLat | ByteOp, em_mov),
 	/* 0xD8 - 0xDF */
 	N, E(0, &escape_d9), N, E(0, &escape_db), N, E(0, &escape_dd), N, N,
