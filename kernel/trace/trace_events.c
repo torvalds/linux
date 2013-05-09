@@ -2061,11 +2061,18 @@ event_enable_func(struct ftrace_hash *hash,
 	if (ret < 0)
 		goto out_put;
 	ret = register_ftrace_function_probe(glob, ops, data);
+	/*
+	 * The above returns on success the # of functions enabled,
+	 * but if it didn't find any functions it returns zero.
+	 * Consider no functions a failure too.
+	 */
 	if (!ret) {
 		ret = -ENOENT;
 		goto out_disable;
-	} else
-		ret = 0;
+	} else if (ret < 0)
+		goto out_disable;
+	/* Just return zero, not the number of enabled functions */
+	ret = 0;
  out:
 	mutex_unlock(&event_mutex);
 	return ret;
