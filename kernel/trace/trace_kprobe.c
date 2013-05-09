@@ -733,8 +733,6 @@ static __kprobes void kprobe_trace_func(struct kprobe *kp, struct pt_regs *regs)
 	unsigned long irq_flags;
 	struct ftrace_event_call *call = &tp->call;
 
-	tp->nhit++;
-
 	local_save_flags(irq_flags);
 	pc = preempt_count();
 
@@ -766,8 +764,6 @@ static __kprobes void kretprobe_trace_func(struct kretprobe_instance *ri,
 	int size, pc, dsize;
 	unsigned long irq_flags;
 	struct ftrace_event_call *call = &tp->call;
-
-	tp->nhit++;
 
 	local_save_flags(irq_flags);
 	pc = preempt_count();
@@ -1075,6 +1071,8 @@ int kprobe_dispatcher(struct kprobe *kp, struct pt_regs *regs)
 {
 	struct trace_probe *tp = container_of(kp, struct trace_probe, rp.kp);
 
+	tp->nhit++;
+
 	if (tp->flags & TP_FLAG_TRACE)
 		kprobe_trace_func(kp, regs);
 #ifdef CONFIG_PERF_EVENTS
@@ -1088,6 +1086,8 @@ static __kprobes
 int kretprobe_dispatcher(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
 	struct trace_probe *tp = container_of(ri->rp, struct trace_probe, rp);
+
+	tp->nhit++;
 
 	if (tp->flags & TP_FLAG_TRACE)
 		kretprobe_trace_func(ri, regs);
