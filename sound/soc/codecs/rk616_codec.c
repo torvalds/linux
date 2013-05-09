@@ -1692,7 +1692,7 @@ static int rk616_codec_power_down(int type)
 			snd_soc_write(codec, palyback_power_down_list[i].reg, palyback_power_down_list[i].value);
 		}
 	} else if (type == RK616_CODEC_ALL) {
-		DBG("rk616 codec palyback power down !\n");
+		DBG("rk616 codec power down !\n");
 		rk616_reset(codec);
 	}
 
@@ -1744,28 +1744,33 @@ static int rk616_startup(struct snd_pcm_substream *substream,
 	else
 		rk616->capture_active++;
 
-	if (rk616->playback_active > 0 || rk616->capture_active > 0) {
-		if (playback) {
-			if (!is_codec_playback_running)
-				rk616_codec_power_up(RK616_CODEC_PALYBACK);
-			else
-				DBG(" Warning :playback has been opened, so return! \n");
-		} else {//capture
-			if (!is_codec_capture_running) {
-				if (rk616_codec_work_capture_type != RK616_CODEC_WORK_POWER_UP) {
-					cancel_delayed_work_sync(&capture_delayed_work);
-					if (rk616_codec_work_capture_type == RK616_CODEC_WORK_NULL) {
-						rk616_codec_power_up(RK616_CODEC_CAPTURE);
-					} else {
-						rk616_codec_work_capture_type = RK616_CODEC_WORK_NULL;
-						DBG(" Warning :capture being  closed, so interrupt the shutdown process ! \n");
-					}
-			} else { //RK616_CODEC_WORK_POWER_UP
-				DBG(" Warning :capture being opened , so return ! \n");
-			}
-		} else
-			DBG(" Warning :capture has been opened ,so return  !\n");
-		}
+	if (playback) {
+	    if( rk616->playback_active > 0 ){
+                    if (!is_codec_playback_running)
+                            rk616_codec_power_up(RK616_CODEC_PALYBACK);
+                    else
+                            DBG(" Warning :playback has been opened, so return! \n");
+	    }else
+	            DBG("playback_active <= 0, so playback can not be been opened! \n");
+
+	} else {//capture
+	    if( rk616->capture_active > 0) {
+                    if (!is_codec_capture_running) {
+                        if (rk616_codec_work_capture_type != RK616_CODEC_WORK_POWER_UP) {
+                                cancel_delayed_work_sync(&capture_delayed_work);
+                                if (rk616_codec_work_capture_type == RK616_CODEC_WORK_NULL) {
+                                        rk616_codec_power_up(RK616_CODEC_CAPTURE);
+                                } else {
+                                        rk616_codec_work_capture_type = RK616_CODEC_WORK_NULL;
+                                        DBG(" Warning :capture being  closed, so interrupt the shutdown process ! \n");
+                                }
+                        } else { //RK616_CODEC_WORK_POWER_UP
+                                DBG(" Warning :capture being opened , so return ! \n");
+                        }
+                    } else
+                        DBG(" Warning :capture has been opened ,so return  !\n");
+            }else
+                    DBG("capture_active <= 0, so capture can not be been opened! \n");
 	}
 
 	return 0;
@@ -1798,37 +1803,42 @@ static void rk616_shutdown(struct snd_pcm_substream *substream,
 	else
 		rk616->capture_active--;
 
-	if (rk616->playback_active <= 0 || rk616->capture_active <= 0) {
-		if (playback) {
-			if (is_codec_playback_running == true)
-				rk616_codec_power_down(RK616_CODEC_PALYBACK);
-			else
-				DBG(" Warning :playback has been closed or it being closed ,so return  !\n");
-		} else {//capture
-			if ((rk616_codec_work_capture_type != RK616_CODEC_WORK_POWER_DOWN) &&
-				(is_codec_capture_running == true)) {
-				cancel_delayed_work_sync(&capture_delayed_work);
-				/*
-				* If rk616_codec_work_capture_type is NULL means codec already power down,
-				* so power up codec.
-				* If rk616_codec_work_capture_type is RK616_CODEC_WORK_POWER_UP it means
-				* codec haven't be powered up, so we don't need to power down codec.
-				* If is playback call power down, power down immediatly, because audioflinger
-				* already has delay 3s.
-				*/
-				if (rk616_codec_work_capture_type == RK616_CODEC_WORK_NULL) {
-					rk616_codec_work_capture_type = RK616_CODEC_WORK_POWER_DOWN;
-					queue_delayed_work(rk616_codec_workq, &capture_delayed_work,
-						msecs_to_jiffies(3000));
-				} else {
-					rk616_codec_work_capture_type = RK616_CODEC_WORK_NULL;
-					DBG(" Warning :capture being  opened, so interrupt the open process ! \n");
-				}
-			} else {
-				DBG(" Warning :capture has been closed or it being closed ,so return  !\n");
-			}
-		}
+	if (playback) {
+	    if(rk616->playback_active <= 0){
+                    if (is_codec_playback_running == true)
+                            rk616_codec_power_down(RK616_CODEC_PALYBACK);
+                    else
+                            DBG(" Warning :playback has been closed ,so return  !\n");
+	    }else
+	            DBG("playback_active > 0 ,so palyback can not be power down !\n");
+
+	} else {//capture
+	    if( rk616->capture_active <= 0 ){
+                    if ((rk616_codec_work_capture_type != RK616_CODEC_WORK_POWER_DOWN) &&
+                        (is_codec_capture_running == true)) {
+                            cancel_delayed_work_sync(&capture_delayed_work);
+                            /*
+                            * If rk616_codec_work_capture_type is NULL means codec already power down,
+                            * so power up codec.
+                            * If rk616_codec_work_capture_type is RK616_CODEC_WORK_POWER_UP it means
+                            * codec haven't be powered up, so we don't need to power down codec.
+                            * If is playback call power down, power down immediatly, because audioflinger
+                            * already has delay 3s.
+                            */
+                            if (rk616_codec_work_capture_type == RK616_CODEC_WORK_NULL) {
+                                    rk616_codec_work_capture_type = RK616_CODEC_WORK_POWER_DOWN;
+                                    queue_delayed_work(rk616_codec_workq, &capture_delayed_work,msecs_to_jiffies(3000));
+                            } else {
+                                    rk616_codec_work_capture_type = RK616_CODEC_WORK_NULL;
+                                    DBG(" Warning :capture being  opened, so interrupt the open process ! \n");
+                            }
+                    } else {
+                            DBG(" Warning :capture has been closed or it being closed ,so return  !\n");
+                    }
+	    }else
+	            DBG("capture_active > 0 ,so capture can not be power down !\n");
 	}
+
 }
 
 #define RK616_PLAYBACK_RATES (SNDRV_PCM_RATE_8000 |\
