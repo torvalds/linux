@@ -1837,6 +1837,17 @@ static void rbd_obj_request_destroy(struct kref *kref)
 	kmem_cache_free(rbd_obj_request_cache, obj_request);
 }
 
+/* It's OK to call this for a device with no parent */
+
+static void rbd_spec_put(struct rbd_spec *spec);
+static void rbd_dev_unparent(struct rbd_device *rbd_dev)
+{
+	rbd_dev_remove_parent(rbd_dev);
+	rbd_spec_put(rbd_dev->parent_spec);
+	rbd_dev->parent_spec = NULL;
+	rbd_dev->parent_overlap = 0;
+}
+
 /*
  * Caller is responsible for filling in the list of object requests
  * that comprises the image request, and the Linux request pointer
@@ -4491,10 +4502,7 @@ static void rbd_dev_unprobe(struct rbd_device *rbd_dev)
 {
 	struct rbd_image_header	*header;
 
-	rbd_dev_remove_parent(rbd_dev);
-	rbd_spec_put(rbd_dev->parent_spec);
-	rbd_dev->parent_spec = NULL;
-	rbd_dev->parent_overlap = 0;
+	rbd_dev_unparent(rbd_dev);
 
 	/* Free dynamic fields from the header, then zero it out */
 
@@ -4570,7 +4578,7 @@ static int rbd_dev_probe_parent(struct rbd_device *rbd_dev)
 	return 0;
 out_err:
 	if (parent) {
-		rbd_spec_put(rbd_dev->parent_spec);
+		rbd_dev_unparent(rbd_dev);
 		kfree(rbd_dev->header_name);
 		rbd_dev_destroy(parent);
 	} else {
