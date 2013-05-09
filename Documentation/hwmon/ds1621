@@ -2,16 +2,22 @@ Kernel driver ds1621
 ====================
 
 Supported chips:
-  * Dallas Semiconductor DS1621
+  * Dallas Semiconductor / Maxim Integrated DS1621
     Prefix: 'ds1621'
     Addresses scanned: I2C 0x48 - 0x4f
-    Datasheet: Publicly available at the Dallas Semiconductor website
-               http://www.dalsemi.com/
+    Datasheet: Publicly available from www.maximintegrated.com
+
   * Dallas Semiconductor DS1625
-    Prefix: 'ds1621'
+    Prefix:
+     'ds1621' - if binding via _detect function
+     'ds1625' - explicit instantiation
     Addresses scanned: I2C 0x48 - 0x4f
-    Datasheet: Publicly available at the Dallas Semiconductor website
-               http://www.dalsemi.com/
+    Datasheet: Publicly available from www.datasheetarchive.com
+
+  * Maxim Integrated DS1721
+    Prefix: 'ds1721'
+    Addresses scanned: I2C 0x48 - 0x4f
+    Datasheet: Publicly available from www.maximintegrated.com
 
 Authors:
         Christian W. Zuckschwerdt <zany@triq.net>
@@ -61,3 +67,11 @@ with neither of the alarms set.
 
 Temperature conversion of the DS1621 takes up to 1000ms; internal access to
 non-volatile registers may last for 10ms or below.
+
+The DS1625 is pin compatible and functionally equivalent with the DS1621,
+but the DS1621 is meant to replace it.
+
+The DS1721 is pin compatible with the DS1621, has an accuracy of +/- 1.0
+degree Celsius over a -10 to +85 degree range, a minimum/maximum alarm
+default setting of 75 and 80 degrees respectively, and a maximum conversion
+time of 750ms.
