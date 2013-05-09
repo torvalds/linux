@@ -1983,6 +1983,9 @@ at32_add_device_nand(unsigned int id, struct atmel_nand_data *data)
 				ARRAY_SIZE(smc_cs3_resource)))
 		goto fail;
 
+	/* For at32ap7000, we use the reset workaround for nand driver */
+	data->need_reset_workaround = true;
+
 	if (platform_device_add_data(pdev, data,
 				sizeof(struct atmel_nand_data)))
 		goto fail;

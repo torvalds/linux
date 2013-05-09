@@ -1174,10 +1174,9 @@ static int atmel_nand_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	 * Workaround: Reset the parity registers before reading the
 	 * actual data.
 	 */
-	if (cpu_is_at32ap7000()) {
-		struct atmel_nand_host *host = chip->priv;
+	struct atmel_nand_host *host = chip->priv;
+	if (host->board.need_reset_workaround)
 		ecc_writel(host->ecc, CR, ATMEL_ECC_RST);
-	}
 
 	/* read the page */
 	chip->read_buf(mtd, p, eccsize);
@@ -1298,11 +1297,11 @@ static int atmel_nand_correct(struct mtd_info *mtd, u_char *dat,
  */
 static void atmel_nand_hwctl(struct mtd_info *mtd, int mode)
 {
-	if (cpu_is_at32ap7000()) {
-		struct nand_chip *nand_chip = mtd->priv;
-		struct atmel_nand_host *host = nand_chip->priv;
+	struct nand_chip *nand_chip = mtd->priv;
+	struct atmel_nand_host *host = nand_chip->priv;
+
+	if (host->board.need_reset_workaround)
 		ecc_writel(host->ecc, CR, ATMEL_ECC_RST);
-	}
 }
 
 #if defined(CONFIG_OF)

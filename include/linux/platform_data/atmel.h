@@ -71,6 +71,9 @@ struct atmel_nand_data {
 	u8		on_flash_bbt;		/* bbt on flash */
 	struct mtd_partition *parts;
 	unsigned int	num_parts;
+
+	/* default is false, only for at32ap7000 chip is true */
+	bool		need_reset_workaround;
 };
 
  /* Serial */
