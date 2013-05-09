@@ -1520,36 +1520,22 @@ static int gpmc_probe_dt(struct platform_device *pdev)
 		return ret;
 	}
 
-	for_each_node_by_name(child, "nand") {
-		ret = gpmc_probe_nand_child(pdev, child);
-		if (ret < 0) {
-			of_node_put(child);
-			return ret;
-		}
-	}
+	for_each_child_of_node(pdev->dev.of_node, child) {
 
-	for_each_node_by_name(child, "onenand") {
-		ret = gpmc_probe_onenand_child(pdev, child);
-		if (ret < 0) {
-			of_node_put(child);
-			return ret;
-		}
-	}
+		if (!child->name)
+			continue;
 
-	for_each_node_by_name(child, "nor") {
-		ret = gpmc_probe_generic_child(pdev, child);
-		if (ret < 0) {
-			of_node_put(child);
-			return ret;
-		}
-	}
+		if (of_node_cmp(child->name, "nand") == 0)
+			ret = gpmc_probe_nand_child(pdev, child);
+		else if (of_node_cmp(child->name, "onenand") == 0)
+			ret = gpmc_probe_onenand_child(pdev, child);
+		else if (of_node_cmp(child->name, "ethernet") == 0 ||
+			 of_node_cmp(child->name, "nor") == 0)
+			ret = gpmc_probe_generic_child(pdev, child);
 
-	for_each_node_by_name(child, "ethernet") {
-		ret = gpmc_probe_generic_child(pdev, child);
-		if (ret < 0) {
+		if (WARN(ret < 0, "%s: probing gpmc child %s failed\n",
+			 __func__, child->full_name))
 			of_node_put(child);
-			return ret;
-		}
 	}
 
 	return 0;
