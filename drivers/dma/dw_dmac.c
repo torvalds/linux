@@ -556,14 +556,14 @@ static void dwc_handle_error(struct dw_dma *dw, struct dw_dma_chan *dwc)
 
 /* --------------------- Cyclic DMA API extensions -------------------- */
 
-inline dma_addr_t dw_dma_get_src_addr(struct dma_chan *chan)
+dma_addr_t dw_dma_get_src_addr(struct dma_chan *chan)
 {
 	struct dw_dma_chan *dwc = to_dw_dma_chan(chan);
 	return channel_readl(dwc, SAR);
 }
 EXPORT_SYMBOL(dw_dma_get_src_addr);
 
-inline dma_addr_t dw_dma_get_dst_addr(struct dma_chan *chan)
+dma_addr_t dw_dma_get_dst_addr(struct dma_chan *chan)
 {
 	struct dw_dma_chan *dwc = to_dw_dma_chan(chan);
 	return channel_readl(dwc, DAR);
