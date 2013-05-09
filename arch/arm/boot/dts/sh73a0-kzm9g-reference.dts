@@ -89,6 +89,22 @@
 		vddvario-supply = <&reg_1p8v>;
 		vdd33a-supply = <&reg_3p3v>;
 	};
+
+	leds {
+		compatible = "gpio-leds";
+		led1 {
+			gpios = <&pfc 20 GPIO_ACTIVE_LOW>;
+		};
+		led2 {
+			gpios = <&pfc 21 GPIO_ACTIVE_LOW>;
+		};
+		led3 {
+			gpios = <&pfc 22 GPIO_ACTIVE_LOW>;
+		};
+		led4 {
+			gpios = <&pfc 23 GPIO_ACTIVE_LOW>;
+		};
+	};
 };
 
 &i2c0 {
