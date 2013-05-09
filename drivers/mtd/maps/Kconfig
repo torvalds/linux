@@ -249,22 +249,6 @@ config MTD_LANTIQ
 	help
 	  Support for NOR flash attached to the Lantiq SoC's External Bus Unit.
 
-config MTD_DILNETPC
-	tristate "CFI Flash device mapped on DIL/Net PC"
-	depends on X86 && MTD_CFI_INTELEXT && BROKEN
-	help
-	  MTD map driver for SSV DIL/Net PC Boards "DNP" and "ADNP".
-	  For details, see <http://www.ssv-embedded.de/ssv/pc104/p169.htm>
- 	  and <http://www.ssv-embedded.de/ssv/pc104/p170.htm>
-
-config MTD_DILNETPC_BOOTSIZE
-	hex "Size of DIL/Net PC flash boot partition"
-	depends on MTD_DILNETPC
-	default "0x80000"
-	help
-	  The amount of space taken up by the kernel or Etherboot
-	  on the DIL/Net PC flash chips.
-
 config MTD_L440GX
 	tristate "BIOS flash chip on Intel L440GX boards"
 	depends on X86 && MTD_JEDECPROBE
@@ -273,42 +257,6 @@ config MTD_L440GX
 	  as an MTD device - with this you can reprogram your BIOS.
 
 	  BE VERY CAREFUL.
-
-config MTD_TQM8XXL
-	tristate "CFI Flash device mapped on TQM8XXL"
-	depends on MTD_CFI && TQM8xxL
-	help
-	  The TQM8xxL PowerPC board has up to two banks of CFI-compliant
-	  chips, currently uses AMD one. This 'mapping' driver supports
-	  that arrangement, allowing the CFI probe and command set driver
-	  code to communicate with the chips on the TQM8xxL board. More at
-	  <http://www.denx.de/wiki/PPCEmbedded/>.
-
-config MTD_RPXLITE
-	tristate "CFI Flash device mapped on RPX Lite or CLLF"
-	depends on MTD_CFI && (RPXCLASSIC || RPXLITE)
-	help
-	  The RPXLite PowerPC board has CFI-compliant chips mapped in
-	  a strange sparse mapping. This 'mapping' driver supports that
-	  arrangement, allowing the CFI probe and command set driver code
-	  to communicate with the chips on the RPXLite board. More at
-	  <http://www.embeddedplanet.com/>.
-
-config MTD_MBX860
-	tristate "System flash on MBX860 board"
-	depends on MTD_CFI && MBX
-	help
-	  This enables access routines for the flash chips on the Motorola
-	  MBX860 board. If you have one of these boards and would like
-	  to use the flash chips on it, say 'Y'.
-
-config MTD_DBOX2
-	tristate "CFI Flash device mapped on D-Box2"
-	depends on DBOX2 && MTD_CFI_INTELSTD && MTD_CFI_INTELEXT && MTD_CFI_AMDSTD
-	help
-	  This enables access routines for the flash chips on the Nokia/Sagem
-	  D-Box 2 board. If you have one of these boards and would like to use
-	  the flash chips on it, say 'Y'.
 
 config MTD_CFI_FLAGADM
 	tristate "CFI Flash device mapping on FlagaDM"
@@ -349,15 +297,6 @@ config MTD_IXP4XX
 	  IXDP425 and Coyote. If you have an IXP4xx based board and
 	  would like to use the flash chips on it, say 'Y'.
 
-config MTD_IXP2000
-	tristate "CFI Flash device mapped on Intel IXP2000 based systems"
-	depends on MTD_CFI && MTD_COMPLEX_MAPPINGS && ARCH_IXP2000
-	help
-	  This enables MTD access to flash devices on platforms based
-	  on Intel's IXP2000 family of network processors. If you have an
-	  IXP2000 based board and would like to use the flash chips on it,
-	  say 'Y'.
-
 config MTD_AUTCPU12
 	bool "NV-RAM mapping AUTCPU12 board"
 	depends on ARCH_AUTCPU12
@@ -371,13 +310,6 @@ config MTD_IMPA7
 	help
 	  This enables access to the NOR Flash on the impA7 board of
 	  implementa GmbH. If you have such a board, say 'Y' here.
-
-config MTD_H720X
-	tristate "Hynix evaluation board mappings"
-	depends on MTD_CFI && ( ARCH_H7201 || ARCH_H7202 )
-	help
-	  This enables access to the flash chips on the Hynix evaluation boards.
-	  If you have such a board, say 'Y'.
 
 # This needs CFI or JEDEC, depending on the cards found.
 config MTD_PCI
@@ -432,15 +364,6 @@ config MTD_UCLINUX
 	depends on (MTD_RAM=y || MTD_ROM=y) && (!MMU || COLDFIRE)
 	help
 	  Map driver to support image based filesystems for uClinux.
-
-config MTD_DMV182
-        tristate "Map driver for Dy-4 SVME/DMV-182 board."
-        depends on DMV182
-	select MTD_MAP_BANK_WIDTH_32
-	select MTD_CFI_I8
-	select MTD_CFI_AMDSTD
-        help
-          Map driver for Dy-4 SVME/DMV-182 board.
 
 config MTD_INTEL_VR_NOR
 	tristate "NOR flash on Intel Vermilion Range Expansion Bus CS0"
