@@ -328,7 +328,8 @@ static int goldfish_nand_init_device(struct platform_device *pdev,
 	mtd->size *= mtd->writesize;
 	dev_dbg(&pdev->dev,
 		"goldfish nand dev%d: size %llx, page %d, extra %d, erase %d\n",
-		       id, mtd->size, mtd->writesize, mtd->oobsize, mtd->erasesize);
+		       id, mtd->size, mtd->writesize,
+		       mtd->oobsize, mtd->erasesize);
 	spin_unlock_irqrestore(&nand->lock, irq_flags);
 
 	mtd->priv = nand;
