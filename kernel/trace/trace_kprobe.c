@@ -845,6 +845,9 @@ __kprobe_trace_func(struct trace_probe *tp, struct pt_regs *regs,
 
 	WARN_ON(call != ftrace_file->event_call);
 
+	if (test_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT, &ftrace_file->flags))
+		return;
+
 	local_save_flags(irq_flags);
 	pc = preempt_count();
 
@@ -892,6 +895,9 @@ __kretprobe_trace_func(struct trace_probe *tp, struct kretprobe_instance *ri,
 	struct ftrace_event_call *call = &tp->call;
 
 	WARN_ON(call != ftrace_file->event_call);
+
+	if (test_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT, &ftrace_file->flags))
+		return;
 
 	local_save_flags(irq_flags);
 	pc = preempt_count();
