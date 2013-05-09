@@ -41,8 +41,6 @@ static LIST_HEAD(blktrans_majors);
 static DEFINE_MUTEX(blktrans_ref_mutex);
 
 #define MTD_MERGE                       1
-
-
 static void blktrans_dev_release(struct kref *kref)
 {
 	struct mtd_blktrans_dev *dev =
@@ -208,9 +206,9 @@ static int mtd_blktrans_thread(void *arg)
 }
 #else
 
-#define MTD_RW_SECTORS  (BLK_SAFE_MAX_SECTORS+1)
-static char * mtd_rw_buffer[MTD_RW_SECTORS*512]   __attribute__((aligned(4096)));
-struct mutex mtd_rw_buffer_lock;
+#define MTD_RW_SECTORS  (2048)     // 2048 (BLK_SAFE_MAX_SECTORS+1)
+static char * mtd_rw_buffer;       //[MTD_RW_SECTORS*512]   __attribute__((aligned(4096)));
+struct mutex  mtd_rw_buffer_lock;
 static int req_check_buffer_align(struct request *req,char **pbuf)
 {
     int    nr_vec = 0;
@@ -314,7 +312,7 @@ static int mtd_blktrans_thread(void *arg)
 		res = 0;
 	    cmd_flag = rq_data_dir(req);
 	    //i = 0;
-        if(cmd_flag == READ)
+        if(cmd_flag == READ && mtd_rw_buffer)
         {
 	        unsigned long nsect;
             buf = mtd_rw_buffer;
@@ -664,6 +662,12 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 
 	new->rq->queuedata = new;
 	blk_queue_logical_block_size(new->rq, tr->blksize);
+	
+#if (MTD_MERGE == 1)
+    blk_queue_max_hw_sectors(new->rq,MTD_RW_SECTORS);
+	//blk_queue_max_segment_size(new->rq,MTD_RW_SECTORS);
+	blk_queue_max_segments(new->rq, MTD_RW_SECTORS);// /PAGE_CACHE_SIZE
+#endif
 
 	if (tr->discard) {
 		queue_flag_set_unlocked(QUEUE_FLAG_DISCARD, new->rq);
@@ -778,6 +782,7 @@ int register_mtd_blktrans(struct mtd_blktrans_ops *tr)
 	int ret;
 #if(MTD_MERGE != 0)
 	mutex_init(&mtd_rw_buffer_lock);
+    mtd_rw_buffer = kmalloc(MTD_RW_SECTORS*512, GFP_KERNEL | GFP_DMA);
 #endif
 	/* Register the notifier if/when the first device type is
 	   registered, to prevent the link/init ordering from fucking
