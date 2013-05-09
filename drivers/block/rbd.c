@@ -2194,13 +2194,17 @@ rbd_img_obj_parent_read_full_callback(struct rbd_img_request *img_request)
 	if (result)
 		goto out_err;
 
-	/* Allocate the new copyup osd request for the original request */
-
+	/*
+	 * The original osd request is of no use to use any more.
+	 * We need a new one that can hold the two ops in a copyup
+	 * request.  Allocate the new copyup osd request for the
+	 * original request, and release the old one.
+	 */
 	result = -ENOMEM;
-	rbd_assert(!orig_request->osd_req);
 	osd_req = rbd_osd_req_create_copyup(orig_request);
 	if (!osd_req)
 		goto out_err;
+	rbd_osd_req_destroy(orig_request->osd_req);
 	orig_request->osd_req = osd_req;
 	orig_request->copyup_pages = pages;
 	orig_request->copyup_page_count = page_count;
@@ -2275,15 +2279,6 @@ static int rbd_img_obj_parent_read_full(struct rbd_obj_request *obj_request)
 	rbd_assert(img_request != NULL);
 	rbd_dev = img_request->rbd_dev;
 	rbd_assert(rbd_dev->parent != NULL);
-
-	/*
-	 * First things first.  The original osd request is of no
-	 * use to use any more, we'll need a new one that can hold
-	 * the two ops in a copyup request.  We'll get that later,
-	 * but for now we can release the old one.
-	 */
-	rbd_osd_req_destroy(obj_request->osd_req);
-	obj_request->osd_req = NULL;
 
 	/*
 	 * Determine the byte range covered by the object in the
