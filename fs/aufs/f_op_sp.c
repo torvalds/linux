@@ -24,6 +24,77 @@
 
 #include "aufs.h"
 
+/*
+ * I don't think the size of this list grows much.
+ * so here is a very simple list implemented in order to find finfo matching a
+ * given file.
+ */
+static struct au_sphlhead au_finfo_sp = {
+	.spin	= __SPIN_LOCK_INITIALIZER(au_finfo_sp.spin),
+	.head	= HLIST_HEAD_INIT
+};
+
+struct au_finfo_sp {
+	struct hlist_node	hlist;
+	struct file 		*file;
+	struct au_finfo		*finfo;
+};
+
+struct au_finfo *au_fi_sp(struct file *file)
+{
+	struct au_finfo *finfo;
+	struct au_finfo_sp *sp;
+
+	finfo = NULL;
+	spin_lock(&au_finfo_sp.spin);
+	hlist_for_each_entry(sp, &au_finfo_sp.head, hlist) {
+		if (sp->file != file)
+			continue;
+		finfo = sp->finfo;
+		break;
+	}
+	spin_unlock(&au_finfo_sp.spin);
+
+	return finfo;
+}
+
+static int au_fi_sp_add(struct file *file)
+{
+	int err;
+	struct au_finfo_sp *sp;
+
+	err = -ENOMEM;
+	sp = kmalloc(sizeof(*sp), GFP_NOFS);
+	if (sp) {
+		err = 0;
+		sp->file = file;
+		sp->finfo = file->private_data;
+		spin_lock(&au_finfo_sp.spin);
+		hlist_add_head(&sp->hlist, &au_finfo_sp.head);
+		spin_unlock(&au_finfo_sp.spin);
+	}
+	return err;
+}
+
+static void au_fi_sp_del(struct file *file)
+{
+	struct au_finfo_sp *sp, *do_free;
+
+	do_free = NULL;
+	spin_lock(&au_finfo_sp.spin);
+	hlist_for_each_entry(sp, &au_finfo_sp.head, hlist) {
+		if (sp->file != file)
+			continue;
+		hlist_del(&sp->hlist);
+		do_free = sp;
+		break;
+	}
+	spin_unlock(&au_finfo_sp.spin);
+	kfree(do_free);
+}
+
+/* ---------------------------------------------------------------------- */
+
 static ssize_t aufs_aio_read_sp(struct kiocb *kio, const struct iovec *iov,
 				unsigned long nv, loff_t pos)
 {
@@ -90,6 +161,7 @@ static int aufs_release_sp(struct inode *inode, struct file *file)
 	/* close this fifo in aufs */
 	err = h_file->f_op->release(inode, file); /* ignore */
 	aufs_release_nondir(inode, file); /* ignore */
+	au_fi_sp_del(file);
 	return err;
 }
 
@@ -213,6 +285,10 @@ static int au_do_open_sp(struct file *file, int flags)
 	struct file *h_file;
 	struct inode *h_inode;
 
+	err = au_fi_sp_add(file);
+	if (unlikely(err))
+		goto out;
+
 	dentry = file->f_dentry;
 	AuDbg("%.*s\n", AuDLNPair(dentry));
 
@@ -225,7 +301,7 @@ static int au_do_open_sp(struct file *file, int flags)
 	/* prepare h_file */
 	err = au_do_open_nondir(file, vfsub_file_flags(file));
 	if (unlikely(err))
-		goto out;
+		goto out_del;
 
 	sb = dentry->d_sb;
 	h_file = au_hf_top(file);
@@ -238,9 +314,13 @@ static int au_do_open_sp(struct file *file, int flags)
 	si_noflush_read_lock(sb);
 	fi_write_lock(file);
 	di_read_lock_child(dentry, AuLock_IR);
-	if (!err)
+	if (!err) {
 		au_init_fop_sp(file);
+		goto out; /* success */
+	}
 
+out_del:
+	au_fi_sp_del(file);
 out:
 	return err;
 }
