@@ -406,7 +406,8 @@ static void free_ioctx(struct work_struct *work)
 	struct kioctx *ctx = container_of(work, struct kioctx, free_work);
 	struct aio_ring *ring;
 	struct kiocb *req;
-	unsigned cpu, head, avail;
+	unsigned cpu, avail;
+	DEFINE_WAIT(wait);
 
 	spin_lock_irq(&ctx->ctx_lock);
 
@@ -427,22 +428,24 @@ static void free_ioctx(struct work_struct *work)
 		kcpu->reqs_available = 0;
 	}
 
-	ring = kmap_atomic(ctx->ring_pages[0]);
-	head = ring->head;
-	kunmap_atomic(ring);
+	while (1) {
+		prepare_to_wait(&ctx->wait, &wait, TASK_UNINTERRUPTIBLE);
 
-	while (atomic_read(&ctx->reqs_available) < ctx->nr_events - 1) {
-		wait_event(ctx->wait,
-			   (head != ctx->tail) ||
-			   (atomic_read(&ctx->reqs_available) >=
-			    ctx->nr_events - 1));
-
-		avail = (head <= ctx->tail ? ctx->tail : ctx->nr_events) - head;
+		ring = kmap_atomic(ctx->ring_pages[0]);
+		avail = (ring->head <= ring->tail)
+			 ? ring->tail - ring->head
+			 : ctx->nr_events - ring->head + ring->tail;
 
 		atomic_add(avail, &ctx->reqs_available);
-		head += avail;
-		head %= ctx->nr_events;
+		ring->head = ring->tail;
+		kunmap_atomic(ring);
+
+		if (atomic_read(&ctx->reqs_available) >= ctx->nr_events - 1)
+			break;
+
+		schedule();
 	}
+	finish_wait(&ctx->wait, &wait);
 
 	WARN_ON(atomic_read(&ctx->reqs_available) > ctx->nr_events - 1);
 
@@ -869,7 +872,7 @@ static long aio_read_events_ring(struct kioctx *ctx,
 				 struct io_event __user *event, long nr)
 {
 	struct aio_ring *ring;
-	unsigned head, pos;
+	unsigned head, tail, pos;
 	long ret = 0;
 	int copy_ret;
 
@@ -877,11 +880,12 @@ static long aio_read_events_ring(struct kioctx *ctx,
 
 	ring = kmap_atomic(ctx->ring_pages[0]);
 	head = ring->head;
+	tail = ring->tail;
 	kunmap_atomic(ring);
 
-	pr_debug("h%u t%u m%u\n", head, ctx->tail, ctx->nr_events);
+	pr_debug("h%u t%u m%u\n", head, tail, ctx->nr_events);
 
-	if (head == ctx->tail)
+	if (head == tail)
 		goto out;
 
 	while (ret < nr) {
@@ -889,8 +893,8 @@ static long aio_read_events_ring(struct kioctx *ctx,
 		struct io_event *ev;
 		struct page *page;
 
-		avail = (head <= ctx->tail ? ctx->tail : ctx->nr_events) - head;
-		if (head == ctx->tail)
+		avail = (head <= tail ?  tail : ctx->nr_events) - head;
+		if (head == tail)
 			break;
 
 		avail = min(avail, nr - ret);
@@ -921,7 +925,7 @@ static long aio_read_events_ring(struct kioctx *ctx,
 	kunmap_atomic(ring);
 	flush_dcache_page(ctx->ring_pages[0]);
 
-	pr_debug("%li  h%u t%u\n", ret, head, ctx->tail);
+	pr_debug("%li  h%u t%u\n", ret, head, tail);
 
 	put_reqs_available(ctx, ret);
 out:
