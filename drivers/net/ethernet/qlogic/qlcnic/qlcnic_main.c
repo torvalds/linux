@@ -2502,12 +2502,17 @@ static void qlcnic_tx_timeout(struct net_device *netdev)
 	if (test_bit(__QLCNIC_RESETTING, &adapter->state))
 		return;
 
-	dev_err(&netdev->dev, "transmit timeout, resetting.\n");
-
-	if (++adapter->tx_timeo_cnt >= QLCNIC_MAX_TX_TIMEOUTS)
-		adapter->need_fw_reset = 1;
-	else
+	if (++adapter->tx_timeo_cnt >= QLCNIC_MAX_TX_TIMEOUTS) {
+		netdev_info(netdev, "Tx timeout, reset the adapter.\n");
+		if (qlcnic_82xx_check(adapter))
+			adapter->need_fw_reset = 1;
+		else if (qlcnic_83xx_check(adapter))
+			qlcnic_83xx_idc_request_reset(adapter,
+						      QLCNIC_FORCE_FW_DUMP_KEY);
+	} else {
+		netdev_info(netdev, "Tx timeout, reset adapter context.\n");
 		adapter->ahw->reset_context = 1;
+	}
 }
 
 static struct net_device_stats *qlcnic_get_stats(struct net_device *netdev)
