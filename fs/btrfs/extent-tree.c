@@ -2070,8 +2070,7 @@ static int run_delayed_extent_op(struct btrfs_trans_handle *trans,
 	u32 item_size;
 	int ret;
 	int err = 0;
-	int metadata = (node->type == BTRFS_TREE_BLOCK_REF_KEY ||
-			node->type == BTRFS_SHARED_BLOCK_REF_KEY);
+	int metadata = !extent_op->is_data;
 
 	if (trans->aborted)
 		return 0;
@@ -2086,11 +2085,8 @@ static int run_delayed_extent_op(struct btrfs_trans_handle *trans,
 	key.objectid = node->bytenr;
 
 	if (metadata) {
-		struct btrfs_delayed_tree_ref *tree_ref;
-
-		tree_ref = btrfs_delayed_node_to_tree_ref(node);
 		key.type = BTRFS_METADATA_ITEM_KEY;
-		key.offset = tree_ref->level;
+		key.offset = extent_op->level;
 	} else {
 		key.type = BTRFS_EXTENT_ITEM_KEY;
 		key.offset = node->num_bytes;
@@ -2719,7 +2715,7 @@ out:
 int btrfs_set_disk_extent_flags(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root,
 				u64 bytenr, u64 num_bytes, u64 flags,
-				int is_data)
+				int level, int is_data)
 {
 	struct btrfs_delayed_extent_op *extent_op;
 	int ret;
@@ -2732,6 +2728,7 @@ int btrfs_set_disk_extent_flags(struct btrfs_trans_handle *trans,
 	extent_op->update_flags = 1;
 	extent_op->update_key = 0;
 	extent_op->is_data = is_data ? 1 : 0;
+	extent_op->level = level;
 
 	ret = btrfs_add_delayed_extent_op(root->fs_info, trans, bytenr,
 					  num_bytes, extent_op);
@@ -6763,6 +6760,7 @@ struct extent_buffer *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 			extent_op->update_key = 1;
 		extent_op->update_flags = 1;
 		extent_op->is_data = 0;
+		extent_op->level = level;
 
 		ret = btrfs_add_delayed_tree_ref(root->fs_info, trans,
 					ins.objectid,
@@ -6934,7 +6932,8 @@ static noinline int walk_down_proc(struct btrfs_trans_handle *trans,
 		ret = btrfs_dec_ref(trans, root, eb, 0, wc->for_reloc);
 		BUG_ON(ret); /* -ENOMEM */
 		ret = btrfs_set_disk_extent_flags(trans, root, eb->start,
-						  eb->len, flag, 0);
+						  eb->len, flag,
+						  btrfs_header_level(eb), 0);
 		BUG_ON(ret); /* -ENOMEM */
 		wc->flags[level] |= flag;
 	}
