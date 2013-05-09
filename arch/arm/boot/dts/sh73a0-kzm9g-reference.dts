@@ -145,19 +145,70 @@
 	};
 };
 
+&i2c3 {
+	pinctrl-0 = <&i2c3_pins>;
+	pinctrl-names = "default";
+};
+
 &mmcif {
+	pinctrl-0 = <&mmcif_pins>;
+	pinctrl-names = "default";
+
 	bus-width = <8>;
 	vmmc-supply = <&reg_1p8v>;
 	status = "okay";
 };
 
+&pfc {
+	pinctrl-0 = <&scifa4_pins>;
+	pinctrl-names = "default";
+
+	i2c3_pins: i2c3 {
+		renesas,groups = "i2c3_1";
+		renesas,function = "i2c3";
+	};
+
+	mmcif_pins: mmcif {
+		mux {
+			renesas,groups = "mmc0_data8_0", "mmc0_ctrl_0";
+			renesas,function = "mmc0";
+		};
+		cfg {
+			renesas,groups = "mmc0_data8_0";
+			renesas,pins = "PORT279";
+			bias-pull-up;
+		};
+	};
+
+	scifa4_pins: scifa4 {
+		renesas,groups = "scifa4_data", "scifa4_ctrl";
+		renesas,function = "scifa4";
+	};
+
+	sdhi0_pins: sdhi0 {
+		renesas,groups = "sdhi0_data4", "sdhi0_ctrl", "sdhi0_cd", "sdhi0_wp";
+		renesas,function = "sdhi0";
+	};
+
+	sdhi2_pins: sdhi2 {
+		renesas,groups = "sdhi2_data4", "sdhi2_ctrl";
+		renesas,function = "sdhi2";
+	};
+};
+
 &sdhi0 {
+	pinctrl-0 = <&sdhi0_pins>;
+	pinctrl-names = "default";
+
 	vmmc-supply = <&reg_3p3v>;
 	bus-width = <4>;
 	status = "okay";
 };
 
 &sdhi2 {
+	pinctrl-0 = <&sdhi2_pins>;
+	pinctrl-names = "default";
+
 	vmmc-supply = <&reg_3p3v>;
 	bus-width = <4>;
 	broken-cd;
