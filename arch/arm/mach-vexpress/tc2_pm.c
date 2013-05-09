@@ -128,7 +128,7 @@ static void tc2_pm_down(u64 residency)
 		asm volatile ("clrex");
 		set_auxcr(get_auxcr() & ~(1 << 6));
 
-		disable_cci(cluster);
+		cci_disable_port_by_cpu(mpidr);
 
 		/*
 		 * Ensure that both C & I bits are disabled in the SCTLR
