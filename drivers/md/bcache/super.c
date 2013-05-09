@@ -634,11 +634,10 @@ static int open_dev(struct block_device *b, fmode_t mode)
 	return 0;
 }
 
-static int release_dev(struct gendisk *b, fmode_t mode)
+static void release_dev(struct gendisk *b, fmode_t mode)
 {
 	struct bcache_device *d = b->private_data;
 	closure_put(&d->cl);
-	return 0;
 }
 
 static int ioctl_dev(struct block_device *b, fmode_t mode,
