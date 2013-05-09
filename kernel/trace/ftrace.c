@@ -2941,8 +2941,12 @@ static void __enable_ftrace_function_probe(void)
 	int ret;
 	int i;
 
-	if (ftrace_probe_registered)
+	if (ftrace_probe_registered) {
+		/* still need to update the function call sites */
+		if (ftrace_enabled)
+			ftrace_run_update_code(FTRACE_UPDATE_CALLS);
 		return;
+	}
 
 	for (i = 0; i < FTRACE_FUNC_HASHSIZE; i++) {
 		struct hlist_head *hhd = &ftrace_func_hash[i];
