@@ -2061,8 +2061,11 @@ event_enable_func(struct ftrace_hash *hash,
 	if (ret < 0)
 		goto out_put;
 	ret = register_ftrace_function_probe(glob, ops, data);
-	if (!ret)
+	if (!ret) {
+		ret = -ENOENT;
 		goto out_disable;
+	} else
+		ret = 0;
  out:
 	mutex_unlock(&event_mutex);
 	return ret;
