@@ -37,24 +37,24 @@ MODULE_PARM_DESC(qlcnic_mac_learn,
 		 "Mac Filter (0=learning is disabled, 1=Driver learning is enabled, 2=FDB learning is enabled)");
 
 int qlcnic_use_msi = 1;
-MODULE_PARM_DESC(use_msi, "MSI interrupt (0=disabled, 1=enabled");
+MODULE_PARM_DESC(use_msi, "MSI interrupt (0=disabled, 1=enabled)");
 module_param_named(use_msi, qlcnic_use_msi, int, 0444);
 
 int qlcnic_use_msi_x = 1;
-MODULE_PARM_DESC(use_msi_x, "MSI-X interrupt (0=disabled, 1=enabled");
+MODULE_PARM_DESC(use_msi_x, "MSI-X interrupt (0=disabled, 1=enabled)");
 module_param_named(use_msi_x, qlcnic_use_msi_x, int, 0444);
 
 int qlcnic_auto_fw_reset = 1;
-MODULE_PARM_DESC(auto_fw_reset, "Auto firmware reset (0=disabled, 1=enabled");
+MODULE_PARM_DESC(auto_fw_reset, "Auto firmware reset (0=disabled, 1=enabled)");
 module_param_named(auto_fw_reset, qlcnic_auto_fw_reset, int, 0644);
 
 int qlcnic_load_fw_file;
-MODULE_PARM_DESC(load_fw_file, "Load firmware from (0=flash, 1=file");
+MODULE_PARM_DESC(load_fw_file, "Load firmware from (0=flash, 1=file)");
 module_param_named(load_fw_file, qlcnic_load_fw_file, int, 0444);
 
 int qlcnic_config_npars;
 module_param(qlcnic_config_npars, int, 0444);
-MODULE_PARM_DESC(qlcnic_config_npars, "Configure NPARs (0=disabled, 1=enabled");
+MODULE_PARM_DESC(qlcnic_config_npars, "Configure NPARs (0=disabled, 1=enabled)");
 
 static int qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
 static void qlcnic_remove(struct pci_dev *pdev);
