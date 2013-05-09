@@ -176,13 +176,48 @@ static int __init ppc47x_probe(void)
 	return 1;
 }
 
+static int board_rev = -1;
+static int __init ppc47x_get_board_rev(void)
+{
+	u8 fpga_reg0;
+	void *fpga;
+	struct device_node *np;
+
+	np = of_find_compatible_node(NULL, NULL, "ibm,currituck-fpga");
+	if (!np)
+		goto fail;
+
+	fpga = of_iomap(np, 0);
+	of_node_put(np);
+	if (!fpga)
+		goto fail;
+
+	fpga_reg0 = ioread8(fpga);
+	board_rev = fpga_reg0 & 0x03;
+	pr_info("%s: Found board revision %d\n", __func__, board_rev);
+	iounmap(fpga);
+	return 0;
+
+fail:
+	pr_info("%s: Unable to find board revision\n", __func__);
+	return 0;
+}
+machine_arch_initcall(ppc47x, ppc47x_get_board_rev);
+
 /* Use USB controller should have been hardware swizzled but it wasn't :( */
 static void ppc47x_pci_irq_fixup(struct pci_dev *dev)
 {
 	if (dev->vendor == 0x1033 && (dev->device == 0x0035 ||
 	                              dev->device == 0x00e0)) {
-		dev->irq = irq_create_mapping(NULL, 47);
-		pr_info("%s: Mapping irq 47 %d\n", __func__, dev->irq);
+		if (board_rev == 0) {
+			dev->irq = irq_create_mapping(NULL, 47);
+			pr_info("%s: Mapping irq %d\n", __func__, dev->irq);
+		} else if (board_rev == 2) {
+			dev->irq = irq_create_mapping(NULL, 49);
+			pr_info("%s: Mapping irq %d\n", __func__, dev->irq);
+		} else {
+			pr_alert("%s: Unknown board revision\n", __func__);
+		}
 	}
 }
 
