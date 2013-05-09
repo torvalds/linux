@@ -623,6 +623,8 @@ event_enable_read(struct file *filp, char __user *ubuf, size_t cnt,
 	if (file->flags & FTRACE_EVENT_FL_ENABLED) {
 		if (file->flags & FTRACE_EVENT_FL_SOFT_DISABLED)
 			buf = "0*\n";
+		else if (file->flags & FTRACE_EVENT_FL_SOFT_MODE)
+			buf = "1*\n";
 		else
 			buf = "1\n";
 	} else
