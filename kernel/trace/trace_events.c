@@ -251,7 +251,8 @@ static int __ftrace_event_enable_disable(struct ftrace_event_file *file,
 	switch (enable) {
 	case 0:
 		/*
-		 * When soft_disable is set and enable is cleared, we want
+		 * When soft_disable is set and enable is cleared, the sm_ref
+		 * reference counter is decremented. If it reaches 0, we want
 		 * to clear the SOFT_DISABLED flag but leave the event in the
 		 * state that it was. That is, if the event was enabled and
 		 * SOFT_DISABLED isn't set, then do nothing. But if SOFT_DISABLED
@@ -263,6 +264,8 @@ static int __ftrace_event_enable_disable(struct ftrace_event_file *file,
 		 * "soft enable"s (clearing the SOFT_DISABLED bit) wont work.
 		 */
 		if (soft_disable) {
+			if (atomic_dec_return(&file->sm_ref) > 0)
+				break;
 			disable = file->flags & FTRACE_EVENT_FL_SOFT_DISABLED;
 			clear_bit(FTRACE_EVENT_FL_SOFT_MODE_BIT, &file->flags);
 		} else
@@ -291,8 +294,11 @@ static int __ftrace_event_enable_disable(struct ftrace_event_file *file,
 		 */
 		if (!soft_disable)
 			clear_bit(FTRACE_EVENT_FL_SOFT_DISABLED_BIT, &file->flags);
-		else
+		else {
+			if (atomic_inc_return(&file->sm_ref) > 1)
+				break;
 			set_bit(FTRACE_EVENT_FL_SOFT_MODE_BIT, &file->flags);
+		}
 
 		if (!(file->flags & FTRACE_EVENT_FL_ENABLED)) {
 
@@ -1540,6 +1546,7 @@ __trace_add_new_event(struct ftrace_event_call *call,
 
 	file->event_call = call;
 	file->tr = tr;
+	atomic_set(&file->sm_ref, 0);
 	list_add(&file->list, &tr->events);
 
 	return event_create_dir(tr->event_dir, file, id, enable, filter, format);
@@ -1562,6 +1569,7 @@ __trace_early_add_new_event(struct ftrace_event_call *call,
 
 	file->event_call = call;
 	file->tr = tr;
+	atomic_set(&file->sm_ref, 0);
 	list_add(&file->list, &tr->events);
 
 	return 0;
