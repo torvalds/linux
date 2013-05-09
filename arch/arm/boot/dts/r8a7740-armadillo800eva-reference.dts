@@ -43,3 +43,13 @@
 		interrupts = <2 0>; /* IRQ10: hwirq 2 on irqpin1 */
 	};
 };
+
+&pfc {
+	pinctrl-0 = <&scifa1_pins>;
+	pinctrl-names = "default";
+
+	scifa1_pins: scifa1 {
+		renesas,groups = "scifa1_data";
+		renesas,function = "scifa1";
+	};
+};
