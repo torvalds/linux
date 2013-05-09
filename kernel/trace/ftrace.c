@@ -3017,13 +3017,15 @@ register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 	hash = alloc_and_copy_ftrace_hash(FTRACE_HASH_DEFAULT_BITS, *orig_hash);
 	if (!hash) {
 		count = -ENOMEM;
-		goto out_unlock;
+		goto out;
 	}
 
 	if (unlikely(ftrace_disabled)) {
 		count = -ENODEV;
-		goto out_unlock;
+		goto out;
 	}
+
+	mutex_lock(&ftrace_lock);
 
 	do_for_each_ftrace_rec(pg, rec) {
 
@@ -3070,15 +3072,15 @@ register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 
 	} while_for_each_ftrace_rec();
 
-	mutex_lock(&ftrace_lock);
 	ret = ftrace_hash_move(&trace_probe_ops, 1, orig_hash, hash);
 	if (ret < 0)
 		count = ret;
 
 	__enable_ftrace_function_probe();
-	mutex_unlock(&ftrace_lock);
 
  out_unlock:
+	mutex_unlock(&ftrace_lock);
+ out:
 	mutex_unlock(&trace_probe_ops.regex_lock);
 	free_ftrace_hash(hash);
 
