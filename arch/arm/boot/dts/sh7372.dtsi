@@ -23,4 +23,12 @@
 			reg = <0x0>;
 		};
 	};
+
+	pfc: pfc@e6050000 {
+		compatible = "renesas,pfc-sh7372";
+		reg = <0xe6050000 0x8000>,
+		      <0xe605801c 0x1c>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
 };
