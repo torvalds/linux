@@ -723,9 +723,9 @@ static __kprobes void store_trace_args(int ent_size, struct trace_probe *tp,
 }
 
 /* Kprobe handler */
-static __kprobes void kprobe_trace_func(struct kprobe *kp, struct pt_regs *regs)
+static __kprobes void
+kprobe_trace_func(struct trace_probe *tp, struct pt_regs *regs)
 {
-	struct trace_probe *tp = container_of(kp, struct trace_probe, rp.kp);
 	struct kprobe_trace_entry_head *entry;
 	struct ring_buffer_event *event;
 	struct ring_buffer *buffer;
@@ -745,7 +745,7 @@ static __kprobes void kprobe_trace_func(struct kprobe *kp, struct pt_regs *regs)
 		return;
 
 	entry = ring_buffer_event_data(event);
-	entry->ip = (unsigned long)kp->addr;
+	entry->ip = (unsigned long)tp->rp.kp.addr;
 	store_trace_args(sizeof(*entry), tp, regs, (u8 *)&entry[1], dsize);
 
 	if (!filter_current_check_discard(buffer, call, entry, event))
@@ -754,10 +754,10 @@ static __kprobes void kprobe_trace_func(struct kprobe *kp, struct pt_regs *regs)
 }
 
 /* Kretprobe handler */
-static __kprobes void kretprobe_trace_func(struct kretprobe_instance *ri,
-					  struct pt_regs *regs)
+static __kprobes void
+kretprobe_trace_func(struct trace_probe *tp, struct kretprobe_instance *ri,
+		     struct pt_regs *regs)
 {
-	struct trace_probe *tp = container_of(ri->rp, struct trace_probe, rp);
 	struct kretprobe_trace_entry_head *entry;
 	struct ring_buffer_event *event;
 	struct ring_buffer *buffer;
@@ -973,10 +973,9 @@ static int set_print_fmt(struct trace_probe *tp)
 #ifdef CONFIG_PERF_EVENTS
 
 /* Kprobe profile handler */
-static __kprobes void kprobe_perf_func(struct kprobe *kp,
-					 struct pt_regs *regs)
+static __kprobes void
+kprobe_perf_func(struct trace_probe *tp, struct pt_regs *regs)
 {
-	struct trace_probe *tp = container_of(kp, struct trace_probe, rp.kp);
 	struct ftrace_event_call *call = &tp->call;
 	struct kprobe_trace_entry_head *entry;
 	struct hlist_head *head;
@@ -995,7 +994,7 @@ static __kprobes void kprobe_perf_func(struct kprobe *kp,
 	if (!entry)
 		return;
 
-	entry->ip = (unsigned long)kp->addr;
+	entry->ip = (unsigned long)tp->rp.kp.addr;
 	memset(&entry[1], 0, dsize);
 	store_trace_args(sizeof(*entry), tp, regs, (u8 *)&entry[1], dsize);
 
@@ -1005,10 +1004,10 @@ static __kprobes void kprobe_perf_func(struct kprobe *kp,
 }
 
 /* Kretprobe profile handler */
-static __kprobes void kretprobe_perf_func(struct kretprobe_instance *ri,
-					    struct pt_regs *regs)
+static __kprobes void
+kretprobe_perf_func(struct trace_probe *tp, struct kretprobe_instance *ri,
+		    struct pt_regs *regs)
 {
-	struct trace_probe *tp = container_of(ri->rp, struct trace_probe, rp);
 	struct ftrace_event_call *call = &tp->call;
 	struct kretprobe_trace_entry_head *entry;
 	struct hlist_head *head;
@@ -1074,10 +1073,10 @@ int kprobe_dispatcher(struct kprobe *kp, struct pt_regs *regs)
 	tp->nhit++;
 
 	if (tp->flags & TP_FLAG_TRACE)
-		kprobe_trace_func(kp, regs);
+		kprobe_trace_func(tp, regs);
 #ifdef CONFIG_PERF_EVENTS
 	if (tp->flags & TP_FLAG_PROFILE)
-		kprobe_perf_func(kp, regs);
+		kprobe_perf_func(tp, regs);
 #endif
 	return 0;	/* We don't tweek kernel, so just return 0 */
 }
@@ -1090,10 +1089,10 @@ int kretprobe_dispatcher(struct kretprobe_instance *ri, struct pt_regs *regs)
 	tp->nhit++;
 
 	if (tp->flags & TP_FLAG_TRACE)
-		kretprobe_trace_func(ri, regs);
+		kretprobe_trace_func(tp, ri, regs);
 #ifdef CONFIG_PERF_EVENTS
 	if (tp->flags & TP_FLAG_PROFILE)
-		kretprobe_perf_func(ri, regs);
+		kretprobe_perf_func(tp, ri, regs);
 #endif
 	return 0;	/* We don't tweek kernel, so just return 0 */
 }
