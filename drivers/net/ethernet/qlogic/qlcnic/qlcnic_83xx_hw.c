@@ -696,15 +696,14 @@ u32 qlcnic_83xx_mac_rcode(struct qlcnic_adapter *adapter)
 	return 1;
 }
 
-u32 qlcnic_83xx_mbx_poll(struct qlcnic_adapter *adapter)
+u32 qlcnic_83xx_mbx_poll(struct qlcnic_adapter *adapter, u32 *wait_time)
 {
 	u32 data;
-	unsigned long wait_time = 0;
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	/* wait for mailbox completion */
 	do {
 		data = QLCRDX(ahw, QLCNIC_FW_MBX_CTRL);
-		if (++wait_time > QLCNIC_MBX_TIMEOUT) {
+		if (++(*wait_time) > QLCNIC_MBX_TIMEOUT) {
 			data = QLCNIC_RCODE_TIMEOUT;
 			break;
 		}
@@ -720,8 +719,8 @@ int qlcnic_83xx_mbx_op(struct qlcnic_adapter *adapter,
 	u16 opcode;
 	u8 mbx_err_code;
 	unsigned long flags;
-	u32 rsp, mbx_val, fw_data, rsp_num, mbx_cmd;
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	u32 rsp, mbx_val, fw_data, rsp_num, mbx_cmd, wait_time = 0;
 
 	opcode = LSW(cmd->req.arg[0]);
 	if (!test_bit(QLC_83XX_MBX_READY, &adapter->ahw->idc.status)) {
@@ -754,15 +753,13 @@ int qlcnic_83xx_mbx_op(struct qlcnic_adapter *adapter,
 	/* Signal FW about the impending command */
 	QLCWRX(ahw, QLCNIC_HOST_MBX_CTRL, QLCNIC_SET_OWNER);
 poll:
-	rsp = qlcnic_83xx_mbx_poll(adapter);
+	rsp = qlcnic_83xx_mbx_poll(adapter, &wait_time);
 	if (rsp != QLCNIC_RCODE_TIMEOUT) {
 		/* Get the FW response data */
 		fw_data = readl(QLCNIC_MBX_FW(ahw, 0));
 		if (fw_data &  QLCNIC_MBX_ASYNC_EVENT) {
 			__qlcnic_83xx_process_aen(adapter);
-			mbx_val = QLCRDX(ahw, QLCNIC_HOST_MBX_CTRL);
-			if (mbx_val)
-				goto poll;
+			goto poll;
 		}
 		mbx_err_code = QLCNIC_MBX_STATUS(fw_data);
 		rsp_num = QLCNIC_MBX_NUM_REGS(fw_data);
