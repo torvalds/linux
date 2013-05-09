@@ -46,7 +46,7 @@ struct trace_probe {
 	(sizeof(struct probe_arg) * (n)))
 
 
-static __kprobes int trace_probe_is_return(struct trace_probe *tp)
+static __kprobes bool trace_probe_is_return(struct trace_probe *tp)
 {
 	return tp->rp.handler != NULL;
 }
