@@ -223,16 +223,43 @@ static struct rk616_init_bit_typ rk616_init_bit_list[] = {
 };
 #define RK616_INIT_BIT_LIST_LEN ARRAY_SIZE(rk616_init_bit_list)
 
-static int rk616_init_bit_register(unsigned int reg)
+static int rk616_init_bit_register(unsigned int reg, int i)
 {
-	int i;
-
-	for (i = 0; i < RK616_INIT_BIT_LIST_LEN; i++) {
+	for (; i < RK616_INIT_BIT_LIST_LEN; i++) {
 		if (rk616_init_bit_list[i].reg == reg)
 			return i;
 	}
 
 	return -1;
+}
+
+static unsigned int rk616_codec_read(struct snd_soc_codec *codec, unsigned int reg);
+
+static unsigned int rk616_set_init_value(struct snd_soc_codec *codec, unsigned int reg, unsigned int value)
+{
+	unsigned int read_value, power_bit, set_bit;
+	int i;
+
+	// read codec init register
+	i = rk616_init_bit_register(reg, 0);
+
+	// set codec init bit
+	// widget init bit should be setted 0 after widget power up or unmute,
+	// and should be setted 1 after widget power down or mute.
+	if (i >= 0) {
+		read_value = rk616_codec_read(codec, reg);
+		while (i >= 0) {
+			power_bit = rk616_init_bit_list[i].power_bit;
+			set_bit = rk616_init_bit_list[i].init_bit;
+
+			if ((read_value & power_bit) != (value & power_bit))
+				value = (value & ~set_bit) | ((value & power_bit) ?  set_bit : 0);
+
+			i = rk616_init_bit_register(reg, ++i);
+		}
+	}
+
+	return value;
 }
 
 static int rk616_volatile_register(struct snd_soc_codec *codec, unsigned int reg)
@@ -391,7 +418,7 @@ static unsigned int rk616_codec_read(struct snd_soc_codec *codec, unsigned int r
 static int rk616_codec_write(struct snd_soc_codec *codec, unsigned int reg, unsigned int value)
 {
 	struct mfd_rk616 *rk616 = rk616_mfd;
-	unsigned int power_bit, set_bit, read_value;
+	unsigned int set_bit, read_value, new_value;
 	int i;
 
 	if (!rk616) {
@@ -412,11 +439,7 @@ static int rk616_codec_write(struct snd_soc_codec *codec, unsigned int reg, unsi
 		value = ((0xffff0000 & rk616_read_reg_cache(codec, reg)) | (value & 0x0000ffff));
 	}
 
-	// read codec init register
-	i = rk616_init_bit_register(reg);
-	if (i >= 0) {
-		read_value = rk616_codec_read(codec, reg);
-	}
+	new_value = rk616_set_init_value(codec, reg, value);
 
 	// write i2c
 	if (rk616->write_dev(rk616, reg, &value) < 0) {
@@ -424,19 +447,12 @@ static int rk616_codec_write(struct snd_soc_codec *codec, unsigned int reg, unsi
 		return -EIO;
 	}
 
-	// set codec init bit
-	// widget init bit should be setted 0 after widget power up or unmute,
-	// and should be setted 1 after widget power down or mute.
-	if (i >= 0) {
-		power_bit = rk616_init_bit_list[i].power_bit;
-		set_bit = rk616_init_bit_list[i].init_bit;
-		if ((read_value & power_bit) != (value & power_bit)) {
-			value = (value & ~set_bit) | ((value & power_bit) ?  set_bit : 0);
-			if (rk616->write_dev(rk616, reg, &value) < 0) {
-				printk("%s : reg = 0x%x failed\n", __func__, reg);
-				return -EIO;
-			}
+	if (new_value != value) {
+		if (rk616->write_dev(rk616, reg, &new_value) < 0) {
+			printk("%s : reg = 0x%x failed\n", __func__, reg);
+			return -EIO;
 		}
+		value = new_value;
 	}
 
 	rk616_write_reg_cache(codec, reg, value);
@@ -477,6 +493,10 @@ static int rk616_reset(struct snd_soc_codec *codec)
 	snd_soc_write(codec, RK616_RESET, 0x43);
 	mdelay(10);
 
+	//close charge pump
+	snd_soc_write(codec, RK616_CLK_CHPUMP, 0x41);
+
+	//bypass zero-crossing detection
 	snd_soc_write(codec, RK616_SINGNAL_ZC_CTL1, 0x3f);
 	snd_soc_write(codec, RK616_SINGNAL_ZC_CTL2, 0xff);
 
@@ -670,6 +690,26 @@ SOC_ENUM_SINGLE(RK616_PGAR_AGC_CTL5, RK616_PGA_AGC_SFT, 2, rk616_dis_en_sel),/*1
 static const struct soc_enum rk616_loop_enum =
 	SOC_ENUM_SINGLE(CRU_CFGMISC_CON, AD_DA_LOOP_SFT, 2, rk616_dis_en_sel);
 
+int snd_soc_put_pgal_volsw(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	unsigned int val;
+	int max = mc->max;
+	unsigned int mask = (1 << fls(max)) - 1;
+
+	val = (ucontrol->value.integer.value[0] & mask);
+
+	//set for capture pop noise
+	if (val) {
+		snd_soc_update_bits(codec, RK616_PGA_AGC_CTL, 0x0f, 0x09);
+	}
+
+	return snd_soc_put_volsw(kcontrol, ucontrol);
+}
+
 static const struct snd_kcontrol_new rk616_snd_controls[] = {
 
 	SOC_SINGLE("I2S0 schmitt input Switch", CRU_IO_CON1,
@@ -708,8 +748,12 @@ static const struct snd_kcontrol_new rk616_snd_controls[] = {
 
 	SOC_SINGLE_TLV("PGAL Capture Volume", RK616_PGAL_CTL,
 		RK616_PGA_VOL_SFT, 31, 0, pga_vol_tlv),//0x0a bit 5 is 0
-	SOC_SINGLE("PGAL Capture Switch", RK616_PGAL_CTL,
-		RK616_PGA_MUTE_SFT, 1, 1),
+	{
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = "PGAL Capture Switch", \
+	.info = snd_soc_info_volsw, .get = snd_soc_get_volsw,\
+	.put = snd_soc_put_pgal_volsw, \
+	.private_value =  SOC_SINGLE_VALUE(RK616_PGAL_CTL, RK616_PGA_MUTE_SFT, 1, 1)
+	},
 	SOC_SINGLE_TLV("PGAR Capture Volume", RK616_PGAR_CTL,
 		RK616_PGA_VOL_SFT, 31, 0, pga_vol_tlv),//0x0a bit 4 is 0
 	SOC_SINGLE("PGAR Capture Switch", RK616_PGAR_CTL,
@@ -1558,6 +1602,7 @@ static int rk616_digital_mute(struct snd_soc_dai *dai, int mute)
 		    !is_hp_pd) {
 			DBG("%s : set hp ctl gpio LOW\n", __func__);
 			gpio_set_value(rk616_priv->hp_ctl_gpio, GPIO_LOW);
+			snd_soc_write(codec, RK616_CLK_CHPUMP, 0x41);
 		}
 	} else {
 		if (rk616_priv && rk616_priv->spk_ctl_gpio != INVALID_GPIO &&
@@ -1569,6 +1614,7 @@ static int rk616_digital_mute(struct snd_soc_dai *dai, int mute)
 		if (rk616_priv && rk616_priv->hp_ctl_gpio != INVALID_GPIO &&
 		    !is_hp_pd) {
 			DBG("%s : set hp ctl gpio HIGH\n", __func__);
+			snd_soc_write(codec, RK616_CLK_CHPUMP, 0x21);
 			gpio_set_value(rk616_priv->hp_ctl_gpio, GPIO_HIGH);
 		}
 	}
@@ -1577,36 +1623,31 @@ static int rk616_digital_mute(struct snd_soc_dai *dai, int mute)
 }
 
 static struct rk616_reg_val_typ palyback_power_up_list[] = {
+	{0x804, 0x46}, //DAC DSM, 0x06: x1, 0x26: x1.25, 0x46: x1.5, 0x66: x1.75
 	{0x868, 0x02}, //power up
 	{0x86c, 0x0f}, //DACL/R UN INIT
 	{0x86c, 0x00}, //DACL/R and DACL/R CLK power up
 	{0x86c, 0x30}, //DACL/R INIT
 	{0x874, 0x14}, //Mux HPMIXR from HPMIXR(bit 0), Mux HPMIXL from HPMIXL(bit 1),HPMIXL/R power up
-	{0x874, 0x00}, //HPMIXL/R init
 	{0x878, 0xee}, //HPMIXL/HPMIXR from DACL/DACR(bit 4, bit 0)
 	{0x88c, 0x76}, //power up SPKOUTL (bit 7), volume (bit 0-4)
 	{0x890, 0x76}, //power up SPKOUTR (bit 7), volume (bit 0-4)
-	{0x88c, 0x36}, //INIT SPKOUTL (bit 6), volume (bit 0-4)
-	{0x890, 0x36}, //INIT SPKOUTR (bit 6), volume (bit 0-4)
 	{0x88c, 0x16}, //unmute SPKOUTL (bit 5), volume (bit 0-4)
 	{0x890, 0x16}, //unmute SPKOUTR (bit 5), volume (bit 0-4)
 	{0x894, 0x75}, //power up HPOUTL (bit 7), volume (bit 0-4)
 	{0x898, 0x75}, //power up HPOUTR (bit 7), volume (bit 0-4)
-	{0x894, 0x35}, //INIT HPOUTL (bit 6), volume (bit 0-4)
-	{0x898, 0x35}, //INIT HPOUTR (bit 6), volume (bit 0-4)
 	{0x894, 0x15}, //unmute HPOUTL (bit 5), volume (bit 0-4)
 	{0x898, 0x15}, //unmute HPOUTR (bit 5), volume (bit 0-4)
 };
 #define RK616_CODEC_PALYBACK_POWER_UP_LIST_LEN ARRAY_SIZE(palyback_power_up_list)
 
 static struct rk616_reg_val_typ palyback_power_down_list[] = {
-	{0x898, 0xf0}, //mute HPOUTR (bit 5), volume (bit 0-4)
+	{0x898, 0xe0}, //mute HPOUTR (bit 5), volume (bit 0-4)
 	{0x894, 0xe0}, //mute HPOUTL (bit 5), volume (bit 0-4)
-	{0x898, 0xe0}, //INIT HPOUTR (bit 6), volume (bit 0-4)
 	{0x890, 0xe0}, //mute SPKOUTR (bit 5), volume (bit 0-4)
 	{0x88c, 0xe0}, //mute SPKOUTL (bit 5), volume (bit 0-4)
 	{0x878, 0xff}, //HPMIXL/HPMIXR from DACL/DACR(bit 4, bit 0)
-	{0x874, 0x3c}, //HPMIXL/R init
+	{0x874, 0x3c}, //Power down HPMIXL/R
 	{0x86c, 0x3f}, //DACL/R INIT
 	{0x868, 0xff}, //power down
 };
@@ -1614,13 +1655,12 @@ static struct rk616_reg_val_typ palyback_power_down_list[] = {
 
 /********** capture ********/
 static struct rk616_reg_val_typ capture_power_up_list[] = {
-	{0x804, 0x46}, //DAC GSM, 0x06: x1, 0x26: x1.25, 0x46: x1.5, 0x66: x1.75
 	{0x828, 0x09}, //Set for Capture pop noise
 	{0x83c, 0x00}, //power up
-	{0x840, 0x49}, //BST_L power up, unmute, and Single-Ended(bit 6), volume 0-20dB(bit 5)
+	{0x840, 0x69}, //BST_L power up, unmute, and Single-Ended(bit 6), volume 0-20dB(bit 5)
 	{0x848, 0x06}, //MIXINL power up and unmute, MININL from MICMUX, MICMUX from BST_L
 	{0x84c, 0x3c}, //MIXINL from MIXMUX volume (bit 3-5)
-	{0x860, 0x1f}, //PGAL power up unmute,volume (bit 0-4)
+	{0x860, 0x16}, //PGAL power up unmute,volume (bit 0-4)
 	{0x89c, 0x7f}, //MICBIAS1 power up (bit 7, Vout = 1.7 * Vref(1.65V) = 2.8V (bit 3-5)
 	{0x8a8, 0x09}, //ADCL/R power, and clear ADCL/R buf
 	{0x8a8, 0x00}, //ADCL/R power, and clear ADCL/R buf
@@ -1636,7 +1676,6 @@ static struct rk616_reg_val_typ capture_power_down_list[] = {
 	{0x840, 0x99}, //BST_L power down, mute, and Single-Ended(bit 6), volume 0(bit 5)
 	{0x83c, 0x7c}, //power down
 	{0x828, 0x09}, //Set for Capture pop noise
-	{0x804, 0x06}, //DAC GSM, 0x06: x1, 0x26: x1.25, 0x46: x1.5, 0x66: x1.75
 };
 #define RK616_CODEC_CAPTURE_POWER_DOWN_LIST_LEN ARRAY_SIZE(capture_power_down_list)
 
