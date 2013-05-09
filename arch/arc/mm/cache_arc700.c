@@ -624,7 +624,7 @@ void __inv_icache_page(unsigned long paddr, unsigned long vaddr)
  * wrapper to clearout kernel or userspace mappings of a page
  * For kernel mappings @vaddr == @paddr
  */
-void __flush_dcache_page(unsigned long paddr, unsigned long vaddr)
+void ___flush_dcache_page(unsigned long paddr, unsigned long vaddr)
 {
 	__dc_line_op(paddr, vaddr & PAGE_MASK, PAGE_SIZE, OP_FLUSH_N_INV);
 }
