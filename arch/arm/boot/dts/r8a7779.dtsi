@@ -101,6 +101,11 @@
 		interrupts = <0 81 0x4>;
 	};
 
+	pfc: pfc@fffc0000 {
+		compatible = "renesas,pfc-r8a7779";
+		reg = <0xfffc0000 0x23c>;
+	};
+
 	thermal@ffc48000 {
 		compatible = "renesas,rcar-thermal";
 		reg = <0xffc48000 0x38>;
