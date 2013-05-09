@@ -109,9 +109,6 @@ config MIGHT_HAVE_PCI
 config SYS_SUPPORTS_APM_EMULATION
 	bool
 
-config GENERIC_GPIO
-	bool
-
 config HAVE_TCM
 	bool
 	select GENERIC_ALLOCATOR

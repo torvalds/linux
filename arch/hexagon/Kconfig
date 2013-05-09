@@ -155,9 +155,6 @@ source "mm/Kconfig"
 
 source "kernel/Kconfig.hz"
 
-config GENERIC_GPIO
-	def_bool n
-
 endmenu
 
 source "init/Kconfig"

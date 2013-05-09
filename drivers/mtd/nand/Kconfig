@@ -89,7 +89,7 @@ config MTD_NAND_H1900
 
 config MTD_NAND_GPIO
 	tristate "GPIO NAND Flash driver"
-	depends on GENERIC_GPIO && ARM
+	depends on GPIOLIB && ARM
 	help
 	  This enables a GPIO based NAND flash driver.
 

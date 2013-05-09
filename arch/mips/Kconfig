@@ -61,8 +61,7 @@ config MIPS_ALCHEMY
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_APM_EMULATION
-	select GENERIC_GPIO
-	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ARCH_REQUIRE_GPIOLIB
 	select SYS_SUPPORTS_ZBOOT
 	select USB_ARCH_HAS_OHCI
 	select USB_ARCH_HAS_EHCI
@@ -225,7 +224,6 @@ config MACH_JZ4740
 	select SYS_SUPPORTS_ZBOOT_UART16550
 	select DMA_NONCOHERENT
 	select IRQ_CPU
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	select SYS_HAS_EARLY_PRINTK
 	select HAVE_PWM
@@ -937,7 +935,6 @@ config CSRC_SB1250
 	bool
 
 config GPIO_TXX9
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	bool
 
@@ -1007,9 +1004,6 @@ config GENERIC_ISA_DMA_SUPPORT_BROKEN
 	select GENERIC_ISA_DMA
 
 config ISA_DMA_API
-	bool
-
-config GENERIC_GPIO
 	bool
 
 config HOLES_IN_ZONE
@@ -1112,7 +1106,6 @@ config SOC_PNX833X
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_BIG_ENDIAN
-	select GENERIC_GPIO
 	select CPU_MIPSR2_IRQ_VI
 
 config SOC_PNX8335
@@ -1203,7 +1196,6 @@ config CPU_LOONGSON2F
 	bool "Loongson 2F"
 	depends on SYS_HAS_CPU_LOONGSON2F
 	select CPU_LOONGSON2
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	help
 	  The Loongson 2F processor implements the MIPS III instruction set

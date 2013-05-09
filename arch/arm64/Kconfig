@@ -95,9 +95,6 @@ config SWIOTLB
 config IOMMU_HELPER
 	def_bool SWIOTLB
 
-config GENERIC_GPIO
-	bool
-
 source "init/Kconfig"
 
 source "kernel/Kconfig.freezer"

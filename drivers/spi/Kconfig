@@ -62,7 +62,7 @@ config SPI_ALTERA
 
 config SPI_ATH79
 	tristate "Atheros AR71XX/AR724X/AR913X SPI controller driver"
-	depends on ATH79 && GENERIC_GPIO
+	depends on ATH79 && GPIOLIB
 	select SPI_BITBANG
 	help
 	  This enables support for the SPI controller present on the
@@ -175,7 +175,7 @@ config SPI_FALCON
 
 config SPI_GPIO
 	tristate "GPIO-based bitbanging SPI Master"
-	depends on GENERIC_GPIO
+	depends on GPIOLIB
 	select SPI_BITBANG
 	help
 	  This simple GPIO bitbanging SPI master uses the arch-neutral GPIO
@@ -259,7 +259,7 @@ config SPI_FSL_ESPI
 
 config SPI_OC_TINY
 	tristate "OpenCores tiny SPI"
-	depends on GENERIC_GPIO
+	depends on GPIOLIB
 	select SPI_BITBANG
 	help
 	  This is the driver for OpenCores tiny SPI master controller.
@@ -457,7 +457,7 @@ config SPI_TOPCLIFF_PCH
 
 config SPI_TXX9
 	tristate "Toshiba TXx9 SPI controller"
-	depends on GENERIC_GPIO && CPU_TX49XX
+	depends on GPIOLIB && CPU_TX49XX
 	help
 	  SPI driver for Toshiba TXx9 MIPS SoCs
 

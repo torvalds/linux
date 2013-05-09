@@ -150,7 +150,7 @@ err_out:
 }
 
 /*
- * GENERIC_GPIO primitives.
+ * GPIO primitives.
  */
 static int orion_gpio_request(struct gpio_chip *chip, unsigned pin)
 {

@@ -118,7 +118,7 @@ EXPORT_SYMBOL(clk_put);
 
 /* GPIO support */
 
-#ifdef CONFIG_GENERIC_GPIO
+#ifdef CONFIG_GPIOLIB
 int gpio_to_irq(unsigned gpio)
 {
 	return -EINVAL;
