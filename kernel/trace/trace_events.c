@@ -1529,6 +1529,24 @@ __register_event(struct ftrace_event_call *call, struct module *mod)
 	return 0;
 }
 
+static struct ftrace_event_file *
+trace_create_new_event(struct ftrace_event_call *call,
+		       struct trace_array *tr)
+{
+	struct ftrace_event_file *file;
+
+	file = kmem_cache_alloc(file_cachep, GFP_TRACE);
+	if (!file)
+		return NULL;
+
+	file->event_call = call;
+	file->tr = tr;
+	atomic_set(&file->sm_ref, 0);
+	list_add(&file->list, &tr->events);
+
+	return file;
+}
+
 /* Add an event to a trace directory */
 static int
 __trace_add_new_event(struct ftrace_event_call *call,
@@ -1540,14 +1558,9 @@ __trace_add_new_event(struct ftrace_event_call *call,
 {
 	struct ftrace_event_file *file;
 
-	file = kmem_cache_alloc(file_cachep, GFP_TRACE);
+	file = trace_create_new_event(call, tr);
 	if (!file)
 		return -ENOMEM;
-
-	file->event_call = call;
-	file->tr = tr;
-	atomic_set(&file->sm_ref, 0);
-	list_add(&file->list, &tr->events);
 
 	return event_create_dir(tr->event_dir, file, id, enable, filter, format);
 }
@@ -1563,14 +1576,9 @@ __trace_early_add_new_event(struct ftrace_event_call *call,
 {
 	struct ftrace_event_file *file;
 
-	file = kmem_cache_alloc(file_cachep, GFP_TRACE);
+	file = trace_create_new_event(call, tr);
 	if (!file)
 		return -ENOMEM;
-
-	file->event_call = call;
-	file->tr = tr;
-	atomic_set(&file->sm_ref, 0);
-	list_add(&file->list, &tr->events);
 
 	return 0;
 }
