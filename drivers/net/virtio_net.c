@@ -28,7 +28,7 @@
 #include <linux/slab.h>
 #include <linux/cpu.h>
 
-static int napi_weight = 128;
+static int napi_weight = NAPI_POLL_WEIGHT;
 module_param(napi_weight, int, 0444);
 
 static bool csum = true, gso = true;
