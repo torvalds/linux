@@ -3865,9 +3865,16 @@ M:	K. Y. Srinivasan <kys@microsoft.com>
 M:	Haiyang Zhang <haiyangz@microsoft.com>
 L:	devel@linuxdriverproject.org
 S:	Maintained
-F:	drivers/hv/
+F:	arch/x86/include/asm/mshyperv.h
+F:	arch/x86/include/uapi/asm/hyperv.h
+F:	arch/x86/kernel/cpu/mshyperv.c
 F:	drivers/hid/hid-hyperv.c
+F:	drivers/hv/
 F:	drivers/net/hyperv/
+F:	drivers/scsi/storvsc_drv.c
+F:	drivers/video/hyperv_fb.c
+F:	include/linux/hyperv.h
+F:	tools/hv/
 
 I2C OVER PARALLEL PORT
 M:	Jean Delvare <khali@linux-fr.org>
