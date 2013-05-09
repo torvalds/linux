@@ -19,6 +19,7 @@
 #define _ASM_CACHEFLUSH_H
 
 #include <linux/mm.h>
+#include <asm/shmparam.h>
 
 /*
  * Semantically we need this because icache doesn't snoop dcache/dma.
