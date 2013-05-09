@@ -117,7 +117,34 @@ int rk616_vif_cfg(struct mfd_rk616 *rk616,rk_screen *screen,int id)
 }
 
 
+static int rk616_vif_disable(struct mfd_rk616 *rk616,int id)
+{
+	u32 val = 0;
+	int ret = 0;
 
+	printk(KERN_INFO "rk616 vif%d disable\n",id);
+	
+	if(id == 0) //video interface 0
+	{
+		
+			val = (VIF0_EN << 16); //disable vif0
+			ret = rk616->write_dev(rk616,VIF0_REG0,&val);
+			clk_set_rate(rk616->mclk, 11289600);
+			return 0;
+		
+	}
+	else       //vide0 interface 1
+	{
+		
+			val = (VIF0_EN << 16); //disabl VIF1
+			ret = rk616->write_dev(rk616,VIF1_REG0,&val);
+			clk_set_rate(rk616->mclk, 11289600);
+			return 0;
+	}
+	
+	
+	return 0;
+}
 static int rk616_scaler_disable(struct mfd_rk616 *rk616)
 {
 	u32 val = 0;
@@ -611,6 +638,13 @@ int rk616_set_vif(struct mfd_rk616 *rk616,rk_screen *screen,bool connect)
 	else
 	{
 		pdata = rk616->pdata;
+	}
+
+	if(!connect)
+	{
+		rk616_vif_disable(rk616,0);
+		rk616_vif_disable(rk616,1);
+		return 0;
 	}
 #if defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
 	return 0;
