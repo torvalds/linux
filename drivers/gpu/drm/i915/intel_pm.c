@@ -248,6 +248,12 @@ static void ironlake_disable_fbc(struct drm_device *dev)
 				   I915_READ(ILK_DSPCLK_GATE_D) &
 				   ~ILK_DPFCUNIT_CLOCK_GATE_DISABLE);
 
+		if (IS_HASWELL(dev))
+			/* WaFbcDisableDpfcClockGating */
+			I915_WRITE(HSW_CLKGATE_DISABLE_PART_1,
+				   I915_READ(HSW_CLKGATE_DISABLE_PART_1) &
+				   ~HSW_DPFC_GATING_DISABLE);
+
 		DRM_DEBUG_KMS("disabled FBC\n");
 	}
 }
@@ -285,6 +291,10 @@ static void gen7_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 		/* WaFbcAsynchFlipDisableFbcQueue */
 		I915_WRITE(HSW_PIPE_SLICE_CHICKEN_1(intel_crtc->pipe),
 			   HSW_BYPASS_FBC_QUEUE);
+		/* WaFbcDisableDpfcClockGating */
+		I915_WRITE(HSW_CLKGATE_DISABLE_PART_1,
+			   I915_READ(HSW_CLKGATE_DISABLE_PART_1) |
+			   HSW_DPFC_GATING_DISABLE);
 	}
 
 	I915_WRITE(SNB_DPFC_CTL_SA,
