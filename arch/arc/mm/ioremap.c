@@ -12,7 +12,7 @@
 #include <linux/io.h>
 #include <linux/mm.h>
 #include <linux/slab.h>
-#include <asm/cache.h>
+#include <linux/cache.h>
 
 void __iomem *ioremap(unsigned long paddr, unsigned long size)
 {

@@ -418,23 +418,37 @@ void create_tlb(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
 	local_irq_restore(flags);
 }
 
-/* arch hook called by core VM at the end of handle_mm_fault( ),
- * when a new PTE is entered in Page Tables or an existing one
- * is modified. We aggresively pre-install a TLB entry
+/*
+ * Called at the end of pagefault, for a userspace mapped page
+ *  -pre-install the corresponding TLB entry into MMU
+ *  -Finalize the delayed D-cache flush (wback+inv kernel mapping)
  */
-
-void update_mmu_cache(struct vm_area_struct *vma, unsigned long vaddress,
+void update_mmu_cache(struct vm_area_struct *vma, unsigned long vaddr_unaligned,
 		      pte_t *ptep)
 {
+	unsigned long vaddr = vaddr_unaligned & PAGE_MASK;
 
-	create_tlb(vma, vaddress, ptep);
+	create_tlb(vma, vaddr, ptep);
+
+	/* icache doesn't snoop dcache, thus needs to be made coherent here */
+	if (vma->vm_flags & VM_EXEC) {
+		struct page *page = pfn_to_page(pte_pfn(*ptep));
+
+		/* if page was dcache dirty, flush now */
+		int dirty = test_and_clear_bit(PG_arch_1, &page->flags);
+		if (dirty) {
+			unsigned long paddr =  pte_val(*ptep) & PAGE_MASK;
+			__flush_dcache_page(paddr);
+			__inv_icache_page(paddr, vaddr);
+		}
+	}
 }
 
 /* Read the Cache Build Confuration Registers, Decode them and save into
  * the cpuinfo structure for later use.
  * No Validation is done here, simply read/convert the BCRs
  */
-void __init read_decode_mmu_bcr(void)
+void __cpuinit read_decode_mmu_bcr(void)
 {
 	unsigned int tmp;
 	struct bcr_mmu_1_2 *mmu2;	/* encoded MMU2 attr */
@@ -466,7 +480,7 @@ void __init read_decode_mmu_bcr(void)
 char *arc_mmu_mumbojumbo(int cpu_id, char *buf, int len)
 {
 	int n = 0;
-	struct cpuinfo_arc_mmu *p_mmu = &cpuinfo_arc700[smp_processor_id()].mmu;
+	struct cpuinfo_arc_mmu *p_mmu = &cpuinfo_arc700[cpu_id].mmu;
 
 	n += scnprintf(buf + n, len - n, "ARC700 MMU [v%x]\t: %dk PAGE, ",
 		       p_mmu->ver, TO_KB(p_mmu->pg_sz));
@@ -480,7 +494,7 @@ char *arc_mmu_mumbojumbo(int cpu_id, char *buf, int len)
 	return buf;
 }
 
-void __init arc_mmu_init(void)
+void __cpuinit arc_mmu_init(void)
 {
 	char str[256];
 	struct cpuinfo_arc_mmu *mmu = &cpuinfo_arc700[smp_processor_id()].mmu;

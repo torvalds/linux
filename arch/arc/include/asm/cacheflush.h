@@ -20,12 +20,20 @@
 
 #include <linux/mm.h>
 
+/*
+ * Semantically we need this because icache doesn't snoop dcache/dma.
+ * However ARC Cache flush requires paddr as well as vaddr, latter not available
+ * in the flush_icache_page() API. So we no-op it but do the equivalent work
+ * in update_mmu_cache()
+ */
+#define flush_icache_page(vma, page)
+
 void flush_cache_all(void);
 
 void flush_icache_range(unsigned long start, unsigned long end);
-void flush_icache_page(struct vm_area_struct *vma, struct page *page);
-void flush_icache_range_vaddr(unsigned long paddr, unsigned long u_vaddr,
-				     int len);
+void __sync_icache_dcache(unsigned long paddr, unsigned long vaddr, int len);
+void __inv_icache_page(unsigned long paddr, unsigned long vaddr);
+void __flush_dcache_page(unsigned long paddr);
 
 #define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 1
 
@@ -58,7 +66,7 @@ void dma_cache_wback(unsigned long start, unsigned long sz);
 do {									\
 	memcpy(dst, src, len);						\
 	if (vma->vm_flags & VM_EXEC)					\
-		flush_icache_range_vaddr((unsigned long)(dst), vaddr, len);\
+		__sync_icache_dcache((unsigned long)(dst), vaddr, len);	\
 } while (0)
 
 #define copy_from_user_page(vma, page, vaddr, dst, src, len)		\

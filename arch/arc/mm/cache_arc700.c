@@ -72,16 +72,6 @@
 #include <asm/cachectl.h>
 #include <asm/setup.h>
 
-
-#ifdef CONFIG_ARC_HAS_ICACHE
-static void __ic_line_inv_no_alias(unsigned long, int);
-static void __ic_line_inv_2_alias(unsigned long, int);
-static void __ic_line_inv_4_alias(unsigned long, int);
-
-/* Holds the ptr to flush routine, dependign on size due to aliasing issues */
-static void (*___flush_icache_rtn) (unsigned long, int);
-#endif
-
 char *arc_cache_mumbojumbo(int cpu_id, char *buf, int len)
 {
 	int n = 0;
@@ -109,7 +99,7 @@ char *arc_cache_mumbojumbo(int cpu_id, char *buf, int len)
  * the cpuinfo structure for later use.
  * No Validation done here, simply read/convert the BCRs
  */
-void __init read_decode_cache_bcr(void)
+void __cpuinit read_decode_cache_bcr(void)
 {
 	struct bcr_cache ibcr, dbcr;
 	struct cpuinfo_arc_cache *p_ic, *p_dc;
@@ -141,7 +131,7 @@ void __init read_decode_cache_bcr(void)
  * 3. Enable the Caches, setup default flush mode for D-Cache
  * 3. Calculate the SHMLBA used by user space
  */
-void __init arc_cache_init(void)
+void __cpuinit arc_cache_init(void)
 {
 	unsigned int temp;
 	unsigned int cpu = smp_processor_id();
@@ -171,30 +161,6 @@ void __init arc_cache_init(void)
 
 	}
 #endif
-
-	/*
-	 * if Cache way size is <= page size then no aliasing exhibited
-	 * otherwise ratio determines num of aliases.
-	 * e.g. 32K I$, 2 way set assoc, 8k pg size
-	 *       way-sz = 32k/2 = 16k
-	 *       way-pg-ratio = 16k/8k = 2, so 2 aliases possible
-	 *       (meaning 1 line could be in 2 possible locations).
-	 */
-	way_pg_ratio = ic->sz / ARC_ICACHE_WAYS / PAGE_SIZE;
-	switch (way_pg_ratio) {
-	case 0:
-	case 1:
-		___flush_icache_rtn = __ic_line_inv_no_alias;
-		break;
-	case 2:
-		___flush_icache_rtn = __ic_line_inv_2_alias;
-		break;
-	case 4:
-		___flush_icache_rtn = __ic_line_inv_4_alias;
-		break;
-	default:
-		panic("Unsupported I-Cache Sz\n");
-	}
 #endif
 
 	/* Enable/disable I-Cache */
@@ -391,75 +357,38 @@ static inline void __dc_line_op(unsigned long start, unsigned long sz,
 /*
  *		I-Cache Aliasing in ARC700 VIPT caches
  *
- * For fetching code from I$, ARC700 uses vaddr (embedded in program code)
- * to "index" into SET of cache-line and paddr from MMU to match the TAG
- * in the WAYS of SET.
+ * ARC VIPT I-cache uses vaddr to index into cache and paddr to match the tag.
+ * The orig Cache Management Module "CDU" only required paddr to invalidate a
+ * certain line since it sufficed as index in Non-Aliasing VIPT cache-geometry.
+ * Infact for distinct V1,V2,P: all of {V1-P},{V2-P},{P-P} would end up fetching
+ * the exact same line.
  *
- * However the CDU iterface (to flush/inv) lines from software, only takes
- * paddr (to have simpler hardware interface). For simpler cases, using paddr
- * alone suffices.
- * e.g. 2-way-set-assoc, 16K I$ (8k MMU pg sz, 32b cache line size):
- *      way_sz = cache_sz / num_ways = 16k/2 = 8k
- *      num_sets = way_sz / line_sz = 8k/32 = 256 => 8 bits
- *   Ignoring the bottom 5 bits corresp to the off within a 32b cacheline,
- *   bits req for calc set-index = bits 12:5 (0 based). Since this range fits
- *   inside the bottom 13 bits of paddr, which are same for vaddr and paddr
- *   (with 8k pg sz), paddr alone can be safely used by CDU to unambigously
- *   locate a cache-line.
- *
- * However for a difft sized cache, say 32k I$, above math yields need
- * for 14 bits of vaddr to locate a cache line, which can't be provided by
- * paddr, since the bit 13 (0 based) might differ between the two.
- *
- * This lack of extra bits needed for correct line addressing, defines the
- * classical problem of Cache aliasing with VIPT architectures
- * num_aliases = 1 << extra_bits
- * e.g. 2-way-set-assoc, 32K I$ with 8k MMU pg sz => 2 aliases
- *      2-way-set-assoc, 64K I$ with 8k MMU pg sz => 4 aliases
- *      2-way-set-assoc, 16K I$ with 8k MMU pg sz => NO aliases
+ * However for larger Caches (way-size > page-size) - i.e. in Aliasing config,
+ * paddr alone could not be used to correctly index the cache.
  *
  * ------------------
  * MMU v1/v2 (Fixed Page Size 8k)
  * ------------------
  * The solution was to provide CDU with these additonal vaddr bits. These
- * would be bits [x:13], x would depend on cache-geom.
+ * would be bits [x:13], x would depend on cache-geometry, 13 comes from
+ * standard page size of 8k.
  * H/w folks chose [17:13] to be a future safe range, and moreso these 5 bits
  * of vaddr could easily be "stuffed" in the paddr as bits [4:0] since the
  * orig 5 bits of paddr were anyways ignored by CDU line ops, as they
  * represent the offset within cache-line. The adv of using this "clumsy"
- * interface for additional info was no new reg was needed in CDU.
+ * interface for additional info was no new reg was needed in CDU programming
+ * model.
  *
  * 17:13 represented the max num of bits passable, actual bits needed were
  * fewer, based on the num-of-aliases possible.
  * -for 2 alias possibility, only bit 13 needed (32K cache)
  * -for 4 alias possibility, bits 14:13 needed (64K cache)
  *
- * Since vaddr was not available for all instances of I$ flush req by core
- * kernel, the only safe way (non-optimal though) was to kill all possible
- * lines which could represent an alias (even if they didnt represent one
- * in execution).
- * e.g. for 64K I$, 4 aliases possible, so we did
- *      flush start
- *      flush start | 0x01
- *      flush start | 0x2
- *      flush start | 0x3
- *
- * The penalty was invoking the operation itself, since tag match is anyways
- * paddr based, a line which didn't represent an alias would not match the
- * paddr, hence wont be killed
- *
- * Note that aliasing concerns are independent of line-sz for a given cache
- * geometry (size + set_assoc) because the extra bits required by line-sz are
- * reduced from the set calc.
- * e.g. 2-way-set-assoc, 32K I$ with 8k MMU pg sz and using math above
- *  32b line-sz: 9 bits set-index-calc, 5 bits offset-in-line => 1 extra bit
- *  64b line-sz: 8 bits set-index-calc, 6 bits offset-in-line => 1 extra bit
- *
  * ------------------
  * MMU v3
  * ------------------
- * This ver of MMU supports var page sizes (1k-16k) - Linux will support
- * 8k (default), 16k and 4k.
+ * This ver of MMU supports variable page sizes (1k-16k): although Linux will
+ * only support 8k (default), 16k and 4k.
  * However from hardware perspective, smaller page sizes aggrevate aliasing
  * meaning more vaddr bits needed to disambiguate the cache-line-op ;
  * the existing scheme of piggybacking won't work for certain configurations.
@@ -468,113 +397,27 @@ static inline void __dc_line_op(unsigned long start, unsigned long sz,
  */
 
 /***********************************************************
- * Machine specific helpers for per line I-Cache invalidate.
- * 3 routines to accpunt for 1, 2, 4 aliases possible
+ * Machine specific helper for per line I-Cache invalidate.
  */
-
-static void __ic_line_inv_no_alias(unsigned long start, int num_lines)
-{
-	while (num_lines-- > 0) {
-#if (CONFIG_ARC_MMU_VER > 2)
-		write_aux_reg(ARC_REG_IC_PTAG, start);
-#endif
-		write_aux_reg(ARC_REG_IC_IVIL, start);
-		start += ARC_ICACHE_LINE_LEN;
-	}
-}
-
-static void __ic_line_inv_2_alias(unsigned long start, int num_lines)
-{
-	while (num_lines-- > 0) {
-
-#if (CONFIG_ARC_MMU_VER > 2)
-		/*
-		 *  MMU v3, CDU prog model (for line ops) now uses a new IC_PTAG
-		 * reg to pass the "tag" bits and existing IVIL reg only looks
-		 * at bits relevant for "index" (details above)
-		 * Programming Notes:
-		 * -when writing tag to PTAG reg, bit chopping can be avoided,
-		 *  CDU ignores non-tag bits.
-		 * -Ideally "index" must be computed from vaddr, but it is not
-		 *  avail in these rtns. So to be safe, we kill the lines in all
-		 *  possible indexes corresp to num of aliases possible for
-		 *  given cache config.
-		 */
-		write_aux_reg(ARC_REG_IC_PTAG, start);
-		write_aux_reg(ARC_REG_IC_IVIL,
-				  start & ~(0x1 << PAGE_SHIFT));
-		write_aux_reg(ARC_REG_IC_IVIL, start | (0x1 << PAGE_SHIFT));
-#else
-		write_aux_reg(ARC_REG_IC_IVIL, start);
-		write_aux_reg(ARC_REG_IC_IVIL, start | 0x01);
-#endif
-		start += ARC_ICACHE_LINE_LEN;
-	}
-}
-
-static void __ic_line_inv_4_alias(unsigned long start, int num_lines)
-{
-	while (num_lines-- > 0) {
-
-#if (CONFIG_ARC_MMU_VER > 2)
-		write_aux_reg(ARC_REG_IC_PTAG, start);
-
-		write_aux_reg(ARC_REG_IC_IVIL,
-				  start & ~(0x3 << PAGE_SHIFT));
-		write_aux_reg(ARC_REG_IC_IVIL,
-				  start & ~(0x2 << PAGE_SHIFT));
-		write_aux_reg(ARC_REG_IC_IVIL,
-				  start & ~(0x1 << PAGE_SHIFT));
-		write_aux_reg(ARC_REG_IC_IVIL, start | (0x3 << PAGE_SHIFT));
-#else
-		write_aux_reg(ARC_REG_IC_IVIL, start);
-		write_aux_reg(ARC_REG_IC_IVIL, start | 0x01);
-		write_aux_reg(ARC_REG_IC_IVIL, start | 0x02);
-		write_aux_reg(ARC_REG_IC_IVIL, start | 0x03);
-#endif
-		start += ARC_ICACHE_LINE_LEN;
-	}
-}
-
-static void __ic_line_inv(unsigned long start, unsigned long sz)
-{
-	unsigned long flags;
-	int num_lines, slack;
-
-	/*
-	 * Ensure we properly floor/ceil the non-line aligned/sized requests
-	 * and have @start - aligned to cache line, and integral @num_lines
-	 * However page sized flushes can be compile time optimised.
-	 *  -@start will be cache-line aligned already (being page aligned)
-	 *  -@sz will be integral multiple of line size (being page sized).
-	 */
-	if (!(__builtin_constant_p(sz) && sz == PAGE_SIZE)) {
-		slack = start & ~ICACHE_LINE_MASK;
-		sz += slack;
-		start -= slack;
-	}
-
-	num_lines = DIV_ROUND_UP(sz, ARC_ICACHE_LINE_LEN);
-
-	local_irq_save(flags);
-	(*___flush_icache_rtn) (start, num_lines);
-	local_irq_restore(flags);
-}
-
-/* Unlike routines above, having vaddr for flush op (along with paddr),
- * prevents the need to speculatively kill the lines in multiple sets
- * based on ratio of way_sz : pg_sz
- */
-static void __ic_line_inv_vaddr(unsigned long phy_start,
-					 unsigned long vaddr, unsigned long sz)
+static void __ic_line_inv_vaddr(unsigned long phy_start, unsigned long vaddr,
+				unsigned long sz)
 {
 	unsigned long flags;
 	int num_lines, slack;
 	unsigned int addr;
 
-	slack = phy_start & ~ICACHE_LINE_MASK;
-	sz += slack;
-	phy_start -= slack;
+	/*
+	 * Ensure we properly floor/ceil the non-line aligned/sized requests:
+	 * However page sized flushes can be compile time optimised.
+	 *  -@phy_start will be cache-line aligned already (being page aligned)
+	 *  -@sz will be integral multiple of line size (being page sized).
+	 */
+	if (!(__builtin_constant_p(sz) && sz == PAGE_SIZE)) {
+		slack = phy_start & ~ICACHE_LINE_MASK;
+		sz += slack;
+		phy_start -= slack;
+	}
+
 	num_lines = DIV_ROUND_UP(sz, ARC_ICACHE_LINE_LEN);
 
 #if (CONFIG_ARC_MMU_VER > 2)
@@ -595,7 +438,7 @@ static void __ic_line_inv_vaddr(unsigned long phy_start,
 		write_aux_reg(ARC_REG_IC_IVIL, vaddr);
 		vaddr += ARC_ICACHE_LINE_LEN;
 #else
-		/* this paddr contains vaddrs bits as needed */
+		/* paddr contains stuffed vaddrs bits */
 		write_aux_reg(ARC_REG_IC_IVIL, addr);
 #endif
 		addr += ARC_ICACHE_LINE_LEN;
@@ -605,7 +448,6 @@ static void __ic_line_inv_vaddr(unsigned long phy_start,
 
 #else
 
-#define __ic_line_inv(start, sz)
 #define __ic_line_inv_vaddr(pstart, vstart, sz)
 
 #endif /* CONFIG_ARC_HAS_ICACHE */
@@ -615,10 +457,10 @@ static void __ic_line_inv_vaddr(unsigned long phy_start,
  * Exported APIs
  */
 
-/* TBD: use pg_arch_1 to optimize this */
 void flush_dcache_page(struct page *page)
 {
-	__dc_line_op((unsigned long)page_address(page), PAGE_SIZE, OP_FLUSH);
+	/* Make a note that dcache is not yet flushed for this page */
+	set_bit(PG_arch_1, &page->flags);
 }
 EXPORT_SYMBOL(flush_dcache_page);
 
@@ -642,8 +484,8 @@ void dma_cache_wback(unsigned long start, unsigned long sz)
 EXPORT_SYMBOL(dma_cache_wback);
 
 /*
- * This is API for making I/D Caches consistent when modifying code
- * (loadable modules, kprobes,  etc)
+ * This is API for making I/D Caches consistent when modifying
+ * kernel code (loadable modules, kprobes, kgdb...)
  * This is called on insmod, with kernel virtual address for CODE of
  * the module. ARC cache maintenance ops require PHY address thus we
  * need to convert vmalloc addr to PHY addr
@@ -652,7 +494,6 @@ void flush_icache_range(unsigned long kstart, unsigned long kend)
 {
 	unsigned int tot_sz, off, sz;
 	unsigned long phy, pfn;
-	unsigned long flags;
 
 	/* printk("Kernel Cache Cohenercy: %lx to %lx\n",kstart, kend); */
 
@@ -673,8 +514,13 @@ void flush_icache_range(unsigned long kstart, unsigned long kend)
 
 	/* Case: Kernel Phy addr (0x8000_0000 onwards) */
 	if (likely(kstart > PAGE_OFFSET)) {
-		__ic_line_inv(kstart, kend - kstart);
-		__dc_line_op(kstart, kend - kstart, OP_FLUSH);
+		/*
+		 * The 2nd arg despite being paddr will be used to index icache
+		 * This is OK since no alternate virtual mappings will exist
+		 * given the callers for this case: kprobe/kgdb in built-in
+		 * kernel code only.
+		 */
+		__sync_icache_dcache(kstart, kstart, kend - kstart);
 		return;
 	}
 
@@ -692,42 +538,41 @@ void flush_icache_range(unsigned long kstart, unsigned long kend)
 		pfn = vmalloc_to_pfn((void *)kstart);
 		phy = (pfn << PAGE_SHIFT) + off;
 		sz = min_t(unsigned int, tot_sz, PAGE_SIZE - off);
-		local_irq_save(flags);
-		__dc_line_op(phy, sz, OP_FLUSH);
-		__ic_line_inv(phy, sz);
-		local_irq_restore(flags);
+		__sync_icache_dcache(phy, kstart, sz);
 		kstart += sz;
 		tot_sz -= sz;
 	}
 }
 
 /*
- * Optimised ver of flush_icache_range() with spec callers: ptrace/signals
- * where vaddr is also available. This allows passing both vaddr and paddr
- * bits to CDU for cache flush, short-circuting the current pessimistic algo
- * which kills all possible aliases.
- * An added adv of knowing that vaddr is user-vaddr avoids various checks
- * and handling for k-vaddr, k-paddr as done in orig ver above
+ * General purpose helper to make I and D cache lines consistent.
+ * @paddr is phy addr of region
+ * @vaddr is typically user or kernel vaddr (vmalloc)
+ *    Howver in one instance, flush_icache_range() by kprobe (for a breakpt in
+ *    builtin kernel code) @vaddr will be paddr only, meaning CDU operation will
+ *    use a paddr to index the cache (despite VIPT). This is fine since since a
+ *    built-in kernel page will not have any virtual mappings (not even kernel)
+ *    kprobe on loadable module is different as it will have kvaddr.
  */
-void flush_icache_range_vaddr(unsigned long paddr, unsigned long u_vaddr,
-			      int len)
+void __sync_icache_dcache(unsigned long paddr, unsigned long vaddr, int len)
 {
-	__ic_line_inv_vaddr(paddr, u_vaddr, len);
+	unsigned long flags;
+
+	local_irq_save(flags);
+	__ic_line_inv_vaddr(paddr, vaddr, len);
 	__dc_line_op(paddr, len, OP_FLUSH);
+	local_irq_restore(flags);
 }
 
-/*
- * XXX: This also needs to be optim using pg_arch_1
- * This is called when a page-cache page is about to be mapped into a
- * user process' address space.  It offers an opportunity for a
- * port to ensure d-cache/i-cache coherency if necessary.
- */
-void flush_icache_page(struct vm_area_struct *vma, struct page *page)
+/* wrapper to compile time eliminate alignment checks in flush loop */
+void __inv_icache_page(unsigned long paddr, unsigned long vaddr)
 {
-	if (!(vma->vm_flags & VM_EXEC))
-		return;
+	__ic_line_inv_vaddr(paddr, vaddr, PAGE_SIZE);
+}
 
-	__ic_line_inv((unsigned long)page_address(page), PAGE_SIZE);
+void __flush_dcache_page(unsigned long paddr)
+{
+	__dc_line_op(paddr, PAGE_SIZE, OP_FLUSH_N_INV);
 }
 
 void flush_icache_all(void)

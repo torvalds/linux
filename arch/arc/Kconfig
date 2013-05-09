@@ -16,8 +16,6 @@ config ARC
 	select GENERIC_FIND_FIRST_BIT
 	# for now, we don't need GENERIC_IRQ_PROBE, CONFIG_GENERIC_IRQ_CHIP
 	select GENERIC_IRQ_SHOW
-	select GENERIC_KERNEL_EXECVE
-	select GENERIC_KERNEL_THREAD
 	select GENERIC_PENDING_IRQ if SMP
 	select GENERIC_SMP_IDLE_THREAD
 	select HAVE_ARCH_KGDB
@@ -61,9 +59,6 @@ config GENERIC_CALIBRATE_DELAY
 config GENERIC_HWEIGHT
 	def_bool y
 
-config BINFMT_ELF
-	def_bool y
-
 config STACKTRACE_SUPPORT
 	def_bool y
 	select STACKTRACE
@@ -82,6 +77,7 @@ menu "ARC Architecture Configuration"
 menu "ARC Platform/SoC/Board"
 
 source "arch/arc/plat-arcfpga/Kconfig"
+source "arch/arc/plat-tb10x/Kconfig"
 #New platform adds here
 
 endmenu
@@ -132,9 +128,6 @@ config SMP
 if SMP
 
 config ARC_HAS_COH_CACHES
-	def_bool n
-
-config ARC_HAS_COH_LLSC
 	def_bool n
 
 config ARC_HAS_COH_RTSC
@@ -304,6 +297,9 @@ config ARC_FPU_SAVE_RESTORE
 	  based on actual usage of FPU by a task. Thus our implemn does
 	  this for all tasks in system.
 
+config ARC_CANT_LLSC
+	def_bool n
+
 menuconfig ARC_CPU_REL_4_10
 	bool "Enable support for Rel 4.10 features"
 	default n
@@ -314,9 +310,7 @@ menuconfig ARC_CPU_REL_4_10
 config ARC_HAS_LLSC
 	bool "Insn: LLOCK/SCOND (efficient atomic ops)"
 	default y
-	depends on ARC_CPU_770
-	# if SMP, enable LLSC ONLY if ARC implementation has coherent atomics
-	depends on !SMP || ARC_HAS_COH_LLSC
+	depends on ARC_CPU_770 && !ARC_CANT_LLSC
 
 config ARC_HAS_SWAPE
 	bool "Insn: SWAPE (endian-swap)"
@@ -415,13 +409,6 @@ config ARC_DBG_TLB_MISS_COUNT
 	  Counts number of I and D TLB Misses and exports them via Debugfs
 	  The counters can be cleared via Debugfs as well
 
-config CMDLINE
-	string "Kernel command line to built-in"
-	default "print-fatal-signals=1"
-	help
-	  The default command line which will be appended to the optional
-	  u-boot provided command line (see below)
-
 config CMDLINE_UBOOT
 	bool "Support U-boot kernel command line passing"
 	default n
@@ -430,8 +417,8 @@ config CMDLINE_UBOOT
 	  command line from the U-boot environment to the Linux kernel then
 	  switch this option on.
 	  ARC U-boot will setup the cmdline in RAM/flash and set r2 to point
-	  to it. kernel startup code will copy the string into cmdline buffer
-	  and also append CONFIG_CMDLINE.
+	  to it. kernel startup code will append this to DeviceTree
+	  /bootargs provided cmdline args.
 
 config ARC_BUILTIN_DTB_NAME
 	string "Built in DTB"
@@ -440,6 +427,10 @@ config ARC_BUILTIN_DTB_NAME
 	  Leaving it blank selects the minimal "skeleton" dtb
 
 source "kernel/Kconfig.preempt"
+
+menu "Executable file formats"
+source "fs/Kconfig.binfmt"
+endmenu
 
 endmenu	 # "ARC Architecture Configuration"
 
