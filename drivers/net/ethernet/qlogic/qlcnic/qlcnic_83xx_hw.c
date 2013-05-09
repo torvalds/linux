@@ -2830,6 +2830,23 @@ int qlcnic_83xx_test_link(struct qlcnic_adapter *adapter)
 			break;
 		}
 		config = cmd.rsp.arg[3];
+		if (QLC_83XX_SFP_PRESENT(config)) {
+			switch (ahw->module_type) {
+			case LINKEVENT_MODULE_OPTICAL_UNKNOWN:
+			case LINKEVENT_MODULE_OPTICAL_SRLR:
+			case LINKEVENT_MODULE_OPTICAL_LRM:
+			case LINKEVENT_MODULE_OPTICAL_SFP_1G:
+				ahw->supported_type = PORT_FIBRE;
+				break;
+			case LINKEVENT_MODULE_TWINAX_UNSUPPORTED_CABLE:
+			case LINKEVENT_MODULE_TWINAX_UNSUPPORTED_CABLELEN:
+			case LINKEVENT_MODULE_TWINAX:
+				ahw->supported_type = PORT_TP;
+				break;
+			default:
+				ahw->supported_type = PORT_OTHER;
+			}
+		}
 		if (config & 1)
 			err = 1;
 	}
@@ -2838,7 +2855,8 @@ out:
 	return config;
 }
 
-int qlcnic_83xx_get_settings(struct qlcnic_adapter *adapter)
+int qlcnic_83xx_get_settings(struct qlcnic_adapter *adapter,
+			     struct ethtool_cmd *ecmd)
 {
 	u32 config = 0;
 	int status = 0;
@@ -2851,6 +2869,54 @@ int qlcnic_83xx_get_settings(struct qlcnic_adapter *adapter)
 	ahw->module_type = QLC_83XX_SFP_MODULE_TYPE(config);
 	/* hard code until there is a way to get it from flash */
 	ahw->board_type = QLCNIC_BRDTYPE_83XX_10G;
+
+	if (netif_running(adapter->netdev) && ahw->has_link_events) {
+		ethtool_cmd_speed_set(ecmd, ahw->link_speed);
+		ecmd->duplex = ahw->link_duplex;
+		ecmd->autoneg = ahw->link_autoneg;
+	} else {
+		ethtool_cmd_speed_set(ecmd, SPEED_UNKNOWN);
+		ecmd->duplex = DUPLEX_UNKNOWN;
+		ecmd->autoneg = AUTONEG_DISABLE;
+	}
+
+	if (ahw->port_type == QLCNIC_XGBE) {
+		ecmd->supported = SUPPORTED_1000baseT_Full;
+		ecmd->advertising = ADVERTISED_1000baseT_Full;
+	} else {
+		ecmd->supported = (SUPPORTED_10baseT_Half |
+				   SUPPORTED_10baseT_Full |
+				   SUPPORTED_100baseT_Half |
+				   SUPPORTED_100baseT_Full |
+				   SUPPORTED_1000baseT_Half |
+				   SUPPORTED_1000baseT_Full);
+		ecmd->advertising = (ADVERTISED_100baseT_Half |
+				     ADVERTISED_100baseT_Full |
+				     ADVERTISED_1000baseT_Half |
+				     ADVERTISED_1000baseT_Full);
+	}
+
+	switch (ahw->supported_type) {
+	case PORT_FIBRE:
+		ecmd->supported |= SUPPORTED_FIBRE;
+		ecmd->advertising |= ADVERTISED_FIBRE;
+		ecmd->port = PORT_FIBRE;
+		ecmd->transceiver = XCVR_EXTERNAL;
+		break;
+	case PORT_TP:
+		ecmd->supported |= SUPPORTED_TP;
+		ecmd->advertising |= ADVERTISED_TP;
+		ecmd->port = PORT_TP;
+		ecmd->transceiver = XCVR_INTERNAL;
+		break;
+	default:
+		ecmd->supported |= SUPPORTED_FIBRE;
+		ecmd->advertising |= ADVERTISED_FIBRE;
+		ecmd->port = PORT_OTHER;
+		ecmd->transceiver = XCVR_EXTERNAL;
+		break;
+	}
+	ecmd->phy_address = ahw->physical_port;
 	return status;
 }
 
