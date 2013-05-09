@@ -29,6 +29,8 @@
 
 #include <linux/mfd/si476x-core.h>
 
+#include <asm/unaligned.h>
+
 #define msb(x)                  ((u8)((u16) x >> 8))
 #define lsb(x)                  ((u8)((u16) x &  0x00FF))
 
@@ -483,7 +485,7 @@ int si476x_core_cmd_get_property(struct si476x_core *core, u16 property)
 	if (err < 0)
 		return err;
 	else
-		return be16_to_cpup((__be16 *)(resp + 2));
+		return get_unaligned_be16(resp + 2);
 }
 EXPORT_SYMBOL_GPL(si476x_core_cmd_get_property);
 
@@ -783,7 +785,7 @@ int si476x_core_cmd_am_rsq_status(struct si476x_core *core,
 	report->afcrl		= 0x02 & resp[2];
 	report->valid		= 0x01 & resp[2];
 
-	report->readfreq	= be16_to_cpup((__be16 *)(resp + 3));
+	report->readfreq	= get_unaligned_be16(resp + 3);
 	report->freqoff		= resp[5];
 	report->rssi		= resp[6];
 	report->snr		= resp[7];
@@ -944,7 +946,7 @@ int si476x_core_cmd_fm_rds_status(struct si476x_core *core,
 	report->tp		= 0x20 & resp[3];
 	report->pty		= 0x1f & resp[3];
 
-	report->pi		= be16_to_cpup((__be16 *)(resp + 4));
+	report->pi		= get_unaligned_be16(resp + 4);
 	report->rdsfifoused	= resp[6];
 
 	report->ble[V4L2_RDS_BLOCK_A]	= 0xc0 & resp[7];
@@ -991,9 +993,9 @@ int si476x_core_cmd_fm_rds_blockcount(struct si476x_core *core,
 				       SI476X_DEFAULT_TIMEOUT);
 
 	if (!err) {
-		report->expected	= be16_to_cpup((__be16 *)(resp + 2));
-		report->received	= be16_to_cpup((__be16 *)(resp + 4));
-		report->uncorrectable	= be16_to_cpup((__be16 *)(resp + 6));
+		report->expected	= get_unaligned_be16(resp + 2);
+		report->received	= get_unaligned_be16(resp + 4);
+		report->uncorrectable	= get_unaligned_be16(resp + 6);
 	}
 
 	return err;
@@ -1210,7 +1212,7 @@ static int si476x_core_cmd_fm_rsq_status_a10(struct si476x_core *core,
 	report->afcrl		= 0x02 & resp[2];
 	report->valid		= 0x01 & resp[2];
 
-	report->readfreq	= be16_to_cpup((__be16 *)(resp + 3));
+	report->readfreq	= get_unaligned_be16(resp + 3);
 	report->freqoff		= resp[5];
 	report->rssi		= resp[6];
 	report->snr		= resp[7];
@@ -1218,7 +1220,7 @@ static int si476x_core_cmd_fm_rsq_status_a10(struct si476x_core *core,
 	report->hassi		= resp[10];
 	report->mult		= resp[11];
 	report->dev		= resp[12];
-	report->readantcap	= be16_to_cpup((__be16 *)(resp + 13));
+	report->readantcap	= get_unaligned_be16(resp + 13);
 	report->assi		= resp[15];
 	report->usn		= resp[16];
 
@@ -1264,7 +1266,7 @@ static int si476x_core_cmd_fm_rsq_status_a20(struct si476x_core *core,
 	report->afcrl		= 0x02 & resp[2];
 	report->valid		= 0x01 & resp[2];
 
-	report->readfreq	= be16_to_cpup((__be16 *)(resp + 3));
+	report->readfreq	= get_unaligned_be16(resp + 3);
 	report->freqoff		= resp[5];
 	report->rssi		= resp[6];
 	report->snr		= resp[7];
@@ -1272,7 +1274,7 @@ static int si476x_core_cmd_fm_rsq_status_a20(struct si476x_core *core,
 	report->hassi		= resp[10];
 	report->mult		= resp[11];
 	report->dev		= resp[12];
-	report->readantcap	= be16_to_cpup((__be16 *)(resp + 13));
+	report->readantcap	= get_unaligned_be16(resp + 13);
 	report->assi		= resp[15];
 	report->usn		= resp[16];
 
@@ -1320,7 +1322,7 @@ static int si476x_core_cmd_fm_rsq_status_a30(struct si476x_core *core,
 	report->afcrl		= 0x02 & resp[2];
 	report->valid		= 0x01 & resp[2];
 
-	report->readfreq	= be16_to_cpup((__be16 *)(resp + 3));
+	report->readfreq	= get_unaligned_be16(resp + 3);
 	report->freqoff		= resp[5];
 	report->rssi		= resp[6];
 	report->snr		= resp[7];
@@ -1329,7 +1331,7 @@ static int si476x_core_cmd_fm_rsq_status_a30(struct si476x_core *core,
 	report->hassi		= resp[10];
 	report->mult		= resp[11];
 	report->dev		= resp[12];
-	report->readantcap	= be16_to_cpup((__be16 *)(resp + 13));
+	report->readantcap	= get_unaligned_be16(resp + 13);
 	report->assi		= resp[15];
 	report->usn		= resp[16];
 
@@ -1337,7 +1339,7 @@ static int si476x_core_cmd_fm_rsq_status_a30(struct si476x_core *core,
 	report->rdsdev		= resp[18];
 	report->assidev		= resp[19];
 	report->strongdev	= resp[20];
-	report->rdspi		= be16_to_cpup((__be16 *)(resp + 21));
+	report->rdspi		= get_unaligned_be16(resp + 21);
 
 	return err;
 }
