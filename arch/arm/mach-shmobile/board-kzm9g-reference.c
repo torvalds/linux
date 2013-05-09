@@ -21,7 +21,6 @@
  */
 
 #include <linux/delay.h>
-#include <linux/gpio.h>
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/input.h>
@@ -35,11 +34,6 @@
 static void __init kzm_init(void)
 {
 	sh73a0_add_standard_devices_dt();
-
-	/* enable SD */
-	gpio_request_one(15, GPIOF_OUT_INIT_HIGH, NULL); /* power */
-
-	gpio_request_one(14, GPIOF_OUT_INIT_HIGH, NULL); /* power */
 
 #ifdef CONFIG_CACHE_L2X0
 	/* Early BRESP enable, Shared attribute override enable, 64K*8way */

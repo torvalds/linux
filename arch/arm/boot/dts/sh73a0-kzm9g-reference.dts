@@ -13,6 +13,7 @@
 
 /dts-v1/;
 /include/ "sh73a0.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "KZM-A9-GT";
@@ -56,6 +57,24 @@
 		regulator-max-microvolt = <3300000>;
 		regulator-always-on;
 		regulator-boot-on;
+	};
+
+	vmmc_sdhi0: regulator@2 {
+	        compatible = "regulator-fixed";
+		regulator-name = "SDHI0 Vcc";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&pfc 15 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+	};
+
+	vmmc_sdhi2: regulator@3 {
+	        compatible = "regulator-fixed";
+		regulator-name = "SDHI2 Vcc";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&pfc 14 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
 	};
 
 	lan9220@10000000 {
@@ -200,7 +219,7 @@
 	pinctrl-0 = <&sdhi0_pins>;
 	pinctrl-names = "default";
 
-	vmmc-supply = <&reg_3p3v>;
+	vmmc-supply = <&vmmc_sdhi0>;
 	bus-width = <4>;
 	status = "okay";
 };
@@ -209,7 +228,7 @@
 	pinctrl-0 = <&sdhi2_pins>;
 	pinctrl-names = "default";
 
-	vmmc-supply = <&reg_3p3v>;
+	vmmc-supply = <&vmmc_sdhi2>;
 	bus-width = <4>;
 	broken-cd;
 	status = "okay";
