@@ -1106,6 +1106,30 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 			rdev->pm.dpm.dyn_state.ppm_table->tj_max =
 				le32_to_cpu(ppm->ulTjmax);
 		}
+		if ((le16_to_cpu(ext_hdr->usSize) >= SIZE_OF_ATOM_PPLIB_EXTENDEDHEADER_V6) &&
+			ext_hdr->usACPTableOffset) {
+			ATOM_PPLIB_ACPClk_Voltage_Limit_Table *limits =
+				(ATOM_PPLIB_ACPClk_Voltage_Limit_Table *)
+				(mode_info->atom_context->bios + data_offset +
+				 le16_to_cpu(ext_hdr->usACPTableOffset) + 1);
+			u32 size = limits->numEntries *
+				sizeof(struct radeon_clock_voltage_dependency_entry);
+			rdev->pm.dpm.dyn_state.acp_clock_voltage_dependency_table.entries =
+				kzalloc(size, GFP_KERNEL);
+			if (!rdev->pm.dpm.dyn_state.acp_clock_voltage_dependency_table.entries) {
+				r600_free_extended_power_table(rdev);
+				return -ENOMEM;
+			}
+			rdev->pm.dpm.dyn_state.acp_clock_voltage_dependency_table.count =
+				limits->numEntries;
+			for (i = 0; i < limits->numEntries; i++) {
+				rdev->pm.dpm.dyn_state.acp_clock_voltage_dependency_table.entries[i].clk =
+					le16_to_cpu(limits->entries[i].usACPClockLow) |
+					(limits->entries[i].ucACPClockHigh << 16);
+				rdev->pm.dpm.dyn_state.acp_clock_voltage_dependency_table.entries[i].v =
+					le16_to_cpu(limits->entries[i].usVoltage);
+			}
+		}
 		if ((le16_to_cpu(ext_hdr->usSize) >= SIZE_OF_ATOM_PPLIB_EXTENDEDHEADER_V7) &&
 			ext_hdr->usPowerTuneTableOffset) {
 			u8 rev = *(u8 *)(mode_info->atom_context->bios + data_offset +
@@ -1173,6 +1197,8 @@ void r600_free_extended_power_table(struct radeon_device *rdev)
 		kfree(rdev->pm.dpm.dyn_state.uvd_clock_voltage_dependency_table.entries);
 	if (rdev->pm.dpm.dyn_state.samu_clock_voltage_dependency_table.entries)
 		kfree(rdev->pm.dpm.dyn_state.samu_clock_voltage_dependency_table.entries);
+	if (rdev->pm.dpm.dyn_state.acp_clock_voltage_dependency_table.entries)
+		kfree(rdev->pm.dpm.dyn_state.acp_clock_voltage_dependency_table.entries);
 }
 
 enum radeon_pcie_gen r600_get_pcie_gen_support(struct radeon_device *rdev,
