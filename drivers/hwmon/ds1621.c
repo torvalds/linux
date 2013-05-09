@@ -274,7 +274,47 @@ static ssize_t show_alarm(struct device *dev, struct device_attribute *da,
 	return sprintf(buf, "%d\n", !!(data->conf & attr->index));
 }
 
+static ssize_t show_convrate(struct device *dev, struct device_attribute *da,
+			  char *buf)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct ds1621_data *data = i2c_get_clientdata(client);
+	return scnprintf(buf, PAGE_SIZE, "%hu\n", data->update_interval);
+}
+
+static ssize_t set_convrate(struct device *dev, struct device_attribute *da,
+			    const char *buf, size_t count)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct ds1621_data *data = i2c_get_clientdata(client);
+	unsigned long convrate;
+	s32 err;
+	int resol = 0;
+
+	err = kstrtoul(buf, 10, &convrate);
+	if (err)
+		return err;
+
+	/* Convert rate into resolution bits */
+	while (resol < (ARRAY_SIZE(ds1721_convrates) - 1) &&
+	       convrate > ds1721_convrates[resol])
+		resol++;
+
+	mutex_lock(&data->update_lock);
+	data->conf = i2c_smbus_read_byte_data(client, DS1621_REG_CONF);
+	data->conf &= ~DS1621_REG_CONFIG_RESOL;
+	data->conf |= (resol << DS1621_REG_CONFIG_RESOL_SHIFT);
+	i2c_smbus_write_byte_data(client, DS1621_REG_CONF, data->conf);
+	data->update_interval = ds1721_convrates[resol];
+	mutex_unlock(&data->update_lock);
+
+	return count;
+}
+
 static DEVICE_ATTR(alarms, S_IRUGO, show_alarms, NULL);
+static DEVICE_ATTR(update_interval, S_IWUSR | S_IRUGO, show_convrate,
+		   set_convrate);
+
 static SENSOR_DEVICE_ATTR(temp1_input, S_IRUGO, show_temp, NULL, 0);
 static SENSOR_DEVICE_ATTR(temp1_min, S_IWUSR | S_IRUGO, show_temp, set_temp, 1);
 static SENSOR_DEVICE_ATTR(temp1_max, S_IWUSR | S_IRUGO, show_temp, set_temp, 2);
@@ -290,11 +330,27 @@ static struct attribute *ds1621_attributes[] = {
 	&sensor_dev_attr_temp1_min_alarm.dev_attr.attr,
 	&sensor_dev_attr_temp1_max_alarm.dev_attr.attr,
 	&dev_attr_alarms.attr,
+	&dev_attr_update_interval.attr,
 	NULL
 };
 
+static umode_t ds1621_attribute_visible(struct kobject *kobj,
+					struct attribute *attr, int index)
+{
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct i2c_client *client = to_i2c_client(dev);
+	struct ds1621_data *data = i2c_get_clientdata(client);
+
+	if (attr == &dev_attr_update_interval.attr)
+		if (data->kind != ds1721)
+			/* shhh, we're hiding update_interval */
+			return 0;
+	return attr->mode;
+}
+
 static const struct attribute_group ds1621_group = {
 	.attrs = ds1621_attributes,
+	.is_visible = ds1621_attribute_visible
 };
 
 

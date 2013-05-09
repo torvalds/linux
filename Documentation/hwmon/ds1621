@@ -75,3 +75,68 @@ The DS1721 is pin compatible with the DS1621, has an accuracy of +/- 1.0
 degree Celsius over a -10 to +85 degree range, a minimum/maximum alarm
 default setting of 75 and 80 degrees respectively, and a maximum conversion
 time of 750ms.
+
+In addition, the DS1721 supports four resolution settings from 9 to 12 bits
+(defined in degrees C per LSB: 0.5, 0.25, 0.125, and 0.0625, respectifully),
+that are set at device power on to the highest resolution: 12-bits (0.0625 degree C).
+
+Changing the DS1721 resolution mode affects the conversion time and can be
+done from userspace, via the device 'update_interval' sysfs attribute. This
+attribute will normalize range of input values to the device maximum resolution
+values defined in the datasheet as such:
+
+Resolution    Conversion Time    Input Range
+ (C/LSB)       (msec)             (msec)
+--------------------------------------------
+0.5             93.75              0....94
+0.25            187.5              95...187
+0.125           375                188..375
+0.0625          750                376..infinity
+--------------------------------------
+
+The following examples show how the 'update_interval' attribute can be
+used to change the conversion time:
+
+$ cat update_interval
+750
+$ cat temp1_input
+22062
+$
+$ echo 300 > update_interval
+$ cat update_interval
+375
+$ cat temp1_input
+22125
+$
+$ echo 150 > update_interval
+$ cat update_interval
+188
+$ cat temp1_input
+22250
+$
+$ echo 1 > update_interval
+$ cat update_interval
+94
+$ cat temp1_input
+22000
+$
+$ echo 1000 > update_interval
+$ cat update_interval
+750
+$ cat temp1_input
+22062
+$
+
+As shown, the ds1621 driver automatically adjusts the 'update_interval'
+user input, via a step function. Reading back the 'update_interval' value
+after a write operation provides the conversion time used by the device.
+
+Mathematically, the resolution can be derived from the conversion time
+via the following function:
+
+   g(x) = 0.5 * [minimum_conversion_time/x]
+
+where:
+ -> 'x' = the output from 'update_interval'
+ -> 'g(x)' = the resolution in degrees C per LSB.
+ -> 93.75ms = minimum conversion time
