@@ -3596,7 +3596,7 @@ unsigned int hmp_up_prio = NICE_TO_PRIO(CONFIG_SCHED_HMP_PRIO_FILTER_VAL);
 unsigned int hmp_next_up_threshold = 4096;
 unsigned int hmp_next_down_threshold = 4096;
 
-static unsigned int hmp_up_migration(int cpu, struct sched_entity *se);
+static unsigned int hmp_up_migration(int cpu, int *target_cpu, struct sched_entity *se);
 static unsigned int hmp_down_migration(int cpu, struct sched_entity *se);
 static inline unsigned int hmp_domain_min_load(struct hmp_domain *hmpd,
 						int *min_cpu);
@@ -4032,8 +4032,7 @@ unlock:
 	rcu_read_unlock();
 
 #ifdef CONFIG_SCHED_HMP
-	if (hmp_up_migration(prev_cpu, &p->se)) {
-		new_cpu = hmp_select_faster_cpu(p, prev_cpu);
+	if (hmp_up_migration(prev_cpu, &new_cpu, &p->se)) {
 		hmp_next_up_delay(&p->se, new_cpu);
 		trace_sched_hmp_migrate(p, new_cpu, 0);
 		return new_cpu;
@@ -6320,11 +6319,14 @@ static void nohz_idle_balance(int this_cpu, enum cpu_idle_type idle) { }
 
 #ifdef CONFIG_SCHED_HMP
 /* Check if task should migrate to a faster cpu */
-static unsigned int hmp_up_migration(int cpu, struct sched_entity *se)
+static unsigned int hmp_up_migration(int cpu, int *target_cpu, struct sched_entity *se)
 {
 	struct task_struct *p = task_of(se);
 	struct cfs_rq *cfs_rq = &cpu_rq(cpu)->cfs;
 	u64 now;
+
+	if (target_cpu)
+		*target_cpu = NR_CPUS;
 
 	if (hmp_cpu_is_fastest(cpu))
 		return 0;
@@ -6334,6 +6336,8 @@ static unsigned int hmp_up_migration(int cpu, struct sched_entity *se)
 	if (p->prio >= hmp_up_prio)
 		return 0;
 #endif
+	if (se->avg.load_avg_ratio < hmp_up_threshold)
+		return 0;
 
 	/* Let the task load settle before doing another up migration */
 	now = cfs_rq_clock_task(cfs_rq);
@@ -6341,15 +6345,15 @@ static unsigned int hmp_up_migration(int cpu, struct sched_entity *se)
 					< hmp_next_up_threshold)
 		return 0;
 
-	if (se->avg.load_avg_ratio > hmp_up_threshold) {
-		/* Target domain load < ~94% */
-		if (hmp_domain_min_load(hmp_faster_domain(cpu), NULL)
-							> NICE_0_LOAD-64)
-			return 0;
-		if (cpumask_intersects(&hmp_faster_domain(cpu)->cpus,
-					tsk_cpus_allowed(p)))
-			return 1;
-	}
+	/* Target domain load < 94% */
+	if (hmp_domain_min_load(hmp_faster_domain(cpu), target_cpu)
+			> NICE_0_LOAD-64)
+		return 0;
+
+	if (cpumask_intersects(&hmp_faster_domain(cpu)->cpus,
+			tsk_cpus_allowed(p)))
+		return 1;
+
 	return 0;
 }
 
@@ -6542,7 +6546,7 @@ static DEFINE_SPINLOCK(hmp_force_migration);
  */
 static void hmp_force_up_migration(int this_cpu)
 {
-	int cpu;
+	int cpu, target_cpu;
 	struct sched_entity *curr;
 	struct rq *target;
 	unsigned long flags;
@@ -6570,10 +6574,10 @@ static void hmp_force_up_migration(int this_cpu)
 			}
 		}
 		p = task_of(curr);
-		if (hmp_up_migration(cpu, curr)) {
+		if (hmp_up_migration(cpu, &target_cpu, curr)) {
 			if (!target->active_balance) {
 				target->active_balance = 1;
-				target->push_cpu = hmp_select_faster_cpu(p, cpu);
+				target->push_cpu = target_cpu;
 				target->migrate_task = p;
 				force = 1;
 				trace_sched_hmp_migrate(p, target->push_cpu, 1);
