@@ -519,7 +519,6 @@
 			interrupts = <0 92 0x4>, <0 93 0x4>;
 			interrupt-names = "mc", "dma";
 			ti,hwmods = "usb_otg_hs";
-			usb-phy = <&usb2_phy>;
 			multipoint = <1>;
 			num-eps = <16>;
 			ram-bits = <12>;
