@@ -203,8 +203,7 @@ int __init au_wkq_init(void)
 	int err;
 
 	err = 0;
-	BUILD_BUG_ON(!WQ_RESCUER);
-	au_wkq = alloc_workqueue(AUFS_WKQ_NAME, !WQ_RESCUER, WQ_DFL_ACTIVE);
+	au_wkq = alloc_workqueue(AUFS_WKQ_NAME, 0, WQ_DFL_ACTIVE);
 	if (IS_ERR(au_wkq))
 		err = PTR_ERR(au_wkq);
 	else if (!au_wkq)
