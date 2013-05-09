@@ -217,7 +217,7 @@ static ssize_t proc_read_simdisk(struct file *file, char __user *buf,
 			size_t size, loff_t *ppos)
 {
 	struct simdisk *dev = PDE_DATA(file_inode(file));
-	char *s = dev->filename;
+	const char *s = dev->filename;
 	if (s) {
 		ssize_t n = simple_read_from_buffer(buf, size, ppos,
 							s, strlen(s));
@@ -238,7 +238,7 @@ static ssize_t proc_write_simdisk(struct file *file, const char __user *buf,
 
 	if (tmp == NULL)
 		return -ENOMEM;
-	if (copy_from_user(tmp, buffer, count)) {
+	if (copy_from_user(tmp, buf, count)) {
 		err = -EFAULT;
 		goto out_free;
 	}
