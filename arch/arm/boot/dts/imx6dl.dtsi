@@ -35,6 +35,16 @@
 				compatible = "fsl,imx6dl-iomuxc";
 				reg = <0x020e0000 0x4000>;
 
+				ecspi1 {
+					pinctrl_ecspi1_1: ecspi1grp-1 {
+						fsl,pins = <
+							MX6DL_PAD_EIM_D17__ECSPI1_MISO 0x100b1
+							MX6DL_PAD_EIM_D18__ECSPI1_MOSI 0x100b1
+							MX6DL_PAD_EIM_D16__ECSPI1_SCLK 0x100b1
+						>;
+					};
+				};
+
 				enet {
 					pinctrl_enet_1: enetgrp-1 {
 						fsl,pins = <
