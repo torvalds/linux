@@ -2656,27 +2656,25 @@ ftrace_regex_open(struct ftrace_ops *ops, int flag,
 		return -ENOMEM;
 	}
 
+	iter->ops = ops;
+	iter->flags = flag;
+
+	mutex_lock(&ops->regex_lock);
+
 	if (flag & FTRACE_ITER_NOTRACE)
 		hash = ops->notrace_hash;
 	else
 		hash = ops->filter_hash;
 
-	iter->ops = ops;
-	iter->flags = flag;
-
 	if (file->f_mode & FMODE_WRITE) {
-		mutex_lock(&ftrace_lock);
 		iter->hash = alloc_and_copy_ftrace_hash(FTRACE_HASH_DEFAULT_BITS, hash);
-		mutex_unlock(&ftrace_lock);
-
 		if (!iter->hash) {
 			trace_parser_put(&iter->parser);
 			kfree(iter);
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto out_unlock;
 		}
 	}
-
-	mutex_lock(&ops->regex_lock);
 
 	if ((file->f_mode & FMODE_WRITE) &&
 	    (file->f_flags & O_TRUNC))
@@ -2697,6 +2695,8 @@ ftrace_regex_open(struct ftrace_ops *ops, int flag,
 		}
 	} else
 		file->private_data = iter;
+
+ out_unlock:
 	mutex_unlock(&ops->regex_lock);
 
 	return ret;
@@ -3012,7 +3012,7 @@ register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 	if (WARN_ON(not))
 		return -EINVAL;
 
-	mutex_lock(&ftrace_lock);
+	mutex_lock(&trace_probe_ops.regex_lock);
 
 	hash = alloc_and_copy_ftrace_hash(FTRACE_HASH_DEFAULT_BITS, *orig_hash);
 	if (!hash) {
@@ -3070,14 +3070,16 @@ register_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 
 	} while_for_each_ftrace_rec();
 
+	mutex_lock(&ftrace_lock);
 	ret = ftrace_hash_move(&trace_probe_ops, 1, orig_hash, hash);
 	if (ret < 0)
 		count = ret;
 
 	__enable_ftrace_function_probe();
+	mutex_unlock(&ftrace_lock);
 
  out_unlock:
-	mutex_unlock(&ftrace_lock);
+	mutex_unlock(&trace_probe_ops.regex_lock);
 	free_ftrace_hash(hash);
 
 	return count;
@@ -3117,7 +3119,7 @@ __unregister_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 			return;
 	}
 
-	mutex_lock(&ftrace_lock);
+	mutex_lock(&trace_probe_ops.regex_lock);
 
 	hash = alloc_and_copy_ftrace_hash(FTRACE_HASH_DEFAULT_BITS, *orig_hash);
 	if (!hash)
@@ -3155,6 +3157,7 @@ __unregister_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 			list_add(&entry->free_list, &free_list);
 		}
 	}
+	mutex_lock(&ftrace_lock);
 	__disable_ftrace_function_probe();
 	/*
 	 * Remove after the disable is called. Otherwise, if the last
@@ -3166,9 +3169,10 @@ __unregister_ftrace_function_probe(char *glob, struct ftrace_probe_ops *ops,
 		list_del(&entry->free_list);
 		ftrace_free_entry(entry);
 	}
+	mutex_unlock(&ftrace_lock);
 		
  out_unlock:
-	mutex_unlock(&ftrace_lock);
+	mutex_unlock(&trace_probe_ops.regex_lock);
 	free_ftrace_hash(hash);
 }
 
@@ -3284,11 +3288,10 @@ ftrace_regex_write(struct file *file, const char __user *ubuf,
 	} else
 		iter = file->private_data;
 
-	mutex_lock(&iter->ops->regex_lock);
-
-	ret = -ENODEV;
 	if (unlikely(ftrace_disabled))
-		goto out_unlock;
+		return -ENODEV;
+
+	/* iter->hash is a local copy, so we don't need regex_lock */
 
 	parser = &iter->parser;
 	read = trace_get_user(parser, ubuf, cnt, ppos);
@@ -3299,13 +3302,11 @@ ftrace_regex_write(struct file *file, const char __user *ubuf,
 					   parser->idx, enable);
 		trace_parser_clear(parser);
 		if (ret < 0)
-			goto out_unlock;
+			goto out;
 	}
 
 	ret = read;
-out_unlock:
-	mutex_unlock(&iter->ops->regex_lock);
-
+ out:
 	return ret;
 }
 
@@ -3357,16 +3358,19 @@ ftrace_set_hash(struct ftrace_ops *ops, unsigned char *buf, int len,
 	if (unlikely(ftrace_disabled))
 		return -ENODEV;
 
+	mutex_lock(&ops->regex_lock);
+
 	if (enable)
 		orig_hash = &ops->filter_hash;
 	else
 		orig_hash = &ops->notrace_hash;
 
 	hash = alloc_and_copy_ftrace_hash(FTRACE_HASH_DEFAULT_BITS, *orig_hash);
-	if (!hash)
-		return -ENOMEM;
+	if (!hash) {
+		ret = -ENOMEM;
+		goto out_regex_unlock;
+	}
 
-	mutex_lock(&ops->regex_lock);
 	if (reset)
 		ftrace_filter_reset(hash);
 	if (buf && !ftrace_match_records(hash, buf, len)) {
@@ -3584,8 +3588,6 @@ int ftrace_regex_release(struct inode *inode, struct file *file)
 	} else
 		iter = file->private_data;
 
-	mutex_lock(&iter->ops->regex_lock);
-
 	parser = &iter->parser;
 	if (trace_parser_loaded(parser)) {
 		parser->buffer[parser->idx] = 0;
@@ -3593,6 +3595,8 @@ int ftrace_regex_release(struct inode *inode, struct file *file)
 	}
 
 	trace_parser_put(parser);
+
+	mutex_lock(&iter->ops->regex_lock);
 
 	if (file->f_mode & FMODE_WRITE) {
 		filter_hash = !!(iter->flags & FTRACE_ITER_FILTER);
@@ -3611,10 +3615,11 @@ int ftrace_regex_release(struct inode *inode, struct file *file)
 
 		mutex_unlock(&ftrace_lock);
 	}
+
+	mutex_unlock(&iter->ops->regex_lock);
 	free_ftrace_hash(iter->hash);
 	kfree(iter);
 
-	mutex_unlock(&iter->ops->regex_lock);
 	return 0;
 }
 
