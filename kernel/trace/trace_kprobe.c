@@ -767,6 +767,8 @@ static __kprobes void kretprobe_trace_func(struct kretprobe_instance *ri,
 	unsigned long irq_flags;
 	struct ftrace_event_call *call = &tp->call;
 
+	tp->nhit++;
+
 	local_save_flags(irq_flags);
 	pc = preempt_count();
 
