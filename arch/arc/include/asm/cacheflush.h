@@ -33,7 +33,7 @@ void flush_cache_all(void);
 void flush_icache_range(unsigned long start, unsigned long end);
 void __sync_icache_dcache(unsigned long paddr, unsigned long vaddr, int len);
 void __inv_icache_page(unsigned long paddr, unsigned long vaddr);
-void __flush_dcache_page(unsigned long paddr);
+void __flush_dcache_page(unsigned long paddr, unsigned long vaddr);
 
 #define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 1
 

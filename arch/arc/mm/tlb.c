@@ -438,7 +438,7 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long vaddr_unaligned,
 		int dirty = test_and_clear_bit(PG_arch_1, &page->flags);
 		if (dirty) {
 			unsigned long paddr =  pte_val(*ptep) & PAGE_MASK;
-			__flush_dcache_page(paddr);
+			__flush_dcache_page(paddr, paddr);
 			__inv_icache_page(paddr, vaddr);
 		}
 	}

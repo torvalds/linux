@@ -269,9 +269,10 @@ static inline void __dc_entire_op(const int cacheop)
  * Per Line Operation on D-Cache
  * Doesn't deal with type-of-op/IRQ-disabling/waiting-for-flush-to-complete
  * It's sole purpose is to help gcc generate ZOL
+ * (aliasing VIPT dcache flushing needs both vaddr and paddr)
  */
-static inline void __dc_line_loop(unsigned long paddr, unsigned long sz,
-				  int aux_reg)
+static inline void __dc_line_loop(unsigned long paddr, unsigned long vaddr,
+				  unsigned long sz, const int aux_reg)
 {
 	int num_lines;
 
@@ -284,31 +285,41 @@ static inline void __dc_line_loop(unsigned long paddr, unsigned long sz,
 	if (!(__builtin_constant_p(sz) && sz == PAGE_SIZE)) {
 		sz += paddr & ~DCACHE_LINE_MASK;
 		paddr &= DCACHE_LINE_MASK;
+		vaddr &= DCACHE_LINE_MASK;
 	}
 
 	num_lines = DIV_ROUND_UP(sz, ARC_DCACHE_LINE_LEN);
+
+#if (CONFIG_ARC_MMU_VER <= 2)
+	paddr |= (vaddr >> PAGE_SHIFT) & 0x1F;
+#endif
 
 	while (num_lines-- > 0) {
 #if (CONFIG_ARC_MMU_VER > 2)
 		/*
 		 * Just as for I$, in MMU v3, D$ ops also require
 		 * "tag" bits in DC_PTAG, "index" bits in FLDL,IVDL ops
-		 * But we pass phy addr for both. This works since Linux
-		 * doesn't support aliasing configs for D$, yet.
-		 * Thus paddr is enough to provide both tag and index.
 		 */
 		write_aux_reg(ARC_REG_DC_PTAG, paddr);
-#endif
+
+		write_aux_reg(aux_reg, vaddr);
+		vaddr += ARC_DCACHE_LINE_LEN;
+#else
+		/* paddr contains stuffed vaddrs bits */
 		write_aux_reg(aux_reg, paddr);
+#endif
 		paddr += ARC_DCACHE_LINE_LEN;
 	}
 }
 
+/* For kernel mappings cache op index is same as paddr */
+#define __dc_line_op_k(p, sz, op)	__dc_line_op(p, p, sz, op)
+
 /*
  * D-Cache : Per Line INV (discard or wback+discard) or FLUSH (wback)
  */
-static inline void __dc_line_op(unsigned long paddr, unsigned long sz,
-					const int cacheop)
+static inline void __dc_line_op(unsigned long paddr, unsigned long vaddr,
+				unsigned long sz, const int cacheop)
 {
 	unsigned long flags, tmp = tmp;
 	int aux;
@@ -331,7 +342,7 @@ static inline void __dc_line_op(unsigned long paddr, unsigned long sz,
 	else
 		aux = ARC_REG_DC_FLDL;
 
-	__dc_line_loop(paddr, sz, aux);
+	__dc_line_loop(paddr, vaddr, sz, aux);
 
 	if (cacheop & OP_FLUSH)	/* flush / flush-n-inv both wait */
 		wait_for_flush();
@@ -346,7 +357,8 @@ static inline void __dc_line_op(unsigned long paddr, unsigned long sz,
 #else
 
 #define __dc_entire_op(cacheop)
-#define __dc_line_op(paddr, sz, cacheop)
+#define __dc_line_op(paddr, vaddr, sz, cacheop)
+#define __dc_line_op_k(paddr, sz, cacheop)
 
 #endif /* CONFIG_ARC_HAS_DCACHE */
 
@@ -462,19 +474,19 @@ EXPORT_SYMBOL(flush_dcache_page);
 
 void dma_cache_wback_inv(unsigned long start, unsigned long sz)
 {
-	__dc_line_op(start, sz, OP_FLUSH_N_INV);
+	__dc_line_op_k(start, sz, OP_FLUSH_N_INV);
 }
 EXPORT_SYMBOL(dma_cache_wback_inv);
 
 void dma_cache_inv(unsigned long start, unsigned long sz)
 {
-	__dc_line_op(start, sz, OP_INV);
+	__dc_line_op_k(start, sz, OP_INV);
 }
 EXPORT_SYMBOL(dma_cache_inv);
 
 void dma_cache_wback(unsigned long start, unsigned long sz)
 {
-	__dc_line_op(start, sz, OP_FLUSH);
+	__dc_line_op_k(start, sz, OP_FLUSH);
 }
 EXPORT_SYMBOL(dma_cache_wback);
 
@@ -555,7 +567,7 @@ void __sync_icache_dcache(unsigned long paddr, unsigned long vaddr, int len)
 
 	local_irq_save(flags);
 	__ic_line_inv_vaddr(paddr, vaddr, len);
-	__dc_line_op(paddr, len, OP_FLUSH);
+	__dc_line_op(paddr, vaddr, len, OP_FLUSH);
 	local_irq_restore(flags);
 }
 
@@ -565,9 +577,13 @@ void __inv_icache_page(unsigned long paddr, unsigned long vaddr)
 	__ic_line_inv_vaddr(paddr, vaddr, PAGE_SIZE);
 }
 
-void __flush_dcache_page(unsigned long paddr)
+/*
+ * wrapper to clearout kernel or userspace mappings of a page
+ * For kernel mappings @vaddr == @paddr
+ */
+void __flush_dcache_page(unsigned long paddr, unsigned long vaddr)
 {
-	__dc_line_op(paddr, PAGE_SIZE, OP_FLUSH_N_INV);
+	__dc_line_op(paddr, vaddr & PAGE_MASK, PAGE_SIZE, OP_FLUSH_N_INV);
 }
 
 void flush_icache_all(void)
