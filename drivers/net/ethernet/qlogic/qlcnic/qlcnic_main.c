@@ -308,6 +308,23 @@ int qlcnic_read_mac_addr(struct qlcnic_adapter *adapter)
 	return 0;
 }
 
+static void qlcnic_delete_adapter_mac(struct qlcnic_adapter *adapter)
+{
+	struct qlcnic_mac_list_s *cur;
+	struct list_head *head;
+
+	list_for_each(head, &adapter->mac_list) {
+		cur = list_entry(head, struct qlcnic_mac_list_s, list);
+		if (!memcmp(adapter->mac_addr, cur->mac_addr, ETH_ALEN)) {
+			qlcnic_sre_macaddr_change(adapter, cur->mac_addr,
+						  0, QLCNIC_MAC_DEL);
+			list_del(&cur->list);
+			kfree(cur);
+			return;
+		}
+	}
+}
+
 static int qlcnic_set_mac(struct net_device *netdev, void *p)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
@@ -322,11 +339,15 @@ static int qlcnic_set_mac(struct net_device *netdev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EINVAL;
 
+	if (!memcmp(adapter->mac_addr, addr->sa_data, ETH_ALEN))
+		return 0;
+
 	if (test_bit(__QLCNIC_DEV_UP, &adapter->state)) {
 		netif_device_detach(netdev);
 		qlcnic_napi_disable(adapter);
 	}
 
+	qlcnic_delete_adapter_mac(adapter);
 	memcpy(adapter->mac_addr, addr->sa_data, netdev->addr_len);
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
 	qlcnic_set_multi(adapter->netdev);
