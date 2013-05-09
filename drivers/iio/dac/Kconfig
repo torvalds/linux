@@ -5,7 +5,7 @@ menu "Digital to analog converters"
 
 config AD5064
 	tristate "Analog Devices AD5064 and similar multi-channel DAC driver"
-	depends on (SPI_MASTER || I2C)
+	depends on (SPI_MASTER && I2C!=m) || I2C
 	help
 	  Say yes here to build support for Analog Devices AD5024, AD5025, AD5044,
 	  AD5045, AD5064, AD5064-1, AD5065, AD5628, AD5629R, AD5648, AD5666, AD5668,
@@ -27,7 +27,7 @@ config AD5360
 
 config AD5380
 	tristate "Analog Devices AD5380/81/82/83/84/90/91/92 DAC driver"
-	depends on (SPI_MASTER || I2C)
+	depends on (SPI_MASTER && I2C!=m) || I2C
 	select REGMAP_I2C if I2C
 	select REGMAP_SPI if SPI_MASTER
 	help
@@ -57,7 +57,7 @@ config AD5624R_SPI
 
 config AD5446
 	tristate "Analog Devices AD5446 and similar single channel DACs driver"
-	depends on (SPI_MASTER || I2C)
+	depends on (SPI_MASTER && I2C!=m) || I2C
 	help
 	  Say yes here to build support for Analog Devices AD5300, AD5301, AD5310,
 	  AD5311, AD5320, AD5321, AD5444, AD5446, AD5450, AD5451, AD5452, AD5453,
