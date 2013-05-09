@@ -255,14 +255,14 @@ static void __init dump_topology(void)
 	}
 }
 
-static pfn_t __init slot_getbasepfn(cnodeid_t cnode, int slot)
+static unsigned long __init slot_getbasepfn(cnodeid_t cnode, int slot)
 {
 	nasid_t nasid = COMPACT_TO_NASID_NODEID(cnode);
 
-	return ((pfn_t)nasid << PFN_NASIDSHFT) | (slot << SLOT_PFNSHIFT);
+	return ((unsigned long)nasid << PFN_NASIDSHFT) | (slot << SLOT_PFNSHIFT);
 }
 
-static pfn_t __init slot_psize_compute(cnodeid_t node, int slot)
+static unsigned long __init slot_psize_compute(cnodeid_t node, int slot)
 {
 	nasid_t nasid;
 	lboard_t *brd;
@@ -353,7 +353,7 @@ static void __init mlreset(void)
 
 static void __init szmem(void)
 {
-	pfn_t slot_psize, slot0sz = 0, nodebytes;	/* Hack to detect problem configs */
+	unsigned long slot_psize, slot0sz = 0, nodebytes;	/* Hack to detect problem configs */
 	int slot;
 	cnodeid_t node;
 
@@ -390,10 +390,10 @@ static void __init szmem(void)
 
 static void __init node_mem_init(cnodeid_t node)
 {
-	pfn_t slot_firstpfn = slot_getbasepfn(node, 0);
-	pfn_t slot_freepfn = node_getfirstfree(node);
+	unsigned long slot_firstpfn = slot_getbasepfn(node, 0);
+	unsigned long slot_freepfn = node_getfirstfree(node);
 	unsigned long bootmap_size;
-	pfn_t start_pfn, end_pfn;
+	unsigned long start_pfn, end_pfn;
 
 	get_pfn_range_for_nid(node, &start_pfn, &end_pfn);
 
@@ -467,7 +467,7 @@ void __init paging_init(void)
 	pagetable_init();
 
 	for_each_online_node(node) {
-		pfn_t start_pfn, end_pfn;
+		unsigned long start_pfn, end_pfn;
 
 		get_pfn_range_for_nid(node, &start_pfn, &end_pfn);
 

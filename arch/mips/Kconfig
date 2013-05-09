@@ -1234,6 +1234,7 @@ config CPU_MIPS32_R2
 	select CPU_HAS_PREFETCH
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
+	select HAVE_KVM
 	help
 	  Choose this option to build a kernel for release 2 or later of the
 	  MIPS32 architecture.  Most modern embedded systems with a 32-bit
@@ -1734,6 +1735,20 @@ config 64BIT
 
 endchoice
 
+config KVM_GUEST
+	bool "KVM Guest Kernel"
+	help
+	  Select this option if building a guest kernel for KVM (Trap & Emulate) mode
+
+config KVM_HOST_FREQ
+	int "KVM Host Processor Frequency (MHz)"
+	depends on KVM_GUEST
+	default 500
+	help
+	  Select this option if building a guest kernel for KVM to skip
+	  RTC emulation when determining guest CPU Frequency.  Instead, the guest
+	  processor frequency is automatically derived from the host frequency.
+
 choice
 	prompt "Kernel page size"
 	default PAGE_SIZE_4KB
@@ -2013,6 +2028,7 @@ config SB1_PASS_2_1_WORKAROUNDS
 	bool
 	depends on CPU_SB1 && CPU_SB1_PASS_2
 	default y
+
 
 config 64BIT_PHYS_ADDR
 	bool
@@ -2547,3 +2563,5 @@ source "security/Kconfig"
 source "crypto/Kconfig"
 
 source "lib/Kconfig"
+
+source "arch/mips/kvm/Kconfig"
