@@ -919,10 +919,7 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 					sizeof(struct radeon_phase_shedding_limits_entry),
 					GFP_KERNEL);
 			if (!rdev->pm.dpm.dyn_state.phase_shedding_limits_table.entries) {
-				kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk.entries);
-				kfree(rdev->pm.dpm.dyn_state.vddci_dependency_on_mclk.entries);
-				kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_mclk.entries);
-				kfree(rdev->pm.dpm.dyn_state.mvdd_dependency_on_mclk.entries);
+				r600_free_extended_power_table(rdev);
 				return -ENOMEM;
 			}
 
@@ -964,10 +961,7 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 			u32 size = cac_table->ucNumEntries * sizeof(struct radeon_cac_leakage_table);
 			rdev->pm.dpm.dyn_state.cac_leakage_table.entries = kzalloc(size, GFP_KERNEL);
 			if (!rdev->pm.dpm.dyn_state.cac_leakage_table.entries) {
-				kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk.entries);
-				kfree(rdev->pm.dpm.dyn_state.vddci_dependency_on_mclk.entries);
-				kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_mclk.entries);
-				kfree(rdev->pm.dpm.dyn_state.mvdd_dependency_on_mclk.entries);
+				r600_free_extended_power_table(rdev);
 				return -ENOMEM;
 			}
 			for (i = 0; i < cac_table->ucNumEntries; i++) {
@@ -1010,11 +1004,7 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 			rdev->pm.dpm.dyn_state.vce_clock_voltage_dependency_table.entries =
 				kzalloc(size, GFP_KERNEL);
 			if (!rdev->pm.dpm.dyn_state.vce_clock_voltage_dependency_table.entries) {
-				kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk.entries);
-				kfree(rdev->pm.dpm.dyn_state.vddci_dependency_on_mclk.entries);
-				kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_mclk.entries);
-				kfree(rdev->pm.dpm.dyn_state.mvdd_dependency_on_mclk.entries);
-				kfree(rdev->pm.dpm.dyn_state.cac_leakage_table.entries);
+				r600_free_extended_power_table(rdev);
 				return -ENOMEM;
 			}
 			rdev->pm.dpm.dyn_state.vce_clock_voltage_dependency_table.count =
@@ -1045,12 +1035,7 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 			rdev->pm.dpm.dyn_state.uvd_clock_voltage_dependency_table.entries =
 				kzalloc(size, GFP_KERNEL);
 			if (!rdev->pm.dpm.dyn_state.uvd_clock_voltage_dependency_table.entries) {
-				kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk.entries);
-				kfree(rdev->pm.dpm.dyn_state.vddci_dependency_on_mclk.entries);
-				kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_mclk.entries);
-				kfree(rdev->pm.dpm.dyn_state.mvdd_dependency_on_mclk.entries);
-				kfree(rdev->pm.dpm.dyn_state.cac_leakage_table.entries);
-				kfree(rdev->pm.dpm.dyn_state.vce_clock_voltage_dependency_table.entries);
+				r600_free_extended_power_table(rdev);
 				return -ENOMEM;
 			}
 			rdev->pm.dpm.dyn_state.uvd_clock_voltage_dependency_table.count =
@@ -1074,13 +1059,7 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 			rdev->pm.dpm.dyn_state.ppm_table =
 				kzalloc(sizeof(struct radeon_ppm_table), GFP_KERNEL);
 			if (!rdev->pm.dpm.dyn_state.ppm_table) {
-				kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk.entries);
-				kfree(rdev->pm.dpm.dyn_state.vddci_dependency_on_mclk.entries);
-				kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_mclk.entries);
-				kfree(rdev->pm.dpm.dyn_state.mvdd_dependency_on_mclk.entries);
-				kfree(rdev->pm.dpm.dyn_state.cac_leakage_table.entries);
-				kfree(rdev->pm.dpm.dyn_state.vce_clock_voltage_dependency_table.entries);
-				kfree(rdev->pm.dpm.dyn_state.uvd_clock_voltage_dependency_table.entries);
+				r600_free_extended_power_table(rdev);
 				return -ENOMEM;
 			}
 			rdev->pm.dpm.dyn_state.ppm_table->ppm_design = ppm->ucPpmDesign;
@@ -1111,14 +1090,7 @@ int r600_parse_extended_power_table(struct radeon_device *rdev)
 			rdev->pm.dpm.dyn_state.cac_tdp_table =
 				kzalloc(sizeof(struct radeon_cac_tdp_table), GFP_KERNEL);
 			if (!rdev->pm.dpm.dyn_state.cac_tdp_table) {
-				kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_sclk.entries);
-				kfree(rdev->pm.dpm.dyn_state.vddci_dependency_on_mclk.entries);
-				kfree(rdev->pm.dpm.dyn_state.vddc_dependency_on_mclk.entries);
-				kfree(rdev->pm.dpm.dyn_state.mvdd_dependency_on_mclk.entries);
-				kfree(rdev->pm.dpm.dyn_state.cac_leakage_table.entries);
-				kfree(rdev->pm.dpm.dyn_state.ppm_table);
-				kfree(rdev->pm.dpm.dyn_state.vce_clock_voltage_dependency_table.entries);
-				kfree(rdev->pm.dpm.dyn_state.uvd_clock_voltage_dependency_table.entries);
+				r600_free_extended_power_table(rdev);
 				return -ENOMEM;
 			}
 			if (rev > 0) {
