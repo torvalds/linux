@@ -648,13 +648,12 @@ void __init omap_soc_device_init(void)
 	soc_dev_attr->revision = soc_rev;
 
 	soc_dev = soc_device_register(soc_dev_attr);
-	if (IS_ERR_OR_NULL(soc_dev)) {
+	if (IS_ERR(soc_dev)) {
 		kfree(soc_dev_attr);
 		return;
 	}
 
 	parent = soc_device_to_device(soc_dev);
-	if (!IS_ERR_OR_NULL(parent))
-		device_create_file(parent, &omap_soc_attr);
+	device_create_file(parent, &omap_soc_attr);
 }
 #endif /* CONFIG_SOC_BUS */
