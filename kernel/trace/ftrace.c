@@ -64,6 +64,13 @@
 
 #define FL_GLOBAL_CONTROL_MASK (FTRACE_OPS_FL_GLOBAL | FTRACE_OPS_FL_CONTROL)
 
+#ifdef CONFIG_DYNAMIC_FTRACE
+#define INIT_REGEX_LOCK(opsname)	\
+	.regex_lock	= __MUTEX_INITIALIZER(opsname.regex_lock),
+#else
+#define INIT_REGEX_LOCK(opsname)
+#endif
+
 static struct ftrace_ops ftrace_list_end __read_mostly = {
 	.func		= ftrace_stub,
 	.flags		= FTRACE_OPS_FL_RECURSION_SAFE | FTRACE_OPS_FL_STUB,
@@ -130,6 +137,16 @@ static void ftrace_ops_no_ops(unsigned long ip, unsigned long parent_ip);
 #define while_for_each_ftrace_op(op)				\
 	while (likely(op = rcu_dereference_raw((op)->next)) &&	\
 	       unlikely((op) != &ftrace_list_end))
+
+static inline void ftrace_ops_init(struct ftrace_ops *ops)
+{
+#ifdef CONFIG_DYNAMIC_FTRACE
+	if (!(ops->flags & FTRACE_OPS_FL_INITIALIZED)) {
+		mutex_init(&ops->regex_lock);
+		ops->flags |= FTRACE_OPS_FL_INITIALIZED;
+	}
+#endif
+}
 
 /**
  * ftrace_nr_registered_ops - return number of ops registered
@@ -907,7 +924,8 @@ static void unregister_ftrace_profiler(void)
 #else
 static struct ftrace_ops ftrace_profile_ops __read_mostly = {
 	.func		= function_profile_call,
-	.flags		= FTRACE_OPS_FL_RECURSION_SAFE,
+	.flags		= FTRACE_OPS_FL_RECURSION_SAFE | FTRACE_OPS_FL_INITIALIZED,
+	INIT_REGEX_LOCK(ftrace_profile_ops)
 };
 
 static int register_ftrace_profiler(void)
@@ -1103,10 +1121,9 @@ static struct ftrace_ops global_ops = {
 	.func			= ftrace_stub,
 	.notrace_hash		= EMPTY_HASH,
 	.filter_hash		= EMPTY_HASH,
-	.flags			= FTRACE_OPS_FL_RECURSION_SAFE,
+	.flags			= FTRACE_OPS_FL_RECURSION_SAFE | FTRACE_OPS_FL_INITIALIZED,
+	INIT_REGEX_LOCK(global_ops)
 };
-
-static DEFINE_MUTEX(ftrace_regex_lock);
 
 struct ftrace_page {
 	struct ftrace_page	*next;
@@ -1247,6 +1264,7 @@ static void free_ftrace_hash_rcu(struct ftrace_hash *hash)
 
 void ftrace_free_filter(struct ftrace_ops *ops)
 {
+	ftrace_ops_init(ops);
 	free_ftrace_hash(ops->filter_hash);
 	free_ftrace_hash(ops->notrace_hash);
 }
@@ -2624,6 +2642,8 @@ ftrace_regex_open(struct ftrace_ops *ops, int flag,
 	struct ftrace_hash *hash;
 	int ret = 0;
 
+	ftrace_ops_init(ops);
+
 	if (unlikely(ftrace_disabled))
 		return -ENODEV;
 
@@ -2656,7 +2676,7 @@ ftrace_regex_open(struct ftrace_ops *ops, int flag,
 		}
 	}
 
-	mutex_lock(&ftrace_regex_lock);
+	mutex_lock(&ops->regex_lock);
 
 	if ((file->f_mode & FMODE_WRITE) &&
 	    (file->f_flags & O_TRUNC))
@@ -2677,7 +2697,7 @@ ftrace_regex_open(struct ftrace_ops *ops, int flag,
 		}
 	} else
 		file->private_data = iter;
-	mutex_unlock(&ftrace_regex_lock);
+	mutex_unlock(&ops->regex_lock);
 
 	return ret;
 }
@@ -2910,6 +2930,8 @@ static void function_trace_probe_call(unsigned long ip, unsigned long parent_ip,
 static struct ftrace_ops trace_probe_ops __read_mostly =
 {
 	.func		= function_trace_probe_call,
+	.flags		= FTRACE_OPS_FL_INITIALIZED,
+	INIT_REGEX_LOCK(trace_probe_ops)
 };
 
 static int ftrace_probe_registered;
@@ -3256,17 +3278,17 @@ ftrace_regex_write(struct file *file, const char __user *ubuf,
 	if (!cnt)
 		return 0;
 
-	mutex_lock(&ftrace_regex_lock);
-
-	ret = -ENODEV;
-	if (unlikely(ftrace_disabled))
-		goto out_unlock;
-
 	if (file->f_mode & FMODE_READ) {
 		struct seq_file *m = file->private_data;
 		iter = m->private;
 	} else
 		iter = file->private_data;
+
+	mutex_lock(&iter->ops->regex_lock);
+
+	ret = -ENODEV;
+	if (unlikely(ftrace_disabled))
+		goto out_unlock;
 
 	parser = &iter->parser;
 	read = trace_get_user(parser, ubuf, cnt, ppos);
@@ -3282,7 +3304,7 @@ ftrace_regex_write(struct file *file, const char __user *ubuf,
 
 	ret = read;
 out_unlock:
-	mutex_unlock(&ftrace_regex_lock);
+	mutex_unlock(&iter->ops->regex_lock);
 
 	return ret;
 }
@@ -3344,7 +3366,7 @@ ftrace_set_hash(struct ftrace_ops *ops, unsigned char *buf, int len,
 	if (!hash)
 		return -ENOMEM;
 
-	mutex_lock(&ftrace_regex_lock);
+	mutex_lock(&ops->regex_lock);
 	if (reset)
 		ftrace_filter_reset(hash);
 	if (buf && !ftrace_match_records(hash, buf, len)) {
@@ -3366,7 +3388,7 @@ ftrace_set_hash(struct ftrace_ops *ops, unsigned char *buf, int len,
 	mutex_unlock(&ftrace_lock);
 
  out_regex_unlock:
-	mutex_unlock(&ftrace_regex_lock);
+	mutex_unlock(&ops->regex_lock);
 
 	free_ftrace_hash(hash);
 	return ret;
@@ -3392,6 +3414,7 @@ ftrace_set_addr(struct ftrace_ops *ops, unsigned long ip, int remove,
 int ftrace_set_filter_ip(struct ftrace_ops *ops, unsigned long ip,
 			 int remove, int reset)
 {
+	ftrace_ops_init(ops);
 	return ftrace_set_addr(ops, ip, remove, reset, 1);
 }
 EXPORT_SYMBOL_GPL(ftrace_set_filter_ip);
@@ -3416,6 +3439,7 @@ ftrace_set_regex(struct ftrace_ops *ops, unsigned char *buf, int len,
 int ftrace_set_filter(struct ftrace_ops *ops, unsigned char *buf,
 		       int len, int reset)
 {
+	ftrace_ops_init(ops);
 	return ftrace_set_regex(ops, buf, len, reset, 1);
 }
 EXPORT_SYMBOL_GPL(ftrace_set_filter);
@@ -3434,6 +3458,7 @@ EXPORT_SYMBOL_GPL(ftrace_set_filter);
 int ftrace_set_notrace(struct ftrace_ops *ops, unsigned char *buf,
 			int len, int reset)
 {
+	ftrace_ops_init(ops);
 	return ftrace_set_regex(ops, buf, len, reset, 0);
 }
 EXPORT_SYMBOL_GPL(ftrace_set_notrace);
@@ -3524,6 +3549,8 @@ ftrace_set_early_filter(struct ftrace_ops *ops, char *buf, int enable)
 {
 	char *func;
 
+	ftrace_ops_init(ops);
+
 	while (buf) {
 		func = strsep(&buf, ",");
 		ftrace_set_regex(ops, func, strlen(func), 0, enable);
@@ -3551,13 +3578,13 @@ int ftrace_regex_release(struct inode *inode, struct file *file)
 	int filter_hash;
 	int ret;
 
-	mutex_lock(&ftrace_regex_lock);
 	if (file->f_mode & FMODE_READ) {
 		iter = m->private;
-
 		seq_release(inode, file);
 	} else
 		iter = file->private_data;
+
+	mutex_lock(&iter->ops->regex_lock);
 
 	parser = &iter->parser;
 	if (trace_parser_loaded(parser)) {
@@ -3587,7 +3614,7 @@ int ftrace_regex_release(struct inode *inode, struct file *file)
 	free_ftrace_hash(iter->hash);
 	kfree(iter);
 
-	mutex_unlock(&ftrace_regex_lock);
+	mutex_unlock(&iter->ops->regex_lock);
 	return 0;
 }
 
@@ -4126,7 +4153,8 @@ void __init ftrace_init(void)
 
 static struct ftrace_ops global_ops = {
 	.func			= ftrace_stub,
-	.flags			= FTRACE_OPS_FL_RECURSION_SAFE,
+	.flags			= FTRACE_OPS_FL_RECURSION_SAFE | FTRACE_OPS_FL_INITIALIZED,
+	INIT_REGEX_LOCK(global_ops)
 };
 
 static int __init ftrace_nodyn_init(void)
@@ -4180,8 +4208,9 @@ ftrace_ops_control_func(unsigned long ip, unsigned long parent_ip,
 }
 
 static struct ftrace_ops control_ops = {
-	.func = ftrace_ops_control_func,
-	.flags = FTRACE_OPS_FL_RECURSION_SAFE,
+	.func	= ftrace_ops_control_func,
+	.flags	= FTRACE_OPS_FL_RECURSION_SAFE | FTRACE_OPS_FL_INITIALIZED,
+	INIT_REGEX_LOCK(control_ops)
 };
 
 static inline void
@@ -4538,6 +4567,8 @@ int ftrace_is_dead(void)
 int register_ftrace_function(struct ftrace_ops *ops)
 {
 	int ret = -1;
+
+	ftrace_ops_init(ops);
 
 	mutex_lock(&ftrace_lock);
 
