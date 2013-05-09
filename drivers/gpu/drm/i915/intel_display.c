@@ -6008,8 +6008,6 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 
 	intel_update_watermarks(dev);
 
-	intel_update_linetime_watermarks(dev, pipe, adjusted_mode);
-
 	return ret;
 }
 
