@@ -5418,10 +5418,9 @@ static inline void nohz_balance_exit_idle(int cpu)
 static inline void set_cpu_sd_state_busy(void)
 {
 	struct sched_domain *sd;
-	int cpu = smp_processor_id();
 
 	rcu_read_lock();
-	sd = rcu_dereference_check_sched_domain(cpu_rq(cpu)->sd);
+	sd = rcu_dereference_check_sched_domain(this_rq()->sd);
 
 	if (!sd || !sd->nohz_idle)
 		goto unlock;
@@ -5436,10 +5435,9 @@ unlock:
 void set_cpu_sd_state_idle(void)
 {
 	struct sched_domain *sd;
-	int cpu = smp_processor_id();
 
 	rcu_read_lock();
-	sd = rcu_dereference_check_sched_domain(cpu_rq(cpu)->sd);
+	sd = rcu_dereference_check_sched_domain(this_rq()->sd);
 
 	if (!sd || sd->nohz_idle)
 		goto unlock;

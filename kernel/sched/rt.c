@@ -472,7 +472,7 @@ static int rt_se_boosted(struct sched_rt_entity *rt_se)
 #ifdef CONFIG_SMP
 static inline const struct cpumask *sched_rt_period_mask(void)
 {
-	return cpu_rq(smp_processor_id())->rd->span;
+	return this_rq()->rd->span;
 }
 #else
 static inline const struct cpumask *sched_rt_period_mask(void)
