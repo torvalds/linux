@@ -707,7 +707,7 @@ static inline struct kiocb *aio_get_req(struct kioctx *ctx)
 	if (unlikely(!req))
 		goto out_put;
 
-	atomic_set(&req->ki_users, 2);
+	atomic_set(&req->ki_users, 1);
 	req->ki_ctx = ctx;
 	return req;
 out_put:
@@ -1051,74 +1051,8 @@ SYSCALL_DEFINE1(io_destroy, aio_context_t, ctx)
 	return -EINVAL;
 }
 
-static void aio_advance_iovec(struct kiocb *iocb, ssize_t ret)
-{
-	struct iovec *iov = &iocb->ki_iovec[iocb->ki_cur_seg];
-
-	BUG_ON(ret <= 0);
-
-	while (iocb->ki_cur_seg < iocb->ki_nr_segs && ret > 0) {
-		ssize_t this = min((ssize_t)iov->iov_len, ret);
-		iov->iov_base += this;
-		iov->iov_len -= this;
-		iocb->ki_left -= this;
-		ret -= this;
-		if (iov->iov_len == 0) {
-			iocb->ki_cur_seg++;
-			iov++;
-		}
-	}
-
-	/* the caller should not have done more io than what fit in
-	 * the remaining iovecs */
-	BUG_ON(ret > 0 && iocb->ki_left == 0);
-}
-
 typedef ssize_t (aio_rw_op)(struct kiocb *, const struct iovec *,
 			    unsigned long, loff_t);
-
-static ssize_t aio_rw_vect_retry(struct kiocb *iocb, int rw, aio_rw_op *rw_op)
-{
-	struct file *file = iocb->ki_filp;
-	struct address_space *mapping = file->f_mapping;
-	struct inode *inode = mapping->host;
-	ssize_t ret = 0;
-
-	/* This matches the pread()/pwrite() logic */
-	if (iocb->ki_pos < 0)
-		return -EINVAL;
-
-	if (rw == WRITE)
-		file_start_write(file);
-	do {
-		ret = rw_op(iocb, &iocb->ki_iovec[iocb->ki_cur_seg],
-			    iocb->ki_nr_segs - iocb->ki_cur_seg,
-			    iocb->ki_pos);
-		if (ret > 0)
-			aio_advance_iovec(iocb, ret);
-
-	/* retry all partial writes.  retry partial reads as long as its a
-	 * regular file. */
-	} while (ret > 0 && iocb->ki_left > 0 &&
-		 (rw == WRITE ||
-		  (!S_ISFIFO(inode->i_mode) && !S_ISSOCK(inode->i_mode))));
-	if (rw == WRITE)
-		file_end_write(file);
-
-	/* This means we must have transferred all that we could */
-	/* No need to retry anymore */
-	if ((ret == 0) || (iocb->ki_left == 0))
-		ret = iocb->ki_nbytes - iocb->ki_left;
-
-	/* If we managed to write some out we return that, rather than
-	 * the eventual error. */
-	if (rw == WRITE
-	    && ret < 0 && ret != -EIOCBQUEUED
-	    && iocb->ki_nbytes - iocb->ki_left)
-		ret = iocb->ki_nbytes - iocb->ki_left;
-
-	return ret;
-}
 
 static ssize_t aio_setup_vectored_rw(int rw, struct kiocb *kiocb, bool compat)
 {
@@ -1204,9 +1138,22 @@ rw_common:
 			return ret;
 
 		req->ki_nbytes = ret;
-		req->ki_left = ret;
 
-		ret = aio_rw_vect_retry(req, rw, rw_op);
+		/* XXX: move/kill - rw_verify_area()? */
+		/* This matches the pread()/pwrite() logic */
+		if (req->ki_pos < 0) {
+			ret = -EINVAL;
+			break;
+		}
+
+		if (rw == WRITE)
+			file_start_write(file);
+
+		ret = rw_op(req, req->ki_iovec,
+			    req->ki_nr_segs, req->ki_pos);
+
+		if (rw == WRITE)
+			file_end_write(file);
 		break;
 
 	case IOCB_CMD_FDSYNC:
@@ -1301,19 +1248,17 @@ static int io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 	req->ki_pos = iocb->aio_offset;
 
 	req->ki_buf = (char __user *)(unsigned long)iocb->aio_buf;
-	req->ki_left = req->ki_nbytes = iocb->aio_nbytes;
+	req->ki_nbytes = iocb->aio_nbytes;
 	req->ki_opcode = iocb->aio_lio_opcode;
 
 	ret = aio_run_iocb(req, compat);
 	if (ret)
 		goto out_put_req;
 
-	aio_put_req(req);	/* drop extra ref to req */
 	return 0;
 out_put_req:
 	put_reqs_available(ctx, 1);
-	aio_put_req(req);	/* drop extra ref to req */
-	aio_put_req(req);	/* drop i/o ref to req */
+	aio_put_req(req);
 	return ret;
 }
 

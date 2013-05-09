@@ -708,11 +708,11 @@ ep_aio_read(struct kiocb *iocb, const struct iovec *iov,
 	if (unlikely(usb_endpoint_dir_in(&epdata->desc)))
 		return -EINVAL;
 
-	buf = kmalloc(iocb->ki_left, GFP_KERNEL);
+	buf = kmalloc(iocb->ki_nbytes, GFP_KERNEL);
 	if (unlikely(!buf))
 		return -ENOMEM;
 
-	return ep_aio_rwtail(iocb, buf, iocb->ki_left, epdata, iov, nr_segs);
+	return ep_aio_rwtail(iocb, buf, iocb->ki_nbytes, epdata, iov, nr_segs);
 }
 
 static ssize_t
@@ -727,7 +727,7 @@ ep_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	if (unlikely(!usb_endpoint_dir_in(&epdata->desc)))
 		return -EINVAL;
 
-	buf = kmalloc(iocb->ki_left, GFP_KERNEL);
+	buf = kmalloc(iocb->ki_nbytes, GFP_KERNEL);
 	if (unlikely(!buf))
 		return -ENOMEM;
 

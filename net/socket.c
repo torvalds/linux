@@ -931,7 +931,7 @@ static ssize_t sock_aio_read(struct kiocb *iocb, const struct iovec *iov,
 	if (pos != 0)
 		return -ESPIPE;
 
-	if (iocb->ki_left == 0)	/* Match SYS5 behaviour */
+	if (iocb->ki_nbytes == 0)	/* Match SYS5 behaviour */
 		return 0;
 
 

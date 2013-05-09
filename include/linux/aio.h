@@ -50,11 +50,9 @@ struct kiocb {
 	unsigned short		ki_opcode;
 	size_t			ki_nbytes; 	/* copy of iocb->aio_nbytes */
 	char 			__user *ki_buf;	/* remaining iocb->aio_buf */
-	size_t			ki_left; 	/* remaining bytes */
 	struct iovec		ki_inline_vec;	/* inline vector */
  	struct iovec		*ki_iovec;
  	unsigned long		ki_nr_segs;
- 	unsigned long		ki_cur_seg;
 
 	struct list_head	ki_list;	/* the aio core uses this
 						 * for cancellation */
