@@ -445,6 +445,13 @@ fec_restart(struct net_device *ndev, int duplex)
 	u32 rcntl = OPT_FRAME_SIZE | 0x04;
 	u32 ecntl = 0x2; /* ETHEREN */
 
+	if (netif_running(ndev)) {
+		netif_device_detach(ndev);
+		napi_disable(&fep->napi);
+		netif_stop_queue(ndev);
+		netif_tx_lock(ndev);
+	}
+
 	/* Whack a reset.  We should wait for this. */
 	writel(1, fep->hwp + FEC_ECNTRL);
 	udelay(10);
@@ -605,6 +612,13 @@ fec_restart(struct net_device *ndev, int duplex)
 
 	/* Enable interrupts we wish to service */
 	writel(FEC_DEFAULT_IMASK, fep->hwp + FEC_IMASK);
+
+	if (netif_running(ndev)) {
+		netif_device_attach(ndev);
+		napi_enable(&fep->napi);
+		netif_wake_queue(ndev);
+		netif_tx_unlock(ndev);
+	}
 }
 
 static void
@@ -644,8 +658,22 @@ fec_timeout(struct net_device *ndev)
 
 	ndev->stats.tx_errors++;
 
-	fec_restart(ndev, fep->full_duplex);
-	netif_wake_queue(ndev);
+	fep->delay_work.timeout = true;
+	schedule_delayed_work(&(fep->delay_work.delay_work), 0);
+}
+
+static void fec_enet_work(struct work_struct *work)
+{
+	struct fec_enet_private *fep =
+		container_of(work,
+			     struct fec_enet_private,
+			     delay_work.delay_work.work);
+
+	if (fep->delay_work.timeout) {
+		fep->delay_work.timeout = false;
+		fec_restart(fep->netdev, fep->full_duplex);
+		netif_wake_queue(fep->netdev);
+	}
 }
 
 static void
@@ -1024,16 +1052,12 @@ static void fec_enet_adjust_link(struct net_device *ndev)
 {
 	struct fec_enet_private *fep = netdev_priv(ndev);
 	struct phy_device *phy_dev = fep->phy_dev;
-	unsigned long flags;
-
 	int status_change = 0;
-
-	spin_lock_irqsave(&fep->hw_lock, flags);
 
 	/* Prevent a state halted on mii error */
 	if (fep->mii_timeout && phy_dev->state == PHY_HALTED) {
 		phy_dev->state = PHY_RESUMING;
-		goto spin_unlock;
+		return;
 	}
 
 	if (phy_dev->link) {
@@ -1060,9 +1084,6 @@ static void fec_enet_adjust_link(struct net_device *ndev)
 			status_change = 1;
 		}
 	}
-
-spin_unlock:
-	spin_unlock_irqrestore(&fep->hw_lock, flags);
 
 	if (status_change)
 		phy_print_status(phy_dev);
@@ -1732,7 +1753,6 @@ static int fec_enet_init(struct net_device *ndev)
 		return -ENOMEM;
 
 	memset(cbd_base, 0, PAGE_SIZE);
-	spin_lock_init(&fep->hw_lock);
 
 	fep->netdev = ndev;
 
@@ -1952,6 +1972,7 @@ fec_probe(struct platform_device *pdev)
 	if (fep->bufdesc_ex && fep->ptp_clock)
 		netdev_info(ndev, "registered PHC device %d\n", fep->dev_id);
 
+	INIT_DELAYED_WORK(&(fep->delay_work.delay_work), fec_enet_work);
 	return 0;
 
 failed_register:
@@ -1984,6 +2005,7 @@ fec_drv_remove(struct platform_device *pdev)
 	struct fec_enet_private *fep = netdev_priv(ndev);
 	int i;
 
+	cancel_delayed_work_sync(&(fep->delay_work.delay_work));
 	unregister_netdev(ndev);
 	fec_enet_mii_remove(fep);
 	del_timer_sync(&fep->time_keep);
