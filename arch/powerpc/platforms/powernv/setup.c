@@ -126,6 +126,17 @@ static void pnv_progress(char *s, unsigned short hex)
 {
 }
 
+static void pnv_shutdown(void)
+{
+	/* Let the PCI code clear up IODA tables */
+	pnv_pci_shutdown();
+
+	/* And unregister all OPAL interrupts so they don't fire
+	 * up while we kexec
+	 */
+	opal_shutdown();
+}
+
 #ifdef CONFIG_KEXEC
 static void pnv_kexec_cpu_down(int crash_shutdown, int secondary)
 {
@@ -187,6 +198,7 @@ define_machine(powernv) {
 	.init_IRQ		= pnv_init_IRQ,
 	.show_cpuinfo		= pnv_show_cpuinfo,
 	.progress		= pnv_progress,
+	.machine_shutdown	= pnv_shutdown,
 	.power_save             = power7_idle,
 	.calibrate_decr		= generic_calibrate_decr,
 #ifdef CONFIG_KEXEC

@@ -1048,6 +1048,12 @@ static u32 pnv_ioda_bdfn_to_pe(struct pnv_phb *phb, struct pci_bus *bus,
 	return phb->ioda.pe_rmap[(bus->number << 8) | devfn];
 }
 
+static void pnv_pci_ioda_shutdown(struct pnv_phb *phb)
+{
+	opal_pci_reset(phb->opal_id, OPAL_PCI_IODA_TABLE_RESET,
+		       OPAL_ASSERT_RESET);
+}
+
 void __init pnv_pci_init_ioda_phb(struct device_node *np, int ioda_type)
 {
 	struct pci_controller *hose;
@@ -1177,6 +1183,9 @@ void __init pnv_pci_init_ioda_phb(struct device_node *np, int ioda_type)
 
 	/* Setup TCEs */
 	phb->dma_dev_setup = pnv_pci_ioda_dma_dev_setup;
+
+	/* Setup shutdown function for kexec */
+	phb->shutdown = pnv_pci_ioda_shutdown;
 
 	/* Setup MSI support */
 	pnv_pci_init_ioda_msis(phb);

@@ -563,6 +563,8 @@ extern void opal_nvram_init(void);
 
 extern int opal_machine_check(struct pt_regs *regs);
 
+extern void opal_shutdown(void);
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* __OPAL_H */

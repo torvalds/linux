@@ -15,6 +15,7 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 #include <asm/opal.h>
 #include <asm/firmware.h>
 
@@ -28,6 +29,8 @@ struct opal {
 static struct device_node *opal_node;
 static DEFINE_SPINLOCK(opal_write_lock);
 extern u64 opal_mc_secondary_handler[];
+static unsigned int *opal_irqs;
+static unsigned int opal_irq_count;
 
 int __init early_init_dt_scan_opal(unsigned long node,
 				   const char *uname, int depth, void *data)
@@ -323,6 +326,8 @@ static int __init opal_init(void)
 	irqs = of_get_property(opal_node, "opal-interrupts", &irqlen);
 	pr_debug("opal: Found %d interrupts reserved for OPAL\n",
 		 irqs ? (irqlen / 4) : 0);
+	opal_irq_count = irqlen / 4;
+	opal_irqs = kzalloc(opal_irq_count * sizeof(unsigned int), GFP_KERNEL);
 	for (i = 0; irqs && i < (irqlen / 4); i++, irqs++) {
 		unsigned int hwirq = be32_to_cpup(irqs);
 		unsigned int irq = irq_create_mapping(NULL, hwirq);
@@ -334,7 +339,19 @@ static int __init opal_init(void)
 		if (rc)
 			pr_warning("opal: Error %d requesting irq %d"
 				   " (0x%x)\n", rc, irq, hwirq);
+		opal_irqs[i] = irq;
 	}
 	return 0;
 }
 subsys_initcall(opal_init);
+
+void opal_shutdown(void)
+{
+	unsigned int i;
+
+	for (i = 0; i < opal_irq_count; i++) {
+		if (opal_irqs[i])
+			free_irq(opal_irqs[i], 0);
+		opal_irqs[i] = 0;
+	}
+}
