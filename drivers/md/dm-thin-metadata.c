@@ -1645,12 +1645,12 @@ int dm_thin_get_highest_mapped_block(struct dm_thin_device *td,
 	return r;
 }
 
-static int __resize_data_dev(struct dm_pool_metadata *pmd, dm_block_t new_count)
+static int __resize_space_map(struct dm_space_map *sm, dm_block_t new_count)
 {
 	int r;
 	dm_block_t old_count;
 
-	r = dm_sm_get_nr_blocks(pmd->data_sm, &old_count);
+	r = dm_sm_get_nr_blocks(sm, &old_count);
 	if (r)
 		return r;
 
@@ -1658,11 +1658,11 @@ static int __resize_data_dev(struct dm_pool_metadata *pmd, dm_block_t new_count)
 		return 0;
 
 	if (new_count < old_count) {
-		DMERR("cannot reduce size of data device");
+		DMERR("cannot reduce size of space map");
 		return -EINVAL;
 	}
 
-	return dm_sm_extend(pmd->data_sm, new_count - old_count);
+	return dm_sm_extend(sm, new_count - old_count);
 }
 
 int dm_pool_resize_data_dev(struct dm_pool_metadata *pmd, dm_block_t new_count)
@@ -1671,7 +1671,7 @@ int dm_pool_resize_data_dev(struct dm_pool_metadata *pmd, dm_block_t new_count)
 
 	down_write(&pmd->root_lock);
 	if (!pmd->fail_io)
-		r = __resize_data_dev(pmd, new_count);
+		r = __resize_space_map(pmd->data_sm, new_count);
 	up_write(&pmd->root_lock);
 
 	return r;

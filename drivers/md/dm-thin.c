@@ -922,7 +922,7 @@ static int alloc_data_block(struct thin_c *tc, dm_block_t *result)
 		return r;
 
 	if (free_blocks <= pool->low_water_blocks && !pool->low_water_triggered) {
-		DMWARN("%s: reached low water mark, sending event.",
+		DMWARN("%s: reached low water mark for data device: sending event.",
 		       dm_device_name(pool->pool_md));
 		spin_lock_irqsave(&pool->lock, flags);
 		pool->low_water_triggered = 1;
@@ -1909,6 +1909,20 @@ static int parse_pool_features(struct dm_arg_set *as, struct pool_features *pf,
 	return r;
 }
 
+static sector_t get_metadata_dev_size(struct block_device *bdev)
+{
+	sector_t metadata_dev_size = i_size_read(bdev->bd_inode) >> SECTOR_SHIFT;
+	char buffer[BDEVNAME_SIZE];
+
+	if (metadata_dev_size > THIN_METADATA_MAX_SECTORS_WARNING) {
+		DMWARN("Metadata device %s is larger than %u sectors: excess space will not be used.",
+		       bdevname(bdev, buffer), THIN_METADATA_MAX_SECTORS);
+		metadata_dev_size = THIN_METADATA_MAX_SECTORS_WARNING;
+	}
+
+	return metadata_dev_size;
+}
+
 /*
  * thin-pool <metadata dev> <data dev>
  *	     <data block size (sectors)>
@@ -1931,8 +1945,6 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	unsigned long block_size;
 	dm_block_t low_water_blocks;
 	struct dm_dev *metadata_dev;
-	sector_t metadata_dev_size;
-	char b[BDEVNAME_SIZE];
 
 	/*
 	 * FIXME Remove validation from scope of lock.
@@ -1953,10 +1965,11 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		goto out_unlock;
 	}
 
-	metadata_dev_size = i_size_read(metadata_dev->bdev->bd_inode) >> SECTOR_SHIFT;
-	if (metadata_dev_size > THIN_METADATA_MAX_SECTORS_WARNING)
-		DMWARN("Metadata device %s is larger than %u sectors: excess space will not be used.",
-		       bdevname(metadata_dev->bdev, b), THIN_METADATA_MAX_SECTORS);
+	/*
+	 * Run for the side-effect of possibly issuing a warning if the
+	 * device is too big.
+	 */
+	(void) get_metadata_dev_size(metadata_dev->bdev);
 
 	r = dm_get_device(ti, argv[1], FMODE_READ | FMODE_WRITE, &data_dev);
 	if (r) {
@@ -2079,6 +2092,43 @@ static int pool_map(struct dm_target *ti, struct bio *bio)
 	return r;
 }
 
+static int maybe_resize_data_dev(struct dm_target *ti, bool *need_commit)
+{
+	int r;
+	struct pool_c *pt = ti->private;
+	struct pool *pool = pt->pool;
+	sector_t data_size = ti->len;
+	dm_block_t sb_data_size;
+
+	*need_commit = false;
+
+	(void) sector_div(data_size, pool->sectors_per_block);
+
+	r = dm_pool_get_data_dev_size(pool->pmd, &sb_data_size);
+	if (r) {
+		DMERR("failed to retrieve data device size");
+		return r;
+	}
+
+	if (data_size < sb_data_size) {
+		DMERR("pool target (%llu blocks) too small: expected %llu",
+		      (unsigned long long)data_size, sb_data_size);
+		return -EINVAL;
+
+	} else if (data_size > sb_data_size) {
+		r = dm_pool_resize_data_dev(pool->pmd, data_size);
+		if (r) {
+			DMERR("failed to resize data device");
+			set_pool_mode(pool, PM_READ_ONLY);
+			return r;
+		}
+
+		*need_commit = true;
+	}
+
+	return 0;
+}
+
 /*
  * Retrieves the number of blocks of the data device from
  * the superblock and compares it to the actual device size,
@@ -2093,10 +2143,9 @@ static int pool_map(struct dm_target *ti, struct bio *bio)
 static int pool_preresume(struct dm_target *ti)
 {
 	int r;
+	bool need_commit1;
 	struct pool_c *pt = ti->private;
 	struct pool *pool = pt->pool;
-	sector_t data_size = ti->len;
-	dm_block_t sb_data_size;
 
 	/*
 	 * Take control of the pool object.
@@ -2105,30 +2154,12 @@ static int pool_preresume(struct dm_target *ti)
 	if (r)
 		return r;
 
-	(void) sector_div(data_size, pool->sectors_per_block);
-
-	r = dm_pool_get_data_dev_size(pool->pmd, &sb_data_size);
-	if (r) {
-		DMERR("failed to retrieve data device size");
+	r = maybe_resize_data_dev(ti, &need_commit1);
+	if (r)
 		return r;
-	}
 
-	if (data_size < sb_data_size) {
-		DMERR("pool target too small, is %llu blocks (expected %llu)",
-		      (unsigned long long)data_size, sb_data_size);
-		return -EINVAL;
-
-	} else if (data_size > sb_data_size) {
-		r = dm_pool_resize_data_dev(pool->pmd, data_size);
-		if (r) {
-			DMERR("failed to resize data device");
-			/* FIXME Stricter than necessary: Rollback transaction instead here */
-			set_pool_mode(pool, PM_READ_ONLY);
-			return r;
-		}
-
+	if (need_commit1)
 		(void) commit_or_fallback(pool);
-	}
 
 	return 0;
 }
