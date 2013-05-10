@@ -39,7 +39,7 @@ static void __init imx53_qsb_init(void)
 
 static void __init imx53_dt_init(void)
 {
-	mxc_arch_reset_init(MX53_IO_ADDRESS(MX53_WDOG1_BASE_ADDR));
+	mxc_arch_reset_init_dt();
 
 	if (of_machine_is_compatible("fsl,imx53-qsb"))
 		imx53_qsb_init();

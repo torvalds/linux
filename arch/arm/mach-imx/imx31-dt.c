@@ -16,12 +16,11 @@
 #include <asm/mach/time.h>
 
 #include "common.h"
-#include "hardware.h"
 #include "mx31.h"
 
 static void __init imx31_dt_init(void)
 {
-	mxc_arch_reset_init(MX31_IO_ADDRESS(MX31_WDOG_BASE_ADDR));
+	mxc_arch_reset_init_dt();
 
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }

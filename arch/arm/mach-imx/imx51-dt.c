@@ -17,14 +17,13 @@
 #include <asm/mach/time.h>
 
 #include "common.h"
-#include "hardware.h"
 #include "mx51.h"
 
 static void __init imx51_dt_init(void)
 {
 	struct platform_device_info devinfo = { .name = "cpufreq-cpu0", };
 
-	mxc_arch_reset_init(MX51_IO_ADDRESS(MX51_WDOG1_BASE_ADDR));
+	mxc_arch_reset_init_dt();
 
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 	platform_device_register_full(&devinfo);
