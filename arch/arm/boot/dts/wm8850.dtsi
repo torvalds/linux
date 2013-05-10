@@ -95,6 +95,41 @@
 					reg = <0x204>;
 				};
 
+				pllc: pllc {
+					#clock-cells = <0>;
+					compatible = "wm,wm8850-pll-clock";
+					clocks = <&ref25>;
+					reg = <0x208>;
+				};
+
+				plld: plld {
+					#clock-cells = <0>;
+					compatible = "wm,wm8850-pll-clock";
+					clocks = <&ref25>;
+					reg = <0x20c>;
+				};
+
+				plle: plle {
+					#clock-cells = <0>;
+					compatible = "wm,wm8850-pll-clock";
+					clocks = <&ref25>;
+					reg = <0x210>;
+				};
+
+				pllf: pllf {
+					#clock-cells = <0>;
+					compatible = "wm,wm8850-pll-clock";
+					clocks = <&ref25>;
+					reg = <0x214>;
+				};
+
+				pllg: pllg {
+					#clock-cells = <0>;
+					compatible = "wm,wm8850-pll-clock";
+					clocks = <&ref25>;
+					reg = <0x218>;
+				};
+
 				clkuart0: uart0 {
 					#clock-cells = <0>;
 					compatible = "via,vt8500-device-clock";
