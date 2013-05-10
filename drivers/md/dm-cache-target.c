@@ -1811,6 +1811,23 @@ static int parse_cache_args(struct cache_args *ca, int argc, char **argv,
 
 static struct kmem_cache *migration_cache;
 
+#define NOT_CORE_OPTION 1
+
+static int process_config_option(struct cache *cache, char **argv)
+{
+	unsigned long tmp;
+
+	if (!strcasecmp(argv[0], "migration_threshold")) {
+		if (kstrtoul(argv[1], 10, &tmp))
+			return -EINVAL;
+
+		cache->migration_threshold = tmp;
+		return 0;
+	}
+
+	return NOT_CORE_OPTION;
+}
+
 static int set_config_values(struct dm_cache_policy *p, int argc, const char **argv)
 {
 	int r = 0;
@@ -2518,23 +2535,6 @@ static void cache_status(struct dm_target *ti, status_type_t type,
 
 err:
 	DMEMIT("Error");
-}
-
-#define NOT_CORE_OPTION 1
-
-static int process_config_option(struct cache *cache, char **argv)
-{
-	unsigned long tmp;
-
-	if (!strcasecmp(argv[0], "migration_threshold")) {
-		if (kstrtoul(argv[1], 10, &tmp))
-			return -EINVAL;
-
-		cache->migration_threshold = tmp;
-		return 0;
-	}
-
-	return NOT_CORE_OPTION;
 }
 
 /*
