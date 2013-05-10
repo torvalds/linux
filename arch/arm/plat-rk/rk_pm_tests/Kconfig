@@ -43,4 +43,9 @@ config PM_TEST_CLK_AUTO_VOLT
 	help
 	  Use to auto scale regulator's voltage by step
 
+config PM_TEST_DELAYLINE
+	bool "Get delayline value"
+	help
+	  Use to get delayline value
+
 endif

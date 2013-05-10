@@ -55,6 +55,7 @@ REVISION 0.01
 #include "cpu_usage.h"
 #include "rk_suspend_test.h"
 #include "clk_auto_volt.h"
+#include "delayline.h"
 //#include "rk2928_freq.h"
 //#include "rk2928_max_freq.h"
 //#include "cpu_calc.h"
@@ -94,6 +95,9 @@ static struct pm_attribute pm_attrs[] = {
 #endif
 #ifdef CONFIG_PM_TEST_CLK_AUTO_VOLT
 	__ATTR(clk_auto_volt, S_IRUGO | S_IWUSR, clk_auto_volt_show, clk_auto_volt_store),
+#endif
+#ifdef CONFIG_PM_TEST_DELAYLINE
+	__ATTR(delayline, S_IRUGO | S_IWUSR, delayline_show, delayline_store),
 #endif
 #if 0
 	__ATTR(ddr_scale_freq, S_IRUGO | S_IWUSR, ddr_scale_freq_show, ddr_scale_freq_store),
