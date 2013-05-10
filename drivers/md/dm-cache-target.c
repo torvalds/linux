@@ -1913,7 +1913,7 @@ static int cache_create(struct cache_args *ca, struct cache **result)
 	ti->discards_supported = true;
 	ti->discard_zeroes_data_unsupported = true;
 
-	memcpy(&cache->features, &ca->features, sizeof(cache->features));
+	cache->features = ca->features;
 	ti->per_bio_data_size = get_per_bio_data_size(cache);
 
 	cache->callbacks.congested_fn = cache_is_congested;
