@@ -24,6 +24,7 @@
 #include <mach/ddr.h>
 #include <mach/debug_uart.h>
 #include <plat/efuse.h>
+#include <plat/cpu.h>
 
 #define cru_readl(offset)	readl_relaxed(RK30_CRU_BASE + offset)
 #define cru_writel(v, offset)	do { writel_relaxed(v, RK30_CRU_BASE + offset); dsb(); } while (0)
@@ -282,13 +283,47 @@ static void pm_pll_wait_lock(int pll_idx)
 	}
 }
 
-#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
-#define power_on_pll(id) \
-	cru_writel(PLL_PWR_DN_W_MSK | PLL_PWR_ON, PLL_CONS((id), 3));\
-	pm_pll_wait_lock((id))
-#else
 static void power_on_pll(enum rk_plls_id pll_id)
 {
+#if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
+	if (!soc_is_rk3188plus()) {
+		cru_writel(PLL_PWR_DN_W_MSK | PLL_PWR_ON, PLL_CONS((pll_id), 3));
+		pm_pll_wait_lock((pll_id));
+	} else {
+		u32 pllcon0, pllcon1, pllcon2;
+
+		cru_writel(PLL_PWR_DN_W_MSK | PLL_PWR_ON, PLL_CONS((pll_id),3));
+		pllcon0 = cru_readl(PLL_CONS((pll_id),0));
+		pllcon1 = cru_readl(PLL_CONS((pll_id),1));
+		pllcon2 = cru_readl(PLL_CONS((pll_id),2));
+
+		//enter slowmode
+		cru_writel(PLL_MODE_SLOW(pll_id), CRU_MODE_CON);
+
+		//enter rest
+		cru_writel(PLL_RESET_W_MSK | PLL_RESET, PLL_CONS(pll_id,3));
+		cru_writel(pllcon0, PLL_CONS(pll_id,0));
+		cru_writel(pllcon1, PLL_CONS(pll_id,1));
+		cru_writel(pllcon2, PLL_CONS(pll_id,2));
+		if (pll_id == APLL_ID)
+			sram_udelay(5);
+		else
+			udelay(5);
+
+		//return form rest
+		cru_writel(PLL_RESET_W_MSK | PLL_RESET_RESUME, PLL_CONS(pll_id,3));
+
+		//wating lock state
+		if (pll_id == APLL_ID)
+			sram_udelay(168);
+		else
+			udelay(168);
+		pm_pll_wait_lock(pll_id);
+
+		//return form slow
+		cru_writel(PLL_MODE_NORM(pll_id), CRU_MODE_CON);
+	}
+#else
 	u32 pllcon0, pllcon1, pllcon2;
 
 	cru_writel(PLL_PWR_DN_W_MSK | PLL_PWR_ON, PLL_CONS((pll_id),3));
@@ -321,8 +356,8 @@ static void power_on_pll(enum rk_plls_id pll_id)
 
 	//return form slow
 	cru_writel(PLL_MODE_NORM(pll_id), CRU_MODE_CON);
-}
 #endif
+}
 
 #define power_off_pll(id) \
 	cru_writel(PLL_PWR_DN_W_MSK | PLL_PWR_DN, PLL_CONS((id), 3))
