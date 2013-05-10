@@ -573,7 +573,7 @@ static int dlfb_render_hline(struct dlfb_data *dev, struct urb **urb_ptr,
 	return 0;
 }
 
-int dlfb_handle_damage(struct dlfb_data *dev, int x, int y,
+static int dlfb_handle_damage(struct dlfb_data *dev, int x, int y,
 	       int width, int height, char *data)
 {
 	int i, ret;
