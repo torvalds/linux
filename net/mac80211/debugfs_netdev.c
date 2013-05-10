@@ -228,9 +228,9 @@ static int ieee80211_set_smps(struct ieee80211_sub_if_data *sdata,
 	if (sdata->vif.type != NL80211_IFTYPE_STATION)
 		return -EOPNOTSUPP;
 
-	mutex_lock(&sdata->u.mgd.mtx);
+	sdata_lock(sdata);
 	err = __ieee80211_request_smps(sdata, smps_mode);
-	mutex_unlock(&sdata->u.mgd.mtx);
+	sdata_unlock(sdata);
 
 	return err;
 }
@@ -313,16 +313,16 @@ static ssize_t ieee80211_if_parse_tkip_mic_test(
 	case NL80211_IFTYPE_STATION:
 		fc |= cpu_to_le16(IEEE80211_FCTL_TODS);
 		/* BSSID SA DA */
-		mutex_lock(&sdata->u.mgd.mtx);
+		sdata_lock(sdata);
 		if (!sdata->u.mgd.associated) {
-			mutex_unlock(&sdata->u.mgd.mtx);
+			sdata_unlock(sdata);
 			dev_kfree_skb(skb);
 			return -ENOTCONN;
 		}
 		memcpy(hdr->addr1, sdata->u.mgd.associated->bssid, ETH_ALEN);
 		memcpy(hdr->addr2, sdata->vif.addr, ETH_ALEN);
 		memcpy(hdr->addr3, addr, ETH_ALEN);
-		mutex_unlock(&sdata->u.mgd.mtx);
+		sdata_unlock(sdata);
 		break;
 	default:
 		dev_kfree_skb(skb);

@@ -2318,7 +2318,7 @@ int __ieee80211_request_smps(struct ieee80211_sub_if_data *sdata,
 	enum ieee80211_smps_mode old_req;
 	int err;
 
-	lockdep_assert_held(&sdata->u.mgd.mtx);
+	lockdep_assert_held(&sdata->wdev.mtx);
 
 	old_req = sdata->u.mgd.req_smps;
 	sdata->u.mgd.req_smps = smps_mode;
@@ -2375,9 +2375,7 @@ static int ieee80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 	local->dynamic_ps_forced_timeout = timeout;
 
 	/* no change, but if automatic follow powersave */
-	mutex_lock(&sdata->u.mgd.mtx);
 	__ieee80211_request_smps(sdata, sdata->u.mgd.req_smps);
-	mutex_unlock(&sdata->u.mgd.mtx);
 
 	if (local->hw.flags & IEEE80211_HW_SUPPORTS_DYNAMIC_PS)
 		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
