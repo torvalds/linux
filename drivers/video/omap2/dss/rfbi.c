@@ -312,7 +312,7 @@ static int rfbi_transfer_area(struct omap_dss_device *dssdev,
 {
 	u32 l;
 	int r;
-	struct omap_overlay_manager *mgr = dssdev->output->manager;
+	struct omap_overlay_manager *mgr = rfbi.output.manager;
 	u16 width = rfbi.timings.x_res;
 	u16 height = rfbi.timings.y_res;
 
@@ -852,7 +852,7 @@ static void rfbi_dump_regs(struct seq_file *s)
 
 static void rfbi_config_lcd_manager(struct omap_dss_device *dssdev)
 {
-	struct omap_overlay_manager *mgr = dssdev->output->manager;
+	struct omap_overlay_manager *mgr = rfbi.output.manager;
 	struct dss_lcd_mgr_config mgr_config;
 
 	mgr_config.io_pad_mode = DSS_IO_PAD_MODE_RFBI;
@@ -890,7 +890,7 @@ static void rfbi_config_lcd_manager(struct omap_dss_device *dssdev)
 
 int omapdss_rfbi_display_enable(struct omap_dss_device *dssdev)
 {
-	struct omap_dss_output *out = dssdev->output;
+	struct omap_dss_output *out = &rfbi.output;
 	int r;
 
 	if (out == NULL || out->manager == NULL) {
@@ -933,7 +933,7 @@ EXPORT_SYMBOL(omapdss_rfbi_display_enable);
 
 void omapdss_rfbi_display_disable(struct omap_dss_device *dssdev)
 {
-	struct omap_dss_output *out = dssdev->output;
+	struct omap_dss_output *out = &rfbi.output;
 
 	dss_mgr_unregister_framedone_handler(out->manager,
 			framedone_callback, NULL);
