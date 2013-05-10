@@ -95,6 +95,8 @@ enum nfc_commands {
 	NFC_CMD_LLC_SDREQ,
 	NFC_EVENT_LLC_SDRES,
 	NFC_CMD_FW_UPLOAD,
+	NFC_EVENT_SE_ADDED,
+	NFC_EVENT_SE_REMOVED,
 /* private: internal use only */
 	__NFC_CMD_AFTER_LAST
 };
@@ -125,6 +127,8 @@ enum nfc_commands {
  * @NFC_ATTR_LLC_PARAM_MIUX: MIU eXtension parameter
  * @NFC_ATTR_SE: Available Secure Elements
  * @NFC_ATTR_FIRMWARE_NAME: Free format firmware version
+ * @NFC_ATTR_SE_INDEX: Secure element index
+ * @NFC_ATTR_SE_TYPE: Secure element type (UICC or EMBEDDED)
  */
 enum nfc_attrs {
 	NFC_ATTR_UNSPEC,
@@ -148,6 +152,8 @@ enum nfc_attrs {
 	NFC_ATTR_SE,
 	NFC_ATTR_LLC_SDP,
 	NFC_ATTR_FIRMWARE_NAME,
+	NFC_ATTR_SE_INDEX,
+	NFC_ATTR_SE_TYPE,
 /* private: internal use only */
 	__NFC_ATTR_AFTER_LAST
 };

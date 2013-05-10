@@ -763,6 +763,7 @@ EXPORT_SYMBOL(nfc_driver_failure);
 int nfc_add_se(struct nfc_dev *dev, u32 se_idx, u16 type)
 {
 	struct nfc_se *se, *n;
+	int rc;
 
 	pr_debug("%s se index %d\n", dev_name(&dev->dev), se_idx);
 
@@ -781,6 +782,14 @@ int nfc_add_se(struct nfc_dev *dev, u32 se_idx, u16 type)
 
 	list_add(&se->list, &dev->secure_elements);
 
+	rc = nfc_genl_se_added(dev, se_idx, type);
+	if (rc < 0) {
+		list_del(&se->list);
+		kfree(se);
+
+		return rc;
+	}
+
 	return 0;
 }
 EXPORT_SYMBOL(nfc_add_se);
@@ -788,11 +797,16 @@ EXPORT_SYMBOL(nfc_add_se);
 int nfc_remove_se(struct nfc_dev *dev, u32 se_idx)
 {
 	struct nfc_se *se, *n;
+	int rc;
 
 	pr_debug("%s se index %d\n", dev_name(&dev->dev), se_idx);
 
 	list_for_each_entry_safe(se, n, &dev->secure_elements, list)
 		if (se->idx == se_idx) {
+			rc = nfc_genl_se_removed(dev, se_idx);
+			if (rc < 0)
+				return rc;
+
 			list_del(&se->list);
 			kfree(se);
 
