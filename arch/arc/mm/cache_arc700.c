@@ -68,6 +68,7 @@
 #include <linux/mmu_context.h>
 #include <linux/syscalls.h>
 #include <linux/uaccess.h>
+#include <linux/pagemap.h>
 #include <asm/cacheflush.h>
 #include <asm/cachectl.h>
 #include <asm/setup.h>
@@ -138,6 +139,7 @@ void __cpuinit arc_cache_init(void)
 	struct cpuinfo_arc_cache *ic = &cpuinfo_arc700[cpu].icache;
 	struct cpuinfo_arc_cache *dc = &cpuinfo_arc700[cpu].dcache;
 	int way_pg_ratio = way_pg_ratio;
+	int dcache_does_alias;
 	char str[256];
 
 	printk(arc_cache_mumbojumbo(0, str, sizeof(str)));
@@ -184,9 +186,13 @@ chk_dc:
 		panic("Cache H/W doesn't match kernel Config");
 	}
 
+	dcache_does_alias = (dc->sz / ARC_DCACHE_WAYS) > PAGE_SIZE;
+
 	/* check for D-Cache aliasing */
-	if ((dc->sz / ARC_DCACHE_WAYS) > PAGE_SIZE)
-		panic("D$ aliasing not handled right now\n");
+	if (dcache_does_alias && !cache_is_vipt_aliasing())
+		panic("Enable CONFIG_ARC_CACHE_VIPT_ALIASING\n");
+	else if (!dcache_does_alias && cache_is_vipt_aliasing())
+		panic("Don't need CONFIG_ARC_CACHE_VIPT_ALIASING\n");
 #endif
 
 	/* Set the default Invalidate Mode to "simpy discard dirty lines"
@@ -269,47 +275,57 @@ static inline void __dc_entire_op(const int cacheop)
  * Per Line Operation on D-Cache
  * Doesn't deal with type-of-op/IRQ-disabling/waiting-for-flush-to-complete
  * It's sole purpose is to help gcc generate ZOL
+ * (aliasing VIPT dcache flushing needs both vaddr and paddr)
  */
-static inline void __dc_line_loop(unsigned long start, unsigned long sz,
-					  int aux_reg)
+static inline void __dc_line_loop(unsigned long paddr, unsigned long vaddr,
+				  unsigned long sz, const int aux_reg)
 {
-	int num_lines, slack;
+	int num_lines;
 
 	/* Ensure we properly floor/ceil the non-line aligned/sized requests
-	 * and have @start - aligned to cache line and integral @num_lines.
+	 * and have @paddr - aligned to cache line and integral @num_lines.
 	 * This however can be avoided for page sized since:
-	 *  -@start will be cache-line aligned already (being page aligned)
+	 *  -@paddr will be cache-line aligned already (being page aligned)
 	 *  -@sz will be integral multiple of line size (being page sized).
 	 */
 	if (!(__builtin_constant_p(sz) && sz == PAGE_SIZE)) {
-		slack = start & ~DCACHE_LINE_MASK;
-		sz += slack;
-		start -= slack;
+		sz += paddr & ~DCACHE_LINE_MASK;
+		paddr &= DCACHE_LINE_MASK;
+		vaddr &= DCACHE_LINE_MASK;
 	}
 
 	num_lines = DIV_ROUND_UP(sz, ARC_DCACHE_LINE_LEN);
+
+#if (CONFIG_ARC_MMU_VER <= 2)
+	paddr |= (vaddr >> PAGE_SHIFT) & 0x1F;
+#endif
 
 	while (num_lines-- > 0) {
 #if (CONFIG_ARC_MMU_VER > 2)
 		/*
 		 * Just as for I$, in MMU v3, D$ ops also require
 		 * "tag" bits in DC_PTAG, "index" bits in FLDL,IVDL ops
-		 * But we pass phy addr for both. This works since Linux
-		 * doesn't support aliasing configs for D$, yet.
-		 * Thus paddr is enough to provide both tag and index.
 		 */
-		write_aux_reg(ARC_REG_DC_PTAG, start);
+		write_aux_reg(ARC_REG_DC_PTAG, paddr);
+
+		write_aux_reg(aux_reg, vaddr);
+		vaddr += ARC_DCACHE_LINE_LEN;
+#else
+		/* paddr contains stuffed vaddrs bits */
+		write_aux_reg(aux_reg, paddr);
 #endif
-		write_aux_reg(aux_reg, start);
-		start += ARC_DCACHE_LINE_LEN;
+		paddr += ARC_DCACHE_LINE_LEN;
 	}
 }
+
+/* For kernel mappings cache operation: index is same as paddr */
+#define __dc_line_op_k(p, sz, op)	__dc_line_op(p, p, sz, op)
 
 /*
  * D-Cache : Per Line INV (discard or wback+discard) or FLUSH (wback)
  */
-static inline void __dc_line_op(unsigned long start, unsigned long sz,
-					const int cacheop)
+static inline void __dc_line_op(unsigned long paddr, unsigned long vaddr,
+				unsigned long sz, const int cacheop)
 {
 	unsigned long flags, tmp = tmp;
 	int aux;
@@ -332,7 +348,7 @@ static inline void __dc_line_op(unsigned long start, unsigned long sz,
 	else
 		aux = ARC_REG_DC_FLDL;
 
-	__dc_line_loop(start, sz, aux);
+	__dc_line_loop(paddr, vaddr, sz, aux);
 
 	if (cacheop & OP_FLUSH)	/* flush / flush-n-inv both wait */
 		wait_for_flush();
@@ -347,7 +363,8 @@ static inline void __dc_line_op(unsigned long start, unsigned long sz,
 #else
 
 #define __dc_entire_op(cacheop)
-#define __dc_line_op(start, sz, cacheop)
+#define __dc_line_op(paddr, vaddr, sz, cacheop)
+#define __dc_line_op_k(paddr, sz, cacheop)
 
 #endif /* CONFIG_ARC_HAS_DCACHE */
 
@@ -399,49 +416,45 @@ static inline void __dc_line_op(unsigned long start, unsigned long sz,
 /***********************************************************
  * Machine specific helper for per line I-Cache invalidate.
  */
-static void __ic_line_inv_vaddr(unsigned long phy_start, unsigned long vaddr,
+static void __ic_line_inv_vaddr(unsigned long paddr, unsigned long vaddr,
 				unsigned long sz)
 {
 	unsigned long flags;
-	int num_lines, slack;
-	unsigned int addr;
+	int num_lines;
 
 	/*
 	 * Ensure we properly floor/ceil the non-line aligned/sized requests:
 	 * However page sized flushes can be compile time optimised.
-	 *  -@phy_start will be cache-line aligned already (being page aligned)
+	 *  -@paddr will be cache-line aligned already (being page aligned)
 	 *  -@sz will be integral multiple of line size (being page sized).
 	 */
 	if (!(__builtin_constant_p(sz) && sz == PAGE_SIZE)) {
-		slack = phy_start & ~ICACHE_LINE_MASK;
-		sz += slack;
-		phy_start -= slack;
+		sz += paddr & ~ICACHE_LINE_MASK;
+		paddr &= ICACHE_LINE_MASK;
+		vaddr &= ICACHE_LINE_MASK;
 	}
 
 	num_lines = DIV_ROUND_UP(sz, ARC_ICACHE_LINE_LEN);
 
-#if (CONFIG_ARC_MMU_VER > 2)
-	vaddr &= ~ICACHE_LINE_MASK;
-	addr = phy_start;
-#else
+#if (CONFIG_ARC_MMU_VER <= 2)
 	/* bits 17:13 of vaddr go as bits 4:0 of paddr */
-	addr = phy_start | ((vaddr >> 13) & 0x1F);
+	paddr |= (vaddr >> PAGE_SHIFT) & 0x1F;
 #endif
 
 	local_irq_save(flags);
 	while (num_lines-- > 0) {
 #if (CONFIG_ARC_MMU_VER > 2)
 		/* tag comes from phy addr */
-		write_aux_reg(ARC_REG_IC_PTAG, addr);
+		write_aux_reg(ARC_REG_IC_PTAG, paddr);
 
 		/* index bits come from vaddr */
 		write_aux_reg(ARC_REG_IC_IVIL, vaddr);
 		vaddr += ARC_ICACHE_LINE_LEN;
 #else
 		/* paddr contains stuffed vaddrs bits */
-		write_aux_reg(ARC_REG_IC_IVIL, addr);
+		write_aux_reg(ARC_REG_IC_IVIL, paddr);
 #endif
-		addr += ARC_ICACHE_LINE_LEN;
+		paddr += ARC_ICACHE_LINE_LEN;
 	}
 	local_irq_restore(flags);
 }
@@ -457,29 +470,66 @@ static void __ic_line_inv_vaddr(unsigned long phy_start, unsigned long vaddr,
  * Exported APIs
  */
 
+/*
+ * Handle cache congruency of kernel and userspace mappings of page when kernel
+ * writes-to/reads-from
+ *
+ * The idea is to defer flushing of kernel mapping after a WRITE, possible if:
+ *  -dcache is NOT aliasing, hence any U/K-mappings of page are congruent
+ *  -U-mapping doesn't exist yet for page (finalised in update_mmu_cache)
+ *  -In SMP, if hardware caches are coherent
+ *
+ * There's a corollary case, where kernel READs from a userspace mapped page.
+ * If the U-mapping is not congruent to to K-mapping, former needs flushing.
+ */
 void flush_dcache_page(struct page *page)
 {
-	/* Make a note that dcache is not yet flushed for this page */
-	set_bit(PG_arch_1, &page->flags);
+	struct address_space *mapping;
+
+	if (!cache_is_vipt_aliasing()) {
+		set_bit(PG_arch_1, &page->flags);
+		return;
+	}
+
+	/* don't handle anon pages here */
+	mapping = page_mapping(page);
+	if (!mapping)
+		return;
+
+	/*
+	 * pagecache page, file not yet mapped to userspace
+	 * Make a note that K-mapping is dirty
+	 */
+	if (!mapping_mapped(mapping)) {
+		set_bit(PG_arch_1, &page->flags);
+	} else if (page_mapped(page)) {
+
+		/* kernel reading from page with U-mapping */
+		void *paddr = page_address(page);
+		unsigned long vaddr = page->index << PAGE_CACHE_SHIFT;
+
+		if (addr_not_cache_congruent(paddr, vaddr))
+			__flush_dcache_page(paddr, vaddr);
+	}
 }
 EXPORT_SYMBOL(flush_dcache_page);
 
 
 void dma_cache_wback_inv(unsigned long start, unsigned long sz)
 {
-	__dc_line_op(start, sz, OP_FLUSH_N_INV);
+	__dc_line_op_k(start, sz, OP_FLUSH_N_INV);
 }
 EXPORT_SYMBOL(dma_cache_wback_inv);
 
 void dma_cache_inv(unsigned long start, unsigned long sz)
 {
-	__dc_line_op(start, sz, OP_INV);
+	__dc_line_op_k(start, sz, OP_INV);
 }
 EXPORT_SYMBOL(dma_cache_inv);
 
 void dma_cache_wback(unsigned long start, unsigned long sz)
 {
-	__dc_line_op(start, sz, OP_FLUSH);
+	__dc_line_op_k(start, sz, OP_FLUSH);
 }
 EXPORT_SYMBOL(dma_cache_wback);
 
@@ -560,7 +610,7 @@ void __sync_icache_dcache(unsigned long paddr, unsigned long vaddr, int len)
 
 	local_irq_save(flags);
 	__ic_line_inv_vaddr(paddr, vaddr, len);
-	__dc_line_op(paddr, len, OP_FLUSH);
+	__dc_line_op(paddr, vaddr, len, OP_FLUSH);
 	local_irq_restore(flags);
 }
 
@@ -570,9 +620,13 @@ void __inv_icache_page(unsigned long paddr, unsigned long vaddr)
 	__ic_line_inv_vaddr(paddr, vaddr, PAGE_SIZE);
 }
 
-void __flush_dcache_page(unsigned long paddr)
+/*
+ * wrapper to clearout kernel or userspace mappings of a page
+ * For kernel mappings @vaddr == @paddr
+ */
+void ___flush_dcache_page(unsigned long paddr, unsigned long vaddr)
 {
-	__dc_line_op(paddr, PAGE_SIZE, OP_FLUSH_N_INV);
+	__dc_line_op(paddr, vaddr & PAGE_MASK, PAGE_SIZE, OP_FLUSH_N_INV);
 }
 
 void flush_icache_all(void)
@@ -600,6 +654,87 @@ noinline void flush_cache_all(void)
 	local_irq_restore(flags);
 
 }
+
+#ifdef CONFIG_ARC_CACHE_VIPT_ALIASING
+
+void flush_cache_mm(struct mm_struct *mm)
+{
+	flush_cache_all();
+}
+
+void flush_cache_page(struct vm_area_struct *vma, unsigned long u_vaddr,
+		      unsigned long pfn)
+{
+	unsigned int paddr = pfn << PAGE_SHIFT;
+
+	__sync_icache_dcache(paddr, u_vaddr, PAGE_SIZE);
+}
+
+void flush_cache_range(struct vm_area_struct *vma, unsigned long start,
+		       unsigned long end)
+{
+	flush_cache_all();
+}
+
+void copy_user_highpage(struct page *to, struct page *from,
+	unsigned long u_vaddr, struct vm_area_struct *vma)
+{
+	void *kfrom = page_address(from);
+	void *kto = page_address(to);
+	int clean_src_k_mappings = 0;
+
+	/*
+	 * If SRC page was already mapped in userspace AND it's U-mapping is
+	 * not congruent with K-mapping, sync former to physical page so that
+	 * K-mapping in memcpy below, sees the right data
+	 *
+	 * Note that while @u_vaddr refers to DST page's userspace vaddr, it is
+	 * equally valid for SRC page as well
+	 */
+	if (page_mapped(from) && addr_not_cache_congruent(kfrom, u_vaddr)) {
+		__flush_dcache_page(kfrom, u_vaddr);
+		clean_src_k_mappings = 1;
+	}
+
+	copy_page(kto, kfrom);
+
+	/*
+	 * Mark DST page K-mapping as dirty for a later finalization by
+	 * update_mmu_cache(). Although the finalization could have been done
+	 * here as well (given that both vaddr/paddr are available).
+	 * But update_mmu_cache() already has code to do that for other
+	 * non copied user pages (e.g. read faults which wire in pagecache page
+	 * directly).
+	 */
+	set_bit(PG_arch_1, &to->flags);
+
+	/*
+	 * if SRC was already usermapped and non-congruent to kernel mapping
+	 * sync the kernel mapping back to physical page
+	 */
+	if (clean_src_k_mappings) {
+		__flush_dcache_page(kfrom, kfrom);
+	} else {
+		set_bit(PG_arch_1, &from->flags);
+	}
+}
+
+void clear_user_page(void *to, unsigned long u_vaddr, struct page *page)
+{
+	clear_page(to);
+	set_bit(PG_arch_1, &page->flags);
+}
+
+void flush_anon_page(struct vm_area_struct *vma, struct page *page,
+		     unsigned long u_vaddr)
+{
+	/* TBD: do we really need to clear the kernel mapping */
+	__flush_dcache_page(page_address(page), u_vaddr);
+	__flush_dcache_page(page_address(page), page_address(page));
+
+}
+
+#endif
 
 /**********************************************************************
  * Explicit Cache flush request from user space via syscall

@@ -182,6 +182,10 @@ config ARC_CACHE_PAGES
 	  Note that Global I/D ENABLE + Per Page DISABLE works but corollary
 	  Global DISABLE + Per Page ENABLE won't work
 
+config ARC_CACHE_VIPT_ALIASING
+	bool "Support VIPT Aliasing D$"
+	default n
+
 endif	#ARC_CACHE
 
 config ARC_HAS_ICCM

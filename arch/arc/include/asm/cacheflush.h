@@ -19,6 +19,7 @@
 #define _ASM_CACHEFLUSH_H
 
 #include <linux/mm.h>
+#include <asm/shmparam.h>
 
 /*
  * Semantically we need this because icache doesn't snoop dcache/dma.
@@ -33,7 +34,9 @@ void flush_cache_all(void);
 void flush_icache_range(unsigned long start, unsigned long end);
 void __sync_icache_dcache(unsigned long paddr, unsigned long vaddr, int len);
 void __inv_icache_page(unsigned long paddr, unsigned long vaddr);
-void __flush_dcache_page(unsigned long paddr);
+void ___flush_dcache_page(unsigned long paddr, unsigned long vaddr);
+#define __flush_dcache_page(p, v)	\
+		___flush_dcache_page((unsigned long)p, (unsigned long)v)
 
 #define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 1
 
@@ -50,17 +53,54 @@ void dma_cache_wback(unsigned long start, unsigned long sz);
 #define flush_cache_vmap(start, end)		flush_cache_all()
 #define flush_cache_vunmap(start, end)		flush_cache_all()
 
-/*
- * VM callbacks when entire/range of user-space V-P mappings are
- * torn-down/get-invalidated
- *
- * Currently we don't support D$ aliasing configs for our VIPT caches
- * NOPS for VIPT Cache with non-aliasing D$ configurations only
- */
-#define flush_cache_dup_mm(mm)			/* called on fork */
+#define flush_cache_dup_mm(mm)			/* called on fork (VIVT only) */
+
+#ifndef CONFIG_ARC_CACHE_VIPT_ALIASING
+
 #define flush_cache_mm(mm)			/* called on munmap/exit */
 #define flush_cache_range(mm, u_vstart, u_vend)
 #define flush_cache_page(vma, u_vaddr, pfn)	/* PF handling/COW-break */
+
+#else	/* VIPT aliasing dcache */
+
+/* To clear out stale userspace mappings */
+void flush_cache_mm(struct mm_struct *mm);
+void flush_cache_range(struct vm_area_struct *vma,
+	unsigned long start,unsigned long end);
+void flush_cache_page(struct vm_area_struct *vma,
+	unsigned long user_addr, unsigned long page);
+
+/*
+ * To make sure that userspace mapping is flushed to memory before
+ * get_user_pages() uses a kernel mapping to access the page
+ */
+#define ARCH_HAS_FLUSH_ANON_PAGE
+void flush_anon_page(struct vm_area_struct *vma,
+	struct page *page, unsigned long u_vaddr);
+
+#endif	/* CONFIG_ARC_CACHE_VIPT_ALIASING */
+
+/*
+ * Simple wrapper over config option
+ * Bootup code ensures that hardware matches kernel configuration
+ */
+static inline int cache_is_vipt_aliasing(void)
+{
+#ifdef CONFIG_ARC_CACHE_VIPT_ALIASING
+	return 1;
+#else
+	return 0;
+#endif
+}
+
+#define CACHE_COLOR(addr)	(((unsigned long)(addr) >> (PAGE_SHIFT)) & 3)
+
+/*
+ * checks if two addresses (after page aligning) index into same cache set
+ */
+#define addr_not_cache_congruent(addr1, addr2)				\
+	cache_is_vipt_aliasing() ? 					\
+		(CACHE_COLOR(addr1) != CACHE_COLOR(addr2)) : 0		\
 
 #define copy_to_user_page(vma, page, vaddr, dst, src, len)		\
 do {									\

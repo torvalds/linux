@@ -30,13 +30,20 @@ do {						\
 /*
  * This pair is called at time of munmap/exit to flush cache and TLB entries
  * for mappings being torn down.
- * 1) cache-flush part -implemented via tlb_start_vma( ) can be NOP (for now)
- *    as we don't support aliasing configs in our VIPT D$.
+ * 1) cache-flush part -implemented via tlb_start_vma( ) for VIPT aliasing D$
  * 2) tlb-flush part - implemted via tlb_end_vma( ) flushes the TLB range
  *
  * Note, read http://lkml.org/lkml/2004/1/15/6
  */
+#ifndef CONFIG_ARC_CACHE_VIPT_ALIASING
 #define tlb_start_vma(tlb, vma)
+#else
+#define tlb_start_vma(tlb, vma)						\
+do {									\
+	if (!tlb->fullmm)						\
+		flush_cache_range(vma, vma->vm_start, vma->vm_end);	\
+} while(0)
+#endif
 
 #define tlb_end_vma(tlb, vma)						\
 do {									\

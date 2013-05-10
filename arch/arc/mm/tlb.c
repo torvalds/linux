@@ -421,25 +421,40 @@ void create_tlb(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
 /*
  * Called at the end of pagefault, for a userspace mapped page
  *  -pre-install the corresponding TLB entry into MMU
- *  -Finalize the delayed D-cache flush (wback+inv kernel mapping)
+ *  -Finalize the delayed D-cache flush of kernel mapping of page due to
+ *  	flush_dcache_page(), copy_user_page()
+ *
+ * Note that flush (when done) involves both WBACK - so physical page is
+ * in sync as well as INV - so any non-congruent aliases don't remain
  */
 void update_mmu_cache(struct vm_area_struct *vma, unsigned long vaddr_unaligned,
 		      pte_t *ptep)
 {
 	unsigned long vaddr = vaddr_unaligned & PAGE_MASK;
+	unsigned long paddr = pte_val(*ptep) & PAGE_MASK;
 
 	create_tlb(vma, vaddr, ptep);
 
-	/* icache doesn't snoop dcache, thus needs to be made coherent here */
-	if (vma->vm_flags & VM_EXEC) {
+	/*
+	 * Exec page : Independent of aliasing/page-color considerations,
+	 *	       since icache doesn't snoop dcache on ARC, any dirty
+	 *	       K-mapping of a code page needs to be wback+inv so that
+	 *	       icache fetch by userspace sees code correctly.
+	 * !EXEC page: If K-mapping is NOT congruent to U-mapping, flush it
+	 *	       so userspace sees the right data.
+	 *  (Avoids the flush for Non-exec + congruent mapping case)
+	 */
+	if (vma->vm_flags & VM_EXEC || addr_not_cache_congruent(paddr, vaddr)) {
 		struct page *page = pfn_to_page(pte_pfn(*ptep));
 
-		/* if page was dcache dirty, flush now */
 		int dirty = test_and_clear_bit(PG_arch_1, &page->flags);
 		if (dirty) {
-			unsigned long paddr =  pte_val(*ptep) & PAGE_MASK;
-			__flush_dcache_page(paddr);
-			__inv_icache_page(paddr, vaddr);
+			/* wback + inv dcache lines */
+			__flush_dcache_page(paddr, paddr);
+
+			/* invalidate any existing icache lines */
+			if (vma->vm_flags & VM_EXEC)
+				__inv_icache_page(paddr, vaddr);
 		}
 	}
 }
