@@ -1,0 +1,22 @@
+Altera Video and Image Processing(VIP) Frame Reader bindings
+
+Required properties:
+- compatible: "altr,vip-frame-reader-9.1" or "altr,vip-frame-reader-1.0"
+- reg: Physical base address and length of the framebuffer controller's
+  registers.
+- max-width: The width of the framebuffer in pixels.
+- max-height: The height of the framebuffer in pixels.
+- bits-per-color: only "8" is currently supported
+- mem-word-width = the bus width of the avalon master port on the frame reader
+
+Example:
+
+alt_vip_vfr_0: vip@0xff260000 {
+	compatible = "altr,vip-frame-reader-1.0";
+	reg = <0xff260000 0x00000080>;
+	max-width = <1024>;
+	max-height = <768>;
+	bits-per-color = <8>;
+	mem-word-width = <128>;
+};
+
