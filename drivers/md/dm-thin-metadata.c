@@ -1677,6 +1677,18 @@ int dm_pool_resize_data_dev(struct dm_pool_metadata *pmd, dm_block_t new_count)
 	return r;
 }
 
+int dm_pool_resize_metadata_dev(struct dm_pool_metadata *pmd, dm_block_t new_count)
+{
+	int r = -EINVAL;
+
+	down_write(&pmd->root_lock);
+	if (!pmd->fail_io)
+		r = __resize_space_map(pmd->metadata_sm, new_count);
+	up_write(&pmd->root_lock);
+
+	return r;
+}
+
 void dm_pool_metadata_read_only(struct dm_pool_metadata *pmd)
 {
 	down_write(&pmd->root_lock);

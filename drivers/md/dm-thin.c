@@ -1923,6 +1923,15 @@ static sector_t get_metadata_dev_size(struct block_device *bdev)
 	return metadata_dev_size;
 }
 
+static dm_block_t get_metadata_dev_size_in_blocks(struct block_device *bdev)
+{
+	sector_t metadata_dev_size = get_metadata_dev_size(bdev);
+
+	sector_div(metadata_dev_size, THIN_METADATA_BLOCK_SIZE >> SECTOR_SHIFT);
+
+	return metadata_dev_size;
+}
+
 /*
  * thin-pool <metadata dev> <data dev>
  *	     <data block size (sectors)>
@@ -2132,6 +2141,41 @@ static int maybe_resize_data_dev(struct dm_target *ti, bool *need_commit)
 	return 0;
 }
 
+static int maybe_resize_metadata_dev(struct dm_target *ti, bool *need_commit)
+{
+	int r;
+	struct pool_c *pt = ti->private;
+	struct pool *pool = pt->pool;
+	dm_block_t metadata_dev_size, sb_metadata_dev_size;
+
+	*need_commit = false;
+
+	metadata_dev_size = get_metadata_dev_size(pool->md_dev);
+
+	r = dm_pool_get_metadata_dev_size(pool->pmd, &sb_metadata_dev_size);
+	if (r) {
+		DMERR("failed to retrieve data device size");
+		return r;
+	}
+
+	if (metadata_dev_size < sb_metadata_dev_size) {
+		DMERR("metadata device (%llu sectors) too small: expected %llu",
+		      metadata_dev_size, sb_metadata_dev_size);
+		return -EINVAL;
+
+	} else if (metadata_dev_size > sb_metadata_dev_size) {
+		r = dm_pool_resize_metadata_dev(pool->pmd, metadata_dev_size);
+		if (r) {
+			DMERR("failed to resize metadata device");
+			return r;
+		}
+
+		*need_commit = true;
+	}
+
+	return 0;
+}
+
 /*
  * Retrieves the number of blocks of the data device from
  * the superblock and compares it to the actual device size,
@@ -2146,7 +2190,7 @@ static int maybe_resize_data_dev(struct dm_target *ti, bool *need_commit)
 static int pool_preresume(struct dm_target *ti)
 {
 	int r;
-	bool need_commit1;
+	bool need_commit1, need_commit2;
 	struct pool_c *pt = ti->private;
 	struct pool *pool = pt->pool;
 
@@ -2161,7 +2205,11 @@ static int pool_preresume(struct dm_target *ti)
 	if (r)
 		return r;
 
-	if (need_commit1)
+	r = maybe_resize_metadata_dev(ti, &need_commit2);
+	if (r)
+		return r;
+
+	if (need_commit1 || need_commit2)
 		(void) commit_or_fallback(pool);
 
 	return 0;
@@ -2583,7 +2631,7 @@ static struct target_type pool_target = {
 	.name = "thin-pool",
 	.features = DM_TARGET_SINGLETON | DM_TARGET_ALWAYS_WRITEABLE |
 		    DM_TARGET_IMMUTABLE,
-	.version = {1, 7, 0},
+	.version = {1, 8, 0},
 	.module = THIS_MODULE,
 	.ctr = pool_ctr,
 	.dtr = pool_dtr,

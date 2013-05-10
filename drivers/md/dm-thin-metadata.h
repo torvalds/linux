@@ -185,6 +185,7 @@ int dm_pool_get_data_dev_size(struct dm_pool_metadata *pmd, dm_block_t *result);
  * blocks would be lost.
  */
 int dm_pool_resize_data_dev(struct dm_pool_metadata *pmd, dm_block_t new_size);
+int dm_pool_resize_metadata_dev(struct dm_pool_metadata *pmd, dm_block_t new_size);
 
 /*
  * Flicks the underlying block manager into read only mode, so you know
