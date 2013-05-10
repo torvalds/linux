@@ -1520,8 +1520,6 @@ static void rk3188_lcdc_shutdown(struct platform_device *pdev)
 		lcdc_dev->driver.cur_screen->standby(1);
 	if(lcdc_dev->driver.screen_ctr_info->io_disable) //power off the screen if necessary
 		lcdc_dev->driver.screen_ctr_info->io_disable();
-	if(lcdc_dev->driver.cur_screen->sscreen_set) //turn off  lvds if necessary
-		lcdc_dev->driver.cur_screen->sscreen_set(lcdc_dev->driver.cur_screen , 0);
 	rk3188_lcdc_deint(lcdc_dev);
 	rk_fb_unregister(&(lcdc_dev->driver));	
 }
