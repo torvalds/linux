@@ -205,7 +205,7 @@ struct per_bio_data {
 	/*
 	 * writethrough fields.  These MUST remain at the end of this
 	 * structure and the 'cache' member must be the first as it
-	 * is used to determine the offsetof the writethrough fields.
+	 * is used to determine the offset of the writethrough fields.
 	 */
 	struct cache *cache;
 	dm_cblock_t cblock;
@@ -393,7 +393,7 @@ static int get_cell(struct cache *cache,
 	return r;
 }
 
- /*----------------------------------------------------------------*/
+/*----------------------------------------------------------------*/
 
 static bool is_dirty(struct cache *cache, dm_cblock_t b)
 {
@@ -419,6 +419,7 @@ static void clear_dirty(struct cache *cache, dm_oblock_t oblock, dm_cblock_t cbl
 }
 
 /*----------------------------------------------------------------*/
+
 static bool block_size_is_power_of_two(struct cache *cache)
 {
 	return cache->sectors_per_block_shift >= 0;
@@ -667,7 +668,7 @@ static void writethrough_endio(struct bio *bio, int err)
 
 	/*
 	 * We can't issue this bio directly, since we're in interrupt
-	 * context.  So it get's put on a bio list for processing by the
+	 * context.  So it gets put on a bio list for processing by the
 	 * worker thread.
 	 */
 	defer_writethrough_bio(pb->cache, bio);
