@@ -2165,6 +2165,8 @@ rbd_img_obj_parent_read_full_callback(struct rbd_img_request *img_request)
 	u32 page_count;
 	int result;
 	u64 parent_length;
+	u64 offset;
+	u64 length;
 
 	rbd_assert(img_request_child_test(img_request));
 
@@ -2179,7 +2181,7 @@ rbd_img_obj_parent_read_full_callback(struct rbd_img_request *img_request)
 
 	orig_request = img_request->obj_request;
 	rbd_assert(orig_request != NULL);
-	rbd_assert(orig_request->type == OBJ_REQUEST_BIO);
+	rbd_assert(obj_request_type_valid(orig_request->type));
 	result = img_request->result;
 	parent_length = img_request->length;
 	rbd_assert(parent_length == img_request->xferred);
@@ -2211,11 +2213,17 @@ rbd_img_obj_parent_read_full_callback(struct rbd_img_request *img_request)
 
 	/* Then the original write request op */
 
+	offset = orig_request->offset;
+	length = orig_request->length;
 	osd_req_op_extent_init(osd_req, 1, CEPH_OSD_OP_WRITE,
-					orig_request->offset,
-					orig_request->length, 0, 0);
-	osd_req_op_extent_osd_data_bio(osd_req, 1, orig_request->bio_list,
-					orig_request->length);
+					offset, length, 0, 0);
+	if (orig_request->type == OBJ_REQUEST_BIO)
+		osd_req_op_extent_osd_data_bio(osd_req, 1,
+					orig_request->bio_list, length);
+	else
+		osd_req_op_extent_osd_data_pages(osd_req, 1,
+					orig_request->pages, length,
+					offset & ~PAGE_MASK, false, false);
 
 	rbd_osd_req_format_write(orig_request);
 
@@ -2261,7 +2269,7 @@ static int rbd_img_obj_parent_read_full(struct rbd_obj_request *obj_request)
 	int result;
 
 	rbd_assert(obj_request_img_data_test(obj_request));
-	rbd_assert(obj_request->type == OBJ_REQUEST_BIO);
+	rbd_assert(obj_request_type_valid(obj_request->type));
 
 	img_request = obj_request->img_request;
 	rbd_assert(img_request != NULL);
