@@ -328,6 +328,29 @@ static void hdmi_runtime_put(void)
 	WARN_ON(r < 0 && r != -ENOSYS);
 }
 
+static int hdmi_init_regulator(void)
+{
+	struct regulator *reg;
+
+	if (hdmi.vdda_hdmi_dac_reg != NULL)
+		return 0;
+
+	reg = devm_regulator_get(&hdmi.pdev->dev, "vdda_hdmi_dac");
+
+	/* DT HACK: try VDAC to make omapdss work for o4 sdp/panda */
+	if (IS_ERR(reg))
+		reg = devm_regulator_get(&hdmi.pdev->dev, "VDAC");
+
+	if (IS_ERR(reg)) {
+		DSSERR("can't get VDDA_HDMI_DAC regulator\n");
+		return PTR_ERR(reg);
+	}
+
+	hdmi.vdda_hdmi_dac_reg = reg;
+
+	return 0;
+}
+
 static int hdmi_init_display(struct omap_dss_device *dssdev)
 {
 	int r;
@@ -342,22 +365,9 @@ static int hdmi_init_display(struct omap_dss_device *dssdev)
 
 	dss_init_hdmi_ip_ops(&hdmi.ip_data, omapdss_get_version());
 
-	if (hdmi.vdda_hdmi_dac_reg == NULL) {
-		struct regulator *reg;
-
-		reg = devm_regulator_get(&hdmi.pdev->dev, "vdda_hdmi_dac");
-
-		/* DT HACK: try VDAC to make omapdss work for o4 sdp/panda */
-		if (IS_ERR(reg))
-			reg = devm_regulator_get(&hdmi.pdev->dev, "VDAC");
-
-		if (IS_ERR(reg)) {
-			DSSERR("can't get VDDA_HDMI_DAC regulator\n");
-			return PTR_ERR(reg);
-		}
-
-		hdmi.vdda_hdmi_dac_reg = reg;
-	}
+	r = hdmi_init_regulator();
+	if (r)
+		return r;
 
 	r = gpio_request_array(gpios, ARRAY_SIZE(gpios));
 	if (r)
