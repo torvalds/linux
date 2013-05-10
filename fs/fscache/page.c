@@ -796,11 +796,16 @@ void fscache_invalidate_writes(struct fscache_cookie *cookie)
 
 	_enter("");
 
-	while (spin_lock(&cookie->stores_lock),
-	       n = radix_tree_gang_lookup_tag(&cookie->stores, results, 0,
-					      ARRAY_SIZE(results),
-					      FSCACHE_COOKIE_PENDING_TAG),
-	       n > 0) {
+	for (;;) {
+		spin_lock(&cookie->stores_lock);
+		n = radix_tree_gang_lookup_tag(&cookie->stores, results, 0,
+					       ARRAY_SIZE(results),
+					       FSCACHE_COOKIE_PENDING_TAG);
+		if (n == 0) {
+			spin_unlock(&cookie->stores_lock);
+			break;
+		}
+
 		for (i = n - 1; i >= 0; i--) {
 			page = results[i];
 			radix_tree_delete(&cookie->stores, page->index);
@@ -812,7 +817,6 @@ void fscache_invalidate_writes(struct fscache_cookie *cookie)
 			page_cache_release(results[i]);
 	}
 
-	spin_unlock(&cookie->stores_lock);
 	_leave("");
 }
 
