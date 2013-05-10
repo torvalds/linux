@@ -5434,6 +5434,12 @@ static int handle_invalid_guest_state(struct kvm_vcpu *vcpu)
 			return 0;
 		}
 
+		if (vcpu->arch.halt_request) {
+			vcpu->arch.halt_request = 0;
+			ret = kvm_emulate_halt(vcpu);
+			goto out;
+		}
+
 		if (signal_pending(current))
 			goto out;
 		if (need_resched())
