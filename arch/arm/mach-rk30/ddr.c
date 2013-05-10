@@ -26,7 +26,7 @@
 
 typedef uint32_t uint32;
 
-//#define ENABLE_DDR_CLCOK_GPLL_PATH  //for RK3188
+#define ENABLE_DDR_CLCOK_GPLL_PATH  //for RK3188
 
 #define DDR3_DDR2_DLL_DISABLE_FREQ    (125)
 #define DDR3_DDR2_ODT_DISABLE_FREQ    (333)
@@ -3556,9 +3556,9 @@ void __sramlocalfunc ddr_set_pll_exit_3168(uint32 freq_slew,uint32_t dqstr_value
 
 static __sramdata bool ddr_rk3188_dpll_is_good=true;
 #if defined(CONFIG_ARCH_RK3188)
-bool ddr_get_dpll_status(void) //DPLL bad rerurn false;DPLL good return true;
+bool ddr_get_dpll_status(void) //CPLL or DPLL bad rerurn false;good return true;
 {
-    if (rk_pll_flag() & 0x2)
+    if (rk_pll_flag() & 0x3)
         return false;
     else
         return true;   
@@ -3980,7 +3980,7 @@ int ddr_init(uint32_t dram_speed_bin, uint32_t freq)
     uint32_t die=1;
     uint32_t gsr,dqstr;
 
-    ddr_print("version 1.00 20130507 \n");
+    ddr_print("version 1.00 20130510 \n");
 
     mem_type = pPHY_Reg->DCR.b.DDRMD;
     ddr_speed_bin = dram_speed_bin;
