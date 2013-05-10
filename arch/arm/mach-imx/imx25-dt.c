@@ -15,10 +15,13 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include "common.h"
+#include "hardware.h"
 #include "mx25.h"
 
 static void __init imx25_dt_init(void)
 {
+	mxc_arch_reset_init(MX25_IO_ADDRESS(MX25_WDOG_BASE_ADDR));
+
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
