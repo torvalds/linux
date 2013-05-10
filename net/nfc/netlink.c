@@ -1145,6 +1145,52 @@ free_msg:
 	return -EMSGSIZE;
 }
 
+static int nfc_genl_enable_se(struct sk_buff *skb, struct genl_info *info)
+{
+	struct nfc_dev *dev;
+	int rc;
+	u32 idx, se_idx;
+
+	if (!info->attrs[NFC_ATTR_DEVICE_INDEX] ||
+	    !info->attrs[NFC_ATTR_SE_INDEX])
+		return -EINVAL;
+
+	idx = nla_get_u32(info->attrs[NFC_ATTR_DEVICE_INDEX]);
+	se_idx = nla_get_u32(info->attrs[NFC_ATTR_SE_INDEX]);
+
+	dev = nfc_get_device(idx);
+	if (!dev)
+		return -ENODEV;
+
+	rc = nfc_enable_se(dev, se_idx);
+
+	nfc_put_device(dev);
+	return rc;
+}
+
+static int nfc_genl_disable_se(struct sk_buff *skb, struct genl_info *info)
+{
+	struct nfc_dev *dev;
+	int rc;
+	u32 idx, se_idx;
+
+	if (!info->attrs[NFC_ATTR_DEVICE_INDEX] ||
+	    !info->attrs[NFC_ATTR_SE_INDEX])
+		return -EINVAL;
+
+	idx = nla_get_u32(info->attrs[NFC_ATTR_DEVICE_INDEX]);
+	se_idx = nla_get_u32(info->attrs[NFC_ATTR_SE_INDEX]);
+
+	dev = nfc_get_device(idx);
+	if (!dev)
+		return -ENODEV;
+
+	rc = nfc_disable_se(dev, se_idx);
+
+	nfc_put_device(dev);
+	return rc;
+}
+
 static struct genl_ops nfc_genl_ops[] = {
 	{
 		.cmd = NFC_CMD_GET_DEVICE,
@@ -1207,6 +1253,16 @@ static struct genl_ops nfc_genl_ops[] = {
 	{
 		.cmd = NFC_CMD_FW_UPLOAD,
 		.doit = nfc_genl_fw_upload,
+		.policy = nfc_genl_policy,
+	},
+	{
+		.cmd = NFC_CMD_ENABLE_SE,
+		.doit = nfc_genl_enable_se,
+		.policy = nfc_genl_policy,
+	},
+	{
+		.cmd = NFC_CMD_DISABLE_SE,
+		.doit = nfc_genl_disable_se,
 		.policy = nfc_genl_policy,
 	},
 };
