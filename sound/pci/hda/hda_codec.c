@@ -1583,7 +1583,7 @@ void snd_hda_codec_setup_stream(struct hda_codec *codec, hda_nid_t nid,
 		    "NID=0x%x, stream=0x%x, channel=%d, format=0x%x\n",
 		    nid, stream_tag, channel_id, format);
 	p = get_hda_cvt_setup(codec, nid);
-	if (!p || p->active)
+	if (!p)
 		return;
 
 	if (codec->pcm_format_first)
@@ -1630,7 +1630,7 @@ void __snd_hda_codec_cleanup_stream(struct hda_codec *codec, hda_nid_t nid,
 
 	snd_printdd("hda_codec_cleanup_stream: NID=0x%x\n", nid);
 	p = get_hda_cvt_setup(codec, nid);
-	if (p && p->active) {
+	if (p) {
 		/* here we just clear the active flag when do_now isn't set;
 		 * actual clean-ups will be done later in
 		 * purify_inactive_streams() called from snd_hda_codec_prpapre()
