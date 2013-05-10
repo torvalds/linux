@@ -1,0 +1,45 @@
+
+Fax with isdn4linux
+===================
+
+When enabled during kernel configuration, the tty emulator
+of the ISDN subsystem is capable of the Fax Class 2 commands.
+
+This only makes sense under the following conditions :
+
+- You need the commands as dummy, because you are using
+  hylafax (with patch) for AVM capi.
+- You want to use the fax capabilities of your isdn-card.
+  (supported cards are listed below)
+
+
+NOTE: This implementation does *not* support fax with passive
+      ISDN-cards (known as softfax). The low-level driver of
+      the ISDN-card and/or the card itself must support this.
+
+
+Supported ISDN-Cards
+--------------------
+
+Eicon DIVA Server BRI/PCI
+	- full support with both B-channels.
+
+Eicon DIVA Server 4BRI/PCI
+	- full support with all B-channels.
+
+Eicon DIVA Server PRI/PCI
+	- full support on amount of B-channels
+		depending on DSPs on board.
+
+
+
+The command set is known as Class 2 (not Class 2.0) and
+can be activated by AT+FCLASS=2
+
+
+The interface between the link-level-module and the hardware-level driver
+is described in the files INTERFACE.fax and INTERFACE.
+
+Armin
+mac@melware.de
+

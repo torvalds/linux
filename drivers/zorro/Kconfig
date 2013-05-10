@@ -1,0 +1,18 @@
+#
+# Zorro configuration
+#
+config ZORRO_NAMES
+	bool "Zorro device name database"
+	depends on ZORRO
+	---help---
+	  By default, the kernel contains a database of all known Zorro device
+	  names to make the information in /proc/iomem comprehensible to the
+	  user. This database increases the size of the kernel image by about
+	  15KB, but it gets freed after the system boots up, so it doesn't
+	  take up kernel memory. Anyway, if you are building an installation
+	  floppy or kernel for an embedded system where kernel image size
+	  really matters, you can disable this feature and you'll get device
+	  ID numbers instead of names.
+
+	  When in doubt, say Y.
+

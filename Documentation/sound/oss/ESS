@@ -1,0 +1,34 @@
+Documentation for the ESS AudioDrive chips
+
+In 2.4 kernels the SoundBlaster driver not only tries to detect an ESS chip, it
+tries to detect the type of ESS chip too. The correct detection of the chip 
+doesn't always succeed however, so unless you use the kernel isapnp facilities
+(and you chip is pnp capable) the default behaviour is 2.0 behaviour which
+means: only detect ES688 and ES1688.
+
+All ESS chips now have a recording level setting. This is a need-to-have for
+people who want to use their ESS for recording sound.
+
+Every chip that's detected as a later-than-es1688 chip has a 6 bits logarithmic
+master volume control.
+
+Every chip that's detected as a ES1887 now has Full Duplex support. Made a 
+little testprogram that shows that is works, haven't seen a real program that
+needs this however.
+
+For ESS chips an additional parameter "esstype" can be specified. This controls
+the (auto) detection of the ESS chips. It can have 3 kinds of values:
+
+-1   Act like 2.0 kernels: only detect ES688 or ES1688.
+0	 Try to auto-detect the chip (may fail for ES1688)
+688  The chip will be treated as  ES688
+1688  ,,  ,,   ,,  ,,    ,,   ,, ES1688
+1868  ,,  ,,   ,,  ,,    ,,   ,, ES1868
+1869  ,,  ,,   ,,  ,,    ,,   ,, ES1869
+1788  ,,  ,,   ,,  ,,    ,,   ,, ES1788
+1887  ,,  ,,   ,,  ,,    ,,   ,, ES1887
+1888  ,,  ,,   ,,  ,,    ,,   ,, ES1888
+
+Because Full Duplex is supported for ES1887 you can specify a second DMA
+channel by specifying module parameter dma16. It can be one of: 0, 1, 3 or 5.
+

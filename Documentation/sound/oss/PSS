@@ -1,0 +1,41 @@
+The PSS cards and other ECHO based cards provide an onboard DSP with 
+downloadable programs and also has an AD1848 "Microsoft Sound System" 
+device. The PSS driver enables MSS and MPU401 modes of the card. SB 
+is not enabled since it doesn't work concurrently with MSS. 
+
+If you build this driver as a module then the driver takes the following
+parameters
+
+pss_io. 	The I/O base the PSS card is configured at (normally 0x220
+		or 0x240)
+
+mss_io		The base address of the Microsoft Sound System interface.
+		This is normally 0x530, but may be 0x604 or other addresses.
+
+mss_irq		The interrupt assigned to the Microsoft Sound System
+		emulation. IRQ's 3,5,7,9,10,11 and 12 are available. If you
+		get IRQ errors be sure to check the interrupt is set to 
+		"ISA/Legacy" in the BIOS on modern machines.
+
+mss_dma		The DMA channel used by the Microsoft Sound System.
+		This can be 0, 1, or 3. DMA 0 is not available on older 
+		machines and will cause a crash on them.
+
+mpu_io		The MPU emulation base address. This sets the base of the
+		synthesizer. It is typically 0x330 but can be altered.
+
+mpu_irq		The interrupt to use for the synthesizer. It must differ
+		from the IRQ used by the Microsoft Sound System port.
+
+
+The mpu_io/mpu_irq fields are optional. If they are not specified the 
+synthesizer parts are not configured.
+
+When the module is loaded it looks for a file called 
+/etc/sound/pss_synth. This is the firmware file from the DOS install disks.
+This fil holds a general MIDI emulation. The file expected is called
+genmidi.ld on newer DOS driver install disks and synth.ld on older ones.
+
+You can also load alternative DSP algorithms into the card if you wish. One
+alternative driver can be found at http://www.mpg123.de/
+

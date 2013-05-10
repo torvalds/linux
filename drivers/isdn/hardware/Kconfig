@@ -1,0 +1,9 @@
+#
+# ISDN hardware drivers
+#
+comment "CAPI hardware drivers"
+
+source "drivers/isdn/hardware/avm/Kconfig"
+
+source "drivers/isdn/hardware/eicon/Kconfig"
+

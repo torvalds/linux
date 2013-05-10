@@ -1,0 +1,36 @@
+* NOTE - this is an unmaintained driver.  The original author cannot be located.
+
+SDL Communications is now SBS Technologies, and does not have any
+information on these ancient ISA cards on their website.
+
+James Nelson <james4765@gmail.com> - 12-12-2004
+
+	This is the README for RISCom/8 multi-port serial driver
+	(C) 1994-1996 D.Gorodchanin
+	See file LICENSE for terms and conditions.
+
+NOTE: English is not my native language. 
+      I'm sorry for any mistakes in this text.
+
+Misc. notes for RISCom/8 serial driver, in no particular order :)
+
+1) This driver can support up to 4 boards at time.
+   Use string "riscom8=0xXXX,0xXXX,0xXXX,0xXXX" at LILO prompt, for
+   setting I/O base addresses for boards. If you compile driver
+   as module use modprobe options "iobase=0xXXX iobase1=0xXXX iobase2=..."
+
+2) The driver partially supports famous 'setserial' program, you can use almost
+   any of its options, excluding port & irq settings.
+
+3) There are some misc. defines at the beginning of riscom8.c, please read the 
+   comments and try to change some of them in case of problems.
+
+4) I consider the current state of the driver as BETA.
+
+5) SDL Communications WWW page is http://www.sdlcomm.com.
+
+6) You can use the MAKEDEV program to create RISCom/8 /dev/ttyL* entries.
+
+7) Minor numbers for first board are 0-7, for second 8-15, etc.
+
+22 Apr 1996.

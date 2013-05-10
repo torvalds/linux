@@ -1,0 +1,36 @@
+#
+# Acorn Econet/AUN protocols 
+#
+
+config ECONET
+	tristate "Acorn Econet/AUN protocols (EXPERIMENTAL)"
+	depends on EXPERIMENTAL && INET
+	---help---
+	  Econet is a fairly old and slow networking protocol mainly used by
+	  Acorn computers to access file and print servers. It uses native
+	  Econet network cards. AUN is an implementation of the higher level
+	  parts of Econet that runs over ordinary Ethernet connections, on
+	  top of the UDP packet protocol, which in turn runs on top of the
+	  Internet protocol IP.
+
+	  If you say Y here, you can choose with the next two options whether
+	  to send Econet/AUN traffic over a UDP Ethernet connection or over
+	  a native Econet network card.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called econet.
+
+config ECONET_AUNUDP
+	bool "AUN over UDP"
+	depends on ECONET
+	help
+	  Say Y here if you want to send Econet/AUN traffic over a UDP
+	  connection (UDP is a packet based protocol that runs on top of the
+	  Internet protocol IP) using an ordinary Ethernet network card.
+
+config ECONET_NATIVE
+	bool "Native Econet"
+	depends on ECONET
+	help
+	  Say Y here if you have a native Econet network card installed in
+	  your computer.

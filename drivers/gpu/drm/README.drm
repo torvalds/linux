@@ -1,0 +1,43 @@
+************************************************************
+* For the very latest on DRI development, please see:      *
+*     http://dri.freedesktop.org/                          *
+************************************************************
+
+The Direct Rendering Manager (drm) is a device-independent kernel-level
+device driver that provides support for the XFree86 Direct Rendering
+Infrastructure (DRI).
+
+The DRM supports the Direct Rendering Infrastructure (DRI) in four major
+ways:
+
+    1. The DRM provides synchronized access to the graphics hardware via
+       the use of an optimized two-tiered lock.
+
+    2. The DRM enforces the DRI security policy for access to the graphics
+       hardware by only allowing authenticated X11 clients access to
+       restricted regions of memory.
+
+    3. The DRM provides a generic DMA engine, complete with multiple
+       queues and the ability to detect the need for an OpenGL context
+       switch.
+
+    4. The DRM is extensible via the use of small device-specific modules
+       that rely extensively on the API exported by the DRM module.
+
+
+Documentation on the DRI is available from:
+    http://dri.freedesktop.org/wiki/Documentation
+    http://sourceforge.net/project/showfiles.php?group_id=387
+    http://dri.sourceforge.net/doc/
+
+For specific information about kernel-level support, see:
+
+    The Direct Rendering Manager, Kernel Support for the Direct Rendering
+    Infrastructure
+    http://dri.sourceforge.net/doc/drm_low_level.html
+
+    Hardware Locking for the Direct Rendering Infrastructure
+    http://dri.sourceforge.net/doc/hardware_locking_low_level.html
+
+    A Security Analysis of the Direct Rendering Infrastructure
+    http://dri.sourceforge.net/doc/security_low_level.html

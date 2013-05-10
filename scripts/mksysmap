@@ -1,0 +1,45 @@
+#!/bin/sh -x
+# Based on the vmlinux file create the System.map file
+# System.map is used by module-init tools and some debugging
+# tools to retrieve the actual addresses of symbols in the kernel.
+#
+# Usage
+# mksysmap vmlinux System.map
+
+
+#####
+# Generate System.map (actual filename passed as second argument)
+
+# $NM produces the following output:
+# f0081e80 T alloc_vfsmnt
+
+#   The second row specify the type of the symbol:
+#   A = Absolute
+#   B = Uninitialised data (.bss)
+#   C = Comon symbol
+#   D = Initialised data
+#   G = Initialised data for small objects
+#   I = Indirect reference to another symbol
+#   N = Debugging symbol
+#   R = Read only
+#   S = Uninitialised data for small objects
+#   T = Text code symbol
+#   U = Undefined symbol
+#   V = Weak symbol
+#   W = Weak symbol
+#   Corresponding small letters are local symbols
+
+# For System.map filter away:
+#   a - local absolute symbols
+#   U - undefined global symbols
+#   N - debugging symbols
+#   w - local weak symbols
+
+# readprofile starts reading symbols when _stext is found, and
+# continue until it finds a symbol which is not either of 'T', 't',
+# 'W' or 'w'. __crc_ are 'A' and placed in the middle
+# so we just ignore them to let readprofile continue to work.
+# (At least sparc64 has __crc_ in the middle).
+
+$NM -n $1 | grep -v '\( [aNUw] \)\|\(__crc_\)\|\( \$[adt]\)' > $2
+

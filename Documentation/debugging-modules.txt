@@ -1,0 +1,22 @@
+Debugging Modules after 2.6.3
+-----------------------------
+
+In almost all distributions, the kernel asks for modules which don't
+exist, such as "net-pf-10" or whatever.  Changing "modprobe -q" to
+"succeed" in this case is hacky and breaks some setups, and also we
+want to know if it failed for the fallback code for old aliases in
+fs/char_dev.c, for example.
+
+In the past a debugging message which would fill people's logs was
+emitted.  This debugging message has been removed.  The correct way
+of debugging module problems is something like this:
+
+echo '#! /bin/sh' > /tmp/modprobe
+echo 'echo "$@" >> /tmp/modprobe.log' >> /tmp/modprobe
+echo 'exec /sbin/modprobe "$@"' >> /tmp/modprobe
+chmod a+x /tmp/modprobe
+echo /tmp/modprobe > /proc/sys/kernel/modprobe
+
+Note that the above applies only when the *kernel* is requesting
+that the module be loaded -- it won't have any effect if that module
+is being loaded explicitly using "modprobe" from userspace.

@@ -1,0 +1,11 @@
+config USB_M5602
+	tristate "ALi USB m5602 Camera Driver"
+	depends on VIDEO_V4L2 && USB_GSPCA
+	help
+	  Say Y here if you want support for cameras based on the
+	  ALi m5602 connected to various image sensors.
+
+	  See <file:Documentation/video4linux/m5602.txt> for more info.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gspca_m5602.

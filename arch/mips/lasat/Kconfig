@@ -1,0 +1,15 @@
+config PICVUE
+	tristate "PICVUE LCD display driver"
+	depends on LASAT
+
+config PICVUE_PROC
+	tristate "PICVUE LCD display driver /proc interface"
+	depends on PICVUE
+
+config DS1603
+	bool "DS1603 RTC driver"
+	depends on LASAT
+
+config LASAT_SYSCTL
+	bool "LASAT sysctl interface"
+	depends on LASAT

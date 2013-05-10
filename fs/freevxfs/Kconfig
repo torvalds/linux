@@ -1,0 +1,16 @@
+config VXFS_FS
+	tristate "FreeVxFS file system support (VERITAS VxFS(TM) compatible)"
+	depends on BLOCK
+	help
+	  FreeVxFS is a file system driver that support the VERITAS VxFS(TM)
+	  file system format.  VERITAS VxFS(TM) is the standard file system
+	  of SCO UnixWare (and possibly others) and optionally available
+	  for Sunsoft Solaris, HP-UX and many other operating systems.
+	  Currently only readonly access is supported.
+
+	  NOTE: the file system type as used by mount(1), mount(2) and
+	  fstab(5) is 'vxfs' as it describes the file system format, not
+	  the actual driver.
+
+	  To compile this as a module, choose M here: the module will be
+	  called freevxfs.  If unsure, say N.

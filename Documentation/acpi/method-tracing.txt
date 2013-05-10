@@ -1,0 +1,26 @@
+/sys/module/acpi/parameters/:
+
+trace_method_name
+	The AML method name that the user wants to trace
+
+trace_debug_layer
+	The temporary debug_layer used when tracing the method.
+	Using 0xffffffff by default if it is 0.
+
+trace_debug_level
+	The temporary debug_level used when tracing the method.
+	Using 0x00ffffff by default if it is 0.
+
+trace_state
+	The status of the tracing feature.
+
+	"enabled" means this feature is enabled
+	and the AML method is traced every time it's executed.
+
+	"1" means this feature is enabled and the AML method
+	will only be traced during the next execution.
+
+	"disabled" means this feature is disabled.
+	Users can enable/disable this debug tracing feature by
+	"echo string > /sys/module/acpi/parameters/trace_state".
+	"string" should be one of "enable", "disable" and "1".

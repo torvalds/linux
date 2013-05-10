@@ -1,0 +1,76 @@
+config IBM_NEW_EMAC
+	tristate "IBM EMAC Ethernet support"
+	depends on PPC_DCR
+	select CRC32
+	help
+	  This driver supports the IBM EMAC family of Ethernet controllers
+	  typically found on 4xx embedded PowerPC chips, but also on the
+	  Axon southbridge for Cell.
+
+config IBM_NEW_EMAC_RXB
+	int "Number of receive buffers"
+	depends on IBM_NEW_EMAC
+	default "128"
+
+config IBM_NEW_EMAC_TXB
+	int "Number of transmit buffers"
+	depends on IBM_NEW_EMAC
+	default "64"
+
+config IBM_NEW_EMAC_POLL_WEIGHT
+	int "MAL NAPI polling weight"
+	depends on IBM_NEW_EMAC
+	default "32"
+
+config IBM_NEW_EMAC_RX_COPY_THRESHOLD
+	int "RX skb copy threshold (bytes)"
+	depends on IBM_NEW_EMAC
+	default "256"
+
+config IBM_NEW_EMAC_RX_SKB_HEADROOM
+	int "Additional RX skb headroom (bytes)"
+	depends on IBM_NEW_EMAC
+	default "0"
+	help
+	  Additional receive skb headroom. Note, that driver
+	  will always reserve at least 2 bytes to make IP header
+	  aligned, so usually there is no need to add any additional
+	  headroom.
+
+	  If unsure, set to 0.
+
+config IBM_NEW_EMAC_DEBUG
+	bool "Debugging"
+	depends on IBM_NEW_EMAC
+	default n
+
+# The options below has to be select'ed by the respective
+# processor types or platforms
+
+config IBM_NEW_EMAC_ZMII
+	bool
+	default n
+
+config IBM_NEW_EMAC_RGMII
+	bool
+	default n
+
+config IBM_NEW_EMAC_TAH
+	bool
+	default n
+
+config IBM_NEW_EMAC_EMAC4
+	bool
+	default n
+
+config IBM_NEW_EMAC_NO_FLOW_CTRL
+	bool
+	default n
+
+config IBM_NEW_EMAC_MAL_CLR_ICINTSTAT
+	bool
+	default n
+
+config IBM_NEW_EMAC_MAL_COMMON_ERR
+	bool
+	default n

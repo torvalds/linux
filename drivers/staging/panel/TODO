@@ -1,0 +1,9 @@
+TODO:
+	- checkpatch.pl cleanups
+	- Lindent
+	- review major/minor usages
+	- review userspace api
+	- see if all of this could be easier done in userspace instead.
+
+Please send patches to Greg Kroah-Hartman <greg@kroah.com> and
+Willy Tarreau <willy@meta-x.org>

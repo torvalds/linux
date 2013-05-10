@@ -1,0 +1,60 @@
+                     FlashPoint Driver Developer's Kit
+                                Version 1.0
+
+                   Copyright 1995-1996 by Mylex Corporation
+                            All Rights Reserved
+
+This program is free software; you may redistribute and/or modify it under
+the terms of either:
+
+    a) the GNU General Public License as published by the Free Software
+    Foundation; either version 2, or (at your option) any later version,
+
+    or
+
+    b) the "BSD-style License" included below.
+
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY, without even the implied warranty of MERCHANTABILITY
+or FITNESS FOR A PARTICULAR PURPOSE.  See either the GNU General Public
+License or the BSD-style License below for more details.
+
+You should have received a copy of the GNU General Public License along
+with this program; if not, write to the Free Software Foundation, Inc.,
+675 Mass Ave, Cambridge, MA 02139, USA.
+
+The BSD-style License is as follows:
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are
+met:
+
+1. Redistributions of source code must retain this LICENSE.FlashPoint
+   file, without modification, this list of conditions, and the following
+   disclaimer.  The following copyright notice must appear immediately at
+   the beginning of all source files:
+
+        Copyright 1995-1996 by Mylex Corporation.  All Rights Reserved
+
+        This file is available under both the GNU General Public License
+        and a BSD-style copyright; see LICENSE.FlashPoint for details.
+
+2. Redistributions in binary form must reproduce the above copyright
+   notice, this list of conditions and the following disclaimer in the
+   documentation and/or other materials provided with the distribution.
+
+3. The name of Mylex Corporation may not be used to endorse or promote
+   products derived from this software without specific prior written
+   permission.
+
+THIS SOFTWARE IS PROVIDED BY MYLEX CORP. ``AS IS'' AND ANY EXPRESS OR
+IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
+NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+SUCH DAMAGE.

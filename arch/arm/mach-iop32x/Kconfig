@@ -1,0 +1,46 @@
+if ARCH_IOP32X
+
+menu "IOP32x Implementation Options"
+
+comment "IOP32x Platform Types"
+
+config MACH_EP80219
+	bool
+
+config MACH_GLANTANK
+	bool "Enable support for the IO-Data GLAN Tank"
+	help
+	  Say Y here if you want to run your kernel on the GLAN Tank
+	  NAS appliance or machines from IO-Data's HDL-Gxxx, HDL-GWxxx
+	  and HDL-GZxxx series.
+
+config ARCH_IQ80321
+	bool "Enable support for IQ80321"
+	help
+	  Say Y here if you want to run your kernel on the Intel IQ80321
+	  evaluation kit for the IOP321 processor.
+
+config ARCH_IQ31244
+	bool "Enable support for EP80219/IQ31244"
+	select MACH_EP80219
+	help
+	  Say Y here if you want to run your kernel on the Intel EP80219
+	  evaluation kit for the Intel 80219 processor (a IOP321 variant)
+	  or the IQ31244 evaluation kit for the IOP321 processor.
+
+config MACH_N2100
+	bool "Enable support for the Thecus n2100"
+	help
+	  Say Y here if you want to run your kernel on the Thecus n2100
+	  NAS appliance.
+
+config MACH_EM7210
+	bool "Enable support for the Lanner EM7210"
+	help
+	  Say Y here if you want to run your kernel on the Lanner EM7210
+	  board. Say also Y here if you have a SS4000e Baxter Creek NAS
+	  appliance."
+
+endmenu
+
+endif

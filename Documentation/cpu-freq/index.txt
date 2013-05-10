@@ -1,0 +1,54 @@
+     CPU frequency and voltage scaling code in the Linux(TM) kernel
+
+
+		         L i n u x    C P U F r e q
+
+
+
+
+		    Dominik Brodowski  <linux@brodo.de>
+
+
+
+   Clock scaling allows you to change the clock speed of the CPUs on the
+    fly. This is a nice method to save battery power, because the lower
+            the clock speed, the less power the CPU consumes.
+
+
+
+Documents in this directory:
+----------------------------
+core.txt	-	General description of the CPUFreq core and
+			of CPUFreq notifiers
+
+cpu-drivers.txt -	How to implement a new cpufreq processor driver
+
+governors.txt	-	What are cpufreq governors and how to
+			implement them?
+
+index.txt	-	File index, Mailing list and Links (this document)
+
+user-guide.txt	-	User Guide to CPUFreq
+
+
+Mailing List
+------------
+There is a CPU frequency changing CVS commit and general list where
+you can report bugs, problems or submit patches. To post a message,
+send an email to cpufreq@vger.kernel.org, to subscribe go to
+http://vger.kernel.org/vger-lists.html#cpufreq and follow the
+instructions there.
+
+Links
+-----
+the FTP archives:
+* ftp://ftp.linux.org.uk/pub/linux/cpufreq/
+
+how to access the CVS repository:
+* http://cvs.arm.linux.org.uk/
+
+the CPUFreq Mailing list:
+* http://vger.kernel.org/vger-lists.html#cpufreq
+
+Clock and voltage scaling for the SA-1100:
+* http://www.lartmaker.nl/projects/scaling

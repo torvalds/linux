@@ -1,0 +1,11 @@
+00-INDEX
+	- this file (info on CD-ROMs and Linux)
+Makefile
+	- only used to generate TeX output from the documentation.
+cdrom-standard.tex
+	- LaTeX document on standardizing the CD-ROM programming interface.
+ide-cd
+	- info on setting up and using ATAPI (aka IDE) CD-ROMs.
+packet-writing.txt
+	- Info on the CDRW packet writing module
+

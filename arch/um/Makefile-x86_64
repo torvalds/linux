@@ -1,0 +1,26 @@
+# Copyright 2003 - 2004 Pathscale, Inc
+# Released under the GPL
+
+core-y += arch/um/sys-x86_64/ arch/x86/crypto/
+START := 0x60000000
+
+_extra_flags_ = -fno-builtin -m64
+
+KBUILD_CFLAGS += $(_extra_flags_)
+
+CHECKFLAGS  += -m64 -D__x86_64__
+KBUILD_AFLAGS += -m64
+LDFLAGS += -m elf_x86_64
+KBUILD_CPPFLAGS += -m64
+
+ELF_ARCH := i386:x86-64
+ELF_FORMAT := elf64-x86-64
+HEADER_ARCH := x86
+
+# Not on all 64-bit distros /lib is a symlink to /lib64. PLD is an example.
+
+LINK-$(CONFIG_LD_SCRIPT_DYN) += -Wl,-rpath,/lib64
+LINK-y += -m64
+
+# Do unit-at-a-time unconditionally on x86_64, following the host
+KBUILD_CFLAGS += $(call cc-option,-funit-at-a-time)

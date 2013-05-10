@@ -1,0 +1,87 @@
+s390 SCSI dump tool (zfcpdump)
+
+System z machines (z900 or higher) provide hardware support for creating system
+dumps on SCSI disks. The dump process is initiated by booting a dump tool, which
+has to create a dump of the current (probably crashed) Linux image. In order to
+not overwrite memory of the crashed Linux with data of the dump tool, the
+hardware saves some memory plus the register sets of the boot cpu before the
+dump tool is loaded. There exists an SCLP hardware interface to obtain the saved
+memory afterwards. Currently 32 MB are saved.
+
+This zfcpdump implementation consists of a Linux dump kernel together with
+a userspace dump tool, which are loaded together into the saved memory region
+below 32 MB. zfcpdump is installed on a SCSI disk using zipl (as contained in
+the s390-tools package) to make the device bootable. The operator of a Linux
+system can then trigger a SCSI dump by booting the SCSI disk, where zfcpdump
+resides on.
+
+The kernel part of zfcpdump is implemented as a debugfs file under "zcore/mem",
+which exports memory and registers of the crashed Linux in an s390
+standalone dump format. It can be used in the same way as e.g. /dev/mem. The
+dump format defines a 4K header followed by plain uncompressed memory. The
+register sets are stored in the prefix pages of the respective cpus. To build a
+dump enabled kernel with the zcore driver, the kernel config option
+CONFIG_ZFCPDUMP has to be set. When reading from "zcore/mem", the part of
+memory, which has been saved by hardware is read by the driver via the SCLP
+hardware interface. The second part is just copied from the non overwritten real
+memory.
+
+The userspace application of zfcpdump can reside e.g. in an intitramfs or an
+initrd. It reads from zcore/mem and writes the system dump to a file on a
+SCSI disk.
+
+To build a zfcpdump kernel use the following settings in your kernel
+configuration:
+ * CONFIG_ZFCPDUMP=y
+ * Enable ZFCP driver
+ * Enable SCSI driver
+ * Enable ext2 and ext3 filesystems
+ * Disable as many features as possible to keep the kernel small.
+   E.g. network support is not needed at all.
+
+To use the zfcpdump userspace application in an initramfs you have to do the
+following:
+
+ * Copy the zfcpdump executable somewhere into your Linux tree.
+   E.g. to "arch/s390/boot/zfcpdump. If you do not want to include
+   shared libraries, compile the tool with the "-static" gcc option.
+ * If you want to include e2fsck, add it to your source tree, too. The zfcpdump
+   application attempts to start /sbin/e2fsck from the ramdisk.
+ * Use an initramfs config file like the following:
+
+   dir /dev 755 0 0
+   nod /dev/console 644 0 0 c 5 1
+   nod /dev/null 644 0 0 c 1 3
+   nod /dev/sda1 644 0 0 b 8 1
+   nod /dev/sda2 644 0 0 b 8 2
+   nod /dev/sda3 644 0 0 b 8 3
+   nod /dev/sda4 644 0 0 b 8 4
+   nod /dev/sda5 644 0 0 b 8 5
+   nod /dev/sda6 644 0 0 b 8 6
+   nod /dev/sda7 644 0 0 b 8 7
+   nod /dev/sda8 644 0 0 b 8 8
+   nod /dev/sda9 644 0 0 b 8 9
+   nod /dev/sda10 644 0 0 b 8 10
+   nod /dev/sda11 644 0 0 b 8 11
+   nod /dev/sda12 644 0 0 b 8 12
+   nod /dev/sda13 644 0 0 b 8 13
+   nod /dev/sda14 644 0 0 b 8 14
+   nod /dev/sda15 644 0 0 b 8 15
+   file /init arch/s390/boot/zfcpdump 755 0 0
+   file /sbin/e2fsck arch/s390/boot/e2fsck 755 0 0
+   dir /proc 755 0 0
+   dir /sys 755 0 0
+   dir /mnt 755 0 0
+   dir /sbin 755 0 0
+
+ * Issue "make image" to build the zfcpdump image with initramfs.
+
+In a Linux distribution the zfcpdump enabled kernel image must be copied to
+/usr/share/zfcpdump/zfcpdump.image, where the s390 zipl tool is looking for the
+dump kernel when preparing a SCSI dump disk.
+
+If you use a ramdisk copy it to "/usr/share/zfcpdump/zfcpdump.rd".
+
+For more information on how to use zfcpdump refer to the s390 'Using the Dump
+Tools book', which is available from
+http://www.ibm.com/developerworks/linux/linux390.

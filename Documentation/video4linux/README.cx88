@@ -1,0 +1,67 @@
+cx8800 release notes
+====================
+
+This is a v4l2 device driver for the cx2388x chip.
+
+
+current status
+==============
+
+video
+	- Basically works.
+	- For now, only capture and read(). Overlay isn't supported.
+
+audio
+	- The chip specs for the on-chip TV sound decoder are next
+	  to useless :-/
+	- Neverless the builtin TV sound decoder starts working now,
+	  at least for some standards.
+	  FOR ANY REPORTS ON THIS PLEASE MENTION THE TV NORM YOU ARE
+	  USING.
+	- Most tuner chips do provide mono sound, which may or may not
+	  be useable depending on the board design.  With the Hauppauge
+	  cards it works, so there is mono sound available as fallback.
+	- audio data dma (i.e. recording without loopback cable to the
+	  sound card) is supported via cx88-alsa.
+
+vbi
+	- Code present. Works for NTSC closed caption. PAL and other
+	  TV norms may or may not work.
+
+
+how to add support for new cards
+================================
+
+The driver needs some config info for the TV cards.  This stuff is in
+cx88-cards.c.  If the driver doesn't work well you likely need a new
+entry for your card in that file.  Check the kernel log (using dmesg)
+to see whenever the driver knows your card or not.  There is a line
+like this one:
+
+	cx8800[0]: subsystem: 0070:3400, board: Hauppauge WinTV \
+		34xxx models [card=1,autodetected]
+
+If your card is listed as "board: UNKNOWN/GENERIC" it is unknown to
+the driver.  What to do then?
+
+ (1) Try upgrading to the latest snapshot, maybe it has been added
+     meanwhile.
+ (2) You can try to create a new entry yourself, have a look at
+     cx88-cards.c.  If that worked, mail me your changes as unified
+     diff ("diff -u").
+ (3) Or you can mail me the config information.  I need at least the
+     following informations to add the card:
+
+     * the PCI Subsystem ID ("0070:3400" from the line above,
+       "lspci -v" output is fine too).
+     * the tuner type used by the card.  You can try to find one by
+       trial-and-error using the tuner=<n> insmod option.  If you
+       know which one the card has you can also have a look at the
+       list in CARDLIST.tuner
+
+Have fun,
+
+  Gerd
+
+--
+Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]

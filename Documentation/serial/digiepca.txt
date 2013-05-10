@@ -1,0 +1,98 @@
+NOTE:  This driver is obsolete.  Digi provides a 2.6 driver (dgdm) at
+http://www.digi.com for PCI cards.  They no longer maintain this driver,
+and have no 2.6 driver for ISA cards.
+
+This driver requires a number of user-space tools.  They can be acquired from
+http://www.digi.com, but only works with 2.4 kernels.
+
+
+The Digi Intl. epca driver. 
+----------------------------
+The Digi Intl. epca driver for Linux supports the following boards:
+
+Digi PC/Xem, PC/Xr, PC/Xe, PC/Xi, PC/Xeve 
+Digi EISA/Xem, PCI/Xem, PCI/Xr 
+
+Limitations:
+------------
+Currently the driver only autoprobes for supported PCI boards. 
+
+The Linux MAKEDEV command does not support generating the Digiboard
+Devices.  Users executing digiConfig to setup EISA and PC series cards
+will have their device nodes automatically constructed (cud?? for ~CLOCAL,
+and ttyD?? for CLOCAL).  Users wishing to boot their board from the LILO
+prompt, or those users booting PCI cards may use buildDIGI to construct 
+the necessary nodes. 
+
+Notes:
+------
+This driver may be configured via LILO.  For users who have already configured
+their driver using digiConfig, configuring from LILO will override previous 
+settings.  Multiple boards may be configured by issuing multiple LILO command 
+lines.  For examples see the bottom of this document.
+
+Device names start at 0 and continue up.  Beware of this as previous Digi 
+drivers started device names with 1.
+
+PCI boards are auto-detected and configured by the driver.  PCI boards will
+be allocated device numbers (internally) beginning with the lowest PCI slot
+first.  In other words a PCI card in slot 3 will always have higher device
+nodes than a PCI card in slot 1. 
+
+LILO config examples:
+---------------------
+Using LILO's APPEND command, a string of comma separated identifiers or 
+integers can be used to configure supported boards.  The six values in order 
+are:
+
+   Enable/Disable this card or Override,
+   Type of card: PC/Xe (AccelePort) (0), PC/Xeve (1), PC/Xem or PC/Xr (2), 
+                 EISA/Xem (3), PC/64Xe (4), PC/Xi (5), 
+   Enable/Disable alternate pin arrangement,
+   Number of ports on this card,
+   I/O Port where card is configured (in HEX if using string identifiers),
+   Base of memory window (in HEX if using string identifiers), 
+
+NOTE : PCI boards are auto-detected and configured.  Do not attempt to 
+configure PCI boards with the LILO append command.  If you wish to override
+previous configuration data (As set by digiConfig), but you do not wish to
+configure any specific card (Example if there are PCI cards in the system) 
+the following override command will accomplish this:
+-> append="digi=2"
+
+Samples:
+   append="digiepca=E,PC/Xe,D,16,200,D0000"
+                  or
+   append="digi=1,0,0,16,512,851968"
+
+Supporting Tools:
+-----------------
+Supporting tools include digiDload, digiConfig, buildPCI, and ditty.  See
+drivers/char/README.epca for more details.  Note,
+this driver REQUIRES that digiDload be executed prior to it being used. 
+Failure to do this will result in an ENODEV error.
+
+Documentation:
+--------------
+Complete documentation for this product may be found in the tool package. 
+
+Sources of information and support:
+-----------------------------------
+Digi Intl. support site for this product:
+
+->  http://www.digi.com
+
+Acknowledgments:
+----------------
+Much of this work (And even text) was derived from a similar document 
+supporting the original public domain DigiBoard driver Copyright (C)
+1994,1995 Troy De Jongh.  Many thanks to Christoph Lameter 
+(christoph@lameter.com) and Mike McLagan (mike.mclagan@linux.org) who authored 
+and contributed to the original document. 
+
+Changelog:
+----------
+10-29-04:	Update status of driver, remove dead links in document
+		James Nelson <james4765@gmail.com>
+
+2000 (?)	Original Document

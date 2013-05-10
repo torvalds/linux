@@ -1,0 +1,197 @@
+/*
+ * Device Tree Source for IBM Holly (PPC 750CL with TSI controller)
+ * Copyright 2007, IBM Corporation
+ *
+ * Stephen Winiecki <stevewin@us.ibm.com>
+ * Josh Boyer <jwboyer@linux.vnet.ibm.com>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without
+ * any warranty of any kind, whether express or implied.
+ */
+
+/dts-v1/;
+
+/ {
+	model = "41K7339";
+	compatible = "ibm,holly";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	cpus {
+		#address-cells = <1>;
+		#size-cells =<0>;
+		PowerPC,750CL@0 {
+			device_type = "cpu";
+			reg = <0x00000000>;
+			d-cache-line-size = <32>;
+			i-cache-line-size = <32>;
+			d-cache-size = <32768>;
+			i-cache-size = <32768>;
+			d-cache-sets = <128>;
+			i-cache-sets = <128>;
+			timebase-frequency = <50000000>;
+			clock-frequency = <600000000>;
+			bus-frequency = <200000000>;
+		};
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x00000000 0x20000000>;
+	};
+
+  	tsi109@c0000000 {
+		device_type = "tsi-bridge";
+		compatible = "tsi109-bridge", "tsi108-bridge";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x00000000 0xc0000000 0x00010000>;
+		reg = <0xc0000000 0x00010000>;
+
+		i2c@7000 {
+			device_type = "i2c";
+			compatible  = "tsi109-i2c", "tsi108-i2c";
+			interrupt-parent = <&MPIC>;
+			interrupts = <0xe 0x2>;
+			reg = <0x00007000 0x00000400>;
+		};
+
+		MDIO: mdio@6000 {
+			device_type = "mdio";
+			compatible = "tsi109-mdio", "tsi108-mdio";
+			reg = <0x00006000 0x00000050>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			PHY1: ethernet-phy@1 {
+				compatible = "bcm5461a";
+				reg = <0x00000001>;
+				txc-rxc-delay-disable;
+			};
+
+			PHY2: ethernet-phy@2 {
+				compatible = "bcm5461a";
+				reg = <0x00000002>;
+				txc-rxc-delay-disable;
+			};
+		};
+
+		ethernet@6200 {
+			device_type = "network";
+			compatible = "tsi109-ethernet", "tsi108-ethernet";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x00006000 0x00000200>;
+			local-mac-address = [ 00 00 00 00 00 00 ];
+			interrupt-parent = <&MPIC>;
+			interrupts = <0x10 0x2>;
+			mdio-handle = <&MDIO>;
+			phy-handle = <&PHY1>;
+		};
+
+		ethernet@6600 {
+			device_type = "network";
+			compatible = "tsi109-ethernet", "tsi108-ethernet";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x00006400 0x00000200>;
+			local-mac-address = [ 00 00 00 00 00 00 ];
+			interrupt-parent = <&MPIC>;
+			interrupts = <0x11 0x2>;
+			mdio-handle = <&MDIO>;
+			phy-handle = <&PHY2>;
+		};
+
+		serial@7808 {
+			device_type = "serial";
+			compatible = "ns16550";
+			reg = <0x00007808 0x00000200>;
+			virtual-reg = <0xc0007808>;
+			clock-frequency = <1067212800>;
+			current-speed = <115200>;
+			interrupt-parent = <&MPIC>;
+			interrupts = <0xc 0x2>;
+		};
+
+		serial@7c08 {
+			device_type = "serial";
+			compatible = "ns16550";
+			reg = <0x00007c08 0x00000200>;
+			virtual-reg = <0xc0007c08>;
+			clock-frequency = <1067212800>;
+			current-speed = <115200>;
+			interrupt-parent = <&MPIC>;
+			interrupts = <0xd 0x2>;
+		};
+
+	  	MPIC: pic@7400 {
+			device_type = "open-pic";
+			compatible = "chrp,open-pic";
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			reg = <0x00007400 0x00000400>;
+			big-endian;
+		};
+	};
+
+	pci@c0001000 {
+		device_type = "pci";
+		compatible = "tsi109-pci", "tsi108-pci";
+		#interrupt-cells = <1>;
+		#size-cells = <2>;
+		#address-cells = <3>;
+		reg = <0xc0001000 0x00001000>;
+		bus-range = <0x0 0x0>;
+		/*----------------------------------------------------+
+		| PCI memory range.
+		| 01 denotes I/O space
+		| 02 denotes 32-bit memory space
+		+----------------------------------------------------*/
+		ranges = <0x02000000 0x00000000 0x40000000 0x40000000 0x00000000 0x10000000
+			  0x01000000 0x00000000 0x00000000 0x7e000000 0x00000000 0x00010000>;
+		clock-frequency = <133333332>;
+		interrupt-parent = <&MPIC>;
+		interrupts = <0x17 0x2>;
+		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
+		/*----------------------------------------------------+
+		| The INTA, INTB, INTC, INTD are shared.
+		+----------------------------------------------------*/
+		interrupt-map = <
+			0x800 0x0 0x0 0x1 &RT0 0x24 0x0
+			0x800 0x0 0x0 0x2 &RT0 0x25 0x0
+			0x800 0x0 0x0 0x3 &RT0 0x26 0x0
+			0x800 0x0 0x0 0x4 &RT0 0x27 0x0
+
+			0x1000 0x0 0x0 0x1 &RT0 0x25 0x0
+			0x1000 0x0 0x0 0x2 &RT0 0x26 0x0
+			0x1000 0x0 0x0 0x3 &RT0 0x27 0x0
+			0x1000 0x0 0x0 0x4 &RT0 0x24 0x0
+
+			0x1800 0x0 0x0 0x1 &RT0 0x26 0x0
+			0x1800 0x0 0x0 0x2 &RT0 0x27 0x0
+			0x1800 0x0 0x0 0x3 &RT0 0x24 0x0
+			0x1800 0x0 0x0 0x4 &RT0 0x25 0x0
+
+			0x2000 0x0 0x0 0x1 &RT0 0x27 0x0
+			0x2000 0x0 0x0 0x2 &RT0 0x24 0x0
+			0x2000 0x0 0x0 0x3 &RT0 0x25 0x0
+			0x2000 0x0 0x0 0x4 &RT0 0x26 0x0
+			>;
+
+		RT0: router@1180 {
+			device_type = "pic-router";
+			interrupt-controller;
+			big-endian;
+			clock-frequency = <0>;
+			#address-cells = <0>;
+			#interrupt-cells = <2>;
+			interrupts = <0x17 0x2>;
+			interrupt-parent = <&MPIC>;
+		};
+	};
+
+	chosen {
+		linux,stdout-path = "/tsi109@c0000000/serial@7808";
+	};
+};
