@@ -68,9 +68,12 @@ struct nfc_ops {
 			     void *cb_context);
 	int (*tm_send)(struct nfc_dev *dev, struct sk_buff *skb);
 	int (*check_presence)(struct nfc_dev *dev, struct nfc_target *target);
-	int (*enable_se)(struct nfc_dev *dev, u32 secure_element);
-	int (*disable_se)(struct nfc_dev *dev, u32 secure_element);
 	int (*fw_upload)(struct nfc_dev *dev, const char *firmware_name);
+
+	/* Secure Element API */
+	int (*discover_se)(struct nfc_dev *dev);
+	int (*enable_se)(struct nfc_dev *dev, u32 se_idx);
+	int (*disable_se)(struct nfc_dev *dev, u32 se_idx);
 };
 
 #define NFC_TARGET_IDX_ANY -1

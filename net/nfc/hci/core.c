@@ -692,6 +692,36 @@ static int hci_check_presence(struct nfc_dev *nfc_dev,
 	return hdev->ops->check_presence(hdev, target);
 }
 
+static int hci_discover_se(struct nfc_dev *nfc_dev)
+{
+	struct nfc_hci_dev *hdev = nfc_get_drvdata(nfc_dev);
+
+	if (hdev->ops->discover_se)
+		return hdev->ops->discover_se(hdev);
+
+	return 0;
+}
+
+static int hci_enable_se(struct nfc_dev *nfc_dev, u32 se_idx)
+{
+	struct nfc_hci_dev *hdev = nfc_get_drvdata(nfc_dev);
+
+	if (hdev->ops->enable_se)
+		return hdev->ops->enable_se(hdev, se_idx);
+
+	return 0;
+}
+
+static int hci_disable_se(struct nfc_dev *nfc_dev, u32 se_idx)
+{
+	struct nfc_hci_dev *hdev = nfc_get_drvdata(nfc_dev);
+
+	if (hdev->ops->disable_se)
+		return hdev->ops->enable_se(hdev, se_idx);
+
+	return 0;
+}
+
 static void nfc_hci_failure(struct nfc_hci_dev *hdev, int err)
 {
 	mutex_lock(&hdev->msg_tx_mutex);
@@ -802,6 +832,9 @@ static struct nfc_ops hci_nfc_ops = {
 	.tm_send = hci_tm_send,
 	.check_presence = hci_check_presence,
 	.fw_upload = hci_fw_upload,
+	.discover_se = hci_discover_se,
+	.enable_se = hci_enable_se,
+	.disable_se = hci_disable_se,
 };
 
 struct nfc_hci_dev *nfc_hci_allocate_device(struct nfc_hci_ops *ops,
