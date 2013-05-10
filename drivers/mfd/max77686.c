@@ -37,6 +37,7 @@
 static struct mfd_cell max77686_devs[] = {
 	{ .name = "max77686-pmic", },
 	{ .name = "max77686-rtc", },
+	{ .name = "max77686-clk", },
 };
 
 static struct regmap_config max77686_regmap_config = {
