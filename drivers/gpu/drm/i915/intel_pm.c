@@ -243,13 +243,13 @@ static void ironlake_disable_fbc(struct drm_device *dev)
 		I915_WRITE(ILK_DPFC_CONTROL, dpfc_ctl);
 
 		if (IS_IVYBRIDGE(dev))
-			/* WaFbcDisableDpfcClockGating */
+			/* WaFbcDisableDpfcClockGating:ivb */
 			I915_WRITE(ILK_DSPCLK_GATE_D,
 				   I915_READ(ILK_DSPCLK_GATE_D) &
 				   ~ILK_DPFCUNIT_CLOCK_GATE_DISABLE);
 
 		if (IS_HASWELL(dev))
-			/* WaFbcDisableDpfcClockGating */
+			/* WaFbcDisableDpfcClockGating:hsw */
 			I915_WRITE(HSW_CLKGATE_DISABLE_PART_1,
 				   I915_READ(HSW_CLKGATE_DISABLE_PART_1) &
 				   ~HSW_DPFC_GATING_DISABLE);
@@ -281,17 +281,17 @@ static void gen7_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 		   intel_crtc->plane << IVB_DPFC_CTL_PLANE_SHIFT);
 
 	if (IS_IVYBRIDGE(dev)) {
-		/* WaFbcAsynchFlipDisableFbcQueue */
+		/* WaFbcAsynchFlipDisableFbcQueue:ivb */
 		I915_WRITE(ILK_DISPLAY_CHICKEN1, ILK_FBCQ_DIS);
-		/* WaFbcDisableDpfcClockGating */
+		/* WaFbcDisableDpfcClockGating:ivb */
 		I915_WRITE(ILK_DSPCLK_GATE_D,
 			   I915_READ(ILK_DSPCLK_GATE_D) |
 			   ILK_DPFCUNIT_CLOCK_GATE_DISABLE);
 	} else {
-		/* WaFbcAsynchFlipDisableFbcQueue */
+		/* WaFbcAsynchFlipDisableFbcQueue:hsw */
 		I915_WRITE(HSW_PIPE_SLICE_CHICKEN_1(intel_crtc->pipe),
 			   HSW_BYPASS_FBC_QUEUE);
-		/* WaFbcDisableDpfcClockGating */
+		/* WaFbcDisableDpfcClockGating:hsw */
 		I915_WRITE(HSW_CLKGATE_DISABLE_PART_1,
 			   I915_READ(HSW_CLKGATE_DISABLE_PART_1) |
 			   HSW_DPFC_GATING_DISABLE);
