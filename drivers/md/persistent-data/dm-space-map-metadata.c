@@ -391,7 +391,8 @@ static struct dm_space_map ops = {
 	.new_block = sm_metadata_new_block,
 	.commit = sm_metadata_commit,
 	.root_size = sm_metadata_root_size,
-	.copy_root = sm_metadata_copy_root
+	.copy_root = sm_metadata_copy_root,
+	.register_threshold_callback = NULL
 };
 
 /*----------------------------------------------------------------*/
@@ -513,7 +514,8 @@ static struct dm_space_map bootstrap_ops = {
 	.new_block = sm_bootstrap_new_block,
 	.commit = sm_bootstrap_commit,
 	.root_size = sm_bootstrap_root_size,
-	.copy_root = sm_bootstrap_copy_root
+	.copy_root = sm_bootstrap_copy_root,
+	.register_threshold_callback = NULL
 };
 
 /*----------------------------------------------------------------*/
