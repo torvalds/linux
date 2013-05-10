@@ -391,4 +391,17 @@
 			vin-supply = <&sys_3v3_reg>;
 		};
 	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		gpled1 {
+			label = "LED1"; /* CR5A1 (blue) */
+			gpios = <&gpio 89 0>; /* gpio PL1 */
+		};
+		gpled2 {
+			label = "LED2"; /* CR4A2 (green) */
+			gpios = <&gpio 88 0>; /* gpio PL0 */
+		};
+	};
 };
