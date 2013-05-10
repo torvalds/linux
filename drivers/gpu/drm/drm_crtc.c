@@ -250,6 +250,7 @@ char *drm_get_connector_status_name(enum drm_connector_status status)
 	else
 		return "unknown";
 }
+EXPORT_SYMBOL(drm_get_connector_status_name);
 
 /**
  * drm_mode_object_get - allocate a new modeset identifier

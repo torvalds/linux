@@ -1007,10 +1007,11 @@ static void output_poll_execute(struct work_struct *work)
 			continue;
 
 		connector->status = connector->funcs->detect(connector, false);
-		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] status updated from %d to %d\n",
+		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] status updated from %s to %s\n",
 			      connector->base.id,
 			      drm_get_connector_name(connector),
-			      old_status, connector->status);
+			      drm_get_connector_status_name(old_status),
+			      drm_get_connector_status_name(connector->status));
 		if (old_status != connector->status)
 			changed = true;
 	}
@@ -1085,10 +1086,11 @@ void drm_helper_hpd_irq_event(struct drm_device *dev)
 		old_status = connector->status;
 
 		connector->status = connector->funcs->detect(connector, false);
-		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] status updated from %d to %d\n",
+		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] status updated from %s to %s\n",
 			      connector->base.id,
 			      drm_get_connector_name(connector),
-			      old_status, connector->status);
+			      drm_get_connector_status_name(old_status),
+			      drm_get_connector_status_name(connector->status));
 		if (old_status != connector->status)
 			changed = true;
 	}
