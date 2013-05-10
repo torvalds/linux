@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: wl_cfg80211.h 389705 2013-03-07 20:04:22Z $
+ * $Id: wl_cfg80211.h 401050 2013-05-08 13:36:28Z $
  */
 
 #ifndef _wl_cfg80211_h_
@@ -171,6 +171,8 @@ do {									\
 /* SCAN_SUPPRESS timer values in ms */
 #define WL_SCAN_SUPPRESS_TIMEOUT 31000 /* default Framwork DHCP timeout is 30 sec */
 #define WL_SCAN_SUPPRESS_RETRY 3000
+
+#define WL_PM_ENABLE_TIMEOUT 3000
 
 /* driver status */
 enum wl_status {
@@ -578,6 +580,8 @@ struct wl_priv {
 	struct timer_list scan_supp_timer;
 	struct work_struct wlan_work;
 	struct mutex event_sync;	/* maily for up/down synchronization */
+	bool pm_enable_work_on;
+	struct delayed_work pm_enable_work;
 };
 
 

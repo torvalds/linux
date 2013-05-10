@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_sdio.c 392661 2013-03-22 23:17:02Z $
+ * $Id: dhd_sdio.c 399337 2013-04-29 23:39:03Z $
  */
 
 #include <typedefs.h>
@@ -5797,7 +5797,7 @@ dhdsdio_isr(void *arg)
 #if defined(SDIO_ISR_THREAD)
 	DHD_TRACE(("Calling dhdsdio_dpc() from %s\n", __FUNCTION__));
 	DHD_OS_WAKE_LOCK(bus->dhd);
-	while (dhdsdio_dpc(bus));
+	dhdsdio_dpc(bus);
 	DHD_OS_WAKE_UNLOCK(bus->dhd);
 #else
 
