@@ -981,6 +981,7 @@ config COMEDI_ME_DAQ
 
 config COMEDI_NI_6527
 	tristate "NI 6527 support"
+	depends on HAS_DMA
 	select COMEDI_MITE
 	---help---
 	  Enable support for the National Instruments 6527 PCI card
@@ -990,6 +991,7 @@ config COMEDI_NI_6527
 
 config COMEDI_NI_65XX
 	tristate "NI 65xx static dio PCI card support"
+	depends on HAS_DMA
 	select COMEDI_MITE
 	---help---
 	  Enable support for National Instruments 65xx static dio boards.
@@ -1003,6 +1005,7 @@ config COMEDI_NI_65XX
 
 config COMEDI_NI_660X
 	tristate "NI 660x counter/timer PCI card support"
+	depends on HAS_DMA
 	select COMEDI_NI_TIOCMD
 	---help---
 	  Enable support for National Instruments PCI-6601 (ni_660x), PCI-6602,
@@ -1013,6 +1016,7 @@ config COMEDI_NI_660X
 
 config COMEDI_NI_670X
 	tristate "NI 670x PCI card support"
+	depends on HAS_DMA
 	select COMEDI_MITE
 	---help---
 	  Enable support for National Instruments PCI-6703 and PCI-6704
@@ -1022,6 +1026,7 @@ config COMEDI_NI_670X
 
 config COMEDI_NI_LABPC_PCI
 	tristate "NI Lab-PC PCI-1200 support"
+	depends on HAS_DMA
 	select COMEDI_NI_LABPC
 	select COMEDI_MITE
 	---help---
@@ -1032,6 +1037,7 @@ config COMEDI_NI_LABPC_PCI
 
 config COMEDI_NI_PCIDIO
 	tristate "NI PCI-DIO32HS, PCI-6533, PCI-6534 support"
+	depends on HAS_DMA
 	select COMEDI_MITE
 	select COMEDI_8255
 	---help---
@@ -1043,6 +1049,7 @@ config COMEDI_NI_PCIDIO
 
 config COMEDI_NI_PCIMIO
 	tristate "NI PCI-MIO-E series and M series support"
+	depends on HAS_DMA
 	select COMEDI_NI_TIOCMD
 	select COMEDI_8255
 	select COMEDI_FC
@@ -1095,10 +1102,12 @@ config COMEDI_SSV_DNP
 	  called ssv_dnp.
 
 config COMEDI_MITE
+	depends on HAS_DMA
 	tristate
 
 config COMEDI_NI_TIOCMD
 	tristate
+	depends on HAS_DMA
 	select COMEDI_NI_TIO
 	select COMEDI_MITE
 
