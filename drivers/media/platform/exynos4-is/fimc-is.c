@@ -48,7 +48,6 @@ static char *fimc_is_clocks[ISS_CLKS_MAX] = {
 	[ISS_CLK_LITE0]			= "lite0",
 	[ISS_CLK_LITE1]			= "lite1",
 	[ISS_CLK_MPLL]			= "mpll",
-	[ISS_CLK_SYSREG]		= "sysreg",
 	[ISS_CLK_ISP]			= "isp",
 	[ISS_CLK_DRC]			= "drc",
 	[ISS_CLK_FD]			= "fd",
