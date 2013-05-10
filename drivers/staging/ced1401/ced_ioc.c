@@ -37,7 +37,7 @@
 **
 ** Empties the Output buffer and sets int lines. Used from user level only
 ****************************************************************************/
-void FlushOutBuff(DEVICE_EXTENSION * pdx)
+void FlushOutBuff(DEVICE_EXTENSION *pdx)
 {
 	dev_dbg(&pdx->interface->dev, "%s currentState=%d", __func__,
 		pdx->sCurrentState);
@@ -57,7 +57,7 @@ void FlushOutBuff(DEVICE_EXTENSION * pdx)
 **
 ** Empties the input buffer and sets int lines
 ****************************************************************************/
-void FlushInBuff(DEVICE_EXTENSION * pdx)
+void FlushInBuff(DEVICE_EXTENSION *pdx)
 {
 	dev_dbg(&pdx->interface->dev, "%s currentState=%d", __func__,
 		pdx->sCurrentState);
@@ -77,7 +77,7 @@ void FlushInBuff(DEVICE_EXTENSION * pdx)
 ** Utility routine to copy chars into the output buffer and fire them off.
 ** called from user mode, holds charOutLock.
 ****************************************************************************/
-static int PutChars(DEVICE_EXTENSION * pdx, const char *pCh,
+static int PutChars(DEVICE_EXTENSION *pdx, const char *pCh,
 		    unsigned int uCount)
 {
 	int iReturn;
@@ -104,7 +104,7 @@ static int PutChars(DEVICE_EXTENSION * pdx, const char *pCh,
 ** trigger an output transfer if this is appropriate. User mode.
 ** Holds the io_mutex
 *****************************************************************************/
-int SendString(DEVICE_EXTENSION * pdx, const char __user * pData,
+int SendString(DEVICE_EXTENSION *pdx, const char __user *pData,
 	       unsigned int n)
 {
 	int iReturn = U14ERR_NOERROR;	// assume all will be well
@@ -134,7 +134,7 @@ int SendString(DEVICE_EXTENSION * pdx, const char __user * pData,
 **
 ** Sends a single character to the 1401. User mode, holds io_mutex.
 ****************************************************************************/
-int SendChar(DEVICE_EXTENSION * pdx, char c)
+int SendChar(DEVICE_EXTENSION *pdx, char c)
 {
 	int iReturn;
 	mutex_lock(&pdx->io_mutex);	// Protect disconnect from new i/o
@@ -171,7 +171,7 @@ int SendChar(DEVICE_EXTENSION * pdx, char c)
 **
 ** return error code (U14ERR_NOERROR for OK)
 */
-int Get1401State(DEVICE_EXTENSION * pdx, __u32 * state, __u32 * error)
+int Get1401State(DEVICE_EXTENSION *pdx, __u32 *state, __u32 *error)
 {
 	int nGot;
 	dev_dbg(&pdx->interface->dev, "Get1401State() entry");
@@ -219,7 +219,7 @@ int Get1401State(DEVICE_EXTENSION * pdx, __u32 * state, __u32 * error)
 **
 ** Kills off staged read\write request from the USB if one is pending.
 ****************************************************************************/
-int ReadWrite_Cancel(DEVICE_EXTENSION * pdx)
+int ReadWrite_Cancel(DEVICE_EXTENSION *pdx)
 {
 	dev_dbg(&pdx->interface->dev, "ReadWrite_Cancel entry %d",
 		pdx->bStagedUrbPending);
@@ -274,7 +274,7 @@ int ReadWrite_Cancel(DEVICE_EXTENSION * pdx)
 ** InSelfTest - utility to check in self test. Return 1 for ST, 0 for not or
 ** a -ve error code if we failed for some reason.
 ***************************************************************************/
-static int InSelfTest(DEVICE_EXTENSION * pdx, unsigned int *pState)
+static int InSelfTest(DEVICE_EXTENSION *pdx, unsigned int *pState)
 {
 	unsigned int state, error;
 	int iReturn = Get1401State(pdx, &state, &error);	// see if in self-test
@@ -303,7 +303,7 @@ static int InSelfTest(DEVICE_EXTENSION * pdx, unsigned int *pState)
 **
 **  Returns TRUE if a 1401 detected and OK, else FALSE
 ****************************************************************************/
-bool Is1401(DEVICE_EXTENSION * pdx)
+bool Is1401(DEVICE_EXTENSION *pdx)
 {
 	int iReturn;
 	dev_dbg(&pdx->interface->dev, "%s", __func__);
@@ -363,7 +363,7 @@ bool Is1401(DEVICE_EXTENSION * pdx)
 **
 ** The return value is TRUE if a useable 1401 is found, FALSE if not
 */
-bool QuickCheck(DEVICE_EXTENSION * pdx, bool bTestBuff, bool bCanReset)
+bool QuickCheck(DEVICE_EXTENSION *pdx, bool bTestBuff, bool bCanReset)
 {
 	bool bRet = false;	// assume it will fail and we will reset
 	bool bShortTest;
@@ -412,7 +412,7 @@ bool QuickCheck(DEVICE_EXTENSION * pdx, bool bTestBuff, bool bCanReset)
 **
 ** Resets the 1401 and empties the i/o buffers
 *****************************************************************************/
-int Reset1401(DEVICE_EXTENSION * pdx)
+int Reset1401(DEVICE_EXTENSION *pdx)
 {
 	mutex_lock(&pdx->io_mutex);	// Protect disconnect from new i/o
 	dev_dbg(&pdx->interface->dev, "ABout to call QuickCheck");
@@ -426,7 +426,7 @@ int Reset1401(DEVICE_EXTENSION * pdx)
 **
 ** Gets a single character from the 1401
 ****************************************************************************/
-int GetChar(DEVICE_EXTENSION * pdx)
+int GetChar(DEVICE_EXTENSION *pdx)
 {
 	int iReturn = U14ERR_NOIN;	// assume we will get  nothing
 	mutex_lock(&pdx->io_mutex);	// Protect disconnect from new i/o
@@ -464,7 +464,7 @@ int GetChar(DEVICE_EXTENSION * pdx)
 ** returns the count of characters (including the terminator, or 0 if none
 ** or a negative error code.
 ****************************************************************************/
-int GetString(DEVICE_EXTENSION * pdx, char __user * pUser, int n)
+int GetString(DEVICE_EXTENSION *pdx, char __user *pUser, int n)
 {
 	int nAvailable;		// character in the buffer
 	int iReturn = U14ERR_NOIN;
@@ -527,7 +527,7 @@ int GetString(DEVICE_EXTENSION * pdx, char __user * pUser, int n)
 /*******************************************************************************
 ** Get count of characters in the inout buffer.
 *******************************************************************************/
-int Stat1401(DEVICE_EXTENSION * pdx)
+int Stat1401(DEVICE_EXTENSION *pdx)
 {
 	int iReturn;
 	mutex_lock(&pdx->io_mutex);	// Protect disconnect from new i/o
@@ -545,7 +545,7 @@ int Stat1401(DEVICE_EXTENSION * pdx)
 ** any fancy interlocks as we only read the interrupt routine data, and the
 ** system is arranged so nothing can be destroyed.
 ****************************************************************************/
-int LineCount(DEVICE_EXTENSION * pdx)
+int LineCount(DEVICE_EXTENSION *pdx)
 {
 	int iReturn = 0;	// will be count of line ends
 
@@ -579,7 +579,7 @@ int LineCount(DEVICE_EXTENSION * pdx)
 **
 ** Gets the space in the output buffer. Called from user code.
 *****************************************************************************/
-int GetOutBufSpace(DEVICE_EXTENSION * pdx)
+int GetOutBufSpace(DEVICE_EXTENSION *pdx)
 {
 	int iReturn;
 	mutex_lock(&pdx->io_mutex);	// Protect disconnect from new i/o
@@ -597,7 +597,7 @@ int GetOutBufSpace(DEVICE_EXTENSION * pdx)
 ** Clears up a transfer area. This is always called in the context of a user
 ** request, never from a call-back.
 ****************************************************************************/
-int ClearArea(DEVICE_EXTENSION * pdx, int nArea)
+int ClearArea(DEVICE_EXTENSION *pdx, int nArea)
 {
 	int iReturn = U14ERR_NOERROR;
 
@@ -674,7 +674,7 @@ int ClearArea(DEVICE_EXTENSION * pdx, int nArea)
 ** Sets up a transfer area - the functional part. Called by both
 ** SetTransfer and SetCircular.
 ****************************************************************************/
-static int SetArea(DEVICE_EXTENSION * pdx, int nArea, char __user * puBuf,
+static int SetArea(DEVICE_EXTENSION *pdx, int nArea, char __user *puBuf,
 		   unsigned int dwLength, bool bCircular, bool bCircToHost)
 {
 	// Start by working out the page aligned start of the area and the size
@@ -754,7 +754,7 @@ error:
 ** unset it. Unsetting will fail if the area is booked, and a transfer to that
 ** area is in progress. Otherwise, we will release the area and re-assign it.
 ****************************************************************************/
-int SetTransfer(DEVICE_EXTENSION * pdx, TRANSFERDESC __user * pTD)
+int SetTransfer(DEVICE_EXTENSION *pdx, TRANSFERDESC __user *pTD)
 {
 	int iReturn;
 	TRANSFERDESC td;
@@ -780,7 +780,7 @@ int SetTransfer(DEVICE_EXTENSION * pdx, TRANSFERDESC __user * pTD)
 ** UnSetTransfer
 ** Erases a transfer area record
 ****************************************************************************/
-int UnsetTransfer(DEVICE_EXTENSION * pdx, int nArea)
+int UnsetTransfer(DEVICE_EXTENSION *pdx, int nArea)
 {
 	int iReturn;
 	mutex_lock(&pdx->io_mutex);
@@ -797,7 +797,7 @@ int UnsetTransfer(DEVICE_EXTENSION * pdx, int nArea)
 ** pretend that whatever the user asked for was achieved, so we return 1 if
 ** try to create one, and 0 if they ask to remove (assuming all else was OK).
 ****************************************************************************/
-int SetEvent(DEVICE_EXTENSION * pdx, TRANSFEREVENT __user * pTE)
+int SetEvent(DEVICE_EXTENSION *pdx, TRANSFEREVENT __user *pTE)
 {
 	int iReturn = U14ERR_NOERROR;
 	TRANSFEREVENT te;
@@ -833,7 +833,7 @@ int SetEvent(DEVICE_EXTENSION * pdx, TRANSFEREVENT __user * pTE)
 ** of times that a block met the event condition since we last cleared it or
 ** 0 if timed out, or -ve error (bad area or not set, or signal).
 ****************************************************************************/
-int WaitEvent(DEVICE_EXTENSION * pdx, int nArea, int msTimeOut)
+int WaitEvent(DEVICE_EXTENSION *pdx, int nArea, int msTimeOut)
 {
 	int iReturn;
 	if ((unsigned)nArea >= MAX_TRANSAREAS)
@@ -880,7 +880,7 @@ int WaitEvent(DEVICE_EXTENSION * pdx, int nArea, int msTimeOut)
 ** number of times a block completed since the last call, or 0 if none or a
 ** negative error.
 ****************************************************************************/
-int TestEvent(DEVICE_EXTENSION * pdx, int nArea)
+int TestEvent(DEVICE_EXTENSION *pdx, int nArea)
 {
 	int iReturn;
 	if ((unsigned)nArea >= MAX_TRANSAREAS)
@@ -901,7 +901,7 @@ int TestEvent(DEVICE_EXTENSION * pdx, int nArea)
 ** GetTransferInfo
 ** Puts the current state of the 1401 in a TGET_TX_BLOCK.
 *****************************************************************************/
-int GetTransfer(DEVICE_EXTENSION * pdx, TGET_TX_BLOCK __user * pTX)
+int GetTransfer(DEVICE_EXTENSION *pdx, TGET_TX_BLOCK __user *pTX)
 {
 	int iReturn = U14ERR_NOERROR;
 	unsigned int dwIdent;
@@ -940,7 +940,7 @@ int GetTransfer(DEVICE_EXTENSION * pdx, TGET_TX_BLOCK __user * pTX)
 **
 ** Empties the host i/o buffers
 ****************************************************************************/
-int KillIO1401(DEVICE_EXTENSION * pdx)
+int KillIO1401(DEVICE_EXTENSION *pdx)
 {
 	dev_dbg(&pdx->interface->dev, "%s", __func__);
 	mutex_lock(&pdx->io_mutex);
@@ -955,7 +955,7 @@ int KillIO1401(DEVICE_EXTENSION * pdx)
 ** Returns a 0 or a 1 for whether DMA is happening. No point holding a mutex
 ** for this as it only does one read.
 *****************************************************************************/
-int BlkTransState(DEVICE_EXTENSION * pdx)
+int BlkTransState(DEVICE_EXTENSION *pdx)
 {
 	int iReturn = pdx->dwDMAFlag != MODE_CHAR;
 	dev_dbg(&pdx->interface->dev, "%s = %d", __func__, iReturn);
@@ -967,7 +967,7 @@ int BlkTransState(DEVICE_EXTENSION * pdx)
 **
 ** Puts the current state of the 1401 in the Irp return buffer.
 *****************************************************************************/
-int StateOf1401(DEVICE_EXTENSION * pdx)
+int StateOf1401(DEVICE_EXTENSION *pdx)
 {
 	int iReturn;
 	mutex_lock(&pdx->io_mutex);
@@ -987,7 +987,7 @@ int StateOf1401(DEVICE_EXTENSION * pdx)
 ** Initiates a self-test cycle. The assumption is that we have no interrupts
 ** active, so we should make sure that this is the case.
 *****************************************************************************/
-int StartSelfTest(DEVICE_EXTENSION * pdx)
+int StartSelfTest(DEVICE_EXTENSION *pdx)
 {
 	int nGot;
 	mutex_lock(&pdx->io_mutex);
@@ -1013,7 +1013,7 @@ int StartSelfTest(DEVICE_EXTENSION * pdx)
 **
 ** Check progress of a self-test cycle
 ****************************************************************************/
-int CheckSelfTest(DEVICE_EXTENSION * pdx, TGET_SELFTEST __user * pGST)
+int CheckSelfTest(DEVICE_EXTENSION *pdx, TGET_SELFTEST __user *pGST)
 {
 	unsigned int state, error;
 	int iReturn;
@@ -1091,7 +1091,7 @@ int CheckSelfTest(DEVICE_EXTENSION * pdx, TGET_SELFTEST __user * pGST)
 **
 ** Returns code for standard, plus, micro1401, power1401 or none
 ****************************************************************************/
-int TypeOf1401(DEVICE_EXTENSION * pdx)
+int TypeOf1401(DEVICE_EXTENSION *pdx)
 {
 	int iReturn = TYPEUNKNOWN;
 	mutex_lock(&pdx->io_mutex);
@@ -1124,7 +1124,7 @@ int TypeOf1401(DEVICE_EXTENSION * pdx)
 **
 ** Returns flags on block transfer abilities
 ****************************************************************************/
-int TransferFlags(DEVICE_EXTENSION * pdx)
+int TransferFlags(DEVICE_EXTENSION *pdx)
 {
 	int iReturn = U14TF_MULTIA | U14TF_DIAG |	// we always have multiple DMA area
 	    U14TF_NOTIFY | U14TF_CIRCTH;	// diagnostics, notify and circular
@@ -1142,7 +1142,7 @@ int TransferFlags(DEVICE_EXTENSION * pdx)
 ** Issues a debug\diagnostic command to the 1401 along with a 32-bit datum
 ** This is a utility command used for dbg operations.
 */
-static int DbgCmd1401(DEVICE_EXTENSION * pdx, unsigned char cmd,
+static int DbgCmd1401(DEVICE_EXTENSION *pdx, unsigned char cmd,
 		      unsigned int data)
 {
 	int iReturn;
@@ -1160,7 +1160,7 @@ static int DbgCmd1401(DEVICE_EXTENSION * pdx, unsigned char cmd,
 **
 ** Execute the diagnostic peek operation. Uses address, width and repeats.
 ****************************************************************************/
-int DbgPeek(DEVICE_EXTENSION * pdx, TDBGBLOCK __user * pDB)
+int DbgPeek(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB)
 {
 	int iReturn;
 	TDBGBLOCK db;
@@ -1189,7 +1189,7 @@ int DbgPeek(DEVICE_EXTENSION * pdx, TDBGBLOCK __user * pDB)
 ** Execute the diagnostic poke operation. Parameters are in the CSBLOCK struct
 ** in order address, size, repeats and value to poke.
 ****************************************************************************/
-int DbgPoke(DEVICE_EXTENSION * pdx, TDBGBLOCK __user * pDB)
+int DbgPoke(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB)
 {
 	int iReturn;
 	TDBGBLOCK db;
@@ -1218,7 +1218,7 @@ int DbgPoke(DEVICE_EXTENSION * pdx, TDBGBLOCK __user * pDB)
 ** Execute the diagnostic ramp data operation. Parameters are in the CSBLOCK struct
 ** in order address, default, enable mask, size and repeats.
 ****************************************************************************/
-int DbgRampData(DEVICE_EXTENSION * pdx, TDBGBLOCK __user * pDB)
+int DbgRampData(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB)
 {
 	int iReturn;
 	TDBGBLOCK db;
@@ -1250,7 +1250,7 @@ int DbgRampData(DEVICE_EXTENSION * pdx, TDBGBLOCK __user * pDB)
 **
 ** Execute the diagnostic ramp address operation
 ****************************************************************************/
-int DbgRampAddr(DEVICE_EXTENSION * pdx, TDBGBLOCK __user * pDB)
+int DbgRampAddr(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB)
 {
 	int iReturn;
 	TDBGBLOCK db;
@@ -1280,7 +1280,7 @@ int DbgRampAddr(DEVICE_EXTENSION * pdx, TDBGBLOCK __user * pDB)
 **
 ** Retrieve the data resulting from the last debug Peek operation
 ****************************************************************************/
-int DbgGetData(DEVICE_EXTENSION * pdx, TDBGBLOCK __user * pDB)
+int DbgGetData(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB)
 {
 	int iReturn;
 	TDBGBLOCK db;
@@ -1313,7 +1313,7 @@ int DbgGetData(DEVICE_EXTENSION * pdx, TDBGBLOCK __user * pDB)
 ** Stop any never-ending debug loop, we just call Get1401State for USB
 **
 ****************************************************************************/
-int DbgStopLoop(DEVICE_EXTENSION * pdx)
+int DbgStopLoop(DEVICE_EXTENSION *pdx)
 {
 	int iReturn;
 	unsigned int uState, uErr;
@@ -1334,7 +1334,7 @@ int DbgStopLoop(DEVICE_EXTENSION * pdx)
 ** booked and a transfer to that area is in progress. Otherwise, we will
 ** release the area and re-assign it.
 ****************************************************************************/
-int SetCircular(DEVICE_EXTENSION * pdx, TRANSFERDESC __user * pTD)
+int SetCircular(DEVICE_EXTENSION *pdx, TRANSFERDESC __user *pTD)
 {
 	int iReturn;
 	bool bToHost;
@@ -1364,7 +1364,7 @@ int SetCircular(DEVICE_EXTENSION * pdx, TRANSFERDESC __user * pTD)
 **
 ** Return the next available block of circularly-transferred data.
 ****************************************************************************/
-int GetCircBlock(DEVICE_EXTENSION * pdx, TCIRCBLOCK __user * pCB)
+int GetCircBlock(DEVICE_EXTENSION *pdx, TCIRCBLOCK __user *pCB)
 {
 	int iReturn = U14ERR_NOERROR;
 	unsigned int nArea;
@@ -1416,7 +1416,7 @@ int GetCircBlock(DEVICE_EXTENSION * pdx, TCIRCBLOCK __user * pCB)
 **
 ** Frees a block of circularly-transferred data and returns the next one.
 ****************************************************************************/
-int FreeCircBlock(DEVICE_EXTENSION * pdx, TCIRCBLOCK __user * pCB)
+int FreeCircBlock(DEVICE_EXTENSION *pdx, TCIRCBLOCK __user *pCB)
 {
 	int iReturn = U14ERR_NOERROR;
 	unsigned int nArea, uStart, uSize;
