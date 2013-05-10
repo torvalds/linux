@@ -528,6 +528,108 @@ error:
 	return rc;
 }
 
+static struct nfc_se *find_se(struct nfc_dev *dev, u32 se_idx)
+{
+	struct nfc_se *se, *n;
+
+	list_for_each_entry_safe(se, n, &dev->secure_elements, list)
+		if (se->idx == se_idx)
+			return se;
+
+	return NULL;
+}
+
+int nfc_enable_se(struct nfc_dev *dev, u32 se_idx)
+{
+
+	struct nfc_se *se;
+	int rc;
+
+	pr_debug("%s se index %d\n", dev_name(&dev->dev), se_idx);
+
+	device_lock(&dev->dev);
+
+	if (!device_is_registered(&dev->dev)) {
+		rc = -ENODEV;
+		goto error;
+	}
+
+	if (!dev->dev_up) {
+		rc = -ENODEV;
+		goto error;
+	}
+
+	if (dev->polling) {
+		rc = -EBUSY;
+		goto error;
+	}
+
+	if (!dev->ops->enable_se || !dev->ops->disable_se) {
+		rc = -EOPNOTSUPP;
+		goto error;
+	}
+
+	se = find_se(dev, se_idx);
+	if (!se) {
+		rc = -EINVAL;
+		goto error;
+	}
+
+	if (se->type == NFC_SE_ENABLED) {
+		rc = -EALREADY;
+		goto error;
+	}
+
+	rc = dev->ops->enable_se(dev, se_idx);
+
+error:
+	device_unlock(&dev->dev);
+	return rc;
+}
+
+int nfc_disable_se(struct nfc_dev *dev, u32 se_idx)
+{
+
+	struct nfc_se *se;
+	int rc;
+
+	pr_debug("%s se index %d\n", dev_name(&dev->dev), se_idx);
+
+	device_lock(&dev->dev);
+
+	if (!device_is_registered(&dev->dev)) {
+		rc = -ENODEV;
+		goto error;
+	}
+
+	if (!dev->dev_up) {
+		rc = -ENODEV;
+		goto error;
+	}
+
+	if (!dev->ops->enable_se || !dev->ops->disable_se) {
+		rc = -EOPNOTSUPP;
+		goto error;
+	}
+
+	se = find_se(dev, se_idx);
+	if (!se) {
+		rc = -EINVAL;
+		goto error;
+	}
+
+	if (se->type == NFC_SE_DISABLED) {
+		rc = -EALREADY;
+		goto error;
+	}
+
+	rc = dev->ops->disable_se(dev, se_idx);
+
+error:
+	device_unlock(&dev->dev);
+	return rc;
+}
+
 int nfc_set_remote_general_bytes(struct nfc_dev *dev, u8 *gb, u8 gb_len)
 {
 	pr_debug("dev_name=%s gb_len=%d\n", dev_name(&dev->dev), gb_len);
@@ -762,14 +864,14 @@ EXPORT_SYMBOL(nfc_driver_failure);
 
 int nfc_add_se(struct nfc_dev *dev, u32 se_idx, u16 type)
 {
-	struct nfc_se *se, *n;
+	struct nfc_se *se;
 	int rc;
 
 	pr_debug("%s se index %d\n", dev_name(&dev->dev), se_idx);
 
-	list_for_each_entry_safe(se, n, &dev->secure_elements, list)
-		if (se->idx == se_idx)
-			return -EALREADY;
+	se = find_se(dev, se_idx);
+	if (se)
+		return -EALREADY;
 
 	se = kzalloc(sizeof(struct nfc_se), GFP_KERNEL);
 	if (!se)
