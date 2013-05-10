@@ -1120,7 +1120,7 @@ static int atc_alloc_chan_resources(struct dma_chan *chan)
 		 */
 		BUG_ON(!atslave->dma_dev || atslave->dma_dev != atdma->dma_common.dev);
 
-		/* if cfg configuration specified take it instad of default */
+		/* if cfg configuration specified take it instead of default */
 		if (atslave->cfg)
 			cfg = atslave->cfg;
 	}
