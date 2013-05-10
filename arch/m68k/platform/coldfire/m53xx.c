@@ -1,7 +1,7 @@
 /***************************************************************************/
 
 /*
- *	linux/arch/m68knommu/platform/532x/config.c
+ *	m53xx.c -- platform support for ColdFire 53xx based boards
  *
  *	Copyright (C) 1999-2002, Greg Ungerer (gerg@snapgear.com)
  *	Copyright (C) 2000, Lineo (www.lineo.com)
@@ -118,7 +118,8 @@ static struct clk * const enable_clks[] __initconst = {
 	&__clk_0_24,	/* mcfuart.0 */
 	&__clk_0_25,	/* mcfuart.1 */
 	&__clk_0_26,	/* mcfuart.2 */
-
+	&__clk_0_28,	/* mcftmr.0 */
+	&__clk_0_29,	/* mcftmr.1 */
 	&__clk_0_32,	/* mcfpit.0 */
 	&__clk_0_33,	/* mcfpit.1 */
 	&__clk_0_37,	/* mcfeport.0 */
@@ -134,8 +135,6 @@ static struct clk * const disable_clks[] __initconst = {
 	&__clk_0_17,	/* edma */
 	&__clk_0_22,	/* mcfi2c.0 */
 	&__clk_0_23,	/* mcfqspi.0 */
-	&__clk_0_28,	/* mcftmr.0 */
-	&__clk_0_29,	/* mcftmr.1 */
 	&__clk_0_30,	/* mcftmr.2 */
 	&__clk_0_31,	/* mcftmr.3 */
 	&__clk_0_34,	/* mcfpit.2 */
@@ -153,7 +152,7 @@ static struct clk * const disable_clks[] __initconst = {
 };
 
 
-static void __init m532x_clk_init(void)
+static void __init m53xx_clk_init(void)
 {
 	unsigned i;
 
@@ -169,7 +168,7 @@ static void __init m532x_clk_init(void)
 
 #if IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI)
 
-static void __init m532x_qspi_init(void)
+static void __init m53xx_qspi_init(void)
 {
 	/* setup QSPS pins for QSPI with gpio CS control */
 	writew(0x01f0, MCFGPIO_PAR_QSPI);
@@ -179,7 +178,7 @@ static void __init m532x_qspi_init(void)
 
 /***************************************************************************/
 
-static void __init m532x_uarts_init(void)
+static void __init m53xx_uarts_init(void)
 {
 	/* UART GPIO initialization */
 	writew(readw(MCFGPIO_PAR_UART) | 0x0FFF, MCFGPIO_PAR_UART);
@@ -187,7 +186,7 @@ static void __init m532x_uarts_init(void)
 
 /***************************************************************************/
 
-static void __init m532x_fec_init(void)
+static void __init m53xx_fec_init(void)
 {
 	u8 v;
 
@@ -217,11 +216,11 @@ void __init config_BSP(char *commandp, int size)
 	}
 #endif
 	mach_sched_init = hw_timer_init;
-	m532x_clk_init();
-	m532x_uarts_init();
-	m532x_fec_init();
+	m53xx_clk_init();
+	m53xx_uarts_init();
+	m53xx_fec_init();
 #if IS_ENABLED(CONFIG_SPI_COLDFIRE_QSPI)
-	m532x_qspi_init();
+	m53xx_qspi_init();
 #endif
 
 #ifdef CONFIG_BDM_DISABLE

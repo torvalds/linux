@@ -1,15 +1,15 @@
 /****************************************************************************/
 
 /*
- *	m532xsim.h -- ColdFire 5329 registers
+ *	m53xxsim.h -- ColdFire 5329 registers
  */
 
 /****************************************************************************/
-#ifndef	m532xsim_h
-#define	m532xsim_h
+#ifndef	m53xxsim_h
+#define	m53xxsim_h
 /****************************************************************************/
 
-#define	CPU_NAME		"COLDFIRE(m532x)"
+#define	CPU_NAME		"COLDFIRE(m53xx)"
 #define	CPU_INSTR_PER_JIFFY	3
 #define	MCF_BUSCLK		(MCF_CLK / 3)
 
@@ -107,7 +107,7 @@
 /*
  *  QSPI module.
  */
-#define	MCFQSPI_BASE		0xFC058000	/* Base address of QSPI */
+#define	MCFQSPI_BASE		0xFC05C000	/* Base address of QSPI */
 #define	MCFQSPI_SIZE		0x40		/* Size of QSPI region */
 
 #define	MCFQSPI_CS0		84
@@ -1238,4 +1238,4 @@
 #define MCFEPORT_EPFR                 (0xFC094006)
 
 /********************************************************************/
-#endif	/* m532xsim_h */
+#endif	/* m53xxsim_h */
