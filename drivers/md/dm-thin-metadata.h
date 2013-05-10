@@ -8,6 +8,7 @@
 #define DM_THIN_METADATA_H
 
 #include "persistent-data/dm-block-manager.h"
+#include "persistent-data/dm-space-map.h"
 
 #define THIN_METADATA_BLOCK_SIZE 4096
 
@@ -192,6 +193,11 @@ int dm_pool_resize_metadata_dev(struct dm_pool_metadata *pmd, dm_block_t new_siz
  * that nothing is changing.
  */
 void dm_pool_metadata_read_only(struct dm_pool_metadata *pmd);
+
+int dm_pool_register_metadata_threshold(struct dm_pool_metadata *pmd,
+					dm_block_t threshold,
+					dm_sm_threshold_fn fn,
+					void *context);
 
 /*----------------------------------------------------------------*/
 

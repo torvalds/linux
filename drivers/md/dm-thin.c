@@ -1281,6 +1281,10 @@ static void process_bio_fail(struct thin_c *tc, struct bio *bio)
 	bio_io_error(bio);
 }
 
+/*
+ * FIXME: should we also commit due to size of transaction, measured in
+ * metadata blocks?
+ */
 static int need_commit_due_to_time(struct pool *pool)
 {
 	return jiffies < pool->last_commit_jiffies ||
@@ -1909,6 +1913,16 @@ static int parse_pool_features(struct dm_arg_set *as, struct pool_features *pf,
 	return r;
 }
 
+static void metadata_low_callback(void *context)
+{
+	struct pool *pool = context;
+
+	DMWARN("%s: reached low water mark for metadata device: sending event.",
+	       dm_device_name(pool->pool_md));
+
+	dm_table_event(pool->ti->table);
+}
+
 static sector_t get_metadata_dev_size(struct block_device *bdev)
 {
 	sector_t metadata_dev_size = i_size_read(bdev->bd_inode) >> SECTOR_SHIFT;
@@ -1930,6 +1944,23 @@ static dm_block_t get_metadata_dev_size_in_blocks(struct block_device *bdev)
 	sector_div(metadata_dev_size, THIN_METADATA_BLOCK_SIZE >> SECTOR_SHIFT);
 
 	return metadata_dev_size;
+}
+
+/*
+ * When a metadata threshold is crossed a dm event is triggered, and
+ * userland should respond by growing the metadata device.  We could let
+ * userland set the threshold, like we do with the data threshold, but I'm
+ * not sure they know enough to do this well.
+ */
+static dm_block_t calc_metadata_threshold(struct pool_c *pt)
+{
+	/*
+	 * 4M is ample for all ops with the possible exception of thin
+	 * device deletion which is harmless if it fails (just retry the
+	 * delete after you've grown the device).
+	 */
+	dm_block_t quarter = get_metadata_dev_size_in_blocks(pt->metadata_dev->bdev) / 4;
+	return min((dm_block_t)1024ULL /* 4M */, quarter);
 }
 
 /*
@@ -2064,6 +2095,13 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		ti->discard_zeroes_data_unsupported = true;
 	}
 	ti->private = pt;
+
+	r = dm_pool_register_metadata_threshold(pt->pool->pmd,
+						calc_metadata_threshold(pt),
+						metadata_low_callback,
+						pool);
+	if (r)
+		goto out_free_pt;
 
 	pt->callbacks.congested_fn = pool_is_congested;
 	dm_table_add_target_callbacks(ti->table, &pt->callbacks);
