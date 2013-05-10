@@ -1945,6 +1945,7 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	unsigned long block_size;
 	dm_block_t low_water_blocks;
 	struct dm_dev *metadata_dev;
+	fmode_t metadata_mode;
 
 	/*
 	 * FIXME Remove validation from scope of lock.
@@ -1956,10 +1957,22 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		r = -EINVAL;
 		goto out_unlock;
 	}
+
 	as.argc = argc;
 	as.argv = argv;
 
-	r = dm_get_device(ti, argv[0], FMODE_READ | FMODE_WRITE, &metadata_dev);
+	/*
+	 * Set default pool features.
+	 */
+	pool_features_init(&pf);
+
+	dm_consume_args(&as, 4);
+	r = parse_pool_features(&as, &pf, ti);
+	if (r)
+		goto out_unlock;
+
+	metadata_mode = FMODE_READ | ((pf.mode == PM_READ_ONLY) ? 0 : FMODE_WRITE);
+	r = dm_get_device(ti, argv[0], metadata_mode, &metadata_dev);
 	if (r) {
 		ti->error = "Error opening metadata block device";
 		goto out_unlock;
@@ -1991,16 +2004,6 @@ static int pool_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		r = -EINVAL;
 		goto out;
 	}
-
-	/*
-	 * Set default pool features.
-	 */
-	pool_features_init(&pf);
-
-	dm_consume_args(&as, 4);
-	r = parse_pool_features(&as, &pf, ti);
-	if (r)
-		goto out;
 
 	pt = kzalloc(sizeof(*pt), GFP_KERNEL);
 	if (!pt) {
