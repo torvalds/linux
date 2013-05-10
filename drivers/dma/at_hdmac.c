@@ -1228,11 +1228,10 @@ static struct dma_chan *at_dma_xlate(struct of_phandle_args *dma_spec,
 	 * ignored depending on DMA transfer direction.
 	 */
 	per_id = dma_spec->args[1];
-	atslave->cfg = ATC_FIFOCFG_HALFFIFO | ATC_DST_H2SEL_HW
-		      | ATC_SRC_H2SEL_HW | ATC_DST_PER(per_id)
-		      | ATC_DST_PER_MSB(per_id)
-		      | ATC_SRC_PER_MSB(per_id)
-		      | ATC_SRC_PER(per_id);
+	atslave->cfg = ATC_FIFOCFG_HALFFIFO
+		     | ATC_DST_H2SEL_HW | ATC_SRC_H2SEL_HW
+		     | ATC_DST_PER_MSB(per_id) | ATC_DST_PER(per_id)
+		     | ATC_SRC_PER_MSB(per_id) | ATC_SRC_PER(per_id);
 	atslave->dma_dev = &dmac_pdev->dev;
 
 	chan = dma_request_channel(mask, at_dma_filter, atslave);
