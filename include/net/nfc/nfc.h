@@ -97,6 +97,23 @@ struct nfc_target {
 	u8 logical_idx;
 };
 
+/**
+ * nfc_se - A structure for NFC accessible secure elements.
+ *
+ * @idx: The secure element index. User space will enable or
+ *       disable a secure element by its index.
+ * @type: The secure element type. It can be SE_UICC or
+ *        SE_EMBEDDED.
+ * @state: The secure element state, either enabled or disabled.
+ *
+ */
+struct nfc_se {
+	struct list_head list;
+	u32 idx;
+	u16 type;
+	u16 state;
+};
+
 struct nfc_genl_data {
 	u32 poll_req_portid;
 	struct mutex genl_data_mutex;
@@ -118,7 +135,7 @@ struct nfc_dev {
 	struct nfc_genl_data genl_data;
 	u32 supported_protocols;
 
-	u32 active_se;
+	struct list_head secure_elements;
 
 	int tx_headroom;
 	int tx_tailroom;
@@ -220,5 +237,8 @@ int nfc_tm_deactivated(struct nfc_dev *dev);
 int nfc_tm_data_received(struct nfc_dev *dev, struct sk_buff *skb);
 
 void nfc_driver_failure(struct nfc_dev *dev, int err);
+
+int nfc_add_se(struct nfc_dev *dev, u32 se_idx, u16 type);
+int nfc_remove_se(struct nfc_dev *dev, u32 se_idx);
 
 #endif /* __NET_NFC_H */

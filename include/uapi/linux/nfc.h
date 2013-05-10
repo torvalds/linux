@@ -199,9 +199,11 @@ enum nfc_sdp_attr {
 #define NFC_PROTO_ISO14443_B_MASK (1 << NFC_PROTO_ISO14443_B)
 
 /* NFC Secure Elements */
-#define NFC_SE_NONE     0x0
 #define NFC_SE_UICC     0x1
 #define NFC_SE_EMBEDDED 0x2
+
+#define NFC_SE_DISABLED 0x0
+#define NFC_SE_ENABLED  0x1
 
 struct sockaddr_nfc {
 	sa_family_t sa_family;

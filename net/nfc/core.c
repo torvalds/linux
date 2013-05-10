@@ -760,6 +760,49 @@ inline void nfc_driver_failure(struct nfc_dev *dev, int err)
 }
 EXPORT_SYMBOL(nfc_driver_failure);
 
+int nfc_add_se(struct nfc_dev *dev, u32 se_idx, u16 type)
+{
+	struct nfc_se *se, *n;
+
+	pr_debug("%s se index %d\n", dev_name(&dev->dev), se_idx);
+
+	list_for_each_entry_safe(se, n, &dev->secure_elements, list)
+		if (se->idx == se_idx)
+			return -EALREADY;
+
+	se = kzalloc(sizeof(struct nfc_se), GFP_KERNEL);
+	if (!se)
+		return -ENOMEM;
+
+	se->idx = se_idx;
+	se->type = type;
+	se->state = NFC_SE_DISABLED;
+	INIT_LIST_HEAD(&se->list);
+
+	list_add(&se->list, &dev->secure_elements);
+
+	return 0;
+}
+EXPORT_SYMBOL(nfc_add_se);
+
+int nfc_remove_se(struct nfc_dev *dev, u32 se_idx)
+{
+	struct nfc_se *se, *n;
+
+	pr_debug("%s se index %d\n", dev_name(&dev->dev), se_idx);
+
+	list_for_each_entry_safe(se, n, &dev->secure_elements, list)
+		if (se->idx == se_idx) {
+			list_del(&se->list);
+			kfree(se);
+
+			return 0;
+		}
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL(nfc_remove_se);
+
 static void nfc_release(struct device *d)
 {
 	struct nfc_dev *dev = to_nfc_dev(d);
@@ -856,9 +899,9 @@ struct nfc_dev *nfc_allocate_device(struct nfc_ops *ops,
 
 	dev->ops = ops;
 	dev->supported_protocols = supported_protocols;
-	dev->active_se = NFC_SE_NONE;
 	dev->tx_headroom = tx_headroom;
 	dev->tx_tailroom = tx_tailroom;
+	INIT_LIST_HEAD(&dev->secure_elements);
 
 	nfc_genl_data_init(&dev->genl_data);
 
