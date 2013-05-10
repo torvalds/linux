@@ -133,6 +133,13 @@
 					divisor-reg = <0x304>;
 				};
 
+				clkapb: apb {
+					#clock-cells = <0>;
+					compatible = "via,vt8500-device-clock";
+					clocks = <&pllb>;
+					divisor-reg = <0x320>;
+				};
+
 				clkddr: ddr {
 					#clock-cells = <0>;
 					compatible = "via,vt8500-device-clock";
