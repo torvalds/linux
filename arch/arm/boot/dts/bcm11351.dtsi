@@ -63,4 +63,32 @@
 		clock-frequency = <32768>;
 	};
 
+	sdio0: sdio@0x3f180000 {
+		compatible = "bcm,kona-sdhci";
+		reg = <0x3f180000 0x10000>;
+		interrupts = <0x0 77 0x4>;
+		status = "disabled";
+	};
+
+	sdio1: sdio@0x3f190000 {
+		compatible = "bcm,kona-sdhci";
+		reg = <0x3f190000 0x10000>;
+		interrupts = <0x0 76 0x4>;
+		status = "disabled";
+	};
+
+	sdio2: sdio@0x3f1a0000 {
+		compatible = "bcm,kona-sdhci";
+		reg = <0x3f1a0000 0x10000>;
+		interrupts = <0x0 74 0x4>;
+		status = "disabled";
+	};
+
+	sdio3: sdio@0x3f1b0000 {
+		compatible = "bcm,kona-sdhci";
+		reg = <0x3f1b0000 0x10000>;
+		interrupts = <0x0 73 0x4>;
+		status = "disabled";
+	};
+
 };
