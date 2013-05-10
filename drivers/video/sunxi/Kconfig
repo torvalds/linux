@@ -67,4 +67,7 @@ config LYCHEE_HDMI_SUN5I
 
 config FB_SUNXI_HDMI
         tristate
+
+config YUV_COLORSPACE
+        bool "CONFIG_YUV_COLORSPACE"
 endmenu

@@ -338,7 +338,7 @@ __s32 video_config(__s32 vic)
 	writeb(0x02, HDMI_AVI_INFOFRAME + 1);
 	writeb(0x0d, HDMI_AVI_INFOFRAME + 2);
 	writeb(0x00, HDMI_AVI_INFOFRAME + 3);
-#ifdef YUV_COLORSPACE /* Fix me */
+#ifdef CONFIG_YUV_COLORSPACE /* Fix me */
 	writeb(0x52, HDMI_AVI_INFOFRAME + 4); /* Data Byte 1: 4:4:4 YCbCr */
 #else
 	writeb(0x12, HDMI_AVI_INFOFRAME + 4); /* Data Byte 1: RGB */
@@ -353,7 +353,7 @@ __s32 video_config(__s32 vic)
 	else
 		reg_val |= 0x28; /* 16 : 9 */
 	writeb(reg_val, HDMI_AVI_INFOFRAME + 5); /* Data Byte 2 */
-#ifdef YUV_COLORSPACE /* Fix me */
+#ifdef CONFIG_YUV_COLORSPACE /* Fix me */
 	writeb(0x80, HDMI_AVI_INFOFRAME + 6);
 #else
 	writeb(0x88, HDMI_AVI_INFOFRAME + 6);
