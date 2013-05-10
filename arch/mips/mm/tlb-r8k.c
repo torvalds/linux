@@ -195,7 +195,7 @@ void __update_tlb(struct vm_area_struct * vma, unsigned long address, pte_t pte)
 	if (current->active_mm != vma->vm_mm)
 		return;
 
-	pid = read_c0_entryhi() & ASID_MASK;
+	pid = ASID_MASK(read_c0_entryhi());
 
 	local_irq_save(flags);
 	address &= PAGE_MASK;
