@@ -144,12 +144,6 @@ static void sm_metadata_destroy(struct dm_space_map *sm)
 	kfree(smm);
 }
 
-static int sm_metadata_extend(struct dm_space_map *sm, dm_block_t extra_blocks)
-{
-	DMERR("doesn't support extend");
-	return -EINVAL;
-}
-
 static int sm_metadata_get_nr_blocks(struct dm_space_map *sm, dm_block_t *count)
 {
 	struct sm_metadata *smm = container_of(sm, struct sm_metadata, sm);
@@ -382,6 +376,8 @@ static int sm_metadata_copy_root(struct dm_space_map *sm, void *where_le, size_t
 	return 0;
 }
 
+static int sm_metadata_extend(struct dm_space_map *sm, dm_block_t extra_blocks);
+
 static struct dm_space_map ops = {
 	.destroy = sm_metadata_destroy,
 	.extend = sm_metadata_extend,
@@ -519,6 +515,36 @@ static struct dm_space_map bootstrap_ops = {
 	.root_size = sm_bootstrap_root_size,
 	.copy_root = sm_bootstrap_copy_root
 };
+
+/*----------------------------------------------------------------*/
+
+static int sm_metadata_extend(struct dm_space_map *sm, dm_block_t extra_blocks)
+{
+	int r, i;
+	enum allocation_event ev;
+	struct sm_metadata *smm = container_of(sm, struct sm_metadata, sm);
+	dm_block_t old_len = smm->ll.nr_blocks;
+
+	/*
+	 * Flick into a mode where all blocks get allocated in the new area.
+	 */
+	smm->begin = old_len;
+	memcpy(&smm->sm, &bootstrap_ops, sizeof(smm->sm));
+
+	/*
+	 * Extend.
+	 */
+	r = sm_ll_extend(&smm->ll, extra_blocks);
+
+	/*
+	 * Switch back to normal behaviour.
+	 */
+	memcpy(&smm->sm, &ops, sizeof(smm->sm));
+	for (i = old_len; !r && i < smm->begin; i++)
+		r = sm_ll_inc(&smm->ll, i, &ev);
+
+	return r;
+}
 
 /*----------------------------------------------------------------*/
 
