@@ -363,7 +363,7 @@ unsupported_event:
 /*
  * execute an object
  */
-void fscache_object_work_func(struct work_struct *work)
+static void fscache_object_work_func(struct work_struct *work)
 {
 	struct fscache_object *object =
 		container_of(work, struct fscache_object, work);
@@ -379,7 +379,43 @@ void fscache_object_work_func(struct work_struct *work)
 	clear_bit(FSCACHE_OBJECT_EV_REQUEUE, &object->events);
 	fscache_put_object(object);
 }
-EXPORT_SYMBOL(fscache_object_work_func);
+
+/**
+ * fscache_object_init - Initialise a cache object description
+ * @object: Object description
+ * @cookie: Cookie object will be attached to
+ * @cache: Cache in which backing object will be found
+ *
+ * Initialise a cache object description to its basic values.
+ *
+ * See Documentation/filesystems/caching/backend-api.txt for a complete
+ * description.
+ */
+void fscache_object_init(struct fscache_object *object,
+			 struct fscache_cookie *cookie,
+			 struct fscache_cache *cache)
+{
+	atomic_inc(&cache->object_count);
+
+	object->state = FSCACHE_OBJECT_INIT;
+	spin_lock_init(&object->lock);
+	INIT_LIST_HEAD(&object->cache_link);
+	INIT_HLIST_NODE(&object->cookie_link);
+	INIT_WORK(&object->work, fscache_object_work_func);
+	INIT_LIST_HEAD(&object->dependents);
+	INIT_LIST_HEAD(&object->dep_link);
+	INIT_LIST_HEAD(&object->pending_ops);
+	object->n_children = 0;
+	object->n_ops = object->n_in_progress = object->n_exclusive = 0;
+	object->events = object->event_mask = 0;
+	object->flags = 0;
+	object->store_limit = 0;
+	object->store_limit_l = 0;
+	object->cache = cache;
+	object->cookie = cookie;
+	object->parent = NULL;
+}
+EXPORT_SYMBOL(fscache_object_init);
 
 /*
  * initialise an object
