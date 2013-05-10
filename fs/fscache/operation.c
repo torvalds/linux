@@ -35,7 +35,7 @@ void fscache_enqueue_operation(struct fscache_operation *op)
 
 	ASSERT(list_empty(&op->pend_link));
 	ASSERT(op->processor != NULL);
-	ASSERTCMP(op->object->state, >=, FSCACHE_OBJECT_AVAILABLE);
+	ASSERT(fscache_object_is_available(op->object));
 	ASSERTCMP(atomic_read(&op->usage), >, 0);
 	ASSERTCMP(op->state, ==, FSCACHE_OP_ST_IN_PROGRESS);
 

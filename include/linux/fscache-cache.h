@@ -417,15 +417,6 @@ struct fscache_object {
 
 extern const char *fscache_object_states[];
 
-#define fscache_object_is_active(obj)			      \
-	(!test_bit(FSCACHE_IOERROR, &(obj)->cache->flags) &&  \
-	 (obj)->state >= FSCACHE_OBJECT_AVAILABLE &&	      \
-	 (obj)->state < FSCACHE_OBJECT_DYING)
-
-#define fscache_object_is_dead(obj)				\
-	(test_bit(FSCACHE_IOERROR, &(obj)->cache->flags) &&	\
-	 (obj)->state >= FSCACHE_OBJECT_DYING)
-
 extern void fscache_object_init(struct fscache_object *, struct fscache_cookie *,
 				struct fscache_cache *);
 
@@ -437,6 +428,34 @@ extern void fscache_object_destroy(struct fscache_object *object);
 #else
 #define fscache_object_destroy(object) do {} while(0)
 #endif
+
+static inline bool fscache_object_is_live(struct fscache_object *object)
+{
+	return object->state < FSCACHE_OBJECT_DYING;
+}
+
+static inline bool fscache_object_is_dying(struct fscache_object *object)
+{
+	return !fscache_object_is_live(object);
+}
+
+static inline bool fscache_object_is_available(struct fscache_object *object)
+{
+	return object->state >= FSCACHE_OBJECT_AVAILABLE;
+}
+
+static inline bool fscache_object_is_active(struct fscache_object *object)
+{
+	return fscache_object_is_available(object) &&
+		fscache_object_is_live(object) &&
+		!test_bit(FSCACHE_IOERROR, &object->cache->flags);
+}
+
+static inline bool fscache_object_is_dead(struct fscache_object *object)
+{
+	return fscache_object_is_dying(object) &&
+		test_bit(FSCACHE_IOERROR, &object->cache->flags);
+}
 
 /**
  * fscache_object_destroyed - Note destruction of an object in a cache

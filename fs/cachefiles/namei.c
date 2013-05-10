@@ -130,7 +130,7 @@ found_dentry:
 	       fscache_object_states[object->fscache.state],
 	       dentry);
 
-	if (object->fscache.state < FSCACHE_OBJECT_DYING) {
+	if (fscache_object_is_live(&object->fscache)) {
 		printk(KERN_ERR "\n");
 		printk(KERN_ERR "CacheFiles: Error:"
 		       " Can't preemptively bury live object\n");
@@ -192,7 +192,7 @@ try_again:
 	/* an old object from a previous incarnation is hogging the slot - we
 	 * need to wait for it to be destroyed */
 wait_for_old_object:
-	if (xobject->fscache.state < FSCACHE_OBJECT_DYING) {
+	if (fscache_object_is_live(&object->fscache)) {
 		printk(KERN_ERR "\n");
 		printk(KERN_ERR "CacheFiles: Error:"
 		       " Unexpected object collision\n");

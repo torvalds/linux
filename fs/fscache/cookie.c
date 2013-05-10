@@ -285,7 +285,7 @@ static int fscache_alloc_object(struct fscache_cache *cache,
 
 object_already_extant:
 	ret = -ENOBUFS;
-	if (object->state >= FSCACHE_OBJECT_DYING) {
+	if (fscache_object_is_dead(object)) {
 		spin_unlock(&cookie->lock);
 		goto error;
 	}
@@ -321,7 +321,7 @@ static int fscache_attach_object(struct fscache_cookie *cookie,
 	ret = -EEXIST;
 	hlist_for_each_entry(p, &cookie->backing_objects, cookie_link) {
 		if (p->cache == object->cache) {
-			if (p->state >= FSCACHE_OBJECT_DYING)
+			if (fscache_object_is_dying(p))
 				ret = -ENOBUFS;
 			goto cant_attach_object;
 		}
@@ -332,7 +332,7 @@ static int fscache_attach_object(struct fscache_cookie *cookie,
 	hlist_for_each_entry(p, &cookie->parent->backing_objects,
 			     cookie_link) {
 		if (p->cache == object->cache) {
-			if (p->state >= FSCACHE_OBJECT_DYING) {
+			if (fscache_object_is_dying(p)) {
 				ret = -ENOBUFS;
 				spin_unlock(&cookie->parent->lock);
 				goto cant_attach_object;
@@ -400,7 +400,7 @@ void __fscache_invalidate(struct fscache_cookie *cookie)
 			object = hlist_entry(cookie->backing_objects.first,
 					     struct fscache_object,
 					     cookie_link);
-			if (object->state < FSCACHE_OBJECT_DYING)
+			if (fscache_object_is_live(object))
 				fscache_raise_event(
 					object, FSCACHE_OBJECT_EV_INVALIDATE);
 		}

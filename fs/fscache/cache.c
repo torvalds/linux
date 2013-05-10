@@ -115,7 +115,7 @@ struct fscache_cache *fscache_select_cache_for_object(
 				     struct fscache_object, cookie_link);
 
 		cache = object->cache;
-		if (object->state >= FSCACHE_OBJECT_DYING ||
+		if (fscache_object_is_dying(object) ||
 		    test_bit(FSCACHE_IOERROR, &cache->flags))
 			cache = NULL;
 

@@ -457,10 +457,10 @@ static void fscache_initialise_object(struct fscache_object *object)
 		spin_lock_nested(&parent->lock, 1);
 		_debug("parent %s", fscache_object_states[parent->state]);
 
-		if (parent->state >= FSCACHE_OBJECT_DYING) {
+		if (fscache_object_is_dying(parent)) {
 			_debug("bad parent");
 			set_bit(FSCACHE_OBJECT_EV_WITHDRAW, &object->events);
-		} else if (parent->state < FSCACHE_OBJECT_AVAILABLE) {
+		} else if (!fscache_object_is_available(parent)) {
 			_debug("wait");
 
 			/* we may get woken up in this state by child objects
@@ -517,9 +517,9 @@ static void fscache_lookup_object(struct fscache_object *object)
 	ASSERTCMP(parent->n_obj_ops, >, 0);
 
 	/* make sure the parent is still available */
-	ASSERTCMP(parent->state, >=, FSCACHE_OBJECT_AVAILABLE);
+	ASSERT(fscache_object_is_available(parent));
 
-	if (parent->state >= FSCACHE_OBJECT_DYING ||
+	if (fscache_object_is_dying(parent) ||
 	    test_bit(FSCACHE_IOERROR, &object->cache->flags)) {
 		_debug("unavailable");
 		set_bit(FSCACHE_OBJECT_EV_WITHDRAW, &object->events);
