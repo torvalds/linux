@@ -79,13 +79,12 @@ struct vendor_data {
 	bool			dma_threshold;
 	bool			cts_event_workaround;
 
-	unsigned int (*get_fifosize)(unsigned int periphid);
+	unsigned int (*get_fifosize)(struct amba_device *dev);
 };
 
-static unsigned int get_fifosize_arm(unsigned int periphid)
+static unsigned int get_fifosize_arm(struct amba_device *dev)
 {
-	unsigned int rev = (periphid >> 20) & 0xf;
-	return rev < 3 ? 16 : 32;
+	return amba_rev(dev) < 3 ? 16 : 32;
 }
 
 static struct vendor_data vendor_arm = {
@@ -98,7 +97,7 @@ static struct vendor_data vendor_arm = {
 	.get_fifosize		= get_fifosize_arm,
 };
 
-static unsigned int get_fifosize_st(unsigned int periphid)
+static unsigned int get_fifosize_st(struct amba_device *dev)
 {
 	return 64;
 }
@@ -2157,7 +2156,7 @@ static int pl011_probe(struct amba_device *dev, const struct amba_id *id)
 	uap->lcrh_rx = vendor->lcrh_rx;
 	uap->lcrh_tx = vendor->lcrh_tx;
 	uap->old_cr = 0;
-	uap->fifosize = vendor->get_fifosize(dev->periphid);
+	uap->fifosize = vendor->get_fifosize(dev);
 	uap->port.dev = &dev->dev;
 	uap->port.mapbase = dev->res.start;
 	uap->port.membase = base;
