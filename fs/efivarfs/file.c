@@ -44,8 +44,11 @@ static ssize_t efivarfs_file_write(struct file *file,
 
 	bytes = efivar_entry_set_get_size(var, attributes, &datasize,
 					  data, &set);
-	if (!set && bytes)
+	if (!set && bytes) {
+		if (bytes == -ENOENT)
+			bytes = -EIO;
 		goto out;
+	}
 
 	if (bytes == -ENOENT) {
 		drop_nlink(inode);
@@ -76,7 +79,14 @@ static ssize_t efivarfs_file_read(struct file *file, char __user *userbuf,
 	int err;
 
 	err = efivar_entry_size(var, &datasize);
-	if (err)
+
+	/*
+	 * efivarfs represents uncommitted variables with
+	 * zero-length files. Reading them should return EOF.
+	 */
+	if (err == -ENOENT)
+		return 0;
+	else if (err)
 		return err;
 
 	data = kmalloc(datasize + sizeof(attributes), GFP_KERNEL);
