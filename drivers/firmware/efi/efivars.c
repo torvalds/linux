@@ -523,13 +523,11 @@ static void efivar_update_sysfs_entries(struct work_struct *work)
 	struct efivar_entry *entry;
 	int err;
 
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
-	if (!entry)
-		return;
-
 	/* Add new sysfs entries */
 	while (1) {
-		memset(entry, 0, sizeof(*entry));
+		entry = kzalloc(sizeof(*entry), GFP_KERNEL);
+		if (!entry)
+			return;
 
 		err = efivar_init(efivar_update_sysfs_entry, entry,
 				  true, false, &efivar_sysfs_list);
