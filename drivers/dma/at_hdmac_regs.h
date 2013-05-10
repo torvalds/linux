@@ -182,6 +182,7 @@ struct at_lli {
  * @txd: support for the async_tx api
  * @desc_node: node on the channed descriptors list
  * @len: total transaction bytecount
+ * @tx_width: transfer width
  */
 struct at_desc {
 	/* FIRST values the hardware uses */
@@ -192,6 +193,7 @@ struct at_desc {
 	struct dma_async_tx_descriptor	txd;
 	struct list_head		desc_node;
 	size_t				len;
+	u32				tx_width;
 };
 
 static inline struct at_desc *
