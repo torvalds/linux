@@ -1,7 +1,0 @@
-menu "Kernel hacking"
-
-source "lib/Kconfig.debug"
-
-endmenu
-
-

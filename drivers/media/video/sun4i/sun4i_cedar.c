@@ -963,6 +963,10 @@ static int __init cedardev_init(void)
 	int devno;
 	unsigned int val;
 	dev_t dev = 0;
+
+	if (ve_size == 0)
+		return -ENODEV;
+
 	printk("[cedar dev]: install start!!!\n");
 	if((platform_device_register(&sw_device_cedar))<0)
 		return err;

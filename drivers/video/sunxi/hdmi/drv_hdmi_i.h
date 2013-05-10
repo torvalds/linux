@@ -44,6 +44,7 @@
 #include <linux/clk.h>
 #include <linux/cdev.h>
 #include <linux/types.h>
+#include <linux/i2c.h>
 
 #include <video/sunxi_disp_ioctl.h>
 #include <linux/drv_hdmi.h>
@@ -51,18 +52,7 @@
 #define __inf(msg, ...) pr_debug("[DISP] " msg, ##__VA_ARGS__)
 #define __wrn(msg, ...) pr_warn("[DISP] " msg, ##__VA_ARGS__)
 
-__s32 Hdmi_init(void);
-__s32 Hdmi_exit(void);
-
-__s32 Hdmi_open(void);
-__s32 Hdmi_close(void);
-__s32 Hdmi_set_display_mode(__disp_tv_mode_t mode);
-__s32 Hdmi_mode_support(__disp_tv_mode_t mode);
-__s32 Hdmi_get_HPD_status(void);
-__s32 Hdmi_Audio_Enable(__u8 mode, __u8 channel);
-__s32 Hdmi_Set_Audio_Para(hdmi_audio_t *audio_para);
-
-#define sys_get_wvalue(n)   (*((volatile __u32 *)(n)))	/* word input */
-#define sys_put_wvalue(n,c) (*((volatile __u32 *)(n))  = (c))	/* word output */
+__s32 Hdmi_init(struct platform_device *dev);
+__s32 Hdmi_exit(struct platform_device *dev);
 
 #endif

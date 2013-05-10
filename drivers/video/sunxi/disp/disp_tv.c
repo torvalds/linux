@@ -367,7 +367,8 @@ __s32 BSP_disp_tv_close(__u32 sel)
 
 __s32 BSP_disp_tv_set_mode(__u32 sel, __disp_tv_mode_t tv_mod)
 {
-	if (tv_mod >= DISP_TV_MODE_NUM) {
+	/* tv-out does not support 3d or other special modes */
+	if (tv_mod >= DISP_TV_MOD_1080P_24HZ_3D_FP) {
 		DE_WRN("unsupported tv mode:%d in BSP_disp_tv_set_mode\n",
 		       tv_mod);
 		return DIS_FAIL;

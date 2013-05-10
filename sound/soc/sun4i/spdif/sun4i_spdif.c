@@ -28,11 +28,11 @@
 #include <sound/soc.h>
 
 #include <mach/clock.h>
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 
 #include <mach/hardware.h>
 #include <asm/dma.h>
-#include <mach/dma.h>
+#include <plat/dma.h>
 
 #include "sun4i_spdma.h"
 #include "sun4i_spdif.h"

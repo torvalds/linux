@@ -37,7 +37,6 @@ typedef enum {
 
 typedef struct {
 	__u32 status;
-	__bool b_reg_change;
 	__bool b_close;
 
 	__u32 screen_index;
@@ -86,9 +85,11 @@ __s32 Scaler_Get_SclRegn(__u32 sel, __disp_rect_t *scl_rect);
 __s32 Scaler_Set_Output_Size(__u32 sel, __disp_rectsz_t *out_size);
 __s32 Scaler_Set_Para(__u32 sel, __disp_scaler_t *scl);
 __s32 Scaler_Set_Outitl(__u32 sel, __bool enable);
-__s32 Scaler_sw_para_to_reg(__u8 type, __u8 value);
 __s32 Scaler_Set_Enhance(__u32 sel, __u32 bright, __u32 contrast,
 			 __u32 saturation, __u32 hue);
 __s32 Scaler_3d_sw_para_to_reg(__u32 type, __u32 mode, __bool b_out_interlace);
+__scal_infmt_t Scaler_sw_para_to_reg1(__disp_pixel_fmt_t value);
+__scal_ps_t Scaler_sw_para_to_reg3(__disp_pixel_seq_t value);
+__scal_outfmt_t Scaler_sw_para_to_reg4(__disp_pixel_fmt_t value);
 
 #endif

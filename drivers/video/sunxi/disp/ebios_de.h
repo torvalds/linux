@@ -33,24 +33,6 @@
 /* unvalid write back */
 #define SCAL_WB_ERR_STATUS (1<<12)
 
-/* layer framebuffer format enum definition */
-typedef enum {
-	DE_MONO_1BPP = 0,
-	DE_MONO_2BPP,
-	DE_MONO_4BPP,
-	DE_MONO_8BPP,
-	DE_COLOR_RGB655,
-	DE_COLOR_RGB565,
-	DE_COLOR_RGB556,
-	DE_COLOR_ARGB1555,
-	DE_COLOR_RGBA5551,
-	DE_COLOR_RGB0888,
-	DE_COLOR_ARGB8888,
-	DE_COLOR_RGB888,
-	DE_COLOR_ARGB4444,
-
-} de_fbfmt_e;
-
 /* internal layer framebuffer format enum definition */
 typedef enum {
 	DE_IF1BPP = 0,
@@ -58,13 +40,6 @@ typedef enum {
 	DE_IF4BPP,
 	DE_IF8BPP
 } de_inter_fbfmt_e;
-
-typedef enum {
-	DE_H32_V32_8BPP,
-	DE_H64_V64_2BPP,
-	DE_H64_V32_4BPP,
-	DE_H32_V64_4BPP
-} de_hwc_mode_e;
 
 typedef enum {
 	DE_N32PIXELS = 0,
@@ -91,14 +66,6 @@ typedef enum __SCAL_PS {
 	DE_SCAL_VYUY = 2,
 	DE_SCAL_YVYU = 3,
 } __scal_ps_t;
-
-typedef enum __SCAL_INMODE {
-	DE_SCAL_PLANNAR = 0,
-	DE_SCAL_INTER_LEAVED,
-	DE_SCAL_UVCOMBINED,
-	DE_SCAL_PLANNARMB = 4,
-	DE_SCAL_UVCOMBINEDMB = 6
-} __scal_inmode_t;
 
 typedef enum __SCAL_INFMT {
 	DE_SCAL_INYUV444 = 0,
@@ -147,7 +114,7 @@ typedef enum __SCAL_3D_OUTMODE {
 } __scal_3d_outmode_t;
 
 typedef struct layer_input_src {
-	__u8 format;
+	__disp_pixel_fmt_t format;
 	__u8 pixseq;
 	__u8 br_swap;
 	__u32 fb_width;
@@ -158,24 +125,9 @@ typedef struct layer_input_src {
 	__bool yuv_ch;
 } layer_src_t;
 
-/* direct lcd pipe input source definition */
-typedef struct dlcdp_src {
-	__u8 format;
-	__u8 pixseq;
-	__u32 fb_width;
-	__u32 fb_addr;
-	__u32 offset_x;
-	__u32 offset_y;
-} de_dlcdp_src_t;
-
-typedef struct hwc_src {
-	__u8 mode;
-	__u32 paddr;
-} de_hwc_src_t;
-
 typedef struct yuv_ch_src {
 	__u8 format;
-	__u8 mode;
+	__disp_pixel_mod_t mode;
 	__u8 pixseq;
 	__u32 ch0_base;		/* in bits */
 	__u32 ch1_base;		/* in bits */
@@ -190,17 +142,8 @@ typedef struct yuv_ch_src {
 	 * 2: DISP_YCC
 	 * 3: DISP_VXYCC
 	 */
-	__u8 cs_mode;
+	__disp_cs_mode_t cs_mode;
 } de_yuv_ch_src_t;
-
-typedef struct sprite_src {
-	__u8 pixel_seq;	/* 0,1 */
-	__u8 format;	/* 0: 32bpp; 1: 8bpp */
-	__u32 offset_x;
-	__u32 offset_y;
-	__u32 fb_addr;
-	__u32 fb_width;
-} de_sprite_src_t;
 
 typedef struct __SCAL_SRC_TYPE {
 	/*
@@ -222,7 +165,7 @@ typedef struct __SCAL_SRC_TYPE {
 	 * 4: planar mb
 	 * 6: uv combined mb
 	 */
-	__u8 mod;
+	__disp_pixel_mod_t mod;
 
 	/*
 	 * 0: yuv444
@@ -232,8 +175,8 @@ typedef struct __SCAL_SRC_TYPE {
 	 * 4: csi rgb
 	 * 5: rgb888
 	 */
-	__u8 fmt;
-	__u8 ps;
+	__scal_infmt_t fmt;
+	__scal_ps_t ps;
 } __scal_src_type_t;
 
 typedef struct __SCAL_OUT_TYPE {
@@ -248,7 +191,7 @@ typedef struct __SCAL_OUT_TYPE {
 	 * 1: argb(byte0,byte1, byte2, byte3);
 	 * 2:bgra; 4:yuv444; 5:yuv420; 6:yuv422; 7:yuv411
 	 */
-	__u8 fmt;
+	__scal_outfmt_t fmt;
 } __scal_out_type_t;
 
 typedef struct __SCAL_SRC_SIZE {
@@ -388,7 +331,7 @@ __u32 DE_BE_ClearINT(__u8 sel, __u32 irqsrc);
 __s32 DE_BE_reg_auto_load_en(__u32 sel, __u32 en);
 
 __s32 DE_BE_Layer_Enable(__u32 sel, __u8 layidx, __bool enable);
-__s32 DE_BE_Layer_Set_Format(__u32 sel, __u8 layidx, __u8 format,
+__s32 DE_BE_Layer_Set_Format(__u32 sel, __u8 layidx, __disp_pixel_fmt_t format,
 			     __bool br_swap, __u8 order);
 __s32 DE_BE_Layer_Set_Framebuffer(__u32 sel, __u8 layidx,
 				  layer_src_t *layer_fb);
@@ -411,11 +354,11 @@ __s32 DE_BE_HWC_Set_Pos(__u32 sel, __disp_pos_t *pos);
 __s32 DE_BE_HWC_Get_Pos(__u32 sel, __disp_pos_t *pos);
 __s32 DE_BE_HWC_Set_Palette(__u32 sel, __u32 address, __u32 offset, __u32 size);
 __s32 DE_BE_HWC_Get_Format(void);
-__s32 DE_BE_HWC_Set_Src(__u32 sel, de_hwc_src_t *hwc_pat);
+__s32 DE_BE_HWC_Set_Src(__u32 sel, __disp_hwc_pattern_t *hwc_pat);
 
 __s32 DE_BE_Sprite_Enable(__u32 sel, __bool enable);
 __s32 DE_BE_Sprite_Set_Format(__u32 sel, __u8 pixel_seq, __u8 format);
-__s32 DE_BE_Sprite_Global_Alpha_Enable(__u32 sel, __bool enable);
+__s32 DE_BE_Sprite_Global_Alpha_Enable(__u32 sel, bool enable);
 __s32 DE_BE_Sprite_Set_Global_Alpha(__u32 sel, __u8 alpha_val);
 __s32 DE_BE_Sprite_Block_Set_Pos(__u32 sel, __u8 blk_idx, __s16 x, __s16 y);
 __s32 DE_BE_Sprite_Block_Set_Size(__u32 sel, __u8 blk_idx, __u32 xsize,
@@ -434,7 +377,7 @@ __s32 DE_BE_Set_Enhance(__u8 sel, __u32 out_csc, __u32 out_color_range,
 			__s32 brightness, __s32 contrast, __s32 saturation,
 			__s32 hue);
 #endif
-__s32 DE_BE_enhance_enable(__u32 sel, __bool enable);
+__s32 DE_BE_enhance_enable(__u32 sel, bool enable);
 __s32 DE_BE_set_display_size(__u32 sel, __u32 width, __u32 height);
 __s32 DE_BE_get_display_width(__u32 sel);
 __s32 DE_BE_get_display_height(__u32 sel);
@@ -443,7 +386,7 @@ __s32 DE_BE_deflicker_enable(__u32 sel, __bool enable);
 __s32 DE_BE_output_csc_enable(__u32 sel, __bool enable);
 #endif
 __s32 DE_BE_Set_Outitl_enable(__u32 sel, __bool enable);
-__s32 DE_BE_Format_To_Bpp(__u32 sel, __u8 format);
+__s32 DE_BE_Format_To_Bpp(__disp_pixel_fmt_t format);
 __u32 DE_BE_Offset_To_Addr(__u32 src_addr, __u32 width, __u32 x, __u32 y,
 			   __u32 bpp);
 __u32 DE_BE_Addr_To_Offset(__u32 src_addr, __u32 off_addr, __u32 width,

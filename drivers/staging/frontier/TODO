@@ -1,9 +1,0 @@
-TODO:
-	- checkpatch.pl clean
-	- sparse clean
-	- fix userspace interface to be sane
-	- possibly just port to userspace with libusb
-	- review by the USB developer community
-
-Please send any patches for this driver to Greg Kroah-Hartman <greg@kroah.com>
-and David Taht <d@teklibre.com>.

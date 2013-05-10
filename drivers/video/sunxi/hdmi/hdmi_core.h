@@ -20,9 +20,41 @@
 #ifndef __HDMI_CORE_H__
 #define __HDMI_CORE_H__
 
-#include "hdmi_hal.h"
+#include "drv_hdmi_i.h"
 
-extern void __iomem *HDMI_BASE;
+extern void __iomem *hdmi_base;
+
+#define HDMI_DEVICE_SUPPORT_VIC_SIZE	512
+
+#define HDMI_State_Wait_Hpd		0x02
+#define HDMI_State_Rx_Sense		0x03
+#define HDMI_State_EDID_Parse		0x04
+#define HDMI_State_Wait_Video_config	0x05
+#define HDMI_State_Video_config		0x06
+#define HDMI_State_Audio_config		0x07
+#define HDMI_State_Playback		0x09
+
+#define HDMI1440_480I		6
+#define HDMI1440_576I		21
+#define HDMI480P		2
+#define HDMI576P		17
+#define HDMI720P_50		19
+#define HDMI720P_60		4
+#define HDMI1080I_50		20
+#define HDMI1080I_60		5
+#define HDMI1080P_50		31
+#define HDMI1080P_60		16
+#define HDMI1080P_24		32
+#define HDMI1080P_25		33
+#define HDMI1080P_24_3D_FP	(HDMI1080P_24 + 0x80)
+#define HDMI720P_50_3D_FP	(HDMI720P_50  + 0x80)
+#define HDMI720P_60_3D_FP	(HDMI720P_60  + 0x80)
+
+/* Non CEA-861-D modes */
+#define HDMI_NON_CEA861D_START	256
+#define HDMI1360_768_60		(HDMI_NON_CEA861D_START + 0)
+#define HDMI1280_1024_60	(HDMI_NON_CEA861D_START + 1)
+#define HDMI_EDID		(HDMI_DEVICE_SUPPORT_VIC_SIZE - 1) 
 
 #define HDMI_WUINT32(offset, value)	writel(value, HDMI_BASE + offset)
 #define HDMI_RUINT32(offset)		readl(HDMI_BASE + offset)
@@ -40,24 +72,9 @@ extern void __iomem *HDMI_BASE;
 #define Explicit_Offset_Address_E_DDC_Read	6
 #define Implicit_Offset_Address_E_DDC_Read	7
 
-typedef struct video_timing {
-	__s32 VIC;
-	__s32 PCLK;
-	__s32 AVI_PR;
-
-	__s32 INPUTX;
-	__s32 INPUTY;
-	__s32 HT;
-	__s32 HBP;
-	__s32 HFP;
-	__s32 HPSW;
-	__s32 VT;
-	__s32 VBP;
-	__s32 VFP;
-	__s32 VPSW;
-} HDMI_VIDE_INFO;
-
 typedef struct audio_timing {
+
+	unsigned long supported_rates;
 
 	__s32 audio_en;
 	__s32 sample_rate;
@@ -70,6 +87,7 @@ typedef struct audio_timing {
 
 } HDMI_AUDIO_INFO;
 
+void hdmi_delay_ms(__u32 t);
 __s32 hdmi_core_initial(void);
 __s32 hdmi_core_open(void);
 __s32 hdmi_core_close(void);
@@ -78,20 +96,22 @@ __s32 Hpd_Check(void);
 __s32 ParseEDID(void);
 __s32 video_config(__s32 vic);
 __s32 audio_config(void);
+__s32 get_video_info(__s32 vic);
 
 extern __u32 hdmi_pll; /* 0: video pll 0; 1: video pll 1 */
 extern __u32 hdmi_clk;
+extern struct i2c_adapter sunxi_hdmi_i2c_adapter;
+int hdmi_i2c_sunxi_probe(struct platform_device *dev);
+int hdmi_i2c_sunxi_remove(struct platform_device *dev);
 
-void DDC_Init(void);
-void send_ini_sequence(void);
-__s32 DDC_Read(char cmd, char pointer, char offset, int nbyte, char *pbuf);
-
-extern __u8 EDID_Buf[1024];
-extern __u8 Device_Support_VIC[512];
+extern __u8 Device_Support_VIC[HDMI_DEVICE_SUPPORT_VIC_SIZE];
 
 extern __bool video_enable;
 extern __s32 hdmi_state;
 extern __s32 video_mode;
 extern HDMI_AUDIO_INFO audio_info;
+
+extern struct __disp_video_timing video_timing[];
+extern const int video_timing_edid;
 
 #endif

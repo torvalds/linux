@@ -19,6 +19,7 @@
 
 #include "ebios_lcdc_tve.h"
 #include "de_lcdc_i.h"
+#include "disp_display.h"
 
 static __u32 lcdc_reg_base0;
 static __u32 lcdc_reg_base1;
@@ -180,7 +181,7 @@ __s32 LCDC_clear_int(__u32 sel, __u32 irqsrc)
 	return 0;
 }
 
-__s32 LCDC_get_timing(__u32 sel, __u32 index, __disp_tcon_timing_t *tt)
+__s32 LCDC_get_timing(__u32 sel, __u32 index, struct fb_videomode *videomode)
 {
 	__u32 reg0, reg1, reg2, reg3;
 	__u32 x, y, ht, hbp, vt, vbp, hspw, vspw;
@@ -206,17 +207,17 @@ __s32 LCDC_get_timing(__u32 sel, __u32 index, __disp_tcon_timing_t *tt)
 	vspw = (reg3 >> 0) & 0x3ff;
 
 	/* left margin */
-	tt->hor_back_porch = (hbp + 1) - (hspw + 1);
+	videomode->left_margin = (hbp + 1) - (hspw + 1);
 	/* right margin */
-	tt->hor_front_porch = (ht + 1) - (x + 1) - (hbp + 1);
+	videomode->right_margin = (ht + 1) - (x + 1) - (hbp + 1);
 	/* upper margin */
-	tt->ver_back_porch = (vbp + 1) - (vspw + 1);
+	videomode->upper_margin = (vbp + 1) - (vspw + 1);
 	/* lower margin */
-	tt->ver_front_porch = (vt / 2) - (y + 1) - (vbp + 1);
+	videomode->lower_margin = (vt / 2) - (y + 1) - (vbp + 1);
 	/* hsync_len */
-	tt->hor_sync_time = (hspw + 1);
+	videomode->hsync_len = (hspw + 1);
 	/* vsync_len */
-	tt->ver_sync_time = (vspw + 1);
+	videomode->vsync_len = (vspw + 1);
 
 	return 0;
 }
@@ -421,16 +422,6 @@ __s32 TCON0_select_src(__u32 sel, enum lcdc_src src)
 	return 0;
 }
 
-__s32 TCON0_get_width(__u32 sel)
-{
-	return -1;
-}
-
-__s32 TCON0_get_height(__u32 sel)
-{
-	return -1;
-}
-
 __s32 TCON0_set_dclk_div(__u32 sel, __u8 div)
 {
 	LCDC_INIT_BIT(sel, LCDC_DCLK_OFF, 0xff, div);
@@ -549,248 +540,60 @@ __u32 TCON1_cfg_ex(__u32 sel, __panel_para_t *info)
 __u32 TCON1_set_hdmi_mode(__u32 sel, __u8 mode)
 {
 	__tcon1_cfg_t cfg;
+	struct __disp_video_timing video_timing;
+	int extra_y;
+
+	if (gdisp.init_para.hdmi_get_video_timing(mode, &video_timing) != 0)
+		return 0;
+
+	if (video_timing.I)
+		video_timing.INPUTY /= 2;
+
+	cfg.b_interlace = video_timing.I;
+	cfg.src_x = video_timing.INPUTX;
+	cfg.src_y = video_timing.INPUTY;
+	cfg.scl_x = video_timing.INPUTX;
+	cfg.scl_y = video_timing.INPUTY;
+	cfg.out_x = video_timing.INPUTX;
+	cfg.out_y = video_timing.INPUTY;
+	cfg.ht    = video_timing.HT;
+	cfg.hbp   = video_timing.HBP;
+	cfg.hspw  = video_timing.HPSW;
+	cfg.vt    = video_timing.VT;
+	cfg.vbp   = video_timing.VBP;
+	cfg.vspw  = video_timing.VPSW;
+	cfg.io_pol = 0x04000000; /* HDG: unknow bit must be set */
+	/*
+	 * HDG: Note I'm not sure if I don't have Hsync versus Vsync swapped,
+	 * does not matter for standard modes which are NN or PP, but could
+	 * impact EDID.
+	 */
+	if (video_timing.HSYNC)
+		cfg.io_pol |= 0x01000000; /* Positive Hsync */
+	if (video_timing.VSYNC)
+		cfg.io_pol |= 0x02000000; /* Positive Vsync */
 
 	switch (mode) {
-	case DISP_TV_MOD_480I:
-		cfg.b_interlace = 1;
-		cfg.src_x = 720;
-		cfg.src_y = 240;
-		cfg.scl_x = 720;
-		cfg.scl_y = 240;
-		cfg.out_x = 720;
-		cfg.out_y = 240;
-		cfg.ht = 858;
-		cfg.hbp = 119;
-		cfg.vt = 525;
-		cfg.vbp = 18;
-		cfg.vspw = 3;
-		cfg.hspw = 62;
-		cfg.io_pol = 0x04000000;
-		break;
-	case DISP_TV_MOD_576I:
-		cfg.b_interlace = 1;
-		cfg.src_x = 720;
-		cfg.src_y = 288;
-		cfg.scl_x = 720;
-		cfg.scl_y = 288;
-		cfg.out_x = 720;
-		cfg.out_y = 288;
-		cfg.ht = 864;
-		cfg.hbp = 132;
-		cfg.vt = 625;
-		cfg.vbp = 22;
-		cfg.vspw = 3;
-		cfg.hspw = 63;
-		cfg.io_pol = 0x04000000;
-		break;
-	case DISP_TV_MOD_480P:
-		cfg.b_interlace = 0;
-		cfg.src_x = 720;
-		cfg.src_y = 480;
-		cfg.scl_x = 720;
-		cfg.scl_y = 480;
-		cfg.out_x = 720;
-		cfg.out_y = 480;
-		cfg.ht = 858;
-		cfg.hbp = 122;
-		cfg.vt = 1050;
-		cfg.vbp = 42 - 6;
-		cfg.vspw = 6;
-		cfg.hspw = 62;
-		cfg.io_pol = 0x04000000;
-		break;
-	case DISP_TV_MOD_576P:
-		cfg.b_interlace = 0;
-		cfg.src_x = 720;
-		cfg.src_y = 576;
-		cfg.scl_x = 720;
-		cfg.scl_y = 576;
-		cfg.out_x = 720;
-		cfg.out_y = 576;
-		cfg.ht = 864;
-		cfg.hbp = 132;
-		cfg.vt = 1250;
-		cfg.vbp = 44;
-		cfg.vspw = 5;
-		cfg.hspw = 64;
-		cfg.io_pol = 0x04000000;
-		break;
-
-	case DISP_TV_MOD_720P_50HZ:
-		cfg.b_interlace = 0;
-		cfg.src_x = 1280;
-		cfg.src_y = 720;
-		cfg.scl_x = 1280;
-		cfg.scl_y = 720;
-		cfg.out_x = 1280;
-		cfg.out_y = 720;
-		cfg.ht = 1980;
-		cfg.hbp = 260;
-		cfg.vt = 1500;
-		cfg.vbp = 25;
-		cfg.vspw = 5;
-		cfg.hspw = 40;
-		cfg.io_pol = 0x07000000;
-		break;
-	case DISP_TV_MOD_720P_60HZ:
-		cfg.b_interlace = 0;
-		cfg.src_x = 1280;
-		cfg.src_y = 720;
-		cfg.scl_x = 1280;
-		cfg.scl_y = 720;
-		cfg.out_x = 1280;
-		cfg.out_y = 720;
-		cfg.ht = 1650;
-		cfg.hbp = 260;
-		cfg.vt = 1500;
-		cfg.vbp = 25;
-		cfg.vspw = 5;
-		cfg.hspw = 40;
-		cfg.io_pol = 0x07000000;
-		break;
-	case DISP_TV_MOD_1080I_50HZ:
-		cfg.b_interlace = 1;
-		cfg.src_x = 1920;
-		cfg.src_y = 540;
-		cfg.scl_x = 1920;
-		cfg.scl_y = 540;
-		cfg.out_x = 1920;
-		cfg.out_y = 540;
-		cfg.ht = 2640;
-		cfg.hbp = 192;
-		cfg.vt = 1125;
-		cfg.vbp = 20;
-		cfg.vspw = 5;
-		cfg.hspw = 44;
-		cfg.io_pol = 0x07000000;
-		break;
-	case DISP_TV_MOD_1080I_60HZ:
-		cfg.b_interlace = 1;
-		cfg.src_x = 1920;
-		cfg.src_y = 540;
-		cfg.scl_x = 1920;
-		cfg.scl_y = 540;
-		cfg.out_x = 1920;
-		cfg.out_y = 540;
-		cfg.ht = 2200;
-		cfg.hbp = 192;
-		cfg.vt = 1125;
-		cfg.vbp = 20;
-		cfg.vspw = 5;
-		cfg.hspw = 44;
-		cfg.io_pol = 0x07000000;
-		break;
-	case DISP_TV_MOD_1080P_24HZ:
-		cfg.b_interlace = 0;
-		cfg.src_x = 1920;
-		cfg.src_y = 1080;
-		cfg.scl_x = 1920;
-		cfg.scl_y = 1080;
-		cfg.out_x = 1920;
-		cfg.out_y = 1080;
-		cfg.ht = 2750;
-		cfg.hbp = 192;
-		cfg.vt = 2250;
-		cfg.vbp = 41;
-		cfg.vspw = 5;
-		cfg.hspw = 44;
-		cfg.io_pol = 0x07000000;
-		break;
-	case DISP_TV_MOD_1080P_50HZ:
-		cfg.b_interlace = 0;
-		cfg.src_x = 1920;
-		cfg.src_y = 1080;
-		cfg.scl_x = 1920;
-		cfg.scl_y = 1080;
-		cfg.out_x = 1920;
-		cfg.out_y = 1080;
-		cfg.ht = 2640;
-		cfg.hbp = 192;
-		cfg.vt = 2250;
-		cfg.vbp = 41;
-		cfg.vspw = 5;
-		cfg.hspw = 44;
-		cfg.io_pol = 0x07000000;
-		break;
-	case DISP_TV_MOD_1080P_60HZ:
-		cfg.b_interlace = 0;
-		cfg.src_x = 1920;
-		cfg.src_y = 1080;
-		cfg.scl_x = 1920;
-		cfg.scl_y = 1080;
-		cfg.out_x = 1920;
-		cfg.out_y = 1080;
-		cfg.ht = 2200;
-		cfg.hbp = 192;
-		cfg.vt = 2250;
-		cfg.vbp = 41;
-		cfg.vspw = 5;
-		cfg.hspw = 44;
-		cfg.io_pol = 0x07000000;
-		break;
 	case DISP_TV_MOD_1080P_24HZ_3D_FP:
-		cfg.b_interlace = 0;
-		cfg.src_x = 1920;
-		cfg.src_y = 2160;
-		cfg.scl_x = 1920;
-		cfg.scl_y = 2160 + 45;
-		cfg.out_x = 1920;
-		cfg.out_y = 2160 + 45;
-		cfg.ht = 2750;
-		cfg.hbp = 192;
-		cfg.vt = (1125 * 4);
-		cfg.vbp = 41;
-		cfg.vspw = 5;
-		cfg.hspw = 44;
-		cfg.io_pol = 0x07000000;
-		LCDC_WUINT32(sel, LCDC_3DF_A1B, (1125 + 1) << 12);
-		LCDC_WUINT32(sel, LCDC_3DF_A1E, (1125 + 45) << 12);
-		LCDC_WUINT32(sel, LCDC_3DF_D1, 0);
-		LCDC_SET_BIT(sel, LCDC_3DF_CTL, 1 << 31);
-		break;
 	case DISP_TV_MOD_720P_50HZ_3D_FP:
-		cfg.b_interlace = 0;
-		cfg.src_x = 1280;
-		cfg.src_y = 1440;
-		cfg.scl_x = 1280;
-		cfg.scl_y = 1440 + 30;
-		cfg.out_x = 1280;
-		cfg.out_y = 1440 + 30;
-		cfg.ht = 1980;
-		cfg.hbp = 260;
-		cfg.vt = (750 * 4);
-		cfg.vbp = 25;
-		cfg.vspw = 5;
-		cfg.hspw = 40;
-		cfg.io_pol = 0x07000000;
-		LCDC_WUINT32(sel, LCDC_3DF_A1B, (750 + 1) << 12);
-		LCDC_WUINT32(sel, LCDC_3DF_A1E, (750 + 30) << 12);
-		LCDC_WUINT32(sel, LCDC_3DF_D1, 0);
-		LCDC_SET_BIT(sel, LCDC_3DF_CTL, 1 << 31);
-		break;
 	case DISP_TV_MOD_720P_60HZ_3D_FP:
-		cfg.b_interlace = 0;
-		cfg.src_x = 1280;
-		cfg.src_y = 1440;
-		cfg.scl_x = 1280;
-		cfg.scl_y = 1440 + 30;
-		cfg.out_x = 1280;
-		cfg.out_y = 1440 + 30;
-		cfg.ht = 1650;
-		cfg.hbp = 260;
-		cfg.vt = (750 * 4);
-		cfg.vbp = 25;
-		cfg.vspw = 5;
-		cfg.hspw = 40;
-		cfg.io_pol = 0x07000000;
-		LCDC_WUINT32(sel, LCDC_3DF_A1B, (750 + 1) << 12);
-		LCDC_WUINT32(sel, LCDC_3DF_A1E, (750 + 30) << 12);
+		if (mode == DISP_TV_MOD_1080P_24HZ_3D_FP)
+			extra_y = 45;
+		else
+			extra_y = 30;
+		LCDC_WUINT32(sel, LCDC_3DF_A1B, (cfg.vt + 1) << 12);
+		LCDC_WUINT32(sel, LCDC_3DF_A1E, (cfg.vt + extra_y) << 12);
 		LCDC_WUINT32(sel, LCDC_3DF_D1, 0);
 		LCDC_SET_BIT(sel, LCDC_3DF_CTL, 1 << 31);
+		cfg.scl_y += extra_y;
+		cfg.out_y += extra_y;
+		cfg.vt *= 2;
 		break;
-	default:
-		return 0;
 	}
+
+	if (!cfg.b_interlace)
+		cfg.vt *= 2;
+
 	cfg.io_out = 0x00000000;
 	cfg.b_rgb_internal_hd = 0;
 	cfg.b_rgb_remap_io = 1;	/* rgb */
@@ -1171,16 +974,6 @@ __bool TCON1_in_valid_regn(__u32 sel, __u32 juststd)
 	else
 		return 0;
 
-}
-
-__s32 TCON1_get_width(__u32 sel)
-{
-	return -1;
-}
-
-__s32 TCON1_get_height(__u32 sel)
-{
-	return -1;
 }
 
 /*

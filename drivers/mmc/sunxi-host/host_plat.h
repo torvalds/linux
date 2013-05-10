@@ -39,7 +39,7 @@
 #define  SUNXI_MMC2_USED           (0x1 << 2)
 #define  SUNXI_MMC3_USED           (0x1 << 3)
 
-#if CONFIG_CHIP_ID==1123
+#if defined(CONFIG_ARCH_SUN4I)
 #define  SUNXI_MMC_HOST_NUM        4
 #define  SUNXI_MMC_USED_CTRL       (SUNXI_MMC0_USED | SUNXI_MMC1_USED | SUNXI_MMC2_USED | SUNXI_MMC3_USED)
 #define  SUNXI_MMC_MAX_DMA_DES_BIT  13
@@ -54,7 +54,7 @@ enum mclk_src {
 #define SMC_MAX_IO_CLOCK(n)     ((n)==3 ? 45000000 : 45000000)
 #define SMC_MOD_CLK_SRC(n)      ((n)==3 ? SMC_MCLK_SRC_DRAMPLL : SMC_MCLK_SRC_DRAMPLL)
 
-#elif CONFIG_CHIP_ID==1125
+#elif defined(CONFIG_ARCH_SUN5I)
 #define  SUNXI_MMC_HOST_NUM     3
 #define  SUNXI_MMC_USED_CTRL    (SUNXI_MMC0_USED | SUNXI_MMC1_USED | SUNXI_MMC2_USED)
 #define  SUNXI_MMC_MAX_DMA_DES_BIT  16

@@ -1229,16 +1229,6 @@ MODULE_LICENSE ("GPL");
 #define	PLATFORM_DRIVER		ehci_hcd_au1xxx_driver
 #endif
 
-#ifdef CONFIG_USB_SW_SUN4I_HCI
-#include "ehci-sunxi.c"
-#define	PLATFORM_DRIVER		sw_ehci_hcd_driver
-#endif
-
-#ifdef CONFIG_USB_SW_SUN5I_HCI
-#include "ehci-sunxi.c"
-#define	PLATFORM_DRIVER		sw_ehci_hcd_driver
-#endif
-
 #ifdef CONFIG_USB_EHCI_HCD_OMAP
 #include "ehci-omap.c"
 #define        PLATFORM_DRIVER         ehci_hcd_omap_driver
@@ -1277,6 +1267,11 @@ MODULE_LICENSE ("GPL");
 #ifdef CONFIG_ARCH_AT91
 #include "ehci-atmel.c"
 #define	PLATFORM_DRIVER		ehci_atmel_driver
+#endif
+
+#ifdef CONFIG_USB_SUNXI_EHCI
+#include "ehci-sunxi.c"
+#define	PLATFORM_DRIVER		sw_ehci_hcd_driver
 #endif
 
 #ifdef CONFIG_USB_OCTEON_EHCI

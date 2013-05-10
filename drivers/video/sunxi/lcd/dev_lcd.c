@@ -21,6 +21,7 @@
 #include "lcd_panel_cfg.h"
 
 #include "../disp/disp_lcd.h"
+#include "../disp/dev_disp.h"
 
 static struct cdev *my_cdev;
 static dev_t devid;
@@ -85,9 +86,7 @@ lcd_init(void)
 	LCD_get_panel_funs_1(&lcd1_cfg);
 	LCD_set_panel_funs(&lcd0_cfg, &lcd1_cfg);
 
-	DRV_DISP_Init();
-
-	Fb_Init(0);
+	Fb_Init(SUNXI_LCD);
 
 	return 0;
 }

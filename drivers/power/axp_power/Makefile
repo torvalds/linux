@@ -2,6 +2,15 @@ obj-y += axp-mfd.o
 
 #axp 199
 #Make this built-in, so that it will be loaded before I2C driver
+
+obj-$(CONFIG_AW_AXP15) += axp15-board.o
+obj-$(CONFIG_AW_AXP15) += axp15-gpio.o
+obj-$(CONFIG_AW_AXP15) += axp15-regu.o
+obj-$(CONFIG_AW_AXP15) += axp15-sply.o
+obj-$(CONFIG_AW_AXP15) += virtual15.o
+obj-$(CONFIG_AW_AXP15) += virtual15_dev.o
+
+
 obj-$(CONFIG_AW_AXP18) += axp18-board.o
 obj-$(CONFIG_AW_AXP18) += axp18-regu.o
 obj-$(CONFIG_AW_AXP18) += axp18-sply.o

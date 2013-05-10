@@ -786,7 +786,7 @@ __s32 DE_BE_Sprite_Set_Format(__u32 sel, __u8 pixel_seq, __u8 format)
 	return 0;
 }
 
-__s32 DE_BE_Sprite_Global_Alpha_Enable(__u32 sel, __bool enable)
+__s32 DE_BE_Sprite_Global_Alpha_Enable(__u32 sel, bool enable)
 {
 	DE_BE_WUINT32(sel, DE_BE_SPRITE_ALPHA_CTRL_OFF, enable);
 	return 0;
@@ -1381,7 +1381,7 @@ __s32 DE_BE_Set_Enhance(__u8 sel, __u32 out_csc, __u32 out_color_range,
 }
 #endif /* CONFIG_ARCH_SUN4I */
 
-__s32 DE_BE_enhance_enable(__u32 sel, __bool enable)
+__s32 DE_BE_enhance_enable(__u32 sel, bool enable)
 {
 	DE_BE_WUINT32(sel, DE_BE_OUT_COLOR_CTRL_OFF, enable);
 

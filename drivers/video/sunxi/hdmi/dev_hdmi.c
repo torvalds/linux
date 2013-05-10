@@ -19,6 +19,7 @@
 
 #include "dev_hdmi.h"
 #include "drv_hdmi_i.h"
+#include "../disp/dev_disp.h"
 
 static struct cdev *my_cdev;
 static dev_t devid;
@@ -58,8 +59,8 @@ static int __devinit hdmi_probe(struct platform_device *pdev)
 
 	ghdmi.base_hdmi = 0xf1c16000;
 
-	Hdmi_init();
-	Fb_Init(1);
+	Hdmi_init(pdev);
+	Fb_Init(SUNXI_HDMI);
 
 	return 0;
 }
@@ -68,7 +69,7 @@ static int hdmi_remove(struct platform_device *pdev)
 {
 	__inf("hdmi_remove call\n");
 
-	Hdmi_exit();
+	Hdmi_exit(pdev);
 
 	return 0;
 }
@@ -96,34 +97,34 @@ static struct platform_driver hdmi_driver = {
 		   },
 };
 
-int hdmi_open(struct inode *inode, struct file *file)
+static int hdmi_open(struct inode *inode, struct file *file)
 {
 	return 0;
 }
 
-int hdmi_release(struct inode *inode, struct file *file)
+static int hdmi_release(struct inode *inode, struct file *file)
 {
 	return 0;
 }
 
-ssize_t hdmi_read(struct file *file, char __user *buf, size_t count,
+static ssize_t hdmi_read(struct file *file, char __user *buf, size_t count,
 		  loff_t *ppos)
 {
 	return -EINVAL;
 }
 
-ssize_t hdmi_write(struct file *file, const char __user *buf, size_t count,
-		   loff_t *ppos)
+static ssize_t hdmi_write(struct file *file,
+		const char __user *buf, size_t count, loff_t *ppos)
 {
 	return -EINVAL;
 }
 
-int hdmi_mmap(struct file *file, struct vm_area_struct *vma)
+static int hdmi_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	return 0;
 }
 
-long hdmi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+static long hdmi_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	return 0;
 }

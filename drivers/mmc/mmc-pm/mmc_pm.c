@@ -25,7 +25,7 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/init.h>
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 #include <linux/proc_fs.h>
 #include "mmc_pm.h"
 

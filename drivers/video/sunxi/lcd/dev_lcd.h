@@ -46,14 +46,12 @@
 #include <linux/types.h>
 
 #include <mach/platform.h>
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 
 #include <video/sunxi_disp_ioctl.h>
 
 extern void LCD_get_panel_funs_0(__lcd_panel_fun_t *fun);
 extern void LCD_get_panel_funs_1(__lcd_panel_fun_t *fun);
-extern __s32 Fb_Init(__u32 from);
-extern __s32 DRV_DISP_Init(void);
 
 #define __inf(msg, ...) pr_debug("[DISP] " msg, ##__VA_ARGS__)
 #define __wrn(msg, ...) pr_warn("[DISP] " msg, ##__VA_ARGS__)

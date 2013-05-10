@@ -85,9 +85,11 @@ void __init wii_memory_fixups(void)
 	wii_hole_start = p[0].base + p[0].size;
 	wii_hole_size = p[1].base - wii_hole_start;
 
-	pr_info("MEM1: <%08llx %08llx>\n", p[0].base, p[0].size);
+	pr_info("MEM1: <%08llx %08llx>\n",
+		(unsigned long long) p[0].base, (unsigned long long) p[0].size);
 	pr_info("HOLE: <%08lx %08lx>\n", wii_hole_start, wii_hole_size);
-	pr_info("MEM2: <%08llx %08llx>\n", p[1].base, p[1].size);
+	pr_info("MEM2: <%08llx %08llx>\n",
+		(unsigned long long) p[1].base, (unsigned long long) p[1].size);
 
 	p[0].size += wii_hole_size + p[1].size;
 

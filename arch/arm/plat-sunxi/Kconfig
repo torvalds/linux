@@ -1,0 +1,41 @@
+menu "Allwinner's sunxi options"
+
+config SW_DEBUG_UART
+	int "UART to use for low-level debug"
+	depends on DEBUG_LL
+	default 0
+	help
+	  Choose the UART on which kernel low-level debug messages should be
+	  output.
+
+config SUNXI_MALI_RESERVED_MEM
+	bool
+	depends on MALI
+	default y
+
+config SUNXI_IGNORE_ATAG_MEM
+	bool "Use AllWinner's hack to assume memory size"
+	depends on ARCH_SUN4I || ARCH_SUN5I
+	default n
+
+config MACH_SUN4I
+	bool
+	depends on ARCH_SUN4I
+	default y
+
+config MACH_SUN5I
+	bool
+	depends on ARCH_SUN5I
+	default y
+
+config SUNXI_SCALING_MIN
+	int "Minimum clockspeed for the cpu governor"
+	default "60"
+	help
+	  The (default) minimum clockspeed the cpu scaling governor may use,
+	  the lowest the sunxi cpu core can go is 60 MHz, which is quite slow,
+	  so you may wish to set a somewhat higher minimum speed. 408 Mhz is
+	  the last speed at the lowest voltage setting and as such is a good
+	  value to use.
+
+endmenu

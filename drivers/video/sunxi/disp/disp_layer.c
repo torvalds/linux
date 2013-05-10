@@ -172,53 +172,6 @@ __s32 img_sw_para_to_reg(__u8 type, __u8 mode, __u8 value)
 	return 0;
 }
 
-__s32 de_format_to_bpp(__disp_pixel_fmt_t fmt)
-{
-	switch (fmt) {
-	case DISP_FORMAT_1BPP:
-		return 1;
-
-	case DISP_FORMAT_2BPP:
-		return 2;
-
-	case DISP_FORMAT_4BPP:
-		return 4;
-
-	case DISP_FORMAT_8BPP:
-		return 8;
-
-	case DISP_FORMAT_RGB655:
-	case DISP_FORMAT_RGB565:
-	case DISP_FORMAT_RGB556:
-	case DISP_FORMAT_ARGB1555:
-	case DISP_FORMAT_RGBA5551:
-	case DISP_FORMAT_ARGB4444:
-		return 16;
-
-	case DISP_FORMAT_RGB888:
-		return 24;
-
-	case DISP_FORMAT_ARGB8888:
-		return 32;
-
-	case DISP_FORMAT_YUV444:
-		return 24;
-
-	case DISP_FORMAT_YUV422:
-		return 16;
-
-	case DISP_FORMAT_YUV420:
-	case DISP_FORMAT_YUV411:
-		return 12;
-
-	case DISP_FORMAT_CSIRGB:
-		return 32; /* ? */
-
-	default:
-		return 0;
-	}
-}
-
 static __s32 Yuv_Channel_Request(__u32 sel, __u8 hid)
 {
 	if (!(gdisp.screen[sel].status & YUV_CH_USED)) {
@@ -253,7 +206,7 @@ __s32 Yuv_Channel_Set_framebuffer(__u32 sel, __disp_fb_t *pfb, __u32 xoffset,
 	de_yuv_ch_src_t yuv_src;
 
 	yuv_src.format = img_sw_para_to_reg(0, pfb->mode, pfb->format);
-	yuv_src.mode = (__u8) pfb->mode;
+	yuv_src.mode = pfb->mode;
 	yuv_src.pixseq = img_sw_para_to_reg(1, pfb->mode, pfb->seq);
 	yuv_src.ch0_base = pfb->addr[0];
 	yuv_src.ch1_base = pfb->addr[1];
@@ -430,7 +383,6 @@ __s32 BSP_disp_layer_set_framebuffer(__u32 sel, __u32 hid, __disp_fb_t *pfb)
 	__s32 ret;
 	layer_src_t layer_fb;
 	__layer_man_t *layer_man;
-	__u32 size;
 
 	hid = HANDTOID(hid);
 	HLID_ASSERT(hid, gdisp.screen[sel].max_layers);
@@ -482,16 +434,6 @@ __s32 BSP_disp_layer_set_framebuffer(__u32 sel, __u32 hid, __disp_fb_t *pfb)
 			}
 
 			memcpy(&layer_man->para.fb, pfb, sizeof(__disp_fb_t));
-
-			size = (pfb->size.width *
-				layer_man->para.src_win.height *
-				de_format_to_bpp(pfb->format) + 7) / 8;
-
-			if (layer_man->para.mode ==
-			    DISP_LAYER_WORK_MODE_SCALER) {
-				gdisp.scaler[layer_man->scaler_index].
-				    b_reg_change = TRUE;
-			}
 			BSP_disp_cfg_finish(sel);
 
 			return DIS_SUCCESS;
@@ -550,8 +492,6 @@ __s32 BSP_disp_layer_set_src_window(__u32 sel, __u32 hid, __disp_rect_t *regn)
 			__s32 ret = 0;
 
 			ret = Scaler_Set_SclRegn(layer_man->scaler_index, regn);
-			gdisp.scaler[layer_man->scaler_index].b_reg_change =
-			    TRUE;
 			BSP_disp_cfg_finish(sel);
 			return ret;
 		} else {
@@ -690,11 +630,6 @@ __s32 BSP_disp_layer_set_screen_window(__u32 sel, __u32 hid,
 		layer_man->para.scn_win.y = regn->y;
 		layer_man->para.scn_win.width = regn->width;
 		layer_man->para.scn_win.height = regn->height;
-
-		if (layer_man->para.mode == DISP_LAYER_WORK_MODE_SCALER) {
-			gdisp.scaler[layer_man->scaler_index].b_reg_change =
-			    TRUE;
-		}
 		BSP_disp_cfg_finish(sel);
 
 		return DIS_SUCCESS;
@@ -736,7 +671,6 @@ __s32 BSP_disp_layer_set_para(__u32 sel, __u32 hid,
 	__s32 ret;
 	__layer_man_t *layer_man;
 	__u32 prio_tmp = 0;
-	__u32 size;
 
 	hid = HANDTOID(hid);
 	HLID_ASSERT(hid, gdisp.screen[sel].max_layers);
@@ -860,7 +794,6 @@ __s32 BSP_disp_layer_set_para(__u32 sel, __u32 hid,
 							    player->src_win.y);
 			} else { /* normal rgb */
 				layer_src_t layer_fb;
-				__u32 bpp, size;
 
 				layer_fb.fb_addr = player->fb.addr[0];
 				layer_fb.format = player->fb.format;
@@ -870,10 +803,6 @@ __s32 BSP_disp_layer_set_para(__u32 sel, __u32 hid,
 				layer_fb.fb_width = player->fb.size.width;
 				layer_fb.offset_x = player->src_win.x;
 				layer_fb.offset_y = player->src_win.y;
-
-				bpp = DE_BE_Format_To_Bpp(sel, layer_fb.format);
-				size = (player->fb.size.width *
-					player->scn_win.height * bpp + 7) / 8;
 
 				DE_BE_Layer_Set_Framebuffer(sel, hid,
 							    &layer_fb);
@@ -896,13 +825,6 @@ __s32 BSP_disp_layer_set_para(__u32 sel, __u32 hid,
 			layer_man->para.b_from_screen = player->b_from_screen;
 		}
 
-		size = (player->fb.size.width * player->src_win.height *
-			de_format_to_bpp(player->fb.format) + 7) / 8;
-
-		if (layer_man->para.mode == DISP_LAYER_WORK_MODE_SCALER) {
-			gdisp.scaler[layer_man->scaler_index].b_reg_change =
-			    TRUE;
-		}
 		BSP_disp_cfg_finish(sel);
 
 		return DIS_SUCCESS;

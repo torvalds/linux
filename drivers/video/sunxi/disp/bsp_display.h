@@ -45,7 +45,7 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/cdev.h>
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 #include <mach/clock.h>
 #include <mach/aw_ccu.h>
 #include <mach/system.h>
@@ -77,9 +77,13 @@ typedef struct {
 
 	void (*tve_interrup) (__u32 sel);
 	 __s32(*hdmi_set_mode) (__disp_tv_mode_t mode);
+	 __s32(*hdmi_set_videomode) (const struct __disp_video_timing *mode);
+	 __s32(*hdmi_wait_edid) (void);
 	 __s32(*Hdmi_open) (void);
 	 __s32(*Hdmi_close) (void);
 	 __s32(*hdmi_mode_support) (__disp_tv_mode_t mode);
+	 __s32(*hdmi_get_video_timing) (__disp_tv_mode_t mode,
+				struct __disp_video_timing *video_timing);
 	 __s32(*hdmi_get_HPD_status) (void);
 	 __s32(*hdmi_set_pll) (__u32 pll, __u32 clk);
 	 __s32(*disp_int_process) (__u32 sel);
@@ -105,7 +109,6 @@ extern __s32 BSP_disp_get_palette_table(__u32 sel, __u32 *pbuffer,
 extern __s32 BSP_disp_get_screen_height(__u32 sel);
 extern __s32 BSP_disp_get_screen_width(__u32 sel);
 extern __s32 BSP_disp_get_output_type(__u32 sel);
-extern __s32 BSP_disp_get_frame_rate(__u32 sel);
 extern __s32 BSP_disp_gamma_correction_enable(__u32 sel);
 extern __s32 BSP_disp_gamma_correction_disable(__u32 sel);
 extern __s32 BSP_disp_set_bright(__u32 sel, __u32 bright);
@@ -233,7 +236,7 @@ extern __s32 LCD_PWM_EN(__u32 sel, __bool b_en);
 extern __s32 LCD_BL_EN(__u32 sel, __bool b_en);
 extern __s32 BSP_disp_lcd_user_defined_func(__u32 sel, __u32 para1, __u32 para2,
 					    __u32 para3);
-extern __s32 BSP_disp_get_timing(__u32 sel, __disp_tcon_timing_t *tt);
+extern __s32 BSP_disp_get_videomode(__u32 sel, struct fb_videomode *videomode);
 extern __u32 BSP_disp_get_cur_line(__u32 sel);
 #ifdef CONFIG_ARCH_SUN5I
 extern __s32 BSP_disp_close_lcd_backlight(__u32 sel);
@@ -252,9 +255,11 @@ extern __s32 BSP_disp_tv_set_dac_source(__u32 sel, __u32 index,
 					__disp_tv_dac_source source);
 extern __s32 BSP_disp_tv_get_dac_source(__u32 sel, __u32 index);
 
-extern __s32 BSP_disp_hdmi_open(__u32 sel);
+extern __s32 BSP_disp_hdmi_open(__u32 sel, __u32 wait_edid);
 extern __s32 BSP_disp_hdmi_close(__u32 sel);
 extern __s32 BSP_disp_hdmi_set_mode(__u32 sel, __disp_tv_mode_t mode);
+extern __s32 BSP_disp_set_videomode(__u32 sel,
+		const struct fb_videomode *mode);
 extern __s32 BSP_disp_hdmi_get_mode(__u32 sel);
 extern __s32 BSP_disp_hdmi_check_support_mode(__u32 sel, __u8 mode);
 extern __s32 BSP_disp_hdmi_get_hpd_status(__u32 sel);

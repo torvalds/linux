@@ -499,6 +499,7 @@ static int add_new_gdb(handle_t *handle, struct inode *inode,
 	return err;
 
 exit_inode:
+	kfree(n_group_desc);
 	/* ext4_handle_release_buffer(handle, iloc.bh); */
 	brelse(iloc.bh);
 exit_dindj:
@@ -928,8 +929,8 @@ int ext4_group_add(struct super_block *sb, struct ext4_new_group_data *input)
 	    sbi->s_log_groups_per_flex) {
 		ext4_group_t flex_group;
 		flex_group = ext4_flex_group(sbi, input->group);
-		atomic_add(input->free_blocks_count,
-			   &sbi->s_flex_groups[flex_group].free_blocks);
+		atomic64_add(input->free_blocks_count,
+			     &sbi->s_flex_groups[flex_group].free_blocks);
 		atomic_add(EXT4_INODES_PER_GROUP(sb),
 			   &sbi->s_flex_groups[flex_group].free_inodes);
 	}

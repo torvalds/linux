@@ -1,8 +1,0 @@
-
-config SND_SUN5I_SOC_I2S_INTERFACE
-	tristate "SoC i2s interface for the AllWinner SUN5I chips"
-	default n
-	help
-	  Say Y or M if you want to add support for codecs attached to
-	  the SUN4I AC97, I2S or PCM interface. You will also need
-	  to select the audio interfaces to support below.

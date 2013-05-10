@@ -111,12 +111,19 @@
 
 #define LCDC_GET_REG_BASE(sel)  ((sel)==0?(lcdc_reg_base0):(lcdc_reg_base1))
 
-#define LCDC_WUINT32(sel,offset,value) (*((volatile __u32 *)( LCDC_GET_REG_BASE(sel) + (offset) ))=(value))
-#define LCDC_RUINT32(sel,offset) (*((volatile __u32 *)( LCDC_GET_REG_BASE(sel) + (offset) )))
+#define LCDC_WUINT32(sel, offset, value) \
+	writel(value, LCDC_GET_REG_BASE(sel)+offset)
+#define LCDC_RUINT32(sel, offset) \
+	readl(LCDC_GET_REG_BASE(sel)+offset)
 
-#define LCDC_SET_BIT(sel,offset,bit) (*((volatile __u32 *)( LCDC_GET_REG_BASE(sel) + (offset) )) |=(bit))
-#define LCDC_CLR_BIT(sel,offset,bit) (*((volatile __u32 *)( LCDC_GET_REG_BASE(sel) + (offset) )) &=(~(bit)))
-#define LCDC_INIT_BIT(sel,offset,c,s) (*((volatile __u32 *)( LCDC_GET_REG_BASE(sel) + (offset) )) = \
-(((*(volatile __u32 *)( LCDC_GET_REG_BASE(sel) + (offset) )) & (~(c))) | (s)))
+#define LCDC_SET_BIT(sel, offset, bit) \
+	writel(readl(LCDC_GET_REG_BASE(sel)+offset) | (bit), \
+			LCDC_GET_REG_BASE(sel)+offset)
+#define LCDC_CLR_BIT(sel, offset, bit) \
+	writel(readl(LCDC_GET_REG_BASE(sel)+offset) & ~(bit), \
+			LCDC_GET_REG_BASE(sel)+offset)
+#define LCDC_INIT_BIT(sel, offset, c, s) \
+	writel((readl(LCDC_GET_REG_BASE(sel)+offset) & ~(c)) | (s), \
+			LCDC_GET_REG_BASE(sel)+offset)
 
 #endif

@@ -39,7 +39,7 @@ static int __init aw_pin_test_init(void)
 
 	ret = script_parser_mainkey_get_gpio_cfg("uart_para", (void *)gpio_set, 38);
 	if(!ret) {
-		gpio_handle = gpio_request(gpio_set, 38);
+		gpio_handle = sunxi_gpio_request_array(gpio_set, 38);
 		printk("gpio_handle=0x%08x, ret=%d\n", gpio_handle,ret);
 
 		ret = gpio_release(gpio_handle, 2);

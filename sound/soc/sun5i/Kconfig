@@ -1,5 +1,0 @@
-config SND_SUN5I_SOC_CODEC
-	tristate "sun5i APB On-Chip Codec"
-	default n
-
-

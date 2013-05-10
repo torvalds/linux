@@ -96,33 +96,32 @@
 #define DE_SCAL2_REG_SIZE		0x1000
 
 extern __u32 image_reg_base[2];
-#define DE_BE_GET_REG_BASE(sel)(image_reg_base[sel])
+#define DE_BE_GET_REG_BASE(sel) image_reg_base[sel]
 
-#define DE_WUINT8(offset,value) (*((volatile __u8 *)(offset))=(value))
-#define DE_RUINT8(offset)  (*((volatile __u8 *)(offset)))
-#define DE_WUINT16(offset,value)(*((volatile __u16 *)(offset))=(value))
-#define DE_RUINT16(offset) (*((volatile __u16 *)(offset)))
-#define DE_WUINT32(offset,value)(*((volatile __u32 *)(offset))=(value))
-#define DE_RUINT32(offset) (*((volatile __u32 *)(offset)))
-#define DE_WUINT8IDX(offset,index,value)((*((volatile __u8 *)(offset+index)))=(value))
-#define DE_RUINT8IDX(offset,index) (*((volatile __u8 *)(offset+index)))
-#define DE_WUINT16IDX(offset,index,value)  (*((volatile __u16 *)(offset+2*index))=(value))
-#define DE_RUINT16IDX(offset,index) ( *((volatile __u16 *)(offset+2*index)))
-#define DE_WUINT32IDX(offset,index,value)  (*((volatile __u32 *)(offset+4*index))=(value))
-#define DE_RUINT32IDX(offset,index) (*((volatile __u32 *)(offset+4*index)))
-
-#define DE_BE_WUINT8(sel,offset,value)DE_WUINT8(DE_BE_GET_REG_BASE(sel)+(offset),value)
-#define DE_BE_RUINT8(sel,offset) DE_RUINT8(DE_BE_GET_REG_BASE(sel)+(offset))
-#define DE_BE_WUINT16(sel,offset,value) DE_WUINT16(DE_BE_GET_REG_BASE(sel)+(offset),value)
-#define DE_BE_RUINT16(sel,offset) DE_RUINT16(DE_BE_GET_REG_BASE(sel)+(offset))
-#define DE_BE_WUINT32(sel,offset,value) DE_WUINT32(DE_BE_GET_REG_BASE(sel)+(offset),value)
-#define DE_BE_RUINT32(sel,offset) DE_RUINT32(DE_BE_GET_REG_BASE(sel)+(offset))
-#define DE_BE_WUINT8IDX(sel,offset,index,value) DE_WUINT8IDX(DE_BE_GET_REG_BASE(sel)+(offset),index,value)
-#define DE_BE_RUINT8IDX(sel,offset,index) DE_RUINT8IDX(DE_BE_GET_REG_BASE(sel)+(offset),index)
-#define DE_BE_WUINT16IDX(sel,offset,index,value) DE_WUINT16IDX(DE_BE_GET_REG_BASE(sel)+(offset),index,value)
-#define DE_BE_RUINT16IDX(sel,offset,index) DE_RUINT16IDX(DE_BE_GET_REG_BASE(sel)+(offset),index)
-#define DE_BE_WUINT32IDX(sel,offset,index,value) DE_WUINT32IDX(DE_BE_GET_REG_BASE(sel)+(offset),index,value)
-#define DE_BE_RUINT32IDX(sel,offset,index) DE_RUINT32IDX(DE_BE_GET_REG_BASE(sel)+(offset),index)
+#define DE_BE_WUINT8(sel, offset, value) \
+	writeb(value, DE_BE_GET_REG_BASE(sel)+offset)
+#define DE_BE_RUINT8(sel, offset) \
+	readb(DE_BE_GET_REG_BASE(sel)+offset)
+#define DE_BE_WUINT16(sel, offset, value) \
+	writew(value, DE_BE_GET_REG_BASE(sel)+offset)
+#define DE_BE_RUINT16(sel, offset) \
+	readw(DE_BE_GET_REG_BASE(sel)+offset)
+#define DE_BE_WUINT32(sel, offset, value) \
+	writel(value, DE_BE_GET_REG_BASE(sel)+offset)
+#define DE_BE_RUINT32(sel, offset) \
+	readl(DE_BE_GET_REG_BASE(sel)+offset)
+#define DE_BE_WUINT8IDX(sel, offset, index, value) \
+	writeb(value, DE_BE_GET_REG_BASE(sel)+(offset)+index)
+#define DE_BE_RUINT8IDX(sel, offset, index) \
+	readb(DE_BE_GET_REG_BASE(sel)+(offset)+index)
+#define DE_BE_WUINT16IDX(sel, offset, index, value) \
+	writew(value, DE_BE_GET_REG_BASE(sel)+(offset)+2*index)
+#define DE_BE_RUINT16IDX(sel, offset, index) \
+	readw(DE_BE_GET_REG_BASE(sel)+(offset)+2*index)
+#define DE_BE_WUINT32IDX(sel, offset, index, value) \
+	writel(value, DE_BE_GET_REG_BASE(sel)+(offset)+4*index)
+#define DE_BE_RUINT32IDX(sel, offset, index) \
+	readl(DE_BE_GET_REG_BASE(sel)+(offset)+4*index)
 
 extern __u32 csc_tab[192];
 extern __u32 image_enhance_tab[224];

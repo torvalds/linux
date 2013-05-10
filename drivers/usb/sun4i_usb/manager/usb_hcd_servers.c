@@ -53,20 +53,11 @@ int sw_usb_disable_hcd(__u32 usbc_no)
 #if defined(CONFIG_USB_SW_SUN4I_USB0_OTG) || defined(USB_SW_SUN4I_USB0_HOST_ONLY)
 		sw_usb_disable_hcd0();
 #endif
-	}else if(usbc_no == 1){
-#if defined(CONFIG_USB_SW_SUN4I_EHCI0)
+	} else if (usbc_no == 1 || usbc_no == 2) {
+#if defined(CONFIG_USB_SUNXI_EHCI)
 		sw_usb_disable_ehci(usbc_no);
 #endif
-
-#if defined(CONFIG_USB_SW_SUN4I_OHCI0)
-		sw_usb_disable_ohci(usbc_no);
-#endif
-	}else if(usbc_no == 2){
-#if defined(CONFIG_USB_SW_SUN4I_EHCI1)
-		sw_usb_disable_ehci(usbc_no);
-#endif
-
-#if defined(CONFIG_USB_SW_SUN4I_OHCI1)
+#if defined(CONFIG_USB_SUNXI_OHCI)
 		sw_usb_disable_ohci(usbc_no);
 #endif
 	}else{
@@ -102,20 +93,11 @@ int sw_usb_enable_hcd(__u32 usbc_no)
 #if defined(CONFIG_USB_SW_SUN4I_USB0_OTG) || defined(USB_SW_SUN4I_USB0_HOST_ONLY)
 		sw_usb_enable_hcd0();
 #endif
-	}else if(usbc_no == 1){
-#if defined(CONFIG_USB_SW_SUN4I_EHCI0)
+	} else if (usbc_no == 1 || usbc_no == 2) {
+#if defined(CONFIG_USB_SUNXI_EHCI)
 		sw_usb_enable_ehci(usbc_no);
 #endif
-
-#if defined(CONFIG_USB_SW_SUN4I_OHCI0)
-		sw_usb_enable_ohci(usbc_no);
-#endif
-	}else if(usbc_no == 2){
-#if defined(CONFIG_USB_SW_SUN4I_EHCI1)
-		sw_usb_enable_ehci(usbc_no);
-#endif
-
-#if defined(CONFIG_USB_SW_SUN4I_OHCI1)
+#if defined(CONFIG_USB_SUNXI_OHCI)
 		sw_usb_enable_ohci(usbc_no);
 #endif
 	}else{
@@ -126,8 +108,3 @@ int sw_usb_enable_hcd(__u32 usbc_no)
     return 0;
 }
 EXPORT_SYMBOL(sw_usb_enable_hcd);
-
-
-
-
-

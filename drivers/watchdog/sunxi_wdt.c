@@ -188,7 +188,7 @@ static long sunxi_wdt_ioctl(struct file *file, unsigned int cmd,
 		if (!new_timeout || new_timeout > MAX_TIMEOUT)
 			return -EINVAL;
 		timeout = new_timeout;
-		sunxi_wdt_kick();
+		sunxi_wdt_set_timeout(timeout);
 		/* fall through */
 	case WDIOC_GETTIMEOUT:
 		return put_user(timeout, argp);

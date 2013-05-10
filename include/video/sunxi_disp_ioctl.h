@@ -228,7 +228,14 @@ typedef enum {
 	DISP_TV_MOD_PAL_M_SVIDEO = 0x12,
 	DISP_TV_MOD_PAL_NC = 0x14,
 	DISP_TV_MOD_PAL_NC_SVIDEO = 0x15,
-	DISP_TV_MODE_NUM = 0x1a,
+
+	DISP_TV_MOD_H1360_V768_60HZ = 0x1a,
+	DISP_TV_MOD_H1280_V1024_60HZ = 0x1b,
+
+	DISP_TV_MODE_NUM = 0x1c,
+
+	/* Reserved, do not use in fex files */
+	DISP_TV_MODE_EDID = 0xff
 } __disp_tv_mode_t;
 
 typedef enum {
@@ -419,11 +426,36 @@ typedef struct {
 	__disp_fb_t output_fb;
 } __disp_capture_screen_para_t;
 
+struct __disp_video_timing {
+	__s32 VIC;
+	__s32 PCLK;
+	__s32 AVI_PR;
+
+	__s32 INPUTX;
+	__s32 INPUTY;
+	__s32 HT;
+	__s32 HBP;
+	__s32 HFP;
+	__s32 HPSW;
+	__s32 VT;
+	__s32 VBP;
+	__s32 VFP;
+	__s32 VPSW;
+
+	__s32 I;	/* 0: Progressive 1: Interlaced */
+	__s32 HSYNC;	/* 0: Negative 1: Positive */
+	__s32 VSYNC;	/* 0: Negative 1: Positive */
+};
+
 typedef struct {
+	__s32(*hdmi_wait_edid) (void);
 	__s32(*Hdmi_open) (void);
 	__s32(*Hdmi_close) (void);
 	__s32(*hdmi_set_mode) (__disp_tv_mode_t mode);
+	__s32(*hdmi_set_videomode) (const struct __disp_video_timing *mode);
 	__s32(*hdmi_mode_support) (__disp_tv_mode_t mode);
+	__s32(*hdmi_get_video_timing) (__disp_tv_mode_t mode,
+				struct __disp_video_timing *video_timing);
 	__s32(*hdmi_get_HPD_status) (void);
 	__s32(*hdmi_set_pll) (__u32 pll, __u32 clk);
 } __disp_hdmi_func;
@@ -510,20 +542,6 @@ typedef struct {
 	__u32 start_delay; /* not need to config for user */
 	__u32 tcon_index; /* not need to config for user */
 } __panel_para_t;
-
-typedef struct {
-	__u32 pixel_clk; /* khz */
-	__u32 hor_pixels;
-	__u32 ver_pixels;
-	__u32 hor_total_time;
-	__u32 hor_front_porch;
-	__u32 hor_sync_time;
-	__u32 hor_back_porch;
-	__u32 ver_total_time;
-	__u32 ver_front_porch;
-	__u32 ver_sync_time;
-	__u32 ver_back_porch;
-} __disp_tcon_timing_t;
 
 typedef struct {
 	__u32 base_lcdc0;
@@ -844,6 +862,8 @@ typedef enum tag_DISP_CMD {
 
 #define GET_UMP_SECURE_ID_BUF1 _IOWR('m', 310, unsigned int)
 #define GET_UMP_SECURE_ID_BUF2 _IOWR('m', 311, unsigned int)
+
+#define GET_UMP_SECURE_ID_SUNXI_FB _IOWR('s', 100, unsigned int)
 
 #define FBIOGET_LAYER_HDL_0 0x4700
 #define FBIOGET_LAYER_HDL_1 0x4701

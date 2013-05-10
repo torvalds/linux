@@ -26,13 +26,39 @@
 #include <ump/ump_kernel_interface.h>
 #endif
 
+#include <linux/console.h>
+
 #include "drv_disp_i.h"
 #include "dev_disp.h"
 #include "disp_lcd.h"
 #include "dev_fb.h"
+#include "disp_display.h"
 
 
-__disp_drv_t g_disp_drv;
+struct info_mm {
+	void *info_base;	/* Virtual address */
+	unsigned long mem_start;	/* Start of frame buffer mem */
+	/* (physical address) */
+	__u32 mem_len;		/* Length of frame buffer mem */
+};
+
+struct __disp_drv_t {
+	__u32 mid;
+	__u32 used;
+	__u32 status;
+	__u32 exit_mode;	/* 0:clean all  1:disable interrupt */
+	__bool b_cache[2];
+	__bool b_lcd_open[2];
+} ;
+
+struct alloc_struct_t {
+	__u32 address; /* Application memory address */
+	__u32 size; /* The size of the allocated memory */
+	__u32 o_size; /* User application memory size */
+	struct alloc_struct_t *next;
+};
+
+static struct __disp_drv_t g_disp_drv;
 
 /* alloc based on 4K byte */
 #define MY_BYTE_ALIGN(x) (((x + (4*1024-1)) >> 12) << 12)
@@ -291,14 +317,13 @@ __s32 DRV_DISP_Init(void)
 	para.base_pwm = (__u32) g_fbi.base_pwm;
 	para.disp_int_process = DRV_disp_int_process;
 
-	memset(&g_disp_drv, 0, sizeof(__disp_drv_t));
+	memset(&g_disp_drv, 0, sizeof(struct __disp_drv_t));
 
 	BSP_disp_init(&para);
 	BSP_disp_open();
 
 	return 0;
 }
-EXPORT_SYMBOL(DRV_DISP_Init);
 
 __s32 DRV_DISP_Exit(void)
 {
@@ -312,13 +337,30 @@ __s32 DRV_DISP_Exit(void)
 static int
 disp_mem_request(int sel, __u32 size)
 {
-#ifndef CONFIG_FB_SUNXI_RESERVED_MEM
 	unsigned map_size = 0;
 	struct page *page;
 
 	if (g_disp_mm[sel].info_base != NULL)
 		return -EINVAL;
 
+#ifdef CONFIG_FB_SUNXI_RESERVED_MEM
+	if (fb_size) {
+		void *ret = disp_malloc(size);
+		if (ret) {
+			g_disp_mm[sel].info_base = ret;
+			g_disp_mm[sel].mem_start =
+				virt_to_phys(g_disp_mm[sel].info_base);
+			memset(g_disp_mm[sel].info_base, 0, size);
+			__inf("pa=0x%08lx va=0x%p size:0x%x\n",
+			      g_disp_mm[sel].mem_start,
+			      g_disp_mm[sel].info_base, size);
+			return 0;
+		} else {
+			__wrn("disp_malloc fail!\n");
+			return -ENOMEM;
+		}
+	}
+#endif
 	g_disp_mm[sel].mem_len = size;
 	map_size = PAGE_ALIGN(g_disp_mm[sel].mem_len);
 
@@ -341,53 +383,28 @@ disp_mem_request(int sel, __u32 size)
 		__wrn("alloc_pages fail!\n");
 		return -ENOMEM;
 	}
-#else
-	void *ret;
-
-	ret = disp_malloc(size);
-	if (ret) {
-		g_disp_mm[sel].info_base = ret;
-		g_disp_mm[sel].mem_start =
-			virt_to_phys(g_disp_mm[sel].info_base);
-		memset(g_disp_mm[sel].info_base, 0, size);
-		__inf("pa=0x%08lx va=0x%p size:0x%x\n",
-		      g_disp_mm[sel].mem_start, g_disp_mm[sel].info_base, size);
-
-		return 0;
-	} else {
-		__wrn("disp_malloc fail!\n");
-		return -ENOMEM;
-	}
-#endif
-
 }
 
 static int
 disp_mem_release(int sel)
 {
-#ifndef CONFIG_FB_SUNXI_RESERVED_MEM
 	unsigned map_size = PAGE_ALIGN(g_disp_mm[sel].mem_len);
-	unsigned page_size = map_size;
 
-	if (g_disp_mm[sel].info_base == 0)
-		return -EINVAL;
-
-	free_pages((unsigned long)(g_disp_mm[sel].info_base),
-		   get_order(page_size));
-	memset(&g_disp_mm[sel], 0, sizeof(struct info_mm));
-#else
 	if (g_disp_mm[sel].info_base == NULL)
 		return -EINVAL;
 
-	disp_free((void *)g_disp_mm[sel].info_base);
-	memset(&g_disp_mm[sel], 0, sizeof(struct info_mm));
+#ifdef CONFIG_FB_SUNXI_RESERVED_MEM
+	if (fb_size)
+		disp_free((void *)g_disp_mm[sel].info_base);
+	else
 #endif
-
+		free_pages((unsigned long)(g_disp_mm[sel].info_base),
+			   get_order(map_size));
+	memset(&g_disp_mm[sel], 0, sizeof(struct info_mm));
 	return 0;
-
 }
 
-int disp_mmap(struct file *filp, struct vm_area_struct *vma)
+static int disp_mmap(struct file *filp, struct vm_area_struct *vma)
 {
 	// - PAGE_OFFSET;
 	unsigned long physics = g_disp_mm[g_disp_mm_sel].mem_start;
@@ -409,12 +426,15 @@ struct dev_disp_data {
 #define SUNXI_DISP_VERSION_PENDING -1
 #define SUNXI_DISP_VERSION_SKIPPED -2
 	int version;
+	struct  {
+		__u32 layer[SUNXI_DISP_MAX_LAYERS];
+	} layers[2];
 };
 
-int disp_open(struct inode *inode, struct file *filp)
+static int disp_open(struct inode *inode, struct file *filp)
 {
 	struct dev_disp_data *data =
-		kmalloc(sizeof(struct dev_disp_data), GFP_KERNEL);
+		kzalloc(sizeof(struct dev_disp_data), GFP_KERNEL);
 	static bool warned;
 
 	if (!data)
@@ -436,9 +456,17 @@ int disp_open(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-int disp_release(struct inode *inode, struct file *filp)
+static int disp_release(struct inode *inode, struct file *filp)
 {
 	struct dev_disp_data *data = filp->private_data;
+	int i,j;
+
+	for (j = 0; j < 2; j++)
+		for (i = 0; i < SUNXI_DISP_MAX_LAYERS ; i++)
+			if (data->layers[j].layer[i]) {
+				__wrn("layer allocated at close: %i,%u\n", j, data->layers[j].layer[i]);
+				BSP_disp_layer_release(j,data->layers[j].layer[i]);
+			}
 
 	kfree(data);
 	filp->private_data = NULL;
@@ -446,14 +474,14 @@ int disp_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-ssize_t disp_read(struct file *filp, char __user *buf, size_t count,
-		  loff_t *ppos)
+static ssize_t disp_read(struct file *filp,
+		char __user *buf, size_t count, loff_t *ppos)
 {
 	return 0;
 }
 
-ssize_t disp_write(struct file *filp, const char __user *buf, size_t count,
-		   loff_t *ppos)
+static ssize_t disp_write(struct file *filp,
+		const char __user *buf, size_t count, loff_t *ppos)
 {
 	return 0;
 }
@@ -517,13 +545,13 @@ static int disp_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_HAS_EARLYSUSPEND
-void backlight_early_suspend(struct early_suspend *h)
+int disp_suspend(int clk, int status)
 {
 	int i = 0;
 
-	pr_info("display early suspend: %s\n", __func__);
+	__inf("disp_suspend clk %d status %d call\n", clk, status);
 
+	if (clk != 1)
 	for (i = 0; i < 2; i++) {
 		suspend_output_type[i] = BSP_disp_get_output_type(i);
 		if (suspend_output_type[i] == DISP_OUTPUT_TYPE_LCD)
@@ -535,20 +563,21 @@ void backlight_early_suspend(struct early_suspend *h)
 		else if (suspend_output_type[i] == DISP_OUTPUT_TYPE_HDMI)
 			BSP_disp_hdmi_close(i);
 	}
+	BSP_disp_clk_off(clk);
+	suspend_status |= status;
 
-	BSP_disp_clk_off(2);
-
-	suspend_status |= 1;
+	return 0;
 }
 
-void backlight_late_resume(struct early_suspend *h)
+int disp_resume(int clk, int status)
 {
 	int i = 0;
 
-	pr_info("display late resume enter: %s\n", __func__);
+	__inf("disp_resume clk %d status %d call\n", clk, status);
 
-	BSP_disp_clk_on(2);
+	BSP_disp_clk_on(clk);
 
+	if (clk != 1)
 	for (i = 0; i < 2; i++) {
 		if (suspend_output_type[i] == DISP_OUTPUT_TYPE_LCD)
 			DRV_lcd_open(i);
@@ -557,12 +586,23 @@ void backlight_late_resume(struct early_suspend *h)
 		else if (suspend_output_type[i] == DISP_OUTPUT_TYPE_VGA)
 			BSP_disp_vga_open(i);
 		else if (suspend_output_type[i] == DISP_OUTPUT_TYPE_HDMI)
-			BSP_disp_hdmi_open(i);
+			BSP_disp_hdmi_open(i, 0);
 	}
 
-	suspend_status &= (~1);
+	suspend_status &= ~status;
 
-	pr_info("display late resume done: %s\n", __func__);
+	return 0;
+}
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+static void backlight_early_suspend(struct early_suspend *h)
+{
+	disp_suspend(2, 1);
+}
+
+static void backlight_late_resume(struct early_suspend *h)
+{
+	disp_resume(2, 1);
 }
 
 static struct early_suspend backlight_early_suspend_handler = {
@@ -570,64 +610,37 @@ static struct early_suspend backlight_early_suspend_handler = {
 	.suspend = backlight_early_suspend,
 	.resume = backlight_late_resume,
 };
-
 #endif
 
 static int
-disp_suspend(struct platform_device *pdev, pm_message_t state)
+disp_normal_suspend(struct platform_device *pdev, pm_message_t state)
 {
+	int i;
+	console_lock();
+	for(i = 0; i < SUNXI_MAX_FB; i++)
+		fb_set_suspend(g_fbi.fbinfo[i], 1);
+	console_unlock();
 #ifndef CONFIG_HAS_EARLYSUSPEND
-	int i = 0;
-
-	__inf("disp_suspend call\n");
-
-	for (i = 0; i < 2; i++) {
-		suspend_output_type[i] = BSP_disp_get_output_type(i);
-		if (suspend_output_type[i] == DISP_OUTPUT_TYPE_LCD)
-			DRV_lcd_close(i);
-		else if (suspend_output_type[i] == DISP_OUTPUT_TYPE_TV)
-			BSP_disp_tv_close(i);
-		else if (suspend_output_type[i] == DISP_OUTPUT_TYPE_VGA)
-			BSP_disp_vga_close(i);
-		else if (suspend_output_type[i] == DISP_OUTPUT_TYPE_HDMI)
-			BSP_disp_hdmi_close(i);
-	}
-	BSP_disp_clk_off(3);
+	disp_suspend(3, 3);
 #else
-	BSP_disp_clk_off(1);
+	disp_suspend(1, 2);
 #endif
-
-	suspend_status |= 2;
-
 	return 0;
 }
 
 static int
-disp_resume(struct platform_device *pdev)
+disp_normal_resume(struct platform_device *pdev)
 {
+	int i;
 #ifndef CONFIG_HAS_EARLYSUSPEND
-	int i = 0;
-
-	__inf("disp_resume call\n");
-
-	BSP_disp_clk_on(3);
-
-	for (i = 0; i < 2; i++) {
-		if (suspend_output_type[i] == DISP_OUTPUT_TYPE_LCD)
-			DRV_lcd_open(i);
-		else if (suspend_output_type[i] == DISP_OUTPUT_TYPE_TV)
-			BSP_disp_tv_open(i);
-		else if (suspend_output_type[i] == DISP_OUTPUT_TYPE_VGA)
-			BSP_disp_vga_open(i);
-		else if (suspend_output_type[i] == DISP_OUTPUT_TYPE_HDMI)
-			BSP_disp_hdmi_open(i);
-	}
+	disp_resume(3, 3);
 #else
-	BSP_disp_clk_on(1);
+	disp_resume(1, 2);
 #endif
-
-	suspend_status &= (~2);
-
+	console_lock();
+	for(i = 0; i < SUNXI_MAX_FB; i++)
+		fb_set_suspend(g_fbi.fbinfo[i], 0);
+	console_unlock();
 	return 0;
 }
 
@@ -643,7 +656,7 @@ disp_shutdown(struct platform_device *pdev)
 	}
 }
 
-long disp_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
+static long disp_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	struct dev_disp_data *filp_data = filp->private_data;
 	unsigned long karg[4];
@@ -945,10 +958,31 @@ long disp_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		ret = BSP_disp_layer_request(ubuffer[0],
 					     (__disp_layer_work_mode_t)
 					     ubuffer[1]);
+		if (ret != DIS_NULL) {
+			int i;
+			__wrn("layer allocated: %lu,%i\n", ubuffer[0], ret);
+			for (i = 0; i < SUNXI_DISP_MAX_LAYERS ; i++)
+				if (! filp_data->layers[ubuffer[0]].layer[i]) {
+					filp_data->layers[ubuffer[0]].layer[i] = ret;
+					break;
+				}
+			BUG_ON (i == SUNXI_DISP_MAX_LAYERS);
+		}
 		break;
 
 	case DISP_CMD_LAYER_RELEASE:
 		ret = BSP_disp_layer_release(ubuffer[0], ubuffer[1]);
+		if (ret == DIS_SUCCESS) {
+			int i;
+			__wrn("layer released: %lu,%lu\n", ubuffer[0], ubuffer[1]);
+			for (i = 0; i < SUNXI_DISP_MAX_LAYERS ; i++)
+				if (filp_data->layers[ubuffer[0]].layer[i] == ubuffer[1]) {
+					filp_data->layers[ubuffer[0]].layer[i] = 0;
+					break;
+				}
+			if (i == SUNXI_DISP_MAX_LAYERS)
+				__wrn("released layer not allocated in this session: %lu,%lu\n", ubuffer[0], ubuffer[1]);
+		}
 		break;
 
 	case DISP_CMD_LAYER_OPEN:
@@ -1486,7 +1520,7 @@ long disp_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 
 	/* ----hdmi---- */
 	case DISP_CMD_HDMI_ON:
-		ret = BSP_disp_hdmi_open(ubuffer[0]);
+		ret = BSP_disp_hdmi_open(ubuffer[0], 0);
 		if (suspend_status != 0)
 			suspend_output_type[ubuffer[0]] = DISP_OUTPUT_TYPE_HDMI;
 		break;
@@ -1848,15 +1882,11 @@ long disp_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
 
 	case DISP_CMD_SUSPEND:
-		{
-			pm_message_t state = { };
-
-			ret = disp_suspend(NULL, state);
-			break;
-		}
+		ret = disp_suspend(3, 3);
+		break;
 
 	case DISP_CMD_RESUME:
-		ret = disp_resume(NULL);
+		ret = disp_resume(3, 3);
 		break;
 
 	case DISP_CMD_PRINT_REG:
@@ -1870,7 +1900,7 @@ long disp_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	return ret;
 }
 
-void
+static void
 disp_device_release(struct device *dev)
 {
 	/* FILL ME! */
@@ -1889,8 +1919,8 @@ static const struct file_operations disp_fops = {
 static struct platform_driver disp_driver = {
 	.probe = disp_probe,
 	.remove = disp_remove,
-	.suspend = disp_suspend,
-	.resume = disp_resume,
+	.suspend = disp_normal_suspend,
+	.resume = disp_normal_resume,
 	.shutdown = disp_shutdown,
 	.driver = {
 		.name = "disp",

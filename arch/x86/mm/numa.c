@@ -207,9 +207,6 @@ static void __init setup_node_data(int nid, u64 start, u64 end)
 	if (end && (end - start) < NODE_MIN_SIZE)
 		return;
 
-	/* initialize remap allocator before aligning to ZONE_ALIGN */
-	init_alloc_remap(nid, start, end);
-
 	start = roundup(start, ZONE_ALIGN);
 
 	printk(KERN_INFO "Initmem setup node %d %016Lx-%016Lx\n",

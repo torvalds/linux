@@ -83,7 +83,6 @@ void LCD_vbi_event_proc(__u32 sel, __u32 tcon_index)
 				DE_SCAL_Reset(i);
 				DE_SCAL_Start(i);
 #endif
-				gdisp.scaler[i].b_reg_change = FALSE;
 			}
 			if (gdisp.scaler[i].b_close == TRUE) {
 				Scaler_close(i);
@@ -104,16 +103,11 @@ void LCD_vbi_event_proc(__u32 sel, __u32 tcon_index)
 				in_scan.field = FALSE;
 				in_scan.bottom = FALSE;
 
-				in_type.fmt =
-				    Scaler_sw_para_to_reg(0,
-							  scaler->in_fb.format);
-				in_type.mod =
-				    Scaler_sw_para_to_reg(1,
-							  scaler->in_fb.mode);
-				in_type.ps =
-				    Scaler_sw_para_to_reg(2,
-							  (__u8) scaler->in_fb.
-							  seq);
+				in_type.fmt = Scaler_sw_para_to_reg1(
+						scaler->in_fb.format);
+				in_type.mod = scaler->in_fb.mode;
+				in_type.ps = Scaler_sw_para_to_reg3(
+						scaler->in_fb.seq);
 				in_type.byte_seq = 0;
 				in_type.sample_method = 0;
 

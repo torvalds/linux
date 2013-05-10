@@ -23,6 +23,8 @@
 #ifndef	_LINUX_AXP_SPLY_H_
 #define	_LINUX_AXP_SPLY_H_
 
+const unsigned int AXP15_NOTIFIER_ON =          AXP15_IRQ_PEKLO |AXP15_IRQ_PEKSH ;
+
 /*      AXP18      */
 #define	AXP18_STATUS						POWER18_STATUS
 #define	AXP18_CHARGE_STATUS					POWER18_ONOFF

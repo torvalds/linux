@@ -159,6 +159,7 @@ static struct ath_buf *ath_beacon_generate(struct ieee80211_hw *hw,
 				 skb->len, DMA_TO_DEVICE);
 		dev_kfree_skb_any(skb);
 		bf->bf_buf_addr = 0;
+		bf->bf_mpdu = NULL;
 	}
 
 	/* Get a new beacon from mac80211 */

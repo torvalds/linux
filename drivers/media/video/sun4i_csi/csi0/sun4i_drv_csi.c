@@ -51,9 +51,7 @@
 #include <media/videobuf-dma-contig.h>
 #include <linux/moduleparam.h>
 
-//#include <mach/gpio_v2.h>
-//#include <mach/script_v2.h>
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 #include <mach/clock.h>
 #include <mach/irqs.h>
 #include <linux/regulator/consumer.h>
@@ -807,7 +805,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	struct csi_fmt *csi_fmt;
 	struct v4l2_mbus_framefmt ccm_fmt;//linux-3.0
 	int ret = 0;
-	
+
 	csi_dbg(0,"vidioc_try_fmt_vid_cap\n");
 
 	/*judge the resolution*/
@@ -838,6 +836,7 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 	f->fmt.pix.height = ccm_fmt.height;//linux-3.0
 //	f->fmt.pix.bytesperline = ccm_fmt.fmt.pix.bytesperline;//linux-3.0
 //	f->fmt.pix.sizeimage = ccm_fmt.fmt.pix.sizeimage;//linux-3.0
+	f->fmt.pix.field = ccm_fmt.field; /* Needed even if none */
 
 	csi_dbg(0,"pix->width=%d\n",f->fmt.pix.width);
 	csi_dbg(0,"pix->height=%d\n",f->fmt.pix.height);

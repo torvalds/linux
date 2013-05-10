@@ -554,7 +554,16 @@ config SUN5I_NANDFLASH
 	  Nand flash driver for A12/A13
 
 config SUNXI_NAND
-        tristate
+	tristate
+	select SUNXI_NAND_PARTITION
+
+config SUNXI_NAND_COMPAT_DEV
+	depends on SUNXI_NAND
+	bool "Create old nand device names (nanda-nandz)"
+	default y
+	---help---
+	  This is the traditional device naming on sunxi platform.
+	  If unsure, say Y.
 
 config SUNXI_NAND_TEST
 	depends on SUNXI_NAND

@@ -11,6 +11,11 @@ choice
 	prompt "AXP PMU type"
 	default AW_AXP20
 
+config AW_AXP15
+        bool "AXP15 driver"
+        ---help---
+          AXP15 driver
+
 config AW_AXP18
 	bool "AXP18 driver"
 	---help---

@@ -38,6 +38,7 @@
 #include "efi.h"
 #include "karma.h"
 #include "sysv68.h"
+#include "sunxi_nand.h"
 
 #ifdef CONFIG_BLK_DEV_MD
 extern void md_autodetect_dev(dev_t dev);
@@ -112,6 +113,9 @@ static int (*check_part[])(struct parsed_partitions *) = {
 #ifdef CONFIG_SYSV68_PARTITION
 	sysv68_partition,
 #endif
+#ifdef CONFIG_SUNXI_NAND_PARTITION
+	sunxi_nand_partition,
+#endif
 	NULL
 };
  
@@ -129,6 +133,11 @@ char *disk_name(struct gendisk *hd, int partno, char *buf)
 	else if (isdigit(hd->disk_name[strlen(hd->disk_name)-1]))
 		snprintf(buf, BDEVNAME_SIZE, "%sp%d", hd->disk_name, partno);
 	else
+#ifdef CONFIG_SUNXI_NAND_COMPAT_DEV
+	if (!strcmp(hd->disk_name, "nand"))
+		snprintf(buf, BDEVNAME_SIZE, "%s%c", hd->disk_name, 'a' - 1 + partno);
+	else
+#endif
 		snprintf(buf, BDEVNAME_SIZE, "%s%d", hd->disk_name, partno);
 
 	return buf;
@@ -475,6 +484,11 @@ struct hd_struct *add_partition(struct gendisk *disk, int partno,
 	}
 
 	dname = dev_name(ddev);
+#ifdef CONFIG_SUNXI_NAND_COMPAT_DEV
+	if (!strcmp(dname, "nand"))
+		dev_set_name(pdev, "%s%c", dname, 'a' - 1 + partno);
+	else
+#endif
 	if (isdigit(dname[strlen(dname) - 1]))
 		dev_set_name(pdev, "%sp%d", dname, partno);
 	else

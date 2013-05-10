@@ -16,6 +16,14 @@
 /*
  * GPIO Registers.
  */
+/*AXP15*/
+#define AXP15_GPIO0_CFG                   (POWER15_GPIO0_CTL)
+#define AXP15_GPIO1_CFG                   (POWER15_GPIO1_CTL)
+#define AXP15_GPIO2_CFG                   (POWER15_GPIO2_CTL)
+#define AXP15_GPIO3_CFG                   (POWER15_GPIO3_CTL)
+
+#define AXP15_GPIO0123_STATE              (POWER15_GPIO0123_SIGNAL)
+
 /*    AXP19   */
 #define AXP19_GPIO0_CFG                   (POWER19_GPIO0_CTL)
 #define AXP19_GPIO1_CFG                   (POWER19_GPIO1_CTL)

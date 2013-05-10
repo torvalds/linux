@@ -37,9 +37,11 @@ struct videobuf_dma_contig_memory {
 		BUG();							    \
 	}
 
-// #define USE_DMA_CONTIG
-
-#ifndef USE_DMA_CONTIG
+#if defined CONFIG_VIDEO_DECODER_SUN4I || \
+	defined CONFIG_VIDEO_DECODER_SUN4I_MODULE || \
+	defined CONFIG_VIDEO_DECODER_SUN5I || \
+	defined CONFIG_VIDEO_DECODER_SUN5I_MODULE
+#define RESERVE_VE_MEM 1
 extern unsigned long ve_start;
 extern unsigned long ve_size;
 #endif
@@ -98,10 +100,12 @@ static void videobuf_vm_close(struct vm_area_struct *vma)
 				dev_dbg(q->dev, "buf[%d] freeing %p\n",
 					i, mem->vaddr);
 
-#ifdef USE_DMA_CONTIG
-				dma_free_coherent(q->dev, mem->size,
+#ifdef RESERVE_VE_MEM
+				if (ve_size == 0)
+#endif
+					dma_free_coherent(q->dev, mem->size,
 						  mem->vaddr, mem->dma_handle);
-#endif // USE_DMA_CONTIG
+
 				mem->vaddr = NULL;
 			}
 
@@ -293,16 +297,16 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 
 	mem->size = PAGE_ALIGN(buf->bsize);
 
-#ifdef USE_DMA_CONTIG
-	mem->vaddr = dma_alloc_coherent(q->dev, mem->size,
-					&mem->dma_handle, GFP_KERNEL);
-#else
-	
-	mem->dma_handle = (ve_start + ve_size - 24*1024*1024 + buf->i * mem->size + 4095) & (~(4095));	//4k aligned
-	mem->vaddr = (void *)(mem->dma_handle + 0x80000000);	// not used
-	
-#endif					
-					
+#ifdef RESERVE_VE_MEM
+	if (ve_size) {
+		mem->dma_handle = (ve_start + ve_size - 24 * 1024 * 1024 +
+		    buf->i * mem->size + 4095) & (~(4095)); /* 4k aligned */
+		mem->vaddr = (void *)(mem->dma_handle + 0x80000000); /* NA */
+	} else
+#endif
+		mem->vaddr = dma_alloc_coherent(q->dev, mem->size,
+						&mem->dma_handle, GFP_KERNEL);
+
 	if (!mem->vaddr) {
 		dev_err(q->dev, "dma_alloc_coherent size %ld failed\n",
 			mem->size);

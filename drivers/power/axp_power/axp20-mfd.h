@@ -26,11 +26,12 @@
 static int __devinit axp20_init_chip(struct axp_mfd_chip *chip)
 {
 	uint8_t chip_id;
-	uint8_t v[19] = {0xd8,POWER20_INTEN2, 0xff,POWER20_INTEN3,0x03,
-												POWER20_INTEN4, 0x01,POWER20_INTEN5, 0x00,
-												POWER20_INTSTS1,0xff,POWER20_INTSTS2, 0xff,
-												POWER20_INTSTS3,0xff,POWER20_INTSTS4, 0xff,
-												POWER20_INTSTS5,0xff};
+	uint8_t v[19] = { /* POWER20_INTEN1 */ 0x00,
+		POWER20_INTEN2,  0x00, POWER20_INTEN3,  0x00,
+		POWER20_INTEN4,  0x00, POWER20_INTEN5,  0x00,
+		POWER20_INTSTS1, 0xff, POWER20_INTSTS2, 0xff,
+		POWER20_INTSTS3, 0xff, POWER20_INTSTS4, 0xff,
+		POWER20_INTSTS5, 0xff };
 	int err;
 	/*read chip id*/
 	err =  __axp_read(chip->client, POWER20_IC_TYPE, &chip_id);
@@ -39,19 +40,16 @@ static int __devinit axp20_init_chip(struct axp_mfd_chip *chip)
 		return err;
 	}
 
-	/*enable irqs and clear*/
+	/* Mask and clear all IRQs */
 	err =  __axp_writes(chip->client, POWER20_INTEN1, 19, v);
 	if (err) {
 	    printk("[AXP20-MFD] try to clear irq failed!\n");
 		return err;
 	}
+	chip->irqs_enabled = 0;
 
 	dev_info(chip->dev, "AXP (CHIP ID: 0x%02x) detected\n", chip_id);
 	chip->type = AXP20;
-
-	/* mask and clear all IRQs */
-	chip->irqs_enabled = 0xffffffff | (uint64_t)0xff << 32;
-	chip->ops->disable_irqs(chip, chip->irqs_enabled);
 
 	return 0;
 }

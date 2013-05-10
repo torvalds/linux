@@ -36,7 +36,7 @@
 
 #include <mach/system.h>
 #include <mach/hardware.h>
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 
 /*
  * Defines
@@ -113,7 +113,7 @@ static int gsensor_fetch_sysconfig_para(void)
 	int device_used = -1;
 	__u32 twi_addr = 0;
 	char name[I2C_NAME_SIZE];
-	script_parser_value_type_t type = SCIRPT_PARSER_VALUE_TYPE_STRING;
+	script_parser_value_type_t type = SCRIPT_PARSER_VALUE_TYPE_STRING;
 		
 	printk("========%s===================\n", __func__);
 	 

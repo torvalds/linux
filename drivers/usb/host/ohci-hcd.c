@@ -68,7 +68,7 @@
 #include <asm/unaligned.h>
 #include <asm/byteorder.h>
 
-#ifdef  CONFIG_USB_SW_SUN4I_HCI
+#ifdef CONFIG_ARCH_SUN4I
 #include <mach/system.h>
 #endif
 
@@ -782,7 +782,7 @@ static irqreturn_t ohci_irq (struct usb_hcd *hcd)
 	 */
 	ints = ohci_readl(ohci, &regs->intrstatus);
 
-#ifdef  CONFIG_USB_SW_SUN4I_HCI
+#ifdef CONFIG_ARCH_SUN4I
 {
     enum sw_ic_ver ic_version = MAGIC_VER_A;
 
@@ -1144,14 +1144,9 @@ MODULE_LICENSE ("GPL");
 #define PLATFORM_DRIVER	ohci_hcd_jz4740_driver
 #endif
 
-#ifdef CONFIG_USB_SW_SUN4I_HCI
+#ifdef CONFIG_USB_SUNXI_OHCI
 #include "ohci-sunxi.c"
 #define	PLATFORM_DRIVER		sw_ohci_hcd_driver
-#endif
-
-#ifdef CONFIG_USB_SW_SUN5I_HCI
-#include "ohci-sunxi.c"
-#define PLATFORM_DRIVER         sw_ohci_hcd_driver
 #endif
 
 #ifdef CONFIG_USB_OCTEON_OHCI

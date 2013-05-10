@@ -32,7 +32,7 @@
 #include <linux/device.h>
 #include <linux/usb/ch9.h>
 
-#include <mach/dma.h>
+#include <plat/dma.h>
 #include <linux/dma-mapping.h>
 
 #include <linux/usb.h>

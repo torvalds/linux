@@ -222,7 +222,7 @@ DEVICE_PARAM(b80211hEnable, "802.11h mode");
 // Static vars definitions
 //
 
-static struct usb_device_id vt6656_table[] __devinitdata = {
+static struct usb_device_id vt6656_table[] = {
 	{USB_DEVICE(VNT_USB_VENDOR_ID, VNT_USB_PRODUCT_ID)},
 	{}
 };
@@ -725,8 +725,6 @@ static int vt6656_suspend(struct usb_interface *intf, pm_message_t message)
 	if (device->flags & DEVICE_FLAGS_OPENED)
 		device_close(device->dev);
 
-	usb_put_dev(interface_to_usbdev(intf));
-
 	return 0;
 }
 
@@ -736,8 +734,6 @@ static int vt6656_resume(struct usb_interface *intf)
 
 	if (!device || !device->dev)
 		return -ENODEV;
-
-	usb_get_dev(interface_to_usbdev(intf));
 
 	if (!(device->flags & DEVICE_FLAGS_OPENED))
 		device_open(device->dev);

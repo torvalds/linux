@@ -160,7 +160,8 @@
 #define	gadget_is_renesas_usbhs(g) 0
 #endif
 
-#if defined(CONFIG_USB_SW_SUN3I_UDC0) || defined(CONFIG_USB_SW_SUN4I_UDC0)
+#if defined(CONFIG_USB_SW_SUN3I_UDC0) || defined(CONFIG_USB_SW_SUN4I_UDC0) \
+	|| defined(CONFIG_USB_SW_SUN5I_UDC0)
 #define	gadget_is_softwinner_otg(g) (!strcmp("sw_usb_udc", (g)->name))
 #else
 #define	gadget_is_softwinner_otg(g) 0

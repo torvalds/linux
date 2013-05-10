@@ -1,6 +1,0 @@
-vdso.lds
-vdso-syms.lds
-vdso32-syms.lds
-vdso32-syscall-syms.lds
-vdso32-sysenter-syms.lds
-vdso32-int80-syms.lds

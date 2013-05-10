@@ -19,46 +19,61 @@
 
 #include "de_be.h"
 
-__s32 DE_BE_Format_To_Bpp(__u32 sel, __u8 format)
+__s32 DE_BE_Format_To_Bpp(__disp_pixel_fmt_t format)
 {
 	__u8 bpp = 0;
 
 	switch (format) {
-	case DE_MONO_1BPP:
+	case DISP_FORMAT_1BPP:
 		bpp = 1;
 		break;
 
-	case DE_MONO_2BPP:
+	case DISP_FORMAT_2BPP:
 		bpp = 2;
 		break;
 
-	case DE_MONO_4BPP:
+	case DISP_FORMAT_4BPP:
 		bpp = 4;
 		break;
 
-	case DE_MONO_8BPP:
+	case DISP_FORMAT_8BPP:
 		bpp = 8;
 		break;
 
-	case DE_COLOR_RGB655:
-	case DE_COLOR_RGB565:
-	case DE_COLOR_RGB556:
-	case DE_COLOR_ARGB1555:
-	case DE_COLOR_RGBA5551:
-	case DE_COLOR_ARGB4444:
+	case DISP_FORMAT_RGB655:
+	case DISP_FORMAT_RGB565:
+	case DISP_FORMAT_RGB556:
+	case DISP_FORMAT_ARGB1555:
+	case DISP_FORMAT_RGBA5551:
+	case DISP_FORMAT_ARGB4444:
+		bpp = 16;
+		break;
+	case DISP_FORMAT_RGB888:
+		bpp = 24;
+		break;
+	case DISP_FORMAT_ARGB888:
+		bpp = 32;
+		break;
+
+	case DISP_FORMAT_ARGB8888:
+		bpp = 32;
+		break;
+
+	case DISP_FORMAT_YUV444:
+		bpp = 24;
+		break;
+
+	case DISP_FORMAT_YUV422:
 		bpp = 16;
 		break;
 
-	case DE_COLOR_RGB0888:
-		bpp = 32;
+	case DISP_FORMAT_YUV420:
+	case DISP_FORMAT_YUV411:
+		bpp = 12;
 		break;
 
-	case DE_COLOR_ARGB8888:
-		bpp = 32;
-		break;
-
-	case DE_COLOR_RGB888:
-		bpp = 24;
+	case DISP_FORMAT_CSIRGB:
+		bpp = 32; /* ? */
 		break;
 
 	default:
@@ -133,7 +148,7 @@ static __s32 DE_BE_Layer_Set_Line_Width(__u32 sel, __u8 layidx, __u32 width)
 	return 0;
 }
 
-__s32 DE_BE_Layer_Set_Format(__u32 sel, __u8 layidx, __u8 format,
+__s32 DE_BE_Layer_Set_Format(__u32 sel, __u8 layidx, __disp_pixel_fmt_t format,
 			     __bool br_swap, __u8 order)
 {
 	__u32 tmp;
@@ -152,7 +167,7 @@ __s32 DE_BE_Layer_Set_Framebuffer(__u32 sel, __u8 layidx,
 	__s32 bpp;
 	__u32 addr;
 
-	bpp = DE_BE_Format_To_Bpp(sel, layer_fb->format);
+	bpp = DE_BE_Format_To_Bpp(layer_fb->format);
 	if (bpp <= 0)
 		return -1;
 

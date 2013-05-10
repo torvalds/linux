@@ -21,7 +21,7 @@ config USB_SW_SUN5I_USB_MANAGER
 
 #---------------------------------------------
 #-
-#- usb0 mode slecet.
+#- usb0 mode select.
 #-
 #---------------------------------------------
 choice
@@ -29,29 +29,36 @@ choice
     prompt "USB0 Controller support"
     depends on (USB_SW_SUN5I_USB && USB_SW_SUN5I_USB_MANAGER)
     help
-        usb0 Controller mode slecet. choice "device only", then usb0 can only use for device.
+        usb0 Controller mode select. choice "device only", then usb0 can only use for device.
         choice "host only", then usb0 can only use for host. choice "OTG", then usb0 can only
         use device and host.
 
-config USB_SW_SUN5I_USB0_NULL
-    boolean "usb manager not support"
-    help
-        usb0 do not monitor hardware, then drvier insmod shoud by application.
-
-config USB_SW_SUN5I_USB0_DEVICE_ONLY
-    boolean "device only support"
-    help
-        usb0 can only use for device.
+        For "device only" and "OTG" modes, you need CONFIG_USB_SW_SUN5I_UDC0, "SoftWinner
+        SUN5I USB Peripheral Controller", enabled under USB gadget config.
 
 config USB_SW_SUN5I_USB0_HOST_ONLY
     boolean "host only support"
+    select USB_SW_SUN5I_HCD0
     help
         usb0 can only use for host.
 
 config USB_SW_SUN5I_USB0_OTG
     boolean "otg support"
+    depends on USB_SW_SUN5I_UDC0
+    select USB_SW_SUN5I_HCD0
     help
         usb0 can only use for device and host.
+
+config USB_SW_SUN5I_USB0_DEVICE_ONLY
+    boolean "device only support"
+    depends on USB_SW_SUN5I_UDC0
+    help
+        usb0 can only use for device.
+
+config USB_SW_SUN5I_USB0_NULL
+    boolean "usb manager not support"
+    help
+        usb0 do not monitor hardware, then drvier insmod shoud by application.
 
 
 endchoice

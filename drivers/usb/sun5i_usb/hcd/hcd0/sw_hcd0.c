@@ -417,7 +417,8 @@ static __s32 pin_init(sw_hcd_io_t *sw_hcd_io)
 		return -1;
 	}
 
-	sw_hcd_io->Drv_vbus_Handle = gpio_request(&sw_hcd_io->drv_vbus_gpio_set, 1);
+	sw_hcd_io->Drv_vbus_Handle =
+		    sunxi_gpio_request_array(&sw_hcd_io->drv_vbus_gpio_set, 1);
 	if(sw_hcd_io->Drv_vbus_Handle == 0){
 		DMSG_PANIC("ERR: gpio_request failed\n");
 		return -1;
@@ -1019,23 +1020,19 @@ enum { SW_HCD_CONTROLLER_MHDRC, SW_HCD_CONTROLLER_HDRC, };
 static int sw_hcd_core_init(u16 sw_hcd_type, struct sw_hcd *sw_hcd)
 {
 	u8              reg         = 0;
-	char            *type       = NULL;
-	char            aInfo[78];
-	char            aRevision[32];
-	char            aDate[12];
+	char            aInfo[128];
 	void __iomem    *usbc_base  = sw_hcd->mregs;
 	int             status      = 0;
 	int             i           = 0;
 
-    memset(aInfo, 0, sizeof(aInfo));
-    memset(aRevision, 0, sizeof(aRevision));
-    memset(aDate, 0, sizeof(aDate));
+	memset(aInfo, 0, sizeof(aInfo));
 
 	/* log core options (read using indexed model) */
 	sw_hcd_ep_select(usbc_base, 0);
 	reg = sw_hcd_read_configdata(usbc_base);
 
-    strcpy(aInfo, (reg & (1 << USBC_BP_CONFIGDATA_UTMI_DATAWIDTH)) ? "UTMI-16" : "UTMI-8");
+	strcpy(aInfo, (reg & (1 << USBC_BP_CONFIGDATA_UTMI_DATAWIDTH)) ?
+		      "UTMI-16" : "UTMI-8");
 
 	if (reg & (1 << USBC_BP_CONFIGDATA_DYNFIFO_SIZING)){
 		strcat(aInfo, ", dyn FIFOs");
@@ -1067,17 +1064,13 @@ static int sw_hcd_core_init(u16 sw_hcd_type, struct sw_hcd *sw_hcd)
 		strcat(aInfo, ", SoftConn");
 	}
 
-//	DMSG_INFO_HCD0("%s: ConfigData=0x%02x (%s)\n", sw_hcd_driver_name, reg, aInfo);
-
-	aDate[0] = 0;
+	DMSG_INFO_HCD0("%s: ConfigData=0x%02x (%s)\n", sw_hcd_driver_name,
+		       reg, aInfo);
 
 	if (SW_HCD_CONTROLLER_MHDRC == sw_hcd_type) {
 		sw_hcd->is_multipoint = 1;
-		type = "M";
 	} else {
 	    sw_hcd->is_multipoint = 0;
-		type = "";
-
 		DMSG_INFO_HCD0("%s: kernel must blacklist external hubs\n", sw_hcd_driver_name);
 	}
 
@@ -1176,8 +1169,7 @@ static const struct hc_driver sw_hcd_hc_driver = {
 	.description		= "sw_hcd-hcd",
 	.product_desc		= "sw_hcd host driver",
 	.hcd_priv_size		= sizeof(struct sw_hcd),
-//	.flags              = HCD_USB2 | HCD_MEMORY,
-	.flags				= HCD_USB11 | HCD_MEMORY,
+	.flags			= HCD_USB2 | HCD_MEMORY,
 
 	/* not using irq handler or reset hooks from usbcore, since
 	 * those must be shared with peripheral code for OTG configs
@@ -1244,6 +1236,7 @@ static struct sw_hcd *allocate_instance(struct device *dev,
 	INIT_LIST_HEAD(&sw_hcd->in_bulk);
 	INIT_LIST_HEAD(&sw_hcd->out_bulk);
 
+	hcd->has_tt		  = 1;
     hcd->uses_new_polling   = 1;
 	sw_hcd->vbuserr_retry     = VBUSERR_RETRY_COUNT;
     sw_hcd->mregs             = mbase;
@@ -1528,6 +1521,7 @@ fail:
 */
 int sw_usb_host0_enable(void)
 {
+#ifdef CONFIG_USB_SW_SUN5I_USB0_OTG
 	struct platform_device 	*pdev 	= NULL;
 	struct device   		*dev  	= NULL;
 	struct sw_hcd 			*sw_hcd	= NULL;
@@ -1578,8 +1572,8 @@ int sw_usb_host0_enable(void)
 	spin_unlock_irqrestore(&sw_hcd->lock, flags);
 
 	DMSG_INFO_HCD0("sw_usb_host0_enable end\n");
-
-    return 0;
+#endif
+	return 0;
 }
 EXPORT_SYMBOL(sw_usb_host0_enable);
 
@@ -1603,6 +1597,7 @@ EXPORT_SYMBOL(sw_usb_host0_enable);
 */
 int sw_usb_host0_disable(void)
 {
+#ifdef CONFIG_USB_SW_SUN5I_USB0_OTG
 	struct platform_device 	*pdev 	= NULL;
 	struct sw_hcd 			*sw_hcd	= NULL;
 	unsigned long   		flags 	= 0;
@@ -1657,6 +1652,7 @@ int sw_usb_host0_disable(void)
 	spin_unlock_irqrestore(&sw_hcd->lock, flags);
 
 	DMSG_INFO_HCD0("sw_usb_host0_disable end\n");
+#endif
 
 	return 0;
 }
@@ -1681,6 +1677,7 @@ EXPORT_SYMBOL(sw_usb_host0_disable);
 *
 *******************************************************************************
 */
+#ifdef CONFIG_USB_SW_SUN5I_USB0_OTG
 static int sw_hcd_probe_otg(struct platform_device *pdev)
 {
 	struct device   *dev    = &pdev->dev;
@@ -1721,6 +1718,7 @@ static int sw_hcd_probe_otg(struct platform_device *pdev)
 end:
     return status;
 }
+#endif
 
 /*
 *******************************************************************************
@@ -1740,6 +1738,7 @@ end:
 *
 *******************************************************************************
 */
+#ifdef CONFIG_USB_SW_SUN5I_USB0_OTG
 static int sw_hcd_remove_otg(struct platform_device *pdev)
 {
 	struct sw_hcd *sw_hcd = dev_to_sw_hcd(&pdev->dev);
@@ -1760,6 +1759,7 @@ static int sw_hcd_remove_otg(struct platform_device *pdev)
 
 	return 0;
 }
+#endif
 
 /*
 *******************************************************************************
@@ -2235,11 +2235,6 @@ static int sw_hcd_suspend(struct device *dev)
 		return 0;
 	}
 
-	if(!sw_hcd->sw_hcd_io->clk_is_open){
-		DMSG_INFO("wrn: sw_hcd_suspend, usb clock is close, can't close again\n");
-		return 0;
-	}
-
 	spin_lock_irqsave(&sw_hcd->lock, flags);
 	sw_hcd->suspend = 1;
 	sw_hcd_port_suspend_ex(sw_hcd);
@@ -2282,11 +2277,6 @@ static int sw_hcd_resume(struct device *dev)
 
 	if(!sw_hcd->enable){
 		DMSG_INFO("wrn: hcd is disable, need not resume\n");
-		return 0;
-	}
-
-	if(sw_hcd->sw_hcd_io->clk_is_open){
-		DMSG_INFO("wrn: sw_hcd_suspend, usb clock is open, can't open again\n");
 		return 0;
 	}
 

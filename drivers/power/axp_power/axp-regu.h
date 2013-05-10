@@ -27,6 +27,36 @@
 
 #include "axp-cfg.h"
 
+/*AXP15 Registers*/
+#define AXP15_LDO0                   POWER15_LDO0OUT_VOL
+#define AXP15_RTC                      POWER15_STATUS
+#define AXP15_ANALOG1              POWER15_LDO34OUT_VOL
+#define AXP15_ANALOG2      POWER15_LDO34OUT_VOL
+#define AXP15_DIGITAL1     POWER15_LDO5OUT_VOL
+#define AXP15_DIGITAL2     POWER15_LDO6OUT_VOL
+#define AXP15_LDOIO0       POWER15_GPIO0_VOL
+
+#define AXP15_DCDC1        POWER15_DC1OUT_VOL
+#define AXP15_DCDC2        POWER15_DC2OUT_VOL
+#define AXP15_DCDC3        POWER15_DC3OUT_VOL
+#define AXP15_DCDC4        POWER15_DC4OUT_VOL
+
+#define AXP15_LDO0EN               POWER15_LDO0_CTL                    //REG[15H]
+#define AXP15_RTCLDOEN           POWER15_STATUS                      //REG[00H]
+#define AXP15_ANALOG1EN          POWER15_LDO3456_DC1234_CTL          //REG[12H]
+#define AXP15_ANALOG2EN    POWER15_LDO3456_DC1234_CTL
+#define AXP15_DIGITAL1EN   POWER15_LDO3456_DC1234_CTL
+#define AXP15_DIGITAL2EN   POWER15_LDO3456_DC1234_CTL
+#define AXP15_LDOI0EN      POWER15_GPIO0_CTL                   //REG[92H]
+
+#define AXP15_DCDC1EN      POWER15_LDO3456_DC1234_CTL
+#define AXP15_DCDC2EN      POWER15_LDO3456_DC1234_CTL
+#define AXP15_DCDC3EN      POWER15_LDO3456_DC1234_CTL
+#define AXP15_DCDC4EN      POWER15_LDO3456_DC1234_CTL
+/*Need to check !!!!*/
+#define AXP15_BUCKMODE     POWER15_DCDC_MODESET                 //REG[80H]
+#define AXP15_BUCKFREQ     POWER15_DCDC_FREQSET                 //REG[37H]
+
 
 /* AXP18 Regulator Registers */
 #define AXP18_RTC			POWER18_STATUS
@@ -133,6 +163,25 @@
 	.vol_nbits	= (nbits),					\
 	.enable_reg	= _pmic##_##ereg,				\
 	.enable_bit	= (ebit),					\
+}
+
+#define AXP_DCDC(_pmic, _id, min, max, step, vreg, shift, nbits, ereg, ebit)    \
+{                                                                       \
+	.desc   = {                                                     \
+		.name   = #_pmic"_DCDC" #_id,                                   \
+		.type   = REGULATOR_VOLTAGE,                            \
+		.id     = _pmic##_ID_DCDC##_id,                         \
+		.n_voltages = (step) ? ((max - min) / step + 1) : 1,    \
+		.owner  = THIS_MODULE,                                  \
+	},                                                              \
+	.min_uV         = (min) * 1000,                                 \
+	.max_uV         = (max) * 1000,                                 \
+	.step_uV        = (step) * 1000,                                \
+	.vol_reg        = _pmic##_##vreg,                               \
+	.vol_shift      = (shift),                                      \
+	.vol_nbits      = (nbits),                                      \
+	.enable_reg     = _pmic##_##ereg,                               \
+	.enable_bit     = (ebit),                                       \
 }
 
 #define AXP_SW(_pmic, _id, min, max, step, vreg, shift, nbits, ereg, ebit)	\

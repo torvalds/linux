@@ -26,7 +26,7 @@
 
 #include <linux/usb.h>
 #include <linux/usb/gadget.h>
-#include <mach/dma.h>
+#include <plat/dma.h>
 #include <linux/dma-mapping.h>
 
 /*  */

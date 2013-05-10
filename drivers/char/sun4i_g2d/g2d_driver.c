@@ -496,7 +496,7 @@ static int g2d_probe(struct platform_device *pdev)
 
 	/* request the irq */
 	info->irq = res->start;
-	ret = request_irq(info->irq,g2d_handle_irq,0,g2d_device.name,NULL);
+	ret = request_irq(info->irq, g2d_handle_irq, 0, g2d_device.name, info);
 	if(ret)
 		{
 			ERR("failed to install irq resource\n");

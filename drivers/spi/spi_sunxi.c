@@ -23,15 +23,16 @@
 #include <linux/clk.h>
 #include <linux/spi/spi.h>
 #include <linux/platform_device.h>
+#include <mach/gpio.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
 
 #include <asm/io.h>
-#include <mach/dma.h>
+#include <plat/dma.h>
 #include <mach/hardware.h>
 #include <mach/irqs.h>
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 #include <mach/spi.h>
 #include <asm/cacheflush.h>
 
@@ -787,6 +788,10 @@ static int spi_sunxi_xfer_setup(struct spi_device *spi, struct spi_transfer *t)
      *  set bit width-default: 8 bits
      */
     aw_spi_config(1, spi->mode, base_addr);
+	/*
+	 * setup inter-byte delay; used for slow slaves
+	 */
+	aw_spi_set_waitclk_cnt((t && t->interbyte_usecs) ? t->interbyte_usecs*config->max_speed_hz/1000000 : 0, base_addr);
 	return 0;
 }
 
@@ -962,11 +967,11 @@ static void spi_sunxi_work(struct work_struct *work)
 		spi = msg->spi;
 		/* set default value,no need to change cs,keep select until spi transfer require to change cs. */
 		cs_change = 1;
-		/* set message status to succeed. */
-		status = 0;
+		/* set to force xfer_setup on first transfer. */
+		status = -1;
 		/* search the spi transfer in this message, deal with it alone. */
 		list_for_each_entry (t, &msg->transfers, transfer_list) {
-			if (t->bits_per_word || t->speed_hz) { /* if spi transfer is zero,use spi device value. */
+			if ((status == -1) || t->bits_per_word || t->speed_hz || t->interbyte_usecs) { /* xfer_setup if first transfer or overrides provided. */
 				status = spi_sunxi_xfer_setup(spi, t);/* set the value every spi transfer */
 				spi_msg(" xfer setup \n");
 				if (status < 0)
@@ -1007,8 +1012,6 @@ static void spi_sunxi_work(struct work_struct *work)
 		if (status || !cs_change) {
 			aw_spi->cs_control(spi, 0);
 		}
-        /* restore default value. */
-		spi_sunxi_xfer_setup(spi, NULL);
 		spin_lock_irq(&aw_spi->lock);
 	}
 	/* set spi to free */
@@ -1306,19 +1309,10 @@ static int spi_sunxi_hw_init(struct sunxi_spi *aw_spi)
 	else{
         aw_spi_set_cs(1, base_addr);
 	}
-    /*
-     * 3. master: set spi module clock;
-     * 4. set the default frequency	10MHz
-     */
+	/* 3. master */
     aw_spi_set_master(base_addr);
     sclk_freq  = clk_get_rate(aw_spi->mclk);
-    aw_spi_set_clk(10000000, sclk_freq, base_addr);
-    /*
-     * 5. master : set POL,PHA,SSOPL,LMTF,DDB,DHB; default: SSCTL=0,SMC=1,TBW=0.
-     * 6. set bit width-default: 8 bits
-     */
-    aw_spi_config(1, SPI_MODE_3, base_addr);
-	/* 7. manual control the chip select */
+	/* 4. manual control the chip select */
 	aw_spi_ss_ctrl(base_addr, 1);
 	return 0;
 }
@@ -1595,8 +1589,13 @@ static struct platform_driver __refdata spi_sunxi_driver = {
 
 /* ---------------- spi resouce and platform data start ---------------------- */
 struct sunxi_spi_platform_data sunxi_spi0_pdata = {
+#if defined CONFIG_ARCH_SUN4I
+	.cs_bitmap	= 0x3,
+	.num_cs		= 2,
+#elif defined CONFIG_ARCH_SUN5I
 	.cs_bitmap  = 0x1,
 	.num_cs		= 1,
+#endif
 	.clk_name = "ahb_spi0",
 };
 static struct resource sunxi_spi0_resources[] = {
@@ -1639,8 +1638,13 @@ static struct platform_device sunxi_spi0_device = {
 };
 
 struct sunxi_spi_platform_data sunxi_spi1_pdata = {
+#if defined CONFIG_ARCH_SUN4I
 	.cs_bitmap	= 0x3,
 	.num_cs		= 2,
+#elif defined CONFIG_ARCH_SUN5I
+	.cs_bitmap	= 0x1,
+	.num_cs		= 1,
+#endif
 	.clk_name = "ahb_spi1",
 };
 static struct resource sunxi_spi1_resources[] = {
@@ -1682,6 +1686,11 @@ static struct platform_device sunxi_spi1_device = {
 	},
 };
 
+struct sunxi_spi_platform_data sunxi_spi2_pdata = {
+	.cs_bitmap	= 0x3,
+	.num_cs		= 2,
+	.clk_name	= "ahb_spi2",
+};
 static struct resource sunxi_spi2_resources[] = {
 	[0] = {
 		.start	= SPI2_BASE_ADDR,
@@ -1707,11 +1716,6 @@ static struct resource sunxi_spi2_resources[] = {
 		.flags	= IORESOURCE_IRQ,
 	},
 };
-struct sunxi_spi_platform_data sunxi_spi2_pdata = {
-	.cs_bitmap	= 0x1,
-	.num_cs		= 1,
-	.clk_name = "ahb_spi2",
-};
 static struct platform_device sunxi_spi2_device = {
 #if defined CONFIG_ARCH_SUN4I
 	.name		= "sun4i-spi",
@@ -1727,6 +1731,11 @@ static struct platform_device sunxi_spi2_device = {
 };
 
 #ifdef CONFIG_ARCH_SUN4I
+struct sunxi_spi_platform_data sunxi_spi3_pdata = {
+	.cs_bitmap	= 0x3,
+	.num_cs		= 2,
+	.clk_name	= "ahb_spi3",
+};
 static struct resource sunxi_spi3_resources[] = {
 	[0] = {
 		.start	= SPI3_BASE_ADDR,
@@ -1752,12 +1761,6 @@ static struct resource sunxi_spi3_resources[] = {
 		.flags	= IORESOURCE_IRQ,
 	},
 };
-struct sunxi_spi_platform_data sunxi_spi3_pdata = {
-	.cs_bitmap	= 0x1,
-	.num_cs		= 1,
-	.clk_name = "ahb_spi3",
-};
-
 static struct platform_device sunxi_spi3_device = {
 	.name		= "sun4i-spi",
 	.id			= 3,
@@ -1776,6 +1779,7 @@ int spi_sunxi_register_spidev(void)
     int spi_dev_num = 0;
     int ret = 0;
     int i = 0;
+    unsigned int irq_gpio = 0;
     char spi_board_name[32] = {0};
     struct spi_board_info* board;
 
@@ -1824,6 +1828,12 @@ int spi_sunxi_register_spidev(void)
             spi_msg("Get spi devices mode failed\n");
             goto fail;
         }
+	ret = script_parser_fetch(spi_board_name, "irq_gpio", (void*)&irq_gpio, sizeof(unsigned int));
+	if (ret != SCRIPT_PARSER_OK) {
+		spi_msg("%s irq gpio not used\n", spi_board_name);
+		board->irq = -1;
+	} else if(gpio_request(irq_gpio, spi_board_name) == 0)
+		board->irq = gpio_to_irq(irq_gpio);
         /*
         ret = script_parser_fetch(spi_board_name, "full_duplex", &board->full_duplex, sizeof(int));
         if(ret != SCRIPT_PARSER_OK) {

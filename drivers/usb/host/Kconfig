@@ -579,6 +579,27 @@ config USB_OCTEON2_COMMON
 	bool
 	default y if USB_OCTEON_EHCI || USB_OCTEON_OHCI
 
+config USB_SUNXI_EHCI
+	bool "Allwinner sunXi EHCI support"
+	depends on USB && (ARCH_SUN4I || ARCH_SUN5I) && USB_EHCI_HCD
+	default y
+	help
+	  Enable support for Allwinner's EHCI controller (USB 2.0).
+
+config USB_SUNXI_OHCI
+	bool "Allwinner sunXi OHCI support"
+	depends on USB && (ARCH_SUN4I || ARCH_SUN5I) && USB_OHCI_HCD
+	default USB_SUNXI_EHCI
+	help
+	  Enable support for Allwinner's OHCI controller (USB 1.1).
+
+config USB_SUNXI_COMMON
+	bool
+	depends on (USB_SUNXI_EHCI || USB_SUNXI_OHCI)
+	default y if (USB_SUNXI_EHCI || USB_SUNXI_OHCI)
+	help
+	  Enable support for common routines for Allwinner's USB host
+	  controller (USB1 and USB2 for sun4i, and USB1 for sun5i).
 
 #-----------------------------------------------------
 #
@@ -614,47 +635,11 @@ config USB_SW_SUN3I_HCD2
 # A10 USB Host Controller Drivers
 #
 #-----------------------------------------------------
-config USB_SW_SUN4I_HCD
-    tristate "SoftWinner SUN4I USB Host Controller support"
+config USB_SW_SUN4I_HCD0
+	tristate "SoftWinner SUN4I USB Host Controller0 (OTG)"
 	depends on USB && USB_SW_SUN4I_USB_MANAGER
 	help
-	    SoftWinner SUN4I USB2.0 Host Controller support.
-
-config USB_SW_SUN4I_HCD0
-	tristate "SoftWinner SUN4I USB Host Controller0"
-	depends on USB_SW_SUN4I_HCD && (USB_SW_SUN4I_USB0_HOST_ONLY || USB_SW_SUN4I_USB0_OTG)
-	help
-	    SoftWinner SUN4I USB2.0 Host Controller0.
-
-config USB_SW_SUN4I_HCI
-    tristate "SoftWinner SUN4I USB HCI"
-	depends on USB_SW_SUN4I_HCD
-	help
-	    SoftWinner SUN4I USB HCI.
-
-config USB_SW_SUN4I_EHCI0
-    tristate "SoftWinner SUN4I USB EHCI0"
-	depends on USB_SW_SUN4I_HCI
-	help
-	    SoftWinner SUN4I USB EHCI0.
-
-config USB_SW_SUN4I_EHCI1
-    tristate "SoftWinner SUN4I USB EHCI1"
-	depends on USB_SW_SUN4I_HCI
-	help
-	    SoftWinner SUN4I USB EHCI1.
-
-config USB_SW_SUN4I_OHCI0
-    tristate "SoftWinner SUN4I USB OHCI0"
-	depends on USB_SW_SUN4I_HCI
-	help
-	    SoftWinner SUN4I USB OHCI0.
-
-config USB_SW_SUN4I_OHCI1
-    tristate "SoftWinner SUN4I USB OHCI1"
-	depends on USB_SW_SUN4I_HCI
-	help
-	    SoftWinner SUN4I USB OHCI1.
+	    SoftWinner SUN4I USB2.0 Host Controller0, OTG port.
 	    
 	    
 #-----------------------------------------------------
@@ -662,35 +647,8 @@ config USB_SW_SUN4I_OHCI1
 # A12 USB Host Controller Drivers
 #
 #-----------------------------------------------------
-config USB_SW_SUN5I_HCD
-    tristate "SoftWinner SUN5I USB Host Controller support"
+config USB_SW_SUN5I_HCD0
+	tristate "SoftWinner SUN5I USB Host Controller0 (OTG)"
 	depends on USB && USB_SW_SUN5I_USB_MANAGER
 	help
-	    SoftWinner SUN5I USB2.0 Host Controller support.
-
-config USB_SW_SUN5I_HCD0
-	tristate "SoftWinner SUN5I USB Host Controller0"
-	depends on USB_SW_SUN5I_HCD && (USB_SW_SUN5I_USB0_HOST_ONLY || USB_SW_SUN5I_USB0_OTG)
-	help
-	    SoftWinner SUN5I USB2.0 Host Controller0.
-
-config USB_SW_SUN5I_HCI
-    tristate "SoftWinner SUN5I USB HCI"
-	depends on USB_SW_SUN5I_HCD
-	help
-	    SoftWinner SUN5I USB HCI.
-
-config USB_SW_SUN5I_EHCI0
-    tristate "SoftWinner SUN5I USB EHCI0"
-	depends on USB_SW_SUN5I_HCI
-	help
-	    SoftWinner SUN5I USB EHCI0.
-
-
-config USB_SW_SUN5I_OHCI0
-    tristate "SoftWinner SUN5I USB OHCI0"
-	depends on USB_SW_SUN5I_HCI
-	help
-	    SoftWinner SUN5I USB OHCI0.
-
-
+	    SoftWinner SUN5I USB2.0 Host Controller0, OTG port.

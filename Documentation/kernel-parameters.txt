@@ -531,6 +531,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			UART at the specified I/O port or MMIO address,
 			switching to the matching ttyS device later.  The
 			options are the same as for ttyS, above.
+		hvc<n>	Use the hypervisor console device <n>. This is for
+			both Xen and PowerPC hypervisors.
 
                 If the device connected to the port is not a TTY but a braille
                 device, prepend "brl," before the device type, for instance
@@ -679,6 +681,7 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	earlyprintk=	[X86,SH,BLACKFIN]
 			earlyprintk=vga
+			earlyprintk=xen
 			earlyprintk=serial[,ttySn[,baudrate]]
 			earlyprintk=ttySn[,baudrate]
 			earlyprintk=dbgp[debugController#]
@@ -695,6 +698,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 			The VGA output is eventually overwritten by the real
 			console.
+
+			The xen output can only be used by Xen PV guests.
 
 	ekgdboc=	[X86,KGDB] Allow early kernel console debugging
 			ekgdboc=kbd
@@ -1763,6 +1768,11 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			with UP alternatives
 
 	noresidual	[PPC] Don't use residual data on PReP machines.
+
+	nordrand	[X86] Disable the direct use of the RDRAND
+			instruction even if it is supported by the
+			processor.  RDRAND is still available to user
+			space applications.
 
 	noresume	[SWSUSP] Disables resume and restores original swap
 			space.

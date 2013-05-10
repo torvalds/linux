@@ -15,6 +15,8 @@
 
 #ifdef __KERNEL__
 
+#include <asm-generic/atomic64.h>
+
 #include <asm/system.h>
 
 #define ATOMIC_INIT(i)  { (i) }

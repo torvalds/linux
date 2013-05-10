@@ -51,14 +51,19 @@ static int snd_mixer_oss_open(struct inode *inode, struct file *file)
 					 SNDRV_OSS_DEVICE_TYPE_MIXER);
 	if (card == NULL)
 		return -ENODEV;
-	if (card->mixer_oss == NULL)
+	if (card->mixer_oss == NULL) {
+		snd_card_unref(card);
 		return -ENODEV;
+	}
 	err = snd_card_file_add(card, file);
-	if (err < 0)
+	if (err < 0) {
+		snd_card_unref(card);
 		return err;
+	}
 	fmixer = kzalloc(sizeof(*fmixer), GFP_KERNEL);
 	if (fmixer == NULL) {
 		snd_card_file_remove(card, file);
+		snd_card_unref(card);
 		return -ENOMEM;
 	}
 	fmixer->card = card;
@@ -67,8 +72,10 @@ static int snd_mixer_oss_open(struct inode *inode, struct file *file)
 	if (!try_module_get(card->module)) {
 		kfree(fmixer);
 		snd_card_file_remove(card, file);
+		snd_card_unref(card);
 		return -EFAULT;
 	}
+	snd_card_unref(card);
 	return 0;
 }
 

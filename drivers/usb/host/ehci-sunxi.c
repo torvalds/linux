@@ -32,7 +32,7 @@
 #include <linux/time.h>
 #include <linux/timer.h>
 
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 #include <linux/clk.h>
 
 #include  <mach/clock.h>
@@ -170,6 +170,12 @@ static const struct hc_driver sw_ehci_hc_driver = {
 	 * scheduling support
 	 */
 	.get_frame_number = ehci_get_frame,
+
+	/*
+	 * dma fixes
+	 */
+	.map_urb_for_dma = sunxi_hcd_map_urb_for_dma,
+	.unmap_urb_for_dma = sunxi_hcd_unmap_urb_for_dma,
 
 	/*
 	 * root hub support

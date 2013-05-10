@@ -1120,7 +1120,7 @@ ip_set_dump(struct sock *ctnl, struct sk_buff *skb,
 
 	return netlink_dump_start(ctnl, skb, nlh,
 				  ip_set_dump_start,
-				  ip_set_dump_done);
+				  ip_set_dump_done, 0);
 }
 
 /* Add, del and test */

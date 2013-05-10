@@ -44,6 +44,7 @@ typedef struct {
 	__disp_init_t disp_init;
 
 	__bool fb_enable[SUNXI_MAX_FB];
+	__bool fb_registered[SUNXI_MAX_FB];
 	__fb_mode_t fb_mode[SUNXI_MAX_FB];
 	/*
 	 * [fb_id][0]: screen0 layer handle;
@@ -56,8 +57,10 @@ typedef struct {
 	unsigned long wait_count[SUNXI_MAX_FB];
 	__u32 pseudo_palette[SUNXI_MAX_FB][16];
 #ifdef CONFIG_FB_SUNXI_UMP
-	ump_dd_handle ump_wrapped_buffer[SUNXI_MAX_FB][2];
+	ump_dd_handle ump_wrapped_buffer[SUNXI_MAX_FB][3];
 #endif
+	/* screen_base address, allocated with disp_malloc() */
+	void *malloc_screen_base[SUNXI_MAX_FB];
 } fb_info_t;
 
 extern fb_info_t g_fbi;
@@ -73,7 +76,6 @@ __s32 Display_Fb_get_para(__u32 fb_id, __disp_fb_create_para_t *fb_para);
 
 __s32 Display_get_disp_init_para(__disp_init_t *init_para);
 
-__s32 Fb_Init(__u32 from);
 __s32 Fb_Exit(void);
 
 #endif /* __DEV_FB_H__ */

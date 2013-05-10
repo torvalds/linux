@@ -13,7 +13,7 @@
 #include "mcdi.h"
 #include "mcdi_pcol.h"
 
-static int efx_mcdi_set_mac(struct efx_nic *efx)
+int efx_mcdi_set_mac(struct efx_nic *efx)
 {
 	u32 reject, fcntl;
 	u8 cmdbytes[MC_CMD_SET_MAC_IN_LEN];
@@ -45,6 +45,8 @@ static int efx_mcdi_set_mac(struct efx_nic *efx)
 	}
 	if (efx->wanted_fc & EFX_FC_AUTO)
 		fcntl = MC_CMD_FCNTL_AUTO;
+	if (efx->fc_disable)
+		fcntl = MC_CMD_FCNTL_OFF;
 
 	MCDI_SET_DWORD(cmdbytes, SET_MAC_IN_FCNTL, fcntl);
 

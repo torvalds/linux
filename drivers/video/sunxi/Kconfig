@@ -19,6 +19,7 @@ config LYCHEE_FB_SUN5I
 config FB_SUNXI
         tristate
 	select FB_SUNXI_RESERVED_MEM if MALI
+	select FB_MODE_HELPERS
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT

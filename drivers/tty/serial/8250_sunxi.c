@@ -22,20 +22,18 @@
 #include <asm/string.h>
 #include <linux/clk.h>
 
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 #include <mach/platform.h>
 #include <mach/irqs.h>
 
 #include "8250.h"
-#if CONFIG_CHIP_ID==1123
+#if defined(CONFIG_ARCH_SUN4I)
 #define MAX_PORTS	    8
-#elif CONFIG_CHIP_ID==1125
+#elif defined(CONFIG_ARCH_SUN5I)
 #define MAX_PORTS	    4
 #else
 #error "Unknown chip ID for Serial"
 #endif
-
-static int sw_serial[MAX_PORTS];
 
 #define UART_MSG(fmt...)    printk("[uart]: "fmt)
 /* Register base define */
@@ -45,10 +43,8 @@ static int sw_serial[MAX_PORTS];
 #define RESSIZE(res)    (((res)->end - (res)->start)+1)
 
 struct sw_serial_port {
-    struct uart_port    port;
-    char                name[16];
     int                 port_no;
-    int                 pin_num;
+	int line;
     u32                 pio_hdle;
     struct clk          *clk;
     u32                 sclk;
@@ -131,29 +127,11 @@ static int sw_serial_put_resource(struct sw_serial_port *sport)
     return 0;
 }
 
-static int sw_serial_get_config(struct sw_serial_port *sport, u32 uart_id)
-{
-    char uart_para[16] = {0};
-    int ret;
-    
-    sprintf(uart_para, "uart_para%d", uart_id);
-    ret = script_parser_fetch(uart_para, "uart_port", &sport->port_no, sizeof(int));
-    if (ret)
-        return -1;
-    if (sport->port_no != uart_id)
-        return -1;
-    ret = script_parser_fetch(uart_para, "uart_type", &sport->pin_num, sizeof(int));
-    if (ret)
-        return -1;
-    
-    return 0;
-}
-
 static void
 sw_serial_pm(struct uart_port *port, unsigned int state,
           unsigned int oldstate)
 {
-    struct sw_serial_port *up = (struct sw_serial_port *)port;
+	struct sw_serial_port *up = port->private_data;
 
     if (!state)
         clk_enable(up->clk);
@@ -165,6 +143,7 @@ static int __devinit
 sw_serial_probe(struct platform_device *dev)
 {
     struct sw_serial_port *sport;
+	struct uart_port port = {};
 	int ret;
     
 	sport = kzalloc(sizeof(struct sw_serial_port), GFP_KERNEL);
@@ -173,33 +152,31 @@ sw_serial_probe(struct platform_device *dev)
     sport->port_no  = dev->id;
     sport->pdev     = dev;
     
-    ret = sw_serial_get_config(sport, dev->id);
-    if (ret) {
-        printk(KERN_ERR "Failed to get config information\n");
-        goto free_dev;
-    }
-    
     ret = sw_serial_get_resource(sport);
     if (ret) {
         printk(KERN_ERR "Failed to get resource\n");
         goto free_dev;
     }
-    platform_set_drvdata(dev, sport);
 
-    sport->port.irq     = sport->irq;
-    sport->port.fifosize= 64;
-	sport->port.regshift= 2;
-    sport->port.iotype  = UPIO_DWAPB32;
-    sport->port.flags   = UPF_IOREMAP | UPF_BOOT_AUTOCONF;
-    sport->port.uartclk = sport->sclk;
-    sport->port.pm      = sw_serial_pm;
-    sport->port.dev     = &dev->dev;
-    
-    sport->port.mapbase = sport->mmres->start;
-    sw_serial[sport->port_no] = serial8250_register_port(&sport->port);
-    UART_MSG("serial probe %d, membase %p irq %d mapbase 0x%08x\n", 
-             dev->id, sport->port.membase, sport->port.irq, sport->port.mapbase);
-    
+	port.private_data = sport;
+	port.irq = sport->irq;
+	port.mapbase = sport->mmres->start;
+	port.fifosize = 64;
+	port.regshift = 2;
+	port.iotype = UPIO_DWAPB32;
+	port.flags = UPF_IOREMAP | UPF_BOOT_AUTOCONF;
+	port.uartclk = sport->sclk;
+	port.pm = sw_serial_pm;
+	port.dev = &dev->dev;
+
+	pr_info("serial probe %d irq %d mapbase 0x%08x\n", dev->id,
+		sport->irq, sport->mmres->start);
+	ret = serial8250_register_port(&port);
+	if (ret < 0)
+		goto free_dev;
+
+	sport->line = ret;
+	platform_set_drvdata(dev, sport);
 	return 0;
 free_dev:
     kfree(sport);
@@ -212,10 +189,10 @@ static int __devexit sw_serial_remove(struct platform_device *dev)
     struct sw_serial_port *sport = platform_get_drvdata(dev);
 	
 	UART_MSG("serial remove\n");
-	serial8250_unregister_port(sw_serial[sport->port_no]);
-	sw_serial[sport->port_no] = 0;
+	serial8250_unregister_port(sport->line);
 	sw_serial_put_resource(sport);
 	
+	platform_set_drvdata(dev, NULL);
 	kfree(sport);
 	sport = NULL;
 	return 0;
@@ -265,15 +242,61 @@ static struct resource sw_uart_res[8][2] = {
     },
 };
 
-struct platform_device sw_uart_dev[] = {
-    [0] = {.name = "sunxi-uart", .id = 0, .num_resources = ARRAY_SIZE(sw_uart_res[0]), .resource = &sw_uart_res[0][0], .dev = {}},
-    [1] = {.name = "sunxi-uart", .id = 1, .num_resources = ARRAY_SIZE(sw_uart_res[1]), .resource = &sw_uart_res[1][0], .dev = {}},
-    [2] = {.name = "sunxi-uart", .id = 2, .num_resources = ARRAY_SIZE(sw_uart_res[2]), .resource = &sw_uart_res[2][0], .dev = {}},
-    [3] = {.name = "sunxi-uart", .id = 3, .num_resources = ARRAY_SIZE(sw_uart_res[3]), .resource = &sw_uart_res[3][0], .dev = {}},
-    [4] = {.name = "sunxi-uart", .id = 4, .num_resources = ARRAY_SIZE(sw_uart_res[4]), .resource = &sw_uart_res[4][0], .dev = {}},
-    [5] = {.name = "sunxi-uart", .id = 5, .num_resources = ARRAY_SIZE(sw_uart_res[5]), .resource = &sw_uart_res[5][0], .dev = {}},
-    [6] = {.name = "sunxi-uart", .id = 6, .num_resources = ARRAY_SIZE(sw_uart_res[6]), .resource = &sw_uart_res[6][0], .dev = {}},
-    [7] = {.name = "sunxi-uart", .id = 7, .num_resources = ARRAY_SIZE(sw_uart_res[7]), .resource = &sw_uart_res[7][0], .dev = {}},
+void
+sw_serial_device_release(struct device *dev)
+{
+	/* FILL ME! */
+}
+
+static struct platform_device sw_uart_dev[] = {
+	[0] = {.name = "sunxi-uart", .id = 0,
+			.num_resources = ARRAY_SIZE(sw_uart_res[0]),
+			.resource = &sw_uart_res[0][0], .dev = {
+					.release = &sw_serial_device_release
+			}
+	},
+	[1] = {.name = "sunxi-uart", .id = 1,
+			.num_resources = ARRAY_SIZE(sw_uart_res[1]),
+			.resource = &sw_uart_res[1][0], .dev = {
+					.release = &sw_serial_device_release
+			}
+	},
+	[2] = {.name = "sunxi-uart", .id = 2,
+			.num_resources = ARRAY_SIZE(sw_uart_res[2]),
+			.resource = &sw_uart_res[2][0], .dev = {
+					.release = &sw_serial_device_release
+			}
+	},
+	[3] = {.name = "sunxi-uart", .id = 3,
+			.num_resources = ARRAY_SIZE(sw_uart_res[3]),
+			.resource = &sw_uart_res[3][0], .dev = {
+			.release = &sw_serial_device_release
+			}
+	},
+	[4] = {.name = "sunxi-uart", .id = 4,
+			.num_resources = ARRAY_SIZE(sw_uart_res[4]),
+			.resource = &sw_uart_res[4][0], .dev = {
+					.release = &sw_serial_device_release
+			}
+	},
+	[5] = {.name = "sunxi-uart", .id = 5,
+			.num_resources = ARRAY_SIZE(sw_uart_res[5]),
+			.resource = &sw_uart_res[5][0], .dev = {
+					.release = &sw_serial_device_release
+			}
+	},
+	[6] = {.name = "sunxi-uart", .id = 6,
+			.num_resources = ARRAY_SIZE(sw_uart_res[6]),
+			.resource = &sw_uart_res[6][0], .dev = {
+					.release = &sw_serial_device_release
+			}
+	},
+	[7] = {.name = "sunxi-uart", .id = 7,
+			.num_resources = ARRAY_SIZE(sw_uart_res[7]),
+			.resource = &sw_uart_res[7][0], .dev = {
+					.release = &sw_serial_device_release
+			}
+	},
 };
 
 static int uart_used;
@@ -284,7 +307,6 @@ static int __init sw_serial_init(void)
     int used = 0;
     char uart_para[16];
     
-    memset(sw_serial, 0, sizeof(sw_serial));
     uart_used = 0;
     for (i=0; i<MAX_PORTS; i++, used=0) {
         sprintf(uart_para, "uart_para%d", i);
@@ -308,8 +330,14 @@ static int __init sw_serial_init(void)
 
 static void __exit sw_serial_exit(void)
 {
+	int i;
     if (uart_used)
 	    platform_driver_unregister(&sw_serial_driver);
+
+	for (i = 0; i < MAX_PORTS; i++) {
+		if (uart_used & (1 << i))
+			platform_device_unregister(&sw_uart_dev[i]);
+	}
 }
 
 MODULE_AUTHOR("Aaron.myeh<leafy.myeh@allwinnertech.com>");

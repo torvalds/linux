@@ -21,8 +21,7 @@
 #include <media/v4l2-chip-ident.h>
 #include <media/v4l2-mediabus.h>//linux-3.0
 #include <linux/io.h>
-//#include <mach/gpio_v2.h>
-#include <mach/sys_config.h>
+#include <plat/sys_config.h>
 #include <linux/regulator/consumer.h>
 #include <mach/system.h>
 #include "../include/sun4i_csi_core.h"

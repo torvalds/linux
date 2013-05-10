@@ -33,6 +33,9 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 
+#include <linux/usb.h>
+#include <linux/usb/hcd.h>
+
 #define  DMSG_PRINT(stuff...)	printk(stuff)
 #define  DMSG_ERR(...) \
 	(DMSG_PRINT("WRN:L%d(%s):", __LINE__, __FILE__), \
@@ -197,5 +200,9 @@ struct sw_hci_hcd {
 	void (*port_configure) (struct sw_hci_hcd *sw_hci, u32 enable);
 	void (*usb_passby) (struct sw_hci_hcd *sw_hci, u32 enable);
 };
+
+extern int sunxi_hcd_map_urb_for_dma(struct usb_hcd *hcd, struct urb *urb,
+				     gfp_t mem_flags);
+extern void sunxi_hcd_unmap_urb_for_dma(struct usb_hcd *hcd, struct urb *urb);
 
 #endif /* __SW_HCI_SUNXI_H__ */

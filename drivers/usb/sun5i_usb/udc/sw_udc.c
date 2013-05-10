@@ -3048,7 +3048,7 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver,
 	}
 
 	/* Enable udc */
-	//sw_udc_enable(udc);  //remove by 2011.11.25
+	sw_udc_enable(udc);
 
 	return 0;
 
@@ -3799,5 +3799,3 @@ MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("platform:softwinner-usbgadget");
-
-

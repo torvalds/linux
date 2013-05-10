@@ -21,7 +21,7 @@
  */
 
 #include <linux/semaphore.h>
-#include "mbr.h"
+#include <plat/mbr.h>
 
 struct nand_blk_ops;
 struct list_head;
@@ -30,7 +30,6 @@ struct hd_geometry;
 
 struct nand_blk_dev{
 	struct nand_blk_ops *nandr;
-	struct list_head list;			
 
 	unsigned char heads;
 	unsigned char sectors;
@@ -51,7 +50,7 @@ struct nand_blk_ops{
 	int minorbits;	
 	
 	/* add/remove nandflash devparts,use gendisk */
-	int (*add_dev)(struct nand_blk_ops *nandr, struct nand_disk *part);
+	int (*add_dev)(struct nand_blk_ops *nandr);
 	int (*remove_dev)(struct nand_blk_dev *dev);
 
 	/* Block layer ioctls */
@@ -70,7 +69,7 @@ struct nand_blk_ops{
 	spinlock_t queue_lock;	
 	struct semaphore nand_ops_mutex;
 	
-	struct list_head devs;	
+	struct nand_blk_dev dev;
 	struct module *owner;	
 };
 
