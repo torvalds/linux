@@ -129,6 +129,16 @@
 		};
 	};
 
+	cci-pmu@2c099000 {
+		compatible = "arm,cci-400-pmu";
+		reg = <0 0x2c099000 0 0x6000>;
+		interrupts = <0 101 4>,
+			     <0 102 4>,
+			     <0 103 4>,
+			     <0 104 4>,
+			     <0 105 4>;
+	};
+
 	memory-controller@7ffd0000 {
 		compatible = "arm,pl354", "arm,primecell";
 		reg = <0 0x7ffd0000 0 0x1000>;
