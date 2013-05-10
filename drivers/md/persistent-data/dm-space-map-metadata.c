@@ -410,7 +410,7 @@ static void sm_bootstrap_destroy(struct dm_space_map *sm)
 
 static int sm_bootstrap_extend(struct dm_space_map *sm, dm_block_t extra_blocks)
 {
-	DMERR("boostrap doesn't support extend");
+	DMERR("bootstrap doesn't support extend");
 
 	return -EINVAL;
 }
@@ -450,7 +450,7 @@ static int sm_bootstrap_count_is_more_than_one(struct dm_space_map *sm,
 static int sm_bootstrap_set_count(struct dm_space_map *sm, dm_block_t b,
 				  uint32_t count)
 {
-	DMERR("boostrap doesn't support set_count");
+	DMERR("bootstrap doesn't support set_count");
 
 	return -EINVAL;
 }
@@ -491,7 +491,7 @@ static int sm_bootstrap_commit(struct dm_space_map *sm)
 
 static int sm_bootstrap_root_size(struct dm_space_map *sm, size_t *result)
 {
-	DMERR("boostrap doesn't support root_size");
+	DMERR("bootstrap doesn't support root_size");
 
 	return -EINVAL;
 }
@@ -499,7 +499,7 @@ static int sm_bootstrap_root_size(struct dm_space_map *sm, size_t *result)
 static int sm_bootstrap_copy_root(struct dm_space_map *sm, void *where,
 				  size_t max)
 {
-	DMERR("boostrap doesn't support copy_root");
+	DMERR("bootstrap doesn't support copy_root");
 
 	return -EINVAL;
 }
