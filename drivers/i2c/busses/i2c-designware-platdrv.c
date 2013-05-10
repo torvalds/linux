@@ -87,13 +87,6 @@ static int dw_i2c_probe(struct platform_device *pdev)
 	struct resource *mem;
 	int irq, r;
 
-	/* NOTE: driver uses the static register mapping */
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem) {
-		dev_err(&pdev->dev, "no mem resource?\n");
-		return -EINVAL;
-	}
-
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		dev_err(&pdev->dev, "no irq resource?\n");
@@ -104,6 +97,7 @@ static int dw_i2c_probe(struct platform_device *pdev)
 	if (!dev)
 		return -ENOMEM;
 
+	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	dev->base = devm_ioremap_resource(&pdev->dev, mem);
 	if (IS_ERR(dev->base))
 		return PTR_ERR(dev->base);

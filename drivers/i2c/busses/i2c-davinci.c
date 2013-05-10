@@ -646,13 +646,6 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 	struct resource *mem, *irq;
 	int r;
 
-	/* NOTE: driver uses the static register mapping */
-	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem) {
-		dev_err(&pdev->dev, "no mem resource?\n");
-		return -ENODEV;
-	}
-
 	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (!irq) {
 		dev_err(&pdev->dev, "no irq resource?\n");
@@ -697,6 +690,7 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 		return -ENODEV;
 	clk_prepare_enable(dev->clk);
 
+	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	dev->base = devm_ioremap_resource(&pdev->dev, mem);
 	if (IS_ERR(dev->base)) {
 		r = PTR_ERR(dev->base);

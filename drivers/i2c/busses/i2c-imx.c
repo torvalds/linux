@@ -498,17 +498,13 @@ static int __init i2c_imx_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "<%s>\n", __func__);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "can't get device resources\n");
-		return -ENOENT;
-	}
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		dev_err(&pdev->dev, "can't get irq number\n");
 		return -ENOENT;
 	}
 
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
