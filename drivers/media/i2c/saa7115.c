@@ -127,6 +127,8 @@ static int saa711x_has_reg(const int id, const u8 reg)
 		return 0;
 
 	switch (id) {
+	case V4L2_IDENT_GM7113C:
+		return reg != 0x14 && (reg < 0x18 || reg > 0x1e) && reg < 0x20;
 	case V4L2_IDENT_SAA7113:
 		return reg != 0x14 && (reg < 0x18 || reg > 0x1e) && (reg < 0x20 || reg > 0x3f) &&
 		       reg != 0x5d && reg < 0x63;
@@ -214,7 +216,10 @@ static const unsigned char saa7111_init[] = {
 	0x00, 0x00
 };
 
-/* SAA7113 init codes */
+/* SAA7113/GM7113C init codes
+ * It's important that R_14... R_17 == 0x00
+ * for the gm7113c chip to deliver stable video
+ */
 static const unsigned char saa7113_init[] = {
 	R_01_INC_DELAY, 0x08,
 	R_02_INPUT_CNTL_1, 0xc2,
@@ -447,6 +452,24 @@ static const unsigned char saa7115_cfg_50hz_video[] = {
 };
 
 /* ============== SAA7715 VIDEO templates (end) =======  */
+
+/* ============== GM7113C VIDEO templates =============  */
+static const unsigned char gm7113c_cfg_60hz_video[] = {
+	R_08_SYNC_CNTL, 0x68,			/* 0xBO: auto detection, 0x68 = NTSC */
+	R_0E_CHROMA_CNTL_1, 0x07,		/* video autodetection is on */
+
+	0x00, 0x00
+};
+
+static const unsigned char gm7113c_cfg_50hz_video[] = {
+	R_08_SYNC_CNTL, 0x28,			/* 0x28 = PAL */
+	R_0E_CHROMA_CNTL_1, 0x07,
+
+	0x00, 0x00
+};
+
+/* ============== GM7113C VIDEO templates (end) =======  */
+
 
 static const unsigned char saa7115_cfg_vbi_on[] = {
 	R_80_GLOBAL_CNTL_1, 0x00,			/* reset tasks */
@@ -932,11 +955,17 @@ static void saa711x_set_v4lstd(struct v4l2_subdev *sd, v4l2_std_id std)
 	// This works for NTSC-M, SECAM-L and the 50Hz PAL variants.
 	if (std & V4L2_STD_525_60) {
 		v4l2_dbg(1, debug, sd, "decoder set standard 60 Hz\n");
-		saa711x_writeregs(sd, saa7115_cfg_60hz_video);
+		if (state->ident == V4L2_IDENT_GM7113C)
+			saa711x_writeregs(sd, gm7113c_cfg_60hz_video);
+		else
+			saa711x_writeregs(sd, saa7115_cfg_60hz_video);
 		saa711x_set_size(sd, 720, 480);
 	} else {
 		v4l2_dbg(1, debug, sd, "decoder set standard 50 Hz\n");
-		saa711x_writeregs(sd, saa7115_cfg_50hz_video);
+		if (state->ident == V4L2_IDENT_GM7113C)
+			saa711x_writeregs(sd, gm7113c_cfg_50hz_video);
+		else
+			saa711x_writeregs(sd, saa7115_cfg_50hz_video);
 		saa711x_set_size(sd, 720, 576);
 	}
 
@@ -949,7 +978,8 @@ static void saa711x_set_v4lstd(struct v4l2_subdev *sd, v4l2_std_id std)
 	011 NTSC N (3.58MHz)            PAL M (3.58MHz)
 	100 reserved                    NTSC-Japan (3.58MHz)
 	*/
-	if (state->ident <= V4L2_IDENT_SAA7113) {
+	if (state->ident <= V4L2_IDENT_SAA7113 ||
+	    state->ident == V4L2_IDENT_GM7113C) {
 		u8 reg = saa711x_read(sd, R_0E_CHROMA_CNTL_1) & 0x8f;
 
 		if (std == V4L2_STD_PAL_M) {
@@ -1220,7 +1250,8 @@ static int saa711x_s_routing(struct v4l2_subdev *sd,
 		input, output);
 
 	/* saa7111/3 does not have these inputs */
-	if (state->ident <= V4L2_IDENT_SAA7113 &&
+	if ((state->ident <= V4L2_IDENT_SAA7113 ||
+	     state->ident == V4L2_IDENT_GM7113C) &&
 	    (input == SAA7115_COMPOSITE4 ||
 	     input == SAA7115_COMPOSITE5)) {
 		return -EINVAL;
@@ -1699,11 +1730,6 @@ static int saa711x_probe(struct i2c_client *client,
 	if (ident < 0)
 		return ident;
 
-	if (ident == V4L2_IDENT_GM7113C) {
-		v4l_warn(client, "%s not yet supported\n", name);
-		return -ENODEV;
-	}
-
 	strlcpy(client->name, name, sizeof(client->name));
 
 	state = devm_kzalloc(&client->dev, sizeof(*state), GFP_KERNEL);
@@ -1753,6 +1779,7 @@ static int saa711x_probe(struct i2c_client *client,
 	case V4L2_IDENT_SAA7111A:
 		saa711x_writeregs(sd, saa7111_init);
 		break;
+	case V4L2_IDENT_GM7113C:
 	case V4L2_IDENT_SAA7113:
 		saa711x_writeregs(sd, saa7113_init);
 		break;
