@@ -204,18 +204,15 @@ void cfg80211_stop_p2p_device(struct cfg80211_registered_device *rdev,
 	rdev->opencount--;
 
 	if (rdev->scan_req && rdev->scan_req->wdev == wdev) {
-		bool busy = work_busy(&rdev->scan_done_wk);
-
 		/*
-		 * If the work isn't pending or running (in which case it would
-		 * be waiting for the lock we hold) the driver didn't properly
-		 * cancel the scan when the interface was removed. In this case
-		 * warn and leak the scan request object to not crash later.
+		 * If the scan request wasn't notified as done, set it
+		 * to aborted and leak it after a warning. The driver
+		 * should have notified us that it ended at the latest
+		 * during rdev_stop_p2p_device().
 		 */
-		WARN_ON(!busy);
-
-		rdev->scan_req->aborted = true;
-		___cfg80211_scan_done(rdev, !busy);
+		if (WARN_ON(!rdev->scan_req->notified))
+			rdev->scan_req->aborted = true;
+		___cfg80211_scan_done(rdev, !rdev->scan_req->notified);
 	}
 }
 
