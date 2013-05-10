@@ -76,6 +76,12 @@ static void __comedi_buf_alloc(struct comedi_device *dev,
 	struct comedi_buf_page *buf;
 	unsigned i;
 
+	if (!IS_ENABLED(CONFIG_HAS_DMA) && s->async_dma_dir != DMA_NONE) {
+		dev_err(dev->class_dev,
+			"dma buffer allocation not supported\n");
+		return;
+	}
+
 	async->buf_page_list = vzalloc(sizeof(*buf) * n_pages);
 	if (async->buf_page_list)
 		pages = vmalloc(sizeof(struct page *) * n_pages);
