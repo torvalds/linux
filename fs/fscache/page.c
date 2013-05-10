@@ -408,7 +408,7 @@ int __fscache_read_or_alloc_page(struct fscache_cookie *cookie,
 	object = hlist_entry(cookie->backing_objects.first,
 			     struct fscache_object, cookie_link);
 
-	ASSERTCMP(object->state, >, FSCACHE_OBJECT_LOOKING_UP);
+	ASSERT(test_bit(FSCACHE_OBJECT_IS_LOOKED_UP, &object->flags));
 
 	atomic_inc(&object->n_reads);
 	__set_bit(FSCACHE_OP_DEC_READ_CNT, &op->op.flags);
@@ -729,8 +729,9 @@ static void fscache_write_op(struct fscache_operation *_op)
 		 */
 		spin_unlock(&object->lock);
 		fscache_op_complete(&op->op, false);
-		_leave(" [cancel] op{f=%lx s=%u} obj{s=%u f=%lx}",
-		       _op->flags, _op->state, object->state, object->flags);
+		_leave(" [cancel] op{f=%lx s=%u} obj{s=%s f=%lx}",
+		       _op->flags, _op->state, object->state->short_name,
+		       object->flags);
 		return;
 	}
 
@@ -833,14 +834,12 @@ void fscache_invalidate_writes(struct fscache_cookie *cookie)
  *  (1) negative lookup, object not yet created (FSCACHE_COOKIE_CREATING is
  *      set)
  *
- *	(a) no writes yet (set FSCACHE_COOKIE_PENDING_FILL and queue deferred
- *	    fill op)
+ *	(a) no writes yet
  *
  *	(b) writes deferred till post-creation (mark page for writing and
  *	    return immediately)
  *
  *  (2) negative lookup, object created, initial fill being made from netfs
- *      (FSCACHE_COOKIE_INITIAL_FILL is set)
  *
  *	(a) fill point not yet reached this page (mark page for writing and
  *          return)

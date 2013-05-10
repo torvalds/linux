@@ -97,10 +97,6 @@ extern int fscache_wait_bit_interruptible(void *);
 /*
  * object.c
  */
-extern const char fscache_object_states_short[FSCACHE_OBJECT__NSTATES][5];
-
-extern void fscache_withdrawing_object(struct fscache_cache *,
-				       struct fscache_object *);
 extern void fscache_enqueue_object(struct fscache_object *);
 
 /*
@@ -291,6 +287,10 @@ static inline void fscache_raise_event(struct fscache_object *object,
 				       unsigned event)
 {
 	BUG_ON(event >= NR_FSCACHE_OBJECT_EVENTS);
+#if 0
+	printk("*** fscache_raise_event(OBJ%d{%lx},%x)\n",
+	       object->debug_id, object->event_mask, (1 << event));
+#endif
 	if (!test_and_set_bit(event, &object->events) &&
 	    test_bit(event, &object->event_mask))
 		fscache_enqueue_object(object);

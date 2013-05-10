@@ -263,7 +263,7 @@ static void cachefiles_drop_object(struct fscache_object *_object)
 #endif
 
 	/* delete retired objects */
-	if (object->fscache.state == FSCACHE_OBJECT_RECYCLING &&
+	if (test_bit(FSCACHE_OBJECT_RETIRE, &object->fscache.flags) &&
 	    _object != cache->cache.fsdef
 	    ) {
 		_debug("- retire object OBJ%x", object->fscache.debug_id);

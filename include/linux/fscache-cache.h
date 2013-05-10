@@ -328,11 +328,9 @@ struct fscache_cookie {
 #define FSCACHE_COOKIE_LOOKING_UP	0	/* T if non-index cookie being looked up still */
 #define FSCACHE_COOKIE_CREATING		1	/* T if non-index object being created still */
 #define FSCACHE_COOKIE_NO_DATA_YET	2	/* T if new object with no cached data yet */
-#define FSCACHE_COOKIE_PENDING_FILL	3	/* T if pending initial fill on object */
-#define FSCACHE_COOKIE_FILLING		4	/* T if filling object incrementally */
-#define FSCACHE_COOKIE_UNAVAILABLE	5	/* T if cookie is unavailable (error, etc) */
-#define FSCACHE_COOKIE_WAITING_ON_READS	6	/* T if cookie is waiting on reads */
-#define FSCACHE_COOKIE_INVALIDATING	7	/* T if cookie is being invalidated */
+#define FSCACHE_COOKIE_UNAVAILABLE	3	/* T if cookie is unavailable (error, etc) */
+#define FSCACHE_COOKIE_WAITING_ON_READS	4	/* T if cookie is waiting on reads */
+#define FSCACHE_COOKIE_INVALIDATING	5	/* T if cookie is being invalidated */
 };
 
 extern struct fscache_cookie fscache_fsdef_index;
@@ -341,45 +339,40 @@ extern struct fscache_cookie fscache_fsdef_index;
  * Event list for fscache_object::{event_mask,events}
  */
 enum {
-	FSCACHE_OBJECT_EV_REQUEUE,	/* T if object should be requeued */
+	FSCACHE_OBJECT_EV_NEW_CHILD,	/* T if object has a new child */
+	FSCACHE_OBJECT_EV_PARENT_READY,	/* T if object's parent is ready */
 	FSCACHE_OBJECT_EV_UPDATE,	/* T if object should be updated */
 	FSCACHE_OBJECT_EV_INVALIDATE,	/* T if cache requested object invalidation */
 	FSCACHE_OBJECT_EV_CLEARED,	/* T if accessors all gone */
 	FSCACHE_OBJECT_EV_ERROR,	/* T if fatal error occurred during processing */
-	FSCACHE_OBJECT_EV_RELEASE,	/* T if netfs requested object release */
-	FSCACHE_OBJECT_EV_RETIRE,	/* T if netfs requested object retirement */
-	FSCACHE_OBJECT_EV_WITHDRAW,	/* T if cache requested object withdrawal */
+	FSCACHE_OBJECT_EV_KILL,		/* T if netfs relinquished or cache withdrew object */
 	NR_FSCACHE_OBJECT_EVENTS
 };
 
 #define FSCACHE_OBJECT_EVENTS_MASK ((1UL << NR_FSCACHE_OBJECT_EVENTS) - 1)
 
 /*
+ * States for object state machine.
+ */
+struct fscache_transition {
+	unsigned long events;
+	const struct fscache_state *transit_to;
+};
+
+struct fscache_state {
+	char name[24];
+	char short_name[8];
+	const struct fscache_state *(*work)(struct fscache_object *object,
+					    int event);
+	const struct fscache_transition transitions[];
+};
+
+/*
  * on-disk cache file or index handle
  */
 struct fscache_object {
-	enum fscache_object_state {
-		FSCACHE_OBJECT_INIT,		/* object in initial unbound state */
-		FSCACHE_OBJECT_LOOKING_UP,	/* looking up object */
-		FSCACHE_OBJECT_CREATING,	/* creating object */
-
-		/* active states */
-		FSCACHE_OBJECT_AVAILABLE,	/* cleaning up object after creation */
-		FSCACHE_OBJECT_ACTIVE,		/* object is usable */
-		FSCACHE_OBJECT_INVALIDATING,	/* object is invalidating */
-		FSCACHE_OBJECT_UPDATING,	/* object is updating */
-
-		/* terminal states */
-		FSCACHE_OBJECT_DYING,		/* object waiting for accessors to finish */
-		FSCACHE_OBJECT_LC_DYING,	/* object cleaning up after lookup/create */
-		FSCACHE_OBJECT_ABORT_INIT,	/* abort the init state */
-		FSCACHE_OBJECT_RELEASING,	/* releasing object */
-		FSCACHE_OBJECT_RECYCLING,	/* retiring object */
-		FSCACHE_OBJECT_WITHDRAWING,	/* withdrawing object */
-		FSCACHE_OBJECT_DEAD,		/* object is now dead */
-		FSCACHE_OBJECT__NSTATES
-	} state;
-
+	const struct fscache_state *state;	/* Object state machine state */
+	const struct fscache_transition *oob_table; /* OOB state transition table */
 	int			debug_id;	/* debugging ID */
 	int			n_children;	/* number of child objects */
 	int			n_ops;		/* number of extant ops on object */
@@ -390,6 +383,7 @@ struct fscache_object {
 	spinlock_t		lock;		/* state and operations lock */
 
 	unsigned long		lookup_jif;	/* time at which lookup started */
+	unsigned long		oob_event_mask;	/* OOB events this object is interested in */
 	unsigned long		event_mask;	/* events this object is interested in */
 	unsigned long		events;		/* events to be processed by this object
 						 * (order is important - using fls) */
@@ -398,6 +392,10 @@ struct fscache_object {
 #define FSCACHE_OBJECT_LOCK		0	/* T if object is busy being processed */
 #define FSCACHE_OBJECT_PENDING_WRITE	1	/* T if object has pending write */
 #define FSCACHE_OBJECT_WAITING		2	/* T if object is waiting on its parent */
+#define FSCACHE_OBJECT_RETIRE		3	/* T if object should be retired */
+#define FSCACHE_OBJECT_IS_LIVE		4	/* T if object is not withdrawn or relinquished */
+#define FSCACHE_OBJECT_IS_LOOKED_UP	5	/* T if object has been looked up */
+#define FSCACHE_OBJECT_IS_AVAILABLE	6	/* T if object has become active */
 
 	struct list_head	cache_link;	/* link in cache->object_list */
 	struct hlist_node	cookie_link;	/* link in cookie->backing_objects */
@@ -415,8 +413,6 @@ struct fscache_object {
 	loff_t			store_limit_l;	/* current storage limit */
 };
 
-extern const char *fscache_object_states[];
-
 extern void fscache_object_init(struct fscache_object *, struct fscache_cookie *,
 				struct fscache_cache *);
 
@@ -431,7 +427,7 @@ extern void fscache_object_destroy(struct fscache_object *object);
 
 static inline bool fscache_object_is_live(struct fscache_object *object)
 {
-	return object->state < FSCACHE_OBJECT_DYING;
+	return test_bit(FSCACHE_OBJECT_IS_LIVE, &object->flags);
 }
 
 static inline bool fscache_object_is_dying(struct fscache_object *object)
@@ -441,7 +437,7 @@ static inline bool fscache_object_is_dying(struct fscache_object *object)
 
 static inline bool fscache_object_is_available(struct fscache_object *object)
 {
-	return object->state >= FSCACHE_OBJECT_AVAILABLE;
+	return test_bit(FSCACHE_OBJECT_IS_AVAILABLE, &object->flags);
 }
 
 static inline bool fscache_object_is_active(struct fscache_object *object)

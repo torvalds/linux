@@ -174,7 +174,7 @@ static int fscache_objlist_show(struct seq_file *m, void *v)
 
 	if ((unsigned long) v == 1) {
 		seq_puts(m, "OBJECT   PARENT   STAT CHLDN OPS OOP IPR EX READS"
-			 " EM EV F S"
+			 " EM EV FL S"
 			 " | NETFS_COOKIE_DEF TY FL NETFS_DATA");
 		if (config & (FSCACHE_OBJLIST_CONFIG_KEY |
 			      FSCACHE_OBJLIST_CONFIG_AUX))
@@ -193,7 +193,7 @@ static int fscache_objlist_show(struct seq_file *m, void *v)
 
 	if ((unsigned long) v == 2) {
 		seq_puts(m, "======== ======== ==== ===== === === === == ====="
-			 " == == = ="
+			 " == == == ="
 			 " | ================ == == ================");
 		if (config & (FSCACHE_OBJLIST_CONFIG_KEY |
 			      FSCACHE_OBJLIST_CONFIG_AUX))
@@ -219,7 +219,7 @@ static int fscache_objlist_show(struct seq_file *m, void *v)
 	if (~config) {
 		FILTER(obj->cookie,
 		       COOKIE, NOCOOKIE);
-		FILTER(obj->state != FSCACHE_OBJECT_ACTIVE ||
+		FILTER(fscache_object_is_active(obj) ||
 		       obj->n_ops != 0 ||
 		       obj->n_obj_ops != 0 ||
 		       obj->flags ||
@@ -235,10 +235,10 @@ static int fscache_objlist_show(struct seq_file *m, void *v)
 	}
 
 	seq_printf(m,
-		   "%8x %8x %s %5u %3u %3u %3u %2u %5u %2lx %2lx %1lx %1x | ",
+		   "%8x %8x %s %5u %3u %3u %3u %2u %5u %2lx %2lx %2lx %1x | ",
 		   obj->debug_id,
 		   obj->parent ? obj->parent->debug_id : -1,
-		   fscache_object_states_short[obj->state],
+		   obj->state->short_name,
 		   obj->n_children,
 		   obj->n_ops,
 		   obj->n_obj_ops,

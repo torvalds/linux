@@ -205,7 +205,7 @@ static int fscache_acquire_non_index_cookie(struct fscache_cookie *cookie)
 
 	/* initiate the process of looking up all the objects in the chain
 	 * (done by fscache_initialise_object()) */
-	fscache_enqueue_object(object);
+	fscache_raise_event(object, FSCACHE_OBJECT_EV_NEW_CHILD);
 
 	spin_unlock(&cookie->lock);
 
@@ -469,7 +469,6 @@ void __fscache_relinquish_cookie(struct fscache_cookie *cookie, int retire)
 {
 	struct fscache_cache *cache;
 	struct fscache_object *object;
-	unsigned long event;
 
 	fscache_stat(&fscache_n_relinquishes);
 	if (retire)
@@ -496,8 +495,6 @@ void __fscache_relinquish_cookie(struct fscache_cookie *cookie, int retire)
 		wait_on_bit(&cookie->flags, FSCACHE_COOKIE_CREATING,
 			    fscache_wait_bit, TASK_UNINTERRUPTIBLE);
 	}
-
-	event = retire ? FSCACHE_OBJECT_EV_RETIRE : FSCACHE_OBJECT_EV_RELEASE;
 
 try_again:
 	spin_lock(&cookie->lock);
@@ -533,7 +530,9 @@ try_again:
 
 		cache = object->cache;
 		object->cookie = NULL;
-		fscache_raise_event(object, event);
+		if (retire)
+			set_bit(FSCACHE_OBJECT_RETIRE, &object->flags);
+		fscache_raise_event(object, FSCACHE_OBJECT_EV_KILL);
 		spin_unlock(&object->lock);
 
 		if (atomic_dec_and_test(&cookie->usage))

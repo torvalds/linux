@@ -224,8 +224,10 @@ int fscache_add_cache(struct fscache_cache *cache,
 	BUG_ON(!ifsdef);
 
 	cache->flags = 0;
-	ifsdef->event_mask = ULONG_MAX & ~(1 << FSCACHE_OBJECT_EV_CLEARED);
-	ifsdef->state = FSCACHE_OBJECT_ACTIVE;
+	ifsdef->event_mask =
+		((1 << NR_FSCACHE_OBJECT_EVENTS) - 1) &
+		~(1 << FSCACHE_OBJECT_EV_CLEARED);
+	__set_bit(FSCACHE_OBJECT_IS_AVAILABLE, &ifsdef->flags);
 
 	if (!tagname)
 		tagname = cache->identifier;
@@ -330,25 +332,25 @@ static void fscache_withdraw_all_objects(struct fscache_cache *cache,
 {
 	struct fscache_object *object;
 
-	spin_lock(&cache->object_list_lock);
-
 	while (!list_empty(&cache->object_list)) {
-		object = list_entry(cache->object_list.next,
-				    struct fscache_object, cache_link);
-		list_move_tail(&object->cache_link, dying_objects);
-
-		_debug("withdraw %p", object->cookie);
-
-		spin_lock(&object->lock);
-		spin_unlock(&cache->object_list_lock);
-		fscache_raise_event(object, FSCACHE_OBJECT_EV_WITHDRAW);
-		spin_unlock(&object->lock);
-
-		cond_resched();
 		spin_lock(&cache->object_list_lock);
-	}
 
-	spin_unlock(&cache->object_list_lock);
+		if (!list_empty(&cache->object_list)) {
+			object = list_entry(cache->object_list.next,
+					    struct fscache_object, cache_link);
+			list_move_tail(&object->cache_link, dying_objects);
+
+			_debug("withdraw %p", object->cookie);
+
+			/* This must be done under object_list_lock to prevent
+			 * a race with fscache_drop_object().
+			 */
+			fscache_raise_event(object, FSCACHE_OBJECT_EV_KILL);
+		}
+
+		spin_unlock(&cache->object_list_lock);
+		cond_resched();
+	}
 }
 
 /**
