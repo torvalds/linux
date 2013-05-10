@@ -40,6 +40,7 @@ int __fscache_register_netfs(struct fscache_netfs *netfs)
 	/* initialise the primary index cookie */
 	atomic_set(&netfs->primary_index->usage, 1);
 	atomic_set(&netfs->primary_index->n_children, 0);
+	atomic_set(&netfs->primary_index->n_active, 1);
 
 	netfs->primary_index->def		= &fscache_fsdef_netfs_def;
 	netfs->primary_index->parent		= &fscache_fsdef_index;

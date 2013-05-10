@@ -212,20 +212,29 @@ static void cachefiles_update_object(struct fscache_object *_object)
 	object = container_of(_object, struct cachefiles_object, fscache);
 	cache = container_of(object->fscache.cache, struct cachefiles_cache,
 			     cache);
+
+	if (!fscache_use_cookie(_object)) {
+		_leave(" [relinq]");
+		return;
+	}
+
 	cookie = object->fscache.cookie;
 
 	if (!cookie->def->get_aux) {
+		fscache_unuse_cookie(_object);
 		_leave(" [no aux]");
 		return;
 	}
 
 	auxdata = kmalloc(2 + 512 + 3, cachefiles_gfp);
 	if (!auxdata) {
+		fscache_unuse_cookie(_object);
 		_leave(" [nomem]");
 		return;
 	}
 
 	auxlen = cookie->def->get_aux(cookie->netfs_data, auxdata->data, 511);
+	fscache_unuse_cookie(_object);
 	ASSERTCMP(auxlen, <, 511);
 
 	auxdata->len = auxlen + 1;
@@ -263,7 +272,7 @@ static void cachefiles_drop_object(struct fscache_object *_object)
 #endif
 
 	/* delete retired objects */
-	if (test_bit(FSCACHE_OBJECT_RETIRE, &object->fscache.flags) &&
+	if (test_bit(FSCACHE_COOKIE_RETIRED, &object->fscache.cookie->flags) &&
 	    _object != cache->cache.fsdef
 	    ) {
 		_debug("- retire object OBJ%x", object->fscache.debug_id);

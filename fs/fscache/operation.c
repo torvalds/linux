@@ -424,14 +424,10 @@ void fscache_put_operation(struct fscache_operation *op)
 
 	object = op->object;
 
-	if (test_bit(FSCACHE_OP_DEC_READ_CNT, &op->flags)) {
-		if (atomic_dec_and_test(&object->n_reads)) {
-			clear_bit(FSCACHE_COOKIE_WAITING_ON_READS,
-				  &object->cookie->flags);
-			wake_up_bit(&object->cookie->flags,
-				    FSCACHE_COOKIE_WAITING_ON_READS);
-		}
-	}
+	if (test_bit(FSCACHE_OP_DEC_READ_CNT, &op->flags))
+		atomic_dec(&object->n_reads);
+	if (test_bit(FSCACHE_OP_UNUSE_COOKIE, &op->flags))
+		fscache_unuse_cookie(object);
 
 	/* now... we may get called with the object spinlock held, so we
 	 * complete the cleanup here only if we can immediately acquire the

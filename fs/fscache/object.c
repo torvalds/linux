@@ -30,7 +30,6 @@ static const struct fscache_state *fscache_look_up_object(struct fscache_object 
 static const struct fscache_state *fscache_object_available(struct fscache_object *, int);
 static const struct fscache_state *fscache_parent_ready(struct fscache_object *, int);
 static const struct fscache_state *fscache_update_object(struct fscache_object *, int);
-static const struct fscache_state *fscache_detach_from_cookie(struct fscache_object *, int);
 
 #define __STATE_NAME(n) fscache_osm_##n
 #define STATE(n) (&__STATE_NAME(n))
@@ -92,7 +91,6 @@ static WORK_STATE(LOOKUP_FAILURE,	"LCFL", fscache_lookup_failure);
 static WORK_STATE(KILL_OBJECT,		"KILL", fscache_kill_object);
 static WORK_STATE(KILL_DEPENDENTS,	"KDEP", fscache_kill_dependents);
 static WORK_STATE(DROP_OBJECT,		"DROP", fscache_drop_object);
-static WORK_STATE(DETACH_FROM_COOKIE,	"DTCH", fscache_detach_from_cookie);
 static WORK_STATE(OBJECT_DEAD,		"DEAD", (void*)2UL);
 
 static WAIT_STATE(WAIT_FOR_INIT,	"?INI",
@@ -156,8 +154,8 @@ static inline void fscache_done_parent_op(struct fscache_object *object)
 	       object->debug_id, parent->debug_id, parent->n_ops);
 
 	spin_lock_nested(&parent->lock, 1);
-	parent->n_ops--;
 	parent->n_obj_ops--;
+	parent->n_ops--;
 	if (parent->n_ops == 0)
 		fscache_raise_event(parent, FSCACHE_OBJECT_EV_CLEARED);
 	spin_unlock(&parent->lock);
@@ -332,22 +330,10 @@ EXPORT_SYMBOL(fscache_object_init);
 static const struct fscache_state *fscache_abort_initialisation(struct fscache_object *object,
 								int event)
 {
-	struct fscache_cookie *cookie;
-
 	_enter("{OBJ%x},%d", object->debug_id, event);
 
 	object->oob_event_mask = 0;
-	clear_bit(FSCACHE_OBJECT_IS_LIVE, &object->flags);
-
 	fscache_dequeue_object(object);
-
-	spin_lock(&object->lock);
-	cookie = object->cookie;
-	clear_bit_unlock(FSCACHE_COOKIE_CREATING, &cookie->flags);
-	spin_unlock(&object->lock);
-
-	wake_up_bit(&cookie->flags, FSCACHE_COOKIE_CREATING);
-
 	return transit_to(KILL_OBJECT);
 }
 
@@ -357,8 +343,6 @@ static const struct fscache_state *fscache_abort_initialisation(struct fscache_o
  *   immediately to do a creation
  * - we may need to start the process of creating a parent and we need to wait
  *   for the parent's lookup and creation to complete if it's not there yet
- * - an object's cookie is pinned until we clear FSCACHE_COOKIE_CREATING on the
- *   leaf-most cookies of the object and all its children
  */
 static const struct fscache_state *fscache_initialise_object(struct fscache_object *object,
 							     int event)
@@ -373,14 +357,14 @@ static const struct fscache_state *fscache_initialise_object(struct fscache_obje
 	parent = object->parent;
 	if (!parent) {
 		_leave(" [no parent]");
-		return transit_to(DETACH_FROM_COOKIE);
+		return transit_to(DROP_OBJECT);
 	}
 
-	_debug("parent %s", parent->state->name);
+	_debug("parent: %s of:%lx", parent->state->name, parent->flags);
 
 	if (fscache_object_is_dying(parent)) {
 		_leave(" [bad parent]");
-		return transit_to(DETACH_FROM_COOKIE);
+		return transit_to(DROP_OBJECT);
 	}
 
 	if (fscache_object_is_available(parent)) {
@@ -402,7 +386,7 @@ static const struct fscache_state *fscache_initialise_object(struct fscache_obje
 	spin_unlock(&parent->lock);
 	if (!success) {
 		_leave(" [grab failed]");
-		return transit_to(DETACH_FROM_COOKIE);
+		return transit_to(DROP_OBJECT);
 	}
 
 	/* fscache_acquire_non_index_cookie() uses this
@@ -438,8 +422,6 @@ static const struct fscache_state *fscache_parent_ready(struct fscache_object *o
  * look an object up in the cache from which it was allocated
  * - we hold an "access lock" on the parent object, so the parent object cannot
  *   be withdrawn by either party till we've finished
- * - an object's cookie is pinned until we clear FSCACHE_COOKIE_CREATING on the
- *   leaf-most cookies of the object and all its children
  */
 static const struct fscache_state *fscache_look_up_object(struct fscache_object *object,
 							  int event)
@@ -460,22 +442,21 @@ static const struct fscache_state *fscache_look_up_object(struct fscache_object 
 	ASSERT(fscache_object_is_available(parent));
 
 	if (fscache_object_is_dying(parent) ||
-	    test_bit(FSCACHE_IOERROR, &object->cache->flags)) {
+	    test_bit(FSCACHE_IOERROR, &object->cache->flags) ||
+	    !fscache_use_cookie(object)) {
 		_leave(" [unavailable]");
 		return transit_to(LOOKUP_FAILURE);
 	}
 
-	_debug("LOOKUP \"%s/%s\" in \"%s\"",
-	       parent->cookie->def->name, cookie->def->name,
-	       object->cache->tag->name);
+	_debug("LOOKUP \"%s\" in \"%s\"",
+	       cookie->def->name, object->cache->tag->name);
 
 	fscache_stat(&fscache_n_object_lookups);
 	fscache_stat(&fscache_n_cop_lookup_object);
 	ret = object->cache->ops->lookup_object(object);
 	fscache_stat_d(&fscache_n_cop_lookup_object);
 
-	if (test_bit(FSCACHE_OBJECT_EV_ERROR, &object->events))
-		set_bit(FSCACHE_COOKIE_UNAVAILABLE, &cookie->flags);
+	fscache_unuse_cookie(object);
 
 	if (ret == -ETIMEDOUT) {
 		/* probably stuck behind another object, so move this one to
@@ -557,11 +538,6 @@ void fscache_obtained_object(struct fscache_object *object)
 	}
 
 	set_bit(FSCACHE_OBJECT_IS_AVAILABLE, &object->flags);
-
-	/* Permit __fscache_relinquish_cookie() to proceed */
-	clear_bit_unlock(FSCACHE_COOKIE_CREATING, &cookie->flags);
-	wake_up_bit(&cookie->flags, FSCACHE_COOKIE_CREATING);
-
 	_leave("");
 }
 EXPORT_SYMBOL(fscache_obtained_object);
@@ -572,15 +548,11 @@ EXPORT_SYMBOL(fscache_obtained_object);
 static const struct fscache_state *fscache_object_available(struct fscache_object *object,
 							    int event)
 {
-	struct fscache_cookie *cookie = object->cookie;
-
 	_enter("{OBJ%x},%d", object->debug_id, event);
 
 	object->oob_table = fscache_osm_run_oob;
 
 	spin_lock(&object->lock);
-
-	ASSERTIF(cookie, !test_bit(FSCACHE_COOKIE_CREATING, &object->cookie->flags));
 
 	fscache_done_parent_op(object);
 	if (object->n_in_progress == 0) {
@@ -624,7 +596,6 @@ static const struct fscache_state *fscache_lookup_failure(struct fscache_object 
 							  int event)
 {
 	struct fscache_cookie *cookie;
-	bool wake_looking_up = false;
 
 	_enter("{OBJ%x},%d", object->debug_id, event);
 
@@ -634,19 +605,10 @@ static const struct fscache_state *fscache_lookup_failure(struct fscache_object 
 	object->cache->ops->lookup_complete(object);
 	fscache_stat_d(&fscache_n_cop_lookup_complete);
 
-	spin_lock(&object->lock);
 	cookie = object->cookie;
 	set_bit(FSCACHE_COOKIE_UNAVAILABLE, &cookie->flags);
-	if (cookie) {
-		if (test_and_clear_bit(FSCACHE_COOKIE_LOOKING_UP, &cookie->flags))
-			wake_looking_up = true;
-		clear_bit_unlock(FSCACHE_COOKIE_CREATING, &cookie->flags);
-	}
-	spin_unlock(&object->lock);
-
-	if (wake_looking_up)
+	if (test_and_clear_bit(FSCACHE_COOKIE_LOOKING_UP, &cookie->flags))
 		wake_up_bit(&cookie->flags, FSCACHE_COOKIE_LOOKING_UP);
-	wake_up_bit(&cookie->flags, FSCACHE_COOKIE_CREATING);
 
 	fscache_done_parent_op(object);
 	return transit_to(KILL_OBJECT);
@@ -662,21 +624,20 @@ static const struct fscache_state *fscache_kill_object(struct fscache_object *ob
 	_enter("{OBJ%x,%d,%d},%d",
 	       object->debug_id, object->n_ops, object->n_children, event);
 
-	object->oob_event_mask = 0;
-
-	spin_lock(&object->lock);
 	clear_bit(FSCACHE_OBJECT_IS_LIVE, &object->flags);
-	spin_unlock(&object->lock);
+	object->oob_event_mask = 0;
 
 	if (list_empty(&object->dependents) &&
 	    object->n_ops == 0 &&
 	    object->n_children == 0)
-		return object->cookie ?
-			transit_to(DETACH_FROM_COOKIE) : transit_to(DROP_OBJECT);
+		return transit_to(DROP_OBJECT);
 
-	spin_lock(&object->lock);
-	fscache_start_operations(object);
-	spin_unlock(&object->lock);
+	if (object->n_in_progress == 0) {
+		spin_lock(&object->lock);
+		if (object->n_ops > 0 && object->n_in_progress == 0)
+			fscache_start_operations(object);
+		spin_unlock(&object->lock);
+	}
 
 	if (!list_empty(&object->dependents))
 		return transit_to(KILL_DEPENDENTS);
@@ -698,64 +659,32 @@ static const struct fscache_state *fscache_kill_dependents(struct fscache_object
 }
 
 /*
- * withdraw an object from active service
- */
-static const struct fscache_state *fscache_detach_from_cookie(struct fscache_object *object,
-							      int event)
-{
-	struct fscache_cookie *cookie;
-	bool detached = false, awaken = false;
-
-	_enter("{OBJ%x},%d", object->debug_id, event);
-
-	spin_lock(&object->lock);
-	cookie = object->cookie;
-	if (cookie) {
-		/* need to get the cookie lock before the object lock, starting
-		 * from the object pointer */
-		atomic_inc(&cookie->usage);
-		spin_unlock(&object->lock);
-
-		spin_lock(&cookie->lock);
-		spin_lock(&object->lock);
-
-		if (object->cookie == cookie) {
-			hlist_del_init(&object->cookie_link);
-			object->cookie = NULL;
-			if (test_and_clear_bit(FSCACHE_COOKIE_INVALIDATING,
-					       &cookie->flags))
-				awaken = true;
-			detached = true;
-		}
-		spin_unlock(&cookie->lock);
-		fscache_cookie_put(cookie);
-		if (detached)
-			fscache_cookie_put(cookie);
-	}
-
-	spin_unlock(&object->lock);
-
-	if (awaken)
-		wake_up_bit(&cookie->flags, FSCACHE_COOKIE_INVALIDATING);
-
-	fscache_stat(&fscache_n_object_dead);
-	_leave("");
-	return transit_to(DROP_OBJECT);
-}
-
-/*
  * Drop an object's attachments
  */
 static const struct fscache_state *fscache_drop_object(struct fscache_object *object,
 						       int event)
 {
 	struct fscache_object *parent = object->parent;
+	struct fscache_cookie *cookie = object->cookie;
 	struct fscache_cache *cache = object->cache;
+	bool awaken = false;
 
 	_enter("{OBJ%x,%d},%d", object->debug_id, object->n_children, event);
 
-	ASSERTCMP(object->cookie, ==, NULL);
-	ASSERT(hlist_unhashed(&object->cookie_link));
+	ASSERT(cookie != NULL);
+	ASSERT(!hlist_unhashed(&object->cookie_link));
+
+	/* Make sure the cookie no longer points here and that the netfs isn't
+	 * waiting for us.
+	 */
+	spin_lock(&cookie->lock);
+	hlist_del_init(&object->cookie_link);
+	if (test_and_clear_bit(FSCACHE_COOKIE_INVALIDATING, &cookie->flags))
+		awaken = true;
+	spin_unlock(&cookie->lock);
+
+	if (awaken)
+		wake_up_bit(&cookie->flags, FSCACHE_COOKIE_INVALIDATING);
 
 	/* Prevent a race with our last child, which has to signal EV_CLEARED
 	 * before dropping our spinlock.
@@ -815,6 +744,22 @@ static void fscache_put_object(struct fscache_object *object)
 	object->cache->ops->put_object(object);
 	fscache_stat_d(&fscache_n_cop_put_object);
 }
+
+/**
+ * fscache_object_destroy - Note that a cache object is about to be destroyed
+ * @object: The object to be destroyed
+ *
+ * Note the imminent destruction and deallocation of a cache object record.
+ */
+void fscache_object_destroy(struct fscache_object *object)
+{
+	fscache_objlist_remove(object);
+
+	/* We can get rid of the cookie now */
+	fscache_cookie_put(object->cookie);
+	object->cookie = NULL;
+}
+EXPORT_SYMBOL(fscache_object_destroy);
 
 /*
  * enqueue an object for metadata-type processing
@@ -925,7 +870,10 @@ static void fscache_dequeue_object(struct fscache_object *object)
  * @data: The auxiliary data for the object
  * @datalen: The size of the auxiliary data
  *
- * This function consults the netfs about the coherency state of an object
+ * This function consults the netfs about the coherency state of an object.
+ * The caller must be holding a ref on cookie->n_active (held by
+ * fscache_look_up_object() on behalf of the cache backend during object lookup
+ * and creation).
  */
 enum fscache_checkaux fscache_check_aux(struct fscache_object *object,
 					const void *data, uint16_t datalen)
@@ -974,6 +922,15 @@ static const struct fscache_state *_fscache_invalidate_object(struct fscache_obj
 
 	_enter("{OBJ%x},%d", object->debug_id, event);
 
+	/* We're going to need the cookie.  If the cookie is not available then
+	 * retire the object instead.
+	 */
+	if (!fscache_use_cookie(object)) {
+		ASSERT(object->cookie->stores.rnode == NULL);
+		set_bit(FSCACHE_COOKIE_RETIRED, &cookie->flags);
+		_leave(" [no cookie]");
+		return transit_to(KILL_OBJECT);
+	}
 
 	/* Reject any new read/write ops and abort any that are pending. */
 	fscache_invalidate_writes(cookie);
@@ -982,14 +939,13 @@ static const struct fscache_state *_fscache_invalidate_object(struct fscache_obj
 
 	/* Now we have to wait for in-progress reads and writes */
 	op = kzalloc(sizeof(*op), GFP_KERNEL);
-	if (!op) {
-		clear_bit(FSCACHE_OBJECT_IS_LIVE, &object->flags);
-		_leave(" [ENOMEM]");
-		return transit_to(KILL_OBJECT);
-	}
+	if (!op)
+		goto nomem;
 
 	fscache_operation_init(op, object->cache->ops->invalidate_object, NULL);
-	op->flags = FSCACHE_OP_ASYNC | (1 << FSCACHE_OP_EXCLUSIVE);
+	op->flags = FSCACHE_OP_ASYNC |
+		(1 << FSCACHE_OP_EXCLUSIVE) |
+		(1 << FSCACHE_OP_UNUSE_COOKIE);
 
 	spin_lock(&cookie->lock);
 	if (fscache_submit_exclusive_op(object, op) < 0)
@@ -1010,6 +966,12 @@ static const struct fscache_state *_fscache_invalidate_object(struct fscache_obj
 		wake_up_bit(&cookie->flags, FSCACHE_COOKIE_INVALIDATING);
 	_leave(" [ok]");
 	return transit_to(UPDATE_OBJECT);
+
+nomem:
+	clear_bit(FSCACHE_OBJECT_IS_LIVE, &object->flags);
+	fscache_unuse_cookie(object);
+	_leave(" [ENOMEM]");
+	return transit_to(KILL_OBJECT);
 
 submit_op_failed:
 	clear_bit(FSCACHE_OBJECT_IS_LIVE, &object->flags);

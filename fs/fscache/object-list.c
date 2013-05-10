@@ -70,13 +70,10 @@ void fscache_objlist_add(struct fscache_object *obj)
 	write_unlock(&fscache_object_list_lock);
 }
 
-/**
- * fscache_object_destroy - Note that a cache object is about to be destroyed
- * @object: The object to be destroyed
- *
- * Note the imminent destruction and deallocation of a cache object record.
+/*
+ * Remove an object from the object list.
  */
-void fscache_object_destroy(struct fscache_object *obj)
+void fscache_objlist_remove(struct fscache_object *obj)
 {
 	write_lock(&fscache_object_list_lock);
 
@@ -85,7 +82,6 @@ void fscache_object_destroy(struct fscache_object *obj)
 
 	write_unlock(&fscache_object_list_lock);
 }
-EXPORT_SYMBOL(fscache_object_destroy);
 
 /*
  * find the object in the tree on or after the specified index
@@ -166,10 +162,9 @@ static int fscache_objlist_show(struct seq_file *m, void *v)
 {
 	struct fscache_objlist_data *data = m->private;
 	struct fscache_object *obj = v;
+	struct fscache_cookie *cookie;
 	unsigned long config = data->config;
-	uint16_t keylen, auxlen;
 	char _type[3], *type;
-	bool no_cookie;
 	u8 *buf = data->buf, *p;
 
 	if ((unsigned long) v == 1) {
@@ -216,8 +211,9 @@ static int fscache_objlist_show(struct seq_file *m, void *v)
 		}							\
 	} while(0)
 
+	cookie = obj->cookie;
 	if (~config) {
-		FILTER(obj->cookie,
+		FILTER(cookie->def,
 		       COOKIE, NOCOOKIE);
 		FILTER(fscache_object_is_active(obj) ||
 		       obj->n_ops != 0 ||
@@ -250,48 +246,40 @@ static int fscache_objlist_show(struct seq_file *m, void *v)
 		   obj->flags,
 		   work_busy(&obj->work));
 
-	no_cookie = true;
-	keylen = auxlen = 0;
-	if (obj->cookie) {
-		spin_lock(&obj->lock);
-		if (obj->cookie) {
-			switch (obj->cookie->def->type) {
-			case 0:
-				type = "IX";
-				break;
-			case 1:
-				type = "DT";
-				break;
-			default:
-				sprintf(_type, "%02u",
-					obj->cookie->def->type);
-				type = _type;
-				break;
-			}
+	if (fscache_use_cookie(obj)) {
+		uint16_t keylen = 0, auxlen = 0;
 
-			seq_printf(m, "%-16s %s %2lx %16p",
-				   obj->cookie->def->name,
-				   type,
-				   obj->cookie->flags,
-				   obj->cookie->netfs_data);
-
-			if (obj->cookie->def->get_key &&
-			    config & FSCACHE_OBJLIST_CONFIG_KEY)
-				keylen = obj->cookie->def->get_key(
-					obj->cookie->netfs_data,
-					buf, 400);
-
-			if (obj->cookie->def->get_aux &&
-			    config & FSCACHE_OBJLIST_CONFIG_AUX)
-				auxlen = obj->cookie->def->get_aux(
-					obj->cookie->netfs_data,
-					buf + keylen, 512 - keylen);
-
-			no_cookie = false;
+		switch (cookie->def->type) {
+		case 0:
+			type = "IX";
+			break;
+		case 1:
+			type = "DT";
+			break;
+		default:
+			sprintf(_type, "%02u", cookie->def->type);
+			type = _type;
+			break;
 		}
-		spin_unlock(&obj->lock);
 
-		if (!no_cookie && (keylen > 0 || auxlen > 0)) {
+		seq_printf(m, "%-16s %s %2lx %16p",
+			   cookie->def->name,
+			   type,
+			   cookie->flags,
+			   cookie->netfs_data);
+
+		if (cookie->def->get_key &&
+		    config & FSCACHE_OBJLIST_CONFIG_KEY)
+			keylen = cookie->def->get_key(cookie->netfs_data,
+						      buf, 400);
+
+		if (cookie->def->get_aux &&
+		    config & FSCACHE_OBJLIST_CONFIG_AUX)
+			auxlen = cookie->def->get_aux(cookie->netfs_data,
+						      buf + keylen, 512 - keylen);
+		fscache_unuse_cookie(obj);
+
+		if (keylen > 0 || auxlen > 0) {
 			seq_printf(m, " ");
 			for (p = buf; keylen > 0; keylen--)
 				seq_printf(m, "%02x", *p++);
@@ -302,12 +290,11 @@ static int fscache_objlist_show(struct seq_file *m, void *v)
 					seq_printf(m, "%02x", *p++);
 			}
 		}
-	}
 
-	if (no_cookie)
-		seq_printf(m, "<no_cookie>\n");
-	else
 		seq_printf(m, "\n");
+	} else {
+		seq_printf(m, "<no_netfs>\n");
+	}
 	return 0;
 }
 
