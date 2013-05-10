@@ -219,3 +219,72 @@ void omap_dss_stop_device(struct omap_dss_device *dssdev)
 }
 EXPORT_SYMBOL(omap_dss_stop_device);
 
+void videomode_to_omap_video_timings(const struct videomode *vm,
+		struct omap_video_timings *ovt)
+{
+	memset(ovt, 0, sizeof(*ovt));
+
+	ovt->pixel_clock = vm->pixelclock / 1000;
+	ovt->x_res = vm->hactive;
+	ovt->hbp = vm->hback_porch;
+	ovt->hfp = vm->hfront_porch;
+	ovt->hsw = vm->hsync_len;
+	ovt->y_res = vm->vactive;
+	ovt->vbp = vm->vback_porch;
+	ovt->vfp = vm->vfront_porch;
+	ovt->vsw = vm->vsync_len;
+
+	ovt->vsync_level = vm->flags & DISPLAY_FLAGS_VSYNC_HIGH ?
+		OMAPDSS_SIG_ACTIVE_HIGH :
+		OMAPDSS_SIG_ACTIVE_LOW;
+	ovt->hsync_level = vm->flags & DISPLAY_FLAGS_HSYNC_HIGH ?
+		OMAPDSS_SIG_ACTIVE_HIGH :
+		OMAPDSS_SIG_ACTIVE_LOW;
+	ovt->de_level = vm->flags & DISPLAY_FLAGS_DE_HIGH ?
+		OMAPDSS_SIG_ACTIVE_HIGH :
+		OMAPDSS_SIG_ACTIVE_HIGH;
+	ovt->data_pclk_edge = vm->flags & DISPLAY_FLAGS_PIXDATA_POSEDGE ?
+		OMAPDSS_DRIVE_SIG_RISING_EDGE :
+		OMAPDSS_DRIVE_SIG_FALLING_EDGE;
+
+	ovt->sync_pclk_edge = OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES;
+}
+EXPORT_SYMBOL(videomode_to_omap_video_timings);
+
+void omap_video_timings_to_videomode(const struct omap_video_timings *ovt,
+		struct videomode *vm)
+{
+	memset(vm, 0, sizeof(*vm));
+
+	vm->pixelclock = ovt->pixel_clock * 1000;
+
+	vm->hactive = ovt->x_res;
+	vm->hback_porch = ovt->hbp;
+	vm->hfront_porch = ovt->hfp;
+	vm->hsync_len = ovt->hsw;
+	vm->vactive = ovt->y_res;
+	vm->vback_porch = ovt->vbp;
+	vm->vfront_porch = ovt->vfp;
+	vm->vsync_len = ovt->vsw;
+
+	if (ovt->hsync_level == OMAPDSS_SIG_ACTIVE_HIGH)
+		vm->flags |= DISPLAY_FLAGS_HSYNC_HIGH;
+	else
+		vm->flags |= DISPLAY_FLAGS_HSYNC_LOW;
+
+	if (ovt->vsync_level == OMAPDSS_SIG_ACTIVE_HIGH)
+		vm->flags |= DISPLAY_FLAGS_VSYNC_HIGH;
+	else
+		vm->flags |= DISPLAY_FLAGS_VSYNC_LOW;
+
+	if (ovt->de_level == OMAPDSS_SIG_ACTIVE_HIGH)
+		vm->flags |= DISPLAY_FLAGS_DE_HIGH;
+	else
+		vm->flags |= DISPLAY_FLAGS_DE_LOW;
+
+	if (ovt->data_pclk_edge == OMAPDSS_DRIVE_SIG_RISING_EDGE)
+		vm->flags |= DISPLAY_FLAGS_PIXDATA_POSEDGE;
+	else
+		vm->flags |= DISPLAY_FLAGS_PIXDATA_NEGEDGE;
+}
+EXPORT_SYMBOL(omap_video_timings_to_videomode);

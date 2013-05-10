@@ -23,6 +23,8 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 
+#include <video/videomode.h>
+
 #define DISPC_IRQ_FRAMEDONE		(1 << 0)
 #define DISPC_IRQ_VSYNC			(1 << 1)
 #define DISPC_IRQ_EVSYNC_EVEN		(1 << 2)
@@ -767,6 +769,11 @@ const char *omapdss_get_default_display_name(void);
 
 int omap_dss_start_device(struct omap_dss_device *dssdev);
 void omap_dss_stop_device(struct omap_dss_device *dssdev);
+
+void videomode_to_omap_video_timings(const struct videomode *vm,
+		struct omap_video_timings *ovt);
+void omap_video_timings_to_videomode(const struct omap_video_timings *ovt,
+		struct videomode *vm);
 
 int dss_feat_get_num_mgrs(void);
 int dss_feat_get_num_ovls(void);
