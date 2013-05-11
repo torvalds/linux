@@ -22,8 +22,7 @@ config MACH_CM_A510
 
 config MACH_DOVE_DT
 	bool "Marvell Dove Flattened Device Tree"
-	select MVEBU_CLK_CORE
-	select MVEBU_CLK_GATING
+	select DOVE_CLK
 	select REGULATOR
 	select REGULATOR_FIXED_VOLTAGE
 	select USE_OF
