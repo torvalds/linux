@@ -1154,7 +1154,7 @@ static int smscore_load_firmware_from_file(struct smscore_device_t *coredev,
 
 	char *fw_filename = smscore_get_fw_filename(coredev, mode);
 	if (!fw_filename) {
-		sms_info("mode %d not supported on this device", mode);
+		sms_err("mode %d not supported on this device", mode);
 		return -ENOENT;
 	}
 	sms_debug("Firmware name: %s", fw_filename);
@@ -1165,14 +1165,14 @@ static int smscore_load_firmware_from_file(struct smscore_device_t *coredev,
 
 	rc = request_firmware(&fw, fw_filename, coredev->device);
 	if (rc < 0) {
-		sms_info("failed to open \"%s\"", fw_filename);
+		sms_err("failed to open firmware file \"%s\"", fw_filename);
 		return rc;
 	}
 	sms_info("read fw %s, buffer size=0x%zx", fw_filename, fw->size);
 	fw_buf = kmalloc(ALIGN(fw->size, SMS_ALLOC_ALIGNMENT),
 			 GFP_KERNEL | GFP_DMA);
 	if (!fw_buf) {
-		sms_info("failed to allocate firmware buffer");
+		sms_err("failed to allocate firmware buffer");
 		return -ENOMEM;
 	}
 	memcpy(fw_buf, fw->data, fw->size);
