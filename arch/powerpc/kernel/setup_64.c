@@ -520,9 +520,6 @@ static void __init irqstack_early_init(void)
 #ifdef CONFIG_PPC_BOOK3E
 static void __init exc_lvl_early_init(void)
 {
-	extern unsigned int interrupt_base_book3e;
-	extern unsigned int exc_debug_debug_book3e;
-
 	unsigned int i;
 
 	for_each_possible_cpu(i) {
@@ -535,8 +532,7 @@ static void __init exc_lvl_early_init(void)
 	}
 
 	if (cpu_has_feature(CPU_FTR_DEBUG_LVL_EXC))
-		patch_branch(&interrupt_base_book3e + (0x040 / 4) + 1,
-			     (unsigned long)&exc_debug_debug_book3e, 0);
+		patch_exception(0x040, exc_debug_debug_book3e);
 }
 #else
 #define exc_lvl_early_init()
