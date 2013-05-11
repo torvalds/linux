@@ -234,12 +234,12 @@ void AdmitTS(struct ieee80211_device *ieee, PTS_COMMON_INFO pTsCommonInfo, u32 I
 }
 
 
-PTS_COMMON_INFO SearchAdmitTRStream(struct ieee80211_device *ieee, u8*	Addr, u8 TID, TR_SELECT	TxRxSelect)
+PTS_COMMON_INFO SearchAdmitTRStream(struct ieee80211_device *ieee, u8 *Addr, u8 TID, TR_SELECT	TxRxSelect)
 {
 	//DIRECTION_VALUE	dir;
 	u8	dir;
 	bool				search_dir[4] = {0, 0, 0, 0};
-	struct list_head*		psearch_list; //FIXME
+	struct list_head		*psearch_list; //FIXME
 	PTS_COMMON_INFO	pRet = NULL;
 	if(ieee->iw_mode == IW_MODE_MASTER) //ap mode
 	{
@@ -311,7 +311,7 @@ PTS_COMMON_INFO SearchAdmitTRStream(struct ieee80211_device *ieee, u8*	Addr, u8 
 
 void MakeTSEntry(
 		PTS_COMMON_INFO	pTsCommonInfo,
-		u8*		Addr,
+		u8		*Addr,
 		PTSPEC_BODY	pTSPEC,
 		PQOS_TCLAS	pTCLAS,
 		u8		TCLAS_Num,
@@ -326,10 +326,10 @@ void MakeTSEntry(
 	memcpy(pTsCommonInfo->Addr, Addr, 6);
 
 	if(pTSPEC != NULL)
-		memcpy((u8*)(&(pTsCommonInfo->TSpec)), (u8*)pTSPEC, sizeof(TSPEC_BODY));
+		memcpy((u8 *)(&(pTsCommonInfo->TSpec)), (u8 *)pTSPEC, sizeof(TSPEC_BODY));
 
 	for(count = 0; count < TCLAS_Num; count++)
-		memcpy((u8*)(&(pTsCommonInfo->TClass[count])), (u8*)pTCLAS, sizeof(QOS_TCLAS));
+		memcpy((u8 *)(&(pTsCommonInfo->TClass[count])), (u8 *)pTCLAS, sizeof(QOS_TCLAS));
 
 	pTsCommonInfo->TClasProc = TCLAS_Proc;
 	pTsCommonInfo->TClasNum = TCLAS_Num;
@@ -337,9 +337,9 @@ void MakeTSEntry(
 
 
 bool GetTs(
-	struct ieee80211_device*	ieee,
+	struct ieee80211_device		*ieee,
 	PTS_COMMON_INFO			*ppTS,
-	u8*				Addr,
+	u8				*Addr,
 	u8				TID,
 	TR_SELECT			TxRxSelect,  //Rx:1, Tx:0
 	bool				bAddNewTs
@@ -416,12 +416,12 @@ bool GetTs(
 			//
 			TSPEC_BODY	TSpec;
 			PQOS_TSINFO		pTSInfo = &TSpec.f.TSInfo;
-			struct list_head*	pUnusedList =
+			struct list_head	*pUnusedList =
 								(TxRxSelect == TX_DIR)?
 								(&ieee->Tx_TS_Unused_List):
 								(&ieee->Rx_TS_Unused_List);
 
-			struct list_head*	pAddmitList =
+			struct list_head	*pAddmitList =
 								(TxRxSelect == TX_DIR)?
 								(&ieee->Tx_TS_Admit_List):
 								(&ieee->Rx_TS_Admit_List);
@@ -473,7 +473,7 @@ bool GetTs(
 }
 
 void RemoveTsEntry(
-	struct ieee80211_device*	ieee,
+	struct ieee80211_device		*ieee,
 	PTS_COMMON_INFO			pTs,
 	TR_SELECT			TxRxSelect
 	)
@@ -501,7 +501,7 @@ void RemoveTsEntry(
 			list_del_init(&pRxReorderEntry->List);
 			{
 				int i = 0;
-				struct ieee80211_rxb * prxb = pRxReorderEntry->prxb;
+				struct ieee80211_rxb *prxb = pRxReorderEntry->prxb;
 				if (unlikely(!prxb))
 				{
 					spin_unlock_irqrestore(&(ieee->reorder_spinlock), flags);
@@ -527,7 +527,7 @@ void RemoveTsEntry(
 	}
 }
 
-void RemovePeerTS(struct ieee80211_device* ieee, u8* Addr)
+void RemovePeerTS(struct ieee80211_device *ieee, u8 *Addr)
 {
 	PTS_COMMON_INFO	pTS, pTmpTS;
 
@@ -574,7 +574,7 @@ void RemovePeerTS(struct ieee80211_device* ieee, u8* Addr)
 	}
 }
 
-void RemoveAllTS(struct ieee80211_device* ieee)
+void RemoveAllTS(struct ieee80211_device *ieee)
 {
 	PTS_COMMON_INFO pTS, pTmpTS;
 
@@ -607,7 +607,7 @@ void RemoveAllTS(struct ieee80211_device* ieee)
 	}
 }
 
-void TsStartAddBaProcess(struct ieee80211_device* ieee, PTX_TS_RECORD	pTxTS)
+void TsStartAddBaProcess(struct ieee80211_device *ieee, PTX_TS_RECORD	pTxTS)
 {
 	if(pTxTS->bAddBaReqInProgress == false)
 	{
