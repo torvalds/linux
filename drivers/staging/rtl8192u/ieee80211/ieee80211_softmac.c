@@ -688,7 +688,7 @@ inline struct sk_buff *ieee80211_authentication_req(struct ieee80211_network *be
 }
 
 
-static struct sk_buff* ieee80211_probe_resp(struct ieee80211_device *ieee, u8 *dest)
+static struct sk_buff *ieee80211_probe_resp(struct ieee80211_device *ieee, u8 *dest)
 {
 	u8 *tag;
 	int beacon_size;
@@ -696,7 +696,7 @@ static struct sk_buff* ieee80211_probe_resp(struct ieee80211_device *ieee, u8 *d
 	struct sk_buff *skb = NULL;
 	int encrypt;
 	int atim_len,erp_len;
-	struct ieee80211_crypt_data* crypt;
+	struct ieee80211_crypt_data *crypt;
 
 	char *ssid = ieee->current_network.ssid;
 	int ssid_len = ieee->current_network.ssid_len;
@@ -705,12 +705,12 @@ static struct sk_buff* ieee80211_probe_resp(struct ieee80211_device *ieee, u8 *d
 	int wpa_ie_len = ieee->wpa_ie_len;
 	u8 erpinfo_content = 0;
 
-	u8* tmp_ht_cap_buf;
+	u8 *tmp_ht_cap_buf;
 	u8 tmp_ht_cap_len=0;
-	u8* tmp_ht_info_buf;
+	u8 *tmp_ht_info_buf;
 	u8 tmp_ht_info_len=0;
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
-	u8* tmp_generic_ie_buf=NULL;
+	u8 *tmp_generic_ie_buf=NULL;
 	u8 tmp_generic_ie_len=0;
 
 	if(rate_ex_len > 0) rate_ex_len+=2;
@@ -732,9 +732,9 @@ static struct sk_buff* ieee80211_probe_resp(struct ieee80211_device *ieee, u8 *d
 	encrypt = ieee->host_encrypt && crypt && crypt->ops &&
 		((0 == strcmp(crypt->ops->name, "WEP") || wpa_ie_len));
 	//HT ralated element
-	tmp_ht_cap_buf =(u8*) &(ieee->pHTInfo->SelfHTCap);
+	tmp_ht_cap_buf =(u8 *) &(ieee->pHTInfo->SelfHTCap);
 	tmp_ht_cap_len = sizeof(ieee->pHTInfo->SelfHTCap);
-	tmp_ht_info_buf =(u8*) &(ieee->pHTInfo->SelfHTInfo);
+	tmp_ht_info_buf =(u8 *) &(ieee->pHTInfo->SelfHTInfo);
 	tmp_ht_info_len = sizeof(ieee->pHTInfo->SelfHTInfo);
 	HTConstructCapabilityElement(ieee, tmp_ht_cap_buf, &tmp_ht_cap_len,encrypt);
 	HTConstructInfoElement(ieee,tmp_ht_info_buf,&tmp_ht_info_len, encrypt);
@@ -764,7 +764,7 @@ static struct sk_buff* ieee80211_probe_resp(struct ieee80211_device *ieee, u8 *d
 	if (!skb)
 		return NULL;
 	skb_reserve(skb, ieee->tx_headroom);
-	beacon_buf = (struct ieee80211_probe_response*) skb_put(skb, (beacon_size - ieee->tx_headroom));
+	beacon_buf = (struct ieee80211_probe_response *) skb_put(skb, (beacon_size - ieee->tx_headroom));
 	memcpy (beacon_buf->header.addr1, dest,ETH_ALEN);
 	memcpy (beacon_buf->header.addr2, ieee->dev->dev_addr, ETH_ALEN);
 	memcpy (beacon_buf->header.addr3, ieee->current_network.bssid, ETH_ALEN);
@@ -789,7 +789,7 @@ static struct sk_buff* ieee80211_probe_resp(struct ieee80211_device *ieee, u8 *d
 	beacon_buf->info_element[0].id = MFIE_TYPE_SSID;
 	beacon_buf->info_element[0].len = ssid_len;
 
-	tag = (u8*) beacon_buf->info_element[0].data;
+	tag = (u8 *) beacon_buf->info_element[0].data;
 
 	memcpy(tag, ssid, ssid_len);
 
@@ -841,12 +841,12 @@ static struct sk_buff* ieee80211_probe_resp(struct ieee80211_device *ieee, u8 *d
 }
 
 
-struct sk_buff* ieee80211_assoc_resp(struct ieee80211_device *ieee, u8 *dest)
+struct sk_buff *ieee80211_assoc_resp(struct ieee80211_device *ieee, u8 *dest)
 {
 	struct sk_buff *skb;
-	u8* tag;
+	u8 *tag;
 
-	struct ieee80211_crypt_data* crypt;
+	struct ieee80211_crypt_data *crypt;
 	struct ieee80211_assoc_response_frame *assoc;
 	short encrypt;
 
@@ -888,7 +888,7 @@ struct sk_buff* ieee80211_assoc_resp(struct ieee80211_device *ieee, u8 *dest)
 	if (ieee->assoc_id == 0x2007) ieee->assoc_id=0;
 	else ieee->assoc_id++;
 
-	tag = (u8*) skb_put(skb, rate_len);
+	tag = (u8 *) skb_put(skb, rate_len);
 
 	ieee80211_MFIE_Brate(ieee, &tag);
 	ieee80211_MFIE_Grate(ieee, &tag);
@@ -896,7 +896,7 @@ struct sk_buff* ieee80211_assoc_resp(struct ieee80211_device *ieee, u8 *dest)
 	return skb;
 }
 
-struct sk_buff* ieee80211_auth_resp(struct ieee80211_device *ieee,int status, u8 *dest)
+struct sk_buff *ieee80211_auth_resp(struct ieee80211_device *ieee,int status, u8 *dest)
 {
 	struct sk_buff *skb;
 	struct ieee80211_authentication *auth;
@@ -924,17 +924,17 @@ struct sk_buff* ieee80211_auth_resp(struct ieee80211_device *ieee,int status, u8
 
 }
 
-struct sk_buff* ieee80211_null_func(struct ieee80211_device *ieee,short pwr)
+struct sk_buff *ieee80211_null_func(struct ieee80211_device *ieee,short pwr)
 {
 	struct sk_buff *skb;
-	struct ieee80211_hdr_3addr* hdr;
+	struct ieee80211_hdr_3addr *hdr;
 
 	skb = dev_alloc_skb(sizeof(struct ieee80211_hdr_3addr));
 
 	if (!skb)
 		return NULL;
 
-	hdr = (struct ieee80211_hdr_3addr*)skb_put(skb,sizeof(struct ieee80211_hdr_3addr));
+	hdr = (struct ieee80211_hdr_3addr *)skb_put(skb,sizeof(struct ieee80211_hdr_3addr));
 
 	memcpy(hdr->addr1, ieee->current_network.bssid, ETH_ALEN);
 	memcpy(hdr->addr2, ieee->dev->dev_addr, ETH_ALEN);
@@ -950,7 +950,7 @@ struct sk_buff* ieee80211_null_func(struct ieee80211_device *ieee,short pwr)
 }
 
 
-void ieee80211_resp_to_assoc_rq(struct ieee80211_device *ieee, u8* dest)
+void ieee80211_resp_to_assoc_rq(struct ieee80211_device *ieee, u8 *dest)
 {
 	struct sk_buff *buf = ieee80211_assoc_resp(ieee, dest);
 
@@ -959,7 +959,7 @@ void ieee80211_resp_to_assoc_rq(struct ieee80211_device *ieee, u8* dest)
 }
 
 
-void ieee80211_resp_to_auth(struct ieee80211_device *ieee, int s, u8* dest)
+void ieee80211_resp_to_auth(struct ieee80211_device *ieee, int s, u8 *dest)
 {
 	struct sk_buff *buf = ieee80211_auth_resp(ieee, s, dest);
 
@@ -991,15 +991,15 @@ inline struct sk_buff *ieee80211_association_req(struct ieee80211_network *beaco
 	//u8 suit_select = 0;
 	//unsigned int wpa_len = beacon->wpa_ie_len;
 	//for HT
-	u8* ht_cap_buf = NULL;
+	u8 *ht_cap_buf = NULL;
 	u8 ht_cap_len=0;
-	u8* realtek_ie_buf=NULL;
+	u8 *realtek_ie_buf=NULL;
 	u8 realtek_ie_len=0;
 	int wpa_ie_len= ieee->wpa_ie_len;
 	unsigned int ckip_ie_len=0;
 	unsigned int ccxrm_ie_len=0;
 	unsigned int cxvernum_ie_len=0;
-	struct ieee80211_crypt_data* crypt;
+	struct ieee80211_crypt_data *crypt;
 	int encrypt;
 
 	unsigned int rate_len = ieee80211_MFIE_rate_len(ieee);
@@ -1016,7 +1016,7 @@ inline struct sk_buff *ieee80211_association_req(struct ieee80211_network *beaco
 	//Include High Throuput capability && Realtek proprietary
 	if(ieee->pHTInfo->bCurrentHTSupport&&ieee->pHTInfo->bEnableHT)
 	{
-		ht_cap_buf = (u8*)&(ieee->pHTInfo->SelfHTCap);
+		ht_cap_buf = (u8 *)&(ieee->pHTInfo->SelfHTCap);
 		ht_cap_len = sizeof(ieee->pHTInfo->SelfHTCap);
 		HTConstructCapabilityElement(ieee, ht_cap_buf, &ht_cap_len, encrypt);
 		if(ieee->pHTInfo->bCurrentRT2RTAggregation)
@@ -1314,7 +1314,7 @@ void ieee80211_auth_challenge(struct ieee80211_device *ieee, u8 *challenge, int 
 
 void ieee80211_associate_step2(struct ieee80211_device *ieee)
 {
-	struct sk_buff* skb;
+	struct sk_buff *skb;
 	struct ieee80211_network *beacon = &ieee->current_network;
 
 	del_timer_sync(&ieee->associate_timer);
@@ -1536,7 +1536,7 @@ void ieee80211_softmac_check_all_nets(struct ieee80211_device *ieee)
 }
 
 
-static inline u16 auth_parse(struct sk_buff *skb, u8** challenge, int *chlen)
+static inline u16 auth_parse(struct sk_buff *skb, u8 **challenge, int *chlen)
 {
 	struct ieee80211_authentication *a;
 	u8 *t;
@@ -1545,7 +1545,7 @@ static inline u16 auth_parse(struct sk_buff *skb, u8** challenge, int *chlen)
 		return 0xcafe;
 	}
 	*challenge = NULL;
-	a = (struct ieee80211_authentication*) skb->data;
+	a = (struct ieee80211_authentication *) skb->data;
 	if(skb->len > (sizeof(struct ieee80211_authentication) +3)){
 		t = skb->data + sizeof(struct ieee80211_authentication);
 
@@ -1562,7 +1562,7 @@ static inline u16 auth_parse(struct sk_buff *skb, u8** challenge, int *chlen)
 }
 
 
-int auth_rq_parse(struct sk_buff *skb,u8* dest)
+int auth_rq_parse(struct sk_buff *skb,u8 *dest)
 {
 	struct ieee80211_authentication *a;
 
@@ -1570,7 +1570,7 @@ int auth_rq_parse(struct sk_buff *skb,u8* dest)
 		IEEE80211_DEBUG_MGMT("invalid len in auth request: %d\n",skb->len);
 		return -1;
 	}
-	a = (struct ieee80211_authentication*) skb->data;
+	a = (struct ieee80211_authentication *) skb->data;
 
 	memcpy(dest,a->header.addr2, ETH_ALEN);
 
@@ -1595,7 +1595,7 @@ static short probe_rq_parse(struct ieee80211_device *ieee, struct sk_buff *skb, 
 
 	memcpy(src,header->addr2, ETH_ALEN);
 
-	skbend = (u8*)skb->data + skb->len;
+	skbend = (u8 *)skb->data + skb->len;
 
 	tag = skb->data + sizeof (struct ieee80211_hdr_3addr  );
 
@@ -1618,7 +1618,7 @@ static short probe_rq_parse(struct ieee80211_device *ieee, struct sk_buff *skb, 
 
 }
 
-int assoc_rq_parse(struct sk_buff *skb,u8* dest)
+int assoc_rq_parse(struct sk_buff *skb,u8 *dest)
 {
 	struct ieee80211_assoc_request_frame *a;
 
@@ -1629,7 +1629,7 @@ int assoc_rq_parse(struct sk_buff *skb,u8* dest)
 		return -1;
 	}
 
-	a = (struct ieee80211_assoc_request_frame*) skb->data;
+	a = (struct ieee80211_assoc_request_frame *) skb->data;
 
 	memcpy(dest,a->header.addr2,ETH_ALEN);
 
@@ -1646,7 +1646,7 @@ static inline u16 assoc_parse(struct ieee80211_device *ieee, struct sk_buff *skb
 		return 0xcafe;
 	}
 
-	response_head = (struct ieee80211_assoc_response_frame*) skb->data;
+	response_head = (struct ieee80211_assoc_response_frame *) skb->data;
 	*aid = le16_to_cpu(response_head->aid) & 0x3fff;
 
 	status_code = le16_to_cpu(response_head->status);
@@ -1888,10 +1888,10 @@ void ieee80211_ps_tx_ack(struct ieee80211_device *ieee, short success)
 	}
 	spin_unlock_irqrestore(&ieee->lock, flags);
 }
-void ieee80211_process_action(struct ieee80211_device* ieee, struct sk_buff* skb)
+void ieee80211_process_action(struct ieee80211_device *ieee, struct sk_buff *skb)
 {
-	struct ieee80211_hdr* header = (struct ieee80211_hdr*)skb->data;
-	u8* act = ieee80211_get_payload(header);
+	struct ieee80211_hdr *header = (struct ieee80211_hdr *)skb->data;
+	u8 *act = ieee80211_get_payload(header);
 	u8 tmp = 0;
 //	IEEE80211_DEBUG_DATA(IEEE80211_DL_DATA|IEEE80211_DL_BA, skb->data, skb->len);
 	if (act == NULL)
@@ -1926,7 +1926,7 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 {
 	struct ieee80211_hdr_3addr *header = (struct ieee80211_hdr_3addr *) skb->data;
 	u16 errcode;
-	u8* challenge;
+	u8 *challenge;
 	int chlen=0;
 	int aid;
 	struct ieee80211_assoc_response_frame *assoc_resp;
@@ -1966,7 +1966,7 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 				/* station support qos */
 				/* Let the register setting defaultly with Legacy station */
 				if(ieee->qos_support) {
-					assoc_resp = (struct ieee80211_assoc_response_frame*)skb->data;
+					assoc_resp = (struct ieee80211_assoc_response_frame *)skb->data;
 					memset(network, 0, sizeof(*network));
 					if (ieee80211_parse_info_param(ieee,assoc_resp->info_element,\
 								rx_stats->len - sizeof(*assoc_resp),\
@@ -1979,7 +1979,7 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 						memcpy(ieee->pHTInfo->PeerHTInfoBuf, network->bssht.bdHTInfoBuf, network->bssht.bdHTInfoLen);
 					}
 					if (ieee->handle_assoc_response != NULL)
-						ieee->handle_assoc_response(ieee->dev, (struct ieee80211_assoc_response_frame*)header, network);
+						ieee->handle_assoc_response(ieee->dev, (struct ieee80211_assoc_response_frame *)header, network);
 				}
 				ieee80211_associate_complete(ieee);
 			} else {
@@ -3124,7 +3124,7 @@ inline struct sk_buff *ieee80211_disassociate_skb(
 void
 SendDisassociation(
 		struct ieee80211_device *ieee,
-		u8*					asSta,
+		u8					*asSta,
 		u8						asRsn
 )
 {
