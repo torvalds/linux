@@ -741,6 +741,8 @@ int ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 		      BSS_CHANGED_BASIC_RATES |
 		      BSS_CHANGED_BEACON_INT;
 	enum ieee80211_band band = ieee80211_get_sdata_band(sdata);
+	struct ieee80211_supported_band *sband =
+					sdata->local->hw.wiphy->bands[band];
 
 	local->fif_other_bss++;
 	/* mesh ifaces must set allmulti to forward mcast traffic */
@@ -758,8 +760,7 @@ int ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 	sdata->vif.bss_conf.ht_operation_mode =
 				ifmsh->mshcfg.ht_opmode;
 	sdata->vif.bss_conf.enable_beacon = true;
-	sdata->vif.bss_conf.basic_rates =
-		ieee80211_mandatory_rates(local, band);
+	sdata->vif.bss_conf.basic_rates = ieee80211_mandatory_rates(sband);
 
 	changed |= ieee80211_mps_local_status_update(sdata);
 

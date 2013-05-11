@@ -1505,9 +1505,6 @@ static inline void ieee802_11_parse_elems(u8 *start, size_t len, bool action,
 	ieee802_11_parse_elems_crc(start, len, action, elems, 0, 0);
 }
 
-u32 ieee80211_mandatory_rates(struct ieee80211_local *local,
-			      enum ieee80211_band band);
-
 void ieee80211_dynamic_ps_enable_work(struct work_struct *work);
 void ieee80211_dynamic_ps_disable_work(struct work_struct *work);
 void ieee80211_dynamic_ps_timer(unsigned long data);

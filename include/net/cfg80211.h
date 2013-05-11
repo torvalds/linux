@@ -3005,6 +3005,15 @@ struct ieee80211_rate *
 ieee80211_get_response_rate(struct ieee80211_supported_band *sband,
 			    u32 basic_rates, int bitrate);
 
+/**
+ * ieee80211_mandatory_rates - get mandatory rates for a given band
+ * @sband: the band to look for rates in
+ *
+ * This function returns a bitmap of the mandatory rates for the given
+ * band, bits are set according to the rate position in the bitrates array.
+ */
+u32 ieee80211_mandatory_rates(struct ieee80211_supported_band *sband);
+
 /*
  * Radiotap parsing functions -- for controlled injection support
  *
