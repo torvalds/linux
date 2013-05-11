@@ -15,7 +15,6 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/clk-provider.h>
-#include <linux/clk/mvebu.h>
 #include <linux/kexec.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -77,7 +76,7 @@ static void __init kirkwood_legacy_clk_init(void)
 
 static void __init kirkwood_of_clk_init(void)
 {
-	mvebu_clocks_init();
+	of_clk_init(NULL);
 	kirkwood_legacy_clk_init();
 }
 
