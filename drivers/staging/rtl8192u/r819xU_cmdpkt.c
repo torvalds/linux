@@ -41,7 +41,7 @@
 rt_status
 SendTxCommandPacket(
 	struct net_device *dev,
-	void*			pData,
+	void			*pData,
 	u32				DataLen
 	)
 {
@@ -57,7 +57,7 @@ SendTxCommandPacket(
 	//Get TCB and local buffer from common pool. (It is shared by CmdQ, MgntQ, and USB coalesce DataQ)
 	skb  = dev_alloc_skb(USB_HWDESC_HEADER_LEN + DataLen + 4);
 	memcpy((unsigned char *)(skb->cb),&dev,sizeof(dev));
-	tcb_desc = (cb_desc*)(skb->cb + MAX_DEV_ADDR_SIZE);
+	tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 	tcb_desc->queue_index = TXCMD_QUEUE;
 	tcb_desc->bCmdOrInit = DESC_PACKET_TYPE_NORMAL;
 	tcb_desc->bLastIniPkt = 0;
@@ -101,7 +101,7 @@ SendTxCommandPacket(
  *---------------------------------------------------------------------------*/
  extern	rt_status	cmpk_message_handle_tx(
 	struct net_device *dev,
-	u8*	codevirtualaddress,
+	u8	*codevirtualaddress,
 	u32	packettype,
 	u32	buffer_len)
 {
@@ -145,7 +145,7 @@ SendTxCommandPacket(
 		skb  = dev_alloc_skb(frag_length + 4);
 		#endif
 		memcpy((unsigned char *)(skb->cb),&dev,sizeof(dev));
-		tcb_desc = (cb_desc*)(skb->cb + MAX_DEV_ADDR_SIZE);
+		tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 		tcb_desc->queue_index = TXCMD_QUEUE;
 		tcb_desc->bCmdOrInit = packettype;
 		tcb_desc->bLastIniPkt = bLastIniPkt;
@@ -303,7 +303,7 @@ cmpk_count_txstatistic(
 static	void
 cmpk_handle_tx_feedback(
 	struct net_device *dev,
-	u8	*	pmsg)
+	u8	*pmsg)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	cmpk_txfb_t		rx_tx_fb;	/* */
@@ -319,7 +319,7 @@ cmpk_handle_tx_feedback(
 	   endian type before copy the message copy. */
 	/* 2007/07/05 MH Use pointer to transfer structure memory. */
 	//memcpy((UINT8 *)&rx_tx_fb, pMsg, sizeof(CMPK_TXFB_T));
-	memcpy((u8*)&rx_tx_fb, pmsg, sizeof(cmpk_txfb_t));
+	memcpy((u8 *)&rx_tx_fb, pmsg, sizeof(cmpk_txfb_t));
 	/* 2. Use tx feedback info to count TX statistics. */
 	cmpk_count_txstatistic(dev, &rx_tx_fb);
 	/* 2007/01/17 MH Comment previous method for TX statistic function. */
@@ -386,7 +386,7 @@ cmdpkt_beacontimerinterrupt_819xusb(
 static	void
 cmpk_handle_interrupt_status(
 	struct net_device *dev,
-	u8*	pmsg)
+	u8	*pmsg)
 {
 	cmpk_intr_sta_t		rx_intr_status;	/* */
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -467,7 +467,7 @@ cmpk_handle_interrupt_status(
 static	void
 cmpk_handle_query_config_rx(
 	struct net_device *dev,
-	u8*	   pmsg)
+	u8	   *pmsg)
 {
 	cmpk_query_cfg_t	rx_query_cfg;	/* */
 
@@ -580,11 +580,11 @@ static	void	cmpk_count_tx_status(	struct net_device *dev,
 static	void
 cmpk_handle_tx_status(
 	struct net_device *dev,
-	u8*	   pmsg)
+	u8	   *pmsg)
 {
 	cmpk_tx_status_t	rx_tx_sts;	/* */
 
-	memcpy((void*)&rx_tx_sts, (void*)pmsg, sizeof(cmpk_tx_status_t));
+	memcpy((void *)&rx_tx_sts, (void *)pmsg, sizeof(cmpk_tx_status_t));
 	/* 2. Use tx feedback info to count TX statistics. */
 	cmpk_count_tx_status(dev, &rx_tx_sts);
 
@@ -610,7 +610,7 @@ cmpk_handle_tx_status(
 static	void
 cmpk_handle_tx_rate_history(
 	struct net_device *dev,
-	u8*	   pmsg)
+	u8	   *pmsg)
 {
 	cmpk_tx_rahis_t	*ptxrate;
 //	RT_RF_POWER_STATE	rtState;
