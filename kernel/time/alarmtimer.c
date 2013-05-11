@@ -305,7 +305,7 @@ void alarm_init(struct alarm *alarm, enum alarmtimer_type type,
 }
 
 /**
- * alarm_start - Sets an alarm to fire
+ * alarm_start - Sets an absolute alarm to fire
  * @alarm: ptr to alarm to set
  * @start: time to run the alarm
  */
@@ -322,6 +322,19 @@ int alarm_start(struct alarm *alarm, ktime_t start)
 				HRTIMER_MODE_ABS);
 	spin_unlock_irqrestore(&base->lock, flags);
 	return ret;
+}
+
+/**
+ * alarm_start_relative - Sets a relative alarm to fire
+ * @alarm: ptr to alarm to set
+ * @start: time relative to now to run the alarm
+ */
+int alarm_start_relative(struct alarm *alarm, ktime_t start)
+{
+	struct alarm_base *base = &alarm_bases[alarm->type];
+
+	start = ktime_add(start, base->gettime());
+	return alarm_start(alarm, start);
 }
 
 void alarm_restart(struct alarm *alarm)
