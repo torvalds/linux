@@ -1287,7 +1287,7 @@ static bool use_gss_proxy(struct net *net)
 
 #ifdef CONFIG_PROC_FS
 
-static bool set_gss_proxy(struct net *net, int type)
+static int set_gss_proxy(struct net *net, int type)
 {
 	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
 	int ret = 0;
