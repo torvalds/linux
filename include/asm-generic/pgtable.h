@@ -692,4 +692,8 @@ static inline pmd_t pmd_mknuma(pmd_t pmd)
 
 #endif /* !__ASSEMBLY__ */
 
+#ifndef io_remap_pfn_range
+#define io_remap_pfn_range remap_pfn_range
+#endif
+
 #endif /* _ASM_GENERIC_PGTABLE_H */
