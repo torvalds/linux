@@ -9,3 +9,7 @@ config MVEBU_CLK_GATING
 
 config MVEBU_CLK_COMMON
 	bool
+
+config DOVE_CLK
+	bool
+	select MVEBU_CLK_COMMON
