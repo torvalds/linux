@@ -13,3 +13,7 @@ config MVEBU_CLK_COMMON
 config DOVE_CLK
 	bool
 	select MVEBU_CLK_COMMON
+
+config KIRKWOOD_CLK
+	bool
+	select MVEBU_CLK_COMMON
