@@ -112,10 +112,10 @@ int InterfaceIdleModeRespond(struct bcm_mini_adapter *Adapter, unsigned int* pui
 			uiRegRead = 0;
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, IDLE_MODE, DBG_LVL_ALL, "Got Req from F/W to go in IDLE mode \n");
 
-			if (Adapter->chip_id== BCS220_2 ||
+			if (Adapter->chip_id == BCS220_2 ||
 				Adapter->chip_id == BCS220_2BC ||
-					Adapter->chip_id== BCS250_BC ||
-					Adapter->chip_id== BCS220_3)
+					Adapter->chip_id == BCS250_BC ||
+					Adapter->chip_id == BCS220_3)
 			{
 
 				bytes = rdmalt(Adapter, HPM_CONFIG_MSW, &uiRegRead, sizeof(uiRegRead));
@@ -221,7 +221,7 @@ static int InterfaceAbortIdlemode(struct bcm_mini_adapter *Adapter, unsigned int
 		{
 			itr++ ;
 			rdmalt(Adapter, CHIP_ID_REG, &chip_id, sizeof(UINT));
-			if(0xbece3200==(chip_id&~(0xF0)))
+			if(0xbece3200 == (chip_id&~(0xF0)))
 			{
 				chip_id = chip_id&~(0xF0);
 			}
