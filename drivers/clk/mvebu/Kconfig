@@ -6,3 +6,6 @@ config MVEBU_CLK_CPU
 
 config MVEBU_CLK_GATING
        bool
+
+config MVEBU_CLK_COMMON
+	bool
