@@ -38,7 +38,7 @@ struct prism2_wep_data {
 };
 
 
-static void * prism2_wep_init(int keyidx)
+static void *prism2_wep_init(int keyidx)
 {
 	struct prism2_wep_data *priv;
 
@@ -253,7 +253,7 @@ static int prism2_wep_get_key(void *key, int len, u8 *seq, void *priv)
 }
 
 
-static char * prism2_wep_print_stats(char *p, void *priv)
+static char *prism2_wep_print_stats(char *p, void *priv)
 {
 	struct prism2_wep_data *wep = priv;
 	p += sprintf(p, "key[%d] alg=WEP len=%d\n",
