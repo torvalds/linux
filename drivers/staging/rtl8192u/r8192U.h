@@ -146,7 +146,7 @@ do { if(rt_global_debug_component & component) \
 	do{ if ((rt_global_debug_component & (level)) == (level))   \
 		{       \
 			int i;                                  \
-			u8* pdata = (u8*) data;                 \
+			u8 *pdata = (u8 *) data;                 \
 			printk(KERN_DEBUG RTL819xU_MODULE_NAME ": %s()\n", __FUNCTION__);   \
 			for(i=0; i<(int)(datalen); i++)                 \
 			{                                               \
@@ -1200,7 +1200,7 @@ struct ssid_thread {
 
 bool init_firmware(struct net_device *dev);
 short rtl819xU_tx_cmd(struct net_device *dev, struct sk_buff *skb);
-short rtl8192_tx(struct net_device *dev, struct sk_buff* skb);
+short rtl8192_tx(struct net_device *dev, struct sk_buff *skb);
 
 u32 read_cam(struct net_device *dev, u8 addr);
 void write_cam(struct net_device *dev, u8 addr, u32 data);
