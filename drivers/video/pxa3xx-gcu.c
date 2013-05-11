@@ -494,7 +494,6 @@ pxa3xx_gcu_misc_mmap(struct file *file, struct vm_area_struct *vma)
 		if (size != resource_size(priv->resource_mem))
 			return -EINVAL;
 
-		vma->vm_flags |= VM_IO;
 		vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 
 		return io_remap_pfn_range(vma, vma->vm_start,
