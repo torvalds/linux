@@ -67,9 +67,9 @@ Dot11d_Reset(struct ieee80211_device *ieee)
 void
 Dot11d_UpdateCountryIe(
 	struct ieee80211_device *dev,
-	u8 *		pTaddr,
+	u8 *pTaddr,
 	u16	CoutryIeLen,
-	u8 * pCoutryIe
+	u8 *pCoutryIe
 	)
 {
 	PRT_DOT11D_INFO pDot11dInfo = GET_DOT11D_INFO(dev);
@@ -101,7 +101,7 @@ Dot11d_UpdateCountryIe(
 			MaxChnlNum = pTriple->FirstChnl + j;
 		}
 
-		pTriple = (PCHNL_TXPOWER_TRIPLE)((u8*)pTriple + 3);
+		pTriple = (PCHNL_TXPOWER_TRIPLE)((u8 *)pTriple + 3);
 	}
 	//printk("Dot11d_UpdateCountryIe(): Channel List:\n");
 	printk("Channel List:");
@@ -143,7 +143,7 @@ DOT11D_GetMaxTxPwrInDbm(
 
 void
 DOT11D_ScanComplete(
-	struct ieee80211_device * dev
+	struct ieee80211_device *dev
 	)
 {
 	PRT_DOT11D_INFO pDot11dInfo = GET_DOT11D_INFO(dev);
@@ -166,7 +166,7 @@ DOT11D_ScanComplete(
 }
 
 int IsLegalChannel(
-	struct ieee80211_device * dev,
+	struct ieee80211_device *dev,
 	u8 channel
 )
 {
@@ -183,7 +183,7 @@ int IsLegalChannel(
 }
 
 int ToLegalChannel(
-	struct ieee80211_device * dev,
+	struct ieee80211_device *dev,
 	u8 channel
 )
 {
