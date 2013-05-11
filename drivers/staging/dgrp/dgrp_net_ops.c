@@ -278,7 +278,7 @@ static void parity_scan(struct ch_struct *ch, unsigned char *cbuf,
 		switch (ch->ch_pscan_state) {
 		default:
 			/* reset to sanity and fall through */
-			ch->ch_pscan_state = 0 ;
+			ch->ch_pscan_state = 0;
 
 		case 0:
 			/* No FF seen yet */
