@@ -518,25 +518,6 @@ static void setup_page_sizes(void)
 	}
 }
 
-static void __patch_exception(int exc, unsigned long addr)
-{
-	extern unsigned int interrupt_base_book3e;
- 	unsigned int *ibase = &interrupt_base_book3e;
- 
-	/* Our exceptions vectors start with a NOP and -then- a branch
-	 * to deal with single stepping from userspace which stops on
-	 * the second instruction. Thus we need to patch the second
-	 * instruction of the exception, not the first one
-	 */
-
-	patch_branch(ibase + (exc / 4) + 1, addr, 0);
-}
-
-#define patch_exception(exc, name) do { \
-	extern unsigned int name; \
-	__patch_exception((exc), (unsigned long)&name); \
-} while (0)
-
 static void setup_mmu_htw(void)
 {
 	/* Check if HW tablewalk is present, and if yes, enable it by:
