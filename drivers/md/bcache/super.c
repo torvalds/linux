@@ -1375,6 +1375,8 @@ struct cache_set *bch_cache_set_alloc(struct cache_sb *sb)
 		c->btree_pages = max_t(int, c->btree_pages / 4,
 				       BTREE_MAX_PAGES);
 
+	c->sort_crit_factor = int_sqrt(c->btree_pages);
+
 	mutex_init(&c->bucket_lock);
 	mutex_init(&c->sort_lock);
 	spin_lock_init(&c->sort_time_lock);

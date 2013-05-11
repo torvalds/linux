@@ -828,6 +828,7 @@ struct cache_set {
 	 */
 	struct mutex		sort_lock;
 	struct bset		*sort;
+	unsigned		sort_crit_factor;
 
 	/* List of buckets we're currently writing data to */
 	struct list_head	data_buckets;
