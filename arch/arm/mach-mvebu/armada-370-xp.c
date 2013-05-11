@@ -14,10 +14,10 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/clk-provider.h>
 #include <linux/of_platform.h>
 #include <linux/io.h>
 #include <linux/time-armada-370-xp.h>
-#include <linux/clk/mvebu.h>
 #include <linux/dma-mapping.h>
 #include <linux/mbus.h>
 #include <linux/irqchip.h>
@@ -45,7 +45,7 @@ void __init armada_370_xp_map_io(void)
 
 void __init armada_370_xp_timer_and_clk_init(void)
 {
-	mvebu_clocks_init();
+	of_clk_init(NULL);
 	armada_370_xp_timer_init();
 }
 

@@ -10,9 +10,6 @@ config ARCH_MVEBU
 	select PLAT_ORION
 	select SPARSE_IRQ
 	select CLKDEV_LOOKUP
-	select MVEBU_CLK_CORE
-	select MVEBU_CLK_CPU
-	select MVEBU_CLK_GATING
 	select MVEBU_MBUS
 	select ZONE_DMA if ARM_LPAE
 	select MIGHT_HAVE_PCI
@@ -31,6 +28,7 @@ config MACH_ARMADA_370_XP
 
 config MACH_ARMADA_370
 	bool "Marvell Armada 370 boards"
+	select ARMADA_370_CLK
 	select MACH_ARMADA_370_XP
 	select PINCTRL_ARMADA_370
 	help
@@ -39,6 +37,7 @@ config MACH_ARMADA_370
 
 config MACH_ARMADA_XP
 	bool "Marvell Armada XP boards"
+	select ARMADA_XP_CLK
 	select MACH_ARMADA_370_XP
 	select PINCTRL_ARMADA_XP
 	help
