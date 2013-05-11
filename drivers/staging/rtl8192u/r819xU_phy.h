@@ -58,26 +58,26 @@ typedef enum _RF90_RADIO_PATH{
 #define bMaskDWord                0xffffffff
 
 //extern u32 rtl8192_CalculateBitShift(u32 dwBitMask);
-extern u8 rtl8192_phy_CheckIsLegalRFPath(struct net_device* dev, u32 eRFPath);
-extern void rtl8192_setBBreg(struct net_device* dev, u32 dwRegAddr, u32 dwBitMask, u32 dwData);
-extern u32 rtl8192_QueryBBReg(struct net_device* dev, u32 dwRegAddr, u32 dwBitMask);
+extern u8 rtl8192_phy_CheckIsLegalRFPath(struct net_device *dev, u32 eRFPath);
+extern void rtl8192_setBBreg(struct net_device *dev, u32 dwRegAddr, u32 dwBitMask, u32 dwData);
+extern u32 rtl8192_QueryBBReg(struct net_device *dev, u32 dwRegAddr, u32 dwBitMask);
 //extern u32 rtl8192_phy_RFSerialRead(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, u32 Offset);
 //extern void rtl8192_phy_RFSerialWrite(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, u32 Offset, u32 Data);
-extern void rtl8192_phy_SetRFReg(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, u32 RegAddr, u32 BitMask, u32 Data);
-extern u32 rtl8192_phy_QueryRFReg(struct net_device* dev, RF90_RADIO_PATH_E eRFPath, u32 RegAddr, u32 BitMask);
-extern void rtl8192_phy_configmac(struct net_device* dev);
-extern void rtl8192_phyConfigBB(struct net_device* dev, u8 ConfigType);
+extern void rtl8192_phy_SetRFReg(struct net_device *dev, RF90_RADIO_PATH_E eRFPath, u32 RegAddr, u32 BitMask, u32 Data);
+extern u32 rtl8192_phy_QueryRFReg(struct net_device *dev, RF90_RADIO_PATH_E eRFPath, u32 RegAddr, u32 BitMask);
+extern void rtl8192_phy_configmac(struct net_device *dev);
+extern void rtl8192_phyConfigBB(struct net_device *dev, u8 ConfigType);
 //extern void rtl8192_InitBBRFRegDef(struct net_device* dev);
-extern u8 rtl8192_phy_checkBBAndRF(struct net_device* dev, HW90_BLOCK_E CheckBlock, RF90_RADIO_PATH_E eRFPath);
+extern u8 rtl8192_phy_checkBBAndRF(struct net_device *dev, HW90_BLOCK_E CheckBlock, RF90_RADIO_PATH_E eRFPath);
 //extern void rtl8192_BB_Config_ParaFile(struct net_device* dev);
-extern void rtl8192_BBConfig(struct net_device* dev);
-extern void rtl8192_phy_getTxPower(struct net_device* dev);
-extern void rtl8192_phy_setTxPower(struct net_device* dev, u8 channel);
-extern void rtl8192_phy_RFConfig(struct net_device* dev);
-extern void rtl8192_phy_updateInitGain(struct net_device* dev);
-extern u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device* dev, RF90_RADIO_PATH_E	eRFPath);
+extern void rtl8192_BBConfig(struct net_device *dev);
+extern void rtl8192_phy_getTxPower(struct net_device *dev);
+extern void rtl8192_phy_setTxPower(struct net_device *dev, u8 channel);
+extern void rtl8192_phy_RFConfig(struct net_device *dev);
+extern void rtl8192_phy_updateInitGain(struct net_device *dev);
+extern u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device *dev, RF90_RADIO_PATH_E	eRFPath);
 
-extern u8 rtl8192_phy_SwChnl(struct net_device* dev, u8 channel);
+extern u8 rtl8192_phy_SwChnl(struct net_device *dev, u8 channel);
 extern void rtl8192_SetBWMode(struct net_device *dev, HT_CHANNEL_WIDTH	Bandwidth, HT_EXTCHNL_OFFSET Offset);
 extern void rtl8192_SwChnl_WorkItem(struct net_device *dev);
 void rtl8192_SetBWModeWorkItem(struct net_device *dev);
