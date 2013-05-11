@@ -183,7 +183,7 @@ int ieee80211_encrypt_fragment(
 	struct sk_buff *frag,
 	int hdr_len)
 {
-	struct ieee80211_crypt_data* crypt = ieee->crypt[ieee->tx_keyidx];
+	struct ieee80211_crypt_data *crypt = ieee->crypt[ieee->tx_keyidx];
 	int res;
 
 	if (!(crypt && crypt->ops))
@@ -243,7 +243,7 @@ struct ieee80211_txb *ieee80211_alloc_txb(int nr_frags, int txb_size,
 	struct ieee80211_txb *txb;
 	int i;
 	txb = kmalloc(
-		sizeof(struct ieee80211_txb) + (sizeof(u8*) * nr_frags),
+		sizeof(struct ieee80211_txb) + (sizeof(u8 *) * nr_frags),
 		gfp_mask);
 	if (!txb)
 		return NULL;
@@ -303,11 +303,11 @@ ieee80211_classify(struct sk_buff *skb, struct ieee80211_network *network)
 }
 
 #define SN_LESS(a, b)		(((a-b)&0x800)!=0)
-void ieee80211_tx_query_agg_cap(struct ieee80211_device* ieee, struct sk_buff* skb, cb_desc* tcb_desc)
+void ieee80211_tx_query_agg_cap(struct ieee80211_device *ieee, struct sk_buff *skb, cb_desc *tcb_desc)
 {
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
 	PTX_TS_RECORD			pTxTs = NULL;
-	struct ieee80211_hdr_1addr* hdr = (struct ieee80211_hdr_1addr*)skb->data;
+	struct ieee80211_hdr_1addr *hdr = (struct ieee80211_hdr_1addr *)skb->data;
 
 	if (!pHTInfo->bCurrentHTSupport||!pHTInfo->bEnableHT)
 		return;
@@ -330,7 +330,7 @@ void ieee80211_tx_query_agg_cap(struct ieee80211_device* ieee, struct sk_buff* s
 	}
 	if(pHTInfo->bCurrentAMPDUEnable)
 	{
-		if (!GetTs(ieee, (PTS_COMMON_INFO*)(&pTxTs), hdr->addr1, skb->priority, TX_DIR, true))
+		if (!GetTs(ieee, (PTS_COMMON_INFO *)(&pTxTs), hdr->addr1, skb->priority, TX_DIR, true))
 		{
 			printk("===>can't get TS\n");
 			return;
@@ -377,7 +377,7 @@ FORCED_AGG_SETTING:
 		return;
 }
 
-extern void ieee80211_qurey_ShortPreambleMode(struct ieee80211_device* ieee, cb_desc* tcb_desc)
+extern void ieee80211_qurey_ShortPreambleMode(struct ieee80211_device *ieee, cb_desc *tcb_desc)
 {
 	tcb_desc->bUseShortPreamble = false;
 	if (tcb_desc->data_rate == 2)
@@ -412,7 +412,7 @@ ieee80211_query_HTCapShortGI(struct ieee80211_device *ieee, cb_desc *tcb_desc)
 		tcb_desc->bUseShortGI = true;
 }
 
-void ieee80211_query_BandwidthMode(struct ieee80211_device* ieee, cb_desc *tcb_desc)
+void ieee80211_query_BandwidthMode(struct ieee80211_device *ieee, cb_desc *tcb_desc)
 {
 	PRT_HIGH_THROUGHPUT	pHTInfo = ieee->pHTInfo;
 
@@ -432,7 +432,7 @@ void ieee80211_query_BandwidthMode(struct ieee80211_device* ieee, cb_desc *tcb_d
 	return;
 }
 
-void ieee80211_query_protectionmode(struct ieee80211_device* ieee, cb_desc* tcb_desc, struct sk_buff* skb)
+void ieee80211_query_protectionmode(struct ieee80211_device *ieee, cb_desc *tcb_desc, struct sk_buff *skb)
 {
 	// Common Settings
 	tcb_desc->bRTSSTBC			= false;
@@ -543,7 +543,7 @@ NO_PROTECTION:
 }
 
 
-void ieee80211_txrate_selectmode(struct ieee80211_device* ieee, cb_desc* tcb_desc)
+void ieee80211_txrate_selectmode(struct ieee80211_device *ieee, cb_desc *tcb_desc)
 {
 #ifdef TO_DO_LIST
 	if(!IsDataFrame(pFrame))
@@ -573,14 +573,14 @@ void ieee80211_txrate_selectmode(struct ieee80211_device* ieee, cb_desc* tcb_des
 	}
 }
 
-void ieee80211_query_seqnum(struct ieee80211_device*ieee, struct sk_buff* skb, u8* dst)
+void ieee80211_query_seqnum(struct ieee80211_device *ieee, struct sk_buff *skb, u8 *dst)
 {
 	if (is_multicast_ether_addr(dst))
 		return;
 	if (IsQoSDataFrame(skb->data)) //we deal qos data only
 	{
 		PTX_TS_RECORD pTS = NULL;
-		if (!GetTs(ieee, (PTS_COMMON_INFO*)(&pTS), dst, skb->priority, TX_DIR, true))
+		if (!GetTs(ieee, (PTS_COMMON_INFO *)(&pTS), dst, skb->priority, TX_DIR, true))
 		{
 			return;
 		}
@@ -607,7 +607,7 @@ int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
 	u8 dest[ETH_ALEN], src[ETH_ALEN];
 	int qos_actived = ieee->current_network.qos_data.active;
 
-	struct ieee80211_crypt_data* crypt;
+	struct ieee80211_crypt_data *crypt;
 
 	cb_desc *tcb_desc;
 
