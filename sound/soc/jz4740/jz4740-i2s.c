@@ -118,7 +118,7 @@ static int jz4740_i2s_startup(struct snd_pcm_substream *substream,
 	ctrl |= JZ_AIC_CTRL_FLUSH;
 	jz4740_i2s_write(i2s, JZ_REG_AIC_CTRL, ctrl);
 
-	clk_enable(i2s->clk_i2s);
+	clk_prepare_enable(i2s->clk_i2s);
 
 	conf = jz4740_i2s_read(i2s, JZ_REG_AIC_CONF);
 	conf |= JZ_AIC_CONF_ENABLE;
@@ -140,7 +140,7 @@ static void jz4740_i2s_shutdown(struct snd_pcm_substream *substream,
 	conf &= ~JZ_AIC_CONF_ENABLE;
 	jz4740_i2s_write(i2s, JZ_REG_AIC_CONF, conf);
 
-	clk_disable(i2s->clk_i2s);
+	clk_disable_unprepare(i2s->clk_i2s);
 }
 
 static int jz4740_i2s_trigger(struct snd_pcm_substream *substream, int cmd,
@@ -314,10 +314,10 @@ static int jz4740_i2s_suspend(struct snd_soc_dai *dai)
 		conf &= ~JZ_AIC_CONF_ENABLE;
 		jz4740_i2s_write(i2s, JZ_REG_AIC_CONF, conf);
 
-		clk_disable(i2s->clk_i2s);
+		clk_disable_unprepare(i2s->clk_i2s);
 	}
 
-	clk_disable(i2s->clk_aic);
+	clk_disable_unprepare(i2s->clk_aic);
 
 	return 0;
 }
@@ -327,10 +327,10 @@ static int jz4740_i2s_resume(struct snd_soc_dai *dai)
 	struct jz4740_i2s *i2s = snd_soc_dai_get_drvdata(dai);
 	uint32_t conf;
 
-	clk_enable(i2s->clk_aic);
+	clk_prepare_enable(i2s->clk_aic);
 
 	if (dai->active) {
-		clk_enable(i2s->clk_i2s);
+		clk_prepare_enable(i2s->clk_i2s);
 
 		conf = jz4740_i2s_read(i2s, JZ_REG_AIC_CONF);
 		conf |= JZ_AIC_CONF_ENABLE;
@@ -368,7 +368,7 @@ static int jz4740_i2s_dai_probe(struct snd_soc_dai *dai)
 	struct jz4740_i2s *i2s = snd_soc_dai_get_drvdata(dai);
 	uint32_t conf;
 
-	clk_enable(i2s->clk_aic);
+	clk_prepare_enable(i2s->clk_aic);
 
 	jz4740_i2c_init_pcm_config(i2s);
 
@@ -388,7 +388,7 @@ static int jz4740_i2s_dai_remove(struct snd_soc_dai *dai)
 {
 	struct jz4740_i2s *i2s = snd_soc_dai_get_drvdata(dai);
 
-	clk_disable(i2s->clk_aic);
+	clk_disable_unprepare(i2s->clk_aic);
 	return 0;
 }
 
