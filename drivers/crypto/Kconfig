@@ -278,7 +278,7 @@ config CRYPTO_DEV_PICOXCELL
 
 config CRYPTO_DEV_SAHARA
 	tristate "Support for SAHARA crypto accelerator"
-	depends on ARCH_MXC && EXPERIMENTAL && OF
+	depends on ARCH_MXC && OF
 	select CRYPTO_BLKCIPHER
 	select CRYPTO_AES
 	select CRYPTO_ECB
