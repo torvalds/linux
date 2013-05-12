@@ -1,5 +1,5 @@
 /*
- * include/linux/loop.h
+ * loop.h
  *
  * Written by Theodore Ts'o, 3/29/93.
  *
