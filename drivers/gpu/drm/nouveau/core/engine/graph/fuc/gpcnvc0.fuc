@@ -208,7 +208,7 @@ mmctx_data(0x000604, 4)
 mmctx_data(0x000644, 20)
 mmctx_data(0x000698, 1)
 mmctx_data(0x0006e0, 1)
-mmctx_data(0x000750, 3)
+mmctx_data(0x000730, 11)
 nvd9_tpc_mmio_tail:
 
 .section #nvc0_grgpc_code

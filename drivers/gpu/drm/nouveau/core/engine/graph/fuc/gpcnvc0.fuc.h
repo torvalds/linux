@@ -170,7 +170,7 @@ uint32_t nvc0_grgpc_data[] = {
 	0x4c000644,
 	0x00000698,
 	0x000006e0,
-	0x08000750,
+	0x28000730,
 };
 
 uint32_t nvc0_grgpc_code[] = {

@@ -149,7 +149,7 @@ mmctx_data(0x4078bc, 1)
 mmctx_data(0x408000, 7)
 mmctx_data(0x408064, 1)
 mmctx_data(0x408800, 3)
-mmctx_data(0x408900, 4)
+mmctx_data(0x408900, 3)
 mmctx_data(0x408980, 1)
 nvd9_hub_mmio_tail:
 
