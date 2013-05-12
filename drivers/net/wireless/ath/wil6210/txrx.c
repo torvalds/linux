@@ -349,7 +349,13 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 
 	d1 = wil_skb_rxdesc(skb);
 	*d1 = *d;
+	wil_vring_advance_head(vring, 1);
 	dmalen = le16_to_cpu(d1->dma.length);
+	if (dmalen > sz) {
+		wil_err(wil, "Rx size too large: %d bytes!\n", dmalen);
+		kfree(skb);
+		return NULL;
+	}
 	skb_trim(skb, dmalen);
 
 	wil->stats.last_mcs_rx = wil_rxdesc_mcs(d1);
@@ -361,8 +367,6 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 	wil_dbg_txrx(wil, "Rx[%3d] : %d bytes\n", vring->swhead, d->dma.length);
 	wil_hex_dump_txrx("Rx ", DUMP_PREFIX_NONE, 32, 4,
 			  (const void *)d, sizeof(*d), false);
-
-	wil_vring_advance_head(vring, 1);
 
 	/* no extra checks if in sniffer mode */
 	if (ndev->type != ARPHRD_ETHER)
