@@ -86,13 +86,13 @@ static void jz4740_adc_irq_demux(unsigned int irq, struct irq_desc *desc)
 static inline void jz4740_adc_clk_enable(struct jz4740_adc *adc)
 {
 	if (atomic_inc_return(&adc->clk_ref) == 1)
-		clk_enable(adc->clk);
+		clk_prepare_enable(adc->clk);
 }
 
 static inline void jz4740_adc_clk_disable(struct jz4740_adc *adc)
 {
 	if (atomic_dec_return(&adc->clk_ref) == 0)
-		clk_disable(adc->clk);
+		clk_disable_unprepare(adc->clk);
 }
 
 static inline void jz4740_adc_set_enabled(struct jz4740_adc *adc, int engine,
