@@ -440,6 +440,7 @@ static int wil_rx_refill(struct wil6210_priv *wil, int count)
 
 /*
  * Pass Rx packet to the netif. Update statistics.
+ * Called in softirq context (NAPI poll).
  */
 static void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 {
@@ -448,10 +449,7 @@ static void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 
 	skb_orphan(skb);
 
-	if (in_interrupt())
-		rc = netif_rx(skb);
-	else
-		rc = netif_rx_ni(skb);
+	rc = netif_receive_skb(skb);
 
 	if (likely(rc == NET_RX_SUCCESS)) {
 		ndev->stats.rx_packets++;
@@ -465,9 +463,9 @@ static void wil_netif_rx_any(struct sk_buff *skb, struct net_device *ndev)
 /**
  * Proceed all completed skb's from Rx VRING
  *
- * Safe to call from IRQ
+ * Safe to call from NAPI poll, i.e. softirq with interrupts enabled
  */
-void wil_rx_handle(struct wil6210_priv *wil)
+void wil_rx_handle(struct wil6210_priv *wil, int *quota)
 {
 	struct net_device *ndev = wil_to_ndev(wil);
 	struct vring *v = &wil->vring_rx;
@@ -478,7 +476,8 @@ void wil_rx_handle(struct wil6210_priv *wil)
 		return;
 	}
 	wil_dbg_txrx(wil, "%s()\n", __func__);
-	while (NULL != (skb = wil_vring_reap_rx(wil, v))) {
+	while ((*quota > 0) && (NULL != (skb = wil_vring_reap_rx(wil, v)))) {
+		(*quota)--;
 
 		if (wil->wdev->iftype == NL80211_IFTYPE_MONITOR) {
 			skb->dev = ndev;
@@ -788,17 +787,20 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 /**
  * Clean up transmitted skb's from the Tx VRING
  *
+ * Return number of descriptors cleared
+ *
  * Safe to call from IRQ
  */
-void wil_tx_complete(struct wil6210_priv *wil, int ringid)
+int wil_tx_complete(struct wil6210_priv *wil, int ringid)
 {
 	struct net_device *ndev = wil_to_ndev(wil);
 	struct device *dev = wil_to_dev(wil);
 	struct vring *vring = &wil->vring_tx[ringid];
+	int done = 0;
 
 	if (!vring->va) {
 		wil_err(wil, "Tx irq[%d]: vring not initialized\n", ringid);
-		return;
+		return 0;
 	}
 
 	wil_dbg_txrx(wil, "%s(%d)\n", __func__, ringid);
@@ -847,7 +849,10 @@ void wil_tx_complete(struct wil6210_priv *wil, int ringid)
 		d->dma.length = 0;
 		d->dma.status = TX_DMA_STATUS_DU;
 		vring->swtail = wil_vring_next_tail(vring);
+		done++;
 	}
 	if (wil_vring_avail_tx(vring) > vring->size/4)
 		netif_tx_wake_all_queues(wil_to_ndev(wil));
+
+	return done;
 }

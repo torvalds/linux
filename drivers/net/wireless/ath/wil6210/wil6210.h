@@ -34,9 +34,11 @@ static inline u32 WIL_GET_BITS(u32 x, int b0, int b1)
 
 #define WIL6210_MEM_SIZE (2*1024*1024UL)
 
-#define WIL6210_RX_RING_SIZE (128)
-#define WIL6210_TX_RING_SIZE (128)
-#define WIL6210_MAX_TX_RINGS (24)
+#define WIL6210_RX_RING_SIZE	(128)
+#define WIL6210_TX_RING_SIZE	(128)
+#define WIL6210_MAX_TX_RINGS	(24) /* HW limit */
+#define WIL6210_MAX_CID		(8) /* HW limit */
+#define WIL6210_NAPI_BUDGET	(16) /* arbitrary */
 
 /* Hardware definitions begin */
 
@@ -239,6 +241,8 @@ struct wil6210_priv {
 	 * - consumed in thread by wmi_event_worker
 	 */
 	spinlock_t wmi_ev_lock;
+	struct napi_struct napi_rx;
+	struct napi_struct napi_tx;
 	/* DMA related */
 	struct vring vring_rx;
 	struct vring vring_tx[WIL6210_MAX_TX_RINGS];
@@ -360,10 +364,12 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 void wil_vring_fini_tx(struct wil6210_priv *wil, int id);
 
 netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev);
-void wil_tx_complete(struct wil6210_priv *wil, int ringid);
+int wil_tx_complete(struct wil6210_priv *wil, int ringid);
+void wil6210_unmask_irq_tx(struct wil6210_priv *wil);
 
 /* RX API */
-void wil_rx_handle(struct wil6210_priv *wil);
+void wil_rx_handle(struct wil6210_priv *wil, int *quota);
+void wil6210_unmask_irq_rx(struct wil6210_priv *wil);
 
 int wil_iftype_nl2wmi(enum nl80211_iftype type);
 

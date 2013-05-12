@@ -104,14 +104,14 @@ static void wil6210_mask_irq_pseudo(struct wil6210_priv *wil)
 	clear_bit(wil_status_irqen, &wil->status);
 }
 
-static void wil6210_unmask_irq_tx(struct wil6210_priv *wil)
+void wil6210_unmask_irq_tx(struct wil6210_priv *wil)
 {
 	iowrite32(WIL6210_IMC_TX, wil->csr +
 		  HOSTADDR(RGF_DMA_EP_TX_ICR) +
 		  offsetof(struct RGF_ICR, IMC));
 }
 
-static void wil6210_unmask_irq_rx(struct wil6210_priv *wil)
+void wil6210_unmask_irq_rx(struct wil6210_priv *wil)
 {
 	iowrite32(WIL6210_IMC_RX, wil->csr +
 		  HOSTADDR(RGF_DMA_EP_RX_ICR) +
@@ -182,13 +182,14 @@ static irqreturn_t wil6210_irq_rx(int irq, void *cookie)
 	if (isr & BIT_DMA_EP_RX_ICR_RX_DONE) {
 		wil_dbg_irq(wil, "RX done\n");
 		isr &= ~BIT_DMA_EP_RX_ICR_RX_DONE;
-		wil_rx_handle(wil);
+		wil_dbg_txrx(wil, "NAPI schedule\n");
+		napi_schedule(&wil->napi_rx);
 	}
 
 	if (isr)
 		wil_err(wil, "un-handled RX ISR bits 0x%08x\n", isr);
 
-	wil6210_unmask_irq_rx(wil);
+	/* Rx IRQ will be enabled when NAPI processing finished */
 
 	return IRQ_HANDLED;
 }
@@ -211,23 +212,17 @@ static irqreturn_t wil6210_irq_tx(int irq, void *cookie)
 	wil6210_mask_irq_tx(wil);
 
 	if (isr & BIT_DMA_EP_TX_ICR_TX_DONE) {
-		uint i;
 		wil_dbg_irq(wil, "TX done\n");
+		napi_schedule(&wil->napi_tx);
 		isr &= ~BIT_DMA_EP_TX_ICR_TX_DONE;
-		for (i = 0; i < 24; i++) {
-			u32 mask = BIT_DMA_EP_TX_ICR_TX_DONE_N(i);
-			if (isr & mask) {
-				isr &= ~mask;
-				wil_dbg_irq(wil, "TX done(%i)\n", i);
-				wil_tx_complete(wil, i);
-			}
-		}
+		/* clear also all VRING interrupts */
+		isr &= ~(BIT(25) - 1UL);
 	}
 
 	if (isr)
 		wil_err(wil, "un-handled TX ISR bits 0x%08x\n", isr);
 
-	wil6210_unmask_irq_tx(wil);
+	/* Tx IRQ will be enabled when NAPI processing finished */
 
 	return IRQ_HANDLED;
 }

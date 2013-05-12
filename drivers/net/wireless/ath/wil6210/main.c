@@ -365,6 +365,9 @@ static int __wil_up(struct wil6210_priv *wil)
 	/* Rx VRING. After MAC and beacon */
 	wil_rx_init(wil);
 
+	napi_enable(&wil->napi_rx);
+	napi_enable(&wil->napi_tx);
+
 	return 0;
 }
 
@@ -381,6 +384,9 @@ int wil_up(struct wil6210_priv *wil)
 
 static int __wil_down(struct wil6210_priv *wil)
 {
+	napi_disable(&wil->napi_rx);
+	napi_disable(&wil->napi_tx);
+
 	if (wil->scan_request) {
 		cfg80211_scan_done(wil->scan_request, true);
 		wil->scan_request = NULL;
