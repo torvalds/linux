@@ -970,7 +970,7 @@ static int wlcore_fw_wakeup(struct wl1271 *wl)
 
 static int wl1271_setup(struct wl1271 *wl)
 {
-	wl->fw_status_1 = kmalloc(WLCORE_FW_STATUS_1_LEN(wl->num_rx_desc) +
+	wl->fw_status_1 = kzalloc(WLCORE_FW_STATUS_1_LEN(wl->num_rx_desc) +
 				  sizeof(*wl->fw_status_2) +
 				  wl->fw_status_priv_len, GFP_KERNEL);
 	if (!wl->fw_status_1)
@@ -980,7 +980,7 @@ static int wl1271_setup(struct wl1271 *wl)
 				(((u8 *) wl->fw_status_1) +
 				WLCORE_FW_STATUS_1_LEN(wl->num_rx_desc));
 
-	wl->tx_res_if = kmalloc(sizeof(*wl->tx_res_if), GFP_KERNEL);
+	wl->tx_res_if = kzalloc(sizeof(*wl->tx_res_if), GFP_KERNEL);
 	if (!wl->tx_res_if) {
 		kfree(wl->fw_status_1);
 		return -ENOMEM;
