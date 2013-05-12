@@ -139,7 +139,7 @@ exynos_drm_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	return 0;
 }
 
-static int exynos_drm_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
+static int exynos_drm_crtc_mode_set_commit(struct drm_crtc *crtc, int x, int y,
 					  struct drm_framebuffer *old_fb)
 {
 	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(crtc);
@@ -167,6 +167,12 @@ static int exynos_drm_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	exynos_drm_crtc_commit(crtc);
 
 	return 0;
+}
+
+static int exynos_drm_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
+					  struct drm_framebuffer *old_fb)
+{
+	return exynos_drm_crtc_mode_set_commit(crtc, x, y, old_fb);
 }
 
 static void exynos_drm_crtc_disable(struct drm_crtc *crtc)
@@ -230,7 +236,7 @@ static int exynos_drm_crtc_page_flip(struct drm_crtc *crtc,
 		spin_unlock_irq(&dev->event_lock);
 
 		crtc->fb = fb;
-		ret = exynos_drm_crtc_mode_set_base(crtc, crtc->x, crtc->y,
+		ret = exynos_drm_crtc_mode_set_commit(crtc, crtc->x, crtc->y,
 						    NULL);
 		if (ret) {
 			crtc->fb = old_fb;
