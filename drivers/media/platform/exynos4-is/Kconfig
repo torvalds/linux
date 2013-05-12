@@ -58,4 +58,4 @@ config VIDEO_EXYNOS4_FIMC_IS
 	  To compile this driver as a module, choose M here: the
 	  module will be called exynos4-fimc-is.
 
-endif # VIDEO_SAMSUNG_S5P_FIMC
+endif # VIDEO_SAMSUNG_EXYNOS4_IS
