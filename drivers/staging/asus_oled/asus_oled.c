@@ -401,7 +401,7 @@ static int append_values(struct asus_oled_dev *odev, uint8_t val, size_t count)
 
 		default:
 			/* cannot get here; stops gcc complaining*/
-			;
+			break;
 		}
 
 		odev->buf_offs++;
