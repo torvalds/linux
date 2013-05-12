@@ -106,19 +106,21 @@ static void wil_vring_free(struct wil6210_priv *wil, struct vring *vring,
 	size_t sz = vring->size * sizeof(vring->va[0]);
 
 	while (!wil_vring_is_empty(vring)) {
+		u16 dmalen;
 		if (tx) {
 			volatile struct vring_tx_desc *d =
 					&vring->va[vring->swtail].tx;
 			dma_addr_t pa = d->dma.addr_low |
 					((u64)d->dma.addr_high << 32);
 			struct sk_buff *skb = vring->ctx[vring->swtail];
+			dmalen = le16_to_cpu(d->dma.length);
 			if (skb) {
-				dma_unmap_single(dev, pa, d->dma.length,
+				dma_unmap_single(dev, pa, dmalen,
 						 DMA_TO_DEVICE);
 				dev_kfree_skb_any(skb);
 				vring->ctx[vring->swtail] = NULL;
 			} else {
-				dma_unmap_page(dev, pa, d->dma.length,
+				dma_unmap_page(dev, pa, dmalen,
 					       DMA_TO_DEVICE);
 			}
 			vring->swtail = wil_vring_next_tail(vring);
@@ -128,8 +130,8 @@ static void wil_vring_free(struct wil6210_priv *wil, struct vring *vring,
 			dma_addr_t pa = d->dma.addr_low |
 					((u64)d->dma.addr_high << 32);
 			struct sk_buff *skb = vring->ctx[vring->swhead];
-			dma_unmap_single(dev, pa, d->dma.length,
-					 DMA_FROM_DEVICE);
+			dmalen = le16_to_cpu(d->dma.length);
+			dma_unmap_single(dev, pa, dmalen, DMA_FROM_DEVICE);
 			kfree_skb(skb);
 			wil_vring_advance_head(vring, 1);
 		}
@@ -175,7 +177,7 @@ static int wil_vring_alloc_skb(struct wil6210_priv *wil, struct vring *vring,
 	/* b11 don't care */
 	/* error don't care */
 	d->dma.status = 0; /* BIT(0) should be 0 for HW_OWNED */
-	d->dma.length = sz;
+	d->dma.length = cpu_to_le16(sz);
 	vring->ctx[i] = skb;
 
 	return 0;
@@ -326,6 +328,7 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 	struct sk_buff *skb;
 	dma_addr_t pa;
 	unsigned int sz = RX_BUF_LEN;
+	u16 dmalen;
 	u8 ftype;
 	u8 ds_bits;
 
@@ -343,10 +346,11 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 	pa = d->dma.addr_low | ((u64)d->dma.addr_high << 32);
 	skb = vring->ctx[vring->swhead];
 	dma_unmap_single(dev, pa, sz, DMA_FROM_DEVICE);
-	skb_trim(skb, d->dma.length);
 
 	d1 = wil_skb_rxdesc(skb);
 	*d1 = *d;
+	dmalen = le16_to_cpu(d1->dma.length);
+	skb_trim(skb, dmalen);
 
 	wil->stats.last_mcs_rx = wil_rxdesc_mcs(d1);
 
@@ -610,7 +614,7 @@ static int wil_tx_desc_map(volatile struct vring_tx_desc *d,
 	d->dma.b11 = 0/*14 | BIT(7)*/;
 	d->dma.error = 0;
 	d->dma.status = 0; /* BIT(0) should be 0 for HW_OWNED */
-	d->dma.length = len;
+	d->dma.length = cpu_to_le16((u16)len);
 	d->dma.d0 = 0;
 	d->mac.d[0] = 0;
 	d->mac.d[1] = 0;
@@ -705,14 +709,17 @@ static int wil_tx_vring(struct wil6210_priv *wil, struct vring *vring,
 	/* unmap what we have mapped */
 	/* Note: increment @f to operate with positive index */
 	for (f++; f > 0; f--) {
+		u16 dmalen;
+
 		i = (swhead + f) % vring->size;
 		d = &(vring->va[i].tx);
 		d->dma.status = TX_DMA_STATUS_DU;
 		pa = d->dma.addr_low | ((u64)d->dma.addr_high << 32);
+		dmalen = le16_to_cpu(d->dma.length);
 		if (vring->ctx[i])
-			dma_unmap_single(dev, pa, d->dma.length, DMA_TO_DEVICE);
+			dma_unmap_single(dev, pa, dmalen, DMA_TO_DEVICE);
 		else
-			dma_unmap_page(dev, pa, d->dma.length, DMA_TO_DEVICE);
+			dma_unmap_page(dev, pa, dmalen, DMA_TO_DEVICE);
 	}
 
 	return -EINVAL;
@@ -792,15 +799,17 @@ void wil_tx_complete(struct wil6210_priv *wil, int ringid)
 		struct vring_tx_desc dd, *d = &dd;
 		dma_addr_t pa;
 		struct sk_buff *skb;
+		u16 dmalen;
 
 		dd = *d1;
 
 		if (!(d->dma.status & TX_DMA_STATUS_DU))
 			break;
 
+		dmalen = le16_to_cpu(d->dma.length);
 		wil_dbg_txrx(wil,
 			     "Tx[%3d] : %d bytes, status 0x%02x err 0x%02x\n",
-			     vring->swtail, d->dma.length, d->dma.status,
+			     vring->swtail, dmalen, d->dma.status,
 			     d->dma.error);
 		wil_hex_dump_txrx("TxC ", DUMP_PREFIX_NONE, 32, 4,
 				  (const void *)d, sizeof(*d), false);
@@ -815,11 +824,11 @@ void wil_tx_complete(struct wil6210_priv *wil, int ringid)
 				ndev->stats.tx_errors++;
 			}
 
-			dma_unmap_single(dev, pa, d->dma.length, DMA_TO_DEVICE);
+			dma_unmap_single(dev, pa, dmalen, DMA_TO_DEVICE);
 			dev_kfree_skb_any(skb);
 			vring->ctx[vring->swtail] = NULL;
 		} else {
-			dma_unmap_page(dev, pa, d->dma.length, DMA_TO_DEVICE);
+			dma_unmap_page(dev, pa, dmalen, DMA_TO_DEVICE);
 		}
 		d->dma.addr_low = 0;
 		d->dma.addr_high = 0;

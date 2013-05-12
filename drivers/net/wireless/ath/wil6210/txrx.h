@@ -222,7 +222,7 @@ struct vring_tx_dma {
 	u8  b11;       /* 0..6: mac_length; 7:ip_version */
 	u8  error;     /* 0..2: err; 3..7: reserved; */
 	u8  status;    /* 0: used; 1..7; reserved */
-	u16 length;
+	__le16 length;
 } __packed;
 
 /*
@@ -321,7 +321,7 @@ struct vring_rx_dma {
 	u8  b11;
 	u8  error;
 	u8  status;
-	u16 length;
+	__le16 length;
 } __packed;
 
 struct vring_tx_desc {
