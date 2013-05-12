@@ -267,9 +267,13 @@ struct wil6210_priv {
 #define wil_to_ndev(i) (wil_to_wdev(i)->netdev)
 #define ndev_to_wil(n) (wdev_to_wil(n->ieee80211_ptr))
 
-#define wil_dbg(wil, fmt, arg...) netdev_dbg(wil_to_ndev(wil), fmt, ##arg)
-#define wil_info(wil, fmt, arg...) netdev_info(wil_to_ndev(wil), fmt, ##arg)
-#define wil_err(wil, fmt, arg...) netdev_err(wil_to_ndev(wil), fmt, ##arg)
+int wil_dbg_trace(struct wil6210_priv *wil, const char *fmt, ...);
+int wil_err(struct wil6210_priv *wil, const char *fmt, ...);
+int wil_info(struct wil6210_priv *wil, const char *fmt, ...);
+#define wil_dbg(wil, fmt, arg...) do { \
+	netdev_dbg(wil_to_ndev(wil), fmt, ##arg); \
+	wil_dbg_trace(wil, fmt, ##arg); \
+} while (0)
 
 #define wil_dbg_irq(wil, fmt, arg...) wil_dbg(wil, "DBG[ IRQ]" fmt, ##arg)
 #define wil_dbg_txrx(wil, fmt, arg...) wil_dbg(wil, "DBG[TXRX]" fmt, ##arg)

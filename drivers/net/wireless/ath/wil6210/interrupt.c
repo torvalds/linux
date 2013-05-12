@@ -17,6 +17,7 @@
 #include <linux/interrupt.h>
 
 #include "wil6210.h"
+#include "trace.h"
 
 /**
  * Theory of operation:
@@ -168,6 +169,7 @@ static irqreturn_t wil6210_irq_rx(int irq, void *cookie)
 					 HOSTADDR(RGF_DMA_EP_RX_ICR) +
 					 offsetof(struct RGF_ICR, ICR));
 
+	trace_wil6210_irq_rx(isr);
 	wil_dbg_irq(wil, "ISR RX 0x%08x\n", isr);
 
 	if (!isr) {
@@ -198,6 +200,7 @@ static irqreturn_t wil6210_irq_tx(int irq, void *cookie)
 					 HOSTADDR(RGF_DMA_EP_TX_ICR) +
 					 offsetof(struct RGF_ICR, ICR));
 
+	trace_wil6210_irq_tx(isr);
 	wil_dbg_irq(wil, "ISR TX 0x%08x\n", isr);
 
 	if (!isr) {
@@ -256,6 +259,7 @@ static irqreturn_t wil6210_irq_misc(int irq, void *cookie)
 					 HOSTADDR(RGF_DMA_EP_MISC_ICR) +
 					 offsetof(struct RGF_ICR, ICR));
 
+	trace_wil6210_irq_misc(isr);
 	wil_dbg_irq(wil, "ISR MISC 0x%08x\n", isr);
 
 	if (!isr) {
@@ -301,6 +305,7 @@ static irqreturn_t wil6210_irq_misc_thread(int irq, void *cookie)
 	struct wil6210_priv *wil = cookie;
 	u32 isr = wil->isr_misc;
 
+	trace_wil6210_irq_misc_thread(isr);
 	wil_dbg_irq(wil, "Thread ISR MISC 0x%08x\n", isr);
 
 	if (isr & ISR_MISC_FW_ERROR) {
@@ -408,6 +413,7 @@ static irqreturn_t wil6210_hardirq(int irq, void *cookie)
 	if (wil6210_debug_irq_mask(wil, pseudo_cause))
 		return IRQ_NONE;
 
+	trace_wil6210_irq_pseudo(pseudo_cause);
 	wil_dbg_irq(wil, "Pseudo IRQ 0x%08x\n", pseudo_cause);
 
 	wil6210_mask_irq_pseudo(wil);

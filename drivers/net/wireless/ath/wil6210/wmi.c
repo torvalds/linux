@@ -20,6 +20,7 @@
 #include "wil6210.h"
 #include "txrx.h"
 #include "wmi.h"
+#include "trace.h"
 
 /**
  * WMI event receiving - theory of operations
@@ -245,6 +246,8 @@ static int __wmi_send(struct wil6210_priv *wil, u16 cmdid, void *buf, u16 len)
 	/* advance next ptr */
 	iowrite32(r->head = next_head, wil->csr + HOST_MBOX +
 		  offsetof(struct wil6210_mbox_ctl, tx.head));
+
+	trace_wil6210_wmi_cmd(cmdid, buf, len);
 
 	/* interrupt to FW */
 	iowrite32(SW_INT_MBOX, wil->csr + HOST_SW_INT);
@@ -635,8 +638,9 @@ void wmi_recv_cmd(struct wil6210_priv *wil)
 			    hdr.flags);
 		if ((hdr.type == WIL_MBOX_HDR_TYPE_WMI) &&
 		    (len >= sizeof(struct wil6210_mbox_hdr_wmi))) {
-			wil_dbg_wmi(wil, "WMI event 0x%04x\n",
-				    evt->event.wmi.id);
+			u16 id = le16_to_cpu(evt->event.wmi.id);
+			wil_dbg_wmi(wil, "WMI event 0x%04x\n", id);
+			trace_wil6210_wmi_event(id, &evt->event.wmi, len);
 		}
 		wil_hex_dump_wmi("evt ", DUMP_PREFIX_OFFSET, 16, 1,
 				 &evt->event.hdr, sizeof(hdr) + len, true);
