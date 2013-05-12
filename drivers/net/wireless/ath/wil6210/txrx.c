@@ -791,7 +791,6 @@ netdev_tx_t wil_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		break; /* goto drop; */
 	}
  drop:
-	netif_tx_stop_all_queues(ndev);
 	ndev->stats.tx_dropped++;
 	dev_kfree_skb_any(skb);
 
