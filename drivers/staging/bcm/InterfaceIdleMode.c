@@ -42,7 +42,7 @@ send to f/w with in 200 ms after the Idle/Shutdown req issued
 */
 
 
-int InterfaceIdleModeRespond(struct bcm_mini_adapter *Adapter, unsigned int* puiBuffer)
+int InterfaceIdleModeRespond(struct bcm_mini_adapter *Adapter, unsigned int *puiBuffer)
 {
 	int	status = STATUS_SUCCESS;
 	unsigned int	uiRegRead = 0;
