@@ -34,7 +34,7 @@ void PHY_SetRF8256Bandwidth(struct net_device *dev , HT_CHANNEL_WIDTH Bandwidth)
 		if (!rtl8192_phy_CheckIsLegalRFPath(dev, eRFPath))
 				continue;
 
-		switch(Bandwidth)
+		switch (Bandwidth)
 		{
 			case HT_CHANNEL_WIDTH_20:
 				if(priv->card_8192_version == VERSION_819xU_A || priv->card_8192_version == VERSION_819xU_B)// 8256 D-cut, E-cut, xiong: consider it later!
@@ -133,7 +133,7 @@ void phy_RF8256_Config_ParaFile(struct net_device *dev)
 	//	pHalData->RfReg0Value[eRFPath] =  rtl8192_phy_QueryRFReg(dev, (RF90_RADIO_PATH_E)eRFPath, rGlobalCtrl, bMaskDWord);
 
 		/*----Store original RFENV control type----*/
-		switch(eRFPath)
+		switch (eRFPath)
 		{
 		case RF90_PATH_A:
 		case RF90_PATH_C:
@@ -168,7 +168,7 @@ void phy_RF8256_Config_ParaFile(struct net_device *dev)
 		RetryTimes = ConstRetryTimes;
 		RF3_Final_Value = 0;
 		/*----Initialize RF fom connfiguration file----*/
-		switch(eRFPath)
+		switch (eRFPath)
 		{
 		case RF90_PATH_A:
 			while(RF3_Final_Value!=RegValueToBeCheck && RetryTimes!=0)
@@ -209,7 +209,7 @@ void phy_RF8256_Config_ParaFile(struct net_device *dev)
 		}
 
 		/*----Restore RFENV control type----*/;
-		switch(eRFPath)
+		switch (eRFPath)
 		{
 		case RF90_PATH_A:
 		case RF90_PATH_C:

@@ -177,7 +177,7 @@ void HTDebugHTInfo(u8 *InfoIE, u8 *TitleString)
 
 	IEEE80211_DEBUG(IEEE80211_DL_HT, "\tPrimary channel = %d\n", pHTInfoEle->ControlChl);
 	IEEE80211_DEBUG(IEEE80211_DL_HT, "\tSenondary channel =");
-	switch(pHTInfoEle->ExtChlOffset)
+	switch (pHTInfoEle->ExtChlOffset)
 	{
 		case 0:
 			IEEE80211_DEBUG(IEEE80211_DL_HT, "Not Present\n");
@@ -195,7 +195,7 @@ void HTDebugHTInfo(u8 *InfoIE, u8 *TitleString)
 	IEEE80211_DEBUG(IEEE80211_DL_HT, "\tRecommended channel width = %s\n", (pHTInfoEle->RecommemdedTxWidth)?"20Mhz": "40Mhz");
 
 	IEEE80211_DEBUG(IEEE80211_DL_HT, "\tOperation mode for protection = ");
-	switch(pHTInfoEle->OptMode)
+	switch (pHTInfoEle->OptMode)
 	{
 		case 0:
 			IEEE80211_DEBUG(IEEE80211_DL_HT, "No Protection\n");
@@ -801,7 +801,7 @@ u8 HT_PickMCSRate(struct ieee80211_device *ieee, u8 *pOperateMCS)
 		return false;
 	}
 
-	switch(ieee->mode)
+	switch (ieee->mode)
 	{
 	case IEEE_A:
 	case IEEE_B:

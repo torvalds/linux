@@ -333,7 +333,7 @@ bool init_firmware(struct net_device *dev)
 			goto download_firmware_fail;
 		}
 
-		switch(init_step) {
+		switch (init_step) {
 		case FW_INIT_STEP0_BOOT:
 			/* Download boot
 			 * initialize command descriptor.

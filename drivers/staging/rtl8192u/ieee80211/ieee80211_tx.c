@@ -356,7 +356,7 @@ void ieee80211_tx_query_agg_cap(struct ieee80211_device *ieee, struct sk_buff *s
 		}
 	}
 FORCED_AGG_SETTING:
-	switch(pHTInfo->ForcedAMPDUMode )
+	switch (pHTInfo->ForcedAMPDUMode )
 	{
 		case HT_AGG_AUTO:
 			break;

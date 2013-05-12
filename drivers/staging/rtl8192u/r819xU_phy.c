@@ -710,7 +710,7 @@ u8 rtl8192_phy_checkBBAndRF(struct net_device *dev, HW90_BLOCK_E CheckBlock, RF9
 		//
 		// Write Data to register and readback
 		//
-		switch(CheckBlock)
+		switch (CheckBlock)
 		{
 		case HW90_BLOCK_MAC:
 			RT_TRACE(COMP_ERR, "PHY_CheckBBRFOK(): Never Write 0x100 here!");
@@ -892,7 +892,7 @@ void rtl8192_phy_setTxPower(struct net_device *dev, u8 channel)
 	u8	powerlevel = priv->TxPowerLevelCCK[channel-1];
 	u8	powerlevelOFDM24G = priv->TxPowerLevelOFDM24G[channel-1];
 
-	switch(priv->rf_chip)
+	switch (priv->rf_chip)
 	{
 	case RF_8256:
 		PHY_SetRF8256CCKTxPower(dev, powerlevel); //need further implement
@@ -917,7 +917,7 @@ void rtl8192_phy_RFConfig(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	switch(priv->rf_chip)
+	switch (priv->rf_chip)
 	{
 		case RF_8256:
 			PHY_RF8256_Config(dev);
@@ -956,7 +956,7 @@ u8 rtl8192_phy_ConfigRFWithHeaderFile(struct net_device *dev, RF90_RADIO_PATH_E	
 	//u32* pRFArray;
 	u8 ret = 0;
 
-	switch(eRFPath){
+	switch (eRFPath){
 	case RF90_PATH_A:
 		for(i = 0;i<RadioA_ArrayLength; i=i+2){
 
@@ -1026,7 +1026,7 @@ void rtl8192_SetTxPowerLevel(struct net_device *dev, u8 channel)
 	u8	powerlevel = priv->TxPowerLevelCCK[channel-1];
 	u8	powerlevelOFDM24G = priv->TxPowerLevelOFDM24G[channel-1];
 
-	switch(priv->rf_chip)
+	switch (priv->rf_chip)
 	{
 	case RF_8225:
 #ifdef TO_DO_LIST
@@ -1071,10 +1071,10 @@ bool rtl8192_SetRFPowerState(struct net_device *dev, RT_RF_POWER_STATE eRFPowerS
 
 	priv->SetRFPowerStateInProgress = true;
 
-	switch(priv->rf_chip)
+	switch (priv->rf_chip)
 	{
 		case RF_8256:
-		switch( eRFPowerState )
+		switch ( eRFPowerState )
 		{
 			case eRfOn:
 	//RF-A, RF-B
@@ -1129,10 +1129,10 @@ bool rtl8192_SetRFPowerState(struct net_device *dev, RT_RF_POWER_STATE eRFPowerS
 	{
 		// Update current RF state variable.
 		pHalData->eRFPowerState = eRFPowerState;
-		switch(pHalData->RFChipID )
+		switch (pHalData->RFChipID )
 		{
 			case RF_8256:
-		switch(pHalData->eRFPowerState)
+		switch (pHalData->eRFPowerState)
 				{
 				case eRfOff:
 					//
@@ -1283,7 +1283,7 @@ u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel, u8 *stage, u
 
 		// <3> Fill up RF dependent command.
 		RfDependCmdCnt = 0;
-		switch( priv->rf_chip )
+		switch ( priv->rf_chip )
 		{
 		case RF_8225:
 			if (!(channel >= 1 && channel <= 14))
@@ -1321,7 +1321,7 @@ u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel, u8 *stage, u
 
 
 		do{
-			switch(*stage)
+			switch (*stage)
 			{
 			case 0:
 				CurrentCmd=&PreCommonCmd[*step];
@@ -1349,7 +1349,7 @@ u8 rtl8192_phy_SwChnlStepByStep(struct net_device *dev, u8 channel, u8 *stage, u
 				}
 			}
 
-			switch(CurrentCmd->CmdID)
+			switch (CurrentCmd->CmdID)
 			{
 			case CmdID_SetTxPowerLevel:
 				if(priv->card_8192_version == (u8)VERSION_819xU_A) //xiong: consider it later!
@@ -1452,7 +1452,7 @@ if (0) //to test current channel from RF reg 0x7.
 	}
 }
 	//--------------------------------------------
-	switch(priv->ieee80211->mode)
+	switch (priv->ieee80211->mode)
 	{
 	case WIRELESS_MODE_A:
 	case WIRELESS_MODE_N_5G:
@@ -1527,7 +1527,7 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 	//<1>Set MAC register
 	regBwOpMode = read_nic_byte(dev, BW_OPMODE);
 
-	switch(priv->CurrentChannelBW)
+	switch (priv->CurrentChannelBW)
 	{
 		case HT_CHANNEL_WIDTH_20:
 			regBwOpMode |= BW_OPMODE_20MHZ;
@@ -1547,7 +1547,7 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 	}
 
 	//<2>Set PHY related register
-	switch(priv->CurrentChannelBW)
+	switch (priv->CurrentChannelBW)
 	{
 		case HT_CHANNEL_WIDTH_20:
 			// Add by Vivi 20071119
@@ -1617,7 +1617,7 @@ void rtl8192_SetBWModeWorkItem(struct net_device *dev)
 	//Skip over setting of J-mode in BB register here. Default value is "None J mode". Emily 20070315
 
 	//<3>Set RF related register
-	switch( priv->rf_chip )
+	switch ( priv->rf_chip )
 	{
 		case RF_8225:
 #ifdef TO_DO_LIST
@@ -1704,7 +1704,7 @@ extern void InitialGainOperateWorkItemCallBack(struct work_struct *work)
 
 	Operation = priv->InitialGainOperateType;
 
-	switch(Operation)
+	switch (Operation)
 	{
 		case IG_Backup:
 			RT_TRACE(COMP_SCAN, "IG_Backup, backup the initial gain.\n");

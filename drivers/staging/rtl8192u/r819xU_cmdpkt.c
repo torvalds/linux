@@ -732,7 +732,7 @@ cmpk_message_handle_rx(
 		/* 2007/01/17 MH We support aggregation of different cmd in the same packet. */
 		element_id = pcmd_buff[0];
 
-		switch(element_id)
+		switch (element_id)
 		{
 			case RX_TX_FEEDBACK:
 				cmpk_handle_tx_feedback (dev, pcmd_buff);

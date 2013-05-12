@@ -709,7 +709,7 @@ static int r8192_wx_set_enc(struct net_device *dev,
 		#define CONF_WEP40  0x4
 		#define CONF_WEP104 0x14
 
-		switch(wrqu->encoding.flags & IW_ENCODE_INDEX){
+		switch (wrqu->encoding.flags & IW_ENCODE_INDEX){
 		case 0: key_idx = ieee->tx_keyidx; break;
 		case 1:	key_idx = 0; break;
 		case 2:	key_idx = 1; break;

@@ -367,7 +367,7 @@ bool GetTs(
 			return false;
 		}
 
-		switch(TID)
+		switch (TID)
 		{
 		case 0:
 		case 3:

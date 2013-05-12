@@ -3581,7 +3581,7 @@ void dm_check_fsync(struct net_device *dev)
 	{
 		if(priv->ieee80211->bfsync_enable == 0)
 		{
-			switch(priv->ieee80211->fsync_state)
+			switch (priv->ieee80211->fsync_state)
 			{
 				case Default_Fsync:
 					dm_StartHWFsync(dev);
@@ -3599,7 +3599,7 @@ void dm_check_fsync(struct net_device *dev)
 		}
 		else
 		{
-			switch(priv->ieee80211->fsync_state)
+			switch (priv->ieee80211->fsync_state)
 			{
 				case Default_Fsync:
 					dm_StartSWFsync(dev);
@@ -3632,7 +3632,7 @@ void dm_check_fsync(struct net_device *dev)
 	}
 	else
 	{
-		switch(priv->ieee80211->fsync_state)
+		switch (priv->ieee80211->fsync_state)
 		{
 			case HW_Fsync:
 				dm_EndHWFsync(dev);

@@ -1014,7 +1014,7 @@ int alloc_tx_beacon_desc_ring(struct net_device *dev, int count)
 
 inline u16 ieeerate2rtlrate(int rate)
 {
-	switch(rate){
+	switch (rate){
 	case 10:
 	return 0;
 	case 20:
@@ -1543,7 +1543,7 @@ void rtl8192_config_rate(struct net_device *dev, u16 *rate_config)
 	 for (i=0; i<net->rates_len; i++)
 	 {
 		 basic_rate = net->rates[i]&0x7f;
-		 switch(basic_rate)
+		 switch (basic_rate)
 		 {
 			 case MGN_1M:	*rate_config |= RRSR_1M;	break;
 			 case MGN_2M:	*rate_config |= RRSR_2M;	break;
@@ -1562,7 +1562,7 @@ void rtl8192_config_rate(struct net_device *dev, u16 *rate_config)
 	 for (i=0; i<net->rates_ex_len; i++)
 	 {
 		 basic_rate = net->rates_ex[i]&0x7f;
-		 switch(basic_rate)
+		 switch (basic_rate)
 		 {
 			 case MGN_1M:	*rate_config |= RRSR_1M;	break;
 			 case MGN_2M:	*rate_config |= RRSR_2M;	break;
@@ -1698,7 +1698,7 @@ u16 N_DBPSOfRate(u16 DataRate)
 {
 	 u16 N_DBPS = 24;
 
-	 switch(DataRate)
+	 switch (DataRate)
 	 {
 	 case 60:
 	  N_DBPS = 24;
@@ -1824,7 +1824,7 @@ u8 MapHwQueueToFirmwareQueue(u8 QueueID)
 {
 	u8 QueueSelect = 0x0;       //defualt set to
 
-	switch(QueueID) {
+	switch (QueueID) {
 	case BE_QUEUE:
 		QueueSelect = QSLT_BE;  //or QSelect = pTcb->priority;
 		break;
@@ -1870,7 +1870,7 @@ u8 MRateToHwRate8190Pci(u8 rate)
 {
 	u8  ret = DESC90_RATE1M;
 
-	switch(rate) {
+	switch (rate) {
 	case MGN_1M:    ret = DESC90_RATE1M;    break;
 	case MGN_2M:    ret = DESC90_RATE2M;    break;
 	case MGN_5_5M:  ret = DESC90_RATE5_5M;  break;
@@ -2581,7 +2581,7 @@ u8 rtl8192_getSupportedWireleeMode(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u8 ret = 0;
-	switch(priv->rf_chip)
+	switch (priv->rf_chip)
 	{
 		case RF_8225:
 		case RF_8256:
@@ -3019,7 +3019,7 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 	}//end if VersionID == VERSION_819xU_A
 
 //added by vivi, for dlink led, 20080416
-	switch(priv->eeprom_CustomerID)
+	switch (priv->eeprom_CustomerID)
 	{
 		case EEPROM_CID_RUNTOP:
 			priv->CustomerID = RT_CID_819x_RUNTOP;
@@ -3035,7 +3035,7 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 
 	}
 
-	switch(priv->CustomerID)
+	switch (priv->CustomerID)
 	{
 		case RT_CID_819x_RUNTOP:
 			priv->LedStrategy = SW_LED_MODE2;
@@ -3146,7 +3146,7 @@ void rtl8192_hwconfig(struct net_device *dev)
 
 // Set RRSR, RATR, and BW_OPMODE registers
 	//
-	switch(priv->ieee80211->mode)
+	switch (priv->ieee80211->mode)
 	{
 	case WIRELESS_MODE_B:
 		regBwOpMode = BW_OPMODE_20MHZ;
@@ -4402,7 +4402,7 @@ u8 HwRateToMRate90(bool bIsHT, u8 rate)
 	u8  ret_rate = 0xff;
 
 	if(!bIsHT) {
-		switch(rate) {
+		switch (rate) {
 		case DESC90_RATE1M:   ret_rate = MGN_1M;         break;
 		case DESC90_RATE2M:   ret_rate = MGN_2M;         break;
 		case DESC90_RATE5_5M: ret_rate = MGN_5_5M;       break;
@@ -4423,7 +4423,7 @@ u8 HwRateToMRate90(bool bIsHT, u8 rate)
 		}
 
 	} else {
-		switch(rate) {
+		switch (rate) {
 		case DESC90_RATEMCS0:   ret_rate = MGN_MCS0;    break;
 		case DESC90_RATEMCS1:   ret_rate = MGN_MCS1;    break;
 		case DESC90_RATEMCS2:   ret_rate = MGN_MCS2;    break;
@@ -4890,7 +4890,7 @@ static void rtl8192_query_rxphystatus(
 		{
 			report = pcck_buf->cck_agc_rpt & 0xc0;
 			report = report>>6;
-			switch(report)
+			switch (report)
 			{
 				//Fixed by Jacken from Bryant 2008-03-20
 				//Original value is -38 , -26 , -14 , -2
@@ -4913,7 +4913,7 @@ static void rtl8192_query_rxphystatus(
 		{
 			report = pcck_buf->cck_agc_rpt & 0x60;
 			report = report>>5;
-			switch(report)
+			switch (report)
 			{
 				case 0x3:
 					rx_pwr_all = -35 - ((pcck_buf->cck_agc_rpt & 0x1f)<<1) ;
@@ -5180,7 +5180,7 @@ UpdateReceivedRateHistogramStatistics8190(
 	else
 	preamble_guardinterval = 0;// long
 
-	switch(stats->rate)
+	switch (stats->rate)
 	{
 		//
 		// CCK rate
