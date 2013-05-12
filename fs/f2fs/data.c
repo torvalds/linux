@@ -233,18 +233,23 @@ struct page *get_lock_data_page(struct inode *inode, pgoff_t index)
 	struct page *page;
 	int err;
 
-	set_new_dnode(&dn, inode, NULL, NULL, 0);
-	err = get_dnode_of_data(&dn, index, LOOKUP_NODE);
-	if (err)
-		return ERR_PTR(err);
-	f2fs_put_dnode(&dn);
-
-	if (dn.data_blkaddr == NULL_ADDR)
-		return ERR_PTR(-ENOENT);
 repeat:
 	page = grab_cache_page(mapping, index);
 	if (!page)
 		return ERR_PTR(-ENOMEM);
+
+	set_new_dnode(&dn, inode, NULL, NULL, 0);
+	err = get_dnode_of_data(&dn, index, LOOKUP_NODE);
+	if (err) {
+		f2fs_put_page(page, 1);
+		return ERR_PTR(err);
+	}
+	f2fs_put_dnode(&dn);
+
+	if (dn.data_blkaddr == NULL_ADDR) {
+		f2fs_put_page(page, 1);
+		return ERR_PTR(-ENOENT);
+	}
 
 	if (PageUptodate(page))
 		return page;
