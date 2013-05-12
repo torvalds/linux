@@ -626,7 +626,7 @@ static void jz4740_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 			gpio_set_value(host->pdata->gpio_power,
 					!host->pdata->power_active_low);
 		host->cmdat |= JZ_MMC_CMDAT_INIT;
-		clk_enable(host->clk);
+		clk_prepare_enable(host->clk);
 		break;
 	case MMC_POWER_ON:
 		break;
@@ -634,7 +634,7 @@ static void jz4740_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		if (gpio_is_valid(host->pdata->gpio_power))
 			gpio_set_value(host->pdata->gpio_power,
 					host->pdata->power_active_low);
-		clk_disable(host->clk);
+		clk_disable_unprepare(host->clk);
 		break;
 	}
 
