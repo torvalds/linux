@@ -767,11 +767,11 @@ static inline void ftrace_dump(enum ftrace_dump_mode oops_dump_mode) { }
 
 
 /*
- * swap - swap value of @a and @b
+ * swap - swap value of @a and @b using xor
  */
 #define swap(a, b) \
-	do { typeof(a) __tmp = (a); (a) = (b); (b) = __tmp; } while (0)
-
+	 (((a) ^= (b)), ((b) ^= (a)), ((a) ^= (b)))
+	 
 /**
  * container_of - cast a member of a structure out to the containing structure
  * @ptr:	the pointer to the member.
