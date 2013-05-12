@@ -61,15 +61,6 @@ extern int mmc_pm_gpio_ctrl(char* name, int level);
 *	rtl8189es_vcc_en  = port:PH12<1><default><default><0>
 */
 
-int rtl8189es_sdio_powerup(void)
-{
-	mmc_pm_gpio_ctrl("rtl8189es_vdd_en", 1);   
-	udelay(100);   
-	mmc_pm_gpio_ctrl("rtl8189es_vcc_en", 1);    
-	udelay(50);    
-	mmc_pm_gpio_ctrl("rtl8189es_shdn", 1);        
-	return 0;
-}
 int rtl8189es_sdio_poweroff(void)
 {    
 	mmc_pm_gpio_ctrl("rtl8189es_shdn", 0);    
@@ -97,6 +88,13 @@ static const struct sdio_device_id sdio_ids[] = {
 //	{ SDIO_DEVICE_CLASS(SDIO_CLASS_WLAN)		},
 //	{ /* end: all zeroes */				},
 };
+
+#ifdef CONFIG_RTL8723A
+MODULE_ALIAS("sdio:c*v024Cd8723*");
+#endif
+#ifdef CONFIG_RTL8188E
+MODULE_ALIAS("sdio:c*v024Cd8179*");
+#endif
 
 typedef struct _driver_priv {
 	struct sdio_driver r871xs_drv;
@@ -747,27 +745,14 @@ extern int console_suspend_enabled;
 static int __init rtw_drv_entry(void)
 {
 	int ret=0;
-	
-#ifdef CONFIG_PLATFORM_ARM_SUN4I
-/*depends on sunxi power control */
+
 #if defined CONFIG_MMC_SUNXI_POWER_CONTROL    
 	unsigned int mod_sel = mmc_pm_get_mod_type();	
-	if(mod_sel == SUNXI_SDIO_WIFI_NUM_RTL8189ES) 
-	{		
-		rtl8189es_sdio_powerup();  		
-		sunximmc_rescan_card(SDIOID, 1);		
-		printk("[rtl8189es] %s: power up, rescan card.\n", __FUNCTION__);  			
-	} 
-	else 
-	{		
-		ret = -1;		
+	if (mod_sel != SUNXI_SDIO_WIFI_NUM_RTL8189ES) {
 		printk("[rtl8189es] %s: mod_sel = %d is incorrect.\n", __FUNCTION__, mod_sel);	
+		return -1;
 	}
 #endif	// defined CONFIG_MMC_SUNXI_POWER_CONTROL
-	if(ret != 0)		
-		goto exit;
-	
-#endif //CONFIG_PLATFORM_ARM_SUN4I
 
 //	DBG_871X(KERN_INFO "+%s", __func__);
 	RT_TRACE(_module_hci_intfs_c_, _drv_notice_, ("+rtw_drv_entry\n"));

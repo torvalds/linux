@@ -117,12 +117,16 @@ static void rtl8189es_power(int mode, int* updown)
 void rtl8189es_wifi_gpio_init(void)
 {
 	struct mmc_pm_ops *ops = &mmc_card_pm_ops;
+	int updown = 1;
 
 	rtl8189es_msg("exec rtl8189es_wifi_gpio_init...\n");
 	rtl8189es_powerup = 0;
 	rtl8189es_suspend = 0;
 	ops->gpio_ctrl 	  = rtl8189es_gpio_ctrl;
 	ops->get_io_val   = rtl8189es_get_io_value;
-    ops->standby 	  = rtl8189es_standby;
-	ops->power 		  = rtl8189es_power;
+	ops->standby      = rtl8189es_standby;
+	ops->power        = rtl8189es_power;
+	rtl8189es_power(1, &updown);
+	sunximmc_rescan_card(ops->sdio_cardid, 1);
+	rtl8189es_msg("power up, rescan card.\n");
 }
