@@ -1380,7 +1380,7 @@ int batadv_bla_is_backbone_gw(struct sk_buff *skb,
 	ethhdr = (struct ethhdr *)(((uint8_t *)skb->data) + hdr_size);
 
 	if (ntohs(ethhdr->h_proto) == ETH_P_8021Q) {
-		if (!pskb_may_pull(skb, hdr_size + sizeof(struct vlan_ethhdr)))
+		if (!pskb_may_pull(skb, hdr_size + VLAN_ETH_HLEN))
 			return 0;
 
 		vhdr = (struct vlan_ethhdr *)(skb->data + hdr_size);
