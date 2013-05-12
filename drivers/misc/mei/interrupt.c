@@ -31,32 +31,6 @@
 
 
 /**
- * mei_cl_complete_handler - processes completed operation for a client
- *
- * @cl: private data of the file object.
- * @cb: callback block.
- */
-static void mei_cl_complete_handler(struct mei_cl *cl, struct mei_cl_cb *cb)
-{
-	if (cb->fop_type == MEI_FOP_WRITE) {
-		mei_io_cb_free(cb);
-		cb = NULL;
-		cl->writing_state = MEI_WRITE_COMPLETE;
-		if (waitqueue_active(&cl->tx_wait))
-			wake_up_interruptible(&cl->tx_wait);
-
-	} else if (cb->fop_type == MEI_FOP_READ &&
-			MEI_READING == cl->reading_state) {
-		cl->reading_state = MEI_READ_COMPLETE;
-		if (waitqueue_active(&cl->rx_wait))
-			wake_up_interruptible(&cl->rx_wait);
-		else
-			mei_cl_bus_rx_event(cl);
-
-	}
-}
-
-/**
  * mei_irq_compl_handler - dispatch complete handelers
  *	for the completed callbacks
  *
@@ -78,7 +52,7 @@ void mei_irq_compl_handler(struct mei_device *dev, struct mei_cl_cb *compl_list)
 		if (cl == &dev->iamthif_cl)
 			mei_amthif_complete(dev, cb);
 		else
-			mei_cl_complete_handler(cl, cb);
+			mei_cl_complete(cl, cb);
 	}
 }
 EXPORT_SYMBOL_GPL(mei_irq_compl_handler);
