@@ -27,6 +27,28 @@
 #define WIL6210_RTAP_SIZE (128)
 
 /* Tx/Rx path */
+
+/*
+ * Common representation of physical address in Vring
+ */
+struct vring_dma_addr {
+	__le32 addr_low;
+	__le16 addr_high;
+} __packed;
+
+static inline dma_addr_t wil_desc_addr(struct vring_dma_addr *addr)
+{
+	return le32_to_cpu(addr->addr_low) |
+			   ((u64)le16_to_cpu(addr->addr_high) << 32);
+}
+
+static inline void wil_desc_addr_set(struct vring_dma_addr *addr,
+				     dma_addr_t pa)
+{
+	addr->addr_low = cpu_to_le32(lower_32_bits(pa));
+	addr->addr_high = cpu_to_le16((u16)upper_32_bits(pa));
+}
+
 /*
  * Tx descriptor - MAC part
  * [dword 0]
@@ -216,8 +238,7 @@ struct vring_tx_mac {
 
 struct vring_tx_dma {
 	u32 d0;
-	u32 addr_low;
-	u16 addr_high;
+	struct vring_dma_addr addr;
 	u8  ip_length;
 	u8  b11;       /* 0..6: mac_length; 7:ip_version */
 	u8  error;     /* 0..2: err; 3..7: reserved; */
@@ -315,8 +336,7 @@ struct vring_rx_mac {
 
 struct vring_rx_dma {
 	u32 d0;
-	u32 addr_low;
-	u16 addr_high;
+	struct vring_dma_addr addr;
 	u8  ip_length;
 	u8  b11;
 	u8  error;
