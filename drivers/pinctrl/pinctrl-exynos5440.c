@@ -1000,11 +1000,6 @@ static int exynos5440_pinctrl_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "cannot find IO resource\n");
-		return -ENOENT;
-	}
-
 	priv->reg_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(priv->reg_base))
 		return PTR_ERR(priv->reg_base);
