@@ -961,6 +961,7 @@ int bch_cached_dev_attach(struct cached_dev *dc, struct cache_set *c)
 	atomic_set(&dc->count, 1);
 
 	if (BDEV_STATE(&dc->sb) == BDEV_STATE_DIRTY) {
+		bch_sectors_dirty_init(dc);
 		atomic_set(&dc->has_dirty, 1);
 		atomic_inc(&dc->count);
 		bch_writeback_queue(dc);

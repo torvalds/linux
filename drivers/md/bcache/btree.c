@@ -1119,11 +1119,8 @@ static int btree_gc_mark_node(struct btree *b, unsigned *keys,
 		gc->nkeys++;
 
 		gc->data += KEY_SIZE(k);
-		if (KEY_DIRTY(k)) {
+		if (KEY_DIRTY(k))
 			gc->dirty += KEY_SIZE(k);
-			if (d)
-				d->sectors_dirty_gc += KEY_SIZE(k);
-		}
 	}
 
 	for (t = b->sets; t <= &b->sets[b->nsets]; t++)
@@ -1377,7 +1374,6 @@ static void btree_gc_start(struct cache_set *c)
 {
 	struct cache *ca;
 	struct bucket *b;
-	struct bcache_device **d;
 	unsigned i;
 
 	if (!c->gc_mark_valid)
@@ -1395,12 +1391,6 @@ static void btree_gc_start(struct cache_set *c)
 				SET_GC_MARK(b, GC_MARK_RECLAIMABLE);
 		}
 
-	for (d = c->devices;
-	     d < c->devices + c->nr_uuids;
-	     d++)
-		if (*d)
-			(*d)->sectors_dirty_gc = 0;
-
 	mutex_unlock(&c->bucket_lock);
 }
 
@@ -1409,7 +1399,6 @@ size_t bch_btree_gc_finish(struct cache_set *c)
 	size_t available = 0;
 	struct bucket *b;
 	struct cache *ca;
-	struct bcache_device **d;
 	unsigned i;
 
 	mutex_lock(&c->bucket_lock);
@@ -1451,22 +1440,6 @@ size_t bch_btree_gc_finish(struct cache_set *c)
 			}
 		}
 	}
-
-	for (d = c->devices;
-	     d < c->devices + c->nr_uuids;
-	     d++)
-		if (*d) {
-			unsigned long last =
-				atomic_long_read(&((*d)->sectors_dirty));
-			long difference = (*d)->sectors_dirty_gc - last;
-
-			pr_debug("sectors dirty off by %li", difference);
-
-			(*d)->sectors_dirty_last += difference;
-
-			atomic_long_set(&((*d)->sectors_dirty),
-					(*d)->sectors_dirty_gc);
-		}
 
 	mutex_unlock(&c->bucket_lock);
 	return available;

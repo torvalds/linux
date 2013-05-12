@@ -377,6 +377,42 @@ err:
 	refill_dirty(cl);
 }
 
+/* Init */
+
+static int bch_btree_sectors_dirty_init(struct btree *b, struct btree_op *op,
+					struct cached_dev *dc)
+{
+	struct bkey *k;
+	struct btree_iter iter;
+
+	bch_btree_iter_init(b, &iter, &KEY(dc->disk.id, 0, 0));
+	while ((k = bch_btree_iter_next_filter(&iter, b, bch_ptr_bad)))
+		if (!b->level) {
+			if (KEY_INODE(k) > dc->disk.id)
+				break;
+
+			if (KEY_DIRTY(k))
+				atomic_long_add(KEY_SIZE(k),
+						&dc->disk.sectors_dirty);
+		} else {
+			btree(sectors_dirty_init, k, b, op, dc);
+			if (KEY_INODE(k) > dc->disk.id)
+				break;
+
+			cond_resched();
+		}
+
+	return 0;
+}
+
+void bch_sectors_dirty_init(struct cached_dev *dc)
+{
+	struct btree_op op;
+
+	bch_btree_op_init_stack(&op);
+	btree_root(sectors_dirty_init, dc->disk.c, &op, dc);
+}
+
 void bch_cached_dev_writeback_init(struct cached_dev *dc)
 {
 	closure_init_unlocked(&dc->writeback);
