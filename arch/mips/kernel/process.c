@@ -264,7 +264,7 @@ static inline int is_ra_save_ins(union mips_instruction *ip)
 #endif
 }
 
-static inline int is_jal_jalr_jr_ins(union mips_instruction *ip)
+static inline int is_jump_ins(union mips_instruction *ip)
 {
 #ifdef CONFIG_CPU_MICROMIPS
 	/*
@@ -288,6 +288,8 @@ static inline int is_jal_jalr_jr_ins(union mips_instruction *ip)
 		return 0;
 	return (((ip->u_format.uimmediate >> 6) & mm_jalr_op) == mm_jalr_op);
 #else
+	if (ip->j_format.opcode == j_op)
+		return 1;
 	if (ip->j_format.opcode == jal_op)
 		return 1;
 	if (ip->r_format.opcode != spec_op)
@@ -350,7 +352,7 @@ static int get_frame_info(struct mips_frame_info *info)
 
 	for (i = 0; i < max_insns; i++, ip++) {
 
-		if (is_jal_jalr_jr_ins(ip))
+		if (is_jump_ins(ip))
 			break;
 		if (!info->frame_size) {
 			if (is_sp_move_ins(ip))
