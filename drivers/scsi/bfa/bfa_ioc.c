@@ -2196,6 +2196,7 @@ bfa_ioc_pci_init(struct bfa_ioc_s *ioc, struct bfa_pcidev_s *pcidev,
 		break;
 
 	case BFA_PCI_DEVICE_ID_CT2:
+	case BFA_PCI_DEVICE_ID_CT2_QUAD:
 		ioc->asic_gen = BFI_ASIC_GEN_CT2;
 		if (clscode == BFI_PCIFN_CLASS_FC &&
 		    pcidev->ssid == BFA_PCI_CT2_SSID_FC) {

@@ -637,6 +637,7 @@ enum {
 	BFA_PCI_DEVICE_ID_CT		= 0x14,
 	BFA_PCI_DEVICE_ID_CT_FC		= 0x21,
 	BFA_PCI_DEVICE_ID_CT2		= 0x22,
+	BFA_PCI_DEVICE_ID_CT2_QUAD	= 0x23,
 };
 
 #define bfa_asic_id_cb(__d)			\
@@ -645,7 +646,9 @@ enum {
 #define bfa_asic_id_ct(__d)			\
 	((__d) == BFA_PCI_DEVICE_ID_CT ||	\
 	 (__d) == BFA_PCI_DEVICE_ID_CT_FC)
-#define bfa_asic_id_ct2(__d)	((__d) == BFA_PCI_DEVICE_ID_CT2)
+#define bfa_asic_id_ct2(__d)			\
+	((__d) == BFA_PCI_DEVICE_ID_CT2 ||	\
+	(__d) == BFA_PCI_DEVICE_ID_CT2_QUAD)
 #define bfa_asic_id_ctc(__d)	\
 	(bfa_asic_id_ct(__d) || bfa_asic_id_ct2(__d))
 
