@@ -3471,6 +3471,8 @@ static void __init rk30_clock_common_init(unsigned long gpll_rate, unsigned long
 {
 	//general
 	clk_set_rate_nolock(&general_pll_clk, gpll_rate);
+	lpj_gpll = CLK_LOOPS_RECALC(general_pll_clk.rate);
+
 	//code pll
 	clk_set_rate_nolock(&codec_pll_clk, cpll_rate);
 
