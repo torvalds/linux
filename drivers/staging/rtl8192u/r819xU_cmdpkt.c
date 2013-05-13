@@ -66,7 +66,7 @@ SendTxCommandPacket(
 	memcpy(ptr_buf,pData,DataLen);
 	tcb_desc->txbuf_size= (u16)DataLen;
 
-	if(!priv->ieee80211->check_nic_enough_desc(dev,tcb_desc->queue_index)||
+	if (!priv->ieee80211->check_nic_enough_desc(dev,tcb_desc->queue_index)||
 			(!skb_queue_empty(&priv->ieee80211->skb_waitQ[tcb_desc->queue_index]))||\
 			(priv->ieee80211->queue_stop) ) {
 			RT_TRACE(COMP_FIRMWARE,"===================NULL packet==================================> tx full!\n");
@@ -126,7 +126,7 @@ SendTxCommandPacket(
 	//Fragmentation might be required
 	frag_threshold = pfirmware->cmdpacket_frag_thresold;
 	do {
-		if((buffer_len - frag_offset) > frag_threshold) {
+		if ((buffer_len - frag_offset) > frag_threshold) {
 			frag_length = frag_threshold ;
 			bLastIniPkt = 0;
 
@@ -163,7 +163,7 @@ SendTxCommandPacket(
 		tcb_desc->txbuf_size= (u16)buffer_len;
 
 
-		if(!priv->ieee80211->check_nic_enough_desc(dev,tcb_desc->queue_index)||
+		if (!priv->ieee80211->check_nic_enough_desc(dev,tcb_desc->queue_index)||
 			(!skb_queue_empty(&priv->ieee80211->skb_waitQ[tcb_desc->queue_index]))||\
 			(priv->ieee80211->queue_stop) ) {
 			RT_TRACE(COMP_FIRMWARE,"=====================================================> tx full!\n");
@@ -221,7 +221,7 @@ cmpk_count_txstatistic(
 #endif
 
 #ifdef TODO
-	if(pAdapter->bInHctTest)
+	if (pAdapter->bInHctTest)
 		return;
 #endif
 	/* We can not know the packet length and transmit type: broadcast or uni
@@ -341,7 +341,7 @@ cmdpkt_beacontimerinterrupt_819xusb(
 		//
 		// 070117, rcnjko: 87B have to S/W beacon for DTM encryption_cmn.
 		//
-		if(priv->ieee80211->current_network.mode == IEEE_A  ||
+		if (priv->ieee80211->current_network.mode == IEEE_A  ||
 			priv->ieee80211->current_network.mode == IEEE_N_5G ||
 			(priv->ieee80211->current_network.mode == IEEE_N_24G  && (!priv->ieee80211->pHTInfo->bCurSuppCCK)))
 		{
@@ -411,7 +411,7 @@ cmpk_handle_interrupt_status(
 
 
 	// Statistics of beacon for ad-hoc mode.
-	if(	priv->ieee80211->iw_mode == IW_MODE_ADHOC)
+	if (	priv->ieee80211->iw_mode == IW_MODE_ADHOC)
 	{
 		//2 maybe need endian transform?
 		rx_intr_status.interrupt_status = *((u32 *)(pmsg + 4));
