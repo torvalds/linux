@@ -25,7 +25,7 @@
 #include <linux/module.h>
 #include <linux/usb.h>
 #include <linux/mutex.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #ifdef CONFIG_USB_DEBUG
 static int debug = 5;
