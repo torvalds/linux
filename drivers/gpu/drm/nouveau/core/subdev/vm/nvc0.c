@@ -32,7 +32,6 @@
 
 struct nvc0_vmmgr_priv {
 	struct nouveau_vmmgr base;
-	spinlock_t lock;
 };
 
 
@@ -164,12 +163,11 @@ void
 nvc0_vm_flush_engine(struct nouveau_subdev *subdev, u64 addr, int type)
 {
 	struct nvc0_vmmgr_priv *priv = (void *)nouveau_vmmgr(subdev);
-	unsigned long flags;
 
 	/* looks like maybe a "free flush slots" counter, the
 	 * faster you write to 0x100cbc to more it decreases
 	 */
-	spin_lock_irqsave(&priv->lock, flags);
+	mutex_lock(&nv_subdev(priv)->mutex);
 	if (!nv_wait_ne(subdev, 0x100c80, 0x00ff0000, 0x00000000)) {
 		nv_error(subdev, "vm timeout 0: 0x%08x %d\n",
 			 nv_rd32(subdev, 0x100c80), type);
@@ -183,7 +181,7 @@ nvc0_vm_flush_engine(struct nouveau_subdev *subdev, u64 addr, int type)
 		nv_error(subdev, "vm timeout 1: 0x%08x %d\n",
 			 nv_rd32(subdev, 0x100c80), type);
 	}
-	spin_unlock_irqrestore(&priv->lock, flags);
+	mutex_unlock(&nv_subdev(priv)->mutex);
 }
 
 static void
@@ -227,7 +225,6 @@ nvc0_vmmgr_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->base.map_sg = nvc0_vm_map_sg;
 	priv->base.unmap = nvc0_vm_unmap;
 	priv->base.flush = nvc0_vm_flush;
-	spin_lock_init(&priv->lock);
 	return 0;
 }
 

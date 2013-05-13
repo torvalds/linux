@@ -31,7 +31,6 @@
 
 struct nv50_vmmgr_priv {
 	struct nouveau_vmmgr base;
-	spinlock_t lock;
 };
 
 static void
@@ -153,10 +152,9 @@ nv50_vm_flush(struct nouveau_vm *vm)
 {
 	struct nv50_vmmgr_priv *priv = (void *)vm->vmm;
 	struct nouveau_engine *engine;
-	unsigned long flags;
 	int i, vme;
 
-	spin_lock_irqsave(&priv->lock, flags);
+	mutex_lock(&nv_subdev(priv)->mutex);
 	for (i = 0; i < NVDEV_SUBDEV_NR; i++) {
 		if (!atomic_read(&vm->engref[i]))
 			continue;
@@ -182,7 +180,7 @@ nv50_vm_flush(struct nouveau_vm *vm)
 		if (!nv_wait(priv, 0x100c80, 0x00000001, 0x00000000))
 			nv_error(priv, "vm flush timeout: engine %d\n", vme);
 	}
-	spin_unlock_irqrestore(&priv->lock, flags);
+	mutex_unlock(&nv_subdev(priv)->mutex);
 }
 
 static int
@@ -220,7 +218,6 @@ nv50_vmmgr_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->base.map_sg = nv50_vm_map_sg;
 	priv->base.unmap = nv50_vm_unmap;
 	priv->base.flush = nv50_vm_flush;
-	spin_lock_init(&priv->lock);
 	return 0;
 }
 
