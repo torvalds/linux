@@ -161,7 +161,7 @@ static int iio_hwmon_probe(struct platform_device *pdev)
 error_remove_group:
 	sysfs_remove_group(&dev->kobj, &st->attr_group);
 error_release_channels:
-	iio_channel_release_all(st->channels);
+	iio_channel_release_all(channels);
 	return ret;
 }
 
