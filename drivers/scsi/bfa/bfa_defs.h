@@ -199,15 +199,34 @@ enum bfa_status {
 	BFA_STATUS_DPORT_DISABLED = 236, /* D-port mode is already disabled */
 	BFA_STATUS_CMD_NOTSUPP_MEZZ = 239, /* Cmd not supported for MEZZ card */
 	BFA_STATUS_FRU_NOT_PRESENT = 240, /* fru module not present */
+	BFA_STATUS_DPORT_NO_SFP = 243, /* SFP is not present.\n D-port will be
+					* enabled but it will be operational
+					* only after inserting a valid SFP. */
 	BFA_STATUS_DPORT_ERR = 245,	/* D-port mode is enabled */
+	BFA_STATUS_DPORT_ENOSYS = 254, /* Switch has no D_Port functionality */
+	BFA_STATUS_DPORT_CANT_PERF = 255, /* Switch port is not D_Port capable
+					* or D_Port is disabled */
+	BFA_STATUS_DPORT_LOGICALERR = 256, /* Switch D_Port fail */
+	BFA_STATUS_DPORT_SWBUSY = 257, /* Switch port busy */
 	BFA_STATUS_ERR_BBCR_SPEED_UNSUPPORT = 258, /*!< BB credit recovery is
 					* supported at max port speed alone */
 	BFA_STATUS_ERROR_BBCR_ENABLED  = 259, /*!< BB credit recovery
 					* is enabled */
 	BFA_STATUS_INVALID_BBSCN = 260, /*!< Invalid BBSCN value.
 					 * Valid range is [1-15] */
+	BFA_STATUS_DDPORT_ERR = 261, /* Dynamic D_Port mode is active.\n To
+					* exit dynamic mode, disable D_Port on
+					* the remote port */
+	BFA_STATUS_DPORT_SFPWRAP_ERR = 262, /* Clear e/o_wrap fail, check or
+						* replace SFP */
 	BFA_STATUS_BBCR_CFG_NO_CHANGE = 265, /*!< BBCR is operational.
 			* Disable BBCR and try this operation again. */
+	BFA_STATUS_DPORT_SW_NOTREADY = 268, /* Remote port is not ready to
+					* start dport test. Check remote
+					* port status. */
+	BFA_STATUS_DPORT_INV_SFP = 271, /* Invalid SFP for D-PORT mode. */
+	BFA_STATUS_DPORT_CMD_NOTSUPP    = 273, /* Dport is not supported by
+					* remote port */
 	BFA_STATUS_MAX_VAL		/* Unknown error code */
 };
 #define bfa_status_t enum bfa_status
@@ -524,17 +543,6 @@ struct bfa_ioc_aen_data_s {
 	wwn_t	pwwn;
 	u16	ioc_type;
 	mac_t	mac;
-};
-
-/*
- *	D-port states
- *
-*/
-enum bfa_dport_state {
-	BFA_DPORT_ST_DISABLED	= 0,	/* D-port is Disabled */
-	BFA_DPORT_ST_DISABLING	= 1,	/* D-port is Disabling */
-	BFA_DPORT_ST_ENABLING	= 2,	/* D-port is Enabling */
-	BFA_DPORT_ST_ENABLED	= 3,	/* D-port is Enabled */
 };
 
 /*
@@ -1136,6 +1144,7 @@ struct bfa_flash_attr_s {
 #define LB_PATTERN_DEFAULT	0xB5B5B5B5
 #define QTEST_CNT_DEFAULT	10
 #define QTEST_PAT_DEFAULT	LB_PATTERN_DEFAULT
+#define DPORT_ENABLE_LOOPCNT_DEFAULT (1024 * 1024)
 
 struct bfa_diag_memtest_s {
 	u8	algo;
@@ -1162,6 +1171,54 @@ struct bfa_diag_loopback_result_s {
 	u32	badfrmnum;      /* mis-match fram number */
 	u8	status;         /* loopback test result */
 	u8	rsvd[3];
+};
+
+enum bfa_diag_dport_test_status {
+	DPORT_TEST_ST_IDLE	= 0,    /* the test has not started yet. */
+	DPORT_TEST_ST_FINAL	= 1,    /* the test done successfully */
+	DPORT_TEST_ST_SKIP	= 2,    /* the test skipped */
+	DPORT_TEST_ST_FAIL	= 3,    /* the test failed */
+	DPORT_TEST_ST_INPRG	= 4,    /* the testing is in progress */
+	DPORT_TEST_ST_RESPONDER	= 5,    /* test triggered from remote port */
+	DPORT_TEST_ST_STOPPED	= 6,    /* the test stopped by user. */
+	DPORT_TEST_ST_MAX
+};
+
+enum bfa_diag_dport_test_type {
+	DPORT_TEST_ELOOP	= 0,
+	DPORT_TEST_OLOOP	= 1,
+	DPORT_TEST_ROLOOP	= 2,
+	DPORT_TEST_LINK		= 3,
+	DPORT_TEST_MAX
+};
+
+enum bfa_diag_dport_test_opmode {
+	BFA_DPORT_OPMODE_AUTO	= 0,
+	BFA_DPORT_OPMODE_MANU	= 1,
+};
+
+struct bfa_diag_dport_subtest_result_s {
+	u8	status;		/* bfa_diag_dport_test_status */
+	u8	rsvd[7];	/* 64bit align */
+	u64	start_time;	/* timestamp  */
+};
+
+struct bfa_diag_dport_result_s {
+	wwn_t	rp_pwwn;	/* switch port wwn  */
+	wwn_t	rp_nwwn;	/* switch node wwn  */
+	u64	start_time;	/* user/sw start time */
+	u64	end_time;	/* timestamp  */
+	u8	status;		/* bfa_diag_dport_test_status */
+	u8	mode;		/* bfa_diag_dport_test_opmode */
+	u8	rsvd;		/* 64bit align */
+	u8	speed;		/* link speed for buf_reqd */
+	u16	buffer_required;
+	u16	frmsz;		/* frame size for buf_reqd */
+	u32	lpcnt;		/* Frame count */
+	u32	pat;		/* Pattern */
+	u32	roundtrip_latency;	/* in nano sec */
+	u32	est_cable_distance;	/* in meter */
+	struct bfa_diag_dport_subtest_result_s subtest[DPORT_TEST_MAX];
 };
 
 struct bfa_diag_ledtest_s {

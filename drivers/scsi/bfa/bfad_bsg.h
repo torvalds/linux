@@ -144,7 +144,6 @@ enum {
 	IOCMD_FCPIM_LUNMASK_DELETE,
 	IOCMD_DIAG_DPORT_ENABLE,
 	IOCMD_DIAG_DPORT_DISABLE,
-	IOCMD_DIAG_DPORT_GET_STATE,
 	IOCMD_QOS_SET_BW,
 	IOCMD_FCPIM_THROTTLE_QUERY,
 	IOCMD_FCPIM_THROTTLE_SET,
@@ -153,6 +152,8 @@ enum {
 	IOCMD_FRUVPD_READ,
 	IOCMD_FRUVPD_UPDATE,
 	IOCMD_FRUVPD_GET_MAX_SIZE,
+	IOCMD_DIAG_DPORT_SHOW,
+	IOCMD_DIAG_DPORT_START,
 };
 
 struct bfa_bsg_gen_s {
@@ -593,6 +594,21 @@ struct bfa_bsg_diag_loopback_s {
 	struct bfa_diag_loopback_result_s result;
 };
 
+struct bfa_bsg_diag_dport_show_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	struct bfa_diag_dport_result_s result;
+};
+
+struct bfa_bsg_dport_enable_s {
+	bfa_status_t	status;
+	u16		bfad_num;
+	u16		rsvd;
+	u16		lpcnt;
+	u16		pat;
+};
+
 struct bfa_bsg_diag_fwping_s {
 	bfa_status_t	status;
 	u16		bfad_num;
@@ -638,13 +654,6 @@ struct bfa_bsg_diag_lb_stat_s {
 	bfa_status_t	status;
 	u16		bfad_num;
 	u16		rsvd;
-};
-
-struct bfa_bsg_diag_dport_get_state_s {
-	bfa_status_t	status;
-	u16		bfad_num;
-	u16		rsvd;
-	enum bfa_dport_state state;
 };
 
 struct bfa_bsg_phy_attr_s {

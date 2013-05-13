@@ -70,6 +70,8 @@ enum bfa_fcport_sm_event {
 	BFA_FCPORT_SM_DPORTENABLE = 10, /*  enable dport      */
 	BFA_FCPORT_SM_DPORTDISABLE = 11,/*  disable dport     */
 	BFA_FCPORT_SM_FAA_MISCONFIG = 12,	/* FAA misconfiguratin */
+	BFA_FCPORT_SM_DDPORTENABLE  = 13,	/* enable ddport	*/
+	BFA_FCPORT_SM_DDPORTDISABLE = 14,	/* disable ddport	*/
 };
 
 /*
@@ -202,6 +204,8 @@ static void     bfa_fcport_sm_iocfail(struct bfa_fcport_s *fcport,
 					enum bfa_fcport_sm_event event);
 static void	bfa_fcport_sm_dport(struct bfa_fcport_s *fcport,
 					enum bfa_fcport_sm_event event);
+static void     bfa_fcport_sm_ddport(struct bfa_fcport_s *fcport,
+					enum bfa_fcport_sm_event event);
 static void	bfa_fcport_sm_faa_misconfig(struct bfa_fcport_s *fcport,
 					enum bfa_fcport_sm_event event);
 
@@ -234,6 +238,7 @@ static struct bfa_sm_table_s hal_port_sm_table[] = {
 	{BFA_SM(bfa_fcport_sm_iocdown), BFA_PORT_ST_IOCDOWN},
 	{BFA_SM(bfa_fcport_sm_iocfail), BFA_PORT_ST_IOCDOWN},
 	{BFA_SM(bfa_fcport_sm_dport), BFA_PORT_ST_DPORT},
+	{BFA_SM(bfa_fcport_sm_ddport), BFA_PORT_ST_DDPORT},
 	{BFA_SM(bfa_fcport_sm_faa_misconfig), BFA_PORT_ST_FAA_MISCONFIG},
 };
 
@@ -2646,6 +2651,10 @@ bfa_fcport_sm_disabled(struct bfa_fcport_s *fcport,
 		bfa_sm_set_state(fcport, bfa_fcport_sm_dport);
 		break;
 
+	case BFA_FCPORT_SM_DDPORTENABLE:
+		bfa_sm_set_state(fcport, bfa_fcport_sm_ddport);
+		break;
+
 	default:
 		bfa_sm_fault(fcport->bfa, event);
 	}
@@ -2751,6 +2760,40 @@ bfa_fcport_sm_dport(struct bfa_fcport_s *fcport, enum bfa_fcport_sm_event event)
 
 	case BFA_FCPORT_SM_DPORTDISABLE:
 		bfa_sm_set_state(fcport, bfa_fcport_sm_disabled);
+		break;
+
+	default:
+		bfa_sm_fault(fcport->bfa, event);
+	}
+}
+
+static void
+bfa_fcport_sm_ddport(struct bfa_fcport_s *fcport,
+			enum bfa_fcport_sm_event event)
+{
+	bfa_trc(fcport->bfa, event);
+
+	switch (event) {
+	case BFA_FCPORT_SM_DISABLE:
+	case BFA_FCPORT_SM_DDPORTDISABLE:
+		bfa_sm_set_state(fcport, bfa_fcport_sm_disabled);
+		break;
+
+	case BFA_FCPORT_SM_DPORTENABLE:
+	case BFA_FCPORT_SM_DPORTDISABLE:
+	case BFA_FCPORT_SM_ENABLE:
+	case BFA_FCPORT_SM_START:
+		/**
+		 * Ignore event for a port that is ddport
+		 */
+		break;
+
+	case BFA_FCPORT_SM_STOP:
+		bfa_sm_set_state(fcport, bfa_fcport_sm_stopped);
+		break;
+
+	case BFA_FCPORT_SM_HWFAIL:
+		bfa_sm_set_state(fcport, bfa_fcport_sm_iocfail);
 		break;
 
 	default:
@@ -3860,6 +3903,8 @@ bfa_fcport_cfg_topology(struct bfa_s *bfa, enum bfa_port_topology topology)
 			return BFA_STATUS_LOOP_UNSUPP_MEZZ;
 		if (bfa_fcport_is_dport(bfa) != BFA_FALSE)
 			return BFA_STATUS_DPORT_ERR;
+		if (bfa_fcport_is_ddport(bfa) != BFA_FALSE)
+			return BFA_STATUS_DPORT_ERR;
 		break;
 
 	case BFA_PORT_TOPOLOGY_AUTO:
@@ -4127,6 +4172,15 @@ bfa_fcport_is_dport(struct bfa_s *bfa)
 		BFA_PORT_ST_DPORT);
 }
 
+bfa_boolean_t
+bfa_fcport_is_ddport(struct bfa_s *bfa)
+{
+	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
+
+	return (bfa_sm_to_state(hal_port_sm_table, fcport->sm) ==
+		BFA_PORT_ST_DDPORT);
+}
+
 bfa_status_t
 bfa_fcport_set_qos_bw(struct bfa_s *bfa, struct bfa_qos_bw_s *qos_bw)
 {
@@ -4318,6 +4372,24 @@ bfa_fcport_dportdisable(struct bfa_s *bfa)
 	 */
 	bfa_sm_send_event(BFA_FCPORT_MOD(bfa), BFA_FCPORT_SM_DPORTDISABLE);
 	bfa_port_set_dportenabled(&bfa->modules.port, BFA_FALSE);
+}
+
+void
+bfa_fcport_ddportenable(struct bfa_s *bfa)
+{
+	/*
+	 * Assume caller check for port is in disable state
+	 */
+	bfa_sm_send_event(BFA_FCPORT_MOD(bfa), BFA_FCPORT_SM_DDPORTENABLE);
+}
+
+void
+bfa_fcport_ddportdisable(struct bfa_s *bfa)
+{
+	/*
+	 * Assume caller check for port is in disable state
+	 */
+	bfa_sm_send_event(BFA_FCPORT_MOD(bfa), BFA_FCPORT_SM_DDPORTDISABLE);
 }
 
 /*
@@ -5705,6 +5777,14 @@ bfa_uf_res_recfg(struct bfa_s *bfa, u16 num_uf_fw)
  *	Dport forward declaration
  */
 
+enum bfa_dport_test_state_e {
+	BFA_DPORT_ST_DISABLED	= 0,	/*!< dport is disabled */
+	BFA_DPORT_ST_INP	= 1,	/*!< test in progress */
+	BFA_DPORT_ST_COMP	= 2,	/*!< test complete successfully */
+	BFA_DPORT_ST_NO_SFP	= 3,	/*!< sfp is not present */
+	BFA_DPORT_ST_NOTSTART	= 4,	/*!< test not start dport is enabled */
+};
+
 /*
  * BFA DPORT state machine events
  */
@@ -5714,6 +5794,9 @@ enum bfa_dport_sm_event {
 	BFA_DPORT_SM_FWRSP      = 3,    /* fw enable/disable rsp      */
 	BFA_DPORT_SM_QRESUME    = 4,    /* CQ space available         */
 	BFA_DPORT_SM_HWFAIL     = 5,    /* IOC h/w failure            */
+	BFA_DPORT_SM_START	= 6,	/* re-start dport test        */
+	BFA_DPORT_SM_REQFAIL	= 7,	/* request failure            */
+	BFA_DPORT_SM_SCN	= 8,	/* state change notify frm fw */
 };
 
 static void bfa_dport_sm_disabled(struct bfa_dport_s *dport,
@@ -5728,9 +5811,19 @@ static void bfa_dport_sm_disabling_qwait(struct bfa_dport_s *dport,
 				 enum bfa_dport_sm_event event);
 static void bfa_dport_sm_disabling(struct bfa_dport_s *dport,
 				   enum bfa_dport_sm_event event);
+static void bfa_dport_sm_starting_qwait(struct bfa_dport_s *dport,
+					enum bfa_dport_sm_event event);
+static void bfa_dport_sm_starting(struct bfa_dport_s *dport,
+				  enum bfa_dport_sm_event event);
+static void bfa_dport_sm_dynamic_disabling(struct bfa_dport_s *dport,
+				   enum bfa_dport_sm_event event);
+static void bfa_dport_sm_dynamic_disabling_qwait(struct bfa_dport_s *dport,
+				   enum bfa_dport_sm_event event);
 static void bfa_dport_qresume(void *cbarg);
 static void bfa_dport_req_comp(struct bfa_dport_s *dport,
-			       bfi_diag_dport_rsp_t *msg);
+				struct bfi_diag_dport_rsp_s *msg);
+static void bfa_dport_scn(struct bfa_dport_s *dport,
+				struct bfi_diag_dport_scn_s *msg);
 
 /*
  *	BFA fcdiag module
@@ -5772,6 +5865,8 @@ bfa_fcdiag_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	bfa_reqq_winit(&dport->reqq_wait, bfa_dport_qresume, dport);
 	dport->cbfn = NULL;
 	dport->cbarg = NULL;
+	dport->test_state = BFA_DPORT_ST_DISABLED;
+	memset(&dport->result, 0, sizeof(struct bfa_diag_dport_result_s));
 }
 
 static void
@@ -5974,7 +6069,12 @@ bfa_fcdiag_intr(struct bfa_s *bfa, struct bfi_msg_s *msg)
 		bfa_fcdiag_queuetest_comp(fcdiag, (bfi_diag_qtest_rsp_t *)msg);
 		break;
 	case BFI_DIAG_I2H_DPORT:
-		bfa_dport_req_comp(&fcdiag->dport, (bfi_diag_dport_rsp_t *)msg);
+		bfa_dport_req_comp(&fcdiag->dport,
+				(struct bfi_diag_dport_rsp_s *)msg);
+		break;
+	case BFI_DIAG_I2H_DPORT_SCN:
+		bfa_dport_scn(&fcdiag->dport,
+				(struct bfi_diag_dport_scn_s *)msg);
 		break;
 	default:
 		bfa_trc(fcdiag, msg->mhdr.msg_id);
@@ -6069,7 +6169,11 @@ bfa_fcdiag_loopback(struct bfa_s *bfa, enum bfa_port_opmode opmode,
 				return BFA_STATUS_UNSUPP_SPEED;
 		}
 	}
-
+	/* check to see if fcport is dport */
+	if (bfa_fcport_is_dport(bfa)) {
+		bfa_trc(fcdiag, fcdiag->lb.lock);
+		return BFA_STATUS_DPORT_ENABLED;
+	}
 	/* check to see if there is another destructive diag cmd running */
 	if (fcdiag->lb.lock) {
 		bfa_trc(fcdiag, fcdiag->lb.lock);
@@ -6173,6 +6277,15 @@ bfa_fcdiag_lb_is_running(struct bfa_s *bfa)
 /*
  *	D-port
  */
+#define bfa_dport_result_start(__dport, __mode) do {			\
+		(__dport)->result.start_time = bfa_get_log_time();	\
+		(__dport)->result.status = DPORT_TEST_ST_INPRG;		\
+		(__dport)->result.mode = (__mode);			\
+		(__dport)->result.rp_pwwn = (__dport)->rp_pwwn;		\
+		(__dport)->result.rp_nwwn = (__dport)->rp_nwwn;		\
+		(__dport)->result.lpcnt = (__dport)->lpcnt;		\
+} while (0)
+
 static bfa_boolean_t bfa_dport_send_req(struct bfa_dport_s *dport,
 					enum bfi_dport_req req);
 static void
@@ -6205,6 +6318,18 @@ bfa_dport_sm_disabled(struct bfa_dport_s *dport, enum bfa_dport_sm_event event)
 
 	case BFA_DPORT_SM_HWFAIL:
 		/* ignore */
+		break;
+
+	case BFA_DPORT_SM_SCN:
+		if (dport->i2hmsg.scn.state ==  BFI_DPORT_SCN_DDPORT_ENABLE) {
+			bfa_fcport_ddportenable(dport->bfa);
+			dport->dynamic = BFA_TRUE;
+			dport->test_state = BFA_DPORT_ST_NOTSTART;
+			bfa_sm_set_state(dport, bfa_dport_sm_enabled);
+		} else {
+			bfa_trc(dport->bfa, dport->i2hmsg.scn.state);
+			WARN_ON(1);
+		}
 		break;
 
 	default:
@@ -6242,7 +6367,21 @@ bfa_dport_sm_enabling(struct bfa_dport_s *dport, enum bfa_dport_sm_event event)
 
 	switch (event) {
 	case BFA_DPORT_SM_FWRSP:
+		memset(&dport->result, 0,
+				sizeof(struct bfa_diag_dport_result_s));
+		if (dport->i2hmsg.rsp.status == BFA_STATUS_DPORT_INV_SFP) {
+			dport->test_state = BFA_DPORT_ST_NO_SFP;
+		} else {
+			dport->test_state = BFA_DPORT_ST_INP;
+			bfa_dport_result_start(dport, BFA_DPORT_OPMODE_AUTO);
+		}
 		bfa_sm_set_state(dport, bfa_dport_sm_enabled);
+		break;
+
+	case BFA_DPORT_SM_REQFAIL:
+		dport->test_state = BFA_DPORT_ST_DISABLED;
+		bfa_fcport_dportdisable(dport->bfa);
+		bfa_sm_set_state(dport, bfa_dport_sm_disabled);
 		break;
 
 	case BFA_DPORT_SM_HWFAIL:
@@ -6261,8 +6400,11 @@ bfa_dport_sm_enabled(struct bfa_dport_s *dport, enum bfa_dport_sm_event event)
 	bfa_trc(dport->bfa, event);
 
 	switch (event) {
-	case BFA_DPORT_SM_ENABLE:
-		/* Already enabled */
+	case BFA_DPORT_SM_START:
+		if (bfa_dport_send_req(dport, BFI_DPORT_START))
+			bfa_sm_set_state(dport, bfa_dport_sm_starting);
+		else
+			bfa_sm_set_state(dport, bfa_dport_sm_starting_qwait);
 		break;
 
 	case BFA_DPORT_SM_DISABLE:
@@ -6277,6 +6419,48 @@ bfa_dport_sm_enabled(struct bfa_dport_s *dport, enum bfa_dport_sm_event event)
 		bfa_sm_set_state(dport, bfa_dport_sm_disabled);
 		break;
 
+	case BFA_DPORT_SM_SCN:
+		switch (dport->i2hmsg.scn.state) {
+		case BFI_DPORT_SCN_TESTCOMP:
+			dport->test_state = BFA_DPORT_ST_COMP;
+			break;
+
+		case BFI_DPORT_SCN_TESTSTART:
+			dport->test_state = BFA_DPORT_ST_INP;
+			break;
+
+		case BFI_DPORT_SCN_TESTSKIP:
+		case BFI_DPORT_SCN_SUBTESTSTART:
+			/* no state change */
+			break;
+
+		case BFI_DPORT_SCN_SFP_REMOVED:
+			dport->test_state = BFA_DPORT_ST_NO_SFP;
+			break;
+
+		case BFI_DPORT_SCN_DDPORT_DISABLE:
+			bfa_fcport_ddportdisable(dport->bfa);
+
+			if (bfa_dport_send_req(dport, BFI_DPORT_DYN_DISABLE))
+				bfa_sm_set_state(dport,
+					 bfa_dport_sm_dynamic_disabling);
+			else
+				bfa_sm_set_state(dport,
+					 bfa_dport_sm_dynamic_disabling_qwait);
+			break;
+
+		case BFI_DPORT_SCN_FCPORT_DISABLE:
+			bfa_fcport_ddportdisable(dport->bfa);
+
+			bfa_sm_set_state(dport, bfa_dport_sm_disabled);
+			dport->dynamic = BFA_FALSE;
+			break;
+
+		default:
+			bfa_trc(dport->bfa, dport->i2hmsg.scn.state);
+			bfa_sm_fault(dport->bfa, event);
+		}
+		break;
 	default:
 		bfa_sm_fault(dport->bfa, event);
 	}
@@ -6300,6 +6484,10 @@ bfa_dport_sm_disabling_qwait(struct bfa_dport_s *dport,
 		bfa_cb_fcdiag_dport(dport, BFA_STATUS_OK);
 		break;
 
+	case BFA_DPORT_SM_SCN:
+		/* ignore */
+		break;
+
 	default:
 		bfa_sm_fault(dport->bfa, event);
 	}
@@ -6312,7 +6500,98 @@ bfa_dport_sm_disabling(struct bfa_dport_s *dport, enum bfa_dport_sm_event event)
 
 	switch (event) {
 	case BFA_DPORT_SM_FWRSP:
+		dport->test_state = BFA_DPORT_ST_DISABLED;
 		bfa_sm_set_state(dport, bfa_dport_sm_disabled);
+		break;
+
+	case BFA_DPORT_SM_HWFAIL:
+		bfa_sm_set_state(dport, bfa_dport_sm_disabled);
+		bfa_cb_fcdiag_dport(dport, BFA_STATUS_OK);
+		break;
+
+	case BFA_DPORT_SM_SCN:
+		/* no state change */
+		break;
+
+	default:
+		bfa_sm_fault(dport->bfa, event);
+	}
+}
+
+static void
+bfa_dport_sm_starting_qwait(struct bfa_dport_s *dport,
+			    enum bfa_dport_sm_event event)
+{
+	bfa_trc(dport->bfa, event);
+
+	switch (event) {
+	case BFA_DPORT_SM_QRESUME:
+		bfa_sm_set_state(dport, bfa_dport_sm_starting);
+		bfa_dport_send_req(dport, BFI_DPORT_START);
+		break;
+
+	case BFA_DPORT_SM_HWFAIL:
+		bfa_reqq_wcancel(&dport->reqq_wait);
+		bfa_sm_set_state(dport, bfa_dport_sm_disabled);
+		bfa_cb_fcdiag_dport(dport, BFA_STATUS_FAILED);
+		break;
+
+	default:
+		bfa_sm_fault(dport->bfa, event);
+	}
+}
+
+static void
+bfa_dport_sm_starting(struct bfa_dport_s *dport, enum bfa_dport_sm_event event)
+{
+	bfa_trc(dport->bfa, event);
+
+	switch (event) {
+	case BFA_DPORT_SM_FWRSP:
+		memset(&dport->result, 0,
+				sizeof(struct bfa_diag_dport_result_s));
+		if (dport->i2hmsg.rsp.status == BFA_STATUS_DPORT_INV_SFP) {
+			dport->test_state = BFA_DPORT_ST_NO_SFP;
+		} else {
+			dport->test_state = BFA_DPORT_ST_INP;
+			bfa_dport_result_start(dport, BFA_DPORT_OPMODE_MANU);
+		}
+		/* fall thru */
+
+	case BFA_DPORT_SM_REQFAIL:
+		bfa_sm_set_state(dport, bfa_dport_sm_enabled);
+		break;
+
+	case BFA_DPORT_SM_HWFAIL:
+		bfa_sm_set_state(dport, bfa_dport_sm_disabled);
+		bfa_cb_fcdiag_dport(dport, BFA_STATUS_FAILED);
+		break;
+
+	default:
+		bfa_sm_fault(dport->bfa, event);
+	}
+}
+
+static void
+bfa_dport_sm_dynamic_disabling(struct bfa_dport_s *dport,
+			       enum bfa_dport_sm_event event)
+{
+	bfa_trc(dport->bfa, event);
+
+	switch (event) {
+	case BFA_DPORT_SM_SCN:
+		switch (dport->i2hmsg.scn.state) {
+		case BFI_DPORT_SCN_DDPORT_DISABLED:
+			bfa_sm_set_state(dport, bfa_dport_sm_disabled);
+			dport->dynamic = BFA_FALSE;
+			bfa_fcport_enable(dport->bfa);
+			break;
+
+		default:
+			bfa_trc(dport->bfa, dport->i2hmsg.scn.state);
+			bfa_sm_fault(dport->bfa, event);
+
+		}
 		break;
 
 	case BFA_DPORT_SM_HWFAIL:
@@ -6325,17 +6604,37 @@ bfa_dport_sm_disabling(struct bfa_dport_s *dport, enum bfa_dport_sm_event event)
 	}
 }
 
+static void
+bfa_dport_sm_dynamic_disabling_qwait(struct bfa_dport_s *dport,
+			    enum bfa_dport_sm_event event)
+{
+	bfa_trc(dport->bfa, event);
+
+	switch (event) {
+	case BFA_DPORT_SM_QRESUME:
+		bfa_sm_set_state(dport, bfa_dport_sm_dynamic_disabling);
+		bfa_dport_send_req(dport, BFI_DPORT_DYN_DISABLE);
+		break;
+
+	case BFA_DPORT_SM_HWFAIL:
+		bfa_sm_set_state(dport, bfa_dport_sm_disabled);
+		bfa_reqq_wcancel(&dport->reqq_wait);
+		bfa_cb_fcdiag_dport(dport, BFA_STATUS_OK);
+		break;
+
+	case BFA_DPORT_SM_SCN:
+		/* ignore */
+		break;
+
+	default:
+		bfa_sm_fault(dport->bfa, event);
+	}
+}
 
 static bfa_boolean_t
 bfa_dport_send_req(struct bfa_dport_s *dport, enum bfi_dport_req req)
 {
 	struct bfi_diag_dport_req_s *m;
-
-	/*
-	 * Increment message tag before queue check, so that responses to old
-	 * requests are discarded.
-	 */
-	dport->msgtag++;
 
 	/*
 	 * check for room in queue to send request now
@@ -6349,7 +6648,10 @@ bfa_dport_send_req(struct bfa_dport_s *dport, enum bfi_dport_req req)
 	bfi_h2i_set(m->mh, BFI_MC_DIAG, BFI_DIAG_H2I_DPORT,
 		    bfa_fn_lpu(dport->bfa));
 	m->req  = req;
-	m->msgtag = dport->msgtag;
+	if ((req == BFI_DPORT_ENABLE) || (req == BFI_DPORT_START)) {
+		m->lpcnt = cpu_to_be32(dport->lpcnt);
+		m->payload = cpu_to_be32(dport->payload);
+	}
 
 	/*
 	 * queue I/O message to firmware
@@ -6368,10 +6670,121 @@ bfa_dport_qresume(void *cbarg)
 }
 
 static void
-bfa_dport_req_comp(struct bfa_dport_s *dport, bfi_diag_dport_rsp_t *msg)
+bfa_dport_req_comp(struct bfa_dport_s *dport, struct bfi_diag_dport_rsp_s *msg)
 {
-	bfa_sm_send_event(dport, BFA_DPORT_SM_FWRSP);
+	msg->status = cpu_to_be32(msg->status);
+	dport->i2hmsg.rsp.status = msg->status;
+	dport->rp_pwwn = msg->pwwn;
+	dport->rp_nwwn = msg->nwwn;
+
+	if ((msg->status == BFA_STATUS_OK) ||
+	    (msg->status == BFA_STATUS_DPORT_NO_SFP)) {
+		bfa_trc(dport->bfa, msg->status);
+		bfa_trc(dport->bfa, dport->rp_pwwn);
+		bfa_trc(dport->bfa, dport->rp_nwwn);
+		bfa_sm_send_event(dport, BFA_DPORT_SM_FWRSP);
+
+	} else {
+		bfa_trc(dport->bfa, msg->status);
+		bfa_sm_send_event(dport, BFA_DPORT_SM_REQFAIL);
+	}
 	bfa_cb_fcdiag_dport(dport, msg->status);
+}
+
+static bfa_boolean_t
+bfa_dport_is_sending_req(struct bfa_dport_s *dport)
+{
+	if (bfa_sm_cmp_state(dport, bfa_dport_sm_enabling)	||
+	    bfa_sm_cmp_state(dport, bfa_dport_sm_enabling_qwait) ||
+	    bfa_sm_cmp_state(dport, bfa_dport_sm_disabling)	||
+	    bfa_sm_cmp_state(dport, bfa_dport_sm_disabling_qwait) ||
+	    bfa_sm_cmp_state(dport, bfa_dport_sm_starting)	||
+	    bfa_sm_cmp_state(dport, bfa_dport_sm_starting_qwait)) {
+		return BFA_TRUE;
+	} else {
+		return BFA_FALSE;
+	}
+}
+
+static void
+bfa_dport_scn(struct bfa_dport_s *dport, struct bfi_diag_dport_scn_s *msg)
+{
+	int i;
+	uint8_t subtesttype;
+
+	bfa_trc(dport->bfa, msg->state);
+	dport->i2hmsg.scn.state = msg->state;
+
+	switch (dport->i2hmsg.scn.state) {
+	case BFI_DPORT_SCN_TESTCOMP:
+		dport->result.end_time = bfa_get_log_time();
+		bfa_trc(dport->bfa, dport->result.end_time);
+
+		dport->result.status = msg->info.testcomp.status;
+		bfa_trc(dport->bfa, dport->result.status);
+
+		dport->result.roundtrip_latency =
+			cpu_to_be32(msg->info.testcomp.latency);
+		dport->result.est_cable_distance =
+			cpu_to_be32(msg->info.testcomp.distance);
+		dport->result.buffer_required =
+			be16_to_cpu(msg->info.testcomp.numbuffer);
+
+		dport->result.frmsz = be16_to_cpu(msg->info.testcomp.frm_sz);
+		dport->result.speed = msg->info.testcomp.speed;
+
+		bfa_trc(dport->bfa, dport->result.roundtrip_latency);
+		bfa_trc(dport->bfa, dport->result.est_cable_distance);
+		bfa_trc(dport->bfa, dport->result.buffer_required);
+		bfa_trc(dport->bfa, dport->result.frmsz);
+		bfa_trc(dport->bfa, dport->result.speed);
+
+		for (i = DPORT_TEST_ELOOP; i < DPORT_TEST_MAX; i++) {
+			dport->result.subtest[i].status =
+				msg->info.testcomp.subtest_status[i];
+			bfa_trc(dport->bfa, dport->result.subtest[i].status);
+		}
+		break;
+
+	case BFI_DPORT_SCN_TESTSKIP:
+	case BFI_DPORT_SCN_DDPORT_ENABLE:
+		memset(&dport->result, 0,
+				sizeof(struct bfa_diag_dport_result_s));
+		break;
+
+	case BFI_DPORT_SCN_TESTSTART:
+		memset(&dport->result, 0,
+				sizeof(struct bfa_diag_dport_result_s));
+		dport->rp_pwwn = msg->info.teststart.pwwn;
+		dport->rp_nwwn = msg->info.teststart.nwwn;
+		dport->lpcnt = cpu_to_be32(msg->info.teststart.numfrm);
+		bfa_dport_result_start(dport, BFA_DPORT_OPMODE_AUTO);
+		break;
+
+	case BFI_DPORT_SCN_SUBTESTSTART:
+		subtesttype = msg->info.teststart.type;
+		dport->result.subtest[subtesttype].start_time =
+			bfa_get_log_time();
+		dport->result.subtest[subtesttype].status =
+			DPORT_TEST_ST_INPRG;
+
+		bfa_trc(dport->bfa, subtesttype);
+		bfa_trc(dport->bfa,
+			dport->result.subtest[subtesttype].start_time);
+		break;
+
+	case BFI_DPORT_SCN_SFP_REMOVED:
+	case BFI_DPORT_SCN_DDPORT_DISABLED:
+	case BFI_DPORT_SCN_DDPORT_DISABLE:
+	case BFI_DPORT_SCN_FCPORT_DISABLE:
+		dport->result.status = DPORT_TEST_ST_IDLE;
+		break;
+
+	default:
+		bfa_sm_fault(dport->bfa, msg->state);
+	}
+
+	bfa_sm_send_event(dport, BFA_DPORT_SM_SCN);
 }
 
 /*
@@ -6380,7 +6793,8 @@ bfa_dport_req_comp(struct bfa_dport_s *dport, bfi_diag_dport_rsp_t *msg)
  * @param[in] *bfa            - bfa data struct
  */
 bfa_status_t
-bfa_dport_enable(struct bfa_s *bfa, bfa_cb_diag_t cbfn, void *cbarg)
+bfa_dport_enable(struct bfa_s *bfa, u32 lpcnt, u32 pat,
+				bfa_cb_diag_t cbfn, void *cbarg)
 {
 	struct bfa_fcdiag_s *fcdiag = BFA_FCDIAG_MOD(bfa);
 	struct bfa_dport_s  *dport = &fcdiag->dport;
@@ -6391,6 +6805,14 @@ bfa_dport_enable(struct bfa_s *bfa, bfa_cb_diag_t cbfn, void *cbarg)
 	if (bfa_mfg_is_mezz(dport->bfa->ioc.attr->card_type)) {
 		bfa_trc(dport->bfa, BFA_STATUS_PBC);
 		return BFA_STATUS_CMD_NOTSUPP_MEZZ;
+	}
+
+	/*
+	 * Dport is supported in CT2 or above
+	 */
+	if (!(bfa_asic_id_ct2(dport->bfa->ioc.pcidev.device_id))) {
+		bfa_trc(dport->bfa, dport->bfa->ioc.pcidev.device_id);
+		return BFA_STATUS_FEATURE_NOT_SUPPORTED;
 	}
 
 	/*
@@ -6431,6 +6853,14 @@ bfa_dport_enable(struct bfa_s *bfa, bfa_cb_diag_t cbfn, void *cbarg)
 	}
 
 	/*
+	 * Check if diag loopback is running
+	 */
+	if (bfa_fcdiag_lb_is_running(bfa)) {
+		bfa_trc(dport->bfa, 0);
+		return BFA_STATUS_DIAG_BUSY;
+	}
+
+	/*
 	 * Check to see if port is disable or in dport state
 	 */
 	if ((bfa_fcport_is_disabled(bfa) == BFA_FALSE) &&
@@ -6440,14 +6870,16 @@ bfa_dport_enable(struct bfa_s *bfa, bfa_cb_diag_t cbfn, void *cbarg)
 	}
 
 	/*
+	 * Check if dport is in dynamic mode
+	 */
+	if (dport->dynamic)
+		return BFA_STATUS_DDPORT_ERR;
+
+	/*
 	 * Check if dport is busy
 	 */
-	if (bfa_sm_cmp_state(dport, bfa_dport_sm_enabling) ||
-	    bfa_sm_cmp_state(dport, bfa_dport_sm_enabling_qwait) ||
-	    bfa_sm_cmp_state(dport, bfa_dport_sm_disabling) ||
-	    bfa_sm_cmp_state(dport, bfa_dport_sm_disabling_qwait)) {
+	if (bfa_dport_is_sending_req(dport))
 		return BFA_STATUS_DEVBUSY;
-	}
 
 	/*
 	 * Check if dport is already enabled
@@ -6457,6 +6889,10 @@ bfa_dport_enable(struct bfa_s *bfa, bfa_cb_diag_t cbfn, void *cbarg)
 		return BFA_STATUS_DPORT_ENABLED;
 	}
 
+	bfa_trc(dport->bfa, lpcnt);
+	bfa_trc(dport->bfa, pat);
+	dport->lpcnt = (lpcnt) ? lpcnt : DPORT_ENABLE_LOOPCNT_DEFAULT;
+	dport->payload = (pat) ? pat : LB_PATTERN_DEFAULT;
 	dport->cbfn = cbfn;
 	dport->cbarg = cbarg;
 
@@ -6485,6 +6921,13 @@ bfa_dport_disable(struct bfa_s *bfa, bfa_cb_diag_t cbfn, void *cbarg)
 	}
 
 	/*
+	 * Check if dport is in dynamic mode
+	 */
+	if (dport->dynamic) {
+		return BFA_STATUS_DDPORT_ERR;
+	}
+
+	/*
 	 * Check to see if port is disable or in dport state
 	 */
 	if ((bfa_fcport_is_disabled(bfa) == BFA_FALSE) &&
@@ -6496,10 +6939,7 @@ bfa_dport_disable(struct bfa_s *bfa, bfa_cb_diag_t cbfn, void *cbarg)
 	/*
 	 * Check if dport is busy
 	 */
-	if (bfa_sm_cmp_state(dport, bfa_dport_sm_enabling) ||
-	    bfa_sm_cmp_state(dport, bfa_dport_sm_enabling_qwait) ||
-	    bfa_sm_cmp_state(dport, bfa_dport_sm_disabling) ||
-	    bfa_sm_cmp_state(dport, bfa_dport_sm_disabling_qwait))
+	if (bfa_dport_is_sending_req(dport))
 		return BFA_STATUS_DEVBUSY;
 
 	/*
@@ -6518,30 +6958,105 @@ bfa_dport_disable(struct bfa_s *bfa, bfa_cb_diag_t cbfn, void *cbarg)
 }
 
 /*
- *	Get D-port state
+ * Dport start -- restart dport test
  *
- * @param[in] *bfa            - bfa data struct
+ *   @param[in] *bfa		- bfa data struct
  */
-
 bfa_status_t
-bfa_dport_get_state(struct bfa_s *bfa, enum bfa_dport_state *state)
+bfa_dport_start(struct bfa_s *bfa, u32 lpcnt, u32 pat,
+			bfa_cb_diag_t cbfn, void *cbarg)
 {
 	struct bfa_fcdiag_s *fcdiag = BFA_FCDIAG_MOD(bfa);
 	struct bfa_dport_s *dport = &fcdiag->dport;
 
-	if (bfa_sm_cmp_state(dport, bfa_dport_sm_enabled))
-		*state = BFA_DPORT_ST_ENABLED;
-	else if (bfa_sm_cmp_state(dport, bfa_dport_sm_enabling) ||
-		 bfa_sm_cmp_state(dport, bfa_dport_sm_enabling_qwait))
-		*state = BFA_DPORT_ST_ENABLING;
-	else if (bfa_sm_cmp_state(dport, bfa_dport_sm_disabled))
-		*state = BFA_DPORT_ST_DISABLED;
-	else if (bfa_sm_cmp_state(dport, bfa_dport_sm_disabling) ||
-		 bfa_sm_cmp_state(dport, bfa_dport_sm_disabling_qwait))
-		*state = BFA_DPORT_ST_DISABLING;
-	else {
-		bfa_trc(dport->bfa, BFA_STATUS_EINVAL);
-		return BFA_STATUS_EINVAL;
+	/*
+	 * Check to see if IOC is down
+	 */
+	if (!bfa_iocfc_is_operational(bfa))
+		return BFA_STATUS_IOC_NON_OP;
+
+	/*
+	 * Check if dport is in dynamic mode
+	 */
+	if (dport->dynamic)
+		return BFA_STATUS_DDPORT_ERR;
+
+	/*
+	 * Check if dport is busy
+	 */
+	if (bfa_dport_is_sending_req(dport))
+		return BFA_STATUS_DEVBUSY;
+
+	/*
+	 * Check if dport is in enabled state.
+	 * Test can only be restart when previous test has completed
+	 */
+	if (!bfa_sm_cmp_state(dport, bfa_dport_sm_enabled)) {
+		bfa_trc(dport->bfa, 0);
+		return BFA_STATUS_DPORT_DISABLED;
+
+	} else {
+		if (dport->test_state == BFA_DPORT_ST_NO_SFP)
+			return BFA_STATUS_DPORT_INV_SFP;
+
+		if (dport->test_state == BFA_DPORT_ST_INP)
+			return BFA_STATUS_DEVBUSY;
+
+		WARN_ON(dport->test_state != BFA_DPORT_ST_COMP);
 	}
+
+	bfa_trc(dport->bfa, lpcnt);
+	bfa_trc(dport->bfa, pat);
+
+	dport->lpcnt = (lpcnt) ? lpcnt : DPORT_ENABLE_LOOPCNT_DEFAULT;
+	dport->payload = (pat) ? pat : LB_PATTERN_DEFAULT;
+
+	dport->cbfn = cbfn;
+	dport->cbarg = cbarg;
+
+	bfa_sm_send_event(dport, BFA_DPORT_SM_START);
+	return BFA_STATUS_OK;
+}
+
+/*
+ * Dport show -- return dport test result
+ *
+ *   @param[in] *bfa		- bfa data struct
+ */
+bfa_status_t
+bfa_dport_show(struct bfa_s *bfa, struct bfa_diag_dport_result_s *result)
+{
+	struct bfa_fcdiag_s *fcdiag = BFA_FCDIAG_MOD(bfa);
+	struct bfa_dport_s *dport = &fcdiag->dport;
+
+	/*
+	 * Check to see if IOC is down
+	 */
+	if (!bfa_iocfc_is_operational(bfa))
+		return BFA_STATUS_IOC_NON_OP;
+
+	/*
+	 * Check if dport is busy
+	 */
+	if (bfa_dport_is_sending_req(dport))
+		return BFA_STATUS_DEVBUSY;
+
+	/*
+	 * Check if dport is in enabled state.
+	 */
+	if (!bfa_sm_cmp_state(dport, bfa_dport_sm_enabled)) {
+		bfa_trc(dport->bfa, 0);
+		return BFA_STATUS_DPORT_DISABLED;
+
+	}
+
+	/*
+	 * Check if there is SFP
+	 */
+	if (dport->test_state == BFA_DPORT_ST_NO_SFP)
+		return BFA_STATUS_DPORT_INV_SFP;
+
+	memcpy(result, &dport->result, sizeof(struct bfa_diag_dport_result_s));
+
 	return BFA_STATUS_OK;
 }
