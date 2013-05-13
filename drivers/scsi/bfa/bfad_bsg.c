@@ -3371,7 +3371,8 @@ bfad_im_bsg_els_ct_request(struct fc_bsg_job *job)
 		goto out;
 	}
 
-	if (copy_from_user((uint8_t *)bsg_fcpt, bsg_data->payload,
+	if (copy_from_user((uint8_t *)bsg_fcpt,
+				(void *)(unsigned long)bsg_data->payload,
 				bsg_data->payload_len)) {
 		kfree(bsg_fcpt);
 		rc = -EIO;
@@ -3525,8 +3526,8 @@ out_free_mem:
 	kfree(rsp_kbuf);
 
 	/* Need a copy to user op */
-	if (copy_to_user(bsg_data->payload, (void *) bsg_fcpt,
-			 bsg_data->payload_len))
+	if (copy_to_user((void *)(unsigned long)bsg_data->payload,
+			(void *)bsg_fcpt, bsg_data->payload_len))
 		rc = -EIO;
 
 	kfree(bsg_fcpt);

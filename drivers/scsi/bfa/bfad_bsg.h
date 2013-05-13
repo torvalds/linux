@@ -819,10 +819,12 @@ struct bfa_bsg_fcpt_s {
 };
 #define bfa_bsg_fcpt_t struct bfa_bsg_fcpt_s
 
+#pragma pack(1)
 struct bfa_bsg_data {
 	int payload_len;
-	void *payload;
+	u64 payload;
 };
+#pragma pack()
 
 #define bfad_chk_iocmd_sz(__payload_len, __hdrsz, __bufsz)	\
 	(((__payload_len) != ((__hdrsz) + (__bufsz))) ?		\
