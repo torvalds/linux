@@ -133,9 +133,9 @@ void card_bootload(struct net_device *dev)
 	size = sizeof(bootimage);
 
 	// check for odd word
-	if (size & 0x0003) {
+	if (size & 0x0003)
 		size += 4;
-	}
+
 	// Provide mutual exclusive access while reading ASIC registers.
 	spin_lock_irqsave(&info->dpram_lock, flags);
 
@@ -345,11 +345,10 @@ int card_download(struct net_device *dev, const u8 *pFileStart,
 
 			handshake = get_handshake(dev, HANDSHAKE_DSP_BL_READY);
 
-			if (handshake == HANDSHAKE_DSP_BL_READY) {
+			if (handshake == HANDSHAKE_DSP_BL_READY)
 				put_handshake(dev, HANDSHAKE_DRIVER_READY);
-			} else {
+			else
 				Status = FAILURE;
-			}
 
 			uiState = STATE_BOOT_DWNLD;
 
@@ -538,9 +537,9 @@ int card_download(struct net_device *dev, const u8 *pFileStart,
 						outw(DWNLD_MAG_PS_HDR_LOC,
 							 dev->base_addr +
 							 FT1000_REG_DPRAM_ADDR);
-						if (word_length & 0x01) {
+						if (word_length & 0x01)
 							word_length++;
-						}
+
 						word_length = word_length / 2;
 
 						for (; word_length > 0; word_length--) {	/* In words */
