@@ -123,8 +123,6 @@ struct vport_parms {
  * existing vport to a &struct sk_buff.  May be %NULL for a vport that does not
  * have any configuration.
  * @get_name: Get the device's name.
- * @get_config: Get the device's configuration.
- * May be null if the device does not have an ifindex.
  * @send: Send a packet on the device.  Returns the length of the packet sent.
  */
 struct vport_ops {
@@ -139,7 +137,6 @@ struct vport_ops {
 
 	/* Called with rcu_read_lock or ovs_mutex. */
 	const char *(*get_name)(const struct vport *);
-	void (*get_config)(const struct vport *, void *);
 
 	int (*send)(struct vport *, struct sk_buff *);
 };
