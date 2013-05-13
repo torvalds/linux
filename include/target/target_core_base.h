@@ -463,7 +463,6 @@ struct se_cmd {
 #define CMD_T_ABORTED		(1 << 0)
 #define CMD_T_ACTIVE		(1 << 1)
 #define CMD_T_COMPLETE		(1 << 2)
-#define CMD_T_QUEUED		(1 << 3)
 #define CMD_T_SENT		(1 << 4)
 #define CMD_T_STOP		(1 << 5)
 #define CMD_T_FAILED		(1 << 6)
