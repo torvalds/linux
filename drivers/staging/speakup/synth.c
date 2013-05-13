@@ -25,6 +25,18 @@ static int module_status;
 bool spk_quiet_boot;
 
 struct speakup_info_t speakup_info = {
+	/*
+	 * This spinlock is used to protect the entire speakup machinery, and
+	 * must be taken at each kernel->speakup transition and released at
+	 * each corresponding speakup->kernel transition.
+	 *
+	 * The progression thread only interferes with the speakup machinery through
+	 * the synth buffer, so only needs to take the lock while tinkering with
+	 * the buffer.
+	 *
+	 * We use spin_lock/trylock_irqsave and spin_unlock_irqrestore with this
+	 * spinlock because speakup needs to disable the keyboard IRQ.
+	 */
 	.spinlock = __SPIN_LOCK_UNLOCKED(speakup_info.spinlock),
 	.flushing = 0,
 };
