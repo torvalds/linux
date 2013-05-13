@@ -468,7 +468,8 @@ again:
 	if (i_size_read(inode) > 0) {
 		ret = btrfs_truncate_free_space_cache(root, trans, path, inode);
 		if (ret) {
-			btrfs_abort_transaction(trans, root, ret);
+			if (ret != -ENOSPC)
+				btrfs_abort_transaction(trans, root, ret);
 			goto out_put;
 		}
 	}
