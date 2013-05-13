@@ -170,7 +170,7 @@ static int netdev_send(struct vport *vport, struct sk_buff *skb)
 		net_warn_ratelimited("%s: dropped over-mtu packet: %d > %d\n",
 				     netdev_vport->dev->name,
 				     packet_length(skb), mtu);
-		goto error;
+		goto drop;
 	}
 
 	skb->dev = netdev_vport->dev;
@@ -179,9 +179,8 @@ static int netdev_send(struct vport *vport, struct sk_buff *skb)
 
 	return len;
 
-error:
+drop:
 	kfree_skb(skb);
-	ovs_vport_record_error(vport, VPORT_E_TX_DROPPED);
 	return 0;
 }
 
