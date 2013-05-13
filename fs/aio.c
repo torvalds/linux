@@ -361,7 +361,6 @@ EXPORT_SYMBOL(kiocb_set_cancel_fn);
 static int kiocb_cancel(struct kioctx *ctx, struct kiocb *kiocb)
 {
 	kiocb_cancel_fn *old, *cancel;
-	int ret = -EINVAL;
 
 	/*
 	 * Don't want to set kiocb->ki_cancel = KIOCB_CANCELLED unless it
@@ -371,21 +370,13 @@ static int kiocb_cancel(struct kioctx *ctx, struct kiocb *kiocb)
 	cancel = ACCESS_ONCE(kiocb->ki_cancel);
 	do {
 		if (!cancel || cancel == KIOCB_CANCELLED)
-			return ret;
+			return -EINVAL;
 
 		old = cancel;
 		cancel = cmpxchg(&kiocb->ki_cancel, old, KIOCB_CANCELLED);
 	} while (cancel != old);
 
-	atomic_inc(&kiocb->ki_users);
-	spin_unlock_irq(&ctx->ctx_lock);
-
-	ret = cancel(kiocb);
-
-	spin_lock_irq(&ctx->ctx_lock);
-	aio_put_req(kiocb);
-
-	return ret;
+	return cancel(kiocb);
 }
 
 static void free_ioctx_rcu(struct rcu_head *head)
@@ -599,16 +590,16 @@ static void kill_ioctx(struct kioctx *ctx)
 /* wait_on_sync_kiocb:
  *	Waits on the given sync kiocb to complete.
  */
-ssize_t wait_on_sync_kiocb(struct kiocb *iocb)
+ssize_t wait_on_sync_kiocb(struct kiocb *req)
 {
-	while (atomic_read(&iocb->ki_users)) {
+	while (!req->ki_ctx) {
 		set_current_state(TASK_UNINTERRUPTIBLE);
-		if (!atomic_read(&iocb->ki_users))
+		if (req->ki_ctx)
 			break;
 		io_schedule();
 	}
 	__set_current_state(TASK_RUNNING);
-	return iocb->ki_user_data;
+	return req->ki_user_data;
 }
 EXPORT_SYMBOL(wait_on_sync_kiocb);
 
@@ -687,14 +678,8 @@ out:
 }
 
 /* aio_get_req
- *	Allocate a slot for an aio request.  Increments the ki_users count
- * of the kioctx so that the kioctx stays around until all requests are
- * complete.  Returns NULL if no requests are free.
- *
- * Returns with kiocb->ki_users set to 2.  The io submit code path holds
- * an extra reference while submitting the i/o.
- * This prevents races between the aio code path referencing the
- * req (after submitting it) and aio_complete() freeing the req.
+ *	Allocate a slot for an aio request.
+ * Returns NULL if no requests are free.
  */
 static inline struct kiocb *aio_get_req(struct kioctx *ctx)
 {
@@ -707,7 +692,6 @@ static inline struct kiocb *aio_get_req(struct kioctx *ctx)
 	if (unlikely(!req))
 		goto out_put;
 
-	atomic_set(&req->ki_users, 1);
 	req->ki_ctx = ctx;
 	return req;
 out_put:
@@ -725,13 +709,6 @@ static void kiocb_free(struct kiocb *req)
 		req->ki_dtor(req);
 	kmem_cache_free(kiocb_cachep, req);
 }
-
-void aio_put_req(struct kiocb *req)
-{
-	if (atomic_dec_and_test(&req->ki_users))
-		kiocb_free(req);
-}
-EXPORT_SYMBOL(aio_put_req);
 
 static struct kioctx *lookup_ioctx(unsigned long ctx_id)
 {
@@ -771,9 +748,9 @@ void aio_complete(struct kiocb *iocb, long res, long res2)
 	 *  - the sync task helpfully left a reference to itself in the iocb
 	 */
 	if (is_sync_kiocb(iocb)) {
-		BUG_ON(atomic_read(&iocb->ki_users) != 1);
 		iocb->ki_user_data = res;
-		atomic_set(&iocb->ki_users, 0);
+		smp_wmb();
+		iocb->ki_ctx = ERR_PTR(-EXDEV);
 		wake_up_process(iocb->ki_obj.tsk);
 		return;
 	}
@@ -845,7 +822,7 @@ void aio_complete(struct kiocb *iocb, long res, long res2)
 		eventfd_signal(iocb->ki_eventfd, 1);
 
 	/* everything turned out well, dispose of the aiocb. */
-	aio_put_req(iocb);
+	kiocb_free(iocb);
 
 	/*
 	 * We have to order our ring_info tail store above and test
@@ -1269,7 +1246,7 @@ static int io_submit_one(struct kioctx *ctx, struct iocb __user *user_iocb,
 	return 0;
 out_put_req:
 	put_reqs_available(ctx, 1);
-	aio_put_req(req);
+	kiocb_free(req);
 	return ret;
 }
 
