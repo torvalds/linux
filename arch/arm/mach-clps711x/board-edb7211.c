@@ -39,8 +39,12 @@
 
 #define EDB7211_FLASH0_BASE	(CS0_PHYS_BASE)
 #define EDB7211_FLASH1_BASE	(CS1_PHYS_BASE)
+
 #define EDB7211_CS8900_BASE	(CS2_PHYS_BASE + 0x300)
 #define EDB7211_CS8900_IRQ	(IRQ_EINT3)
+
+/* The extra 8 lines of the keyboard matrix */
+#define EDB7211_EXTKBD_BASE	(CS3_PHYS_BASE)
 
 static struct resource edb7211_cs8900_resource[] __initdata = {
 	DEFINE_RES_MEM(EDB7211_CS8900_BASE, SZ_1K),
@@ -113,8 +117,8 @@ static struct gpio edb7211_gpios[] __initconst = {
 
 static struct map_desc edb7211_io_desc[] __initdata = {
 	{	/* Memory-mapped extra keyboard row */
-		.virtual	= IO_ADDRESS(EP7211_PHYS_EXTKBD),
-		.pfn		= __phys_to_pfn(EP7211_PHYS_EXTKBD),
+		.virtual	= IO_ADDRESS(EDB7211_EXTKBD_BASE),
+		.pfn		= __phys_to_pfn(EDB7211_EXTKBD_BASE),
 		.length		= SZ_1M,
 		.type		= MT_DEVICE,
 	},
