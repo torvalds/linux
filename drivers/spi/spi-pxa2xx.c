@@ -1040,32 +1040,10 @@ static void cleanup(struct spi_device *spi)
 }
 
 #ifdef CONFIG_ACPI
-static int pxa2xx_spi_acpi_add_dma(struct acpi_resource *res, void *data)
-{
-	struct pxa2xx_spi_master *pdata = data;
-
-	if (res->type == ACPI_RESOURCE_TYPE_FIXED_DMA) {
-		const struct acpi_resource_fixed_dma *dma;
-
-		dma = &res->data.fixed_dma;
-		if (pdata->tx_slave_id < 0) {
-			pdata->tx_slave_id = dma->request_lines;
-			pdata->tx_chan_id = dma->channels;
-		} else if (pdata->rx_slave_id < 0) {
-			pdata->rx_slave_id = dma->request_lines;
-			pdata->rx_chan_id = dma->channels;
-		}
-	}
-
-	/* Tell the ACPI core to skip this resource */
-	return 1;
-}
-
 static struct pxa2xx_spi_master *
 pxa2xx_spi_acpi_get_pdata(struct platform_device *pdev)
 {
 	struct pxa2xx_spi_master *pdata;
-	struct list_head resource_list;
 	struct acpi_device *adev;
 	struct ssp_device *ssp;
 	struct resource *res;
@@ -1103,15 +1081,7 @@ pxa2xx_spi_acpi_get_pdata(struct platform_device *pdev)
 		ssp->port_id = devid;
 
 	pdata->num_chipselect = 1;
-	pdata->rx_slave_id = -1;
-	pdata->tx_slave_id = -1;
-
-	INIT_LIST_HEAD(&resource_list);
-	acpi_dev_get_resources(adev, &resource_list, pxa2xx_spi_acpi_add_dma,
-			       pdata);
-	acpi_dev_free_resource_list(&resource_list);
-
-	pdata->enable_dma = pdata->rx_slave_id >= 0 && pdata->tx_slave_id >= 0;
+	pdata->enable_dma = true;
 
 	return pdata;
 }
@@ -1214,7 +1184,7 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	if (platform_info->enable_dma) {
 		status = pxa2xx_spi_dma_setup(drv_data);
 		if (status) {
-			dev_warn(dev, "failed to setup DMA, using PIO\n");
+			dev_dbg(dev, "no DMA channels available, using PIO\n");
 			platform_info->enable_dma = false;
 		}
 	}
