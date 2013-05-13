@@ -21,10 +21,10 @@ void CsrWifiNmeApUpstreamStateHandlers(void* drvpriv, CsrWifiFsmEvent* msg)
             CsrWifiNmeApStopCfmHandler(drvpriv, msg);
             break;
         case CSR_WIFI_NME_AP_CONFIG_SET_CFM:
-            CsrWifiNmeApConfigSetCfmHandler(drvpriv,msg);
+            CsrWifiNmeApConfigSetCfmHandler(drvpriv, msg);
             break;
         default:
-	    unifi_error(drvpriv, "CsrWifiNmeApUpstreamStateHandlers: unhandled NME_AP message type 0x%.4X\n",msg->type);
+	    unifi_error(drvpriv, "CsrWifiNmeApUpstreamStateHandlers: unhandled NME_AP message type 0x%.4X\n", msg->type);
             break;
     }
 }
