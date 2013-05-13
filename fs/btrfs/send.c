@@ -4654,10 +4654,6 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 			key.type = BTRFS_ROOT_ITEM_KEY;
 			key.offset = (u64)-1;
 			clone_root = btrfs_read_fs_root_no_name(fs_info, &key);
-			if (!clone_root) {
-				ret = -EINVAL;
-				goto out;
-			}
 			if (IS_ERR(clone_root)) {
 				ret = PTR_ERR(clone_root);
 				goto out;
@@ -4673,8 +4669,8 @@ long btrfs_ioctl_send(struct file *mnt_file, void __user *arg_)
 		key.type = BTRFS_ROOT_ITEM_KEY;
 		key.offset = (u64)-1;
 		sctx->parent_root = btrfs_read_fs_root_no_name(fs_info, &key);
-		if (!sctx->parent_root) {
-			ret = -EINVAL;
+		if (IS_ERR(sctx->parent_root)) {
+			ret = PTR_ERR(sctx->parent_root);
 			goto out;
 		}
 	}
