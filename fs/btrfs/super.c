@@ -775,9 +775,6 @@ find_root:
 	if (IS_ERR(new_root))
 		return ERR_CAST(new_root);
 
-	if (btrfs_root_refs(&new_root->root_item) == 0)
-		return ERR_PTR(-ENOENT);
-
 	dir_id = btrfs_root_dirid(&new_root->root_item);
 setup_root:
 	location.objectid = dir_id;

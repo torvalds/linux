@@ -2951,11 +2951,6 @@ static long btrfs_ioctl_default_subvol(struct file *file, void __user *argp)
 		goto out;
 	}
 
-	if (btrfs_root_refs(&new_root->root_item) == 0) {
-		ret = -ENOENT;
-		goto out;
-	}
-
 	path = btrfs_alloc_path();
 	if (!path) {
 		ret = -ENOMEM;

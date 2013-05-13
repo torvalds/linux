@@ -2262,11 +2262,6 @@ static noinline int relink_extent_backref(struct btrfs_path *path,
 			return 0;
 		return PTR_ERR(root);
 	}
-	if (btrfs_root_refs(&root->root_item) == 0) {
-		srcu_read_unlock(&fs_info->subvol_srcu, index);
-		/* parse ENOENT to 0 */
-		return 0;
-	}
 
 	/* step 2: get inode */
 	key.objectid = backref->inum;
@@ -4818,11 +4813,6 @@ static int fixup_tree_root_location(struct btrfs_root *root,
 	new_root = btrfs_read_fs_root_no_name(root->fs_info, location);
 	if (IS_ERR(new_root)) {
 		err = PTR_ERR(new_root);
-		goto out;
-	}
-
-	if (btrfs_root_refs(&new_root->root_item) == 0) {
-		err = -ENOENT;
 		goto out;
 	}
 
