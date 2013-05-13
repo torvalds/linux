@@ -23,24 +23,21 @@ NM		= sh $(srctree)/arch/parisc/nm
 CHECKFLAGS	+= -D__hppa__=1
 LIBGCC		= $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
 
-MACHINE		:= $(shell uname -m)
-NATIVE		:= $(if $(filter parisc%,$(MACHINE)),1,0)
-
 ifdef CONFIG_64BIT
 UTS_MACHINE	:= parisc64
 CHECKFLAGS	+= -D__LP64__=1 -m64
-WIDTH		:= 64
+CC_ARCHES	= hppa64
 else # 32-bit
-WIDTH		:=
+CC_ARCHES	= hppa hppa2.0 hppa1.1
 endif
 
-# attempt to help out folks who are cross-compiling
-ifeq ($(NATIVE),1)
-CROSS_COMPILE	:= hppa$(WIDTH)-linux-
-else
- ifeq ($(CROSS_COMPILE),)
- CROSS_COMPILE	:= hppa$(WIDTH)-linux-gnu-
- endif
+ifneq ($(SUBARCH),$(UTS_MACHINE))
+	ifeq ($(CROSS_COMPILE),)
+		CC_SUFFIXES = linux linux-gnu unknown-linux-gnu
+		CROSS_COMPILE := $(call cc-cross-prefix, \
+			$(foreach a,$(CC_ARCHES), \
+			$(foreach s,$(CC_SUFFIXES),$(a)-$(s)-)))
+	endif
 endif
 
 OBJCOPY_FLAGS =-O binary -R .note -R .comment -S
