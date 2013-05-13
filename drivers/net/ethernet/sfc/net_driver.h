@@ -72,8 +72,20 @@
 /* Maximum possible MTU the driver supports */
 #define EFX_MAX_MTU (9 * 1024)
 
-/* Size of an RX scatter buffer.  Small enough to pack 2 into a 4K page. */
-#define EFX_RX_USR_BUF_SIZE 1824
+/* Size of an RX scatter buffer.  Small enough to pack 2 into a 4K page,
+ * and should be a multiple of the cache line size.
+ */
+#define EFX_RX_USR_BUF_SIZE	(2048 - 256)
+
+/* If possible, we should ensure cache line alignment at start and end
+ * of every buffer.  Otherwise, we just need to ensure 4-byte
+ * alignment of the network header.
+ */
+#if NET_IP_ALIGN == 0
+#define EFX_RX_BUF_ALIGNMENT	L1_CACHE_BYTES
+#else
+#define EFX_RX_BUF_ALIGNMENT	4
+#endif
 
 /* Forward declare Precision Time Protocol (PTP) support structure. */
 struct efx_ptp_data;

@@ -94,7 +94,7 @@ static inline void efx_sync_rx_buffer(struct efx_nic *efx,
 void efx_rx_config_page_split(struct efx_nic *efx)
 {
 	efx->rx_page_buf_step = ALIGN(efx->rx_dma_len + NET_IP_ALIGN,
-				      L1_CACHE_BYTES);
+				      EFX_RX_BUF_ALIGNMENT);
 	efx->rx_bufs_per_page = efx->rx_buffer_order ? 1 :
 		((PAGE_SIZE - sizeof(struct efx_rx_page_state)) /
 		 efx->rx_page_buf_step);
