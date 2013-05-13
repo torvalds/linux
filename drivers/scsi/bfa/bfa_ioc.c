@@ -1858,7 +1858,7 @@ bfa_ioc_smem_read(struct bfa_ioc_s *ioc, void *tbuf, u32 soff, u32 sz)
 	bfa_trc(ioc, len);
 	for (i = 0; i < len; i++) {
 		r32 = bfa_mem_read(ioc->ioc_regs.smem_page_start, loff);
-		buf[i] = be32_to_cpu(r32);
+		buf[i] = swab32(r32);
 		loff += sizeof(u32);
 
 		/*
