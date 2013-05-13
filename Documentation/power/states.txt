@@ -2,11 +2,25 @@
 System Power Management States
 
 
-The kernel supports three power management states generically, though
-each is dependent on platform support code to implement the low-level
-details for each state. This file describes each state, what they are
+The kernel supports four power management states generically, though
+one is generic and the other three are dependent on platform support
+code to implement the low-level details for each state.
+This file describes each state, what they are
 commonly called, what ACPI state they map to, and what string to write
 to /sys/power/state to enter that state
+
+state:		Freeze / Low-Power Idle
+ACPI state:	S0
+String:		"freeze"
+
+This state is a generic, pure software, light-weight, low-power state.
+It allows more energy to be saved relative to idle by freezing user
+space and putting all I/O devices into low-power states (possibly
+lower-power than available at run time), such that the processors can
+spend more time in their idle states.
+This state can be used for platforms without Standby/Suspend-to-RAM
+support, or it can be used in addition to Suspend-to-RAM (memory sleep)
+to provide reduced resume latency.
 
 
 State:		Standby / Power-On Suspend

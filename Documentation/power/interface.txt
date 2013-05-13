@@ -7,8 +7,8 @@ running. The interface exists in /sys/power/ directory (assuming sysfs
 is mounted at /sys). 
 
 /sys/power/state controls system power state. Reading from this file
-returns what states are supported, which is hard-coded to 'standby'
-(Power-On Suspend), 'mem' (Suspend-to-RAM), and 'disk'
+returns what states are supported, which is hard-coded to 'freeze',
+'standby' (Power-On Suspend), 'mem' (Suspend-to-RAM), and 'disk'
 (Suspend-to-Disk). 
 
 Writing to this file one of those strings causes the system to
