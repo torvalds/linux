@@ -734,6 +734,7 @@ static int vme_user_probe(struct vme_dev *vdev)
 		if (image[i].resource == NULL) {
 			dev_warn(&vdev->dev,
 				 "Unable to allocate slave resource\n");
+			err = -ENOMEM;
 			goto err_slave;
 		}
 		image[i].size_buf = PCI_BUF_SIZE;
@@ -760,6 +761,7 @@ static int vme_user_probe(struct vme_dev *vdev)
 		if (image[i].resource == NULL) {
 			dev_warn(&vdev->dev,
 				 "Unable to allocate master resource\n");
+			err = -ENOMEM;
 			goto err_master;
 		}
 		image[i].size_buf = PCI_BUF_SIZE;
