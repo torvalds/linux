@@ -629,7 +629,7 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 	struct nvme_command *cmnd;
 	struct nvme_iod *iod;
 	enum dma_data_direction dma_dir;
-	int cmdid, length, result = -ENOMEM;
+	int cmdid, length, result;
 	u16 control;
 	u32 dsmgmt;
 	int psegs = bio_phys_segments(ns->queue, bio);
@@ -640,6 +640,7 @@ static int nvme_submit_bio_queue(struct nvme_queue *nvmeq, struct nvme_ns *ns,
 			return result;
 	}
 
+	result = -ENOMEM;
 	iod = nvme_alloc_iod(psegs, bio->bi_size, GFP_ATOMIC);
 	if (!iod)
 		goto nomem;
