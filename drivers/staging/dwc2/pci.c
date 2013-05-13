@@ -157,6 +157,10 @@ static DEFINE_PCI_DEVICE_TABLE(dwc2_pci_ids) = {
 	{
 		PCI_DEVICE(PCI_VENDOR_ID_SYNOPSYS, PCI_PRODUCT_ID_HAPS_HSOTG),
 	},
+	{
+		PCI_DEVICE(PCI_VENDOR_ID_STMICRO,
+			   PCI_DEVICE_ID_STMICRO_USB_OTG),
+	},
 	{ /* end: all zeroes */ }
 };
 MODULE_DEVICE_TABLE(pci, dwc2_pci_ids);
