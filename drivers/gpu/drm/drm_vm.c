@@ -49,13 +49,10 @@ static pgprot_t drm_io_prot(struct drm_local_map *map,
 	pgprot_t tmp = vm_get_page_prot(vma->vm_flags);
 
 #if defined(__i386__) || defined(__x86_64__)
-	if (map->type != _DRM_AGP) {
-		if (map->type == _DRM_FRAME_BUFFER ||
-		    map->flags & _DRM_WRITE_COMBINING)
-			tmp = pgprot_writecombine(tmp);
-		else
-			tmp = pgprot_noncached(tmp);
-	}
+	if (map->type == _DRM_REGISTERS && !(map->flags & _DRM_WRITE_COMBINING))
+		tmp = pgprot_noncached(tmp);
+	else
+		tmp = pgprot_writecombine(tmp);
 #elif defined(__powerpc__)
 	pgprot_val(tmp) |= _PAGE_NO_CACHE;
 	if (map->type == _DRM_REGISTERS)

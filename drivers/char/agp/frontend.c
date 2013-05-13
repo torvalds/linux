@@ -603,7 +603,8 @@ static int agp_mmap(struct file *file, struct vm_area_struct *vma)
 			vma->vm_ops = kerninfo.vm_ops;
 		} else if (io_remap_pfn_range(vma, vma->vm_start,
 				(kerninfo.aper_base + offset) >> PAGE_SHIFT,
-					    size, vma->vm_page_prot)) {
+				size,
+				pgprot_writecombine(vma->vm_page_prot))) {
 			goto out_again;
 		}
 		mutex_unlock(&(agp_fe.agp_mutex));
@@ -618,8 +619,9 @@ static int agp_mmap(struct file *file, struct vm_area_struct *vma)
 		if (kerninfo.vm_ops) {
 			vma->vm_ops = kerninfo.vm_ops;
 		} else if (io_remap_pfn_range(vma, vma->vm_start,
-					    kerninfo.aper_base >> PAGE_SHIFT,
-					    size, vma->vm_page_prot)) {
+				kerninfo.aper_base >> PAGE_SHIFT,
+				size,
+				pgprot_writecombine(vma->vm_page_prot))) {
 			goto out_again;
 		}
 		mutex_unlock(&(agp_fe.agp_mutex));
