@@ -1276,7 +1276,6 @@ bfa_lps_sm_login(struct bfa_lps_s *lps, enum bfa_lps_event event)
 
 	switch (event) {
 	case BFA_LPS_SM_FWRSP:
-	case BFA_LPS_SM_OFFLINE:
 		if (lps->status == BFA_STATUS_OK) {
 			bfa_sm_set_state(lps, bfa_lps_sm_online);
 			if (lps->fdisc)
@@ -1305,6 +1304,7 @@ bfa_lps_sm_login(struct bfa_lps_s *lps, enum bfa_lps_event event)
 		bfa_lps_login_comp(lps);
 		break;
 
+	case BFA_LPS_SM_OFFLINE:
 	case BFA_LPS_SM_DELETE:
 		bfa_sm_set_state(lps, bfa_lps_sm_init);
 		break;
