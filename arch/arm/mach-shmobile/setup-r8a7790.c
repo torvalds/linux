@@ -45,6 +45,7 @@ static struct gpio_rcar_config r8a7790_gpio##idx##_platform_data = {	\
 	.irq_base	= 0,						\
 	.number_of_pins	= 32,						\
 	.pctl_name	= "pfc-r8a7790",				\
+	.has_both_edge_trigger = 1,					\
 };									\
 
 R8A7790_GPIO(0);
