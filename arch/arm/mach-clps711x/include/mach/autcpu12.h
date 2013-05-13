@@ -20,11 +20,6 @@
 #ifndef __ASM_ARCH_AUTCPU12_H
 #define __ASM_ARCH_AUTCPU12_H
 
-/*
- * The flash bank is wired to chip select 0
- */
-#define AUTCPU12_PHYS_FLASH		CS0_PHYS_BASE		/* physical */
-
 /* offset for device specific information structure */
 #define AUTCPU12_LCDINFO_OFFS		(0x00010000)	
 

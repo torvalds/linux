@@ -26,6 +26,7 @@
 #include <linux/gpio.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
+#include <linux/mtd/physmap.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/nand-gpio.h>
 #include <linux/platform_device.h>
@@ -45,11 +46,16 @@
 #include "common.h"
 #include "devices.h"
 
-#define AUTCPU12_CS8900_BASE	(CS2_PHYS_BASE + 0x300)
-#define AUTCPU12_CS8900_IRQ	(IRQ_EINT3)
+/* NOR flash */
+#define AUTCPU12_FLASH_BASE	(CS0_PHYS_BASE)
 
+/* SmartMedia flash */
 #define AUTCPU12_SMC_BASE	(CS1_PHYS_BASE + 0x06000000)
 #define AUTCPU12_SMC_SEL_BASE	(AUTCPU12_SMC_BASE + 0x10)
+
+/* Ethernet */
+#define AUTCPU12_CS8900_BASE	(CS2_PHYS_BASE + 0x300)
+#define AUTCPU12_CS8900_IRQ	(IRQ_EINT3)
 
 /* NAND flash */
 #define AUTCPU12_MMGPIO_BASE	(CLPS711X_NR_GPIO)
@@ -160,9 +166,38 @@ static const struct gpio autcpu12_gpios[] __initconst = {
 	{ AUTCPU12_DPOT_UD,	GPIOF_OUT_INIT_LOW,	"DPOT UD" },
 };
 
+static struct mtd_partition autcpu12_flash_partitions[] = {
+	{
+		.name	= "NOR.0",
+		.offset	= 0,
+		.size	= MTDPART_SIZ_FULL,
+	},
+};
+
+static struct physmap_flash_data autcpu12_flash_pdata = {
+	.width		= 4,
+	.parts		= autcpu12_flash_partitions,
+	.nr_parts	= ARRAY_SIZE(autcpu12_flash_partitions),
+};
+
+static struct resource autcpu12_flash_resources[] __initdata = {
+	DEFINE_RES_MEM(AUTCPU12_FLASH_BASE, SZ_8M),
+};
+
+static struct platform_device autcpu12_flash_pdev __initdata = {
+	.name		= "physmap-flash",
+	.id		= 0,
+	.resource	= autcpu12_flash_resources,
+	.num_resources	= ARRAY_SIZE(autcpu12_flash_resources),
+	.dev		= {
+		.platform_data	= &autcpu12_flash_pdata,
+	},
+};
+
 static void __init autcpu12_init(void)
 {
 	clps711x_devices_init();
+	platform_device_register(&autcpu12_flash_pdev);
 	platform_device_register_simple("video-clps711x", 0, NULL, 0);
 	platform_device_register_simple("cs89x0", 0, autcpu12_cs8900_resource,
 					ARRAY_SIZE(autcpu12_cs8900_resource));
