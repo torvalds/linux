@@ -48,12 +48,4 @@
 
 #define AUTCPU12_PHYS_LPT              	CS1_PHYS_BASE +0x0E000000  /* physical */
 
-/*
-* defines for lcd contrast 
-*/
-#define AUTCPU12_DPOT_PORT_OFFSET	PEDR
-#define	AUTCPU12_DPOT_CS		(1<<0)
-#define AUTCPU12_DPOT_CLK    		(1<<1)
-#define	AUTCPU12_DPOT_UD		(1<<2)
-
 #endif
