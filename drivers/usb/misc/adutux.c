@@ -63,7 +63,7 @@ static const struct usb_device_id device_table[] = {
 	{ USB_DEVICE(ADU_VENDOR_ID, ADU_PRODUCT_ID+100) },	/* ADU200 */
 	{ USB_DEVICE(ADU_VENDOR_ID, ADU_PRODUCT_ID+108) },	/* ADU208 */
 	{ USB_DEVICE(ADU_VENDOR_ID, ADU_PRODUCT_ID+118) },	/* ADU218 */
-	{ }/* Terminating entry */
+	{ } /* Terminating entry */
 };
 
 MODULE_DEVICE_TABLE(usb, device_table);
