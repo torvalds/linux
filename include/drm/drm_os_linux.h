@@ -65,22 +65,6 @@ struct no_agp_kern {
 #define DRM_AGP_KERN            struct no_agp_kern
 #endif
 
-#if !(__OS_HAS_MTRR)
-static __inline__ int mtrr_add(unsigned long base, unsigned long size,
-			       unsigned int type, char increment)
-{
-	return -ENODEV;
-}
-
-static __inline__ int mtrr_del(int reg, unsigned long base, unsigned long size)
-{
-	return -ENODEV;
-}
-
-#define MTRR_TYPE_WRCOMB     1
-
-#endif
-
 /** Other copying of data to kernel space */
 #define DRM_COPY_FROM_USER(arg1, arg2, arg3)		\
 	copy_from_user(arg1, arg2, arg3)
