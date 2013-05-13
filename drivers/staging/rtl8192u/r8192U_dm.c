@@ -1736,7 +1736,7 @@ extern void dm_restore_dynamic_mechanism_state(struct net_device *dev)
 			ratr_value = reg_ratr;
 			if(priv->rf_type == RF_1T2R)	// 1T2R, Spatial Stream 2 should be disabled
 			{
-				ratr_value &=~ (RATE_ALL_OFDM_2SS);
+				ratr_value &= ~(RATE_ALL_OFDM_2SS);
 				//DbgPrint("HW_VAR_TATR_0 from 0x%x ==> 0x%x\n", ((pu4Byte)(val))[0], ratr_value);
 			}
 			//DbgPrint("set HW_VAR_TATR_0 = 0x%x\n", ratr_value);
@@ -3057,7 +3057,7 @@ static void dm_rxpath_sel_byrssi(struct net_device *dev)
 	}
 
 	DM_RxPathSelTable.disabledRF = 0xf;
-	DM_RxPathSelTable.disabledRF &=~ (read_nic_byte(dev, 0xc04));
+	DM_RxPathSelTable.disabledRF &= ~(read_nic_byte(dev, 0xc04));
 
 	if(priv->ieee80211->mode == WIRELESS_MODE_B)
 	{
