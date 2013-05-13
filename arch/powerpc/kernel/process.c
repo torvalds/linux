@@ -339,6 +339,13 @@ static void set_debug_reg_defaults(struct thread_struct *thread)
 
 static void prime_debug_regs(struct thread_struct *thread)
 {
+	/*
+	 * We could have inherited MSR_DE from userspace, since
+	 * it doesn't get cleared on exception entry.  Make sure
+	 * MSR_DE is clear before we enable any debug events.
+	 */
+	mtmsr(mfmsr() & ~MSR_DE);
+
 	mtspr(SPRN_IAC1, thread->iac1);
 	mtspr(SPRN_IAC2, thread->iac2);
 #if CONFIG_PPC_ADV_DEBUG_IACS > 2
