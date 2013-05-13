@@ -834,11 +834,9 @@ static int timblogiw_probe(struct platform_device *pdev)
 		goto err_request;
 	}
 
-
 	return 0;
 
 err_request:
-	platform_set_drvdata(pdev, NULL);
 	v4l2_device_unregister(&lw->v4l2_dev);
 err_register:
 	kfree(lw);
@@ -857,8 +855,6 @@ static int timblogiw_remove(struct platform_device *pdev)
 	v4l2_device_unregister(&lw->v4l2_dev);
 
 	kfree(lw);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
