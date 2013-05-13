@@ -374,6 +374,10 @@ enum bfi_ioc_state {
 	BFI_IOC_MEMTEST		= 9,	/*  IOC is doing memtest	     */
 };
 
+#define BFA_IOC_CB_JOIN_SH	16
+#define BFA_IOC_CB_FWSTATE_MASK	0x0000ffff
+#define BFA_IOC_CB_JOIN_MASK	0xffff0000
+
 #define BFI_IOC_ENDIAN_SIG  0x12345678
 
 enum {

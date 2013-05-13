@@ -346,6 +346,12 @@ struct bfa_ioc_hwif_s {
 	void		(*ioc_sync_ack)		(struct bfa_ioc_s *ioc);
 	bfa_boolean_t	(*ioc_sync_complete)	(struct bfa_ioc_s *ioc);
 	bfa_boolean_t	(*ioc_lpu_read_stat)	(struct bfa_ioc_s *ioc);
+	void		(*ioc_set_fwstate)	(struct bfa_ioc_s *ioc,
+					enum bfi_ioc_state fwstate);
+	enum bfi_ioc_state	(*ioc_get_fwstate)	(struct bfa_ioc_s *ioc);
+	void		(*ioc_set_alt_fwstate)	(struct bfa_ioc_s *ioc,
+					enum bfi_ioc_state fwstate);
+	enum bfi_ioc_state	(*ioc_get_alt_fwstate)	(struct bfa_ioc_s *ioc);
 };
 
 /*

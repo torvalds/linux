@@ -43,6 +43,12 @@ static void bfa_ioc_ct_sync_join(struct bfa_ioc_s *ioc);
 static void bfa_ioc_ct_sync_leave(struct bfa_ioc_s *ioc);
 static void bfa_ioc_ct_sync_ack(struct bfa_ioc_s *ioc);
 static bfa_boolean_t bfa_ioc_ct_sync_complete(struct bfa_ioc_s *ioc);
+static void bfa_ioc_ct_set_cur_ioc_fwstate(
+			struct bfa_ioc_s *ioc, enum bfi_ioc_state fwstate);
+static enum bfi_ioc_state bfa_ioc_ct_get_cur_ioc_fwstate(struct bfa_ioc_s *ioc);
+static void bfa_ioc_ct_set_alt_ioc_fwstate(
+			struct bfa_ioc_s *ioc, enum bfi_ioc_state fwstate);
+static enum bfi_ioc_state bfa_ioc_ct_get_alt_ioc_fwstate(struct bfa_ioc_s *ioc);
 
 static struct bfa_ioc_hwif_s hwif_ct;
 static struct bfa_ioc_hwif_s hwif_ct2;
@@ -512,6 +518,10 @@ bfa_ioc_set_ctx_hwif(struct bfa_ioc_s *ioc, struct bfa_ioc_hwif_s *hwif)
 	hwif->ioc_sync_leave = bfa_ioc_ct_sync_leave;
 	hwif->ioc_sync_ack = bfa_ioc_ct_sync_ack;
 	hwif->ioc_sync_complete = bfa_ioc_ct_sync_complete;
+	hwif->ioc_set_fwstate = bfa_ioc_ct_set_cur_ioc_fwstate;
+	hwif->ioc_get_fwstate = bfa_ioc_ct_get_cur_ioc_fwstate;
+	hwif->ioc_set_alt_fwstate = bfa_ioc_ct_set_alt_ioc_fwstate;
+	hwif->ioc_get_alt_fwstate = bfa_ioc_ct_get_alt_ioc_fwstate;
 }
 
 /**
@@ -958,4 +968,30 @@ bfa_ioc_ct2_pll_init(void __iomem *rb, enum bfi_asic_mode mode)
 	writel(BFI_IOC_UNINIT, (rb + CT2_BFA_IOC1_STATE_REG));
 
 	return BFA_STATUS_OK;
+}
+
+static void
+bfa_ioc_ct_set_cur_ioc_fwstate(struct bfa_ioc_s *ioc,
+		enum bfi_ioc_state fwstate)
+{
+	writel(fwstate, ioc->ioc_regs.ioc_fwstate);
+}
+
+static enum bfi_ioc_state
+bfa_ioc_ct_get_cur_ioc_fwstate(struct bfa_ioc_s *ioc)
+{
+	return (enum bfi_ioc_state)readl(ioc->ioc_regs.ioc_fwstate);
+}
+
+static void
+bfa_ioc_ct_set_alt_ioc_fwstate(struct bfa_ioc_s *ioc,
+		enum bfi_ioc_state fwstate)
+{
+	writel(fwstate, ioc->ioc_regs.alt_ioc_fwstate);
+}
+
+static enum bfi_ioc_state
+bfa_ioc_ct_get_alt_ioc_fwstate(struct bfa_ioc_s *ioc)
+{
+	return (enum bfi_ioc_state) readl(ioc->ioc_regs.alt_ioc_fwstate);
 }
