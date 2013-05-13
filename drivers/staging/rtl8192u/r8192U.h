@@ -88,7 +88,7 @@
 #define DMESGE(x,a...)
 extern u32 rt_global_debug_component;
 #define RT_TRACE(component, x, args...) \
-do { if(rt_global_debug_component & component) \
+do { if (rt_global_debug_component & component) \
 	printk(KERN_DEBUG RTL819xU_MODULE_NAME ":" x "\n" , \
 	       ##args);\
 }while(0);
