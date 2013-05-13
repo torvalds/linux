@@ -6681,9 +6681,11 @@ try_reserve:
 		return block_rsv;
 	/*
 	 * If we couldn't reserve metadata bytes try and use some from
-	 * the global reserve.
+	 * the global reserve if its space type is the same as the global
+	 * reservation.
 	 */
-	if (block_rsv->type != BTRFS_BLOCK_RSV_GLOBAL) {
+	if (block_rsv->type != BTRFS_BLOCK_RSV_GLOBAL &&
+	    block_rsv->space_info == global_rsv->space_info) {
 		ret = block_rsv_use_bytes(global_rsv, blocksize);
 		if (!ret)
 			return global_rsv;
