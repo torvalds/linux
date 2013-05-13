@@ -43,7 +43,7 @@ config CAIF_HSI
 
 config CAIF_VIRTIO
 	tristate "CAIF virtio transport driver"
-	depends on CAIF
+	depends on CAIF && HAS_DMA
 	select VHOST_RING
 	select VIRTIO
 	select GENERIC_ALLOCATOR

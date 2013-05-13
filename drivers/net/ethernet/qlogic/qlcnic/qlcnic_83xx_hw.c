@@ -696,15 +696,14 @@ u32 qlcnic_83xx_mac_rcode(struct qlcnic_adapter *adapter)
 	return 1;
 }
 
-u32 qlcnic_83xx_mbx_poll(struct qlcnic_adapter *adapter)
+u32 qlcnic_83xx_mbx_poll(struct qlcnic_adapter *adapter, u32 *wait_time)
 {
 	u32 data;
-	unsigned long wait_time = 0;
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	/* wait for mailbox completion */
 	do {
 		data = QLCRDX(ahw, QLCNIC_FW_MBX_CTRL);
-		if (++wait_time > QLCNIC_MBX_TIMEOUT) {
+		if (++(*wait_time) > QLCNIC_MBX_TIMEOUT) {
 			data = QLCNIC_RCODE_TIMEOUT;
 			break;
 		}
@@ -720,8 +719,8 @@ int qlcnic_83xx_mbx_op(struct qlcnic_adapter *adapter,
 	u16 opcode;
 	u8 mbx_err_code;
 	unsigned long flags;
-	u32 rsp, mbx_val, fw_data, rsp_num, mbx_cmd;
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	u32 rsp, mbx_val, fw_data, rsp_num, mbx_cmd, wait_time = 0;
 
 	opcode = LSW(cmd->req.arg[0]);
 	if (!test_bit(QLC_83XX_MBX_READY, &adapter->ahw->idc.status)) {
@@ -754,15 +753,13 @@ int qlcnic_83xx_mbx_op(struct qlcnic_adapter *adapter,
 	/* Signal FW about the impending command */
 	QLCWRX(ahw, QLCNIC_HOST_MBX_CTRL, QLCNIC_SET_OWNER);
 poll:
-	rsp = qlcnic_83xx_mbx_poll(adapter);
+	rsp = qlcnic_83xx_mbx_poll(adapter, &wait_time);
 	if (rsp != QLCNIC_RCODE_TIMEOUT) {
 		/* Get the FW response data */
 		fw_data = readl(QLCNIC_MBX_FW(ahw, 0));
 		if (fw_data &  QLCNIC_MBX_ASYNC_EVENT) {
 			__qlcnic_83xx_process_aen(adapter);
-			mbx_val = QLCRDX(ahw, QLCNIC_HOST_MBX_CTRL);
-			if (mbx_val)
-				goto poll;
+			goto poll;
 		}
 		mbx_err_code = QLCNIC_MBX_STATUS(fw_data);
 		rsp_num = QLCNIC_MBX_NUM_REGS(fw_data);
@@ -1276,11 +1273,13 @@ out:
 	return err;
 }
 
-static int qlcnic_83xx_diag_alloc_res(struct net_device *netdev, int test)
+static int qlcnic_83xx_diag_alloc_res(struct net_device *netdev, int test,
+				      int num_sds_ring)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct qlcnic_host_sds_ring *sds_ring;
 	struct qlcnic_host_rds_ring *rds_ring;
+	u16 adapter_state = adapter->is_up;
 	u8 ring;
 	int ret;
 
@@ -1304,6 +1303,10 @@ static int qlcnic_83xx_diag_alloc_res(struct net_device *netdev, int test)
 	ret = qlcnic_fw_create_ctx(adapter);
 	if (ret) {
 		qlcnic_detach(adapter);
+		if (adapter_state == QLCNIC_ADAPTER_UP_MAGIC) {
+			adapter->max_sds_rings = num_sds_ring;
+			qlcnic_attach(adapter);
+		}
 		netif_device_attach(netdev);
 		return ret;
 	}
@@ -1596,7 +1599,8 @@ int qlcnic_83xx_loopback_test(struct net_device *netdev, u8 mode)
 	if (test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
 		return -EBUSY;
 
-	ret = qlcnic_83xx_diag_alloc_res(netdev, QLCNIC_LOOPBACK_TEST);
+	ret = qlcnic_83xx_diag_alloc_res(netdev, QLCNIC_LOOPBACK_TEST,
+					 max_sds_rings);
 	if (ret)
 		goto fail_diag_alloc;
 
@@ -2830,6 +2834,23 @@ int qlcnic_83xx_test_link(struct qlcnic_adapter *adapter)
 			break;
 		}
 		config = cmd.rsp.arg[3];
+		if (QLC_83XX_SFP_PRESENT(config)) {
+			switch (ahw->module_type) {
+			case LINKEVENT_MODULE_OPTICAL_UNKNOWN:
+			case LINKEVENT_MODULE_OPTICAL_SRLR:
+			case LINKEVENT_MODULE_OPTICAL_LRM:
+			case LINKEVENT_MODULE_OPTICAL_SFP_1G:
+				ahw->supported_type = PORT_FIBRE;
+				break;
+			case LINKEVENT_MODULE_TWINAX_UNSUPPORTED_CABLE:
+			case LINKEVENT_MODULE_TWINAX_UNSUPPORTED_CABLELEN:
+			case LINKEVENT_MODULE_TWINAX:
+				ahw->supported_type = PORT_TP;
+				break;
+			default:
+				ahw->supported_type = PORT_OTHER;
+			}
+		}
 		if (config & 1)
 			err = 1;
 	}
@@ -2838,7 +2859,8 @@ out:
 	return config;
 }
 
-int qlcnic_83xx_get_settings(struct qlcnic_adapter *adapter)
+int qlcnic_83xx_get_settings(struct qlcnic_adapter *adapter,
+			     struct ethtool_cmd *ecmd)
 {
 	u32 config = 0;
 	int status = 0;
@@ -2851,6 +2873,54 @@ int qlcnic_83xx_get_settings(struct qlcnic_adapter *adapter)
 	ahw->module_type = QLC_83XX_SFP_MODULE_TYPE(config);
 	/* hard code until there is a way to get it from flash */
 	ahw->board_type = QLCNIC_BRDTYPE_83XX_10G;
+
+	if (netif_running(adapter->netdev) && ahw->has_link_events) {
+		ethtool_cmd_speed_set(ecmd, ahw->link_speed);
+		ecmd->duplex = ahw->link_duplex;
+		ecmd->autoneg = ahw->link_autoneg;
+	} else {
+		ethtool_cmd_speed_set(ecmd, SPEED_UNKNOWN);
+		ecmd->duplex = DUPLEX_UNKNOWN;
+		ecmd->autoneg = AUTONEG_DISABLE;
+	}
+
+	if (ahw->port_type == QLCNIC_XGBE) {
+		ecmd->supported = SUPPORTED_1000baseT_Full;
+		ecmd->advertising = ADVERTISED_1000baseT_Full;
+	} else {
+		ecmd->supported = (SUPPORTED_10baseT_Half |
+				   SUPPORTED_10baseT_Full |
+				   SUPPORTED_100baseT_Half |
+				   SUPPORTED_100baseT_Full |
+				   SUPPORTED_1000baseT_Half |
+				   SUPPORTED_1000baseT_Full);
+		ecmd->advertising = (ADVERTISED_100baseT_Half |
+				     ADVERTISED_100baseT_Full |
+				     ADVERTISED_1000baseT_Half |
+				     ADVERTISED_1000baseT_Full);
+	}
+
+	switch (ahw->supported_type) {
+	case PORT_FIBRE:
+		ecmd->supported |= SUPPORTED_FIBRE;
+		ecmd->advertising |= ADVERTISED_FIBRE;
+		ecmd->port = PORT_FIBRE;
+		ecmd->transceiver = XCVR_EXTERNAL;
+		break;
+	case PORT_TP:
+		ecmd->supported |= SUPPORTED_TP;
+		ecmd->advertising |= ADVERTISED_TP;
+		ecmd->port = PORT_TP;
+		ecmd->transceiver = XCVR_INTERNAL;
+		break;
+	default:
+		ecmd->supported |= SUPPORTED_FIBRE;
+		ecmd->advertising |= ADVERTISED_FIBRE;
+		ecmd->port = PORT_OTHER;
+		ecmd->transceiver = XCVR_EXTERNAL;
+		break;
+	}
+	ecmd->phy_address = ahw->physical_port;
 	return status;
 }
 
@@ -3046,7 +3116,8 @@ int qlcnic_83xx_interrupt_test(struct net_device *netdev)
 	if (test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
 		return -EIO;
 
-	ret = qlcnic_83xx_diag_alloc_res(netdev, QLCNIC_INTERRUPT_TEST);
+	ret = qlcnic_83xx_diag_alloc_res(netdev, QLCNIC_INTERRUPT_TEST,
+					 max_sds_rings);
 	if (ret)
 		goto fail_diag_irq;
 

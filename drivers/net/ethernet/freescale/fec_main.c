@@ -87,6 +87,8 @@
 #define FEC_QUIRK_HAS_GBIT		(1 << 3)
 /* Controller has extend desc buffer */
 #define FEC_QUIRK_HAS_BUFDESC_EX	(1 << 4)
+/* Controller has hardware checksum support */
+#define FEC_QUIRK_HAS_CSUM		(1 << 5)
 
 static struct platform_device_id fec_devtype[] = {
 	{
@@ -105,7 +107,7 @@ static struct platform_device_id fec_devtype[] = {
 	}, {
 		.name = "imx6q-fec",
 		.driver_data = FEC_QUIRK_ENET_MAC | FEC_QUIRK_HAS_GBIT |
-				FEC_QUIRK_HAS_BUFDESC_EX,
+				FEC_QUIRK_HAS_BUFDESC_EX | FEC_QUIRK_HAS_CSUM,
 	}, {
 		.name = "mvf-fec",
 		.driver_data = FEC_QUIRK_ENET_MAC,
@@ -1744,6 +1746,8 @@ static const struct net_device_ops fec_netdev_ops = {
 static int fec_enet_init(struct net_device *ndev)
 {
 	struct fec_enet_private *fep = netdev_priv(ndev);
+	const struct platform_device_id *id_entry =
+				platform_get_device_id(fep->pdev);
 	struct bufdesc *cbd_base;
 
 	/* Allocate memory for buffer descriptors. */
@@ -1775,12 +1779,14 @@ static int fec_enet_init(struct net_device *ndev)
 	writel(FEC_RX_DISABLED_IMASK, fep->hwp + FEC_IMASK);
 	netif_napi_add(ndev, &fep->napi, fec_enet_rx_napi, FEC_NAPI_WEIGHT);
 
-	/* enable hw accelerator */
-	ndev->features |= (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM
-			| NETIF_F_RXCSUM);
-	ndev->hw_features |= (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM
-			| NETIF_F_RXCSUM);
-	fep->csum_flags |= FLAG_RX_CSUM_ENABLED;
+	if (id_entry->driver_data & FEC_QUIRK_HAS_CSUM) {
+		/* enable hw accelerator */
+		ndev->features |= (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM
+				| NETIF_F_RXCSUM);
+		ndev->hw_features |= (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM
+				| NETIF_F_RXCSUM);
+		fep->csum_flags |= FLAG_RX_CSUM_ENABLED;
+	}
 
 	fec_restart(ndev, 0);
 
