@@ -354,15 +354,11 @@ void clps711x_restart(char mode, const char *cmd)
 static void clps711x_idle(void)
 {
 	clps_writel(1, HALT);
-	__asm__ __volatile__(
-	"mov    r0, r0\n\
-	mov     r0, r0");
+	asm("mov r0, r0");
+	asm("mov r0, r0");
 }
 
-static int __init clps711x_idle_init(void)
+void __init clps711x_init_early(void)
 {
 	arm_pm_idle = clps711x_idle;
-	return 0;
 }
-
-arch_initcall(clps711x_idle_init);

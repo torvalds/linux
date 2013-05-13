@@ -13,3 +13,4 @@ extern void clps711x_init_irq(void);
 extern void clps711x_timer_init(void);
 extern void clps711x_handle_irq(struct pt_regs *regs);
 extern void clps711x_restart(char mode, const char *cmd);
+extern void clps711x_init_early(void);
