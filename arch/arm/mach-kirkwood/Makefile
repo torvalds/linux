@@ -40,5 +40,6 @@ obj-$(CONFIG_MACH_NETSPACE_V2_DT)	+= board-ns2.o
 obj-$(CONFIG_MACH_NSA310_DT)		+= board-nsa310.o
 obj-$(CONFIG_MACH_OPENBLOCKS_A6_DT)	+= board-openblocks_a6.o
 obj-$(CONFIG_MACH_READYNAS_DT)		+= board-readynas.o
+obj-$(CONFIG_MACH_SHEEVAPLUG_DT)	+= board-sheevaplug.o
 obj-$(CONFIG_MACH_TOPKICK_DT)		+= board-usi_topkick.o
 obj-$(CONFIG_MACH_TS219_DT)		+= board-ts219.o tsx1x-common.o
