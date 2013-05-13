@@ -340,18 +340,13 @@ static int sh_csi2_probe(struct platform_device *pdev)
 	ret = v4l2_device_register_subdev(pdata->v4l2_dev, &priv->subdev);
 	dev_dbg(&pdev->dev, "%s(%p): ret(register_subdev) = %d\n", __func__, priv, ret);
 	if (ret < 0)
-		goto esdreg;
+		return ret;
 
 	pm_runtime_enable(&pdev->dev);
 
 	dev_dbg(&pdev->dev, "CSI2 probed.\n");
 
 	return 0;
-
-esdreg:
-	platform_set_drvdata(pdev, NULL);
-
-	return ret;
 }
 
 static int sh_csi2_remove(struct platform_device *pdev)
@@ -360,7 +355,6 @@ static int sh_csi2_remove(struct platform_device *pdev)
 
 	v4l2_device_unregister_subdev(&priv->subdev);
 	pm_runtime_disable(&pdev->dev);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
