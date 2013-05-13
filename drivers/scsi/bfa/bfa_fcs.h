@@ -243,19 +243,19 @@ struct bfa_fcs_fabric_s;
  *  Symbolic Name.
  *
  *  Physical Port's symbolic name Format : (Total 128 bytes)
- *  Adapter Model number/name : 12 bytes
+ *  Adapter Model number/name : 16 bytes
  *  Driver Version     : 10 bytes
  *  Host Machine Name  : 30 bytes
- *  Host OS Info	   : 48 bytes
+ *  Host OS Info	   : 44 bytes
  *  Host OS PATCH Info : 16 bytes
  *  ( remaining 12 bytes reserved to be used for separator)
  */
 #define BFA_FCS_PORT_SYMBNAME_SEPARATOR			" | "
 
-#define BFA_FCS_PORT_SYMBNAME_MODEL_SZ			12
+#define BFA_FCS_PORT_SYMBNAME_MODEL_SZ			16
 #define BFA_FCS_PORT_SYMBNAME_VERSION_SZ		10
 #define BFA_FCS_PORT_SYMBNAME_MACHINENAME_SZ		30
-#define BFA_FCS_PORT_SYMBNAME_OSINFO_SZ			48
+#define BFA_FCS_PORT_SYMBNAME_OSINFO_SZ			44
 #define BFA_FCS_PORT_SYMBNAME_OSPATCH_SZ		16
 
 /*

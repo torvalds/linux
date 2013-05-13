@@ -45,6 +45,7 @@ enum {
 	BFA_MFG_TYPE_PROWLER_C = 1710,   /*  Prowler CNA only cards	*/
 	BFA_MFG_TYPE_PROWLER_D = 1860,   /*  Prowler Dual cards		*/
 	BFA_MFG_TYPE_CHINOOK   = 1867,   /*  Chinook cards		*/
+	BFA_MFG_TYPE_CHINOOK2   = 1869,	 /*!< Chinook2 cards		*/
 	BFA_MFG_TYPE_INVALID = 0,        /*  Invalid card type		*/
 };
 
@@ -59,7 +60,8 @@ enum {
 	(type) == BFA_MFG_TYPE_ASTRA || \
 	(type) == BFA_MFG_TYPE_LIGHTNING_P0 || \
 	(type) == BFA_MFG_TYPE_LIGHTNING || \
-	(type) == BFA_MFG_TYPE_CHINOOK))
+	(type) == BFA_MFG_TYPE_CHINOOK || \
+	(type) == BFA_MFG_TYPE_CHINOOK2))
 
 /*
  * Check if the card having old wwn/mac handling
@@ -263,6 +265,7 @@ enum {
 	BFA_ADAPTER_MFG_NAME_LEN    = 8,   /*  manufacturer name length */
 	BFA_ADAPTER_SYM_NAME_LEN    = 64,  /*  adapter symbolic name length */
 	BFA_ADAPTER_OS_TYPE_LEN	    = 64,  /*  adapter os type length */
+	BFA_ADAPTER_UUID_LEN	    = 16,  /* adapter uuid length */
 };
 
 struct bfa_adapter_attr_s {
@@ -296,6 +299,7 @@ struct bfa_adapter_attr_s {
 	u8		mfg_month;	/* manufacturing month */
 	u16		mfg_year;	/* manufacturing year */
 	u16		rsvd;
+	u8		uuid[BFA_ADAPTER_UUID_LEN];
 };
 
 /*
@@ -409,7 +413,8 @@ struct bfa_ioc_attr_s {
 	u8				port_mode;	/*  bfa_mode_s	*/
 	u8				cap_bm;		/*  capability	*/
 	u8				port_mode_cfg;	/*  bfa_mode_s	*/
-	u8				rsvd[4];	/*  64bit align	*/
+	u8				def_fn;		/* 1 if default fn */
+	u8				rsvd[3];	/*  64bit align	*/
 };
 
 /*

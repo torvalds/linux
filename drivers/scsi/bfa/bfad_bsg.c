@@ -2716,7 +2716,7 @@ bfad_iocmd_fruvpd_update(struct bfad_s *bfad, void *cmd)
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 	iocmd->status = bfa_fruvpd_update(BFA_FRU(&bfad->bfa),
 				&iocmd->data, iocmd->len, iocmd->offset,
-				bfad_hcb_comp, &fcomp);
+				bfad_hcb_comp, &fcomp, iocmd->trfr_cmpl);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 	if (iocmd->status == BFA_STATUS_OK) {
 		wait_for_completion(&fcomp.comp);

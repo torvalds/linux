@@ -794,10 +794,12 @@ struct bfa_bsg_tfru_s {
 struct bfa_bsg_fruvpd_s {
 	bfa_status_t	status;
 	u16		bfad_num;
-	u16		rsvd;
+	u16		rsvd1;
 	u32		offset;
 	u32		len;
 	u8		data[BFA_MAX_FRUVPD_TRANSFER_SIZE];
+	u8		trfr_cmpl;
+	u8		rsvd2[3];
 };
 
 struct bfa_bsg_fruvpd_max_size_s {

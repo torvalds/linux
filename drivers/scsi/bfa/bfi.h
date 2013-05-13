@@ -264,6 +264,7 @@ struct bfi_ioc_getattr_req_s {
 	union bfi_addr_u	attr_addr;
 };
 
+#define BFI_IOC_ATTR_UUID_SZ	16
 struct bfi_ioc_attr_s {
 	wwn_t		mfg_pwwn;	/*  Mfg port wwn	   */
 	wwn_t		mfg_nwwn;	/*  Mfg node wwn	   */
@@ -292,6 +293,7 @@ struct bfi_ioc_attr_s {
 	u8	mfg_day;	/* manufacturing day */
 	u8	mfg_month;	/* manufacturing month */
 	u16	mfg_year;	/* manufacturing year */
+	u8	uuid[BFI_IOC_ATTR_UUID_SZ];	/*!< chinook uuid */
 };
 
 /*
@@ -1253,7 +1255,9 @@ enum bfi_fru_i2h_msgs {
 struct bfi_fru_write_req_s {
 	struct bfi_mhdr_s	mh;	/* Common msg header */
 	u8			last;
-	u8			rsv[3];
+	u8			rsv_1[3];
+	u8			trfr_cmpl;
+	u8			rsv_2[3];
 	u32			offset;
 	u32			length;
 	struct bfi_alen_s	alen;

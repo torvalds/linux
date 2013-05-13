@@ -2508,6 +2508,7 @@ bfa_ioc_get_adapter_attr(struct bfa_ioc_s *ioc,
 	ad_attr->mfg_day = ioc_attr->mfg_day;
 	ad_attr->mfg_month = ioc_attr->mfg_month;
 	ad_attr->mfg_year = ioc_attr->mfg_year;
+	memcpy(ad_attr->uuid, ioc_attr->uuid, BFA_ADAPTER_UUID_LEN);
 }
 
 enum bfa_ioc_type_e
@@ -2572,13 +2573,19 @@ void
 bfa_ioc_get_adapter_model(struct bfa_ioc_s *ioc, char *model)
 {
 	struct bfi_ioc_attr_s	*ioc_attr;
+	u8 nports = bfa_ioc_get_nports(ioc);
 
 	WARN_ON(!model);
 	memset((void *)model, 0, BFA_ADAPTER_MODEL_NAME_LEN);
 
 	ioc_attr = ioc->attr;
 
-	snprintf(model, BFA_ADAPTER_MODEL_NAME_LEN, "%s-%u",
+	if (bfa_asic_id_ct2(ioc->pcidev.device_id) &&
+		(!bfa_mfg_is_mezz(ioc_attr->card_type)))
+		snprintf(model, BFA_ADAPTER_MODEL_NAME_LEN, "%s-%u-%u%s",
+			BFA_MFG_NAME, ioc_attr->card_type, nports, "p");
+	else
+		snprintf(model, BFA_ADAPTER_MODEL_NAME_LEN, "%s-%u",
 			BFA_MFG_NAME, ioc_attr->card_type);
 }
 
@@ -2628,7 +2635,7 @@ bfa_ioc_get_attr(struct bfa_ioc_s *ioc, struct bfa_ioc_attr_s *ioc_attr)
 	memset((void *)ioc_attr, 0, sizeof(struct bfa_ioc_attr_s));
 
 	ioc_attr->state = bfa_ioc_get_state(ioc);
-	ioc_attr->port_id = ioc->port_id;
+	ioc_attr->port_id = bfa_ioc_portid(ioc);
 	ioc_attr->port_mode = ioc->port_mode;
 	ioc_attr->port_mode_cfg = ioc->port_mode_cfg;
 	ioc_attr->cap_bm = ioc->ad_cap_bm;
@@ -2637,8 +2644,9 @@ bfa_ioc_get_attr(struct bfa_ioc_s *ioc, struct bfa_ioc_attr_s *ioc_attr)
 
 	bfa_ioc_get_adapter_attr(ioc, &ioc_attr->adapter_attr);
 
-	ioc_attr->pci_attr.device_id = ioc->pcidev.device_id;
-	ioc_attr->pci_attr.pcifn = ioc->pcidev.pci_func;
+	ioc_attr->pci_attr.device_id = bfa_ioc_devid(ioc);
+	ioc_attr->pci_attr.pcifn = bfa_ioc_pcifn(ioc);
+	ioc_attr->def_fn = (bfa_ioc_pcifn(ioc) == bfa_ioc_portid(ioc));
 	bfa_ioc_get_pci_chip_rev(ioc, ioc_attr->pci_attr.chip_rev);
 }
 
@@ -6018,6 +6026,7 @@ bfa_fru_write_send(void *cbarg, enum bfi_fru_h2i_msgs msg_type)
 	 */
 	msg->last = (len == fru->residue) ? 1 : 0;
 
+	msg->trfr_cmpl = (len == fru->residue) ? fru->trfr_cmpl : 0;
 	bfi_h2i_set(msg->mh, BFI_MC_FRU, msg_type, bfa_ioc_portid(fru->ioc));
 	bfa_alen_set(&msg->alen, len, fru->dbuf_pa);
 
@@ -6132,13 +6141,14 @@ bfa_fru_memclaim(struct bfa_fru_s *fru, u8 *dm_kva, u64 dm_pa,
  */
 bfa_status_t
 bfa_fruvpd_update(struct bfa_fru_s *fru, void *buf, u32 len, u32 offset,
-		  bfa_cb_fru_t cbfn, void *cbarg)
+		  bfa_cb_fru_t cbfn, void *cbarg, u8 trfr_cmpl)
 {
 	bfa_trc(fru, BFI_FRUVPD_H2I_WRITE_REQ);
 	bfa_trc(fru, len);
 	bfa_trc(fru, offset);
 
-	if (fru->ioc->asic_gen != BFI_ASIC_GEN_CT2)
+	if (fru->ioc->asic_gen != BFI_ASIC_GEN_CT2 &&
+		fru->ioc->attr->card_type != BFA_MFG_TYPE_CHINOOK2)
 		return BFA_STATUS_FRU_NOT_PRESENT;
 
 	if (fru->ioc->attr->card_type != BFA_MFG_TYPE_CHINOOK)
@@ -6160,6 +6170,7 @@ bfa_fruvpd_update(struct bfa_fru_s *fru, void *buf, u32 len, u32 offset,
 	fru->offset = 0;
 	fru->addr_off = offset;
 	fru->ubuf = buf;
+	fru->trfr_cmpl = trfr_cmpl;
 
 	bfa_fru_write_send(fru, BFI_FRUVPD_H2I_WRITE_REQ);
 
@@ -6189,7 +6200,8 @@ bfa_fruvpd_read(struct bfa_fru_s *fru, void *buf, u32 len, u32 offset,
 	if (fru->ioc->asic_gen != BFI_ASIC_GEN_CT2)
 		return BFA_STATUS_FRU_NOT_PRESENT;
 
-	if (fru->ioc->attr->card_type != BFA_MFG_TYPE_CHINOOK)
+	if (fru->ioc->attr->card_type != BFA_MFG_TYPE_CHINOOK &&
+		fru->ioc->attr->card_type != BFA_MFG_TYPE_CHINOOK2)
 		return BFA_STATUS_CMD_NOTSUPP;
 
 	if (!bfa_ioc_is_operational(fru->ioc))
@@ -6230,7 +6242,8 @@ bfa_fruvpd_get_max_size(struct bfa_fru_s *fru, u32 *max_size)
 	if (!bfa_ioc_is_operational(fru->ioc))
 		return BFA_STATUS_IOC_NON_OP;
 
-	if (fru->ioc->attr->card_type == BFA_MFG_TYPE_CHINOOK)
+	if (fru->ioc->attr->card_type == BFA_MFG_TYPE_CHINOOK ||
+		fru->ioc->attr->card_type == BFA_MFG_TYPE_CHINOOK2)
 		*max_size = BFA_FRU_CHINOOK_MAX_SIZE;
 	else
 		return BFA_STATUS_CMD_NOTSUPP;
