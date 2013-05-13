@@ -3178,7 +3178,7 @@ static void XGI_SetLockRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
 	if (pVBInfo->VBInfo & SetCRT2ToTV) {
 		if (pVBInfo->TVInfo & TVSimuMode) {
 			if (ModeNo == 0x50) {
-				if (pVBInfo->TVInfo & SetNTSCTV) {
+				if (pVBInfo->TVInfo == SetNTSCTV) {
 					xgifb_reg_set(pVBInfo->Part1Port,
 							0x07, 0x30);
 					xgifb_reg_set(pVBInfo->Part1Port,
