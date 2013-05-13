@@ -157,7 +157,7 @@ const char *spk_synth_immediate(struct spk_synth *synth, const char *buff)
 			return buff;
 		buff++;
 	}
-	return 0;
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(spk_synth_immediate);
 
