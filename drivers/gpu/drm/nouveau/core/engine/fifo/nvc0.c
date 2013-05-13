@@ -71,6 +71,7 @@ nvc0_fifo_playlist_update(struct nvc0_fifo_priv *priv)
 	struct nouveau_gpuobj *cur;
 	int i, p;
 
+	mutex_lock(&nv_subdev(priv)->mutex);
 	cur = priv->playlist[priv->cur_playlist];
 	priv->cur_playlist = !priv->cur_playlist;
 
@@ -87,6 +88,7 @@ nvc0_fifo_playlist_update(struct nvc0_fifo_priv *priv)
 	nv_wr32(priv, 0x002274, 0x01f00000 | (p >> 3));
 	if (!nv_wait(priv, 0x00227c, 0x00100000, 0x00000000))
 		nv_error(priv, "playlist update failed\n");
+	mutex_unlock(&nv_subdev(priv)->mutex);
 }
 
 static int
