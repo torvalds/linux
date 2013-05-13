@@ -22,7 +22,7 @@
 
 void eprom_cs(struct net_device *dev, short bit)
 {
-	if(bit)
+	if (bit)
 		write_nic_byte_E(dev, EPROM_CMD,
 			       (1<<EPROM_CS_SHIFT) | \
 			       read_nic_byte_E(dev, EPROM_CMD)); //enable EPROM
@@ -50,7 +50,7 @@ void eprom_ck_cycle(struct net_device *dev)
 
 void eprom_w(struct net_device *dev,short bit)
 {
-	if(bit)
+	if (bit)
 		write_nic_byte_E(dev, EPROM_CMD, (1<<EPROM_W_SHIFT) | \
 			       read_nic_byte_E(dev,EPROM_CMD));
 	else
@@ -69,7 +69,7 @@ short eprom_r(struct net_device *dev)
 	bit=(read_nic_byte_E(dev, EPROM_CMD) & (1<<EPROM_R_SHIFT) );
 	udelay(EPROM_DELAY);
 
-	if(bit) return 1;
+	if (bit) return 1;
 	return 0;
 }
 
