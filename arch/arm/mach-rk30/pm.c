@@ -55,6 +55,7 @@ __weak void board_act8846_set_resume_vol(void){}
 __weak void __sramfunc rk30_pwm_logic_suspend_voltage(void){}
 __weak void __sramfunc rk30_pwm_logic_resume_voltage(void){}
 
+static int rk3188plus_soc = 0;
 
 /********************************sram_printch**************************************************/
 static bool __sramdata pm_log;
@@ -286,12 +287,11 @@ static void pm_pll_wait_lock(int pll_idx)
 static void power_on_pll(enum rk_plls_id pll_id)
 {
 #if defined(CONFIG_ARCH_RK3066B) || defined(CONFIG_ARCH_RK3188)
-	if (!soc_is_rk3188plus()) {
+	if (!rk3188plus_soc) {
 		cru_writel(PLL_PWR_DN_W_MSK | PLL_PWR_ON, PLL_CONS((pll_id), 3));
 		pm_pll_wait_lock((pll_id));
 	} else {
 		u32 pllcon0, pllcon1, pllcon2;
-
 		cru_writel(PLL_PWR_DN_W_MSK | PLL_PWR_ON, PLL_CONS((pll_id),3));
 		pllcon0 = cru_readl(PLL_CONS((pll_id),0));
 		pllcon1 = cru_readl(PLL_CONS((pll_id),1));
@@ -1096,7 +1096,7 @@ static int __init rk30_pm_init(void)
 #ifdef CONFIG_EARLYSUSPEND
 	pm_set_vt_switch(0); /* disable vt switch while suspend */
 #endif
-
+	rk3188plus_soc = soc_is_rk3188plus();
 	return 0;
 }
 __initcall(rk30_pm_init);
