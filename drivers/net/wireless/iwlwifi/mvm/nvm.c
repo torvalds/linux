@@ -231,8 +231,9 @@ int iwl_nvm_init(struct iwl_mvm *mvm)
 	if (ret < 0)
 		return ret;
 
-	ret = 0;
 	mvm->nvm_data = iwl_parse_nvm_sections(mvm);
+	if (!mvm->nvm_data)
+		return -ENODATA;
 
-	return ret;
+	return 0;
 }
