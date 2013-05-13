@@ -7448,6 +7448,20 @@ static inline int tg3_4g_overflow_test(dma_addr_t mapping, int len)
 	return (base > 0xffffdcc0) && (base + len + 8 < base);
 }
 
+/* Test for TSO DMA buffers that cross into regions which are within MSS bytes
+ * of any 4GB boundaries: 4G, 8G, etc
+ */
+static inline int tg3_4g_tso_overflow_test(struct tg3 *tp, dma_addr_t mapping,
+					   u32 len, u32 mss)
+{
+	if (tg3_asic_rev(tp) == ASIC_REV_5762 && mss) {
+		u32 base = (u32) mapping & 0xffffffff;
+
+		return ((base + len + (mss & 0x3fff)) < base);
+	}
+	return 0;
+}
+
 /* Test for DMA addresses > 40-bit */
 static inline int tg3_40bit_overflow_test(struct tg3 *tp, dma_addr_t mapping,
 					  int len)
@@ -7482,6 +7496,9 @@ static bool tg3_tx_frag_set(struct tg3_napi *tnapi, u32 *entry, u32 *budget,
 		hwbug = true;
 
 	if (tg3_4g_overflow_test(map, len))
+		hwbug = true;
+
+	if (tg3_4g_tso_overflow_test(tp, map, len, mss))
 		hwbug = true;
 
 	if (tg3_40bit_overflow_test(tp, map, len))
