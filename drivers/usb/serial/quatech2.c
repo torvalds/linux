@@ -523,7 +523,7 @@ static void qt2_process_flush(struct usb_serial_port *port, unsigned char *ch)
 	return;
 }
 
-void qt2_process_read_urb(struct urb *urb)
+static void qt2_process_read_urb(struct urb *urb)
 {
 	struct usb_serial *serial;
 	struct qt2_serial_private *serial_priv;
