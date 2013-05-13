@@ -105,7 +105,7 @@ static u8 check_routing_pkt_data_ind(unifi_priv_t *priv,
     u8 isDataFrameSubTypeNoData = FALSE;
 
 #ifdef CSR_WIFI_SECURITY_WAPI_ENABLE
-    static const u8 wapiProtocolIdSNAPHeader[] = {0x88,0xb4};
+    static const u8 wapiProtocolIdSNAPHeader[] = {0x88, 0xb4};
     static const u8 wapiProtocolIdSNAPHeaderOffset = 6;
     u8 *destAddr;
     u8 *srcAddr;
@@ -206,7 +206,7 @@ static u8 check_routing_pkt_data_ind(unifi_priv_t *priv,
                 unifi_trace(priv, UDBG4, "Discarding the contents of the frame with MIC failure \n");
 
                 if (isWapiUnicastPkt &&
-                    ((uf_sme_port_state(priv,srcAddr,UF_CONTROLLED_PORT_Q,interfaceTag) != CSR_WIFI_ROUTER_CTRL_PORT_ACTION_8021X_PORT_OPEN)||
+                    ((uf_sme_port_state(priv, srcAddr, UF_CONTROLLED_PORT_Q, interfaceTag) != CSR_WIFI_ROUTER_CTRL_PORT_ACTION_8021X_PORT_OPEN)||
 #ifndef CSR_WIFI_SECURITY_WAPI_SW_ENCRYPTION
                     (priv->wapi_unicast_filter) ||
 #endif
@@ -231,7 +231,7 @@ static u8 check_routing_pkt_data_ind(unifi_priv_t *priv,
                 unifi_trace(priv, UDBG6, "check_routing_pkt_data_ind - MIC FAILURE : Dest Addr %x:%x:%x:%x:%x:%x\n",
                             destAddr[0], destAddr[1], destAddr[2], destAddr[3], destAddr[4], destAddr[5]);
                 unifi_trace(priv, UDBG6, "check_routing_pkt_data_ind - MIC FAILURE : Control Port State - 0x%.4X \n",
-                            uf_sme_port_state(priv,srcAddr,UF_CONTROLLED_PORT_Q,interfaceTag));
+                            uf_sme_port_state(priv, srcAddr, UF_CONTROLLED_PORT_Q, interfaceTag));
 
                 unifi_error(priv, "MIC failure in %s\n", __FUNCTION__);
 
@@ -285,9 +285,9 @@ static u8 check_routing_pkt_data_ind(unifi_priv_t *priv,
 
         if (llcSnapHeaderOffset > 0) {
         	/* QoS data or Data */
-            unifi_trace(priv, UDBG6, "check_routing_pkt_data_ind(): SNAP header found & its offset %d\n",llcSnapHeaderOffset);
+            unifi_trace(priv, UDBG6, "check_routing_pkt_data_ind(): SNAP header found & its offset %d\n", llcSnapHeaderOffset);
             if (memcmp((u8 *)(bulkdata->d[0].os_data_ptr+llcSnapHeaderOffset+wapiProtocolIdSNAPHeaderOffset),
-                       wapiProtocolIdSNAPHeader,sizeof(wapiProtocolIdSNAPHeader))) {
+                       wapiProtocolIdSNAPHeader, sizeof(wapiProtocolIdSNAPHeader))) {
 
             	unifi_trace(priv, UDBG6, "check_routing_pkt_data_ind(): This is a data & NOT a WAI protocol packet\n");
                 /* On the first unicast data pkt that is decrypted successfully after re-keying, reset the filter */
@@ -584,14 +584,14 @@ void unifi_rx_queue_flush(void *ospriv)
     unifi_priv_t *priv = (unifi_priv_t*)ospriv;
 
     unifi_trace(priv, UDBG4, "rx_wq_handler: RdPtr = %d WritePtr =  %d\n",
-                priv->rxSignalBuffer.readPointer,priv->rxSignalBuffer.writePointer);
+                priv->rxSignalBuffer.readPointer, priv->rxSignalBuffer.writePointer);
     if(priv != NULL) {
         u8 readPointer = priv->rxSignalBuffer.readPointer;
         while (readPointer != priv->rxSignalBuffer.writePointer)
         {
              rx_buff_struct_t *buf = &priv->rxSignalBuffer.rx_buff[readPointer];
              unifi_trace(priv, UDBG6, "rx_wq_handler: RdPtr = %d WritePtr =  %d\n",
-                         readPointer,priv->rxSignalBuffer.writePointer);
+                         readPointer, priv->rxSignalBuffer.writePointer);
              unifi_process_receive_event(priv, buf->bufptr, buf->sig_len, &buf->data_ptrs);
              readPointer ++;
              if(readPointer >= priv->rxSignalBuffer.size) {
@@ -661,7 +661,7 @@ unifi_receive_event(void *ospriv,
             CSR_GET_UINT16_FROM_LITTLE_ENDIAN((sigdata) + sizeof(s16)*6) & 0xFFFF,
             CSR_GET_UINT16_FROM_LITTLE_ENDIAN((sigdata) + sizeof(s16)*7) & 0xFFFF, siglen);
     if(signal_buffer_is_full(priv)) {
-        unifi_error(priv,"TO HOST signal queue FULL dropping the PDU\n");
+        unifi_error(priv, "TO HOST signal queue FULL dropping the PDU\n");
         for (i = 0; i < UNIFI_MAX_DATA_REFERENCES; i++) {
             if (bulkdata->d[i].data_length != 0) {
                 unifi_net_data_free(priv, (void *)&bulkdata->d[i]);
@@ -671,14 +671,14 @@ unifi_receive_event(void *ospriv,
     }
     writePointer = priv->rxSignalBuffer.writePointer;
     rx_buff = &priv->rxSignalBuffer.rx_buff[writePointer];
-    memcpy(rx_buff->bufptr,sigdata,siglen);
+    memcpy(rx_buff->bufptr, sigdata, siglen);
     rx_buff->sig_len = siglen;
     rx_buff->data_ptrs = *bulkdata;
     writePointer++;
     if(writePointer >= priv->rxSignalBuffer.size) {
         writePointer =0;
     }
-    unifi_trace(priv, UDBG4, "unifi_receive_event:writePtr = %d\n",priv->rxSignalBuffer.writePointer);
+    unifi_trace(priv, UDBG4, "unifi_receive_event:writePtr = %d\n", priv->rxSignalBuffer.writePointer);
     priv->rxSignalBuffer.writePointer = writePointer;
 
 #ifndef CSR_WIFI_RX_PATH_SPLIT_DONT_USE_WQ
