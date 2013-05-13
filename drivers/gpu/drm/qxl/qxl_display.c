@@ -604,7 +604,6 @@ static int qxl_crtc_mode_set(struct drm_crtc *crtc,
 					       mode->hdisplay,
 					       mode->vdisplay);
 	}
-	qdev->mode_set = true;
 	return 0;
 }
 

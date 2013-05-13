@@ -270,7 +270,6 @@ struct qxl_device {
 	struct qxl_ring *cursor_ring;
 
 	struct qxl_ram_header *ram_header;
-	bool mode_set;
 
 	bool primary_created;
 
