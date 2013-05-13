@@ -6653,18 +6653,25 @@ use_block_rsv(struct btrfs_trans_handle *trans,
 	struct btrfs_block_rsv *block_rsv;
 	struct btrfs_block_rsv *global_rsv = &root->fs_info->global_block_rsv;
 	int ret;
+	bool global_updated = false;
 
 	block_rsv = get_block_rsv(trans, root);
 
 	if (unlikely(block_rsv->size == 0))
 		goto try_reserve;
-
+again:
 	ret = block_rsv_use_bytes(block_rsv, blocksize);
 	if (!ret)
 		return block_rsv;
 
 	if (block_rsv->failfast)
 		return ERR_PTR(ret);
+
+	if (block_rsv->type == BTRFS_BLOCK_RSV_GLOBAL && !global_updated) {
+		global_updated = true;
+		update_global_block_rsv(root->fs_info);
+		goto again;
+	}
 
 	if (btrfs_test_opt(root, ENOSPC_DEBUG)) {
 		static DEFINE_RATELIMIT_STATE(_rs,
