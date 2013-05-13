@@ -105,6 +105,9 @@ struct bfa_fw_ioim_stats_s {
 					 *  an error condition*/
 	u32	wait_for_si;		/*  FW wait for SI */
 	u32	rec_rsp_inval;		/*  REC rsp invalid */
+	u32     rec_rsp_xchg_comp;	/*  REC rsp xchg complete */
+	u32     rec_rsp_rd_si_ownd;	/*  REC rsp read si owned */
+
 	u32	seqr_io_abort;		/*  target does not know cmd so abort */
 	u32	seqr_io_retry;		/*  SEQR failed so retry IO */
 
@@ -483,6 +486,14 @@ struct bfa_fw_ct_mod_stats_s {
 };
 
 /*
+ * RDS mod stats
+ */
+struct bfa_fw_rds_stats_s {
+	u32	no_fid_drop_err; /* RDS no fid drop error */
+	u32	rsvd;		 /* 64bit align */
+};
+
+/*
  * IOC firmware stats
  */
 struct bfa_fw_stats_s {
@@ -497,6 +508,7 @@ struct bfa_fw_stats_s {
 	struct bfa_fw_mac_mod_stats_s	macmod_stats;
 	struct bfa_fw_ct_mod_stats_s	ctmod_stats;
 	struct bfa_fw_eth_sndrcv_stats_s	ethsndrcv_stats;
+	struct bfa_fw_rds_stats_s	rds_stats;
 };
 
 #define BFA_IOCFC_PATHTOV_MAX	60
