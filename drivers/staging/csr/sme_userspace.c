@@ -118,7 +118,7 @@ uf_sme_init(unifi_priv_t *priv)
 void
 uf_sme_deinit(unifi_priv_t *priv)
 {
-    int i,j;
+    int i, j;
     u8 ba_session_idx;
     ba_session_rx_struct *ba_session_rx = NULL;
     ba_session_tx_struct *ba_session_tx = NULL;
@@ -224,7 +224,7 @@ unifi_ta_indicate_protocol(void *ospriv,
     if (CSR_WIFI_ROUTER_CTRL_PROTOCOL_DIRECTION_RX == direction)
     {
         u16 interfaceTag = 0;
-        CsrWifiRouterCtrlTrafficProtocolIndSend(priv->CSR_WIFI_SME_IFACEQUEUE,0,
+        CsrWifiRouterCtrlTrafficProtocolIndSend(priv->CSR_WIFI_SME_IFACEQUEUE, 0,
                 interfaceTag,
                 packet_type,
                 direction,
