@@ -158,7 +158,7 @@ void CsrWifiRouterCtrlMediaStatusReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
         unifi_error(priv, "CsrWifiRouterCtrlMediaStatusReqHandler: invalid interfaceTag\n");
         return;
     }
-    unifi_trace(priv, UDBG3, "CsrWifiRouterCtrlMediaStatusReqHandler: Mode = %d req->mediaStatus = %d\n",interfacePriv->interfaceMode,req->mediaStatus);
+    unifi_trace(priv, UDBG3, "CsrWifiRouterCtrlMediaStatusReqHandler: Mode = %d req->mediaStatus = %d\n", interfacePriv->interfaceMode, req->mediaStatus);
     if (interfacePriv->interfaceMode != CSR_WIFI_ROUTER_CTRL_MODE_AMP) {
         bulk_data_desc_t bulk_data;
 
@@ -389,7 +389,7 @@ void CsrWifiRouterCtrlHipReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
         unifi_error(priv,
                     "CsrWifiRouterCtrlHipReqHandler: Failed to send signal (0x%.4X - %u)\n",
                     *((u16*)signal_ptr), r);
-        CsrWifiRouterCtrlWifiOffIndSend(priv->CSR_WIFI_SME_IFACEQUEUE,0,CSR_WIFI_SME_CONTROL_INDICATION_ERROR);
+        CsrWifiRouterCtrlWifiOffIndSend(priv->CSR_WIFI_SME_IFACEQUEUE, 0, CSR_WIFI_SME_CONTROL_INDICATION_ERROR);
     }
 
     unifi_trace(priv, UDBG4, "CsrWifiRouterCtrlHipReqHandler: <----\n");
@@ -474,7 +474,7 @@ uf_send_gratuitous_arp(unifi_priv_t *priv, u16 interfaceTag)
     r = ul_send_signal_unpacked(priv, &signal, &bulkdata);
     if (r)
     {
-        unifi_error(priv, "CsrWifiSmeRoamCompleteIndHandler: failed to send QOS data null packet result: %d\n",r);
+        unifi_error(priv, "CsrWifiSmeRoamCompleteIndHandler: failed to send QOS data null packet result: %d\n", r);
         unifi_net_data_free(priv, &bulkdata.d[0]);
         return;
     }
@@ -574,7 +574,7 @@ configure_data_port(unifi_priv_t *priv,
 
             /* If port is closed, discard all the pending Rx packets */
             if (port_action == CSR_WIFI_ROUTER_CTRL_PORT_ACTION_8021X_PORT_CLOSED_DISCARD) {
-                uf_free_pending_rx_packets(priv, queue, *macAddress,interfaceTag);
+                uf_free_pending_rx_packets(priv, queue, *macAddress, interfaceTag);
             }
         }
     } else {
@@ -645,7 +645,7 @@ configure_data_port(unifi_priv_t *priv,
          * coming from the peer station.
          */
         if (port_action == CSR_WIFI_ROUTER_CTRL_PORT_ACTION_8021X_PORT_CLOSED_DISCARD) {
-            uf_free_pending_rx_packets(priv, queue, *macAddress,interfaceTag);
+            uf_free_pending_rx_packets(priv, queue, *macAddress, interfaceTag);
         }
 
 	unifi_trace(priv, UDBG2,
@@ -712,7 +712,7 @@ void CsrWifiRouterCtrlPortConfigureReqHandler(void* drvpriv, CsrWifiFsmEvent* ms
     configure_data_port(priv, req->controlledPortAction, (const CsrWifiMacAddress *)&req->macAddress,
                         UF_CONTROLLED_PORT_Q, req->interfaceTag);
 
-    CsrWifiRouterCtrlPortConfigureCfmSend(msg->source,req->clientData,req->interfaceTag,
+    CsrWifiRouterCtrlPortConfigureCfmSend(msg->source, req->clientData, req->interfaceTag,
                                       CSR_RESULT_SUCCESS, req->macAddress);
     unifi_trace(priv, UDBG3, "leaving CsrWifiRouterCtrlPortConfigureReqHandler\n");
 }
@@ -723,7 +723,7 @@ void CsrWifiRouterCtrlWifiOnReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
     unifi_priv_t *priv = (unifi_priv_t*)drvpriv;
     CsrWifiRouterCtrlVersions versions;
     CsrWifiRouterCtrlWifiOnReq* req = (CsrWifiRouterCtrlWifiOnReq*)msg;
-    int r,i;
+    int r, i;
     CsrResult csrResult;
 
     if (priv == NULL) {
@@ -963,7 +963,7 @@ void CsrWifiRouterCtrlWifiOffReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
     }
     wifi_off(priv);
 
-    CsrWifiRouterCtrlWifiOffCfmSend(msg->source,req->clientData);
+    CsrWifiRouterCtrlWifiOffCfmSend(msg->source, req->clientData);
 
     /* If this is called in response to closing the character device, the
      * caller must use uf_sme_cancel_request() to terminate any pending SME
@@ -1239,7 +1239,7 @@ void CsrWifiRouterMaPacketSubscribeReqHandler(void* drvpriv, CsrWifiFsmEvent* ms
     unifi_trace(priv, UDBG1,
                 "subscribe_req: encap=%d, handle=%d, result=%d\n",
                 req->encapsulation, i, result);
-    CsrWifiRouterMaPacketSubscribeCfmSend(msg->source,req->interfaceTag, i, result, 0);
+    CsrWifiRouterMaPacketSubscribeCfmSend(msg->source, req->interfaceTag, i, result, 0);
 }
 
 
@@ -1268,7 +1268,7 @@ void CsrWifiRouterMaPacketUnsubscribeReqHandler(void* drvpriv, CsrWifiFsmEvent* 
     unifi_trace(priv, UDBG1,
                 "unsubscribe_req: handle=%d, result=%d\n",
                 req->subscriptionHandle, result);
-    CsrWifiRouterMaPacketUnsubscribeCfmSend(msg->source,req->interfaceTag, result);
+    CsrWifiRouterMaPacketUnsubscribeCfmSend(msg->source, req->interfaceTag, result);
 }
 
 
@@ -1282,7 +1282,7 @@ void CsrWifiRouterCtrlCapabilitiesReqHandler(void* drvpriv, CsrWifiFsmEvent* msg
         return;
     }
 
-    CsrWifiRouterCtrlCapabilitiesCfmSend(msg->source,req->clientData,
+    CsrWifiRouterCtrlCapabilitiesCfmSend(msg->source, req->clientData,
             UNIFI_SOFT_COMMAND_Q_LENGTH - 1,
             UNIFI_SOFT_TRAFFIC_Q_LENGTH - 1);
 }
@@ -1404,7 +1404,7 @@ _sys_packet_req(unifi_priv_t *priv, const CSR_SIGNAL *signal,
         if (r) {
             unifi_error(priv,
                         "_sys_packet_req: failed to translate eth frame.\n");
-            unifi_net_data_free(priv,&bulkdata.d[0]);
+            unifi_net_data_free(priv, &bulkdata.d[0]);
             return r;
         }
 
@@ -1439,7 +1439,7 @@ _sys_packet_req(unifi_priv_t *priv, const CSR_SIGNAL *signal,
 #ifdef CSR_SUPPORT_SME
     if ((protection = uf_get_protection_bit_from_interfacemode(priv, interfaceTag, peerMacAddress.a)) < 0) {
         unifi_error(priv, "unicast address, but destination not in station record database\n");
-        unifi_net_data_free(priv,&bulkdata.d[0]);
+        unifi_net_data_free(priv, &bulkdata.d[0]);
         return -1;
     }
 #else
@@ -1453,7 +1453,7 @@ _sys_packet_req(unifi_priv_t *priv, const CSR_SIGNAL *signal,
     /* add Mac header */
     if (prepare_and_add_macheader(priv, skb, newSkb, req.Priority, &bulkdata, interfaceTag, frame, frame + ETH_ALEN, protection)) {
         unifi_error(priv, "failed to create MAC header\n");
-        unifi_net_data_free(priv,&bulkdata.d[0]);
+        unifi_net_data_free(priv, &bulkdata.d[0]);
         return -1;
     }
 
@@ -1479,7 +1479,7 @@ _sys_packet_req(unifi_priv_t *priv, const CSR_SIGNAL *signal,
     if (r) {
         unifi_error(priv,
                     "_sys_packet_req: failed to send signal.\n");
-        unifi_net_data_free(priv,&bulkdata.d[0]);
+        unifi_net_data_free(priv, &bulkdata.d[0]);
         return r;
     }
     /* The final CsrWifiRouterMaPacketCfmSend() will called when the actual MA-PACKET.cfm is received from the chip */
@@ -1558,7 +1558,7 @@ void CsrWifiRouterMaPacketReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
     memcpy(req->Ra.x, daddr, ETH_ALEN);
     req->Priority = mareq->priority;
     req->TransmitRate = 0; /* Let firmware select the rate*/
-    req->VirtualInterfaceIdentifier = uf_get_vif_identifier(interfacePriv->interfaceMode,interfaceTag);
+    req->VirtualInterfaceIdentifier = uf_get_vif_identifier(interfacePriv->interfaceMode, interfaceTag);
     req->HostTag = mareq->hostTag;
 
     if(mareq->cfmRequested)
@@ -1571,7 +1571,7 @@ void CsrWifiRouterMaPacketReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
 
     if (r && mareq->cfmRequested)
     {
-        CsrWifiRouterMaPacketCfmSend(msg->source,interfaceTag,
+        CsrWifiRouterMaPacketCfmSend(msg->source, interfaceTag,
                                      CSR_RESULT_FAILURE,
                                      mareq->hostTag, 0);
     }
@@ -1637,7 +1637,7 @@ void CsrWifiRouterCtrlM4TransmitReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
 /* reset the station records when the mode is set as CSR_WIFI_ROUTER_CTRL_MODE_NONE */
 static void CsrWifiRouterCtrlResetStationRecordList(unifi_priv_t *priv, u16 interfaceTag)
 {
-    u8 i,j;
+    u8 i, j;
     CsrWifiRouterCtrlStaInfo_t *staInfo=NULL;
     netInterface_priv_t *interfacePriv = priv->interfacePriv[interfaceTag];
     unsigned long lock_flags;
@@ -1658,15 +1658,15 @@ static void CsrWifiRouterCtrlResetStationRecordList(unifi_priv_t *priv, u16 inte
             uf_prepare_send_cfm_list_for_queued_pkts(priv,
                                                  &send_cfm_list,
                                                  &(staInfo->mgtFrames));
-            uf_flush_list(priv,&(staInfo->mgtFrames));
+            uf_flush_list(priv, &(staInfo->mgtFrames));
             for(j=0;j<MAX_ACCESS_CATOGORY;j++){
                 uf_prepare_send_cfm_list_for_queued_pkts(priv,
                                                      &send_cfm_list,
                                                      &(staInfo->dataPdu[j]));
-                uf_flush_list(priv,&(staInfo->dataPdu[j]));
+                uf_flush_list(priv, &(staInfo->dataPdu[j]));
             }
 
-            spin_lock_irqsave(&priv->staRecord_lock,lock_flags);
+            spin_lock_irqsave(&priv->staRecord_lock, lock_flags);
             /* Removing station record information from port config array */
             memset(staInfo->peerControlledPort, 0, sizeof(unifi_port_cfg_t));
             staInfo->peerControlledPort->port_action = CSR_WIFI_ROUTER_CTRL_PORT_ACTION_8021X_PORT_CLOSED_DISCARD;
@@ -1680,7 +1680,7 @@ static void CsrWifiRouterCtrlResetStationRecordList(unifi_priv_t *priv, u16 inte
 
             kfree(interfacePriv->staInfo[i]);
             interfacePriv->staInfo[i] = NULL;
-            spin_unlock_irqrestore(&priv->staRecord_lock,lock_flags);
+            spin_unlock_irqrestore(&priv->staRecord_lock, lock_flags);
         }
     }
     /* after the critical region process the list of frames that requested cfm
@@ -1697,9 +1697,9 @@ static void CsrWifiRouterCtrlResetStationRecordList(unifi_priv_t *priv, u16 inte
         case CSR_WIFI_ROUTER_CTRL_MODE_NONE:
             if (priv->noOfPktQueuedInDriver) {
                 unifi_warning(priv, "After reset the noOfPktQueuedInDriver = %x\n", priv->noOfPktQueuedInDriver);
-                spin_lock_irqsave(&priv->tx_q_lock,lock_flags);
+                spin_lock_irqsave(&priv->tx_q_lock, lock_flags);
                 priv->noOfPktQueuedInDriver = 0;
-                spin_unlock_irqrestore(&priv->tx_q_lock,lock_flags);
+                spin_unlock_irqrestore(&priv->tx_q_lock, lock_flags);
             }
             break;
         case CSR_WIFI_ROUTER_CTRL_MODE_IBSS:
@@ -1745,18 +1745,18 @@ void CsrWifiRouterCtrlInterfaceReset(unifi_priv_t *priv, u16 interfaceTag)
     uf_prepare_send_cfm_list_for_queued_pkts(priv,
                                              &send_cfm_list,
                                              &(interfacePriv->genericMgtFrames));
-    uf_flush_list(priv,&(interfacePriv->genericMgtFrames));
+    uf_flush_list(priv, &(interfacePriv->genericMgtFrames));
 
     uf_prepare_send_cfm_list_for_queued_pkts(priv,
                                              &send_cfm_list,
                                              &(interfacePriv->genericMulticastOrBroadCastMgtFrames));
-    uf_flush_list(priv,&(interfacePriv->genericMulticastOrBroadCastMgtFrames));
+    uf_flush_list(priv, &(interfacePriv->genericMulticastOrBroadCastMgtFrames));
 
     uf_prepare_send_cfm_list_for_queued_pkts(priv,
                                              &send_cfm_list,
                                              &(interfacePriv->genericMulticastOrBroadCastFrames));
 
-    uf_flush_list(priv,&(interfacePriv->genericMulticastOrBroadCastFrames));
+    uf_flush_list(priv, &(interfacePriv->genericMulticastOrBroadCastFrames));
 
     /*  process the list of frames that requested cfm
     and send cfm to requestor one by one */
@@ -1772,7 +1772,7 @@ void CsrWifiRouterCtrlInterfaceReset(unifi_priv_t *priv, u16 interfaceTag)
             /* station records not available in these modes */
             break;
         default:
-            CsrWifiRouterCtrlResetStationRecordList(priv,interfaceTag);
+            CsrWifiRouterCtrlResetStationRecordList(priv, interfaceTag);
     }
 
     interfacePriv->num_stations_joined = 0;
@@ -1880,7 +1880,7 @@ void CsrWifiRouterCtrlModeSetReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
          * other then CSR_WIFI_TIM_SET or CSR_WIFI_TIM_RESET value
          */
         interfacePriv->bcTimSetReqQueued =0xFF;
-        CsrWifiRouterCtrlInterfaceReset(priv,req->interfaceTag);
+        CsrWifiRouterCtrlInterfaceReset(priv, req->interfaceTag);
 
         if(req->mode == CSR_WIFI_ROUTER_CTRL_MODE_AP ||
            req->mode == CSR_WIFI_ROUTER_CTRL_MODE_P2PGO) {
@@ -1900,7 +1900,7 @@ void CsrWifiRouterCtrlModeSetReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
         }
     }
     else {
-        unifi_error(priv, "CsrWifiRouterCtrlModeSetReqHandler: invalid interfaceTag :%d\n",req->interfaceTag);
+        unifi_error(priv, "CsrWifiRouterCtrlModeSetReqHandler: invalid interfaceTag :%d\n", req->interfaceTag);
     }
 }
 
@@ -1941,15 +1941,15 @@ static int peer_delete_record(unifi_priv_t *priv, CsrWifiRouterCtrlPeerDelReq *r
                                                  &send_cfm_list,
                                                  &(staInfo->mgtFrames));
 
-        uf_flush_list(priv,&(staInfo->mgtFrames));
+        uf_flush_list(priv, &(staInfo->mgtFrames));
         for(j=0;j<MAX_ACCESS_CATOGORY;j++){
             uf_prepare_send_cfm_list_for_queued_pkts(priv,
                                                      &send_cfm_list,
                                                      &(staInfo->dataPdu[j]));
-            uf_flush_list(priv,&(staInfo->dataPdu[j]));
+            uf_flush_list(priv, &(staInfo->dataPdu[j]));
         }
 
-        spin_lock_irqsave(&priv->staRecord_lock,lock_flags);
+        spin_lock_irqsave(&priv->staRecord_lock, lock_flags);
         /* clear the port configure array info, for the corresponding peer entry */
         controlledPort = &interfacePriv->controlled_data_port;
         unControlledPort = &interfacePriv->uncontrolled_data_port;
@@ -1975,12 +1975,12 @@ static int peer_delete_record(unifi_priv_t *priv, CsrWifiRouterCtrlPeerDelReq *r
             unifi_warning(priv, "number of uncontrolled port entries is zero, trying to decrement: debug\n");
         }
 
-        spin_unlock_irqrestore(&priv->staRecord_lock,lock_flags);
+        spin_unlock_irqrestore(&priv->staRecord_lock, lock_flags);
         /* update the TIM with zero */
         if (interfacePriv->interfaceMode != CSR_WIFI_ROUTER_CTRL_MODE_IBSS &&
                 staInfo->timSet == CSR_WIFI_TIM_SET) {
             unifi_trace(priv, UDBG3, "peer is deleted so TIM updated to 0, in firmware\n");
-            update_tim(priv,staInfo->aid,0,req->interfaceTag, req->peerRecordHandle);
+            update_tim(priv, staInfo->aid, 0, req->interfaceTag, req->peerRecordHandle);
         }
 
 
@@ -2021,7 +2021,7 @@ static int peer_delete_record(unifi_priv_t *priv, CsrWifiRouterCtrlPeerDelReq *r
         cancel_work_sync(&staInfo->send_disconnected_ind_task);
 #endif
 
-        spin_lock_irqsave(&priv->staRecord_lock,lock_flags);
+        spin_lock_irqsave(&priv->staRecord_lock, lock_flags);
 #ifdef CSR_SUPPORT_SME
         interfacePriv->num_stations_joined--;
 
@@ -2039,7 +2039,7 @@ static int peer_delete_record(unifi_priv_t *priv, CsrWifiRouterCtrlPeerDelReq *r
         /* Free the station record for corresponding peer */
         kfree(interfacePriv->staInfo[req->peerRecordHandle]);
         interfacePriv->staInfo[req->peerRecordHandle] = NULL;
-        spin_unlock_irqrestore(&priv->staRecord_lock,lock_flags);
+        spin_unlock_irqrestore(&priv->staRecord_lock, lock_flags);
 
         /* after the critical region process the list of frames that requested cfm
         and send cfm to requestor one by one */
@@ -2092,12 +2092,12 @@ void CsrWifiRouterCtrlPeerDelReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
             break;
     }
 
-    CsrWifiRouterCtrlPeerDelCfmSend(msg->source,req->clientData,req->interfaceTag,status);
+    CsrWifiRouterCtrlPeerDelCfmSend(msg->source, req->clientData, req->interfaceTag, status);
     unifi_trace(priv, UDBG2, "leaving CsrWifiRouterCtrlPeerDelReqHandler \n");
 }
 
 /* Add the new station to the station record data base */
-static int peer_add_new_record(unifi_priv_t *priv,CsrWifiRouterCtrlPeerAddReq *req,u32 *handle)
+static int peer_add_new_record(unifi_priv_t *priv, CsrWifiRouterCtrlPeerAddReq *req, u32 *handle)
 {
     u8 i, powerModeTemp = 0;
     u8 freeSlotFound = FALSE;
@@ -2135,11 +2135,11 @@ static int peer_add_new_record(unifi_priv_t *priv,CsrWifiRouterCtrlPeerAddReq *r
                         req->staInfo.listenIntervalInTus);
 
             /* disable the preemption until station record updated */
-            spin_lock_irqsave(&priv->staRecord_lock,lock_flags);
+            spin_lock_irqsave(&priv->staRecord_lock, lock_flags);
 
             interfacePriv->staInfo[i] = newRecord;
             /* Initialize the record*/
-            memset(newRecord,0,sizeof(CsrWifiRouterCtrlStaInfo_t));
+            memset(newRecord, 0, sizeof(CsrWifiRouterCtrlStaInfo_t));
             /* update the station record */
             memcpy(newRecord->peerMacAddress.a, req->peerMacAddress.a, ETH_ALEN);
             newRecord->wmmOrQosEnabled = req->staInfo.wmmOrQosEnabled;
@@ -2182,11 +2182,11 @@ static int peer_add_new_record(unifi_priv_t *priv,CsrWifiRouterCtrlPeerAddReq *r
                 u8 k;
                 for(k=0; k< MAX_ACCESS_CATOGORY ;k++)
                     unifi_trace(priv, UDBG2, "peer_add_new_record: WMM : %d ,AC %d, powersaveMode %x \n",
-                            req->staInfo.wmmOrQosEnabled,k,newRecord->powersaveMode[k]);
+                            req->staInfo.wmmOrQosEnabled, k, newRecord->powersaveMode[k]);
             }
 
             unifi_trace(priv, UDBG3, "newRecord->wmmOrQosEnabled : %d , MAX SP : %d\n",
-                    newRecord->wmmOrQosEnabled,newRecord->maxSpLength);
+                    newRecord->wmmOrQosEnabled, newRecord->maxSpLength);
 
             /* Initialize the mgtFrames & data Pdu list */
             {
@@ -2201,7 +2201,7 @@ static int peer_add_new_record(unifi_priv_t *priv,CsrWifiRouterCtrlPeerAddReq *r
             newRecord->activity_flag = TRUE;
 
             /* enable the preemption as station record updated */
-            spin_unlock_irqrestore(&priv->staRecord_lock,lock_flags);
+            spin_unlock_irqrestore(&priv->staRecord_lock, lock_flags);
 
             /* First time port actions are set for the peer with below information */
             configure_data_port(priv, CSR_WIFI_ROUTER_CTRL_PORT_ACTION_8021X_PORT_OPEN, &newRecord->peerMacAddress,
@@ -2216,7 +2216,7 @@ static int peer_add_new_record(unifi_priv_t *priv,CsrWifiRouterCtrlPeerAddReq *r
             }
 
 
-            spin_lock_irqsave(&priv->staRecord_lock,lock_flags);
+            spin_lock_irqsave(&priv->staRecord_lock, lock_flags);
             /* Port status must be already set before calling the Add Peer request */
             newRecord->peerControlledPort = uf_sme_port_config_handle(priv, newRecord->peerMacAddress.a,
                                                                       UF_CONTROLLED_PORT_Q, req->interfaceTag);
@@ -2228,7 +2228,7 @@ static int peer_add_new_record(unifi_priv_t *priv,CsrWifiRouterCtrlPeerAddReq *r
                 unifi_warning(priv, "Un/ControlledPort record not found in port configuration array index = %d\n", i);
                 kfree(interfacePriv->staInfo[i]);
                 interfacePriv->staInfo[i] = NULL;
-                spin_unlock_irqrestore(&priv->staRecord_lock,lock_flags);
+                spin_unlock_irqrestore(&priv->staRecord_lock, lock_flags);
                 return CSR_RESULT_FAILURE;
             }
 
@@ -2279,7 +2279,7 @@ static int peer_add_new_record(unifi_priv_t *priv,CsrWifiRouterCtrlPeerAddReq *r
 
             }
 #endif
-            spin_unlock_irqrestore(&priv->staRecord_lock,lock_flags);
+            spin_unlock_irqrestore(&priv->staRecord_lock, lock_flags);
             break;
         }
     }
@@ -2446,7 +2446,7 @@ void uf_send_disconnected_ind_wq(struct work_struct *work)
                                                  &send_cfm_list,
                                                  &(staInfo->dataPdu[j]));
 
-        uf_flush_list(priv,&(staInfo->dataPdu[j]));
+        uf_flush_list(priv, &(staInfo->dataPdu[j]));
     }
 
     send_auto_ma_packet_confirm(priv, staInfo->interfacePriv, &send_cfm_list);
@@ -2471,7 +2471,7 @@ void uf_send_disconnected_ind_wq(struct work_struct *work)
 
 
 #endif
-void CsrWifiRouterCtrlPeerAddReqHandler(void* drvpriv,CsrWifiFsmEvent* msg)
+void CsrWifiRouterCtrlPeerAddReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
 {
     CsrWifiRouterCtrlPeerAddReq* req = (CsrWifiRouterCtrlPeerAddReq*)msg;
     CsrResult status = CSR_RESULT_SUCCESS;
@@ -2500,7 +2500,7 @@ void CsrWifiRouterCtrlPeerAddReqHandler(void* drvpriv,CsrWifiFsmEvent* msg)
         case CSR_WIFI_ROUTER_CTRL_MODE_IBSS:
         case CSR_WIFI_ROUTER_CTRL_MODE_P2PGO:
             /* Add station record */
-            status = peer_add_new_record(priv,req,&handle);
+            status = peer_add_new_record(priv, req, &handle);
             break;
         case CSR_WIFI_ROUTER_CTRL_MODE_STA:
         case CSR_WIFI_ROUTER_CTRL_MODE_P2PCLI:
@@ -2509,11 +2509,11 @@ void CsrWifiRouterCtrlPeerAddReqHandler(void* drvpriv,CsrWifiFsmEvent* msg)
             break;
     }
 
-    CsrWifiRouterCtrlPeerAddCfmSend(msg->source,req->clientData,req->interfaceTag,req->peerMacAddress,handle,status);
+    CsrWifiRouterCtrlPeerAddCfmSend(msg->source, req->clientData, req->interfaceTag, req->peerMacAddress, handle, status);
     unifi_trace(priv, UDBG2, "leaving CsrWifiRouterCtrlPeerAddReqHandler \n");
 }
 
-void CsrWifiRouterCtrlPeerUpdateReqHandler(void* drvpriv,CsrWifiFsmEvent* msg)
+void CsrWifiRouterCtrlPeerUpdateReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
 {
     CsrWifiRouterCtrlPeerUpdateReq* req = (CsrWifiRouterCtrlPeerUpdateReq*)msg;
     CsrResult status = CSR_RESULT_SUCCESS;
@@ -2526,7 +2526,7 @@ void CsrWifiRouterCtrlPeerUpdateReqHandler(void* drvpriv,CsrWifiFsmEvent* msg)
         return;
     }
 
-    CsrWifiRouterCtrlPeerUpdateCfmSend(msg->source,req->clientData,req->interfaceTag,status);
+    CsrWifiRouterCtrlPeerUpdateCfmSend(msg->source, req->clientData, req->interfaceTag, status);
     unifi_trace(priv, UDBG2, "leaving CsrWifiRouterCtrlPeerUpdateReqHandler \n");
 }
 
@@ -2986,13 +2986,13 @@ void CsrWifiRouterCtrlWapiMulticastFilterReqHandler(void* drvpriv, CsrWifiFsmEve
         unifi_trace(priv, UDBG6, "<<%s\n", __FUNCTION__);
     } else {
 
-    	unifi_warning(priv, "%s is NOT applicable for interface mode - %d\n", __FUNCTION__,interfacePriv->interfaceMode);
+    	unifi_warning(priv, "%s is NOT applicable for interface mode - %d\n", __FUNCTION__, interfacePriv->interfaceMode);
 
     }
 #elif defined(UNIFI_DEBUG)
     /*WAPI Disabled*/
     unifi_priv_t *priv = (unifi_priv_t*)drvpriv;
-    unifi_error(priv,"CsrWifiRouterCtrlWapiMulticastFilterReqHandler: called when WAPI isn't enabled\n");
+    unifi_error(priv, "CsrWifiRouterCtrlWapiMulticastFilterReqHandler: called when WAPI isn't enabled\n");
 #endif
 }
 
@@ -3022,13 +3022,13 @@ void CsrWifiRouterCtrlWapiUnicastFilterReqHandler(void* drvpriv, CsrWifiFsmEvent
         unifi_trace(priv, UDBG6, "<<%s\n", __FUNCTION__);
     } else {
 
-    	 unifi_warning(priv, "%s is NOT applicable for interface mode - %d\n", __FUNCTION__,interfacePriv->interfaceMode);
+    	 unifi_warning(priv, "%s is NOT applicable for interface mode - %d\n", __FUNCTION__, interfacePriv->interfaceMode);
 
     }
 #elif defined(UNIFI_DEBUG)
     /*WAPI Disabled*/
     unifi_priv_t *priv = (unifi_priv_t*)drvpriv;
-    unifi_error(priv,"CsrWifiRouterCtrlWapiUnicastFilterReqHandler: called when WAPI isn't enabled\n");
+    unifi_error(priv, "CsrWifiRouterCtrlWapiUnicastFilterReqHandler: called when WAPI isn't enabled\n");
 #endif
 }
 
@@ -3064,13 +3064,13 @@ void CsrWifiRouterCtrlWapiRxPktReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
 
 
         if (req->dataLength == 0 || req->data == NULL) {
-             unifi_error(priv, "CsrWifiRouterCtrlWapiRxPktReq: invalid request\n",__FUNCTION__);
+             unifi_error(priv, "CsrWifiRouterCtrlWapiRxPktReq: invalid request\n", __FUNCTION__);
              return;
         }
 
         res = unifi_net_data_malloc(priv, &bulkdata.d[0], req->dataLength);
         if (res != CSR_RESULT_SUCCESS) {
-             unifi_error(priv, "CsrWifiRouterCtrlWapiRxPktReq: Could not allocate net data\n",__FUNCTION__);
+             unifi_error(priv, "CsrWifiRouterCtrlWapiRxPktReq: Could not allocate net data\n", __FUNCTION__);
              return;
         }
 
@@ -3078,15 +3078,15 @@ void CsrWifiRouterCtrlWapiRxPktReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
          * So reset the reception status to rx_success */
         res = read_unpack_signal(req->signal, &signal);
         if (res) {
-	          unifi_error(priv,"CsrWifiRouterCtrlWapiRxPktReqHandler: Received unknown or corrupted signal.\n");
+	          unifi_error(priv, "CsrWifiRouterCtrlWapiRxPktReqHandler: Received unknown or corrupted signal.\n");
 	          return;
         }
         pkt_ind = (CSR_MA_PACKET_INDICATION*) (&((&signal)->u).MaPacketIndication);
         if (pkt_ind->ReceptionStatus != CSR_MICHAEL_MIC_ERROR) {
-	          unifi_error(priv,"CsrWifiRouterCtrlWapiRxPktReqHandler: Unknown signal with reception status = %d\n",pkt_ind->ReceptionStatus);
+	          unifi_error(priv, "CsrWifiRouterCtrlWapiRxPktReqHandler: Unknown signal with reception status = %d\n", pkt_ind->ReceptionStatus);
 	          return;
         } else {
-	          unifi_trace(priv, UDBG4,"CsrWifiRouterCtrlWapiRxPktReqHandler: MIC verified , RX_SUCCESS \n",__FUNCTION__);
+	          unifi_trace(priv, UDBG4, "CsrWifiRouterCtrlWapiRxPktReqHandler: MIC verified , RX_SUCCESS \n", __FUNCTION__);
 	          pkt_ind->ReceptionStatus = CSR_RX_SUCCESS;
 	          write_pack(&signal, req->signal, &(req->signalLength));
         }
@@ -3113,12 +3113,12 @@ void CsrWifiRouterCtrlWapiRxPktReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
 
         unifi_trace(priv, UDBG6, "<<%s\n", __FUNCTION__);
     } else {
-    	unifi_warning(priv, "%s is NOT applicable for interface mode - %d\n", __FUNCTION__,interfacePriv->interfaceMode);
+    	unifi_warning(priv, "%s is NOT applicable for interface mode - %d\n", __FUNCTION__, interfacePriv->interfaceMode);
     }
 #elif defined(UNIFI_DEBUG)
     /*WAPI Disabled*/
     unifi_priv_t *priv = (unifi_priv_t*)drvpriv;
-    unifi_error(priv,"CsrWifiRouterCtrlWapiRxPktReqHandler: called when WAPI isn't enabled\n");
+    unifi_error(priv, "CsrWifiRouterCtrlWapiRxPktReqHandler: called when WAPI isn't enabled\n");
 #endif
 }
 
@@ -3142,15 +3142,15 @@ void CsrWifiRouterCtrlWapiUnicastTxPktReqHandler(void* drvpriv, CsrWifiFsmEvent*
         unifi_trace(priv, UDBG6, ">>%s\n", __FUNCTION__);
 
         if (priv == NULL) {
-            unifi_error(priv, "CsrWifiRouterCtrlWapiUnicastTxPktReqHandler : invalid priv\n",__FUNCTION__);
+            unifi_error(priv, "CsrWifiRouterCtrlWapiUnicastTxPktReqHandler : invalid priv\n", __FUNCTION__);
             return;
         }
         if (priv->smepriv == NULL) {
-            unifi_error(priv, "CsrWifiRouterCtrlWapiUnicastTxPktReqHandler : invalid sme priv\n",__FUNCTION__);
+            unifi_error(priv, "CsrWifiRouterCtrlWapiUnicastTxPktReqHandler : invalid sme priv\n", __FUNCTION__);
             return;
         }
         if (req->data == NULL) {
-            unifi_error(priv, "CsrWifiRouterCtrlWapiUnicastTxPktReqHandler: invalid request\n",__FUNCTION__);
+            unifi_error(priv, "CsrWifiRouterCtrlWapiUnicastTxPktReqHandler: invalid request\n", __FUNCTION__);
             return;
         } else {
             /* If it is QoS data (type = data subtype = QoS), frame header contains QoS control field */
@@ -3159,7 +3159,7 @@ void CsrWifiRouterCtrlWapiUnicastTxPktReqHandler(void* drvpriv, CsrWifiFsmEvent*
             }
         }
         if ( !(req->dataLength>(macHeaderLengthInBytes+appendedCryptoFields)) ) {
-            unifi_error(priv, "CsrWifiRouterCtrlWapiUnicastTxPktReqHandler: invalid dataLength\n",__FUNCTION__);
+            unifi_error(priv, "CsrWifiRouterCtrlWapiUnicastTxPktReqHandler: invalid dataLength\n", __FUNCTION__);
             return;
         }
 
@@ -3174,7 +3174,7 @@ void CsrWifiRouterCtrlWapiUnicastTxPktReqHandler(void* drvpriv, CsrWifiFsmEvent*
          */
         result = unifi_net_data_malloc(priv, &bulkdata.d[0], req->dataLength);
         if (result != CSR_RESULT_SUCCESS) {
-             unifi_error(priv, "CsrWifiRouterCtrlWapiUnicastTxPktReqHandler: Could not allocate net data\n",__FUNCTION__);
+             unifi_error(priv, "CsrWifiRouterCtrlWapiUnicastTxPktReqHandler: Could not allocate net data\n", __FUNCTION__);
              return;
         }
         memcpy((void*)bulkdata.d[0].os_data_ptr, req->data, req->dataLength);
@@ -3217,13 +3217,13 @@ void CsrWifiRouterCtrlWapiUnicastTxPktReqHandler(void* drvpriv, CsrWifiFsmEvent*
 
     } else {
 
-    	unifi_warning(priv, "%s is NOT applicable for interface mode - %d\n", __FUNCTION__,interfacePriv->interfaceMode);
+    	unifi_warning(priv, "%s is NOT applicable for interface mode - %d\n", __FUNCTION__, interfacePriv->interfaceMode);
 
     }
 #elif defined(UNIFI_DEBUG)
     /*WAPI Disabled*/
     unifi_priv_t *priv = (unifi_priv_t*)drvpriv;
-    unifi_error(priv,"CsrWifiRouterCtrlWapiUnicastTxPktReqHandler: called when WAPI SW ENCRYPTION isn't enabled\n");
+    unifi_error(priv, "CsrWifiRouterCtrlWapiUnicastTxPktReqHandler: called when WAPI SW ENCRYPTION isn't enabled\n");
 #endif
 }
 
@@ -3240,14 +3240,14 @@ void CsrWifiRouterCtrlWapiFilterReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
 
         unifi_trace(priv, UDBG6, ">>%s\n", __FUNCTION__);
 
-        unifi_trace(priv, UDBG1, "CsrWifiRouterCtrlWapiFilterReq: req->isWapiConnected [0/1] = %d \n",req->isWapiConnected);
+        unifi_trace(priv, UDBG1, "CsrWifiRouterCtrlWapiFilterReq: req->isWapiConnected [0/1] = %d \n", req->isWapiConnected);
 
         priv->isWapiConnection = req->isWapiConnected;
 
         unifi_trace(priv, UDBG6, "<<%s\n", __FUNCTION__);
     } else {
 
-    	unifi_warning(priv, "%s is NOT applicable for interface mode - %d\n", __FUNCTION__,interfacePriv->interfaceMode);
+    	unifi_warning(priv, "%s is NOT applicable for interface mode - %d\n", __FUNCTION__, interfacePriv->interfaceMode);
 
     }
 #endif
@@ -3255,6 +3255,6 @@ void CsrWifiRouterCtrlWapiFilterReqHandler(void* drvpriv, CsrWifiFsmEvent* msg)
 #elif defined(UNIFI_DEBUG)
     /*WAPI Disabled*/
     unifi_priv_t *priv = (unifi_priv_t*)drvpriv;
-    unifi_error(priv,"CsrWifiRouterCtrlWapiFilterReq: called when WAPI isn't enabled\n");
+    unifi_error(priv, "CsrWifiRouterCtrlWapiFilterReq: called when WAPI isn't enabled\n");
 #endif
 }
