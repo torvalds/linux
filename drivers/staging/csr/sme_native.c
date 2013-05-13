@@ -55,7 +55,7 @@ uf_sme_deinit(unifi_priv_t *priv)
 
 int sme_mgt_wifi_on(unifi_priv_t *priv)
 {
-    int r,i;
+    int r, i;
     s32 csrResult;
 
     if (priv == NULL) {
