@@ -1006,34 +1006,6 @@ static int xuartps_remove(struct platform_device *pdev)
 	return rc;
 }
 
-/**
- * xuartps_suspend - suspend event
- * @pdev: Pointer to the platform device structure
- * @state: State of the device
- *
- * Returns 0
- **/
-static int xuartps_suspend(struct platform_device *pdev, pm_message_t state)
-{
-	/* Call the API provided in serial_core.c file which handles
-	 * the suspend.
-	 */
-	uart_suspend_port(&xuartps_uart_driver, &xuartps_port[pdev->id]);
-	return 0;
-}
-
-/**
- * xuartps_resume - Resume after a previous suspend
- * @pdev: Pointer to the platform device structure
- *
- * Returns 0
- **/
-static int xuartps_resume(struct platform_device *pdev)
-{
-	uart_resume_port(&xuartps_uart_driver, &xuartps_port[pdev->id]);
-	return 0;
-}
-
 /* Match table for of_platform binding */
 static struct of_device_id xuartps_of_match[] = {
 	{ .compatible = "xlnx,xuartps", },
@@ -1044,8 +1016,6 @@ MODULE_DEVICE_TABLE(of, xuartps_of_match);
 static struct platform_driver xuartps_platform_driver = {
 	.probe   = xuartps_probe,		/* Probe method */
 	.remove  = xuartps_remove,		/* Detach method */
-	.suspend = xuartps_suspend,		/* Suspend */
-	.resume  = xuartps_resume,		/* Resume after a suspend */
 	.driver  = {
 		.owner = THIS_MODULE,
 		.name = XUARTPS_NAME,		/* Driver name */
