@@ -111,7 +111,7 @@ static int vpe0limit;
 static int ipibuffers;
 static int nostlb;
 static int asidmask;
-unsigned int smtc_asid_mask = 0xff;
+unsigned long smtc_asid_mask = 0xff;
 
 static int __init vpe0tcs(char *str)
 {
@@ -1395,7 +1395,7 @@ void smtc_get_new_mmu_context(struct mm_struct *mm, unsigned long cpu)
 	asid = asid_cache(cpu);
 
 	do {
-		if (!ASID_MASK(ASID_INC(asid))) {
+		if (!((asid += ASID_INC) & ASID_MASK) ) {
 			if (cpu_has_vtag_icache)
 				flush_icache_all();
 			/* Traverse all online CPUs (hack requires contiguous range) */
@@ -1414,7 +1414,7 @@ void smtc_get_new_mmu_context(struct mm_struct *mm, unsigned long cpu)
 						mips_ihb();
 					}
 					tcstat = read_tc_c0_tcstatus();
-					smtc_live_asid[tlb][ASID_MASK(tcstat)] |= (asiduse)(0x1 << i);
+					smtc_live_asid[tlb][(tcstat & ASID_MASK)] |= (asiduse)(0x1 << i);
 					if (!prevhalt)
 						write_tc_c0_tchalt(0);
 				}
@@ -1423,7 +1423,7 @@ void smtc_get_new_mmu_context(struct mm_struct *mm, unsigned long cpu)
 				asid = ASID_FIRST_VERSION;
 			local_flush_tlb_all();	/* start new asid cycle */
 		}
-	} while (smtc_live_asid[tlb][ASID_MASK(asid)]);
+	} while (smtc_live_asid[tlb][(asid & ASID_MASK)]);
 
 	/*
 	 * SMTC shares the TLB within VPEs and possibly across all VPEs.
@@ -1461,7 +1461,7 @@ void smtc_flush_tlb_asid(unsigned long asid)
 		tlb_read();
 		ehb();
 		ehi = read_c0_entryhi();
-		if (ASID_MASK(ehi) == asid) {
+		if ((ehi & ASID_MASK) == asid) {
 		    /*
 		     * Invalidate only entries with specified ASID,
 		     * makiing sure all entries differ.

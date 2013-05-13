@@ -29,7 +29,6 @@
 #include <linux/init.h>
 #include <linux/cache.h>
 
-#include <asm/mmu_context.h>
 #include <asm/cacheflush.h>
 #include <asm/pgtable.h>
 #include <asm/war.h>
@@ -305,48 +304,6 @@ static struct uasm_reloc relocs[128] __cpuinitdata;
 #ifdef CONFIG_64BIT
 static int check_for_high_segbits __cpuinitdata;
 #endif
-
-static void __cpuinit insn_fixup(unsigned int **start, unsigned int **stop,
-					unsigned int i_const)
-{
-	unsigned int **p, *ip;
-
-	for (p = start; p < stop; p++) {
-		ip = *p;
-		*ip = (*ip & 0xffff0000) | i_const;
-	}
-	local_flush_icache_range((unsigned long)*p, (unsigned long)((*p) + 1));
-}
-
-#define asid_insn_fixup(section, const)					\
-do {									\
-	extern unsigned int *__start_ ## section;			\
-	extern unsigned int *__stop_ ## section;			\
-	insn_fixup(&__start_ ## section, &__stop_ ## section, const);	\
-} while(0)
-
-/*
- * Caller is assumed to flush the caches before the first context switch.
- */
-static void __cpuinit setup_asid(unsigned int inc, unsigned int mask,
-				 unsigned int version_mask,
-				 unsigned int first_version)
-{
-	extern asmlinkage void handle_ri_rdhwr_vivt(void);
-	unsigned long *vivt_exc;
-
-	asid_insn_fixup(__asid_inc, inc);
-	asid_insn_fixup(__asid_mask, mask);
-	asid_insn_fixup(__asid_version_mask, version_mask);
-	asid_insn_fixup(__asid_first_version, first_version);
-
-	/* Patch up the 'handle_ri_rdhwr_vivt' handler. */
-	vivt_exc = (unsigned long *) &handle_ri_rdhwr_vivt;
-	vivt_exc++;
-	*vivt_exc = (*vivt_exc & ~mask) | mask;
-
-	current_cpu_data.asid_cache = first_version;
-}
 
 static int check_for_high_segbits __cpuinitdata;
 
@@ -2226,7 +2183,6 @@ void __cpuinit build_tlb_refill_handler(void)
 	case CPU_TX3922:
 	case CPU_TX3927:
 #ifndef CONFIG_MIPS_PGD_C0_CONTEXT
-		setup_asid(0x40, 0xfc0, 0xf000, ASID_FIRST_VERSION_R3000);
 		if (cpu_has_local_ebase)
 			build_r3000_tlb_refill_handler();
 		if (!run_once) {
@@ -2252,11 +2208,6 @@ void __cpuinit build_tlb_refill_handler(void)
 		break;
 
 	default:
-#ifndef CONFIG_MIPS_MT_SMTC
-		setup_asid(0x1, 0xff, 0xff00, ASID_FIRST_VERSION_R4000);
-#else
-		setup_asid(0x1, smtc_asid_mask, 0xff00, ASID_FIRST_VERSION_R4000);
-#endif
 		if (!run_once) {
 			scratch_reg = allocate_kscratch();
 #ifdef CONFIG_MIPS_PGD_C0_CONTEXT
