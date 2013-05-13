@@ -92,16 +92,16 @@ MODULE_DEVICE_TABLE(usb, device_table);
 /* Structure to hold all of our device specific stuff */
 struct adu_device {
 	struct mutex		mtx;
-	struct usb_device*	udev; /* save off the usb device pointer */
-	struct usb_interface*	interface;
+	struct usb_device *udev; /* save off the usb device pointer */
+	struct usb_interface *interface;
 	unsigned int		minor; /* the starting minor number for this device */
 	char			serial_number[8];
 
 	int			open_count; /* number of times this port has been opened */
 
-	char*			read_buffer_primary;
+	char		*read_buffer_primary;
 	int			read_buffer_length;
-	char*			read_buffer_secondary;
+	char		*read_buffer_secondary;
 	int			secondary_head;
 	int			secondary_tail;
 	spinlock_t		buflock;
@@ -109,14 +109,14 @@ struct adu_device {
 	wait_queue_head_t	read_wait;
 	wait_queue_head_t	write_wait;
 
-	char*			interrupt_in_buffer;
-	struct usb_endpoint_descriptor* interrupt_in_endpoint;
-	struct urb*		interrupt_in_urb;
+	char		*interrupt_in_buffer;
+	struct usb_endpoint_descriptor *interrupt_in_endpoint;
+	struct urb	*interrupt_in_urb;
 	int			read_urb_finished;
 
-	char*			interrupt_out_buffer;
-	struct usb_endpoint_descriptor* interrupt_out_endpoint;
-	struct urb*		interrupt_out_urb;
+	char		*interrupt_out_buffer;
+	struct usb_endpoint_descriptor *interrupt_out_endpoint;
+	struct urb	*interrupt_out_urb;
 	int			out_urb_finished;
 };
 
