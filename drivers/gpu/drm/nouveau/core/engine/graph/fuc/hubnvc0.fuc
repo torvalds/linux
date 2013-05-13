@@ -54,8 +54,8 @@ chipsets:
 .b16 #nvc0_hub_mmio_head
 .b16 #nvc1_hub_mmio_tail
 .b8  0xc3 0 0 0
-.b16 #nvc0_hub_mmio_head
-.b16 #nvc0_hub_mmio_tail
+.b16 #nnvc0_hub_mmio_head
+.b16 #nnvc0_hub_mmio_tail
 .b8  0xc4 0 0 0
 .b16 #nvc0_hub_mmio_head
 .b16 #nvc0_hub_mmio_tail
