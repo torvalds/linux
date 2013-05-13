@@ -24,6 +24,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/reboot.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -377,6 +378,9 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 	spin_lock_init(&common->lock);
 	common->dev = dev;
 
+	pm_runtime_enable(dev);
+	pm_runtime_get_sync(dev);
+
 	irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (irq) {
 		int ret;
@@ -419,12 +423,15 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 		priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 		if (!priv) {
 			dev_err(dev, "Could not allocate priv\n");
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto error_unregister;
 		}
 
 		priv->base = devm_ioremap_resource(dev, res);
-		if (IS_ERR(priv->base))
-			return PTR_ERR(priv->base);
+		if (IS_ERR(priv->base)) {
+			ret = PTR_ERR(priv->base);
+			goto error_unregister;
+		}
 
 		priv->common = common;
 		priv->id = i;
@@ -443,10 +450,10 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 			goto error_unregister;
 		}
 
-		list_move_tail(&priv->list, &common->head);
-
 		if (rcar_has_irq_support(priv))
 			rcar_thermal_irq_enable(priv);
+
+		list_move_tail(&priv->list, &common->head);
 	}
 
 	platform_set_drvdata(pdev, common);
@@ -456,8 +463,14 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 	return 0;
 
 error_unregister:
-	rcar_thermal_for_each_priv(priv, common)
+	rcar_thermal_for_each_priv(priv, common) {
 		thermal_zone_device_unregister(priv->zone);
+		if (rcar_has_irq_support(priv))
+			rcar_thermal_irq_disable(priv);
+	}
+
+	pm_runtime_put_sync(dev);
+	pm_runtime_disable(dev);
 
 	return ret;
 }
@@ -465,12 +478,19 @@ error_unregister:
 static int rcar_thermal_remove(struct platform_device *pdev)
 {
 	struct rcar_thermal_common *common = platform_get_drvdata(pdev);
+	struct device *dev = &pdev->dev;
 	struct rcar_thermal_priv *priv;
 
-	rcar_thermal_for_each_priv(priv, common)
+	rcar_thermal_for_each_priv(priv, common) {
 		thermal_zone_device_unregister(priv->zone);
+		if (rcar_has_irq_support(priv))
+			rcar_thermal_irq_disable(priv);
+	}
 
 	platform_set_drvdata(pdev, NULL);
+
+	pm_runtime_put_sync(dev);
+	pm_runtime_disable(dev);
 
 	return 0;
 }

@@ -65,9 +65,13 @@
 		interrupt-parent = <&intc>;
 		ranges;
 
-		dma-apbh@00110000 {
+		dma_apbh: dma-apbh@00110000 {
 			compatible = "fsl,imx6q-dma-apbh", "fsl,imx28-dma-apbh";
 			reg = <0x00110000 0x2000>;
+			interrupts = <0 13 0x04>, <0 13 0x04>, <0 13 0x04>, <0 13 0x04>;
+			interrupt-names = "gpmi0", "gpmi1", "gpmi2", "gpmi3";
+			#dma-cells = <1>;
+			dma-channels = <4>;
 			clocks = <&clks 106>;
 		};
 
@@ -83,6 +87,8 @@
 				 <&clks 150>, <&clks 149>;
 			clock-names = "gpmi_io", "gpmi_apb", "gpmi_bch",
 				      "gpmi_bch_apb", "per1_bch";
+			dmas = <&dma_apbh 0>;
+			dma-names = "rx-tx";
 			fsl,gpmi-dma-channel = <0>;
 			status = "disabled";
 		};

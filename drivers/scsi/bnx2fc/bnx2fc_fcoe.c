@@ -3,7 +3,7 @@
  * cnic modules to create FCoE instances, send/receive non-offloaded
  * FIP/FCoE packets, listen to link events etc.
  *
- * Copyright (c) 2008 - 2011 Broadcom Corporation
+ * Copyright (c) 2008 - 2013 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@ DEFINE_PER_CPU(struct bnx2fc_percpu_s, bnx2fc_percpu);
 
 #define DRV_MODULE_NAME		"bnx2fc"
 #define DRV_MODULE_VERSION	BNX2FC_VERSION
-#define DRV_MODULE_RELDATE	"Dec 21, 2012"
+#define DRV_MODULE_RELDATE	"Mar 08, 2013"
 
 
 static char version[] =
@@ -679,6 +679,7 @@ static int bnx2fc_shost_config(struct fc_lport *lport, struct device *dev)
 {
 	struct fcoe_port *port = lport_priv(lport);
 	struct bnx2fc_interface *interface = port->priv;
+	struct bnx2fc_hba *hba = interface->hba;
 	struct Scsi_Host *shost = lport->host;
 	int rc = 0;
 
@@ -699,8 +700,9 @@ static int bnx2fc_shost_config(struct fc_lport *lport, struct device *dev)
 	}
 	if (!lport->vport)
 		fc_host_max_npiv_vports(lport->host) = USHRT_MAX;
-	sprintf(fc_host_symbolic_name(lport->host), "%s v%s over %s",
-		BNX2FC_NAME, BNX2FC_VERSION,
+	snprintf(fc_host_symbolic_name(lport->host), 256,
+		 "%s (Broadcom %s) v%s over %s",
+		BNX2FC_NAME, hba->chip_num, BNX2FC_VERSION,
 		interface->netdev->name);
 
 	return 0;
@@ -1656,23 +1658,60 @@ mem_err:
 static int bnx2fc_bind_pcidev(struct bnx2fc_hba *hba)
 {
 	struct cnic_dev *cnic;
+	struct pci_dev *pdev;
 
 	if (!hba->cnic) {
 		printk(KERN_ERR PFX "cnic is NULL\n");
 		return -ENODEV;
 	}
 	cnic = hba->cnic;
-	hba->pcidev = cnic->pcidev;
-	if (hba->pcidev)
-		pci_dev_get(hba->pcidev);
+	pdev = hba->pcidev = cnic->pcidev;
+	if (!hba->pcidev)
+		return -ENODEV;
 
+	switch (pdev->device) {
+	case PCI_DEVICE_ID_NX2_57710:
+		strncpy(hba->chip_num, "BCM57710", BCM_CHIP_LEN);
+		break;
+	case PCI_DEVICE_ID_NX2_57711:
+		strncpy(hba->chip_num, "BCM57711", BCM_CHIP_LEN);
+		break;
+	case PCI_DEVICE_ID_NX2_57712:
+	case PCI_DEVICE_ID_NX2_57712_MF:
+	case PCI_DEVICE_ID_NX2_57712_VF:
+		strncpy(hba->chip_num, "BCM57712", BCM_CHIP_LEN);
+		break;
+	case PCI_DEVICE_ID_NX2_57800:
+	case PCI_DEVICE_ID_NX2_57800_MF:
+	case PCI_DEVICE_ID_NX2_57800_VF:
+		strncpy(hba->chip_num, "BCM57800", BCM_CHIP_LEN);
+		break;
+	case PCI_DEVICE_ID_NX2_57810:
+	case PCI_DEVICE_ID_NX2_57810_MF:
+	case PCI_DEVICE_ID_NX2_57810_VF:
+		strncpy(hba->chip_num, "BCM57810", BCM_CHIP_LEN);
+		break;
+	case PCI_DEVICE_ID_NX2_57840:
+	case PCI_DEVICE_ID_NX2_57840_MF:
+	case PCI_DEVICE_ID_NX2_57840_VF:
+	case PCI_DEVICE_ID_NX2_57840_2_20:
+	case PCI_DEVICE_ID_NX2_57840_4_10:
+		strncpy(hba->chip_num, "BCM57840", BCM_CHIP_LEN);
+		break;
+	default:
+		pr_err(PFX "Unknown device id 0x%x\n", pdev->device);
+		break;
+	}
+	pci_dev_get(hba->pcidev);
 	return 0;
 }
 
 static void bnx2fc_unbind_pcidev(struct bnx2fc_hba *hba)
 {
-	if (hba->pcidev)
+	if (hba->pcidev) {
+		hba->chip_num[0] = '\0';
 		pci_dev_put(hba->pcidev);
+	}
 	hba->pcidev = NULL;
 }
 

@@ -61,43 +61,61 @@ void nlm_node_init(int node)
 
 int nlm_irq_to_irt(int irq)
 {
-	if (!PIC_IRQ_IS_IRT(irq))
-		return -1;
+	uint64_t pcibase;
+	int devoff, irt;
 
 	switch (irq) {
 	case PIC_UART_0_IRQ:
-		return PIC_IRT_UART_0_INDEX;
+		devoff = XLP_IO_UART0_OFFSET(0);
+		break;
 	case PIC_UART_1_IRQ:
-		return PIC_IRT_UART_1_INDEX;
-	case PIC_PCIE_LINK_0_IRQ:
-	       return PIC_IRT_PCIE_LINK_0_INDEX;
-	case PIC_PCIE_LINK_1_IRQ:
-	       return PIC_IRT_PCIE_LINK_1_INDEX;
-	case PIC_PCIE_LINK_2_IRQ:
-	       return PIC_IRT_PCIE_LINK_2_INDEX;
-	case PIC_PCIE_LINK_3_IRQ:
-	       return PIC_IRT_PCIE_LINK_3_INDEX;
+		devoff = XLP_IO_UART1_OFFSET(0);
+		break;
 	case PIC_EHCI_0_IRQ:
-	       return PIC_IRT_EHCI_0_INDEX;
+		devoff = XLP_IO_USB_EHCI0_OFFSET(0);
+		break;
 	case PIC_EHCI_1_IRQ:
-	       return PIC_IRT_EHCI_1_INDEX;
+		devoff = XLP_IO_USB_EHCI1_OFFSET(0);
+		break;
 	case PIC_OHCI_0_IRQ:
-	       return PIC_IRT_OHCI_0_INDEX;
+		devoff = XLP_IO_USB_OHCI0_OFFSET(0);
+		break;
 	case PIC_OHCI_1_IRQ:
-	       return PIC_IRT_OHCI_1_INDEX;
+		devoff = XLP_IO_USB_OHCI1_OFFSET(0);
+		break;
 	case PIC_OHCI_2_IRQ:
-	       return PIC_IRT_OHCI_2_INDEX;
+		devoff = XLP_IO_USB_OHCI2_OFFSET(0);
+		break;
 	case PIC_OHCI_3_IRQ:
-	       return PIC_IRT_OHCI_3_INDEX;
+		devoff = XLP_IO_USB_OHCI3_OFFSET(0);
+		break;
 	case PIC_MMC_IRQ:
-	       return PIC_IRT_MMC_INDEX;
+		devoff = XLP_IO_SD_OFFSET(0);
+		break;
 	case PIC_I2C_0_IRQ:
-		return PIC_IRT_I2C_0_INDEX;
+		devoff = XLP_IO_I2C0_OFFSET(0);
+		break;
 	case PIC_I2C_1_IRQ:
-		return PIC_IRT_I2C_1_INDEX;
+		devoff = XLP_IO_I2C1_OFFSET(0);
+		break;
 	default:
-		return -1;
+		devoff = 0;
+		break;
 	}
+
+	if (devoff != 0) {
+		pcibase = nlm_pcicfg_base(devoff);
+		irt = nlm_read_reg(pcibase, XLP_PCI_IRTINFO_REG) & 0xffff;
+		/* HW bug, I2C 1 irt entry is off by one */
+		if (irq == PIC_I2C_1_IRQ)
+			irt = irt + 1;
+	} else if (irq >= PIC_PCIE_LINK_0_IRQ && irq <= PIC_PCIE_LINK_3_IRQ) {
+		/* HW bug, PCI IRT entries are bad on early silicon, fix */
+		irt = PIC_IRT_PCIE_LINK_INDEX(irq - PIC_PCIE_LINK_0_IRQ);
+	} else {
+		irt = -1;
+	}
+	return irt;
 }
 
 unsigned int nlm_get_core_frequency(int node, int core)

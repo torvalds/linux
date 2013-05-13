@@ -7,6 +7,7 @@
  * Copyright (C) 2005, 2006 by Ralf Baechle (ralf@linux-mips.org)
  * Copyright (C) 1999, 2000 Silicon Graphics, Inc.
  * Copyright (C) 2004 Thiemo Seufer
+ * Copyright (C) 2013  Imagination Technologies Ltd.
  */
 #include <linux/errno.h>
 #include <linux/sched.h>
@@ -225,34 +226,115 @@ struct mips_frame_info {
 
 static inline int is_ra_save_ins(union mips_instruction *ip)
 {
+#ifdef CONFIG_CPU_MICROMIPS
+	union mips_instruction mmi;
+
+	/*
+	 * swsp ra,offset
+	 * swm16 reglist,offset(sp)
+	 * swm32 reglist,offset(sp)
+	 * sw32 ra,offset(sp)
+	 * jradiussp - NOT SUPPORTED
+	 *
+	 * microMIPS is way more fun...
+	 */
+	if (mm_insn_16bit(ip->halfword[0])) {
+		mmi.word = (ip->halfword[0] << 16);
+		return ((mmi.mm16_r5_format.opcode == mm_swsp16_op &&
+			 mmi.mm16_r5_format.rt == 31) ||
+			(mmi.mm16_m_format.opcode == mm_pool16c_op &&
+			 mmi.mm16_m_format.func == mm_swm16_op));
+	}
+	else {
+		mmi.halfword[0] = ip->halfword[1];
+		mmi.halfword[1] = ip->halfword[0];
+		return ((mmi.mm_m_format.opcode == mm_pool32b_op &&
+			 mmi.mm_m_format.rd > 9 &&
+			 mmi.mm_m_format.base == 29 &&
+			 mmi.mm_m_format.func == mm_swm32_func) ||
+			(mmi.i_format.opcode == mm_sw32_op &&
+			 mmi.i_format.rs == 29 &&
+			 mmi.i_format.rt == 31));
+	}
+#else
 	/* sw / sd $ra, offset($sp) */
 	return (ip->i_format.opcode == sw_op || ip->i_format.opcode == sd_op) &&
 		ip->i_format.rs == 29 &&
 		ip->i_format.rt == 31;
+#endif
 }
 
 static inline int is_jal_jalr_jr_ins(union mips_instruction *ip)
 {
+#ifdef CONFIG_CPU_MICROMIPS
+	/*
+	 * jr16,jrc,jalr16,jalr16
+	 * jal
+	 * jalr/jr,jalr.hb/jr.hb,jalrs,jalrs.hb
+	 * jraddiusp - NOT SUPPORTED
+	 *
+	 * microMIPS is kind of more fun...
+	 */
+	union mips_instruction mmi;
+
+	mmi.word = (ip->halfword[0] << 16);
+
+	if ((mmi.mm16_r5_format.opcode == mm_pool16c_op &&
+	    (mmi.mm16_r5_format.rt & mm_jr16_op) == mm_jr16_op) ||
+	    ip->j_format.opcode == mm_jal32_op)
+		return 1;
+	if (ip->r_format.opcode != mm_pool32a_op ||
+			ip->r_format.func != mm_pool32axf_op)
+		return 0;
+	return (((ip->u_format.uimmediate >> 6) & mm_jalr_op) == mm_jalr_op);
+#else
 	if (ip->j_format.opcode == jal_op)
 		return 1;
 	if (ip->r_format.opcode != spec_op)
 		return 0;
 	return ip->r_format.func == jalr_op || ip->r_format.func == jr_op;
+#endif
 }
 
 static inline int is_sp_move_ins(union mips_instruction *ip)
 {
+#ifdef CONFIG_CPU_MICROMIPS
+	/*
+	 * addiusp -imm
+	 * addius5 sp,-imm
+	 * addiu32 sp,sp,-imm
+	 * jradiussp - NOT SUPPORTED
+	 *
+	 * microMIPS is not more fun...
+	 */
+	if (mm_insn_16bit(ip->halfword[0])) {
+		union mips_instruction mmi;
+
+		mmi.word = (ip->halfword[0] << 16);
+		return ((mmi.mm16_r3_format.opcode == mm_pool16d_op &&
+			 mmi.mm16_r3_format.simmediate && mm_addiusp_func) ||
+			(mmi.mm16_r5_format.opcode == mm_pool16d_op &&
+			 mmi.mm16_r5_format.rt == 29));
+	}
+	return (ip->mm_i_format.opcode == mm_addiu32_op &&
+		 ip->mm_i_format.rt == 29 && ip->mm_i_format.rs == 29);
+#else
 	/* addiu/daddiu sp,sp,-imm */
 	if (ip->i_format.rs != 29 || ip->i_format.rt != 29)
 		return 0;
 	if (ip->i_format.opcode == addiu_op || ip->i_format.opcode == daddiu_op)
 		return 1;
+#endif
 	return 0;
 }
 
 static int get_frame_info(struct mips_frame_info *info)
 {
+#ifdef CONFIG_CPU_MICROMIPS
+	union mips_instruction *ip = (void *) (((char *) info->func) - 1);
+#else
 	union mips_instruction *ip = info->func;
+#endif
 	unsigned max_insns = info->func_size / sizeof(union mips_instruction);
 	unsigned i;
 
@@ -272,7 +354,26 @@ static int get_frame_info(struct mips_frame_info *info)
 			break;
 		if (!info->frame_size) {
 			if (is_sp_move_ins(ip))
+			{
+#ifdef CONFIG_CPU_MICROMIPS
+				if (mm_insn_16bit(ip->halfword[0]))
+				{
+					unsigned short tmp;
+
+					if (ip->halfword[0] & mm_addiusp_func)
+					{
+						tmp = (((ip->halfword[0] >> 1) & 0x1ff) << 2);
+						info->frame_size = -(signed short)(tmp | ((tmp & 0x100) ? 0xfe00 : 0));
+					} else {
+						tmp = (ip->halfword[0] >> 1);
+						info->frame_size = -(signed short)(tmp & 0xf);
+					}
+					ip = (void *) &ip->halfword[1];
+					ip--;
+				} else
+#endif
 				info->frame_size = - ip->i_format.simmediate;
+			}
 			continue;
 		}
 		if (info->pc_offset == -1 && is_ra_save_ins(ip)) {

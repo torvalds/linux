@@ -19,6 +19,7 @@
 #include <linux/mpage.h>
 #include <linux/buffer_head.h>
 #include <linux/mount.h>
+#include <linux/aio.h>
 #include <linux/vfs.h>
 #include <linux/parser.h>
 #include <linux/uio.h>

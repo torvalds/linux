@@ -40,16 +40,19 @@ struct kmem_cache *btrfs_delayed_extent_op_cachep;
  * compare two delayed tree backrefs with same bytenr and type
  */
 static int comp_tree_refs(struct btrfs_delayed_tree_ref *ref2,
-			  struct btrfs_delayed_tree_ref *ref1)
+			  struct btrfs_delayed_tree_ref *ref1, int type)
 {
-	if (ref1->root < ref2->root)
-		return -1;
-	if (ref1->root > ref2->root)
-		return 1;
-	if (ref1->parent < ref2->parent)
-		return -1;
-	if (ref1->parent > ref2->parent)
-		return 1;
+	if (type == BTRFS_TREE_BLOCK_REF_KEY) {
+		if (ref1->root < ref2->root)
+			return -1;
+		if (ref1->root > ref2->root)
+			return 1;
+	} else {
+		if (ref1->parent < ref2->parent)
+			return -1;
+		if (ref1->parent > ref2->parent)
+			return 1;
+	}
 	return 0;
 }
 
@@ -113,7 +116,8 @@ static int comp_entry(struct btrfs_delayed_ref_node *ref2,
 	if (ref1->type == BTRFS_TREE_BLOCK_REF_KEY ||
 	    ref1->type == BTRFS_SHARED_BLOCK_REF_KEY) {
 		return comp_tree_refs(btrfs_delayed_node_to_tree_ref(ref2),
-				      btrfs_delayed_node_to_tree_ref(ref1));
+				      btrfs_delayed_node_to_tree_ref(ref1),
+				      ref1->type);
 	} else if (ref1->type == BTRFS_EXTENT_DATA_REF_KEY ||
 		   ref1->type == BTRFS_SHARED_DATA_REF_KEY) {
 		return comp_data_refs(btrfs_delayed_node_to_data_ref(ref2),
@@ -357,8 +361,10 @@ int btrfs_check_delayed_seq(struct btrfs_fs_info *fs_info,
 		elem = list_first_entry(&fs_info->tree_mod_seq_list,
 					struct seq_list, list);
 		if (seq >= elem->seq) {
-			pr_debug("holding back delayed_ref %llu, lowest is "
-				 "%llu (%p)\n", seq, elem->seq, delayed_refs);
+			pr_debug("holding back delayed_ref %#x.%x, lowest is %#x.%x (%p)\n",
+				 (u32)(seq >> 32), (u32)seq,
+				 (u32)(elem->seq >> 32), (u32)elem->seq,
+				 delayed_refs);
 			ret = 1;
 		}
 	}

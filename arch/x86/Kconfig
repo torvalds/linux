@@ -174,9 +174,6 @@ config GENERIC_BUG_RELATIVE_POINTERS
 config GENERIC_HWEIGHT
 	def_bool y
 
-config GENERIC_GPIO
-	bool
-
 config ARCH_MAY_HAVE_PC_FDC
 	def_bool y
 	depends on ISA_DMA_API

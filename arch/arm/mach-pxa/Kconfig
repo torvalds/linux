@@ -162,7 +162,6 @@ config MACH_XCEP
 	select MTD
 	select MTD_CFI
 	select MTD_CFI_INTELEXT
-	select MTD_CHAR
 	select MTD_PHYSMAP
 	select PXA25x
 	select SMC91X

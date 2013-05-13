@@ -293,6 +293,7 @@ struct ftrace_event_file {
 	 * caching and such. Which is mostly OK ;-)
 	 */
 	unsigned long		flags;
+	atomic_t		sm_ref;	/* soft-mode reference counter */
 };
 
 #define __TRACE_EVENT_FLAGS(name, value)				\

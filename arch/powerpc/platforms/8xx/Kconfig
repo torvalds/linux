@@ -114,7 +114,6 @@ config 8xx_COPYBACK
 
 config 8xx_GPIO
 	bool "GPIO API Support"
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	help
 	  Saying Y here will cause the ports on an MPC8xx processor to be used

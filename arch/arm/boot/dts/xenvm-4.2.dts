@@ -29,6 +29,19 @@
 			compatible = "arm,cortex-a15";
 			reg = <0>;
 		};
+
+		cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <1>;
+		};
+	};
+
+	psci {
+		compatible      = "arm,psci";
+		method          = "hvc";
+		cpu_off         = <1>;
+		cpu_on          = <2>;
 	};
 
 	memory@80000000 {

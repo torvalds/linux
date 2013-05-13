@@ -349,7 +349,8 @@ acpi_status acpi_ut_osi_implementation(struct acpi_walk_state * walk_state)
 	return_value = 0;
 	status = acpi_os_acquire_mutex(acpi_gbl_osi_mutex, ACPI_WAIT_FOREVER);
 	if (ACPI_FAILURE(status)) {
-		return (status);
+		acpi_ut_remove_reference(return_desc);
+		return_ACPI_STATUS(status);
 	}
 
 	/* Lookup the interface in the global _OSI list */

@@ -31,7 +31,7 @@ struct map_info soleng_flash_map = {
 	.bankwidth = 4,
 };
 
-static const char *probes[] = { "RedBoot", "cmdlinepart", NULL };
+static const char * const probes[] = { "RedBoot", "cmdlinepart", NULL };
 
 #ifdef CONFIG_MTD_SUPERH_RESERVE
 static struct mtd_partition superh_se_partitions[] = {

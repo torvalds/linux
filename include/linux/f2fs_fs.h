@@ -139,7 +139,7 @@ struct f2fs_extent {
 	__le32 len;		/* lengh of the extent */
 } __packed;
 
-#define F2FS_MAX_NAME_LEN	256
+#define F2FS_NAME_LEN		255
 #define ADDRS_PER_INODE         923	/* Address Pointers in an Inode */
 #define ADDRS_PER_BLOCK         1018	/* Address Pointers in a Direct Block */
 #define NIDS_PER_BLOCK          1018	/* Node IDs in an Indirect Block */
@@ -165,7 +165,8 @@ struct f2fs_inode {
 	__le32 i_flags;			/* file attributes */
 	__le32 i_pino;			/* parent inode number */
 	__le32 i_namelen;		/* file name length */
-	__u8 i_name[F2FS_MAX_NAME_LEN];	/* file name for SPOR */
+	__u8 i_name[F2FS_NAME_LEN];	/* file name for SPOR */
+	__u8 i_reserved2;		/* for backward compatibility */
 
 	struct f2fs_extent i_ext;	/* caching a largest extent */
 
@@ -362,10 +363,10 @@ struct f2fs_summary_block {
 typedef __le32	f2fs_hash_t;
 
 /* One directory entry slot covers 8bytes-long file name */
-#define F2FS_NAME_LEN		8
-#define F2FS_NAME_LEN_BITS	3
+#define F2FS_SLOT_LEN		8
+#define F2FS_SLOT_LEN_BITS	3
 
-#define GET_DENTRY_SLOTS(x)	((x + F2FS_NAME_LEN - 1) >> F2FS_NAME_LEN_BITS)
+#define GET_DENTRY_SLOTS(x)	((x + F2FS_SLOT_LEN - 1) >> F2FS_SLOT_LEN_BITS)
 
 /* the number of dentry in a block */
 #define NR_DENTRY_IN_BLOCK	214
@@ -377,10 +378,10 @@ typedef __le32	f2fs_hash_t;
 #define SIZE_OF_DENTRY_BITMAP	((NR_DENTRY_IN_BLOCK + BITS_PER_BYTE - 1) / \
 					BITS_PER_BYTE)
 #define SIZE_OF_RESERVED	(PAGE_SIZE - ((SIZE_OF_DIR_ENTRY + \
-				F2FS_NAME_LEN) * \
+				F2FS_SLOT_LEN) * \
 				NR_DENTRY_IN_BLOCK + SIZE_OF_DENTRY_BITMAP))
 
-/* One directory entry slot representing F2FS_NAME_LEN-sized file name */
+/* One directory entry slot representing F2FS_SLOT_LEN-sized file name */
 struct f2fs_dir_entry {
 	__le32 hash_code;	/* hash code of file name */
 	__le32 ino;		/* inode number */
@@ -394,7 +395,7 @@ struct f2fs_dentry_block {
 	__u8 dentry_bitmap[SIZE_OF_DENTRY_BITMAP];
 	__u8 reserved[SIZE_OF_RESERVED];
 	struct f2fs_dir_entry dentry[NR_DENTRY_IN_BLOCK];
-	__u8 filename[NR_DENTRY_IN_BLOCK][F2FS_NAME_LEN];
+	__u8 filename[NR_DENTRY_IN_BLOCK][F2FS_SLOT_LEN];
 } __packed;
 
 /* file types used in inode_info->flags */

@@ -24,6 +24,7 @@ static int query_token, change_token;
 #define RTAS_RESET_FN		2
 #define RTAS_CHANGE_MSI_FN	3
 #define RTAS_CHANGE_MSIX_FN	4
+#define RTAS_CHANGE_32MSI_FN	5
 
 static struct pci_dn *get_pdn(struct pci_dev *pdev)
 {
@@ -58,7 +59,8 @@ static int rtas_change_msi(struct pci_dn *pdn, u32 func, u32 num_irqs)
 
 	seq_num = 1;
 	do {
-		if (func == RTAS_CHANGE_MSI_FN || func == RTAS_CHANGE_MSIX_FN)
+		if (func == RTAS_CHANGE_MSI_FN || func == RTAS_CHANGE_MSIX_FN ||
+		    func == RTAS_CHANGE_32MSI_FN)
 			rc = rtas_call(change_token, 6, 4, rtas_ret, addr,
 					BUID_HI(buid), BUID_LO(buid),
 					func, num_irqs, seq_num);
@@ -426,9 +428,12 @@ static int rtas_setup_msi_irqs(struct pci_dev *pdev, int nvec_in, int type)
 	 */
 again:
 	if (type == PCI_CAP_ID_MSI) {
-		rc = rtas_change_msi(pdn, RTAS_CHANGE_MSI_FN, nvec);
+		if (pdn->force_32bit_msi)
+			rc = rtas_change_msi(pdn, RTAS_CHANGE_32MSI_FN, nvec);
+		else
+			rc = rtas_change_msi(pdn, RTAS_CHANGE_MSI_FN, nvec);
 
-		if (rc < 0) {
+		if (rc < 0 && !pdn->force_32bit_msi) {
 			pr_debug("rtas_msi: trying the old firmware call.\n");
 			rc = rtas_change_msi(pdn, RTAS_CHANGE_FN, nvec);
 		}
@@ -512,3 +517,13 @@ static int rtas_msi_init(void)
 	return 0;
 }
 arch_initcall(rtas_msi_init);
+
+static void quirk_radeon(struct pci_dev *dev)
+{
+	struct pci_dn *pdn = get_pdn(dev);
+
+	if (pdn)
+		pdn->force_32bit_msi = 1;
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0x68f2, quirk_radeon);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0xaa68, quirk_radeon);

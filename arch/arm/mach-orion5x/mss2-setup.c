@@ -241,7 +241,8 @@ static void __init mss2_init(void)
 	orion5x_uart0_init();
 	orion5x_xor_init();
 
-	orion5x_setup_dev_boot_win(MSS2_NOR_BOOT_BASE, MSS2_NOR_BOOT_SIZE);
+	mvebu_mbus_add_window("devbus-boot", MSS2_NOR_BOOT_BASE,
+			      MSS2_NOR_BOOT_SIZE);
 	platform_device_register(&mss2_nor_flash);
 
 	platform_device_register(&mss2_button_device);

@@ -71,6 +71,60 @@
 					0x28 0x00222222  0x00ffffff
 				>;
 			};
+			ehrpwm0a_pins: pinmux_ehrpwm0a_pins {
+				pinctrl-single,bits = <
+					/* EPWM0A */
+					0xc 0x00000002 0x0000000f
+				>;
+			};
+			ehrpwm0b_pins: pinmux_ehrpwm0b_pins {
+				pinctrl-single,bits = <
+					/* EPWM0B */
+					0xc 0x00000020 0x000000f0
+				>;
+			};
+			ehrpwm1a_pins: pinmux_ehrpwm1a_pins {
+				pinctrl-single,bits = <
+					/* EPWM1A */
+					0x14 0x00000002 0x0000000f
+				>;
+			};
+			ehrpwm1b_pins: pinmux_ehrpwm1b_pins {
+				pinctrl-single,bits = <
+					/* EPWM1B */
+					0x14 0x00000020 0x000000f0
+				>;
+			};
+			ecap0_pins: pinmux_ecap0_pins {
+				pinctrl-single,bits = <
+					/* ECAP0_APWM0 */
+					0x8 0x20000000 0xf0000000
+				>;
+			};
+			ecap1_pins: pinmux_ecap1_pins {
+				pinctrl-single,bits = <
+					/* ECAP1_APWM1 */
+					0x4 0x40000000 0xf0000000
+				>;
+			};
+			ecap2_pins: pinmux_ecap2_pins {
+				pinctrl-single,bits = <
+					/* ECAP2_APWM2 */
+					0x4 0x00000004 0x0000000f
+				>;
+			};
+			spi1_pins: pinmux_spi_pins {
+				pinctrl-single,bits = <
+					/* SIMO, SOMI, CLK */
+					0x14 0x00110100 0x00ff0f00
+				>;
+			};
+			spi1_cs0_pin: pinmux_spi1_cs0 {
+				pinctrl-single,bits = <
+					/* CS0 */
+					0x14 0x00000010 0x000000f0
+				>;
+			};
 		};
 		serial0: serial@1c42000 {
 			compatible = "ns16550a";
@@ -120,6 +174,46 @@
 			compatible = "ti,da830-mmc";
 			reg = <0x40000 0x1000>;
 			interrupts = <16>;
+			status = "disabled";
+		};
+		ehrpwm0: ehrpwm@01f00000 {
+			compatible = "ti,da850-ehrpwm", "ti,am33xx-ehrpwm";
+			#pwm-cells = <3>;
+			reg = <0x300000 0x2000>;
+			status = "disabled";
+		};
+		ehrpwm1: ehrpwm@01f02000 {
+			compatible = "ti,da850-ehrpwm", "ti,am33xx-ehrpwm";
+			#pwm-cells = <3>;
+			reg = <0x302000 0x2000>;
+			status = "disabled";
+		};
+		ecap0: ecap@01f06000 {
+			compatible = "ti,da850-ecap", "ti,am33xx-ecap";
+			#pwm-cells = <3>;
+			reg = <0x306000 0x80>;
+			status = "disabled";
+		};
+		ecap1: ecap@01f07000 {
+			compatible = "ti,da850-ecap", "ti,am33xx-ecap";
+			#pwm-cells = <3>;
+			reg = <0x307000 0x80>;
+			status = "disabled";
+		};
+		ecap2: ecap@01f08000 {
+			compatible = "ti,da850-ecap", "ti,am33xx-ecap";
+			#pwm-cells = <3>;
+			reg = <0x308000 0x80>;
+			status = "disabled";
+		};
+		spi1: spi@1f0e000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "ti,da830-spi";
+			reg = <0x30e000 0x1000>;
+			num-cs = <4>;
+			ti,davinci-spi-intr-line = <1>;
+			interrupts = <56>;
 			status = "disabled";
 		};
 	};

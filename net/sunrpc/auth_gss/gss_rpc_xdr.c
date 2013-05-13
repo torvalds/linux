@@ -21,16 +21,6 @@
 #include <linux/sunrpc/svcauth.h>
 #include "gss_rpc_xdr.h"
 
-static bool gssx_check_pointer(struct xdr_stream *xdr)
-{
-	__be32 *p;
-
-	p = xdr_reserve_space(xdr, 4);
-	if (unlikely(p == NULL))
-		return -ENOSPC;
-	return *p?true:false;
-}
-
 static int gssx_enc_bool(struct xdr_stream *xdr, int v)
 {
 	__be32 *p;
@@ -264,25 +254,27 @@ static int gssx_dec_option_array(struct xdr_stream *xdr,
 	if (unlikely(p == NULL))
 		return -ENOSPC;
 	count = be32_to_cpup(p++);
-	if (count != 0) {
-		/* we recognize only 1 currently: CREDS_VALUE */
-		oa->count = 1;
+	if (!count)
+		return 0;
 
-		oa->data = kmalloc(sizeof(struct gssx_option), GFP_KERNEL);
-		if (!oa->data)
-			return -ENOMEM;
+	/* we recognize only 1 currently: CREDS_VALUE */
+	oa->count = 1;
 
-		creds = kmalloc(sizeof(struct svc_cred), GFP_KERNEL);
-		if (!creds) {
-			kfree(oa->data);
-			return -ENOMEM;
-		}
+	oa->data = kmalloc(sizeof(struct gssx_option), GFP_KERNEL);
+	if (!oa->data)
+		return -ENOMEM;
 
-		oa->data[0].option.data = CREDS_VALUE;
-		oa->data[0].option.len = sizeof(CREDS_VALUE);
-		oa->data[0].value.data = (void *)creds;
-		oa->data[0].value.len = 0;
+	creds = kmalloc(sizeof(struct svc_cred), GFP_KERNEL);
+	if (!creds) {
+		kfree(oa->data);
+		return -ENOMEM;
 	}
+
+	oa->data[0].option.data = CREDS_VALUE;
+	oa->data[0].option.len = sizeof(CREDS_VALUE);
+	oa->data[0].value.data = (void *)creds;
+	oa->data[0].value.len = 0;
+
 	for (i = 0; i < count; i++) {
 		gssx_buffer dummy = { 0, NULL };
 		u32 length;
@@ -800,6 +792,7 @@ int gssx_dec_accept_sec_context(struct rpc_rqst *rqstp,
 				struct xdr_stream *xdr,
 				struct gssx_res_accept_sec_context *res)
 {
+	u32 value_follows;
 	int err;
 
 	/* res->status */
@@ -808,7 +801,10 @@ int gssx_dec_accept_sec_context(struct rpc_rqst *rqstp,
 		return err;
 
 	/* res->context_handle */
-	if (gssx_check_pointer(xdr)) {
+	err = gssx_dec_bool(xdr, &value_follows);
+	if (err)
+		return err;
+	if (value_follows) {
 		err = gssx_dec_ctx(xdr, res->context_handle);
 		if (err)
 			return err;
@@ -817,7 +813,10 @@ int gssx_dec_accept_sec_context(struct rpc_rqst *rqstp,
 	}
 
 	/* res->output_token */
-	if (gssx_check_pointer(xdr)) {
+	err = gssx_dec_bool(xdr, &value_follows);
+	if (err)
+		return err;
+	if (value_follows) {
 		err = gssx_dec_buffer(xdr, res->output_token);
 		if (err)
 			return err;
@@ -826,7 +825,10 @@ int gssx_dec_accept_sec_context(struct rpc_rqst *rqstp,
 	}
 
 	/* res->delegated_cred_handle */
-	if (gssx_check_pointer(xdr)) {
+	err = gssx_dec_bool(xdr, &value_follows);
+	if (err)
+		return err;
+	if (value_follows) {
 		/* we do not support upcall servers sending this data. */
 		return -EINVAL;
 	}

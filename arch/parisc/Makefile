@@ -24,9 +24,7 @@ CHECKFLAGS	+= -D__hppa__=1
 LIBGCC		= $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
 
 MACHINE		:= $(shell uname -m)
-ifeq ($(MACHINE),parisc*)
-NATIVE		:= 1
-endif
+NATIVE		:= $(if $(filter parisc%,$(MACHINE)),1,0)
 
 ifdef CONFIG_64BIT
 UTS_MACHINE	:= parisc64

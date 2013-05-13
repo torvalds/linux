@@ -1827,7 +1827,7 @@ static void be_rx_cq_clean(struct be_rx_obj *rxo)
 			mdelay(1);
 		} else {
 			be_rx_compl_discard(rxo, rxcp);
-			be_cq_notify(adapter, rx_cq->id, true, 1);
+			be_cq_notify(adapter, rx_cq->id, false, 1);
 			if (rxcp->num_rcvd == 0)
 				break;
 		}
@@ -2533,11 +2533,6 @@ static void be_rx_qs_destroy(struct be_adapter *adapter)
 		q = &rxo->q;
 		if (q->created) {
 			be_cmd_rxq_destroy(adapter, q);
-			/* After the rxq is invalidated, wait for a grace time
-			 * of 1ms for all dma to end and the flush compl to
-			 * arrive
-			 */
-			mdelay(1);
 			be_rx_cq_clean(rxo);
 		}
 		be_queue_free(adapter, q);
@@ -2564,6 +2559,7 @@ static int be_close(struct net_device *netdev)
 	 * all tx skbs are freed.
 	 */
 	be_tx_compl_clean(adapter);
+	netif_tx_disable(netdev);
 
 	be_rx_qs_destroy(adapter);
 
@@ -2672,6 +2668,7 @@ static int be_open(struct net_device *netdev)
 	if (!status)
 		be_link_status_update(adapter, link_status);
 
+	netif_tx_start_all_queues(netdev);
 	be_roce_dev_open(adapter);
 	return 0;
 err:
@@ -2783,6 +2780,8 @@ static void be_vf_clear(struct be_adapter *adapter)
 		goto done;
 	}
 
+	pci_disable_sriov(adapter->pdev);
+
 	for_all_vfs(adapter, vf_cfg, vf) {
 		if (lancer_chip(adapter))
 			be_cmd_set_mac_list(adapter, NULL, 0, vf + 1);
@@ -2792,7 +2791,6 @@ static void be_vf_clear(struct be_adapter *adapter)
 
 		be_cmd_if_destroy(adapter, vf_cfg->if_handle, vf + 1);
 	}
-	pci_disable_sriov(adapter->pdev);
 done:
 	kfree(adapter->vf_cfg);
 	adapter->num_vfs = 0;
@@ -2889,13 +2887,8 @@ static int be_vf_setup(struct be_adapter *adapter)
 			dev_info(dev, "Device supports %d VFs and not %d\n",
 				 adapter->dev_num_vfs, num_vfs);
 		adapter->num_vfs = min_t(u16, num_vfs, adapter->dev_num_vfs);
-
-		status = pci_enable_sriov(adapter->pdev, num_vfs);
-		if (status) {
-			dev_err(dev, "SRIOV enable failed\n");
-			adapter->num_vfs = 0;
+		if (!adapter->num_vfs)
 			return 0;
-		}
 	}
 
 	status = be_vf_setup_init(adapter);
@@ -2943,6 +2936,15 @@ static int be_vf_setup(struct be_adapter *adapter)
 		vf_cfg->def_vid = def_vlan;
 
 		be_cmd_enable_vf(adapter, vf + 1);
+	}
+
+	if (!old_vfs) {
+		status = pci_enable_sriov(adapter->pdev, adapter->num_vfs);
+		if (status) {
+			dev_err(dev, "SRIOV enable failed\n");
+			adapter->num_vfs = 0;
+			goto err;
+		}
 	}
 	return 0;
 err:
@@ -3198,7 +3200,7 @@ static int be_setup(struct be_adapter *adapter)
 		be_cmd_set_flow_control(adapter, adapter->tx_fc,
 					adapter->rx_fc);
 
-	if (be_physfn(adapter) && num_vfs) {
+	if (be_physfn(adapter)) {
 		if (adapter->dev_num_vfs)
 			be_vf_setup(adapter);
 		else

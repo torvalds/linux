@@ -22,10 +22,6 @@
 /*
  * register offsets
  */
-static const unsigned long bcm6338_regs_spi[] = {
-	__GEN_SPI_REGS_TABLE(6338)
-};
-
 static const unsigned long bcm6348_regs_spi[] = {
 	__GEN_SPI_REGS_TABLE(6348)
 };
@@ -34,23 +30,15 @@ static const unsigned long bcm6358_regs_spi[] = {
 	__GEN_SPI_REGS_TABLE(6358)
 };
 
-static const unsigned long bcm6368_regs_spi[] = {
-	__GEN_SPI_REGS_TABLE(6368)
-};
-
 const unsigned long *bcm63xx_regs_spi;
 EXPORT_SYMBOL(bcm63xx_regs_spi);
 
 static __init void bcm63xx_spi_regs_init(void)
 {
-	if (BCMCPU_IS_6338())
-		bcm63xx_regs_spi = bcm6338_regs_spi;
-	if (BCMCPU_IS_6348())
+	if (BCMCPU_IS_6338() || BCMCPU_IS_6348())
 		bcm63xx_regs_spi = bcm6348_regs_spi;
-	if (BCMCPU_IS_6358())
+	if (BCMCPU_IS_6358() || BCMCPU_IS_6362() || BCMCPU_IS_6368())
 		bcm63xx_regs_spi = bcm6358_regs_spi;
-	if (BCMCPU_IS_6368())
-		bcm63xx_regs_spi = bcm6368_regs_spi;
 }
 #else
 static __init void bcm63xx_spi_regs_init(void) { }
@@ -93,13 +81,13 @@ int __init bcm63xx_spi_register(void)
 	spi_resources[1].start = bcm63xx_get_irq_number(IRQ_SPI);
 
 	if (BCMCPU_IS_6338() || BCMCPU_IS_6348()) {
-		spi_resources[0].end += BCM_6338_RSET_SPI_SIZE - 1;
-		spi_pdata.fifo_size = SPI_6338_MSG_DATA_SIZE;
-		spi_pdata.msg_type_shift = SPI_6338_MSG_TYPE_SHIFT;
-		spi_pdata.msg_ctl_width = SPI_6338_MSG_CTL_WIDTH;
+		spi_resources[0].end += BCM_6348_RSET_SPI_SIZE - 1;
+		spi_pdata.fifo_size = SPI_6348_MSG_DATA_SIZE;
+		spi_pdata.msg_type_shift = SPI_6348_MSG_TYPE_SHIFT;
+		spi_pdata.msg_ctl_width = SPI_6348_MSG_CTL_WIDTH;
 	}
 
-	if (BCMCPU_IS_6358() || BCMCPU_IS_6368()) {
+	if (BCMCPU_IS_6358() || BCMCPU_IS_6362() || BCMCPU_IS_6368()) {
 		spi_resources[0].end += BCM_6358_RSET_SPI_SIZE - 1;
 		spi_pdata.fifo_size = SPI_6358_MSG_DATA_SIZE;
 		spi_pdata.msg_type_shift = SPI_6358_MSG_TYPE_SHIFT;

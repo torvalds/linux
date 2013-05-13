@@ -529,7 +529,7 @@ sys_call_table:
 	PTR	sys_accept4
 	PTR	compat_sys_recvmmsg		/* 4335 */
 	PTR	sys_fanotify_init
-	PTR	sys_32_fanotify_mark
+	PTR	compat_sys_fanotify_mark
 	PTR	sys_prlimit64
 	PTR	sys_name_to_handle_at
 	PTR	compat_sys_open_by_handle_at	/* 4340 */

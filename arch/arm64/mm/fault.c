@@ -148,6 +148,7 @@ void do_bad_area(unsigned long addr, unsigned int esr, struct pt_regs *regs)
 #define VM_FAULT_BADACCESS	0x020000
 
 #define ESR_WRITE		(1 << 6)
+#define ESR_CM			(1 << 8)
 #define ESR_LNX_EXEC		(1 << 24)
 
 /*
@@ -206,7 +207,7 @@ static int __kprobes do_page_fault(unsigned long addr, unsigned int esr,
 	struct task_struct *tsk;
 	struct mm_struct *mm;
 	int fault, sig, code;
-	int write = esr & ESR_WRITE;
+	bool write = (esr & ESR_WRITE) && !(esr & ESR_CM);
 	unsigned int flags = FAULT_FLAG_ALLOW_RETRY | FAULT_FLAG_KILLABLE |
 		(write ? FAULT_FLAG_WRITE : 0);
 
