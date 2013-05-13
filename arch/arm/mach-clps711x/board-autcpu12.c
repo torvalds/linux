@@ -42,13 +42,20 @@
 #include <asm/page.h>
 
 #include <asm/mach/map.h>
-#include <mach/autcpu12.h>
 
 #include "common.h"
 #include "devices.h"
 
 /* NOR flash */
 #define AUTCPU12_FLASH_BASE	(CS0_PHYS_BASE)
+
+/* Board specific hardware definitions */
+#define AUTCPU12_CHAR_LCD_BASE	(CS1_PHYS_BASE + 0x00000000)
+#define AUTCPU12_CSAUX1_BASE	(CS1_PHYS_BASE + 0x04000000)
+#define AUTCPU12_CAN_BASE	(CS1_PHYS_BASE + 0x08000000)
+#define AUTCPU12_TOUCH_BASE	(CS1_PHYS_BASE + 0x0a000000)
+#define AUTCPU12_IO_BASE	(CS1_PHYS_BASE + 0x0c000000)
+#define AUTCPU12_LPT_BASE	(CS1_PHYS_BASE + 0x0e000000)
 
 /* NVRAM */
 #define AUTCPU12_NVRAM_BASE	(CS1_PHYS_BASE + 0x02000000)
