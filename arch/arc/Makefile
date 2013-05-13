@@ -14,7 +14,9 @@ endif
 
 KBUILD_DEFCONFIG := nsim_700_defconfig
 
-cflags-y	+= -mA7 -fno-common -pipe -fno-builtin -D__linux__
+cflags-y	+= -fno-common -pipe -fno-builtin -D__linux__
+cflags-${CONFIG_ISA_ARCOMPACT}	+= -mA7
+cflags-${CONFIG_ISA_ARCV2}	+= -mcpu=archs
 
 ifdef CONFIG_ARC_CURR_IN_REG
 # For a global register defintion, make sure it gets passed to every file
@@ -33,6 +35,10 @@ cflags-$(atleast_gcc44)			+= -fsection-anchors
 
 cflags-$(CONFIG_ARC_HAS_LLSC)		+= -mlock
 cflags-$(CONFIG_ARC_HAS_SWAPE)		+= -mswape
+
+ifndef CONFIG_ARC_HAS_LL64
+cflags-y				+= -mno-ll64
+endif
 
 cflags-$(CONFIG_ARC_DW2_UNWIND)		+= -fasynchronous-unwind-tables
 

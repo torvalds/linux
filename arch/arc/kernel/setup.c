@@ -96,7 +96,7 @@ static void read_arc_build_cfg_regs(void)
 	read_decode_mmu_bcr();
 	read_decode_cache_bcr();
 
-	{
+	if (is_isa_arcompact()) {
 		struct bcr_fp_arcompact sp, dp;
 		struct bcr_bpu_arcompact bpu;
 
@@ -112,6 +112,19 @@ static void read_arc_build_cfg_regs(void)
 			cpu->bpu.num_cache = 256 << (bpu.ent - 1);
 			cpu->bpu.num_pred = 256 << (bpu.ent - 1);
 		}
+	} else {
+		struct bcr_fp_arcv2 spdp;
+		struct bcr_bpu_arcv2 bpu;
+
+		READ_BCR(ARC_REG_FP_V2_BCR, spdp);
+		cpu->extn.fpu_sp = spdp.sp ? 1 : 0;
+		cpu->extn.fpu_dp = spdp.dp ? 1 : 0;
+
+		READ_BCR(ARC_REG_BPU_BCR, bpu);
+		cpu->bpu.ver = bpu.ver;
+		cpu->bpu.full = bpu.ft;
+		cpu->bpu.num_cache = 256 << bpu.bce;
+		cpu->bpu.num_pred = 2048 << bpu.pte;
 	}
 
 	READ_BCR(ARC_REG_AP_BCR, bcr);
@@ -131,6 +144,7 @@ static const struct cpuinfo_data arc_cpu_tbl[] = {
 	{ {0x30, "ARC 700"      }, 0x33},
 	{ {0x34, "ARC 700 R4.10"}, 0x34},
 	{ {0x35, "ARC 700 R4.11"}, 0x35},
+	{ {0x50, "ARC HS38"	}, 0x51},
 	{ {0x00, NULL		} }
 };
 
@@ -149,13 +163,17 @@ static char *arc_cpu_mumbojumbo(int cpu_id, char *buf, int len)
 
 	FIX_PTR(cpu);
 
-	{
+	if (is_isa_arcompact()) {
 		isa_nm = "ARCompact";
 		be = IS_ENABLED(CONFIG_CPU_BIG_ENDIAN);
 
 		atomic = cpu->isa.atomic1;
 		if (!cpu->isa.ver)	/* ISA BCR absent, use Kconfig info */
 			atomic = IS_ENABLED(CONFIG_ARC_HAS_LLSC);
+	} else {
+		isa_nm = "ARCv2";
+		be = cpu->isa.be;
+		atomic = cpu->isa.atomic;
 	}
 
 	n += scnprintf(buf + n, len - n,
@@ -184,14 +202,31 @@ static char *arc_cpu_mumbojumbo(int cpu_id, char *buf, int len)
 		       IS_AVAIL1(cpu->timers.t0, "Timer0 "),
 		       IS_AVAIL1(cpu->timers.t1, "Timer1 "));
 
-	n += i = scnprintf(buf + n, len - n, "%s%s",
-			   IS_AVAIL2(atomic, "atomic ", CONFIG_ARC_HAS_LLSC));
+	n += i = scnprintf(buf + n, len - n, "%s%s%s%s%s",
+			   IS_AVAIL2(atomic, "atomic ", CONFIG_ARC_HAS_LLSC),
+			   IS_AVAIL2(cpu->isa.ldd, "ll64 ", CONFIG_ARC_HAS_LL64),
+			   IS_AVAIL1(cpu->isa.unalign, "unalign (not used)"));
 
 	if (i)
 		n += scnprintf(buf + n, len - n, "\n\t\t: ");
 
+	if (cpu->extn_mpy.ver) {
+		if (cpu->extn_mpy.ver <= 0x2) {	/* ARCompact */
+			n += scnprintf(buf + n, len - n, "mpy ");
+		} else {
+			int opt = 2;	/* stock MPY/MPYH */
+
+			if (cpu->extn_mpy.dsp)	/* OPT 7-9 */
+				opt = cpu->extn_mpy.dsp + 6;
+
+			n += scnprintf(buf + n, len - n, "mpy[opt %d] ", opt);
+		}
+		n += scnprintf(buf + n, len - n, "%s",
+			       IS_USED(CONFIG_ARC_HAS_HW_MPY));
+	}
+
 	n += scnprintf(buf + n, len - n, "%s%s%s%s%s%s%s%s\n",
-		       IS_AVAIL1(cpu->extn_mpy.ver, "mpy "),
+		       IS_AVAIL1(cpu->isa.div_rem, "div_rem "),
 		       IS_AVAIL1(cpu->extn.norm, "norm "),
 		       IS_AVAIL1(cpu->extn.barrel, "barrel-shift "),
 		       IS_AVAIL1(cpu->extn.swap, "swap "),

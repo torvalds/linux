@@ -88,11 +88,31 @@ source "arch/arc/plat-axs10x/Kconfig"
 
 endmenu
 
+choice
+	prompt "ARC Instruction Set"
+	default ISA_ARCOMPACT
+
+config ISA_ARCOMPACT
+	bool "ARCompact ISA"
+	help
+	  The original ARC ISA of ARC600/700 cores
+
+### For bisectability, disable ARCv2 support until we have all the bits in place
+#config ISA_ARCV2
+#	bool "ARC ISA v2"
+#	help
+#	  ISA for the Next Generation ARC-HS cores
+
+endchoice
+
 menu "ARC CPU Configuration"
 
 choice
 	prompt "ARC Core"
-	default ARC_CPU_770
+	default ARC_CPU_770 if ISA_ARCOMPACT
+	default ARC_CPU_HS if ISA_ARCV2
+
+if ISA_ARCOMPACT
 
 config ARC_CPU_750D
 	bool "ARC750D"
@@ -109,6 +129,27 @@ config ARC_CPU_770
                    Shared Address Spaces (for sharing TLB entires in MMU)
 	  -Caches: New Prog Model, Region Flush
 	  -Insns: endian swap, load-locked/store-conditional, time-stamp-ctr
+
+endif	#ISA_ARCOMPACT
+
+config ARC_CPU_HS
+	bool "ARC-HS"
+	depends on ISA_ARCV2
+	help
+	  Support for ARC HS38x Cores based on ARCv2 ISA
+	  The notable features are:
+	    - SMP configurations of upto 4 core with coherency
+	    - Optional L2 Cache and IO-Coherency
+	    - Revised Interrupt Architecture (multiple priorites, reg banks,
+	        auto stack switch, auto regfile save/restore)
+	    - MMUv4 (PIPT dcache, Huge Pages)
+	    - Instructions for
+		* 64bit load/store: LDD, STD
+		* Hardware assisted divide/remainder: DIV, REM
+		* Function prologue/epilogue: ENTER_S, LEAVE_S
+		* IRQ enable/disable: CLRI, SETI
+		* pop count: FFS, FLS
+		* SETcc, BMSKN, XBFU...
 
 endchoice
 
@@ -134,7 +175,7 @@ config ARC_HAS_COH_CACHES
 config ARC_HAS_REENTRANT_IRQ_LV2
 	def_bool n
 
-endif
+endif	#SMP
 
 config NR_CPUS
 	int "Maximum number of CPUs (2-4096)"
@@ -223,7 +264,7 @@ config ARC_HAS_HW_MPY
 	  Multipler. Otherwise software multipy lib is used
 
 choice
-	prompt "ARC700 MMU Version"
+	prompt "MMU Version"
 	default ARC_MMU_V3 if ARC_CPU_770
 	default ARC_MMU_V2 if ARC_CPU_750D
 
@@ -268,6 +309,8 @@ config ARC_PAGE_SIZE_4K
 
 endchoice
 
+if ISA_ARCOMPACT
+
 config ARC_COMPACT_IRQ_LEVELS
 	bool "ARCompact IRQ Priorities: High(2)/Low(1)"
 	default n
@@ -287,7 +330,7 @@ config ARC_IRQ5_LV2
 config ARC_IRQ6_LV2
 	bool
 
-endif
+endif	#ARC_COMPACT_IRQ_LEVELS
 
 config ARC_FPU_SAVE_RESTORE
 	bool "Enable FPU state persistence across context switch"
@@ -300,17 +343,42 @@ config ARC_FPU_SAVE_RESTORE
 	  based on actual usage of FPU by a task. Thus our implemn does
 	  this for all tasks in system.
 
+endif	#ISA_ARCOMPACT
+
 config ARC_CANT_LLSC
 	def_bool n
 
 config ARC_HAS_LLSC
 	bool "Insn: LLOCK/SCOND (efficient atomic ops)"
 	default y
-	depends on ARC_CPU_770 && !ARC_CANT_LLSC
+	depends on !ARC_CPU_750D && !ARC_CANT_LLSC
 
 config ARC_HAS_SWAPE
 	bool "Insn: SWAPE (endian-swap)"
 	default y
+
+if ISA_ARCV2
+
+config ARC_HAS_LL64
+	bool "Insn: 64bit LDD/STD"
+	help
+	  Enable gcc to generate 64-bit load/store instructions
+	  ISA mandates even/odd registers to allow encoding of two
+	  dest operands with 2 possible source operands.
+	default y
+
+config ARC_NUMBER_OF_INTERRUPTS
+	int "Number of interrupts"
+	range 8 240
+	default 32
+	help
+	  This defines the number of interrupts on the ARCv2HS core.
+	  It affects the size of vector table.
+	  The initial 8 IRQs are fixed (Timer, ICI etc) and although configurable
+	  in hardware, it keep things simple for Linux to assume they are always
+	  present.
+
+endif	# ISA_ARCV2
 
 endmenu   # "ARC CPU Configuration"
 
@@ -337,8 +405,10 @@ config ARC_CURR_IN_REG
 
 config ARC_EMUL_UNALIGNED
 	bool "Emulate unaligned memory access (userspace only)"
+	default N
 	select SYSCTL_ARCH_UNALIGN_NO_WARN
 	select SYSCTL_ARCH_UNALIGN_ALLOW
+	depends on ISA_ARCOMPACT
 	help
 	  This enables misaligned 16 & 32 bit memory access from user space.
 	  Use ONLY-IF-ABS-NECESSARY as it will be very slow and also can hide

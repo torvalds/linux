@@ -49,8 +49,6 @@
 1:
 .endm
 
-	.cpu A7
-
 	.section .init.text, "ax",@progbits
 	.type stext, @function
 	.globl stext

@@ -35,8 +35,6 @@
  * Rahul Trivedi, Amit Bhor: Codito Technologies 2004
  */
 
-	.cpu A7
-
 #include <linux/linkage.h>
 #include <asm/entry.h>
 #include <asm/mmu.h>

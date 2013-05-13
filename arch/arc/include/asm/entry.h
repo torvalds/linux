@@ -16,7 +16,11 @@
 #include <asm/processor.h>	/* For VMALLOC_START */
 #include <asm/mmu.h>
 
+#ifdef CONFIG_ISA_ARCOMPACT
 #include <asm/entry-compact.h>	/* ISA specific bits */
+#else
+#include <asm/entry-arcv2.h>
+#endif
 
 /* Note on the LD/ST addr modes with addr reg wback
  *

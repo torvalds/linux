@@ -39,6 +39,8 @@
 #define AUX_ITRIGGER		0x40d
 #define AUX_IPULSE		0x415
 
+#define ISA_INIT_STATUS_BITS	STATUS_IE_MASK
+
 #ifndef __ASSEMBLY__
 
 /******************************************************************

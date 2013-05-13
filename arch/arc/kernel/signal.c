@@ -336,7 +336,7 @@ static void arc_restart_syscall(struct k_sigaction *ka, struct pt_regs *regs)
 		 * their orig user space value when we ret from kernel
 		 */
 		regs->r0 = regs->orig_r0;
-		regs->ret -= 4;
+		regs->ret -= is_isa_arcv2() ? 2 : 4;
 		break;
 	}
 }
@@ -377,10 +377,10 @@ void do_signal(struct pt_regs *regs)
 		if (regs->r0 == -ERESTARTNOHAND ||
 		    regs->r0 == -ERESTARTSYS || regs->r0 == -ERESTARTNOINTR) {
 			regs->r0 = regs->orig_r0;
-			regs->ret -= 4;
+			regs->ret -= is_isa_arcv2() ? 2 : 4;
 		} else if (regs->r0 == -ERESTART_RESTARTBLOCK) {
 			regs->r8 = __NR_restart_syscall;
-			regs->ret -= 4;
+			regs->ret -= is_isa_arcv2() ? 2 : 4;
 		}
 		syscall_wont_restart(regs);	/* No more restarts */
 	}

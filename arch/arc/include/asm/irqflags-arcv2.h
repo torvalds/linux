@@ -27,6 +27,9 @@
 #define AUX_IRQ_SELECT		0x40b
 #define AUX_IRQ_ENABLE		0x40c
 
+/* Was Intr taken in User Mode */
+#define AUX_IRQ_ACT_BIT_U	31
+
 /* 0 is highest level, but taken by FIRQs, if present in design */
 #define ARCV2_IRQ_DEF_PRIO		0
 
