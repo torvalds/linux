@@ -237,6 +237,43 @@ nvc0_graph_ctxctl_isr(struct nvc0_graph_priv *priv)
 	nv_wr32(priv, 0x409c20, ustat);
 }
 
+static const struct nouveau_enum nvc0_mp_warp_error[] = {
+	{ 0x00, "NO_ERROR" },
+	{ 0x01, "STACK_MISMATCH" },
+	{ 0x05, "MISALIGNED_PC" },
+	{ 0x08, "MISALIGNED_GPR" },
+	{ 0x09, "INVALID_OPCODE" },
+	{ 0x0d, "GPR_OUT_OF_BOUNDS" },
+	{ 0x0e, "MEM_OUT_OF_BOUNDS" },
+	{ 0x0f, "UNALIGNED_MEM_ACCESS" },
+	{ 0x11, "INVALID_PARAM" },
+	{}
+};
+
+static const struct nouveau_bitfield nvc0_mp_global_error[] = {
+	{ 0x00000004, "MULTIPLE_WARP_ERRORS" },
+	{ 0x00000008, "OUT_OF_STACK_SPACE" },
+	{}
+};
+
+static void
+nvc0_graph_trap_mp(struct nvc0_graph_priv *priv, int gpc, int tpc)
+{
+	u32 werr = nv_rd32(priv, TPC_UNIT(gpc, tpc, 0x648));
+	u32 gerr = nv_rd32(priv, TPC_UNIT(gpc, tpc, 0x650));
+
+	nv_error(priv, "GPC%i/TPC%i/MP trap:", gpc, tpc);
+	nouveau_bitfield_print(nvc0_mp_global_error, gerr);
+	if (werr) {
+		pr_cont(" ");
+		nouveau_enum_print(nvc0_mp_warp_error, werr & 0xffff);
+	}
+	pr_cont("\n");
+
+	nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x648), 0x00000000);
+	nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x650), gerr);
+}
+
 static void
 nvc0_graph_trap_tpc(struct nvc0_graph_priv *priv, int gpc, int tpc)
 {
@@ -251,12 +288,7 @@ nvc0_graph_trap_tpc(struct nvc0_graph_priv *priv, int gpc, int tpc)
 	}
 
 	if (stat & 0x00000002) {
-		u32 trap0 = nv_rd32(priv, TPC_UNIT(gpc, tpc, 0x0644));
-		u32 trap1 = nv_rd32(priv, TPC_UNIT(gpc, tpc, 0x064c));
-		nv_error(priv, "GPC%d/TPC%d/MP: 0x%08x 0x%08x\n",
-			       gpc, tpc, trap0, trap1);
-		nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x0644), 0x001ffffe);
-		nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x064c), 0x0000000f);
+		nvc0_graph_trap_mp(priv, gpc, tpc);
 		nv_wr32(priv, TPC_UNIT(gpc, tpc, 0x0508), 0x00000002);
 		stat &= ~0x00000002;
 	}
