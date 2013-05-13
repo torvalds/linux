@@ -5988,6 +5988,7 @@ enum bfa_fcs_vport_event {
 	BFA_FCS_VPORT_SM_RSP_DUP_WWN = 12,	/*  Dup wnn error*/
 	BFA_FCS_VPORT_SM_RSP_FAILED = 13,	/*  non-retryable failure */
 	BFA_FCS_VPORT_SM_STOPCOMP = 14,	/* vport delete completion */
+	BFA_FCS_VPORT_SM_FABRIC_MAX = 15, /* max vports on fabric */
 };
 
 static void     bfa_fcs_vport_sm_uninit(struct bfa_fcs_vport_s *vport,
@@ -6173,6 +6174,7 @@ bfa_fcs_vport_sm_fdisc(struct bfa_fcs_vport_s *vport,
 		break;
 
 	case BFA_FCS_VPORT_SM_RSP_FAILED:
+	case BFA_FCS_VPORT_SM_FABRIC_MAX:
 		bfa_sm_set_state(vport, bfa_fcs_vport_sm_offline);
 		break;
 
@@ -6243,6 +6245,7 @@ bfa_fcs_vport_sm_fdisc_rsp_wait(struct bfa_fcs_vport_s *vport,
 	case BFA_FCS_VPORT_SM_OFFLINE:
 	case BFA_FCS_VPORT_SM_RSP_ERROR:
 	case BFA_FCS_VPORT_SM_RSP_FAILED:
+	case BFA_FCS_VPORT_SM_FABRIC_MAX:
 	case BFA_FCS_VPORT_SM_RSP_DUP_WWN:
 		bfa_sm_set_state(vport, bfa_fcs_vport_sm_cleanup);
 		bfa_sm_send_event(vport->lps, BFA_LPS_SM_OFFLINE);
@@ -6528,7 +6531,7 @@ bfa_fcs_vport_fdisc_rejected(struct bfa_fcs_vport_s *vport)
 		else {
 			bfa_fcs_vport_aen_post(&vport->lport,
 					BFA_LPORT_AEN_NPIV_FABRIC_MAX);
-			bfa_sm_send_event(vport, BFA_FCS_VPORT_SM_RSP_FAILED);
+			bfa_sm_send_event(vport, BFA_FCS_VPORT_SM_FABRIC_MAX);
 		}
 		break;
 
@@ -6914,7 +6917,19 @@ bfa_cb_lps_fdisc_comp(void *bfad, void *uarg, bfa_status_t status)
 			break;
 		}
 
-		bfa_sm_send_event(vport, BFA_FCS_VPORT_SM_RSP_ERROR);
+		if (vport->fdisc_retries < BFA_FCS_VPORT_MAX_RETRIES)
+			bfa_sm_send_event(vport, BFA_FCS_VPORT_SM_RSP_ERROR);
+		else
+			bfa_sm_send_event(vport, BFA_FCS_VPORT_SM_RSP_FAILED);
+
+		break;
+
+	case BFA_STATUS_ETIMER:
+		vport->vport_stats.fdisc_timeouts++;
+		if (vport->fdisc_retries < BFA_FCS_VPORT_MAX_RETRIES)
+			bfa_sm_send_event(vport, BFA_FCS_VPORT_SM_RSP_ERROR);
+		else
+			bfa_sm_send_event(vport, BFA_FCS_VPORT_SM_RSP_FAILED);
 		break;
 
 	case BFA_STATUS_FABRIC_RJT:
