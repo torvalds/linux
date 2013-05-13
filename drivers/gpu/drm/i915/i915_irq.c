@@ -2398,27 +2398,6 @@ static bool i915_hangcheck_ring_hung(struct intel_ring_buffer *ring)
 	return !kick_ring(ring);
 }
 
-static bool i915_hangcheck_hung(struct drm_device *dev)
-{
-	drm_i915_private_t *dev_priv = dev->dev_private;
-
-	if (dev_priv->gpu_error.hangcheck_count++ > 1) {
-		bool hung = true;
-		struct intel_ring_buffer *ring;
-		int i;
-
-		DRM_ERROR("Hangcheck timer elapsed... GPU hung\n");
-		i915_handle_error(dev, true);
-
-		for_each_ring(ring, dev_priv, i)
-			hung &= i915_hangcheck_ring_hung(ring);
-
-		return hung;
-	}
-
-	return false;
-}
-
 /**
  * This is called when the chip hasn't reported back with completed
  * batchbuffers in a long time. We keep track per ring seqno progress and
