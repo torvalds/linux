@@ -10,6 +10,7 @@
  */
 
 #include <linux/platform_device.h>
+#include <linux/sizes.h>
 
 #include <mach/hardware.h>
 
@@ -42,7 +43,26 @@ static void __init clps711x_add_gpio(void)
 	}
 }
 
+const struct resource clps711x_syscon_res[] __initconst = {
+	/* SYSCON1, SYSFLG1 */
+	DEFINE_RES_MEM(CLPS711X_PHYS_BASE + SYSCON1, SZ_128),
+	/* SYSCON2, SYSFLG2 */
+	DEFINE_RES_MEM(CLPS711X_PHYS_BASE + SYSCON2, SZ_128),
+	/* SYSCON3 */
+	DEFINE_RES_MEM(CLPS711X_PHYS_BASE + SYSCON3, SZ_64),
+};
+
+static void __init clps711x_add_syscon(void)
+{
+	unsigned i;
+
+	for (i = 0; i < ARRAY_SIZE(clps711x_syscon_res); i++)
+		platform_device_register_simple("clps711x-syscon", i + 1,
+						&clps711x_syscon_res[i], 1);
+}
+
 void __init clps711x_devices_init(void)
 {
 	clps711x_add_gpio();
+	clps711x_add_syscon();
 }
