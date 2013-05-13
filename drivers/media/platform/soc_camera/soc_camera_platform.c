@@ -137,7 +137,6 @@ static int soc_camera_platform_probe(struct platform_device *pdev)
 	struct soc_camera_platform_priv *priv;
 	struct soc_camera_platform_info *p = pdev->dev.platform_data;
 	struct soc_camera_device *icd;
-	int ret;
 
 	if (!p)
 		return -EINVAL;
@@ -165,15 +164,7 @@ static int soc_camera_platform_probe(struct platform_device *pdev)
 	v4l2_set_subdevdata(&priv->subdev, p);
 	strncpy(priv->subdev.name, dev_name(&pdev->dev), V4L2_SUBDEV_NAME_SIZE);
 
-	ret = v4l2_device_register_subdev(&ici->v4l2_dev, &priv->subdev);
-	if (ret)
-		goto evdrs;
-
-	return ret;
-
-evdrs:
-	platform_set_drvdata(pdev, NULL);
-	return ret;
+	return v4l2_device_register_subdev(&ici->v4l2_dev, &priv->subdev);
 }
 
 static int soc_camera_platform_remove(struct platform_device *pdev)
@@ -183,7 +174,6 @@ static int soc_camera_platform_remove(struct platform_device *pdev)
 
 	p->icd->control = NULL;
 	v4l2_device_unregister_subdev(&priv->subdev);
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 
