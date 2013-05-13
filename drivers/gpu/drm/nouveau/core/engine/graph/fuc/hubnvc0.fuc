@@ -51,7 +51,7 @@ chipsets:
 .b16 #nnvc0_hub_mmio_head
 .b16 #nnvc0_hub_mmio_tail
 .b8  0xc1 0 0 0
-.b16 #nvc0_hub_mmio_head
+.b16 #nnvc0_hub_mmio_head
 .b16 #nvc1_hub_mmio_tail
 .b8  0xc3 0 0 0
 .b16 #nnvc0_hub_mmio_head
@@ -117,8 +117,6 @@ mmctx_data(0x408800, 3)
 mmctx_data(0x408900, 4)
 mmctx_data(0x408980, 1)
 nvc0_hub_mmio_tail:
-mmctx_data(0x4064c0, 2)
-nvc1_hub_mmio_tail:
 
 nnvc0_hub_mmio_head:
 mmctx_data(0x17e91c, 2)
@@ -161,6 +159,8 @@ mmctx_data(0x408800, 3)
 mmctx_data(0x408900, 3)
 mmctx_data(0x408980, 1)
 nnvc0_hub_mmio_tail:
+mmctx_data(0x4064c0, 2)
+nvc1_hub_mmio_tail:
 
 nvd9_hub_mmio_head:
 mmctx_data(0x17e91c, 2)

@@ -34,14 +34,14 @@ uint32_t nvc0_grgpc_data[] = {
 	0x00000000,
 /* 0x0064: chipsets */
 	0x000000c0,
-	0x01980138,
-	0x02b00264,
+	0x01940134,
+	0x02ac0260,
 	0x000000c1,
-	0x013800d4,
-	0x02640200,
+	0x01980134,
+	0x030802ac,
 	0x000000c3,
-	0x01980138,
-	0x030802b0,
+	0x01940134,
+	0x030402ac,
 	0x000000c4,
 	0x013400d4,
 	0x02600200,
@@ -87,9 +87,7 @@ uint32_t nvc0_grgpc_data[] = {
 	0x08001000,
 	0x00001014,
 /* 0x0134: nvc0_gpc_mmio_tail */
-	0x00000c6c,
-/* 0x0138: nvc1_gpc_mmio_tail */
-/* 0x0138: nnvc0_gpc_mmio_head */
+/* 0x0134: nnvc0_gpc_mmio_head */
 	0x00000380,
 	0x14000400,
 	0x20000450,
@@ -114,7 +112,9 @@ uint32_t nvc0_grgpc_data[] = {
 	0x00000c8c,
 	0x08001000,
 	0x00001014,
-/* 0x0198: nnvc0_gpc_mmio_tail */
+/* 0x0194: nnvc0_gpc_mmio_tail */
+	0x00000c6c,
+/* 0x0198: nnvc1_gpc_mmio_tail */
 /* 0x0198: nvd9_gpc_mmio_head */
 	0x00000380,
 	0x04000400,
@@ -171,9 +171,7 @@ uint32_t nvc0_grgpc_data[] = {
 /* 0x025c: nvcf_tpc_mmio_tail */
 	0x000004bc,
 /* 0x0260: nvc3_tpc_mmio_tail */
-	0x00000544,
-/* 0x0264: nvc1_tpc_mmio_tail */
-/* 0x0264: nnvc0_tpc_mmio_head */
+/* 0x0260: nnvc0_tpc_mmio_head */
 	0x00000018,
 	0x0000003c,
 	0x00000048,
@@ -193,8 +191,8 @@ uint32_t nvc0_grgpc_data[] = {
 	0x4c000644,
 	0x00000698,
 	0x04000750,
-/* 0x02b0: nnvc0_tpc_mmio_tail */
-/* 0x02b0: nnvc3_tpc_mmio_head */
+/* 0x02ac: nnvc0_tpc_mmio_tail */
+/* 0x02ac: nnvc3_tpc_mmio_head */
 	0x00000018,
 	0x0000003c,
 	0x00000048,
@@ -217,7 +215,9 @@ uint32_t nvc0_grgpc_data[] = {
 	0x00000698,
 	0x000006e0,
 	0x28000730,
-/* 0x0308: nnvc3_tpc_mmio_tail */
+/* 0x0304: nnvc3_tpc_mmio_tail */
+	0x00000544,
+/* 0x0308: nnvc1_tpc_mmio_tail */
 /* 0x0308: nvd9_tpc_mmio_head */
 	0x00000018,
 	0x0000003c,

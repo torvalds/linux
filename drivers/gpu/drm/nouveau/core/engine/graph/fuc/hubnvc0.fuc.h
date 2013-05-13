@@ -203,11 +203,11 @@ uint32_t nvc0_grhub_data[] = {
 	0x00000000,
 /* 0x0300: chipsets */
 	0x000000c0,
-	0x048803ec,
+	0x048403e8,
 	0x000000c1,
-	0x03ec034c,
+	0x048803e8,
 	0x000000c3,
-	0x048803ec,
+	0x048403e8,
 	0x000000c4,
 	0x03e8034c,
 	0x000000c8,
@@ -262,9 +262,7 @@ uint32_t nvc0_grhub_data[] = {
 	0x0c408900,
 	0x00408980,
 /* 0x03e8: nvc0_hub_mmio_tail */
-	0x044064c0,
-/* 0x03ec: nvc1_hub_mmio_tail */
-/* 0x03ec: nnvc0_hub_mmio_head */
+/* 0x03e8: nnvc0_hub_mmio_head */
 	0x0417e91c,
 	0x04400204,
 	0x28404004,
@@ -304,7 +302,9 @@ uint32_t nvc0_grhub_data[] = {
 	0x08408800,
 	0x08408900,
 	0x00408980,
-/* 0x0488: nnvc0_hub_mmio_tail */
+/* 0x0484: nnvc0_hub_mmio_tail */
+	0x044064c0,
+/* 0x0488: nvc1_hub_mmio_tail */
 /* 0x0488: nvd9_hub_mmio_head */
 	0x0417e91c,
 	0x04400204,

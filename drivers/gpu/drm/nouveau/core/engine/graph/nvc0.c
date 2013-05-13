@@ -754,6 +754,7 @@ nvc0_graph_init_unk64xx(struct nvc0_graph_priv *priv)
 		break;
 	case 0xc0:
 	case 0xc3:
+	case 0xc1:
 	default:
 		break;
 	}
@@ -766,6 +767,7 @@ nvc0_graph_init_unk58xx(struct nvc0_graph_priv *priv)
 	nv_wr32(priv, 0x405850, 0x00000000);
 	switch (nv_device(priv)->chipset) {
 	case 0xc3:
+	case 0xc1:
 	case 0xd9:
 	case 0xd7:
 		nv_wr32(priv, 0x405900, 0x00002834);
@@ -783,6 +785,7 @@ nvc0_graph_init_unk58xx(struct nvc0_graph_priv *priv)
 		break;
 	case 0xc0:
 	case 0xc3:
+	case 0xc1:
 	default:
 		break;
 	}
@@ -804,6 +807,7 @@ nvc0_graph_init_gpc(struct nvc0_graph_priv *priv)
 		break;
 	case 0xc0:
 	case 0xc3:
+	case 0xc1:
 	default:
 		break;
 	}
@@ -816,6 +820,7 @@ nvc0_graph_init_gpc(struct nvc0_graph_priv *priv)
 		break;
 	case 0xc0:
 	case 0xc3:
+	case 0xc1:
 	default:
 		break;
 	}
@@ -824,6 +829,7 @@ nvc0_graph_init_gpc(struct nvc0_graph_priv *priv)
 	switch (nv_device(priv)->chipset) {
 	case 0xd9:
 	case 0xd7:
+	case 0xc1:
 		nv_wr32(priv, 0x418714, 0x00000000);
 		break;
 	case 0xc0:
@@ -840,6 +846,7 @@ nvc0_graph_init_gpc(struct nvc0_graph_priv *priv)
 	switch (nv_device(priv)->chipset) {
 	case 0xd9:
 	case 0xd7:
+	case 0xc1:
 		nv_wr32(priv, 0x4188c8, 0x00000000);
 		break;
 	case 0xc0:
@@ -867,6 +874,7 @@ nvc0_graph_init_gpc(struct nvc0_graph_priv *priv)
 		break;
 	case 0xc0:
 	case 0xc3:
+	case 0xc1:
 	default:
 		break;
 	}
@@ -879,6 +887,7 @@ nvc0_graph_init_gpc(struct nvc0_graph_priv *priv)
 		break;
 	case 0xc0:
 	case 0xc3:
+	case 0xc1:
 	default:
 		break;
 	}
@@ -892,6 +901,7 @@ nvc0_graph_init_gpc(struct nvc0_graph_priv *priv)
 		break;
 	case 0xc0:
 	case 0xc3:
+	case 0xc1:
 	default:
 		break;
 	}
@@ -901,6 +911,8 @@ nvc0_graph_init_gpc(struct nvc0_graph_priv *priv)
 	case 0xd7:
 		nv_wr32(priv, 0x418f20, 0x00000000);
 		nv_wr32(priv, 0x418f24, 0x00000000);
+		/*fall-through*/
+	case 0xc1:
 		nv_wr32(priv, 0x418e00, 0x00000003);
 		break;
 	case 0xc0:
@@ -918,6 +930,7 @@ nvc0_graph_init_gpc(struct nvc0_graph_priv *priv)
 		break;
 	case 0xc0:
 	case 0xc3:
+	case 0xc1:
 	default:
 		break;
 	}
@@ -934,6 +947,7 @@ nvc0_graph_init_tpc(struct nvc0_graph_priv *priv)
 	nv_wr32(priv, 0x419ab0, 0x00000000);
 	switch (nv_device(priv)->chipset) {
 	case 0xc3:
+	case 0xc1:
 	case 0xd9:
 	case 0xd7:
 		nv_wr32(priv, 0x419ac8, 0x00000000);
@@ -953,6 +967,7 @@ nvc0_graph_init_tpc(struct nvc0_graph_priv *priv)
 		break;
 	case 0xc0:
 	case 0xc3:
+	case 0xc1:
 	default:
 		nv_wr32(priv, 0x41980c, 0x00000000);
 		break;
@@ -961,6 +976,7 @@ nvc0_graph_init_tpc(struct nvc0_graph_priv *priv)
 	switch (nv_device(priv)->chipset) {
 	case 0xd9:
 	case 0xd7:
+	case 0xc1:
 		nv_wr32(priv, 0x419814, 0x00000004);
 		break;
 	case 0xc0:
@@ -977,6 +993,7 @@ nvc0_graph_init_tpc(struct nvc0_graph_priv *priv)
 		break;
 	case 0xc0:
 	case 0xc3:
+	case 0xc1:
 	default:
 		nv_wr32(priv, 0x41984c, 0x00005bc5);
 		break;
@@ -987,6 +1004,7 @@ nvc0_graph_init_tpc(struct nvc0_graph_priv *priv)
 	nv_wr32(priv, 0x41985c, 0x00000000);
 	switch (nv_device(priv)->chipset) {
 	case 0xc3:
+	case 0xc1:
 	case 0xd9:
 	case 0xd7:
 		nv_wr32(priv, 0x419880, 0x00000002);
@@ -1012,6 +1030,7 @@ nvc0_graph_init_tpc(struct nvc0_graph_priv *priv)
 		break;
 	case 0xc0:
 	case 0xc3:
+	case 0xc1:
 	default:
 		break;
 	}
@@ -1024,6 +1043,7 @@ nvc0_graph_init_tpc(struct nvc0_graph_priv *priv)
 		break;
 	case 0xc0:
 	case 0xc3:
+	case 0xc1:
 	default:
 		break;
 	}
@@ -1038,6 +1058,7 @@ nvc0_graph_init_tpc(struct nvc0_graph_priv *priv)
 		break;
 	case 0xc0:
 	case 0xc3:
+	case 0xc1:
 	default:
 		nv_wr32(priv, 0x419ea8, 0x00001100);
 		break;
@@ -1050,6 +1071,7 @@ nvc0_graph_init_tpc(struct nvc0_graph_priv *priv)
 	nv_wr32(priv, 0x419ec0, 0x00000000);
 	switch (nv_device(priv)->chipset) {
 	case 0xc3:
+	case 0xc1:
 	case 0xd9:
 	case 0xd7:
 		nv_wr32(priv, 0x419ec8, 0x0e063818);
@@ -1333,6 +1355,7 @@ nvc0_graph_init(struct nouveau_object *object)
 	switch (nv_device(priv)->chipset) {
 	case 0xc0:
 	case 0xc3:
+	case 0xc1:
 	case 0xd9:
 	case 0xd7:
 		nvc0_graph_init_unk40xx(priv);
