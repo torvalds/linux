@@ -1812,10 +1812,11 @@ static int ovs_vport_cmd_set(struct sk_buff *skb, struct genl_info *info)
 	if (IS_ERR(vport))
 		goto exit_unlock;
 
-	err = 0;
 	if (a[OVS_VPORT_ATTR_TYPE] &&
-	    nla_get_u32(a[OVS_VPORT_ATTR_TYPE]) != vport->ops->type)
+	    nla_get_u32(a[OVS_VPORT_ATTR_TYPE]) != vport->ops->type) {
 		err = -EINVAL;
+		goto exit_unlock;
+	}
 
 	reply = nlmsg_new(NLMSG_DEFAULT_SIZE, GFP_KERNEL);
 	if (!reply) {
@@ -1823,10 +1824,11 @@ static int ovs_vport_cmd_set(struct sk_buff *skb, struct genl_info *info)
 		goto exit_unlock;
 	}
 
-	if (!err && a[OVS_VPORT_ATTR_OPTIONS])
+	if (a[OVS_VPORT_ATTR_OPTIONS]) {
 		err = ovs_vport_set_options(vport, a[OVS_VPORT_ATTR_OPTIONS]);
-	if (err)
-		goto exit_free;
+		if (err)
+			goto exit_free;
+	}
 
 	if (a[OVS_VPORT_ATTR_UPCALL_PID])
 		vport->upcall_portid = nla_get_u32(a[OVS_VPORT_ATTR_UPCALL_PID]);
