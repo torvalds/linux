@@ -559,6 +559,12 @@ static void pll_wait_lock(int pll_idx)
 		delay--;
 	}
 	if (delay == 0) {
+		CRU_PRINTK_ERR("PLL_ID=%d\npll_con0=%08x\npll_con1=%08x\npll_con2=%08x\npll_con3=%08x\n", pll_idx,
+				cru_readl(PLL_CONS(pll_idx, 0)),
+				cru_readl(PLL_CONS(pll_idx, 1)),
+				cru_readl(PLL_CONS(pll_idx, 2)),
+				cru_readl(PLL_CONS(pll_idx, 3)));
+
 		CRU_PRINTK_ERR("wait pll bit 0x%x time out!\n", bit);
 		while(1);
 	}
