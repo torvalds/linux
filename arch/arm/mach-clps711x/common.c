@@ -301,6 +301,7 @@ void __init clps711x_timer_init(void)
 		cpu = ext;
 		bus = cpu;
 		spi = 135400;
+		pll = 0;
 	} else {
 		cpu = pll;
 		if (cpu >= 36864000)
