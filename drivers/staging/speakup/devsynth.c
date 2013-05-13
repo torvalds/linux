@@ -30,9 +30,9 @@ static ssize_t speakup_file_write(struct file *fp, const char *buffer,
 			return -EFAULT;
 		count -= bytes;
 		ptr += bytes;
-		spk_lock(flags);
+		spin_lock_irqsave(&speakup_info.spinlock, flags);
 		synth_write(buf, bytes);
-		spk_unlock(flags);
+		spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 	}
 	return (ssize_t) nbytes;
 }
