@@ -524,7 +524,7 @@ struct kiocb_priv {
 	unsigned		actual;
 };
 
-static int ep_aio_cancel(struct kiocb *iocb, struct io_event *e)
+static int ep_aio_cancel(struct kiocb *iocb)
 {
 	struct kiocb_priv	*priv = iocb->private;
 	struct ep_data		*epdata;
@@ -540,7 +540,6 @@ static int ep_aio_cancel(struct kiocb *iocb, struct io_event *e)
 	// spin_unlock(&epdata->dev->lock);
 	local_irq_enable();
 
-	aio_put_req(iocb);
 	return value;
 }
 

@@ -27,7 +27,7 @@ struct kiocb;
  */
 #define KIOCB_CANCELLED		((void *) (~0ULL))
 
-typedef int (kiocb_cancel_fn)(struct kiocb *, struct io_event *);
+typedef int (kiocb_cancel_fn)(struct kiocb *);
 
 struct kiocb {
 	atomic_t		ki_users;
