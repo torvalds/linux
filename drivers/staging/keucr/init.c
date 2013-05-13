@@ -20,7 +20,7 @@ int ENE_InitMedia(struct us_data *us)
 	BYTE	MiscReg03 = 0;
 
 	printk(KERN_INFO "--- Init Media ---\n");
-	result = ENE_Read_BYTE(us, REG_CARD_STATUS, &MiscReg03);
+	result = ene_read_byte(us, REG_CARD_STATUS, &MiscReg03);
 	if (result != USB_STOR_XFER_GOOD) {
 		printk(KERN_ERR "Read register fail !!\n");
 		return USB_STOR_TRANSPORT_ERROR;
@@ -39,9 +39,9 @@ int ENE_InitMedia(struct us_data *us)
 }
 
 /*
- * ENE_Read_BYTE() :
+ * ene_read_byte() :
  */
-int ENE_Read_BYTE(struct us_data *us, WORD index, void *buf)
+int ene_read_byte(struct us_data *us, WORD index, void *buf)
 {
 	struct bulk_cb_wrap *bcb = (struct bulk_cb_wrap *) us->iobuf;
 	int result;

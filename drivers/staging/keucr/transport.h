@@ -61,7 +61,7 @@ extern int ENE_InitMedia(struct us_data *);
 extern int ENE_SMInit(struct us_data *);
 extern int ENE_SendScsiCmd(struct us_data*, BYTE, void*, int);
 extern int ENE_LoadBinCode(struct us_data*, BYTE);
-extern int ENE_Read_BYTE(struct us_data*, WORD index, void *buf);
+extern int ene_read_byte(struct us_data*, WORD index, void *buf);
 extern int ENE_Read_Data(struct us_data*, void *buf, unsigned int length);
 extern int ENE_Write_Data(struct us_data*, void *buf, unsigned int length);
 extern void BuildSenseBuffer(struct scsi_cmnd *, int);
