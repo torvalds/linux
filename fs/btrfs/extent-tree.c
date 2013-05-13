@@ -3106,6 +3106,11 @@ again:
 	WARN_ON(ret);
 
 	if (i_size_read(inode) > 0) {
+		ret = btrfs_check_trunc_cache_free_space(root,
+					&root->fs_info->global_block_rsv);
+		if (ret)
+			goto out_put;
+
 		ret = btrfs_truncate_free_space_cache(root, trans, path,
 						      inode);
 		if (ret)
