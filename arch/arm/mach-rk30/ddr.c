@@ -3717,7 +3717,7 @@ uint32_t ddr_change_freq(uint32_t nMHz)
         }
         else if(gpllvaluel > 800)    //GPLL:800MHz-1000MHz
         {
-            if(nMHz > 300)
+            if(nMHz > 250)
                 ddr_select_gpll_div=2;    //DDR_CLCOK:400MHz-500MHz
             else
                 ddr_select_gpll_div=4;    //DDR_CLCOK:200MHz-250MHz
