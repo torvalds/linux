@@ -1115,17 +1115,11 @@ static void XGINew_GetXG21Sense(struct pci_dev *pdev,
 			xgifb_reg_or(pVBInfo->P3d4, 0x32, LCDSense);
 			/* Enable read GPIOF */
 			xgifb_reg_and_or(pVBInfo->P3d4, 0x4A, ~0x20, 0x20);
-			Temp = xgifb_reg_get(pVBInfo->P3d4, 0x48) & 0x04;
-			if (!Temp)
-				xgifb_reg_and_or(pVBInfo->P3d4,
-						 0x38,
-						 ~0xE0,
-						 0x80); /* TMDS on chip */
+			if (xgifb_reg_get(pVBInfo->P3d4, 0x48) & 0x04)
+				Temp = 0xA0; /* Only DVO on chip */
 			else
-				xgifb_reg_and_or(pVBInfo->P3d4,
-						 0x38,
-						 ~0xE0,
-						 0xA0); /* Only DVO on chip */
+				Temp = 0x80; /* TMDS on chip */
+			xgifb_reg_and_or(pVBInfo->P3d4, 0x38, ~0xE0, Temp);
 			/* Disable read GPIOF */
 			xgifb_reg_and(pVBInfo->P3d4, 0x4A, ~0x20);
 		}
