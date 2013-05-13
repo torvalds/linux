@@ -240,7 +240,7 @@ static int i2c_device_probe(struct device *dev)
 		return 0;
 
 	driver = to_i2c_driver(dev->driver);
-	if (!driver->probe || !driver->id_table)
+	if (!driver->probe || (!driver->id_table && !dev->driver->of_match_table))
 		return -ENODEV;
 	client->driver = driver;
 	if (!device_can_wakeup(&client->dev))
@@ -248,7 +248,12 @@ static int i2c_device_probe(struct device *dev)
 					client->flags & I2C_CLIENT_WAKE);
 	dev_dbg(dev, "probe\n");
 
-	status = driver->probe(client, i2c_match_id(driver->id_table, client));
+	if (of_match_device(dev->driver->of_match_table, dev))
+		/* Device tree matching */
+		status = driver->probe(client, NULL);
+	else
+		/* Fall back to matching the id_table */
+		status = driver->probe(client, i2c_match_id(driver->id_table, client));
 	if (status) {
 		client->driver = NULL;
 		i2c_set_clientdata(client, NULL);
