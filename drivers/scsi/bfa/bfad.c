@@ -63,9 +63,9 @@ int		max_rport_logins = BFA_FCS_MAX_RPORT_LOGINS;
 u32	bfi_image_cb_size, bfi_image_ct_size, bfi_image_ct2_size;
 u32	*bfi_image_cb, *bfi_image_ct, *bfi_image_ct2;
 
-#define BFAD_FW_FILE_CB		"cbfw-3.1.0.0.bin"
-#define BFAD_FW_FILE_CT		"ctfw-3.1.0.0.bin"
-#define BFAD_FW_FILE_CT2	"ct2fw-3.1.0.0.bin"
+#define BFAD_FW_FILE_CB		"cbfw-3.2.1.0.bin"
+#define BFAD_FW_FILE_CT		"ctfw-3.2.1.0.bin"
+#define BFAD_FW_FILE_CT2	"ct2fw-3.2.1.0.bin"
 
 static u32 *bfad_load_fwimg(struct pci_dev *pdev);
 static void bfad_free_fwimg(void);
