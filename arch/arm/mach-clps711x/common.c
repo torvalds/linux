@@ -215,7 +215,7 @@ void __init clps711x_init_irq(void)
 	}
 }
 
-inline u32 fls16(u32 x)
+static inline u32 fls16(u32 x)
 {
 	u32 r = 15;
 
@@ -239,18 +239,24 @@ inline u32 fls16(u32 x)
 
 asmlinkage void __exception_irq_entry clps711x_handle_irq(struct pt_regs *regs)
 {
-	u32 irqstat;
-	void __iomem *base = CLPS711X_VIRT_BASE;
+	do {
+		u32 irqstat;
+		void __iomem *base = CLPS711X_VIRT_BASE;
 
-	irqstat = readl_relaxed(base + INTSR1) & readl_relaxed(base + INTMR1);
-	if (irqstat) {
-		handle_IRQ(fls16(irqstat), regs);
-		return;
-	}
+		irqstat = readw_relaxed(base + INTSR1) &
+			  readw_relaxed(base + INTMR1);
+		if (irqstat)
+			handle_IRQ(fls16(irqstat), regs);
 
-	irqstat = readl_relaxed(base + INTSR2) & readl_relaxed(base + INTMR2);
-	if (likely(irqstat))
-		handle_IRQ(fls16(irqstat) + 16, regs);
+		irqstat = readw_relaxed(base + INTSR2) &
+			  readw_relaxed(base + INTMR2);
+		if (irqstat) {
+			handle_IRQ(fls16(irqstat) + 16, regs);
+			continue;
+		}
+
+		break;
+	} while (1);
 }
 
 static u32 notrace clps711x_sched_clock_read(void)
