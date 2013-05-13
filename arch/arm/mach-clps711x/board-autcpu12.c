@@ -27,6 +27,7 @@
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <linux/mtd/physmap.h>
+#include <linux/mtd/plat-ram.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/nand-gpio.h>
 #include <linux/platform_device.h>
@@ -48,6 +49,9 @@
 
 /* NOR flash */
 #define AUTCPU12_FLASH_BASE	(CS0_PHYS_BASE)
+
+/* NVRAM */
+#define AUTCPU12_NVRAM_BASE	(CS1_PHYS_BASE + 0x02000000)
 
 /* SmartMedia flash */
 #define AUTCPU12_SMC_BASE	(CS1_PHYS_BASE + 0x06000000)
@@ -72,17 +76,6 @@
 static struct resource autcpu12_cs8900_resource[] __initdata = {
 	DEFINE_RES_MEM(AUTCPU12_CS8900_BASE, SZ_1K),
 	DEFINE_RES_IRQ(AUTCPU12_CS8900_IRQ),
-};
-
-static struct resource autcpu12_nvram_resource[] __initdata = {
-	DEFINE_RES_MEM_NAMED(AUTCPU12_PHYS_NVRAM, SZ_128K, "SRAM"),
-};
-
-static struct platform_device autcpu12_nvram_pdev __initdata = {
-	.name		= "autcpu12_nvram",
-	.id		= -1,
-	.resource	= autcpu12_nvram_resource,
-	.num_resources	= ARRAY_SIZE(autcpu12_nvram_resource),
 };
 
 static struct resource autcpu12_nand_resource[] __initdata = {
@@ -194,6 +187,57 @@ static struct platform_device autcpu12_flash_pdev __initdata = {
 	},
 };
 
+static struct resource autcpu12_nvram_resource[] __initdata = {
+	DEFINE_RES_MEM(AUTCPU12_NVRAM_BASE, 0),
+};
+
+static struct platdata_mtd_ram autcpu12_nvram_pdata = {
+	.bankwidth	= 4,
+};
+
+static struct platform_device autcpu12_nvram_pdev __initdata = {
+	.name		= "mtd-ram",
+	.id		= 0,
+	.resource	= autcpu12_nvram_resource,
+	.num_resources	= ARRAY_SIZE(autcpu12_nvram_resource),
+	.dev		= {
+		.platform_data	= &autcpu12_nvram_pdata,
+	},
+};
+
+static void __init autcpu12_nvram_init(void)
+{
+	void __iomem *nvram;
+	unsigned int save[2];
+	resource_size_t nvram_size = SZ_128K;
+
+	/*
+	 * Check for 32K/128K
+	 * Read ofs 0K
+	 * Read ofs 64K
+	 * Write complement to ofs 64K
+	 * Read and check result on ofs 0K
+	 * Restore contents
+	 */
+	nvram = ioremap(autcpu12_nvram_resource[0].start, SZ_128K);
+	if (nvram) {
+		save[0] = readl(nvram + 0);
+		save[1] = readl(nvram + SZ_64K);
+		writel(~save[0], nvram + SZ_64K);
+		if (readl(nvram + 0) != save[0]) {
+			writel(save[0], nvram + 0);
+			nvram_size = SZ_32K;
+		} else
+			writel(save[1], nvram + SZ_64K);
+		iounmap(nvram);
+
+		autcpu12_nvram_resource[0].end =
+			autcpu12_nvram_resource[0].start + nvram_size - 1;
+		platform_device_register(&autcpu12_nvram_pdev);
+	} else
+		pr_err("Failed to remap NVRAM resource\n");
+}
+
 static void __init autcpu12_init(void)
 {
 	clps711x_devices_init();
@@ -202,7 +246,7 @@ static void __init autcpu12_init(void)
 	platform_device_register_simple("cs89x0", 0, autcpu12_cs8900_resource,
 					ARRAY_SIZE(autcpu12_cs8900_resource));
 	platform_device_register(&autcpu12_mmgpio_pdev);
-	platform_device_register(&autcpu12_nvram_pdev);
+	autcpu12_nvram_init();
 }
 
 static void __init autcpu12_init_late(void)

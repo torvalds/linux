@@ -31,8 +31,6 @@
 */
 #define AUTCPU12_PHYS_CHAR_LCD         	CS1_PHYS_BASE +0x00000000  /* physical */
 
-#define AUTCPU12_PHYS_NVRAM            	CS1_PHYS_BASE +0x02000000  /* physical */
-
 #define AUTCPU12_PHYS_CSAUX1           	CS1_PHYS_BASE +0x04000000  /* physical */
 
 #define AUTCPU12_PHYS_CAN              	CS1_PHYS_BASE +0x08000000  /* physical */
