@@ -87,7 +87,6 @@ extern struct var_t synth_time_vars[];
  */
 /* Speakup needs to disable the keyboard IRQ, hence _irqsave/restore */
 #define spk_lock(flags) spin_lock_irqsave(&speakup_info.spinlock, flags)
-#define spk_trylock(flags) spin_trylock_irqsave(&speakup_info.spinlock, flags)
 #define spk_unlock(flags) spin_unlock_irqrestore(&speakup_info.spinlock, flags)
 
 #endif
