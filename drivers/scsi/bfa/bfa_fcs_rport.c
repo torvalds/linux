@@ -2577,7 +2577,7 @@ bfa_fcs_rport_update(struct bfa_fcs_rport_s *rport, struct fc_logi_s *plogi)
 
 		port->fabric->bb_credit = be16_to_cpu(plogi->csp.bbcred);
 		bfa_fcport_set_tx_bbcredit(port->fcs->bfa,
-					  port->fabric->bb_credit, 0);
+					  port->fabric->bb_credit);
 	}
 
 }

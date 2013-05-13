@@ -185,6 +185,8 @@ enum bfa_status {
 	BFA_STATUS_FAA_DISABLED = 198,	/* FAA is already disabled */
 	BFA_STATUS_FAA_ACQUIRED = 199,	/* FAA is already acquired */
 	BFA_STATUS_FAA_ACQ_ADDR = 200,	/* Acquiring addr */
+	BFA_STATUS_BBCR_FC_ONLY = 201, /*!< BBCredit Recovery is supported for *
+					* FC mode only */
 	BFA_STATUS_ERROR_TRUNK_ENABLED = 203,	/* Trunk enabled on adapter */
 	BFA_STATUS_MAX_ENTRY_REACHED = 212,	/* MAX entry reached */
 	BFA_STATUS_TOPOLOGY_LOOP = 230, /* Topology is set to Loop */
@@ -198,6 +200,14 @@ enum bfa_status {
 	BFA_STATUS_CMD_NOTSUPP_MEZZ = 239, /* Cmd not supported for MEZZ card */
 	BFA_STATUS_FRU_NOT_PRESENT = 240, /* fru module not present */
 	BFA_STATUS_DPORT_ERR = 245,	/* D-port mode is enabled */
+	BFA_STATUS_ERR_BBCR_SPEED_UNSUPPORT = 258, /*!< BB credit recovery is
+					* supported at max port speed alone */
+	BFA_STATUS_ERROR_BBCR_ENABLED  = 259, /*!< BB credit recovery
+					* is enabled */
+	BFA_STATUS_INVALID_BBSCN = 260, /*!< Invalid BBSCN value.
+					 * Valid range is [1-15] */
+	BFA_STATUS_BBCR_CFG_NO_CHANGE = 265, /*!< BBCR is operational.
+			* Disable BBCR and try this operation again. */
 	BFA_STATUS_MAX_VAL		/* Unknown error code */
 };
 #define bfa_status_t enum bfa_status

@@ -402,24 +402,42 @@ bfad_iocmd_port_cfg_maxfrsize(struct bfad_s *bfad, void *cmd)
 }
 
 int
-bfad_iocmd_port_cfg_bbsc(struct bfad_s *bfad, void *cmd, unsigned int v_cmd)
+bfad_iocmd_port_cfg_bbcr(struct bfad_s *bfad, unsigned int cmd, void *pcmd)
 {
-	struct bfa_bsg_gen_s *iocmd = (struct bfa_bsg_gen_s *)cmd;
-	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(&bfad->bfa);
-	unsigned long	flags;
+	struct bfa_bsg_bbcr_enable_s *iocmd =
+			(struct bfa_bsg_bbcr_enable_s *)pcmd;
+	unsigned long flags;
+	int rc;
 
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
-	if (bfa_ioc_get_type(&bfad->bfa.ioc) == BFA_IOC_TYPE_FC) {
-		if (v_cmd == IOCMD_PORT_BBSC_ENABLE)
-			fcport->cfg.bb_scn_state = BFA_TRUE;
-		else if (v_cmd == IOCMD_PORT_BBSC_DISABLE)
-			fcport->cfg.bb_scn_state = BFA_FALSE;
+	if (cmd == IOCMD_PORT_BBCR_ENABLE)
+		rc = bfa_fcport_cfg_bbcr(&bfad->bfa, BFA_TRUE, iocmd->bb_scn);
+	else if (cmd == IOCMD_PORT_BBCR_DISABLE)
+		rc = bfa_fcport_cfg_bbcr(&bfad->bfa, BFA_FALSE, 0);
+	else {
+		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+		return -EINVAL;
 	}
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 
-	iocmd->status = BFA_STATUS_OK;
+	iocmd->status = rc;
 	return 0;
 }
+
+int
+bfad_iocmd_port_get_bbcr_attr(struct bfad_s *bfad, void *pcmd)
+{
+	struct bfa_bsg_bbcr_attr_s *iocmd = (struct bfa_bsg_bbcr_attr_s *) pcmd;
+	unsigned long flags;
+
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	iocmd->status =
+		bfa_fcport_get_bbcr_attr(&bfad->bfa, &iocmd->attr);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+
+	return 0;
+}
+
 
 static int
 bfad_iocmd_lport_get_attr(struct bfad_s *bfad, void *cmd)
@@ -2750,9 +2768,12 @@ bfad_iocmd_handler(struct bfad_s *bfad, unsigned int cmd, void *iocmd,
 	case IOCMD_PORT_CFG_MAXFRSZ:
 		rc = bfad_iocmd_port_cfg_maxfrsize(bfad, iocmd);
 		break;
-	case IOCMD_PORT_BBSC_ENABLE:
-	case IOCMD_PORT_BBSC_DISABLE:
-		rc = bfad_iocmd_port_cfg_bbsc(bfad, iocmd, cmd);
+	case IOCMD_PORT_BBCR_ENABLE:
+	case IOCMD_PORT_BBCR_DISABLE:
+		rc = bfad_iocmd_port_cfg_bbcr(bfad, cmd, iocmd);
+		break;
+	case IOCMD_PORT_BBCR_GET_ATTR:
+		rc = bfad_iocmd_port_get_bbcr_attr(bfad, iocmd);
 		break;
 	case IOCMD_LPORT_GET_ATTR:
 		rc = bfad_iocmd_lport_get_attr(bfad, iocmd);

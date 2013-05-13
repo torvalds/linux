@@ -258,9 +258,6 @@ struct bfa_fcs_fabric_s;
 #define BFA_FCS_PORT_SYMBNAME_OSINFO_SZ			48
 #define BFA_FCS_PORT_SYMBNAME_OSPATCH_SZ		16
 
-/* bb_scn value in 2^bb_scn */
-#define BFA_FCS_PORT_DEF_BB_SCN				3
-
 /*
  * Get FC port ID for a logical port.
  */
@@ -683,8 +680,6 @@ struct bfa_fcs_s {
 	struct bfa_trc_mod_s  *trcmod;	/*  tracing module */
 	bfa_boolean_t	vf_enabled;	/*  VF mode is enabled */
 	bfa_boolean_t	fdmi_enabled;	/*  FDMI is enabled */
-	bfa_boolean_t	bbscn_enabled;	/*  Driver Config Parameter */
-	bfa_boolean_t	bbscn_flogi_rjt;/*  FLOGI reject due to BB_SCN */
 	bfa_boolean_t min_cfg;		/* min cfg enabled/disabled */
 	u16	port_vfid;	/*  port default VF ID */
 	struct bfa_fcs_driver_info_s driver_info;

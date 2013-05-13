@@ -46,8 +46,9 @@ enum {
 	IOCMD_PORT_CFG_ALPA,
 	IOCMD_PORT_CFG_MAXFRSZ,
 	IOCMD_PORT_CLR_ALPA,
-	IOCMD_PORT_BBSC_ENABLE,
-	IOCMD_PORT_BBSC_DISABLE,
+	IOCMD_PORT_BBCR_ENABLE,
+	IOCMD_PORT_BBCR_DISABLE,
+	IOCMD_PORT_BBCR_GET_ATTR,
 	IOCMD_LPORT_GET_ATTR,
 	IOCMD_LPORT_GET_RPORTS,
 	IOCMD_LPORT_GET_STATS,
@@ -493,6 +494,20 @@ struct bfa_bsg_port_cfg_mode_s {
 	u16		bfad_num;
 	u16		instance;
 	struct bfa_port_cfg_mode_s cfg;
+};
+
+struct bfa_bsg_bbcr_enable_s {
+	bfa_status_t    status;
+	u16		bfad_num;
+	u8		bb_scn;
+	u8		rsvd;
+};
+
+struct bfa_bsg_bbcr_attr_s {
+	bfa_status_t    status;
+	u16		bfad_num;
+	u16		rsvd;
+	struct bfa_bbcr_attr_s attr;
 };
 
 struct bfa_bsg_faa_attr_s {
