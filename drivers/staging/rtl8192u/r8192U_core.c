@@ -773,10 +773,10 @@ void rtl8192_set_mode(struct net_device *dev,int mode)
 {
 	u8 ecmd;
 	ecmd=read_nic_byte(dev, EPROM_CMD);
-	ecmd=ecmd &~ EPROM_CMD_OPERATING_MODE_MASK;
+	ecmd=ecmd & ~EPROM_CMD_OPERATING_MODE_MASK;
 	ecmd=ecmd | (mode<<EPROM_CMD_OPERATING_MODE_SHIFT);
-	ecmd=ecmd &~ (1<<EPROM_CS_SHIFT);
-	ecmd=ecmd &~ (1<<EPROM_CK_SHIFT);
+	ecmd=ecmd & ~(1<<EPROM_CS_SHIFT);
+	ecmd=ecmd & ~(1<<EPROM_CK_SHIFT);
 	write_nic_byte(dev, EPROM_CMD, ecmd);
 }
 
@@ -787,7 +787,7 @@ void rtl8192_update_msr(struct net_device *dev)
 	u8 msr;
 
 	msr  = read_nic_byte(dev, MSR);
-	msr &= ~ MSR_LINK_MASK;
+	msr &= ~MSR_LINK_MASK;
 
 	/* do not change in link_state != WLAN_LINK_ASSOCIATED.
 	 * msr must be updated if the state is ASSOCIATING.
@@ -910,7 +910,7 @@ void rtl8192_set_rxconf(struct net_device *dev)
 	u32 rxconf;
 
 	rxconf=read_nic_dword(dev,RCR);
-	rxconf = rxconf &~ MAC_FILTER_MASK;
+	rxconf = rxconf & ~MAC_FILTER_MASK;
 	rxconf = rxconf | RCR_AMF;
 	rxconf = rxconf | RCR_ADF;
 	rxconf = rxconf | RCR_AB;
@@ -940,9 +940,9 @@ void rtl8192_set_rxconf(struct net_device *dev)
 		rxconf = rxconf | RCR_ACRC32;
 
 
-	rxconf = rxconf &~ RX_FIFO_THRESHOLD_MASK;
+	rxconf = rxconf & ~RX_FIFO_THRESHOLD_MASK;
 	rxconf = rxconf | (RX_FIFO_THRESHOLD_NONE<<RX_FIFO_THRESHOLD_SHIFT);
-	rxconf = rxconf &~ MAX_RX_DMA_MASK;
+	rxconf = rxconf & ~MAX_RX_DMA_MASK;
 	rxconf = rxconf | ((u32)7<<RCR_MXDMA_OFFSET);
 
 //	rxconf = rxconf | (1<<RX_AUTORESETPHY_SHIFT);
@@ -984,8 +984,8 @@ void rtl8192_rtx_disable(struct net_device *dev)
 	struct rtl8192_rx_info *info;
 
 	cmd=read_nic_byte(dev,CMDR);
-	write_nic_byte(dev, CMDR, cmd &~ \
-		(CR_TE|CR_RE));
+	write_nic_byte(dev, CMDR, cmd & \
+		~(CR_TE|CR_RE));
 	force_pci_posting(dev);
 	mdelay(10);
 
