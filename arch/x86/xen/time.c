@@ -191,32 +191,25 @@ static void xen_read_wallclock(struct timespec *ts)
 	put_cpu_var(xen_vcpu);
 }
 
-static unsigned long xen_get_wallclock(void)
+static void xen_get_wallclock(struct timespec *now)
 {
-	struct timespec ts;
-
-	xen_read_wallclock(&ts);
-	return ts.tv_sec;
+	xen_read_wallclock(now);
 }
 
-static int xen_set_wallclock(unsigned long now)
+static int xen_set_wallclock(const struct timespec *now)
 {
 	struct xen_platform_op op;
-	int rc;
 
 	/* do nothing for domU */
 	if (!xen_initial_domain())
 		return -1;
 
 	op.cmd = XENPF_settime;
-	op.u.settime.secs = now;
-	op.u.settime.nsecs = 0;
+	op.u.settime.secs = now->tv_sec;
+	op.u.settime.nsecs = now->tv_nsec;
 	op.u.settime.system_time = xen_clocksource_read();
 
-	rc = HYPERVISOR_dom0_op(&op);
-	WARN(rc != 0, "XENPF_settime failed: now=%ld\n", now);
-
-	return rc;
+	return HYPERVISOR_dom0_op(&op);
 }
 
 static struct clocksource xen_clocksource __read_mostly = {

@@ -882,9 +882,9 @@ int lguest_setup_irq(unsigned int irq)
  * It would be far better for everyone if the Guest had its own clock, but
  * until then the Host gives us the time on every interrupt.
  */
-static unsigned long lguest_get_wallclock(void)
+static void lguest_get_wallclock(struct timespec *now)
 {
-	return lguest_data.time.tv_sec;
+	*now = lguest_data.time;
 }
 
 /*
