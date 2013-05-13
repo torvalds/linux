@@ -155,6 +155,9 @@ nv50_vm_flush(struct nouveau_vm *vm)
 	int i;
 
 	for (i = 0; i < NVDEV_SUBDEV_NR; i++) {
+		if (atomic_read(&vm->engref[i]) && i == NVDEV_SUBDEV_BAR) {
+			nv50_vm_flush_engine(nv_subdev(vm->vmm), 6);
+		} else
 		if (atomic_read(&vm->engref[i])) {
 			engine = nouveau_engine(vm->vmm, i);
 			if (engine && engine->tlb_flush)
