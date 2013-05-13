@@ -3430,9 +3430,10 @@ bfa_fcs_rpf_rpsc2_response(void *fcsarg, struct bfa_fcxp_s *fcxp, void *cbarg,
 		num_ents = be16_to_cpu(rpsc2_acc->num_pids);
 		bfa_trc(rport->fcs, num_ents);
 		if (num_ents > 0) {
-			WARN_ON(rpsc2_acc->port_info[0].pid == rport->pid);
+			WARN_ON(be32_to_cpu(rpsc2_acc->port_info[0].pid) !=
+						bfa_ntoh3b(rport->pid));
 			bfa_trc(rport->fcs,
-				be16_to_cpu(rpsc2_acc->port_info[0].pid));
+				be32_to_cpu(rpsc2_acc->port_info[0].pid));
 			bfa_trc(rport->fcs,
 				be16_to_cpu(rpsc2_acc->port_info[0].speed));
 			bfa_trc(rport->fcs,
