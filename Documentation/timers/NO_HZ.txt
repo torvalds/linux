@@ -278,6 +278,11 @@ o	Adaptive-ticks does not do anything unless there is only one
 	single runnable SCHED_FIFO task and multiple runnable SCHED_OTHER
 	tasks, even though these interrupts are unnecessary.
 
+	And even when there are multiple runnable tasks on a given CPU,
+	there is little point in interrupting that CPU until the current
+	running task's timeslice expires, which is almost always way
+	longer than the time of the next scheduling-clock interrupt.
+
 	Better handling of these sorts of situations is future work.
 
 o	A reboot is required to reconfigure both adaptive idle and RCU
@@ -308,6 +313,16 @@ o	Unless all CPUs are idle, at least one CPU must keep the
 	scheduling-clock interrupt going in order to support accurate
 	timekeeping.
 
-o	If there are adaptive-ticks CPUs, there will be at least one
-	CPU keeping the scheduling-clock interrupt going, even if all
-	CPUs are otherwise idle.
+o	If there might potentially be some adaptive-ticks CPUs, there
+	will be at least one CPU keeping the scheduling-clock interrupt
+	going, even if all CPUs are otherwise idle.
+
+	Better handling of this situation is ongoing work.
+
+o	Some process-handling operations still require the occasional
+	scheduling-clock tick.	These operations include calculating CPU
+	load, maintaining sched average, computing CFS entity vruntime,
+	computing avenrun, and carrying out load balancing.  They are
+	currently accommodated by scheduling-clock tick every second
+	or so.	On-going work will eliminate the need even for these
+	infrequent scheduling-clock ticks.
