@@ -3719,9 +3719,6 @@ static long btrfs_ioctl_quota_ctl(struct file *file, void __user *arg)
 		break;
 	}
 
-	if (copy_to_user(arg, sa, sizeof(*sa)))
-		ret = -EFAULT;
-
 	err = btrfs_commit_transaction(trans, root->fs_info->tree_root);
 	if (err && !ret)
 		ret = err;
