@@ -326,6 +326,17 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 	ret = iwl_nvm_check_version(mvm->nvm_data, mvm->trans);
 	WARN_ON(ret);
 
+	/*
+	 * abort after reading the nvm in case RF Kill is on, we will complete
+	 * the init seq later when RF kill will switch to off
+	 */
+	if (test_bit(IWL_MVM_STATUS_HW_RFKILL, &mvm->status)) {
+		IWL_DEBUG_RF_KILL(mvm,
+				  "jump over all phy activities due to RF kill\n");
+		iwl_remove_notification(&mvm->notif_wait, &calib_wait);
+		return 1;
+	}
+
 	/* Send TX valid antennas before triggering calibrations */
 	ret = iwl_send_tx_ant_cfg(mvm, iwl_fw_valid_tx_ant(mvm->fw));
 	if (ret)
@@ -402,8 +413,16 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 		ret = iwl_run_init_mvm_ucode(mvm, false);
 		if (ret && !iwlmvm_mod_params.init_dbg) {
 			IWL_ERR(mvm, "Failed to run INIT ucode: %d\n", ret);
+			/* this can't happen */
+			if (WARN_ON(ret > 0))
+				ret = -ERFKILL;
 			goto error;
 		}
+		/* should stop & start HW since that INIT image just loaded */
+		iwl_trans_stop_hw(mvm->trans, false);
+		ret = iwl_trans_start_hw(mvm->trans);
+		if (ret)
+			return ret;
 	}
 
 	if (iwlmvm_mod_params.init_dbg)

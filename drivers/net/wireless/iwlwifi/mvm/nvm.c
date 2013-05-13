@@ -98,7 +98,7 @@ static int iwl_nvm_write_chunk(struct iwl_mvm *mvm, u16 section,
 	struct iwl_host_cmd cmd = {
 		.id = NVM_ACCESS_CMD,
 		.len = { sizeof(struct iwl_nvm_access_cmd), length },
-		.flags = CMD_SYNC,
+		.flags = CMD_SYNC | CMD_SEND_IN_RFKILL,
 		.data = { &nvm_access_cmd, data },
 		/* data may come from vmalloc, so use _DUP */
 		.dataflags = { 0, IWL_HCMD_DFL_DUP },
@@ -120,7 +120,7 @@ static int iwl_nvm_read_chunk(struct iwl_mvm *mvm, u16 section,
 	struct iwl_rx_packet *pkt;
 	struct iwl_host_cmd cmd = {
 		.id = NVM_ACCESS_CMD,
-		.flags = CMD_SYNC | CMD_WANT_SKB,
+		.flags = CMD_SYNC | CMD_WANT_SKB | CMD_SEND_IN_RFKILL,
 		.data = { &nvm_access_cmd, },
 	};
 	int ret, bytes_read, offset_read;

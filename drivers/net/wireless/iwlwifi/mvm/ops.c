@@ -396,7 +396,8 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	mutex_lock(&mvm->mutex);
 	err = iwl_run_init_mvm_ucode(mvm, true);
 	mutex_unlock(&mvm->mutex);
-	if (err && !iwlmvm_mod_params.init_dbg) {
+	/* returns 0 if successful, 1 if success but in rfkill */
+	if (err < 0 && !iwlmvm_mod_params.init_dbg) {
 		IWL_ERR(mvm, "Failed to run INIT ucode: %d\n", err);
 		goto out_free;
 	}
