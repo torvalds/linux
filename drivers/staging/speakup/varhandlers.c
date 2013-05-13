@@ -277,7 +277,7 @@ int spk_set_mask_bits(const char *input, const int which, const int how)
 			spk_chartab[*cp] &= ~mask;
 	}
 	cp = (u_char *)input;
-	if (cp == 0)
+	if (!cp)
 		cp = spk_punc_info[which].value;
 	else {
 		for ( ; *cp; cp++) {
