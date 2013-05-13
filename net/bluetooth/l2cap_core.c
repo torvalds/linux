@@ -1160,19 +1160,49 @@ static void l2cap_chan_ready(struct l2cap_chan *chan)
 	chan->ops->ready(chan);
 }
 
+static void l2cap_le_connect(struct l2cap_chan *chan)
+{
+	struct l2cap_conn *conn = chan->conn;
+	struct l2cap_le_conn_req req;
+
+	req.psm     = chan->psm;
+	req.scid    = cpu_to_le16(chan->scid);
+	req.mtu     = cpu_to_le16(chan->imtu);
+	req.mps     = __constant_cpu_to_le16(L2CAP_LE_DEFAULT_MPS);
+	req.credits = __constant_cpu_to_le16(L2CAP_LE_MAX_CREDITS);
+
+	chan->ident = l2cap_get_ident(conn);
+
+	l2cap_send_cmd(conn, chan->ident, L2CAP_LE_CONN_REQ,
+		       sizeof(req), &req);
+}
+
+static void l2cap_le_start(struct l2cap_chan *chan)
+{
+	struct l2cap_conn *conn = chan->conn;
+
+	if (!smp_conn_security(conn->hcon, chan->sec_level))
+		return;
+
+	if (!chan->psm) {
+		l2cap_chan_ready(chan);
+		return;
+	}
+
+	if (chan->state == BT_CONNECT)
+		l2cap_le_connect(chan);
+}
+
 static void l2cap_start_connection(struct l2cap_chan *chan)
 {
 	if (__amp_capable(chan)) {
 		BT_DBG("chan %p AMP capable: discover AMPs", chan);
 		a2mp_discover_amp(chan);
+	} else if (chan->conn->hcon->type == LE_LINK) {
+		l2cap_le_start(chan);
 	} else {
 		l2cap_send_conn_req(chan);
 	}
-}
-
-static void l2cap_le_start(struct l2cap_chan *chan)
-{
-	l2cap_chan_ready(chan);
 }
 
 static void l2cap_do_start(struct l2cap_chan *chan)
@@ -1438,9 +1468,7 @@ static void l2cap_conn_ready(struct l2cap_conn *conn)
 		}
 
 		if (hcon->type == LE_LINK) {
-			if (smp_conn_security(hcon, chan->sec_level))
-				l2cap_chan_ready(chan);
-
+			l2cap_le_start(chan);
 		} else if (chan->chan_type != L2CAP_CHAN_CONN_ORIENTED) {
 			l2cap_chan_ready(chan);
 
@@ -5210,6 +5238,64 @@ static inline int l2cap_conn_param_update_req(struct l2cap_conn *conn,
 	return 0;
 }
 
+static int l2cap_le_connect_rsp(struct l2cap_conn *conn,
+				struct l2cap_cmd_hdr *cmd, u16 cmd_len,
+				u8 *data)
+{
+	struct l2cap_le_conn_rsp *rsp = (struct l2cap_le_conn_rsp *) data;
+	u16 dcid, mtu, mps, credits, result;
+	struct l2cap_chan *chan;
+	int err;
+
+	if (cmd_len < sizeof(*rsp))
+		return -EPROTO;
+
+	dcid    = __le16_to_cpu(rsp->dcid);
+	mtu     = __le16_to_cpu(rsp->mtu);
+	mps     = __le16_to_cpu(rsp->mps);
+	credits = __le16_to_cpu(rsp->credits);
+	result  = __le16_to_cpu(rsp->result);
+
+	if (result == L2CAP_CR_SUCCESS && (mtu < 23 || mps < 23))
+		return -EPROTO;
+
+	BT_DBG("dcid 0x%4.4x mtu %u mps %u credits %u result 0x%2.2x",
+	       dcid, mtu, mps, credits, result);
+
+	mutex_lock(&conn->chan_lock);
+
+	chan = __l2cap_get_chan_by_ident(conn, cmd->ident);
+	if (!chan) {
+		err = -EBADSLT;
+		goto unlock;
+	}
+
+	err = 0;
+
+	l2cap_chan_lock(chan);
+
+	switch (result) {
+	case L2CAP_CR_SUCCESS:
+		chan->ident = 0;
+		chan->dcid = dcid;
+		chan->omtu = mtu;
+		chan->remote_mps = mps;
+		l2cap_chan_ready(chan);
+		break;
+
+	default:
+		l2cap_chan_del(chan, ECONNREFUSED);
+		break;
+	}
+
+	l2cap_chan_unlock(chan);
+
+unlock:
+	mutex_unlock(&conn->chan_lock);
+
+	return err;
+}
+
 static inline int l2cap_bredr_sig_cmd(struct l2cap_conn *conn,
 				      struct l2cap_cmd_hdr *cmd, u16 cmd_len,
 				      u8 *data)
@@ -5302,6 +5388,10 @@ static inline int l2cap_le_sig_cmd(struct l2cap_conn *conn,
 		return l2cap_conn_param_update_req(conn, cmd, cmd_len, data);
 
 	case L2CAP_CONN_PARAM_UPDATE_RSP:
+		return 0;
+
+	case L2CAP_LE_CONN_RSP:
+		l2cap_le_connect_rsp(conn, cmd, cmd_len, data);
 		return 0;
 
 	default:
