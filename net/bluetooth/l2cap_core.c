@@ -1170,12 +1170,17 @@ static void l2cap_start_connection(struct l2cap_chan *chan)
 	}
 }
 
+static void l2cap_le_start(struct l2cap_chan *chan)
+{
+	l2cap_chan_ready(chan);
+}
+
 static void l2cap_do_start(struct l2cap_chan *chan)
 {
 	struct l2cap_conn *conn = chan->conn;
 
 	if (conn->hcon->type == LE_LINK) {
-		l2cap_chan_ready(chan);
+		l2cap_le_start(chan);
 		return;
 	}
 
