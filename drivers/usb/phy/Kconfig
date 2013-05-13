@@ -128,7 +128,7 @@ config TWL6030_USB
 
 config USB_GPIO_VBUS
 	tristate "GPIO based peripheral-only VBUS sensing 'transceiver'"
-	depends on GENERIC_GPIO
+	depends on GPIOLIB
 	help
 	  Provides simple GPIO VBUS sensing for controllers with an
 	  internal transceiver via the usb_phy interface, and

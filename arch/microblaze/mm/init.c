@@ -404,10 +404,11 @@ asmlinkage void __init mmu_init(void)
 
 #if defined(CONFIG_BLK_DEV_INITRD)
 	/* Remove the init RAM disk from the available memory. */
-/*	if (initrd_start) {
-		mem_pieces_remove(&phys_avail, __pa(initrd_start),
-				  initrd_end - initrd_start, 1);
-	}*/
+	if (initrd_start) {
+		unsigned long size;
+		size = initrd_end - initrd_start;
+		memblock_reserve(virt_to_phys(initrd_start), size);
+	}
 #endif /* CONFIG_BLK_DEV_INITRD */
 
 	/* Initialize the MMU hardware */

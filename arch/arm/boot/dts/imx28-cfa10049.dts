@@ -30,7 +30,6 @@
 					reg = <0>;
 					fsl,pinmux-ids = <
 						0x0073 /* MX28_PAD_GPMI_D7__GPIO_0_7 */
-						0x1153 /* MX28_PAD_LCD_D22__GPIO_1_21 */
 						0x1163 /* MX28_PAD_LCD_D22__GPIO_1_22 */
 						0x1173 /* MX28_PAD_LCD_D22__GPIO_1_23 */
 						0x2153 /* MX28_PAD_SSP2_D5__GPIO_2_21 */
@@ -120,13 +119,48 @@
 					fsl,voltage = <1>;
 					fsl,pull-up = <0>;
 				};
+
+				w1_gpio_pins: w1-gpio@0 {
+					reg = <0>;
+					fsl,pinmux-ids = <
+						0x1153 /* MX28_PAD_LCD_D21__GPIO_1_21 */
+					>;
+					fsl,drive-strength = <1>;
+					fsl,voltage = <1>;
+					fsl,pull-up = <0>; /* 0 will enable the keeper */
+				};
 			};
 
 			lcdif@80030000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&lcdif_18bit_pins_cfa10049
 					     &lcdif_pins_cfa10049>;
+				display = <&display>;
 				status = "okay";
+
+				display: display {
+					bits-per-pixel = <32>;
+					bus-width = <18>;
+
+					display-timings {
+						native-mode = <&timing0>;
+						timing0: timing0 {
+							clock-frequency = <9216000>;
+							hactive = <320>;
+							vactive = <480>;
+							hback-porch = <2>;
+							hfront-porch = <2>;
+							vback-porch = <2>;
+							vfront-porch = <2>;
+							hsync-len = <15>;
+							vsync-len = <15>;
+							hsync-active = <0>;
+							vsync-active = <0>;
+							de-active = <1>;
+							pixelclk-active = <1>;
+						};
+					};
+				};
 			};
 		};
 
@@ -182,6 +216,11 @@
 
 			usbphy1: usbphy@8007e000 {
 				status = "okay";
+			};
+
+			lradc@80050000 {
+				status = "okay";
+				fsl,lradc-touchscreen-wires = <4>;
 			};
 		};
 	};
@@ -304,5 +343,14 @@
 		pwms = <&pwm 3 5000000>;
 		brightness-levels = <0 4 8 16 32 64 128 255>;
 		default-brightness-level = <6>;
+
+	};
+
+	onewire@0 {
+		compatible = "w1-gpio";
+		pinctrl-names = "default";
+		pinctrl-0 = <&w1_gpio_pins>;
+		status = "okay";
+		gpios = <&gpio1 21 0>;
 	};
 };

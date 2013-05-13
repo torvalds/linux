@@ -66,6 +66,6 @@ void msm_init_last_radio_log(struct module *owner)
 	pr_err("%s: last radio log is %d bytes long\n", __func__,
 		radio_log_size);
 	last_radio_log_fops.owner = owner;
-	entry->size = radio_log_size;
+	proc_set_size(entry, radio_log_size);
 }
 EXPORT_SYMBOL(msm_init_last_radio_log);

@@ -219,26 +219,35 @@ lpfc_bsg_copy_data(struct lpfc_dmabuf *dma_buffers,
 	unsigned int transfer_bytes, bytes_copied = 0;
 	unsigned int sg_offset, dma_offset;
 	unsigned char *dma_address, *sg_address;
-	struct scatterlist *sgel;
 	LIST_HEAD(temp_list);
-
+	struct sg_mapping_iter miter;
+	unsigned long flags;
+	unsigned int sg_flags = SG_MITER_ATOMIC;
+	bool sg_valid;
 
 	list_splice_init(&dma_buffers->list, &temp_list);
 	list_add(&dma_buffers->list, &temp_list);
 	sg_offset = 0;
-	sgel = bsg_buffers->sg_list;
+	if (to_buffers)
+		sg_flags |= SG_MITER_FROM_SG;
+	else
+		sg_flags |= SG_MITER_TO_SG;
+	sg_miter_start(&miter, bsg_buffers->sg_list, bsg_buffers->sg_cnt,
+		       sg_flags);
+	local_irq_save(flags);
+	sg_valid = sg_miter_next(&miter);
 	list_for_each_entry(mp, &temp_list, list) {
 		dma_offset = 0;
-		while (bytes_to_transfer && sgel &&
+		while (bytes_to_transfer && sg_valid &&
 		       (dma_offset < LPFC_BPL_SIZE)) {
 			dma_address = mp->virt + dma_offset;
 			if (sg_offset) {
 				/* Continue previous partial transfer of sg */
-				sg_address = sg_virt(sgel) + sg_offset;
-				transfer_bytes = sgel->length - sg_offset;
+				sg_address = miter.addr + sg_offset;
+				transfer_bytes = miter.length - sg_offset;
 			} else {
-				sg_address = sg_virt(sgel);
-				transfer_bytes = sgel->length;
+				sg_address = miter.addr;
+				transfer_bytes = miter.length;
 			}
 			if (bytes_to_transfer < transfer_bytes)
 				transfer_bytes = bytes_to_transfer;
@@ -252,12 +261,14 @@ lpfc_bsg_copy_data(struct lpfc_dmabuf *dma_buffers,
 			sg_offset += transfer_bytes;
 			bytes_to_transfer -= transfer_bytes;
 			bytes_copied += transfer_bytes;
-			if (sg_offset >= sgel->length) {
+			if (sg_offset >= miter.length) {
 				sg_offset = 0;
-				sgel = sg_next(sgel);
+				sg_valid = sg_miter_next(&miter);
 			}
 		}
 	}
+	sg_miter_stop(&miter);
+	local_irq_restore(flags);
 	list_del_init(&dma_buffers->list);
 	list_splice(&temp_list, &dma_buffers->list);
 	return bytes_copied;
@@ -471,6 +482,7 @@ lpfc_bsg_send_mgmt_cmd(struct fc_bsg_job *job)
 	cmdiocbq->context1 = dd_data;
 	cmdiocbq->context2 = cmp;
 	cmdiocbq->context3 = bmp;
+	cmdiocbq->context_un.ndlp = ndlp;
 	dd_data->type = TYPE_IOCB;
 	dd_data->set_job = job;
 	dd_data->context_un.iocb.cmdiocbq = cmdiocbq;
@@ -1508,6 +1520,7 @@ lpfc_issue_ct_rsp(struct lpfc_hba *phba, struct fc_bsg_job *job, uint32_t tag,
 	ctiocb->context1 = dd_data;
 	ctiocb->context2 = cmp;
 	ctiocb->context3 = bmp;
+	ctiocb->context_un.ndlp = ndlp;
 	ctiocb->iocb_cmpl = lpfc_issue_ct_rsp_cmp;
 
 	dd_data->type = TYPE_IOCB;
@@ -2576,7 +2589,8 @@ static int lpfcdiag_loop_get_xri(struct lpfc_hba *phba, uint16_t rpi,
 	evt->wait_time_stamp = jiffies;
 	time_left = wait_event_interruptible_timeout(
 		evt->wq, !list_empty(&evt->events_to_see),
-		((phba->fc_ratov * 2) + LPFC_DRVR_TIMEOUT) * HZ);
+		msecs_to_jiffies(1000 *
+			((phba->fc_ratov * 2) + LPFC_DRVR_TIMEOUT)));
 	if (list_empty(&evt->events_to_see))
 		ret_val = (time_left) ? -EINTR : -ETIMEDOUT;
 	else {
@@ -3151,7 +3165,8 @@ lpfc_bsg_diag_loopback_run(struct fc_bsg_job *job)
 	evt->waiting = 1;
 	time_left = wait_event_interruptible_timeout(
 		evt->wq, !list_empty(&evt->events_to_see),
-		((phba->fc_ratov * 2) + LPFC_DRVR_TIMEOUT) * HZ);
+		msecs_to_jiffies(1000 *
+			((phba->fc_ratov * 2) + LPFC_DRVR_TIMEOUT)));
 	evt->waiting = 0;
 	if (list_empty(&evt->events_to_see)) {
 		rc = (time_left) ? -EINTR : -ETIMEDOUT;

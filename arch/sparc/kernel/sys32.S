@@ -239,15 +239,6 @@ do_sys_accept4: /* sys_accept4(int, struct sockaddr *, int *, int) */
 	nop
 	nop
 
-	.globl		sys32_fanotify_mark
-sys32_fanotify_mark:
-	sethi		%hi(sys_fanotify_mark), %g1
-	sllx		%o2, 32, %o2
-	or		%o2, %o3, %o2
-	mov		%o4, %o3
-	jmpl		%g1 + %lo(sys_fanotify_mark), %g0
-	 mov		%o5, %o4
-
 	.section	__ex_table,"a"
 	.align		4
 	.word		1b, __retl_efault, 2b, __retl_efault

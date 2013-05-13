@@ -29,6 +29,7 @@
 				pinctrl-names = "default";
 				pinctrl-0 = <&mmc0_4bit_pins_a &mmc0_pins_fixup>;
 				bus-width = <4>;
+				broken-cd;
 				status = "okay";
 			};
 

@@ -432,7 +432,7 @@ static void _mark_read4write_pages_uptodate(struct ore_io_state *ios, int ret)
 		if (!bio)
 			continue;
 
-		__bio_for_each_segment(bv, bio, i, 0) {
+		bio_for_each_segment_all(bv, bio, i) {
 			struct page *page = bv->bv_page;
 
 			SetPageUptodate(page);

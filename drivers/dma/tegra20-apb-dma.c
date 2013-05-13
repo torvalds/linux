@@ -30,6 +30,7 @@
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <linux/clk/tegra.h>
@@ -199,6 +200,7 @@ struct tegra_dma_channel {
 
 	/* Channel-slave specific configuration */
 	struct dma_slave_config dma_sconfig;
+	struct tegra_dma_channel_regs	channel_reg;
 };
 
 /* tegra_dma: Tegra DMA specific information */
@@ -1213,7 +1215,6 @@ static const struct tegra_dma_chip_data tegra20_dma_chip_data = {
 	.support_channel_pause	= false,
 };
 
-#if defined(CONFIG_OF)
 /* Tegra30 specific DMA controller information */
 static const struct tegra_dma_chip_data tegra30_dma_chip_data = {
 	.nr_channels		= 32,
@@ -1243,7 +1244,6 @@ static const struct of_device_id tegra_dma_of_match[] = {
 	},
 };
 MODULE_DEVICE_TABLE(of, tegra_dma_of_match);
-#endif
 
 static int tegra_dma_probe(struct platform_device *pdev)
 {
@@ -1252,20 +1252,14 @@ static int tegra_dma_probe(struct platform_device *pdev)
 	int ret;
 	int i;
 	const struct tegra_dma_chip_data *cdata = NULL;
+	const struct of_device_id *match;
 
-	if (pdev->dev.of_node) {
-		const struct of_device_id *match;
-		match = of_match_device(of_match_ptr(tegra_dma_of_match),
-					&pdev->dev);
-		if (!match) {
-			dev_err(&pdev->dev, "Error: No device match found\n");
-			return -ENODEV;
-		}
-		cdata = match->data;
-	} else {
-		/* If no device tree then fallback to tegra20 */
-		cdata = &tegra20_dma_chip_data;
+	match = of_match_device(tegra_dma_of_match, &pdev->dev);
+	if (!match) {
+		dev_err(&pdev->dev, "Error: No device match found\n");
+		return -ENODEV;
 	}
+	cdata = match->data;
 
 	tdma = devm_kzalloc(&pdev->dev, sizeof(*tdma) + cdata->nr_channels *
 			sizeof(struct tegra_dma_channel), GFP_KERNEL);
@@ -1448,11 +1442,74 @@ static int tegra_dma_runtime_resume(struct device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
+static int tegra_dma_pm_suspend(struct device *dev)
+{
+	struct tegra_dma *tdma = dev_get_drvdata(dev);
+	int i;
+	int ret;
+
+	/* Enable clock before accessing register */
+	ret = tegra_dma_runtime_resume(dev);
+	if (ret < 0)
+		return ret;
+
+	tdma->reg_gen = tdma_read(tdma, TEGRA_APBDMA_GENERAL);
+	for (i = 0; i < tdma->chip_data->nr_channels; i++) {
+		struct tegra_dma_channel *tdc = &tdma->channels[i];
+		struct tegra_dma_channel_regs *ch_reg = &tdc->channel_reg;
+
+		ch_reg->csr = tdc_read(tdc, TEGRA_APBDMA_CHAN_CSR);
+		ch_reg->ahb_ptr = tdc_read(tdc, TEGRA_APBDMA_CHAN_AHBPTR);
+		ch_reg->apb_ptr = tdc_read(tdc, TEGRA_APBDMA_CHAN_APBPTR);
+		ch_reg->ahb_seq = tdc_read(tdc, TEGRA_APBDMA_CHAN_AHBSEQ);
+		ch_reg->apb_seq = tdc_read(tdc, TEGRA_APBDMA_CHAN_APBSEQ);
+	}
+
+	/* Disable clock */
+	tegra_dma_runtime_suspend(dev);
+	return 0;
+}
+
+static int tegra_dma_pm_resume(struct device *dev)
+{
+	struct tegra_dma *tdma = dev_get_drvdata(dev);
+	int i;
+	int ret;
+
+	/* Enable clock before accessing register */
+	ret = tegra_dma_runtime_resume(dev);
+	if (ret < 0)
+		return ret;
+
+	tdma_write(tdma, TEGRA_APBDMA_GENERAL, tdma->reg_gen);
+	tdma_write(tdma, TEGRA_APBDMA_CONTROL, 0);
+	tdma_write(tdma, TEGRA_APBDMA_IRQ_MASK_SET, 0xFFFFFFFFul);
+
+	for (i = 0; i < tdma->chip_data->nr_channels; i++) {
+		struct tegra_dma_channel *tdc = &tdma->channels[i];
+		struct tegra_dma_channel_regs *ch_reg = &tdc->channel_reg;
+
+		tdc_write(tdc, TEGRA_APBDMA_CHAN_APBSEQ, ch_reg->apb_seq);
+		tdc_write(tdc, TEGRA_APBDMA_CHAN_APBPTR, ch_reg->apb_ptr);
+		tdc_write(tdc, TEGRA_APBDMA_CHAN_AHBSEQ, ch_reg->ahb_seq);
+		tdc_write(tdc, TEGRA_APBDMA_CHAN_AHBPTR, ch_reg->ahb_ptr);
+		tdc_write(tdc, TEGRA_APBDMA_CHAN_CSR,
+			(ch_reg->csr & ~TEGRA_APBDMA_CSR_ENB));
+	}
+
+	/* Disable clock */
+	tegra_dma_runtime_suspend(dev);
+	return 0;
+}
+#endif
+
 static const struct dev_pm_ops tegra_dma_dev_pm_ops = {
 #ifdef CONFIG_PM_RUNTIME
 	.runtime_suspend = tegra_dma_runtime_suspend,
 	.runtime_resume = tegra_dma_runtime_resume,
 #endif
+	SET_SYSTEM_SLEEP_PM_OPS(tegra_dma_pm_suspend, tegra_dma_pm_resume)
 };
 
 static struct platform_driver tegra_dmac_driver = {
@@ -1460,7 +1517,7 @@ static struct platform_driver tegra_dmac_driver = {
 		.name	= "tegra-apbdma",
 		.owner = THIS_MODULE,
 		.pm	= &tegra_dma_dev_pm_ops,
-		.of_match_table = of_match_ptr(tegra_dma_of_match),
+		.of_match_table = tegra_dma_of_match,
 	},
 	.probe		= tegra_dma_probe,
 	.remove		= tegra_dma_remove,

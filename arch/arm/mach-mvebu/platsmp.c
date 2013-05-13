@@ -21,6 +21,7 @@
 #include <linux/smp.h>
 #include <linux/clk.h>
 #include <linux/of.h>
+#include <linux/mbus.h>
 #include <asm/cacheflush.h>
 #include <asm/smp_plat.h>
 #include "common.h"
@@ -109,6 +110,7 @@ void __init armada_xp_smp_prepare_cpus(unsigned int max_cpus)
 	set_secondary_cpus_clock();
 	flush_cache_all();
 	set_cpu_coherent(cpu_logical_map(smp_processor_id()), 0);
+	mvebu_mbus_add_window("bootrom", 0xfff00000, SZ_1M);
 }
 
 struct smp_operations armada_xp_smp_ops __initdata = {

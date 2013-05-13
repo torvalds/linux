@@ -61,10 +61,13 @@ send_nt_cancel(struct TCP_Server_Info *server, void *buf,
 	 */
 	--server->sequence_number;
 	rc = smb_send(server, in_buf, be32_to_cpu(in_buf->smb_buf_length));
+	if (rc < 0)
+		server->sequence_number--;
+
 	mutex_unlock(&server->srv_mutex);
 
-	cFYI(1, "issued NT_CANCEL for mid %u, rc = %d",
-		in_buf->Mid, rc);
+	cifs_dbg(FYI, "issued NT_CANCEL for mid %u, rc = %d\n",
+		 in_buf->Mid, rc);
 
 	return rc;
 }
@@ -249,7 +252,7 @@ check2ndT2(char *buf)
 	/* check for plausible wct, bcc and t2 data and parm sizes */
 	/* check for parm and data offset going beyond end of smb */
 	if (pSMB->WordCount != 10) { /* coalesce_t2 depends on this */
-		cFYI(1, "invalid transact2 word count");
+		cifs_dbg(FYI, "invalid transact2 word count\n");
 		return -EINVAL;
 	}
 
@@ -261,18 +264,18 @@ check2ndT2(char *buf)
 	if (total_data_size == data_in_this_rsp)
 		return 0;
 	else if (total_data_size < data_in_this_rsp) {
-		cFYI(1, "total data %d smaller than data in frame %d",
-			total_data_size, data_in_this_rsp);
+		cifs_dbg(FYI, "total data %d smaller than data in frame %d\n",
+			 total_data_size, data_in_this_rsp);
 		return -EINVAL;
 	}
 
 	remaining = total_data_size - data_in_this_rsp;
 
-	cFYI(1, "missing %d bytes from transact2, check next response",
-		remaining);
+	cifs_dbg(FYI, "missing %d bytes from transact2, check next response\n",
+		 remaining);
 	if (total_data_size > CIFSMaxBufSize) {
-		cERROR(1, "TotalDataSize %d is over maximum buffer %d",
-			total_data_size, CIFSMaxBufSize);
+		cifs_dbg(VFS, "TotalDataSize %d is over maximum buffer %d\n",
+			 total_data_size, CIFSMaxBufSize);
 		return -EINVAL;
 	}
 	return remaining;
@@ -293,28 +296,28 @@ coalesce_t2(char *second_buf, struct smb_hdr *target_hdr)
 	tgt_total_cnt = get_unaligned_le16(&pSMBt->t2_rsp.TotalDataCount);
 
 	if (tgt_total_cnt != src_total_cnt)
-		cFYI(1, "total data count of primary and secondary t2 differ "
-			"source=%hu target=%hu", src_total_cnt, tgt_total_cnt);
+		cifs_dbg(FYI, "total data count of primary and secondary t2 differ source=%hu target=%hu\n",
+			 src_total_cnt, tgt_total_cnt);
 
 	total_in_tgt = get_unaligned_le16(&pSMBt->t2_rsp.DataCount);
 
 	remaining = tgt_total_cnt - total_in_tgt;
 
 	if (remaining < 0) {
-		cFYI(1, "Server sent too much data. tgt_total_cnt=%hu "
-			"total_in_tgt=%hu", tgt_total_cnt, total_in_tgt);
+		cifs_dbg(FYI, "Server sent too much data. tgt_total_cnt=%hu total_in_tgt=%hu\n",
+			 tgt_total_cnt, total_in_tgt);
 		return -EPROTO;
 	}
 
 	if (remaining == 0) {
 		/* nothing to do, ignore */
-		cFYI(1, "no more data remains");
+		cifs_dbg(FYI, "no more data remains\n");
 		return 0;
 	}
 
 	total_in_src = get_unaligned_le16(&pSMBs->t2_rsp.DataCount);
 	if (remaining < total_in_src)
-		cFYI(1, "transact2 2nd response contains too much data");
+		cifs_dbg(FYI, "transact2 2nd response contains too much data\n");
 
 	/* find end of first SMB data area */
 	data_area_of_tgt = (char *)&pSMBt->hdr.Protocol +
@@ -329,7 +332,8 @@ coalesce_t2(char *second_buf, struct smb_hdr *target_hdr)
 	total_in_tgt += total_in_src;
 	/* is the result too big for the field? */
 	if (total_in_tgt > USHRT_MAX) {
-		cFYI(1, "coalesced DataCount too large (%u)", total_in_tgt);
+		cifs_dbg(FYI, "coalesced DataCount too large (%u)\n",
+			 total_in_tgt);
 		return -EPROTO;
 	}
 	put_unaligned_le16(total_in_tgt, &pSMBt->t2_rsp.DataCount);
@@ -339,7 +343,7 @@ coalesce_t2(char *second_buf, struct smb_hdr *target_hdr)
 	byte_count += total_in_src;
 	/* is the result too big for the field? */
 	if (byte_count > USHRT_MAX) {
-		cFYI(1, "coalesced BCC too large (%u)", byte_count);
+		cifs_dbg(FYI, "coalesced BCC too large (%u)\n", byte_count);
 		return -EPROTO;
 	}
 	put_bcc(byte_count, target_hdr);
@@ -348,7 +352,8 @@ coalesce_t2(char *second_buf, struct smb_hdr *target_hdr)
 	byte_count += total_in_src;
 	/* don't allow buffer to overflow */
 	if (byte_count > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4) {
-		cFYI(1, "coalesced BCC exceeds buffer size (%u)", byte_count);
+		cifs_dbg(FYI, "coalesced BCC exceeds buffer size (%u)\n",
+			 byte_count);
 		return -ENOBUFS;
 	}
 	target_hdr->smb_buf_length = cpu_to_be32(byte_count);
@@ -358,12 +363,12 @@ coalesce_t2(char *second_buf, struct smb_hdr *target_hdr)
 
 	if (remaining != total_in_src) {
 		/* more responses to go */
-		cFYI(1, "waiting for more secondary responses");
+		cifs_dbg(FYI, "waiting for more secondary responses\n");
 		return 1;
 	}
 
 	/* we are done */
-	cFYI(1, "found the last secondary response");
+	cifs_dbg(FYI, "found the last secondary response\n");
 	return 0;
 }
 
@@ -388,7 +393,7 @@ cifs_check_trans2(struct mid_q_entry *mid, struct TCP_Server_Info *server,
 	}
 	if (!server->large_buf) {
 		/*FIXME: switch to already allocated largebuf?*/
-		cERROR(1, "1st trans2 resp needs bigbuf");
+		cifs_dbg(VFS, "1st trans2 resp needs bigbuf\n");
 	} else {
 		/* Have first buffer */
 		mid->resp_buf = buf;
@@ -776,8 +781,7 @@ smb_set_file_info(struct inode *inode, const char *full_path,
 			goto out;
 	}
 
-	cFYI(1, "calling SetFileInfo since SetPathInfo for times not supported "
-		"by this server");
+	cifs_dbg(FYI, "calling SetFileInfo since SetPathInfo for times not supported by this server\n");
 	rc = CIFSSMBOpen(xid, tcon, full_path, FILE_OPEN,
 			 SYNCHRONIZE | FILE_WRITE_ATTRIBUTES, CREATE_NOT_DIR,
 			 &netfid, &oplock, NULL, cifs_sb->local_nls,

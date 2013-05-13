@@ -245,11 +245,11 @@ choice
 		  on i.MX53.
 
 	config DEBUG_IMX6Q_UART
-		bool "i.MX6Q Debug UART"
+		bool "i.MX6Q/DL Debug UART"
 		depends on SOC_IMX6Q
 		help
 		  Say Y here if you want kernel low-level debugging support
-		  on i.MX6Q.
+		  on i.MX6Q/DL.
 
 	config DEBUG_MMP_UART2
 		bool "Kernel low-level debugging message via MMP UART2"

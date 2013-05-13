@@ -175,7 +175,7 @@ config KEYBOARD_EP93XX
 
 config KEYBOARD_GPIO
 	tristate "GPIO Buttons"
-	depends on GENERIC_GPIO
+	depends on GPIOLIB
 	help
 	  This driver implements support for buttons connected
 	  to GPIO pins of various CPUs (and some other chips).
@@ -190,7 +190,7 @@ config KEYBOARD_GPIO
 
 config KEYBOARD_GPIO_POLLED
 	tristate "Polled GPIO buttons"
-	depends on GENERIC_GPIO
+	depends on GPIOLIB
 	select INPUT_POLLDEV
 	help
 	  This driver implements support for buttons connected
@@ -241,7 +241,7 @@ config KEYBOARD_TCA8418
 
 config KEYBOARD_MATRIX
 	tristate "GPIO driven matrix keypad support"
-	depends on GENERIC_GPIO
+	depends on GPIOLIB
 	select INPUT_MATRIXKMAP
 	help
 	  Enable support for GPIO driven matrix keypad.

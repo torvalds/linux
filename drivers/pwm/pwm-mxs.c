@@ -38,7 +38,6 @@
 
 struct mxs_pwm_chip {
 	struct pwm_chip chip;
-	struct device *dev;
 	struct clk *clk;
 	void __iomem *base;
 };
@@ -166,7 +165,6 @@ static int mxs_pwm_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	mxs->dev = &pdev->dev;
 	platform_set_drvdata(pdev, mxs);
 
 	stmp_reset_block(mxs->base);
@@ -181,7 +179,7 @@ static int mxs_pwm_remove(struct platform_device *pdev)
 	return pwmchip_remove(&mxs->chip);
 }
 
-static struct of_device_id mxs_pwm_dt_ids[] = {
+static const struct of_device_id mxs_pwm_dt_ids[] = {
 	{ .compatible = "fsl,imx23-pwm", },
 	{ /* sentinel */ }
 };

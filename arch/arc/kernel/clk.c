@@ -8,7 +8,7 @@
 
 #include <asm/clk.h>
 
-unsigned long core_freq = 800000000;
+unsigned long core_freq = 80000000;
 
 /*
  * As of now we default to device-tree provided clock

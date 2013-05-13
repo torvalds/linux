@@ -555,6 +555,25 @@ void kvm_lmsw(struct kvm_vcpu *vcpu, unsigned long msw)
 }
 EXPORT_SYMBOL_GPL(kvm_lmsw);
 
+static void kvm_load_guest_xcr0(struct kvm_vcpu *vcpu)
+{
+	if (kvm_read_cr4_bits(vcpu, X86_CR4_OSXSAVE) &&
+			!vcpu->guest_xcr0_loaded) {
+		/* kvm_set_xcr() also depends on this */
+		xsetbv(XCR_XFEATURE_ENABLED_MASK, vcpu->arch.xcr0);
+		vcpu->guest_xcr0_loaded = 1;
+	}
+}
+
+static void kvm_put_guest_xcr0(struct kvm_vcpu *vcpu)
+{
+	if (vcpu->guest_xcr0_loaded) {
+		if (vcpu->arch.xcr0 != host_xcr0)
+			xsetbv(XCR_XFEATURE_ENABLED_MASK, host_xcr0);
+		vcpu->guest_xcr0_loaded = 0;
+	}
+}
+
 int __kvm_set_xcr(struct kvm_vcpu *vcpu, u32 index, u64 xcr)
 {
 	u64 xcr0;
@@ -571,8 +590,8 @@ int __kvm_set_xcr(struct kvm_vcpu *vcpu, u32 index, u64 xcr)
 		return 1;
 	if (xcr0 & ~host_xcr0)
 		return 1;
+	kvm_put_guest_xcr0(vcpu);
 	vcpu->arch.xcr0 = xcr0;
-	vcpu->guest_xcr0_loaded = 0;
 	return 0;
 }
 
@@ -5611,25 +5630,6 @@ static void inject_pending_event(struct kvm_vcpu *vcpu)
 					    false);
 			kvm_x86_ops->set_irq(vcpu);
 		}
-	}
-}
-
-static void kvm_load_guest_xcr0(struct kvm_vcpu *vcpu)
-{
-	if (kvm_read_cr4_bits(vcpu, X86_CR4_OSXSAVE) &&
-			!vcpu->guest_xcr0_loaded) {
-		/* kvm_set_xcr() also depends on this */
-		xsetbv(XCR_XFEATURE_ENABLED_MASK, vcpu->arch.xcr0);
-		vcpu->guest_xcr0_loaded = 1;
-	}
-}
-
-static void kvm_put_guest_xcr0(struct kvm_vcpu *vcpu)
-{
-	if (vcpu->guest_xcr0_loaded) {
-		if (vcpu->arch.xcr0 != host_xcr0)
-			xsetbv(XCR_XFEATURE_ENABLED_MASK, host_xcr0);
-		vcpu->guest_xcr0_loaded = 0;
 	}
 }
 

@@ -30,7 +30,7 @@ CFLAGS_sysinfo.o += -Iinclude/math-emu -Iarch/s390/math-emu -w
 
 obj-y	:= bitmap.o traps.o time.o process.o base.o early.o setup.o vtime.o
 obj-y	+= processor.o sys_s390.o ptrace.o signal.o cpcmd.o ebcdic.o nmi.o
-obj-y	+= debug.o irq.o ipl.o dis.o diag.o mem_detect.o sclp.o vdso.o
+obj-y	+= debug.o irq.o ipl.o dis.o diag.o sclp.o vdso.o
 obj-y	+= sysinfo.o jump_label.o lgr.o os_info.o machine_kexec.o pgm_check.o
 obj-y	+= dumpstack.o
 

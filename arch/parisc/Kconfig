@@ -13,6 +13,7 @@ config PARISC
 	select BUG
 	select HAVE_PERF_EVENTS
 	select GENERIC_ATOMIC64 if !64BIT
+	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 	select HAVE_GENERIC_HARDIRQS
 	select BROKEN_RODATA
 	select GENERIC_IRQ_PROBE
@@ -241,6 +242,14 @@ config SMP
 	  available at <http://www.tldp.org/docs.html#howto>.
 
 	  If you don't know what to do here, say N.
+
+config IRQSTACKS
+	bool "Use separate kernel stacks when processing interrupts"
+	default n
+	help
+	  If you say Y here the kernel will use separate kernel stacks
+	  for handling hard and soft interrupts.  This can help avoid
+	  overflowing the process kernel stacks.
 
 config HOTPLUG_CPU
 	bool

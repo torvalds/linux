@@ -9,91 +9,32 @@
 
 #include <linux/atomic.h>
 
-#define AIO_MAXSEGS		4
-#define AIO_KIOGRP_NR_ATOMIC	8
-
 struct kioctx;
+struct kiocb;
 
-/* Notes on cancelling a kiocb:
- *	If a kiocb is cancelled, aio_complete may return 0 to indicate 
- *	that cancel has not yet disposed of the kiocb.  All cancel 
- *	operations *must* call aio_put_req to dispose of the kiocb 
- *	to guard against races with the completion code.
- */
-#define KIOCB_C_CANCELLED	0x01
-#define KIOCB_C_COMPLETE	0x02
+#define KIOCB_KEY		0
 
-#define KIOCB_SYNC_KEY		(~0U)
-
-/* ki_flags bits */
 /*
- * This may be used for cancel/retry serialization in the future, but
- * for now it's unused and we probably don't want modules to even
- * think they can use it.
+ * We use ki_cancel == KIOCB_CANCELLED to indicate that a kiocb has been either
+ * cancelled or completed (this makes a certain amount of sense because
+ * successful cancellation - io_cancel() - does deliver the completion to
+ * userspace).
+ *
+ * And since most things don't implement kiocb cancellation and we'd really like
+ * kiocb completion to be lockless when possible, we use ki_cancel to
+ * synchronize cancellation and completion - we only set it to KIOCB_CANCELLED
+ * with xchg() or cmpxchg(), see batch_complete_aio() and kiocb_cancel().
  */
-/* #define KIF_LOCKED		0 */
-#define KIF_KICKED		1
-#define KIF_CANCELLED		2
+#define KIOCB_CANCELLED		((void *) (~0ULL))
 
-#define kiocbTryLock(iocb)	test_and_set_bit(KIF_LOCKED, &(iocb)->ki_flags)
-#define kiocbTryKick(iocb)	test_and_set_bit(KIF_KICKED, &(iocb)->ki_flags)
+typedef int (kiocb_cancel_fn)(struct kiocb *, struct io_event *);
 
-#define kiocbSetLocked(iocb)	set_bit(KIF_LOCKED, &(iocb)->ki_flags)
-#define kiocbSetKicked(iocb)	set_bit(KIF_KICKED, &(iocb)->ki_flags)
-#define kiocbSetCancelled(iocb)	set_bit(KIF_CANCELLED, &(iocb)->ki_flags)
-
-#define kiocbClearLocked(iocb)	clear_bit(KIF_LOCKED, &(iocb)->ki_flags)
-#define kiocbClearKicked(iocb)	clear_bit(KIF_KICKED, &(iocb)->ki_flags)
-#define kiocbClearCancelled(iocb)	clear_bit(KIF_CANCELLED, &(iocb)->ki_flags)
-
-#define kiocbIsLocked(iocb)	test_bit(KIF_LOCKED, &(iocb)->ki_flags)
-#define kiocbIsKicked(iocb)	test_bit(KIF_KICKED, &(iocb)->ki_flags)
-#define kiocbIsCancelled(iocb)	test_bit(KIF_CANCELLED, &(iocb)->ki_flags)
-
-/* is there a better place to document function pointer methods? */
-/**
- * ki_retry	-	iocb forward progress callback
- * @kiocb:	The kiocb struct to advance by performing an operation.
- *
- * This callback is called when the AIO core wants a given AIO operation
- * to make forward progress.  The kiocb argument describes the operation
- * that is to be performed.  As the operation proceeds, perhaps partially,
- * ki_retry is expected to update the kiocb with progress made.  Typically
- * ki_retry is set in the AIO core and it itself calls file_operations
- * helpers.
- *
- * ki_retry's return value determines when the AIO operation is completed
- * and an event is generated in the AIO event ring.  Except the special
- * return values described below, the value that is returned from ki_retry
- * is transferred directly into the completion ring as the operation's
- * resulting status.  Once this has happened ki_retry *MUST NOT* reference
- * the kiocb pointer again.
- *
- * If ki_retry returns -EIOCBQUEUED it has made a promise that aio_complete()
- * will be called on the kiocb pointer in the future.  The AIO core will
- * not ask the method again -- ki_retry must ensure forward progress.
- * aio_complete() must be called once and only once in the future, multiple
- * calls may result in undefined behaviour.
- *
- * If ki_retry returns -EIOCBRETRY it has made a promise that kick_iocb()
- * will be called on the kiocb pointer in the future.  This may happen
- * through generic helpers that associate kiocb->ki_wait with a wait
- * queue head that ki_retry uses via current->io_wait.  It can also happen
- * with custom tracking and manual calls to kick_iocb(), though that is
- * discouraged.  In either case, kick_iocb() must be called once and only
- * once.  ki_retry must ensure forward progress, the AIO core will wait
- * indefinitely for kick_iocb() to be called.
- */
 struct kiocb {
-	struct list_head	ki_run_list;
-	unsigned long		ki_flags;
-	int			ki_users;
-	unsigned		ki_key;		/* id of this request */
+	atomic_t		ki_users;
 
 	struct file		*ki_filp;
-	struct kioctx		*ki_ctx;	/* may be NULL for sync ops */
-	int			(*ki_cancel)(struct kiocb *, struct io_event *);
-	ssize_t			(*ki_retry)(struct kiocb *);
+	struct kioctx		*ki_ctx;	/* NULL for sync ops */
+	kiocb_cancel_fn		*ki_cancel;
 	void			(*ki_dtor)(struct kiocb *);
 
 	union {
@@ -117,7 +58,6 @@ struct kiocb {
 
 	struct list_head	ki_list;	/* the aio core uses this
 						 * for cancellation */
-	struct list_head	ki_batch;	/* batch allocation */
 
 	/*
 	 * If the aio_resfd field of the userspace iocb is not zero,
@@ -128,106 +68,40 @@ struct kiocb {
 
 static inline bool is_sync_kiocb(struct kiocb *kiocb)
 {
-	return kiocb->ki_key == KIOCB_SYNC_KEY;
+	return kiocb->ki_ctx == NULL;
 }
 
 static inline void init_sync_kiocb(struct kiocb *kiocb, struct file *filp)
 {
 	*kiocb = (struct kiocb) {
-			.ki_users = 1,
-			.ki_key = KIOCB_SYNC_KEY,
+			.ki_users = ATOMIC_INIT(1),
+			.ki_ctx = NULL,
 			.ki_filp = filp,
 			.ki_obj.tsk = current,
 		};
 }
 
-#define AIO_RING_MAGIC			0xa10a10a1
-#define AIO_RING_COMPAT_FEATURES	1
-#define AIO_RING_INCOMPAT_FEATURES	0
-struct aio_ring {
-	unsigned	id;	/* kernel internal index number */
-	unsigned	nr;	/* number of io_events */
-	unsigned	head;
-	unsigned	tail;
-
-	unsigned	magic;
-	unsigned	compat_features;
-	unsigned	incompat_features;
-	unsigned	header_length;	/* size of aio_ring */
-
-
-	struct io_event		io_events[0];
-}; /* 128 bytes + ring size */
-
-#define AIO_RING_PAGES	8
-struct aio_ring_info {
-	unsigned long		mmap_base;
-	unsigned long		mmap_size;
-
-	struct page		**ring_pages;
-	spinlock_t		ring_lock;
-	long			nr_pages;
-
-	unsigned		nr, tail;
-
-	struct page		*internal_pages[AIO_RING_PAGES];
-};
-
-static inline unsigned aio_ring_avail(struct aio_ring_info *info,
-					struct aio_ring *ring)
-{
-	return (ring->head + info->nr - 1 - ring->tail) % info->nr;
-}
-
-struct kioctx {
-	atomic_t		users;
-	int			dead;
-	struct mm_struct	*mm;
-
-	/* This needs improving */
-	unsigned long		user_id;
-	struct hlist_node	list;
-
-	wait_queue_head_t	wait;
-
-	spinlock_t		ctx_lock;
-
-	int			reqs_active;
-	struct list_head	active_reqs;	/* used for cancellation */
-	struct list_head	run_list;	/* used for kicked reqs */
-
-	/* sys_io_setup currently limits this to an unsigned int */
-	unsigned		max_reqs;
-
-	struct aio_ring_info	ring_info;
-
-	struct delayed_work	wq;
-
-	struct rcu_head		rcu_head;
-};
-
 /* prototypes */
-extern unsigned aio_max_size;
-
 #ifdef CONFIG_AIO
 extern ssize_t wait_on_sync_kiocb(struct kiocb *iocb);
-extern int aio_put_req(struct kiocb *iocb);
-extern void kick_iocb(struct kiocb *iocb);
-extern int aio_complete(struct kiocb *iocb, long res, long res2);
+extern void aio_put_req(struct kiocb *iocb);
+extern void aio_complete(struct kiocb *iocb, long res, long res2);
 struct mm_struct;
 extern void exit_aio(struct mm_struct *mm);
 extern long do_io_submit(aio_context_t ctx_id, long nr,
 			 struct iocb __user *__user *iocbpp, bool compat);
+void kiocb_set_cancel_fn(struct kiocb *req, kiocb_cancel_fn *cancel);
 #else
 static inline ssize_t wait_on_sync_kiocb(struct kiocb *iocb) { return 0; }
-static inline int aio_put_req(struct kiocb *iocb) { return 0; }
-static inline void kick_iocb(struct kiocb *iocb) { }
-static inline int aio_complete(struct kiocb *iocb, long res, long res2) { return 0; }
+static inline void aio_put_req(struct kiocb *iocb) { }
+static inline void aio_complete(struct kiocb *iocb, long res, long res2) { }
 struct mm_struct;
 static inline void exit_aio(struct mm_struct *mm) { }
 static inline long do_io_submit(aio_context_t ctx_id, long nr,
 				struct iocb __user * __user *iocbpp,
 				bool compat) { return 0; }
+static inline void kiocb_set_cancel_fn(struct kiocb *req,
+				       kiocb_cancel_fn *cancel) { }
 #endif /* CONFIG_AIO */
 
 static inline struct kiocb *list_kiocb(struct list_head *h)

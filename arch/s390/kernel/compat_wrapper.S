@@ -793,10 +793,6 @@ ENTRY(sys32_stime_wrapper)
 	llgtr	%r2,%r2			# long *
 	jg	compat_sys_stime	# branch to system call
 
-ENTRY(sys32_sysctl_wrapper)
-	llgtr	%r2,%r2 		# struct compat_sysctl_args *
-	jg	compat_sys_sysctl
-
 ENTRY(sys32_fstat64_wrapper)
 	llgfr	%r2,%r2			# unsigned long
 	llgtr	%r3,%r3			# struct stat64 *
@@ -1348,15 +1344,6 @@ ENTRY(sys_fanotify_init_wrapper)
 	llgfr	%r2,%r2			# unsigned int
 	llgfr	%r3,%r3			# unsigned int
 	jg	sys_fanotify_init	# branch to system call
-
-ENTRY(sys_fanotify_mark_wrapper)
-	lgfr	%r2,%r2			# int
-	llgfr	%r3,%r3			# unsigned int
-	sllg	%r4,%r4,32		# get high word of 64bit mask
-	lr	%r4,%r5			# get low word of 64bit mask
-	llgfr	%r5,%r6			# unsigned int
-	llgt	%r6,164(%r15)		# char *
-	jg	sys_fanotify_mark	# branch to system call
 
 ENTRY(sys_prlimit64_wrapper)
 	lgfr	%r2,%r2			# pid_t

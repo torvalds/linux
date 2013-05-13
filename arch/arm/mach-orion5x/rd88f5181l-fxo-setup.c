@@ -123,8 +123,8 @@ static void __init rd88f5181l_fxo_init(void)
 	orion5x_eth_switch_init(&rd88f5181l_fxo_switch_plat_data, NO_IRQ);
 	orion5x_uart0_init();
 
-	orion5x_setup_dev_boot_win(RD88F5181L_FXO_NOR_BOOT_BASE,
-				   RD88F5181L_FXO_NOR_BOOT_SIZE);
+	mvebu_mbus_add_window("devbus-boot", RD88F5181L_FXO_NOR_BOOT_BASE,
+			      RD88F5181L_FXO_NOR_BOOT_SIZE);
 	platform_device_register(&rd88f5181l_fxo_nor_boot_flash);
 }
 

@@ -912,8 +912,10 @@ static int efx_ptp_probe_channel(struct efx_channel *channel)
 
 	ptp->phc_clock = ptp_clock_register(&ptp->phc_clock_info,
 					    &efx->pci_dev->dev);
-	if (!ptp->phc_clock)
+	if (IS_ERR(ptp->phc_clock)) {
+		rc = PTR_ERR(ptp->phc_clock);
 		goto fail3;
+	}
 
 	INIT_WORK(&ptp->pps_work, efx_ptp_pps_worker);
 	ptp->pps_workwq = create_singlethread_workqueue("sfc_pps");

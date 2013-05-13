@@ -121,6 +121,18 @@
 			interrupts = <0>;
 		};
 
+		timer@101e2000 {
+			compatible = "arm,sp804", "arm,primecell";
+			reg = <0x101e2000 0x1000>;
+			interrupts = <4>;
+		};
+
+		timer@101e3000 {
+			compatible = "arm,sp804", "arm,primecell";
+			reg = <0x101e3000 0x1000>;
+			interrupts = <5>;
+		};
+
 		gpio0: gpio@101e4000 {
 			compatible = "arm,pl061", "arm,primecell";
 			reg = <0x101e4000 0x1000>;

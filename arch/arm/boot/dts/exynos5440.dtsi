@@ -26,7 +26,11 @@
 		compatible = "arm,cortex-a15-gic";
 		#interrupt-cells = <3>;
 		interrupt-controller;
-		reg = <0x2E1000 0x1000>, <0x2E2000 0x1000>;
+		reg =	<0x2E1000 0x1000>,
+			<0x2E2000 0x1000>,
+			<0x2E4000 0x2000>,
+			<0x2E6000 0x2000>;
+		interrupts = <1 9 0xf04>;
 	};
 
 	cpus {
@@ -51,6 +55,14 @@
 		};
 	};
 
+	arm-pmu {
+		compatible = "arm,cortex-a15-pmu", "arm,cortex-a9-pmu";
+		interrupts = <0 52 4>,
+			     <0 53 4>,
+			     <0 54 4>,
+			     <0 55 4>;
+	};
+
 	timer {
 		compatible = "arm,cortex-a15-timer",
 			     "arm,armv7-timer";
@@ -59,6 +71,18 @@
 			     <1 11 0xf08>,
 			     <1 10 0xf08>;
 		clock-frequency = <50000000>;
+	};
+
+	cpufreq@160000 {
+		compatible = "samsung,exynos5440-cpufreq";
+		reg = <0x160000 0x1000>;
+		interrupts = <0 57 0>;
+		operating-points = <
+				/* KHz	  uV */
+				1200000 1025000
+				1000000 975000
+				800000  925000
+		>;
 	};
 
 	serial@B0000 {
@@ -92,6 +116,8 @@
 	pinctrl {
 		compatible = "samsung,exynos5440-pinctrl";
 		reg = <0xE0000 0x1000>;
+		interrupts = <0 37 0>, <0 38 0>, <0 39 0>, <0 40 0>,
+			     <0 41 0>, <0 42 0>, <0 43 0>, <0 44 0>;
 		interrupt-controller;
 		#interrupt-cells = <2>;
 		#gpio-cells = <2>;
@@ -141,6 +167,17 @@
 		clock-names = "watchdog";
 	};
 
+	gmac: ethernet@00230000 {
+		compatible = "snps,dwmac-3.70a";
+		reg = <0x00230000 0x8000>;
+		interrupt-parent = <&gic>;
+		interrupts = <0 31 4>;
+		interrupt-names = "macirq";
+		phy-mode = "sgmii";
+		clocks = <&clock 25>;
+		clock-names = "stmmaceth";
+	};
+
 	amba {
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -148,22 +185,22 @@
 		interrupt-parent = <&gic>;
 		ranges;
 
-		pdma0: pdma@121A0000 {
+		pdma0: pdma@00121000 {
 			compatible = "arm,pl330", "arm,primecell";
-			reg = <0x120000 0x1000>;
-			interrupts = <0 34 0>;
-			clocks = <&clock 21>;
+			reg = <0x121000 0x1000>;
+			interrupts = <0 46 0>;
+			clocks = <&clock 8>;
 			clock-names = "apb_pclk";
 			#dma-cells = <1>;
 			#dma-channels = <8>;
 			#dma-requests = <32>;
 		};
 
-		pdma1: pdma@121B0000 {
+		pdma1: pdma@00120000 {
 			compatible = "arm,pl330", "arm,primecell";
-			reg = <0x121000 0x1000>;
-			interrupts = <0 35 0>;
-			clocks = <&clock 21>;
+			reg = <0x120000 0x1000>;
+			interrupts = <0 47 0>;
+			clocks = <&clock 8>;
 			clock-names = "apb_pclk";
 			#dma-cells = <1>;
 			#dma-channels = <8>;

@@ -22,4 +22,14 @@
 
 #define BASE_BAUD	(arc_get_core_freq() / 16)
 
+/*
+ * This is definitely going to break early 8250 consoles on multi-platform
+ * images but hey, it won't add any code complexity for a debug feature of
+ * one broken driver.
+ */
+#ifdef CONFIG_ARC_PLAT_TB10X
+#undef BASE_BAUD
+#define BASE_BAUD	(arc_get_core_freq() / 16 / 3)
+#endif
+
 #endif /* _ASM_ARC_SERIAL_H */

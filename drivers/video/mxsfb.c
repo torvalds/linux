@@ -42,13 +42,15 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/of_device.h>
-#include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
 #include <linux/pinctrl/consumer.h>
-#include <linux/mxsfb.h>
+#include <linux/fb.h>
+#include <linux/regulator/consumer.h>
+#include <video/of_display_timing.h>
+#include <video/videomode.h>
 
 #define REG_SET	4
 #define REG_CLR	8
@@ -107,7 +109,7 @@
 #define VDCTRL0_ENABLE_PRESENT		(1 << 28)
 #define VDCTRL0_VSYNC_ACT_HIGH		(1 << 27)
 #define VDCTRL0_HSYNC_ACT_HIGH		(1 << 26)
-#define VDCTRL0_DOTCLK_ACT_FAILING	(1 << 25)
+#define VDCTRL0_DOTCLK_ACT_FALLING	(1 << 25)
 #define VDCTRL0_ENABLE_ACT_HIGH		(1 << 24)
 #define VDCTRL0_VSYNC_PERIOD_UNIT	(1 << 21)
 #define VDCTRL0_VSYNC_PULSE_WIDTH_UNIT	(1 << 20)
@@ -142,6 +144,14 @@
 #define BLUE 2
 #define TRANSP 3
 
+#define STMLCDIF_8BIT  1 /** pixel data bus to the display is of 8 bit width */
+#define STMLCDIF_16BIT 0 /** pixel data bus to the display is of 16 bit width */
+#define STMLCDIF_18BIT 2 /** pixel data bus to the display is of 18 bit width */
+#define STMLCDIF_24BIT 3 /** pixel data bus to the display is of 24 bit width */
+
+#define MXSFB_SYNC_DATA_ENABLE_HIGH_ACT	(1 << 6)
+#define MXSFB_SYNC_DOTCLK_FALLING_ACT	(1 << 7) /* negtive edge sampling */
+
 enum mxsfb_devtype {
 	MXSFB_V3,
 	MXSFB_V4,
@@ -168,8 +178,8 @@ struct mxsfb_info {
 	unsigned ld_intf_width;
 	unsigned dotclk_delay;
 	const struct mxsfb_devdata *devdata;
-	int mapped;
 	u32 sync;
+	struct regulator *reg_lcd;
 };
 
 #define mxsfb_is_v3(host) (host->devdata->ipversion == 3)
@@ -329,8 +339,18 @@ static void mxsfb_enable_controller(struct fb_info *fb_info)
 {
 	struct mxsfb_info *host = to_imxfb_host(fb_info);
 	u32 reg;
+	int ret;
 
 	dev_dbg(&host->pdev->dev, "%s\n", __func__);
+
+	if (host->reg_lcd) {
+		ret = regulator_enable(host->reg_lcd);
+		if (ret) {
+			dev_err(&host->pdev->dev,
+				"lcd regulator enable failed:	%d\n", ret);
+			return;
+		}
+	}
 
 	clk_prepare_enable(host->clk);
 	clk_set_rate(host->clk, PICOS2KHZ(fb_info->var.pixclock) * 1000U);
@@ -353,6 +373,7 @@ static void mxsfb_disable_controller(struct fb_info *fb_info)
 	struct mxsfb_info *host = to_imxfb_host(fb_info);
 	unsigned loop;
 	u32 reg;
+	int ret;
 
 	dev_dbg(&host->pdev->dev, "%s\n", __func__);
 
@@ -376,6 +397,13 @@ static void mxsfb_disable_controller(struct fb_info *fb_info)
 	clk_disable_unprepare(host->clk);
 
 	host->enabled = 0;
+
+	if (host->reg_lcd) {
+		ret = regulator_disable(host->reg_lcd);
+		if (ret)
+			dev_err(&host->pdev->dev,
+				"lcd regulator disable failed: %d\n", ret);
+	}
 }
 
 static int mxsfb_set_par(struct fb_info *fb_info)
@@ -459,8 +487,8 @@ static int mxsfb_set_par(struct fb_info *fb_info)
 		vdctrl0 |= VDCTRL0_VSYNC_ACT_HIGH;
 	if (host->sync & MXSFB_SYNC_DATA_ENABLE_HIGH_ACT)
 		vdctrl0 |= VDCTRL0_ENABLE_ACT_HIGH;
-	if (host->sync & MXSFB_SYNC_DOTCLK_FAILING_ACT)
-		vdctrl0 |= VDCTRL0_DOTCLK_ACT_FAILING;
+	if (host->sync & MXSFB_SYNC_DOTCLK_FALLING_ACT)
+		vdctrl0 |= VDCTRL0_DOTCLK_ACT_FALLING;
 
 	writel(vdctrl0, host->base + LCDC_VDCTRL0);
 
@@ -679,14 +707,105 @@ static int mxsfb_restore_mode(struct mxsfb_info *host)
 	return 0;
 }
 
+static int mxsfb_init_fbinfo_dt(struct mxsfb_info *host)
+{
+	struct fb_info *fb_info = &host->fb_info;
+	struct fb_var_screeninfo *var = &fb_info->var;
+	struct device *dev = &host->pdev->dev;
+	struct device_node *np = host->pdev->dev.of_node;
+	struct device_node *display_np;
+	struct device_node *timings_np;
+	struct display_timings *timings;
+	u32 width;
+	int i;
+	int ret = 0;
+
+	display_np = of_parse_phandle(np, "display", 0);
+	if (!display_np) {
+		dev_err(dev, "failed to find display phandle\n");
+		return -ENOENT;
+	}
+
+	ret = of_property_read_u32(display_np, "bus-width", &width);
+	if (ret < 0) {
+		dev_err(dev, "failed to get property bus-width\n");
+		goto put_display_node;
+	}
+
+	switch (width) {
+	case 8:
+		host->ld_intf_width = STMLCDIF_8BIT;
+		break;
+	case 16:
+		host->ld_intf_width = STMLCDIF_16BIT;
+		break;
+	case 18:
+		host->ld_intf_width = STMLCDIF_18BIT;
+		break;
+	case 24:
+		host->ld_intf_width = STMLCDIF_24BIT;
+		break;
+	default:
+		dev_err(dev, "invalid bus-width value\n");
+		ret = -EINVAL;
+		goto put_display_node;
+	}
+
+	ret = of_property_read_u32(display_np, "bits-per-pixel",
+				   &var->bits_per_pixel);
+	if (ret < 0) {
+		dev_err(dev, "failed to get property bits-per-pixel\n");
+		goto put_display_node;
+	}
+
+	timings = of_get_display_timings(display_np);
+	if (!timings) {
+		dev_err(dev, "failed to get display timings\n");
+		ret = -ENOENT;
+		goto put_display_node;
+	}
+
+	timings_np = of_find_node_by_name(display_np,
+					  "display-timings");
+	if (!timings_np) {
+		dev_err(dev, "failed to find display-timings node\n");
+		ret = -ENOENT;
+		goto put_display_node;
+	}
+
+	for (i = 0; i < of_get_child_count(timings_np); i++) {
+		struct videomode vm;
+		struct fb_videomode fb_vm;
+
+		ret = videomode_from_timings(timings, &vm, i);
+		if (ret < 0)
+			goto put_timings_node;
+		ret = fb_videomode_from_videomode(&vm, &fb_vm);
+		if (ret < 0)
+			goto put_timings_node;
+
+		if (vm.flags & DISPLAY_FLAGS_DE_HIGH)
+			host->sync |= MXSFB_SYNC_DATA_ENABLE_HIGH_ACT;
+		if (vm.flags & DISPLAY_FLAGS_PIXDATA_NEGEDGE)
+			host->sync |= MXSFB_SYNC_DOTCLK_FALLING_ACT;
+		fb_add_videomode(&fb_vm, &fb_info->modelist);
+	}
+
+put_timings_node:
+	of_node_put(timings_np);
+put_display_node:
+	of_node_put(display_np);
+	return ret;
+}
+
 static int mxsfb_init_fbinfo(struct mxsfb_info *host)
 {
 	struct fb_info *fb_info = &host->fb_info;
 	struct fb_var_screeninfo *var = &fb_info->var;
-	struct mxsfb_platform_data *pdata = host->pdev->dev.platform_data;
 	dma_addr_t fb_phys;
 	void *fb_virt;
-	unsigned fb_size = pdata->fb_size;
+	unsigned fb_size;
+	int ret;
 
 	fb_info->fbops = &mxsfb_ops;
 	fb_info->flags = FBINFO_FLAG_DEFAULT | FBINFO_READS_FAST;
@@ -696,40 +815,22 @@ static int mxsfb_init_fbinfo(struct mxsfb_info *host)
 	fb_info->fix.visual = FB_VISUAL_TRUECOLOR,
 	fb_info->fix.accel = FB_ACCEL_NONE;
 
-	var->bits_per_pixel = pdata->default_bpp ? pdata->default_bpp : 16;
+	ret = mxsfb_init_fbinfo_dt(host);
+	if (ret)
+		return ret;
+
 	var->nonstd = 0;
 	var->activate = FB_ACTIVATE_NOW;
 	var->accel_flags = 0;
 	var->vmode = FB_VMODE_NONINTERLACED;
 
-	host->dotclk_delay = pdata->dotclk_delay;
-	host->ld_intf_width = pdata->ld_intf_width;
-
 	/* Memory allocation for framebuffer */
-	if (pdata->fb_phys) {
-		if (!fb_size)
-			return -EINVAL;
+	fb_size = SZ_2M;
+	fb_virt = alloc_pages_exact(fb_size, GFP_DMA);
+	if (!fb_virt)
+		return -ENOMEM;
 
-		fb_phys = pdata->fb_phys;
-
-		if (!request_mem_region(fb_phys, fb_size, host->pdev->name))
-			return -ENOMEM;
-
-		fb_virt = ioremap(fb_phys, fb_size);
-		if (!fb_virt) {
-			release_mem_region(fb_phys, fb_size);
-			return -ENOMEM;
-		}
-		host->mapped = 1;
-	} else {
-		if (!fb_size)
-			fb_size = SZ_2M; /* default */
-		fb_virt = alloc_pages_exact(fb_size, GFP_DMA);
-		if (!fb_virt)
-			return -ENOMEM;
-
-		fb_phys = virt_to_phys(fb_virt);
-	}
+	fb_phys = virt_to_phys(fb_virt);
 
 	fb_info->fix.smem_start = fb_phys;
 	fb_info->screen_base = fb_virt;
@@ -745,13 +846,7 @@ static void mxsfb_free_videomem(struct mxsfb_info *host)
 {
 	struct fb_info *fb_info = &host->fb_info;
 
-	if (host->mapped) {
-		iounmap(fb_info->screen_base);
-		release_mem_region(fb_info->fix.smem_start,
-				fb_info->screen_size);
-	} else {
-		free_pages_exact(fb_info->screen_base, fb_info->fix.smem_len);
-	}
+	free_pages_exact(fb_info->screen_base, fb_info->fix.smem_len);
 }
 
 static struct platform_device_id mxsfb_devtype[] = {
@@ -778,23 +873,15 @@ static int mxsfb_probe(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id =
 			of_match_device(mxsfb_dt_ids, &pdev->dev);
-	struct mxsfb_platform_data *pdata = pdev->dev.platform_data;
 	struct resource *res;
 	struct mxsfb_info *host;
 	struct fb_info *fb_info;
 	struct fb_modelist *modelist;
 	struct pinctrl *pinctrl;
-	int panel_enable;
-	enum of_gpio_flags flags;
-	int i, ret;
+	int ret;
 
 	if (of_id)
 		pdev->id_entry = of_id->data;
-
-	if (!pdata) {
-		dev_err(&pdev->dev, "No platformdata. Giving up\n");
-		return -ENODEV;
-	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -802,23 +889,19 @@ static int mxsfb_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	if (!request_mem_region(res->start, resource_size(res), pdev->name))
-		return -EBUSY;
-
 	fb_info = framebuffer_alloc(sizeof(struct mxsfb_info), &pdev->dev);
 	if (!fb_info) {
 		dev_err(&pdev->dev, "Failed to allocate fbdev\n");
-		ret = -ENOMEM;
-		goto error_alloc_info;
+		return -ENOMEM;
 	}
 
 	host = to_imxfb_host(fb_info);
 
-	host->base = ioremap(res->start, resource_size(res));
-	if (!host->base) {
+	host->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(host->base)) {
 		dev_err(&pdev->dev, "ioremap failed\n");
-		ret = -ENOMEM;
-		goto error_ioremap;
+		ret = PTR_ERR(host->base);
+		goto fb_release;
 	}
 
 	host->pdev = pdev;
@@ -829,47 +912,31 @@ static int mxsfb_probe(struct platform_device *pdev)
 	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
 	if (IS_ERR(pinctrl)) {
 		ret = PTR_ERR(pinctrl);
-		goto error_getpin;
+		goto fb_release;
 	}
 
-	host->clk = clk_get(&host->pdev->dev, NULL);
+	host->clk = devm_clk_get(&host->pdev->dev, NULL);
 	if (IS_ERR(host->clk)) {
 		ret = PTR_ERR(host->clk);
-		goto error_getclock;
+		goto fb_release;
 	}
 
-	panel_enable = of_get_named_gpio_flags(pdev->dev.of_node,
-					       "panel-enable-gpios", 0, &flags);
-	if (gpio_is_valid(panel_enable)) {
-		unsigned long f = GPIOF_OUT_INIT_HIGH;
-		if (flags == OF_GPIO_ACTIVE_LOW)
-			f = GPIOF_OUT_INIT_LOW;
-		ret = devm_gpio_request_one(&pdev->dev, panel_enable,
-					    f, "panel-enable");
-		if (ret) {
-			dev_err(&pdev->dev,
-				"failed to request gpio %d: %d\n",
-				panel_enable, ret);
-			goto error_panel_enable;
-		}
-	}
+	host->reg_lcd = devm_regulator_get(&pdev->dev, "lcd");
+	if (IS_ERR(host->reg_lcd))
+		host->reg_lcd = NULL;
 
-	fb_info->pseudo_palette = kmalloc(sizeof(u32) * 16, GFP_KERNEL);
+	fb_info->pseudo_palette = devm_kzalloc(&pdev->dev, sizeof(u32) * 16,
+					       GFP_KERNEL);
 	if (!fb_info->pseudo_palette) {
 		ret = -ENOMEM;
-		goto error_pseudo_pallette;
+		goto fb_release;
 	}
 
 	INIT_LIST_HEAD(&fb_info->modelist);
 
-	host->sync = pdata->sync;
-
 	ret = mxsfb_init_fbinfo(host);
 	if (ret != 0)
-		goto error_init_fb;
-
-	for (i = 0; i < pdata->mode_count; i++)
-		fb_add_videomode(&pdata->mode_list[i], &fb_info->modelist);
+		goto fb_release;
 
 	modelist = list_first_entry(&fb_info->modelist,
 			struct fb_modelist, list);
@@ -883,7 +950,7 @@ static int mxsfb_probe(struct platform_device *pdev)
 	ret = register_framebuffer(fb_info);
 	if (ret != 0) {
 		dev_err(&pdev->dev,"Failed to register framebuffer\n");
-		goto error_register;
+		goto fb_destroy;
 	}
 
 	if (!host->enabled) {
@@ -896,22 +963,12 @@ static int mxsfb_probe(struct platform_device *pdev)
 
 	return 0;
 
-error_register:
+fb_destroy:
 	if (host->enabled)
 		clk_disable_unprepare(host->clk);
 	fb_destroy_modelist(&fb_info->modelist);
-error_init_fb:
-	kfree(fb_info->pseudo_palette);
-error_pseudo_pallette:
-error_panel_enable:
-	clk_put(host->clk);
-error_getclock:
-error_getpin:
-	iounmap(host->base);
-error_ioremap:
+fb_release:
 	framebuffer_release(fb_info);
-error_alloc_info:
-	release_mem_region(res->start, resource_size(res));
 
 	return ret;
 }
@@ -920,19 +977,14 @@ static int mxsfb_remove(struct platform_device *pdev)
 {
 	struct fb_info *fb_info = platform_get_drvdata(pdev);
 	struct mxsfb_info *host = to_imxfb_host(fb_info);
-	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
 	if (host->enabled)
 		mxsfb_disable_controller(fb_info);
 
 	unregister_framebuffer(fb_info);
-	kfree(fb_info->pseudo_palette);
 	mxsfb_free_videomem(host);
-	iounmap(host->base);
-	clk_put(host->clk);
 
 	framebuffer_release(fb_info);
-	release_mem_region(res->start, resource_size(res));
 
 	platform_set_drvdata(pdev, NULL);
 

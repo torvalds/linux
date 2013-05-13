@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
+#include <linux/compat.h>
 
 #include <asm/ioctls.h>
 
@@ -856,6 +857,22 @@ fput_and_out:
 	fdput(f);
 	return ret;
 }
+
+#ifdef CONFIG_COMPAT
+COMPAT_SYSCALL_DEFINE6(fanotify_mark,
+				int, fanotify_fd, unsigned int, flags,
+				__u32, mask0, __u32, mask1, int, dfd,
+				const char  __user *, pathname)
+{
+	return sys_fanotify_mark(fanotify_fd, flags,
+#ifdef __BIG_ENDIAN
+				((__u64)mask1 << 32) | mask0,
+#else
+				((__u64)mask0 << 32) | mask1,
+#endif
+				 dfd, pathname);
+}
+#endif
 
 /*
  * fanotify_user_setup - Our initialization function.  Note that we cannot return

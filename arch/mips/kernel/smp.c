@@ -83,6 +83,7 @@ static inline void set_cpu_sibling_map(int cpu)
 }
 
 struct plat_smp_ops *mp_ops;
+EXPORT_SYMBOL(mp_ops);
 
 __cpuinit void register_smp_ops(struct plat_smp_ops *ops)
 {

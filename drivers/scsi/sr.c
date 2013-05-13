@@ -541,14 +541,13 @@ static int sr_block_open(struct block_device *bdev, fmode_t mode)
 	return ret;
 }
 
-static int sr_block_release(struct gendisk *disk, fmode_t mode)
+static void sr_block_release(struct gendisk *disk, fmode_t mode)
 {
 	struct scsi_cd *cd = scsi_cd(disk);
 	mutex_lock(&sr_mutex);
 	cdrom_release(&cd->cdi, mode);
 	scsi_cd_put(cd);
 	mutex_unlock(&sr_mutex);
-	return 0;
 }
 
 static int sr_block_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,

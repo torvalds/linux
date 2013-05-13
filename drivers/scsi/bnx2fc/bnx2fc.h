@@ -2,7 +2,7 @@
 #define _BNX2FC_H_
 /* bnx2fc.h: Broadcom NetXtreme II Linux FCoE offload driver.
  *
- * Copyright (c) 2008 - 2011 Broadcom Corporation
+ * Copyright (c) 2008 - 2013 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -64,9 +64,11 @@
 #include "bnx2fc_constants.h"
 
 #define BNX2FC_NAME		"bnx2fc"
-#define BNX2FC_VERSION		"1.0.13"
+#define BNX2FC_VERSION		"1.0.14"
 
 #define PFX			"bnx2fc: "
+
+#define BCM_CHIP_LEN		16
 
 #define BNX2X_DOORBELL_PCI_BAR		2
 
@@ -241,6 +243,8 @@ struct bnx2fc_hba {
 	int wait_for_link_down;
 	int num_ofld_sess;
 	struct list_head vports;
+
+	char chip_num[BCM_CHIP_LEN];
 };
 
 struct bnx2fc_interface {

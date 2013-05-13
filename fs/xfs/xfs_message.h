@@ -57,6 +57,7 @@ do {									\
 	xfs_printk_ratelimited(xfs_debug, dev, fmt, ##__VA_ARGS__)
 
 extern void assfail(char *expr, char *f, int l);
+extern void asswarn(char *expr, char *f, int l);
 
 extern void xfs_hex_dump(void *p, int length);
 
