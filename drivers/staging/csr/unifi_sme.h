@@ -210,9 +210,9 @@ int sme_mgt_mib_get(unifi_priv_t *priv,
 int sme_mgt_mib_set(unifi_priv_t *priv,
                     unsigned char *varbind, int length);
 #ifdef CSR_SUPPORT_WEXT_AP
-int sme_ap_start(unifi_priv_t *priv,u16 interface_tag,CsrWifiSmeApConfig_t *ap_config);
-int sme_ap_stop(unifi_priv_t *priv,u16 interface_tag);
-int sme_ap_config(unifi_priv_t *priv,CsrWifiSmeApMacConfig *ap_mac_config, CsrWifiNmeApConfig *group_security_config);
+int sme_ap_start(unifi_priv_t *priv, u16 interface_tag, CsrWifiSmeApConfig_t *ap_config);
+int sme_ap_stop(unifi_priv_t *priv, u16 interface_tag);
+int sme_ap_config(unifi_priv_t *priv, CsrWifiSmeApMacConfig *ap_mac_config, CsrWifiNmeApConfig *group_security_config);
 int uf_configure_supported_rates(u8 * supportedRates, u8 phySupportedBitmap);
 #endif
 int unifi_translate_scan(struct net_device *dev,
@@ -234,7 +234,7 @@ int unifi_cfg_get_info(unifi_priv_t *priv, unsigned char *arg);
 int unifi_cfg_strict_draft_n(unifi_priv_t *priv, unsigned char *arg);
 int unifi_cfg_enable_okc(unifi_priv_t *priv, unsigned char *arg);
 #ifdef CSR_SUPPORT_WEXT_AP
-int unifi_cfg_set_ap_config(unifi_priv_t * priv,unsigned char* arg);
+int unifi_cfg_set_ap_config(unifi_priv_t * priv, unsigned char* arg);
 #endif
 
 
