@@ -782,6 +782,11 @@ again:
 				 dev->nodename);
 		goto abort;
 	}
+	err = xenbus_printf(xbt, dev->nodename, "physical-sector-size", "%u",
+			    bdev_physical_block_size(be->blkif->vbd.bdev));
+	if (err)
+		xenbus_dev_error(dev, err, "writing %s/physical-sector-size",
+				 dev->nodename);
 
 	err = xenbus_transaction_end(xbt, 0);
 	if (err == -EAGAIN)
