@@ -54,14 +54,12 @@ XGINew_GetXG20DRAMType(struct xgi_hw_device_info *HwDeviceExtension,
 		udelay(800);
 		xgifb_reg_or(pVBInfo->P3d4, 0x4A, 0x80); /* Enable GPIOH read */
 		/* GPIOF 0:DVI 1:DVO */
-		temp = xgifb_reg_get(pVBInfo->P3d4, 0x48);
+		data = xgifb_reg_get(pVBInfo->P3d4, 0x48);
 		/* HOTPLUG_SUPPORT */
 		/* for current XG20 & XG21, GPIOH is floating, driver will
 		 * fix DDR temporarily */
-		if (temp & 0x01) /* DVI read GPIOH */
-			data = 1; /* DDRII */
-		else
-			data = 0; /* DDR */
+		/* DVI read GPIOH */
+		data &= 0x01; /* 1=DDRII, 0=DDR */
 		/* ~HOTPLUG_SUPPORT */
 		xgifb_reg_or(pVBInfo->P3d4, 0xB4, 0x02);
 		return data;
