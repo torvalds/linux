@@ -924,11 +924,11 @@ static int iwl_trans_pcie_read_mem(struct iwl_trans *trans, u32 addr,
 }
 
 static int iwl_trans_pcie_write_mem(struct iwl_trans *trans, u32 addr,
-				    void *buf, int dwords)
+				    const void *buf, int dwords)
 {
 	unsigned long flags;
 	int offs, ret = 0;
-	u32 *vals = buf;
+	const u32 *vals = buf;
 
 	if (iwl_trans_grab_nic_access(trans, false, &flags)) {
 		iwl_write32(trans, HBUS_TARG_MEM_WADDR, addr);
