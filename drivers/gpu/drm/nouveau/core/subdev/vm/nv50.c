@@ -151,31 +151,37 @@ nv50_vm_unmap(struct nouveau_gpuobj *pgt, u32 pte, u32 cnt)
 static void
 nv50_vm_flush(struct nouveau_vm *vm)
 {
+	struct nv50_vmmgr_priv *priv = (void *)vm->vmm;
 	struct nouveau_engine *engine;
-	int i;
-
-	for (i = 0; i < NVDEV_SUBDEV_NR; i++) {
-		if (atomic_read(&vm->engref[i]) && i == NVDEV_SUBDEV_BAR) {
-			nv50_vm_flush_engine(nv_subdev(vm->vmm), 6);
-		} else
-		if (atomic_read(&vm->engref[i])) {
-			engine = nouveau_engine(vm->vmm, i);
-			if (engine && engine->tlb_flush)
-				engine->tlb_flush(engine);
-		}
-	}
-}
-
-void
-nv50_vm_flush_engine(struct nouveau_subdev *subdev, int engine)
-{
-	struct nv50_vmmgr_priv *priv = (void *)nouveau_vmmgr(subdev);
 	unsigned long flags;
+	int i, vme;
 
 	spin_lock_irqsave(&priv->lock, flags);
-	nv_wr32(subdev, 0x100c80, (engine << 16) | 1);
-	if (!nv_wait(subdev, 0x100c80, 0x00000001, 0x00000000))
-		nv_error(subdev, "vm flush timeout: engine %d\n", engine);
+	for (i = 0; i < NVDEV_SUBDEV_NR; i++) {
+		if (!atomic_read(&vm->engref[i]))
+			continue;
+
+		/* unfortunate hw bug workaround... */
+		engine = nouveau_engine(priv, i);
+		if (engine && engine->tlb_flush) {
+			engine->tlb_flush(engine);
+			continue;
+		}
+
+		switch (i) {
+		case NVDEV_ENGINE_GR   : vme = 0x00; break;
+		case NVDEV_SUBDEV_BAR  : vme = 0x06; break;
+		case NVDEV_ENGINE_MPEG : vme = 0x08; break;
+		case NVDEV_ENGINE_CRYPT: vme = 0x0a; break;
+		case NVDEV_ENGINE_COPY0: vme = 0x0d; break;
+		default:
+			continue;
+		}
+
+		nv_wr32(priv, 0x100c80, (vme << 16) | 1);
+		if (!nv_wait(priv, 0x100c80, 0x00000001, 0x00000000))
+			nv_error(priv, "vm flush timeout: engine %d\n", vme);
+	}
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
 

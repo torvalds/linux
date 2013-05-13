@@ -117,7 +117,6 @@ int  nv04_vm_create(struct nouveau_vmmgr *, u64, u64, u64,
 		    struct nouveau_vm **);
 void nv04_vmmgr_dtor(struct nouveau_object *);
 
-void nv50_vm_flush_engine(struct nouveau_subdev *, int engine);
 void nvc0_vm_flush_engine(struct nouveau_subdev *, u64 addr, int type);
 
 /* nouveau_vm.c */

@@ -119,13 +119,6 @@ nv98_crypt_intr(struct nouveau_subdev *subdev)
 }
 
 static int
-nv98_crypt_tlb_flush(struct nouveau_engine *engine)
-{
-	nv50_vm_flush_engine(&engine->base, 0x0a);
-	return 0;
-}
-
-static int
 nv98_crypt_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	       struct nouveau_oclass *oclass, void *data, u32 size,
 	       struct nouveau_object **pobject)
@@ -143,7 +136,6 @@ nv98_crypt_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	nv_subdev(priv)->intr = nv98_crypt_intr;
 	nv_engine(priv)->cclass = &nv98_crypt_cclass;
 	nv_engine(priv)->sclass = nv98_crypt_sclass;
-	nv_engine(priv)->tlb_flush = nv98_crypt_tlb_flush;
 	nv_falcon(priv)->code.data = nv98_pcrypt_code;
 	nv_falcon(priv)->code.size = sizeof(nv98_pcrypt_code);
 	nv_falcon(priv)->data.data = nv98_pcrypt_data;
