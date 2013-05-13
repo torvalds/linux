@@ -33,11 +33,19 @@ ACPI_MODULE_NAME("acpi_lpss");
 #define LPSS_SW_LTR			0x10
 #define LPSS_AUTO_LTR			0x14
 
+struct lpss_shared_clock {
+	const char *name;
+	unsigned long rate;
+	struct clk *clk;
+};
+
 struct lpss_device_desc {
 	bool clk_required;
 	const char *clkdev_name;
 	bool ltr_required;
 	unsigned int prv_offset;
+	bool clk_gate;
+	struct lpss_shared_clock *shared_clock;
 };
 
 static struct lpss_device_desc lpss_dma_desc = {
@@ -56,11 +64,51 @@ static struct lpss_device_desc lpt_dev_desc = {
 	.clk_required = true,
 	.prv_offset = 0x800,
 	.ltr_required = true,
+	.clk_gate = true,
 };
 
 static struct lpss_device_desc lpt_sdio_dev_desc = {
 	.prv_offset = 0x1000,
 	.ltr_required = true,
+};
+
+static struct lpss_shared_clock uart_clock = {
+	.name = "uart_clk",
+	.rate = 44236800,
+};
+
+static struct lpss_device_desc byt_uart_dev_desc = {
+	.clk_required = true,
+	.prv_offset = 0x800,
+	.clk_gate = true,
+	.shared_clock = &uart_clock,
+};
+
+static struct lpss_shared_clock spi_clock = {
+	.name = "spi_clk",
+	.rate = 50000000,
+};
+
+static struct lpss_device_desc byt_spi_dev_desc = {
+	.clk_required = true,
+	.prv_offset = 0x400,
+	.clk_gate = true,
+	.shared_clock = &spi_clock,
+};
+
+static struct lpss_device_desc byt_sdio_dev_desc = {
+	.clk_required = true,
+};
+
+static struct lpss_shared_clock i2c_clock = {
+	.name = "i2c_clk",
+	.rate = 100000000,
+};
+
+static struct lpss_device_desc byt_i2c_dev_desc = {
+	.clk_required = true,
+	.prv_offset = 0x800,
+	.shared_clock = &i2c_clock,
 };
 
 static const struct acpi_device_id acpi_lpss_device_ids[] = {
@@ -76,6 +124,13 @@ static const struct acpi_device_id acpi_lpss_device_ids[] = {
 	{ "INT33C5", (unsigned long)&lpt_dev_desc },
 	{ "INT33C6", (unsigned long)&lpt_sdio_dev_desc },
 	{ "INT33C7", },
+
+	/* BayTrail LPSS devices */
+	{ "80860F0A", (unsigned long)&byt_uart_dev_desc },
+	{ "80860F0E", (unsigned long)&byt_spi_dev_desc },
+	{ "80860F14", (unsigned long)&byt_sdio_dev_desc },
+	{ "80860F41", (unsigned long)&byt_i2c_dev_desc },
+	{ "INT33B2", },
 
 	{ }
 };
@@ -98,7 +153,10 @@ static int register_device_clock(struct acpi_device *adev,
 				 struct lpss_private_data *pdata)
 {
 	const struct lpss_device_desc *dev_desc = pdata->dev_desc;
+	struct lpss_shared_clock *shared_clock = dev_desc->shared_clock;
+	struct clk *clk = ERR_PTR(-ENODEV);
 	struct lpss_clk_data *clk_data;
+	const char *parent;
 
 	if (!lpss_clk_dev)
 		lpt_register_clock_device();
@@ -117,14 +175,30 @@ static int register_device_clock(struct acpi_device *adev,
 	    || pdata->mmio_size < dev_desc->prv_offset + LPSS_CLK_SIZE)
 		return -ENODATA;
 
-	pdata->clk = clk_register_gate(NULL, dev_name(&adev->dev),
-				       clk_data->name, 0,
-				       pdata->mmio_base + dev_desc->prv_offset,
-				       0, 0, NULL);
-	if (IS_ERR(pdata->clk))
-		return PTR_ERR(pdata->clk);
+	parent = clk_data->name;
 
-	clk_register_clkdev(pdata->clk, NULL, dev_name(&adev->dev));
+	if (shared_clock) {
+		clk = shared_clock->clk;
+		if (!clk) {
+			clk = clk_register_fixed_rate(NULL, shared_clock->name,
+						      "lpss_clk", 0,
+						      shared_clock->rate);
+			shared_clock->clk = clk;
+		}
+		parent = shared_clock->name;
+	}
+
+	if (dev_desc->clk_gate) {
+		clk = clk_register_gate(NULL, dev_name(&adev->dev), parent, 0,
+					pdata->mmio_base + dev_desc->prv_offset,
+					0, 0, NULL);
+		pdata->clk = clk;
+	}
+
+	if (IS_ERR(clk))
+		return PTR_ERR(clk);
+
+	clk_register_clkdev(clk, NULL, dev_name(&adev->dev));
 	return 0;
 }
 
