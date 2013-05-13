@@ -45,19 +45,9 @@ int hdpvr_config_call(struct hdpvr_device *dev, uint value, u8 valbuf)
 	return ret < 0 ? ret : 0;
 }
 
-struct hdpvr_video_info *get_video_info(struct hdpvr_device *dev)
+int get_video_info(struct hdpvr_device *dev, struct hdpvr_video_info *vidinf)
 {
-	struct hdpvr_video_info *vidinf = NULL;
-#ifdef HDPVR_DEBUG
-	char print_buf[15];
-#endif
 	int ret;
-
-	vidinf = kzalloc(sizeof(struct hdpvr_video_info), GFP_KERNEL);
-	if (!vidinf) {
-		v4l2_err(&dev->v4l2_dev, "out of memory\n");
-		goto err;
-	}
 
 	mutex_lock(&dev->usbc_mutex);
 	ret = usb_control_msg(dev->udev,
@@ -74,6 +64,7 @@ struct hdpvr_video_info *get_video_info(struct hdpvr_device *dev)
 
 #ifdef HDPVR_DEBUG
 	if (hdpvr_debug & MSG_INFO) {
+		char print_buf[15];
 		hex_dump_to_buffer(dev->usbc_buf, 5, 16, 1, print_buf,
 				   sizeof(print_buf), 0);
 		v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
@@ -82,12 +73,14 @@ struct hdpvr_video_info *get_video_info(struct hdpvr_device *dev)
 #endif
 	mutex_unlock(&dev->usbc_mutex);
 
-	if (!vidinf->width || !vidinf->height || !vidinf->fps) {
-		kfree(vidinf);
-		vidinf = NULL;
+	if ((ret > 0 && ret != 5) ||/* fail if unexpected byte count returned */
+	    !vidinf->width ||	/* preserve original behavior -  */
+	    !vidinf->height ||	/* fail if no signal is detected */
+	    !vidinf->fps) {
+		ret = -EFAULT;
 	}
-err:
-	return vidinf;
+
+	return ret < 0 ? ret : 0;
 }
 
 int get_input_lines_info(struct hdpvr_device *dev)

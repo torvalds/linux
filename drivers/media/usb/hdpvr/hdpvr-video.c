@@ -277,20 +277,19 @@ error:
 static int hdpvr_start_streaming(struct hdpvr_device *dev)
 {
 	int ret;
-	struct hdpvr_video_info *vidinf;
+	struct hdpvr_video_info vidinf;
 
 	if (dev->status == STATUS_STREAMING)
 		return 0;
 	else if (dev->status != STATUS_IDLE)
 		return -EAGAIN;
 
-	vidinf = get_video_info(dev);
+	ret = get_video_info(dev, &vidinf);
 
-	if (vidinf) {
+	if (!ret) {
 		v4l2_dbg(MSG_BUFFER, hdpvr_debug, &dev->v4l2_dev,
-			 "video signal: %dx%d@%dhz\n", vidinf->width,
-			 vidinf->height, vidinf->fps);
-		kfree(vidinf);
+			 "video signal: %dx%d@%dhz\n", vidinf.width,
+			 vidinf.height, vidinf.fps);
 
 		/* start streaming 2 request */
 		ret = usb_control_msg(dev->udev,
@@ -610,21 +609,22 @@ static int vidioc_g_std(struct file *file, void *_fh,
 static int vidioc_querystd(struct file *file, void *_fh, v4l2_std_id *a)
 {
 	struct hdpvr_device *dev = video_drvdata(file);
-	struct hdpvr_video_info *vid_info;
+	struct hdpvr_video_info vid_info;
 	struct hdpvr_fh *fh = _fh;
+	int ret;
 
 	*a = V4L2_STD_ALL;
 	if (dev->options.video_input == HDPVR_COMPONENT)
 		return fh->legacy_mode ? 0 : -ENODATA;
-	vid_info = get_video_info(dev);
-	if (vid_info == NULL)
+	ret = get_video_info(dev, &vid_info);
+	if (ret)
 		return 0;
-	if (vid_info->width == 720 &&
-	    (vid_info->height == 480 || vid_info->height == 576)) {
-		*a = (vid_info->height == 480) ?
+	if (vid_info.width == 720 &&
+	    (vid_info.height == 480 || vid_info.height == 576)) {
+		*a = (vid_info.height == 480) ?
 			V4L2_STD_525_60 : V4L2_STD_625_50;
 	}
-	kfree(vid_info);
+
 	return 0;
 }
 
@@ -669,7 +669,7 @@ static int vidioc_query_dv_timings(struct file *file, void *_fh,
 {
 	struct hdpvr_device *dev = video_drvdata(file);
 	struct hdpvr_fh *fh = _fh;
-	struct hdpvr_video_info *vid_info;
+	struct hdpvr_video_info vid_info;
 	bool interlaced;
 	int ret = 0;
 	int i;
@@ -677,10 +677,10 @@ static int vidioc_query_dv_timings(struct file *file, void *_fh,
 	fh->legacy_mode = false;
 	if (dev->options.video_input)
 		return -ENODATA;
-	vid_info = get_video_info(dev);
-	if (vid_info == NULL)
+	ret = get_video_info(dev, &vid_info);
+	if (ret)
 		return -ENOLCK;
-	interlaced = vid_info->fps <= 30;
+	interlaced = vid_info.fps <= 30;
 	for (i = 0; i < ARRAY_SIZE(hdpvr_dv_timings); i++) {
 		const struct v4l2_bt_timings *bt = &hdpvr_dv_timings[i].bt;
 		unsigned hsize;
@@ -692,17 +692,17 @@ static int vidioc_query_dv_timings(struct file *file, void *_fh,
 			bt->il_vfrontporch + bt->il_vsync + bt->il_vbackporch +
 			bt->height;
 		fps = (unsigned)bt->pixelclock / (hsize * vsize);
-		if (bt->width != vid_info->width ||
-		    bt->height != vid_info->height ||
+		if (bt->width != vid_info.width ||
+		    bt->height != vid_info.height ||
 		    bt->interlaced != interlaced ||
-		    (fps != vid_info->fps && fps + 1 != vid_info->fps))
+		    (fps != vid_info.fps && fps + 1 != vid_info.fps))
 			continue;
 		*timings = hdpvr_dv_timings[i];
 		break;
 	}
 	if (i == ARRAY_SIZE(hdpvr_dv_timings))
 		ret = -ERANGE;
-	kfree(vid_info);
+
 	return ret;
 }
 
@@ -992,6 +992,7 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *_fh,
 {
 	struct hdpvr_device *dev = video_drvdata(file);
 	struct hdpvr_fh *fh = _fh;
+	int ret;
 
 	/*
 	 * The original driver would always returns the current detected
@@ -1004,14 +1005,13 @@ static int vidioc_g_fmt_vid_cap(struct file *file, void *_fh,
 	 * last set format.
 	 */
 	if (fh->legacy_mode) {
-		struct hdpvr_video_info *vid_info;
+		struct hdpvr_video_info vid_info;
 
-		vid_info = get_video_info(dev);
-		if (!vid_info)
+		ret = get_video_info(dev, &vid_info);
+		if (ret)
 			return -EFAULT;
-		f->fmt.pix.width = vid_info->width;
-		f->fmt.pix.height = vid_info->height;
-		kfree(vid_info);
+		f->fmt.pix.width = vid_info.width;
+		f->fmt.pix.height = vid_info.height;
 	} else {
 		f->fmt.pix.width = dev->width;
 		f->fmt.pix.height = dev->height;
