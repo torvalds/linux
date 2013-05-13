@@ -2311,11 +2311,11 @@ ring_last_seqno(struct intel_ring_buffer *ring)
 			  struct drm_i915_gem_request, list)->seqno;
 }
 
-static bool i915_hangcheck_ring_idle(struct intel_ring_buffer *ring, bool *err)
+static bool i915_hangcheck_ring_idle(struct intel_ring_buffer *ring,
+				     u32 ring_seqno, bool *err)
 {
 	if (list_empty(&ring->request_list) ||
-	    i915_seqno_passed(ring->get_seqno(ring, false),
-			      ring_last_seqno(ring))) {
+	    i915_seqno_passed(ring_seqno, ring_last_seqno(ring))) {
 		/* Issue a wake-up to catch stuck h/w. */
 		if (waitqueue_active(&ring->irq_queue)) {
 			DRM_ERROR("Hangcheck timer elapsed... %s idle\n",
@@ -2432,7 +2432,10 @@ void i915_hangcheck_elapsed(unsigned long data)
 	memset(acthd, 0, sizeof(acthd));
 	idle = true;
 	for_each_ring(ring, dev_priv, i) {
-	    idle &= i915_hangcheck_ring_idle(ring, &err);
+		u32 seqno;
+
+		seqno = ring->get_seqno(ring, false);
+		idle &= i915_hangcheck_ring_idle(ring, seqno, &err);
 	    acthd[i] = intel_ring_get_active_head(ring);
 	}
 
