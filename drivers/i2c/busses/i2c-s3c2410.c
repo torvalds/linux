@@ -42,8 +42,45 @@
 
 #include <asm/irq.h>
 
-#include <plat/regs-iic.h>
 #include <linux/platform_data/i2c-s3c2410.h>
+
+/* see s3c2410x user guide, v1.1, section 9 (p447) for more info */
+
+#define S3C2410_IICCON			0x00
+#define S3C2410_IICSTAT			0x04
+#define S3C2410_IICADD			0x08
+#define S3C2410_IICDS			0x0C
+#define S3C2440_IICLC			0x10
+
+#define S3C2410_IICCON_ACKEN		(1 << 7)
+#define S3C2410_IICCON_TXDIV_16		(0 << 6)
+#define S3C2410_IICCON_TXDIV_512	(1 << 6)
+#define S3C2410_IICCON_IRQEN		(1 << 5)
+#define S3C2410_IICCON_IRQPEND		(1 << 4)
+#define S3C2410_IICCON_SCALE(x)		((x) & 0xf)
+#define S3C2410_IICCON_SCALEMASK	(0xf)
+
+#define S3C2410_IICSTAT_MASTER_RX	(2 << 6)
+#define S3C2410_IICSTAT_MASTER_TX	(3 << 6)
+#define S3C2410_IICSTAT_SLAVE_RX	(0 << 6)
+#define S3C2410_IICSTAT_SLAVE_TX	(1 << 6)
+#define S3C2410_IICSTAT_MODEMASK	(3 << 6)
+
+#define S3C2410_IICSTAT_START		(1 << 5)
+#define S3C2410_IICSTAT_BUSBUSY		(1 << 5)
+#define S3C2410_IICSTAT_TXRXEN		(1 << 4)
+#define S3C2410_IICSTAT_ARBITR		(1 << 3)
+#define S3C2410_IICSTAT_ASSLAVE		(1 << 2)
+#define S3C2410_IICSTAT_ADDR0		(1 << 1)
+#define S3C2410_IICSTAT_LASTBIT		(1 << 0)
+
+#define S3C2410_IICLC_SDA_DELAY0	(0 << 0)
+#define S3C2410_IICLC_SDA_DELAY5	(1 << 0)
+#define S3C2410_IICLC_SDA_DELAY10	(2 << 0)
+#define S3C2410_IICLC_SDA_DELAY15	(3 << 0)
+#define S3C2410_IICLC_SDA_DELAY_MASK	(3 << 0)
+
+#define S3C2410_IICLC_FILTER_ON		(1 << 2)
 
 /* Treat S3C2410 as baseline hardware, anything else is supported via quirks */
 #define QUIRK_S3C2440		(1 << 0)
@@ -309,6 +346,12 @@ static inline int is_lastmsg(struct s3c24xx_i2c *i2c)
 
 static inline int is_msglast(struct s3c24xx_i2c *i2c)
 {
+	/* msg->len is always 1 for the first byte of smbus block read.
+	 * Actual length will be read from slave. More bytes will be
+	 * read according to the length then. */
+	if (i2c->msg->flags & I2C_M_RECV_LEN && i2c->msg->len == 1)
+		return 0;
+
 	return i2c->msg_ptr == i2c->msg->len-1;
 }
 
@@ -448,6 +491,9 @@ static int i2c_s3c_irq_nextbyte(struct s3c24xx_i2c *i2c, unsigned long iicstat)
 		byte = readb(i2c->regs + S3C2410_IICDS);
 		i2c->msg->buf[i2c->msg_ptr++] = byte;
 
+		/* Add actual length to read for smbus block read */
+		if (i2c->msg->flags & I2C_M_RECV_LEN && i2c->msg->len == 1)
+			i2c->msg->len += byte;
  prepare_read:
 		if (is_msglast(i2c)) {
 			/* last byte of buffer */

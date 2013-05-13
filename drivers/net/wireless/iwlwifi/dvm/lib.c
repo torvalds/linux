@@ -19,7 +19,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -136,7 +136,7 @@ int iwlagn_manage_ibss_station(struct iwl_priv *priv,
  *  1. acquire mutex before calling
  *  2. make sure rf is on and not in exit state
  */
-int iwlagn_txfifo_flush(struct iwl_priv *priv)
+int iwlagn_txfifo_flush(struct iwl_priv *priv, u32 scd_q_msk)
 {
 	struct iwl_txfifo_flush_cmd flush_cmd;
 	struct iwl_host_cmd cmd = {
@@ -162,6 +162,9 @@ int iwlagn_txfifo_flush(struct iwl_priv *priv)
 	if (priv->nvm_data->sku_cap_11n_enable)
 		flush_cmd.queue_control |= IWL_AGG_TX_QUEUE_MSK;
 
+	if (scd_q_msk)
+		flush_cmd.queue_control = cpu_to_le32(scd_q_msk);
+
 	IWL_DEBUG_INFO(priv, "queue control: 0x%x\n",
 		       flush_cmd.queue_control);
 	flush_cmd.flush_control = cpu_to_le16(IWL_DROP_ALL);
@@ -173,7 +176,7 @@ void iwlagn_dev_txfifo_flush(struct iwl_priv *priv)
 {
 	mutex_lock(&priv->mutex);
 	ieee80211_stop_queues(priv->hw);
-	if (iwlagn_txfifo_flush(priv)) {
+	if (iwlagn_txfifo_flush(priv, 0)) {
 		IWL_ERR(priv, "flush request fail\n");
 		goto done;
 	}
@@ -1084,7 +1087,14 @@ int iwlagn_suspend(struct iwl_priv *priv, struct cfg80211_wowlan *wowlan)
 	struct iwl_rxon_context *ctx = &priv->contexts[IWL_RXON_CTX_BSS];
 	struct iwlagn_wowlan_kek_kck_material_cmd kek_kck_cmd;
 	struct iwlagn_wowlan_tkip_params_cmd tkip_cmd = {};
-	struct iwlagn_d3_config_cmd d3_cfg_cmd = {};
+	struct iwlagn_d3_config_cmd d3_cfg_cmd = {
+		/*
+		 * Program the minimum sleep time to 10 seconds, as many
+		 * platforms have issues processing a wakeup signal while
+		 * still being in the process of suspending.
+		 */
+		.min_sleep_time = cpu_to_le32(10 * 1000 * 1000),
+	};
 	struct wowlan_key_data key_data = {
 		.ctx = ctx,
 		.bssid = ctx->active.bssid_addr,
@@ -1258,6 +1268,15 @@ int iwl_dvm_send_cmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	if (test_bit(STATUS_FW_ERROR, &priv->status)) {
 		IWL_ERR(priv, "Command %s failed: FW Error\n",
 			iwl_dvm_get_cmd_string(cmd->id));
+		return -EIO;
+	}
+
+	/*
+	 * This can happen upon FW ASSERT: we clear the STATUS_FW_ERROR flag
+	 * in iwl_down but cancel the workers only later.
+	 */
+	if (!priv->ucode_loaded) {
+		IWL_ERR(priv, "Fw not loaded - dropping CMD: %x\n", cmd->id);
 		return -EIO;
 	}
 

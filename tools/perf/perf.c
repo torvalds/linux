@@ -13,7 +13,7 @@
 #include "util/quote.h"
 #include "util/run-command.h"
 #include "util/parse-events.h"
-#include "util/debugfs.h"
+#include <lk/debugfs.h>
 #include <pthread.h>
 
 const char perf_usage_string[] =
@@ -60,6 +60,7 @@ static struct cmd_struct commands[] = {
 	{ "trace",	cmd_trace,	0 },
 #endif
 	{ "inject",	cmd_inject,	0 },
+	{ "mem",	cmd_mem,	0 },
 };
 
 struct pager_config {
@@ -193,13 +194,13 @@ static int handle_options(const char ***argv, int *argc, int *envchanged)
 				fprintf(stderr, "No directory given for --debugfs-dir.\n");
 				usage(perf_usage_string);
 			}
-			debugfs_set_path((*argv)[1]);
+			perf_debugfs_set_path((*argv)[1]);
 			if (envchanged)
 				*envchanged = 1;
 			(*argv)++;
 			(*argc)--;
 		} else if (!prefixcmp(cmd, CMD_DEBUGFS_DIR)) {
-			debugfs_set_path(cmd + strlen(CMD_DEBUGFS_DIR));
+			perf_debugfs_set_path(cmd + strlen(CMD_DEBUGFS_DIR));
 			fprintf(stderr, "dir: %s\n", debugfs_mountpoint);
 			if (envchanged)
 				*envchanged = 1;
@@ -461,7 +462,7 @@ int main(int argc, const char **argv)
 	if (!cmd)
 		cmd = "perf-help";
 	/* get debugfs mount point from /proc/mounts */
-	debugfs_mount(NULL);
+	perf_debugfs_mount(NULL);
 	/*
 	 * "perf-xxxx" is the same as "perf xxxx", but we obviously:
 	 *
@@ -517,9 +518,8 @@ int main(int argc, const char **argv)
 
 	while (1) {
 		static int done_help;
-		static int was_alias;
+		int was_alias = run_argv(&argc, &argv);
 
-		was_alias = run_argv(&argc, &argv);
 		if (errno != ENOENT)
 			break;
 

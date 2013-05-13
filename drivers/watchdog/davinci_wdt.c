@@ -27,6 +27,7 @@
 #include <linux/device.h>
 #include <linux/clk.h>
 #include <linux/slab.h>
+#include <linux/err.h>
 
 #define MODULE_NAME "DAVINCI-WDT: "
 
@@ -221,11 +222,9 @@ static int davinci_wdt_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	wdt_base = devm_request_and_ioremap(dev, wdt_mem);
-	if (!wdt_base) {
-		dev_err(dev, "ioremap failed\n");
-		return -EADDRNOTAVAIL;
-	}
+	wdt_base = devm_ioremap_resource(dev, wdt_mem);
+	if (IS_ERR(wdt_base))
+		return PTR_ERR(wdt_base);
 
 	ret = misc_register(&davinci_wdt_miscdev);
 	if (ret < 0) {

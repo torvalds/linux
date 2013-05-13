@@ -114,12 +114,9 @@ static void __meminit release_firmware_map_entry(struct kobject *kobj)
 		 * map_entries_bootmem here, and deleted from &map_entries in
 		 * firmware_map_remove_entry().
 		 */
-		if (firmware_map_find_entry(entry->start, entry->end,
-		    entry->type)) {
-			spin_lock(&map_entries_bootmem_lock);
-			list_add(&entry->list, &map_entries_bootmem);
-			spin_unlock(&map_entries_bootmem_lock);
-		}
+		spin_lock(&map_entries_bootmem_lock);
+		list_add(&entry->list, &map_entries_bootmem);
+		spin_unlock(&map_entries_bootmem_lock);
 
 		return;
 	}

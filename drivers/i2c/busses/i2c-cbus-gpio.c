@@ -206,7 +206,9 @@ static int cbus_i2c_remove(struct platform_device *pdev)
 {
 	struct i2c_adapter *adapter = platform_get_drvdata(pdev);
 
-	return i2c_del_adapter(adapter);
+	i2c_del_adapter(adapter);
+
+	return 0;
 }
 
 static int cbus_i2c_probe(struct platform_device *pdev)

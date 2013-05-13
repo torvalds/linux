@@ -290,6 +290,7 @@ static struct rtl_hal_ops rtl8192se_hal_ops = {
 	.enable_hw_sec = rtl92se_enable_hw_security_config,
 	.set_key = rtl92se_set_key,
 	.init_sw_leds = rtl92se_init_sw_leds,
+	.allow_all_destaddr = rtl92se_allow_all_destaddr,
 	.get_bbreg = rtl92s_phy_query_bb_reg,
 	.set_bbreg = rtl92s_phy_set_bb_reg,
 	.get_rfreg = rtl92s_phy_query_rf_reg,
@@ -366,7 +367,7 @@ static struct rtl_hal_cfg rtl92se_hal_cfg = {
 
 	.maps[RTL_IMR_TXFOVW] = IMR_TXFOVW,
 	.maps[RTL_IMR_PSTIMEOUT] = IMR_PSTIMEOUT,
-	.maps[RTL_IMR_BcnInt] = IMR_BCNINT,
+	.maps[RTL_IMR_BCNINT] = IMR_BCNINT,
 	.maps[RTL_IMR_RXFOVW] = IMR_RXFOVW,
 	.maps[RTL_IMR_RDU] = IMR_RDU,
 	.maps[RTL_IMR_ATIMEND] = IMR_ATIMEND,

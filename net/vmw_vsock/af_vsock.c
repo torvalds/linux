@@ -165,7 +165,7 @@ static struct list_head vsock_bind_table[VSOCK_HASH_SIZE + 1];
 static struct list_head vsock_connected_table[VSOCK_HASH_SIZE];
 static DEFINE_SPINLOCK(vsock_table_lock);
 
-static __init void vsock_init_tables(void)
+static void vsock_init_tables(void)
 {
 	int i;
 
@@ -207,7 +207,7 @@ static struct sock *__vsock_find_bound_socket(struct sockaddr_vm *addr)
 	struct vsock_sock *vsk;
 
 	list_for_each_entry(vsk, vsock_bound_sockets(addr), bound_table)
-		if (vsock_addr_equals_addr_any(addr, &vsk->local_addr))
+		if (addr->svm_port == vsk->local_addr.svm_port)
 			return sk_vsock(vsk);
 
 	return NULL;
@@ -220,8 +220,8 @@ static struct sock *__vsock_find_connected_socket(struct sockaddr_vm *src,
 
 	list_for_each_entry(vsk, vsock_connected_sockets(src, dst),
 			    connected_table) {
-		if (vsock_addr_equals_addr(src, &vsk->remote_addr)
-		    && vsock_addr_equals_addr(dst, &vsk->local_addr)) {
+		if (vsock_addr_equals_addr(src, &vsk->remote_addr) &&
+		    dst->svm_port == vsk->local_addr.svm_port) {
 			return sk_vsock(vsk);
 		}
 	}
@@ -1670,6 +1670,8 @@ vsock_stream_recvmsg(struct kiocb *kiocb,
 	vsk = vsock_sk(sk);
 	err = 0;
 
+	msg->msg_namelen = 0;
+
 	lock_sock(sk);
 
 	if (sk->sk_state != SS_CONNECTED) {
@@ -1930,7 +1932,6 @@ static const struct file_operations vsock_device_ops = {
 
 static struct miscdevice vsock_device = {
 	.name		= "vsock",
-	.minor		= MISC_DYNAMIC_MINOR,
 	.fops		= &vsock_device_ops,
 };
 
@@ -1940,6 +1941,7 @@ static int __vsock_core_init(void)
 
 	vsock_init_tables();
 
+	vsock_device.minor = MISC_DYNAMIC_MINOR;
 	err = misc_register(&vsock_device);
 	if (err) {
 		pr_err("Failed to register misc device\n");

@@ -2527,11 +2527,8 @@ static int dvb_frontend_release(struct inode *inode, struct file *file)
 
 	if (dvbdev->users == -1) {
 		wake_up(&fepriv->wait_queue);
-		if (fepriv->exit != DVB_FE_NO_EXIT) {
-			fops_put(file->f_op);
-			file->f_op = NULL;
+		if (fepriv->exit != DVB_FE_NO_EXIT)
 			wake_up(&dvbdev->wait_queue);
-		}
 		if (fe->ops.ts_bus_ctrl)
 			fe->ops.ts_bus_ctrl(fe, 0);
 	}

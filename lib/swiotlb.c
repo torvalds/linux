@@ -105,9 +105,9 @@ setup_io_tlb_npages(char *str)
 	if (!strcmp(str, "force"))
 		swiotlb_force = 1;
 
-	return 1;
+	return 0;
 }
-__setup("swiotlb=", setup_io_tlb_npages);
+early_param("swiotlb", setup_io_tlb_npages);
 /* make io_tlb_overflow tunable too? */
 
 unsigned long swiotlb_nr_tbl(void)
@@ -115,6 +115,18 @@ unsigned long swiotlb_nr_tbl(void)
 	return io_tlb_nslabs;
 }
 EXPORT_SYMBOL_GPL(swiotlb_nr_tbl);
+
+/* default to 64MB */
+#define IO_TLB_DEFAULT_SIZE (64UL<<20)
+unsigned long swiotlb_size_or_default(void)
+{
+	unsigned long size;
+
+	size = io_tlb_nslabs << IO_TLB_SHIFT;
+
+	return size ? size : (IO_TLB_DEFAULT_SIZE);
+}
+
 /* Note that this doesn't work with highmem page */
 static dma_addr_t swiotlb_virt_to_bus(struct device *hwdev,
 				      volatile void *address)
@@ -188,8 +200,7 @@ int __init swiotlb_init_with_tbl(char *tlb, unsigned long nslabs, int verbose)
 void  __init
 swiotlb_init(int verbose)
 {
-	/* default to 64MB */
-	size_t default_size = 64UL<<20;
+	size_t default_size = IO_TLB_DEFAULT_SIZE;
 	unsigned char *vstart;
 	unsigned long bytes;
 

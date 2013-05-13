@@ -1293,7 +1293,7 @@ vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
 			skb->protocol = eth_type_trans(skb, adapter->netdev);
 
 			if (unlikely(rcd->ts))
-				__vlan_hwaccel_put_tag(skb, rcd->tci);
+				__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), rcd->tci);
 
 			if (adapter->netdev->features & NETIF_F_LRO)
 				netif_receive_skb(skb);
@@ -1931,7 +1931,7 @@ vmxnet3_restore_vlan(struct vmxnet3_adapter *adapter)
 
 
 static int
-vmxnet3_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
+vmxnet3_vlan_rx_add_vid(struct net_device *netdev, __be16 proto, u16 vid)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 
@@ -1953,7 +1953,7 @@ vmxnet3_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 
 
 static int
-vmxnet3_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
+vmxnet3_vlan_rx_kill_vid(struct net_device *netdev, __be16 proto, u16 vid)
 {
 	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
 
@@ -2107,7 +2107,7 @@ vmxnet3_setup_driver_shared(struct vmxnet3_adapter *adapter)
 		devRead->misc.uptFeatures |= UPT1_F_LRO;
 		devRead->misc.maxNumRxSG = cpu_to_le16(1 + MAX_SKB_FRAGS);
 	}
-	if (adapter->netdev->features & NETIF_F_HW_VLAN_RX)
+	if (adapter->netdev->features & NETIF_F_HW_VLAN_CTAG_RX)
 		devRead->misc.uptFeatures |= UPT1_F_RXVLAN;
 
 	devRead->misc.mtu = cpu_to_le32(adapter->netdev->mtu);
@@ -2669,14 +2669,15 @@ vmxnet3_declare_features(struct vmxnet3_adapter *adapter, bool dma64)
 	struct net_device *netdev = adapter->netdev;
 
 	netdev->hw_features = NETIF_F_SG | NETIF_F_RXCSUM |
-		NETIF_F_HW_CSUM | NETIF_F_HW_VLAN_TX |
-		NETIF_F_HW_VLAN_RX | NETIF_F_TSO | NETIF_F_TSO6 |
+		NETIF_F_HW_CSUM | NETIF_F_HW_VLAN_CTAG_TX |
+		NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_TSO | NETIF_F_TSO6 |
 		NETIF_F_LRO;
 	if (dma64)
 		netdev->hw_features |= NETIF_F_HIGHDMA;
 	netdev->vlan_features = netdev->hw_features &
-				~(NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX);
-	netdev->features = netdev->hw_features | NETIF_F_HW_VLAN_FILTER;
+				~(NETIF_F_HW_VLAN_CTAG_TX |
+				  NETIF_F_HW_VLAN_CTAG_RX);
+	netdev->features = netdev->hw_features | NETIF_F_HW_VLAN_CTAG_FILTER;
 }
 
 

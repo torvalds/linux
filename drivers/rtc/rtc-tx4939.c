@@ -268,14 +268,13 @@ static int __init tx4939_rtc_probe(struct platform_device *pdev)
 	if (devm_request_irq(&pdev->dev, irq, tx4939_rtc_interrupt,
 			     0, pdev->name, &pdev->dev) < 0)
 		return -EBUSY;
-	rtc = rtc_device_register(pdev->name, &pdev->dev,
+	rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
 				  &tx4939_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
 	pdata->rtc = rtc;
 	ret = sysfs_create_bin_file(&pdev->dev.kobj, &tx4939_rtc_nvram_attr);
-	if (ret)
-		rtc_device_unregister(rtc);
+
 	return ret;
 }
 
@@ -284,7 +283,6 @@ static int __exit tx4939_rtc_remove(struct platform_device *pdev)
 	struct tx4939rtc_plat_data *pdata = platform_get_drvdata(pdev);
 
 	sysfs_remove_bin_file(&pdev->dev.kobj, &tx4939_rtc_nvram_attr);
-	rtc_device_unregister(pdata->rtc);
 	spin_lock_irq(&pdata->lock);
 	tx4939_rtc_cmd(pdata->rtcreg, TX4939_RTCCTL_COMMAND_NOP);
 	spin_unlock_irq(&pdata->lock);
@@ -299,18 +297,7 @@ static struct platform_driver tx4939_rtc_driver = {
 	},
 };
 
-static int __init tx4939rtc_init(void)
-{
-	return platform_driver_probe(&tx4939_rtc_driver, tx4939_rtc_probe);
-}
-
-static void __exit tx4939rtc_exit(void)
-{
-	platform_driver_unregister(&tx4939_rtc_driver);
-}
-
-module_init(tx4939rtc_init);
-module_exit(tx4939rtc_exit);
+module_platform_driver_probe(tx4939_rtc_driver, tx4939_rtc_probe);
 
 MODULE_AUTHOR("Atsushi Nemoto <anemo@mba.ocn.ne.jp>");
 MODULE_DESCRIPTION("TX4939 internal RTC driver");

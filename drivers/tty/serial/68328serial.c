@@ -14,7 +14,6 @@
  * 2.4/2.5 port                 David McCullough
  */
 
-#include <asm/dbg.h>
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/serial.h>
@@ -630,8 +629,7 @@ static void rs_flush_chars(struct tty_struct *tty)
 	/* Enable transmitter */
 	local_irq_save(flags);
 
-	if (info->xmit_cnt <= 0 || tty->stopped || tty->hw_stopped ||
-			!info->xmit_buf) {
+	if (info->xmit_cnt <= 0 || tty->stopped || !info->xmit_buf) {
 		local_irq_restore(flags);
 		return;
 	}
@@ -697,7 +695,7 @@ static int rs_write(struct tty_struct * tty,
 		total += c;
 	}
 
-	if (info->xmit_cnt && !tty->stopped && !tty->hw_stopped) {
+	if (info->xmit_cnt && !tty->stopped) {
 		/* Enable transmitter */
 		local_irq_disable();		
 #ifndef USE_INTS
@@ -978,10 +976,8 @@ static void rs_set_termios(struct tty_struct *tty, struct ktermios *old_termios)
 	change_speed(info, tty);
 
 	if ((old_termios->c_cflag & CRTSCTS) &&
-	    !(tty->termios.c_cflag & CRTSCTS)) {
-		tty->hw_stopped = 0;
+	    !(tty->termios.c_cflag & CRTSCTS))
 		rs_start(tty);
-	}
 	
 }
 

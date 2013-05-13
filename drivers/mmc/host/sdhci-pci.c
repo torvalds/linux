@@ -975,7 +975,7 @@ static void sdhci_pci_hw_reset(struct sdhci_host *host)
 	usleep_range(300, 1000);
 }
 
-static struct sdhci_ops sdhci_pci_ops = {
+static const struct sdhci_ops sdhci_pci_ops = {
 	.enable_dma	= sdhci_pci_enable_dma,
 	.platform_bus_width	= sdhci_pci_bus_width,
 	.hw_reset		= sdhci_pci_hw_reset,
@@ -1279,6 +1279,8 @@ static struct sdhci_pci_slot *sdhci_pci_probe_slot(
 	}
 
 	host->mmc->pm_caps = MMC_PM_KEEP_POWER | MMC_PM_WAKE_SDIO_IRQ;
+	host->mmc->slotno = slotno;
+	host->mmc->caps2 |= MMC_CAP2_NO_PRESCAN_POWERUP;
 
 	ret = sdhci_add_host(host);
 	if (ret)

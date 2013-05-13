@@ -246,7 +246,6 @@ static struct davinci_mmc_config da830_evm_mmc_config = {
 	.wires			= 8,
 	.max_freq		= 50000000,
 	.caps			= MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED,
-	.version		= MMC_CTLR_VERSION_2,
 };
 
 static inline void da830_evm_init_mmc(void)
@@ -298,11 +297,7 @@ static const short da830_evm_emif25_pins[] = {
 	-1
 };
 
-#if defined(CONFIG_MMC_DAVINCI) || defined(CONFIG_MMC_DAVINCI_MODULE)
-#define HAS_MMC	1
-#else
-#define HAS_MMC	0
-#endif
+#define HAS_MMC		IS_ENABLED(CONFIG_MMC_DAVINCI)
 
 #ifdef CONFIG_DA830_UI_NAND
 static struct mtd_partition da830_evm_nand_partitions[] = {

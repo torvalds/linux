@@ -39,6 +39,7 @@
 #include "vnic_intr.h"
 #include "vnic_stats.h"
 #include "fnic_io.h"
+#include "fnic_fip.h"
 #include "fnic.h"
 
 #define PCI_DEVICE_ID_CISCO_FNIC	0x0045
@@ -292,6 +293,13 @@ static void fnic_notify_timer(unsigned long data)
 		  round_jiffies(jiffies + FNIC_NOTIFY_TIMER_PERIOD));
 }
 
+static void fnic_fip_notify_timer(unsigned long data)
+{
+	struct fnic *fnic = (struct fnic *)data;
+
+	fnic_handle_fip_timer(fnic);
+}
+
 static void fnic_notify_timer_start(struct fnic *fnic)
 {
 	switch (vnic_dev_get_intr_mode(fnic->vdev)) {
@@ -401,6 +409,12 @@ static u8 *fnic_get_mac(struct fc_lport *lport)
 	struct fnic *fnic = lport_priv(lport);
 
 	return fnic->data_src_addr;
+}
+
+static void fnic_set_vlan(struct fnic *fnic, u16 vlan_id)
+{
+	u16 old_vlan;
+	old_vlan = vnic_dev_set_default_vlan(fnic->vdev, vlan_id);
 }
 
 static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -620,7 +634,29 @@ static int fnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		vnic_dev_packet_filter(fnic->vdev, 1, 1, 0, 0, 0);
 		vnic_dev_add_addr(fnic->vdev, FIP_ALL_ENODE_MACS);
 		vnic_dev_add_addr(fnic->vdev, fnic->ctlr.ctl_src_addr);
+		fnic->set_vlan = fnic_set_vlan;
 		fcoe_ctlr_init(&fnic->ctlr, FIP_MODE_AUTO);
+		setup_timer(&fnic->fip_timer, fnic_fip_notify_timer,
+							(unsigned long)fnic);
+		spin_lock_init(&fnic->vlans_lock);
+		INIT_WORK(&fnic->fip_frame_work, fnic_handle_fip_frame);
+		INIT_WORK(&fnic->event_work, fnic_handle_event);
+		skb_queue_head_init(&fnic->fip_frame_queue);
+		spin_lock_irqsave(&fnic_list_lock, flags);
+		if (!fnic_fip_queue) {
+			fnic_fip_queue =
+				create_singlethread_workqueue("fnic_fip_q");
+			if (!fnic_fip_queue) {
+				spin_unlock_irqrestore(&fnic_list_lock, flags);
+				printk(KERN_ERR PFX "fnic FIP work queue "
+						 "create failed\n");
+				err = -ENOMEM;
+				goto err_out_free_max_pool;
+			}
+		}
+		spin_unlock_irqrestore(&fnic_list_lock, flags);
+		INIT_LIST_HEAD(&fnic->evlist);
+		INIT_LIST_HEAD(&fnic->vlans);
 	} else {
 		shost_printk(KERN_INFO, fnic->lport->host,
 			     "firmware uses non-FIP mode\n");
@@ -807,6 +843,13 @@ static void fnic_remove(struct pci_dev *pdev)
 	skb_queue_purge(&fnic->frame_queue);
 	skb_queue_purge(&fnic->tx_queue);
 
+	if (fnic->config.flags & VFCF_FIP_CAPABLE) {
+		del_timer_sync(&fnic->fip_timer);
+		skb_queue_purge(&fnic->fip_frame_queue);
+		fnic_fcoe_reset_vlans(fnic);
+		fnic_fcoe_evlist_free(fnic);
+	}
+
 	/*
 	 * Log off the fabric. This stops all remote ports, dns port,
 	 * logs off the fabric. This flushes all rport, disc, lport work
@@ -889,8 +932,8 @@ static int __init fnic_init_module(void)
 	len = sizeof(struct fnic_sgl_list);
 	fnic_sgl_cache[FNIC_SGL_CACHE_MAX] = kmem_cache_create
 		("fnic_sgl_max", len + FNIC_SG_DESC_ALIGN, FNIC_SG_DESC_ALIGN,
-		 SLAB_HWCACHE_ALIGN,
-		 NULL);
+		  SLAB_HWCACHE_ALIGN,
+		  NULL);
 	if (!fnic_sgl_cache[FNIC_SGL_CACHE_MAX]) {
 		printk(KERN_ERR PFX "failed to create fnic max sgl slab\n");
 		err = -ENOMEM;
@@ -951,6 +994,10 @@ static void __exit fnic_cleanup_module(void)
 {
 	pci_unregister_driver(&fnic_driver);
 	destroy_workqueue(fnic_event_queue);
+	if (fnic_fip_queue) {
+		flush_workqueue(fnic_fip_queue);
+		destroy_workqueue(fnic_fip_queue);
+	}
 	kmem_cache_destroy(fnic_sgl_cache[FNIC_SGL_CACHE_MAX]);
 	kmem_cache_destroy(fnic_sgl_cache[FNIC_SGL_CACHE_DFLT]);
 	kmem_cache_destroy(fnic_io_req_cache);

@@ -1,8 +1,6 @@
 #ifndef GIT_COMPAT_UTIL_H
 #define GIT_COMPAT_UTIL_H
 
-#define _FILE_OFFSET_BITS 64
-
 #ifndef FLEX_ARRAY
 /*
  * See if our compiler is known to support flexible array members.
@@ -73,10 +71,14 @@
 #include <linux/magic.h>
 #include "types.h"
 #include <sys/ttydefaults.h>
+#include <lk/debugfs.h>
 
 extern const char *graph_line;
 extern const char *graph_dotted_line;
 extern char buildid_dir[];
+extern char tracing_events_path[];
+extern void perf_debugfs_set_path(const char *mountpoint);
+const char *perf_debugfs_mount(const char *mountpoint);
 
 /* On most systems <limits.h> would have given us this, but
  * not on some systems (e.g. GNU/Hurd).
@@ -274,5 +276,4 @@ extern unsigned int page_size;
 
 struct winsize;
 void get_term_dimensions(struct winsize *ws);
-
-#endif
+#endif /* GIT_COMPAT_UTIL_H */

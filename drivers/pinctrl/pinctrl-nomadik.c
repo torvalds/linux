@@ -23,6 +23,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
+#include <linux/irqchip/chained_irq.h>
 #include <linux/slab.h>
 #include <linux/of_device.h>
 #include <linux/of_address.h>
@@ -33,7 +34,6 @@
 /* Since we request GPIOs from ourself */
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_data/pinctrl-nomadik.h>
-#include <asm/mach/irq.h>
 #include "pinctrl-nomadik.h"
 #include "core.h"
 
@@ -1565,8 +1565,8 @@ static int nmk_dt_add_map_configs(struct pinctrl_map **map,
 	return 0;
 }
 
-#define NMK_CONFIG_PIN(x,y) { .property = x, .config = y, }
-#define NMK_CONFIG_PIN_ARRAY(x,y) { .property = x, .choice = y, \
+#define NMK_CONFIG_PIN(x, y) { .property = x, .config = y, }
+#define NMK_CONFIG_PIN_ARRAY(x, y) { .property = x, .choice = y, \
 	.size = ARRAY_SIZE(y), }
 
 static const unsigned long nmk_pin_input_modes[] = {
@@ -1764,7 +1764,7 @@ int nmk_pinctrl_dt_node_to_map(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static struct pinctrl_ops nmk_pinctrl_ops = {
+static const struct pinctrl_ops nmk_pinctrl_ops = {
 	.get_groups_count = nmk_get_groups_cnt,
 	.get_group_name = nmk_get_group_name,
 	.get_group_pins = nmk_get_group_pins,
@@ -1975,7 +1975,7 @@ static void nmk_gpio_disable_free(struct pinctrl_dev *pctldev,
 	/* Set the pin to some default state, GPIO is usually default */
 }
 
-static struct pinmux_ops nmk_pinmux_ops = {
+static const struct pinmux_ops nmk_pinmux_ops = {
 	.get_functions_count = nmk_pmx_get_funcs_cnt,
 	.get_function_name = nmk_pmx_get_func_name,
 	.get_function_groups = nmk_pmx_get_func_groups,
@@ -2068,7 +2068,7 @@ static int nmk_pin_config_set(struct pinctrl_dev *pctldev, unsigned pin,
 		pin, cfg, pullnames[pull], slpmnames[slpm],
 		output ? "output " : "input",
 		output ? (val ? "high" : "low") : "",
-		lowemi ? "on" : "off" );
+		lowemi ? "on" : "off");
 
 	clk_enable(nmk_chip->clk);
 	bit = pin % NMK_GPIO_PER_CHIP;
@@ -2089,7 +2089,7 @@ static int nmk_pin_config_set(struct pinctrl_dev *pctldev, unsigned pin,
 	return 0;
 }
 
-static struct pinconf_ops nmk_pinconf_ops = {
+static const struct pinconf_ops nmk_pinconf_ops = {
 	.pin_config_get = nmk_pin_config_get,
 	.pin_config_set = nmk_pin_config_set,
 };
@@ -2110,6 +2110,10 @@ static const struct of_device_id nmk_pinctrl_match[] = {
 	{
 		.compatible = "stericsson,nmk-pinctrl",
 		.data = (void *)PINCTRL_NMK_DB8500,
+	},
+	{
+		.compatible = "stericsson,nmk-pinctrl-db8540",
+		.data = (void *)PINCTRL_NMK_DB8540,
 	},
 	{},
 };

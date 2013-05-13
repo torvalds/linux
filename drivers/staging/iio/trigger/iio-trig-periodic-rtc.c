@@ -30,7 +30,7 @@ struct iio_prtc_trigger_info {
 
 static int iio_trig_periodic_rtc_set_state(struct iio_trigger *trig, bool state)
 {
-	struct iio_prtc_trigger_info *trig_info = trig->private_data;
+	struct iio_prtc_trigger_info *trig_info = iio_trigger_get_drvdata(trig);
 	if (trig_info->frequency == 0)
 		return -EINVAL;
 	printk(KERN_INFO "trigger frequency is %d\n", trig_info->frequency);
@@ -42,7 +42,7 @@ static ssize_t iio_trig_periodic_read_freq(struct device *dev,
 					   char *buf)
 {
 	struct iio_trigger *trig = to_iio_trigger(dev);
-	struct iio_prtc_trigger_info *trig_info = trig->private_data;
+	struct iio_prtc_trigger_info *trig_info = iio_trigger_get_drvdata(trig);
 	return sprintf(buf, "%u\n", trig_info->frequency);
 }
 
@@ -52,7 +52,7 @@ static ssize_t iio_trig_periodic_write_freq(struct device *dev,
 					    size_t len)
 {
 	struct iio_trigger *trig = to_iio_trigger(dev);
-	struct iio_prtc_trigger_info *trig_info = trig->private_data;
+	struct iio_prtc_trigger_info *trig_info = iio_trigger_get_drvdata(trig);
 	unsigned long val;
 	int ret;
 
@@ -124,7 +124,7 @@ static int iio_trig_periodic_rtc_probe(struct platform_device *dev)
 			ret = -ENOMEM;
 			goto error_put_trigger_and_remove_from_list;
 		}
-		trig->private_data = trig_info;
+		iio_trigger_set_drvdata(trig, trig_info);
 		trig->ops = &iio_prtc_trigger_ops;
 		/* RTC access */
 		trig_info->rtc
@@ -158,7 +158,7 @@ error_free_completed_registrations:
 				 trig2,
 				 &iio_prtc_trigger_list,
 				 alloc_list) {
-		trig_info = trig->private_data;
+		trig_info = iio_trigger_get_drvdata(trig);
 		rtc_irq_unregister(trig_info->rtc, &trig_info->task);
 		rtc_class_close(trig_info->rtc);
 		kfree(trig_info);
@@ -176,7 +176,7 @@ static int iio_trig_periodic_rtc_remove(struct platform_device *dev)
 				 trig2,
 				 &iio_prtc_trigger_list,
 				 alloc_list) {
-		trig_info = trig->private_data;
+		trig_info = iio_trigger_get_drvdata(trig);
 		rtc_irq_unregister(trig_info->rtc, &trig_info->task);
 		rtc_class_close(trig_info->rtc);
 		kfree(trig_info);

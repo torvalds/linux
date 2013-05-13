@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -114,7 +114,7 @@ static int iwl_send_tx_ant_cfg(struct iwl_mvm *mvm, u8 valid_tx_ant)
 		.valid = cpu_to_le32(valid_tx_ant),
 	};
 
-	IWL_DEBUG_HC(mvm, "select valid tx ant: %u\n", valid_tx_ant);
+	IWL_DEBUG_FW(mvm, "select valid tx ant: %u\n", valid_tx_ant);
 	return iwl_mvm_send_cmd_pdu(mvm, TX_ANT_CONFIGURATION_CMD, CMD_SYNC,
 				    sizeof(tx_ant_cmd), &tx_ant_cmd);
 }
@@ -134,9 +134,10 @@ static bool iwl_alive_fn(struct iwl_notif_wait_data *notif_wait,
 	alive_data->scd_base_addr = le32_to_cpu(palive->scd_base_ptr);
 
 	alive_data->valid = le16_to_cpu(palive->status) == IWL_ALIVE_STATUS_OK;
-	IWL_DEBUG_FW(mvm, "Alive ucode status 0x%04x revision 0x%01X 0x%01X\n",
+	IWL_DEBUG_FW(mvm,
+		     "Alive ucode status 0x%04x revision 0x%01X 0x%01X flags 0x%01X\n",
 		     le16_to_cpu(palive->status), palive->ver_type,
-		     palive->ver_subtype);
+		     palive->ver_subtype, palive->flags);
 
 	return true;
 }
@@ -309,6 +310,10 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 		goto error;
 	}
 
+	ret = iwl_send_bt_prio_tbl(mvm);
+	if (ret)
+		goto error;
+
 	if (read_nvm) {
 		/* Read nvm */
 		ret = iwl_nvm_init(mvm);
@@ -322,16 +327,14 @@ int iwl_run_init_mvm_ucode(struct iwl_mvm *mvm, bool read_nvm)
 	WARN_ON(ret);
 
 	/* Send TX valid antennas before triggering calibrations */
-	ret = iwl_send_tx_ant_cfg(mvm, mvm->nvm_data->valid_tx_ant);
+	ret = iwl_send_tx_ant_cfg(mvm, iwl_fw_valid_tx_ant(mvm->fw));
 	if (ret)
 		goto error;
 
-	/* WkP doesn't have all calibrations, need to set default values */
-	if (mvm->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
-		ret = iwl_set_default_calibrations(mvm);
-		if (ret)
-			goto error;
-	}
+	/* need to set default values */
+	ret = iwl_set_default_calibrations(mvm);
+	if (ret)
+		goto error;
 
 	/*
 	 * Send phy configurations command to init uCode
@@ -410,7 +413,15 @@ int iwl_mvm_up(struct iwl_mvm *mvm)
 		goto error;
 	}
 
-	ret = iwl_send_tx_ant_cfg(mvm, mvm->nvm_data->valid_tx_ant);
+	ret = iwl_send_tx_ant_cfg(mvm, iwl_fw_valid_tx_ant(mvm->fw));
+	if (ret)
+		goto error;
+
+	ret = iwl_send_bt_prio_tbl(mvm);
+	if (ret)
+		goto error;
+
+	ret = iwl_send_bt_init_conf(mvm);
 	if (ret)
 		goto error;
 
@@ -456,7 +467,7 @@ int iwl_mvm_load_d3_fw(struct iwl_mvm *mvm)
 		goto error;
 	}
 
-	ret = iwl_send_tx_ant_cfg(mvm, mvm->nvm_data->valid_tx_ant);
+	ret = iwl_send_tx_ant_cfg(mvm, iwl_fw_valid_tx_ant(mvm->fw));
 	if (ret)
 		goto error;
 

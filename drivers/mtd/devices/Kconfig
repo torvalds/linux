@@ -71,7 +71,6 @@ config MTD_DATAFLASH_WRITE_VERIFY
 config MTD_DATAFLASH_OTP
 	bool "DataFlash OTP support (Security Register)"
 	depends on MTD_DATAFLASH
-	select HAVE_MTD_OTP
 	help
 	  Newer DataFlash chips (revisions C and D) support 128 bytes of
 	  one-time-programmable (OTP) data.  The first half may be written
@@ -204,69 +203,6 @@ config MTD_BLOCK2MTD
 	  be removed during a write (using the floppy drive).
 
 comment "Disk-On-Chip Device Drivers"
-
-config MTD_DOC2000
-	tristate "M-Systems Disk-On-Chip 2000 and Millennium (DEPRECATED)"
-	depends on MTD_NAND
-	select MTD_DOCPROBE
-	select MTD_NAND_IDS
-	---help---
-	  This provides an MTD device driver for the M-Systems DiskOnChip
-	  2000 and Millennium devices.  Originally designed for the DiskOnChip
-	  2000, it also now includes support for the DiskOnChip Millennium.
-	  If you have problems with this driver and the DiskOnChip Millennium,
-	  you may wish to try the alternative Millennium driver below. To use
-	  the alternative driver, you will need to undefine DOC_SINGLE_DRIVER
-	  in the <file:drivers/mtd/devices/docprobe.c> source code.
-
-	  If you use this device, you probably also want to enable the NFTL
-	  'NAND Flash Translation Layer' option below, which is used to
-	  emulate a block device by using a kind of file system on the flash
-	  chips.
-
-	  NOTE: This driver is deprecated and will probably be removed soon.
-	  Please try the new DiskOnChip driver under "NAND Flash Device
-	  Drivers".
-
-config MTD_DOC2001
-	tristate "M-Systems Disk-On-Chip Millennium-only alternative driver (DEPRECATED)"
-	depends on MTD_NAND
-	select MTD_DOCPROBE
-	select MTD_NAND_IDS
-	---help---
-	  This provides an alternative MTD device driver for the M-Systems
-	  DiskOnChip Millennium devices.  Use this if you have problems with
-	  the combined DiskOnChip 2000 and Millennium driver above.  To get
-	  the DiskOnChip probe code to load and use this driver instead of
-	  the other one, you will need to undefine DOC_SINGLE_DRIVER near
-	  the beginning of <file:drivers/mtd/devices/docprobe.c>.
-
-	  If you use this device, you probably also want to enable the NFTL
-	  'NAND Flash Translation Layer' option below, which is used to
-	  emulate a block device by using a kind of file system on the flash
-	  chips.
-
-	  NOTE: This driver is deprecated and will probably be removed soon.
-	  Please try the new DiskOnChip driver under "NAND Flash Device
-	  Drivers".
-
-config MTD_DOC2001PLUS
-	tristate "M-Systems Disk-On-Chip Millennium Plus"
-	depends on MTD_NAND
-	select MTD_DOCPROBE
-	select MTD_NAND_IDS
-	---help---
-	  This provides an MTD device driver for the M-Systems DiskOnChip
-	  Millennium Plus devices.
-
-	  If you use this device, you probably also want to enable the INFTL
-	  'Inverse NAND Flash Translation Layer' option below, which is used
-	  to emulate a block device by using a kind of file system on the
-	  flash chips.
-
-	  NOTE: This driver will soon be replaced by the new DiskOnChip driver
-	  under "NAND Flash Device Drivers" (currently that driver does not
-	  support all Millennium Plus devices).
 
 config MTD_DOCG3
 	tristate "M-Systems Disk-On-Chip G3"

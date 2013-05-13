@@ -21,26 +21,28 @@ nouveau_mc(void *obj)
 }
 
 #define nouveau_mc_create(p,e,o,d)                                             \
-	nouveau_subdev_create_((p), (e), (o), 0, "PMC", "master",              \
-			       sizeof(**d), (void **)d)
-#define nouveau_mc_destroy(p)                                                  \
-	nouveau_subdev_destroy(&(p)->base)
-#define nouveau_mc_init(p)                                                     \
-	nouveau_subdev_init(&(p)->base)
-#define nouveau_mc_fini(p,s)                                                   \
-	nouveau_subdev_fini(&(p)->base, (s))
+	nouveau_mc_create_((p), (e), (o), sizeof(**d), (void **)d)
+#define nouveau_mc_destroy(p) ({                                               \
+	struct nouveau_mc *pmc = (p); _nouveau_mc_dtor(nv_object(pmc));        \
+})
+#define nouveau_mc_init(p) ({                                                  \
+	struct nouveau_mc *pmc = (p); _nouveau_mc_init(nv_object(pmc));        \
+})
+#define nouveau_mc_fini(p,s) ({                                                \
+	struct nouveau_mc *pmc = (p); _nouveau_mc_fini(nv_object(pmc), (s));   \
+})
 
-#define _nouveau_mc_dtor _nouveau_subdev_dtor
-#define _nouveau_mc_init _nouveau_subdev_init
-#define _nouveau_mc_fini _nouveau_subdev_fini
+int  nouveau_mc_create_(struct nouveau_object *, struct nouveau_object *,
+			struct nouveau_oclass *, int, void **);
+void _nouveau_mc_dtor(struct nouveau_object *);
+int  _nouveau_mc_init(struct nouveau_object *);
+int  _nouveau_mc_fini(struct nouveau_object *, bool);
 
 extern struct nouveau_oclass nv04_mc_oclass;
 extern struct nouveau_oclass nv44_mc_oclass;
 extern struct nouveau_oclass nv50_mc_oclass;
 extern struct nouveau_oclass nv98_mc_oclass;
 extern struct nouveau_oclass nvc0_mc_oclass;
-
-void nouveau_mc_intr(struct nouveau_subdev *);
 
 extern const struct nouveau_mc_intr nv04_mc_intr[];
 int nv04_mc_init(struct nouveau_object *);

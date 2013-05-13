@@ -87,7 +87,7 @@ static struct device *mci_pdev;
 /*
  * various constants for Memory Controllers
  */
-static const char *mem_types[] = {
+static const char * const mem_types[] = {
 	[MEM_EMPTY] = "Empty",
 	[MEM_RESERVED] = "Reserved",
 	[MEM_UNKNOWN] = "Unknown",
@@ -107,7 +107,7 @@ static const char *mem_types[] = {
 	[MEM_RDDR3] = "Registered-DDR3"
 };
 
-static const char *dev_types[] = {
+static const char * const dev_types[] = {
 	[DEV_UNKNOWN] = "Unknown",
 	[DEV_X1] = "x1",
 	[DEV_X2] = "x2",
@@ -118,7 +118,7 @@ static const char *dev_types[] = {
 	[DEV_X64] = "x64"
 };
 
-static const char *edac_caps[] = {
+static const char * const edac_caps[] = {
 	[EDAC_UNKNOWN] = "Unknown",
 	[EDAC_NONE] = "None",
 	[EDAC_RESERVED] = "Reserved",
@@ -327,17 +327,17 @@ static struct device_attribute *dynamic_csrow_dimm_attr[] = {
 };
 
 /* possible dynamic channel ce_count attribute files */
-DEVICE_CHANNEL(ch0_ce_count, S_IRUGO | S_IWUSR,
+DEVICE_CHANNEL(ch0_ce_count, S_IRUGO,
 		   channel_ce_count_show, NULL, 0);
-DEVICE_CHANNEL(ch1_ce_count, S_IRUGO | S_IWUSR,
+DEVICE_CHANNEL(ch1_ce_count, S_IRUGO,
 		   channel_ce_count_show, NULL, 1);
-DEVICE_CHANNEL(ch2_ce_count, S_IRUGO | S_IWUSR,
+DEVICE_CHANNEL(ch2_ce_count, S_IRUGO,
 		   channel_ce_count_show, NULL, 2);
-DEVICE_CHANNEL(ch3_ce_count, S_IRUGO | S_IWUSR,
+DEVICE_CHANNEL(ch3_ce_count, S_IRUGO,
 		   channel_ce_count_show, NULL, 3);
-DEVICE_CHANNEL(ch4_ce_count, S_IRUGO | S_IWUSR,
+DEVICE_CHANNEL(ch4_ce_count, S_IRUGO,
 		   channel_ce_count_show, NULL, 4);
-DEVICE_CHANNEL(ch5_ce_count, S_IRUGO | S_IWUSR,
+DEVICE_CHANNEL(ch5_ce_count, S_IRUGO,
 		   channel_ce_count_show, NULL, 5);
 
 /* Total possible dynamic ce_count attribute file table */

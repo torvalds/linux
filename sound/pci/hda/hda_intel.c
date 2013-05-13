@@ -134,8 +134,8 @@ MODULE_PARM_DESC(power_save, "Automatic power-saving timeout "
  * this may give more power-saving, but will take longer time to
  * wake up.
  */
-static int power_save_controller = -1;
-module_param(power_save_controller, bint, 0644);
+static bool power_save_controller = 1;
+module_param(power_save_controller, bool, 0644);
 MODULE_PARM_DESC(power_save_controller, "Reset controller in power save mode.");
 #endif /* CONFIG_PM */
 
@@ -615,7 +615,7 @@ enum {
 /* quirks for Nvidia */
 #define AZX_DCAPS_PRESET_NVIDIA \
 	(AZX_DCAPS_NVIDIA_SNOOP | AZX_DCAPS_RIRB_DELAY | AZX_DCAPS_NO_MSI |\
-	 AZX_DCAPS_ALIGN_BUFSIZE)
+	 AZX_DCAPS_ALIGN_BUFSIZE | AZX_DCAPS_NO_64BIT)
 
 #define AZX_DCAPS_PRESET_CTHDA \
 	(AZX_DCAPS_NO_MSI | AZX_DCAPS_POSFIX_LPIB | AZX_DCAPS_4K_BDLE_BOUNDARY)
@@ -1889,6 +1889,26 @@ static void azx_timecounter_init(struct snd_pcm_substream *substream,
 		tc->cycle_last = last;
 }
 
+static u64 azx_adjust_codec_delay(struct snd_pcm_substream *substream,
+				u64 nsec)
+{
+	struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
+	struct hda_pcm_stream *hinfo = apcm->hinfo[substream->stream];
+	u64 codec_frames, codec_nsecs;
+
+	if (!hinfo->ops.get_delay)
+		return nsec;
+
+	codec_frames = hinfo->ops.get_delay(hinfo, apcm->codec, substream);
+	codec_nsecs = div_u64(codec_frames * 1000000000LL,
+			      substream->runtime->rate);
+
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
+		return nsec + codec_nsecs;
+
+	return (nsec > codec_nsecs) ? nsec - codec_nsecs : 0;
+}
+
 static int azx_get_wallclock_tstamp(struct snd_pcm_substream *substream,
 				struct timespec *ts)
 {
@@ -1897,6 +1917,7 @@ static int azx_get_wallclock_tstamp(struct snd_pcm_substream *substream,
 
 	nsec = timecounter_read(&azx_dev->azx_tc);
 	nsec = div_u64(nsec, 3); /* can be optimized */
+	nsec = azx_adjust_codec_delay(substream, nsec);
 
 	*ts = ns_to_timespec(nsec);
 
@@ -2349,8 +2370,11 @@ static unsigned int azx_get_position(struct azx *chip,
 				     struct azx_dev *azx_dev,
 				     bool with_check)
 {
+	struct snd_pcm_substream *substream = azx_dev->substream;
+	struct azx_pcm *apcm = snd_pcm_substream_chip(substream);
 	unsigned int pos;
-	int stream = azx_dev->substream->stream;
+	int stream = substream->stream;
+	struct hda_pcm_stream *hinfo = apcm->hinfo[stream];
 	int delay = 0;
 
 	switch (chip->position_fix[stream]) {
@@ -2381,7 +2405,7 @@ static unsigned int azx_get_position(struct azx *chip,
 		pos = 0;
 
 	/* calculate runtime delay from LPIB */
-	if (azx_dev->substream->runtime &&
+	if (substream->runtime &&
 	    chip->position_fix[stream] == POS_FIX_POSBUF &&
 	    (chip->driver_caps & AZX_DCAPS_COUNT_LPIB_DELAY)) {
 		unsigned int lpib_pos = azx_sd_readl(azx_dev, SD_LPIB);
@@ -2399,9 +2423,16 @@ static unsigned int azx_get_position(struct azx *chip,
 			delay = 0;
 			chip->driver_caps &= ~AZX_DCAPS_COUNT_LPIB_DELAY;
 		}
-		azx_dev->substream->runtime->delay =
-			bytes_to_frames(azx_dev->substream->runtime, delay);
+		delay = bytes_to_frames(substream->runtime, delay);
 	}
+
+	if (substream->runtime) {
+		if (hinfo->ops.get_delay)
+			delay += hinfo->ops.get_delay(hinfo, apcm->codec,
+						      substream);
+		substream->runtime->delay = delay;
+	}
+
 	trace_azx_get_position(chip, azx_dev, pos, delay);
 	return pos;
 }
@@ -2931,8 +2962,6 @@ static int azx_runtime_idle(struct device *dev)
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct azx *chip = card->private_data;
 
-	if (power_save_controller > 0)
-		return 0;
 	if (!power_save_controller ||
 	    !(chip->driver_caps & AZX_DCAPS_PM_RUNTIME))
 		return -EBUSY;

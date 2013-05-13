@@ -2772,10 +2772,15 @@ nve0_grctx_generate(struct nvc0_graph_priv *priv)
 	for (i = 0; i < 8; i++)
 		nv_wr32(priv, 0x4064d0 + (i * 0x04), 0x00000000);
 
-	nv_wr32(priv, 0x405b00, 0x201);
-	nv_wr32(priv, 0x408850, 0x2);
-	nv_wr32(priv, 0x408958, 0x2);
-	nv_wr32(priv, 0x419f78, 0xa);
+	nv_wr32(priv, 0x405b00, (priv->tpc_total << 8) | priv->gpc_nr);
+	if (priv->gpc_nr == 1) {
+		nv_mask(priv, 0x408850, 0x0000000f, priv->tpc_nr[0]);
+		nv_mask(priv, 0x408958, 0x0000000f, priv->tpc_nr[0]);
+	} else {
+		nv_mask(priv, 0x408850, 0x0000000f, priv->gpc_nr);
+		nv_mask(priv, 0x408958, 0x0000000f, priv->gpc_nr);
+	}
+	nv_mask(priv, 0x419f78, 0x00000001, 0x00000000);
 
 	nve0_grctx_generate_icmd(priv);
 	nve0_grctx_generate_a097(priv);

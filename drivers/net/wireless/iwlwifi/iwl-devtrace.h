@@ -298,7 +298,7 @@ TRACE_EVENT(iwlwifi_dbg,
 				       MAX_MSG_LEN, vaf->fmt,
 				       *vaf->va) >= MAX_MSG_LEN);
 	),
-	TP_printk("%s", (char *)__get_dynamic_array(msg))
+	TP_printk("%s", __get_str(msg))
 );
 
 #undef TRACE_SYSTEM

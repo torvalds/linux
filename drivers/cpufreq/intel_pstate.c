@@ -1,5 +1,5 @@
 /*
- * cpufreq_snb.c: Native P state management for Intel processors
+ * intel_pstate.c: Native P state management for Intel processors
  *
  * (C) Copyright 2012 Intel Corporation
  * Author: Dirk Brandewie <dirk.j.brandewie@intel.com>
@@ -502,7 +502,6 @@ static inline void intel_pstate_set_sample_time(struct cpudata *cpu)
 
 	sample_time = cpu->pstate_policy->sample_rate_ms;
 	delay = msecs_to_jiffies(sample_time);
-	delay -= jiffies % delay;
 	mod_timer_pinned(&cpu->timer, jiffies + delay);
 }
 
@@ -658,22 +657,11 @@ static unsigned int intel_pstate_get(unsigned int cpu_num)
 static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 {
 	struct cpudata *cpu;
-	int min, max;
 
 	cpu = all_cpu_data[policy->cpu];
 
 	if (!policy->cpuinfo.max_freq)
 		return -ENODEV;
-
-	intel_pstate_get_min_max(cpu, &min, &max);
-
-	limits.min_perf_pct = (policy->min * 100) / policy->cpuinfo.max_freq;
-	limits.min_perf_pct = clamp_t(int, limits.min_perf_pct, 0 , 100);
-	limits.min_perf = div_fp(int_tofp(limits.min_perf_pct), int_tofp(100));
-
-	limits.max_perf_pct = policy->max * 100 / policy->cpuinfo.max_freq;
-	limits.max_perf_pct = clamp_t(int, limits.max_perf_pct, 0 , 100);
-	limits.max_perf = div_fp(int_tofp(limits.max_perf_pct), int_tofp(100));
 
 	if (policy->policy == CPUFREQ_POLICY_PERFORMANCE) {
 		limits.min_perf_pct = 100;
@@ -681,7 +669,15 @@ static int intel_pstate_set_policy(struct cpufreq_policy *policy)
 		limits.max_perf_pct = 100;
 		limits.max_perf = int_tofp(1);
 		limits.no_turbo = 0;
+		return 0;
 	}
+	limits.min_perf_pct = (policy->min * 100) / policy->cpuinfo.max_freq;
+	limits.min_perf_pct = clamp_t(int, limits.min_perf_pct, 0 , 100);
+	limits.min_perf = div_fp(int_tofp(limits.min_perf_pct), int_tofp(100));
+
+	limits.max_perf_pct = policy->max * 100 / policy->cpuinfo.max_freq;
+	limits.max_perf_pct = clamp_t(int, limits.max_perf_pct, 0 , 100);
+	limits.max_perf = div_fp(int_tofp(limits.max_perf_pct), int_tofp(100));
 
 	return 0;
 }

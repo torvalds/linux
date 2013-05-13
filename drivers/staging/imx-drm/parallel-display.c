@@ -57,6 +57,7 @@ static void imx_pd_connector_destroy(struct drm_connector *connector)
 static int imx_pd_connector_get_modes(struct drm_connector *connector)
 {
 	struct imx_parallel_display *imxpd = con_to_imxpd(connector);
+	struct device_node *np = imxpd->dev->of_node;
 	int num_modes = 0;
 
 	if (imxpd->edid) {
@@ -66,6 +67,15 @@ static int imx_pd_connector_get_modes(struct drm_connector *connector)
 
 	if (imxpd->mode_valid) {
 		struct drm_display_mode *mode = drm_mode_create(connector->dev);
+		drm_mode_copy(mode, &imxpd->mode);
+		mode->type |= DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED,
+		drm_mode_probed_add(connector, mode);
+		num_modes++;
+	}
+
+	if (np) {
+		struct drm_display_mode *mode = drm_mode_create(connector->dev);
+		of_get_drm_display_mode(np, &imxpd->mode, 0);
 		drm_mode_copy(mode, &imxpd->mode);
 		mode->type |= DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED,
 		drm_mode_probed_add(connector, mode);
@@ -220,6 +230,8 @@ static int imx_pd_probe(struct platform_device *pdev)
 			imxpd->interface_pix_fmt = V4L2_PIX_FMT_RGB24;
 		else if (!strcmp(fmt, "rgb565"))
 			imxpd->interface_pix_fmt = V4L2_PIX_FMT_RGB565;
+		else if (!strcmp(fmt, "bgr666"))
+			imxpd->interface_pix_fmt = V4L2_PIX_FMT_BGR666;
 	}
 
 	imxpd->dev = &pdev->dev;

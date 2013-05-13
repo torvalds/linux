@@ -380,7 +380,8 @@ geth_unbind(struct usb_configuration *c, struct usb_function *f)
  * Caller must have called @gether_setup().  Caller is also responsible
  * for calling @gether_cleanup() before module unload.
  */
-int geth_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN])
+int geth_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
+		struct eth_dev *dev)
 {
 	struct f_gether	*geth;
 	int		status;
@@ -406,6 +407,7 @@ int geth_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN])
 	snprintf(geth->ethaddr, sizeof geth->ethaddr, "%pm", ethaddr);
 	geth_string_defs[1].s = geth->ethaddr;
 
+	geth->port.ioport = dev;
 	geth->port.cdc_filter = DEFAULT_FILTER;
 
 	geth->port.func.name = "cdc_subset";

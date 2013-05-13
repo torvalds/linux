@@ -1778,7 +1778,7 @@ static int __init it87_find(unsigned short *address,
 		superio_select(5);
 		sio_data->beep_pin = superio_inb(IT87_SIO_BEEP_PIN_REG) & 0x3f;
 	} else if (sio_data->type == it8783) {
-		int reg25, reg27, reg2A, reg2C, regEF;
+		int reg25, reg27, reg2a, reg2c, regef;
 
 		sio_data->skip_vid = 1;	/* No VID */
 
@@ -1786,15 +1786,15 @@ static int __init it87_find(unsigned short *address,
 
 		reg25 = superio_inb(IT87_SIO_GPIO1_REG);
 		reg27 = superio_inb(IT87_SIO_GPIO3_REG);
-		reg2A = superio_inb(IT87_SIO_PINX1_REG);
-		reg2C = superio_inb(IT87_SIO_PINX2_REG);
-		regEF = superio_inb(IT87_SIO_SPI_REG);
+		reg2a = superio_inb(IT87_SIO_PINX1_REG);
+		reg2c = superio_inb(IT87_SIO_PINX2_REG);
+		regef = superio_inb(IT87_SIO_SPI_REG);
 
 		/* Check if fan3 is there or not */
-		if ((reg27 & (1 << 0)) || !(reg2C & (1 << 2)))
+		if ((reg27 & (1 << 0)) || !(reg2c & (1 << 2)))
 			sio_data->skip_fan |= (1 << 2);
 		if ((reg25 & (1 << 4))
-		    || (!(reg2A & (1 << 1)) && (regEF & (1 << 0))))
+		    || (!(reg2a & (1 << 1)) && (regef & (1 << 0))))
 			sio_data->skip_pwm |= (1 << 2);
 
 		/* Check if fan2 is there or not */
@@ -1804,7 +1804,7 @@ static int __init it87_find(unsigned short *address,
 			sio_data->skip_pwm |= (1 << 1);
 
 		/* VIN5 */
-		if ((reg27 & (1 << 0)) || (reg2C & (1 << 2)))
+		if ((reg27 & (1 << 0)) || (reg2c & (1 << 2)))
 			sio_data->skip_in |= (1 << 5); /* No VIN5 */
 
 		/* VIN6 */
@@ -1829,18 +1829,18 @@ static int __init it87_find(unsigned short *address,
 			 * not the case, and ask the user to report if the
 			 * resulting voltage is sane.
 			 */
-			if (!(reg2C & (1 << 1))) {
-				reg2C |= (1 << 1);
-				superio_outb(IT87_SIO_PINX2_REG, reg2C);
+			if (!(reg2c & (1 << 1))) {
+				reg2c |= (1 << 1);
+				superio_outb(IT87_SIO_PINX2_REG, reg2c);
 				pr_notice("Routing internal VCCH5V to in7.\n");
 			}
 			pr_notice("in7 routed to internal voltage divider, with external pin disabled.\n");
 			pr_notice("Please report if it displays a reasonable voltage.\n");
 		}
 
-		if (reg2C & (1 << 0))
+		if (reg2c & (1 << 0))
 			sio_data->internal |= (1 << 0);
-		if (reg2C & (1 << 1))
+		if (reg2c & (1 << 1))
 			sio_data->internal |= (1 << 1);
 
 		sio_data->beep_pin = superio_inb(IT87_SIO_BEEP_PIN_REG) & 0x3f;

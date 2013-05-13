@@ -473,27 +473,27 @@ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
 	if (!madvise_behavior_valid(behavior))
 		return error;
 
+	if (start & ~PAGE_MASK)
+		return error;
+	len = (len_in + ~PAGE_MASK) & PAGE_MASK;
+
+	/* Check to see whether len was rounded up from small -ve to zero */
+	if (len_in && !len)
+		return error;
+
+	end = start + len;
+	if (end < start)
+		return error;
+
+	error = 0;
+	if (end == start)
+		return error;
+
 	write = madvise_need_mmap_write(behavior);
 	if (write)
 		down_write(&current->mm->mmap_sem);
 	else
 		down_read(&current->mm->mmap_sem);
-
-	if (start & ~PAGE_MASK)
-		goto out;
-	len = (len_in + ~PAGE_MASK) & PAGE_MASK;
-
-	/* Check to see whether len was rounded up from small -ve to zero */
-	if (len_in && !len)
-		goto out;
-
-	end = start + len;
-	if (end < start)
-		goto out;
-
-	error = 0;
-	if (end == start)
-		goto out;
 
 	/*
 	 * If the interval [start,end) covers some unmapped address
@@ -509,14 +509,14 @@ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
 		/* Still start < end. */
 		error = -ENOMEM;
 		if (!vma)
-			goto out_plug;
+			goto out;
 
 		/* Here start < (end|vma->vm_end). */
 		if (start < vma->vm_start) {
 			unmapped_error = -ENOMEM;
 			start = vma->vm_start;
 			if (start >= end)
-				goto out_plug;
+				goto out;
 		}
 
 		/* Here vma->vm_start <= start < (end|vma->vm_end) */
@@ -527,21 +527,20 @@ SYSCALL_DEFINE3(madvise, unsigned long, start, size_t, len_in, int, behavior)
 		/* Here vma->vm_start <= start < tmp <= (end|vma->vm_end). */
 		error = madvise_vma(vma, &prev, start, tmp, behavior);
 		if (error)
-			goto out_plug;
+			goto out;
 		start = tmp;
 		if (prev && start < prev->vm_end)
 			start = prev->vm_end;
 		error = unmapped_error;
 		if (start >= end)
-			goto out_plug;
+			goto out;
 		if (prev)
 			vma = prev->vm_next;
 		else	/* madvise_remove dropped mmap_sem */
 			vma = find_vma(current->mm, start);
 	}
-out_plug:
-	blk_finish_plug(&plug);
 out:
+	blk_finish_plug(&plug);
 	if (write)
 		up_write(&current->mm->mmap_sem);
 	else

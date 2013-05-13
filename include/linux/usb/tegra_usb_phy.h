@@ -61,10 +61,14 @@ struct tegra_usb_phy {
 	struct device *dev;
 	bool is_legacy_phy;
 	bool is_ulpi_phy;
+	void (*set_pts)(struct usb_phy *x, u8 pts_val);
+	void (*set_phcd)(struct usb_phy *x, bool enable);
 };
 
 struct tegra_usb_phy *tegra_usb_phy_open(struct device *dev, int instance,
-	void __iomem *regs, void *config, enum tegra_usb_phy_mode phy_mode);
+	void __iomem *regs, void *config, enum tegra_usb_phy_mode phy_mode,
+	void (*set_pts)(struct usb_phy *x, u8 pts_val),
+	void (*set_phcd)(struct usb_phy *x, bool enable));
 
 void tegra_usb_phy_preresume(struct usb_phy *phy);
 
@@ -74,9 +78,5 @@ void tegra_ehci_phy_restore_start(struct usb_phy *phy,
 				 enum tegra_usb_phy_port_speed port_speed);
 
 void tegra_ehci_phy_restore_end(struct usb_phy *phy);
-
-void tegra_ehci_set_pts(struct usb_phy *x, u8 pts_val);
-
-void tegra_ehci_set_phcd(struct usb_phy *x, bool enable);
 
 #endif /* __TEGRA_USB_PHY_H */

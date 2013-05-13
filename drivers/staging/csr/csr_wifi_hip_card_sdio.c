@@ -559,7 +559,7 @@ static void _build_sdio_config_data(sdio_config_data_t *cfg_data,
  *      padding bytes. Every read from this memory has to be transformed in
  *      host (cpu specific) format, before it is stored in driver's parameters
  *      or/and structures. Athough unifi_card_read16() and unifi_read32() do perform
- *      the convertion internally, unifi_readn() does not.
+ *      the conversion internally, unifi_readn() does not.
  * ---------------------------------------------------------------------------
  */
 static CsrResult card_hw_init(card_t *card)
@@ -1332,7 +1332,7 @@ static CsrResult card_access_panic(card_t *card)
     s32 i;
     CsrResult r, sr;
 
-    /* A chip version of zero means that the version never got succesfully read
+    /* A chip version of zero means that the version never got successfully read
      * during reset. In this case give up because it will not be possible to
      * verify the chip version.
      */
@@ -2446,7 +2446,7 @@ static CsrResult unifi_prepare_hw(card_t *card)
 
     if (old_state == UNIFI_HOST_STATE_TORPID)
     {
-        /* Ensure the initial clock rate is set; if a reset occured when the chip was
+        /* Ensure the initial clock rate is set; if a reset occurred when the chip was
          * TORPID, unifi_set_host_state() may have raised it to MAX.
          */
         csrResult = CsrSdioMaxBusClockFrequencySet(card->sdio_if, UNIFI_SDIO_CLOCK_INIT_HZ);
@@ -2567,7 +2567,7 @@ static CsrResult unifi_reset_hardware(card_t *card)
     csrResult = CsrSdioHardReset(card->sdio_if);
     if (csrResult == CSR_RESULT_SUCCESS)
     {
-        unifi_info(card->ospriv, "CsrSdioHardReset succeeded on reseting UniFi\n");
+        unifi_info(card->ospriv, "CsrSdioHardReset succeeded on resetting UniFi\n");
         r = unifi_prepare_hw(card);
         if (r == CSR_WIFI_HIP_RESULT_NO_DEVICE)
         {

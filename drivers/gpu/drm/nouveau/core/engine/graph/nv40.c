@@ -46,6 +46,14 @@ struct nv40_graph_chan {
 	struct nouveau_graph_chan base;
 };
 
+static u64
+nv40_graph_units(struct nouveau_graph *graph)
+{
+	struct nv40_graph_priv *priv = (void *)graph;
+
+	return nv_rd32(priv, 0x1540);
+}
+
 /*******************************************************************************
  * Graphics object classes
  ******************************************************************************/
@@ -359,6 +367,8 @@ nv40_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	else
 		nv_engine(priv)->sclass = nv40_graph_sclass;
 	nv_engine(priv)->tile_prog = nv40_graph_tile_prog;
+
+	priv->base.units = nv40_graph_units;
 	return 0;
 }
 

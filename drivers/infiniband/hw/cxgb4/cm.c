@@ -511,12 +511,16 @@ static unsigned int select_ntuple(struct c4iw_dev *dev, struct dst_entry *dst,
 static int send_connect(struct c4iw_ep *ep)
 {
 	struct cpl_act_open_req *req;
+	struct cpl_t5_act_open_req *t5_req;
 	struct sk_buff *skb;
 	u64 opt0;
 	u32 opt2;
 	unsigned int mtu_idx;
 	int wscale;
-	int wrlen = roundup(sizeof *req, 16);
+	int size = is_t4(ep->com.dev->rdev.lldi.adapter_type) ?
+		sizeof(struct cpl_act_open_req) :
+		sizeof(struct cpl_t5_act_open_req);
+	int wrlen = roundup(size, 16);
 
 	PDBG("%s ep %p atid %u\n", __func__, ep, ep->atid);
 
@@ -552,17 +556,36 @@ static int send_connect(struct c4iw_ep *ep)
 		opt2 |= WND_SCALE_EN(1);
 	t4_set_arp_err_handler(skb, NULL, act_open_req_arp_failure);
 
-	req = (struct cpl_act_open_req *) skb_put(skb, wrlen);
-	INIT_TP_WR(req, 0);
-	OPCODE_TID(req) = cpu_to_be32(
-		MK_OPCODE_TID(CPL_ACT_OPEN_REQ, ((ep->rss_qid<<14)|ep->atid)));
-	req->local_port = ep->com.local_addr.sin_port;
-	req->peer_port = ep->com.remote_addr.sin_port;
-	req->local_ip = ep->com.local_addr.sin_addr.s_addr;
-	req->peer_ip = ep->com.remote_addr.sin_addr.s_addr;
-	req->opt0 = cpu_to_be64(opt0);
-	req->params = cpu_to_be32(select_ntuple(ep->com.dev, ep->dst, ep->l2t));
-	req->opt2 = cpu_to_be32(opt2);
+	if (is_t4(ep->com.dev->rdev.lldi.adapter_type)) {
+		req = (struct cpl_act_open_req *) skb_put(skb, wrlen);
+		INIT_TP_WR(req, 0);
+		OPCODE_TID(req) = cpu_to_be32(
+				MK_OPCODE_TID(CPL_ACT_OPEN_REQ,
+				((ep->rss_qid << 14) | ep->atid)));
+		req->local_port = ep->com.local_addr.sin_port;
+		req->peer_port = ep->com.remote_addr.sin_port;
+		req->local_ip = ep->com.local_addr.sin_addr.s_addr;
+		req->peer_ip = ep->com.remote_addr.sin_addr.s_addr;
+		req->opt0 = cpu_to_be64(opt0);
+		req->params = cpu_to_be32(select_ntuple(ep->com.dev,
+					ep->dst, ep->l2t));
+		req->opt2 = cpu_to_be32(opt2);
+	} else {
+		t5_req = (struct cpl_t5_act_open_req *) skb_put(skb, wrlen);
+		INIT_TP_WR(t5_req, 0);
+		OPCODE_TID(t5_req) = cpu_to_be32(
+					MK_OPCODE_TID(CPL_ACT_OPEN_REQ,
+					((ep->rss_qid << 14) | ep->atid)));
+		t5_req->local_port = ep->com.local_addr.sin_port;
+		t5_req->peer_port = ep->com.remote_addr.sin_port;
+		t5_req->local_ip = ep->com.local_addr.sin_addr.s_addr;
+		t5_req->peer_ip = ep->com.remote_addr.sin_addr.s_addr;
+		t5_req->opt0 = cpu_to_be64(opt0);
+		t5_req->params = cpu_to_be64(V_FILTER_TUPLE(
+				select_ntuple(ep->com.dev, ep->dst, ep->l2t)));
+		t5_req->opt2 = cpu_to_be32(opt2);
+	}
+
 	set_bit(ACT_OPEN_REQ, &ep->com.history);
 	return c4iw_l2t_send(&ep->com.dev->rdev, skb, ep->l2t);
 }
@@ -1676,9 +1699,9 @@ static int act_open_rpl(struct c4iw_dev *dev, struct sk_buff *skb)
 	case CPL_ERR_CONN_TIMEDOUT:
 		break;
 	case CPL_ERR_TCAM_FULL:
+		dev->rdev.stats.tcam_full++;
 		if (dev->rdev.lldi.enable_fw_ofld_conn) {
 			mutex_lock(&dev->rdev.stats.lock);
-			dev->rdev.stats.tcam_full++;
 			mutex_unlock(&dev->rdev.stats.lock);
 			send_fw_act_open_req(ep,
 					     GET_TID_TID(GET_AOPEN_ATID(
@@ -2875,12 +2898,14 @@ static int deferred_fw6_msg(struct c4iw_dev *dev, struct sk_buff *skb)
 static void build_cpl_pass_accept_req(struct sk_buff *skb, int stid , u8 tos)
 {
 	u32 l2info;
-	u16 vlantag, len, hdr_len;
+	u16 vlantag, len, hdr_len, eth_hdr_len;
 	u8 intf;
 	struct cpl_rx_pkt *cpl = cplhdr(skb);
 	struct cpl_pass_accept_req *req;
 	struct tcp_options_received tmp_opt;
+	struct c4iw_dev *dev;
 
+	dev = *((struct c4iw_dev **) (skb->cb + sizeof(void *)));
 	/* Store values from cpl_rx_pkt in temporary location. */
 	vlantag = (__force u16) cpl->vlan;
 	len = (__force u16) cpl->len;
@@ -2896,7 +2921,7 @@ static void build_cpl_pass_accept_req(struct sk_buff *skb, int stid , u8 tos)
 	 */
 	memset(&tmp_opt, 0, sizeof(tmp_opt));
 	tcp_clear_options(&tmp_opt);
-	tcp_parse_options(skb, &tmp_opt, NULL, 0, NULL);
+	tcp_parse_options(skb, &tmp_opt, 0, NULL);
 
 	req = (struct cpl_pass_accept_req *)__skb_push(skb, sizeof(*req));
 	memset(req, 0, sizeof(*req));
@@ -2904,14 +2929,16 @@ static void build_cpl_pass_accept_req(struct sk_buff *skb, int stid , u8 tos)
 			 V_SYN_MAC_IDX(G_RX_MACIDX(
 			 (__force int) htonl(l2info))) |
 			 F_SYN_XACT_MATCH);
+	eth_hdr_len = is_t4(dev->rdev.lldi.adapter_type) ?
+			    G_RX_ETHHDR_LEN((__force int) htonl(l2info)) :
+			    G_RX_T5_ETHHDR_LEN((__force int) htonl(l2info));
 	req->hdr_len = cpu_to_be32(V_SYN_RX_CHAN(G_RX_CHAN(
 					(__force int) htonl(l2info))) |
 				   V_TCP_HDR_LEN(G_RX_TCPHDR_LEN(
 					(__force int) htons(hdr_len))) |
 				   V_IP_HDR_LEN(G_RX_IPHDR_LEN(
 					(__force int) htons(hdr_len))) |
-				   V_ETH_HDR_LEN(G_RX_ETHHDR_LEN(
-					(__force int) htonl(l2info))));
+				   V_ETH_HDR_LEN(G_RX_ETHHDR_LEN(eth_hdr_len)));
 	req->vlan = (__force __be16) vlantag;
 	req->len = (__force __be16) len;
 	req->tos_stid = cpu_to_be32(PASS_OPEN_TID(stid) |
@@ -2999,7 +3026,7 @@ static int rx_pkt(struct c4iw_dev *dev, struct sk_buff *skb)
 	u16 window;
 	struct port_info *pi;
 	struct net_device *pdev;
-	u16 rss_qid;
+	u16 rss_qid, eth_hdr_len;
 	int step;
 	u32 tx_chan;
 	struct neighbour *neigh;
@@ -3028,7 +3055,10 @@ static int rx_pkt(struct c4iw_dev *dev, struct sk_buff *skb)
 		goto reject;
 	}
 
-	if (G_RX_ETHHDR_LEN(ntohl(cpl->l2info)) == ETH_HLEN) {
+	eth_hdr_len = is_t4(dev->rdev.lldi.adapter_type) ?
+			    G_RX_ETHHDR_LEN(htonl(cpl->l2info)) :
+			    G_RX_T5_ETHHDR_LEN(htonl(cpl->l2info));
+	if (eth_hdr_len == ETH_HLEN) {
 		eh = (struct ethhdr *)(req + 1);
 		iph = (struct iphdr *)(eh + 1);
 	} else {

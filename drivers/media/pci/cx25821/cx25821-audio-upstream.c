@@ -259,79 +259,46 @@ void cx25821_free_mem_upstream_audio(struct cx25821_dev *dev)
 static int cx25821_get_audio_data(struct cx25821_dev *dev,
 			   const struct sram_channel *sram_ch)
 {
-	struct file *myfile;
+	struct file *file;
 	int frame_index_temp = dev->_audioframe_index;
 	int i = 0;
-	int line_size = AUDIO_LINE_SIZE;
 	int frame_size = AUDIO_DATA_BUF_SZ;
 	int frame_offset = frame_size * frame_index_temp;
-	ssize_t vfs_read_retval = 0;
-	char mybuf[line_size];
+	char mybuf[AUDIO_LINE_SIZE];
 	loff_t file_offset = dev->_audioframe_count * frame_size;
-	loff_t pos;
-	mm_segment_t old_fs;
+	char *p = NULL;
 
 	if (dev->_audiofile_status == END_OF_FILE)
 		return 0;
 
-	myfile = filp_open(dev->_audiofilename, O_RDONLY | O_LARGEFILE, 0);
-
-	if (IS_ERR(myfile)) {
-		const int open_errno = -PTR_ERR(myfile);
-		pr_err("%s(): ERROR opening file(%s) with errno = %d!\n",
-		       __func__, dev->_audiofilename, open_errno);
-		return PTR_ERR(myfile);
-	} else {
-		if (!(myfile->f_op)) {
-			pr_err("%s(): File has no file operations registered!\n",
-				__func__);
-			filp_close(myfile, NULL);
-			return -EIO;
-		}
-
-		if (!myfile->f_op->read) {
-			pr_err("%s(): File has no READ operations registered!\n",
-				__func__);
-			filp_close(myfile, NULL);
-			return -EIO;
-		}
-
-		pos = myfile->f_pos;
-		old_fs = get_fs();
-		set_fs(KERNEL_DS);
-
-		for (i = 0; i < dev->_audio_lines_count; i++) {
-			pos = file_offset;
-
-			vfs_read_retval = vfs_read(myfile, mybuf, line_size,
-									&pos);
-
-			if (vfs_read_retval > 0 && vfs_read_retval == line_size
-			    && dev->_audiodata_buf_virt_addr != NULL) {
-				memcpy((void *)(dev->_audiodata_buf_virt_addr +
-						frame_offset / 4), mybuf,
-					vfs_read_retval);
-			}
-
-			file_offset += vfs_read_retval;
-			frame_offset += vfs_read_retval;
-
-			if (vfs_read_retval < line_size) {
-				pr_info("Done: exit %s() since no more bytes to read from Audio file\n",
-					__func__);
-				break;
-			}
-		}
-
-		if (i > 0)
-			dev->_audioframe_count++;
-
-		dev->_audiofile_status = (vfs_read_retval == line_size) ?
-						IN_PROGRESS : END_OF_FILE;
-
-		set_fs(old_fs);
-		filp_close(myfile, NULL);
+	file = filp_open(dev->_audiofilename, O_RDONLY | O_LARGEFILE, 0);
+	if (IS_ERR(file)) {
+		pr_err("%s(): ERROR opening file(%s) with errno = %ld!\n",
+		       __func__, dev->_audiofilename, -PTR_ERR(file));
+		return PTR_ERR(file);
 	}
+
+	if (dev->_audiodata_buf_virt_addr)
+		p = (char *)dev->_audiodata_buf_virt_addr + frame_offset;
+
+	for (i = 0; i < dev->_audio_lines_count; i++) {
+		int n = kernel_read(file, file_offset, mybuf, AUDIO_LINE_SIZE);
+		if (n < AUDIO_LINE_SIZE) {
+			pr_info("Done: exit %s() since no more bytes to read from Audio file\n",
+				__func__);
+			dev->_audiofile_status = END_OF_FILE;
+			fput(file);
+			return 0;
+		}
+		dev->_audiofile_status = IN_PROGRESS;
+		if (p) {
+			memcpy(p, mybuf, n);
+			p += n;
+		}
+		file_offset += n;
+	}
+	dev->_audioframe_count++;
+	fput(file);
 
 	return 0;
 }
@@ -354,81 +321,41 @@ static void cx25821_audioups_handler(struct work_struct *work)
 static int cx25821_openfile_audio(struct cx25821_dev *dev,
 			   const struct sram_channel *sram_ch)
 {
-	struct file *myfile;
-	int i = 0, j = 0;
-	int line_size = AUDIO_LINE_SIZE;
-	ssize_t vfs_read_retval = 0;
-	char mybuf[line_size];
-	loff_t pos;
-	loff_t offset = (unsigned long)0;
-	mm_segment_t old_fs;
+	char *p = (void *)dev->_audiodata_buf_virt_addr;
+	struct file *file;
+	loff_t offset;
+	int i, j;
 
-	myfile = filp_open(dev->_audiofilename, O_RDONLY | O_LARGEFILE, 0);
-
-	if (IS_ERR(myfile)) {
-		const int open_errno = -PTR_ERR(myfile);
-		pr_err("%s(): ERROR opening file(%s) with errno = %d!\n",
-			__func__, dev->_audiofilename, open_errno);
-		return PTR_ERR(myfile);
-	} else {
-		if (!(myfile->f_op)) {
-			pr_err("%s(): File has no file operations registered!\n",
-				__func__);
-			filp_close(myfile, NULL);
-			return -EIO;
-		}
-
-		if (!myfile->f_op->read) {
-			pr_err("%s(): File has no READ operations registered!\n",
-				__func__);
-			filp_close(myfile, NULL);
-			return -EIO;
-		}
-
-		pos = myfile->f_pos;
-		old_fs = get_fs();
-		set_fs(KERNEL_DS);
-
-		for (j = 0; j < NUM_AUDIO_FRAMES; j++) {
-			for (i = 0; i < dev->_audio_lines_count; i++) {
-				pos = offset;
-
-				vfs_read_retval = vfs_read(myfile, mybuf,
-						line_size, &pos);
-
-				if (vfs_read_retval > 0 &&
-				    vfs_read_retval == line_size &&
-				    dev->_audiodata_buf_virt_addr != NULL) {
-					memcpy((void *)(dev->
-							_audiodata_buf_virt_addr
-							+ offset / 4), mybuf,
-					       vfs_read_retval);
-				}
-
-				offset += vfs_read_retval;
-
-				if (vfs_read_retval < line_size) {
-					pr_info("Done: exit %s() since no more bytes to read from Audio file\n",
-						__func__);
-					break;
-				}
-			}
-
-			if (i > 0)
-				dev->_audioframe_count++;
-
-			if (vfs_read_retval < line_size)
-				break;
-		}
-
-		dev->_audiofile_status = (vfs_read_retval == line_size) ?
-						IN_PROGRESS : END_OF_FILE;
-
-		set_fs(old_fs);
-		myfile->f_pos = 0;
-		filp_close(myfile, NULL);
+	file = filp_open(dev->_audiofilename, O_RDONLY | O_LARGEFILE, 0);
+	if (IS_ERR(file)) {
+		pr_err("%s(): ERROR opening file(%s) with errno = %ld!\n",
+			__func__, dev->_audiofilename, PTR_ERR(file));
+		return PTR_ERR(file);
 	}
 
+	for (j = 0, offset = 0; j < NUM_AUDIO_FRAMES; j++) {
+		for (i = 0; i < dev->_audio_lines_count; i++) {
+			char buf[AUDIO_LINE_SIZE];
+			int n = kernel_read(file, offset, buf,
+						AUDIO_LINE_SIZE);
+
+			if (n < AUDIO_LINE_SIZE) {
+				pr_info("Done: exit %s() since no more bytes to read from Audio file\n",
+					__func__);
+				dev->_audiofile_status = END_OF_FILE;
+				fput(file);
+				return 0;
+			}
+
+			if (p)
+				memcpy(p + offset, buf, n);
+
+			offset += n;
+		}
+		dev->_audioframe_count++;
+	}
+	dev->_audiofile_status = IN_PROGRESS;
+	fput(file);
 	return 0;
 }
 

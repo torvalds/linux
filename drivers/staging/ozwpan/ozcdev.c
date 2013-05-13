@@ -253,6 +253,7 @@ static long oz_cdev_ioctl(struct file *filp, unsigned int cmd,
 	case OZ_IOCTL_GET_PD_LIST: {
 			struct oz_pd_list list;
 			oz_trace("OZ_IOCTL_GET_PD_LIST\n");
+			memset(&list, 0, sizeof(list));
 			list.count = oz_get_pd_list(list.addr, OZ_MAX_PDS);
 			if (copy_to_user((void __user *)arg, &list,
 				sizeof(list)))

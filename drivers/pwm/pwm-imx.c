@@ -43,7 +43,6 @@ struct imx_chip {
 	struct clk	*clk_per;
 	struct clk	*clk_ipg;
 
-	int		enabled;
 	void __iomem	*mmio_base;
 
 	struct pwm_chip	chip;
@@ -135,7 +134,7 @@ static int imx_pwm_config_v2(struct pwm_chip *chip,
 		MX3_PWMCR_DOZEEN | MX3_PWMCR_WAITEN |
 		MX3_PWMCR_DBGEN | MX3_PWMCR_CLKSRC_IPG_HIGH;
 
-	if (imx->enabled)
+	if (test_bit(PWMF_ENABLED, &pwm->flags))
 		cr |= MX3_PWMCR_EN;
 
 	writel(cr, imx->mmio_base + MX3_PWMCR);
@@ -186,8 +185,6 @@ static int imx_pwm_enable(struct pwm_chip *chip, struct pwm_device *pwm)
 
 	imx->set_enable(chip, true);
 
-	imx->enabled = 1;
-
 	return 0;
 }
 
@@ -198,7 +195,6 @@ static void imx_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 	imx->set_enable(chip, false);
 
 	clk_disable_unprepare(imx->clk_per);
-	imx->enabled = 0;
 }
 
 static struct pwm_ops imx_pwm_ops = {

@@ -200,17 +200,4 @@ static struct pcmcia_driver sl811_cs_driver = {
 	.remove		= sl811_cs_detach,
 	.id_table	= sl811_ids,
 };
-
-/*====================================================================*/
-
-static int __init init_sl811_cs(void)
-{
-	return pcmcia_register_driver(&sl811_cs_driver);
-}
-module_init(init_sl811_cs);
-
-static void __exit exit_sl811_cs(void)
-{
-	pcmcia_unregister_driver(&sl811_cs_driver);
-}
-module_exit(exit_sl811_cs);
+module_pcmcia_driver(sl811_cs_driver);

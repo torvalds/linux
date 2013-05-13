@@ -1313,7 +1313,7 @@ static inline int s5p_mfc_get_new_ctx(struct s5p_mfc_dev *dev)
 	int cnt;
 
 	spin_lock_irqsave(&dev->condlock, flags);
-	mfc_debug(2, "Previos context: %d (bits %08lx)\n", dev->curr_ctx,
+	mfc_debug(2, "Previous context: %d (bits %08lx)\n", dev->curr_ctx,
 							dev->ctx_work_bits);
 	new_ctx = (dev->curr_ctx + 1) % MFC_NUM_CONTEXTS;
 	cnt = 0;

@@ -252,6 +252,70 @@ static int init_status (struct usbnet *dev, struct usb_interface *intf)
 	return 0;
 }
 
+/* Submit the interrupt URB if not previously submitted, increasing refcount */
+int usbnet_status_start(struct usbnet *dev, gfp_t mem_flags)
+{
+	int ret = 0;
+
+	WARN_ON_ONCE(dev->interrupt == NULL);
+	if (dev->interrupt) {
+		mutex_lock(&dev->interrupt_mutex);
+
+		if (++dev->interrupt_count == 1)
+			ret = usb_submit_urb(dev->interrupt, mem_flags);
+
+		dev_dbg(&dev->udev->dev, "incremented interrupt URB count to %d\n",
+			dev->interrupt_count);
+		mutex_unlock(&dev->interrupt_mutex);
+	}
+	return ret;
+}
+EXPORT_SYMBOL_GPL(usbnet_status_start);
+
+/* For resume; submit interrupt URB if previously submitted */
+static int __usbnet_status_start_force(struct usbnet *dev, gfp_t mem_flags)
+{
+	int ret = 0;
+
+	mutex_lock(&dev->interrupt_mutex);
+	if (dev->interrupt_count) {
+		ret = usb_submit_urb(dev->interrupt, mem_flags);
+		dev_dbg(&dev->udev->dev,
+			"submitted interrupt URB for resume\n");
+	}
+	mutex_unlock(&dev->interrupt_mutex);
+	return ret;
+}
+
+/* Kill the interrupt URB if all submitters want it killed */
+void usbnet_status_stop(struct usbnet *dev)
+{
+	if (dev->interrupt) {
+		mutex_lock(&dev->interrupt_mutex);
+		WARN_ON(dev->interrupt_count == 0);
+
+		if (dev->interrupt_count && --dev->interrupt_count == 0)
+			usb_kill_urb(dev->interrupt);
+
+		dev_dbg(&dev->udev->dev,
+			"decremented interrupt URB count to %d\n",
+			dev->interrupt_count);
+		mutex_unlock(&dev->interrupt_mutex);
+	}
+}
+EXPORT_SYMBOL_GPL(usbnet_status_stop);
+
+/* For suspend; always kill interrupt URB */
+static void __usbnet_status_stop_force(struct usbnet *dev)
+{
+	if (dev->interrupt) {
+		mutex_lock(&dev->interrupt_mutex);
+		usb_kill_urb(dev->interrupt);
+		dev_dbg(&dev->udev->dev, "killed interrupt URB for suspend\n");
+		mutex_unlock(&dev->interrupt_mutex);
+	}
+}
+
 /* Passes this packet up the stack, updating its accounting.
  * Some link protocols batch packets, so their rx_fixup paths
  * can return clones as well as just modify the original skb.
@@ -725,7 +789,7 @@ int usbnet_stop (struct net_device *net)
 	if (!(info->flags & FLAG_AVOID_UNLINK_URBS))
 		usbnet_terminate_urbs(dev);
 
-	usb_kill_urb(dev->interrupt);
+	usbnet_status_stop(dev);
 
 	usbnet_purge_paused_rxq(dev);
 
@@ -787,7 +851,7 @@ int usbnet_open (struct net_device *net)
 
 	/* start any status interrupt transfer */
 	if (dev->interrupt) {
-		retval = usb_submit_urb (dev->interrupt, GFP_KERNEL);
+		retval = usbnet_status_start(dev, GFP_KERNEL);
 		if (retval < 0) {
 			netif_err(dev, ifup, dev->net,
 				  "intr submit %d\n", retval);
@@ -938,6 +1002,27 @@ static const struct ethtool_ops usbnet_ethtool_ops = {
 
 /*-------------------------------------------------------------------------*/
 
+static void __handle_link_change(struct usbnet *dev)
+{
+	if (!test_bit(EVENT_DEV_OPEN, &dev->flags))
+		return;
+
+	if (!netif_carrier_ok(dev->net)) {
+		/* kill URBs for reading packets to save bus bandwidth */
+		unlink_urbs(dev, &dev->rxq);
+
+		/*
+		 * tx_timeout will unlink URBs for sending packets and
+		 * tx queue is stopped by netcore after link becomes off
+		 */
+	} else {
+		/* submitting URBs for reading packets */
+		tasklet_schedule(&dev->bh);
+	}
+
+	clear_bit(EVENT_LINK_CHANGE, &dev->flags);
+}
+
 /* work that cannot be done in interrupt context uses keventd.
  *
  * NOTE:  with 2.5 we could do more of this using completion callbacks,
@@ -1035,7 +1120,13 @@ skip_reset:
 		} else {
 			usb_autopm_put_interface(dev->intf);
 		}
+
+		/* handle link change from link resetting */
+		__handle_link_change(dev);
 	}
+
+	if (test_bit (EVENT_LINK_CHANGE, &dev->flags))
+		__handle_link_change(dev);
 
 	if (dev->flags)
 		netdev_dbg(dev->net, "kevent done, flags = 0x%lx\n", dev->flags);
@@ -1286,6 +1377,7 @@ static void usbnet_bh (unsigned long param)
 	// or are we maybe short a few urbs?
 	} else if (netif_running (dev->net) &&
 		   netif_device_present (dev->net) &&
+		   netif_carrier_ok(dev->net) &&
 		   !timer_pending (&dev->delay) &&
 		   !test_bit (EVENT_RX_HALT, &dev->flags)) {
 		int	temp = dev->rxq.qlen;
@@ -1430,6 +1522,8 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 	dev->delay.data = (unsigned long) dev;
 	init_timer (&dev->delay);
 	mutex_init (&dev->phy_mutex);
+	mutex_init(&dev->interrupt_mutex);
+	dev->interrupt_count = 0;
 
 	dev->net = net;
 	strcpy (net->name, "usb%d");
@@ -1521,7 +1615,7 @@ usbnet_probe (struct usb_interface *udev, const struct usb_device_id *prod)
 	netif_device_attach (net);
 
 	if (dev->driver_info->flags & FLAG_LINK_INTR)
-		netif_carrier_off(net);
+		usbnet_link_change(dev, 0, 0);
 
 	return 0;
 
@@ -1565,7 +1659,7 @@ int usbnet_suspend (struct usb_interface *intf, pm_message_t message)
 		 */
 		netif_device_detach (dev->net);
 		usbnet_terminate_urbs(dev);
-		usb_kill_urb(dev->interrupt);
+		__usbnet_status_stop_force(dev);
 
 		/*
 		 * reattach so runtime management can use and
@@ -1585,9 +1679,8 @@ int usbnet_resume (struct usb_interface *intf)
 	int                     retval;
 
 	if (!--dev->suspend_count) {
-		/* resume interrupt URBs */
-		if (dev->interrupt && test_bit(EVENT_DEV_OPEN, &dev->flags))
-			usb_submit_urb(dev->interrupt, GFP_NOIO);
+		/* resume interrupt URB if it was previously submitted */
+		__usbnet_status_start_force(dev, GFP_NOIO);
 
 		spin_lock_irq(&dev->txq.lock);
 		while ((res = usb_get_from_anchor(&dev->deferred))) {
@@ -1652,6 +1745,21 @@ int usbnet_manage_power(struct usbnet *dev, int on)
 	return 0;
 }
 EXPORT_SYMBOL(usbnet_manage_power);
+
+void usbnet_link_change(struct usbnet *dev, bool link, bool need_reset)
+{
+	/* update link after link is reseted */
+	if (link && !need_reset)
+		netif_carrier_on(dev->net);
+	else
+		netif_carrier_off(dev->net);
+
+	if (need_reset && link)
+		usbnet_defer_kevent(dev, EVENT_LINK_RESET);
+	else
+		usbnet_defer_kevent(dev, EVENT_LINK_CHANGE);
+}
+EXPORT_SYMBOL(usbnet_link_change);
 
 /*-------------------------------------------------------------------------*/
 static int __usbnet_read_cmd(struct usbnet *dev, u8 cmd, u8 reqtype,

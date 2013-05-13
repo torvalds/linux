@@ -25,7 +25,7 @@ config PLAT_S5P
 	select PLAT_SAMSUNG
 	select S3C_GPIO_TRACK
 	select S5P_GPIO_DRVSTR
-	select SAMSUNG_CLKSRC
+	select SAMSUNG_CLKSRC if !COMMON_CLK
 	select SAMSUNG_GPIOLIB_4BIT
 	select SAMSUNG_IRQ_VIC_TIMER
 	help
@@ -36,14 +36,6 @@ if PLAT_SAMSUNG
 # boot configurations
 
 comment "Boot options"
-
-config S3C_BOOT_WATCHDOG
-	bool "S3C Initialisation watchdog"
-	depends on S3C2410_WATCHDOG
-	help
-	  Say y to enable the watchdog during the kernel decompression
-	  stage. If the kernel fails to uncompress, then the watchdog
-	  will trigger a reset and the system should restart.
 
 config S3C_BOOT_ERROR_RESET
 	bool "S3C Reboot on decompression error"
@@ -70,7 +62,7 @@ config S3C_LOWLEVEL_UART_PORT
 
 # timer options
 
-config S5P_HRT
+config SAMSUNG_HRT
 	bool
 	select SAMSUNG_DEV_PWM
 	help
@@ -89,7 +81,7 @@ config SAMSUNG_CLKSRC
 	  used by newer systems such as the S3C64XX.
 
 config S5P_CLOCK
-	def_bool (ARCH_S5P64X0 || ARCH_S5PC100 || ARCH_S5PV210 || ARCH_EXYNOS)
+	def_bool (ARCH_S5P64X0 || ARCH_S5PC100 || ARCH_S5PV210)
 	help
 	  Support common clock part for ARCH_S5P and ARCH_EXYNOS SoCs
 
@@ -101,9 +93,9 @@ config SAMSUNG_IRQ_VIC_TIMER
          Internal configuration to build the VIC timer interrupt code.
 
 config S5P_IRQ
-	def_bool (ARCH_S5P64X0 || ARCH_S5PC100 || ARCH_S5PV210 || ARCH_EXYNOS)
+	def_bool (ARCH_S5P64X0 || ARCH_S5PC100 || ARCH_S5PV210)
 	help
-	  Support common interrup part for ARCH_S5P and ARCH_EXYNOS SoCs
+	  Support common interrupt part for ARCH_S5P SoCs
 
 config S5P_EXT_INT
 	bool
@@ -124,12 +116,6 @@ config SAMSUNG_GPIOLIB_4BIT
 	  GPIOlib file contains the 4 bit modification functions for gpio
 	  configuration. GPIOlib shall be compiled only for S3C64XX and S5P
 	  series of processors.
-
-config S3C_GPIO_CFG_S3C64XX
-	bool
-	help
-	  Internal configuration to enable S3C64XX style GPIO configuration
-	  functions.
 
 config S5P_GPIO_DRVSTR
 	bool

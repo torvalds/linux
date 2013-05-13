@@ -524,12 +524,7 @@ static void dm9601_status(struct usbnet *dev, struct urb *urb)
 
 	link = !!(buf[0] & 0x40);
 	if (netif_carrier_ok(dev->net) != link) {
-		if (link) {
-			netif_carrier_on(dev->net);
-			usbnet_defer_kevent (dev, EVENT_LINK_RESET);
-		}
-		else
-			netif_carrier_off(dev->net);
+		usbnet_link_change(dev, link, 1);
 		netdev_dbg(dev->net, "Link Status is: %d\n", link);
 	}
 }

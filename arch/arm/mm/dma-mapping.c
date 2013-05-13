@@ -823,16 +823,17 @@ static void dma_cache_maint_page(struct page *page, unsigned long offset,
 		if (PageHighMem(page)) {
 			if (len + offset > PAGE_SIZE)
 				len = PAGE_SIZE - offset;
-			vaddr = kmap_high_get(page);
-			if (vaddr) {
-				vaddr += offset;
-				op(vaddr, len, dir);
-				kunmap_high(page);
-			} else if (cache_is_vipt()) {
-				/* unmapped pages might still be cached */
+
+			if (cache_is_vipt_nonaliasing()) {
 				vaddr = kmap_atomic(page);
 				op(vaddr + offset, len, dir);
 				kunmap_atomic(vaddr);
+			} else {
+				vaddr = kmap_high_get(page);
+				if (vaddr) {
+					op(vaddr + offset, len, dir);
+					kunmap_high(page);
+				}
 			}
 		} else {
 			vaddr = page_address(page) + offset;

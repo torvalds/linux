@@ -640,13 +640,17 @@ static void ideapad_check_special_buttons(struct ideapad_private *priv)
 	for (bit = 0; bit < 16; bit++) {
 		if (test_bit(bit, &value)) {
 			switch (bit) {
-			case 6:
+			case 0:	/* Z580 */
+			case 6:	/* Z570 */
 				/* Thermal Management button */
 				ideapad_input_report(priv, 65);
 				break;
 			case 1:
 				/* OneKey Theater button */
 				ideapad_input_report(priv, 64);
+				break;
+			default:
+				pr_info("Unknown special button: %lu\n", bit);
 				break;
 			}
 		}

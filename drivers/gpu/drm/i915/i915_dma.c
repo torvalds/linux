@@ -1322,6 +1322,10 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	/* Always safe in the mode setting case. */
 	/* FIXME: do pre/post-mode set stuff in core KMS code */
 	dev->vblank_disable_allowed = 1;
+	if (INTEL_INFO(dev)->num_pipes == 0) {
+		dev_priv->mm.suspended = 0;
+		return 0;
+	}
 
 	ret = intel_fbdev_init(dev);
 	if (ret)
@@ -1453,6 +1457,22 @@ static void i915_dump_device_info(struct drm_i915_private *dev_priv)
 }
 
 /**
+ * intel_early_sanitize_regs - clean up BIOS state
+ * @dev: DRM device
+ *
+ * This function must be called before we do any I915_READ or I915_WRITE. Its
+ * purpose is to clean up any state left by the BIOS that may affect us when
+ * reading and/or writing registers.
+ */
+static void intel_early_sanitize_regs(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (IS_HASWELL(dev))
+		I915_WRITE_NOTRACE(FPGA_DBG, FPGA_DBG_RM_NOCLAIM);
+}
+
+/**
  * i915_driver_load - setup chip and create an initial config
  * @dev: DRM device
  * @flags: startup flags
@@ -1498,6 +1518,28 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		goto free_priv;
 	}
 
+	mmio_bar = IS_GEN2(dev) ? 1 : 0;
+	/* Before gen4, the registers and the GTT are behind different BARs.
+	 * However, from gen4 onwards, the registers and the GTT are shared
+	 * in the same BAR, so we want to restrict this ioremap from
+	 * clobbering the GTT which we want ioremap_wc instead. Fortunately,
+	 * the register BAR remains the same size for all the earlier
+	 * generations up to Ironlake.
+	 */
+	if (info->gen < 5)
+		mmio_size = 512*1024;
+	else
+		mmio_size = 2*1024*1024;
+
+	dev_priv->regs = pci_iomap(dev->pdev, mmio_bar, mmio_size);
+	if (!dev_priv->regs) {
+		DRM_ERROR("failed to map registers\n");
+		ret = -EIO;
+		goto put_bridge;
+	}
+
+	intel_early_sanitize_regs(dev);
+
 	ret = i915_gem_gtt_init(dev);
 	if (ret)
 		goto put_bridge;
@@ -1521,26 +1563,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	 */
 	if (IS_BROADWATER(dev) || IS_CRESTLINE(dev))
 		dma_set_coherent_mask(&dev->pdev->dev, DMA_BIT_MASK(32));
-
-	mmio_bar = IS_GEN2(dev) ? 1 : 0;
-	/* Before gen4, the registers and the GTT are behind different BARs.
-	 * However, from gen4 onwards, the registers and the GTT are shared
-	 * in the same BAR, so we want to restrict this ioremap from
-	 * clobbering the GTT which we want ioremap_wc instead. Fortunately,
-	 * the register BAR remains the same size for all the earlier
-	 * generations up to Ironlake.
-	 */
-	if (info->gen < 5)
-		mmio_size = 512*1024;
-	else
-		mmio_size = 2*1024*1024;
-
-	dev_priv->regs = pci_iomap(dev->pdev, mmio_bar, mmio_size);
-	if (!dev_priv->regs) {
-		DRM_ERROR("failed to map registers\n");
-		ret = -EIO;
-		goto put_gmch;
-	}
 
 	aperture_size = dev_priv->gtt.mappable_end;
 
@@ -1612,16 +1634,15 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	mutex_init(&dev_priv->rps.hw_lock);
 	mutex_init(&dev_priv->modeset_restore_lock);
 
-	if (IS_IVYBRIDGE(dev) || IS_HASWELL(dev))
-		dev_priv->num_pipe = 3;
-	else if (IS_MOBILE(dev) || !IS_GEN2(dev))
-		dev_priv->num_pipe = 2;
-	else
-		dev_priv->num_pipe = 1;
+	dev_priv->num_plane = 1;
+	if (IS_VALLEYVIEW(dev))
+		dev_priv->num_plane = 2;
 
-	ret = drm_vblank_init(dev, dev_priv->num_pipe);
-	if (ret)
-		goto out_gem_unload;
+	if (INTEL_INFO(dev)->num_pipes) {
+		ret = drm_vblank_init(dev, INTEL_INFO(dev)->num_pipes);
+		if (ret)
+			goto out_gem_unload;
+	}
 
 	/* Start out suspended */
 	dev_priv->mm.suspended = 1;
@@ -1636,9 +1657,11 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	i915_setup_sysfs(dev);
 
-	/* Must be done after probing outputs */
-	intel_opregion_init(dev);
-	acpi_video_register();
+	if (INTEL_INFO(dev)->num_pipes) {
+		/* Must be done after probing outputs */
+		intel_opregion_init(dev);
+		acpi_video_register();
+	}
 
 	if (IS_GEN5(dev))
 		intel_gpu_ips_init(dev_priv);
@@ -1663,10 +1686,9 @@ out_mtrrfree:
 		dev_priv->mm.gtt_mtrr = -1;
 	}
 	io_mapping_free(dev_priv->gtt.mappable);
+	dev_priv->gtt.gtt_remove(dev);
 out_rmmap:
 	pci_iounmap(dev->pdev, dev_priv->regs);
-put_gmch:
-	dev_priv->gtt.gtt_remove(dev);
 put_bridge:
 	pci_dev_put(dev_priv->bridge_dev);
 free_priv:

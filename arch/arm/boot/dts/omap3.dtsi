@@ -26,8 +26,14 @@
 		};
 	};
 
+	pmu {
+		compatible = "arm,cortex-a8-pmu";
+		interrupts = <3>;
+		ti,hwmods = "debugss";
+	};
+
 	/*
-	 * The soc node represents the soc top level view. It is uses for IPs
+	 * The soc node represents the soc top level view. It is used for IPs
 	 * that are not memory mapped in the MPU view or for the MPU itself.
 	 */
 	soc {
@@ -75,76 +81,101 @@
 			reg = <0x48200000 0x1000>;
 		};
 
+		sdma: dma-controller@48056000 {
+			compatible = "ti,omap3630-sdma", "ti,omap3430-sdma";
+			reg = <0x48056000 0x1000>;
+			interrupts = <12>,
+				     <13>,
+				     <14>,
+				     <15>;
+			#dma-cells = <1>;
+			#dma-channels = <32>;
+			#dma-requests = <96>;
+		};
+
 		omap3_pmx_core: pinmux@48002030 {
 			compatible = "ti,omap3-padconf", "pinctrl-single";
 			reg = <0x48002030 0x05cc>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			pinctrl-single,register-width = <16>;
-			pinctrl-single,function-mask = <0x7fff>;
+			pinctrl-single,function-mask = <0x7f1f>;
 		};
 
-		omap3_pmx_wkup: pinmux@0x48002a58 {
+		omap3_pmx_wkup: pinmux@0x48002a00 {
 			compatible = "ti,omap3-padconf", "pinctrl-single";
-			reg = <0x48002a58 0x5c>;
+			reg = <0x48002a00 0x5c>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 			pinctrl-single,register-width = <16>;
-			pinctrl-single,function-mask = <0x7fff>;
+			pinctrl-single,function-mask = <0x7f1f>;
 		};
 
 		gpio1: gpio@48310000 {
 			compatible = "ti,omap3-gpio";
+			reg = <0x48310000 0x200>;
+			interrupts = <29>;
 			ti,hwmods = "gpio1";
+			ti,gpio-always-on;
 			gpio-controller;
 			#gpio-cells = <2>;
 			interrupt-controller;
-			#interrupt-cells = <1>;
+			#interrupt-cells = <2>;
 		};
 
 		gpio2: gpio@49050000 {
 			compatible = "ti,omap3-gpio";
+			reg = <0x49050000 0x200>;
+			interrupts = <30>;
 			ti,hwmods = "gpio2";
 			gpio-controller;
 			#gpio-cells = <2>;
 			interrupt-controller;
-			#interrupt-cells = <1>;
+			#interrupt-cells = <2>;
 		};
 
 		gpio3: gpio@49052000 {
 			compatible = "ti,omap3-gpio";
+			reg = <0x49052000 0x200>;
+			interrupts = <31>;
 			ti,hwmods = "gpio3";
 			gpio-controller;
 			#gpio-cells = <2>;
 			interrupt-controller;
-			#interrupt-cells = <1>;
+			#interrupt-cells = <2>;
 		};
 
 		gpio4: gpio@49054000 {
 			compatible = "ti,omap3-gpio";
+			reg = <0x49054000 0x200>;
+			interrupts = <32>;
 			ti,hwmods = "gpio4";
 			gpio-controller;
 			#gpio-cells = <2>;
 			interrupt-controller;
-			#interrupt-cells = <1>;
+			#interrupt-cells = <2>;
 		};
 
 		gpio5: gpio@49056000 {
 			compatible = "ti,omap3-gpio";
+			reg = <0x49056000 0x200>;
+			interrupts = <33>;
 			ti,hwmods = "gpio5";
 			gpio-controller;
 			#gpio-cells = <2>;
 			interrupt-controller;
-			#interrupt-cells = <1>;
+			#interrupt-cells = <2>;
 		};
 
 		gpio6: gpio@49058000 {
 			compatible = "ti,omap3-gpio";
+			reg = <0x49058000 0x200>;
+			interrupts = <34>;
 			ti,hwmods = "gpio6";
 			gpio-controller;
 			#gpio-cells = <2>;
 			interrupt-controller;
-			#interrupt-cells = <1>;
+			#interrupt-cells = <2>;
 		};
 
 		uart1: serial@4806a000 {
@@ -192,6 +223,16 @@
 			#size-cells = <0>;
 			ti,hwmods = "mcspi1";
 			ti,spi-num-cs = <4>;
+			dmas = <&sdma 35>,
+			       <&sdma 36>,
+			       <&sdma 37>,
+			       <&sdma 38>,
+			       <&sdma 39>,
+			       <&sdma 40>,
+			       <&sdma 41>,
+			       <&sdma 42>;
+			dma-names = "tx0", "rx0", "tx1", "rx1",
+				    "tx2", "rx2", "tx3", "rx3";
 		};
 
 		mcspi2: spi@4809a000 {
@@ -200,6 +241,11 @@
 			#size-cells = <0>;
 			ti,hwmods = "mcspi2";
 			ti,spi-num-cs = <2>;
+			dmas = <&sdma 43>,
+			       <&sdma 44>,
+			       <&sdma 45>,
+			       <&sdma 46>;
+			dma-names = "tx0", "rx0", "tx1", "rx1";
 		};
 
 		mcspi3: spi@480b8000 {
@@ -208,6 +254,11 @@
 			#size-cells = <0>;
 			ti,hwmods = "mcspi3";
 			ti,spi-num-cs = <2>;
+			dmas = <&sdma 15>,
+			       <&sdma 16>,
+			       <&sdma 23>,
+			       <&sdma 24>;
+			dma-names = "tx0", "rx0", "tx1", "rx1";
 		};
 
 		mcspi4: spi@480ba000 {
@@ -216,22 +267,30 @@
 			#size-cells = <0>;
 			ti,hwmods = "mcspi4";
 			ti,spi-num-cs = <1>;
+			dmas = <&sdma 70>, <&sdma 71>;
+			dma-names = "tx0", "rx0";
 		};
 
 		mmc1: mmc@4809c000 {
 			compatible = "ti,omap3-hsmmc";
 			ti,hwmods = "mmc1";
 			ti,dual-volt;
+			dmas = <&sdma 61>, <&sdma 62>;
+			dma-names = "tx", "rx";
 		};
 
 		mmc2: mmc@480b4000 {
 			compatible = "ti,omap3-hsmmc";
 			ti,hwmods = "mmc2";
+			dmas = <&sdma 47>, <&sdma 48>;
+			dma-names = "tx", "rx";
 		};
 
 		mmc3: mmc@480ad000 {
 			compatible = "ti,omap3-hsmmc";
 			ti,hwmods = "mmc3";
+			dmas = <&sdma 77>, <&sdma 78>;
+			dma-names = "tx", "rx";
 		};
 
 		wdt2: wdt@48314000 {
@@ -249,6 +308,9 @@
 			interrupt-names = "common", "tx", "rx";
 			ti,buffer-size = <128>;
 			ti,hwmods = "mcbsp1";
+			dmas = <&sdma 31>,
+			       <&sdma 32>;
+			dma-names = "tx", "rx";
 		};
 
 		mcbsp2: mcbsp@49022000 {
@@ -263,6 +325,9 @@
 			interrupt-names = "common", "tx", "rx", "sidetone";
 			ti,buffer-size = <1280>;
 			ti,hwmods = "mcbsp2", "mcbsp2_sidetone";
+			dmas = <&sdma 33>,
+			       <&sdma 34>;
+			dma-names = "tx", "rx";
 		};
 
 		mcbsp3: mcbsp@49024000 {
@@ -277,6 +342,9 @@
 			interrupt-names = "common", "tx", "rx", "sidetone";
 			ti,buffer-size = <128>;
 			ti,hwmods = "mcbsp3", "mcbsp3_sidetone";
+			dmas = <&sdma 17>,
+			       <&sdma 18>;
+			dma-names = "tx", "rx";
 		};
 
 		mcbsp4: mcbsp@49026000 {
@@ -289,6 +357,9 @@
 			interrupt-names = "common", "tx", "rx";
 			ti,buffer-size = <128>;
 			ti,hwmods = "mcbsp4";
+			dmas = <&sdma 19>,
+			       <&sdma 20>;
+			dma-names = "tx", "rx";
 		};
 
 		mcbsp5: mcbsp@48096000 {
@@ -301,10 +372,13 @@
 			interrupt-names = "common", "tx", "rx";
 			ti,buffer-size = <128>;
 			ti,hwmods = "mcbsp5";
+			dmas = <&sdma 21>,
+			       <&sdma 22>;
+			dma-names = "tx", "rx";
 		};
 
 		timer1: timer@48318000 {
-			compatible = "ti,omap2-timer";
+			compatible = "ti,omap3430-timer";
 			reg = <0x48318000 0x400>;
 			interrupts = <37>;
 			ti,hwmods = "timer1";
@@ -312,28 +386,28 @@
 		};
 
 		timer2: timer@49032000 {
-			compatible = "ti,omap2-timer";
+			compatible = "ti,omap3430-timer";
 			reg = <0x49032000 0x400>;
 			interrupts = <38>;
 			ti,hwmods = "timer2";
 		};
 
 		timer3: timer@49034000 {
-			compatible = "ti,omap2-timer";
+			compatible = "ti,omap3430-timer";
 			reg = <0x49034000 0x400>;
 			interrupts = <39>;
 			ti,hwmods = "timer3";
 		};
 
 		timer4: timer@49036000 {
-			compatible = "ti,omap2-timer";
+			compatible = "ti,omap3430-timer";
 			reg = <0x49036000 0x400>;
 			interrupts = <40>;
 			ti,hwmods = "timer4";
 		};
 
 		timer5: timer@49038000 {
-			compatible = "ti,omap2-timer";
+			compatible = "ti,omap3430-timer";
 			reg = <0x49038000 0x400>;
 			interrupts = <41>;
 			ti,hwmods = "timer5";
@@ -341,7 +415,7 @@
 		};
 
 		timer6: timer@4903a000 {
-			compatible = "ti,omap2-timer";
+			compatible = "ti,omap3430-timer";
 			reg = <0x4903a000 0x400>;
 			interrupts = <42>;
 			ti,hwmods = "timer6";
@@ -349,7 +423,7 @@
 		};
 
 		timer7: timer@4903c000 {
-			compatible = "ti,omap2-timer";
+			compatible = "ti,omap3430-timer";
 			reg = <0x4903c000 0x400>;
 			interrupts = <43>;
 			ti,hwmods = "timer7";
@@ -357,7 +431,7 @@
 		};
 
 		timer8: timer@4903e000 {
-			compatible = "ti,omap2-timer";
+			compatible = "ti,omap3430-timer";
 			reg = <0x4903e000 0x400>;
 			interrupts = <44>;
 			ti,hwmods = "timer8";
@@ -366,7 +440,7 @@
 		};
 
 		timer9: timer@49040000 {
-			compatible = "ti,omap2-timer";
+			compatible = "ti,omap3430-timer";
 			reg = <0x49040000 0x400>;
 			interrupts = <45>;
 			ti,hwmods = "timer9";
@@ -374,7 +448,7 @@
 		};
 
 		timer10: timer@48086000 {
-			compatible = "ti,omap2-timer";
+			compatible = "ti,omap3430-timer";
 			reg = <0x48086000 0x400>;
 			interrupts = <46>;
 			ti,hwmods = "timer10";
@@ -382,7 +456,7 @@
 		};
 
 		timer11: timer@48088000 {
-			compatible = "ti,omap2-timer";
+			compatible = "ti,omap3430-timer";
 			reg = <0x48088000 0x400>;
 			interrupts = <47>;
 			ti,hwmods = "timer11";
@@ -390,12 +464,64 @@
 		};
 
 		timer12: timer@48304000 {
-			compatible = "ti,omap2-timer";
+			compatible = "ti,omap3430-timer";
 			reg = <0x48304000 0x400>;
 			interrupts = <95>;
 			ti,hwmods = "timer12";
 			ti,timer-alwon;
 			ti,timer-secure;
+		};
+
+		usbhstll: usbhstll@48062000 {
+			compatible = "ti,usbhs-tll";
+			reg = <0x48062000 0x1000>;
+			interrupts = <78>;
+			ti,hwmods = "usb_tll_hs";
+		};
+
+		usbhshost: usbhshost@48064000 {
+			compatible = "ti,usbhs-host";
+			reg = <0x48064000 0x400>;
+			ti,hwmods = "usb_host_hs";
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges;
+
+			usbhsohci: ohci@48064400 {
+				compatible = "ti,ohci-omap3", "usb-ohci";
+				reg = <0x48064400 0x400>;
+				interrupt-parent = <&intc>;
+				interrupts = <76>;
+			};
+
+			usbhsehci: ehci@48064800 {
+				compatible = "ti,ehci-omap", "usb-ehci";
+				reg = <0x48064800 0x400>;
+				interrupt-parent = <&intc>;
+				interrupts = <77>;
+			};
+		};
+
+		gpmc: gpmc@6e000000 {
+			compatible = "ti,omap3430-gpmc";
+			ti,hwmods = "gpmc";
+			reg = <0x6e000000 0x02d0>;
+			interrupts = <20>;
+			gpmc,num-cs = <8>;
+			gpmc,num-waitpins = <4>;
+			#address-cells = <2>;
+			#size-cells = <1>;
+		};
+
+		usb_otg_hs: usb_otg_hs@480ab000 {
+			compatible = "ti,omap3-musb";
+			reg = <0x480ab000 0x1000>;
+			interrupts = <0 92 0x4>, <0 93 0x4>;
+			interrupt-names = "mc", "dma";
+			ti,hwmods = "usb_otg_hs";
+			multipoint = <1>;
+			num-eps = <16>;
+			ram-bits = <12>;
 		};
 	};
 };

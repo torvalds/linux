@@ -3,8 +3,36 @@
 
 #ifdef CONFIG_HUGETLB_PAGE
 #include <asm/page.h>
+#include <asm-generic/hugetlb.h>
 
 extern struct kmem_cache *hugepte_cache;
+
+#ifdef CONFIG_PPC_BOOK3S_64
+/*
+ * This should work for other subarchs too. But right now we use the
+ * new format only for 64bit book3s
+ */
+static inline pte_t *hugepd_page(hugepd_t hpd)
+{
+	BUG_ON(!hugepd_ok(hpd));
+	/*
+	 * We have only four bits to encode, MMU page size
+	 */
+	BUILD_BUG_ON((MMU_PAGE_COUNT - 1) > 0xf);
+	return (pte_t *)(hpd.pd & ~HUGEPD_SHIFT_MASK);
+}
+
+static inline unsigned int hugepd_mmu_psize(hugepd_t hpd)
+{
+	return (hpd.pd & HUGEPD_SHIFT_MASK) >> 2;
+}
+
+static inline unsigned int hugepd_shift(hugepd_t hpd)
+{
+	return mmu_psize_to_shift(hugepd_mmu_psize(hpd));
+}
+
+#else
 
 static inline pte_t *hugepd_page(hugepd_t hpd)
 {
@@ -16,6 +44,9 @@ static inline unsigned int hugepd_shift(hugepd_t hpd)
 {
 	return hpd.pd & HUGEPD_SHIFT_MASK;
 }
+
+#endif /* CONFIG_PPC_BOOK3S_64 */
+
 
 static inline pte_t *hugepte_offset(hugepd_t *hpdp, unsigned long addr,
 				    unsigned pdshift)

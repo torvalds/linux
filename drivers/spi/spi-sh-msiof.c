@@ -764,8 +764,6 @@ static const struct of_device_id sh_msiof_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, sh_msiof_match);
-#else
-#define sh_msiof_match NULL
 #endif
 
 static struct dev_pm_ops sh_msiof_spi_dev_pm_ops = {
@@ -780,7 +778,7 @@ static struct platform_driver sh_msiof_spi_drv = {
 		.name		= "spi_sh_msiof",
 		.owner		= THIS_MODULE,
 		.pm		= &sh_msiof_spi_dev_pm_ops,
-		.of_match_table = sh_msiof_match,
+		.of_match_table = of_match_ptr(sh_msiof_match),
 	},
 };
 module_platform_driver(sh_msiof_spi_drv);

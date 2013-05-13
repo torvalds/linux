@@ -113,8 +113,8 @@ static void ehci_poll_ASS(struct ehci_hcd *ehci)
 
 	if (want != actual) {
 
-		/* Poll again later, but give up after about 20 ms */
-		if (ehci->ASS_poll_count++ < 20) {
+		/* Poll again later, but give up after about 2-4 ms */
+		if (ehci->ASS_poll_count++ < 2) {
 			ehci_enable_event(ehci, EHCI_HRTIMER_POLL_ASS, true);
 			return;
 		}
@@ -159,8 +159,8 @@ static void ehci_poll_PSS(struct ehci_hcd *ehci)
 
 	if (want != actual) {
 
-		/* Poll again later, but give up after about 20 ms */
-		if (ehci->PSS_poll_count++ < 20) {
+		/* Poll again later, but give up after about 2-4 ms */
+		if (ehci->PSS_poll_count++ < 2) {
 			ehci_enable_event(ehci, EHCI_HRTIMER_POLL_PSS, true);
 			return;
 		}
@@ -229,18 +229,19 @@ static void ehci_handle_intr_unlinks(struct ehci_hcd *ehci)
 	 * process all the QHs on the list.
 	 */
 	ehci->intr_unlinking = true;
-	while (ehci->intr_unlink) {
-		struct ehci_qh	*qh = ehci->intr_unlink;
+	while (!list_empty(&ehci->intr_unlink)) {
+		struct ehci_qh	*qh;
 
+		qh = list_first_entry(&ehci->intr_unlink, struct ehci_qh,
+				unlink_node);
 		if (!stopped && qh->unlink_cycle == ehci->intr_unlink_cycle)
 			break;
-		ehci->intr_unlink = qh->unlink_next;
-		qh->unlink_next = NULL;
+		list_del(&qh->unlink_node);
 		end_unlink_intr(ehci, qh);
 	}
 
 	/* Handle remaining entries later */
-	if (ehci->intr_unlink) {
+	if (!list_empty(&ehci->intr_unlink)) {
 		ehci_enable_event(ehci, EHCI_HRTIMER_UNLINK_INTR, true);
 		++ehci->intr_unlink_cycle;
 	}
@@ -295,8 +296,7 @@ static void end_free_itds(struct ehci_hcd *ehci)
 /* Handle lost (or very late) IAA interrupts */
 static void ehci_iaa_watchdog(struct ehci_hcd *ehci)
 {
-	if (ehci->rh_state != EHCI_RH_RUNNING)
-		return;
+	u32 cmd, status;
 
 	/*
 	 * Lost IAA irqs wedge things badly; seen first with a vt8235.
@@ -304,34 +304,32 @@ static void ehci_iaa_watchdog(struct ehci_hcd *ehci)
 	 * (a) SMP races against real IAA firing and retriggering, and
 	 * (b) clean HC shutdown, when IAA watchdog was pending.
 	 */
-	if (1) {
-		u32 cmd, status;
+	if (!ehci->iaa_in_progress || ehci->rh_state != EHCI_RH_RUNNING)
+		return;
 
-		/* If we get here, IAA is *REALLY* late.  It's barely
-		 * conceivable that the system is so busy that CMD_IAAD
-		 * is still legitimately set, so let's be sure it's
-		 * clear before we read STS_IAA.  (The HC should clear
-		 * CMD_IAAD when it sets STS_IAA.)
-		 */
-		cmd = ehci_readl(ehci, &ehci->regs->command);
+	/* If we get here, IAA is *REALLY* late.  It's barely
+	 * conceivable that the system is so busy that CMD_IAAD
+	 * is still legitimately set, so let's be sure it's
+	 * clear before we read STS_IAA.  (The HC should clear
+	 * CMD_IAAD when it sets STS_IAA.)
+	 */
+	cmd = ehci_readl(ehci, &ehci->regs->command);
 
-		/*
-		 * If IAA is set here it either legitimately triggered
-		 * after the watchdog timer expired (_way_ late, so we'll
-		 * still count it as lost) ... or a silicon erratum:
-		 * - VIA seems to set IAA without triggering the IRQ;
-		 * - IAAD potentially cleared without setting IAA.
-		 */
-		status = ehci_readl(ehci, &ehci->regs->status);
-		if ((status & STS_IAA) || !(cmd & CMD_IAAD)) {
-			COUNT(ehci->stats.lost_iaa);
-			ehci_writel(ehci, STS_IAA, &ehci->regs->status);
-		}
-
-		ehci_vdbg(ehci, "IAA watchdog: status %x cmd %x\n",
-				status, cmd);
-		end_unlink_async(ehci);
+	/*
+	 * If IAA is set here it either legitimately triggered
+	 * after the watchdog timer expired (_way_ late, so we'll
+	 * still count it as lost) ... or a silicon erratum:
+	 * - VIA seems to set IAA without triggering the IRQ;
+	 * - IAAD potentially cleared without setting IAA.
+	 */
+	status = ehci_readl(ehci, &ehci->regs->status);
+	if ((status & STS_IAA) || !(cmd & CMD_IAAD)) {
+		COUNT(ehci->stats.lost_iaa);
+		ehci_writel(ehci, STS_IAA, &ehci->regs->status);
 	}
+
+	ehci_dbg(ehci, "IAA watchdog: status %x cmd %x\n", status, cmd);
+	end_unlink_async(ehci);
 }
 
 

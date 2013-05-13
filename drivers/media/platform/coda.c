@@ -14,6 +14,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/firmware.h>
+#include <linux/genalloc.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/irq.h>
@@ -23,7 +24,7 @@
 #include <linux/slab.h>
 #include <linux/videodev2.h>
 #include <linux/of.h>
-#include <linux/platform_data/imx-iram.h>
+#include <linux/platform_data/coda.h>
 
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
@@ -43,6 +44,7 @@
 #define CODA7_WORK_BUF_SIZE	(512 * 1024 + CODA_FMO_BUF_SIZE * 8 * 1024)
 #define CODA_PARA_BUF_SIZE	(10 * 1024)
 #define CODA_ISRAM_SIZE	(2048 * 2)
+#define CODADX6_IRAM_SIZE	0xb000
 #define CODA7_IRAM_SIZE		0x14000 /* 81920 bytes */
 
 #define CODA_MAX_FRAMEBUFFERS	2
@@ -128,7 +130,10 @@ struct coda_dev {
 
 	struct coda_aux_buf	codebuf;
 	struct coda_aux_buf	workbuf;
+	struct gen_pool		*iram_pool;
+	long unsigned int	iram_vaddr;
 	long unsigned int	iram_paddr;
+	unsigned long		iram_size;
 
 	spinlock_t		irqlock;
 	struct mutex		dev_mutex;
@@ -1931,6 +1936,9 @@ static int coda_probe(struct platform_device *pdev)
 	const struct of_device_id *of_id =
 			of_match_device(of_match_ptr(coda_dt_ids), &pdev->dev);
 	const struct platform_device_id *pdev_id;
+	struct coda_platform_data *pdata = pdev->dev.platform_data;
+	struct device_node *np = pdev->dev.of_node;
+	struct gen_pool *pool;
 	struct coda_dev *dev;
 	struct resource *res;
 	int ret, irq;
@@ -1993,6 +2001,16 @@ static int coda_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
+	/* Get IRAM pool from device tree or platform data */
+	pool = of_get_named_gen_pool(np, "iram", 0);
+	if (!pool && pdata)
+		pool = dev_get_gen_pool(pdata->iram_dev);
+	if (!pool) {
+		dev_err(&pdev->dev, "iram pool not available\n");
+		return -ENOMEM;
+	}
+	dev->iram_pool = pool;
+
 	ret = v4l2_device_register(&pdev->dev, &dev->v4l2_dev);
 	if (ret)
 		return ret;
@@ -2027,18 +2045,17 @@ static int coda_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	if (dev->devtype->product == CODA_DX6) {
-		dev->iram_paddr = 0xffff4c00;
-	} else {
-		void __iomem *iram_vaddr;
-
-		iram_vaddr = iram_alloc(CODA7_IRAM_SIZE,
-					&dev->iram_paddr);
-		if (!iram_vaddr) {
-			dev_err(&pdev->dev, "unable to alloc iram\n");
-			return -ENOMEM;
-		}
+	if (dev->devtype->product == CODA_DX6)
+		dev->iram_size = CODADX6_IRAM_SIZE;
+	else
+		dev->iram_size = CODA7_IRAM_SIZE;
+	dev->iram_vaddr = gen_pool_alloc(dev->iram_pool, dev->iram_size);
+	if (!dev->iram_vaddr) {
+		dev_err(&pdev->dev, "unable to alloc iram\n");
+		return -ENOMEM;
 	}
+	dev->iram_paddr = gen_pool_virt_to_phys(dev->iram_pool,
+						dev->iram_vaddr);
 
 	platform_set_drvdata(pdev, dev);
 
@@ -2055,8 +2072,8 @@ static int coda_remove(struct platform_device *pdev)
 	if (dev->alloc_ctx)
 		vb2_dma_contig_cleanup_ctx(dev->alloc_ctx);
 	v4l2_device_unregister(&dev->v4l2_dev);
-	if (dev->iram_paddr)
-		iram_free(dev->iram_paddr, CODA7_IRAM_SIZE);
+	if (dev->iram_vaddr)
+		gen_pool_free(dev->iram_pool, dev->iram_vaddr, dev->iram_size);
 	if (dev->codebuf.vaddr)
 		dma_free_coherent(&pdev->dev, dev->codebuf.size,
 				  &dev->codebuf.vaddr, dev->codebuf.paddr);

@@ -870,8 +870,12 @@ void mrp_uninit_applicant(struct net_device *dev, struct mrp_application *appl)
 	 * all pending messages before the applicant is gone.
 	 */
 	del_timer_sync(&app->join_timer);
+
+	spin_lock(&app->lock);
 	mrp_mad_event(app, MRP_EVENT_TX);
 	mrp_pdu_queue(app);
+	spin_unlock(&app->lock);
+
 	mrp_queue_xmit(app);
 
 	dev_mc_del(dev, appl->group_address);

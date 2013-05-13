@@ -77,9 +77,11 @@ int pnv_smp_kick_cpu(int nr)
 	if (!paca[nr].cpu_start && firmware_has_feature(FW_FEATURE_OPALv2)) {
 		pr_devel("OPAL: Starting CPU %d (HW 0x%x)...\n", nr, pcpu);
 		rc = opal_start_cpu(pcpu, start_here);
-		if (rc != OPAL_SUCCESS)
+		if (rc != OPAL_SUCCESS) {
 			pr_warn("OPAL Error %ld starting CPU %d\n",
 				rc, nr);
+			return -ENODEV;
+		}
 	}
 	return smp_generic_kick_cpu(nr);
 }

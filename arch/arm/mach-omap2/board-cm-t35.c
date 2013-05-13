@@ -41,8 +41,7 @@
 
 #include <linux/platform_data/mtd-nand-omap2.h>
 #include <video/omapdss.h>
-#include <video/omap-panel-generic-dpi.h>
-#include <video/omap-panel-tfp410.h>
+#include <video/omap-panel-data.h>
 #include <linux/platform_data/spi-omap2-mcspi.h>
 
 #include "common.h"
@@ -191,45 +190,12 @@ static inline void cm_t35_init_nand(void) {}
 #define CM_T35_LCD_BL_GPIO 58
 #define CM_T35_DVI_EN_GPIO 54
 
-static int lcd_enabled;
-static int dvi_enabled;
-
-static int cm_t35_panel_enable_lcd(struct omap_dss_device *dssdev)
-{
-	if (dvi_enabled) {
-		printk(KERN_ERR "cannot enable LCD, DVI is enabled\n");
-		return -EINVAL;
-	}
-
-	gpio_set_value(CM_T35_LCD_EN_GPIO, 1);
-	gpio_set_value(CM_T35_LCD_BL_GPIO, 1);
-
-	lcd_enabled = 1;
-
-	return 0;
-}
-
-static void cm_t35_panel_disable_lcd(struct omap_dss_device *dssdev)
-{
-	lcd_enabled = 0;
-
-	gpio_set_value(CM_T35_LCD_BL_GPIO, 0);
-	gpio_set_value(CM_T35_LCD_EN_GPIO, 0);
-}
-
-static int cm_t35_panel_enable_tv(struct omap_dss_device *dssdev)
-{
-	return 0;
-}
-
-static void cm_t35_panel_disable_tv(struct omap_dss_device *dssdev)
-{
-}
-
 static struct panel_generic_dpi_data lcd_panel = {
 	.name			= "toppoly_tdo35s",
-	.platform_enable	= cm_t35_panel_enable_lcd,
-	.platform_disable	= cm_t35_panel_disable_lcd,
+	.num_gpios		= 1,
+	.gpios			= {
+		CM_T35_LCD_BL_GPIO,
+	},
 };
 
 static struct omap_dss_device cm_t35_lcd_device = {
@@ -258,8 +224,6 @@ static struct omap_dss_device cm_t35_tv_device = {
 	.driver_name		= "venc",
 	.type			= OMAP_DISPLAY_TYPE_VENC,
 	.phy.venc.type		= OMAP_DSS_VENC_TYPE_SVIDEO,
-	.platform_enable	= cm_t35_panel_enable_tv,
-	.platform_disable	= cm_t35_panel_disable_tv,
 };
 
 static struct omap_dss_device *cm_t35_dss_devices[] = {
@@ -293,11 +257,6 @@ static struct spi_board_info cm_t35_lcd_spi_board_info[] __initdata = {
 	},
 };
 
-static struct gpio cm_t35_dss_gpios[] __initdata = {
-	{ CM_T35_LCD_EN_GPIO, GPIOF_OUT_INIT_LOW,  "lcd enable"    },
-	{ CM_T35_LCD_BL_GPIO, GPIOF_OUT_INIT_LOW,  "lcd bl enable" },
-};
-
 static void __init cm_t35_init_display(void)
 {
 	int err;
@@ -305,15 +264,13 @@ static void __init cm_t35_init_display(void)
 	spi_register_board_info(cm_t35_lcd_spi_board_info,
 				ARRAY_SIZE(cm_t35_lcd_spi_board_info));
 
-	err = gpio_request_array(cm_t35_dss_gpios,
-				 ARRAY_SIZE(cm_t35_dss_gpios));
+
+	err = gpio_request_one(CM_T35_LCD_EN_GPIO, GPIOF_OUT_INIT_LOW,
+			"lcd bl enable");
 	if (err) {
-		pr_err("CM-T35: failed to request DSS control GPIOs\n");
+		pr_err("CM-T35: failed to request LCD EN GPIO\n");
 		return;
 	}
-
-	gpio_export(CM_T35_LCD_EN_GPIO, 0);
-	gpio_export(CM_T35_LCD_BL_GPIO, 0);
 
 	msleep(50);
 	gpio_set_value(CM_T35_LCD_EN_GPIO, 1);
@@ -321,7 +278,7 @@ static void __init cm_t35_init_display(void)
 	err = omap_display_init(&cm_t35_dss_data);
 	if (err) {
 		pr_err("CM-T35: failed to register DSS device\n");
-		gpio_free_array(cm_t35_dss_gpios, ARRAY_SIZE(cm_t35_dss_gpios));
+		gpio_free(CM_T35_LCD_EN_GPIO);
 	}
 }
 
@@ -419,15 +376,22 @@ static struct omap2_hsmmc_info mmc[] = {
 	{}	/* Terminator */
 };
 
+static struct usbhs_phy_data phy_data[] __initdata = {
+	{
+		.port = 1,
+		.reset_gpio = OMAP_MAX_GPIO_LINES + 6,
+		.vcc_gpio = -EINVAL,
+	},
+	{
+		.port = 2,
+		.reset_gpio = OMAP_MAX_GPIO_LINES + 7,
+		.vcc_gpio = -EINVAL,
+	},
+};
+
 static struct usbhs_omap_platform_data usbhs_bdata __initdata = {
 	.port_mode[0] = OMAP_EHCI_PORT_MODE_PHY,
 	.port_mode[1] = OMAP_EHCI_PORT_MODE_PHY,
-	.port_mode[2] = OMAP_USBHS_PORT_MODE_UNUSED,
-
-	.phy_reset  = true,
-	.reset_gpio_port[0]  = OMAP_MAX_GPIO_LINES + 6,
-	.reset_gpio_port[1]  = OMAP_MAX_GPIO_LINES + 7,
-	.reset_gpio_port[2]  = -EINVAL
 };
 
 static void  __init cm_t35_init_usbh(void)
@@ -444,6 +408,7 @@ static void  __init cm_t35_init_usbh(void)
 		msleep(1);
 	}
 
+	usbhs_init_phys(phy_data, ARRAY_SIZE(phy_data));
 	usbhs_init(&usbhs_bdata);
 }
 

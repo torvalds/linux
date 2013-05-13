@@ -126,16 +126,12 @@ static int __init pwrdms_setup(struct powerdomain *pwrdm, void *unused)
  * omap_default_idle - OMAP4 default ilde routine.'
  *
  * Implements OMAP4 memory, IO ordering requirements which can't be addressed
- * with default cpu_do_idle() hook. Used by all CPUs with !CONFIG_CPUIDLE and
- * by secondary CPU with CONFIG_CPUIDLE.
+ * with default cpu_do_idle() hook. Used by all CPUs with !CONFIG_CPU_IDLE and
+ * by secondary CPU with CONFIG_CPU_IDLE.
  */
 static void omap_default_idle(void)
 {
-	local_fiq_disable();
-
 	omap_do_wfi();
-
-	local_fiq_enable();
 }
 
 /**
@@ -147,8 +143,8 @@ static void omap_default_idle(void)
 int __init omap4_pm_init(void)
 {
 	int ret;
-	struct clockdomain *emif_clkdm, *mpuss_clkdm, *l3_1_clkdm, *l4wkup;
-	struct clockdomain *ducati_clkdm, *l3_2_clkdm, *l4_per_clkdm;
+	struct clockdomain *emif_clkdm, *mpuss_clkdm, *l3_1_clkdm;
+	struct clockdomain *ducati_clkdm, *l3_2_clkdm;
 
 	if (omap_rev() == OMAP4430_REV_ES1_0) {
 		WARN(1, "Power Management not supported on OMAP4430 ES1.0\n");
@@ -175,27 +171,19 @@ int __init omap4_pm_init(void)
 	 * MPUSS -> L4_PER/L3_* and DUCATI -> L3_* doesn't work as
 	 * expected. The hardware recommendation is to enable static
 	 * dependencies for these to avoid system lock ups or random crashes.
-	 * The L4 wakeup depedency is added to workaround the OCP sync hardware
-	 * BUG with 32K synctimer which lead to incorrect timer value read
-	 * from the 32K counter. The BUG applies for GPTIMER1 and WDT2 which
-	 * are part of L4 wakeup clockdomain.
 	 */
 	mpuss_clkdm = clkdm_lookup("mpuss_clkdm");
 	emif_clkdm = clkdm_lookup("l3_emif_clkdm");
 	l3_1_clkdm = clkdm_lookup("l3_1_clkdm");
 	l3_2_clkdm = clkdm_lookup("l3_2_clkdm");
-	l4_per_clkdm = clkdm_lookup("l4_per_clkdm");
-	l4wkup = clkdm_lookup("l4_wkup_clkdm");
 	ducati_clkdm = clkdm_lookup("ducati_clkdm");
-	if ((!mpuss_clkdm) || (!emif_clkdm) || (!l3_1_clkdm) || (!l4wkup) ||
-		(!l3_2_clkdm) || (!ducati_clkdm) || (!l4_per_clkdm))
+	if ((!mpuss_clkdm) || (!emif_clkdm) || (!l3_1_clkdm) ||
+		(!l3_2_clkdm) || (!ducati_clkdm))
 		goto err2;
 
 	ret = clkdm_add_wkdep(mpuss_clkdm, emif_clkdm);
 	ret |= clkdm_add_wkdep(mpuss_clkdm, l3_1_clkdm);
 	ret |= clkdm_add_wkdep(mpuss_clkdm, l3_2_clkdm);
-	ret |= clkdm_add_wkdep(mpuss_clkdm, l4_per_clkdm);
-	ret |= clkdm_add_wkdep(mpuss_clkdm, l4wkup);
 	ret |= clkdm_add_wkdep(ducati_clkdm, l3_1_clkdm);
 	ret |= clkdm_add_wkdep(ducati_clkdm, l3_2_clkdm);
 	if (ret) {

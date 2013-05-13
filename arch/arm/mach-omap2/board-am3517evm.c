@@ -35,8 +35,7 @@
 
 #include "common.h"
 #include <video/omapdss.h>
-#include <video/omap-panel-generic-dpi.h>
-#include <video/omap-panel-tfp410.h>
+#include <video/omap-panel-data.h>
 
 #include "am35xx-emac.h"
 #include "mux.h"
@@ -121,63 +120,14 @@ static int __init am3517_evm_i2c_init(void)
 	return 0;
 }
 
-static int lcd_enabled;
-static int dvi_enabled;
-
-#if defined(CONFIG_PANEL_SHARP_LQ043T1DG01) || \
-		defined(CONFIG_PANEL_SHARP_LQ043T1DG01_MODULE)
-static struct gpio am3517_evm_dss_gpios[] __initdata = {
-	/* GPIO 182 = LCD Backlight Power */
-	{ LCD_PANEL_BKLIGHT_PWR, GPIOF_OUT_INIT_HIGH, "lcd_backlight_pwr" },
-	/* GPIO 181 = LCD Panel PWM */
-	{ LCD_PANEL_PWM,	 GPIOF_OUT_INIT_HIGH, "lcd bl enable"	  },
-	/* GPIO 176 = LCD Panel Power enable pin */
-	{ LCD_PANEL_PWR,	 GPIOF_OUT_INIT_HIGH, "dvi enable"	  },
-};
-
-static void __init am3517_evm_display_init(void)
-{
-	int r;
-
-	omap_mux_init_gpio(LCD_PANEL_PWR, OMAP_PIN_INPUT_PULLUP);
-	omap_mux_init_gpio(LCD_PANEL_BKLIGHT_PWR, OMAP_PIN_INPUT_PULLDOWN);
-	omap_mux_init_gpio(LCD_PANEL_PWM, OMAP_PIN_INPUT_PULLDOWN);
-
-	r = gpio_request_array(am3517_evm_dss_gpios,
-			       ARRAY_SIZE(am3517_evm_dss_gpios));
-	if (r) {
-		printk(KERN_ERR "failed to get DSS panel control GPIOs\n");
-		return;
-	}
-
-	printk(KERN_INFO "Display initialized successfully\n");
-}
-#else
-static void __init am3517_evm_display_init(void) {}
-#endif
-
-static int am3517_evm_panel_enable_lcd(struct omap_dss_device *dssdev)
-{
-	if (dvi_enabled) {
-		printk(KERN_ERR "cannot enable LCD, DVI is enabled\n");
-		return -EINVAL;
-	}
-	gpio_set_value(LCD_PANEL_PWR, 1);
-	lcd_enabled = 1;
-
-	return 0;
-}
-
-static void am3517_evm_panel_disable_lcd(struct omap_dss_device *dssdev)
-{
-	gpio_set_value(LCD_PANEL_PWR, 0);
-	lcd_enabled = 0;
-}
-
 static struct panel_generic_dpi_data lcd_panel = {
 	.name			= "sharp_lq",
-	.platform_enable	= am3517_evm_panel_enable_lcd,
-	.platform_disable	= am3517_evm_panel_disable_lcd,
+	.num_gpios		= 3,
+	.gpios			= {
+		LCD_PANEL_PWR,
+		LCD_PANEL_BKLIGHT_PWR,
+		LCD_PANEL_PWM,
+	},
 };
 
 static struct omap_dss_device am3517_evm_lcd_device = {
@@ -188,22 +138,11 @@ static struct omap_dss_device am3517_evm_lcd_device = {
 	.phy.dpi.data_lines 	= 16,
 };
 
-static int am3517_evm_panel_enable_tv(struct omap_dss_device *dssdev)
-{
-	return 0;
-}
-
-static void am3517_evm_panel_disable_tv(struct omap_dss_device *dssdev)
-{
-}
-
 static struct omap_dss_device am3517_evm_tv_device = {
 	.type 			= OMAP_DISPLAY_TYPE_VENC,
 	.name 			= "tv",
 	.driver_name		= "venc",
 	.phy.venc.type		= OMAP_DSS_VENC_TYPE_SVIDEO,
-	.platform_enable	= am3517_evm_panel_enable_tv,
-	.platform_disable	= am3517_evm_panel_disable_tv,
 };
 
 static struct tfp410_platform_data dvi_panel = {
@@ -274,6 +213,14 @@ static __init void am3517_evm_mcbsp1_init(void)
 	omap_ctrl_writel(devconf0, OMAP2_CONTROL_DEVCONF0);
 }
 
+static struct usbhs_phy_data phy_data[] __initdata = {
+	{
+		.port = 1,
+		.reset_gpio = 57,
+		.vcc_gpio = -EINVAL,
+	},
+};
+
 static struct usbhs_omap_platform_data usbhs_bdata __initdata = {
 	.port_mode[0] = OMAP_EHCI_PORT_MODE_PHY,
 #if defined(CONFIG_PANEL_SHARP_LQ043T1DG01) || \
@@ -282,12 +229,6 @@ static struct usbhs_omap_platform_data usbhs_bdata __initdata = {
 #else
 	.port_mode[1] = OMAP_EHCI_PORT_MODE_PHY,
 #endif
-	.port_mode[2] = OMAP_USBHS_PORT_MODE_UNUSED,
-
-	.phy_reset  = true,
-	.reset_gpio_port[0]  = 57,
-	.reset_gpio_port[1]  = -EINVAL,
-	.reset_gpio_port[2]  = -EINVAL
 };
 
 #ifdef CONFIG_OMAP_MUX
@@ -349,7 +290,6 @@ static struct omap2_hsmmc_info mmc[] = {
 	{}      /* Terminator */
 };
 
-
 static void __init am3517_evm_init(void)
 {
 	omap3_mux_init(board_mux, OMAP_PACKAGE_CBB);
@@ -361,10 +301,10 @@ static void __init am3517_evm_init(void)
 
 	/* Configure GPIO for EHCI port */
 	omap_mux_init_gpio(57, OMAP_PIN_OUTPUT);
+
+	usbhs_init_phys(phy_data, ARRAY_SIZE(phy_data));
 	usbhs_init(&usbhs_bdata);
 	am3517_evm_hecc_init(&am3517_evm_hecc_pdata);
-	/* DSS */
-	am3517_evm_display_init();
 
 	/* RTC - S35390A */
 	am3517_evm_rtc_init();

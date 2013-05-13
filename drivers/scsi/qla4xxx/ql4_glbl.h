@@ -191,6 +191,9 @@ int qla4xxx_ping_iocb(struct scsi_qla_host *ha, uint32_t options,
 int qla4xxx_post_ping_evt_work(struct scsi_qla_host *ha,
 			       uint32_t status, uint32_t pid,
 			       uint32_t data_size, uint8_t *data);
+int qla4xxx_flashdb_by_index(struct scsi_qla_host *ha,
+			     struct dev_db_entry *fw_ddb_entry,
+			     dma_addr_t fw_ddb_entry_dma, uint16_t ddb_index);
 
 /* BSG Functions */
 int qla4xxx_bsg_request(struct bsg_job *bsg_job);
@@ -224,8 +227,6 @@ void qla4_83xx_interrupt_service_routine(struct scsi_qla_host *ha,
 int qla4_83xx_isp_reset(struct scsi_qla_host *ha);
 void qla4_83xx_queue_iocb(struct scsi_qla_host *ha);
 void qla4_83xx_complete_iocb(struct scsi_qla_host *ha);
-uint16_t qla4_83xx_rd_shdw_req_q_out(struct scsi_qla_host *ha);
-uint16_t qla4_83xx_rd_shdw_rsp_q_in(struct scsi_qla_host *ha);
 uint32_t qla4_83xx_rd_reg(struct scsi_qla_host *ha, ulong addr);
 void qla4_83xx_wr_reg(struct scsi_qla_host *ha, ulong addr, uint32_t val);
 int qla4_83xx_rd_reg_indirect(struct scsi_qla_host *ha, uint32_t addr,
@@ -261,6 +262,10 @@ int qla4_83xx_post_idc_ack(struct scsi_qla_host *ha);
 void qla4_83xx_disable_pause(struct scsi_qla_host *ha);
 void qla4_83xx_enable_mbox_intrs(struct scsi_qla_host *ha);
 int qla4_83xx_can_perform_reset(struct scsi_qla_host *ha);
+int qla4xxx_get_default_ddb(struct scsi_qla_host *ha, uint32_t options,
+			    dma_addr_t dma_addr);
+int qla4xxx_get_uni_chap_at_index(struct scsi_qla_host *ha, char *username,
+				  char *password, uint16_t chap_index);
 
 extern int ql4xextended_error_logging;
 extern int ql4xdontresethba;

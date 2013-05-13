@@ -384,8 +384,6 @@ static int waveform_attach(struct comedi_device *dev,
 	int i;
 	int ret;
 
-	dev->board_name = dev->driver->driver_name;
-
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
 		return -ENOMEM;

@@ -170,4 +170,7 @@ static inline unsigned long __cmpxchg_mb(volatile void *ptr, unsigned long old,
 				       (unsigned long)(n),		\
 				       sizeof(*(ptr))))
 
+#define cmpxchg64(ptr,o,n)		cmpxchg((ptr),(o),(n))
+#define cmpxchg64_local(ptr,o,n)	cmpxchg_local((ptr),(o),(n))
+
 #endif	/* __ASM_CMPXCHG_H */

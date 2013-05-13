@@ -920,7 +920,7 @@ static struct nfs_parsed_mount_data *nfs_alloc_parsed_mount_data(void)
 		data->mount_server.port	= NFS_UNSPEC_PORT;
 		data->nfs_server.port	= NFS_UNSPEC_PORT;
 		data->nfs_server.protocol = XPRT_TRANSPORT_TCP;
-		data->auth_flavors[0]	= RPC_AUTH_UNIX;
+		data->auth_flavors[0]	= RPC_AUTH_MAXFLAVOR;
 		data->auth_flavor_len	= 1;
 		data->minorversion	= 0;
 		data->need_mount	= true;
@@ -1608,48 +1608,91 @@ out_security_failure:
 }
 
 /*
- * Match the requested auth flavors with the list returned by
- * the server.  Returns zero and sets the mount's authentication
- * flavor on success; returns -EACCES if server does not support
- * the requested flavor.
+ * Select a security flavor for this mount.  The selected flavor
+ * is planted in args->auth_flavors[0].
+ *
+ * Returns 0 on success, -EACCES on failure.
  */
-static int nfs_walk_authlist(struct nfs_parsed_mount_data *args,
-			     struct nfs_mount_request *request)
+static int nfs_select_flavor(struct nfs_parsed_mount_data *args,
+			      struct nfs_mount_request *request)
 {
-	unsigned int i, j, server_authlist_len = *(request->auth_flav_len);
+	unsigned int i, count = *(request->auth_flav_len);
+	rpc_authflavor_t flavor;
+
+	/*
+	 * The NFSv2 MNT operation does not return a flavor list.
+	 */
+	if (args->mount_server.version != NFS_MNT3_VERSION)
+		goto out_default;
 
 	/*
 	 * Certain releases of Linux's mountd return an empty
-	 * flavor list.  To prevent behavioral regression with
-	 * these servers (ie. rejecting mounts that used to
-	 * succeed), revert to pre-2.6.32 behavior (no checking)
-	 * if the returned flavor list is empty.
+	 * flavor list in some cases.
 	 */
-	if (server_authlist_len == 0)
-		return 0;
+	if (count == 0)
+		goto out_default;
 
 	/*
-	 * We avoid sophisticated negotiating here, as there are
-	 * plenty of cases where we can get it wrong, providing
-	 * either too little or too much security.
+	 * If the sec= mount option is used, the specified flavor or AUTH_NULL
+	 * must be in the list returned by the server.
 	 *
+	 * AUTH_NULL has a special meaning when it's in the server list - it
+	 * means that the server will ignore the rpc creds, so any flavor
+	 * can be used.
+	 */
+	if (args->auth_flavors[0] != RPC_AUTH_MAXFLAVOR) {
+		for (i = 0; i < count; i++) {
+			if (args->auth_flavors[0] == request->auth_flavs[i] ||
+			    request->auth_flavs[i] == RPC_AUTH_NULL)
+				goto out;
+		}
+		dfprintk(MOUNT, "NFS: auth flavor %d not supported by server\n",
+			args->auth_flavors[0]);
+		goto out_err;
+	}
+
+	/*
 	 * RFC 2623, section 2.7 suggests we SHOULD prefer the
 	 * flavor listed first.  However, some servers list
-	 * AUTH_NULL first.  Our caller plants AUTH_SYS, the
-	 * preferred default, in args->auth_flavors[0] if user
-	 * didn't specify sec= mount option.
+	 * AUTH_NULL first.  Avoid ever choosing AUTH_NULL.
 	 */
-	for (i = 0; i < args->auth_flavor_len; i++)
-		for (j = 0; j < server_authlist_len; j++)
-			if (args->auth_flavors[i] == request->auth_flavs[j]) {
-				dfprintk(MOUNT, "NFS: using auth flavor %d\n",
-					request->auth_flavs[j]);
-				args->auth_flavors[0] = request->auth_flavs[j];
-				return 0;
-			}
+	for (i = 0; i < count; i++) {
+		struct rpcsec_gss_info info;
 
-	dfprintk(MOUNT, "NFS: server does not support requested auth flavor\n");
-	nfs_umount(request);
+		flavor = request->auth_flavs[i];
+		switch (flavor) {
+		case RPC_AUTH_UNIX:
+			goto out_set;
+		case RPC_AUTH_NULL:
+			continue;
+		default:
+			if (rpcauth_get_gssinfo(flavor, &info) == 0)
+				goto out_set;
+		}
+	}
+
+	/*
+	 * As a last chance, see if the server list contains AUTH_NULL -
+	 * if it does, use the default flavor.
+	 */
+	for (i = 0; i < count; i++) {
+		if (request->auth_flavs[i] == RPC_AUTH_NULL)
+			goto out_default;
+	}
+
+	dfprintk(MOUNT, "NFS: no auth flavors in common with server\n");
+	goto out_err;
+
+out_default:
+	/* use default if flavor not already set */
+	flavor = (args->auth_flavors[0] == RPC_AUTH_MAXFLAVOR) ?
+		RPC_AUTH_UNIX : args->auth_flavors[0];
+out_set:
+	args->auth_flavors[0] = flavor;
+out:
+	dfprintk(MOUNT, "NFS: using auth flavor %d\n", args->auth_flavors[0]);
+	return 0;
+out_err:
 	return -EACCES;
 }
 
@@ -1713,12 +1756,7 @@ static int nfs_request_mount(struct nfs_parsed_mount_data *args,
 		return status;
 	}
 
-	/*
-	 * MNTv1 (NFSv2) does not support auth flavor negotiation.
-	 */
-	if (args->mount_server.version != NFS_MNT3_VERSION)
-		return 0;
-	return nfs_walk_authlist(args, &request);
+	return nfs_select_flavor(args, &request);
 }
 
 struct dentry *nfs_try_mount(int flags, const char *dev_name,
@@ -2381,10 +2419,9 @@ int nfs_clone_sb_security(struct super_block *s, struct dentry *mntroot,
 			  struct nfs_mount_info *mount_info)
 {
 	/* clone any lsm security options from the parent to the new sb */
-	security_sb_clone_mnt_opts(mount_info->cloned->sb, s);
 	if (mntroot->d_inode->i_op != NFS_SB(s)->nfs_client->rpc_ops->dir_inode_ops)
 		return -ESTALE;
-	return 0;
+	return security_sb_clone_mnt_opts(mount_info->cloned->sb, s);
 }
 EXPORT_SYMBOL_GPL(nfs_clone_sb_security);
 

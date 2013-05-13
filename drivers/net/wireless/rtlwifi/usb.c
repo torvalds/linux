@@ -224,10 +224,9 @@ static void _usb_writeN_sync(struct rtl_priv *rtlpriv, u32 addr, void *data,
 	u8 *buffer;
 
 	wvalue = (u16)(addr & 0x0000ffff);
-	buffer = kmalloc(len, GFP_ATOMIC);
+	buffer = kmemdup(data, len, GFP_ATOMIC);
 	if (!buffer)
 		return;
-	memcpy(buffer, data, len);
 	usb_control_msg(udev, pipe, request, reqtype, wvalue,
 			index, buffer, len, 50);
 
@@ -309,6 +308,8 @@ static int _rtl_usb_init_tx(struct ieee80211_hw *hw)
 	return 0;
 }
 
+static void _rtl_rx_work(unsigned long param);
+
 static int _rtl_usb_init_rx(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -325,6 +326,12 @@ static int _rtl_usb_init_rx(struct ieee80211_hw *hw)
 	pr_info("rx_max_size %d, rx_urb_num %d, in_ep %d\n",
 		rtlusb->rx_max_size, rtlusb->rx_urb_num, rtlusb->in_ep);
 	init_usb_anchor(&rtlusb->rx_submitted);
+	init_usb_anchor(&rtlusb->rx_cleanup_urbs);
+
+	skb_queue_head_init(&rtlusb->rx_queue);
+	rtlusb->rx_work_tasklet.func = _rtl_rx_work;
+	rtlusb->rx_work_tasklet.data = (unsigned long)rtlusb;
+
 	return 0;
 }
 
@@ -406,39 +413,29 @@ static void rtl_usb_init_sw(struct ieee80211_hw *hw)
 	rtlusb->disableHWSM =  true;
 }
 
-#define __RADIO_TAP_SIZE_RSV	32
-
 static void _rtl_rx_completed(struct urb *urb);
 
-static struct sk_buff *_rtl_prep_rx_urb(struct ieee80211_hw *hw,
-					struct rtl_usb *rtlusb,
-					struct urb *urb,
-					gfp_t gfp_mask)
+static int _rtl_prep_rx_urb(struct ieee80211_hw *hw, struct rtl_usb *rtlusb,
+			      struct urb *urb, gfp_t gfp_mask)
 {
-	struct sk_buff *skb;
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	void *buf;
 
-	skb = __dev_alloc_skb((rtlusb->rx_max_size + __RADIO_TAP_SIZE_RSV),
-			       gfp_mask);
-	if (!skb) {
+	buf = usb_alloc_coherent(rtlusb->udev, rtlusb->rx_max_size, gfp_mask,
+				 &urb->transfer_dma);
+	if (!buf) {
 		RT_TRACE(rtlpriv, COMP_USB, DBG_EMERG,
-			 "Failed to __dev_alloc_skb!!\n");
-		return ERR_PTR(-ENOMEM);
+			 "Failed to usb_alloc_coherent!!\n");
+		return -ENOMEM;
 	}
 
-	/* reserve some space for mac80211's radiotap */
-	skb_reserve(skb, __RADIO_TAP_SIZE_RSV);
 	usb_fill_bulk_urb(urb, rtlusb->udev,
 			  usb_rcvbulkpipe(rtlusb->udev, rtlusb->in_ep),
-			  skb->data, min(skb_tailroom(skb),
-			  (int)rtlusb->rx_max_size),
-			  _rtl_rx_completed, skb);
+			  buf, rtlusb->rx_max_size, _rtl_rx_completed, rtlusb);
+	urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
-	_rtl_install_trx_info(rtlusb, skb, rtlusb->in_ep);
-	return skb;
+	return 0;
 }
-
-#undef __RADIO_TAP_SIZE_RSV
 
 static void _rtl_usb_rx_process_agg(struct ieee80211_hw *hw,
 				    struct sk_buff *skb)
@@ -523,22 +520,14 @@ static void _rtl_usb_rx_process_noagg(struct ieee80211_hw *hw,
 			if (unicast)
 				rtlpriv->link_info.num_rx_inperiod++;
 		}
-		if (likely(rtl_action_proc(hw, skb, false))) {
-			struct sk_buff *uskb = NULL;
-			u8 *pdata;
 
-			uskb = dev_alloc_skb(skb->len + 128);
-			if (uskb) {	/* drop packet on allocation failure */
-				memcpy(IEEE80211_SKB_RXCB(uskb), &rx_status,
-				       sizeof(rx_status));
-				pdata = (u8 *)skb_put(uskb, skb->len);
-				memcpy(pdata, skb->data, skb->len);
-				ieee80211_rx_irqsafe(hw, uskb);
-			}
+		/* static bcn for roaming */
+		rtl_beacon_statistic(hw, skb);
+
+		if (likely(rtl_action_proc(hw, skb, false)))
+			ieee80211_rx(hw, skb);
+		else
 			dev_kfree_skb_any(skb);
-		} else {
-			dev_kfree_skb_any(skb);
-		}
 	}
 }
 
@@ -555,15 +544,70 @@ static void _rtl_rx_pre_process(struct ieee80211_hw *hw, struct sk_buff *skb)
 	while (!skb_queue_empty(&rx_queue)) {
 		_skb = skb_dequeue(&rx_queue);
 		_rtl_usb_rx_process_agg(hw, _skb);
-		ieee80211_rx_irqsafe(hw, _skb);
+		ieee80211_rx(hw, _skb);
 	}
 }
 
+#define __RX_SKB_MAX_QUEUED	32
+
+static void _rtl_rx_work(unsigned long param)
+{
+	struct rtl_usb *rtlusb = (struct rtl_usb *)param;
+	struct ieee80211_hw *hw = usb_get_intfdata(rtlusb->intf);
+	struct sk_buff *skb;
+
+	while ((skb = skb_dequeue(&rtlusb->rx_queue))) {
+		if (unlikely(IS_USB_STOP(rtlusb))) {
+			dev_kfree_skb_any(skb);
+			continue;
+		}
+
+		if (likely(!rtlusb->usb_rx_segregate_hdl)) {
+			_rtl_usb_rx_process_noagg(hw, skb);
+		} else {
+			/* TO DO */
+			_rtl_rx_pre_process(hw, skb);
+			pr_err("rx agg not supported\n");
+		}
+	}
+}
+
+static unsigned int _rtl_rx_get_padding(struct ieee80211_hdr *hdr,
+					unsigned int len)
+{
+	unsigned int padding = 0;
+
+	/* make function no-op when possible */
+	if (NET_IP_ALIGN == 0 || len < sizeof(*hdr))
+		return 0;
+
+	/* alignment calculation as in lbtf_rx() / carl9170_rx_copy_data() */
+	/* TODO: deduplicate common code, define helper function instead? */
+
+	if (ieee80211_is_data_qos(hdr->frame_control)) {
+		u8 *qc = ieee80211_get_qos_ctl(hdr);
+
+		padding ^= NET_IP_ALIGN;
+
+		/* Input might be invalid, avoid accessing memory outside
+		 * the buffer.
+		 */
+		if ((unsigned long)qc - (unsigned long)hdr < len &&
+		    *qc & IEEE80211_QOS_CTL_A_MSDU_PRESENT)
+			padding ^= NET_IP_ALIGN;
+	}
+
+	if (ieee80211_has_a4(hdr->frame_control))
+		padding ^= NET_IP_ALIGN;
+
+	return padding;
+}
+
+#define __RADIO_TAP_SIZE_RSV	32
+
 static void _rtl_rx_completed(struct urb *_urb)
 {
-	struct sk_buff *skb = (struct sk_buff *)_urb->context;
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct rtl_usb *rtlusb = (struct rtl_usb *)info->rate_driver_data[0];
+	struct rtl_usb *rtlusb = (struct rtl_usb *)_urb->context;
 	struct ieee80211_hw *hw = usb_get_intfdata(rtlusb->intf);
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	int err = 0;
@@ -572,28 +616,50 @@ static void _rtl_rx_completed(struct urb *_urb)
 		goto free;
 
 	if (likely(0 == _urb->status)) {
-		/* If this code were moved to work queue, would CPU
-		 * utilization be improved?  NOTE: We shall allocate another skb
-		 * and reuse the original one.
-		 */
-		skb_put(skb, _urb->actual_length);
+		unsigned int padding;
+		struct sk_buff *skb;
+		unsigned int qlen;
+		unsigned int size = _urb->actual_length;
+		struct ieee80211_hdr *hdr;
 
-		if (likely(!rtlusb->usb_rx_segregate_hdl)) {
-			struct sk_buff *_skb;
-			_rtl_usb_rx_process_noagg(hw, skb);
-			_skb = _rtl_prep_rx_urb(hw, rtlusb, _urb, GFP_ATOMIC);
-			if (IS_ERR(_skb)) {
-				err = PTR_ERR(_skb);
-				RT_TRACE(rtlpriv, COMP_USB, DBG_EMERG,
-					 "Can't allocate skb for bulk IN!\n");
-				return;
-			}
-			skb = _skb;
-		} else{
-			/* TO DO */
-			_rtl_rx_pre_process(hw, skb);
-			pr_err("rx agg not supported\n");
+		if (size < RTL_RX_DESC_SIZE + sizeof(struct ieee80211_hdr)) {
+			RT_TRACE(rtlpriv, COMP_USB, DBG_EMERG,
+				 "Too short packet from bulk IN! (len: %d)\n",
+				 size);
+			goto resubmit;
 		}
+
+		qlen = skb_queue_len(&rtlusb->rx_queue);
+		if (qlen >= __RX_SKB_MAX_QUEUED) {
+			RT_TRACE(rtlpriv, COMP_USB, DBG_EMERG,
+				 "Pending RX skbuff queue full! (qlen: %d)\n",
+				 qlen);
+			goto resubmit;
+		}
+
+		hdr = (void *)(_urb->transfer_buffer + RTL_RX_DESC_SIZE);
+		padding = _rtl_rx_get_padding(hdr, size - RTL_RX_DESC_SIZE);
+
+		skb = dev_alloc_skb(size + __RADIO_TAP_SIZE_RSV + padding);
+		if (!skb) {
+			RT_TRACE(rtlpriv, COMP_USB, DBG_EMERG,
+				 "Can't allocate skb for bulk IN!\n");
+			goto resubmit;
+		}
+
+		_rtl_install_trx_info(rtlusb, skb, rtlusb->in_ep);
+
+		/* Make sure the payload data is 4 byte aligned. */
+		skb_reserve(skb, padding);
+
+		/* reserve some space for mac80211's radiotap */
+		skb_reserve(skb, __RADIO_TAP_SIZE_RSV);
+
+		memcpy(skb_put(skb, size), _urb->transfer_buffer, size);
+
+		skb_queue_tail(&rtlusb->rx_queue, skb);
+		tasklet_schedule(&rtlusb->rx_work_tasklet);
+
 		goto resubmit;
 	}
 
@@ -609,9 +675,6 @@ static void _rtl_rx_completed(struct urb *_urb)
 	}
 
 resubmit:
-	skb_reset_tail_pointer(skb);
-	skb_trim(skb, 0);
-
 	usb_anchor_urb(_urb, &rtlusb->rx_submitted);
 	err = usb_submit_urb(_urb, GFP_ATOMIC);
 	if (unlikely(err)) {
@@ -621,13 +684,34 @@ resubmit:
 	return;
 
 free:
-	dev_kfree_skb_irq(skb);
+	/* On some architectures, usb_free_coherent must not be called from
+	 * hardirq context. Queue urb to cleanup list.
+	 */
+	usb_anchor_urb(_urb, &rtlusb->rx_cleanup_urbs);
+}
+
+#undef __RADIO_TAP_SIZE_RSV
+
+static void _rtl_usb_cleanup_rx(struct ieee80211_hw *hw)
+{
+	struct rtl_usb *rtlusb = rtl_usbdev(rtl_usbpriv(hw));
+	struct urb *urb;
+
+	usb_kill_anchored_urbs(&rtlusb->rx_submitted);
+
+	tasklet_kill(&rtlusb->rx_work_tasklet);
+	skb_queue_purge(&rtlusb->rx_queue);
+
+	while ((urb = usb_get_from_anchor(&rtlusb->rx_cleanup_urbs))) {
+		usb_free_coherent(urb->dev, urb->transfer_buffer_length,
+				urb->transfer_buffer, urb->transfer_dma);
+		usb_free_urb(urb);
+	}
 }
 
 static int _rtl_usb_receive(struct ieee80211_hw *hw)
 {
 	struct urb *urb;
-	struct sk_buff *skb;
 	int err;
 	int i;
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
@@ -646,11 +730,10 @@ static int _rtl_usb_receive(struct ieee80211_hw *hw)
 			goto err_out;
 		}
 
-		skb = _rtl_prep_rx_urb(hw, rtlusb, urb, GFP_KERNEL);
-		if (IS_ERR(skb)) {
+		err = _rtl_prep_rx_urb(hw, rtlusb, urb, GFP_KERNEL);
+		if (err < 0) {
 			RT_TRACE(rtlpriv, COMP_USB, DBG_EMERG,
 				 "Failed to prep_rx_urb!!\n");
-			err = PTR_ERR(skb);
 			usb_free_urb(urb);
 			goto err_out;
 		}
@@ -665,6 +748,7 @@ static int _rtl_usb_receive(struct ieee80211_hw *hw)
 
 err_out:
 	usb_kill_anchored_urbs(&rtlusb->rx_submitted);
+	_rtl_usb_cleanup_rx(hw);
 	return err;
 }
 
@@ -706,7 +790,7 @@ static void rtl_usb_cleanup(struct ieee80211_hw *hw)
 	SET_USB_STOP(rtlusb);
 
 	/* clean up rx stuff. */
-	usb_kill_anchored_urbs(&rtlusb->rx_submitted);
+	_rtl_usb_cleanup_rx(hw);
 
 	/* clean up tx stuff */
 	for (i = 0; i < RTL_USB_MAX_EP_NUM; i++) {

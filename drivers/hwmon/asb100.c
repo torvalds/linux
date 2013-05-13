@@ -55,8 +55,8 @@ static const unsigned short normal_i2c[] = { 0x2d, I2C_CLIENT_END };
 
 static unsigned short force_subclients[4];
 module_param_array(force_subclients, short, NULL, 0);
-MODULE_PARM_DESC(force_subclients, "List of subclient addresses: "
-	"{bus, clientaddr, subclientaddr1, subclientaddr2}");
+MODULE_PARM_DESC(force_subclients,
+	"List of subclient addresses: {bus, clientaddr, subclientaddr1, subclientaddr2}");
 
 /* Voltage IN registers 0-6 */
 #define ASB100_REG_IN(nr)	(0x20 + (nr))
@@ -689,8 +689,8 @@ static int asb100_detect_subclients(struct i2c_client *client)
 		for (i = 2; i <= 3; i++) {
 			if (force_subclients[i] < 0x48 ||
 			    force_subclients[i] > 0x4f) {
-				dev_err(&client->dev, "invalid subclient "
-					"address %d; must be 0x48-0x4f\n",
+				dev_err(&client->dev,
+					"invalid subclient address %d; must be 0x48-0x4f\n",
 					force_subclients[i]);
 				err = -ENODEV;
 				goto ERROR_SC_2;
@@ -708,24 +708,27 @@ static int asb100_detect_subclients(struct i2c_client *client)
 	}
 
 	if (sc_addr[0] == sc_addr[1]) {
-		dev_err(&client->dev, "duplicate addresses 0x%x "
-				"for subclients\n", sc_addr[0]);
+		dev_err(&client->dev,
+			"duplicate addresses 0x%x for subclients\n",
+			sc_addr[0]);
 		err = -ENODEV;
 		goto ERROR_SC_2;
 	}
 
 	data->lm75[0] = i2c_new_dummy(adapter, sc_addr[0]);
 	if (!data->lm75[0]) {
-		dev_err(&client->dev, "subclient %d registration "
-			"at address 0x%x failed.\n", 1, sc_addr[0]);
+		dev_err(&client->dev,
+			"subclient %d registration at address 0x%x failed.\n",
+			1, sc_addr[0]);
 		err = -ENOMEM;
 		goto ERROR_SC_2;
 	}
 
 	data->lm75[1] = i2c_new_dummy(adapter, sc_addr[1]);
 	if (!data->lm75[1]) {
-		dev_err(&client->dev, "subclient %d registration "
-			"at address 0x%x failed.\n", 2, sc_addr[1]);
+		dev_err(&client->dev,
+			"subclient %d registration at address 0x%x failed.\n",
+			2, sc_addr[1]);
 		err = -ENOMEM;
 		goto ERROR_SC_3;
 	}

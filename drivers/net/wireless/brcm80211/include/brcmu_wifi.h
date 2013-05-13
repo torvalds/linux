@@ -32,8 +32,9 @@
 #define CH_20MHZ_APART			4
 #define CH_10MHZ_APART			2
 #define CH_5MHZ_APART			1 /* 2G band channels are 5 Mhz apart */
+#define CH_MIN_2G_CHANNEL		1
 #define CH_MAX_2G_CHANNEL		14	/* Max channel in 2G band */
-#define BRCM_MAX_2G_CHANNEL	CH_MAX_2G_CHANNEL	/* legacy define */
+#define CH_MIN_5G_CHANNEL		34
 
 /* bandstate array indices */
 #define BAND_2G_INDEX		0	/* wlc->bandstate[x] index */
@@ -60,12 +61,32 @@
 #define WL_CHANSPEC_BW_10		0x0400
 #define WL_CHANSPEC_BW_20		0x0800
 #define WL_CHANSPEC_BW_40		0x0C00
+#define WL_CHANSPEC_BW_80		0x2000
 
 #define WL_CHANSPEC_BAND_MASK		0xf000
 #define WL_CHANSPEC_BAND_SHIFT		12
 #define WL_CHANSPEC_BAND_5G		0x1000
 #define WL_CHANSPEC_BAND_2G		0x2000
 #define INVCHANSPEC			255
+
+#define WL_CHAN_VALID_HW		(1 << 0) /* valid with current HW */
+#define WL_CHAN_VALID_SW		(1 << 1) /* valid with country sett. */
+#define WL_CHAN_BAND_5G			(1 << 2) /* 5GHz-band channel */
+#define WL_CHAN_RADAR			(1 << 3) /* radar sensitive  channel */
+#define WL_CHAN_INACTIVE		(1 << 4) /* inactive due to radar */
+#define WL_CHAN_PASSIVE			(1 << 5) /* channel in passive mode */
+#define WL_CHAN_RESTRICTED		(1 << 6) /* restricted use channel */
+
+/* values for band specific 40MHz capabilities  */
+#define WLC_N_BW_20ALL			0
+#define WLC_N_BW_40ALL			1
+#define WLC_N_BW_20IN2G_40IN5G		2
+
+/* band types */
+#define	WLC_BAND_AUTO			0	/* auto-select */
+#define	WLC_BAND_5G			1	/* 5 Ghz */
+#define	WLC_BAND_2G			2	/* 2.4 Ghz */
+#define	WLC_BAND_ALL			3	/* all bands */
 
 #define CHSPEC_CHANNEL(chspec)	((u8)((chspec) & WL_CHANSPEC_CHAN_MASK))
 #define CHSPEC_BAND(chspec)	((chspec) & WL_CHANSPEC_BAND_MASK)
@@ -79,10 +100,11 @@
 #define CHSPEC_IS20(chspec) \
 	(((chspec) & WL_CHANSPEC_BW_MASK) == WL_CHANSPEC_BW_20)
 
-#ifndef CHSPEC_IS40
 #define CHSPEC_IS40(chspec) \
 	(((chspec) & WL_CHANSPEC_BW_MASK) == WL_CHANSPEC_BW_40)
-#endif
+
+#define CHSPEC_IS80(chspec) \
+	(((chspec) & WL_CHANSPEC_BW_MASK) == WL_CHANSPEC_BW_80)
 
 #define CHSPEC_IS5G(chspec) \
 	(((chspec) & WL_CHANSPEC_BAND_MASK) == WL_CHANSPEC_BAND_5G)

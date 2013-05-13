@@ -36,7 +36,6 @@
 #include <linux/i2c.h>
 #include <linux/fs.h>
 #include <linux/miscdevice.h>
-#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -50,7 +49,6 @@
 #include <linux/uaccess.h>
 #include <linux/io.h>
 #include <linux/slab.h>
-#include <linux/sched.h>
 
 #include "tpm.h"
 #include "tpm_i2c_stm_st33.h"
@@ -178,7 +176,7 @@ static long _wait_for_interrupt_serirq_timeout(struct tpm_chip *chip,
 	struct i2c_client *client;
 	struct st33zp24_platform_data *pin_infos;
 
-	client = (struct i2c_client *) TPM_VPRIV(chip);
+	client = (struct i2c_client *)TPM_VPRIV(chip);
 	pin_infos = client->dev.platform_data;
 
 	status = wait_for_completion_interruptible_timeout(
@@ -197,12 +195,12 @@ static int wait_for_serirq_timeout(struct tpm_chip *chip, bool condition,
 	int status = 2;
 	struct i2c_client *client;
 
-	client = (struct i2c_client *) TPM_VPRIV(chip);
+	client = (struct i2c_client *)TPM_VPRIV(chip);
 
 	status = _wait_for_interrupt_serirq_timeout(chip, timeout);
 	if (!status) {
 		status = -EBUSY;
-	} else{
+	} else {
 		clear_interruption(client);
 		if (condition)
 			status = 1;
@@ -219,7 +217,7 @@ static void tpm_stm_i2c_cancel(struct tpm_chip *chip)
 	struct i2c_client *client;
 	u8 data;
 
-	client = (struct i2c_client *) TPM_VPRIV(chip);
+	client = (struct i2c_client *)TPM_VPRIV(chip);
 
 	data = TPM_STS_COMMAND_READY;
 	I2C_WRITE_DATA(client, TPM_STS, &data, 1);
@@ -236,7 +234,7 @@ static u8 tpm_stm_i2c_status(struct tpm_chip *chip)
 {
 	struct i2c_client *client;
 	u8 data;
-	client = (struct i2c_client *) TPM_VPRIV(chip);
+	client = (struct i2c_client *)TPM_VPRIV(chip);
 
 	I2C_READ_DATA(client, TPM_STS, &data, 1);
 	return data;
@@ -254,7 +252,7 @@ static int check_locality(struct tpm_chip *chip)
 	u8 data;
 	u8 status;
 
-	client = (struct i2c_client *) TPM_VPRIV(chip);
+	client = (struct i2c_client *)TPM_VPRIV(chip);
 
 	status = I2C_READ_DATA(client, TPM_ACCESS, &data, 1);
 	if (status && (data &
@@ -278,7 +276,7 @@ static int request_locality(struct tpm_chip *chip)
 	struct i2c_client *client;
 	u8 data;
 
-	client = (struct i2c_client *) TPM_VPRIV(chip);
+	client = (struct i2c_client *)TPM_VPRIV(chip);
 
 	if (check_locality(chip) == chip->vendor.locality)
 		return chip->vendor.locality;
@@ -294,7 +292,7 @@ static int request_locality(struct tpm_chip *chip)
 						      chip->vendor.timeout_a);
 		if (rc > 0)
 			return chip->vendor.locality;
-	} else{
+	} else {
 		stop = jiffies + chip->vendor.timeout_a;
 		do {
 			if (check_locality(chip) >= 0)
@@ -316,7 +314,7 @@ static void release_locality(struct tpm_chip *chip)
 	struct i2c_client *client;
 	u8 data;
 
-	client = (struct i2c_client *) TPM_VPRIV(chip);
+	client = (struct i2c_client *)TPM_VPRIV(chip);
 	data = TPM_ACCESS_ACTIVE_LOCALITY;
 
 	I2C_WRITE_DATA(client, TPM_ACCESS, &data, 1);
@@ -333,7 +331,7 @@ static int get_burstcount(struct tpm_chip *chip)
 	int burstcnt, status;
 	u8 tpm_reg, temp;
 
-	struct i2c_client *client = (struct i2c_client *) TPM_VPRIV(chip);
+	struct i2c_client *client = (struct i2c_client *)TPM_VPRIV(chip);
 
 	stop = jiffies + chip->vendor.timeout_d;
 	do {
@@ -379,7 +377,7 @@ static int wait_for_stat(struct tpm_chip *chip, u8 mask, unsigned long timeout,
 						       mask), timeout);
 		if (rc > 0)
 			return 0;
-	} else{
+	} else {
 		stop = jiffies + timeout;
 		do {
 			msleep(TPM_TIMEOUT);
@@ -403,7 +401,7 @@ static int recv_data(struct tpm_chip *chip, u8 *buf, size_t count)
 	int size = 0, burstcnt, len;
 	struct i2c_client *client;
 
-	client = (struct i2c_client *) TPM_VPRIV(chip);
+	client = (struct i2c_client *)TPM_VPRIV(chip);
 
 	while (size < count &&
 	       wait_for_stat(chip,
@@ -433,7 +431,7 @@ static irqreturn_t tpm_ioserirq_handler(int irq, void *dev_id)
 
 	disable_irq_nosync(irq);
 
-	client = (struct i2c_client *) TPM_VPRIV(chip);
+	client = (struct i2c_client *)TPM_VPRIV(chip);
 	pin_infos = client->dev.platform_data;
 
 	complete(&pin_infos->irq_detection);
@@ -453,8 +451,7 @@ static irqreturn_t tpm_ioserirq_handler(int irq, void *dev_id)
 static int tpm_stm_i2c_send(struct tpm_chip *chip, unsigned char *buf,
 			    size_t len)
 {
-	u32 status,
-	    burstcnt = 0, i, size;
+	u32 status, burstcnt = 0, i, size;
 	int ret;
 	u8 data;
 	struct i2c_client *client;
@@ -483,7 +480,7 @@ static int tpm_stm_i2c_send(struct tpm_chip *chip, unsigned char *buf,
 		}
 	}
 
-	for (i = 0 ; i < len - 1 ;) {
+	for (i = 0; i < len - 1;) {
 		burstcnt = get_burstcount(chip);
 		size = min_t(int, len - i - 1, burstcnt);
 		ret = I2C_WRITE_DATA(client, TPM_DATA_FIFO, buf, size);
@@ -547,7 +544,7 @@ static int tpm_stm_i2c_recv(struct tpm_chip *chip, unsigned char *buf,
 		goto out;
 	}
 
-	expected = be32_to_cpu(*(__be32 *) (buf + 2));
+	expected = be32_to_cpu(*(__be32 *)(buf + 2));
 	if (expected > count) {
 		size = -EIO;
 		goto out;
@@ -569,7 +566,7 @@ out:
 
 static bool tpm_st33_i2c_req_canceled(struct tpm_chip *chip, u8 status)
 {
-       return (status == TPM_STS_COMMAND_READY);
+	return (status == TPM_STS_COMMAND_READY);
 }
 
 static const struct file_operations tpm_st33_i2c_fops = {
@@ -617,7 +614,7 @@ static struct tpm_vendor_specific st_i2c_tpm = {
 	.miscdev = {.fops = &tpm_st33_i2c_fops,},
 };
 
-static int interrupts ;
+static int interrupts;
 module_param(interrupts, int, 0444);
 MODULE_PARM_DESC(interrupts, "Enable interrupts");
 
@@ -714,7 +711,7 @@ tpm_st33_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 				"TPM SERIRQ management", chip);
 		if (err < 0) {
 			dev_err(chip->dev , "TPM SERIRQ signals %d not available\n",
-			gpio_to_irq(platform_data->io_serirq));
+				gpio_to_irq(platform_data->io_serirq));
 			goto _irq_set;
 		}
 
@@ -754,7 +751,7 @@ tpm_st33_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	dev_info(chip->dev, "TPM I2C Initialized\n");
 	return 0;
 _irq_set:
-	free_irq(gpio_to_irq(platform_data->io_serirq), (void *) chip);
+	free_irq(gpio_to_irq(platform_data->io_serirq), (void *)chip);
 _gpio_init2:
 	if (interrupts)
 		gpio_free(platform_data->io_serirq);
@@ -784,7 +781,7 @@ static int tpm_st33_i2c_remove(struct i2c_client *client)
 {
 	struct tpm_chip *chip = (struct tpm_chip *)i2c_get_clientdata(client);
 	struct st33zp24_platform_data *pin_infos =
-		((struct i2c_client *) TPM_VPRIV(chip))->dev.platform_data;
+		((struct i2c_client *)TPM_VPRIV(chip))->dev.platform_data;
 
 	if (pin_infos != NULL) {
 		free_irq(pin_infos->io_serirq, chip);
@@ -823,9 +820,9 @@ static int tpm_st33_i2c_pm_suspend(struct device *dev)
 	struct st33zp24_platform_data *pin_infos = dev->platform_data;
 	int ret = 0;
 
-	if (power_mgt)
+	if (power_mgt) {
 		gpio_set_value(pin_infos->io_lpcpd, 0);
-	else{
+	} else {
 		if (chip->data_buffer == NULL)
 			chip->data_buffer = pin_infos->tpm_i2c_buffer[0];
 		ret = tpm_pm_suspend(dev);
@@ -851,12 +848,12 @@ static int tpm_st33_i2c_pm_resume(struct device *dev)
 					  (chip->vendor.status(chip) &
 					  TPM_STS_VALID) == TPM_STS_VALID,
 					  chip->vendor.timeout_b);
-	} else{
-	if (chip->data_buffer == NULL)
-		chip->data_buffer = pin_infos->tpm_i2c_buffer[0];
-	ret = tpm_pm_resume(dev);
-	if (!ret)
-		tpm_do_selftest(chip);
+	} else {
+		if (chip->data_buffer == NULL)
+			chip->data_buffer = pin_infos->tpm_i2c_buffer[0];
+		ret = tpm_pm_resume(dev);
+		if (!ret)
+			tpm_do_selftest(chip);
 	}
 	return ret;
 }				/* tpm_st33_i2c_pm_resume() */
@@ -867,7 +864,8 @@ static const struct i2c_device_id tpm_st33_i2c_id[] = {
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, tpm_st33_i2c_id);
-static SIMPLE_DEV_PM_OPS(tpm_st33_i2c_ops, tpm_st33_i2c_pm_suspend, tpm_st33_i2c_pm_resume);
+static SIMPLE_DEV_PM_OPS(tpm_st33_i2c_ops, tpm_st33_i2c_pm_suspend,
+	tpm_st33_i2c_pm_resume);
 static struct i2c_driver tpm_st33_i2c_driver = {
 	.driver = {
 		   .owner = THIS_MODULE,

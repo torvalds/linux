@@ -68,12 +68,6 @@ MODULE_LICENSE("Dual MPL/GPL");
 
 #if !defined(CONFIG_PCMCIA_SLOT_A) && !defined(CONFIG_PCMCIA_SLOT_B)
 
-/* The RPX series use SLOT_B */
-#if defined(CONFIG_RPXCLASSIC) || defined(CONFIG_RPXLITE)
-#define CONFIG_PCMCIA_SLOT_B
-#define CONFIG_BD_IS_MHZ
-#endif
-
 /* The ADS board use SLOT_A */
 #ifdef CONFIG_ADS
 #define CONFIG_PCMCIA_SLOT_A
@@ -253,81 +247,6 @@ static irqreturn_t m8xx_interrupt(int irq, void *dev);
 
 #define PCMCIA_BMT_LIMIT (15*4)	/* Bus Monitor Timeout value */
 
-/* ------------------------------------------------------------------------- */
-/* board specific stuff:                                                     */
-/* voltage_set(), hardware_enable() and hardware_disable()                   */
-/* ------------------------------------------------------------------------- */
-/* RPX Boards from Embedded Planet                                           */
-
-#if defined(CONFIG_RPXCLASSIC) || defined(CONFIG_RPXLITE)
-
-/* The RPX boards seems to have it's bus monitor timeout set to 6*8 clocks.
- * SYPCR is write once only, therefore must the slowest memory be faster
- * than the bus monitor or we will get a machine check due to the bus timeout.
- */
-
-#define PCMCIA_BOARD_MSG "RPX CLASSIC or RPX LITE"
-
-#undef PCMCIA_BMT_LIMIT
-#define PCMCIA_BMT_LIMIT (6*8)
-
-static int voltage_set(int slot, int vcc, int vpp)
-{
-	u32 reg = 0;
-
-	switch (vcc) {
-	case 0:
-		break;
-	case 33:
-		reg |= BCSR1_PCVCTL4;
-		break;
-	case 50:
-		reg |= BCSR1_PCVCTL5;
-		break;
-	default:
-		return 1;
-	}
-
-	switch (vpp) {
-	case 0:
-		break;
-	case 33:
-	case 50:
-		if (vcc == vpp)
-			reg |= BCSR1_PCVCTL6;
-		else
-			return 1;
-		break;
-	case 120:
-		reg |= BCSR1_PCVCTL7;
-	default:
-		return 1;
-	}
-
-	if (!((vcc == 50) || (vcc == 0)))
-		return 1;
-
-	/* first, turn off all power */
-
-	out_be32(((u32 *) RPX_CSR_ADDR),
-		 in_be32(((u32 *) RPX_CSR_ADDR)) & ~(BCSR1_PCVCTL4 |
-						     BCSR1_PCVCTL5 |
-						     BCSR1_PCVCTL6 |
-						     BCSR1_PCVCTL7));
-
-	/* enable new powersettings */
-
-	out_be32(((u32 *) RPX_CSR_ADDR), in_be32(((u32 *) RPX_CSR_ADDR)) | reg);
-
-	return 0;
-}
-
-#define socket_get(_slot_) PCMCIA_SOCKET_KEY_5V
-#define hardware_enable(_slot_)	/* No hardware to enable */
-#define hardware_disable(_slot_)	/* No hardware to disable */
-
-#endif				/* CONFIG_RPXCLASSIC */
-
 /* FADS Boards from Motorola                                               */
 
 #if defined(CONFIG_FADS)
@@ -418,65 +337,6 @@ static inline int voltage_set(int slot, int vcc, int vpp)
 }
 
 #endif
-
-/* ------------------------------------------------------------------------- */
-/* Motorola MBX860                                                           */
-
-#if defined(CONFIG_MBX)
-
-#define PCMCIA_BOARD_MSG "MBX"
-
-static int voltage_set(int slot, int vcc, int vpp)
-{
-	u8 reg = 0;
-
-	switch (vcc) {
-	case 0:
-		break;
-	case 33:
-		reg |= CSR2_VCC_33;
-		break;
-	case 50:
-		reg |= CSR2_VCC_50;
-		break;
-	default:
-		return 1;
-	}
-
-	switch (vpp) {
-	case 0:
-		break;
-	case 33:
-	case 50:
-		if (vcc == vpp)
-			reg |= CSR2_VPP_VCC;
-		else
-			return 1;
-		break;
-	case 120:
-		if ((vcc == 33) || (vcc == 50))
-			reg |= CSR2_VPP_12;
-		else
-			return 1;
-	default:
-		return 1;
-	}
-
-	/* first, turn off all power */
-	out_8((u8 *) MBX_CSR2_ADDR,
-	      in_8((u8 *) MBX_CSR2_ADDR) & ~(CSR2_VCC_MASK | CSR2_VPP_MASK));
-
-	/* enable new powersettings */
-	out_8((u8 *) MBX_CSR2_ADDR, in_8((u8 *) MBX_CSR2_ADDR) | reg);
-
-	return 0;
-}
-
-#define socket_get(_slot_) PCMCIA_SOCKET_KEY_5V
-#define hardware_enable(_slot_)	/* No hardware to enable */
-#define hardware_disable(_slot_)	/* No hardware to disable */
-
-#endif				/* CONFIG_MBX */
 
 #if defined(CONFIG_PRxK)
 #include <asm/cpld.h>

@@ -20,18 +20,6 @@
 #define LP55XX_CLOCK_INT	1
 #define LP55XX_CLOCK_EXT	2
 
-/* Bits in LP5521 CONFIG register. 'update_config' in lp55xx_platform_data */
-#define LP5521_PWM_HF			0x40	/* PWM: 0 = 256Hz, 1 = 558Hz */
-#define LP5521_PWRSAVE_EN		0x20	/* 1 = Power save mode */
-#define LP5521_CP_MODE_OFF		0	/* Charge pump (CP) off */
-#define LP5521_CP_MODE_BYPASS		8	/* CP forced to bypass mode */
-#define LP5521_CP_MODE_1X5		0x10	/* CP forced to 1.5x mode */
-#define LP5521_CP_MODE_AUTO		0x18	/* Automatic mode selection */
-#define LP5521_R_TO_BATT		4	/* R out: 0 = CP, 1 = Vbat */
-#define LP5521_CLK_SRC_EXT		0	/* Ext-clk source (CLK_32K) */
-#define LP5521_CLK_INT			1	/* Internal clock */
-#define LP5521_CLK_AUTO			2	/* Automatic clock selection */
-
 struct lp55xx_led_config {
 	const char *name;
 	u8 chan_nr;
@@ -40,9 +28,9 @@ struct lp55xx_led_config {
 };
 
 struct lp55xx_predef_pattern {
-	u8 *r;
-	u8 *g;
-	u8 *b;
+	const u8 *r;
+	const u8 *g;
+	const u8 *b;
 	u8 size_r;
 	u8 size_g;
 	u8 size_b;
@@ -79,9 +67,6 @@ struct lp55xx_platform_data {
 	/* Predefined pattern data */
 	struct lp55xx_predef_pattern *patterns;
 	unsigned int num_patterns;
-
-	/* _CONFIG register */
-	u8 update_config;
 };
 
 #endif /* _LEDS_LP55XX_H */

@@ -751,8 +751,6 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 	int i;
 	unsigned char misc = 0;
 	unsigned char ext_vga[6];
-	unsigned char ext_vga_index24;
-	unsigned char dac_index90 = 0;
 	u8 bppshift;
 
 	static unsigned char dacvalue[] = {
@@ -803,7 +801,6 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 		option2 = 0x0000b000;
 		break;
 	case G200_ER:
-		dac_index90 = 0;
 		break;
 	}
 
@@ -852,10 +849,8 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 		WREG_DAC(i, dacvalue[i]);
 	}
 
-	if (mdev->type == G200_ER) {
-		WREG_DAC(0x90, dac_index90);
-	}
-
+	if (mdev->type == G200_ER)
+		WREG_DAC(0x90, 0);
 
 	if (option)
 		pci_write_config_dword(dev->pdev, PCI_MGA_OPTION, option);
@@ -952,8 +947,6 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 	if (mdev->type == G200_WB)
 		ext_vga[1] |= 0x88;
 
-	ext_vga_index24 = 0x05;
-
 	/* Set pixel clocks */
 	misc = 0x2d;
 	WREG8(MGA_MISC_OUT, misc);
@@ -965,7 +958,7 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 	}
 
 	if (mdev->type == G200_ER)
-		WREG_ECRT(24, ext_vga_index24);
+		WREG_ECRT(0x24, 0x5);
 
 	if (mdev->type == G200_EV) {
 		WREG_ECRT(6, 0);
@@ -1261,9 +1254,8 @@ static const struct drm_crtc_helper_funcs mga_helper_funcs = {
 };
 
 /* CRTC setup */
-static void mga_crtc_init(struct drm_device *dev)
+static void mga_crtc_init(struct mga_device *mdev)
 {
-	struct mga_device *mdev = dev->dev_private;
 	struct mga_crtc *mga_crtc;
 	int i;
 
@@ -1274,7 +1266,7 @@ static void mga_crtc_init(struct drm_device *dev)
 	if (mga_crtc == NULL)
 		return;
 
-	drm_crtc_init(dev, &mga_crtc->base, &mga_crtc_funcs);
+	drm_crtc_init(mdev->dev, &mga_crtc->base, &mga_crtc_funcs);
 
 	drm_mode_crtc_set_gamma_size(&mga_crtc->base, MGAG200_LUT_SIZE);
 	mdev->mode_info.crtc = mga_crtc;
@@ -1529,7 +1521,7 @@ int mgag200_modeset_init(struct mga_device *mdev)
 
 	mdev->dev->mode_config.fb_base = mdev->mc.vram_base;
 
-	mga_crtc_init(mdev->dev);
+	mga_crtc_init(mdev);
 
 	encoder = mga_encoder_init(mdev->dev);
 	if (!encoder) {

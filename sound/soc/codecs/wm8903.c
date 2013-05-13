@@ -478,6 +478,8 @@ static int wm8903_put_deemph(struct snd_kcontrol *kcontrol,
 /* ALSA can only do steps of .01dB */
 static const DECLARE_TLV_DB_SCALE(digital_tlv, -7200, 75, 1);
 
+static const DECLARE_TLV_DB_SCALE(dac_boost_tlv, 0, 600, 0);
+
 static const DECLARE_TLV_DB_SCALE(digital_sidetone_tlv, -3600, 300, 0);
 static const DECLARE_TLV_DB_SCALE(out_tlv, -5700, 100, 0);
 
@@ -698,6 +700,8 @@ SOC_ENUM("DAC Mute Mode", mute_mode),
 SOC_SINGLE("DAC Mono Switch", WM8903_DAC_DIGITAL_1, 12, 1, 0),
 SOC_ENUM("DAC Companding Mode", dac_companding),
 SOC_SINGLE("DAC Companding Switch", WM8903_AUDIO_INTERFACE_0, 1, 1, 0),
+SOC_SINGLE_TLV("DAC Boost Volume", WM8903_AUDIO_INTERFACE_0, 9, 3, 0,
+	       dac_boost_tlv),
 SOC_SINGLE_BOOL_EXT("Playback Deemphasis Switch", 0,
 		    wm8903_get_deemph, wm8903_put_deemph),
 
@@ -1082,6 +1086,8 @@ static const struct snd_soc_dapm_route wm8903_intercon[] = {
 
 	{ "ROP", NULL, "Right Speaker PGA" },
 	{ "RON", NULL, "Right Speaker PGA" },
+
+	{ "Charge Pump", NULL, "CLK_DSP" },
 
 	{ "Left Headphone Output PGA", NULL, "Charge Pump" },
 	{ "Right Headphone Output PGA", NULL, "Charge Pump" },

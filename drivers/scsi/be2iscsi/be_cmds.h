@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2005 - 2012 Emulex
+ * Copyright (C) 2005 - 2013 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -52,6 +52,10 @@ struct be_mcc_wrb {
 
 /* Completion Status */
 #define MCC_STATUS_SUCCESS 0x0
+#define MCC_STATUS_FAILED 0x1
+#define MCC_STATUS_ILLEGAL_REQUEST 0x2
+#define MCC_STATUS_ILLEGAL_FIELD 0x3
+#define MCC_STATUS_INSUFFICIENT_BUFFER 0x4
 
 #define CQE_STATUS_COMPL_MASK 0xFFFF
 #define CQE_STATUS_COMPL_SHIFT 0	/* bits 0 - 15 */
@@ -118,7 +122,8 @@ struct be_async_event_trailer {
 
 enum {
 	ASYNC_EVENT_LINK_DOWN = 0x0,
-	ASYNC_EVENT_LINK_UP = 0x1
+	ASYNC_EVENT_LINK_UP = 0x1,
+	ASYNC_EVENT_LOGICAL = 0x2
 };
 
 /**
@@ -130,6 +135,9 @@ struct be_async_event_link_state {
 	u8 port_link_status;
 	u8 port_duplex;
 	u8 port_speed;
+#define BEISCSI_PHY_LINK_FAULT_NONE	0x00
+#define BEISCSI_PHY_LINK_FAULT_LOCAL	0x01
+#define BEISCSI_PHY_LINK_FAULT_REMOTE	0x02
 	u8 port_fault;
 	u8 rsvd0[7];
 	struct be_async_event_trailer trailer;
@@ -697,6 +705,7 @@ int beiscsi_mccq_compl(struct beiscsi_hba *phba,
 			uint32_t tag, struct be_mcc_wrb **wrb, void *cmd_va);
 /*ISCSI Functuions */
 int be_cmd_fw_initialize(struct be_ctrl_info *ctrl);
+int be_cmd_fw_uninit(struct be_ctrl_info *ctrl);
 
 struct be_mcc_wrb *wrb_from_mbox(struct be_dma_mem *mbox_mem);
 struct be_mcc_wrb *wrb_from_mccq(struct beiscsi_hba *phba);
@@ -749,6 +758,18 @@ struct amap_be_default_pdu_context {
 	u8 rx_pdid_not_valid;	/* dword 2 */
 	u8 rsvd3[5];		/* dword 2 */
 	u8 rsvd4[32];		/* dword 3 */
+} __packed;
+
+struct amap_default_pdu_context_ext {
+	u8 rsvd0[16];   /* dword 0 */
+	u8 ring_size[4];    /* dword 0 */
+	u8 rsvd1[12];   /* dword 0 */
+	u8 rsvd2[22];   /* dword 1 */
+	u8 rx_pdid[9];  /* dword 1 */
+	u8 rx_pdid_valid;   /* dword 1 */
+	u8 default_buffer_size[16]; /* dword 2 */
+	u8 cq_id_recv[16];  /* dword 2 */
+	u8 rsvd3[32];   /* dword 3 */
 } __packed;
 
 struct be_defq_create_req {
@@ -896,7 +917,7 @@ struct amap_it_dmsg_cqe_v2 {
  * stack to notify the
  * controller of a posted Work Request Block
  */
-#define DB_WRB_POST_CID_MASK		0x3FF	/* bits 0 - 9 */
+#define DB_WRB_POST_CID_MASK		0xFFFF	/* bits 0 - 16 */
 #define DB_DEF_PDU_WRB_INDEX_MASK	0xFF	/* bits 0 - 9 */
 
 #define DB_DEF_PDU_WRB_INDEX_SHIFT	16

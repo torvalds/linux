@@ -345,7 +345,6 @@ static struct davinci_mmc_config dm355evm_mmc_config = {
 	.wires		= 4,
 	.max_freq       = 50000000,
 	.caps           = MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED,
-	.version	= MMC_CTLR_VERSION_1,
 };
 
 /* Don't connect anything to J10 unless you're only using USB host

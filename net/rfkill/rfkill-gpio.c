@@ -131,6 +131,7 @@ static int rfkill_gpio_probe(struct platform_device *pdev)
 		rfkill->pwr_clk = clk_get(&pdev->dev, pdata->power_clk_name);
 		if (IS_ERR(rfkill->pwr_clk)) {
 			pr_warn("%s: can't find pwr_clk.\n", __func__);
+			ret = PTR_ERR(rfkill->pwr_clk);
 			goto fail_shutdown_name;
 		}
 	}
@@ -152,9 +153,11 @@ static int rfkill_gpio_probe(struct platform_device *pdev)
 	}
 
 	rfkill->rfkill_dev = rfkill_alloc(pdata->name, &pdev->dev, pdata->type,
-				&rfkill_gpio_ops, rfkill);
-	if (!rfkill->rfkill_dev)
+					  &rfkill_gpio_ops, rfkill);
+	if (!rfkill->rfkill_dev) {
+		ret = -ENOMEM;
 		goto fail_shutdown;
+	}
 
 	ret = rfkill_register(rfkill->rfkill_dev);
 	if (ret < 0)

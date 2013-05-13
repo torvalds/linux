@@ -43,7 +43,6 @@
 #include <sound/jack.h>
 
 #include "omap-mcbsp.h"
-#include "omap-pcm.h"
 
 struct omap_twl4030 {
 	int jack_detect;	/* board can detect jack events */

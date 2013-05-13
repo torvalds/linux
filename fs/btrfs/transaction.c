@@ -34,7 +34,7 @@
 
 #define BTRFS_ROOT_TRANS_TAG 0
 
-void put_transaction(struct btrfs_transaction *transaction)
+static void put_transaction(struct btrfs_transaction *transaction)
 {
 	WARN_ON(atomic_read(&transaction->use_count) == 0);
 	if (atomic_dec_and_test(&transaction->use_count)) {
@@ -162,7 +162,7 @@ loop:
 	if (!RB_EMPTY_ROOT(&fs_info->tree_mod_log))
 		WARN(1, KERN_ERR "btrfs: tree_mod_log rb tree not empty when "
 			"creating a fresh transaction\n");
-	atomic_set(&fs_info->tree_mod_seq, 0);
+	atomic64_set(&fs_info->tree_mod_seq, 0);
 
 	spin_lock_init(&cur_trans->commit_lock);
 	spin_lock_init(&cur_trans->delayed_refs.lock);
@@ -707,23 +707,13 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 int btrfs_end_transaction(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *root)
 {
-	int ret;
-
-	ret = __btrfs_end_transaction(trans, root, 0);
-	if (ret)
-		return ret;
-	return 0;
+	return __btrfs_end_transaction(trans, root, 0);
 }
 
 int btrfs_end_transaction_throttle(struct btrfs_trans_handle *trans,
 				   struct btrfs_root *root)
 {
-	int ret;
-
-	ret = __btrfs_end_transaction(trans, root, 1);
-	if (ret)
-		return ret;
-	return 0;
+	return __btrfs_end_transaction(trans, root, 1);
 }
 
 int btrfs_end_transaction_dmeta(struct btrfs_trans_handle *trans,
@@ -948,7 +938,7 @@ static noinline int commit_cowonly_roots(struct btrfs_trans_handle *trans,
 int btrfs_add_dead_root(struct btrfs_root *root)
 {
 	spin_lock(&root->fs_info->trans_lock);
-	list_add(&root->root_list, &root->fs_info->dead_roots);
+	list_add_tail(&root->root_list, &root->fs_info->dead_roots);
 	spin_unlock(&root->fs_info->trans_lock);
 	return 0;
 }
@@ -1179,13 +1169,17 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	memcpy(new_root_item->uuid, new_uuid.b, BTRFS_UUID_SIZE);
 	memcpy(new_root_item->parent_uuid, root->root_item.uuid,
 			BTRFS_UUID_SIZE);
+	if (!(root_flags & BTRFS_ROOT_SUBVOL_RDONLY)) {
+		memset(new_root_item->received_uuid, 0,
+		       sizeof(new_root_item->received_uuid));
+		memset(&new_root_item->stime, 0, sizeof(new_root_item->stime));
+		memset(&new_root_item->rtime, 0, sizeof(new_root_item->rtime));
+		btrfs_set_root_stransid(new_root_item, 0);
+		btrfs_set_root_rtransid(new_root_item, 0);
+	}
 	new_root_item->otime.sec = cpu_to_le64(cur_time.tv_sec);
 	new_root_item->otime.nsec = cpu_to_le32(cur_time.tv_nsec);
 	btrfs_set_root_otransid(new_root_item, trans->transid);
-	memset(&new_root_item->stime, 0, sizeof(new_root_item->stime));
-	memset(&new_root_item->rtime, 0, sizeof(new_root_item->rtime));
-	btrfs_set_root_stransid(new_root_item, 0);
-	btrfs_set_root_rtransid(new_root_item, 0);
 
 	old = btrfs_lock_root_node(root);
 	ret = btrfs_cow_block(trans, root, old, NULL, 0, &old);
@@ -1487,6 +1481,10 @@ static void cleanup_transaction(struct btrfs_trans_handle *trans,
 		current->journal_info = NULL;
 
 	kmem_cache_free(btrfs_trans_handle_cachep, trans);
+
+	spin_lock(&root->fs_info->trans_lock);
+	root->fs_info->trans_no_join = 0;
+	spin_unlock(&root->fs_info->trans_lock);
 }
 
 static int btrfs_flush_all_pending_stuffs(struct btrfs_trans_handle *trans,
@@ -1808,7 +1806,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	ret = btrfs_write_and_wait_transaction(trans, root);
 	if (ret) {
 		btrfs_error(root->fs_info, ret,
-			    "Error while writing out transaction.");
+			    "Error while writing out transaction");
 		mutex_unlock(&root->fs_info->tree_log_mutex);
 		goto cleanup_transaction;
 	}
@@ -1864,8 +1862,7 @@ cleanup_transaction:
 		btrfs_qgroup_free(root, trans->qgroup_reserved);
 		trans->qgroup_reserved = 0;
 	}
-	btrfs_printk(root->fs_info, "Skipping commit of aborted transaction.\n");
-//	WARN_ON(1);
+	btrfs_warn(root->fs_info, "Skipping commit of aborted transaction.");
 	if (current->journal_info == trans)
 		current->journal_info = NULL;
 	cleanup_transaction(trans, root, ret);
@@ -1874,31 +1871,49 @@ cleanup_transaction:
 }
 
 /*
- * interface function to delete all the snapshots we have scheduled for deletion
+ * return < 0 if error
+ * 0 if there are no more dead_roots at the time of call
+ * 1 there are more to be processed, call me again
+ *
+ * The return value indicates there are certainly more snapshots to delete, but
+ * if there comes a new one during processing, it may return 0. We don't mind,
+ * because btrfs_commit_super will poke cleaner thread and it will process it a
+ * few seconds later.
  */
-int btrfs_clean_old_snapshots(struct btrfs_root *root)
+int btrfs_clean_one_deleted_snapshot(struct btrfs_root *root)
 {
-	LIST_HEAD(list);
+	int ret;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 
+	if (fs_info->sb->s_flags & MS_RDONLY) {
+		pr_debug("btrfs: cleaner called for RO fs!\n");
+		return 0;
+	}
+
 	spin_lock(&fs_info->trans_lock);
-	list_splice_init(&fs_info->dead_roots, &list);
+	if (list_empty(&fs_info->dead_roots)) {
+		spin_unlock(&fs_info->trans_lock);
+		return 0;
+	}
+	root = list_first_entry(&fs_info->dead_roots,
+			struct btrfs_root, root_list);
+	list_del(&root->root_list);
 	spin_unlock(&fs_info->trans_lock);
 
-	while (!list_empty(&list)) {
-		int ret;
+	pr_debug("btrfs: cleaner removing %llu\n",
+			(unsigned long long)root->objectid);
 
-		root = list_entry(list.next, struct btrfs_root, root_list);
-		list_del(&root->root_list);
+	btrfs_kill_all_delayed_nodes(root);
 
-		btrfs_kill_all_delayed_nodes(root);
-
-		if (btrfs_header_backref_rev(root->node) <
-		    BTRFS_MIXED_BACKREF_REV)
-			ret = btrfs_drop_snapshot(root, NULL, 0, 0);
-		else
-			ret =btrfs_drop_snapshot(root, NULL, 1, 0);
-		BUG_ON(ret < 0);
-	}
-	return 0;
+	if (btrfs_header_backref_rev(root->node) <
+			BTRFS_MIXED_BACKREF_REV)
+		ret = btrfs_drop_snapshot(root, NULL, 0, 0);
+	else
+		ret = btrfs_drop_snapshot(root, NULL, 1, 0);
+	/*
+	 * If we encounter a transaction abort during snapshot cleaning, we
+	 * don't want to crash here
+	 */
+	BUG_ON(ret < 0 && ret != -EAGAIN && ret != -EROFS);
+	return 1;
 }

@@ -65,7 +65,6 @@ static void transport_complete_task_attr(struct se_cmd *cmd);
 static void transport_handle_queue_full(struct se_cmd *cmd,
 		struct se_device *dev);
 static int transport_generic_get_mem(struct se_cmd *cmd);
-static int target_get_sess_cmd(struct se_session *, struct se_cmd *, bool);
 static void transport_put_cmd(struct se_cmd *cmd);
 static void target_complete_ok_work(struct work_struct *work);
 
@@ -2179,7 +2178,7 @@ EXPORT_SYMBOL(transport_generic_free_cmd);
  * @se_cmd:	command descriptor to add
  * @ack_kref:	Signal that fabric will perform an ack target_put_sess_cmd()
  */
-static int target_get_sess_cmd(struct se_session *se_sess, struct se_cmd *se_cmd,
+int target_get_sess_cmd(struct se_session *se_sess, struct se_cmd *se_cmd,
 			       bool ack_kref)
 {
 	unsigned long flags;
@@ -2208,6 +2207,7 @@ out:
 	spin_unlock_irqrestore(&se_sess->sess_cmd_lock, flags);
 	return ret;
 }
+EXPORT_SYMBOL(target_get_sess_cmd);
 
 static void target_release_cmd_kref(struct kref *kref)
 {
@@ -2765,8 +2765,13 @@ transport_send_check_condition_and_sense(struct se_cmd *cmd,
 		/* CURRENT ERROR */
 		buffer[0] = 0x70;
 		buffer[SPC_ADD_SENSE_LEN_OFFSET] = 10;
-		/* ILLEGAL REQUEST */
-		buffer[SPC_SENSE_KEY_OFFSET] = ILLEGAL_REQUEST;
+		/*
+		 * Returning ILLEGAL REQUEST would cause immediate IO errors on
+		 * Solaris initiators.  Returning NOT READY instead means the
+		 * operations will be retried a finite number of times and we
+		 * can survive intermittent errors.
+		 */
+		buffer[SPC_SENSE_KEY_OFFSET] = NOT_READY;
 		/* LOGICAL UNIT COMMUNICATION FAILURE */
 		buffer[SPC_ASC_KEY_OFFSET] = 0x08;
 		break;

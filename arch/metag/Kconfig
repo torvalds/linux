@@ -1,7 +1,3 @@
-config SYMBOL_PREFIX
-	string
-	default "_"
-
 config METAG
 	def_bool y
 	select EMBEDDED
@@ -25,8 +21,10 @@ config METAG
 	select HAVE_MEMBLOCK
 	select HAVE_MEMBLOCK_NODE_MAP
 	select HAVE_MOD_ARCH_SPECIFIC
+	select HAVE_OPROFILE
 	select HAVE_PERF_EVENTS
 	select HAVE_SYSCALL_TRACEPOINTS
+	select HAVE_UNDERSCORE_SYMBOL_PREFIX
 	select IRQ_DOMAIN
 	select MODULES_USE_ELF_RELA
 	select OF
@@ -53,9 +51,6 @@ config GENERIC_HWEIGHT
 
 config GENERIC_CALIBRATE_DELAY
 	def_bool y
-
-config GENERIC_GPIO
-	def_bool n
 
 config NO_IOPORT
 	def_bool y
@@ -208,6 +203,9 @@ config METAG_PERFCOUNTER_IRQS
 
 	  When disabled, Performance Counters information will be collected
 	  based on Timer Interrupt.
+
+config HW_PERF_EVENTS
+	def_bool METAG_PERFCOUNTER_IRQS && PERF_EVENTS
 
 config METAG_DA
 	bool "DA support"

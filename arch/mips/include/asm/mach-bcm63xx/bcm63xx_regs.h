@@ -10,7 +10,7 @@
 #define REV_CHIPID_SHIFT		16
 #define REV_CHIPID_MASK			(0xffff << REV_CHIPID_SHIFT)
 #define REV_REVID_SHIFT			0
-#define REV_REVID_MASK			(0xffff << REV_REVID_SHIFT)
+#define REV_REVID_MASK			(0xff << REV_REVID_SHIFT)
 
 /* Clock Control register */
 #define PERF_CKCTL_REG			0x4
@@ -112,6 +112,39 @@
 					CKCTL_6358_USBSU_EN |		\
 					CKCTL_6358_EPHY_EN)
 
+#define CKCTL_6362_ADSL_QPROC_EN	(1 << 1)
+#define CKCTL_6362_ADSL_AFE_EN		(1 << 2)
+#define CKCTL_6362_ADSL_EN		(1 << 3)
+#define CKCTL_6362_MIPS_EN		(1 << 4)
+#define CKCTL_6362_WLAN_OCP_EN		(1 << 5)
+#define CKCTL_6362_SWPKT_USB_EN		(1 << 7)
+#define CKCTL_6362_SWPKT_SAR_EN		(1 << 8)
+#define CKCTL_6362_SAR_EN		(1 << 9)
+#define CKCTL_6362_ROBOSW_EN		(1 << 10)
+#define CKCTL_6362_PCM_EN		(1 << 11)
+#define CKCTL_6362_USBD_EN		(1 << 12)
+#define CKCTL_6362_USBH_EN		(1 << 13)
+#define CKCTL_6362_IPSEC_EN		(1 << 14)
+#define CKCTL_6362_SPI_EN		(1 << 15)
+#define CKCTL_6362_HSSPI_EN		(1 << 16)
+#define CKCTL_6362_PCIE_EN		(1 << 17)
+#define CKCTL_6362_FAP_EN		(1 << 18)
+#define CKCTL_6362_PHYMIPS_EN		(1 << 19)
+#define CKCTL_6362_NAND_EN		(1 << 20)
+
+#define CKCTL_6362_ALL_SAFE_EN		(CKCTL_6362_PHYMIPS_EN |	\
+					CKCTL_6362_ADSL_QPROC_EN |	\
+					CKCTL_6362_ADSL_AFE_EN |	\
+					CKCTL_6362_ADSL_EN |		\
+					CKCTL_6362_SAR_EN  |		\
+					CKCTL_6362_PCM_EN  |		\
+					CKCTL_6362_IPSEC_EN |		\
+					CKCTL_6362_USBD_EN |		\
+					CKCTL_6362_USBH_EN |		\
+					CKCTL_6362_ROBOSW_EN |		\
+					CKCTL_6362_PCIE_EN)
+
+
 #define CKCTL_6368_VDSL_QPROC_EN	(1 << 2)
 #define CKCTL_6368_VDSL_AFE_EN		(1 << 3)
 #define CKCTL_6368_VDSL_BONDING_EN	(1 << 4)
@@ -153,6 +186,7 @@
 #define PERF_IRQMASK_6345_REG		0xc
 #define PERF_IRQMASK_6348_REG		0xc
 #define PERF_IRQMASK_6358_REG		0xc
+#define PERF_IRQMASK_6362_REG		0x20
 #define PERF_IRQMASK_6368_REG		0x20
 
 /* Interrupt Status register */
@@ -161,6 +195,7 @@
 #define PERF_IRQSTAT_6345_REG		0x10
 #define PERF_IRQSTAT_6348_REG		0x10
 #define PERF_IRQSTAT_6358_REG		0x10
+#define PERF_IRQSTAT_6362_REG		0x28
 #define PERF_IRQSTAT_6368_REG		0x28
 
 /* External Interrupt Configuration register */
@@ -169,6 +204,7 @@
 #define PERF_EXTIRQ_CFG_REG_6345	0x14
 #define PERF_EXTIRQ_CFG_REG_6348	0x14
 #define PERF_EXTIRQ_CFG_REG_6358	0x14
+#define PERF_EXTIRQ_CFG_REG_6362	0x18
 #define PERF_EXTIRQ_CFG_REG_6368	0x18
 
 #define PERF_EXTIRQ_CFG_REG2_6368	0x1c
@@ -197,6 +233,7 @@
 #define PERF_SOFTRESET_REG		0x28
 #define PERF_SOFTRESET_6328_REG		0x10
 #define PERF_SOFTRESET_6358_REG		0x34
+#define PERF_SOFTRESET_6362_REG		0x10
 #define PERF_SOFTRESET_6368_REG		0x10
 
 #define SOFTRESET_6328_SPI_MASK		(1 << 0)
@@ -258,6 +295,22 @@
 #define SOFTRESET_6358_USBH_MASK	(1 << 12)
 #define SOFTRESET_6358_PCM_MASK		(1 << 13)
 #define SOFTRESET_6358_ADSL_MASK	(1 << 14)
+
+#define SOFTRESET_6362_SPI_MASK		(1 << 0)
+#define SOFTRESET_6362_IPSEC_MASK	(1 << 1)
+#define SOFTRESET_6362_EPHY_MASK	(1 << 2)
+#define SOFTRESET_6362_SAR_MASK		(1 << 3)
+#define SOFTRESET_6362_ENETSW_MASK	(1 << 4)
+#define SOFTRESET_6362_USBS_MASK	(1 << 5)
+#define SOFTRESET_6362_USBH_MASK	(1 << 6)
+#define SOFTRESET_6362_PCM_MASK		(1 << 7)
+#define SOFTRESET_6362_PCIE_CORE_MASK	(1 << 8)
+#define SOFTRESET_6362_PCIE_MASK	(1 << 9)
+#define SOFTRESET_6362_PCIE_EXT_MASK	(1 << 10)
+#define SOFTRESET_6362_WLAN_SHIM_MASK	(1 << 11)
+#define SOFTRESET_6362_DDR_PHY_MASK	(1 << 12)
+#define SOFTRESET_6362_FAP_MASK		(1 << 13)
+#define SOFTRESET_6362_WLAN_UBUS_MASK	(1 << 14)
 
 #define SOFTRESET_6368_SPI_MASK		(1 << 0)
 #define SOFTRESET_6368_MPI_MASK		(1 << 3)
@@ -1223,24 +1276,7 @@
  * _REG relative to RSET_SPI
  *************************************************************************/
 
-/* BCM 6338 SPI core */
-#define SPI_6338_CMD			0x00	/* 16-bits register */
-#define SPI_6338_INT_STATUS		0x02
-#define SPI_6338_INT_MASK_ST		0x03
-#define SPI_6338_INT_MASK		0x04
-#define SPI_6338_ST			0x05
-#define SPI_6338_CLK_CFG		0x06
-#define SPI_6338_FILL_BYTE		0x07
-#define SPI_6338_MSG_TAIL		0x09
-#define SPI_6338_RX_TAIL		0x0b
-#define SPI_6338_MSG_CTL		0x40	/* 8-bits register */
-#define SPI_6338_MSG_CTL_WIDTH		8
-#define SPI_6338_MSG_DATA		0x41
-#define SPI_6338_MSG_DATA_SIZE		0x3f
-#define SPI_6338_RX_DATA		0x80
-#define SPI_6338_RX_DATA_SIZE		0x3f
-
-/* BCM 6348 SPI core */
+/* BCM 6338/6348 SPI core */
 #define SPI_6348_CMD			0x00	/* 16-bits register */
 #define SPI_6348_INT_STATUS		0x02
 #define SPI_6348_INT_MASK_ST		0x03
@@ -1257,7 +1293,7 @@
 #define SPI_6348_RX_DATA		0x80
 #define SPI_6348_RX_DATA_SIZE		0x3f
 
-/* BCM 6358 SPI core */
+/* BCM 6358/6262/6368 SPI core */
 #define SPI_6358_MSG_CTL		0x00	/* 16-bits register */
 #define SPI_6358_MSG_CTL_WIDTH		16
 #define SPI_6358_MSG_DATA		0x02
@@ -1274,23 +1310,6 @@
 #define SPI_6358_MSG_TAIL		0x709
 #define SPI_6358_RX_TAIL		0x70B
 
-/* BCM 6358 SPI core */
-#define SPI_6368_MSG_CTL		0x00	/* 16-bits register */
-#define SPI_6368_MSG_CTL_WIDTH		16
-#define SPI_6368_MSG_DATA		0x02
-#define SPI_6368_MSG_DATA_SIZE		0x21e
-#define SPI_6368_RX_DATA		0x400
-#define SPI_6368_RX_DATA_SIZE		0x220
-#define SPI_6368_CMD			0x700	/* 16-bits register */
-#define SPI_6368_INT_STATUS		0x702
-#define SPI_6368_INT_MASK_ST		0x703
-#define SPI_6368_INT_MASK		0x704
-#define SPI_6368_ST			0x705
-#define SPI_6368_CLK_CFG		0x706
-#define SPI_6368_FILL_BYTE		0x707
-#define SPI_6368_MSG_TAIL		0x709
-#define SPI_6368_RX_TAIL		0x70B
-
 /* Shared SPI definitions */
 
 /* Message configuration */
@@ -1298,10 +1317,8 @@
 #define SPI_HD_W			0x01
 #define SPI_HD_R			0x02
 #define SPI_BYTE_CNT_SHIFT		0
-#define SPI_6338_MSG_TYPE_SHIFT		6
 #define SPI_6348_MSG_TYPE_SHIFT		6
 #define SPI_6358_MSG_TYPE_SHIFT		14
-#define SPI_6368_MSG_TYPE_SHIFT		14
 
 /* Command */
 #define SPI_CMD_NOOP			0x00
@@ -1348,9 +1365,17 @@
 /*************************************************************************
  * _REG relative to RSET_MISC
  *************************************************************************/
-#define MISC_SERDES_CTRL_REG		0x0
+#define MISC_SERDES_CTRL_6328_REG	0x0
+#define MISC_SERDES_CTRL_6362_REG	0x4
 #define SERDES_PCIE_EN			(1 << 0)
 #define SERDES_PCIE_EXD_EN		(1 << 15)
+
+#define MISC_STRAPBUS_6362_REG		0x14
+#define STRAPBUS_6362_FCVO_SHIFT	1
+#define STRAPBUS_6362_HSSPI_CLK_FAST	(1 << 13)
+#define STRAPBUS_6362_FCVO_MASK		(0x1f << STRAPBUS_6362_FCVO_SHIFT)
+#define STRAPBUS_6362_BOOT_SEL_SERIAL	(1 << 15)
+#define STRAPBUS_6362_BOOT_SEL_NAND	(0 << 15)
 
 #define MISC_STRAPBUS_6328_REG		0x240
 #define STRAPBUS_6328_FCVO_SHIFT	7

@@ -555,10 +555,12 @@ static inline void tm_recheckpoint_new_task(struct task_struct *new)
 		new->thread.regs->msr |=
 			(MSR_FP | new->thread.fpexc_mode);
 	}
+#ifdef CONFIG_ALTIVEC
 	if (msr & MSR_VEC) {
 		do_load_up_transact_altivec(&new->thread);
 		new->thread.regs->msr |= MSR_VEC;
 	}
+#endif
 	/* We may as well turn on VSX too since all the state is restored now */
 	if (msr & MSR_VSX)
 		new->thread.regs->msr |= MSR_VSX;
@@ -829,6 +831,8 @@ void show_regs(struct pt_regs * regs)
 {
 	int i, trap;
 
+	show_regs_print_info(KERN_DEFAULT);
+
 	printk("NIP: "REG" LR: "REG" CTR: "REG"\n",
 	       regs->nip, regs->link, regs->ctr);
 	printk("REGS: %p TRAP: %04lx   %s  (%s)\n",
@@ -848,12 +852,6 @@ void show_regs(struct pt_regs * regs)
 #else
 		printk("DAR: "REG", DSISR: %08lx\n", regs->dar, regs->dsisr);
 #endif
-	printk("TASK = %p[%d] '%s' THREAD: %p",
-	       current, task_pid_nr(current), current->comm, task_thread_info(current));
-
-#ifdef CONFIG_SMP
-	printk(" CPU: %d", raw_smp_processor_id());
-#endif /* CONFIG_SMP */
 
 	for (i = 0;  i < 32;  i++) {
 		if ((i % REGS_PER_LINE) == 0)
@@ -910,10 +908,6 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 	flush_altivec_to_thread(src);
 	flush_vsx_to_thread(src);
 	flush_spe_to_thread(src);
-#ifdef CONFIG_HAVE_HW_BREAKPOINT
-	flush_ptrace_hw_breakpoint(src);
-#endif /* CONFIG_HAVE_HW_BREAKPOINT */
-
 	*dst = *src;
 	return 0;
 }
@@ -983,6 +977,10 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	p->thread.ksp = sp;
 	p->thread.ksp_limit = (unsigned long)task_stack_page(p) +
 				_ALIGN_UP(sizeof(struct thread_info), 16);
+
+#ifdef CONFIG_HAVE_HW_BREAKPOINT
+	p->thread.ptrace_bps[0] = NULL;
+#endif
 
 #ifdef CONFIG_PPC_STD_MMU_64
 	if (mmu_has_feature(MMU_FTR_SLB)) {
@@ -1359,12 +1357,6 @@ void show_stack(struct task_struct *tsk, unsigned long *stack)
 		sp = newsp;
 	} while (count++ < kstack_depth_to_print);
 }
-
-void dump_stack(void)
-{
-	show_stack(current, NULL);
-}
-EXPORT_SYMBOL(dump_stack);
 
 #ifdef CONFIG_PPC64
 /* Called with hard IRQs off */

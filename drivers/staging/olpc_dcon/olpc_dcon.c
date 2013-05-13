@@ -550,12 +550,12 @@ static int dcon_reboot_notify(struct notifier_block *nb,
 	struct dcon_priv *dcon = container_of(nb, struct dcon_priv, reboot_nb);
 
 	if (!dcon || !dcon->client)
-		return 0;
+		return NOTIFY_DONE;
 
 	/* Turn off the DCON. Entirely. */
 	dcon_write(dcon, DCON_REG_MODE, 0x39);
 	dcon_write(dcon, DCON_REG_MODE, 0x32);
-	return 0;
+	return NOTIFY_DONE;
 }
 
 static int unfreeze_on_panic(struct notifier_block *nb,

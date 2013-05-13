@@ -87,7 +87,7 @@ static DEFINE_MUTEX(ubd_lock);
 static DEFINE_MUTEX(ubd_mutex); /* replaces BKL, might not be needed */
 
 static int ubd_open(struct block_device *bdev, fmode_t mode);
-static int ubd_release(struct gendisk *disk, fmode_t mode);
+static void ubd_release(struct gendisk *disk, fmode_t mode);
 static int ubd_ioctl(struct block_device *bdev, fmode_t mode,
 		     unsigned int cmd, unsigned long arg);
 static int ubd_getgeo(struct block_device *bdev, struct hd_geometry *geo);
@@ -1138,7 +1138,7 @@ out:
 	return err;
 }
 
-static int ubd_release(struct gendisk *disk, fmode_t mode)
+static void ubd_release(struct gendisk *disk, fmode_t mode)
 {
 	struct ubd *ubd_dev = disk->private_data;
 
@@ -1146,7 +1146,6 @@ static int ubd_release(struct gendisk *disk, fmode_t mode)
 	if(--ubd_dev->count == 0)
 		ubd_close_dev(ubd_dev);
 	mutex_unlock(&ubd_mutex);
-	return 0;
 }
 
 static void cowify_bitmap(__u64 io_offset, int length, unsigned long *cow_mask,

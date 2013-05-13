@@ -53,56 +53,51 @@ static void pci_proc_init(void);
 
 /*****************************************************************************
  *
- *  FUNCTION: read_msp_pci_counts
+ *  FUNCTION: show_msp_pci_counts
  *  _________________________________________________________________________
  *
  *  DESCRIPTION: Prints the count of how many times each PCI
  *		 interrupt has asserted. Can be invoked by the
  *		 /proc filesystem.
  *
- *  INPUTS:	 page	 - part of STDOUT calculation
- *		 off	 - part of STDOUT calculation
- *		 count	 - part of STDOUT calculation
- *		 data	 - unused
+ *  INPUTS:	 m	 - synthetic file construction data
+ *		 v	 - iterator
  *
- *  OUTPUTS:	 start	 - new start location
- *		 eof	 - end of file pointer
- *
- *  RETURNS:	 len	 - STDOUT length
+ *  RETURNS:	 0 or error
  *
  ****************************************************************************/
-static int read_msp_pci_counts(char *page, char **start, off_t off,
-				int count, int *eof, void *data)
+static int show_msp_pci_counts(struct seq_file *m, void *v)
 {
 	int i;
-	int len = 0;
 	unsigned int intcount, total = 0;
 
 	for (i = 0; i < 32; ++i) {
 		intcount = pci_int_count[i];
 		if (intcount != 0) {
-			len += sprintf(page + len, "[%d] = %u\n", i, intcount);
+			seq_printf(m, "[%d] = %u\n", i, intcount);
 			total += intcount;
 		}
 	}
 
-	len += sprintf(page + len, "total = %u\n", total);
-	if (len <= off+count)
-		*eof = 1;
-
-	*start = page + off;
-	len -= off;
-	if (len > count)
-		len = count;
-	if (len < 0)
-		len = 0;
-
-	return len;
+	seq_printf(m, "total = %u\n", total);
+	return 0;
 }
+
+static int msp_pci_rd_cnt_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, show_msp_pci_counts, NULL);
+}
+
+static const struct file_operations msp_pci_rd_cnt_fops = {
+	.open		= msp_pci_rd_cnt_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 
 /*****************************************************************************
  *
- *  FUNCTION: gen_pci_cfg_wr
+ *  FUNCTION: gen_pci_cfg_wr_show
  *  _________________________________________________________________________
  *
  *  DESCRIPTION: Generates a configuration write cycle for debug purposes.
@@ -112,37 +107,30 @@ static int read_msp_pci_counts(char *page, char **start, off_t off,
  *		 PCI bus.  Intent is that this function by invocable from
  *		 the /proc filesystem.
  *
- *  INPUTS:	 page	 - part of STDOUT calculation
- *		 off	 - part of STDOUT calculation
- *		 count	 - part of STDOUT calculation
- *		 data	 - unused
+ *  INPUTS:	 m	 - synthetic file construction data
+ *		 v	 - iterator
  *
- *  OUTPUTS:	 start	 - new start location
- *		 eof	 - end of file pointer
- *
- *  RETURNS:	 len	 - STDOUT length
+ *  RETURNS:	 0 or error
  *
  ****************************************************************************/
-static int gen_pci_cfg_wr(char *page, char **start, off_t off,
-				int count, int *eof, void *data)
+static int gen_pci_cfg_wr_show(struct seq_file *m, void *v)
 {
 	unsigned char where = 0; /* Write to static Device/Vendor ID */
 	unsigned char bus_num = 0; /* Bus 0 */
 	unsigned char dev_fn = 0xF; /* Arbitrary device number */
 	u32 wr_data = 0xFF00AA00; /* Arbitrary data */
 	struct msp_pci_regs *preg = (void *)PCI_BASE_REG;
-	int len = 0;
 	unsigned long value;
 	int intr;
 
-	len += sprintf(page + len, "PMC MSP PCI: Beginning\n");
+	seq_puts(m, "PMC MSP PCI: Beginning\n");
 
 	if (proc_init == 0) {
 		pci_proc_init();
 		proc_init = ~0;
 	}
 
-	len += sprintf(page + len, "PMC MSP PCI: Before Cfg Wr\n");
+	seq_puts(m, "PMC MSP PCI: Before Cfg Wr\n");
 
 	/*
 	 * Generate PCI Configuration Write Cycle
@@ -168,20 +156,21 @@ static int gen_pci_cfg_wr(char *page, char **start, off_t off,
 	 */
 	intr = preg->if_status;
 
-	len += sprintf(page + len, "PMC MSP PCI: After Cfg Wr\n");
-
-	/* Handle STDOUT calculations */
-	if (len <= off+count)
-		*eof = 1;
-	*start = page + off;
-	len -= off;
-	if (len > count)
-		len = count;
-	if (len < 0)
-		len = 0;
-
-	return len;
+	seq_puts(m, "PMC MSP PCI: After Cfg Wr\n");
+	return 0;
 }
+
+static int gen_pci_cfg_wr_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, gen_pci_cfg_wr_show, NULL);
+}
+
+static const struct file_operations gen_pci_cfg_wr_fops = {
+	.open		= gen_pci_cfg_wr_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 
 /*****************************************************************************
  *
@@ -199,10 +188,8 @@ static int gen_pci_cfg_wr(char *page, char **start, off_t off,
  ****************************************************************************/
 static void pci_proc_init(void)
 {
-	create_proc_read_entry("pmc_msp_pci_rd_cnt", 0, NULL,
-				read_msp_pci_counts, NULL);
-	create_proc_read_entry("pmc_msp_pci_cfg_wr", 0, NULL,
-				gen_pci_cfg_wr, NULL);
+	proc_create("pmc_msp_pci_rd_cnt", 0, NULL, &msp_pci_rd_cnt_fops);
+	proc_create("pmc_msp_pci_cfg_wr", 0, NULL, &gen_pci_cfg_wr_fops);
 }
 #endif /* CONFIG_PROC_FS && PCI_COUNTERS */
 

@@ -259,15 +259,17 @@ static int adt7411_detect(struct i2c_client *client,
 
 	val = i2c_smbus_read_byte_data(client, ADT7411_REG_MANUFACTURER_ID);
 	if (val < 0 || val != ADT7411_MANUFACTURER_ID) {
-		dev_dbg(&client->dev, "Wrong manufacturer ID. Got %d, "
-			"expected %d\n", val, ADT7411_MANUFACTURER_ID);
+		dev_dbg(&client->dev,
+			"Wrong manufacturer ID. Got %d, expected %d\n",
+			val, ADT7411_MANUFACTURER_ID);
 		return -ENODEV;
 	}
 
 	val = i2c_smbus_read_byte_data(client, ADT7411_REG_DEVICE_ID);
 	if (val < 0 || val != ADT7411_DEVICE_ID) {
-		dev_dbg(&client->dev, "Wrong device ID. Got %d, "
-			"expected %d\n", val, ADT7411_DEVICE_ID);
+		dev_dbg(&client->dev,
+			"Wrong device ID. Got %d, expected %d\n",
+			val, ADT7411_DEVICE_ID);
 		return -ENODEV;
 	}
 

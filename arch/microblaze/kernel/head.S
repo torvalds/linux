@@ -112,16 +112,16 @@ no_fdt_arg:
  * copy command line directly to cmd_line placed in data section.
  */
 	beqid	r5, skip	/* Skip if NULL pointer */
-	or	r6, r0, r0		/* incremment */
+	or	r11, r0, r0		/* incremment */
 	ori	r4, r0, cmd_line	/* load address of command line */
 	tophys(r4,r4)			/* convert to phys address */
 	ori	r3, r0, COMMAND_LINE_SIZE - 1 /* number of loops */
 _copy_command_line:
 	/* r2=r5+r6 - r5 contain pointer to command line */
-	lbu		r2, r5, r6
+	lbu	r2, r5, r11
 	beqid	r2, skip		/* Skip if no data */
-	sb		r2, r4, r6		/* addr[r4+r6]= r2*/
-	addik	r6, r6, 1		/* increment counting */
+	sb	r2, r4, r11		/* addr[r4+r6]= r2 */
+	addik	r11, r11, 1		/* increment counting */
 	bgtid	r3, _copy_command_line	/* loop for all entries       */
 	addik	r3, r3, -1		/* decrement loop */
 	addik	r5, r4, 0		/* add new space for command line */
@@ -131,13 +131,13 @@ skip:
 
 #ifdef NOT_COMPILE
 /* save bram context */
-	or	r6, r0, r0				/* incremment */
+	or	r11, r0, r0				/* incremment */
 	ori	r4, r0, TOPHYS(_bram_load_start)	/* save bram context */
 	ori	r3, r0, (LMB_SIZE - 4)
 _copy_bram:
-	lw	r7, r0, r6		/* r7 = r0 + r6 */
-	sw	r7, r4, r6		/* addr[r4 + r6] = r7*/
-	addik	r6, r6, 4		/* increment counting */
+	lw	r7, r0, r11		/* r7 = r0 + r6 */
+	sw	r7, r4, r11		/* addr[r4 + r6] = r7 */
+	addik	r11, r11, 4		/* increment counting */
 	bgtid	r3, _copy_bram		/* loop for all entries */
 	addik	r3, r3, -4		/* descrement loop */
 #endif
@@ -303,8 +303,8 @@ jump_over2:
 	 * the exception vectors, using a 4k real==virtual mapping.
 	 */
 	/* Use temporary TLB_ID for LMB - clear this temporary mapping later */
-	ori	r6, r0, MICROBLAZE_LMB_TLB_ID
-	mts     rtlbx,r6
+	ori	r11, r0, MICROBLAZE_LMB_TLB_ID
+	mts     rtlbx,r11
 
 	ori	r4,r0,(TLB_WR | TLB_EX)
 	ori	r3,r0,(TLB_VALID | TLB_PAGESZ(PAGESZ_4K))
