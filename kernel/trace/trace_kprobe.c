@@ -962,7 +962,7 @@ kretprobe_trace_func(struct trace_probe *tp, struct kretprobe_instance *ri,
 }
 
 /* Event entry printers */
-enum print_line_t
+static enum print_line_t
 print_kprobe_event(struct trace_iterator *iter, int flags,
 		   struct trace_event *event)
 {
@@ -998,7 +998,7 @@ partial:
 	return TRACE_TYPE_PARTIAL_LINE;
 }
 
-enum print_line_t
+static enum print_line_t
 print_kretprobe_event(struct trace_iterator *iter, int flags,
 		      struct trace_event *event)
 {
