@@ -1177,9 +1177,7 @@ static unsigned char GetXG27FPBits(struct vb_device_info *pVBInfo)
 	/* enable GPIOA/B/C read */
 	xgifb_reg_and_or(pVBInfo->P3d4, 0x4A, ~0x03, 0x03);
 	temp = xgifb_reg_get(pVBInfo->P3d4, 0x48);
-	if (temp <= 2)
-		temp &= 0x03;
-	else
+	if (temp > 2)
 		temp = ((temp & 0x04) >> 1) | ((~temp) & 0x01);
 
 	xgifb_reg_set(pVBInfo->P3d4, 0x4A, CR4A);
