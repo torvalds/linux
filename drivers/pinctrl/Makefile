@@ -22,6 +22,7 @@ obj-$(CONFIG_PINCTRL_IMX51)	+= pinctrl-imx51.o
 obj-$(CONFIG_PINCTRL_IMX53)	+= pinctrl-imx53.o
 obj-$(CONFIG_PINCTRL_IMX6Q)	+= pinctrl-imx6q.o
 obj-$(CONFIG_PINCTRL_IMX6Q)	+= pinctrl-imx6dl.o
+obj-$(CONFIG_PINCTRL_IMX6SL)	+= pinctrl-imx6sl.o
 obj-$(CONFIG_PINCTRL_FALCON)	+= pinctrl-falcon.o
 obj-$(CONFIG_PINCTRL_MXS)	+= pinctrl-mxs.o
 obj-$(CONFIG_PINCTRL_IMX23)	+= pinctrl-imx23.o
