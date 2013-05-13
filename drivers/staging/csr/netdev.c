@@ -754,7 +754,7 @@ get_packet_priority(unifi_priv_t *priv, struct sk_buff *skb, const struct ethhdr
         case CSR_WIFI_ROUTER_CTRL_MODE_IBSS:
             {
                 CsrWifiRouterCtrlStaInfo_t * dstStaInfo =
-                    CsrWifiRouterCtrlGetStationRecordFromPeerMacAddress(priv,ehdr->h_dest, interfacePriv->InterfaceTag);
+                    CsrWifiRouterCtrlGetStationRecordFromPeerMacAddress(priv, ehdr->h_dest, interfacePriv->InterfaceTag);
                 unifi_trace(priv, UDBG4, "mode is AP \n");
                 if (!(ehdr->h_dest[0] & 0x01) && dstStaInfo && dstStaInfo->wmmOrQosEnabled) {
                     /* If packet is not Broadcast/multicast */
@@ -1011,7 +1011,7 @@ skb_80211_to_ether(unifi_priv_t *priv, struct sk_buff *skb,
 #endif
 
     if(skb== NULL || daddr == NULL || saddr == NULL){
-        unifi_error(priv,"skb_80211_to_ether: PBC fail\n");
+        unifi_error(priv, "skb_80211_to_ether: PBC fail\n");
         return 1;
     }
 
@@ -1198,7 +1198,7 @@ int prepare_and_add_macheader(unifi_priv_t *priv, struct sk_buff *skb, struct sk
     u8 bQosNull = false;
 
     if (skb == NULL) {
-        unifi_error(priv,"prepare_and_add_macheader: Invalid SKB reference\n");
+        unifi_error(priv, "prepare_and_add_macheader: Invalid SKB reference\n");
         return -1;
     }
 
@@ -1383,7 +1383,7 @@ int prepare_and_add_macheader(unifi_priv_t *priv, struct sk_buff *skb, struct sk
             macHeaderLengthInBytes -= ETH_ALEN;
             break;
         default:
-            unifi_error(priv,"Unknown direction =%d : Not handled now\n",direction);
+            unifi_error(priv, "Unknown direction =%d : Not handled now\n", direction);
             return -1;
     }
     /* 2 bytes of frame control field, appended by firmware */
@@ -1569,8 +1569,8 @@ send_ma_pkt_request(unifi_priv_t *priv, struct sk_buff *skb, const struct ethhdr
     memcpy(peerAddress.a, ((u8 *) bulkdata.d[0].os_data_ptr) + 4, ETH_ALEN);
 
     unifi_trace(priv, UDBG5, "RA[0]=%x, RA[1]=%x, RA[2]=%x, RA[3]=%x, RA[4]=%x, RA[5]=%x\n",
-                peerAddress.a[0],peerAddress.a[1], peerAddress.a[2], peerAddress.a[3],
-                peerAddress.a[4],peerAddress.a[5]);
+                peerAddress.a[0], peerAddress.a[1], peerAddress.a[2], peerAddress.a[3],
+                peerAddress.a[4], peerAddress.a[5]);
 
 
     if ((proto == ETH_P_PAE)
@@ -1865,10 +1865,10 @@ unifi_pause_xmit(void *ospriv, unifi_TrafficQueue queue)
 
 #ifdef CSR_SUPPORT_SME
     if(queue<=3) {
-        routerStartBuffering(priv,queue);
-        unifi_trace(priv,UDBG2,"Start buffering %d\n", queue);
+        routerStartBuffering(priv, queue);
+        unifi_trace(priv, UDBG2, "Start buffering %d\n", queue);
      } else {
-        routerStartBuffering(priv,0);
+        routerStartBuffering(priv, 0);
         unifi_error(priv, "Start buffering %d defaulting to 0\n", queue);
      }
 #endif
@@ -1893,11 +1893,11 @@ unifi_restart_xmit(void *ospriv, unifi_TrafficQueue queue)
 
 #ifdef CSR_SUPPORT_SME
     if(queue <=3) {
-        routerStopBuffering(priv,queue);
-        uf_send_buffered_frames(priv,queue);
+        routerStopBuffering(priv, queue);
+        uf_send_buffered_frames(priv, queue);
     } else {
-        routerStopBuffering(priv,0);
-        uf_send_buffered_frames(priv,0);
+        routerStopBuffering(priv, 0);
+        uf_send_buffered_frames(priv, 0);
     }
 #endif
 } /* unifi_restart_xmit() */
@@ -2102,14 +2102,14 @@ uf_resume_data_plane(unifi_priv_t *priv, int queue,
             netif_tx_schedule_all(priv->netdev[interfaceTag]);
         }
 #endif
-        uf_process_rx_pending_queue(priv, queue, peer_address, 1,interfaceTag);
+        uf_process_rx_pending_queue(priv, queue, peer_address, 1, interfaceTag);
     }
 } /* uf_resume_data_plane() */
 
 
-void uf_free_pending_rx_packets(unifi_priv_t *priv, int queue, CsrWifiMacAddress peer_address,u16 interfaceTag)
+void uf_free_pending_rx_packets(unifi_priv_t *priv, int queue, CsrWifiMacAddress peer_address, u16 interfaceTag)
 {
-    uf_process_rx_pending_queue(priv, queue, peer_address, 0,interfaceTag);
+    uf_process_rx_pending_queue(priv, queue, peer_address, 0, interfaceTag);
 
 } /* uf_free_pending_rx_packets() */
 
@@ -2153,7 +2153,7 @@ unifi_rx(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_data_param_t *bulkdata)
     if (interfaceTag >= CSR_WIFI_NUM_INTERFACES)
     {
         unifi_error(priv, "%s: MA-PACKET indication with bad interfaceTag %d\n", __FUNCTION__, interfaceTag);
-        unifi_net_data_free(priv,&bulkdata->d[0]);
+        unifi_net_data_free(priv, &bulkdata->d[0]);
         return;
     }
 
@@ -2167,7 +2167,7 @@ unifi_rx(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_data_param_t *bulkdata)
 
     if (bulkdata->d[0].data_length == 0) {
         unifi_warning(priv, "%s: MA-PACKET indication with zero bulk data\n", __FUNCTION__);
-        unifi_net_data_free(priv,&bulkdata->d[0]);
+        unifi_net_data_free(priv, &bulkdata->d[0]);
         return;
     }
 
@@ -2179,8 +2179,8 @@ unifi_rx(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_data_param_t *bulkdata)
     toDs = (skb->data[1] & 0x01) ? 1 : 0;
     fromDs = (skb->data[1] & 0x02) ? 1 : 0;
 
-    memcpy(da,(skb->data+4+toDs*12),ETH_ALEN);/* Address1 or 3 */
-    memcpy(sa,(skb->data+10+fromDs*(6+toDs*8)),ETH_ALEN); /* Address2, 3 or 4 */
+    memcpy(da, (skb->data+4+toDs*12), ETH_ALEN);/* Address1 or 3 */
+    memcpy(sa, (skb->data+10+fromDs*(6+toDs*8)), ETH_ALEN); /* Address2, 3 or 4 */
 
 
     pData = &bulkdata->d[0];
@@ -2189,7 +2189,7 @@ unifi_rx(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_data_param_t *bulkdata)
 
     dataFrameType =((frameControl & 0x00f0) >> 4);
     unifi_trace(priv, UDBG6,
-                "%s: Receive Data Frame Type %d \n", __FUNCTION__,dataFrameType);
+                "%s: Receive Data Frame Type %d \n", __FUNCTION__, dataFrameType);
 
     switch(dataFrameType)
     {
@@ -2276,7 +2276,7 @@ unifi_rx(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_data_param_t *bulkdata)
 
         /* AP/P2PGO specific handling here */
         CsrWifiRouterCtrlStaInfo_t * srcStaInfo =
-            CsrWifiRouterCtrlGetStationRecordFromPeerMacAddress(priv,sa,interfaceTag);
+            CsrWifiRouterCtrlGetStationRecordFromPeerMacAddress(priv, sa, interfaceTag);
 
         /* Defensive check only; Source address is already checked in
         process_ma_packet_ind and we should have a valid source address here */
@@ -2284,10 +2284,10 @@ unifi_rx(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_data_param_t *bulkdata)
          if(srcStaInfo == NULL) {
             CsrWifiMacAddress peerMacAddress;
             /* Unknown data PDU */
-            memcpy(peerMacAddress.a,sa,ETH_ALEN);
+            memcpy(peerMacAddress.a, sa, ETH_ALEN);
             unifi_trace(priv, UDBG1, "%s: Unexpected frame from peer = %x:%x:%x:%x:%x:%x\n", __FUNCTION__,
-            sa[0], sa[1],sa[2], sa[3], sa[4],sa[5]);
-            CsrWifiRouterCtrlUnexpectedFrameIndSend(priv->CSR_WIFI_SME_IFACEQUEUE,0,interfaceTag,peerMacAddress);
+            sa[0], sa[1], sa[2], sa[3], sa[4], sa[5]);
+            CsrWifiRouterCtrlUnexpectedFrameIndSend(priv->CSR_WIFI_SME_IFACEQUEUE, 0, interfaceTag, peerMacAddress);
             unifi_net_data_free(priv, &bulkdata->d[0]);
             return;
         }
@@ -2296,11 +2296,11 @@ unifi_rx(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_data_param_t *bulkdata)
         if (port_action != CSR_WIFI_ROUTER_CTRL_PORT_ACTION_8021X_PORT_OPEN) {
             /* Drop the packet and return */
             CsrWifiMacAddress peerMacAddress;
-            memcpy(peerMacAddress.a,sa,ETH_ALEN);
+            memcpy(peerMacAddress.a, sa, ETH_ALEN);
             unifi_trace(priv, UDBG3, "%s: Port is not open: unexpected frame from peer = %x:%x:%x:%x:%x:%x\n",
-                        __FUNCTION__, sa[0], sa[1],sa[2], sa[3], sa[4],sa[5]);
+                        __FUNCTION__, sa[0], sa[1], sa[2], sa[3], sa[4], sa[5]);
 
-            CsrWifiRouterCtrlUnexpectedFrameIndSend(priv->CSR_WIFI_SME_IFACEQUEUE,0,interfaceTag,peerMacAddress);
+            CsrWifiRouterCtrlUnexpectedFrameIndSend(priv->CSR_WIFI_SME_IFACEQUEUE, 0, interfaceTag, peerMacAddress);
             interfacePriv->stats.rx_dropped++;
             unifi_net_data_free(priv, &bulkdata->d[0]);
             unifi_notice(priv, "%s: Dropping packet, proto=0x%04x, %s port\n", __FUNCTION__,
@@ -2328,7 +2328,7 @@ unifi_rx(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_data_param_t *bulkdata)
         {
             return;
         }
-        unifi_trace(priv, UDBG5, "unifi_rx: no specific AP handling process as normal frame, MAC Header len %d\n",macHeaderLengthInBytes);
+        unifi_trace(priv, UDBG5, "unifi_rx: no specific AP handling process as normal frame, MAC Header len %d\n", macHeaderLengthInBytes);
         /* Remove the MAC header for subsequent conversion */
         skb_pull(skb, macHeaderLengthInBytes);
         pData->os_data_ptr = skb->data;
@@ -2422,7 +2422,7 @@ static void process_ma_packet_cfm(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_d
     if(interfacePriv->interfaceMode == CSR_WIFI_ROUTER_CTRL_MODE_AP ||
        interfacePriv->interfaceMode == CSR_WIFI_ROUTER_CTRL_MODE_P2PGO) {
 
-        uf_process_ma_pkt_cfm_for_ap(priv,interfaceTag,pkt_cfm);
+        uf_process_ma_pkt_cfm_for_ap(priv, interfaceTag, pkt_cfm);
     } else if (interfacePriv->m4_sent && (pkt_cfm->HostTag == interfacePriv->m4_hostTag)) {
         /* Check if this is a confirm for EAPOL M4 frame and we need to send transmistted ind*/
         CsrResult result = pkt_cfm->TransmissionStatus == CSR_TX_SUCCESSFUL?CSR_RESULT_SUCCESS:CSR_RESULT_FAILURE;
@@ -2486,7 +2486,7 @@ static void process_ma_packet_ind(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_d
     if (interfaceTag >= CSR_WIFI_NUM_INTERFACES)
     {
         unifi_error(priv, "%s: MA-PACKET indication with bad interfaceTag %d\n", __FUNCTION__, interfaceTag);
-        unifi_net_data_free(priv,&bulkdata->d[0]);
+        unifi_net_data_free(priv, &bulkdata->d[0]);
         return;
     }
 
@@ -2500,7 +2500,7 @@ static void process_ma_packet_ind(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_d
 
     if (bulkdata->d[0].data_length == 0) {
         unifi_warning(priv, "%s: MA-PACKET indication with zero bulk data\n", __FUNCTION__);
-        unifi_net_data_free(priv,&bulkdata->d[0]);
+        unifi_net_data_free(priv, &bulkdata->d[0]);
         return;
     }
     /* For monitor mode we need to pass this indication to the registered application
@@ -2508,8 +2508,8 @@ static void process_ma_packet_ind(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_d
     /* MIC failure is already taken care of so no need to send the PDUs which are not successfully received in non-monitor mode*/
     if(pkt_ind->ReceptionStatus != CSR_RX_SUCCESS)
     {
-        unifi_warning(priv, "%s: MA-PACKET indication with status = %d\n",__FUNCTION__, pkt_ind->ReceptionStatus);
-        unifi_net_data_free(priv,&bulkdata->d[0]);
+        unifi_warning(priv, "%s: MA-PACKET indication with status = %d\n", __FUNCTION__, pkt_ind->ReceptionStatus);
+        unifi_net_data_free(priv, &bulkdata->d[0]);
         return;
     }
 
@@ -2521,8 +2521,8 @@ static void process_ma_packet_ind(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_d
     toDs = (skb->data[1] & 0x01) ? 1 : 0;
     fromDs = (skb->data[1] & 0x02) ? 1 : 0;
 
-    memcpy(da,(skb->data+4+toDs*12),ETH_ALEN);/* Address1 or 3 */
-    memcpy(sa,(skb->data+10+fromDs*(6+toDs*8)),ETH_ALEN); /* Address2, 3 or 4 */
+    memcpy(da, (skb->data+4+toDs*12), ETH_ALEN);/* Address1 or 3 */
+    memcpy(sa, (skb->data+10+fromDs*(6+toDs*8)), ETH_ALEN); /* Address2, 3 or 4 */
 
     /* Find the BSSID, which will be used to match the BA session */
     if (toDs && fromDs)
@@ -2539,7 +2539,7 @@ static void process_ma_packet_ind(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_d
     frameControl = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(pData->os_data_ptr);
     frameType = ((frameControl & 0x000C) >> 2);
 
-    unifi_trace(priv, UDBG3, "Rx Frame Type: %d sn: %d\n",frameType,
+    unifi_trace(priv, UDBG3, "Rx Frame Type: %d sn: %d\n", frameType,
          (le16_to_cpu(*((u16*)(bulkdata->d[0].os_data_ptr + IEEE802_11_SEQUENCE_CONTROL_OFFSET))) >> 4) & 0xfff);
     if(frameType == IEEE802_11_FRAMETYPE_CONTROL){
 #ifdef CSR_SUPPORT_SME
@@ -2550,18 +2550,18 @@ static void process_ma_packet_ind(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_d
             u8 pmBit = (frameControl & 0x1000)?0x01:0x00;
             unifi_trace(priv, UDBG6, "%s: Received PS-POLL Frame\n", __FUNCTION__);
 
-            uf_process_ps_poll(priv,sa,da,pmBit,interfaceTag);
+            uf_process_ps_poll(priv, sa, da, pmBit, interfaceTag);
         }
         else {
             unifi_warning(priv, "%s: Non PS-POLL control frame is received\n", __FUNCTION__);
         }
 #endif
-        unifi_net_data_free(priv,&bulkdata->d[0]);
+        unifi_net_data_free(priv, &bulkdata->d[0]);
         return;
     }
     if(frameType != IEEE802_11_FRAMETYPE_DATA) {
-        unifi_warning(priv, "%s: Non control Non Data frame is received\n",__FUNCTION__);
-        unifi_net_data_free(priv,&bulkdata->d[0]);
+        unifi_warning(priv, "%s: Non control Non Data frame is received\n", __FUNCTION__);
+        unifi_net_data_free(priv, &bulkdata->d[0]);
         return;
     }
 
@@ -2569,15 +2569,15 @@ static void process_ma_packet_ind(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_d
     if((interfacePriv->interfaceMode == CSR_WIFI_ROUTER_CTRL_MODE_AP) ||
        (interfacePriv->interfaceMode == CSR_WIFI_ROUTER_CTRL_MODE_P2PGO)){
 
-        srcStaInfo = CsrWifiRouterCtrlGetStationRecordFromPeerMacAddress(priv,sa,interfaceTag);
+        srcStaInfo = CsrWifiRouterCtrlGetStationRecordFromPeerMacAddress(priv, sa, interfaceTag);
 
         if(srcStaInfo == NULL) {
             CsrWifiMacAddress peerMacAddress;
             /* Unknown data PDU */
-            memcpy(peerMacAddress.a,sa,ETH_ALEN);
+            memcpy(peerMacAddress.a, sa, ETH_ALEN);
             unifi_trace(priv, UDBG1, "%s: Unexpected frame from peer = %x:%x:%x:%x:%x:%x\n", __FUNCTION__,
-            sa[0], sa[1],sa[2], sa[3], sa[4],sa[5]);
-            CsrWifiRouterCtrlUnexpectedFrameIndSend(priv->CSR_WIFI_SME_IFACEQUEUE,0,interfaceTag,peerMacAddress);
+            sa[0], sa[1], sa[2], sa[3], sa[4], sa[5]);
+            CsrWifiRouterCtrlUnexpectedFrameIndSend(priv->CSR_WIFI_SME_IFACEQUEUE, 0, interfaceTag, peerMacAddress);
             unifi_net_data_free(priv, &bulkdata->d[0]);
             return;
         }
@@ -2591,7 +2591,7 @@ static void process_ma_packet_ind(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_d
         */
 
         pmBit = (frameControl & 0x1000)?0x01:0x00;
-        powerSaveChanged = uf_process_pm_bit_for_peer(priv,srcStaInfo,pmBit,interfaceTag);
+        powerSaveChanged = uf_process_pm_bit_for_peer(priv, srcStaInfo, pmBit, interfaceTag);
 
         /* Update station last activity time */
         srcStaInfo->activity_flag = TRUE;
@@ -2616,8 +2616,8 @@ static void process_ma_packet_ind(unifi_priv_t *priv, CSR_SIGNAL *signal, bulk_d
                 else{
                     qosControl = CSR_GET_UINT16_FROM_LITTLE_ENDIAN(pData->os_data_ptr + 24);
                 }
-                unifi_trace(priv, UDBG5, "%s: Check if U-APSD operations are triggered for qosControl: 0x%x\n",__FUNCTION__,qosControl);
-                uf_process_wmm_deliver_ac_uapsd(priv,srcStaInfo,qosControl,interfaceTag);
+                unifi_trace(priv, UDBG5, "%s: Check if U-APSD operations are triggered for qosControl: 0x%x\n", __FUNCTION__, qosControl);
+                uf_process_wmm_deliver_ac_uapsd(priv, srcStaInfo, qosControl, interfaceTag);
             }
         }
     }
@@ -2918,8 +2918,8 @@ uf_netdev_event(struct notifier_block *notif, unsigned long event, void* ptr) {
             interfacePriv->connected = UnifiConnected;
             interfacePriv->wait_netdev_change = FALSE;
             /* Note: passing the broadcast address here will allow anyone to attempt to join our adhoc network */
-            uf_process_rx_pending_queue(priv, UF_UNCONTROLLED_PORT_Q, broadcast_address, 1,interfacePriv->InterfaceTag);
-            uf_process_rx_pending_queue(priv, UF_CONTROLLED_PORT_Q, broadcast_address, 1,interfacePriv->InterfaceTag);
+            uf_process_rx_pending_queue(priv, UF_UNCONTROLLED_PORT_Q, broadcast_address, 1, interfacePriv->InterfaceTag);
+            uf_process_rx_pending_queue(priv, UF_CONTROLLED_PORT_Q, broadcast_address, 1, interfacePriv->InterfaceTag);
         }
         break;
 
