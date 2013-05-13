@@ -196,6 +196,9 @@ static void mmci_set_clkreg(struct mmci_host *host, unsigned int desired)
 	struct variant_data *variant = host->variant;
 	u32 clk = variant->clkreg;
 
+	/* Make sure cclk reflects the current calculated clock */
+	host->cclk = 0;
+
 	if (desired) {
 		if (desired >= host->mclk) {
 			clk = MCI_CLK_BYPASS;
@@ -229,6 +232,9 @@ static void mmci_set_clkreg(struct mmci_host *host, unsigned int desired)
 		/* This hasn't proven to be worthwhile */
 		/* clk |= MCI_CLK_PWRSAVE; */
 	}
+
+	/* Set actual clock for debug */
+	host->mmc->actual_clock = host->cclk;
 
 	if (host->mmc->ios.bus_width == MMC_BUS_WIDTH_4)
 		clk |= MCI_4BIT_BUS;
