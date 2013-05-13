@@ -2382,28 +2382,33 @@ static bool kick_ring(struct intel_ring_buffer *ring)
 	return false;
 }
 
+static bool i915_hangcheck_ring_hung(struct intel_ring_buffer *ring)
+{
+	if (IS_GEN2(ring->dev))
+		return false;
+
+	/* Is the chip hanging on a WAIT_FOR_EVENT?
+	 * If so we can simply poke the RB_WAIT bit
+	 * and break the hang. This should work on
+	 * all but the second generation chipsets.
+	 */
+	return !kick_ring(ring);
+}
+
 static bool i915_hangcheck_hung(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
 	if (dev_priv->gpu_error.hangcheck_count++ > 1) {
 		bool hung = true;
+		struct intel_ring_buffer *ring;
+		int i;
 
 		DRM_ERROR("Hangcheck timer elapsed... GPU hung\n");
 		i915_handle_error(dev, true);
 
-		if (!IS_GEN2(dev)) {
-			struct intel_ring_buffer *ring;
-			int i;
-
-			/* Is the chip hanging on a WAIT_FOR_EVENT?
-			 * If so we can simply poke the RB_WAIT bit
-			 * and break the hang. This should work on
-			 * all but the second generation chipsets.
-			 */
-			for_each_ring(ring, dev_priv, i)
-				hung &= !kick_ring(ring);
-		}
+		for_each_ring(ring, dev_priv, i)
+			hung &= i915_hangcheck_ring_hung(ring);
 
 		return hung;
 	}
