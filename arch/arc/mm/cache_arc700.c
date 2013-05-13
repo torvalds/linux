@@ -512,7 +512,7 @@ void flush_dcache_page(struct page *page)
 	struct address_space *mapping;
 
 	if (!cache_is_vipt_aliasing()) {
-		set_bit(PG_arch_1, &page->flags);
+		clear_bit(PG_dc_clean, &page->flags);
 		return;
 	}
 
@@ -526,7 +526,7 @@ void flush_dcache_page(struct page *page)
 	 * Make a note that K-mapping is dirty
 	 */
 	if (!mapping_mapped(mapping)) {
-		set_bit(PG_arch_1, &page->flags);
+		clear_bit(PG_dc_clean, &page->flags);
 	} else if (page_mapped(page)) {
 
 		/* kernel reading from page with U-mapping */
@@ -734,7 +734,7 @@ void copy_user_highpage(struct page *to, struct page *from,
 	 * non copied user pages (e.g. read faults which wire in pagecache page
 	 * directly).
 	 */
-	set_bit(PG_arch_1, &to->flags);
+	clear_bit(PG_dc_clean, &to->flags);
 
 	/*
 	 * if SRC was already usermapped and non-congruent to kernel mapping
@@ -742,16 +742,16 @@ void copy_user_highpage(struct page *to, struct page *from,
 	 */
 	if (clean_src_k_mappings) {
 		__flush_dcache_page(kfrom, kfrom);
-		clear_bit(PG_arch_1, &from->flags);
+		set_bit(PG_dc_clean, &from->flags);
 	} else {
-		set_bit(PG_arch_1, &from->flags);
+		clear_bit(PG_dc_clean, &from->flags);
 	}
 }
 
 void clear_user_page(void *to, unsigned long u_vaddr, struct page *page)
 {
 	clear_page(to);
-	set_bit(PG_arch_1, &page->flags);
+	clear_bit(PG_dc_clean, &page->flags);
 }
 
 

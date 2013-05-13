@@ -453,7 +453,7 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long vaddr_unaligned,
 	if ((vma->vm_flags & VM_EXEC) ||
 	     addr_not_cache_congruent(paddr, vaddr)) {
 
-		int dirty = test_and_clear_bit(PG_arch_1, &page->flags);
+		int dirty = !test_and_set_bit(PG_dc_clean, &page->flags);
 		if (dirty) {
 			/* wback + inv dcache lines */
 			__flush_dcache_page(paddr, paddr);
