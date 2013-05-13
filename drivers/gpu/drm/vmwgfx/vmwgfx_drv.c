@@ -565,8 +565,8 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		dev_priv->has_gmr = false;
 	}
 
-	dev_priv->mmio_mtrr = drm_mtrr_add(dev_priv->mmio_start,
-					   dev_priv->mmio_size, DRM_MTRR_WC);
+	dev_priv->mmio_mtrr = arch_phys_wc_add(dev_priv->mmio_start,
+					       dev_priv->mmio_size);
 
 	dev_priv->mmio_virt = ioremap_wc(dev_priv->mmio_start,
 					 dev_priv->mmio_size);
@@ -664,8 +664,7 @@ out_no_device:
 out_err4:
 	iounmap(dev_priv->mmio_virt);
 out_err3:
-	drm_mtrr_del(dev_priv->mmio_mtrr, dev_priv->mmio_start,
-		     dev_priv->mmio_size, DRM_MTRR_WC);
+	arch_phys_wc_del(dev_priv->mmio_mtrr);
 	if (dev_priv->has_gmr)
 		(void) ttm_bo_clean_mm(&dev_priv->bdev, VMW_PL_GMR);
 	(void)ttm_bo_clean_mm(&dev_priv->bdev, TTM_PL_VRAM);
@@ -709,8 +708,7 @@ static int vmw_driver_unload(struct drm_device *dev)
 
 	ttm_object_device_release(&dev_priv->tdev);
 	iounmap(dev_priv->mmio_virt);
-	drm_mtrr_del(dev_priv->mmio_mtrr, dev_priv->mmio_start,
-		     dev_priv->mmio_size, DRM_MTRR_WC);
+	arch_phys_wc_del(dev_priv->mmio_mtrr);
 	if (dev_priv->has_gmr)
 		(void)ttm_bo_clean_mm(&dev_priv->bdev, VMW_PL_GMR);
 	(void)ttm_bo_clean_mm(&dev_priv->bdev, TTM_PL_VRAM);
