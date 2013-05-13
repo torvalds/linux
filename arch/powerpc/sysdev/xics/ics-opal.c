@@ -148,7 +148,7 @@ static int ics_opal_set_affinity(struct irq_data *d,
 		       __func__, d->irq, hw_irq, server, rc);
 		return -1;
 	}
-	return 0;
+	return IRQ_SET_MASK_OK;
 }
 
 static struct irq_chip ics_opal_irq_chip = {

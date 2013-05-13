@@ -836,7 +836,7 @@ int mpic_set_affinity(struct irq_data *d, const struct cpumask *cpumask,
 			       mpic_physmask(mask));
 	}
 
-	return 0;
+	return IRQ_SET_MASK_OK;
 }
 
 static unsigned int mpic_type_to_vecpri(struct mpic *mpic, unsigned int type)
