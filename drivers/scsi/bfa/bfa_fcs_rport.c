@@ -189,8 +189,8 @@ bfa_fcs_rport_sm_uninit(struct bfa_fcs_rport_s *rport, enum rport_event event)
 		break;
 
 	case RPSM_EVENT_PLOGI_RCVD:
-		bfa_sm_set_state(rport, bfa_fcs_rport_sm_fc4_fcs_online);
-		bfa_fcs_rport_fcs_online_action(rport);
+		bfa_sm_set_state(rport, bfa_fcs_rport_sm_plogiacc_sending);
+		bfa_fcs_rport_send_plogiacc(rport, NULL);
 		break;
 
 	case RPSM_EVENT_PLOGI_COMP:
