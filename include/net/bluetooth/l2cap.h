@@ -112,6 +112,9 @@ struct l2cap_conninfo {
 #define L2CAP_MOVE_CHAN_CFM_RSP	0x11
 #define L2CAP_CONN_PARAM_UPDATE_REQ	0x12
 #define L2CAP_CONN_PARAM_UPDATE_RSP	0x13
+#define L2CAP_LE_CONN_REQ	0x14
+#define L2CAP_LE_CONN_RSP	0x15
+#define L2CAP_LE_CREDITS	0x16
 
 /* L2CAP extended feature mask */
 #define L2CAP_FEAT_FLOWCTL	0x00000001
@@ -257,6 +260,10 @@ struct l2cap_conn_rsp {
 #define L2CAP_CR_SEC_BLOCK	0x0003
 #define L2CAP_CR_NO_MEM		0x0004
 #define L2CAP_CR_BAD_AMP	0x0005
+#define L2CAP_CR_AUTHENTICATION	0x0005
+#define L2CAP_CR_AUTHORIZATION	0x0006
+#define L2CAP_CR_BAD_KEY_SIZE	0x0007
+#define L2CAP_CR_ENCRYPTION	0x0008
 
 /* connect/create channel status */
 #define L2CAP_CS_NO_INFO	0x0000
@@ -422,6 +429,30 @@ struct l2cap_conn_param_update_rsp {
 /* Connection Parameters result */
 #define L2CAP_CONN_PARAM_ACCEPTED	0x0000
 #define L2CAP_CONN_PARAM_REJECTED	0x0001
+
+#define L2CAP_LE_MAX_CREDITS		10
+#define L2CAP_LE_DEFAULT_MPS		230
+
+struct l2cap_le_conn_req {
+	__le16     psm;
+	__le16     scid;
+	__le16     mtu;
+	__le16     mps;
+	__le16     credits;
+} __packed;
+
+struct l2cap_le_conn_rsp {
+	__le16     dcid;
+	__le16     mtu;
+	__le16     mps;
+	__le16     credits;
+	__le16     result;
+} __packed;
+
+struct l2cap_le_credits {
+	__le16     cid;
+	__le16     credits;
+} __packed;
 
 /* ----- L2CAP channels and connections ----- */
 struct l2cap_seq_list {
