@@ -1122,8 +1122,7 @@ static void prism2sta_inf_hostscanresults(wlandevice_t *wlandev,
 
 	kfree(hw->scanresults);
 
-	hw->scanresults = kmalloc(sizeof(hfa384x_InfFrame_t), GFP_ATOMIC);
-	memcpy(hw->scanresults, inf, sizeof(hfa384x_InfFrame_t));
+	hw->scanresults = kmemdup(inf, sizeof(hfa384x_InfFrame_t), GFP_ATOMIC);
 
 	if (nbss == 0)
 		nbss = -1;
