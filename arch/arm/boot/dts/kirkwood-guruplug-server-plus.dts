@@ -72,6 +72,8 @@
 
 		mvsdio@90000 {
 			status = "okay";
+			/* No CD or WP GPIOs */
+			broken-cd;
 		};
 	};
 

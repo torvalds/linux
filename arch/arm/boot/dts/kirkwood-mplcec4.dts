@@ -136,7 +136,7 @@
 			pinctrl-0 = <&pmx_sdio &pmx_sdio_cd>;
 			pinctrl-names = "default";
 			status = "okay";
-			cd-gpios = <&gpio1 15 0>;
+			cd-gpios = <&gpio1 15 1>;
 			/* No WP GPIO */
 		};
 	};
