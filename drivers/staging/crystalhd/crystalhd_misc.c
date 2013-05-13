@@ -30,19 +30,22 @@
 
 uint32_t g_linklog_level;
 
-static inline uint32_t crystalhd_dram_rd(struct crystalhd_adp *adp, uint32_t mem_off)
+static inline uint32_t crystalhd_dram_rd(struct crystalhd_adp *adp,
+					 uint32_t mem_off)
 {
 	crystalhd_reg_wr(adp, DCI_DRAM_BASE_ADDR, (mem_off >> 19));
 	return bc_dec_reg_rd(adp, (0x00380000 | (mem_off & 0x0007FFFF)));
 }
 
-static inline void crystalhd_dram_wr(struct crystalhd_adp *adp, uint32_t mem_off, uint32_t val)
+static inline void crystalhd_dram_wr(struct crystalhd_adp *adp,
+					 uint32_t mem_off, uint32_t val)
 {
 	crystalhd_reg_wr(adp, DCI_DRAM_BASE_ADDR, (mem_off >> 19));
 	bc_dec_reg_wr(adp, (0x00380000 | (mem_off & 0x0007FFFF)), val);
 }
 
-static inline enum BC_STATUS bc_chk_dram_range(struct crystalhd_adp *adp, uint32_t start_off, uint32_t cnt)
+static inline enum BC_STATUS bc_chk_dram_range(struct crystalhd_adp *adp,
+					 uint32_t start_off, uint32_t cnt)
 {
 	return BC_STS_SUCCESS;
 }
@@ -66,7 +69,8 @@ static struct crystalhd_dio_req *crystalhd_alloc_dio(struct crystalhd_adp *adp)
 	return temp;
 }
 
-static void crystalhd_free_dio(struct crystalhd_adp *adp, struct crystalhd_dio_req *dio)
+static void crystalhd_free_dio(struct crystalhd_adp *adp,
+					 struct crystalhd_dio_req *dio)
 {
 	unsigned long flags = 0;
 
@@ -99,7 +103,8 @@ static struct crystalhd_elem *crystalhd_alloc_elem(struct crystalhd_adp *adp)
 
 	return temp;
 }
-static void crystalhd_free_elem(struct crystalhd_adp *adp, struct crystalhd_elem *elem)
+static void crystalhd_free_elem(struct crystalhd_adp *adp,
+					 struct crystalhd_elem *elem)
 {
 	unsigned long flags = 0;
 
@@ -120,7 +125,8 @@ static inline void crystalhd_set_sg(struct scatterlist *sg, struct page *page,
 #endif
 }
 
-static inline void crystalhd_init_sg(struct scatterlist *sg, unsigned int entries)
+static inline void crystalhd_init_sg(struct scatterlist *sg,
+					 unsigned int entries)
 {
 	/* http://lkml.org/lkml/2007/11/27/68 */
 	sg_init_table(sg, entries);
@@ -208,7 +214,8 @@ uint32_t crystalhd_reg_rd(struct crystalhd_adp *adp, uint32_t reg_off)
  * configuration space.
  *
  */
-void crystalhd_reg_wr(struct crystalhd_adp *adp, uint32_t reg_off, uint32_t val)
+void crystalhd_reg_wr(struct crystalhd_adp *adp, uint32_t reg_off,
+					 uint32_t val)
 {
 	if (!adp || (reg_off > adp->pci_i2o_len)) {
 		BCMLOG_ERR("link_wr_reg_off outof range: 0x%08x\n", reg_off);
@@ -469,7 +476,8 @@ enum BC_STATUS crystalhd_create_dioq(struct crystalhd_adp *adp,
  * by calling the call back provided during creation.
  *
  */
-void crystalhd_delete_dioq(struct crystalhd_adp *adp, struct crystalhd_dioq *dioq)
+void crystalhd_delete_dioq(struct crystalhd_adp *adp,
+			 struct crystalhd_dioq *dioq)
 {
 	void *temp;
 
@@ -639,7 +647,8 @@ void *crystalhd_dioq_fetch_wait(struct crystalhd_dioq *ioq, uint32_t to_secs,
 	while ((ioq->count == 0) && count) {
 		spin_unlock_irqrestore(&ioq->lock, flags);
 
-		crystalhd_wait_on_event(&ioq->event, (ioq->count > 0), 1000, rc, 0);
+		crystalhd_wait_on_event(&ioq->event,
+				 (ioq->count > 0), 1000, rc, 0);
 		if (rc == 0) {
 			goto out;
 		} else if (rc == -EINTR) {
@@ -678,7 +687,8 @@ enum BC_STATUS crystalhd_map_dio(struct crystalhd_adp *adp, void *ubuff,
 			  struct crystalhd_dio_req **dio_hnd)
 {
 	struct crystalhd_dio_req	*dio;
-	/* FIXME: jarod: should some of these unsigned longs be uint32_t or uintptr_t? */
+	/* FIXME: jarod: should some of these
+	 unsigned longs be uint32_t or uintptr_t? */
 	unsigned long start = 0, end = 0, uaddr = 0, count = 0;
 	unsigned long spsz = 0, uv_start = 0;
 	int i = 0, rw = 0, res = 0, nr_pages = 0, skip_fb_sg = 0;
@@ -723,7 +733,8 @@ enum BC_STATUS crystalhd_map_dio(struct crystalhd_adp *adp, void *ubuff,
 	if (uv_offset) {
 		uv_start = (uaddr + (unsigned long)uv_offset)  >> PAGE_SHIFT;
 		dio->uinfo.uv_sg_ix = uv_start - start;
-		dio->uinfo.uv_sg_off = ((uaddr + (unsigned long)uv_offset) & ~PAGE_MASK);
+		dio->uinfo.uv_sg_off = ((uaddr + (unsigned long)uv_offset) &
+					 ~PAGE_MASK);
 	}
 
 	dio->fb_size = ubuff_sz & 0x03;
@@ -819,7 +830,8 @@ enum BC_STATUS crystalhd_map_dio(struct crystalhd_adp *adp, void *ubuff,
  *
  * This routine is to unmap the user buffer pages.
  */
-enum BC_STATUS crystalhd_unmap_dio(struct crystalhd_adp *adp, struct crystalhd_dio_req *dio)
+enum BC_STATUS crystalhd_unmap_dio(struct crystalhd_adp *adp,
+				 struct crystalhd_dio_req *dio)
 {
 	struct page *page = NULL;
 	int j = 0;
@@ -841,7 +853,8 @@ enum BC_STATUS crystalhd_unmap_dio(struct crystalhd_adp *adp, struct crystalhd_d
 		}
 	}
 	if (dio->sig == crystalhd_dio_sg_mapped)
-		pci_unmap_sg(adp->pdev, dio->sg, dio->page_cnt, dio->direction);
+		pci_unmap_sg(adp->pdev, dio->sg, dio->page_cnt,
+			 dio->direction);
 
 	crystalhd_free_dio(adp, dio);
 
