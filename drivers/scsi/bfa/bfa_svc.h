@@ -513,6 +513,7 @@ struct bfa_fcport_s {
 	struct bfa_mem_dma_s	fcport_dma;
 	bfa_boolean_t		stats_dma_ready;
 	struct bfa_bbcr_attr_s	bbcr_attr;
+	enum bfa_fec_state_s	fec_state;
 };
 
 #define BFA_FCPORT_MOD(__bfa)	(&(__bfa)->modules.fcport)

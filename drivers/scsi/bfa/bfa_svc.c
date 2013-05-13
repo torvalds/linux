@@ -3079,6 +3079,8 @@ bfa_fcport_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	port_cfg->qos_bw.med = BFA_QOS_BW_MED;
 	port_cfg->qos_bw.low = BFA_QOS_BW_LOW;
 
+	fcport->fec_state = BFA_FEC_OFFLINE;
+
 	INIT_LIST_HEAD(&fcport->stats_pending_q);
 	INIT_LIST_HEAD(&fcport->statsclr_pending_q);
 
@@ -3157,6 +3159,9 @@ bfa_fcport_update_linkinfo(struct bfa_fcport_s *fcport)
 
 	if (fcport->cfg.bb_cr_enabled)
 		fcport->bbcr_attr = pevent->link_state.attr.bbcr_attr;
+
+	fcport->fec_state = pevent->link_state.fec_state;
+
 	/*
 	 * update trunk state if applicable
 	 */
@@ -3176,6 +3181,7 @@ bfa_fcport_reset_linkinfo(struct bfa_fcport_s *fcport)
 {
 	fcport->speed = BFA_PORT_SPEED_UNKNOWN;
 	fcport->topology = BFA_PORT_TOPOLOGY_NONE;
+	fcport->fec_state = BFA_FEC_OFFLINE;
 }
 
 /*
@@ -4026,6 +4032,8 @@ bfa_fcport_get_attr(struct bfa_s *bfa, struct bfa_port_attr_s *attr)
 	attr->pport_cfg.path_tov  = bfa_fcpim_path_tov_get(bfa);
 	attr->pport_cfg.q_depth  = bfa_fcpim_qdepth_get(bfa);
 	attr->port_state = bfa_sm_to_state(hal_port_sm_table, fcport->sm);
+
+	attr->fec_state = fcport->fec_state;
 
 	/* PBC Disabled State */
 	if (bfa_fcport_is_pbcdisabled(bfa))

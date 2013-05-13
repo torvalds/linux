@@ -882,6 +882,15 @@ enum bfa_lunmask_state_s {
 	BFA_LUNMASK_UNINITIALIZED = 0xff,
 };
 
+/**
+ * FEC states
+ */
+enum bfa_fec_state_s {
+	BFA_FEC_ONLINE = 1,		/*!< FEC is online */
+	BFA_FEC_OFFLINE = 2,		/*!< FEC is offline */
+	BFA_FEC_OFFLINE_NOT_16G = 3,	/*!< FEC is offline (speed not 16Gig) */
+};
+
 #pragma pack(1)
 /*
  * LUN mask configuration
@@ -978,6 +987,7 @@ struct bfa_port_attr_s {
 	bfa_boolean_t		link_e2e_beacon; /* link beacon is on */
 	bfa_boolean_t		bbsc_op_status;	/* fc credit recovery oper
 						 * state */
+	enum bfa_fec_state_s	fec_state;	/*!< current FEC state */
 
 	/*
 	 * Dynamic field - info from FCS
@@ -989,7 +999,7 @@ struct bfa_port_attr_s {
 
 	/* FCoE specific  */
 	u16			fcoe_vlan;
-	u8			rsvd1[6];
+	u8			rsvd1[2];
 };
 
 /*
@@ -1076,7 +1086,8 @@ struct bfa_port_link_s {
 	u8	 speed;		/*  Link speed (1/2/4/8 G) */
 	u32	 linkstate_opt; /*  Linkstate optional data (debug) */
 	u8	 trunked;	/*  Trunked or not (1 or 0) */
-	u8	 resvd[7];
+	u8	 fec_state;	/*!< State of FEC */
+	u8	 resvd[6];
 	struct bfa_qos_attr_s  qos_attr;   /* QoS Attributes */
 	union {
 		struct bfa_fcport_loop_info_s loop_info;
