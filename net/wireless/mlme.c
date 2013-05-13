@@ -264,7 +264,16 @@ int __cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 			 const u8 *sae_data, int sae_data_len)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct cfg80211_auth_request req;
+	struct cfg80211_auth_request req = {
+		.ie = ie,
+		.ie_len = ie_len,
+		.sae_data = sae_data,
+		.sae_data_len = sae_data_len,
+		.auth_type = auth_type,
+		.key = key,
+		.key_len = key_len,
+		.key_idx = key_idx,
+	};
 	int err;
 
 	ASSERT_WDEV_LOCK(wdev);
@@ -277,18 +286,8 @@ int __cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 	    ether_addr_equal(bssid, wdev->current_bss->pub.bssid))
 		return -EALREADY;
 
-	memset(&req, 0, sizeof(req));
-
-	req.ie = ie;
-	req.ie_len = ie_len;
-	req.sae_data = sae_data;
-	req.sae_data_len = sae_data_len;
-	req.auth_type = auth_type;
 	req.bss = cfg80211_get_bss(&rdev->wiphy, chan, bssid, ssid, ssid_len,
 				   WLAN_CAPABILITY_ESS, WLAN_CAPABILITY_ESS);
-	req.key = key;
-	req.key_len = key_len;
-	req.key_idx = key_idx;
 	if (!req.bss)
 		return -ENOENT;
 
@@ -480,7 +479,12 @@ static int __cfg80211_mlme_disassoc(struct cfg80211_registered_device *rdev,
 				    bool local_state_change)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct cfg80211_disassoc_request req;
+	struct cfg80211_disassoc_request req = {
+		.reason_code = reason,
+		.local_state_change = local_state_change,
+		.ie = ie,
+		.ie_len = ie_len,
+	};
 
 	ASSERT_WDEV_LOCK(wdev);
 
@@ -490,11 +494,6 @@ static int __cfg80211_mlme_disassoc(struct cfg80211_registered_device *rdev,
 	if (WARN(!wdev->current_bss, "sme_state=%d\n", wdev->sme_state))
 		return -ENOTCONN;
 
-	memset(&req, 0, sizeof(req));
-	req.reason_code = reason;
-	req.local_state_change = local_state_change;
-	req.ie = ie;
-	req.ie_len = ie_len;
 	if (ether_addr_equal(wdev->current_bss->pub.bssid, bssid))
 		req.bss = &wdev->current_bss->pub;
 	else
@@ -523,24 +522,21 @@ void cfg80211_mlme_down(struct cfg80211_registered_device *rdev,
 			struct net_device *dev)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct cfg80211_deauth_request req;
 	u8 bssid[ETH_ALEN];
+	struct cfg80211_deauth_request req = {
+		.reason_code = WLAN_REASON_DEAUTH_LEAVING,
+		.bssid = bssid,
+	};
 
 	ASSERT_WDEV_LOCK(wdev);
 
 	if (!rdev->ops->deauth)
 		return;
 
-	memset(&req, 0, sizeof(req));
-	req.reason_code = WLAN_REASON_DEAUTH_LEAVING;
-	req.ie = NULL;
-	req.ie_len = 0;
-
 	if (!wdev->current_bss)
 		return;
 
 	memcpy(bssid, wdev->current_bss->pub.bssid, ETH_ALEN);
-	req.bssid = bssid;
 	rdev_deauth(rdev, dev, &req);
 
 	if (wdev->current_bss) {
