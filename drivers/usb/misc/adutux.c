@@ -35,8 +35,8 @@ static int debug = 1;
 
 /* Use our own dbg macro */
 #undef dbg
-#define dbg(lvl, format, arg...) 					\
-do { 									\
+#define dbg(lvl, format, arg...)	\
+do {								\
 	if (debug >= lvl)						\
 		printk(KERN_DEBUG "%s: " format "\n", __FILE__, ##arg);	\
 } while (0)
@@ -58,8 +58,8 @@ MODULE_PARM_DESC(debug, "Debug enabled or not");
 /* table of devices that work with this driver */
 static const struct usb_device_id device_table[] = {
 	{ USB_DEVICE(ADU_VENDOR_ID, ADU_PRODUCT_ID) },		/* ADU100 */
-	{ USB_DEVICE(ADU_VENDOR_ID, ADU_PRODUCT_ID+20) }, 	/* ADU120 */
-	{ USB_DEVICE(ADU_VENDOR_ID, ADU_PRODUCT_ID+30) }, 	/* ADU130 */
+	{ USB_DEVICE(ADU_VENDOR_ID, ADU_PRODUCT_ID+20) },	/* ADU120 */
+	{ USB_DEVICE(ADU_VENDOR_ID, ADU_PRODUCT_ID+30) },	/* ADU130 */
 	{ USB_DEVICE(ADU_VENDOR_ID, ADU_PRODUCT_ID+100) },	/* ADU200 */
 	{ USB_DEVICE(ADU_VENDOR_ID, ADU_PRODUCT_ID+108) },	/* ADU208 */
 	{ USB_DEVICE(ADU_VENDOR_ID, ADU_PRODUCT_ID+118) },	/* ADU218 */
@@ -359,14 +359,14 @@ static int adu_release(struct inode *inode, struct file *file)
 	dbg(2," %s : enter", __func__);
 
 	if (file == NULL) {
- 		dbg(1," %s : file is NULL", __func__);
+		dbg(1," %s : file is NULL", __func__);
 		retval = -ENODEV;
 		goto exit;
 	}
 
 	dev = file->private_data;
 	if (dev == NULL) {
- 		dbg(1," %s : object is NULL", __func__);
+		dbg(1," %s : object is NULL", __func__);
 		retval = -ENODEV;
 		goto exit;
 	}
@@ -480,8 +480,8 @@ static ssize_t adu_read(struct file *file, __user char *buffer, size_t count,
 					spin_unlock_irqrestore(&dev->buflock, flags);
 
 					usb_fill_int_urb(dev->interrupt_in_urb,dev->udev,
-							 usb_rcvintpipe(dev->udev,
-							 		dev->interrupt_in_endpoint->bEndpointAddress),
+							usb_rcvintpipe(dev->udev,
+								dev->interrupt_in_endpoint->bEndpointAddress),
 							 dev->interrupt_in_buffer,
 							 usb_endpoint_maxp(dev->interrupt_in_endpoint),
 							 adu_interrupt_in_callback,
@@ -534,7 +534,7 @@ static ssize_t adu_read(struct file *file, __user char *buffer, size_t count,
 		spin_unlock_irqrestore(&dev->buflock, flags);
 		usb_fill_int_urb(dev->interrupt_in_urb,dev->udev,
 				 usb_rcvintpipe(dev->udev,
-				 		dev->interrupt_in_endpoint->bEndpointAddress),
+					dev->interrupt_in_endpoint->bEndpointAddress),
 				dev->interrupt_in_buffer,
 				usb_endpoint_maxp(dev->interrupt_in_endpoint),
 				adu_interrupt_in_callback,
