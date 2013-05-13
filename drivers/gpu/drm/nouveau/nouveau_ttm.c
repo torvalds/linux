@@ -111,7 +111,7 @@ nouveau_vram_manager_debug(struct ttm_mem_type_manager *man, const char *prefix)
 	struct nouveau_mm_node *r;
 	u32 total = 0, free = 0;
 
-	mutex_lock(&mm->mutex);
+	mutex_lock(&nv_subdev(pfb)->mutex);
 	list_for_each_entry(r, &mm->nodes, nl_entry) {
 		printk(KERN_DEBUG "%s %d: 0x%010llx 0x%010llx\n",
 		       prefix, r->type, ((u64)r->offset << 12),
@@ -121,7 +121,7 @@ nouveau_vram_manager_debug(struct ttm_mem_type_manager *man, const char *prefix)
 		if (!r->type)
 			free += r->length;
 	}
-	mutex_unlock(&mm->mutex);
+	mutex_unlock(&nv_subdev(pfb)->mutex);
 
 	printk(KERN_DEBUG "%s  total: 0x%010llx free: 0x%010llx\n",
 	       prefix, (u64)total << 12, (u64)free << 12);

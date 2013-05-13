@@ -208,7 +208,6 @@ nouveau_mm_init(struct nouveau_mm *mm, u32 offset, u32 length, u32 block)
 	struct nouveau_mm_node *node;
 
 	if (block) {
-		mutex_init(&mm->mutex);
 		INIT_LIST_HEAD(&mm->nodes);
 		INIT_LIST_HEAD(&mm->free);
 		mm->block_size = block;
