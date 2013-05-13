@@ -918,6 +918,16 @@ bfa_ioc_ct2_pll_init(void __iomem *rb, enum bfi_asic_mode mode)
 
 		}
 	}
+	/*
+	* The very first PCIe DMA Read done by LPU fails with a fatal error,
+	* when Address Translation Cache (ATC) has been enabled by system BIOS.
+	*
+	* Workaround:
+	* Disable Invalidated Tag Match Enable capability by setting the bit 26
+	* of CHIP_MISC_PRG to 0, by default it is set to 1.
+	*/
+	r32 = readl(rb + CT2_CHIP_MISC_PRG);
+	writel((r32 & 0xfbffffff), (rb + CT2_CHIP_MISC_PRG));
 
 	/*
 	 * Mask the interrupts and clear any
