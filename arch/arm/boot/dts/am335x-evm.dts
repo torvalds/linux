@@ -51,7 +51,7 @@
 			status = "okay";
 		};
 
-		i2c1: i2c@44e0b000 {
+		i2c0: i2c@44e0b000 {
 			status = "okay";
 			clock-frequency = <400000>;
 
@@ -60,7 +60,7 @@
 			};
 		};
 
-		i2c2: i2c@4802a000 {
+		i2c1: i2c@4802a000 {
 			status = "okay";
 			clock-frequency = <100000>;
 
@@ -123,12 +123,12 @@
 		debounce-delay-ms = <5>;
 		col-scan-delay-us = <2>;
 
-		row-gpios = <&gpio2 25 0	/* Bank1, pin25 */
-			     &gpio2 26 0	/* Bank1, pin26 */
-			     &gpio2 27 0>;	/* Bank1, pin27 */
+		row-gpios = <&gpio1 25 0	/* Bank1, pin25 */
+			     &gpio1 26 0	/* Bank1, pin26 */
+			     &gpio1 27 0>;	/* Bank1, pin27 */
 
-		col-gpios = <&gpio2 21 0	/* Bank1, pin21 */
-			     &gpio2 22 0>;	/* Bank1, pin22 */
+		col-gpios = <&gpio1 21 0	/* Bank1, pin21 */
+			     &gpio1 22 0>;	/* Bank1, pin22 */
 
 		linux,keymap = <0x0000008b	/* MENU */
 				0x0100009e	/* BACK */
@@ -147,14 +147,14 @@
 		switch@9 {
 			label = "volume-up";
 			linux,code = <115>;
-			gpios = <&gpio1 2 1>;
+			gpios = <&gpio0 2 1>;
 			gpio-key,wakeup;
 		};
 
 		switch@10 {
 			label = "volume-down";
 			linux,code = <114>;
-			gpios = <&gpio1 3 1>;
+			gpios = <&gpio0 3 1>;
 			gpio-key,wakeup;
 		};
 	};

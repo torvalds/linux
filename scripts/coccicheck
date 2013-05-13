@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 SPATCH="`which ${SPATCH:=spatch}`"
 
@@ -11,25 +11,30 @@ else
 	VERBOSE=0
 fi
 
+FLAGS="$SPFLAGS -very_quiet"
+
+# spatch only allows include directories with the syntax "-I include"
+# while gcc also allows "-Iinclude" and "-include include"
+COCCIINCLUDE=${LINUXINCLUDE//-I/-I }
+COCCIINCLUDE=${COCCIINCLUDE//-include/-I}
+
 if [ "$C" = "1" -o "$C" = "2" ]; then
     ONLINE=1
 
-# This requires Coccinelle >= 0.2.3
-#    FLAGS="-ignore_unknown_options -very_quiet"
-#    OPTIONS=$*
-
-# Workaround for Coccinelle < 0.2.3
-	FLAGS="-I $srctree/include -very_quiet"
-	shift $(( $# - 1 ))
-	OPTIONS=$1
+    # Take only the last argument, which is the C file to test
+    shift $(( $# - 1 ))
+    OPTIONS="$COCCIINCLUDE $1"
 else
     ONLINE=0
-    FLAGS="-very_quiet"
     if [ "$KBUILD_EXTMOD" = "" ] ; then
-        OPTIONS="-dir $srctree"
+        OPTIONS="-dir $srctree $COCCIINCLUDE"
     else
-        OPTIONS="-dir $KBUILD_EXTMOD -patch $srctree -I $srctree/include -I $KBUILD_EXTMOD/include"
+        OPTIONS="-dir $KBUILD_EXTMOD $COCCIINCLUDE"
     fi
+fi
+
+if [ "$KBUILD_EXTMOD" != "" ] ; then
+    OPTIONS="-patch $srctree $OPTIONS"
 fi
 
 if [ ! -x "$SPATCH" ]; then
@@ -72,7 +77,7 @@ coccinelle () {
 #
 #    $SPATCH -D $MODE $FLAGS -parse_cocci $COCCI $OPT > /dev/null
 
-    if [ $VERBOSE -ne 0 ] ; then
+    if [ $VERBOSE -ne 0 -a $ONLINE -eq 0 ] ; then
 
 	FILE=`echo $COCCI | sed "s|$srctree/||"`
 

@@ -356,10 +356,8 @@ static struct fwnet_fragment_info *fwnet_frag_new(
 	}
 
 	new = kmalloc(sizeof(*new), GFP_ATOMIC);
-	if (!new) {
-		dev_err(&pd->skb->dev->dev, "out of memory\n");
+	if (!new)
 		return NULL;
-	}
 
 	new->offset = offset;
 	new->len = len;
@@ -402,8 +400,6 @@ fail_w_fi:
 fail_w_new:
 	kfree(new);
 fail:
-	dev_err(&net->dev, "out of memory\n");
-
 	return NULL;
 }
 
@@ -609,7 +605,6 @@ static int fwnet_incoming_packet(struct fwnet_device *dev, __be32 *buf, int len,
 
 		skb = dev_alloc_skb(len + LL_RESERVED_SPACE(net));
 		if (unlikely(!skb)) {
-			dev_err(&net->dev, "out of memory\n");
 			net->stats.rx_dropped++;
 
 			return -ENOMEM;

@@ -26,6 +26,15 @@
 		cpu-offset = <0x4000>;
 	};
 
+	interrupt-controller@10440000 {
+		samsung,combiner-nr = <20>;
+		interrupts = <0 0 0>, <0 1 0>, <0 2 0>, <0 3 0>,
+			     <0 4 0>, <0 5 0>, <0 6 0>, <0 7 0>,
+			     <0 8 0>, <0 9 0>, <0 10 0>, <0 11 0>,
+			     <0 12 0>, <0 13 0>, <0 14 0>, <0 15 0>,
+			     <0 107 0>, <0 108 0>, <0 48 0>, <0 42 0>;
+	};
+
 	mct@10050000 {
 		compatible = "samsung,exynos4412-mct";
 		reg = <0x10050000 0x800>;
@@ -50,5 +59,13 @@
 					<0x6 0 &gic 1 12 0>,
 					<0x7 0 &gic 1 12 0>;
 		};
+	};
+
+	mshc@12550000 {
+		compatible = "samsung,exynos4412-dw-mshc";
+		reg = <0x12550000 0x1000>;
+		interrupts = <0 77 0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 	};
 };

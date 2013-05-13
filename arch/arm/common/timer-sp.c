@@ -25,33 +25,29 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/io.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 
 #include <asm/sched_clock.h>
 #include <asm/hardware/arm_timer.h>
+#include <asm/hardware/timer-sp.h>
 
-static long __init sp804_get_clock_rate(const char *name)
+static long __init sp804_get_clock_rate(struct clk *clk)
 {
-	struct clk *clk;
 	long rate;
 	int err;
 
-	clk = clk_get_sys("sp804", name);
-	if (IS_ERR(clk)) {
-		pr_err("sp804: %s clock not found: %d\n", name,
-			(int)PTR_ERR(clk));
-		return PTR_ERR(clk);
-	}
-
 	err = clk_prepare(clk);
 	if (err) {
-		pr_err("sp804: %s clock failed to prepare: %d\n", name, err);
+		pr_err("sp804: clock failed to prepare: %d\n", err);
 		clk_put(clk);
 		return err;
 	}
 
 	err = clk_enable(clk);
 	if (err) {
-		pr_err("sp804: %s clock failed to enable: %d\n", name, err);
+		pr_err("sp804: clock failed to enable: %d\n", err);
 		clk_unprepare(clk);
 		clk_put(clk);
 		return err;
@@ -59,7 +55,7 @@ static long __init sp804_get_clock_rate(const char *name)
 
 	rate = clk_get_rate(clk);
 	if (rate < 0) {
-		pr_err("sp804: %s clock failed to get rate: %ld\n", name, rate);
+		pr_err("sp804: clock failed to get rate: %ld\n", rate);
 		clk_disable(clk);
 		clk_unprepare(clk);
 		clk_put(clk);
@@ -77,9 +73,21 @@ static u32 sp804_read(void)
 
 void __init __sp804_clocksource_and_sched_clock_init(void __iomem *base,
 						     const char *name,
+						     struct clk *clk,
 						     int use_sched_clock)
 {
-	long rate = sp804_get_clock_rate(name);
+	long rate;
+
+	if (!clk) {
+		clk = clk_get_sys("sp804", name);
+		if (IS_ERR(clk)) {
+			pr_err("sp804: clock not found: %d\n",
+			       (int)PTR_ERR(clk));
+			return;
+		}
+	}
+
+	rate = sp804_get_clock_rate(clk);
 
 	if (rate < 0)
 		return;
@@ -171,12 +179,20 @@ static struct irqaction sp804_timer_irq = {
 	.dev_id		= &sp804_clockevent,
 };
 
-void __init sp804_clockevents_init(void __iomem *base, unsigned int irq,
-	const char *name)
+void __init __sp804_clockevents_init(void __iomem *base, unsigned int irq, struct clk *clk, const char *name)
 {
 	struct clock_event_device *evt = &sp804_clockevent;
-	long rate = sp804_get_clock_rate(name);
+	long rate;
 
+	if (!clk)
+		clk = clk_get_sys("sp804", name);
+	if (IS_ERR(clk)) {
+		pr_err("sp804: %s clock not found: %d\n", name,
+			(int)PTR_ERR(clk));
+		return;
+	}
+
+	rate = sp804_get_clock_rate(clk);
 	if (rate < 0)
 		return;
 
@@ -186,6 +202,98 @@ void __init sp804_clockevents_init(void __iomem *base, unsigned int irq,
 	evt->irq = irq;
 	evt->cpumask = cpu_possible_mask;
 
+	writel(0, base + TIMER_CTRL);
+
 	setup_irq(irq, &sp804_timer_irq);
 	clockevents_config_and_register(evt, rate, 0xf, 0xffffffff);
 }
+
+static void __init sp804_of_init(struct device_node *np)
+{
+	static bool initialized = false;
+	void __iomem *base;
+	int irq;
+	u32 irq_num = 0;
+	struct clk *clk1, *clk2;
+	const char *name = of_get_property(np, "compatible", NULL);
+
+	base = of_iomap(np, 0);
+	if (WARN_ON(!base))
+		return;
+
+	/* Ensure timers are disabled */
+	writel(0, base + TIMER_CTRL);
+	writel(0, base + TIMER_2_BASE + TIMER_CTRL);
+
+	if (initialized || !of_device_is_available(np))
+		goto err;
+
+	clk1 = of_clk_get(np, 0);
+	if (IS_ERR(clk1))
+		clk1 = NULL;
+
+	/* Get the 2nd clock if the timer has 2 timer clocks */
+	if (of_count_phandle_with_args(np, "clocks", "#clock-cells") == 3) {
+		clk2 = of_clk_get(np, 1);
+		if (IS_ERR(clk2)) {
+			pr_err("sp804: %s clock not found: %d\n", np->name,
+				(int)PTR_ERR(clk2));
+			goto err;
+		}
+	} else
+		clk2 = clk1;
+
+	irq = irq_of_parse_and_map(np, 0);
+	if (irq <= 0)
+		goto err;
+
+	of_property_read_u32(np, "arm,sp804-has-irq", &irq_num);
+	if (irq_num == 2) {
+		__sp804_clockevents_init(base + TIMER_2_BASE, irq, clk2, name);
+		__sp804_clocksource_and_sched_clock_init(base, name, clk1, 1);
+	} else {
+		__sp804_clockevents_init(base, irq, clk1 , name);
+		__sp804_clocksource_and_sched_clock_init(base + TIMER_2_BASE,
+							 name, clk2, 1);
+	}
+	initialized = true;
+
+	return;
+err:
+	iounmap(base);
+}
+CLOCKSOURCE_OF_DECLARE(sp804, "arm,sp804", sp804_of_init);
+
+static void __init integrator_cp_of_init(struct device_node *np)
+{
+	static int init_count = 0;
+	void __iomem *base;
+	int irq;
+	const char *name = of_get_property(np, "compatible", NULL);
+
+	base = of_iomap(np, 0);
+	if (WARN_ON(!base))
+		return;
+
+	/* Ensure timer is disabled */
+	writel(0, base + TIMER_CTRL);
+
+	if (init_count == 2 || !of_device_is_available(np))
+		goto err;
+
+	if (!init_count)
+		sp804_clocksource_init(base, name);
+	else {
+		irq = irq_of_parse_and_map(np, 0);
+		if (irq <= 0)
+			goto err;
+
+		sp804_clockevents_init(base, irq, name);
+	}
+
+	init_count++;
+	return;
+err:
+	iounmap(base);
+}
+CLOCKSOURCE_OF_DECLARE(intcp, "arm,integrator-cp-timer", integrator_cp_of_init);

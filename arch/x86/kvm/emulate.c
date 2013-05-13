@@ -60,6 +60,7 @@
 #define OpGS              25ull  /* GS */
 #define OpMem8            26ull  /* 8-bit zero extended memory operand */
 #define OpImm64           27ull  /* Sign extended 16/32/64-bit immediate */
+#define OpXLat            28ull  /* memory at BX/EBX/RBX + zero-extended AL */
 
 #define OpBits             5  /* Width of operand field */
 #define OpMask             ((1ull << OpBits) - 1)
@@ -99,6 +100,7 @@
 #define SrcImmUByte (OpImmUByte << SrcShift)
 #define SrcImmU     (OpImmU << SrcShift)
 #define SrcSI       (OpSI << SrcShift)
+#define SrcXLat     (OpXLat << SrcShift)
 #define SrcImmFAddr (OpImmFAddr << SrcShift)
 #define SrcMemFAddr (OpMemFAddr << SrcShift)
 #define SrcAcc      (OpAcc << SrcShift)
@@ -531,6 +533,9 @@ FOP_SETCC(setl)
 FOP_SETCC(setnl)
 FOP_SETCC(setle)
 FOP_SETCC(setnle)
+FOP_END;
+
+FOP_START(salc) "pushf; sbb %al, %al; popf \n\t" FOP_RET
 FOP_END;
 
 #define __emulate_1op_rax_rdx(ctxt, _op, _suffix, _ex)			\
@@ -2996,6 +3001,28 @@ static int em_das(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
+static int em_aam(struct x86_emulate_ctxt *ctxt)
+{
+	u8 al, ah;
+
+	if (ctxt->src.val == 0)
+		return emulate_de(ctxt);
+
+	al = ctxt->dst.val & 0xff;
+	ah = al / ctxt->src.val;
+	al %= ctxt->src.val;
+
+	ctxt->dst.val = (ctxt->dst.val & 0xffff0000) | al | (ah << 8);
+
+	/* Set PF, ZF, SF */
+	ctxt->src.type = OP_IMM;
+	ctxt->src.val = 0;
+	ctxt->src.bytes = 1;
+	fastop(ctxt, em_or);
+
+	return X86EMUL_CONTINUE;
+}
+
 static int em_aad(struct x86_emulate_ctxt *ctxt)
 {
 	u8 al = ctxt->dst.val & 0xff;
@@ -3936,7 +3963,10 @@ static const struct opcode opcode_table[256] = {
 	/* 0xD0 - 0xD7 */
 	G(Src2One | ByteOp, group2), G(Src2One, group2),
 	G(Src2CL | ByteOp, group2), G(Src2CL, group2),
-	N, I(DstAcc | SrcImmByte | No64, em_aad), N, N,
+	I(DstAcc | SrcImmUByte | No64, em_aam),
+	I(DstAcc | SrcImmUByte | No64, em_aad),
+	F(DstAcc | ByteOp | No64, em_salc),
+	I(DstAcc | SrcXLat | ByteOp, em_mov),
 	/* 0xD8 - 0xDF */
 	N, E(0, &escape_d9), N, E(0, &escape_db), N, E(0, &escape_dd), N, N,
 	/* 0xE0 - 0xE7 */
@@ -4197,6 +4227,16 @@ static int decode_operand(struct x86_emulate_ctxt *ctxt, struct operand *op,
 		op->addr.mem.seg = seg_override(ctxt);
 		op->val = 0;
 		op->count = 1;
+		break;
+	case OpXLat:
+		op->type = OP_MEM;
+		op->bytes = (ctxt->d & ByteOp) ? 1 : ctxt->op_bytes;
+		op->addr.mem.ea =
+			register_address(ctxt,
+				reg_read(ctxt, VCPU_REGS_RBX) +
+				(reg_read(ctxt, VCPU_REGS_RAX) & 0xff));
+		op->addr.mem.seg = seg_override(ctxt);
+		op->val = 0;
 		break;
 	case OpImmFAddr:
 		op->type = OP_IMM;

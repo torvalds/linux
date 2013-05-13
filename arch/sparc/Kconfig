@@ -137,11 +137,6 @@ config GENERIC_ISA_DMA
 	bool
 	default y if SPARC32
 
-config GENERIC_GPIO
-	bool
-	help
-	  Generic GPIO API support
-
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	def_bool y if SPARC64
 

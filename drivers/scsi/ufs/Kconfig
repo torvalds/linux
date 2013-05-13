@@ -57,3 +57,14 @@ config SCSI_UFSHCD_PCI
 	  If you have a controller with this interface, say Y or M here.
 
 	  If unsure, say N.
+
+config SCSI_UFSHCD_PLATFORM
+	tristate "Platform bus based UFS Controller support"
+	depends on SCSI_UFSHCD
+	---help---
+	This selects the UFS host controller support. Select this if
+	you have an UFS controller on Platform bus.
+
+	If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say N.

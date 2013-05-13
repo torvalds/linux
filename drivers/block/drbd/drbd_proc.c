@@ -313,8 +313,14 @@ static int drbd_seq_show(struct seq_file *seq, void *v)
 
 static int drbd_proc_open(struct inode *inode, struct file *file)
 {
-	if (try_module_get(THIS_MODULE))
-		return single_open(file, drbd_seq_show, PDE_DATA(inode));
+	int err;
+
+	if (try_module_get(THIS_MODULE)) {
+		err = single_open(file, drbd_seq_show, PDE_DATA(inode));
+		if (err)
+			module_put(THIS_MODULE);
+		return err;
+	}
 	return -ENODEV;
 }
 

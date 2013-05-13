@@ -20,6 +20,7 @@ struct clock_data {
 	u64 epoch_ns;
 	u32 epoch_cyc;
 	u32 epoch_cyc_copy;
+	unsigned long rate;
 	u32 mult;
 	u32 shift;
 	bool suspended;
@@ -113,11 +114,14 @@ void __init setup_sched_clock(u32 (*read)(void), int bits, unsigned long rate)
 	u64 res, wrap;
 	char r_unit;
 
+	if (cd.rate > rate)
+		return;
+
 	BUG_ON(bits > 32);
 	WARN_ON(!irqs_disabled());
-	WARN_ON(read_sched_clock != jiffy_sched_clock_read);
 	read_sched_clock = read;
 	sched_clock_mask = (1 << bits) - 1;
+	cd.rate = rate;
 
 	/* calculate the mult/shift to convert counter ticks to ns. */
 	clocks_calc_mult_shift(&cd.mult, &cd.shift, rate, NSEC_PER_SEC, 0);
@@ -161,10 +165,17 @@ void __init setup_sched_clock(u32 (*read)(void), int bits, unsigned long rate)
 	pr_debug("Registered %pF as sched_clock source\n", read);
 }
 
-unsigned long long notrace sched_clock(void)
+static unsigned long long notrace sched_clock_32(void)
 {
 	u32 cyc = read_sched_clock();
 	return cyc_to_sched_clock(cyc, sched_clock_mask);
+}
+
+unsigned long long __read_mostly (*sched_clock_func)(void) = sched_clock_32;
+
+unsigned long long notrace sched_clock(void)
+{
+	return sched_clock_func();
 }
 
 void __init sched_clock_postinit(void)

@@ -6,7 +6,7 @@
  * Copyright (C) 2004, 2005, 2006, 2008	 Thiemo Seufer
  * Copyright (C) 2005  Maciej W. Rozycki
  * Copyright (C) 2006  Ralf Baechle (ralf@linux-mips.org)
- * Copyright (C) 2012  MIPS Technologies, Inc.
+ * Copyright (C) 2012, 2013  MIPS Technologies, Inc.  All rights reserved.
  */
 
 #include <linux/types.h>
@@ -22,44 +22,75 @@
 #define UASM_EXPORT_SYMBOL(sym)
 #endif
 
+#define _UASM_ISA_CLASSIC	0
+#define _UASM_ISA_MICROMIPS	1
+
+#ifndef UASM_ISA
+#ifdef CONFIG_CPU_MICROMIPS
+#define UASM_ISA	_UASM_ISA_MICROMIPS
+#else
+#define UASM_ISA	_UASM_ISA_CLASSIC
+#endif
+#endif
+
+#if (UASM_ISA == _UASM_ISA_CLASSIC)
+#ifdef CONFIG_CPU_MICROMIPS
+#define ISAOPC(op)	CL_uasm_i##op
+#define ISAFUNC(x)	CL_##x
+#else
+#define ISAOPC(op)	uasm_i##op
+#define ISAFUNC(x)	x
+#endif
+#elif (UASM_ISA == _UASM_ISA_MICROMIPS)
+#ifdef CONFIG_CPU_MICROMIPS
+#define ISAOPC(op)	uasm_i##op
+#define ISAFUNC(x)	x
+#else
+#define ISAOPC(op)	MM_uasm_i##op
+#define ISAFUNC(x)	MM_##x
+#endif
+#else
+#error Unsupported micro-assembler ISA!!!
+#endif
+
 #define Ip_u1u2u3(op)							\
 void __uasminit								\
-uasm_i##op(u32 **buf, unsigned int a, unsigned int b, unsigned int c)
+ISAOPC(op)(u32 **buf, unsigned int a, unsigned int b, unsigned int c)
 
 #define Ip_u2u1u3(op)							\
 void __uasminit								\
-uasm_i##op(u32 **buf, unsigned int a, unsigned int b, unsigned int c)
+ISAOPC(op)(u32 **buf, unsigned int a, unsigned int b, unsigned int c)
 
 #define Ip_u3u1u2(op)							\
 void __uasminit								\
-uasm_i##op(u32 **buf, unsigned int a, unsigned int b, unsigned int c)
+ISAOPC(op)(u32 **buf, unsigned int a, unsigned int b, unsigned int c)
 
 #define Ip_u1u2s3(op)							\
 void __uasminit								\
-uasm_i##op(u32 **buf, unsigned int a, unsigned int b, signed int c)
+ISAOPC(op)(u32 **buf, unsigned int a, unsigned int b, signed int c)
 
 #define Ip_u2s3u1(op)							\
 void __uasminit								\
-uasm_i##op(u32 **buf, unsigned int a, signed int b, unsigned int c)
+ISAOPC(op)(u32 **buf, unsigned int a, signed int b, unsigned int c)
 
 #define Ip_u2u1s3(op)							\
 void __uasminit								\
-uasm_i##op(u32 **buf, unsigned int a, unsigned int b, signed int c)
+ISAOPC(op)(u32 **buf, unsigned int a, unsigned int b, signed int c)
 
 #define Ip_u2u1msbu3(op)						\
 void __uasminit								\
-uasm_i##op(u32 **buf, unsigned int a, unsigned int b, unsigned int c,	\
+ISAOPC(op)(u32 **buf, unsigned int a, unsigned int b, unsigned int c,	\
 	   unsigned int d)
 
 #define Ip_u1u2(op)							\
-void __uasminit uasm_i##op(u32 **buf, unsigned int a, unsigned int b)
+void __uasminit ISAOPC(op)(u32 **buf, unsigned int a, unsigned int b)
 
 #define Ip_u1s2(op)							\
-void __uasminit uasm_i##op(u32 **buf, unsigned int a, signed int b)
+void __uasminit ISAOPC(op)(u32 **buf, unsigned int a, signed int b)
 
-#define Ip_u1(op) void __uasminit uasm_i##op(u32 **buf, unsigned int a)
+#define Ip_u1(op) void __uasminit ISAOPC(op)(u32 **buf, unsigned int a)
 
-#define Ip_0(op) void __uasminit uasm_i##op(u32 **buf)
+#define Ip_0(op) void __uasminit ISAOPC(op)(u32 **buf)
 
 Ip_u2u1s3(_addiu);
 Ip_u3u1u2(_addu);
@@ -132,19 +163,20 @@ struct uasm_label {
 	int lab;
 };
 
-void __uasminit uasm_build_label(struct uasm_label **lab, u32 *addr, int lid);
+void __uasminit ISAFUNC(uasm_build_label)(struct uasm_label **lab, u32 *addr,
+			int lid);
 #ifdef CONFIG_64BIT
-int uasm_in_compat_space_p(long addr);
+int ISAFUNC(uasm_in_compat_space_p)(long addr);
 #endif
-int uasm_rel_hi(long val);
-int uasm_rel_lo(long val);
-void UASM_i_LA_mostly(u32 **buf, unsigned int rs, long addr);
-void UASM_i_LA(u32 **buf, unsigned int rs, long addr);
+int ISAFUNC(uasm_rel_hi)(long val);
+int ISAFUNC(uasm_rel_lo)(long val);
+void ISAFUNC(UASM_i_LA_mostly)(u32 **buf, unsigned int rs, long addr);
+void ISAFUNC(UASM_i_LA)(u32 **buf, unsigned int rs, long addr);
 
 #define UASM_L_LA(lb)							\
-static inline void __uasminit uasm_l##lb(struct uasm_label **lab, u32 *addr) \
+static inline void __uasminit ISAFUNC(uasm_l##lb)(struct uasm_label **lab, u32 *addr) \
 {									\
-	uasm_build_label(lab, addr, label##lb);				\
+	ISAFUNC(uasm_build_label)(lab, addr, label##lb);		\
 }
 
 /* convenience macros for instructions */
@@ -196,27 +228,27 @@ static inline void uasm_i_drotr_safe(u32 **p, unsigned int a1,
 				     unsigned int a2, unsigned int a3)
 {
 	if (a3 < 32)
-		uasm_i_drotr(p, a1, a2, a3);
+		ISAOPC(_drotr)(p, a1, a2, a3);
 	else
-		uasm_i_drotr32(p, a1, a2, a3 - 32);
+		ISAOPC(_drotr32)(p, a1, a2, a3 - 32);
 }
 
 static inline void uasm_i_dsll_safe(u32 **p, unsigned int a1,
 				    unsigned int a2, unsigned int a3)
 {
 	if (a3 < 32)
-		uasm_i_dsll(p, a1, a2, a3);
+		ISAOPC(_dsll)(p, a1, a2, a3);
 	else
-		uasm_i_dsll32(p, a1, a2, a3 - 32);
+		ISAOPC(_dsll32)(p, a1, a2, a3 - 32);
 }
 
 static inline void uasm_i_dsrl_safe(u32 **p, unsigned int a1,
 				    unsigned int a2, unsigned int a3)
 {
 	if (a3 < 32)
-		uasm_i_dsrl(p, a1, a2, a3);
+		ISAOPC(_dsrl)(p, a1, a2, a3);
 	else
-		uasm_i_dsrl32(p, a1, a2, a3 - 32);
+		ISAOPC(_dsrl32)(p, a1, a2, a3 - 32);
 }
 
 /* Handle relocations. */

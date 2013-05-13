@@ -196,6 +196,73 @@ enum vnic_devcmd_cmd {
 
 	/* undo initialize of virtual link */
 	CMD_DEINIT		= _CMDCNW(_CMD_DIR_NONE, _CMD_VTYPE_ALL, 34),
+
+	/* check fw capability of a cmd:
+	 * in:  (u32)a0=cmd
+	 * out: (u32)a0=errno, 0:valid cmd, a1=supported VNIC_STF_* bits */
+	CMD_CAPABILITY      = _CMDC(_CMD_DIR_RW, _CMD_VTYPE_ALL, 36),
+
+	/* persistent binding info
+	 * in:  (u64)a0=paddr of arg
+	 *      (u32)a1=CMD_PERBI_XXX */
+	CMD_PERBI       = _CMDC(_CMD_DIR_RW, _CMD_VTYPE_FC, 37),
+
+	/* Interrupt Assert Register functionality
+	 * in: (u16)a0=interrupt number to assert
+	 */
+	CMD_IAR         = _CMDCNW(_CMD_DIR_WRITE, _CMD_VTYPE_ALL, 38),
+
+	/* initiate hangreset, like softreset after hang detected */
+	CMD_HANG_RESET      = _CMDC(_CMD_DIR_NONE, _CMD_VTYPE_ALL, 39),
+
+	/* hangreset status:
+	 *    out: a0=0 reset complete, a0=1 reset in progress */
+	CMD_HANG_RESET_STATUS   = _CMDC(_CMD_DIR_READ, _CMD_VTYPE_ALL, 40),
+
+	/*
+	 * Set hw ingress packet vlan rewrite mode:
+	 * in:  (u32)a0=new vlan rewrite mode
+	 * out: (u32)a0=old vlan rewrite mode */
+	CMD_IG_VLAN_REWRITE_MODE = _CMDC(_CMD_DIR_RW, _CMD_VTYPE_ENET, 41),
+
+	/*
+	 * in:  (u16)a0=bdf of target vnic
+	 *      (u32)a1=cmd to proxy
+	 *      a2-a15=args to cmd in a1
+	 * out: (u32)a0=status of proxied cmd
+	 *      a1-a15=out args of proxied cmd */
+	CMD_PROXY_BY_BDF =  _CMDC(_CMD_DIR_RW, _CMD_VTYPE_ALL, 42),
+
+	/*
+	 * As for BY_BDF except a0 is index of hvnlink subordinate vnic
+	 * or SR-IOV virtual vnic
+	 */
+	CMD_PROXY_BY_INDEX =    _CMDC(_CMD_DIR_RW, _CMD_VTYPE_ALL, 43),
+
+	/*
+	 * For HPP toggle:
+	 * adapter-info-get
+	 * in:  (u64)a0=phsical address of buffer passed in from caller.
+	 *      (u16)a1=size of buffer specified in a0.
+	 * out: (u64)a0=phsical address of buffer passed in from caller.
+	 *      (u16)a1=actual bytes from VIF-CONFIG-INFO TLV, or
+	 *              0 if no VIF-CONFIG-INFO TLV was ever received. */
+	CMD_CONFIG_INFO_GET = _CMDC(_CMD_DIR_RW, _CMD_VTYPE_ALL, 44),
+
+	/*
+	 * INT13 API: (u64)a0=paddr to vnic_int13_params struct
+	 *            (u32)a1=INT13_CMD_xxx
+	 */
+	CMD_INT13_ALL = _CMDC(_CMD_DIR_WRITE, _CMD_VTYPE_ALL, 45),
+
+	/*
+	 * Set default vlan:
+	 * in: (u16)a0=new default vlan
+	 *     (u16)a1=zero for overriding vlan with param a0,
+	 *             non-zero for resetting vlan to the default
+	 * out: (u16)a0=old default vlan
+	 */
+	CMD_SET_DEFAULT_VLAN = _CMDC(_CMD_DIR_RW, _CMD_VTYPE_ALL, 46)
 };
 
 /* flags for CMD_OPEN */

@@ -104,7 +104,6 @@ struct update_al_work {
 	int err;
 };
 
-static int al_write_transaction(struct drbd_conf *mdev);
 
 void *drbd_md_get_buffer(struct drbd_conf *mdev)
 {
@@ -168,7 +167,11 @@ static int _drbd_md_sync_page_io(struct drbd_conf *mdev,
 	bio->bi_end_io = drbd_md_io_complete;
 	bio->bi_rw = rw;
 
-	if (!get_ldev_if_state(mdev, D_ATTACHING)) {  /* Corresponding put_ldev in drbd_md_io_complete() */
+	if (!(rw & WRITE) && mdev->state.disk == D_DISKLESS && mdev->ldev == NULL)
+		/* special case, drbd_md_read() during drbd_adm_attach(): no get_ldev */
+		;
+	else if (!get_ldev_if_state(mdev, D_ATTACHING)) {
+		/* Corresponding put_ldev in drbd_md_io_complete() */
 		dev_err(DEV, "ASSERT FAILED: get_ldev_if_state() == 1 in _drbd_md_sync_page_io()\n");
 		err = -ENODEV;
 		goto out;
@@ -199,9 +202,10 @@ int drbd_md_sync_page_io(struct drbd_conf *mdev, struct drbd_backing_dev *bdev,
 
 	BUG_ON(!bdev->md_bdev);
 
-	dev_dbg(DEV, "meta_data io: %s [%d]:%s(,%llus,%s)\n",
+	dev_dbg(DEV, "meta_data io: %s [%d]:%s(,%llus,%s) %pS\n",
 	     current->comm, current->pid, __func__,
-	     (unsigned long long)sector, (rw & WRITE) ? "WRITE" : "READ");
+	     (unsigned long long)sector, (rw & WRITE) ? "WRITE" : "READ",
+	     (void*)_RET_IP_ );
 
 	if (sector < drbd_md_first_sector(bdev) ||
 	    sector + 7 > drbd_md_last_sector(bdev))
@@ -209,7 +213,8 @@ int drbd_md_sync_page_io(struct drbd_conf *mdev, struct drbd_backing_dev *bdev,
 		     current->comm, current->pid, __func__,
 		     (unsigned long long)sector, (rw & WRITE) ? "WRITE" : "READ");
 
-	err = _drbd_md_sync_page_io(mdev, bdev, iop, sector, rw, MD_BLOCK_SIZE);
+	/* we do all our meta data IO in aligned 4k blocks. */
+	err = _drbd_md_sync_page_io(mdev, bdev, iop, sector, rw, 4096);
 	if (err) {
 		dev_err(DEV, "drbd_md_sync_page_io(,%llus,%s) failed with error %d\n",
 		    (unsigned long long)sector, (rw & WRITE) ? "WRITE" : "READ", err);
@@ -217,44 +222,99 @@ int drbd_md_sync_page_io(struct drbd_conf *mdev, struct drbd_backing_dev *bdev,
 	return err;
 }
 
-static struct lc_element *_al_get(struct drbd_conf *mdev, unsigned int enr)
+static struct bm_extent *find_active_resync_extent(struct drbd_conf *mdev, unsigned int enr)
 {
-	struct lc_element *al_ext;
 	struct lc_element *tmp;
-	int wake;
-
-	spin_lock_irq(&mdev->al_lock);
 	tmp = lc_find(mdev->resync, enr/AL_EXT_PER_BM_SECT);
 	if (unlikely(tmp != NULL)) {
 		struct bm_extent  *bm_ext = lc_entry(tmp, struct bm_extent, lce);
-		if (test_bit(BME_NO_WRITES, &bm_ext->flags)) {
-			wake = !test_and_set_bit(BME_PRIORITY, &bm_ext->flags);
-			spin_unlock_irq(&mdev->al_lock);
-			if (wake)
-				wake_up(&mdev->al_wait);
-			return NULL;
-		}
+		if (test_bit(BME_NO_WRITES, &bm_ext->flags))
+			return bm_ext;
 	}
-	al_ext = lc_get(mdev->act_log, enr);
+	return NULL;
+}
+
+static struct lc_element *_al_get(struct drbd_conf *mdev, unsigned int enr, bool nonblock)
+{
+	struct lc_element *al_ext;
+	struct bm_extent *bm_ext;
+	int wake;
+
+	spin_lock_irq(&mdev->al_lock);
+	bm_ext = find_active_resync_extent(mdev, enr);
+	if (bm_ext) {
+		wake = !test_and_set_bit(BME_PRIORITY, &bm_ext->flags);
+		spin_unlock_irq(&mdev->al_lock);
+		if (wake)
+			wake_up(&mdev->al_wait);
+		return NULL;
+	}
+	if (nonblock)
+		al_ext = lc_try_get(mdev->act_log, enr);
+	else
+		al_ext = lc_get(mdev->act_log, enr);
 	spin_unlock_irq(&mdev->al_lock);
 	return al_ext;
 }
 
-void drbd_al_begin_io(struct drbd_conf *mdev, struct drbd_interval *i)
+bool drbd_al_begin_io_fastpath(struct drbd_conf *mdev, struct drbd_interval *i)
+{
+	/* for bios crossing activity log extent boundaries,
+	 * we may need to activate two extents in one go */
+	unsigned first = i->sector >> (AL_EXTENT_SHIFT-9);
+	unsigned last = i->size == 0 ? first : (i->sector + (i->size >> 9) - 1) >> (AL_EXTENT_SHIFT-9);
+
+	D_ASSERT((unsigned)(last - first) <= 1);
+	D_ASSERT(atomic_read(&mdev->local_cnt) > 0);
+
+	/* FIXME figure out a fast path for bios crossing AL extent boundaries */
+	if (first != last)
+		return false;
+
+	return _al_get(mdev, first, true);
+}
+
+bool drbd_al_begin_io_prepare(struct drbd_conf *mdev, struct drbd_interval *i)
 {
 	/* for bios crossing activity log extent boundaries,
 	 * we may need to activate two extents in one go */
 	unsigned first = i->sector >> (AL_EXTENT_SHIFT-9);
 	unsigned last = i->size == 0 ? first : (i->sector + (i->size >> 9) - 1) >> (AL_EXTENT_SHIFT-9);
 	unsigned enr;
-	bool locked = false;
-
+	bool need_transaction = false;
 
 	D_ASSERT(first <= last);
 	D_ASSERT(atomic_read(&mdev->local_cnt) > 0);
 
-	for (enr = first; enr <= last; enr++)
-		wait_event(mdev->al_wait, _al_get(mdev, enr) != NULL);
+	for (enr = first; enr <= last; enr++) {
+		struct lc_element *al_ext;
+		wait_event(mdev->al_wait,
+				(al_ext = _al_get(mdev, enr, false)) != NULL);
+		if (al_ext->lc_number != enr)
+			need_transaction = true;
+	}
+	return need_transaction;
+}
+
+static int al_write_transaction(struct drbd_conf *mdev, bool delegate);
+
+/* When called through generic_make_request(), we must delegate
+ * activity log I/O to the worker thread: a further request
+ * submitted via generic_make_request() within the same task
+ * would be queued on current->bio_list, and would only start
+ * after this function returns (see generic_make_request()).
+ *
+ * However, if we *are* the worker, we must not delegate to ourselves.
+ */
+
+/*
+ * @delegate:   delegate activity log I/O to the worker thread
+ */
+void drbd_al_begin_io_commit(struct drbd_conf *mdev, bool delegate)
+{
+	bool locked = false;
+
+	BUG_ON(delegate && current == mdev->tconn->worker.task);
 
 	/* Serialize multiple transactions.
 	 * This uses test_and_set_bit, memory barrier is implicit.
@@ -264,13 +324,6 @@ void drbd_al_begin_io(struct drbd_conf *mdev, struct drbd_interval *i)
 			(locked = lc_try_lock_for_transaction(mdev->act_log)));
 
 	if (locked) {
-		/* drbd_al_write_transaction(mdev,al_ext,enr);
-		 * recurses into generic_make_request(), which
-		 * disallows recursion, bios being serialized on the
-		 * current->bio_tail list now.
-		 * we have to delegate updates to the activity log
-		 * to the worker thread. */
-
 		/* Double check: it may have been committed by someone else,
 		 * while we have been waiting for the lock. */
 		if (mdev->act_log->pending_changes) {
@@ -280,11 +333,8 @@ void drbd_al_begin_io(struct drbd_conf *mdev, struct drbd_interval *i)
 			write_al_updates = rcu_dereference(mdev->ldev->disk_conf)->al_updates;
 			rcu_read_unlock();
 
-			if (write_al_updates) {
-				al_write_transaction(mdev);
-				mdev->al_writ_cnt++;
-			}
-
+			if (write_al_updates)
+				al_write_transaction(mdev, delegate);
 			spin_lock_irq(&mdev->al_lock);
 			/* FIXME
 			if (err)
@@ -296,6 +346,66 @@ void drbd_al_begin_io(struct drbd_conf *mdev, struct drbd_interval *i)
 		lc_unlock(mdev->act_log);
 		wake_up(&mdev->al_wait);
 	}
+}
+
+/*
+ * @delegate:   delegate activity log I/O to the worker thread
+ */
+void drbd_al_begin_io(struct drbd_conf *mdev, struct drbd_interval *i, bool delegate)
+{
+	BUG_ON(delegate && current == mdev->tconn->worker.task);
+
+	if (drbd_al_begin_io_prepare(mdev, i))
+		drbd_al_begin_io_commit(mdev, delegate);
+}
+
+int drbd_al_begin_io_nonblock(struct drbd_conf *mdev, struct drbd_interval *i)
+{
+	struct lru_cache *al = mdev->act_log;
+	/* for bios crossing activity log extent boundaries,
+	 * we may need to activate two extents in one go */
+	unsigned first = i->sector >> (AL_EXTENT_SHIFT-9);
+	unsigned last = i->size == 0 ? first : (i->sector + (i->size >> 9) - 1) >> (AL_EXTENT_SHIFT-9);
+	unsigned nr_al_extents;
+	unsigned available_update_slots;
+	unsigned enr;
+
+	D_ASSERT(first <= last);
+
+	nr_al_extents = 1 + last - first; /* worst case: all touched extends are cold. */
+	available_update_slots = min(al->nr_elements - al->used,
+				al->max_pending_changes - al->pending_changes);
+
+	/* We want all necessary updates for a given request within the same transaction
+	 * We could first check how many updates are *actually* needed,
+	 * and use that instead of the worst-case nr_al_extents */
+	if (available_update_slots < nr_al_extents)
+		return -EWOULDBLOCK;
+
+	/* Is resync active in this area? */
+	for (enr = first; enr <= last; enr++) {
+		struct lc_element *tmp;
+		tmp = lc_find(mdev->resync, enr/AL_EXT_PER_BM_SECT);
+		if (unlikely(tmp != NULL)) {
+			struct bm_extent  *bm_ext = lc_entry(tmp, struct bm_extent, lce);
+			if (test_bit(BME_NO_WRITES, &bm_ext->flags)) {
+				if (!test_and_set_bit(BME_PRIORITY, &bm_ext->flags))
+					return -EBUSY;
+				return -EWOULDBLOCK;
+			}
+		}
+	}
+
+	/* Checkout the refcounts.
+	 * Given that we checked for available elements and update slots above,
+	 * this has to be successful. */
+	for (enr = first; enr <= last; enr++) {
+		struct lc_element *al_ext;
+		al_ext = lc_get_cumulative(mdev->act_log, enr);
+		if (!al_ext)
+			dev_info(DEV, "LOGIC BUG for enr=%u\n", enr);
+	}
+	return 0;
 }
 
 void drbd_al_complete_io(struct drbd_conf *mdev, struct drbd_interval *i)
@@ -348,6 +458,24 @@ static unsigned int rs_extent_to_bm_page(unsigned int rs_enr)
 		((PAGE_SHIFT + 3) -
 		/* resync extent number to bit */
 		 (BM_EXT_SHIFT - BM_BLOCK_SHIFT));
+}
+
+static sector_t al_tr_number_to_on_disk_sector(struct drbd_conf *mdev)
+{
+	const unsigned int stripes = mdev->ldev->md.al_stripes;
+	const unsigned int stripe_size_4kB = mdev->ldev->md.al_stripe_size_4k;
+
+	/* transaction number, modulo on-disk ring buffer wrap around */
+	unsigned int t = mdev->al_tr_number % (mdev->ldev->md.al_size_4k);
+
+	/* ... to aligned 4k on disk block */
+	t = ((t % stripes) * stripe_size_4kB) + t/stripes;
+
+	/* ... to 512 byte sector in activity log */
+	t *= 8;
+
+	/* ... plus offset to the on disk position */
+	return mdev->ldev->md.md_offset + mdev->ldev->md.al_offset + t;
 }
 
 static int
@@ -432,23 +560,27 @@ _al_write_transaction(struct drbd_conf *mdev)
 	if (mdev->al_tr_cycle >= mdev->act_log->nr_elements)
 		mdev->al_tr_cycle = 0;
 
-	sector =  mdev->ldev->md.md_offset
-		+ mdev->ldev->md.al_offset
-		+ mdev->al_tr_pos * (MD_BLOCK_SIZE>>9);
+	sector = al_tr_number_to_on_disk_sector(mdev);
 
 	crc = crc32c(0, buffer, 4096);
 	buffer->crc32c = cpu_to_be32(crc);
 
 	if (drbd_bm_write_hinted(mdev))
 		err = -EIO;
-		/* drbd_chk_io_error done already */
-	else if (drbd_md_sync_page_io(mdev, mdev->ldev, sector, WRITE)) {
-		err = -EIO;
-		drbd_chk_io_error(mdev, 1, DRBD_META_IO_ERROR);
-	} else {
-		/* advance ringbuffer position and transaction counter */
-		mdev->al_tr_pos = (mdev->al_tr_pos + 1) % (MD_AL_SECTORS*512/MD_BLOCK_SIZE);
-		mdev->al_tr_number++;
+	else {
+		bool write_al_updates;
+		rcu_read_lock();
+		write_al_updates = rcu_dereference(mdev->ldev->disk_conf)->al_updates;
+		rcu_read_unlock();
+		if (write_al_updates) {
+			if (drbd_md_sync_page_io(mdev, mdev->ldev, sector, WRITE)) {
+				err = -EIO;
+				drbd_chk_io_error(mdev, 1, DRBD_META_IO_ERROR);
+			} else {
+				mdev->al_tr_number++;
+				mdev->al_writ_cnt++;
+			}
+		}
 	}
 
 	drbd_md_put_buffer(mdev);
@@ -474,20 +606,18 @@ static int w_al_write_transaction(struct drbd_work *w, int unused)
 /* Calls from worker context (see w_restart_disk_io()) need to write the
    transaction directly. Others came through generic_make_request(),
    those need to delegate it to the worker. */
-static int al_write_transaction(struct drbd_conf *mdev)
+static int al_write_transaction(struct drbd_conf *mdev, bool delegate)
 {
-	struct update_al_work al_work;
-
-	if (current == mdev->tconn->worker.task)
+	if (delegate) {
+		struct update_al_work al_work;
+		init_completion(&al_work.event);
+		al_work.w.cb = w_al_write_transaction;
+		al_work.w.mdev = mdev;
+		drbd_queue_work_front(&mdev->tconn->sender_work, &al_work.w);
+		wait_for_completion(&al_work.event);
+		return al_work.err;
+	} else
 		return _al_write_transaction(mdev);
-
-	init_completion(&al_work.event);
-	al_work.w.cb = w_al_write_transaction;
-	al_work.w.mdev = mdev;
-	drbd_queue_work_front(&mdev->tconn->sender_work, &al_work.w);
-	wait_for_completion(&al_work.event);
-
-	return al_work.err;
 }
 
 static int _try_lc_del(struct drbd_conf *mdev, struct lc_element *al_ext)

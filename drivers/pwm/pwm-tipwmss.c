@@ -101,6 +101,7 @@ static int pwmss_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int pwmss_suspend(struct device *dev)
 {
 	struct pwmss_info *info = dev_get_drvdata(dev);
@@ -118,6 +119,7 @@ static int pwmss_resume(struct device *dev)
 	writew(info->pwmss_clkconfig, info->mmio_base + PWMSS_CLKCONFIG);
 	return 0;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(pwmss_pm_ops, pwmss_suspend, pwmss_resume);
 

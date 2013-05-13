@@ -182,6 +182,17 @@ static int sh_pfc_gpio_request_enable(struct pinctrl_dev *pctldev,
 		goto done;
 	}
 
+	if (!pfc->gpio) {
+		/* If GPIOs are handled externally the pin mux type need to be
+		 * set to GPIO here.
+		 */
+		const struct sh_pfc_pin *pin = &pfc->info->pins[idx];
+
+		ret = sh_pfc_config_mux(pfc, pin->enum_id, PINMUX_TYPE_GPIO);
+		if (ret < 0)
+			goto done;
+	}
+
 	cfg->type = PINMUX_TYPE_GPIO;
 
 	ret = 0;

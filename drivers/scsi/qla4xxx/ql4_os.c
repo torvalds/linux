@@ -2216,14 +2216,14 @@ static int qla4xxx_copy_to_fwddb_param(struct iscsi_bus_flash_session *sess,
 	fw_ddb_entry->iscsi_def_time2retain = cpu_to_le16(sess->time2retain);
 	fw_ddb_entry->tgt_portal_grp = cpu_to_le16(sess->tpgt);
 	fw_ddb_entry->mss = cpu_to_le16(conn->max_segment_size);
-	fw_ddb_entry->tcp_xmt_wsf = cpu_to_le16(conn->tcp_xmit_wsf);
-	fw_ddb_entry->tcp_rcv_wsf = cpu_to_le16(conn->tcp_recv_wsf);
+	fw_ddb_entry->tcp_xmt_wsf = (uint8_t) cpu_to_le32(conn->tcp_xmit_wsf);
+	fw_ddb_entry->tcp_rcv_wsf = (uint8_t) cpu_to_le32(conn->tcp_recv_wsf);
 	fw_ddb_entry->ipv4_tos = conn->ipv4_tos;
 	fw_ddb_entry->ipv6_flow_lbl = cpu_to_le16(conn->ipv6_flow_label);
 	fw_ddb_entry->ka_timeout = cpu_to_le16(conn->keepalive_timeout);
 	fw_ddb_entry->lcl_port = cpu_to_le16(conn->local_port);
-	fw_ddb_entry->stat_sn = cpu_to_le16(conn->statsn);
-	fw_ddb_entry->exp_stat_sn = cpu_to_le16(conn->exp_statsn);
+	fw_ddb_entry->stat_sn = cpu_to_le32(conn->statsn);
+	fw_ddb_entry->exp_stat_sn = cpu_to_le32(conn->exp_statsn);
 	fw_ddb_entry->ddb_link = cpu_to_le16(sess->discovery_parent_type);
 	fw_ddb_entry->chap_tbl_idx = cpu_to_le16(sess->chap_out_idx);
 	fw_ddb_entry->tsid = cpu_to_le16(sess->tsid);
@@ -5504,9 +5504,9 @@ static int qla4xxx_sysfs_ddb_is_non_persistent(struct device *dev, void *data)
  * If this is invoked as a result of a userspace call then the entry is marked
  * as nonpersistent using flash_state field.
  **/
-int qla4xxx_sysfs_ddb_tgt_create(struct scsi_qla_host *ha,
-				 struct dev_db_entry *fw_ddb_entry,
-				 uint16_t *idx, int user)
+static int qla4xxx_sysfs_ddb_tgt_create(struct scsi_qla_host *ha,
+					struct dev_db_entry *fw_ddb_entry,
+					uint16_t *idx, int user)
 {
 	struct iscsi_bus_flash_session *fnode_sess = NULL;
 	struct iscsi_bus_flash_conn *fnode_conn = NULL;
@@ -5605,6 +5605,7 @@ static int qla4xxx_sysfs_ddb_add(struct Scsi_Host *shost, const char *buf,
 		ql4_printk(KERN_ERR, ha,
 			   "%s: A non-persistent entry %s found\n",
 			   __func__, dev->kobj.name);
+		put_device(dev);
 		goto exit_ddb_add;
 	}
 
@@ -6112,8 +6113,7 @@ qla4xxx_sysfs_ddb_get_param(struct iscsi_bus_flash_session *fnode_sess,
 	int parent_type, parent_index = 0xffff;
 	int rc = 0;
 
-	dev = iscsi_find_flashnode_conn(fnode_sess, NULL,
-					iscsi_is_flashnode_conn_dev);
+	dev = iscsi_find_flashnode_conn(fnode_sess);
 	if (!dev)
 		return -EIO;
 
@@ -6276,8 +6276,7 @@ qla4xxx_sysfs_ddb_get_param(struct iscsi_bus_flash_session *fnode_sess,
 			rc = sprintf(buf, "\n");
 		break;
 	case ISCSI_FLASHNODE_DISCOVERY_PARENT_IDX:
-		if ((fnode_sess->discovery_parent_idx) >= 0  &&
-		    (fnode_sess->discovery_parent_idx < MAX_DDB_ENTRIES))
+		if (fnode_sess->discovery_parent_idx < MAX_DDB_ENTRIES)
 			parent_index = fnode_sess->discovery_parent_idx;
 
 		rc = sprintf(buf, "%u\n", parent_index);
@@ -6287,8 +6286,7 @@ qla4xxx_sysfs_ddb_get_param(struct iscsi_bus_flash_session *fnode_sess,
 			parent_type = ISCSI_DISC_PARENT_ISNS;
 		else if (fnode_sess->discovery_parent_type == DDB_NO_LINK)
 			parent_type = ISCSI_DISC_PARENT_UNKNOWN;
-		else if (fnode_sess->discovery_parent_type >= 0  &&
-			 fnode_sess->discovery_parent_type < MAX_DDB_ENTRIES)
+		else if (fnode_sess->discovery_parent_type < MAX_DDB_ENTRIES)
 			parent_type = ISCSI_DISC_PARENT_SENDTGT;
 		else
 			parent_type = ISCSI_DISC_PARENT_UNKNOWN;
@@ -6349,6 +6347,8 @@ qla4xxx_sysfs_ddb_get_param(struct iscsi_bus_flash_session *fnode_sess,
 		rc = -ENOSYS;
 		break;
 	}
+
+	put_device(dev);
 	return rc;
 }
 
@@ -6368,19 +6368,10 @@ qla4xxx_sysfs_ddb_set_param(struct iscsi_bus_flash_session *fnode_sess,
 {
 	struct Scsi_Host *shost = iscsi_flash_session_to_shost(fnode_sess);
 	struct scsi_qla_host *ha = to_qla_host(shost);
-	struct dev_db_entry *fw_ddb_entry = NULL;
 	struct iscsi_flashnode_param_info *fnode_param;
 	struct nlattr *attr;
 	int rc = QLA_ERROR;
 	uint32_t rem = len;
-
-	fw_ddb_entry = kzalloc(sizeof(*fw_ddb_entry), GFP_KERNEL);
-	if (!fw_ddb_entry) {
-		DEBUG2(ql4_printk(KERN_ERR, ha,
-				  "%s: Unable to allocate ddb buffer\n",
-				  __func__));
-		return -ENOMEM;
-	}
 
 	nla_for_each_attr(attr, data, len, rem) {
 		fnode_param = nla_data(attr);
@@ -6590,15 +6581,10 @@ static int qla4xxx_sysfs_ddb_delete(struct iscsi_bus_flash_session *fnode_sess)
 	struct dev_db_entry *fw_ddb_entry = NULL;
 	dma_addr_t fw_ddb_entry_dma;
 	uint16_t *ddb_cookie = NULL;
-	size_t ddb_size;
+	size_t ddb_size = 0;
 	void *pddb = NULL;
 	int target_id;
 	int rc = 0;
-
-	if (!fnode_sess) {
-		rc = -EINVAL;
-		goto exit_ddb_del;
-	}
 
 	if (fnode_sess->is_boot_target) {
 		rc = -EPERM;
@@ -6631,8 +6617,7 @@ static int qla4xxx_sysfs_ddb_delete(struct iscsi_bus_flash_session *fnode_sess)
 
 		dev_db_start_offset += (fnode_sess->target_id *
 				       sizeof(*fw_ddb_entry));
-		dev_db_start_offset += (void *)&(fw_ddb_entry->cookie) -
-				       (void *)fw_ddb_entry;
+		dev_db_start_offset += offsetof(struct dev_db_entry, cookie);
 
 		ddb_size = sizeof(*ddb_cookie);
 	}

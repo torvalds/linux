@@ -27,47 +27,10 @@
 #include <linux/workqueue.h>
 #include <linux/slab.h>
 
-struct integrity_slab {
-	struct kmem_cache *slab;
-	unsigned short nr_vecs;
-	char name[8];
-};
+#define BIP_INLINE_VECS	4
 
-#define IS(x) { .nr_vecs = x, .name = "bip-"__stringify(x) }
-struct integrity_slab bip_slab[BIOVEC_NR_POOLS] __read_mostly = {
-	IS(1), IS(4), IS(16), IS(64), IS(128), IS(BIO_MAX_PAGES),
-};
-#undef IS
-
+static struct kmem_cache *bip_slab;
 static struct workqueue_struct *kintegrityd_wq;
-
-static inline unsigned int vecs_to_idx(unsigned int nr)
-{
-	switch (nr) {
-	case 1:
-		return 0;
-	case 2 ... 4:
-		return 1;
-	case 5 ... 16:
-		return 2;
-	case 17 ... 64:
-		return 3;
-	case 65 ... 128:
-		return 4;
-	case 129 ... BIO_MAX_PAGES:
-		return 5;
-	default:
-		BUG();
-	}
-}
-
-static inline int use_bip_pool(unsigned int idx)
-{
-	if (idx == BIOVEC_MAX_IDX)
-		return 1;
-
-	return 0;
-}
 
 /**
  * bio_integrity_alloc - Allocate integrity payload and attach it to bio
@@ -84,37 +47,41 @@ struct bio_integrity_payload *bio_integrity_alloc(struct bio *bio,
 						  unsigned int nr_vecs)
 {
 	struct bio_integrity_payload *bip;
-	unsigned int idx = vecs_to_idx(nr_vecs);
 	struct bio_set *bs = bio->bi_pool;
+	unsigned long idx = BIO_POOL_NONE;
+	unsigned inline_vecs;
 
-	if (!bs)
-		bs = fs_bio_set;
-
-	BUG_ON(bio == NULL);
-	bip = NULL;
-
-	/* Lower order allocations come straight from slab */
-	if (!use_bip_pool(idx))
-		bip = kmem_cache_alloc(bip_slab[idx].slab, gfp_mask);
-
-	/* Use mempool if lower order alloc failed or max vecs were requested */
-	if (bip == NULL) {
-		idx = BIOVEC_MAX_IDX;  /* so we free the payload properly later */
+	if (!bs) {
+		bip = kmalloc(sizeof(struct bio_integrity_payload) +
+			      sizeof(struct bio_vec) * nr_vecs, gfp_mask);
+		inline_vecs = nr_vecs;
+	} else {
 		bip = mempool_alloc(bs->bio_integrity_pool, gfp_mask);
-
-		if (unlikely(bip == NULL)) {
-			printk(KERN_ERR "%s: could not alloc bip\n", __func__);
-			return NULL;
-		}
+		inline_vecs = BIP_INLINE_VECS;
 	}
 
+	if (unlikely(!bip))
+		return NULL;
+
 	memset(bip, 0, sizeof(*bip));
+
+	if (nr_vecs > inline_vecs) {
+		bip->bip_vec = bvec_alloc(gfp_mask, nr_vecs, &idx,
+					  bs->bvec_integrity_pool);
+		if (!bip->bip_vec)
+			goto err;
+	} else {
+		bip->bip_vec = bip->bip_inline_vecs;
+	}
 
 	bip->bip_slab = idx;
 	bip->bip_bio = bio;
 	bio->bi_integrity = bip;
 
 	return bip;
+err:
+	mempool_free(bip, bs->bio_integrity_pool);
+	return NULL;
 }
 EXPORT_SYMBOL(bio_integrity_alloc);
 
@@ -130,20 +97,18 @@ void bio_integrity_free(struct bio *bio)
 	struct bio_integrity_payload *bip = bio->bi_integrity;
 	struct bio_set *bs = bio->bi_pool;
 
-	if (!bs)
-		bs = fs_bio_set;
-
-	BUG_ON(bip == NULL);
-
-	/* A cloned bio doesn't own the integrity metadata */
-	if (!bio_flagged(bio, BIO_CLONED) && !bio_flagged(bio, BIO_FS_INTEGRITY)
-	    && bip->bip_buf != NULL)
+	if (bip->bip_owns_buf)
 		kfree(bip->bip_buf);
 
-	if (use_bip_pool(bip->bip_slab))
+	if (bs) {
+		if (bip->bip_slab != BIO_POOL_NONE)
+			bvec_free(bs->bvec_integrity_pool, bip->bip_vec,
+				  bip->bip_slab);
+
 		mempool_free(bip, bs->bio_integrity_pool);
-	else
-		kmem_cache_free(bip_slab[bip->bip_slab].slab, bip);
+	} else {
+		kfree(bip);
+	}
 
 	bio->bi_integrity = NULL;
 }
@@ -419,6 +384,7 @@ int bio_integrity_prep(struct bio *bio)
 		return -EIO;
 	}
 
+	bip->bip_owns_buf = 1;
 	bip->bip_buf = buf;
 	bip->bip_size = len;
 	bip->bip_sector = bio->bi_sector;
@@ -694,11 +660,11 @@ void bio_integrity_split(struct bio *bio, struct bio_pair *bp, int sectors)
 	bp->bio1.bi_integrity = &bp->bip1;
 	bp->bio2.bi_integrity = &bp->bip2;
 
-	bp->iv1 = bip->bip_vec[0];
-	bp->iv2 = bip->bip_vec[0];
+	bp->iv1 = bip->bip_vec[bip->bip_idx];
+	bp->iv2 = bip->bip_vec[bip->bip_idx];
 
-	bp->bip1.bip_vec[0] = bp->iv1;
-	bp->bip2.bip_vec[0] = bp->iv2;
+	bp->bip1.bip_vec = &bp->iv1;
+	bp->bip2.bip_vec = &bp->iv2;
 
 	bp->iv1.bv_len = sectors * bi->tuple_size;
 	bp->iv2.bv_offset += sectors * bi->tuple_size;
@@ -746,13 +712,14 @@ EXPORT_SYMBOL(bio_integrity_clone);
 
 int bioset_integrity_create(struct bio_set *bs, int pool_size)
 {
-	unsigned int max_slab = vecs_to_idx(BIO_MAX_PAGES);
-
 	if (bs->bio_integrity_pool)
 		return 0;
 
-	bs->bio_integrity_pool =
-		mempool_create_slab_pool(pool_size, bip_slab[max_slab].slab);
+	bs->bio_integrity_pool = mempool_create_slab_pool(pool_size, bip_slab);
+
+	bs->bvec_integrity_pool = biovec_create_pool(bs, pool_size);
+	if (!bs->bvec_integrity_pool)
+		return -1;
 
 	if (!bs->bio_integrity_pool)
 		return -1;
@@ -765,13 +732,14 @@ void bioset_integrity_free(struct bio_set *bs)
 {
 	if (bs->bio_integrity_pool)
 		mempool_destroy(bs->bio_integrity_pool);
+
+	if (bs->bvec_integrity_pool)
+		mempool_destroy(bs->bio_integrity_pool);
 }
 EXPORT_SYMBOL(bioset_integrity_free);
 
 void __init bio_integrity_init(void)
 {
-	unsigned int i;
-
 	/*
 	 * kintegrityd won't block much but may burn a lot of CPU cycles.
 	 * Make it highpri CPU intensive wq with max concurrency of 1.
@@ -781,14 +749,10 @@ void __init bio_integrity_init(void)
 	if (!kintegrityd_wq)
 		panic("Failed to create kintegrityd\n");
 
-	for (i = 0 ; i < BIOVEC_NR_POOLS ; i++) {
-		unsigned int size;
-
-		size = sizeof(struct bio_integrity_payload)
-			+ bip_slab[i].nr_vecs * sizeof(struct bio_vec);
-
-		bip_slab[i].slab =
-			kmem_cache_create(bip_slab[i].name, size, 0,
-					  SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
-	}
+	bip_slab = kmem_cache_create("bio_integrity_payload",
+				     sizeof(struct bio_integrity_payload) +
+				     sizeof(struct bio_vec) * BIP_INLINE_VECS,
+				     0, SLAB_HWCACHE_ALIGN|SLAB_PANIC, NULL);
+	if (!bip_slab)
+		panic("Failed to create slab\n");
 }

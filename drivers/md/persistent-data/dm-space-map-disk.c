@@ -248,7 +248,8 @@ static struct dm_space_map ops = {
 	.new_block = sm_disk_new_block,
 	.commit = sm_disk_commit,
 	.root_size = sm_disk_root_size,
-	.copy_root = sm_disk_copy_root
+	.copy_root = sm_disk_copy_root,
+	.register_threshold_callback = NULL
 };
 
 struct dm_space_map *dm_sm_disk_create(struct dm_transaction_manager *tm,

@@ -41,14 +41,6 @@ config MTD_SM_COMMON
 	tristate
 	default n
 
-config MTD_NAND_MUSEUM_IDS
-	bool "Enable chip ids for obsolete ancient NAND devices"
-	default n
-	help
-	  Enable this option only when your board has first generation
-	  NAND chips (page size 256 byte, erase size 4-8KiB). The IDs
-	  of these chips were reused by later, larger chips.
-
 config MTD_NAND_DENALI
         tristate "Support Denali NAND controller"
         help
@@ -81,15 +73,9 @@ config MTD_NAND_DENALI_SCRATCH_REG_ADDR
           scratch register here to enable this feature. On Intel Moorestown
           boards, the scratch register is at 0xFF108018.
 
-config MTD_NAND_H1900
-	tristate "iPAQ H1900 flash"
-	depends on ARCH_PXA && BROKEN
-	help
-	  This enables the driver for the iPAQ h1900 flash.
-
 config MTD_NAND_GPIO
 	tristate "GPIO NAND Flash driver"
-	depends on GENERIC_GPIO && ARM
+	depends on GPIOLIB && ARM
 	help
 	  This enables a GPIO based NAND flash driver.
 
@@ -200,22 +186,6 @@ config MTD_NAND_BF5XX_BOOTROM_ECC
 	  U-Boot from Linux' userspace.  Otherwise, you should say N here.
 
 	  If unsure, say N.
-
-config MTD_NAND_RTC_FROM4
-	tristate "Renesas Flash ROM 4-slot interface board (FROM_BOARD4)"
-	depends on SH_SOLUTION_ENGINE
-	select REED_SOLOMON
-	select REED_SOLOMON_DEC8
-	select BITREVERSE
-	help
-	  This enables the driver for the Renesas Technology AG-AND
-	  flash interface board (FROM_BOARD4)
-
-config MTD_NAND_PPCHAMELEONEVB
-	tristate "NAND Flash device on PPChameleonEVB board"
-	depends on PPCHAMELEONEVB && BROKEN
-	help
-	  This enables the NAND flash driver on the PPChameleon EVB Board.
 
 config MTD_NAND_S3C2410
 	tristate "NAND Flash support for Samsung S3C SoCs"

@@ -150,13 +150,7 @@ static struct sk_buff *gre_gso_segment(struct sk_buff *skb,
 		csum = false;
 
 	/* setup inner skb. */
-	if (greh->protocol == htons(ETH_P_TEB)) {
-		struct ethhdr *eth = (struct ethhdr *)skb_inner_mac_header(skb);
-		skb->protocol = eth->h_proto;
-	} else {
-		skb->protocol = greh->protocol;
-	}
-
+	skb->protocol = greh->protocol;
 	skb->encapsulation = 0;
 
 	if (unlikely(!pskb_may_pull(skb, ghl)))

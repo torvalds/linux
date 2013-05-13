@@ -47,7 +47,6 @@
 #include <asm/setup.h>
 
 int gcmp_present = -1;
-int gic_present;
 static unsigned long _msc01_biu_base;
 static unsigned long _gcmp_base;
 static unsigned int ipi_map[NR_CPUS];
@@ -133,6 +132,9 @@ static void malta_hw0_irqdispatch(void)
 static void malta_ipi_irqdispatch(void)
 {
 	int irq;
+
+	if (gic_compare_int())
+		do_IRQ(MIPS_GIC_IRQ_BASE);
 
 	irq = gic_get_int();
 	if (irq < 0)

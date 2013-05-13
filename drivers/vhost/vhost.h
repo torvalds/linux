@@ -99,9 +99,6 @@ struct vhost_virtqueue {
 	u64 log_addr;
 
 	struct iovec iov[UIO_MAXIOV];
-	/* hdr is used to store the virtio header.
-	 * Since each iovec has >= 1 byte length, we never need more than
-	 * header length entries to store the header. */
 	struct iovec *indirect;
 	struct vring_used_elem *heads;
 	/* We use a kind of RCU to access private pointer.
@@ -135,6 +132,7 @@ struct vhost_dev {
 };
 
 long vhost_dev_init(struct vhost_dev *, struct vhost_virtqueue **vqs, int nvqs);
+long vhost_dev_set_owner(struct vhost_dev *dev);
 long vhost_dev_check_owner(struct vhost_dev *);
 struct vhost_memory *vhost_dev_reset_owner_prepare(void);
 void vhost_dev_reset_owner(struct vhost_dev *, struct vhost_memory *);
@@ -177,9 +175,6 @@ enum {
 			 (1ULL << VIRTIO_RING_F_INDIRECT_DESC) |
 			 (1ULL << VIRTIO_RING_F_EVENT_IDX) |
 			 (1ULL << VHOST_F_LOG_ALL),
-	VHOST_NET_FEATURES = VHOST_FEATURES |
-			 (1ULL << VHOST_NET_F_VIRTIO_NET_HDR) |
-			 (1ULL << VIRTIO_NET_F_MRG_RXBUF),
 };
 
 static inline int vhost_has_feature(struct vhost_dev *dev, int bit)
@@ -191,7 +186,4 @@ static inline int vhost_has_feature(struct vhost_dev *dev, int bit)
 	acked_features = rcu_dereference_index_check(dev->acked_features, 1);
 	return acked_features & (1 << bit);
 }
-
-void vhost_enable_zcopy(int vq);
-
 #endif

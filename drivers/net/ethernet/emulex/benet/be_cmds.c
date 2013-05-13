@@ -2640,9 +2640,8 @@ int be_cmd_get_mac_from_list(struct be_adapter *adapter, u8 *mac,
 	req = get_mac_list_cmd.va;
 
 	be_wrb_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
-				OPCODE_COMMON_GET_MAC_LIST, sizeof(*req),
-				wrb, &get_mac_list_cmd);
-
+			       OPCODE_COMMON_GET_MAC_LIST,
+			       get_mac_list_cmd.size, wrb, &get_mac_list_cmd);
 	req->hdr.domain = domain;
 	req->mac_type = MAC_ADDRESS_TYPE_NETWORK;
 	req->perm_override = 1;

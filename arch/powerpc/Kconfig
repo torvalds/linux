@@ -82,11 +82,6 @@ config GENERIC_HWEIGHT
 	bool
 	default y
 
-config GENERIC_GPIO
-	bool
-	help
-	  Generic GPIO API support
-
 config PPC
 	bool
 	default y

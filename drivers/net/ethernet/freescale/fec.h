@@ -198,6 +198,11 @@ struct bufdesc_ex {
 #define FLAG_RX_CSUM_ENABLED	(BD_ENET_RX_ICE | BD_ENET_RX_PCR)
 #define FLAG_RX_CSUM_ERROR	(BD_ENET_RX_ICE | BD_ENET_RX_PCR)
 
+struct fec_enet_delayed_work {
+	struct delayed_work delay_work;
+	bool timeout;
+};
+
 /* The FEC buffer descriptors track the ring buffers.  The rx_bd_base and
  * tx_bd_base always point to the base of the buffer descriptors.  The
  * cur_rx and cur_tx point to the currently available buffer.
@@ -214,6 +219,7 @@ struct fec_enet_private {
 
 	struct clk *clk_ipg;
 	struct clk *clk_ahb;
+	struct clk *clk_enet_out;
 	struct clk *clk_ptp;
 
 	/* The saved address of a sent-in-place packet/buffer, for skfree(). */
@@ -230,9 +236,6 @@ struct fec_enet_private {
 	struct bufdesc	*cur_rx, *cur_tx;
 	/* The ring entries to be free()ed */
 	struct bufdesc	*dirty_tx;
-
-	/* hold while accessing the HW like ringbuffer for tx/rx but not MAC */
-	spinlock_t hw_lock;
 
 	struct	platform_device *pdev;
 
@@ -268,7 +271,7 @@ struct fec_enet_private {
 	int hwts_rx_en;
 	int hwts_tx_en;
 	struct timer_list time_keep;
-
+	struct fec_enet_delayed_work delay_work;
 };
 
 void fec_ptp_init(struct net_device *ndev, struct platform_device *pdev);

@@ -5,20 +5,18 @@ Required properties:
   imx23 and imx28.
 - reg : Address and length of the register set for the device
 - interrupts : Should contain the auart interrupt numbers
-
-Optional properties:
-- fsl,auart-dma-channel : The DMA channels, the first is for RX, the other
-		is for TX. If you add this property, it also means that you
-		will enable the DMA support for the auart.
-		Note: due to the hardware bug in imx23(see errata : 2836),
-		only the imx28 can enable the DMA support for the auart.
+- dmas: DMA specifier, consisting of a phandle to DMA controller node
+  and AUART DMA channel ID.
+  Refer to dma.txt and fsl-mxs-dma.txt for details.
+- dma-names: "rx" for RX channel, "tx" for TX channel.
 
 Example:
 auart0: serial@8006a000 {
 	compatible = "fsl,imx28-auart", "fsl,imx23-auart";
 	reg = <0x8006a000 0x2000>;
-	interrupts = <112 70 71>;
-	fsl,auart-dma-channel = <8 9>;
+	interrupts = <112>;
+	dmas = <&dma_apbx 8>, <&dma_apbx 9>;
+	dma-names = "rx", "tx";
 };
 
 Note: Each auart port should have an alias correctly numbered in "aliases"

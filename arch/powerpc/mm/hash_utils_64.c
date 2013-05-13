@@ -1230,6 +1230,7 @@ void flush_hash_page(unsigned long vpn, real_pte_t pte, int psize, int ssize,
 	 * unmapping it first, it may see the speculated version.
 	 */
 	if (local && cpu_has_feature(CPU_FTR_TM) &&
+	    current->thread.regs &&
 	    MSR_TM_ACTIVE(current->thread.regs->msr)) {
 		tm_enable();
 		tm_abort(TM_CAUSE_TLBI);

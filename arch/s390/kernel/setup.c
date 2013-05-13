@@ -226,25 +226,17 @@ static void __init conmode_default(void)
 }
 
 #ifdef CONFIG_ZFCPDUMP
-static void __init setup_zfcpdump(unsigned int console_devno)
+static void __init setup_zfcpdump(void)
 {
-	static char str[41];
-
 	if (ipl_info.type != IPL_TYPE_FCP_DUMP)
 		return;
 	if (OLDMEM_BASE)
 		return;
-	if (console_devno != -1)
-		sprintf(str, " cio_ignore=all,!0.0.%04x,!0.0.%04x",
-			ipl_info.data.fcp.dev_id.devno, console_devno);
-	else
-		sprintf(str, " cio_ignore=all,!0.0.%04x",
-			ipl_info.data.fcp.dev_id.devno);
-	strcat(boot_command_line, str);
+	strcat(boot_command_line, " cio_ignore=all,!ipldev,!condev");
 	console_loglevel = 2;
 }
 #else
-static inline void setup_zfcpdump(unsigned int console_devno) {}
+static inline void setup_zfcpdump(void) {}
 #endif /* CONFIG_ZFCPDUMP */
 
  /*
@@ -471,14 +463,10 @@ static void __init setup_resources(void)
 	for (i = 0; i < MEMORY_CHUNKS; i++) {
 		if (!memory_chunk[i].size)
 			continue;
-		if (memory_chunk[i].type == CHUNK_OLDMEM ||
-		    memory_chunk[i].type == CHUNK_CRASHK)
-			continue;
 		res = alloc_bootmem_low(sizeof(*res));
 		res->flags = IORESOURCE_BUSY | IORESOURCE_MEM;
 		switch (memory_chunk[i].type) {
 		case CHUNK_READ_WRITE:
-		case CHUNK_CRASHK:
 			res->name = "System RAM";
 			break;
 		case CHUNK_READ_ONLY:
@@ -510,12 +498,10 @@ static void __init setup_resources(void)
 	}
 }
 
-unsigned long real_memory_size;
-EXPORT_SYMBOL_GPL(real_memory_size);
-
 static void __init setup_memory_end(void)
 {
 	unsigned long vmax, vmalloc_size, tmp;
+	unsigned long real_memory_size = 0;
 	int i;
 
 
@@ -525,7 +511,6 @@ static void __init setup_memory_end(void)
 		memory_end_set = 1;
 	}
 #endif
-	real_memory_size = 0;
 	memory_end &= PAGE_MASK;
 
 	/*
@@ -538,6 +523,8 @@ static void __init setup_memory_end(void)
 		unsigned long align;
 
 		chunk = &memory_chunk[i];
+		if (!chunk->size)
+			continue;
 		align = 1UL << (MAX_ORDER + PAGE_SHIFT - 1);
 		start = (chunk->addr + align - 1) & ~(align - 1);
 		end = (chunk->addr + chunk->size) & ~(align - 1);
@@ -588,6 +575,8 @@ static void __init setup_memory_end(void)
 	for (i = 0; i < MEMORY_CHUNKS; i++) {
 		struct mem_chunk *chunk = &memory_chunk[i];
 
+		if (!chunk->size)
+			continue;
 		if (chunk->addr >= memory_end) {
 			memset(chunk, 0, sizeof(*chunk));
 			continue;
@@ -688,15 +677,6 @@ static int __init verify_crash_base(unsigned long crash_base,
 }
 
 /*
- * Reserve kdump memory by creating a memory hole in the mem_chunk array
- */
-static void __init reserve_kdump_bootmem(unsigned long addr, unsigned long size,
-					 int type)
-{
-	create_mem_hole(memory_chunk, addr, size, type);
-}
-
-/*
  * When kdump is enabled, we have to ensure that no memory from
  * the area [0 - crashkernel memory size] and
  * [crashk_res.start - crashk_res.end] is set offline.
@@ -727,16 +707,22 @@ static struct notifier_block kdump_mem_nb = {
 static void reserve_oldmem(void)
 {
 #ifdef CONFIG_CRASH_DUMP
+	unsigned long real_size = 0;
+	int i;
+
 	if (!OLDMEM_BASE)
 		return;
+	for (i = 0; i < MEMORY_CHUNKS; i++) {
+		struct mem_chunk *chunk = &memory_chunk[i];
 
-	reserve_kdump_bootmem(OLDMEM_BASE, OLDMEM_SIZE, CHUNK_OLDMEM);
-	reserve_kdump_bootmem(OLDMEM_SIZE, memory_end - OLDMEM_SIZE,
-			      CHUNK_OLDMEM);
-	if (OLDMEM_BASE + OLDMEM_SIZE == real_memory_size)
+		real_size = max(real_size, chunk->addr + chunk->size);
+	}
+	create_mem_hole(memory_chunk, OLDMEM_BASE, OLDMEM_SIZE);
+	create_mem_hole(memory_chunk, OLDMEM_SIZE, real_size - OLDMEM_SIZE);
+	if (OLDMEM_BASE + OLDMEM_SIZE == real_size)
 		saved_max_pfn = PFN_DOWN(OLDMEM_BASE) - 1;
 	else
-		saved_max_pfn = PFN_DOWN(real_memory_size) - 1;
+		saved_max_pfn = PFN_DOWN(real_size) - 1;
 #endif
 }
 
@@ -775,7 +761,7 @@ static void __init reserve_crashkernel(void)
 	crashk_res.start = crash_base;
 	crashk_res.end = crash_base + crash_size - 1;
 	insert_resource(&iomem_resource, &crashk_res);
-	reserve_kdump_bootmem(crash_base, crash_size, CHUNK_CRASHK);
+	create_mem_hole(memory_chunk, crash_base, crash_size);
 	pr_info("Reserving %lluMB of memory at %lluMB "
 		"for crashkernel (System RAM: %luMB)\n",
 		crash_size >> 20, crash_base >> 20, memory_end >> 20);
@@ -847,11 +833,10 @@ static void __init setup_memory(void)
 	 * Register RAM areas with the bootmem allocator.
 	 */
 
-	for (i = 0; i < MEMORY_CHUNKS && memory_chunk[i].size > 0; i++) {
+	for (i = 0; i < MEMORY_CHUNKS; i++) {
 		unsigned long start_chunk, end_chunk, pfn;
 
-		if (memory_chunk[i].type != CHUNK_READ_WRITE &&
-		    memory_chunk[i].type != CHUNK_CRASHK)
+		if (!memory_chunk[i].size)
 			continue;
 		start_chunk = PFN_DOWN(memory_chunk[i].addr);
 		end_chunk = start_chunk + PFN_DOWN(memory_chunk[i].size);
@@ -1067,12 +1052,12 @@ void __init setup_arch(char **cmdline_p)
 		memcpy(&uaccess, &uaccess_std, sizeof(uaccess));
 
 	parse_early_param();
-
+	detect_memory_layout(memory_chunk, memory_end);
 	os_info_init();
 	setup_ipl();
+	reserve_oldmem();
 	setup_memory_end();
 	setup_addressing_mode();
-	reserve_oldmem();
 	reserve_crashkernel();
 	setup_memory();
 	setup_resources();
@@ -1097,5 +1082,5 @@ void __init setup_arch(char **cmdline_p)
 	set_preferred_console();
 
 	/* Setup zfcpdump support */
-	setup_zfcpdump(console_devno);
+	setup_zfcpdump();
 }

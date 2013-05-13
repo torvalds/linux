@@ -64,26 +64,18 @@ static int sproc_load_segments(struct rproc *rproc, const struct firmware *fw)
 }
 
 /* Find the entry for resource table in the Table of Content */
-static struct ste_toc_entry *sproc_find_rsc_entry(const struct firmware *fw)
+static const struct ste_toc_entry *sproc_find_rsc_entry(const void *data)
 {
 	int i;
-	struct ste_toc *toc;
-
-	if (!fw)
-		return NULL;
-
-	toc = (void *)fw->data;
+	const struct ste_toc *toc;
+	toc = data;
 
 	/* Search the table for the resource table */
 	for (i = 0; i < SPROC_MAX_TOC_ENTRIES &&
 		    toc->table[i].start != 0xffffffff; i++) {
-
 		if (!strncmp(toc->table[i].name, SPROC_RESOURCE_NAME,
-			     sizeof(toc->table[i].name))) {
-			if (toc->table[i].start > fw->size)
-				return NULL;
+			     sizeof(toc->table[i].name)))
 			return &toc->table[i];
-		}
 	}
 
 	return NULL;
@@ -96,9 +88,12 @@ sproc_find_rsc_table(struct rproc *rproc, const struct firmware *fw,
 {
 	struct sproc *sproc = rproc->priv;
 	struct resource_table *table;
-	struct ste_toc_entry *entry;
+	const struct ste_toc_entry *entry;
 
-	entry = sproc_find_rsc_entry(fw);
+	if (!fw)
+		return NULL;
+
+	entry = sproc_find_rsc_entry(fw->data);
 	if (!entry) {
 		sproc_err(sproc, "resource table not found in fw\n");
 		return NULL;
@@ -149,10 +144,30 @@ sproc_find_rsc_table(struct rproc *rproc, const struct firmware *fw,
 	return table;
 }
 
+/* Find the resource table inside the remote processor's firmware. */
+static struct resource_table *
+sproc_find_loaded_rsc_table(struct rproc *rproc, const struct firmware *fw)
+{
+	struct sproc *sproc = rproc->priv;
+	const struct ste_toc_entry *entry;
+
+	if (!fw || !sproc->fw_addr)
+		return NULL;
+
+	entry = sproc_find_rsc_entry(sproc->fw_addr);
+	if (!entry) {
+		sproc_err(sproc, "resource table not found in fw\n");
+		return NULL;
+	}
+
+	return sproc->fw_addr + entry->start;
+}
+
 /* STE modem firmware handler operations */
 const struct rproc_fw_ops sproc_fw_ops = {
 	.load = sproc_load_segments,
 	.find_rsc_table = sproc_find_rsc_table,
+	.find_loaded_rsc_table = sproc_find_loaded_rsc_table,
 };
 
 /* Kick the modem with specified notification id */
@@ -198,7 +213,7 @@ static int sproc_start(struct rproc *rproc)
 	}
 
 	/* Subscribe to notifications */
-	for (i = 0; i < rproc->max_notifyid; i++) {
+	for (i = 0; i <= rproc->max_notifyid; i++) {
 		err = sproc->mdev->ops.kick_subscribe(sproc->mdev, i);
 		if (err) {
 			sproc_err(sproc,

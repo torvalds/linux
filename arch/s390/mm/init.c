@@ -21,6 +21,7 @@
 #include <linux/init.h>
 #include <linux/pagemap.h>
 #include <linux/bootmem.h>
+#include <linux/memory.h>
 #include <linux/pfn.h>
 #include <linux/poison.h>
 #include <linux/initrd.h>
@@ -36,6 +37,7 @@
 #include <asm/tlbflush.h>
 #include <asm/sections.h>
 #include <asm/ctl_reg.h>
+#include <asm/sclp.h>
 
 pgd_t swapper_pg_dir[PTRS_PER_PGD] __attribute__((__aligned__(PAGE_SIZE)));
 
@@ -212,6 +214,15 @@ int arch_add_memory(int nid, u64 start, u64 size)
 	if (rc)
 		vmem_remove_mapping(start, size);
 	return rc;
+}
+
+unsigned long memory_block_size_bytes(void)
+{
+	/*
+	 * Make sure the memory block size is always greater
+	 * or equal than the memory increment size.
+	 */
+	return max_t(unsigned long, MIN_MEMORY_BLOCK_SIZE, sclp_get_rzm());
 }
 
 #ifdef CONFIG_MEMORY_HOTREMOVE

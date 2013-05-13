@@ -51,6 +51,8 @@ void __init mx1_init_irq(void)
 
 void __init imx1_soc_init(void)
 {
+	mxc_device_init();
+
 	mxc_register_gpio("imx1-gpio", 0, MX1_GPIO1_BASE_ADDR, SZ_256,
 						MX1_GPIO_INT_PORTA, 0);
 	mxc_register_gpio("imx1-gpio", 1, MX1_GPIO2_BASE_ADDR, SZ_256,
