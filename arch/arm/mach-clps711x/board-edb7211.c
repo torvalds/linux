@@ -109,13 +109,14 @@ static struct plat_lcd_data edb7211_lcd_power_pdata = {
 
 static void edb7211_lcd_backlight_set_intensity(int intensity)
 {
-	gpio_set_value(EDB7211_LCDBL, intensity);
+	gpio_set_value(EDB7211_LCDBL, !!intensity);
+	clps_writel((clps_readl(PMPCON) & 0xf0ff) | (intensity << 8), PMPCON);
 }
 
 static struct generic_bl_info edb7211_lcd_backlight_pdata = {
 	.name			= "lcd-backlight.0",
 	.default_intensity	= 0x01,
-	.max_intensity		= 0x01,
+	.max_intensity		= 0x0f,
 	.set_bl_intensity	= edb7211_lcd_backlight_set_intensity,
 };
 
