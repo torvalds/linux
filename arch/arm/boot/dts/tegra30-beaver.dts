@@ -7,7 +7,7 @@
 	compatible = "nvidia,beaver", "nvidia,tegra30";
 
 	memory {
-		reg = <0x80000000 0x80000000>;
+		reg = <0x80000000 0x7ff00000>;
 	};
 
 	pinmux {
