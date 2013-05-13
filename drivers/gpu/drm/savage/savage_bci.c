@@ -570,9 +570,6 @@ int savage_driver_firstopen(struct drm_device *dev)
 	unsigned int fb_rsrc, aper_rsrc;
 	int ret = 0;
 
-	dev_priv->mtrr[0].handle = -1;
-	dev_priv->mtrr[1].handle = -1;
-	dev_priv->mtrr[2].handle = -1;
 	if (S3_SAVAGE3D_SERIES(dev_priv->chipset)) {
 		fb_rsrc = 0;
 		fb_base = pci_resource_start(dev->pdev, 0);
@@ -584,21 +581,14 @@ int savage_driver_firstopen(struct drm_device *dev)
 		if (pci_resource_len(dev->pdev, 0) == 0x08000000) {
 			/* Don't make MMIO write-cobining! We need 3
 			 * MTRRs. */
-			dev_priv->mtrr[0].base = fb_base;
-			dev_priv->mtrr[0].size = 0x01000000;
-			dev_priv->mtrr[0].handle =
-			    drm_mtrr_add(dev_priv->mtrr[0].base,
-				         dev_priv->mtrr[0].size, DRM_MTRR_WC);
-			dev_priv->mtrr[1].base = fb_base + 0x02000000;
-			dev_priv->mtrr[1].size = 0x02000000;
-			dev_priv->mtrr[1].handle =
-			    drm_mtrr_add(dev_priv->mtrr[1].base,
-					 dev_priv->mtrr[1].size, DRM_MTRR_WC);
-			dev_priv->mtrr[2].base = fb_base + 0x04000000;
-			dev_priv->mtrr[2].size = 0x04000000;
-			dev_priv->mtrr[2].handle =
-			    drm_mtrr_add(dev_priv->mtrr[2].base,
-					 dev_priv->mtrr[2].size, DRM_MTRR_WC);
+			dev_priv->mtrr_handles[0] =
+				arch_phys_wc_add(fb_base, 0x01000000);
+			dev_priv->mtrr_handles[1] =
+				arch_phys_wc_add(fb_base + 0x02000000,
+						 0x02000000);
+			dev_priv->mtrr_handles[2] =
+				arch_phys_wc_add(fb_base + 0x04000000,
+						0x04000000);
 		} else {
 			DRM_ERROR("strange pci_resource_len %08llx\n",
 				  (unsigned long long)
@@ -616,11 +606,9 @@ int savage_driver_firstopen(struct drm_device *dev)
 		if (pci_resource_len(dev->pdev, 1) == 0x08000000) {
 			/* Can use one MTRR to cover both fb and
 			 * aperture. */
-			dev_priv->mtrr[0].base = fb_base;
-			dev_priv->mtrr[0].size = 0x08000000;
-			dev_priv->mtrr[0].handle =
-			    drm_mtrr_add(dev_priv->mtrr[0].base,
-					 dev_priv->mtrr[0].size, DRM_MTRR_WC);
+			dev_priv->mtrr_handles[0] =
+				arch_phys_wc_add(fb_base,
+						 0x08000000);
 		} else {
 			DRM_ERROR("strange pci_resource_len %08llx\n",
 				  (unsigned long long)
@@ -660,11 +648,10 @@ void savage_driver_lastclose(struct drm_device *dev)
 	drm_savage_private_t *dev_priv = dev->dev_private;
 	int i;
 
-	for (i = 0; i < 3; ++i)
-		if (dev_priv->mtrr[i].handle >= 0)
-			drm_mtrr_del(dev_priv->mtrr[i].handle,
-				 dev_priv->mtrr[i].base,
-				 dev_priv->mtrr[i].size, DRM_MTRR_WC);
+	for (i = 0; i < 3; ++i) {
+		arch_phys_wc_del(dev_priv->mtrr_handles[i]);
+		dev_priv->mtrr_handles[i] = 0;
+	}
 }
 
 int savage_driver_unload(struct drm_device *dev)

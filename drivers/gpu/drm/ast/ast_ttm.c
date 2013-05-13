@@ -271,26 +271,19 @@ int ast_mm_init(struct ast_private *ast)
 		return ret;
 	}
 
-	ast->fb_mtrr = drm_mtrr_add(pci_resource_start(dev->pdev, 0),
-				    pci_resource_len(dev->pdev, 0),
-				    DRM_MTRR_WC);
+	ast->fb_mtrr = arch_phys_wc_add(pci_resource_start(dev->pdev, 0),
+					pci_resource_len(dev->pdev, 0));
 
 	return 0;
 }
 
 void ast_mm_fini(struct ast_private *ast)
 {
-	struct drm_device *dev = ast->dev;
 	ttm_bo_device_release(&ast->ttm.bdev);
 
 	ast_ttm_global_release(ast);
 
-	if (ast->fb_mtrr >= 0) {
-		drm_mtrr_del(ast->fb_mtrr,
-			     pci_resource_start(dev->pdev, 0),
-			     pci_resource_len(dev->pdev, 0), DRM_MTRR_WC);
-		ast->fb_mtrr = -1;
-	}
+	arch_phys_wc_del(ast->fb_mtrr);
 }
 
 void ast_ttm_placement(struct ast_bo *bo, int domain)

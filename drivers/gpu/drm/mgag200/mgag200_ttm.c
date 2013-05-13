@@ -270,26 +270,20 @@ int mgag200_mm_init(struct mga_device *mdev)
 		return ret;
 	}
 
-	mdev->fb_mtrr = drm_mtrr_add(pci_resource_start(dev->pdev, 0),
-				    pci_resource_len(dev->pdev, 0),
-				    DRM_MTRR_WC);
+	mdev->fb_mtrr = arch_phys_wc_add(pci_resource_start(dev->pdev, 0),
+					 pci_resource_len(dev->pdev, 0));
 
 	return 0;
 }
 
 void mgag200_mm_fini(struct mga_device *mdev)
 {
-	struct drm_device *dev = mdev->dev;
 	ttm_bo_device_release(&mdev->ttm.bdev);
 
 	mgag200_ttm_global_release(mdev);
 
-	if (mdev->fb_mtrr >= 0) {
-		drm_mtrr_del(mdev->fb_mtrr,
-			     pci_resource_start(dev->pdev, 0),
-			     pci_resource_len(dev->pdev, 0), DRM_MTRR_WC);
-		mdev->fb_mtrr = -1;
-	}
+	arch_phys_wc_del(mdev->fb_mtrr);
+	mdev->fb_mtrr = 0;
 }
 
 void mgag200_ttm_placement(struct mgag200_bo *bo, int domain)
