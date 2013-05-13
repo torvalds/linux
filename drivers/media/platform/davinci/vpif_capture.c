@@ -2159,6 +2159,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 
 		if (!vpif_obj.sd[i]) {
 			vpif_err("Error registering v4l2 subdevice\n");
+			err = -ENODEV;
 			goto probe_subdev_out;
 		}
 		v4l2_info(&vpif_obj.v4l2_dev, "registered sub device %s\n",
