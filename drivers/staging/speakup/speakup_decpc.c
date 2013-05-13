@@ -444,7 +444,7 @@ static const char *synth_immediate(struct spk_synth *synth, const char *buf)
 			return buf;
 		buf++;
 	}
-	return 0;
+	return NULL;
 }
 
 static int synth_probe(struct spk_synth *synth)
