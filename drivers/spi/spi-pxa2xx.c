@@ -1091,7 +1091,7 @@ pxa2xx_spi_acpi_get_pdata(struct platform_device *pdev)
 	ssp->phys_base = res->start;
 	ssp->mmio_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(ssp->mmio_base))
-		return PTR_ERR(ssp->mmio_base);
+		return NULL;
 
 	ssp->clk = devm_clk_get(&pdev->dev, NULL);
 	ssp->irq = platform_get_irq(pdev, 0);
