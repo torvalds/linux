@@ -35,6 +35,7 @@ enum bp_id{
 	BP_ID_M50,		//spreadtrum RDA GSM
 	BP_ID_MT6250,  //ZINN M50  EDGE
 	BP_ID_C66A,    //zhongben
+	BP_ID_SEW290,    //SCV SEW290 WCDMA
 	BP_ID_NUM,  
 };
 

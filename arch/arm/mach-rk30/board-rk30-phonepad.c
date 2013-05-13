@@ -1427,20 +1427,40 @@ static int bp_io_deinit(void)
 	return 0;
 }
  
+static int bp_id_get(void)
+{	
+	int bp_id = 0;
+	#if defined(CONFIG_BP_AUTO_MT6229)
+	bp_id = BP_ID_MT6229;
+	#elif defined(CONFIG_BP_AUTO_MU509)
+	bp_id = BP_ID_MU509;
+	#elif defined(CONFIG_BP_AUTO_MW100)
+	bp_id = BP_ID_MW100;
+	#elif defined(CONFIG_BP_AUTO_MI700)
+	bp_id = BP_ID_MI700;
+	#endif	
+	#elif defined(CONFIG_BP_AUTO_MI700)
+	bp_id = BP_ID_SEW290;
+	#endif	
+	return bp_id;
+}
 
-struct bp_platform_data bp_auto_info = {	
-	.board_id = BOARD_ID_C8003,
-	.bp_id = BP_ID_MT6229,
-	.init_platform_hw = bp_io_init,	
-	.exit_platform_hw = bp_io_deinit,	
-	.bp_power = RK30_PIN6_PB2, 	// 3g_power
-	.bp_en = RK30_PIN2_PB6, 	// 3g_en
-	.bp_usb_en = RK30_PIN2_PC0, 	//W_disable
-	.bp_uart_en = RK30_PIN2_PC1, 	//EINT9
-	.bp_wakeup_ap = RK30_PIN6_PA1,	//
-	.ap_ready = RK30_PIN2_PB7,	//
-	.gpio_valid = 0,		//don't use this gpios
+struct bp_platform_data bp_auto_info = {
+	.init_platform_hw 	= bp_io_init,	
+	.exit_platform_hw 	= bp_io_deinit,
+	.get_bp_id              = bp_id_get,
+	.bp_power 		= RK30_PIN6_PB2, 	// 3g_power,根据实际接线配置
+	.bp_en 			= BP_UNKNOW_DATA, 	// 3g_en
+	.bp_reset			= BP_UNKNOW_DATA,   //根据实际配置
+	.bp_usb_en 		= BP_UNKNOW_DATA, 	//W_disable
+	.bp_uart_en 		= BP_UNKNOW_DATA, 	//EINT9
+	.bp_wakeup_ap 	= RK30_PIN2_PC4,	//根据实际接线配置
+	.ap_wakeup_bp 	= RK30_PIN2_PC4,	//根据实际配置
+	.ap_ready 		= BP_UNKNOW_DATA,	//
+	.bp_ready		= BP_UNKNOW_DATA,
+	.gpio_valid 		= 1,		//if 1:gpio is define in bp_auto_info,if 0:is not use gpio in bp_auto_info
 };
+
 
 struct platform_device device_bp_auto = {	
         .name = "bp-auto",	

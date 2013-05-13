@@ -16,3 +16,6 @@ config BP_AUTO_C66A
 bool "modem c66a"
         default n
 
+config BP_AUTO_SEW290
+bool "modem sew290"
+        default n

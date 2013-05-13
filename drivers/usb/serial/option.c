@@ -1331,6 +1331,8 @@ static const struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(0x1d09, 0x1010) },
     { USB_DEVICE(0x19D2, 0x1181) },
 	{ USB_DEVICE(0x2020, 0x1005)},//S830 3G Dongle
+    { USB_DEVICE(0x1782, 0x0002)},//U7501
+	{ USB_DEVICE(0x21f5, 0x2012) },//SEW290
 // cmy end
 //xxh
    { USB_DEVICE_AND_INTERFACE_INFO(0x05c6, 0x1000, 0xff, 0xff, 0xff) },
