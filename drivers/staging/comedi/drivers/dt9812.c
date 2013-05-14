@@ -279,7 +279,7 @@ struct usb_dt9812 {
 	u8 digital_out_shadow;
 };
 
-struct comedi_dt9812 {
+struct dt9812_private {
 	struct slot_dt9812 *slot;
 	u32 serial;
 };
@@ -288,7 +288,7 @@ struct slot_dt9812 {
 	struct semaphore mutex;
 	u32 serial;
 	struct usb_dt9812 *usb;
-	struct comedi_dt9812 *comedi;
+	struct dt9812_private *comedi;
 };
 
 static struct slot_dt9812 dt9812[DT9812_NUM_SLOTS];
@@ -660,7 +660,7 @@ static int dt9812_analog_out(struct slot_dt9812 *slot, int channel, u16 value)
 
 static int dt9812_comedi_open(struct comedi_device *dev)
 {
-	struct comedi_dt9812 *devpriv = dev->private;
+	struct dt9812_private *devpriv = dev->private;
 	int result = -ENODEV;
 
 	down(&devpriv->slot->mutex);
@@ -715,7 +715,7 @@ static int dt9812_di_rinsn(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_insn *insn,
 			   unsigned int *data)
 {
-	struct comedi_dt9812 *devpriv = dev->private;
+	struct dt9812_private *devpriv = dev->private;
 	unsigned int channel = CR_CHAN(insn->chanspec);
 	int n;
 	u8 bits = 0;
@@ -730,7 +730,7 @@ static int dt9812_do_winsn(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_insn *insn,
 			   unsigned int *data)
 {
-	struct comedi_dt9812 *devpriv = dev->private;
+	struct dt9812_private *devpriv = dev->private;
 	unsigned int channel = CR_CHAN(insn->chanspec);
 	int n;
 	u8 bits = 0;
@@ -751,7 +751,7 @@ static int dt9812_ai_rinsn(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_insn *insn,
 			   unsigned int *data)
 {
-	struct comedi_dt9812 *devpriv = dev->private;
+	struct dt9812_private *devpriv = dev->private;
 	unsigned int channel = CR_CHAN(insn->chanspec);
 	int n;
 
@@ -768,7 +768,7 @@ static int dt9812_ao_rinsn(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_insn *insn,
 			   unsigned int *data)
 {
-	struct comedi_dt9812 *devpriv = dev->private;
+	struct dt9812_private *devpriv = dev->private;
 	unsigned int channel = CR_CHAN(insn->chanspec);
 	int n;
 	u16 value;
@@ -785,7 +785,7 @@ static int dt9812_ao_winsn(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_insn *insn,
 			   unsigned int *data)
 {
-	struct comedi_dt9812 *devpriv = dev->private;
+	struct dt9812_private *devpriv = dev->private;
 	unsigned int channel = CR_CHAN(insn->chanspec);
 	int n;
 
@@ -796,7 +796,7 @@ static int dt9812_ao_winsn(struct comedi_device *dev,
 
 static int dt9812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
-	struct comedi_dt9812 *devpriv;
+	struct dt9812_private *devpriv;
 	int i;
 	struct comedi_subdevice *s;
 	int ret;
