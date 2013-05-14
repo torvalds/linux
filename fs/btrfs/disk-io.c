@@ -1673,24 +1673,40 @@ static void end_workqueue_fn(struct btrfs_work *work)
 	bio_endio(bio, error);
 }
 
+/*
+ * If we remount the fs to be R/O, the cleaner needn't do anything except
+ * sleeping. This function is used to check the status of the fs.
+ */
+static inline int need_cleaner_sleep(struct btrfs_root *root)
+{
+	return root->fs_info->sb->s_flags & MS_RDONLY;
+}
+
 static int cleaner_kthread(void *arg)
 {
 	struct btrfs_root *root = arg;
+	int again;
 
 	do {
-		int again = 0;
+		again = 0;
 
-		if (!(root->fs_info->sb->s_flags & MS_RDONLY) &&
-		    down_read_trylock(&root->fs_info->sb->s_umount)) {
-			if (mutex_trylock(&root->fs_info->cleaner_mutex)) {
-				btrfs_run_delayed_iputs(root);
-				again = btrfs_clean_one_deleted_snapshot(root);
-				mutex_unlock(&root->fs_info->cleaner_mutex);
-			}
-			btrfs_run_defrag_inodes(root->fs_info);
-			up_read(&root->fs_info->sb->s_umount);
-		}
+		/* Make the cleaner go to sleep early. */
+		if (need_cleaner_sleep(root))
+			goto sleep;
 
+		if (!mutex_trylock(&root->fs_info->cleaner_mutex))
+			goto sleep;
+
+		btrfs_run_delayed_iputs(root);
+		again = btrfs_clean_one_deleted_snapshot(root);
+		mutex_unlock(&root->fs_info->cleaner_mutex);
+
+		/*
+		 * The defragger has dealt with the R/O remount, needn't
+		 * do anything special here.
+		 */
+		btrfs_run_defrag_inodes(root->fs_info);
+sleep:
 		if (!try_to_freeze() && !again) {
 			set_current_state(TASK_INTERRUPTIBLE);
 			if (!kthread_should_stop())
