@@ -60,11 +60,6 @@ extern int mmc_pm_gpio_ctrl(char* name, int level);
 ;rtk_rtl8723as_wl_dis       = port:PH11<1><default><default><0>
 ;rtk_rtl8723as_wl_wps	    = port:PH09<1><default><default><0>
 */
-int rtl8723as_sdio_powerup(void)
-{
-    mmc_pm_gpio_ctrl("rtk_rtl8723as_wl_dis", 1);
-    return 0;
-}
 int rtl8723as_sdio_poweroff(void)
 {
     mmc_pm_gpio_ctrl("rtk_rtl8723as_wl_dis", 0);
@@ -89,6 +84,13 @@ static const struct sdio_device_id sdio_ids[] = {
 //	{ SDIO_DEVICE_CLASS(SDIO_CLASS_WLAN)		},
 //	{ /* end: all zeroes */				},
 };
+
+#ifdef CONFIG_RTL8723A
+MODULE_ALIAS("sdio:c*v024Cd8723*");
+#endif
+#ifdef CONFIG_RTL8188E
+MODULE_ALIAS("sdio:c*v024Cd8179*");
+#endif
 
 typedef struct _driver_priv {
 	struct sdio_driver r871xs_drv;
@@ -891,17 +893,11 @@ static int __init rtw_drv_entry(void)
 /*depends on sunxi power control */
 #if defined CONFIG_MMC_SUNXI_POWER_CONTROL
     unsigned int mod_sel = mmc_pm_get_mod_type();
-	if(mod_sel == SUNXI_SDIO_WIFI_NUM_RTL8723AS) {
-		rtl8723as_sdio_powerup();
-  		sunximmc_rescan_card(SDIOID, 1);
-		printk("[rtl8723as] %s: power up, rescan card.\n", __FUNCTION__);  		
-	} else {
-		ret = -1;
+	if (mod_sel != SUNXI_SDIO_WIFI_NUM_RTL8723AS) {
 		printk("[rtl8723as] %s: mod_sel = %d is incorrect.\n", __FUNCTION__, mod_sel);
+		return -1;
 	}
 #endif
-	if(ret != 0)
-		goto exit;
 
 //	DBG_871X(KERN_INFO "+%s", __func__);
 	RT_TRACE(_module_hci_intfs_c_, _drv_notice_, ("+rtw_drv_entry\n"));

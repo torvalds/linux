@@ -142,14 +142,19 @@ static void rtl8723as_standby(int instadby)
 
 void rtl8723as_gpio_init(void)
 {
-    struct mmc_pm_ops *ops = &mmc_card_pm_ops;
-    rtl8723as_wl_on = 0;
-    rtl8723as_bt_on = 0;
-    rtk_suspend 	= 0;
-    ops->gpio_ctrl	= rtl8723as_gpio_ctrl;
-    ops->get_io_val = rtl8723as_get_gpio_value;
-    ops->power 		= rtl8723as_power;
-    ops->standby	= rtl8723as_standby;
+	struct mmc_pm_ops *ops = &mmc_card_pm_ops;
+	int updown = 1;
+
+	rtl8723as_wl_on = 0;
+	rtl8723as_bt_on = 0;
+	rtk_suspend	= 0;
+	ops->gpio_ctrl	= rtl8723as_gpio_ctrl;
+	ops->get_io_val = rtl8723as_get_gpio_value;
+	ops->power	= rtl8723as_power;
+	ops->standby	= rtl8723as_standby;
+	rtl8723as_power(1, &updown);
+	sunximmc_rescan_card(ops->sdio_cardid, 1);
+	rtw_msg("power up, rescan card.\n");
 }
 
 #undef SDIO_MODULE_NAME
