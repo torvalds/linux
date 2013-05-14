@@ -276,14 +276,14 @@ static void usbduxfast_ai_interrupt(struct urb *urb)
 			/* not continuous, fixed number of samples */
 			n = urb->actual_length / sizeof(uint16_t);
 			if (unlikely(devpriv->ai_sample_count < n)) {
-				/*
-				 * we have send only a fraction of the bytes
-				 * received
-				 */
+				unsigned int num_bytes;
+
+				/* partial sample received */
+				num_bytes = devpriv->ai_sample_count *
+					    sizeof(uint16_t);
 				cfc_write_array_to_buffer(s,
 							  urb->transfer_buffer,
-							  devpriv->ai_sample_count
-							  * sizeof(uint16_t));
+							  num_bytes);
 				usbduxfast_ai_stop(dev, 0);
 				/* tell comedi that the acquistion is over */
 				async->events |= COMEDI_CB_EOA;
