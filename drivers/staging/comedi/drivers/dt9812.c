@@ -411,23 +411,23 @@ static int dt9812_digital_in(struct comedi_device *dev, u8 *bits)
 	return ret;
 }
 
-static int dt9812_digital_out(struct slot_dt9812 *slot, u8 bits)
+static int dt9812_digital_out(struct comedi_device *dev, u8 bits)
 {
-	int result = -ENODEV;
+	struct dt9812_private *devpriv = dev->private;
+	struct slot_dt9812 *slot = devpriv->slot;
+	int ret = -ENODEV;
 
 	down(&slot->mutex);
 	if (slot->usb) {
-		u8 reg[1];
-		u8 value[1];
+		u8 reg[1] = { F020_SFR_P2 };
+		u8 value[1] = { bits };
 
-		reg[0] = F020_SFR_P2;
-		value[0] = bits;
-		result = dt9812_write_multiple_registers(slot->usb, 1, reg,
-							 value);
+		ret = dt9812_write_multiple_registers(slot->usb, 1, reg, value);
 		slot->usb->digital_out_shadow = bits;
 	}
 	up(&slot->mutex);
-	return result;
+
+	return ret;
 }
 
 static int dt9812_digital_out_shadow(struct slot_dt9812 *slot, u8 *bits)
@@ -671,7 +671,7 @@ static int dt9812_do_winsn(struct comedi_device *dev,
 		if (data[n])
 			bits |= mask;
 	}
-	dt9812_digital_out(devpriv->slot, bits);
+	dt9812_digital_out(dev, bits);
 	return n;
 }
 
