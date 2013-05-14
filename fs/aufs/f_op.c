@@ -20,6 +20,7 @@
  * file and vm operations
  */
 
+#include <linux/aio.h>
 #include <linux/fs_stack.h>
 #include <linux/mman.h>
 #include <linux/security.h>
