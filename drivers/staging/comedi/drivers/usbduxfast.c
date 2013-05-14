@@ -148,7 +148,6 @@ static const struct comedi_lrange range_usbduxfast_ai_range = {
  * one sub device just now: A/D
  */
 struct usbduxfast_private {
-	struct usb_device *usb;	/* pointer to the usb-device */
 	struct urb *urbIn;	/* BULK-transfer handling: urb */
 	int8_t *transfer_buffer;
 	int16_t *insnBuffer;	/* input buffer for single insn */
@@ -169,13 +168,14 @@ struct usbduxfast_private {
 
 static int send_dux_commands(struct comedi_device *dev, int cmd_type)
 {
+	struct usb_interface *intf = comedi_to_usb_interface(dev);
+	struct usb_device *usb = interface_to_usbdev(intf);
 	struct usbduxfast_private *devpriv = dev->private;
 	int tmp, nsent;
 
 	devpriv->dux_commands[0] = cmd_type;
 
-	tmp = usb_bulk_msg(devpriv->usb,
-			   usb_sndbulkpipe(devpriv->usb, CHANNELLISTEP),
+	tmp = usb_bulk_msg(usb, usb_sndbulkpipe(usb, CHANNELLISTEP),
 			   devpriv->dux_commands,
 			   SIZEOFDUXBUFFER, &nsent, 10000);
 	if (tmp < 0)
@@ -261,6 +261,8 @@ static void usbduxfast_ai_interrupt(struct urb *urb)
 	struct comedi_device *dev = urb->context;
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async = s->async;
+	struct usb_interface *intf = comedi_to_usb_interface(dev);
+	struct usb_device *usb = interface_to_usbdev(intf);
 	struct usbduxfast_private *devpriv = dev->private;
 	int n, err;
 
@@ -346,7 +348,7 @@ static void usbduxfast_ai_interrupt(struct urb *urb)
 	 * command is still running
 	 * resubmit urb for BULK transfer
 	 */
-	urb->dev = devpriv->usb;
+	urb->dev = usb;
 	urb->status = 0;
 	err = usb_submit_urb(urb, GFP_ATOMIC);
 	if (err < 0) {
@@ -361,7 +363,8 @@ static void usbduxfast_ai_interrupt(struct urb *urb)
 
 static int usbduxfastsub_start(struct comedi_device *dev)
 {
-	struct usbduxfast_private *devpriv = dev->private;
+	struct usb_interface *intf = comedi_to_usb_interface(dev);
+	struct usb_device *usb = interface_to_usbdev(intf);
 	unsigned char *local_transfer_buffer;
 	int ret;
 
@@ -372,7 +375,7 @@ static int usbduxfastsub_start(struct comedi_device *dev)
 	/* 7f92 to zero */
 	*local_transfer_buffer = 0;
 	/* bRequest, "Firmware" */
-	ret = usb_control_msg(devpriv->usb, usb_sndctrlpipe(devpriv->usb, 0),
+	ret = usb_control_msg(usb, usb_sndctrlpipe(usb, 0),
 			      USBDUXFASTSUB_FIRMWARE,
 			      VENDOR_DIR_OUT,	  /* bmRequestType */
 			      USBDUXFASTSUB_CPUCS,    /* Value */
@@ -390,7 +393,8 @@ static int usbduxfastsub_start(struct comedi_device *dev)
 
 static int usbduxfastsub_stop(struct comedi_device *dev)
 {
-	struct usbduxfast_private *devpriv = dev->private;
+	struct usb_interface *intf = comedi_to_usb_interface(dev);
+	struct usb_device *usb = interface_to_usbdev(intf);
 	unsigned char *local_transfer_buffer;
 	int ret;
 
@@ -401,7 +405,7 @@ static int usbduxfastsub_stop(struct comedi_device *dev)
 	/* 7f92 to one */
 	*local_transfer_buffer = 1;
 	/* bRequest, "Firmware" */
-	ret = usb_control_msg(devpriv->usb, usb_sndctrlpipe(devpriv->usb, 0),
+	ret = usb_control_msg(usb, usb_sndctrlpipe(usb, 0),
 			      USBDUXFASTSUB_FIRMWARE,
 			      VENDOR_DIR_OUT,	/* bmRequestType */
 			      USBDUXFASTSUB_CPUCS,	/* Value */
@@ -419,11 +423,12 @@ static int usbduxfastsub_upload(struct comedi_device *dev,
 				unsigned char *local_transfer_buffer,
 				unsigned int startAddr, unsigned int len)
 {
-	struct usbduxfast_private *devpriv = dev->private;
+	struct usb_interface *intf = comedi_to_usb_interface(dev);
+	struct usb_device *usb = interface_to_usbdev(intf);
 	int ret;
 
 	/* brequest, firmware */
-	ret = usb_control_msg(devpriv->usb, usb_sndctrlpipe(devpriv->usb, 0),
+	ret = usb_control_msg(usb, usb_sndctrlpipe(usb, 0),
 			      USBDUXFASTSUB_FIRMWARE,
 			      VENDOR_DIR_OUT,	/* bmRequestType */
 			      startAddr,	/* value */
@@ -442,14 +447,15 @@ static int usbduxfastsub_upload(struct comedi_device *dev,
 
 static int usbduxfastsub_submit_InURBs(struct comedi_device *dev)
 {
+	struct usb_interface *intf = comedi_to_usb_interface(dev);
+	struct usb_device *usb = interface_to_usbdev(intf);
 	struct usbduxfast_private *devpriv = dev->private;
 	int ret;
 
 	if (!devpriv)
 		return -EFAULT;
 
-	usb_fill_bulk_urb(devpriv->urbIn, devpriv->usb,
-			  usb_rcvbulkpipe(devpriv->usb, BULKINEP),
+	usb_fill_bulk_urb(devpriv->urbIn, usb, usb_rcvbulkpipe(usb, BULKINEP),
 			  devpriv->transfer_buffer, SIZEINBUF,
 			  usbduxfast_ai_interrupt, dev);
 
@@ -1045,6 +1051,8 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   struct comedi_insn *insn, unsigned int *data)
 {
+	struct usb_interface *intf = comedi_to_usb_interface(dev);
+	struct usb_device *usb = interface_to_usbdev(intf);
 	struct usbduxfast_private *devpriv = dev->private;
 	int i, j, n, actual_length;
 	int chan, range, rngmask;
@@ -1121,8 +1129,7 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 	}
 
 	for (i = 0; i < PACKETS_TO_IGNORE; i++) {
-		err = usb_bulk_msg(devpriv->usb,
-				   usb_rcvbulkpipe(devpriv->usb, BULKINEP),
+		err = usb_bulk_msg(usb, usb_rcvbulkpipe(usb, BULKINEP),
 				   devpriv->transfer_buffer, SIZEINBUF,
 				   &actual_length, 10000);
 		if (err < 0) {
@@ -1133,8 +1140,7 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 	}
 	/* data points */
 	for (i = 0; i < insn->n;) {
-		err = usb_bulk_msg(devpriv->usb,
-				   usb_rcvbulkpipe(devpriv->usb, BULKINEP),
+		err = usb_bulk_msg(usb, usb_rcvbulkpipe(usb, BULKINEP),
 				   devpriv->transfer_buffer, SIZEINBUF,
 				   &actual_length, 10000);
 		if (err < 0) {
@@ -1273,7 +1279,6 @@ static int usbduxfast_auto_attach(struct comedi_device *dev,
 	dev->private = devpriv;
 
 	sema_init(&devpriv->sem, 1);
-	devpriv->usb = usb;
 	usb_set_intfdata(intf, devpriv);
 
 	devpriv->dux_commands = kmalloc(SIZEOFDUXBUFFER, GFP_KERNEL);
@@ -1284,7 +1289,7 @@ static int usbduxfast_auto_attach(struct comedi_device *dev,
 	if (!devpriv->insnBuffer)
 		return -ENOMEM;
 
-	ret = usb_set_interface(devpriv->usb,
+	ret = usb_set_interface(usb,
 				intf->altsetting->desc.bInterfaceNumber, 1);
 	if (ret < 0) {
 		dev_err(dev->class_dev,
