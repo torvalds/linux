@@ -1153,8 +1153,8 @@ static void zero_pages(struct page **pages, u64 offset, u64 end)
 		unsigned long flags;
 		void *kaddr;
 
-		page_offset = (size_t)(offset & ~PAGE_MASK);
-		length = min(PAGE_SIZE - page_offset, (size_t)(end - offset));
+		page_offset = offset & ~PAGE_MASK;
+		length = min_t(size_t, PAGE_SIZE - page_offset, end - offset);
 		local_irq_save(flags);
 		kaddr = kmap_atomic(*page);
 		memset(kaddr + page_offset, 0, length);
