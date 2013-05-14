@@ -1156,9 +1156,10 @@ static void mmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		if (!IS_ERR(mmc->supply.vmmc))
 			mmc_regulator_set_ocr(mmc, mmc->supply.vmmc, 0);
 
-		if (!IS_ERR(mmc->supply.vqmmc) &&
-		    regulator_is_enabled(mmc->supply.vqmmc))
+		if (!IS_ERR(mmc->supply.vqmmc) && host->vqmmc_enabled) {
 			regulator_disable(mmc->supply.vqmmc);
+			host->vqmmc_enabled = false;
+		}
 
 		break;
 	case MMC_POWER_UP:
@@ -1174,12 +1175,13 @@ static void mmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 		break;
 	case MMC_POWER_ON:
-		if (!IS_ERR(mmc->supply.vqmmc) &&
-		    !regulator_is_enabled(mmc->supply.vqmmc)) {
+		if (!IS_ERR(mmc->supply.vqmmc) && !host->vqmmc_enabled) {
 			ret = regulator_enable(mmc->supply.vqmmc);
 			if (ret < 0)
 				dev_err(mmc_dev(mmc),
 					"failed to enable vqmmc regulator\n");
+			else
+				host->vqmmc_enabled = true;
 		}
 
 		pwr |= MCI_PWR_ON;
