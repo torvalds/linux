@@ -529,18 +529,6 @@ exit:
 	return ret;
 }
 
-static int dt9812_analog_out_shadow(struct comedi_device *dev,
-				    int channel, u16 *value)
-{
-	struct dt9812_private *devpriv = dev->private;
-
-	down(&devpriv->sem);
-	*value = devpriv->ao_shadow[channel];
-	up(&devpriv->sem);
-
-	return 0;
-}
-
 static int dt9812_analog_out(struct comedi_device *dev, int channel, u16 value)
 {
 	struct dt9812_private *devpriv = dev->private;
@@ -651,20 +639,21 @@ static int dt9812_ai_insn_read(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int dt9812_ao_rinsn(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_insn *insn,
-			   unsigned int *data)
+static int dt9812_ao_insn_read(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
-	unsigned int channel = CR_CHAN(insn->chanspec);
-	int n;
-	u16 value;
+	struct dt9812_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	int i;
 
-	for (n = 0; n < insn->n; n++) {
-		value = 0;
-		dt9812_analog_out_shadow(dev, channel, &value);
-		data[n] = value;
-	}
-	return n;
+	down(&devpriv->sem);
+	for (i = 0; i < insn->n; i++)
+		data[i] = devpriv->ao_shadow[chan];
+	up(&devpriv->sem);
+
+	return insn->n;
 }
 
 static int dt9812_ao_winsn(struct comedi_device *dev,
@@ -859,7 +848,7 @@ static int dt9812_auto_attach(struct comedi_device *dev,
 	s->maxdata	= 0x0fff;
 	s->range_table	= is_unipolar ? &range_unipolar2_5 : &range_bipolar10;
 	s->insn_write	= dt9812_ao_winsn;
-	s->insn_read	= dt9812_ao_rinsn;
+	s->insn_read	= dt9812_ao_insn_read;
 
 	devpriv->ao_shadow[0] = is_unipolar ? 0x0000 : 0x0800;
 	devpriv->ao_shadow[1] = is_unipolar ? 0x0000 : 0x0800;
