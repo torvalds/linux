@@ -398,11 +398,12 @@ static void irq_domain_disassociate_many(struct irq_domain *domain,
 	while (count--) {
 		int irq = irq_base + count;
 		struct irq_data *irq_data = irq_get_irq_data(irq);
-		irq_hw_number_t hwirq = irq_data->hwirq;
+		irq_hw_number_t hwirq;
 
 		if (WARN_ON(!irq_data || irq_data->domain != domain))
 			continue;
 
+		hwirq = irq_data->hwirq;
 		irq_set_status_flags(irq, IRQ_NOREQUEST);
 
 		/* remove chip and handler */
