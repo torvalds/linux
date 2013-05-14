@@ -166,11 +166,6 @@ THROTL_TG_FNS(on_rr);
 #define throtl_log(td, fmt, args...)	\
 	blk_add_trace_msg((td)->queue, "throtl " fmt, ##args)
 
-static inline unsigned int total_nr_queued(struct throtl_data *td)
-{
-	return td->nr_queued[0] + td->nr_queued[1];
-}
-
 /*
  * Worker for allocating per cpu stat for tgs. This is scheduled on the
  * system_wq once there are some groups on the alloc_list waiting for
@@ -402,24 +397,17 @@ static void throtl_schedule_delayed_work(struct throtl_data *td,
 {
 	struct delayed_work *dwork = &td->dispatch_work;
 
-	if (total_nr_queued(td)) {
-		mod_delayed_work(kthrotld_workqueue, dwork, delay);
-		throtl_log(td, "schedule work. delay=%lu jiffies=%lu",
-			   delay, jiffies);
-	}
+	mod_delayed_work(kthrotld_workqueue, dwork, delay);
+	throtl_log(td, "schedule work. delay=%lu jiffies=%lu", delay, jiffies);
 }
 
 static void throtl_schedule_next_dispatch(struct throtl_data *td)
 {
 	struct throtl_rb_root *st = &td->tg_service_tree;
 
-	/*
-	 * If there are more bios pending, schedule more work.
-	 */
-	if (!total_nr_queued(td))
+	/* any pending children left? */
+	if (!st->count)
 		return;
-
-	BUG_ON(!st->count);
 
 	update_min_dispatch_time(st);
 
@@ -844,14 +832,11 @@ void blk_throtl_dispatch_work_fn(struct work_struct *work)
 
 	spin_lock_irq(q->queue_lock);
 
-	if (!total_nr_queued(td))
-		goto out;
-
 	bio_list_init(&bio_list_on_stack);
 
 	throtl_log(td, "dispatch nr_queued=%u read=%u write=%u",
-			total_nr_queued(td), td->nr_queued[READ],
-			td->nr_queued[WRITE]);
+		   td->nr_queued[READ] + td->nr_queued[WRITE],
+		   td->nr_queued[READ], td->nr_queued[WRITE]);
 
 	nr_disp = throtl_select_dispatch(td, &bio_list_on_stack);
 
@@ -859,7 +844,7 @@ void blk_throtl_dispatch_work_fn(struct work_struct *work)
 		throtl_log(td, "bios disp=%u", nr_disp);
 
 	throtl_schedule_next_dispatch(td);
-out:
+
 	spin_unlock_irq(q->queue_lock);
 
 	/*
