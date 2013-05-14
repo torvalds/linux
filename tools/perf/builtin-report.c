@@ -297,6 +297,7 @@ static int process_sample_event(struct perf_tool *tool,
 {
 	struct perf_report *rep = container_of(tool, struct perf_report, tool);
 	struct addr_location al;
+	int ret;
 
 	if (perf_event__preprocess_sample(event, machine, &al, sample,
 					  rep->annotate_init) < 0) {
@@ -311,28 +312,29 @@ static int process_sample_event(struct perf_tool *tool,
 	if (rep->cpu_list && !test_bit(sample->cpu, rep->cpu_bitmap))
 		return 0;
 
+	pthread_mutex_lock(&evsel->hists.lock);
+
 	if (sort__mode == SORT_MODE__BRANCH) {
-		if (perf_report__add_branch_hist_entry(tool, &al, sample,
-						       evsel, machine)) {
+		ret = perf_report__add_branch_hist_entry(tool, &al, sample,
+							 evsel, machine);
+		if (ret < 0)
 			pr_debug("problem adding lbr entry, skipping event\n");
-			return -1;
-		}
 	} else if (rep->mem_mode == 1) {
-		if (perf_report__add_mem_hist_entry(tool, &al, sample,
-						    evsel, machine, event)) {
+		ret = perf_report__add_mem_hist_entry(tool, &al, sample,
+						      evsel, machine, event);
+		if (ret < 0)
 			pr_debug("problem adding mem entry, skipping event\n");
-			return -1;
-		}
 	} else {
 		if (al.map != NULL)
 			al.map->dso->hit = 1;
 
-		if (perf_evsel__add_hist_entry(evsel, &al, sample, machine)) {
+		ret = perf_evsel__add_hist_entry(evsel, &al, sample, machine);
+		if (ret < 0)
 			pr_debug("problem incrementing symbol period, skipping event\n");
-			return -1;
-		}
 	}
-	return 0;
+	pthread_mutex_unlock(&evsel->hists.lock);
+
+	return ret;
 }
 
 static int process_read_event(struct perf_tool *tool,

@@ -347,8 +347,6 @@ static struct hist_entry *add_hist_entry(struct hists *hists,
 	struct hist_entry *he;
 	int cmp;
 
-	pthread_mutex_lock(&hists->lock);
-
 	p = &hists->entries_in->rb_node;
 
 	while (*p != NULL) {
@@ -394,14 +392,12 @@ static struct hist_entry *add_hist_entry(struct hists *hists,
 
 	he = hist_entry__new(entry);
 	if (!he)
-		goto out_unlock;
+		return NULL;
 
 	rb_link_node(&he->rb_node_in, parent, p);
 	rb_insert_color(&he->rb_node_in, hists->entries_in);
 out:
 	hist_entry__add_cpumode_period(he, al->cpumode, period);
-out_unlock:
-	pthread_mutex_unlock(&hists->lock);
 	return he;
 }
 
