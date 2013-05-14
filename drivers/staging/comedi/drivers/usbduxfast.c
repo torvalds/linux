@@ -1613,9 +1613,6 @@ static const struct usb_device_id usbduxfast_usb_table[] = {
 MODULE_DEVICE_TABLE(usb, usbduxfast_usb_table);
 
 static struct usb_driver usbduxfast_usb_driver = {
-#ifdef COMEDI_HAVE_USB_DRIVER_OWNER
-	.owner		= THIS_MODULE,
-#endif
 	.name		= "usbduxfast",
 	.probe		= usbduxfast_usb_probe,
 	.disconnect	= usbduxfast_usb_disconnect,
