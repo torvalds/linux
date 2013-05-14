@@ -743,7 +743,7 @@ static void tg_update_disptime(struct throtl_grp *tg,
 }
 
 static void tg_dispatch_one_bio(struct throtl_grp *tg, bool rw,
-				struct bio_list *bl)
+				struct throtl_service_queue *parent_sq)
 {
 	struct throtl_service_queue *sq = &tg->service_queue;
 	struct bio *bio;
@@ -757,13 +757,14 @@ static void tg_dispatch_one_bio(struct throtl_grp *tg, bool rw,
 	tg->td->nr_queued[rw]--;
 
 	throtl_charge_bio(tg, bio);
-	bio_list_add(bl, bio);
+	bio_list_add(&parent_sq->bio_lists[rw], bio);
 	bio->bi_rw |= REQ_THROTTLED;
 
 	throtl_trim_slice(tg, rw);
 }
 
-static int throtl_dispatch_tg(struct throtl_grp *tg, struct bio_list *bl)
+static int throtl_dispatch_tg(struct throtl_grp *tg,
+			      struct throtl_service_queue *parent_sq)
 {
 	struct throtl_service_queue *sq = &tg->service_queue;
 	unsigned int nr_reads = 0, nr_writes = 0;
@@ -776,7 +777,7 @@ static int throtl_dispatch_tg(struct throtl_grp *tg, struct bio_list *bl)
 	while ((bio = bio_list_peek(&sq->bio_lists[READ])) &&
 	       tg_may_dispatch(tg, bio, NULL)) {
 
-		tg_dispatch_one_bio(tg, bio_data_dir(bio), bl);
+		tg_dispatch_one_bio(tg, bio_data_dir(bio), parent_sq);
 		nr_reads++;
 
 		if (nr_reads >= max_nr_reads)
@@ -786,7 +787,7 @@ static int throtl_dispatch_tg(struct throtl_grp *tg, struct bio_list *bl)
 	while ((bio = bio_list_peek(&sq->bio_lists[WRITE])) &&
 	       tg_may_dispatch(tg, bio, NULL)) {
 
-		tg_dispatch_one_bio(tg, bio_data_dir(bio), bl);
+		tg_dispatch_one_bio(tg, bio_data_dir(bio), parent_sq);
 		nr_writes++;
 
 		if (nr_writes >= max_nr_writes)
@@ -796,8 +797,7 @@ static int throtl_dispatch_tg(struct throtl_grp *tg, struct bio_list *bl)
 	return nr_reads + nr_writes;
 }
 
-static int throtl_select_dispatch(struct throtl_service_queue *parent_sq,
-				  struct bio_list *bl)
+static int throtl_select_dispatch(struct throtl_service_queue *parent_sq)
 {
 	unsigned int nr_disp = 0;
 
@@ -813,7 +813,7 @@ static int throtl_select_dispatch(struct throtl_service_queue *parent_sq,
 
 		throtl_dequeue_tg(tg, parent_sq);
 
-		nr_disp += throtl_dispatch_tg(tg, bl);
+		nr_disp += throtl_dispatch_tg(tg, parent_sq);
 
 		if (sq->nr_queued[0] || sq->nr_queued[1])
 			tg_update_disptime(tg, parent_sq);
@@ -830,11 +830,13 @@ void blk_throtl_dispatch_work_fn(struct work_struct *work)
 {
 	struct throtl_data *td = container_of(to_delayed_work(work),
 					      struct throtl_data, dispatch_work);
+	struct throtl_service_queue *sq = &td->service_queue;
 	struct request_queue *q = td->queue;
 	unsigned int nr_disp = 0;
 	struct bio_list bio_list_on_stack;
 	struct bio *bio;
 	struct blk_plug plug;
+	int rw;
 
 	spin_lock_irq(q->queue_lock);
 
@@ -844,10 +846,15 @@ void blk_throtl_dispatch_work_fn(struct work_struct *work)
 		   td->nr_queued[READ] + td->nr_queued[WRITE],
 		   td->nr_queued[READ], td->nr_queued[WRITE]);
 
-	nr_disp = throtl_select_dispatch(&td->service_queue, &bio_list_on_stack);
+	nr_disp = throtl_select_dispatch(sq);
 
-	if (nr_disp)
+	if (nr_disp) {
+		for (rw = READ; rw <= WRITE; rw++) {
+			bio_list_merge(&bio_list_on_stack, &sq->bio_lists[rw]);
+			bio_list_init(&sq->bio_lists[rw]);
+		}
 		throtl_log(td, "bios disp=%u", nr_disp);
+	}
 
 	throtl_schedule_next_dispatch(td);
 
@@ -1156,12 +1163,10 @@ void blk_throtl_drain(struct request_queue *q)
 	struct throtl_data *td = q->td;
 	struct throtl_service_queue *parent_sq = &td->service_queue;
 	struct throtl_grp *tg;
-	struct bio_list bl;
 	struct bio *bio;
+	int rw;
 
 	queue_lockdep_assert_held(q);
-
-	bio_list_init(&bl);
 
 	while ((tg = throtl_rb_first(parent_sq))) {
 		struct throtl_service_queue *sq = &tg->service_queue;
@@ -1169,14 +1174,15 @@ void blk_throtl_drain(struct request_queue *q)
 		throtl_dequeue_tg(tg, parent_sq);
 
 		while ((bio = bio_list_peek(&sq->bio_lists[READ])))
-			tg_dispatch_one_bio(tg, bio_data_dir(bio), &bl);
+			tg_dispatch_one_bio(tg, bio_data_dir(bio), parent_sq);
 		while ((bio = bio_list_peek(&sq->bio_lists[WRITE])))
-			tg_dispatch_one_bio(tg, bio_data_dir(bio), &bl);
+			tg_dispatch_one_bio(tg, bio_data_dir(bio), parent_sq);
 	}
 	spin_unlock_irq(q->queue_lock);
 
-	while ((bio = bio_list_pop(&bl)))
-		generic_make_request(bio);
+	for (rw = READ; rw <= WRITE; rw++)
+		while ((bio = bio_list_pop(&parent_sq->bio_lists[rw])))
+			generic_make_request(bio);
 
 	spin_lock_irq(q->queue_lock);
 }
