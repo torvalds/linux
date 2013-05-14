@@ -870,7 +870,6 @@ void cfg80211_leave(struct cfg80211_registered_device *rdev,
 #endif
 		__cfg80211_disconnect(rdev, dev,
 				      WLAN_REASON_DEAUTH_LEAVING, true);
-		cfg80211_mlme_down(rdev, dev);
 		wdev_unlock(wdev);
 		break;
 	case NL80211_IFTYPE_MESH_POINT:

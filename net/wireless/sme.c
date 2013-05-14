@@ -961,7 +961,7 @@ int __cfg80211_disconnect(struct cfg80211_registered_device *rdev,
 		/* was it connected by userspace SME? */
 		if (!wdev->conn) {
 			cfg80211_mlme_down(rdev, dev);
-			return 0;
+			goto disconnect;
 		}
 
 		if (wdev->sme_state == CFG80211_SME_CONNECTING &&
@@ -987,6 +987,7 @@ int __cfg80211_disconnect(struct cfg80211_registered_device *rdev,
 			return err;
 	}
 
+ disconnect:
 	if (wdev->sme_state == CFG80211_SME_CONNECTED)
 		__cfg80211_disconnected(dev, NULL, 0, 0, false);
 	else if (wdev->sme_state == CFG80211_SME_CONNECTING)
