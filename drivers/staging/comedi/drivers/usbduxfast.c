@@ -868,36 +868,28 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
  */
 static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
-				   struct comedi_insn *insn, unsigned int *data)
+				   struct comedi_insn *insn,
+				   unsigned int *data)
 {
 	struct usb_interface *intf = comedi_to_usb_interface(dev);
 	struct usb_device *usb = interface_to_usbdev(intf);
 	struct usbduxfast_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int range = CR_RANGE(insn->chanspec);
+	uint8_t rngmask = range ? (0xff - 0x04) : 0xff;
 	int i, j, n, actual_length;
-	int chan, range, rngmask;
-	int err;
-
-	if (!devpriv) {
-		dev_err(dev->class_dev, "no usb dev\n");
-		return -ENODEV;
-	}
+	int ret;
 
 	down(&devpriv->sem);
+
 	if (devpriv->ai_cmd_running) {
 		dev_err(dev->class_dev,
 			"ai_insn_read not possible, async cmd is running\n");
 		up(&devpriv->sem);
 		return -EBUSY;
 	}
-	/* sample one channel */
-	chan = CR_CHAN(insn->chanspec);
-	range = CR_RANGE(insn->chanspec);
-	/* set command for the first channel */
 
-	if (range > 0)
-		rngmask = 0xff - 0x04;
-	else
-		rngmask = 0xff;
+	/* set command for the first channel */
 
 	/* commit data to the FIFO */
 	/* data */
@@ -913,32 +905,31 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 	usbduxfast_cmd_data(dev, 5, 0x0c, 0x00, rngmask, 0x00);
 	usbduxfast_cmd_data(dev, 6, 0x01, 0x00, rngmask, 0x00);
 
-	/* 0 means that the AD commands are sent */
-	err = usbduxfast_send_cmd(dev, SENDADCOMMANDS);
-	if (err < 0) {
+	ret = usbduxfast_send_cmd(dev, SENDADCOMMANDS);
+	if (ret < 0) {
 		up(&devpriv->sem);
-		return err;
+		return ret;
 	}
 
 	for (i = 0; i < PACKETS_TO_IGNORE; i++) {
-		err = usb_bulk_msg(usb, usb_rcvbulkpipe(usb, BULKINEP),
+		ret = usb_bulk_msg(usb, usb_rcvbulkpipe(usb, BULKINEP),
 				   devpriv->inbuf, SIZEINBUF,
 				   &actual_length, 10000);
-		if (err < 0) {
+		if (ret < 0) {
 			dev_err(dev->class_dev, "insn timeout, no data\n");
 			up(&devpriv->sem);
-			return err;
+			return ret;
 		}
 	}
-	/* data points */
+
 	for (i = 0; i < insn->n;) {
-		err = usb_bulk_msg(usb, usb_rcvbulkpipe(usb, BULKINEP),
+		ret = usb_bulk_msg(usb, usb_rcvbulkpipe(usb, BULKINEP),
 				   devpriv->inbuf, SIZEINBUF,
 				   &actual_length, 10000);
-		if (err < 0) {
-			dev_err(dev->class_dev, "insn data error: %d\n", err);
+		if (ret < 0) {
+			dev_err(dev->class_dev, "insn data error: %d\n", ret);
 			up(&devpriv->sem);
-			return err;
+			return ret;
 		}
 		n = actual_length / sizeof(uint16_t);
 		if ((n % 16) != 0) {
@@ -951,8 +942,10 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 			i++;
 		}
 	}
+
 	up(&devpriv->sem);
-	return i;
+
+	return insn->n;
 }
 
 static int usbduxfast_attach_common(struct comedi_device *dev)
