@@ -40,7 +40,7 @@ struct omap_crtc {
 	 * mgr->id.)  Eventually this will be replaced w/ something
 	 * more common-panel-framework-y
 	 */
-	struct omap_overlay_manager mgr;
+	struct omap_overlay_manager *mgr;
 
 	struct omap_video_timings timings;
 	bool enabled;
@@ -90,6 +90,9 @@ uint32_t pipe2vbl(struct drm_crtc *crtc)
  * job of sequencing the setup of the video pipe in the proper order
  */
 
+/* ovl-mgr-id -> crtc */
+static struct omap_crtc *omap_crtcs[8];
+
 /* we can probably ignore these until we support command-mode panels: */
 static void omap_crtc_start_update(struct omap_overlay_manager *mgr)
 {
@@ -107,7 +110,7 @@ static void omap_crtc_disable(struct omap_overlay_manager *mgr)
 static void omap_crtc_set_timings(struct omap_overlay_manager *mgr,
 		const struct omap_video_timings *timings)
 {
-	struct omap_crtc *omap_crtc = container_of(mgr, struct omap_crtc, mgr);
+	struct omap_crtc *omap_crtc = omap_crtcs[mgr->id];
 	DBG("%s", omap_crtc->name);
 	omap_crtc->timings = *timings;
 	omap_crtc->full_update = true;
@@ -116,7 +119,7 @@ static void omap_crtc_set_timings(struct omap_overlay_manager *mgr,
 static void omap_crtc_set_lcd_config(struct omap_overlay_manager *mgr,
 		const struct dss_lcd_mgr_config *config)
 {
-	struct omap_crtc *omap_crtc = container_of(mgr, struct omap_crtc, mgr);
+	struct omap_crtc *omap_crtc = omap_crtcs[mgr->id];
 	DBG("%s", omap_crtc->name);
 	dispc_mgr_set_lcd_config(omap_crtc->channel, config);
 }
@@ -569,7 +572,7 @@ static void omap_crtc_pre_apply(struct omap_drm_apply *apply)
 	} else {
 		if (encoder) {
 			omap_encoder_set_enabled(encoder, false);
-			omap_encoder_update(encoder, &omap_crtc->mgr,
+			omap_encoder_update(encoder, omap_crtc->mgr,
 					&omap_crtc->timings);
 			omap_encoder_set_enabled(encoder, true);
 			omap_crtc->full_update = false;
@@ -594,6 +597,11 @@ static const char *channel_names[] = {
 		[OMAP_DSS_CHANNEL_DIGIT] = "tv",
 		[OMAP_DSS_CHANNEL_LCD2] = "lcd2",
 };
+
+void omap_crtc_pre_init(void)
+{
+	dss_install_mgr_ops(&mgr_ops);
+}
 
 /* initialize crtc */
 struct drm_crtc *omap_crtc_init(struct drm_device *dev,
@@ -635,9 +643,7 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 	omap_irq_register(dev, &omap_crtc->error_irq);
 
 	/* temporary: */
-	omap_crtc->mgr.id = channel;
-
-	dss_install_mgr_ops(&mgr_ops);
+	omap_crtc->mgr = omap_dss_get_overlay_manager(channel);
 
 	/* TODO: fix hard-coded setup.. add properties! */
 	info = &omap_crtc->info;
@@ -650,6 +656,8 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 	drm_crtc_helper_add(crtc, &omap_crtc_helper_funcs);
 
 	omap_plane_install_properties(omap_crtc->plane, &crtc->base);
+
+	omap_crtcs[channel] = omap_crtc;
 
 	return crtc;
 

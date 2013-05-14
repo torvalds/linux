@@ -98,6 +98,8 @@ static int omap_modeset_init(struct drm_device *dev)
 	int num_crtcs;
 	int i, id = 0;
 
+	omap_crtc_pre_init();
+
 	drm_mode_config_init(dev);
 
 	omap_drm_irq_install(dev);

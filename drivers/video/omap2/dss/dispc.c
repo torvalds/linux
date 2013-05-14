@@ -3710,6 +3710,8 @@ static int __init omap_dispchw_probe(struct platform_device *pdev)
 
 	dispc_runtime_put();
 
+	dss_init_overlay_managers();
+
 	dss_debugfs_create_file("dispc", dispc_dump_regs);
 
 	return 0;
@@ -3722,6 +3724,8 @@ err_runtime_get:
 static int __exit omap_dispchw_remove(struct platform_device *pdev)
 {
 	pm_runtime_disable(&pdev->dev);
+
+	dss_uninit_overlay_managers();
 
 	return 0;
 }
