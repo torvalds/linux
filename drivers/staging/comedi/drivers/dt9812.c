@@ -307,8 +307,9 @@ static void dt9812_delete(struct kref *kref)
 static int dt9812_read_info(struct usb_dt9812 *dev, int offset, void *buf,
 			    size_t buf_size)
 {
+	struct usb_device *usb = dev->udev;
 	struct dt9812_usb_cmd cmd;
-	int count, retval;
+	int count, ret;
 
 	cmd.cmd = cpu_to_le32(DT9812_R_FLASH_DATA);
 	cmd.u.flash_data_info.address =
@@ -316,25 +317,21 @@ static int dt9812_read_info(struct usb_dt9812 *dev, int offset, void *buf,
 	cmd.u.flash_data_info.numbytes = cpu_to_le16(buf_size);
 
 	/* DT9812 only responds to 32 byte writes!! */
-	count = 32;
-	retval = usb_bulk_msg(dev->udev,
-			      usb_sndbulkpipe(dev->udev,
-					      dev->command_write.addr),
-			      &cmd, 32, &count, HZ * 1);
-	if (retval)
-		return retval;
-	retval = usb_bulk_msg(dev->udev,
-			      usb_rcvbulkpipe(dev->udev,
-					      dev->command_read.addr),
-			      buf, buf_size, &count, HZ * 1);
-	return retval;
+	ret = usb_bulk_msg(usb, usb_sndbulkpipe(usb, dev->command_write.addr),
+			   &cmd, 32, &count, HZ * 1);
+	if (ret)
+		return ret;
+
+	return usb_bulk_msg(usb, usb_rcvbulkpipe(usb, dev->command_read.addr),
+			    buf, buf_size, &count, HZ * 1);
 }
 
 static int dt9812_read_multiple_registers(struct usb_dt9812 *dev, int reg_count,
 					  u8 *address, u8 *value)
 {
+	struct usb_device *usb = dev->udev;
 	struct dt9812_usb_cmd cmd;
-	int i, count, retval;
+	int i, count, ret;
 
 	cmd.cmd = cpu_to_le32(DT9812_R_MULTI_BYTE_REG);
 	cmd.u.read_multi_info.count = reg_count;
@@ -342,26 +339,22 @@ static int dt9812_read_multiple_registers(struct usb_dt9812 *dev, int reg_count,
 		cmd.u.read_multi_info.address[i] = address[i];
 
 	/* DT9812 only responds to 32 byte writes!! */
-	count = 32;
-	retval = usb_bulk_msg(dev->udev,
-			      usb_sndbulkpipe(dev->udev,
-					      dev->command_write.addr),
-			      &cmd, 32, &count, HZ * 1);
-	if (retval)
-		return retval;
-	retval = usb_bulk_msg(dev->udev,
-			      usb_rcvbulkpipe(dev->udev,
-					      dev->command_read.addr),
-			      value, reg_count, &count, HZ * 1);
-	return retval;
+	ret = usb_bulk_msg(usb, usb_sndbulkpipe(usb, dev->command_write.addr),
+			   &cmd, 32, &count, HZ * 1);
+	if (ret)
+		return ret;
+
+	return usb_bulk_msg(usb, usb_rcvbulkpipe(usb, dev->command_read.addr),
+			    value, reg_count, &count, HZ * 1);
 }
 
 static int dt9812_write_multiple_registers(struct usb_dt9812 *dev,
 					   int reg_count, u8 *address,
 					   u8 *value)
 {
+	struct usb_device *usb = dev->udev;
 	struct dt9812_usb_cmd cmd;
-	int i, count, retval;
+	int i, count;
 
 	cmd.cmd = cpu_to_le32(DT9812_W_MULTI_BYTE_REG);
 	cmd.u.read_multi_info.count = reg_count;
@@ -369,19 +362,18 @@ static int dt9812_write_multiple_registers(struct usb_dt9812 *dev,
 		cmd.u.write_multi_info.write[i].address = address[i];
 		cmd.u.write_multi_info.write[i].value = value[i];
 	}
+
 	/* DT9812 only responds to 32 byte writes!! */
-	retval = usb_bulk_msg(dev->udev,
-			      usb_sndbulkpipe(dev->udev,
-					      dev->command_write.addr),
-			      &cmd, 32, &count, HZ * 1);
-	return retval;
+	return usb_bulk_msg(usb, usb_sndbulkpipe(usb, dev->command_write.addr),
+			    &cmd, 32, &count, HZ * 1);
 }
 
 static int dt9812_rmw_multiple_registers(struct usb_dt9812 *dev, int reg_count,
 					 struct dt9812_rmw_byte *rmw)
 {
+	struct usb_device *usb = dev->udev;
 	struct dt9812_usb_cmd cmd;
-	int i, count, retval;
+	int i, count;
 
 	cmd.cmd = cpu_to_le32(DT9812_RMW_MULTI_BYTE_REG);
 	cmd.u.rmw_multi_info.count = reg_count;
@@ -389,11 +381,8 @@ static int dt9812_rmw_multiple_registers(struct usb_dt9812 *dev, int reg_count,
 		cmd.u.rmw_multi_info.rmw[i] = rmw[i];
 
 	/* DT9812 only responds to 32 byte writes!! */
-	retval = usb_bulk_msg(dev->udev,
-			      usb_sndbulkpipe(dev->udev,
-					      dev->command_write.addr),
-			      &cmd, 32, &count, HZ * 1);
-	return retval;
+	return usb_bulk_msg(usb, usb_sndbulkpipe(usb, dev->command_write.addr),
+			    &cmd, 32, &count, HZ * 1);
 }
 
 static int dt9812_digital_in(struct slot_dt9812 *slot, u8 *bits)
