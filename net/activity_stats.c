@@ -15,6 +15,7 @@
  */
 
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include <linux/suspend.h>
 #include <net/net_namespace.h>
 
@@ -59,29 +60,20 @@ void activity_stats_update(void)
 	spin_unlock_irqrestore(&activity_lock, flags);
 }
 
-static int activity_stats_read_proc(char *page, char **start, off_t off,
-					int count, int *eof, void *data)
+static int activity_stats_show(struct seq_file *m, void *v)
 {
 	int i;
-	int len;
-	char *p = page;
+	int ret;
 
-	/* Only print if offset is 0, or we have enough buffer space */
-	if (off || count < (30 * BUCKET_MAX + 22))
-		return -ENOMEM;
-
-	len = snprintf(p, count, "Min Bucket(sec) Count\n");
-	count -= len;
-	p += len;
+	seq_printf(m, "Min Bucket(sec) Count\n");
 
 	for (i = 0; i < BUCKET_MAX; i++) {
-		len = snprintf(p, count, "%15d %lu\n", 1 << i, activity_stats[i]);
-		count -= len;
-		p += len;
+		ret = seq_printf(m, "%15d %lu\n", 1 << i, activity_stats[i]);
+		if (ret)
+			return ret;
 	}
-	*eof = 1;
 
-	return p - page;
+	return 0;
 }
 
 static int activity_stats_notifier(struct notifier_block *nb,
@@ -100,14 +92,26 @@ static int activity_stats_notifier(struct notifier_block *nb,
 	return 0;
 }
 
+static int activity_stats_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, activity_stats_show, PDE_DATA(inode));
+}
+
+static const struct file_operations activity_stats_fops = {
+	.open		= activity_stats_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
+
 static struct notifier_block activity_stats_notifier_block = {
 	.notifier_call = activity_stats_notifier,
 };
 
 static int  __init activity_stats_init(void)
 {
-	create_proc_read_entry("activity", S_IRUGO,
-			init_net.proc_net_stat, activity_stats_read_proc, NULL);
+	proc_create("activity", S_IRUGO,
+		    init_net.proc_net_stat, &activity_stats_fops);
 	return register_pm_notifier(&activity_stats_notifier_block);
 }
 
