@@ -4243,11 +4243,11 @@ void ni_dpm_print_power_state(struct radeon_device *rdev,
 	for (i = 0; i < ps->performance_level_count; i++) {
 		pl = &ps->performance_levels[i];
 		if (rdev->family >= CHIP_TAHITI)
-			printk("\t\tpower level 0    sclk: %u mclk: %u vddc: %u vddci: %u pcie gen: %u\n",
-			       pl->sclk, pl->mclk, pl->vddc, pl->vddci, pl->pcie_gen + 1);
+			printk("\t\tpower level %d    sclk: %u mclk: %u vddc: %u vddci: %u pcie gen: %u\n",
+			       i, pl->sclk, pl->mclk, pl->vddc, pl->vddci, pl->pcie_gen + 1);
 		else
-			printk("\t\tpower level 0    sclk: %u mclk: %u vddc: %u vddci: %u\n",
-			       pl->sclk, pl->mclk, pl->vddc, pl->vddci);
+			printk("\t\tpower level %d    sclk: %u mclk: %u vddc: %u vddci: %u\n",
+			       i, pl->sclk, pl->mclk, pl->vddc, pl->vddci);
 	}
 	r600_dpm_print_ps_status(rdev, rps);
 }
