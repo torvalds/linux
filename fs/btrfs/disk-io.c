@@ -1674,12 +1674,14 @@ static void end_workqueue_fn(struct btrfs_work *work)
 }
 
 /*
- * If we remount the fs to be R/O, the cleaner needn't do anything except
- * sleeping. This function is used to check the status of the fs.
+ * If we remount the fs to be R/O or umount the fs, the cleaner needn't do
+ * anything except sleeping. This function is used to check the status of
+ * the fs.
  */
 static inline int need_cleaner_sleep(struct btrfs_root *root)
 {
-	return root->fs_info->sb->s_flags & MS_RDONLY;
+	return (root->fs_info->sb->s_flags & MS_RDONLY ||
+		btrfs_fs_closing(root->fs_info));
 }
 
 static int cleaner_kthread(void *arg)
@@ -1702,8 +1704,8 @@ static int cleaner_kthread(void *arg)
 		mutex_unlock(&root->fs_info->cleaner_mutex);
 
 		/*
-		 * The defragger has dealt with the R/O remount, needn't
-		 * do anything special here.
+		 * The defragger has dealt with the R/O remount and umount,
+		 * needn't do anything special here.
 		 */
 		btrfs_run_defrag_inodes(root->fs_info);
 sleep:
