@@ -118,6 +118,8 @@ nvc0_ltcg_init_tag_ram(struct nouveau_fb *pfb, struct nvc0_ltcg_priv *priv)
 	int ret;
 
 	nv_wr32(priv, 0x17e8d8, priv->part_nr);
+	if (nv_device(pfb)->card_type >= NV_E0)
+		nv_wr32(priv, 0x17e000, priv->part_nr);
 
 	/* tags for 1/4 of VRAM should be enough (8192/4 per GiB of VRAM) */
 	priv->num_tags = (pfb->ram.size >> 17) / 4;
