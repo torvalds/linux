@@ -2237,7 +2237,6 @@ struct snd_kcontrol *snd_soc_cnew(const struct snd_kcontrol_new *_template,
 	struct snd_kcontrol_new template;
 	struct snd_kcontrol *kcontrol;
 	char *name = NULL;
-	int name_len;
 
 	memcpy(&template, _template, sizeof(template));
 	template.index = 0;
@@ -2246,12 +2245,9 @@ struct snd_kcontrol *snd_soc_cnew(const struct snd_kcontrol_new *_template,
 		long_name = template.name;
 
 	if (prefix) {
-		name_len = strlen(long_name) + strlen(prefix) + 2;
-		name = kmalloc(name_len, GFP_KERNEL);
+		name = kasprintf(GFP_KERNEL, "%s %s", prefix, long_name);
 		if (!name)
 			return NULL;
-
-		snprintf(name, name_len, "%s %s", prefix, long_name);
 
 		template.name = name;
 	} else {
