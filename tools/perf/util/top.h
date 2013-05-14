@@ -36,6 +36,7 @@ struct perf_top {
 	int		   realtime_prio;
 	int		   sym_pcnt_filter;
 	const char	   *sym_filter;
+	float		   min_percent;
 };
 
 size_t perf_top__header_snprintf(struct perf_top *top, char *bf, size_t size);
