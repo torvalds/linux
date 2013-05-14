@@ -1239,37 +1239,6 @@ static int firmwareUpload(struct usbduxfast_private *devpriv,
 	return 0;
 }
 
-static void tidy_up(struct usbduxfast_private *devpriv)
-{
-	if (!devpriv)
-		return;
-
-	/* shows the usb subsystem that the driver is down */
-	if (devpriv->intf)
-		usb_set_intfdata(devpriv->intf, NULL);
-
-	devpriv->probed = 0;
-
-	if (devpriv->urbIn) {
-		/* waits until a running transfer is over */
-		usb_kill_urb(devpriv->urbIn);
-
-		kfree(devpriv->transfer_buffer);
-		devpriv->transfer_buffer = NULL;
-
-		usb_free_urb(devpriv->urbIn);
-		devpriv->urbIn = NULL;
-	}
-
-	kfree(devpriv->insnBuffer);
-	devpriv->insnBuffer = NULL;
-
-	kfree(devpriv->dux_commands);
-	devpriv->dux_commands = NULL;
-
-	devpriv->ai_cmd_running = 0;
-}
-
 static int usbduxfast_attach_common(struct comedi_device *dev)
 {
 	struct usbduxfast_private *devpriv = dev->private;
@@ -1349,37 +1318,29 @@ static int usbduxfast_auto_attach(struct comedi_device *dev,
 	usb_set_intfdata(intf, devpriv);
 
 	devpriv->dux_commands = kmalloc(SIZEOFDUXBUFFER, GFP_KERNEL);
-	if (!devpriv->dux_commands) {
-		tidy_up(devpriv);
+	if (!devpriv->dux_commands)
 		return -ENOMEM;
-	}
 
 	devpriv->insnBuffer = kmalloc(SIZEINSNBUF, GFP_KERNEL);
-	if (!devpriv->insnBuffer) {
-		tidy_up(devpriv);
+	if (!devpriv->insnBuffer)
 		return -ENOMEM;
-	}
 
 	ret = usb_set_interface(devpriv->usb, devpriv->ifnum, 1);
 	if (ret < 0) {
 		dev_err(&intf->dev,
 			"could not switch to alternate setting 1\n");
-		tidy_up(devpriv);
 		return -ENODEV;
 	}
 
 	devpriv->urbIn = usb_alloc_urb(0, GFP_KERNEL);
 	if (!devpriv->urbIn) {
 		dev_err(&intf->dev, "Could not alloc. urb\n");
-		tidy_up(devpriv);
 		return -ENOMEM;
 	}
 
 	devpriv->transfer_buffer = kmalloc(SIZEINBUF, GFP_KERNEL);
-	if (!devpriv->transfer_buffer) {
-		tidy_up(devpriv);
+	if (!devpriv->transfer_buffer)
 		return -ENOMEM;
-	}
 
 	devpriv->probed = 1;
 
@@ -1400,13 +1361,39 @@ static void usbduxfast_detach(struct comedi_device *dev)
 {
 	struct usbduxfast_private *devpriv = dev->private;
 
-	if (devpriv) {
-		down(&devpriv->sem);
-		devpriv->attached = 0;
-		devpriv->comedidev = NULL;
-		tidy_up(devpriv);
-		up(&devpriv->sem);
+	if (!devpriv)
+		return;
+
+	down(&devpriv->sem);
+
+	devpriv->attached = 0;
+	devpriv->comedidev = NULL;
+
+	if (devpriv->intf)
+		usb_set_intfdata(devpriv->intf, NULL);
+
+	devpriv->probed = 0;
+
+	if (devpriv->urbIn) {
+		/* waits until a running transfer is over */
+		usb_kill_urb(devpriv->urbIn);
+
+		kfree(devpriv->transfer_buffer);
+		devpriv->transfer_buffer = NULL;
+
+		usb_free_urb(devpriv->urbIn);
+		devpriv->urbIn = NULL;
 	}
+
+	kfree(devpriv->insnBuffer);
+	devpriv->insnBuffer = NULL;
+
+	kfree(devpriv->dux_commands);
+	devpriv->dux_commands = NULL;
+
+	devpriv->ai_cmd_running = 0;
+
+	up(&devpriv->sem);
 }
 
 static struct comedi_driver usbduxfast_driver = {
