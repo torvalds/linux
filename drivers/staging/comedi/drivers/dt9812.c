@@ -656,16 +656,22 @@ static int dt9812_ao_insn_read(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int dt9812_ao_winsn(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_insn *insn,
-			   unsigned int *data)
+static int dt9812_ao_insn_write(struct comedi_device *dev,
+				struct comedi_subdevice *s,
+				struct comedi_insn *insn,
+				unsigned int *data)
 {
-	unsigned int channel = CR_CHAN(insn->chanspec);
-	int n;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	int ret;
+	int i;
 
-	for (n = 0; n < insn->n; n++)
-		dt9812_analog_out(dev, channel, data[n]);
-	return n;
+	for (i = 0; i < insn->n; i++) {
+		ret = dt9812_analog_out(dev, chan, data[i]);
+		if (ret)
+			return ret;
+	}
+
+	return insn->n;
 }
 
 static int dt9812_find_endpoints(struct comedi_device *dev)
@@ -847,7 +853,7 @@ static int dt9812_auto_attach(struct comedi_device *dev,
 	s->n_chan	= 2;
 	s->maxdata	= 0x0fff;
 	s->range_table	= is_unipolar ? &range_unipolar2_5 : &range_bipolar10;
-	s->insn_write	= dt9812_ao_winsn;
+	s->insn_write	= dt9812_ao_insn_write;
 	s->insn_read	= dt9812_ao_insn_read;
 
 	devpriv->ao_shadow[0] = is_unipolar ? 0x0000 : 0x0800;
