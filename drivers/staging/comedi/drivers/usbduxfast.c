@@ -157,7 +157,7 @@ static const struct comedi_lrange range_usbduxfast_ai_range = {
  * this is the structure which holds all the data of this driver
  * one sub device just now: A/D
  */
-struct usbduxfastsub_s {
+struct usbduxfast_private {
 	int attached;		/* is attached? */
 	int probed;		/* is it associated with a subdevice? */
 	struct usb_device *usb;	/* pointer to the usb-device */
@@ -186,7 +186,7 @@ struct usbduxfastsub_s {
  * command is issued. The usb subsystem must be
  * initialised before comedi can access it.
  */
-static struct usbduxfastsub_s usbduxfastsub[NUMUSBDUXFAST];
+static struct usbduxfast_private usbduxfastsub[NUMUSBDUXFAST];
 
 static DEFINE_SEMAPHORE(start_stop_sem);
 
@@ -196,25 +196,26 @@ static DEFINE_SEMAPHORE(start_stop_sem);
 #define SENDADCOMMANDS            0
 #define SENDINITEP6               1
 
-static int send_dux_commands(struct usbduxfastsub_s *udfs, int cmd_type)
+static int send_dux_commands(struct usbduxfast_private *devpriv, int cmd_type)
 {
 	int tmp, nsent;
 
-	udfs->dux_commands[0] = cmd_type;
+	devpriv->dux_commands[0] = cmd_type;
 
 #ifdef CONFIG_COMEDI_DEBUG
 	printk(KERN_DEBUG "comedi%d: usbduxfast: dux_commands: ",
-	       udfs->comedidev->minor);
+	       devpriv->comedidev->minor);
 	for (tmp = 0; tmp < SIZEOFDUXBUFFER; tmp++)
-		printk(" %02x", udfs->dux_commands[tmp]);
+		printk(" %02x", devpriv->dux_commands[tmp]);
 	printk("\n");
 #endif
 
-	tmp = usb_bulk_msg(udfs->usb,
-			   usb_sndbulkpipe(udfs->usb, CHANNELLISTEP),
-			   udfs->dux_commands, SIZEOFDUXBUFFER, &nsent, 10000);
+	tmp = usb_bulk_msg(devpriv->usb,
+			   usb_sndbulkpipe(devpriv->usb, CHANNELLISTEP),
+			   devpriv->dux_commands,
+			   SIZEOFDUXBUFFER, &nsent, 10000);
 	if (tmp < 0)
-		dev_err(&udfs->intf->dev,
+		dev_err(&devpriv->intf->dev,
 			"could not transmit dux_commands to the usb-device, err=%d\n",
 			tmp);
 	return tmp;
@@ -224,15 +225,15 @@ static int send_dux_commands(struct usbduxfastsub_s *udfs, int cmd_type)
  * Stops the data acquision.
  * It should be safe to call this function from any context.
  */
-static int usbduxfastsub_unlink_InURBs(struct usbduxfastsub_s *udfs)
+static int usbduxfastsub_unlink_InURBs(struct usbduxfast_private *devpriv)
 {
 	int j = 0;
 	int err = 0;
 
-	if (udfs && udfs->urbIn) {
-		udfs->ai_cmd_running = 0;
+	if (devpriv && devpriv->urbIn) {
+		devpriv->ai_cmd_running = 0;
 		/* waits until a running transfer is over */
-		usb_kill_urb(udfs->urbIn);
+		usb_kill_urb(devpriv->urbIn);
 		j = 0;
 	}
 #ifdef CONFIG_COMEDI_DEBUG
@@ -246,23 +247,24 @@ static int usbduxfastsub_unlink_InURBs(struct usbduxfastsub_s *udfs)
  * Is called from within this driver from both the
  * interrupt context and from comedi.
  */
-static int usbduxfast_ai_stop(struct usbduxfastsub_s *udfs, int do_unlink)
+static int usbduxfast_ai_stop(struct usbduxfast_private *devpriv,
+			      int do_unlink)
 {
 	int ret = 0;
 
-	if (!udfs) {
-		pr_err("%s: udfs=NULL!\n", __func__);
+	if (!devpriv) {
+		pr_err("%s: devpriv=NULL!\n", __func__);
 		return -EFAULT;
 	}
 #ifdef CONFIG_COMEDI_DEBUG
 	printk(KERN_DEBUG "comedi: usbduxfast_ai_stop\n");
 #endif
 
-	udfs->ai_cmd_running = 0;
+	devpriv->ai_cmd_running = 0;
 
 	if (do_unlink)
 		/* stop aquistion */
-		ret = usbduxfastsub_unlink_InURBs(udfs);
+		ret = usbduxfastsub_unlink_InURBs(devpriv);
 
 	return ret;
 }
@@ -274,26 +276,25 @@ static int usbduxfast_ai_stop(struct usbduxfastsub_s *udfs, int do_unlink)
 static int usbduxfast_ai_cancel(struct comedi_device *dev,
 				struct comedi_subdevice *s)
 {
-	struct usbduxfastsub_s *udfs;
+	struct usbduxfast_private *devpriv = dev->private;
 	int ret;
 
 	/* force unlink of all urbs */
 #ifdef CONFIG_COMEDI_DEBUG
 	printk(KERN_DEBUG "comedi: usbduxfast_ai_cancel\n");
 #endif
-	udfs = dev->private;
-	if (!udfs) {
-		dev_err(dev->class_dev, "%s: udfs=NULL\n", __func__);
+	if (!devpriv) {
+		dev_err(dev->class_dev, "%s: devpriv=NULL\n", __func__);
 		return -EFAULT;
 	}
-	down(&udfs->sem);
-	if (!udfs->probed) {
-		up(&udfs->sem);
+	down(&devpriv->sem);
+	if (!devpriv->probed) {
+		up(&devpriv->sem);
 		return -ENODEV;
 	}
 	/* unlink */
-	ret = usbduxfast_ai_stop(udfs, 1);
-	up(&udfs->sem);
+	ret = usbduxfast_ai_stop(devpriv, 1);
+	up(&devpriv->sem);
 
 	return ret;
 }
@@ -305,7 +306,7 @@ static int usbduxfast_ai_cancel(struct comedi_device *dev,
 static void usbduxfastsub_ai_Irq(struct urb *urb)
 {
 	int n, err;
-	struct usbduxfastsub_s *udfs;
+	struct usbduxfast_private *devpriv;
 	struct comedi_device *this_comedidev;
 	struct comedi_subdevice *s;
 
@@ -320,14 +321,14 @@ static void usbduxfastsub_ai_Irq(struct urb *urb)
 		pr_err("urb context is a NULL pointer!\n");
 		return;
 	}
-	/* the private structure of the subdevice is usbduxfastsub_s */
-	udfs = this_comedidev->private;
-	if (!udfs) {
+	/* the private structure of the subdevice is usbduxfast_private */
+	devpriv = this_comedidev->private;
+	if (!devpriv) {
 		pr_err("private of comedi subdev is a NULL pointer!\n");
 		return;
 	}
 	/* are we running a command? */
-	if (unlikely(!udfs->ai_cmd_running)) {
+	if (unlikely(!devpriv->ai_cmd_running)) {
 		/*
 		 * not running a command
 		 * do not continue execution if no asynchronous command
@@ -336,7 +337,7 @@ static void usbduxfastsub_ai_Irq(struct urb *urb)
 		return;
 	}
 
-	if (unlikely(!udfs->attached)) {
+	if (unlikely(!devpriv->attached)) {
 		/* no comedi device there */
 		return;
 	}
@@ -359,9 +360,9 @@ static void usbduxfastsub_ai_Irq(struct urb *urb)
 		/* tell this comedi */
 		s->async->events |= COMEDI_CB_EOA;
 		s->async->events |= COMEDI_CB_ERROR;
-		comedi_event(udfs->comedidev, s);
+		comedi_event(devpriv->comedidev, s);
 		/* stop the transfer w/o unlink */
-		usbduxfast_ai_stop(udfs, 0);
+		usbduxfast_ai_stop(devpriv, 0);
 		return;
 
 	default:
@@ -369,54 +370,54 @@ static void usbduxfastsub_ai_Irq(struct urb *urb)
 		       urb->status);
 		s->async->events |= COMEDI_CB_EOA;
 		s->async->events |= COMEDI_CB_ERROR;
-		comedi_event(udfs->comedidev, s);
-		usbduxfast_ai_stop(udfs, 0);
+		comedi_event(devpriv->comedidev, s);
+		usbduxfast_ai_stop(devpriv, 0);
 		return;
 	}
 
-	if (!udfs->ignore) {
-		if (!udfs->ai_continous) {
+	if (!devpriv->ignore) {
+		if (!devpriv->ai_continous) {
 			/* not continuous, fixed number of samples */
 			n = urb->actual_length / sizeof(uint16_t);
-			if (unlikely(udfs->ai_sample_count < n)) {
+			if (unlikely(devpriv->ai_sample_count < n)) {
 				/*
 				 * we have send only a fraction of the bytes
 				 * received
 				 */
 				cfc_write_array_to_buffer(s,
 							  urb->transfer_buffer,
-							  udfs->ai_sample_count
+							  devpriv->ai_sample_count
 							  * sizeof(uint16_t));
-				usbduxfast_ai_stop(udfs, 0);
+				usbduxfast_ai_stop(devpriv, 0);
 				/* tell comedi that the acquistion is over */
 				s->async->events |= COMEDI_CB_EOA;
-				comedi_event(udfs->comedidev, s);
+				comedi_event(devpriv->comedidev, s);
 				return;
 			}
-			udfs->ai_sample_count -= n;
+			devpriv->ai_sample_count -= n;
 		}
 		/* write the full buffer to comedi */
 		err = cfc_write_array_to_buffer(s, urb->transfer_buffer,
 						urb->actual_length);
 		if (unlikely(err == 0)) {
 			/* buffer overflow */
-			usbduxfast_ai_stop(udfs, 0);
+			usbduxfast_ai_stop(devpriv, 0);
 			return;
 		}
 
 		/* tell comedi that data is there */
-		comedi_event(udfs->comedidev, s);
+		comedi_event(devpriv->comedidev, s);
 
 	} else {
 		/* ignore this packet */
-		udfs->ignore--;
+		devpriv->ignore--;
 	}
 
 	/*
 	 * command is still running
 	 * resubmit urb for BULK transfer
 	 */
-	urb->dev = udfs->usb;
+	urb->dev = devpriv->usb;
 	urb->status = 0;
 	err = usb_submit_urb(urb, GFP_ATOMIC);
 	if (err < 0) {
@@ -424,12 +425,12 @@ static void usbduxfastsub_ai_Irq(struct urb *urb)
 			"urb resubm failed: %d", err);
 		s->async->events |= COMEDI_CB_EOA;
 		s->async->events |= COMEDI_CB_ERROR;
-		comedi_event(udfs->comedidev, s);
-		usbduxfast_ai_stop(udfs, 0);
+		comedi_event(devpriv->comedidev, s);
+		usbduxfast_ai_stop(devpriv, 0);
 	}
 }
 
-static int usbduxfastsub_start(struct usbduxfastsub_s *udfs)
+static int usbduxfastsub_start(struct usbduxfast_private *devpriv)
 {
 	int ret;
 	unsigned char *local_transfer_buffer;
@@ -441,7 +442,7 @@ static int usbduxfastsub_start(struct usbduxfastsub_s *udfs)
 	/* 7f92 to zero */
 	*local_transfer_buffer = 0;
 	/* bRequest, "Firmware" */
-	ret = usb_control_msg(udfs->usb, usb_sndctrlpipe(udfs->usb, 0),
+	ret = usb_control_msg(devpriv->usb, usb_sndctrlpipe(devpriv->usb, 0),
 			      USBDUXFASTSUB_FIRMWARE,
 			      VENDOR_DIR_OUT,	  /* bmRequestType */
 			      USBDUXFASTSUB_CPUCS,    /* Value */
@@ -451,14 +452,14 @@ static int usbduxfastsub_start(struct usbduxfastsub_s *udfs)
 			      1,      /* Length */
 			      EZTIMEOUT);    /* Timeout */
 	if (ret < 0)
-		dev_err(&udfs->intf->dev,
+		dev_err(&devpriv->intf->dev,
 			"control msg failed (start)\n");
 
 	kfree(local_transfer_buffer);
 	return ret;
 }
 
-static int usbduxfastsub_stop(struct usbduxfastsub_s *udfs)
+static int usbduxfastsub_stop(struct usbduxfast_private *devpriv)
 {
 	int ret;
 	unsigned char *local_transfer_buffer;
@@ -470,7 +471,7 @@ static int usbduxfastsub_stop(struct usbduxfastsub_s *udfs)
 	/* 7f92 to one */
 	*local_transfer_buffer = 1;
 	/* bRequest, "Firmware" */
-	ret = usb_control_msg(udfs->usb, usb_sndctrlpipe(udfs->usb, 0),
+	ret = usb_control_msg(devpriv->usb, usb_sndctrlpipe(devpriv->usb, 0),
 			      USBDUXFASTSUB_FIRMWARE,
 			      VENDOR_DIR_OUT,	/* bmRequestType */
 			      USBDUXFASTSUB_CPUCS,	/* Value */
@@ -478,14 +479,14 @@ static int usbduxfastsub_stop(struct usbduxfastsub_s *udfs)
 			      local_transfer_buffer, 1,	/* Length */
 			      EZTIMEOUT);	/* Timeout */
 	if (ret < 0)
-		dev_err(&udfs->intf->dev,
+		dev_err(&devpriv->intf->dev,
 			"control msg failed (stop)\n");
 
 	kfree(local_transfer_buffer);
 	return ret;
 }
 
-static int usbduxfastsub_upload(struct usbduxfastsub_s *udfs,
+static int usbduxfastsub_upload(struct usbduxfast_private *devpriv,
 				unsigned char *local_transfer_buffer,
 				unsigned int startAddr, unsigned int len)
 {
@@ -497,7 +498,7 @@ static int usbduxfastsub_upload(struct usbduxfastsub_s *udfs,
 	       startAddr, local_transfer_buffer[0]);
 #endif
 	/* brequest, firmware */
-	ret = usb_control_msg(udfs->usb, usb_sndctrlpipe(udfs->usb, 0),
+	ret = usb_control_msg(devpriv->usb, usb_sndctrlpipe(devpriv->usb, 0),
 			      USBDUXFASTSUB_FIRMWARE,
 			      VENDOR_DIR_OUT,	/* bmRequestType */
 			      startAddr,	/* value */
@@ -512,33 +513,33 @@ static int usbduxfastsub_upload(struct usbduxfastsub_s *udfs,
 #endif
 
 	if (ret < 0) {
-		dev_err(&udfs->intf->dev, "uppload failed\n");
+		dev_err(&devpriv->intf->dev, "uppload failed\n");
 		return ret;
 	}
 
 	return 0;
 }
 
-static int usbduxfastsub_submit_InURBs(struct usbduxfastsub_s *udfs)
+static int usbduxfastsub_submit_InURBs(struct usbduxfast_private *devpriv)
 {
 	int ret;
 
-	if (!udfs)
+	if (!devpriv)
 		return -EFAULT;
 
-	usb_fill_bulk_urb(udfs->urbIn, udfs->usb,
-			  usb_rcvbulkpipe(udfs->usb, BULKINEP),
-			  udfs->transfer_buffer,
-			  SIZEINBUF, usbduxfastsub_ai_Irq, udfs->comedidev);
+	usb_fill_bulk_urb(devpriv->urbIn, devpriv->usb,
+			  usb_rcvbulkpipe(devpriv->usb, BULKINEP),
+			  devpriv->transfer_buffer,
+			  SIZEINBUF, usbduxfastsub_ai_Irq, devpriv->comedidev);
 
 #ifdef CONFIG_COMEDI_DEBUG
 	printk(KERN_DEBUG "comedi%d: usbduxfast: submitting in-urb: "
-	       "0x%p,0x%p\n", udfs->comedidev->minor, udfs->urbIn->context,
-	       udfs->urbIn->dev);
+	       "0x%p,0x%p\n", devpriv->comedidev->minor, devpriv->urbIn->context,
+	       devpriv->urbIn->dev);
 #endif
-	ret = usb_submit_urb(udfs->urbIn, GFP_ATOMIC);
+	ret = usb_submit_urb(devpriv->urbIn, GFP_ATOMIC);
 	if (ret) {
-		dev_err(&udfs->intf->dev,
+		dev_err(&devpriv->intf->dev,
 			"ai: usb_submit_urb error %d\n", ret);
 		return ret;
 	}
@@ -549,12 +550,12 @@ static int usbduxfast_ai_cmdtest(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_cmd *cmd)
 {
-	struct usbduxfastsub_s *udfs = dev->private;
+	struct usbduxfast_private *devpriv = dev->private;
 	int err = 0;
 	long int steps, tmp;
 	int minSamplPer;
 
-	if (!udfs->probed)
+	if (!devpriv->probed)
 		return -ENODEV;
 
 	/* Step 1 : check if triggers are trivially valid */
@@ -646,15 +647,15 @@ static int usbduxfast_ai_inttrig(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 unsigned int trignum)
 {
+	struct usbduxfast_private *devpriv = dev->private;
 	int ret;
-	struct usbduxfastsub_s *udfs = dev->private;
 
-	if (!udfs)
+	if (!devpriv)
 		return -EFAULT;
 
-	down(&udfs->sem);
-	if (!udfs->probed) {
-		up(&udfs->sem);
+	down(&devpriv->sem);
+	if (!devpriv->probed) {
+		up(&devpriv->sem);
 		return -ENODEV;
 	}
 #ifdef CONFIG_COMEDI_DEBUG
@@ -663,17 +664,17 @@ static int usbduxfast_ai_inttrig(struct comedi_device *dev,
 
 	if (trignum != 0) {
 		dev_err(dev->class_dev, "%s: invalid trignum\n", __func__);
-		up(&udfs->sem);
+		up(&devpriv->sem);
 		return -EINVAL;
 	}
-	if (!udfs->ai_cmd_running) {
-		udfs->ai_cmd_running = 1;
-		ret = usbduxfastsub_submit_InURBs(udfs);
+	if (!devpriv->ai_cmd_running) {
+		devpriv->ai_cmd_running = 1;
+		ret = usbduxfastsub_submit_InURBs(devpriv);
 		if (ret < 0) {
 			dev_err(dev->class_dev,
 				"%s: urbSubmit: err=%d\n", __func__, ret);
-			udfs->ai_cmd_running = 0;
-			up(&udfs->sem);
+			devpriv->ai_cmd_running = 0;
+			up(&devpriv->sem);
 			return ret;
 		}
 		s->async->inttrig = NULL;
@@ -681,7 +682,7 @@ static int usbduxfast_ai_inttrig(struct comedi_device *dev,
 		dev_err(dev->class_dev,
 			"ai_inttrig but acqu is already running\n");
 	}
-	up(&udfs->sem);
+	up(&devpriv->sem);
 	return 1;
 }
 
@@ -697,29 +698,28 @@ static int usbduxfast_ai_inttrig(struct comedi_device *dev,
 static int usbduxfast_ai_cmd(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
+	struct usbduxfast_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int chan, gain, rngmask = 0xff;
 	int i, j, ret;
-	struct usbduxfastsub_s *udfs;
 	int result;
 	long steps, steps_tmp;
 
 #ifdef CONFIG_COMEDI_DEBUG
 	printk(KERN_DEBUG "comedi%d: usbduxfast_ai_cmd\n", dev->minor);
 #endif
-	udfs = dev->private;
-	if (!udfs)
+	if (!devpriv)
 		return -EFAULT;
 
-	down(&udfs->sem);
-	if (!udfs->probed) {
-		up(&udfs->sem);
+	down(&devpriv->sem);
+	if (!devpriv->probed) {
+		up(&devpriv->sem);
 		return -ENODEV;
 	}
-	if (udfs->ai_cmd_running) {
+	if (devpriv->ai_cmd_running) {
 		dev_err(dev->class_dev,
 			"ai_cmd not possible. Another ai_cmd is running.\n");
-		up(&udfs->sem);
+		up(&devpriv->sem);
 		return -EBUSY;
 	}
 	/* set current channel of the running acquisition to zero */
@@ -729,7 +729,7 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 	 * ignore the first buffers from the device if there
 	 * is an error condition
 	 */
-	udfs->ignore = PACKETS_TO_IGNORE;
+	devpriv->ignore = PACKETS_TO_IGNORE;
 
 	if (cmd->chanlist_len > 0) {
 		gain = CR_RANGE(cmd->chanlist[0]);
@@ -738,14 +738,14 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 			if (chan != i) {
 				dev_err(dev->class_dev,
 					"cmd is accepting only consecutive channels.\n");
-				up(&udfs->sem);
+				up(&devpriv->sem);
 				return -EINVAL;
 			}
 			if ((gain != CR_RANGE(cmd->chanlist[i]))
 			    && (cmd->chanlist_len > 3)) {
 				dev_err(dev->class_dev,
 					"the gain must be the same for all channels.\n");
-				up(&udfs->sem);
+				up(&devpriv->sem);
 				return -EINVAL;
 			}
 			if (i >= NUMCHANNELS) {
@@ -759,7 +759,7 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		dev_err(dev->class_dev,
 			"scan_begin_src==TRIG_TIMER not valid.\n");
-		up(&udfs->sem);
+		up(&devpriv->sem);
 		return -EINVAL;
 	}
 	if (cmd->convert_src == TRIG_TIMER)
@@ -769,19 +769,19 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 		dev_err(dev->class_dev,
 			"ai_cmd: steps=%ld, scan_begin_arg=%d. Not properly tested by cmdtest?\n",
 			steps, cmd->scan_begin_arg);
-		up(&udfs->sem);
+		up(&devpriv->sem);
 		return -EINVAL;
 	}
 	if (steps > MAX_SAMPLING_PERIOD) {
 		dev_err(dev->class_dev, "ai_cmd: sampling rate too low.\n");
-		up(&udfs->sem);
+		up(&devpriv->sem);
 		return -EINVAL;
 	}
 	if ((cmd->start_src == TRIG_EXT) && (cmd->chanlist_len != 1)
 	    && (cmd->chanlist_len != 16)) {
 		dev_err(dev->class_dev,
 			"ai_cmd: TRIG_EXT only with 1 or 16 channels possible.\n");
-		up(&udfs->sem);
+		up(&devpriv->sem);
 		return -EINVAL;
 	}
 #ifdef CONFIG_COMEDI_DEBUG
@@ -808,17 +808,17 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 		/* we loop here until ready has been set */
 		if (cmd->start_src == TRIG_EXT) {
 			/* branch back to state 0 */
-			udfs->dux_commands[LENBASE + 0] = 0x01;
+			devpriv->dux_commands[LENBASE + 0] = 0x01;
 			/* deceision state w/o data */
-			udfs->dux_commands[OPBASE + 0] = 0x01;
-			udfs->dux_commands[OUTBASE + 0] = 0xFF & rngmask;
+			devpriv->dux_commands[OPBASE + 0] = 0x01;
+			devpriv->dux_commands[OUTBASE + 0] = 0xFF & rngmask;
 			/* RDY0 = 0 */
-			udfs->dux_commands[LOGBASE + 0] = 0x00;
+			devpriv->dux_commands[LOGBASE + 0] = 0x00;
 		} else {	/* we just proceed to state 1 */
-			udfs->dux_commands[LENBASE + 0] = 1;
-			udfs->dux_commands[OPBASE + 0] = 0;
-			udfs->dux_commands[OUTBASE + 0] = 0xFF & rngmask;
-			udfs->dux_commands[LOGBASE + 0] = 0;
+			devpriv->dux_commands[LENBASE + 0] = 1;
+			devpriv->dux_commands[OPBASE + 0] = 0;
+			devpriv->dux_commands[OUTBASE + 0] = 0xFF & rngmask;
+			devpriv->dux_commands[LOGBASE + 0] = 0;
 		}
 
 		if (steps < MIN_SAMPLING_PERIOD) {
@@ -831,33 +831,33 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 				 */
 
 				/* branch back to state 1 */
-				udfs->dux_commands[LENBASE + 1] = 0x89;
+				devpriv->dux_commands[LENBASE + 1] = 0x89;
 				/* deceision state with data */
-				udfs->dux_commands[OPBASE + 1] = 0x03;
-				udfs->dux_commands[OUTBASE + 1] =
+				devpriv->dux_commands[OPBASE + 1] = 0x03;
+				devpriv->dux_commands[OUTBASE + 1] =
 				    0xFF & rngmask;
 				/* doesn't matter */
-				udfs->dux_commands[LOGBASE + 1] = 0xFF;
+				devpriv->dux_commands[LOGBASE + 1] = 0xFF;
 			} else {
 				/*
 				 * we loop through two states: data and delay
 				 * max rate is 15MHz
 				 */
-				udfs->dux_commands[LENBASE + 1] = steps - 1;
+				devpriv->dux_commands[LENBASE + 1] = steps - 1;
 				/* data */
-				udfs->dux_commands[OPBASE + 1] = 0x02;
-				udfs->dux_commands[OUTBASE + 1] =
+				devpriv->dux_commands[OPBASE + 1] = 0x02;
+				devpriv->dux_commands[OUTBASE + 1] =
 				    0xFF & rngmask;
 				/* doesn't matter */
-				udfs->dux_commands[LOGBASE + 1] = 0;
+				devpriv->dux_commands[LOGBASE + 1] = 0;
 				/* branch back to state 1 */
-				udfs->dux_commands[LENBASE + 2] = 0x09;
+				devpriv->dux_commands[LENBASE + 2] = 0x09;
 				/* deceision state w/o data */
-				udfs->dux_commands[OPBASE + 2] = 0x01;
-				udfs->dux_commands[OUTBASE + 2] =
+				devpriv->dux_commands[OPBASE + 2] = 0x01;
+				devpriv->dux_commands[OUTBASE + 2] =
 				    0xFF & rngmask;
 				/* doesn't matter */
-				udfs->dux_commands[LOGBASE + 2] = 0xFF;
+				devpriv->dux_commands[LOGBASE + 2] = 0xFF;
 			}
 		} else {
 			/*
@@ -869,26 +869,26 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 			steps = steps - 1;
 
 			/* do the first part of the delay */
-			udfs->dux_commands[LENBASE + 1] = steps / 2;
-			udfs->dux_commands[OPBASE + 1] = 0;
-			udfs->dux_commands[OUTBASE + 1] = 0xFF & rngmask;
-			udfs->dux_commands[LOGBASE + 1] = 0;
+			devpriv->dux_commands[LENBASE + 1] = steps / 2;
+			devpriv->dux_commands[OPBASE + 1] = 0;
+			devpriv->dux_commands[OUTBASE + 1] = 0xFF & rngmask;
+			devpriv->dux_commands[LOGBASE + 1] = 0;
 
 			/* and the second part */
-			udfs->dux_commands[LENBASE + 2] = steps - steps / 2;
-			udfs->dux_commands[OPBASE + 2] = 0;
-			udfs->dux_commands[OUTBASE + 2] = 0xFF & rngmask;
-			udfs->dux_commands[LOGBASE + 2] = 0;
+			devpriv->dux_commands[LENBASE + 2] = steps - steps / 2;
+			devpriv->dux_commands[OPBASE + 2] = 0;
+			devpriv->dux_commands[OUTBASE + 2] = 0xFF & rngmask;
+			devpriv->dux_commands[LOGBASE + 2] = 0;
 
 			/* get the data and branch back */
 
 			/* branch back to state 1 */
-			udfs->dux_commands[LENBASE + 3] = 0x09;
+			devpriv->dux_commands[LENBASE + 3] = 0x09;
 			/* deceision state w data */
-			udfs->dux_commands[OPBASE + 3] = 0x03;
-			udfs->dux_commands[OUTBASE + 3] = 0xFF & rngmask;
+			devpriv->dux_commands[OPBASE + 3] = 0x03;
+			devpriv->dux_commands[OUTBASE + 3] = 0xFF & rngmask;
 			/* doesn't matter */
-			udfs->dux_commands[LOGBASE + 3] = 0xFF;
+			devpriv->dux_commands[LOGBASE + 3] = 0xFF;
 		}
 		break;
 
@@ -903,11 +903,11 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 		else
 			rngmask = 0xff;
 
-		udfs->dux_commands[LENBASE + 0] = 1;
+		devpriv->dux_commands[LENBASE + 0] = 1;
 		/* data */
-		udfs->dux_commands[OPBASE + 0] = 0x02;
-		udfs->dux_commands[OUTBASE + 0] = 0xFF & rngmask;
-		udfs->dux_commands[LOGBASE + 0] = 0;
+		devpriv->dux_commands[OPBASE + 0] = 0x02;
+		devpriv->dux_commands[OUTBASE + 0] = 0xFF & rngmask;
+		devpriv->dux_commands[LOGBASE + 0] = 0;
 
 		/* we have 1 state with duration 1: state 0 */
 		steps_tmp = steps - 1;
@@ -918,23 +918,23 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 			rngmask = 0xff;
 
 		/* do the first part of the delay */
-		udfs->dux_commands[LENBASE + 1] = steps_tmp / 2;
-		udfs->dux_commands[OPBASE + 1] = 0;
+		devpriv->dux_commands[LENBASE + 1] = steps_tmp / 2;
+		devpriv->dux_commands[OPBASE + 1] = 0;
 		/* count */
-		udfs->dux_commands[OUTBASE + 1] = 0xFE & rngmask;
-		udfs->dux_commands[LOGBASE + 1] = 0;
+		devpriv->dux_commands[OUTBASE + 1] = 0xFE & rngmask;
+		devpriv->dux_commands[LOGBASE + 1] = 0;
 
 		/* and the second part */
-		udfs->dux_commands[LENBASE + 2] = steps_tmp - steps_tmp / 2;
-		udfs->dux_commands[OPBASE + 2] = 0;
-		udfs->dux_commands[OUTBASE + 2] = 0xFF & rngmask;
-		udfs->dux_commands[LOGBASE + 2] = 0;
+		devpriv->dux_commands[LENBASE + 2] = steps_tmp - steps_tmp / 2;
+		devpriv->dux_commands[OPBASE + 2] = 0;
+		devpriv->dux_commands[OUTBASE + 2] = 0xFF & rngmask;
+		devpriv->dux_commands[LOGBASE + 2] = 0;
 
-		udfs->dux_commands[LENBASE + 3] = 1;
+		devpriv->dux_commands[LENBASE + 3] = 1;
 		/* data */
-		udfs->dux_commands[OPBASE + 3] = 0x02;
-		udfs->dux_commands[OUTBASE + 3] = 0xFF & rngmask;
-		udfs->dux_commands[LOGBASE + 3] = 0;
+		devpriv->dux_commands[OPBASE + 3] = 0x02;
+		devpriv->dux_commands[OUTBASE + 3] = 0xFF & rngmask;
+		devpriv->dux_commands[LOGBASE + 3] = 0;
 
 		/*
 		 * we have 2 states with duration 1: step 6 and
@@ -948,22 +948,22 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 			rngmask = 0xff;
 
 		/* do the first part of the delay */
-		udfs->dux_commands[LENBASE + 4] = steps_tmp / 2;
-		udfs->dux_commands[OPBASE + 4] = 0;
+		devpriv->dux_commands[LENBASE + 4] = steps_tmp / 2;
+		devpriv->dux_commands[OPBASE + 4] = 0;
 		/* reset */
-		udfs->dux_commands[OUTBASE + 4] = (0xFF - 0x02) & rngmask;
-		udfs->dux_commands[LOGBASE + 4] = 0;
+		devpriv->dux_commands[OUTBASE + 4] = (0xFF - 0x02) & rngmask;
+		devpriv->dux_commands[LOGBASE + 4] = 0;
 
 		/* and the second part */
-		udfs->dux_commands[LENBASE + 5] = steps_tmp - steps_tmp / 2;
-		udfs->dux_commands[OPBASE + 5] = 0;
-		udfs->dux_commands[OUTBASE + 5] = 0xFF & rngmask;
-		udfs->dux_commands[LOGBASE + 5] = 0;
+		devpriv->dux_commands[LENBASE + 5] = steps_tmp - steps_tmp / 2;
+		devpriv->dux_commands[OPBASE + 5] = 0;
+		devpriv->dux_commands[OUTBASE + 5] = 0xFF & rngmask;
+		devpriv->dux_commands[LOGBASE + 5] = 0;
 
-		udfs->dux_commands[LENBASE + 6] = 1;
-		udfs->dux_commands[OPBASE + 6] = 0;
-		udfs->dux_commands[OUTBASE + 6] = 0xFF & rngmask;
-		udfs->dux_commands[LOGBASE + 6] = 0;
+		devpriv->dux_commands[LENBASE + 6] = 1;
+		devpriv->dux_commands[OPBASE + 6] = 0;
+		devpriv->dux_commands[OUTBASE + 6] = 0xFF & rngmask;
+		devpriv->dux_commands[LOGBASE + 6] = 0;
 		break;
 
 	case 3:
@@ -979,12 +979,12 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 			 * commit data to the FIFO and do the first part
 			 * of the delay
 			 */
-			udfs->dux_commands[LENBASE + j * 2] = steps / 2;
+			devpriv->dux_commands[LENBASE + j * 2] = steps / 2;
 			/* data */
-			udfs->dux_commands[OPBASE + j * 2] = 0x02;
+			devpriv->dux_commands[OPBASE + j * 2] = 0x02;
 			/* no change */
-			udfs->dux_commands[OUTBASE + j * 2] = 0xFF & rngmask;
-			udfs->dux_commands[LOGBASE + j * 2] = 0;
+			devpriv->dux_commands[OUTBASE + j * 2] = 0xFF & rngmask;
+			devpriv->dux_commands[LOGBASE + j * 2] = 0;
 
 			if (CR_RANGE(cmd->chanlist[j + 1]) > 0)
 				rngmask = 0xff - 0x04;
@@ -992,25 +992,25 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 				rngmask = 0xff;
 
 			/* do the second part of the delay */
-			udfs->dux_commands[LENBASE + j * 2 + 1] =
+			devpriv->dux_commands[LENBASE + j * 2 + 1] =
 			    steps - steps / 2;
 			/* no data */
-			udfs->dux_commands[OPBASE + j * 2 + 1] = 0;
+			devpriv->dux_commands[OPBASE + j * 2 + 1] = 0;
 			/* count */
-			udfs->dux_commands[OUTBASE + j * 2 + 1] =
+			devpriv->dux_commands[OUTBASE + j * 2 + 1] =
 			    0xFE & rngmask;
-			udfs->dux_commands[LOGBASE + j * 2 + 1] = 0;
+			devpriv->dux_commands[LOGBASE + j * 2 + 1] = 0;
 		}
 
 		/* 2 steps with duration 1: the idele step and step 6: */
 		steps_tmp = steps - 2;
 
 		/* commit data to the FIFO and do the first part of the delay */
-		udfs->dux_commands[LENBASE + 4] = steps_tmp / 2;
+		devpriv->dux_commands[LENBASE + 4] = steps_tmp / 2;
 		/* data */
-		udfs->dux_commands[OPBASE + 4] = 0x02;
-		udfs->dux_commands[OUTBASE + 4] = 0xFF & rngmask;
-		udfs->dux_commands[LOGBASE + 4] = 0;
+		devpriv->dux_commands[OPBASE + 4] = 0x02;
+		devpriv->dux_commands[OUTBASE + 4] = 0xFF & rngmask;
+		devpriv->dux_commands[LOGBASE + 4] = 0;
 
 		if (CR_RANGE(cmd->chanlist[0]) > 0)
 			rngmask = 0xff - 0x04;
@@ -1018,17 +1018,17 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 			rngmask = 0xff;
 
 		/* do the second part of the delay */
-		udfs->dux_commands[LENBASE + 5] = steps_tmp - steps_tmp / 2;
+		devpriv->dux_commands[LENBASE + 5] = steps_tmp - steps_tmp / 2;
 		/* no data */
-		udfs->dux_commands[OPBASE + 5] = 0;
+		devpriv->dux_commands[OPBASE + 5] = 0;
 		/* reset */
-		udfs->dux_commands[OUTBASE + 5] = (0xFF - 0x02) & rngmask;
-		udfs->dux_commands[LOGBASE + 5] = 0;
+		devpriv->dux_commands[OUTBASE + 5] = (0xFF - 0x02) & rngmask;
+		devpriv->dux_commands[LOGBASE + 5] = 0;
 
-		udfs->dux_commands[LENBASE + 6] = 1;
-		udfs->dux_commands[OPBASE + 6] = 0;
-		udfs->dux_commands[OUTBASE + 6] = 0xFF & rngmask;
-		udfs->dux_commands[LOGBASE + 6] = 0;
+		devpriv->dux_commands[LENBASE + 6] = 1;
+		devpriv->dux_commands[OPBASE + 6] = 0;
+		devpriv->dux_commands[OUTBASE + 6] = 0xFF & rngmask;
+		devpriv->dux_commands[LOGBASE + 6] = 0;
 
 	case 16:
 		if (CR_RANGE(cmd->chanlist[0]) > 0)
@@ -1042,63 +1042,63 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 			 */
 
 			/* branch back to state 0 */
-			udfs->dux_commands[LENBASE + 0] = 0x01;
+			devpriv->dux_commands[LENBASE + 0] = 0x01;
 			/* deceision state w/o data */
-			udfs->dux_commands[OPBASE + 0] = 0x01;
+			devpriv->dux_commands[OPBASE + 0] = 0x01;
 			/* reset */
-			udfs->dux_commands[OUTBASE + 0] =
+			devpriv->dux_commands[OUTBASE + 0] =
 			    (0xFF - 0x02) & rngmask;
 			/* RDY0 = 0 */
-			udfs->dux_commands[LOGBASE + 0] = 0x00;
+			devpriv->dux_commands[LOGBASE + 0] = 0x00;
 		} else {
 			/*
 			 * we just proceed to state 1
 			 */
 
 			/* 30us reset pulse */
-			udfs->dux_commands[LENBASE + 0] = 255;
-			udfs->dux_commands[OPBASE + 0] = 0;
+			devpriv->dux_commands[LENBASE + 0] = 255;
+			devpriv->dux_commands[OPBASE + 0] = 0;
 			/* reset */
-			udfs->dux_commands[OUTBASE + 0] =
+			devpriv->dux_commands[OUTBASE + 0] =
 			    (0xFF - 0x02) & rngmask;
-			udfs->dux_commands[LOGBASE + 0] = 0;
+			devpriv->dux_commands[LOGBASE + 0] = 0;
 		}
 
 		/* commit data to the FIFO */
-		udfs->dux_commands[LENBASE + 1] = 1;
+		devpriv->dux_commands[LENBASE + 1] = 1;
 		/* data */
-		udfs->dux_commands[OPBASE + 1] = 0x02;
-		udfs->dux_commands[OUTBASE + 1] = 0xFF & rngmask;
-		udfs->dux_commands[LOGBASE + 1] = 0;
+		devpriv->dux_commands[OPBASE + 1] = 0x02;
+		devpriv->dux_commands[OUTBASE + 1] = 0xFF & rngmask;
+		devpriv->dux_commands[LOGBASE + 1] = 0;
 
 		/* we have 2 states with duration 1 */
 		steps = steps - 2;
 
 		/* do the first part of the delay */
-		udfs->dux_commands[LENBASE + 2] = steps / 2;
-		udfs->dux_commands[OPBASE + 2] = 0;
-		udfs->dux_commands[OUTBASE + 2] = 0xFE & rngmask;
-		udfs->dux_commands[LOGBASE + 2] = 0;
+		devpriv->dux_commands[LENBASE + 2] = steps / 2;
+		devpriv->dux_commands[OPBASE + 2] = 0;
+		devpriv->dux_commands[OUTBASE + 2] = 0xFE & rngmask;
+		devpriv->dux_commands[LOGBASE + 2] = 0;
 
 		/* and the second part */
-		udfs->dux_commands[LENBASE + 3] = steps - steps / 2;
-		udfs->dux_commands[OPBASE + 3] = 0;
-		udfs->dux_commands[OUTBASE + 3] = 0xFF & rngmask;
-		udfs->dux_commands[LOGBASE + 3] = 0;
+		devpriv->dux_commands[LENBASE + 3] = steps - steps / 2;
+		devpriv->dux_commands[OPBASE + 3] = 0;
+		devpriv->dux_commands[OUTBASE + 3] = 0xFF & rngmask;
+		devpriv->dux_commands[LOGBASE + 3] = 0;
 
 		/* branch back to state 1 */
-		udfs->dux_commands[LENBASE + 4] = 0x09;
+		devpriv->dux_commands[LENBASE + 4] = 0x09;
 		/* deceision state w/o data */
-		udfs->dux_commands[OPBASE + 4] = 0x01;
-		udfs->dux_commands[OUTBASE + 4] = 0xFF & rngmask;
+		devpriv->dux_commands[OPBASE + 4] = 0x01;
+		devpriv->dux_commands[OUTBASE + 4] = 0xFF & rngmask;
 		/* doesn't matter */
-		udfs->dux_commands[LOGBASE + 4] = 0xFF;
+		devpriv->dux_commands[LOGBASE + 4] = 0xFF;
 
 		break;
 
 	default:
 		dev_err(dev->class_dev, "unsupported combination of channels\n");
-		up(&udfs->sem);
+		up(&devpriv->sem);
 		return -EFAULT;
 	}
 
@@ -1107,36 +1107,36 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 	       dev->minor);
 #endif
 	/* 0 means that the AD commands are sent */
-	result = send_dux_commands(udfs, SENDADCOMMANDS);
+	result = send_dux_commands(devpriv, SENDADCOMMANDS);
 	if (result < 0) {
 		dev_err(dev->class_dev,
 			"adc command could not be submitted. Aborting...\n");
-		up(&udfs->sem);
+		up(&devpriv->sem);
 		return result;
 	}
 	if (cmd->stop_src == TRIG_COUNT) {
-		udfs->ai_sample_count = cmd->stop_arg * cmd->scan_end_arg;
-		if (udfs->ai_sample_count < 1) {
+		devpriv->ai_sample_count = cmd->stop_arg * cmd->scan_end_arg;
+		if (devpriv->ai_sample_count < 1) {
 			dev_err(dev->class_dev,
 				"(cmd->stop_arg)*(cmd->scan_end_arg)<1, aborting.\n");
-			up(&udfs->sem);
+			up(&devpriv->sem);
 			return -EFAULT;
 		}
-		udfs->ai_continous = 0;
+		devpriv->ai_continous = 0;
 	} else {
 		/* continous acquisition */
-		udfs->ai_continous = 1;
-		udfs->ai_sample_count = 0;
+		devpriv->ai_continous = 1;
+		devpriv->ai_sample_count = 0;
 	}
 
 	if ((cmd->start_src == TRIG_NOW) || (cmd->start_src == TRIG_EXT)) {
 		/* enable this acquisition operation */
-		udfs->ai_cmd_running = 1;
-		ret = usbduxfastsub_submit_InURBs(udfs);
+		devpriv->ai_cmd_running = 1;
+		ret = usbduxfastsub_submit_InURBs(devpriv);
 		if (ret < 0) {
-			udfs->ai_cmd_running = 0;
+			devpriv->ai_cmd_running = 0;
 			/* fixme: unlink here?? */
-			up(&udfs->sem);
+			up(&devpriv->sem);
 			return ret;
 		}
 		s->async->inttrig = NULL;
@@ -1148,7 +1148,7 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 		 */
 		s->async->inttrig = usbduxfast_ai_inttrig;
 	}
-	up(&udfs->sem);
+	up(&devpriv->sem);
 
 	return 0;
 }
@@ -1160,13 +1160,12 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 				   struct comedi_subdevice *s,
 				   struct comedi_insn *insn, unsigned int *data)
 {
+	struct usbduxfast_private *devpriv = dev->private;
 	int i, j, n, actual_length;
 	int chan, range, rngmask;
 	int err;
-	struct usbduxfastsub_s *udfs;
 
-	udfs = dev->private;
-	if (!udfs) {
+	if (!devpriv) {
 		dev_err(dev->class_dev, "%s: no usb dev.\n", __func__);
 		return -ENODEV;
 	}
@@ -1174,15 +1173,15 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 	printk(KERN_DEBUG "comedi%d: ai_insn_read, insn->n=%d, "
 	       "insn->subdev=%d\n", dev->minor, insn->n, insn->subdev);
 #endif
-	down(&udfs->sem);
-	if (!udfs->probed) {
-		up(&udfs->sem);
+	down(&devpriv->sem);
+	if (!devpriv->probed) {
+		up(&devpriv->sem);
 		return -ENODEV;
 	}
-	if (udfs->ai_cmd_running) {
+	if (devpriv->ai_cmd_running) {
 		dev_err(dev->class_dev,
 			"ai_insn_read not possible. Async Command is running.\n");
-		up(&udfs->sem);
+		up(&devpriv->sem);
 		return -EBUSY;
 	}
 	/* sample one channel */
@@ -1196,101 +1195,101 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 		rngmask = 0xff;
 
 	/* commit data to the FIFO */
-	udfs->dux_commands[LENBASE + 0] = 1;
+	devpriv->dux_commands[LENBASE + 0] = 1;
 	/* data */
-	udfs->dux_commands[OPBASE + 0] = 0x02;
-	udfs->dux_commands[OUTBASE + 0] = 0xFF & rngmask;
-	udfs->dux_commands[LOGBASE + 0] = 0;
+	devpriv->dux_commands[OPBASE + 0] = 0x02;
+	devpriv->dux_commands[OUTBASE + 0] = 0xFF & rngmask;
+	devpriv->dux_commands[LOGBASE + 0] = 0;
 
 	/* do the first part of the delay */
-	udfs->dux_commands[LENBASE + 1] = 12;
-	udfs->dux_commands[OPBASE + 1] = 0;
-	udfs->dux_commands[OUTBASE + 1] = 0xFE & rngmask;
-	udfs->dux_commands[LOGBASE + 1] = 0;
+	devpriv->dux_commands[LENBASE + 1] = 12;
+	devpriv->dux_commands[OPBASE + 1] = 0;
+	devpriv->dux_commands[OUTBASE + 1] = 0xFE & rngmask;
+	devpriv->dux_commands[LOGBASE + 1] = 0;
 
-	udfs->dux_commands[LENBASE + 2] = 1;
-	udfs->dux_commands[OPBASE + 2] = 0;
-	udfs->dux_commands[OUTBASE + 2] = 0xFE & rngmask;
-	udfs->dux_commands[LOGBASE + 2] = 0;
+	devpriv->dux_commands[LENBASE + 2] = 1;
+	devpriv->dux_commands[OPBASE + 2] = 0;
+	devpriv->dux_commands[OUTBASE + 2] = 0xFE & rngmask;
+	devpriv->dux_commands[LOGBASE + 2] = 0;
 
-	udfs->dux_commands[LENBASE + 3] = 1;
-	udfs->dux_commands[OPBASE + 3] = 0;
-	udfs->dux_commands[OUTBASE + 3] = 0xFE & rngmask;
-	udfs->dux_commands[LOGBASE + 3] = 0;
+	devpriv->dux_commands[LENBASE + 3] = 1;
+	devpriv->dux_commands[OPBASE + 3] = 0;
+	devpriv->dux_commands[OUTBASE + 3] = 0xFE & rngmask;
+	devpriv->dux_commands[LOGBASE + 3] = 0;
 
-	udfs->dux_commands[LENBASE + 4] = 1;
-	udfs->dux_commands[OPBASE + 4] = 0;
-	udfs->dux_commands[OUTBASE + 4] = 0xFE & rngmask;
-	udfs->dux_commands[LOGBASE + 4] = 0;
+	devpriv->dux_commands[LENBASE + 4] = 1;
+	devpriv->dux_commands[OPBASE + 4] = 0;
+	devpriv->dux_commands[OUTBASE + 4] = 0xFE & rngmask;
+	devpriv->dux_commands[LOGBASE + 4] = 0;
 
 	/* second part */
-	udfs->dux_commands[LENBASE + 5] = 12;
-	udfs->dux_commands[OPBASE + 5] = 0;
-	udfs->dux_commands[OUTBASE + 5] = 0xFF & rngmask;
-	udfs->dux_commands[LOGBASE + 5] = 0;
+	devpriv->dux_commands[LENBASE + 5] = 12;
+	devpriv->dux_commands[OPBASE + 5] = 0;
+	devpriv->dux_commands[OUTBASE + 5] = 0xFF & rngmask;
+	devpriv->dux_commands[LOGBASE + 5] = 0;
 
-	udfs->dux_commands[LENBASE + 6] = 1;
-	udfs->dux_commands[OPBASE + 6] = 0;
-	udfs->dux_commands[OUTBASE + 6] = 0xFF & rngmask;
-	udfs->dux_commands[LOGBASE + 0] = 0;
+	devpriv->dux_commands[LENBASE + 6] = 1;
+	devpriv->dux_commands[OPBASE + 6] = 0;
+	devpriv->dux_commands[OUTBASE + 6] = 0xFF & rngmask;
+	devpriv->dux_commands[LOGBASE + 0] = 0;
 
 #ifdef CONFIG_COMEDI_DEBUG
 	printk(KERN_DEBUG "comedi %d: sending commands to the usb device\n",
 	       dev->minor);
 #endif
 	/* 0 means that the AD commands are sent */
-	err = send_dux_commands(udfs, SENDADCOMMANDS);
+	err = send_dux_commands(devpriv, SENDADCOMMANDS);
 	if (err < 0) {
 		dev_err(dev->class_dev,
 			"adc command could not be submitted. Aborting...\n");
-		up(&udfs->sem);
+		up(&devpriv->sem);
 		return err;
 	}
 #ifdef CONFIG_COMEDI_DEBUG
 	printk(KERN_DEBUG "comedi%d: usbduxfast: submitting in-urb: "
-	       "0x%p,0x%p\n", udfs->comedidev->minor, udfs->urbIn->context,
-	       udfs->urbIn->dev);
+	       "0x%p,0x%p\n", devpriv->comedidev->minor, devpriv->urbIn->context,
+	       devpriv->urbIn->dev);
 #endif
 	for (i = 0; i < PACKETS_TO_IGNORE; i++) {
-		err = usb_bulk_msg(udfs->usb,
-				   usb_rcvbulkpipe(udfs->usb, BULKINEP),
-				   udfs->transfer_buffer, SIZEINBUF,
+		err = usb_bulk_msg(devpriv->usb,
+				   usb_rcvbulkpipe(devpriv->usb, BULKINEP),
+				   devpriv->transfer_buffer, SIZEINBUF,
 				   &actual_length, 10000);
 		if (err < 0) {
 			dev_err(dev->class_dev, "insn timeout. No data.\n");
-			up(&udfs->sem);
+			up(&devpriv->sem);
 			return err;
 		}
 	}
 	/* data points */
 	for (i = 0; i < insn->n;) {
-		err = usb_bulk_msg(udfs->usb,
-				   usb_rcvbulkpipe(udfs->usb, BULKINEP),
-				   udfs->transfer_buffer, SIZEINBUF,
+		err = usb_bulk_msg(devpriv->usb,
+				   usb_rcvbulkpipe(devpriv->usb, BULKINEP),
+				   devpriv->transfer_buffer, SIZEINBUF,
 				   &actual_length, 10000);
 		if (err < 0) {
 			dev_err(dev->class_dev, "insn data error: %d\n", err);
-			up(&udfs->sem);
+			up(&devpriv->sem);
 			return err;
 		}
 		n = actual_length / sizeof(uint16_t);
 		if ((n % 16) != 0) {
 			dev_err(dev->class_dev, "insn data packet corrupted.\n");
-			up(&udfs->sem);
+			up(&devpriv->sem);
 			return -EINVAL;
 		}
 		for (j = chan; (j < n) && (i < insn->n); j = j + 16) {
-			data[i] = ((uint16_t *) (udfs->transfer_buffer))[j];
+			data[i] = ((uint16_t *) (devpriv->transfer_buffer))[j];
 			i++;
 		}
 	}
-	up(&udfs->sem);
+	up(&devpriv->sem);
 	return i;
 }
 
 #define FIRMWARE_MAX_LEN 0x2000
 
-static int firmwareUpload(struct usbduxfastsub_s *usbduxfastsub,
+static int firmwareUpload(struct usbduxfast_private *devpriv,
 			  const u8 *firmwareBinary, int sizeFirmware)
 {
 	int ret;
@@ -1300,7 +1299,7 @@ static int firmwareUpload(struct usbduxfastsub_s *usbduxfastsub,
 		return 0;
 
 	if (sizeFirmware > FIRMWARE_MAX_LEN) {
-		dev_err(&usbduxfastsub->intf->dev,
+		dev_err(&devpriv->intf->dev,
 			"comedi_: usbduxfast firmware binary it too large for FX2.\n");
 		return -ENOMEM;
 	}
@@ -1308,29 +1307,29 @@ static int firmwareUpload(struct usbduxfastsub_s *usbduxfastsub,
 	/* we generate a local buffer for the firmware */
 	fwBuf = kmemdup(firmwareBinary, sizeFirmware, GFP_KERNEL);
 	if (!fwBuf) {
-		dev_err(&usbduxfastsub->intf->dev,
+		dev_err(&devpriv->intf->dev,
 			"comedi_: mem alloc for firmware failed\n");
 		return -ENOMEM;
 	}
 
-	ret = usbduxfastsub_stop(usbduxfastsub);
+	ret = usbduxfastsub_stop(devpriv);
 	if (ret < 0) {
-		dev_err(&usbduxfastsub->intf->dev,
+		dev_err(&devpriv->intf->dev,
 			"comedi_: can not stop firmware\n");
 		kfree(fwBuf);
 		return ret;
 	}
 
-	ret = usbduxfastsub_upload(usbduxfastsub, fwBuf, 0, sizeFirmware);
+	ret = usbduxfastsub_upload(devpriv, fwBuf, 0, sizeFirmware);
 	if (ret < 0) {
-		dev_err(&usbduxfastsub->intf->dev,
+		dev_err(&devpriv->intf->dev,
 			"comedi_: firmware upload failed\n");
 		kfree(fwBuf);
 		return ret;
 	}
-	ret = usbduxfastsub_start(usbduxfastsub);
+	ret = usbduxfastsub_start(devpriv);
 	if (ret < 0) {
-		dev_err(&usbduxfastsub->intf->dev,
+		dev_err(&devpriv->intf->dev,
 			"comedi_: can not start firmware\n");
 		kfree(fwBuf);
 		return ret;
@@ -1339,58 +1338,58 @@ static int firmwareUpload(struct usbduxfastsub_s *usbduxfastsub,
 	return 0;
 }
 
-static void tidy_up(struct usbduxfastsub_s *udfs)
+static void tidy_up(struct usbduxfast_private *devpriv)
 {
 #ifdef CONFIG_COMEDI_DEBUG
 	printk(KERN_DEBUG "comedi_: usbduxfast: tiding up\n");
 #endif
 
-	if (!udfs)
+	if (!devpriv)
 		return;
 
 	/* shows the usb subsystem that the driver is down */
-	if (udfs->intf)
-		usb_set_intfdata(udfs->intf, NULL);
+	if (devpriv->intf)
+		usb_set_intfdata(devpriv->intf, NULL);
 
-	udfs->probed = 0;
+	devpriv->probed = 0;
 
-	if (udfs->urbIn) {
+	if (devpriv->urbIn) {
 		/* waits until a running transfer is over */
-		usb_kill_urb(udfs->urbIn);
+		usb_kill_urb(devpriv->urbIn);
 
-		kfree(udfs->transfer_buffer);
-		udfs->transfer_buffer = NULL;
+		kfree(devpriv->transfer_buffer);
+		devpriv->transfer_buffer = NULL;
 
-		usb_free_urb(udfs->urbIn);
-		udfs->urbIn = NULL;
+		usb_free_urb(devpriv->urbIn);
+		devpriv->urbIn = NULL;
 	}
 
-	kfree(udfs->insnBuffer);
-	udfs->insnBuffer = NULL;
+	kfree(devpriv->insnBuffer);
+	devpriv->insnBuffer = NULL;
 
-	kfree(udfs->dux_commands);
-	udfs->dux_commands = NULL;
+	kfree(devpriv->dux_commands);
+	devpriv->dux_commands = NULL;
 
-	udfs->ai_cmd_running = 0;
+	devpriv->ai_cmd_running = 0;
 }
 
 static int usbduxfast_attach_common(struct comedi_device *dev,
-				    struct usbduxfastsub_s *udfs)
+				    struct usbduxfast_private *devpriv)
 {
 	int ret;
 	struct comedi_subdevice *s;
 
-	down(&udfs->sem);
+	down(&devpriv->sem);
 	/* pointer back to the corresponding comedi device */
-	udfs->comedidev = dev;
+	devpriv->comedidev = dev;
 
 	ret = comedi_alloc_subdevices(dev, 1);
 	if (ret) {
-		up(&udfs->sem);
+		up(&devpriv->sem);
 		return ret;
 	}
 	/* private structure is also simply the usb-structure */
-	dev->private = udfs;
+	dev->private = devpriv;
 	/* the first subdevice is the A/D converter */
 	s = &dev->subdevices[SUBDEV_AD];
 	/*
@@ -1418,8 +1417,8 @@ static int usbduxfast_attach_common(struct comedi_device *dev,
 	/* range table to convert to physical units */
 	s->range_table = &range_usbduxfast_ai_range;
 	/* finally decide that it's attached */
-	udfs->attached = 1;
-	up(&udfs->sem);
+	devpriv->attached = 1;
+	up(&devpriv->sem);
 	dev_info(dev->class_dev, "successfully attached to usbduxfast.\n");
 	return 0;
 }
@@ -1428,38 +1427,38 @@ static int usbduxfast_auto_attach(struct comedi_device *dev,
 				  unsigned long context_unused)
 {
 	struct usb_interface *intf = comedi_to_usb_interface(dev);
+	struct usbduxfast_private *devpriv;
 	int ret;
-	struct usbduxfastsub_s *udfs;
 
 	dev->private = NULL;
 	down(&start_stop_sem);
-	udfs = usb_get_intfdata(intf);
-	if (!udfs || !udfs->probed) {
+	devpriv = usb_get_intfdata(intf);
+	if (!devpriv || !devpriv->probed) {
 		dev_err(dev->class_dev,
 			"usbduxfast: error: auto_attach failed, not connected\n");
 		ret = -ENODEV;
-	} else if (udfs->attached) {
+	} else if (devpriv->attached) {
 		dev_err(dev->class_dev,
 		       "usbduxfast: error: auto_attach failed, already attached\n");
 		ret = -ENODEV;
 	} else
-		ret = usbduxfast_attach_common(dev, udfs);
+		ret = usbduxfast_attach_common(dev, devpriv);
 	up(&start_stop_sem);
 	return ret;
 }
 
 static void usbduxfast_detach(struct comedi_device *dev)
 {
-	struct usbduxfastsub_s *usb = dev->private;
+	struct usbduxfast_private *devpriv = dev->private;
 
-	if (usb) {
-		down(&usb->sem);
+	if (devpriv) {
+		down(&devpriv->sem);
 		down(&start_stop_sem);
 		dev->private = NULL;
-		usb->attached = 0;
-		usb->comedidev = NULL;
+		devpriv->attached = 0;
+		devpriv->comedidev = NULL;
 		up(&start_stop_sem);
-		up(&usb->sem);
+		up(&devpriv->sem);
 	}
 }
 
@@ -1473,7 +1472,7 @@ static struct comedi_driver usbduxfast_driver = {
 static int usbduxfast_request_firmware(struct usb_interface *intf)
 {
 	struct usb_device *usb = interface_to_usbdev(intf);
-	struct usbduxfastsub_s *devpriv = usb_get_intfdata(intf);
+	struct usbduxfast_private *devpriv = usb_get_intfdata(intf);
 	const struct firmware *fw;
 	int ret;
 
@@ -1491,7 +1490,7 @@ static int usbduxfast_usb_probe(struct usb_interface *intf,
 				const struct usb_device_id *id)
 {
 	struct usb_device *usb = interface_to_usbdev(intf);
-	struct usbduxfastsub_s *devpriv = NULL;
+	struct usbduxfast_private *devpriv = NULL;
 	int i;
 	int ret;
 
@@ -1580,14 +1579,14 @@ static int usbduxfast_usb_probe(struct usb_interface *intf,
 
 static void usbduxfast_usb_disconnect(struct usb_interface *intf)
 {
-	struct usbduxfastsub_s *udfs = usb_get_intfdata(intf);
+	struct usbduxfast_private *devpriv = usb_get_intfdata(intf);
 	struct usb_device *usb = interface_to_usbdev(intf);
 
-	if (!udfs) {
+	if (!devpriv) {
 		dev_err(&intf->dev, "disconnect called with null pointer.\n");
 		return;
 	}
-	if (udfs->usb != usb) {
+	if (devpriv->usb != usb) {
 		dev_err(&intf->dev, "BUG! called with wrong ptr!!!\n");
 		return;
 	}
@@ -1595,9 +1594,9 @@ static void usbduxfast_usb_disconnect(struct usb_interface *intf)
 	comedi_usb_auto_unconfig(intf);
 
 	down(&start_stop_sem);
-	down(&udfs->sem);
-	tidy_up(udfs);
-	up(&udfs->sem);
+	down(&devpriv->sem);
+	tidy_up(devpriv);
+	up(&devpriv->sem);
 	up(&start_stop_sem);
 
 #ifdef CONFIG_COMEDI_DEBUG
