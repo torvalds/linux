@@ -25,8 +25,8 @@
 #include <clocksource/arm_arch_timer.h>
 #include <asm/arch_timer.h>
 
-#include <asm/kvm_vgic.h>
-#include <asm/kvm_arch_timer.h>
+#include <kvm/arm_vgic.h>
+#include <kvm/arm_arch_timer.h>
 
 static struct timecounter *timecounter;
 static struct workqueue_struct *wqueue;
