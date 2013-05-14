@@ -2080,7 +2080,7 @@ static struct pinmux_cfg_reg pinmux_config_regs[] = {
 			     1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
 			     1, 1, 1, 1, 3, 2, 3, 3, 3, 3) {
 		/* IP2_31 [1] */
-		FN_MLB_CLK,	FN_IRQ3_A,
+		FN_MLB_CLK,	FN_IRQ1_A,
 		/* IP2_30 [1] */
 		FN_RD_WR_B,	FN_IRQ0,
 		/* IP2_29 [1] */
