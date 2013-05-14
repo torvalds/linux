@@ -607,18 +607,21 @@ static int dt9812_analog_out(struct comedi_device *dev, int channel, u16 value)
 	return ret;
 }
 
-static int dt9812_di_rinsn(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_insn *insn,
-			   unsigned int *data)
+static int dt9812_di_insn_bits(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
-	unsigned int channel = CR_CHAN(insn->chanspec);
-	int n;
 	u8 bits = 0;
+	int ret;
 
-	dt9812_digital_in(dev, &bits);
-	for (n = 0; n < insn->n; n++)
-		data[n] = ((1 << channel) & bits) != 0;
-	return n;
+	ret = dt9812_digital_in(dev, &bits);
+	if (ret)
+		return ret;
+
+	data[1] = bits;
+
+	return insn->n;
 }
 
 static int dt9812_do_winsn(struct comedi_device *dev,
@@ -837,7 +840,7 @@ static int dt9812_auto_attach(struct comedi_device *dev,
 	s->n_chan	= 8;
 	s->maxdata	= 1;
 	s->range_table	= &range_digital;
-	s->insn_read	= dt9812_di_rinsn;
+	s->insn_bits	= dt9812_di_insn_bits;
 
 	/* Digital Output subdevice */
 	s = &dev->subdevices[1];
