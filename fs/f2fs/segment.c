@@ -126,17 +126,16 @@ void locate_dirty_segment(struct f2fs_sb_info *sbi, unsigned int segno)
 static void set_prefree_as_free_segments(struct f2fs_sb_info *sbi)
 {
 	struct dirty_seglist_info *dirty_i = DIRTY_I(sbi);
-	unsigned int segno, offset = 0;
+	unsigned int segno = -1;
 	unsigned int total_segs = TOTAL_SEGS(sbi);
 
 	mutex_lock(&dirty_i->seglist_lock);
 	while (1) {
 		segno = find_next_bit(dirty_i->dirty_segmap[PRE], total_segs,
-				offset);
+				segno + 1);
 		if (segno >= total_segs)
 			break;
 		__set_test_and_free(sbi, segno);
-		offset = segno + 1;
 	}
 	mutex_unlock(&dirty_i->seglist_lock);
 }
@@ -144,17 +143,16 @@ static void set_prefree_as_free_segments(struct f2fs_sb_info *sbi)
 void clear_prefree_segments(struct f2fs_sb_info *sbi)
 {
 	struct dirty_seglist_info *dirty_i = DIRTY_I(sbi);
-	unsigned int segno, offset = 0;
+	unsigned int segno = -1;
 	unsigned int total_segs = TOTAL_SEGS(sbi);
 
 	mutex_lock(&dirty_i->seglist_lock);
 	while (1) {
 		segno = find_next_bit(dirty_i->dirty_segmap[PRE], total_segs,
-				offset);
+				segno + 1);
 		if (segno >= total_segs)
 			break;
 
-		offset = segno + 1;
 		if (test_and_clear_bit(segno, dirty_i->dirty_segmap[PRE]))
 			dirty_i->nr_dirty[PRE]--;
 
@@ -364,11 +362,11 @@ next:
 static int is_next_segment_free(struct f2fs_sb_info *sbi, int type)
 {
 	struct curseg_info *curseg = CURSEG_I(sbi, type);
-	unsigned int segno = curseg->segno;
+	unsigned int segno = curseg->segno + 1;
 	struct free_segmap_info *free_i = FREE_I(sbi);
 
-	if (segno + 1 < TOTAL_SEGS(sbi) && (segno + 1) % sbi->segs_per_sec)
-		return !test_bit(segno + 1, free_i->free_segmap);
+	if (segno < TOTAL_SEGS(sbi) && segno % sbi->segs_per_sec)
+		return !test_bit(segno, free_i->free_segmap);
 	return 0;
 }
 
@@ -495,7 +493,7 @@ static void new_curseg(struct f2fs_sb_info *sbi, int type, bool new_sec)
 	int dir = ALLOC_LEFT;
 
 	write_sum_page(sbi, curseg->sum_blk,
-				GET_SUM_BLOCK(sbi, curseg->segno));
+				GET_SUM_BLOCK(sbi, segno));
 	if (type == CURSEG_WARM_DATA || type == CURSEG_COLD_DATA)
 		dir = ALLOC_RIGHT;
 
