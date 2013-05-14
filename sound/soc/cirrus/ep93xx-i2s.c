@@ -63,7 +63,7 @@ struct ep93xx_i2s_info {
 	void __iomem			*regs;
 };
 
-struct ep93xx_dma_data ep93xx_i2s_dma_data[] = {
+static struct ep93xx_dma_data ep93xx_i2s_dma_data[] = {
 	[SNDRV_PCM_STREAM_PLAYBACK] = {
 		.name		= "i2s-pcm-out",
 		.port		= EP93XX_DMA_I2S1,
