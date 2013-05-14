@@ -164,7 +164,24 @@ static ssize_t show_crash_notes_size(struct device *dev,
 	return rc;
 }
 static DEVICE_ATTR(crash_notes_size, 0400, show_crash_notes_size, NULL);
+
+static struct attribute *crash_note_cpu_attrs[] = {
+	&dev_attr_crash_notes.attr,
+	&dev_attr_crash_notes_size.attr,
+	NULL
+};
+
+static struct attribute_group crash_note_cpu_attr_group = {
+	.attrs = crash_note_cpu_attrs,
+};
 #endif
+
+static const struct attribute_group *common_cpu_attr_groups[] = {
+#ifdef CONFIG_KEXEC
+	&crash_note_cpu_attr_group,
+#endif
+	NULL
+};
 
 /*
  * Print cpu online, possible, present, and system maps
@@ -280,6 +297,7 @@ int __cpuinit register_cpu(struct cpu *cpu, int num)
 #ifdef CONFIG_ARCH_HAS_CPU_AUTOPROBE
 	cpu->dev.bus->uevent = arch_cpu_uevent;
 #endif
+	cpu->dev.groups = common_cpu_attr_groups;
 	error = device_register(&cpu->dev);
 	if (!error && cpu->hotpluggable)
 		register_cpu_control(cpu);
@@ -288,13 +306,6 @@ int __cpuinit register_cpu(struct cpu *cpu, int num)
 	if (!error)
 		register_cpu_under_node(num, cpu_to_node(num));
 
-#ifdef CONFIG_KEXEC
-	if (!error)
-		error = device_create_file(&cpu->dev, &dev_attr_crash_notes);
-	if (!error)
-		error = device_create_file(&cpu->dev,
-					   &dev_attr_crash_notes_size);
-#endif
 	return error;
 }
 
