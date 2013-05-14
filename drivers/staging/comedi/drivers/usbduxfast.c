@@ -150,7 +150,6 @@ static const struct comedi_lrange range_usbduxfast_ai_range = {
 struct usbduxfast_private {
 	struct urb *urb;	/* BULK-transfer handling: urb */
 	int8_t *transfer_buffer;
-	int16_t *insnBuffer;	/* input buffer for single insn */
 	short int ai_cmd_running;	/* asynchronous command is running */
 	short int ai_continous;	/* continous acquisition */
 	long int ai_sample_count;	/* number of samples to acquire */
@@ -1285,10 +1284,6 @@ static int usbduxfast_auto_attach(struct comedi_device *dev,
 	if (!devpriv->dux_commands)
 		return -ENOMEM;
 
-	devpriv->insnBuffer = kmalloc(SIZEINSNBUF, GFP_KERNEL);
-	if (!devpriv->insnBuffer)
-		return -ENOMEM;
-
 	ret = usb_set_interface(usb,
 				intf->altsetting->desc.bInterfaceNumber, 1);
 	if (ret < 0) {
@@ -1343,9 +1338,6 @@ static void usbduxfast_detach(struct comedi_device *dev)
 		usb_free_urb(devpriv->urb);
 		devpriv->urb = NULL;
 	}
-
-	kfree(devpriv->insnBuffer);
-	devpriv->insnBuffer = NULL;
 
 	kfree(devpriv->dux_commands);
 	devpriv->dux_commands = NULL;
