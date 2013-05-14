@@ -25,8 +25,6 @@ static struct blkcg_policy blkcg_policy_throtl;
 
 /* A workqueue to queue throttle related work */
 static struct workqueue_struct *kthrotld_workqueue;
-static void throtl_schedule_delayed_work(struct throtl_data *td,
-				unsigned long delay);
 
 struct throtl_rb_root {
 	struct rb_root rb;
@@ -396,6 +394,19 @@ static void throtl_dequeue_tg(struct throtl_data *td, struct throtl_grp *tg)
 {
 	if (throtl_tg_on_rr(tg))
 		__throtl_dequeue_tg(td, tg);
+}
+
+/* Call with queue lock held */
+static void throtl_schedule_delayed_work(struct throtl_data *td,
+					 unsigned long delay)
+{
+	struct delayed_work *dwork = &td->dispatch_work;
+
+	if (total_nr_queued(td)) {
+		mod_delayed_work(kthrotld_workqueue, dwork, delay);
+		throtl_log(td, "schedule work. delay=%lu jiffies=%lu",
+			   delay, jiffies);
+	}
 }
 
 static void throtl_schedule_next_dispatch(struct throtl_data *td)
@@ -860,20 +871,6 @@ out:
 		while((bio = bio_list_pop(&bio_list_on_stack)))
 			generic_make_request(bio);
 		blk_finish_plug(&plug);
-	}
-}
-
-/* Call with queue lock held */
-static void
-throtl_schedule_delayed_work(struct throtl_data *td, unsigned long delay)
-{
-
-	struct delayed_work *dwork = &td->dispatch_work;
-
-	if (total_nr_queued(td)) {
-		mod_delayed_work(kthrotld_workqueue, dwork, delay);
-		throtl_log(td, "schedule work. delay=%lu jiffies=%lu",
-				delay, jiffies);
 	}
 }
 
