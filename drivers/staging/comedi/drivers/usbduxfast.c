@@ -185,45 +185,19 @@ static int usbduxfast_send_cmd(struct comedi_device *dev, int cmd_type)
 	return ret;
 }
 
-/*
- * Stops the data acquision.
- * It should be safe to call this function from any context.
- */
-static int usbduxfast_unlink_urbs(struct comedi_device *dev)
+static int usbduxfast_ai_stop(struct comedi_device *dev, int do_unlink)
 {
 	struct usbduxfast_private *devpriv = dev->private;
 
-	if (devpriv && devpriv->urb) {
-		devpriv->ai_cmd_running = 0;
-		/* waits until a running transfer is over */
-		usb_kill_urb(devpriv->urb);
-	}
-	return 0;
-}
-
-/*
- * This will stop a running acquisition operation.
- * Is called from within this driver from both the
- * interrupt context and from comedi.
- */
-static int usbduxfast_ai_stop(struct comedi_device *dev,
-			      int do_unlink)
-{
-	struct usbduxfast_private *devpriv = dev->private;
-	int ret = 0;
-
-	if (!devpriv) {
-		pr_err("%s: devpriv=NULL!\n", __func__);
-		return -EFAULT;
-	}
-
+	/* stop aquistion */
 	devpriv->ai_cmd_running = 0;
 
-	if (do_unlink)
-		/* stop aquistion */
-		ret = usbduxfast_unlink_urbs(dev);
+	if (do_unlink && devpriv->urb) {
+		/* kill the running transfer */
+		usb_kill_urb(devpriv->urb);
+	}
 
-	return ret;
+	return 0;
 }
 
 /*
