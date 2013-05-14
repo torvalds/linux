@@ -151,7 +151,7 @@ mcpm_setup_leave:
 
 	mov	r0, #INBOUND_NOT_COMING_UP
 	strb	r0, [r8, #MCPM_SYNC_CLUSTER_INBOUND]
-	dsb
+	dsb	st
 	sev
 
 	mov	r0, r11
