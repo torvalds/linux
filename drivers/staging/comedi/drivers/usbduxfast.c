@@ -149,7 +149,6 @@ static const struct comedi_lrange range_usbduxfast_ai_range = {
  */
 struct usbduxfast_private {
 	int attached;		/* is attached? */
-	int probed;		/* is it associated with a subdevice? */
 	struct usb_device *usb;	/* pointer to the usb-device */
 	struct urb *urbIn;	/* BULK-transfer handling: urb */
 	int8_t *transfer_buffer;
@@ -248,10 +247,6 @@ static int usbduxfast_ai_cancel(struct comedi_device *dev,
 		return -EFAULT;
 	}
 	down(&devpriv->sem);
-	if (!devpriv->probed) {
-		up(&devpriv->sem);
-		return -ENODEV;
-	}
 	/* unlink */
 	ret = usbduxfast_ai_stop(devpriv, 1);
 	up(&devpriv->sem);
@@ -476,13 +471,9 @@ static int usbduxfast_ai_cmdtest(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_cmd *cmd)
 {
-	struct usbduxfast_private *devpriv = dev->private;
 	int err = 0;
 	long int steps, tmp;
 	int minSamplPer;
-
-	if (!devpriv->probed)
-		return -ENODEV;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -580,10 +571,6 @@ static int usbduxfast_ai_inttrig(struct comedi_device *dev,
 		return -EFAULT;
 
 	down(&devpriv->sem);
-	if (!devpriv->probed) {
-		up(&devpriv->sem);
-		return -ENODEV;
-	}
 
 	if (trignum != 0) {
 		dev_err(dev->class_dev, "%s: invalid trignum\n", __func__);
@@ -632,10 +619,6 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 		return -EFAULT;
 
 	down(&devpriv->sem);
-	if (!devpriv->probed) {
-		up(&devpriv->sem);
-		return -ENODEV;
-	}
 	if (devpriv->ai_cmd_running) {
 		dev_err(dev->class_dev,
 			"ai_cmd not possible. Another ai_cmd is running.\n");
@@ -1083,10 +1066,6 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 	}
 
 	down(&devpriv->sem);
-	if (!devpriv->probed) {
-		up(&devpriv->sem);
-		return -ENODEV;
-	}
 	if (devpriv->ai_cmd_running) {
 		dev_err(dev->class_dev,
 			"ai_insn_read not possible. Async Command is running.\n");
@@ -1342,8 +1321,6 @@ static int usbduxfast_auto_attach(struct comedi_device *dev,
 	if (!devpriv->transfer_buffer)
 		return -ENOMEM;
 
-	devpriv->probed = 1;
-
 	/*
 	 * Request, and upload, the firmware so we can
 	 * complete the comedi_driver (*auto_attach).
@@ -1371,8 +1348,6 @@ static void usbduxfast_detach(struct comedi_device *dev)
 
 	if (devpriv->intf)
 		usb_set_intfdata(devpriv->intf, NULL);
-
-	devpriv->probed = 0;
 
 	if (devpriv->urbIn) {
 		/* waits until a running transfer is over */
