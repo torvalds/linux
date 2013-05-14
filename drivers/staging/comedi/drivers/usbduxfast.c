@@ -354,7 +354,7 @@ static int usbduxfast_ai_cmdtest(struct comedi_device *dev,
 {
 	int err = 0;
 	long int steps, tmp;
-	int minSamplPer;
+	int min_sample_period;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -396,14 +396,14 @@ static int usbduxfast_ai_cmdtest(struct comedi_device *dev,
 	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
 
 	if (cmd->chanlist_len == 1)
-		minSamplPer = 1;
+		min_sample_period = 1;
 	else
-		minSamplPer = MIN_SAMPLING_PERIOD;
+		min_sample_period = MIN_SAMPLING_PERIOD;
 
 	if (cmd->convert_src == TRIG_TIMER) {
 		steps = cmd->convert_arg * 30;
-		if (steps < (minSamplPer * 1000))
-			steps = minSamplPer * 1000;
+		if (steps < (min_sample_period * 1000))
+			steps = min_sample_period * 1000;
 
 		if (steps > (MAX_SAMPLING_PERIOD * 1000))
 			steps = MAX_SAMPLING_PERIOD * 1000;
