@@ -152,7 +152,6 @@ struct usbduxfast_private {
 	struct urb *urbIn;	/* BULK-transfer handling: urb */
 	int8_t *transfer_buffer;
 	int16_t *insnBuffer;	/* input buffer for single insn */
-	struct usb_interface *intf;	/* interface structure */
 	short int ai_cmd_running;	/* asynchronous command is running */
 	short int ai_continous;	/* continous acquisition */
 	long int ai_sample_count;	/* number of samples to acquire */
@@ -1239,8 +1238,7 @@ static int usbduxfast_attach_common(struct comedi_device *dev)
 
 static int usbduxfast_request_firmware(struct comedi_device *dev)
 {
-	struct usbduxfast_private *devpriv = dev->private;
-	struct usb_interface *intf = devpriv->intf;
+	struct usb_interface *intf = comedi_to_usb_interface(dev);
 	struct usb_device *usb = interface_to_usbdev(intf);
 	const struct firmware *fw;
 	int ret;
@@ -1276,7 +1274,6 @@ static int usbduxfast_auto_attach(struct comedi_device *dev,
 
 	sema_init(&devpriv->sem, 1);
 	devpriv->usb = usb;
-	devpriv->intf = intf;
 	usb_set_intfdata(intf, devpriv);
 
 	devpriv->dux_commands = kmalloc(SIZEOFDUXBUFFER, GFP_KERNEL);
@@ -1321,6 +1318,7 @@ static int usbduxfast_auto_attach(struct comedi_device *dev,
 
 static void usbduxfast_detach(struct comedi_device *dev)
 {
+	struct usb_interface *intf = comedi_to_usb_interface(dev);
 	struct usbduxfast_private *devpriv = dev->private;
 
 	if (!devpriv)
@@ -1328,8 +1326,7 @@ static void usbduxfast_detach(struct comedi_device *dev)
 
 	down(&devpriv->sem);
 
-	if (devpriv->intf)
-		usb_set_intfdata(devpriv->intf, NULL);
+	usb_set_intfdata(intf, NULL);
 
 	if (devpriv->urbIn) {
 		/* waits until a running transfer is over */
