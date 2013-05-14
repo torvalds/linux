@@ -137,7 +137,7 @@ do { if (rt_global_debug_component & component) \
 #ifdef RTL819x_DEBUG
 #define assert(expr) \
 	if (!(expr)) {                                  \
-		printk( "Assertion failed! %s,%s,%s,line=%d\n", \
+		printk("Assertion failed! %s,%s,%s,line=%d\n", \
 		#expr,__FILE__,__FUNCTION__,__LINE__);          \
 	}
 //wb added to debug out data buf
@@ -1239,7 +1239,7 @@ void rtl8192_set_rxconf(struct net_device *dev);
 extern void rtl819xusb_beacon_tx(struct net_device *dev,u16  tx_rate);
 
 void EnableHWSecurityConfig8192(struct net_device *dev);
-void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType, u8 *MacAddr, u8 DefaultKey, u32 *KeyContent );
+void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType, u8 *MacAddr, u8 DefaultKey, u32 *KeyContent);
 
 
 #endif
