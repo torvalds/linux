@@ -78,7 +78,9 @@ static void pnv_show_cpuinfo(struct seq_file *m)
 	if (root)
 		model = of_get_property(root, "model", NULL);
 	seq_printf(m, "machine\t\t: PowerNV %s\n", model);
-	if (firmware_has_feature(FW_FEATURE_OPALv2))
+	if (firmware_has_feature(FW_FEATURE_OPALv3))
+		seq_printf(m, "firmware\t: OPAL v3\n");
+	else if (firmware_has_feature(FW_FEATURE_OPALv2))
 		seq_printf(m, "firmware\t: OPAL v2\n");
 	else if (firmware_has_feature(FW_FEATURE_OPAL))
 		seq_printf(m, "firmware\t: OPAL v1\n");
