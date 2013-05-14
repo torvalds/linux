@@ -446,10 +446,14 @@ static int dt9812_digital_out_shadow(struct comedi_device *dev, u8 *bits)
 	return ret;
 }
 
-static void dt9812_configure_mux(struct usb_dt9812 *dev,
+static void dt9812_configure_mux(struct comedi_device *dev,
 				 struct dt9812_rmw_byte *rmw, int channel)
 {
-	if (dev->device == DT9812_DEVID_DT9812_10) {
+	struct dt9812_private *devpriv = dev->private;
+	struct slot_dt9812 *slot = devpriv->slot;
+	struct usb_dt9812 *usb = slot->usb;
+
+	if (usb->device == DT9812_DEVID_DT9812_10) {
 		/* In the DT9812/10V MUX is selected by P1.5-7 */
 		rmw->address = F020_SFR_P1;
 		rmw->and_mask = 0xe0;
@@ -536,7 +540,7 @@ static int dt9812_analog_in(struct comedi_device *dev,
 	dt9812_configure_gain(dev, &rmw[0], gain);
 
 	/* 2 set the MUX to select the channel */
-	dt9812_configure_mux(slot->usb, &rmw[1], channel);
+	dt9812_configure_mux(dev, &rmw[1], channel);
 
 	/* 3 start conversion */
 	rmw[2].address = F020_SFR_ADC0CN;
