@@ -151,15 +151,64 @@ static inline struct throtl_grp *td_root_tg(struct throtl_data *td)
 	return blkg_to_tg(td->queue->root_blkg);
 }
 
-#define throtl_log_tg(tg, fmt, args...)	do {				\
-	char __pbuf[128];						\
-									\
-	blkg_path(tg_to_blkg(tg), __pbuf, sizeof(__pbuf));		\
-	blk_add_trace_msg((tg)->td->queue, "throtl %s " fmt, __pbuf, ##args); \
-} while (0)
+/**
+ * sq_to_tg - return the throl_grp the specified service queue belongs to
+ * @sq: the throtl_service_queue of interest
+ *
+ * Return the throtl_grp @sq belongs to.  If @sq is the top-level one
+ * embedded in throtl_data, %NULL is returned.
+ */
+static struct throtl_grp *sq_to_tg(struct throtl_service_queue *sq)
+{
+	if (sq && sq->parent_sq)
+		return container_of(sq, struct throtl_grp, service_queue);
+	else
+		return NULL;
+}
 
-#define throtl_log(td, fmt, args...)	\
-	blk_add_trace_msg((td)->queue, "throtl " fmt, ##args)
+/**
+ * sq_to_td - return throtl_data the specified service queue belongs to
+ * @sq: the throtl_service_queue of interest
+ *
+ * A service_queue can be embeded in either a throtl_grp or throtl_data.
+ * Determine the associated throtl_data accordingly and return it.
+ */
+static struct throtl_data *sq_to_td(struct throtl_service_queue *sq)
+{
+	struct throtl_grp *tg = sq_to_tg(sq);
+
+	if (tg)
+		return tg->td;
+	else
+		return container_of(sq, struct throtl_data, service_queue);
+}
+
+/**
+ * throtl_log - log debug message via blktrace
+ * @sq: the service_queue being reported
+ * @fmt: printf format string
+ * @args: printf args
+ *
+ * The messages are prefixed with "throtl BLKG_NAME" if @sq belongs to a
+ * throtl_grp; otherwise, just "throtl".
+ *
+ * TODO: this should be made a function and name formatting should happen
+ * after testing whether blktrace is enabled.
+ */
+#define throtl_log(sq, fmt, args...)	do {				\
+	struct throtl_grp *__tg = sq_to_tg((sq));			\
+	struct throtl_data *__td = sq_to_td((sq));			\
+									\
+	(void)__td;							\
+	if ((__tg)) {							\
+		char __pbuf[128];					\
+									\
+		blkg_path(tg_to_blkg(__tg), __pbuf, sizeof(__pbuf));	\
+		blk_add_trace_msg(__td->queue, "throtl %s " fmt, __pbuf, ##args); \
+	} else {							\
+		blk_add_trace_msg(__td->queue, "throtl " fmt, ##args);	\
+	}								\
+} while (0)
 
 /*
  * Worker for allocating per cpu stat for tgs. This is scheduled on the
@@ -402,9 +451,10 @@ static void throtl_schedule_delayed_work(struct throtl_data *td,
 					 unsigned long delay)
 {
 	struct delayed_work *dwork = &td->dispatch_work;
+	struct throtl_service_queue *sq = &td->service_queue;
 
 	mod_delayed_work(kthrotld_workqueue, dwork, delay);
-	throtl_log(td, "schedule work. delay=%lu jiffies=%lu", delay, jiffies);
+	throtl_log(sq, "schedule work. delay=%lu jiffies=%lu", delay, jiffies);
 }
 
 static void throtl_schedule_next_dispatch(struct throtl_data *td)
@@ -429,9 +479,10 @@ static inline void throtl_start_new_slice(struct throtl_grp *tg, bool rw)
 	tg->io_disp[rw] = 0;
 	tg->slice_start[rw] = jiffies;
 	tg->slice_end[rw] = jiffies + throtl_slice;
-	throtl_log_tg(tg, "[%c] new slice start=%lu end=%lu jiffies=%lu",
-			rw == READ ? 'R' : 'W', tg->slice_start[rw],
-			tg->slice_end[rw], jiffies);
+	throtl_log(&tg->service_queue,
+		   "[%c] new slice start=%lu end=%lu jiffies=%lu",
+		   rw == READ ? 'R' : 'W', tg->slice_start[rw],
+		   tg->slice_end[rw], jiffies);
 }
 
 static inline void throtl_set_slice_end(struct throtl_grp *tg, bool rw,
@@ -444,9 +495,10 @@ static inline void throtl_extend_slice(struct throtl_grp *tg, bool rw,
 				       unsigned long jiffy_end)
 {
 	tg->slice_end[rw] = roundup(jiffy_end, throtl_slice);
-	throtl_log_tg(tg, "[%c] extend slice start=%lu end=%lu jiffies=%lu",
-			rw == READ ? 'R' : 'W', tg->slice_start[rw],
-			tg->slice_end[rw], jiffies);
+	throtl_log(&tg->service_queue,
+		   "[%c] extend slice start=%lu end=%lu jiffies=%lu",
+		   rw == READ ? 'R' : 'W', tg->slice_start[rw],
+		   tg->slice_end[rw], jiffies);
 }
 
 /* Determine if previously allocated or extended slice is complete or not */
@@ -511,10 +563,10 @@ static inline void throtl_trim_slice(struct throtl_grp *tg, bool rw)
 
 	tg->slice_start[rw] += nr_slices * throtl_slice;
 
-	throtl_log_tg(tg, "[%c] trim slice nr=%lu bytes=%llu io=%lu"
-			" start=%lu end=%lu jiffies=%lu",
-			rw == READ ? 'R' : 'W', nr_slices, bytes_trim, io_trim,
-			tg->slice_start[rw], tg->slice_end[rw], jiffies);
+	throtl_log(&tg->service_queue,
+		   "[%c] trim slice nr=%lu bytes=%llu io=%lu start=%lu end=%lu jiffies=%lu",
+		   rw == READ ? 'R' : 'W', nr_slices, bytes_trim, io_trim,
+		   tg->slice_start[rw], tg->slice_end[rw], jiffies);
 }
 
 static bool tg_with_in_iops_limit(struct throtl_grp *tg, struct bio *bio,
@@ -852,7 +904,7 @@ void blk_throtl_dispatch_work_fn(struct work_struct *work)
 
 	bio_list_init(&bio_list_on_stack);
 
-	throtl_log(td, "dispatch nr_queued=%u read=%u write=%u",
+	throtl_log(sq, "dispatch nr_queued=%u read=%u write=%u",
 		   td->nr_queued[READ] + td->nr_queued[WRITE],
 		   td->nr_queued[READ], td->nr_queued[WRITE]);
 
@@ -863,7 +915,7 @@ void blk_throtl_dispatch_work_fn(struct work_struct *work)
 			bio_list_merge(&bio_list_on_stack, &sq->bio_lists[rw]);
 			bio_list_init(&sq->bio_lists[rw]);
 		}
-		throtl_log(td, "bios disp=%u", nr_disp);
+		throtl_log(sq, "bios disp=%u", nr_disp);
 	}
 
 	throtl_schedule_next_dispatch(td);
@@ -972,9 +1024,10 @@ static int tg_set_conf(struct cgroup *cgrp, struct cftype *cft, const char *buf,
 	else
 		*(unsigned int *)((void *)tg + cft->private) = ctx.v;
 
-	throtl_log_tg(tg, "limit change rbps=%llu wbps=%llu riops=%u wiops=%u",
-		      tg->bps[READ], tg->bps[WRITE],
-		      tg->iops[READ], tg->iops[WRITE]);
+	throtl_log(&tg->service_queue,
+		   "limit change rbps=%llu wbps=%llu riops=%u wiops=%u",
+		   tg->bps[READ], tg->bps[WRITE],
+		   tg->iops[READ], tg->iops[WRITE]);
 
 	/*
 	 * We're already holding queue_lock and know @tg is valid.  Let's
@@ -1131,12 +1184,11 @@ bool blk_throtl_bio(struct request_queue *q, struct bio *bio)
 	}
 
 queue_bio:
-	throtl_log_tg(tg, "[%c] bio. bdisp=%llu sz=%u bps=%llu"
-			" iodisp=%u iops=%u queued=%d/%d",
-			rw == READ ? 'R' : 'W',
-			tg->bytes_disp[rw], bio->bi_size, tg->bps[rw],
-			tg->io_disp[rw], tg->iops[rw],
-			sq->nr_queued[READ], sq->nr_queued[WRITE]);
+	throtl_log(sq, "[%c] bio. bdisp=%llu sz=%u bps=%llu iodisp=%u iops=%u queued=%d/%d",
+		   rw == READ ? 'R' : 'W',
+		   tg->bytes_disp[rw], bio->bi_size, tg->bps[rw],
+		   tg->io_disp[rw], tg->iops[rw],
+		   sq->nr_queued[READ], sq->nr_queued[WRITE]);
 
 	bio_associate_current(bio);
 	throtl_add_bio_tg(bio, tg);
