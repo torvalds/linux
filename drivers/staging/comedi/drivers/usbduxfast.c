@@ -153,8 +153,6 @@ struct usbduxfast_private {
 	int8_t *transfer_buffer;
 	int16_t *insnBuffer;	/* input buffer for single insn */
 	struct usb_interface *intf;	/* interface structure */
-	/* comedi device for the interrupt context */
-	struct comedi_device *comedidev;
 	short int ai_cmd_running;	/* asynchronous command is running */
 	short int ai_continous;	/* continous acquisition */
 	long int ai_sample_count;	/* number of samples to acquire */
@@ -1290,7 +1288,6 @@ static int usbduxfast_auto_attach(struct comedi_device *dev,
 	dev->private = devpriv;
 
 	sema_init(&devpriv->sem, 1);
-	devpriv->comedidev = dev;
 	devpriv->usb = usb;
 	devpriv->intf = intf;
 	usb_set_intfdata(intf, devpriv);
@@ -1342,8 +1339,6 @@ static void usbduxfast_detach(struct comedi_device *dev)
 		return;
 
 	down(&devpriv->sem);
-
-	devpriv->comedidev = NULL;
 
 	if (devpriv->intf)
 		usb_set_intfdata(devpriv->intf, NULL);
