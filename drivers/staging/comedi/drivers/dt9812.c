@@ -265,7 +265,6 @@ static DEFINE_SEMAPHORE(dt9812_mutex);
 struct usb_dt9812 {
 	struct slot_dt9812 *slot;
 	struct usb_device *udev;
-	struct usb_interface *interface;
 	u16 vendor;
 	u16 product;
 	u16 device;
@@ -832,7 +831,7 @@ static struct comedi_driver dt9812_comedi_driver = {
 	.detach = dt9812_detach,
 };
 
-static int dt9812_probe(struct usb_interface *interface,
+static int dt9812_probe(struct usb_interface *intf,
 			const struct usb_device_id *id)
 {
 	struct slot_dt9812 *slot = NULL;
@@ -870,14 +869,13 @@ static int dt9812_probe(struct usb_interface *interface,
 
 	up(&dt9812_mutex);
 
-	dev->udev = usb_get_dev(interface_to_usbdev(interface));
-	dev->interface = interface;
+	dev->udev = usb_get_dev(interface_to_usbdev(intf));
 
 	/* Check endpoints */
-	host = interface->cur_altsetting;
+	host = intf->cur_altsetting;
 
 	if (host->desc.bNumEndpoints != 5) {
-		dev_err(&interface->dev, "Wrong number of endpoints.\n");
+		dev_err(&intf->dev, "Wrong number of endpoints.\n");
 		retval = -ENODEV;
 		goto error;
 	}
@@ -910,7 +908,7 @@ static int dt9812_probe(struct usb_interface *interface,
 			break;
 		}
 		if ((ep->bEndpointAddress & USB_DIR_IN) != direction) {
-			dev_err(&interface->dev,
+			dev_err(&intf->dev,
 				"Endpoint has wrong direction.\n");
 			retval = -ENODEV;
 			goto error;
@@ -925,7 +923,7 @@ static int dt9812_probe(struct usb_interface *interface,
 		for (i = 0; i < 10; i++) {
 			retval = dt9812_read_info(dev, 1, &fw, sizeof(fw));
 			if (retval == 0) {
-				dev_info(&interface->dev,
+				dev_info(&intf->dev,
 					 "usb_reset_configuration succeeded "
 					 "after %d iterations\n", i);
 				break;
@@ -934,22 +932,22 @@ static int dt9812_probe(struct usb_interface *interface,
 	}
 
 	if (dt9812_read_info(dev, 1, &dev->vendor, sizeof(dev->vendor)) != 0) {
-		dev_err(&interface->dev, "Failed to read vendor.\n");
+		dev_err(&intf->dev, "Failed to read vendor.\n");
 		retval = -ENODEV;
 		goto error;
 	}
 	if (dt9812_read_info(dev, 3, &dev->product, sizeof(dev->product)) != 0) {
-		dev_err(&interface->dev, "Failed to read product.\n");
+		dev_err(&intf->dev, "Failed to read product.\n");
 		retval = -ENODEV;
 		goto error;
 	}
 	if (dt9812_read_info(dev, 5, &dev->device, sizeof(dev->device)) != 0) {
-		dev_err(&interface->dev, "Failed to read device.\n");
+		dev_err(&intf->dev, "Failed to read device.\n");
 		retval = -ENODEV;
 		goto error;
 	}
 	if (dt9812_read_info(dev, 7, &dev->serial, sizeof(dev->serial)) != 0) {
-		dev_err(&interface->dev, "Failed to read serial.\n");
+		dev_err(&intf->dev, "Failed to read serial.\n");
 		retval = -ENODEV;
 		goto error;
 	}
@@ -960,10 +958,10 @@ static int dt9812_probe(struct usb_interface *interface,
 	dev->serial = le32_to_cpu(dev->serial);
 
 	/* save our data pointer in this interface device */
-	usb_set_intfdata(interface, dev);
+	usb_set_intfdata(intf, dev);
 
 	/* let the user know what node this device is now attached to */
-	dev_info(&interface->dev, "USB DT9812 (%4.4x.%4.4x.%4.4x) #0x%8.8x\n",
+	dev_info(&intf->dev, "USB DT9812 (%4.4x.%4.4x.%4.4x) #0x%8.8x\n",
 		 dev->vendor, dev->product, dev->device, dev->serial);
 
 	return 0;
@@ -974,24 +972,24 @@ error:
 	return retval;
 }
 
-static void dt9812_disconnect(struct usb_interface *interface)
+static void dt9812_disconnect(struct usb_interface *intf)
 {
 	struct usb_dt9812 *dev;
-	int minor = interface->minor;
+	int minor = intf->minor;
 
 	down(&dt9812_mutex);
-	dev = usb_get_intfdata(interface);
+	dev = usb_get_intfdata(intf);
 	if (dev->slot) {
 		dev->slot->usb = NULL;
 		dev->slot = NULL;
 	}
-	usb_set_intfdata(interface, NULL);
+	usb_set_intfdata(intf, NULL);
 	up(&dt9812_mutex);
 
 	/* queue final destruction */
 	kref_put(&dev->kref, dt9812_delete);
 
-	dev_info(&interface->dev, "USB Dt9812 #%d now disconnected\n", minor);
+	dev_info(&intf->dev, "USB Dt9812 #%d now disconnected\n", minor);
 }
 
 static const struct usb_device_id dt9812_table[] = {
