@@ -15,6 +15,7 @@
 #include <linux/uaccess.h>
 #include <linux/kdebug.h>
 #include <asm/pgalloc.h>
+#include <asm/mmu.h>
 
 static int handle_vmalloc_fault(struct mm_struct *mm, unsigned long address)
 {

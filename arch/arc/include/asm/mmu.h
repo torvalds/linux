@@ -17,6 +17,32 @@
 #define CONFIG_ARC_MMU_VER 3
 #endif
 
+/* MMU Management regs */
+#define ARC_REG_MMU_BCR		0x06f
+#define ARC_REG_TLBPD0		0x405
+#define ARC_REG_TLBPD1		0x406
+#define ARC_REG_TLBINDEX	0x407
+#define ARC_REG_TLBCOMMAND	0x408
+#define ARC_REG_PID		0x409
+#define ARC_REG_SCRATCH_DATA0	0x418
+
+/* Bits in MMU PID register */
+#define MMU_ENABLE		(1 << 31)	/* Enable MMU for process */
+
+/* Error code if probe fails */
+#define TLB_LKUP_ERR		0x80000000
+
+/* TLB Commands */
+#define TLBWrite    0x1
+#define TLBRead     0x2
+#define TLBGetIndex 0x3
+#define TLBProbe    0x4
+
+#if (CONFIG_ARC_MMU_VER >= 2)
+#define TLBWriteNI  0x5		/* write JTLB without inv uTLBs */
+#define TLBIVUTLB   0x6		/* explicitly inv uTLBs */
+#endif
+
 #ifndef __ASSEMBLY__
 
 typedef struct {
@@ -26,6 +52,16 @@ typedef struct {
 #endif
 } mm_context_t;
 
+#ifdef CONFIG_ARC_DBG_TLB_PARANOIA
+void tlb_paranoid_check(unsigned int pid_sw, unsigned long address);
+#else
+#define tlb_paranoid_check(a, b)
 #endif
+
+void arc_mmu_init(void);
+extern char *arc_mmu_mumbojumbo(int cpu_id, char *buf, int len);
+void __init read_decode_mmu_bcr(void);
+
+#endif	/* !__ASSEMBLY__ */
 
 #endif

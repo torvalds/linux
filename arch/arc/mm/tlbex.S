@@ -39,7 +39,7 @@
 
 #include <linux/linkage.h>
 #include <asm/entry.h>
-#include <asm/tlb.h>
+#include <asm/mmu.h>
 #include <asm/pgtable.h>
 #include <asm/arcregs.h>
 #include <asm/cache.h>

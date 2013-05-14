@@ -55,7 +55,7 @@
 #include <asm/arcregs.h>
 #include <asm/setup.h>
 #include <asm/mmu_context.h>
-#include <asm/tlb.h>
+#include <asm/mmu.h>
 
 /*			Need for ARC MMU v2
  *
@@ -96,6 +96,7 @@
  * corner cases when TLBWrite was not executed at all because the corresp
  * J-TLB entry got evicted/replaced.
  */
+
 
 /* A copy of the ASID from the PID reg is kept in asid_cache */
 int asid_cache = FIRST_ASID;
@@ -466,10 +467,25 @@ void update_mmu_cache(struct vm_area_struct *vma, unsigned long vaddr_unaligned,
  */
 void __cpuinit read_decode_mmu_bcr(void)
 {
-	unsigned int tmp;
-	struct bcr_mmu_1_2 *mmu2;	/* encoded MMU2 attr */
-	struct bcr_mmu_3 *mmu3;		/* encoded MMU3 attr */
 	struct cpuinfo_arc_mmu *mmu = &cpuinfo_arc700[smp_processor_id()].mmu;
+	unsigned int tmp;
+	struct bcr_mmu_1_2 {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+		unsigned int ver:8, ways:4, sets:4, u_itlb:8, u_dtlb:8;
+#else
+		unsigned int u_dtlb:8, u_itlb:8, sets:4, ways:4, ver:8;
+#endif
+	} *mmu2;
+
+	struct bcr_mmu_3 {
+#ifdef CONFIG_CPU_BIG_ENDIAN
+	unsigned int ver:8, ways:4, sets:4, osm:1, reserv:3, pg_sz:4,
+		     u_itlb:4, u_dtlb:4;
+#else
+	unsigned int u_dtlb:4, u_itlb:4, pg_sz:4, reserv:3, osm:1, sets:4,
+		     ways:4, ver:8;
+#endif
+	} *mmu3;
 
 	tmp = read_aux_reg(ARC_REG_MMU_BCR);
 	mmu->ver = (tmp >> 24);

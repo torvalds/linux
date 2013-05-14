@@ -10,7 +10,6 @@
 #define __ASM_TLB_MMU_V1_H__
 
 #include <asm/mmu.h>
-#include <asm/tlb.h>
 
 #if defined(__ASSEMBLY__) && (CONFIG_ARC_MMU_VER == 1)
 

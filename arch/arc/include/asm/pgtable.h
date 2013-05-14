@@ -135,6 +135,12 @@
 /* ioremap */
 #define PAGE_KERNEL_NO_CACHE __pgprot(_K_PAGE_PERMS)
 
+/* Masks for actual TLB "PD"s */
+#define PTE_BITS_IN_PD0	(_PAGE_GLOBAL | _PAGE_PRESENT)
+#define PTE_BITS_IN_PD1	(PAGE_MASK | _PAGE_CACHEABLE | \
+			 _PAGE_U_EXECUTE | _PAGE_U_WRITE | _PAGE_U_READ | \
+			 _PAGE_K_EXECUTE | _PAGE_K_WRITE | _PAGE_K_READ)
+
 /**************************************************************************
  * Mapping of vm_flags (Generic VM) to PTE flags (arch specific)
  *
