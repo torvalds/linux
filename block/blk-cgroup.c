@@ -369,13 +369,17 @@ static void blkg_destroy_all(struct request_queue *q)
 	q->root_rl.blkg = NULL;
 }
 
-static void blkg_rcu_free(struct rcu_head *rcu_head)
+/*
+ * A group is RCU protected, but having an rcu lock does not mean that one
+ * can access all the fields of blkg and assume these are valid.  For
+ * example, don't try to follow throtl_data and request queue links.
+ *
+ * Having a reference to blkg under an rcu allows accesses to only values
+ * local to groups like group stats and group rate limits.
+ */
+void __blkg_release_rcu(struct rcu_head *rcu_head)
 {
-	blkg_free(container_of(rcu_head, struct blkcg_gq, rcu_head));
-}
-
-void __blkg_release(struct blkcg_gq *blkg)
-{
+	struct blkcg_gq *blkg = container_of(rcu_head, struct blkcg_gq, rcu_head);
 	int i;
 
 	/* tell policies that this one is being freed */
@@ -388,21 +392,15 @@ void __blkg_release(struct blkcg_gq *blkg)
 
 	/* release the blkcg and parent blkg refs this blkg has been holding */
 	css_put(&blkg->blkcg->css);
-	if (blkg->parent)
+	if (blkg->parent) {
+		spin_lock_irq(blkg->q->queue_lock);
 		blkg_put(blkg->parent);
+		spin_unlock_irq(blkg->q->queue_lock);
+	}
 
-	/*
-	 * A group is freed in rcu manner. But having an rcu lock does not
-	 * mean that one can access all the fields of blkg and assume these
-	 * are valid. For example, don't try to follow throtl_data and
-	 * request queue links.
-	 *
-	 * Having a reference to blkg under an rcu allows acess to only
-	 * values local to groups like group stats and group rate limits
-	 */
-	call_rcu(&blkg->rcu_head, blkg_rcu_free);
+	blkg_free(blkg);
 }
-EXPORT_SYMBOL_GPL(__blkg_release);
+EXPORT_SYMBOL_GPL(__blkg_release_rcu);
 
 /*
  * The next function used by blk_queue_for_each_rl().  It's a bit tricky

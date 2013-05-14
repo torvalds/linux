@@ -266,7 +266,7 @@ static inline void blkg_get(struct blkcg_gq *blkg)
 	blkg->refcnt++;
 }
 
-void __blkg_release(struct blkcg_gq *blkg);
+void __blkg_release_rcu(struct rcu_head *rcu);
 
 /**
  * blkg_put - put a blkg reference
@@ -279,7 +279,7 @@ static inline void blkg_put(struct blkcg_gq *blkg)
 	lockdep_assert_held(blkg->q->queue_lock);
 	WARN_ON_ONCE(blkg->refcnt <= 0);
 	if (!--blkg->refcnt)
-		__blkg_release(blkg);
+		call_rcu(&blkg->rcu_head, __blkg_release_rcu);
 }
 
 struct blkcg_gq *__blkg_lookup(struct blkcg *blkcg, struct request_queue *q,
