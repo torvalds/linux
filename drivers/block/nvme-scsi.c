@@ -44,7 +44,6 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/types.h>
-#include <linux/version.h>
 #include <scsi/sg.h>
 #include <scsi/scsi.h>
 
