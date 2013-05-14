@@ -194,8 +194,10 @@ void display_uninit_sysfs(struct platform_device *pdev,
 		struct omap_dss_device *dssdev);
 
 /* manager */
-int dss_init_overlay_managers(struct platform_device *pdev);
-void dss_uninit_overlay_managers(struct platform_device *pdev);
+int dss_init_overlay_managers(void);
+void dss_uninit_overlay_managers(void);
+int dss_init_overlay_managers_sysfs(struct platform_device *pdev);
+void dss_uninit_overlay_managers_sysfs(struct platform_device *pdev);
 int dss_mgr_simple_check(struct omap_overlay_manager *mgr,
 		const struct omap_overlay_manager_info *info);
 int dss_mgr_check_timings(struct omap_overlay_manager *mgr,

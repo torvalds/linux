@@ -1577,7 +1577,8 @@ int omapdss_compat_init(void)
 
 	apply_init_priv();
 
-	dss_init_overlay_managers(pdev);
+	dss_init_overlay_managers();
+	dss_init_overlay_managers_sysfs(pdev);
 	dss_init_overlays(pdev);
 
 	for (i = 0; i < omap_dss_get_num_overlay_managers(); i++) {
@@ -1640,7 +1641,8 @@ err_disp_sysfs:
 	dss_uninstall_mgr_ops();
 
 err_mgr_ops:
-	dss_uninit_overlay_managers(pdev);
+	dss_uninit_overlay_managers_sysfs(pdev);
+	dss_uninit_overlay_managers();
 	dss_uninit_overlays(pdev);
 
 	compat_refcnt--;
@@ -1668,7 +1670,8 @@ void omapdss_compat_uninit(void)
 
 	dss_uninstall_mgr_ops();
 
-	dss_uninit_overlay_managers(pdev);
+	dss_uninit_overlay_managers_sysfs(pdev);
+	dss_uninit_overlay_managers();
 	dss_uninit_overlays(pdev);
 out:
 	mutex_unlock(&compat_init_lock);

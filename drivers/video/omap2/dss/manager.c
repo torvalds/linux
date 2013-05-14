@@ -36,9 +36,9 @@
 static int num_managers;
 static struct omap_overlay_manager *managers;
 
-int dss_init_overlay_managers(struct platform_device *pdev)
+int dss_init_overlay_managers(void)
 {
-	int i, r;
+	int i;
 
 	num_managers = dss_feat_get_num_mgrs();
 
@@ -76,6 +76,17 @@ int dss_init_overlay_managers(struct platform_device *pdev)
 			dss_feat_get_supported_outputs(mgr->id);
 
 		INIT_LIST_HEAD(&mgr->overlays);
+	}
+
+	return 0;
+}
+
+int dss_init_overlay_managers_sysfs(struct platform_device *pdev)
+{
+	int i, r;
+
+	for (i = 0; i < num_managers; ++i) {
+		struct omap_overlay_manager *mgr = &managers[i];
 
 		r = dss_manager_kobj_init(mgr, pdev);
 		if (r)
@@ -85,18 +96,22 @@ int dss_init_overlay_managers(struct platform_device *pdev)
 	return 0;
 }
 
-void dss_uninit_overlay_managers(struct platform_device *pdev)
+void dss_uninit_overlay_managers(void)
+{
+	kfree(managers);
+	managers = NULL;
+	num_managers = 0;
+}
+
+void dss_uninit_overlay_managers_sysfs(struct platform_device *pdev)
 {
 	int i;
 
 	for (i = 0; i < num_managers; ++i) {
 		struct omap_overlay_manager *mgr = &managers[i];
+
 		dss_manager_kobj_uninit(mgr);
 	}
-
-	kfree(managers);
-	managers = NULL;
-	num_managers = 0;
 }
 
 int omap_dss_get_num_overlay_managers(void)
