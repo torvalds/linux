@@ -165,23 +165,24 @@ struct usbduxfast_private {
 #define SENDADCOMMANDS            0
 #define SENDINITEP6               1
 
-static int send_dux_commands(struct comedi_device *dev, int cmd_type)
+static int usbduxfast_send_cmd(struct comedi_device *dev, int cmd_type)
 {
 	struct usb_interface *intf = comedi_to_usb_interface(dev);
 	struct usb_device *usb = interface_to_usbdev(intf);
 	struct usbduxfast_private *devpriv = dev->private;
-	int tmp, nsent;
+	int nsent;
+	int ret;
 
 	devpriv->duxbuf[0] = cmd_type;
 
-	tmp = usb_bulk_msg(usb, usb_sndbulkpipe(usb, CHANNELLISTEP),
+	ret = usb_bulk_msg(usb, usb_sndbulkpipe(usb, CHANNELLISTEP),
 			   devpriv->duxbuf, SIZEOFDUXBUF,
 			   &nsent, 10000);
-	if (tmp < 0)
+	if (ret < 0)
 		dev_err(dev->class_dev,
 			"could not transmit command to the usb-device, err=%d\n",
-			tmp);
-	return tmp;
+			ret);
+	return ret;
 }
 
 /*
@@ -995,7 +996,7 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 	}
 
 	/* 0 means that the AD commands are sent */
-	result = send_dux_commands(dev, SENDADCOMMANDS);
+	result = usbduxfast_send_cmd(dev, SENDADCOMMANDS);
 	if (result < 0) {
 		up(&devpriv->sem);
 		return result;
@@ -1115,7 +1116,7 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 	devpriv->duxbuf[LOGBASE + 0] = 0;
 
 	/* 0 means that the AD commands are sent */
-	err = send_dux_commands(dev, SENDADCOMMANDS);
+	err = usbduxfast_send_cmd(dev, SENDADCOMMANDS);
 	if (err < 0) {
 		up(&devpriv->sem);
 		return err;
