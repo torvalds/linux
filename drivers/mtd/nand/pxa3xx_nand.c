@@ -1185,7 +1185,7 @@ static struct of_device_id pxa3xx_nand_dt_ids[] = {
 	{ .compatible = "marvell,pxa3xx-nand" },
 	{}
 };
-MODULE_DEVICE_TABLE(of, i2c_pxa_dt_ids);
+MODULE_DEVICE_TABLE(of, pxa3xx_nand_dt_ids);
 
 static int pxa3xx_nand_probe_dt(struct platform_device *pdev)
 {
