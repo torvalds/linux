@@ -240,8 +240,7 @@ static bool hists__decay_entry(struct hists *hists, struct hist_entry *he)
 	return he->stat.period == 0;
 }
 
-static void __hists__decay_entries(struct hists *hists, bool zap_user,
-				   bool zap_kernel, bool threaded)
+void hists__decay_entries(struct hists *hists, bool zap_user, bool zap_kernel)
 {
 	struct rb_node *next = rb_first(&hists->entries);
 	struct hist_entry *n;
@@ -260,24 +259,13 @@ static void __hists__decay_entries(struct hists *hists, bool zap_user,
 		    !n->used) {
 			rb_erase(&n->rb_node, &hists->entries);
 
-			if (sort__need_collapse || threaded)
+			if (sort__need_collapse)
 				rb_erase(&n->rb_node_in, &hists->entries_collapsed);
 
 			hist_entry__free(n);
 			--hists->nr_entries;
 		}
 	}
-}
-
-void hists__decay_entries(struct hists *hists, bool zap_user, bool zap_kernel)
-{
-	return __hists__decay_entries(hists, zap_user, zap_kernel, false);
-}
-
-void hists__decay_entries_threaded(struct hists *hists,
-				   bool zap_user, bool zap_kernel)
-{
-	return __hists__decay_entries(hists, zap_user, zap_kernel, true);
 }
 
 /*
@@ -613,13 +601,13 @@ static void hists__apply_filters(struct hists *hists, struct hist_entry *he)
 	hists__filter_entry_by_symbol(hists, he);
 }
 
-static void __hists__collapse_resort(struct hists *hists, bool threaded)
+void hists__collapse_resort(struct hists *hists)
 {
 	struct rb_root *root;
 	struct rb_node *next;
 	struct hist_entry *n;
 
-	if (!sort__need_collapse && !threaded)
+	if (!sort__need_collapse)
 		return;
 
 	root = hists__get_rotate_entries_in(hists);
@@ -639,16 +627,6 @@ static void __hists__collapse_resort(struct hists *hists, bool threaded)
 			hists__apply_filters(hists, n);
 		}
 	}
-}
-
-void hists__collapse_resort(struct hists *hists)
-{
-	return __hists__collapse_resort(hists, false);
-}
-
-void hists__collapse_resort_threaded(struct hists *hists)
-{
-	return __hists__collapse_resort(hists, true);
 }
 
 /*
@@ -737,7 +715,7 @@ static void __hists__insert_output_entry(struct rb_root *entries,
 	rb_insert_color(&he->rb_node, entries);
 }
 
-static void __hists__output_resort(struct hists *hists, bool threaded)
+void hists__output_resort(struct hists *hists)
 {
 	struct rb_root *root;
 	struct rb_node *next;
@@ -746,7 +724,7 @@ static void __hists__output_resort(struct hists *hists, bool threaded)
 
 	min_callchain_hits = hists->stats.total_period * (callchain_param.min_percent / 100);
 
-	if (sort__need_collapse || threaded)
+	if (sort__need_collapse)
 		root = &hists->entries_collapsed;
 	else
 		root = hists->entries_in;
@@ -765,16 +743,6 @@ static void __hists__output_resort(struct hists *hists, bool threaded)
 		__hists__insert_output_entry(&hists->entries, n, min_callchain_hits);
 		hists__inc_nr_entries(hists, n);
 	}
-}
-
-void hists__output_resort(struct hists *hists)
-{
-	return __hists__output_resort(hists, false);
-}
-
-void hists__output_resort_threaded(struct hists *hists)
-{
-	return __hists__output_resort(hists, true);
 }
 
 static void hists__remove_entry_filter(struct hists *hists, struct hist_entry *h,
