@@ -73,7 +73,7 @@ void PHY_SetRF8256Bandwidth(struct net_device *dev , HT_CHANNEL_WIDTH Bandwidth)
 
 				break;
 			default:
-				RT_TRACE(COMP_ERR, "PHY_SetRF8256Bandwidth(): unknown Bandwidth: %#X\n",Bandwidth );
+				RT_TRACE(COMP_ERR, "PHY_SetRF8256Bandwidth(): unknown Bandwidth: %#X\n",Bandwidth);
 				break;
 
 		}
@@ -244,7 +244,7 @@ void PHY_SetRF8256CCKTxPower(struct net_device *dev, u8 powerlevel)
 	//modified by vivi, 20080109
 	TxAGC = powerlevel;
 
-	if(priv->bDynamicTxLowPower == TRUE ) //cosa 05/22/2008 for scan
+	if(priv->bDynamicTxLowPower == TRUE) //cosa 05/22/2008 for scan
 	{
 		if(priv->CustomerID == RT_CID_819x_Netcore)
 			TxAGC = 0x22;
