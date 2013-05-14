@@ -64,6 +64,8 @@ endif
 
 obj-$(CONFIG_PPC_SCOM)		+= scom.o
 
+obj-$(CONFIG_PPC_EARLY_DEBUG_MEMCONS)	+= udbg_memcons.o
+
 subdir-ccflags-$(CONFIG_PPC_WERROR) := -Werror
 
 obj-$(CONFIG_PPC_XICS)		+= xics/
