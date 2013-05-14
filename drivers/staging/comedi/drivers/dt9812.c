@@ -462,18 +462,23 @@ static void dt9812_configure_mux(struct usb_dt9812 *dev,
 	}
 }
 
-static void dt9812_configure_gain(struct usb_dt9812 *dev,
+static void dt9812_configure_gain(struct comedi_device *dev,
 				  struct dt9812_rmw_byte *rmw,
 				  enum dt9812_gain gain)
 {
-	if (dev->device == DT9812_DEVID_DT9812_10) {
-		/* In the DT9812/10V, there is an external gain of 0.5 */
+	struct dt9812_private *devpriv = dev->private;
+	struct slot_dt9812 *slot = devpriv->slot;
+	struct usb_dt9812 *usb = slot->usb;
+
+	/* In the DT9812/10V, there is an external gain of 0.5 */
+	if (usb->device == DT9812_DEVID_DT9812_10)
 		gain <<= 1;
-	}
 
 	rmw->address = F020_SFR_ADC0CF;
 	rmw->and_mask = F020_MASK_ADC0CF_AMP0GN2 |
-	    F020_MASK_ADC0CF_AMP0GN1 | F020_MASK_ADC0CF_AMP0GN0;
+			F020_MASK_ADC0CF_AMP0GN1 |
+			F020_MASK_ADC0CF_AMP0GN0;
+
 	switch (gain) {
 		/*
 		 * 000 -> Gain =  1
@@ -485,7 +490,7 @@ static void dt9812_configure_gain(struct usb_dt9812 *dev,
 		 */
 	case DT9812_GAIN_0PT5:
 		rmw->or_value = F020_MASK_ADC0CF_AMP0GN2 |
-		    F020_MASK_ADC0CF_AMP0GN1;
+				F020_MASK_ADC0CF_AMP0GN1;
 		break;
 	case DT9812_GAIN_1:
 		rmw->or_value = 0x00;
@@ -498,14 +503,14 @@ static void dt9812_configure_gain(struct usb_dt9812 *dev,
 		break;
 	case DT9812_GAIN_8:
 		rmw->or_value = F020_MASK_ADC0CF_AMP0GN1 |
-		    F020_MASK_ADC0CF_AMP0GN0;
+				F020_MASK_ADC0CF_AMP0GN0;
 		break;
 	case DT9812_GAIN_16:
 		rmw->or_value = F020_MASK_ADC0CF_AMP0GN2;
 		break;
 	default:
-		dev_err(&dev->interface->dev, "Illegal gain %d\n", gain);
-
+		dev_err(dev->class_dev, "Illegal gain %d\n", gain);
+		break;
 	}
 }
 
@@ -528,7 +533,7 @@ static int dt9812_analog_in(struct comedi_device *dev,
 		goto exit;
 
 	/* 1 select the gain */
-	dt9812_configure_gain(slot->usb, &rmw[0], gain);
+	dt9812_configure_gain(dev, &rmw[0], gain);
 
 	/* 2 set the MUX to select the channel */
 	dt9812_configure_mux(slot->usb, &rmw[1], channel);
