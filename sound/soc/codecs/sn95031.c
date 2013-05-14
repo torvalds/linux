@@ -883,7 +883,7 @@ static int sn95031_codec_remove(struct snd_soc_codec *codec)
 	return 0;
 }
 
-struct snd_soc_codec_driver sn95031_codec = {
+static struct snd_soc_codec_driver sn95031_codec = {
 	.probe		= sn95031_codec_probe,
 	.remove		= sn95031_codec_remove,
 	.read		= sn95031_read,
