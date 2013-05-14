@@ -124,6 +124,9 @@ struct throtl_grp {
 
 	unsigned int flags;
 
+	/* are there any throtl rules between this group and td? */
+	bool has_rules[2];
+
 	/* bytes per second rate limits */
 	uint64_t bps[2];
 
@@ -420,6 +423,30 @@ static void throtl_pd_init(struct blkcg_gq *blkg)
 	list_add(&tg->stats_alloc_node, &tg_stats_alloc_list);
 	schedule_delayed_work(&tg_stats_alloc_work, 0);
 	spin_unlock_irqrestore(&tg_stats_alloc_lock, flags);
+}
+
+/*
+ * Set has_rules[] if @tg or any of its parents have limits configured.
+ * This doesn't require walking up to the top of the hierarchy as the
+ * parent's has_rules[] is guaranteed to be correct.
+ */
+static void tg_update_has_rules(struct throtl_grp *tg)
+{
+	struct throtl_grp *parent_tg = sq_to_tg(tg->service_queue.parent_sq);
+	int rw;
+
+	for (rw = READ; rw <= WRITE; rw++)
+		tg->has_rules[rw] = (parent_tg && parent_tg->has_rules[rw]) ||
+				    (tg->bps[rw] != -1 || tg->iops[rw] != -1);
+}
+
+static void throtl_pd_online(struct blkcg_gq *blkg)
+{
+	/*
+	 * We don't want new groups to escape the limits of its ancestors.
+	 * Update has_rules[] after a new group is brought online.
+	 */
+	tg_update_has_rules(blkg_to_tg(blkg));
 }
 
 static void throtl_pd_exit(struct blkcg_gq *blkg)
@@ -840,12 +867,6 @@ static bool tg_with_in_bps_limit(struct throtl_grp *tg, struct bio *bio,
 	jiffy_wait = jiffy_wait + (jiffy_elapsed_rnd - jiffy_elapsed);
 	if (wait)
 		*wait = jiffy_wait;
-	return 0;
-}
-
-static bool tg_no_rule_group(struct throtl_grp *tg, bool rw) {
-	if (tg->bps[rw] == -1 && tg->iops[rw] == -1)
-		return 1;
 	return 0;
 }
 
@@ -1307,6 +1328,8 @@ static int tg_set_conf(struct cgroup *cgrp, struct cftype *cft, const char *buf,
 	struct blkg_conf_ctx ctx;
 	struct throtl_grp *tg;
 	struct throtl_service_queue *sq;
+	struct blkcg_gq *blkg;
+	struct cgroup *pos_cgrp;
 	int ret;
 
 	ret = blkg_conf_prep(blkcg, &blkcg_policy_throtl, buf, &ctx);
@@ -1328,6 +1351,17 @@ static int tg_set_conf(struct cgroup *cgrp, struct cftype *cft, const char *buf,
 		   "limit change rbps=%llu wbps=%llu riops=%u wiops=%u",
 		   tg->bps[READ], tg->bps[WRITE],
 		   tg->iops[READ], tg->iops[WRITE]);
+
+	/*
+	 * Update has_rules[] flags for the updated tg's subtree.  A tg is
+	 * considered to have rules if either the tg itself or any of its
+	 * ancestors has rules.  This identifies groups without any
+	 * restrictions in the whole hierarchy and allows them to bypass
+	 * blk-throttle.
+	 */
+	tg_update_has_rules(tg);
+	blkg_for_each_descendant_pre(blkg, pos_cgrp, ctx.blkg)
+		tg_update_has_rules(blkg_to_tg(blkg));
 
 	/*
 	 * We're already holding queue_lock and know @tg is valid.  Let's
@@ -1415,6 +1449,7 @@ static struct blkcg_policy blkcg_policy_throtl = {
 	.cftypes		= throtl_files,
 
 	.pd_init_fn		= throtl_pd_init,
+	.pd_online_fn		= throtl_pd_online,
 	.pd_exit_fn		= throtl_pd_exit,
 	.pd_reset_stats_fn	= throtl_pd_reset_stats,
 };
@@ -1442,7 +1477,7 @@ bool blk_throtl_bio(struct request_queue *q, struct bio *bio)
 	blkcg = bio_blkcg(bio);
 	tg = throtl_lookup_tg(td, blkcg);
 	if (tg) {
-		if (tg_no_rule_group(tg, rw)) {
+		if (!tg->has_rules[rw]) {
 			throtl_update_dispatch_stats(tg_to_blkg(tg),
 						     bio->bi_size, bio->bi_rw);
 			goto out_unlock_rcu;
