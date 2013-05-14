@@ -438,6 +438,7 @@ void __init mpc512x_psc_fifo_init(void)
 
 void __init mpc512x_init_early(void)
 {
+	mpc512x_restart_init();
 	if (IS_ENABLED(CONFIG_FB_FSL_DIU))
 		mpc512x_init_diu();
 }
@@ -446,7 +447,6 @@ void __init mpc512x_init(void)
 {
 	mpc5121_clk_init();
 	mpc512x_declare_of_platform_devices();
-	mpc512x_restart_init();
 	mpc512x_psc_fifo_init();
 }
 
