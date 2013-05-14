@@ -14,10 +14,11 @@ CFLAGS_mmu.o := -I.
 AFLAGS_init.o := -Wa,-march=armv7-a$(plus_virt)
 AFLAGS_interrupts.o := -Wa,-march=armv7-a$(plus_virt)
 
-kvm-arm-y = $(addprefix ../../../virt/kvm/, kvm_main.o coalesced_mmio.o)
+KVM := ../../../virt/kvm
+kvm-arm-y = $(addprefix $(KVM)/, kvm_main.o coalesced_mmio.o)
 
 obj-y += kvm-arm.o init.o interrupts.o
 obj-y += arm.o handle_exit.o guest.o mmu.o emulate.o reset.o
 obj-y += coproc.o coproc_a15.o mmio.o psci.o perf.o
-obj-$(CONFIG_KVM_ARM_VGIC) += vgic.o
-obj-$(CONFIG_KVM_ARM_TIMER) += arch_timer.o
+obj-$(CONFIG_KVM_ARM_VGIC) += $(KVM)/arm/vgic.o
+obj-$(CONFIG_KVM_ARM_TIMER) += $(KVM)/arm/arch_timer.o

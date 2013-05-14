@@ -23,7 +23,7 @@
 #include <asm/kvm_asm.h>
 #include <asm/kvm_mmio.h>
 #include <asm/fpstate.h>
-#include <asm/kvm_arch_timer.h>
+#include <kvm/arm_arch_timer.h>
 
 #define KVM_MAX_VCPUS CONFIG_KVM_ARM_MAX_VCPUS
 #define KVM_USER_MEM_SLOTS 32
@@ -38,7 +38,7 @@
 #define KVM_NR_PAGE_SIZES	1
 #define KVM_PAGES_PER_HPAGE(x)	(1UL<<31)
 
-#include <asm/kvm_vgic.h>
+#include <kvm/arm_vgic.h>
 
 struct kvm_vcpu;
 u32 *kvm_vcpu_reg(struct kvm_vcpu *vcpu, u8 reg_num, u32 mode);
