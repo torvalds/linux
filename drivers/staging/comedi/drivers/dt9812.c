@@ -727,6 +727,53 @@ static int dt9812_ao_winsn(struct comedi_device *dev,
 	return n;
 }
 
+static int dt9812_find_endpoints(struct usb_interface *intf,
+				 struct usb_dt9812 *devpriv)
+{
+	struct usb_host_interface *host = intf->cur_altsetting;
+	struct usb_endpoint_descriptor *ep;
+	int i;
+
+	if (host->desc.bNumEndpoints != 5) {
+		dev_err(&intf->dev, "Wrong number of endpoints\n");
+		return -ENODEV;
+	}
+
+	for (i = 0; i < host->desc.bNumEndpoints; ++i) {
+		int dir = -1;
+		ep = &host->endpoint[i].desc;
+		switch (i) {
+		case 0:
+			/* unused message pipe */
+			dir = USB_DIR_IN;
+			break;
+		case 1:
+			dir = USB_DIR_OUT;
+			devpriv->cmd_wr.addr = ep->bEndpointAddress;
+			devpriv->cmd_wr.size = le16_to_cpu(ep->wMaxPacketSize);
+			break;
+		case 2:
+			dir = USB_DIR_IN;
+			devpriv->cmd_rd.addr = ep->bEndpointAddress;
+			devpriv->cmd_rd.size = le16_to_cpu(ep->wMaxPacketSize);
+			break;
+		case 3:
+			/* unused write stream */
+			dir = USB_DIR_OUT;
+			break;
+		case 4:
+			/* unused read stream */
+			dir = USB_DIR_IN;
+			break;
+		}
+		if ((ep->bEndpointAddress & USB_DIR_IN) != dir) {
+			dev_err(&intf->dev, "Endpoint has wrong direction\n");
+			return -ENODEV;
+		}
+	}
+	return 0;
+}
+
 static int dt9812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct slot_dt9812 *slot = NULL;
@@ -836,8 +883,6 @@ static int dt9812_probe(struct usb_interface *intf,
 {
 	struct slot_dt9812 *slot = NULL;
 	struct usb_dt9812 *dev = NULL;
-	struct usb_host_interface *host;
-	struct usb_endpoint_descriptor *ep;
 	int retval = -ENOMEM;
 	int i;
 	u8 fw;
@@ -871,49 +916,10 @@ static int dt9812_probe(struct usb_interface *intf,
 
 	dev->udev = usb_get_dev(interface_to_usbdev(intf));
 
-	/* Check endpoints */
-	host = intf->cur_altsetting;
-
-	if (host->desc.bNumEndpoints != 5) {
-		dev_err(&intf->dev, "Wrong number of endpoints.\n");
-		retval = -ENODEV;
+	retval = dt9812_find_endpoints(intf, dev);
+	if (retval)
 		goto error;
-	}
 
-	for (i = 0; i < host->desc.bNumEndpoints; ++i) {
-		int direction = -1;
-		ep = &host->endpoint[i].desc;
-		switch (i) {
-		case 0:
-			/* unused message pipe */
-			direction = USB_DIR_IN;
-			break;
-		case 1:
-			direction = USB_DIR_OUT;
-			dev->cmd_wr.addr = ep->bEndpointAddress;
-			dev->cmd_wr.size = le16_to_cpu(ep->wMaxPacketSize);
-			break;
-		case 2:
-			direction = USB_DIR_IN;
-			dev->cmd_rd.addr = ep->bEndpointAddress;
-			dev->cmd_rd.size = le16_to_cpu(ep->wMaxPacketSize);
-			break;
-		case 3:
-			/* unused write stream */
-			direction = USB_DIR_OUT;
-			break;
-		case 4:
-			/* unused read stream */
-			direction = USB_DIR_IN;
-			break;
-		}
-		if ((ep->bEndpointAddress & USB_DIR_IN) != direction) {
-			dev_err(&intf->dev,
-				"Endpoint has wrong direction.\n");
-			retval = -ENODEV;
-			goto error;
-		}
-	}
 	if (dt9812_read_info(dev, 0, &fw, sizeof(fw)) != 0) {
 		/*
 		 * Seems like a configuration reset is necessary if driver is
