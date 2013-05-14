@@ -1239,12 +1239,16 @@ bool blk_throtl_bio(struct request_queue *q, struct bio *bio)
 
 	sq = &tg->service_queue;
 
-	/* throtl is FIFO - if other bios are already queued, should queue */
-	if (sq->nr_queued[rw])
-		goto queue_bio;
+	while (true) {
+		/* throtl is FIFO - if bios are already queued, should queue */
+		if (sq->nr_queued[rw])
+			break;
 
-	/* Bio is with-in rate limit of group */
-	if (tg_may_dispatch(tg, bio, NULL)) {
+		/* if above limits, break to queue */
+		if (!tg_may_dispatch(tg, bio, NULL))
+			break;
+
+		/* within limits, let's charge and dispatch directly */
 		throtl_charge_bio(tg, bio);
 
 		/*
@@ -1259,10 +1263,19 @@ bool blk_throtl_bio(struct request_queue *q, struct bio *bio)
 		 * So keep on trimming slice even if bio is not queued.
 		 */
 		throtl_trim_slice(tg, rw);
-		goto out_unlock;
+
+		/*
+		 * @bio passed through this layer without being throttled.
+		 * Climb up the ladder.  If we''re already at the top, it
+		 * can be executed directly.
+		 */
+		sq = sq->parent_sq;
+		tg = sq_to_tg(sq);
+		if (!tg)
+			goto out_unlock;
 	}
 
-queue_bio:
+	/* out-of-limit, queue to @tg */
 	throtl_log(sq, "[%c] bio. bdisp=%llu sz=%u bps=%llu iodisp=%u iops=%u queued=%d/%d",
 		   rw == READ ? 'R' : 'W',
 		   tg->bytes_disp[rw], bio->bi_size, tg->bps[rw],
