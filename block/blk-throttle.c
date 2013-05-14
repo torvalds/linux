@@ -1299,6 +1299,28 @@ out:
 	return throttled;
 }
 
+/*
+ * Dispatch all bios from all children tg's queued on @parent_sq.  On
+ * return, @parent_sq is guaranteed to not have any active children tg's
+ * and all bios from previously active tg's are on @parent_sq->bio_lists[].
+ */
+static void tg_drain_bios(struct throtl_service_queue *parent_sq)
+{
+	struct throtl_grp *tg;
+
+	while ((tg = throtl_rb_first(parent_sq))) {
+		struct throtl_service_queue *sq = &tg->service_queue;
+		struct bio *bio;
+
+		throtl_dequeue_tg(tg);
+
+		while ((bio = bio_list_peek(&sq->bio_lists[READ])))
+			tg_dispatch_one_bio(tg, bio_data_dir(bio));
+		while ((bio = bio_list_peek(&sq->bio_lists[WRITE])))
+			tg_dispatch_one_bio(tg, bio_data_dir(bio));
+	}
+}
+
 /**
  * blk_throtl_drain - drain throttled bios
  * @q: request_queue to drain throttled bios for
@@ -1309,27 +1331,34 @@ void blk_throtl_drain(struct request_queue *q)
 	__releases(q->queue_lock) __acquires(q->queue_lock)
 {
 	struct throtl_data *td = q->td;
-	struct throtl_service_queue *parent_sq = &td->service_queue;
-	struct throtl_grp *tg;
+	struct blkcg_gq *blkg;
+	struct cgroup *pos_cgrp;
 	struct bio *bio;
 	int rw;
 
 	queue_lockdep_assert_held(q);
+	rcu_read_lock();
 
-	while ((tg = throtl_rb_first(parent_sq))) {
-		struct throtl_service_queue *sq = &tg->service_queue;
+	/*
+	 * Drain each tg while doing post-order walk on the blkg tree, so
+	 * that all bios are propagated to td->service_queue.  It'd be
+	 * better to walk service_queue tree directly but blkg walk is
+	 * easier.
+	 */
+	blkg_for_each_descendant_post(blkg, pos_cgrp, td->queue->root_blkg)
+		tg_drain_bios(&blkg_to_tg(blkg)->service_queue);
 
-		throtl_dequeue_tg(tg);
+	tg_drain_bios(&td_root_tg(td)->service_queue);
 
-		while ((bio = bio_list_peek(&sq->bio_lists[READ])))
-			tg_dispatch_one_bio(tg, bio_data_dir(bio));
-		while ((bio = bio_list_peek(&sq->bio_lists[WRITE])))
-			tg_dispatch_one_bio(tg, bio_data_dir(bio));
-	}
+	/* finally, transfer bios from top-level tg's into the td */
+	tg_drain_bios(&td->service_queue);
+
+	rcu_read_unlock();
 	spin_unlock_irq(q->queue_lock);
 
+	/* all bios now should be in td->service_queue, issue them */
 	for (rw = READ; rw <= WRITE; rw++)
-		while ((bio = bio_list_pop(&parent_sq->bio_lists[rw])))
+		while ((bio = bio_list_pop(&td->service_queue.bio_lists[rw])))
 			generic_make_request(bio);
 
 	spin_lock_irq(q->queue_lock);
