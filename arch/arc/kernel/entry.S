@@ -586,11 +586,7 @@ ARC_ENTRY ret_from_exception
 	; Pre-{IRQ,Trap,Exception} K/U mode from pt_regs->status32
 	ld  r8, [sp, PT_status32]   ; returning to User/Kernel Mode
 
-#ifdef CONFIG_PREEMPT
 	bbit0  r8, STATUS_U_BIT, resume_kernel_mode
-#else
-	bbit0  r8, STATUS_U_BIT, restore_regs
-#endif
 
 	; Before returning to User mode check-for-and-complete any pending work
 	; such as rescheduling/signal-delivery etc.
@@ -650,9 +646,9 @@ resume_user_mode_begin:
 	b      resume_user_mode_begin	; unconditionally back to U mode ret chks
 					; for single exit point from this block
 
-#ifdef CONFIG_PREEMPT
-
 resume_kernel_mode:
+
+#ifdef CONFIG_PREEMPT
 
 	; Can't preempt if preemption disabled
 	GET_CURR_THR_INFO_FROM_SP   r10
