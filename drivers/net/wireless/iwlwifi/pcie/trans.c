@@ -578,9 +578,17 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 	clear_bit(STATUS_RFKILL, &trans_pcie->status);
 }
 
-static void iwl_trans_pcie_d3_suspend(struct iwl_trans *trans)
+static void iwl_trans_pcie_d3_suspend(struct iwl_trans *trans, bool test)
 {
 	iwl_disable_interrupts(trans);
+
+	/*
+	 * in testing mode, the host stays awake and the
+	 * hardware won't be reset (not even partially)
+	 */
+	if (test)
+		return;
+
 	iwl_pcie_disable_ict(trans);
 
 	iwl_clear_bit(trans, CSR_GP_CNTRL,
@@ -599,10 +607,17 @@ static void iwl_trans_pcie_d3_suspend(struct iwl_trans *trans)
 }
 
 static int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
-				    enum iwl_d3_status *status)
+				    enum iwl_d3_status *status,
+				    bool test)
 {
 	u32 val;
 	int ret;
+
+	if (test) {
+		iwl_enable_interrupts(trans);
+		*status = IWL_D3_STATUS_ALIVE;
+		return 0;
+	}
 
 	iwl_pcie_set_pwr(trans, false);
 

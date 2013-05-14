@@ -76,6 +76,11 @@ int iwl_mvm_send_cmd(struct iwl_mvm *mvm, struct iwl_host_cmd *cmd)
 {
 	int ret;
 
+#if defined(CONFIG_IWLWIFI_DEBUGFS) && defined(CONFIG_PM_SLEEP)
+	if (WARN_ON(mvm->d3_test_active))
+		return -EIO;
+#endif
+
 	/*
 	 * Synchronous commands from this op-mode must hold
 	 * the mutex, this ensures we don't try to send two
@@ -124,6 +129,11 @@ int iwl_mvm_send_cmd_status(struct iwl_mvm *mvm, struct iwl_host_cmd *cmd,
 	int ret, resp_len;
 
 	lockdep_assert_held(&mvm->mutex);
+
+#if defined(CONFIG_IWLWIFI_DEBUGFS) && defined(CONFIG_PM_SLEEP)
+	if (WARN_ON(mvm->d3_test_active))
+		return -EIO;
+#endif
 
 	/*
 	 * Only synchronous commands can wait for status,

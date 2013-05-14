@@ -204,7 +204,8 @@ int iwl_mvm_phy_ctxt_add(struct iwl_mvm *mvm, struct iwl_mvm_phy_ctxt *ctxt,
 {
 	int ret;
 
-	WARN_ON(ctxt->ref);
+	WARN_ON(!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status) &&
+		ctxt->ref);
 	lockdep_assert_held(&mvm->mutex);
 
 	ctxt->channel = chandef->chan;

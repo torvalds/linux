@@ -459,8 +459,10 @@ struct iwl_mvm {
 #ifdef CONFIG_PM_SLEEP
 	int gtk_ivlen, gtk_icvlen, ptk_ivlen, ptk_icvlen;
 #ifdef CONFIG_IWLWIFI_DEBUGFS
+	bool d3_test_active;
 	bool store_d3_resume_sram;
 	void *d3_resume_sram;
+	u32 d3_test_pme_ptr;
 #endif
 #endif
 
@@ -669,6 +671,7 @@ void iwl_mvm_ipv6_addr_change(struct ieee80211_hw *hw,
 			      struct inet6_dev *idev);
 void iwl_mvm_set_default_unicast_key(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif, int idx);
+extern const struct file_operations iwl_dbgfs_d3_test_ops;
 
 /* BT Coex */
 int iwl_send_bt_prio_tbl(struct iwl_mvm *mvm);

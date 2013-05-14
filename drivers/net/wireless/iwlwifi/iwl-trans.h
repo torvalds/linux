@@ -428,8 +428,9 @@ struct iwl_trans_ops {
 	void (*fw_alive)(struct iwl_trans *trans, u32 scd_addr);
 	void (*stop_device)(struct iwl_trans *trans);
 
-	void (*d3_suspend)(struct iwl_trans *trans);
-	int (*d3_resume)(struct iwl_trans *trans, enum iwl_d3_status *status);
+	void (*d3_suspend)(struct iwl_trans *trans, bool test);
+	int (*d3_resume)(struct iwl_trans *trans, enum iwl_d3_status *status,
+			 bool test);
 
 	int (*send_cmd)(struct iwl_trans *trans, struct iwl_host_cmd *cmd);
 
@@ -588,17 +589,18 @@ static inline void iwl_trans_stop_device(struct iwl_trans *trans)
 	trans->state = IWL_TRANS_NO_FW;
 }
 
-static inline void iwl_trans_d3_suspend(struct iwl_trans *trans)
+static inline void iwl_trans_d3_suspend(struct iwl_trans *trans, bool test)
 {
 	might_sleep();
-	trans->ops->d3_suspend(trans);
+	trans->ops->d3_suspend(trans, test);
 }
 
 static inline int iwl_trans_d3_resume(struct iwl_trans *trans,
-				      enum iwl_d3_status *status)
+				      enum iwl_d3_status *status,
+				      bool test)
 {
 	might_sleep();
-	return trans->ops->d3_resume(trans, status);
+	return trans->ops->d3_resume(trans, status, test);
 }
 
 static inline int iwl_trans_send_cmd(struct iwl_trans *trans,
