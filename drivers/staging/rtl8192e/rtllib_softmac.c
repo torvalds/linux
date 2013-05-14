@@ -1802,7 +1802,9 @@ static inline u16 auth_parse(struct sk_buff *skb, u8** challenge, int *chlen)
 		if (*(t++) == MFIE_TYPE_CHALLENGE) {
 			*chlen = *(t++);
 			*challenge = kmalloc(*chlen, GFP_ATOMIC);
-			memcpy(*challenge, t, *chlen);	/*TODO - check here*/
+			if (!*challenge)
+				return -ENOMEM;
+			memcpy(*challenge, t, *chlen);
 		}
 	}
 	return cpu_to_le16(a->status);
