@@ -183,7 +183,7 @@ static struct snd_kcontrol_new mop500_ab8500_ctrls[] = {
 
 /* ASoC */
 
-int mop500_ab8500_startup(struct snd_pcm_substream *substream)
+static int mop500_ab8500_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 
@@ -192,7 +192,7 @@ int mop500_ab8500_startup(struct snd_pcm_substream *substream)
 				snd_soc_card_get_drvdata(rtd->card));
 }
 
-void mop500_ab8500_shutdown(struct snd_pcm_substream *substream)
+static void mop500_ab8500_shutdown(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct device *dev = rtd->card->dev;
@@ -206,7 +206,7 @@ void mop500_ab8500_shutdown(struct snd_pcm_substream *substream)
 		rx_slots = DEF_RX_SLOTS;
 }
 
-int mop500_ab8500_hw_params(struct snd_pcm_substream *substream,
+static int mop500_ab8500_hw_params(struct snd_pcm_substream *substream,
 			struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
