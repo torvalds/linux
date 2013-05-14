@@ -238,4 +238,11 @@ void ni_update_current_ps(struct radeon_device *rdev,
 void ni_update_requested_ps(struct radeon_device *rdev,
 			    struct radeon_ps *rps);
 
+void ni_set_uvd_clock_before_set_eng_clock(struct radeon_device *rdev,
+					   struct radeon_ps *new_ps,
+					   struct radeon_ps *old_ps);
+void ni_set_uvd_clock_after_set_eng_clock(struct radeon_device *rdev,
+					  struct radeon_ps *new_ps,
+					  struct radeon_ps *old_ps);
+
 #endif

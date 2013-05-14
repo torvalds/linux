@@ -3475,6 +3475,42 @@ static void ni_enable_dynamic_pcie_gen2(struct radeon_device *rdev,
                 WREG32_P(GENERAL_PWRMGT, 0, ~ENABLE_GEN2PCIE);
 }
 
+void ni_set_uvd_clock_before_set_eng_clock(struct radeon_device *rdev,
+					   struct radeon_ps *new_ps,
+					   struct radeon_ps *old_ps)
+{
+	struct ni_ps *new_state = ni_get_ps(new_ps);
+	struct ni_ps *current_state = ni_get_ps(old_ps);
+
+	if ((new_ps->vclk == old_ps->vclk) &&
+	    (new_ps->dclk == old_ps->dclk))
+		return;
+
+	if (new_state->performance_levels[new_state->performance_level_count - 1].sclk >=
+	    current_state->performance_levels[current_state->performance_level_count - 1].sclk)
+		return;
+
+	radeon_set_uvd_clocks(rdev, new_ps->vclk, new_ps->dclk);
+}
+
+void ni_set_uvd_clock_after_set_eng_clock(struct radeon_device *rdev,
+					  struct radeon_ps *new_ps,
+					  struct radeon_ps *old_ps)
+{
+	struct ni_ps *new_state = ni_get_ps(new_ps);
+	struct ni_ps *current_state = ni_get_ps(old_ps);
+
+	if ((new_ps->vclk == old_ps->vclk) &&
+	    (new_ps->dclk == old_ps->dclk))
+		return;
+
+	if (new_state->performance_levels[new_state->performance_level_count - 1].sclk <
+	    current_state->performance_levels[current_state->performance_level_count - 1].sclk)
+		return;
+
+	radeon_set_uvd_clocks(rdev, new_ps->vclk, new_ps->dclk);
+}
+
 void ni_dpm_setup_asic(struct radeon_device *rdev)
 {
 	struct evergreen_power_info *eg_pi = evergreen_get_pi(rdev);
@@ -3730,7 +3766,7 @@ int ni_dpm_set_power_state(struct radeon_device *rdev)
 		DRM_ERROR("ni_restrict_performance_levels_before_switch failed\n");
 		return ret;
 	}
-	rv770_set_uvd_clock_before_set_eng_clock(rdev, new_ps, old_ps);
+	ni_set_uvd_clock_before_set_eng_clock(rdev, new_ps, old_ps);
 	ret = ni_enable_power_containment(rdev, new_ps, false);
 	if (ret) {
 		DRM_ERROR("ni_enable_power_containment failed\n");
@@ -3780,7 +3816,7 @@ int ni_dpm_set_power_state(struct radeon_device *rdev)
 		DRM_ERROR("rv770_set_sw_state failed\n");
 		return ret;
 	}
-	rv770_set_uvd_clock_after_set_eng_clock(rdev, new_ps, old_ps);
+	ni_set_uvd_clock_after_set_eng_clock(rdev, new_ps, old_ps);
 	ret = ni_enable_smc_cac(rdev, new_ps, true);
 	if (ret) {
 		DRM_ERROR("ni_enable_smc_cac failed\n");
