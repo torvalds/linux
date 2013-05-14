@@ -160,7 +160,7 @@ static const struct comedi_lrange range_usbduxfast_ai_range = {
 struct usbduxfastsub_s {
 	int attached;		/* is attached? */
 	int probed;		/* is it associated with a subdevice? */
-	struct usb_device *usbdev;	/* pointer to the usb-device */
+	struct usb_device *usb;	/* pointer to the usb-device */
 	struct urb *urbIn;	/* BULK-transfer handling: urb */
 	int8_t *transfer_buffer;
 	int16_t *insnBuffer;	/* input buffer for single insn */
@@ -210,8 +210,8 @@ static int send_dux_commands(struct usbduxfastsub_s *udfs, int cmd_type)
 	printk("\n");
 #endif
 
-	tmp = usb_bulk_msg(udfs->usbdev,
-			   usb_sndbulkpipe(udfs->usbdev, CHANNELLISTEP),
+	tmp = usb_bulk_msg(udfs->usb,
+			   usb_sndbulkpipe(udfs->usb, CHANNELLISTEP),
 			   udfs->dux_commands, SIZEOFDUXBUFFER, &nsent, 10000);
 	if (tmp < 0)
 		dev_err(&udfs->intf->dev,
@@ -416,7 +416,7 @@ static void usbduxfastsub_ai_Irq(struct urb *urb)
 	 * command is still running
 	 * resubmit urb for BULK transfer
 	 */
-	urb->dev = udfs->usbdev;
+	urb->dev = udfs->usb;
 	urb->status = 0;
 	err = usb_submit_urb(urb, GFP_ATOMIC);
 	if (err < 0) {
@@ -441,7 +441,7 @@ static int usbduxfastsub_start(struct usbduxfastsub_s *udfs)
 	/* 7f92 to zero */
 	*local_transfer_buffer = 0;
 	/* bRequest, "Firmware" */
-	ret = usb_control_msg(udfs->usbdev, usb_sndctrlpipe(udfs->usbdev, 0),
+	ret = usb_control_msg(udfs->usb, usb_sndctrlpipe(udfs->usb, 0),
 			      USBDUXFASTSUB_FIRMWARE,
 			      VENDOR_DIR_OUT,	  /* bmRequestType */
 			      USBDUXFASTSUB_CPUCS,    /* Value */
@@ -470,7 +470,7 @@ static int usbduxfastsub_stop(struct usbduxfastsub_s *udfs)
 	/* 7f92 to one */
 	*local_transfer_buffer = 1;
 	/* bRequest, "Firmware" */
-	ret = usb_control_msg(udfs->usbdev, usb_sndctrlpipe(udfs->usbdev, 0),
+	ret = usb_control_msg(udfs->usb, usb_sndctrlpipe(udfs->usb, 0),
 			      USBDUXFASTSUB_FIRMWARE,
 			      VENDOR_DIR_OUT,	/* bmRequestType */
 			      USBDUXFASTSUB_CPUCS,	/* Value */
@@ -497,7 +497,7 @@ static int usbduxfastsub_upload(struct usbduxfastsub_s *udfs,
 	       startAddr, local_transfer_buffer[0]);
 #endif
 	/* brequest, firmware */
-	ret = usb_control_msg(udfs->usbdev, usb_sndctrlpipe(udfs->usbdev, 0),
+	ret = usb_control_msg(udfs->usb, usb_sndctrlpipe(udfs->usb, 0),
 			      USBDUXFASTSUB_FIRMWARE,
 			      VENDOR_DIR_OUT,	/* bmRequestType */
 			      startAddr,	/* value */
@@ -526,8 +526,8 @@ static int usbduxfastsub_submit_InURBs(struct usbduxfastsub_s *udfs)
 	if (!udfs)
 		return -EFAULT;
 
-	usb_fill_bulk_urb(udfs->urbIn, udfs->usbdev,
-			  usb_rcvbulkpipe(udfs->usbdev, BULKINEP),
+	usb_fill_bulk_urb(udfs->urbIn, udfs->usb,
+			  usb_rcvbulkpipe(udfs->usb, BULKINEP),
 			  udfs->transfer_buffer,
 			  SIZEINBUF, usbduxfastsub_ai_Irq, udfs->comedidev);
 
@@ -1252,8 +1252,8 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 	       udfs->urbIn->dev);
 #endif
 	for (i = 0; i < PACKETS_TO_IGNORE; i++) {
-		err = usb_bulk_msg(udfs->usbdev,
-				   usb_rcvbulkpipe(udfs->usbdev, BULKINEP),
+		err = usb_bulk_msg(udfs->usb,
+				   usb_rcvbulkpipe(udfs->usb, BULKINEP),
 				   udfs->transfer_buffer, SIZEINBUF,
 				   &actual_length, 10000);
 		if (err < 0) {
@@ -1264,8 +1264,8 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 	}
 	/* data points */
 	for (i = 0; i < insn->n;) {
-		err = usb_bulk_msg(udfs->usbdev,
-				   usb_rcvbulkpipe(udfs->usbdev, BULKINEP),
+		err = usb_bulk_msg(udfs->usb,
+				   usb_rcvbulkpipe(udfs->usb, BULKINEP),
 				   udfs->transfer_buffer, SIZEINBUF,
 				   &actual_length, 10000);
 		if (err < 0) {
@@ -1490,12 +1490,12 @@ static int usbduxfast_request_firmware(struct usb_interface *intf)
 static int usbduxfast_usb_probe(struct usb_interface *intf,
 				const struct usb_device_id *id)
 {
-	struct usb_device *udev = interface_to_usbdev(intf);
+	struct usb_device *usb = interface_to_usbdev(intf);
 	struct usbduxfastsub_s *devpriv = NULL;
 	int i;
 	int ret;
 
-	if (udev->speed != USB_SPEED_HIGH) {
+	if (usb->speed != USB_SPEED_HIGH) {
 		dev_err(&intf->dev,
 			"This driver needs USB 2.0 to operate. Aborting...\n");
 		return -ENODEV;
@@ -1519,7 +1519,7 @@ static int usbduxfast_usb_probe(struct usb_interface *intf,
 	}
 
 	sema_init(&devpriv->sem, 1);
-	devpriv->usbdev = udev;
+	devpriv->usb = usb;
 	devpriv->intf = intf;
 	devpriv->ifnum = intf->altsetting->desc.bInterfaceNumber;
 	usb_set_intfdata(intf, devpriv);
@@ -1538,7 +1538,7 @@ static int usbduxfast_usb_probe(struct usb_interface *intf,
 		return -ENOMEM;
 	}
 
-	i = usb_set_interface(devpriv->usbdev, devpriv->ifnum, 1);
+	i = usb_set_interface(devpriv->usb, devpriv->ifnum, 1);
 	if (i < 0) {
 		dev_err(&intf->dev,
 			"could not switch to alternate setting 1\n");
@@ -1581,13 +1581,13 @@ static int usbduxfast_usb_probe(struct usb_interface *intf,
 static void usbduxfast_usb_disconnect(struct usb_interface *intf)
 {
 	struct usbduxfastsub_s *udfs = usb_get_intfdata(intf);
-	struct usb_device *udev = interface_to_usbdev(intf);
+	struct usb_device *usb = interface_to_usbdev(intf);
 
 	if (!udfs) {
 		dev_err(&intf->dev, "disconnect called with null pointer.\n");
 		return;
 	}
-	if (udfs->usbdev != udev) {
+	if (udfs->usb != usb) {
 		dev_err(&intf->dev, "BUG! called with wrong ptr!!!\n");
 		return;
 	}
