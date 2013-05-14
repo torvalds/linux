@@ -152,7 +152,6 @@ struct usbduxfast_private {
 	struct urb *urbIn;	/* BULK-transfer handling: urb */
 	int8_t *transfer_buffer;
 	int16_t *insnBuffer;	/* input buffer for single insn */
-	int ifnum;		/* interface number */
 	struct usb_interface *intf;	/* interface structure */
 	/* comedi device for the interrupt context */
 	struct comedi_device *comedidev;
@@ -1285,7 +1284,6 @@ static int usbduxfast_auto_attach(struct comedi_device *dev,
 	devpriv->comedidev = dev;
 	devpriv->usb = usb;
 	devpriv->intf = intf;
-	devpriv->ifnum = intf->altsetting->desc.bInterfaceNumber;
 	usb_set_intfdata(intf, devpriv);
 
 	devpriv->dux_commands = kmalloc(SIZEOFDUXBUFFER, GFP_KERNEL);
@@ -1296,7 +1294,8 @@ static int usbduxfast_auto_attach(struct comedi_device *dev,
 	if (!devpriv->insnBuffer)
 		return -ENOMEM;
 
-	ret = usb_set_interface(devpriv->usb, devpriv->ifnum, 1);
+	ret = usb_set_interface(devpriv->usb,
+				intf->altsetting->desc.bInterfaceNumber, 1);
 	if (ret < 0) {
 		dev_err(&intf->dev,
 			"could not switch to alternate setting 1\n");
