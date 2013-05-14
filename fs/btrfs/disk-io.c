@@ -1673,17 +1673,6 @@ static void end_workqueue_fn(struct btrfs_work *work)
 	bio_endio(bio, error);
 }
 
-/*
- * If we remount the fs to be R/O or umount the fs, the cleaner needn't do
- * anything except sleeping. This function is used to check the status of
- * the fs.
- */
-static inline int need_cleaner_sleep(struct btrfs_root *root)
-{
-	return (root->fs_info->sb->s_flags & MS_RDONLY ||
-		btrfs_fs_closing(root->fs_info));
-}
-
 static int cleaner_kthread(void *arg)
 {
 	struct btrfs_root *root = arg;
@@ -1693,7 +1682,7 @@ static int cleaner_kthread(void *arg)
 		again = 0;
 
 		/* Make the cleaner go to sleep early. */
-		if (need_cleaner_sleep(root))
+		if (btrfs_need_cleaner_sleep(root))
 			goto sleep;
 
 		if (!mutex_trylock(&root->fs_info->cleaner_mutex))
@@ -1703,7 +1692,7 @@ static int cleaner_kthread(void *arg)
 		 * Avoid the problem that we change the status of the fs
 		 * during the above check and trylock.
 		 */
-		if (need_cleaner_sleep(root)) {
+		if (btrfs_need_cleaner_sleep(root)) {
 			mutex_unlock(&root->fs_info->cleaner_mutex);
 			goto sleep;
 		}

@@ -3318,6 +3318,18 @@ static inline int btrfs_fs_closing(struct btrfs_fs_info *fs_info)
 	smp_mb();
 	return fs_info->closing;
 }
+
+/*
+ * If we remount the fs to be R/O or umount the fs, the cleaner needn't do
+ * anything except sleeping. This function is used to check the status of
+ * the fs.
+ */
+static inline int btrfs_need_cleaner_sleep(struct btrfs_root *root)
+{
+	return (root->fs_info->sb->s_flags & MS_RDONLY ||
+		btrfs_fs_closing(root->fs_info));
+}
+
 static inline void free_fs_info(struct btrfs_fs_info *fs_info)
 {
 	kfree(fs_info->balance_ctl);

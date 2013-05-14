@@ -7384,7 +7384,7 @@ int btrfs_drop_snapshot(struct btrfs_root *root,
 	wc->reada_count = BTRFS_NODEPTRS_PER_BLOCK(root);
 
 	while (1) {
-		if (!for_reloc && btrfs_fs_closing(root->fs_info)) {
+		if (!for_reloc && btrfs_need_cleaner_sleep(root)) {
 			pr_debug("btrfs: drop snapshot early exit\n");
 			err = -EAGAIN;
 			goto out_end_trans;
