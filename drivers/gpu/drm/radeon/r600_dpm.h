@@ -224,4 +224,8 @@ enum radeon_pcie_gen r600_get_pcie_gen_support(struct radeon_device *rdev,
 					       enum radeon_pcie_gen asic_gen,
 					       enum radeon_pcie_gen default_gen);
 
+u16 r600_get_pcie_lane_support(struct radeon_device *rdev,
+			       u16 asic_lanes,
+			       u16 default_lanes);
+
 #endif
