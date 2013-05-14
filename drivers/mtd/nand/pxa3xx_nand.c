@@ -596,6 +596,7 @@ static int prepare_command_pool(struct pxa3xx_nand_info *info, int command,
 		info->ndcb0 |= NDCB0_CMD_TYPE(3)
 				| NDCB0_ADDR_CYC(1)
 				| cmd;
+		info->ndcb1 = (column & 0xFF);
 
 		info->data_size = 8;
 		break;
