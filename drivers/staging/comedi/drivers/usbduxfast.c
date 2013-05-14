@@ -180,7 +180,7 @@ static int send_dux_commands(struct comedi_device *dev, int cmd_type)
 			   devpriv->dux_commands,
 			   SIZEOFDUXBUFFER, &nsent, 10000);
 	if (tmp < 0)
-		dev_err(&devpriv->intf->dev,
+		dev_err(dev->class_dev,
 			"could not transmit dux_commands to the usb-device, err=%d\n",
 			tmp);
 	return tmp;
@@ -351,7 +351,7 @@ static void usbduxfast_ai_interrupt(struct urb *urb)
 	urb->status = 0;
 	err = usb_submit_urb(urb, GFP_ATOMIC);
 	if (err < 0) {
-		dev_err(&urb->dev->dev,
+		dev_err(dev->class_dev,
 			"urb resubm failed: %d", err);
 		async->events |= COMEDI_CB_EOA;
 		async->events |= COMEDI_CB_ERROR;
@@ -383,8 +383,7 @@ static int usbduxfastsub_start(struct comedi_device *dev)
 			      1,      /* Length */
 			      EZTIMEOUT);    /* Timeout */
 	if (ret < 0)
-		dev_err(&devpriv->intf->dev,
-			"control msg failed (start)\n");
+		dev_err(dev->class_dev, "control msg failed (start)\n");
 
 	kfree(local_transfer_buffer);
 	return ret;
@@ -411,8 +410,7 @@ static int usbduxfastsub_stop(struct comedi_device *dev)
 			      local_transfer_buffer, 1,	/* Length */
 			      EZTIMEOUT);	/* Timeout */
 	if (ret < 0)
-		dev_err(&devpriv->intf->dev,
-			"control msg failed (stop)\n");
+		dev_err(dev->class_dev, "control msg failed (stop)\n");
 
 	kfree(local_transfer_buffer);
 	return ret;
@@ -436,7 +434,7 @@ static int usbduxfastsub_upload(struct comedi_device *dev,
 			      len,	/* length */
 			      EZTIMEOUT);      /* timeout */
 	if (ret < 0) {
-		dev_err(&devpriv->intf->dev, "uppload failed\n");
+		dev_err(dev->class_dev, "uppload failed\n");
 		return ret;
 	}
 
@@ -458,8 +456,7 @@ static int usbduxfastsub_submit_InURBs(struct comedi_device *dev)
 
 	ret = usb_submit_urb(devpriv->urbIn, GFP_ATOMIC);
 	if (ret) {
-		dev_err(&devpriv->intf->dev,
-			"ai: usb_submit_urb error %d\n", ret);
+		dev_err(dev->class_dev, "usb_submit_urb error %d\n", ret);
 		return ret;
 	}
 	return 0;
@@ -571,7 +568,7 @@ static int usbduxfast_ai_inttrig(struct comedi_device *dev,
 	down(&devpriv->sem);
 
 	if (trignum != 0) {
-		dev_err(dev->class_dev, "%s: invalid trignum\n", __func__);
+		dev_err(dev->class_dev, "invalid trignum\n");
 		up(&devpriv->sem);
 		return -EINVAL;
 	}
@@ -579,16 +576,14 @@ static int usbduxfast_ai_inttrig(struct comedi_device *dev,
 		devpriv->ai_cmd_running = 1;
 		ret = usbduxfastsub_submit_InURBs(dev);
 		if (ret < 0) {
-			dev_err(dev->class_dev,
-				"%s: urbSubmit: err=%d\n", __func__, ret);
+			dev_err(dev->class_dev, "urbSubmit: err=%d\n", ret);
 			devpriv->ai_cmd_running = 0;
 			up(&devpriv->sem);
 			return ret;
 		}
 		s->async->inttrig = NULL;
 	} else {
-		dev_err(dev->class_dev,
-			"ai_inttrig but acqu is already running\n");
+		dev_err(dev->class_dev, "ai is already running\n");
 	}
 	up(&devpriv->sem);
 	return 1;
@@ -618,8 +613,7 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 
 	down(&devpriv->sem);
 	if (devpriv->ai_cmd_running) {
-		dev_err(dev->class_dev,
-			"ai_cmd not possible. Another ai_cmd is running.\n");
+		dev_err(dev->class_dev, "ai_cmd not possible\n");
 		up(&devpriv->sem);
 		return -EBUSY;
 	}
@@ -638,20 +632,19 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 			chan = CR_CHAN(cmd->chanlist[i]);
 			if (chan != i) {
 				dev_err(dev->class_dev,
-					"cmd is accepting only consecutive channels.\n");
+					"channels are not consecutive\n");
 				up(&devpriv->sem);
 				return -EINVAL;
 			}
 			if ((gain != CR_RANGE(cmd->chanlist[i]))
 			    && (cmd->chanlist_len > 3)) {
 				dev_err(dev->class_dev,
-					"the gain must be the same for all channels.\n");
+					"gain must be the same for all channels\n");
 				up(&devpriv->sem);
 				return -EINVAL;
 			}
 			if (i >= NUMCHANNELS) {
-				dev_err(dev->class_dev,
-					"channel list too long\n");
+				dev_err(dev->class_dev, "chanlist too long\n");
 				break;
 			}
 		}
@@ -659,7 +652,7 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 	steps = 0;
 	if (cmd->scan_begin_src == TRIG_TIMER) {
 		dev_err(dev->class_dev,
-			"scan_begin_src==TRIG_TIMER not valid.\n");
+			"scan_begin_src==TRIG_TIMER not valid\n");
 		up(&devpriv->sem);
 		return -EINVAL;
 	}
@@ -668,20 +661,20 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 
 	if ((steps < MIN_SAMPLING_PERIOD) && (cmd->chanlist_len != 1)) {
 		dev_err(dev->class_dev,
-			"ai_cmd: steps=%ld, scan_begin_arg=%d. Not properly tested by cmdtest?\n",
+			"steps=%ld, scan_begin_arg=%d. Not properly tested by cmdtest?\n",
 			steps, cmd->scan_begin_arg);
 		up(&devpriv->sem);
 		return -EINVAL;
 	}
 	if (steps > MAX_SAMPLING_PERIOD) {
-		dev_err(dev->class_dev, "ai_cmd: sampling rate too low.\n");
+		dev_err(dev->class_dev, "sampling rate too low\n");
 		up(&devpriv->sem);
 		return -EINVAL;
 	}
 	if ((cmd->start_src == TRIG_EXT) && (cmd->chanlist_len != 1)
 	    && (cmd->chanlist_len != 16)) {
 		dev_err(dev->class_dev,
-			"ai_cmd: TRIG_EXT only with 1 or 16 channels possible.\n");
+			"TRIG_EXT only with 1 or 16 channels possible\n");
 		up(&devpriv->sem);
 		return -EINVAL;
 	}
@@ -1003,7 +996,7 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 	result = send_dux_commands(dev, SENDADCOMMANDS);
 	if (result < 0) {
 		dev_err(dev->class_dev,
-			"adc command could not be submitted. Aborting...\n");
+			"adc command could not be submitted, aborting\n");
 		up(&devpriv->sem);
 		return result;
 	}
@@ -1011,7 +1004,7 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 		devpriv->ai_sample_count = cmd->stop_arg * cmd->scan_end_arg;
 		if (devpriv->ai_sample_count < 1) {
 			dev_err(dev->class_dev,
-				"(cmd->stop_arg)*(cmd->scan_end_arg)<1, aborting.\n");
+				"(cmd->stop_arg)*(cmd->scan_end_arg)<1, aborting\n");
 			up(&devpriv->sem);
 			return -EFAULT;
 		}
@@ -1059,14 +1052,14 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 	int err;
 
 	if (!devpriv) {
-		dev_err(dev->class_dev, "%s: no usb dev.\n", __func__);
+		dev_err(dev->class_dev, "no usb dev\n");
 		return -ENODEV;
 	}
 
 	down(&devpriv->sem);
 	if (devpriv->ai_cmd_running) {
 		dev_err(dev->class_dev,
-			"ai_insn_read not possible. Async Command is running.\n");
+			"ai_insn_read not possible, async cmd is running\n");
 		up(&devpriv->sem);
 		return -EBUSY;
 	}
@@ -1123,7 +1116,7 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 	err = send_dux_commands(dev, SENDADCOMMANDS);
 	if (err < 0) {
 		dev_err(dev->class_dev,
-			"adc command could not be submitted. Aborting...\n");
+			"adc command could not be submitted, aborting\n");
 		up(&devpriv->sem);
 		return err;
 	}
@@ -1134,7 +1127,7 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 				   devpriv->transfer_buffer, SIZEINBUF,
 				   &actual_length, 10000);
 		if (err < 0) {
-			dev_err(dev->class_dev, "insn timeout. No data.\n");
+			dev_err(dev->class_dev, "insn timeout, no data\n");
 			up(&devpriv->sem);
 			return err;
 		}
@@ -1152,7 +1145,7 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 		}
 		n = actual_length / sizeof(uint16_t);
 		if ((n % 16) != 0) {
-			dev_err(dev->class_dev, "insn data packet corrupted.\n");
+			dev_err(dev->class_dev, "insn data packet corrupted\n");
 			up(&devpriv->sem);
 			return -EINVAL;
 		}
@@ -1170,46 +1163,40 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 static int firmwareUpload(struct comedi_device *dev,
 			  const u8 *firmwareBinary, int sizeFirmware)
 {
-	struct usbduxfast_private *devpriv = dev->private;
-	int ret;
 	uint8_t *fwBuf;
+	int ret;
 
 	if (!firmwareBinary)
 		return 0;
 
 	if (sizeFirmware > FIRMWARE_MAX_LEN) {
-		dev_err(&devpriv->intf->dev,
-			"comedi_: usbduxfast firmware binary it too large for FX2.\n");
+		dev_err(dev->class_dev, "firmware binary too large for FX2\n");
 		return -ENOMEM;
 	}
 
 	/* we generate a local buffer for the firmware */
 	fwBuf = kmemdup(firmwareBinary, sizeFirmware, GFP_KERNEL);
 	if (!fwBuf) {
-		dev_err(&devpriv->intf->dev,
-			"comedi_: mem alloc for firmware failed\n");
+		dev_err(dev->class_dev, "mem alloc for firmware failed\n");
 		return -ENOMEM;
 	}
 
 	ret = usbduxfastsub_stop(dev);
 	if (ret < 0) {
-		dev_err(&devpriv->intf->dev,
-			"comedi_: can not stop firmware\n");
+		dev_err(dev->class_dev, "can not stop firmware\n");
 		kfree(fwBuf);
 		return ret;
 	}
 
 	ret = usbduxfastsub_upload(dev, fwBuf, 0, sizeFirmware);
 	if (ret < 0) {
-		dev_err(&devpriv->intf->dev,
-			"comedi_: firmware upload failed\n");
+		dev_err(dev->class_dev, "firmware upload failed\n");
 		kfree(fwBuf);
 		return ret;
 	}
 	ret = usbduxfastsub_start(dev);
 	if (ret < 0) {
-		dev_err(&devpriv->intf->dev,
-			"comedi_: can not start firmware\n");
+		dev_err(dev->class_dev, "can not start firmware\n");
 		kfree(fwBuf);
 		return ret;
 	}
@@ -1277,7 +1264,7 @@ static int usbduxfast_auto_attach(struct comedi_device *dev,
 	int ret;
 
 	if (usb->speed != USB_SPEED_HIGH) {
-		dev_err(&intf->dev,
+		dev_err(dev->class_dev,
 			"This driver needs USB 2.0 to operate. Aborting...\n");
 		return -ENODEV;
 	}
@@ -1303,14 +1290,14 @@ static int usbduxfast_auto_attach(struct comedi_device *dev,
 	ret = usb_set_interface(devpriv->usb,
 				intf->altsetting->desc.bInterfaceNumber, 1);
 	if (ret < 0) {
-		dev_err(&intf->dev,
+		dev_err(dev->class_dev,
 			"could not switch to alternate setting 1\n");
 		return -ENODEV;
 	}
 
 	devpriv->urbIn = usb_alloc_urb(0, GFP_KERNEL);
 	if (!devpriv->urbIn) {
-		dev_err(&intf->dev, "Could not alloc. urb\n");
+		dev_err(dev->class_dev, "Could not alloc. urb\n");
 		return -ENOMEM;
 	}
 
@@ -1324,7 +1311,8 @@ static int usbduxfast_auto_attach(struct comedi_device *dev,
 	 */
 	ret = usbduxfast_request_firmware(dev);
 	if (ret) {
-		dev_err(&intf->dev, "could not load firmware (err=%d)\n", ret);
+		dev_err(dev->class_dev, "could not load firmware (err=%d)\n",
+			ret);
 		return ret;
 	}
 
