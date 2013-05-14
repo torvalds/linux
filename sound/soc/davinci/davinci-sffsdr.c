@@ -106,7 +106,7 @@ static struct pcm3008_setup_data sffsdr_pcm3008_setup = {
 	.pdda_pin = GPIO(38),
 };
 
-struct platform_device pcm3008_codec = {
+static struct platform_device pcm3008_codec = {
 		.name = "pcm3008-codec",
 		.id = 0,
 		.dev = {
