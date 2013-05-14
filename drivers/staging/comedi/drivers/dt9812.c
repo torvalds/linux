@@ -263,9 +263,6 @@ struct dt9812_private {
 		__u8 addr;
 		size_t size;
 	} cmd_wr, cmd_rd;
-	u32 serial;
-	u16 vendor;
-	u16 product;
 	u16 device;
 	u16 ao_shadow[2];
 	u8 do_shadow;
@@ -741,11 +738,13 @@ static int dt9812_reset_device(struct comedi_device *dev)
 	struct usb_interface *intf = comedi_to_usb_interface(dev);
 	struct usb_device *usb = interface_to_usbdev(intf);
 	struct dt9812_private *devpriv = dev->private;
-	int ret;
-	int i;
-	u32 tmp32;
+	u32 serial;
+	u16 vendor;
+	u16 product;
 	u16 tmp16;
 	u8 tmp8;
+	int ret;
+	int i;
 
 	ret = dt9812_read_info(dev, 0, &tmp8, sizeof(tmp8));
 	if (ret) {
@@ -765,19 +764,19 @@ static int dt9812_reset_device(struct comedi_device *dev)
 		}
 	}
 
-	ret = dt9812_read_info(dev, 1, &tmp16, sizeof(tmp16));
+	ret = dt9812_read_info(dev, 1, &vendor, sizeof(vendor));
 	if (ret) {
 		dev_err(&intf->dev, "failed to read vendor id\n");
 		return ret;
 	}
-	devpriv->vendor = le16_to_cpu(tmp16);
+	vendor = le16_to_cpu(vendor);
 
-	ret = dt9812_read_info(dev, 3, &tmp16, sizeof(tmp16));
+	ret = dt9812_read_info(dev, 3, &product, sizeof(product));
 	if (ret) {
 		dev_err(&intf->dev, "failed to read product id\n");
 		return ret;
 	}
-	devpriv->product = le16_to_cpu(tmp16);
+	product = le16_to_cpu(product);
 
 	ret = dt9812_read_info(dev, 5, &tmp16, sizeof(tmp16));
 	if (ret) {
@@ -786,17 +785,16 @@ static int dt9812_reset_device(struct comedi_device *dev)
 	}
 	devpriv->device = le16_to_cpu(tmp16);
 
-	ret = dt9812_read_info(dev, 7, &tmp32, sizeof(tmp32));
+	ret = dt9812_read_info(dev, 7, &serial, sizeof(serial));
 	if (ret) {
 		dev_err(&intf->dev, "failed to read serial number\n");
 		return ret;
 	}
-	devpriv->serial = le32_to_cpu(tmp32);
+	serial = le32_to_cpu(serial);
 
 	/* let the user know what node this device is now attached to */
 	dev_info(&intf->dev, "USB DT9812 (%4.4x.%4.4x.%4.4x) #0x%8.8x\n",
-		 devpriv->vendor, devpriv->product, devpriv->device,
-		 devpriv->serial);
+		 vendor, product, devpriv->device, serial);
 
 	return 0;
 }
