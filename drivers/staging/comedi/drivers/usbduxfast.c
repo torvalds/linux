@@ -326,7 +326,7 @@ static void usbduxfast_ai_interrupt(struct urb *urb)
 	}
 }
 
-static int usbduxfastsub_submit_InURBs(struct comedi_device *dev)
+static int usbduxfast_submit_urb(struct comedi_device *dev)
 {
 	struct usb_interface *intf = comedi_to_usb_interface(dev);
 	struct usb_device *usb = interface_to_usbdev(intf);
@@ -460,7 +460,7 @@ static int usbduxfast_ai_inttrig(struct comedi_device *dev,
 	}
 	if (!devpriv->ai_cmd_running) {
 		devpriv->ai_cmd_running = 1;
-		ret = usbduxfastsub_submit_InURBs(dev);
+		ret = usbduxfast_submit_urb(dev);
 		if (ret < 0) {
 			dev_err(dev->class_dev, "urbSubmit: err=%d\n", ret);
 			devpriv->ai_cmd_running = 0;
@@ -900,7 +900,7 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 	if ((cmd->start_src == TRIG_NOW) || (cmd->start_src == TRIG_EXT)) {
 		/* enable this acquisition operation */
 		devpriv->ai_cmd_running = 1;
-		ret = usbduxfastsub_submit_InURBs(dev);
+		ret = usbduxfast_submit_urb(dev);
 		if (ret < 0) {
 			devpriv->ai_cmd_running = 0;
 			/* fixme: unlink here?? */
