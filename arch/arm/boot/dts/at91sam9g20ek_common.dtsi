@@ -5,7 +5,7 @@
  *
  * Licensed under GPLv2.
  */
-/include/ "at91sam9g20.dtsi"
+#include "at91sam9g20.dtsi"
 
 / {
 

@@ -6,7 +6,7 @@
  * Licensed under GPLv2 only.
  */
 
-/include/ "skeleton.dtsi"
+#include "skeleton.dtsi"
 
 / {
 	model = "Atmel AT91SAM9263 family SoC";

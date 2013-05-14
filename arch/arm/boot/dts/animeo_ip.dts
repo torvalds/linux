@@ -7,7 +7,7 @@
  */
 
 /dts-v1/;
-/include/ "at91sam9260.dtsi"
+#include "at91sam9260.dtsi"
 
 / {
 	model = "Somfy Animeo IP";

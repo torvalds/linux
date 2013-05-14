@@ -9,7 +9,7 @@
 
 /dts-v1/;
 
-/include/ "ge863-pro3.dtsi"
+#include "ge863-pro3.dtsi"
 
 / {
 	model = "Telit EVK-PRO3 for Telit GE863-PRO3";

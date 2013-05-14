@@ -6,7 +6,7 @@
  * Licensed under GPLv2.
  */
 /dts-v1/;
-/include/ "at91sam9g20ek_common.dtsi"
+#include "at91sam9g20ek_common.dtsi"
 
 / {
 	model = "Atmel at91sam9g20ek";

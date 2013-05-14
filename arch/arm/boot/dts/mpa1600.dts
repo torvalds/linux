@@ -6,7 +6,7 @@
  * Licensed under GPLv2 only
  */
 /dts-v1/;
-/include/ "at91rm9200.dtsi"
+#include "at91rm9200.dtsi"
 
 / {
 	model = "Phontech MPA 1600";

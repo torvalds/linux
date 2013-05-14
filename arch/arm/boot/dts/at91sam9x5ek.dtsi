@@ -6,7 +6,7 @@
  *
  * Licensed under GPLv2 or later.
  */
-/include/ "at91sam9x5cm.dtsi"
+#include "at91sam9x5cm.dtsi"
 
 / {
 	model = "Atmel AT91SAM9X5-EK";

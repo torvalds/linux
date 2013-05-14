@@ -7,8 +7,8 @@
  * Licensed under GPLv2 or later.
  */
 /dts-v1/;
-/include/ "at91sam9x25.dtsi"
-/include/ "at91sam9x5ek.dtsi"
+#include "at91sam9x25.dtsi"
+#include "at91sam9x5ek.dtsi"
 
 / {
 	model = "Atmel AT91SAM9G25-EK";

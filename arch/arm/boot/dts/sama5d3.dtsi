@@ -8,7 +8,7 @@
  * Licensed under GPLv2 or later.
  */
 
-/include/ "skeleton.dtsi"
+#include "skeleton.dtsi"
 
 / {
 	model = "Atmel SAMA5D3 family SoC";

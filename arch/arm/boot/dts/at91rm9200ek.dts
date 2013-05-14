@@ -6,7 +6,7 @@
  * Licensed under GPLv2 only
  */
 /dts-v1/;
-/include/ "at91rm9200.dtsi"
+#include "at91rm9200.dtsi"
 
 / {
 	model = "Atmel AT91RM9200 evaluation kit";
