@@ -202,14 +202,6 @@ static int send_dux_commands(struct usbduxfast_private *devpriv, int cmd_type)
 
 	devpriv->dux_commands[0] = cmd_type;
 
-#ifdef CONFIG_COMEDI_DEBUG
-	printk(KERN_DEBUG "comedi%d: usbduxfast: dux_commands: ",
-	       devpriv->comedidev->minor);
-	for (tmp = 0; tmp < SIZEOFDUXBUFFER; tmp++)
-		printk(" %02x", devpriv->dux_commands[tmp]);
-	printk("\n");
-#endif
-
 	tmp = usb_bulk_msg(devpriv->usb,
 			   usb_sndbulkpipe(devpriv->usb, CHANNELLISTEP),
 			   devpriv->dux_commands,
@@ -236,9 +228,6 @@ static int usbduxfastsub_unlink_InURBs(struct usbduxfast_private *devpriv)
 		usb_kill_urb(devpriv->urbIn);
 		j = 0;
 	}
-#ifdef CONFIG_COMEDI_DEBUG
-	printk(KERN_DEBUG "comedi: usbduxfast: unlinked InURB: res=%d\n", j);
-#endif
 	return err;
 }
 
@@ -256,9 +245,6 @@ static int usbduxfast_ai_stop(struct usbduxfast_private *devpriv,
 		pr_err("%s: devpriv=NULL!\n", __func__);
 		return -EFAULT;
 	}
-#ifdef CONFIG_COMEDI_DEBUG
-	printk(KERN_DEBUG "comedi: usbduxfast_ai_stop\n");
-#endif
 
 	devpriv->ai_cmd_running = 0;
 
@@ -280,9 +266,6 @@ static int usbduxfast_ai_cancel(struct comedi_device *dev,
 	int ret;
 
 	/* force unlink of all urbs */
-#ifdef CONFIG_COMEDI_DEBUG
-	printk(KERN_DEBUG "comedi: usbduxfast_ai_cancel\n");
-#endif
 	if (!devpriv) {
 		dev_err(dev->class_dev, "%s: devpriv=NULL\n", __func__);
 		return -EFAULT;
@@ -492,11 +475,6 @@ static int usbduxfastsub_upload(struct usbduxfast_private *devpriv,
 {
 	int ret;
 
-#ifdef CONFIG_COMEDI_DEBUG
-	printk(KERN_DEBUG "comedi: usbduxfast: uploading %d bytes", len);
-	printk(KERN_DEBUG " to addr %d, first byte=%d.\n",
-	       startAddr, local_transfer_buffer[0]);
-#endif
 	/* brequest, firmware */
 	ret = usb_control_msg(devpriv->usb, usb_sndctrlpipe(devpriv->usb, 0),
 			      USBDUXFASTSUB_FIRMWARE,
@@ -507,11 +485,6 @@ static int usbduxfastsub_upload(struct usbduxfast_private *devpriv,
 			      local_transfer_buffer,
 			      len,	/* length */
 			      EZTIMEOUT);      /* timeout */
-
-#ifdef CONFIG_COMEDI_DEBUG
-	printk(KERN_DEBUG "comedi_: usbduxfast: result=%d\n", ret);
-#endif
-
 	if (ret < 0) {
 		dev_err(&devpriv->intf->dev, "uppload failed\n");
 		return ret;
@@ -532,11 +505,6 @@ static int usbduxfastsub_submit_InURBs(struct usbduxfast_private *devpriv)
 			  devpriv->transfer_buffer,
 			  SIZEINBUF, usbduxfastsub_ai_Irq, devpriv->comedidev);
 
-#ifdef CONFIG_COMEDI_DEBUG
-	printk(KERN_DEBUG "comedi%d: usbduxfast: submitting in-urb: "
-	       "0x%p,0x%p\n", devpriv->comedidev->minor, devpriv->urbIn->context,
-	       devpriv->urbIn->dev);
-#endif
 	ret = usb_submit_urb(devpriv->urbIn, GFP_ATOMIC);
 	if (ret) {
 		dev_err(&devpriv->intf->dev,
@@ -658,9 +626,6 @@ static int usbduxfast_ai_inttrig(struct comedi_device *dev,
 		up(&devpriv->sem);
 		return -ENODEV;
 	}
-#ifdef CONFIG_COMEDI_DEBUG
-	printk(KERN_DEBUG "comedi%d: usbduxfast_ai_inttrig\n", dev->minor);
-#endif
 
 	if (trignum != 0) {
 		dev_err(dev->class_dev, "%s: invalid trignum\n", __func__);
@@ -705,9 +670,6 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 	int result;
 	long steps, steps_tmp;
 
-#ifdef CONFIG_COMEDI_DEBUG
-	printk(KERN_DEBUG "comedi%d: usbduxfast_ai_cmd\n", dev->minor);
-#endif
 	if (!devpriv)
 		return -EFAULT;
 
@@ -784,10 +746,6 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 		up(&devpriv->sem);
 		return -EINVAL;
 	}
-#ifdef CONFIG_COMEDI_DEBUG
-	printk(KERN_DEBUG "comedi%d: usbduxfast: steps=%ld, convert_arg=%u\n",
-	       dev->minor, steps, cmd->convert_arg);
-#endif
 
 	switch (cmd->chanlist_len) {
 	case 1:
@@ -1102,10 +1060,6 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 		return -EFAULT;
 	}
 
-#ifdef CONFIG_COMEDI_DEBUG
-	printk(KERN_DEBUG "comedi %d: sending commands to the usb device\n",
-	       dev->minor);
-#endif
 	/* 0 means that the AD commands are sent */
 	result = send_dux_commands(devpriv, SENDADCOMMANDS);
 	if (result < 0) {
@@ -1169,10 +1123,7 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 		dev_err(dev->class_dev, "%s: no usb dev.\n", __func__);
 		return -ENODEV;
 	}
-#ifdef CONFIG_COMEDI_DEBUG
-	printk(KERN_DEBUG "comedi%d: ai_insn_read, insn->n=%d, "
-	       "insn->subdev=%d\n", dev->minor, insn->n, insn->subdev);
-#endif
+
 	down(&devpriv->sem);
 	if (!devpriv->probed) {
 		up(&devpriv->sem);
@@ -1233,10 +1184,6 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 	devpriv->dux_commands[OUTBASE + 6] = 0xFF & rngmask;
 	devpriv->dux_commands[LOGBASE + 0] = 0;
 
-#ifdef CONFIG_COMEDI_DEBUG
-	printk(KERN_DEBUG "comedi %d: sending commands to the usb device\n",
-	       dev->minor);
-#endif
 	/* 0 means that the AD commands are sent */
 	err = send_dux_commands(devpriv, SENDADCOMMANDS);
 	if (err < 0) {
@@ -1245,11 +1192,7 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 		up(&devpriv->sem);
 		return err;
 	}
-#ifdef CONFIG_COMEDI_DEBUG
-	printk(KERN_DEBUG "comedi%d: usbduxfast: submitting in-urb: "
-	       "0x%p,0x%p\n", devpriv->comedidev->minor, devpriv->urbIn->context,
-	       devpriv->urbIn->dev);
-#endif
+
 	for (i = 0; i < PACKETS_TO_IGNORE; i++) {
 		err = usb_bulk_msg(devpriv->usb,
 				   usb_rcvbulkpipe(devpriv->usb, BULKINEP),
@@ -1340,10 +1283,6 @@ static int firmwareUpload(struct usbduxfast_private *devpriv,
 
 static void tidy_up(struct usbduxfast_private *devpriv)
 {
-#ifdef CONFIG_COMEDI_DEBUG
-	printk(KERN_DEBUG "comedi_: usbduxfast: tiding up\n");
-#endif
-
 	if (!devpriv)
 		return;
 
@@ -1587,10 +1526,6 @@ static void usbduxfast_usb_disconnect(struct usb_interface *intf)
 	tidy_up(devpriv);
 	up(&devpriv->sem);
 	up(&start_stop_sem);
-
-#ifdef CONFIG_COMEDI_DEBUG
-	printk(KERN_DEBUG "comedi_: usbduxfast: disconnected from the usb\n");
-#endif
 }
 
 static const struct usb_device_id usbduxfast_usb_table[] = {
