@@ -824,7 +824,6 @@ static void throtl_add_bio_tg(struct bio *bio, struct throtl_grp *tg)
 	/* Take a bio reference on tg */
 	blkg_get(tg_to_blkg(tg));
 	sq->nr_queued[rw]++;
-	tg->td->nr_queued[rw]++;
 	throtl_enqueue_tg(tg);
 }
 
@@ -855,20 +854,34 @@ static void tg_update_disptime(struct throtl_grp *tg)
 static void tg_dispatch_one_bio(struct throtl_grp *tg, bool rw)
 {
 	struct throtl_service_queue *sq = &tg->service_queue;
+	struct throtl_service_queue *parent_sq = sq->parent_sq;
+	struct throtl_grp *parent_tg = sq_to_tg(parent_sq);
 	struct bio *bio;
 
 	bio = bio_list_pop(&sq->bio_lists[rw]);
 	sq->nr_queued[rw]--;
-	/* Drop bio reference on blkg */
-	blkg_put(tg_to_blkg(tg));
-
-	BUG_ON(tg->td->nr_queued[rw] <= 0);
-	tg->td->nr_queued[rw]--;
 
 	throtl_charge_bio(tg, bio);
-	bio_list_add(&sq->parent_sq->bio_lists[rw], bio);
+
+	/*
+	 * If our parent is another tg, we just need to transfer @bio to
+	 * the parent using throtl_add_bio_tg().  If our parent is
+	 * @td->service_queue, @bio is ready to be issued.  Put it on its
+	 * bio_lists[] and decrease total number queued.  The caller is
+	 * responsible for issuing these bios.
+	 */
+	if (parent_tg) {
+		throtl_add_bio_tg(bio, parent_tg);
+	} else {
+		bio_list_add(&parent_sq->bio_lists[rw], bio);
+		BUG_ON(tg->td->nr_queued[rw] <= 0);
+		tg->td->nr_queued[rw]--;
+	}
 
 	throtl_trim_slice(tg, rw);
+
+	/* @bio is transferred to parent, drop its blkg reference */
+	blkg_put(tg_to_blkg(tg));
 }
 
 static int throtl_dispatch_tg(struct throtl_grp *tg)
@@ -1283,6 +1296,7 @@ bool blk_throtl_bio(struct request_queue *q, struct bio *bio)
 		   sq->nr_queued[READ], sq->nr_queued[WRITE]);
 
 	bio_associate_current(bio);
+	tg->td->nr_queued[rw]++;
 	throtl_add_bio_tg(bio, tg);
 	throttled = true;
 
