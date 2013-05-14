@@ -280,11 +280,11 @@ struct usb_dt9812 {
 };
 
 struct dt9812_private {
+	struct semaphore sem;
 	struct slot_dt9812 *slot;
 };
 
 struct slot_dt9812 {
-	struct semaphore mutex;
 	struct usb_dt9812 *usb;
 	struct dt9812_private *devpriv;
 };
@@ -391,7 +391,7 @@ static int dt9812_digital_in(struct comedi_device *dev, u8 *bits)
 	struct slot_dt9812 *slot = devpriv->slot;
 	int ret = -ENODEV;
 
-	down(&slot->mutex);
+	down(&devpriv->sem);
 	if (slot->usb) {
 		u8 reg[2] = { F020_SFR_P3, F020_SFR_P1 };
 		u8 value[2];
@@ -406,7 +406,7 @@ static int dt9812_digital_in(struct comedi_device *dev, u8 *bits)
 			*bits = (value[0] & 0x7f) | ((value[1] & 0x08) << 4);
 		}
 	}
-	up(&slot->mutex);
+	up(&devpriv->sem);
 
 	return ret;
 }
@@ -417,7 +417,7 @@ static int dt9812_digital_out(struct comedi_device *dev, u8 bits)
 	struct slot_dt9812 *slot = devpriv->slot;
 	int ret = -ENODEV;
 
-	down(&slot->mutex);
+	down(&devpriv->sem);
 	if (slot->usb) {
 		u8 reg[1] = { F020_SFR_P2 };
 		u8 value[1] = { bits };
@@ -425,7 +425,7 @@ static int dt9812_digital_out(struct comedi_device *dev, u8 bits)
 		ret = dt9812_write_multiple_registers(slot->usb, 1, reg, value);
 		slot->usb->digital_out_shadow = bits;
 	}
-	up(&slot->mutex);
+	up(&devpriv->sem);
 
 	return ret;
 }
@@ -436,12 +436,12 @@ static int dt9812_digital_out_shadow(struct comedi_device *dev, u8 *bits)
 	struct slot_dt9812 *slot = devpriv->slot;
 	int ret = -ENODEV;
 
-	down(&slot->mutex);
+	down(&devpriv->sem);
 	if (slot->usb) {
 		*bits = slot->usb->digital_out_shadow;
 		ret = 0;
 	}
-	up(&slot->mutex);
+	up(&devpriv->sem);
 
 	return ret;
 }
@@ -532,7 +532,7 @@ static int dt9812_analog_in(struct comedi_device *dev,
 	u8 val[3];
 	int ret = -ENODEV;
 
-	down(&slot->mutex);
+	down(&devpriv->sem);
 	if (!slot->usb)
 		goto exit;
 
@@ -583,7 +583,7 @@ static int dt9812_analog_in(struct comedi_device *dev,
 	}
 
 exit:
-	up(&slot->mutex);
+	up(&devpriv->sem);
 
 	return ret;
 }
@@ -595,12 +595,12 @@ static int dt9812_analog_out_shadow(struct comedi_device *dev,
 	struct slot_dt9812 *slot = devpriv->slot;
 	int ret = -ENODEV;
 
-	down(&slot->mutex);
+	down(&devpriv->sem);
 	if (slot->usb) {
 		*value = slot->usb->analog_out_shadow[channel];
 		ret = 0;
 	}
-	up(&slot->mutex);
+	up(&devpriv->sem);
 
 	return ret;
 }
@@ -611,7 +611,7 @@ static int dt9812_analog_out(struct comedi_device *dev, int channel, u16 value)
 	struct slot_dt9812 *slot = devpriv->slot;
 	int ret = -ENODEV;
 
-	down(&slot->mutex);
+	down(&devpriv->sem);
 	if (slot->usb) {
 		struct dt9812_rmw_byte rmw[3];
 
@@ -655,7 +655,7 @@ static int dt9812_analog_out(struct comedi_device *dev, int channel, u16 value)
 		ret = dt9812_rmw_multiple_registers(slot->usb, 3, rmw);
 		slot->usb->analog_out_shadow[channel] = value;
 	}
-	up(&slot->mutex);
+	up(&devpriv->sem);
 
 	return ret;
 }
@@ -751,6 +751,7 @@ static int dt9812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	if (!devpriv)
 		return -ENOMEM;
 	dev->private = devpriv;
+	sema_init(&devpriv->sem, 1);
 
 	down(&dt9812_mutex);
 
@@ -769,11 +770,9 @@ static int dt9812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -ENODEV;
 	}
 
-	down(&slot->mutex);
 	slot->devpriv = devpriv;
 	devpriv->slot = slot;
 	range_2_5 = (slot->usb->device == DT9812_DEVID_DT9812_2PT5);
-	up(&slot->mutex);
 
 	up(&dt9812_mutex);
 
@@ -871,10 +870,8 @@ static int dt9812_probe(struct usb_interface *interface,
 		goto error;
 	}
 
-	down(&slot->mutex);
 	slot->usb = dev;
 	dev->slot = slot;
-	up(&slot->mutex);
 
 	up(&dt9812_mutex);
 
@@ -1001,9 +998,7 @@ static void dt9812_disconnect(struct usb_interface *interface)
 	down(&dt9812_mutex);
 	dev = usb_get_intfdata(interface);
 	if (dev->slot) {
-		down(&dev->slot->mutex);
 		dev->slot->usb = NULL;
-		up(&dev->slot->mutex);
 		dev->slot = NULL;
 	}
 	usb_set_intfdata(interface, NULL);
@@ -1034,7 +1029,6 @@ static int __init usb_dt9812_init(void)
 
 	/* Initialize all driver slots */
 	for (i = 0; i < DT9812_NUM_SLOTS; i++) {
-		sema_init(&dt9812[i].mutex, 1);
 		dt9812[i].usb = NULL;
 		dt9812[i].devpriv = NULL;
 	}
