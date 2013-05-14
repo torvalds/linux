@@ -58,7 +58,7 @@ void mpc512x_restart(char *cmd)
 		;
 }
 
-#if defined(CONFIG_FB_FSL_DIU) || defined(CONFIG_FB_FSL_DIU_MODULE)
+#if IS_ENABLED(CONFIG_FB_FSL_DIU)
 
 struct fsl_diu_shared_fb {
 	u8		gamma[0x300];	/* 32-bit aligned! */
@@ -436,12 +436,24 @@ void __init mpc512x_psc_fifo_init(void)
 	}
 }
 
+void __init mpc512x_init_early(void)
+{
+	if (IS_ENABLED(CONFIG_FB_FSL_DIU))
+		mpc512x_init_diu();
+}
+
 void __init mpc512x_init(void)
 {
 	mpc5121_clk_init();
 	mpc512x_declare_of_platform_devices();
 	mpc512x_restart_init();
 	mpc512x_psc_fifo_init();
+}
+
+void __init mpc512x_setup_arch(void)
+{
+	if (IS_ENABLED(CONFIG_FB_FSL_DIU))
+		mpc512x_setup_diu();
 }
 
 /**
