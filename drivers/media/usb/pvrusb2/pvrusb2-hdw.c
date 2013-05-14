@@ -5173,8 +5173,6 @@ int pvr2_hdw_register_access(struct pvr2_hdw *hdw,
 	int stat = 0;
 	int okFl = 0;
 
-	if (!capable(CAP_SYS_ADMIN)) return -EPERM;
-
 	req.match = *match;
 	req.reg = reg_id;
 	if (setFl) req.val = *val_ptr;
