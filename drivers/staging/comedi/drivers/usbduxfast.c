@@ -170,8 +170,9 @@ struct usbduxfast_private {
 #define SENDADCOMMANDS            0
 #define SENDINITEP6               1
 
-static int send_dux_commands(struct usbduxfast_private *devpriv, int cmd_type)
+static int send_dux_commands(struct comedi_device *dev, int cmd_type)
 {
+	struct usbduxfast_private *devpriv = dev->private;
 	int tmp, nsent;
 
 	devpriv->dux_commands[0] = cmd_type;
@@ -191,8 +192,9 @@ static int send_dux_commands(struct usbduxfast_private *devpriv, int cmd_type)
  * Stops the data acquision.
  * It should be safe to call this function from any context.
  */
-static int usbduxfastsub_unlink_InURBs(struct usbduxfast_private *devpriv)
+static int usbduxfastsub_unlink_InURBs(struct comedi_device *dev)
 {
+	struct usbduxfast_private *devpriv = dev->private;
 	int j = 0;
 	int err = 0;
 
@@ -210,9 +212,10 @@ static int usbduxfastsub_unlink_InURBs(struct usbduxfast_private *devpriv)
  * Is called from within this driver from both the
  * interrupt context and from comedi.
  */
-static int usbduxfast_ai_stop(struct usbduxfast_private *devpriv,
+static int usbduxfast_ai_stop(struct comedi_device *dev,
 			      int do_unlink)
 {
+	struct usbduxfast_private *devpriv = dev->private;
 	int ret = 0;
 
 	if (!devpriv) {
@@ -224,7 +227,7 @@ static int usbduxfast_ai_stop(struct usbduxfast_private *devpriv,
 
 	if (do_unlink)
 		/* stop aquistion */
-		ret = usbduxfastsub_unlink_InURBs(devpriv);
+		ret = usbduxfastsub_unlink_InURBs(dev);
 
 	return ret;
 }
@@ -246,7 +249,7 @@ static int usbduxfast_ai_cancel(struct comedi_device *dev,
 	}
 	down(&devpriv->sem);
 	/* unlink */
-	ret = usbduxfast_ai_stop(devpriv, 1);
+	ret = usbduxfast_ai_stop(dev, 1);
 	up(&devpriv->sem);
 
 	return ret;
@@ -292,7 +295,7 @@ static void usbduxfast_ai_interrupt(struct urb *urb)
 		async->events |= COMEDI_CB_ERROR;
 		comedi_event(dev, s);
 		/* stop the transfer w/o unlink */
-		usbduxfast_ai_stop(devpriv, 0);
+		usbduxfast_ai_stop(dev, 0);
 		return;
 
 	default:
@@ -301,7 +304,7 @@ static void usbduxfast_ai_interrupt(struct urb *urb)
 		async->events |= COMEDI_CB_EOA;
 		async->events |= COMEDI_CB_ERROR;
 		comedi_event(dev, s);
-		usbduxfast_ai_stop(devpriv, 0);
+		usbduxfast_ai_stop(dev, 0);
 		return;
 	}
 
@@ -318,7 +321,7 @@ static void usbduxfast_ai_interrupt(struct urb *urb)
 							  urb->transfer_buffer,
 							  devpriv->ai_sample_count
 							  * sizeof(uint16_t));
-				usbduxfast_ai_stop(devpriv, 0);
+				usbduxfast_ai_stop(dev, 0);
 				/* tell comedi that the acquistion is over */
 				async->events |= COMEDI_CB_EOA;
 				comedi_event(dev, s);
@@ -331,7 +334,7 @@ static void usbduxfast_ai_interrupt(struct urb *urb)
 						urb->actual_length);
 		if (unlikely(err == 0)) {
 			/* buffer overflow */
-			usbduxfast_ai_stop(devpriv, 0);
+			usbduxfast_ai_stop(dev, 0);
 			return;
 		}
 
@@ -355,14 +358,15 @@ static void usbduxfast_ai_interrupt(struct urb *urb)
 		async->events |= COMEDI_CB_EOA;
 		async->events |= COMEDI_CB_ERROR;
 		comedi_event(dev, s);
-		usbduxfast_ai_stop(devpriv, 0);
+		usbduxfast_ai_stop(dev, 0);
 	}
 }
 
-static int usbduxfastsub_start(struct usbduxfast_private *devpriv)
+static int usbduxfastsub_start(struct comedi_device *dev)
 {
-	int ret;
+	struct usbduxfast_private *devpriv = dev->private;
 	unsigned char *local_transfer_buffer;
+	int ret;
 
 	local_transfer_buffer = kmalloc(1, GFP_KERNEL);
 	if (!local_transfer_buffer)
@@ -388,10 +392,11 @@ static int usbduxfastsub_start(struct usbduxfast_private *devpriv)
 	return ret;
 }
 
-static int usbduxfastsub_stop(struct usbduxfast_private *devpriv)
+static int usbduxfastsub_stop(struct comedi_device *dev)
 {
-	int ret;
+	struct usbduxfast_private *devpriv = dev->private;
 	unsigned char *local_transfer_buffer;
+	int ret;
 
 	local_transfer_buffer = kmalloc(1, GFP_KERNEL);
 	if (!local_transfer_buffer)
@@ -415,10 +420,11 @@ static int usbduxfastsub_stop(struct usbduxfast_private *devpriv)
 	return ret;
 }
 
-static int usbduxfastsub_upload(struct usbduxfast_private *devpriv,
+static int usbduxfastsub_upload(struct comedi_device *dev,
 				unsigned char *local_transfer_buffer,
 				unsigned int startAddr, unsigned int len)
 {
+	struct usbduxfast_private *devpriv = dev->private;
 	int ret;
 
 	/* brequest, firmware */
@@ -439,8 +445,9 @@ static int usbduxfastsub_upload(struct usbduxfast_private *devpriv,
 	return 0;
 }
 
-static int usbduxfastsub_submit_InURBs(struct usbduxfast_private *devpriv)
+static int usbduxfastsub_submit_InURBs(struct comedi_device *dev)
 {
+	struct usbduxfast_private *devpriv = dev->private;
 	int ret;
 
 	if (!devpriv)
@@ -449,7 +456,7 @@ static int usbduxfastsub_submit_InURBs(struct usbduxfast_private *devpriv)
 	usb_fill_bulk_urb(devpriv->urbIn, devpriv->usb,
 			  usb_rcvbulkpipe(devpriv->usb, BULKINEP),
 			  devpriv->transfer_buffer, SIZEINBUF,
-			  usbduxfast_ai_interrupt, devpriv->comedidev);
+			  usbduxfast_ai_interrupt, dev);
 
 	ret = usb_submit_urb(devpriv->urbIn, GFP_ATOMIC);
 	if (ret) {
@@ -572,7 +579,7 @@ static int usbduxfast_ai_inttrig(struct comedi_device *dev,
 	}
 	if (!devpriv->ai_cmd_running) {
 		devpriv->ai_cmd_running = 1;
-		ret = usbduxfastsub_submit_InURBs(devpriv);
+		ret = usbduxfastsub_submit_InURBs(dev);
 		if (ret < 0) {
 			dev_err(dev->class_dev,
 				"%s: urbSubmit: err=%d\n", __func__, ret);
@@ -995,7 +1002,7 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 	}
 
 	/* 0 means that the AD commands are sent */
-	result = send_dux_commands(devpriv, SENDADCOMMANDS);
+	result = send_dux_commands(dev, SENDADCOMMANDS);
 	if (result < 0) {
 		dev_err(dev->class_dev,
 			"adc command could not be submitted. Aborting...\n");
@@ -1020,7 +1027,7 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 	if ((cmd->start_src == TRIG_NOW) || (cmd->start_src == TRIG_EXT)) {
 		/* enable this acquisition operation */
 		devpriv->ai_cmd_running = 1;
-		ret = usbduxfastsub_submit_InURBs(devpriv);
+		ret = usbduxfastsub_submit_InURBs(dev);
 		if (ret < 0) {
 			devpriv->ai_cmd_running = 0;
 			/* fixme: unlink here?? */
@@ -1115,7 +1122,7 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 	devpriv->dux_commands[LOGBASE + 0] = 0;
 
 	/* 0 means that the AD commands are sent */
-	err = send_dux_commands(devpriv, SENDADCOMMANDS);
+	err = send_dux_commands(dev, SENDADCOMMANDS);
 	if (err < 0) {
 		dev_err(dev->class_dev,
 			"adc command could not be submitted. Aborting...\n");
@@ -1162,9 +1169,10 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 
 #define FIRMWARE_MAX_LEN 0x2000
 
-static int firmwareUpload(struct usbduxfast_private *devpriv,
+static int firmwareUpload(struct comedi_device *dev,
 			  const u8 *firmwareBinary, int sizeFirmware)
 {
+	struct usbduxfast_private *devpriv = dev->private;
 	int ret;
 	uint8_t *fwBuf;
 
@@ -1185,7 +1193,7 @@ static int firmwareUpload(struct usbduxfast_private *devpriv,
 		return -ENOMEM;
 	}
 
-	ret = usbduxfastsub_stop(devpriv);
+	ret = usbduxfastsub_stop(dev);
 	if (ret < 0) {
 		dev_err(&devpriv->intf->dev,
 			"comedi_: can not stop firmware\n");
@@ -1193,14 +1201,14 @@ static int firmwareUpload(struct usbduxfast_private *devpriv,
 		return ret;
 	}
 
-	ret = usbduxfastsub_upload(devpriv, fwBuf, 0, sizeFirmware);
+	ret = usbduxfastsub_upload(dev, fwBuf, 0, sizeFirmware);
 	if (ret < 0) {
 		dev_err(&devpriv->intf->dev,
 			"comedi_: firmware upload failed\n");
 		kfree(fwBuf);
 		return ret;
 	}
-	ret = usbduxfastsub_start(devpriv);
+	ret = usbduxfastsub_start(dev);
 	if (ret < 0) {
 		dev_err(&devpriv->intf->dev,
 			"comedi_: can not start firmware\n");
@@ -1244,10 +1252,11 @@ static int usbduxfast_attach_common(struct comedi_device *dev)
 	return 0;
 }
 
-static int usbduxfast_request_firmware(struct usb_interface *intf)
+static int usbduxfast_request_firmware(struct comedi_device *dev)
 {
+	struct usbduxfast_private *devpriv = dev->private;
+	struct usb_interface *intf = devpriv->intf;
 	struct usb_device *usb = interface_to_usbdev(intf);
-	struct usbduxfast_private *devpriv = usb_get_intfdata(intf);
 	const struct firmware *fw;
 	int ret;
 
@@ -1255,7 +1264,7 @@ static int usbduxfast_request_firmware(struct usb_interface *intf)
 	if (ret)
 		return ret;
 
-	ret = firmwareUpload(devpriv, fw->data, fw->size);
+	ret = firmwareUpload(dev, fw->data, fw->size);
 	release_firmware(fw);
 
 	return ret;
@@ -1316,7 +1325,7 @@ static int usbduxfast_auto_attach(struct comedi_device *dev,
 	 * Request, and upload, the firmware so we can
 	 * complete the comedi_driver (*auto_attach).
 	 */
-	ret = usbduxfast_request_firmware(intf);
+	ret = usbduxfast_request_firmware(dev);
 	if (ret) {
 		dev_err(&intf->dev, "could not load firmware (err=%d)\n", ret);
 		return ret;
