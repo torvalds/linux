@@ -116,16 +116,6 @@
 #define NUMOFINBUFFERSHIGH	10
 
 /*
- * total number of usbduxfast devices
- */
-#define NUMUSBDUXFAST	16
-
-/*
- * analogue in subdevice
- */
-#define SUBDEV_AD	0
-
-/*
  * min delay steps for more than one channel
  * basically when the mux gives up ;-)
  *
@@ -1295,7 +1285,7 @@ static int usbduxfast_attach_common(struct comedi_device *dev)
 	}
 
 	/* Analog Input subdevice */
-	s = &dev->subdevices[SUBDEV_AD];
+	s = &dev->subdevices[0];
 	dev->read_subdev = s;
 	s->type		= COMEDI_SUBD_AI;
 	s->subdev_flags	= SDF_READABLE | SDF_GROUND | SDF_CMD_READ;
