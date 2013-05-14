@@ -33,9 +33,6 @@ struct throtl_service_queue {
 	unsigned long		first_pending_disptime;	/* disptime of the first tg */
 };
 
-#define THROTL_SERVICE_QUEUE_INITIALIZER				\
-	(struct throtl_service_queue){ .pending_tree = RB_ROOT }
-
 enum tg_state_flags {
 	THROTL_TG_PENDING	= 1 << 0,	/* on parent's pending tree */
 };
@@ -59,6 +56,9 @@ struct throtl_grp {
 
 	/* throtl_data this group belongs to */
 	struct throtl_data *td;
+
+	/* this group's service queue */
+	struct throtl_service_queue service_queue;
 
 	/*
 	 * Dispatch time in jiffies. This is the estimated time when group
@@ -190,11 +190,18 @@ alloc_stats:
 		goto alloc_stats;
 }
 
+/* init a service_queue, assumes the caller zeroed it */
+static void throtl_service_queue_init(struct throtl_service_queue *sq)
+{
+	sq->pending_tree = RB_ROOT;
+}
+
 static void throtl_pd_init(struct blkcg_gq *blkg)
 {
 	struct throtl_grp *tg = blkg_to_tg(blkg);
 	unsigned long flags;
 
+	throtl_service_queue_init(&tg->service_queue);
 	RB_CLEAR_NODE(&tg->rb_node);
 	tg->td = blkg->q->td;
 	bio_list_init(&tg->bio_lists[0]);
@@ -1168,8 +1175,8 @@ int blk_throtl_init(struct request_queue *q)
 	if (!td)
 		return -ENOMEM;
 
-	td->service_queue = THROTL_SERVICE_QUEUE_INITIALIZER;
 	INIT_DELAYED_WORK(&td->dispatch_work, blk_throtl_dispatch_work_fn);
+	throtl_service_queue_init(&td->service_queue);
 
 	q->td = td;
 	td->queue = q;
