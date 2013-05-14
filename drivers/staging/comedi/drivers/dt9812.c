@@ -273,7 +273,7 @@ struct usb_dt9812 {
 	struct {
 		__u8 addr;
 		size_t size;
-	} message_pipe, command_write, command_read, write_stream, read_stream;
+	} cmd_wr, cmd_rd;
 	struct kref kref;
 	u16 analog_out_shadow[2];
 	u8 digital_out_shadow;
@@ -317,12 +317,12 @@ static int dt9812_read_info(struct usb_dt9812 *dev, int offset, void *buf,
 	cmd.u.flash_data_info.numbytes = cpu_to_le16(buf_size);
 
 	/* DT9812 only responds to 32 byte writes!! */
-	ret = usb_bulk_msg(usb, usb_sndbulkpipe(usb, dev->command_write.addr),
+	ret = usb_bulk_msg(usb, usb_sndbulkpipe(usb, dev->cmd_wr.addr),
 			   &cmd, 32, &count, HZ * 1);
 	if (ret)
 		return ret;
 
-	return usb_bulk_msg(usb, usb_rcvbulkpipe(usb, dev->command_read.addr),
+	return usb_bulk_msg(usb, usb_rcvbulkpipe(usb, dev->cmd_rd.addr),
 			    buf, buf_size, &count, HZ * 1);
 }
 
@@ -339,12 +339,12 @@ static int dt9812_read_multiple_registers(struct usb_dt9812 *dev, int reg_count,
 		cmd.u.read_multi_info.address[i] = address[i];
 
 	/* DT9812 only responds to 32 byte writes!! */
-	ret = usb_bulk_msg(usb, usb_sndbulkpipe(usb, dev->command_write.addr),
+	ret = usb_bulk_msg(usb, usb_sndbulkpipe(usb, dev->cmd_wr.addr),
 			   &cmd, 32, &count, HZ * 1);
 	if (ret)
 		return ret;
 
-	return usb_bulk_msg(usb, usb_rcvbulkpipe(usb, dev->command_read.addr),
+	return usb_bulk_msg(usb, usb_rcvbulkpipe(usb, dev->cmd_rd.addr),
 			    value, reg_count, &count, HZ * 1);
 }
 
@@ -364,7 +364,7 @@ static int dt9812_write_multiple_registers(struct usb_dt9812 *dev,
 	}
 
 	/* DT9812 only responds to 32 byte writes!! */
-	return usb_bulk_msg(usb, usb_sndbulkpipe(usb, dev->command_write.addr),
+	return usb_bulk_msg(usb, usb_sndbulkpipe(usb, dev->cmd_wr.addr),
 			    &cmd, 32, &count, HZ * 1);
 }
 
@@ -381,7 +381,7 @@ static int dt9812_rmw_multiple_registers(struct usb_dt9812 *dev, int reg_count,
 		cmd.u.rmw_multi_info.rmw[i] = rmw[i];
 
 	/* DT9812 only responds to 32 byte writes!! */
-	return usb_bulk_msg(usb, usb_sndbulkpipe(usb, dev->command_write.addr),
+	return usb_bulk_msg(usb, usb_sndbulkpipe(usb, dev->cmd_wr.addr),
 			    &cmd, 32, &count, HZ * 1);
 }
 
@@ -842,8 +842,8 @@ static int dt9812_probe(struct usb_interface *interface,
 {
 	struct slot_dt9812 *slot = NULL;
 	struct usb_dt9812 *dev = NULL;
-	struct usb_host_interface *iface_desc;
-	struct usb_endpoint_descriptor *endpoint;
+	struct usb_host_interface *host;
+	struct usb_endpoint_descriptor *ep;
 	int retval = -ENOMEM;
 	int i;
 	u8 fw;
@@ -881,51 +881,42 @@ static int dt9812_probe(struct usb_interface *interface,
 	dev->interface = interface;
 
 	/* Check endpoints */
-	iface_desc = interface->cur_altsetting;
+	host = interface->cur_altsetting;
 
-	if (iface_desc->desc.bNumEndpoints != 5) {
+	if (host->desc.bNumEndpoints != 5) {
 		dev_err(&interface->dev, "Wrong number of endpoints.\n");
 		retval = -ENODEV;
 		goto error;
 	}
 
-	for (i = 0; i < iface_desc->desc.bNumEndpoints; ++i) {
+	for (i = 0; i < host->desc.bNumEndpoints; ++i) {
 		int direction = -1;
-		endpoint = &iface_desc->endpoint[i].desc;
+		ep = &host->endpoint[i].desc;
 		switch (i) {
 		case 0:
+			/* unused message pipe */
 			direction = USB_DIR_IN;
-			dev->message_pipe.addr = endpoint->bEndpointAddress;
-			dev->message_pipe.size =
-			    le16_to_cpu(endpoint->wMaxPacketSize);
-
 			break;
 		case 1:
 			direction = USB_DIR_OUT;
-			dev->command_write.addr = endpoint->bEndpointAddress;
-			dev->command_write.size =
-			    le16_to_cpu(endpoint->wMaxPacketSize);
+			dev->cmd_wr.addr = ep->bEndpointAddress;
+			dev->cmd_wr.size = le16_to_cpu(ep->wMaxPacketSize);
 			break;
 		case 2:
 			direction = USB_DIR_IN;
-			dev->command_read.addr = endpoint->bEndpointAddress;
-			dev->command_read.size =
-			    le16_to_cpu(endpoint->wMaxPacketSize);
+			dev->cmd_rd.addr = ep->bEndpointAddress;
+			dev->cmd_rd.size = le16_to_cpu(ep->wMaxPacketSize);
 			break;
 		case 3:
+			/* unused write stream */
 			direction = USB_DIR_OUT;
-			dev->write_stream.addr = endpoint->bEndpointAddress;
-			dev->write_stream.size =
-			    le16_to_cpu(endpoint->wMaxPacketSize);
 			break;
 		case 4:
+			/* unused read stream */
 			direction = USB_DIR_IN;
-			dev->read_stream.addr = endpoint->bEndpointAddress;
-			dev->read_stream.size =
-			    le16_to_cpu(endpoint->wMaxPacketSize);
 			break;
 		}
-		if ((endpoint->bEndpointAddress & USB_DIR_IN) != direction) {
+		if ((ep->bEndpointAddress & USB_DIR_IN) != direction) {
 			dev_err(&interface->dev,
 				"Endpoint has wrong direction.\n");
 			retval = -ENODEV;
