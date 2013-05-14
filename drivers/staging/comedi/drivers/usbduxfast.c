@@ -178,19 +178,6 @@ struct usbduxfast_private {
 };
 
 /*
- * The pointer to the private usb-data of the driver
- * is also the private data for the comedi-device.
- * This has to be global as the usb subsystem needs
- * global variables. The other reason is that this
- * structure must be there _before_ any comedi
- * command is issued. The usb subsystem must be
- * initialised before comedi can access it.
- */
-static struct usbduxfast_private usbduxfastsub[NUMUSBDUXFAST];
-
-static DEFINE_SEMAPHORE(start_stop_sem);
-
-/*
  * bulk transfers to usbduxfast
  */
 #define SENDADCOMMANDS            0
@@ -1293,23 +1280,19 @@ static void tidy_up(struct usbduxfast_private *devpriv)
 	devpriv->ai_cmd_running = 0;
 }
 
-static int usbduxfast_attach_common(struct comedi_device *dev,
-				    struct usbduxfast_private *devpriv)
+static int usbduxfast_attach_common(struct comedi_device *dev)
 {
+	struct usbduxfast_private *devpriv = dev->private;
 	struct comedi_subdevice *s;
 	int ret;
 
 	down(&devpriv->sem);
-
-	devpriv->comedidev = dev;
 
 	ret = comedi_alloc_subdevices(dev, 1);
 	if (ret) {
 		up(&devpriv->sem);
 		return ret;
 	}
-
-	dev->private = devpriv;
 
 	/* Analog Input subdevice */
 	s = &dev->subdevices[SUBDEV_AD];
@@ -1332,53 +1315,6 @@ static int usbduxfast_attach_common(struct comedi_device *dev,
 	return 0;
 }
 
-static int usbduxfast_auto_attach(struct comedi_device *dev,
-				  unsigned long context_unused)
-{
-	struct usb_interface *intf = comedi_to_usb_interface(dev);
-	struct usbduxfast_private *devpriv;
-	int ret;
-
-	dev->private = NULL;
-	down(&start_stop_sem);
-	devpriv = usb_get_intfdata(intf);
-	if (!devpriv || !devpriv->probed) {
-		dev_err(dev->class_dev,
-			"usbduxfast: error: auto_attach failed, not connected\n");
-		ret = -ENODEV;
-	} else if (devpriv->attached) {
-		dev_err(dev->class_dev,
-		       "usbduxfast: error: auto_attach failed, already attached\n");
-		ret = -ENODEV;
-	} else
-		ret = usbduxfast_attach_common(dev, devpriv);
-	up(&start_stop_sem);
-	return ret;
-}
-
-static void usbduxfast_detach(struct comedi_device *dev)
-{
-	struct usbduxfast_private *devpriv = dev->private;
-
-	if (devpriv) {
-		down(&devpriv->sem);
-		down(&start_stop_sem);
-		dev->private = NULL;
-		devpriv->attached = 0;
-		devpriv->comedidev = NULL;
-		tidy_up(devpriv);
-		up(&start_stop_sem);
-		up(&devpriv->sem);
-	}
-}
-
-static struct comedi_driver usbduxfast_driver = {
-	.driver_name	= "usbduxfast",
-	.module		= THIS_MODULE,
-	.auto_attach	= usbduxfast_auto_attach,
-	.detach		= usbduxfast_detach,
-};
-
 static int usbduxfast_request_firmware(struct usb_interface *intf)
 {
 	struct usb_device *usb = interface_to_usbdev(intf);
@@ -1396,12 +1332,12 @@ static int usbduxfast_request_firmware(struct usb_interface *intf)
 	return ret;
 }
 
-static int usbduxfast_usb_probe(struct usb_interface *intf,
-				const struct usb_device_id *id)
+static int usbduxfast_auto_attach(struct comedi_device *dev,
+				  unsigned long context_unused)
 {
+	struct usb_interface *intf = comedi_to_usb_interface(dev);
 	struct usb_device *usb = interface_to_usbdev(intf);
-	struct usbduxfast_private *devpriv = NULL;
-	int i;
+	struct usbduxfast_private *devpriv;
 	int ret;
 
 	if (usb->speed != USB_SPEED_HIGH) {
@@ -1410,24 +1346,13 @@ static int usbduxfast_usb_probe(struct usb_interface *intf,
 		return -ENODEV;
 	}
 
-	down(&start_stop_sem);
-	/* look for a free place in the usbduxfast array */
-	for (i = 0; i < NUMUSBDUXFAST; i++) {
-		if (!usbduxfastsub[i].probed) {
-			devpriv = &usbduxfastsub[i];
-			break;
-		}
-	}
-
-	/* no more space */
-	if (!devpriv) {
-		dev_err(&intf->dev,
-			"Too many usbduxfast-devices connected.\n");
-		up(&start_stop_sem);
-		return -EMFILE;
-	}
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
+	if (!devpriv)
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	sema_init(&devpriv->sem, 1);
+	devpriv->comedidev = dev;
 	devpriv->usb = usb;
 	devpriv->intf = intf;
 	devpriv->ifnum = intf->altsetting->desc.bInterfaceNumber;
@@ -1436,23 +1361,20 @@ static int usbduxfast_usb_probe(struct usb_interface *intf,
 	devpriv->dux_commands = kmalloc(SIZEOFDUXBUFFER, GFP_KERNEL);
 	if (!devpriv->dux_commands) {
 		tidy_up(devpriv);
-		up(&start_stop_sem);
 		return -ENOMEM;
 	}
 
 	devpriv->insnBuffer = kmalloc(SIZEINSNBUF, GFP_KERNEL);
 	if (!devpriv->insnBuffer) {
 		tidy_up(devpriv);
-		up(&start_stop_sem);
 		return -ENOMEM;
 	}
 
-	i = usb_set_interface(devpriv->usb, devpriv->ifnum, 1);
-	if (i < 0) {
+	ret = usb_set_interface(devpriv->usb, devpriv->ifnum, 1);
+	if (ret < 0) {
 		dev_err(&intf->dev,
 			"could not switch to alternate setting 1\n");
 		tidy_up(devpriv);
-		up(&start_stop_sem);
 		return -ENODEV;
 	}
 
@@ -1460,19 +1382,16 @@ static int usbduxfast_usb_probe(struct usb_interface *intf,
 	if (!devpriv->urbIn) {
 		dev_err(&intf->dev, "Could not alloc. urb\n");
 		tidy_up(devpriv);
-		up(&start_stop_sem);
 		return -ENOMEM;
 	}
 
 	devpriv->transfer_buffer = kmalloc(SIZEINBUF, GFP_KERNEL);
 	if (!devpriv->transfer_buffer) {
 		tidy_up(devpriv);
-		up(&start_stop_sem);
 		return -ENOMEM;
 	}
 
 	devpriv->probed = 1;
-	up(&start_stop_sem);
 
 	/*
 	 * Request, and upload, the firmware so we can
@@ -1484,6 +1403,32 @@ static int usbduxfast_usb_probe(struct usb_interface *intf,
 		return ret;
 	}
 
+	return usbduxfast_attach_common(dev);
+}
+
+static void usbduxfast_detach(struct comedi_device *dev)
+{
+	struct usbduxfast_private *devpriv = dev->private;
+
+	if (devpriv) {
+		down(&devpriv->sem);
+		devpriv->attached = 0;
+		devpriv->comedidev = NULL;
+		tidy_up(devpriv);
+		up(&devpriv->sem);
+	}
+}
+
+static struct comedi_driver usbduxfast_driver = {
+	.driver_name	= "usbduxfast",
+	.module		= THIS_MODULE,
+	.auto_attach	= usbduxfast_auto_attach,
+	.detach		= usbduxfast_detach,
+};
+
+static int usbduxfast_usb_probe(struct usb_interface *intf,
+				const struct usb_device_id *id)
+{
 	return comedi_usb_auto_config(intf, &usbduxfast_driver, 0);
 }
 
