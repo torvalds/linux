@@ -590,6 +590,16 @@ static int prepare_command_pool(struct pxa3xx_nand_info *info, int command,
 				| addr_cycle;
 		break;
 
+	case NAND_CMD_PARAM:
+		cmd = NAND_CMD_PARAM;
+		info->buf_count = 256;
+		info->ndcb0 |= NDCB0_CMD_TYPE(0)
+				| NDCB0_ADDR_CYC(1)
+				| cmd;
+		info->ndcb1 = (column & 0xFF);
+		info->data_size = 256;
+		break;
+
 	case NAND_CMD_READID:
 		cmd = host->cmdset->read_id;
 		info->buf_count = host->read_id_bytes;
