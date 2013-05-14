@@ -275,13 +275,13 @@ struct usb_dt9812 {
 		size_t size;
 	} cmd_wr, cmd_rd;
 	struct kref kref;
-	u16 analog_out_shadow[2];
-	u8 digital_out_shadow;
 };
 
 struct dt9812_private {
 	struct semaphore sem;
 	struct slot_dt9812 *slot;
+	u16 ao_shadow[2];
+	u8 do_shadow;
 };
 
 struct slot_dt9812 {
@@ -423,7 +423,7 @@ static int dt9812_digital_out(struct comedi_device *dev, u8 bits)
 		u8 value[1] = { bits };
 
 		ret = dt9812_write_multiple_registers(slot->usb, 1, reg, value);
-		slot->usb->digital_out_shadow = bits;
+		devpriv->do_shadow = bits;
 	}
 	up(&devpriv->sem);
 
@@ -433,17 +433,12 @@ static int dt9812_digital_out(struct comedi_device *dev, u8 bits)
 static int dt9812_digital_out_shadow(struct comedi_device *dev, u8 *bits)
 {
 	struct dt9812_private *devpriv = dev->private;
-	struct slot_dt9812 *slot = devpriv->slot;
-	int ret = -ENODEV;
 
 	down(&devpriv->sem);
-	if (slot->usb) {
-		*bits = slot->usb->digital_out_shadow;
-		ret = 0;
-	}
+	*bits = devpriv->do_shadow;
 	up(&devpriv->sem);
 
-	return ret;
+	return 0;
 }
 
 static void dt9812_configure_mux(struct comedi_device *dev,
@@ -592,17 +587,12 @@ static int dt9812_analog_out_shadow(struct comedi_device *dev,
 				    int channel, u16 *value)
 {
 	struct dt9812_private *devpriv = dev->private;
-	struct slot_dt9812 *slot = devpriv->slot;
-	int ret = -ENODEV;
 
 	down(&devpriv->sem);
-	if (slot->usb) {
-		*value = slot->usb->analog_out_shadow[channel];
-		ret = 0;
-	}
+	*value = devpriv->ao_shadow[channel];
 	up(&devpriv->sem);
 
-	return ret;
+	return 0;
 }
 
 static int dt9812_analog_out(struct comedi_device *dev, int channel, u16 value)
@@ -653,7 +643,7 @@ static int dt9812_analog_out(struct comedi_device *dev, int channel, u16 value)
 			break;
 		}
 		ret = dt9812_rmw_multiple_registers(slot->usb, 3, rmw);
-		slot->usb->analog_out_shadow[channel] = value;
+		devpriv->ao_shadow[channel] = value;
 	}
 	up(&devpriv->sem);
 
@@ -744,7 +734,7 @@ static int dt9812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct dt9812_private *devpriv;
 	int i;
 	struct comedi_subdevice *s;
-	bool range_2_5;
+	bool is_unipolar;
 	int ret;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
@@ -772,7 +762,7 @@ static int dt9812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	slot->devpriv = devpriv;
 	devpriv->slot = slot;
-	range_2_5 = (slot->usb->device == DT9812_DEVID_DT9812_2PT5);
+	is_unipolar = (slot->usb->device == DT9812_DEVID_DT9812_2PT5);
 
 	up(&dt9812_mutex);
 
@@ -798,13 +788,15 @@ static int dt9812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->range_table = &range_digital;
 	s->insn_write = &dt9812_do_winsn;
 
+	devpriv->do_shadow = 0;
+
 	/* analog input subdevice */
 	s = &dev->subdevices[2];
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND;
 	s->n_chan = 8;
 	s->maxdata = 4095;
-	s->range_table = range_2_5 ? &range_unipolar2_5 : &range_bipolar10;
+	s->range_table = is_unipolar ? &range_unipolar2_5 : &range_bipolar10;
 	s->insn_read = &dt9812_ai_rinsn;
 
 	/* analog output subdevice */
@@ -813,9 +805,12 @@ static int dt9812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->subdev_flags = SDF_WRITEABLE;
 	s->n_chan = 0;
 	s->maxdata = 4095;
-	s->range_table = range_2_5 ? &range_unipolar2_5 : &range_bipolar10;
+	s->range_table = is_unipolar ? &range_unipolar2_5 : &range_bipolar10;
 	s->insn_write = &dt9812_ao_winsn;
 	s->insn_read = &dt9812_ao_rinsn;
+
+	devpriv->ao_shadow[0] = is_unipolar ? 0x0000 : 0x0800;
+	devpriv->ao_shadow[1] = is_unipolar ? 0x0000 : 0x0800;
 
 	dev_info(dev->class_dev, "successfully attached to dt9812.\n");
 
@@ -963,17 +958,6 @@ static int dt9812_probe(struct usb_interface *interface,
 	dev->product = le16_to_cpu(dev->product);
 	dev->device = le16_to_cpu(dev->device);
 	dev->serial = le32_to_cpu(dev->serial);
-	switch (dev->device) {
-	case DT9812_DEVID_DT9812_10:
-		dev->analog_out_shadow[0] = 0x0800;
-		dev->analog_out_shadow[1] = 0x800;
-		break;
-	case DT9812_DEVID_DT9812_2PT5:
-		dev->analog_out_shadow[0] = 0x0000;
-		dev->analog_out_shadow[1] = 0x0000;
-		break;
-	}
-	dev->digital_out_shadow = 0;
 
 	/* save our data pointer in this interface device */
 	usb_set_intfdata(interface, dev);
