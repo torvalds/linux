@@ -1613,6 +1613,8 @@ static unsigned long dsiclk_rate(u8 n)
 
 	if (divsel == PRCM_DSI_PLLOUT_SEL_OFF)
 		divsel = dsiclk[n].divsel;
+	else
+		dsiclk[n].divsel = divsel;
 
 	switch (divsel) {
 	case PRCM_DSI_PLLOUT_SEL_PHI_4:
