@@ -422,6 +422,8 @@ static void dt9812_configure_gain(struct comedi_device *dev,
 		rmw->or_value = F020_MASK_ADC0CF_AMP0GN2 |
 				F020_MASK_ADC0CF_AMP0GN1;
 		break;
+	default:
+		/* this should never happen, just use a gain of 1 */
 	case DT9812_GAIN_1:
 		rmw->or_value = 0x00;
 		break;
@@ -437,9 +439,6 @@ static void dt9812_configure_gain(struct comedi_device *dev,
 		break;
 	case DT9812_GAIN_16:
 		rmw->or_value = F020_MASK_ADC0CF_AMP0GN2;
-		break;
-	default:
-		dev_err(dev->class_dev, "Illegal gain %d\n", gain);
 		break;
 	}
 }
