@@ -430,17 +430,20 @@ static int dt9812_digital_out(struct comedi_device *dev, u8 bits)
 	return ret;
 }
 
-static int dt9812_digital_out_shadow(struct slot_dt9812 *slot, u8 *bits)
+static int dt9812_digital_out_shadow(struct comedi_device *dev, u8 *bits)
 {
-	int result = -ENODEV;
+	struct dt9812_private *devpriv = dev->private;
+	struct slot_dt9812 *slot = devpriv->slot;
+	int ret = -ENODEV;
 
 	down(&slot->mutex);
 	if (slot->usb) {
 		*bits = slot->usb->digital_out_shadow;
-		result = 0;
+		ret = 0;
 	}
 	up(&slot->mutex);
-	return result;
+
+	return ret;
 }
 
 static void dt9812_configure_mux(struct usb_dt9812 *dev,
@@ -658,12 +661,11 @@ static int dt9812_do_winsn(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_insn *insn,
 			   unsigned int *data)
 {
-	struct dt9812_private *devpriv = dev->private;
 	unsigned int channel = CR_CHAN(insn->chanspec);
 	int n;
 	u8 bits = 0;
 
-	dt9812_digital_out_shadow(devpriv->slot, &bits);
+	dt9812_digital_out_shadow(dev, &bits);
 	for (n = 0; n < insn->n; n++) {
 		u8 mask = 1 << channel;
 
