@@ -1491,8 +1491,8 @@ static int usbduxfast_usb_probe(struct usb_interface *uinterf,
 				const struct usb_device_id *id)
 {
 	struct usb_device *udev = interface_to_usbdev(uinterf);
+	struct usbduxfastsub_s *devpriv = NULL;
 	int i;
-	int index;
 	int ret;
 
 	if (udev->speed != USB_SPEED_HIGH) {
@@ -1503,78 +1503,66 @@ static int usbduxfast_usb_probe(struct usb_interface *uinterf,
 
 	down(&start_stop_sem);
 	/* look for a free place in the usbduxfast array */
-	index = -1;
 	for (i = 0; i < NUMUSBDUXFAST; i++) {
 		if (!usbduxfastsub[i].probed) {
-			index = i;
+			devpriv = &usbduxfastsub[i];
 			break;
 		}
 	}
 
 	/* no more space */
-	if (index == -1) {
+	if (!devpriv) {
 		dev_err(&uinterf->dev,
 			"Too many usbduxfast-devices connected.\n");
 		up(&start_stop_sem);
 		return -EMFILE;
 	}
 
-	sema_init(&(usbduxfastsub[index].sem), 1);
-	/* save a pointer to the usb device */
-	usbduxfastsub[index].usbdev = udev;
+	sema_init(&devpriv->sem, 1);
+	devpriv->usbdev = udev;
+	devpriv->interface = uinterf;
+	devpriv->ifnum = uinterf->altsetting->desc.bInterfaceNumber;
+	usb_set_intfdata(uinterf, devpriv);
 
-	/* save the interface itself */
-	usbduxfastsub[index].interface = uinterf;
-	/* get the interface number from the interface */
-	usbduxfastsub[index].ifnum = uinterf->altsetting->desc.bInterfaceNumber;
-	/*
-	 * hand the private data over to the usb subsystem
-	 * will be needed for disconnect
-	 */
-	usb_set_intfdata(uinterf, &(usbduxfastsub[index]));
-
-	/* create space for the commands going to the usb device */
-	usbduxfastsub[index].dux_commands = kmalloc(SIZEOFDUXBUFFER,
-						    GFP_KERNEL);
-	if (!usbduxfastsub[index].dux_commands) {
-		tidy_up(&(usbduxfastsub[index]));
+	devpriv->dux_commands = kmalloc(SIZEOFDUXBUFFER, GFP_KERNEL);
+	if (!devpriv->dux_commands) {
+		tidy_up(devpriv);
 		up(&start_stop_sem);
 		return -ENOMEM;
 	}
-	/* create space of the instruction buffer */
-	usbduxfastsub[index].insnBuffer = kmalloc(SIZEINSNBUF, GFP_KERNEL);
-	if (!usbduxfastsub[index].insnBuffer) {
-		tidy_up(&(usbduxfastsub[index]));
+
+	devpriv->insnBuffer = kmalloc(SIZEINSNBUF, GFP_KERNEL);
+	if (!devpriv->insnBuffer) {
+		tidy_up(devpriv);
 		up(&start_stop_sem);
 		return -ENOMEM;
 	}
-	/* setting to alternate setting 1: enabling bulk ep */
-	i = usb_set_interface(usbduxfastsub[index].usbdev,
-			      usbduxfastsub[index].ifnum, 1);
+
+	i = usb_set_interface(devpriv->usbdev, devpriv->ifnum, 1);
 	if (i < 0) {
 		dev_err(&uinterf->dev,
-			"usbduxfast%d: could not switch to alternate setting 1.\n",
-			index);
-		tidy_up(&(usbduxfastsub[index]));
+			"could not switch to alternate setting 1\n");
+		tidy_up(devpriv);
 		up(&start_stop_sem);
 		return -ENODEV;
 	}
-	usbduxfastsub[index].urbIn = usb_alloc_urb(0, GFP_KERNEL);
-	if (!usbduxfastsub[index].urbIn) {
-		dev_err(&uinterf->dev,
-			"usbduxfast%d: Could not alloc. urb\n", index);
-		tidy_up(&(usbduxfastsub[index]));
+
+	devpriv->urbIn = usb_alloc_urb(0, GFP_KERNEL);
+	if (!devpriv->urbIn) {
+		dev_err(&uinterf->dev, "Could not alloc. urb\n");
+		tidy_up(devpriv);
 		up(&start_stop_sem);
 		return -ENOMEM;
 	}
-	usbduxfastsub[index].transfer_buffer = kmalloc(SIZEINBUF, GFP_KERNEL);
-	if (!usbduxfastsub[index].transfer_buffer) {
-		tidy_up(&(usbduxfastsub[index]));
+
+	devpriv->transfer_buffer = kmalloc(SIZEINBUF, GFP_KERNEL);
+	if (!devpriv->transfer_buffer) {
+		tidy_up(devpriv);
 		up(&start_stop_sem);
 		return -ENOMEM;
 	}
-	/* we've reached the bottom of the function */
-	usbduxfastsub[index].probed = 1;
+
+	devpriv->probed = 1;
 	up(&start_stop_sem);
 
 	/*
