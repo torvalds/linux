@@ -200,23 +200,16 @@ static int usbduxfast_ai_stop(struct comedi_device *dev, int do_unlink)
 	return 0;
 }
 
-/*
- * This will cancel a running acquisition operation.
- * This is called by comedi but never from inside the driver.
- */
 static int usbduxfast_ai_cancel(struct comedi_device *dev,
 				struct comedi_subdevice *s)
 {
 	struct usbduxfast_private *devpriv = dev->private;
 	int ret;
 
-	/* force unlink of all urbs */
-	if (!devpriv) {
-		dev_err(dev->class_dev, "%s: devpriv=NULL\n", __func__);
+	if (!devpriv)
 		return -EFAULT;
-	}
+
 	down(&devpriv->sem);
-	/* unlink */
 	ret = usbduxfast_ai_stop(dev, 1);
 	up(&devpriv->sem);
 
