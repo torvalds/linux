@@ -1736,8 +1736,6 @@ static int load_link_keys(struct sock *sk, struct hci_dev *hdev, void *data,
 
 	hci_link_keys_clear(hdev);
 
-	set_bit(HCI_LINK_KEYS, &hdev->dev_flags);
-
 	if (cp->debug_keys)
 		set_bit(HCI_DEBUG_KEYS, &hdev->dev_flags);
 	else
