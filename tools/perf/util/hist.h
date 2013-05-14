@@ -115,7 +115,7 @@ void events_stats__inc(struct events_stats *stats, u32 type);
 size_t events_stats__fprintf(struct events_stats *stats, FILE *fp);
 
 size_t hists__fprintf(struct hists *self, bool show_header, int max_rows,
-		      int max_cols, FILE *fp);
+		      int max_cols, float min_pcnt, FILE *fp);
 
 int hist_entry__inc_addr_samples(struct hist_entry *self, int evidx, u64 addr);
 int hist_entry__annotate(struct hist_entry *self, size_t privsize);
@@ -195,6 +195,7 @@ int hist_entry__tui_annotate(struct hist_entry *he, struct perf_evsel *evsel,
 
 int perf_evlist__tui_browse_hists(struct perf_evlist *evlist, const char *help,
 				  struct hist_browser_timer *hbt,
+				  float min_pcnt,
 				  struct perf_session_env *env);
 int script_browse(const char *script_opt);
 #else
@@ -202,6 +203,7 @@ static inline
 int perf_evlist__tui_browse_hists(struct perf_evlist *evlist __maybe_unused,
 				  const char *help __maybe_unused,
 				  struct hist_browser_timer *hbt __maybe_unused,
+				  float min_pcnt __maybe_unused,
 				  struct perf_session_env *env __maybe_unused)
 {
 	return 0;
@@ -229,12 +231,14 @@ static inline int script_browse(const char *script_opt __maybe_unused)
 
 #ifdef GTK2_SUPPORT
 int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist, const char *help,
-				  struct hist_browser_timer *hbt __maybe_unused);
+				  struct hist_browser_timer *hbt __maybe_unused,
+				  float min_pcnt);
 #else
 static inline
 int perf_evlist__gtk_browse_hists(struct perf_evlist *evlist __maybe_unused,
 				  const char *help __maybe_unused,
-				  struct hist_browser_timer *hbt __maybe_unused)
+				  struct hist_browser_timer *hbt __maybe_unused,
+				  float min_pcnt __maybe_unused)
 {
 	return 0;
 }

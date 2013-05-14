@@ -457,7 +457,7 @@ static void hists__process(struct hists *old, struct hists *new)
 		hists__output_resort(new);
 	}
 
-	hists__fprintf(new, true, 0, 0, stdout);
+	hists__fprintf(new, true, 0, 0, 0, stdout);
 }
 
 static int __cmd_diff(void)

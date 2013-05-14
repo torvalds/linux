@@ -52,6 +52,7 @@ struct perf_report {
 	symbol_filter_t		annotate_init;
 	const char		*cpu_list;
 	const char		*symbol_filter_str;
+	float			min_percent;
 	DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
 };
 
@@ -456,7 +457,7 @@ static int perf_evlist__tty_browse_hists(struct perf_evlist *evlist,
 			continue;
 
 		hists__fprintf_nr_sample_events(rep, hists, evname, stdout);
-		hists__fprintf(hists, true, 0, 0, stdout);
+		hists__fprintf(hists, true, 0, 0, rep->min_percent, stdout);
 		fprintf(stdout, "\n\n");
 	}
 
@@ -575,8 +576,8 @@ static int __cmd_report(struct perf_report *rep)
 	if (use_browser > 0) {
 		if (use_browser == 1) {
 			ret = perf_evlist__tui_browse_hists(session->evlist,
-							help,
-							NULL,
+							help, NULL,
+							rep->min_percent,
 							&session->header.env);
 			/*
 			 * Usually "ret" is the last pressed key, and we only
@@ -587,7 +588,7 @@ static int __cmd_report(struct perf_report *rep)
 
 		} else if (use_browser == 2) {
 			perf_evlist__gtk_browse_hists(session->evlist, help,
-						      NULL);
+						      NULL, rep->min_percent);
 		}
 	} else
 		perf_evlist__tty_browse_hists(session->evlist, rep, help);
@@ -695,6 +696,16 @@ parse_branch_mode(const struct option *opt __maybe_unused,
 	int *branch_mode = opt->value;
 
 	*branch_mode = !unset;
+	return 0;
+}
+
+static int
+parse_percent_limit(const struct option *opt, const char *str,
+		    int unset __maybe_unused)
+{
+	struct perf_report *rep = opt->value;
+
+	rep->min_percent = strtof(str, NULL);
 	return 0;
 }
 
@@ -807,6 +818,8 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_BOOLEAN(0, "demangle", &symbol_conf.demangle,
 		    "Disable symbol demangling"),
 	OPT_BOOLEAN(0, "mem-mode", &report.mem_mode, "mem access profile"),
+	OPT_CALLBACK(0, "percent-limit", &report, "percent",
+		     "Don't show entries under that percent", parse_percent_limit),
 	OPT_END()
 	};
 

@@ -296,7 +296,7 @@ static void perf_top__print_sym_table(struct perf_top *top)
 				     top->print_entries - printed);
 	putchar('\n');
 	hists__fprintf(&top->sym_evsel->hists, false,
-		       top->print_entries - printed, win_width, stdout);
+		       top->print_entries - printed, win_width, 0, stdout);
 }
 
 static void prompt_integer(int *target, const char *msg)
@@ -580,7 +580,7 @@ static void *display_thread_tui(void *arg)
 	list_for_each_entry(pos, &top->evlist->entries, node)
 		pos->hists.uid_filter_str = top->record_opts.target.uid_str;
 
-	perf_evlist__tui_browse_hists(top->evlist, help, &hbt,
+	perf_evlist__tui_browse_hists(top->evlist, help, &hbt, 0,
 				      &top->session->header.env);
 
 	done = 1;
