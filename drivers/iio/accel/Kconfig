@@ -28,7 +28,6 @@ config IIO_ST_ACCEL_3AXIS
 	select IIO_ST_ACCEL_I2C_3AXIS if (I2C)
 	select IIO_ST_ACCEL_SPI_3AXIS if (SPI_MASTER)
 	select IIO_TRIGGERED_BUFFER if (IIO_BUFFER)
-	select IIO_ST_ACCEL_BUFFER if (IIO_TRIGGERED_BUFFER)
 	help
 	  Say yes here to build support for STMicroelectronics accelerometers:
 	  LSM303DLH, LSM303DLHC, LIS3DH, LSM330D, LSM330DL, LSM330DLC,
