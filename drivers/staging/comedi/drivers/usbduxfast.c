@@ -286,30 +286,14 @@ static int usbduxfast_ai_cancel(struct comedi_device *dev,
  * analogue IN
  * interrupt service routine
  */
-static void usbduxfastsub_ai_Irq(struct urb *urb)
+static void usbduxfast_ai_interrupt(struct urb *urb)
 {
+	struct comedi_device *dev = urb->context;
+	struct comedi_subdevice *s = dev->read_subdev;
+	struct comedi_async *async = s->async;
+	struct usbduxfast_private *devpriv = dev->private;
 	int n, err;
-	struct usbduxfast_private *devpriv;
-	struct comedi_device *this_comedidev;
-	struct comedi_subdevice *s;
 
-	/* sanity checks - is the urb there? */
-	if (!urb) {
-		pr_err("ao int-handler called with urb=NULL!\n");
-		return;
-	}
-	/* the context variable points to the subdevice */
-	this_comedidev = urb->context;
-	if (!this_comedidev) {
-		pr_err("urb context is a NULL pointer!\n");
-		return;
-	}
-	/* the private structure of the subdevice is usbduxfast_private */
-	devpriv = this_comedidev->private;
-	if (!devpriv) {
-		pr_err("private of comedi subdev is a NULL pointer!\n");
-		return;
-	}
 	/* are we running a command? */
 	if (unlikely(!devpriv->ai_cmd_running)) {
 		/*
@@ -324,8 +308,6 @@ static void usbduxfastsub_ai_Irq(struct urb *urb)
 		/* no comedi device there */
 		return;
 	}
-	/* subdevice which is the AD converter */
-	s = &this_comedidev->subdevices[SUBDEV_AD];
 
 	/* first we test if something unusual has just happened */
 	switch (urb->status) {
@@ -341,9 +323,9 @@ static void usbduxfastsub_ai_Irq(struct urb *urb)
 	case -ESHUTDOWN:
 	case -ECONNABORTED:
 		/* tell this comedi */
-		s->async->events |= COMEDI_CB_EOA;
-		s->async->events |= COMEDI_CB_ERROR;
-		comedi_event(devpriv->comedidev, s);
+		async->events |= COMEDI_CB_EOA;
+		async->events |= COMEDI_CB_ERROR;
+		comedi_event(dev, s);
 		/* stop the transfer w/o unlink */
 		usbduxfast_ai_stop(devpriv, 0);
 		return;
@@ -351,9 +333,9 @@ static void usbduxfastsub_ai_Irq(struct urb *urb)
 	default:
 		pr_err("non-zero urb status received in ai intr context: %d\n",
 		       urb->status);
-		s->async->events |= COMEDI_CB_EOA;
-		s->async->events |= COMEDI_CB_ERROR;
-		comedi_event(devpriv->comedidev, s);
+		async->events |= COMEDI_CB_EOA;
+		async->events |= COMEDI_CB_ERROR;
+		comedi_event(dev, s);
 		usbduxfast_ai_stop(devpriv, 0);
 		return;
 	}
@@ -373,8 +355,8 @@ static void usbduxfastsub_ai_Irq(struct urb *urb)
 							  * sizeof(uint16_t));
 				usbduxfast_ai_stop(devpriv, 0);
 				/* tell comedi that the acquistion is over */
-				s->async->events |= COMEDI_CB_EOA;
-				comedi_event(devpriv->comedidev, s);
+				async->events |= COMEDI_CB_EOA;
+				comedi_event(dev, s);
 				return;
 			}
 			devpriv->ai_sample_count -= n;
@@ -389,8 +371,7 @@ static void usbduxfastsub_ai_Irq(struct urb *urb)
 		}
 
 		/* tell comedi that data is there */
-		comedi_event(devpriv->comedidev, s);
-
+		comedi_event(dev, s);
 	} else {
 		/* ignore this packet */
 		devpriv->ignore--;
@@ -406,9 +387,9 @@ static void usbduxfastsub_ai_Irq(struct urb *urb)
 	if (err < 0) {
 		dev_err(&urb->dev->dev,
 			"urb resubm failed: %d", err);
-		s->async->events |= COMEDI_CB_EOA;
-		s->async->events |= COMEDI_CB_ERROR;
-		comedi_event(devpriv->comedidev, s);
+		async->events |= COMEDI_CB_EOA;
+		async->events |= COMEDI_CB_ERROR;
+		comedi_event(dev, s);
 		usbduxfast_ai_stop(devpriv, 0);
 	}
 }
@@ -502,8 +483,8 @@ static int usbduxfastsub_submit_InURBs(struct usbduxfast_private *devpriv)
 
 	usb_fill_bulk_urb(devpriv->urbIn, devpriv->usb,
 			  usb_rcvbulkpipe(devpriv->usb, BULKINEP),
-			  devpriv->transfer_buffer,
-			  SIZEINBUF, usbduxfastsub_ai_Irq, devpriv->comedidev);
+			  devpriv->transfer_buffer, SIZEINBUF,
+			  usbduxfast_ai_interrupt, devpriv->comedidev);
 
 	ret = usb_submit_urb(devpriv->urbIn, GFP_ATOMIC);
 	if (ret) {
