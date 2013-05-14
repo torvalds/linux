@@ -29,9 +29,11 @@
 
 struct hdmi *hdmi = NULL;
 struct mfd_rk616 *g_rk616_hdmi = NULL;
-struct work_struct	g_irq_work;
+// struct work_struct	g_rk616_delay_work;
+struct delayed_work     g_rk616_delay_work;
 
-extern void hdmi_irq(void);
+// extern void hdmi_irq(void);
+extern void rk616_hdmi_work(void);
 extern void hdmi_work(struct work_struct *work);
 extern struct rk_lcdc_device_driver * rk_get_lcdc_drv(char *name);
 extern void hdmi_register_display_sysfs(struct hdmi *hdmi, struct device *parent);
@@ -51,18 +53,24 @@ static int rk616_hdmi_reg_show(struct seq_file *s, void *v)
 	}
 
 
-	seq_printf(s,"------>gpio = %d \n",gpio_get_value(rk616->pdata->hdmi_irq));
+	//seq_printf(s,"------>gpio = %d \n",gpio_get_value(rk616->pdata->hdmi_irq));
+	seq_printf(s, "\n>>>rk616_ctl reg");
+	for (i = 0; i < 16; i++) {
+		seq_printf(s, " %2x", i);
+	}
+	seq_printf(s, "\n-----------------------------------------------------------------");
+	
 	for(i=0;i<= (PHY_PRE_DIV_RATIO << 2);i+=4)
 	{
 		rk616->read_dev(rk616,RK616_HDMI_BASE + i,&val);
 		//seq_printf(s,"reg%02x>>0x%08x\n",(i>>2),val);
 		if((i>>2)%16==0)
-			seq_printf(s,"\n>>>rk610_ctl %02x:",i>>2);
+			seq_printf(s,"\n>>>rk616_ctl %2x:",i>>2);
 		seq_printf(s," %02x",val);
 
 	}
 	
-	seq_printf(s,"\n");
+	seq_printf(s, "\n-----------------------------------------------------------------\n");
 	
 	return 0;
 }
@@ -75,9 +83,19 @@ static ssize_t rk616_hdmi_reg_write (struct file *file, const char __user *buf, 
 	char kbuf[25];
 	if (copy_from_user(kbuf, buf, count))
 		return -EFAULT;
-	sscanf(kbuf, "%x%x", &reg,&val);
-	dev_dbg(rk616->dev,"%s:reg:0x%04x val:0x%08x\n",__func__,reg,val);
-	rk616->write_dev(rk616,reg,&val);
+	sscanf(kbuf, "%x%x", &reg, &val);
+        if ((reg < 0) || (reg > 0xed))
+        {
+                printk("it is no hdmi reg\n");
+                return count;
+        }
+	printk("/**********rk616 reg config******/");
+	printk("\n reg=%x val=%x\n", reg, val);
+
+	//sscanf(kbuf, "%x%x", &reg, &val);
+	dev_dbg(rk616->dev,"%s:reg:0x%04x val:0x%08x\n",__func__,reg, val);
+	rk616->write_dev(rk616, RK616_HDMI_BASE + (reg << 2), &val);
+
 	return count;
 }
 
@@ -125,7 +143,10 @@ static void hdmi_early_suspend(struct early_suspend *h)
 		mutex_unlock(&hdmi->enable_mutex);
 		return;
 	}
-	disable_irq(hdmi->irq);
+
+        if (hdmi->irq)
+        	disable_irq(hdmi->irq);
+
 	mutex_unlock(&hdmi->enable_mutex);
 	hdmi->command = HDMI_CONFIG_ENABLE;
 	init_completion(&hdmi->complete);
@@ -145,30 +166,39 @@ static void hdmi_early_resume(struct early_suspend *h)
 
 	hdmi->suspend = 0;
 	rk616_hdmi_initial();
-	if(hdmi->enable) {
+	if(hdmi->enable && hdmi->irq) {
 		enable_irq(hdmi->irq);
-		hdmi_irq();
+		// hdmi_irq();
+                rk616_hdmi_work();
 	}
+        if (g_rk616_hdmi->pdata->hdmi_irq == INVALID_GPIO) 
+        	queue_delayed_work(hdmi->workqueue, &g_rk616_delay_work, 100);
+
 	queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, msecs_to_jiffies(10));	
 	mutex_unlock(&hdmi->enable_mutex);
 	return;
 }
 #endif
-static void rk616_irq_work_func(struct work_struct *work)
+static void rk616_delay_work_func(struct work_struct *work)
 {
 	if(hdmi->suspend == 0) {
 		if(hdmi->enable == 1) {
-			hdmi_irq();
+			//hdmi_irq();
+                        rk616_hdmi_work();
 		}
-//		queue_delayed_work(hdmi->workqueue, &g_irq_work, 100);
+
+                if (g_rk616_hdmi->pdata->hdmi_irq == INVALID_GPIO) {
+        	        queue_delayed_work(hdmi->workqueue, &g_rk616_delay_work, 100);
+                }
 	}
 }
+
 #if 1
 static irqreturn_t rk616_hdmi_irq(int irq, void *dev_id)
 {
 	printk(KERN_INFO "rk616_hdmi_irq irq triggered.\n");
-	schedule_work(&g_irq_work);
-    return IRQ_HANDLED;
+	queue_delayed_work(hdmi->workqueue, &g_rk616_delay_work, 0);
+        return IRQ_HANDLED;
 }
 #endif
 static int __devinit rk616_hdmi_probe (struct platform_device *pdev)
@@ -230,10 +260,11 @@ static int __devinit rk616_hdmi_probe (struct platform_device *pdev)
 	spin_lock_init(&hdmi->irq_lock);
 	mutex_init(&hdmi->enable_mutex);
 
+	INIT_DELAYED_WORK(&g_rk616_delay_work, rk616_delay_work_func);
 	/* get the IRQ */
 	if(rk616->pdata->hdmi_irq != INVALID_GPIO)
 	{
-		INIT_WORK(&g_irq_work, rk616_irq_work_func);
+		// INIT_DELAYED_WORK(&g_rk616_delay_work, rk616_delay_work_func);
 		ret = gpio_request(rk616->pdata->hdmi_irq,"rk616_hdmi_irq");
 		if(ret < 0)
 		{
@@ -254,15 +285,19 @@ static int __devinit rk616_hdmi_probe (struct platform_device *pdev)
 			dev_err(hdmi->dev, "hdmi request_irq failed (%d).\n", ret);
 			goto err1;
 		}
-	}
+	} else {
+
+                /* use roll polling method */
+		hdmi->irq = 0;
+        }
 #if defined(CONFIG_DEBUG_FS)
 	if(rk616->debugfs_dir)
 	{
 		debugfs_create_file("hdmi", S_IRUSR,rk616->debugfs_dir,rk616,&rk616_hdmi_reg_fops);
 	}
 #endif
-	rk616_irq_work_func(NULL);
-	//queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, msecs_to_jiffies(10));	
+	// rk616_delay_work_func(NULL);
+	queue_delayed_work(hdmi->workqueue, &g_rk616_delay_work, msecs_to_jiffies(0));	
 	dev_info(hdmi->dev, "rk616 hdmi probe success.\n");
 	return 0;
 err1:
@@ -284,10 +319,12 @@ static int __devexit rk616_hdmi_remove(struct platform_device *pdev)
 {
 	if(hdmi) {
 		mutex_lock(&hdmi->enable_mutex);
-		if(!hdmi->suspend && hdmi->enable)
+		if(!hdmi->suspend && hdmi->enable && hdmi->irq)
 			disable_irq(hdmi->irq);
 		mutex_unlock(&hdmi->enable_mutex);
-		free_irq(hdmi->irq, NULL);
+                if (hdmi->irq) {
+        		free_irq(hdmi->irq, NULL);
+                }
 		flush_workqueue(hdmi->workqueue);
 		destroy_workqueue(hdmi->workqueue);
 #ifdef CONFIG_SWITCH

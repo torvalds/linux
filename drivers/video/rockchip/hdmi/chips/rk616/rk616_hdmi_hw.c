@@ -3,8 +3,9 @@
 #include <mach/io.h>
 #include "rk616_hdmi.h"
 #include "rk616_hdmi_hw.h"
+#include <mach/gpio.h>
 
-static char edid_result = 0;
+// static char edid_result = 0;
 
 
 static int rk616_hdmi_set_vif(rk_screen * screen,bool connect)
@@ -54,7 +55,7 @@ static void rk616_hdmi_set_pwr_mode(int mode)
 	hdmi_dbg(hdmi->dev,"%s change pwr_mode %d --> %d\n",__FUNCTION__,hdmi->pwr_mode,mode);
     switch(mode){
      case NORMAL:
-	     hdmi_dbg(hdmi->dev,"%s change pwr_mode NORMAL\n",__FUNCTION__,hdmi->pwr_mode,mode);
+	     hdmi_dbg(hdmi->dev,"%s change pwr_mode NORMALpwr_mode = %d, mode = %d\n",__FUNCTION__,hdmi->pwr_mode,mode);
 	   	rk616_hdmi_sys_power_down();
 		HDMIWrReg(PHY_DRIVER,0xaa);
 		HDMIWrReg(PHY_PRE_EMPHASIS,0x0f);
@@ -69,7 +70,7 @@ static void rk616_hdmi_set_pwr_mode(int mode)
 		rk616_hdmi_sys_power_up();
 		break;
 	case LOWER_PWR:
-		hdmi_dbg(hdmi->dev,"%s change pwr_mode LOWER_PWR\n",__FUNCTION__,hdmi->pwr_mode,mode);
+		hdmi_dbg(hdmi->dev,"%s change pwr_mode LOWER_PWR pwr_mode = %d, mode = %d\n",__FUNCTION__,hdmi->pwr_mode,mode);
 		rk616_hdmi_av_mute(0);
 	   	rk616_hdmi_sys_power_down();
 		HDMIWrReg(PHY_DRIVER,0x00);
@@ -415,20 +416,45 @@ int rk616_hdmi_removed(void)
 }
 
 
-void hdmi_irq(void)
+void rk616_hdmi_work(void)
 {		
 	u32 interrupt = 0;
-	
-	HDMIRdReg(INTERRUPT_STATUS1,&interrupt);
-	HDMIWrReg(INTERRUPT_STATUS1, interrupt);
+        static int hpd = 0;
 
-	if(interrupt & m_HOTPLUG){
-		if(hdmi->state == HDMI_SLEEP)
-			hdmi->state = WAIT_HOTPLUG;
-		if(hdmi->pwr_mode == LOWER_PWR)
-			rk616_hdmi_set_pwr_mode(NORMAL);
-		queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, msecs_to_jiffies(10));	
-	}
+        /* if hdmi_irq == INVALID_GPIO use irq mode, else use roll polling method */
+        if (g_rk616_hdmi->pdata->hdmi_irq == INVALID_GPIO) {
+	
+	        HDMIRdReg(INTERRUPT_STATUS1,&interrupt);
+        	HDMIWrReg(INTERRUPT_STATUS1, interrupt);
+
+	        if(interrupt & m_HOTPLUG){
+		        if(hdmi->state == HDMI_SLEEP)
+			        hdmi->state = WAIT_HOTPLUG;
+        		if(hdmi->pwr_mode == LOWER_PWR)
+	        		rk616_hdmi_set_pwr_mode(NORMAL);
+
+		        queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, msecs_to_jiffies(10));	
+	        }
+
+        } else {
+                int value = 0;
+                HDMIRdReg(HDMI_STATUS,&value);
+                if((value & m_HOTPLUG)&& hpd == 0){
+		        if(hdmi->state == HDMI_SLEEP)
+			        hdmi->state = WAIT_HOTPLUG;
+        		if(hdmi->pwr_mode == LOWER_PWR)
+	        		rk616_hdmi_set_pwr_mode(NORMAL);
+
+		        queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, msecs_to_jiffies(10));	
+                        hpd = 1;
+                } else if (((value & m_HOTPLUG)== 0) && (hpd == 1)) {
+                        queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, msecs_to_jiffies(10));	
+                        hpd = 0;
+
+                }
+        }
+
+
 #if 0	
 	if(hdmi->state == HDMI_SLEEP) {
 //		hdmi_dbg(hdmi->dev, "hdmi return to sleep mode\n");
