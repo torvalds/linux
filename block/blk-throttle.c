@@ -952,23 +952,33 @@ static int throtl_select_dispatch(struct throtl_service_queue *parent_sq)
  * This timer is armed when a child throtl_grp with active bio's become
  * pending and queued on the service_queue's pending_tree and expires when
  * the first child throtl_grp should be dispatched.  This function
- * dispatches bio's from the children throtl_grps and kicks
- * throtl_data->dispatch_work if there are bio's ready to be issued.
+ * dispatches bio's from the children throtl_grps to the parent
+ * service_queue.
+ *
+ * If the parent's parent is another throtl_grp, dispatching is propagated
+ * by either arming its pending_timer or repeating dispatch directly.  If
+ * the top-level service_tree is reached, throtl_data->dispatch_work is
+ * kicked so that the ready bio's are issued.
  */
 static void throtl_pending_timer_fn(unsigned long arg)
 {
 	struct throtl_service_queue *sq = (void *)arg;
+	struct throtl_grp *tg = sq_to_tg(sq);
 	struct throtl_data *td = sq_to_td(sq);
 	struct request_queue *q = td->queue;
-	bool dispatched = false;
+	struct throtl_service_queue *parent_sq;
+	bool dispatched;
 	int ret;
 
 	spin_lock_irq(q->queue_lock);
+again:
+	parent_sq = sq->parent_sq;
+	dispatched = false;
 
 	while (true) {
 		throtl_log(sq, "dispatch nr_queued=%u read=%u write=%u",
-			   td->nr_queued[READ] + td->nr_queued[WRITE],
-			   td->nr_queued[READ], td->nr_queued[WRITE]);
+			   sq->nr_queued[READ] + sq->nr_queued[WRITE],
+			   sq->nr_queued[READ], sq->nr_queued[WRITE]);
 
 		ret = throtl_select_dispatch(sq);
 		if (ret) {
@@ -985,9 +995,25 @@ static void throtl_pending_timer_fn(unsigned long arg)
 		spin_lock_irq(q->queue_lock);
 	}
 
-	if (dispatched)
-		queue_work(kthrotld_workqueue, &td->dispatch_work);
+	if (!dispatched)
+		goto out_unlock;
 
+	if (parent_sq) {
+		/* @parent_sq is another throl_grp, propagate dispatch */
+		if (tg->flags & THROTL_TG_WAS_EMPTY) {
+			tg_update_disptime(tg);
+			if (!throtl_schedule_next_dispatch(parent_sq, false)) {
+				/* window is already open, repeat dispatching */
+				sq = parent_sq;
+				tg = sq_to_tg(sq);
+				goto again;
+			}
+		}
+	} else {
+		/* reached the top-level, queue issueing */
+		queue_work(kthrotld_workqueue, &td->dispatch_work);
+	}
+out_unlock:
 	spin_unlock_irq(q->queue_lock);
 }
 
