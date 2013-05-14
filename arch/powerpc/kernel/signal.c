@@ -25,7 +25,7 @@
  * through debug.exception-trace sysctl.
  */
 
-int show_unhandled_signals = 0;
+int show_unhandled_signals = 1;
 
 /*
  * Allocate space for the signal frame
