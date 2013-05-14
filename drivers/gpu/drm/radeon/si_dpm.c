@@ -5883,7 +5883,7 @@ int si_dpm_set_power_state(struct radeon_device *rdev)
 	}
 	if (eg_pi->pcie_performance_request)
 		si_request_link_speed_change_before_state_change(rdev, new_ps, old_ps);
-	rv770_set_uvd_clock_before_set_eng_clock(rdev, new_ps, old_ps);
+	ni_set_uvd_clock_before_set_eng_clock(rdev, new_ps, old_ps);
 	ret = si_enable_power_containment(rdev, new_ps, false);
 	if (ret) {
 		DRM_ERROR("si_enable_power_containment failed\n");
@@ -5948,7 +5948,7 @@ int si_dpm_set_power_state(struct radeon_device *rdev)
 		DRM_ERROR("si_set_sw_state failed\n");
 		return ret;
 	}
-	rv770_set_uvd_clock_after_set_eng_clock(rdev, new_ps, old_ps);
+	ni_set_uvd_clock_after_set_eng_clock(rdev, new_ps, old_ps);
 	if (eg_pi->pcie_performance_request)
 		si_notify_link_speed_change_after_state_change(rdev, new_ps, old_ps);
 	ret = si_set_power_state_conditionally_enable_ulv(rdev, new_ps);
