@@ -997,8 +997,6 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 	/* 0 means that the AD commands are sent */
 	result = send_dux_commands(dev, SENDADCOMMANDS);
 	if (result < 0) {
-		dev_err(dev->class_dev,
-			"adc command could not be submitted, aborting\n");
 		up(&devpriv->sem);
 		return result;
 	}
@@ -1119,8 +1117,6 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 	/* 0 means that the AD commands are sent */
 	err = send_dux_commands(dev, SENDADCOMMANDS);
 	if (err < 0) {
-		dev_err(dev->class_dev,
-			"adc command could not be submitted, aborting\n");
 		up(&devpriv->sem);
 		return err;
 	}
