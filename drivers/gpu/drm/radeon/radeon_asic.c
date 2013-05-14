@@ -1935,6 +1935,8 @@ int radeon_asic_init(struct radeon_device *rdev)
 	else
 		rdev->num_crtc = 2;
 
+	rdev->has_uvd = false;
+
 	switch (rdev->family) {
 	case CHIP_R100:
 	case CHIP_RV100:
@@ -1999,16 +2001,22 @@ int radeon_asic_init(struct radeon_device *rdev)
 	case CHIP_RV635:
 	case CHIP_RV670:
 		rdev->asic = &r600_asic;
+		if (rdev->family == CHIP_R600)
+			rdev->has_uvd = false;
+		else
+			rdev->has_uvd = true;
 		break;
 	case CHIP_RS780:
 	case CHIP_RS880:
 		rdev->asic = &rs780_asic;
+		rdev->has_uvd = true;
 		break;
 	case CHIP_RV770:
 	case CHIP_RV730:
 	case CHIP_RV710:
 	case CHIP_RV740:
 		rdev->asic = &rv770_asic;
+		rdev->has_uvd = true;
 		break;
 	case CHIP_CEDAR:
 	case CHIP_REDWOOD:
@@ -2021,11 +2029,13 @@ int radeon_asic_init(struct radeon_device *rdev)
 		else
 			rdev->num_crtc = 6;
 		rdev->asic = &evergreen_asic;
+		rdev->has_uvd = true;
 		break;
 	case CHIP_PALM:
 	case CHIP_SUMO:
 	case CHIP_SUMO2:
 		rdev->asic = &sumo_asic;
+		rdev->has_uvd = true;
 		break;
 	case CHIP_BARTS:
 	case CHIP_TURKS:
@@ -2036,16 +2046,19 @@ int radeon_asic_init(struct radeon_device *rdev)
 		else
 			rdev->num_crtc = 6;
 		rdev->asic = &btc_asic;
+		rdev->has_uvd = true;
 		break;
 	case CHIP_CAYMAN:
 		rdev->asic = &cayman_asic;
 		/* set num crtcs */
 		rdev->num_crtc = 6;
+		rdev->has_uvd = true;
 		break;
 	case CHIP_ARUBA:
 		rdev->asic = &trinity_asic;
 		/* set num crtcs */
 		rdev->num_crtc = 4;
+		rdev->has_uvd = true;
 		break;
 	case CHIP_TAHITI:
 	case CHIP_PITCAIRN:
@@ -2060,6 +2073,10 @@ int radeon_asic_init(struct radeon_device *rdev)
 			rdev->num_crtc = 2;
 		else
 			rdev->num_crtc = 6;
+		if (rdev->family == CHIP_HAINAN)
+			rdev->has_uvd = false;
+		else
+			rdev->has_uvd = true;
 		break;
 	default:
 		/* FIXME: not supported yet */
