@@ -1376,11 +1376,11 @@ static void tidy_up(struct usbduxfast_private *devpriv)
 static int usbduxfast_attach_common(struct comedi_device *dev,
 				    struct usbduxfast_private *devpriv)
 {
-	int ret;
 	struct comedi_subdevice *s;
+	int ret;
 
 	down(&devpriv->sem);
-	/* pointer back to the corresponding comedi device */
+
 	devpriv->comedidev = dev;
 
 	ret = comedi_alloc_subdevices(dev, 1);
@@ -1388,38 +1388,27 @@ static int usbduxfast_attach_common(struct comedi_device *dev,
 		up(&devpriv->sem);
 		return ret;
 	}
-	/* private structure is also simply the usb-structure */
+
 	dev->private = devpriv;
-	/* the first subdevice is the A/D converter */
+
+	/* Analog Input subdevice */
 	s = &dev->subdevices[SUBDEV_AD];
-	/*
-	 * the URBs get the comedi subdevice which is responsible for reading
-	 * this is the subdevice which reads data
-	 */
 	dev->read_subdev = s;
-	/* the subdevice receives as private structure the usb-structure */
-	s->private = NULL;
-	/* analog input */
-	s->type = COMEDI_SUBD_AI;
-	/* readable and ref is to ground */
-	s->subdev_flags = SDF_READABLE | SDF_GROUND | SDF_CMD_READ;
-	/* 16 channels */
-	s->n_chan = 16;
-	/* length of the channellist */
-	s->len_chanlist = 16;
-	/* callback functions */
-	s->insn_read = usbduxfast_ai_insn_read;
-	s->do_cmdtest = usbduxfast_ai_cmdtest;
-	s->do_cmd = usbduxfast_ai_cmd;
-	s->cancel = usbduxfast_ai_cancel;
-	/* max value from the A/D converter (12bit+1 bit for overflow) */
-	s->maxdata = 0x1000;
-	/* range table to convert to physical units */
-	s->range_table = &range_usbduxfast_ai_range;
-	/* finally decide that it's attached */
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE | SDF_GROUND | SDF_CMD_READ;
+	s->n_chan	= 16;
+	s->len_chanlist	= 16;
+	s->insn_read	= usbduxfast_ai_insn_read;
+	s->do_cmdtest	= usbduxfast_ai_cmdtest;
+	s->do_cmd	= usbduxfast_ai_cmd;
+	s->cancel	= usbduxfast_ai_cancel;
+	s->maxdata	= 0x1000;
+	s->range_table	= &range_usbduxfast_ai_range;
+
 	devpriv->attached = 1;
+
 	up(&devpriv->sem);
-	dev_info(dev->class_dev, "successfully attached to usbduxfast.\n");
+
 	return 0;
 }
 
