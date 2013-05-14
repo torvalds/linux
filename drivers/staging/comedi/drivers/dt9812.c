@@ -768,6 +768,12 @@ static int dt9812_reset_device(struct comedi_device *dev)
 	dev_info(dev->class_dev, "USB DT9812 (%4.4x.%4.4x.%4.4x) #0x%8.8x\n",
 		 vendor, product, devpriv->device, serial);
 
+	if (devpriv->device != DT9812_DEVID_DT9812_10 &&
+	    devpriv->device != DT9812_DEVID_DT9812_2PT5) {
+		dev_err(dev->class_dev, "Unsupported device!\n");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
