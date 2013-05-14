@@ -165,7 +165,7 @@ struct usbduxfastsub_s {
 	int8_t *transfer_buffer;
 	int16_t *insnBuffer;	/* input buffer for single insn */
 	int ifnum;		/* interface number */
-	struct usb_interface *interface;	/* interface structure */
+	struct usb_interface *intf;	/* interface structure */
 	/* comedi device for the interrupt context */
 	struct comedi_device *comedidev;
 	short int ai_cmd_running;	/* asynchronous command is running */
@@ -214,7 +214,7 @@ static int send_dux_commands(struct usbduxfastsub_s *udfs, int cmd_type)
 			   usb_sndbulkpipe(udfs->usbdev, CHANNELLISTEP),
 			   udfs->dux_commands, SIZEOFDUXBUFFER, &nsent, 10000);
 	if (tmp < 0)
-		dev_err(&udfs->interface->dev,
+		dev_err(&udfs->intf->dev,
 			"could not transmit dux_commands to the usb-device, err=%d\n",
 			tmp);
 	return tmp;
@@ -451,7 +451,7 @@ static int usbduxfastsub_start(struct usbduxfastsub_s *udfs)
 			      1,      /* Length */
 			      EZTIMEOUT);    /* Timeout */
 	if (ret < 0)
-		dev_err(&udfs->interface->dev,
+		dev_err(&udfs->intf->dev,
 			"control msg failed (start)\n");
 
 	kfree(local_transfer_buffer);
@@ -478,7 +478,7 @@ static int usbduxfastsub_stop(struct usbduxfastsub_s *udfs)
 			      local_transfer_buffer, 1,	/* Length */
 			      EZTIMEOUT);	/* Timeout */
 	if (ret < 0)
-		dev_err(&udfs->interface->dev,
+		dev_err(&udfs->intf->dev,
 			"control msg failed (stop)\n");
 
 	kfree(local_transfer_buffer);
@@ -512,7 +512,7 @@ static int usbduxfastsub_upload(struct usbduxfastsub_s *udfs,
 #endif
 
 	if (ret < 0) {
-		dev_err(&udfs->interface->dev, "uppload failed\n");
+		dev_err(&udfs->intf->dev, "uppload failed\n");
 		return ret;
 	}
 
@@ -538,7 +538,7 @@ static int usbduxfastsub_submit_InURBs(struct usbduxfastsub_s *udfs)
 #endif
 	ret = usb_submit_urb(udfs->urbIn, GFP_ATOMIC);
 	if (ret) {
-		dev_err(&udfs->interface->dev,
+		dev_err(&udfs->intf->dev,
 			"ai: usb_submit_urb error %d\n", ret);
 		return ret;
 	}
@@ -1300,7 +1300,7 @@ static int firmwareUpload(struct usbduxfastsub_s *usbduxfastsub,
 		return 0;
 
 	if (sizeFirmware > FIRMWARE_MAX_LEN) {
-		dev_err(&usbduxfastsub->interface->dev,
+		dev_err(&usbduxfastsub->intf->dev,
 			"comedi_: usbduxfast firmware binary it too large for FX2.\n");
 		return -ENOMEM;
 	}
@@ -1308,14 +1308,14 @@ static int firmwareUpload(struct usbduxfastsub_s *usbduxfastsub,
 	/* we generate a local buffer for the firmware */
 	fwBuf = kmemdup(firmwareBinary, sizeFirmware, GFP_KERNEL);
 	if (!fwBuf) {
-		dev_err(&usbduxfastsub->interface->dev,
+		dev_err(&usbduxfastsub->intf->dev,
 			"comedi_: mem alloc for firmware failed\n");
 		return -ENOMEM;
 	}
 
 	ret = usbduxfastsub_stop(usbduxfastsub);
 	if (ret < 0) {
-		dev_err(&usbduxfastsub->interface->dev,
+		dev_err(&usbduxfastsub->intf->dev,
 			"comedi_: can not stop firmware\n");
 		kfree(fwBuf);
 		return ret;
@@ -1323,14 +1323,14 @@ static int firmwareUpload(struct usbduxfastsub_s *usbduxfastsub,
 
 	ret = usbduxfastsub_upload(usbduxfastsub, fwBuf, 0, sizeFirmware);
 	if (ret < 0) {
-		dev_err(&usbduxfastsub->interface->dev,
+		dev_err(&usbduxfastsub->intf->dev,
 			"comedi_: firmware upload failed\n");
 		kfree(fwBuf);
 		return ret;
 	}
 	ret = usbduxfastsub_start(usbduxfastsub);
 	if (ret < 0) {
-		dev_err(&usbduxfastsub->interface->dev,
+		dev_err(&usbduxfastsub->intf->dev,
 			"comedi_: can not start firmware\n");
 		kfree(fwBuf);
 		return ret;
@@ -1349,8 +1349,8 @@ static void tidy_up(struct usbduxfastsub_s *udfs)
 		return;
 
 	/* shows the usb subsystem that the driver is down */
-	if (udfs->interface)
-		usb_set_intfdata(udfs->interface, NULL);
+	if (udfs->intf)
+		usb_set_intfdata(udfs->intf, NULL);
 
 	udfs->probed = 0;
 
@@ -1427,13 +1427,13 @@ static int usbduxfast_attach_common(struct comedi_device *dev,
 static int usbduxfast_auto_attach(struct comedi_device *dev,
 				  unsigned long context_unused)
 {
-	struct usb_interface *uinterf = comedi_to_usb_interface(dev);
+	struct usb_interface *intf = comedi_to_usb_interface(dev);
 	int ret;
 	struct usbduxfastsub_s *udfs;
 
 	dev->private = NULL;
 	down(&start_stop_sem);
-	udfs = usb_get_intfdata(uinterf);
+	udfs = usb_get_intfdata(intf);
 	if (!udfs || !udfs->probed) {
 		dev_err(dev->class_dev,
 			"usbduxfast: error: auto_attach failed, not connected\n");
@@ -1487,16 +1487,16 @@ static int usbduxfast_request_firmware(struct usb_interface *intf)
 	return ret;
 }
 
-static int usbduxfast_usb_probe(struct usb_interface *uinterf,
+static int usbduxfast_usb_probe(struct usb_interface *intf,
 				const struct usb_device_id *id)
 {
-	struct usb_device *udev = interface_to_usbdev(uinterf);
+	struct usb_device *udev = interface_to_usbdev(intf);
 	struct usbduxfastsub_s *devpriv = NULL;
 	int i;
 	int ret;
 
 	if (udev->speed != USB_SPEED_HIGH) {
-		dev_err(&uinterf->dev,
+		dev_err(&intf->dev,
 			"This driver needs USB 2.0 to operate. Aborting...\n");
 		return -ENODEV;
 	}
@@ -1512,7 +1512,7 @@ static int usbduxfast_usb_probe(struct usb_interface *uinterf,
 
 	/* no more space */
 	if (!devpriv) {
-		dev_err(&uinterf->dev,
+		dev_err(&intf->dev,
 			"Too many usbduxfast-devices connected.\n");
 		up(&start_stop_sem);
 		return -EMFILE;
@@ -1520,9 +1520,9 @@ static int usbduxfast_usb_probe(struct usb_interface *uinterf,
 
 	sema_init(&devpriv->sem, 1);
 	devpriv->usbdev = udev;
-	devpriv->interface = uinterf;
-	devpriv->ifnum = uinterf->altsetting->desc.bInterfaceNumber;
-	usb_set_intfdata(uinterf, devpriv);
+	devpriv->intf = intf;
+	devpriv->ifnum = intf->altsetting->desc.bInterfaceNumber;
+	usb_set_intfdata(intf, devpriv);
 
 	devpriv->dux_commands = kmalloc(SIZEOFDUXBUFFER, GFP_KERNEL);
 	if (!devpriv->dux_commands) {
@@ -1540,7 +1540,7 @@ static int usbduxfast_usb_probe(struct usb_interface *uinterf,
 
 	i = usb_set_interface(devpriv->usbdev, devpriv->ifnum, 1);
 	if (i < 0) {
-		dev_err(&uinterf->dev,
+		dev_err(&intf->dev,
 			"could not switch to alternate setting 1\n");
 		tidy_up(devpriv);
 		up(&start_stop_sem);
@@ -1549,7 +1549,7 @@ static int usbduxfast_usb_probe(struct usb_interface *uinterf,
 
 	devpriv->urbIn = usb_alloc_urb(0, GFP_KERNEL);
 	if (!devpriv->urbIn) {
-		dev_err(&uinterf->dev, "Could not alloc. urb\n");
+		dev_err(&intf->dev, "Could not alloc. urb\n");
 		tidy_up(devpriv);
 		up(&start_stop_sem);
 		return -ENOMEM;
@@ -1569,13 +1569,13 @@ static int usbduxfast_usb_probe(struct usb_interface *uinterf,
 	 * Request, and upload, the firmware so we can
 	 * complete the comedi_driver (*auto_attach).
 	 */
-	ret = usbduxfast_request_firmware(uinterf);
+	ret = usbduxfast_request_firmware(intf);
 	if (ret) {
-		dev_err(&uinterf->dev, "could not load firmware (err=%d)\n", ret);
+		dev_err(&intf->dev, "could not load firmware (err=%d)\n", ret);
 		return ret;
 	}
 
-	return comedi_usb_auto_config(uinterf, &usbduxfast_driver, 0);
+	return comedi_usb_auto_config(intf, &usbduxfast_driver, 0);
 }
 
 static void usbduxfast_usb_disconnect(struct usb_interface *intf)
