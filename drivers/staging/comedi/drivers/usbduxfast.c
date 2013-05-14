@@ -1470,31 +1470,21 @@ static struct comedi_driver usbduxfast_driver = {
 	.detach		= usbduxfast_detach,
 };
 
-static void usbduxfast_firmware_request_complete_handler(const struct firmware
-							 *fw, void *context)
+static int usbduxfast_request_firmware(struct usb_interface *intf)
 {
-	struct usbduxfastsub_s *usbduxfastsub_tmp = context;
-	struct usb_interface *uinterf = usbduxfastsub_tmp->interface;
+	struct usb_device *usb = interface_to_usbdev(intf);
+	struct usbduxfastsub_s *devpriv = usb_get_intfdata(intf);
+	const struct firmware *fw;
 	int ret;
 
-	if (fw == NULL)
-		return;
+	ret = request_firmware(&fw, FIRMWARE, &usb->dev);
+	if (ret)
+		return ret;
 
-	/*
-	 * we need to upload the firmware here because fw will be
-	 * freed once we've left this function
-	 */
-	ret = firmwareUpload(usbduxfastsub_tmp, fw->data, fw->size);
-
-	if (ret) {
-		dev_err(&uinterf->dev,
-			"Could not upload firmware (err=%d)\n", ret);
-		goto out;
-	}
-
-	comedi_usb_auto_config(uinterf, &usbduxfast_driver, 0);
- out:
+	ret = firmwareUpload(devpriv, fw->data, fw->size);
 	release_firmware(fw);
+
+	return ret;
 }
 
 static int usbduxfast_usb_probe(struct usb_interface *uinterf,
@@ -1598,14 +1588,11 @@ static int usbduxfast_usb_probe(struct usb_interface *uinterf,
 	usbduxfastsub[index].probed = 1;
 	up(&start_stop_sem);
 
-	ret = request_firmware_nowait(THIS_MODULE,
-				      FW_ACTION_HOTPLUG,
-				      FIRMWARE,
-				      &udev->dev,
-				      GFP_KERNEL,
-				      usbduxfastsub + index,
-				      usbduxfast_firmware_request_complete_handler);
-
+	/*
+	 * Request, and upload, the firmware so we can
+	 * complete the comedi_driver (*auto_attach).
+	 */
+	ret = usbduxfast_request_firmware(uinterf);
 	if (ret) {
 		dev_err(&uinterf->dev, "could not load firmware (err=%d)\n", ret);
 		return ret;
@@ -1613,8 +1600,8 @@ static int usbduxfast_usb_probe(struct usb_interface *uinterf,
 
 	dev_info(&uinterf->dev,
 		 "usbduxfast%d has been successfully initialized.\n", index);
-	/* success */
-	return 0;
+
+	return comedi_usb_auto_config(uinterf, &usbduxfast_driver, 0);
 }
 
 static void usbduxfast_usb_disconnect(struct usb_interface *intf)
