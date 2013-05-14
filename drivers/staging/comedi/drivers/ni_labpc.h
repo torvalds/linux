@@ -28,7 +28,6 @@ enum transfer_type { fifo_not_empty_transfer, fifo_half_full_transfer,
 
 struct labpc_boardinfo {
 	const char *name;
-	const int *ai_range_code;
 	int ai_speed;			/* maximum input speed in ns */
 	unsigned ai_scan_up:1;		/* can auto scan up in ai channels */
 	unsigned has_ao:1;		/* has analog outputs */
@@ -87,7 +86,5 @@ struct labpc_private {
 int labpc_common_attach(struct comedi_device *dev,
 			unsigned int irq, unsigned long isr_flags);
 void labpc_common_detach(struct comedi_device *dev);
-
-extern const int labpc_1200_ai_gain_bits[];
 
 #endif /* _NI_LABPC_H */

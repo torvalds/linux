@@ -84,7 +84,7 @@
 #define CMD1_REG		0x00	/* W: Command 1 reg */
 #define CMD1_MA(x)		(((x) & 0x7) << 0)
 #define CMD1_TWOSCMP		(1 << 3)
-#define CMD1_GAIN_MASK		(7 << 4)
+#define CMD1_GAIN(x)		(((x) & 0x7) << 4)
 #define CMD1_SCANEN		(1 << 7)
 #define CMD2_REG		0x01	/* W: Command 2 reg */
 #define CMD2_PRETRIG		(1 << 0)
@@ -149,11 +149,6 @@ enum scan_mode {
 	MODE_MULT_CHAN_DOWN,
 };
 
-static const int labpc_plus_ai_gain_bits[] = {
-	0x00, 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70,
-	0x00, 0x10, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70,
-};
-
 static const struct comedi_lrange range_labpc_plus_ai = {
 	16, {
 		BIP_RANGE(5),
@@ -174,12 +169,6 @@ static const struct comedi_lrange range_labpc_plus_ai = {
 		UNI_RANGE(0.1)
 	}
 };
-
-const int labpc_1200_ai_gain_bits[] = {
-	0x00, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70,
-	0x00, 0x20, 0x30, 0x40, 0x50, 0x60, 0x70,
-};
-EXPORT_SYMBOL_GPL(labpc_1200_ai_gain_bits);
 
 static const struct comedi_lrange range_labpc_1200_ai = {
 	14, {
@@ -233,20 +222,17 @@ static inline void labpc_writeb(unsigned int byte, unsigned long address)
 static const struct labpc_boardinfo labpc_boards[] = {
 	{
 		.name			= "lab-pc-1200",
-		.ai_range_code		= labpc_1200_ai_gain_bits,
 		.ai_speed		= 10000,
 		.ai_scan_up		= 1,
 		.has_ao			= 1,
 		.is_labpc1200		= 1,
 	}, {
 		.name			= "lab-pc-1200ai",
-		.ai_range_code		= labpc_1200_ai_gain_bits,
 		.ai_speed		= 10000,
 		.ai_scan_up		= 1,
 		.is_labpc1200		= 1,
 	}, {
 		.name			= "lab-pc+",
-		.ai_range_code		= labpc_plus_ai_gain_bits,
 		.ai_speed		= 12000,
 		.has_ao			= 1,
 	},
@@ -317,12 +303,21 @@ static void labpc_ai_set_chan_and_gain(struct comedi_device *dev,
 	const struct labpc_boardinfo *board = comedi_board(dev);
 	struct labpc_private *devpriv = dev->private;
 
+	if (board->is_labpc1200) {
+		/*
+		 * The LabPC-1200 boards do not have a gain
+		 * of '0x10'. Skip the range values that would
+		 * result in this gain.
+		 */
+		range += (range > 0) + (range > 7);
+	}
+
 	/* munge channel bits for differential/scan disabled mode */
 	if ((mode == MODE_SINGLE_CHAN || mode == MODE_SINGLE_CHAN_INTERVAL) &&
 	    aref == AREF_DIFF)
 		chan *= 2;
 	devpriv->cmd1 = CMD1_MA(chan);
-	devpriv->cmd1 |= board->ai_range_code[range];
+	devpriv->cmd1 |= CMD1_GAIN(range);
 
 	devpriv->write_byte(devpriv->cmd1, dev->iobase + CMD1_REG);
 }
