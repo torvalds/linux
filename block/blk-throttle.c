@@ -46,6 +46,7 @@ struct throtl_service_queue {
 
 enum tg_state_flags {
 	THROTL_TG_PENDING	= 1 << 0,	/* on parent's pending tree */
+	THROTL_TG_WAS_EMPTY	= 1 << 1,	/* bio_lists[] became non-empty */
 };
 
 #define rb_entry_tg(node)	rb_entry((node), struct throtl_grp, rb_node)
@@ -712,6 +713,15 @@ static void throtl_add_bio_tg(struct bio *bio, struct throtl_grp *tg,
 	struct throtl_service_queue *sq = &tg->service_queue;
 	bool rw = bio_data_dir(bio);
 
+	/*
+	 * If @tg doesn't currently have any bios queued in the same
+	 * direction, queueing @bio can change when @tg should be
+	 * dispatched.  Mark that @tg was empty.  This is automatically
+	 * cleaered on the next tg_update_disptime().
+	 */
+	if (!sq->nr_queued[rw])
+		tg->flags |= THROTL_TG_WAS_EMPTY;
+
 	bio_list_add(&sq->bio_lists[rw], bio);
 	/* Take a bio reference on tg */
 	blkg_get(tg_to_blkg(tg));
@@ -740,6 +750,9 @@ static void tg_update_disptime(struct throtl_grp *tg,
 	throtl_dequeue_tg(tg, parent_sq);
 	tg->disptime = disptime;
 	throtl_enqueue_tg(tg, parent_sq);
+
+	/* see throtl_add_bio_tg() */
+	tg->flags &= ~THROTL_TG_WAS_EMPTY;
 }
 
 static void tg_dispatch_one_bio(struct throtl_grp *tg, bool rw,
@@ -1061,7 +1074,7 @@ bool blk_throtl_bio(struct request_queue *q, struct bio *bio)
 	struct throtl_data *td = q->td;
 	struct throtl_grp *tg;
 	struct throtl_service_queue *sq;
-	bool rw = bio_data_dir(bio), update_disptime = true;
+	bool rw = bio_data_dir(bio);
 	struct blkcg *blkcg;
 	bool throttled = false;
 
@@ -1097,15 +1110,9 @@ bool blk_throtl_bio(struct request_queue *q, struct bio *bio)
 
 	sq = &tg->service_queue;
 
-	if (sq->nr_queued[rw]) {
-		/*
-		 * There is already another bio queued in same dir. No
-		 * need to update dispatch time.
-		 */
-		update_disptime = false;
+	/* throtl is FIFO - if other bios are already queued, should queue */
+	if (sq->nr_queued[rw])
 		goto queue_bio;
-
-	}
 
 	/* Bio is with-in rate limit of group */
 	if (tg_may_dispatch(tg, bio, NULL)) {
@@ -1138,7 +1145,8 @@ queue_bio:
 	throtl_add_bio_tg(bio, tg, &q->td->service_queue);
 	throttled = true;
 
-	if (update_disptime) {
+	/* update @tg's dispatch time if @tg was empty before @bio */
+	if (tg->flags & THROTL_TG_WAS_EMPTY) {
 		tg_update_disptime(tg, &td->service_queue);
 		throtl_schedule_next_dispatch(td);
 	}
