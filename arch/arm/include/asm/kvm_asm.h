@@ -74,8 +74,6 @@ extern char __kvm_hyp_vector[];
 extern char __kvm_hyp_code_start[];
 extern char __kvm_hyp_code_end[];
 
-extern void __kvm_tlb_flush_vmid(struct kvm *kvm);
-
 extern void __kvm_flush_vm_context(void);
 extern void __kvm_tlb_flush_vmid_ipa(struct kvm *kvm, phys_addr_t ipa);
 
