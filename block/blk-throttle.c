@@ -757,7 +757,22 @@ static void throtl_charge_bio(struct throtl_grp *tg, struct bio *bio)
 	tg->bytes_disp[rw] += bio->bi_size;
 	tg->io_disp[rw]++;
 
-	throtl_update_dispatch_stats(tg_to_blkg(tg), bio->bi_size, bio->bi_rw);
+	/*
+	 * REQ_THROTTLED is used to prevent the same bio to be throttled
+	 * more than once as a throttled bio will go through blk-throtl the
+	 * second time when it eventually gets issued.  Set it when a bio
+	 * is being charged to a tg.
+	 *
+	 * Dispatch stats aren't recursive and each @bio should only be
+	 * accounted by the @tg it was originally associated with.  Let's
+	 * update the stats when setting REQ_THROTTLED for the first time
+	 * which is guaranteed to be for the @bio's original tg.
+	 */
+	if (!(bio->bi_rw & REQ_THROTTLED)) {
+		bio->bi_rw |= REQ_THROTTLED;
+		throtl_update_dispatch_stats(tg_to_blkg(tg), bio->bi_size,
+					     bio->bi_rw);
+	}
 }
 
 static void throtl_add_bio_tg(struct bio *bio, struct throtl_grp *tg)
@@ -821,7 +836,6 @@ static void tg_dispatch_one_bio(struct throtl_grp *tg, bool rw)
 
 	throtl_charge_bio(tg, bio);
 	bio_list_add(&sq->parent_sq->bio_lists[rw], bio);
-	bio->bi_rw |= REQ_THROTTLED;
 
 	throtl_trim_slice(tg, rw);
 }
@@ -1128,10 +1142,9 @@ bool blk_throtl_bio(struct request_queue *q, struct bio *bio)
 	struct blkcg *blkcg;
 	bool throttled = false;
 
-	if (bio->bi_rw & REQ_THROTTLED) {
-		bio->bi_rw &= ~REQ_THROTTLED;
+	/* see throtl_charge_bio() */
+	if (bio->bi_rw & REQ_THROTTLED)
 		goto out;
-	}
 
 	/*
 	 * A throtl_grp pointer retrieved under rcu can be used to access
@@ -1205,6 +1218,13 @@ out_unlock:
 out_unlock_rcu:
 	rcu_read_unlock();
 out:
+	/*
+	 * As multiple blk-throtls may stack in the same issue path, we
+	 * don't want bios to leave with the flag set.  Clear the flag if
+	 * being issued.
+	 */
+	if (!throttled)
+		bio->bi_rw &= ~REQ_THROTTLED;
 	return throttled;
 }
 
