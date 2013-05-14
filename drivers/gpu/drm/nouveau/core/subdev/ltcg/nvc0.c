@@ -29,7 +29,6 @@
 struct nvc0_ltcg_priv {
 	struct nouveau_ltcg base;
 	u32 part_nr;
-	u32 part_mask;
 	u32 subp_nr;
 	struct nouveau_mm tags;
 	u32 num_tags;
@@ -105,8 +104,6 @@ nvc0_ltcg_tags_clear(struct nouveau_ltcg *ltcg, u32 first, u32 count)
 
 	/* wait until it's finished with clearing */
 	for (p = 0; p < priv->part_nr; ++p) {
-		if (!(priv->part_mask & (1 << p)))
-			continue;
 		for (i = 0; i < priv->subp_nr; ++i)
 			nv_wait(priv, 0x1410c8 + p * 0x2000 + i * 0x400, ~0, 0);
 	}
@@ -167,16 +164,20 @@ nvc0_ltcg_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 {
 	struct nvc0_ltcg_priv *priv;
 	struct nouveau_fb *pfb = nouveau_fb(parent);
-	int ret;
+	u32 parts, mask;
+	int ret, i;
 
 	ret = nouveau_ltcg_create(parent, engine, oclass, &priv);
 	*pobject = nv_object(priv);
 	if (ret)
 		return ret;
 
-	priv->part_nr = nv_rd32(priv, 0x022438);
-	priv->part_mask = nv_rd32(priv, 0x022554);
-
+	parts = nv_rd32(priv, 0x022438);
+	mask = nv_rd32(priv, 0x022554);
+	for (i = 0; i < parts; i++) {
+		if (!(mask & (1 << i)))
+			priv->part_nr++;
+	}
 	priv->subp_nr = nv_rd32(priv, 0x17e8dc) >> 28;
 
 	nv_mask(priv, 0x17e820, 0x00100000, 0x00000000); /* INTR_EN &= ~0x10 */
