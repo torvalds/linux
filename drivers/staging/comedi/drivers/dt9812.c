@@ -288,7 +288,7 @@ struct slot_dt9812 {
 	struct semaphore mutex;
 	u32 serial;
 	struct usb_dt9812 *usb;
-	struct dt9812_private *comedi;
+	struct dt9812_private *devpriv;
 };
 
 static struct slot_dt9812 dt9812[DT9812_NUM_SLOTS];
@@ -863,7 +863,7 @@ static int dt9812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		struct slot_dt9812 *first = NULL;
 		struct slot_dt9812 *best = NULL;
 		for (i = 0; i < DT9812_NUM_SLOTS; i++) {
-			if (!first && !dt9812[i].comedi) {
+			if (!first && !dt9812[i].devpriv) {
 				/* First free slot from comedi side */
 				first = &dt9812[i];
 			}
@@ -878,7 +878,7 @@ static int dt9812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			best = first;
 		if (best) {
 			down(&best->mutex);
-			best->comedi = devpriv;
+			best->devpriv = devpriv;
 			best->serial = devpriv->serial;
 			devpriv->slot = best;
 			up(&best->mutex);
@@ -1111,7 +1111,7 @@ static int __init usb_dt9812_init(void)
 		sema_init(&dt9812[i].mutex, 1);
 		dt9812[i].serial = 0;
 		dt9812[i].usb = NULL;
-		dt9812[i].comedi = NULL;
+		dt9812[i].devpriv = NULL;
 	}
 	dt9812[12].serial = 0x0;
 
