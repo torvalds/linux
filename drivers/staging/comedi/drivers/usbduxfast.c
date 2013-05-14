@@ -148,7 +148,6 @@ static const struct comedi_lrange range_usbduxfast_ai_range = {
  * one sub device just now: A/D
  */
 struct usbduxfast_private {
-	int attached;		/* is attached? */
 	struct usb_device *usb;	/* pointer to the usb-device */
 	struct urb *urbIn;	/* BULK-transfer handling: urb */
 	int8_t *transfer_buffer;
@@ -273,11 +272,6 @@ static void usbduxfast_ai_interrupt(struct urb *urb)
 		 * do not continue execution if no asynchronous command
 		 * is running in particular not resubmit
 		 */
-		return;
-	}
-
-	if (unlikely(!devpriv->attached)) {
-		/* no comedi device there */
 		return;
 	}
 
@@ -1246,8 +1240,6 @@ static int usbduxfast_attach_common(struct comedi_device *dev)
 	s->maxdata	= 0x1000;
 	s->range_table	= &range_usbduxfast_ai_range;
 
-	devpriv->attached = 1;
-
 	up(&devpriv->sem);
 
 	return 0;
@@ -1343,7 +1335,6 @@ static void usbduxfast_detach(struct comedi_device *dev)
 
 	down(&devpriv->sem);
 
-	devpriv->attached = 0;
 	devpriv->comedidev = NULL;
 
 	if (devpriv->intf)
