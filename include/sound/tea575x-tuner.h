@@ -71,6 +71,7 @@ struct snd_tea575x {
 	int (*ext_init)(struct snd_tea575x *tea);
 };
 
+int snd_tea575x_hw_init(struct snd_tea575x *tea);
 int snd_tea575x_init(struct snd_tea575x *tea, struct module *owner);
 void snd_tea575x_exit(struct snd_tea575x *tea);
 void snd_tea575x_set_freq(struct snd_tea575x *tea);

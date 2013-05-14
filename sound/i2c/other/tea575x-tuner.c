@@ -486,13 +486,9 @@ static const struct v4l2_ctrl_ops tea575x_ctrl_ops = {
 	.s_ctrl = tea575x_s_ctrl,
 };
 
-/*
- * initialize all the tea575x chips
- */
-int snd_tea575x_init(struct snd_tea575x *tea, struct module *owner)
-{
-	int retval;
 
+int snd_tea575x_hw_init(struct snd_tea575x *tea)
+{
 	tea->mute = true;
 
 	/* Not all devices can or know how to read the data back.
@@ -506,6 +502,17 @@ int snd_tea575x_init(struct snd_tea575x *tea, struct module *owner)
 	tea->val = TEA575X_BIT_BAND_FM | TEA575X_BIT_SEARCH_5_28;
 	tea->freq = 90500 * 16;		/* 90.5Mhz default */
 	snd_tea575x_set_freq(tea);
+
+	return 0;
+}
+EXPORT_SYMBOL(snd_tea575x_hw_init);
+
+int snd_tea575x_init(struct snd_tea575x *tea, struct module *owner)
+{
+	int retval = snd_tea575x_hw_init(tea);
+
+	if (retval)
+		return retval;
 
 	tea->vd = tea575x_radio;
 	video_set_drvdata(&tea->vd, tea);
