@@ -52,6 +52,9 @@ for my needs.
 #define DT9812_MAX_WRITE_CMD_PIPE_SIZE	32
 #define DT9812_MAX_READ_CMD_PIPE_SIZE	32
 
+/* usb_bulk_msg() timout in milliseconds */
+#define DT9812_USB_TIMEOUT		1000
+
 /*
  * See Silican Laboratories C8051F020/1/2/3 manual
  */
@@ -262,12 +265,12 @@ static int dt9812_read_info(struct comedi_device *dev,
 
 	/* DT9812 only responds to 32 byte writes!! */
 	ret = usb_bulk_msg(usb, usb_sndbulkpipe(usb, devpriv->cmd_wr.addr),
-			   &cmd, 32, &count, HZ * 1);
+			   &cmd, 32, &count, DT9812_USB_TIMEOUT);
 	if (ret)
 		return ret;
 
 	return usb_bulk_msg(usb, usb_rcvbulkpipe(usb, devpriv->cmd_rd.addr),
-			    buf, buf_size, &count, HZ * 1);
+			    buf, buf_size, &count, DT9812_USB_TIMEOUT);
 }
 
 static int dt9812_read_multiple_registers(struct comedi_device *dev,
@@ -287,12 +290,12 @@ static int dt9812_read_multiple_registers(struct comedi_device *dev,
 
 	/* DT9812 only responds to 32 byte writes!! */
 	ret = usb_bulk_msg(usb, usb_sndbulkpipe(usb, devpriv->cmd_wr.addr),
-			   &cmd, 32, &count, HZ * 1);
+			   &cmd, 32, &count, DT9812_USB_TIMEOUT);
 	if (ret)
 		return ret;
 
 	return usb_bulk_msg(usb, usb_rcvbulkpipe(usb, devpriv->cmd_rd.addr),
-			    value, reg_count, &count, HZ * 1);
+			    value, reg_count, &count, DT9812_USB_TIMEOUT);
 }
 
 static int dt9812_write_multiple_registers(struct comedi_device *dev,
@@ -314,7 +317,7 @@ static int dt9812_write_multiple_registers(struct comedi_device *dev,
 
 	/* DT9812 only responds to 32 byte writes!! */
 	return usb_bulk_msg(usb, usb_sndbulkpipe(usb, devpriv->cmd_wr.addr),
-			    &cmd, 32, &count, HZ * 1);
+			    &cmd, 32, &count, DT9812_USB_TIMEOUT);
 }
 
 static int dt9812_rmw_multiple_registers(struct comedi_device *dev,
@@ -334,7 +337,7 @@ static int dt9812_rmw_multiple_registers(struct comedi_device *dev,
 
 	/* DT9812 only responds to 32 byte writes!! */
 	return usb_bulk_msg(usb, usb_sndbulkpipe(usb, devpriv->cmd_wr.addr),
-			    &cmd, 32, &count, HZ * 1);
+			    &cmd, 32, &count, DT9812_USB_TIMEOUT);
 }
 
 static int dt9812_digital_in(struct comedi_device *dev, u8 *bits)
