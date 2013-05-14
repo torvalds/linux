@@ -100,6 +100,9 @@ extern void early_init_dt_add_memory_arch(u64 base, u64 size);
 extern void * early_init_dt_alloc_memory_arch(u64 size, u64 align);
 extern u64 dt_mem_next_cell(int s, __be32 **cellp);
 
+extern __be32 __init of_get_flat_dt_address(unsigned long node);
+extern u64 __init of_get_flat_dt_translate_address(unsigned long node);
+
 /*
  * If BLK_DEV_INITRD, the fdt early init code will call this function,
  * to be provided by the arch code. start and end are specified as
