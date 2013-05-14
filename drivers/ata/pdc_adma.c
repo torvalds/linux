@@ -1,7 +1,7 @@
 /*
  *  pdc_adma.c - Pacific Digital Corporation ADMA
  *
- *  Maintained by:  Mark Lord <mlord@pobox.com>
+ *  Maintained by:  Tejun Heo <tj@kernel.org>
  *
  *  Copyright 2005 Mark Lord
  *
