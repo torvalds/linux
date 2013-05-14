@@ -1699,6 +1699,15 @@ static int cleaner_kthread(void *arg)
 		if (!mutex_trylock(&root->fs_info->cleaner_mutex))
 			goto sleep;
 
+		/*
+		 * Avoid the problem that we change the status of the fs
+		 * during the above check and trylock.
+		 */
+		if (need_cleaner_sleep(root)) {
+			mutex_unlock(&root->fs_info->cleaner_mutex);
+			goto sleep;
+		}
+
 		btrfs_run_delayed_iputs(root);
 		again = btrfs_clean_one_deleted_snapshot(root);
 		mutex_unlock(&root->fs_info->cleaner_mutex);

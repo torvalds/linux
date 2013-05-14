@@ -1885,11 +1885,6 @@ int btrfs_clean_one_deleted_snapshot(struct btrfs_root *root)
 	int ret;
 	struct btrfs_fs_info *fs_info = root->fs_info;
 
-	if (fs_info->sb->s_flags & MS_RDONLY) {
-		pr_debug("btrfs: cleaner called for RO fs!\n");
-		return 0;
-	}
-
 	spin_lock(&fs_info->trans_lock);
 	if (list_empty(&fs_info->dead_roots)) {
 		spin_unlock(&fs_info->trans_lock);
