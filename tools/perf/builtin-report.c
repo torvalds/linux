@@ -62,6 +62,11 @@ static int perf_report_config(const char *var, const char *value, void *cb)
 		symbol_conf.event_group = perf_config_bool(var, value);
 		return 0;
 	}
+	if (!strcmp(var, "report.percent-limit")) {
+		struct perf_report *rep = cb;
+		rep->min_percent = strtof(value, NULL);
+		return 0;
+	}
 
 	return perf_default_config(var, value, cb);
 }
@@ -823,7 +828,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __maybe_unused)
 	OPT_END()
 	};
 
-	perf_config(perf_report_config, NULL);
+	perf_config(perf_report_config, &report);
 
 	argc = parse_options(argc, argv, options, report_usage, 0);
 
