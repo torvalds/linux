@@ -189,19 +189,16 @@ static int usbduxfast_send_cmd(struct comedi_device *dev, int cmd_type)
  * Stops the data acquision.
  * It should be safe to call this function from any context.
  */
-static int usbduxfastsub_unlink_InURBs(struct comedi_device *dev)
+static int usbduxfast_unlink_urbs(struct comedi_device *dev)
 {
 	struct usbduxfast_private *devpriv = dev->private;
-	int j = 0;
-	int err = 0;
 
 	if (devpriv && devpriv->urb) {
 		devpriv->ai_cmd_running = 0;
 		/* waits until a running transfer is over */
 		usb_kill_urb(devpriv->urb);
-		j = 0;
 	}
-	return err;
+	return 0;
 }
 
 /*
@@ -224,7 +221,7 @@ static int usbduxfast_ai_stop(struct comedi_device *dev,
 
 	if (do_unlink)
 		/* stop aquistion */
-		ret = usbduxfastsub_unlink_InURBs(dev);
+		ret = usbduxfast_unlink_urbs(dev);
 
 	return ret;
 }
