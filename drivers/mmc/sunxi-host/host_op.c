@@ -17,7 +17,10 @@
 #include <asm/uaccess.h>
 #include <mach/clock.h>
 
+static DEFINE_MUTEX(sw_host_rescan_mutex);
+static int sw_host_rescan_pending[4] = { 0, };
 struct sunxi_mmc_host* sw_host[4] = {NULL, NULL, NULL, NULL};
+
 static int sdc_used;
 
 unsigned int smc_debug = 0;
@@ -584,11 +587,15 @@ void sunximmc_rescan_card(unsigned id, unsigned insert)
 		pr_err("%s: card id more than 3.\n", __func__);
 		return;
 	}
-	if (!(sw_host[id])) {
-		pr_err("%s error: sw_host[id] == NULL\n", __func__);
-		return;
-	}
+
+	mutex_lock(&sw_host_rescan_mutex);
 	smc_host = sw_host[id];
+	if (!smc_host)
+		sw_host_rescan_pending[id] = insert;
+	mutex_unlock(&sw_host_rescan_mutex);
+	if (!smc_host)
+		return;
+
 	smc_host->present = insert ? 1 : 0;
 	mmc_detect_change(smc_host->mmc, 0);
 	return;
@@ -722,12 +729,16 @@ static int __devinit sunximmc_probe(struct platform_device *pdev)
     }
 
     enable_irq(smc_host->irq);
-    if (smc_host->cd_mode == CARD_ALWAYS_PRESENT)
-    {
+
+	mutex_lock(&sw_host_rescan_mutex);
+	if (smc_host->cd_mode == CARD_ALWAYS_PRESENT ||
+	    sw_host_rescan_pending[pdev->id]) {
+		smc_host->present = 1;
         mmc_detect_change(smc_host->mmc, msecs_to_jiffies(300));
     }
 
     sw_host[pdev->id] = smc_host;
+	mutex_unlock(&sw_host_rescan_mutex);
 
     SMC_MSG("mmc%d Probe: base:0x%p irq:%u dma:%u pdes:0x%p, ret %d.\n",
             pdev->id, smc_host->smc_base, smc_host->irq, smc_host->dma_no, smc_host->pdes, ret);
