@@ -1,0 +1,139 @@
+menu "Platform options"
+
+comment "Memory settings"
+
+config MEM_BASE
+	hex "Memory base address"
+	default "0x00000000"
+	help
+	  This is the physical address of the memory that the kernel will run
+	  from. This address is used to link the kernel and setup initial memory
+	  management. You should take the raw memory address without any MMU
+	  or cache bits set.
+	  Please not that this address is used directly so you have to manually
+	  do address translation if it's connected to a bridge.
+
+comment "Device tree"
+
+config NIOS2_DTB_AT_PHYS_ADDR
+	bool "DTB at physical address"
+	default n
+	help
+	  When enabled you can select a physical address to load the dtb from.
+	  Normally this address is passed by a bootloader such as u-boot but
+	  using this you can use a devicetree without a bootloader.
+	  This way you can store a devicetree in NOR flash or an onchip rom.
+	  Please note that this addres is used directly so you have to manually
+	  do address translation if it's connected to a bridge. Also take into
+	  account that when using an MMU you'd have to ad 0xC0000000 to your
+	  address
+
+config NIOS2_DTB_PHYS_ADDR
+	hex "DTB Address"
+	depends on NIOS2_DTB_AT_PHYS_ADDR
+	default "0xC0000000"
+	help
+	  Physical address of a dtb blob.
+
+config DTB_SOURCE_BOOL
+	bool "Compile and link device tree into kernel image"
+	default n
+	help
+	  This allows you to specify a dts (device tree source) file
+	  which will be compiled and linked into the kernel image.
+
+config DTB_SOURCE
+	string "Device tree source file"
+	depends on DTB_SOURCE_BOOL
+	default ""
+	help
+	  Absolute path to the device tree source (dts) file describing your
+	  system.
+
+comment "Nios II instructions"
+
+config NIOS2_HW_MUL_SUPPORT
+	bool "Enable MUL instruction"
+	default n
+	help
+	  Set to true if you configured the Nios II to include the MUL
+	  instruction.  This will enable the -mhw-mul compiler flag.
+
+config NIOS2_HW_MULX_SUPPORT
+	bool "Enable MULX instruction"
+	default n
+	help
+	  Set to true if you configured the Nios II to include the MULX
+	  instruction.  Enables the -mhw-mulx compiler flag.
+
+config NIOS2_HW_DIV_SUPPORT
+	bool "Enable DIV instruction"
+	default n
+	help
+	  Set to true if you configured the Nios II to include the DIV
+	  instruction.  Enables the -mhw-div compiler flag.
+
+config NIOS2_FPU_SUPPORT
+	bool "Custom floating point instr support"
+	default n
+	help
+	  Enables the -mcustom-fpu-cfg=60-1 compiler flag.
+
+config NIOS2_CI_SWAB_SUPPORT
+	bool "Byteswap custom instruction"
+	default n
+	help
+	  Use the byteswap (endian convertor) Nios II custom instruction provided
+	  by Altera and which can be enabled in SOPC builder. This accelerates
+	  endian conversions in the kernel (e.g. ntohs).
+
+config NIOS2_CI_SWAB_NO
+	int "Byteswap custom instruction number" if NIOS2_CI_SWAB_SUPPORT
+	default 0
+	help
+	  Number of the instruction as configured in SOPC Builder.
+
+comment "Cache settings"
+
+config CUSTOM_CACHE_SETTINGS
+	bool "Custom cache settings"
+	help
+	  This option allows you to tweak the cache settings used during early
+	  boot (where the information from device tree is not yet available).
+	  There should be no reason to change these values. Linux will work
+	  perfectly fine, even if the Nios II is configured with smaller caches.
+
+	  Say N here unless you know what you are doing.
+
+config NIOS2_DCACHE_SIZE
+	hex "D-Cache size" if CUSTOM_CACHE_SETTINGS
+	default "0x10000"
+	help
+	  Maximum possible data cache size.
+
+config NIOS2_DCACHE_LINE_SIZE
+	hex "D-Cache line size" if CUSTOM_CACHE_SETTINGS
+	default "0x4"
+	help
+	  Minimum possible data cache line size.
+
+config NIOS2_ICACHE_SIZE
+	hex "I-Cache size" if CUSTOM_CACHE_SETTINGS
+	default "0x10000"
+	help
+	  Maximum possible instruction cache size.
+
+config NIOS2_ICACHE_LINE_SIZE
+	hex "I-Cache line size" if CUSTOM_CACHE_SETTINGS
+	default "0x20"
+	help
+	  Maximum possible instruction cache line size.
+
+config NIOS2_ICACHE_LINE_SHIFT
+	hex "I-Cache line shift" if CUSTOM_CACHE_SETTINGS
+	default "0x5"
+	help
+	  log2 of the instruction cache line size. This must match
+	  CONFIG_NIOS2_ICACHE_LINE_SIZE.
+
+endmenu
