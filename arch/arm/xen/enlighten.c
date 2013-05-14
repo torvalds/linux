@@ -152,11 +152,12 @@ int xen_unmap_domain_mfn_range(struct vm_area_struct *vma,
 }
 EXPORT_SYMBOL_GPL(xen_unmap_domain_mfn_range);
 
-static int __init xen_secondary_init(unsigned int cpu)
+static void __init xen_percpu_init(void *unused)
 {
 	struct vcpu_register_vcpu_info info;
 	struct vcpu_info *vcpup;
 	int err;
+	int cpu = get_cpu();
 
 	pr_info("Xen: initializing cpu%d\n", cpu);
 	vcpup = per_cpu_ptr(xen_vcpu_info, cpu);
@@ -165,14 +166,10 @@ static int __init xen_secondary_init(unsigned int cpu)
 	info.offset = offset_in_page(vcpup);
 
 	err = HYPERVISOR_vcpu_op(VCPUOP_register_vcpu_info, cpu, &info);
-	if (err) {
-		pr_debug("register_vcpu_info failed: err=%d\n", err);
-	} else {
-		/* This cpu is using the registered vcpu info, even if
-		   later ones fail to. */
-		per_cpu(xen_vcpu, cpu) = vcpup;
-	}
-	return 0;
+	BUG_ON(err);
+	per_cpu(xen_vcpu, cpu) = vcpup;
+
+	enable_percpu_irq(xen_events_irq, 0);
 }
 
 static void xen_restart(char str, const char *cmd)
@@ -208,7 +205,6 @@ static int __init xen_guest_init(void)
 	const char *version = NULL;
 	const char *xen_prefix = "xen,xen-";
 	struct resource res;
-	int i;
 
 	node = of_find_compatible_node(NULL, NULL, "xen,xen");
 	if (!node) {
@@ -265,29 +261,28 @@ static int __init xen_guest_init(void)
 			                       sizeof(struct vcpu_info));
 	if (xen_vcpu_info == NULL)
 		return -ENOMEM;
-	for_each_online_cpu(i)
-		xen_secondary_init(i);
 
 	gnttab_init();
 	if (!xen_initial_domain())
 		xenbus_probe(NULL);
 
+	return 0;
+}
+core_initcall(xen_guest_init);
+
+static int __init xen_pm_init(void)
+{
 	pm_power_off = xen_power_off;
 	arm_pm_restart = xen_restart;
 
 	return 0;
 }
-core_initcall(xen_guest_init);
+subsys_initcall(xen_pm_init);
 
 static irqreturn_t xen_arm_callback(int irq, void *arg)
 {
 	xen_hvm_evtchn_do_upcall();
 	return IRQ_HANDLED;
-}
-
-static __init void xen_percpu_enable_events(void *unused)
-{
-	enable_percpu_irq(xen_events_irq, 0);
 }
 
 static int __init xen_init_events(void)
@@ -303,7 +298,7 @@ static int __init xen_init_events(void)
 		return -EINVAL;
 	}
 
-	on_each_cpu(xen_percpu_enable_events, NULL, 0);
+	on_each_cpu(xen_percpu_init, NULL, 0);
 
 	return 0;
 }
