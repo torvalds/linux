@@ -1936,9 +1936,6 @@ static int bttv_g_register(struct file *file, void *f,
 	struct bttv_fh *fh = f;
 	struct bttv *btv = fh->btv;
 
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-
 	if (!v4l2_chip_match_host(&reg->match)) {
 		/* TODO: subdev errors should not be ignored, this should become a
 		   subdev helper function. */
@@ -1959,9 +1956,6 @@ static int bttv_s_register(struct file *file, void *f,
 {
 	struct bttv_fh *fh = f;
 	struct bttv *btv = fh->btv;
-
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 
 	if (!v4l2_chip_match_host(&reg->match)) {
 		/* TODO: subdev errors should not be ignored, this should become a

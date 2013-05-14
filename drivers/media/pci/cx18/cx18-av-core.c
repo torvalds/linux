@@ -1258,8 +1258,6 @@ static int cx18_av_g_register(struct v4l2_subdev *sd,
 		return -EINVAL;
 	if ((reg->reg & 0x3) != 0)
 		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 	reg->size = 4;
 	reg->val = cx18_av_read4(cx, reg->reg & 0x00000ffc);
 	return 0;
@@ -1274,8 +1272,6 @@ static int cx18_av_s_register(struct v4l2_subdev *sd,
 		return -EINVAL;
 	if ((reg->reg & 0x3) != 0)
 		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 	cx18_av_write4(cx, reg->reg & 0x00000ffc, reg->val);
 	return 0;
 }

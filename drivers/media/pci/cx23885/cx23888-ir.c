@@ -1116,8 +1116,6 @@ static int cx23888_ir_g_register(struct v4l2_subdev *sd,
 		return -EINVAL;
 	if (addr < CX23888_IR_CNTRL_REG || addr > CX23888_IR_LEARN_REG)
 		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 	reg->size = 4;
 	reg->val = cx23888_ir_read4(state->dev, addr);
 	return 0;
@@ -1135,8 +1133,6 @@ static int cx23888_ir_s_register(struct v4l2_subdev *sd,
 		return -EINVAL;
 	if (addr < CX23888_IR_CNTRL_REG || addr > CX23888_IR_LEARN_REG)
 		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 	cx23888_ir_write4(state->dev, addr, reg->val);
 	return 0;
 }

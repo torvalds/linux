@@ -1306,9 +1306,6 @@ static int saa7164_g_register(struct file *file, void *fh,
 	struct saa7164_dev *dev = port->dev;
 	dprintk(DBGLVL_ENC, "%s()\n", __func__);
 
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-
 	return 0;
 }
 
@@ -1318,9 +1315,6 @@ static int saa7164_s_register(struct file *file, void *fh,
 	struct saa7164_port *port = ((struct saa7164_encoder_fh *)fh)->port;
 	struct saa7164_dev *dev = port->dev;
 	dprintk(DBGLVL_ENC, "%s()\n", __func__);
-
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 
 	return 0;
 }

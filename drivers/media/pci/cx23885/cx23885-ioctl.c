@@ -138,9 +138,6 @@ int cx23885_g_register(struct file *file, void *fh,
 {
 	struct cx23885_dev *dev = ((struct cx23885_fh *)fh)->dev;
 
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-
 	if (reg->match.type == V4L2_CHIP_MATCH_HOST) {
 		switch (reg->match.addr) {
 		case 0:
@@ -185,9 +182,6 @@ int cx23885_s_register(struct file *file, void *fh,
 		       const struct v4l2_dbg_register *reg)
 {
 	struct cx23885_dev *dev = ((struct cx23885_fh *)fh)->dev;
-
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 
 	if (reg->match.type == V4L2_CHIP_MATCH_HOST) {
 		switch (reg->match.addr) {
