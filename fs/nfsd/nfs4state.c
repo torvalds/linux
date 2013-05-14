@@ -1188,6 +1188,9 @@ static int copy_cred(struct svc_cred *target, struct svc_cred *source)
 	target->cr_gid = source->cr_gid;
 	target->cr_group_info = source->cr_group_info;
 	get_group_info(target->cr_group_info);
+	target->cr_gss_mech = source->cr_gss_mech;
+	if (source->cr_gss_mech)
+		gss_mech_get(source->cr_gss_mech);
 	return 0;
 }
 
