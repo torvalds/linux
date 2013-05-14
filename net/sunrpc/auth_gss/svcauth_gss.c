@@ -377,8 +377,7 @@ rsc_init(struct cache_head *cnew, struct cache_head *ctmp)
 	new->handle.data = tmp->handle.data;
 	tmp->handle.data = NULL;
 	new->mechctx = NULL;
-	new->cred.cr_group_info = NULL;
-	new->cred.cr_principal = NULL;
+	init_svc_cred(&new->cred);
 }
 
 static void
@@ -392,9 +391,8 @@ update_rsc(struct cache_head *cnew, struct cache_head *ctmp)
 	memset(&new->seqdata, 0, sizeof(new->seqdata));
 	spin_lock_init(&new->seqdata.sd_lock);
 	new->cred = tmp->cred;
-	tmp->cred.cr_group_info = NULL;
 	new->cred.cr_principal = tmp->cred.cr_principal;
-	tmp->cred.cr_principal = NULL;
+	init_svc_cred(&tmp->cred);
 }
 
 static struct cache_head *

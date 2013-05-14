@@ -25,6 +25,13 @@ struct svc_cred {
 	char			*cr_principal; /* for gss */
 };
 
+static inline void init_svc_cred(struct svc_cred *cred)
+{
+	cred->cr_group_info = NULL;
+	cred->cr_principal = NULL;
+	cred->cr_gss_mech = NULL;
+}
+
 static inline void free_svc_cred(struct svc_cred *cred)
 {
 	if (cred->cr_group_info)
