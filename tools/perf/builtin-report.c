@@ -312,8 +312,6 @@ static int process_sample_event(struct perf_tool *tool,
 	if (rep->cpu_list && !test_bit(sample->cpu, rep->cpu_bitmap))
 		return 0;
 
-	pthread_mutex_lock(&evsel->hists.lock);
-
 	if (sort__mode == SORT_MODE__BRANCH) {
 		ret = perf_report__add_branch_hist_entry(tool, &al, sample,
 							 evsel, machine);
@@ -332,8 +330,6 @@ static int process_sample_event(struct perf_tool *tool,
 		if (ret < 0)
 			pr_debug("problem incrementing symbol period, skipping event\n");
 	}
-	pthread_mutex_unlock(&evsel->hists.lock);
-
 	return ret;
 }
 
