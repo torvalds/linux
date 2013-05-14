@@ -385,31 +385,30 @@ static int dt9812_rmw_multiple_registers(struct usb_dt9812 *dev, int reg_count,
 			    &cmd, 32, &count, HZ * 1);
 }
 
-static int dt9812_digital_in(struct slot_dt9812 *slot, u8 *bits)
+static int dt9812_digital_in(struct comedi_device *dev, u8 *bits)
 {
-	int result = -ENODEV;
+	struct dt9812_private *devpriv = dev->private;
+	struct slot_dt9812 *slot = devpriv->slot;
+	int ret = -ENODEV;
 
 	down(&slot->mutex);
 	if (slot->usb) {
 		u8 reg[2] = { F020_SFR_P3, F020_SFR_P1 };
 		u8 value[2];
 
-		result = dt9812_read_multiple_registers(slot->usb, 2, reg,
-							value);
-		if (result == 0) {
+		ret = dt9812_read_multiple_registers(slot->usb, 2, reg, value);
+		if (ret == 0) {
 			/*
 			 * bits 0-6 in F020_SFR_P3 are bits 0-6 in the digital
 			 * input port bit 3 in F020_SFR_P1 is bit 7 in the
 			 * digital input port
 			 */
 			*bits = (value[0] & 0x7f) | ((value[1] & 0x08) << 4);
-			/* printk("%2.2x, %2.2x -> %2.2x\n",
-			   value[0], value[1], *bits); */
 		}
 	}
 	up(&slot->mutex);
 
-	return result;
+	return ret;
 }
 
 static int dt9812_digital_out(struct slot_dt9812 *slot, u8 bits)
@@ -645,12 +644,11 @@ static int dt9812_di_rinsn(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_insn *insn,
 			   unsigned int *data)
 {
-	struct dt9812_private *devpriv = dev->private;
 	unsigned int channel = CR_CHAN(insn->chanspec);
 	int n;
 	u8 bits = 0;
 
-	dt9812_digital_in(devpriv->slot, &bits);
+	dt9812_digital_in(dev, &bits);
 	for (n = 0; n < insn->n; n++)
 		data[n] = ((1 << channel) & bits) != 0;
 	return n;
