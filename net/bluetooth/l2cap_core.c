@@ -1703,7 +1703,8 @@ EXPORT_SYMBOL(l2cap_conn_put);
  */
 static struct l2cap_chan *l2cap_global_chan_by_psm(int state, __le16 psm,
 						   bdaddr_t *src,
-						   bdaddr_t *dst)
+						   bdaddr_t *dst,
+						   u8 link_type)
 {
 	struct l2cap_chan *c, *c1 = NULL;
 
@@ -1711,6 +1712,12 @@ static struct l2cap_chan *l2cap_global_chan_by_psm(int state, __le16 psm,
 
 	list_for_each_entry(c, &chan_list, global_l) {
 		if (state && c->state != state)
+			continue;
+
+		if (link_type == ACL_LINK && c->src_type != BDADDR_BREDR)
+			continue;
+
+		if (link_type == LE_LINK && c->src_type == BDADDR_BREDR)
 			continue;
 
 		if (c->psm == psm) {
@@ -3713,7 +3720,7 @@ static struct l2cap_chan *l2cap_connect(struct l2cap_conn *conn,
 
 	/* Check if we have socket listening on psm */
 	pchan = l2cap_global_chan_by_psm(BT_LISTEN, psm, &conn->hcon->src,
-					 &conn->hcon->dst);
+					 &conn->hcon->dst, ACL_LINK);
 	if (!pchan) {
 		result = L2CAP_CR_BAD_PSM;
 		goto sendresp;
@@ -6380,7 +6387,8 @@ static void l2cap_conless_channel(struct l2cap_conn *conn, __le16 psm,
 	if (hcon->type != ACL_LINK)
 		goto drop;
 
-	chan = l2cap_global_chan_by_psm(0, psm, &hcon->src, &hcon->dst);
+	chan = l2cap_global_chan_by_psm(0, psm, &hcon->src, &hcon->dst,
+					ACL_LINK);
 	if (!chan)
 		goto drop;
 
