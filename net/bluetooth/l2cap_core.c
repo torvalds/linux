@@ -726,6 +726,9 @@ int l2cap_chan_check_security(struct l2cap_chan *chan)
 	struct l2cap_conn *conn = chan->conn;
 	__u8 auth_type;
 
+	if (conn->hcon->type == LE_LINK)
+		return smp_conn_security(conn->hcon, chan->sec_level);
+
 	auth_type = l2cap_get_auth_type(chan);
 
 	return hci_conn_security(conn->hcon, chan->sec_level, auth_type);
