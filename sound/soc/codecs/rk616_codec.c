@@ -493,18 +493,18 @@ static int rk616_reset(struct snd_soc_codec *codec)
 	snd_soc_write(codec, RK616_RESET, 0x43);
 	mdelay(10);
 
+	for (i = 0; i < RK616_MFD_REG_LEN; i++)
+		snd_soc_write(codec, rk616_mfd_reg_defaults[i].reg, rk616_mfd_reg_defaults[i].value);
+
+	memcpy(codec->reg_cache, rk616_reg_defaults,
+	       sizeof(rk616_reg_defaults));
+
 	//close charge pump
 	snd_soc_write(codec, RK616_CLK_CHPUMP, 0x41);
 
 	//bypass zero-crossing detection
 	snd_soc_write(codec, RK616_SINGNAL_ZC_CTL1, 0x3f);
 	snd_soc_write(codec, RK616_SINGNAL_ZC_CTL2, 0xff);
-
-	for (i = 0; i < RK616_MFD_REG_LEN; i++)
-		snd_soc_write(codec, rk616_mfd_reg_defaults[i].reg, rk616_mfd_reg_defaults[i].value);
-
-	memcpy(codec->reg_cache, rk616_reg_defaults,
-	       sizeof(rk616_reg_defaults));
 
 	return 0;
 }
@@ -711,16 +711,6 @@ int snd_soc_put_pgal_volsw(struct snd_kcontrol *kcontrol,
 }
 
 static const struct snd_kcontrol_new rk616_snd_controls[] = {
-
-	SOC_SINGLE("I2S0 schmitt input Switch", CRU_IO_CON1,
-				3, 1, 0),
-	SOC_SINGLE("I2S1 schmitt input Switch", CRU_IO_CON1,
-				4, 1, 0),
-	SOC_SINGLE("I2S0 output Switch", CRU_IO_CON0,
-				12, 1, 0),
-	SOC_SINGLE("I2S1 output Switch", CRU_IO_CON0,
-				13, 1, 0),
-
 	//Add for set voice volume
 	SOC_DOUBLE_R_TLV("Speaker Playback Volume", RK616_SPKL_CTL,
 		RK616_SPKR_CTL, RK616_VOL_SFT, 31, 0, out_vol_tlv),
@@ -1482,20 +1472,20 @@ static int rk616_hw_params(struct snd_pcm_substream *substream,
 
 	switch (div) {
 	case 16:
-		adc_aif1 |= RK616_ADC_VWL_16;
-		dac_aif1 |= RK616_DAC_VWL_16;
+		adc_aif2 |= RK616_ADC_WL_16;
+		dac_aif2 |= RK616_DAC_WL_16;
 		break;
 	case 20:
-		adc_aif1 |= RK616_ADC_VWL_20;
-		dac_aif1 |= RK616_DAC_VWL_20;
+		adc_aif2 |= RK616_ADC_WL_20;
+		dac_aif2 |= RK616_DAC_WL_20;
 		break;
 	case 24:
-		adc_aif1 |= RK616_ADC_VWL_24;
-		dac_aif1 |= RK616_DAC_VWL_24;
+		adc_aif2 |= RK616_ADC_WL_24;
+		dac_aif2 |= RK616_DAC_WL_24;
 		break;
 	case 32:
-		adc_aif1 |= RK616_ADC_VWL_32;
-		dac_aif1 |= RK616_DAC_VWL_32;
+		adc_aif2 |= RK616_ADC_WL_32;
+		dac_aif2 |= RK616_DAC_WL_32;
 		break;
 	default:
 		return -EINVAL;
@@ -1507,20 +1497,20 @@ static int rk616_hw_params(struct snd_pcm_substream *substream,
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
-		adc_aif2 |= RK616_ADC_WL_16;
-		dac_aif2 |= RK616_DAC_WL_16;
+		adc_aif1 |= RK616_ADC_VWL_16;
+		dac_aif1 |= RK616_DAC_VWL_16;
 		break;
 	case SNDRV_PCM_FORMAT_S20_3LE:
-		adc_aif2 |= RK616_ADC_WL_20;
-		dac_aif2 |= RK616_DAC_WL_20;
+		adc_aif1 |= RK616_ADC_VWL_20;
+		dac_aif1 |= RK616_DAC_VWL_20;
 		break;
 	case SNDRV_PCM_FORMAT_S24_LE:
-		adc_aif2 |= RK616_ADC_WL_24;
-		dac_aif2 |= RK616_DAC_WL_24;
+		adc_aif1 |= RK616_ADC_VWL_24;
+		dac_aif1 |= RK616_DAC_VWL_24;
 		break;
 	case SNDRV_PCM_FORMAT_S32_LE:
-		adc_aif2 |= RK616_ADC_WL_32;
-		dac_aif2 |= RK616_DAC_WL_32;
+		adc_aif1 |= RK616_ADC_VWL_32;
+		dac_aif1 |= RK616_DAC_VWL_32;
 		break;
 	default:
 		return -EINVAL;
