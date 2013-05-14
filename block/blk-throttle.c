@@ -44,6 +44,7 @@ struct throtl_service_queue {
 	struct rb_node		*first_pending;	/* first node in the tree */
 	unsigned int		nr_pending;	/* # queued in the tree */
 	unsigned long		first_pending_disptime;	/* disptime of the first tg */
+	struct timer_list	pending_timer;	/* fires on first_pending_disptime */
 };
 
 enum tg_state_flags {
@@ -121,7 +122,7 @@ struct throtl_data
 	unsigned int nr_undestroyed_grps;
 
 	/* Work for dispatching throttled bios */
-	struct delayed_work dispatch_work;
+	struct work_struct dispatch_work;
 };
 
 /* list and work item to allocate percpu group stats */
@@ -130,6 +131,8 @@ static LIST_HEAD(tg_stats_alloc_list);
 
 static void tg_stats_alloc_fn(struct work_struct *);
 static DECLARE_DELAYED_WORK(tg_stats_alloc_work, tg_stats_alloc_fn);
+
+static void throtl_pending_timer_fn(unsigned long arg);
 
 static inline struct throtl_grp *pd_to_tg(struct blkg_policy_data *pd)
 {
@@ -255,6 +258,13 @@ static void throtl_service_queue_init(struct throtl_service_queue *sq,
 	bio_list_init(&sq->bio_lists[1]);
 	sq->pending_tree = RB_ROOT;
 	sq->parent_sq = parent_sq;
+	setup_timer(&sq->pending_timer, throtl_pending_timer_fn,
+		    (unsigned long)sq);
+}
+
+static void throtl_service_queue_exit(struct throtl_service_queue *sq)
+{
+	del_timer_sync(&sq->pending_timer);
 }
 
 static void throtl_pd_init(struct blkcg_gq *blkg)
@@ -293,6 +303,8 @@ static void throtl_pd_exit(struct blkcg_gq *blkg)
 	spin_unlock_irqrestore(&tg_stats_alloc_lock, flags);
 
 	free_percpu(tg->stats_cpu);
+
+	throtl_service_queue_exit(&tg->service_queue);
 }
 
 static void throtl_pd_reset_stats(struct blkcg_gq *blkg)
@@ -447,19 +459,17 @@ static void throtl_dequeue_tg(struct throtl_grp *tg)
 }
 
 /* Call with queue lock held */
-static void throtl_schedule_delayed_work(struct throtl_data *td,
-					 unsigned long delay)
+static void throtl_schedule_pending_timer(struct throtl_service_queue *sq,
+					  unsigned long expires)
 {
-	struct delayed_work *dwork = &td->dispatch_work;
-	struct throtl_service_queue *sq = &td->service_queue;
-
-	mod_delayed_work(kthrotld_workqueue, dwork, delay);
-	throtl_log(sq, "schedule work. delay=%lu jiffies=%lu", delay, jiffies);
+	mod_timer(&sq->pending_timer, expires);
+	throtl_log(sq, "schedule timer. delay=%lu jiffies=%lu",
+		   expires - jiffies, jiffies);
 }
 
-static void throtl_schedule_next_dispatch(struct throtl_data *td)
+static void throtl_schedule_next_dispatch(struct throtl_service_queue *sq)
 {
-	struct throtl_service_queue *sq = &td->service_queue;
+	struct throtl_data *td = sq_to_td(sq);
 
 	/* any pending children left? */
 	if (!sq->nr_pending)
@@ -467,10 +477,14 @@ static void throtl_schedule_next_dispatch(struct throtl_data *td)
 
 	update_min_dispatch_time(sq);
 
-	if (time_before_eq(sq->first_pending_disptime, jiffies))
-		throtl_schedule_delayed_work(td, 0);
-	else
-		throtl_schedule_delayed_work(td, sq->first_pending_disptime - jiffies);
+	/* is the next dispatch time in the future? */
+	if (time_after(sq->first_pending_disptime, jiffies)) {
+		throtl_schedule_pending_timer(sq, sq->first_pending_disptime);
+		return;
+	}
+
+	/* kick immediate execution */
+	queue_work(kthrotld_workqueue, &td->dispatch_work);
 }
 
 static inline void throtl_start_new_slice(struct throtl_grp *tg, bool rw)
@@ -901,11 +915,19 @@ static int throtl_select_dispatch(struct throtl_service_queue *parent_sq)
 	return nr_disp;
 }
 
+static void throtl_pending_timer_fn(unsigned long arg)
+{
+	struct throtl_service_queue *sq = (void *)arg;
+	struct throtl_data *td = sq_to_td(sq);
+
+	queue_work(kthrotld_workqueue, &td->dispatch_work);
+}
+
 /* work function to dispatch throttled bios */
 void blk_throtl_dispatch_work_fn(struct work_struct *work)
 {
-	struct throtl_data *td = container_of(to_delayed_work(work),
-					      struct throtl_data, dispatch_work);
+	struct throtl_data *td = container_of(work, struct throtl_data,
+					      dispatch_work);
 	struct throtl_service_queue *sq = &td->service_queue;
 	struct request_queue *q = td->queue;
 	unsigned int nr_disp = 0;
@@ -932,7 +954,7 @@ void blk_throtl_dispatch_work_fn(struct work_struct *work)
 		throtl_log(sq, "bios disp=%u", nr_disp);
 	}
 
-	throtl_schedule_next_dispatch(td);
+	throtl_schedule_next_dispatch(sq);
 
 	spin_unlock_irq(q->queue_lock);
 
@@ -1020,7 +1042,7 @@ static int tg_set_conf(struct cgroup *cgrp, struct cftype *cft, const char *buf,
 	struct blkcg *blkcg = cgroup_to_blkcg(cgrp);
 	struct blkg_conf_ctx ctx;
 	struct throtl_grp *tg;
-	struct throtl_data *td;
+	struct throtl_service_queue *sq;
 	int ret;
 
 	ret = blkg_conf_prep(blkcg, &blkcg_policy_throtl, buf, &ctx);
@@ -1028,7 +1050,7 @@ static int tg_set_conf(struct cgroup *cgrp, struct cftype *cft, const char *buf,
 		return ret;
 
 	tg = blkg_to_tg(ctx.blkg);
-	td = ctx.blkg->q->td;
+	sq = &tg->service_queue;
 
 	if (!ctx.v)
 		ctx.v = -1;
@@ -1056,7 +1078,7 @@ static int tg_set_conf(struct cgroup *cgrp, struct cftype *cft, const char *buf,
 
 	if (tg->flags & THROTL_TG_PENDING) {
 		tg_update_disptime(tg);
-		throtl_schedule_next_dispatch(td);
+		throtl_schedule_next_dispatch(sq->parent_sq);
 	}
 
 	blkg_conf_finish(&ctx);
@@ -1121,7 +1143,7 @@ static void throtl_shutdown_wq(struct request_queue *q)
 {
 	struct throtl_data *td = q->td;
 
-	cancel_delayed_work_sync(&td->dispatch_work);
+	cancel_work_sync(&td->dispatch_work);
 }
 
 static struct blkcg_policy blkcg_policy_throtl = {
@@ -1210,7 +1232,7 @@ queue_bio:
 	/* update @tg's dispatch time if @tg was empty before @bio */
 	if (tg->flags & THROTL_TG_WAS_EMPTY) {
 		tg_update_disptime(tg);
-		throtl_schedule_next_dispatch(td);
+		throtl_schedule_next_dispatch(tg->service_queue.parent_sq);
 	}
 
 out_unlock:
@@ -1273,7 +1295,7 @@ int blk_throtl_init(struct request_queue *q)
 	if (!td)
 		return -ENOMEM;
 
-	INIT_DELAYED_WORK(&td->dispatch_work, blk_throtl_dispatch_work_fn);
+	INIT_WORK(&td->dispatch_work, blk_throtl_dispatch_work_fn);
 	throtl_service_queue_init(&td->service_queue, NULL);
 
 	q->td = td;
