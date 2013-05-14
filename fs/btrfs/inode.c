@@ -714,8 +714,10 @@ retry:
 					async_extent->ram_size - 1, 0);
 
 		em = alloc_extent_map();
-		if (!em)
+		if (!em) {
+			ret = -ENOMEM;
 			goto out_free_reserve;
+		}
 		em->start = async_extent->start;
 		em->len = async_extent->ram_size;
 		em->orig_start = em->start;
@@ -922,8 +924,10 @@ static noinline int __cow_file_range(struct btrfs_trans_handle *trans,
 		}
 
 		em = alloc_extent_map();
-		if (!em)
+		if (!em) {
+			ret = -ENOMEM;
 			goto out_reserve;
+		}
 		em->start = start;
 		em->orig_start = em->start;
 		ram_size = ins.offset;
