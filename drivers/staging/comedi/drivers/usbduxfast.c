@@ -149,7 +149,7 @@ static const struct comedi_lrange range_usbduxfast_ai_range = {
  */
 struct usbduxfast_private {
 	struct urb *urb;	/* BULK-transfer handling: urb */
-	int8_t *transfer_buffer;
+	int8_t *inbuf;
 	short int ai_cmd_running;	/* asynchronous command is running */
 	short int ai_continous;	/* continous acquisition */
 	long int ai_sample_count;	/* number of samples to acquire */
@@ -455,7 +455,7 @@ static int usbduxfastsub_submit_InURBs(struct comedi_device *dev)
 		return -EFAULT;
 
 	usb_fill_bulk_urb(devpriv->urb, usb, usb_rcvbulkpipe(usb, BULKINEP),
-			  devpriv->transfer_buffer, SIZEINBUF,
+			  devpriv->inbuf, SIZEINBUF,
 			  usbduxfast_ai_interrupt, dev);
 
 	ret = usb_submit_urb(devpriv->urb, GFP_ATOMIC);
@@ -1129,7 +1129,7 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 
 	for (i = 0; i < PACKETS_TO_IGNORE; i++) {
 		err = usb_bulk_msg(usb, usb_rcvbulkpipe(usb, BULKINEP),
-				   devpriv->transfer_buffer, SIZEINBUF,
+				   devpriv->inbuf, SIZEINBUF,
 				   &actual_length, 10000);
 		if (err < 0) {
 			dev_err(dev->class_dev, "insn timeout, no data\n");
@@ -1140,7 +1140,7 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 	/* data points */
 	for (i = 0; i < insn->n;) {
 		err = usb_bulk_msg(usb, usb_rcvbulkpipe(usb, BULKINEP),
-				   devpriv->transfer_buffer, SIZEINBUF,
+				   devpriv->inbuf, SIZEINBUF,
 				   &actual_length, 10000);
 		if (err < 0) {
 			dev_err(dev->class_dev, "insn data error: %d\n", err);
@@ -1154,7 +1154,7 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 			return -EINVAL;
 		}
 		for (j = chan; (j < n) && (i < insn->n); j = j + 16) {
-			data[i] = ((uint16_t *) (devpriv->transfer_buffer))[j];
+			data[i] = ((uint16_t *) (devpriv->inbuf))[j];
 			i++;
 		}
 	}
@@ -1298,8 +1298,8 @@ static int usbduxfast_auto_attach(struct comedi_device *dev,
 		return -ENOMEM;
 	}
 
-	devpriv->transfer_buffer = kmalloc(SIZEINBUF, GFP_KERNEL);
-	if (!devpriv->transfer_buffer)
+	devpriv->inbuf = kmalloc(SIZEINBUF, GFP_KERNEL);
+	if (!devpriv->inbuf)
 		return -ENOMEM;
 
 	/*
@@ -1332,8 +1332,8 @@ static void usbduxfast_detach(struct comedi_device *dev)
 		/* waits until a running transfer is over */
 		usb_kill_urb(devpriv->urb);
 
-		kfree(devpriv->transfer_buffer);
-		devpriv->transfer_buffer = NULL;
+		kfree(devpriv->inbuf);
+		devpriv->inbuf = NULL;
 
 		usb_free_urb(devpriv->urb);
 		devpriv->urb = NULL;
