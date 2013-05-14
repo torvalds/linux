@@ -281,12 +281,10 @@ struct usb_dt9812 {
 
 struct dt9812_private {
 	struct slot_dt9812 *slot;
-	u32 serial;
 };
 
 struct slot_dt9812 {
 	struct semaphore mutex;
-	u32 serial;
 	struct usb_dt9812 *usb;
 	struct dt9812_private *devpriv;
 };
@@ -654,63 +652,6 @@ static int dt9812_analog_out(struct slot_dt9812 *slot, int channel, u16 value)
 	return result;
 }
 
-/*
- * Comedi functions
- */
-
-static int dt9812_comedi_open(struct comedi_device *dev)
-{
-	struct dt9812_private *devpriv = dev->private;
-	int result = -ENODEV;
-
-	down(&devpriv->slot->mutex);
-	if (devpriv->slot->usb) {
-		/* We have an attached device, fill in current range info */
-		struct comedi_subdevice *s;
-
-		s = &dev->subdevices[0];
-		s->n_chan = 8;
-		s->maxdata = 1;
-
-		s = &dev->subdevices[1];
-		s->n_chan = 8;
-		s->maxdata = 1;
-
-		s = &dev->subdevices[2];
-		s->n_chan = 8;
-		switch (devpriv->slot->usb->device) {
-		case 0:{
-				s->maxdata = 4095;
-				s->range_table = &range_bipolar10;
-			}
-			break;
-		case 1:{
-				s->maxdata = 4095;
-				s->range_table = &range_unipolar2_5;
-			}
-			break;
-		}
-
-		s = &dev->subdevices[3];
-		s->n_chan = 2;
-		switch (devpriv->slot->usb->device) {
-		case 0:{
-				s->maxdata = 4095;
-				s->range_table = &range_bipolar10;
-			}
-			break;
-		case 1:{
-				s->maxdata = 4095;
-				s->range_table = &range_unipolar2_5;
-			}
-			break;
-		}
-		result = 0;
-	}
-	up(&devpriv->slot->mutex);
-	return result;
-}
-
 static int dt9812_di_rinsn(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_insn *insn,
 			   unsigned int *data)
@@ -796,9 +737,11 @@ static int dt9812_ao_winsn(struct comedi_device *dev,
 
 static int dt9812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	struct slot_dt9812 *slot = NULL;
 	struct dt9812_private *devpriv;
 	int i;
 	struct comedi_subdevice *s;
+	bool range_2_5;
 	int ret;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
@@ -806,13 +749,30 @@ static int dt9812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	/*
-	 * Special open routine, since USB unit may be unattached at
-	 * comedi_config time, hence range can not be determined
-	 */
-	dev->open = dt9812_comedi_open;
+	down(&dt9812_mutex);
 
-	devpriv->serial = it->options[0];
+	/*
+	 * Find the first unused slot for the comedi device
+	 * that has a usb device connected.
+	 */
+	for (i = 0; i < DT9812_NUM_SLOTS; i++) {
+		if (dt9812[i].usb && !dt9812[i].devpriv) {
+			slot = &dt9812[i];
+			break;
+		}
+	}
+	if (!slot) {
+		up(&dt9812_mutex);
+		return -ENODEV;
+	}
+
+	down(&slot->mutex);
+	slot->devpriv = devpriv;
+	devpriv->slot = slot;
+	range_2_5 = (slot->usb->device == DT9812_DEVID_DT9812_2PT5);
+	up(&slot->mutex);
+
+	up(&dt9812_mutex);
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
@@ -822,7 +782,7 @@ static int dt9812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s = &dev->subdevices[0];
 	s->type = COMEDI_SUBD_DI;
 	s->subdev_flags = SDF_READABLE;
-	s->n_chan = 0;
+	s->n_chan = 8;
 	s->maxdata = 1;
 	s->range_table = &range_digital;
 	s->insn_read = &dt9812_di_rinsn;
@@ -831,7 +791,7 @@ static int dt9812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s = &dev->subdevices[1];
 	s->type = COMEDI_SUBD_DO;
 	s->subdev_flags = SDF_WRITEABLE;
-	s->n_chan = 0;
+	s->n_chan = 8;
 	s->maxdata = 1;
 	s->range_table = &range_digital;
 	s->insn_write = &dt9812_do_winsn;
@@ -840,9 +800,9 @@ static int dt9812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s = &dev->subdevices[2];
 	s->type = COMEDI_SUBD_AI;
 	s->subdev_flags = SDF_READABLE | SDF_GROUND;
-	s->n_chan = 0;
-	s->maxdata = 1;
-	s->range_table = NULL;
+	s->n_chan = 8;
+	s->maxdata = 4095;
+	s->range_table = range_2_5 ? &range_unipolar2_5 : &range_bipolar10;
 	s->insn_read = &dt9812_ai_rinsn;
 
 	/* analog output subdevice */
@@ -850,48 +810,22 @@ static int dt9812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITEABLE;
 	s->n_chan = 0;
-	s->maxdata = 1;
-	s->range_table = NULL;
+	s->maxdata = 4095;
+	s->range_table = range_2_5 ? &range_unipolar2_5 : &range_bipolar10;
 	s->insn_write = &dt9812_ao_winsn;
 	s->insn_read = &dt9812_ao_rinsn;
 
 	dev_info(dev->class_dev, "successfully attached to dt9812.\n");
-
-	down(&dt9812_mutex);
-	/* Find a slot for the comedi device */
-	{
-		struct slot_dt9812 *first = NULL;
-		struct slot_dt9812 *best = NULL;
-		for (i = 0; i < DT9812_NUM_SLOTS; i++) {
-			if (!first && !dt9812[i].devpriv) {
-				/* First free slot from comedi side */
-				first = &dt9812[i];
-			}
-			if (!best &&
-			    dt9812[i].usb &&
-			    dt9812[i].usb->serial == devpriv->serial) {
-				/* We have an attaced device with matching ID */
-				best = &dt9812[i];
-			}
-		}
-		if (!best)
-			best = first;
-		if (best) {
-			down(&best->mutex);
-			best->devpriv = devpriv;
-			best->serial = devpriv->serial;
-			devpriv->slot = best;
-			up(&best->mutex);
-		}
-	}
-	up(&dt9812_mutex);
 
 	return 0;
 }
 
 static void dt9812_detach(struct comedi_device *dev)
 {
-	/* Nothing to cleanup */
+	struct dt9812_private *devpriv = dev->private;
+
+	if (devpriv && devpriv->slot)
+		devpriv->slot = NULL;
 }
 
 static struct comedi_driver dt9812_comedi_driver = {
@@ -904,10 +838,11 @@ static struct comedi_driver dt9812_comedi_driver = {
 static int dt9812_probe(struct usb_interface *interface,
 			const struct usb_device_id *id)
 {
-	int retval = -ENOMEM;
+	struct slot_dt9812 *slot = NULL;
 	struct usb_dt9812 *dev = NULL;
 	struct usb_host_interface *iface_desc;
 	struct usb_endpoint_descriptor *endpoint;
+	int retval = -ENOMEM;
 	int i;
 	u8 fw;
 
@@ -917,6 +852,28 @@ static int dt9812_probe(struct usb_interface *interface,
 		goto error;
 
 	kref_init(&dev->kref);
+
+	down(&dt9812_mutex);
+
+	/* Find an empty slot for the usb device */
+	for (i = 0; i < DT9812_NUM_SLOTS; i++) {
+		if (!dt9812[i].usb) {
+			slot = &dt9812[i];
+			break;
+		}
+	}
+	if (!slot) {
+		up(&dt9812_mutex);
+		retval = -ENODEV;
+		goto error;
+	}
+
+	down(&slot->mutex);
+	slot->usb = dev;
+	dev->slot = slot;
+	up(&slot->mutex);
+
+	up(&dt9812_mutex);
 
 	dev->udev = usb_get_dev(interface_to_usbdev(interface));
 	dev->interface = interface;
@@ -1034,31 +991,6 @@ static int dt9812_probe(struct usb_interface *interface,
 	dev_info(&interface->dev, "USB DT9812 (%4.4x.%4.4x.%4.4x) #0x%8.8x\n",
 		 dev->vendor, dev->product, dev->device, dev->serial);
 
-	down(&dt9812_mutex);
-	{
-		/* Find a slot for the USB device */
-		struct slot_dt9812 *first = NULL;
-		struct slot_dt9812 *best = NULL;
-
-		for (i = 0; i < DT9812_NUM_SLOTS; i++) {
-			if (!first && !dt9812[i].usb && dt9812[i].serial == 0)
-				first = &dt9812[i];
-			if (!best && dt9812[i].serial == dev->serial)
-				best = &dt9812[i];
-		}
-
-		if (!best)
-			best = first;
-
-		if (best) {
-			down(&best->mutex);
-			best->usb = dev;
-			dev->slot = best;
-			up(&best->mutex);
-		}
-	}
-	up(&dt9812_mutex);
-
 	return 0;
 
 error:
@@ -1109,11 +1041,9 @@ static int __init usb_dt9812_init(void)
 	/* Initialize all driver slots */
 	for (i = 0; i < DT9812_NUM_SLOTS; i++) {
 		sema_init(&dt9812[i].mutex, 1);
-		dt9812[i].serial = 0;
 		dt9812[i].usb = NULL;
 		dt9812[i].devpriv = NULL;
 	}
-	dt9812[12].serial = 0x0;
 
 	return comedi_usb_driver_register(&dt9812_comedi_driver,
 						&dt9812_usb_driver);
