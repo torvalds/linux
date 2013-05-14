@@ -681,7 +681,7 @@ static int dt9812_find_endpoints(struct comedi_device *dev)
 	int i;
 
 	if (host->desc.bNumEndpoints != 5) {
-		dev_err(&intf->dev, "Wrong number of endpoints\n");
+		dev_err(dev->class_dev, "Wrong number of endpoints\n");
 		return -ENODEV;
 	}
 
@@ -713,7 +713,8 @@ static int dt9812_find_endpoints(struct comedi_device *dev)
 			break;
 		}
 		if ((ep->bEndpointAddress & USB_DIR_IN) != dir) {
-			dev_err(&intf->dev, "Endpoint has wrong direction\n");
+			dev_err(dev->class_dev,
+				"Endpoint has wrong direction\n");
 			return -ENODEV;
 		}
 	}
@@ -746,41 +747,42 @@ static int dt9812_reset_device(struct comedi_device *dev)
 				break;
 		}
 		if (ret) {
-			dev_err(&intf->dev, "unable to reset configuration\n");
+			dev_err(dev->class_dev,
+				"unable to reset configuration\n");
 			return ret;
 		}
 	}
 
 	ret = dt9812_read_info(dev, 1, &vendor, sizeof(vendor));
 	if (ret) {
-		dev_err(&intf->dev, "failed to read vendor id\n");
+		dev_err(dev->class_dev, "failed to read vendor id\n");
 		return ret;
 	}
 	vendor = le16_to_cpu(vendor);
 
 	ret = dt9812_read_info(dev, 3, &product, sizeof(product));
 	if (ret) {
-		dev_err(&intf->dev, "failed to read product id\n");
+		dev_err(dev->class_dev, "failed to read product id\n");
 		return ret;
 	}
 	product = le16_to_cpu(product);
 
 	ret = dt9812_read_info(dev, 5, &tmp16, sizeof(tmp16));
 	if (ret) {
-		dev_err(&intf->dev, "failed to read device id\n");
+		dev_err(dev->class_dev, "failed to read device id\n");
 		return ret;
 	}
 	devpriv->device = le16_to_cpu(tmp16);
 
 	ret = dt9812_read_info(dev, 7, &serial, sizeof(serial));
 	if (ret) {
-		dev_err(&intf->dev, "failed to read serial number\n");
+		dev_err(dev->class_dev, "failed to read serial number\n");
 		return ret;
 	}
 	serial = le32_to_cpu(serial);
 
 	/* let the user know what node this device is now attached to */
-	dev_info(&intf->dev, "USB DT9812 (%4.4x.%4.4x.%4.4x) #0x%8.8x\n",
+	dev_info(dev->class_dev, "USB DT9812 (%4.4x.%4.4x.%4.4x) #0x%8.8x\n",
 		 vendor, product, devpriv->device, serial);
 
 	return 0;
