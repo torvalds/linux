@@ -56,6 +56,7 @@
  * constants for "firmware" upload and download
  */
 #define FIRMWARE		"usbduxfast_firmware.bin"
+#define FIRMWARE_MAX_LEN	0x2000
 #define USBDUXFASTSUB_FIRMWARE	0xA0
 #define VENDOR_DIR_IN		0xC0
 #define VENDOR_DIR_OUT		0x40
@@ -1121,7 +1122,38 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 	return i;
 }
 
-#define FIRMWARE_MAX_LEN 0x2000
+static int usbduxfast_attach_common(struct comedi_device *dev)
+{
+	struct usbduxfast_private *devpriv = dev->private;
+	struct comedi_subdevice *s;
+	int ret;
+
+	down(&devpriv->sem);
+
+	ret = comedi_alloc_subdevices(dev, 1);
+	if (ret) {
+		up(&devpriv->sem);
+		return ret;
+	}
+
+	/* Analog Input subdevice */
+	s = &dev->subdevices[0];
+	dev->read_subdev = s;
+	s->type		= COMEDI_SUBD_AI;
+	s->subdev_flags	= SDF_READABLE | SDF_GROUND | SDF_CMD_READ;
+	s->n_chan	= 16;
+	s->len_chanlist	= 16;
+	s->insn_read	= usbduxfast_ai_insn_read;
+	s->do_cmdtest	= usbduxfast_ai_cmdtest;
+	s->do_cmd	= usbduxfast_ai_cmd;
+	s->cancel	= usbduxfast_ai_cancel;
+	s->maxdata	= 0x1000;
+	s->range_table	= &range_usbduxfast_ai_range;
+
+	up(&devpriv->sem);
+
+	return 0;
+}
 
 static int usbduxfast_upload_firmware(struct comedi_device *dev,
 				      const struct firmware *fw)
@@ -1160,39 +1192,6 @@ static int usbduxfast_upload_firmware(struct comedi_device *dev,
 done:
 	kfree(buf);
 	return ret;
-}
-
-static int usbduxfast_attach_common(struct comedi_device *dev)
-{
-	struct usbduxfast_private *devpriv = dev->private;
-	struct comedi_subdevice *s;
-	int ret;
-
-	down(&devpriv->sem);
-
-	ret = comedi_alloc_subdevices(dev, 1);
-	if (ret) {
-		up(&devpriv->sem);
-		return ret;
-	}
-
-	/* Analog Input subdevice */
-	s = &dev->subdevices[0];
-	dev->read_subdev = s;
-	s->type		= COMEDI_SUBD_AI;
-	s->subdev_flags	= SDF_READABLE | SDF_GROUND | SDF_CMD_READ;
-	s->n_chan	= 16;
-	s->len_chanlist	= 16;
-	s->insn_read	= usbduxfast_ai_insn_read;
-	s->do_cmdtest	= usbduxfast_ai_cmdtest;
-	s->do_cmd	= usbduxfast_ai_cmd;
-	s->cancel	= usbduxfast_ai_cancel;
-	s->maxdata	= 0x1000;
-	s->range_table	= &range_usbduxfast_ai_range;
-
-	up(&devpriv->sem);
-
-	return 0;
 }
 
 static int usbduxfast_request_firmware(struct comedi_device *dev)
