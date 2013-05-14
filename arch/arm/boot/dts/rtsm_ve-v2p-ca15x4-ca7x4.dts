@@ -96,6 +96,7 @@
 			cluster = <&cluster0>;
 			core = <&core0>;
 //			clock-frequency = <1000000000>;
+			cci-control-port = <&cci_control1>;
 		};
 
 		cpu1: cpu@1 {
@@ -105,6 +106,7 @@
 			cluster = <&cluster0>;
 			core = <&core1>;
 //			clock-frequency = <1000000000>;
+			cci-control-port = <&cci_control1>;
 		};
 
 		cpu2: cpu@2 {
@@ -114,6 +116,7 @@
 			cluster = <&cluster0>;
 			core = <&core2>;
 //			clock-frequency = <1000000000>;
+			cci-control-port = <&cci_control1>;
 		};
 
 		cpu3: cpu@3 {
@@ -123,6 +126,7 @@
 			cluster = <&cluster0>;
 			core = <&core3>;
 //			clock-frequency = <1000000000>;
+			cci-control-port = <&cci_control1>;
 		};
 
 		cpu4: cpu@4 {
@@ -132,6 +136,7 @@
 			cluster = <&cluster1>;
 			core = <&core4>;
 //			clock-frequency = <800000000>;
+			cci-control-port = <&cci_control2>;
 		};
 
 		cpu5: cpu@5 {
@@ -141,6 +146,7 @@
 			cluster = <&cluster1>;
 			core = <&core5>;
 //			clock-frequency = <800000000>;
+			cci-control-port = <&cci_control2>;
 		};
 		
 		cpu6: cpu@6 {
@@ -150,6 +156,7 @@
 			cluster = <&cluster1>;
 			core = <&core6>;
 //			clock-frequency = <800000000>;
+			cci-control-port = <&cci_control2>;
 		};
 		
 		cpu7: cpu@7 {
@@ -159,6 +166,7 @@
 			cluster = <&cluster1>;
 			core = <&core7>;
 //			clock-frequency = <800000000>;
+			cci-control-port = <&cci_control2>;
 		};
 	};
 
@@ -168,8 +176,23 @@
 	};
 
 	cci@2c090000 {
-		compatible = "arm,cci";
-		reg = <0 0x2c090000 0 0x8000>;
+		compatible = "arm,cci-400", "arm,cci";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		reg = <0 0x2c090000 0 0x1000>;
+		ranges = <0x0 0x0 0x2c090000 0x10000>;
+
+		cci_control1: slave-if@4000 {
+			compatible = "arm,cci-400-ctrl-if";
+			interface-type = "ace";
+			reg = <0x4000 0x1000>;
+		};
+
+		cci_control2: slave-if@5000 {
+			compatible = "arm,cci-400-ctrl-if";
+			interface-type = "ace";
+			reg = <0x5000 0x1000>;
+		};
 	};
 
 	dcscb@60000000 {
