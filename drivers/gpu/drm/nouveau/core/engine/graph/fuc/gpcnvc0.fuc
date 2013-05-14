@@ -48,30 +48,30 @@ cmd_queue:		queue_init
 // chipset descriptions
 chipsets:
 .b8  0xc0 0 0 0
-.b16 #nnvc0_gpc_mmio_head
-.b16 #nnvc0_gpc_mmio_tail
-.b16 #nnvc0_tpc_mmio_head
-.b16 #nnvc0_tpc_mmio_tail
+.b16 #nvc0_gpc_mmio_head
+.b16 #nvc0_gpc_mmio_tail
+.b16 #nvc0_tpc_mmio_head
+.b16 #nvc0_tpc_mmio_tail
 .b8  0xc1 0 0 0
-.b16 #nnvc0_gpc_mmio_head
-.b16 #nnvc1_gpc_mmio_tail
-.b16 #nnvc3_tpc_mmio_head
-.b16 #nnvc1_tpc_mmio_tail
+.b16 #nvc0_gpc_mmio_head
+.b16 #nvc1_gpc_mmio_tail
+.b16 #nvc0_tpc_mmio_head
+.b16 #nvc1_tpc_mmio_tail
 .b8  0xc3 0 0 0
-.b16 #nnvc0_gpc_mmio_head
-.b16 #nnvc0_gpc_mmio_tail
-.b16 #nnvc3_tpc_mmio_head
-.b16 #nnvc3_tpc_mmio_tail
+.b16 #nvc0_gpc_mmio_head
+.b16 #nvc0_gpc_mmio_tail
+.b16 #nvc0_tpc_mmio_head
+.b16 #nvc3_tpc_mmio_tail
 .b8  0xc4 0 0 0
-.b16 #nnvc0_gpc_mmio_head
-.b16 #nnvc0_gpc_mmio_tail
-.b16 #nnvc3_tpc_mmio_head
-.b16 #nnvc3_tpc_mmio_tail
+.b16 #nvc0_gpc_mmio_head
+.b16 #nvc0_gpc_mmio_tail
+.b16 #nvc0_tpc_mmio_head
+.b16 #nvc3_tpc_mmio_tail
 .b8  0xc8 0 0 0
-.b16 #nnvc0_gpc_mmio_head
-.b16 #nnvc0_gpc_mmio_tail
-.b16 #nnvc0_tpc_mmio_head
-.b16 #nnvc0_tpc_mmio_tail
+.b16 #nvc0_gpc_mmio_head
+.b16 #nvc0_gpc_mmio_tail
+.b16 #nvc0_tpc_mmio_head
+.b16 #nvc0_tpc_mmio_tail
 .b8  0xce 0 0 0
 .b16 #nvc0_gpc_mmio_head
 .b16 #nvc0_gpc_mmio_tail
@@ -81,23 +81,26 @@ chipsets:
 .b16 #nvc0_gpc_mmio_head
 .b16 #nvc0_gpc_mmio_tail
 .b16 #nvc0_tpc_mmio_head
-.b16 #nvcf_tpc_mmio_tail
+.b16 #nvc3_tpc_mmio_tail
 .b8  0xd9 0 0 0
 .b16 #nvd9_gpc_mmio_head
-.b16 #nvd9_gpc_mmio_tail
-.b16 #nvd9_tpc_mmio_head
+.b16 #nvc1_gpc_mmio_tail
+.b16 #nvc0_tpc_mmio_head
 .b16 #nvd9_tpc_mmio_tail
 .b8  0xd7 0 0 0
 .b16 #nvd9_gpc_mmio_head
-.b16 #nvd9_gpc_mmio_tail
-.b16 #nvd9_tpc_mmio_head
+.b16 #nvc1_gpc_mmio_tail
+.b16 #nvc0_tpc_mmio_head
 .b16 #nvd9_tpc_mmio_tail
 .b8  0 0 0 0
 
 // GPC mmio lists
 nvc0_gpc_mmio_head:
+mmctx_data(0x000408, 1)
+nvd9_gpc_mmio_head:
 mmctx_data(0x000380, 1)
-mmctx_data(0x000400, 6)
+mmctx_data(0x000400, 2);
+mmctx_data(0x00040c, 3);
 mmctx_data(0x000450, 9)
 mmctx_data(0x000600, 1)
 mmctx_data(0x000684, 1)
@@ -121,64 +124,8 @@ mmctx_data(0x000c8c, 1)
 mmctx_data(0x001000, 3)
 mmctx_data(0x001014, 1)
 nvc0_gpc_mmio_tail:
-
-nnvc0_gpc_mmio_head:
-mmctx_data(0x000380, 1)
-mmctx_data(0x000400, 6)
-mmctx_data(0x000450, 9)
-mmctx_data(0x000600, 1)
-mmctx_data(0x000684, 1)
-mmctx_data(0x000700, 5)
-mmctx_data(0x000800, 1)
-mmctx_data(0x000808, 3)
-mmctx_data(0x000828, 1)
-mmctx_data(0x000830, 1)
-mmctx_data(0x0008d8, 1)
-mmctx_data(0x0008e0, 1)
-mmctx_data(0x0008e8, 6)
-mmctx_data(0x00091c, 1)
-mmctx_data(0x000924, 3)
-mmctx_data(0x000b00, 1)
-mmctx_data(0x000b08, 6)
-mmctx_data(0x000bb8, 1)
-mmctx_data(0x000c08, 1)
-mmctx_data(0x000c10, 8)
-mmctx_data(0x000c80, 1)
-mmctx_data(0x000c8c, 1)
-mmctx_data(0x001000, 3)
-mmctx_data(0x001014, 1)
-nnvc0_gpc_mmio_tail:
 mmctx_data(0x000c6c, 1);
-nnvc1_gpc_mmio_tail:
-
-nvd9_gpc_mmio_head:
-mmctx_data(0x000380, 1)
-mmctx_data(0x000400, 2)
-mmctx_data(0x00040c, 3)
-mmctx_data(0x000450, 9)
-mmctx_data(0x000600, 1)
-mmctx_data(0x000684, 1)
-mmctx_data(0x000700, 5)
-mmctx_data(0x000800, 1)
-mmctx_data(0x000808, 3)
-mmctx_data(0x000828, 1)
-mmctx_data(0x000830, 1)
-mmctx_data(0x0008d8, 1)
-mmctx_data(0x0008e0, 1)
-mmctx_data(0x0008e8, 6)
-mmctx_data(0x00091c, 1)
-mmctx_data(0x000924, 3)
-mmctx_data(0x000b00, 1)
-mmctx_data(0x000b08, 6)
-mmctx_data(0x000bb8, 1)
-mmctx_data(0x000c08, 1)
-mmctx_data(0x000c10, 8)
-mmctx_data(0x000c6c, 1)
-mmctx_data(0x000c80, 1)
-mmctx_data(0x000c8c, 1)
-mmctx_data(0x001000, 3)
-mmctx_data(0x001014, 1)
-nvd9_gpc_mmio_tail:
+nvc1_gpc_mmio_tail:
 
 // TPC mmio lists
 nvc0_tpc_mmio_head:
@@ -188,7 +135,6 @@ mmctx_data(0x000048, 1)
 mmctx_data(0x000064, 1)
 mmctx_data(0x000088, 1)
 mmctx_data(0x000200, 6)
-mmctx_data(0x00021c, 2)
 mmctx_data(0x000300, 6)
 mmctx_data(0x0003d0, 1)
 mmctx_data(0x0003e0, 2)
@@ -203,86 +149,15 @@ mmctx_data(0x000644, 20)
 mmctx_data(0x000698, 1)
 mmctx_data(0x000750, 2)
 nvc0_tpc_mmio_tail:
+mmctx_data(0x00021c, 2)
+mmctx_data(0x0002c4, 1)
+mmctx_data(0x000730, 8)
 mmctx_data(0x000758, 1)
-mmctx_data(0x0002c4, 1)
-mmctx_data(0x0006e0, 1)
-nvcf_tpc_mmio_tail:
-mmctx_data(0x0004bc, 1)
 nvc3_tpc_mmio_tail:
-
-nnvc0_tpc_mmio_head:
-mmctx_data(0x000018, 1)
-mmctx_data(0x00003c, 1)
-mmctx_data(0x000048, 1)
-mmctx_data(0x000064, 1)
-mmctx_data(0x000088, 1)
-mmctx_data(0x000200, 6)
-mmctx_data(0x000300, 6)
-mmctx_data(0x0003d0, 1)
-mmctx_data(0x0003e0, 2)
-mmctx_data(0x000400, 3)
-mmctx_data(0x000420, 1)
-mmctx_data(0x0004b0, 1)
-mmctx_data(0x0004e8, 1)
-mmctx_data(0x0004f4, 1)
-mmctx_data(0x000520, 2)
-mmctx_data(0x000604, 4)
-mmctx_data(0x000644, 20)
-mmctx_data(0x000698, 1)
-mmctx_data(0x000750, 2)
-nnvc0_tpc_mmio_tail:
-
-nnvc3_tpc_mmio_head:
-mmctx_data(0x000018, 1)
-mmctx_data(0x00003c, 1)
-mmctx_data(0x000048, 1)
-mmctx_data(0x000064, 1)
-mmctx_data(0x000088, 1)
-mmctx_data(0x000200, 6)
-mmctx_data(0x00021c, 2)
-mmctx_data(0x0002c4, 1)
-mmctx_data(0x000300, 6)
-mmctx_data(0x0003d0, 1)
-mmctx_data(0x0003e0, 2)
-mmctx_data(0x000400, 3)
-mmctx_data(0x000420, 1)
-mmctx_data(0x0004b0, 1)
-mmctx_data(0x0004e8, 1)
-mmctx_data(0x0004f4, 1)
-mmctx_data(0x000520, 2)
-mmctx_data(0x000604, 4)
-mmctx_data(0x000644, 20)
-mmctx_data(0x000698, 1)
-mmctx_data(0x0006e0, 1)
-mmctx_data(0x000730, 11)
-nnvc3_tpc_mmio_tail:
 mmctx_data(0x000544, 1)
-nnvc1_tpc_mmio_tail:
-
-nvd9_tpc_mmio_head:
-mmctx_data(0x000018, 1)
-mmctx_data(0x00003c, 1)
-mmctx_data(0x000048, 1)
-mmctx_data(0x000064, 1)
-mmctx_data(0x000088, 1)
-mmctx_data(0x000200, 6)
-mmctx_data(0x00021c, 2)
-mmctx_data(0x0002c4, 1)
-mmctx_data(0x000300, 6)
-mmctx_data(0x0003d0, 1)
-mmctx_data(0x0003e0, 2)
-mmctx_data(0x000400, 3)
-mmctx_data(0x000420, 3)
-mmctx_data(0x0004b0, 1)
-mmctx_data(0x0004e8, 1)
-mmctx_data(0x0004f4, 1)
-mmctx_data(0x000520, 2)
-mmctx_data(0x000544, 1)
-mmctx_data(0x000604, 4)
-mmctx_data(0x000644, 20)
-mmctx_data(0x000698, 1)
-mmctx_data(0x0006e0, 1)
-mmctx_data(0x000730, 11)
+nvc1_tpc_mmio_tail:
+mmctx_data(0x000424, 2);
+mmctx_data(0x0006e0, 1);
 nvd9_tpc_mmio_tail:
 
 .section #nvc0_grgpc_code

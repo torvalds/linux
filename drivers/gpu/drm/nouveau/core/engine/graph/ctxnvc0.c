@@ -1323,21 +1323,6 @@ nvc0_grctx_generate_9097(struct nvc0_graph_priv *priv)
 	nv_mthd(priv, 0x9097, 0x1450, 0x00300008);
 	nv_mthd(priv, 0x9097, 0x1454, 0x04000080);
 	nv_mthd(priv, 0x9097, 0x0214, 0x00000000);
-
-	switch (nv_device(priv)->chipset) {
-	case 0xc0:
-	case 0xc3:
-	case 0xc4:
-	case 0xc1:
-	case 0xc8:
-	case 0xd9:
-	case 0xd7:
-		break;
-	default:
-		/* in trace, right after 0x90c0, not here */
-		nv_mthd(priv, 0x9097, 0x3410, 0x80002006);
-		break;
-	}
 }
 
 static void
@@ -1481,7 +1466,11 @@ nvc0_grctx_generate_dispatch(struct nvc0_graph_priv *priv)
 	case 0xc4:
 	case 0xc1:
 	case 0xc8:
+	case 0xce:
+	case 0xcf:
+		break;
 	default:
+		BUG_ON(1);
 		break;
 	}
 	nv_wr32(priv, 0x404044, 0x00000000);
@@ -1499,19 +1488,7 @@ nvc0_grctx_generate_dispatch(struct nvc0_graph_priv *priv)
 	nv_wr32(priv, 0x4040c0, 0x00000000);
 	nv_wr32(priv, 0x4040c4, 0x00000000);
 	nv_wr32(priv, 0x4040c8, 0xf0000087);
-	switch (nv_device(priv)->chipset) {
-	case 0xc0:
-	case 0xc3:
-	case 0xc4:
-	case 0xc1:
-	case 0xc8:
-	case 0xd9:
-	case 0xd7:
-		nv_wr32(priv, 0x4040d0, 0x00000000);
-		break;
-	default:
-		break;
-	}
+	nv_wr32(priv, 0x4040d0, 0x00000000);
 	nv_wr32(priv, 0x4040d4, 0x00000000);
 	nv_wr32(priv, 0x4040d8, 0x00000000);
 	nv_wr32(priv, 0x4040dc, 0x00000000);
@@ -1536,8 +1513,12 @@ nvc0_grctx_generate_dispatch(struct nvc0_graph_priv *priv)
 	case 0xc4:
 	case 0xc1:
 	case 0xc8:
-	default:
+	case 0xce:
+	case 0xcf:
 		nv_wr32(priv, 0x404174, 0x00000000);
+		break;
+	default:
+		BUG_ON(1);
 		break;
 	}
 	nv_wr32(priv, 0x404178, 0x00000000);
@@ -1681,10 +1662,14 @@ nvc0_grctx_generate_shaders(struct nvc0_graph_priv *priv)
 	case 0xc3:
 	case 0xc4:
 	case 0xc8:
-	default:
+	case 0xce:
+	case 0xcf:
 		nv_wr32(priv, 0x405800, 0x078000bf);
 		nv_wr32(priv, 0x405830, 0x02180000);
 		nv_wr32(priv, 0x405834, 0x00000000);
+		break;
+	default:
+		BUG_ON(1);
 		break;
 	}
 	nv_wr32(priv, 0x405838, 0x00000000);
@@ -1720,27 +1705,19 @@ nvc0_grctx_generate_unk64xx(struct nvc0_graph_priv *priv)
 	case 0xd9:
 	case 0xd7:
 		nv_wr32(priv, 0x4064bc, 0x00000000);
-		break;
-	case 0xc0:
-	case 0xc3:
-	case 0xc4:
-	case 0xc1:
-	case 0xc8:
-	default:
-		break;
-	}
-	switch (nv_device(priv)->chipset) {
-	case 0xc1:
-	case 0xd9:
-	case 0xd7:
 		nv_wr32(priv, 0x4064c0, 0x80140078);
 		nv_wr32(priv, 0x4064c4, 0x0086ffff);
 		break;
 	case 0xc0:
 	case 0xc3:
 	case 0xc4:
+	case 0xc1:
 	case 0xc8:
+	case 0xce:
+	case 0xcf:
+		break;
 	default:
+		BUG_ON(1);
 		break;
 	}
 }
@@ -1782,6 +1759,8 @@ nvc0_grctx_generate_rop(struct nvc0_graph_priv *priv)
 	case 0xc3:
 	case 0xc4:
 	case 0xc8:
+	case 0xce:
+	case 0xcf:
 		nv_wr32(priv, 0x408808, 0x0003e00d);
 		nv_wr32(priv, 0x408900, 0x3080b801);
 		nv_wr32(priv, 0x408904, 0x02000001);
@@ -1801,11 +1780,7 @@ nvc0_grctx_generate_rop(struct nvc0_graph_priv *priv)
 		nv_wr32(priv, 0x408908, 0x00c8102f);
 		break;
 	default:
-		nv_wr32(priv, 0x408808, 0x0003e00d);
-		nv_wr32(priv, 0x408900, 0x3080b801);
-		nv_wr32(priv, 0x408904, 0x02000001);
-		nv_wr32(priv, 0x408908, 0x00c80929);
-		nv_wr32(priv, 0x40890c, 0x00000000);
+		BUG_ON(1);
 		break;
 	}
 	nv_wr32(priv, 0x408980, 0x0000011d);
@@ -1829,8 +1804,12 @@ nvc0_grctx_generate_gpc(struct nvc0_graph_priv *priv)
 	case 0xc4:
 	case 0xc1:
 	case 0xc8:
-	default:
+	case 0xce:
+	case 0xcf:
 		nv_wr32(priv, 0x418408, 0x00000000);
+		break;
+	default:
+		BUG_ON(1);
 		break;
 	}
 	nv_wr32(priv, 0x41840c, 0x00001008);
@@ -1845,8 +1824,12 @@ nvc0_grctx_generate_gpc(struct nvc0_graph_priv *priv)
 	case 0xc4:
 	case 0xc1:
 	case 0xc8:
-	default:
+	case 0xce:
+	case 0xcf:
 		nv_wr32(priv, 0x418414, 0x00200fff);
+		break;
+	default:
+		BUG_ON(1);
 		break;
 	}
 	nv_wr32(priv, 0x418450, 0x00000000);
@@ -1873,8 +1856,12 @@ nvc0_grctx_generate_gpc(struct nvc0_graph_priv *priv)
 	case 0xc4:
 	case 0xc1:
 	case 0xc8:
-	default:
+	case 0xce:
+	case 0xcf:
 		nv_wr32(priv, 0x41870c, 0x07c80000);
+		break;
+	default:
+		BUG_ON(1);
 		break;
 	}
 	nv_wr32(priv, 0x418710, 0x00000000);
@@ -1888,8 +1875,12 @@ nvc0_grctx_generate_gpc(struct nvc0_graph_priv *priv)
 	case 0xc4:
 	case 0xc1:
 	case 0xc8:
-	default:
+	case 0xce:
+	case 0xcf:
 		nv_wr32(priv, 0x418800, 0x0006860a);
+		break;
+	default:
+		BUG_ON(1);
 		break;
 	}
 	nv_wr32(priv, 0x418808, 0x00000000);
@@ -1906,8 +1897,12 @@ nvc0_grctx_generate_gpc(struct nvc0_graph_priv *priv)
 	case 0xc3:
 	case 0xc4:
 	case 0xc8:
-	default:
+	case 0xce:
+	case 0xcf:
 		nv_wr32(priv, 0x418830, 0x00000001);
+		break;
+	default:
+		BUG_ON(1);
 		break;
 	}
 	nv_wr32(priv, 0x4188d8, 0x00000008);
@@ -1929,8 +1924,12 @@ nvc0_grctx_generate_gpc(struct nvc0_graph_priv *priv)
 	case 0xc3:
 	case 0xc4:
 	case 0xc8:
-	default:
+	case 0xce:
+	case 0xcf:
 		nv_wr32(priv, 0x4188fc, 0x00100000);
+		break;
+	default:
+		BUG_ON(1);
 		break;
 	}
 	nv_wr32(priv, 0x41891c, 0x00ff00ff);
@@ -1956,8 +1955,12 @@ nvc0_grctx_generate_gpc(struct nvc0_graph_priv *priv)
 	case 0xc4:
 	case 0xc1:
 	case 0xc8:
-	default:
+	case 0xce:
+	case 0xcf:
 		nv_wr32(priv, 0x418b00, 0x00000000);
+		break;
+	default:
+		BUG_ON(1);
 		break;
 	}
 	nv_wr32(priv, 0x418b08, 0x0a418820);
@@ -1986,7 +1989,11 @@ nvc0_grctx_generate_gpc(struct nvc0_graph_priv *priv)
 	case 0xc3:
 	case 0xc4:
 	case 0xc8:
+	case 0xce:
+	case 0xcf:
+		break;
 	default:
+		BUG_ON(1);
 		break;
 	}
 	nv_wr32(priv, 0x418c80, 0x20200004);
@@ -2014,8 +2021,12 @@ nvc0_grctx_generate_tp(struct nvc0_graph_priv *priv)
 	case 0xc3:
 	case 0xc4:
 	case 0xc8:
-	default:
+	case 0xce:
+	case 0xcf:
 		nv_wr32(priv, 0x419864, 0x0000012a);
+		break;
+	default:
+		BUG_ON(1);
 		break;
 	}
 	nv_wr32(priv, 0x419888, 0x00000000);
@@ -2032,9 +2043,15 @@ nvc0_grctx_generate_tp(struct nvc0_graph_priv *priv)
 	case 0xc4:
 	case 0xc1:
 	case 0xc8:
-	default:
+	case 0xce:
+	case 0xcf:
+	case 0xd9:
+	case 0xd7:
 		nv_wr32(priv, 0x419a1c, 0x00000000);
 		nv_wr32(priv, 0x419a20, 0x00000800);
+		break;
+	default:
+		BUG_ON(1);
 		break;
 	}
 	switch (nv_device(priv)->chipset) {
@@ -2048,8 +2065,12 @@ nvc0_grctx_generate_tp(struct nvc0_graph_priv *priv)
 	case 0xc3:
 	case 0xc4:
 	case 0xc1:
-	default:
+	case 0xce:
+	case 0xcf:
 		nv_wr32(priv, 0x00419ac4, 0x0007f440);
+		break;
+	default:
+		BUG_ON(1);
 		break;
 	}
 	nv_wr32(priv, 0x419b00, 0x0a418820);
@@ -2069,8 +2090,12 @@ nvc0_grctx_generate_tp(struct nvc0_graph_priv *priv)
 	case 0xc3:
 	case 0xc4:
 	case 0xc8:
-	default:
+	case 0xce:
+	case 0xcf:
 		nv_wr32(priv, 0x419be0, 0x00000001);
+		break;
+	default:
+		BUG_ON(1);
 		break;
 	}
 	nv_wr32(priv, 0x419be4, 0x00000000);
@@ -2084,8 +2109,12 @@ nvc0_grctx_generate_tp(struct nvc0_graph_priv *priv)
 	case 0xc4:
 	case 0xc1:
 	case 0xc8:
-	default:
+	case 0xce:
+	case 0xcf:
 		nv_wr32(priv, 0x419c00, 0x00000002);
+		break;
+	default:
+		BUG_ON(1);
 		break;
 	}
 	nv_wr32(priv, 0x419c04, 0x00000006);
@@ -2107,8 +2136,10 @@ nvc0_grctx_generate_tp(struct nvc0_graph_priv *priv)
 		break;
 	case 0xc0:
 	case 0xc8:
-	default:
 		nv_wr32(priv, 0x419cb0, 0x00060048);
+		break;
+	default:
+		BUG_ON(1);
 		break;
 	}
 	nv_wr32(priv, 0x419ce8, 0x00000000);
@@ -2123,8 +2154,12 @@ nvc0_grctx_generate_tp(struct nvc0_graph_priv *priv)
 	case 0xc3:
 	case 0xc4:
 	case 0xc8:
-	default:
+	case 0xce:
+	case 0xcf:
 		nv_wr32(priv, 0x419d20, 0x02180000);
+		break;
+	default:
+		BUG_ON(1);
 		break;
 	}
 	nv_wr32(priv, 0x419d24, 0x00001fff);
@@ -2138,7 +2173,11 @@ nvc0_grctx_generate_tp(struct nvc0_graph_priv *priv)
 	case 0xc3:
 	case 0xc4:
 	case 0xc8:
+	case 0xce:
+	case 0xcf:
+		break;
 	default:
+		BUG_ON(1);
 		break;
 	}
 	nv_wr32(priv, 0x419e04, 0x00000000);
@@ -2177,8 +2216,12 @@ nvc0_grctx_generate_tp(struct nvc0_graph_priv *priv)
 	case 0xc3:
 	case 0xc4:
 	case 0xc1:
-	default:
+	case 0xce:
+	case 0xcf:
 		nv_wr32(priv, 0x419ee0, 0x00011110);
+		break;
+	default:
+		BUG_ON(1);
 		break;
 	}
 	switch (nv_device(priv)->chipset) {
@@ -2190,6 +2233,8 @@ nvc0_grctx_generate_tp(struct nvc0_graph_priv *priv)
 	case 0xc3:
 	case 0xc4:
 	case 0xc1:
+	case 0xce:
+	case 0xcf:
 	case 0xd9:
 	case 0xd7:
 		nv_wr32(priv, 0x419f30, 0x00000000);
@@ -2204,10 +2249,9 @@ nvc0_grctx_generate_tp(struct nvc0_graph_priv *priv)
 		nv_wr32(priv, 0x419f54, 0x00000000);
 		nv_wr32(priv, 0x419f58, 0x00000000);
 		break;
+		break;
 	default:
-		nv_wr32(priv, 0x419f50, 0x00000000);
-		nv_wr32(priv, 0x419f54, 0x00000000);
-		nv_wr32(priv, 0x419f58, 0x00000000);
+		BUG_ON(1);
 		break;
 	}
 }
@@ -2277,7 +2321,13 @@ nvc0_grctx_generate(struct nvc0_graph_priv *priv)
 			}
 		}
 		break;
-	default:
+		break;
+	case 0xc0:
+	case 0xc3:
+	case 0xc4:
+	case 0xc8:
+	case 0xce:
+	case 0xcf:
 		tmp = 0x02180000;
 		mmio_list(0x405830, tmp, 0, 0);
 		for (gpc = 0; gpc < priv->gpc_nr; gpc++) {
@@ -2287,6 +2337,9 @@ nvc0_grctx_generate(struct nvc0_graph_priv *priv)
 				tmp += 0x0324;
 			}
 		}
+		break;
+	default:
+		BUG_ON(1);
 		break;
 	}
 
@@ -2530,7 +2583,11 @@ nvc0_grctx_generate(struct nvc0_graph_priv *priv)
 	case 0xc4:
 	case 0xc1:
 	case 0xc8:
+	case 0xce:
+	case 0xcf:
+		break;
 	default:
+		BUG_ON(1);
 		break;
 	}
 	nv_icmd(priv, 0x00000218, 0x0000c080);
@@ -2552,8 +2609,11 @@ nvc0_grctx_generate(struct nvc0_graph_priv *priv)
 	case 0xc4:
 	case 0xc1:
 	case 0xc8:
+	case 0xce:
+	case 0xcf:
 		break;
 	default:
+		BUG_ON(1);
 		break;
 	}
 	nv_icmd(priv, 0x000000ad, 0x0000013e);
@@ -3128,7 +3188,11 @@ nvc0_grctx_generate(struct nvc0_graph_priv *priv)
 	case 0xc0:
 	case 0xc3:
 	case 0xc4:
+	case 0xce:
+	case 0xcf:
+		break;
 	default:
+		BUG_ON(1);
 		break;
 	}
 	nv_icmd(priv, 0x00000586, 0x00000040);
@@ -3241,7 +3305,11 @@ nvc0_grctx_generate(struct nvc0_graph_priv *priv)
 	case 0xc3:
 	case 0xc4:
 	case 0xc1:
+	case 0xce:
+	case 0xcf:
+		break;
 	default:
+		BUG_ON(1);
 		break;
 	}
 	nv_icmd(priv, 0x00000683, 0x00000006);
@@ -3392,6 +3460,8 @@ nvc0_grctx_generate(struct nvc0_graph_priv *priv)
 	case 0xc4:
 	case 0xc1:
 	case 0xc8:
+	case 0xce:
+	case 0xcf:
 		nv_mthd(priv, 0x902d, 0x3410, 0x00000000);
 		break;
 	case 0xd9:
@@ -3399,6 +3469,7 @@ nvc0_grctx_generate(struct nvc0_graph_priv *priv)
 		nv_mthd(priv, 0x902d, 0x3410, 0x80002006);
 		break;
 	default:
+		BUG_ON(1);
 		break;
 	}
 

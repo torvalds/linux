@@ -48,20 +48,20 @@ xfer_data: 		.b32 0
 .align 256
 chipsets:
 .b8  0xc0 0 0 0
-.b16 #nnvc0_hub_mmio_head
-.b16 #nnvc0_hub_mmio_tail
+.b16 #nvc0_hub_mmio_head
+.b16 #nvc0_hub_mmio_tail
 .b8  0xc1 0 0 0
-.b16 #nnvc0_hub_mmio_head
+.b16 #nvc0_hub_mmio_head
 .b16 #nvc1_hub_mmio_tail
 .b8  0xc3 0 0 0
-.b16 #nnvc0_hub_mmio_head
-.b16 #nnvc0_hub_mmio_tail
+.b16 #nvc0_hub_mmio_head
+.b16 #nvc0_hub_mmio_tail
 .b8  0xc4 0 0 0
-.b16 #nnvc0_hub_mmio_head
-.b16 #nnvc0_hub_mmio_tail
+.b16 #nvc0_hub_mmio_head
+.b16 #nvc0_hub_mmio_tail
 .b8  0xc8 0 0 0
-.b16 #nnvc0_hub_mmio_head
-.b16 #nnvc0_hub_mmio_tail
+.b16 #nvc0_hub_mmio_head
+.b16 #nvc0_hub_mmio_tail
 .b8  0xce 0 0 0
 .b16 #nvc0_hub_mmio_head
 .b16 #nvc0_hub_mmio_tail
@@ -77,91 +77,8 @@ chipsets:
 .b8  0 0 0 0
 
 nvc0_hub_mmio_head:
-mmctx_data(0x17e91c, 2)
-mmctx_data(0x400204, 2)
-mmctx_data(0x404004, 11)
-mmctx_data(0x404044, 1)
-mmctx_data(0x404094, 14)
-mmctx_data(0x4040d0, 7)
-mmctx_data(0x4040f8, 1)
-mmctx_data(0x404130, 3)
-mmctx_data(0x404150, 3)
-mmctx_data(0x404164, 2)
-mmctx_data(0x404174, 3)
-mmctx_data(0x404200, 8)
-mmctx_data(0x404404, 14)
-mmctx_data(0x404460, 4)
-mmctx_data(0x404480, 1)
-mmctx_data(0x404498, 1)
-mmctx_data(0x404604, 4)
-mmctx_data(0x404618, 32)
-mmctx_data(0x404698, 21)
-mmctx_data(0x4046f0, 2)
-mmctx_data(0x404700, 22)
-mmctx_data(0x405800, 1)
-mmctx_data(0x405830, 3)
-mmctx_data(0x405854, 1)
-mmctx_data(0x405870, 4)
-mmctx_data(0x405a00, 2)
-mmctx_data(0x405a18, 1)
-mmctx_data(0x406020, 1)
-mmctx_data(0x406028, 4)
-mmctx_data(0x4064a8, 2)
-mmctx_data(0x4064b4, 2)
-mmctx_data(0x407804, 1)
-mmctx_data(0x40780c, 6)
-mmctx_data(0x4078bc, 1)
-mmctx_data(0x408000, 7)
-mmctx_data(0x408064, 1)
-mmctx_data(0x408800, 3)
-mmctx_data(0x408900, 4)
-mmctx_data(0x408980, 1)
-nvc0_hub_mmio_tail:
-
-nnvc0_hub_mmio_head:
-mmctx_data(0x17e91c, 2)
-mmctx_data(0x400204, 2)
-mmctx_data(0x404004, 11)
-mmctx_data(0x404044, 1)
-mmctx_data(0x404094, 14)
-mmctx_data(0x4040d0, 7)
-mmctx_data(0x4040f8, 1)
-mmctx_data(0x404130, 3)
-mmctx_data(0x404150, 3)
-mmctx_data(0x404164, 2)
-mmctx_data(0x404174, 3)
-mmctx_data(0x404200, 8)
-mmctx_data(0x404404, 14)
-mmctx_data(0x404460, 4)
-mmctx_data(0x404480, 1)
-mmctx_data(0x404498, 1)
-mmctx_data(0x404604, 4)
-mmctx_data(0x404618, 32)
-mmctx_data(0x404698, 21)
-mmctx_data(0x4046f0, 2)
-mmctx_data(0x404700, 22)
-mmctx_data(0x405800, 1)
-mmctx_data(0x405830, 3)
-mmctx_data(0x405854, 1)
-mmctx_data(0x405870, 4)
-mmctx_data(0x405a00, 2)
-mmctx_data(0x405a18, 1)
-mmctx_data(0x406020, 1)
-mmctx_data(0x406028, 4)
-mmctx_data(0x4064a8, 2)
-mmctx_data(0x4064b4, 2)
-mmctx_data(0x407804, 1)
-mmctx_data(0x40780c, 6)
-mmctx_data(0x4078bc, 1)
-mmctx_data(0x408000, 7)
-mmctx_data(0x408064, 1)
-mmctx_data(0x408800, 3)
-mmctx_data(0x408900, 3)
-mmctx_data(0x408980, 1)
-nnvc0_hub_mmio_tail:
-mmctx_data(0x4064c0, 2)
-nvc1_hub_mmio_tail:
-
+mmctx_data(0x40402c, 1)
+mmctx_data(0x404174, 1)
 nvd9_hub_mmio_head:
 mmctx_data(0x17e91c, 2)
 mmctx_data(0x400204, 2)
@@ -193,7 +110,7 @@ mmctx_data(0x405a18, 1)
 mmctx_data(0x406020, 1)
 mmctx_data(0x406028, 4)
 mmctx_data(0x4064a8, 2)
-mmctx_data(0x4064b4, 5)
+mmctx_data(0x4064b4, 2)
 mmctx_data(0x407804, 1)
 mmctx_data(0x40780c, 6)
 mmctx_data(0x4078bc, 1)
@@ -202,6 +119,10 @@ mmctx_data(0x408064, 1)
 mmctx_data(0x408800, 3)
 mmctx_data(0x408900, 3)
 mmctx_data(0x408980, 1)
+nvc0_hub_mmio_tail:
+mmctx_data(0x4064c0, 2)
+nvc1_hub_mmio_tail:
+mmctx_data(0x4064bc, 3)
 nvd9_hub_mmio_tail:
 
 .section #nvc0_grhub_code
