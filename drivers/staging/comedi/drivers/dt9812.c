@@ -1022,28 +1022,7 @@ static struct usb_driver dt9812_usb_driver = {
 	.probe		= dt9812_probe,
 	.disconnect	= dt9812_disconnect,
 };
-
-static int __init usb_dt9812_init(void)
-{
-	int i;
-
-	/* Initialize all driver slots */
-	for (i = 0; i < DT9812_NUM_SLOTS; i++) {
-		dt9812[i].usb = NULL;
-		dt9812[i].devpriv = NULL;
-	}
-
-	return comedi_usb_driver_register(&dt9812_comedi_driver,
-						&dt9812_usb_driver);
-}
-
-static void __exit usb_dt9812_exit(void)
-{
-	comedi_usb_driver_unregister(&dt9812_comedi_driver, &dt9812_usb_driver);
-}
-
-module_init(usb_dt9812_init);
-module_exit(usb_dt9812_exit);
+module_comedi_usb_driver(dt9812_comedi_driver, dt9812_usb_driver);
 
 MODULE_AUTHOR("Anders Blomdell <anders.blomdell@control.lth.se>");
 MODULE_DESCRIPTION("Comedi DT9812 driver");
