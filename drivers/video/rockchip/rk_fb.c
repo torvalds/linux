@@ -474,9 +474,6 @@ static int rk_fb_set_par(struct fb_info *info)
     	struct rk_lcdc_device_driver * dev_drv = (struct rk_lcdc_device_driver * )info->par;
     	struct layer_par *par = NULL;
    	rk_screen *screen =dev_drv->cur_screen;
-	struct fb_info * info2 = NULL;
-	struct rk_lcdc_device_driver * dev_drv1  = NULL;
-	struct layer_par *par2 = NULL;
     	int layer_id = 0;	
     	u32 cblen = 0,crlen = 0;
     	u16 xsize =0,ysize = 0;              //winx display window height/width --->LCDC_WINx_DSP_INFO
@@ -489,18 +486,6 @@ static int rk_fb_set_par(struct fb_info *info)
 	u8 data_format = var->nonstd&0xff;
 	var->pixclock = dev_drv->pixclock;
  	
-	#if defined(CONFIG_RK_HDMI)
-		#if defined(CONFIG_DUAL_LCDC_DUAL_DISP_IN_KERNEL)
-			if(hdmi_get_hotplug() == HDMI_HPD_ACTIVED)
-			{
-				if(inf->num_fb >= 2)
-				{
-					info2 = inf->fb[inf->num_fb>>1];
-					dev_drv1 = (struct rk_lcdc_device_driver * )info2->par;
-				}
-			}
-		#endif 
-	#endif
 	layer_id = dev_drv->fb_get_layer(dev_drv,info->fix.id);
 	if(layer_id < 0)
 	{
@@ -509,10 +494,6 @@ static int rk_fb_set_par(struct fb_info *info)
 	else
 	{
 		par = dev_drv->layer_par[layer_id];
-		if(dev_drv1)
-		{
-			par2 = dev_drv1->layer_par[layer_id];
-		}
 	}
 	
 	if(var->grayscale>>8)  //if the application has specific the horizontal and vertical display size
@@ -629,6 +610,9 @@ static int rk_fb_set_par(struct fb_info *info)
 		#if defined(CONFIG_DUAL_LCDC_DUAL_DISP_IN_KERNEL)
 			if(hdmi_get_hotplug() == HDMI_HPD_ACTIVED)
 			{
+				struct fb_info * info2 = inf->fb[inf->num_fb>>1];
+				struct rk_lcdc_device_driver * dev_drv1  = (struct rk_lcdc_device_driver * )info2->par;
+				struct layer_par *par2 = dev_drv1->layer_par[layer_id];
 				if(info != info2)
 				{
 					if(par->xact < par->yact)
