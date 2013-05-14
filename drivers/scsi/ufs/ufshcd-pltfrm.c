@@ -184,7 +184,6 @@ static int ufshcd_pltfrm_remove(struct platform_device *pdev)
 		mem_size = resource_size(mem_res);
 		release_mem_region(mem_res->start, mem_size);
 	}
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 
