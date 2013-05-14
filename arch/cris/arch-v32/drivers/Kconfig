@@ -641,8 +641,6 @@ config ETRAX_STREAMCOPROC
 	  This option enables a driver for the stream co-processor
 	  for cryptographic operations.
 
-source drivers/mmc/Kconfig
-
 config ETRAX_MMC_IOP
 	tristate "MMC/SD host driver using IO-processor"
 	depends on ETRAX_ARCH_V32 && MMC
@@ -833,10 +831,5 @@ config ETRAX_SPI_MMC_WP_GPIO_PIN
 	help
 	  The pin to use for the SD/MMC write-protect signal for a memory
 	  card.  If defined as " " (space), the card is considered writable.
-
-# Avoid choices causing non-working configs by conditionalizing the inclusion.
-if ETRAX_SPI_MMC
-source drivers/spi/Kconfig
-endif
 
 endif
