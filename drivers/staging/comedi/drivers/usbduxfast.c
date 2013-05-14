@@ -148,7 +148,7 @@ static const struct comedi_lrange range_usbduxfast_ai_range = {
  * one sub device just now: A/D
  */
 struct usbduxfast_private {
-	struct urb *urbIn;	/* BULK-transfer handling: urb */
+	struct urb *urb;	/* BULK-transfer handling: urb */
 	int8_t *transfer_buffer;
 	int16_t *insnBuffer;	/* input buffer for single insn */
 	short int ai_cmd_running;	/* asynchronous command is running */
@@ -195,10 +195,10 @@ static int usbduxfastsub_unlink_InURBs(struct comedi_device *dev)
 	int j = 0;
 	int err = 0;
 
-	if (devpriv && devpriv->urbIn) {
+	if (devpriv && devpriv->urb) {
 		devpriv->ai_cmd_running = 0;
 		/* waits until a running transfer is over */
-		usb_kill_urb(devpriv->urbIn);
+		usb_kill_urb(devpriv->urb);
 		j = 0;
 	}
 	return err;
@@ -455,11 +455,11 @@ static int usbduxfastsub_submit_InURBs(struct comedi_device *dev)
 	if (!devpriv)
 		return -EFAULT;
 
-	usb_fill_bulk_urb(devpriv->urbIn, usb, usb_rcvbulkpipe(usb, BULKINEP),
+	usb_fill_bulk_urb(devpriv->urb, usb, usb_rcvbulkpipe(usb, BULKINEP),
 			  devpriv->transfer_buffer, SIZEINBUF,
 			  usbduxfast_ai_interrupt, dev);
 
-	ret = usb_submit_urb(devpriv->urbIn, GFP_ATOMIC);
+	ret = usb_submit_urb(devpriv->urb, GFP_ATOMIC);
 	if (ret) {
 		dev_err(dev->class_dev, "usb_submit_urb error %d\n", ret);
 		return ret;
@@ -1297,8 +1297,8 @@ static int usbduxfast_auto_attach(struct comedi_device *dev,
 		return -ENODEV;
 	}
 
-	devpriv->urbIn = usb_alloc_urb(0, GFP_KERNEL);
-	if (!devpriv->urbIn) {
+	devpriv->urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (!devpriv->urb) {
 		dev_err(dev->class_dev, "Could not alloc. urb\n");
 		return -ENOMEM;
 	}
@@ -1333,15 +1333,15 @@ static void usbduxfast_detach(struct comedi_device *dev)
 
 	usb_set_intfdata(intf, NULL);
 
-	if (devpriv->urbIn) {
+	if (devpriv->urb) {
 		/* waits until a running transfer is over */
-		usb_kill_urb(devpriv->urbIn);
+		usb_kill_urb(devpriv->urb);
 
 		kfree(devpriv->transfer_buffer);
 		devpriv->transfer_buffer = NULL;
 
-		usb_free_urb(devpriv->urbIn);
-		devpriv->urbIn = NULL;
+		usb_free_urb(devpriv->urb);
+		devpriv->urb = NULL;
 	}
 
 	kfree(devpriv->insnBuffer);
