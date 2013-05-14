@@ -326,90 +326,6 @@ static void usbduxfast_ai_interrupt(struct urb *urb)
 	}
 }
 
-static int usbduxfastsub_start(struct comedi_device *dev)
-{
-	struct usb_interface *intf = comedi_to_usb_interface(dev);
-	struct usb_device *usb = interface_to_usbdev(intf);
-	unsigned char *local_transfer_buffer;
-	int ret;
-
-	local_transfer_buffer = kmalloc(1, GFP_KERNEL);
-	if (!local_transfer_buffer)
-		return -ENOMEM;
-
-	/* 7f92 to zero */
-	*local_transfer_buffer = 0;
-	/* bRequest, "Firmware" */
-	ret = usb_control_msg(usb, usb_sndctrlpipe(usb, 0),
-			      USBDUXFASTSUB_FIRMWARE,
-			      VENDOR_DIR_OUT,	  /* bmRequestType */
-			      USBDUXFASTSUB_CPUCS,    /* Value */
-			      0x0000,	/* Index */
-			      /* address of the transfer buffer */
-			      local_transfer_buffer,
-			      1,      /* Length */
-			      EZTIMEOUT);    /* Timeout */
-	if (ret < 0)
-		dev_err(dev->class_dev, "control msg failed (start)\n");
-
-	kfree(local_transfer_buffer);
-	return ret;
-}
-
-static int usbduxfastsub_stop(struct comedi_device *dev)
-{
-	struct usb_interface *intf = comedi_to_usb_interface(dev);
-	struct usb_device *usb = interface_to_usbdev(intf);
-	unsigned char *local_transfer_buffer;
-	int ret;
-
-	local_transfer_buffer = kmalloc(1, GFP_KERNEL);
-	if (!local_transfer_buffer)
-		return -ENOMEM;
-
-	/* 7f92 to one */
-	*local_transfer_buffer = 1;
-	/* bRequest, "Firmware" */
-	ret = usb_control_msg(usb, usb_sndctrlpipe(usb, 0),
-			      USBDUXFASTSUB_FIRMWARE,
-			      VENDOR_DIR_OUT,	/* bmRequestType */
-			      USBDUXFASTSUB_CPUCS,	/* Value */
-			      0x0000,	/* Index */
-			      local_transfer_buffer, 1,	/* Length */
-			      EZTIMEOUT);	/* Timeout */
-	if (ret < 0)
-		dev_err(dev->class_dev, "control msg failed (stop)\n");
-
-	kfree(local_transfer_buffer);
-	return ret;
-}
-
-static int usbduxfastsub_upload(struct comedi_device *dev,
-				unsigned char *local_transfer_buffer,
-				unsigned int startAddr, unsigned int len)
-{
-	struct usb_interface *intf = comedi_to_usb_interface(dev);
-	struct usb_device *usb = interface_to_usbdev(intf);
-	int ret;
-
-	/* brequest, firmware */
-	ret = usb_control_msg(usb, usb_sndctrlpipe(usb, 0),
-			      USBDUXFASTSUB_FIRMWARE,
-			      VENDOR_DIR_OUT,	/* bmRequestType */
-			      startAddr,	/* value */
-			      0x0000,	 /* index */
-			      /* our local safe buffer */
-			      local_transfer_buffer,
-			      len,	/* length */
-			      EZTIMEOUT);      /* timeout */
-	if (ret < 0) {
-		dev_err(dev->class_dev, "uppload failed\n");
-		return ret;
-	}
-
-	return 0;
-}
-
 static int usbduxfastsub_submit_InURBs(struct comedi_device *dev)
 {
 	struct usb_interface *intf = comedi_to_usb_interface(dev);
@@ -1158,7 +1074,10 @@ static int usbduxfast_attach_common(struct comedi_device *dev)
 static int usbduxfast_upload_firmware(struct comedi_device *dev,
 				      const struct firmware *fw)
 {
+	struct usb_interface *intf = comedi_to_usb_interface(dev);
+	struct usb_device *usb = interface_to_usbdev(intf);
 	uint8_t *buf;
+	unsigned char *tmp;
 	int ret;
 
 	if (!fw->data)
@@ -1174,22 +1093,51 @@ static int usbduxfast_upload_firmware(struct comedi_device *dev,
 	if (!buf)
 		return -ENOMEM;
 
-	ret = usbduxfastsub_stop(dev);
+	/* we need a malloc'ed buffer for usb_control_msg() */
+	tmp = kmalloc(1, GFP_KERNEL);
+	if (!tmp) {
+		kfree(buf);
+		return -ENOMEM;
+	}
+
+	/* stop the current firmware on the device */
+	*tmp = 1;	/* 7f92 to one */
+	ret = usb_control_msg(usb, usb_sndctrlpipe(usb, 0),
+			      USBDUXFASTSUB_FIRMWARE,
+			      VENDOR_DIR_OUT,
+			      USBDUXFASTSUB_CPUCS, 0x0000,
+			      tmp, 1,
+			      EZTIMEOUT);
 	if (ret < 0) {
 		dev_err(dev->class_dev, "can not stop firmware\n");
 		goto done;
 	}
 
-	ret = usbduxfastsub_upload(dev, buf, 0, fw->size);
+	/* upload the new firmware to the device */
+	ret = usb_control_msg(usb, usb_sndctrlpipe(usb, 0),
+			      USBDUXFASTSUB_FIRMWARE,
+			      VENDOR_DIR_OUT,
+			      0, 0x0000,
+			      buf, fw->size,
+			      EZTIMEOUT);
 	if (ret < 0) {
 		dev_err(dev->class_dev, "firmware upload failed\n");
 		goto done;
 	}
-	ret = usbduxfastsub_start(dev);
+
+	/* start the new firmware on the device */
+	*tmp = 0;	/* 7f92 to zero */
+	ret = usb_control_msg(usb, usb_sndctrlpipe(usb, 0),
+			      USBDUXFASTSUB_FIRMWARE,
+			      VENDOR_DIR_OUT,
+			      USBDUXFASTSUB_CPUCS, 0x0000,
+			      tmp, 1,
+			      EZTIMEOUT);
 	if (ret < 0)
 		dev_err(dev->class_dev, "can not start firmware\n");
 
 done:
+	kfree(tmp);
 	kfree(buf);
 	return ret;
 }
