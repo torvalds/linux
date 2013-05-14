@@ -588,19 +588,21 @@ exit:
 	return ret;
 }
 
-static int dt9812_analog_out_shadow(struct slot_dt9812 *slot, int channel,
-				    u16 *value)
+static int dt9812_analog_out_shadow(struct comedi_device *dev,
+				    int channel, u16 *value)
 {
-	int result = -ENODEV;
+	struct dt9812_private *devpriv = dev->private;
+	struct slot_dt9812 *slot = devpriv->slot;
+	int ret = -ENODEV;
 
 	down(&slot->mutex);
 	if (slot->usb) {
 		*value = slot->usb->analog_out_shadow[channel];
-		result = 0;
+		ret = 0;
 	}
 	up(&slot->mutex);
 
-	return result;
+	return ret;
 }
 
 static int dt9812_analog_out(struct comedi_device *dev, int channel, u16 value)
@@ -712,14 +714,13 @@ static int dt9812_ao_rinsn(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_insn *insn,
 			   unsigned int *data)
 {
-	struct dt9812_private *devpriv = dev->private;
 	unsigned int channel = CR_CHAN(insn->chanspec);
 	int n;
 	u16 value;
 
 	for (n = 0; n < insn->n; n++) {
 		value = 0;
-		dt9812_analog_out_shadow(devpriv->slot, channel, &value);
+		dt9812_analog_out_shadow(dev, channel, &value);
 		data[n] = value;
 	}
 	return n;
