@@ -509,9 +509,11 @@ static void dt9812_configure_gain(struct usb_dt9812 *dev,
 	}
 }
 
-static int dt9812_analog_in(struct slot_dt9812 *slot, int channel, u16 *value,
-			    enum dt9812_gain gain)
+static int dt9812_analog_in(struct comedi_device *dev,
+			    int channel, u16 *value, enum dt9812_gain gain)
 {
+	struct dt9812_private *devpriv = dev->private;
+	struct slot_dt9812 *slot = devpriv->slot;
 	struct dt9812_rmw_byte rmw[3];
 	u8 reg[3] = {
 		F020_SFR_ADC0CN,
@@ -519,7 +521,7 @@ static int dt9812_analog_in(struct slot_dt9812 *slot, int channel, u16 *value,
 		F020_SFR_ADC0L
 	};
 	u8 val[3];
-	int result = -ENODEV;
+	int ret = -ENODEV;
 
 	down(&slot->mutex);
 	if (!slot->usb)
@@ -536,14 +538,15 @@ static int dt9812_analog_in(struct slot_dt9812 *slot, int channel, u16 *value,
 	rmw[2].and_mask = 0xff;
 	rmw[2].or_value = F020_MASK_ADC0CN_AD0EN | F020_MASK_ADC0CN_AD0BUSY;
 
-	result = dt9812_rmw_multiple_registers(slot->usb, 3, rmw);
-	if (result)
+	ret = dt9812_rmw_multiple_registers(slot->usb, 3, rmw);
+	if (ret)
 		goto exit;
 
 	/* read the status and ADC */
-	result = dt9812_read_multiple_registers(slot->usb, 3, reg, val);
-	if (result)
+	ret = dt9812_read_multiple_registers(slot->usb, 3, reg, val);
+	if (ret)
 		goto exit;
+
 	/*
 	 * An ADC conversion takes 16 SAR clocks cycles, i.e. about 9us.
 	 * Therefore, between the instant that AD0BUSY was set via
@@ -572,7 +575,8 @@ static int dt9812_analog_in(struct slot_dt9812 *slot, int channel, u16 *value,
 
 exit:
 	up(&slot->mutex);
-	return result;
+
+	return ret;
 }
 
 static int dt9812_analog_out_shadow(struct slot_dt9812 *slot, int channel,
@@ -681,14 +685,13 @@ static int dt9812_ai_rinsn(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_insn *insn,
 			   unsigned int *data)
 {
-	struct dt9812_private *devpriv = dev->private;
 	unsigned int channel = CR_CHAN(insn->chanspec);
 	int n;
 
 	for (n = 0; n < insn->n; n++) {
 		u16 value = 0;
 
-		dt9812_analog_in(devpriv->slot, channel, &value, DT9812_GAIN_1);
+		dt9812_analog_in(dev, channel, &value, DT9812_GAIN_1);
 		data[n] = value;
 	}
 	return n;
