@@ -631,20 +631,24 @@ static int dt9812_do_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int dt9812_ai_rinsn(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_insn *insn,
-			   unsigned int *data)
+static int dt9812_ai_insn_read(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
-	unsigned int channel = CR_CHAN(insn->chanspec);
-	int n;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	u16 val = 0;
+	int ret;
+	int i;
 
-	for (n = 0; n < insn->n; n++) {
-		u16 value = 0;
-
-		dt9812_analog_in(dev, channel, &value, DT9812_GAIN_1);
-		data[n] = value;
+	for (i = 0; i < insn->n; i++) {
+		ret = dt9812_analog_in(dev, chan, &val, DT9812_GAIN_1);
+		if (ret)
+			return ret;
+		data[i] = val;
 	}
-	return n;
+
+	return insn->n;
 }
 
 static int dt9812_ao_rinsn(struct comedi_device *dev,
@@ -845,7 +849,7 @@ static int dt9812_auto_attach(struct comedi_device *dev,
 	s->n_chan	= 8;
 	s->maxdata	= 0x0fff;
 	s->range_table	= is_unipolar ? &range_unipolar2_5 : &range_bipolar10;
-	s->insn_read	= dt9812_ai_rinsn;
+	s->insn_read	= dt9812_ai_insn_read;
 
 	/* Analog Output subdevice */
 	s = &dev->subdevices[3];
