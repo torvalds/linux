@@ -1094,7 +1094,7 @@ static int alloc_nand_resource(struct platform_device *pdev)
 	 * bindings. It can be removed once we have a prober DMA controller
 	 * framework for DT.
 	 */
-	if (pdev->dev.of_node && cpu_is_pxa3xx()) {
+	if (pdev->dev.of_node && of_machine_is_compatible("marvell,pxa3xx")) {
 		info->drcmr_dat = 97;
 		info->drcmr_cmd = 99;
 	} else {
