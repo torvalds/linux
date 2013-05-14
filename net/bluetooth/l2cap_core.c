@@ -674,8 +674,10 @@ void l2cap_chan_close(struct l2cap_chan *chan, int reason)
 
 	case BT_CONNECTED:
 	case BT_CONFIG:
-		if (chan->chan_type == L2CAP_CHAN_CONN_ORIENTED &&
-		    conn->hcon->type == ACL_LINK) {
+		/* ATT uses L2CAP_CHAN_CONN_ORIENTED so we must also
+		 * check for chan->psm.
+		 */
+		if (chan->chan_type == L2CAP_CHAN_CONN_ORIENTED && chan->psm) {
 			__set_chan_timer(chan, chan->ops->get_sndtimeo(chan));
 			l2cap_send_disconn_req(chan, reason);
 		} else
