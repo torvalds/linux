@@ -180,4 +180,4 @@ int __init bl_idle_init(void)
 	return 0;
 }
 
-late_initcall(bl_idle_init);
+device_initcall(bl_idle_init);
