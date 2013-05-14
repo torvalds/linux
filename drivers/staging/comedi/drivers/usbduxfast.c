@@ -108,7 +108,7 @@
 /*
  * size of the buffer for the dux commands in bytes
  */
-#define SIZEOFDUXBUFFER	256
+#define SIZEOFDUXBUF	256
 
 /*
  * number of in-URBs which receive the data: min=5
@@ -149,11 +149,11 @@ static const struct comedi_lrange range_usbduxfast_ai_range = {
  */
 struct usbduxfast_private {
 	struct urb *urb;	/* BULK-transfer handling: urb */
+	uint8_t *duxbuf;
 	int8_t *inbuf;
 	short int ai_cmd_running;	/* asynchronous command is running */
 	short int ai_continous;	/* continous acquisition */
 	long int ai_sample_count;	/* number of samples to acquire */
-	uint8_t *dux_commands;	/* commands */
 	int ignore;		/* counter which ignores the first
 				   buffers */
 	struct semaphore sem;
@@ -172,14 +172,14 @@ static int send_dux_commands(struct comedi_device *dev, int cmd_type)
 	struct usbduxfast_private *devpriv = dev->private;
 	int tmp, nsent;
 
-	devpriv->dux_commands[0] = cmd_type;
+	devpriv->duxbuf[0] = cmd_type;
 
 	tmp = usb_bulk_msg(usb, usb_sndbulkpipe(usb, CHANNELLISTEP),
-			   devpriv->dux_commands,
-			   SIZEOFDUXBUFFER, &nsent, 10000);
+			   devpriv->duxbuf, SIZEOFDUXBUF,
+			   &nsent, 10000);
 	if (tmp < 0)
 		dev_err(dev->class_dev,
-			"could not transmit dux_commands to the usb-device, err=%d\n",
+			"could not transmit command to the usb-device, err=%d\n",
 			tmp);
 	return tmp;
 }
@@ -702,17 +702,17 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 		/* we loop here until ready has been set */
 		if (cmd->start_src == TRIG_EXT) {
 			/* branch back to state 0 */
-			devpriv->dux_commands[LENBASE + 0] = 0x01;
+			devpriv->duxbuf[LENBASE + 0] = 0x01;
 			/* deceision state w/o data */
-			devpriv->dux_commands[OPBASE + 0] = 0x01;
-			devpriv->dux_commands[OUTBASE + 0] = 0xFF & rngmask;
+			devpriv->duxbuf[OPBASE + 0] = 0x01;
+			devpriv->duxbuf[OUTBASE + 0] = 0xFF & rngmask;
 			/* RDY0 = 0 */
-			devpriv->dux_commands[LOGBASE + 0] = 0x00;
+			devpriv->duxbuf[LOGBASE + 0] = 0x00;
 		} else {	/* we just proceed to state 1 */
-			devpriv->dux_commands[LENBASE + 0] = 1;
-			devpriv->dux_commands[OPBASE + 0] = 0;
-			devpriv->dux_commands[OUTBASE + 0] = 0xFF & rngmask;
-			devpriv->dux_commands[LOGBASE + 0] = 0;
+			devpriv->duxbuf[LENBASE + 0] = 1;
+			devpriv->duxbuf[OPBASE + 0] = 0;
+			devpriv->duxbuf[OUTBASE + 0] = 0xFF & rngmask;
+			devpriv->duxbuf[LOGBASE + 0] = 0;
 		}
 
 		if (steps < MIN_SAMPLING_PERIOD) {
@@ -725,33 +725,31 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 				 */
 
 				/* branch back to state 1 */
-				devpriv->dux_commands[LENBASE + 1] = 0x89;
+				devpriv->duxbuf[LENBASE + 1] = 0x89;
 				/* deceision state with data */
-				devpriv->dux_commands[OPBASE + 1] = 0x03;
-				devpriv->dux_commands[OUTBASE + 1] =
-				    0xFF & rngmask;
+				devpriv->duxbuf[OPBASE + 1] = 0x03;
+				devpriv->duxbuf[OUTBASE + 1] = 0xFF & rngmask;
 				/* doesn't matter */
-				devpriv->dux_commands[LOGBASE + 1] = 0xFF;
+				devpriv->duxbuf[LOGBASE + 1] = 0xFF;
 			} else {
 				/*
 				 * we loop through two states: data and delay
 				 * max rate is 15MHz
 				 */
-				devpriv->dux_commands[LENBASE + 1] = steps - 1;
+				devpriv->duxbuf[LENBASE + 1] = steps - 1;
 				/* data */
-				devpriv->dux_commands[OPBASE + 1] = 0x02;
-				devpriv->dux_commands[OUTBASE + 1] =
+				devpriv->duxbuf[OPBASE + 1] = 0x02;
+				devpriv->duxbuf[OUTBASE + 1] =
 				    0xFF & rngmask;
 				/* doesn't matter */
-				devpriv->dux_commands[LOGBASE + 1] = 0;
+				devpriv->duxbuf[LOGBASE + 1] = 0;
 				/* branch back to state 1 */
-				devpriv->dux_commands[LENBASE + 2] = 0x09;
+				devpriv->duxbuf[LENBASE + 2] = 0x09;
 				/* deceision state w/o data */
-				devpriv->dux_commands[OPBASE + 2] = 0x01;
-				devpriv->dux_commands[OUTBASE + 2] =
-				    0xFF & rngmask;
+				devpriv->duxbuf[OPBASE + 2] = 0x01;
+				devpriv->duxbuf[OUTBASE + 2] = 0xFF & rngmask;
 				/* doesn't matter */
-				devpriv->dux_commands[LOGBASE + 2] = 0xFF;
+				devpriv->duxbuf[LOGBASE + 2] = 0xFF;
 			}
 		} else {
 			/*
@@ -763,26 +761,26 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 			steps = steps - 1;
 
 			/* do the first part of the delay */
-			devpriv->dux_commands[LENBASE + 1] = steps / 2;
-			devpriv->dux_commands[OPBASE + 1] = 0;
-			devpriv->dux_commands[OUTBASE + 1] = 0xFF & rngmask;
-			devpriv->dux_commands[LOGBASE + 1] = 0;
+			devpriv->duxbuf[LENBASE + 1] = steps / 2;
+			devpriv->duxbuf[OPBASE + 1] = 0;
+			devpriv->duxbuf[OUTBASE + 1] = 0xFF & rngmask;
+			devpriv->duxbuf[LOGBASE + 1] = 0;
 
 			/* and the second part */
-			devpriv->dux_commands[LENBASE + 2] = steps - steps / 2;
-			devpriv->dux_commands[OPBASE + 2] = 0;
-			devpriv->dux_commands[OUTBASE + 2] = 0xFF & rngmask;
-			devpriv->dux_commands[LOGBASE + 2] = 0;
+			devpriv->duxbuf[LENBASE + 2] = steps - steps / 2;
+			devpriv->duxbuf[OPBASE + 2] = 0;
+			devpriv->duxbuf[OUTBASE + 2] = 0xFF & rngmask;
+			devpriv->duxbuf[LOGBASE + 2] = 0;
 
 			/* get the data and branch back */
 
 			/* branch back to state 1 */
-			devpriv->dux_commands[LENBASE + 3] = 0x09;
+			devpriv->duxbuf[LENBASE + 3] = 0x09;
 			/* deceision state w data */
-			devpriv->dux_commands[OPBASE + 3] = 0x03;
-			devpriv->dux_commands[OUTBASE + 3] = 0xFF & rngmask;
+			devpriv->duxbuf[OPBASE + 3] = 0x03;
+			devpriv->duxbuf[OUTBASE + 3] = 0xFF & rngmask;
 			/* doesn't matter */
-			devpriv->dux_commands[LOGBASE + 3] = 0xFF;
+			devpriv->duxbuf[LOGBASE + 3] = 0xFF;
 		}
 		break;
 
@@ -797,11 +795,11 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 		else
 			rngmask = 0xff;
 
-		devpriv->dux_commands[LENBASE + 0] = 1;
+		devpriv->duxbuf[LENBASE + 0] = 1;
 		/* data */
-		devpriv->dux_commands[OPBASE + 0] = 0x02;
-		devpriv->dux_commands[OUTBASE + 0] = 0xFF & rngmask;
-		devpriv->dux_commands[LOGBASE + 0] = 0;
+		devpriv->duxbuf[OPBASE + 0] = 0x02;
+		devpriv->duxbuf[OUTBASE + 0] = 0xFF & rngmask;
+		devpriv->duxbuf[LOGBASE + 0] = 0;
 
 		/* we have 1 state with duration 1: state 0 */
 		steps_tmp = steps - 1;
@@ -812,23 +810,23 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 			rngmask = 0xff;
 
 		/* do the first part of the delay */
-		devpriv->dux_commands[LENBASE + 1] = steps_tmp / 2;
-		devpriv->dux_commands[OPBASE + 1] = 0;
+		devpriv->duxbuf[LENBASE + 1] = steps_tmp / 2;
+		devpriv->duxbuf[OPBASE + 1] = 0;
 		/* count */
-		devpriv->dux_commands[OUTBASE + 1] = 0xFE & rngmask;
-		devpriv->dux_commands[LOGBASE + 1] = 0;
+		devpriv->duxbuf[OUTBASE + 1] = 0xFE & rngmask;
+		devpriv->duxbuf[LOGBASE + 1] = 0;
 
 		/* and the second part */
-		devpriv->dux_commands[LENBASE + 2] = steps_tmp - steps_tmp / 2;
-		devpriv->dux_commands[OPBASE + 2] = 0;
-		devpriv->dux_commands[OUTBASE + 2] = 0xFF & rngmask;
-		devpriv->dux_commands[LOGBASE + 2] = 0;
+		devpriv->duxbuf[LENBASE + 2] = steps_tmp - steps_tmp / 2;
+		devpriv->duxbuf[OPBASE + 2] = 0;
+		devpriv->duxbuf[OUTBASE + 2] = 0xFF & rngmask;
+		devpriv->duxbuf[LOGBASE + 2] = 0;
 
-		devpriv->dux_commands[LENBASE + 3] = 1;
+		devpriv->duxbuf[LENBASE + 3] = 1;
 		/* data */
-		devpriv->dux_commands[OPBASE + 3] = 0x02;
-		devpriv->dux_commands[OUTBASE + 3] = 0xFF & rngmask;
-		devpriv->dux_commands[LOGBASE + 3] = 0;
+		devpriv->duxbuf[OPBASE + 3] = 0x02;
+		devpriv->duxbuf[OUTBASE + 3] = 0xFF & rngmask;
+		devpriv->duxbuf[LOGBASE + 3] = 0;
 
 		/*
 		 * we have 2 states with duration 1: step 6 and
@@ -842,22 +840,22 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 			rngmask = 0xff;
 
 		/* do the first part of the delay */
-		devpriv->dux_commands[LENBASE + 4] = steps_tmp / 2;
-		devpriv->dux_commands[OPBASE + 4] = 0;
+		devpriv->duxbuf[LENBASE + 4] = steps_tmp / 2;
+		devpriv->duxbuf[OPBASE + 4] = 0;
 		/* reset */
-		devpriv->dux_commands[OUTBASE + 4] = (0xFF - 0x02) & rngmask;
-		devpriv->dux_commands[LOGBASE + 4] = 0;
+		devpriv->duxbuf[OUTBASE + 4] = (0xFF - 0x02) & rngmask;
+		devpriv->duxbuf[LOGBASE + 4] = 0;
 
 		/* and the second part */
-		devpriv->dux_commands[LENBASE + 5] = steps_tmp - steps_tmp / 2;
-		devpriv->dux_commands[OPBASE + 5] = 0;
-		devpriv->dux_commands[OUTBASE + 5] = 0xFF & rngmask;
-		devpriv->dux_commands[LOGBASE + 5] = 0;
+		devpriv->duxbuf[LENBASE + 5] = steps_tmp - steps_tmp / 2;
+		devpriv->duxbuf[OPBASE + 5] = 0;
+		devpriv->duxbuf[OUTBASE + 5] = 0xFF & rngmask;
+		devpriv->duxbuf[LOGBASE + 5] = 0;
 
-		devpriv->dux_commands[LENBASE + 6] = 1;
-		devpriv->dux_commands[OPBASE + 6] = 0;
-		devpriv->dux_commands[OUTBASE + 6] = 0xFF & rngmask;
-		devpriv->dux_commands[LOGBASE + 6] = 0;
+		devpriv->duxbuf[LENBASE + 6] = 1;
+		devpriv->duxbuf[OPBASE + 6] = 0;
+		devpriv->duxbuf[OUTBASE + 6] = 0xFF & rngmask;
+		devpriv->duxbuf[LOGBASE + 6] = 0;
 		break;
 
 	case 3:
@@ -873,12 +871,12 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 			 * commit data to the FIFO and do the first part
 			 * of the delay
 			 */
-			devpriv->dux_commands[LENBASE + j * 2] = steps / 2;
+			devpriv->duxbuf[LENBASE + j * 2] = steps / 2;
 			/* data */
-			devpriv->dux_commands[OPBASE + j * 2] = 0x02;
+			devpriv->duxbuf[OPBASE + j * 2] = 0x02;
 			/* no change */
-			devpriv->dux_commands[OUTBASE + j * 2] = 0xFF & rngmask;
-			devpriv->dux_commands[LOGBASE + j * 2] = 0;
+			devpriv->duxbuf[OUTBASE + j * 2] = 0xFF & rngmask;
+			devpriv->duxbuf[LOGBASE + j * 2] = 0;
 
 			if (CR_RANGE(cmd->chanlist[j + 1]) > 0)
 				rngmask = 0xff - 0x04;
@@ -886,25 +884,25 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 				rngmask = 0xff;
 
 			/* do the second part of the delay */
-			devpriv->dux_commands[LENBASE + j * 2 + 1] =
+			devpriv->duxbuf[LENBASE + j * 2 + 1] =
 			    steps - steps / 2;
 			/* no data */
-			devpriv->dux_commands[OPBASE + j * 2 + 1] = 0;
+			devpriv->duxbuf[OPBASE + j * 2 + 1] = 0;
 			/* count */
-			devpriv->dux_commands[OUTBASE + j * 2 + 1] =
+			devpriv->duxbuf[OUTBASE + j * 2 + 1] =
 			    0xFE & rngmask;
-			devpriv->dux_commands[LOGBASE + j * 2 + 1] = 0;
+			devpriv->duxbuf[LOGBASE + j * 2 + 1] = 0;
 		}
 
 		/* 2 steps with duration 1: the idele step and step 6: */
 		steps_tmp = steps - 2;
 
 		/* commit data to the FIFO and do the first part of the delay */
-		devpriv->dux_commands[LENBASE + 4] = steps_tmp / 2;
+		devpriv->duxbuf[LENBASE + 4] = steps_tmp / 2;
 		/* data */
-		devpriv->dux_commands[OPBASE + 4] = 0x02;
-		devpriv->dux_commands[OUTBASE + 4] = 0xFF & rngmask;
-		devpriv->dux_commands[LOGBASE + 4] = 0;
+		devpriv->duxbuf[OPBASE + 4] = 0x02;
+		devpriv->duxbuf[OUTBASE + 4] = 0xFF & rngmask;
+		devpriv->duxbuf[LOGBASE + 4] = 0;
 
 		if (CR_RANGE(cmd->chanlist[0]) > 0)
 			rngmask = 0xff - 0x04;
@@ -912,17 +910,17 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 			rngmask = 0xff;
 
 		/* do the second part of the delay */
-		devpriv->dux_commands[LENBASE + 5] = steps_tmp - steps_tmp / 2;
+		devpriv->duxbuf[LENBASE + 5] = steps_tmp - steps_tmp / 2;
 		/* no data */
-		devpriv->dux_commands[OPBASE + 5] = 0;
+		devpriv->duxbuf[OPBASE + 5] = 0;
 		/* reset */
-		devpriv->dux_commands[OUTBASE + 5] = (0xFF - 0x02) & rngmask;
-		devpriv->dux_commands[LOGBASE + 5] = 0;
+		devpriv->duxbuf[OUTBASE + 5] = (0xFF - 0x02) & rngmask;
+		devpriv->duxbuf[LOGBASE + 5] = 0;
 
-		devpriv->dux_commands[LENBASE + 6] = 1;
-		devpriv->dux_commands[OPBASE + 6] = 0;
-		devpriv->dux_commands[OUTBASE + 6] = 0xFF & rngmask;
-		devpriv->dux_commands[LOGBASE + 6] = 0;
+		devpriv->duxbuf[LENBASE + 6] = 1;
+		devpriv->duxbuf[OPBASE + 6] = 0;
+		devpriv->duxbuf[OUTBASE + 6] = 0xFF & rngmask;
+		devpriv->duxbuf[LOGBASE + 6] = 0;
 
 	case 16:
 		if (CR_RANGE(cmd->chanlist[0]) > 0)
@@ -936,57 +934,57 @@ static int usbduxfast_ai_cmd(struct comedi_device *dev,
 			 */
 
 			/* branch back to state 0 */
-			devpriv->dux_commands[LENBASE + 0] = 0x01;
+			devpriv->duxbuf[LENBASE + 0] = 0x01;
 			/* deceision state w/o data */
-			devpriv->dux_commands[OPBASE + 0] = 0x01;
+			devpriv->duxbuf[OPBASE + 0] = 0x01;
 			/* reset */
-			devpriv->dux_commands[OUTBASE + 0] =
+			devpriv->duxbuf[OUTBASE + 0] =
 			    (0xFF - 0x02) & rngmask;
 			/* RDY0 = 0 */
-			devpriv->dux_commands[LOGBASE + 0] = 0x00;
+			devpriv->duxbuf[LOGBASE + 0] = 0x00;
 		} else {
 			/*
 			 * we just proceed to state 1
 			 */
 
 			/* 30us reset pulse */
-			devpriv->dux_commands[LENBASE + 0] = 255;
-			devpriv->dux_commands[OPBASE + 0] = 0;
+			devpriv->duxbuf[LENBASE + 0] = 255;
+			devpriv->duxbuf[OPBASE + 0] = 0;
 			/* reset */
-			devpriv->dux_commands[OUTBASE + 0] =
+			devpriv->duxbuf[OUTBASE + 0] =
 			    (0xFF - 0x02) & rngmask;
-			devpriv->dux_commands[LOGBASE + 0] = 0;
+			devpriv->duxbuf[LOGBASE + 0] = 0;
 		}
 
 		/* commit data to the FIFO */
-		devpriv->dux_commands[LENBASE + 1] = 1;
+		devpriv->duxbuf[LENBASE + 1] = 1;
 		/* data */
-		devpriv->dux_commands[OPBASE + 1] = 0x02;
-		devpriv->dux_commands[OUTBASE + 1] = 0xFF & rngmask;
-		devpriv->dux_commands[LOGBASE + 1] = 0;
+		devpriv->duxbuf[OPBASE + 1] = 0x02;
+		devpriv->duxbuf[OUTBASE + 1] = 0xFF & rngmask;
+		devpriv->duxbuf[LOGBASE + 1] = 0;
 
 		/* we have 2 states with duration 1 */
 		steps = steps - 2;
 
 		/* do the first part of the delay */
-		devpriv->dux_commands[LENBASE + 2] = steps / 2;
-		devpriv->dux_commands[OPBASE + 2] = 0;
-		devpriv->dux_commands[OUTBASE + 2] = 0xFE & rngmask;
-		devpriv->dux_commands[LOGBASE + 2] = 0;
+		devpriv->duxbuf[LENBASE + 2] = steps / 2;
+		devpriv->duxbuf[OPBASE + 2] = 0;
+		devpriv->duxbuf[OUTBASE + 2] = 0xFE & rngmask;
+		devpriv->duxbuf[LOGBASE + 2] = 0;
 
 		/* and the second part */
-		devpriv->dux_commands[LENBASE + 3] = steps - steps / 2;
-		devpriv->dux_commands[OPBASE + 3] = 0;
-		devpriv->dux_commands[OUTBASE + 3] = 0xFF & rngmask;
-		devpriv->dux_commands[LOGBASE + 3] = 0;
+		devpriv->duxbuf[LENBASE + 3] = steps - steps / 2;
+		devpriv->duxbuf[OPBASE + 3] = 0;
+		devpriv->duxbuf[OUTBASE + 3] = 0xFF & rngmask;
+		devpriv->duxbuf[LOGBASE + 3] = 0;
 
 		/* branch back to state 1 */
-		devpriv->dux_commands[LENBASE + 4] = 0x09;
+		devpriv->duxbuf[LENBASE + 4] = 0x09;
 		/* deceision state w/o data */
-		devpriv->dux_commands[OPBASE + 4] = 0x01;
-		devpriv->dux_commands[OUTBASE + 4] = 0xFF & rngmask;
+		devpriv->duxbuf[OPBASE + 4] = 0x01;
+		devpriv->duxbuf[OUTBASE + 4] = 0xFF & rngmask;
 		/* doesn't matter */
-		devpriv->dux_commands[LOGBASE + 4] = 0xFF;
+		devpriv->duxbuf[LOGBASE + 4] = 0xFF;
 
 		break;
 
@@ -1080,43 +1078,43 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 		rngmask = 0xff;
 
 	/* commit data to the FIFO */
-	devpriv->dux_commands[LENBASE + 0] = 1;
+	devpriv->duxbuf[LENBASE + 0] = 1;
 	/* data */
-	devpriv->dux_commands[OPBASE + 0] = 0x02;
-	devpriv->dux_commands[OUTBASE + 0] = 0xFF & rngmask;
-	devpriv->dux_commands[LOGBASE + 0] = 0;
+	devpriv->duxbuf[OPBASE + 0] = 0x02;
+	devpriv->duxbuf[OUTBASE + 0] = 0xFF & rngmask;
+	devpriv->duxbuf[LOGBASE + 0] = 0;
 
 	/* do the first part of the delay */
-	devpriv->dux_commands[LENBASE + 1] = 12;
-	devpriv->dux_commands[OPBASE + 1] = 0;
-	devpriv->dux_commands[OUTBASE + 1] = 0xFE & rngmask;
-	devpriv->dux_commands[LOGBASE + 1] = 0;
+	devpriv->duxbuf[LENBASE + 1] = 12;
+	devpriv->duxbuf[OPBASE + 1] = 0;
+	devpriv->duxbuf[OUTBASE + 1] = 0xFE & rngmask;
+	devpriv->duxbuf[LOGBASE + 1] = 0;
 
-	devpriv->dux_commands[LENBASE + 2] = 1;
-	devpriv->dux_commands[OPBASE + 2] = 0;
-	devpriv->dux_commands[OUTBASE + 2] = 0xFE & rngmask;
-	devpriv->dux_commands[LOGBASE + 2] = 0;
+	devpriv->duxbuf[LENBASE + 2] = 1;
+	devpriv->duxbuf[OPBASE + 2] = 0;
+	devpriv->duxbuf[OUTBASE + 2] = 0xFE & rngmask;
+	devpriv->duxbuf[LOGBASE + 2] = 0;
 
-	devpriv->dux_commands[LENBASE + 3] = 1;
-	devpriv->dux_commands[OPBASE + 3] = 0;
-	devpriv->dux_commands[OUTBASE + 3] = 0xFE & rngmask;
-	devpriv->dux_commands[LOGBASE + 3] = 0;
+	devpriv->duxbuf[LENBASE + 3] = 1;
+	devpriv->duxbuf[OPBASE + 3] = 0;
+	devpriv->duxbuf[OUTBASE + 3] = 0xFE & rngmask;
+	devpriv->duxbuf[LOGBASE + 3] = 0;
 
-	devpriv->dux_commands[LENBASE + 4] = 1;
-	devpriv->dux_commands[OPBASE + 4] = 0;
-	devpriv->dux_commands[OUTBASE + 4] = 0xFE & rngmask;
-	devpriv->dux_commands[LOGBASE + 4] = 0;
+	devpriv->duxbuf[LENBASE + 4] = 1;
+	devpriv->duxbuf[OPBASE + 4] = 0;
+	devpriv->duxbuf[OUTBASE + 4] = 0xFE & rngmask;
+	devpriv->duxbuf[LOGBASE + 4] = 0;
 
 	/* second part */
-	devpriv->dux_commands[LENBASE + 5] = 12;
-	devpriv->dux_commands[OPBASE + 5] = 0;
-	devpriv->dux_commands[OUTBASE + 5] = 0xFF & rngmask;
-	devpriv->dux_commands[LOGBASE + 5] = 0;
+	devpriv->duxbuf[LENBASE + 5] = 12;
+	devpriv->duxbuf[OPBASE + 5] = 0;
+	devpriv->duxbuf[OUTBASE + 5] = 0xFF & rngmask;
+	devpriv->duxbuf[LOGBASE + 5] = 0;
 
-	devpriv->dux_commands[LENBASE + 6] = 1;
-	devpriv->dux_commands[OPBASE + 6] = 0;
-	devpriv->dux_commands[OUTBASE + 6] = 0xFF & rngmask;
-	devpriv->dux_commands[LOGBASE + 0] = 0;
+	devpriv->duxbuf[LENBASE + 6] = 1;
+	devpriv->duxbuf[OPBASE + 6] = 0;
+	devpriv->duxbuf[OUTBASE + 6] = 0xFF & rngmask;
+	devpriv->duxbuf[LOGBASE + 0] = 0;
 
 	/* 0 means that the AD commands are sent */
 	err = send_dux_commands(dev, SENDADCOMMANDS);
@@ -1280,8 +1278,8 @@ static int usbduxfast_auto_attach(struct comedi_device *dev,
 	sema_init(&devpriv->sem, 1);
 	usb_set_intfdata(intf, devpriv);
 
-	devpriv->dux_commands = kmalloc(SIZEOFDUXBUFFER, GFP_KERNEL);
-	if (!devpriv->dux_commands)
+	devpriv->duxbuf = kmalloc(SIZEOFDUXBUF, GFP_KERNEL);
+	if (!devpriv->duxbuf)
 		return -ENOMEM;
 
 	ret = usb_set_interface(usb,
@@ -1339,8 +1337,8 @@ static void usbduxfast_detach(struct comedi_device *dev)
 		devpriv->urb = NULL;
 	}
 
-	kfree(devpriv->dux_commands);
-	devpriv->dux_commands = NULL;
+	kfree(devpriv->duxbuf);
+	devpriv->duxbuf = NULL;
 
 	devpriv->ai_cmd_running = 0;
 
