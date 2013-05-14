@@ -774,6 +774,69 @@ static int dt9812_find_endpoints(struct usb_interface *intf,
 	return 0;
 }
 
+static int dt9812_reset_device(struct usb_interface *intf,
+			       struct usb_dt9812 *devpriv)
+{
+	int ret;
+	int i;
+	u32 tmp32;
+	u16 tmp16;
+	u8 tmp8;
+
+	ret = dt9812_read_info(devpriv, 0, &tmp8, sizeof(tmp8));
+	if (ret) {
+		/*
+		 * Seems like a configuration reset is necessary if driver is
+		 * reloaded while device is attached
+		 */
+		usb_reset_configuration(devpriv->udev);
+		for (i = 0; i < 10; i++) {
+			ret = dt9812_read_info(devpriv, 1, &tmp8, sizeof(tmp8));
+			if (ret == 0)
+				break;
+		}
+		if (ret) {
+			dev_err(&intf->dev, "unable to reset configuration\n");
+			return ret;
+		}
+	}
+
+	ret = dt9812_read_info(devpriv, 1, &tmp16, sizeof(tmp16));
+	if (ret) {
+		dev_err(&intf->dev, "failed to read vendor id\n");
+		return ret;
+	}
+	devpriv->vendor = le16_to_cpu(tmp16);
+
+	ret = dt9812_read_info(devpriv, 3, &tmp16, sizeof(tmp16));
+	if (ret) {
+		dev_err(&intf->dev, "failed to read product id\n");
+		return ret;
+	}
+	devpriv->product = le16_to_cpu(tmp16);
+
+	ret = dt9812_read_info(devpriv, 5, &tmp16, sizeof(tmp16));
+	if (ret) {
+		dev_err(&intf->dev, "failed to read device id\n");
+		return ret;
+	}
+	devpriv->device = le16_to_cpu(tmp16);
+
+	ret = dt9812_read_info(devpriv, 7, &tmp32, sizeof(tmp32));
+	if (ret) {
+		dev_err(&intf->dev, "failed to read serial number\n");
+		return ret;
+	}
+	devpriv->serial = le32_to_cpu(tmp32);
+
+	/* let the user know what node this device is now attached to */
+	dev_info(&intf->dev, "USB DT9812 (%4.4x.%4.4x.%4.4x) #0x%8.8x\n",
+		 devpriv->vendor, devpriv->product, devpriv->device,
+		 devpriv->serial);
+
+	return 0;
+}
+
 static int dt9812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct slot_dt9812 *slot = NULL;
@@ -885,7 +948,6 @@ static int dt9812_probe(struct usb_interface *intf,
 	struct usb_dt9812 *dev = NULL;
 	int retval = -ENOMEM;
 	int i;
-	u8 fw;
 
 	/* allocate memory for our device state and initialize it */
 	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
@@ -920,55 +982,12 @@ static int dt9812_probe(struct usb_interface *intf,
 	if (retval)
 		goto error;
 
-	if (dt9812_read_info(dev, 0, &fw, sizeof(fw)) != 0) {
-		/*
-		 * Seems like a configuration reset is necessary if driver is
-		 * reloaded while device is attached
-		 */
-		usb_reset_configuration(dev->udev);
-		for (i = 0; i < 10; i++) {
-			retval = dt9812_read_info(dev, 1, &fw, sizeof(fw));
-			if (retval == 0) {
-				dev_info(&intf->dev,
-					 "usb_reset_configuration succeeded "
-					 "after %d iterations\n", i);
-				break;
-			}
-		}
-	}
-
-	if (dt9812_read_info(dev, 1, &dev->vendor, sizeof(dev->vendor)) != 0) {
-		dev_err(&intf->dev, "Failed to read vendor.\n");
-		retval = -ENODEV;
+	retval = dt9812_reset_device(intf, dev);
+	if (retval)
 		goto error;
-	}
-	if (dt9812_read_info(dev, 3, &dev->product, sizeof(dev->product)) != 0) {
-		dev_err(&intf->dev, "Failed to read product.\n");
-		retval = -ENODEV;
-		goto error;
-	}
-	if (dt9812_read_info(dev, 5, &dev->device, sizeof(dev->device)) != 0) {
-		dev_err(&intf->dev, "Failed to read device.\n");
-		retval = -ENODEV;
-		goto error;
-	}
-	if (dt9812_read_info(dev, 7, &dev->serial, sizeof(dev->serial)) != 0) {
-		dev_err(&intf->dev, "Failed to read serial.\n");
-		retval = -ENODEV;
-		goto error;
-	}
-
-	dev->vendor = le16_to_cpu(dev->vendor);
-	dev->product = le16_to_cpu(dev->product);
-	dev->device = le16_to_cpu(dev->device);
-	dev->serial = le32_to_cpu(dev->serial);
 
 	/* save our data pointer in this interface device */
 	usb_set_intfdata(intf, dev);
-
-	/* let the user know what node this device is now attached to */
-	dev_info(&intf->dev, "USB DT9812 (%4.4x.%4.4x.%4.4x) #0x%8.8x\n",
-		 dev->vendor, dev->product, dev->device, dev->serial);
 
 	return 0;
 
