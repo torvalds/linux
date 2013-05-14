@@ -68,10 +68,10 @@ chipsets:
 .b16 #nnvc3_tpc_mmio_head
 .b16 #nnvc3_tpc_mmio_tail
 .b8  0xc8 0 0 0
-.b16 #nvc0_gpc_mmio_head
-.b16 #nvc0_gpc_mmio_tail
-.b16 #nvc0_tpc_mmio_head
-.b16 #nvc0_tpc_mmio_tail
+.b16 #nnvc0_gpc_mmio_head
+.b16 #nnvc0_gpc_mmio_tail
+.b16 #nnvc0_tpc_mmio_head
+.b16 #nnvc0_tpc_mmio_tail
 .b8  0xce 0 0 0
 .b16 #nvc0_gpc_mmio_head
 .b16 #nvc0_gpc_mmio_tail

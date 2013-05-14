@@ -756,6 +756,7 @@ nvc0_graph_init_unk64xx(struct nvc0_graph_priv *priv)
 	case 0xc3:
 	case 0xc4:
 	case 0xc1:
+	case 0xc8:
 	default:
 		break;
 	}
@@ -775,6 +776,7 @@ nvc0_graph_init_unk58xx(struct nvc0_graph_priv *priv)
 		nv_wr32(priv, 0x405900, 0x00002834);
 		break;
 	case 0xc0:
+	case 0xc8:
 	default:
 		break;
 	}
@@ -789,6 +791,7 @@ nvc0_graph_init_unk58xx(struct nvc0_graph_priv *priv)
 	case 0xc3:
 	case 0xc4:
 	case 0xc1:
+	case 0xc8:
 	default:
 		break;
 	}
@@ -812,6 +815,7 @@ nvc0_graph_init_gpc(struct nvc0_graph_priv *priv)
 	case 0xc3:
 	case 0xc4:
 	case 0xc1:
+	case 0xc8:
 	default:
 		break;
 	}
@@ -826,6 +830,7 @@ nvc0_graph_init_gpc(struct nvc0_graph_priv *priv)
 	case 0xc3:
 	case 0xc4:
 	case 0xc1:
+	case 0xc8:
 	default:
 		break;
 	}
@@ -840,6 +845,7 @@ nvc0_graph_init_gpc(struct nvc0_graph_priv *priv)
 	case 0xc0:
 	case 0xc3:
 	case 0xc4:
+	case 0xc8:
 	default:
 		nv_wr32(priv, 0x418714, 0x80000000);
 		break;
@@ -853,6 +859,7 @@ nvc0_graph_init_gpc(struct nvc0_graph_priv *priv)
 	case 0xd9:
 	case 0xd7:
 	case 0xc1:
+	case 0xc8:
 		nv_wr32(priv, 0x4188c8, 0x00000000);
 		break;
 	case 0xc0:
@@ -883,6 +890,7 @@ nvc0_graph_init_gpc(struct nvc0_graph_priv *priv)
 	case 0xc3:
 	case 0xc4:
 	case 0xc1:
+	case 0xc8:
 	default:
 		break;
 	}
@@ -897,6 +905,7 @@ nvc0_graph_init_gpc(struct nvc0_graph_priv *priv)
 	case 0xc3:
 	case 0xc4:
 	case 0xc1:
+	case 0xc8:
 	default:
 		break;
 	}
@@ -912,6 +921,7 @@ nvc0_graph_init_gpc(struct nvc0_graph_priv *priv)
 	case 0xc3:
 	case 0xc4:
 	case 0xc1:
+	case 0xc8:
 	default:
 		break;
 	}
@@ -928,6 +938,7 @@ nvc0_graph_init_gpc(struct nvc0_graph_priv *priv)
 	case 0xc0:
 	case 0xc3:
 	case 0xc4:
+	case 0xc8:
 	default:
 		nv_wr32(priv, 0x418e00, 0x00000050);
 		break;
@@ -943,6 +954,7 @@ nvc0_graph_init_gpc(struct nvc0_graph_priv *priv)
 	case 0xc3:
 	case 0xc4:
 	case 0xc1:
+	case 0xc8:
 	default:
 		break;
 	}
@@ -966,6 +978,7 @@ nvc0_graph_init_tpc(struct nvc0_graph_priv *priv)
 		nv_wr32(priv, 0x419ac8, 0x00000000);
 		break;
 	case 0xc0:
+	case 0xc8:
 	default:
 		break;
 	}
@@ -982,6 +995,7 @@ nvc0_graph_init_tpc(struct nvc0_graph_priv *priv)
 	case 0xc3:
 	case 0xc4:
 	case 0xc1:
+	case 0xc8:
 	default:
 		nv_wr32(priv, 0x41980c, 0x00000000);
 		break;
@@ -996,6 +1010,7 @@ nvc0_graph_init_tpc(struct nvc0_graph_priv *priv)
 	case 0xc0:
 	case 0xc3:
 	case 0xc4:
+	case 0xc8:
 	default:
 		nv_wr32(priv, 0x419814, 0x00000000);
 		break;
@@ -1010,6 +1025,7 @@ nvc0_graph_init_tpc(struct nvc0_graph_priv *priv)
 	case 0xc3:
 	case 0xc4:
 	case 0xc1:
+	case 0xc8:
 	default:
 		nv_wr32(priv, 0x41984c, 0x00005bc5);
 		break;
@@ -1027,6 +1043,7 @@ nvc0_graph_init_tpc(struct nvc0_graph_priv *priv)
 		nv_wr32(priv, 0x419880, 0x00000002);
 		break;
 	case 0xc0:
+	case 0xc8:
 	default:
 		break;
 	}
@@ -1049,6 +1066,7 @@ nvc0_graph_init_tpc(struct nvc0_graph_priv *priv)
 	case 0xc3:
 	case 0xc4:
 	case 0xc1:
+	case 0xc8:
 	default:
 		break;
 	}
@@ -1063,6 +1081,7 @@ nvc0_graph_init_tpc(struct nvc0_graph_priv *priv)
 	case 0xc3:
 	case 0xc4:
 	case 0xc1:
+	case 0xc8:
 	default:
 		break;
 	}
@@ -1079,11 +1098,26 @@ nvc0_graph_init_tpc(struct nvc0_graph_priv *priv)
 	case 0xc3:
 	case 0xc4:
 	case 0xc1:
+	case 0xc8:
 	default:
 		nv_wr32(priv, 0x419ea8, 0x00001100);
 		break;
 	}
-	nv_wr32(priv, 0x419eac, 0x11100702);
+
+	switch (nv_device(priv)->chipset) {
+	case 0xc8:
+		nv_wr32(priv, 0x419eac, 0x11100f02);
+		break;
+	case 0xc0:
+	case 0xc3:
+	case 0xc4:
+	case 0xc1:
+	case 0xd9:
+	case 0xd7:
+	default:
+		nv_wr32(priv, 0x419eac, 0x11100702);
+		break;
+	}
 	nv_wr32(priv, 0x419eb0, 0x00000003);
 	nv_wr32(priv, 0x419eb4, 0x00000000);
 	nv_wr32(priv, 0x419eb8, 0x00000000);
@@ -1100,6 +1134,7 @@ nvc0_graph_init_tpc(struct nvc0_graph_priv *priv)
 		nv_wr32(priv, 0x419ed0, 0x00003818);
 		break;
 	case 0xc0:
+	case 0xc8:
 	default:
 		nv_wr32(priv, 0x419ec8, 0x06060618);
 		nv_wr32(priv, 0x419ed0, 0x0eff0e38);
@@ -1378,6 +1413,7 @@ nvc0_graph_init(struct nouveau_object *object)
 	case 0xc3:
 	case 0xc4:
 	case 0xc1:
+	case 0xc8:
 	case 0xd9:
 	case 0xd7:
 		nvc0_graph_init_unk40xx(priv);
