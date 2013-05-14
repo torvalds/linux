@@ -1123,48 +1123,43 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 
 #define FIRMWARE_MAX_LEN 0x2000
 
-static int firmwareUpload(struct comedi_device *dev,
-			  const u8 *firmwareBinary, int sizeFirmware)
+static int usbduxfast_upload_firmware(struct comedi_device *dev,
+				      const struct firmware *fw)
 {
-	uint8_t *fwBuf;
+	uint8_t *buf;
 	int ret;
 
-	if (!firmwareBinary)
+	if (!fw->data)
 		return 0;
 
-	if (sizeFirmware > FIRMWARE_MAX_LEN) {
+	if (fw->size > FIRMWARE_MAX_LEN) {
 		dev_err(dev->class_dev, "firmware binary too large for FX2\n");
 		return -ENOMEM;
 	}
 
 	/* we generate a local buffer for the firmware */
-	fwBuf = kmemdup(firmwareBinary, sizeFirmware, GFP_KERNEL);
-	if (!fwBuf) {
-		dev_err(dev->class_dev, "mem alloc for firmware failed\n");
+	buf = kmemdup(fw->data, fw->size, GFP_KERNEL);
+	if (!buf)
 		return -ENOMEM;
-	}
 
 	ret = usbduxfastsub_stop(dev);
 	if (ret < 0) {
 		dev_err(dev->class_dev, "can not stop firmware\n");
-		kfree(fwBuf);
-		return ret;
+		goto done;
 	}
 
-	ret = usbduxfastsub_upload(dev, fwBuf, 0, sizeFirmware);
+	ret = usbduxfastsub_upload(dev, buf, 0, fw->size);
 	if (ret < 0) {
 		dev_err(dev->class_dev, "firmware upload failed\n");
-		kfree(fwBuf);
-		return ret;
+		goto done;
 	}
 	ret = usbduxfastsub_start(dev);
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(dev->class_dev, "can not start firmware\n");
-		kfree(fwBuf);
-		return ret;
-	}
-	kfree(fwBuf);
-	return 0;
+
+done:
+	kfree(buf);
+	return ret;
 }
 
 static int usbduxfast_attach_common(struct comedi_device *dev)
@@ -1211,7 +1206,7 @@ static int usbduxfast_request_firmware(struct comedi_device *dev)
 	if (ret)
 		return ret;
 
-	ret = firmwareUpload(dev, fw->data, fw->size);
+	ret = usbduxfast_upload_firmware(dev, fw);
 	release_firmware(fw);
 
 	return ret;
