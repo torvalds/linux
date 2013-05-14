@@ -529,8 +529,6 @@ static int au8522_g_register(struct v4l2_subdev *sd,
 
 	if (!v4l2_chip_match_i2c_client(client, &reg->match))
 		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 	reg->val = au8522_readreg(state, reg->reg & 0xffff);
 	return 0;
 }
@@ -543,8 +541,6 @@ static int au8522_s_register(struct v4l2_subdev *sd,
 
 	if (!v4l2_chip_match_i2c_client(client, &reg->match))
 		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 	au8522_writereg(state, reg->reg, reg->val & 0xff);
 	return 0;
 }
