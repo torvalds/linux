@@ -617,6 +617,27 @@ void l2cap_chan_del(struct l2cap_chan *chan, int err)
 	return;
 }
 
+static void l2cap_chan_connect_reject(struct l2cap_chan *chan)
+{
+	struct l2cap_conn *conn = chan->conn;
+	struct l2cap_conn_rsp rsp;
+	u16 result;
+
+	if (test_bit(FLAG_DEFER_SETUP, &chan->flags))
+		result = L2CAP_CR_SEC_BLOCK;
+	else
+		result = L2CAP_CR_BAD_PSM;
+
+	l2cap_state_change(chan, BT_DISCONN);
+
+	rsp.scid   = cpu_to_le16(chan->dcid);
+	rsp.dcid   = cpu_to_le16(chan->scid);
+	rsp.result = cpu_to_le16(result);
+	rsp.status = __constant_cpu_to_le16(L2CAP_CS_NO_INFO);
+
+	l2cap_send_cmd(conn, chan->ident, L2CAP_CONN_RSP, sizeof(rsp), &rsp);
+}
+
 void l2cap_chan_close(struct l2cap_chan *chan, int reason)
 {
 	struct l2cap_conn *conn = chan->conn;
@@ -639,24 +660,9 @@ void l2cap_chan_close(struct l2cap_chan *chan, int reason)
 		break;
 
 	case BT_CONNECT2:
-		if (chan->chan_type == L2CAP_CHAN_CONN_ORIENTED &&
-		    conn->hcon->type == ACL_LINK) {
-			struct l2cap_conn_rsp rsp;
-			__u16 result;
-
-			if (test_bit(FLAG_DEFER_SETUP, &chan->flags))
-				result = L2CAP_CR_SEC_BLOCK;
-			else
-				result = L2CAP_CR_BAD_PSM;
-
-			l2cap_state_change(chan, BT_DISCONN);
-
-			rsp.scid   = cpu_to_le16(chan->dcid);
-			rsp.dcid   = cpu_to_le16(chan->scid);
-			rsp.result = cpu_to_le16(result);
-			rsp.status = __constant_cpu_to_le16(L2CAP_CS_NO_INFO);
-			l2cap_send_cmd(conn, chan->ident, L2CAP_CONN_RSP,
-				       sizeof(rsp), &rsp);
+		if (chan->chan_type == L2CAP_CHAN_CONN_ORIENTED) {
+			if (conn->hcon->type == ACL_LINK)
+				l2cap_chan_connect_reject(chan);
 		}
 
 		l2cap_chan_del(chan, reason);
