@@ -603,9 +603,11 @@ static int dt9812_analog_out_shadow(struct slot_dt9812 *slot, int channel,
 	return result;
 }
 
-static int dt9812_analog_out(struct slot_dt9812 *slot, int channel, u16 value)
+static int dt9812_analog_out(struct comedi_device *dev, int channel, u16 value)
 {
-	int result = -ENODEV;
+	struct dt9812_private *devpriv = dev->private;
+	struct slot_dt9812 *slot = devpriv->slot;
+	int ret = -ENODEV;
 
 	down(&slot->mutex);
 	if (slot->usb) {
@@ -648,12 +650,12 @@ static int dt9812_analog_out(struct slot_dt9812 *slot, int channel, u16 value)
 			rmw[2].or_value = (value >> 8) & 0xf;
 			break;
 		}
-		result = dt9812_rmw_multiple_registers(slot->usb, 3, rmw);
+		ret = dt9812_rmw_multiple_registers(slot->usb, 3, rmw);
 		slot->usb->analog_out_shadow[channel] = value;
 	}
 	up(&slot->mutex);
 
-	return result;
+	return ret;
 }
 
 static int dt9812_di_rinsn(struct comedi_device *dev,
@@ -727,12 +729,11 @@ static int dt9812_ao_winsn(struct comedi_device *dev,
 			   struct comedi_subdevice *s, struct comedi_insn *insn,
 			   unsigned int *data)
 {
-	struct dt9812_private *devpriv = dev->private;
 	unsigned int channel = CR_CHAN(insn->chanspec);
 	int n;
 
 	for (n = 0; n < insn->n; n++)
-		dt9812_analog_out(devpriv->slot, channel, data[n]);
+		dt9812_analog_out(dev, channel, data[n]);
 	return n;
 }
 
