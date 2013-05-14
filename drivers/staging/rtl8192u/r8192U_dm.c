@@ -88,7 +88,7 @@ static	void	dm_check_rate_adaptive(struct net_device *dev);
 
 // DM --> Bandwidth switch
 static	void	dm_init_bandwidth_autoswitch(struct net_device *dev);
-static	void	dm_bandwidth_autoswitch(	struct net_device *dev);
+static	void	dm_bandwidth_autoswitch(struct net_device *dev);
 
 // DM --> TX power control
 //static	void	dm_initialize_txpower_tracking(struct net_device *dev);
@@ -112,7 +112,7 @@ static	void	dm_bb_initialgain_backup(struct net_device *dev);
 static	void	dm_dig_init(struct net_device *dev);
 static	void	dm_ctrl_initgain_byrssi(struct net_device *dev);
 static	void	dm_ctrl_initgain_byrssi_highpwr(struct net_device *dev);
-static	void	dm_ctrl_initgain_byrssi_by_driverrssi(	struct net_device *dev);
+static	void	dm_ctrl_initgain_byrssi_by_driverrssi(struct net_device *dev);
 static	void	dm_ctrl_initgain_byrssi_by_fwfalse_alarm(struct net_device *dev);
 static	void	dm_initial_gain(struct net_device *dev);
 static	void	dm_pd_th(struct net_device *dev);
@@ -372,11 +372,11 @@ static void dm_check_rate_adaptive(struct net_device *dev)
 		return;
 
 	// TODO: Only 11n mode is implemented currently,
-	if( !(priv->ieee80211->mode == WIRELESS_MODE_N_24G ||
+	if(!(priv->ieee80211->mode == WIRELESS_MODE_N_24G ||
 		 priv->ieee80211->mode == WIRELESS_MODE_N_5G))
 		 return;
 
-	if( priv->ieee80211->state == IEEE80211_LINKED )
+	if(priv->ieee80211->state == IEEE80211_LINKED)
 	{
 	//	RT_TRACE(COMP_RATE, "dm_CheckRateAdaptive(): \t");
 
@@ -454,8 +454,8 @@ static void dm_check_rate_adaptive(struct net_device *dev)
 			//pHalData->UndecoratedSmoothedPWDB = 19;
 			if(priv->undecorated_smoothed_pwdb < (long)(pra->ping_rssi_thresh_for_ra+5))
 			{
-				if( (priv->undecorated_smoothed_pwdb < (long)pra->ping_rssi_thresh_for_ra) ||
-					ping_rssi_state )
+				if((priv->undecorated_smoothed_pwdb < (long)pra->ping_rssi_thresh_for_ra) ||
+					ping_rssi_state)
 				{
 					//DbgPrint("TestRSSI = %d, set RATR to 0x%x \n", pHalData->UndecoratedSmoothedPWDB, pRA->TestRSSIRATR);
 					pra->ratr_state = DM_RATR_STA_LOW;
@@ -481,7 +481,7 @@ static void dm_check_rate_adaptive(struct net_device *dev)
 		// Check whether updating of RATR0 is required
 		//
 		currentRATR = read_nic_dword(dev, RATR0);
-		if( targetRATR !=  currentRATR )
+		if(targetRATR !=  currentRATR)
 		{
 			u32 ratr_value;
 			ratr_value = targetRATR;
@@ -1572,7 +1572,7 @@ static void dm_CCKTxPowerAdjust_TSSI(struct net_device *dev, bool  bInCH14)
 		TempVal = 0;
 		TempVal =	priv->cck_txbbgain_table[priv->cck_present_attentuation].ccktxbb_valuearray[2] +
 					(priv->cck_txbbgain_table[priv->cck_present_attentuation].ccktxbb_valuearray[3]<<8) +
-					(priv->cck_txbbgain_table[priv->cck_present_attentuation].ccktxbb_valuearray[4]<<16 )+
+					(priv->cck_txbbgain_table[priv->cck_present_attentuation].ccktxbb_valuearray[4]<<16)+
 					(priv->cck_txbbgain_table[priv->cck_present_attentuation].ccktxbb_valuearray[5]<<24);
 		rtl8192_setBBreg(dev, rCCK0_TxFilter2,bMaskDWord, TempVal);
 		//Write 0xa28  0xa29
@@ -1592,7 +1592,7 @@ static void dm_CCKTxPowerAdjust_TSSI(struct net_device *dev, bool  bInCH14)
 		TempVal = 0;
 		TempVal =	priv->cck_txbbgain_ch14_table[priv->cck_present_attentuation].ccktxbb_valuearray[2] +
 					(priv->cck_txbbgain_ch14_table[priv->cck_present_attentuation].ccktxbb_valuearray[3]<<8) +
-					(priv->cck_txbbgain_ch14_table[priv->cck_present_attentuation].ccktxbb_valuearray[4]<<16 )+
+					(priv->cck_txbbgain_ch14_table[priv->cck_present_attentuation].ccktxbb_valuearray[4]<<16)+
 					(priv->cck_txbbgain_ch14_table[priv->cck_present_attentuation].ccktxbb_valuearray[5]<<24);
 		rtl8192_setBBreg(dev, rCCK0_TxFilter2,bMaskDWord, TempVal);
 		//Write 0xa28  0xa29
@@ -1624,7 +1624,7 @@ static void dm_CCKTxPowerAdjust_ThermalMeter(struct net_device *dev,	bool  bInCH
 		TempVal = 0;
 		TempVal =	CCKSwingTable_Ch1_Ch13[priv->CCK_index][2] +
 					(CCKSwingTable_Ch1_Ch13[priv->CCK_index][3]<<8) +
-					(CCKSwingTable_Ch1_Ch13[priv->CCK_index][4]<<16 )+
+					(CCKSwingTable_Ch1_Ch13[priv->CCK_index][4]<<16)+
 					(CCKSwingTable_Ch1_Ch13[priv->CCK_index][5]<<24);
 		rtl8192_setBBreg(dev, rCCK0_TxFilter2, bMaskDWord, TempVal);
 		RT_TRACE(COMP_POWER_TRACKING, "CCK not chnl 14, reg 0x%x = 0x%x\n",
@@ -1652,7 +1652,7 @@ static void dm_CCKTxPowerAdjust_ThermalMeter(struct net_device *dev,	bool  bInCH
 		TempVal = 0;
 		TempVal =	CCKSwingTable_Ch14[priv->CCK_index][2] +
 					(CCKSwingTable_Ch14[priv->CCK_index][3]<<8) +
-					(CCKSwingTable_Ch14[priv->CCK_index][4]<<16 )+
+					(CCKSwingTable_Ch14[priv->CCK_index][4]<<16)+
 					(CCKSwingTable_Ch14[priv->CCK_index][5]<<24);
 		rtl8192_setBBreg(dev, rCCK0_TxFilter2, bMaskDWord, TempVal);
 		RT_TRACE(COMP_POWER_TRACKING, "CCK chnl 14, reg 0x%x = 0x%x\n",
@@ -1727,7 +1727,7 @@ extern void dm_restore_dynamic_mechanism_state(struct net_device *dev)
 	if(priv->rate_adaptive.rate_adaptive_disabled)
 		return;
 	// TODO: Only 11n mode is implemented currently,
-	if( !(priv->ieee80211->mode==WIRELESS_MODE_N_24G ||
+	if(!(priv->ieee80211->mode==WIRELESS_MODE_N_24G ||
 		 priv->ieee80211->mode==WIRELESS_MODE_N_5G))
 		 return;
 	{
@@ -2222,7 +2222,7 @@ static void dm_ctrl_initgain_byrssi_by_fwfalse_alarm(
 
 	/* 2. When RSSI increase, We have to judge if it is larger than a threshold
 		  and then execute the step below.  */
-	if ((priv->undecorated_smoothed_pwdb >= dm_digtable.rssi_high_thresh) )
+	if ((priv->undecorated_smoothed_pwdb >= dm_digtable.rssi_high_thresh))
 	{
 		u8 reset_flag = 0;
 
@@ -2589,7 +2589,7 @@ static	void dm_cs_ratio(
 		{
 			if ((dm_digtable.rssi_val <= dm_digtable.rssi_low_thresh))
 				dm_digtable.curcs_ratio_state = DIG_CS_RATIO_LOWER;
-			else if ((dm_digtable.rssi_val >= dm_digtable.rssi_high_thresh) )
+			else if ((dm_digtable.rssi_val >= dm_digtable.rssi_high_thresh))
 				dm_digtable.curcs_ratio_state = DIG_CS_RATIO_HIGHER;
 			else
 				dm_digtable.curcs_ratio_state = dm_digtable.precs_ratio_state;
@@ -2727,8 +2727,8 @@ static void dm_check_edca_turbo(
 			// TODO:  Modified this part and try to set acm control in only 1 IO processing!!
 
 					PACI_AIFSN	pAciAifsn = (PACI_AIFSN)&(qos_parameters->aifs[0]);
-					u8		AcmCtrl = read_nic_byte( dev, AcmHwCtrl );
-					if( pAciAifsn->f.ACM )
+					u8		AcmCtrl = read_nic_byte(dev, AcmHwCtrl);
+					if(pAciAifsn->f.ACM)
 					{ // ACM bit is 1.
 						AcmCtrl |= AcmHw_BeqEn;
 					}
@@ -2737,8 +2737,8 @@ static void dm_check_edca_turbo(
 						AcmCtrl &= (~AcmHw_BeqEn);
 					}
 
-					RT_TRACE( COMP_QOS,"SetHwReg8190pci(): [HW_VAR_ACM_CTRL] Write 0x%X\n", AcmCtrl ) ;
-					write_nic_byte(dev, AcmHwCtrl, AcmCtrl );
+					RT_TRACE(COMP_QOS,"SetHwReg8190pci(): [HW_VAR_ACM_CTRL] Write 0x%X\n", AcmCtrl) ;
+					write_nic_byte(dev, AcmHwCtrl, AcmCtrl);
 				}
 			}
 			priv->bcurrent_turbo_EDCA = false;
@@ -2937,14 +2937,14 @@ extern	void	dm_gpio_change_rf_callback(struct work_struct *work)
 
 			eRfPowerStateToSet = (tmp1byte&BIT1) ?  eRfOn : eRfOff;
 
-			if( (priv->bHwRadioOff == true) && (eRfPowerStateToSet == eRfOn))
+			if((priv->bHwRadioOff == true) && (eRfPowerStateToSet == eRfOn))
 			{
 				RT_TRACE(COMP_RF, "gpiochangeRF  - HW Radio ON\n");
 
 				priv->bHwRadioOff = false;
 				bActuallySet = true;
 			}
-			else if ( (priv->bHwRadioOff == false) && (eRfPowerStateToSet == eRfOff))
+			else if ((priv->bHwRadioOff == false) && (eRfPowerStateToSet == eRfOff))
 			{
 				RT_TRACE(COMP_RF, "gpiochangeRF  - HW Radio OFF\n");
 				priv->bHwRadioOff = true;
@@ -3356,7 +3356,7 @@ extern void dm_fsync_timer_callback(unsigned long data)
 	bool		bSwitchFromCountDiff = false;
 	bool		bDoubleTimeInterval = false;
 
-	if(	priv->ieee80211->state == IEEE80211_LINKED &&
+	if(priv->ieee80211->state == IEEE80211_LINKED &&
 		priv->ieee80211->bfsync_enable &&
 		(priv->ieee80211->pHTInfo->IOTAction & HT_IOT_ACT_CDD_FSYNC))
 	{
@@ -3576,7 +3576,7 @@ void dm_check_fsync(struct net_device *dev)
 	RT_TRACE(COMP_HALDM, "RSSI %d TimeInterval %d MultipleTimeInterval %d\n", priv->ieee80211->fsync_rssi_threshold, priv->ieee80211->fsync_time_interval, priv->ieee80211->fsync_multiple_timeinterval);
 	RT_TRACE(COMP_HALDM, "RateBitmap 0x%x FirstDiffRateThreshold %d SecondDiffRateThreshold %d\n", priv->ieee80211->fsync_rate_bitmap, priv->ieee80211->fsync_firstdiff_ratethreshold, priv->ieee80211->fsync_seconddiff_ratethreshold);
 
-	if(	priv->ieee80211->state == IEEE80211_LINKED &&
+	if(priv->ieee80211->state == IEEE80211_LINKED &&
 		(priv->ieee80211->pHTInfo->IOTAction & HT_IOT_ACT_CDD_FSYNC))
 	{
 		if(priv->ieee80211->bfsync_enable == 0)
@@ -3787,7 +3787,7 @@ static void dm_dynamic_txpower(struct net_device *dev)
 		return;
 	}
 	//printk("priv->ieee80211->current_network.unknown_cap_exist is %d ,priv->ieee80211->current_network.broadcom_cap_exist is %d\n",priv->ieee80211->current_network.unknown_cap_exist,priv->ieee80211->current_network.broadcom_cap_exist);
-	if((priv->ieee80211->current_network.atheros_cap_exist ) && (priv->ieee80211->mode == IEEE_G)){
+	if((priv->ieee80211->current_network.atheros_cap_exist) && (priv->ieee80211->mode == IEEE_G)){
 		txhipower_threshhold = TX_POWER_ATHEROAP_THRESH_HIGH;
 		txlowpower_threshold = TX_POWER_ATHEROAP_THRESH_LOW;
 	}
@@ -3832,8 +3832,8 @@ static void dm_dynamic_txpower(struct net_device *dev)
 		priv->bDynamicTxLowPower = false;
 	}
 
-	if( (priv->bDynamicTxHighPower != priv->bLastDTPFlag_High ) ||
-		(priv->bDynamicTxLowPower != priv->bLastDTPFlag_Low ) )
+	if((priv->bDynamicTxHighPower != priv->bLastDTPFlag_High) ||
+		(priv->bDynamicTxLowPower != priv->bLastDTPFlag_Low))
 	{
 		RT_TRACE(COMP_TXAGC,"SetTxPowerLevel8190()  channel = %d \n" , priv->ieee80211->current_network.channel);
 
