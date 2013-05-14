@@ -647,8 +647,6 @@ static int adv7604_g_register(struct v4l2_subdev *sd,
 
 	if (!v4l2_chip_match_i2c_client(client, &reg->match))
 		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 	reg->size = 1;
 	switch (reg->reg >> 8) {
 	case 0:
@@ -705,8 +703,6 @@ static int adv7604_s_register(struct v4l2_subdev *sd,
 
 	if (!v4l2_chip_match_i2c_client(client, &reg->match))
 		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 	switch (reg->reg >> 8) {
 	case 0:
 		io_write(sd, reg->reg & 0xff, reg->val & 0xff);

@@ -981,8 +981,6 @@ static int saa717x_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *
 
 	if (!v4l2_chip_match_i2c_client(client, &reg->match))
 		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 	reg->val = saa717x_read(sd, reg->reg);
 	reg->size = 1;
 	return 0;
@@ -996,8 +994,6 @@ static int saa717x_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_regi
 
 	if (!v4l2_chip_match_i2c_client(client, &reg->match))
 		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 	saa717x_write(sd, addr, val);
 	return 0;
 }

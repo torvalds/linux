@@ -87,8 +87,6 @@ static int m52790_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *r
 
 	if (!v4l2_chip_match_i2c_client(client, &reg->match))
 		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 	if (reg->reg != 0)
 		return -EINVAL;
 	reg->size = 1;
@@ -103,8 +101,6 @@ static int m52790_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_regis
 
 	if (!v4l2_chip_match_i2c_client(client, &reg->match))
 		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 	if (reg->reg != 0)
 		return -EINVAL;
 	state->input = reg->val & 0x0303;

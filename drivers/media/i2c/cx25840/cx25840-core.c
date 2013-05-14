@@ -1664,8 +1664,6 @@ static int cx25840_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *
 
 	if (!v4l2_chip_match_i2c_client(client, &reg->match))
 		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 	reg->size = 1;
 	reg->val = cx25840_read(client, reg->reg & 0x0fff);
 	return 0;
@@ -1677,8 +1675,6 @@ static int cx25840_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_regi
 
 	if (!v4l2_chip_match_i2c_client(client, &reg->match))
 		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 	cx25840_write(client, reg->reg & 0x0fff, reg->val & 0xff);
 	return 0;
 }

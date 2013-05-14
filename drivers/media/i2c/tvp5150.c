@@ -1054,8 +1054,6 @@ static int tvp5150_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *
 
 	if (!v4l2_chip_match_i2c_client(client, &reg->match))
 		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 	res = tvp5150_read(sd, reg->reg & 0xff);
 	if (res < 0) {
 		v4l2_err(sd, "%s: failed with error = %d\n", __func__, res);
@@ -1073,8 +1071,6 @@ static int tvp5150_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_regi
 
 	if (!v4l2_chip_match_i2c_client(client, &reg->match))
 		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 	tvp5150_write(sd, reg->reg & 0xff, reg->val & 0xff);
 	return 0;
 }

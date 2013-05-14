@@ -236,8 +236,6 @@ static int ths7303_g_register(struct v4l2_subdev *sd,
 
 	if (!v4l2_chip_match_i2c_client(client, &reg->match))
 		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 
 	reg->size = 1;
 	reg->val = ths7303_read(sd, reg->reg);
@@ -251,8 +249,6 @@ static int ths7303_s_register(struct v4l2_subdev *sd,
 
 	if (!v4l2_chip_match_i2c_client(client, &reg->match))
 		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 
 	ths7303_write(sd, reg->reg, reg->val);
 	return 0;

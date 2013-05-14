@@ -411,8 +411,6 @@ static int mt9v011_g_register(struct v4l2_subdev *sd,
 
 	if (!v4l2_chip_match_i2c_client(client, &reg->match))
 		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 
 	reg->val = mt9v011_read(sd, reg->reg & 0xff);
 	reg->size = 2;
@@ -427,8 +425,6 @@ static int mt9v011_s_register(struct v4l2_subdev *sd,
 
 	if (!v4l2_chip_match_i2c_client(client, &reg->match))
 		return -EINVAL;
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
 
 	mt9v011_write(sd, reg->reg & 0xff, reg->val & 0xffff);
 
