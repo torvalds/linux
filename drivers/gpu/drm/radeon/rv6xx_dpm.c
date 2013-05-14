@@ -1507,6 +1507,40 @@ static void rv6xx_enable_dynamic_pcie_gen2(struct radeon_device *rdev,
 	}
 }
 
+static void rv6xx_set_uvd_clock_before_set_eng_clock(struct radeon_device *rdev,
+						     struct radeon_ps *new_ps,
+						     struct radeon_ps *old_ps)
+{
+	struct rv6xx_ps *new_state = rv6xx_get_ps(new_ps);
+	struct rv6xx_ps *current_state = rv6xx_get_ps(old_ps);
+
+	if ((new_ps->vclk == old_ps->vclk) &&
+	    (new_ps->dclk == old_ps->dclk))
+		return;
+
+	if (new_state->high.sclk >= current_state->high.sclk)
+		return;
+
+	radeon_set_uvd_clocks(rdev, new_ps->vclk, new_ps->dclk);
+}
+
+static void rv6xx_set_uvd_clock_after_set_eng_clock(struct radeon_device *rdev,
+						    struct radeon_ps *new_ps,
+						    struct radeon_ps *old_ps)
+{
+	struct rv6xx_ps *new_state = rv6xx_get_ps(new_ps);
+	struct rv6xx_ps *current_state = rv6xx_get_ps(old_ps);
+
+	if ((new_ps->vclk == old_ps->vclk) &&
+	    (new_ps->dclk == old_ps->dclk))
+		return;
+
+	if (new_state->high.sclk < current_state->high.sclk)
+		return;
+
+	radeon_set_uvd_clocks(rdev, new_ps->vclk, new_ps->dclk);
+}
+
 int rv6xx_dpm_enable(struct radeon_device *rdev)
 {
 	struct rv6xx_power_info *pi = rv6xx_get_pi(rdev);
@@ -1635,6 +1669,8 @@ int rv6xx_dpm_set_power_state(struct radeon_device *rdev)
 	struct radeon_ps *old_ps = rdev->pm.dpm.current_ps;
 	int ret;
 
+	rv6xx_set_uvd_clock_before_set_eng_clock(rdev, new_ps, old_ps);
+
 	rv6xx_clear_vc(rdev);
 	r600_power_level_enable(rdev, R600_POWER_LEVEL_LOW, true);
 	r600_set_at(rdev, 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF);
@@ -1716,6 +1752,8 @@ int rv6xx_dpm_set_power_state(struct radeon_device *rdev)
 		rv6xx_enable_thermal_protection(rdev, true);
 	rv6xx_program_vc(rdev);
 	rv6xx_program_at(rdev);
+
+	rv6xx_set_uvd_clock_after_set_eng_clock(rdev, new_ps, old_ps);
 
 	return 0;
 }
