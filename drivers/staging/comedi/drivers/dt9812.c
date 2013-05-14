@@ -38,8 +38,6 @@ for my needs.
  *      says P1).
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>
