@@ -265,7 +265,6 @@ struct dt9812_private {
 	} cmd_wr, cmd_rd;
 	u16 device;
 	u16 ao_shadow[2];
-	u8 do_shadow;
 };
 
 static int dt9812_read_info(struct comedi_device *dev,
@@ -390,21 +389,9 @@ static int dt9812_digital_out(struct comedi_device *dev, u8 bits)
 
 	down(&devpriv->sem);
 	ret = dt9812_write_multiple_registers(dev, 1, reg, value);
-	devpriv->do_shadow = bits;
 	up(&devpriv->sem);
 
 	return ret;
-}
-
-static int dt9812_digital_out_shadow(struct comedi_device *dev, u8 *bits)
-{
-	struct dt9812_private *devpriv = dev->private;
-
-	down(&devpriv->sem);
-	*bits = devpriv->do_shadow;
-	up(&devpriv->sem);
-
-	return 0;
 }
 
 static void dt9812_configure_mux(struct comedi_device *dev,
@@ -624,24 +611,24 @@ static int dt9812_di_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int dt9812_do_winsn(struct comedi_device *dev,
-			   struct comedi_subdevice *s, struct comedi_insn *insn,
-			   unsigned int *data)
+static int dt9812_do_insn_bits(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       struct comedi_insn *insn,
+			       unsigned int *data)
 {
-	unsigned int channel = CR_CHAN(insn->chanspec);
-	int n;
-	u8 bits = 0;
+	unsigned int mask = data[0];
+	unsigned int bits = data[1];
 
-	dt9812_digital_out_shadow(dev, &bits);
-	for (n = 0; n < insn->n; n++) {
-		u8 mask = 1 << channel;
+	if (mask) {
+		s->state &= ~mask;
+		s->state |= (bits & mask);
 
-		bits &= ~mask;
-		if (data[n])
-			bits |= mask;
+		dt9812_digital_out(dev, s->state);
 	}
-	dt9812_digital_out(dev, bits);
-	return n;
+
+	data[1] = s->state;
+
+	return insn->n;
 }
 
 static int dt9812_ai_rinsn(struct comedi_device *dev,
@@ -849,9 +836,7 @@ static int dt9812_auto_attach(struct comedi_device *dev,
 	s->n_chan	= 8;
 	s->maxdata	= 1;
 	s->range_table	= &range_digital;
-	s->insn_write	= dt9812_do_winsn;
-
-	devpriv->do_shadow = 0;
+	s->insn_bits	= dt9812_do_insn_bits;
 
 	/* Analog Input subdevice */
 	s = &dev->subdevices[2];
