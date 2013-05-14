@@ -233,7 +233,7 @@ static int ohci_urb_enqueue (
 			urb->start_frame = frame;
 		}
 	} else if (ed->type == PIPE_ISOCHRONOUS) {
-		u16	next = ohci_frame_no(ohci) + 2;
+		u16	next = ohci_frame_no(ohci) + 1;
 		u16	frame = ed->last_iso + ed->interval;
 
 		/* Behind the scheduling threshold? */
