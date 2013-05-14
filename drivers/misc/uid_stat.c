@@ -20,6 +20,7 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/stat.h>
@@ -48,41 +49,26 @@ static struct uid_stat *find_uid_stat(uid_t uid) {
 	return NULL;
 }
 
-static int tcp_snd_read_proc(char *page, char **start, off_t off,
-				int count, int *eof, void *data)
+static int uid_stat_atomic_int_show(struct seq_file *m, void *v)
 {
-	int len;
 	unsigned int bytes;
-	char *p = page;
-	struct uid_stat *uid_entry = (struct uid_stat *) data;
-	if (!data)
-		return 0;
+	atomic_t *counter = m->private;
 
-	bytes = (unsigned int) (atomic_read(&uid_entry->tcp_snd) + INT_MIN);
-	p += sprintf(p, "%u\n", bytes);
-	len = (p - page) - off;
-	*eof = (len <= count) ? 1 : 0;
-	*start = page + off;
-	return len;
+	bytes = (unsigned int) (atomic_read(counter) + INT_MIN);
+	return seq_printf(m, "%u\n", bytes);
 }
 
-static int tcp_rcv_read_proc(char *page, char **start, off_t off,
-				int count, int *eof, void *data)
+static int uid_stat_read_atomic_int_open(struct inode *inode, struct file *file)
 {
-	int len;
-	unsigned int bytes;
-	char *p = page;
-	struct uid_stat *uid_entry = (struct uid_stat *) data;
-	if (!data)
-		return 0;
-
-	bytes = (unsigned int) (atomic_read(&uid_entry->tcp_rcv) + INT_MIN);
-	p += sprintf(p, "%u\n", bytes);
-	len = (p - page) - off;
-	*eof = (len <= count) ? 1 : 0;
-	*start = page + off;
-	return len;
+	return single_open(file, uid_stat_atomic_int_show, PDE_DATA(inode));
 }
+
+static const struct file_operations uid_stat_read_atomic_int_fops = {
+	.open		= uid_stat_read_atomic_int_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= seq_release,
+};
 
 /* Create a new entry for tracking the specified uid. */
 static struct uid_stat *create_stat(uid_t uid) {
@@ -109,11 +95,11 @@ static void create_stat_proc(struct uid_stat *new_uid)
 	entry = proc_mkdir(uid_s, parent);
 
 	/* Keep reference to uid_stat so we know what uid to read stats from. */
-	create_proc_read_entry("tcp_snd", S_IRUGO, entry , tcp_snd_read_proc,
-		(void *) new_uid);
+	proc_create_data("tcp_snd", S_IRUGO, entry,
+			 &uid_stat_read_atomic_int_fops, &new_uid->tcp_snd);
 
-	create_proc_read_entry("tcp_rcv", S_IRUGO, entry, tcp_rcv_read_proc,
-		(void *) new_uid);
+	proc_create_data("tcp_rcv", S_IRUGO, entry,
+			 &uid_stat_read_atomic_int_fops, &new_uid->tcp_rcv);
 }
 
 static struct uid_stat *find_or_create_uid_stat(uid_t uid)
