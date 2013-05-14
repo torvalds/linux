@@ -152,7 +152,7 @@ static struct snd_soc_dai_ops spdif_in_dai_ops = {
 	.hw_params	= spdif_in_hw_params,
 };
 
-struct snd_soc_dai_driver spdif_in_dai = {
+static struct snd_soc_dai_driver spdif_in_dai = {
 	.probe = spdif_in_dai_probe,
 	.capture = {
 		.channels_min = 2,
