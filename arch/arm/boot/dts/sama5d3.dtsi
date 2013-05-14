@@ -156,7 +156,7 @@
 			};
 
 			macb0: ethernet@f0028000 {
-				compatible = "cnds,pc302-gem", "cdns,gem";
+				compatible = "cdns,pc302-gem", "cdns,gem";
 				reg = <0xf0028000 0x100>;
 				interrupts = <34 4 3>;
 				pinctrl-names = "default";
