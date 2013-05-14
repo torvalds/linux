@@ -1500,10 +1500,7 @@ static int usbduxfast_usb_probe(struct usb_interface *uinterf,
 			"This driver needs USB 2.0 to operate. Aborting...\n");
 		return -ENODEV;
 	}
-#ifdef CONFIG_COMEDI_DEBUG
-	printk(KERN_DEBUG "comedi_: usbduxfast_: finding a free structure for "
-	       "the usb-device\n");
-#endif
+
 	down(&start_stop_sem);
 	/* look for a free place in the usbduxfast array */
 	index = -1;
@@ -1521,10 +1518,6 @@ static int usbduxfast_usb_probe(struct usb_interface *uinterf,
 		up(&start_stop_sem);
 		return -EMFILE;
 	}
-#ifdef CONFIG_COMEDI_DEBUG
-	printk(KERN_DEBUG "comedi_: usbduxfast: usbduxfastsub[%d] is ready to "
-	       "connect to comedi.\n", index);
-#endif
 
 	sema_init(&(usbduxfastsub[index].sem), 1);
 	/* save a pointer to the usb device */
@@ -1540,10 +1533,6 @@ static int usbduxfast_usb_probe(struct usb_interface *uinterf,
 	 */
 	usb_set_intfdata(uinterf, &(usbduxfastsub[index]));
 
-#ifdef CONFIG_COMEDI_DEBUG
-	printk(KERN_DEBUG "comedi_: usbduxfast: ifnum=%d\n",
-	       usbduxfastsub[index].ifnum);
-#endif
 	/* create space for the commands going to the usb device */
 	usbduxfastsub[index].dux_commands = kmalloc(SIZEOFDUXBUFFER,
 						    GFP_KERNEL);
@@ -1597,9 +1586,6 @@ static int usbduxfast_usb_probe(struct usb_interface *uinterf,
 		dev_err(&uinterf->dev, "could not load firmware (err=%d)\n", ret);
 		return ret;
 	}
-
-	dev_info(&uinterf->dev,
-		 "usbduxfast%d has been successfully initialized.\n", index);
 
 	return comedi_usb_auto_config(uinterf, &usbduxfast_driver, 0);
 }
