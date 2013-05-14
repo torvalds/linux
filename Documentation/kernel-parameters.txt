@@ -3014,7 +3014,8 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 
 	tmem.frontswap=0|1 [KNL, XEN]
 			Default is on (1). Disable the usage of the frontswap
-			API to send swap pages to the hypervisor.
+			API to send swap pages to the hypervisor. If disabled
+			the selfballooning and selfshrinking are force disabled.
 
 	tmem.selfballooning=0|1 [KNL, XEN]
 			Default is on (1). Disable the driving of swap pages

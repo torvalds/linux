@@ -403,6 +403,14 @@ static int xen_tmem_init(void)
 	}
 #endif
 #ifdef CONFIG_XEN_SELFBALLOONING
+	/*
+	 * There is no point of driving pages to the swap system if they
+	 * aren't going anywhere in tmem universe.
+	 */
+	if (!frontswap) {
+		selfshrinking = false;
+		selfballooning = false;
+	}
 	xen_selfballoon_init(selfballooning, selfshrinking);
 #endif
 	return 0;

@@ -53,15 +53,12 @@
  * System configuration note: Selfballooning should not be enabled on
  * systems without a sufficiently large swap device configured; for best
  * results, it is recommended that total swap be increased by the size
- * of the guest memory.  Also, while technically not required to be
- * configured, it is highly recommended that frontswap also be configured
- * and enabled when selfballooning is running.  So, selfballooning
- * is disabled by default if frontswap is not configured and can only
- * be enabled with the "tmem.selfballooning=1" kernel boot option; similarly
- * selfballooning is enabled by default if frontswap is configured and
- * can be disabled with the "tmem.selfballooning=0" kernel boot option.  Finally,
- * when frontswap is configured,frontswap-selfshrinking can be disabled
- * with the "tmem.selfshrink=0" kernel boot option.
+ * of the guest memory. Note, that selfballooning should be disabled by default
+ * if frontswap is not configured.  Similarly selfballooning should be enabled
+ * by default if frontswap is configured and can be disabled with the
+ * "tmem.selfballooning=0" kernel boot option.  Finally, when frontswap is
+ * configured, frontswap-selfshrinking can be disabled  with the
+ * "tmem.selfshrink=0" kernel boot option.
  *
  * Selfballooning is disallowed in domain0 and force-disabled.
  *
