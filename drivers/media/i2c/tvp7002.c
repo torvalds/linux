@@ -41,9 +41,6 @@ MODULE_DESCRIPTION("TI TVP7002 Video and Graphics Digitizer driver");
 MODULE_AUTHOR("Santiago Nunez-Corrales <santiago.nunez@ridgerun.com>");
 MODULE_LICENSE("GPL");
 
-/* Module Name */
-#define TVP7002_MODULE_NAME	"tvp7002"
-
 /* I2C retry attempts */
 #define I2C_RETRY_COUNT		(5)
 
