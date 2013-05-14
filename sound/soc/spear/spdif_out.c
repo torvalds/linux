@@ -240,7 +240,7 @@ static const struct snd_kcontrol_new spdif_out_controls[] = {
 			spdif_mute_get, spdif_mute_put),
 };
 
-int spdif_soc_dai_probe(struct snd_soc_dai *dai)
+static int spdif_soc_dai_probe(struct snd_soc_dai *dai)
 {
 	struct spdif_out_dev *host = snd_soc_dai_get_drvdata(dai);
 
