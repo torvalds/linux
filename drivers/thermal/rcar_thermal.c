@@ -458,7 +458,7 @@ static int rcar_thermal_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, common);
 
-	dev_info(dev, "%d sensor proved\n", i);
+	dev_info(dev, "%d sensor probed\n", i);
 
 	return 0;
 
