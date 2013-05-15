@@ -8,12 +8,6 @@ config MACH_D2NET_V2
 	  Say 'Y' here if you want your kernel to support the
 	  LaCie d2 Network v2 NAS.
 
-config MACH_DB88F6281_BP
-	bool "Marvell DB-88F6281-BP Development Board"
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  Marvell DB-88F6281-BP Development Board.
-
 config MACH_DOCKSTAR
 	bool "Seagate FreeAgent DockStar"
 	help
@@ -152,6 +146,13 @@ config MACH_CLOUDBOX_DT
 	help
 	  Say 'Y' here if you want your kernel to support the LaCie
 	  CloudBox NAS, using Flattened Device Tree.
+
+config MACH_DB88F628X_BP_DT
+	bool "Marvell DB-88F628x-BP Development Board (Flattened Device Tree)"
+	help
+	  Say 'Y' here if you want your kernel to support the Marvell
+	  DB-88F6281-BP and DB-88F6282-BP Development Board (Flattened
+	  Device Tree).
 
 config MACH_DLINK_KIRKWOOD_DT
 	bool "D-Link Kirkwood-based NAS (Flattened Device Tree)"

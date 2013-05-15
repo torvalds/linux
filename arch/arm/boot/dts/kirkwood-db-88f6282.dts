@@ -1,0 +1,34 @@
+/*
+ * Marvell DB-88F6282-BP Development Board Setup
+ *
+ * Saeed Bishara <saeed@marvell.com>
+ * Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+ *
+ * This file is licensed under the terms of the GNU General Public
+ * License version 2.  This program is licensed "as is" without any
+ * warranty of any kind, whether express or implied.
+ */
+
+/dts-v1/;
+
+/include/ "kirkwood-db.dtsi"
+/include/ "kirkwood-6282.dtsi"
+
+/ {
+	model = "Marvell DB-88F6282-BP Development Board";
+	compatible = "marvell,db-88f6282-bp", "marvell,kirkwood-88f6282", "marvell,kirkwood";
+
+	ocp@f1000000 {
+		pcie-controller {
+			status = "okay";
+
+			pcie@1,0 {
+				status = "okay";
+			};
+
+			pcie@2,0 {
+				status = "okay";
+			};
+		};
+	};
+};
