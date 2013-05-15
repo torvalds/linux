@@ -322,11 +322,6 @@ static inline int igb_desc_unused(struct igb_ring *ring)
 	return ring->count + ring->next_to_clean - ring->next_to_use - 1;
 }
 
-struct igb_i2c_client_list {
-	struct i2c_client *client;
-	struct igb_i2c_client_list *next;
-};
-
 #ifdef CONFIG_IGB_HWMON
 
 #define IGB_HWMON_TYPE_LOC	0
