@@ -272,14 +272,6 @@ config MACH_NETSPACE_V2_DT
 	  Say 'Y' here if you want your kernel to support the LaCie
 	  Network Space v2 NAS, using Flattened Device Tree.
 
-config MACH_NSA310_DT
-	bool "ZyXEL NSA-310 (Flattened Device Tree)"
-	select ARCH_KIRKWOOD_DT
-	select ARM_ATAG_DTB_COMPAT
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  ZyXEL NSA-310 board (Flattened Device Tree).
-
 config MACH_OPENBLOCKS_A6_DT
 	bool "Plat'Home OpenBlocks A6 (Flattened Device Tree)"
 	select ARCH_KIRKWOOD_DT

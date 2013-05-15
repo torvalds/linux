@@ -176,6 +176,14 @@
 				reg = <0x5040000 0x2fc0000>;
 			};
 		};
+
+		pcie-controller {
+			status = "okay";
+
+			pcie@1,0 {
+				status = "okay";
+			};
+		};
 	};
 
 	gpio_keys {
