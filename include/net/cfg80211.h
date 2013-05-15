@@ -2898,11 +2898,6 @@ struct wireless_dev {
 	/* currently used for IBSS and SME - might be rearranged later */
 	u8 ssid[IEEE80211_MAX_SSID_LEN];
 	u8 ssid_len, mesh_id_len, mesh_id_up_len;
-	enum {
-		CFG80211_SME_IDLE,
-		CFG80211_SME_CONNECTING,
-		CFG80211_SME_CONNECTED,
-	} sme_state;
 	struct cfg80211_conn *conn;
 	struct cfg80211_cached_keys *connect_keys;
 

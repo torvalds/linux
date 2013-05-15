@@ -821,7 +821,6 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 			pr_err("failed to add phy80211 symlink to netdev!\n");
 		}
 		wdev->netdev = dev;
-		wdev->sme_state = CFG80211_SME_IDLE;
 #ifdef CONFIG_CFG80211_WEXT
 		wdev->wext.default_key = -1;
 		wdev->wext.default_mgmt_key = -1;

@@ -89,7 +89,7 @@ int cfg80211_mgd_wext_siwfreq(struct net_device *dev,
 
 	wdev_lock(wdev);
 
-	if (wdev->sme_state != CFG80211_SME_IDLE) {
+	if (wdev->conn) {
 		bool event = true;
 
 		if (wdev->wext.connect.channel == chan) {
@@ -188,7 +188,7 @@ int cfg80211_mgd_wext_siwessid(struct net_device *dev,
 
 	err = 0;
 
-	if (wdev->sme_state != CFG80211_SME_IDLE) {
+	if (wdev->conn) {
 		bool event = true;
 
 		if (wdev->wext.connect.ssid && len &&
@@ -277,7 +277,7 @@ int cfg80211_mgd_wext_siwap(struct net_device *dev,
 
 	wdev_lock(wdev);
 
-	if (wdev->sme_state != CFG80211_SME_IDLE) {
+	if (wdev->conn) {
 		err = 0;
 		/* both automatic */
 		if (!bssid && !wdev->wext.connect.bssid)
@@ -364,7 +364,7 @@ int cfg80211_wext_siwgenie(struct net_device *dev,
 	wdev->wext.ie = ie;
 	wdev->wext.ie_len = ie_len;
 
-	if (wdev->sme_state != CFG80211_SME_IDLE) {
+	if (wdev->conn) {
 		err = cfg80211_disconnect(rdev, dev,
 					  WLAN_REASON_DEAUTH_LEAVING, false);
 		if (err)
