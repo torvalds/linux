@@ -2043,6 +2043,14 @@ static int d40_config_memcpy(struct d40_chan *d40c)
 	} else if (dma_has_cap(DMA_MEMCPY, cap) &&
 		   dma_has_cap(DMA_SLAVE, cap)) {
 		d40c->dma_cfg = dma40_memcpy_conf_phy;
+
+		/* Generate interrrupt at end of transfer or relink. */
+		d40c->dst_def_cfg |= BIT(D40_SREG_CFG_TIM_POS);
+
+		/* Generate interrupt on error. */
+		d40c->src_def_cfg |= BIT(D40_SREG_CFG_EIM_POS);
+		d40c->dst_def_cfg |= BIT(D40_SREG_CFG_EIM_POS);
+
 	} else {
 		chan_err(d40c, "No memcpy\n");
 		return -EINVAL;
@@ -2496,9 +2504,6 @@ static int d40_alloc_chan_resources(struct dma_chan *chan)
 	}
 
 	pm_runtime_get_sync(d40c->base->dev);
-	/* Fill in basic CFG register values */
-	d40_phy_cfg(&d40c->dma_cfg, &d40c->src_def_cfg,
-		    &d40c->dst_def_cfg, chan_is_logical(d40c));
 
 	d40_set_prio_realtime(d40c);
 
@@ -2862,8 +2867,7 @@ static int d40_set_runtime_config(struct dma_chan *chan,
 	if (chan_is_logical(d40c))
 		d40_log_cfg(cfg, &d40c->log_def.lcsp1, &d40c->log_def.lcsp3);
 	else
-		d40_phy_cfg(cfg, &d40c->src_def_cfg,
-			    &d40c->dst_def_cfg, false);
+		d40_phy_cfg(cfg, &d40c->src_def_cfg, &d40c->dst_def_cfg);
 
 	/* These settings will take precedence later */
 	d40c->runtime_addr = config_addr;
