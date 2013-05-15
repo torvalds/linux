@@ -3658,8 +3658,11 @@ static void btrfs_destroy_ordered_operations(struct btrfs_transaction *t,
 					 ordered_operations);
 
 		list_del_init(&btrfs_inode->ordered_operations);
+		spin_unlock(&root->fs_info->ordered_extent_lock);
 
 		btrfs_invalidate_inodes(btrfs_inode->root);
+
+		spin_lock(&root->fs_info->ordered_extent_lock);
 	}
 
 	spin_unlock(&root->fs_info->ordered_extent_lock);
@@ -3781,8 +3784,11 @@ static void btrfs_destroy_delalloc_inodes(struct btrfs_root *root)
 		list_del_init(&btrfs_inode->delalloc_inodes);
 		clear_bit(BTRFS_INODE_IN_DELALLOC_LIST,
 			  &btrfs_inode->runtime_flags);
+		spin_unlock(&root->fs_info->delalloc_lock);
 
 		btrfs_invalidate_inodes(btrfs_inode->root);
+
+		spin_lock(&root->fs_info->delalloc_lock);
 	}
 
 	spin_unlock(&root->fs_info->delalloc_lock);
