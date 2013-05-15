@@ -4843,14 +4843,13 @@ static void inode_tree_add(struct inode *inode)
 	struct rb_node **p;
 	struct rb_node *parent;
 	u64 ino = btrfs_ino(inode);
-again:
-	p = &root->inode_tree.rb_node;
-	parent = NULL;
 
 	if (inode_unhashed(inode))
 		return;
-
+again:
+	parent = NULL;
 	spin_lock(&root->inode_lock);
+	p = &root->inode_tree.rb_node;
 	while (*p) {
 		parent = *p;
 		entry = rb_entry(parent, struct btrfs_inode, rb_node);
