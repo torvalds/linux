@@ -203,18 +203,15 @@ static int InterfaceAbortIdlemode(struct bcm_mini_adapter *Adapter, unsigned int
 		while( timeout > jiffies ) {
 			itr++ ;
 			rdmalt(Adapter, CHIP_ID_REG, &chip_id, sizeof(UINT));
-			if(0xbece3200 == (chip_id&~(0xF0))) {
+			if(0xbece3200 == (chip_id&~(0xF0)))
 				chip_id = chip_id&~(0xF0);
-			}
 			if(chip_id == Adapter->chip_id)
 				break;
 		}
-		if(timeout < jiffies ) {
+		if(timeout < jiffies )
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, IDLE_MODE, DBG_LVL_ALL, "Not able to read chip-id even after 25 msec");
-		}
-		else {
+		else
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, IDLE_MODE, DBG_LVL_ALL, "Number of completed iteration to read chip-id :%lu", itr);
-		}
 
 		status = wrmalt(Adapter, SW_ABORT_IDLEMODE_LOC, &Pattern, sizeof(status));
 		if(status) {
