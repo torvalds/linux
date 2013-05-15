@@ -493,8 +493,7 @@ static inline int sensor_v4l2ctrl_default_cb(struct soc_camera_device *icd, stru
 static inline int sensor_v4l2ctrl_flash_cb(struct soc_camera_device *icd, struct sensor_v4l2ctrl_info_s *ctrl_info, 
                                                      struct v4l2_ext_control *ext_ctrl)
 {
-    struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));   
-    struct generic_sensor *sensor = to_generic_sensor(client);
+    struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
     int value = ext_ctrl->value;
 
     if ((value < ctrl_info->qctrl->minimum) || (value > ctrl_info->qctrl->maximum)) {

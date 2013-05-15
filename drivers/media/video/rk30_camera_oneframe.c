@@ -296,9 +296,12 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 *
 *v0.3.1 :
 *         1. compatible with generic_sensor;
-
+*
+*v0.3.3 :
+*         1. fix use v4l2_mbus_framefmt.reserved array overflow in generic_sensor_s_fmt;        
 */
-#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 3, 0x01)
+
+#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 3, 0x03)
 static int version = RK_CAM_VERSION_CODE;
 module_param(version, int, S_IRUGO);
 
@@ -650,9 +653,10 @@ fail:
 out:
     return ret;
 }
+#if defined(CONFIG_ARCH_RK3188)
 static void rk_camera_store_register(struct rk_camera_dev *pcdev)
 {
-#if defined(CONFIG_ARCH_RK3188)
+
 	pcdev->reginfo_suspend.cifCtrl = read_cif_reg(pcdev->base,CIF_CIF_CTRL);
 	pcdev->reginfo_suspend.cifCrop = read_cif_reg(pcdev->base,CIF_CIF_CROP);
 	pcdev->reginfo_suspend.cifFs = read_cif_reg(pcdev->base,CIF_CIF_SET_SIZE);
@@ -664,12 +668,9 @@ static void rk_camera_store_register(struct rk_camera_dev *pcdev)
 	cru_set_soft_reset(SOFT_RST_CIF0, true);
 	udelay(5);
 	cru_set_soft_reset(SOFT_RST_CIF0, false);
-	
-#endif
 }
 static void rk_camera_restore_register(struct rk_camera_dev *pcdev)
 {
-#if defined(CONFIG_ARCH_RK3188)
     if (pcdev->reginfo_suspend.cifCtrl&ENABLE_CAPTURE)
         write_cif_reg(pcdev->base,CIF_CIF_CTRL, pcdev->reginfo_suspend.cifCtrl&~ENABLE_CAPTURE);
 	write_cif_reg(pcdev->base,CIF_CIF_INTEN, pcdev->reginfo_suspend.cifIntEn);
@@ -680,8 +681,10 @@ static void rk_camera_restore_register(struct rk_camera_dev *pcdev)
 	write_cif_reg(pcdev->base,CIF_CIF_SCL_CTRL, pcdev->reginfo_suspend.cifScale);
     if (pcdev->reginfo_suspend.cifCtrl&ENABLE_CAPTURE)
         write_cif_reg(pcdev->base,CIF_CIF_CTRL, pcdev->reginfo_suspend.cifCtrl);
-#endif
+
+
 }
+#endif
 static inline void rk_videobuf_capture(struct videobuf_buffer *vb,struct rk_camera_dev *rk_pcdev)
 {
 	unsigned int y_addr,uv_addr;
@@ -788,7 +791,7 @@ static int rk_pixfmt2ippfmt(unsigned int pixfmt, int *ippfmt)
 rk_pixfmt2ippfmt_err:
 	return -1;
 }
-
+#if (CONFIG_CAMERA_SCALE_CROP_MACHINE == RK_CAM_SCALE_CROP_RGA)
 static int rk_pixfmt2rgafmt(unsigned int pixfmt, int *ippfmt)
 {
 	switch (pixfmt)
@@ -825,6 +828,7 @@ static int rk_pixfmt2rgafmt(unsigned int pixfmt, int *ippfmt)
 rk_pixfmt2rgafmt_err:
 	return -1;
 }
+#endif
 #if (CONFIG_CAMERA_SCALE_CROP_MACHINE == RK_CAM_SCALE_CROP_PP)
 static int rk_camera_scale_crop_pp(struct work_struct *work){
 	struct rk_camera_work *camera_work = container_of(work, struct rk_camera_work, work);
@@ -1055,8 +1059,6 @@ static int rk_camera_scale_crop_ipp(struct work_struct *work)
     if (scale_crop_ret == 0x01) {
         ret = rk_camera_scale_crop_arm(work);
     }
-    
-do_ipp_err:
 
     if (ret) {
         spin_lock_irqsave(&pcdev->lock, flags);
@@ -1185,8 +1187,7 @@ static int rk_camera_scale_crop_arm(struct work_struct *work)
         }
         pdUV += dstW*2;
     }
-rk_camera_scale_crop_arm_end:
-
+    
     dmac_flush_range((void*)src,(void*)(src+pcdev->vipmem_bsize));
     outer_flush_range((phys_addr_t)src_phy,(phys_addr_t)(src_phy+pcdev->vipmem_bsize));
     
@@ -1447,9 +1448,6 @@ rk_camera_clk_ctrl_end:
 
 static int rk_camera_activate(struct rk_camera_dev *pcdev, struct soc_camera_device *icd)
 {
-    int err = 0;
-    struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);    
-
     /*
     * ddl@rock-chips.com : Cif clk control in rk_sensor_power which in rk_camera.c
     */
@@ -1494,8 +1492,6 @@ static int rk_camera_activate(struct rk_camera_dev *pcdev, struct soc_camera_dev
     write_cif_reg(pcdev->base,CIF_CIF_INTEN, 0x01);    //capture complete interrupt enable
     RKCAMERA_DG("CIF_CIF_CTRL = 0x%x\n",read_cif_reg(pcdev->base, CIF_CIF_CTRL));
     return 0;
-RK_CAMERA_ACTIVE_ERR:
-    return -ENODEV;
 }
 
 static void rk_camera_deactivate(struct rk_camera_dev *pcdev)
@@ -2121,7 +2117,7 @@ static int rk_camera_set_fmt(struct soc_camera_device *icd,
 	mf.field	= pix->field;
 	mf.colorspace	= pix->colorspace;
 	mf.code		= xlate->code;
-    mf.reserved[7] = pix->priv;
+    mf.reserved[6] = pix->priv;              /* ddl@rock-chips.com : v0.3.3 */      
 	ret = v4l2_subdev_call(sd, video, s_mbus_fmt, &mf);
 	if (mf.code != xlate->code)
 		return -EINVAL;
@@ -3307,7 +3303,7 @@ static int __devexit rk_camera_remove(struct platform_device *pdev)
         if (meminfo_ptr->vbase == meminfo_ptrr->vbase) {
             meminfo_ptr->vbase = NULL;
         } else {
-            iounmap((void __iomem*)pcdev->vipmem_phybase);
+            iounmap((void __iomem*)pcdev->vipmem_virbase);
             release_mem_region(pcdev->vipmem_phybase, pcdev->vipmem_size);
             meminfo_ptr->vbase = NULL;
         }

@@ -20,8 +20,11 @@
 *        add WqCmd_af_continues_pause;
 *v0.1.3:
 *        add support flash control;
+*
+*v0.1.5:
+*        fix use v4l2_mbus_framefmt.reserved array overflow in generic_sensor_s_fmt;        
 */
-static int version = KERNEL_VERSION(0,1,3);
+static int version = KERNEL_VERSION(0,1,5);
 module_param(version, int, S_IRUGO);
 
 
@@ -156,7 +159,7 @@ write_end:
 /* sensor register write buffer */
 int generic_sensor_writebuf(struct i2c_client *client, char *buf, int buf_size)
 {
-	int err=0,cnt = 0,i;
+	int err=0,cnt = 0;
 	struct i2c_msg msg[1];
     struct generic_sensor *sensor = to_generic_sensor(client);
             
@@ -852,7 +855,7 @@ int generic_sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
     struct generic_sensor *sensor = to_generic_sensor(client);
     struct rk_sensor_sequence *winseqe_set_addr=NULL;
     struct sensor_v4l2ctrl_info_s *v4l2ctrl_info;
-    bool is_capture=(mf->reserved[7]==0xfefe5a5a)?true:false;
+    bool is_capture=(mf->reserved[6]==0xfefe5a5a)?true:false;    /* ddl@rock-chips.com : v0.1.5 */ 
     int ret=0;
 
     fmt =generic_sensor_find_datafmt(mf->code, sensor->info_priv.datafmt,
