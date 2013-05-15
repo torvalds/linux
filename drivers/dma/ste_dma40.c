@@ -58,6 +58,8 @@
 #define D40_ALLOC_PHY		BIT(30)
 #define D40_ALLOC_LOG_FREE	0
 
+#define D40_MEMCPY_MAX_CHANS	8
+
 /* Reserved event lines for memcpy only. */
 #define DB8500_DMA_MEMCPY_EV_0	51
 #define DB8500_DMA_MEMCPY_EV_1	56
@@ -522,6 +524,8 @@ struct d40_gen_dmac {
  * @phy_start: Physical memory start of the DMA registers.
  * @phy_size: Size of the DMA register map.
  * @irq: The IRQ number.
+ * @num_memcpy_chans: The number of channels used for memcpy (mem-to-mem
+ * transfers).
  * @num_phy_chans: The number of physical channels. Read from HW. This
  * is the number of available channels for this driver, not counting "Secure
  * mode" allocated physical channels.
@@ -565,6 +569,7 @@ struct d40_base {
 	phys_addr_t			  phy_start;
 	resource_size_t			  phy_size;
 	int				  irq;
+	int				  num_memcpy_chans;
 	int				  num_phy_chans;
 	int				  num_log_chans;
 	struct device_dma_parameters	  dma_parms;
@@ -2938,7 +2943,7 @@ static int __init d40_dmaengine_init(struct d40_base *base,
 	}
 
 	d40_chan_init(base, &base->dma_memcpy, base->log_chans,
-		      base->num_log_chans, ARRAY_SIZE(dma40_memcpy_channels));
+		      base->num_log_chans, base->num_memcpy_chans);
 
 	dma_cap_zero(base->dma_memcpy.cap_mask);
 	dma_cap_set(DMA_MEMCPY, base->dma_memcpy.cap_mask);
@@ -3139,6 +3144,7 @@ static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 	struct d40_base *base = NULL;
 	int num_log_chans = 0;
 	int num_phy_chans;
+	int num_memcpy_chans;
 	int clk_ret = -EINVAL;
 	int i;
 	u32 pid;
@@ -3209,6 +3215,12 @@ static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 	else
 		num_phy_chans = 4 * (readl(virtbase + D40_DREG_ICFG) & 0x7) + 4;
 
+	/* The number of channels used for memcpy */
+	if (plat_data->num_of_memcpy_chans)
+		num_memcpy_chans = plat_data->num_of_memcpy_chans;
+	else
+		num_memcpy_chans = ARRAY_SIZE(dma40_memcpy_channels);
+
 	num_log_chans = num_phy_chans * D40_MAX_LOG_CHAN_PER_PHY;
 
 	dev_info(&pdev->dev,
@@ -3216,7 +3228,7 @@ static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 		 rev, res->start, num_phy_chans, num_log_chans);
 
 	base = kzalloc(ALIGN(sizeof(struct d40_base), 4) +
-		       (num_phy_chans + num_log_chans + ARRAY_SIZE(dma40_memcpy_channels)) *
+		       (num_phy_chans + num_log_chans + num_memcpy_chans) *
 		       sizeof(struct d40_chan), GFP_KERNEL);
 
 	if (base == NULL) {
@@ -3226,6 +3238,7 @@ static struct d40_base * __init d40_hw_detect_init(struct platform_device *pdev)
 
 	base->rev = rev;
 	base->clk = clk;
+	base->num_memcpy_chans = num_memcpy_chans;
 	base->num_phy_chans = num_phy_chans;
 	base->num_log_chans = num_log_chans;
 	base->phy_start = res->start;
@@ -3469,18 +3482,29 @@ static int __init d40_of_probe(struct platform_device *pdev,
 			       struct device_node *np)
 {
 	struct stedma40_platform_data *pdata;
-
-	/*
-	 * FIXME: Fill in this routine as more support is added.
-	 * First platform enabled (u8500) doens't need any extra
-	 * properties to run, so this is fairly sparce currently.
-	 */
+	int num_memcpy = 0;
+	const const __be32 *list;
 
 	pdata = devm_kzalloc(&pdev->dev,
 			     sizeof(struct stedma40_platform_data),
 			     GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
+
+	list = of_get_property(np, "memcpy-channels", &num_memcpy);
+	num_memcpy /= sizeof(*list);
+
+	if (num_memcpy > D40_MEMCPY_MAX_CHANS || num_memcpy <= 0) {
+		d40_err(&pdev->dev,
+			"Invalid number of memcpy channels specified (%d)\n",
+			num_memcpy);
+		return -EINVAL;
+	}
+	pdata->num_of_memcpy_chans = num_memcpy;
+
+	of_property_read_u32_array(np, "memcpy-channels",
+				   dma40_memcpy_channels,
+				   num_memcpy);
 
 	pdev->dev.platform_data = pdata;
 
