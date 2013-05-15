@@ -5554,6 +5554,13 @@ static inline int l2cap_le_sig_cmd(struct l2cap_conn *conn,
 	case L2CAP_LE_CONN_REQ:
 		return l2cap_le_connect_req(conn, cmd, cmd_len, data);
 
+	case L2CAP_DISCONN_REQ:
+		return l2cap_disconnect_req(conn, cmd, cmd_len, data);
+
+	case L2CAP_DISCONN_RSP:
+		l2cap_disconnect_rsp(conn, cmd, cmd_len, data);
+		return 0;
+
 	default:
 		BT_ERR("Unknown LE signaling command 0x%2.2x", cmd->code);
 		return -EINVAL;
