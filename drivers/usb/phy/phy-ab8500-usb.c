@@ -286,7 +286,8 @@ static void ab8500_usb_phy_disable(struct ab8500_usb *ab, bool sel_host)
 		else if (pinctrl_select_state(ab->pinctrl, ab->pins_sleep))
 			dev_err(ab->dev, "could not set pins to sleep state\n");
 
-		/* as USB pins are shared with idddet, release them to allow
+		/*
+		 * as USB pins are shared with iddet, release them to allow
 		 * iddet to request them
 		 */
 		pinctrl_put(ab->pinctrl);
@@ -553,7 +554,7 @@ static irqreturn_t ab8500_usb_disconnect_irq(int irq, void *data)
 
 static irqreturn_t ab8500_usb_link_status_irq(int irq, void *data)
 {
-	struct ab8500_usb *ab = (struct ab8500_usb *) data;
+	struct ab8500_usb *ab = (struct ab8500_usb *)data;
 
 	abx500_usb_link_status_update(ab);
 
@@ -627,7 +628,7 @@ static int ab8500_usb_set_peripheral(struct usb_otg *otg,
 	 * is fixed.
 	 */
 
-	if ((ab->mode != USB_IDLE) && (!gadget)) {
+	if ((ab->mode != USB_IDLE) && !gadget) {
 		ab->mode = USB_IDLE;
 		schedule_work(&ab->phy_dis_work);
 	}
@@ -651,7 +652,7 @@ static int ab8500_usb_set_host(struct usb_otg *otg, struct usb_bus *host)
 	 * is fixed.
 	 */
 
-	if ((ab->mode != USB_IDLE) && (!host)) {
+	if ((ab->mode != USB_IDLE) && !host) {
 		ab->mode = USB_IDLE;
 		schedule_work(&ab->phy_dis_work);
 	}
