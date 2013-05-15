@@ -1130,6 +1130,7 @@ static void mmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	struct variant_data *variant = host->variant;
 	u32 pwr = 0;
 	unsigned long flags;
+	int ret;
 
 	pm_runtime_get_sync(mmc_dev(mmc));
 
@@ -1161,8 +1162,12 @@ static void mmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		break;
 	case MMC_POWER_ON:
 		if (!IS_ERR(mmc->supply.vqmmc) &&
-		    !regulator_is_enabled(mmc->supply.vqmmc))
-			regulator_enable(mmc->supply.vqmmc);
+		    !regulator_is_enabled(mmc->supply.vqmmc)) {
+			ret = regulator_enable(mmc->supply.vqmmc);
+			if (ret < 0)
+				dev_err(mmc_dev(mmc),
+					"failed to enable vqmmc regulator\n");
+		}
 
 		pwr |= MCI_PWR_ON;
 		break;
