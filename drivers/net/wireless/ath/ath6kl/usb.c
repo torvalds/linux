@@ -1061,6 +1061,22 @@ static void ath6kl_usb_cleanup_scatter(struct ath6kl *ar)
 	return;
 }
 
+static int ath6kl_usb_suspend(struct ath6kl *ar, struct cfg80211_wowlan *wow)
+{
+	/*
+	 * cfg80211 suspend/WOW currently not supported for USB.
+	 */
+	return 0;
+}
+
+static int ath6kl_usb_resume(struct ath6kl *ar)
+{
+	/*
+	 * cfg80211 resume currently not supported for USB.
+	 */
+	return 0;
+}
+
 static const struct ath6kl_hif_ops ath6kl_usb_ops = {
 	.diag_read32 = ath6kl_usb_diag_read32,
 	.diag_write32 = ath6kl_usb_diag_write32,
@@ -1074,6 +1090,8 @@ static const struct ath6kl_hif_ops ath6kl_usb_ops = {
 	.pipe_map_service = ath6kl_usb_map_service_pipe,
 	.pipe_get_free_queue_number = ath6kl_usb_get_free_queue_number,
 	.cleanup_scatter = ath6kl_usb_cleanup_scatter,
+	.suspend = ath6kl_usb_suspend,
+	.resume = ath6kl_usb_resume,
 };
 
 /* ath6kl usb driver registered functions */
