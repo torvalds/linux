@@ -111,7 +111,6 @@ config SOC_IMX25
 	select ARCH_MXC_IOMUX_V3
 	select COMMON_CLK
 	select CPU_ARM926T
-	select HAVE_CAN_FLEXCAN if CAN
 	select MXC_AVIC
 
 config SOC_IMX27
@@ -137,7 +136,6 @@ config SOC_IMX35
 	select ARCH_MXC_IOMUX_V3
 	select COMMON_CLK
 	select CPU_V6K
-	select HAVE_CAN_FLEXCAN if CAN
 	select HAVE_EPIT
 	select MXC_AVIC
 	select SMP_ON_UP if SMP
@@ -776,7 +774,6 @@ comment "Device tree only"
 
 config	SOC_IMX53
 	bool "i.MX53 support"
-	select HAVE_CAN_FLEXCAN if CAN
 	select HAVE_IMX_SRC
 	select IMX_HAVE_PLATFORM_IMX2_WDT
 	select PINCTRL
@@ -799,7 +796,6 @@ config SOC_IMX6Q
 	select CPU_V7
 	select HAVE_ARM_SCU if SMP
 	select HAVE_ARM_TWD if LOCAL_TIMERS
-	select HAVE_CAN_FLEXCAN if CAN
 	select HAVE_IMX_ANATOP
 	select HAVE_IMX_GPC
 	select HAVE_IMX_MMDC

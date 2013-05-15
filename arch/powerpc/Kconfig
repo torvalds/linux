@@ -674,7 +674,6 @@ config SBUS
 
 config FSL_SOC
 	bool
-	select HAVE_CAN_FLEXCAN if NET && CAN
 
 config FSL_PCI
  	bool
