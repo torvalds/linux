@@ -66,10 +66,6 @@ static struct {
 	struct clk *sys_clk;
 	struct regulator *vdda_hdmi_dac_reg;
 
-	int ct_cp_hpd_gpio;
-	int ls_oe_gpio;
-	int hpd_gpio;
-
 	bool core_enabled;
 
 	struct omap_dss_device output;
@@ -353,40 +349,6 @@ static int hdmi_init_regulator(void)
 	return 0;
 }
 
-static int hdmi_init_display(struct omap_dss_device *dssdev)
-{
-	int r;
-
-	struct gpio gpios[] = {
-		{ hdmi.ct_cp_hpd_gpio, GPIOF_OUT_INIT_LOW, "hdmi_ct_cp_hpd" },
-		{ hdmi.ls_oe_gpio, GPIOF_OUT_INIT_LOW, "hdmi_ls_oe" },
-		{ hdmi.hpd_gpio, GPIOF_DIR_IN, "hdmi_hpd" },
-	};
-
-	DSSDBG("init_display\n");
-
-	dss_init_hdmi_ip_ops(&hdmi.ip_data, omapdss_get_version());
-
-	r = hdmi_init_regulator();
-	if (r)
-		return r;
-
-	r = gpio_request_array(gpios, ARRAY_SIZE(gpios));
-	if (r)
-		return r;
-
-	return 0;
-}
-
-static void hdmi_uninit_display(struct omap_dss_device *dssdev)
-{
-	DSSDBG("uninit_display\n");
-
-	gpio_free(hdmi.ct_cp_hpd_gpio);
-	gpio_free(hdmi.ls_oe_gpio);
-	gpio_free(hdmi.hpd_gpio);
-}
-
 static const struct hdmi_config *hdmi_find_timing(
 					const struct hdmi_config *timings_arr,
 					int len)
@@ -517,17 +479,9 @@ static int hdmi_power_on_core(struct omap_dss_device *dssdev)
 {
 	int r;
 
-	if (gpio_is_valid(hdmi.ct_cp_hpd_gpio))
-		gpio_set_value(hdmi.ct_cp_hpd_gpio, 1);
-	if (gpio_is_valid(hdmi.ls_oe_gpio))
-		gpio_set_value(hdmi.ls_oe_gpio, 1);
-
-	/* wait 300us after CT_CP_HPD for the 5V power output to reach 90% */
-	udelay(300);
-
 	r = regulator_enable(hdmi.vdda_hdmi_dac_reg);
 	if (r)
-		goto err_vdac_enable;
+		return r;
 
 	r = hdmi_runtime_get();
 	if (r)
@@ -542,11 +496,7 @@ static int hdmi_power_on_core(struct omap_dss_device *dssdev)
 
 err_runtime_get:
 	regulator_disable(hdmi.vdda_hdmi_dac_reg);
-err_vdac_enable:
-	if (gpio_is_valid(hdmi.ct_cp_hpd_gpio))
-		gpio_set_value(hdmi.ct_cp_hpd_gpio, 0);
-	if (gpio_is_valid(hdmi.ls_oe_gpio))
-		gpio_set_value(hdmi.ls_oe_gpio, 0);
+
 	return r;
 }
 
@@ -556,10 +506,6 @@ static void hdmi_power_off_core(struct omap_dss_device *dssdev)
 
 	hdmi_runtime_put();
 	regulator_disable(hdmi.vdda_hdmi_dac_reg);
-	if (gpio_is_valid(hdmi.ct_cp_hpd_gpio))
-		gpio_set_value(hdmi.ct_cp_hpd_gpio, 0);
-	if (gpio_is_valid(hdmi.ls_oe_gpio))
-		gpio_set_value(hdmi.ls_oe_gpio, 0);
 }
 
 static int hdmi_power_on_full(struct omap_dss_device *dssdev)
@@ -640,7 +586,7 @@ static void hdmi_power_off_full(struct omap_dss_device *dssdev)
 	hdmi_power_off_core(dssdev);
 }
 
-int omapdss_hdmi_display_check_timing(struct omap_dss_device *dssdev,
+static int hdmi_display_check_timing(struct omap_dss_device *dssdev,
 					struct omap_video_timings *timings)
 {
 	struct hdmi_cm cm;
@@ -654,7 +600,7 @@ int omapdss_hdmi_display_check_timing(struct omap_dss_device *dssdev,
 
 }
 
-void omapdss_hdmi_display_set_timing(struct omap_dss_device *dssdev,
+static void hdmi_display_set_timing(struct omap_dss_device *dssdev,
 		struct omap_video_timings *timings)
 {
 	struct hdmi_cm cm;
@@ -674,7 +620,7 @@ void omapdss_hdmi_display_set_timing(struct omap_dss_device *dssdev,
 	mutex_unlock(&hdmi.lock);
 }
 
-static void omapdss_hdmi_display_get_timings(struct omap_dss_device *dssdev,
+static void hdmi_display_get_timings(struct omap_dss_device *dssdev,
 		struct omap_video_timings *timings)
 {
 	const struct hdmi_config *cfg;
@@ -704,7 +650,7 @@ static void hdmi_dump_regs(struct seq_file *s)
 	mutex_unlock(&hdmi.lock);
 }
 
-int omapdss_hdmi_read_edid(u8 *buf, int len)
+static int read_edid(u8 *buf, int len)
 {
 	int r;
 
@@ -721,24 +667,7 @@ int omapdss_hdmi_read_edid(u8 *buf, int len)
 	return r;
 }
 
-bool omapdss_hdmi_detect(void)
-{
-	int r;
-
-	mutex_lock(&hdmi.lock);
-
-	r = hdmi_runtime_get();
-	BUG_ON(r);
-
-	r = gpio_get_value(hdmi.hpd_gpio);
-
-	hdmi_runtime_put();
-	mutex_unlock(&hdmi.lock);
-
-	return r == 1;
-}
-
-int omapdss_hdmi_display_enable(struct omap_dss_device *dssdev)
+static int hdmi_display_enable(struct omap_dss_device *dssdev)
 {
 	struct omap_dss_device *out = &hdmi.output;
 	int r = 0;
@@ -767,7 +696,7 @@ err0:
 	return r;
 }
 
-void omapdss_hdmi_display_disable(struct omap_dss_device *dssdev)
+static void hdmi_display_disable(struct omap_dss_device *dssdev)
 {
 	DSSDBG("Enter hdmi_display_disable\n");
 
@@ -778,7 +707,7 @@ void omapdss_hdmi_display_disable(struct omap_dss_device *dssdev)
 	mutex_unlock(&hdmi.lock);
 }
 
-int omapdss_hdmi_core_enable(struct omap_dss_device *dssdev)
+static int hdmi_core_enable(struct omap_dss_device *dssdev)
 {
 	int r = 0;
 
@@ -800,7 +729,7 @@ err0:
 	return r;
 }
 
-void omapdss_hdmi_core_disable(struct omap_dss_device *dssdev)
+static void hdmi_core_disable(struct omap_dss_device *dssdev)
 {
 	DSSDBG("Enter omapdss_hdmi_core_disable\n");
 
@@ -927,35 +856,7 @@ int hdmi_compute_acr(u32 sample_freq, u32 *n, u32 *cts)
 	return 0;
 }
 
-int hdmi_audio_enable(void)
-{
-	DSSDBG("audio_enable\n");
-
-	return hdmi.ip_data.ops->audio_enable(&hdmi.ip_data);
-}
-
-void hdmi_audio_disable(void)
-{
-	DSSDBG("audio_disable\n");
-
-	hdmi.ip_data.ops->audio_disable(&hdmi.ip_data);
-}
-
-int hdmi_audio_start(void)
-{
-	DSSDBG("audio_start\n");
-
-	return hdmi.ip_data.ops->audio_start(&hdmi.ip_data);
-}
-
-void hdmi_audio_stop(void)
-{
-	DSSDBG("audio_stop\n");
-
-	hdmi.ip_data.ops->audio_stop(&hdmi.ip_data);
-}
-
-bool hdmi_mode_has_audio(void)
+static bool hdmi_mode_has_audio(void)
 {
 	if (hdmi.ip_data.cfg.cm.mode == HDMI_HDMI)
 		return true;
@@ -963,91 +864,7 @@ bool hdmi_mode_has_audio(void)
 		return false;
 }
 
-int hdmi_audio_config(struct omap_dss_audio *audio)
-{
-	return hdmi.ip_data.ops->audio_config(&hdmi.ip_data, audio);
-}
-
 #endif
-
-static struct omap_dss_device *hdmi_find_dssdev(struct platform_device *pdev)
-{
-	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
-	const char *def_disp_name = omapdss_get_default_display_name();
-	struct omap_dss_device *def_dssdev;
-	int i;
-
-	def_dssdev = NULL;
-
-	for (i = 0; i < pdata->num_devices; ++i) {
-		struct omap_dss_device *dssdev = pdata->devices[i];
-
-		if (dssdev->type != OMAP_DISPLAY_TYPE_HDMI)
-			continue;
-
-		if (def_dssdev == NULL)
-			def_dssdev = dssdev;
-
-		if (def_disp_name != NULL &&
-				strcmp(dssdev->name, def_disp_name) == 0) {
-			def_dssdev = dssdev;
-			break;
-		}
-	}
-
-	return def_dssdev;
-}
-
-static int hdmi_probe_pdata(struct platform_device *pdev)
-{
-	struct omap_dss_device *plat_dssdev;
-	struct omap_dss_device *dssdev;
-	struct omap_dss_hdmi_data *priv;
-	int r;
-
-	plat_dssdev = hdmi_find_dssdev(pdev);
-
-	if (!plat_dssdev)
-		return 0;
-
-	dssdev = dss_alloc_and_init_device(&pdev->dev);
-	if (!dssdev)
-		return -ENOMEM;
-
-	dss_copy_device_pdata(dssdev, plat_dssdev);
-
-	priv = dssdev->data;
-
-	hdmi.ct_cp_hpd_gpio = priv->ct_cp_hpd_gpio;
-	hdmi.ls_oe_gpio = priv->ls_oe_gpio;
-	hdmi.hpd_gpio = priv->hpd_gpio;
-
-	r = hdmi_init_display(dssdev);
-	if (r) {
-		DSSERR("device %s init failed: %d\n", dssdev->name, r);
-		dss_put_device(dssdev);
-		return r;
-	}
-
-	r = omapdss_output_set_device(&hdmi.output, dssdev);
-	if (r) {
-		DSSERR("failed to connect output to new device: %s\n",
-				dssdev->name);
-		dss_put_device(dssdev);
-		return r;
-	}
-
-	r = dss_add_device(dssdev);
-	if (r) {
-		DSSERR("device %s register failed: %d\n", dssdev->name, r);
-		omapdss_output_unset_device(&hdmi.output);
-		hdmi_uninit_display(dssdev);
-		dss_put_device(dssdev);
-		return r;
-	}
-
-	return 0;
-}
 
 static int hdmi_connect(struct omap_dss_device *dssdev,
 		struct omap_dss_device *dst)
@@ -1103,21 +920,21 @@ static int hdmi_read_edid(struct omap_dss_device *dssdev,
 	need_enable = hdmi.core_enabled == false;
 
 	if (need_enable) {
-		r = omapdss_hdmi_core_enable(dssdev);
+		r = hdmi_core_enable(dssdev);
 		if (r)
 			return r;
 	}
 
-	r = omapdss_hdmi_read_edid(edid, len);
+	r = read_edid(edid, len);
 
 	if (need_enable)
-		omapdss_hdmi_core_disable(dssdev);
+		hdmi_core_disable(dssdev);
 
 	return r;
 }
 
 #if defined(CONFIG_OMAP4_DSS_HDMI_AUDIO)
-static int omapdss_hdmi_audio_enable(struct omap_dss_device *dssdev)
+static int hdmi_audio_enable(struct omap_dss_device *dssdev)
 {
 	int r;
 
@@ -1128,7 +945,8 @@ static int omapdss_hdmi_audio_enable(struct omap_dss_device *dssdev)
 		goto err;
 	}
 
-	r = hdmi_audio_enable();
+
+	r = hdmi.ip_data.ops->audio_enable(&hdmi.ip_data);
 	if (r)
 		goto err;
 
@@ -1140,22 +958,22 @@ err:
 	return r;
 }
 
-static void omapdss_hdmi_audio_disable(struct omap_dss_device *dssdev)
+static void hdmi_audio_disable(struct omap_dss_device *dssdev)
 {
-	hdmi_audio_disable();
+	hdmi.ip_data.ops->audio_disable(&hdmi.ip_data);
 }
 
-static int omapdss_hdmi_audio_start(struct omap_dss_device *dssdev)
+static int hdmi_audio_start(struct omap_dss_device *dssdev)
 {
-	return hdmi_audio_start();
+	return hdmi.ip_data.ops->audio_start(&hdmi.ip_data);
 }
 
-static void omapdss_hdmi_audio_stop(struct omap_dss_device *dssdev)
+static void hdmi_audio_stop(struct omap_dss_device *dssdev)
 {
-	hdmi_audio_stop();
+	hdmi.ip_data.ops->audio_stop(&hdmi.ip_data);
 }
 
-static bool omapdss_hdmi_audio_supported(struct omap_dss_device *dssdev)
+static bool hdmi_audio_supported(struct omap_dss_device *dssdev)
 {
 	bool r;
 
@@ -1167,7 +985,7 @@ static bool omapdss_hdmi_audio_supported(struct omap_dss_device *dssdev)
 	return r;
 }
 
-static int omapdss_hdmi_audio_config(struct omap_dss_device *dssdev,
+static int hdmi_audio_config(struct omap_dss_device *dssdev,
 		struct omap_dss_audio *audio)
 {
 	int r;
@@ -1179,7 +997,7 @@ static int omapdss_hdmi_audio_config(struct omap_dss_device *dssdev,
 		goto err;
 	}
 
-	r = hdmi_audio_config(audio);
+	r = hdmi.ip_data.ops->audio_config(&hdmi.ip_data, audio);
 	if (r)
 		goto err;
 
@@ -1191,30 +1009,30 @@ err:
 	return r;
 }
 #else
-static int omapdss_hdmi_audio_enable(struct omap_dss_device *dssdev)
+static int hdmi_audio_enable(struct omap_dss_device *dssdev)
 {
 	return -EPERM;
 }
 
-static void omapdss_hdmi_audio_disable(struct omap_dss_device *dssdev)
+static void hdmi_audio_disable(struct omap_dss_device *dssdev)
 {
 }
 
-static int omapdss_hdmi_audio_start(struct omap_dss_device *dssdev)
+static int hdmi_audio_start(struct omap_dss_device *dssdev)
 {
 	return -EPERM;
 }
 
-static void omapdss_hdmi_audio_stop(struct omap_dss_device *dssdev)
+static void hdmi_audio_stop(struct omap_dss_device *dssdev)
 {
 }
 
-static bool omapdss_hdmi_audio_supported(struct omap_dss_device *dssdev)
+static bool hdmi_audio_supported(struct omap_dss_device *dssdev)
 {
 	return false;
 }
 
-static int omapdss_hdmi_audio_config(struct omap_dss_device *dssdev,
+static int hdmi_audio_config(struct omap_dss_device *dssdev,
 		struct omap_dss_audio *audio)
 {
 	return -EPERM;
@@ -1225,21 +1043,21 @@ static const struct omapdss_hdmi_ops hdmi_ops = {
 	.connect		= hdmi_connect,
 	.disconnect		= hdmi_disconnect,
 
-	.enable			= omapdss_hdmi_display_enable,
-	.disable		= omapdss_hdmi_display_disable,
+	.enable			= hdmi_display_enable,
+	.disable		= hdmi_display_disable,
 
-	.check_timings		= omapdss_hdmi_display_check_timing,
-	.set_timings		= omapdss_hdmi_display_set_timing,
-	.get_timings		= omapdss_hdmi_display_get_timings,
+	.check_timings		= hdmi_display_check_timing,
+	.set_timings		= hdmi_display_set_timing,
+	.get_timings		= hdmi_display_get_timings,
 
 	.read_edid		= hdmi_read_edid,
 
-	.audio_enable		= omapdss_hdmi_audio_enable,
-	.audio_disable		= omapdss_hdmi_audio_disable,
-	.audio_start		= omapdss_hdmi_audio_start,
-	.audio_stop		= omapdss_hdmi_audio_stop,
-	.audio_supported	= omapdss_hdmi_audio_supported,
-	.audio_config		= omapdss_hdmi_audio_config,
+	.audio_enable		= hdmi_audio_enable,
+	.audio_disable		= hdmi_audio_disable,
+	.audio_start		= hdmi_audio_start,
+	.audio_stop		= hdmi_audio_stop,
+	.audio_supported	= hdmi_audio_supported,
+	.audio_config		= hdmi_audio_config,
 };
 
 static void hdmi_init_output(struct platform_device *pdev)
@@ -1301,50 +1119,15 @@ static int omapdss_hdmihw_probe(struct platform_device *pdev)
 	hdmi.ip_data.pll_offset = HDMI_PLLCTRL;
 	hdmi.ip_data.phy_offset = HDMI_PHY;
 
-	hdmi.ct_cp_hpd_gpio = -1;
-	hdmi.ls_oe_gpio = -1;
-	hdmi.hpd_gpio = -1;
-
 	hdmi_init_output(pdev);
-
-	r = hdmi_panel_init();
-	if (r) {
-		DSSERR("can't init panel\n");
-		return r;
-	}
 
 	dss_debugfs_create_file("hdmi", hdmi_dump_regs);
 
-	if (pdev->dev.platform_data) {
-		r = hdmi_probe_pdata(pdev);
-		if (r)
-			goto err_probe;
-	}
-
-	return 0;
-
-err_probe:
-	hdmi_panel_exit();
-	hdmi_uninit_output(pdev);
-	pm_runtime_disable(&pdev->dev);
-	return r;
-}
-
-static int __exit hdmi_remove_child(struct device *dev, void *data)
-{
-	struct omap_dss_device *dssdev = to_dss_device(dev);
-	hdmi_uninit_display(dssdev);
 	return 0;
 }
 
 static int __exit omapdss_hdmihw_remove(struct platform_device *pdev)
 {
-	device_for_each_child(&pdev->dev, NULL, hdmi_remove_child);
-
-	dss_unregister_child_devices(&pdev->dev);
-
-	hdmi_panel_exit();
-
 	hdmi_uninit_output(pdev);
 
 	pm_runtime_disable(&pdev->dev);

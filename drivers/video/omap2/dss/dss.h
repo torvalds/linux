@@ -452,26 +452,6 @@ void venc_panel_exit(void);
 /* HDMI */
 int hdmi_init_platform_driver(void) __init;
 void hdmi_uninit_platform_driver(void) __exit;
-int omapdss_hdmi_display_enable(struct omap_dss_device *dssdev);
-void omapdss_hdmi_display_disable(struct omap_dss_device *dssdev);
-int omapdss_hdmi_core_enable(struct omap_dss_device *dssdev);
-void omapdss_hdmi_core_disable(struct omap_dss_device *dssdev);
-void omapdss_hdmi_display_set_timing(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings);
-int omapdss_hdmi_display_check_timing(struct omap_dss_device *dssdev,
-					struct omap_video_timings *timings);
-int omapdss_hdmi_read_edid(u8 *buf, int len);
-bool omapdss_hdmi_detect(void);
-int hdmi_panel_init(void);
-void hdmi_panel_exit(void);
-#ifdef CONFIG_OMAP4_DSS_HDMI_AUDIO
-int hdmi_audio_enable(void);
-void hdmi_audio_disable(void);
-int hdmi_audio_start(void);
-void hdmi_audio_stop(void);
-bool hdmi_mode_has_audio(void);
-int hdmi_audio_config(struct omap_dss_audio *audio);
-#endif
 
 /* RFBI */
 int rfbi_init_platform_driver(void) __init;
