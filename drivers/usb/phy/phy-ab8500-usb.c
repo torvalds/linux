@@ -943,11 +943,18 @@ static int ab8500_usb_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static struct platform_device_id ab8500_usb_devtype[] = {
+	{ .name = "ab8500-usb", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(platform, ab8500_usb_devtype);
+
 static struct platform_driver ab8500_usb_driver = {
 	.probe		= ab8500_usb_probe,
 	.remove		= ab8500_usb_remove,
+	.id_table	= ab8500_usb_devtype,
 	.driver		= {
-		.name	= "ab8500-usb",
+		.name	= "abx5x0-usb",
 		.owner	= THIS_MODULE,
 	},
 };
@@ -964,7 +971,6 @@ static void __exit ab8500_usb_exit(void)
 }
 module_exit(ab8500_usb_exit);
 
-MODULE_ALIAS("platform:ab8500_usb");
 MODULE_AUTHOR("ST-Ericsson AB");
 MODULE_DESCRIPTION("AB8500 usb transceiver driver");
 MODULE_LICENSE("GPL");
