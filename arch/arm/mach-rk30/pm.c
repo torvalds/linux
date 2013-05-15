@@ -528,8 +528,6 @@ static u32 __sramdata sram_grf_uoc0_con0_status;
 
 static void __sramfunc rk_pm_soc_sram_clk_gating(void)
 {
-
-	u32 clkgt_regs_sram[CRU_CLKGATES_CON_CNT];
 	int i;
 
 	#if defined(CONFIG_ARCH_RK3188) && (CONFIG_RK_DEBUG_UART == 2)
