@@ -149,8 +149,7 @@ static int f2fs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 
 	alloc_nid_done(sbi, ino);
 
-	if (!sbi->por_doing)
-		d_instantiate(dentry, inode);
+	d_instantiate(dentry, inode);
 	unlock_new_inode(inode);
 	return 0;
 out:
