@@ -3482,7 +3482,7 @@ static int __init d40_of_probe(struct platform_device *pdev,
 			       struct device_node *np)
 {
 	struct stedma40_platform_data *pdata;
-	int num_phy = 0, num_memcpy = 0;
+	int num_phy = 0, num_memcpy = 0, num_disabled = 0;
 	const const __be32 *list;
 
 	pdata = devm_kzalloc(&pdev->dev,
@@ -3510,6 +3510,21 @@ static int __init d40_of_probe(struct platform_device *pdev,
 	of_property_read_u32_array(np, "memcpy-channels",
 				   dma40_memcpy_channels,
 				   num_memcpy);
+
+	list = of_get_property(np, "disabled-channels", &num_disabled);
+	num_disabled /= sizeof(*list);
+
+	if (num_disabled > STEDMA40_MAX_PHYS || num_disabled < 0) {
+		d40_err(&pdev->dev,
+			"Invalid number of disabled channels specified (%d)\n",
+			num_disabled);
+		return -EINVAL;
+	}
+
+	of_property_read_u32_array(np, "disabled-channels",
+				   pdata->disabled_channels,
+				   num_disabled);
+	pdata->disabled_channels[num_disabled] = -1;
 
 	pdev->dev.platform_data = pdata;
 
