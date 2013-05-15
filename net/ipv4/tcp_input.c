@@ -360,9 +360,7 @@ static void tcp_fixup_rcvbuf(struct sock *sk)
 	if (mss > 1460)
 		icwnd = max_t(u32, (1460 * TCP_DEFAULT_INIT_RCVWND) / mss, 2);
 
-	rcvmem = SKB_TRUESIZE(mss + MAX_TCP_HEADER);
-	while (tcp_win_from_space(rcvmem) < mss)
-		rcvmem += 128;
+	rcvmem = 2 * SKB_TRUESIZE(mss + MAX_TCP_HEADER);
 
 	rcvmem *= icwnd;
 
