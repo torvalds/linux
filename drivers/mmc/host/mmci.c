@@ -61,6 +61,7 @@ static unsigned int fmax = 515633;
  * @pwrreg_powerup: power up value for MMCIPOWER register
  * @signal_direction: input/out direction of bus signals can be indicated
  * @pwrreg_clkgate: MMCIPOWER register must be used to gate the clock
+ * @busy_detect: true if busy detection on dat0 is supported
  */
 struct variant_data {
 	unsigned int		clkreg;
@@ -74,6 +75,7 @@ struct variant_data {
 	u32			pwrreg_powerup;
 	bool			signal_direction;
 	bool			pwrreg_clkgate;
+	bool			busy_detect;
 };
 
 static struct variant_data variant_arm = {
@@ -132,6 +134,7 @@ static struct variant_data variant_ux500 = {
 	.pwrreg_powerup		= MCI_PWR_ON,
 	.signal_direction	= true,
 	.pwrreg_clkgate		= true,
+	.busy_detect		= true,
 };
 
 static struct variant_data variant_ux500v2 = {
@@ -146,7 +149,27 @@ static struct variant_data variant_ux500v2 = {
 	.pwrreg_powerup		= MCI_PWR_ON,
 	.signal_direction	= true,
 	.pwrreg_clkgate		= true,
+	.busy_detect		= true,
 };
+
+static int mmci_card_busy(struct mmc_host *mmc)
+{
+	struct mmci_host *host = mmc_priv(mmc);
+	unsigned long flags;
+	int busy = 0;
+
+	pm_runtime_get_sync(mmc_dev(mmc));
+
+	spin_lock_irqsave(&host->lock, flags);
+	if (readl(host->base + MMCISTATUS) & MCI_ST_CARDBUSY)
+		busy = 1;
+	spin_unlock_irqrestore(&host->lock, flags);
+
+	pm_runtime_mark_last_busy(mmc_dev(mmc));
+	pm_runtime_put_autosuspend(mmc_dev(mmc));
+
+	return busy;
+}
 
 /*
  * Validate mmc prerequisites
@@ -193,6 +216,9 @@ static void mmci_write_pwrreg(struct mmci_host *host, u32 pwr)
  */
 static void mmci_write_datactrlreg(struct mmci_host *host, u32 datactrl)
 {
+	/* Keep ST Micro busy mode if enabled */
+	datactrl |= host->datactrl_reg & MCI_ST_DPSM_BUSYMODE;
+
 	if (host->datactrl_reg != datactrl) {
 		host->datactrl_reg = datactrl;
 		writel(datactrl, host->base + MMCIDATACTRL);
@@ -1319,7 +1345,7 @@ static irqreturn_t mmci_cd_irq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static const struct mmc_host_ops mmci_ops = {
+static struct mmc_host_ops mmci_ops = {
 	.request	= mmci_request,
 	.pre_req	= mmci_pre_request,
 	.post_req	= mmci_post_request,
@@ -1453,6 +1479,11 @@ static int mmci_probe(struct amba_device *dev,
 	if (!host->base) {
 		ret = -ENOMEM;
 		goto clk_disable;
+	}
+
+	if (variant->busy_detect) {
+		mmci_ops.card_busy = mmci_card_busy;
+		mmci_write_datactrlreg(host, MCI_ST_DPSM_BUSYMODE);
 	}
 
 	mmc->ops = &mmci_ops;
