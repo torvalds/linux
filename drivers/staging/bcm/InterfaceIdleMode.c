@@ -155,7 +155,7 @@ static int InterfaceAbortIdlemode(struct bcm_mini_adapter *Adapter, unsigned int
 	unsigned long timeout = 0, itr = 0;
 
 	int 	lenwritten = 0;
-	unsigned char aucAbortPattern[8]={0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+	unsigned char aucAbortPattern[8] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 	struct bcm_interface_adapter *psInterfaceAdapter = Adapter->pvInterfaceAdapter;
 
 	/* Abort Bus suspend if its already suspended */
@@ -216,7 +216,7 @@ static int InterfaceAbortIdlemode(struct bcm_mini_adapter *Adapter, unsigned int
 
 		/* mdelay(25); */
 
-		timeout= jiffies +  msecs_to_jiffies(50) ;
+		timeout = jiffies +  msecs_to_jiffies(50) ;
 		while( timeout > jiffies )
 		{
 			itr++ ;
@@ -273,7 +273,7 @@ void InterfaceHandleShutdownModeWakeup(struct bcm_mini_adapter *Adapter)
 	{
 		/* clear idlemode interrupt. */
 		uiRegVal = 0;
-		Status =wrmalt(Adapter, DEBUG_INTERRUPT_GENERATOR_REGISTOR, &uiRegVal, sizeof(uiRegVal));
+		Status = wrmalt(Adapter, DEBUG_INTERRUPT_GENERATOR_REGISTOR, &uiRegVal, sizeof(uiRegVal));
 		if(Status)
 		{
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0,"WRM to DEBUG_INTERRUPT_GENERATOR_REGISTOR Failed with err :%d", Status);
