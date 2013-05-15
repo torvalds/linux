@@ -77,14 +77,6 @@ enum stedma40_periph_data_width {
 	STEDMA40_DOUBLEWORD_WIDTH = STEDMA40_ESIZE_64_BIT
 };
 
-enum stedma40_xfer_dir {
-	STEDMA40_MEM_TO_MEM = 1,
-	STEDMA40_MEM_TO_PERIPH,
-	STEDMA40_PERIPH_TO_MEM,
-	STEDMA40_PERIPH_TO_PERIPH
-};
-
-
 /**
  * struct stedma40_half_channel_info - dst/src channel configuration
  *
@@ -120,7 +112,7 @@ struct stedma40_half_channel_info {
  *
  */
 struct stedma40_chan_cfg {
-	enum stedma40_xfer_dir			 dir;
+	enum dma_transfer_direction		 dir;
 	bool					 high_priority;
 	bool					 realtime;
 	enum stedma40_mode			 mode;
