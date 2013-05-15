@@ -129,7 +129,7 @@ int hpux_getdents(unsigned int fd, struct hpux_dirent __user *dirent, unsigned i
 		error = buf.error;
 	lastdirent = buf.previous;
 	if (lastdirent) {
-		if (put_user(arg.file->f_pos, &lastdirent->d_off))
+		if (put_user(buf.ctx.pos, &lastdirent->d_off))
 			error = -EFAULT;
 		else
 			error = count - buf.count;
