@@ -563,11 +563,12 @@ gss_create_upcall(struct gss_auth *gss_auth, struct gss_cred *gss_cred)
 	struct rpc_cred *cred = &gss_cred->gc_base;
 	struct gss_upcall_msg *gss_msg;
 	DEFINE_WAIT(wait);
-	int err = 0;
+	int err;
 
 	dprintk("RPC:       %s for uid %u\n",
 		__func__, from_kuid(&init_user_ns, cred->cr_uid));
 retry:
+	err = 0;
 	gss_msg = gss_setup_upcall(gss_auth->client, gss_auth, cred);
 	if (PTR_ERR(gss_msg) == -EAGAIN) {
 		err = wait_event_interruptible_timeout(pipe_version_waitqueue,
@@ -576,7 +577,7 @@ retry:
 			warn_gssd();
 			err = -EACCES;
 		}
-		if (err)
+		if (err < 0)
 			goto out;
 		goto retry;
 	}
