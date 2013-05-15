@@ -289,7 +289,7 @@ static int ux500_dma_controller_start(struct dma_controller *c)
 	struct musb *musb = controller->private_data;
 	struct device *dev = musb->controller;
 	struct musb_hdrc_platform_data *plat = dev->platform_data;
-	struct ux500_musb_board_data *data = plat->board_data;
+	struct ux500_musb_board_data *data;
 	struct dma_channel *dma_channel = NULL;
 	u32 ch_num;
 	u8 dir;
@@ -299,14 +299,19 @@ static int ux500_dma_controller_start(struct dma_controller *c)
 	struct ux500_dma_channel *channel_array;
 	dma_cap_mask_t mask;
 
+	if (!plat) {
+		dev_err(musb->controller, "No platform data\n");
+		return -EINVAL;
+	}
 
+	data = plat->board_data;
 
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
 	/* Prepare the loop for RX channels */
 	channel_array = controller->rx_channel;
-	param_array = data->dma_rx_param_array;
+	param_array = data ? data->dma_rx_param_array : NULL;
 
 	for (dir = 0; dir < 2; dir++) {
 		for (ch_num = 0;
@@ -339,7 +344,7 @@ static int ux500_dma_controller_start(struct dma_controller *c)
 
 		/* Prepare the loop for TX channels */
 		channel_array = controller->tx_channel;
-		param_array = data->dma_tx_param_array;
+		param_array = data ? data->dma_tx_param_array : NULL;
 		is_tx = 1;
 	}
 
