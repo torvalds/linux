@@ -93,16 +93,14 @@
 #define CR_CHAR_80       0x8d           /*  and with bit 7 set */
 
 /*  A structure holding information about a block of memory for use in circular transfers */
-typedef struct circBlk
-{
+typedef struct circBlk {
 	volatile UINT dwOffset;             /* Offset within area of block start */
 	volatile UINT dwSize;               /* Size of the block, in bytes (0 = unused) */
 } CIRCBLK;
 
 /*  A structure holding all of the information about a transfer area - an area of */
 /*   memory set up for use either as a source or destination in DMA transfers. */
-typedef struct transarea
-{
+typedef struct transarea {
 	void	*lpvBuff;                /*  User address of xfer area saved for completeness */
 	UINT        dwBaseOffset;           /*  offset to start of xfer area in first page */
 	UINT        dwLength;               /*  Length of xfer area, in bytes */
@@ -121,8 +119,7 @@ typedef struct transarea
 
 /*  The DMADESC structure is used to hold information on the transfer in progress. It */
 /*  is set up by ReadDMAInfo, using information sent by the 1401 in an escape sequence. */
-typedef struct dmadesc
-{
+typedef struct dmadesc {
 	unsigned short wTransType;          /* transfer type as TM_xxx above        */
 	unsigned short wIdent;              /* identifier word                      */
 	unsigned int   dwSize;              /* bytes to transfer                    */
@@ -136,8 +133,7 @@ typedef struct dmadesc
 
 /*  Structure to hold all of our device specific stuff. We are making this as similar as we */
 /*  can to the Windows driver to help in our understanding of what is going on. */
-typedef struct _DEVICE_EXTENSION
-{
+typedef struct _DEVICE_EXTENSION {
 	char inputBuffer[INBUF_SZ];         /* The two buffers */
 	char outputBuffer[OUTBUF_SZ];       /* accessed by the host functions */
 	volatile unsigned int dwNumInput;   /* num of chars in input buffer   */

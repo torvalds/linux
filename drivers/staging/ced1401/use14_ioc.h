@@ -269,8 +269,7 @@ typedef union     /* to communicate with 1401 driver status & control funcs */
 
 typedef TCSBLOCK*  LPTCSBLOCK;
 
-typedef struct paramBlk
-{
+typedef struct paramBlk {
 	 short       sState;
 	 TCSBLOCK    csBlock;
 } PARAMBLK;

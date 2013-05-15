@@ -118,8 +118,7 @@ int SendString(DEVICE_EXTENSION *pdx, const char __user *pData,
 	buffer[n] = 0;		/*  terminate for debug purposes */
 
 	mutex_lock(&pdx->io_mutex);	/*  Protect disconnect from new i/o */
-	if (n > 0)		/*  do nothing if nowt to do! */
-	{
+	if (n > 0) {		/*  do nothing if nowt to do! */
 		dev_dbg(&pdx->interface->dev, "%s n=%d>%s<", __func__, n,
 			buffer);
 		iReturn = PutChars(pdx, buffer, n);
@@ -198,8 +197,7 @@ int Get1401State(DEVICE_EXTENSION *pdx, __u32 *state, __u32 *error)
 		*error = pdx->statBuf[1];
 
 		nDevice = pdx->udev->descriptor.bcdDevice >> 8;	/*  1401 type code value */
-		switch (nDevice)	/*  so we can clean up current state */
-		{
+		switch (nDevice) {	/*  so we can clean up current state */
 		case 0:
 			pdx->sCurrentState = U14ERR_U1401;
 			break;
@@ -232,8 +230,7 @@ int ReadWrite_Cancel(DEVICE_EXTENSION *pdx)
 	/*  We can fill this in when we know how we will implement the staged transfer stuff */
 	spin_lock_irq(&pdx->stagedLock);
 
-	if (pdx->bStagedUrbPending)	/*  anything to be cancelled? May need more... */
-	{
+	if (pdx->bStagedUrbPending) {	/*  anything to be cancelled? May need more... */
 		dev_info(&pdx->interface - dev,
 			 "ReadWrite_Cancel about to cancel Urb");
 		/* Clear the staging done flag */
@@ -321,20 +318,17 @@ bool Is1401(DEVICE_EXTENSION *pdx)
 	/*  release the io_mutex because if we don't, we will deadlock due to system */
 	/*  calls back into the driver. */
 	mutex_unlock(&pdx->io_mutex);	/*  locked, so we will not get system calls */
-	if (iReturn >= 0)	/*  if we failed */
-	{
+	if (iReturn >= 0) {	/*  if we failed */
 		iReturn = usb_reset_device(pdx->udev);	/*  try to do the reset */
 		usb_unlock_device(pdx->udev);	/*  undo the lock */
 	}
 
 	mutex_lock(&pdx->io_mutex);	/*  hold stuff off while we wait */
 	pdx->dwDMAFlag = MODE_CHAR;	/*  Clear DMA mode flag regardless! */
-	if (iReturn == 0)	/*  if all is OK still */
-	{
+	if (iReturn == 0) {	/*  if all is OK still */
 		unsigned int state;
 		iReturn = InSelfTest(pdx, &state);	/*  see if likely in self test */
-		if (iReturn > 0)	/*  do we need to wait for self-test? */
-		{
+		if (iReturn > 0) {	/*  do we need to wait for self-test? */
 			unsigned long ulTimeOut = jiffies + 30 * HZ;	/*  when to give up */
 			while ((iReturn > 0) && time_before(jiffies, ulTimeOut)) {
 				schedule();	/*  let other stuff run */
@@ -380,26 +374,23 @@ bool QuickCheck(DEVICE_EXTENSION *pdx, bool bTestBuff, bool bCanReset)
 		bTestBuff, bShortTest);
 
 	if ((bTestBuff) &&	/*  Buffer check requested, and... */
-	    (pdx->dwNumInput || pdx->dwNumOutput))	/*  ...characters were in the buffer? */
-	{
+	    (pdx->dwNumInput || pdx->dwNumOutput)) {	/*  ...characters were in the buffer? */
 		bShortTest = false;	/*  Then do the full test */
 		dev_dbg(&pdx->interface->dev,
 			"%s will reset as buffers not empty", __func__);
 	}
 
-	if (bShortTest || !bCanReset)	/*  Still OK to try the short test? */
-	{			/*  Always test if no reset - we want state update */
+	if (bShortTest || !bCanReset) {	/*  Still OK to try the short test? */
+				/*  Always test if no reset - we want state update */
 		unsigned int state, error;
 		dev_dbg(&pdx->interface->dev, "%s->Get1401State", __func__);
-		if (Get1401State(pdx, &state, &error) == U14ERR_NOERROR)	/*  Check on the 1401 state */
-		{
+		if (Get1401State(pdx, &state, &error) == U14ERR_NOERROR) {	/*  Check on the 1401 state */
 			if ((state & 0xFF) == 0)	/*  If call worked, check the status value */
 				bRet = true;	/*  If that was zero, all is OK, no reset needed */
 		}
 	}
 
-	if (!bRet && bCanReset)	/*  If all not OK, then */
-	{
+	if (!bRet && bCanReset)	{ /*  If all not OK, then */
 		dev_info(&pdx->interface->dev, "%s->Is1401 %d %d %d %d",
 			 __func__, bShortTest, pdx->sCurrentState, bTestBuff,
 			 pdx->bForceReset);
@@ -439,8 +430,7 @@ int GetChar(DEVICE_EXTENSION *pdx)
 	SendChars(pdx);	/*  and send any buffered chars */
 
 	spin_lock_irq(&pdx->charInLock);
-	if (pdx->dwNumInput > 0)	/*  worth looking */
-	{
+	if (pdx->dwNumInput > 0) {	/*  worth looking */
 		iReturn = pdx->inputBuffer[pdx->dwInBuffGet++];
 		if (pdx->dwInBuffGet >= INBUF_SZ)
 			pdx->dwInBuffGet = 0;
@@ -482,8 +472,7 @@ int GetString(DEVICE_EXTENSION *pdx, char __user *pUser, int n)
 	if (nAvailable > n)	/*  read max of space in pUser... */
 		nAvailable = n;	/*  ...or input characters */
 
-	if (nAvailable > 0)	/*  worth looking? */
-	{
+	if (nAvailable > 0) {	/*  worth looking? */
 		char buffer[INBUF_SZ + 1];	/*  space for a linear copy of data */
 		int nGot = 0;
 		int nCopyToUser;	/*  number to copy to user */
@@ -497,12 +486,10 @@ int GetString(DEVICE_EXTENSION *pdx, char __user *pUser, int n)
 				pdx->dwInBuffGet = 0;	/*  wrap buffer pointer */
 
 			buffer[nGot++] = cData;	/*  save the output */
-		}
-		while ((nGot < nAvailable) && cData);
+		} while ((nGot < nAvailable) && cData);
 
 		nCopyToUser = nGot;	/*  what to copy... */
-		if (cData)	/*  do we need null */
-		{
+		if (cData) {	/*  do we need null */
 			buffer[nGot] = (char)0;	/*  make it tidy */
 			if (nGot < n)	/*  if space in user buffer... */
 				++nCopyToUser;	/*  ...copy the 0 as well. */
@@ -556,8 +543,7 @@ int LineCount(DEVICE_EXTENSION *pdx)
 	SendChars(pdx);		/*  and send any buffered chars */
 	spin_lock_irq(&pdx->charInLock);	/*  Get protection */
 
-	if (pdx->dwNumInput > 0)	/*  worth looking? */
-	{
+	if (pdx->dwNumInput > 0) {	/*  worth looking? */
 		unsigned int dwIndex = pdx->dwInBuffGet;	/*  start at first available */
 		unsigned int dwEnd = pdx->dwInBuffPut;	/*  Position for search end */
 		do {
@@ -566,8 +552,7 @@ int LineCount(DEVICE_EXTENSION *pdx)
 
 			if (dwIndex >= INBUF_SZ)	/*  see if we fall off buff */
 				dwIndex = 0;
-		}
-		while (dwIndex != dwEnd);	/*  go to last available */
+		} while (dwIndex != dwEnd);	/*  go to last available */
 	}
 
 	spin_unlock_irq(&pdx->charInLock);
@@ -645,8 +630,7 @@ int ClearArea(DEVICE_EXTENSION *pdx, int nArea)
 			}
 			spin_unlock_irq(&pdx->stagedLock);
 
-			if (pPages)	/*  if we decided to release the memory */
-			{
+			if (pPages) { 	/*  if we decided to release the memory */
 				/*  Now we must undo the pinning down of the pages. We will assume the worst and mark */
 				/*  all the pages as dirty. Don't be tempted to move this up above as you must not be */
 				/*  holding a spin lock to do this stuff as it is not atomic. */
@@ -714,8 +698,7 @@ static int SetArea(DEVICE_EXTENSION *pdx, int nArea, char __user *puBuf,
 	up_read(&current->mm->mmap_sem);	/*  release the semaphore */
 	dev_dbg(&pdx->interface->dev, "%s nPages = %d", __func__, nPages);
 
-	if (nPages > 0)		/*  if we succeeded */
-	{
+	if (nPages > 0) {		/*  if we succeeded */
 		/*  If you are tempted to use page_address (form LDD3), forget it. You MUST use */
 		/*  kmap() or kmap_atomic() to get a virtual address. page_address will give you */
 		/*  (null) or at least it does in this context with an x86 machine. */
@@ -814,8 +797,7 @@ int SetEvent(DEVICE_EXTENSION *pdx, TRANSFEREVENT __user *pTE)
 		TRANSAREA *pTA = &pdx->rTransDef[te.wAreaNum];
 		mutex_lock(&pdx->io_mutex);	/*  make sure we have no competitor */
 		spin_lock_irq(&pdx->stagedLock);
-		if (pTA->bUsed)	/*  area must be in use */
-		{
+		if (pTA->bUsed) {	/*  area must be in use */
 			pTA->dwEventSt = te.dwStart;	/*  set area regions */
 			pTA->dwEventSz = te.dwLength;	/*  set size (0 cancels it) */
 			pTA->bEventToHost = te.wFlags & 1;	/*  set the direction */
@@ -1030,8 +1012,8 @@ int CheckSelfTest(DEVICE_EXTENSION *pdx, TGET_SELFTEST __user *pGST)
 	if (iReturn == U14ERR_NOERROR)	/*  Only accept zero if it happens twice */
 		iReturn = Get1401State(pdx, &state, &error);
 
-	if (iReturn != U14ERR_NOERROR)	/*  Self-test can cause comms errors */
-	{			/*  so we assume still testing */
+	if (iReturn != U14ERR_NOERROR) {	/*  Self-test can cause comms errors */
+				/*  so we assume still testing */
 		dev_err(&pdx->interface->dev,
 			"%s Get1401State=%d, assuming still testing", __func__,
 			iReturn);
@@ -1040,8 +1022,7 @@ int CheckSelfTest(DEVICE_EXTENSION *pdx, TGET_SELFTEST __user *pGST)
 		iReturn = U14ERR_NOERROR;
 	}
 
-	if ((state == -1) && (error == -1))	/*  If Get1401State had problems */
-	{
+	if ((state == -1) && (error == -1)) {	/*  If Get1401State had problems */
 		dev_err(&pdx->interface->dev,
 			"%s Get1401State failed, assuming still testing",
 			__func__);
@@ -1049,17 +1030,14 @@ int CheckSelfTest(DEVICE_EXTENSION *pdx, TGET_SELFTEST __user *pGST)
 		error = 0;
 	}
 
-	if ((state & 0xFF) == 0x80)	/*  If we are still in self-test */
-	{
-		if (state & 0x00FF0000)	/*  Have we got an error? */
-		{
+	if ((state & 0xFF) == 0x80) {	/*  If we are still in self-test */
+		if (state & 0x00FF0000)	{ /*  Have we got an error? */
 			gst.code = (state & 0x00FF0000) >> 16;	/*  read the error code */
 			gst.x = error & 0x0000FFFF;	/*  Error data X */
 			gst.y = (error & 0xFFFF0000) >> 16;	/*  and data Y */
 			dev_dbg(&pdx->interface->dev, "Self-test error code %d",
 				gst.code);
-		} else		/*  No error, check for timeout */
-		{
+		} else {		/*  No error, check for timeout */
 			unsigned long ulNow = jiffies;	/*  get current time */
 			if (time_after(ulNow, pdx->ulSelfTestTime)) {
 				gst.code = -2;	/*  Flag the timeout */
@@ -1074,8 +1052,8 @@ int CheckSelfTest(DEVICE_EXTENSION *pdx, TGET_SELFTEST __user *pGST)
 		dev_dbg(&pdx->interface->dev, "Self-test done");
 	}
 
-	if (gst.code < 0)	/*  If we have a problem or finished */
-	{			/*  If using the 2890 we should reset properly */
+	if (gst.code < 0) {	/*  If we have a problem or finished */
+				/*  If using the 2890 we should reset properly */
 		if ((pdx->nPipes == 4) && (pdx->s1401Type <= TYPEPOWER))
 			Is1401(pdx);	/*  Get 1401 reset and OK */
 		else
@@ -1384,16 +1362,13 @@ int GetCircBlock(DEVICE_EXTENSION *pdx, TCIRCBLOCK __user *pCB)
 	cb.dwOffset = 0;	/*  set default result (nothing) */
 	cb.dwSize = 0;
 
-	if (nArea < MAX_TRANSAREAS)	/*  The area number must be OK */
-	{
+	if (nArea < MAX_TRANSAREAS) {	/*  The area number must be OK */
 		TRANSAREA *pArea = &pdx->rTransDef[nArea];	/*  Pointer to relevant info */
 		spin_lock_irq(&pdx->stagedLock);	/*  Lock others out */
 
 		if ((pArea->bUsed) && (pArea->bCircular) &&	/*  Must be circular area */
-		    (pArea->bCircToHost))	/*  For now at least must be to host */
-		{
-			if (pArea->aBlocks[0].dwSize > 0)	/*  Got anything? */
-			{
+		    (pArea->bCircToHost)) {	/*  For now at least must be to host */
+			if (pArea->aBlocks[0].dwSize > 0) {	/*  Got anything? */
 				cb.dwOffset = pArea->aBlocks[0].dwOffset;
 				cb.dwSize = pArea->aBlocks[0].dwSize;
 				dev_dbg(&pdx->interface->dev,
@@ -1438,25 +1413,20 @@ int FreeCircBlock(DEVICE_EXTENSION *pdx, TCIRCBLOCK __user *pCB)
 	cb.dwOffset = 0;	/*  then set default result (nothing) */
 	cb.dwSize = 0;
 
-	if (nArea < MAX_TRANSAREAS)	/*  The area number must be OK */
-	{
+	if (nArea < MAX_TRANSAREAS) {	/*  The area number must be OK */
 		TRANSAREA *pArea = &pdx->rTransDef[nArea];	/*  Pointer to relevant info */
 		spin_lock_irq(&pdx->stagedLock);	/*  Lock others out */
 
 		if ((pArea->bUsed) && (pArea->bCircular) &&	/*  Must be circular area */
-		    (pArea->bCircToHost))	/*  For now at least must be to host */
-		{
+		    (pArea->bCircToHost)) {	/*  For now at least must be to host */
 			bool bWaiting = false;
 
 			if ((pArea->aBlocks[0].dwSize >= uSize) &&	/*  Got anything? */
-			    (pArea->aBlocks[0].dwOffset == uStart))	/*  Must be legal data */
-			{
+			    (pArea->aBlocks[0].dwOffset == uStart)) {	/*  Must be legal data */
 				pArea->aBlocks[0].dwSize -= uSize;
 				pArea->aBlocks[0].dwOffset += uSize;
-				if (pArea->aBlocks[0].dwSize == 0)	/*  Have we emptied this block? */
-				{
-					if (pArea->aBlocks[1].dwSize)	/*  Is there a second block? */
-					{
+				if (pArea->aBlocks[0].dwSize == 0) {	/*  Have we emptied this block? */
+					if (pArea->aBlocks[1].dwSize) {	/*  Is there a second block? */
 						pArea->aBlocks[0] = pArea->aBlocks[1];	/*  Copy down block 2 data */
 						pArea->aBlocks[1].dwSize = 0;	/*  and mark the second block as unused */
 						pArea->aBlocks[1].dwOffset = 0;
@@ -1472,8 +1442,7 @@ int FreeCircBlock(DEVICE_EXTENSION *pdx, TCIRCBLOCK __user *pCB)
 					pdx->bXFerWaiting);
 
 				/*  Return the next available block of memory as well */
-				if (pArea->aBlocks[0].dwSize > 0)	/*  Got anything? */
-				{
+				if (pArea->aBlocks[0].dwSize > 0) {	/*  Got anything? */
 					cb.dwOffset =
 					    pArea->aBlocks[0].dwOffset;
 					cb.dwSize = pArea->aBlocks[0].dwSize;
@@ -1496,8 +1465,7 @@ int FreeCircBlock(DEVICE_EXTENSION *pdx, TCIRCBLOCK __user *pCB)
 			}
 
 			/*  If we have one, kick off pending transfer */
-			if (bWaiting)	/*  Got a block xfer waiting? */
-			{
+			if (bWaiting) {	/*  Got a block xfer waiting? */
 				int RWMStat =
 				    ReadWriteMem(pdx, !pdx->rDMAInfo.bOutWard,
 						 pdx->rDMAInfo.wIdent,
