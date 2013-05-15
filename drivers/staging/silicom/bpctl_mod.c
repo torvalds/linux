@@ -4334,7 +4334,7 @@ int get_bypass_wd_auto(bpctl_dev_t *pbpctl_dev)
 	return BP_NOT_CAP;
 }
 
-#ifdef  BP_SELF_TEST
+#ifdef BP_SELF_TEST
 
 int set_bp_self_test(bpctl_dev_t *pbpctl_dev, unsigned int param)
 {
