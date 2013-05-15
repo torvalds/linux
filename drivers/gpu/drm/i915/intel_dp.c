@@ -1366,6 +1366,28 @@ static bool intel_dp_get_hw_state(struct intel_encoder *encoder,
 	return true;
 }
 
+static void intel_dp_get_config(struct intel_encoder *encoder,
+				struct intel_crtc_config *pipe_config)
+{
+	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	u32 tmp, flags = 0;
+
+	tmp = I915_READ(intel_dp->output_reg);
+
+	if (tmp & DP_SYNC_HS_HIGH)
+		flags |= DRM_MODE_FLAG_PHSYNC;
+	else
+		flags |= DRM_MODE_FLAG_NHSYNC;
+
+	if (tmp & DP_SYNC_VS_HIGH)
+		flags |= DRM_MODE_FLAG_PVSYNC;
+	else
+		flags |= DRM_MODE_FLAG_NVSYNC;
+
+	pipe_config->adjusted_mode.flags |= flags;
+}
+
 static void intel_disable_dp(struct intel_encoder *encoder)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
@@ -3220,6 +3242,7 @@ intel_dp_init(struct drm_device *dev, int output_reg, enum port port)
 	intel_encoder->disable = intel_disable_dp;
 	intel_encoder->post_disable = intel_post_disable_dp;
 	intel_encoder->get_hw_state = intel_dp_get_hw_state;
+	intel_encoder->get_config = intel_dp_get_config;
 	if (IS_VALLEYVIEW(dev))
 		intel_encoder->pre_pll_enable = intel_dp_pre_pll_enable;
 

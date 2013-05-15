@@ -8071,6 +8071,15 @@ intel_pipe_config_compare(struct drm_device *dev,
 	PIPE_CONF_CHECK_FLAGS(adjusted_mode.flags,
 			      DRM_MODE_FLAG_INTERLACE);
 
+	PIPE_CONF_CHECK_FLAGS(adjusted_mode.flags,
+			      DRM_MODE_FLAG_PHSYNC);
+	PIPE_CONF_CHECK_FLAGS(adjusted_mode.flags,
+			      DRM_MODE_FLAG_NHSYNC);
+	PIPE_CONF_CHECK_FLAGS(adjusted_mode.flags,
+			      DRM_MODE_FLAG_PVSYNC);
+	PIPE_CONF_CHECK_FLAGS(adjusted_mode.flags,
+			      DRM_MODE_FLAG_NVSYNC);
+
 	PIPE_CONF_CHECK_I(requested_mode.hdisplay);
 	PIPE_CONF_CHECK_I(requested_mode.vdisplay);
 
@@ -8163,6 +8172,8 @@ intel_modeset_check_state(struct drm_device *dev)
 		bool enabled = false;
 		bool active = false;
 
+		memset(&pipe_config, 0, sizeof(pipe_config));
+
 		DRM_DEBUG_KMS("[CRTC:%d]\n",
 			      crtc->base.base.id);
 
@@ -8176,6 +8187,8 @@ intel_modeset_check_state(struct drm_device *dev)
 			enabled = true;
 			if (encoder->connectors_active)
 				active = true;
+			if (encoder->get_config)
+				encoder->get_config(encoder, &pipe_config);
 		}
 		WARN(active != crtc->active,
 		     "crtc's computed active state doesn't match tracked active state "
@@ -8184,7 +8197,6 @@ intel_modeset_check_state(struct drm_device *dev)
 		     "crtc's computed enabled state doesn't match tracked enabled state "
 		     "(expected %i, found %i)\n", enabled, crtc->base.enabled);
 
-		memset(&pipe_config, 0, sizeof(pipe_config));
 		pipe_config.cpu_transcoder = crtc->config.cpu_transcoder;
 		active = dev_priv->display.get_pipe_config(crtc,
 							   &pipe_config);
@@ -9636,8 +9648,10 @@ setup_pipes:
 		pipe = 0;
 
 		if (encoder->get_hw_state(encoder, &pipe)) {
-			encoder->base.crtc =
-				dev_priv->pipe_to_crtc_mapping[pipe];
+			crtc = to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
+			encoder->base.crtc = &crtc->base;
+			if (encoder->get_config)
+				encoder->get_config(encoder, &crtc->config);
 		} else {
 			encoder->base.crtc = NULL;
 		}

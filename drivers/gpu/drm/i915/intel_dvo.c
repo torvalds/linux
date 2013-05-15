@@ -136,6 +136,26 @@ static bool intel_dvo_get_hw_state(struct intel_encoder *encoder,
 	return true;
 }
 
+static void intel_dvo_get_config(struct intel_encoder *encoder,
+				 struct intel_crtc_config *pipe_config)
+{
+	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct intel_dvo *intel_dvo = enc_to_intel_dvo(&encoder->base);
+	u32 tmp, flags = 0;
+
+	tmp = I915_READ(intel_dvo->dev.dvo_reg);
+	if (tmp & DVO_HSYNC_ACTIVE_HIGH)
+		flags |= DRM_MODE_FLAG_PHSYNC;
+	else
+		flags |= DRM_MODE_FLAG_NHSYNC;
+	if (tmp & DVO_VSYNC_ACTIVE_HIGH)
+		flags |= DRM_MODE_FLAG_PVSYNC;
+	else
+		flags |= DRM_MODE_FLAG_NVSYNC;
+
+	pipe_config->adjusted_mode.flags |= flags;
+}
+
 static void intel_disable_dvo(struct intel_encoder *encoder)
 {
 	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
@@ -447,6 +467,7 @@ void intel_dvo_init(struct drm_device *dev)
 	intel_encoder->disable = intel_disable_dvo;
 	intel_encoder->enable = intel_enable_dvo;
 	intel_encoder->get_hw_state = intel_dvo_get_hw_state;
+	intel_encoder->get_config = intel_dvo_get_config;
 	intel_connector->get_hw_state = intel_dvo_connector_get_hw_state;
 
 	/* Now, try to find a controller */
