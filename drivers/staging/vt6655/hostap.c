@@ -141,7 +141,7 @@ static int hostap_disable_hostapd(PSDevice pDevice, int rtnl_locked)
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%s: Netdevice %s unregistered\n",
 			pDevice->dev->name, pDevice->apdev->name);
 	}
-	kfree(pDevice->apdev);
+	free_netdev(pDevice->apdev);
 	pDevice->apdev = NULL;
 	pDevice->bEnable8021x = false;
 	pDevice->bEnableHostWEP = false;
