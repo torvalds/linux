@@ -252,7 +252,7 @@ static int ced_flush(struct file *file, fl_owner_t id)
 ** not help with a device extension held by a file.
 ** return true if can accept new io requests, else false
 */
-static bool CanAcceptIoRequests(DEVICE_EXTENSION * pdx)
+static bool CanAcceptIoRequests(DEVICE_EXTENSION *pdx)
 {
 	return pdx && pdx->interface;	/*  Can we accept IO requests */
 }
@@ -339,7 +339,7 @@ static void ced_writechar_callback(struct urb *pUrb)
 ** Transmit the characters in the output buffer to the 1401. This may need
 ** breaking down into multiple transfers.
 ****************************************************************************/
-int SendChars(DEVICE_EXTENSION * pdx)
+int SendChars(DEVICE_EXTENSION *pdx)
 {
 	int iReturn = U14ERR_NOERROR;
 
@@ -440,7 +440,7 @@ int SendChars(DEVICE_EXTENSION * pdx)
 ** pdx  Is our device extension which holds all we know about the transfer.
 ** n    The number of bytes to move one way or the other.
 ***************************************************************************/
-static void CopyUserSpace(DEVICE_EXTENSION * pdx, int n)
+static void CopyUserSpace(DEVICE_EXTENSION *pdx, int n)
 {
 	unsigned int nArea = pdx->StagedId;
 	if (nArea < MAX_TRANSAREAS) {
@@ -495,7 +495,7 @@ static void CopyUserSpace(DEVICE_EXTENSION * pdx, int n)
 }
 
 /*  Forward declarations for stuff used circularly */
-static int StageChunk(DEVICE_EXTENSION * pdx);
+static int StageChunk(DEVICE_EXTENSION *pdx);
 /***************************************************************************
 ** ReadWrite_Complete
 **
@@ -709,7 +709,7 @@ static void staged_callback(struct urb *pUrb)
 ** The calling code must have acquired the staging spinlock before calling
 **  this function, and is responsible for releasing it. We are at callback level.
 ****************************************************************************/
-static int StageChunk(DEVICE_EXTENSION * pdx)
+static int StageChunk(DEVICE_EXTENSION *pdx)
 {
 	int iReturn = U14ERR_NOERROR;
 	unsigned int ChunkSize;
@@ -772,7 +772,7 @@ static int StageChunk(DEVICE_EXTENSION * pdx)
 **             transfer.
 **    dwLen - the number of bytes to transfer.
 */
-int ReadWriteMem(DEVICE_EXTENSION * pdx, bool Read, unsigned short wIdent,
+int ReadWriteMem(DEVICE_EXTENSION *pdx, bool Read, unsigned short wIdent,
 		 unsigned int dwOffs, unsigned int dwLen)
 {
 	TRANSAREA *pArea = &pdx->rTransDef[wIdent];	/*  Transfer area info */
@@ -962,7 +962,7 @@ static bool ReadHuff(volatile unsigned int *pDWord, char *pBuf,
 **  we start handling the data at offset zero.
 **
 *****************************************************************************/
-static bool ReadDMAInfo(volatile DMADESC * pDmaDesc, DEVICE_EXTENSION * pdx,
+static bool ReadDMAInfo(volatile DMADESC *pDmaDesc, DEVICE_EXTENSION *pdx,
 			char *pBuf, unsigned int dwCount)
 {
 	bool bResult = false;	/*  assume we won't succeed */
@@ -1049,7 +1049,7 @@ static bool ReadDMAInfo(volatile DMADESC * pDmaDesc, DEVICE_EXTENSION * pdx,
 **           this is known to be at least 2 or we will not be called.
 **
 ****************************************************************************/
-static int Handle1401Esc(DEVICE_EXTENSION * pdx, char *pCh,
+static int Handle1401Esc(DEVICE_EXTENSION *pdx, char *pCh,
 			 unsigned int dwCount)
 {
 	int iReturn = U14ERR_FAIL;
@@ -1182,7 +1182,7 @@ static void ced_readchar_callback(struct urb *pUrb)
 ** we can pick up any inward transfers. This can be called in multiple contexts
 ** so we use the irqsave version of the spinlock.
 ****************************************************************************/
-int Allowi(DEVICE_EXTENSION * pdx)
+int Allowi(DEVICE_EXTENSION *pdx)
 {
 	int iReturn = U14ERR_NOERROR;
 	unsigned long flags;
@@ -1536,7 +1536,7 @@ static void ced_disconnect(struct usb_interface *interface)
 /*  are left. NBNB we will need to have a mechanism to stop circular xfers */
 /*  from trying to fire off more urbs. We will wait up to 3 seconds for Urbs */
 /*  to be done. */
-void ced_draw_down(DEVICE_EXTENSION * pdx)
+void ced_draw_down(DEVICE_EXTENSION *pdx)
 {
 	int time;
 	dev_dbg(&pdx->interface->dev, "%s called", __func__);

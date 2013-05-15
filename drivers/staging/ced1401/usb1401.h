@@ -103,7 +103,7 @@ typedef struct circBlk
 /*   memory set up for use either as a source or destination in DMA transfers. */
 typedef struct transarea
 {
-    void*       lpvBuff;                /*  User address of xfer area saved for completeness */
+    void	*lpvBuff;                /*  User address of xfer area saved for completeness */
     UINT        dwBaseOffset;           /*  offset to start of xfer area in first page */
     UINT        dwLength;               /*  Length of xfer area, in bytes */
     struct page **pPages;               /*  Points at array of locked down pages */
@@ -149,10 +149,10 @@ typedef struct _DEVICE_EXTENSION
 
     volatile bool bSendCharsPending;    /* Flag to indicate sendchar active */
     volatile bool bReadCharsPending;    /* Flag to indicate a read is primed */
-    char* pCoherCharOut;                /* special aligned buffer for chars to 1401 */
-    struct urb* pUrbCharOut;            /* urb used for chars to 1401 */
-    char* pCoherCharIn;                 /* special aligned buffer for chars to host */
-    struct urb* pUrbCharIn;             /* urb used for chars to host */
+    char *pCoherCharOut;                /* special aligned buffer for chars to 1401 */
+    struct urb *pUrbCharOut;            /* urb used for chars to 1401 */
+    char *pCoherCharIn;                 /* special aligned buffer for chars to host */
+    struct urb *pUrbCharIn;             /* urb used for chars to host */
 
     spinlock_t charOutLock;             /* to protect the outputBuffer and outputting */
     spinlock_t charInLock;              /* to protect the inputBuffer and char reads */
@@ -175,8 +175,8 @@ typedef struct _DEVICE_EXTENSION
     volatile unsigned int StagedOffset; /*  Offset within memory area for transfer start */
     volatile unsigned int StagedDone;   /*  Bytes transferred so far */
     volatile bool bStagedUrbPending;    /*  Flag to indicate active */
-    char* pCoherStagedIO;               /*  buffer used for block transfers */
-    struct urb* pStagedUrb;             /*  The URB to use */
+    char *pCoherStagedIO;               /*  buffer used for block transfers */
+    struct urb *pStagedUrb;             /*  The URB to use */
     spinlock_t stagedLock;              /*  protects ReadWriteMem() and circular buffer stuff */
 
     short s1401Type;                    /*  type of 1401 attached */
@@ -205,26 +205,26 @@ typedef struct _DEVICE_EXTENSION
 
 /*  Definitions of routimes used between compilation object files */
 /*  in usb1401.c */
-extern int Allowi(DEVICE_EXTENSION* pdx);
-extern int SendChars(DEVICE_EXTENSION* pdx);
+extern int Allowi(DEVICE_EXTENSION *pdx);
+extern int SendChars(DEVICE_EXTENSION *pdx);
 extern void ced_draw_down(DEVICE_EXTENSION *pdx);
 extern int ReadWriteMem(DEVICE_EXTENSION *pdx, bool Read, unsigned short wIdent,
                       unsigned int dwOffs, unsigned int dwLen);
 
 /*  in ced_ioc.c */
 extern int ClearArea(DEVICE_EXTENSION *pdx, int nArea);
-extern int SendString(DEVICE_EXTENSION* pdx, const char __user* pData, unsigned int n);
+extern int SendString(DEVICE_EXTENSION *pdx, const char __user *pData, unsigned int n);
 extern int SendChar(DEVICE_EXTENSION *pdx, char c);
-extern int Get1401State(DEVICE_EXTENSION* pdx, __u32* state, __u32* error);
+extern int Get1401State(DEVICE_EXTENSION *pdx, __u32 *state, __u32 *error);
 extern int ReadWrite_Cancel(DEVICE_EXTENSION *pdx);
-extern bool Is1401(DEVICE_EXTENSION* pdx);
-extern bool QuickCheck(DEVICE_EXTENSION* pdx, bool bTestBuff, bool bCanReset);
+extern bool Is1401(DEVICE_EXTENSION *pdx);
+extern bool QuickCheck(DEVICE_EXTENSION *pdx, bool bTestBuff, bool bCanReset);
 extern int Reset1401(DEVICE_EXTENSION *pdx);
 extern int GetChar(DEVICE_EXTENSION *pdx);
-extern int GetString(DEVICE_EXTENSION *pdx, char __user* pUser, int n);
+extern int GetString(DEVICE_EXTENSION *pdx, char __user *pUser, int n);
 extern int SetTransfer(DEVICE_EXTENSION *pdx, TRANSFERDESC __user *pTD);
 extern int UnsetTransfer(DEVICE_EXTENSION *pdx, int nArea);
-extern int SetEvent(DEVICE_EXTENSION *pdx, TRANSFEREVENT __user*pTE);
+extern int SetEvent(DEVICE_EXTENSION *pdx, TRANSFEREVENT __user *pTE);
 extern int Stat1401(DEVICE_EXTENSION *pdx);
 extern int LineCount(DEVICE_EXTENSION *pdx);
 extern int GetOutBufSpace(DEVICE_EXTENSION *pdx);
@@ -236,15 +236,15 @@ extern int StartSelfTest(DEVICE_EXTENSION *pdx);
 extern int CheckSelfTest(DEVICE_EXTENSION *pdx, TGET_SELFTEST __user *pGST);
 extern int TypeOf1401(DEVICE_EXTENSION *pdx);
 extern int TransferFlags(DEVICE_EXTENSION *pdx);
-extern int DbgPeek(DEVICE_EXTENSION *pdx, TDBGBLOCK __user* pDB);
+extern int DbgPeek(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB);
 extern int DbgPoke(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB);
 extern int DbgRampData(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB);
 extern int DbgRampAddr(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB);
 extern int DbgGetData(DEVICE_EXTENSION *pdx, TDBGBLOCK __user *pDB);
 extern int DbgStopLoop(DEVICE_EXTENSION *pdx);
 extern int SetCircular(DEVICE_EXTENSION *pdx, TRANSFERDESC __user *pTD);
-extern int GetCircBlock(DEVICE_EXTENSION *pdx, TCIRCBLOCK __user* pCB);
-extern int FreeCircBlock(DEVICE_EXTENSION *pdx, TCIRCBLOCK __user* pCB);
+extern int GetCircBlock(DEVICE_EXTENSION *pdx, TCIRCBLOCK __user *pCB);
+extern int FreeCircBlock(DEVICE_EXTENSION *pdx, TCIRCBLOCK __user *pCB);
 extern int WaitEvent(DEVICE_EXTENSION *pdx, int nArea, int msTimeOut);
 extern int TestEvent(DEVICE_EXTENSION *pdx, int nArea);
 #endif
