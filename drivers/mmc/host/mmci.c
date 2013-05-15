@@ -191,6 +191,17 @@ static void mmci_write_pwrreg(struct mmci_host *host, u32 pwr)
 /*
  * This must be called with host->lock held
  */
+static void mmci_write_datactrlreg(struct mmci_host *host, u32 datactrl)
+{
+	if (host->datactrl_reg != datactrl) {
+		host->datactrl_reg = datactrl;
+		writel(datactrl, host->base + MMCIDATACTRL);
+	}
+}
+
+/*
+ * This must be called with host->lock held
+ */
 static void mmci_set_clkreg(struct mmci_host *host, unsigned int desired)
 {
 	struct variant_data *variant = host->variant;
@@ -281,7 +292,7 @@ static void mmci_set_mask1(struct mmci_host *host, unsigned int mask)
 
 static void mmci_stop_data(struct mmci_host *host)
 {
-	writel(0, host->base + MMCIDATACTRL);
+	mmci_write_datactrlreg(host, 0);
 	mmci_set_mask1(host, 0);
 	host->data = NULL;
 }
@@ -559,7 +570,7 @@ static int mmci_dma_start_data(struct mmci_host *host, unsigned int datactrl)
 	datactrl |= MCI_DPSM_DMAENABLE;
 
 	/* Trigger the DMA transfer */
-	writel(datactrl, host->base + MMCIDATACTRL);
+	mmci_write_datactrlreg(host, datactrl);
 
 	/*
 	 * Let the MMCI say when the data is ended and it's time
@@ -757,7 +768,7 @@ static void mmci_start_data(struct mmci_host *host, struct mmc_data *data)
 		irqmask = MCI_TXFIFOHALFEMPTYMASK;
 	}
 
-	writel(datactrl, base + MMCIDATACTRL);
+	mmci_write_datactrlreg(host, datactrl);
 	writel(readl(base + MMCIMASK0) & ~MCI_DATAENDMASK, base + MMCIMASK0);
 	mmci_set_mask1(host, irqmask);
 }
