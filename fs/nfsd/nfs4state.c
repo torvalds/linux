@@ -1872,6 +1872,24 @@ static __be32 check_backchannel_attrs(struct nfsd4_channel_attrs *ca)
 	return nfs_ok;
 }
 
+static __be32 nfsd4_check_cb_sec(struct nfsd4_cb_sec *cbs)
+{
+	switch (cbs->flavor) {
+	case RPC_AUTH_NULL:
+	case RPC_AUTH_UNIX:
+		return nfs_ok;
+	default:
+		/*
+		 * GSS case: the spec doesn't allow us to return this
+		 * error.  But it also doesn't allow us not to support
+		 * GSS.
+		 * I'd rather this fail hard than return some error the
+		 * client might think it can already handle:
+		 */
+		return nfserr_encr_alg_unsupp;
+	}
+}
+
 __be32
 nfsd4_create_session(struct svc_rqst *rqstp,
 		     struct nfsd4_compound_state *cstate,
@@ -1887,6 +1905,9 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 
 	if (cr_ses->flags & ~SESSION4_FLAG_MASK_A)
 		return nfserr_inval;
+	status = nfsd4_check_cb_sec(&cr_ses->cb_sec);
+	if (status)
+		return status;
 	status = check_forechannel_attrs(&cr_ses->fore_channel, nn);
 	if (status)
 		return status;
@@ -1996,7 +2017,11 @@ __be32 nfsd4_backchannel_ctl(struct svc_rqst *rqstp, struct nfsd4_compound_state
 {
 	struct nfsd4_session *session = cstate->session;
 	struct nfsd_net *nn = net_generic(SVC_NET(rqstp), nfsd_net_id);
+	__be32 status;
 
+	status = nfsd4_check_cb_sec(&bc->bc_cb_sec);
+	if (status)
+		return status;
 	spin_lock(&nn->client_lock);
 	session->se_cb_prog = bc->bc_cb_program;
 	session->se_cb_sec = bc->bc_cb_sec;
