@@ -60,6 +60,7 @@
 #define OpGS              25ull  /* GS */
 #define OpMem8            26ull  /* 8-bit zero extended memory operand */
 #define OpImm64           27ull  /* Sign extended 16/32/64-bit immediate */
+#define OpXLat            28ull  /* memory at BX/EBX/RBX + zero-extended AL */
 
 #define OpBits             5  /* Width of operand field */
 #define OpMask             ((1ull << OpBits) - 1)
@@ -99,6 +100,7 @@
 #define SrcImmUByte (OpImmUByte << SrcShift)
 #define SrcImmU     (OpImmU << SrcShift)
 #define SrcSI       (OpSI << SrcShift)
+#define SrcXLat     (OpXLat << SrcShift)
 #define SrcImmFAddr (OpImmFAddr << SrcShift)
 #define SrcMemFAddr (OpMemFAddr << SrcShift)
 #define SrcAcc      (OpAcc << SrcShift)
@@ -132,8 +134,9 @@
 #define Priv        (1<<27) /* instruction generates #GP if current CPL != 0 */
 #define No64	    (1<<28)
 #define PageTable   (1 << 29)   /* instruction used to write page table */
+#define NotImpl     (1 << 30)   /* instruction is not implemented */
 /* Source 2 operand type */
-#define Src2Shift   (30)
+#define Src2Shift   (31)
 #define Src2None    (OpNone << Src2Shift)
 #define Src2CL      (OpCL << Src2Shift)
 #define Src2ImmByte (OpImmByte << Src2Shift)
@@ -530,6 +533,9 @@ FOP_SETCC(setl)
 FOP_SETCC(setnl)
 FOP_SETCC(setle)
 FOP_SETCC(setnle)
+FOP_END;
+
+FOP_START(salc) "pushf; sbb %al, %al; popf \n\t" FOP_RET
 FOP_END;
 
 #define __emulate_1op_rax_rdx(ctxt, _op, _suffix, _ex)			\
@@ -1578,11 +1584,20 @@ static int load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
 
 	memset(&seg_desc, 0, sizeof seg_desc);
 
-	if ((seg <= VCPU_SREG_GS && ctxt->mode == X86EMUL_MODE_VM86)
-	    || ctxt->mode == X86EMUL_MODE_REAL) {
-		/* set real mode segment descriptor */
+	if (ctxt->mode == X86EMUL_MODE_REAL) {
+		/* set real mode segment descriptor (keep limit etc. for
+		 * unreal mode) */
 		ctxt->ops->get_segment(ctxt, &dummy, &seg_desc, NULL, seg);
 		set_desc_base(&seg_desc, selector << 4);
+		goto load;
+	} else if (seg <= VCPU_SREG_GS && ctxt->mode == X86EMUL_MODE_VM86) {
+		/* VM86 needs a clean new segment descriptor */
+		set_desc_base(&seg_desc, selector << 4);
+		set_desc_limit(&seg_desc, 0xffff);
+		seg_desc.type = 3;
+		seg_desc.p = 1;
+		seg_desc.s = 1;
+		seg_desc.dpl = 3;
 		goto load;
 	}
 
@@ -2986,6 +3001,28 @@ static int em_das(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
+static int em_aam(struct x86_emulate_ctxt *ctxt)
+{
+	u8 al, ah;
+
+	if (ctxt->src.val == 0)
+		return emulate_de(ctxt);
+
+	al = ctxt->dst.val & 0xff;
+	ah = al / ctxt->src.val;
+	al %= ctxt->src.val;
+
+	ctxt->dst.val = (ctxt->dst.val & 0xffff0000) | al | (ah << 8);
+
+	/* Set PF, ZF, SF */
+	ctxt->src.type = OP_IMM;
+	ctxt->src.val = 0;
+	ctxt->src.bytes = 1;
+	fastop(ctxt, em_or);
+
+	return X86EMUL_CONTINUE;
+}
+
 static int em_aad(struct x86_emulate_ctxt *ctxt)
 {
 	u8 al = ctxt->dst.val & 0xff;
@@ -3615,7 +3652,7 @@ static int check_perm_out(struct x86_emulate_ctxt *ctxt)
 #define DI(_y, _i) { .flags = (_y), .intercept = x86_intercept_##_i }
 #define DIP(_y, _i, _p) { .flags = (_y), .intercept = x86_intercept_##_i, \
 		      .check_perm = (_p) }
-#define N    D(0)
+#define N    D(NotImpl)
 #define EXT(_f, _e) { .flags = ((_f) | RMExt), .u.group = (_e) }
 #define G(_f, _g) { .flags = ((_f) | Group | ModRM), .u.group = (_g) }
 #define GD(_f, _g) { .flags = ((_f) | GroupDual | ModRM), .u.gdual = (_g) }
@@ -3713,7 +3750,7 @@ static const struct opcode group5[] = {
 	I(SrcMemFAddr | ImplicitOps | Stack,	em_call_far),
 	I(SrcMem | Stack,			em_grp45),
 	I(SrcMemFAddr | ImplicitOps,		em_grp45),
-	I(SrcMem | Stack,			em_grp45), N,
+	I(SrcMem | Stack,			em_grp45), D(Undefined),
 };
 
 static const struct opcode group6[] = {
@@ -3926,7 +3963,10 @@ static const struct opcode opcode_table[256] = {
 	/* 0xD0 - 0xD7 */
 	G(Src2One | ByteOp, group2), G(Src2One, group2),
 	G(Src2CL | ByteOp, group2), G(Src2CL, group2),
-	N, I(DstAcc | SrcImmByte | No64, em_aad), N, N,
+	I(DstAcc | SrcImmUByte | No64, em_aam),
+	I(DstAcc | SrcImmUByte | No64, em_aad),
+	F(DstAcc | ByteOp | No64, em_salc),
+	I(DstAcc | SrcXLat | ByteOp, em_mov),
 	/* 0xD8 - 0xDF */
 	N, E(0, &escape_d9), N, E(0, &escape_db), N, E(0, &escape_dd), N, N,
 	/* 0xE0 - 0xE7 */
@@ -4162,6 +4202,10 @@ static int decode_operand(struct x86_emulate_ctxt *ctxt, struct operand *op,
 		break;
 	case OpMem8:
 		ctxt->memop.bytes = 1;
+		if (ctxt->memop.type == OP_REG) {
+			ctxt->memop.addr.reg = decode_register(ctxt, ctxt->modrm_rm, 1);
+			fetch_register_operand(&ctxt->memop);
+		}
 		goto mem_common;
 	case OpMem16:
 		ctxt->memop.bytes = 2;
@@ -4183,6 +4227,16 @@ static int decode_operand(struct x86_emulate_ctxt *ctxt, struct operand *op,
 		op->addr.mem.seg = seg_override(ctxt);
 		op->val = 0;
 		op->count = 1;
+		break;
+	case OpXLat:
+		op->type = OP_MEM;
+		op->bytes = (ctxt->d & ByteOp) ? 1 : ctxt->op_bytes;
+		op->addr.mem.ea =
+			register_address(ctxt,
+				reg_read(ctxt, VCPU_REGS_RBX) +
+				(reg_read(ctxt, VCPU_REGS_RAX) & 0xff));
+		op->addr.mem.seg = seg_override(ctxt);
+		op->val = 0;
 		break;
 	case OpImmFAddr:
 		op->type = OP_IMM;
@@ -4373,7 +4427,7 @@ done_prefixes:
 	ctxt->intercept = opcode.intercept;
 
 	/* Unrecognised? */
-	if (ctxt->d == 0 || (ctxt->d & Undefined))
+	if (ctxt->d == 0 || (ctxt->d & NotImpl))
 		return EMULATION_FAILED;
 
 	if (!(ctxt->d & VendorSpecific) && ctxt->only_vendor_specific_insn)
@@ -4511,7 +4565,8 @@ int x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
 
 	ctxt->mem_read.pos = 0;
 
-	if (ctxt->mode == X86EMUL_MODE_PROT64 && (ctxt->d & No64)) {
+	if ((ctxt->mode == X86EMUL_MODE_PROT64 && (ctxt->d & No64)) ||
+			(ctxt->d & Undefined)) {
 		rc = emulate_ud(ctxt);
 		goto done;
 	}

@@ -898,7 +898,7 @@ static struct usb_function *source_sink_alloc_func(
 	return &ss->function;
 }
 
-static void acm_free_instance(struct usb_function_instance *fi)
+static void source_sink_free_instance(struct usb_function_instance *fi)
 {
 	struct f_ss_opts *ss_opts;
 
@@ -913,7 +913,7 @@ static struct usb_function_instance *source_sink_alloc_inst(void)
 	ss_opts = kzalloc(sizeof(*ss_opts), GFP_KERNEL);
 	if (!ss_opts)
 		return ERR_PTR(-ENOMEM);
-	ss_opts->func_inst.free_func_inst = acm_free_instance;
+	ss_opts->func_inst.free_func_inst = source_sink_free_instance;
 	return &ss_opts->func_inst;
 }
 DECLARE_USB_FUNCTION(SourceSink, source_sink_alloc_inst,

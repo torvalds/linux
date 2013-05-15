@@ -147,7 +147,7 @@ static int ttm_bo_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 
 	page_offset = ((address - vma->vm_start) >> PAGE_SHIFT) +
 	    bo->vm_node->start - vma->vm_pgoff;
-	page_last = ((vma->vm_end - vma->vm_start) >> PAGE_SHIFT) +
+	page_last = vma_pages(vma) +
 	    bo->vm_node->start - vma->vm_pgoff;
 
 	if (unlikely(page_offset >= bo->num_pages)) {
@@ -258,7 +258,7 @@ int ttm_bo_mmap(struct file *filp, struct vm_area_struct *vma,
 
 	read_lock(&bdev->vm_lock);
 	bo = ttm_bo_vm_lookup_rb(bdev, vma->vm_pgoff,
-				 (vma->vm_end - vma->vm_start) >> PAGE_SHIFT);
+				 vma_pages(vma));
 	if (likely(bo != NULL) && !kref_get_unless_zero(&bo->kref))
 		bo = NULL;
 	read_unlock(&bdev->vm_lock);

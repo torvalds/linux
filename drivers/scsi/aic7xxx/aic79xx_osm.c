@@ -906,7 +906,8 @@ struct scsi_host_template aic79xx_driver_template = {
 	.module			= THIS_MODULE,
 	.name			= "aic79xx",
 	.proc_name		= "aic79xx",
-	.proc_info		= ahd_linux_proc_info,
+	.show_info		= ahd_linux_show_info,
+	.write_info	 	= ahd_proc_write_seeprom,
 	.info			= ahd_linux_info,
 	.queuecommand		= ahd_linux_queue,
 	.eh_abort_handler	= ahd_linux_abort,
@@ -1702,19 +1703,13 @@ ahd_send_async(struct ahd_softc *ahd, char channel,
 	switch (code) {
 	case AC_TRANSFER_NEG:
 	{
-		char	buf[80];
 		struct  scsi_target *starget;
-		struct	info_str info;
 		struct	ahd_initiator_tinfo *tinfo;
 		struct	ahd_tmode_tstate *tstate;
 		unsigned int target_ppr_options;
 
 		BUG_ON(target == CAM_TARGET_WILDCARD);
 
-		info.buffer = buf;
-		info.length = sizeof(buf);
-		info.offset = 0;
-		info.pos = 0;
 		tinfo = ahd_fetch_transinfo(ahd, channel, ahd->our_id,
 					    target, &tstate);
 

@@ -45,6 +45,10 @@
 #define ARUBA_GB_ADDR_CONFIG_GOLDEN        0x12010001
 
 #define DMIF_ADDR_CONFIG  				0xBD4
+
+/* DCE6 only */
+#define DMIF_ADDR_CALC  				0xC00
+
 #define	SRBM_GFX_CNTL				        0x0E44
 #define		RINGID(x)					(((x) & 0x3) << 0)
 #define		VMID(x)						(((x) & 0x7) << 0)
@@ -486,6 +490,18 @@
 #       define CACHE_FLUSH_AND_INV_EVENT                        (0x16 << 0)
 
 /*
+ * UVD
+ */
+#define UVD_SEMA_ADDR_LOW				0xEF00
+#define UVD_SEMA_ADDR_HIGH				0xEF04
+#define UVD_SEMA_CMD					0xEF08
+#define UVD_UDEC_ADDR_CONFIG				0xEF4C
+#define UVD_UDEC_DB_ADDR_CONFIG				0xEF50
+#define UVD_UDEC_DBW_ADDR_CONFIG			0xEF54
+#define UVD_RBC_RB_RPTR					0xF690
+#define UVD_RBC_RB_WPTR					0xF694
+
+/*
  * PM4
  */
 #define PACKET0(reg, n)	((RADEON_PACKET_TYPE0 << 30) |			\
@@ -666,6 +682,11 @@
 
 #define DMA_IB_PACKET(cmd, vmid, n)	((((cmd) & 0xF) << 28) |	\
 					 (((vmid) & 0xF) << 20) |	\
+					 (((n) & 0xFFFFF) << 0))
+
+#define DMA_PTE_PDE_PACKET(n)		((2 << 28) |			\
+					 (1 << 26) |			\
+					 (1 << 21) |			\
 					 (((n) & 0xFFFFF) << 0))
 
 /* async DMA Packet types */

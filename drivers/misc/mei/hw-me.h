@@ -36,12 +36,6 @@ struct mei_me_hw {
 
 struct mei_device *mei_me_dev_init(struct pci_dev *pdev);
 
-/* get slots (dwords) from a message length + header (bytes) */
-static inline unsigned char mei_data2slots(size_t length)
-{
-	return DIV_ROUND_UP(sizeof(struct mei_msg_hdr) + length, 4);
-}
-
 irqreturn_t mei_me_irq_quick_handler(int irq, void *dev_id);
 irqreturn_t mei_me_irq_thread_handler(int irq, void *dev_id);
 

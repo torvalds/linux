@@ -318,13 +318,16 @@ static int u300_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 	struct u300_gpio_port *port = NULL;
 	struct list_head *p;
 	int retirq;
+	bool found = false;
 
 	list_for_each(p, &gpio->port_list) {
 		port = list_entry(p, struct u300_gpio_port, node);
-		if (port->number == portno)
+		if (port->number == portno) {
+			found = true;
 			break;
+		}
 	}
-	if (port == NULL) {
+	if (!found) {
 		dev_err(gpio->dev, "could not locate port for GPIO %d IRQ\n",
 			offset);
 		return -EINVAL;
@@ -359,7 +362,7 @@ int u300_gpio_config_get(struct gpio_chip *chip,
 	drmode &= (U300_GPIO_PXPCR_PIN_MODE_MASK << ((offset & 0x07) << 1));
 	drmode >>= ((offset & 0x07) << 1);
 
-	switch(param) {
+	switch (param) {
 	case PIN_CONFIG_BIAS_HIGH_IMPEDANCE:
 		*config = 0;
 		if (biasmode)

@@ -39,8 +39,6 @@
 #include <linux/cpu_cooling.h>
 #include <linux/of.h>
 
-#include <plat/cpu.h>
-
 /* Exynos generic registers */
 #define EXYNOS_TMU_REG_TRIMINFO		0x0
 #define EXYNOS_TMU_REG_CONTROL		0x20
@@ -100,13 +98,13 @@
 #define IDLE_INTERVAL 10000
 #define MCELSIUS	1000
 
-#ifdef CONFIG_EXYNOS_THERMAL_EMUL
+#ifdef CONFIG_THERMAL_EMULATION
 #define EXYNOS_EMUL_TIME	0x57F0
 #define EXYNOS_EMUL_TIME_SHIFT	16
 #define EXYNOS_EMUL_DATA_SHIFT	8
 #define EXYNOS_EMUL_DATA_MASK	0xFF
 #define EXYNOS_EMUL_ENABLE	0x1
-#endif /* CONFIG_EXYNOS_THERMAL_EMUL */
+#endif /* CONFIG_THERMAL_EMULATION */
 
 /* CPU Zone information */
 #define PANIC_ZONE      4
@@ -145,6 +143,7 @@ struct	thermal_cooling_conf {
 struct thermal_sensor_conf {
 	char name[SENSOR_NAME_LEN];
 	int (*read_temperature)(void *data);
+	int (*write_emul_temp)(void *drv_data, unsigned long temp);
 	struct thermal_trip_point_conf trip_data;
 	struct thermal_cooling_conf cooling_data;
 	void *private_data;
@@ -242,26 +241,6 @@ static int exynos_get_crit_temp(struct thermal_zone_device *thermal,
 	return ret;
 }
 
-static int exynos_get_frequency_level(unsigned int cpu, unsigned int freq)
-{
-	int i = 0, ret = -EINVAL;
-	struct cpufreq_frequency_table *table = NULL;
-#ifdef CONFIG_CPU_FREQ
-	table = cpufreq_frequency_get_table(cpu);
-#endif
-	if (!table)
-		return ret;
-
-	while (table[i].frequency != CPUFREQ_TABLE_END) {
-		if (table[i].frequency == CPUFREQ_ENTRY_INVALID)
-			continue;
-		if (table[i].frequency == freq)
-			return i;
-		i++;
-	}
-	return ret;
-}
-
 /* Bind callback functions for thermal zone */
 static int exynos_bind(struct thermal_zone_device *thermal,
 			struct thermal_cooling_device *cdev)
@@ -288,8 +267,8 @@ static int exynos_bind(struct thermal_zone_device *thermal,
 	/* Bind the thermal zone to the cpufreq cooling device */
 	for (i = 0; i < tab_size; i++) {
 		clip_data = (struct freq_clip_table *)&(tab_ptr[i]);
-		level = exynos_get_frequency_level(0, clip_data->freq_clip_max);
-		if (level < 0)
+		level = cpufreq_cooling_get_level(0, clip_data->freq_clip_max);
+		if (level == THERMAL_CSTATE_INVALID)
 			return 0;
 		switch (GET_ZONE(i)) {
 		case MONITOR_ZONE:
@@ -369,6 +348,23 @@ static int exynos_get_temp(struct thermal_zone_device *thermal,
 	return 0;
 }
 
+/* Get temperature callback functions for thermal zone */
+static int exynos_set_emul_temp(struct thermal_zone_device *thermal,
+						unsigned long temp)
+{
+	void *data;
+	int ret = -EINVAL;
+
+	if (!th_zone->sensor_conf) {
+		pr_info("Temperature sensor not initialised\n");
+		return -EINVAL;
+	}
+	data = th_zone->sensor_conf->private_data;
+	if (th_zone->sensor_conf->write_emul_temp)
+		ret = th_zone->sensor_conf->write_emul_temp(data, temp);
+	return ret;
+}
+
 /* Get the temperature trend */
 static int exynos_get_trend(struct thermal_zone_device *thermal,
 			int trip, enum thermal_trend *trend)
@@ -392,6 +388,7 @@ static struct thermal_zone_device_ops const exynos_dev_ops = {
 	.bind = exynos_bind,
 	.unbind = exynos_unbind,
 	.get_temp = exynos_get_temp,
+	.set_emul_temp = exynos_set_emul_temp,
 	.get_trend = exynos_get_trend,
 	.get_mode = exynos_get_mode,
 	.set_mode = exynos_set_mode,
@@ -714,6 +711,47 @@ static int exynos_tmu_read(struct exynos_tmu_data *data)
 	return temp;
 }
 
+#ifdef CONFIG_THERMAL_EMULATION
+static int exynos_tmu_set_emulation(void *drv_data, unsigned long temp)
+{
+	struct exynos_tmu_data *data = drv_data;
+	unsigned int reg;
+	int ret = -EINVAL;
+
+	if (data->soc == SOC_ARCH_EXYNOS4210)
+		goto out;
+
+	if (temp && temp < MCELSIUS)
+		goto out;
+
+	mutex_lock(&data->lock);
+	clk_enable(data->clk);
+
+	reg = readl(data->base + EXYNOS_EMUL_CON);
+
+	if (temp) {
+		temp /= MCELSIUS;
+
+		reg = (EXYNOS_EMUL_TIME << EXYNOS_EMUL_TIME_SHIFT) |
+			(temp_to_code(data, temp)
+			 << EXYNOS_EMUL_DATA_SHIFT) | EXYNOS_EMUL_ENABLE;
+	} else {
+		reg &= ~EXYNOS_EMUL_ENABLE;
+	}
+
+	writel(reg, data->base + EXYNOS_EMUL_CON);
+
+	clk_disable(data->clk);
+	mutex_unlock(&data->lock);
+	return 0;
+out:
+	return ret;
+}
+#else
+static int exynos_tmu_set_emulation(void *drv_data,	unsigned long temp)
+	{ return -EINVAL; }
+#endif/*CONFIG_THERMAL_EMULATION*/
+
 static void exynos_tmu_work(struct work_struct *work)
 {
 	struct exynos_tmu_data *data = container_of(work,
@@ -747,6 +785,7 @@ static irqreturn_t exynos_tmu_irq(int irq, void *id)
 static struct thermal_sensor_conf exynos_sensor_conf = {
 	.name			= "exynos-therm",
 	.read_temperature	= (int (*)(void *))exynos_tmu_read,
+	.write_emul_temp	= exynos_tmu_set_emulation,
 };
 
 #if defined(CONFIG_CPU_EXYNOS4210)
@@ -816,6 +855,10 @@ static const struct of_device_id exynos_tmu_match[] = {
 		.data = (void *)EXYNOS4210_TMU_DRV_DATA,
 	},
 	{
+		.compatible = "samsung,exynos4412-tmu",
+		.data = (void *)EXYNOS_TMU_DRV_DATA,
+	},
+	{
 		.compatible = "samsung,exynos5250-tmu",
 		.data = (void *)EXYNOS_TMU_DRV_DATA,
 	},
@@ -852,93 +895,6 @@ static inline struct  exynos_tmu_platform_data *exynos_get_driver_data(
 	return (struct exynos_tmu_platform_data *)
 			platform_get_device_id(pdev)->driver_data;
 }
-
-#ifdef CONFIG_EXYNOS_THERMAL_EMUL
-static ssize_t exynos_tmu_emulation_show(struct device *dev,
-					 struct device_attribute *attr,
-					 char *buf)
-{
-	struct platform_device *pdev = container_of(dev,
-					struct platform_device, dev);
-	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
-	unsigned int reg;
-	u8 temp_code;
-	int temp = 0;
-
-	if (data->soc == SOC_ARCH_EXYNOS4210)
-		goto out;
-
-	mutex_lock(&data->lock);
-	clk_enable(data->clk);
-	reg = readl(data->base + EXYNOS_EMUL_CON);
-	clk_disable(data->clk);
-	mutex_unlock(&data->lock);
-
-	if (reg & EXYNOS_EMUL_ENABLE) {
-		reg >>= EXYNOS_EMUL_DATA_SHIFT;
-		temp_code = reg & EXYNOS_EMUL_DATA_MASK;
-		temp = code_to_temp(data, temp_code);
-	}
-out:
-	return sprintf(buf, "%d\n", temp * MCELSIUS);
-}
-
-static ssize_t exynos_tmu_emulation_store(struct device *dev,
-					struct device_attribute *attr,
-					const char *buf, size_t count)
-{
-	struct platform_device *pdev = container_of(dev,
-					struct platform_device, dev);
-	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
-	unsigned int reg;
-	int temp;
-
-	if (data->soc == SOC_ARCH_EXYNOS4210)
-		goto out;
-
-	if (!sscanf(buf, "%d\n", &temp) || temp < 0)
-		return -EINVAL;
-
-	mutex_lock(&data->lock);
-	clk_enable(data->clk);
-
-	reg = readl(data->base + EXYNOS_EMUL_CON);
-
-	if (temp) {
-		/* Both CELSIUS and MCELSIUS type are available for input */
-		if (temp > MCELSIUS)
-			temp /= MCELSIUS;
-
-		reg = (EXYNOS_EMUL_TIME << EXYNOS_EMUL_TIME_SHIFT) |
-			(temp_to_code(data, (temp / MCELSIUS))
-			 << EXYNOS_EMUL_DATA_SHIFT) | EXYNOS_EMUL_ENABLE;
-	} else {
-		reg &= ~EXYNOS_EMUL_ENABLE;
-	}
-
-	writel(reg, data->base + EXYNOS_EMUL_CON);
-
-	clk_disable(data->clk);
-	mutex_unlock(&data->lock);
-
-out:
-	return count;
-}
-
-static DEVICE_ATTR(emulation, 0644, exynos_tmu_emulation_show,
-					exynos_tmu_emulation_store);
-static int create_emulation_sysfs(struct device *dev)
-{
-	return device_create_file(dev, &dev_attr_emulation);
-}
-static void remove_emulation_sysfs(struct device *dev)
-{
-	device_remove_file(dev, &dev_attr_emulation);
-}
-#else
-static inline int create_emulation_sysfs(struct device *dev) { return 0; }
-static inline void remove_emulation_sysfs(struct device *dev) {}
-#endif
 
 static int exynos_tmu_probe(struct platform_device *pdev)
 {
@@ -985,11 +941,15 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	data->clk = clk_get(NULL, "tmu_apbif");
+	data->clk = devm_clk_get(&pdev->dev, "tmu_apbif");
 	if (IS_ERR(data->clk)) {
 		dev_err(&pdev->dev, "Failed to get clock\n");
 		return  PTR_ERR(data->clk);
 	}
+
+	ret = clk_prepare(data->clk);
+	if (ret)
+		return ret;
 
 	if (pdata->type == SOC_ARCH_EXYNOS ||
 				pdata->type == SOC_ARCH_EXYNOS4210)
@@ -1039,14 +999,10 @@ static int exynos_tmu_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
-	ret = create_emulation_sysfs(&pdev->dev);
-	if (ret)
-		dev_err(&pdev->dev, "Failed to create emulation mode sysfs node\n");
-
 	return 0;
 err_clk:
 	platform_set_drvdata(pdev, NULL);
-	clk_put(data->clk);
+	clk_unprepare(data->clk);
 	return ret;
 }
 
@@ -1054,13 +1010,11 @@ static int exynos_tmu_remove(struct platform_device *pdev)
 {
 	struct exynos_tmu_data *data = platform_get_drvdata(pdev);
 
-	remove_emulation_sysfs(&pdev->dev);
-
 	exynos_tmu_control(pdev, false);
 
 	exynos_unregister_thermal();
 
-	clk_put(data->clk);
+	clk_unprepare(data->clk);
 
 	platform_set_drvdata(pdev, NULL);
 

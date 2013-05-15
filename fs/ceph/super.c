@@ -479,6 +479,8 @@ static struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
 		CEPH_FEATURE_FLOCK |
 		CEPH_FEATURE_DIRLAYOUTHASH;
 	const unsigned required_features = 0;
+	int page_count;
+	size_t size;
 	int err = -ENOMEM;
 
 	fsc = kzalloc(sizeof(*fsc), GFP_KERNEL);
@@ -522,8 +524,9 @@ static struct ceph_fs_client *create_fs_client(struct ceph_mount_options *fsopt,
 
 	/* set up mempools */
 	err = -ENOMEM;
-	fsc->wb_pagevec_pool = mempool_create_kmalloc_pool(10,
-			      fsc->mount_options->wsize >> PAGE_CACHE_SHIFT);
+	page_count = fsc->mount_options->wsize >> PAGE_CACHE_SHIFT;
+	size = sizeof (struct page *) * (page_count ? page_count : 1);
+	fsc->wb_pagevec_pool = mempool_create_kmalloc_pool(10, size);
 	if (!fsc->wb_pagevec_pool)
 		goto fail_trunc_wq;
 

@@ -112,16 +112,34 @@ static const struct regmap_config as3711_regmap_config = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
+#ifdef CONFIG_OF
+static struct of_device_id as3711_of_match[] = {
+	{.compatible = "ams,as3711",},
+	{}
+};
+MODULE_DEVICE_TABLE(of, as3711_of_match);
+#endif
+
 static int as3711_i2c_probe(struct i2c_client *client,
 			    const struct i2c_device_id *id)
 {
 	struct as3711 *as3711;
-	struct as3711_platform_data *pdata = client->dev.platform_data;
+	struct as3711_platform_data *pdata;
 	unsigned int id1, id2;
 	int ret;
 
-	if (!pdata)
-		dev_dbg(&client->dev, "Platform data not found\n");
+	if (!client->dev.of_node) {
+		pdata = client->dev.platform_data;
+		if (!pdata)
+			dev_dbg(&client->dev, "Platform data not found\n");
+	} else {
+		pdata = devm_kzalloc(&client->dev,
+				     sizeof(*pdata), GFP_KERNEL);
+		if (!pdata) {
+			dev_err(&client->dev, "Failed to allocate pdata\n");
+			return -ENOMEM;
+		}
+	}
 
 	as3711 = devm_kzalloc(&client->dev, sizeof(struct as3711), GFP_KERNEL);
 	if (!as3711) {
@@ -193,7 +211,8 @@ static struct i2c_driver as3711_i2c_driver = {
 	.driver = {
 		   .name = "as3711",
 		   .owner = THIS_MODULE,
-		   },
+		   .of_match_table = of_match_ptr(as3711_of_match),
+	},
 	.probe = as3711_i2c_probe,
 	.remove = as3711_i2c_remove,
 	.id_table = as3711_i2c_id,

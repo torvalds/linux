@@ -1085,7 +1085,7 @@ static void sci_remote_device_ready_state_enter(struct sci_base_state_machine *s
 	struct isci_host *ihost = idev->owning_port->owning_controller;
 	struct domain_device *dev = idev->domain_dev;
 
-	if (dev->dev_type == SATA_DEV || (dev->tproto & SAS_PROTOCOL_SATA)) {
+	if (dev->dev_type == SAS_SATA_DEV || (dev->tproto & SAS_PROTOCOL_SATA)) {
 		sci_change_state(&idev->sm, SCI_STP_DEV_IDLE);
 	} else if (dev_is_expander(dev)) {
 		sci_change_state(&idev->sm, SCI_SMP_DEV_IDLE);
@@ -1098,7 +1098,7 @@ static void sci_remote_device_ready_state_exit(struct sci_base_state_machine *sm
 	struct isci_remote_device *idev = container_of(sm, typeof(*idev), sm);
 	struct domain_device *dev = idev->domain_dev;
 
-	if (dev->dev_type == SAS_END_DEV) {
+	if (dev->dev_type == SAS_END_DEVICE) {
 		struct isci_host *ihost = idev->owning_port->owning_controller;
 
 		isci_remote_device_not_ready(ihost, idev,

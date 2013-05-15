@@ -38,7 +38,7 @@ enum ccdc_sample_line {
 	CCDC_SAMPLE_16LINES
 };
 
-/* enum for Alaw gama width */
+/* enum for Alaw gamma width */
 enum ccdc_gamma_width {
 	CCDC_GAMMA_BITS_13_4,
 	CCDC_GAMMA_BITS_12_3,
@@ -97,8 +97,8 @@ enum ccdc_mfilt2 {
 struct ccdc_a_law {
 	/* Enable/disable A-Law */
 	unsigned char enable;
-	/* Gama Width Input */
-	enum ccdc_gamma_width gama_wd;
+	/* Gamma Width Input */
+	enum ccdc_gamma_width gamma_wd;
 };
 
 /* structure for Black Clamping */

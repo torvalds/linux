@@ -1,7 +1,8 @@
 /*
- * Hardware monitoring driver for LM25066 / LM5064 / LM5066
+ * Hardware monitoring driver for LM25056 / LM25066 / LM5064 / LM5066
  *
  * Copyright (c) 2011 Ericsson AB.
+ * Copyright (c) 2013 Guenter Roeck
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,7 +27,7 @@
 #include <linux/i2c.h>
 #include "pmbus.h"
 
-enum chips { lm25066, lm5064, lm5066 };
+enum chips { lm25056, lm25066, lm5064, lm5066 };
 
 #define LM25066_READ_VAUX		0xd0
 #define LM25066_MFR_READ_IIN		0xd1
@@ -43,6 +44,138 @@ enum chips { lm25066, lm5064, lm5066 };
 
 #define LM25066_DEV_SETUP_CL		(1 << 4)	/* Current limit */
 
+/* LM25056 only */
+
+#define LM25056_VAUX_OV_WARN_LIMIT	0xe3
+#define LM25056_VAUX_UV_WARN_LIMIT	0xe4
+
+#define LM25056_MFR_STS_VAUX_OV_WARN	(1 << 1)
+#define LM25056_MFR_STS_VAUX_UV_WARN	(1 << 0)
+
+struct __coeff {
+	short m, b, R;
+};
+
+#define PSC_CURRENT_IN_L	(PSC_NUM_CLASSES)
+#define PSC_POWER_L		(PSC_NUM_CLASSES + 1)
+
+static struct __coeff lm25066_coeff[4][PSC_NUM_CLASSES + 2] = {
+	[lm25056] = {
+		[PSC_VOLTAGE_IN] = {
+			.m = 16296,
+			.R = -2,
+		},
+		[PSC_CURRENT_IN] = {
+			.m = 13797,
+			.R = -2,
+		},
+		[PSC_CURRENT_IN_L] = {
+			.m = 6726,
+			.R = -2,
+		},
+		[PSC_POWER] = {
+			.m = 5501,
+			.R = -3,
+		},
+		[PSC_POWER_L] = {
+			.m = 26882,
+			.R = -4,
+		},
+		[PSC_TEMPERATURE] = {
+			.m = 1580,
+			.b = -14500,
+			.R = -2,
+		},
+	},
+	[lm25066] = {
+		[PSC_VOLTAGE_IN] = {
+			.m = 22070,
+			.R = -2,
+		},
+		[PSC_VOLTAGE_OUT] = {
+			.m = 22070,
+			.R = -2,
+		},
+		[PSC_CURRENT_IN] = {
+			.m = 13661,
+			.R = -2,
+		},
+		[PSC_CURRENT_IN_L] = {
+			.m = 6852,
+			.R = -2,
+		},
+		[PSC_POWER] = {
+			.m = 736,
+			.R = -2,
+		},
+		[PSC_POWER_L] = {
+			.m = 369,
+			.R = -2,
+		},
+		[PSC_TEMPERATURE] = {
+			.m = 16,
+		},
+	},
+	[lm5064] = {
+		[PSC_VOLTAGE_IN] = {
+			.m = 4611,
+			.R = -2,
+		},
+		[PSC_VOLTAGE_OUT] = {
+			.m = 4621,
+			.R = -2,
+		},
+		[PSC_CURRENT_IN] = {
+			.m = 10742,
+			.R = -2,
+		},
+		[PSC_CURRENT_IN_L] = {
+			.m = 5456,
+			.R = -2,
+		},
+		[PSC_POWER] = {
+			.m = 1204,
+			.R = -3,
+		},
+		[PSC_POWER_L] = {
+			.m = 612,
+			.R = -3,
+		},
+		[PSC_TEMPERATURE] = {
+			.m = 16,
+		},
+	},
+	[lm5066] = {
+		[PSC_VOLTAGE_IN] = {
+			.m = 4587,
+			.R = -2,
+		},
+		[PSC_VOLTAGE_OUT] = {
+			.m = 4587,
+			.R = -2,
+		},
+		[PSC_CURRENT_IN] = {
+			.m = 10753,
+			.R = -2,
+		},
+		[PSC_CURRENT_IN_L] = {
+			.m = 5405,
+			.R = -2,
+		},
+		[PSC_POWER] = {
+			.m = 1204,
+			.R = -3,
+		},
+		[PSC_POWER_L] = {
+			.m = 605,
+			.R = -3,
+		},
+		[PSC_TEMPERATURE] = {
+			.m = 16,
+		},
+	},
+};
+
 struct lm25066_data {
 	int id;
 	struct pmbus_driver_info info;
@@ -56,42 +189,31 @@ static int lm25066_read_word_data(struct i2c_client *client, int page, int reg)
 	const struct lm25066_data *data = to_lm25066_data(info);
 	int ret;
 
-	if (page > 1)
-		return -ENXIO;
-
-	/* Map READ_VAUX into READ_VOUT register on page 1 */
-	if (page == 1) {
-		switch (reg) {
-		case PMBUS_READ_VOUT:
-			ret = pmbus_read_word_data(client, 0,
-						   LM25066_READ_VAUX);
-			if (ret < 0)
-				break;
-			/* Adjust returned value to match VOUT coefficients */
-			switch (data->id) {
-			case lm25066:
-				/* VOUT: 4.54 mV VAUX: 283.2 uV LSB */
-				ret = DIV_ROUND_CLOSEST(ret * 2832, 45400);
-				break;
-			case lm5064:
-				/* VOUT: 4.53 mV VAUX: 700 uV LSB */
-				ret = DIV_ROUND_CLOSEST(ret * 70, 453);
-				break;
-			case lm5066:
-				/* VOUT: 2.18 mV VAUX: 725 uV LSB */
-				ret = DIV_ROUND_CLOSEST(ret * 725, 2180);
-				break;
-			}
+	switch (reg) {
+	case PMBUS_VIRT_READ_VMON:
+		ret = pmbus_read_word_data(client, 0, LM25066_READ_VAUX);
+		if (ret < 0)
 			break;
-		default:
-			/* No other valid registers on page 1 */
-			ret = -ENXIO;
+		/* Adjust returned value to match VIN coefficients */
+		switch (data->id) {
+		case lm25056:
+			/* VIN: 6.14 mV VAUX: 293 uV LSB */
+			ret = DIV_ROUND_CLOSEST(ret * 293, 6140);
+			break;
+		case lm25066:
+			/* VIN: 4.54 mV VAUX: 283.2 uV LSB */
+			ret = DIV_ROUND_CLOSEST(ret * 2832, 45400);
+			break;
+		case lm5064:
+			/* VIN: 4.53 mV VAUX: 700 uV LSB */
+			ret = DIV_ROUND_CLOSEST(ret * 70, 453);
+			break;
+		case lm5066:
+			/* VIN: 2.18 mV VAUX: 725 uV LSB */
+			ret = DIV_ROUND_CLOSEST(ret * 725, 2180);
 			break;
 		}
-		goto done;
-	}
-
-	switch (reg) {
+		break;
 	case PMBUS_READ_IIN:
 		ret = pmbus_read_word_data(client, 0, LM25066_MFR_READ_IIN);
 		break;
@@ -128,7 +250,58 @@ static int lm25066_read_word_data(struct i2c_client *client, int page, int reg)
 		ret = -ENODATA;
 		break;
 	}
-done:
+	return ret;
+}
+
+static int lm25056_read_word_data(struct i2c_client *client, int page, int reg)
+{
+	int ret;
+
+	switch (reg) {
+	case PMBUS_VIRT_VMON_UV_WARN_LIMIT:
+		ret = pmbus_read_word_data(client, 0,
+					   LM25056_VAUX_UV_WARN_LIMIT);
+		if (ret < 0)
+			break;
+		/* Adjust returned value to match VIN coefficients */
+		ret = DIV_ROUND_CLOSEST(ret * 293, 6140);
+		break;
+	case PMBUS_VIRT_VMON_OV_WARN_LIMIT:
+		ret = pmbus_read_word_data(client, 0,
+					   LM25056_VAUX_OV_WARN_LIMIT);
+		if (ret < 0)
+			break;
+		/* Adjust returned value to match VIN coefficients */
+		ret = DIV_ROUND_CLOSEST(ret * 293, 6140);
+		break;
+	default:
+		ret = lm25066_read_word_data(client, page, reg);
+		break;
+	}
+	return ret;
+}
+
+static int lm25056_read_byte_data(struct i2c_client *client, int page, int reg)
+{
+	int ret, s;
+
+	switch (reg) {
+	case PMBUS_VIRT_STATUS_VMON:
+		ret = pmbus_read_byte_data(client, 0,
+					   PMBUS_STATUS_MFR_SPECIFIC);
+		if (ret < 0)
+			break;
+		s = 0;
+		if (ret & LM25056_MFR_STS_VAUX_UV_WARN)
+			s |= PB_VOLTAGE_UV_WARNING;
+		if (ret & LM25056_MFR_STS_VAUX_OV_WARN)
+			s |= PB_VOLTAGE_OV_WARNING;
+		ret = s;
+		break;
+	default:
+		ret = -ENODATA;
+		break;
+	}
 	return ret;
 }
 
@@ -137,19 +310,45 @@ static int lm25066_write_word_data(struct i2c_client *client, int page, int reg,
 {
 	int ret;
 
-	if (page > 1)
-		return -ENXIO;
-
 	switch (reg) {
+	case PMBUS_VOUT_UV_WARN_LIMIT:
+	case PMBUS_OT_FAULT_LIMIT:
+	case PMBUS_OT_WARN_LIMIT:
+	case PMBUS_VIN_UV_WARN_LIMIT:
+	case PMBUS_VIN_OV_WARN_LIMIT:
+		word = ((s16)word < 0) ? 0 : clamp_val(word, 0, 0x0fff);
+		ret = pmbus_write_word_data(client, 0, reg, word);
+		pmbus_clear_cache(client);
+		break;
 	case PMBUS_IIN_OC_WARN_LIMIT:
+		word = ((s16)word < 0) ? 0 : clamp_val(word, 0, 0x0fff);
 		ret = pmbus_write_word_data(client, 0,
 					    LM25066_MFR_IIN_OC_WARN_LIMIT,
 					    word);
+		pmbus_clear_cache(client);
 		break;
 	case PMBUS_PIN_OP_WARN_LIMIT:
+		word = ((s16)word < 0) ? 0 : clamp_val(word, 0, 0x0fff);
 		ret = pmbus_write_word_data(client, 0,
 					    LM25066_MFR_PIN_OP_WARN_LIMIT,
 					    word);
+		pmbus_clear_cache(client);
+		break;
+	case PMBUS_VIRT_VMON_UV_WARN_LIMIT:
+		/* Adjust from VIN coefficients (for LM25056) */
+		word = DIV_ROUND_CLOSEST((int)word * 6140, 293);
+		word = ((s16)word < 0) ? 0 : clamp_val(word, 0, 0x0fff);
+		ret = pmbus_write_word_data(client, 0,
+					    LM25056_VAUX_UV_WARN_LIMIT, word);
+		pmbus_clear_cache(client);
+		break;
+	case PMBUS_VIRT_VMON_OV_WARN_LIMIT:
+		/* Adjust from VIN coefficients (for LM25056) */
+		word = DIV_ROUND_CLOSEST((int)word * 6140, 293);
+		word = ((s16)word < 0) ? 0 : clamp_val(word, 0, 0x0fff);
+		ret = pmbus_write_word_data(client, 0,
+					    LM25056_VAUX_OV_WARN_LIMIT, word);
+		pmbus_clear_cache(client);
 		break;
 	case PMBUS_VIRT_RESET_PIN_HISTORY:
 		ret = pmbus_write_byte(client, 0, LM25066_CLEAR_PIN_PEAK);
@@ -161,23 +360,13 @@ static int lm25066_write_word_data(struct i2c_client *client, int page, int reg,
 	return ret;
 }
 
-static int lm25066_write_byte(struct i2c_client *client, int page, u8 value)
-{
-	if (page > 1)
-		return -ENXIO;
-
-	if (page <= 0)
-		return pmbus_write_byte(client, page, value);
-
-	return 0;
-}
-
 static int lm25066_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
 {
 	int config;
 	struct lm25066_data *data;
 	struct pmbus_driver_info *info;
+	struct __coeff *coeff;
 
 	if (!i2c_check_functionality(client->adapter,
 				     I2C_FUNC_SMBUS_READ_BYTE_DATA))
@@ -195,107 +384,54 @@ static int lm25066_probe(struct i2c_client *client,
 	data->id = id->driver_data;
 	info = &data->info;
 
-	info->pages = 2;
+	info->pages = 1;
 	info->format[PSC_VOLTAGE_IN] = direct;
 	info->format[PSC_VOLTAGE_OUT] = direct;
 	info->format[PSC_CURRENT_IN] = direct;
 	info->format[PSC_TEMPERATURE] = direct;
 	info->format[PSC_POWER] = direct;
 
-	info->m[PSC_TEMPERATURE] = 16;
-	info->b[PSC_TEMPERATURE] = 0;
-	info->R[PSC_TEMPERATURE] = 0;
+	info->func[0] = PMBUS_HAVE_VIN | PMBUS_HAVE_VMON
+	  | PMBUS_HAVE_PIN | PMBUS_HAVE_IIN | PMBUS_HAVE_STATUS_INPUT
+	  | PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP;
 
-	info->func[0] = PMBUS_HAVE_VIN | PMBUS_HAVE_VOUT
-	  | PMBUS_HAVE_STATUS_VOUT | PMBUS_HAVE_PIN | PMBUS_HAVE_IIN
-	  | PMBUS_HAVE_STATUS_INPUT | PMBUS_HAVE_TEMP | PMBUS_HAVE_STATUS_TEMP;
-	info->func[1] = PMBUS_HAVE_VOUT;
-
-	info->read_word_data = lm25066_read_word_data;
+	if (data->id == lm25056) {
+		info->func[0] |= PMBUS_HAVE_STATUS_VMON;
+		info->read_word_data = lm25056_read_word_data;
+		info->read_byte_data = lm25056_read_byte_data;
+	} else {
+		info->func[0] |= PMBUS_HAVE_VOUT | PMBUS_HAVE_STATUS_VOUT;
+		info->read_word_data = lm25066_read_word_data;
+	}
 	info->write_word_data = lm25066_write_word_data;
-	info->write_byte = lm25066_write_byte;
 
-	switch (id->driver_data) {
-	case lm25066:
-		info->m[PSC_VOLTAGE_IN] = 22070;
-		info->b[PSC_VOLTAGE_IN] = 0;
-		info->R[PSC_VOLTAGE_IN] = -2;
-		info->m[PSC_VOLTAGE_OUT] = 22070;
-		info->b[PSC_VOLTAGE_OUT] = 0;
-		info->R[PSC_VOLTAGE_OUT] = -2;
-
-		if (config & LM25066_DEV_SETUP_CL) {
-			info->m[PSC_CURRENT_IN] = 6852;
-			info->b[PSC_CURRENT_IN] = 0;
-			info->R[PSC_CURRENT_IN] = -2;
-			info->m[PSC_POWER] = 369;
-			info->b[PSC_POWER] = 0;
-			info->R[PSC_POWER] = -2;
-		} else {
-			info->m[PSC_CURRENT_IN] = 13661;
-			info->b[PSC_CURRENT_IN] = 0;
-			info->R[PSC_CURRENT_IN] = -2;
-			info->m[PSC_POWER] = 736;
-			info->b[PSC_POWER] = 0;
-			info->R[PSC_POWER] = -2;
-		}
-		break;
-	case lm5064:
-		info->m[PSC_VOLTAGE_IN] = 22075;
-		info->b[PSC_VOLTAGE_IN] = 0;
-		info->R[PSC_VOLTAGE_IN] = -2;
-		info->m[PSC_VOLTAGE_OUT] = 22075;
-		info->b[PSC_VOLTAGE_OUT] = 0;
-		info->R[PSC_VOLTAGE_OUT] = -2;
-
-		if (config & LM25066_DEV_SETUP_CL) {
-			info->m[PSC_CURRENT_IN] = 6713;
-			info->b[PSC_CURRENT_IN] = 0;
-			info->R[PSC_CURRENT_IN] = -2;
-			info->m[PSC_POWER] = 3619;
-			info->b[PSC_POWER] = 0;
-			info->R[PSC_POWER] = -3;
-		} else {
-			info->m[PSC_CURRENT_IN] = 13426;
-			info->b[PSC_CURRENT_IN] = 0;
-			info->R[PSC_CURRENT_IN] = -2;
-			info->m[PSC_POWER] = 7238;
-			info->b[PSC_POWER] = 0;
-			info->R[PSC_POWER] = -3;
-		}
-		break;
-	case lm5066:
-		info->m[PSC_VOLTAGE_IN] = 4587;
-		info->b[PSC_VOLTAGE_IN] = 0;
-		info->R[PSC_VOLTAGE_IN] = -2;
-		info->m[PSC_VOLTAGE_OUT] = 4587;
-		info->b[PSC_VOLTAGE_OUT] = 0;
-		info->R[PSC_VOLTAGE_OUT] = -2;
-
-		if (config & LM25066_DEV_SETUP_CL) {
-			info->m[PSC_CURRENT_IN] = 10753;
-			info->b[PSC_CURRENT_IN] = 0;
-			info->R[PSC_CURRENT_IN] = -2;
-			info->m[PSC_POWER] = 1204;
-			info->b[PSC_POWER] = 0;
-			info->R[PSC_POWER] = -3;
-		} else {
-			info->m[PSC_CURRENT_IN] = 5405;
-			info->b[PSC_CURRENT_IN] = 0;
-			info->R[PSC_CURRENT_IN] = -2;
-			info->m[PSC_POWER] = 605;
-			info->b[PSC_POWER] = 0;
-			info->R[PSC_POWER] = -3;
-		}
-		break;
-	default:
-		return -ENODEV;
+	coeff = &lm25066_coeff[data->id][0];
+	info->m[PSC_TEMPERATURE] = coeff[PSC_TEMPERATURE].m;
+	info->b[PSC_TEMPERATURE] = coeff[PSC_TEMPERATURE].b;
+	info->R[PSC_TEMPERATURE] = coeff[PSC_TEMPERATURE].R;
+	info->m[PSC_VOLTAGE_IN] = coeff[PSC_VOLTAGE_IN].m;
+	info->b[PSC_VOLTAGE_IN] = coeff[PSC_VOLTAGE_IN].b;
+	info->R[PSC_VOLTAGE_IN] = coeff[PSC_VOLTAGE_IN].R;
+	info->m[PSC_VOLTAGE_OUT] = coeff[PSC_VOLTAGE_OUT].m;
+	info->b[PSC_VOLTAGE_OUT] = coeff[PSC_VOLTAGE_OUT].b;
+	info->R[PSC_VOLTAGE_OUT] = coeff[PSC_VOLTAGE_OUT].R;
+	info->b[PSC_CURRENT_IN] = coeff[PSC_CURRENT_IN].b;
+	info->R[PSC_CURRENT_IN] = coeff[PSC_CURRENT_IN].R;
+	info->b[PSC_POWER] = coeff[PSC_POWER].b;
+	info->R[PSC_POWER] = coeff[PSC_POWER].R;
+	if (config & LM25066_DEV_SETUP_CL) {
+		info->m[PSC_CURRENT_IN] = coeff[PSC_CURRENT_IN_L].m;
+		info->m[PSC_POWER] = coeff[PSC_POWER_L].m;
+	} else {
+		info->m[PSC_CURRENT_IN] = coeff[PSC_CURRENT_IN].m;
+		info->m[PSC_POWER] = coeff[PSC_POWER].m;
 	}
 
 	return pmbus_do_probe(client, id, info);
 }
 
 static const struct i2c_device_id lm25066_id[] = {
+	{"lm25056", lm25056},
 	{"lm25066", lm25066},
 	{"lm5064", lm5064},
 	{"lm5066", lm5066},
@@ -317,5 +453,5 @@ static struct i2c_driver lm25066_driver = {
 module_i2c_driver(lm25066_driver);
 
 MODULE_AUTHOR("Guenter Roeck");
-MODULE_DESCRIPTION("PMBus driver for LM25066/LM5064/LM5066");
+MODULE_DESCRIPTION("PMBus driver for LM25056/LM25066/LM5064/LM5066");
 MODULE_LICENSE("GPL");

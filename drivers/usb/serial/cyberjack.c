@@ -51,7 +51,6 @@
 #define CYBERJACK_PRODUCT_ID	0x0100
 
 /* Function prototypes */
-static void cyberjack_disconnect(struct usb_serial *serial);
 static int cyberjack_port_probe(struct usb_serial_port *port);
 static int cyberjack_port_remove(struct usb_serial_port *port);
 static int  cyberjack_open(struct tty_struct *tty,
@@ -79,7 +78,6 @@ static struct usb_serial_driver cyberjack_device = {
 	.description =		"Reiner SCT Cyberjack USB card reader",
 	.id_table =		id_table,
 	.num_ports =		1,
-	.disconnect =		cyberjack_disconnect,
 	.port_probe =		cyberjack_port_probe,
 	.port_remove =		cyberjack_port_remove,
 	.open =			cyberjack_open,
@@ -130,18 +128,12 @@ static int cyberjack_port_remove(struct usb_serial_port *port)
 {
 	struct cyberjack_private *priv;
 
+	usb_kill_urb(port->interrupt_in_urb);
+
 	priv = usb_get_serial_port_data(port);
 	kfree(priv);
 
 	return 0;
-}
-
-static void cyberjack_disconnect(struct usb_serial *serial)
-{
-	int i;
-
-	for (i = 0; i < serial->num_ports; ++i)
-		usb_kill_urb(serial->port[i]->interrupt_in_urb);
 }
 
 static int  cyberjack_open(struct tty_struct *tty,
@@ -166,11 +158,8 @@ static int  cyberjack_open(struct tty_struct *tty,
 
 static void cyberjack_close(struct usb_serial_port *port)
 {
-	if (port->serial->dev) {
-		/* shutdown any bulk reads that might be going on */
-		usb_kill_urb(port->write_urb);
-		usb_kill_urb(port->read_urb);
-	}
+	usb_kill_urb(port->write_urb);
+	usb_kill_urb(port->read_urb);
 }
 
 static int cyberjack_write(struct tty_struct *tty,

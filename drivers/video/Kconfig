@@ -21,6 +21,8 @@ source "drivers/gpu/vga/Kconfig"
 
 source "drivers/gpu/drm/Kconfig"
 
+source "drivers/gpu/host1x/Kconfig"
+
 config VGASTATE
        tristate
        default n
@@ -31,26 +33,8 @@ config VIDEO_OUTPUT_CONTROL
 	  This framework adds support for low-level control of the video 
 	  output switch.
 
-config DISPLAY_TIMING
-       bool
-
-config VIDEOMODE
-       bool
-
-config OF_DISPLAY_TIMING
-	bool "Enable device tree display timing support"
-	depends on OF
-	select DISPLAY_TIMING
-	help
-	  helper to parse display timings from the devicetree
-
-config OF_VIDEOMODE
-	bool "Enable device tree videomode support"
-	depends on OF
-	select VIDEOMODE
-	select OF_DISPLAY_TIMING
-	help
-	  helper to get videomodes from the devicetree
+config VIDEOMODE_HELPERS
+	bool
 
 config HDMI
 	bool
@@ -211,14 +195,6 @@ config FB_SYS_FOPS
        tristate
        depends on FB
        default n
-
-config FB_WMT_GE_ROPS
-	tristate
-	depends on FB
-	default n
-	---help---
-	  Include functions for accelerated rectangle filling and area
-	  copying using WonderMedia Graphics Engine operations.
 
 config FB_DEFERRED_IO
 	bool
@@ -1797,22 +1773,37 @@ config FB_AU1200
 	  option au1200fb:panel=<name>.
 
 config FB_VT8500
-	bool "VT8500 LCD Driver"
+	bool "VIA VT8500 framebuffer support"
 	depends on (FB = y) && ARM && ARCH_VT8500
-	select FB_WMT_GE_ROPS
+	select FB_SYS_FILLRECT if (!FB_WMT_GE_ROPS)
+	select FB_SYS_COPYAREA if (!FB_WMT_GE_ROPS)
 	select FB_SYS_IMAGEBLIT
+	select FB_MODE_HELPERS
+	select VIDEOMODE_HELPERS
 	help
 	  This is the framebuffer driver for VIA VT8500 integrated LCD
 	  controller.
 
 config FB_WM8505
-	bool "WM8505 frame buffer support"
+	bool "Wondermedia WM8xxx-series frame buffer support"
 	depends on (FB = y) && ARM && ARCH_VT8500
-	select FB_WMT_GE_ROPS
+	select FB_SYS_FILLRECT if (!FB_WMT_GE_ROPS)
+	select FB_SYS_COPYAREA if (!FB_WMT_GE_ROPS)
 	select FB_SYS_IMAGEBLIT
+	select FB_MODE_HELPERS
+	select VIDEOMODE_HELPERS
 	help
-	  This is the framebuffer driver for WonderMedia WM8505/WM8650
-	  integrated LCD controller.
+	  This is the framebuffer driver for WonderMedia WM8xxx-series
+	  integrated LCD controller. This driver covers the WM8505, WM8650
+	  and WM8850 SoCs.
+
+config FB_WMT_GE_ROPS
+	bool "VT8500/WM8xxx accelerated raster ops support"
+	depends on (FB = y) && (FB_VT8500 || FB_WM8505)
+	default n
+	help
+	  This adds support for accelerated raster operations on the
+	  VIA VT8500 and Wondermedia 85xx series SoCs.
 
 source "drivers/video/geode/Kconfig"
 
@@ -2437,6 +2428,8 @@ config FB_MXS
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
+	select FB_MODE_HELPERS
+	select VIDEOMODE_HELPERS
 	help
 	  Framebuffer support for the MXS SoC.
 
@@ -2450,6 +2443,15 @@ config FB_PUV3_UNIGFX
 	help
 	  Choose this option if you want to use the Unigfx device as a
 	  framebuffer device. Without the support of PCI & AGP.
+
+config FB_HYPERV
+	tristate "Microsoft Hyper-V Synthetic Video support"
+	depends on FB && HYPERV
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	help
+	  This framebuffer driver supports Microsoft Hyper-V Synthetic Video.
 
 source "drivers/video/omap/Kconfig"
 source "drivers/video/omap2/Kconfig"
@@ -2481,7 +2483,7 @@ config FB_SSD1307
 	tristate "Solomon SSD1307 framebuffer support"
 	depends on FB && I2C
 	depends on OF
-	depends on GENERIC_GPIO
+	depends on GPIOLIB
 	select FB_SYS_FOPS
 	select FB_SYS_FILLRECT
 	select FB_SYS_COPYAREA

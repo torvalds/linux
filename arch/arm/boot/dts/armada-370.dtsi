@@ -16,16 +16,11 @@
  */
 
 /include/ "armada-370-xp.dtsi"
+/include/ "skeleton.dtsi"
 
 / {
 	model = "Marvell Armada 370 family SoC";
 	compatible = "marvell,armada370", "marvell,armada-370-xp";
-	L2: l2-cache {
-		compatible = "marvell,aurora-outer-cache";
-		reg = <0xd0008000 0x1000>;
-		cache-id-part = <0x100>;
-		wt-override;
-	};
 
 	aliases {
 		gpio0 = &gpio0;
@@ -33,131 +28,198 @@
 		gpio2 = &gpio2;
 	};
 
-	mpic: interrupt-controller@d0020000 {
-	      reg = <0xd0020a00 0x1d0>,
-		    <0xd0021870 0x58>;
-	};
-
 	soc {
-		system-controller@d0018200 {
+		ranges = <0 0xd0000000 0x100000>;
+		internal-regs {
+			system-controller@18200 {
 				compatible = "marvell,armada-370-xp-system-controller";
-				reg = <0xd0018200 0x100>;
-		};
-
-		pinctrl {
-			compatible = "marvell,mv88f6710-pinctrl";
-			reg = <0xd0018000 0x38>;
-
-			sdio_pins1: sdio-pins1 {
-			      marvell,pins = "mpp9",  "mpp11", "mpp12",
-					     "mpp13", "mpp14", "mpp15";
-			      marvell,function = "sd0";
+				reg = <0x18200 0x100>;
 			};
 
-			sdio_pins2: sdio-pins2 {
-			      marvell,pins = "mpp47", "mpp48", "mpp49",
-					     "mpp50", "mpp51", "mpp52";
-			      marvell,function = "sd0";
+			L2: l2-cache {
+				compatible = "marvell,aurora-outer-cache";
+				reg = <0xd0008000 0x1000>;
+				cache-id-part = <0x100>;
+				wt-override;
 			};
 
-			sdio_pins3: sdio-pins3 {
-			      marvell,pins = "mpp48", "mpp49", "mpp50",
-					     "mpp51", "mpp52", "mpp53";
-			      marvell,function = "sd0";
+			mpic: interrupt-controller@20000 {
+				reg = <0x20a00 0x1d0>, <0x21870 0x58>;
 			};
-	        };
 
-		gpio0: gpio@d0018100 {
-			compatible = "marvell,orion-gpio";
-			reg = <0xd0018100 0x40>;
-			ngpios = <32>;
-			gpio-controller;
-			#gpio-cells = <2>;
-			interrupt-controller;
-			#interrupts-cells = <2>;
-			interrupts = <82>, <83>, <84>, <85>;
-		};
+			pinctrl {
+				compatible = "marvell,mv88f6710-pinctrl";
+				reg = <0x18000 0x38>;
 
-		gpio1: gpio@d0018140 {
-			compatible = "marvell,orion-gpio";
-			reg = <0xd0018140 0x40>;
-			ngpios = <32>;
-			gpio-controller;
-			#gpio-cells = <2>;
-			interrupt-controller;
-			#interrupts-cells = <2>;
-			interrupts = <87>, <88>, <89>, <90>;
-		};
+				sdio_pins1: sdio-pins1 {
+					marvell,pins = "mpp9",  "mpp11", "mpp12",
+							"mpp13", "mpp14", "mpp15";
+					marvell,function = "sd0";
+				};
 
-		gpio2: gpio@d0018180 {
-			compatible = "marvell,orion-gpio";
-			reg = <0xd0018180 0x40>;
-			ngpios = <2>;
-			gpio-controller;
-			#gpio-cells = <2>;
-			interrupt-controller;
-			#interrupts-cells = <2>;
-			interrupts = <91>;
-		};
+				sdio_pins2: sdio-pins2 {
+					marvell,pins = "mpp47", "mpp48", "mpp49",
+							"mpp50", "mpp51", "mpp52";
+					marvell,function = "sd0";
+				};
 
-		coreclk: mvebu-sar@d0018230 {
-			compatible = "marvell,armada-370-core-clock";
-			reg = <0xd0018230 0x08>;
-			#clock-cells = <1>;
-		};
-
-		gateclk: clock-gating-control@d0018220 {
-			compatible = "marvell,armada-370-gating-clock";
-			reg = <0xd0018220 0x4>;
-			clocks = <&coreclk 0>;
-			#clock-cells = <1>;
-		};
-
-		xor@d0060800 {
-			compatible = "marvell,orion-xor";
-			reg = <0xd0060800 0x100
-			       0xd0060A00 0x100>;
-			status = "okay";
-
-			xor00 {
-				interrupts = <51>;
-				dmacap,memcpy;
-				dmacap,xor;
+				sdio_pins3: sdio-pins3 {
+					marvell,pins = "mpp48", "mpp49", "mpp50",
+							"mpp51", "mpp52", "mpp53";
+					marvell,function = "sd0";
+				};
 			};
-			xor01 {
-				interrupts = <52>;
-				dmacap,memcpy;
-				dmacap,xor;
-				dmacap,memset;
+
+			gpio0: gpio@18100 {
+				compatible = "marvell,orion-gpio";
+				reg = <0x18100 0x40>;
+				ngpios = <32>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupts-cells = <2>;
+				interrupts = <82>, <83>, <84>, <85>;
+			};
+
+			gpio1: gpio@18140 {
+				compatible = "marvell,orion-gpio";
+				reg = <0x18140 0x40>;
+				ngpios = <32>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupts-cells = <2>;
+				interrupts = <87>, <88>, <89>, <90>;
+			};
+
+			gpio2: gpio@18180 {
+				compatible = "marvell,orion-gpio";
+				reg = <0x18180 0x40>;
+				ngpios = <2>;
+				gpio-controller;
+				#gpio-cells = <2>;
+				interrupt-controller;
+				#interrupts-cells = <2>;
+				interrupts = <91>;
+			};
+
+			coreclk: mvebu-sar@18230 {
+				compatible = "marvell,armada-370-core-clock";
+				reg = <0x18230 0x08>;
+				#clock-cells = <1>;
+			};
+
+			gateclk: clock-gating-control@18220 {
+				compatible = "marvell,armada-370-gating-clock";
+				reg = <0x18220 0x4>;
+				clocks = <&coreclk 0>;
+				#clock-cells = <1>;
+			};
+
+			xor@60800 {
+				compatible = "marvell,orion-xor";
+				reg = <0x60800 0x100
+				       0x60A00 0x100>;
+				status = "okay";
+
+				xor00 {
+					interrupts = <51>;
+					dmacap,memcpy;
+					dmacap,xor;
+				};
+				xor01 {
+					interrupts = <52>;
+					dmacap,memcpy;
+					dmacap,xor;
+					dmacap,memset;
+				};
+			};
+
+			xor@60900 {
+				compatible = "marvell,orion-xor";
+				reg = <0x60900 0x100
+				       0x60b00 0x100>;
+				status = "okay";
+
+				xor10 {
+					interrupts = <94>;
+					dmacap,memcpy;
+					dmacap,xor;
+				};
+				xor11 {
+					interrupts = <95>;
+					dmacap,memcpy;
+					dmacap,xor;
+					dmacap,memset;
+				};
+			};
+
+			usb@50000 {
+				clocks = <&coreclk 0>;
+			};
+
+			usb@51000 {
+				clocks = <&coreclk 0>;
+			};
+
+			thermal@18300 {
+				compatible = "marvell,armada370-thermal";
+				reg = <0x18300 0x4
+					0x18304 0x4>;
+				status = "okay";
+			};
+
+			pcie-controller {
+				compatible = "marvell,armada-370-pcie";
+				status = "disabled";
+				device_type = "pci";
+
+				#address-cells = <3>;
+				#size-cells = <2>;
+
+				bus-range = <0x00 0xff>;
+
+				reg = <0x40000 0x2000>, <0x80000 0x2000>;
+
+				reg-names = "pcie0.0", "pcie1.0";
+
+				ranges = <0x82000000 0 0x40000 0x40000 0 0x00002000   /* Port 0.0 registers */
+					0x82000000 0 0x80000 0x80000 0 0x00002000   /* Port 1.0 registers */
+					0x82000000 0 0xe0000000 0xe0000000 0 0x08000000   /* non-prefetchable memory */
+					0x81000000 0 0          0xe8000000 0 0x00100000>; /* downstream I/O */
+
+				pcie@1,0 {
+					device_type = "pci";
+					assigned-addresses = <0x82000800 0 0x40000 0 0x2000>;
+					reg = <0x0800 0 0 0 0>;
+					#address-cells = <3>;
+					#size-cells = <2>;
+					#interrupt-cells = <1>;
+					ranges;
+					interrupt-map-mask = <0 0 0 0>;
+					interrupt-map = <0 0 0 0 &mpic 58>;
+					marvell,pcie-port = <0>;
+					marvell,pcie-lane = <0>;
+					clocks = <&gateclk 5>;
+					status = "disabled";
+				};
+
+				pcie@2,0 {
+					device_type = "pci";
+					assigned-addresses = <0x82002800 0 0x80000 0 0x2000>;
+					reg = <0x1000 0 0 0 0>;
+					#address-cells = <3>;
+					#size-cells = <2>;
+					#interrupt-cells = <1>;
+					ranges;
+					interrupt-map-mask = <0 0 0 0>;
+					interrupt-map = <0 0 0 0 &mpic 62>;
+					marvell,pcie-port = <1>;
+					marvell,pcie-lane = <0>;
+					clocks = <&gateclk 9>;
+					status = "disabled";
+				};
 			};
 		};
-
-		xor@d0060900 {
-			compatible = "marvell,orion-xor";
-			reg = <0xd0060900 0x100
-			       0xd0060b00 0x100>;
-			status = "okay";
-
-			xor10 {
-				interrupts = <94>;
-				dmacap,memcpy;
-				dmacap,xor;
-			};
-			xor11 {
-				interrupts = <95>;
-				dmacap,memcpy;
-				dmacap,xor;
-				dmacap,memset;
-			};
-		};
-
-		usb@d0050000 {
-			clocks = <&coreclk 0>;
-		};
-
-		usb@d0051000 {
-			clocks = <&coreclk 0>;
-		};
-
 	};
 };

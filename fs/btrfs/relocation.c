@@ -326,8 +326,7 @@ static struct rb_node *tree_search(struct rb_root *root, u64 bytenr)
 	return NULL;
 }
 
-void backref_tree_panic(struct rb_node *rb_node, int errno,
-					  u64 bytenr)
+static void backref_tree_panic(struct rb_node *rb_node, int errno, u64 bytenr)
 {
 
 	struct btrfs_fs_info *fs_info = NULL;
@@ -619,9 +618,12 @@ static noinline_for_stack
 int find_inline_backref(struct extent_buffer *leaf, int slot,
 			unsigned long *ptr, unsigned long *end)
 {
+	struct btrfs_key key;
 	struct btrfs_extent_item *ei;
 	struct btrfs_tree_block_info *bi;
 	u32 item_size;
+
+	btrfs_item_key_to_cpu(leaf, &key, slot);
 
 	item_size = btrfs_item_size_nr(leaf, slot);
 #ifdef BTRFS_COMPAT_EXTENT_TREE_V0
@@ -634,13 +636,18 @@ int find_inline_backref(struct extent_buffer *leaf, int slot,
 	WARN_ON(!(btrfs_extent_flags(leaf, ei) &
 		  BTRFS_EXTENT_FLAG_TREE_BLOCK));
 
-	if (item_size <= sizeof(*ei) + sizeof(*bi)) {
+	if (key.type == BTRFS_EXTENT_ITEM_KEY &&
+	    item_size <= sizeof(*ei) + sizeof(*bi)) {
 		WARN_ON(item_size < sizeof(*ei) + sizeof(*bi));
 		return 1;
 	}
 
-	bi = (struct btrfs_tree_block_info *)(ei + 1);
-	*ptr = (unsigned long)(bi + 1);
+	if (key.type == BTRFS_EXTENT_ITEM_KEY) {
+		bi = (struct btrfs_tree_block_info *)(ei + 1);
+		*ptr = (unsigned long)(bi + 1);
+	} else {
+		*ptr = (unsigned long)(ei + 1);
+	}
 	*end = (unsigned long)ei + item_size;
 	return 0;
 }
@@ -708,7 +715,7 @@ again:
 	end = 0;
 	ptr = 0;
 	key.objectid = cur->bytenr;
-	key.type = BTRFS_EXTENT_ITEM_KEY;
+	key.type = BTRFS_METADATA_ITEM_KEY;
 	key.offset = (u64)-1;
 
 	path1->search_commit_root = 1;
@@ -766,7 +773,8 @@ again:
 				break;
 			}
 
-			if (key.type == BTRFS_EXTENT_ITEM_KEY) {
+			if (key.type == BTRFS_EXTENT_ITEM_KEY ||
+			    key.type == BTRFS_METADATA_ITEM_KEY) {
 				ret = find_inline_backref(eb, path1->slots[0],
 							  &ptr, &end);
 				if (ret)
@@ -1762,7 +1770,11 @@ again:
 
 			eb = read_tree_block(dest, old_bytenr, blocksize,
 					     old_ptr_gen);
-			BUG_ON(!eb);
+			if (!eb || !extent_buffer_uptodate(eb)) {
+				ret = (!eb) ? -ENOMEM : -EIO;
+				free_extent_buffer(eb);
+				return ret;
+			}
 			btrfs_tree_lock(eb);
 			if (cow) {
 				ret = btrfs_cow_block(trans, dest, eb, parent,
@@ -1915,6 +1927,10 @@ int walk_down_reloc_tree(struct btrfs_root *root, struct btrfs_path *path,
 		bytenr = btrfs_node_blockptr(eb, path->slots[i]);
 		blocksize = btrfs_level_size(root, i - 1);
 		eb = read_tree_block(root, bytenr, blocksize, ptr_gen);
+		if (!eb || !extent_buffer_uptodate(eb)) {
+			free_extent_buffer(eb);
+			return -EIO;
+		}
 		BUG_ON(btrfs_header_level(eb) != i - 1);
 		path->nodes[i - 1] = eb;
 		path->slots[i - 1] = 0;
@@ -2592,7 +2608,8 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 		blocksize = btrfs_level_size(root, node->level);
 		generation = btrfs_node_ptr_generation(upper->eb, slot);
 		eb = read_tree_block(root, bytenr, blocksize, generation);
-		if (!eb) {
+		if (!eb || !extent_buffer_uptodate(eb)) {
+			free_extent_buffer(eb);
 			err = -EIO;
 			goto next;
 		}
@@ -2753,7 +2770,10 @@ static int get_tree_block_key(struct reloc_control *rc,
 	BUG_ON(block->key_ready);
 	eb = read_tree_block(rc->extent_root, block->bytenr,
 			     block->key.objectid, block->key.offset);
-	BUG_ON(!eb);
+	if (!eb || !extent_buffer_uptodate(eb)) {
+		free_extent_buffer(eb);
+		return -EIO;
+	}
 	WARN_ON(btrfs_header_level(eb) != block->level);
 	if (block->level == 0)
 		btrfs_item_key_to_cpu(eb, &block->key, 0);
@@ -2768,8 +2788,13 @@ static int reada_tree_block(struct reloc_control *rc,
 			    struct tree_block *block)
 {
 	BUG_ON(block->key_ready);
-	readahead_tree_block(rc->extent_root, block->bytenr,
-			     block->key.objectid, block->key.offset);
+	if (block->key.type == BTRFS_METADATA_ITEM_KEY)
+		readahead_tree_block(rc->extent_root, block->bytenr,
+				     block->key.objectid,
+				     rc->extent_root->leafsize);
+	else
+		readahead_tree_block(rc->extent_root, block->bytenr,
+				     block->key.objectid, block->key.offset);
 	return 0;
 }
 
@@ -2850,7 +2875,7 @@ int relocate_tree_blocks(struct btrfs_trans_handle *trans,
 	path = btrfs_alloc_path();
 	if (!path) {
 		err = -ENOMEM;
-		goto out_path;
+		goto out_free_blocks;
 	}
 
 	rb_node = rb_first(blocks);
@@ -2864,8 +2889,11 @@ int relocate_tree_blocks(struct btrfs_trans_handle *trans,
 	rb_node = rb_first(blocks);
 	while (rb_node) {
 		block = rb_entry(rb_node, struct tree_block, rb_node);
-		if (!block->key_ready)
-			get_tree_block_key(rc, block);
+		if (!block->key_ready) {
+			err = get_tree_block_key(rc, block);
+			if (err)
+				goto out_free_path;
+		}
 		rb_node = rb_next(rb_node);
 	}
 
@@ -2892,8 +2920,9 @@ int relocate_tree_blocks(struct btrfs_trans_handle *trans,
 out:
 	err = finish_pending_nodes(trans, rc, path, err);
 
+out_free_path:
 	btrfs_free_path(path);
-out_path:
+out_free_blocks:
 	free_block_list(blocks);
 	return err;
 }
@@ -2965,7 +2994,7 @@ int setup_extent_mapping(struct inode *inode, u64 start, u64 end,
 	lock_extent(&BTRFS_I(inode)->io_tree, start, end);
 	while (1) {
 		write_lock(&em_tree->lock);
-		ret = add_extent_mapping(em_tree, em);
+		ret = add_extent_mapping(em_tree, em, 0);
 		write_unlock(&em_tree->lock);
 		if (ret != -EEXIST) {
 			free_extent_map(em);
@@ -3176,12 +3205,17 @@ static int add_tree_block(struct reloc_control *rc,
 	eb =  path->nodes[0];
 	item_size = btrfs_item_size_nr(eb, path->slots[0]);
 
-	if (item_size >= sizeof(*ei) + sizeof(*bi)) {
+	if (extent_key->type == BTRFS_METADATA_ITEM_KEY ||
+	    item_size >= sizeof(*ei) + sizeof(*bi)) {
 		ei = btrfs_item_ptr(eb, path->slots[0],
 				struct btrfs_extent_item);
-		bi = (struct btrfs_tree_block_info *)(ei + 1);
+		if (extent_key->type == BTRFS_EXTENT_ITEM_KEY) {
+			bi = (struct btrfs_tree_block_info *)(ei + 1);
+			level = btrfs_tree_block_level(eb, bi);
+		} else {
+			level = (int)extent_key->offset;
+		}
 		generation = btrfs_extent_generation(eb, ei);
-		level = btrfs_tree_block_level(eb, bi);
 	} else {
 #ifdef BTRFS_COMPAT_EXTENT_TREE_V0
 		u64 ref_owner;
@@ -3210,7 +3244,7 @@ static int add_tree_block(struct reloc_control *rc,
 		return -ENOMEM;
 
 	block->bytenr = extent_key->objectid;
-	block->key.objectid = extent_key->offset;
+	block->key.objectid = rc->extent_root->leafsize;
 	block->key.offset = generation;
 	block->level = level;
 	block->key_ready = 0;
@@ -3252,9 +3286,15 @@ static int __add_tree_block(struct reloc_control *rc,
 	ret = btrfs_search_slot(NULL, rc->extent_root, &key, path, 0, 0);
 	if (ret < 0)
 		goto out;
-	BUG_ON(ret);
 
 	btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
+	if (ret > 0) {
+		if (key.objectid == bytenr &&
+		    key.type == BTRFS_METADATA_ITEM_KEY)
+			ret = 0;
+	}
+	BUG_ON(ret);
+
 	ret = add_tree_block(rc, &key, path, blocks);
 out:
 	btrfs_free_path(path);
@@ -3275,7 +3315,8 @@ static int block_use_full_backref(struct reloc_control *rc,
 		return 1;
 
 	ret = btrfs_lookup_extent_info(NULL, rc->extent_root,
-				       eb->start, eb->len, NULL, &flags);
+				       eb->start, btrfs_header_level(eb), 1,
+				       NULL, &flags);
 	BUG_ON(ret);
 
 	if (flags & BTRFS_BLOCK_FLAG_FULL_BACKREF)
@@ -3644,8 +3685,21 @@ next:
 			break;
 		}
 
-		if (key.type != BTRFS_EXTENT_ITEM_KEY ||
+		if (key.type != BTRFS_EXTENT_ITEM_KEY &&
+		    key.type != BTRFS_METADATA_ITEM_KEY) {
+			path->slots[0]++;
+			goto next;
+		}
+
+		if (key.type == BTRFS_EXTENT_ITEM_KEY &&
 		    key.objectid + key.offset <= rc->search_start) {
+			path->slots[0]++;
+			goto next;
+		}
+
+		if (key.type == BTRFS_METADATA_ITEM_KEY &&
+		    key.objectid + rc->extent_root->leafsize <=
+		    rc->search_start) {
 			path->slots[0]++;
 			goto next;
 		}
@@ -3658,7 +3712,11 @@ next:
 			btrfs_release_path(path);
 			rc->search_start = end + 1;
 		} else {
-			rc->search_start = key.objectid + key.offset;
+			if (key.type == BTRFS_EXTENT_ITEM_KEY)
+				rc->search_start = key.objectid + key.offset;
+			else
+				rc->search_start = key.objectid +
+					rc->extent_root->leafsize;
 			memcpy(extent_key, &key, sizeof(key));
 			return 0;
 		}
@@ -4105,10 +4163,7 @@ int btrfs_relocate_block_group(struct btrfs_root *extent_root, u64 group_start)
 
 	while (1) {
 		mutex_lock(&fs_info->cleaner_mutex);
-
-		btrfs_clean_old_snapshots(fs_info->tree_root);
 		ret = relocate_block_group(rc);
-
 		mutex_unlock(&fs_info->cleaner_mutex);
 		if (ret < 0) {
 			err = ret;

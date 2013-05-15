@@ -21,6 +21,8 @@
 		serial3 = &uart4;
 		serial4 = &uart5;
 		serial5 = &uart6;
+		d_can0 = &dcan0;
+		d_can1 = &dcan1;
 	};
 
 	cpus {
@@ -87,7 +89,7 @@
 			reg = <0x48200000 0x1000>;
 		};
 
-		gpio1: gpio@44e07000 {
+		gpio0: gpio@44e07000 {
 			compatible = "ti,omap4-gpio";
 			ti,hwmods = "gpio1";
 			gpio-controller;
@@ -98,7 +100,7 @@
 			interrupts = <96>;
 		};
 
-		gpio2: gpio@4804c000 {
+		gpio1: gpio@4804c000 {
 			compatible = "ti,omap4-gpio";
 			ti,hwmods = "gpio2";
 			gpio-controller;
@@ -109,7 +111,7 @@
 			interrupts = <98>;
 		};
 
-		gpio3: gpio@481ac000 {
+		gpio2: gpio@481ac000 {
 			compatible = "ti,omap4-gpio";
 			ti,hwmods = "gpio3";
 			gpio-controller;
@@ -120,7 +122,7 @@
 			interrupts = <32>;
 		};
 
-		gpio4: gpio@481ae000 {
+		gpio3: gpio@481ae000 {
 			compatible = "ti,omap4-gpio";
 			ti,hwmods = "gpio4";
 			gpio-controller;
@@ -185,7 +187,7 @@
 			status = "disabled";
 		};
 
-		i2c1: i2c@44e0b000 {
+		i2c0: i2c@44e0b000 {
 			compatible = "ti,omap4-i2c";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -195,7 +197,7 @@
 			status = "disabled";
 		};
 
-		i2c2: i2c@4802a000 {
+		i2c1: i2c@4802a000 {
 			compatible = "ti,omap4-i2c";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -205,7 +207,7 @@
 			status = "disabled";
 		};
 
-		i2c3: i2c@4819c000 {
+		i2c2: i2c@4819c000 {
 			compatible = "ti,omap4-i2c";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -225,7 +227,8 @@
 		dcan0: d_can@481cc000 {
 			compatible = "bosch,d_can";
 			ti,hwmods = "d_can0";
-			reg = <0x481cc000 0x2000>;
+			reg = <0x481cc000 0x2000
+				0x44e10644 0x4>;
 			interrupts = <52>;
 			status = "disabled";
 		};
@@ -233,13 +236,14 @@
 		dcan1: d_can@481d0000 {
 			compatible = "bosch,d_can";
 			ti,hwmods = "d_can1";
-			reg = <0x481d0000 0x2000>;
+			reg = <0x481d0000 0x2000
+				0x44e10644 0x4>;
 			interrupts = <55>;
 			status = "disabled";
 		};
 
 		timer1: timer@44e31000 {
-			compatible = "ti,omap2-timer";
+			compatible = "ti,am335x-timer-1ms";
 			reg = <0x44e31000 0x400>;
 			interrupts = <67>;
 			ti,hwmods = "timer1";
@@ -247,21 +251,21 @@
 		};
 
 		timer2: timer@48040000 {
-			compatible = "ti,omap2-timer";
+			compatible = "ti,am335x-timer";
 			reg = <0x48040000 0x400>;
 			interrupts = <68>;
 			ti,hwmods = "timer2";
 		};
 
 		timer3: timer@48042000 {
-			compatible = "ti,omap2-timer";
+			compatible = "ti,am335x-timer";
 			reg = <0x48042000 0x400>;
 			interrupts = <69>;
 			ti,hwmods = "timer3";
 		};
 
 		timer4: timer@48044000 {
-			compatible = "ti,omap2-timer";
+			compatible = "ti,am335x-timer";
 			reg = <0x48044000 0x400>;
 			interrupts = <92>;
 			ti,hwmods = "timer4";
@@ -269,7 +273,7 @@
 		};
 
 		timer5: timer@48046000 {
-			compatible = "ti,omap2-timer";
+			compatible = "ti,am335x-timer";
 			reg = <0x48046000 0x400>;
 			interrupts = <93>;
 			ti,hwmods = "timer5";
@@ -277,7 +281,7 @@
 		};
 
 		timer6: timer@48048000 {
-			compatible = "ti,omap2-timer";
+			compatible = "ti,am335x-timer";
 			reg = <0x48048000 0x400>;
 			interrupts = <94>;
 			ti,hwmods = "timer6";
@@ -285,7 +289,7 @@
 		};
 
 		timer7: timer@4804a000 {
-			compatible = "ti,omap2-timer";
+			compatible = "ti,am335x-timer";
 			reg = <0x4804a000 0x400>;
 			interrupts = <95>;
 			ti,hwmods = "timer7";
@@ -305,7 +309,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x48030000 0x400>;
-			interrupt = <65>;
+			interrupts = <65>;
 			ti,spi-num-cs = <2>;
 			ti,hwmods = "spi0";
 			status = "disabled";
@@ -316,7 +320,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x481a0000 0x400>;
-			interrupt = <125>;
+			interrupts = <125>;
 			ti,spi-num-cs = <2>;
 			ti,hwmods = "spi1";
 			status = "disabled";
@@ -349,7 +353,7 @@
 			rx_descs = <64>;
 			mac_control = <0x20>;
 			slaves = <2>;
-			cpts_active_slave = <0>;
+			active_slave = <0>;
 			cpts_clock_mult = <0x80000000>;
 			cpts_clock_shift = <29>;
 			reg = <0x4a100000 0x800
@@ -398,6 +402,18 @@
 			reg = <0x44d00000 0x4000	/* M3 UMEM */
 			       0x44d80000 0x2000>;	/* M3 DMEM */
 			ti,hwmods = "wkup_m3";
+		};
+
+		gpmc: gpmc@50000000 {
+			compatible = "ti,am3352-gpmc";
+			ti,hwmods = "gpmc";
+			reg = <0x50000000 0x2000>;
+			interrupts = <100>;
+			num-cs = <7>;
+			num-waitpins = <2>;
+			#address-cells = <2>;
+			#size-cells = <1>;
+			status = "disabled";
 		};
 	};
 };

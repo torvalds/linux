@@ -230,9 +230,11 @@ static int __do_lo_send_write(struct file *file,
 	ssize_t bw;
 	mm_segment_t old_fs = get_fs();
 
+	file_start_write(file);
 	set_fs(get_ds());
 	bw = file->f_op->write(file, buf, len, &pos);
 	set_fs(old_fs);
+	file_end_write(file);
 	if (likely(bw == len))
 		return 0;
 	printk(KERN_ERR "loop: Write error at byte offset %llu, length %i.\n",
@@ -1051,29 +1053,12 @@ static int loop_clr_fd(struct loop_device *lo)
 	lo->lo_state = Lo_unbound;
 	/* This is safe: open() is still holding a reference. */
 	module_put(THIS_MODULE);
+	if (lo->lo_flags & LO_FLAGS_PARTSCAN && bdev)
+		ioctl_by_bdev(bdev, BLKRRPART, 0);
 	lo->lo_flags = 0;
 	if (!part_shift)
 		lo->lo_disk->flags |= GENHD_FL_NO_PART_SCAN;
 	mutex_unlock(&lo->lo_ctl_mutex);
-
-	/*
-	 * Remove all partitions, since BLKRRPART won't remove user
-	 * added partitions when max_part=0
-	 */
-	if (bdev) {
-		struct disk_part_iter piter;
-		struct hd_struct *part;
-
-		mutex_lock_nested(&bdev->bd_mutex, 1);
-		invalidate_partition(bdev->bd_disk, 0);
-		disk_part_iter_init(&piter, bdev->bd_disk,
-					DISK_PITER_INCL_EMPTY);
-		while ((part = disk_part_iter_next(&piter)))
-			delete_partition(bdev->bd_disk, part->partno);
-		disk_part_iter_exit(&piter);
-		mutex_unlock(&bdev->bd_mutex);
-	}
-
 	/*
 	 * Need not hold lo_ctl_mutex to fput backing file.
 	 * Calling fput holding lo_ctl_mutex triggers a circular
@@ -1533,7 +1518,7 @@ out:
 	return err;
 }
 
-static int lo_release(struct gendisk *disk, fmode_t mode)
+static void lo_release(struct gendisk *disk, fmode_t mode)
 {
 	struct loop_device *lo = disk->private_data;
 	int err;
@@ -1550,7 +1535,7 @@ static int lo_release(struct gendisk *disk, fmode_t mode)
 		 */
 		err = loop_clr_fd(lo);
 		if (!err)
-			goto out_unlocked;
+			return;
 	} else {
 		/*
 		 * Otherwise keep thread (if running) and config,
@@ -1561,8 +1546,6 @@ static int lo_release(struct gendisk *disk, fmode_t mode)
 
 out:
 	mutex_unlock(&lo->lo_ctl_mutex);
-out_unlocked:
-	return 0;
 }
 
 static const struct block_device_operations lo_fops = {

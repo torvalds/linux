@@ -23,6 +23,7 @@
 #include <linux/jbd2.h>
 #include <linux/mount.h>
 #include <linux/path.h>
+#include <linux/aio.h>
 #include <linux/quotaops.h>
 #include <linux/pagevec.h>
 #include "ext4.h"

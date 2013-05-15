@@ -418,23 +418,52 @@ void create_tlb(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
 	local_irq_restore(flags);
 }
 
-/* arch hook called by core VM at the end of handle_mm_fault( ),
- * when a new PTE is entered in Page Tables or an existing one
- * is modified. We aggresively pre-install a TLB entry
+/*
+ * Called at the end of pagefault, for a userspace mapped page
+ *  -pre-install the corresponding TLB entry into MMU
+ *  -Finalize the delayed D-cache flush of kernel mapping of page due to
+ *  	flush_dcache_page(), copy_user_page()
+ *
+ * Note that flush (when done) involves both WBACK - so physical page is
+ * in sync as well as INV - so any non-congruent aliases don't remain
  */
-
-void update_mmu_cache(struct vm_area_struct *vma, unsigned long vaddress,
+void update_mmu_cache(struct vm_area_struct *vma, unsigned long vaddr_unaligned,
 		      pte_t *ptep)
 {
+	unsigned long vaddr = vaddr_unaligned & PAGE_MASK;
+	unsigned long paddr = pte_val(*ptep) & PAGE_MASK;
 
-	create_tlb(vma, vaddress, ptep);
+	create_tlb(vma, vaddr, ptep);
+
+	/*
+	 * Exec page : Independent of aliasing/page-color considerations,
+	 *	       since icache doesn't snoop dcache on ARC, any dirty
+	 *	       K-mapping of a code page needs to be wback+inv so that
+	 *	       icache fetch by userspace sees code correctly.
+	 * !EXEC page: If K-mapping is NOT congruent to U-mapping, flush it
+	 *	       so userspace sees the right data.
+	 *  (Avoids the flush for Non-exec + congruent mapping case)
+	 */
+	if (vma->vm_flags & VM_EXEC || addr_not_cache_congruent(paddr, vaddr)) {
+		struct page *page = pfn_to_page(pte_pfn(*ptep));
+
+		int dirty = test_and_clear_bit(PG_arch_1, &page->flags);
+		if (dirty) {
+			/* wback + inv dcache lines */
+			__flush_dcache_page(paddr, paddr);
+
+			/* invalidate any existing icache lines */
+			if (vma->vm_flags & VM_EXEC)
+				__inv_icache_page(paddr, vaddr);
+		}
+	}
 }
 
 /* Read the Cache Build Confuration Registers, Decode them and save into
  * the cpuinfo structure for later use.
  * No Validation is done here, simply read/convert the BCRs
  */
-void __init read_decode_mmu_bcr(void)
+void __cpuinit read_decode_mmu_bcr(void)
 {
 	unsigned int tmp;
 	struct bcr_mmu_1_2 *mmu2;	/* encoded MMU2 attr */
@@ -466,7 +495,7 @@ void __init read_decode_mmu_bcr(void)
 char *arc_mmu_mumbojumbo(int cpu_id, char *buf, int len)
 {
 	int n = 0;
-	struct cpuinfo_arc_mmu *p_mmu = &cpuinfo_arc700[smp_processor_id()].mmu;
+	struct cpuinfo_arc_mmu *p_mmu = &cpuinfo_arc700[cpu_id].mmu;
 
 	n += scnprintf(buf + n, len - n, "ARC700 MMU [v%x]\t: %dk PAGE, ",
 		       p_mmu->ver, TO_KB(p_mmu->pg_sz));
@@ -480,7 +509,7 @@ char *arc_mmu_mumbojumbo(int cpu_id, char *buf, int len)
 	return buf;
 }
 
-void __init arc_mmu_init(void)
+void __cpuinit arc_mmu_init(void)
 {
 	char str[256];
 	struct cpuinfo_arc_mmu *mmu = &cpuinfo_arc700[smp_processor_id()].mmu;

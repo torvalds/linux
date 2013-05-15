@@ -705,23 +705,17 @@ static int sgivwfb_setcolreg(u_int regno, u_int red, u_int green,
 static int sgivwfb_mmap(struct fb_info *info,
 			struct vm_area_struct *vma)
 {
-	unsigned long size = vma->vm_end - vma->vm_start;
-	unsigned long offset = vma->vm_pgoff << PAGE_SHIFT;
+	int r;
 
-	if (vma->vm_pgoff > (~0UL >> PAGE_SHIFT))
-		return -EINVAL;
-	if (offset + size > sgivwfb_mem_size)
-		return -EINVAL;
-	offset += sgivwfb_mem_phys;
 	pgprot_val(vma->vm_page_prot) =
-	    pgprot_val(vma->vm_page_prot) | _PAGE_PCD;
-	vma->vm_flags |= VM_IO;
-	if (remap_pfn_range(vma, vma->vm_start, offset >> PAGE_SHIFT,
-						size, vma->vm_page_prot))
-		return -EAGAIN;
+		pgprot_val(vma->vm_page_prot) | _PAGE_PCD;
+
+	r = vm_iomap_memory(vma, sgivwfb_mem_phys, sgivwfb_mem_size);
+
 	printk(KERN_DEBUG "sgivwfb: mmap framebuffer P(%lx)->V(%lx)\n",
 	       offset, vma->vm_start);
-	return 0;
+
+	return r;
 }
 
 int __init sgivwfb_setup(char *options)

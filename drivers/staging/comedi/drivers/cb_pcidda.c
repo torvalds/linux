@@ -48,16 +48,6 @@
 #include "comedi_fc.h"
 #include "8255.h"
 
-/*
- * ComputerBoards PCI Device ID's supported by this driver
- */
-#define PCI_DEVICE_ID_DDA02_12		0x0020
-#define PCI_DEVICE_ID_DDA04_12		0x0021
-#define PCI_DEVICE_ID_DDA08_12		0x0022
-#define PCI_DEVICE_ID_DDA02_16		0x0023
-#define PCI_DEVICE_ID_DDA04_16		0x0024
-#define PCI_DEVICE_ID_DDA08_16		0x0025
-
 #define EEPROM_SIZE	128	/*  number of entries in eeprom */
 /* maximum number of ao channels for supported boards */
 #define MAX_AO_CHANNELS 8
@@ -118,42 +108,49 @@ static const struct comedi_lrange cb_pcidda_ranges = {
 	}
 };
 
+enum cb_pcidda_boardid {
+	BOARD_DDA02_12,
+	BOARD_DDA04_12,
+	BOARD_DDA08_12,
+	BOARD_DDA02_16,
+	BOARD_DDA04_16,
+	BOARD_DDA08_16,
+};
+
 struct cb_pcidda_board {
 	const char *name;
-	unsigned short device_id;
 	int ao_chans;
 	int ao_bits;
 };
 
 static const struct cb_pcidda_board cb_pcidda_boards[] = {
-	{
+	[BOARD_DDA02_12] = {
 		.name		= "pci-dda02/12",
-		.device_id	= PCI_DEVICE_ID_DDA02_12,
 		.ao_chans	= 2,
 		.ao_bits	= 12,
-	}, {
+	},
+	[BOARD_DDA04_12] = {
 		.name		= "pci-dda04/12",
-		.device_id	= PCI_DEVICE_ID_DDA04_12,
 		.ao_chans	= 4,
 		.ao_bits	= 12,
-	}, {
+	},
+	[BOARD_DDA08_12] = {
 		.name		= "pci-dda08/12",
-		.device_id	= PCI_DEVICE_ID_DDA08_12,
 		.ao_chans	= 8,
 		.ao_bits	= 12,
-	}, {
+	},
+	[BOARD_DDA02_16] = {
 		.name		= "pci-dda02/16",
-		.device_id	= PCI_DEVICE_ID_DDA02_16,
 		.ao_chans	= 2,
 		.ao_bits	= 16,
-	}, {
+	},
+	[BOARD_DDA04_16] = {
 		.name		= "pci-dda04/16",
-		.device_id	= PCI_DEVICE_ID_DDA04_16,
 		.ao_chans	= 4,
 		.ao_bits	= 16,
-	}, {
+	},
+	[BOARD_DDA08_16] = {
 		.name		= "pci-dda08/16",
-		.device_id	= PCI_DEVICE_ID_DDA08_16,
 		.ao_chans	= 8,
 		.ao_bits	= 16,
 	},
@@ -337,32 +334,19 @@ static int cb_pcidda_ao_insn_write(struct comedi_device *dev,
 	return insn->n;
 }
 
-static const void *cb_pcidda_find_boardinfo(struct comedi_device *dev,
-					    struct pci_dev *pcidev)
-{
-	const struct cb_pcidda_board *thisboard;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(cb_pcidda_boards); i++) {
-		thisboard = &cb_pcidda_boards[i];
-		if (thisboard->device_id != pcidev->device)
-			return thisboard;
-	}
-	return NULL;
-}
-
 static int cb_pcidda_auto_attach(struct comedi_device *dev,
-					   unsigned long context_unused)
+				 unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct cb_pcidda_board *thisboard;
+	const struct cb_pcidda_board *thisboard = NULL;
 	struct cb_pcidda_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned long iobase_8255;
 	int i;
 	int ret;
 
-	thisboard = cb_pcidda_find_boardinfo(dev, pcidev);
+	if (context < ARRAY_SIZE(cb_pcidda_boards))
+		thisboard = &cb_pcidda_boards[context];
 	if (!thisboard)
 		return -ENODEV;
 	dev->board_ptr = thisboard;
@@ -373,7 +357,7 @@ static int cb_pcidda_auto_attach(struct comedi_device *dev,
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	ret = comedi_pci_enable(pcidev, dev->board_name);
+	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
 	dev->iobase = pci_resource_start(pcidev, 3);
@@ -415,16 +399,9 @@ static int cb_pcidda_auto_attach(struct comedi_device *dev,
 
 static void cb_pcidda_detach(struct comedi_device *dev)
 {
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-
-	if (dev->subdevices) {
-		subdev_8255_cleanup(dev, &dev->subdevices[1]);
-		subdev_8255_cleanup(dev, &dev->subdevices[2]);
-	}
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-	}
+	comedi_spriv_free(dev, 1);
+	comedi_spriv_free(dev, 2);
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver cb_pcidda_driver = {
@@ -435,18 +412,19 @@ static struct comedi_driver cb_pcidda_driver = {
 };
 
 static int cb_pcidda_pci_probe(struct pci_dev *dev,
-					 const struct pci_device_id *ent)
+			       const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &cb_pcidda_driver);
+	return comedi_pci_auto_config(dev, &cb_pcidda_driver,
+				      id->driver_data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(cb_pcidda_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, PCI_DEVICE_ID_DDA02_12) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, PCI_DEVICE_ID_DDA04_12) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, PCI_DEVICE_ID_DDA08_12) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, PCI_DEVICE_ID_DDA02_16) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, PCI_DEVICE_ID_DDA04_16) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_CB, PCI_DEVICE_ID_DDA08_16) },
+	{ PCI_VDEVICE(CB, 0x0020), BOARD_DDA02_12 },
+	{ PCI_VDEVICE(CB, 0x0021), BOARD_DDA04_12 },
+	{ PCI_VDEVICE(CB, 0x0022), BOARD_DDA08_12 },
+	{ PCI_VDEVICE(CB, 0x0023), BOARD_DDA02_16 },
+	{ PCI_VDEVICE(CB, 0x0024), BOARD_DDA04_16 },
+	{ PCI_VDEVICE(CB, 0x0025), BOARD_DDA08_16 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, cb_pcidda_pci_table);

@@ -1012,6 +1012,10 @@ static inline void security_free_mnt_opts(struct security_mnt_opts *opts)
  *	This hook can be used by the module to update any security state
  *	associated with the TUN device's security structure.
  *	@security pointer to the TUN devices's security structure.
+ * @skb_owned_by:
+ *	This hook sets the packet's owning sock.
+ *	@skb is the packet.
+ *	@sk the sock which owns the packet.
  *
  * Security hooks for XFRM operations.
  *
@@ -1436,7 +1440,7 @@ struct security_operations {
 			     struct path *new_path);
 	int (*sb_set_mnt_opts) (struct super_block *sb,
 				struct security_mnt_opts *opts);
-	void (*sb_clone_mnt_opts) (const struct super_block *oldsb,
+	int (*sb_clone_mnt_opts) (const struct super_block *oldsb,
 				   struct super_block *newsb);
 	int (*sb_parse_opts_str) (char *options, struct security_mnt_opts *opts);
 
@@ -1638,6 +1642,7 @@ struct security_operations {
 	int (*tun_dev_attach_queue) (void *security);
 	int (*tun_dev_attach) (struct sock *sk, void *security);
 	int (*tun_dev_open) (void *security);
+	void (*skb_owned_by) (struct sk_buff *skb, struct sock *sk);
 #endif	/* CONFIG_SECURITY_NETWORK */
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
@@ -1721,7 +1726,7 @@ int security_sb_mount(const char *dev_name, struct path *path,
 int security_sb_umount(struct vfsmount *mnt, int flags);
 int security_sb_pivotroot(struct path *old_path, struct path *new_path);
 int security_sb_set_mnt_opts(struct super_block *sb, struct security_mnt_opts *opts);
-void security_sb_clone_mnt_opts(const struct super_block *oldsb,
+int security_sb_clone_mnt_opts(const struct super_block *oldsb,
 				struct super_block *newsb);
 int security_sb_parse_opts_str(char *options, struct security_mnt_opts *opts);
 
@@ -2011,9 +2016,11 @@ static inline int security_sb_set_mnt_opts(struct super_block *sb,
 	return 0;
 }
 
-static inline void security_sb_clone_mnt_opts(const struct super_block *oldsb,
+static inline int security_sb_clone_mnt_opts(const struct super_block *oldsb,
 					      struct super_block *newsb)
-{ }
+{
+	return 0;
+}
 
 static inline int security_sb_parse_opts_str(char *options, struct security_mnt_opts *opts)
 {
@@ -2588,6 +2595,8 @@ int security_tun_dev_attach_queue(void *security);
 int security_tun_dev_attach(struct sock *sk, void *security);
 int security_tun_dev_open(void *security);
 
+void security_skb_owned_by(struct sk_buff *skb, struct sock *sk);
+
 #else	/* CONFIG_SECURITY_NETWORK */
 static inline int security_unix_stream_connect(struct sock *sock,
 					       struct sock *other,
@@ -2779,6 +2788,11 @@ static inline int security_tun_dev_open(void *security)
 {
 	return 0;
 }
+
+static inline void security_skb_owned_by(struct sk_buff *skb, struct sock *sk)
+{
+}
+
 #endif	/* CONFIG_SECURITY_NETWORK */
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM

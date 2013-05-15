@@ -105,7 +105,7 @@ static int adp5520_gpio_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	dev = devm_kzalloc(&pdev->dev, sizeof(*dev), GFP_KERNEL);
 	if (dev == NULL) {
 		dev_err(&pdev->dev, "failed to alloc memory\n");
 		return -ENOMEM;
@@ -163,7 +163,6 @@ static int adp5520_gpio_probe(struct platform_device *pdev)
 	return 0;
 
 err:
-	kfree(dev);
 	return ret;
 }
 
@@ -180,7 +179,6 @@ static int adp5520_gpio_remove(struct platform_device *pdev)
 		return ret;
 	}
 
-	kfree(dev);
 	return 0;
 }
 

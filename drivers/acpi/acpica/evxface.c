@@ -467,9 +467,9 @@ acpi_install_fixed_event_handler(u32 event,
 		return_ACPI_STATUS(status);
 	}
 
-	/* Don't allow two handlers. */
+	/* Do not allow multiple handlers */
 
-	if (NULL != acpi_gbl_fixed_event_handlers[event].handler) {
+	if (acpi_gbl_fixed_event_handlers[event].handler) {
 		status = AE_ALREADY_EXISTS;
 		goto cleanup;
 	}
@@ -483,8 +483,9 @@ acpi_install_fixed_event_handler(u32 event,
 	if (ACPI_SUCCESS(status))
 		status = acpi_enable_event(event, 0);
 	if (ACPI_FAILURE(status)) {
-		ACPI_WARNING((AE_INFO, "Could not enable fixed event 0x%X",
-			      event));
+		ACPI_WARNING((AE_INFO,
+			      "Could not enable fixed event - %s (%u)",
+			      acpi_ut_get_event_name(event), event));
 
 		/* Remove the handler */
 
@@ -492,7 +493,8 @@ acpi_install_fixed_event_handler(u32 event,
 		acpi_gbl_fixed_event_handlers[event].context = NULL;
 	} else {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Enabled fixed event %X, Handler=%p\n", event,
+				  "Enabled fixed event %s (%X), Handler=%p\n",
+				  acpi_ut_get_event_name(event), event,
 				  handler));
 	}
 
@@ -544,11 +546,12 @@ acpi_remove_fixed_event_handler(u32 event, acpi_event_handler handler)
 
 	if (ACPI_FAILURE(status)) {
 		ACPI_WARNING((AE_INFO,
-			      "Could not write to fixed event enable register 0x%X",
-			      event));
+			      "Could not disable fixed event - %s (%u)",
+			      acpi_ut_get_event_name(event), event));
 	} else {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Disabled fixed event %X\n",
-				  event));
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+				  "Disabled fixed event - %s (%X)\n",
+				  acpi_ut_get_event_name(event), event));
 	}
 
 	(void)acpi_ut_release_mutex(ACPI_MTX_EVENTS);

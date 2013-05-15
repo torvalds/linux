@@ -10,6 +10,7 @@
 #define    FEC_RS_COMM_EXEC_STOP                                           0x0
 #define  FEC_RS_MEASUREMENT_PERIOD__A                                      0x1C30012
 #define  FEC_RS_MEASUREMENT_PRESCALE__A                                    0x1C30013
+#define FEC_RS_NR_BIT_ERRORS__A                                            0x1C30014
 #define  FEC_OC_MODE__A                                                    0x1C40011
 #define    FEC_OC_MODE_PARITY__M                                           0x1
 #define  FEC_OC_DTO_MODE__A                                                0x1C40014
@@ -129,6 +130,8 @@
 #define  OFDM_EC_SB_PRIOR__A                                               0x3410013
 #define    OFDM_EC_SB_PRIOR_HI                                             0x0
 #define    OFDM_EC_SB_PRIOR_LO                                             0x1
+#define OFDM_EC_VD_ERR_BIT_CNT__A                                          0x3420017
+#define OFDM_EC_VD_IN_BIT_CNT__A                                           0x3420018
 #define  OFDM_EQ_TOP_TD_TPS_CONST__A                                       0x3010054
 #define  OFDM_EQ_TOP_TD_TPS_CONST__M                                       0x3
 #define    OFDM_EQ_TOP_TD_TPS_CONST_64QAM                                  0x2

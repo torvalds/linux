@@ -123,6 +123,14 @@ static s32 vmci_transport_error_to_vsock_error(s32 vmci_error)
 	return err > 0 ? -err : err;
 }
 
+static u32 vmci_transport_peer_rid(u32 peer_cid)
+{
+	if (VMADDR_CID_HYPERVISOR == peer_cid)
+		return VMCI_TRANSPORT_HYPERVISOR_PACKET_RID;
+
+	return VMCI_TRANSPORT_PACKET_RID;
+}
+
 static inline void
 vmci_transport_packet_init(struct vmci_transport_packet *pkt,
 			   struct sockaddr_vm *src,
@@ -140,7 +148,7 @@ vmci_transport_packet_init(struct vmci_transport_packet *pkt,
 	pkt->dg.src = vmci_make_handle(VMADDR_CID_ANY,
 				       VMCI_TRANSPORT_PACKET_RID);
 	pkt->dg.dst = vmci_make_handle(dst->svm_cid,
-				       VMCI_TRANSPORT_PACKET_RID);
+				       vmci_transport_peer_rid(dst->svm_cid));
 	pkt->dg.payload_size = sizeof(*pkt) - sizeof(pkt->dg);
 	pkt->version = VMCI_TRANSPORT_PACKET_VERSION;
 	pkt->type = type;
@@ -508,6 +516,9 @@ static bool vmci_transport_is_trusted(struct vsock_sock *vsock, u32 peer_cid)
 
 static bool vmci_transport_allow_dgram(struct vsock_sock *vsock, u32 peer_cid)
 {
+	if (VMADDR_CID_HYPERVISOR == peer_cid)
+		return true;
+
 	if (vsock->cached_peer != peer_cid) {
 		vsock->cached_peer = peer_cid;
 		if (!vmci_transport_is_trusted(vsock, peer_cid) &&
@@ -628,7 +639,6 @@ static int vmci_transport_recv_dgram_cb(void *data, struct vmci_datagram *dg)
 static bool vmci_transport_stream_allow(u32 cid, u32 port)
 {
 	static const u32 non_socket_contexts[] = {
-		VMADDR_CID_HYPERVISOR,
 		VMADDR_CID_RESERVED,
 	};
 	int i;
@@ -667,7 +677,7 @@ static int vmci_transport_recv_stream_cb(void *data, struct vmci_datagram *dg)
 	 */
 
 	if (!vmci_transport_stream_allow(dg->src.context, -1)
-	    || VMCI_TRANSPORT_PACKET_RID != dg->src.resource)
+	    || vmci_transport_peer_rid(dg->src.context) != dg->src.resource)
 		return VMCI_ERROR_NO_ACCESS;
 
 	if (VMCI_DG_SIZE(dg) < sizeof(*pkt))
@@ -1736,6 +1746,8 @@ static int vmci_transport_dgram_dequeue(struct kiocb *kiocb,
 	if (flags & MSG_OOB || flags & MSG_ERRQUEUE)
 		return -EOPNOTSUPP;
 
+	msg->msg_namelen = 0;
+
 	/* Retrieve the head sk_buff from the socket's receive queue. */
 	err = 0;
 	skb = skb_recv_datagram(&vsk->sk, flags, noblock, &err);
@@ -1768,7 +1780,6 @@ static int vmci_transport_dgram_dequeue(struct kiocb *kiocb,
 	if (err)
 		goto out;
 
-	msg->msg_namelen = 0;
 	if (msg->msg_name) {
 		struct sockaddr_vm *vm_addr;
 

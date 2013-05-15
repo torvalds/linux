@@ -60,7 +60,7 @@ static const char usbipd_help_string[] =
 	"	-d, --debug				\n"
 	"		Print debugging information.	\n"
 	"						\n"
-	"	-h, --help 				\n"
+	"	-h, --help				\n"
 	"		Print this help.		\n"
 	"						\n"
 	"	-v, --version				\n"
@@ -436,9 +436,6 @@ static int do_standalone_mode(int daemonize)
 	struct timespec timeout;
 	sigset_t sigmask;
 
-	if (usbip_names_init(USBIDS_FILE))
-		err("failed to open %s", USBIDS_FILE);
-
 	if (usbip_host_driver_open()) {
 		err("please load " USBIP_CORE_MOD_NAME ".ko and "
 		    USBIP_HOST_DRV_NAME ".ko!");
@@ -446,8 +443,9 @@ static int do_standalone_mode(int daemonize)
 	}
 
 	if (daemonize) {
-		if (daemon(0,0) < 0) {
+		if (daemon(0, 0) < 0) {
 			err("daemonizing failed: %s", strerror(errno));
+			usbip_host_driver_close();
 			return -1;
 		}
 		umask(0);
@@ -456,14 +454,18 @@ static int do_standalone_mode(int daemonize)
 	set_signal();
 
 	ai_head = do_getaddrinfo(NULL, PF_UNSPEC);
-	if (!ai_head)
+	if (!ai_head) {
+		usbip_host_driver_close();
 		return -1;
+	}
 
 	info("starting " PROGNAME " (%s)", usbip_version_string);
 
 	nsockfd = listen_all_addrinfo(ai_head, sockfdlist);
 	if (nsockfd <= 0) {
 		err("failed to open a listening socket");
+		freeaddrinfo(ai_head);
+		usbip_host_driver_close();
 		return -1;
 	}
 	fds = calloc(nsockfd, sizeof(struct pollfd));
@@ -502,7 +504,6 @@ static int do_standalone_mode(int daemonize)
 	free(fds);
 	freeaddrinfo(ai_head);
 	usbip_host_driver_close();
-	usbip_names_free();
 
 	return 0;
 }

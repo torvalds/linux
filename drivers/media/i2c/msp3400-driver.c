@@ -445,7 +445,7 @@ static int msp_s_radio(struct v4l2_subdev *sd)
 	return 0;
 }
 
-static int msp_s_frequency(struct v4l2_subdev *sd, struct v4l2_frequency *freq)
+static int msp_s_frequency(struct v4l2_subdev *sd, const struct v4l2_frequency *freq)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 
@@ -535,7 +535,7 @@ static int msp_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	return 0;
 }
 
-static int msp_s_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
+static int msp_s_tuner(struct v4l2_subdev *sd, const struct v4l2_tuner *vt)
 {
 	struct msp_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);

@@ -55,7 +55,7 @@ static int tegra_wm9712_init(struct snd_soc_pcm_runtime *rtd)
 static struct snd_soc_dai_link tegra_wm9712_dai = {
 	.name = "AC97 HiFi",
 	.stream_name = "AC97 HiFi",
-	.cpu_dai_name = "tegra-ac97-pcm",
+	.cpu_dai_name = "tegra20-ac97",
 	.codec_dai_name = "wm9712-hifi",
 	.codec_name = "wm9712-codec",
 	.init = tegra_wm9712_init,
@@ -78,11 +78,6 @@ static int tegra_wm9712_driver_probe(struct platform_device *pdev)
 	struct snd_soc_card *card = &snd_soc_tegra_wm9712;
 	struct tegra_wm9712 *machine;
 	int ret;
-
-	if (!pdev->dev.of_node) {
-		dev_err(&pdev->dev, "No platform data supplied\n");
-		return -EINVAL;
-	}
 
 	machine = devm_kzalloc(&pdev->dev, sizeof(struct tegra_wm9712),
 			       GFP_KERNEL);

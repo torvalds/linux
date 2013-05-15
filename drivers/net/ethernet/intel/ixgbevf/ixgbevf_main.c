@@ -76,12 +76,9 @@ static const struct ixgbevf_info *ixgbevf_info_tbl[] = {
  * { Vendor ID, Device ID, SubVendor ID, SubDevice ID,
  *   Class, Class Mask, private data (not used) }
  */
-static struct pci_device_id ixgbevf_pci_tbl[] = {
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_VF),
-	board_82599_vf},
-	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X540_VF),
-	board_X540_vf},
-
+static DEFINE_PCI_DEVICE_TABLE(ixgbevf_pci_tbl) = {
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_82599_VF), board_82599_vf },
+	{PCI_VDEVICE(INTEL, IXGBE_DEV_ID_X540_VF), board_X540_vf },
 	/* required last entry */
 	{0, }
 };
@@ -190,28 +187,37 @@ static bool ixgbevf_clean_tx_irq(struct ixgbevf_q_vector *q_vector,
 	struct ixgbevf_adapter *adapter = q_vector->adapter;
 	union ixgbe_adv_tx_desc *tx_desc, *eop_desc;
 	struct ixgbevf_tx_buffer *tx_buffer_info;
-	unsigned int i, eop, count = 0;
+	unsigned int i, count = 0;
 	unsigned int total_bytes = 0, total_packets = 0;
 
 	if (test_bit(__IXGBEVF_DOWN, &adapter->state))
 		return true;
 
 	i = tx_ring->next_to_clean;
-	eop = tx_ring->tx_buffer_info[i].next_to_watch;
-	eop_desc = IXGBEVF_TX_DESC(tx_ring, eop);
+	tx_buffer_info = &tx_ring->tx_buffer_info[i];
+	eop_desc = tx_buffer_info->next_to_watch;
 
-	while ((eop_desc->wb.status & cpu_to_le32(IXGBE_TXD_STAT_DD)) &&
-	       (count < tx_ring->count)) {
+	do {
 		bool cleaned = false;
-		rmb(); /* read buffer_info after eop_desc */
-		/* eop could change between read and DD-check */
-		if (unlikely(eop != tx_ring->tx_buffer_info[i].next_to_watch))
-			goto cont_loop;
+
+		/* if next_to_watch is not set then there is no work pending */
+		if (!eop_desc)
+			break;
+
+		/* prevent any other reads prior to eop_desc */
+		read_barrier_depends();
+
+		/* if DD is not set pending work has not been completed */
+		if (!(eop_desc->wb.status & cpu_to_le32(IXGBE_TXD_STAT_DD)))
+			break;
+
+		/* clear next_to_watch to prevent false hangs */
+		tx_buffer_info->next_to_watch = NULL;
+
 		for ( ; !cleaned; count++) {
 			struct sk_buff *skb;
 			tx_desc = IXGBEVF_TX_DESC(tx_ring, i);
-			tx_buffer_info = &tx_ring->tx_buffer_info[i];
-			cleaned = (i == eop);
+			cleaned = (tx_desc == eop_desc);
 			skb = tx_buffer_info->skb;
 
 			if (cleaned && skb) {
@@ -234,12 +240,12 @@ static bool ixgbevf_clean_tx_irq(struct ixgbevf_q_vector *q_vector,
 			i++;
 			if (i == tx_ring->count)
 				i = 0;
+
+			tx_buffer_info = &tx_ring->tx_buffer_info[i];
 		}
 
-cont_loop:
-		eop = tx_ring->tx_buffer_info[i].next_to_watch;
-		eop_desc = IXGBEVF_TX_DESC(tx_ring, eop);
-	}
+		eop_desc = tx_buffer_info->next_to_watch;
+	} while (count < tx_ring->count);
 
 	tx_ring->next_to_clean = i;
 
@@ -285,7 +291,7 @@ static void ixgbevf_receive_skb(struct ixgbevf_q_vector *q_vector,
 	u16 tag = le16_to_cpu(rx_desc->wb.upper.vlan);
 
 	if (is_vlan && test_bit(tag & VLAN_VID_MASK, adapter->active_vlans))
-		__vlan_hwaccel_put_tag(skb, tag);
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), tag);
 
 	if (!(adapter->flags & IXGBE_FLAG_IN_NETPOLL))
 		napi_gro_receive(&q_vector->napi, skb);
@@ -1173,7 +1179,8 @@ static void ixgbevf_configure_rx(struct ixgbevf_adapter *adapter)
 	}
 }
 
-static int ixgbevf_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
+static int ixgbevf_vlan_rx_add_vid(struct net_device *netdev,
+				   __be16 proto, u16 vid)
 {
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
@@ -1198,7 +1205,8 @@ static int ixgbevf_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 	return err;
 }
 
-static int ixgbevf_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
+static int ixgbevf_vlan_rx_kill_vid(struct net_device *netdev,
+				    __be16 proto, u16 vid)
 {
 	struct ixgbevf_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
@@ -1221,7 +1229,8 @@ static void ixgbevf_restore_vlan(struct ixgbevf_adapter *adapter)
 	u16 vid;
 
 	for_each_set_bit(vid, adapter->active_vlans, VLAN_N_VID)
-		ixgbevf_vlan_rx_add_vid(adapter->netdev, vid);
+		ixgbevf_vlan_rx_add_vid(adapter->netdev,
+					htons(ETH_P_8021Q), vid);
 }
 
 static int ixgbevf_write_uc_addr_list(struct net_device *netdev)
@@ -2046,6 +2055,7 @@ static int ixgbevf_sw_init(struct ixgbevf_adapter *adapter)
 {
 	struct ixgbe_hw *hw = &adapter->hw;
 	struct pci_dev *pdev = adapter->pdev;
+	struct net_device *netdev = adapter->netdev;
 	int err;
 
 	/* PCI config space info */
@@ -2065,18 +2075,26 @@ static int ixgbevf_sw_init(struct ixgbevf_adapter *adapter)
 	err = hw->mac.ops.reset_hw(hw);
 	if (err) {
 		dev_info(&pdev->dev,
-		         "PF still in reset state, assigning new address\n");
-		eth_hw_addr_random(adapter->netdev);
-		memcpy(adapter->hw.mac.addr, adapter->netdev->dev_addr,
-			adapter->netdev->addr_len);
+			 "PF still in reset state.  Is the PF interface up?\n");
 	} else {
 		err = hw->mac.ops.init_hw(hw);
 		if (err) {
 			pr_err("init_shared_code failed: %d\n", err);
 			goto out;
 		}
-		memcpy(adapter->netdev->dev_addr, adapter->hw.mac.addr,
-		       adapter->netdev->addr_len);
+		err = hw->mac.ops.get_mac_addr(hw, hw->mac.addr);
+		if (err)
+			dev_info(&pdev->dev, "Error reading MAC address\n");
+		else if (is_zero_ether_addr(adapter->hw.mac.addr))
+			dev_info(&pdev->dev,
+				 "MAC address not assigned by administrator.\n");
+		memcpy(netdev->dev_addr, hw->mac.addr, netdev->addr_len);
+	}
+
+	if (!is_valid_ether_addr(netdev->dev_addr)) {
+		dev_info(&pdev->dev, "Assigning random MAC address\n");
+		eth_hw_addr_random(netdev);
+		memcpy(hw->mac.addr, netdev->dev_addr, netdev->addr_len);
 	}
 
 	/* lock to protect mailbox accesses */
@@ -2425,9 +2443,6 @@ int ixgbevf_setup_rx_resources(struct ixgbevf_adapter *adapter,
 					   &rx_ring->dma, GFP_KERNEL);
 
 	if (!rx_ring->desc) {
-		hw_dbg(&adapter->hw,
-		       "Unable to allocate memory for "
-		       "the receive descriptor ring\n");
 		vfree(rx_ring->rx_buffer_info);
 		rx_ring->rx_buffer_info = NULL;
 		goto alloc_failed;
@@ -2822,8 +2837,7 @@ static bool ixgbevf_tx_csum(struct ixgbevf_ring *tx_ring,
 }
 
 static int ixgbevf_tx_map(struct ixgbevf_ring *tx_ring,
-			  struct sk_buff *skb, u32 tx_flags,
-			  unsigned int first)
+			  struct sk_buff *skb, u32 tx_flags)
 {
 	struct ixgbevf_tx_buffer *tx_buffer_info;
 	unsigned int len;
@@ -2848,7 +2862,6 @@ static int ixgbevf_tx_map(struct ixgbevf_ring *tx_ring,
 						     size, DMA_TO_DEVICE);
 		if (dma_mapping_error(tx_ring->dev, tx_buffer_info->dma))
 			goto dma_error;
-		tx_buffer_info->next_to_watch = i;
 
 		len -= size;
 		total -= size;
@@ -2878,7 +2891,6 @@ static int ixgbevf_tx_map(struct ixgbevf_ring *tx_ring,
 					      tx_buffer_info->dma))
 				goto dma_error;
 			tx_buffer_info->mapped_as_page = true;
-			tx_buffer_info->next_to_watch = i;
 
 			len -= size;
 			total -= size;
@@ -2897,8 +2909,6 @@ static int ixgbevf_tx_map(struct ixgbevf_ring *tx_ring,
 	else
 		i = i - 1;
 	tx_ring->tx_buffer_info[i].skb = skb;
-	tx_ring->tx_buffer_info[first].next_to_watch = i;
-	tx_ring->tx_buffer_info[first].time_stamp = jiffies;
 
 	return count;
 
@@ -2907,7 +2917,6 @@ dma_error:
 
 	/* clear timestamp and dma mappings for failed tx_buffer_info map */
 	tx_buffer_info->dma = 0;
-	tx_buffer_info->next_to_watch = 0;
 	count--;
 
 	/* clear timestamp and dma mappings for remaining portion of packet */
@@ -2924,7 +2933,8 @@ dma_error:
 }
 
 static void ixgbevf_tx_queue(struct ixgbevf_ring *tx_ring, int tx_flags,
-			     int count, u32 paylen, u8 hdr_len)
+			     int count, unsigned int first, u32 paylen,
+			     u8 hdr_len)
 {
 	union ixgbe_adv_tx_desc *tx_desc = NULL;
 	struct ixgbevf_tx_buffer *tx_buffer_info;
@@ -2975,6 +2985,16 @@ static void ixgbevf_tx_queue(struct ixgbevf_ring *tx_ring, int tx_flags,
 
 	tx_desc->read.cmd_type_len |= cpu_to_le32(txd_cmd);
 
+	tx_ring->tx_buffer_info[first].time_stamp = jiffies;
+
+	/* Force memory writes to complete before letting h/w
+	 * know there are new descriptors to fetch.  (Only
+	 * applicable for weak-ordered memory model archs,
+	 * such as IA-64).
+	 */
+	wmb();
+
+	tx_ring->tx_buffer_info[first].next_to_watch = tx_desc;
 	tx_ring->next_to_use = i;
 }
 
@@ -3066,15 +3086,8 @@ static int ixgbevf_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 		tx_flags |= IXGBE_TX_FLAGS_CSUM;
 
 	ixgbevf_tx_queue(tx_ring, tx_flags,
-			 ixgbevf_tx_map(tx_ring, skb, tx_flags, first),
-			 skb->len, hdr_len);
-	/*
-	 * Force memory writes to complete before letting h/w
-	 * know there are new descriptors to fetch.  (Only
-	 * applicable for weak-ordered memory model archs,
-	 * such as IA-64).
-	 */
-	wmb();
+			 ixgbevf_tx_map(tx_ring, skb, tx_flags),
+			 first, skb->len, hdr_len);
 
 	writel(tx_ring->next_to_use, adapter->hw.hw_addr + tx_ring->tail);
 
@@ -3400,9 +3413,9 @@ static int ixgbevf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			   NETIF_F_RXCSUM;
 
 	netdev->features = netdev->hw_features |
-			   NETIF_F_HW_VLAN_TX |
-			   NETIF_F_HW_VLAN_RX |
-			   NETIF_F_HW_VLAN_FILTER;
+			   NETIF_F_HW_VLAN_CTAG_TX |
+			   NETIF_F_HW_VLAN_CTAG_RX |
+			   NETIF_F_HW_VLAN_CTAG_FILTER;
 
 	netdev->vlan_features |= NETIF_F_TSO;
 	netdev->vlan_features |= NETIF_F_TSO6;

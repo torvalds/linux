@@ -157,9 +157,6 @@ config ARCH_USE_BUILTIN_BSWAP
 	 instructions should set this. And it shouldn't hurt to set it
 	 on architectures that don't have such instructions.
 
-config HAVE_SYSCALL_WRAPPERS
-	bool
-
 config KRETPROBES
 	def_bool y
 	depends on KPROBES && HAVE_KRETPROBES
@@ -383,6 +380,12 @@ config MODULES_USE_ELF_REL
 	help
 	  Modules only use ELF REL relocations.  Modules with ELF RELA
 	  relocations will give an error.
+
+config HAVE_UNDERSCORE_SYMBOL_PREFIX
+	bool
+	help
+	  Some architectures generate an _ in front of C symbols; things like
+	  module loading and assembly files need to know about this.
 
 #
 # ABI hall of shame

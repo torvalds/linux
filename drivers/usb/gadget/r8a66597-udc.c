@@ -1837,7 +1837,6 @@ static int __exit r8a66597_remove(struct platform_device *pdev)
 		clk_put(r8a66597->clk);
 	}
 
-	device_unregister(&r8a66597->gadget.dev);
 	kfree(r8a66597);
 	return 0;
 }
@@ -1915,17 +1914,8 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 	r8a66597->irq_sense_low = irq_trigger == IRQF_TRIGGER_LOW;
 
 	r8a66597->gadget.ops = &r8a66597_gadget_ops;
-	dev_set_name(&r8a66597->gadget.dev, "gadget");
 	r8a66597->gadget.max_speed = USB_SPEED_HIGH;
-	r8a66597->gadget.dev.parent = &pdev->dev;
-	r8a66597->gadget.dev.dma_mask = pdev->dev.dma_mask;
-	r8a66597->gadget.dev.release = pdev->dev.release;
 	r8a66597->gadget.name = udc_name;
-	ret = device_register(&r8a66597->gadget.dev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "device_register failed\n");
-		goto clean_up;
-	}
 
 	init_timer(&r8a66597->timer);
 	r8a66597->timer.function = r8a66597_timer;
@@ -1939,7 +1929,7 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 			dev_err(&pdev->dev, "cannot get clock \"%s\"\n",
 				clk_name);
 			ret = PTR_ERR(r8a66597->clk);
-			goto clean_up_dev;
+			goto clean_up;
 		}
 		clk_enable(r8a66597->clk);
 	}
@@ -2007,8 +1997,6 @@ clean_up2:
 		clk_disable(r8a66597->clk);
 		clk_put(r8a66597->clk);
 	}
-clean_up_dev:
-	device_unregister(&r8a66597->gadget.dev);
 clean_up:
 	if (r8a66597) {
 		if (r8a66597->sudmac_reg)

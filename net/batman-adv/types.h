@@ -128,6 +128,10 @@ struct batadv_hard_iface {
  * @bond_list: list of bonding candidates
  * @refcount: number of contexts the object is used
  * @rcu: struct used for freeing in an RCU-safe manner
+ * @in_coding_list: list of nodes this orig can hear
+ * @out_coding_list: list of nodes that can hear this orig
+ * @in_coding_list_lock: protects in_coding_list
+ * @out_coding_list_lock: protects out_coding_list
  */
 struct batadv_orig_node {
 	uint8_t orig[ETH_ALEN];
@@ -171,6 +175,12 @@ struct batadv_orig_node {
 	struct list_head bond_list;
 	atomic_t refcount;
 	struct rcu_head rcu;
+#ifdef CONFIG_BATMAN_ADV_NC
+	struct list_head in_coding_list;
+	struct list_head out_coding_list;
+	spinlock_t in_coding_list_lock; /* Protects in_coding_list */
+	spinlock_t out_coding_list_lock; /* Protects out_coding_list */
+#endif
 };
 
 /**
@@ -265,6 +275,17 @@ struct batadv_bcast_duplist_entry {
  * @BATADV_CNT_DAT_PUT_RX: received dht PUT traffic packet counter
  * @BATADV_CNT_DAT_CACHED_REPLY_TX: transmitted dat cache reply traffic packet
  *  counter
+ * @BATADV_CNT_NC_CODE: transmitted nc-combined traffic packet counter
+ * @BATADV_CNT_NC_CODE_BYTES: transmitted nc-combined traffic bytes counter
+ * @BATADV_CNT_NC_RECODE: transmitted nc-recombined traffic packet counter
+ * @BATADV_CNT_NC_RECODE_BYTES: transmitted nc-recombined traffic bytes counter
+ * @BATADV_CNT_NC_BUFFER: counter for packets buffered for later nc decoding
+ * @BATADV_CNT_NC_DECODE: received and nc-decoded traffic packet counter
+ * @BATADV_CNT_NC_DECODE_BYTES: received and nc-decoded traffic bytes counter
+ * @BATADV_CNT_NC_DECODE_FAILED: received and decode-failed traffic packet
+ *  counter
+ * @BATADV_CNT_NC_SNIFFED: counter for nc-decoded packets received in promisc
+ *  mode.
  * @BATADV_CNT_NUM: number of traffic counters
  */
 enum batadv_counters {
@@ -291,6 +312,17 @@ enum batadv_counters {
 	BATADV_CNT_DAT_PUT_TX,
 	BATADV_CNT_DAT_PUT_RX,
 	BATADV_CNT_DAT_CACHED_REPLY_TX,
+#endif
+#ifdef CONFIG_BATMAN_ADV_NC
+	BATADV_CNT_NC_CODE,
+	BATADV_CNT_NC_CODE_BYTES,
+	BATADV_CNT_NC_RECODE,
+	BATADV_CNT_NC_RECODE_BYTES,
+	BATADV_CNT_NC_BUFFER,
+	BATADV_CNT_NC_DECODE,
+	BATADV_CNT_NC_DECODE_BYTES,
+	BATADV_CNT_NC_DECODE_FAILED,
+	BATADV_CNT_NC_SNIFFED,
 #endif
 	BATADV_CNT_NUM,
 };
@@ -428,6 +460,35 @@ struct batadv_priv_dat {
 #endif
 
 /**
+ * struct batadv_priv_nc - per mesh interface network coding private data
+ * @work: work queue callback item for cleanup
+ * @debug_dir: dentry for nc subdir in batman-adv directory in debugfs
+ * @min_tq: only consider neighbors for encoding if neigh_tq > min_tq
+ * @max_fwd_delay: maximum packet forward delay to allow coding of packets
+ * @max_buffer_time: buffer time for sniffed packets used to decoding
+ * @timestamp_fwd_flush: timestamp of last forward packet queue flush
+ * @timestamp_sniffed_purge: timestamp of last sniffed packet queue purge
+ * @coding_hash: Hash table used to buffer skbs while waiting for another
+ *  incoming skb to code it with. Skbs are added to the buffer just before being
+ *  forwarded in routing.c
+ * @decoding_hash: Hash table used to buffer skbs that might be needed to decode
+ *  a received coded skb. The buffer is used for 1) skbs arriving on the
+ *  soft-interface; 2) skbs overheard on the hard-interface; and 3) skbs
+ *  forwarded by batman-adv.
+ */
+struct batadv_priv_nc {
+	struct delayed_work work;
+	struct dentry *debug_dir;
+	u8 min_tq;
+	u32 max_fwd_delay;
+	u32 max_buffer_time;
+	unsigned long timestamp_fwd_flush;
+	unsigned long timestamp_sniffed_purge;
+	struct batadv_hashtable *coding_hash;
+	struct batadv_hashtable *decoding_hash;
+};
+
+/**
  * struct batadv_priv - per mesh interface data
  * @mesh_state: current status of the mesh (inactive/active/deactivating)
  * @soft_iface: net device which holds this struct as private data
@@ -470,6 +531,8 @@ struct batadv_priv_dat {
  * @tt: translation table data
  * @vis: vis data
  * @dat: distributed arp table data
+ * @network_coding: bool indicating whether network coding is enabled
+ * @batadv_priv_nc: network coding data
  */
 struct batadv_priv {
 	atomic_t mesh_state;
@@ -522,6 +585,10 @@ struct batadv_priv {
 #ifdef CONFIG_BATMAN_ADV_DAT
 	struct batadv_priv_dat dat;
 #endif
+#ifdef CONFIG_BATMAN_ADV_NC
+	atomic_t network_coding;
+	struct batadv_priv_nc nc;
+#endif /* CONFIG_BATMAN_ADV_NC */
 };
 
 /**
@@ -699,6 +766,75 @@ struct batadv_tt_roam_node {
 	atomic_t counter;
 	unsigned long first_time;
 	struct list_head list;
+};
+
+/**
+ * struct batadv_nc_node - network coding node
+ * @list: next and prev pointer for the list handling
+ * @addr: the node's mac address
+ * @refcount: number of contexts the object is used by
+ * @rcu: struct used for freeing in an RCU-safe manner
+ * @orig_node: pointer to corresponding orig node struct
+ * @last_seen: timestamp of last ogm received from this node
+ */
+struct batadv_nc_node {
+	struct list_head list;
+	uint8_t addr[ETH_ALEN];
+	atomic_t refcount;
+	struct rcu_head rcu;
+	struct batadv_orig_node *orig_node;
+	unsigned long last_seen;
+};
+
+/**
+ * struct batadv_nc_path - network coding path
+ * @hash_entry: next and prev pointer for the list handling
+ * @rcu: struct used for freeing in an RCU-safe manner
+ * @refcount: number of contexts the object is used by
+ * @packet_list: list of buffered packets for this path
+ * @packet_list_lock: access lock for packet list
+ * @next_hop: next hop (destination) of path
+ * @prev_hop: previous hop (source) of path
+ * @last_valid: timestamp for last validation of path
+ */
+struct batadv_nc_path {
+	struct hlist_node hash_entry;
+	struct rcu_head rcu;
+	atomic_t refcount;
+	struct list_head packet_list;
+	spinlock_t packet_list_lock; /* Protects packet_list */
+	uint8_t next_hop[ETH_ALEN];
+	uint8_t prev_hop[ETH_ALEN];
+	unsigned long last_valid;
+};
+
+/**
+ * struct batadv_nc_packet - network coding packet used when coding and
+ *  decoding packets
+ * @list: next and prev pointer for the list handling
+ * @packet_id: crc32 checksum of skb data
+ * @timestamp: field containing the info when the packet was added to path
+ * @neigh_node: pointer to original next hop neighbor of skb
+ * @skb: skb which can be encoded or used for decoding
+ * @nc_path: pointer to path this nc packet is attached to
+ */
+struct batadv_nc_packet {
+	struct list_head list;
+	__be32 packet_id;
+	unsigned long timestamp;
+	struct batadv_neigh_node *neigh_node;
+	struct sk_buff *skb;
+	struct batadv_nc_path *nc_path;
+};
+
+/**
+ * batadv_skb_cb - control buffer structure used to store private data relevant
+ *  to batman-adv in the skb->cb buffer in skbs.
+ * @decoded: Marks a skb as decoded, which is checked when searching for coding
+ *  opportunities in network-coding.c
+ */
+struct batadv_skb_cb {
+	bool decoded;
 };
 
 /**

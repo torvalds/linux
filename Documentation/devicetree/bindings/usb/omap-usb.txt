@@ -8,16 +8,17 @@ OMAP MUSB GLUE
    and disconnect.
  - multipoint : Should be "1" indicating the musb controller supports
    multipoint. This is a MUSB configuration-specific setting.
- - num_eps : Specifies the number of endpoints. This is also a
+ - num-eps : Specifies the number of endpoints. This is also a
    MUSB configuration-specific setting. Should be set to "16"
- - ram_bits : Specifies the ram address size. Should be set to "12"
- - interface_type : This is a board specific setting to describe the type of
+ - ram-bits : Specifies the ram address size. Should be set to "12"
+ - interface-type : This is a board specific setting to describe the type of
    interface between the controller and the phy. It should be "0" or "1"
    specifying ULPI and UTMI respectively.
  - mode : Should be "3" to represent OTG. "1" signifies HOST and "2"
    represents PERIPHERAL.
  - power : Should be "50". This signifies the controller can supply upto
    100mA when operating in host mode.
+ - usb-phy : the phandle for the PHY device
 
 Optional properties:
  - ctrl-module : phandle of the control module this glue uses to write to
@@ -29,16 +30,44 @@ usb_otg_hs: usb_otg_hs@4a0ab000 {
 	ti,hwmods = "usb_otg_hs";
 	ti,has-mailbox;
 	multipoint = <1>;
-	num_eps = <16>;
-	ram_bits = <12>;
+	num-eps = <16>;
+	ram-bits = <12>;
 	ctrl-module = <&omap_control_usb>;
 };
 
 Board specific device node entry
 &usb_otg_hs {
-	interface_type = <1>;
+	interface-type = <1>;
 	mode = <3>;
 	power = <50>;
+};
+
+OMAP DWC3 GLUE
+ - compatible : Should be "ti,dwc3"
+ - ti,hwmods : Should be "usb_otg_ss"
+ - reg : Address and length of the register set for the device.
+ - interrupts : The irq number of this device that is used to interrupt the
+   MPU
+ - #address-cells, #size-cells : Must be present if the device has sub-nodes
+ - utmi-mode : controls the source of UTMI/PIPE status for VBUS and OTG ID.
+   It should be set to "1" for HW mode and "2" for SW mode.
+ - ranges: the child address space are mapped 1:1 onto the parent address space
+
+Sub-nodes:
+The dwc3 core should be added as subnode to omap dwc3 glue.
+- dwc3 :
+   The binding details of dwc3 can be found in:
+   Documentation/devicetree/bindings/usb/dwc3.txt
+
+omap_dwc3 {
+	compatible = "ti,dwc3";
+	ti,hwmods = "usb_otg_ss";
+	reg = <0x4a020000 0x1ff>;
+	interrupts = <0 93 4>;
+	#address-cells = <1>;
+	#size-cells = <1>;
+	utmi-mode = <2>;
+	ranges;
 };
 
 OMAP CONTROL USB

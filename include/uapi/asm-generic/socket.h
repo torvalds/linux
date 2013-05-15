@@ -74,4 +74,6 @@
 
 #define SO_LOCK_FILTER		44
 
+#define SO_SELECT_ERR_QUEUE	45
+
 #endif /* __ASM_GENERIC_SOCKET_H */

@@ -794,16 +794,16 @@ out:
 }
 
 #ifdef CONFIG_SYSCTL
-/* This should be called with kprobe_mutex locked */
 static void __kprobes optimize_all_kprobes(void)
 {
 	struct hlist_head *head;
 	struct kprobe *p;
 	unsigned int i;
 
+	mutex_lock(&kprobe_mutex);
 	/* If optimization is already allowed, just return */
 	if (kprobes_allow_optimization)
-		return;
+		goto out;
 
 	kprobes_allow_optimization = true;
 	for (i = 0; i < KPROBE_TABLE_SIZE; i++) {
@@ -813,18 +813,22 @@ static void __kprobes optimize_all_kprobes(void)
 				optimize_kprobe(p);
 	}
 	printk(KERN_INFO "Kprobes globally optimized\n");
+out:
+	mutex_unlock(&kprobe_mutex);
 }
 
-/* This should be called with kprobe_mutex locked */
 static void __kprobes unoptimize_all_kprobes(void)
 {
 	struct hlist_head *head;
 	struct kprobe *p;
 	unsigned int i;
 
+	mutex_lock(&kprobe_mutex);
 	/* If optimization is already prohibited, just return */
-	if (!kprobes_allow_optimization)
+	if (!kprobes_allow_optimization) {
+		mutex_unlock(&kprobe_mutex);
 		return;
+	}
 
 	kprobes_allow_optimization = false;
 	for (i = 0; i < KPROBE_TABLE_SIZE; i++) {
@@ -834,11 +838,14 @@ static void __kprobes unoptimize_all_kprobes(void)
 				unoptimize_kprobe(p, false);
 		}
 	}
+	mutex_unlock(&kprobe_mutex);
+
 	/* Wait for unoptimizing completion */
 	wait_for_kprobe_optimizer();
 	printk(KERN_INFO "Kprobes globally unoptimized\n");
 }
 
+static DEFINE_MUTEX(kprobe_sysctl_mutex);
 int sysctl_kprobes_optimization;
 int proc_kprobes_optimization_handler(struct ctl_table *table, int write,
 				      void __user *buffer, size_t *length,
@@ -846,7 +853,7 @@ int proc_kprobes_optimization_handler(struct ctl_table *table, int write,
 {
 	int ret;
 
-	mutex_lock(&kprobe_mutex);
+	mutex_lock(&kprobe_sysctl_mutex);
 	sysctl_kprobes_optimization = kprobes_allow_optimization ? 1 : 0;
 	ret = proc_dointvec_minmax(table, write, buffer, length, ppos);
 
@@ -854,7 +861,7 @@ int proc_kprobes_optimization_handler(struct ctl_table *table, int write,
 		optimize_all_kprobes();
 	else
 		unoptimize_all_kprobes();
-	mutex_unlock(&kprobe_mutex);
+	mutex_unlock(&kprobe_sysctl_mutex);
 
 	return ret;
 }

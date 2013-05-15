@@ -53,15 +53,6 @@ nouveau-y += core/subdev/clock/nva3.o
 nouveau-y += core/subdev/clock/nvc0.o
 nouveau-y += core/subdev/clock/pllnv04.o
 nouveau-y += core/subdev/clock/pllnva3.o
-nouveau-y += core/subdev/device/base.o
-nouveau-y += core/subdev/device/nv04.o
-nouveau-y += core/subdev/device/nv10.o
-nouveau-y += core/subdev/device/nv20.o
-nouveau-y += core/subdev/device/nv30.o
-nouveau-y += core/subdev/device/nv40.o
-nouveau-y += core/subdev/device/nv50.o
-nouveau-y += core/subdev/device/nvc0.o
-nouveau-y += core/subdev/device/nve0.o
 nouveau-y += core/subdev/devinit/base.o
 nouveau-y += core/subdev/devinit/nv04.o
 nouveau-y += core/subdev/devinit/nv05.o
@@ -126,6 +117,7 @@ nouveau-y += core/subdev/therm/ic.o
 nouveau-y += core/subdev/therm/temp.o
 nouveau-y += core/subdev/therm/nv40.o
 nouveau-y += core/subdev/therm/nv50.o
+nouveau-y += core/subdev/therm/nv84.o
 nouveau-y += core/subdev/therm/nva3.o
 nouveau-y += core/subdev/therm/nvd0.o
 nouveau-y += core/subdev/timer/base.o
@@ -150,6 +142,15 @@ nouveau-y += core/engine/copy/nvc0.o
 nouveau-y += core/engine/copy/nve0.o
 nouveau-y += core/engine/crypt/nv84.o
 nouveau-y += core/engine/crypt/nv98.o
+nouveau-y += core/engine/device/base.o
+nouveau-y += core/engine/device/nv04.o
+nouveau-y += core/engine/device/nv10.o
+nouveau-y += core/engine/device/nv20.o
+nouveau-y += core/engine/device/nv30.o
+nouveau-y += core/engine/device/nv40.o
+nouveau-y += core/engine/device/nv50.o
+nouveau-y += core/engine/device/nvc0.o
+nouveau-y += core/engine/device/nve0.o
 nouveau-y += core/engine/disp/base.o
 nouveau-y += core/engine/disp/nv04.o
 nouveau-y += core/engine/disp/nv50.o
@@ -159,6 +160,7 @@ nouveau-y += core/engine/disp/nva0.o
 nouveau-y += core/engine/disp/nva3.o
 nouveau-y += core/engine/disp/nvd0.o
 nouveau-y += core/engine/disp/nve0.o
+nouveau-y += core/engine/disp/nvf0.o
 nouveau-y += core/engine/disp/dacnv50.o
 nouveau-y += core/engine/disp/dport.o
 nouveau-y += core/engine/disp/hdanva3.o
@@ -212,7 +214,7 @@ nouveau-y += core/engine/vp/nve0.o
 
 # drm/core
 nouveau-y += nouveau_drm.o nouveau_chan.o nouveau_dma.o nouveau_fence.o
-nouveau-y += nouveau_irq.o nouveau_vga.o nouveau_agp.o
+nouveau-y += nouveau_vga.o nouveau_agp.o
 nouveau-y += nouveau_ttm.o nouveau_sgdma.o nouveau_bo.o nouveau_gem.o
 nouveau-y += nouveau_prime.o nouveau_abi16.o
 nouveau-y += nv04_fence.o nv10_fence.o nv17_fence.o
@@ -224,9 +226,7 @@ nouveau-y += nouveau_connector.o nouveau_dp.o
 nouveau-y += nv04_fbcon.o nv50_fbcon.o nvc0_fbcon.o
 
 # drm/kms/nv04:nv50
-nouveau-y += nouveau_hw.o nouveau_calc.o
-nouveau-y += nv04_dac.o nv04_dfp.o nv04_tv.o nv17_tv.o nv17_tv_modes.o
-nouveau-y += nv04_crtc.o nv04_display.o nv04_cursor.o
+include $(src)/dispnv04/Makefile
 
 # drm/kms/nv50-
 nouveau-y += nv50_display.o

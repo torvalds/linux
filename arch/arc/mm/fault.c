@@ -12,7 +12,6 @@
 #include <linux/sched.h>
 #include <linux/errno.h>
 #include <linux/ptrace.h>
-#include <linux/version.h>
 #include <linux/uaccess.h>
 #include <linux/kdebug.h>
 #include <asm/pgalloc.h>

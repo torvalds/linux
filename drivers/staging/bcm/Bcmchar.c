@@ -1148,8 +1148,8 @@ cntrlEnd:
 
 		if (((ULONG)pBulkBuffer->Register & 0x0F000000) != 0x0F000000 ||
 			((ULONG)pBulkBuffer->Register & 0x3)) {
-			kfree(pvBuffer);
 			BCM_DEBUG_PRINT (Adapter, DBG_TYPE_PRINTK, 0, 0, "WRM Done On invalid Address : %x Access Denied.\n", (int)pBulkBuffer->Register);
+			kfree(pvBuffer);
 			Status = -EINVAL;
 			break;
 		}

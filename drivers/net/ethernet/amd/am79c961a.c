@@ -528,7 +528,6 @@ am79c961_rx(struct net_device *dev, struct dev_priv *priv)
 			dev->stats.rx_packets++;
 		} else {
 			am_writeword (dev, hdraddr + 2, RMD_OWN);
-			printk (KERN_WARNING "%s: memory squeeze, dropping packet.\n", dev->name);
 			dev->stats.rx_dropped++;
 			break;
 		}

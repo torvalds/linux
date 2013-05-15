@@ -45,6 +45,7 @@ static const struct i2c_device_id pcf857x_id[] = {
 	{ "pca9675", 16 },
 	{ "max7328", 8 },
 	{ "max7329", 8 },
+	{ "tca9554", 8 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, pcf857x_id);
@@ -267,7 +268,7 @@ static int pcf857x_probe(struct i2c_client *client,
 	}
 
 	/* Allocate, initialize, and register this gpio_chip. */
-	gpio = kzalloc(sizeof *gpio, GFP_KERNEL);
+	gpio = devm_kzalloc(&client->dev, sizeof(*gpio), GFP_KERNEL);
 	if (!gpio)
 		return -ENOMEM;
 
@@ -390,7 +391,6 @@ fail:
 	if (pdata && client->irq)
 		pcf857x_irq_domain_cleanup(gpio);
 
-	kfree(gpio);
 	return status;
 }
 
@@ -415,9 +415,7 @@ static int pcf857x_remove(struct i2c_client *client)
 		pcf857x_irq_domain_cleanup(gpio);
 
 	status = gpiochip_remove(&gpio->chip);
-	if (status == 0)
-		kfree(gpio);
-	else
+	if (status)
 		dev_err(&client->dev, "%s --> %d\n", "remove", status);
 	return status;
 }

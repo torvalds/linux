@@ -23,6 +23,7 @@
  */
 
 #include <subdev/fb.h>
+#include <subdev/ltcg.h>
 #include <subdev/bios.h>
 
 struct nvc0_fb_priv {
@@ -31,34 +32,14 @@ struct nvc0_fb_priv {
 	dma_addr_t r100c10;
 };
 
-/* 0 = unsupported
- * 1 = non-compressed
- * 3 = compressed
- */
-static const u8 types[256] = {
-	1, 1, 3, 3, 3, 3, 0, 3, 3, 3, 3, 0, 0, 0, 0, 0,
-	0, 1, 0, 0, 0, 0, 0, 3, 3, 3, 3, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3,
-	3, 3, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 3, 3, 3, 3, 0, 1, 1, 1, 1, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 3, 3, 3, 3, 1, 1, 1, 1, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3,
-	3, 3, 3, 1, 0, 0, 0, 0, 0, 0, 0, 0, 3, 3, 3, 3,
-	3, 3, 0, 0, 0, 0, 0, 0, 3, 0, 0, 3, 0, 3, 0, 3,
-	3, 0, 3, 3, 3, 3, 3, 0, 0, 3, 0, 3, 0, 3, 3, 0,
-	3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 1, 1, 0
-};
+extern const u8 nvc0_pte_storage_type_map[256];
+
 
 static bool
 nvc0_fb_memtype_valid(struct nouveau_fb *pfb, u32 tile_flags)
 {
 	u8 memtype = (tile_flags & 0x0000ff00) >> 8;
-	return likely((types[memtype] == 1));
+	return likely((nvc0_pte_storage_type_map[memtype] != 0xff));
 }
 
 static int
@@ -130,6 +111,7 @@ nvc0_fb_vram_new(struct nouveau_fb *pfb, u64 size, u32 align, u32 ncmin,
 	int type = (memtype & 0x0ff);
 	int back = (memtype & 0x800);
 	int ret;
+	const bool comp = nvc0_pte_storage_type_map[type] != type;
 
 	size  >>= 12;
 	align >>= 12;
@@ -142,10 +124,22 @@ nvc0_fb_vram_new(struct nouveau_fb *pfb, u64 size, u32 align, u32 ncmin,
 		return -ENOMEM;
 
 	INIT_LIST_HEAD(&mem->regions);
-	mem->memtype = type;
 	mem->size = size;
 
 	mutex_lock(&pfb->base.mutex);
+	if (comp) {
+		struct nouveau_ltcg *ltcg = nouveau_ltcg(pfb->base.base.parent);
+
+		/* compression only works with lpages */
+		if (align == (1 << (17 - 12))) {
+			int n = size >> 5;
+			ltcg->tags_alloc(ltcg, n, &mem->tag);
+		}
+		if (unlikely(!mem->tag))
+			type = nvc0_pte_storage_type_map[type];
+	}
+	mem->memtype = type;
+
 	do {
 		if (back)
 			ret = nouveau_mm_tail(mm, 1, size, ncmin, align, &r);
@@ -168,6 +162,17 @@ nvc0_fb_vram_new(struct nouveau_fb *pfb, u64 size, u32 align, u32 ncmin,
 	return 0;
 }
 
+static void
+nvc0_fb_vram_del(struct nouveau_fb *pfb, struct nouveau_mem **pmem)
+{
+	struct nouveau_ltcg *ltcg = nouveau_ltcg(pfb->base.base.parent);
+
+	if ((*pmem)->tag)
+		ltcg->tags_free(ltcg, &(*pmem)->tag);
+
+	nv50_fb_vram_del(pfb, pmem);
+}
+
 static int
 nvc0_fb_init(struct nouveau_object *object)
 {
@@ -178,7 +183,8 @@ nvc0_fb_init(struct nouveau_object *object)
 	if (ret)
 		return ret;
 
-	nv_wr32(priv, 0x100c10, priv->r100c10 >> 8);
+	if (priv->r100c10_page)
+		nv_wr32(priv, 0x100c10, priv->r100c10 >> 8);
 	return 0;
 }
 
@@ -214,16 +220,16 @@ nvc0_fb_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	priv->base.memtype_valid = nvc0_fb_memtype_valid;
 	priv->base.ram.init = nvc0_fb_vram_init;
 	priv->base.ram.get = nvc0_fb_vram_new;
-	priv->base.ram.put = nv50_fb_vram_del;
+	priv->base.ram.put = nvc0_fb_vram_del;
 
 	priv->r100c10_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
-	if (!priv->r100c10_page)
-		return -ENOMEM;
-
-	priv->r100c10 = pci_map_page(device->pdev, priv->r100c10_page, 0,
-				     PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
-	if (pci_dma_mapping_error(device->pdev, priv->r100c10))
-		return -EFAULT;
+	if (priv->r100c10_page) {
+		priv->r100c10 = pci_map_page(device->pdev, priv->r100c10_page,
+					     0, PAGE_SIZE,
+					     PCI_DMA_BIDIRECTIONAL);
+		if (pci_dma_mapping_error(device->pdev, priv->r100c10))
+			return -EFAULT;
+	}
 
 	return nouveau_fb_preinit(&priv->base);
 }

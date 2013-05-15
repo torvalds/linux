@@ -165,7 +165,7 @@ struct v4l2_subdev_core_ops {
 	long (*ioctl)(struct v4l2_subdev *sd, unsigned int cmd, void *arg);
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	int (*g_register)(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg);
-	int (*s_register)(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg);
+	int (*s_register)(struct v4l2_subdev *sd, const struct v4l2_dbg_register *reg);
 #endif
 	int (*s_power)(struct v4l2_subdev *sd, int on);
 	int (*interrupt_service_routine)(struct v4l2_subdev *sd,
@@ -191,10 +191,10 @@ struct v4l2_subdev_core_ops {
  */
 struct v4l2_subdev_tuner_ops {
 	int (*s_radio)(struct v4l2_subdev *sd);
-	int (*s_frequency)(struct v4l2_subdev *sd, struct v4l2_frequency *freq);
+	int (*s_frequency)(struct v4l2_subdev *sd, const struct v4l2_frequency *freq);
 	int (*g_frequency)(struct v4l2_subdev *sd, struct v4l2_frequency *freq);
 	int (*g_tuner)(struct v4l2_subdev *sd, struct v4l2_tuner *vt);
-	int (*s_tuner)(struct v4l2_subdev *sd, struct v4l2_tuner *vt);
+	int (*s_tuner)(struct v4l2_subdev *sd, const struct v4l2_tuner *vt);
 	int (*g_modulator)(struct v4l2_subdev *sd, struct v4l2_modulator *vm);
 	int (*s_modulator)(struct v4l2_subdev *sd, const struct v4l2_modulator *vm);
 	int (*s_type_addr)(struct v4l2_subdev *sd, struct tuner_setup *type);
@@ -279,14 +279,6 @@ struct v4l2_mbus_frame_desc {
    s_routing: see s_routing in audio_ops, except this version is for video
 	devices.
 
-   s_dv_preset: set dv (Digital Video) preset in the sub device. Similar to
-	s_std()
-
-   g_dv_preset: get current dv (Digital Video) preset in the sub device.
-
-   query_dv_preset: query dv preset in the sub device. This is similar to
-	querystd()
-
    s_dv_timings(): Set custom dv timings in the sub device. This is used
 	when sub device is capable of setting detailed timing information
 	in the hardware to generate/detect the video signal.
@@ -331,14 +323,6 @@ struct v4l2_subdev_video_ops {
 				struct v4l2_subdev_frame_interval *interval);
 	int (*enum_framesizes)(struct v4l2_subdev *sd, struct v4l2_frmsizeenum *fsize);
 	int (*enum_frameintervals)(struct v4l2_subdev *sd, struct v4l2_frmivalenum *fival);
-	int (*enum_dv_presets) (struct v4l2_subdev *sd,
-			struct v4l2_dv_enum_preset *preset);
-	int (*s_dv_preset)(struct v4l2_subdev *sd,
-			struct v4l2_dv_preset *preset);
-	int (*g_dv_preset)(struct v4l2_subdev *sd,
-			struct v4l2_dv_preset *preset);
-	int (*query_dv_preset)(struct v4l2_subdev *sd,
-			struct v4l2_dv_preset *preset);
 	int (*s_dv_timings)(struct v4l2_subdev *sd,
 			struct v4l2_dv_timings *timings);
 	int (*g_dv_timings)(struct v4l2_subdev *sd,
@@ -686,5 +670,8 @@ void v4l2_subdev_init(struct v4l2_subdev *sd,
 #define v4l2_subdev_notify(sd, notification, arg)			   \
 	((!(sd) || !(sd)->v4l2_dev || !(sd)->v4l2_dev->notify) ? -ENODEV : \
 	 (sd)->v4l2_dev->notify((sd), (notification), (arg)))
+
+#define v4l2_subdev_has_op(sd, o, f) \
+	((sd)->ops->o && (sd)->ops->o->f)
 
 #endif

@@ -46,9 +46,16 @@ struct macvlan_port {
 
 static void macvlan_port_destroy(struct net_device *dev);
 
-#define macvlan_port_get_rcu(dev) \
-	((struct macvlan_port *) rcu_dereference(dev->rx_handler_data))
-#define macvlan_port_get(dev) ((struct macvlan_port *) dev->rx_handler_data)
+static struct macvlan_port *macvlan_port_get_rcu(const struct net_device *dev)
+{
+	return rcu_dereference(dev->rx_handler_data);
+}
+
+static struct macvlan_port *macvlan_port_get_rtnl(const struct net_device *dev)
+{
+	return rtnl_dereference(dev->rx_handler_data);
+}
+
 #define macvlan_port_exists(dev) (dev->priv_flags & IFF_MACVLAN_PORT)
 
 static struct macvlan_dev *macvlan_hash_lookup(const struct macvlan_port *port,
@@ -464,7 +471,7 @@ static struct lock_class_key macvlan_netdev_addr_lock_key;
 	(NETIF_F_SG | NETIF_F_ALL_CSUM | NETIF_F_HIGHDMA | NETIF_F_FRAGLIST | \
 	 NETIF_F_GSO | NETIF_F_TSO | NETIF_F_UFO | NETIF_F_GSO_ROBUST | \
 	 NETIF_F_TSO_ECN | NETIF_F_TSO6 | NETIF_F_GRO | NETIF_F_RXCSUM | \
-	 NETIF_F_HW_VLAN_FILTER)
+	 NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_HW_VLAN_STAG_FILTER)
 
 #define MACVLAN_STATE_MASK \
 	((1<<__LINK_STATE_NOCARRIER) | (1<<__LINK_STATE_DORMANT))
@@ -560,21 +567,21 @@ static struct rtnl_link_stats64 *macvlan_dev_get_stats64(struct net_device *dev,
 }
 
 static int macvlan_vlan_rx_add_vid(struct net_device *dev,
-				    unsigned short vid)
+				   __be16 proto, u16 vid)
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
 	struct net_device *lowerdev = vlan->lowerdev;
 
-	return vlan_vid_add(lowerdev, vid);
+	return vlan_vid_add(lowerdev, proto, vid);
 }
 
 static int macvlan_vlan_rx_kill_vid(struct net_device *dev,
-				     unsigned short vid)
+				    __be16 proto, u16 vid)
 {
 	struct macvlan_dev *vlan = netdev_priv(dev);
 	struct net_device *lowerdev = vlan->lowerdev;
 
-	vlan_vid_del(lowerdev, vid);
+	vlan_vid_del(lowerdev, proto, vid);
 	return 0;
 }
 
@@ -703,7 +710,7 @@ static int macvlan_port_create(struct net_device *dev)
 
 static void macvlan_port_destroy(struct net_device *dev)
 {
-	struct macvlan_port *port = macvlan_port_get(dev);
+	struct macvlan_port *port = macvlan_port_get_rtnl(dev);
 
 	dev->priv_flags &= ~IFF_MACVLAN_PORT;
 	netdev_rx_handler_unregister(dev);
@@ -772,7 +779,7 @@ int macvlan_common_newlink(struct net *src_net, struct net_device *dev,
 		if (err < 0)
 			return err;
 	}
-	port = macvlan_port_get(lowerdev);
+	port = macvlan_port_get_rtnl(lowerdev);
 
 	/* Only 1 macvlan device can be created in passthru mode */
 	if (port->passthru)
@@ -921,7 +928,7 @@ static int macvlan_device_event(struct notifier_block *unused,
 	if (!macvlan_port_exists(dev))
 		return NOTIFY_DONE;
 
-	port = macvlan_port_get(dev);
+	port = macvlan_port_get_rtnl(dev);
 
 	switch (event) {
 	case NETDEV_CHANGE:

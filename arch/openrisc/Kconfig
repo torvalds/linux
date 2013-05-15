@@ -44,9 +44,6 @@ config GENERIC_HWEIGHT
 config NO_IOPORT
 	def_bool y
 
-config GENERIC_GPIO
-	def_bool y
-
 config TRACE_IRQFLAGS_SUPPORT
         def_bool y
 
@@ -54,9 +51,6 @@ config TRACE_IRQFLAGS_SUPPORT
 #These can be reimplemented in assembly later if so inclined
 config GENERIC_CSUM
         def_bool y
-
-config GENERIC_FIND_NEXT_BIT
-	def_bool y
 
 source "init/Kconfig"
 

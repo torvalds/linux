@@ -27,7 +27,9 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/delay.h>
 #include <linux/errno.h>
+#include <linux/gpio.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
@@ -47,7 +49,7 @@
 
 /* core_lock protects i2c_adapter_idr, and guarantees
    that device detection, deletion of detected devices, and attach_adapter
-   and detach_adapter calls are serialized */
+   calls are serialized */
 static DEFINE_MUTEX(core_lock);
 static DEFINE_IDR(i2c_adapter_idr);
 
@@ -91,7 +93,6 @@ static int i2c_device_match(struct device *dev, struct device_driver *drv)
 	return 0;
 }
 
-#ifdef	CONFIG_HOTPLUG
 
 /* uevent helps with hotplug: modprobe -q $(MODALIAS) */
 static int i2c_device_uevent(struct device *dev, struct kobj_uevent_env *env)
@@ -105,9 +106,129 @@ static int i2c_device_uevent(struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 
-#else
-#define i2c_device_uevent	NULL
-#endif	/* CONFIG_HOTPLUG */
+/* i2c bus recovery routines */
+static int get_scl_gpio_value(struct i2c_adapter *adap)
+{
+	return gpio_get_value(adap->bus_recovery_info->scl_gpio);
+}
+
+static void set_scl_gpio_value(struct i2c_adapter *adap, int val)
+{
+	gpio_set_value(adap->bus_recovery_info->scl_gpio, val);
+}
+
+static int get_sda_gpio_value(struct i2c_adapter *adap)
+{
+	return gpio_get_value(adap->bus_recovery_info->sda_gpio);
+}
+
+static int i2c_get_gpios_for_recovery(struct i2c_adapter *adap)
+{
+	struct i2c_bus_recovery_info *bri = adap->bus_recovery_info;
+	struct device *dev = &adap->dev;
+	int ret = 0;
+
+	ret = gpio_request_one(bri->scl_gpio, GPIOF_OPEN_DRAIN |
+			GPIOF_OUT_INIT_HIGH, "i2c-scl");
+	if (ret) {
+		dev_warn(dev, "Can't get SCL gpio: %d\n", bri->scl_gpio);
+		return ret;
+	}
+
+	if (bri->get_sda) {
+		if (gpio_request_one(bri->sda_gpio, GPIOF_IN, "i2c-sda")) {
+			/* work without SDA polling */
+			dev_warn(dev, "Can't get SDA gpio: %d. Not using SDA polling\n",
+					bri->sda_gpio);
+			bri->get_sda = NULL;
+		}
+	}
+
+	return ret;
+}
+
+static void i2c_put_gpios_for_recovery(struct i2c_adapter *adap)
+{
+	struct i2c_bus_recovery_info *bri = adap->bus_recovery_info;
+
+	if (bri->get_sda)
+		gpio_free(bri->sda_gpio);
+
+	gpio_free(bri->scl_gpio);
+}
+
+/*
+ * We are generating clock pulses. ndelay() determines durating of clk pulses.
+ * We will generate clock with rate 100 KHz and so duration of both clock levels
+ * is: delay in ns = (10^6 / 100) / 2
+ */
+#define RECOVERY_NDELAY		5000
+#define RECOVERY_CLK_CNT	9
+
+static int i2c_generic_recovery(struct i2c_adapter *adap)
+{
+	struct i2c_bus_recovery_info *bri = adap->bus_recovery_info;
+	int i = 0, val = 1, ret = 0;
+
+	if (bri->prepare_recovery)
+		bri->prepare_recovery(bri);
+
+	/*
+	 * By this time SCL is high, as we need to give 9 falling-rising edges
+	 */
+	while (i++ < RECOVERY_CLK_CNT * 2) {
+		if (val) {
+			/* Break if SDA is high */
+			if (bri->get_sda && bri->get_sda(adap))
+					break;
+			/* SCL shouldn't be low here */
+			if (!bri->get_scl(adap)) {
+				dev_err(&adap->dev,
+					"SCL is stuck low, exit recovery\n");
+				ret = -EBUSY;
+				break;
+			}
+		}
+
+		val = !val;
+		bri->set_scl(adap, val);
+		ndelay(RECOVERY_NDELAY);
+	}
+
+	if (bri->unprepare_recovery)
+		bri->unprepare_recovery(bri);
+
+	return ret;
+}
+
+int i2c_generic_scl_recovery(struct i2c_adapter *adap)
+{
+	adap->bus_recovery_info->set_scl(adap, 1);
+	return i2c_generic_recovery(adap);
+}
+
+int i2c_generic_gpio_recovery(struct i2c_adapter *adap)
+{
+	int ret;
+
+	ret = i2c_get_gpios_for_recovery(adap);
+	if (ret)
+		return ret;
+
+	ret = i2c_generic_recovery(adap);
+	i2c_put_gpios_for_recovery(adap);
+
+	return ret;
+}
+
+int i2c_recover_bus(struct i2c_adapter *adap)
+{
+	if (!adap->bus_recovery_info)
+		return -EOPNOTSUPP;
+
+	dev_dbg(&adap->dev, "Trying i2c bus recovery\n");
+	return adap->bus_recovery_info->recover_bus(adap);
+}
 
 static int i2c_device_probe(struct device *dev)
 {
@@ -902,6 +1023,39 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 			 "Failed to create compatibility class link\n");
 #endif
 
+	/* bus recovery specific initialization */
+	if (adap->bus_recovery_info) {
+		struct i2c_bus_recovery_info *bri = adap->bus_recovery_info;
+
+		if (!bri->recover_bus) {
+			dev_err(&adap->dev, "No recover_bus() found, not using recovery\n");
+			adap->bus_recovery_info = NULL;
+			goto exit_recovery;
+		}
+
+		/* Generic GPIO recovery */
+		if (bri->recover_bus == i2c_generic_gpio_recovery) {
+			if (!gpio_is_valid(bri->scl_gpio)) {
+				dev_err(&adap->dev, "Invalid SCL gpio, not using recovery\n");
+				adap->bus_recovery_info = NULL;
+				goto exit_recovery;
+			}
+
+			if (gpio_is_valid(bri->sda_gpio))
+				bri->get_sda = get_sda_gpio_value;
+			else
+				bri->get_sda = NULL;
+
+			bri->get_scl = get_scl_gpio_value;
+			bri->set_scl = set_scl_gpio_value;
+		} else if (!bri->set_scl || !bri->get_scl) {
+			/* Generic SCL recovery */
+			dev_err(&adap->dev, "No {get|set}_gpio() found, not using recovery\n");
+			adap->bus_recovery_info = NULL;
+		}
+	}
+
+exit_recovery:
 	/* create pre-declared device nodes */
 	if (adap->nr < __i2c_first_dynamic_bus_num)
 		i2c_scan_static_board_info(adap);
@@ -921,13 +1075,35 @@ out_list:
 }
 
 /**
+ * __i2c_add_numbered_adapter - i2c_add_numbered_adapter where nr is never -1
+ * @adap: the adapter to register (with adap->nr initialized)
+ * Context: can sleep
+ *
+ * See i2c_add_numbered_adapter() for details.
+ */
+static int __i2c_add_numbered_adapter(struct i2c_adapter *adap)
+{
+	int	id;
+
+	mutex_lock(&core_lock);
+	id = idr_alloc(&i2c_adapter_idr, adap, adap->nr, adap->nr + 1,
+		       GFP_KERNEL);
+	mutex_unlock(&core_lock);
+	if (id < 0)
+		return id == -ENOSPC ? -EBUSY : id;
+
+	return i2c_register_adapter(adap);
+}
+
+/**
  * i2c_add_adapter - declare i2c adapter, use dynamic bus number
  * @adapter: the adapter to add
  * Context: can sleep
  *
  * This routine is used to declare an I2C adapter when its bus number
- * doesn't matter.  Examples: for I2C adapters dynamically added by
- * USB links or PCI plugin cards.
+ * doesn't matter or when its bus number is specified by an dt alias.
+ * Examples of bases when the bus number doesn't matter: I2C adapters
+ * dynamically added by USB links or PCI plugin cards.
  *
  * When this returns zero, a new bus number was allocated and stored
  * in adap->nr, and the specified adapter became available for clients.
@@ -935,7 +1111,16 @@ out_list:
  */
 int i2c_add_adapter(struct i2c_adapter *adapter)
 {
+	struct device *dev = &adapter->dev;
 	int id;
+
+	if (dev->of_node) {
+		id = of_alias_get_id(dev->of_node, "i2c");
+		if (id >= 0) {
+			adapter->nr = id;
+			return __i2c_add_numbered_adapter(adapter);
+		}
+	}
 
 	mutex_lock(&core_lock);
 	id = idr_alloc(&i2c_adapter_idr, adapter,
@@ -975,26 +1160,17 @@ EXPORT_SYMBOL(i2c_add_adapter);
  */
 int i2c_add_numbered_adapter(struct i2c_adapter *adap)
 {
-	int	id;
-
 	if (adap->nr == -1) /* -1 means dynamically assign bus id */
 		return i2c_add_adapter(adap);
 
-	mutex_lock(&core_lock);
-	id = idr_alloc(&i2c_adapter_idr, adap, adap->nr, adap->nr + 1,
-		       GFP_KERNEL);
-	mutex_unlock(&core_lock);
-	if (id < 0)
-		return id == -ENOSPC ? -EBUSY : id;
-	return i2c_register_adapter(adap);
+	return __i2c_add_numbered_adapter(adap);
 }
 EXPORT_SYMBOL_GPL(i2c_add_numbered_adapter);
 
-static int i2c_do_del_adapter(struct i2c_driver *driver,
+static void i2c_do_del_adapter(struct i2c_driver *driver,
 			      struct i2c_adapter *adapter)
 {
 	struct i2c_client *client, *_n;
-	int res;
 
 	/* Remove the devices we created ourselves as the result of hardware
 	 * probing (using a driver's detect method) */
@@ -1006,16 +1182,6 @@ static int i2c_do_del_adapter(struct i2c_driver *driver,
 			i2c_unregister_device(client);
 		}
 	}
-
-	if (!driver->detach_adapter)
-		return 0;
-	dev_warn(&adapter->dev, "%s: detach_adapter method is deprecated\n",
-		 driver->driver.name);
-	res = driver->detach_adapter(adapter);
-	if (res)
-		dev_err(&adapter->dev, "detach_adapter failed (%d) "
-			"for driver [%s]\n", res, driver->driver.name);
-	return res;
 }
 
 static int __unregister_client(struct device *dev, void *dummy)
@@ -1036,7 +1202,8 @@ static int __unregister_dummy(struct device *dev, void *dummy)
 
 static int __process_removed_adapter(struct device_driver *d, void *data)
 {
-	return i2c_do_del_adapter(to_i2c_driver(d), data);
+	i2c_do_del_adapter(to_i2c_driver(d), data);
+	return 0;
 }
 
 /**
@@ -1047,9 +1214,8 @@ static int __process_removed_adapter(struct device_driver *d, void *data)
  * This unregisters an I2C adapter which was previously registered
  * by @i2c_add_adapter or @i2c_add_numbered_adapter.
  */
-int i2c_del_adapter(struct i2c_adapter *adap)
+void i2c_del_adapter(struct i2c_adapter *adap)
 {
-	int res = 0;
 	struct i2c_adapter *found;
 	struct i2c_client *client, *next;
 
@@ -1060,16 +1226,14 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 	if (found != adap) {
 		pr_debug("i2c-core: attempting to delete unregistered "
 			 "adapter [%s]\n", adap->name);
-		return -EINVAL;
+		return;
 	}
 
 	/* Tell drivers about this removal */
 	mutex_lock(&core_lock);
-	res = bus_for_each_drv(&i2c_bus_type, NULL, adap,
+	bus_for_each_drv(&i2c_bus_type, NULL, adap,
 			       __process_removed_adapter);
 	mutex_unlock(&core_lock);
-	if (res)
-		return res;
 
 	/* Remove devices instantiated from sysfs */
 	mutex_lock_nested(&adap->userspace_clients_lock,
@@ -1088,8 +1252,8 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 	 * we can't remove the dummy devices during the first pass: they
 	 * could have been instantiated by real devices wishing to clean
 	 * them up properly, so we give them a chance to do that first. */
-	res = device_for_each_child(&adap->dev, NULL, __unregister_client);
-	res = device_for_each_child(&adap->dev, NULL, __unregister_dummy);
+	device_for_each_child(&adap->dev, NULL, __unregister_client);
+	device_for_each_child(&adap->dev, NULL, __unregister_dummy);
 
 #ifdef CONFIG_I2C_COMPAT
 	class_compat_remove_link(i2c_adapter_compat_class, &adap->dev,
@@ -1114,8 +1278,6 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 	/* Clear the device structure in case this adapter is ever going to be
 	   added again */
 	memset(&adap->dev, 0, sizeof(adap->dev));
-
-	return 0;
 }
 EXPORT_SYMBOL(i2c_del_adapter);
 
@@ -1185,9 +1347,9 @@ EXPORT_SYMBOL(i2c_register_driver);
 
 static int __process_removed_driver(struct device *dev, void *data)
 {
-	if (dev->type != &i2c_adapter_type)
-		return 0;
-	return i2c_do_del_adapter(data, to_i2c_adapter(dev));
+	if (dev->type == &i2c_adapter_type)
+		i2c_do_del_adapter(data, to_i2c_adapter(dev));
+	return 0;
 }
 
 /**

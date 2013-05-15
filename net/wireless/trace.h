@@ -1786,6 +1786,61 @@ TRACE_EVENT(rdev_set_mac_acl,
 		  WIPHY_PR_ARG, NETDEV_PR_ARG, __entry->acl_policy)
 );
 
+TRACE_EVENT(rdev_update_ft_ies,
+	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
+		 struct cfg80211_update_ft_ies_params *ftie),
+	TP_ARGS(wiphy, netdev, ftie),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		NETDEV_ENTRY
+		__field(u16, md)
+		__dynamic_array(u8, ie, ftie->ie_len)
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		NETDEV_ASSIGN;
+		__entry->md = ftie->md;
+		memcpy(__get_dynamic_array(ie), ftie->ie, ftie->ie_len);
+	),
+	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", md: 0x%x",
+		  WIPHY_PR_ARG, NETDEV_PR_ARG, __entry->md)
+);
+
+TRACE_EVENT(rdev_crit_proto_start,
+	TP_PROTO(struct wiphy *wiphy, struct wireless_dev *wdev,
+		 enum nl80211_crit_proto_id protocol, u16 duration),
+	TP_ARGS(wiphy, wdev, protocol, duration),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		WDEV_ENTRY
+		__field(u16, proto)
+		__field(u16, duration)
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		WDEV_ASSIGN;
+		__entry->proto = protocol;
+		__entry->duration = duration;
+	),
+	TP_printk(WIPHY_PR_FMT ", " WDEV_PR_FMT ", proto=%x, duration=%u",
+		  WIPHY_PR_ARG, WDEV_PR_ARG, __entry->proto, __entry->duration)
+);
+
+TRACE_EVENT(rdev_crit_proto_stop,
+	TP_PROTO(struct wiphy *wiphy, struct wireless_dev *wdev),
+	TP_ARGS(wiphy, wdev),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		WDEV_ENTRY
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		WDEV_ASSIGN;
+	),
+	TP_printk(WIPHY_PR_FMT ", " WDEV_PR_FMT,
+		  WIPHY_PR_ARG, WDEV_PR_ARG)
+);
+
 /*************************************************************
  *	     cfg80211 exported functions traces		     *
  *************************************************************/
@@ -2412,6 +2467,32 @@ TRACE_EVENT(cfg80211_report_wowlan_wakeup,
 			       wakeup->packet_present_len);
 	),
 	TP_printk(WIPHY_PR_FMT ", " WDEV_PR_FMT, WIPHY_PR_ARG, WDEV_PR_ARG)
+);
+
+TRACE_EVENT(cfg80211_ft_event,
+	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
+		 struct cfg80211_ft_event_params *ft_event),
+	TP_ARGS(wiphy, netdev, ft_event),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		NETDEV_ENTRY
+		__dynamic_array(u8, ies, ft_event->ies_len)
+		MAC_ENTRY(target_ap)
+		__dynamic_array(u8, ric_ies, ft_event->ric_ies_len)
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		NETDEV_ASSIGN;
+		if (ft_event->ies)
+			memcpy(__get_dynamic_array(ies), ft_event->ies,
+			       ft_event->ies_len);
+		MAC_ASSIGN(target_ap, ft_event->target_ap);
+		if (ft_event->ric_ies)
+			memcpy(__get_dynamic_array(ric_ies), ft_event->ric_ies,
+			       ft_event->ric_ies_len);
+	),
+	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", target_ap: " MAC_PR_FMT,
+		  WIPHY_PR_ARG, NETDEV_PR_ARG, MAC_PR_ARG(target_ap))
 );
 
 #endif /* !__RDEV_OPS_TRACE || TRACE_HEADER_MULTI_READ */

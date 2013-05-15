@@ -82,11 +82,6 @@ config GENERIC_HWEIGHT
 	bool
 	default y
 
-config GENERIC_GPIO
-	bool
-	help
-	  Generic GPIO API support
-
 config PPC
 	bool
 	default y
@@ -114,7 +109,6 @@ config PPC
 	select USE_GENERIC_SMP_HELPERS if SMP
 	select HAVE_OPROFILE
 	select HAVE_DEBUG_KMEMLEAK
-	select HAVE_SYSCALL_WRAPPERS if PPC64
 	select GENERIC_ATOMIC64 if PPC32
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
 	select HAVE_PERF_EVENTS
@@ -428,11 +422,6 @@ config NODES_SHIFT
 	default "4"
 	depends on NEED_MULTIPLE_NODES
 
-config MAX_ACTIVE_REGIONS
-	int
-	default "256" if PPC64
-	default "32"
-
 config ARCH_SELECT_MEMORY_MODEL
 	def_bool y
 	depends on PPC64
@@ -647,14 +636,14 @@ menu "Bus options"
 
 config ISA
 	bool "Support for ISA-bus hardware"
-	depends on PPC_PREP || PPC_CHRP
+	depends on PPC_CHRP
 	select PPC_I8259
 	help
 	  Find out whether you have ISA slots on your motherboard.  ISA is the
 	  name of a bus system, i.e. the way the CPU talks to the other stuff
 	  inside your box.  If you have an Apple machine, say N here; if you
-	  have an IBM RS/6000 or pSeries machine or a PReP machine, say Y.  If
-	  you have an embedded board, consult your board documentation.
+	  have an IBM RS/6000 or pSeries machine, say Y.  If you have an
+	  embedded board, consult your board documentation.
 
 config ZONE_DMA
 	bool
@@ -686,7 +675,6 @@ config SBUS
 config FSL_SOC
 	bool
 	select HAVE_CAN_FLEXCAN if NET && CAN
-	select PPC_CLOCK
 
 config FSL_PCI
  	bool
@@ -745,7 +733,6 @@ config PCI
 	bool "PCI support" if PPC_PCI_CHOICE
 	default y if !40x && !CPM2 && !8xx && !PPC_83xx \
 		&& !PPC_85xx && !PPC_86xx && !GAMECUBE_COMMON
-	default PCI_PERMEDIA if !4xx && !CPM2 && !8xx
 	default PCI_QSPAN if !4xx && !CPM2 && 8xx
 	select ARCH_SUPPORTS_MSI
 	select GENERIC_PCI_IOMAP
@@ -773,11 +760,6 @@ config PCI_8260
 	bool
 	depends on PCI && 8260
 	select PPC_INDIRECT_PCI
-	default y
-
-config 8260_PCI9
-	bool "Enable workaround for MPC826x erratum PCI 9"
-	depends on PCI_8260 && !8272
 	default y
 
 source "drivers/pci/pcie/Kconfig"
@@ -969,7 +951,7 @@ config TASK_SIZE_BOOL
 
 config TASK_SIZE
 	hex "Size of user task space" if TASK_SIZE_BOOL
-	default "0x80000000" if PPC_PREP || PPC_8xx
+	default "0x80000000" if PPC_8xx
 	default "0xc0000000"
 
 config CONSISTENT_SIZE_BOOL

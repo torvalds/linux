@@ -1997,24 +1997,39 @@ out:
 	return ret;
 }
 
+static unsigned long lba_to_map_index(sector_t lba)
+{
+	if (scsi_debug_unmap_alignment) {
+		lba += scsi_debug_unmap_granularity -
+			scsi_debug_unmap_alignment;
+	}
+	do_div(lba, scsi_debug_unmap_granularity);
+
+	return lba;
+}
+
+static sector_t map_index_to_lba(unsigned long index)
+{
+	return index * scsi_debug_unmap_granularity -
+		scsi_debug_unmap_alignment;
+}
+
 static unsigned int map_state(sector_t lba, unsigned int *num)
 {
-	unsigned int granularity, alignment, mapped;
-	sector_t block, next, end;
+	sector_t end;
+	unsigned int mapped;
+	unsigned long index;
+	unsigned long next;
 
-	granularity = scsi_debug_unmap_granularity;
-	alignment = granularity - scsi_debug_unmap_alignment;
-	block = lba + alignment;
-	do_div(block, granularity);
-
-	mapped = test_bit(block, map_storep);
+	index = lba_to_map_index(lba);
+	mapped = test_bit(index, map_storep);
 
 	if (mapped)
-		next = find_next_zero_bit(map_storep, map_size, block);
+		next = find_next_zero_bit(map_storep, map_size, index);
 	else
-		next = find_next_bit(map_storep, map_size, block);
+		next = find_next_bit(map_storep, map_size, index);
 
-	end = next * granularity - scsi_debug_unmap_alignment;
+	end = min_t(sector_t, sdebug_store_sectors,  map_index_to_lba(next));
 	*num = end - lba;
 
 	return mapped;
@@ -2022,47 +2037,37 @@ static unsigned int map_state(sector_t lba, unsigned int *num)
 
 static void map_region(sector_t lba, unsigned int len)
 {
-	unsigned int granularity, alignment;
 	sector_t end = lba + len;
 
-	granularity = scsi_debug_unmap_granularity;
-	alignment = granularity - scsi_debug_unmap_alignment;
-
 	while (lba < end) {
-		sector_t block, rem;
+		unsigned long index = lba_to_map_index(lba);
 
-		block = lba + alignment;
-		rem = do_div(block, granularity);
+		if (index < map_size)
+			set_bit(index, map_storep);
 
-		if (block < map_size)
-			set_bit(block, map_storep);
-
-		lba += granularity - rem;
+		lba = map_index_to_lba(index + 1);
 	}
 }
 
 static void unmap_region(sector_t lba, unsigned int len)
 {
-	unsigned int granularity, alignment;
 	sector_t end = lba + len;
 
-	granularity = scsi_debug_unmap_granularity;
-	alignment = granularity - scsi_debug_unmap_alignment;
-
 	while (lba < end) {
-		sector_t block, rem;
+		unsigned long index = lba_to_map_index(lba);
 
-		block = lba + alignment;
-		rem = do_div(block, granularity);
-
-		if (rem == 0 && lba + granularity < end && block < map_size) {
-			clear_bit(block, map_storep);
-			if (scsi_debug_lbprz)
+		if (lba == map_index_to_lba(index) &&
+		    lba + scsi_debug_unmap_granularity <= end &&
+		    index < map_size) {
+			clear_bit(index, map_storep);
+			if (scsi_debug_lbprz) {
 				memset(fake_storep +
-				       block * scsi_debug_sector_size, 0,
-				       scsi_debug_sector_size);
+				       lba * scsi_debug_sector_size, 0,
+				       scsi_debug_sector_size *
+				       scsi_debug_unmap_granularity);
+			}
 		}
-		lba += granularity - rem;
+		lba = map_index_to_lba(index + 1);
 	}
 }
 
@@ -2089,7 +2094,7 @@ static int resp_write(struct scsi_cmnd *SCpnt, unsigned long long lba,
 
 	write_lock_irqsave(&atomic_rw, iflags);
 	ret = do_device_access(SCpnt, devip, lba, num, 1);
-	if (scsi_debug_unmap_granularity)
+	if (scsi_debug_lbp())
 		map_region(lba, num);
 	write_unlock_irqrestore(&atomic_rw, iflags);
 	if (-1 == ret)
@@ -2122,7 +2127,7 @@ static int resp_write_same(struct scsi_cmnd *scmd, unsigned long long lba,
 
 	write_lock_irqsave(&atomic_rw, iflags);
 
-	if (unmap && scsi_debug_unmap_granularity) {
+	if (unmap && scsi_debug_lbp()) {
 		unmap_region(lba, num);
 		goto out;
 	}
@@ -2146,7 +2151,7 @@ static int resp_write_same(struct scsi_cmnd *scmd, unsigned long long lba,
 		       fake_storep + (lba * scsi_debug_sector_size),
 		       scsi_debug_sector_size);
 
-	if (scsi_debug_unmap_granularity)
+	if (scsi_debug_lbp())
 		map_region(lba, num);
 out:
 	write_unlock_irqrestore(&atomic_rw, iflags);
@@ -2823,31 +2828,27 @@ static const char * scsi_debug_info(struct Scsi_Host * shp)
 /* scsi_debug_proc_info
  * Used if the driver currently has no own support for /proc/scsi
  */
-static int scsi_debug_proc_info(struct Scsi_Host *host, char *buffer, char **start, off_t offset,
-				int length, int inout)
+static int scsi_debug_write_info(struct Scsi_Host *host, char *buffer, int length)
 {
-	int len, pos, begin;
-	int orig_length;
+	char arr[16];
+	int opts;
+	int minLen = length > 15 ? 15 : length;
 
-	orig_length = length;
+	if (!capable(CAP_SYS_ADMIN) || !capable(CAP_SYS_RAWIO))
+		return -EACCES;
+	memcpy(arr, buffer, minLen);
+	arr[minLen] = '\0';
+	if (1 != sscanf(arr, "%d", &opts))
+		return -EINVAL;
+	scsi_debug_opts = opts;
+	if (scsi_debug_every_nth != 0)
+		scsi_debug_cmnd_count = 0;
+	return length;
+}
 
-	if (inout == 1) {
-		char arr[16];
-		int minLen = length > 15 ? 15 : length;
-
-		if (!capable(CAP_SYS_ADMIN) || !capable(CAP_SYS_RAWIO))
-			return -EACCES;
-		memcpy(arr, buffer, minLen);
-		arr[minLen] = '\0';
-		if (1 != sscanf(arr, "%d", &pos))
-			return -EINVAL;
-		scsi_debug_opts = pos;
-		if (scsi_debug_every_nth != 0)
-                        scsi_debug_cmnd_count = 0;
-		return length;
-	}
-	begin = 0;
-	pos = len = sprintf(buffer, "scsi_debug adapter driver, version "
+static int scsi_debug_show_info(struct seq_file *m, struct Scsi_Host *host)
+{
+	seq_printf(m, "scsi_debug adapter driver, version "
 	    "%s [%s]\n"
 	    "num_tgts=%d, shared (ram) size=%d MB, opts=0x%x, "
 	    "every_nth=%d(curr:%d)\n"
@@ -2862,15 +2863,7 @@ static int scsi_debug_proc_info(struct Scsi_Host *host, char *buffer, char **sta
 	    scsi_debug_sector_size, sdebug_cylinders_per, sdebug_heads,
 	    sdebug_sectors_per, num_aborts, num_dev_resets, num_bus_resets,
 	    num_host_resets, dix_reads, dix_writes, dif_errors);
-	if (pos < offset) {
-		len = 0;
-		begin = pos;
-	}
-	*start = buffer + (offset - begin);	/* Start of wanted data */
-	len -= (offset - begin);
-	if (len > length)
-		len = length;
-	return len;
+	return 0;
 }
 
 static ssize_t sdebug_delay_show(struct device_driver * ddp, char * buf)
@@ -3401,8 +3394,6 @@ static int __init scsi_debug_init(void)
 
 	/* Logical Block Provisioning */
 	if (scsi_debug_lbp()) {
-		unsigned int map_bytes;
-
 		scsi_debug_unmap_max_blocks =
 			clamp(scsi_debug_unmap_max_blocks, 0U, 0xffffffffU);
 
@@ -3413,16 +3404,16 @@ static int __init scsi_debug_init(void)
 			clamp(scsi_debug_unmap_granularity, 1U, 0xffffffffU);
 
 		if (scsi_debug_unmap_alignment &&
-		    scsi_debug_unmap_granularity < scsi_debug_unmap_alignment) {
+		    scsi_debug_unmap_granularity <=
+		    scsi_debug_unmap_alignment) {
 			printk(KERN_ERR
-			       "%s: ERR: unmap_granularity < unmap_alignment\n",
+			       "%s: ERR: unmap_granularity <= unmap_alignment\n",
 			       __func__);
 			return -EINVAL;
 		}
 
-		map_size = (sdebug_store_sectors / scsi_debug_unmap_granularity);
-		map_bytes = map_size >> 3;
-		map_storep = vmalloc(map_bytes);
+		map_size = lba_to_map_index(sdebug_store_sectors - 1) + 1;
+		map_storep = vmalloc(BITS_TO_LONGS(map_size) * sizeof(long));
 
 		printk(KERN_INFO "scsi_debug_init: %lu provisioning blocks\n",
 		       map_size);
@@ -3433,7 +3424,7 @@ static int __init scsi_debug_init(void)
 			goto free_vm;
 		}
 
-		memset(map_storep, 0x0, map_bytes);
+		bitmap_zero(map_storep, map_size);
 
 		/* Map first 1KB for partition table */
 		if (scsi_debug_num_parts)
@@ -3957,7 +3948,8 @@ write:
 static DEF_SCSI_QCMD(scsi_debug_queuecommand)
 
 static struct scsi_host_template sdebug_driver_template = {
-	.proc_info =		scsi_debug_proc_info,
+	.show_info =		scsi_debug_show_info,
+	.write_info =		scsi_debug_write_info,
 	.proc_name =		sdebug_proc_name,
 	.name =			"SCSI DEBUG",
 	.info =			scsi_debug_info,

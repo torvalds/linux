@@ -147,7 +147,7 @@ good_area:
 	}
 	info.si_errno = 0;
 	info.si_addr = (void __user *)address;
-	force_sig_info(info.si_code, &info, current);
+	force_sig_info(info.si_signo, &info, current);
 	return;
 
 bad_area:
@@ -158,7 +158,7 @@ bad_area:
 		info.si_errno = 0;
 		info.si_code = si_code;
 		info.si_addr = (void *)address;
-		force_sig_info(SIGSEGV, &info, current);
+		force_sig_info(info.si_signo, &info, current);
 		return;
 	}
 	/* Kernel-mode fault falls through */

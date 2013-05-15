@@ -6,7 +6,6 @@ source "arch/powerpc/platforms/chrp/Kconfig"
 source "arch/powerpc/platforms/512x/Kconfig"
 source "arch/powerpc/platforms/52xx/Kconfig"
 source "arch/powerpc/platforms/powermac/Kconfig"
-source "arch/powerpc/platforms/prep/Kconfig"
 source "arch/powerpc/platforms/maple/Kconfig"
 source "arch/powerpc/platforms/pasemi/Kconfig"
 source "arch/powerpc/platforms/ps3/Kconfig"
@@ -233,7 +232,7 @@ endmenu
 
 config PPC601_SYNC_FIX
 	bool "Workarounds for PPC601 bugs"
-	depends on 6xx && (PPC_PREP || PPC_PMAC)
+	depends on 6xx && PPC_PMAC
 	help
 	  Some versions of the PPC601 (the first PowerPC chip) have bugs which
 	  mean that extra synchronization instructions are required near
@@ -303,7 +302,6 @@ config QUICC_ENGINE
 config QE_GPIO
 	bool "QE GPIO support"
 	depends on QUICC_ENGINE
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	help
 	  Say Y here if you're going to use hardware that connects to the
@@ -316,7 +314,6 @@ config CPM2
 	select PPC_LIB_RHEAP
 	select PPC_PCI_CHOICE
 	select ARCH_REQUIRE_GPIOLIB
-	select GENERIC_GPIO
 	help
 	  The CPM2 (Communications Processor Module) is a coprocessor on
 	  embedded CPUs made by Freescale.  Selecting this option means that
@@ -344,7 +341,6 @@ config FSL_ULI1575
 
 config CPM
 	bool
-	select PPC_CLOCK
 
 config OF_RTC
 	bool
@@ -355,7 +351,6 @@ config OF_RTC
 config SIMPLE_GPIO
 	bool "Support for simple, memory-mapped GPIO controllers"
 	depends on PPC
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	help
 	  Say Y here to support simple, memory-mapped GPIO controllers.
@@ -366,7 +361,6 @@ config SIMPLE_GPIO
 config MCU_MPC8349EMITX
 	bool "MPC8349E-mITX MCU driver"
 	depends on I2C=y && PPC_83xx
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	help
 	  Say Y here to enable soft power-off functionality on the Freescale

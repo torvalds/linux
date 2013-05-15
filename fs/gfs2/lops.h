@@ -55,12 +55,13 @@ static inline void lops_before_commit(struct gfs2_sbd *sdp)
 			gfs2_log_ops[x]->lo_before_commit(sdp);
 }
 
-static inline void lops_after_commit(struct gfs2_sbd *sdp, struct gfs2_ail *ai)
+static inline void lops_after_commit(struct gfs2_sbd *sdp,
+				     struct gfs2_trans *tr)
 {
 	int x;
 	for (x = 0; gfs2_log_ops[x]; x++)
 		if (gfs2_log_ops[x]->lo_after_commit)
-			gfs2_log_ops[x]->lo_after_commit(sdp, ai);
+			gfs2_log_ops[x]->lo_after_commit(sdp, tr);
 }
 
 static inline void lops_before_scan(struct gfs2_jdesc *jd,

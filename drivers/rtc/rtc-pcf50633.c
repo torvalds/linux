@@ -252,20 +252,17 @@ static int pcf50633_rtc_probe(struct platform_device *pdev)
 {
 	struct pcf50633_rtc *rtc;
 
-	rtc = kzalloc(sizeof(*rtc), GFP_KERNEL);
+	rtc = devm_kzalloc(&pdev->dev, sizeof(*rtc), GFP_KERNEL);
 	if (!rtc)
 		return -ENOMEM;
 
 	rtc->pcf = dev_to_pcf50633(pdev->dev.parent);
 	platform_set_drvdata(pdev, rtc);
-	rtc->rtc_dev = rtc_device_register("pcf50633-rtc", &pdev->dev,
+	rtc->rtc_dev = devm_rtc_device_register(&pdev->dev, "pcf50633-rtc",
 				&pcf50633_rtc_ops, THIS_MODULE);
 
-	if (IS_ERR(rtc->rtc_dev)) {
-		int ret =  PTR_ERR(rtc->rtc_dev);
-		kfree(rtc);
-		return ret;
-	}
+	if (IS_ERR(rtc->rtc_dev))
+		return PTR_ERR(rtc->rtc_dev);
 
 	pcf50633_register_irq(rtc->pcf, PCF50633_IRQ_ALARM,
 					pcf50633_rtc_irq, rtc);
@@ -277,11 +274,7 @@ static int pcf50633_rtc_remove(struct platform_device *pdev)
 	struct pcf50633_rtc *rtc;
 
 	rtc = platform_get_drvdata(pdev);
-
 	pcf50633_free_irq(rtc->pcf, PCF50633_IRQ_ALARM);
-
-	rtc_device_unregister(rtc->rtc_dev);
-	kfree(rtc);
 
 	return 0;
 }

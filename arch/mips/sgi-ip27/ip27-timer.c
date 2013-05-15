@@ -69,7 +69,7 @@ static void rt_set_mode(enum clock_event_mode mode,
 	/* Nothing to do ...  */
 }
 
-int rt_timer_irq;
+unsigned int rt_timer_irq;
 
 static DEFINE_PER_CPU(struct clock_event_device, hub_rt_clockevent);
 static DEFINE_PER_CPU(char [11], hub_rt_name);

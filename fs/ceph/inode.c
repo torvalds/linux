@@ -302,7 +302,8 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 	ci->i_version = 0;
 	ci->i_time_warp_seq = 0;
 	ci->i_ceph_flags = 0;
-	ci->i_release_count = 0;
+	atomic_set(&ci->i_release_count, 1);
+	atomic_set(&ci->i_complete_count, 0);
 	ci->i_symlink = NULL;
 
 	memset(&ci->i_dir_layout, 0, sizeof(ci->i_dir_layout));
@@ -561,7 +562,6 @@ static int fill_inode(struct inode *inode,
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	int i;
 	int issued = 0, implemented;
-	int updating_inode = 0;
 	struct timespec mtime, atime, ctime;
 	u32 nsplits;
 	struct ceph_buffer *xattr_blob = NULL;
@@ -601,7 +601,6 @@ static int fill_inode(struct inode *inode,
 	    (ci->i_version & ~1) >= le64_to_cpu(info->version))
 		goto no_change;
 	
-	updating_inode = 1;
 	issued = __ceph_caps_issued(ci, &implemented);
 	issued |= implemented | __ceph_caps_dirty(ci);
 
@@ -717,6 +716,17 @@ static int fill_inode(struct inode *inode,
 		       ceph_vinop(inode), inode->i_mode);
 	}
 
+	/* set dir completion flag? */
+	if (S_ISDIR(inode->i_mode) &&
+	    ci->i_files == 0 && ci->i_subdirs == 0 &&
+	    ceph_snap(inode) == CEPH_NOSNAP &&
+	    (le32_to_cpu(info->cap.caps) & CEPH_CAP_FILE_SHARED) &&
+	    (issued & CEPH_CAP_FILE_EXCL) == 0 &&
+	    !__ceph_dir_is_complete(ci)) {
+		dout(" marking %p complete (empty)\n", inode);
+		__ceph_dir_set_complete(ci, atomic_read(&ci->i_release_count));
+		ci->i_max_offset = 2;
+	}
 no_change:
 	spin_unlock(&ci->i_ceph_lock);
 
@@ -765,19 +775,6 @@ no_change:
 		pr_warning("mds issued no caps on %llx.%llx\n",
 			   ceph_vinop(inode));
 		__ceph_get_fmode(ci, cap_fmode);
-	}
-
-	/* set dir completion flag? */
-	if (S_ISDIR(inode->i_mode) &&
-	    updating_inode &&                 /* didn't jump to no_change */
-	    ci->i_files == 0 && ci->i_subdirs == 0 &&
-	    ceph_snap(inode) == CEPH_NOSNAP &&
-	    (le32_to_cpu(info->cap.caps) & CEPH_CAP_FILE_SHARED) &&
-	    (issued & CEPH_CAP_FILE_EXCL) == 0 &&
-	    !ceph_dir_test_complete(inode)) {
-		dout(" marking %p complete (empty)\n", inode);
-		ceph_dir_set_complete(inode);
-		ci->i_max_offset = 2;
 	}
 
 	/* update delegation info? */
@@ -861,7 +858,7 @@ static void ceph_set_dentry_offset(struct dentry *dn)
 	di = ceph_dentry(dn);
 
 	spin_lock(&ci->i_ceph_lock);
-	if (!ceph_dir_test_complete(inode)) {
+	if (!__ceph_dir_is_complete(ci)) {
 		spin_unlock(&ci->i_ceph_lock);
 		return;
 	}
@@ -1065,8 +1062,8 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 			/*
 			 * d_move() puts the renamed dentry at the end of
 			 * d_subdirs.  We need to assign it an appropriate
-			 * directory offset so we can behave when holding
-			 * D_COMPLETE.
+			 * directory offset so we can behave when dir is
+			 * complete.
 			 */
 			ceph_set_dentry_offset(req->r_old_dentry);
 			dout("dn %p gets new offset %lld\n", req->r_old_dentry, 
@@ -1457,7 +1454,7 @@ out:
 
 
 /*
- * called by trunc_wq; take i_mutex ourselves
+ * called by trunc_wq;
  *
  * We also truncate in a separate thread as well.
  */
@@ -1468,9 +1465,7 @@ static void ceph_vmtruncate_work(struct work_struct *work)
 	struct inode *inode = &ci->vfs_inode;
 
 	dout("vmtruncate_work %p\n", inode);
-	mutex_lock(&inode->i_mutex);
-	__ceph_do_pending_vmtruncate(inode);
-	mutex_unlock(&inode->i_mutex);
+	__ceph_do_pending_vmtruncate(inode, true);
 	iput(inode);
 }
 
@@ -1494,12 +1489,10 @@ void ceph_queue_vmtruncate(struct inode *inode)
 }
 
 /*
- * called with i_mutex held.
- *
  * Make sure any pending truncation is applied before doing anything
  * that may depend on it.
  */
-void __ceph_do_pending_vmtruncate(struct inode *inode)
+void __ceph_do_pending_vmtruncate(struct inode *inode, bool needlock)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	u64 to;
@@ -1532,7 +1525,11 @@ retry:
 	     ci->i_truncate_pending, to);
 	spin_unlock(&ci->i_ceph_lock);
 
+	if (needlock)
+		mutex_lock(&inode->i_mutex);
 	truncate_inode_pages(inode->i_mapping, to);
+	if (needlock)
+		mutex_unlock(&inode->i_mutex);
 
 	spin_lock(&ci->i_ceph_lock);
 	if (to == ci->i_truncate_size) {
@@ -1563,6 +1560,12 @@ static void *ceph_sym_follow_link(struct dentry *dentry, struct nameidata *nd)
 static const struct inode_operations ceph_symlink_iops = {
 	.readlink = generic_readlink,
 	.follow_link = ceph_sym_follow_link,
+	.setattr = ceph_setattr,
+	.getattr = ceph_getattr,
+	.setxattr = ceph_setxattr,
+	.getxattr = ceph_getxattr,
+	.listxattr = ceph_listxattr,
+	.removexattr = ceph_removexattr,
 };
 
 /*
@@ -1585,7 +1588,7 @@ int ceph_setattr(struct dentry *dentry, struct iattr *attr)
 	if (ceph_snap(inode) != CEPH_NOSNAP)
 		return -EROFS;
 
-	__ceph_do_pending_vmtruncate(inode);
+	__ceph_do_pending_vmtruncate(inode, false);
 
 	err = inode_change_ok(inode, attr);
 	if (err != 0)
@@ -1767,7 +1770,7 @@ int ceph_setattr(struct dentry *dentry, struct iattr *attr)
 	     ceph_cap_string(dirtied), mask);
 
 	ceph_mdsc_put_request(req);
-	__ceph_do_pending_vmtruncate(inode);
+	__ceph_do_pending_vmtruncate(inode, false);
 	return err;
 out:
 	spin_unlock(&ci->i_ceph_lock);

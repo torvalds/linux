@@ -39,8 +39,11 @@ static inline void kref_init(struct kref *kref)
  */
 static inline void kref_get(struct kref *kref)
 {
-	WARN_ON(!atomic_read(&kref->refcount));
-	atomic_inc(&kref->refcount);
+	/* If refcount was 0 before incrementing then we have a race
+	 * condition when this kref is freeing by some other thread right now.
+	 * In this case one should use kref_get_unless_zero()
+	 */
+	WARN_ON_ONCE(atomic_inc_return(&kref->refcount) < 2);
 }
 
 /**
@@ -100,7 +103,7 @@ static inline int kref_put_mutex(struct kref *kref,
 				 struct mutex *lock)
 {
 	WARN_ON(release == NULL);
-        if (unlikely(!atomic_add_unless(&kref->refcount, -1, 1))) {
+	if (unlikely(!atomic_add_unless(&kref->refcount, -1, 1))) {
 		mutex_lock(lock);
 		if (unlikely(!atomic_dec_and_test(&kref->refcount))) {
 			mutex_unlock(lock);

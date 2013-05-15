@@ -34,6 +34,17 @@ struct kvm_vcpu;
 #define	IOAPIC_INIT			0x5
 #define	IOAPIC_EXTINT			0x7
 
+#ifdef CONFIG_X86
+#define RTC_GSI 8
+#else
+#define RTC_GSI -1U
+#endif
+
+struct rtc_status {
+	int pending_eoi;
+	DECLARE_BITMAP(dest_map, KVM_MAX_VCPUS);
+};
+
 struct kvm_ioapic {
 	u64 base_address;
 	u32 ioregsel;
@@ -47,6 +58,7 @@ struct kvm_ioapic {
 	void (*ack_notifier)(void *opaque, int irq);
 	spinlock_t lock;
 	DECLARE_BITMAP(handled_vectors, 256);
+	struct rtc_status rtc_status;
 };
 
 #ifdef DEBUG
@@ -67,24 +79,25 @@ static inline struct kvm_ioapic *ioapic_irqchip(struct kvm *kvm)
 	return kvm->arch.vioapic;
 }
 
+void kvm_rtc_eoi_tracking_restore_one(struct kvm_vcpu *vcpu);
 int kvm_apic_match_dest(struct kvm_vcpu *vcpu, struct kvm_lapic *source,
 		int short_hand, int dest, int dest_mode);
 int kvm_apic_compare_prio(struct kvm_vcpu *vcpu1, struct kvm_vcpu *vcpu2);
-void kvm_ioapic_update_eoi(struct kvm *kvm, int vector, int trigger_mode);
+void kvm_ioapic_update_eoi(struct kvm_vcpu *vcpu, int vector,
+			int trigger_mode);
 bool kvm_ioapic_handles_vector(struct kvm *kvm, int vector);
 int kvm_ioapic_init(struct kvm *kvm);
 void kvm_ioapic_destroy(struct kvm *kvm);
 int kvm_ioapic_set_irq(struct kvm_ioapic *ioapic, int irq, int irq_source_id,
-		       int level);
+		       int level, bool line_status);
 void kvm_ioapic_clear_all(struct kvm_ioapic *ioapic, int irq_source_id);
 void kvm_ioapic_reset(struct kvm_ioapic *ioapic);
 int kvm_irq_delivery_to_apic(struct kvm *kvm, struct kvm_lapic *src,
-		struct kvm_lapic_irq *irq);
+		struct kvm_lapic_irq *irq, unsigned long *dest_map);
 int kvm_get_ioapic(struct kvm *kvm, struct kvm_ioapic_state *state);
 int kvm_set_ioapic(struct kvm *kvm, struct kvm_ioapic_state *state);
-void kvm_ioapic_make_eoibitmap_request(struct kvm *kvm);
-void kvm_ioapic_calculate_eoi_exitmap(struct kvm_vcpu *vcpu,
-					u64 *eoi_exit_bitmap);
-
+void kvm_vcpu_request_scan_ioapic(struct kvm *kvm);
+void kvm_ioapic_scan_entry(struct kvm_vcpu *vcpu, u64 *eoi_exit_bitmap,
+			u32 *tmr);
 
 #endif

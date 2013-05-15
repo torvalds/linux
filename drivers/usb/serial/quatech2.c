@@ -116,7 +116,6 @@ struct qt2_serial_private {
 };
 
 struct qt2_port_private {
-	bool is_open;
 	u8   device_port;
 
 	spinlock_t urb_lock;
@@ -127,8 +126,6 @@ struct qt2_port_private {
 	spinlock_t  lock;
 	u8          shadowLSR;
 	u8          shadowMSR;
-
-	struct async_icount icount;
 
 	struct usb_serial_port *port;
 };
@@ -397,7 +394,6 @@ static int qt2_open(struct tty_struct *tty, struct usb_serial_port *port)
 		return status;
 	}
 
-	port_priv->is_open = true;
 	port_priv->device_port = (u8) device_port;
 
 	if (tty)
@@ -417,18 +413,10 @@ static void qt2_close(struct usb_serial_port *port)
 	serial = port->serial;
 	port_priv = usb_get_serial_port_data(port);
 
-	port_priv->is_open = false;
-
 	spin_lock_irqsave(&port_priv->urb_lock, flags);
 	usb_kill_urb(port_priv->write_urb);
 	port_priv->urb_in_use = false;
 	spin_unlock_irqrestore(&port_priv->urb_lock, flags);
-
-	mutex_lock(&port->serial->disc_mutex);
-	if (port->serial->disconnected) {
-		mutex_unlock(&port->serial->disc_mutex);
-		return;
-	}
 
 	/* flush the port transmit buffer */
 	i = usb_control_msg(serial->dev,
@@ -460,8 +448,6 @@ static void qt2_close(struct usb_serial_port *port)
 	if (i < 0)
 		dev_err(&port->dev, "%s - close port failed %i\n",
 			__func__, i);
-
-	mutex_unlock(&port->serial->disc_mutex);
 }
 
 static void qt2_disconnect(struct usb_serial *serial)
@@ -494,71 +480,6 @@ static int get_serial_info(struct usb_serial_port *port,
 	return 0;
 }
 
-static int wait_modem_info(struct usb_serial_port *port, unsigned int arg)
-{
-	struct qt2_port_private *priv = usb_get_serial_port_data(port);
-	struct async_icount prev, cur;
-	unsigned long flags;
-
-	spin_lock_irqsave(&priv->lock, flags);
-	prev = priv->icount;
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	while (1) {
-		wait_event_interruptible(port->delta_msr_wait,
-					 (port->serial->disconnected ||
-					  (priv->icount.rng != prev.rng) ||
-					  (priv->icount.dsr != prev.dsr) ||
-					  (priv->icount.dcd != prev.dcd) ||
-					  (priv->icount.cts != prev.cts)));
-
-		if (signal_pending(current))
-			return -ERESTARTSYS;
-
-		if (port->serial->disconnected)
-			return -EIO;
-
-		spin_lock_irqsave(&priv->lock, flags);
-		cur = priv->icount;
-		spin_unlock_irqrestore(&priv->lock, flags);
-
-		if ((prev.rng == cur.rng) &&
-		    (prev.dsr == cur.dsr) &&
-		    (prev.dcd == cur.dcd) &&
-		    (prev.cts == cur.cts))
-			return -EIO;
-
-		if ((arg & TIOCM_RNG && (prev.rng != cur.rng)) ||
-		    (arg & TIOCM_DSR && (prev.dsr != cur.dsr)) ||
-		    (arg & TIOCM_CD && (prev.dcd != cur.dcd)) ||
-		    (arg & TIOCM_CTS && (prev.cts != cur.cts)))
-			return 0;
-	}
-	return 0;
-}
-
-static int qt2_get_icount(struct tty_struct *tty,
-			  struct serial_icounter_struct *icount)
-{
-	struct usb_serial_port *port = tty->driver_data;
-	struct qt2_port_private *priv = usb_get_serial_port_data(port);
-	struct async_icount cnow = priv->icount;
-
-	icount->cts = cnow.cts;
-	icount->dsr = cnow.dsr;
-	icount->rng = cnow.rng;
-	icount->dcd = cnow.dcd;
-	icount->rx = cnow.rx;
-	icount->tx = cnow.tx;
-	icount->frame = cnow.frame;
-	icount->overrun = cnow.overrun;
-	icount->parity = cnow.parity;
-	icount->brk = cnow.brk;
-	icount->buf_overrun = cnow.buf_overrun;
-
-	return 0;
-}
-
 static int qt2_ioctl(struct tty_struct *tty,
 		     unsigned int cmd, unsigned long arg)
 {
@@ -568,10 +489,6 @@ static int qt2_ioctl(struct tty_struct *tty,
 	case TIOCGSERIAL:
 		return get_serial_info(port,
 				       (struct serial_struct __user *)arg);
-
-	case TIOCMIWAIT:
-		return wait_modem_info(port, arg);
-
 	default:
 		break;
 	}
@@ -664,9 +581,7 @@ void qt2_process_read_urb(struct urb *urb)
 						 __func__);
 					break;
 				}
-
-				if (port_priv->is_open)
-					tty_flip_buffer_push(&port->port);
+				tty_flip_buffer_push(&port->port);
 
 				newport = *(ch + 3);
 
@@ -709,8 +624,7 @@ void qt2_process_read_urb(struct urb *urb)
 		tty_insert_flip_string(&port->port, ch, 1);
 	}
 
-	if (port_priv->is_open)
-		tty_flip_buffer_push(&port->port);
+	tty_flip_buffer_push(&port->port);
 }
 
 static void qt2_write_bulk_callback(struct urb *urb)
@@ -910,12 +824,6 @@ static void qt2_break_ctl(struct tty_struct *tty, int break_state)
 
 	port_priv = usb_get_serial_port_data(port);
 
-	if (!port_priv->is_open) {
-		dev_err(&port->dev,
-			"%s - port is not open\n", __func__);
-		return;
-	}
-
 	val = (break_state == -1) ? 1 : 0;
 
 	status = qt2_control_msg(port->serial->dev, QT2_BREAK_CONTROL,
@@ -961,18 +869,15 @@ static void qt2_update_msr(struct usb_serial_port *port, unsigned char *ch)
 	if (newMSR & UART_MSR_ANY_DELTA) {
 		/* update input line counters */
 		if (newMSR & UART_MSR_DCTS)
-			port_priv->icount.cts++;
-
+			port->icount.cts++;
 		if (newMSR & UART_MSR_DDSR)
-			port_priv->icount.dsr++;
-
+			port->icount.dsr++;
 		if (newMSR & UART_MSR_DDCD)
-			port_priv->icount.dcd++;
-
+			port->icount.dcd++;
 		if (newMSR & UART_MSR_TERI)
-			port_priv->icount.rng++;
+			port->icount.rng++;
 
-		wake_up_interruptible(&port->delta_msr_wait);
+		wake_up_interruptible(&port->port.delta_msr_wait);
 	}
 }
 
@@ -992,7 +897,7 @@ static void qt2_update_lsr(struct usb_serial_port *port, unsigned char *ch)
 	port_priv->shadowLSR = newLSR;
 	spin_unlock_irqrestore(&port_priv->lock, flags);
 
-	icount = &port_priv->icount;
+	icount = &port->icount;
 
 	if (newLSR & UART_LSR_BRK_ERROR_BITS) {
 
@@ -1102,7 +1007,8 @@ static struct usb_serial_driver qt2_device = {
 	.break_ctl           = qt2_break_ctl,
 	.tiocmget            = qt2_tiocmget,
 	.tiocmset            = qt2_tiocmset,
-	.get_icount	     = qt2_get_icount,
+	.tiocmiwait          = usb_serial_generic_tiocmiwait,
+	.get_icount	     = usb_serial_generic_get_icount,
 	.ioctl               = qt2_ioctl,
 	.set_termios         = qt2_set_termios,
 };

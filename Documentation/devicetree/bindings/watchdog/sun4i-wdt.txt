@@ -1,0 +1,13 @@
+Allwinner sun4i Watchdog timer
+
+Required properties:
+
+- compatible : should be "allwinner,sun4i-wdt"
+- reg : Specifies base physical address and size of the registers.
+
+Example:
+
+wdt: watchdog@01c20c90 {
+	compatible = "allwinner,sun4i-wdt";
+	reg = <0x01c20c90 0x10>;
+};

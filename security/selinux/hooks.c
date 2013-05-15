@@ -51,6 +51,7 @@
 #include <linux/tty.h>
 #include <net/icmp.h>
 #include <net/ip.h>		/* for local_port_range[] */
+#include <net/sock.h>
 #include <net/tcp.h>		/* struct or_callable used in sock_rcv_skb */
 #include <net/net_namespace.h>
 #include <net/netlabel.h>
@@ -60,7 +61,7 @@
 #include <linux/bitops.h>
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>	/* for network interface checks */
-#include <linux/netlink.h>
+#include <net/netlink.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
 #include <linux/dccp.h>
@@ -750,7 +751,37 @@ out_double_mount:
 	goto out;
 }
 
-static void selinux_sb_clone_mnt_opts(const struct super_block *oldsb,
+static int selinux_cmp_sb_context(const struct super_block *oldsb,
+				    const struct super_block *newsb)
+{
+	struct superblock_security_struct *old = oldsb->s_security;
+	struct superblock_security_struct *new = newsb->s_security;
+	char oldflags = old->flags & SE_MNTMASK;
+	char newflags = new->flags & SE_MNTMASK;
+
+	if (oldflags != newflags)
+		goto mismatch;
+	if ((oldflags & FSCONTEXT_MNT) && old->sid != new->sid)
+		goto mismatch;
+	if ((oldflags & CONTEXT_MNT) && old->mntpoint_sid != new->mntpoint_sid)
+		goto mismatch;
+	if ((oldflags & DEFCONTEXT_MNT) && old->def_sid != new->def_sid)
+		goto mismatch;
+	if (oldflags & ROOTCONTEXT_MNT) {
+		struct inode_security_struct *oldroot = oldsb->s_root->d_inode->i_security;
+		struct inode_security_struct *newroot = newsb->s_root->d_inode->i_security;
+		if (oldroot->sid != newroot->sid)
+			goto mismatch;
+	}
+	return 0;
+mismatch:
+	printk(KERN_WARNING "SELinux: mount invalid.  Same superblock, "
+			    "different security settings for (dev %s, "
+			    "type %s)\n", newsb->s_id, newsb->s_type->name);
+	return -EBUSY;
+}
+
+static int selinux_sb_clone_mnt_opts(const struct super_block *oldsb,
 					struct super_block *newsb)
 {
 	const struct superblock_security_struct *oldsbsec = oldsb->s_security;
@@ -765,14 +796,14 @@ static void selinux_sb_clone_mnt_opts(const struct super_block *oldsb,
 	 * mount options.  thus we can safely deal with this superblock later
 	 */
 	if (!ss_initialized)
-		return;
+		return 0;
 
 	/* how can we clone if the old one wasn't set up?? */
 	BUG_ON(!(oldsbsec->flags & SE_SBINITIALIZED));
 
-	/* if fs is reusing a sb, just let its options stand... */
+	/* if fs is reusing a sb, make sure that the contexts match */
 	if (newsbsec->flags & SE_SBINITIALIZED)
-		return;
+		return selinux_cmp_sb_context(oldsb, newsb);
 
 	mutex_lock(&newsbsec->lock);
 
@@ -805,6 +836,7 @@ static void selinux_sb_clone_mnt_opts(const struct super_block *oldsb,
 
 	sb_finish_set_opts(newsb);
 	mutex_unlock(&newsbsec->lock);
+	return 0;
 }
 
 static int selinux_parse_opts_str(char *options,
@@ -4363,6 +4395,11 @@ static void selinux_inet_conn_established(struct sock *sk, struct sk_buff *skb)
 	selinux_skb_peerlbl_sid(skb, family, &sksec->peer_sid);
 }
 
+static void selinux_skb_owned_by(struct sk_buff *skb, struct sock *sk)
+{
+	skb_set_owner_w(skb, sk);
+}
+
 static int selinux_secmark_relabel_packet(u32 sid)
 {
 	const struct task_security_struct *__tsec;
@@ -4475,7 +4512,7 @@ static int selinux_nlmsg_perm(struct sock *sk, struct sk_buff *skb)
 	struct nlmsghdr *nlh;
 	struct sk_security_struct *sksec = sk->sk_security;
 
-	if (skb->len < NLMSG_SPACE(0)) {
+	if (skb->len < NLMSG_HDRLEN) {
 		err = -EINVAL;
 		goto out;
 	}
@@ -5664,6 +5701,7 @@ static struct security_operations selinux_ops = {
 	.tun_dev_attach_queue =		selinux_tun_dev_attach_queue,
 	.tun_dev_attach =		selinux_tun_dev_attach,
 	.tun_dev_open =			selinux_tun_dev_open,
+	.skb_owned_by =			selinux_skb_owned_by,
 
 #ifdef CONFIG_SECURITY_NETWORK_XFRM
 	.xfrm_policy_alloc_security =	selinux_xfrm_policy_alloc,

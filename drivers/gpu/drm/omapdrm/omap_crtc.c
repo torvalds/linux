@@ -74,6 +74,13 @@ struct omap_crtc {
 	struct work_struct page_flip_work;
 };
 
+uint32_t pipe2vbl(struct drm_crtc *crtc)
+{
+	struct omap_crtc *omap_crtc = to_omap_crtc(crtc);
+
+	return dispc_mgr_get_vsync_irq(omap_crtc->channel);
+}
+
 /*
  * Manager-ops, callbacks from output when they need to configure
  * the upstream part of the video pipe.
@@ -613,19 +620,19 @@ struct drm_crtc *omap_crtc_init(struct drm_device *dev,
 	omap_crtc->apply.pre_apply  = omap_crtc_pre_apply;
 	omap_crtc->apply.post_apply = omap_crtc_post_apply;
 
-	omap_crtc->apply_irq.irqmask = pipe2vbl(id);
+	omap_crtc->channel = channel;
+	omap_crtc->plane = plane;
+	omap_crtc->plane->crtc = crtc;
+	omap_crtc->name = channel_names[channel];
+	omap_crtc->pipe = id;
+
+	omap_crtc->apply_irq.irqmask = pipe2vbl(crtc);
 	omap_crtc->apply_irq.irq = omap_crtc_apply_irq;
 
 	omap_crtc->error_irq.irqmask =
 			dispc_mgr_get_sync_lost_irq(channel);
 	omap_crtc->error_irq.irq = omap_crtc_error_irq;
 	omap_irq_register(dev, &omap_crtc->error_irq);
-
-	omap_crtc->channel = channel;
-	omap_crtc->plane = plane;
-	omap_crtc->plane->crtc = crtc;
-	omap_crtc->name = channel_names[channel];
-	omap_crtc->pipe = id;
 
 	/* temporary: */
 	omap_crtc->mgr.id = channel;

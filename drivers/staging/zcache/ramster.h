@@ -11,10 +11,14 @@
 #ifndef _ZCACHE_RAMSTER_H_
 #define _ZCACHE_RAMSTER_H_
 
+#ifdef CONFIG_RAMSTER_MODULE
+#define CONFIG_RAMSTER
+#endif
+
 #ifdef CONFIG_RAMSTER
 #include "ramster/ramster.h"
 #else
-static inline void ramster_init(bool x, bool y, bool z)
+static inline void ramster_init(bool x, bool y, bool z, bool w)
 {
 }
 

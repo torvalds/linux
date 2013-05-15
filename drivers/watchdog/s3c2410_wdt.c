@@ -330,10 +330,9 @@ static int s3c2410wdt_probe(struct platform_device *pdev)
 	}
 
 	/* get the memory region for the watchdog timer */
-	wdt_base = devm_request_and_ioremap(dev, wdt_mem);
-	if (wdt_base == NULL) {
-		dev_err(dev, "failed to devm_request_and_ioremap() region\n");
-		ret = -ENOMEM;
+	wdt_base = devm_ioremap_resource(dev, wdt_mem);
+	if (IS_ERR(wdt_base)) {
+		ret = PTR_ERR(wdt_base);
 		goto err;
 	}
 

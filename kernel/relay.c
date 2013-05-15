@@ -234,7 +234,6 @@ static void relay_destroy_buf(struct rchan_buf *buf)
 static void relay_remove_buf(struct kref *kref)
 {
 	struct rchan_buf *buf = container_of(kref, struct rchan_buf, kref);
-	buf->chan->cb->remove_buf_file(buf->dentry);
 	relay_destroy_buf(buf);
 }
 
@@ -484,6 +483,7 @@ static void relay_close_buf(struct rchan_buf *buf)
 {
 	buf->finalized = 1;
 	del_timer_sync(&buf->timer);
+	buf->chan->cb->remove_buf_file(buf->dentry);
 	kref_put(&buf->kref, relay_remove_buf);
 }
 
@@ -588,7 +588,7 @@ struct rchan *relay_open(const char *base_filename,
 	chan->version = RELAYFS_CHANNEL_VERSION;
 	chan->n_subbufs = n_subbufs;
 	chan->subbuf_size = subbuf_size;
-	chan->alloc_size = FIX_SIZE(subbuf_size * n_subbufs);
+	chan->alloc_size = PAGE_ALIGN(subbuf_size * n_subbufs);
 	chan->parent = parent;
 	chan->private_data = private_data;
 	if (base_filename) {
@@ -1099,8 +1099,7 @@ static size_t relay_file_read_end_pos(struct rchan_buf *buf,
 static int subbuf_read_actor(size_t read_start,
 			     struct rchan_buf *buf,
 			     size_t avail,
-			     read_descriptor_t *desc,
-			     read_actor_t actor)
+			     read_descriptor_t *desc)
 {
 	void *from;
 	int ret = 0;
@@ -1121,15 +1120,13 @@ static int subbuf_read_actor(size_t read_start,
 typedef int (*subbuf_actor_t) (size_t read_start,
 			       struct rchan_buf *buf,
 			       size_t avail,
-			       read_descriptor_t *desc,
-			       read_actor_t actor);
+			       read_descriptor_t *desc);
 
 /*
  *	relay_file_read_subbufs - read count bytes, bridging subbuf boundaries
  */
 static ssize_t relay_file_read_subbufs(struct file *filp, loff_t *ppos,
 					subbuf_actor_t subbuf_actor,
-					read_actor_t actor,
 					read_descriptor_t *desc)
 {
 	struct rchan_buf *buf = filp->private_data;
@@ -1150,7 +1147,7 @@ static ssize_t relay_file_read_subbufs(struct file *filp, loff_t *ppos,
 			break;
 
 		avail = min(desc->count, avail);
-		ret = subbuf_actor(read_start, buf, avail, desc, actor);
+		ret = subbuf_actor(read_start, buf, avail, desc);
 		if (desc->error < 0)
 			break;
 
@@ -1174,8 +1171,7 @@ static ssize_t relay_file_read(struct file *filp,
 	desc.count = count;
 	desc.arg.buf = buffer;
 	desc.error = 0;
-	return relay_file_read_subbufs(filp, ppos, subbuf_read_actor,
-				       NULL, &desc);
+	return relay_file_read_subbufs(filp, ppos, subbuf_read_actor, &desc);
 }
 
 static void relay_consume_bytes(struct rchan_buf *rbuf, int bytes_consumed)

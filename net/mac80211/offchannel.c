@@ -118,9 +118,9 @@ void ieee80211_offchannel_stop_vifs(struct ieee80211_local *local)
 	 * Stop queues and transmit all frames queued by the driver
 	 * before sending nullfunc to enable powersave at the AP.
 	 */
-	ieee80211_stop_queues_by_reason(&local->hw,
+	ieee80211_stop_queues_by_reason(&local->hw, IEEE80211_MAX_QUEUE_MAP,
 					IEEE80211_QUEUE_STOP_REASON_OFFCHANNEL);
-	drv_flush(local, false);
+	ieee80211_flush_queues(local, NULL);
 
 	mutex_lock(&local->iflist_mtx);
 	list_for_each_entry(sdata, &local->interfaces, list) {
@@ -181,7 +181,7 @@ void ieee80211_offchannel_return(struct ieee80211_local *local)
 	}
 	mutex_unlock(&local->iflist_mtx);
 
-	ieee80211_wake_queues_by_reason(&local->hw,
+	ieee80211_wake_queues_by_reason(&local->hw, IEEE80211_MAX_QUEUE_MAP,
 					IEEE80211_QUEUE_STOP_REASON_OFFCHANNEL);
 }
 
@@ -277,7 +277,7 @@ void ieee80211_start_next_roc(struct ieee80211_local *local)
 			duration = 10;
 
 		ret = drv_remain_on_channel(local, roc->sdata, roc->chan,
-					    duration);
+					    duration, roc->type);
 
 		roc->started = true;
 
@@ -382,7 +382,7 @@ void ieee80211_sw_roc_work(struct work_struct *work)
 		ieee80211_roc_notify_destroy(roc, !roc->abort);
 
 		if (started) {
-			drv_flush(local, false);
+			ieee80211_flush_queues(local, NULL);
 
 			local->tmp_channel = NULL;
 			ieee80211_hw_config(local, 0);
@@ -445,15 +445,15 @@ void ieee80211_roc_setup(struct ieee80211_local *local)
 	INIT_LIST_HEAD(&local->roc_list);
 }
 
-void ieee80211_roc_purge(struct ieee80211_sub_if_data *sdata)
+void ieee80211_roc_purge(struct ieee80211_local *local,
+			 struct ieee80211_sub_if_data *sdata)
 {
-	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_roc_work *roc, *tmp;
 	LIST_HEAD(tmp_list);
 
 	mutex_lock(&local->mtx);
 	list_for_each_entry_safe(roc, tmp, &local->roc_list, list) {
-		if (roc->sdata != sdata)
+		if (sdata && roc->sdata != sdata)
 			continue;
 
 		if (roc->started && local->ops->remain_on_channel) {

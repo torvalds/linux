@@ -282,14 +282,8 @@ static void map_high_region(unsigned long start_pfn, unsigned long end_pfn)
 	printk("mapping high region %08lx - %08lx\n", start_pfn, end_pfn);
 #endif
 
-	for (tmp = start_pfn; tmp < end_pfn; tmp++) {
-		struct page *page = pfn_to_page(tmp);
-
-		ClearPageReserved(page);
-		init_page_count(page);
-		__free_page(page);
-		totalhigh_pages++;
-	}
+	for (tmp = start_pfn; tmp < end_pfn; tmp++)
+		free_highmem_page(pfn_to_page(tmp));
 }
 
 void __init mem_init(void)
@@ -347,8 +341,6 @@ void __init mem_init(void)
 		map_high_region(start_pfn, end_pfn);
 	}
 	
-	totalram_pages += totalhigh_pages;
-
 	codepages = (((unsigned long) &_etext) - ((unsigned long)&_start));
 	codepages = PAGE_ALIGN(codepages) >> PAGE_SHIFT;
 	datapages = (((unsigned long) &_edata) - ((unsigned long)&_etext));
@@ -374,45 +366,14 @@ void __init mem_init(void)
 
 void free_initmem (void)
 {
-	unsigned long addr;
-	unsigned long freed;
-
-	addr = (unsigned long)(&__init_begin);
-	freed = (unsigned long)(&__init_end) - addr;
-	for (; addr < (unsigned long)(&__init_end); addr += PAGE_SIZE) {
-		struct page *p;
-
-		memset((void *)addr, POISON_FREE_INITMEM, PAGE_SIZE);
-		p = virt_to_page(addr);
-
-		ClearPageReserved(p);
-		init_page_count(p);
-		__free_page(p);
-		totalram_pages++;
-		num_physpages++;
-	}
-	printk(KERN_INFO "Freeing unused kernel memory: %ldk freed\n",
-		freed >> 10);
+	num_physpages += free_initmem_default(POISON_FREE_INITMEM);
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
 void free_initrd_mem(unsigned long start, unsigned long end)
 {
-	if (start < end)
-		printk(KERN_INFO "Freeing initrd memory: %ldk freed\n",
-			(end - start) >> 10);
-	for (; start < end; start += PAGE_SIZE) {
-		struct page *p;
-
-		memset((void *)start, POISON_FREE_INITMEM, PAGE_SIZE);
-		p = virt_to_page(start);
-
-		ClearPageReserved(p);
-		init_page_count(p);
-		__free_page(p);
-		totalram_pages++;
-		num_physpages++;
-	}
+	num_physpages += free_reserved_area(start, end, POISON_FREE_INITMEM,
+					    "initrd");
 }
 #endif
 

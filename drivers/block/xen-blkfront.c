@@ -1617,7 +1617,7 @@ out:
 	return err;
 }
 
-static int blkif_release(struct gendisk *disk, fmode_t mode)
+static void blkif_release(struct gendisk *disk, fmode_t mode)
 {
 	struct blkfront_info *info = disk->private_data;
 	struct block_device *bdev;
@@ -1658,7 +1658,6 @@ static int blkif_release(struct gendisk *disk, fmode_t mode)
 out:
 	bdput(bdev);
 	mutex_unlock(&blkfront_mutex);
-	return 0;
 }
 
 static const struct block_device_operations xlvbd_block_fops =

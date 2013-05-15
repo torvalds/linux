@@ -70,6 +70,8 @@ struct nfs4_pnfs_ds {
 	struct list_head	ds_addrs;
 	struct nfs_client	*ds_clp;
 	atomic_t		ds_count;
+	unsigned long		ds_state;
+#define NFS4DS_CONNECTING	0	/* ds is establishing connection */
 };
 
 struct nfs4_file_layout_dsaddr {

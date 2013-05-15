@@ -955,10 +955,11 @@ int btrfs_reada_wait(void *handle)
 	while (atomic_read(&rc->elems)) {
 		wait_event_timeout(rc->wait, atomic_read(&rc->elems) == 0,
 				   5 * HZ);
-		dump_devs(rc->root->fs_info, rc->elems < 10 ? 1 : 0);
+		dump_devs(rc->root->fs_info,
+			  atomic_read(&rc->elems) < 10 ? 1 : 0);
 	}
 
-	dump_devs(rc->root->fs_info, rc->elems < 10 ? 1 : 0);
+	dump_devs(rc->root->fs_info, atomic_read(&rc->elems) < 10 ? 1 : 0);
 
 	kref_put(&rc->refcnt, reada_control_release);
 

@@ -48,6 +48,14 @@ struct nv50_graph_chan {
 	struct nouveau_graph_chan base;
 };
 
+static u64
+nv50_graph_units(struct nouveau_graph *graph)
+{
+	struct nv50_graph_priv *priv = (void *)graph;
+
+	return nv_rd32(priv, 0x1540);
+}
+
 /*******************************************************************************
  * Graphics object classes
  ******************************************************************************/
@@ -818,6 +826,8 @@ nv50_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	nv_subdev(priv)->unit = 0x00201000;
 	nv_subdev(priv)->intr = nv50_graph_intr;
 	nv_engine(priv)->cclass = &nv50_graph_cclass;
+
+	priv->base.units = nv50_graph_units;
 
 	switch (nv_device(priv)->chipset) {
 	case 0x50:

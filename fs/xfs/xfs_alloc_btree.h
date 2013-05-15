@@ -31,8 +31,10 @@ struct xfs_mount;
  * by blockcount and blockno.  All blocks look the same to make the code
  * simpler; if we have time later, we'll make the optimizations.
  */
-#define	XFS_ABTB_MAGIC	0x41425442	/* 'ABTB' for bno tree */
-#define	XFS_ABTC_MAGIC	0x41425443	/* 'ABTC' for cnt tree */
+#define	XFS_ABTB_MAGIC		0x41425442	/* 'ABTB' for bno tree */
+#define	XFS_ABTB_CRC_MAGIC	0x41423342	/* 'AB3B' */
+#define	XFS_ABTC_MAGIC		0x41425443	/* 'ABTC' for cnt tree */
+#define	XFS_ABTC_CRC_MAGIC	0x41423343	/* 'AB3C' */
 
 /*
  * Data record/key structure
@@ -59,10 +61,10 @@ typedef __be32 xfs_alloc_ptr_t;
 
 /*
  * Btree block header size depends on a superblock flag.
- *
- * (not quite yet, but soon)
  */
-#define XFS_ALLOC_BLOCK_LEN(mp)	XFS_BTREE_SBLOCK_LEN
+#define XFS_ALLOC_BLOCK_LEN(mp) \
+	(xfs_sb_version_hascrc(&((mp)->m_sb)) ? \
+		XFS_BTREE_SBLOCK_CRC_LEN : XFS_BTREE_SBLOCK_LEN)
 
 /*
  * Record, key, and pointer address macros for btree blocks.

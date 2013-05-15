@@ -17,6 +17,7 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
+#include <linux/device.h>
 #include <linux/init.h>
 #include <linux/usb.h>
 #include <sound/control.h>
@@ -32,7 +33,7 @@ static int control_info(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_info *uinfo)
 {
 	struct snd_usb_audio *chip = snd_kcontrol_chip(kcontrol);
-	struct snd_usb_caiaqdev *dev = caiaqdev(chip->card);
+	struct snd_usb_caiaqdev *cdev = caiaqdev(chip->card);
 	int pos = kcontrol->private_value;
 	int is_intval = pos & CNT_INTVAL;
 	int maxval = 63;
@@ -40,7 +41,7 @@ static int control_info(struct snd_kcontrol *kcontrol,
 	uinfo->count = 1;
 	pos &= ~CNT_INTVAL;
 
-	switch (dev->chip.usb_id) {
+	switch (cdev->chip.usb_id) {
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_AUDIO8DJ):
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_AUDIO4DJ):
 		if (pos == 0) {
@@ -78,15 +79,15 @@ static int control_get(struct snd_kcontrol *kcontrol,
 		       struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_usb_audio *chip = snd_kcontrol_chip(kcontrol);
-	struct snd_usb_caiaqdev *dev = caiaqdev(chip->card);
+	struct snd_usb_caiaqdev *cdev = caiaqdev(chip->card);
 	int pos = kcontrol->private_value;
 
 	if (pos & CNT_INTVAL)
 		ucontrol->value.integer.value[0]
-			= dev->control_state[pos & ~CNT_INTVAL];
+			= cdev->control_state[pos & ~CNT_INTVAL];
 	else
 		ucontrol->value.integer.value[0]
-			= !!(dev->control_state[pos / 8] & (1 << pos % 8));
+			= !!(cdev->control_state[pos / 8] & (1 << pos % 8));
 
 	return 0;
 }
@@ -95,43 +96,43 @@ static int control_put(struct snd_kcontrol *kcontrol,
 		       struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_usb_audio *chip = snd_kcontrol_chip(kcontrol);
-	struct snd_usb_caiaqdev *dev = caiaqdev(chip->card);
+	struct snd_usb_caiaqdev *cdev = caiaqdev(chip->card);
 	int pos = kcontrol->private_value;
 	int v = ucontrol->value.integer.value[0];
 	unsigned char cmd = EP1_CMD_WRITE_IO;
 
-	if (dev->chip.usb_id ==
+	if (cdev->chip.usb_id ==
 		USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_TRAKTORKONTROLX1))
 		cmd = EP1_CMD_DIMM_LEDS;
 
 	if (pos & CNT_INTVAL) {
 		int i = pos & ~CNT_INTVAL;
 
-		dev->control_state[i] = v;
+		cdev->control_state[i] = v;
 
-		if (dev->chip.usb_id ==
+		if (cdev->chip.usb_id ==
 			USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_TRAKTORKONTROLS4)) {
 			int actual_len;
 
-			dev->ep8_out_buf[0] = i;
-			dev->ep8_out_buf[1] = v;
+			cdev->ep8_out_buf[0] = i;
+			cdev->ep8_out_buf[1] = v;
 
-			usb_bulk_msg(dev->chip.dev,
-				     usb_sndbulkpipe(dev->chip.dev, 8),
-				     dev->ep8_out_buf, sizeof(dev->ep8_out_buf),
+			usb_bulk_msg(cdev->chip.dev,
+				     usb_sndbulkpipe(cdev->chip.dev, 8),
+				     cdev->ep8_out_buf, sizeof(cdev->ep8_out_buf),
 				     &actual_len, 200);
 		} else {
-			snd_usb_caiaq_send_command(dev, cmd,
-					dev->control_state, sizeof(dev->control_state));
+			snd_usb_caiaq_send_command(cdev, cmd,
+					cdev->control_state, sizeof(cdev->control_state));
 		}
 	} else {
 		if (v)
-			dev->control_state[pos / 8] |= 1 << (pos % 8);
+			cdev->control_state[pos / 8] |= 1 << (pos % 8);
 		else
-			dev->control_state[pos / 8] &= ~(1 << (pos % 8));
+			cdev->control_state[pos / 8] &= ~(1 << (pos % 8));
 
-		snd_usb_caiaq_send_command(dev, cmd,
-				dev->control_state, sizeof(dev->control_state));
+		snd_usb_caiaq_send_command(cdev, cmd,
+				cdev->control_state, sizeof(cdev->control_state));
 	}
 
 	return 1;
@@ -490,7 +491,7 @@ static struct caiaq_controller kontrols4_controller[] = {
 };
 
 static int add_controls(struct caiaq_controller *c, int num,
-			struct snd_usb_caiaqdev *dev)
+			struct snd_usb_caiaqdev *cdev)
 {
 	int i, ret;
 	struct snd_kcontrol *kc;
@@ -498,8 +499,8 @@ static int add_controls(struct caiaq_controller *c, int num,
 	for (i = 0; i < num; i++, c++) {
 		kcontrol_template.name = c->name;
 		kcontrol_template.private_value = c->index;
-		kc = snd_ctl_new1(&kcontrol_template, dev);
-		ret = snd_ctl_add(dev->chip.card, kc);
+		kc = snd_ctl_new1(&kcontrol_template, cdev);
+		ret = snd_ctl_add(cdev->chip.card, kc);
 		if (ret < 0)
 			return ret;
 	}
@@ -507,50 +508,50 @@ static int add_controls(struct caiaq_controller *c, int num,
 	return 0;
 }
 
-int snd_usb_caiaq_control_init(struct snd_usb_caiaqdev *dev)
+int snd_usb_caiaq_control_init(struct snd_usb_caiaqdev *cdev)
 {
 	int ret = 0;
 
-	switch (dev->chip.usb_id) {
+	switch (cdev->chip.usb_id) {
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_AK1):
 		ret = add_controls(ak1_controller,
-			ARRAY_SIZE(ak1_controller), dev);
+			ARRAY_SIZE(ak1_controller), cdev);
 		break;
 
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_RIGKONTROL2):
 		ret = add_controls(rk2_controller,
-			ARRAY_SIZE(rk2_controller), dev);
+			ARRAY_SIZE(rk2_controller), cdev);
 		break;
 
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_RIGKONTROL3):
 		ret = add_controls(rk3_controller,
-			ARRAY_SIZE(rk3_controller), dev);
+			ARRAY_SIZE(rk3_controller), cdev);
 		break;
 
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_KORECONTROLLER):
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_KORECONTROLLER2):
 		ret = add_controls(kore_controller,
-			ARRAY_SIZE(kore_controller), dev);
+			ARRAY_SIZE(kore_controller), cdev);
 		break;
 
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_AUDIO8DJ):
 		ret = add_controls(a8dj_controller,
-			ARRAY_SIZE(a8dj_controller), dev);
+			ARRAY_SIZE(a8dj_controller), cdev);
 		break;
 
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_AUDIO4DJ):
 		ret = add_controls(a4dj_controller,
-			ARRAY_SIZE(a4dj_controller), dev);
+			ARRAY_SIZE(a4dj_controller), cdev);
 		break;
 
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_TRAKTORKONTROLX1):
 		ret = add_controls(kontrolx1_controller,
-			ARRAY_SIZE(kontrolx1_controller), dev);
+			ARRAY_SIZE(kontrolx1_controller), cdev);
 		break;
 
 	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_TRAKTORKONTROLS4):
 		ret = add_controls(kontrols4_controller,
-			ARRAY_SIZE(kontrols4_controller), dev);
+			ARRAY_SIZE(kontrols4_controller), cdev);
 		break;
 	}
 

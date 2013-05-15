@@ -1777,7 +1777,7 @@ int l2tp_session_delete(struct l2tp_session *session)
 	if (session->session_close != NULL)
 		(*session->session_close)(session);
 	if (session->deref)
-		(*session->ref)(session);
+		(*session->deref)(session);
 	l2tp_session_dec_refcount(session);
 	return 0;
 }

@@ -5,6 +5,28 @@
  * See LICENSE.qla2xxx for copyright and licensing details.
  */
 
+/**
+ * qla24xx_calc_iocbs() - Determine number of Command Type 3 and
+ * Continuation Type 1 IOCBs to allocate.
+ *
+ * @dsds: number of data segment decriptors needed
+ *
+ * Returns the number of IOCB entries needed to store @dsds.
+ */
+static inline uint16_t
+qla24xx_calc_iocbs(scsi_qla_host_t *vha, uint16_t dsds)
+{
+	uint16_t iocbs;
+
+	iocbs = 1;
+	if (dsds > 1) {
+		iocbs += (dsds - 1) / 5;
+		if ((dsds - 1) % 5)
+			iocbs++;
+	}
+	return iocbs;
+}
+
 /*
  * qla2x00_debounce_register
  *      Debounce register.
@@ -55,6 +77,17 @@ host_to_fcp_swap(uint8_t *fcp, uint32_t bsize)
                *ofcp++ = swab32(*ifcp++);
 
        return fcp;
+}
+
+static inline void
+host_to_adap(uint8_t *src, uint8_t *dst, uint32_t bsize)
+{
+	uint32_t *isrc = (uint32_t *) src;
+	uint32_t *odest = (uint32_t *) dst;
+	uint32_t iter = bsize >> 2;
+
+	for (; iter ; iter--)
+		*odest++ = cpu_to_le32(*isrc++);
 }
 
 static inline void
@@ -213,12 +246,18 @@ qla2x00_init_timer(srb_t *sp, unsigned long tmo)
 	sp->u.iocb_cmd.timer.function = qla2x00_sp_timeout;
 	add_timer(&sp->u.iocb_cmd.timer);
 	sp->free = qla2x00_sp_free;
+	if ((IS_QLAFX00(sp->fcport->vha->hw)) &&
+	    (sp->type == SRB_FXIOCB_DCMD))
+		init_completion(&sp->u.iocb_cmd.u.fxiocb.fxiocb_comp);
 }
 
 static inline int
 qla2x00_gid_list_size(struct qla_hw_data *ha)
 {
-	return sizeof(struct gid_list_info) * ha->max_fibre_devices;
+	if (IS_QLAFX00(ha))
+		return sizeof(uint32_t) * 32;
+	else
+		return sizeof(struct gid_list_info) * ha->max_fibre_devices;
 }
 
 static inline void

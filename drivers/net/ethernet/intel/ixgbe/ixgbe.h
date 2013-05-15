@@ -740,6 +740,11 @@ extern void ixgbe_dbg_adapter_init(struct ixgbe_adapter *adapter);
 extern void ixgbe_dbg_adapter_exit(struct ixgbe_adapter *adapter);
 extern void ixgbe_dbg_init(void);
 extern void ixgbe_dbg_exit(void);
+#else
+static inline void ixgbe_dbg_adapter_init(struct ixgbe_adapter *adapter) {}
+static inline void ixgbe_dbg_adapter_exit(struct ixgbe_adapter *adapter) {}
+static inline void ixgbe_dbg_init(void) {}
+static inline void ixgbe_dbg_exit(void) {}
 #endif /* CONFIG_DEBUG_FS */
 static inline struct netdev_queue *txring_txq(const struct ixgbe_ring *ring)
 {

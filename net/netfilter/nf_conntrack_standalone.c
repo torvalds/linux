@@ -1,5 +1,6 @@
 /* (C) 1999-2001 Paul `Rusty' Russell
  * (C) 2002-2004 Netfilter Core Team <coreteam@netfilter.org>
+ * (C) 2005-2012 Patrick McHardy <kaber@trash.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -545,16 +546,20 @@ out_init:
 	return ret;
 }
 
-static void nf_conntrack_pernet_exit(struct net *net)
+static void nf_conntrack_pernet_exit(struct list_head *net_exit_list)
 {
-	nf_conntrack_standalone_fini_sysctl(net);
-	nf_conntrack_standalone_fini_proc(net);
-	nf_conntrack_cleanup_net(net);
+	struct net *net;
+
+	list_for_each_entry(net, net_exit_list, exit_list) {
+		nf_conntrack_standalone_fini_sysctl(net);
+		nf_conntrack_standalone_fini_proc(net);
+	}
+	nf_conntrack_cleanup_net_list(net_exit_list);
 }
 
 static struct pernet_operations nf_conntrack_net_ops = {
-	.init = nf_conntrack_pernet_init,
-	.exit = nf_conntrack_pernet_exit,
+	.init		= nf_conntrack_pernet_init,
+	.exit_batch	= nf_conntrack_pernet_exit,
 };
 
 static int __init nf_conntrack_standalone_init(void)

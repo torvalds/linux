@@ -49,9 +49,15 @@
 				reg = <0x80000000 0x2000>;
 			};
 
-			dma-apbh@80004000 {
+			dma_apbh: dma-apbh@80004000 {
 				compatible = "fsl,imx23-dma-apbh";
 				reg = <0x80004000 0x2000>;
+				interrupts = <0 14 20 0
+					      13 13 13 13>;
+				interrupt-names = "empty", "ssp0", "ssp1", "empty",
+						  "gpmi0", "gpmi1", "gpmi2", "gpmi3";
+				#dma-cells = <1>;
+				dma-channels = <8>;
 				clocks = <&clks 15>;
 			};
 
@@ -70,6 +76,8 @@
 				interrupt-names = "gpmi-dma", "bch";
 				clocks = <&clks 34>;
 				clock-names = "gpmi_io";
+				dmas = <&dma_apbh 4>;
+				dma-names = "rx-tx";
 				fsl,gpmi-dma-channel = <4>;
 				status = "disabled";
 			};
@@ -78,6 +86,8 @@
 				reg = <0x80010000 0x2000>;
 				interrupts = <15 14>;
 				clocks = <&clks 33>;
+				dmas = <&dma_apbh 1>;
+				dma-names = "rx-tx";
 				fsl,ssp-dma-channel = <1>;
 				status = "disabled";
 			};
@@ -295,6 +305,7 @@
 			};
 
 			digctl@8001c000 {
+				compatible = "fsl,imx23-digctl";
 				reg = <0x8001c000 2000>;
 				status = "disabled";
 			};
@@ -304,9 +315,19 @@
 				status = "disabled";
 			};
 
-			dma-apbx@80024000 {
+			dma_apbx: dma-apbx@80024000 {
 				compatible = "fsl,imx23-dma-apbx";
 				reg = <0x80024000 0x2000>;
+				interrupts = <7 5 9 26
+					      19 0 25 23
+					      60 58 9 0
+					      0 0 0 0>;
+				interrupt-names = "audio-adc", "audio-dac", "spdif-tx", "i2c",
+						  "saif0", "empty", "auart0-rx", "auart0-tx",
+						  "auart1-rx", "auart1-tx", "saif1", "empty",
+						  "empty", "empty", "empty", "empty";
+				#dma-cells = <1>;
+				dma-channels = <16>;
 				clocks = <&clks 16>;
 			};
 
@@ -321,6 +342,7 @@
 			};
 
 			ocotp@8002c000 {
+				compatible = "fsl,ocotp";
 				reg = <0x8002c000 0x2000>;
 				status = "disabled";
 			};
@@ -342,6 +364,8 @@
 				reg = <0x80034000 0x2000>;
 				interrupts = <2 20>;
 				clocks = <&clks 33>;
+				dmas = <&dma_apbh 2>;
+				dma-names = "rx-tx";
 				fsl,ssp-dma-channel = <2>;
 				status = "disabled";
 			};
@@ -360,13 +384,15 @@
 			ranges;
 
 			clks: clkctrl@80040000 {
-				compatible = "fsl,imx23-clkctrl";
+				compatible = "fsl,imx23-clkctrl", "fsl,clkctrl";
 				reg = <0x80040000 0x2000>;
 				#clock-cells = <1>;
 			};
 
 			saif0: saif@80042000 {
 				reg = <0x80042000 0x2000>;
+				dmas = <&dma_apbx 4>;
+				dma-names = "rx-tx";
 				status = "disabled";
 			};
 
@@ -377,16 +403,22 @@
 
 			saif1: saif@80046000 {
 				reg = <0x80046000 0x2000>;
+				dmas = <&dma_apbx 10>;
+				dma-names = "rx-tx";
 				status = "disabled";
 			};
 
 			audio-out@80048000 {
 				reg = <0x80048000 0x2000>;
+				dmas = <&dma_apbx 1>;
+				dma-names = "tx";
 				status = "disabled";
 			};
 
 			audio-in@8004c000 {
 				reg = <0x8004c000 0x2000>;
+				dmas = <&dma_apbx 0>;
+				dma-names = "rx";
 				status = "disabled";
 			};
 
@@ -399,11 +431,15 @@
 
 			spdif@80054000 {
 				reg = <0x80054000 2000>;
+				dmas = <&dma_apbx 2>;
+				dma-names = "tx";
 				status = "disabled";
 			};
 
 			i2c@80058000 {
 				reg = <0x80058000 0x2000>;
+				dmas = <&dma_apbx 3>;
+				dma-names = "rx-tx";
 				status = "disabled";
 			};
 
@@ -426,6 +462,7 @@
 				compatible = "fsl,imx23-timrot", "fsl,timrot";
 				reg = <0x80068000 0x2000>;
 				interrupts = <28 29 30 31>;
+				clocks = <&clks 28>;
 			};
 
 			auart0: serial@8006c000 {
@@ -433,6 +470,8 @@
 				reg = <0x8006c000 0x2000>;
 				interrupts = <24 25 23>;
 				clocks = <&clks 32>;
+				dmas = <&dma_apbx 6>, <&dma_apbx 7>;
+				dma-names = "rx", "tx";
 				status = "disabled";
 			};
 
@@ -441,6 +480,8 @@
 				reg = <0x8006e000 0x2000>;
 				interrupts = <59 60 58>;
 				clocks = <&clks 32>;
+				dmas = <&dma_apbx 8>, <&dma_apbx 9>;
+				dma-names = "rx", "tx";
 				status = "disabled";
 			};
 

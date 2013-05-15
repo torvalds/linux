@@ -40,6 +40,14 @@ static struct panel_info panel_table[] = {
 		.w = 1024,
 		.h = 768,
 	},
+	[AUOK190X_RESOLUTION_600_800] = {
+		.w = 600,
+		.h = 800,
+	},
+	[AUOK190X_RESOLUTION_768_1024] = {
+		.w = 768,
+		.h = 1024,
+	},
 };
 
 /*
@@ -60,8 +68,48 @@ static void auok190x_issue_cmd(struct auok190xfb_par *par, u16 data)
 	par->board->set_ctl(par, AUOK190X_I80_DC, 1);
 }
 
-static int auok190x_issue_pixels(struct auok190xfb_par *par, int size,
-				 u16 *data)
+/**
+ * Conversion of 16bit color to 4bit grayscale
+ * does roughly (0.3 * R + 0.6 G + 0.1 B) / 2
+ */
+static inline int rgb565_to_gray4(u16 data, struct fb_var_screeninfo *var)
+{
+	return ((((data & 0xF800) >> var->red.offset) * 77 +
+		 ((data & 0x07E0) >> (var->green.offset + 1)) * 151 +
+		 ((data & 0x1F) >> var->blue.offset) * 28) >> 8 >> 1);
+}
+
+static int auok190x_issue_pixels_rgb565(struct auok190xfb_par *par, int size,
+					u16 *data)
+{
+	struct fb_var_screeninfo *var = &par->info->var;
+	struct device *dev = par->info->device;
+	int i;
+	u16 tmp;
+
+	if (size & 7) {
+		dev_err(dev, "issue_pixels: size %d must be a multiple of 8\n",
+			size);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < (size >> 2); i++) {
+		par->board->set_ctl(par, AUOK190X_I80_WR, 0);
+
+		tmp  = (rgb565_to_gray4(data[4*i], var) & 0x000F);
+		tmp |= (rgb565_to_gray4(data[4*i+1], var) << 4) & 0x00F0;
+		tmp |= (rgb565_to_gray4(data[4*i+2], var) << 8) & 0x0F00;
+		tmp |= (rgb565_to_gray4(data[4*i+3], var) << 12) & 0xF000;
+
+		par->board->set_hdb(par, tmp);
+		par->board->set_ctl(par, AUOK190X_I80_WR, 1);
+	}
+
+	return 0;
+}
+
+static int auok190x_issue_pixels_gray8(struct auok190xfb_par *par, int size,
+				       u16 *data)
 {
 	struct device *dev = par->info->device;
 	int i;
@@ -87,6 +135,23 @@ static int auok190x_issue_pixels(struct auok190xfb_par *par, int size,
 		par->board->set_hdb(par, tmp);
 		par->board->set_ctl(par, AUOK190X_I80_WR, 1);
 	}
+
+	return 0;
+}
+
+static int auok190x_issue_pixels(struct auok190xfb_par *par, int size,
+				 u16 *data)
+{
+	struct fb_info *info = par->info;
+	struct device *dev = par->info->device;
+
+	if (info->var.bits_per_pixel == 8 && info->var.grayscale)
+		auok190x_issue_pixels_gray8(par, size, data);
+	else if (info->var.bits_per_pixel == 16)
+		auok190x_issue_pixels_rgb565(par, size, data);
+	else
+		dev_err(dev, "unsupported color mode (bits: %d, gray: %d)\n",
+			info->var.bits_per_pixel, info->var.grayscale);
 
 	return 0;
 }
@@ -224,8 +289,8 @@ static void auok190xfb_dpy_deferred_io(struct fb_info *info,
 {
 	struct fb_deferred_io *fbdefio = info->fbdefio;
 	struct auok190xfb_par *par = info->par;
+	u16 line_length = info->fix.line_length;
 	u16 yres = info->var.yres;
-	u16 xres = info->var.xres;
 	u16 y1 = 0, h = 0;
 	int prev_index = -1;
 	struct page *cur;
@@ -254,7 +319,7 @@ static void auok190xfb_dpy_deferred_io(struct fb_info *info,
 	}
 
 	/* height increment is fixed per page */
-	h_inc = DIV_ROUND_UP(PAGE_SIZE , xres);
+	h_inc = DIV_ROUND_UP(PAGE_SIZE , line_length);
 
 	/* calculate number of pages from pixel height */
 	threshold = par->consecutive_threshold / h_inc;
@@ -265,7 +330,7 @@ static void auok190xfb_dpy_deferred_io(struct fb_info *info,
 	list_for_each_entry(cur, &fbdefio->pagelist, lru) {
 		if (prev_index < 0) {
 			/* just starting so assign first page */
-			y1 = (cur->index << PAGE_SHIFT) / xres;
+			y1 = (cur->index << PAGE_SHIFT) / line_length;
 			h = h_inc;
 		} else if ((cur->index - prev_index) <= threshold) {
 			/* page is within our threshold for single updates */
@@ -275,7 +340,7 @@ static void auok190xfb_dpy_deferred_io(struct fb_info *info,
 			par->update_partial(par, y1, y1 + h);
 
 			/* start over with our non consecutive page */
-			y1 = (cur->index << PAGE_SHIFT) / xres;
+			y1 = (cur->index << PAGE_SHIFT) / line_length;
 			h = h_inc;
 		}
 		prev_index = cur->index;
@@ -376,23 +441,123 @@ static void auok190xfb_imageblit(struct fb_info *info,
 static int auok190xfb_check_var(struct fb_var_screeninfo *var,
 				   struct fb_info *info)
 {
-	if (info->var.xres != var->xres || info->var.yres != var->yres ||
-	    info->var.xres_virtual != var->xres_virtual ||
-	    info->var.yres_virtual != var->yres_virtual) {
-		pr_info("%s: Resolution not supported: X%u x Y%u\n",
-			 __func__, var->xres, var->yres);
+	struct device *dev = info->device;
+	struct auok190xfb_par *par = info->par;
+	struct panel_info *panel = &panel_table[par->resolution];
+	int size;
+
+	/*
+	 * Color depth
+	 */
+
+	if (var->bits_per_pixel == 8 && var->grayscale == 1) {
+		/*
+		 * For 8-bit grayscale, R, G, and B offset are equal.
+		 */
+		var->red.length = 8;
+		var->red.offset = 0;
+		var->red.msb_right = 0;
+
+		var->green.length = 8;
+		var->green.offset = 0;
+		var->green.msb_right = 0;
+
+		var->blue.length = 8;
+		var->blue.offset = 0;
+		var->blue.msb_right = 0;
+
+		var->transp.length = 0;
+		var->transp.offset = 0;
+		var->transp.msb_right = 0;
+	} else if (var->bits_per_pixel == 16) {
+		var->red.length = 5;
+		var->red.offset = 11;
+		var->red.msb_right = 0;
+
+		var->green.length = 6;
+		var->green.offset = 5;
+		var->green.msb_right = 0;
+
+		var->blue.length = 5;
+		var->blue.offset = 0;
+		var->blue.msb_right = 0;
+
+		var->transp.length = 0;
+		var->transp.offset = 0;
+		var->transp.msb_right = 0;
+	} else {
+		dev_warn(dev, "unsupported color mode (bits: %d, grayscale: %d)\n",
+			info->var.bits_per_pixel, info->var.grayscale);
 		return -EINVAL;
 	}
+
+	/*
+	 * Dimensions
+	 */
+
+	switch (var->rotate) {
+	case FB_ROTATE_UR:
+	case FB_ROTATE_UD:
+		var->xres = panel->w;
+		var->yres = panel->h;
+		break;
+	case FB_ROTATE_CW:
+	case FB_ROTATE_CCW:
+		var->xres = panel->h;
+		var->yres = panel->w;
+		break;
+	default:
+		dev_dbg(dev, "Invalid rotation request\n");
+		return -EINVAL;
+	}
+
+	var->xres_virtual = var->xres;
+	var->yres_virtual = var->yres;
 
 	/*
 	 *  Memory limit
 	 */
 
-	if ((info->fix.line_length * var->yres_virtual) > info->fix.smem_len) {
-		pr_info("%s: Memory Limit requested yres_virtual = %u\n",
-			 __func__, var->yres_virtual);
+	size = var->xres_virtual * var->yres_virtual * var->bits_per_pixel / 8;
+	if (size > info->fix.smem_len) {
+		dev_err(dev, "Memory limit exceeded, requested %dK\n",
+			size >> 10);
 		return -ENOMEM;
 	}
+
+	return 0;
+}
+
+static int auok190xfb_set_fix(struct fb_info *info)
+{
+	struct fb_fix_screeninfo *fix = &info->fix;
+	struct fb_var_screeninfo *var = &info->var;
+
+	fix->line_length = var->xres_virtual * var->bits_per_pixel / 8;
+
+	fix->type = FB_TYPE_PACKED_PIXELS;
+	fix->accel = FB_ACCEL_NONE;
+	fix->visual = (var->grayscale) ? FB_VISUAL_STATIC_PSEUDOCOLOR
+				       : FB_VISUAL_TRUECOLOR;
+	fix->xpanstep = 0;
+	fix->ypanstep = 0;
+	fix->ywrapstep = 0;
+
+	return 0;
+}
+
+static int auok190xfb_set_par(struct fb_info *info)
+{
+	struct auok190xfb_par *par = info->par;
+
+	par->rotation = info->var.rotate;
+	auok190xfb_set_fix(info);
+
+	/* reinit the controller to honor the rotation */
+	par->init(par);
+
+	/* wait for init to complete */
+	par->board->wait_for_rdy(par);
 
 	return 0;
 }
@@ -405,6 +570,7 @@ static struct fb_ops auok190xfb_ops = {
 	.fb_copyarea	= auok190xfb_copyarea,
 	.fb_imageblit	= auok190xfb_imageblit,
 	.fb_check_var	= auok190xfb_check_var,
+	.fb_set_par     = auok190xfb_set_par,
 };
 
 /*
@@ -588,9 +754,15 @@ static int auok190x_power(struct auok190xfb_par *par, bool on)
 
 static void auok190x_recover(struct auok190xfb_par *par)
 {
+	struct device *dev = par->info->device;
+
 	auok190x_power(par, 0);
 	msleep(100);
 	auok190x_power(par, 1);
+
+	/* after powercycling the device, it's always active */
+	pm_runtime_set_active(dev);
+	par->standby = 0;
 
 	par->init(par);
 
@@ -875,42 +1047,17 @@ int auok190x_common_probe(struct platform_device *pdev,
 	/* initialise fix, var, resolution and rotation */
 
 	strlcpy(info->fix.id, init->id, 16);
-	info->fix.type = FB_TYPE_PACKED_PIXELS;
-	info->fix.visual = FB_VISUAL_STATIC_PSEUDOCOLOR;
-	info->fix.xpanstep = 0;
-	info->fix.ypanstep = 0;
-	info->fix.ywrapstep = 0;
-	info->fix.accel = FB_ACCEL_NONE;
-
 	info->var.bits_per_pixel = 8;
 	info->var.grayscale = 1;
-	info->var.red.length = 8;
-	info->var.green.length = 8;
-	info->var.blue.length = 8;
 
 	panel = &panel_table[board->resolution];
 
-	/* if 90 degree rotation, switch width and height */
-	if (board->rotation & 1) {
-		info->var.xres = panel->h;
-		info->var.yres = panel->w;
-		info->var.xres_virtual = panel->h;
-		info->var.yres_virtual = panel->w;
-		info->fix.line_length = panel->h;
-	} else {
-		info->var.xres = panel->w;
-		info->var.yres = panel->h;
-		info->var.xres_virtual = panel->w;
-		info->var.yres_virtual = panel->h;
-		info->fix.line_length = panel->w;
-	}
-
 	par->resolution = board->resolution;
-	par->rotation = board->rotation;
+	par->rotation = 0;
 
 	/* videomemory handling */
 
-	videomemorysize = roundup((panel->w * panel->h), PAGE_SIZE);
+	videomemorysize = roundup((panel->w * panel->h) * 2, PAGE_SIZE);
 	videomemory = vmalloc(videomemorysize);
 	if (!videomemory) {
 		ret = -ENOMEM;
@@ -924,6 +1071,12 @@ int auok190x_common_probe(struct platform_device *pdev,
 	info->flags = FBINFO_FLAG_DEFAULT | FBINFO_VIRTFB;
 	info->fbops = &auok190xfb_ops;
 
+	ret = auok190xfb_check_var(&info->var, info);
+	if (ret)
+		goto err_defio;
+
+	auok190xfb_set_fix(info);
+
 	/* deferred io init */
 
 	info->fbdefio = devm_kzalloc(info->device,
@@ -935,7 +1088,7 @@ int auok190x_common_probe(struct platform_device *pdev,
 		goto err_defio;
 	}
 
-	dev_dbg(info->device, "targetting %d frames per second\n", board->fps);
+	dev_dbg(info->device, "targeting %d frames per second\n", board->fps);
 	info->fbdefio->delay = HZ / board->fps;
 	info->fbdefio->first_io = auok190xfb_dpy_first_io,
 	info->fbdefio->deferred_io = auok190xfb_dpy_deferred_io,

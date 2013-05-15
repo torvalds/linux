@@ -123,10 +123,9 @@ static int scm_open(struct block_device *blkdev, fmode_t mode)
 	return scm_get_ref();
 }
 
-static int scm_release(struct gendisk *gendisk, fmode_t mode)
+static void scm_release(struct gendisk *gendisk, fmode_t mode)
 {
 	scm_put_ref();
-	return 0;
 }
 
 static const struct block_device_operations scm_blk_devops = {
@@ -465,7 +464,7 @@ static int __init scm_blk_init(void)
 	scm_major = ret;
 	ret = scm_alloc_rqs(nr_requests);
 	if (ret)
-		goto out_unreg;
+		goto out_free;
 
 	scm_debug = debug_register("scm_log", 16, 1, 16);
 	if (!scm_debug) {
@@ -486,7 +485,6 @@ out_dbf:
 	debug_unregister(scm_debug);
 out_free:
 	scm_free_rqs();
-out_unreg:
 	unregister_blkdev(scm_major, "scm");
 out:
 	return ret;

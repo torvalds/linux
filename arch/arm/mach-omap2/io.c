@@ -277,6 +277,14 @@ static struct map_desc omap54xx_io_desc[] __initdata = {
 		.length		= L4_PER_54XX_SIZE,
 		.type		= MT_DEVICE,
 	},
+#ifdef CONFIG_OMAP4_ERRATA_I688
+	{
+		.virtual	= OMAP4_SRAM_VA,
+		.pfn		= __phys_to_pfn(OMAP4_SRAM_PA),
+		.length		= PAGE_SIZE,
+		.type		= MT_MEMORY_SO,
+	},
+#endif
 };
 #endif
 
@@ -329,6 +337,7 @@ void __init omap4_map_io(void)
 void __init omap5_map_io(void)
 {
 	iotable_init(omap54xx_io_desc, ARRAY_SIZE(omap54xx_io_desc));
+	omap_barriers_init();
 }
 #endif
 /*
@@ -385,6 +394,13 @@ static void __init omap_hwmod_init_postsetup(void)
 	omap_pm_if_early_init();
 }
 
+static void __init omap_common_late_init(void)
+{
+	omap_mux_late_init();
+	omap2_common_pm_late_init();
+	omap_soc_device_init();
+}
+
 #ifdef CONFIG_SOC_OMAP2420
 void __init omap2420_init_early(void)
 {
@@ -408,8 +424,7 @@ void __init omap2420_init_early(void)
 
 void __init omap2420_init_late(void)
 {
-	omap_mux_late_init();
-	omap2_common_pm_late_init();
+	omap_common_late_init();
 	omap2_pm_init();
 	omap2_clk_enable_autoidle_all();
 }
@@ -438,8 +453,7 @@ void __init omap2430_init_early(void)
 
 void __init omap2430_init_late(void)
 {
-	omap_mux_late_init();
-	omap2_common_pm_late_init();
+	omap_common_late_init();
 	omap2_pm_init();
 	omap2_clk_enable_autoidle_all();
 }
@@ -511,48 +525,42 @@ void __init ti81xx_init_early(void)
 
 void __init omap3_init_late(void)
 {
-	omap_mux_late_init();
-	omap2_common_pm_late_init();
+	omap_common_late_init();
 	omap3_pm_init();
 	omap2_clk_enable_autoidle_all();
 }
 
 void __init omap3430_init_late(void)
 {
-	omap_mux_late_init();
-	omap2_common_pm_late_init();
+	omap_common_late_init();
 	omap3_pm_init();
 	omap2_clk_enable_autoidle_all();
 }
 
 void __init omap35xx_init_late(void)
 {
-	omap_mux_late_init();
-	omap2_common_pm_late_init();
+	omap_common_late_init();
 	omap3_pm_init();
 	omap2_clk_enable_autoidle_all();
 }
 
 void __init omap3630_init_late(void)
 {
-	omap_mux_late_init();
-	omap2_common_pm_late_init();
+	omap_common_late_init();
 	omap3_pm_init();
 	omap2_clk_enable_autoidle_all();
 }
 
 void __init am35xx_init_late(void)
 {
-	omap_mux_late_init();
-	omap2_common_pm_late_init();
+	omap_common_late_init();
 	omap3_pm_init();
 	omap2_clk_enable_autoidle_all();
 }
 
 void __init ti81xx_init_late(void)
 {
-	omap_mux_late_init();
-	omap2_common_pm_late_init();
+	omap_common_late_init();
 	omap3_pm_init();
 	omap2_clk_enable_autoidle_all();
 }
@@ -604,8 +612,7 @@ void __init omap4430_init_early(void)
 
 void __init omap4430_init_late(void)
 {
-	omap_mux_late_init();
-	omap2_common_pm_late_init();
+	omap_common_late_init();
 	omap4_pm_init();
 	omap2_clk_enable_autoidle_all();
 }

@@ -41,7 +41,9 @@ static DEFINE_SPINLOCK(periph_ref_lock);
 #define write_rst_clr(val, gate) \
 	writel_relaxed(val, gate->clk_base + (gate->regs->rst_clr_reg))
 
-#define periph_clk_to_bit(periph) (1 << (gate->clk_num % 32))
+#define periph_clk_to_bit(gate) (1 << (gate->clk_num % 32))
+
+#define LVL2_CLK_GATE_OVRE 0x554
 
 /* Peripheral gate clock ops */
 static int clk_periph_is_enabled(struct clk_hw *hw)
@@ -81,6 +83,13 @@ static int clk_periph_enable(struct clk_hw *hw)
 			udelay(5); /* reset propogation delay */
 			write_rst_clr(periph_clk_to_bit(gate), gate);
 		}
+	}
+
+	if (gate->flags & TEGRA_PERIPH_WAR_1005168) {
+		writel_relaxed(0, gate->clk_base + LVL2_CLK_GATE_OVRE);
+		writel_relaxed(BIT(22), gate->clk_base + LVL2_CLK_GATE_OVRE);
+		udelay(1);
+		writel_relaxed(0, gate->clk_base + LVL2_CLK_GATE_OVRE);
 	}
 
 	spin_unlock_irqrestore(&periph_ref_lock, flags);

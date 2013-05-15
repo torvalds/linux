@@ -102,6 +102,10 @@ static struct utsname uts_buf;
 #define MAX_FILE_NAME 100
 #define ENTRIES_PER_BLOCK 50
 
+#ifndef SOL_NETLINK
+#define SOL_NETLINK 270
+#endif
+
 struct kvp_record {
 	char key[HV_KVP_EXCHANGE_MAX_KEY_SIZE];
 	char value[HV_KVP_EXCHANGE_MAX_VALUE_SIZE];
@@ -1407,7 +1411,7 @@ netlink_send(int fd, struct cn_msg *msg)
 
 int main(void)
 {
-	int fd, len, sock_opt;
+	int fd, len, nl_group;
 	int error;
 	struct cn_msg *message;
 	struct pollfd pfd;
@@ -1443,7 +1447,7 @@ int main(void)
 	addr.nl_family = AF_NETLINK;
 	addr.nl_pad = 0;
 	addr.nl_pid = 0;
-	addr.nl_groups = CN_KVP_IDX;
+	addr.nl_groups = 0;
 
 
 	error = bind(fd, (struct sockaddr *)&addr, sizeof(addr));
@@ -1452,8 +1456,8 @@ int main(void)
 		close(fd);
 		exit(EXIT_FAILURE);
 	}
-	sock_opt = addr.nl_groups;
-	setsockopt(fd, 270, 1, &sock_opt, sizeof(sock_opt));
+	nl_group = CN_KVP_IDX;
+	setsockopt(fd, SOL_NETLINK, NETLINK_ADD_MEMBERSHIP, &nl_group, sizeof(nl_group));
 	/*
 	 * Register ourselves with the kernel.
 	 */
@@ -1499,6 +1503,10 @@ int main(void)
 		}
 
 		incoming_msg = (struct nlmsghdr *)kvp_recv_buffer;
+
+		if (incoming_msg->nlmsg_type != NLMSG_DONE)
+			continue;
+
 		incoming_cn_msg = (struct cn_msg *)NLMSG_DATA(incoming_msg);
 		hv_msg = (struct hv_kvp_msg *)incoming_cn_msg->data;
 

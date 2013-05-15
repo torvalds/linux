@@ -473,7 +473,8 @@ nvd0_disp_base_ctor(struct nouveau_object *parent,
 	priv->base.vblank->enable = nvd0_disp_base_vblank_enable;
 	priv->base.vblank->disable = nvd0_disp_base_vblank_disable;
 
-	return nouveau_ramht_new(parent, parent, 0x1000, 0, &base->ramht);
+	return nouveau_ramht_new(nv_object(base), nv_object(base), 0x1000, 0,
+				&base->ramht);
 }
 
 static void

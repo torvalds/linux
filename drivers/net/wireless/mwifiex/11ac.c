@@ -200,7 +200,7 @@ int mwifiex_cmd_append_11ac_tlv(struct mwifiex_private *priv,
 
 	/* VHT Operation IE */
 	if (bss_desc->bcn_vht_oper) {
-		if (priv->bss_mode == HostCmd_BSS_MODE_IBSS) {
+		if (priv->bss_mode == NL80211_IFTYPE_STATION) {
 			vht_op = (struct mwifiex_ie_types_vht_oper *)*buffer;
 			memset(vht_op, 0, sizeof(*vht_op));
 			vht_op->header.type =
@@ -258,4 +258,45 @@ int mwifiex_cmd_append_11ac_tlv(struct mwifiex_private *priv,
 	}
 
 	return ret_len;
+}
+
+int mwifiex_cmd_11ac_cfg(struct mwifiex_private *priv,
+			 struct host_cmd_ds_command *cmd, u16 cmd_action,
+			 struct mwifiex_11ac_vht_cfg *cfg)
+{
+	struct host_cmd_11ac_vht_cfg *vhtcfg = &cmd->params.vht_cfg;
+
+	cmd->command = cpu_to_le16(HostCmd_CMD_11AC_CFG);
+	cmd->size = cpu_to_le16(sizeof(struct host_cmd_11ac_vht_cfg) +
+				S_DS_GEN);
+	vhtcfg->action = cpu_to_le16(cmd_action);
+	vhtcfg->band_config = cfg->band_config;
+	vhtcfg->misc_config = cfg->misc_config;
+	vhtcfg->cap_info = cpu_to_le32(cfg->cap_info);
+	vhtcfg->mcs_tx_set = cpu_to_le32(cfg->mcs_tx_set);
+	vhtcfg->mcs_rx_set = cpu_to_le32(cfg->mcs_rx_set);
+
+	return 0;
+}
+
+/* This function initializes the BlockACK setup information for given
+ * mwifiex_private structure for 11ac enabled networks.
+ */
+void mwifiex_set_11ac_ba_params(struct mwifiex_private *priv)
+{
+	priv->add_ba_param.timeout = MWIFIEX_DEFAULT_BLOCK_ACK_TIMEOUT;
+
+	if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP) {
+		priv->add_ba_param.tx_win_size =
+					   MWIFIEX_11AC_UAP_AMPDU_DEF_TXWINSIZE;
+		priv->add_ba_param.rx_win_size =
+					   MWIFIEX_11AC_UAP_AMPDU_DEF_RXWINSIZE;
+	} else {
+		priv->add_ba_param.tx_win_size =
+					   MWIFIEX_11AC_STA_AMPDU_DEF_TXWINSIZE;
+		priv->add_ba_param.rx_win_size =
+					   MWIFIEX_11AC_STA_AMPDU_DEF_RXWINSIZE;
+	}
+
+	return;
 }

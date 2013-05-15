@@ -132,7 +132,7 @@ struct vpbe_device_ops {
 			       struct v4l2_enum_dv_timings *timings_info);
 
 	/* Set std at the output */
-	int (*s_std)(struct vpbe_device *vpbe_dev, v4l2_std_id *std_id);
+	int (*s_std)(struct vpbe_device *vpbe_dev, v4l2_std_id std_id);
 
 	/* Get the current std at the output */
 	int (*g_std)(struct vpbe_device *vpbe_dev, v4l2_std_id *std_id);

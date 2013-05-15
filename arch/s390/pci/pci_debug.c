@@ -11,12 +11,17 @@
 #include <linux/kernel.h>
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
+#include <linux/export.h>
 #include <linux/pci.h>
 #include <asm/debug.h>
 
 #include <asm/pci_dma.h>
 
 static struct dentry *debugfs_root;
+debug_info_t *pci_debug_msg_id;
+EXPORT_SYMBOL_GPL(pci_debug_msg_id);
+debug_info_t *pci_debug_err_id;
+EXPORT_SYMBOL_GPL(pci_debug_err_id);
 
 static char *pci_perf_names[] = {
 	/* hardware counters */
@@ -168,7 +173,6 @@ int __init zpci_debug_init(void)
 		return -EINVAL;
 	debug_register_view(pci_debug_msg_id, &debug_sprintf_view);
 	debug_set_level(pci_debug_msg_id, 3);
-	zpci_dbg("Debug view initialized\n");
 
 	/* error log */
 	pci_debug_err_id = debug_register("pci_error", 2, 1, 16);
@@ -176,7 +180,6 @@ int __init zpci_debug_init(void)
 		return -EINVAL;
 	debug_register_view(pci_debug_err_id, &debug_hex_ascii_view);
 	debug_set_level(pci_debug_err_id, 6);
-	zpci_err("Debug view initialized\n");
 
 	debugfs_root = debugfs_create_dir("pci", NULL);
 	return 0;

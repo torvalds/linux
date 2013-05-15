@@ -28,7 +28,11 @@
 /* #define cpu_has_prefetch	? */
 #define cpu_has_mcheck		1
 /* #define cpu_has_ejtag	? */
+#ifdef CONFIG_CPU_MICROMIPS
+#define cpu_has_llsc		0
+#else
 #define cpu_has_llsc		1
+#endif
 /* #define cpu_has_vtag_icache	? */
 /* #define cpu_has_dc_aliases	? */
 /* #define cpu_has_ic_fills_f_dc ? */

@@ -1022,7 +1022,7 @@ struct drm_info_list {
 struct drm_info_node {
 	struct list_head list;
 	struct drm_minor *minor;
-	struct drm_info_list *info_ent;
+	const struct drm_info_list *info_ent;
 	struct dentry *dent;
 };
 
@@ -1546,8 +1546,7 @@ extern struct idr drm_minors_idr;
 extern struct drm_local_map *drm_getsarea(struct drm_device *dev);
 
 				/* Proc support (drm_proc.h) */
-extern int drm_proc_init(struct drm_minor *minor, int minor_id,
-			 struct proc_dir_entry *root);
+extern int drm_proc_init(struct drm_minor *minor, struct proc_dir_entry *root);
 extern int drm_proc_cleanup(struct drm_minor *minor, struct proc_dir_entry *root);
 
 				/* Debugfs support */
@@ -1593,9 +1592,8 @@ extern void drm_prime_gem_destroy(struct drm_gem_object *obj, struct sg_table *s
 
 void drm_prime_init_file_private(struct drm_prime_file_private *prime_fpriv);
 void drm_prime_destroy_file_private(struct drm_prime_file_private *prime_fpriv);
-int drm_prime_add_imported_buf_handle(struct drm_prime_file_private *prime_fpriv, struct dma_buf *dma_buf, uint32_t handle);
-int drm_prime_lookup_imported_buf_handle(struct drm_prime_file_private *prime_fpriv, struct dma_buf *dma_buf, uint32_t *handle);
-void drm_prime_remove_imported_buf_handle(struct drm_prime_file_private *prime_fpriv, struct dma_buf *dma_buf);
+int drm_prime_lookup_buf_handle(struct drm_prime_file_private *prime_fpriv, struct dma_buf *dma_buf, uint32_t *handle);
+void drm_prime_remove_buf_handle(struct drm_prime_file_private *prime_fpriv, struct dma_buf *dma_buf);
 
 int drm_prime_add_dma_buf(struct drm_device *dev, struct drm_gem_object *obj);
 int drm_prime_lookup_obj(struct drm_device *dev, struct dma_buf *buf,

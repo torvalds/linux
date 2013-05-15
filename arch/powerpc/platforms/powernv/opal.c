@@ -34,7 +34,6 @@ int __init early_init_dt_scan_opal(unsigned long node,
 {
 	const void *basep, *entryp;
 	unsigned long basesz, entrysz;
-	u64 glue;
 
 	if (depth != 1 || strcmp(uname, "ibm,opal") != 0)
 		return 0;
@@ -61,6 +60,16 @@ int __init early_init_dt_scan_opal(unsigned long node,
 		printk("OPAL V1 detected !\n");
 	}
 
+	return 1;
+}
+
+static int __init opal_register_exception_handlers(void)
+{
+	u64 glue;
+
+	if (!(powerpc_firmware_features & FW_FEATURE_OPAL))
+		return -ENODEV;
+
 	/* Hookup some exception handlers. We use the fwnmi area at 0x7000
 	 * to provide the glue space to OPAL
 	 */
@@ -74,8 +83,10 @@ int __init early_init_dt_scan_opal(unsigned long node,
 	glue += 128;
 	opal_register_exception_handler(OPAL_SOFTPATCH_HANDLER, 0, glue);
 
-	return 1;
+	return 0;
 }
+
+early_initcall(opal_register_exception_handlers);
 
 int opal_get_chars(uint32_t vtermno, char *buf, int count)
 {

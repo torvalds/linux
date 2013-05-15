@@ -954,15 +954,11 @@ EXPORT_SYMBOL(ap_driver_unregister);
 
 void ap_bus_force_rescan(void)
 {
-	/* Delete the AP bus rescan timer. */
-	del_timer(&ap_config_timer);
-
-	/* processing a synchonuous bus rescan */
-	ap_scan_bus(NULL);
-
-	/* Setup the AP bus rescan timer again. */
-	ap_config_timer.expires = jiffies + ap_config_time * HZ;
-	add_timer(&ap_config_timer);
+	/* reconfigure the AP bus rescan timer. */
+	mod_timer(&ap_config_timer, jiffies + ap_config_time * HZ);
+	/* processing a asynchronous bus rescan */
+	queue_work(ap_work_queue, &ap_config_work);
+	flush_work(&ap_config_work);
 }
 EXPORT_SYMBOL(ap_bus_force_rescan);
 
@@ -1305,8 +1301,9 @@ static void ap_scan_bus(struct work_struct *unused)
 	int rc, i;
 
 	ap_query_configuration();
-	if (ap_select_domain() != 0)
+	if (ap_select_domain() != 0) {
 		return;
+	}
 	for (i = 0; i < AP_DEVICES; i++) {
 		qid = AP_MKQID(i, ap_domain_index);
 		dev = bus_find_device(&ap_bus_type, NULL,

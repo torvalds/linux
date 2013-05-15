@@ -65,7 +65,6 @@ int gserial_connect(struct gserial *, u8 port_num);
 void gserial_disconnect(struct gserial *);
 
 /* functions are bound to configurations by a config or gadget driver */
-int acm_bind_config(struct usb_configuration *c, u8 port_num);
 int gser_bind_config(struct usb_configuration *c, u8 port_num);
 int obex_bind_config(struct usb_configuration *c, u8 port_num);
 

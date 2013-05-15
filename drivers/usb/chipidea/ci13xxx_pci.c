@@ -23,17 +23,17 @@
 /******************************************************************************
  * PCI block
  *****************************************************************************/
-struct ci13xxx_platform_data pci_platdata = {
+static struct ci13xxx_platform_data pci_platdata = {
 	.name		= UDC_DRIVER_NAME,
 	.capoffset	= DEF_CAPOFFSET,
 };
 
-struct ci13xxx_platform_data langwell_pci_platdata = {
+static struct ci13xxx_platform_data langwell_pci_platdata = {
 	.name		= UDC_DRIVER_NAME,
 	.capoffset	= 0,
 };
 
-struct ci13xxx_platform_data penwell_pci_platdata = {
+static struct ci13xxx_platform_data penwell_pci_platdata = {
 	.name		= UDC_DRIVER_NAME,
 	.capoffset	= 0,
 	.power_budget	= 200,

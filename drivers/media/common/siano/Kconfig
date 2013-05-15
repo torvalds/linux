@@ -17,3 +17,15 @@ config SMS_SIANO_RC
 	default y
 	---help---
 	  Choose Y to select Remote Controller support for Siano driver.
+
+config SMS_SIANO_DEBUGFS
+	bool "Enable debugfs for smsdvb"
+	depends on SMS_SIANO_MDTV
+	depends on DEBUG_FS
+	depends on SMS_USB_DRV
+	---help---
+	  Choose Y to enable visualizing a dump of the frontend
+	  statistics response packets via debugfs. Currently, works
+	  only with Siano USB devices.
+
+	  Useful only for developers. In doubt, say N.

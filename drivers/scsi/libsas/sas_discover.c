@@ -39,11 +39,11 @@
 void sas_init_dev(struct domain_device *dev)
 {
 	switch (dev->dev_type) {
-	case SAS_END_DEV:
+	case SAS_END_DEVICE:
 		INIT_LIST_HEAD(&dev->ssp_dev.eh_list_node);
 		break;
-	case EDGE_DEV:
-	case FANOUT_DEV:
+	case SAS_EDGE_EXPANDER_DEVICE:
+	case SAS_FANOUT_EXPANDER_DEVICE:
 		INIT_LIST_HEAD(&dev->ex_dev.children);
 		mutex_init(&dev->ex_dev.cmd_mutex);
 		break;
@@ -93,9 +93,9 @@ static int sas_get_port_device(struct asd_sas_port *port)
 		if (fis->interrupt_reason == 1 && fis->lbal == 1 &&
 		    fis->byte_count_low==0x69 && fis->byte_count_high == 0x96
 		    && (fis->device & ~0x10) == 0)
-			dev->dev_type = SATA_PM;
+			dev->dev_type = SAS_SATA_PM;
 		else
-			dev->dev_type = SATA_DEV;
+			dev->dev_type = SAS_SATA_DEV;
 		dev->tproto = SAS_PROTOCOL_SATA;
 	} else {
 		struct sas_identify_frame *id =
@@ -109,21 +109,21 @@ static int sas_get_port_device(struct asd_sas_port *port)
 
 	dev->port = port;
 	switch (dev->dev_type) {
-	case SATA_DEV:
+	case SAS_SATA_DEV:
 		rc = sas_ata_init(dev);
 		if (rc) {
 			rphy = NULL;
 			break;
 		}
 		/* fall through */
-	case SAS_END_DEV:
+	case SAS_END_DEVICE:
 		rphy = sas_end_device_alloc(port->port);
 		break;
-	case EDGE_DEV:
+	case SAS_EDGE_EXPANDER_DEVICE:
 		rphy = sas_expander_alloc(port->port,
 					  SAS_EDGE_EXPANDER_DEVICE);
 		break;
-	case FANOUT_DEV:
+	case SAS_FANOUT_EXPANDER_DEVICE:
 		rphy = sas_expander_alloc(port->port,
 					  SAS_FANOUT_EXPANDER_DEVICE);
 		break;
@@ -156,7 +156,7 @@ static int sas_get_port_device(struct asd_sas_port *port)
 	dev->rphy = rphy;
 	get_device(&dev->rphy->dev);
 
-	if (dev_is_sata(dev) || dev->dev_type == SAS_END_DEV)
+	if (dev_is_sata(dev) || dev->dev_type == SAS_END_DEVICE)
 		list_add_tail(&dev->disco_list_node, &port->disco_list);
 	else {
 		spin_lock_irq(&port->dev_list_lock);
@@ -315,7 +315,7 @@ void sas_free_device(struct kref *kref)
 	dev->phy = NULL;
 
 	/* remove the phys and ports, everything else should be gone */
-	if (dev->dev_type == EDGE_DEV || dev->dev_type == FANOUT_DEV)
+	if (dev->dev_type == SAS_EDGE_EXPANDER_DEVICE || dev->dev_type == SAS_FANOUT_EXPANDER_DEVICE)
 		kfree(dev->ex_dev.ex_phy);
 
 	if (dev_is_sata(dev) && dev->sata_dev.ap) {
@@ -343,7 +343,7 @@ static void sas_unregister_common_dev(struct asd_sas_port *port, struct domain_d
 	spin_unlock_irq(&port->dev_list_lock);
 
 	spin_lock_irq(&ha->lock);
-	if (dev->dev_type == SAS_END_DEV &&
+	if (dev->dev_type == SAS_END_DEVICE &&
 	    !list_empty(&dev->ssp_dev.eh_list_node)) {
 		list_del_init(&dev->ssp_dev.eh_list_node);
 		ha->eh_active--;
@@ -457,15 +457,15 @@ static void sas_discover_domain(struct work_struct *work)
 		    task_pid_nr(current));
 
 	switch (dev->dev_type) {
-	case SAS_END_DEV:
+	case SAS_END_DEVICE:
 		error = sas_discover_end_dev(dev);
 		break;
-	case EDGE_DEV:
-	case FANOUT_DEV:
+	case SAS_EDGE_EXPANDER_DEVICE:
+	case SAS_FANOUT_EXPANDER_DEVICE:
 		error = sas_discover_root_expander(dev);
 		break;
-	case SATA_DEV:
-	case SATA_PM:
+	case SAS_SATA_DEV:
+	case SAS_SATA_PM:
 #ifdef CONFIG_SCSI_SAS_ATA
 		error = sas_discover_sata(dev);
 		break;
