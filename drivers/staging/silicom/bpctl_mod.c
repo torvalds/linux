@@ -5787,7 +5787,7 @@ static const struct file_operations Fops = {
 };
 
 #ifndef PCI_DEVICE
-#define PCI_DEVICE(vend,dev) \
+#define PCI_DEVICE(vend, dev) \
 	.vendor = (vend), .device = (dev), \
 	.subvendor = PCI_ANY_ID, .subdevice = PCI_ANY_ID
 #endif
