@@ -79,7 +79,7 @@
 #if defined(LINUX) || defined(MAXOSX)
     #define FAR
 
-    typedef int BOOL;       // To match Windows
+    typedef int BOOL;       /*  To match Windows */
     typedef char * LPSTR;
     typedef const char * LPCSTR;
     typedef unsigned short WORD;

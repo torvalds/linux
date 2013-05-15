@@ -246,7 +246,7 @@
                                            METHOD_BUFFERED,         \
                                            FILE_ANY_ACCESS)
 
-//--------------- Structures that are shared with the driver -------------
+/*--------------- Structures that are shared with the driver ------------- */
 #pragma pack(1)
 
 typedef struct                  /* used for get/set standard 1401 registers */

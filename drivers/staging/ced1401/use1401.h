@@ -11,10 +11,10 @@
 #define __USE1401_H__
 #include "machine.h"
 
-// Some definitions to make things compatible. If you want to use Use1401 directly
-//  from a Windows program you should define U14_NOT_DLL, in which case you also
-//  MUST make sure that your application startup code calls U14InitLib().
-// DLL_USE1401 is defined when you are building the Use1401 dll, not otherwise.
+/*  Some definitions to make things compatible. If you want to use Use1401 directly */
+/*   from a Windows program you should define U14_NOT_DLL, in which case you also */
+/*   MUST make sure that your application startup code calls U14InitLib(). */
+/*  DLL_USE1401 is defined when you are building the Use1401 dll, not otherwise. */
 #ifdef _IS_WINDOWS_
 #ifndef U14_NOT_DLL
 #ifdef DLL_USE1401
@@ -50,20 +50,20 @@
 #define U14LONG long
 #endif
 
-/// Error codes: We need them here as user space can see them.
-#define U14ERR_NOERROR        0             // no problems
+/* Error codes: We need them here as user space can see them. */
+#define U14ERR_NOERROR        0             /*  no problems */
 
-/// Device error codes, but these don't need to be extended - a succession is assumed
-#define U14ERR_STD            4              // standard 1401 connected
-#define U14ERR_U1401          5              // u1401 connected
-#define U14ERR_PLUS           6              // 1401 plus connected
-#define U14ERR_POWER          7              // Power1401 connected
-#define U14ERR_U14012         8              // u1401 mkII connected
+/* Device error codes, but these don't need to be extended - a succession is assumed */
+#define U14ERR_STD            4              /*  standard 1401 connected */
+#define U14ERR_U1401          5              /*  u1401 connected */
+#define U14ERR_PLUS           6              /*  1401 plus connected */
+#define U14ERR_POWER          7              /*  Power1401 connected */
+#define U14ERR_U14012         8              /*  u1401 mkII connected */
 #define U14ERR_POWER2         9
 #define U14ERR_U14013        10
 #define U14ERR_POWER3        11
 
-/// NBNB Error numbers need shifting as some linux error codes start at 512
+/* NBNB Error numbers need shifting as some linux error codes start at 512 */
 #define U14ERR(n)             (n+U14ERRBASE)
 #define U14ERR_OFF            U14ERR(0)      /* 1401 there but switched off    */
 #define U14ERR_NC             U14ERR(-1)     /* 1401 not connected             */
@@ -113,7 +113,7 @@
 #define U14ERR_DRIVCOMMS      U14ERR(-110)   /* failed talking to driver       */
 #define U14ERR_OUTOFMEMORY    U14ERR(-111)   /* needed memory and couldnt get it*/
 
-/// 1401 type codes.
+/* / 1401 type codes. */
 #define U14TYPE1401           0           /* standard 1401                  */
 #define U14TYPEPLUS           1           /* 1401 plus                      */
 #define U14TYPEU1401          2           /* u1401                          */
@@ -124,9 +124,9 @@
 #define U14TYPEPOWER3         7           /* power1401-3                    */
 #define U14TYPEUNKNOWN        -1          /* dont know                      */
 
-/// Transfer flags to allow driver capabilities to be interrogated
+/* Transfer flags to allow driver capabilities to be interrogated */
 
-/// Constants for transfer flags
+/* Constants for transfer flags */
 #define U14TF_USEDMA          1           /* Transfer flag for use DMA      */
 #define U14TF_MULTIA          2           /* Transfer flag for multi areas  */
 #define U14TF_FIFO            4           /* for FIFO interface card        */
@@ -138,18 +138,18 @@
 #define U14TF_DIAG            256         /* Diagnostics/debug functions    */
 #define U14TF_CIRC14          512         /* Circular-mode to 1401          */
 
-/// Definitions of element sizes for DMA transfers - to allow byte-swapping
+/* Definitions of element sizes for DMA transfers - to allow byte-swapping */
 #define ESZBYTES              0           /* BYTE element size value        */
 #define ESZWORDS              1           /* WORD element size value        */
 #define ESZLONGS              2           /* long element size value        */
 #define ESZUNKNOWN            0           /* unknown element size value     */
 
-/// These define required access types for the debug/diagnostics function
+/* These define required access types for the debug/diagnostics function */
 #define BYTE_SIZE             1           /* 8-bit access                   */
 #define WORD_SIZE             2           /* 16-bit access                  */
 #define LONG_SIZE             3           /* 32-bit access                  */
 
-/// Stuff used by U14_GetTransfer
+/* Stuff used by U14_GetTransfer */
 #define GET_TX_MAXENTRIES  257          /* (max length / page size + 1) */
 
 #ifdef _IS_WINDOWS_
@@ -200,8 +200,8 @@ typedef struct TGetTxBlock              /* used for U14_GetTransfer results */
 extern "C" {
 #endif
 
-U14API(int)   U14WhenToTimeOut(short hand);         // when to timeout in ms
-U14API(short) U14PassedTime(int iTime);             // non-zero if iTime passed
+U14API(int)   U14WhenToTimeOut(short hand);         /*  when to timeout in ms */
+U14API(short) U14PassedTime(int iTime);             /*  non-zero if iTime passed */
 
 U14API(short) U14LastErrCode(short hand);
 
