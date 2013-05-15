@@ -1566,10 +1566,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_transaction *cur_trans = trans->transaction;
 	struct btrfs_transaction *prev_trans = NULL;
-	DEFINE_WAIT(wait);
 	int ret;
-	int should_grow = 0;
-	unsigned long now = get_seconds();
 
 	ret = btrfs_run_ordered_operations(trans, root, 0);
 	if (ret) {
@@ -1660,28 +1657,14 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	if (ret)
 		goto cleanup_transaction;
 
-	if (!btrfs_test_opt(root, SSD) &&
-	    (now < cur_trans->start_time || now - cur_trans->start_time < 1))
-		should_grow = 1;
+	ret = btrfs_flush_all_pending_stuffs(trans, root);
+	if (ret)
+		goto cleanup_transaction;
 
-	do {
-		WARN_ON(cur_trans != trans->transaction);
+	wait_event(cur_trans->writer_wait,
+		   extwriter_counter_read(cur_trans) == 0);
 
-		ret = btrfs_flush_all_pending_stuffs(trans, root);
-		if (ret)
-			goto cleanup_transaction;
-
-		prepare_to_wait(&cur_trans->writer_wait, &wait,
-				TASK_UNINTERRUPTIBLE);
-
-		if (extwriter_counter_read(cur_trans) > 0)
-			schedule();
-		else if (should_grow)
-			schedule_timeout(1);
-
-		finish_wait(&cur_trans->writer_wait, &wait);
-	} while (extwriter_counter_read(cur_trans) > 0);
-
+	/* some pending stuffs might be added after the previous flush. */
 	ret = btrfs_flush_all_pending_stuffs(trans, root);
 	if (ret)
 		goto cleanup_transaction;
