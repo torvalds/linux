@@ -21,13 +21,13 @@
 
 static struct stedma40_chan_cfg msp0_dma_rx = {
 	.high_priority = true,
-	.dir = STEDMA40_PERIPH_TO_MEM,
+	.dir = DMA_DEV_TO_MEM,
 	.dev_type = DB8500_DMA_DEV31_MSP0_SLIM0_CH0,
 };
 
 static struct stedma40_chan_cfg msp0_dma_tx = {
 	.high_priority = true,
-	.dir = STEDMA40_MEM_TO_PERIPH,
+	.dir = DMA_MEM_TO_DEV,
 	.dev_type = DB8500_DMA_DEV31_MSP0_SLIM0_CH0,
 };
 
@@ -39,13 +39,13 @@ struct msp_i2s_platform_data msp0_platform_data = {
 
 static struct stedma40_chan_cfg msp1_dma_rx = {
 	.high_priority = true,
-	.dir = STEDMA40_PERIPH_TO_MEM,
+	.dir = DMA_DEV_TO_MEM,
 	.dev_type = DB8500_DMA_DEV30_MSP3,
 };
 
 static struct stedma40_chan_cfg msp1_dma_tx = {
 	.high_priority = true,
-	.dir = STEDMA40_MEM_TO_PERIPH,
+	.dir = DMA_MEM_TO_DEV,
 	.dev_type = DB8500_DMA_DEV30_MSP1,
 };
 
@@ -57,13 +57,13 @@ struct msp_i2s_platform_data msp1_platform_data = {
 
 static struct stedma40_chan_cfg msp2_dma_rx = {
 	.high_priority = true,
-	.dir = STEDMA40_PERIPH_TO_MEM,
+	.dir = DMA_DEV_TO_MEM,
 	.dev_type = DB8500_DMA_DEV14_MSP2,
 };
 
 static struct stedma40_chan_cfg msp2_dma_tx = {
 	.high_priority = true,
-	.dir = STEDMA40_MEM_TO_PERIPH,
+	.dir = DMA_MEM_TO_DEV,
 	.dev_type = DB8500_DMA_DEV14_MSP2,
 	.use_fixed_channel = true,
 	.phy_channel = 1,

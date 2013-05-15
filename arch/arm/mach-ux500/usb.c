@@ -14,12 +14,12 @@
 
 #define MUSB_DMA40_RX_CH { \
 		.mode = STEDMA40_MODE_LOGICAL, \
-		.dir = STEDMA40_PERIPH_TO_MEM, \
+		.dir = DMA_DEV_TO_MEM, \
 	}
 
 #define MUSB_DMA40_TX_CH { \
 		.mode = STEDMA40_MODE_LOGICAL, \
-		.dir = STEDMA40_MEM_TO_PERIPH, \
+		.dir = DMA_MEM_TO_DEV, \
 	}
 
 static struct stedma40_chan_cfg musb_dma_rx_ch[UX500_MUSB_DMA_NUM_RX_TX_CHANNELS]
