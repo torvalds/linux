@@ -145,16 +145,18 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file, char __user *user_buf,
 	char *buf;
 	u8 *ptr;
 
+	if (!mvm->ucode_loaded)
+		return -EINVAL;
+
 	/* default is to dump the entire data segment */
 	if (!mvm->dbgfs_sram_offset && !mvm->dbgfs_sram_len) {
-		if (!mvm->ucode_loaded)
-			return -EINVAL;
 		img = &mvm->fw->img[mvm->cur_ucode];
-		mvm->dbgfs_sram_offset =
-			img->sec[IWL_UCODE_SECTION_DATA].offset;
-		mvm->dbgfs_sram_len = img->sec[IWL_UCODE_SECTION_DATA].len;
+		ofs = img->sec[IWL_UCODE_SECTION_DATA].offset;
+		len = img->sec[IWL_UCODE_SECTION_DATA].len;
+	} else {
+		ofs = mvm->dbgfs_sram_offset;
+		len = mvm->dbgfs_sram_len;
 	}
-	len = mvm->dbgfs_sram_len;
 
 	bufsz = len * 4 + 256;
 	buf = kzalloc(bufsz, GFP_KERNEL);
@@ -168,12 +170,9 @@ static ssize_t iwl_dbgfs_sram_read(struct file *file, char __user *user_buf,
 	}
 
 	pos += scnprintf(buf + pos, bufsz - pos, "sram_len: 0x%x\n", len);
-	pos += scnprintf(buf + pos, bufsz - pos, "sram_offset: 0x%x\n",
-			 mvm->dbgfs_sram_offset);
+	pos += scnprintf(buf + pos, bufsz - pos, "sram_offset: 0x%x\n", ofs);
 
-	iwl_trans_read_mem_bytes(mvm->trans,
-				 mvm->dbgfs_sram_offset,
-				 ptr, len);
+	iwl_trans_read_mem_bytes(mvm->trans, ofs, ptr, len);
 	for (ofs = 0; ofs < len; ofs += 16) {
 		pos += scnprintf(buf + pos, bufsz - pos, "0x%.4x ", ofs);
 		hex_dump_to_buffer(ptr + ofs, 16, 16, 1, buf + pos,
