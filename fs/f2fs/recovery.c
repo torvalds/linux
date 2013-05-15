@@ -381,6 +381,7 @@ int recover_fsync_data(struct f2fs_sb_info *sbi)
 	INIT_LIST_HEAD(&inode_list);
 
 	/* step #1: find fsynced inode numbers */
+	sbi->por_doing = 1;
 	err = find_fsync_dnodes(sbi, &inode_list);
 	if (err)
 		goto out;
@@ -389,13 +390,12 @@ int recover_fsync_data(struct f2fs_sb_info *sbi)
 		goto out;
 
 	/* step #2: recover data */
-	sbi->por_doing = 1;
 	err = recover_data(sbi, &inode_list, CURSEG_WARM_NODE);
-	sbi->por_doing = 0;
 	BUG_ON(!list_empty(&inode_list));
 out:
 	destroy_fsync_dnodes(sbi, &inode_list);
 	kmem_cache_destroy(fsync_entry_slab);
+	sbi->por_doing = 0;
 	write_checkpoint(sbi, false);
 	return err;
 }
