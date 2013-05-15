@@ -16,12 +16,12 @@
 typedef struct minix_dir_entry minix_dirent;
 typedef struct minix3_dir_entry minix3_dirent;
 
-static int minix_readdir(struct file *, void *, filldir_t);
+static int minix_readdir(struct file *, struct dir_context *);
 
 const struct file_operations minix_dir_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
-	.readdir	= minix_readdir,
+	.iterate	= minix_readdir,
 	.fsync		= generic_file_fsync,
 };
 
@@ -82,22 +82,23 @@ static inline void *minix_next_entry(void *de, struct minix_sb_info *sbi)
 	return (void*)((char*)de + sbi->s_dirsize);
 }
 
-static int minix_readdir(struct file * filp, void * dirent, filldir_t filldir)
+static int minix_readdir(struct file *file, struct dir_context *ctx)
 {
-	unsigned long pos = filp->f_pos;
-	struct inode *inode = file_inode(filp);
+	struct inode *inode = file_inode(file);
 	struct super_block *sb = inode->i_sb;
-	unsigned offset = pos & ~PAGE_CACHE_MASK;
-	unsigned long n = pos >> PAGE_CACHE_SHIFT;
-	unsigned long npages = dir_pages(inode);
 	struct minix_sb_info *sbi = minix_sb(sb);
 	unsigned chunk_size = sbi->s_dirsize;
-	char *name;
-	__u32 inumber;
+	unsigned long npages = dir_pages(inode);
+	unsigned long pos = ctx->pos;
+	unsigned offset;
+	unsigned long n;
 
-	pos = (pos + chunk_size-1) & ~(chunk_size-1);
+	ctx->pos = pos = (pos + chunk_size-1) & ~(chunk_size-1);
 	if (pos >= inode->i_size)
-		goto done;
+		return 0;
+
+	offset = pos & ~PAGE_CACHE_MASK;
+	n = pos >> PAGE_CACHE_SHIFT;
 
 	for ( ; n < npages; n++, offset = 0) {
 		char *p, *kaddr, *limit;
@@ -109,6 +110,8 @@ static int minix_readdir(struct file * filp, void * dirent, filldir_t filldir)
 		p = kaddr+offset;
 		limit = kaddr + minix_last_byte(inode, n) - chunk_size;
 		for ( ; p <= limit; p = minix_next_entry(p, sbi)) {
+			const char *name;
+			__u32 inumber;
 			if (sbi->s_version == MINIX_V3) {
 				minix3_dirent *de3 = (minix3_dirent *)p;
 				name = de3->name;
@@ -119,24 +122,17 @@ static int minix_readdir(struct file * filp, void * dirent, filldir_t filldir)
 				inumber = de->inode;
 			}
 			if (inumber) {
-				int over;
-
 				unsigned l = strnlen(name, sbi->s_namelen);
-				offset = p - kaddr;
-				over = filldir(dirent, name, l,
-					(n << PAGE_CACHE_SHIFT) | offset,
-					inumber, DT_UNKNOWN);
-				if (over) {
+				if (!dir_emit(ctx, name, l,
+					      inumber, DT_UNKNOWN)) {
 					dir_put_page(page);
-					goto done;
+					return 0;
 				}
 			}
+			ctx->pos += chunk_size;
 		}
 		dir_put_page(page);
 	}
-
-done:
-	filp->f_pos = (n << PAGE_CACHE_SHIFT) | offset;
 	return 0;
 }
 
