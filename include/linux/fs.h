@@ -1508,7 +1508,15 @@ int fiemap_check_flags(struct fiemap_extent_info *fieinfo, u32 fs_flags);
 typedef int (*filldir_t)(void *, const char *, int, loff_t, u64, unsigned);
 struct dir_context {
 	filldir_t actor;
+	loff_t pos;
 };
+
+static inline bool dir_emit(struct dir_context *ctx,
+			    const char *name, int namelen,
+			    u64 ino, unsigned type)
+{
+	return ctx->actor(ctx, name, namelen, ctx->pos, ino, type) == 0;
+}
 struct block_device_operations;
 
 /* These macros are for out of kernel modules to test that
@@ -1525,6 +1533,7 @@ struct file_operations {
 	ssize_t (*aio_read) (struct kiocb *, const struct iovec *, unsigned long, loff_t);
 	ssize_t (*aio_write) (struct kiocb *, const struct iovec *, unsigned long, loff_t);
 	int (*readdir) (struct file *, void *, filldir_t);
+	int (*iterate) (struct file *, struct dir_context *);
 	unsigned int (*poll) (struct file *, struct poll_table_struct *);
 	long (*unlocked_ioctl) (struct file *, unsigned int, unsigned long);
 	long (*compat_ioctl) (struct file *, unsigned int, unsigned long);

@@ -24,7 +24,7 @@ int iterate_dir(struct file *file, struct dir_context *ctx)
 {
 	struct inode *inode = file_inode(file);
 	int res = -ENOTDIR;
-	if (!file->f_op || !file->f_op->readdir)
+	if (!file->f_op || (!file->f_op->readdir && !file->f_op->iterate))
 		goto out;
 
 	res = security_file_permission(file, MAY_READ);
@@ -37,7 +37,14 @@ int iterate_dir(struct file *file, struct dir_context *ctx)
 
 	res = -ENOENT;
 	if (!IS_DEADDIR(inode)) {
-		res = file->f_op->readdir(file, ctx, ctx->actor);
+		if (file->f_op->iterate) {
+			ctx->pos = file->f_pos;
+			res = file->f_op->iterate(file, ctx);
+			file->f_pos = ctx->pos;
+		} else {
+			res = file->f_op->readdir(file, ctx, ctx->actor);
+			ctx->pos = file->f_pos;
+		}
 		file_accessed(file);
 	}
 	mutex_unlock(&inode->i_mutex);
@@ -214,7 +221,7 @@ SYSCALL_DEFINE3(getdents, unsigned int, fd,
 		error = buf.error;
 	lastdirent = buf.previous;
 	if (lastdirent) {
-		if (put_user(f.file->f_pos, &lastdirent->d_off))
+		if (put_user(buf.ctx.pos, &lastdirent->d_off))
 			error = -EFAULT;
 		else
 			error = count - buf.count;
@@ -296,7 +303,7 @@ SYSCALL_DEFINE3(getdents64, unsigned int, fd,
 		error = buf.error;
 	lastdirent = buf.previous;
 	if (lastdirent) {
-		typeof(lastdirent->d_off) d_off = f.file->f_pos;
+		typeof(lastdirent->d_off) d_off = buf.ctx.pos;
 		if (__put_user(d_off, &lastdirent->d_off))
 			error = -EFAULT;
 		else
