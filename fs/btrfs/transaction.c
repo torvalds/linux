@@ -1518,15 +1518,7 @@ static void cleanup_transaction(struct btrfs_trans_handle *trans,
 static int btrfs_flush_all_pending_stuffs(struct btrfs_trans_handle *trans,
 					  struct btrfs_root *root)
 {
-	int flush_on_commit = btrfs_test_opt(root, FLUSHONCOMMIT);
 	int ret;
-
-	if (flush_on_commit) {
-		ret = btrfs_start_all_delalloc_inodes(root->fs_info, 1);
-		if (ret)
-			return ret;
-		btrfs_wait_all_ordered_extents(root->fs_info, 1);
-	}
 
 	ret = btrfs_run_delayed_items(trans, root);
 	if (ret)
@@ -1549,6 +1541,19 @@ static int btrfs_flush_all_pending_stuffs(struct btrfs_trans_handle *trans,
 	ret = btrfs_run_ordered_operations(trans, root, 1);
 
 	return ret;
+}
+
+static inline int btrfs_start_delalloc_flush(struct btrfs_fs_info *fs_info)
+{
+	if (btrfs_test_opt(fs_info->tree_root, FLUSHONCOMMIT))
+		return btrfs_start_all_delalloc_inodes(fs_info, 1);
+	return 0;
+}
+
+static inline void btrfs_wait_delalloc_flush(struct btrfs_fs_info *fs_info)
+{
+	if (btrfs_test_opt(fs_info->tree_root, FLUSHONCOMMIT))
+		btrfs_wait_all_ordered_extents(fs_info, 1);
 }
 
 /*
@@ -1654,6 +1659,10 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 
 	extwriter_counter_dec(cur_trans, trans->type);
 
+	ret = btrfs_start_delalloc_flush(root->fs_info);
+	if (ret)
+		goto cleanup_transaction;
+
 	if (!btrfs_test_opt(root, SSD) &&
 	    (now < cur_trans->start_time || now - cur_trans->start_time < 1))
 		should_grow = 1;
@@ -1683,6 +1692,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	if (ret)
 		goto cleanup_transaction;
 
+	btrfs_wait_delalloc_flush(root->fs_info);
 	/*
 	 * Ok now we need to make sure to block out any other joins while we
 	 * commit the transaction.  We could have started a join before setting
