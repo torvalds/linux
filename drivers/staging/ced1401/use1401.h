@@ -18,9 +18,9 @@
 #ifdef _IS_WINDOWS_
 #ifndef U14_NOT_DLL
 #ifdef DLL_USE1401
-#define U14API(retType) retType DllExport __stdcall
+#define U14API(retType) (retType DllExport __stdcall)
 #else
-#define U14API(retType) retType DllImport __stdcall
+#define U14API(retType) (retType DllImport __stdcall)
 #endif
 #endif
 
@@ -36,7 +36,7 @@
 #ifdef _QT
 #ifndef U14_NOT_DLL
 #undef U14API
-#define U14API(retType) retType __declspec(dllimport) __stdcall
+#define U14API(retType) (retType __declspec(dllimport) __stdcall)
 #endif
 #undef U14LONG
 #define U14LONG int

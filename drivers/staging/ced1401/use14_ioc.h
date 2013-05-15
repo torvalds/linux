@@ -34,7 +34,7 @@
 #define  U14_SENDSTRING          CTL_CODE(FILE_DEVICE_CED1401,     \
 						FNNUMBASE+2,             \
 						METHOD_BUFFERED,         \
-						FILE_ANY_ACCESS
+						FILE_ANY_ACCESS)
 
 #define  U14_RESET1401           CTL_CODE(FILE_DEVICE_CED1401,     \
 						FNNUMBASE+3,             \
