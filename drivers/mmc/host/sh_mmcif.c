@@ -1244,7 +1244,8 @@ static irqreturn_t sh_mmcif_intr(int irq, void *dev_id)
 	u32 state;
 
 	state = sh_mmcif_readl(host->addr, MMCIF_CE_INT);
-	sh_mmcif_writel(host->addr, MMCIF_CE_INT, ~state);
+	sh_mmcif_writel(host->addr, MMCIF_CE_INT,
+			~(state & sh_mmcif_readl(host->addr, MMCIF_CE_INT_MASK)));
 	sh_mmcif_bitclr(host, MMCIF_CE_INT_MASK, state & MASK_CLEAN);
 
 	if (state & ~MASK_CLEAN)
