@@ -35,7 +35,7 @@
 #define BP_MOD_DESCR "Silicom Bypass-SD Control driver"
 #define BP_SYNC_FLAG 1
 
-static int major_num = 0;
+static int major_num;
 
 MODULE_AUTHOR("Anna Lukin, annal@silicom.co.il");
 MODULE_LICENSE("GPL");
@@ -112,7 +112,7 @@ typedef struct _bpctl_dev {
 static bpctl_dev_t *bpctl_dev_arr;
 
 static struct semaphore bpctl_sema;
-static int device_num = 0;
+static int device_num;
 
 static int get_dev_idx(int ifindex);
 static bpctl_dev_t *get_master_port_fn(bpctl_dev_t *pbpctl_dev);
@@ -134,7 +134,7 @@ static int bp_device_event(struct notifier_block *unused,
 			   unsigned long event, void *ptr)
 {
 	struct net_device *dev = ptr;
-	static bpctl_dev_t *pbpctl_dev = NULL, *pbpctl_dev_m = NULL;
+	static bpctl_dev_t *pbpctl_dev, *pbpctl_dev_m;
 	int dev_num = 0, ret = 0, ret_d = 0, time_left = 0;
 	/* printk("BP_PROC_SUPPORT event =%d %s %d\n", event,dev->name, dev->ifindex ); */
 	/* return NOTIFY_DONE; */
@@ -7831,7 +7831,7 @@ RW_FOPS(wd_autoreset)
 int bypass_proc_create_dev_sd(bpctl_dev_t *pbp_device_block)
 {
 	struct bypass_pfs_sd *current_pfs = &(pbp_device_block->bypass_pfs_set);
-	static struct proc_dir_entry *procfs_dir = NULL;
+	static struct proc_dir_entry *procfs_dir;
 	int ret = 0;
 
 	if (!pbp_device_block->ndev)
