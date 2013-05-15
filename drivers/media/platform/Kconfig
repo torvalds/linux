@@ -220,7 +220,7 @@ if V4L_TEST_DRIVERS
 config VIDEO_VIVI
 	tristate "Virtual Video Driver"
 	depends on VIDEO_DEV && VIDEO_V4L2 && !SPARC32 && !SPARC64
-	depends on FRAMEBUFFER_CONSOLE || STI_CONSOLE
+	select FONT_SUPPORT
 	select FONT_8x16
 	select VIDEOBUF2_VMALLOC
 	default n
