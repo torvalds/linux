@@ -2513,6 +2513,10 @@ static int d40_alloc_chan_resources(struct dma_chan *chan)
 			d40c->lcpa = d40c->base->lcpa_base +
 				d40c->dma_cfg.dev_type *
 				D40_LCPA_CHAN_SIZE + D40_LCPA_CHAN_DST_DELTA;
+
+		/* Unmask the Global Interrupt Mask. */
+		d40c->src_def_cfg |= BIT(D40_SREG_CFG_LOG_GIM_POS);
+		d40c->dst_def_cfg |= BIT(D40_SREG_CFG_LOG_GIM_POS);
 	}
 
 	dev_dbg(chan2dev(d40c), "allocated %s channel (phy %d%s)\n",
