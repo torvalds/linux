@@ -95,6 +95,8 @@ static const struct block_device_operations xlvbd_block_fops;
  */
 
 static unsigned int xen_blkif_max_segments = 32;
+module_param_named(max, xen_blkif_max_segments, int, S_IRUGO);
+MODULE_PARM_DESC(max, "Maximum amount of segments in indirect requests (default is 32)");
 
 #define BLK_RING_SIZE __CONST_RING_SIZE(blkif, PAGE_SIZE)
 
