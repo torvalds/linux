@@ -42,6 +42,7 @@ static int recover_dentry(struct page *ipage, struct inode *inode)
 {
 	struct f2fs_node *raw_node = (struct f2fs_node *)kmap(ipage);
 	struct f2fs_inode *raw_inode = &(raw_node->i);
+	nid_t pino = le32_to_cpu(raw_inode->i_pino);
 	struct qstr name;
 	struct f2fs_dir_entry *de;
 	struct page *page;
@@ -51,10 +52,14 @@ static int recover_dentry(struct page *ipage, struct inode *inode)
 	if (!is_dent_dnode(ipage))
 		goto out;
 
-	dir = f2fs_iget(inode->i_sb, le32_to_cpu(raw_inode->i_pino));
-	if (IS_ERR(dir)) {
-		err = PTR_ERR(dir);
-		goto out;
+	dir = check_dirty_dir_inode(F2FS_SB(inode->i_sb), pino);
+	if (!dir) {
+		dir = f2fs_iget(inode->i_sb, pino);
+		if (IS_ERR(dir)) {
+			err = PTR_ERR(dir);
+			goto out;
+		}
+		set_inode_flag(F2FS_I(dir), FI_DELAY_IPUT);
 	}
 
 	name.len = le32_to_cpu(raw_inode->i_namelen);
@@ -67,7 +72,6 @@ static int recover_dentry(struct page *ipage, struct inode *inode)
 	} else {
 		err = __f2fs_add_link(dir, &name, inode);
 	}
-	iput(dir);
 out:
 	kunmap(ipage);
 	return err;
