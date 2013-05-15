@@ -4727,6 +4727,7 @@ void btrfs_evict_inode(struct inode *inode)
 	btrfs_end_transaction(trans, root);
 	btrfs_btree_balance_dirty(root);
 no_delete:
+	btrfs_remove_delayed_node(inode);
 	clear_inode(inode);
 	return;
 }
@@ -7982,7 +7983,6 @@ void btrfs_destroy_inode(struct inode *inode)
 	inode_tree_del(inode);
 	btrfs_drop_extent_cache(inode, 0, (u64)-1, 0);
 free:
-	btrfs_remove_delayed_node(inode);
 	call_rcu(&inode->i_rcu, btrfs_i_callback);
 }
 
