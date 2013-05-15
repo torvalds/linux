@@ -77,20 +77,20 @@
 #endif
 
 #if defined(LINUX) || defined(MAXOSX)
-    #define FAR
+	#define FAR
 
-    typedef int BOOL;       /*  To match Windows */
-    typedef char *LPSTR;
-    typedef const char *LPCSTR;
-    typedef unsigned short WORD;
-    typedef unsigned int  DWORD;
-    typedef unsigned char  BYTE;
-    typedef BYTE  BOOLEAN;
-    typedef unsigned char UCHAR;
-    #define __packed __attribute__((packed))
-    typedef BYTE *LPBYTE;
-    #define HIWORD(x) (WORD)(((x)>>16) & 0xffff)
-    #define LOWORD(x) (WORD)((x) & 0xffff)
+	typedef int BOOL;       /*  To match Windows */
+	typedef char *LPSTR;
+	typedef const char *LPCSTR;
+	typedef unsigned short WORD;
+	typedef unsigned int  DWORD;
+	typedef unsigned char  BYTE;
+	typedef BYTE  BOOLEAN;
+	typedef unsigned char UCHAR;
+	#define __packed __attribute__((packed))
+	typedef BYTE *LPBYTE;
+	#define HIWORD(x) (WORD)(((x)>>16) & 0xffff)
+	#define LOWORD(x) (WORD)((x) & 0xffff)
 #endif
 
 #ifdef _IS_WINDOWS_
@@ -104,21 +104,20 @@
 ** a synonym.
 */
 #ifdef GNUC
-    #define DllExport __attribute__((dllexport))
-    #define DllImport __attribute__((dllimport))
+	#define DllExport __attribute__((dllexport))
+	#define DllImport __attribute__((dllimport))
 #endif
 
 #ifndef DllExport
 #ifdef _IS_WINDOWS_
-    #define DllExport __declspec(dllexport)
-    #define DllImport __declspec(dllimport)
+	#define DllExport __declspec(dllexport)
+	#define DllImport __declspec(dllimport)
 #else
-    #define DllExport
-    #define DllImport
+	#define DllExport
+	#define DllImport
 #endif
 #endif /* _IS_WINDOWS_ */
 
-    
 #ifndef TRUE
    #define TRUE 1
    #define FALSE 0

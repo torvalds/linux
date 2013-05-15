@@ -95,39 +95,39 @@
 /*  A structure holding information about a block of memory for use in circular transfers */
 typedef struct circBlk
 {
-    volatile UINT dwOffset;             /* Offset within area of block start */
-    volatile UINT dwSize;               /* Size of the block, in bytes (0 = unused) */
+	volatile UINT dwOffset;             /* Offset within area of block start */
+	volatile UINT dwSize;               /* Size of the block, in bytes (0 = unused) */
 } CIRCBLK;
 
 /*  A structure holding all of the information about a transfer area - an area of */
 /*   memory set up for use either as a source or destination in DMA transfers. */
 typedef struct transarea
 {
-    void	*lpvBuff;                /*  User address of xfer area saved for completeness */
-    UINT        dwBaseOffset;           /*  offset to start of xfer area in first page */
-    UINT        dwLength;               /*  Length of xfer area, in bytes */
-    struct page **pPages;               /*  Points at array of locked down pages */
-    int         nPages;                 /*  number of pages that are locked down */
-    bool        bUsed;                  /*  Is this structure in use? */
-    bool        bCircular;              /*  Is this area for circular transfers? */
-    bool        bCircToHost;            /*  Flag for direction of circular transfer */
-    bool        bEventToHost;           /*  Set event on transfer to host? */
-    int         iWakeUp;                /*  Set 1 on event, cleared by TestEvent() */
-    UINT        dwEventSt;              /*  Defines section within xfer area for... */
-    UINT        dwEventSz;              /*  ...notification by the event SZ is 0 if unset */
-    CIRCBLK     aBlocks[2];             /*  Info on a pair of circular blocks */
-    wait_queue_head_t wqEvent;          /*  The wait queue for events in this area MUST BE LAST */
+	void	*lpvBuff;                /*  User address of xfer area saved for completeness */
+	UINT        dwBaseOffset;           /*  offset to start of xfer area in first page */
+	UINT        dwLength;               /*  Length of xfer area, in bytes */
+	struct page **pPages;               /*  Points at array of locked down pages */
+	int         nPages;                 /*  number of pages that are locked down */
+	bool        bUsed;                  /*  Is this structure in use? */
+	bool        bCircular;              /*  Is this area for circular transfers? */
+	bool        bCircToHost;            /*  Flag for direction of circular transfer */
+	bool        bEventToHost;           /*  Set event on transfer to host? */
+	int         iWakeUp;                /*  Set 1 on event, cleared by TestEvent() */
+	UINT        dwEventSt;              /*  Defines section within xfer area for... */
+	UINT        dwEventSz;              /*  ...notification by the event SZ is 0 if unset */
+	CIRCBLK     aBlocks[2];             /*  Info on a pair of circular blocks */
+	wait_queue_head_t wqEvent;          /*  The wait queue for events in this area MUST BE LAST */
 } TRANSAREA;
 
 /*  The DMADESC structure is used to hold information on the transfer in progress. It */
 /*  is set up by ReadDMAInfo, using information sent by the 1401 in an escape sequence. */
 typedef struct dmadesc
 {
-    unsigned short wTransType;          /* transfer type as TM_xxx above        */
-    unsigned short wIdent;              /* identifier word                      */
-    unsigned int   dwSize;              /* bytes to transfer                    */
-    unsigned int   dwOffset;            /* offset into transfer area for trans  */
-    bool           bOutWard;            /* true when data is going TO 1401      */
+	unsigned short wTransType;          /* transfer type as TM_xxx above        */
+	unsigned short wIdent;              /* identifier word                      */
+	unsigned int   dwSize;              /* bytes to transfer                    */
+	unsigned int   dwOffset;            /* offset into transfer area for trans  */
+	bool           bOutWard;            /* true when data is going TO 1401      */
 } DMADESC;
 
 #define INBUF_SZ         256            /* input buffer size */
@@ -138,69 +138,69 @@ typedef struct dmadesc
 /*  can to the Windows driver to help in our understanding of what is going on. */
 typedef struct _DEVICE_EXTENSION
 {
-    char inputBuffer[INBUF_SZ];         /* The two buffers */
-    char outputBuffer[OUTBUF_SZ];       /* accessed by the host functions */
-    volatile unsigned int dwNumInput;   /* num of chars in input buffer   */
-    volatile unsigned int dwInBuffGet;  /* where to get from input buffer */
-    volatile unsigned int dwInBuffPut;  /* where to put into input buffer */
-    volatile unsigned int dwNumOutput;  /* num of chars in output buffer  */
-    volatile unsigned int dwOutBuffGet; /* where to get from output buffer*/
-    volatile unsigned int dwOutBuffPut; /* where to put into output buffer*/
+	char inputBuffer[INBUF_SZ];         /* The two buffers */
+	char outputBuffer[OUTBUF_SZ];       /* accessed by the host functions */
+	volatile unsigned int dwNumInput;   /* num of chars in input buffer   */
+	volatile unsigned int dwInBuffGet;  /* where to get from input buffer */
+	volatile unsigned int dwInBuffPut;  /* where to put into input buffer */
+	volatile unsigned int dwNumOutput;  /* num of chars in output buffer  */
+	volatile unsigned int dwOutBuffGet; /* where to get from output buffer*/
+	volatile unsigned int dwOutBuffPut; /* where to put into output buffer*/
 
-    volatile bool bSendCharsPending;    /* Flag to indicate sendchar active */
-    volatile bool bReadCharsPending;    /* Flag to indicate a read is primed */
-    char *pCoherCharOut;                /* special aligned buffer for chars to 1401 */
-    struct urb *pUrbCharOut;            /* urb used for chars to 1401 */
-    char *pCoherCharIn;                 /* special aligned buffer for chars to host */
-    struct urb *pUrbCharIn;             /* urb used for chars to host */
+	volatile bool bSendCharsPending;    /* Flag to indicate sendchar active */
+	volatile bool bReadCharsPending;    /* Flag to indicate a read is primed */
+	char *pCoherCharOut;                /* special aligned buffer for chars to 1401 */
+	struct urb *pUrbCharOut;            /* urb used for chars to 1401 */
+	char *pCoherCharIn;                 /* special aligned buffer for chars to host */
+	struct urb *pUrbCharIn;             /* urb used for chars to host */
 
-    spinlock_t charOutLock;             /* to protect the outputBuffer and outputting */
-    spinlock_t charInLock;              /* to protect the inputBuffer and char reads */
-    __u8 bInterval;                     /* Interrupt end point interval */
+	spinlock_t charOutLock;             /* to protect the outputBuffer and outputting */
+	spinlock_t charInLock;              /* to protect the inputBuffer and char reads */
+	__u8 bInterval;                     /* Interrupt end point interval */
 
-    volatile unsigned int dwDMAFlag;    /* state of DMA */
-    TRANSAREA rTransDef[MAX_TRANSAREAS];/* transfer area info */
-    volatile DMADESC rDMAInfo;          /*  info on current DMA transfer */
-    volatile bool bXFerWaiting;         /*  Flag set if DMA transfer stalled */
-    volatile bool bInDrawDown;          /*  Flag that we want to halt transfers */
+	volatile unsigned int dwDMAFlag;    /* state of DMA */
+	TRANSAREA rTransDef[MAX_TRANSAREAS];/* transfer area info */
+	volatile DMADESC rDMAInfo;          /*  info on current DMA transfer */
+	volatile bool bXFerWaiting;         /*  Flag set if DMA transfer stalled */
+	volatile bool bInDrawDown;          /*  Flag that we want to halt transfers */
 
-    /*  Parameters relating to a block read\write that is in progress. Some of these values */
-    /*   are equivalent to values in rDMAInfo. The values here are those in use, while those */
-    /*   in rDMAInfo are those received from the 1401 via an escape sequence. If another */
-    /*   escape sequence arrives before the previous xfer ends, rDMAInfo values are updated while these */
-    /*   are used to finish off the current transfer. */
-    volatile short StagedId;            /*  The transfer area id for this transfer */
-    volatile bool StagedRead;           /*  Flag TRUE for read from 1401, FALSE for write */
-    volatile unsigned int StagedLength; /*  Total length of this transfer */
-    volatile unsigned int StagedOffset; /*  Offset within memory area for transfer start */
-    volatile unsigned int StagedDone;   /*  Bytes transferred so far */
-    volatile bool bStagedUrbPending;    /*  Flag to indicate active */
-    char *pCoherStagedIO;               /*  buffer used for block transfers */
-    struct urb *pStagedUrb;             /*  The URB to use */
-    spinlock_t stagedLock;              /*  protects ReadWriteMem() and circular buffer stuff */
+	/*  Parameters relating to a block read\write that is in progress. Some of these values */
+	/*   are equivalent to values in rDMAInfo. The values here are those in use, while those */
+	/*   in rDMAInfo are those received from the 1401 via an escape sequence. If another */
+	/*   escape sequence arrives before the previous xfer ends, rDMAInfo values are updated while these */
+	/*   are used to finish off the current transfer. */
+	volatile short StagedId;            /*  The transfer area id for this transfer */
+	volatile bool StagedRead;           /*  Flag TRUE for read from 1401, FALSE for write */
+	volatile unsigned int StagedLength; /*  Total length of this transfer */
+	volatile unsigned int StagedOffset; /*  Offset within memory area for transfer start */
+	volatile unsigned int StagedDone;   /*  Bytes transferred so far */
+	volatile bool bStagedUrbPending;    /*  Flag to indicate active */
+	char *pCoherStagedIO;               /*  buffer used for block transfers */
+	struct urb *pStagedUrb;             /*  The URB to use */
+	spinlock_t stagedLock;              /*  protects ReadWriteMem() and circular buffer stuff */
 
-    short s1401Type;                    /*  type of 1401 attached */
-    short sCurrentState;                /*  current error state */
-    bool bIsUSB2;                       /*  type of the interface we connect to */
-    bool bForceReset;                   /*  Flag to make sure we get a real reset */
-    __u32 statBuf[2];                   /*  buffer for 1401 state info */
+	short s1401Type;                    /*  type of 1401 attached */
+	short sCurrentState;                /*  current error state */
+	bool bIsUSB2;                       /*  type of the interface we connect to */
+	bool bForceReset;                   /*  Flag to make sure we get a real reset */
+	__u32 statBuf[2];                   /*  buffer for 1401 state info */
 
-    unsigned long ulSelfTestTime;       /*  used to timeout self test */
+	unsigned long ulSelfTestTime;       /*  used to timeout self test */
 
-    int nPipes;                         /*  Should be 3 or 4 depending on 1401 usb chip */
-    int bPipeError[4];                  /*  set non-zero if an error on one of the pipe */
-    __u8 epAddr[4];                     /*  addresses of the 3/4 end points */
+	int nPipes;                         /*  Should be 3 or 4 depending on 1401 usb chip */
+	int bPipeError[4];                  /*  set non-zero if an error on one of the pipe */
+	__u8 epAddr[4];                     /*  addresses of the 3/4 end points */
 
-    struct usb_device *udev;            /*  the usb device for this device */
-    struct usb_interface *interface;    /*  the interface for this device, NULL if removed */
-    struct usb_anchor submitted;        /*  in case we need to retract our submissions */
-    struct mutex io_mutex;              /*  synchronize I/O with disconnect, one user-mode caller at a time */
+	struct usb_device *udev;            /*  the usb device for this device */
+	struct usb_interface *interface;    /*  the interface for this device, NULL if removed */
+	struct usb_anchor submitted;        /*  in case we need to retract our submissions */
+	struct mutex io_mutex;              /*  synchronize I/O with disconnect, one user-mode caller at a time */
 
-    int    errors;                      /*  the last request tanked */
-    int    open_count;                  /*  count the number of openers */
-    spinlock_t err_lock;                /*  lock for errors */
-    struct kref kref;
-}DEVICE_EXTENSION, *PDEVICE_EXTENSION;
+	int    errors;                      /*  the last request tanked */
+	int    open_count;                  /*  count the number of openers */
+	spinlock_t err_lock;                /*  lock for errors */
+	struct kref kref;
+} DEVICE_EXTENSION, *PDEVICE_EXTENSION;
 #define to_DEVICE_EXTENSION(d) container_of(d, DEVICE_EXTENSION, kref)
 
 /*  Definitions of routimes used between compilation object files */
@@ -209,7 +209,7 @@ extern int Allowi(DEVICE_EXTENSION *pdx);
 extern int SendChars(DEVICE_EXTENSION *pdx);
 extern void ced_draw_down(DEVICE_EXTENSION *pdx);
 extern int ReadWriteMem(DEVICE_EXTENSION *pdx, bool Read, unsigned short wIdent,
-                      unsigned int dwOffs, unsigned int dwLen);
+				unsigned int dwOffs, unsigned int dwLen);
 
 /*  in ced_ioc.c */
 extern int ClearArea(DEVICE_EXTENSION *pdx, int nArea);

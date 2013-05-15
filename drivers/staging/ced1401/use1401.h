@@ -157,19 +157,19 @@
 
 typedef struct                          /* used for U14_GetTransfer results */
 {                                          /* Info on a single mapped block */
-   U14LONG physical;
-   U14LONG size;
+	U14LONG physical;
+	U14LONG size;
 } TXENTRY;
 
 typedef struct TGetTxBlock              /* used for U14_GetTransfer results */
 {                                               /* matches structure in VXD */
-   U14LONG size;
-   U14LONG linear;
-   short   seg;
-   short   reserved;
-   short   avail;                      /* number of available entries */
-   short   used;                       /* number of used entries */
-   TXENTRY entries[GET_TX_MAXENTRIES];       /* Array of mapped block info */
+	U14LONG size;
+	U14LONG linear;
+	short   seg;
+	short   reserved;
+	short   avail;                      /* number of available entries */
+	short   used;                       /* number of used entries */
+	TXENTRY entries[GET_TX_MAXENTRIES];       /* Array of mapped block info */
 } TGET_TX_BLOCK;
 
 typedef TGET_TX_BLOCK *LPGET_TX_BLOCK;
@@ -180,19 +180,19 @@ typedef TGET_TX_BLOCK *LPGET_TX_BLOCK;
 #ifdef LINUX
 typedef struct                          /* used for U14_GetTransfer results */
 {                                       /* Info on a single mapped block */
-   long long physical;
-   long     size;
+	long long physical;
+	long     size;
 } TXENTRY;
 
 typedef struct TGetTxBlock              /* used for U14_GetTransfer results */
 {                                       /* matches structure in VXD */
-   long long linear;                    /* linear address */
-   long     size;                       /* total size of the mapped area, holds id when called */
-   short    seg;                        /* segment of the address for Win16 */
-   short    reserved;
-   short    avail;                      /* number of available entries */
-   short    used;                       /* number of used entries */
-   TXENTRY  entries[GET_TX_MAXENTRIES]; /* Array of mapped block info */
+	long long linear;                    /* linear address */
+	long     size;                       /* total size of the mapped area, holds id when called */
+	short    seg;                        /* segment of the address for Win16 */
+	short    reserved;
+	short    avail;                      /* number of available entries */
+	short    used;                       /* number of used entries */
+	TXENTRY  entries[GET_TX_MAXENTRIES]; /* Array of mapped block info */
 } TGET_TX_BLOCK;
 #endif
 
@@ -201,83 +201,83 @@ extern "C" {
 #endif
 
 U14API(int)   U14WhenToTimeOut(short hand);         /*  when to timeout in ms */
-U14API(short) U14PassedTime(int iTime);             /*  non-zero if iTime passed */
+U14API(short)	U14PassedTime(int iTime);             /*  non-zero if iTime passed */
 
-U14API(short) U14LastErrCode(short hand);
+U14API(short)	U14LastErrCode(short hand);
 
-U14API(short) U14Open1401(short n1401);
-U14API(short) U14Close1401(short hand);
-U14API(short) U14Reset1401(short hand);
-U14API(short) U14ForceReset(short hand);
-U14API(short) U14TypeOf1401(short hand);
-U14API(short) U14NameOf1401(short hand, char *pBuf, WORD wMax);
+U14API(short)	U14Open1401(short n1401);
+U14API(short)	U14Close1401(short hand);
+U14API(short)	U14Reset1401(short hand);
+U14API(short)	U14ForceReset(short hand);
+U14API(short)	U14TypeOf1401(short hand);
+U14API(short)	U14NameOf1401(short hand, char *pBuf, WORD wMax);
 
-U14API(short) U14Stat1401(short hand);
-U14API(short) U14CharCount(short hand);
-U14API(short) U14LineCount(short hand);
+U14API(short)	U14Stat1401(short hand);
+U14API(short)	U14CharCount(short hand);
+U14API(short)	U14LineCount(short hand);
 
-U14API(short) U14SendString(short hand, const char *pString);
-U14API(short) U14GetString(short hand, char *pBuffer, WORD wMaxLen);
-U14API(short) U14SendChar(short hand, char cChar);
-U14API(short) U14GetChar(short hand, char *pcChar);
+U14API(short)	U14SendString(short hand, const char *pString);
+U14API(short)	U14GetString(short hand, char *pBuffer, WORD wMaxLen);
+U14API(short)	U14SendChar(short hand, char cChar);
+U14API(short)	U14GetChar(short hand, char *pcChar);
 
-U14API(short) U14LdCmd(short hand, const char *command);
+U14API(short)	U14LdCmd(short hand, const char *command);
 U14API(DWORD) U14Ld(short hand, const char *vl, const char *str);
 
-U14API(short) U14SetTransArea(short hand, WORD wArea, void *pvBuff,
-                                            DWORD dwLength, short eSz);
-U14API(short) U14UnSetTransfer(short hand, WORD wArea);
-U14API(short) U14SetTransferEvent(short hand, WORD wArea, BOOL bEvent,
-                                  BOOL bToHost, DWORD dwStart, DWORD dwLength);
+U14API(short)	U14SetTransArea(short hand, WORD wArea, void *pvBuff,
+					DWORD dwLength, short eSz);
+U14API(short)	U14UnSetTransfer(short hand, WORD wArea);
+U14API(short)	U14SetTransferEvent(short hand, WORD wArea, BOOL bEvent,
+					BOOL bToHost, DWORD dwStart, DWORD dwLength);
 U14API(int)   U14TestTransferEvent(short hand, WORD wArea);
 U14API(int)   U14WaitTransferEvent(short hand, WORD wArea, int msTimeOut);
-U14API(short) U14GetTransfer(short hand, TGET_TX_BLOCK *pTransBlock);
+U14API(short)	U14GetTransfer(short hand, TGET_TX_BLOCK *pTransBlock);
 
-U14API(short) U14ToHost(short hand, char *pAddrHost,DWORD dwSize,DWORD dw1401,
-                                                            short eSz);
-U14API(short) U14To1401(short hand, const char *pAddrHost,DWORD dwSize,DWORD dw1401,
-                                                            short eSz);
+U14API(short)	U14ToHost(short hand, char *pAddrHost, DWORD dwSize, DWORD dw1401,
+								short eSz);
+U14API(short)	U14To1401(short hand, const char *pAddrHost, DWORD dwSize, DWORD dw1401,
+								short eSz);
 
-U14API(short) U14SetCircular(short hand, WORD wArea, BOOL bToHost, void *pvBuff,
-                                         DWORD dwLength);
+U14API(short)	U14SetCircular(short hand, WORD wArea, BOOL bToHost, void *pvBuff,
+							DWORD dwLength);
 
 U14API(int)   U14GetCircBlk(short hand, WORD wArea, DWORD *pdwOffs);
 U14API(int)   U14FreeCircBlk(short hand, WORD wArea, DWORD dwOffs, DWORD dwSize,
-                                         DWORD *pdwOffs);
+							DWORD *pdwOffs);
 
-U14API(short) U14StrToLongs(const char *pszBuff, U14LONG *palNums, short sMaxLongs);
-U14API(short) U14LongsFrom1401(short hand, U14LONG *palBuff, short sMaxLongs);
+U14API(short)	U14StrToLongs(const char *pszBuff, U14LONG *palNums, short sMaxLongs);
+U14API(short)	U14LongsFrom1401(short hand, U14LONG *palBuff, short sMaxLongs);
 
 U14API(void)  U14SetTimeout(short hand, int lTimeout);
 U14API(int)   U14GetTimeout(short hand);
-U14API(short) U14OutBufSpace(short hand);
+U14API(short)	U14OutBufSpace(short hand);
 U14API(int)   U14BaseAddr1401(short hand);
 U14API(int)   U14DriverVersion(short hand);
 U14API(int)   U14DriverType(short hand);
-U14API(short) U14DriverName(short hand, char *pBuf, WORD wMax);
-U14API(short) U14GetUserMemorySize(short hand, DWORD *pMemorySize);
-U14API(short) U14KillIO1401(short hand);
+U14API(short)	U14DriverName(short hand, char *pBuf, WORD wMax);
+U14API(short)	U14GetUserMemorySize(short hand, DWORD *pMemorySize);
+U14API(short)	U14KillIO1401(short hand);
 
-U14API(short) U14BlkTransState(short hand);
-U14API(short) U14StateOf1401(short hand);
+U14API(short)	U14BlkTransState(short hand);
+U14API(short)	U14StateOf1401(short hand);
 
-U14API(short) U14Grab1401(short hand);
-U14API(short) U14Free1401(short hand);
-U14API(short) U14Peek1401(short hand, DWORD dwAddr, int nSize, int nRepeats);
-U14API(short) U14Poke1401(short hand, DWORD dwAddr, DWORD dwValue, int nSize, int nRepeats);
-U14API(short) U14Ramp1401(short hand, DWORD dwAddr, DWORD dwDef, DWORD dwEnable, int nSize, int nRepeats);
-U14API(short) U14RampAddr(short hand, DWORD dwDef, DWORD dwEnable, int nSize, int nRepeats);
-U14API(short) U14StopDebugLoop(short hand);
-U14API(short) U14GetDebugData(short hand, U14LONG *plValue);
+U14API(short)	U14Grab1401(short hand);
+U14API(short)	U14Free1401(short hand);
+U14API(short)	U14Peek1401(short hand, DWORD dwAddr, int nSize, int nRepeats);
+U14API(short)	U14Poke1401(short hand, DWORD dwAddr, DWORD dwValue, int nSize, int nRepeats);
+U14API(short)	U14Ramp1401(short hand, DWORD dwAddr, DWORD dwDef, DWORD dwEnable, int nSize, int nRepeats);
+U14API(short)	U14RampAddr(short hand, DWORD dwDef, DWORD dwEnable, int nSize, int nRepeats);
+U14API(short)	U14StopDebugLoop(short hand);
+U14API(short)	U14GetDebugData(short hand, U14LONG *plValue);
 
-U14API(short) U14StartSelfTest(short hand);
-U14API(short) U14CheckSelfTest(short hand, U14LONG *pData);
-U14API(short) U14TransferFlags(short hand);
+U14API(short)	U14StartSelfTest(short hand);
+U14API(short)	U14CheckSelfTest(short hand, U14LONG *pData);
+U14API(short)	U14TransferFlags(short hand);
 U14API(void)  U14GetErrorString(short nErr, char *pStr, WORD wMax);
 U14API(int)   U14MonitorRev(short hand);
 U14API(void)  U14CloseAll(void);
 
-U14API(short) U14WorkingSet(DWORD dwMinKb, DWORD dwMaxKb);
+U14API(short)	U14WorkingSet(DWORD dwMinKb, DWORD dwMaxKb);
 U14API(int)   U14InitLib(void);
 
 #ifdef __cplusplus
