@@ -126,7 +126,6 @@ static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head)
 
 		entry = get_fsync_inode(head, ino_of_node(page));
 		if (entry) {
-			entry->blkaddr = blkaddr;
 			if (IS_INODE(page) && is_dent_dnode(page))
 				set_inode_flag(F2FS_I(entry->inode),
 							FI_INC_LINK);
@@ -150,10 +149,10 @@ static int find_fsync_dnodes(struct f2fs_sb_info *sbi, struct list_head *head)
 				kmem_cache_free(fsync_entry_slab, entry);
 				goto unlock_out;
 			}
-
 			list_add_tail(&entry->list, head);
-			entry->blkaddr = blkaddr;
 		}
+		entry->blkaddr = blkaddr;
+
 		if (IS_INODE(page)) {
 			err = recover_inode(entry->inode, page);
 			if (err == -ENOENT) {
