@@ -124,7 +124,6 @@ loop:
 		atomic_inc(&cur_trans->use_count);
 		atomic_inc(&cur_trans->num_writers);
 		extwriter_counter_inc(cur_trans, type);
-		cur_trans->num_joined++;
 		spin_unlock(&fs_info->trans_lock);
 		return 0;
 	}
@@ -157,7 +156,6 @@ loop:
 
 	atomic_set(&cur_trans->num_writers, 1);
 	extwriter_counter_init(cur_trans, type);
-	cur_trans->num_joined = 0;
 	init_waitqueue_head(&cur_trans->writer_wait);
 	init_waitqueue_head(&cur_trans->commit_wait);
 	cur_trans->in_commit = 0;
@@ -1566,7 +1564,6 @@ static inline void btrfs_wait_delalloc_flush(struct btrfs_fs_info *fs_info)
 int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root)
 {
-	unsigned long joined = 0;
 	struct btrfs_transaction *cur_trans = trans->transaction;
 	struct btrfs_transaction *prev_trans = NULL;
 	DEFINE_WAIT(wait);
@@ -1668,8 +1665,6 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 		should_grow = 1;
 
 	do {
-		joined = cur_trans->num_joined;
-
 		WARN_ON(cur_trans != trans->transaction);
 
 		ret = btrfs_flush_all_pending_stuffs(trans, root);
@@ -1685,8 +1680,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 			schedule_timeout(1);
 
 		finish_wait(&cur_trans->writer_wait, &wait);
-	} while (extwriter_counter_read(cur_trans) > 0 ||
-		 (should_grow && cur_trans->num_joined != joined));
+	} while (extwriter_counter_read(cur_trans) > 0);
 
 	ret = btrfs_flush_all_pending_stuffs(trans, root);
 	if (ret)
