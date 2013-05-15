@@ -771,6 +771,86 @@ static int ab8500_usb_irq_setup(struct platform_device *pdev,
 	return 0;
 }
 
+static void ab8500_usb_set_ab8500_tuning_values(struct ab8500_usb *ab)
+{
+	int err;
+
+	/* Enable the PBT/Bank 0x12 access */
+	err = abx500_set_register_interruptible(ab->dev,
+			AB8500_DEVELOPMENT, AB8500_BANK12_ACCESS, 0x01);
+	if (err < 0)
+		dev_err(ab->dev, "Failed to enable bank12 access err=%d\n",
+				err);
+
+	err = abx500_set_register_interruptible(ab->dev,
+			AB8500_DEBUG, AB8500_USB_PHY_TUNE1, 0xC8);
+	if (err < 0)
+		dev_err(ab->dev, "Failed to set PHY_TUNE1 register err=%d\n",
+				err);
+
+	err = abx500_set_register_interruptible(ab->dev,
+			AB8500_DEBUG, AB8500_USB_PHY_TUNE2, 0x00);
+	if (err < 0)
+		dev_err(ab->dev, "Failed to set PHY_TUNE2 register err=%d\n",
+				err);
+
+	err = abx500_set_register_interruptible(ab->dev,
+			AB8500_DEBUG, AB8500_USB_PHY_TUNE3, 0x78);
+	if (err < 0)
+		dev_err(ab->dev, "Failed to set PHY_TUNE3 regester err=%d\n",
+				err);
+
+	/* Switch to normal mode/disable Bank 0x12 access */
+	err = abx500_set_register_interruptible(ab->dev,
+			AB8500_DEVELOPMENT, AB8500_BANK12_ACCESS, 0x00);
+	if (err < 0)
+		dev_err(ab->dev, "Failed to switch bank12 access err=%d\n",
+				err);
+}
+
+static void ab8500_usb_set_ab8505_tuning_values(struct ab8500_usb *ab)
+{
+	int err;
+
+	/* Enable the PBT/Bank 0x12 access */
+	err = abx500_mask_and_set_register_interruptible(ab->dev,
+			AB8500_DEVELOPMENT, AB8500_BANK12_ACCESS,
+			0x01, 0x01);
+	if (err < 0)
+		dev_err(ab->dev, "Failed to enable bank12 access err=%d\n",
+				err);
+
+	err = abx500_mask_and_set_register_interruptible(ab->dev,
+			AB8500_DEBUG, AB8500_USB_PHY_TUNE1,
+			0xC8, 0xC8);
+	if (err < 0)
+		dev_err(ab->dev, "Failed to set PHY_TUNE1 register err=%d\n",
+				err);
+
+	err = abx500_mask_and_set_register_interruptible(ab->dev,
+			AB8500_DEBUG, AB8500_USB_PHY_TUNE2,
+			0x60, 0x60);
+	if (err < 0)
+		dev_err(ab->dev, "Failed to set PHY_TUNE2 register err=%d\n",
+				err);
+
+	err = abx500_mask_and_set_register_interruptible(ab->dev,
+			AB8500_DEBUG, AB8500_USB_PHY_TUNE3,
+			0xFC, 0x80);
+
+	if (err < 0)
+		dev_err(ab->dev, "Failed to set PHY_TUNE3 regester err=%d\n",
+				err);
+
+	/* Switch to normal mode/disable Bank 0x12 access */
+	err = abx500_mask_and_set_register_interruptible(ab->dev,
+			AB8500_DEVELOPMENT, AB8500_BANK12_ACCESS,
+			0x00, 0x00);
+	if (err < 0)
+		dev_err(ab->dev, "Failed to switch bank12 access err=%d\n",
+				err);
+}
+
 static int ab8500_usb_probe(struct platform_device *pdev)
 {
 	struct ab8500_usb	*ab;
@@ -835,81 +915,12 @@ static int ab8500_usb_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	/* Phy tuning values for AB8500 > v2.0 */
-	if (is_ab8500(ab->ab8500) && !is_ab8500_2p0_or_earlier(ab->ab8500)) {
-		/* Enable the PBT/Bank 0x12 access */
-		err = abx500_set_register_interruptible(ab->dev,
-				AB8500_DEVELOPMENT, AB8500_BANK12_ACCESS, 0x01);
-		if (err < 0)
-			dev_err(ab->dev, "Failed to enable bank12 access err=%d\n",
-					err);
-
-		err = abx500_set_register_interruptible(ab->dev,
-				AB8500_DEBUG, AB8500_USB_PHY_TUNE1, 0xC8);
-		if (err < 0)
-			dev_err(ab->dev, "Failed to set PHY_TUNE1 register err=%d\n",
-					err);
-
-		err = abx500_set_register_interruptible(ab->dev,
-				AB8500_DEBUG, AB8500_USB_PHY_TUNE2, 0x00);
-		if (err < 0)
-			dev_err(ab->dev, "Failed to set PHY_TUNE2 register err=%d\n",
-					err);
-
-		err = abx500_set_register_interruptible(ab->dev,
-				AB8500_DEBUG, AB8500_USB_PHY_TUNE3, 0x78);
-		if (err < 0)
-			dev_err(ab->dev, "Failed to set PHY_TUNE3 regester err=%d\n",
-					err);
-
-		/* Switch to normal mode/disable Bank 0x12 access */
-		err = abx500_set_register_interruptible(ab->dev,
-				AB8500_DEVELOPMENT, AB8500_BANK12_ACCESS, 0x00);
-		if (err < 0)
-			dev_err(ab->dev, "Failed to switch bank12 access err=%d\n",
-					err);
-	}
-
-	/* Phy tuning values for AB8505 */
-	if (is_ab8505(ab->ab8500)) {
-		/* Enable the PBT/Bank 0x12 access */
-		err = abx500_mask_and_set_register_interruptible(ab->dev,
-				AB8500_DEVELOPMENT, AB8500_BANK12_ACCESS,
-				0x01, 0x01);
-		if (err < 0)
-			dev_err(ab->dev, "Failed to enable bank12 access err=%d\n",
-					err);
-
-		err = abx500_mask_and_set_register_interruptible(ab->dev,
-				AB8500_DEBUG, AB8500_USB_PHY_TUNE1,
-				0xC8, 0xC8);
-		if (err < 0)
-			dev_err(ab->dev, "Failed to set PHY_TUNE1 register err=%d\n",
-					err);
-
-		err = abx500_mask_and_set_register_interruptible(ab->dev,
-				AB8500_DEBUG, AB8500_USB_PHY_TUNE2,
-				0x60, 0x60);
-		if (err < 0)
-			dev_err(ab->dev, "Failed to set PHY_TUNE2 register err=%d\n",
-					err);
-
-		err = abx500_mask_and_set_register_interruptible(ab->dev,
-				AB8500_DEBUG, AB8500_USB_PHY_TUNE3,
-				0xFC, 0x80);
-
-		if (err < 0)
-			dev_err(ab->dev, "Failed to set PHY_TUNE3 regester err=%d\n",
-					err);
-
-		/* Switch to normal mode/disable Bank 0x12 access */
-		err = abx500_mask_and_set_register_interruptible(ab->dev,
-				AB8500_DEVELOPMENT, AB8500_BANK12_ACCESS,
-				0x00, 0x00);
-		if (err < 0)
-			dev_err(ab->dev, "Failed to switch bank12 access err=%d\n",
-					err);
-	}
+	if (is_ab8500(ab->ab8500) && !is_ab8500_2p0_or_earlier(ab->ab8500))
+		/* Phy tuning values for AB8500 > v2.0 */
+		ab8500_usb_set_ab8500_tuning_values(ab);
+	else if (is_ab8505(ab->ab8500))
+		/* Phy tuning values for AB8505 */
+		ab8500_usb_set_ab8505_tuning_values(ab);
 
 	/* Needed to enable ID detection. */
 	ab8500_usb_wd_workaround(ab);
