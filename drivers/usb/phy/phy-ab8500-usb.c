@@ -29,6 +29,8 @@
 #include <linux/notifier.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
+#include <linux/clk.h>
+#include <linux/err.h>
 #include <linux/mfd/abx500.h>
 #include <linux/mfd/abx500/ab8500.h>
 #include <linux/usb/musb-ux500.h>
@@ -126,6 +128,7 @@ struct ab8500_usb {
 	unsigned vbus_draw;
 	struct work_struct phy_dis_work;
 	enum ab8500_usb_mode mode;
+	struct clk *sysclk;
 	struct regulator *v_ape;
 	struct regulator *v_musb;
 	struct regulator *v_ulpi;
@@ -252,6 +255,9 @@ static void ab8500_usb_phy_enable(struct ab8500_usb *ab, bool sel_host)
 	if (IS_ERR(ab->pinctrl))
 		dev_err(ab->dev, "could not get/set default pinstate\n");
 
+	if (clk_prepare_enable(ab->sysclk))
+		dev_err(ab->dev, "can't prepare/enable clock\n");
+
 	ab8500_usb_regulator_enable(ab);
 
 	abx500_mask_and_set_register_interruptible(ab->dev,
@@ -273,6 +279,8 @@ static void ab8500_usb_phy_disable(struct ab8500_usb *ab, bool sel_host)
 
 	/* Needed to disable the phy.*/
 	ab8500_usb_wd_workaround(ab);
+
+	clk_disable_unprepare(ab->sysclk);
 
 	ab8500_usb_regulator_disable(ab);
 
@@ -783,6 +791,12 @@ static int ab8500_usb_probe(struct platform_device *pdev)
 	err = ab8500_usb_regulator_get(ab);
 	if (err)
 		return err;
+
+	ab->sysclk = devm_clk_get(ab->dev, "sysclk");
+	if (IS_ERR(ab->sysclk)) {
+		dev_err(ab->dev, "Could not get sysclk.\n");
+		return PTR_ERR(ab->sysclk);
+	}
 
 	err = ab8500_usb_irq_setup(pdev, ab);
 	if (err < 0)
