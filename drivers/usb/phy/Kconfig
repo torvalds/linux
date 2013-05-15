@@ -139,7 +139,6 @@ config USB_ISP1301
 	tristate "NXP ISP1301 USB transceiver support"
 	depends on USB || USB_GADGET
 	depends on I2C
-	select USB_OTG_UTILS
 	help
 	  Say Y here to add support for the NXP ISP1301 USB transceiver driver.
 	  This chip is typically used as USB transceiver for USB host, gadget

@@ -816,6 +816,7 @@ ecm_unbind(struct usb_configuration *c, struct usb_function *f)
  * @c: the configuration to support the network link
  * @ethaddr: a buffer in which the ethernet address of the host side
  *	side of the link was recorded
+ * @dev: eth_dev structure
  * Context: single threaded during gadget setup
  *
  * Returns zero on success, else negative errno.

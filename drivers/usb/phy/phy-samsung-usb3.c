@@ -239,11 +239,6 @@ static int samsung_usb3phy_probe(struct platform_device *pdev)
 	int ret;
 
 	phy_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!phy_mem) {
-		dev_err(dev, "%s: missing mem resource\n", __func__);
-		return -ENODEV;
-	}
-
 	phy_base = devm_ioremap_resource(dev, phy_mem);
 	if (IS_ERR(phy_base))
 		return PTR_ERR(phy_base);

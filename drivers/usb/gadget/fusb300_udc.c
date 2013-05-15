@@ -1461,8 +1461,10 @@ static int __init fusb300_probe(struct platform_device *pdev)
 
 	fusb300->ep0_req = fusb300_alloc_request(&fusb300->ep[0]->ep,
 				GFP_KERNEL);
-	if (fusb300->ep0_req == NULL)
+	if (fusb300->ep0_req == NULL) {
+		ret = -ENOMEM;
 		goto clean_up3;
+	}
 
 	init_controller(fusb300);
 	ret = usb_add_gadget_udc(&pdev->dev, &fusb300->gadget);
