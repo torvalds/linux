@@ -276,7 +276,8 @@ static int adu_open(struct inode *inode, struct file *file)
 
 	subminor = iminor(inode);
 
-	if ((retval = mutex_lock_interruptible(&adutux_mutex))) {
+	retval = mutex_lock_interruptible(&adutux_mutex);
+	if (retval) {
 		dbg(2, "%s : mutex lock failed", __func__);
 		goto exit_no_lock;
 	}
