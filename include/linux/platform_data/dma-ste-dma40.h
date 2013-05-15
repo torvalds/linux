@@ -86,7 +86,7 @@ enum stedma40_xfer_dir {
 
 
 /**
- * struct stedma40_chan_cfg - dst/src channel configuration
+ * struct stedma40_half_channel_info - dst/src channel configuration
  *
  * @big_endian: true if the src/dst should be read as big endian
  * @data_width: Data width of the src/dst hardware
