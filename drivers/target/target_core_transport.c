@@ -2263,14 +2263,10 @@ EXPORT_SYMBOL(target_sess_cmd_list_set_waiting);
 
 /* target_wait_for_sess_cmds - Wait for outstanding descriptors
  * @se_sess:    session to wait for active I/O
- * @wait_for_tasks:	Make extra transport_wait_for_tasks call
  */
-void target_wait_for_sess_cmds(
-	struct se_session *se_sess,
-	int wait_for_tasks)
+void target_wait_for_sess_cmds(struct se_session *se_sess)
 {
 	struct se_cmd *se_cmd, *tmp_cmd;
-	bool rc = false;
 
 	list_for_each_entry_safe(se_cmd, tmp_cmd,
 				&se_sess->sess_cmd_list, se_cmd_list) {
@@ -2280,24 +2276,10 @@ void target_wait_for_sess_cmds(
 			" %d\n", se_cmd, se_cmd->t_state,
 			se_cmd->se_tfo->get_cmd_state(se_cmd));
 
-		if (wait_for_tasks) {
-			pr_debug("Calling transport_wait_for_tasks se_cmd: %p t_state: %d,"
-				" fabric state: %d\n", se_cmd, se_cmd->t_state,
-				se_cmd->se_tfo->get_cmd_state(se_cmd));
-
-			rc = transport_wait_for_tasks(se_cmd);
-
-			pr_debug("After transport_wait_for_tasks se_cmd: %p t_state: %d,"
-				" fabric state: %d\n", se_cmd, se_cmd->t_state,
-				se_cmd->se_tfo->get_cmd_state(se_cmd));
-		}
-
-		if (!rc) {
-			wait_for_completion(&se_cmd->cmd_wait_comp);
-			pr_debug("After cmd_wait_comp: se_cmd: %p t_state: %d"
-				" fabric state: %d\n", se_cmd, se_cmd->t_state,
-				se_cmd->se_tfo->get_cmd_state(se_cmd));
-		}
+		wait_for_completion(&se_cmd->cmd_wait_comp);
+		pr_debug("After cmd_wait_comp: se_cmd: %p t_state: %d"
+			" fabric state: %d\n", se_cmd, se_cmd->t_state,
+			se_cmd->se_tfo->get_cmd_state(se_cmd));
 
 		se_cmd->se_tfo->release_cmd(se_cmd);
 	}

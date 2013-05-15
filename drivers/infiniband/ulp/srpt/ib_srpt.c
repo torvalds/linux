@@ -2328,7 +2328,7 @@ static void srpt_release_channel_work(struct work_struct *w)
 	se_sess = ch->sess;
 	BUG_ON(!se_sess);
 
-	target_wait_for_sess_cmds(se_sess, 0);
+	target_wait_for_sess_cmds(se_sess);
 
 	transport_deregister_session_configfs(se_sess);
 	transport_deregister_session(se_sess);
