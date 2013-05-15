@@ -94,8 +94,7 @@ int InterfaceIdleModeRespond(struct bcm_mini_adapter *Adapter, unsigned int *pui
 
 			wake_up(&Adapter->lowpower_mode_wait_queue);
 
-		}
-		else {
+		} else {
 			if(TRUE == Adapter->IdleMode)
 			{
 				BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, IDLE_MODE, DBG_LVL_ALL, "Device is already in Idle mode....");
@@ -129,8 +128,7 @@ int InterfaceIdleModeRespond(struct bcm_mini_adapter *Adapter, unsigned int *pui
 			}
 			SendIdleModeResponse(Adapter);
 		}
-	}
-	else if(ntohl(*puiBuffer) == IDLE_MODE_SF_UPDATE_MSG) {
+	} else if(ntohl(*puiBuffer) == IDLE_MODE_SF_UPDATE_MSG) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, IDLE_MODE, DBG_LVL_ALL, "OverRiding Service Flow Params");
 		OverrideServiceFlowParams(Adapter, puiBuffer);
 	}
@@ -175,8 +173,7 @@ static int InterfaceAbortIdlemode(struct bcm_mini_adapter *Adapter, unsigned int
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, IDLE_MODE, DBG_LVL_ALL, "WRM to DEBUG_INTERRUPT_GENERATOR_REGISTOR Register failed");
 			return status;
 		}
-	}
-	else if(Adapter->ulPowerSaveMode != DEVICE_POWERSAVE_MODE_AS_PROTOCOL_IDLE_MODE) {
+	} else if(Adapter->ulPowerSaveMode != DEVICE_POWERSAVE_MODE_AS_PROTOCOL_IDLE_MODE) {
 		/*
 		 * Get a Interrupt Out URB and send 8 Bytes Down
 		 * To be Done in Thread Context.
@@ -192,8 +189,7 @@ static int InterfaceAbortIdlemode(struct bcm_mini_adapter *Adapter, unsigned int
 		if(status) {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, IDLE_MODE, DBG_LVL_ALL, "Sending Abort pattern down fails with status:%d..\n", status);
 			return status;
-		}
-		else {
+		} else {
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, IDLE_MODE, DBG_LVL_ALL, "NOB Sent down :%d", lenwritten);
 		}
 
@@ -226,8 +222,7 @@ int InterfaceIdleModeWakeup(struct bcm_mini_adapter *Adapter)
 	ULONG	Status = 0;
 	if(Adapter->bTriedToWakeUpFromlowPowerMode) {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, IDLE_MODE, DBG_LVL_ALL, "Wake up already attempted.. ignoring\n");
-	}
-	else {
+	} else {
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, IDLE_MODE, DBG_LVL_ALL, "Writing Low Power Mode Abort pattern to the Device\n");
 		Adapter->bTriedToWakeUpFromlowPowerMode = TRUE;
 		InterfaceAbortIdlemode(Adapter, Adapter->usIdleModePattern);
