@@ -1241,7 +1241,7 @@ void bch_cache_set_stop(struct cache_set *);
 struct cache_set *bch_cache_set_alloc(struct cache_sb *);
 void bch_btree_cache_free(struct cache_set *);
 int bch_btree_cache_alloc(struct cache_set *);
-void bch_writeback_init_cached_dev(struct cached_dev *);
+void bch_cached_dev_writeback_init(struct cached_dev *);
 void bch_moving_init_cache_set(struct cache_set *);
 
 void bch_cache_allocator_exit(struct cache *ca);
