@@ -155,6 +155,7 @@ static int mxs_phy_probe(struct platform_device *pdev)
 	mxs_phy->phy.set_suspend	= mxs_phy_suspend;
 	mxs_phy->phy.notify_connect	= mxs_phy_on_connect;
 	mxs_phy->phy.notify_disconnect	= mxs_phy_on_disconnect;
+	mxs_phy->phy.type		= USB_PHY_TYPE_USB2;
 
 	ATOMIC_INIT_NOTIFIER_HEAD(&mxs_phy->phy.notifier);
 
