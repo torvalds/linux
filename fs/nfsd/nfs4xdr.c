@@ -2012,7 +2012,7 @@ nfsd4_encode_security_label(struct svc_rqst *rqstp, void *context, int len, __be
 }
 #else
 static inline __be32
-nfsd4_encode_security_label(struct svc_rqst *rqstp, struct dentry *dentry, __be32 **pp, int *buflen)
+nfsd4_encode_security_label(struct svc_rqst *rqstp, void *context, int len, __be32 **pp, int *buflen)
 { return 0; }
 #endif
 
@@ -2501,8 +2501,10 @@ out_acl:
 	status = nfs_ok;
 
 out:
+#ifdef CONFIG_NFSD_V4_SECURITY_LABEL
 	if (context)
 		security_release_secctx(context, contextlen);
+#endif /* CONFIG_NFSD_V4_SECURITY_LABEL */
 	kfree(acl);
 	if (fhp == &tempfh)
 		fh_put(&tempfh);
