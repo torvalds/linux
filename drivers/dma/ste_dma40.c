@@ -1774,22 +1774,6 @@ static int d40_validate_conf(struct d40_chan *d40c,
 		res = -EINVAL;
 	}
 
-	if (conf->dir == STEDMA40_MEM_TO_PERIPH &&
-	    d40c->base->plat_data->dev_tx[conf->dev_type] == 0 &&
-	    d40c->runtime_addr == 0) {
-		chan_err(d40c, "Invalid TX channel address (%d)\n",
-			 conf->dev_type);
-		res = -EINVAL;
-	}
-
-	if (conf->dir == STEDMA40_PERIPH_TO_MEM &&
-	    d40c->base->plat_data->dev_rx[conf->dev_type] == 0 &&
-	    d40c->runtime_addr == 0) {
-		chan_err(d40c, "Invalid RX channel address (%d)\n",
-			 conf->dev_type);
-		res = -EINVAL;
-	}
-
 	if (conf->dir == STEDMA40_PERIPH_TO_PERIPH) {
 		/*
 		 * DMAC HW supports it. Will be added to this driver,
@@ -2327,14 +2311,10 @@ d40_prep_sg(struct dma_chan *dchan, struct scatterlist *sg_src,
 	if (sg_next(&sg_src[sg_len - 1]) == sg_src)
 		desc->cyclic = true;
 
-	if (direction != DMA_TRANS_NONE) {
-		dma_addr_t dev_addr = d40_get_dev_addr(chan, direction);
-
-		if (direction == DMA_DEV_TO_MEM)
-			src_dev_addr = dev_addr;
-		else if (direction == DMA_MEM_TO_DEV)
-			dst_dev_addr = dev_addr;
-	}
+	if (direction == DMA_DEV_TO_MEM)
+		src_dev_addr = chan->runtime_addr;
+	else if (direction == DMA_MEM_TO_DEV)
+		dst_dev_addr = chan->runtime_addr;
 
 	if (chan_is_logical(chan))
 		ret = d40_prep_sg_log(chan, desc, sg_src, sg_dst,
@@ -2782,15 +2762,8 @@ static int d40_set_runtime_config(struct dma_chan *chan,
 	dst_maxburst = config->dst_maxburst;
 
 	if (config->direction == DMA_DEV_TO_MEM) {
-		dma_addr_t dev_addr_rx =
-			d40c->base->plat_data->dev_rx[cfg->dev_type];
-
 		config_addr = config->src_addr;
-		if (dev_addr_rx)
-			dev_dbg(d40c->base->dev,
-				"channel has a pre-wired RX address %08x "
-				"overriding with %08x\n",
-				dev_addr_rx, config_addr);
+
 		if (cfg->dir != STEDMA40_PERIPH_TO_MEM)
 			dev_dbg(d40c->base->dev,
 				"channel was not configured for peripheral "
@@ -2805,15 +2778,8 @@ static int d40_set_runtime_config(struct dma_chan *chan,
 			dst_maxburst = src_maxburst;
 
 	} else if (config->direction == DMA_MEM_TO_DEV) {
-		dma_addr_t dev_addr_tx =
-			d40c->base->plat_data->dev_tx[cfg->dev_type];
-
 		config_addr = config->dst_addr;
-		if (dev_addr_tx)
-			dev_dbg(d40c->base->dev,
-				"channel has a pre-wired TX address %08x "
-				"overriding with %08x\n",
-				dev_addr_tx, config_addr);
+
 		if (cfg->dir != STEDMA40_MEM_TO_PERIPH)
 			dev_dbg(d40c->base->dev,
 				"channel was not configured for memory "
@@ -2830,6 +2796,11 @@ static int d40_set_runtime_config(struct dma_chan *chan,
 		dev_err(d40c->base->dev,
 			"unrecognized channel direction %d\n",
 			config->direction);
+		return -EINVAL;
+	}
+
+	if (config_addr <= 0) {
+		dev_err(d40c->base->dev, "no address supplied\n");
 		return -EINVAL;
 	}
 
