@@ -8056,8 +8056,8 @@ F:	drivers/platform/x86/thinkpad_acpi.c
 TI BANDGAP AND THERMAL DRIVER
 M:	Eduardo Valentin <eduardo.valentin@ti.com>
 L:	linux-pm@vger.kernel.org
-S:	Maintained
-F:	drivers/staging/omap-thermal/
+S:	Supported
+F:	drivers/thermal/ti-soc-thermal/
 
 TI FLASH MEDIA INTERFACE DRIVER
 M:	Alex Dubov <oakad@yahoo.com>
