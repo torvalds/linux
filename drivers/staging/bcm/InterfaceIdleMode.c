@@ -74,17 +74,17 @@ int InterfaceIdleModeRespond(struct bcm_mini_adapter *Adapter, unsigned int *pui
 					return status;
 				}
 			}
-			//Below Register should not br read in case of Manual and Protocol Idle mode.
+			/* Below Register should not br read in case of Manual and Protocol Idle mode */
 			else if(Adapter->ulPowerSaveMode != DEVICE_POWERSAVE_MODE_AS_PROTOCOL_IDLE_MODE)
 			{
-				//clear on read Register
+				/* clear on read Register */
 				bytes = rdmalt(Adapter, DEVICE_INT_OUT_EP_REG0, &uiRegRead, sizeof(uiRegRead));
 				if (bytes < 0) {
 					status = bytes;
 					BCM_DEBUG_PRINT(Adapter, DBG_TYPE_PRINTK, 0, 0, "rdm failed while clearing H/W Abort Reg0");
 					return status;
 				}
-				//clear on read Register
+				/* clear on read Register */
 				bytes = rdmalt(Adapter, DEVICE_INT_OUT_EP_REG1, &uiRegRead, sizeof(uiRegRead));
 				if (bytes < 0) {
 					status = bytes;
@@ -94,7 +94,7 @@ int InterfaceIdleModeRespond(struct bcm_mini_adapter *Adapter, unsigned int *pui
 			}
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, IDLE_MODE, DBG_LVL_ALL, "Device Up from Idle Mode");
 
-			// Set Idle Mode Flag to False and Clear IdleMode reg.
+			/* Set Idle Mode Flag to False and Clear IdleMode reg. */
 			Adapter->IdleMode = FALSE;
 			Adapter->bTriedToWakeUpFromlowPowerMode = FALSE;
 
@@ -158,7 +158,7 @@ static int InterfaceAbortIdlemode(struct bcm_mini_adapter *Adapter, unsigned int
 	unsigned char aucAbortPattern[8]={0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 	struct bcm_interface_adapter *psInterfaceAdapter = Adapter->pvInterfaceAdapter;
 
-	//Abort Bus suspend if its already suspended
+	/* Abort Bus suspend if its already suspended */
 	if((TRUE == psInterfaceAdapter->bSuspended) && (TRUE == Adapter->bDoSuspend))
 	{
 		status = usb_autopm_get_interface(psInterfaceAdapter->interface);
@@ -170,7 +170,7 @@ static int InterfaceAbortIdlemode(struct bcm_mini_adapter *Adapter, unsigned int
 									||
 	   (Adapter->ulPowerSaveMode == DEVICE_POWERSAVE_MODE_AS_PROTOCOL_IDLE_MODE))
 	{
-		//write the SW abort pattern.
+		/* write the SW abort pattern. */
 		BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, IDLE_MODE, DBG_LVL_ALL, "Writing pattern<%d> to SW_ABORT_IDLEMODE_LOC\n", Pattern);
 		status = wrmalt(Adapter, SW_ABORT_IDLEMODE_LOC, &Pattern, sizeof(Pattern));
 		if(status)
@@ -214,7 +214,7 @@ static int InterfaceAbortIdlemode(struct bcm_mini_adapter *Adapter, unsigned int
 			BCM_DEBUG_PRINT(Adapter, DBG_TYPE_OTHERS, IDLE_MODE, DBG_LVL_ALL, "NOB Sent down :%d", lenwritten);
 		}
 
-		//mdelay(25);
+		/* mdelay(25); */
 
 		timeout= jiffies +  msecs_to_jiffies(50) ;
 		while( timeout > jiffies )
@@ -271,7 +271,7 @@ void InterfaceHandleShutdownModeWakeup(struct bcm_mini_adapter *Adapter)
 
 	if(Adapter->ulPowerSaveMode == DEVICE_POWERSAVE_MODE_AS_MANUAL_CLOCK_GATING)
 	{
-		// clear idlemode interrupt.
+		/* clear idlemode interrupt. */
 		uiRegVal = 0;
 		Status =wrmalt(Adapter, DEBUG_INTERRUPT_GENERATOR_REGISTOR, &uiRegVal, sizeof(uiRegVal));
 		if(Status)
@@ -284,7 +284,7 @@ void InterfaceHandleShutdownModeWakeup(struct bcm_mini_adapter *Adapter)
     else
 	{
 
-        //clear Interrupt EP registers.
+        /* clear Interrupt EP registers. */
 		bytes = rdmalt(Adapter, DEVICE_INT_OUT_EP_REG0, &uiRegVal, sizeof(uiRegVal));
 		if (bytes < 0) {
 			Status = bytes;
