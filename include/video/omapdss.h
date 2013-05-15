@@ -1038,14 +1038,6 @@ int omapdss_dsi_display_enable(struct omap_dss_device *dssdev);
 void omapdss_dsi_display_disable(struct omap_dss_device *dssdev,
 		bool disconnect_lanes, bool enter_ulps);
 
-int omapdss_dpi_display_enable(struct omap_dss_device *dssdev);
-void omapdss_dpi_display_disable(struct omap_dss_device *dssdev);
-void omapdss_dpi_set_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings);
-int dpi_check_timings(struct omap_dss_device *dssdev,
-			struct omap_video_timings *timings);
-void omapdss_dpi_set_data_lines(struct omap_dss_device *dssdev, int data_lines);
-
 int omapdss_sdi_display_enable(struct omap_dss_device *dssdev);
 void omapdss_sdi_display_disable(struct omap_dss_device *dssdev);
 void omapdss_sdi_set_timings(struct omap_dss_device *dssdev,
