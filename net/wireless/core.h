@@ -328,18 +328,11 @@ void cfg80211_oper_and_vht_capa(struct ieee80211_vht_cap *vht_capa,
 				const struct ieee80211_vht_cap *vht_capa_mask);
 
 /* SME */
-int __cfg80211_connect(struct cfg80211_registered_device *rdev,
-		       struct net_device *dev,
-		       struct cfg80211_connect_params *connect,
-		       struct cfg80211_cached_keys *connkeys,
-		       const u8 *prev_bssid);
 int cfg80211_connect(struct cfg80211_registered_device *rdev,
 		     struct net_device *dev,
 		     struct cfg80211_connect_params *connect,
-		     struct cfg80211_cached_keys *connkeys);
-int __cfg80211_disconnect(struct cfg80211_registered_device *rdev,
-			  struct net_device *dev, u16 reason,
-			  bool wextev);
+		     struct cfg80211_cached_keys *connkeys,
+		     const u8 *prev_bssid);
 int cfg80211_disconnect(struct cfg80211_registered_device *rdev,
 			struct net_device *dev, u16 reason,
 			bool wextev);

@@ -755,8 +755,8 @@ void cfg80211_leave(struct cfg80211_registered_device *rdev,
 		wdev->wext.ie_len = 0;
 		wdev->wext.connect.auth_type = NL80211_AUTHTYPE_AUTOMATIC;
 #endif
-		__cfg80211_disconnect(rdev, dev,
-				      WLAN_REASON_DEAUTH_LEAVING, true);
+		cfg80211_disconnect(rdev, dev,
+				    WLAN_REASON_DEAUTH_LEAVING, true);
 		wdev_unlock(wdev);
 		break;
 	case NL80211_IFTYPE_MESH_POINT:

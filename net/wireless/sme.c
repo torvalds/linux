@@ -760,11 +760,11 @@ void cfg80211_disconnected(struct net_device *dev, u16 reason,
 }
 EXPORT_SYMBOL(cfg80211_disconnected);
 
-int __cfg80211_connect(struct cfg80211_registered_device *rdev,
-		       struct net_device *dev,
-		       struct cfg80211_connect_params *connect,
-		       struct cfg80211_cached_keys *connkeys,
-		       const u8 *prev_bssid)
+int cfg80211_connect(struct cfg80211_registered_device *rdev,
+		     struct net_device *dev,
+		     struct cfg80211_connect_params *connect,
+		     struct cfg80211_cached_keys *connkeys,
+		     const u8 *prev_bssid)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_bss *bss = NULL;
@@ -911,22 +911,8 @@ int __cfg80211_connect(struct cfg80211_registered_device *rdev,
 	}
 }
 
-int cfg80211_connect(struct cfg80211_registered_device *rdev,
-		     struct net_device *dev,
-		     struct cfg80211_connect_params *connect,
-		     struct cfg80211_cached_keys *connkeys)
-{
-	int err;
-
-	wdev_lock(dev->ieee80211_ptr);
-	err = __cfg80211_connect(rdev, dev, connect, connkeys, NULL);
-	wdev_unlock(dev->ieee80211_ptr);
-
-	return err;
-}
-
-int __cfg80211_disconnect(struct cfg80211_registered_device *rdev,
-			  struct net_device *dev, u16 reason, bool wextev)
+int cfg80211_disconnect(struct cfg80211_registered_device *rdev,
+			struct net_device *dev, u16 reason, bool wextev)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	int err;
@@ -981,19 +967,6 @@ int __cfg80211_disconnect(struct cfg80211_registered_device *rdev,
 					  wextev, NULL);
 
 	return 0;
-}
-
-int cfg80211_disconnect(struct cfg80211_registered_device *rdev,
-			struct net_device *dev,
-			u16 reason, bool wextev)
-{
-	int err;
-
-	wdev_lock(dev->ieee80211_ptr);
-	err = __cfg80211_disconnect(rdev, dev, reason, wextev);
-	wdev_unlock(dev->ieee80211_ptr);
-
-	return err;
 }
 
 void cfg80211_sme_disassoc(struct net_device *dev,
