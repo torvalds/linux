@@ -78,7 +78,7 @@ static int dma40_memcpy_channels[] = {
 /* Default configuration for physcial memcpy */
 struct stedma40_chan_cfg dma40_memcpy_conf_phy = {
 	.mode = STEDMA40_MODE_PHYSICAL,
-	.dir = STEDMA40_MEM_TO_MEM,
+	.dir = DMA_MEM_TO_MEM,
 
 	.src_info.data_width = STEDMA40_BYTE_WIDTH,
 	.src_info.psize = STEDMA40_PSIZE_PHY_1,
@@ -92,7 +92,7 @@ struct stedma40_chan_cfg dma40_memcpy_conf_phy = {
 /* Default configuration for logical memcpy */
 struct stedma40_chan_cfg dma40_memcpy_conf_log = {
 	.mode = STEDMA40_MODE_LOGICAL,
-	.dir = STEDMA40_MEM_TO_MEM,
+	.dir = DMA_MEM_TO_MEM,
 
 	.src_info.data_width = STEDMA40_BYTE_WIDTH,
 	.src_info.psize = STEDMA40_PSIZE_LOG_1,
@@ -843,7 +843,7 @@ static void d40_log_lli_to_lcxa(struct d40_chan *chan, struct d40_desc *desc)
 		 * that uses linked lists.
 		 */
 		if (!(chan->phy_chan->use_soft_lli &&
-			chan->dma_cfg.dir == STEDMA40_PERIPH_TO_MEM))
+			chan->dma_cfg.dir == DMA_DEV_TO_MEM))
 			curr_lcla = d40_lcla_alloc_one(chan, desc);
 
 		first_lcla = curr_lcla;
@@ -1311,12 +1311,12 @@ static void d40_config_set_event(struct d40_chan *d40c,
 	u32 event = D40_TYPE_TO_EVENT(d40c->dma_cfg.dev_type);
 
 	/* Enable event line connected to device (or memcpy) */
-	if ((d40c->dma_cfg.dir ==  STEDMA40_PERIPH_TO_MEM) ||
-	    (d40c->dma_cfg.dir == STEDMA40_PERIPH_TO_PERIPH))
+	if ((d40c->dma_cfg.dir == DMA_DEV_TO_MEM) ||
+	    (d40c->dma_cfg.dir == DMA_DEV_TO_DEV))
 		__d40_config_set_event(d40c, event_type, event,
 				       D40_CHAN_REG_SSLNK);
 
-	if (d40c->dma_cfg.dir !=  STEDMA40_PERIPH_TO_MEM)
+	if (d40c->dma_cfg.dir !=  DMA_DEV_TO_MEM)
 		__d40_config_set_event(d40c, event_type, event,
 				       D40_CHAN_REG_SDLNK);
 }
@@ -1774,7 +1774,7 @@ static int d40_validate_conf(struct d40_chan *d40c,
 		res = -EINVAL;
 	}
 
-	if (conf->dir == STEDMA40_PERIPH_TO_PERIPH) {
+	if (conf->dir == DMA_DEV_TO_DEV) {
 		/*
 		 * DMAC HW supports it. Will be added to this driver,
 		 * in case any dma client requires it.
@@ -1905,11 +1905,11 @@ static int d40_allocate_channel(struct d40_chan *d40c, bool *first_phy_user)
 	phys = d40c->base->phy_res;
 	num_phy_chans = d40c->base->num_phy_chans;
 
-	if (d40c->dma_cfg.dir == STEDMA40_PERIPH_TO_MEM) {
+	if (d40c->dma_cfg.dir == DMA_DEV_TO_MEM) {
 		log_num = 2 * dev_type;
 		is_src = true;
-	} else if (d40c->dma_cfg.dir == STEDMA40_MEM_TO_PERIPH ||
-		   d40c->dma_cfg.dir == STEDMA40_MEM_TO_MEM) {
+	} else if (d40c->dma_cfg.dir == DMA_MEM_TO_DEV ||
+		   d40c->dma_cfg.dir == DMA_MEM_TO_MEM) {
 		/* dst event lines are used for logical memcpy */
 		log_num = 2 * dev_type + 1;
 		is_src = false;
@@ -1920,7 +1920,7 @@ static int d40_allocate_channel(struct d40_chan *d40c, bool *first_phy_user)
 	event_line = D40_TYPE_TO_EVENT(dev_type);
 
 	if (!is_log) {
-		if (d40c->dma_cfg.dir == STEDMA40_MEM_TO_MEM) {
+		if (d40c->dma_cfg.dir == DMA_MEM_TO_MEM) {
 			/* Find physical half channel */
 			if (d40c->dma_cfg.use_fixed_channel) {
 				i = d40c->dma_cfg.phy_channel;
@@ -2068,10 +2068,10 @@ static int d40_free_dma(struct d40_chan *d40c)
 		return -EINVAL;
 	}
 
-	if (d40c->dma_cfg.dir == STEDMA40_MEM_TO_PERIPH ||
-	    d40c->dma_cfg.dir == STEDMA40_MEM_TO_MEM)
+	if (d40c->dma_cfg.dir == DMA_MEM_TO_DEV ||
+	    d40c->dma_cfg.dir == DMA_MEM_TO_MEM)
 		is_src = false;
-	else if (d40c->dma_cfg.dir == STEDMA40_PERIPH_TO_MEM)
+	else if (d40c->dma_cfg.dir == DMA_DEV_TO_MEM)
 		is_src = true;
 	else {
 		chan_err(d40c, "Unknown direction\n");
@@ -2133,10 +2133,10 @@ static bool d40_is_paused(struct d40_chan *d40c)
 		goto _exit;
 	}
 
-	if (d40c->dma_cfg.dir == STEDMA40_MEM_TO_PERIPH ||
-	    d40c->dma_cfg.dir == STEDMA40_MEM_TO_MEM) {
+	if (d40c->dma_cfg.dir == DMA_MEM_TO_DEV ||
+	    d40c->dma_cfg.dir == DMA_MEM_TO_MEM) {
 		status = readl(chanbase + D40_CHAN_REG_SDLNK);
-	} else if (d40c->dma_cfg.dir == STEDMA40_PERIPH_TO_MEM) {
+	} else if (d40c->dma_cfg.dir == DMA_DEV_TO_MEM) {
 		status = readl(chanbase + D40_CHAN_REG_SSLNK);
 	} else {
 		chan_err(d40c, "Unknown direction\n");
@@ -2387,12 +2387,12 @@ static void d40_set_prio_realtime(struct d40_chan *d40c)
 	if (d40c->base->rev < 3)
 		return;
 
-	if ((d40c->dma_cfg.dir ==  STEDMA40_PERIPH_TO_MEM) ||
-	    (d40c->dma_cfg.dir == STEDMA40_PERIPH_TO_PERIPH))
+	if ((d40c->dma_cfg.dir ==  DMA_DEV_TO_MEM) ||
+	    (d40c->dma_cfg.dir == DMA_DEV_TO_DEV))
 		__d40_set_prio_rt(d40c, d40c->dma_cfg.dev_type, true);
 
-	if ((d40c->dma_cfg.dir ==  STEDMA40_MEM_TO_PERIPH) ||
-	    (d40c->dma_cfg.dir == STEDMA40_PERIPH_TO_PERIPH))
+	if ((d40c->dma_cfg.dir ==  DMA_MEM_TO_DEV) ||
+	    (d40c->dma_cfg.dir == DMA_DEV_TO_DEV))
 		__d40_set_prio_rt(d40c, d40c->dma_cfg.dev_type, false);
 }
 
@@ -2423,11 +2423,11 @@ static struct dma_chan *d40_xlate(struct of_phandle_args *dma_spec,
 
 	switch (D40_DT_FLAGS_DIR(flags)) {
 	case 0:
-		cfg.dir = STEDMA40_MEM_TO_PERIPH;
+		cfg.dir = DMA_MEM_TO_DEV;
 		cfg.dst_info.big_endian = D40_DT_FLAGS_BIG_ENDIAN(flags);
 		break;
 	case 1:
-		cfg.dir = STEDMA40_PERIPH_TO_MEM;
+		cfg.dir = DMA_DEV_TO_MEM;
 		cfg.src_info.big_endian = D40_DT_FLAGS_BIG_ENDIAN(flags);
 		break;
 	}
@@ -2473,7 +2473,7 @@ static int d40_alloc_chan_resources(struct dma_chan *chan)
 	d40_set_prio_realtime(d40c);
 
 	if (chan_is_logical(d40c)) {
-		if (d40c->dma_cfg.dir == STEDMA40_PERIPH_TO_MEM)
+		if (d40c->dma_cfg.dir == DMA_DEV_TO_MEM)
 			d40c->lcpa = d40c->base->lcpa_base +
 				d40c->dma_cfg.dev_type * D40_LCPA_CHAN_SIZE;
 		else
@@ -2746,12 +2746,12 @@ static int d40_set_runtime_config(struct dma_chan *chan,
 	if (config->direction == DMA_DEV_TO_MEM) {
 		config_addr = config->src_addr;
 
-		if (cfg->dir != STEDMA40_PERIPH_TO_MEM)
+		if (cfg->dir != DMA_DEV_TO_MEM)
 			dev_dbg(d40c->base->dev,
 				"channel was not configured for peripheral "
 				"to memory transfer (%d) overriding\n",
 				cfg->dir);
-		cfg->dir = STEDMA40_PERIPH_TO_MEM;
+		cfg->dir = DMA_DEV_TO_MEM;
 
 		/* Configure the memory side */
 		if (dst_addr_width == DMA_SLAVE_BUSWIDTH_UNDEFINED)
@@ -2762,12 +2762,12 @@ static int d40_set_runtime_config(struct dma_chan *chan,
 	} else if (config->direction == DMA_MEM_TO_DEV) {
 		config_addr = config->dst_addr;
 
-		if (cfg->dir != STEDMA40_MEM_TO_PERIPH)
+		if (cfg->dir != DMA_MEM_TO_DEV)
 			dev_dbg(d40c->base->dev,
 				"channel was not configured for memory "
 				"to peripheral transfer (%d) overriding\n",
 				cfg->dir);
-		cfg->dir = STEDMA40_MEM_TO_PERIPH;
+		cfg->dir = DMA_MEM_TO_DEV;
 
 		/* Configure the memory side */
 		if (src_addr_width == DMA_SLAVE_BUSWIDTH_UNDEFINED)

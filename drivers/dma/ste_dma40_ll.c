@@ -18,23 +18,23 @@ void d40_log_cfg(struct stedma40_chan_cfg *cfg,
 	u32 l1 = 0; /* src */
 
 	/* src is mem? -> increase address pos */
-	if (cfg->dir ==  STEDMA40_MEM_TO_PERIPH ||
-	    cfg->dir ==  STEDMA40_MEM_TO_MEM)
+	if (cfg->dir ==  DMA_MEM_TO_DEV ||
+	    cfg->dir ==  DMA_MEM_TO_MEM)
 		l1 |= 1 << D40_MEM_LCSP1_SCFG_INCR_POS;
 
 	/* dst is mem? -> increase address pos */
-	if (cfg->dir ==  STEDMA40_PERIPH_TO_MEM ||
-	    cfg->dir ==  STEDMA40_MEM_TO_MEM)
+	if (cfg->dir ==  DMA_DEV_TO_MEM ||
+	    cfg->dir ==  DMA_MEM_TO_MEM)
 		l3 |= 1 << D40_MEM_LCSP3_DCFG_INCR_POS;
 
 	/* src is hw? -> master port 1 */
-	if (cfg->dir ==  STEDMA40_PERIPH_TO_MEM ||
-	    cfg->dir ==  STEDMA40_PERIPH_TO_PERIPH)
+	if (cfg->dir ==  DMA_DEV_TO_MEM ||
+	    cfg->dir ==  DMA_DEV_TO_DEV)
 		l1 |= 1 << D40_MEM_LCSP1_SCFG_MST_POS;
 
 	/* dst is hw? -> master port 1 */
-	if (cfg->dir ==  STEDMA40_MEM_TO_PERIPH ||
-	    cfg->dir ==  STEDMA40_PERIPH_TO_PERIPH)
+	if (cfg->dir ==  DMA_MEM_TO_DEV ||
+	    cfg->dir ==  DMA_DEV_TO_DEV)
 		l3 |= 1 << D40_MEM_LCSP3_DCFG_MST_POS;
 
 	l3 |= 1 << D40_MEM_LCSP3_DCFG_EIM_POS;
@@ -55,8 +55,8 @@ void d40_phy_cfg(struct stedma40_chan_cfg *cfg, u32 *src_cfg, u32 *dst_cfg)
 	u32 src = 0;
 	u32 dst = 0;
 
-	if ((cfg->dir ==  STEDMA40_PERIPH_TO_MEM) ||
-	    (cfg->dir == STEDMA40_PERIPH_TO_PERIPH)) {
+	if ((cfg->dir == DMA_DEV_TO_MEM) ||
+	    (cfg->dir == DMA_DEV_TO_DEV)) {
 		/* Set master port to 1 */
 		src |= 1 << D40_SREG_CFG_MST_POS;
 		src |= D40_TYPE_TO_EVENT(cfg->dev_type);
@@ -66,8 +66,8 @@ void d40_phy_cfg(struct stedma40_chan_cfg *cfg, u32 *src_cfg, u32 *dst_cfg)
 		else
 			src |= 3 << D40_SREG_CFG_PHY_TM_POS;
 	}
-	if ((cfg->dir ==  STEDMA40_MEM_TO_PERIPH) ||
-	    (cfg->dir == STEDMA40_PERIPH_TO_PERIPH)) {
+	if ((cfg->dir == DMA_MEM_TO_DEV) ||
+	    (cfg->dir == DMA_DEV_TO_DEV)) {
 		/* Set master port to 1 */
 		dst |= 1 << D40_SREG_CFG_MST_POS;
 		dst |= D40_TYPE_TO_EVENT(cfg->dev_type);
