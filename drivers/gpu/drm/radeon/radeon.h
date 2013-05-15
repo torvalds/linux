@@ -1206,6 +1206,9 @@ struct radeon_ps {
 	/* UVD clocks */
 	u32 vclk;
 	u32 dclk;
+	/* VCE clocks */
+	u32 evclk;
+	u32 ecclk;
 	/* asic priv */
 	void *ps_priv;
 };
