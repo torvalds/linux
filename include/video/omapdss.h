@@ -321,39 +321,6 @@ struct omap_dss_dsi_config {
 	enum omap_dss_dsi_trans_mode trans_mode;
 };
 
-void dsi_bus_lock(struct omap_dss_device *dssdev);
-void dsi_bus_unlock(struct omap_dss_device *dssdev);
-int dsi_vc_dcs_write(struct omap_dss_device *dssdev, int channel, u8 *data,
-		int len);
-int dsi_vc_generic_write(struct omap_dss_device *dssdev, int channel, u8 *data,
-		int len);
-int dsi_vc_dcs_write_0(struct omap_dss_device *dssdev, int channel, u8 dcs_cmd);
-int dsi_vc_generic_write_0(struct omap_dss_device *dssdev, int channel);
-int dsi_vc_dcs_write_1(struct omap_dss_device *dssdev, int channel, u8 dcs_cmd,
-		u8 param);
-int dsi_vc_generic_write_1(struct omap_dss_device *dssdev, int channel,
-		u8 param);
-int dsi_vc_generic_write_2(struct omap_dss_device *dssdev, int channel,
-		u8 param1, u8 param2);
-int dsi_vc_dcs_write_nosync(struct omap_dss_device *dssdev, int channel,
-		u8 *data, int len);
-int dsi_vc_generic_write_nosync(struct omap_dss_device *dssdev, int channel,
-		u8 *data, int len);
-int dsi_vc_dcs_read(struct omap_dss_device *dssdev, int channel, u8 dcs_cmd,
-		u8 *buf, int buflen);
-int dsi_vc_generic_read_0(struct omap_dss_device *dssdev, int channel, u8 *buf,
-		int buflen);
-int dsi_vc_generic_read_1(struct omap_dss_device *dssdev, int channel, u8 param,
-		u8 *buf, int buflen);
-int dsi_vc_generic_read_2(struct omap_dss_device *dssdev, int channel,
-		u8 param1, u8 param2, u8 *buf, int buflen);
-int dsi_vc_set_max_rx_packet_size(struct omap_dss_device *dssdev, int channel,
-		u16 len);
-int dsi_vc_send_null(struct omap_dss_device *dssdev, int channel);
-int dsi_vc_send_bta_sync(struct omap_dss_device *dssdev, int channel);
-int dsi_enable_video_output(struct omap_dss_device *dssdev, int channel);
-void dsi_disable_video_output(struct omap_dss_device *dssdev, int channel);
-
 enum omapdss_version {
 	OMAPDSS_VER_UNKNOWN = 0,
 	OMAPDSS_VER_OMAP24xx,
@@ -1019,24 +986,6 @@ int dispc_ovl_setup(enum omap_plane plane, const struct omap_overlay_info *oi,
 
 #define to_dss_driver(x) container_of((x), struct omap_dss_driver, driver)
 #define to_dss_device(x) container_of((x), struct omap_dss_device, old_dev)
-
-void omapdss_dsi_vc_enable_hs(struct omap_dss_device *dssdev, int channel,
-		bool enable);
-int omapdss_dsi_enable_te(struct omap_dss_device *dssdev, bool enable);
-int omapdss_dsi_set_config(struct omap_dss_device *dssdev,
-		const struct omap_dss_dsi_config *config);
-
-int omap_dsi_update(struct omap_dss_device *dssdev, int channel,
-		void (*callback)(int, void *), void *data);
-int omap_dsi_request_vc(struct omap_dss_device *dssdev, int *channel);
-int omap_dsi_set_vc_id(struct omap_dss_device *dssdev, int channel, int vc_id);
-void omap_dsi_release_vc(struct omap_dss_device *dssdev, int channel);
-int omapdss_dsi_configure_pins(struct omap_dss_device *dssdev,
-		const struct omap_dsi_pin_config *pin_cfg);
-
-int omapdss_dsi_display_enable(struct omap_dss_device *dssdev);
-void omapdss_dsi_display_disable(struct omap_dss_device *dssdev,
-		bool disconnect_lanes, bool enter_ulps);
 
 int omapdss_sdi_display_enable(struct omap_dss_device *dssdev);
 void omapdss_sdi_display_disable(struct omap_dss_device *dssdev);
