@@ -668,6 +668,33 @@ static int ab8500_usb_set_host(struct usb_otg *otg, struct usb_bus *host)
 	return 0;
 }
 
+static void ab8500_usb_restart_phy(struct ab8500_usb *ab)
+{
+	abx500_mask_and_set_register_interruptible(ab->dev,
+			AB8500_USB, AB8500_USB_PHY_CTRL_REG,
+			AB8500_BIT_PHY_CTRL_DEVICE_EN,
+			AB8500_BIT_PHY_CTRL_DEVICE_EN);
+
+	udelay(100);
+
+	abx500_mask_and_set_register_interruptible(ab->dev,
+			AB8500_USB, AB8500_USB_PHY_CTRL_REG,
+			AB8500_BIT_PHY_CTRL_DEVICE_EN,
+			0);
+
+	abx500_mask_and_set_register_interruptible(ab->dev,
+			AB8500_USB, AB8500_USB_PHY_CTRL_REG,
+			AB8500_BIT_PHY_CTRL_HOST_EN,
+			AB8500_BIT_PHY_CTRL_HOST_EN);
+
+	udelay(100);
+
+	abx500_mask_and_set_register_interruptible(ab->dev,
+			AB8500_USB, AB8500_USB_PHY_CTRL_REG,
+			AB8500_BIT_PHY_CTRL_HOST_EN,
+			0);
+}
+
 static int ab8500_usb_regulator_get(struct ab8500_usb *ab)
 {
 	int err;
@@ -886,6 +913,12 @@ static int ab8500_usb_probe(struct platform_device *pdev)
 
 	/* Needed to enable ID detection. */
 	ab8500_usb_wd_workaround(ab);
+
+	/*
+	 * This is required for usb-link-status to work properly when a
+	 * cable is connected at boot time.
+	 */
+	ab8500_usb_restart_phy(ab);
 
 	abx500_usb_link_status_update(ab);
 
