@@ -1054,7 +1054,7 @@ static int Handle1401Esc(DEVICE_EXTENSION *pdx, char *pCh,
 				/*  This can never happen, really */
 				dev_err(&pdx->interface->dev,
 					"ERROR: DMA setup while transfer still waiting");
-				spin_unlock(&pdx->stagedLock); 
+				spin_unlock(&pdx->stagedLock);
 			} else {
 				if ((wTransType == TM_EXTTOHOST)
 				    || (wTransType == TM_EXTTO1401)) {
