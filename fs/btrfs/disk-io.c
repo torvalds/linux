@@ -1192,6 +1192,7 @@ static void __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	root->last_trans = 0;
 	root->highest_objectid = 0;
 	root->nr_delalloc_inodes = 0;
+	root->nr_ordered_extents = 0;
 	root->name = NULL;
 	root->inode_tree = RB_ROOT;
 	INIT_RADIX_TREE(&root->delayed_nodes_tree, GFP_ATOMIC);
@@ -1202,11 +1203,14 @@ static void __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	INIT_LIST_HEAD(&root->root_list);
 	INIT_LIST_HEAD(&root->delalloc_inodes);
 	INIT_LIST_HEAD(&root->delalloc_root);
+	INIT_LIST_HEAD(&root->ordered_extents);
+	INIT_LIST_HEAD(&root->ordered_root);
 	INIT_LIST_HEAD(&root->logged_list[0]);
 	INIT_LIST_HEAD(&root->logged_list[1]);
 	spin_lock_init(&root->orphan_lock);
 	spin_lock_init(&root->inode_lock);
 	spin_lock_init(&root->delalloc_lock);
+	spin_lock_init(&root->ordered_extent_lock);
 	spin_lock_init(&root->accounting_lock);
 	spin_lock_init(&root->log_extents_lock[0]);
 	spin_lock_init(&root->log_extents_lock[1]);
@@ -2193,8 +2197,8 @@ int open_ctree(struct super_block *sb,
 	fs_info->thread_pool_size = min_t(unsigned long,
 					  num_online_cpus() + 2, 8);
 
-	INIT_LIST_HEAD(&fs_info->ordered_extents);
-	spin_lock_init(&fs_info->ordered_extent_lock);
+	INIT_LIST_HEAD(&fs_info->ordered_roots);
+	spin_lock_init(&fs_info->ordered_root_lock);
 	fs_info->delayed_root = kmalloc(sizeof(struct btrfs_delayed_root),
 					GFP_NOFS);
 	if (!fs_info->delayed_root) {
@@ -3683,7 +3687,7 @@ static void btrfs_destroy_ordered_operations(struct btrfs_transaction *t,
 	INIT_LIST_HEAD(&splice);
 
 	mutex_lock(&root->fs_info->ordered_operations_mutex);
-	spin_lock(&root->fs_info->ordered_extent_lock);
+	spin_lock(&root->fs_info->ordered_root_lock);
 
 	list_splice_init(&t->ordered_operations, &splice);
 	while (!list_empty(&splice)) {
@@ -3691,14 +3695,14 @@ static void btrfs_destroy_ordered_operations(struct btrfs_transaction *t,
 					 ordered_operations);
 
 		list_del_init(&btrfs_inode->ordered_operations);
-		spin_unlock(&root->fs_info->ordered_extent_lock);
+		spin_unlock(&root->fs_info->ordered_root_lock);
 
 		btrfs_invalidate_inodes(btrfs_inode->root);
 
-		spin_lock(&root->fs_info->ordered_extent_lock);
+		spin_lock(&root->fs_info->ordered_root_lock);
 	}
 
-	spin_unlock(&root->fs_info->ordered_extent_lock);
+	spin_unlock(&root->fs_info->ordered_root_lock);
 	mutex_unlock(&root->fs_info->ordered_operations_mutex);
 }
 
@@ -3706,15 +3710,36 @@ static void btrfs_destroy_ordered_extents(struct btrfs_root *root)
 {
 	struct btrfs_ordered_extent *ordered;
 
-	spin_lock(&root->fs_info->ordered_extent_lock);
+	spin_lock(&root->ordered_extent_lock);
 	/*
 	 * This will just short circuit the ordered completion stuff which will
 	 * make sure the ordered extent gets properly cleaned up.
 	 */
-	list_for_each_entry(ordered, &root->fs_info->ordered_extents,
+	list_for_each_entry(ordered, &root->ordered_extents,
 			    root_extent_list)
 		set_bit(BTRFS_ORDERED_IOERR, &ordered->flags);
-	spin_unlock(&root->fs_info->ordered_extent_lock);
+	spin_unlock(&root->ordered_extent_lock);
+}
+
+static void btrfs_destroy_all_ordered_extents(struct btrfs_fs_info *fs_info)
+{
+	struct btrfs_root *root;
+	struct list_head splice;
+
+	INIT_LIST_HEAD(&splice);
+
+	spin_lock(&fs_info->ordered_root_lock);
+	list_splice_init(&fs_info->ordered_roots, &splice);
+	while (!list_empty(&splice)) {
+		root = list_first_entry(&splice, struct btrfs_root,
+					ordered_root);
+		list_del_init(&root->ordered_root);
+
+		btrfs_destroy_ordered_extents(root);
+
+		cond_resched_lock(&fs_info->ordered_root_lock);
+	}
+	spin_unlock(&fs_info->ordered_root_lock);
 }
 
 int btrfs_destroy_delayed_refs(struct btrfs_transaction *trans,
@@ -3977,7 +4002,7 @@ static int btrfs_cleanup_transaction(struct btrfs_root *root)
 
 		btrfs_destroy_ordered_operations(t, root);
 
-		btrfs_destroy_ordered_extents(root);
+		btrfs_destroy_all_ordered_extents(root->fs_info);
 
 		btrfs_destroy_delayed_refs(t, root);
 

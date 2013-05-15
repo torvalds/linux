@@ -400,7 +400,7 @@ int btrfs_dev_replace_start(struct btrfs_root *root,
 	args->result = BTRFS_IOCTL_DEV_REPLACE_RESULT_NO_ERROR;
 	btrfs_dev_replace_unlock(dev_replace);
 
-	btrfs_wait_ordered_extents(root, 0);
+	btrfs_wait_all_ordered_extents(root->fs_info, 0);
 
 	/* force writing the updated state information to disk */
 	trans = btrfs_start_transaction(root, 0);
@@ -475,7 +475,7 @@ static int btrfs_dev_replace_finishing(struct btrfs_fs_info *fs_info,
 		mutex_unlock(&dev_replace->lock_finishing_cancel_unmount);
 		return ret;
 	}
-	btrfs_wait_ordered_extents(root, 0);
+	btrfs_wait_all_ordered_extents(root->fs_info, 0);
 
 	trans = btrfs_start_transaction(root, 0);
 	if (IS_ERR(trans)) {

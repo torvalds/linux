@@ -1505,7 +1505,7 @@ static int btrfs_flush_all_pending_stuffs(struct btrfs_trans_handle *trans,
 		ret = btrfs_start_all_delalloc_inodes(root->fs_info, 1);
 		if (ret)
 			return ret;
-		btrfs_wait_ordered_extents(root, 1);
+		btrfs_wait_all_ordered_extents(root->fs_info, 1);
 	}
 
 	ret = btrfs_run_delayed_items(trans, root);

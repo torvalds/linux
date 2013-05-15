@@ -3901,7 +3901,7 @@ static void btrfs_writeback_inodes_sb_nr(struct btrfs_root *root,
 		 */
 		btrfs_start_all_delalloc_inodes(root->fs_info, 0);
 		if (!current->journal_info)
-			btrfs_wait_ordered_extents(root, 0);
+			btrfs_wait_all_ordered_extents(root->fs_info, 0);
 	}
 }
 
@@ -3931,7 +3931,7 @@ static void shrink_delalloc(struct btrfs_root *root, u64 to_reclaim, u64 orig,
 	if (delalloc_bytes == 0) {
 		if (trans)
 			return;
-		btrfs_wait_ordered_extents(root, 0);
+		btrfs_wait_all_ordered_extents(root->fs_info, 0);
 		return;
 	}
 
@@ -3959,7 +3959,7 @@ static void shrink_delalloc(struct btrfs_root *root, u64 to_reclaim, u64 orig,
 
 		loops++;
 		if (wait_ordered && !trans) {
-			btrfs_wait_ordered_extents(root, 0);
+			btrfs_wait_all_ordered_extents(root->fs_info, 0);
 		} else {
 			time_left = schedule_timeout_killable(1);
 			if (time_left)
