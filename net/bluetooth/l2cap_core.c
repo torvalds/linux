@@ -5165,18 +5165,17 @@ static inline int l2cap_check_conn_param(u16 min, u16 max, u16 latency,
 
 static inline int l2cap_conn_param_update_req(struct l2cap_conn *conn,
 					      struct l2cap_cmd_hdr *cmd,
-					      u8 *data)
+					      u16 cmd_len, u8 *data)
 {
 	struct hci_conn *hcon = conn->hcon;
 	struct l2cap_conn_param_update_req *req;
 	struct l2cap_conn_param_update_rsp rsp;
-	u16 min, max, latency, to_multiplier, cmd_len;
+	u16 min, max, latency, to_multiplier;
 	int err;
 
 	if (!(hcon->link_mode & HCI_LM_MASTER))
 		return -EINVAL;
 
-	cmd_len = __le16_to_cpu(cmd->len);
 	if (cmd_len != sizeof(struct l2cap_conn_param_update_req))
 		return -EPROTO;
 
@@ -5287,14 +5286,15 @@ static inline int l2cap_bredr_sig_cmd(struct l2cap_conn *conn,
 }
 
 static inline int l2cap_le_sig_cmd(struct l2cap_conn *conn,
-				   struct l2cap_cmd_hdr *cmd, u8 *data)
+				   struct l2cap_cmd_hdr *cmd, u16 cmd_len,
+				   u8 *data)
 {
 	switch (cmd->code) {
 	case L2CAP_COMMAND_REJ:
 		return 0;
 
 	case L2CAP_CONN_PARAM_UPDATE_REQ:
-		return l2cap_conn_param_update_req(conn, cmd, data);
+		return l2cap_conn_param_update_req(conn, cmd, cmd_len, data);
 
 	case L2CAP_CONN_PARAM_UPDATE_RSP:
 		return 0;
@@ -5331,7 +5331,7 @@ static inline void l2cap_le_sig_channel(struct l2cap_conn *conn,
 		goto drop;
 	}
 
-	err = l2cap_le_sig_cmd(conn, cmd, skb->data);
+	err = l2cap_le_sig_cmd(conn, cmd, len, skb->data);
 	if (err) {
 		struct l2cap_cmd_rej_unk rej;
 
