@@ -602,7 +602,8 @@ static struct nf_loginfo default_loginfo = {
 
 /* log handler for internal netfilter logging api */
 void
-nfulnl_log_packet(u_int8_t pf,
+nfulnl_log_packet(struct net *net,
+		  u_int8_t pf,
 		  unsigned int hooknum,
 		  const struct sk_buff *skb,
 		  const struct net_device *in,
@@ -615,7 +616,6 @@ nfulnl_log_packet(u_int8_t pf,
 	const struct nf_loginfo *li;
 	unsigned int qthreshold;
 	unsigned int plen;
-	struct net *net = dev_net(in ? in : out);
 	struct nfnl_log_net *log = nfnl_log_pernet(net);
 
 	if (li_user && li_user->type == NF_LOG_TYPE_ULOG)

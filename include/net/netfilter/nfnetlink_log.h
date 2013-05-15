@@ -2,7 +2,8 @@
 #define _KER_NFNETLINK_LOG_H
 
 void
-nfulnl_log_packet(u_int8_t pf,
+nfulnl_log_packet(struct net *net,
+		  u_int8_t pf,
 		  unsigned int hooknum,
 		  const struct sk_buff *skb,
 		  const struct net_device *in,

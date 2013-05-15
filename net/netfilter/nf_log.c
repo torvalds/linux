@@ -148,7 +148,7 @@ void nf_log_packet(struct net *net,
 		va_start(args, fmt);
 		vsnprintf(prefix, sizeof(prefix), fmt, args);
 		va_end(args);
-		logger->logfn(pf, hooknum, skb, in, out, loginfo, prefix);
+		logger->logfn(net, pf, hooknum, skb, in, out, loginfo, prefix);
 	}
 	rcu_read_unlock();
 }
