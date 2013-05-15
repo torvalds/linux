@@ -645,9 +645,6 @@ int omap_hwmod_read_hardreset(struct omap_hwmod *oh, const char *name);
 int omap_hwmod_enable_clocks(struct omap_hwmod *oh);
 int omap_hwmod_disable_clocks(struct omap_hwmod *oh);
 
-int omap_hwmod_set_slave_idlemode(struct omap_hwmod *oh, u8 idlemode);
-int omap_hwmod_set_ocp_autoidle(struct omap_hwmod *oh, u8 autoidle);
-
 int omap_hwmod_reset(struct omap_hwmod *oh);
 void omap_hwmod_ocp_barrier(struct omap_hwmod *oh);
 
