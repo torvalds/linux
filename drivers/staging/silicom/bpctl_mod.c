@@ -43,12 +43,12 @@ MODULE_DESCRIPTION(BP_MOD_DESCR);
 MODULE_VERSION(BP_MOD_VER);
 spinlock_t bpvm_lock;
 
-#define lock_bpctl() 					\
+#define lock_bpctl()					\
 if (down_interruptible(&bpctl_sema)) {			\
 	return -ERESTARTSYS;				\
 }							\
 
-#define unlock_bpctl() 					\
+#define unlock_bpctl()					\
 	up(&bpctl_sema);
 
 /* Media Types */
@@ -5438,9 +5438,9 @@ static long device_ioctl(struct file *file,	/* see include/linux/fs.h */
 		return -1;
 	}
 
-/*    	preempt_disable();
+/*	preempt_disable();
 	rcu_read_lock();
-      	spin_lock_irqsave(&bpvm_lock, flags);
+	spin_lock_irqsave(&bpvm_lock, flags);
 */
 	if ((bpctl_cmd.in_param[5]) ||
 	    (bpctl_cmd.in_param[6]) || (bpctl_cmd.in_param[7]))
