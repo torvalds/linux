@@ -96,6 +96,7 @@ struct osf_dirent {
 };
 
 struct osf_dirent_callback {
+	struct dir_context ctx;
 	struct osf_dirent __user *dirent;
 	long __user *basep;
 	unsigned int count;
@@ -155,8 +156,9 @@ SYSCALL_DEFINE4(osf_getdirentries, unsigned int, fd,
 	buf.basep = basep;
 	buf.count = count;
 	buf.error = 0;
+	buf.ctx.actor = osf_filldir;
 
-	error = vfs_readdir(arg.file, osf_filldir, &buf);
+	error = iterate_dir(arg.file, &buf.ctx);
 	if (error >= 0)
 		error = buf.error;
 	if (count != buf.count)
