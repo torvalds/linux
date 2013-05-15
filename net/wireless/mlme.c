@@ -221,15 +221,15 @@ void cfg80211_michael_mic_failure(struct net_device *dev, const u8 *addr,
 EXPORT_SYMBOL(cfg80211_michael_mic_failure);
 
 /* some MLME handling for userspace SME */
-int __cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
-			 struct net_device *dev,
-			 struct ieee80211_channel *chan,
-			 enum nl80211_auth_type auth_type,
-			 const u8 *bssid,
-			 const u8 *ssid, int ssid_len,
-			 const u8 *ie, int ie_len,
-			 const u8 *key, int key_len, int key_idx,
-			 const u8 *sae_data, int sae_data_len)
+int cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
+		       struct net_device *dev,
+		       struct ieee80211_channel *chan,
+		       enum nl80211_auth_type auth_type,
+		       const u8 *bssid,
+		       const u8 *ssid, int ssid_len,
+		       const u8 *ie, int ie_len,
+		       const u8 *key, int key_len, int key_idx,
+		       const u8 *sae_data, int sae_data_len)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_auth_request req = {
@@ -271,28 +271,6 @@ out:
 	return err;
 }
 
-int cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
-		       struct net_device *dev, struct ieee80211_channel *chan,
-		       enum nl80211_auth_type auth_type, const u8 *bssid,
-		       const u8 *ssid, int ssid_len,
-		       const u8 *ie, int ie_len,
-		       const u8 *key, int key_len, int key_idx,
-		       const u8 *sae_data, int sae_data_len)
-{
-	int err;
-
-	ASSERT_RTNL();
-
-	wdev_lock(dev->ieee80211_ptr);
-	err = __cfg80211_mlme_auth(rdev, dev, chan, auth_type, bssid,
-				   ssid, ssid_len, ie, ie_len,
-				   key, key_len, key_idx,
-				   sae_data, sae_data_len);
-	wdev_unlock(dev->ieee80211_ptr);
-
-	return err;
-}
-
 /*  Do a logical ht_capa &= ht_capa_mask.  */
 void cfg80211_oper_and_ht_capa(struct ieee80211_ht_cap *ht_capa,
 			       const struct ieee80211_ht_cap *ht_capa_mask)
@@ -327,12 +305,12 @@ void cfg80211_oper_and_vht_capa(struct ieee80211_vht_cap *vht_capa,
 		p1[i] &= p2[i];
 }
 
-int __cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
-			  struct net_device *dev,
-			  struct ieee80211_channel *chan,
-			  const u8 *bssid,
-			  const u8 *ssid, int ssid_len,
-			  struct cfg80211_assoc_request *req)
+int cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
+			struct net_device *dev,
+			struct ieee80211_channel *chan,
+			const u8 *bssid,
+			const u8 *ssid, int ssid_len,
+			struct cfg80211_assoc_request *req)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	int err;
@@ -382,30 +360,10 @@ out:
 	return err;
 }
 
-int cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
-			struct net_device *dev,
-			struct ieee80211_channel *chan,
-			const u8 *bssid,
-			const u8 *ssid, int ssid_len,
-			struct cfg80211_assoc_request *req)
-{
-	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	int err;
-
-	ASSERT_RTNL();
-
-	wdev_lock(wdev);
-	err = __cfg80211_mlme_assoc(rdev, dev, chan, bssid,
-				    ssid, ssid_len, req);
-	wdev_unlock(wdev);
-
-	return err;
-}
-
-int __cfg80211_mlme_deauth(struct cfg80211_registered_device *rdev,
-			   struct net_device *dev, const u8 *bssid,
-			   const u8 *ie, int ie_len, u16 reason,
-			   bool local_state_change)
+int cfg80211_mlme_deauth(struct cfg80211_registered_device *rdev,
+			 struct net_device *dev, const u8 *bssid,
+			 const u8 *ie, int ie_len, u16 reason,
+			 bool local_state_change)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_deauth_request req = {
@@ -425,26 +383,10 @@ int __cfg80211_mlme_deauth(struct cfg80211_registered_device *rdev,
 	return rdev_deauth(rdev, dev, &req);
 }
 
-int cfg80211_mlme_deauth(struct cfg80211_registered_device *rdev,
-			 struct net_device *dev, const u8 *bssid,
-			 const u8 *ie, int ie_len, u16 reason,
-			 bool local_state_change)
-{
-	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	int err;
-
-	wdev_lock(wdev);
-	err = __cfg80211_mlme_deauth(rdev, dev, bssid, ie, ie_len, reason,
-				     local_state_change);
-	wdev_unlock(wdev);
-
-	return err;
-}
-
-static int __cfg80211_mlme_disassoc(struct cfg80211_registered_device *rdev,
-				    struct net_device *dev, const u8 *bssid,
-				    const u8 *ie, int ie_len, u16 reason,
-				    bool local_state_change)
+int cfg80211_mlme_disassoc(struct cfg80211_registered_device *rdev,
+			   struct net_device *dev, const u8 *bssid,
+			   const u8 *ie, int ie_len, u16 reason,
+			   bool local_state_change)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct cfg80211_disassoc_request req = {
@@ -468,22 +410,6 @@ static int __cfg80211_mlme_disassoc(struct cfg80211_registered_device *rdev,
 		return -ENOTCONN;
 
 	return rdev_disassoc(rdev, dev, &req);
-}
-
-int cfg80211_mlme_disassoc(struct cfg80211_registered_device *rdev,
-			   struct net_device *dev, const u8 *bssid,
-			   const u8 *ie, int ie_len, u16 reason,
-			   bool local_state_change)
-{
-	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	int err;
-
-	wdev_lock(wdev);
-	err = __cfg80211_mlme_disassoc(rdev, dev, bssid, ie, ie_len, reason,
-				       local_state_change);
-	wdev_unlock(wdev);
-
-	return err;
 }
 
 void cfg80211_mlme_down(struct cfg80211_registered_device *rdev,
