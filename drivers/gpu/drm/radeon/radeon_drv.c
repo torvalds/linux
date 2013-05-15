@@ -147,7 +147,7 @@ static inline void radeon_unregister_atpx_handler(void) {}
 #endif
 
 int radeon_no_wb;
-int radeon_modeset = 1;
+int radeon_modeset = -1;
 int radeon_dynclks = -1;
 int radeon_r4xx_atom = 0;
 int radeon_agpmode = 0;
@@ -456,6 +456,16 @@ static struct pci_driver radeon_kms_pci_driver = {
 
 static int __init radeon_init(void)
 {
+#ifdef CONFIG_VGA_CONSOLE
+	if (vgacon_text_force() && radeon_modeset == -1) {
+		DRM_INFO("VGACON disable radeon kernel modesetting.\n");
+		radeon_modeset = 0;
+	}
+#endif
+	/* set to modesetting by default if not nomodeset */
+	if (radeon_modeset == -1)
+		radeon_modeset = 1;
+
 	if (radeon_modeset == 1) {
 		DRM_INFO("radeon kernel modesetting enabled.\n");
 		driver = &kms_driver;
