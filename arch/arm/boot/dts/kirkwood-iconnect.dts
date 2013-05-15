@@ -109,6 +109,14 @@
 				reg = <0x980000 0x1f400000>;
 			};
 		};
+
+		pcie-controller {
+			status = "okay";
+
+			pcie@1,0 {
+				status = "okay";
+			};
+		};
 	};
 
 	gpio-leds {
