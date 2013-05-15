@@ -1234,39 +1234,6 @@ static void __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	spin_lock_init(&root->root_item_lock);
 }
 
-static int __must_check find_and_setup_root(struct btrfs_root *tree_root,
-					    struct btrfs_fs_info *fs_info,
-					    u64 objectid,
-					    struct btrfs_root *root)
-{
-	int ret;
-	u32 blocksize;
-	u64 generation;
-
-	__setup_root(tree_root->nodesize, tree_root->leafsize,
-		     tree_root->sectorsize, tree_root->stripesize,
-		     root, fs_info, objectid);
-	ret = btrfs_find_last_root(tree_root, objectid,
-				   &root->root_item, &root->root_key);
-	if (ret > 0)
-		return -ENOENT;
-	else if (ret < 0)
-		return ret;
-
-	generation = btrfs_root_generation(&root->root_item);
-	blocksize = btrfs_level_size(root, btrfs_root_level(&root->root_item));
-	root->commit_root = NULL;
-	root->node = read_tree_block(root, btrfs_root_bytenr(&root->root_item),
-				     blocksize, generation);
-	if (!root->node || !btrfs_buffer_uptodate(root->node, generation, 0)) {
-		free_extent_buffer(root->node);
-		root->node = NULL;
-		return -EIO;
-	}
-	root->commit_root = btrfs_root_node(root);
-	return 0;
-}
-
 static struct btrfs_root *btrfs_alloc_root(struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_root *root = kzalloc(sizeof(*root), GFP_NOFS);
@@ -1451,75 +1418,138 @@ int btrfs_add_log_tree(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
-struct btrfs_root *btrfs_read_fs_root_no_radix(struct btrfs_root *tree_root,
-					       struct btrfs_key *location)
+struct btrfs_root *btrfs_read_tree_root(struct btrfs_root *tree_root,
+					struct btrfs_key *key)
 {
 	struct btrfs_root *root;
 	struct btrfs_fs_info *fs_info = tree_root->fs_info;
 	struct btrfs_path *path;
-	struct extent_buffer *l;
 	u64 generation;
 	u32 blocksize;
-	int ret = 0;
-	int slot;
+	int ret;
+
+	path = btrfs_alloc_path();
+	if (!path)
+		return ERR_PTR(-ENOMEM);
 
 	root = btrfs_alloc_root(fs_info);
-	if (!root)
-		return ERR_PTR(-ENOMEM);
-	if (location->offset == (u64)-1) {
-		ret = find_and_setup_root(tree_root, fs_info,
-					  location->objectid, root);
-		if (ret) {
-			kfree(root);
-			return ERR_PTR(ret);
-		}
-		goto out;
+	if (!root) {
+		ret = -ENOMEM;
+		goto alloc_fail;
 	}
 
 	__setup_root(tree_root->nodesize, tree_root->leafsize,
 		     tree_root->sectorsize, tree_root->stripesize,
-		     root, fs_info, location->objectid);
+		     root, fs_info, key->objectid);
 
-	path = btrfs_alloc_path();
-	if (!path) {
-		kfree(root);
-		return ERR_PTR(-ENOMEM);
-	}
-	ret = btrfs_search_slot(NULL, tree_root, location, path, 0, 0);
-	if (ret == 0) {
-		l = path->nodes[0];
-		slot = path->slots[0];
-		btrfs_read_root_item(l, slot, &root->root_item);
-		memcpy(&root->root_key, location, sizeof(*location));
-	}
-	btrfs_free_path(path);
+	ret = btrfs_find_root(tree_root, key, path,
+			      &root->root_item, &root->root_key);
 	if (ret) {
-		kfree(root);
 		if (ret > 0)
 			ret = -ENOENT;
-		return ERR_PTR(ret);
+		goto find_fail;
 	}
 
 	generation = btrfs_root_generation(&root->root_item);
 	blocksize = btrfs_level_size(root, btrfs_root_level(&root->root_item));
 	root->node = read_tree_block(root, btrfs_root_bytenr(&root->root_item),
 				     blocksize, generation);
-	if (!root->node || !extent_buffer_uptodate(root->node)) {
-		ret = (!root->node) ? -ENOMEM : -EIO;
-
-		free_extent_buffer(root->node);
-		kfree(root);
-		return ERR_PTR(ret);
+	if (!root->node) {
+		ret = -ENOMEM;
+		goto find_fail;
+	} else if (!btrfs_buffer_uptodate(root->node, generation, 0)) {
+		ret = -EIO;
+		goto read_fail;
 	}
-
 	root->commit_root = btrfs_root_node(root);
 out:
-	if (location->objectid != BTRFS_TREE_LOG_OBJECTID) {
+	btrfs_free_path(path);
+	return root;
+
+read_fail:
+	free_extent_buffer(root->node);
+find_fail:
+	kfree(root);
+alloc_fail:
+	root = ERR_PTR(ret);
+	goto out;
+}
+
+struct btrfs_root *btrfs_read_fs_root(struct btrfs_root *tree_root,
+				      struct btrfs_key *location)
+{
+	struct btrfs_root *root;
+
+	root = btrfs_read_tree_root(tree_root, location);
+	if (IS_ERR(root))
+		return root;
+
+	if (root->root_key.objectid != BTRFS_TREE_LOG_OBJECTID) {
 		root->ref_cows = 1;
 		btrfs_check_and_init_root_item(&root->root_item);
 	}
 
 	return root;
+}
+
+int btrfs_init_fs_root(struct btrfs_root *root)
+{
+	int ret;
+
+	root->free_ino_ctl = kzalloc(sizeof(*root->free_ino_ctl), GFP_NOFS);
+	root->free_ino_pinned = kzalloc(sizeof(*root->free_ino_pinned),
+					GFP_NOFS);
+	if (!root->free_ino_pinned || !root->free_ino_ctl) {
+		ret = -ENOMEM;
+		goto fail;
+	}
+
+	btrfs_init_free_ino_ctl(root);
+	mutex_init(&root->fs_commit_mutex);
+	spin_lock_init(&root->cache_lock);
+	init_waitqueue_head(&root->cache_wait);
+
+	ret = get_anon_bdev(&root->anon_dev);
+	if (ret)
+		goto fail;
+	return 0;
+fail:
+	kfree(root->free_ino_ctl);
+	kfree(root->free_ino_pinned);
+	return ret;
+}
+
+struct btrfs_root *btrfs_lookup_fs_root(struct btrfs_fs_info *fs_info,
+					u64 root_id)
+{
+	struct btrfs_root *root;
+
+	spin_lock(&fs_info->fs_roots_radix_lock);
+	root = radix_tree_lookup(&fs_info->fs_roots_radix,
+				 (unsigned long)root_id);
+	spin_unlock(&fs_info->fs_roots_radix_lock);
+	return root;
+}
+
+int btrfs_insert_fs_root(struct btrfs_fs_info *fs_info,
+			 struct btrfs_root *root)
+{
+	int ret;
+
+	ret = radix_tree_preload(GFP_NOFS & ~__GFP_HIGHMEM);
+	if (ret)
+		return ret;
+
+	spin_lock(&fs_info->fs_roots_radix_lock);
+	ret = radix_tree_insert(&fs_info->fs_roots_radix,
+				(unsigned long)root->root_key.objectid,
+				root);
+	if (ret == 0)
+		root->in_radix = 1;
+	spin_unlock(&fs_info->fs_roots_radix_lock);
+	radix_tree_preload_end();
+
+	return ret;
 }
 
 struct btrfs_root *btrfs_read_fs_root_no_name(struct btrfs_fs_info *fs_info,
@@ -1542,38 +1572,22 @@ struct btrfs_root *btrfs_read_fs_root_no_name(struct btrfs_fs_info *fs_info,
 		return fs_info->quota_root ? fs_info->quota_root :
 					     ERR_PTR(-ENOENT);
 again:
-	spin_lock(&fs_info->fs_roots_radix_lock);
-	root = radix_tree_lookup(&fs_info->fs_roots_radix,
-				 (unsigned long)location->objectid);
-	spin_unlock(&fs_info->fs_roots_radix_lock);
+	root = btrfs_lookup_fs_root(fs_info, location->objectid);
 	if (root)
 		return root;
 
-	root = btrfs_read_fs_root_no_radix(fs_info->tree_root, location);
+	root = btrfs_read_fs_root(fs_info->tree_root, location);
 	if (IS_ERR(root))
 		return root;
-
-	root->free_ino_ctl = kzalloc(sizeof(*root->free_ino_ctl), GFP_NOFS);
-	root->free_ino_pinned = kzalloc(sizeof(*root->free_ino_pinned),
-					GFP_NOFS);
-	if (!root->free_ino_pinned || !root->free_ino_ctl) {
-		ret = -ENOMEM;
-		goto fail;
-	}
-
-	btrfs_init_free_ino_ctl(root);
-	mutex_init(&root->fs_commit_mutex);
-	spin_lock_init(&root->cache_lock);
-	init_waitqueue_head(&root->cache_wait);
-
-	ret = get_anon_bdev(&root->anon_dev);
-	if (ret)
-		goto fail;
 
 	if (btrfs_root_refs(&root->root_item) == 0) {
 		ret = -ENOENT;
 		goto fail;
 	}
+
+	ret = btrfs_init_fs_root(root);
+	if (ret)
+		goto fail;
 
 	ret = btrfs_find_orphan_item(fs_info->tree_root, location->objectid);
 	if (ret < 0)
@@ -1581,19 +1595,7 @@ again:
 	if (ret == 0)
 		root->orphan_item_inserted = 1;
 
-	ret = radix_tree_preload(GFP_NOFS & ~__GFP_HIGHMEM);
-	if (ret)
-		goto fail;
-
-	spin_lock(&fs_info->fs_roots_radix_lock);
-	ret = radix_tree_insert(&fs_info->fs_roots_radix,
-				(unsigned long)root->root_key.objectid,
-				root);
-	if (ret == 0)
-		root->in_radix = 1;
-
-	spin_unlock(&fs_info->fs_roots_radix_lock);
-	radix_tree_preload_end();
+	ret = btrfs_insert_fs_root(fs_info, root);
 	if (ret) {
 		if (ret == -EEXIST) {
 			free_fs_root(root);
@@ -1601,10 +1603,6 @@ again:
 		}
 		goto fail;
 	}
-
-	ret = btrfs_find_dead_roots(fs_info->tree_root,
-				    root->root_key.objectid);
-	WARN_ON(ret);
 	return root;
 fail:
 	free_fs_root(root);
@@ -2050,7 +2048,7 @@ static void del_fs_roots(struct btrfs_fs_info *fs_info)
 		list_del(&gang[0]->root_list);
 
 		if (gang[0]->in_radix) {
-			btrfs_free_fs_root(fs_info, gang[0]);
+			btrfs_drop_and_free_fs_root(fs_info, gang[0]);
 		} else {
 			free_extent_buffer(gang[0]->node);
 			free_extent_buffer(gang[0]->commit_root);
@@ -2065,7 +2063,7 @@ static void del_fs_roots(struct btrfs_fs_info *fs_info)
 		if (!ret)
 			break;
 		for (i = 0; i < ret; i++)
-			btrfs_free_fs_root(fs_info, gang[i]);
+			btrfs_drop_and_free_fs_root(fs_info, gang[i]);
 	}
 }
 
@@ -2097,14 +2095,8 @@ int open_ctree(struct super_block *sb,
 	int backup_index = 0;
 
 	tree_root = fs_info->tree_root = btrfs_alloc_root(fs_info);
-	extent_root = fs_info->extent_root = btrfs_alloc_root(fs_info);
-	csum_root = fs_info->csum_root = btrfs_alloc_root(fs_info);
 	chunk_root = fs_info->chunk_root = btrfs_alloc_root(fs_info);
-	dev_root = fs_info->dev_root = btrfs_alloc_root(fs_info);
-	quota_root = fs_info->quota_root = btrfs_alloc_root(fs_info);
-
-	if (!tree_root || !extent_root || !csum_root ||
-	    !chunk_root || !dev_root || !quota_root) {
+	if (!tree_root || !chunk_root) {
 		err = -ENOMEM;
 		goto fail;
 	}
@@ -2655,33 +2647,44 @@ retry_root_backup:
 	btrfs_set_root_node(&tree_root->root_item, tree_root->node);
 	tree_root->commit_root = btrfs_root_node(tree_root);
 
-	ret = find_and_setup_root(tree_root, fs_info,
-				  BTRFS_EXTENT_TREE_OBJECTID, extent_root);
-	if (ret)
+	location.objectid = BTRFS_EXTENT_TREE_OBJECTID;
+	location.type = BTRFS_ROOT_ITEM_KEY;
+	location.offset = 0;
+
+	extent_root = btrfs_read_tree_root(tree_root, &location);
+	if (IS_ERR(extent_root)) {
+		ret = PTR_ERR(extent_root);
 		goto recovery_tree_root;
+	}
 	extent_root->track_dirty = 1;
+	fs_info->extent_root = extent_root;
 
-	ret = find_and_setup_root(tree_root, fs_info,
-				  BTRFS_DEV_TREE_OBJECTID, dev_root);
-	if (ret)
+	location.objectid = BTRFS_DEV_TREE_OBJECTID;
+	dev_root = btrfs_read_tree_root(tree_root, &location);
+	if (IS_ERR(dev_root)) {
+		ret = PTR_ERR(dev_root);
 		goto recovery_tree_root;
+	}
 	dev_root->track_dirty = 1;
+	fs_info->dev_root = dev_root;
+	btrfs_init_devices_late(fs_info);
 
-	ret = find_and_setup_root(tree_root, fs_info,
-				  BTRFS_CSUM_TREE_OBJECTID, csum_root);
-	if (ret)
+	location.objectid = BTRFS_CSUM_TREE_OBJECTID;
+	csum_root = btrfs_read_tree_root(tree_root, &location);
+	if (IS_ERR(csum_root)) {
+		ret = PTR_ERR(csum_root);
 		goto recovery_tree_root;
+	}
 	csum_root->track_dirty = 1;
+	fs_info->csum_root = csum_root;
 
-	ret = find_and_setup_root(tree_root, fs_info,
-				  BTRFS_QUOTA_TREE_OBJECTID, quota_root);
-	if (ret) {
-		kfree(quota_root);
-		quota_root = fs_info->quota_root = NULL;
-	} else {
+	location.objectid = BTRFS_QUOTA_TREE_OBJECTID;
+	quota_root = btrfs_read_tree_root(tree_root, &location);
+	if (!IS_ERR(quota_root)) {
 		quota_root->track_dirty = 1;
 		fs_info->quota_enabled = 1;
 		fs_info->pending_quota_state = 1;
+		fs_info->quota_root = quota_root;
 	}
 
 	fs_info->generation = generation;
@@ -2834,7 +2837,7 @@ retry_root_backup:
 
 	location.objectid = BTRFS_FS_TREE_OBJECTID;
 	location.type = BTRFS_ROOT_ITEM_KEY;
-	location.offset = (u64)-1;
+	location.offset = 0;
 
 	fs_info->fs_root = btrfs_read_fs_root_no_name(fs_info, &location);
 	if (IS_ERR(fs_info->fs_root)) {
@@ -3381,7 +3384,9 @@ int write_ctree_super(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
-void btrfs_free_fs_root(struct btrfs_fs_info *fs_info, struct btrfs_root *root)
+/* Drop a fs root from the radix tree and free it. */
+void btrfs_drop_and_free_fs_root(struct btrfs_fs_info *fs_info,
+				  struct btrfs_root *root)
 {
 	spin_lock(&fs_info->fs_roots_radix_lock);
 	radix_tree_delete(&fs_info->fs_roots_radix,
@@ -3413,6 +3418,11 @@ static void free_fs_root(struct btrfs_root *root)
 	kfree(root->free_ino_pinned);
 	kfree(root->name);
 	kfree(root);
+}
+
+void btrfs_free_fs_root(struct btrfs_root *root)
+{
+	free_fs_root(root);
 }
 
 int btrfs_cleanup_fs_roots(struct btrfs_fs_info *fs_info)

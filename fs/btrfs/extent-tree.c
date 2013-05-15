@@ -7447,8 +7447,8 @@ int btrfs_drop_snapshot(struct btrfs_root *root,
 	}
 
 	if (root->root_key.objectid != BTRFS_TREE_RELOC_OBJECTID) {
-		ret = btrfs_find_last_root(tree_root, root->root_key.objectid,
-					   NULL, NULL);
+		ret = btrfs_find_root(tree_root, &root->root_key, path,
+				      NULL, NULL);
 		if (ret < 0) {
 			btrfs_abort_transaction(trans, tree_root, ret);
 			err = ret;
@@ -7465,7 +7465,7 @@ int btrfs_drop_snapshot(struct btrfs_root *root,
 	}
 
 	if (root->in_radix) {
-		btrfs_free_fs_root(tree_root->fs_info, root);
+		btrfs_drop_and_free_fs_root(tree_root->fs_info, root);
 	} else {
 		free_extent_buffer(root->node);
 		free_extent_buffer(root->commit_root);
