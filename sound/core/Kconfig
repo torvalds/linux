@@ -157,6 +157,15 @@ config SND_DYNAMIC_MINORS
 
 	  If you are unsure about this, say N here.
 
+config SND_MAX_CARDS
+	int "Max number of sound cards"
+	range 4 256
+	default 32
+	depends on SND_DYNAMIC_MINORS
+	help
+	  Specify the max number of sound cards that can be assigned
+	  on a single machine.
+
 config SND_SUPPORT_OLD_API
 	bool "Support old ALSA API"
 	default y
