@@ -1491,17 +1491,9 @@ static int btrfs_flush_all_pending_stuffs(struct btrfs_trans_handle *trans,
 					  struct btrfs_root *root)
 {
 	int flush_on_commit = btrfs_test_opt(root, FLUSHONCOMMIT);
-	int snap_pending = 0;
 	int ret;
 
-	if (!flush_on_commit) {
-		spin_lock(&root->fs_info->trans_lock);
-		if (!list_empty(&trans->transaction->pending_snapshots))
-			snap_pending = 1;
-		spin_unlock(&root->fs_info->trans_lock);
-	}
-
-	if (flush_on_commit || snap_pending) {
+	if (flush_on_commit) {
 		ret = btrfs_start_all_delalloc_inodes(root->fs_info, 1);
 		if (ret)
 			return ret;

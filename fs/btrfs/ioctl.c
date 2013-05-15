@@ -555,6 +555,12 @@ static int create_snapshot(struct btrfs_root *root, struct inode *dir,
 	if (!root->ref_cows)
 		return -EINVAL;
 
+	ret = btrfs_start_delalloc_inodes(root, 0);
+	if (ret)
+		return ret;
+
+	btrfs_wait_ordered_extents(root, 0);
+
 	pending_snapshot = kzalloc(sizeof(*pending_snapshot), GFP_NOFS);
 	if (!pending_snapshot)
 		return -ENOMEM;
