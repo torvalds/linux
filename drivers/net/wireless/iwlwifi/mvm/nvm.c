@@ -177,7 +177,8 @@ static int iwl_nvm_read_section(struct iwl_mvm *mvm, u16 section,
 		offset += ret;
 	}
 
-	IWL_INFO(mvm, "NVM section %d read completed\n", section);
+	IWL_DEBUG_EEPROM(mvm->trans->dev,
+			 "NVM section %d read completed\n", section);
 	return offset;
 }
 
