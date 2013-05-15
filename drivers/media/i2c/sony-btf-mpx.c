@@ -30,7 +30,7 @@ MODULE_LICENSE("GPL v2");
 
 static int debug;
 module_param(debug, int, 0644);
-MODULE_PARM_DESC(debug, "debug level 0=off(default) 1=on\n");
+MODULE_PARM_DESC(debug, "debug level 0=off(default) 1=on");
 
 /* #define MPX_DEBUG */
 
