@@ -230,13 +230,12 @@ static int sec_pmic_probe(struct i2c_client *i2c,
 		BUG();
 	}
 
-	if (ret < 0)
+	if (ret)
 		goto err;
 
 	return ret;
 
 err:
-	mfd_remove_devices(sec_pmic->dev);
 	sec_irq_exit(sec_pmic);
 	i2c_unregister_device(sec_pmic->rtc);
 	return ret;
