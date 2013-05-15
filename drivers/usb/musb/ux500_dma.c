@@ -48,10 +48,8 @@ struct ux500_dma_channel {
 
 struct ux500_dma_controller {
 	struct dma_controller controller;
-	struct ux500_dma_channel rx_channel[UX500_MUSB_DMA_NUM_RX_CHANNELS];
-	struct ux500_dma_channel tx_channel[UX500_MUSB_DMA_NUM_TX_CHANNELS];
-	u32	num_rx_channels;
-	u32	num_tx_channels;
+	struct ux500_dma_channel rx_channel[UX500_MUSB_DMA_NUM_RX_TX_CHANNELS];
+	struct ux500_dma_channel tx_channel[UX500_MUSB_DMA_NUM_RX_TX_CHANNELS];
 	void *private_data;
 	dma_addr_t phy_base;
 };
@@ -144,19 +142,15 @@ static struct dma_channel *ux500_dma_channel_allocate(struct dma_controller *c,
 	struct ux500_dma_channel *ux500_channel = NULL;
 	struct musb *musb = controller->private_data;
 	u8 ch_num = hw_ep->epnum - 1;
-	u32 max_ch;
 
-	/* Max 8 DMA channels (0 - 7). Each DMA channel can only be allocated
+	/* 8 DMA channels (0 - 7). Each DMA channel can only be allocated
 	 * to specified hw_ep. For example DMA channel 0 can only be allocated
 	 * to hw_ep 1 and 9.
 	 */
 	if (ch_num > 7)
 		ch_num -= 8;
 
-	max_ch = is_tx ? controller->num_tx_channels :
-			controller->num_rx_channels;
-
-	if (ch_num >= max_ch)
+	if (ch_num >= UX500_MUSB_DMA_NUM_RX_TX_CHANNELS)
 		return NULL;
 
 	ux500_channel = is_tx ? &(controller->tx_channel[ch_num]) :
@@ -264,7 +258,7 @@ static int ux500_dma_controller_stop(struct dma_controller *c)
 	struct dma_channel *channel;
 	u8 ch_num;
 
-	for (ch_num = 0; ch_num < controller->num_rx_channels; ch_num++) {
+	for (ch_num = 0; ch_num < UX500_MUSB_DMA_NUM_RX_TX_CHANNELS; ch_num++) {
 		channel = &controller->rx_channel[ch_num].channel;
 		ux500_channel = channel->private_data;
 
@@ -274,7 +268,7 @@ static int ux500_dma_controller_stop(struct dma_controller *c)
 			dma_release_channel(ux500_channel->dma_chan);
 	}
 
-	for (ch_num = 0; ch_num < controller->num_tx_channels; ch_num++) {
+	for (ch_num = 0; ch_num < UX500_MUSB_DMA_NUM_RX_TX_CHANNELS; ch_num++) {
 		channel = &controller->tx_channel[ch_num].channel;
 		ux500_channel = channel->private_data;
 
@@ -303,26 +297,21 @@ static int ux500_dma_controller_start(struct dma_controller *c)
 
 	void **param_array;
 	struct ux500_dma_channel *channel_array;
-	u32 ch_count;
 	dma_cap_mask_t mask;
 
-	if ((data->num_rx_channels > UX500_MUSB_DMA_NUM_RX_CHANNELS) ||
-		(data->num_tx_channels > UX500_MUSB_DMA_NUM_TX_CHANNELS))
-		return -EINVAL;
 
-	controller->num_rx_channels = data->num_rx_channels;
-	controller->num_tx_channels = data->num_tx_channels;
 
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
 
 	/* Prepare the loop for RX channels */
 	channel_array = controller->rx_channel;
-	ch_count = data->num_rx_channels;
 	param_array = data->dma_rx_param_array;
 
 	for (dir = 0; dir < 2; dir++) {
-		for (ch_num = 0; ch_num < ch_count; ch_num++) {
+		for (ch_num = 0;
+		     ch_num < UX500_MUSB_DMA_NUM_RX_TX_CHANNELS;
+		     ch_num++) {
 			ux500_channel = &channel_array[ch_num];
 			ux500_channel->controller = controller;
 			ux500_channel->ch_num = ch_num;
@@ -350,7 +339,6 @@ static int ux500_dma_controller_start(struct dma_controller *c)
 
 		/* Prepare the loop for TX channels */
 		channel_array = controller->tx_channel;
-		ch_count = data->num_tx_channels;
 		param_array = data->dma_tx_param_array;
 		is_tx = 1;
 	}
