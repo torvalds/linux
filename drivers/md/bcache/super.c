@@ -343,6 +343,7 @@ static void uuid_io(struct cache_set *c, unsigned long rw,
 	struct closure *cl = &c->uuid_write.cl;
 	struct uuid_entry *u;
 	unsigned i;
+	char buf[80];
 
 	BUG_ON(!parent);
 	closure_lock(&c->uuid_write, parent);
@@ -363,8 +364,8 @@ static void uuid_io(struct cache_set *c, unsigned long rw,
 			break;
 	}
 
-	pr_debug("%s UUIDs at %s", rw & REQ_WRITE ? "wrote" : "read",
-		 pkey(&c->uuid_bucket));
+	bch_bkey_to_text(buf, sizeof(buf), k);
+	pr_debug("%s UUIDs at %s", rw & REQ_WRITE ? "wrote" : "read", buf);
 
 	for (u = c->uuids; u < c->uuids + c->nr_uuids; u++)
 		if (!bch_is_zero(u->uuid, 16))

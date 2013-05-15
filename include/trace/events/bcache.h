@@ -305,6 +305,39 @@ DEFINE_EVENT(bkey, bcache_gc_copy_collision,
 	TP_ARGS(k)
 );
 
+TRACE_EVENT(bcache_btree_insert_key,
+	TP_PROTO(struct btree *b, struct bkey *k, unsigned op, unsigned status),
+	TP_ARGS(b, k, op, status),
+
+	TP_STRUCT__entry(
+		__field(u64,	btree_node			)
+		__field(u32,	btree_level			)
+		__field(u32,	inode				)
+		__field(u64,	offset				)
+		__field(u32,	size				)
+		__field(u8,	dirty				)
+		__field(u8,	op				)
+		__field(u8,	status				)
+	),
+
+	TP_fast_assign(
+		__entry->btree_node = PTR_BUCKET_NR(b->c, &b->key, 0);
+		__entry->btree_level = b->level;
+		__entry->inode	= KEY_INODE(k);
+		__entry->offset	= KEY_OFFSET(k);
+		__entry->size	= KEY_SIZE(k);
+		__entry->dirty	= KEY_DIRTY(k);
+		__entry->op = op;
+		__entry->status = status;
+	),
+
+	TP_printk("%u for %u at %llu(%u): %u:%llu len %u dirty %u",
+		  __entry->status, __entry->op,
+		  __entry->btree_node, __entry->btree_level,
+		  __entry->inode, __entry->offset,
+		  __entry->size, __entry->dirty)
+);
+
 DECLARE_EVENT_CLASS(btree_split,
 	TP_PROTO(struct btree *b, unsigned keys),
 	TP_ARGS(b, keys),

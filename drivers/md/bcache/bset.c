@@ -78,6 +78,7 @@ struct bkey *bch_keylist_pop(struct keylist *l)
 bool __bch_ptr_invalid(struct cache_set *c, int level, const struct bkey *k)
 {
 	unsigned i;
+	char buf[80];
 
 	if (level && (!KEY_PTRS(k) || !KEY_SIZE(k) || KEY_DIRTY(k)))
 		goto bad;
@@ -102,7 +103,8 @@ bool __bch_ptr_invalid(struct cache_set *c, int level, const struct bkey *k)
 
 	return false;
 bad:
-	cache_bug(c, "spotted bad key %s: %s", pkey(k), bch_ptr_status(c, k));
+	bch_bkey_to_text(buf, sizeof(buf), k);
+	cache_bug(c, "spotted bad key %s: %s", buf, bch_ptr_status(c, k));
 	return true;
 }
 
@@ -162,10 +164,16 @@ bool bch_ptr_bad(struct btree *b, const struct bkey *k)
 #ifdef CONFIG_BCACHE_EDEBUG
 bug:
 	mutex_unlock(&b->c->bucket_lock);
-	btree_bug(b,
+
+	{
+		char buf[80];
+
+		bch_bkey_to_text(buf, sizeof(buf), k);
+		btree_bug(b,
 "inconsistent pointer %s: bucket %zu pin %i prio %i gen %i last_gc %i mark %llu gc_gen %i",
-		  pkey(k), PTR_BUCKET_NR(b->c, k, i), atomic_read(&g->pin),
-		  g->prio, g->gen, g->last_gc, GC_MARK(g), g->gc_gen);
+			  buf, PTR_BUCKET_NR(b->c, k, i), atomic_read(&g->pin),
+			  g->prio, g->gen, g->last_gc, GC_MARK(g), g->gc_gen);
+	}
 	return true;
 #endif
 }

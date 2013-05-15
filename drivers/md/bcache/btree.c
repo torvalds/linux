@@ -1770,7 +1770,7 @@ static bool btree_insert_key(struct btree *b, struct btree_op *op,
 {
 	struct bset *i = b->sets[b->nsets].data;
 	struct bkey *m, *prev;
-	const char *status = "insert";
+	unsigned status = BTREE_INSERT_STATUS_INSERT;
 
 	BUG_ON(bkey_cmp(k, &b->key) > 0);
 	BUG_ON(b->level && !KEY_PTRS(k));
@@ -1803,17 +1803,17 @@ static bool btree_insert_key(struct btree *b, struct btree_op *op,
 			goto insert;
 
 		/* prev is in the tree, if we merge we're done */
-		status = "back merging";
+		status = BTREE_INSERT_STATUS_BACK_MERGE;
 		if (prev &&
 		    bch_bkey_try_merge(b, prev, k))
 			goto merged;
 
-		status = "overwrote front";
+		status = BTREE_INSERT_STATUS_OVERWROTE;
 		if (m != end(i) &&
 		    KEY_PTRS(m) == KEY_PTRS(k) && !KEY_SIZE(m))
 			goto copy;
 
-		status = "front merge";
+		status = BTREE_INSERT_STATUS_FRONT_MERGE;
 		if (m != end(i) &&
 		    bch_bkey_try_merge(b, k, m))
 			goto copy;
@@ -1823,16 +1823,12 @@ static bool btree_insert_key(struct btree *b, struct btree_op *op,
 insert:	shift_keys(b, m, k);
 copy:	bkey_copy(m, k);
 merged:
-	bch_check_keys(b, "%s for %s at %s: %s", status,
-		       op_type(op), pbtree(b), pkey(k));
-	bch_check_key_order_msg(b, i, "%s for %s at %s: %s", status,
-				op_type(op), pbtree(b), pkey(k));
+	bch_check_keys(b, "%u for %s", status, op_type(op));
 
 	if (b->level && !KEY_OFFSET(k))
 		btree_current_write(b)->prio_blocked++;
 
-	pr_debug("%s for %s at %s: %s", status,
-		 op_type(op), pbtree(b), pkey(k));
+	trace_bcache_btree_insert_key(b, k, op->type, status);
 
 	return true;
 }
@@ -2234,9 +2230,6 @@ int bch_btree_search_recurse(struct btree *b, struct btree_op *op)
 	struct btree_iter iter;
 	bch_btree_iter_init(b, &iter, &KEY(op->inode, bio->bi_sector, 0));
 
-	pr_debug("at %s searching for %u:%llu", pbtree(b), op->inode,
-		 (uint64_t) bio->bi_sector);
-
 	do {
 		k = bch_btree_iter_next_filter(&iter, b, bch_ptr_bad);
 		if (!k) {
@@ -2301,8 +2294,6 @@ static int bch_btree_refill_keybuf(struct btree *b, struct btree_op *op,
 
 			if (buf->key_predicate(buf, k)) {
 				struct keybuf_key *w;
-
-				pr_debug("%s", pkey(k));
 
 				spin_lock(&buf->lock);
 

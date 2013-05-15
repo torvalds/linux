@@ -3,15 +3,8 @@
 
 /* Btree/bkey debug printing */
 
-#define KEYHACK_SIZE 80
-struct keyprint_hack {
-	char s[KEYHACK_SIZE];
-};
-
-struct keyprint_hack bch_pkey(const struct bkey *k);
-struct keyprint_hack bch_pbtree(const struct btree *b);
-#define pkey(k)		(&bch_pkey(k).s[0])
-#define pbtree(b)	(&bch_pbtree(b).s[0])
+int bch_bkey_to_text(char *buf, size_t size, const struct bkey *k);
+int bch_btree_to_text(char *buf, size_t size, const struct btree *b);
 
 #ifdef CONFIG_BCACHE_EDEBUG
 

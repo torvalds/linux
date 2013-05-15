@@ -271,6 +271,13 @@ struct btree_op {
 	BKEY_PADDED(replace);
 };
 
+enum {
+	BTREE_INSERT_STATUS_INSERT,
+	BTREE_INSERT_STATUS_BACK_MERGE,
+	BTREE_INSERT_STATUS_OVERWROTE,
+	BTREE_INSERT_STATUS_FRONT_MERGE,
+};
+
 void bch_btree_op_init_stack(struct btree_op *);
 
 static inline void rw_lock(bool w, struct btree *b, int level)

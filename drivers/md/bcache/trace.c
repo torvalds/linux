@@ -40,6 +40,8 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(bcache_gc_end);
 EXPORT_TRACEPOINT_SYMBOL_GPL(bcache_gc_copy);
 EXPORT_TRACEPOINT_SYMBOL_GPL(bcache_gc_copy_collision);
 
+EXPORT_TRACEPOINT_SYMBOL_GPL(bcache_btree_insert_key);
+
 EXPORT_TRACEPOINT_SYMBOL_GPL(bcache_btree_node_split);
 EXPORT_TRACEPOINT_SYMBOL_GPL(bcache_btree_node_compact);
 EXPORT_TRACEPOINT_SYMBOL_GPL(bcache_btree_set_root);
