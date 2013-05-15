@@ -3899,7 +3899,7 @@ static void btrfs_writeback_inodes_sb_nr(struct btrfs_root *root,
 		 * the filesystem is readonly(all dirty pages are written to
 		 * the disk).
 		 */
-		btrfs_start_delalloc_inodes(root, 0);
+		btrfs_start_all_delalloc_inodes(root->fs_info, 0);
 		if (!current->journal_info)
 			btrfs_wait_ordered_extents(root, 0);
 	}
@@ -5030,14 +5030,14 @@ static int update_block_group(struct btrfs_root *root,
 	int factor;
 
 	/* block accounting for super block */
-	spin_lock(&info->delalloc_lock);
+	spin_lock(&info->delalloc_root_lock);
 	old_val = btrfs_super_bytes_used(info->super_copy);
 	if (alloc)
 		old_val += num_bytes;
 	else
 		old_val -= num_bytes;
 	btrfs_set_super_bytes_used(info->super_copy, old_val);
-	spin_unlock(&info->delalloc_lock);
+	spin_unlock(&info->delalloc_root_lock);
 
 	while (total) {
 		cache = btrfs_lookup_block_group(info, bytenr);

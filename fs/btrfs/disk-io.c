@@ -1191,6 +1191,7 @@ static void __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	root->objectid = objectid;
 	root->last_trans = 0;
 	root->highest_objectid = 0;
+	root->nr_delalloc_inodes = 0;
 	root->name = NULL;
 	root->inode_tree = RB_ROOT;
 	INIT_RADIX_TREE(&root->delayed_nodes_tree, GFP_ATOMIC);
@@ -1199,10 +1200,13 @@ static void __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 
 	INIT_LIST_HEAD(&root->dirty_list);
 	INIT_LIST_HEAD(&root->root_list);
+	INIT_LIST_HEAD(&root->delalloc_inodes);
+	INIT_LIST_HEAD(&root->delalloc_root);
 	INIT_LIST_HEAD(&root->logged_list[0]);
 	INIT_LIST_HEAD(&root->logged_list[1]);
 	spin_lock_init(&root->orphan_lock);
 	spin_lock_init(&root->inode_lock);
+	spin_lock_init(&root->delalloc_lock);
 	spin_lock_init(&root->accounting_lock);
 	spin_lock_init(&root->log_extents_lock[0]);
 	spin_lock_init(&root->log_extents_lock[1]);
@@ -2140,9 +2144,9 @@ int open_ctree(struct super_block *sb,
 	INIT_LIST_HEAD(&fs_info->trans_list);
 	INIT_LIST_HEAD(&fs_info->dead_roots);
 	INIT_LIST_HEAD(&fs_info->delayed_iputs);
-	INIT_LIST_HEAD(&fs_info->delalloc_inodes);
+	INIT_LIST_HEAD(&fs_info->delalloc_roots);
 	INIT_LIST_HEAD(&fs_info->caching_block_groups);
-	spin_lock_init(&fs_info->delalloc_lock);
+	spin_lock_init(&fs_info->delalloc_root_lock);
 	spin_lock_init(&fs_info->trans_lock);
 	spin_lock_init(&fs_info->fs_roots_radix_lock);
 	spin_lock_init(&fs_info->delayed_iput_lock);
@@ -3803,24 +3807,49 @@ static void btrfs_destroy_delalloc_inodes(struct btrfs_root *root)
 
 	INIT_LIST_HEAD(&splice);
 
-	spin_lock(&root->fs_info->delalloc_lock);
-	list_splice_init(&root->fs_info->delalloc_inodes, &splice);
+	spin_lock(&root->delalloc_lock);
+	list_splice_init(&root->delalloc_inodes, &splice);
 
 	while (!list_empty(&splice)) {
-		btrfs_inode = list_entry(splice.next, struct btrfs_inode,
-				    delalloc_inodes);
+		btrfs_inode = list_first_entry(&splice, struct btrfs_inode,
+					       delalloc_inodes);
 
 		list_del_init(&btrfs_inode->delalloc_inodes);
 		clear_bit(BTRFS_INODE_IN_DELALLOC_LIST,
 			  &btrfs_inode->runtime_flags);
-		spin_unlock(&root->fs_info->delalloc_lock);
+		spin_unlock(&root->delalloc_lock);
 
 		btrfs_invalidate_inodes(btrfs_inode->root);
 
-		spin_lock(&root->fs_info->delalloc_lock);
+		spin_lock(&root->delalloc_lock);
 	}
 
-	spin_unlock(&root->fs_info->delalloc_lock);
+	spin_unlock(&root->delalloc_lock);
+}
+
+static void btrfs_destroy_all_delalloc_inodes(struct btrfs_fs_info *fs_info)
+{
+	struct btrfs_root *root;
+	struct list_head splice;
+
+	INIT_LIST_HEAD(&splice);
+
+	spin_lock(&fs_info->delalloc_root_lock);
+	list_splice_init(&fs_info->delalloc_roots, &splice);
+	while (!list_empty(&splice)) {
+		root = list_first_entry(&splice, struct btrfs_root,
+					 delalloc_root);
+		list_del_init(&root->delalloc_root);
+		root = btrfs_grab_fs_root(root);
+		BUG_ON(!root);
+		spin_unlock(&fs_info->delalloc_root_lock);
+
+		btrfs_destroy_delalloc_inodes(root);
+		btrfs_put_fs_root(root);
+
+		spin_lock(&fs_info->delalloc_root_lock);
+	}
+	spin_unlock(&fs_info->delalloc_root_lock);
 }
 
 static int btrfs_destroy_marked_extents(struct btrfs_root *root,
@@ -3974,7 +4003,7 @@ static int btrfs_cleanup_transaction(struct btrfs_root *root)
 		btrfs_destroy_delayed_inodes(root);
 		btrfs_assert_delayed_root_empty(root);
 
-		btrfs_destroy_delalloc_inodes(root);
+		btrfs_destroy_all_delalloc_inodes(root->fs_info);
 
 		spin_lock(&root->fs_info->trans_lock);
 		root->fs_info->running_transaction = NULL;

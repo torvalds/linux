@@ -4159,7 +4159,7 @@ int btrfs_relocate_block_group(struct btrfs_root *extent_root, u64 group_start)
 	       (unsigned long long)rc->block_group->key.objectid,
 	       (unsigned long long)rc->block_group->flags);
 
-	ret = btrfs_start_delalloc_inodes(fs_info->tree_root, 0);
+	ret = btrfs_start_all_delalloc_inodes(fs_info, 0);
 	if (ret < 0) {
 		err = ret;
 		goto out;

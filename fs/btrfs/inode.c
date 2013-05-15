@@ -1528,6 +1528,46 @@ static void btrfs_merge_extent_hook(struct inode *inode,
 	spin_unlock(&BTRFS_I(inode)->lock);
 }
 
+static void btrfs_add_delalloc_inodes(struct btrfs_root *root,
+				      struct inode *inode)
+{
+	spin_lock(&root->delalloc_lock);
+	if (list_empty(&BTRFS_I(inode)->delalloc_inodes)) {
+		list_add_tail(&BTRFS_I(inode)->delalloc_inodes,
+			      &root->delalloc_inodes);
+		set_bit(BTRFS_INODE_IN_DELALLOC_LIST,
+			&BTRFS_I(inode)->runtime_flags);
+		root->nr_delalloc_inodes++;
+		if (root->nr_delalloc_inodes == 1) {
+			spin_lock(&root->fs_info->delalloc_root_lock);
+			BUG_ON(!list_empty(&root->delalloc_root));
+			list_add_tail(&root->delalloc_root,
+				      &root->fs_info->delalloc_roots);
+			spin_unlock(&root->fs_info->delalloc_root_lock);
+		}
+	}
+	spin_unlock(&root->delalloc_lock);
+}
+
+static void btrfs_del_delalloc_inode(struct btrfs_root *root,
+				     struct inode *inode)
+{
+	spin_lock(&root->delalloc_lock);
+	if (!list_empty(&BTRFS_I(inode)->delalloc_inodes)) {
+		list_del_init(&BTRFS_I(inode)->delalloc_inodes);
+		clear_bit(BTRFS_INODE_IN_DELALLOC_LIST,
+			  &BTRFS_I(inode)->runtime_flags);
+		root->nr_delalloc_inodes--;
+		if (!root->nr_delalloc_inodes) {
+			spin_lock(&root->fs_info->delalloc_root_lock);
+			BUG_ON(list_empty(&root->delalloc_root));
+			list_del_init(&root->delalloc_root);
+			spin_unlock(&root->fs_info->delalloc_root_lock);
+		}
+	}
+	spin_unlock(&root->delalloc_lock);
+}
+
 /*
  * extent_io.c set_bit_hook, used to track delayed allocation
  * bytes in this file, and to maintain the list of inodes that
@@ -1560,16 +1600,8 @@ static void btrfs_set_bit_hook(struct inode *inode,
 		spin_lock(&BTRFS_I(inode)->lock);
 		BTRFS_I(inode)->delalloc_bytes += len;
 		if (do_list && !test_bit(BTRFS_INODE_IN_DELALLOC_LIST,
-					 &BTRFS_I(inode)->runtime_flags)) {
-			spin_lock(&root->fs_info->delalloc_lock);
-			if (list_empty(&BTRFS_I(inode)->delalloc_inodes)) {
-				list_add_tail(&BTRFS_I(inode)->delalloc_inodes,
-					      &root->fs_info->delalloc_inodes);
-				set_bit(BTRFS_INODE_IN_DELALLOC_LIST,
-					&BTRFS_I(inode)->runtime_flags);
-			}
-			spin_unlock(&root->fs_info->delalloc_lock);
-		}
+					 &BTRFS_I(inode)->runtime_flags))
+			btrfs_add_delalloc_inodes(root, inode);
 		spin_unlock(&BTRFS_I(inode)->lock);
 	}
 }
@@ -1612,15 +1644,8 @@ static void btrfs_clear_bit_hook(struct inode *inode,
 		BTRFS_I(inode)->delalloc_bytes -= len;
 		if (do_list && BTRFS_I(inode)->delalloc_bytes == 0 &&
 		    test_bit(BTRFS_INODE_IN_DELALLOC_LIST,
-			     &BTRFS_I(inode)->runtime_flags)) {
-			spin_lock(&root->fs_info->delalloc_lock);
-			if (!list_empty(&BTRFS_I(inode)->delalloc_inodes)) {
-				list_del_init(&BTRFS_I(inode)->delalloc_inodes);
-				clear_bit(BTRFS_INODE_IN_DELALLOC_LIST,
-					  &BTRFS_I(inode)->runtime_flags);
-			}
-			spin_unlock(&root->fs_info->delalloc_lock);
-		}
+			     &BTRFS_I(inode)->runtime_flags))
+			btrfs_del_delalloc_inode(root, inode);
 		spin_unlock(&BTRFS_I(inode)->lock);
 	}
 }
@@ -8338,7 +8363,7 @@ void btrfs_wait_and_free_delalloc_work(struct btrfs_delalloc_work *work)
  * some fairly slow code that needs optimization. This walks the list
  * of all the inodes with pending delalloc and forces them to disk.
  */
-int btrfs_start_delalloc_inodes(struct btrfs_root *root, int delay_iput)
+static int __start_delalloc_inodes(struct btrfs_root *root, int delay_iput)
 {
 	struct btrfs_inode *binode;
 	struct inode *inode;
@@ -8347,30 +8372,23 @@ int btrfs_start_delalloc_inodes(struct btrfs_root *root, int delay_iput)
 	struct list_head splice;
 	int ret = 0;
 
-	if (root->fs_info->sb->s_flags & MS_RDONLY)
-		return -EROFS;
-
 	INIT_LIST_HEAD(&works);
 	INIT_LIST_HEAD(&splice);
 
-	spin_lock(&root->fs_info->delalloc_lock);
-	list_splice_init(&root->fs_info->delalloc_inodes, &splice);
+	spin_lock(&root->delalloc_lock);
+	list_splice_init(&root->delalloc_inodes, &splice);
 	while (!list_empty(&splice)) {
 		binode = list_entry(splice.next, struct btrfs_inode,
 				    delalloc_inodes);
 
-		list_del_init(&binode->delalloc_inodes);
-
+		list_move_tail(&binode->delalloc_inodes,
+			       &root->delalloc_inodes);
 		inode = igrab(&binode->vfs_inode);
 		if (!inode) {
-			clear_bit(BTRFS_INODE_IN_DELALLOC_LIST,
-				  &binode->runtime_flags);
+			cond_resched_lock(&root->delalloc_lock);
 			continue;
 		}
-
-		list_add_tail(&binode->delalloc_inodes,
-			      &root->fs_info->delalloc_inodes);
-		spin_unlock(&root->fs_info->delalloc_lock);
+		spin_unlock(&root->delalloc_lock);
 
 		work = btrfs_alloc_delalloc_work(inode, 0, delay_iput);
 		if (unlikely(!work)) {
@@ -8382,16 +8400,39 @@ int btrfs_start_delalloc_inodes(struct btrfs_root *root, int delay_iput)
 				   &work->work);
 
 		cond_resched();
-		spin_lock(&root->fs_info->delalloc_lock);
+		spin_lock(&root->delalloc_lock);
 	}
-	spin_unlock(&root->fs_info->delalloc_lock);
+	spin_unlock(&root->delalloc_lock);
 
 	list_for_each_entry_safe(work, next, &works, list) {
 		list_del_init(&work->list);
 		btrfs_wait_and_free_delalloc_work(work);
 	}
+	return 0;
+out:
+	list_for_each_entry_safe(work, next, &works, list) {
+		list_del_init(&work->list);
+		btrfs_wait_and_free_delalloc_work(work);
+	}
 
-	/* the filemap_flush will queue IO into the worker threads, but
+	if (!list_empty_careful(&splice)) {
+		spin_lock(&root->delalloc_lock);
+		list_splice_tail(&splice, &root->delalloc_inodes);
+		spin_unlock(&root->delalloc_lock);
+	}
+	return ret;
+}
+
+int btrfs_start_delalloc_inodes(struct btrfs_root *root, int delay_iput)
+{
+	int ret;
+
+	if (root->fs_info->sb->s_flags & MS_RDONLY)
+		return -EROFS;
+
+	ret = __start_delalloc_inodes(root, delay_iput);
+	/*
+	 * the filemap_flush will queue IO into the worker threads, but
 	 * we have to make sure the IO is actually started and that
 	 * ordered extents get created before we return
 	 */
@@ -8403,17 +8444,55 @@ int btrfs_start_delalloc_inodes(struct btrfs_root *root, int delay_iput)
 		    atomic_read(&root->fs_info->async_delalloc_pages) == 0));
 	}
 	atomic_dec(&root->fs_info->async_submit_draining);
+	return ret;
+}
+
+int btrfs_start_all_delalloc_inodes(struct btrfs_fs_info *fs_info,
+				    int delay_iput)
+{
+	struct btrfs_root *root;
+	struct list_head splice;
+	int ret;
+
+	if (fs_info->sb->s_flags & MS_RDONLY)
+		return -EROFS;
+
+	INIT_LIST_HEAD(&splice);
+
+	spin_lock(&fs_info->delalloc_root_lock);
+	list_splice_init(&fs_info->delalloc_roots, &splice);
+	while (!list_empty(&splice)) {
+		root = list_first_entry(&splice, struct btrfs_root,
+					delalloc_root);
+		root = btrfs_grab_fs_root(root);
+		BUG_ON(!root);
+		list_move_tail(&root->delalloc_root,
+			       &fs_info->delalloc_roots);
+		spin_unlock(&fs_info->delalloc_root_lock);
+
+		ret = __start_delalloc_inodes(root, delay_iput);
+		btrfs_put_fs_root(root);
+		if (ret)
+			goto out;
+
+		spin_lock(&fs_info->delalloc_root_lock);
+	}
+	spin_unlock(&fs_info->delalloc_root_lock);
+
+	atomic_inc(&fs_info->async_submit_draining);
+	while (atomic_read(&fs_info->nr_async_submits) ||
+	      atomic_read(&fs_info->async_delalloc_pages)) {
+		wait_event(fs_info->async_submit_wait,
+		   (atomic_read(&fs_info->nr_async_submits) == 0 &&
+		    atomic_read(&fs_info->async_delalloc_pages) == 0));
+	}
+	atomic_dec(&fs_info->async_submit_draining);
 	return 0;
 out:
-	list_for_each_entry_safe(work, next, &works, list) {
-		list_del_init(&work->list);
-		btrfs_wait_and_free_delalloc_work(work);
-	}
-
 	if (!list_empty_careful(&splice)) {
-		spin_lock(&root->fs_info->delalloc_lock);
-		list_splice_tail(&splice, &root->fs_info->delalloc_inodes);
-		spin_unlock(&root->fs_info->delalloc_lock);
+		spin_lock(&fs_info->delalloc_root_lock);
+		list_splice_tail(&splice, &fs_info->delalloc_roots);
+		spin_unlock(&fs_info->delalloc_root_lock);
 	}
 	return ret;
 }
