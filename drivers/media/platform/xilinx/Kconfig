@@ -7,6 +7,13 @@ config VIDEO_XILINX
 
 if VIDEO_XILINX
 
+config VIDEO_XILINX_TPG
+	tristate "Xilinx Video Test Pattern Generator"
+	depends on VIDEO_XILINX
+	select VIDEO_XILINX_VTC
+	---help---
+	   Driver for the Xilinx Video Test Pattern Generator
+
 config VIDEO_XILINX_VTC
 	tristate "Xilinx Video Timing Controller"
 	depends on VIDEO_XILINX
