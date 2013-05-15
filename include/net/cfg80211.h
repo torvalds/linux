@@ -3432,59 +3432,66 @@ void cfg80211_put_bss(struct wiphy *wiphy, struct cfg80211_bss *bss);
 void cfg80211_unlink_bss(struct wiphy *wiphy, struct cfg80211_bss *bss);
 
 /**
- * cfg80211_send_rx_auth - notification of processed authentication
+ * cfg80211_rx_mlme_mgmt - notification of processed MLME management frame
  * @dev: network device
  * @buf: authentication frame (header + body)
  * @len: length of the frame data
  *
- * This function is called whenever an authentication has been processed in
- * station mode. The driver is required to call either this function or
- * cfg80211_send_auth_timeout() to indicate the result of cfg80211_ops::auth()
- * call. This function may sleep. The caller must hold the corresponding wdev's
- * mutex.
+ * This function is called whenever an authentication, disassociation or
+ * deauthentication frame has been received and processed in station mode.
+ * After being asked to authenticate via cfg80211_ops::auth() the driver must
+ * call either this function or cfg80211_auth_timeout().
+ * After being asked to associate via cfg80211_ops::assoc() the driver must
+ * call either this function or cfg80211_auth_timeout().
+ * While connected, the driver must calls this for received and processed
+ * disassociation and deauthentication frames. If the frame couldn't be used
+ * because it was unprotected, the driver must call the function
+ * cfg80211_rx_unprot_mlme_mgmt() instead.
+ *
+ * This function may sleep. The caller must hold the corresponding wdev's mutex.
  */
-void cfg80211_send_rx_auth(struct net_device *dev, const u8 *buf, size_t len);
+void cfg80211_rx_mlme_mgmt(struct net_device *dev, const u8 *buf, size_t len);
 
 /**
- * cfg80211_send_auth_timeout - notification of timed out authentication
+ * cfg80211_auth_timeout - notification of timed out authentication
  * @dev: network device
  * @addr: The MAC address of the device with which the authentication timed out
  *
  * This function may sleep. The caller must hold the corresponding wdev's
  * mutex.
  */
-void cfg80211_send_auth_timeout(struct net_device *dev, const u8 *addr);
+void cfg80211_auth_timeout(struct net_device *dev, const u8 *addr);
 
 /**
- * cfg80211_send_rx_assoc - notification of processed association
+ * cfg80211_rx_assoc_resp - notification of processed association response
  * @dev: network device
- * @bss: the BSS struct association was requested for, the struct reference
- *	is owned by cfg80211 after this call
- * @buf: (re)association response frame (header + body)
+ * @bss: the BSS that association was requested with, ownership of the pointer
+ *	moves to cfg80211 in this call
+ * @buf: authentication frame (header + body)
  * @len: length of the frame data
  *
- * This function is called whenever a (re)association response has been
- * processed in station mode. The driver is required to call either this
- * function or cfg80211_send_assoc_timeout() to indicate the result of
- * cfg80211_ops::assoc() call. This function may sleep. The caller must hold
- * the corresponding wdev's mutex.
+ * After being asked to associate via cfg80211_ops::assoc() the driver must
+ * call either this function or cfg80211_auth_timeout().
+ *
+ * This function may sleep. The caller must hold the corresponding wdev's mutex.
  */
-void cfg80211_send_rx_assoc(struct net_device *dev, struct cfg80211_bss *bss,
+void cfg80211_rx_assoc_resp(struct net_device *dev,
+			    struct cfg80211_bss *bss,
 			    const u8 *buf, size_t len);
 
 /**
- * cfg80211_send_assoc_timeout - notification of timed out association
+ * cfg80211_assoc_timeout - notification of timed out association
  * @dev: network device
  * @addr: The MAC address of the device with which the association timed out
  *
  * This function may sleep. The caller must hold the corresponding wdev's mutex.
  */
-void cfg80211_send_assoc_timeout(struct net_device *dev, const u8 *addr);
+void cfg80211_assoc_timeout(struct net_device *dev, const u8 *addr);
 
 /**
- * cfg80211_send_deauth - notification of processed deauthentication
+ * cfg80211_tx_mlme_mgmt - notification of transmitted deauth/disassoc frame
  * @dev: network device
- * @buf: deauthentication frame (header + body)
+ * @buf: 802.11 frame (header + body)
  * @len: length of the frame data
  *
  * This function is called whenever deauthentication has been processed in
@@ -3492,46 +3499,20 @@ void cfg80211_send_assoc_timeout(struct net_device *dev, const u8 *addr);
  * locally generated ones. This function may sleep. The caller must hold the
  * corresponding wdev's mutex.
  */
-void cfg80211_send_deauth(struct net_device *dev, const u8 *buf, size_t len);
+void cfg80211_tx_mlme_mgmt(struct net_device *dev, const u8 *buf, size_t len);
 
 /**
- * cfg80211_send_disassoc - notification of processed disassociation
- * @dev: network device
- * @buf: disassociation response frame (header + body)
- * @len: length of the frame data
- *
- * This function is called whenever disassociation has been processed in
- * station mode. This includes both received disassociation frames and locally
- * generated ones. This function may sleep. The caller must hold the
- * corresponding wdev's mutex.
- */
-void cfg80211_send_disassoc(struct net_device *dev, const u8 *buf, size_t len);
-
-/**
- * cfg80211_send_unprot_deauth - notification of unprotected deauthentication
+ * cfg80211_rx_unprot_mlme_mgmt - notification of unprotected mlme mgmt frame
  * @dev: network device
  * @buf: deauthentication frame (header + body)
  * @len: length of the frame data
  *
- * This function is called whenever a received Deauthentication frame has been
- * dropped in station mode because of MFP being used but the Deauthentication
+ * This function is called whenever a received deauthentication or dissassoc
+ * frame has been dropped in station mode because of MFP being used but the
  * frame was not protected. This function may sleep.
  */
-void cfg80211_send_unprot_deauth(struct net_device *dev, const u8 *buf,
-				 size_t len);
-
-/**
- * cfg80211_send_unprot_disassoc - notification of unprotected disassociation
- * @dev: network device
- * @buf: disassociation frame (header + body)
- * @len: length of the frame data
- *
- * This function is called whenever a received Disassociation frame has been
- * dropped in station mode because of MFP being used but the Disassociation
- * frame was not protected. This function may sleep.
- */
-void cfg80211_send_unprot_disassoc(struct net_device *dev, const u8 *buf,
-				   size_t len);
+void cfg80211_rx_unprot_mlme_mgmt(struct net_device *dev,
+				  const u8 *buf, size_t len);
 
 /**
  * cfg80211_michael_mic_failure - notification of Michael MIC failure (TKIP)
