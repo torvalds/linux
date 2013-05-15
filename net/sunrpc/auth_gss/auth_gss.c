@@ -52,6 +52,8 @@
 #include <linux/sunrpc/gss_api.h>
 #include <asm/uaccess.h>
 
+#include "../netns.h"
+
 static const struct rpc_authops authgss_ops;
 
 static const struct rpc_credops gss_credops;
@@ -559,9 +561,12 @@ out:
 static inline int
 gss_create_upcall(struct gss_auth *gss_auth, struct gss_cred *gss_cred)
 {
+	struct net *net = rpc_net_ns(gss_auth->client);
+	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
 	struct rpc_pipe *pipe;
 	struct rpc_cred *cred = &gss_cred->gc_base;
 	struct gss_upcall_msg *gss_msg;
+	unsigned long timeout;
 	DEFINE_WAIT(wait);
 	int err;
 
@@ -569,11 +574,17 @@ gss_create_upcall(struct gss_auth *gss_auth, struct gss_cred *gss_cred)
 		__func__, from_kuid(&init_user_ns, cred->cr_uid));
 retry:
 	err = 0;
+	/* Default timeout is 15s unless we know that gssd is not running */
+	timeout = 15 * HZ;
+	if (!sn->gssd_running)
+		timeout = HZ >> 2;
 	gss_msg = gss_setup_upcall(gss_auth->client, gss_auth, cred);
 	if (PTR_ERR(gss_msg) == -EAGAIN) {
 		err = wait_event_interruptible_timeout(pipe_version_waitqueue,
-				pipe_version >= 0, 15*HZ);
+				pipe_version >= 0, timeout);
 		if (pipe_version < 0) {
+			if (err == 0)
+				sn->gssd_running = 0;
 			warn_gssd();
 			err = -EACCES;
 		}

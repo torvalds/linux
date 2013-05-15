@@ -29,6 +29,8 @@ struct sunrpc_net {
 	struct rpc_clnt *gssp_clnt;
 	int use_gss_proxy;
 	struct proc_dir_entry *use_gssp_proc;
+
+	unsigned int gssd_running;
 };
 
 extern int sunrpc_net_id;
