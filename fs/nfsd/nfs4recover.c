@@ -263,7 +263,10 @@ nfsd4_list_rec_dir(recdir_func *f, struct nfsd_net *nn)
 {
 	const struct cred *original_cred;
 	struct dentry *dir = nn->rec_file->f_path.dentry;
-	LIST_HEAD(names);
+	struct {
+		struct dir_context ctx;
+		struct list_head names;
+	} ctx;
 	int status;
 
 	status = nfs4_save_creds(&original_cred);
@@ -276,11 +279,13 @@ nfsd4_list_rec_dir(recdir_func *f, struct nfsd_net *nn)
 		return status;
 	}
 
-	status = vfs_readdir(nn->rec_file, nfsd4_build_namelist, &names);
+	INIT_LIST_HEAD(&ctx.names);	
+	ctx.ctx.actor = nfsd4_build_namelist;
+	status = iterate_dir(nn->rec_file, &ctx.ctx);
 	mutex_lock_nested(&dir->d_inode->i_mutex, I_MUTEX_PARENT);
-	while (!list_empty(&names)) {
+	while (!list_empty(&ctx.names)) {
 		struct name_list *entry;
-		entry = list_entry(names.next, struct name_list, list);
+		entry = list_entry(ctx.names.next, struct name_list, list);
 		if (!status) {
 			struct dentry *dentry;
 			dentry = lookup_one_len(entry->name, dir, HEXDIR_LEN-1);
