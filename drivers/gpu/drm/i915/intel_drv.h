@@ -139,6 +139,10 @@ struct intel_encoder {
 	 * the encoder is active. If the encoder is enabled it also set the pipe
 	 * it is connected to in the pipe parameter. */
 	bool (*get_hw_state)(struct intel_encoder *, enum pipe *pipe);
+	/* Reconstructs the equivalent mode flags for the current hardware
+	 * state. */
+	void (*get_config)(struct intel_encoder *,
+			   struct intel_crtc_config *pipe_config);
 	int crtc_mask;
 	enum hpd_pin hpd_pin;
 };

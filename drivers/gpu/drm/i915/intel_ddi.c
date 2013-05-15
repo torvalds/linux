@@ -1259,6 +1259,28 @@ static void intel_ddi_hot_plug(struct intel_encoder *intel_encoder)
 		intel_dp_check_link_status(intel_dp);
 }
 
+static void intel_ddi_get_config(struct intel_encoder *encoder,
+				 struct intel_crtc_config *pipe_config)
+{
+	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	struct intel_crtc *intel_crtc = to_intel_crtc(encoder->base.crtc);
+	enum transcoder cpu_transcoder = intel_crtc->config.cpu_transcoder;
+	u32 temp, flags = 0;
+
+	temp = I915_READ(TRANS_DDI_FUNC_CTL(cpu_transcoder));
+	if (temp & TRANS_DDI_PHSYNC)
+		flags |= DRM_MODE_FLAG_PHSYNC;
+	else
+		flags |= DRM_MODE_FLAG_NHSYNC;
+	if (temp & TRANS_DDI_PVSYNC)
+		flags |= DRM_MODE_FLAG_PVSYNC;
+	else
+		flags |= DRM_MODE_FLAG_NVSYNC;
+
+	pipe_config->adjusted_mode.flags |= flags;
+	pipe_config->pixel_multiplier = 1;
+}
+
 static void intel_ddi_destroy(struct drm_encoder *encoder)
 {
 	/* HDMI has nothing special to destroy, so we can go with this. */
@@ -1318,6 +1340,7 @@ void intel_ddi_init(struct drm_device *dev, enum port port)
 	intel_encoder->disable = intel_disable_ddi;
 	intel_encoder->post_disable = intel_ddi_post_disable;
 	intel_encoder->get_hw_state = intel_ddi_get_hw_state;
+	intel_encoder->get_config = intel_ddi_get_config;
 
 	intel_dig_port->port = port;
 	intel_dig_port->port_reversal = I915_READ(DDI_BUF_CTL(port)) &

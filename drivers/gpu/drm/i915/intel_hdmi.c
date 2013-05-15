@@ -658,6 +658,28 @@ static bool intel_hdmi_get_hw_state(struct intel_encoder *encoder,
 	return true;
 }
 
+static void intel_hdmi_get_config(struct intel_encoder *encoder,
+				  struct intel_crtc_config *pipe_config)
+{
+	struct intel_hdmi *intel_hdmi = enc_to_intel_hdmi(&encoder->base);
+	struct drm_i915_private *dev_priv = encoder->base.dev->dev_private;
+	u32 tmp, flags = 0;
+
+	tmp = I915_READ(intel_hdmi->hdmi_reg);
+
+	if (tmp & SDVO_HSYNC_ACTIVE_HIGH)
+		flags |= DRM_MODE_FLAG_PHSYNC;
+	else
+		flags |= DRM_MODE_FLAG_NHSYNC;
+
+	if (tmp & SDVO_VSYNC_ACTIVE_HIGH)
+		flags |= DRM_MODE_FLAG_PVSYNC;
+	else
+		flags |= DRM_MODE_FLAG_NVSYNC;
+
+	pipe_config->adjusted_mode.flags |= flags;
+}
+
 static void intel_enable_hdmi(struct intel_encoder *encoder)
 {
 	struct drm_device *dev = encoder->base.dev;
@@ -1216,6 +1238,7 @@ void intel_hdmi_init(struct drm_device *dev, int hdmi_reg, enum port port)
 	intel_encoder->enable = intel_enable_hdmi;
 	intel_encoder->disable = intel_disable_hdmi;
 	intel_encoder->get_hw_state = intel_hdmi_get_hw_state;
+	intel_encoder->get_config = intel_hdmi_get_config;
 	if (IS_VALLEYVIEW(dev)) {
 		intel_encoder->pre_enable = intel_hdmi_pre_enable;
 		intel_encoder->pre_pll_enable = intel_hdmi_pre_pll_enable;

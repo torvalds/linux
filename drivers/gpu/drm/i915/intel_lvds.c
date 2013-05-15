@@ -86,6 +86,31 @@ static bool intel_lvds_get_hw_state(struct intel_encoder *encoder,
 	return true;
 }
 
+static void intel_lvds_get_config(struct intel_encoder *encoder,
+				  struct intel_crtc_config *pipe_config)
+{
+	struct drm_device *dev = encoder->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 lvds_reg, tmp, flags = 0;
+
+	if (HAS_PCH_SPLIT(dev))
+		lvds_reg = PCH_LVDS;
+	else
+		lvds_reg = LVDS;
+
+	tmp = I915_READ(lvds_reg);
+	if (tmp & LVDS_HSYNC_POLARITY)
+		flags |= DRM_MODE_FLAG_NHSYNC;
+	else
+		flags |= DRM_MODE_FLAG_PHSYNC;
+	if (tmp & LVDS_VSYNC_POLARITY)
+		flags |= DRM_MODE_FLAG_NVSYNC;
+	else
+		flags |= DRM_MODE_FLAG_PVSYNC;
+
+	pipe_config->adjusted_mode.flags |= flags;
+}
+
 /* The LVDS pin pair needs to be on before the DPLLs are enabled.
  * This is an exception to the general rule that mode_set doesn't turn
  * things on.
@@ -921,6 +946,7 @@ bool intel_lvds_init(struct drm_device *dev)
 	intel_encoder->compute_config = intel_lvds_compute_config;
 	intel_encoder->disable = intel_disable_lvds;
 	intel_encoder->get_hw_state = intel_lvds_get_hw_state;
+	intel_encoder->get_config = intel_lvds_get_config;
 	intel_connector->get_hw_state = intel_connector_get_hw_state;
 
 	intel_connector_attach_encoder(intel_connector, intel_encoder);
