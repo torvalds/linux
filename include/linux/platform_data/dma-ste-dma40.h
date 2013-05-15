@@ -70,13 +70,6 @@ enum stedma40_flow_ctrl {
 	STEDMA40_FLOW_CTRL,
 };
 
-enum stedma40_periph_data_width {
-	STEDMA40_BYTE_WIDTH = STEDMA40_ESIZE_8_BIT,
-	STEDMA40_HALFWORD_WIDTH = STEDMA40_ESIZE_16_BIT,
-	STEDMA40_WORD_WIDTH = STEDMA40_ESIZE_32_BIT,
-	STEDMA40_DOUBLEWORD_WIDTH = STEDMA40_ESIZE_64_BIT
-};
-
 /**
  * struct stedma40_half_channel_info - dst/src channel configuration
  *
@@ -87,7 +80,7 @@ enum stedma40_periph_data_width {
  */
 struct stedma40_half_channel_info {
 	bool big_endian;
-	enum stedma40_periph_data_width data_width;
+	enum dma_slave_buswidth data_width;
 	int psize;
 	enum stedma40_flow_ctrl flow_ctrl;
 };

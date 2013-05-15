@@ -10,6 +10,18 @@
 
 #include "ste_dma40_ll.h"
 
+u8 d40_width_to_bits(enum dma_slave_buswidth width)
+{
+	if (width == DMA_SLAVE_BUSWIDTH_1_BYTE)
+		return STEDMA40_ESIZE_8_BIT;
+	else if (width == DMA_SLAVE_BUSWIDTH_2_BYTES)
+		return STEDMA40_ESIZE_16_BIT;
+	else if (width == DMA_SLAVE_BUSWIDTH_8_BYTES)
+		return STEDMA40_ESIZE_64_BIT;
+	else
+		return STEDMA40_ESIZE_32_BIT;
+}
+
 /* Sets up proper LCSP1 and LCSP3 register for a logical channel */
 void d40_log_cfg(struct stedma40_chan_cfg *cfg,
 		 u32 *lcsp1, u32 *lcsp3)
@@ -39,11 +51,13 @@ void d40_log_cfg(struct stedma40_chan_cfg *cfg,
 
 	l3 |= BIT(D40_MEM_LCSP3_DCFG_EIM_POS);
 	l3 |= cfg->dst_info.psize << D40_MEM_LCSP3_DCFG_PSIZE_POS;
-	l3 |= cfg->dst_info.data_width << D40_MEM_LCSP3_DCFG_ESIZE_POS;
+	l3 |= d40_width_to_bits(cfg->dst_info.data_width)
+		<< D40_MEM_LCSP3_DCFG_ESIZE_POS;
 
 	l1 |= BIT(D40_MEM_LCSP1_SCFG_EIM_POS);
 	l1 |= cfg->src_info.psize << D40_MEM_LCSP1_SCFG_PSIZE_POS;
-	l1 |= cfg->src_info.data_width << D40_MEM_LCSP1_SCFG_ESIZE_POS;
+	l1 |= d40_width_to_bits(cfg->src_info.data_width)
+		<< D40_MEM_LCSP1_SCFG_ESIZE_POS;
 
 	*lcsp1 = l1;
 	*lcsp3 = l3;
@@ -95,8 +109,10 @@ void d40_phy_cfg(struct stedma40_chan_cfg *cfg, u32 *src_cfg, u32 *dst_cfg)
 	}
 
 	/* Element size */
-	src |= cfg->src_info.data_width << D40_SREG_CFG_ESIZE_POS;
-	dst |= cfg->dst_info.data_width << D40_SREG_CFG_ESIZE_POS;
+	src |= d40_width_to_bits(cfg->src_info.data_width)
+		<< D40_SREG_CFG_ESIZE_POS;
+	dst |= d40_width_to_bits(cfg->dst_info.data_width)
+		<< D40_SREG_CFG_ESIZE_POS;
 
 	/* Set the priority bit to high for the physical channel */
 	if (cfg->high_priority) {
@@ -133,23 +149,22 @@ static int d40_phy_fill_lli(struct d40_phy_lli *lli,
 		num_elems = 2 << psize;
 
 	/* Must be aligned */
-	if (!IS_ALIGNED(data, 0x1 << data_width))
+	if (!IS_ALIGNED(data, data_width))
 		return -EINVAL;
 
 	/* Transfer size can't be smaller than (num_elms * elem_size) */
-	if (data_size < num_elems * (0x1 << data_width))
+	if (data_size < num_elems * data_width)
 		return -EINVAL;
 
 	/* The number of elements. IE now many chunks */
-	lli->reg_elt = (data_size >> data_width) << D40_SREG_ELEM_PHY_ECNT_POS;
+	lli->reg_elt = (data_size / data_width) << D40_SREG_ELEM_PHY_ECNT_POS;
 
 	/*
 	 * Distance to next element sized entry.
 	 * Usually the size of the element unless you want gaps.
 	 */
 	if (addr_inc)
-		lli->reg_elt |= (0x1 << data_width) <<
-			D40_SREG_ELEM_PHY_EIDX_POS;
+		lli->reg_elt |= data_width << D40_SREG_ELEM_PHY_EIDX_POS;
 
 	/* Where the data is */
 	lli->reg_ptr = data;
@@ -177,16 +192,16 @@ static int d40_seg_size(int size, int data_width1, int data_width2)
 {
 	u32 max_w = max(data_width1, data_width2);
 	u32 min_w = min(data_width1, data_width2);
-	u32 seg_max = ALIGN(STEDMA40_MAX_SEG_SIZE << min_w, 1 << max_w);
+	u32 seg_max = ALIGN(STEDMA40_MAX_SEG_SIZE * min_w, max_w);
 
 	if (seg_max > STEDMA40_MAX_SEG_SIZE)
-		seg_max -= (1 << max_w);
+		seg_max -= max_w;
 
 	if (size <= seg_max)
 		return size;
 
 	if (size <= 2 * seg_max)
-		return ALIGN(size / 2, 1 << max_w);
+		return ALIGN(size / 2, max_w);
 
 	return seg_max;
 }
@@ -352,10 +367,10 @@ static void d40_log_fill_lli(struct d40_log_lli *lli,
 	lli->lcsp13 = reg_cfg;
 
 	/* The number of elements to transfer */
-	lli->lcsp02 = ((data_size >> data_width) <<
+	lli->lcsp02 = ((data_size / data_width) <<
 		       D40_MEM_LCSP0_ECNT_POS) & D40_MEM_LCSP0_ECNT_MASK;
 
-	BUG_ON((data_size >> data_width) > STEDMA40_MAX_SEG_SIZE);
+	BUG_ON((data_size / data_width) > STEDMA40_MAX_SEG_SIZE);
 
 	/* 16 LSBs address of the current element */
 	lli->lcsp02 |= data & D40_MEM_LCSP0_SPTR_MASK;

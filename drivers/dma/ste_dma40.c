@@ -80,11 +80,11 @@ struct stedma40_chan_cfg dma40_memcpy_conf_phy = {
 	.mode = STEDMA40_MODE_PHYSICAL,
 	.dir = DMA_MEM_TO_MEM,
 
-	.src_info.data_width = STEDMA40_BYTE_WIDTH,
+	.src_info.data_width = DMA_SLAVE_BUSWIDTH_1_BYTE,
 	.src_info.psize = STEDMA40_PSIZE_PHY_1,
 	.src_info.flow_ctrl = STEDMA40_NO_FLOW_CTRL,
 
-	.dst_info.data_width = STEDMA40_BYTE_WIDTH,
+	.dst_info.data_width = DMA_SLAVE_BUSWIDTH_1_BYTE,
 	.dst_info.psize = STEDMA40_PSIZE_PHY_1,
 	.dst_info.flow_ctrl = STEDMA40_NO_FLOW_CTRL,
 };
@@ -94,11 +94,11 @@ struct stedma40_chan_cfg dma40_memcpy_conf_log = {
 	.mode = STEDMA40_MODE_LOGICAL,
 	.dir = DMA_MEM_TO_MEM,
 
-	.src_info.data_width = STEDMA40_BYTE_WIDTH,
+	.src_info.data_width = DMA_SLAVE_BUSWIDTH_1_BYTE,
 	.src_info.psize = STEDMA40_PSIZE_LOG_1,
 	.src_info.flow_ctrl = STEDMA40_NO_FLOW_CTRL,
 
-	.dst_info.data_width = STEDMA40_BYTE_WIDTH,
+	.dst_info.data_width = DMA_SLAVE_BUSWIDTH_1_BYTE,
 	.dst_info.psize = STEDMA40_PSIZE_LOG_1,
 	.dst_info.flow_ctrl = STEDMA40_NO_FLOW_CTRL,
 };
@@ -1005,20 +1005,21 @@ static int d40_psize_2_burst_size(bool is_log, int psize)
 
 /*
  * The dma only supports transmitting packages up to
- * STEDMA40_MAX_SEG_SIZE << data_width. Calculate the total number of
- * dma elements required to send the entire sg list
+ * STEDMA40_MAX_SEG_SIZE * data_width, where data_width is stored in Bytes.
+ *
+ * Calculate the total number of dma elements required to send the entire sg list.
  */
 static int d40_size_2_dmalen(int size, u32 data_width1, u32 data_width2)
 {
 	int dmalen;
 	u32 max_w = max(data_width1, data_width2);
 	u32 min_w = min(data_width1, data_width2);
-	u32 seg_max = ALIGN(STEDMA40_MAX_SEG_SIZE << min_w, 1 << max_w);
+	u32 seg_max = ALIGN(STEDMA40_MAX_SEG_SIZE * min_w, max_w);
 
 	if (seg_max > STEDMA40_MAX_SEG_SIZE)
-		seg_max -= (1 << max_w);
+		seg_max -= max_w;
 
-	if (!IS_ALIGNED(size, 1 << max_w))
+	if (!IS_ALIGNED(size, max_w))
 		return -EINVAL;
 
 	if (size <= seg_max)
@@ -1464,7 +1465,7 @@ static u32 d40_residue(struct d40_chan *d40c)
 			  >> D40_SREG_ELEM_PHY_ECNT_POS;
 	}
 
-	return num_elt * (1 << d40c->dma_cfg.dst_info.data_width);
+	return num_elt * d40c->dma_cfg.dst_info.data_width;
 }
 
 static bool d40_tx_is_linked(struct d40_chan *d40c)
@@ -1784,9 +1785,9 @@ static int d40_validate_conf(struct d40_chan *d40c,
 	}
 
 	if (d40_psize_2_burst_size(is_log, conf->src_info.psize) *
-	    (1 << conf->src_info.data_width) !=
+	    conf->src_info.data_width !=
 	    d40_psize_2_burst_size(is_log, conf->dst_info.psize) *
-	    (1 << conf->dst_info.data_width)) {
+	    conf->dst_info.data_width) {
 		/*
 		 * The DMAC hardware only supports
 		 * src (burst x width) == dst (burst x width)
@@ -2673,32 +2674,9 @@ static void d40_terminate_all(struct dma_chan *chan)
 static int
 dma40_config_to_halfchannel(struct d40_chan *d40c,
 			    struct stedma40_half_channel_info *info,
-			    enum dma_slave_buswidth width,
 			    u32 maxburst)
 {
-	enum stedma40_periph_data_width addr_width;
 	int psize;
-
-	switch (width) {
-	case DMA_SLAVE_BUSWIDTH_1_BYTE:
-		addr_width = STEDMA40_BYTE_WIDTH;
-		break;
-	case DMA_SLAVE_BUSWIDTH_2_BYTES:
-		addr_width = STEDMA40_HALFWORD_WIDTH;
-		break;
-	case DMA_SLAVE_BUSWIDTH_4_BYTES:
-		addr_width = STEDMA40_WORD_WIDTH;
-		break;
-	case DMA_SLAVE_BUSWIDTH_8_BYTES:
-		addr_width = STEDMA40_DOUBLEWORD_WIDTH;
-		break;
-	default:
-		dev_err(d40c->base->dev,
-			"illegal peripheral address width "
-			"requested (%d)\n",
-			width);
-		return -EINVAL;
-	}
 
 	if (chan_is_logical(d40c)) {
 		if (maxburst >= 16)
@@ -2720,7 +2698,6 @@ dma40_config_to_halfchannel(struct d40_chan *d40c,
 			psize = STEDMA40_PSIZE_PHY_1;
 	}
 
-	info->data_width = addr_width;
 	info->psize = psize;
 	info->flow_ctrl = STEDMA40_NO_FLOW_CTRL;
 
@@ -2804,14 +2781,24 @@ static int d40_set_runtime_config(struct dma_chan *chan,
 		src_maxburst = dst_maxburst * dst_addr_width / src_addr_width;
 	}
 
+	/* Only valid widths are; 1, 2, 4 and 8. */
+	if (src_addr_width <= DMA_SLAVE_BUSWIDTH_UNDEFINED ||
+	    src_addr_width >  DMA_SLAVE_BUSWIDTH_8_BYTES   ||
+	    dst_addr_width <= DMA_SLAVE_BUSWIDTH_UNDEFINED ||
+	    dst_addr_width >  DMA_SLAVE_BUSWIDTH_8_BYTES   ||
+	    ((src_addr_width > 1) && (src_addr_width & 1)) ||
+	    ((dst_addr_width > 1) && (dst_addr_width & 1)))
+		return -EINVAL;
+
+	cfg->src_info.data_width = src_addr_width;
+	cfg->dst_info.data_width = dst_addr_width;
+
 	ret = dma40_config_to_halfchannel(d40c, &cfg->src_info,
-					  src_addr_width,
 					  src_maxburst);
 	if (ret)
 		return ret;
 
 	ret = dma40_config_to_halfchannel(d40c, &cfg->dst_info,
-					  dst_addr_width,
 					  dst_maxburst);
 	if (ret)
 		return ret;
