@@ -3113,7 +3113,16 @@ nfs4_open_delegation(struct net *net, struct svc_fh *fh,
 				goto out;
 			if (!cb_up || !(oo->oo_flags & NFS4_OO_CONFIRMED))
 				goto out;
+			/*
+			 * Also, if the file was opened for write or
+			 * create, there's a good chance the client's
+			 * about to write to it, resulting in an
+			 * immediate recall (since we don't support
+			 * write delegations):
+			 */
 			if (open->op_share_access & NFS4_SHARE_ACCESS_WRITE)
+				flag = NFS4_OPEN_DELEGATE_WRITE;
+			else if (open->op_create == NFS4_OPEN_CREATE)
 				flag = NFS4_OPEN_DELEGATE_WRITE;
 			else
 				flag = NFS4_OPEN_DELEGATE_READ;
