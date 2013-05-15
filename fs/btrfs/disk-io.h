@@ -76,6 +76,27 @@ void btrfs_btree_balance_dirty_nodelay(struct btrfs_root *root);
 void btrfs_drop_and_free_fs_root(struct btrfs_fs_info *fs_info,
 				 struct btrfs_root *root);
 void btrfs_free_fs_root(struct btrfs_root *root);
+
+/*
+ * This function is used to grab the root, and avoid it is freed when we
+ * access it. But it doesn't ensure that the tree is not dropped.
+ *
+ * If you want to ensure the whole tree is safe, you should use
+ * 	fs_info->subvol_srcu
+ */
+static inline struct btrfs_root *btrfs_grab_fs_root(struct btrfs_root *root)
+{
+	if (atomic_inc_not_zero(&root->refs))
+		return root;
+	return NULL;
+}
+
+static inline void btrfs_put_fs_root(struct btrfs_root *root)
+{
+	if (atomic_dec_and_test(&root->refs))
+		kfree(root);
+}
+
 void btrfs_mark_buffer_dirty(struct extent_buffer *buf);
 int btrfs_buffer_uptodate(struct extent_buffer *buf, u64 parent_transid,
 			  int atomic);

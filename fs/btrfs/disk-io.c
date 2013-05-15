@@ -1216,6 +1216,7 @@ static void __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	atomic_set(&root->log_writers, 0);
 	atomic_set(&root->log_batch, 0);
 	atomic_set(&root->orphan_inodes, 0);
+	atomic_set(&root->refs, 1);
 	root->log_transid = 0;
 	root->last_log_commit = 0;
 	extent_io_tree_init(&root->dirty_log_pages,
@@ -2052,7 +2053,7 @@ static void del_fs_roots(struct btrfs_fs_info *fs_info)
 		} else {
 			free_extent_buffer(gang[0]->node);
 			free_extent_buffer(gang[0]->commit_root);
-			kfree(gang[0]);
+			btrfs_put_fs_root(gang[0]);
 		}
 	}
 
@@ -3417,7 +3418,7 @@ static void free_fs_root(struct btrfs_root *root)
 	kfree(root->free_ino_ctl);
 	kfree(root->free_ino_pinned);
 	kfree(root->name);
-	kfree(root);
+	btrfs_put_fs_root(root);
 }
 
 void btrfs_free_fs_root(struct btrfs_root *root)

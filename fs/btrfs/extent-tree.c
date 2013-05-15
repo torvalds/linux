@@ -7469,7 +7469,7 @@ int btrfs_drop_snapshot(struct btrfs_root *root,
 	} else {
 		free_extent_buffer(root->node);
 		free_extent_buffer(root->commit_root);
-		kfree(root);
+		btrfs_put_fs_root(root);
 	}
 out_end_trans:
 	btrfs_end_transaction_throttle(trans, tree_root);
