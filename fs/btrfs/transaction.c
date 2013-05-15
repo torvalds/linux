@@ -1450,11 +1450,12 @@ static void cleanup_transaction(struct btrfs_trans_handle *trans,
 
 	spin_lock(&root->fs_info->trans_lock);
 
-	if (list_empty(&cur_trans->list)) {
-		spin_unlock(&root->fs_info->trans_lock);
-		btrfs_end_transaction(trans, root);
-		return;
-	}
+	/*
+	 * If the transaction is removed from the list, it means this
+	 * transaction has been committed successfully, so it is impossible
+	 * to call the cleanup function.
+	 */
+	BUG_ON(list_empty(&cur_trans->list));
 
 	list_del_init(&cur_trans->list);
 	if (cur_trans == root->fs_info->running_transaction) {
