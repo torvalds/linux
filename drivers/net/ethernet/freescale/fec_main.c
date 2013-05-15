@@ -616,10 +616,10 @@ fec_restart(struct net_device *ndev, int duplex)
 	writel(FEC_DEFAULT_IMASK, fep->hwp + FEC_IMASK);
 
 	if (netif_running(ndev)) {
-		netif_device_attach(ndev);
-		napi_enable(&fep->napi);
-		netif_wake_queue(ndev);
 		netif_tx_unlock_bh(ndev);
+		netif_wake_queue(ndev);
+		napi_enable(&fep->napi);
+		netif_device_attach(ndev);
 	}
 }
 
