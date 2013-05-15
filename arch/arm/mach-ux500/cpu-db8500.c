@@ -217,15 +217,6 @@ struct device * __init u8500_init_devices(struct ab8500_platform_data *ab8500)
 }
 
 #ifdef CONFIG_MACH_UX500_DT
-
-/* TODO: Once all pieces are DT:ed, remove completely. */
-static struct device * __init u8500_of_init_devices(void)
-{
-	struct device *parent = db8500_soc_device_init();
-
-	return parent;
-}
-
 static struct of_dev_auxdata u8500_auxdata_lookup[] __initdata = {
 	/* Requires call-back bindings. */
 	OF_DEV_AUXDATA("arm,cortex-a9-pmu", 0, "arm-pmu", &db8500_pmu_platdata),
@@ -284,7 +275,7 @@ static const struct of_device_id u8500_local_bus_nodes[] = {
 
 static void __init u8500_init_machine(void)
 {
-	struct device *parent = NULL;
+	struct device *parent = db8500_soc_device_init();
 
 	/* Pinmaps must be in place before devices register */
 	if (of_machine_is_compatible("st-ericsson,mop500"))
@@ -296,9 +287,6 @@ static void __init u8500_init_machine(void)
 		hrefv60_pinmaps_init();
 	else if (of_machine_is_compatible("st-ericsson,ccu9540")) {}
 		/* TODO: Add pinmaps for ccu9540 board. */
-
-	/* TODO: Export SoC, USB, cpu-freq and DMA40 */
-	parent = u8500_of_init_devices();
 
 	/* automatically probe child nodes of db8500 device */
 	of_platform_populate(NULL, u8500_local_bus_nodes, u8500_auxdata_lookup, parent);
