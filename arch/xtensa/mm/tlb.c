@@ -64,7 +64,7 @@ void flush_tlb_mm(struct mm_struct *mm)
 {
 	if (mm == current->active_mm) {
 		unsigned long flags;
-		local_save_flags(flags);
+		local_irq_save(flags);
 		__get_new_mmu_context(mm);
 		__load_mmu_context(mm);
 		local_irq_restore(flags);
@@ -94,7 +94,7 @@ void flush_tlb_range (struct vm_area_struct *vma,
 	printk("[tlbrange<%02lx,%08lx,%08lx>]\n",
 			(unsigned long)mm->context, start, end);
 #endif
-	local_save_flags(flags);
+	local_irq_save(flags);
 
 	if (end-start + (PAGE_SIZE-1) <= _TLB_ENTRIES << PAGE_SHIFT) {
 		int oldpid = get_rasid_register();
@@ -128,9 +128,10 @@ void flush_tlb_page (struct vm_area_struct *vma, unsigned long page)
 	if(mm->context == NO_CONTEXT)
 		return;
 
-	local_save_flags(flags);
+	local_irq_save(flags);
 
 	oldpid = get_rasid_register();
+	set_rasid_register(ASID_INSERT(mm->context));
 
 	if (vma->vm_flags & VM_EXEC)
 		invalidate_itlb_mapping(page);
