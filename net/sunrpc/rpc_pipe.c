@@ -1073,6 +1073,7 @@ void rpc_pipefs_init_net(struct net *net)
 
 	mutex_init(&sn->pipefs_sb_lock);
 	sn->gssd_running = 1;
+	sn->pipe_version = -1;
 }
 
 /*
