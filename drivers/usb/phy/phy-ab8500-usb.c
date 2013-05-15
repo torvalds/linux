@@ -835,8 +835,8 @@ static int ab8500_usb_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	/* Phy tuning values for AB8500 */
-	if (!is_ab8500_2p0_or_earlier(ab->ab8500)) {
+	/* Phy tuning values for AB8500 > v2.0 */
+	if (is_ab8500(ab->ab8500) && !is_ab8500_2p0_or_earlier(ab->ab8500)) {
 		/* Enable the PBT/Bank 0x12 access */
 		err = abx500_set_register_interruptible(ab->dev,
 				AB8500_DEVELOPMENT, AB8500_BANK12_ACCESS, 0x01);
