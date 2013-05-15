@@ -152,8 +152,6 @@ struct stedma40_chan_cfg {
  * for 'multiple of 4' channels, like 8.
  */
 struct stedma40_platform_data {
-	const dma_addr_t		*dev_tx;
-	const dma_addr_t		*dev_rx;
 	int				 disabled_channels[STEDMA40_MAX_PHYS];
 	int				*soft_lli_chans;
 	int				 num_of_soft_lli_chans;
