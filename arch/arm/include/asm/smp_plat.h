@@ -70,4 +70,16 @@ static inline int get_logical_index(u32 mpidr)
 	return -EINVAL;
 }
 
+struct mpidr_hash {
+	u32	mask;
+	u32	shift_aff[3];
+	u32	bits;
+};
+
+extern struct mpidr_hash mpidr_hash;
+
+static inline u32 mpidr_hash_size(void)
+{
+	return 1 << mpidr_hash.bits;
+}
 #endif
