@@ -542,9 +542,17 @@ static int ulpi_phy_power_on(struct tegra_usb_phy *phy)
 	unsigned long val;
 	void __iomem *base = phy->regs;
 
-	gpio_direction_output(phy->reset_gpio, 0);
+	ret = gpio_direction_output(phy->reset_gpio, 0);
+	if (ret < 0) {
+		dev_err(phy->dev, "gpio %d not set to 0\n", phy->reset_gpio);
+		return ret;
+	}
 	msleep(5);
-	gpio_direction_output(phy->reset_gpio, 1);
+	ret = gpio_direction_output(phy->reset_gpio, 1);
+	if (ret < 0) {
+		dev_err(phy->dev, "gpio %d not set to 1\n", phy->reset_gpio);
+		return ret;
+	}
 
 	clk_prepare_enable(phy->clk);
 	msleep(1);
@@ -624,24 +632,44 @@ static int	tegra_phy_init(struct usb_phy *x)
 			of_get_named_gpio(phy->dev->of_node,
 					  "nvidia,phy-reset-gpio", 0);
 		if (!gpio_is_valid(phy->reset_gpio)) {
-			pr_err("%s: invalid reset gpio: %d\n", __func__,
-			       phy->reset_gpio);
-			err = -EINVAL;
-			goto err1;
+			dev_err(phy->dev, "invalid gpio: %d\n",
+				phy->reset_gpio);
+			err = phy->reset_gpio;
+			goto cleanup_clk_get;
 		}
-		gpio_request(phy->reset_gpio, "ulpi_phy_reset_b");
-		gpio_direction_output(phy->reset_gpio, 0);
+
+		err = gpio_request(phy->reset_gpio, "ulpi_phy_reset_b");
+		if (err < 0) {
+			dev_err(phy->dev, "request failed for gpio: %d\n",
+			       phy->reset_gpio);
+			goto cleanup_clk_get;
+		}
+
+		err = gpio_direction_output(phy->reset_gpio, 0);
+		if (err < 0) {
+			dev_err(phy->dev, "gpio %d direction not set to output\n",
+			       phy->reset_gpio);
+			goto cleanup_gpio_req;
+		}
+
 		phy->ulpi = otg_ulpi_create(&ulpi_viewport_access_ops, 0);
+		if (!phy->ulpi) {
+			dev_err(phy->dev, "otg_ulpi_create returned NULL\n");
+			err = -ENOMEM;
+			goto cleanup_gpio_req;
+		}
+
 		phy->ulpi->io_priv = phy->regs + ULPI_VIEWPORT;
 	} else {
 		err = utmip_pad_open(phy);
 		if (err < 0)
-			goto err1;
+			return err;
 	}
 	return 0;
-err1:
-	clk_disable_unprepare(phy->pll_u);
-	clk_put(phy->pll_u);
+cleanup_gpio_req:
+	gpio_free(phy->reset_gpio);
+cleanup_clk_get:
+	clk_put(phy->clk);
 	return err;
 }
 
