@@ -316,6 +316,8 @@ int xenvif_connect(struct xenvif *vif, unsigned long tx_ring_ref,
 	if (vif->irq)
 		return 0;
 
+	__module_get(THIS_MODULE);
+
 	err = xen_netbk_map_frontend_rings(vif, tx_ring_ref, rx_ring_ref);
 	if (err < 0)
 		goto err;
@@ -343,6 +345,7 @@ int xenvif_connect(struct xenvif *vif, unsigned long tx_ring_ref,
 err_unmap:
 	xen_netbk_unmap_frontend_rings(vif);
 err:
+	module_put(THIS_MODULE);
 	return err;
 }
 
@@ -360,18 +363,32 @@ void xenvif_carrier_off(struct xenvif *vif)
 
 void xenvif_disconnect(struct xenvif *vif)
 {
+	/* Disconnect funtion might get called by generic framework
+	 * even before vif connects, so we need to check if we really
+	 * need to do a module_put.
+	 */
+	int need_module_put = 0;
+
 	if (netif_carrier_ok(vif->dev))
 		xenvif_carrier_off(vif);
 
 	atomic_dec(&vif->refcnt);
 	wait_event(vif->waiting_to_free, atomic_read(&vif->refcnt) == 0);
 
-	if (vif->irq)
+	if (vif->irq) {
 		unbind_from_irqhandler(vif->irq, vif);
+		/* vif->irq is valid, we had a module_get in
+		 * xenvif_connect.
+		 */
+		need_module_put = 1;
+	}
 
 	unregister_netdev(vif->dev);
 
 	xen_netbk_unmap_frontend_rings(vif);
 
 	free_netdev(vif->dev);
+
+	if (need_module_put)
+		module_put(THIS_MODULE);
 }

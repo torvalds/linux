@@ -120,6 +120,7 @@ void xenvif_get(struct xenvif *vif);
 void xenvif_put(struct xenvif *vif);
 
 int xenvif_xenbus_init(void);
+void xenvif_xenbus_fini(void);
 
 int xenvif_schedulable(struct xenvif *vif);
 
