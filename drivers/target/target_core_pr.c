@@ -1932,13 +1932,13 @@ out:
  */
 static int __core_scsi3_write_aptpl_to_file(
 	struct se_device *dev,
-	unsigned char *buf,
-	u32 pr_aptpl_buf_len)
+	unsigned char *buf)
 {
 	struct t10_wwn *wwn = &dev->t10_wwn;
 	struct file *file;
 	int flags = O_RDWR | O_CREAT | O_TRUNC;
 	char path[512];
+	u32 pr_aptpl_buf_len;
 	int ret;
 
 	memset(path, 0, 512);
@@ -1957,8 +1957,7 @@ static int __core_scsi3_write_aptpl_to_file(
 		return PTR_ERR(file);
 	}
 
-	if (!pr_aptpl_buf_len)
-		pr_aptpl_buf_len = (strlen(&buf[0]) + 1); /* Add extra for NULL */
+	pr_aptpl_buf_len = (strlen(buf) + 1); /* Add extra for NULL */
 
 	ret = kernel_write(file, buf, pr_aptpl_buf_len, 0);
 
@@ -1993,7 +1992,7 @@ core_scsi3_update_and_write_aptpl(struct se_device *dev, unsigned char *in_buf,
 	 * __core_scsi3_write_aptpl_to_file() will call strlen()
 	 * on the passed buf to determine pr_aptpl_buf_len.
 	 */
-	return __core_scsi3_write_aptpl_to_file(dev, buf, 0);
+	return __core_scsi3_write_aptpl_to_file(dev, buf);
 }
 
 static sense_reason_t
