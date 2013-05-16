@@ -1828,10 +1828,7 @@ out:
 	return ret;
 }
 
-/*
- * Called with struct se_device->dev_reservation_lock held
- */
-static int __core_scsi3_update_aptpl_buf(
+static int core_scsi3_update_aptpl_buf(
 	struct se_device *dev,
 	unsigned char *buf,
 	u32 pr_aptpl_buf_len)
@@ -1842,13 +1839,15 @@ static int __core_scsi3_update_aptpl_buf(
 	unsigned char tmp[512], isid_buf[32];
 	ssize_t len = 0;
 	int reg_count = 0;
+	int ret = 0;
 
 	memset(buf, 0, pr_aptpl_buf_len);
 
+	spin_lock(&dev->dev_reservation_lock);
+	spin_lock(&dev->t10_pr.registration_lock);
 	/*
 	 * Walk the registration list..
 	 */
-	spin_lock(&dev->t10_pr.registration_lock);
 	list_for_each_entry(pr_reg, &dev->t10_pr.registration_list,
 			pr_reg_list) {
 
@@ -1894,8 +1893,8 @@ static int __core_scsi3_update_aptpl_buf(
 		if ((len + strlen(tmp) >= pr_aptpl_buf_len)) {
 			pr_err("Unable to update renaming"
 				" APTPL metadata\n");
-			spin_unlock(&dev->t10_pr.registration_lock);
-			return -EMSGSIZE;
+			ret = -EMSGSIZE;
+			goto out;
 		}
 		len += sprintf(buf+len, "%s", tmp);
 
@@ -1912,29 +1911,18 @@ static int __core_scsi3_update_aptpl_buf(
 		if ((len + strlen(tmp) >= pr_aptpl_buf_len)) {
 			pr_err("Unable to update renaming"
 				" APTPL metadata\n");
-			spin_unlock(&dev->t10_pr.registration_lock);
-			return -EMSGSIZE;
+			ret = -EMSGSIZE;
+			goto out;
 		}
 		len += sprintf(buf+len, "%s", tmp);
 		reg_count++;
 	}
-	spin_unlock(&dev->t10_pr.registration_lock);
 
 	if (!reg_count)
 		len += sprintf(buf+len, "No Registrations or Reservations");
 
-	return 0;
-}
-
-static int core_scsi3_update_aptpl_buf(
-	struct se_device *dev,
-	unsigned char *buf,
-	u32 pr_aptpl_buf_len)
-{
-	int ret;
-
-	spin_lock(&dev->dev_reservation_lock);
-	ret = __core_scsi3_update_aptpl_buf(dev, buf, pr_aptpl_buf_len);
+out:
+	spin_unlock(&dev->t10_pr.registration_lock);
 	spin_unlock(&dev->dev_reservation_lock);
 
 	return ret;
