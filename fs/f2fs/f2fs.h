@@ -495,9 +495,17 @@ static inline void clear_ckpt_flags(struct f2fs_checkpoint *cp, unsigned int f)
 
 static inline void mutex_lock_all(struct f2fs_sb_info *sbi)
 {
-	int i = 0;
-	for (; i < NR_GLOBAL_LOCKS; i++)
-		mutex_lock(&sbi->fs_lock[i]);
+	int i;
+
+	for (i = 0; i < NR_GLOBAL_LOCKS; i++) {
+		/*
+		 * This is the only time we take multiple fs_lock[]
+		 * instances; the order is immaterial since we
+		 * always hold cp_mutex, which serializes multiple
+		 * such operations.
+		 */
+		mutex_lock_nest_lock(&sbi->fs_lock[i], &sbi->cp_mutex);
+	}
 }
 
 static inline void mutex_unlock_all(struct f2fs_sb_info *sbi)
