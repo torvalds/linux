@@ -580,16 +580,15 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 	if ((!pdata && !pd->dev.of_node))
 		return -ENODEV;
 
-	drv_data = kzalloc(sizeof(struct mv64xxx_i2c_data), GFP_KERNEL);
+	drv_data = devm_kzalloc(&pd->dev, sizeof(struct mv64xxx_i2c_data),
+				GFP_KERNEL);
 	if (!drv_data)
 		return -ENOMEM;
 
 	r = platform_get_resource(pd, IORESOURCE_MEM, 0);
 	drv_data->reg_base = devm_ioremap_resource(&pd->dev, r);
-	if (IS_ERR(drv_data->reg_base)) {
-		rc = PTR_ERR(drv_data->reg_base);
-		goto exit_kfree;
-	}
+	if (IS_ERR(drv_data->reg_base))
+		return PTR_ERR(drv_data->reg_base);
 
 	strlcpy(drv_data->adapter.name, MV64XXX_I2C_CTLR_NAME " adapter",
 		sizeof(drv_data->adapter.name));
@@ -613,11 +612,11 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 	} else if (pd->dev.of_node) {
 		rc = mv64xxx_of_config(drv_data, pd->dev.of_node);
 		if (rc)
-			goto exit_unmap_regs;
+			goto exit_clk;
 	}
 	if (drv_data->irq < 0) {
 		rc = -ENXIO;
-		goto exit_unmap_regs;
+		goto exit_clk;
 	}
 
 	drv_data->adapter.dev.parent = &pd->dev;
@@ -637,7 +636,7 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 			"mv64xxx: Can't register intr handler irq: %d\n",
 			drv_data->irq);
 		rc = -EINVAL;
-		goto exit_unmap_regs;
+		goto exit_clk;
 	} else if ((rc = i2c_add_numbered_adapter(&drv_data->adapter)) != 0) {
 		dev_err(&drv_data->adapter.dev,
 			"mv64xxx: Can't add i2c adapter, rc: %d\n", -rc);
@@ -648,9 +647,9 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 
 	return 0;
 
-	exit_free_irq:
-		free_irq(drv_data->irq, drv_data);
-	exit_unmap_regs:
+exit_free_irq:
+	free_irq(drv_data->irq, drv_data);
+exit_clk:
 #if defined(CONFIG_HAVE_CLK)
 	/* Not all platforms have a clk */
 	if (!IS_ERR(drv_data->clk)) {
@@ -658,8 +657,6 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 		clk_unprepare(drv_data->clk);
 	}
 #endif
-	exit_kfree:
-		kfree(drv_data);
 	return rc;
 }
 
@@ -677,7 +674,6 @@ mv64xxx_i2c_remove(struct platform_device *dev)
 		clk_unprepare(drv_data->clk);
 	}
 #endif
-	kfree(drv_data);
 
 	return 0;
 }
