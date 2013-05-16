@@ -222,28 +222,28 @@ U14API(short)	U14SendChar(short hand, char cChar);
 U14API(short)	U14GetChar(short hand, char *pcChar);
 
 U14API(short)	U14LdCmd(short hand, const char *command);
-U14API(DWORD) U14Ld(short hand, const char *vl, const char *str);
+U14API(unsigned int) U14Ld(short hand, const char *vl, const char *str);
 
 U14API(short)	U14SetTransArea(short hand, unsigned short wArea, void *pvBuff,
-					DWORD dwLength, short eSz);
+					unsigned int dwLength, short eSz);
 U14API(short)	U14UnSetTransfer(short hand, unsigned short wArea);
 U14API(short)	U14SetTransferEvent(short hand, unsigned short wArea, BOOL bEvent,
-					BOOL bToHost, DWORD dwStart, DWORD dwLength);
+					BOOL bToHost, unsigned int dwStart, unsigned int dwLength);
 U14API(int)   U14TestTransferEvent(short hand, unsigned short wArea);
 U14API(int)   U14WaitTransferEvent(short hand, unsigned short wArea, int msTimeOut);
 U14API(short)	U14GetTransfer(short hand, TGET_TX_BLOCK *pTransBlock);
 
-U14API(short)	U14ToHost(short hand, char *pAddrHost, DWORD dwSize, DWORD dw1401,
+U14API(short)	U14ToHost(short hand, char *pAddrHost, unsigned int dwSize, unsigned int dw1401,
 								short eSz);
-U14API(short)	U14To1401(short hand, const char *pAddrHost, DWORD dwSize, DWORD dw1401,
+U14API(short)	U14To1401(short hand, const char *pAddrHost, unsigned int dwSize, unsigned int dw1401,
 								short eSz);
 
 U14API(short)	U14SetCircular(short hand, unsigned short wArea, BOOL bToHost, void *pvBuff,
-							DWORD dwLength);
+							unsigned int dwLength);
 
-U14API(int)   U14GetCircBlk(short hand, unsigned short wArea, DWORD *pdwOffs);
-U14API(int)   U14FreeCircBlk(short hand, unsigned short wArea, DWORD dwOffs, DWORD dwSize,
-							DWORD *pdwOffs);
+U14API(int)   U14GetCircBlk(short hand, unsigned short wArea, unsigned int *pdwOffs);
+U14API(int)   U14FreeCircBlk(short hand, unsigned short wArea, unsigned int dwOffs, unsigned int dwSize,
+							unsigned int *pdwOffs);
 
 U14API(short)	U14StrToLongs(const char *pszBuff, U14LONG *palNums, short sMaxLongs);
 U14API(short)	U14LongsFrom1401(short hand, U14LONG *palBuff, short sMaxLongs);
@@ -255,7 +255,7 @@ U14API(int)   U14BaseAddr1401(short hand);
 U14API(int)   U14DriverVersion(short hand);
 U14API(int)   U14DriverType(short hand);
 U14API(short)	U14DriverName(short hand, char *pBuf, unsigned short wMax);
-U14API(short)	U14GetUserMemorySize(short hand, DWORD *pMemorySize);
+U14API(short)	U14GetUserMemorySize(short hand, unsigned int *pMemorySize);
 U14API(short)	U14KillIO1401(short hand);
 
 U14API(short)	U14BlkTransState(short hand);
@@ -263,10 +263,10 @@ U14API(short)	U14StateOf1401(short hand);
 
 U14API(short)	U14Grab1401(short hand);
 U14API(short)	U14Free1401(short hand);
-U14API(short)	U14Peek1401(short hand, DWORD dwAddr, int nSize, int nRepeats);
-U14API(short)	U14Poke1401(short hand, DWORD dwAddr, DWORD dwValue, int nSize, int nRepeats);
-U14API(short)	U14Ramp1401(short hand, DWORD dwAddr, DWORD dwDef, DWORD dwEnable, int nSize, int nRepeats);
-U14API(short)	U14RampAddr(short hand, DWORD dwDef, DWORD dwEnable, int nSize, int nRepeats);
+U14API(short)	U14Peek1401(short hand, unsigned int dwAddr, int nSize, int nRepeats);
+U14API(short)	U14Poke1401(short hand, unsigned int dwAddr, unsigned int dwValue, int nSize, int nRepeats);
+U14API(short)	U14Ramp1401(short hand, unsigned int dwAddr, unsigned int dwDef, unsigned int dwEnable, int nSize, int nRepeats);
+U14API(short)	U14RampAddr(short hand, unsigned int dwDef, unsigned int dwEnable, int nSize, int nRepeats);
 U14API(short)	U14StopDebugLoop(short hand);
 U14API(short)	U14GetDebugData(short hand, U14LONG *plValue);
 
@@ -277,7 +277,7 @@ U14API(void)  U14GetErrorString(short nErr, char *pStr, unsigned short wMax);
 U14API(int)   U14MonitorRev(short hand);
 U14API(void)  U14CloseAll(void);
 
-U14API(short)	U14WorkingSet(DWORD dwMinKb, DWORD dwMaxKb);
+U14API(short)	U14WorkingSet(unsigned int dwMinKb, unsigned int dwMaxKb);
 U14API(int)   U14InitLib(void);
 
 #ifdef __cplusplus

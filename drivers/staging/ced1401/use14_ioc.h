@@ -280,7 +280,7 @@ typedef struct TransferDesc          /* Structure and type for SetTransArea */
 {
 	unsigned short        wArea;            /* number of transfer area to set up       */
 	void FAR *lpvBuff;          /* address of transfer area                */
-	DWORD       dwLength;         /* length of area to set up                */
+	unsigned int       dwLength;         /* length of area to set up                */
 	short       eSize;            /* size to move (for swapping on MAC)      */
 } TRANSFERDESC;
 
@@ -291,8 +291,8 @@ typedef struct VXTransferDesc    /* use1401.c and use1432x.x use only       */
 {
 	unsigned short        wArea;            /* number of transfer area to set up       */
 	unsigned short        wAddrSel;         /* 16 bit selector for area                */
-	DWORD       dwAddrOfs;        /* 32 bit offset for area start            */
-	DWORD       dwLength;         /* length of area to set up                */
+	unsigned int       dwAddrOfs;        /* 32 bit offset for area start            */
+	unsigned int       dwLength;         /* length of area to set up                */
 } VXTRANSFERDESC;
 
 #pragma pack()

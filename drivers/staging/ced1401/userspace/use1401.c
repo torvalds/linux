@@ -36,7 +36,7 @@
 ** Under Windows 9x and NT, Use1401 uses DeviceIoControl to get access to
 ** the 1401 driver. This has parameters for the device handle, the function
 ** code, an input pointer and byte count, an output pointer and byte count
-** and a pointer to a DWORD to hold the output byte count. Note that input
+** and a pointer to a unsigned int to hold the output byte count. Note that input
 ** and output are from the point-of-view of the driver, so the output stuff
 ** is used to read values from the 1401, not send to the 1401. The use of
 ** these parameters varies with the function in use and the operating
@@ -250,7 +250,7 @@ static int iAttached = 0;                       // counts process attaches so ca
 static HANDLE aHand1401[MAX1401] = {0};         // handles for 1401s
 static HANDLE aXferEvent[MAX1401] = {0};        // transfer events for the 1401s
 static LPVOID apAreas[MAX1401][MAX_TRANSAREAS]; // Locked areas
-static DWORD  auAreas[MAX1401][MAX_TRANSAREAS]; // Size of locked areas
+static unsigned int  auAreas[MAX1401][MAX_TRANSAREAS]; // Size of locked areas
 static BOOL   bWindows9x = FALSE;               // if we are Windows 95 or better
 #ifdef _WIN64
 #define USE_NT_DIOC(ind) TRUE
@@ -311,7 +311,7 @@ static short CheckHandle(short h)
 ****************************************************************************/
 static short U14Status1401(short sHand, LONG lCode, TCSBLOCK* pBlk)
 {
-    DWORD dwBytes = 0;
+    unsigned int dwBytes = 0;
 
     if ((sHand < 0) || (sHand >= MAX1401))  /* Check parameters */
         return U14ERR_BADHAND;
@@ -345,7 +345,7 @@ static short U14Status1401(short sHand, LONG lCode, TCSBLOCK* pBlk)
 ****************************************************************************/
 static short U14Control1401(short sHand, LONG lCode, TCSBLOCK* pBlk)
 {
-    DWORD dwBytes = 0;
+    unsigned int dwBytes = 0;
 
     if ((sHand < 0) || (sHand >= MAX1401))              /* Check parameters */
         return U14ERR_BADHAND;
@@ -779,7 +779,7 @@ U14API(short)  U14Free1401(short hand)
 ** is called. After the peek is done, use U14GetDebugData to retrieve
 ** the results of the peek.
 ****************************************************************************/
-U14API(short) U14Peek1401(short hand, DWORD dwAddr, int nSize, int nRepeats)
+U14API(short) U14Peek1401(short hand, unsigned int dwAddr, int nSize, int nRepeats)
 {
     short sErr = CheckHandle(hand);
     if (sErr == U14ERR_NOERROR)
@@ -813,7 +813,7 @@ U14API(short) U14Peek1401(short hand, DWORD dwAddr, int nSize, int nRepeats)
 ** If lRepeats is zero, the loop will continue until U14StopDebugLoop
 ** is called.
 ****************************************************************************/
-U14API(short) U14Poke1401(short hand, DWORD dwAddr, DWORD dwValue,
+U14API(short) U14Poke1401(short hand, unsigned int dwAddr, unsigned int dwValue,
                                       int nSize, int nRepeats)
 {
     short sErr = CheckHandle(hand);
@@ -849,7 +849,7 @@ U14API(short) U14Poke1401(short hand, DWORD dwAddr, DWORD dwValue,
 ** DESCRIPTION  Cause the 1401 to loop, writing a ramp to a location.
 ** If lRepeats is zero, the loop will continue until U14StopDebugLoop.
 ****************************************************************************/
-U14API(short) U14Ramp1401(short hand, DWORD dwAddr, DWORD dwDef, DWORD dwEnable,
+U14API(short) U14Ramp1401(short hand, unsigned int dwAddr, unsigned int dwDef, unsigned int dwEnable,
                                       int nSize, int nRepeats)
 {
     short sErr = CheckHandle(hand);
@@ -887,7 +887,7 @@ U14API(short) U14Ramp1401(short hand, DWORD dwAddr, DWORD dwDef, DWORD dwEnable,
 ** DESCRIPTION  Cause the 1401 to loop, reading from a ramping location.
 ** If lRepeats is zero, the loop will continue until U14StopDebugLoop
 ****************************************************************************/
-U14API(short) U14RampAddr(short hand, DWORD dwDef, DWORD dwEnable,
+U14API(short) U14RampAddr(short hand, unsigned int dwDef, unsigned int dwEnable,
                                       int nSize, int nRepeats)
 {
     short sErr = CheckHandle(hand);
@@ -1024,7 +1024,7 @@ U14API(short) U14CheckSelfTest(short hand, U14LONG *pData)
 /****************************************************************************
 ** U14GetUserMemorySize
 ****************************************************************************/
-U14API(short) U14GetUserMemorySize(short hand, DWORD *pMemorySize)
+U14API(short) U14GetUserMemorySize(short hand, unsigned int *pMemorySize)
 {
     // The original 1401 used a different command for getting the size
     short sErr = U14SendString(hand, (asType1401[hand] == U14TYPE1401) ? "MEMTOP;" : "MEMTOP,?;");
@@ -1207,7 +1207,7 @@ static short U14TryToOpen(int n1401, long* plRetVal, short* psHandle)
 {
     short sErr = U14ERR_NOERROR;
     HANDLE hDevice = INVALID_HANDLE_VALUE;
-    DWORD dwErr = 0;
+    unsigned int dwErr = 0;
     int nFirst, nLast, nDev = 0;        /* Used for the search for a 1401 */
     BOOL bOldName = FALSE;               /* start by looking for a modern driver */
 
@@ -1262,7 +1262,7 @@ static short U14TryToOpen(int n1401, long* plRetVal, short* psHandle)
             }
             else
             {
-                DWORD dwe = GetLastError();     /* Get error code otherwise */
+                unsigned int dwe = GetLastError();     /* Get error code otherwise */
                 if ((dwe != ERROR_FILE_NOT_FOUND) || (dwErr == 0))
                     dwErr = dwe;                /* Ignore repeats of 'not found' */
             }
@@ -1581,7 +1581,7 @@ U14API(short) U14SendString(short hand, const char* pString)
         if (bSpaceToSend)
         {
             PARAMBLK    rData;
-            DWORD       dwBytes;
+            unsigned int       dwBytes;
             char        tstr[MAXSTRLEN+5];          /* Buffer for chars */
 
             if ((hand < 0) || (hand >= MAX1401))
@@ -1592,18 +1592,18 @@ U14API(short) U14SendString(short hand, const char* pString)
 #ifndef _WIN64
                 if (!USE_NT_DIOC(hand))             /* Using WIN 95 driver access? */
                 {
-                    int iOK = DeviceIoControl(aHand1401[hand], (DWORD)U14_SENDSTRING,
+                    int iOK = DeviceIoControl(aHand1401[hand], (unsigned int)U14_SENDSTRING,
                                     NULL, 0, tstr, nChars,
                                     &dwBytes, NULL);
                     if (iOK)
-                        sErr = (dwBytes >= (DWORD)nChars) ? U14ERR_NOERROR : U14ERR_DRIVCOMMS;
+                        sErr = (dwBytes >= (unsigned int)nChars) ? U14ERR_NOERROR : U14ERR_DRIVCOMMS;
                     else
                         sErr = (short)GetLastError();
                 }
                 else
 #endif
                 {
-                    int iOK = DeviceIoControl(aHand1401[hand],(DWORD)U14_SENDSTRING,
+                    int iOK = DeviceIoControl(aHand1401[hand],(unsigned int)U14_SENDSTRING,
                                     tstr, nChars,
                                     &rData,sizeof(PARAMBLK),&dwBytes,NULL);
                     if (iOK && (dwBytes >= sizeof(PARAMBLK)))
@@ -1726,7 +1726,7 @@ U14API(short) U14GetString(short hand, char* pBuffer, unsigned short wMaxLen)
         {
             if (asLastRetCode[hand] == U14ERR_NOERROR)     /* all ok so far */
             {
-                DWORD       dwBytes = 0;
+                unsigned int       dwBytes = 0;
                 *((unsigned short *)pBuffer) = wMaxLen;       /* set up length */
 #ifndef _WIN64
                 if (!USE_NT_DIOC(hand))             /* Win 95 DIOC here ? */
@@ -1739,7 +1739,7 @@ U14API(short) U14GetString(short hand, char* pBuffer, unsigned short wMaxLen)
 
                     *((unsigned short *)tstr) = wMaxLen;      /* set len */
 
-                    iOK = DeviceIoControl(aHand1401[hand],(DWORD)U14_GETSTRING,
+                    iOK = DeviceIoControl(aHand1401[hand],(unsigned int)U14_GETSTRING,
                                     NULL, 0, tstr, wMaxLen+sizeof(short),
                                     &dwBytes, NULL);
                     if (iOK)                        /* Device IO control OK ? */
@@ -1768,7 +1768,7 @@ U14API(short) U14GetString(short hand, char* pBuffer, unsigned short wMaxLen)
                         char* pMem = (char*)GlobalLock(hMem);
                         if (pMem)
                         {
-                            int iOK = DeviceIoControl(aHand1401[hand],(DWORD)U14_GETSTRING,
+                            int iOK = DeviceIoControl(aHand1401[hand],(unsigned int)U14_GETSTRING,
                                             NULL, 0, pMem, wMaxLen+sizeof(short),
                                             &dwBytes, NULL);
                             if (iOK)                /* Device IO control OK ? */
@@ -2120,8 +2120,8 @@ U14API(short) U14GetTransfer(short hand, TGET_TX_BLOCK *pTransBlock)
 #ifdef _IS_WINDOWS_
     if (sErr == U14ERR_NOERROR)
     { 
-        DWORD dwBytes = 0;
-        BOOL bOK = DeviceIoControl(aHand1401[hand], (DWORD)U14_GETTRANSFER, NULL, 0, pTransBlock,
+        unsigned int dwBytes = 0;
+        BOOL bOK = DeviceIoControl(aHand1401[hand], (unsigned int)U14_GETTRANSFER, NULL, 0, pTransBlock,
                               sizeof(TGET_TX_BLOCK), &dwBytes, NULL);
     
         if (bOK && (dwBytes >= sizeof(TGET_TX_BLOCK)))
@@ -2145,12 +2145,12 @@ U14API(short) U14GetTransfer(short hand, TGET_TX_BLOCK *pTransBlock)
 //     1 unable to access process (insufficient rights?)
 //     2 unable to read process working set
 //     3 unable to set process working set - bad parameters?
-U14API(short) U14WorkingSet(DWORD dwMinKb, DWORD dwMaxKb)
+U14API(short) U14WorkingSet(unsigned int dwMinKb, unsigned int dwMaxKb)
 {
 #ifdef _IS_WINDOWS_
     short sRetVal = 0;                      // 0 means all is OK
     HANDLE hProcess;
-    DWORD dwVer = GetVersion();
+    unsigned int dwVer = GetVersion();
 	if (dwVer & 0x80000000)                 // is this not NT?
         return 0;                           // then give up right now
 
@@ -2164,8 +2164,8 @@ U14API(short) U14WorkingSet(DWORD dwMinKb, DWORD dwMaxKb)
         SIZE_T dwMinSize,dwMaxSize;
         if (GetProcessWorkingSetSize(hProcess, &dwMinSize, &dwMaxSize))
         {
-            DWORD dwMin = dwMinKb << 10;    // convert from kb to bytes
-            DWORD dwMax = dwMaxKb << 10;
+            unsigned int dwMin = dwMinKb << 10;    // convert from kb to bytes
+            unsigned int dwMax = dwMaxKb << 10;
 
             // if we get here, we have managed to read the current size
             if (dwMin > dwMinSize)          // need to change sizes?
@@ -2225,11 +2225,11 @@ U14API(short) U14UnSetTransfer(short hand, unsigned short wArea)
 ** U14SetTransArea      Sets an area up to be used for transfers
 ** unsigned short  wArea     The area number to set up
 ** void *pvBuff    The address of the buffer for the data.
-** DWORD dwLength  The length of the buffer for the data
+** unsigned int dwLength  The length of the buffer for the data
 ** short eSz       The element size (used for byte swapping on the Mac)
 ****************************************************************************/
 U14API(short) U14SetTransArea(short hand, unsigned short wArea, void *pvBuff,
-                                          DWORD dwLength, short eSz)
+                                          unsigned int dwLength, short eSz)
 {
     TRANSFERDESC td;
     short sErr = CheckHandle(hand);
@@ -2254,7 +2254,7 @@ U14API(short) U14SetTransArea(short hand, unsigned short wArea, void *pvBuff,
 #ifndef _WIN64
     if (!USE_NT_DIOC(hand))                         /* Use Win 9x DIOC? */
     {
-        DWORD dwBytes;
+        unsigned int dwBytes;
         VXTRANSFERDESC vxDesc;                      /* Structure to pass to VXD */
         vxDesc.wArea = wArea;                       /* Copy across simple params */
         vxDesc.dwLength = dwLength;
@@ -2264,10 +2264,10 @@ U14API(short) U14SetTransArea(short hand, unsigned short wArea, void *pvBuff,
             sErr = U14ERR_DRIVTOOOLD;
         else
         {
-            vxDesc.dwAddrOfs = (DWORD)pvBuff;       /* 32 bit offset */
+            vxDesc.dwAddrOfs = (unsigned int)pvBuff;       /* 32 bit offset */
             vxDesc.wAddrSel  = 0;
 
-            if (DeviceIoControl(aHand1401[hand], (DWORD)U14_SETTRANSFER,
+            if (DeviceIoControl(aHand1401[hand], (unsigned int)U14_SETTRANSFER,
                                 pvBuff,dwLength,    /* Will translate pointer */
                                 &vxDesc,sizeof(VXTRANSFERDESC),
                                 &dwBytes,NULL))
@@ -2285,13 +2285,13 @@ U14API(short) U14SetTransArea(short hand, unsigned short wArea, void *pvBuff,
 #endif
     {
         PARAMBLK rWork;
-        DWORD dwBytes;
+        unsigned int dwBytes;
         td.wArea = wArea;     /* Pure NT - put data into struct */
         td.lpvBuff = pvBuff;
         td.dwLength = dwLength;
         td.eSize = 0;                // Dummy element size
 
-        if (DeviceIoControl(aHand1401[hand],(DWORD)U14_SETTRANSFER,
+        if (DeviceIoControl(aHand1401[hand],(unsigned int)U14_SETTRANSFER,
                             &td,sizeof(TRANSFERDESC),
                             &rWork,sizeof(PARAMBLK),&dwBytes,NULL))
         {
@@ -2345,7 +2345,7 @@ U14API(short) U14SetTransArea(short hand, unsigned short wArea, void *pvBuff,
 ** a negative code for an error.
 ****************************************************************************/
 U14API(short) U14SetTransferEvent(short hand, unsigned short wArea, BOOL bEvent,
-                                  BOOL bToHost, DWORD dwStart, DWORD dwLength)
+                                  BOOL bToHost, unsigned int dwStart, unsigned int dwLength)
 {
 #ifdef _IS_WINDOWS_
     TCSBLOCK csBlock;
@@ -2469,10 +2469,10 @@ U14API(int) U14WaitTransferEvent(short hand, unsigned short wArea, int msTimeOut
 ** unsigned short  wArea          The area number to set up
 ** BOOL  bToHost        Sets the direction of data transfer
 ** void *pvBuff        The address of the buffer for the data
-** DWORD dwLength       The length of the buffer for the data
+** unsigned int dwLength       The length of the buffer for the data
 ****************************************************************************/
 U14API(short) U14SetCircular(short hand, unsigned short wArea, BOOL bToHost,
-									void *pvBuff, DWORD dwLength)
+									void *pvBuff, unsigned int dwLength)
 {
     short sErr = CheckHandle(hand);
     if (sErr != U14ERR_NOERROR)
@@ -2495,14 +2495,14 @@ U14API(short) U14SetCircular(short hand, unsigned short wArea, BOOL bToHost,
     else
     {
         PARAMBLK rWork;
-        DWORD dwBytes;
+        unsigned int dwBytes;
         TRANSFERDESC txDesc;
         txDesc.wArea = wArea;             /* Pure NT - put data into struct */
         txDesc.lpvBuff = pvBuff;
         txDesc.dwLength = dwLength;
         txDesc.eSize = (short)bToHost;       /* Use this for direction flag */
    
-        if (DeviceIoControl(aHand1401[hand],(DWORD)U14_SETCIRCULAR,
+        if (DeviceIoControl(aHand1401[hand],(unsigned int)U14_SETCIRCULAR,
                            &txDesc, sizeof(TRANSFERDESC),
                            &rWork, sizeof(PARAMBLK),&dwBytes,NULL))
         {
@@ -2542,7 +2542,7 @@ U14API(short) U14SetCircular(short hand, unsigned short wArea, BOOL bToHost,
 ** Function  GetCircBlk returns the size (& start offset) of the next
 **           available block of circular data.
 ****************************************************************************/
-U14API(int) U14GetCircBlk(short hand, unsigned short wArea, DWORD *pdwOffs)
+U14API(int) U14GetCircBlk(short hand, unsigned short wArea, unsigned int *pdwOffs)
 {
     int lErr = CheckHandle(hand);
     if (lErr != U14ERR_NOERROR)
@@ -2555,10 +2555,10 @@ U14API(int) U14GetCircBlk(short hand, unsigned short wArea, DWORD *pdwOffs)
 #ifdef _IS_WINDOWS_
         PARAMBLK rWork;
         TCSBLOCK csBlock;
-        DWORD dwBytes;
+        unsigned int dwBytes;
         csBlock.longs[0] = wArea;               // Area number into control block
         rWork.sState = U14ERR_DRIVCOMMS;
-        if (DeviceIoControl(aHand1401[hand], (DWORD)U14_GETCIRCBLK, &csBlock, sizeof(TCSBLOCK), &rWork, sizeof(PARAMBLK), &dwBytes, NULL) &&
+        if (DeviceIoControl(aHand1401[hand], (unsigned int)U14_GETCIRCBLK, &csBlock, sizeof(TCSBLOCK), &rWork, sizeof(PARAMBLK), &dwBytes, NULL) &&
            (dwBytes >= sizeof(PARAMBLK)))
             lErr = rWork.sState;
         else
@@ -2591,8 +2591,8 @@ U14API(int) U14GetCircBlk(short hand, unsigned short wArea, DWORD *pdwOffs)
 **           resuse for circular transfers and returns the size (& start
 **           offset) of the next available block of circular data.
 ****************************************************************************/
-U14API(int) U14FreeCircBlk(short hand, unsigned short wArea, DWORD dwOffs, DWORD dwSize,
-                                        DWORD *pdwOffs)
+U14API(int) U14FreeCircBlk(short hand, unsigned short wArea, unsigned int dwOffs, unsigned int dwSize,
+                                        unsigned int *pdwOffs)
 {
     int lErr = CheckHandle(hand);
     if (lErr != U14ERR_NOERROR)
@@ -2603,12 +2603,12 @@ U14API(int) U14FreeCircBlk(short hand, unsigned short wArea, DWORD dwOffs, DWORD
 #ifdef _IS_WINDOWS_
         PARAMBLK rWork;
         TCSBLOCK csBlock;
-        DWORD dwBytes;
+        unsigned int dwBytes;
         csBlock.longs[0] = wArea;               // Area number into control block
         csBlock.longs[1] = dwOffs;
         csBlock.longs[2] = dwSize;
         rWork.sState = U14ERR_DRIVCOMMS;
-        if (DeviceIoControl(aHand1401[hand], (DWORD)U14_FREECIRCBLK, &csBlock, sizeof(TCSBLOCK),
+        if (DeviceIoControl(aHand1401[hand], (unsigned int)U14_FREECIRCBLK, &csBlock, sizeof(TCSBLOCK),
                            &rWork, sizeof(PARAMBLK), &dwBytes, NULL) &&
            (dwBytes >= sizeof(PARAMBLK)))
            lErr = rWork.sState;
@@ -2647,7 +2647,7 @@ U14API(int) U14FreeCircBlk(short hand, unsigned short wArea, DWORD dwOffs, DWORD
 ** which it should be to get a pointer
 *****************************************************************************/
 static short Transfer(short hand, BOOL bTo1401, char* pData,
-                       DWORD dwSize, DWORD dw1401, short eSz)
+                       unsigned int dwSize, unsigned int dw1401, short eSz)
 {
     char strcopy[MAXSTRLEN+1];          // to hold copy of work string
     short sResult = U14SetTransArea(hand, 0, (void *)pData, dwSize, eSz);
@@ -2670,8 +2670,8 @@ static short Transfer(short hand, BOOL bTo1401, char* pData,
 /****************************************************************************
 ** Function  ToHost transfers data into the host from the 1401
 ****************************************************************************/
-U14API(short) U14ToHost(short hand, char* pAddrHost, DWORD dwSize,
-                                            DWORD dw1401, short eSz)
+U14API(short) U14ToHost(short hand, char* pAddrHost, unsigned int dwSize,
+                                            unsigned int dw1401, short eSz)
 {
     short sErr = CheckHandle(hand);
     if ((sErr == U14ERR_NOERROR) && dwSize) // TOHOST is a constant
@@ -2682,8 +2682,8 @@ U14API(short) U14ToHost(short hand, char* pAddrHost, DWORD dwSize,
 /****************************************************************************
 ** Function  To1401 transfers data into the 1401 from the host
 ****************************************************************************/
-U14API(short) U14To1401(short hand, const char* pAddrHost,DWORD dwSize,
-                                    DWORD dw1401, short eSz)
+U14API(short) U14To1401(short hand, const char* pAddrHost,unsigned int dwSize,
+                                    unsigned int dw1401, short eSz)
 {
     short sErr = CheckHandle(hand);
     if ((sErr == U14ERR_NOERROR) && dwSize) // TO1401 is a constant
@@ -2707,7 +2707,7 @@ U14API(short) U14To1401(short hand, const char* pAddrHost,DWORD dwSize,
 #define file_close(h)   close(h)
 #define file_seek(h, pos) lseek(h, pos, SEEK_SET) 
 #define file_read(h, buffer, size) (read(h, buffer, size) == (ssize_t)size)
-static DWORD GetModuleFileName(void* dummy, char* buffer, int max)
+static unsigned int GetModuleFileName(void* dummy, char* buffer, int max)
 {
     // The following works for Linux systems with a /proc file system.
     char szProcPath[32];
@@ -2766,7 +2766,7 @@ U14API(short) U14LdCmd(short hand, const char* command)
     // application was run from.
     if (!bGotIt)                            // Still not got it?
     {
-        DWORD dwLen = GetModuleFileName(NULL, filnam, FNSZ); // Get app path
+        unsigned int dwLen = GetModuleFileName(NULL, filnam, FNSZ); // Get app path
         if (dwLen > 0)                      // and use it as path if found
         {
             char* pStr = strrchr(filnam, PATHSEP);    // Point to last separator
@@ -2821,7 +2821,7 @@ U14API(short) U14LdCmd(short hand, const char* command)
                 file_seek(iFHandle, sizeof(CMDHEAD));
                 if (file_read(iFHandle, pMem, (UINT)nComSize))
                 {
-                    sErr = U14SetTransArea(hand, 0, (void *)pMem, (DWORD)nComSize, ESZBYTES);
+                    sErr = U14SetTransArea(hand, 0, (void *)pMem, (unsigned int)nComSize, ESZBYTES);
                     if (sErr == U14ERR_NOERROR)
                     {
                         sprintf(strcopy, "CLOAD,0,$%X;", (int)nComSize);
@@ -2858,9 +2858,9 @@ U14API(short) U14LdCmd(short hand, const char* command)
 ** Returns NOERROR code or a long with error in lo word and index of
 ** command that failed in high word
 ****************************************************************************/
-U14API(DWORD) U14Ld(short hand, const char* vl, const char* str)
+U14API(unsigned int) U14Ld(short hand, const char* vl, const char* str)
 {
-    DWORD dwIndex = 0;              // index to current command
+    unsigned int dwIndex = 0;              // index to current command
     long lErr = U14ERR_NOERROR;     // what the error was that went wrong
     char strcopy[MAXSTRLEN+1];      // stores unmodified str parameter
     char szFExt[8];                 // The command file extension
@@ -2939,7 +2939,7 @@ U14API(DWORD) U14Ld(short hand, const char* vl, const char* str)
         return lErr;
     }
     else
-        return ((dwIndex<<16) | ((DWORD)lErr & 0x0000FFFF));
+        return ((dwIndex<<16) | ((unsigned int)lErr & 0x0000FFFF));
 }
 
 // Initialise the library (if not initialised) and return the library version
@@ -2951,7 +2951,7 @@ U14API(int) U14InitLib(void)
         int i;
 #ifdef _IS_WINDOWS_
         int j;
-        DWORD   dwVersion = GetVersion();
+        unsigned int   dwVersion = GetVersion();
         bWindows9x = FALSE;                  // Assume not Win9x
 
         if (dwVersion & 0x80000000)                 // if not windows NT
@@ -2993,12 +2993,12 @@ U14API(int) U14InitLib(void)
 #ifdef _IS_WINDOWS_
 #ifndef U14_NOT_DLL
 /****************************************************************************
-** FUNCTION: DllMain(HANDLE, DWORD, LPVOID)
+** FUNCTION: DllMain(HANDLE, unsigned int, LPVOID)
 ** LibMain is called by Windows when the DLL is initialized, Thread Attached,
 ** and other times. Refer to SDK documentation, as to the different ways this
 ** may be called.
 ****************************************************************************/
-INT APIENTRY DllMain(HANDLE hInst, DWORD ul_reason_being_called, LPVOID lpReserved)
+INT APIENTRY DllMain(HANDLE hInst, unsigned int ul_reason_being_called, LPVOID lpReserved)
 {
     int iRetVal = 1;
 

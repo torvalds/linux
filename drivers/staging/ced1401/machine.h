@@ -82,7 +82,6 @@
 	typedef int BOOL;       /*  To match Windows */
 	typedef char *LPSTR;
 	typedef const char *LPCSTR;
-	typedef unsigned int  DWORD;
 	typedef unsigned char  BYTE;
 	typedef BYTE  BOOLEAN;
 	typedef unsigned char UCHAR;
