@@ -541,11 +541,10 @@ static int ulpi_phy_power_on(struct tegra_usb_phy *phy)
 	int ret;
 	unsigned long val;
 	void __iomem *base = phy->regs;
-	struct tegra_ulpi_config *config = phy->config;
 
-	gpio_direction_output(config->reset_gpio, 0);
+	gpio_direction_output(phy->reset_gpio, 0);
 	msleep(5);
-	gpio_direction_output(config->reset_gpio, 1);
+	gpio_direction_output(phy->reset_gpio, 1);
 
 	clk_prepare_enable(phy->clk);
 	msleep(1);
@@ -603,10 +602,8 @@ static int ulpi_phy_power_on(struct tegra_usb_phy *phy)
 
 static int ulpi_phy_power_off(struct tegra_usb_phy *phy)
 {
-	struct tegra_ulpi_config *config = phy->config;
-
 	clk_disable(phy->clk);
-	return gpio_direction_output(config->reset_gpio, 0);
+	return gpio_direction_output(phy->reset_gpio, 0);
 }
 
 static int	tegra_phy_init(struct usb_phy *x)
@@ -622,18 +619,18 @@ static int	tegra_phy_init(struct usb_phy *x)
 			pr_err("%s: can't get ulpi clock\n", __func__);
 			return PTR_ERR(phy->clk);
 		}
-		if (!gpio_is_valid(ulpi_config->reset_gpio))
-			ulpi_config->reset_gpio =
-				of_get_named_gpio(phy->dev->of_node,
-						  "nvidia,phy-reset-gpio", 0);
-		if (!gpio_is_valid(ulpi_config->reset_gpio)) {
+
+		phy->reset_gpio =
+			of_get_named_gpio(phy->dev->of_node,
+					  "nvidia,phy-reset-gpio", 0);
+		if (!gpio_is_valid(phy->reset_gpio)) {
 			pr_err("%s: invalid reset gpio: %d\n", __func__,
-			       ulpi_config->reset_gpio);
+			       phy->reset_gpio);
 			err = -EINVAL;
 			goto err1;
 		}
-		gpio_request(ulpi_config->reset_gpio, "ulpi_phy_reset_b");
-		gpio_direction_output(ulpi_config->reset_gpio, 0);
+		gpio_request(phy->reset_gpio, "ulpi_phy_reset_b");
+		gpio_direction_output(phy->reset_gpio, 0);
 		phy->ulpi = otg_ulpi_create(&ulpi_viewport_access_ops, 0);
 		phy->ulpi->io_priv = phy->regs + ULPI_VIEWPORT;
 	} else {

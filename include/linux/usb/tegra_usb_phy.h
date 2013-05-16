@@ -62,6 +62,7 @@ struct tegra_usb_phy {
 	struct device *dev;
 	bool is_legacy_phy;
 	bool is_ulpi_phy;
+	int reset_gpio;
 	void (*set_pts)(struct usb_phy *x, u8 pts_val);
 	void (*set_phcd)(struct usb_phy *x, bool enable);
 };
