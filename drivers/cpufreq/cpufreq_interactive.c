@@ -117,19 +117,6 @@ static int timer_slack_val = DEFAULT_TIMER_SLACK;
 
 static bool io_is_busy;
 
-static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
-		unsigned int event);
-
-#ifndef CONFIG_CPU_FREQ_DEFAULT_GOV_INTERACTIVE
-static
-#endif
-struct cpufreq_governor cpufreq_gov_interactive = {
-	.name = "interactive",
-	.governor = cpufreq_governor_interactive,
-	.max_transition_latency = 10000000,
-	.owner = THIS_MODULE,
-};
-
 static inline cputime64_t get_cpu_idle_time_jiffy(unsigned int cpu,
 						  cputime64_t *wall)
 {
@@ -1181,6 +1168,16 @@ static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
 	}
 	return 0;
 }
+
+#ifndef CONFIG_CPU_FREQ_DEFAULT_GOV_INTERACTIVE
+static
+#endif
+struct cpufreq_governor cpufreq_gov_interactive = {
+	.name = "interactive",
+	.governor = cpufreq_governor_interactive,
+	.max_transition_latency = 10000000,
+	.owner = THIS_MODULE,
+};
 
 static void cpufreq_interactive_nop_timer(unsigned long data)
 {
