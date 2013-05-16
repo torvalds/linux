@@ -2107,11 +2107,27 @@ core_scsi3_emulate_pro_register(struct se_cmd *cmd, u64 res_key, u64 sa_res_key,
 	}
 
 	/*
-	 * sa_res_key=0 Unregister Reservation Key for registered I_T
-	 * Nexus sa_res_key=1 Change Reservation Key for registered I_T
-	 * Nexus.
+	 * sa_res_key=1 Change Reservation Key for registered I_T Nexus.
 	 */
-	if (!sa_res_key) {
+	if (sa_res_key) {
+		/*
+		 * Increment PRgeneration counter for struct se_device"
+		 * upon a successful REGISTER, see spc4r17 section 6.3.2
+		 * READ_KEYS service action.
+		 */
+		pr_reg->pr_res_generation = core_scsi3_pr_generation(cmd->se_dev);
+		pr_reg->pr_res_key = sa_res_key;
+		pr_debug("SPC-3 PR [%s] REGISTER%s: Changed Reservation"
+			 " Key for %s to: 0x%016Lx PRgeneration:"
+			 " 0x%08x\n", cmd->se_tfo->get_fabric_name(),
+			 (register_type == REGISTER_AND_IGNORE_EXISTING_KEY) ? "_AND_IGNORE_EXISTING_KEY" : "",
+			 pr_reg->pr_reg_nacl->initiatorname,
+			 pr_reg->pr_res_key, pr_reg->pr_res_generation);
+
+	} else {
+		/*
+		 * sa_res_key=0 Unregister Reservation Key for registered I_T Nexus.
+		 */
 		pr_holder = core_scsi3_check_implict_release(
 				cmd->se_dev, pr_reg);
 		if (pr_holder < 0) {
@@ -2174,25 +2190,9 @@ core_scsi3_emulate_pro_register(struct se_cmd *cmd, u64 res_key, u64 sa_res_key,
 					ASCQ_2AH_RESERVATIONS_RELEASED);
 			}
 		}
+
 		spin_unlock(&pr_tmpl->registration_lock);
-
-		ret = core_scsi3_update_and_write_aptpl(dev, aptpl);
-		goto out_put_pr_reg;
 	}
-
-	/*
-	 * Increment PRgeneration counter for struct se_device"
-	 * upon a successful REGISTER, see spc4r17 section 6.3.2
-	 * READ_KEYS service action.
-	 */
-	pr_reg->pr_res_generation = core_scsi3_pr_generation(cmd->se_dev);
-	pr_reg->pr_res_key = sa_res_key;
-	pr_debug("SPC-3 PR [%s] REGISTER%s: Changed Reservation"
-		" Key for %s to: 0x%016Lx PRgeneration:"
-		" 0x%08x\n", cmd->se_tfo->get_fabric_name(),
-		(register_type == REGISTER_AND_IGNORE_EXISTING_KEY) ? "_AND_IGNORE_EXISTING_KEY" : "",
-		pr_reg->pr_reg_nacl->initiatorname,
-		pr_reg->pr_res_key, pr_reg->pr_res_generation);
 
 	ret = core_scsi3_update_and_write_aptpl(dev, aptpl);
 
