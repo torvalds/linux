@@ -53,10 +53,10 @@ static int parse_timing_property(struct device_node *np, const char *name,
 }
 
 /**
- * of_get_display_timing - parse display_timing entry from device_node
+ * of_parse_display_timing - parse display_timing entry from device_node
  * @np: device_node with the properties
  **/
-static int of_get_display_timing(struct device_node *np,
+static int of_parse_display_timing(struct device_node *np,
 		struct display_timing *dt)
 {
 	u32 val = 0;
@@ -101,6 +101,33 @@ static int of_get_display_timing(struct device_node *np,
 
 	return 0;
 }
+
+/**
+ * of_get_display_timing - parse a display_timing entry
+ * @np: device_node with the timing subnode
+ * @name: name of the timing node
+ * @dt: display_timing struct to fill
+ **/
+int of_get_display_timing(struct device_node *np, const char *name,
+		struct display_timing *dt)
+{
+	struct device_node *timing_np;
+
+	if (!np) {
+		pr_err("%s: no devicenode given\n", of_node_full_name(np));
+		return -EINVAL;
+	}
+
+	timing_np = of_find_node_by_name(np, name);
+	if (!timing_np) {
+		pr_err("%s: could not find node '%s'\n",
+			of_node_full_name(np), name);
+		return -ENOENT;
+	}
+
+	return of_parse_display_timing(timing_np, dt);
+}
+EXPORT_SYMBOL_GPL(of_get_display_timing);
 
 /**
  * of_get_display_timings - parse all display_timing entries from a device_node
@@ -177,7 +204,7 @@ struct display_timings *of_get_display_timings(struct device_node *np)
 			goto timingfail;
 		}
 
-		r = of_get_display_timing(entry, dt);
+		r = of_parse_display_timing(entry, dt);
 		if (r) {
 			/*
 			 * to not encourage wrong devicetrees, fail in case of
