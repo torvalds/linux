@@ -2072,8 +2072,10 @@ event_enable_func(struct ftrace_hash *hash,
  out_reg:
 	/* Don't let event modules unload while probe registered */
 	ret = try_module_get(file->event_call->mod);
-	if (!ret)
+	if (!ret) {
+		ret = -EBUSY;
 		goto out_free;
+	}
 
 	ret = __ftrace_event_enable_disable(file, 1, 1);
 	if (ret < 0)
