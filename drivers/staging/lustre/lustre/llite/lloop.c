@@ -596,15 +596,13 @@ static int lo_open(struct block_device *bdev, fmode_t mode)
 	return 0;
 }
 
-static int lo_release(struct gendisk *disk, fmode_t mode)
+static void lo_release(struct gendisk *disk, fmode_t mode)
 {
 	struct lloop_device *lo = disk->private_data;
 
 	mutex_lock(&lo->lo_ctl_mutex);
 	--lo->lo_refcnt;
 	mutex_unlock(&lo->lo_ctl_mutex);
-
-	return 0;
 }
 
 /* lloop device node's ioctl function. */
