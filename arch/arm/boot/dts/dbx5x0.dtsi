@@ -755,5 +755,14 @@
 
 			status = "disabled";
 		};
+
+		cryp@a03cb000 {
+			compatible = "stericsson,ux500-cryp";
+			reg = <0xa03cb000 0x1000>;
+			interrupts = <0 15 0x4>;
+
+			v-ape-supply = <&db8500_vape_reg>;
+			status = "disabled";
+		};
 	};
 };
