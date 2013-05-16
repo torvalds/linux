@@ -65,6 +65,17 @@ int core_pr_dump_initiator_port(
 	return 1;
 }
 
+enum register_type {
+	REGISTER,
+	REGISTER_AND_IGNORE_EXISTING_KEY,
+	REGISTER_AND_MOVE,
+};
+
+enum preempt_type {
+	PREEMPT,
+	PREEMPT_AND_ABORT,
+};
+
 static void __core_scsi3_complete_pro_release(struct se_device *, struct se_node_acl *,
 			struct t10_pr_registration *, int);
 
@@ -869,7 +880,7 @@ static void core_scsi3_aptpl_reserve(
 }
 
 static void __core_scsi3_add_registration(struct se_device *, struct se_node_acl *,
-				struct t10_pr_registration *, int, int);
+				struct t10_pr_registration *, enum register_type, int);
 
 static int __core_scsi3_check_aptpl_registration(
 	struct se_device *dev,
@@ -962,7 +973,7 @@ static void __core_scsi3_dump_registration(
 	struct se_device *dev,
 	struct se_node_acl *nacl,
 	struct t10_pr_registration *pr_reg,
-	int register_type)
+	enum register_type register_type)
 {
 	struct se_portal_group *se_tpg = nacl->se_tpg;
 	char i_buf[PR_REG_ISID_ID_LEN];
@@ -973,8 +984,8 @@ static void __core_scsi3_dump_registration(
 				PR_REG_ISID_ID_LEN);
 
 	pr_debug("SPC-3 PR [%s] Service Action: REGISTER%s Initiator"
-		" Node: %s%s\n", tfo->get_fabric_name(), (register_type == 2) ?
-		"_AND_MOVE" : (register_type == 1) ?
+		" Node: %s%s\n", tfo->get_fabric_name(), (register_type == REGISTER_AND_MOVE) ?
+		"_AND_MOVE" : (register_type == REGISTER_AND_IGNORE_EXISTING_KEY) ?
 		"_AND_IGNORE_EXISTING_KEY" : "", nacl->initiatorname,
 		(prf_isid) ? i_buf : "");
 	pr_debug("SPC-3 PR [%s] registration on Target Port: %s,0x%04x\n",
@@ -998,7 +1009,7 @@ static void __core_scsi3_add_registration(
 	struct se_device *dev,
 	struct se_node_acl *nacl,
 	struct t10_pr_registration *pr_reg,
-	int register_type,
+	enum register_type register_type,
 	int register_move)
 {
 	struct target_core_fabric_ops *tfo = nacl->se_tpg->se_tpg_tfo;
@@ -1064,7 +1075,7 @@ static int core_scsi3_alloc_registration(
 	u64 sa_res_key,
 	int all_tg_pt,
 	int aptpl,
-	int register_type,
+	enum register_type register_type,
 	int register_move)
 {
 	struct t10_pr_registration *pr_reg;
@@ -2030,7 +2041,7 @@ core_scsi3_update_and_write_aptpl(struct se_device *dev, unsigned char *in_buf,
 
 static sense_reason_t
 core_scsi3_emulate_pro_register(struct se_cmd *cmd, u64 res_key, u64 sa_res_key,
-		int aptpl, int all_tg_pt, int spec_i_pt, int ignore_key)
+		int aptpl, int all_tg_pt, int spec_i_pt, enum register_type register_type)
 {
 	struct se_session *se_sess = cmd->se_sess;
 	struct se_device *dev = cmd->se_dev;
@@ -2083,7 +2094,7 @@ core_scsi3_emulate_pro_register(struct se_cmd *cmd, u64 res_key, u64 sa_res_key,
 			if (core_scsi3_alloc_registration(cmd->se_dev,
 					se_sess->se_node_acl, se_deve, isid_ptr,
 					sa_res_key, all_tg_pt, aptpl,
-					ignore_key, 0)) {
+					register_type, 0)) {
 				pr_err("Unable to allocate"
 					" struct t10_pr_registration\n");
 				return TCM_INVALID_PARAMETER_LIST;
@@ -2136,7 +2147,7 @@ core_scsi3_emulate_pro_register(struct se_cmd *cmd, u64 res_key, u64 sa_res_key,
 	pr_reg = pr_reg_e;
 	type = pr_reg->pr_res_type;
 
-	if (!ignore_key) {
+	if (register_type == REGISTER) {
 		if (res_key != pr_reg->pr_res_key) {
 			pr_err("SPC-3 PR REGISTER: Received"
 				" res_key: 0x%016Lx does not match"
@@ -2280,7 +2291,7 @@ core_scsi3_emulate_pro_register(struct se_cmd *cmd, u64 res_key, u64 sa_res_key,
 	pr_debug("SPC-3 PR [%s] REGISTER%s: Changed Reservation"
 		" Key for %s to: 0x%016Lx PRgeneration:"
 		" 0x%08x\n", cmd->se_tfo->get_fabric_name(),
-		(ignore_key) ? "_AND_IGNORE_EXISTING_KEY" : "",
+		(register_type == REGISTER_AND_IGNORE_EXISTING_KEY) ? "_AND_IGNORE_EXISTING_KEY" : "",
 		pr_reg->pr_reg_nacl->initiatorname,
 		pr_reg->pr_res_key, pr_reg->pr_res_generation);
 
@@ -2810,7 +2821,7 @@ static void __core_scsi3_complete_pro_preempt(
 	struct list_head *preempt_and_abort_list,
 	int type,
 	int scope,
-	int abort)
+	enum preempt_type preempt_type)
 {
 	struct se_node_acl *nacl = pr_reg->pr_reg_nacl;
 	struct target_core_fabric_ops *tfo = nacl->se_tpg->se_tpg_tfo;
@@ -2834,11 +2845,11 @@ static void __core_scsi3_complete_pro_preempt(
 
 	pr_debug("SPC-3 PR [%s] Service Action: PREEMPT%s created new"
 		" reservation holder TYPE: %s ALL_TG_PT: %d\n",
-		tfo->get_fabric_name(), (abort) ? "_AND_ABORT" : "",
+		tfo->get_fabric_name(), (preempt_type == PREEMPT_AND_ABORT) ? "_AND_ABORT" : "",
 		core_scsi3_pr_dump_type(type),
 		(pr_reg->pr_reg_all_tg_pt) ? 1 : 0);
 	pr_debug("SPC-3 PR [%s] PREEMPT%s from Node: %s%s\n",
-		tfo->get_fabric_name(), (abort) ? "_AND_ABORT" : "",
+		tfo->get_fabric_name(), (preempt_type == PREEMPT_AND_ABORT) ? "_AND_ABORT" : "",
 		nacl->initiatorname, (prf_isid) ? &i_buf[0] : "");
 	/*
 	 * For PREEMPT_AND_ABORT, add the preempting reservation's
@@ -2876,7 +2887,7 @@ static void core_scsi3_release_preempt_and_abort(
 
 static sense_reason_t
 core_scsi3_pro_preempt(struct se_cmd *cmd, int type, int scope, u64 res_key,
-		u64 sa_res_key, int abort)
+		u64 sa_res_key, enum preempt_type preempt_type)
 {
 	struct se_device *dev = cmd->se_dev;
 	struct se_node_acl *pr_reg_nacl;
@@ -2896,7 +2907,7 @@ core_scsi3_pro_preempt(struct se_cmd *cmd, int type, int scope, u64 res_key,
 	if (!pr_reg_n) {
 		pr_err("SPC-3 PR: Unable to locate"
 			" PR_REGISTERED *pr_reg for PREEMPT%s\n",
-			(abort) ? "_AND_ABORT" : "");
+			(preempt_type == PREEMPT_AND_ABORT) ? "_AND_ABORT" : "");
 		return TCM_RESERVATION_CONFLICT;
 	}
 	if (pr_reg_n->pr_res_key != res_key) {
@@ -2965,7 +2976,7 @@ core_scsi3_pro_preempt(struct se_cmd *cmd, int type, int scope, u64 res_key,
 				pr_reg_nacl = pr_reg->pr_reg_nacl;
 				pr_res_mapped_lun = pr_reg->pr_res_mapped_lun;
 				__core_scsi3_free_registration(dev, pr_reg,
-					(abort) ? &preempt_and_abort_list :
+					(preempt_type == PREEMPT_AND_ABORT) ? &preempt_and_abort_list :
 						NULL, calling_it_nexus);
 				released_regs++;
 			} else {
@@ -2993,7 +3004,7 @@ core_scsi3_pro_preempt(struct se_cmd *cmd, int type, int scope, u64 res_key,
 				pr_reg_nacl = pr_reg->pr_reg_nacl;
 				pr_res_mapped_lun = pr_reg->pr_res_mapped_lun;
 				__core_scsi3_free_registration(dev, pr_reg,
-					(abort) ? &preempt_and_abort_list :
+					(preempt_type == PREEMPT_AND_ABORT) ? &preempt_and_abort_list :
 						NULL, 0);
 				released_regs++;
 			}
@@ -3022,10 +3033,10 @@ core_scsi3_pro_preempt(struct se_cmd *cmd, int type, int scope, u64 res_key,
 		 */
 		if (pr_res_holder && all_reg && !(sa_res_key)) {
 			__core_scsi3_complete_pro_preempt(dev, pr_reg_n,
-				(abort) ? &preempt_and_abort_list : NULL,
-				type, scope, abort);
+				(preempt_type == PREEMPT_AND_ABORT) ? &preempt_and_abort_list : NULL,
+				type, scope, preempt_type);
 
-			if (abort)
+			if (preempt_type == PREEMPT_AND_ABORT)
 				core_scsi3_release_preempt_and_abort(
 					&preempt_and_abort_list, pr_reg_n);
 		}
@@ -3036,7 +3047,7 @@ core_scsi3_pro_preempt(struct se_cmd *cmd, int type, int scope, u64 res_key,
 					&pr_reg_n->pr_aptpl_buf[0],
 					pr_tmpl->pr_aptpl_buf_len)) {
 				pr_debug("SPC-3 PR: Updated APTPL"
-					" metadata for  PREEMPT%s\n", (abort) ?
+					" metadata for  PREEMPT%s\n", (preempt_type == PREEMPT_AND_ABORT) ?
 					"_AND_ABORT" : "");
 			}
 		}
@@ -3103,7 +3114,7 @@ core_scsi3_pro_preempt(struct se_cmd *cmd, int type, int scope, u64 res_key,
 		pr_reg_nacl = pr_reg->pr_reg_nacl;
 		pr_res_mapped_lun = pr_reg->pr_res_mapped_lun;
 		__core_scsi3_free_registration(dev, pr_reg,
-				(abort) ? &preempt_and_abort_list : NULL,
+				(preempt_type == PREEMPT_AND_ABORT) ? &preempt_and_abort_list : NULL,
 				calling_it_nexus);
 		/*
 		 * e) Establish a unit attention condition for the initiator
@@ -3120,8 +3131,8 @@ core_scsi3_pro_preempt(struct se_cmd *cmd, int type, int scope, u64 res_key,
 	 *    I_T nexus using the contents of the SCOPE and TYPE fields;
 	 */
 	__core_scsi3_complete_pro_preempt(dev, pr_reg_n,
-			(abort) ? &preempt_and_abort_list : NULL,
-			type, scope, abort);
+			(preempt_type == PREEMPT_AND_ABORT) ? &preempt_and_abort_list : NULL,
+			type, scope, preempt_type);
 	/*
 	 * d) Process tasks as defined in 5.7.1;
 	 * e) See above..
@@ -3161,7 +3172,7 @@ core_scsi3_pro_preempt(struct se_cmd *cmd, int type, int scope, u64 res_key,
 	 * been removed from the primary pr_reg list), except the
 	 * new persistent reservation holder, the calling Initiator Port.
 	 */
-	if (abort) {
+	if (preempt_type == PREEMPT_AND_ABORT) {
 		core_tmr_lun_reset(dev, NULL, &preempt_and_abort_list, cmd);
 		core_scsi3_release_preempt_and_abort(&preempt_and_abort_list,
 						pr_reg_n);
@@ -3172,7 +3183,7 @@ core_scsi3_pro_preempt(struct se_cmd *cmd, int type, int scope, u64 res_key,
 				&pr_reg_n->pr_aptpl_buf[0],
 				pr_tmpl->pr_aptpl_buf_len)) {
 			pr_debug("SPC-3 PR: Updated APTPL metadata for PREEMPT"
-				"%s\n", abort ? "_AND_ABORT" : "");
+				"%s\n", (preempt_type == PREEMPT_AND_ABORT) ? "_AND_ABORT" : "");
 		}
 	}
 
@@ -3183,7 +3194,7 @@ core_scsi3_pro_preempt(struct se_cmd *cmd, int type, int scope, u64 res_key,
 
 static sense_reason_t
 core_scsi3_emulate_pro_preempt(struct se_cmd *cmd, int type, int scope,
-		u64 res_key, u64 sa_res_key, int abort)
+		u64 res_key, u64 sa_res_key, enum preempt_type preempt_type)
 {
 	switch (type) {
 	case PR_TYPE_WRITE_EXCLUSIVE:
@@ -3193,10 +3204,10 @@ core_scsi3_emulate_pro_preempt(struct se_cmd *cmd, int type, int scope,
 	case PR_TYPE_WRITE_EXCLUSIVE_ALLREG:
 	case PR_TYPE_EXCLUSIVE_ACCESS_ALLREG:
 		return core_scsi3_pro_preempt(cmd, type, scope, res_key,
-					      sa_res_key, abort);
+					      sa_res_key, preempt_type);
 	default:
 		pr_err("SPC-3 PR: Unknown Service Action PREEMPT%s"
-			" Type: 0x%02x\n", (abort) ? "_AND_ABORT" : "", type);
+			" Type: 0x%02x\n", (preempt_type == PREEMPT_AND_ABORT) ? "_AND_ABORT" : "", type);
 		return TCM_INVALID_CDB_FIELD;
 	}
 }
@@ -3752,7 +3763,7 @@ target_scsi3_emulate_pr_out(struct se_cmd *cmd)
 	switch (sa) {
 	case PRO_REGISTER:
 		ret = core_scsi3_emulate_pro_register(cmd,
-			res_key, sa_res_key, aptpl, all_tg_pt, spec_i_pt, 0);
+			res_key, sa_res_key, aptpl, all_tg_pt, spec_i_pt, REGISTER);
 		break;
 	case PRO_RESERVE:
 		ret = core_scsi3_emulate_pro_reserve(cmd, type, scope, res_key);
@@ -3765,15 +3776,15 @@ target_scsi3_emulate_pr_out(struct se_cmd *cmd)
 		break;
 	case PRO_PREEMPT:
 		ret = core_scsi3_emulate_pro_preempt(cmd, type, scope,
-					res_key, sa_res_key, 0);
+					res_key, sa_res_key, PREEMPT);
 		break;
 	case PRO_PREEMPT_AND_ABORT:
 		ret = core_scsi3_emulate_pro_preempt(cmd, type, scope,
-					res_key, sa_res_key, 1);
+					res_key, sa_res_key, PREEMPT_AND_ABORT);
 		break;
 	case PRO_REGISTER_AND_IGNORE_EXISTING_KEY:
 		ret = core_scsi3_emulate_pro_register(cmd,
-			0, sa_res_key, aptpl, all_tg_pt, spec_i_pt, 1);
+			0, sa_res_key, aptpl, all_tg_pt, spec_i_pt, REGISTER_AND_IGNORE_EXISTING_KEY);
 		break;
 	case PRO_REGISTER_AND_MOVE:
 		ret = core_scsi3_emulate_pro_register_and_move(cmd, res_key,
