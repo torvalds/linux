@@ -155,10 +155,12 @@ config H8300_TIMER16_CH
 config H8300_ITU_CH
 	int "ITU channel"
 	depends on H8300_ITU
+	range 0 4
 
 config H8300_TPU_CH
 	int "TPU channel"
 	depends on H8300_TPU
+	range 0 4
 
 source "kernel/Kconfig.preempt"
 
