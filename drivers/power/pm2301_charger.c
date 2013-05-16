@@ -1007,9 +1007,14 @@ static int pm2xxx_wall_charger_probe(struct i2c_client *i2c_client,
 	u8 val;
 	int i;
 
+	if (!pl_data) {
+		dev_err(&i2c_client->dev, "No platform data supplied\n");
+		return -EINVAL;
+	}
+
 	pm2 = kzalloc(sizeof(struct pm2xxx_charger), GFP_KERNEL);
 	if (!pm2) {
-		dev_err(pm2->dev, "pm2xxx_charger allocation failed\n");
+		dev_err(&i2c_client->dev, "pm2xxx_charger allocation failed\n");
 		return -ENOMEM;
 	}
 
