@@ -221,7 +221,7 @@ static struct platform_driver armada_thermal_driver = {
 	.driver = {
 		.name = "armada_thermal",
 		.owner = THIS_MODULE,
-		.of_match_table = of_match_ptr(armada_thermal_id_table),
+		.of_match_table = armada_thermal_id_table,
 	},
 };
 
