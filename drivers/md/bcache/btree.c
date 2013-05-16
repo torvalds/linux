@@ -135,7 +135,7 @@ static uint64_t btree_csum_set(struct btree *b, struct bset *i)
 	return crc ^ 0xffffffffffffffffULL;
 }
 
-void bch_btree_node_read_done(struct btree *b)
+static void bch_btree_node_read_done(struct btree *b)
 {
 	const char *err = "bad btree header";
 	struct bset *i = b->sets[0].data;
@@ -1834,7 +1834,7 @@ merged:
 	return true;
 }
 
-bool bch_btree_insert_keys(struct btree *b, struct btree_op *op)
+static bool bch_btree_insert_keys(struct btree *b, struct btree_op *op)
 {
 	bool ret = false;
 	struct bkey *k;

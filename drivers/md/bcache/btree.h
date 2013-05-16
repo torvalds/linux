@@ -369,7 +369,6 @@ static inline bool should_split(struct btree *b)
 }
 
 void bch_btree_node_read(struct btree *);
-void bch_btree_node_read_done(struct btree *);
 void bch_btree_node_write(struct btree *, struct closure *);
 
 void bch_cannibalize_unlock(struct cache_set *, struct closure *);
@@ -378,7 +377,6 @@ struct btree *bch_btree_node_alloc(struct cache_set *, int, struct closure *);
 struct btree *bch_btree_node_get(struct cache_set *, struct bkey *,
 				int, struct btree_op *);
 
-bool bch_btree_insert_keys(struct btree *, struct btree_op *);
 bool bch_btree_insert_check_key(struct btree *, struct btree_op *,
 				   struct bio *);
 int bch_btree_insert(struct btree_op *, struct cache_set *);
