@@ -21,10 +21,10 @@
 *v0.1.3:
 *        add support flash control;
 *
-*v0.1.5:
+*v0.1.5/v0.1.7:
 *        fix use v4l2_mbus_framefmt.reserved array overflow in generic_sensor_s_fmt;        
 */
-static int version = KERNEL_VERSION(0,1,5);
+static int version = KERNEL_VERSION(0,1,7);
 module_param(version, int, S_IRUGO);
 
 
@@ -851,11 +851,11 @@ int generic_sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 {
     struct i2c_client *client = v4l2_get_subdevdata(sd);
     struct soc_camera_device *icd = client->dev.platform_data;
-    const struct rk_sensor_datafmt *fmt;
+    const struct rk_sensor_datafmt *fmt=NULL;
     struct generic_sensor *sensor = to_generic_sensor(client);
     struct rk_sensor_sequence *winseqe_set_addr=NULL;
-    struct sensor_v4l2ctrl_info_s *v4l2ctrl_info;
-    bool is_capture=(mf->reserved[6]==0xfefe5a5a)?true:false;    /* ddl@rock-chips.com : v0.1.5 */ 
+    struct sensor_v4l2ctrl_info_s *v4l2ctrl_info=NULL;
+    bool is_capture=(mf->reserved[0]==0xfefe5a5a)?true:false;    /* ddl@rock-chips.com : v0.1.5 */ 
     int ret=0;
 
     fmt =generic_sensor_find_datafmt(mf->code, sensor->info_priv.datafmt,
@@ -876,7 +876,7 @@ int generic_sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
             ret |= sensor->sensor_cb.sensor_s_fmt_cb_th(client, mf, is_capture);
         
         v4l2ctrl_info = sensor_find_ctrl(sensor->ctrls,V4L2_CID_FLASH); /* ddl@rock-chips.com: v0.1.3 */        
-        if (v4l2ctrl_info) {   
+        if (v4l2ctrl_info!=NULL) {   
             if (is_capture) { 
                 if ((v4l2ctrl_info->cur_value == 2) || (v4l2ctrl_info->cur_value == 1)) {
                     generic_sensor_ioctrl(icd, Sensor_Flash, 1);                    
@@ -885,7 +885,7 @@ int generic_sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
                 generic_sensor_ioctrl(icd, Sensor_Flash, 0); 
             }
         }
-        
+       
         ret |= generic_sensor_write_array(client, winseqe_set_addr->data);
         if (ret != 0) {
             SENSOR_TR("set format capability failed");
@@ -1035,7 +1035,7 @@ int generic_sensor_s_ext_controls(struct v4l2_subdev *sd, struct v4l2_ext_contro
 {
     struct i2c_client *client = v4l2_get_subdevdata(sd);
     struct soc_camera_device *icd = client->dev.platform_data;
-    struct generic_sensor*sensor = to_generic_sensor(client);
+    //struct generic_sensor*sensor = to_generic_sensor(client);
     int i, error_cnt=0, error_idx=-1;
 
 
@@ -1293,7 +1293,7 @@ int generic_sensor_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
 			break;
 	}
     
-set_end:    
+//set_end:    
 	if (sensor_work->wait == false) {
 		kfree((void*)sensor_work);
 	} else {

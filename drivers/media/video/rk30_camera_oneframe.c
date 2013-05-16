@@ -297,11 +297,11 @@ module_param(debug, int, S_IRUGO|S_IWUSR);
 *v0.3.1 :
 *         1. compatible with generic_sensor;
 *
-*v0.3.3 :
+*v0.3.3 / v0.3.5:
 *         1. fix use v4l2_mbus_framefmt.reserved array overflow in generic_sensor_s_fmt;        
 */
 
-#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 3, 0x03)
+#define RK_CAM_VERSION_CODE KERNEL_VERSION(0, 3, 0x05)
 static int version = RK_CAM_VERSION_CODE;
 module_param(version, int, S_IRUGO);
 
@@ -2111,13 +2111,14 @@ static int rk_camera_set_fmt(struct soc_camera_device *icd,
     stream_on = read_cif_reg(pcdev->base,CIF_CIF_CTRL);
     if (stream_on & ENABLE_CAPTURE)
         write_cif_reg(pcdev->base,CIF_CIF_CTRL, (stream_on & (~ENABLE_CAPTURE)));
-    
+
 	mf.width	= pix->width;
 	mf.height	= pix->height;
 	mf.field	= pix->field;
 	mf.colorspace	= pix->colorspace;
 	mf.code		= xlate->code;
-    mf.reserved[6] = pix->priv;              /* ddl@rock-chips.com : v0.3.3 */      
+    mf.reserved[0] = pix->priv;              /* ddl@rock-chips.com : v0.3.3 */
+    
 	ret = v4l2_subdev_call(sd, video, s_mbus_fmt, &mf);
 	if (mf.code != xlate->code)
 		return -EINVAL;
