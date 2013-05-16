@@ -1532,84 +1532,66 @@ static inline unsigned char dt_type(struct configfs_dirent *sd)
 	return (sd->s_mode >> 12) & 15;
 }
 
-static int configfs_readdir(struct file * filp, void * dirent, filldir_t filldir)
+static int configfs_readdir(struct file *file, struct dir_context *ctx)
 {
-	struct dentry *dentry = filp->f_path.dentry;
+	struct dentry *dentry = file->f_path.dentry;
 	struct super_block *sb = dentry->d_sb;
 	struct configfs_dirent * parent_sd = dentry->d_fsdata;
-	struct configfs_dirent *cursor = filp->private_data;
+	struct configfs_dirent *cursor = file->private_data;
 	struct list_head *p, *q = &cursor->s_sibling;
 	ino_t ino = 0;
-	int i = filp->f_pos;
 
-	switch (i) {
-		case 0:
-			ino = dentry->d_inode->i_ino;
-			if (filldir(dirent, ".", 1, i, ino, DT_DIR) < 0)
-				break;
-			filp->f_pos++;
-			i++;
-			/* fallthrough */
-		case 1:
-			ino = parent_ino(dentry);
-			if (filldir(dirent, "..", 2, i, ino, DT_DIR) < 0)
-				break;
-			filp->f_pos++;
-			i++;
-			/* fallthrough */
-		default:
-			if (filp->f_pos == 2) {
-				spin_lock(&configfs_dirent_lock);
-				list_move(q, &parent_sd->s_children);
-				spin_unlock(&configfs_dirent_lock);
-			}
-			for (p=q->next; p!= &parent_sd->s_children; p=p->next) {
-				struct configfs_dirent *next;
-				const char * name;
-				int len;
-				struct inode *inode = NULL;
+	if (!dir_emit_dots(file, ctx))
+		return 0;
+	if (ctx->pos == 2) {
+		spin_lock(&configfs_dirent_lock);
+		list_move(q, &parent_sd->s_children);
+		spin_unlock(&configfs_dirent_lock);
+	}
+	for (p = q->next; p != &parent_sd->s_children; p = p->next) {
+		struct configfs_dirent *next;
+		const char *name;
+		int len;
+		struct inode *inode = NULL;
 
-				next = list_entry(p, struct configfs_dirent,
-						   s_sibling);
-				if (!next->s_element)
-					continue;
+		next = list_entry(p, struct configfs_dirent, s_sibling);
+		if (!next->s_element)
+			continue;
 
-				name = configfs_get_name(next);
-				len = strlen(name);
+		name = configfs_get_name(next);
+		len = strlen(name);
 
-				/*
-				 * We'll have a dentry and an inode for
-				 * PINNED items and for open attribute
-				 * files.  We lock here to prevent a race
-				 * with configfs_d_iput() clearing
-				 * s_dentry before calling iput().
-				 *
-				 * Why do we go to the trouble?  If
-				 * someone has an attribute file open,
-				 * the inode number should match until
-				 * they close it.  Beyond that, we don't
-				 * care.
-				 */
-				spin_lock(&configfs_dirent_lock);
-				dentry = next->s_dentry;
-				if (dentry)
-					inode = dentry->d_inode;
-				if (inode)
-					ino = inode->i_ino;
-				spin_unlock(&configfs_dirent_lock);
-				if (!inode)
-					ino = iunique(sb, 2);
+		/*
+		 * We'll have a dentry and an inode for
+		 * PINNED items and for open attribute
+		 * files.  We lock here to prevent a race
+		 * with configfs_d_iput() clearing
+		 * s_dentry before calling iput().
+		 *
+		 * Why do we go to the trouble?  If
+		 * someone has an attribute file open,
+		 * the inode number should match until
+		 * they close it.  Beyond that, we don't
+		 * care.
+		 */
+		spin_lock(&configfs_dirent_lock);
+		dentry = next->s_dentry;
+		if (dentry)
+			inode = dentry->d_inode;
+		if (inode)
+			ino = inode->i_ino;
+		spin_unlock(&configfs_dirent_lock);
+		if (!inode)
+			ino = iunique(sb, 2);
 
-				if (filldir(dirent, name, len, filp->f_pos, ino,
-						 dt_type(next)) < 0)
-					return 0;
+		if (!dir_emit(ctx, name, len, ino, dt_type(next)))
+			return 0;
 
-				spin_lock(&configfs_dirent_lock);
-				list_move(q, p);
-				spin_unlock(&configfs_dirent_lock);
-				p = q;
-				filp->f_pos++;
-			}
+		spin_lock(&configfs_dirent_lock);
+		list_move(q, p);
+		spin_unlock(&configfs_dirent_lock);
+		p = q;
+		ctx->pos++;
 	}
 	return 0;
 }
@@ -1661,7 +1643,7 @@ const struct file_operations configfs_dir_operations = {
 	.release	= configfs_dir_close,
 	.llseek		= configfs_dir_lseek,
 	.read		= generic_read_dir,
-	.readdir	= configfs_readdir,
+	.iterate	= configfs_readdir,
 };
 
 int configfs_register_subsystem(struct configfs_subsystem *subsys)
