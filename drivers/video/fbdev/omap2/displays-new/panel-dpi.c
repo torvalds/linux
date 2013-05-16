@@ -13,9 +13,12 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
 
 #include <video/omapdss.h>
 #include <video/omap-panel-data.h>
+#include <video/of_display_timing.h>
 
 struct panel_drv_data {
 	struct omap_dss_device dssdev;
@@ -72,7 +75,8 @@ static int panel_dpi_enable(struct omap_dss_device *dssdev)
 	if (omapdss_device_is_enabled(dssdev))
 		return 0;
 
-	in->ops.dpi->set_data_lines(in, ddata->data_lines);
+	if (ddata->data_lines)
+		in->ops.dpi->set_data_lines(in, ddata->data_lines);
 	in->ops.dpi->set_timings(in, &ddata->videomode);
 
 	r = in->ops.dpi->enable(in);
@@ -195,6 +199,47 @@ err_gpio:
 	return r;
 }
 
+static int panel_dpi_probe_of(struct platform_device *pdev)
+{
+	struct panel_drv_data *ddata = platform_get_drvdata(pdev);
+	struct device_node *node = pdev->dev.of_node;
+	struct omap_dss_device *in;
+	int r;
+	struct display_timing timing;
+	struct videomode vm;
+	struct gpio_desc *gpio;
+
+	gpio = devm_gpiod_get(&pdev->dev, "enable");
+	if (IS_ERR(gpio)) {
+		dev_err(&pdev->dev, "failed to parse enable gpio\n");
+		return PTR_ERR(gpio);
+	} else {
+		gpiod_direction_output(gpio, 0);
+		ddata->enable_gpio = gpio;
+	}
+
+	ddata->backlight_gpio = -ENOENT;
+
+	r = of_get_display_timing(node, "panel-timing", &timing);
+	if (r) {
+		dev_err(&pdev->dev, "failed to get video timing\n");
+		return r;
+	}
+
+	videomode_from_timing(&timing, &vm);
+	videomode_to_omap_video_timings(&vm, &ddata->videomode);
+
+	in = omapdss_of_find_source_for_first_ep(node);
+	if (IS_ERR(in)) {
+		dev_err(&pdev->dev, "failed to find video source\n");
+		return PTR_ERR(in);
+	}
+
+	ddata->in = in;
+
+	return 0;
+}
+
 static int panel_dpi_probe(struct platform_device *pdev)
 {
 	struct panel_drv_data *ddata;
@@ -209,6 +254,10 @@ static int panel_dpi_probe(struct platform_device *pdev)
 
 	if (dev_get_platdata(&pdev->dev)) {
 		r = panel_dpi_probe_pdata(pdev);
+		if (r)
+			return r;
+	} else if (pdev->dev.of_node) {
+		r = panel_dpi_probe_of(pdev);
 		if (r)
 			return r;
 	} else {
@@ -260,12 +309,20 @@ static int __exit panel_dpi_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct of_device_id panel_dpi_of_match[] = {
+	{ .compatible = "omapdss,panel-dpi", },
+	{},
+};
+
+MODULE_DEVICE_TABLE(of, panel_dpi_of_match);
+
 static struct platform_driver panel_dpi_driver = {
 	.probe = panel_dpi_probe,
 	.remove = __exit_p(panel_dpi_remove),
 	.driver = {
 		.name = "panel-dpi",
 		.owner = THIS_MODULE,
+		.of_match_table = panel_dpi_of_match,
 	},
 };
 
