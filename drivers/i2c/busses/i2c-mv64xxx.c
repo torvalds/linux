@@ -86,6 +86,8 @@ enum {
 };
 
 struct mv64xxx_i2c_data {
+	struct i2c_msg		*msgs;
+	int			num_msgs;
 	int			irq;
 	u32			state;
 	u32			action;
@@ -194,7 +196,7 @@ mv64xxx_i2c_fsm(struct mv64xxx_i2c_data *drv_data, u32 status)
 		if ((drv_data->bytes_left == 0)
 				|| (drv_data->aborting
 					&& (drv_data->byte_posn != 0))) {
-			if (drv_data->send_stop) {
+			if (drv_data->send_stop || drv_data->aborting) {
 				drv_data->action = MV64XXX_I2C_ACTION_SEND_STOP;
 				drv_data->state = MV64XXX_I2C_STATE_IDLE;
 			} else {
@@ -271,12 +273,25 @@ mv64xxx_i2c_do_action(struct mv64xxx_i2c_data *drv_data)
 {
 	switch(drv_data->action) {
 	case MV64XXX_I2C_ACTION_SEND_RESTART:
+		/* We should only get here if we have further messages */
+		BUG_ON(drv_data->num_msgs == 0);
+
 		drv_data->cntl_bits |= MV64XXX_I2C_REG_CONTROL_START;
-		drv_data->cntl_bits &= ~MV64XXX_I2C_REG_CONTROL_INTEN;
 		writel(drv_data->cntl_bits,
 			drv_data->reg_base + MV64XXX_I2C_REG_CONTROL);
-		drv_data->block = 0;
-		wake_up(&drv_data->waitq);
+
+		drv_data->msgs++;
+		drv_data->num_msgs--;
+
+		/* Setup for the next message */
+		mv64xxx_i2c_prepare_for_io(drv_data, drv_data->msgs);
+
+		/*
+		 * We're never at the start of the message here, and by this
+		 * time it's already too late to do any protocol mangling.
+		 * Thankfully, do not advertise support for that feature.
+		 */
+		drv_data->send_stop = drv_data->num_msgs == 1;
 		break;
 
 	case MV64XXX_I2C_ACTION_CONTINUE:
@@ -412,20 +427,15 @@ mv64xxx_i2c_wait_for_completion(struct mv64xxx_i2c_data *drv_data)
 
 static int
 mv64xxx_i2c_execute_msg(struct mv64xxx_i2c_data *drv_data, struct i2c_msg *msg,
-				int is_first, int is_last)
+				int is_last)
 {
 	unsigned long	flags;
 
 	spin_lock_irqsave(&drv_data->lock, flags);
 	mv64xxx_i2c_prepare_for_io(drv_data, msg);
 
-	if (is_first) {
-		drv_data->action = MV64XXX_I2C_ACTION_SEND_START;
-		drv_data->state = MV64XXX_I2C_STATE_WAITING_FOR_START_COND;
-	} else {
-		drv_data->action = MV64XXX_I2C_ACTION_SEND_ADDR_1;
-		drv_data->state = MV64XXX_I2C_STATE_WAITING_FOR_ADDR_1_ACK;
-	}
+	drv_data->action = MV64XXX_I2C_ACTION_SEND_START;
+	drv_data->state = MV64XXX_I2C_STATE_WAITING_FOR_START_COND;
 
 	drv_data->send_stop = is_last;
 	drv_data->block = 1;
@@ -453,16 +463,20 @@ static int
 mv64xxx_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 {
 	struct mv64xxx_i2c_data *drv_data = i2c_get_adapdata(adap);
-	int	i, rc;
+	int rc, ret = num;
 
-	for (i = 0; i < num; i++) {
-		rc = mv64xxx_i2c_execute_msg(drv_data, &msgs[i],
-						i == 0, i + 1 == num);
-		if (rc < 0)
-			return rc;
-	}
+	BUG_ON(drv_data->msgs != NULL);
+	drv_data->msgs = msgs;
+	drv_data->num_msgs = num;
 
-	return num;
+	rc = mv64xxx_i2c_execute_msg(drv_data, &msgs[0], num == 1);
+	if (rc < 0)
+		ret = rc;
+
+	drv_data->num_msgs = 0;
+	drv_data->msgs = NULL;
+
+	return ret;
 }
 
 static const struct i2c_algorithm mv64xxx_i2c_algo = {
