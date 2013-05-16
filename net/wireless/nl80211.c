@@ -7577,6 +7577,8 @@ static int nl80211_send_wowlan_tcp(struct sk_buff *msg,
 		    &tcp->payload_tok))
 		return -ENOBUFS;
 
+	nla_nest_end(msg, nl_tcp);
+
 	return 0;
 }
 
