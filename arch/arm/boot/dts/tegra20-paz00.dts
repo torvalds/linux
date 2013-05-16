@@ -427,16 +427,25 @@
 		status = "okay";
 	};
 
+	usb-phy@c5000000 {
+		status = "okay";
+	};
+
 	usb@c5004000 {
 		status = "okay";
 		nvidia,phy-reset-gpio = <&gpio 168 1>; /* gpio PV0, active low */
 	};
 
 	usb-phy@c5004000 {
+		status = "okay";
 		nvidia,phy-reset-gpio = <&gpio 168 1>; /* gpio PV0, active low */
 	};
 
 	usb@c5008000 {
+		status = "okay";
+	};
+
+	usb-phy@c5008000 {
 		status = "okay";
 	};
 
