@@ -177,6 +177,7 @@ static void samsung_usb2phy_enable(struct samsung_usbphy *sphy)
 		rstcon |= RSTCON_SWRST;
 		break;
 	case TYPE_EXYNOS4210:
+	case TYPE_EXYNOS4X12:
 		phypwr &= ~PHYPWR_NORMAL_MASK_PHY0;
 		rstcon |= RSTCON_SWRST;
 	default:
@@ -240,6 +241,7 @@ static void samsung_usb2phy_disable(struct samsung_usbphy *sphy)
 		phypwr |= PHYPWR_NORMAL_MASK;
 		break;
 	case TYPE_EXYNOS4210:
+	case TYPE_EXYNOS4X12:
 		phypwr |= PHYPWR_NORMAL_MASK_PHY0;
 	default:
 		break;
@@ -451,6 +453,16 @@ static const struct samsung_usbphy_drvdata usb2phy_exynos4 = {
 	.phy_disable		= samsung_usb2phy_disable,
 };
 
+static const struct samsung_usbphy_drvdata usb2phy_exynos4x12 = {
+	.cpu_type		= TYPE_EXYNOS4X12,
+	.devphy_en_mask		= EXYNOS_USBPHY_ENABLE,
+	.hostphy_en_mask	= EXYNOS_USBPHY_ENABLE,
+	.rate_to_clksel		= samsung_usbphy_rate_to_clksel_4x12,
+	.set_isolation		= samsung_usbphy_set_isolation_4210,
+	.phy_enable		= samsung_usb2phy_enable,
+	.phy_disable		= samsung_usb2phy_disable,
+};
+
 static struct samsung_usbphy_drvdata usb2phy_exynos5 = {
 	.cpu_type		= TYPE_EXYNOS5250,
 	.hostphy_en_mask	= EXYNOS_USBPHY_ENABLE,
@@ -470,6 +482,9 @@ static const struct of_device_id samsung_usbphy_dt_match[] = {
 		.compatible = "samsung,exynos4210-usb2phy",
 		.data = &usb2phy_exynos4,
 	}, {
+		.compatible = "samsung,exynos4x12-usb2phy",
+		.data = &usb2phy_exynos4x12,
+	}, {
 		.compatible = "samsung,exynos5250-usb2phy",
 		.data = &usb2phy_exynos5
 	},
@@ -485,6 +500,9 @@ static struct platform_device_id samsung_usbphy_driver_ids[] = {
 	}, {
 		.name		= "exynos4210-usb2phy",
 		.driver_data	= (unsigned long)&usb2phy_exynos4,
+	}, {
+		.name		= "exynos4x12-usb2phy",
+		.driver_data	= (unsigned long)&usb2phy_exynos4x12,
 	}, {
 		.name		= "exynos5250-usb2phy",
 		.driver_data	= (unsigned long)&usb2phy_exynos5,

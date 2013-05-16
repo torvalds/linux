@@ -241,6 +241,7 @@
 enum samsung_cpu_type {
 	TYPE_S3C64XX,
 	TYPE_EXYNOS4210,
+	TYPE_EXYNOS4X12,
 	TYPE_EXYNOS5250,
 };
 
