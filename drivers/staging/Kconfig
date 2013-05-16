@@ -142,4 +142,6 @@ source "drivers/staging/dwc2/Kconfig"
 
 source "drivers/staging/lustre/Kconfig"
 
+source "drivers/staging/btmtk_usb/Kconfig"
+
 endif # STAGING
