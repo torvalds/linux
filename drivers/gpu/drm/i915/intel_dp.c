@@ -317,12 +317,12 @@ intel_dp_aux_ch(struct intel_dp *intel_dp,
 	 * Note that PCH attached eDP panels should use a 125MHz input
 	 * clock divider.
 	 */
-	if (is_cpu_edp(intel_dp)) {
+	if (IS_VALLEYVIEW(dev)) {
+		aux_clock_divider = 100;
+	} else if (intel_dig_port->port == PORT_A) {
 		if (HAS_DDI(dev))
 			aux_clock_divider = DIV_ROUND_CLOSEST(
 				intel_ddi_get_cdclk_freq(dev_priv), 2000);
-		else if (IS_VALLEYVIEW(dev))
-			aux_clock_divider = 100;
 		else if (IS_GEN6(dev) || IS_GEN7(dev))
 			aux_clock_divider = 200; /* SNB & IVB eDP input clock at 400Mhz */
 		else
