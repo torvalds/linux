@@ -3893,7 +3893,7 @@ static inline unsigned int hmp_offload_down(int cpu, struct sched_entity *se)
 		return NR_CPUS;
 
 	/* Is the task alone on the cpu? */
-	if (cpu_rq(cpu)->cfs.nr_running < 2)
+	if (cpu_rq(cpu)->nr_running < 2)
 		return NR_CPUS;
 
 	/* Is the task actually starving? */
