@@ -1729,18 +1729,23 @@ static int __cpufreq_set_policy(struct cpufreq_policy *data,
 			/* end old governor */
 			if (data->governor) {
 				__cpufreq_governor(data, CPUFREQ_GOV_STOP);
+				unlock_policy_rwsem_write(policy->cpu);
 				__cpufreq_governor(data,
 						CPUFREQ_GOV_POLICY_EXIT);
+				lock_policy_rwsem_write(policy->cpu);
 			}
 
 			/* start new governor */
 			data->governor = policy->governor;
 			if (!__cpufreq_governor(data, CPUFREQ_GOV_POLICY_INIT)) {
-				if (!__cpufreq_governor(data, CPUFREQ_GOV_START))
+				if (!__cpufreq_governor(data, CPUFREQ_GOV_START)) {
 					failed = 0;
-				else
+				} else {
+					unlock_policy_rwsem_write(policy->cpu);
 					__cpufreq_governor(data,
 							CPUFREQ_GOV_POLICY_EXIT);
+					lock_policy_rwsem_write(policy->cpu);
+				}
 			}
 
 			if (failed) {
