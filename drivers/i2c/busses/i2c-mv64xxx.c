@@ -619,10 +619,9 @@ mv64xxx_i2c_probe(struct platform_device *pd)
 	if (!drv_data)
 		return -ENOMEM;
 
-	if (mv64xxx_i2c_map_regs(pd, drv_data)) {
-		rc = -ENODEV;
+	rc = mv64xxx_i2c_map_regs(pd, drv_data);
+	if (rc)
 		goto exit_kfree;
-	}
 
 	strlcpy(drv_data->adapter.name, MV64XXX_I2C_CTLR_NAME " adapter",
 		sizeof(drv_data->adapter.name));
