@@ -3381,16 +3381,45 @@ static int __init hmp_cpu_mask_setup(void)
 	dc = 0;
 	list_for_each(pos, &hmp_domains) {
 		domain = list_entry(pos, struct hmp_domain, hmp_domains);
-		cpulist_scnprintf(buf, 64, &domain->cpus);
+		cpulist_scnprintf(buf, 64, &domain->possible_cpus);
 		pr_debug("  HMP domain %d: %s\n", dc, buf);
 
-		for_each_cpu_mask(cpu, domain->cpus) {
+		for_each_cpu_mask(cpu, domain->possible_cpus) {
 			per_cpu(hmp_cpu_domain, cpu) = domain;
 		}
 		dc++;
 	}
 
 	return 1;
+}
+
+static struct hmp_domain *hmp_get_hmp_domain_for_cpu(int cpu)
+{
+	struct hmp_domain *domain;
+	struct list_head *pos;
+
+	list_for_each(pos, &hmp_domains) {
+		domain = list_entry(pos, struct hmp_domain, hmp_domains);
+		if(cpumask_test_cpu(cpu, &domain->possible_cpus))
+			return domain;
+	}
+	return NULL;
+}
+
+static void hmp_online_cpu(int cpu)
+{
+	struct hmp_domain *domain = hmp_get_hmp_domain_for_cpu(cpu);
+
+	if(domain)
+		cpumask_set_cpu(cpu, &domain->cpus);
+}
+
+static void hmp_offline_cpu(int cpu)
+{
+	struct hmp_domain *domain = hmp_get_hmp_domain_for_cpu(cpu);
+
+	if(domain)
+		cpumask_clear_cpu(cpu, &domain->cpus);
 }
 
 /*
@@ -6190,11 +6219,17 @@ void trigger_load_balance(struct rq *rq, int cpu)
 
 static void rq_online_fair(struct rq *rq)
 {
+#ifdef CONFIG_SCHED_HMP
+	hmp_online_cpu(rq->cpu);
+#endif
 	update_sysctl();
 }
 
 static void rq_offline_fair(struct rq *rq)
 {
+#ifdef CONFIG_SCHED_HMP
+	hmp_offline_cpu(rq->cpu);
+#endif
 	update_sysctl();
 
 	/* Ensure any throttled groups are reachable by pick_next_task */

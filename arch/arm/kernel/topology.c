@@ -383,12 +383,14 @@ void __init arch_get_hmp_domains(struct list_head *hmp_domains_list)
 	if(!cpumask_empty(&hmp_slow_cpu_mask)) {
 		domain = (struct hmp_domain *)
 			kmalloc(sizeof(struct hmp_domain), GFP_KERNEL);
-		cpumask_copy(&domain->cpus, &hmp_slow_cpu_mask);
+		cpumask_copy(&domain->possible_cpus, &hmp_slow_cpu_mask);
+		cpumask_and(&domain->cpus, cpu_online_mask, &domain->possible_cpus);
 		list_add(&domain->hmp_domains, hmp_domains_list);
 	}
 	domain = (struct hmp_domain *)
 		kmalloc(sizeof(struct hmp_domain), GFP_KERNEL);
-	cpumask_copy(&domain->cpus, &hmp_fast_cpu_mask);
+	cpumask_copy(&domain->possible_cpus, &hmp_fast_cpu_mask);
+	cpumask_and(&domain->cpus, cpu_online_mask, &domain->possible_cpus);
 	list_add(&domain->hmp_domains, hmp_domains_list);
 }
 #endif /* CONFIG_SCHED_HMP */
