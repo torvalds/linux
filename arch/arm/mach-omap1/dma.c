@@ -345,6 +345,7 @@ static int __init omap1_system_dma_init(void)
 		dev_err(&pdev->dev,
 			"%s: Memory allocation failed for d->chan!\n",
 			__func__);
+		ret = -ENOMEM;
 		goto exit_release_d;
 	}
 
