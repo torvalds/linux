@@ -13,8 +13,6 @@
 #include <linux/mount.h>
 #include "internal.h"
 
-#define list_to_page(head) (list_entry((head)->prev, struct page, lru))
-
 struct cachefiles_lookup_data {
 	struct cachefiles_xattr	*auxdata;	/* auxiliary data */
 	char			*key;		/* key path */
