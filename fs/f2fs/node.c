@@ -1495,7 +1495,6 @@ int recover_inode_page(struct f2fs_sb_info *sbi, struct page *page)
 		WARN_ON(1);
 	set_node_addr(sbi, &new_ni, NEW_ADDR);
 	inc_valid_inode_count(sbi);
-
 	f2fs_put_page(ipage, 1);
 	return 0;
 }
