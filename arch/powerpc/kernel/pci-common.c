@@ -671,10 +671,9 @@ void pci_process_bridge_OF_ranges(struct pci_controller *hose,
 	int rlen;
 	int pna = of_n_addr_cells(dev);
 	int np = pna + 5;
-	int memno = 0, isa_hole = -1;
+	int memno = 0;
 	u32 pci_space;
 	unsigned long long pci_addr, cpu_addr, pci_next, cpu_next, size;
-	unsigned long long isa_mb = 0;
 	struct resource *res;
 
 	printk(KERN_INFO "PCI host bridge %s %s ranges:\n",
@@ -768,8 +767,6 @@ void pci_process_bridge_OF_ranges(struct pci_controller *hose,
 			}
 			/* Handles ISA memory hole space here */
 			if (pci_addr == 0) {
-				isa_mb = cpu_addr;
-				isa_hole = memno;
 				if (primary || isa_mem_base == 0)
 					isa_mem_base = cpu_addr;
 				hose->isa_mem_phys = cpu_addr;
