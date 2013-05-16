@@ -272,6 +272,8 @@ struct samsung_usbphy_drvdata {
 	u32 hostphy_reg_offset;
 	int (*rate_to_clksel)(struct samsung_usbphy *, unsigned long);
 	void (*set_isolation)(struct samsung_usbphy *, bool);
+	void (*phy_enable)(struct samsung_usbphy *);
+	void (*phy_disable)(struct samsung_usbphy *);
 };
 
 /*
