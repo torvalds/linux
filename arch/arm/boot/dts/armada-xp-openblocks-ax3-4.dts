@@ -134,10 +134,19 @@
 				nr-ports = <2>;
 				status = "okay";
 			};
+
+			/* Front side USB 0 */
 			usb@50000 {
 				status = "okay";
 			};
+
+			/* Front side USB 1 */
 			usb@51000 {
+				status = "okay";
+			};
+
+			/* USB interface in the mini-PCIe connector */
+			usb@52000 {
 				status = "okay";
 			};
 
