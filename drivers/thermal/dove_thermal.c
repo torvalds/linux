@@ -195,7 +195,7 @@ static struct platform_driver dove_thermal_driver = {
 	.driver = {
 		.name = "dove_thermal",
 		.owner = THIS_MODULE,
-		.of_match_table = of_match_ptr(dove_thermal_id_table),
+		.of_match_table = dove_thermal_id_table,
 	},
 };
 
