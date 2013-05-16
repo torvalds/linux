@@ -466,7 +466,8 @@ log_packet_common(struct sbuff *m,
 
 
 static void
-ipt_log_packet(u_int8_t pf,
+ipt_log_packet(struct net *net,
+	       u_int8_t pf,
 	       unsigned int hooknum,
 	       const struct sk_buff *skb,
 	       const struct net_device *in,
@@ -475,7 +476,6 @@ ipt_log_packet(u_int8_t pf,
 	       const char *prefix)
 {
 	struct sbuff *m;
-	struct net *net = dev_net(in ? in : out);
 
 	/* FIXME: Disabled from containers until syslog ns is supported */
 	if (!net_eq(net, &init_net))
@@ -797,7 +797,8 @@ fallback:
 }
 
 static void
-ip6t_log_packet(u_int8_t pf,
+ip6t_log_packet(struct net *net,
+		u_int8_t pf,
 		unsigned int hooknum,
 		const struct sk_buff *skb,
 		const struct net_device *in,
@@ -806,7 +807,6 @@ ip6t_log_packet(u_int8_t pf,
 		const char *prefix)
 {
 	struct sbuff *m;
-	struct net *net = dev_net(in ? in : out);
 
 	/* FIXME: Disabled from containers until syslog ns is supported */
 	if (!net_eq(net, &init_net))
@@ -833,17 +833,18 @@ log_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_log_info *loginfo = par->targinfo;
 	struct nf_loginfo li;
+	struct net *net = dev_net(par->in ? par->in : par->out);
 
 	li.type = NF_LOG_TYPE_LOG;
 	li.u.log.level = loginfo->level;
 	li.u.log.logflags = loginfo->logflags;
 
 	if (par->family == NFPROTO_IPV4)
-		ipt_log_packet(NFPROTO_IPV4, par->hooknum, skb, par->in,
+		ipt_log_packet(net, NFPROTO_IPV4, par->hooknum, skb, par->in,
 			       par->out, &li, loginfo->prefix);
 #if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
 	else if (par->family == NFPROTO_IPV6)
-		ip6t_log_packet(NFPROTO_IPV6, par->hooknum, skb, par->in,
+		ip6t_log_packet(net, NFPROTO_IPV6, par->hooknum, skb, par->in,
 				par->out, &li, loginfo->prefix);
 #endif
 	else

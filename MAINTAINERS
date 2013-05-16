@@ -5509,18 +5509,18 @@ F:	Documentation/networking/s2io.txt
 F:	Documentation/networking/vxge.txt
 F:	drivers/net/ethernet/neterion/
 
-NETFILTER/IPTABLES/IPCHAINS
-P:	Harald Welte
-P:	Jozsef Kadlecsik
+NETFILTER/IPTABLES
 M:	Pablo Neira Ayuso <pablo@netfilter.org>
 M:	Patrick McHardy <kaber@trash.net>
+M:	Jozsef Kadlecsik <kadlec@blackhole.kfki.hu>
 L:	netfilter-devel@vger.kernel.org
 L:	netfilter@vger.kernel.org
 L:	coreteam@netfilter.org
 W:	http://www.netfilter.org/
 W:	http://www.iptables.org/
-T:	git git://1984.lsi.us.es/nf
-T:	git git://1984.lsi.us.es/nf-next
+Q:	http://patchwork.ozlabs.org/project/netfilter-devel/list/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/pablo/nf.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/pablo/nf-next.git
 S:	Supported
 F:	include/linux/netfilter*
 F:	include/linux/netfilter/
