@@ -10,8 +10,8 @@
  * resolution, a thermal alarm output (Tout), and user-defined minimum
  * and maximum temperature thresholds (TH and TL).
  *
- * The DS1625 and DS1721 are pin compatible with the DS1621 and similar
- * in operation, with slight variations as noted in the device
+ * The DS1625, DS1631, and DS1721 are pin compatible with the DS1621 and
+ * similar in operation, with slight variations as noted in the device
  * datasheets (please refer to www.maximintegrated.com for specific
  * device information).
  *
@@ -51,7 +51,7 @@ static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b, 0x4c,
 					0x4d, 0x4e, 0x4f, I2C_CLIENT_END };
 
 /* Supported devices */
-enum chips { ds1621, ds1625, ds1721 };
+enum chips { ds1621, ds1625, ds1631, ds1721 };
 
 /* Insmod parameters */
 static int polarity = -1;
@@ -68,6 +68,10 @@ MODULE_PARM_DESC(polarity, "Output's polarity: 0 = active high, 1 = active low")
  * - DS1625:
  *   7    6    5    4    3    2    1    0
  * |Done|THF |TLF |NVB | 1  | 0  |POL |1SHOT|
+ *
+ * - DS1631:
+ *   7    6    5    4    3    2    1    0
+ * |Done|THF |TLF |NVB | R1 | R0 |POL |1SHOT|
  *
  * - DS1721:
  *   7    6    5    4    3    2    1    0
@@ -139,8 +143,8 @@ static inline int DS1621_TEMP_FROM_REG(u16 reg)
 /*
  * TEMP: 0.001C/bit (-55C to +125C)
  * REG:
- *  - 1621, 1625: x = 0.5C
- *  - 1721:       x = 0.0625C
+ *  - 1621, 1625: 0.5C/bit
+ *  - 1631, 1721: 0.0625C/bit
  * Assume highest resolution and let the bits fall where they may..
  */
 static inline u16 DS1621_TEMP_TO_REG(long temp)
@@ -174,6 +178,7 @@ static void ds1621_init_client(struct i2c_client *client)
 		data->update_interval = DS1625_CONVERSION_MAX;
 		sreg = DS1621_COM_START;
 		break;
+	case ds1631:
 	case ds1721:
 		resol = (new_conf & DS1621_REG_CONFIG_RESOL) >>
 			 DS1621_REG_CONFIG_RESOL_SHIFT;
@@ -342,7 +347,7 @@ static umode_t ds1621_attribute_visible(struct kobject *kobj,
 	struct ds1621_data *data = i2c_get_clientdata(client);
 
 	if (attr == &dev_attr_update_interval.attr)
-		if (data->kind != ds1721)
+		if (data->kind == ds1621 || data->kind == ds1625)
 			/* shhh, we're hiding update_interval */
 			return 0;
 	return attr->mode;
@@ -376,7 +381,14 @@ static int ds1621_detect(struct i2c_client *client,
 	conf = i2c_smbus_read_byte_data(client, DS1621_REG_CONF);
 	if (conf < 0 || conf & DS1621_REG_CONFIG_NVB)
 		return -ENODEV;
-	/* The 7 lowest bits of a temperature should always be 0. */
+	/*
+	 * The ds1621 & ds1625 use 9-bit resolution, so the 7 lowest bits
+	 * of the temperature should always be 0 (NOTE: The other chips
+	 * have multi-resolution support, so if they have 9-bit resolution
+	 * configured and the min/max temperature values set accordingly,
+	 * then if not explicitly instantiated, they *will* appear as and
+	 * emulate a ds1621 device).
+	 */
 	for (i = 0; i < ARRAY_SIZE(DS1621_REG_TEMP); i++) {
 		temp = i2c_smbus_read_word_data(client, DS1621_REG_TEMP[i]);
 		if (temp < 0 || (temp & 0x7f00))
@@ -438,6 +450,7 @@ static int ds1621_remove(struct i2c_client *client)
 static const struct i2c_device_id ds1621_id[] = {
 	{ "ds1621", ds1621 },
 	{ "ds1625", ds1625 },
+	{ "ds1631", ds1631 },
 	{ "ds1721", ds1721 },
 	{ }
 };

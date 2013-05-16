@@ -355,6 +355,7 @@ config SENSORS_DS1621
 	  Integrated DS1621 sensor chips and compatible models including:
 
 	  - Dallas Semiconductor DS1625
+	  - Maxim Integrated DS1631
 	  - Maxim Integrated DS1721
 
 	  This driver can also be built as a module.  If so, the module
