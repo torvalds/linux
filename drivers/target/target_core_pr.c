@@ -1927,9 +1927,6 @@ out:
 	return ret;
 }
 
-/*
- * Called with struct se_device->aptpl_file_mutex held
- */
 static int __core_scsi3_write_aptpl_to_file(
 	struct se_device *dev,
 	unsigned char *buf)
