@@ -611,7 +611,7 @@ static const struct dev_pm_ops tegra_ehci_pm_ops = {
 /* Bits of PORTSC1, which will get cleared by writing 1 into them */
 #define TEGRA_PORTSC1_RWC_BITS (PORT_CSC | PORT_PEC | PORT_OCC)
 
-static void tegra_ehci_set_pts(struct usb_phy *x, u8 pts_val)
+void tegra_ehci_set_pts(struct usb_phy *x, u8 pts_val)
 {
 	unsigned long val;
 	struct usb_hcd *hcd = bus_to_hcd(x->otg->host);
@@ -622,8 +622,9 @@ static void tegra_ehci_set_pts(struct usb_phy *x, u8 pts_val)
 	val |= TEGRA_USB_PORTSC1_PTS(pts_val & 3);
 	writel(val, base + TEGRA_USB_PORTSC1);
 }
+EXPORT_SYMBOL_GPL(tegra_ehci_set_pts);
 
-static void tegra_ehci_set_phcd(struct usb_phy *x, bool enable)
+void tegra_ehci_set_phcd(struct usb_phy *x, bool enable)
 {
 	unsigned long val;
 	struct usb_hcd *hcd = bus_to_hcd(x->otg->host);
@@ -636,6 +637,7 @@ static void tegra_ehci_set_phcd(struct usb_phy *x, bool enable)
 		val &= ~TEGRA_USB_PORTSC1_PHCD;
 	writel(val, base + TEGRA_USB_PORTSC1);
 }
+EXPORT_SYMBOL_GPL(tegra_ehci_set_phcd);
 
 static int tegra_ehci_probe(struct platform_device *pdev)
 {
@@ -645,7 +647,7 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	struct tegra_ehci_platform_data *pdata;
 	int err = 0;
 	int irq;
-	int instance = pdev->id;
+	struct device_node *np_phy;
 	struct usb_phy *u_phy;
 
 	pdata = pdev->dev.platform_data;
@@ -670,38 +672,49 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	if (!tegra)
 		return -ENOMEM;
 
-	hcd = usb_create_hcd(&tegra_ehci_hc_driver, &pdev->dev,
-					dev_name(&pdev->dev));
-	if (!hcd) {
-		dev_err(&pdev->dev, "Unable to create HCD\n");
-		return -ENOMEM;
-	}
-
-	platform_set_drvdata(pdev, tegra);
-
 	tegra->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(tegra->clk)) {
 		dev_err(&pdev->dev, "Can't get ehci clock\n");
-		err = PTR_ERR(tegra->clk);
-		goto fail_clk;
+		return PTR_ERR(tegra->clk);
 	}
 
 	err = clk_prepare_enable(tegra->clk);
 	if (err)
-		goto fail_clk;
+		return err;
 
 	tegra_periph_reset_assert(tegra->clk);
 	udelay(1);
 	tegra_periph_reset_deassert(tegra->clk);
 
+	np_phy = of_parse_phandle(pdev->dev.of_node, "nvidia,phy", 0);
+	if (!np_phy) {
+		err = -ENODEV;
+		goto cleanup_clk;
+	}
+
+	u_phy = tegra_usb_get_phy(np_phy);
+	if (IS_ERR(u_phy)) {
+		err = PTR_ERR(u_phy);
+		goto cleanup_clk;
+	}
+
 	tegra->needs_double_reset = of_property_read_bool(pdev->dev.of_node,
 		"nvidia,needs-double-reset");
+
+	hcd = usb_create_hcd(&tegra_ehci_hc_driver, &pdev->dev,
+					dev_name(&pdev->dev));
+	if (!hcd) {
+		dev_err(&pdev->dev, "Unable to create HCD\n");
+		err = -ENOMEM;
+		goto cleanup_clk;
+	}
+	hcd->phy = u_phy;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
 		dev_err(&pdev->dev, "Failed to get I/O memory\n");
 		err = -ENXIO;
-		goto fail_io;
+		goto cleanup_hcd_create;
 	}
 	hcd->rsrc_start = res->start;
 	hcd->rsrc_len = resource_size(res);
@@ -709,57 +722,28 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	if (!hcd->regs) {
 		dev_err(&pdev->dev, "Failed to remap I/O memory\n");
 		err = -ENOMEM;
-		goto fail_io;
+		goto cleanup_hcd_create;
 	}
 
-	/* This is pretty ugly and needs to be fixed when we do only
-	 * device-tree probing. Old code relies on the platform_device
-	 * numbering that we lack for device-tree-instantiated devices.
-	 */
-	if (instance < 0) {
-		switch (res->start) {
-		case TEGRA_USB_BASE:
-			instance = 0;
-			break;
-		case TEGRA_USB2_BASE:
-			instance = 1;
-			break;
-		case TEGRA_USB3_BASE:
-			instance = 2;
-			break;
-		default:
-			err = -ENODEV;
-			dev_err(&pdev->dev, "unknown usb instance\n");
-			goto fail_io;
-		}
+	err = usb_phy_init(hcd->phy);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to initialize phy\n");
+		goto cleanup_hcd_create;
 	}
-
-	tegra->phy = tegra_usb_phy_open(&pdev->dev, instance, hcd->regs,
-					pdata->phy_config,
-					tegra_ehci_set_pts,
-					tegra_ehci_set_phcd);
-	if (IS_ERR(tegra->phy)) {
-		dev_err(&pdev->dev, "Failed to open USB phy\n");
-		err = -ENXIO;
-		goto fail_io;
-	}
-
-	hcd->phy = u_phy = &tegra->phy->u_phy;
-	usb_phy_init(hcd->phy);
 
 	u_phy->otg = devm_kzalloc(&pdev->dev, sizeof(struct usb_otg),
 			     GFP_KERNEL);
 	if (!u_phy->otg) {
 		dev_err(&pdev->dev, "Failed to alloc memory for otg\n");
 		err = -ENOMEM;
-		goto fail_io;
+		goto cleanup_phy;
 	}
 	u_phy->otg->host = hcd_to_bus(hcd);
 
 	err = usb_phy_set_suspend(hcd->phy, 0);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to power on the phy\n");
-		goto fail_phy;
+		goto cleanup_phy;
 	}
 
 	tegra->host_resumed = 1;
@@ -769,7 +753,7 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	if (!irq) {
 		dev_err(&pdev->dev, "Failed to get IRQ\n");
 		err = -ENODEV;
-		goto fail_phy;
+		goto cleanup_phy;
 	}
 
 	if (pdata->operating_mode == TEGRA_USB_OTG) {
@@ -781,10 +765,12 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 		tegra->transceiver = ERR_PTR(-ENODEV);
 	}
 
+	platform_set_drvdata(pdev, tegra);
+
 	err = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to add USB HCD\n");
-		goto fail;
+		goto cleanup_phy;
 	}
 
 	pm_runtime_set_active(&pdev->dev);
@@ -797,15 +783,15 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 	pm_runtime_put_sync(&pdev->dev);
 	return err;
 
-fail:
+cleanup_phy:
 	if (!IS_ERR(tegra->transceiver))
 		otg_set_host(tegra->transceiver->otg, NULL);
-fail_phy:
+
 	usb_phy_shutdown(hcd->phy);
-fail_io:
-	clk_disable_unprepare(tegra->clk);
-fail_clk:
+cleanup_hcd_create:
 	usb_put_hcd(hcd);
+cleanup_clk:
+	clk_disable_unprepare(tegra->clk);
 	return err;
 }
 
