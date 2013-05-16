@@ -374,9 +374,7 @@ struct t10_reservation {
 	/* Activate Persistence across Target Power Loss enabled
 	 * for SCSI device */
 	int pr_aptpl_active;
-	/* Used by struct t10_reservation->pr_aptpl_buf_len */
 #define PR_APTPL_BUF_LEN			8192
-	u32 pr_aptpl_buf_len;
 	u32 pr_generation;
 	spinlock_t registration_lock;
 	spinlock_t aptpl_reg_lock;

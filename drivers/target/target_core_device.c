@@ -1410,7 +1410,6 @@ struct se_device *target_alloc_device(struct se_hba *hba, const char *name)
 	INIT_LIST_HEAD(&dev->t10_alua.tg_pt_gps_list);
 	spin_lock_init(&dev->t10_alua.tg_pt_gps_lock);
 
-	dev->t10_pr.pr_aptpl_buf_len = PR_APTPL_BUF_LEN;
 	dev->t10_wwn.t10_dev = dev;
 	dev->t10_alua.t10_dev = dev;
 
