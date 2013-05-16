@@ -1584,8 +1584,9 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 				   BSS_CHANGED_ARP_FILTER |
 				   BSS_CHANGED_PS;
 
-			if (sdata->u.mgd.dtim_period)
-				changed |= BSS_CHANGED_DTIM_PERIOD;
+			/* Re-send beacon info report to the driver */
+			if (sdata->u.mgd.have_beacon)
+				changed |= BSS_CHANGED_BEACON_INFO;
 
 			sdata_lock(sdata);
 			ieee80211_bss_info_change_notify(sdata, changed);

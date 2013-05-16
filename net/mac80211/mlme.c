@@ -1360,7 +1360,7 @@ static bool ieee80211_powersave_allowed(struct ieee80211_sub_if_data *sdata)
 			  IEEE80211_STA_CONNECTION_POLL))
 		return false;
 
-	if (!sdata->vif.bss_conf.dtim_period)
+	if (!mgd->have_beacon)
 		return false;
 
 	rcu_read_lock();
@@ -1771,7 +1771,7 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 
 	ieee80211_led_assoc(local, 1);
 
-	if (sdata->u.mgd.assoc_data->have_beacon) {
+	if (sdata->u.mgd.have_beacon) {
 		/*
 		 * If the AP is buggy we may get here with no DTIM period
 		 * known, so assume it's 1 which is the only safe assumption
@@ -1779,7 +1779,7 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 		 * probably just won't work at all.
 		 */
 		bss_conf->dtim_period = sdata->u.mgd.dtim_period ?: 1;
-		bss_info_changed |= BSS_CHANGED_DTIM_PERIOD;
+		bss_info_changed |= BSS_CHANGED_BEACON_INFO;
 	} else {
 		bss_conf->dtim_period = 0;
 	}
@@ -1903,6 +1903,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	del_timer_sync(&sdata->u.mgd.chswitch_timer);
 
 	sdata->vif.bss_conf.dtim_period = 0;
+	ifmgd->have_beacon = false;
 
 	ifmgd->flags = 0;
 	ieee80211_vif_release_channel(sdata);
@@ -2877,7 +2878,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 			const struct ieee80211_tim_ie *tim_ie = elems.tim;
 			ifmgd->dtim_period = tim_ie->dtim_period;
 		}
-		ifmgd->assoc_data->have_beacon = true;
+		ifmgd->have_beacon = true;
 		ifmgd->assoc_data->need_beacon = false;
 		if (local->hw.flags & IEEE80211_HW_TIMING_BEACON_ONLY) {
 			sdata->vif.bss_conf.sync_tsf =
@@ -3059,7 +3060,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 	 * If we haven't had a beacon before, tell the driver about the
 	 * DTIM period (and beacon timing if desired) now.
 	 */
-	if (!bss_conf->dtim_period) {
+	if (!ifmgd->have_beacon) {
 		/* a few bogus AP send dtim_period = 0 or no TIM IE */
 		if (elems.tim)
 			bss_conf->dtim_period = elems.tim->dtim_period ?: 1;
@@ -3078,7 +3079,8 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 				sdata->vif.bss_conf.sync_dtim_count = 0;
 		}
 
-		changed |= BSS_CHANGED_DTIM_PERIOD;
+		changed |= BSS_CHANGED_BEACON_INFO;
+		ifmgd->have_beacon = true;
 
 		mutex_lock(&local->iflist_mtx);
 		ieee80211_recalc_ps(local, -1);
@@ -3424,8 +3426,7 @@ void ieee80211_sta_work(struct ieee80211_sub_if_data *sdata)
 
 	if (ifmgd->assoc_data && ifmgd->assoc_data->timeout_started &&
 	    time_after(jiffies, ifmgd->assoc_data->timeout)) {
-		if ((ifmgd->assoc_data->need_beacon &&
-		     !ifmgd->assoc_data->have_beacon) ||
+		if ((ifmgd->assoc_data->need_beacon && !ifmgd->have_beacon) ||
 		    ieee80211_do_assoc(sdata)) {
 			u8 bssid[ETH_ALEN];
 
@@ -4193,6 +4194,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 
 	ifmgd->assoc_data = assoc_data;
 	ifmgd->dtim_period = 0;
+	ifmgd->have_beacon = false;
 
 	err = ieee80211_prep_connection(sdata, req->bss, true);
 	if (err)
@@ -4224,7 +4226,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 			ifmgd->dtim_period = tim->dtim_period;
 			dtim_count = tim->dtim_count;
 		}
-		assoc_data->have_beacon = true;
+		ifmgd->have_beacon = true;
 		assoc_data->timeout = jiffies;
 		assoc_data->timeout_started = true;
 

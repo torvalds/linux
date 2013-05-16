@@ -785,7 +785,7 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 			if (ret)
 				IWL_ERR(mvm, "failed to update quotas\n");
 		}
-	} else if (changes & BSS_CHANGED_DTIM_PERIOD) {
+	} else if (changes & BSS_CHANGED_BEACON_INFO) {
 		/*
 		 * We received a beacon _after_ association so
 		 * remove the session protection.
