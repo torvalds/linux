@@ -17,16 +17,6 @@
 #include <linux/of_platform.h>
 #include "common.h"
 
-static struct of_device_id sirfsoc_of_bus_ids[] __initdata = {
-	{ .compatible = "simple-bus", },
-	{},
-};
-
-void __init sirfsoc_mach_init(void)
-{
-	of_platform_bus_probe(NULL, sirfsoc_of_bus_ids, NULL);
-}
-
 void __init sirfsoc_init_late(void)
 {
 	sirfsoc_pm_init();
@@ -57,7 +47,6 @@ DT_MACHINE_START(ATLAS6_DT, "Generic ATLAS6 (Flattened Device Tree)")
 	.map_io         = sirfsoc_map_io,
 	.init_irq	= irqchip_init,
 	.init_time	= sirfsoc_init_time,
-	.init_machine	= sirfsoc_mach_init,
 	.init_late	= sirfsoc_init_late,
 	.dt_compat      = atlas6_dt_match,
 	.restart	= sirfsoc_restart,
@@ -77,7 +66,6 @@ DT_MACHINE_START(PRIMA2_DT, "Generic PRIMA2 (Flattened Device Tree)")
 	.init_irq	= irqchip_init,
 	.init_time	= sirfsoc_init_time,
 	.dma_zone_size	= SZ_256M,
-	.init_machine	= sirfsoc_mach_init,
 	.init_late	= sirfsoc_init_late,
 	.dt_compat      = prima2_dt_match,
 	.restart	= sirfsoc_restart,
@@ -96,7 +84,6 @@ DT_MACHINE_START(MARCO_DT, "Generic MARCO (Flattened Device Tree)")
 	.map_io         = sirfsoc_map_io,
 	.init_irq	= irqchip_init,
 	.init_time	= sirfsoc_init_time,
-	.init_machine	= sirfsoc_mach_init,
 	.init_late	= sirfsoc_init_late,
 	.dt_compat      = marco_dt_match,
 	.restart	= sirfsoc_restart,
