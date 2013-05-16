@@ -188,6 +188,8 @@ struct ieee80211_channel {
  *	when used with 802.11g (on the 2.4 GHz band); filled by the
  *	core code when registering the wiphy.
  * @IEEE80211_RATE_ERP_G: This is an ERP rate in 802.11g mode.
+ * @IEEE80211_RATE_SUPPORTS_5MHZ: Rate can be used in 5 MHz mode
+ * @IEEE80211_RATE_SUPPORTS_10MHZ: Rate can be used in 10 MHz mode
  */
 enum ieee80211_rate_flags {
 	IEEE80211_RATE_SHORT_PREAMBLE	= 1<<0,
@@ -195,6 +197,8 @@ enum ieee80211_rate_flags {
 	IEEE80211_RATE_MANDATORY_B	= 1<<2,
 	IEEE80211_RATE_MANDATORY_G	= 1<<3,
 	IEEE80211_RATE_ERP_G		= 1<<4,
+	IEEE80211_RATE_SUPPORTS_5MHZ	= 1<<5,
+	IEEE80211_RATE_SUPPORTS_10MHZ	= 1<<6,
 };
 
 /**
@@ -431,6 +435,30 @@ bool cfg80211_chandef_valid(const struct cfg80211_chan_def *chandef);
 bool cfg80211_chandef_usable(struct wiphy *wiphy,
 			     const struct cfg80211_chan_def *chandef,
 			     u32 prohibited_flags);
+
+/**
+ * ieee80211_chandef_rate_flags - returns rate flags for a channel
+ *
+ * In some channel types, not all rates may be used - for example CCK
+ * rates may not be used in 5/10 MHz channels.
+ *
+ * @chandef: channel definition for the channel
+ *
+ * Returns: rate flags which apply for this channel
+ */
+static inline enum ieee80211_rate_flags
+ieee80211_chandef_rate_flags(struct cfg80211_chan_def *chandef)
+{
+	switch (chandef->width) {
+	case NL80211_CHAN_WIDTH_5:
+		return IEEE80211_RATE_SUPPORTS_5MHZ;
+	case NL80211_CHAN_WIDTH_10:
+		return IEEE80211_RATE_SUPPORTS_10MHZ;
+	default:
+		break;
+	}
+	return 0;
+}
 
 /**
  * enum survey_info_flags - survey information flags
