@@ -64,6 +64,7 @@ static int gfs2_encode_fh(struct inode *inode, __u32 *p, int *len,
 }
 
 struct get_name_filldir {
+	struct dir_context ctx;
 	struct gfs2_inum_host inum;
 	char *name;
 };
@@ -90,7 +91,6 @@ static int gfs2_get_name(struct dentry *parent, char *name,
 	struct gfs2_inode *dip, *ip;
 	struct get_name_filldir gnfd;
 	struct gfs2_holder gh;
-	u64 offset = 0;
 	int error;
 	struct file_ra_state f_ra = { .start = 0 };
 
@@ -107,12 +107,14 @@ static int gfs2_get_name(struct dentry *parent, char *name,
 	gnfd.inum.no_addr = ip->i_no_addr;
 	gnfd.inum.no_formal_ino = ip->i_no_formal_ino;
 	gnfd.name = name;
+	gnfd.ctx.actor = get_name_filldir;
+	gnfd.ctx.pos = 0;
 
 	error = gfs2_glock_nq_init(dip->i_gl, LM_ST_SHARED, 0, &gh);
 	if (error)
 		return error;
 
-	error = gfs2_dir_read(dir, &offset, &gnfd, get_name_filldir, &f_ra);
+	error = gfs2_dir_read(dir, &gnfd.ctx, &f_ra);
 
 	gfs2_glock_dq_uninit(&gh);
 
