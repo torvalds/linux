@@ -59,22 +59,6 @@ static struct drm_device *intel_dp_to_dev(struct intel_dp *intel_dp)
 	return intel_dig_port->base.base.dev;
 }
 
-/**
- * is_cpu_edp - is the port on the CPU and attached to an eDP panel?
- * @intel_dp: DP struct
- *
- * Returns true if the given DP struct corresponds to a CPU eDP port.
- */
-static bool is_cpu_edp(struct intel_dp *intel_dp)
-{
-	struct drm_device *dev = intel_dp_to_dev(intel_dp);
-	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
-	enum port port = intel_dig_port->port;
-
-	return is_edp(intel_dp) &&
-		(port == PORT_A || (port == PORT_C && IS_VALLEYVIEW(dev)));
-}
-
 static struct intel_dp *intel_attached_dp(struct drm_connector *connector)
 {
 	return enc_to_intel_dp(&intel_attached_encoder(connector)->base);
