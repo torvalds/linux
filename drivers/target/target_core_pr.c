@@ -1995,18 +1995,18 @@ static int core_scsi3_update_and_write_aptpl(struct se_device *dev, bool aptpl)
 
 static sense_reason_t
 core_scsi3_emulate_pro_register(struct se_cmd *cmd, u64 res_key, u64 sa_res_key,
-		int aptpl, int all_tg_pt, int spec_i_pt, enum register_type register_type)
+		bool aptpl, bool all_tg_pt, bool spec_i_pt, enum register_type register_type)
 {
 	struct se_session *se_sess = cmd->se_sess;
 	struct se_device *dev = cmd->se_dev;
 	struct se_dev_entry *se_deve;
 	struct se_lun *se_lun = cmd->se_lun;
 	struct se_portal_group *se_tpg;
-	struct t10_pr_registration *pr_reg, *pr_reg_p, *pr_reg_tmp, *pr_reg_e;
+	struct t10_pr_registration *pr_reg, *pr_reg_p, *pr_reg_tmp;
 	struct t10_reservation *pr_tmpl = &dev->t10_pr;
 	unsigned char isid_buf[PR_REG_ISID_LEN], *isid_ptr = NULL;
 	sense_reason_t ret = TCM_NO_SENSE;
-	int pr_holder = 0, type;
+	int pr_holder = 0;
 
 	if (!se_sess || !se_lun) {
 		pr_err("SPC-3 PR: se_sess || struct se_lun is NULL!\n");
@@ -2024,8 +2024,8 @@ core_scsi3_emulate_pro_register(struct se_cmd *cmd, u64 res_key, u64 sa_res_key,
 	/*
 	 * Follow logic from spc4r17 Section 5.7.7, Register Behaviors Table 47
 	 */
-	pr_reg_e = core_scsi3_locate_pr_reg(dev, se_sess->se_node_acl, se_sess);
-	if (!pr_reg_e) {
+	pr_reg = core_scsi3_locate_pr_reg(dev, se_sess->se_node_acl, se_sess);
+	if (!pr_reg) {
 		if (res_key) {
 			pr_warn("SPC-3 PR: Reservation Key non-zero"
 				" for SA REGISTER, returning CONFLICT\n");
@@ -2069,29 +2069,23 @@ core_scsi3_emulate_pro_register(struct se_cmd *cmd, u64 res_key, u64 sa_res_key,
 		return core_scsi3_update_and_write_aptpl(dev, aptpl);
 	}
 
-	/*
-	 * Locate the existing *pr_reg via struct se_node_acl pointers
-	 */
-	pr_reg = pr_reg_e;
-	type = pr_reg->pr_res_type;
+	/* ok, existing registration */
 
-	if (register_type == REGISTER) {
-		if (res_key != pr_reg->pr_res_key) {
-			pr_err("SPC-3 PR REGISTER: Received"
-				" res_key: 0x%016Lx does not match"
-				" existing SA REGISTER res_key:"
-				" 0x%016Lx\n", res_key,
-				pr_reg->pr_res_key);
-			ret = TCM_RESERVATION_CONFLICT;
-			goto out_put_pr_reg;
-		}
+	if ((register_type == REGISTER) && (res_key != pr_reg->pr_res_key)) {
+		pr_err("SPC-3 PR REGISTER: Received"
+		       " res_key: 0x%016Lx does not match"
+		       " existing SA REGISTER res_key:"
+		       " 0x%016Lx\n", res_key,
+		       pr_reg->pr_res_key);
+		ret = TCM_RESERVATION_CONFLICT;
+		goto out;
 	}
 
 	if (spec_i_pt) {
 		pr_err("SPC-3 PR REGISTER: SPEC_I_PT"
 			" set on a registered nexus\n");
 		ret = TCM_INVALID_PARAMETER_LIST;
-		goto out_put_pr_reg;
+		goto out;
 	}
 
 	/*
@@ -2103,7 +2097,7 @@ core_scsi3_emulate_pro_register(struct se_cmd *cmd, u64 res_key, u64 sa_res_key,
 			" registration exists, but ALL_TG_PT=1 bit not"
 			" present in received PROUT\n");
 		ret = TCM_INVALID_CDB_FIELD;
-		goto out_put_pr_reg;
+		goto out;
 	}
 
 	/*
@@ -2132,7 +2126,7 @@ core_scsi3_emulate_pro_register(struct se_cmd *cmd, u64 res_key, u64 sa_res_key,
 				cmd->se_dev, pr_reg);
 		if (pr_holder < 0) {
 			ret = TCM_RESERVATION_CONFLICT;
-			goto out_put_pr_reg;
+			goto out;
 		}
 
 		spin_lock(&pr_tmpl->registration_lock);
@@ -2177,8 +2171,8 @@ core_scsi3_emulate_pro_register(struct se_cmd *cmd, u64 res_key, u64 sa_res_key,
 		 * RESERVATIONS RELEASED.
 		 */
 		if (pr_holder &&
-		   (type == PR_TYPE_WRITE_EXCLUSIVE_REGONLY ||
-		    type == PR_TYPE_EXCLUSIVE_ACCESS_REGONLY)) {
+		    (pr_reg->pr_res_type == PR_TYPE_WRITE_EXCLUSIVE_REGONLY ||
+		     pr_reg->pr_res_type == PR_TYPE_EXCLUSIVE_ACCESS_REGONLY)) {
 			list_for_each_entry(pr_reg_p,
 					&pr_tmpl->registration_list,
 					pr_reg_list) {
@@ -2196,7 +2190,7 @@ core_scsi3_emulate_pro_register(struct se_cmd *cmd, u64 res_key, u64 sa_res_key,
 
 	ret = core_scsi3_update_and_write_aptpl(dev, aptpl);
 
-out_put_pr_reg:
+out:
 	core_scsi3_put_pr_reg(pr_reg);
 	return ret;
 }
