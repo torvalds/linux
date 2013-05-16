@@ -1558,7 +1558,10 @@ static int si5351_i2c_probe(struct i2c_client *client,
 }
 
 static const struct i2c_device_id si5351_i2c_ids[] = {
-	{ "silabs,si5351", 0 },
+	{ "si5351a", 0 },
+	{ "si5351a-msop", 0 },
+	{ "si5351b", 0 },
+	{ "si5351c", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, si5351_i2c_ids);
