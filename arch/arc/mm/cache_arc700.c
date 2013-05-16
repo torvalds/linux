@@ -610,7 +610,7 @@ void __sync_icache_dcache(unsigned long paddr, unsigned long vaddr, int len)
 
 	local_irq_save(flags);
 	__ic_line_inv_vaddr(paddr, vaddr, len);
-	__dc_line_op(paddr, vaddr, len, OP_FLUSH);
+	__dc_line_op(paddr, vaddr, len, OP_FLUSH_N_INV);
 	local_irq_restore(flags);
 }
 
