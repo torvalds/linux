@@ -2151,8 +2151,8 @@ core_scsi3_emulate_pro_register(struct se_cmd *cmd, u64 res_key, u64 sa_res_key,
 	}
 
 	if (spec_i_pt) {
-		pr_err("SPC-3 PR UNREGISTER: SPEC_I_PT"
-			" set while sa_res_key=0\n");
+		pr_err("SPC-3 PR REGISTER: SPEC_I_PT"
+			" set on a registered nexus\n");
 		ret = TCM_INVALID_PARAMETER_LIST;
 		goto out_put_pr_reg;
 	}
@@ -2161,8 +2161,8 @@ core_scsi3_emulate_pro_register(struct se_cmd *cmd, u64 res_key, u64 sa_res_key,
 	 * An existing ALL_TG_PT=1 registration being released
 	 * must also set ALL_TG_PT=1 in the incoming PROUT.
 	 */
-	if (pr_reg->pr_reg_all_tg_pt && !(all_tg_pt)) {
-		pr_err("SPC-3 PR UNREGISTER: ALL_TG_PT=1"
+	if (pr_reg->pr_reg_all_tg_pt && !all_tg_pt) {
+		pr_err("SPC-3 PR REGISTER: ALL_TG_PT=1"
 			" registration exists, but ALL_TG_PT=1 bit not"
 			" present in received PROUT\n");
 		ret = TCM_INVALID_CDB_FIELD;
