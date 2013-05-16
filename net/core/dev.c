@@ -1629,7 +1629,6 @@ int dev_forward_skb(struct net_device *dev, struct sk_buff *skb)
 		return NET_RX_DROP;
 	}
 	skb->skb_iif = 0;
-	skb->dev = dev;
 	skb_dst_drop(skb);
 	skb->tstamp.tv64 = 0;
 	skb->pkt_type = PACKET_HOST;
