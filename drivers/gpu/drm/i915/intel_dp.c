@@ -685,6 +685,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_display_mode *adjusted_mode = &pipe_config->adjusted_mode;
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	enum port port = dp_to_dig_port(intel_dp)->port;
 	struct intel_crtc *intel_crtc = encoder->new_crtc;
 	struct intel_connector *intel_connector = intel_dp->attached_connector;
 	int lane_count, clock;
@@ -694,7 +695,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	static int bws[2] = { DP_LINK_BW_1_62, DP_LINK_BW_2_7 };
 	int target_clock, link_avail, link_clock;
 
-	if (HAS_PCH_SPLIT(dev) && !HAS_DDI(dev) && !is_cpu_edp(intel_dp))
+	if (HAS_PCH_SPLIT(dev) && !HAS_DDI(dev) && port != PORT_A)
 		pipe_config->has_pch_encoder = true;
 
 	pipe_config->has_dp_encoder = true;
@@ -828,6 +829,7 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+	enum port port = dp_to_dig_port(intel_dp)->port;
 	struct drm_crtc *crtc = encoder->crtc;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
@@ -868,7 +870,7 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 
 	/* Split out the IBX/CPU vs CPT settings */
 
-	if (is_cpu_edp(intel_dp) && IS_GEN7(dev) && !IS_VALLEYVIEW(dev)) {
+	if (port == PORT_A && IS_GEN7(dev) && !IS_VALLEYVIEW(dev)) {
 		if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
 			intel_dp->DP |= DP_SYNC_HS_HIGH;
 		if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
@@ -885,7 +887,7 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 			intel_dp->DP |= DP_PLL_FREQ_160MHZ;
 		else
 			intel_dp->DP |= DP_PLL_FREQ_270MHZ;
-	} else if (!HAS_PCH_CPT(dev) || is_cpu_edp(intel_dp)) {
+	} else if (!HAS_PCH_CPT(dev) || port == PORT_A) {
 		if (!HAS_PCH_SPLIT(dev) && !IS_VALLEYVIEW(dev))
 			intel_dp->DP |= intel_dp->color_range;
 
@@ -901,7 +903,7 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		if (intel_crtc->pipe == 1)
 			intel_dp->DP |= DP_PIPEB_SELECT;
 
-		if (is_cpu_edp(intel_dp) && !IS_VALLEYVIEW(dev)) {
+		if (port == PORT_A && !IS_VALLEYVIEW(dev)) {
 			/* don't miss out required setting for eDP */
 			if (adjusted_mode->clock < 200000)
 				intel_dp->DP |= DP_PLL_FREQ_160MHZ;
@@ -912,7 +914,7 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		intel_dp->DP |= DP_LINK_TRAIN_OFF_CPT;
 	}
 
-	if (is_cpu_edp(intel_dp) && !IS_VALLEYVIEW(dev))
+	if (port == PORT_A && !IS_VALLEYVIEW(dev))
 		ironlake_set_pll_edp(crtc, adjusted_mode->clock);
 }
 
@@ -1302,6 +1304,7 @@ static bool intel_dp_get_hw_state(struct intel_encoder *encoder,
 				  enum pipe *pipe)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	enum port port = dp_to_dig_port(intel_dp)->port;
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 tmp = I915_READ(intel_dp->output_reg);
@@ -1309,9 +1312,9 @@ static bool intel_dp_get_hw_state(struct intel_encoder *encoder,
 	if (!(tmp & DP_PORT_EN))
 		return false;
 
-	if (is_cpu_edp(intel_dp) && IS_GEN7(dev) && !IS_VALLEYVIEW(dev)) {
+	if (port == PORT_A && IS_GEN7(dev) && !IS_VALLEYVIEW(dev)) {
 		*pipe = PORT_TO_PIPE_CPT(tmp);
-	} else if (!HAS_PCH_CPT(dev) || is_cpu_edp(intel_dp)) {
+	} else if (!HAS_PCH_CPT(dev) || port == PORT_A) {
 		*pipe = PORT_TO_PIPE(tmp);
 	} else {
 		u32 trans_sel;
@@ -1431,14 +1434,14 @@ static void intel_enable_dp(struct intel_encoder *encoder)
 static void intel_pre_enable_dp(struct intel_encoder *encoder)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	struct intel_digital_port *dport = dp_to_dig_port(intel_dp);
 	struct drm_device *dev = encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (is_cpu_edp(intel_dp) && !IS_VALLEYVIEW(dev))
+	if (dport->port == PORT_A && !IS_VALLEYVIEW(dev))
 		ironlake_edp_pll_on(intel_dp);
 
 	if (IS_VALLEYVIEW(dev)) {
-		struct intel_digital_port *dport = enc_to_dig_port(&encoder->base);
 		struct intel_crtc *intel_crtc =
 			to_intel_crtc(encoder->base.crtc);
 		int port = vlv_dport_to_channel(dport);
@@ -1546,12 +1549,13 @@ static uint8_t
 intel_dp_voltage_max(struct intel_dp *intel_dp)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+	enum port port = dp_to_dig_port(intel_dp)->port;
 
 	if (IS_VALLEYVIEW(dev))
 		return DP_TRAIN_VOLTAGE_SWING_1200;
-	else if (IS_GEN7(dev) && is_cpu_edp(intel_dp))
+	else if (IS_GEN7(dev) && port == PORT_A)
 		return DP_TRAIN_VOLTAGE_SWING_800;
-	else if (HAS_PCH_CPT(dev) && !is_cpu_edp(intel_dp))
+	else if (HAS_PCH_CPT(dev) && port != PORT_A)
 		return DP_TRAIN_VOLTAGE_SWING_1200;
 	else
 		return DP_TRAIN_VOLTAGE_SWING_800;
@@ -1561,6 +1565,7 @@ static uint8_t
 intel_dp_pre_emphasis_max(struct intel_dp *intel_dp, uint8_t voltage_swing)
 {
 	struct drm_device *dev = intel_dp_to_dev(intel_dp);
+	enum port port = dp_to_dig_port(intel_dp)->port;
 
 	if (HAS_DDI(dev)) {
 		switch (voltage_swing & DP_TRAIN_VOLTAGE_SWING_MASK) {
@@ -1586,7 +1591,7 @@ intel_dp_pre_emphasis_max(struct intel_dp *intel_dp, uint8_t voltage_swing)
 		default:
 			return DP_TRAIN_PRE_EMPHASIS_0;
 		}
-	} else if (IS_GEN7(dev) && is_cpu_edp(intel_dp)) {
+	} else if (IS_GEN7(dev) && port == PORT_A) {
 		switch (voltage_swing & DP_TRAIN_VOLTAGE_SWING_MASK) {
 		case DP_TRAIN_VOLTAGE_SWING_400:
 			return DP_TRAIN_PRE_EMPHASIS_6;
@@ -1873,6 +1878,7 @@ static void
 intel_dp_set_signal_levels(struct intel_dp *intel_dp, uint32_t *DP)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	enum port port = intel_dig_port->port;
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	uint32_t signal_levels, mask;
 	uint8_t train_set = intel_dp->train_set[0];
@@ -1883,10 +1889,10 @@ intel_dp_set_signal_levels(struct intel_dp *intel_dp, uint32_t *DP)
 	} else if (IS_VALLEYVIEW(dev)) {
 		signal_levels = intel_vlv_signal_levels(intel_dp);
 		mask = 0;
-	} else if (IS_GEN7(dev) && is_cpu_edp(intel_dp)) {
+	} else if (IS_GEN7(dev) && port == PORT_A) {
 		signal_levels = intel_gen7_edp_signal_levels(train_set);
 		mask = EDP_LINK_TRAIN_VOL_EMP_MASK_IVB;
-	} else if (IS_GEN6(dev) && is_cpu_edp(intel_dp)) {
+	} else if (IS_GEN6(dev) && port == PORT_A) {
 		signal_levels = intel_gen6_edp_signal_levels(train_set);
 		mask = EDP_LINK_TRAIN_VOL_EMP_MASK_SNB;
 	} else {
@@ -1936,8 +1942,7 @@ intel_dp_set_link_train(struct intel_dp *intel_dp,
 		}
 		I915_WRITE(DP_TP_CTL(port), temp);
 
-	} else if (HAS_PCH_CPT(dev) &&
-		   (IS_GEN7(dev) || !is_cpu_edp(intel_dp))) {
+	} else if (HAS_PCH_CPT(dev) && (IS_GEN7(dev) || port != PORT_A)) {
 		dp_reg_value &= ~DP_LINK_TRAIN_MASK_CPT;
 
 		switch (dp_train_pat & DP_TRAINING_PATTERN_MASK) {
@@ -2188,6 +2193,7 @@ static void
 intel_dp_link_down(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	enum port port = intel_dig_port->port;
 	struct drm_device *dev = intel_dig_port->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc =
@@ -2217,7 +2223,7 @@ intel_dp_link_down(struct intel_dp *intel_dp)
 
 	DRM_DEBUG_KMS("\n");
 
-	if (HAS_PCH_CPT(dev) && (IS_GEN7(dev) || !is_cpu_edp(intel_dp))) {
+	if (HAS_PCH_CPT(dev) && (IS_GEN7(dev) || port != PORT_A)) {
 		DP &= ~DP_LINK_TRAIN_MASK_CPT;
 		I915_WRITE(intel_dp->output_reg, DP | DP_LINK_TRAIN_PAT_IDLE_CPT);
 	} else {
@@ -2944,9 +2950,6 @@ intel_dp_init_panel_power_sequencer_registers(struct drm_device *dev,
 		pp_div_reg = PIPEA_PP_DIVISOR;
 	}
 
-	if (IS_VALLEYVIEW(dev))
-		port_sel = I915_READ(pp_on_reg) & 0xc0000000;
-
 	/* And finally store the new values in the power sequencer. */
 	pp_on = (seq->t1_t3 << PANEL_POWER_UP_DELAY_SHIFT) |
 		(seq->t8 << PANEL_LIGHT_ON_DELAY_SHIFT);
@@ -2960,8 +2963,10 @@ intel_dp_init_panel_power_sequencer_registers(struct drm_device *dev,
 
 	/* Haswell doesn't have any port selection bits for the panel
 	 * power sequencer any more. */
-	if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev)) {
-		if (is_cpu_edp(intel_dp))
+	if (IS_VALLEYVIEW(dev)) {
+		port_sel = I915_READ(pp_on_reg) & 0xc0000000;
+	} else if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev)) {
+		if (dp_to_dig_port(intel_dp)->port == PORT_A)
 			port_sel = PANEL_POWER_PORT_DP_A;
 		else
 			port_sel = PANEL_POWER_PORT_DP_D;
