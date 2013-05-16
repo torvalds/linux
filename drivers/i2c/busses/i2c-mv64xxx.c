@@ -419,28 +419,12 @@ mv64xxx_i2c_execute_msg(struct mv64xxx_i2c_data *drv_data, struct i2c_msg *msg,
 	spin_lock_irqsave(&drv_data->lock, flags);
 	mv64xxx_i2c_prepare_for_io(drv_data, msg);
 
-	if (unlikely(msg->flags & I2C_M_NOSTART)) { /* Skip start/addr phases */
-		if (drv_data->msg->flags & I2C_M_RD) {
-			/* No action to do, wait for slave to send a byte */
-			drv_data->action = MV64XXX_I2C_ACTION_CONTINUE;
-			drv_data->state =
-				MV64XXX_I2C_STATE_WAITING_FOR_SLAVE_DATA;
-		} else {
-			drv_data->action = MV64XXX_I2C_ACTION_SEND_DATA;
-			drv_data->state =
-				MV64XXX_I2C_STATE_WAITING_FOR_SLAVE_ACK;
-			drv_data->bytes_left--;
-		}
+	if (is_first) {
+		drv_data->action = MV64XXX_I2C_ACTION_SEND_START;
+		drv_data->state = MV64XXX_I2C_STATE_WAITING_FOR_START_COND;
 	} else {
-		if (is_first) {
-			drv_data->action = MV64XXX_I2C_ACTION_SEND_START;
-			drv_data->state =
-				MV64XXX_I2C_STATE_WAITING_FOR_START_COND;
-		} else {
-			drv_data->action = MV64XXX_I2C_ACTION_SEND_ADDR_1;
-			drv_data->state =
-				MV64XXX_I2C_STATE_WAITING_FOR_ADDR_1_ACK;
-		}
+		drv_data->action = MV64XXX_I2C_ACTION_SEND_ADDR_1;
+		drv_data->state = MV64XXX_I2C_STATE_WAITING_FOR_ADDR_1_ACK;
 	}
 
 	drv_data->send_stop = is_last;
