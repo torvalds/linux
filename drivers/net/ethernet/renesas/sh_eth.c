@@ -2745,11 +2745,6 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	if (mdp->cd->tsu) {
 		struct resource *rtsu;
 		rtsu = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		if (!rtsu) {
-			dev_err(&pdev->dev, "Not found TSU resource\n");
-			ret = -ENODEV;
-			goto out_release;
-		}
 		mdp->tsu_addr = devm_ioremap_resource(&pdev->dev, rtsu);
 		if (IS_ERR(mdp->tsu_addr)) {
 			ret = PTR_ERR(mdp->tsu_addr);
