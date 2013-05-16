@@ -198,7 +198,7 @@ static struct platform_driver spear_thermal_driver = {
 		.name = "spear_thermal",
 		.owner = THIS_MODULE,
 		.pm = &spear_thermal_pm_ops,
-		.of_match_table = of_match_ptr(spear_thermal_id_table),
+		.of_match_table = spear_thermal_id_table,
 	},
 };
 
