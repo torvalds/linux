@@ -316,15 +316,15 @@
 
 	usb@c5004000 {
 		status = "okay";
-		nvidia,phy-reset-gpio = <&gpio 168 0>; /* gpio PV0 */
+		nvidia,phy-reset-gpio = <&gpio 168 1>; /* gpio PV0, active low */
+	};
+
+	usb-phy@c5004000 {
+		nvidia,phy-reset-gpio = <&gpio 168 1>; /* gpio PV0, active low */
 	};
 
 	usb@c5008000 {
 		status = "okay";
-	};
-
-	usb-phy@c5004400 {
-		nvidia,phy-reset-gpio = <&gpio 168 0>; /* gpio PV0 */
 	};
 
 	sdhci@c8000000 {
