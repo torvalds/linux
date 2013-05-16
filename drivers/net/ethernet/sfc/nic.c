@@ -1080,12 +1080,21 @@ efx_handle_rx_event(struct efx_channel *channel, const efx_qword_t *event)
 	rx_ev_hdr_type = EFX_QWORD_FIELD(*event, FSF_AZ_RX_EV_HDR_TYPE);
 
 	if (likely(rx_ev_pkt_ok)) {
-		/* If packet is marked as OK and packet type is TCP/IP or
-		 * UDP/IP, then we can rely on the hardware checksum.
+		/* If packet is marked as OK then we can rely on the
+		 * hardware checksum and classification.
 		 */
-		flags = (rx_ev_hdr_type == FSE_CZ_RX_EV_HDR_TYPE_IPV4V6_TCP ||
-			 rx_ev_hdr_type == FSE_CZ_RX_EV_HDR_TYPE_IPV4V6_UDP) ?
-			EFX_RX_PKT_CSUMMED : 0;
+		flags = 0;
+		switch (rx_ev_hdr_type) {
+		case FSE_CZ_RX_EV_HDR_TYPE_IPV4V6_TCP:
+			flags |= EFX_RX_PKT_TCP;
+			/* fall through */
+		case FSE_CZ_RX_EV_HDR_TYPE_IPV4V6_UDP:
+			flags |= EFX_RX_PKT_CSUMMED;
+			/* fall through */
+		case FSE_CZ_RX_EV_HDR_TYPE_IPV4V6_OTHER:
+		case FSE_AZ_RX_EV_HDR_TYPE_OTHER:
+			break;
+		}
 	} else {
 		flags = efx_handle_rx_not_ok(rx_queue, event);
 	}
