@@ -110,6 +110,32 @@ struct mv64xxx_i2c_data {
 	struct i2c_adapter	adapter;
 };
 
+static void
+mv64xxx_i2c_prepare_for_io(struct mv64xxx_i2c_data *drv_data,
+	struct i2c_msg *msg)
+{
+	u32	dir = 0;
+
+	drv_data->msg = msg;
+	drv_data->byte_posn = 0;
+	drv_data->bytes_left = msg->len;
+	drv_data->aborting = 0;
+	drv_data->rc = 0;
+	drv_data->cntl_bits = MV64XXX_I2C_REG_CONTROL_ACK |
+		MV64XXX_I2C_REG_CONTROL_INTEN | MV64XXX_I2C_REG_CONTROL_TWSIEN;
+
+	if (msg->flags & I2C_M_RD)
+		dir = 1;
+
+	if (msg->flags & I2C_M_TEN) {
+		drv_data->addr1 = 0xf0 | (((u32)msg->addr & 0x300) >> 7) | dir;
+		drv_data->addr2 = (u32)msg->addr & 0xff;
+	} else {
+		drv_data->addr1 = ((u32)msg->addr & 0x7f) << 1 | dir;
+		drv_data->addr2 = 0;
+	}
+}
+
 /*
  *****************************************************************************
  *
@@ -346,32 +372,6 @@ mv64xxx_i2c_intr(int irq, void *dev_id)
  *
  *****************************************************************************
  */
-static void
-mv64xxx_i2c_prepare_for_io(struct mv64xxx_i2c_data *drv_data,
-	struct i2c_msg *msg)
-{
-	u32	dir = 0;
-
-	drv_data->msg = msg;
-	drv_data->byte_posn = 0;
-	drv_data->bytes_left = msg->len;
-	drv_data->aborting = 0;
-	drv_data->rc = 0;
-	drv_data->cntl_bits = MV64XXX_I2C_REG_CONTROL_ACK |
-		MV64XXX_I2C_REG_CONTROL_INTEN | MV64XXX_I2C_REG_CONTROL_TWSIEN;
-
-	if (msg->flags & I2C_M_RD)
-		dir = 1;
-
-	if (msg->flags & I2C_M_TEN) {
-		drv_data->addr1 = 0xf0 | (((u32)msg->addr & 0x300) >> 7) | dir;
-		drv_data->addr2 = (u32)msg->addr & 0xff;
-	} else {
-		drv_data->addr1 = ((u32)msg->addr & 0x7f) << 1 | dir;
-		drv_data->addr2 = 0;
-	}
-}
-
 static void
 mv64xxx_i2c_wait_for_completion(struct mv64xxx_i2c_data *drv_data)
 {
