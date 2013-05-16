@@ -80,13 +80,8 @@
 	#define FAR
 
 	typedef int BOOL;       /*  To match Windows */
-	typedef char *LPSTR;
-	typedef const char *LPCSTR;
 	typedef unsigned char  BYTE;
-	typedef BYTE  BOOLEAN;
-	typedef unsigned char UCHAR;
 	#define __packed __attribute__((packed))
-	typedef BYTE *LPBYTE;
 	#define HIWORD(x) (unsigned short)(((x)>>16) & 0xffff)
 	#define LOWORD(x) (unsigned short)((x) & 0xffff)
 #endif
