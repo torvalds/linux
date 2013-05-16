@@ -175,9 +175,9 @@ int samsung_usbphy_get_refclk_freq(struct samsung_usbphy *sphy)
 	 * external crystal clock XXTI
 	 */
 	if (sphy->drv_data->cpu_type == TYPE_EXYNOS5250)
-		ref_clk = devm_clk_get(sphy->dev, "ext_xtal");
+		ref_clk = clk_get(sphy->dev, "ext_xtal");
 	else
-		ref_clk = devm_clk_get(sphy->dev, "xusbxti");
+		ref_clk = clk_get(sphy->dev, "xusbxti");
 	if (IS_ERR(ref_clk)) {
 		dev_err(sphy->dev, "Failed to get reference clock\n");
 		return PTR_ERR(ref_clk);
