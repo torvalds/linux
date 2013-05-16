@@ -339,8 +339,6 @@ struct t10_pr_registration {
 	/* Used during APTPL metadata reading */
 #define PR_APTPL_MAX_TPORT_LEN			256
 	unsigned char pr_tport[PR_APTPL_MAX_TPORT_LEN];
-	/* For writing out live meta data */
-	unsigned char *pr_aptpl_buf;
 	u16 pr_aptpl_rpti;
 	u16 pr_reg_tpgt;
 	/* Reservation effects all target ports */
