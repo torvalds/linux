@@ -465,12 +465,6 @@ end:	return cm;
 
 }
 
-unsigned long hdmi_get_pixel_clock(void)
-{
-	/* HDMI Pixel Clock in Mhz */
-	return hdmi.ip_data.cfg.timings.pixel_clock * 1000;
-}
-
 static void hdmi_compute_pll(struct omap_dss_device *dssdev, int phy,
 		struct hdmi_pll_info *pi)
 {
@@ -662,6 +656,8 @@ void omapdss_hdmi_display_set_timing(struct omap_dss_device *dssdev,
 	t = hdmi_get_timings();
 	if (t != NULL)
 		hdmi.ip_data.cfg = *t;
+
+	dispc_set_tv_pclk(t->timings.pixel_clock * 1000);
 
 	mutex_unlock(&hdmi.lock);
 }

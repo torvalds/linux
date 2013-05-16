@@ -492,12 +492,6 @@ static void venc_power_off(struct omap_dss_device *dssdev)
 	venc_runtime_put();
 }
 
-unsigned long venc_get_pixel_clock(void)
-{
-	/* VENC Pixel Clock in Mhz */
-	return 13500000;
-}
-
 int omapdss_venc_display_enable(struct omap_dss_device *dssdev)
 {
 	struct omap_dss_device *out = &venc.output;
@@ -550,6 +544,8 @@ void omapdss_venc_set_timings(struct omap_dss_device *dssdev,
 		venc.wss_data = 0;
 
 	venc.timings = *timings;
+
+	dispc_set_tv_pclk(13500000);
 
 	mutex_unlock(&venc.venc_lock);
 }

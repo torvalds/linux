@@ -426,6 +426,7 @@ void dispc_mgr_set_clock_div(enum omap_channel channel,
 		const struct dispc_clock_info *cinfo);
 int dispc_mgr_get_clock_div(enum omap_channel channel,
 		struct dispc_clock_info *cinfo);
+void dispc_set_tv_pclk(unsigned long pclk);
 
 u32 dispc_wb_get_framedone_irq(void);
 bool dispc_wb_go_busy(void);
@@ -437,17 +438,8 @@ int dispc_wb_setup(const struct omap_dss_writeback_info *wi,
 		bool mem_to_mem, const struct omap_video_timings *timings);
 
 /* VENC */
-#ifdef CONFIG_OMAP2_DSS_VENC
 int venc_init_platform_driver(void) __init;
 void venc_uninit_platform_driver(void) __exit;
-unsigned long venc_get_pixel_clock(void);
-#else
-static inline unsigned long venc_get_pixel_clock(void)
-{
-	WARN("%s: VENC not compiled in, returning pclk as 0\n", __func__);
-	return 0;
-}
-#endif
 int omapdss_venc_display_enable(struct omap_dss_device *dssdev);
 void omapdss_venc_display_disable(struct omap_dss_device *dssdev);
 void omapdss_venc_set_timings(struct omap_dss_device *dssdev,
@@ -464,17 +456,8 @@ int venc_panel_init(void);
 void venc_panel_exit(void);
 
 /* HDMI */
-#ifdef CONFIG_OMAP4_DSS_HDMI
 int hdmi_init_platform_driver(void) __init;
 void hdmi_uninit_platform_driver(void) __exit;
-unsigned long hdmi_get_pixel_clock(void);
-#else
-static inline unsigned long hdmi_get_pixel_clock(void)
-{
-	WARN("%s: HDMI not compiled in, returning pclk as 0\n", __func__);
-	return 0;
-}
-#endif
 int omapdss_hdmi_display_enable(struct omap_dss_device *dssdev);
 void omapdss_hdmi_display_disable(struct omap_dss_device *dssdev);
 int omapdss_hdmi_core_enable(struct omap_dss_device *dssdev);
