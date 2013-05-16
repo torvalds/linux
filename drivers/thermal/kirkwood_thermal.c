@@ -121,7 +121,7 @@ static struct platform_driver kirkwood_thermal_driver = {
 	.driver = {
 		.name = "kirkwood_thermal",
 		.owner = THIS_MODULE,
-		.of_match_table = of_match_ptr(kirkwood_thermal_id_table),
+		.of_match_table = kirkwood_thermal_id_table,
 	},
 };
 
