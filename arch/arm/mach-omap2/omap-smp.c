@@ -87,7 +87,7 @@ static int __cpuinit omap4_boot_secondary(unsigned int cpu, struct task_struct *
 
 	/*
 	 * Update the AuxCoreBoot0 with boot state for secondary core.
-	 * omap_secondary_startup() routine will hold the secondary core till
+	 * omap4_secondary_startup() routine will hold the secondary core till
 	 * the AuxCoreBoot1 register is updated with cpu state
 	 * A barrier is added to ensure that write buffer is drained
 	 */
@@ -200,7 +200,7 @@ static void __init omap4_smp_init_cpus(void)
 
 static void __init omap4_smp_prepare_cpus(unsigned int max_cpus)
 {
-	void *startup_addr = omap_secondary_startup;
+	void *startup_addr = omap4_secondary_startup;
 	void __iomem *base = omap_get_wakeupgen_base();
 
 	/*
@@ -211,7 +211,7 @@ static void __init omap4_smp_prepare_cpus(unsigned int max_cpus)
 		scu_enable(scu_base);
 
 	if (cpu_is_omap446x()) {
-		startup_addr = omap_secondary_startup_4460;
+		startup_addr = omap4460_secondary_startup;
 		pm44xx_errata |= PM_OMAP4_ROM_SMP_BOOT_ERRATUM_GICD;
 	}
 
