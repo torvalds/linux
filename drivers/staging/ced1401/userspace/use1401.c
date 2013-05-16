@@ -276,8 +276,8 @@ static int aHand1401[MAX1401] = {0};    // handles for 1401s
 typedef struct CmdHead          // defines header block on command
 {                               // for PC commands
    char   acBasic[5];           // BASIC information - needed to align things
-   WORD   wBasicSz;             // size as seen by BASIC
-   WORD   wCmdSize;             // size of the following info
+   unsigned short   wBasicSz;             // size as seen by BASIC
+   unsigned short   wCmdSize;             // size of the following info
 } __packed CMDHEAD;
 #pragma pack()                  // back to normal
 
@@ -455,7 +455,7 @@ static void TranslateString(char* pStr)
 ****************************************************************************/
 U14API(short) U14StrToLongs(const char* pszBuff, U14LONG *palNums, short sMaxLongs)
 {
-    WORD wChInd = 0;                // index into source
+    unsigned short wChInd = 0;                // index into source
     short sLgInd = 0;               // index into result longs
 
     while (pszBuff[wChInd] &&       // until we get to end of string...
@@ -681,7 +681,7 @@ U14API(int) U14DriverType(short hand)
 ** U14DriverName
 ** Returns the driver type as 3 character (ISA, PCI, USB or HSS))
 ****************************************************************************/
-U14API(short) U14DriverName(short hand, char* pBuf, WORD wMax)
+U14API(short) U14DriverName(short hand, char* pBuf, unsigned short wMax)
 {
     char* pName;
     *pBuf = 0;                             // Start off with a blank string
@@ -1061,7 +1061,7 @@ U14API(short) U14TypeOf1401(short hand)
 ** U14NameOf1401
 ** Returns the type of the 1401 as a string, blank if unknown
 ****************************************************************************/
-U14API(short) U14NameOf1401(short hand, char* pBuf, WORD wMax)
+U14API(short) U14NameOf1401(short hand, char* pBuf, unsigned short wMax)
 {
     short sErr = CheckHandle(hand);
     if (sErr == U14ERR_NOERROR)
@@ -1454,7 +1454,7 @@ U14API(short) U14Close1401(short hand)
         U14Reset1401(hand);                     // in case an active transfer running
         for (j = 0; j < MAX_TRANSAREAS; ++j)    // Locate locked areas
             if (iAreaMask & (1 << j))           // And kill off any transfers
-                U14UnSetTransfer(hand, (WORD)j);
+                U14UnSetTransfer(hand, (unsigned short)j);
     }
 
 #ifdef _IS_WINDOWS_
@@ -1697,7 +1697,7 @@ U14API(short) U14SendChar(short hand, char cChar)
 **          error code. Any error from the device causes us to set up for
 **          a full reset.
 ****************************************************************************/
-U14API(short) U14GetString(short hand, char* pBuffer, WORD wMaxLen)
+U14API(short) U14GetString(short hand, char* pBuffer, unsigned short wMaxLen)
 {
     short sErr = CheckHandle(hand);
     if (sErr != U14ERR_NOERROR)             // If an error...
@@ -1727,7 +1727,7 @@ U14API(short) U14GetString(short hand, char* pBuffer, WORD wMaxLen)
             if (asLastRetCode[hand] == U14ERR_NOERROR)     /* all ok so far */
             {
                 DWORD       dwBytes = 0;
-                *((WORD *)pBuffer) = wMaxLen;       /* set up length */
+                *((unsigned short *)pBuffer) = wMaxLen;       /* set up length */
 #ifndef _WIN64
                 if (!USE_NT_DIOC(hand))             /* Win 95 DIOC here ? */
                 {
@@ -1737,7 +1737,7 @@ U14API(short) U14GetString(short hand, char* pBuffer, WORD wMaxLen)
                     if (wMaxLen > MAXSTRLEN)        /* Truncate length */
                         wMaxLen = MAXSTRLEN;    
 
-                    *((WORD *)tstr) = wMaxLen;      /* set len */
+                    *((unsigned short *)tstr) = wMaxLen;      /* set len */
 
                     iOK = DeviceIoControl(aHand1401[hand],(DWORD)U14_GETSTRING,
                                     NULL, 0, tstr, wMaxLen+sizeof(short),
@@ -1946,7 +1946,7 @@ U14API(short) U14LineCount(short hand)
 **       other functions after getting an error and before using
 **       this function.
 ****************************************************************************/
-U14API(void)  U14GetErrorString(short nErr, char* pStr, WORD wMax)
+U14API(void)  U14GetErrorString(short nErr, char* pStr, unsigned short wMax)
 {
     char    wstr[150];
 
@@ -2105,7 +2105,7 @@ U14API(void)  U14GetErrorString(short nErr, char* pStr, WORD wMax)
         break;
 
     }
-    if ((WORD)strlen(wstr) >= wMax-1)  /* Check for string being too long */
+    if ((unsigned short)strlen(wstr) >= wMax-1)  /* Check for string being too long */
         wstr[wMax-1] = 0;                          /* and truncate it if so */
     strcpy(pStr, wstr);                       /* Return the error string */
 }
@@ -2200,7 +2200,7 @@ U14API(short) U14WorkingSet(DWORD dwMinKb, DWORD dwMaxKb)
 ** U14UnSetTransfer  Cancels a transfer area
 ** wArea    The index of a block previously used in by SetTransfer
 *****************************************************************************/
-U14API(short) U14UnSetTransfer(short hand, WORD wArea)
+U14API(short) U14UnSetTransfer(short hand, unsigned short wArea)
 {
     short sErr = CheckHandle(hand);
 #ifdef _IS_WINDOWS_
@@ -2223,12 +2223,12 @@ U14API(short) U14UnSetTransfer(short hand, WORD wArea)
 
 /****************************************************************************
 ** U14SetTransArea      Sets an area up to be used for transfers
-** WORD  wArea     The area number to set up
+** unsigned short  wArea     The area number to set up
 ** void *pvBuff    The address of the buffer for the data.
 ** DWORD dwLength  The length of the buffer for the data
 ** short eSz       The element size (used for byte swapping on the Mac)
 ****************************************************************************/
-U14API(short) U14SetTransArea(short hand, WORD wArea, void *pvBuff,
+U14API(short) U14SetTransArea(short hand, unsigned short wArea, void *pvBuff,
                                           DWORD dwLength, short eSz)
 {
     TRANSFERDESC td;
@@ -2344,7 +2344,7 @@ U14API(short) U14SetTransArea(short hand, WORD wArea, void *pvBuff,
 ** Returns 1 if an event handle exists, 0 if all OK and no event handle or
 ** a negative code for an error.
 ****************************************************************************/
-U14API(short) U14SetTransferEvent(short hand, WORD wArea, BOOL bEvent,
+U14API(short) U14SetTransferEvent(short hand, unsigned short wArea, BOOL bEvent,
                                   BOOL bToHost, DWORD dwStart, DWORD dwLength)
 {
 #ifdef _IS_WINDOWS_
@@ -2416,7 +2416,7 @@ U14API(short) U14SetTransferEvent(short hand, WORD wArea, BOOL bEvent,
 ** Would a U14WaitTransferEvent() call return immediately? return 1 if so,
 ** 0 if not or a negative code if a problem.
 ****************************************************************************/
-U14API(int) U14TestTransferEvent(short hand, WORD wArea)
+U14API(int) U14TestTransferEvent(short hand, unsigned short wArea)
 {
 #ifdef _IS_WINDOWS_
     int iErr = CheckHandle(hand);
@@ -2441,7 +2441,7 @@ U14API(int) U14TestTransferEvent(short hand, WORD wArea)
 ** Returns   If no event handle then return immediately. Else return 1 if
 **           timed out or 0=event, and a negative code if a problem.
 ****************************************************************************/
-U14API(int) U14WaitTransferEvent(short hand, WORD wArea, int msTimeOut)
+U14API(int) U14WaitTransferEvent(short hand, unsigned short wArea, int msTimeOut)
 {
 #ifdef _IS_WINDOWS_
     int iErr = CheckHandle(hand);
@@ -2466,12 +2466,12 @@ U14API(int) U14WaitTransferEvent(short hand, WORD wArea, int msTimeOut)
 
 /****************************************************************************
 ** U14SetCircular    Sets an area up for circular DMA transfers
-** WORD  wArea          The area number to set up
+** unsigned short  wArea          The area number to set up
 ** BOOL  bToHost        Sets the direction of data transfer
 ** void *pvBuff        The address of the buffer for the data
 ** DWORD dwLength       The length of the buffer for the data
 ****************************************************************************/
-U14API(short) U14SetCircular(short hand, WORD wArea, BOOL bToHost,
+U14API(short) U14SetCircular(short hand, unsigned short wArea, BOOL bToHost,
 									void *pvBuff, DWORD dwLength)
 {
     short sErr = CheckHandle(hand);
@@ -2542,7 +2542,7 @@ U14API(short) U14SetCircular(short hand, WORD wArea, BOOL bToHost,
 ** Function  GetCircBlk returns the size (& start offset) of the next
 **           available block of circular data.
 ****************************************************************************/
-U14API(int) U14GetCircBlk(short hand, WORD wArea, DWORD *pdwOffs)
+U14API(int) U14GetCircBlk(short hand, unsigned short wArea, DWORD *pdwOffs)
 {
     int lErr = CheckHandle(hand);
     if (lErr != U14ERR_NOERROR)
@@ -2591,7 +2591,7 @@ U14API(int) U14GetCircBlk(short hand, WORD wArea, DWORD *pdwOffs)
 **           resuse for circular transfers and returns the size (& start
 **           offset) of the next available block of circular data.
 ****************************************************************************/
-U14API(int) U14FreeCircBlk(short hand, WORD wArea, DWORD dwOffs, DWORD dwSize,
+U14API(int) U14FreeCircBlk(short hand, unsigned short wArea, DWORD dwOffs, DWORD dwSize,
                                         DWORD *pdwOffs)
 {
     int lErr = CheckHandle(hand);

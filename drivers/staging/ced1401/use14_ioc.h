@@ -278,7 +278,7 @@ typedef PARAMBLK*   PPARAMBLK;
 
 typedef struct TransferDesc          /* Structure and type for SetTransArea */
 {
-	WORD        wArea;            /* number of transfer area to set up       */
+	unsigned short        wArea;            /* number of transfer area to set up       */
 	void FAR *lpvBuff;          /* address of transfer area                */
 	DWORD       dwLength;         /* length of area to set up                */
 	short       eSize;            /* size to move (for swapping on MAC)      */
@@ -289,8 +289,8 @@ typedef TRANSFERDESC FAR *LPTRANSFERDESC;
 /* This is the structure used to set up a transfer area */
 typedef struct VXTransferDesc    /* use1401.c and use1432x.x use only       */
 {
-	WORD        wArea;            /* number of transfer area to set up       */
-	WORD        wAddrSel;         /* 16 bit selector for area                */
+	unsigned short        wArea;            /* number of transfer area to set up       */
+	unsigned short        wAddrSel;         /* 16 bit selector for area                */
 	DWORD       dwAddrOfs;        /* 32 bit offset for area start            */
 	DWORD       dwLength;         /* length of area to set up                */
 } VXTRANSFERDESC;
