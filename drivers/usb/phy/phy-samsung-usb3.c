@@ -274,7 +274,10 @@ static int samsung_usb3phy_probe(struct platform_device *pdev)
 	sphy->phy.init		= samsung_usb3phy_init;
 	sphy->phy.shutdown	= samsung_usb3phy_shutdown;
 	sphy->drv_data		= samsung_usbphy_get_driver_data(pdev);
-	sphy->ref_clk_freq	= samsung_usbphy_get_refclk_freq(sphy);
+
+	sphy->ref_clk_freq = samsung_usbphy_get_refclk_freq(sphy);
+	if (sphy->ref_clk_freq < 0)
+		return -EINVAL;
 
 	spin_lock_init(&sphy->lock);
 
@@ -300,6 +303,7 @@ static int samsung_usb3phy_remove(struct platform_device *pdev)
 static struct samsung_usbphy_drvdata usb3phy_exynos5 = {
 	.cpu_type		= TYPE_EXYNOS5250,
 	.devphy_en_mask		= EXYNOS_USBPHY_ENABLE,
+	.rate_to_clksel		= samsung_usbphy_rate_to_clksel_4x12,
 };
 
 #ifdef CONFIG_OF

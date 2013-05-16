@@ -244,6 +244,8 @@ enum samsung_cpu_type {
 	TYPE_EXYNOS5250,
 };
 
+struct samsung_usbphy;
+
 /*
  * struct samsung_usbphy_drvdata - driver data for various SoC variants
  * @cpu_type: machine identifier
@@ -268,6 +270,7 @@ struct samsung_usbphy_drvdata {
 	int hostphy_en_mask;
 	u32 devphy_reg_offset;
 	u32 hostphy_reg_offset;
+	int (*rate_to_clksel)(struct samsung_usbphy *, unsigned long);
 };
 
 /*
@@ -325,3 +328,7 @@ extern void samsung_usbphy_cfg_sel(struct samsung_usbphy *sphy);
 extern int samsung_usbphy_set_type(struct usb_phy *phy,
 					enum samsung_usb_phy_type phy_type);
 extern int samsung_usbphy_get_refclk_freq(struct samsung_usbphy *sphy);
+extern int samsung_usbphy_rate_to_clksel_64xx(struct samsung_usbphy *sphy,
+							unsigned long rate);
+extern int samsung_usbphy_rate_to_clksel_4x12(struct samsung_usbphy *sphy,
+							unsigned long rate);
