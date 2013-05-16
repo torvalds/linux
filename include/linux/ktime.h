@@ -339,7 +339,8 @@ extern ktime_t ktime_add_safe(const ktime_t lhs, const ktime_t rhs);
  *
  * Returns true if there was a successful conversion, false if kt was 0.
  */
-static inline bool ktime_to_timespec_cond(const ktime_t kt, struct timespec *ts)
+static inline __must_check bool ktime_to_timespec_cond(const ktime_t kt,
+						       struct timespec *ts)
 {
 	if (kt.tv64) {
 		*ts = ktime_to_timespec(kt);
