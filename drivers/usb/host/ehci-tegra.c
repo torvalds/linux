@@ -736,7 +736,6 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 
 	tegra->phy = tegra_usb_phy_open(&pdev->dev, instance, hcd->regs,
 					pdata->phy_config,
-					TEGRA_USB_PHY_MODE_HOST,
 					tegra_ehci_set_pts,
 					tegra_ehci_set_phcd);
 	if (IS_ERR(tegra->phy)) {

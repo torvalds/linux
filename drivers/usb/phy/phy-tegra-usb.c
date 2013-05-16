@@ -687,7 +687,7 @@ static int	tegra_usb_phy_suspend(struct usb_phy *x, int suspend)
 }
 
 struct tegra_usb_phy *tegra_usb_phy_open(struct device *dev, int instance,
-	void __iomem *regs, void *config, enum tegra_usb_phy_mode phy_mode,
+	void __iomem *regs, void *config,
 	void (*set_pts)(struct usb_phy *x, u8 pts_val),
 	void (*set_phcd)(struct usb_phy *x, bool enable))
 
@@ -705,7 +705,6 @@ struct tegra_usb_phy *tegra_usb_phy_open(struct device *dev, int instance,
 	phy->instance = instance;
 	phy->regs = regs;
 	phy->config = config;
-	phy->mode = phy_mode;
 	phy->dev = dev;
 	phy->is_legacy_phy =
 		of_property_read_bool(np, "nvidia,has-legacy-mode");
@@ -716,6 +715,16 @@ struct tegra_usb_phy *tegra_usb_phy_open(struct device *dev, int instance,
 		phy->is_ulpi_phy = false;
 	else
 		phy->is_ulpi_phy = true;
+
+	err = of_property_match_string(np, "dr_mode", "otg");
+	if (err < 0) {
+		err = of_property_match_string(np, "dr_mode", "peripheral");
+		if (err < 0)
+			phy->mode = TEGRA_USB_PHY_MODE_HOST;
+		else
+			phy->mode = TEGRA_USB_PHY_MODE_DEVICE;
+	} else
+		phy->mode = TEGRA_USB_PHY_MODE_OTG;
 
 	if (!phy->config) {
 		if (phy->is_ulpi_phy) {
