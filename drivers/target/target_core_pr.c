@@ -53,16 +53,15 @@ struct pr_transport_id_holder {
 	struct list_head dest_list;
 };
 
-int core_pr_dump_initiator_port(
+void core_pr_dump_initiator_port(
 	struct t10_pr_registration *pr_reg,
 	char *buf,
 	u32 size)
 {
 	if (!pr_reg->isid_present_at_reg)
-		return 0;
+		buf[0] = '\0';
 
-	snprintf(buf, size, ",i,0x%s", &pr_reg->pr_reg_isid[0]);
-	return 1;
+	snprintf(buf, size, ",i,0x%s", pr_reg->pr_reg_isid);
 }
 
 enum register_type {
@@ -859,11 +858,9 @@ static void core_scsi3_aptpl_reserve(
 	struct t10_pr_registration *pr_reg)
 {
 	char i_buf[PR_REG_ISID_ID_LEN];
-	int prf_isid;
 
 	memset(i_buf, 0, PR_REG_ISID_ID_LEN);
-	prf_isid = core_pr_dump_initiator_port(pr_reg, &i_buf[0],
-				PR_REG_ISID_ID_LEN);
+	core_pr_dump_initiator_port(pr_reg, i_buf, PR_REG_ISID_ID_LEN);
 
 	spin_lock(&dev->dev_reservation_lock);
 	dev->dev_pr_res_holder = pr_reg;
@@ -876,7 +873,7 @@ static void core_scsi3_aptpl_reserve(
 		(pr_reg->pr_reg_all_tg_pt) ? 1 : 0);
 	pr_debug("SPC-3 PR [%s] RESERVE Node: %s%s\n",
 		tpg->se_tpg_tfo->get_fabric_name(), node_acl->initiatorname,
-		(prf_isid) ? &i_buf[0] : "");
+		i_buf);
 }
 
 static void __core_scsi3_add_registration(struct se_device *, struct se_node_acl *,
@@ -977,17 +974,15 @@ static void __core_scsi3_dump_registration(
 {
 	struct se_portal_group *se_tpg = nacl->se_tpg;
 	char i_buf[PR_REG_ISID_ID_LEN];
-	int prf_isid;
 
 	memset(&i_buf[0], 0, PR_REG_ISID_ID_LEN);
-	prf_isid = core_pr_dump_initiator_port(pr_reg, &i_buf[0],
-				PR_REG_ISID_ID_LEN);
+	core_pr_dump_initiator_port(pr_reg, i_buf, PR_REG_ISID_ID_LEN);
 
 	pr_debug("SPC-3 PR [%s] Service Action: REGISTER%s Initiator"
 		" Node: %s%s\n", tfo->get_fabric_name(), (register_type == REGISTER_AND_MOVE) ?
 		"_AND_MOVE" : (register_type == REGISTER_AND_IGNORE_EXISTING_KEY) ?
 		"_AND_IGNORE_EXISTING_KEY" : "", nacl->initiatorname,
-		(prf_isid) ? i_buf : "");
+		i_buf);
 	pr_debug("SPC-3 PR [%s] registration on Target Port: %s,0x%04x\n",
 		 tfo->get_fabric_name(), tfo->tpg_get_wwn(se_tpg),
 		tfo->tpg_get_tag(se_tpg));
@@ -1236,11 +1231,9 @@ static void __core_scsi3_free_registration(
 			pr_reg->pr_reg_nacl->se_tpg->se_tpg_tfo;
 	struct t10_reservation *pr_tmpl = &dev->t10_pr;
 	char i_buf[PR_REG_ISID_ID_LEN];
-	int prf_isid;
 
 	memset(i_buf, 0, PR_REG_ISID_ID_LEN);
-	prf_isid = core_pr_dump_initiator_port(pr_reg, &i_buf[0],
-				PR_REG_ISID_ID_LEN);
+	core_pr_dump_initiator_port(pr_reg, i_buf, PR_REG_ISID_ID_LEN);
 
 	pr_reg->pr_reg_deve->def_pr_registered = 0;
 	pr_reg->pr_reg_deve->pr_res_key = 0;
@@ -1268,7 +1261,7 @@ static void __core_scsi3_free_registration(
 	pr_debug("SPC-3 PR [%s] Service Action: UNREGISTER Initiator"
 		" Node: %s%s\n", tfo->get_fabric_name(),
 		pr_reg->pr_reg_nacl->initiatorname,
-		(prf_isid) ? &i_buf[0] : "");
+		i_buf);
 	pr_debug("SPC-3 PR [%s] for %s TCM Subsystem %s Object Target"
 		" Port(s)\n", tfo->get_fabric_name(),
 		(pr_reg->pr_reg_all_tg_pt) ? "ALL" : "SINGLE",
@@ -1464,7 +1457,7 @@ core_scsi3_decode_spec_i_port(
 	char *iport_ptr = NULL, dest_iport[64], i_buf[PR_REG_ISID_ID_LEN];
 	sense_reason_t ret;
 	u32 tpdl, tid_len = 0;
-	int dest_local_nexus, prf_isid;
+	int dest_local_nexus;
 	u32 dest_rtpi = 0;
 
 	memset(dest_iport, 0, 64);
@@ -1775,8 +1768,7 @@ core_scsi3_decode_spec_i_port(
 		kfree(tidh);
 
 		memset(i_buf, 0, PR_REG_ISID_ID_LEN);
-		prf_isid = core_pr_dump_initiator_port(dest_pr_reg, &i_buf[0],
-						PR_REG_ISID_ID_LEN);
+		core_pr_dump_initiator_port(dest_pr_reg, i_buf, PR_REG_ISID_ID_LEN);
 
 		__core_scsi3_add_registration(cmd->se_dev, dest_node_acl,
 					dest_pr_reg, 0, 0);
@@ -1784,8 +1776,7 @@ core_scsi3_decode_spec_i_port(
 		pr_debug("SPC-3 PR [%s] SPEC_I_PT: Successfully"
 			" registered Transport ID for Node: %s%s Mapped LUN:"
 			" %u\n", dest_tpg->se_tpg_tfo->get_fabric_name(),
-			dest_node_acl->initiatorname, (prf_isid) ?
-			&i_buf[0] : "", dest_se_deve->mapped_lun);
+			dest_node_acl->initiatorname, i_buf, dest_se_deve->mapped_lun);
 
 		if (dest_local_nexus)
 			continue;
@@ -2351,7 +2342,6 @@ core_scsi3_pro_reserve(struct se_cmd *cmd, int type, int scope, u64 res_key)
 	struct t10_reservation *pr_tmpl = &dev->t10_pr;
 	char i_buf[PR_REG_ISID_ID_LEN];
 	sense_reason_t ret;
-	int prf_isid;
 
 	memset(i_buf, 0, PR_REG_ISID_ID_LEN);
 
@@ -2477,8 +2467,7 @@ core_scsi3_pro_reserve(struct se_cmd *cmd, int type, int scope, u64 res_key)
 	pr_reg->pr_res_type = type;
 	pr_reg->pr_res_holder = 1;
 	dev->dev_pr_res_holder = pr_reg;
-	prf_isid = core_pr_dump_initiator_port(pr_reg, &i_buf[0],
-				PR_REG_ISID_ID_LEN);
+	core_pr_dump_initiator_port(pr_reg, i_buf, PR_REG_ISID_ID_LEN);
 
 	pr_debug("SPC-3 PR [%s] Service Action: RESERVE created new"
 		" reservation holder TYPE: %s ALL_TG_PT: %d\n",
@@ -2487,7 +2476,7 @@ core_scsi3_pro_reserve(struct se_cmd *cmd, int type, int scope, u64 res_key)
 	pr_debug("SPC-3 PR [%s] RESERVE Node: %s%s\n",
 			cmd->se_tfo->get_fabric_name(),
 			se_sess->se_node_acl->initiatorname,
-			(prf_isid) ? &i_buf[0] : "");
+			i_buf);
 	spin_unlock(&dev->dev_reservation_lock);
 
 	if (pr_tmpl->pr_aptpl_active) {
@@ -2535,11 +2524,9 @@ static void __core_scsi3_complete_pro_release(
 {
 	struct target_core_fabric_ops *tfo = se_nacl->se_tpg->se_tpg_tfo;
 	char i_buf[PR_REG_ISID_ID_LEN];
-	int prf_isid;
 
 	memset(i_buf, 0, PR_REG_ISID_ID_LEN);
-	prf_isid = core_pr_dump_initiator_port(pr_reg, &i_buf[0],
-				PR_REG_ISID_ID_LEN);
+	core_pr_dump_initiator_port(pr_reg, i_buf, PR_REG_ISID_ID_LEN);
 	/*
 	 * Go ahead and release the current PR reservation holder.
 	 */
@@ -2552,7 +2539,7 @@ static void __core_scsi3_complete_pro_release(
 		(pr_reg->pr_reg_all_tg_pt) ? 1 : 0);
 	pr_debug("SPC-3 PR [%s] RELEASE Node: %s%s\n",
 		tfo->get_fabric_name(), se_nacl->initiatorname,
-		(prf_isid) ? &i_buf[0] : "");
+		i_buf);
 	/*
 	 * Clear TYPE and SCOPE for the next PROUT Service Action: RESERVE
 	 */
@@ -2826,11 +2813,9 @@ static void __core_scsi3_complete_pro_preempt(
 	struct se_node_acl *nacl = pr_reg->pr_reg_nacl;
 	struct target_core_fabric_ops *tfo = nacl->se_tpg->se_tpg_tfo;
 	char i_buf[PR_REG_ISID_ID_LEN];
-	int prf_isid;
 
 	memset(i_buf, 0, PR_REG_ISID_ID_LEN);
-	prf_isid = core_pr_dump_initiator_port(pr_reg, &i_buf[0],
-				PR_REG_ISID_ID_LEN);
+	core_pr_dump_initiator_port(pr_reg, i_buf, PR_REG_ISID_ID_LEN);
 	/*
 	 * Do an implict RELEASE of the existing reservation.
 	 */
@@ -2850,7 +2835,7 @@ static void __core_scsi3_complete_pro_preempt(
 		(pr_reg->pr_reg_all_tg_pt) ? 1 : 0);
 	pr_debug("SPC-3 PR [%s] PREEMPT%s from Node: %s%s\n",
 		tfo->get_fabric_name(), (preempt_type == PREEMPT_AND_ABORT) ? "_AND_ABORT" : "",
-		nacl->initiatorname, (prf_isid) ? &i_buf[0] : "");
+		nacl->initiatorname, i_buf);
 	/*
 	 * For PREEMPT_AND_ABORT, add the preempting reservation's
 	 * struct t10_pr_registration to the list that will be compared
@@ -3231,7 +3216,7 @@ core_scsi3_emulate_pro_register_and_move(struct se_cmd *cmd, u64 res_key,
 	unsigned char *initiator_str;
 	char *iport_ptr = NULL, dest_iport[64], i_buf[PR_REG_ISID_ID_LEN];
 	u32 tid_len, tmp_tid_len;
-	int new_reg = 0, type, scope, matching_iname, prf_isid;
+	int new_reg = 0, type, scope, matching_iname;
 	sense_reason_t ret;
 	unsigned short rtpi;
 	unsigned char proto_ident;
@@ -3575,8 +3560,7 @@ after_iport_check:
 	dest_pr_reg->pr_res_holder = 1;
 	dest_pr_reg->pr_res_type = type;
 	pr_reg->pr_res_scope = scope;
-	prf_isid = core_pr_dump_initiator_port(pr_reg, &i_buf[0],
-				PR_REG_ISID_ID_LEN);
+	core_pr_dump_initiator_port(pr_reg, i_buf, PR_REG_ISID_ID_LEN);
 	/*
 	 * Increment PRGeneration for existing registrations..
 	 */
@@ -3592,7 +3576,7 @@ after_iport_check:
 	pr_debug("SPC-3 PR Successfully moved reservation from"
 		" %s Fabric Node: %s%s -> %s Fabric Node: %s %s\n",
 		tf_ops->get_fabric_name(), pr_reg_nacl->initiatorname,
-		(prf_isid) ? &i_buf[0] : "", dest_tf_ops->get_fabric_name(),
+		i_buf, dest_tf_ops->get_fabric_name(),
 		dest_node_acl->initiatorname, (iport_ptr != NULL) ?
 		iport_ptr : "");
 	/*
