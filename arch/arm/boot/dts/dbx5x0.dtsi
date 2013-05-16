@@ -764,5 +764,13 @@
 			v-ape-supply = <&db8500_vape_reg>;
 			status = "disabled";
 		};
+
+		hash@a03c2000 {
+			compatible = "stericsson,ux500-hash";
+			reg = <0xa03c2000 0x1000>;
+
+			v-ape-supply = <&db8500_vape_reg>;
+			status = "disabled";
+		};
 	};
 };
