@@ -28,6 +28,7 @@
 #include <asm/cpuinfo.h>
 
 asmlinkage void ret_from_fork(void);
+asmlinkage void ret_from_kernel_thread(void);
 
 void (*pm_power_off)(void) = NULL;
 EXPORT_SYMBOL(pm_power_off);
@@ -126,150 +127,60 @@ void show_regs(struct pt_regs *regs)
 #endif
 }
 
-#ifdef CONFIG_MMU
-static void kernel_thread_helper(void *arg, int (*fn)(void *))
-{
-	do_exit(fn(arg));
-}
-#endif
-
-/*
- * Create a kernel thread
- */
-int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
-{
-#ifdef CONFIG_MMU
-	struct pt_regs regs;
-
-	memset(&regs, 0, sizeof(regs));
-	regs.r4 = (unsigned long) arg;
-	regs.r5 = (unsigned long) fn;
-	regs.ea = (unsigned long) kernel_thread_helper;
-	regs.estatus = STATUS_PIE;
-
-	return do_fork(flags | CLONE_VM | CLONE_UNTRACED, 0, &regs, 0,
-		NULL, NULL);
-#else /* !CONFIG_MMU */
-	long retval;
-	long clone_arg = flags | CLONE_VM;
-	mm_segment_t fs;
-
-	fs = get_fs();
-	set_fs(KERNEL_DS);
-
-	__asm__ __volatile(
-		"movi    r2,%6\n\t"		/* TRAP_ID_SYSCALL          */
-		"movi    r3,%1\n\t"		/* __NR_clone               */
-		"mov     r4,%5\n\t"		/* (clone_arg               */
-						/*   (flags | CLONE_VM))    */
-		"movia   r5,-1\n\t"		/* usp: -1                  */
-		"trap\n\t"			/* sys_clone                */
-		"\n\t"
-		"cmpeq   r4,r3,zero\n\t"	/* 2nd return value in r3   */
-		"bne     r4,zero,1f\n\t"	/* 0: parent, just return.  */
-						/* See copy_thread, called  */
-						/*  by do_fork, called by   */
-						/*  nios2_clone, called by  */
-						/*  sys_clone, called by    */
-						/*  syscall trap handler.   */
-
-		"mov     r4,%4\n\t"		/* fn's parameter (arg)     */
-		"\n\t"
-		"callr   %3\n\t"		/* Call function (fn)       */
-		"\n\t"
-		"mov     r4,r2\n\t"		/* fn's rtn code//;dgt2;tmp;*/
-		"movi    r2,%6\n\t"		/* TRAP_ID_SYSCALL          */
-		"movi    r3,%2\n\t"		/* __NR_exit                */
-		"trap\n\t"			/* sys_exit()               */
-
-		/* Not reached by child */
-		"1:\n\t"
-		"mov     %0,r2\n\t"		/* error rtn code (retval)  */
-
-		:   "=r" (retval)		/* %0                       */
-
-		:   "i" (__NR_clone)		/* %1                       */
-		  , "i" (__NR_exit)		/* %2                       */
-		  , "r" (fn)			/* %3                       */
-		  , "r" (arg)			/* %4                       */
-		  , "r" (clone_arg)		/* %5  (flags | CLONE_VM)   */
-		  , "i" (TRAP_ID_SYSCALL)	/* %6                       */
-
-		:   "r2", "r3", "r4", "r5", "ra"/* Clobbered                */
-	);
-
-	set_fs(fs);
-	return retval;
-#endif /* CONFIG_MMU */
-}
-EXPORT_SYMBOL(kernel_thread);
-
 void flush_thread(void)
 {
 	set_fs(USER_DS);
 }
 
 int copy_thread(unsigned long clone_flags,
-		unsigned long usp, unsigned long topstk,
-		struct task_struct *p, struct pt_regs *regs)
+		unsigned long usp, unsigned long arg, struct task_struct *p)
 {
-	struct pt_regs *childregs;
-	struct switch_stack *childstack, *stack;
+	struct pt_regs *childregs = task_pt_regs(p);
+	struct pt_regs *regs;
+	struct switch_stack *stack;
+	struct switch_stack *childstack =
+		((struct switch_stack *)childregs) - 1;
 
-	childregs = task_pt_regs(p);
+	if (unlikely(p->flags & PF_KTHREAD)) {
+		memset(childstack, 0,
+			sizeof(struct switch_stack) + sizeof(struct pt_regs));
 
-	/* Save pointer to registers in thread_struct */
-	p->thread.kregs = childregs;
-
-	/* Copy registers */
-	*childregs = *regs;
-#ifndef CONFIG_MMU
-	childregs->r2 = 0;	/* Redundant? See return values below */
-#endif
-
-	/* Copy stacktop and copy the top entrys from parent to child */
-	stack = ((struct switch_stack *) regs) - 1;
-	childstack = ((struct switch_stack *) childregs) - 1;
-	*childstack = *stack;
-	childstack->ra = (unsigned long) ret_from_fork;
-
+		childstack->r16 = usp;		/* fn */
+		childstack->r17 = arg;
+		childstack->ra = (unsigned long) ret_from_kernel_thread;
+		childregs->estatus = STATUS_PIE;
 #ifdef CONFIG_MMU
-	if (childregs->estatus & ESTATUS_EU)
-		childregs->sp = usp;
-	else
 		childregs->sp = (unsigned long) childstack;
 #else
-	if (usp == -1)
 		p->thread.kregs->sp = (unsigned long) childstack;
-	else
-		p->thread.kregs->sp = usp;
-#endif /* CONFIG_MMU */
+#endif
+		p->thread.ksp = (unsigned long) childstack;
+		p->thread.kregs = childregs;
+		return 0;
+	}
 
-	/* Store the kernel stack in thread_struct */
+	regs = current_pt_regs();
+	*childregs = *regs;
+	childregs->r2 = 0;	/* Set the return value for the child. */
+	childregs->r7 = 0;
+
+	stack = ((struct switch_stack *) regs) - 1;
+	*childstack = *stack;
+	childstack->ra = (unsigned long)ret_from_fork;
+	p->thread.kregs = childregs;
 	p->thread.ksp = (unsigned long) childstack;
 
 #ifdef CONFIG_MMU
+	if (usp)
+		childregs->sp = usp;
+
 	/* Initialize tls register. */
 	if (clone_flags & CLONE_SETTLS)
 		childstack->r23 = regs->r7;
-#endif
-
-	/* Set the return value for the child. */
-	childregs->r2 = 0;
-#ifdef CONFIG_MMU
-	childregs->r7 = 0;
 #else
-	childregs->r3 = 1;	/* kernel_thread parent test */
+	if (usp)
+		p->thread.kregs->sp = usp;
 #endif
-
-	/* Set the return value for the parent. */
-	regs->r2 = p->pid;
-#ifdef CONFIG_MMU
-	regs->r7 = 0;	/* No error */
-#else
-	regs->r3 = 0;	/* kernel_thread parent test */
-#endif
-
 	return 0;
 }
 

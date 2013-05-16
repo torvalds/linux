@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2013 Altera Corporation
  * Copyright (C) 2010 Tobias Klauser <tklauser@distanz.ch>
  * Copyright (C) 2010 Frans Meulenbroeks
  * Copyright (C) 2004 Microtronix Datacom Ltd
@@ -364,7 +365,8 @@
 #define __NR_process_vm_readv	345
 #define __NR_process_vm_writev	346
 #define __NR_kcmp		347
+#define __NR_finit_module	348
 
-#define NR_syscalls		348
+#define NR_syscalls		349
 
 #endif  /* _UAPI_ASM_NIOS2_UNISTD_H */

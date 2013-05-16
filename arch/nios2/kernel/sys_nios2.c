@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2013 Altera Corporation
  * Copyright (C) 2011-2012 Tobias Klauser <tklauser@distanz.ch>
  * Copyright (C) 2004 Microtronix Datacom Ltd.
  *
@@ -16,21 +17,12 @@
 #include <asm/cacheflush.h>
 #include <asm/traps.h>
 
-asmlinkage int nios2_fork(struct pt_regs *regs)
-{
-#ifdef CONFIG_MMU
-	return do_fork(SIGCHLD, regs->sp, regs, 0, NULL, NULL);
-#else
-	return -EINVAL;
-#endif
-}
 
-asmlinkage int nios2_vfork(struct pt_regs *regs)
-{
-	return do_fork(CLONE_VFORK | CLONE_VM | SIGCHLD, regs->sp,
-			regs, 0, NULL, NULL);
-}
-
+/* We don't want to use generic sys_clone because Nios II passes all arguments
+ * on stack. And we need to save all these registers, which means we need
+ * push all these registers on top of pt_regs. So, it is better to pass in
+ * pt_regs* and extract the arguments for do_fork() from here.
+ */
 asmlinkage int nios2_clone(struct pt_regs *regs)
 {
 	unsigned long flags;
@@ -49,24 +41,7 @@ asmlinkage int nios2_clone(struct pt_regs *regs)
 	child_tidptr = NULL;
 #endif
 
-	return do_fork(flags, newsp, regs, 0, parent_tidptr, child_tidptr);
-}
-
-asmlinkage int nios2_execve(struct pt_regs *regs)
-{
-	int error;
-	struct filename *filename;
-
-	filename = getname((char *) regs->r4);
-	error = PTR_ERR(filename);
-	if (IS_ERR(filename))
-		return error;
-	error = do_execve(filename->name,
-			(const char __user *const __user *) regs->r5,
-			(const char __user *const __user *) regs->r6,
-			regs);
-	putname(filename);
-	return error;
+	return do_fork(flags, newsp, 0, parent_tidptr, child_tidptr);
 }
 
 asmlinkage long sys_mmap(unsigned long addr, unsigned long len,

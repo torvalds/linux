@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2013 Altera Corporation
  * Copyright (C) 2004, Microtronix Datacom Ltd.
  *
  * All rights reserved.
@@ -61,6 +62,5 @@ struct k_sigaction {
 #include <asm/sigcontext.h>
 #undef __HAVE_ARCH_SIG_BITOPS
 
-#define ptrace_signal_deliver(regs, cookie) do { } while (0)
 
 #endif /* _ASM_NIOS2_SIGNAL_H */

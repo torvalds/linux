@@ -252,29 +252,26 @@ ENTRY(ret_from_fork)
 	call	schedule_tail
 	br	ret_from_exception
 
-ENTRY(sys_fork)
-	mov	r4, sp
+ENTRY(ret_from_kernel_thread)
+	call	schedule_tail
+	mov	r4,r17	/* arg */
+	callr	r16	/* function */
+	br	ret_from_exception
+
+ENTRY(__sys_fork)
 	SAVE_SWITCH_STACK
-	call	nios2_vfork
+	call sys_fork
 	RESTORE_SWITCH_STACK
 	ret
 
-ENTRY(sys_vfork)
-	mov	r4, sp
+ENTRY(__sys_vfork)
 	SAVE_SWITCH_STACK
-	call	nios2_vfork
+	call sys_vfork
 	RESTORE_SWITCH_STACK
 	ret
 
-ENTRY(sys_execve)
-	mov	r4, sp
-	SAVE_SWITCH_STACK
-	call	nios2_execve
-	RESTORE_SWITCH_STACK
-	ret
-
-ENTRY(sys_clone)
-	mov	r4, sp
+ENTRY(__sys_clone)
+	mov	r4,sp
 	SAVE_SWITCH_STACK
 	call	nios2_clone
 	RESTORE_SWITCH_STACK

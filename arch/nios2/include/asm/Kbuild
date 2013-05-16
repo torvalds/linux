@@ -48,6 +48,7 @@ generic-y += spinlock.h
 generic-y += statfs.h
 generic-y += termbits.h
 generic-y += termios.h
+generic-y += trace_clock.h
 generic-y += topology.h
 generic-y += types.h
 generic-y += unaligned.h

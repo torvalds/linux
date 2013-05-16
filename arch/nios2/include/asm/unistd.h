@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2013 Altera Corporation
  * Copyright (C) 2010 Tobias Klauser <tklauser@distanz.ch>
  * Copyright (C) 2010 Frans Meulenbroeks
  * Copyright (C) 2004 Microtronix Datacom Ltd
@@ -35,7 +36,8 @@
 #define __ARCH_WANT_SYS_SIGPENDING
 #define __ARCH_WANT_SYS_SIGPROCMASK
 #define __ARCH_WANT_SYS_RT_SIGACTION
-
+#define __ARCH_WANT_SYS_VFORK
+#define __ARCH_WANT_SYS_FORK
 /*
  * "Conditional" syscalls
  *

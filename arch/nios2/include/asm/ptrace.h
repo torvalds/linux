@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2013 Altera Corporation
  * Copyright (C) 2010 Tobias Klauser <tklauser@distanz.ch>
  * Copyright (C) 2004 Microtronix Datacom Ltd
  *
@@ -36,7 +37,11 @@
 
 #define instruction_pointer(regs)	((regs)->ra)
 #define profile_pc(regs)		instruction_pointer(regs)
+#define user_stack_pointer(regs)	((regs)->sp)
 extern void show_regs(struct pt_regs *);
 
+#define current_pt_regs() \
+	((struct pt_regs *)((unsigned long)current_thread_info() + THREAD_SIZE)\
+		- 1)
 #endif /* __ASSEMBLY__ */
 #endif /* _ASM_NIOS2_PTRACE_H */
