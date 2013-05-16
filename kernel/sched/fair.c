@@ -6109,9 +6109,18 @@ static void hmp_force_up_migration(int this_cpu)
 		target = cpu_rq(cpu);
 		raw_spin_lock_irqsave(&target->lock, flags);
 		curr = target->cfs.curr;
-		if (!curr || !entity_is_task(curr)) {
+		if (!curr) {
 			raw_spin_unlock_irqrestore(&target->lock, flags);
 			continue;
+		}
+		if (!entity_is_task(curr)) {
+			struct cfs_rq *cfs_rq;
+
+			cfs_rq = group_cfs_rq(curr);
+			while (cfs_rq) {
+				curr = cfs_rq->curr;
+				cfs_rq = group_cfs_rq(curr);
+			}
 		}
 		p = task_of(curr);
 		if (hmp_up_migration(cpu, curr)) {
