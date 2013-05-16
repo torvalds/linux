@@ -679,7 +679,12 @@ void flush_cache_page(struct vm_area_struct *vma, unsigned long u_vaddr,
 {
 	unsigned int paddr = pfn << PAGE_SHIFT;
 
-	__sync_icache_dcache(paddr, u_vaddr, PAGE_SIZE);
+	u_vaddr &= PAGE_MASK;
+
+	___flush_dcache_page(paddr, u_vaddr);
+
+	if (vma->vm_flags & VM_EXEC)
+		__inv_icache_page(paddr, u_vaddr);
 }
 
 void flush_cache_range(struct vm_area_struct *vma, unsigned long start,
