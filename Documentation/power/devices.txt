@@ -268,7 +268,7 @@ situations.
 System Power Management Phases
 ------------------------------
 Suspending or resuming the system is done in several phases.  Different phases
-are used for standby or memory sleep states ("suspend-to-RAM") and the
+are used for freeze, standby, and memory sleep states ("suspend-to-RAM") and the
 hibernation state ("suspend-to-disk").  Each phase involves executing callbacks
 for every device before the next phase begins.  Not all busses or classes
 support all these callbacks and not all drivers use all the callbacks.  The
@@ -309,7 +309,8 @@ execute the corresponding method from dev->driver->pm instead if there is one.
 
 Entering System Suspend
 -----------------------
-When the system goes into the standby or memory sleep state, the phases are:
+When the system goes into the freeze, standby or memory sleep state,
+the phases are:
 
 		prepare, suspend, suspend_late, suspend_noirq.
 
@@ -368,7 +369,7 @@ the devices that were suspended.
 
 Leaving System Suspend
 ----------------------
-When resuming from standby or memory sleep, the phases are:
+When resuming from freeze, standby or memory sleep, the phases are:
 
 		resume_noirq, resume_early, resume, complete.
 
@@ -433,8 +434,8 @@ the system log.
 
 Entering Hibernation
 --------------------
-Hibernating the system is more complicated than putting it into the standby or
-memory sleep state, because it involves creating and saving a system image.
+Hibernating the system is more complicated than putting it into the other
+sleep states, because it involves creating and saving a system image.
 Therefore there are more phases for hibernation, with a different set of
 callbacks.  These phases always run after tasks have been frozen and memory has
 been freed.
@@ -485,8 +486,8 @@ image forms an atomic snapshot of the system state.
 
 At this point the system image is saved, and the devices then need to be
 prepared for the upcoming system shutdown.  This is much like suspending them
-before putting the system into the standby or memory sleep state, and the phases
-are similar.
+before putting the system into the freeze, standby or memory sleep state,
+and the phases are similar.
 
     9.	The prepare phase is discussed above.
 
