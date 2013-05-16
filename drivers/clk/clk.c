@@ -1377,23 +1377,33 @@ static int __clk_set_parent(struct clk *clk, struct clk *parent, u8 p_index)
 	unsigned long flags;
 	int ret = 0;
 	struct clk *old_parent = clk->parent;
-	bool migrated_enable = false;
 
-	/* migrate prepare */
-	if (clk->prepare_count)
+	/*
+	 * Migrate prepare state between parents and prevent race with
+	 * clk_enable().
+	 *
+	 * If the clock is not prepared, then a race with
+	 * clk_enable/disable() is impossible since we already have the
+	 * prepare lock (future calls to clk_enable() need to be preceded by
+	 * a clk_prepare()).
+	 *
+	 * If the clock is prepared, migrate the prepared state to the new
+	 * parent and also protect against a race with clk_enable() by
+	 * forcing the clock and the new parent on.  This ensures that all
+	 * future calls to clk_enable() are practically NOPs with respect to
+	 * hardware and software states.
+	 *
+	 * See also: Comment for clk_set_parent() below.
+	 */
+	if (clk->prepare_count) {
 		__clk_prepare(parent);
-
-	flags = clk_enable_lock();
-
-	/* migrate enable */
-	if (clk->enable_count) {
-		__clk_enable(parent);
-		migrated_enable = true;
+		clk_enable(parent);
+		clk_enable(clk);
 	}
 
 	/* update the clk tree topology */
+	flags = clk_enable_lock();
 	clk_reparent(clk, parent);
-
 	clk_enable_unlock(flags);
 
 	/* change clock input source */
@@ -1401,43 +1411,27 @@ static int __clk_set_parent(struct clk *clk, struct clk *parent, u8 p_index)
 		ret = clk->ops->set_parent(clk->hw, p_index);
 
 	if (ret) {
-		/*
-		 * The error handling is tricky due to that we need to release
-		 * the spinlock while issuing the .set_parent callback. This
-		 * means the new parent might have been enabled/disabled in
-		 * between, which must be considered when doing rollback.
-		 */
 		flags = clk_enable_lock();
-
 		clk_reparent(clk, old_parent);
-
-		if (migrated_enable && clk->enable_count) {
-			__clk_disable(parent);
-		} else if (migrated_enable && (clk->enable_count == 0)) {
-			__clk_disable(old_parent);
-		} else if (!migrated_enable && clk->enable_count) {
-			__clk_disable(parent);
-			__clk_enable(old_parent);
-		}
-
 		clk_enable_unlock(flags);
 
-		if (clk->prepare_count)
+		if (clk->prepare_count) {
+			clk_disable(clk);
+			clk_disable(parent);
 			__clk_unprepare(parent);
-
+		}
 		return ret;
 	}
 
-	/* clean up enable for old parent if migration was done */
-	if (migrated_enable) {
-		flags = clk_enable_lock();
-		__clk_disable(old_parent);
-		clk_enable_unlock(flags);
-	}
-
-	/* clean up prepare for old parent if migration was done */
-	if (clk->prepare_count)
+	/*
+	 * Finish the migration of prepare state and undo the changes done
+	 * for preventing a race with clk_enable().
+	 */
+	if (clk->prepare_count) {
+		clk_disable(clk);
+		clk_disable(old_parent);
 		__clk_unprepare(old_parent);
+	}
 
 	/* update debugfs with new clk tree topology */
 	clk_debug_reparent(clk, parent);
@@ -1449,12 +1443,17 @@ static int __clk_set_parent(struct clk *clk, struct clk *parent, u8 p_index)
  * @clk: the mux clk whose input we are switching
  * @parent: the new input to clk
  *
- * Re-parent clk to use parent as it's new input source.  If clk has the
- * CLK_SET_PARENT_GATE flag set then clk must be gated for this
- * operation to succeed.  After successfully changing clk's parent
- * clk_set_parent will update the clk topology, sysfs topology and
- * propagate rate recalculation via __clk_recalc_rates.  Returns 0 on
- * success, -EERROR otherwise.
+ * Re-parent clk to use parent as its new input source.  If clk is in
+ * prepared state, the clk will get enabled for the duration of this call. If
+ * that's not acceptable for a specific clk (Eg: the consumer can't handle
+ * that, the reparenting is glitchy in hardware, etc), use the
+ * CLK_SET_PARENT_GATE flag to allow reparenting only when clk is unprepared.
+ *
+ * After successfully changing clk's parent clk_set_parent will update the
+ * clk topology, sysfs topology and propagate rate recalculation via
+ * __clk_recalc_rates.
+ *
+ * Returns 0 on success, -EERROR otherwise.
  */
 int clk_set_parent(struct clk *clk, struct clk *parent)
 {
