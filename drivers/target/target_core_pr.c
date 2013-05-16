@@ -1834,8 +1834,7 @@ out:
 static int __core_scsi3_update_aptpl_buf(
 	struct se_device *dev,
 	unsigned char *buf,
-	u32 pr_aptpl_buf_len,
-	int clear_aptpl_metadata)
+	u32 pr_aptpl_buf_len)
 {
 	struct se_lun *lun;
 	struct se_portal_group *tpg;
@@ -1845,14 +1844,7 @@ static int __core_scsi3_update_aptpl_buf(
 	int reg_count = 0;
 
 	memset(buf, 0, pr_aptpl_buf_len);
-	/*
-	 * Called to clear metadata once APTPL has been deactivated.
-	 */
-	if (clear_aptpl_metadata) {
-		snprintf(buf, pr_aptpl_buf_len,
-				"No Registrations or Reservations\n");
-		return 0;
-	}
+
 	/*
 	 * Walk the registration list..
 	 */
@@ -1937,14 +1929,12 @@ static int __core_scsi3_update_aptpl_buf(
 static int core_scsi3_update_aptpl_buf(
 	struct se_device *dev,
 	unsigned char *buf,
-	u32 pr_aptpl_buf_len,
-	int clear_aptpl_metadata)
+	u32 pr_aptpl_buf_len)
 {
 	int ret;
 
 	spin_lock(&dev->dev_reservation_lock);
-	ret = __core_scsi3_update_aptpl_buf(dev, buf, pr_aptpl_buf_len,
-				clear_aptpl_metadata);
+	ret = __core_scsi3_update_aptpl_buf(dev, buf, pr_aptpl_buf_len);
 	spin_unlock(&dev->dev_reservation_lock);
 
 	return ret;
@@ -1997,31 +1987,20 @@ core_scsi3_update_and_write_aptpl(struct se_device *dev, unsigned char *in_buf,
 		u32 in_pr_aptpl_buf_len)
 {
 	unsigned char null_buf[64], *buf;
-	u32 pr_aptpl_buf_len;
-	int clear_aptpl_metadata = 0;
 	int ret;
 
 	/*
 	 * Can be called with a NULL pointer from PROUT service action CLEAR
 	 */
 	if (!in_buf) {
-		memset(null_buf, 0, 64);
-		buf = &null_buf[0];
-		/*
-		 * This will clear the APTPL metadata to:
-		 * "No Registrations or Reservations" status
-		 */
-		pr_aptpl_buf_len = 64;
-		clear_aptpl_metadata = 1;
+		snprintf(null_buf, 64, "No Registrations or Reservations\n");
+		buf = null_buf;
 	} else {
+		ret = core_scsi3_update_aptpl_buf(dev, in_buf, in_pr_aptpl_buf_len);
+		if (ret != 0)
+			return ret;
 		buf = in_buf;
-		pr_aptpl_buf_len = in_pr_aptpl_buf_len;
 	}
-
-	ret = core_scsi3_update_aptpl_buf(dev, buf, pr_aptpl_buf_len,
-				clear_aptpl_metadata);
-	if (ret != 0)
-		return ret;
 
 	/*
 	 * __core_scsi3_write_aptpl_to_file() will call strlen()
