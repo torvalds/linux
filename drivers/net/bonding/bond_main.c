@@ -1362,6 +1362,7 @@ static netdev_features_t bond_fix_features(struct net_device *dev,
 						     slave->dev->features,
 						     mask);
 	}
+	features = netdev_add_tso_features(features, mask);
 
 out:
 	read_unlock(&bond->lock);
