@@ -74,6 +74,7 @@ struct inet6_ifaddr {
 	bool			tokenized;
 
 	struct rcu_head		rcu;
+	struct in6_addr		peer_addr;
 };
 
 struct ip6_sf_socklist {
