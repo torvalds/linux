@@ -4564,6 +4564,8 @@ static void init_global_block_rsv(struct btrfs_fs_info *fs_info)
 	fs_info->csum_root->block_rsv = &fs_info->global_block_rsv;
 	fs_info->dev_root->block_rsv = &fs_info->global_block_rsv;
 	fs_info->tree_root->block_rsv = &fs_info->global_block_rsv;
+	if (fs_info->quota_root)
+		fs_info->quota_root->block_rsv = &fs_info->global_block_rsv;
 	fs_info->chunk_root->block_rsv = &fs_info->chunk_block_rsv;
 
 	update_global_block_rsv(fs_info);
