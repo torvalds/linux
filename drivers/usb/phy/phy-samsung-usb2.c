@@ -284,8 +284,8 @@ static int samsung_usb2phy_init(struct usb_phy *phy)
 	/* Disable phy isolation */
 	if (sphy->plat && sphy->plat->pmu_isolation)
 		sphy->plat->pmu_isolation(false);
-	else
-		samsung_usbphy_set_isolation(sphy, false);
+	else if (sphy->drv_data->set_isolation)
+		sphy->drv_data->set_isolation(sphy, false);
 
 	/* Selecting Host/OTG mode; After reset USB2.0PHY_CFG: HOST */
 	samsung_usbphy_cfg_sel(sphy);
@@ -342,8 +342,8 @@ static void samsung_usb2phy_shutdown(struct usb_phy *phy)
 	/* Enable phy isolation */
 	if (sphy->plat && sphy->plat->pmu_isolation)
 		sphy->plat->pmu_isolation(true);
-	else
-		samsung_usbphy_set_isolation(sphy, true);
+	else if (sphy->drv_data->set_isolation)
+		sphy->drv_data->set_isolation(sphy, true);
 
 	spin_unlock_irqrestore(&sphy->lock, flags);
 
@@ -442,6 +442,7 @@ static const struct samsung_usbphy_drvdata usb2phy_s3c64xx = {
 	.cpu_type		= TYPE_S3C64XX,
 	.devphy_en_mask		= S3C64XX_USBPHY_ENABLE,
 	.rate_to_clksel		= samsung_usbphy_rate_to_clksel_64xx,
+	.set_isolation		= NULL, /* TODO */
 };
 
 static const struct samsung_usbphy_drvdata usb2phy_exynos4 = {
@@ -449,6 +450,7 @@ static const struct samsung_usbphy_drvdata usb2phy_exynos4 = {
 	.devphy_en_mask		= EXYNOS_USBPHY_ENABLE,
 	.hostphy_en_mask	= EXYNOS_USBPHY_ENABLE,
 	.rate_to_clksel		= samsung_usbphy_rate_to_clksel_64xx,
+	.set_isolation		= samsung_usbphy_set_isolation_4210,
 };
 
 static struct samsung_usbphy_drvdata usb2phy_exynos5 = {
@@ -456,6 +458,7 @@ static struct samsung_usbphy_drvdata usb2phy_exynos5 = {
 	.hostphy_en_mask	= EXYNOS_USBPHY_ENABLE,
 	.hostphy_reg_offset	= EXYNOS_USBHOST_PHY_CTRL_OFFSET,
 	.rate_to_clksel		= samsung_usbphy_rate_to_clksel_4x12,
+	.set_isolation		= samsung_usbphy_set_isolation_4210,
 };
 
 #ifdef CONFIG_OF

@@ -271,6 +271,7 @@ struct samsung_usbphy_drvdata {
 	u32 devphy_reg_offset;
 	u32 hostphy_reg_offset;
 	int (*rate_to_clksel)(struct samsung_usbphy *, unsigned long);
+	void (*set_isolation)(struct samsung_usbphy *, bool);
 };
 
 /*
@@ -323,7 +324,8 @@ static inline const struct samsung_usbphy_drvdata
 }
 
 extern int samsung_usbphy_parse_dt(struct samsung_usbphy *sphy);
-extern void samsung_usbphy_set_isolation(struct samsung_usbphy *sphy, bool on);
+extern void samsung_usbphy_set_isolation_4210(struct samsung_usbphy *sphy,
+								bool on);
 extern void samsung_usbphy_cfg_sel(struct samsung_usbphy *sphy);
 extern int samsung_usbphy_set_type(struct usb_phy *phy,
 					enum samsung_usb_phy_type phy_type);

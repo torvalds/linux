@@ -73,7 +73,7 @@ EXPORT_SYMBOL_GPL(samsung_usbphy_parse_dt);
  * Here 'on = true' would mean USB PHY block is isolated, hence
  * de-activated and vice-versa.
  */
-void samsung_usbphy_set_isolation(struct samsung_usbphy *sphy, bool on)
+void samsung_usbphy_set_isolation_4210(struct samsung_usbphy *sphy, bool on)
 {
 	void __iomem *reg = NULL;
 	u32 reg_val;
@@ -84,32 +84,12 @@ void samsung_usbphy_set_isolation(struct samsung_usbphy *sphy, bool on)
 		return;
 	}
 
-	switch (sphy->drv_data->cpu_type) {
-	case TYPE_S3C64XX:
-		/*
-		 * Do nothing: We will add here once S3C64xx goes for DT support
-		 */
-		break;
-	case TYPE_EXYNOS4210:
-		/*
-		 * Fall through since exynos4210 and exynos5250 have similar
-		 * register architecture: two separate registers for host and
-		 * device phy control with enable bit at position 0.
-		 */
-	case TYPE_EXYNOS5250:
-		if (sphy->phy_type == USB_PHY_TYPE_DEVICE) {
-			reg = sphy->pmuregs +
-				sphy->drv_data->devphy_reg_offset;
-			en_mask = sphy->drv_data->devphy_en_mask;
-		} else if (sphy->phy_type == USB_PHY_TYPE_HOST) {
-			reg = sphy->pmuregs +
-				sphy->drv_data->hostphy_reg_offset;
-			en_mask = sphy->drv_data->hostphy_en_mask;
-		}
-		break;
-	default:
-		dev_err(sphy->dev, "Invalid SoC type\n");
-		return;
+	if (sphy->phy_type == USB_PHY_TYPE_DEVICE) {
+		reg = sphy->pmuregs + sphy->drv_data->devphy_reg_offset;
+		en_mask = sphy->drv_data->devphy_en_mask;
+	} else if (sphy->phy_type == USB_PHY_TYPE_HOST) {
+		reg = sphy->pmuregs + sphy->drv_data->hostphy_reg_offset;
+		en_mask = sphy->drv_data->hostphy_en_mask;
 	}
 
 	reg_val = readl(reg);
@@ -121,7 +101,7 @@ void samsung_usbphy_set_isolation(struct samsung_usbphy *sphy, bool on)
 
 	writel(reg_val, reg);
 }
-EXPORT_SYMBOL_GPL(samsung_usbphy_set_isolation);
+EXPORT_SYMBOL_GPL(samsung_usbphy_set_isolation_4210);
 
 /*
  * Configure the mode of working of usb-phy here: HOST/DEVICE.
