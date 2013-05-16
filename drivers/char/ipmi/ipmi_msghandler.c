@@ -2037,12 +2037,11 @@ int ipmi_smi_add_proc_entry(ipmi_smi_t smi, char *name,
 	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
 		return -ENOMEM;
-	entry->name = kmalloc(strlen(name)+1, GFP_KERNEL);
+	entry->name = kstrdup(name, GFP_KERNEL);
 	if (!entry->name) {
 		kfree(entry);
 		return -ENOMEM;
 	}
-	strcpy(entry->name, name);
 
 	file = proc_create_data(name, 0, smi->proc_dir, proc_ops, data);
 	if (!file) {
