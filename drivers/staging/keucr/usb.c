@@ -30,7 +30,7 @@ static struct usb_device_id eucr_usb_ids [] = {
 	{ USB_DEVICE(0x0cf2, 0x6250) },
 	{ }                                            /* Terminating entry */
 };
-MODULE_DEVICE_TABLE (usb, eucr_usb_ids);
+MODULE_DEVICE_TABLE(usb, eucr_usb_ids);
 
 
 #ifdef CONFIG_PM
