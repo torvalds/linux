@@ -1892,7 +1892,7 @@ oops:
 		spk_special_handler = NULL;
 		return 1;
 	}
-	go_pos = simple_strtol(goto_buf, &cp, 10);
+	go_pos = kstrtol(goto_buf, &cp, 10);
 	goto_pos = (u_long) go_pos;
 	if (*cp == 'x') {
 		if (*goto_buf < '0')
