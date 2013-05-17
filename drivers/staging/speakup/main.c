@@ -457,7 +457,7 @@ static void speak_char(u_char ch)
 	synth_buffer_add(SPACE);
 }
 
-static u16 get_char(struct vc_data *vc, u16 * pos, u_char * attribs)
+static u16 get_char(struct vc_data *vc, u16 *pos, u_char *attribs)
 {
 	u16 ch = ' ';
 	if (vc && pos) {
