@@ -1243,7 +1243,7 @@ static int oz_build_endpoints_for_interface(struct usb_hcd *hcd,
 		if ((ep->attrib & USB_ENDPOINT_XFERTYPE_MASK)
 			== USB_ENDPOINT_XFER_ISOC) {
 			oz_trace("wMaxPacketSize = %d\n",
-				hep->desc.wMaxPacketSize);
+				usb_endpoint_maxp(&hep->desc));
 			ep->credit_ceiling = 200;
 			if (ep_addr & USB_ENDPOINT_DIR_MASK) {
 				ep->flags |= OZ_F_EP_BUFFERING;
