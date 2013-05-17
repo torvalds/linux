@@ -131,7 +131,7 @@ void fill_inquiry_response(struct us_data *us, unsigned char *data, unsigned int
 		return;
 
 	if (data[0]&0x20) {
-		memset(data+8,0,28);
+		memset(data+8, 0, 28);
 	} else {
 		u16 bcdDevice = le16_to_cpu(us->pusb_dev->descriptor.bcdDevice);
 		memcpy(data+8, us->unusual_dev->vendorName,
