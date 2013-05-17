@@ -202,6 +202,10 @@ typedef enum {
 /* Keep gcc happy */
 struct nand_chip;
 
+/* ONFI features */
+#define ONFI_FEATURE_16_BIT_BUS		(1 << 0)
+#define ONFI_FEATURE_EXT_PARAM_PAGE	(1 << 7)
+
 /* ONFI timing mode, used in both asynchronous and synchronous mode */
 #define ONFI_TIMING_MODE_0		(1 << 0)
 #define ONFI_TIMING_MODE_1		(1 << 1)
@@ -754,6 +758,12 @@ struct platform_nand_chip *get_platform_nandchip(struct mtd_info *mtd)
 	struct nand_chip *chip = mtd->priv;
 
 	return chip->priv;
+}
+
+/* return the supported features. */
+static inline int onfi_feature(struct nand_chip *chip)
+{
+	return chip->onfi_version ? le16_to_cpu(chip->onfi_params.features) : 0;
 }
 
 /* return the supported asynchronous timing mode. */
