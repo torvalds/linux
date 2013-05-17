@@ -33,7 +33,6 @@
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
-#include <linux/firmware.h>
 
 #include "../comedidev.h"
 
@@ -456,22 +455,6 @@ static int me2600_xilinx_download(struct comedi_device *dev,
 	return 0;
 }
 
-static int me2600_upload_firmware(struct comedi_device *dev)
-{
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct firmware *fw;
-	int ret;
-
-	ret = request_firmware(&fw, ME2600_FIRMWARE, &pcidev->dev);
-	if (ret)
-		return ret;
-
-	ret = me2600_xilinx_download(dev, fw->data, fw->size);
-	release_firmware(fw);
-
-	return ret;
-}
-
 static int me_reset(struct comedi_device *dev)
 {
 	struct me_private_data *dev_private = dev->private;
@@ -525,7 +508,9 @@ static int me_auto_attach(struct comedi_device *dev,
 
 	/* Download firmware and reset card */
 	if (board->needs_firmware) {
-		ret = me2600_upload_firmware(dev);
+		ret = comedi_load_firmware(dev, &comedi_to_pci_dev(dev)->dev,
+					   ME2600_FIRMWARE,
+					   me2600_xilinx_download);
 		if (ret < 0)
 			return ret;
 	}
