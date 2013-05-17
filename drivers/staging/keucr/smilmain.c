@@ -1263,11 +1263,9 @@ int Release_D_ReadBlock(struct us_data *us)
 		if (Erase_D_PhyOneBlock(us)) {
 			if (ErrCode==ERR_HwError) return ERROR;
 			if (MarkFail_D_PhyOneBlock(us)) return ERROR;
-		}
-		else
+		} else
 			Clr_D_Bit(Assign[Media.Zone],Media.PhyBlock);
-	}
-	else if (MarkFail_D_PhyOneBlock(us))
+	} else if (MarkFail_D_PhyOneBlock(us))
 		return ERROR;
 
 	Media.PhyBlock=WriteBlock;
@@ -1338,8 +1336,7 @@ int Copy_D_PhyOneSect(struct us_data *us)
 			err=ERROR;
 			SectCopyMode=REQ_FAIL;
 		}
-	}
-	else {
+	} else {
 		err=SMSUCCESS;
 		for(i=0; i<SECTSIZE; i++)
 			WorkBuf[i]=DUMMY_DATA;
@@ -1681,8 +1678,7 @@ int Make_D_LogTable(struct us_data *us)
 							Media.PhyBlock=Log2Phy[Media.Zone][logblock];
 							Log2Phy[Media.Zone][logblock]=phyblock;
 						}
-					}
-					else {
+					} else {
 						Media.PhyBlock=Log2Phy[Media.Zone][logblock];
 						Log2Phy[Media.Zone][logblock]=phyblock;
 					}
