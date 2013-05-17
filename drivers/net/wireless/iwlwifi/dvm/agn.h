@@ -76,16 +76,16 @@
 #define IWL_INVALID_STATION	255
 
 /* device operations */
-extern struct iwl_dvm_cfg iwl_dvm_1000_cfg;
-extern struct iwl_dvm_cfg iwl_dvm_2000_cfg;
-extern struct iwl_dvm_cfg iwl_dvm_105_cfg;
-extern struct iwl_dvm_cfg iwl_dvm_2030_cfg;
-extern struct iwl_dvm_cfg iwl_dvm_5000_cfg;
-extern struct iwl_dvm_cfg iwl_dvm_5150_cfg;
-extern struct iwl_dvm_cfg iwl_dvm_6000_cfg;
-extern struct iwl_dvm_cfg iwl_dvm_6005_cfg;
-extern struct iwl_dvm_cfg iwl_dvm_6050_cfg;
-extern struct iwl_dvm_cfg iwl_dvm_6030_cfg;
+extern const struct iwl_dvm_cfg iwl_dvm_1000_cfg;
+extern const struct iwl_dvm_cfg iwl_dvm_2000_cfg;
+extern const struct iwl_dvm_cfg iwl_dvm_105_cfg;
+extern const struct iwl_dvm_cfg iwl_dvm_2030_cfg;
+extern const struct iwl_dvm_cfg iwl_dvm_5000_cfg;
+extern const struct iwl_dvm_cfg iwl_dvm_5150_cfg;
+extern const struct iwl_dvm_cfg iwl_dvm_6000_cfg;
+extern const struct iwl_dvm_cfg iwl_dvm_6005_cfg;
+extern const struct iwl_dvm_cfg iwl_dvm_6050_cfg;
+extern const struct iwl_dvm_cfg iwl_dvm_6030_cfg;
 
 
 #define TIME_UNIT		1024

@@ -174,7 +174,7 @@ static void iwl1000_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.sens = &iwl1000_sensitivity;
 }
 
-struct iwl_dvm_cfg iwl_dvm_1000_cfg = {
+const struct iwl_dvm_cfg iwl_dvm_1000_cfg = {
 	.set_hw_params = iwl1000_hw_set_hw_params,
 	.nic_config = iwl1000_nic_config,
 	.temperature = iwlagn_temperature,
@@ -235,7 +235,7 @@ static void iwl2000_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.sens = &iwl2000_sensitivity;
 }
 
-struct iwl_dvm_cfg iwl_dvm_2000_cfg = {
+const struct iwl_dvm_cfg iwl_dvm_2000_cfg = {
 	.set_hw_params = iwl2000_hw_set_hw_params,
 	.nic_config = iwl2000_nic_config,
 	.temperature = iwlagn_temperature,
@@ -248,7 +248,7 @@ struct iwl_dvm_cfg iwl_dvm_2000_cfg = {
 	.temp_offset_v2 = true,
 };
 
-struct iwl_dvm_cfg iwl_dvm_105_cfg = {
+const struct iwl_dvm_cfg iwl_dvm_105_cfg = {
 	.set_hw_params = iwl2000_hw_set_hw_params,
 	.nic_config = iwl2000_nic_config,
 	.temperature = iwlagn_temperature,
@@ -272,7 +272,7 @@ static const struct iwl_dvm_bt_params iwl2030_bt_params = {
 	.bt_session_2 = true,
 };
 
-struct iwl_dvm_cfg iwl_dvm_2030_cfg = {
+const struct iwl_dvm_cfg iwl_dvm_2030_cfg = {
 	.set_hw_params = iwl2000_hw_set_hw_params,
 	.nic_config = iwl2000_nic_config,
 	.temperature = iwlagn_temperature,
@@ -463,7 +463,7 @@ static int iwl5000_hw_channel_switch(struct iwl_priv *priv,
 	return iwl_dvm_send_cmd(priv, &hcmd);
 }
 
-struct iwl_dvm_cfg iwl_dvm_5000_cfg = {
+const struct iwl_dvm_cfg iwl_dvm_5000_cfg = {
 	.set_hw_params = iwl5000_hw_set_hw_params,
 	.set_channel_switch = iwl5000_hw_channel_switch,
 	.temperature = iwlagn_temperature,
@@ -472,7 +472,7 @@ struct iwl_dvm_cfg iwl_dvm_5000_cfg = {
 	.no_idle_support = true,
 };
 
-struct iwl_dvm_cfg iwl_dvm_5150_cfg = {
+const struct iwl_dvm_cfg iwl_dvm_5150_cfg = {
 	.set_hw_params = iwl5150_hw_set_hw_params,
 	.set_channel_switch = iwl5000_hw_channel_switch,
 	.temperature = iwl5150_temperature,
@@ -634,7 +634,7 @@ static int iwl6000_hw_channel_switch(struct iwl_priv *priv,
 	return err;
 }
 
-struct iwl_dvm_cfg iwl_dvm_6000_cfg = {
+const struct iwl_dvm_cfg iwl_dvm_6000_cfg = {
 	.set_hw_params = iwl6000_hw_set_hw_params,
 	.set_channel_switch = iwl6000_hw_channel_switch,
 	.nic_config = iwl6000_nic_config,
@@ -657,7 +657,7 @@ const struct iwl_dvm_cfg iwl_dvm_6005_cfg = {
 	.need_temp_offset_calib = true,
 };
 
-struct iwl_dvm_cfg iwl_dvm_6050_cfg = {
+const struct iwl_dvm_cfg iwl_dvm_6050_cfg = {
 	.set_hw_params = iwl6000_hw_set_hw_params,
 	.set_channel_switch = iwl6000_hw_channel_switch,
 	.nic_config = iwl6000_nic_config,
@@ -677,7 +677,7 @@ static const struct iwl_dvm_bt_params iwl6000_bt_params = {
 	.bt_sco_disable = true,
 };
 
-struct iwl_dvm_cfg iwl_dvm_6030_cfg = {
+const struct iwl_dvm_cfg iwl_dvm_6030_cfg = {
 	.set_hw_params = iwl6000_hw_set_hw_params,
 	.set_channel_switch = iwl6000_hw_channel_switch,
 	.nic_config = iwl6000_nic_config,
