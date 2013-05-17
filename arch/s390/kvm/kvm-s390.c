@@ -454,6 +454,34 @@ int kvm_arch_vcpu_runnable(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
+void s390_vcpu_block(struct kvm_vcpu *vcpu)
+{
+	atomic_set_mask(PROG_BLOCK_SIE, &vcpu->arch.sie_block->prog20);
+}
+
+void s390_vcpu_unblock(struct kvm_vcpu *vcpu)
+{
+	atomic_clear_mask(PROG_BLOCK_SIE, &vcpu->arch.sie_block->prog20);
+}
+
+/*
+ * Kick a guest cpu out of SIE and wait until SIE is not running.
+ * If the CPU is not running (e.g. waiting as idle) the function will
+ * return immediately. */
+void exit_sie(struct kvm_vcpu *vcpu)
+{
+	atomic_set_mask(CPUSTAT_STOP_INT, &vcpu->arch.sie_block->cpuflags);
+	while (vcpu->arch.sie_block->prog0c & PROG_IN_SIE)
+		cpu_relax();
+}
+
+/* Kick a guest cpu out of SIE and prevent SIE-reentry */
+void exit_sie_sync(struct kvm_vcpu *vcpu)
+{
+	s390_vcpu_block(vcpu);
+	exit_sie(vcpu);
+}
+
 int kvm_arch_vcpu_should_kick(struct kvm_vcpu *vcpu)
 {
 	/* kvm common code refers to this, but never calls it */

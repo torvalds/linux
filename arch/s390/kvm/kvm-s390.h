@@ -133,6 +133,10 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu);
 /* implemented in kvm-s390.c */
 int kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu,
 				 unsigned long addr);
+void s390_vcpu_block(struct kvm_vcpu *vcpu);
+void s390_vcpu_unblock(struct kvm_vcpu *vcpu);
+void exit_sie(struct kvm_vcpu *vcpu);
+void exit_sie_sync(struct kvm_vcpu *vcpu);
 /* implemented in diag.c */
 int kvm_s390_handle_diag(struct kvm_vcpu *vcpu);
 

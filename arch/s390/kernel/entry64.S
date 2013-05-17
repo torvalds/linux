@@ -958,7 +958,9 @@ sie_loop:
 	lctlg	%c1,%c1,__GMAP_ASCE(%r14)	# load primary asce
 sie_gmap:
 	lg	%r14,__SF_EMPTY(%r15)		# get control block pointer
-	oi	__SIE_PROG0C+3(%r14),1		# we are in SIE now
+	oi	__SIE_PROG0C+3(%r14),1		# we are going into SIE now
+	tm	__SIE_PROG20+3(%r14),1		# last exit...
+	jnz	sie_done
 	LPP	__SF_EMPTY(%r15)		# set guest id
 	sie	0(%r14)
 sie_done:

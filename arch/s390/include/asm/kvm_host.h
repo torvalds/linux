@@ -71,7 +71,10 @@ struct kvm_s390_sie_block {
 	__u8	reserved08[4];		/* 0x0008 */
 #define PROG_IN_SIE (1<<0)
 	__u32	prog0c;			/* 0x000c */
-	__u8	reserved10[24];		/* 0x0010 */
+	__u8	reserved10[16];		/* 0x0010 */
+#define PROG_BLOCK_SIE 0x00000001
+	atomic_t prog20;		/* 0x0020 */
+	__u8	reserved24[4];		/* 0x0024 */
 	__u64	cputm;			/* 0x0028 */
 	__u64	ckc;			/* 0x0030 */
 	__u64	epoch;			/* 0x0038 */
