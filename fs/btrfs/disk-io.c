@@ -1987,30 +1987,33 @@ static void free_root_pointers(struct btrfs_fs_info *info, int chunk_root)
 {
 	free_extent_buffer(info->tree_root->node);
 	free_extent_buffer(info->tree_root->commit_root);
-	free_extent_buffer(info->dev_root->node);
-	free_extent_buffer(info->dev_root->commit_root);
-	free_extent_buffer(info->extent_root->node);
-	free_extent_buffer(info->extent_root->commit_root);
-	free_extent_buffer(info->csum_root->node);
-	free_extent_buffer(info->csum_root->commit_root);
+	info->tree_root->node = NULL;
+	info->tree_root->commit_root = NULL;
+
+	if (info->dev_root) {
+		free_extent_buffer(info->dev_root->node);
+		free_extent_buffer(info->dev_root->commit_root);
+		info->dev_root->node = NULL;
+		info->dev_root->commit_root = NULL;
+	}
+	if (info->extent_root) {
+		free_extent_buffer(info->extent_root->node);
+		free_extent_buffer(info->extent_root->commit_root);
+		info->extent_root->node = NULL;
+		info->extent_root->commit_root = NULL;
+	}
+	if (info->csum_root) {
+		free_extent_buffer(info->csum_root->node);
+		free_extent_buffer(info->csum_root->commit_root);
+		info->csum_root->node = NULL;
+		info->csum_root->commit_root = NULL;
+	}
 	if (info->quota_root) {
 		free_extent_buffer(info->quota_root->node);
 		free_extent_buffer(info->quota_root->commit_root);
-	}
-
-	info->tree_root->node = NULL;
-	info->tree_root->commit_root = NULL;
-	info->dev_root->node = NULL;
-	info->dev_root->commit_root = NULL;
-	info->extent_root->node = NULL;
-	info->extent_root->commit_root = NULL;
-	info->csum_root->node = NULL;
-	info->csum_root->commit_root = NULL;
-	if (info->quota_root) {
 		info->quota_root->node = NULL;
 		info->quota_root->commit_root = NULL;
 	}
-
 	if (chunk_root) {
 		free_extent_buffer(info->chunk_root->node);
 		free_extent_buffer(info->chunk_root->commit_root);
