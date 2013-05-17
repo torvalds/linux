@@ -611,7 +611,7 @@ int Set_D_SsfdcModel(BYTE dcode)
 		return ERROR;
 	}
 
-    return SMSUCCESS;
+	return SMSUCCESS;
 }
 
 /* ----- _Check_D_DevCode() --------------------------------------------- */
@@ -686,8 +686,8 @@ int Check_D_CISdata(BYTE *buf, BYTE *redundant)
 /* ----- Set_D_RightECC() ---------------------------------------------- */
 void Set_D_RightECC(BYTE *redundant)
 {
-    /* Driver ECC Check */
-    return;
+	/* Driver ECC Check */
+	return;
 }
 
 

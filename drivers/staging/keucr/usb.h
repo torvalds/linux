@@ -52,34 +52,34 @@ struct us_unusual_dev {
 #define FDIR_READ         1
 
 typedef struct _SD_STATUS {
-    BYTE    Insert:1;
-    BYTE    Ready:1;
-    BYTE    MediaChange:1;
-    BYTE    IsMMC:1;
-    BYTE    HiCapacity:1;
-    BYTE    HiSpeed:1;
-    BYTE    WtP:1;
-    BYTE    Reserved:1;
+	BYTE    Insert:1;
+	BYTE    Ready:1;
+	BYTE    MediaChange:1;
+	BYTE    IsMMC:1;
+	BYTE    HiCapacity:1;
+	BYTE    HiSpeed:1;
+	BYTE    WtP:1;
+	BYTE    Reserved:1;
 } SD_STATUS, *PSD_STATUS;
 
 typedef struct _MS_STATUS {
-    BYTE    Insert:1;
-    BYTE    Ready:1;
-    BYTE    MediaChange:1;
-    BYTE    IsMSPro:1;
-    BYTE    IsMSPHG:1;
-    BYTE    Reserved1:1;
-    BYTE    WtP:1;
-    BYTE    Reserved2:1;
+	BYTE    Insert:1;
+	BYTE    Ready:1;
+	BYTE    MediaChange:1;
+	BYTE    IsMSPro:1;
+	BYTE    IsMSPHG:1;
+	BYTE    Reserved1:1;
+	BYTE    WtP:1;
+	BYTE    Reserved2:1;
 } MS_STATUS, *PMS_STATUS;
 
 typedef struct _SM_STATUS {
-    BYTE    Insert:1;
-    BYTE    Ready:1;
-    BYTE    MediaChange:1;
-    BYTE    Reserved:3;
-    BYTE    WtP:1;
-    BYTE    IsMS:1;
+	BYTE    Insert:1;
+	BYTE    Ready:1;
+	BYTE    MediaChange:1;
+	BYTE    Reserved:3;
+	BYTE    WtP:1;
+	BYTE    IsMS:1;
 } SM_STATUS, *PSM_STATUS;
 
 /* SD Block Length */

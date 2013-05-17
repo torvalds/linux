@@ -85,7 +85,7 @@ static int eucr_reset_resume(struct usb_interface *iface)
 	 * the device
 	 */
 
- 	us->Power_IsResum = true;
+	us->Power_IsResum = true;
 
 	us->SM_Status = *(PSM_STATUS)&tmp;
 
@@ -525,7 +525,7 @@ static int eucr_probe(struct usb_interface *intf, const struct usb_device_id *id
 
 	pr_info("usb --- eucr_probe\n");
 
-      host = scsi_host_alloc(&usb_stor_host_template, sizeof(*us));
+	host = scsi_host_alloc(&usb_stor_host_template, sizeof(*us));
 	if (!host) {
 		pr_info("Unable to allocate the scsi host\n");
 		return -ENOMEM;
@@ -623,9 +623,9 @@ static void eucr_disconnect(struct usb_interface *intf)
 static struct usb_driver usb_storage_driver = {
 	.name =		"eucr",
 	.probe =		eucr_probe,
-    	.suspend =	    eucr_suspend,
+	.suspend =	    eucr_suspend,
 	.resume =	    eucr_resume,
-    	.reset_resume =	eucr_reset_resume,
+	.reset_resume =	eucr_reset_resume,
 	.disconnect =	eucr_disconnect,
 	.pre_reset =	eucr_pre_reset,
 	.post_reset =	eucr_post_reset,

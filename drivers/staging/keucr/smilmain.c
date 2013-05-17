@@ -205,8 +205,8 @@ int Check_D_MediaFmt(struct us_data *us)
 		return ERROR;
 	}
 
-    MediaChange = SMSUCCESS;
-    return SMSUCCESS;
+	MediaChange = SMSUCCESS;
+	return SMSUCCESS;
 }
 
 /* SmartMedia Physical Address Control Subroutine */
@@ -594,10 +594,10 @@ int Erase_D_PhyOneBlock(struct us_data *us)
 /* ----- Set_D_PhyFmtValue() -------------------------------------------- */
 int Set_D_PhyFmtValue(struct us_data *us)
 {
-    if (Set_D_SsfdcModel(us->SM_DeviceID))
-        return ERROR;
+	if (Set_D_SsfdcModel(us->SM_DeviceID))
+		return ERROR;
 
-    return SMSUCCESS;
+	return SMSUCCESS;
 }
 
 /* ----- Search_D_CIS() ------------------------------------------------- */
