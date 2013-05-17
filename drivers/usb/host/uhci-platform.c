@@ -130,7 +130,6 @@ static int uhci_hcd_platform_remove(struct platform_device *pdev)
 	iounmap(hcd->regs);
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
