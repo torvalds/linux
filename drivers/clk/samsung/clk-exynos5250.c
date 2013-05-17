@@ -155,7 +155,7 @@ static __initdata unsigned long exynos5250_clk_regs[] = {
 
 /* list of all parent clock list */
 PNAME(mout_apll_p)	= { "fin_pll", "fout_apll", };
-PNAME(mout_cpu_p)	= { "mout_apll", "mout_mpll", };
+PNAME(mout_cpu_p)	= { "mout_apll", "sclk_mpll", };
 PNAME(mout_mpll_fout_p)	= { "fout_mplldiv2", "fout_mpll" };
 PNAME(mout_mpll_p)	= { "fin_pll", "mout_mpll_fout" };
 PNAME(mout_bpll_fout_p)	= { "fout_bplldiv2", "fout_bpll" };
