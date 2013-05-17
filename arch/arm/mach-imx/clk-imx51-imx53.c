@@ -110,7 +110,7 @@ enum imx5_clks {
 	owire_gate, gpu3d_s, gpu2d_s, gpu3d_gate, gpu2d_gate, garb_gate,
 	cko1_sel, cko1_podf, cko1,
 	cko2_sel, cko2_podf, cko2,
-	srtc_gate, pata_gate,
+	srtc_gate, pata_gate, sata_gate,
 	clk_max
 };
 
@@ -487,6 +487,7 @@ int __init mx53_clocks_init(unsigned long rate_ckil, unsigned long rate_osc,
 	clk[can2_serial_gate] = imx_clk_gate2("can2_serial_gate", "can_sel", MXC_CCM_CCGR4, 8);
 	clk[can2_ipg_gate] = imx_clk_gate2("can2_ipg_gate", "ipg", MXC_CCM_CCGR4, 6);
 	clk[i2c3_gate] = imx_clk_gate2("i2c3_gate", "per_root", MXC_CCM_CCGR1, 22);
+	clk[sata_gate] = imx_clk_gate2("sata_gate", "ipg", MXC_CCM_CCGR4, 2);
 
 	clk[cko1_sel] = imx_clk_mux("cko1_sel", MXC_CCM_CCOSR, 0, 4,
 				mx53_cko1_sel, ARRAY_SIZE(mx53_cko1_sel));

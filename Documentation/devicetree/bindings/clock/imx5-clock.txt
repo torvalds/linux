@@ -184,6 +184,7 @@ clocks and IDs.
 	cko2			170
 	srtc_gate		171
 	pata_gate		172
+	sata_gate		173
 
 Examples (for mx53):
 
