@@ -3002,9 +3002,9 @@ static inline struct jfs_dirent *next_jfs_dirent(struct jfs_dirent *dirent)
  * return: offset = (pn, index) of start entry
  *	of next jfs_readdir()/dtRead()
  */
-int jfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
+int jfs_readdir(struct file *file, struct dir_context *ctx)
 {
-	struct inode *ip = file_inode(filp);
+	struct inode *ip = file_inode(file);
 	struct nls_table *codepage = JFS_SBI(ip->i_sb)->nls_tab;
 	int rc = 0;
 	loff_t dtpos;	/* legacy OS/2 style position */
@@ -3033,7 +3033,7 @@ int jfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	int overflow, fix_page, page_fixed = 0;
 	static int unique_pos = 2;	/* If we can't fix broken index */
 
-	if (filp->f_pos == DIREND)
+	if (ctx->pos == DIREND)
 		return 0;
 
 	if (DO_INDEX(ip)) {
@@ -3045,7 +3045,7 @@ int jfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		 */
 		do_index = 1;
 
-		dir_index = (u32) filp->f_pos;
+		dir_index = (u32) ctx->pos;
 
 		if (dir_index > 1) {
 			struct dir_table_slot dirtab_slot;
@@ -3053,25 +3053,25 @@ int jfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 			if (dtEmpty(ip) ||
 			    (dir_index >= JFS_IP(ip)->next_index)) {
 				/* Stale position.  Directory has shrunk */
-				filp->f_pos = DIREND;
+				ctx->pos = DIREND;
 				return 0;
 			}
 		      repeat:
 			rc = read_index(ip, dir_index, &dirtab_slot);
 			if (rc) {
-				filp->f_pos = DIREND;
+				ctx->pos = DIREND;
 				return rc;
 			}
 			if (dirtab_slot.flag == DIR_INDEX_FREE) {
 				if (loop_count++ > JFS_IP(ip)->next_index) {
 					jfs_err("jfs_readdir detected "
 						   "infinite loop!");
-					filp->f_pos = DIREND;
+					ctx->pos = DIREND;
 					return 0;
 				}
 				dir_index = le32_to_cpu(dirtab_slot.addr2);
 				if (dir_index == -1) {
-					filp->f_pos = DIREND;
+					ctx->pos = DIREND;
 					return 0;
 				}
 				goto repeat;
@@ -3080,13 +3080,13 @@ int jfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 			index = dirtab_slot.slot;
 			DT_GETPAGE(ip, bn, mp, PSIZE, p, rc);
 			if (rc) {
-				filp->f_pos = DIREND;
+				ctx->pos = DIREND;
 				return 0;
 			}
 			if (p->header.flag & BT_INTERNAL) {
 				jfs_err("jfs_readdir: bad index table");
 				DT_PUTPAGE(mp);
-				filp->f_pos = -1;
+				ctx->pos = -1;
 				return 0;
 			}
 		} else {
@@ -3094,23 +3094,22 @@ int jfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 				/*
 				 * self "."
 				 */
-				filp->f_pos = 0;
-				if (filldir(dirent, ".", 1, 0, ip->i_ino,
-					    DT_DIR))
+				ctx->pos = 0;
+				if (!dir_emit(ctx, ".", 1, ip->i_ino, DT_DIR))
 					return 0;
 			}
 			/*
 			 * parent ".."
 			 */
-			filp->f_pos = 1;
-			if (filldir(dirent, "..", 2, 1, PARENT(ip), DT_DIR))
+			ctx->pos = 1;
+			if (!dir_emit(ctx, "..", 2, PARENT(ip), DT_DIR))
 				return 0;
 
 			/*
 			 * Find first entry of left-most leaf
 			 */
 			if (dtEmpty(ip)) {
-				filp->f_pos = DIREND;
+				ctx->pos = DIREND;
 				return 0;
 			}
 
@@ -3128,23 +3127,19 @@ int jfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		 * pn > 0:		Real entries, pn=1 -> leftmost page
 		 * pn = index = -1:	No more entries
 		 */
-		dtpos = filp->f_pos;
+		dtpos = ctx->pos;
 		if (dtpos == 0) {
 			/* build "." entry */
-
-			if (filldir(dirent, ".", 1, filp->f_pos, ip->i_ino,
-				    DT_DIR))
+			if (!dir_emit(ctx, ".", 1, ip->i_ino, DT_DIR))
 				return 0;
 			dtoffset->index = 1;
-			filp->f_pos = dtpos;
+			ctx->pos = dtpos;
 		}
 
 		if (dtoffset->pn == 0) {
 			if (dtoffset->index == 1) {
 				/* build ".." entry */
-
-				if (filldir(dirent, "..", 2, filp->f_pos,
-					    PARENT(ip), DT_DIR))
+				if (!dir_emit(ctx, "..", 2, PARENT(ip), DT_DIR))
 					return 0;
 			} else {
 				jfs_err("jfs_readdir called with "
@@ -3152,18 +3147,18 @@ int jfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 			}
 			dtoffset->pn = 1;
 			dtoffset->index = 0;
-			filp->f_pos = dtpos;
+			ctx->pos = dtpos;
 		}
 
 		if (dtEmpty(ip)) {
-			filp->f_pos = DIREND;
+			ctx->pos = DIREND;
 			return 0;
 		}
 
-		if ((rc = dtReadNext(ip, &filp->f_pos, &btstack))) {
+		if ((rc = dtReadNext(ip, &ctx->pos, &btstack))) {
 			jfs_err("jfs_readdir: unexpected rc = %d "
 				"from dtReadNext", rc);
-			filp->f_pos = DIREND;
+			ctx->pos = DIREND;
 			return 0;
 		}
 		/* get start leaf page and index */
@@ -3171,7 +3166,7 @@ int jfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 
 		/* offset beyond directory eof ? */
 		if (bn < 0) {
-			filp->f_pos = DIREND;
+			ctx->pos = DIREND;
 			return 0;
 		}
 	}
@@ -3180,7 +3175,7 @@ int jfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	if (dirent_buf == 0) {
 		DT_PUTPAGE(mp);
 		jfs_warn("jfs_readdir: __get_free_page failed!");
-		filp->f_pos = DIREND;
+		ctx->pos = DIREND;
 		return -ENOMEM;
 	}
 
@@ -3295,9 +3290,9 @@ skip_one:
 
 		jfs_dirent = (struct jfs_dirent *) dirent_buf;
 		while (jfs_dirents--) {
-			filp->f_pos = jfs_dirent->position;
-			if (filldir(dirent, jfs_dirent->name,
-				    jfs_dirent->name_len, filp->f_pos,
+			ctx->pos = jfs_dirent->position;
+			if (!dir_emit(ctx, jfs_dirent->name,
+				    jfs_dirent->name_len,
 				    jfs_dirent->ino, DT_UNKNOWN))
 				goto out;
 			jfs_dirent = next_jfs_dirent(jfs_dirent);
@@ -3309,7 +3304,7 @@ skip_one:
 		}
 
 		if (!overflow && (bn == 0)) {
-			filp->f_pos = DIREND;
+			ctx->pos = DIREND;
 			break;
 		}
 
