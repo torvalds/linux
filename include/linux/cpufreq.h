@@ -71,6 +71,10 @@ struct cpufreq_governor;
 
 /* /sys/devices/system/cpu/cpufreq: entry point for global variables */
 extern struct kobject *cpufreq_global_kobject;
+int cpufreq_get_global_kobject(void);
+void cpufreq_put_global_kobject(void);
+int cpufreq_sysfs_create_file(const struct attribute *attr);
+void cpufreq_sysfs_remove_file(const struct attribute *attr);
 
 #define CPUFREQ_ETERNAL			(-1)
 struct cpufreq_cpuinfo {
