@@ -7573,47 +7573,47 @@ static unsigned char FPT_CalcLrc(unsigned char buffer[])
 */
 
 static inline unsigned char
-FlashPoint__ProbeHostAdapter(struct FlashPoint_Info *FlashPointInfo)
+FlashPoint__ProbeHostAdapter(struct fpoint_info *FlashPointInfo)
 {
 	return FlashPoint_ProbeHostAdapter((struct sccb_mgr_info *)
 					   FlashPointInfo);
 }
 
-static inline FlashPoint_CardHandle_T
-FlashPoint__HardwareResetHostAdapter(struct FlashPoint_Info *FlashPointInfo)
+static inline unsigned int
+FlashPoint__HardwareResetHostAdapter(struct fpoint_info *FlashPointInfo)
 {
 	return FlashPoint_HardwareResetHostAdapter((struct sccb_mgr_info *)
 						   FlashPointInfo);
 }
 
 static inline void
-FlashPoint__ReleaseHostAdapter(FlashPoint_CardHandle_T CardHandle)
+FlashPoint__ReleaseHostAdapter(unsigned int CardHandle)
 {
 	FlashPoint_ReleaseHostAdapter(CardHandle);
 }
 
 static inline void
-FlashPoint__StartCCB(FlashPoint_CardHandle_T CardHandle,
-		     struct BusLogic_CCB *CCB)
+FlashPoint__StartCCB(unsigned int CardHandle,
+		     struct blogic_ccb *CCB)
 {
 	FlashPoint_StartCCB(CardHandle, (struct sccb *)CCB);
 }
 
 static inline void
-FlashPoint__AbortCCB(FlashPoint_CardHandle_T CardHandle,
-		     struct BusLogic_CCB *CCB)
+FlashPoint__AbortCCB(unsigned int CardHandle,
+		     struct blogic_ccb *CCB)
 {
 	FlashPoint_AbortCCB(CardHandle, (struct sccb *)CCB);
 }
 
 static inline bool
-FlashPoint__InterruptPending(FlashPoint_CardHandle_T CardHandle)
+FlashPoint__InterruptPending(unsigned int CardHandle)
 {
 	return FlashPoint_InterruptPending(CardHandle);
 }
 
 static inline int
-FlashPoint__HandleInterrupt(FlashPoint_CardHandle_T CardHandle)
+FlashPoint__HandleInterrupt(unsigned int CardHandle)
 {
 	return FlashPoint_HandleInterrupt(CardHandle);
 }
@@ -7632,13 +7632,12 @@ FlashPoint__HandleInterrupt(FlashPoint_CardHandle_T CardHandle)
   Define prototypes for the FlashPoint SCCB Manager Functions.
 */
 
-extern unsigned char FlashPoint_ProbeHostAdapter(struct FlashPoint_Info *);
-extern FlashPoint_CardHandle_T
-FlashPoint_HardwareResetHostAdapter(struct FlashPoint_Info *);
-extern void FlashPoint_StartCCB(FlashPoint_CardHandle_T, struct BusLogic_CCB *);
-extern int FlashPoint_AbortCCB(FlashPoint_CardHandle_T, struct BusLogic_CCB *);
-extern bool FlashPoint_InterruptPending(FlashPoint_CardHandle_T);
-extern int FlashPoint_HandleInterrupt(FlashPoint_CardHandle_T);
-extern void FlashPoint_ReleaseHostAdapter(FlashPoint_CardHandle_T);
+extern unsigned char FlashPoint_ProbeHostAdapter(struct fpoint_info *);
+extern unsigned int FlashPoint_HardwareResetHostAdapter(struct fpoint_info *);
+extern void FlashPoint_StartCCB(unsigned int, struct blogic_ccb *);
+extern int FlashPoint_AbortCCB(unsigned int, struct blogic_ccb *);
+extern bool FlashPoint_InterruptPending(unsigned int);
+extern int FlashPoint_HandleInterrupt(unsigned int);
+extern void FlashPoint_ReleaseHostAdapter(unsigned int);
 
 #endif				/* CONFIG_SCSI_FLASHPOINT */
