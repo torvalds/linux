@@ -755,6 +755,15 @@ static const struct dev_pm_ops hdmi_pm_ops = {
 	.runtime_resume	 = hdmi_runtime_resume,
 };
 
+static void hdmi_resource_clear_clocks(struct hdmi_resources *res)
+{
+	res->hdmi	 = ERR_PTR(-EINVAL);
+	res->sclk_hdmi	 = ERR_PTR(-EINVAL);
+	res->sclk_pixel	 = ERR_PTR(-EINVAL);
+	res->sclk_hdmiphy = ERR_PTR(-EINVAL);
+	res->hdmiphy	 = ERR_PTR(-EINVAL);
+}
+
 static void hdmi_resources_cleanup(struct hdmi_device *hdev)
 {
 	struct hdmi_resources *res = &hdev->res;
@@ -765,17 +774,18 @@ static void hdmi_resources_cleanup(struct hdmi_device *hdev)
 		regulator_bulk_free(res->regul_count, res->regul_bulk);
 	/* kfree is NULL-safe */
 	kfree(res->regul_bulk);
-	if (!IS_ERR_OR_NULL(res->hdmiphy))
+	if (!IS_ERR(res->hdmiphy))
 		clk_put(res->hdmiphy);
-	if (!IS_ERR_OR_NULL(res->sclk_hdmiphy))
+	if (!IS_ERR(res->sclk_hdmiphy))
 		clk_put(res->sclk_hdmiphy);
-	if (!IS_ERR_OR_NULL(res->sclk_pixel))
+	if (!IS_ERR(res->sclk_pixel))
 		clk_put(res->sclk_pixel);
-	if (!IS_ERR_OR_NULL(res->sclk_hdmi))
+	if (!IS_ERR(res->sclk_hdmi))
 		clk_put(res->sclk_hdmi);
-	if (!IS_ERR_OR_NULL(res->hdmi))
+	if (!IS_ERR(res->hdmi))
 		clk_put(res->hdmi);
 	memset(res, 0, sizeof(*res));
+	hdmi_resource_clear_clocks(res);
 }
 
 static int hdmi_resources_init(struct hdmi_device *hdev)
@@ -793,8 +803,9 @@ static int hdmi_resources_init(struct hdmi_device *hdev)
 	dev_dbg(dev, "HDMI resource init\n");
 
 	memset(res, 0, sizeof(*res));
-	/* get clocks, power */
+	hdmi_resource_clear_clocks(res);
 
+	/* get clocks, power */
 	res->hdmi = clk_get(dev, "hdmi");
 	if (IS_ERR(res->hdmi)) {
 		dev_err(dev, "failed to get clock 'hdmi'\n");
