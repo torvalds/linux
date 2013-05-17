@@ -3427,7 +3427,7 @@ grace_disallows_io(struct net *net, struct inode *inode)
 /* Returns true iff a is later than b: */
 static bool stateid_generation_after(stateid_t *a, stateid_t *b)
 {
-	return (s32)a->si_generation - (s32)b->si_generation > 0;
+	return (s32)(a->si_generation - b->si_generation) > 0;
 }
 
 static __be32 check_stateid_generation(stateid_t *in, stateid_t *ref, bool has_session)
