@@ -185,6 +185,18 @@ clocks and IDs.
 	srtc_gate		171
 	pata_gate		172
 	sata_gate		173
+	spdif_xtal_sel		174
+	spdif0_sel		175
+	spdif1_sel		176
+	spdif0_pred		177
+	spdif0_podf		178
+	spdif1_pred		179
+	spdif1_podf		180
+	spdif0_com_sel		181
+	spdif1_com_sel		182
+	spdif0_gate		183
+	spdif1_gate		184
+	spdif_ipg_gate		185
 
 Examples (for mx53):
 
