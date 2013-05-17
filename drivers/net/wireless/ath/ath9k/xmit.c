@@ -287,9 +287,7 @@ static void ath_tid_drain(struct ath_softc *sc, struct ath_txq *txq,
 
 		list_add_tail(&bf->list, &bf_head);
 
-		if (fi->retries)
-			ath_tx_update_baw(sc, tid, bf->bf_state.seqno);
-
+		ath_tx_update_baw(sc, tid, bf->bf_state.seqno);
 		ath_tx_complete_buf(sc, bf, txq, &bf_head, &ts, 0);
 	}
 
