@@ -1696,8 +1696,8 @@ static struct pmu_info  wm8326_ldo_info[] = {
 static struct pmu_info  tps65910_dcdc_info[] = {
 	{
 		.name          = "vdd_core",   //logic
-		.min_uv          = 1100000,
-		.max_uv         = 1100000,
+		.min_uv          = 1200000,
+		.max_uv         = 1200000,
 	},
 	{
 		.name          = "vdd2",    //ddr
