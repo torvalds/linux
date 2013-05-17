@@ -76,6 +76,7 @@ show up in /proc/sys/kernel:
 - tainted
 - threads-max
 - unknown_nmi_panic
+- watchdog_thresh
 - version
 
 ==============================================================
@@ -648,3 +649,16 @@ that time, kernel debugging information is displayed on console.
 
 NMI switch that most IA32 servers have fires unknown NMI up, for
 example.  If a system hangs up, try pressing the NMI switch.
+
+==============================================================
+
+watchdog_thresh:
+
+This value can be used to control the frequency of hrtimer and NMI
+events and the soft and hard lockup thresholds. The default threshold
+is 10 seconds.
+
+The softlockup threshold is (2 * watchdog_thresh). Setting this
+tunable to zero will disable lockup detection altogether.
+
+==============================================================
