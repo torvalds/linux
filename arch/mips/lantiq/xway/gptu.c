@@ -169,6 +169,8 @@ static int gptu_probe(struct platform_device *pdev)
 	if (((gptu_r32(GPTU_ID) >> 8) & 0xff) != GPTU_MAGIC) {
 		dev_err(&pdev->dev, "Failed to find magic\n");
 		gptu_hwexit();
+		clk_disable(clk);
+		clk_put(clk);
 		return -ENAVAIL;
 	}
 
