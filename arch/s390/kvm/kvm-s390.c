@@ -707,7 +707,9 @@ static int __vcpu_run(struct kvm_vcpu *vcpu)
 	trace_kvm_s390_sie_enter(vcpu,
 				 atomic_read(&vcpu->arch.sie_block->cpuflags));
 	rc = sie64a(vcpu->arch.sie_block, vcpu->run->s.regs.gprs);
-	if (rc) {
+	if (rc > 0)
+		rc = 0;
+	if (rc < 0) {
 		if (kvm_is_ucontrol(vcpu->kvm)) {
 			rc = SIE_INTERCEPT_UCONTROL;
 		} else {
