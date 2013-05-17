@@ -266,6 +266,6 @@ struct device_node *v4l2_of_get_remote_port(const struct device_node *node)
 	np = of_parse_phandle(node, "remote-endpoint", 0);
 	if (!np)
 		return NULL;
-	return of_get_parent(np);
+	return of_get_next_parent(np);
 }
 EXPORT_SYMBOL(v4l2_of_get_remote_port);
