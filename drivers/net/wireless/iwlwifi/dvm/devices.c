@@ -174,7 +174,7 @@ static void iwl1000_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.sens = &iwl1000_sensitivity;
 }
 
-struct iwl_lib_ops iwl1000_lib = {
+struct iwl_dvm_cfg iwl_dvm_1000_cfg = {
 	.set_hw_params = iwl1000_hw_set_hw_params,
 	.nic_config = iwl1000_nic_config,
 	.temperature = iwlagn_temperature,
@@ -232,13 +232,13 @@ static void iwl2000_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.sens = &iwl2000_sensitivity;
 }
 
-struct iwl_lib_ops iwl2000_lib = {
+struct iwl_dvm_cfg iwl_dvm_2000_cfg = {
 	.set_hw_params = iwl2000_hw_set_hw_params,
 	.nic_config = iwl2000_nic_config,
 	.temperature = iwlagn_temperature,
 };
 
-struct iwl_lib_ops iwl2030_lib = {
+struct iwl_dvm_cfg iwl_dvm_2030_cfg = {
 	.set_hw_params = iwl2000_hw_set_hw_params,
 	.nic_config = iwl2000_nic_config,
 	.temperature = iwlagn_temperature,
@@ -420,13 +420,13 @@ static int iwl5000_hw_channel_switch(struct iwl_priv *priv,
 	return iwl_dvm_send_cmd(priv, &hcmd);
 }
 
-struct iwl_lib_ops iwl5000_lib = {
+struct iwl_dvm_cfg iwl_dvm_5000_cfg = {
 	.set_hw_params = iwl5000_hw_set_hw_params,
 	.set_channel_switch = iwl5000_hw_channel_switch,
 	.temperature = iwlagn_temperature,
 };
 
-struct iwl_lib_ops iwl5150_lib = {
+struct iwl_dvm_cfg iwl_dvm_5150_cfg = {
 	.set_hw_params = iwl5150_hw_set_hw_params,
 	.set_channel_switch = iwl5000_hw_channel_switch,
 	.temperature = iwl5150_temperature,
@@ -584,14 +584,14 @@ static int iwl6000_hw_channel_switch(struct iwl_priv *priv,
 	return err;
 }
 
-struct iwl_lib_ops iwl6000_lib = {
+struct iwl_dvm_cfg iwl_dvm_6000_cfg = {
 	.set_hw_params = iwl6000_hw_set_hw_params,
 	.set_channel_switch = iwl6000_hw_channel_switch,
 	.nic_config = iwl6000_nic_config,
 	.temperature = iwlagn_temperature,
 };
 
-struct iwl_lib_ops iwl6030_lib = {
+struct iwl_dvm_cfg iwl_dvm_6030_cfg = {
 	.set_hw_params = iwl6000_hw_set_hw_params,
 	.set_channel_switch = iwl6000_hw_channel_switch,
 	.nic_config = iwl6000_nic_config,

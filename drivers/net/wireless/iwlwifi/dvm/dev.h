@@ -568,7 +568,7 @@ struct iwl_hw_params {
 	const struct iwl_sensitivity_ranges *sens;
 };
 
-struct iwl_lib_ops {
+struct iwl_dvm_cfg {
 	/* set hw dependent parameters */
 	void (*set_hw_params)(struct iwl_priv *priv);
 	int (*set_channel_switch)(struct iwl_priv *priv,
@@ -610,7 +610,7 @@ struct iwl_priv {
 	struct device *dev;		/* for debug prints only */
 	const struct iwl_cfg *cfg;
 	const struct iwl_fw *fw;
-	const struct iwl_lib_ops *lib;
+	const struct iwl_dvm_cfg *lib;
 	unsigned long status;
 
 	spinlock_t sta_lock;

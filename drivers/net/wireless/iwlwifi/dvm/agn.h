@@ -76,13 +76,13 @@
 #define IWL_INVALID_STATION	255
 
 /* device operations */
-extern struct iwl_lib_ops iwl1000_lib;
-extern struct iwl_lib_ops iwl2000_lib;
-extern struct iwl_lib_ops iwl2030_lib;
-extern struct iwl_lib_ops iwl5000_lib;
-extern struct iwl_lib_ops iwl5150_lib;
-extern struct iwl_lib_ops iwl6000_lib;
-extern struct iwl_lib_ops iwl6030_lib;
+extern struct iwl_dvm_cfg iwl_dvm_1000_cfg;
+extern struct iwl_dvm_cfg iwl_dvm_2000_cfg;
+extern struct iwl_dvm_cfg iwl_dvm_2030_cfg;
+extern struct iwl_dvm_cfg iwl_dvm_5000_cfg;
+extern struct iwl_dvm_cfg iwl_dvm_5150_cfg;
+extern struct iwl_dvm_cfg iwl_dvm_6000_cfg;
+extern struct iwl_dvm_cfg iwl_dvm_6030_cfg;
 
 
 #define TIME_UNIT		1024

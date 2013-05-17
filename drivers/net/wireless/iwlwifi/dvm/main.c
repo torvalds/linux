@@ -1264,31 +1264,31 @@ static struct iwl_op_mode *iwl_op_mode_dvm_start(struct iwl_trans *trans,
 	switch (priv->cfg->device_family) {
 	case IWL_DEVICE_FAMILY_1000:
 	case IWL_DEVICE_FAMILY_100:
-		priv->lib = &iwl1000_lib;
+		priv->lib = &iwl_dvm_1000_cfg;
 		break;
 	case IWL_DEVICE_FAMILY_2000:
 	case IWL_DEVICE_FAMILY_105:
-		priv->lib = &iwl2000_lib;
+		priv->lib = &iwl_dvm_2000_cfg;
 		break;
 	case IWL_DEVICE_FAMILY_2030:
 	case IWL_DEVICE_FAMILY_135:
-		priv->lib = &iwl2030_lib;
+		priv->lib = &iwl_dvm_2030_cfg;
 		break;
 	case IWL_DEVICE_FAMILY_5000:
-		priv->lib = &iwl5000_lib;
+		priv->lib = &iwl_dvm_5000_cfg;
 		break;
 	case IWL_DEVICE_FAMILY_5150:
-		priv->lib = &iwl5150_lib;
+		priv->lib = &iwl_dvm_5150_cfg;
 		break;
 	case IWL_DEVICE_FAMILY_6000:
 	case IWL_DEVICE_FAMILY_6005:
 	case IWL_DEVICE_FAMILY_6000i:
 	case IWL_DEVICE_FAMILY_6050:
 	case IWL_DEVICE_FAMILY_6150:
-		priv->lib = &iwl6000_lib;
+		priv->lib = &iwl_dvm_6000_cfg;
 		break;
 	case IWL_DEVICE_FAMILY_6030:
-		priv->lib = &iwl6030_lib;
+		priv->lib = &iwl_dvm_6030_cfg;
 		break;
 	default:
 		break;
