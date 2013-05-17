@@ -306,7 +306,7 @@ extern unsigned long MODULES_END;
 #define RCP_HC_BIT	0x00200000UL
 #define RCP_GR_BIT	0x00040000UL
 #define RCP_GC_BIT	0x00020000UL
-#define RCP_IN_BIT	0x00008000UL	/* IPTE notify bit */
+#define RCP_IN_BIT	0x00002000UL	/* IPTE notify bit */
 
 /* User dirty / referenced bit for KVM's migration feature */
 #define KVM_UR_BIT	0x00008000UL
@@ -374,7 +374,7 @@ extern unsigned long MODULES_END;
 #define RCP_HC_BIT	0x0020000000000000UL
 #define RCP_GR_BIT	0x0004000000000000UL
 #define RCP_GC_BIT	0x0002000000000000UL
-#define RCP_IN_BIT	0x0000800000000000UL	/* IPTE notify bit */
+#define RCP_IN_BIT	0x0000200000000000UL	/* IPTE notify bit */
 
 /* User dirty / referenced bit for KVM's migration feature */
 #define KVM_UR_BIT	0x0000800000000000UL
