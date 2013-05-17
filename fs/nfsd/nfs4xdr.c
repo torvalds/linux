@@ -460,7 +460,11 @@ static __be32 nfsd4_decode_cb_sec(struct nfsd4_compoundargs *argp, struct nfsd4_
 	/* callback_sec_params4 */
 	READ_BUF(4);
 	READ32(nr_secflavs);
-	cbs->flavor = (u32)(-1);
+	if (nr_secflavs)
+		cbs->flavor = (u32)(-1);
+	else
+		/* Is this legal? Be generous, take it to mean AUTH_NONE: */
+		cbs->flavor = 0;
 	for (i = 0; i < nr_secflavs; ++i) {
 		READ_BUF(4);
 		READ32(dummy);
