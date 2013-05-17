@@ -1030,13 +1030,11 @@ static void bmac_set_multicast(struct net_device *dev)
 		rx_cfg |= RxPromiscEnable;
 		bmwrite(dev, RXCFG, rx_cfg);
 	} else {
-		u16 hash_table[4];
+		u16 hash_table[4] = { 0 };
 
 		rx_cfg = bmread(dev, RXCFG);
 		rx_cfg &= ~RxPromiscEnable;
 		bmwrite(dev, RXCFG, rx_cfg);
-
-		for(i = 0; i < 4; i++) hash_table[i] = 0;
 
 		netdev_for_each_mc_addr(ha, dev) {
 			crc = ether_crc_le(6, ha->addr);
