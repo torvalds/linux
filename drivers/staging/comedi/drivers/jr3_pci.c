@@ -101,15 +101,11 @@ static int comedi_load_firmware(struct comedi_device *dev, const char *name,
 	int result = 0;
 	const struct firmware *fw;
 	char *firmware_path;
-	static const char *prefix = "comedi/";
 
-	firmware_path = kmalloc(strlen(prefix) + strlen(name) + 1, GFP_KERNEL);
+	firmware_path = kasprintf(GFP_KERNEL, "comedi/%s", name);
 	if (!firmware_path) {
 		result = -ENOMEM;
 	} else {
-		firmware_path[0] = '\0';
-		strcat(firmware_path, prefix);
-		strcat(firmware_path, name);
 		result = request_firmware(&fw, firmware_path, &pcidev->dev);
 		if (result == 0) {
 			if (!cb)
