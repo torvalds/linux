@@ -759,7 +759,6 @@ static void XGI_SetCRT1DE(struct xgi_hw_device_info *HwDeviceExtension,
 
 	xgifb_reg_and_or(pVBInfo->P3d4, 0x07, ~0x42, tempax);
 	data = xgifb_reg_get(pVBInfo->P3d4, 0x07);
-	data &= 0xFF;
 	tempax = 0;
 
 	if (tempbx & 0x04)
@@ -1589,10 +1588,8 @@ static void XGI_SetLVDSRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
 	xgifb_reg_and_or(pVBInfo->Part1Port, 0x1a, 0x07,
 				tempax);
 
-	tempcx = pVBInfo->VGAVT;
 	tempbx = pVBInfo->VDE;
 	tempax = pVBInfo->VGAVDE;
-	tempcx -= tempax;
 
 	temp = tempax; /* 0430 ylshieh */
 	temp1 = (temp << 18) / tempbx;
@@ -2657,10 +2654,7 @@ static void XGI_GetCRT2Data(unsigned short ModeNo, unsigned short ModeIdIndex,
 					tempbx = 775;
 				else if (pVBInfo->VGAVDE == 600)
 					tempbx = 775;
-				else
-					tempbx = 768;
-			} else
-				tempbx = 768;
+			}
 		} else if (pVBInfo->LCDResInfo == Panel_1024x768x75) {
 			tempax = 1024;
 			tempbx = 768;
@@ -3015,9 +3009,6 @@ static void XGI_SetGroup1(unsigned short ModeNo, unsigned short ModeIdIndex,
 	temp |= ((tempcx & 0xFF00) >> 8);
 	xgifb_reg_set(pVBInfo->Part1Port, 0x12, temp);
 
-	tempax = pVBInfo->VGAVDE;
-	tempbx = pVBInfo->VGAVDE;
-	tempcx = pVBInfo->VGAVT;
 	/* BTVGA2VRS 0x10,0x11 */
 	tempbx = (pVBInfo->VGAVT + pVBInfo->VGAVDE) >> 1;
 	/* BTVGA2VRE 0x11 */
@@ -3226,7 +3217,6 @@ static void XGI_SetLockRegs(unsigned short ModeNo, unsigned short ModeIdIndex,
 		}
 	}
 	tempbx--;
-	temp = tempbx & 0x00FF;
 	tempbx--;
 	temp = tempbx & 0x00FF;
 	/* 0x10 vertical Blank Start */
@@ -3444,9 +3434,6 @@ static void XGI_SetGroup2(unsigned short ModeNo, unsigned short ModeIdIndex,
 	temp = pVBInfo->NewFlickerMode;
 	temp &= 0x80;
 	xgifb_reg_and_or(pVBInfo->Part2Port, 0x0A, 0xFF, temp);
-
-	if (pVBInfo->VBInfo & SetCRT2ToHiVision)
-		tempax = 950;
 
 	if (pVBInfo->TVInfo & TVSetPAL)
 		tempax = 520;
@@ -4210,11 +4197,6 @@ static void XGI_SetGroup4(unsigned short ModeNo, unsigned short ModeIdIndex,
 	xgifb_reg_and_or(pVBInfo->Part4Port, 0x0E, ~0xEF, temp);
 
 	tempebx = pVBInfo->VDE;
-
-	if (tempcx & SetCRT2ToHiVision) {
-		if (!(temp & 0xE000))
-			tempbx = tempbx >> 1;
-	}
 
 	tempcx = pVBInfo->RVBHRS;
 	temp = tempcx & 0x00FF;

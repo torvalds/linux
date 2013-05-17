@@ -1296,7 +1296,6 @@ unsigned char XGIInitNew(struct pci_dev *pdev)
 		xgifb_reg_set(pVBInfo->Part1Port, 0x00, 0x00);
 		/* chk if BCLK>=100MHz */
 		temp1 = xgifb_reg_get(pVBInfo->P3d4, 0x7B);
-		temp = (unsigned char) ((temp1 >> 4) & 0x0F);
 
 		xgifb_reg_set(pVBInfo->Part1Port,
 			      0x02, XGI330_CRT2Data_1_2);
