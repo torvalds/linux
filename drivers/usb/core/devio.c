@@ -1800,7 +1800,8 @@ static int proc_ioctl(struct dev_state *ps, struct usbdevfs_ioctl *ctl)
 
 	/* alloc buffer */
 	if ((size = _IOC_SIZE(ctl->ioctl_code)) > 0) {
-		if ((buf = kmalloc(size, GFP_KERNEL)) == NULL)
+		buf = kmalloc(size, GFP_KERNEL);
+		if (buf == NULL)
 			return -ENOMEM;
 		if ((_IOC_DIR(ctl->ioctl_code) & _IOC_WRITE)) {
 			if (copy_from_user(buf, ctl->data, size)) {
