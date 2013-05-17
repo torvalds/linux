@@ -325,7 +325,10 @@ static int exynos_drm_platform_probe(struct platform_device *pdev)
 {
 	int ret;
 
-	ret = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
+	if (config_enabled(CONFIG_ARM_LPAE))
+		ret = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
+	else
+		ret = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
 	if (ret)
 		return ret;
 
