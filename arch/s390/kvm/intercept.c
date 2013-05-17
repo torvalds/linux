@@ -174,47 +174,12 @@ static int handle_stop(struct kvm_vcpu *vcpu)
 
 static int handle_validity(struct kvm_vcpu *vcpu)
 {
-	unsigned long vmaddr;
 	int viwhy = vcpu->arch.sie_block->ipb >> 16;
-	int rc;
 
 	vcpu->stat.exit_validity++;
 	trace_kvm_s390_intercept_validity(vcpu, viwhy);
-	if (viwhy == 0x37) {
-		vmaddr = gmap_fault(vcpu->arch.sie_block->prefix,
-				    vcpu->arch.gmap);
-		if (IS_ERR_VALUE(vmaddr)) {
-			rc = -EOPNOTSUPP;
-			goto out;
-		}
-		rc = fault_in_pages_writeable((char __user *) vmaddr,
-			 PAGE_SIZE);
-		if (rc) {
-			/* user will receive sigsegv, exit to user */
-			rc = -EOPNOTSUPP;
-			goto out;
-		}
-		vmaddr = gmap_fault(vcpu->arch.sie_block->prefix + PAGE_SIZE,
-				    vcpu->arch.gmap);
-		if (IS_ERR_VALUE(vmaddr)) {
-			rc = -EOPNOTSUPP;
-			goto out;
-		}
-		rc = fault_in_pages_writeable((char __user *) vmaddr,
-			 PAGE_SIZE);
-		if (rc) {
-			/* user will receive sigsegv, exit to user */
-			rc = -EOPNOTSUPP;
-			goto out;
-		}
-	} else
-		rc = -EOPNOTSUPP;
-
-out:
-	if (rc)
-		VCPU_EVENT(vcpu, 2, "unhandled validity intercept code %d",
-			   viwhy);
-	return rc;
+	WARN_ONCE(true, "kvm: unhandled validity intercept 0x%x\n", viwhy);
+	return -EOPNOTSUPP;
 }
 
 static int handle_instruction(struct kvm_vcpu *vcpu)

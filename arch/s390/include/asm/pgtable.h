@@ -739,6 +739,7 @@ struct gmap {
 	struct mm_struct *mm;
 	unsigned long *table;
 	unsigned long asce;
+	void *private;
 	struct list_head crst_list;
 };
 
