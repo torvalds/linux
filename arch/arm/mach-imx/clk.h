@@ -18,7 +18,6 @@ enum imx_pllv3_type {
 	IMX_PLLV3_USB,
 	IMX_PLLV3_AV,
 	IMX_PLLV3_ENET,
-	IMX_PLLV3_MLB,
 };
 
 struct clk *imx_clk_pllv3(enum imx_pllv3_type type, const char *name,
