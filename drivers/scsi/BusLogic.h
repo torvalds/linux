@@ -821,7 +821,7 @@ struct blogic_ccb {
 	unsigned char cdblen;				/* Byte 2 */
 	unsigned char sense_datalen;			/* Byte 3 */
 	u32 datalen;					/* Bytes 4-7 */
-	u32 data;					/* Bytes 8-11 */
+	void *data;					/* Bytes 8-11 */
 	unsigned char:8;				/* Byte 12 */
 	unsigned char:8;				/* Byte 13 */
 	enum blogic_adapter_status adapter_status;	/* Byte 14 */
@@ -833,7 +833,7 @@ struct blogic_ccb {
 	unsigned char cdb[BLOGIC_CDB_MAXLEN];		/* Bytes 18-29 */
 	unsigned char:8;				/* Byte 30 */
 	unsigned char:8;				/* Byte 31 */
-	unsigned int:32;				/* Bytes 32-35 */
+	u32 rsvd_int;					/* Bytes 32-35 */
 	u32 sensedata;					/* Bytes 36-39 */
 	/*
 	   FlashPoint SCCB Manager Defined Portion.
@@ -843,8 +843,11 @@ struct blogic_ccb {
 	enum blogic_cmplt_code comp_code;		/* Byte 48 */
 #ifdef CONFIG_SCSI_FLASHPOINT
 	unsigned char:8;				/* Byte 49 */
-	unsigned short os_flags;			/* Bytes 50-51 */
-	unsigned char private[48];			/* Bytes 52-99 */
+	u16 os_flags;					/* Bytes 50-51 */
+	unsigned char private[24];			/* Bytes 52-99 */
+	void *rsvd1;
+	void *rsvd2;
+	unsigned char private2[16];
 #endif
 	/*
 	   BusLogic Linux Driver Defined Portion.
@@ -867,7 +870,7 @@ struct blogic_ccb {
 
 struct blogic_outbox {
 	u32 ccb;			/* Bytes 0-3 */
-	unsigned int:24;		/* Bytes 4-6 */
+	u32:24;				/* Bytes 4-6 */
 	enum blogic_action action;	/* Byte 7 */
 };
 
@@ -876,11 +879,11 @@ struct blogic_outbox {
 */
 
 struct blogic_inbox {
-	u32 ccb;		/* Bytes 0-3 */
+	u32 ccb;					/* Bytes 0-3 */
 	enum blogic_adapter_status adapter_status;	/* Byte 4 */
-	enum blogic_tgt_status tgt_status;	/* Byte 5 */
-	unsigned char:8;	/* Byte 6 */
-	enum blogic_cmplt_code comp_code;	/* Byte 7 */
+	enum blogic_tgt_status tgt_status;		/* Byte 5 */
+	unsigned char:8;				/* Byte 6 */
+	enum blogic_cmplt_code comp_code;		/* Byte 7 */
 };
 
 
@@ -941,7 +944,7 @@ struct blogic_tgt_stats {
   Define the FlashPoint Card Handle data type.
 */
 
-#define FPOINT_BADCARD_HANDLE		0xFFFFFFFF
+#define FPOINT_BADCARD_HANDLE		0xFFFFFFFFL
 
 
 /*
@@ -955,12 +958,12 @@ struct fpoint_info {
 	unsigned char irq_ch;			/* Byte 5 */
 	unsigned char scsi_id;			/* Byte 6 */
 	unsigned char scsi_lun;			/* Byte 7 */
-	unsigned short fw_rev;			/* Bytes 8-9 */
-	unsigned short sync_ok;			/* Bytes 10-11 */
-	unsigned short fast_ok;			/* Bytes 12-13 */
-	unsigned short ultra_ok;		/* Bytes 14-15 */
-	unsigned short discon_ok;		/* Bytes 16-17 */
-	unsigned short wide_ok;			/* Bytes 18-19 */
+	u16 fw_rev;				/* Bytes 8-9 */
+	u16 sync_ok;				/* Bytes 10-11 */
+	u16 fast_ok;				/* Bytes 12-13 */
+	u16 ultra_ok;				/* Bytes 14-15 */
+	u16 discon_ok;				/* Bytes 16-17 */
+	u16 wide_ok;				/* Bytes 18-19 */
 	bool parity:1;				/* Byte 20 Bit 0 */
 	bool wide:1;				/* Byte 20 Bit 1 */
 	bool softreset:1;			/* Byte 20 Bit 2 */
@@ -976,10 +979,10 @@ struct fpoint_info {
 	unsigned char model[3];			/* Bytes 24-26 */
 	unsigned char relative_cardnum;		/* Byte 27 */
 	unsigned char rsvd[4];			/* Bytes 28-31 */
-	unsigned int os_rsvd;			/* Bytes 32-35 */
+	u32 os_rsvd;				/* Bytes 32-35 */
 	unsigned char translation_info[4];	/* Bytes 36-39 */
-	unsigned int rsvd2[5];			/* Bytes 40-59 */
-	unsigned int sec_range;			/* Bytes 60-63 */
+	u32 rsvd2[5];				/* Bytes 40-59 */
+	u32 sec_range;				/* Bytes 60-63 */
 };
 
 /*
@@ -1052,7 +1055,7 @@ struct blogic_adapter {
 	u32 bios_addr;
 	struct blogic_drvr_options *drvr_opts;
 	struct fpoint_info fpinfo;
-	unsigned int cardhandle;
+	void *cardhandle;
 	struct list_head host_list;
 	struct blogic_ccb *all_ccbs;
 	struct blogic_ccb *free_ccbs;

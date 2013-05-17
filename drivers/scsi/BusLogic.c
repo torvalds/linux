@@ -1208,7 +1208,7 @@ static bool blogic_hwreset(struct blogic_adapter *adapter, bool hard_reset)
 		fpinfo->report_underrun = true;
 		adapter->cardhandle =
 			FlashPoint_HardwareResetHostAdapter(fpinfo);
-		if (adapter->cardhandle == FPOINT_BADCARD_HANDLE)
+		if (adapter->cardhandle == (void *)FPOINT_BADCARD_HANDLE)
 			return false;
 		/*
 		   Indicate the Host Adapter Hard Reset completed successfully.
@@ -2372,8 +2372,7 @@ static int __init blogic_init(void)
 		return -ENOMEM;
 	}
 
-	adapter =
-	    kzalloc(sizeof(struct blogic_adapter), GFP_KERNEL);
+	adapter = kzalloc(sizeof(struct blogic_adapter), GFP_KERNEL);
 	if (adapter == NULL) {
 		kfree(blogic_probeinfo_list);
 		blogic_err("BusLogic: Unable to allocate Prototype Host Adapter\n", NULL);
@@ -3079,11 +3078,11 @@ static int blogic_qcmd_lck(struct scsi_cmnd *command,
 		ccb->opcode = BLOGIC_INITIATOR_CCB_SG;
 		ccb->datalen = count * sizeof(struct blogic_sg_seg);
 		if (blogic_multimaster_type(adapter))
-			ccb->data = (unsigned int) ccb->dma_handle +
+			ccb->data = (void *)((unsigned int) ccb->dma_handle +
 					((unsigned long) &ccb->sglist -
-					(unsigned long) ccb);
+					(unsigned long) ccb));
 		else
-			ccb->data = virt_to_32bit_virt(ccb->sglist);
+			ccb->data = ccb->sglist;
 
 		scsi_for_each_sg(command, sg, count, i) {
 			ccb->sglist[i].segbytes = sg_dma_len(sg);
