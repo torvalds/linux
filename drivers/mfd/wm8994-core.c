@@ -652,6 +652,17 @@ static int wm8994_device_init(struct wm8994 *wm8994, int irq)
 		return ret;
 	}
 
+	/* Explicitly put the device into reset in case regulators
+	 * don't get disabled in order to ensure we know the device
+	 * state.
+	 */
+	ret = wm8994_reg_write(wm8994, WM8994_SOFTWARE_RESET,
+			       wm8994_reg_read(wm8994, WM8994_SOFTWARE_RESET));
+	if (ret != 0) {
+		dev_err(wm8994->dev, "Failed to reset device: %d\n", ret);
+		return ret;
+	}
+
 	if (regmap_patch) {
 		ret = regmap_register_patch(wm8994->regmap, regmap_patch,
 					    patch_regs);
