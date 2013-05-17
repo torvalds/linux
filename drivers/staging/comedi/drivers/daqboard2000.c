@@ -105,7 +105,6 @@ Configuration options: not applicable, uses PCI auto config
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
-#include <linux/firmware.h>
 
 #include "../comedidev.h"
 
@@ -560,22 +559,6 @@ static int initialize_daqboard2000(struct comedi_device *dev,
 	return result;
 }
 
-static int daqboard2000_upload_firmware(struct comedi_device *dev)
-{
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct firmware *fw;
-	int ret;
-
-	ret = request_firmware(&fw, DAQBOARD2000_FIRMWARE, &pcidev->dev);
-	if (ret)
-		return ret;
-
-	ret = initialize_daqboard2000(dev, fw->data, fw->size);
-	release_firmware(fw);
-
-	return ret;
-}
-
 static void daqboard2000_adcStopDmaTransfer(struct comedi_device *dev)
 {
 }
@@ -719,7 +702,9 @@ static int daqboard2000_auto_attach(struct comedi_device *dev,
 
 	readl(devpriv->plx + 0x6c);
 
-	result = daqboard2000_upload_firmware(dev);
+	result = comedi_load_firmware(dev, &comedi_to_pci_dev(dev)->dev,
+				      DAQBOARD2000_FIRMWARE,
+				      initialize_daqboard2000);
 	if (result < 0)
 		return result;
 
