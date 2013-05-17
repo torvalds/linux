@@ -326,6 +326,28 @@ static int exynos_wkup_irq_set_type(struct irq_data *irqd, unsigned int type)
 	return 0;
 }
 
+static u32 exynos_eint_wake_mask = 0xffffffff;
+
+u32 exynos_get_eint_wake_mask(void)
+{
+	return exynos_eint_wake_mask;
+}
+
+static int exynos_wkup_irq_set_wake(struct irq_data *irqd, unsigned int on)
+{
+	struct samsung_pin_bank *bank = irq_data_get_irq_chip_data(irqd);
+	unsigned long bit = 1UL << (2 * bank->eint_offset + irqd->hwirq);
+
+	pr_info("wake %s for irq %d\n", on ? "enabled" : "disabled", irqd->irq);
+
+	if (!on)
+		exynos_eint_wake_mask |= bit;
+	else
+		exynos_eint_wake_mask &= ~bit;
+
+	return 0;
+}
+
 /*
  * irq_chip for wakeup interrupts
  */
@@ -335,6 +357,7 @@ static struct irq_chip exynos_wkup_irq_chip = {
 	.irq_mask	= exynos_wkup_irq_mask,
 	.irq_ack	= exynos_wkup_irq_ack,
 	.irq_set_type	= exynos_wkup_irq_set_type,
+	.irq_set_wake	= exynos_wkup_irq_set_wake,
 };
 
 /* interrupt handler for wakeup interrupts 0..15 */
