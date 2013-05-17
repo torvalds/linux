@@ -47,7 +47,7 @@ static struct usb_driver btmtk_usb_driver;
 static int btmtk_usb_load_rom_patch(struct btmtk_usb_data *);
 static int btmtk_usb_load_fw(struct btmtk_usb_data *);
 
-void hex_dump(char *str, u8 *src_buf, u32 src_buf_len)
+static void hex_dump(char *str, u8 *src_buf, u32 src_buf_len)
 {
 	unsigned char *pt;
 	int x;
@@ -224,7 +224,7 @@ static void btmtk_usb_cap_init(struct btmtk_usb_data *data)
 	}
 }
 
-u16 checksume16(u8 *pData, int len)
+static u16 checksume16(u8 *pData, int len)
 {
 	int sum = 0;
 
