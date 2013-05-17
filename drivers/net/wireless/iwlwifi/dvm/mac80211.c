@@ -426,6 +426,10 @@ static int iwlagn_mac_suspend(struct ieee80211_hw *hw,
 	if (ret)
 		goto error;
 
+	/* let the ucode operate on its own */
+	iwl_write32(priv->trans, CSR_UCODE_DRV_GP1_SET,
+		    CSR_UCODE_DRV_GP1_BIT_D3_CFG_COMPLETE);
+
 	iwl_trans_d3_suspend(priv->trans);
 
 	goto out;
@@ -508,6 +512,10 @@ static int iwlagn_mac_resume(struct ieee80211_hw *hw)
 		IWL_INFO(priv, "Device was reset during suspend\n");
 		goto out_unlock;
 	}
+
+	/* uCode is no longer operating by itself */
+	iwl_write32(priv->trans, CSR_UCODE_DRV_GP1_CLR,
+		    CSR_UCODE_DRV_GP1_BIT_D3_CFG_COMPLETE);
 
 	base = priv->device_pointers.error_event_table;
 	if (!iwlagn_hw_valid_rtc_data_addr(base)) {

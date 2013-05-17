@@ -580,10 +580,6 @@ static void iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 
 static void iwl_trans_pcie_d3_suspend(struct iwl_trans *trans)
 {
-	/* let the ucode operate on its own */
-	iwl_write32(trans, CSR_UCODE_DRV_GP1_SET,
-		    CSR_UCODE_DRV_GP1_BIT_D3_CFG_COMPLETE);
-
 	iwl_disable_interrupts(trans);
 	iwl_pcie_disable_ict(trans);
 
@@ -642,9 +638,6 @@ static int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
 		IWL_ERR(trans, "Failed to resume the device (RX reset)\n");
 		return ret;
 	}
-
-	iwl_write32(trans, CSR_UCODE_DRV_GP1_CLR,
-		    CSR_UCODE_DRV_GP1_BIT_D3_CFG_COMPLETE);
 
 	*status = IWL_D3_STATUS_ALIVE;
 	return 0;
