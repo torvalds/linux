@@ -1747,7 +1747,7 @@ static int transaction_kthread(void *arg)
 		}
 
 		now = get_seconds();
-		if (!cur->blocked &&
+		if (cur->state < TRANS_STATE_BLOCKED &&
 		    (now < cur->start_time || now - cur->start_time < 30)) {
 			spin_unlock(&root->fs_info->trans_lock);
 			delay = HZ * 5;
@@ -2186,7 +2186,6 @@ int open_ctree(struct super_block *sb,
 	fs_info->max_inline = 8192 * 1024;
 	fs_info->metadata_ratio = 0;
 	fs_info->defrag_inodes = RB_ROOT;
-	fs_info->trans_no_join = 0;
 	fs_info->free_chunk_space = 0;
 	fs_info->tree_mod_log = RB_ROOT;
 
@@ -3958,18 +3957,13 @@ void btrfs_cleanup_one_transaction(struct btrfs_transaction *cur_trans,
 	btrfs_block_rsv_release(root, &root->fs_info->trans_block_rsv,
 				cur_trans->dirty_pages.dirty_bytes);
 
-	/* FIXME: cleanup wait for commit */
-	cur_trans->in_commit = 1;
-	cur_trans->blocked = 1;
+	cur_trans->state = TRANS_STATE_COMMIT_START;
 	wake_up(&root->fs_info->transaction_blocked_wait);
 
 	btrfs_evict_pending_snapshots(cur_trans);
 
-	cur_trans->blocked = 0;
+	cur_trans->state = TRANS_STATE_UNBLOCKED;
 	wake_up(&root->fs_info->transaction_wait);
-
-	cur_trans->commit_done = 1;
-	wake_up(&cur_trans->commit_wait);
 
 	btrfs_destroy_delayed_inodes(root);
 	btrfs_assert_delayed_root_empty(root);
@@ -3978,6 +3972,9 @@ void btrfs_cleanup_one_transaction(struct btrfs_transaction *cur_trans,
 				     EXTENT_DIRTY);
 	btrfs_destroy_pinned_extent(root,
 				    root->fs_info->pinned_extents);
+
+	cur_trans->state =TRANS_STATE_COMPLETED;
+	wake_up(&cur_trans->commit_wait);
 
 	/*
 	memset(cur_trans, 0, sizeof(*cur_trans));
@@ -4006,24 +4003,22 @@ static int btrfs_cleanup_transaction(struct btrfs_root *root)
 
 		btrfs_destroy_delayed_refs(t, root);
 
-		/* FIXME: cleanup wait for commit */
-		t->in_commit = 1;
-		t->blocked = 1;
+		/*
+		 *  FIXME: cleanup wait for commit
+		 *  We needn't acquire the lock here, because we are during
+		 *  the umount, there is no other task which will change it.
+		 */
+		t->state = TRANS_STATE_COMMIT_START;
 		smp_mb();
 		if (waitqueue_active(&root->fs_info->transaction_blocked_wait))
 			wake_up(&root->fs_info->transaction_blocked_wait);
 
 		btrfs_evict_pending_snapshots(t);
 
-		t->blocked = 0;
+		t->state = TRANS_STATE_UNBLOCKED;
 		smp_mb();
 		if (waitqueue_active(&root->fs_info->transaction_wait))
 			wake_up(&root->fs_info->transaction_wait);
-
-		t->commit_done = 1;
-		smp_mb();
-		if (waitqueue_active(&t->commit_wait))
-			wake_up(&t->commit_wait);
 
 		btrfs_destroy_delayed_inodes(root);
 		btrfs_assert_delayed_root_empty(root);
@@ -4035,6 +4030,11 @@ static int btrfs_cleanup_transaction(struct btrfs_root *root)
 
 		btrfs_destroy_pinned_extent(root,
 					    root->fs_info->pinned_extents);
+
+		t->state = TRANS_STATE_COMPLETED;
+		smp_mb();
+		if (waitqueue_active(&t->commit_wait))
+			wake_up(&t->commit_wait);
 
 		atomic_set(&t->use_count, 0);
 		list_del_init(&t->list);

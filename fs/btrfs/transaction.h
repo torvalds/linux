@@ -22,6 +22,16 @@
 #include "delayed-ref.h"
 #include "ctree.h"
 
+enum btrfs_trans_state {
+	TRANS_STATE_RUNNING		= 0,
+	TRANS_STATE_BLOCKED		= 1,
+	TRANS_STATE_COMMIT_START	= 2,
+	TRANS_STATE_COMMIT_DOING	= 3,
+	TRANS_STATE_UNBLOCKED		= 4,
+	TRANS_STATE_COMPLETED		= 5,
+	TRANS_STATE_MAX			= 6,
+};
+
 struct btrfs_transaction {
 	u64 transid;
 	/*
@@ -37,10 +47,8 @@ struct btrfs_transaction {
 	atomic_t num_writers;
 	atomic_t use_count;
 
-	spinlock_t commit_lock;
-	int in_commit;
-	int commit_done;
-	int blocked;
+	/* Be protected by fs_info->trans_lock when we want to change it. */
+	enum btrfs_trans_state state;
 	struct list_head list;
 	struct extent_io_tree dirty_pages;
 	unsigned long start_time;
