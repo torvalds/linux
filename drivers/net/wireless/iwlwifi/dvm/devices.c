@@ -178,6 +178,9 @@ struct iwl_dvm_cfg iwl_dvm_1000_cfg = {
 	.set_hw_params = iwl1000_hw_set_hw_params,
 	.nic_config = iwl1000_nic_config,
 	.temperature = iwlagn_temperature,
+	.support_ct_kill_exit = true,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_EXT_LONG_THRESHOLD_DEF,
+	.chain_noise_scale = 1000,
 };
 
 
@@ -236,12 +239,52 @@ struct iwl_dvm_cfg iwl_dvm_2000_cfg = {
 	.set_hw_params = iwl2000_hw_set_hw_params,
 	.nic_config = iwl2000_nic_config,
 	.temperature = iwlagn_temperature,
+	.adv_thermal_throttle = true,
+	.support_ct_kill_exit = true,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
+	.chain_noise_scale = 1000,
+	.hd_v2 = true,
+	.need_temp_offset_calib = true,
+	.temp_offset_v2 = true,
+};
+
+struct iwl_dvm_cfg iwl_dvm_105_cfg = {
+	.set_hw_params = iwl2000_hw_set_hw_params,
+	.nic_config = iwl2000_nic_config,
+	.temperature = iwlagn_temperature,
+	.adv_thermal_throttle = true,
+	.support_ct_kill_exit = true,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
+	.chain_noise_scale = 1000,
+	.hd_v2 = true,
+	.need_temp_offset_calib = true,
+	.temp_offset_v2 = true,
+	.adv_pm = true,
+};
+
+static const struct iwl_dvm_bt_params iwl2030_bt_params = {
+	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
+	.advanced_bt_coexist = true,
+	.agg_time_limit = BT_AGG_THRESHOLD_DEF,
+	.bt_init_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_NONE,
+	.bt_prio_boost = IWLAGN_BT_PRIO_BOOST_DEFAULT32,
+	.bt_sco_disable = true,
+	.bt_session_2 = true,
 };
 
 struct iwl_dvm_cfg iwl_dvm_2030_cfg = {
 	.set_hw_params = iwl2000_hw_set_hw_params,
 	.nic_config = iwl2000_nic_config,
 	.temperature = iwlagn_temperature,
+	.adv_thermal_throttle = true,
+	.support_ct_kill_exit = true,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
+	.chain_noise_scale = 1000,
+	.hd_v2 = true,
+	.bt_params = &iwl2030_bt_params,
+	.need_temp_offset_calib = true,
+	.temp_offset_v2 = true,
+	.adv_pm = true,
 };
 
 /*
@@ -424,12 +467,19 @@ struct iwl_dvm_cfg iwl_dvm_5000_cfg = {
 	.set_hw_params = iwl5000_hw_set_hw_params,
 	.set_channel_switch = iwl5000_hw_channel_switch,
 	.temperature = iwlagn_temperature,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
+	.chain_noise_scale = 1000,
+	.no_idle_support = true,
 };
 
 struct iwl_dvm_cfg iwl_dvm_5150_cfg = {
 	.set_hw_params = iwl5150_hw_set_hw_params,
 	.set_channel_switch = iwl5000_hw_channel_switch,
 	.temperature = iwl5150_temperature,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
+	.chain_noise_scale = 1000,
+	.no_idle_support = true,
+	.no_xtal_calib = true,
 };
 
 
@@ -589,6 +639,42 @@ struct iwl_dvm_cfg iwl_dvm_6000_cfg = {
 	.set_channel_switch = iwl6000_hw_channel_switch,
 	.nic_config = iwl6000_nic_config,
 	.temperature = iwlagn_temperature,
+	.adv_thermal_throttle = true,
+	.support_ct_kill_exit = true,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
+	.chain_noise_scale = 1000,
+};
+
+const struct iwl_dvm_cfg iwl_dvm_6005_cfg = {
+	.set_hw_params = iwl6000_hw_set_hw_params,
+	.set_channel_switch = iwl6000_hw_channel_switch,
+	.nic_config = iwl6000_nic_config,
+	.temperature = iwlagn_temperature,
+	.adv_thermal_throttle = true,
+	.support_ct_kill_exit = true,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
+	.chain_noise_scale = 1000,
+	.need_temp_offset_calib = true,
+};
+
+struct iwl_dvm_cfg iwl_dvm_6050_cfg = {
+	.set_hw_params = iwl6000_hw_set_hw_params,
+	.set_channel_switch = iwl6000_hw_channel_switch,
+	.nic_config = iwl6000_nic_config,
+	.temperature = iwlagn_temperature,
+	.adv_thermal_throttle = true,
+	.support_ct_kill_exit = true,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
+	.chain_noise_scale = 1500,
+};
+
+static const struct iwl_dvm_bt_params iwl6000_bt_params = {
+	/* Due to bluetooth, we transmit 2.4 GHz probes only on antenna A */
+	.advanced_bt_coexist = true,
+	.agg_time_limit = BT_AGG_THRESHOLD_DEF,
+	.bt_init_traffic_load = IWL_BT_COEX_TRAFFIC_LOAD_NONE,
+	.bt_prio_boost = IWLAGN_BT_PRIO_BOOST_DEFAULT,
+	.bt_sco_disable = true,
 };
 
 struct iwl_dvm_cfg iwl_dvm_6030_cfg = {
@@ -596,4 +682,11 @@ struct iwl_dvm_cfg iwl_dvm_6030_cfg = {
 	.set_channel_switch = iwl6000_hw_channel_switch,
 	.nic_config = iwl6000_nic_config,
 	.temperature = iwlagn_temperature,
+	.adv_thermal_throttle = true,
+	.support_ct_kill_exit = true,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
+	.chain_noise_scale = 1000,
+	.bt_params = &iwl6000_bt_params,
+	.need_temp_offset_calib = true,
+	.adv_pm = true,
 };

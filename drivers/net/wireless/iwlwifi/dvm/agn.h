@@ -78,10 +78,13 @@
 /* device operations */
 extern struct iwl_dvm_cfg iwl_dvm_1000_cfg;
 extern struct iwl_dvm_cfg iwl_dvm_2000_cfg;
+extern struct iwl_dvm_cfg iwl_dvm_105_cfg;
 extern struct iwl_dvm_cfg iwl_dvm_2030_cfg;
 extern struct iwl_dvm_cfg iwl_dvm_5000_cfg;
 extern struct iwl_dvm_cfg iwl_dvm_5150_cfg;
 extern struct iwl_dvm_cfg iwl_dvm_6000_cfg;
+extern struct iwl_dvm_cfg iwl_dvm_6005_cfg;
+extern struct iwl_dvm_cfg iwl_dvm_6050_cfg;
 extern struct iwl_dvm_cfg iwl_dvm_6030_cfg;
 
 
@@ -291,8 +294,8 @@ void iwlagn_bt_adjust_rssi_monitor(struct iwl_priv *priv, bool rssi_ena);
 
 static inline bool iwl_advanced_bt_coexist(struct iwl_priv *priv)
 {
-	return priv->cfg->bt_params &&
-	       priv->cfg->bt_params->advanced_bt_coexist;
+	return priv->lib->bt_params &&
+	       priv->lib->bt_params->advanced_bt_coexist;
 }
 
 #ifdef CONFIG_IWLWIFI_DEBUG
