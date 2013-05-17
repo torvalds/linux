@@ -103,8 +103,10 @@ int Load_D_LogBlockAddr(BYTE *redundant)
 {
 	WORD addr1, addr2;
 
-	addr1 = (WORD)*(redundant + REDT_ADDR1H)*0x0100 + (WORD)*(redundant + REDT_ADDR1L);
-	addr2 = (WORD)*(redundant + REDT_ADDR2H)*0x0100 + (WORD)*(redundant + REDT_ADDR2L);
+	addr1 = (WORD)*(redundant + REDT_ADDR1H)*0x0100 +
+					(WORD)*(redundant + REDT_ADDR1L);
+	addr2 = (WORD)*(redundant + REDT_ADDR2H)*0x0100 +
+					(WORD)*(redundant + REDT_ADDR2L);
 
 	if (addr1 == addr2)
 		if ((addr1 & 0xF000) == 0x1000) {
@@ -151,7 +153,8 @@ void Set_D_LogBlockAddr(BYTE *redundant)
 	if ((hweight16(addr) % 2))
 		addr++;
 
-	*(redundant + REDT_ADDR1H) = *(redundant + REDT_ADDR2H) = (BYTE)(addr / 0x0100);
+	*(redundant + REDT_ADDR1H) = *(redundant + REDT_ADDR2H) =
+							(BYTE)(addr / 0x0100);
 	*(redundant + REDT_ADDR1L) = *(redundant + REDT_ADDR2L) = (BYTE)addr;
 }
 
@@ -191,7 +194,9 @@ int Ssfdc_D_ReadCisSect(struct us_data *us, BYTE *buf, BYTE *redundant)
 	Media.Sector = CisArea.Sector;
 
 	if (Ssfdc_D_ReadSect(us, buf, redundant)) {
-		Media.Zone = zone; Media.PhyBlock = block; Media.Sector = sector;
+		Media.Zone = zone;
+		Media.PhyBlock = block;
+		Media.Sector = sector;
 		return ERROR;
 	}
 
@@ -252,7 +257,8 @@ int Ssfdc_D_ReadSect(struct us_data *us, BYTE *buf, BYTE *redundant)
 }
 
 /* ----- Ssfdc_D_ReadBlock() --------------------------------------------- */
-int Ssfdc_D_ReadBlock(struct us_data *us, WORD count, BYTE *buf, BYTE *redundant)
+int Ssfdc_D_ReadBlock(struct us_data *us, WORD count, BYTE *buf,
+							BYTE *redundant)
 {
 	struct bulk_cb_wrap *bcb = (struct bulk_cb_wrap *) us->iobuf;
 	int	result;
@@ -304,7 +310,8 @@ int Ssfdc_D_ReadBlock(struct us_data *us, WORD count, BYTE *buf, BYTE *redundant
 
 
 /* ----- Ssfdc_D_CopyBlock() -------------------------------------------- */
-int Ssfdc_D_CopyBlock(struct us_data *us, WORD count, BYTE *buf, BYTE *redundant)
+int Ssfdc_D_CopyBlock(struct us_data *us, WORD count, BYTE *buf,
+							BYTE *redundant)
 {
 	struct bulk_cb_wrap *bcb = (struct bulk_cb_wrap *) us->iobuf;
 	int	result;

@@ -73,7 +73,8 @@ static int slave_configure(struct scsi_device *sdev)
 		if (us->fflags & US_FL_CAPACITY_HEURISTICS)
 			sdev->guess_capacity = 1;
 		if (sdev->scsi_level > SCSI_2)
-			sdev->sdev_target->scsi_level = sdev->scsi_level = SCSI_2;
+			sdev->sdev_target->scsi_level = sdev->scsi_level
+								= SCSI_2;
 		sdev->retry_hwerror = 1;
 		sdev->allow_restart = 1;
 		sdev->last_sector_bug = 1;
@@ -319,8 +320,10 @@ static ssize_t store_max_sectors(struct device *dev,
 	return -EINVAL;
 }
 
-static DEVICE_ATTR(max_sectors, S_IRUGO | S_IWUSR, show_max_sectors, store_max_sectors);
-static struct device_attribute *sysfs_device_attr_list[] = {&dev_attr_max_sectors, NULL, };
+static DEVICE_ATTR(max_sectors, S_IRUGO | S_IWUSR, show_max_sectors,
+							store_max_sectors);
+static struct device_attribute *sysfs_device_attr_list[] =
+					{&dev_attr_max_sectors, NULL, };
 
 /* this defines our host template, with which we'll allocate hosts */
 
@@ -393,8 +396,9 @@ unsigned char usb_stor_sense_invalidCDB[18] = {
 /*
  * usb_stor_access_xfer_buf()
  */
-unsigned int usb_stor_access_xfer_buf(struct us_data *us, unsigned char *buffer,
-	unsigned int buflen, struct scsi_cmnd *srb, struct scatterlist **sgptr,
+unsigned int usb_stor_access_xfer_buf(struct us_data *us,
+	unsigned char *buffer, unsigned int buflen,
+	struct scsi_cmnd *srb, struct scatterlist **sgptr,
 	unsigned int *offset, enum xfer_buf_dir dir)
 {
 	unsigned int cnt;
@@ -424,7 +428,7 @@ unsigned int usb_stor_access_xfer_buf(struct us_data *us, unsigned char *buffer,
 
 		while (sglen > 0) {
 			unsigned int plen = min(sglen,
-						(unsigned int)PAGE_SIZE - poff);
+					(unsigned int)PAGE_SIZE - poff);
 			unsigned char *ptr = kmap(page);
 
 			if (dir == TO_XFER_BUF)
