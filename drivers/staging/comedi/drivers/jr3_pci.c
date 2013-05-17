@@ -95,28 +95,28 @@ struct jr3_pci_subdev_private {
 /* Hotplug firmware loading stuff */
 static int comedi_load_firmware(struct comedi_device *dev, const char *name,
 				int (*cb)(struct comedi_device *dev,
-					const u8 *data, size_t size))
+					  const u8 *data, size_t size))
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	int result = 0;
 	const struct firmware *fw;
 	char *firmware_path;
+	int ret;
+
+	if (!cb)
+		return -EINVAL;
 
 	firmware_path = kasprintf(GFP_KERNEL, "comedi/%s", name);
-	if (!firmware_path) {
-		result = -ENOMEM;
-	} else {
-		result = request_firmware(&fw, firmware_path, &pcidev->dev);
-		if (result == 0) {
-			if (!cb)
-				result = -EINVAL;
-			else
-				result = cb(dev, fw->data, fw->size);
-			release_firmware(fw);
-		}
-		kfree(firmware_path);
+	if (!firmware_path)
+		return -ENOMEM;
+
+	ret = request_firmware(&fw, firmware_path, &pcidev->dev);
+	if (ret == 0) {
+		ret = cb(dev, fw->data, fw->size);
+		release_firmware(fw);
 	}
-	return result;
+	kfree(firmware_path);
+
+	return ret;
 }
 
 static struct poll_delay_t poll_delay_min_max(int min, int max)
