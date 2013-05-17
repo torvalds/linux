@@ -28,14 +28,12 @@
 #ifndef _FT1000IOCTLH_
 #define _FT1000IOCTLH_
 
-typedef struct _IOCTL_GET_VER
-{
+typedef struct _IOCTL_GET_VER {
     unsigned long drv_ver;
 } __attribute__ ((packed)) IOCTL_GET_VER, *PIOCTL_GET_VER;
 
 /* Data structure for Dsp statistics */
-typedef struct _IOCTL_GET_DSP_STAT
-{
+typedef struct _IOCTL_GET_DSP_STAT {
     unsigned char DspVer[DSPVERSZ];        /* DSP version number */
     unsigned char HwSerNum[HWSERNUMSZ];    /* Hardware Serial Number */
     unsigned char Sku[SKUSZ];              /* SKU */
@@ -72,15 +70,13 @@ typedef struct _IOCTL_GET_DSP_STAT
 } __attribute__ ((packed)) IOCTL_GET_DSP_STAT, *PIOCTL_GET_DSP_STAT;
 
 /* Data structure for Dual Ported RAM messaging between Host and Dsp */
-typedef struct _IOCTL_DPRAM_BLK
-{
+typedef struct _IOCTL_DPRAM_BLK {
     unsigned short total_len;
 	struct pseudo_hdr pseudohdr;
     unsigned char buffer[1780];
 } __attribute__ ((packed)) IOCTL_DPRAM_BLK, *PIOCTL_DPRAM_BLK;
 
-typedef struct _IOCTL_DPRAM_COMMAND
-{
+typedef struct _IOCTL_DPRAM_COMMAND {
     unsigned short extra;
     IOCTL_DPRAM_BLK dpram_blk;
 } __attribute__ ((packed)) IOCTL_DPRAM_COMMAND, *PIOCTL_DPRAM_COMMAND;

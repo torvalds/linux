@@ -57,8 +57,7 @@ int numofmsgbuf = 0;
 /*
 * Table of entry-point routines for char device
 */
-static const struct file_operations ft1000fops =
-{
+static const struct file_operations ft1000fops = {
 	.unlocked_ioctl	= ft1000_ioctl,
 	.poll		= ft1000_poll_dev,
 	.open		= ft1000_open,
@@ -158,8 +157,7 @@ int ft1000_create_dev(struct ft1000_usb *dev)
     DEBUG("%s: number of instance = %d\n", __func__, ft1000_flarion_cnt);
     DEBUG("DeviceCreated = %x\n", dev->DeviceCreated);
 
-    if (dev->DeviceCreated)
-    {
+    if (dev->DeviceCreated) {
 	DEBUG("%s: \"%s\" already registered\n", __func__, dev->DeviceName);
 	return -EIO;
     }
@@ -248,8 +246,7 @@ void ft1000_destroy_dev(struct net_device *netdev)
 
 
 
-    if (dev->DeviceCreated)
-	{
+    if (dev->DeviceCreated) {
         ft1000_flarion_cnt--;
 		list_for_each_safe(pos, q, &dev->nodes.list) {
 			dir = list_entry(pos, struct ft1000_debug_dirs, list);
@@ -719,8 +716,7 @@ static long ft1000_ioctl (struct file *file, unsigned int command,
 			break;
 		msglen = htons(msglen);
                 /* DEBUG("FT1000:ft1000_ioctl:msg length = %x\n", msglen); */
-                if(copy_to_user (&pioctl_dpram->pseudohdr, pdpram_blk->pbuffer, msglen))
-				{
+                if(copy_to_user (&pioctl_dpram->pseudohdr, pdpram_blk->pbuffer, msglen)) {
 					DEBUG("FT1000:ft1000_ioctl: copy fault occurred\n");
 			result = -EFAULT;
 			break;
