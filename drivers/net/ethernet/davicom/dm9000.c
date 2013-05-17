@@ -827,20 +827,13 @@ dm9000_hash_table_unlocked(struct net_device *dev)
 	struct netdev_hw_addr *ha;
 	int i, oft;
 	u32 hash_val;
-	u16 hash_table[4];
+	u16 hash_table[4] = { 0, 0, 0, 0x8000 }; /* broadcast address */
 	u8 rcr = RCR_DIS_LONG | RCR_DIS_CRC | RCR_RXEN;
 
 	dm9000_dbg(db, 1, "entering %s\n", __func__);
 
 	for (i = 0, oft = DM9000_PAR; i < 6; i++, oft++)
 		iow(db, oft, dev->dev_addr[i]);
-
-	/* Clear Hash Table */
-	for (i = 0; i < 4; i++)
-		hash_table[i] = 0x0;
-
-	/* broadcast address */
-	hash_table[3] = 0x8000;
 
 	if (dev->flags & IFF_PROMISC)
 		rcr |= RCR_PRMSC;
