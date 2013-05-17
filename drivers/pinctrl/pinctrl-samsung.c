@@ -1010,6 +1010,9 @@ static void samsung_pinctrl_suspend_dev(
 				 reg, bank->pm_save[PINCFG_TYPE_FUNC]);
 		}
 	}
+
+	if (ctrl->suspend)
+		ctrl->suspend(drvdata);
 }
 
 /**
@@ -1025,6 +1028,9 @@ static void samsung_pinctrl_resume_dev(struct samsung_pinctrl_drv_data *drvdata)
 	struct samsung_pin_ctrl *ctrl = drvdata->ctrl;
 	void __iomem *virt_base = drvdata->virt_base;
 	int i;
+
+	if (ctrl->resume)
+		ctrl->resume(drvdata);
 
 	for (i = 0; i < ctrl->nr_banks; i++) {
 		struct samsung_pin_bank *bank = &ctrl->pin_banks[i];
