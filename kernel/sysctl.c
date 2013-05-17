@@ -120,7 +120,6 @@ extern int blk_iopoll_enabled;
 /* Constants used for minimum and  maximum */
 #ifdef CONFIG_LOCKUP_DETECTOR
 static int sixty = 60;
-static int neg_one = -1;
 #endif
 
 static int zero;
@@ -814,7 +813,7 @@ static struct ctl_table kern_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dowatchdog,
-		.extra1		= &neg_one,
+		.extra1		= &zero,
 		.extra2		= &sixty,
 	},
 	{
