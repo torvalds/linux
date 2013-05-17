@@ -248,22 +248,21 @@ void omapdss_sdi_set_datapairs(struct omap_dss_device *dssdev, int datapairs)
 }
 EXPORT_SYMBOL(omapdss_sdi_set_datapairs);
 
-static int sdi_init_display(struct omap_dss_device *dssdev)
+static int sdi_init_regulator(void)
 {
-	DSSDBG("SDI init\n");
+	struct regulator *vdds_sdi;
 
-	if (sdi.vdds_sdi_reg == NULL) {
-		struct regulator *vdds_sdi;
+	if (sdi.vdds_sdi_reg)
+		return 0;
 
-		vdds_sdi = dss_get_vdds_sdi();
+	vdds_sdi = dss_get_vdds_sdi();
 
-		if (IS_ERR(vdds_sdi)) {
-			DSSERR("can't get VDDS_SDI regulator\n");
-			return PTR_ERR(vdds_sdi);
-		}
-
-		sdi.vdds_sdi_reg = vdds_sdi;
+	if (IS_ERR(vdds_sdi)) {
+		DSSERR("can't get VDDS_SDI regulator\n");
+		return PTR_ERR(vdds_sdi);
 	}
+
+	sdi.vdds_sdi_reg = vdds_sdi;
 
 	return 0;
 }
@@ -313,7 +312,7 @@ static int sdi_probe_pdata(struct platform_device *sdidev)
 
 	dss_copy_device_pdata(dssdev, plat_dssdev);
 
-	r = sdi_init_display(dssdev);
+	r = sdi_init_regulator();
 	if (r) {
 		DSSERR("device %s init failed: %d\n", dssdev->name, r);
 		dss_put_device(dssdev);
