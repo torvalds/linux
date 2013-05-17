@@ -647,8 +647,7 @@ static void process_echoes(struct tty_struct *tty)
 			if (no_space_left)
 				break;
 		} else {
-			if (O_OPOST(tty) &&
-			    !(test_bit(TTY_HW_COOK_OUT, &tty->flags))) {
+			if (O_OPOST(tty)) {
 				int retval = do_output_char(c, tty, space);
 				if (retval < 0)
 					break;
@@ -1516,12 +1515,7 @@ static void n_tty_set_termios(struct tty_struct *tty, struct ktermios *old)
 		wake_up_interruptible(&tty->read_wait);
 
 	ldata->icanon = (L_ICANON(tty) != 0);
-	if (test_bit(TTY_HW_COOK_IN, &tty->flags)) {
-		ldata->raw = 1;
-		ldata->real_raw = 1;
-		n_tty_set_room(tty);
-		return;
-	}
+
 	if (I_ISTRIP(tty) || I_IUCLC(tty) || I_IGNCR(tty) ||
 	    I_ICRNL(tty) || I_INLCR(tty) || L_ICANON(tty) ||
 	    I_IXON(tty) || L_ISIG(tty) || L_ECHO(tty) ||
@@ -2037,7 +2031,7 @@ static ssize_t n_tty_write(struct tty_struct *tty, struct file *file,
 			retval = -EIO;
 			break;
 		}
-		if (O_OPOST(tty) && !(test_bit(TTY_HW_COOK_OUT, &tty->flags))) {
+		if (O_OPOST(tty)) {
 			while (nr > 0) {
 				ssize_t num = process_output_block(tty, b, nr);
 				if (num < 0) {
