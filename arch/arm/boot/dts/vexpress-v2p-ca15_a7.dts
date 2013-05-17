@@ -75,24 +75,6 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		cpu0: cpu@0 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a15";
-			reg = <0>;
-			cluster = <&cluster0>;
-			core = <&core0>;
-			clock-frequency = <1000000000>;
-		};
-
-		cpu1: cpu@1 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a15";
-			reg = <1>;
-			cluster = <&cluster0>;
-			core = <&core1>;
-			clock-frequency = <1000000000>;
-		};
-
 		cpu2: cpu@2 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
@@ -119,6 +101,25 @@
 			core = <&core4>;
 			clock-frequency = <800000000>;
 		};
+
+		cpu0: cpu@0 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <0>;
+			cluster = <&cluster0>;
+			core = <&core0>;
+			clock-frequency = <1000000000>;
+		};
+
+		cpu1: cpu@1 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a15";
+			reg = <1>;
+			cluster = <&cluster0>;
+			core = <&core1>;
+			clock-frequency = <1000000000>;
+		};
+
 	};
 
 	memory@80000000 {
