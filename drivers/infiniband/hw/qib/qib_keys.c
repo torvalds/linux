@@ -61,7 +61,7 @@ int qib_alloc_lkey(struct qib_mregion *mr, int dma_region)
 	if (dma_region) {
 		struct qib_mregion *tmr;
 
-		tmr = rcu_dereference(dev->dma_mr);
+		tmr = rcu_access_pointer(dev->dma_mr);
 		if (!tmr) {
 			qib_get_mr(mr);
 			rcu_assign_pointer(dev->dma_mr, mr);
