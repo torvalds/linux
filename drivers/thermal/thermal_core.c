@@ -33,6 +33,7 @@
 #include <linux/idr.h>
 #include <linux/thermal.h>
 #include <linux/reboot.h>
+#include <linux/string.h>
 #include <net/netlink.h>
 #include <net/genetlink.h>
 
@@ -713,10 +714,13 @@ policy_store(struct device *dev, struct device_attribute *attr,
 	int ret = -EINVAL;
 	struct thermal_zone_device *tz = to_thermal_zone(dev);
 	struct thermal_governor *gov;
+	char name[THERMAL_NAME_LENGTH];
+
+	snprintf(name, sizeof(name), "%s", buf);
 
 	mutex_lock(&thermal_governor_lock);
 
-	gov = __find_governor(buf);
+	gov = __find_governor(strim(name));
 	if (!gov)
 		goto exit;
 
