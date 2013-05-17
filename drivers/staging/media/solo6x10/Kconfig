@@ -4,6 +4,7 @@ config SOLO6X10
 	select VIDEOBUF2_DMA_SG
 	select VIDEOBUF2_DMA_CONTIG
 	select SND_PCM
+	select FONT_8x16
 	---help---
 	  This driver supports the Softlogic based MPEG-4 and h.264 codec
 	  cards.
