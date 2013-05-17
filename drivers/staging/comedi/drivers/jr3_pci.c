@@ -325,8 +325,9 @@ static int read_idm_word(const u8 *data, size_t size, int *pos,
 	return result;
 }
 
-static int jr3_download_firmware(struct comedi_device *dev, const u8 *data,
-				 size_t size)
+static int jr3_download_firmware(struct comedi_device *dev,
+				 const u8 *data, size_t size,
+				 unsigned long context)
 {
 	/*
 	 * IDM file format is:
@@ -733,7 +734,7 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 
 	result = comedi_load_firmware(dev, &comedi_to_pci_dev(dev)->dev,
 				      "comedi/jr3pci.idm",
-				      jr3_download_firmware);
+				      jr3_download_firmware, 0);
 	dev_dbg(dev->class_dev, "Firmare load %d\n", result);
 
 	if (result < 0)
@@ -745,7 +746,7 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 	 *
 	 *     comedi_load_firmware(dev, &comedi_to_pci_dev(dev)->dev,
 	 *                          "comedi/jr3_offsets_table",
-	 *                          jr3_download_firmware);
+	 *                          jr3_download_firmware, 1);
 	 */
 
 	/*

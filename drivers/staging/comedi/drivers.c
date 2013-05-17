@@ -353,12 +353,15 @@ static void comedi_report_boards(struct comedi_driver *driv)
  * @hw_device: device struct for the comedi_device
  * @name: the name of the firmware image
  * @cb: callback to the upload the firmware image
+ * @context: private context from the driver
  */
 int comedi_load_firmware(struct comedi_device *dev,
 			 struct device *device,
 			 const char *name,
 			 int (*cb)(struct comedi_device *dev,
-				   const u8 *data, size_t size))
+				   const u8 *data, size_t size,
+				   unsigned long context),
+			 unsigned long context)
 {
 	const struct firmware *fw;
 	int ret;
@@ -368,7 +371,7 @@ int comedi_load_firmware(struct comedi_device *dev,
 
 	ret = request_firmware(&fw, name, device);
 	if (ret == 0) {
-		ret = cb(dev, fw->data, fw->size);
+		ret = cb(dev, fw->data, fw->size, context);
 		release_firmware(fw);
 	}
 

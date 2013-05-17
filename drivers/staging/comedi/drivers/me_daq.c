@@ -386,7 +386,8 @@ static int me_ao_insn_read(struct comedi_device *dev,
 }
 
 static int me2600_xilinx_download(struct comedi_device *dev,
-				  const u8 *data, size_t size)
+				  const u8 *data, size_t size,
+				  unsigned long context)
 {
 	struct me_private_data *dev_private = dev->private;
 	unsigned int value;
@@ -510,7 +511,7 @@ static int me_auto_attach(struct comedi_device *dev,
 	if (board->needs_firmware) {
 		ret = comedi_load_firmware(dev, &comedi_to_pci_dev(dev)->dev,
 					   ME2600_FIRMWARE,
-					   me2600_xilinx_download);
+					   me2600_xilinx_download, 0);
 		if (ret < 0)
 			return ret;
 	}

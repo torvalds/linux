@@ -518,7 +518,8 @@ static int daqboard2000_writeCPLD(struct comedi_device *dev, int data)
 }
 
 static int initialize_daqboard2000(struct comedi_device *dev,
-				   const u8 *cpld_array, size_t len)
+				   const u8 *cpld_array, size_t len,
+				   unsigned long context)
 {
 	struct daqboard2000_private *devpriv = dev->private;
 	int result = -EIO;
@@ -704,7 +705,7 @@ static int daqboard2000_auto_attach(struct comedi_device *dev,
 
 	result = comedi_load_firmware(dev, &comedi_to_pci_dev(dev)->dev,
 				      DAQBOARD2000_FIRMWARE,
-				      initialize_daqboard2000);
+				      initialize_daqboard2000, 0);
 	if (result < 0)
 		return result;
 

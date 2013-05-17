@@ -53,7 +53,6 @@ comedi_nonfree_firmware tarball available from http://www.comedi.org
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/sched.h>
-#include <linux/firmware.h>
 
 #include "../comedidev.h"
 
@@ -966,11 +965,13 @@ static int ni_pcidio_change(struct comedi_device *dev,
 	return 0;
 }
 
-static int pci_6534_load_fpga(struct comedi_device *dev, int fpga_index,
-			      const u8 *data, size_t data_len)
+static int pci_6534_load_fpga(struct comedi_device *dev,
+			      const u8 *data, size_t data_len,
+			      unsigned long context)
 {
 	struct nidio96_private *devpriv = dev->private;
 	static const int timeout = 1000;
+	int fpga_index = context;
 	int i;
 	size_t j;
 
@@ -1028,7 +1029,7 @@ static int pci_6534_load_fpga(struct comedi_device *dev, int fpga_index,
 
 static int pci_6534_reset_fpga(struct comedi_device *dev, int fpga_index)
 {
-	return pci_6534_load_fpga(dev, fpga_index, NULL, 0);
+	return pci_6534_load_fpga(dev, NULL, 0, fpga_index);
 }
 
 static int pci_6534_reset_fpgas(struct comedi_device *dev)
@@ -1062,13 +1063,12 @@ static void pci_6534_init_main_fpga(struct comedi_device *dev)
 static int pci_6534_upload_firmware(struct comedi_device *dev)
 {
 	struct nidio96_private *devpriv = dev->private;
-	int ret;
-	const struct firmware *fw;
 	static const char *const fw_file[3] = {
 		FW_PCI_6534_SCARAB_DI,	/* loaded into scarab A for DI */
 		FW_PCI_6534_SCARAB_DO,	/* loaded into scarab B for DO */
 		FW_PCI_6534_MAIN,	/* loaded into main FPGA */
 	};
+	int ret;
 	int n;
 
 	ret = pci_6534_reset_fpgas(dev);
@@ -1076,14 +1076,11 @@ static int pci_6534_upload_firmware(struct comedi_device *dev)
 		return ret;
 	/* load main FPGA first, then the two scarabs */
 	for (n = 2; n >= 0; n--) {
-		ret = request_firmware(&fw, fw_file[n],
-				       &devpriv->mite->pcidev->dev);
-		if (ret == 0) {
-			ret = pci_6534_load_fpga(dev, n, fw->data, fw->size);
-			if (ret == 0 && n == 2)
-				pci_6534_init_main_fpga(dev);
-			release_firmware(fw);
-		}
+		ret = comedi_load_firmware(dev, &devpriv->mite->pcidev->dev,
+					   fw_file[n],
+					   pci_6534_load_fpga, n);
+		if (ret == 0 && n == 2)
+			pci_6534_init_main_fpga(dev);
 		if (ret < 0)
 			break;
 	}
