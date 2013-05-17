@@ -72,8 +72,8 @@ struct v4l2_of_endpoint {
 };
 
 #ifdef CONFIG_OF
-void v4l2_of_parse_endpoint(const struct device_node *node,
-				struct v4l2_of_endpoint *link);
+int v4l2_of_parse_endpoint(const struct device_node *node,
+			   struct v4l2_of_endpoint *endpoint);
 struct device_node *v4l2_of_get_next_endpoint(const struct device_node *parent,
 					struct device_node *previous);
 struct device_node *v4l2_of_get_remote_port_parent(
