@@ -68,7 +68,10 @@ struct sca_block {
 struct kvm_s390_sie_block {
 	atomic_t cpuflags;		/* 0x0000 */
 	__u32	prefix;			/* 0x0004 */
-	__u8	reserved8[32];		/* 0x0008 */
+	__u8	reserved08[4];		/* 0x0008 */
+#define PROG_IN_SIE (1<<0)
+	__u32	prog0c;			/* 0x000c */
+	__u8	reserved10[24];		/* 0x0010 */
 	__u64	cputm;			/* 0x0028 */
 	__u64	ckc;			/* 0x0030 */
 	__u64	epoch;			/* 0x0038 */

@@ -84,7 +84,7 @@ _TIF_EXIT_SIE = (_TIF_SIGPENDING | _TIF_NEED_RESCHED | _TIF_MCCK_PENDING)
 	.macro	HANDLE_SIE_INTERCEPT scratch,pgmcheck
 #if defined(CONFIG_KVM) || defined(CONFIG_KVM_MODULE)
 	tmhh	%r8,0x0001		# interrupting from user ?
-	jnz	.+42
+	jnz	.+52
 	lgr	\scratch,%r9
 	slg	\scratch,BASED(.Lsie_loop)
 	clg	\scratch,BASED(.Lsie_length)
@@ -92,12 +92,14 @@ _TIF_EXIT_SIE = (_TIF_SIGPENDING | _TIF_NEED_RESCHED | _TIF_MCCK_PENDING)
 	# Some program interrupts are suppressing (e.g. protection).
 	# We must also check the instruction after SIE in that case.
 	# do_protection_exception will rewind to rewind_pad
-	jh	.+22
+	jh	.+32
 	.else
-	jhe	.+22
+	jhe	.+32
 	.endif
 	lg	%r9,BASED(.Lsie_loop)
 	LPP	BASED(.Lhost_id)	# set host id
+	lg	%r14,__SF_EMPTY(%r15)	# get control block pointer
+	ni	__SIE_PROG0C+3(%r14),0xfe	# no longer in SIE
 #endif
 	.endm
 
@@ -956,10 +958,12 @@ sie_loop:
 	lctlg	%c1,%c1,__GMAP_ASCE(%r14)	# load primary asce
 sie_gmap:
 	lg	%r14,__SF_EMPTY(%r15)		# get control block pointer
+	oi	__SIE_PROG0C+3(%r14),1		# we are in SIE now
 	LPP	__SF_EMPTY(%r15)		# set guest id
 	sie	0(%r14)
 sie_done:
 	LPP	__SF_EMPTY+16(%r15)		# set host id
+	ni	__SIE_PROG0C+3(%r14),0xfe	# no longer in SIE
 	lg	%r14,__LC_THREAD_INFO		# pointer thread_info struct
 sie_exit:
 	lctlg	%c1,%c1,__LC_USER_ASCE		# load primary asce
