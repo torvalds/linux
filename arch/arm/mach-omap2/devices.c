@@ -15,12 +15,14 @@
 #include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/err.h>
+#include <linux/gpio.h>
 #include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/pinctrl/machine.h>
 #include <linux/platform_data/omap4-keypad.h>
 #include <linux/platform_data/omap_ocp2scp.h>
 #include <linux/usb/omap_control_usb.h>
+#include <linux/wl12xx.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
@@ -633,6 +635,40 @@ static void __init omap_init_ocp2scp(void)
 static inline void omap_init_ocp2scp(void) { }
 #endif
 
+#if IS_ENABLED(CONFIG_WL12XX)
+
+static struct wl12xx_platform_data wl12xx __initdata;
+
+void __init omap_init_wl12xx_of(void)
+{
+	int ret;
+
+	if (!of_have_populated_dt())
+		return;
+
+	if (of_machine_is_compatible("ti,omap4-sdp")) {
+		wl12xx.board_ref_clock = WL12XX_REFCLOCK_26;
+		wl12xx.board_tcxo_clock = WL12XX_TCXOCLOCK_26;
+		wl12xx.irq = gpio_to_irq(53);
+	} else if (of_machine_is_compatible("ti,omap4-panda")) {
+		wl12xx.board_ref_clock = WL12XX_REFCLOCK_38;
+		wl12xx.irq = gpio_to_irq(53);
+	} else {
+		return;
+	}
+
+	ret = wl12xx_set_platform_data(&wl12xx);
+	if (ret) {
+		pr_err("error setting wl12xx data: %d\n", ret);
+		return;
+	}
+}
+#else
+static inline void omap_init_wl12xx_of(void)
+{
+}
+#endif
+
 /*-------------------------------------------------------------------------*/
 
 static int __init omap2_init_devices(void)
@@ -657,6 +693,9 @@ static int __init omap2_init_devices(void)
 		omap_init_mcspi();
 		omap_init_sham();
 		omap_init_aes();
+	} else {
+		/* These can be removed when bindings are done */
+		omap_init_wl12xx_of();
 	}
 	omap_init_sti();
 	omap_init_rng();
