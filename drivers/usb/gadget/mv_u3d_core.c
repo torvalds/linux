@@ -1786,8 +1786,6 @@ static int mv_u3d_remove(struct platform_device *dev)
 
 	clk_put(u3d->clk);
 
-	platform_set_drvdata(dev, NULL);
-
 	kfree(u3d);
 
 	return 0;
@@ -1997,7 +1995,6 @@ err_map_cap_regs:
 err_get_cap_regs:
 err_get_clk:
 	clk_put(u3d->clk);
-	platform_set_drvdata(dev, NULL);
 	kfree(u3d);
 err_alloc_private:
 err_pdata:
