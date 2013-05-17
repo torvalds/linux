@@ -193,7 +193,6 @@ static int ehci_hcd_tilegx_drv_remove(struct platform_device *pdev)
 	tilegx_stop_ehc();
 	gxio_usb_host_destroy(&pdata->usb_ctx);
 	destroy_irq(pdata->irq);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
