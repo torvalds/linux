@@ -56,7 +56,7 @@
 #include "usb.h"
 
 #define USB_MAXBUS			64
-#define USB_DEVICE_MAX			USB_MAXBUS * 128
+#define USB_DEVICE_MAX			(USB_MAXBUS * 128)
 #define USB_SG_SIZE			16384 /* split-size for large txs */
 
 /* Mutual exclusion for removal, open, and release */
