@@ -105,7 +105,8 @@ static int handle_store_cpu_address(struct kvm_vcpu *vcpu)
 static int handle_skey(struct kvm_vcpu *vcpu)
 {
 	vcpu->stat.instruction_storage_key++;
-	vcpu->arch.sie_block->gpsw.addr -= 4;
+	vcpu->arch.sie_block->gpsw.addr =
+		__rewind_psw(vcpu->arch.sie_block->gpsw, 4);
 	VCPU_EVENT(vcpu, 4, "%s", "retrying storage key operation");
 	return 0;
 }
