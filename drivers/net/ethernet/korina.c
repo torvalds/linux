@@ -495,11 +495,8 @@ static void korina_multicast_list(struct net_device *dev)
 
 	/* Build the hash table */
 	if (netdev_mc_count(dev) > 4) {
-		u16 hash_table[4];
+		u16 hash_table[4] = { 0 };
 		u32 crc;
-
-		for (i = 0; i < 4; i++)
-			hash_table[i] = 0;
 
 		netdev_for_each_mc_addr(ha, dev) {
 			crc = ether_crc_le(6, ha->addr);
