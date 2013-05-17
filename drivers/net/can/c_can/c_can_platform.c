@@ -234,7 +234,6 @@ static int c_can_plat_probe(struct platform_device *pdev)
 	return 0;
 
 exit_free_device:
-	platform_set_drvdata(pdev, NULL);
 	free_c_can_dev(dev);
 exit_iounmap:
 	iounmap(addr);
@@ -255,7 +254,6 @@ static int c_can_plat_remove(struct platform_device *pdev)
 	struct resource *mem;
 
 	unregister_c_can_dev(dev);
-	platform_set_drvdata(pdev, NULL);
 
 	free_c_can_dev(dev);
 	iounmap(priv->base);
