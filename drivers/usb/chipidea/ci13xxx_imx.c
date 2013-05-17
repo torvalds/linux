@@ -251,8 +251,6 @@ static int ci13xxx_imx_remove(struct platform_device *pdev)
 
 	clk_disable_unprepare(data->clk);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 
