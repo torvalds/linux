@@ -130,6 +130,9 @@ static int l2cap_sock_bind(struct socket *sock, struct sockaddr *addr, int alen)
 	bacpy(&chan->src, &la.l2_bdaddr);
 	chan->src_type = la.l2_bdaddr_type;
 
+	if (chan->psm && bdaddr_type_is_le(chan->src_type))
+		l2cap_le_flowctl_init(chan);
+
 	chan->state = BT_BOUND;
 	sk->sk_state = BT_BOUND;
 
@@ -200,6 +203,9 @@ static int l2cap_sock_connect(struct socket *sock, struct sockaddr *addr,
 			return -EINVAL;
 	}
 
+	if (chan->psm && bdaddr_type_is_le(chan->src_type))
+		l2cap_le_flowctl_init(chan);
+
 	err = l2cap_chan_connect(chan, la.l2_psm, __le16_to_cpu(la.l2_cid),
 				 &la.l2_bdaddr, la.l2_bdaddr_type);
 	if (err)
@@ -237,6 +243,7 @@ static int l2cap_sock_listen(struct socket *sock, int backlog)
 
 	switch (chan->mode) {
 	case L2CAP_MODE_BASIC:
+	case L2CAP_MODE_LE_FLOWCTL:
 		break;
 	case L2CAP_MODE_ERTM:
 	case L2CAP_MODE_STREAMING:
@@ -588,6 +595,8 @@ static int l2cap_sock_setsockopt_old(struct socket *sock, int optname,
 
 		chan->mode = opts.mode;
 		switch (chan->mode) {
+		case L2CAP_MODE_LE_FLOWCTL:
+			break;
 		case L2CAP_MODE_BASIC:
 			clear_bit(CONF_STATE2_DEVICE, &chan->conf_state);
 			break;
@@ -862,10 +871,16 @@ static int l2cap_sock_recvmsg(struct kiocb *iocb, struct socket *sock,
 
 	if (sk->sk_state == BT_CONNECT2 && test_bit(BT_SK_DEFER_SETUP,
 						    &bt_sk(sk)->flags)) {
-		sk->sk_state = BT_CONFIG;
-		pi->chan->state = BT_CONFIG;
+		if (bdaddr_type_is_le(pi->chan->src_type)) {
+			sk->sk_state = BT_CONNECTED;
+			pi->chan->state = BT_CONNECTED;
+			__l2cap_le_connect_rsp_defer(pi->chan);
+		} else {
+			sk->sk_state = BT_CONFIG;
+			pi->chan->state = BT_CONFIG;
+			__l2cap_connect_rsp_defer(pi->chan);
+		}
 
-		__l2cap_connect_rsp_defer(pi->chan);
 		err = 0;
 		goto done;
 	}

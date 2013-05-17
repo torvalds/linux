@@ -490,6 +490,13 @@ void l2cap_chan_set_defaults(struct l2cap_chan *chan)
 	set_bit(FLAG_FORCE_ACTIVE, &chan->flags);
 }
 
+void l2cap_le_flowctl_init(struct l2cap_chan *chan)
+{
+	chan->imtu = L2CAP_DEFAULT_MTU;
+	chan->omtu = L2CAP_LE_MIN_MTU;
+	chan->mode = L2CAP_MODE_LE_FLOWCTL;
+}
+
 void __l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan)
 {
 	BT_DBG("conn %p, psm 0x%2.2x, dcid 0x%4.4x", conn,
@@ -595,6 +602,9 @@ void l2cap_chan_del(struct l2cap_chan *chan, int err)
 
 	switch(chan->mode) {
 	case L2CAP_MODE_BASIC:
+		break;
+
+	case L2CAP_MODE_LE_FLOWCTL:
 		break;
 
 	case L2CAP_MODE_ERTM:
@@ -1849,6 +1859,7 @@ int l2cap_chan_connect(struct l2cap_chan *chan, __le16 psm, u16 cid,
 
 	switch (chan->mode) {
 	case L2CAP_MODE_BASIC:
+	case L2CAP_MODE_LE_FLOWCTL:
 		break;
 	case L2CAP_MODE_ERTM:
 	case L2CAP_MODE_STREAMING:
@@ -2530,6 +2541,7 @@ int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len,
 
 	switch (chan->mode) {
 	case L2CAP_MODE_BASIC:
+	case L2CAP_MODE_LE_FLOWCTL:
 		/* Check outgoing MTU */
 		if (len > chan->omtu)
 			return -EMSGSIZE;
@@ -6621,6 +6633,7 @@ static void l2cap_data_channel(struct l2cap_conn *conn, u16 cid,
 		goto drop;
 
 	switch (chan->mode) {
+	case L2CAP_MODE_LE_FLOWCTL:
 	case L2CAP_MODE_BASIC:
 		/* If socket recv buffers overflows we drop data here
 		 * which is *bad* because L2CAP has to be reliable.

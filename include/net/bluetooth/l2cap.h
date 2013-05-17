@@ -328,6 +328,12 @@ struct l2cap_conf_rfc {
 #define L2CAP_MODE_ERTM		0x03
 #define L2CAP_MODE_STREAMING	0x04
 
+/* Unlike the above this one doesn't actually map to anything that would
+ * ever be sent over the air. Therefore, use a value that's unlikely to
+ * ever be used in the BR/EDR configuration phase.
+ */
+#define L2CAP_MODE_LE_FLOWCTL	0x80
+
 struct l2cap_conf_efs {
 	__u8	id;
 	__u8	stype;
@@ -861,6 +867,7 @@ int l2cap_chan_send(struct l2cap_chan *chan, struct msghdr *msg, size_t len,
 void l2cap_chan_busy(struct l2cap_chan *chan, int busy);
 int l2cap_chan_check_security(struct l2cap_chan *chan);
 void l2cap_chan_set_defaults(struct l2cap_chan *chan);
+void l2cap_le_flowctl_init(struct l2cap_chan *chan);
 int l2cap_ertm_init(struct l2cap_chan *chan);
 void l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan);
 void __l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan);
