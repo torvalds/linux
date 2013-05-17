@@ -68,7 +68,7 @@ static int fsl_pcie_check_link(struct pci_controller *hose)
 	if (hose->indirect_type & PPC_INDIRECT_TYPE_FSL_CFG_REG_LINK) {
 		if (hose->ops->read == fsl_indirect_read_config) {
 			struct pci_bus bus;
-			bus.number = 0;
+			bus.number = hose->first_busno;
 			bus.sysdata = hose;
 			bus.ops = hose->ops;
 			indirect_read_config(&bus, 0, PCIE_LTSSM, 4, &val);
