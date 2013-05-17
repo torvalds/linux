@@ -33,9 +33,6 @@
 #include "f_fs.c"
 #include "f_audio_source.c"
 #include "f_mass_storage.c"
-#include "u_serial.c"
-#define USB_FACM_INCLUDED
-#include "f_acm.c"
 #include "f_mtp.c"
 #include "f_accessory.c"
 #define USB_ETH_RNDIS y
@@ -367,7 +364,9 @@ static void functionfs_release_dev_callback(struct ffs_data *ffs_data)
 #define MAX_ACM_INSTANCES 4
 struct acm_function_config {
 	int instances;
-	unsigned char port_num[MAX_ACM_INSTANCES];
+	int instances_on;
+	struct usb_function *f_acm[MAX_ACM_INSTANCES];
+	struct usb_function_instance *f_acm_inst[MAX_ACM_INSTANCES];
 };
 
 static int
@@ -384,14 +383,24 @@ acm_function_init(struct android_usb_function *f,
 	f->config = config;
 
 	for (i = 0; i < MAX_ACM_INSTANCES; i++) {
-		ret = gserial_alloc_line(&config->port_num[i]);
-		if (ret)
-			goto err_alloc_line;
+		config->f_acm_inst[i] = usb_get_function_instance("acm");
+		if (IS_ERR(config->f_acm_inst[i])) {
+			ret = PTR_ERR(config->f_acm_inst[i]);
+			goto err_usb_get_function_instance;
+		}
+		config->f_acm[i] = usb_get_function(config->f_acm_inst[i]);
+		if (IS_ERR(config->f_acm[i])) {
+			ret = PTR_ERR(config->f_acm[i]);
+			goto err_usb_get_function;
+		}
 	}
 	return 0;
-err_alloc_line:
-	while (i-- > 0)
-		gserial_free_line(config->port_num[i]);
+err_usb_get_function_instance:
+	while (i-- > 0) {
+		usb_put_function(config->f_acm[i]);
+err_usb_get_function:
+		usb_put_function_instance(config->f_acm_inst[i]);
+	}
 	return ret;
 }
 
@@ -400,8 +409,10 @@ static void acm_function_cleanup(struct android_usb_function *f)
 	int i;
 	struct acm_function_config *config = f->config;
 
-	for (i = 0; i < MAX_ACM_INSTANCES; i++)
-		gserial_free_line(config->port_num[i]);
+	for (i = 0; i < MAX_ACM_INSTANCES; i++) {
+		usb_put_function(config->f_acm[i]);
+		usb_put_function_instance(config->f_acm_inst[i]);
+	}
 	kfree(f->config);
 	f->config = NULL;
 }
@@ -414,15 +425,31 @@ acm_function_bind_config(struct android_usb_function *f,
 	int ret = 0;
 	struct acm_function_config *config = f->config;
 
-	for (i = 0; i < config->instances; i++) {
-		ret = acm_bind_config(c, i);
+	config->instances_on = config->instances;
+	for (i = 0; i < config->instances_on; i++) {
+		ret = usb_add_function(c, config->f_acm[i]);
 		if (ret) {
 			pr_err("Could not bind acm%u config\n", i);
-			break;
+			goto err_usb_add_function;
 		}
 	}
 
+	return 0;
+
+err_usb_add_function:
+	while (i-- > 0)
+		usb_remove_function(c, config->f_acm[i]);
 	return ret;
+}
+
+static void acm_function_unbind_config(struct android_usb_function *f,
+				       struct usb_configuration *c)
+{
+	int i;
+	struct acm_function_config *config = f->config;
+
+	for (i = 0; i < config->instances_on; i++)
+		usb_remove_function(c, config->f_acm[i]);
 }
 
 static ssize_t acm_instances_show(struct device *dev,
@@ -459,6 +486,7 @@ static struct android_usb_function acm_function = {
 	.init		= acm_function_init,
 	.cleanup	= acm_function_cleanup,
 	.bind_config	= acm_function_bind_config,
+	.unbind_config	= acm_function_unbind_config,
 	.attributes	= acm_function_attributes,
 };
 
@@ -532,6 +560,7 @@ struct rndis_function_config {
 	char	manufacturer[256];
 	/* "Wireless" RNDIS; auto-detected by Windows */
 	bool	wceis;
+	struct eth_dev *dev;
 };
 
 static int
@@ -555,6 +584,7 @@ rndis_function_bind_config(struct android_usb_function *f,
 		struct usb_configuration *c)
 {
 	int ret;
+	struct eth_dev *dev;
 	struct rndis_function_config *rndis = f->config;
 
 	if (!rndis) {
@@ -566,11 +596,13 @@ rndis_function_bind_config(struct android_usb_function *f,
 		rndis->ethaddr[0], rndis->ethaddr[1], rndis->ethaddr[2],
 		rndis->ethaddr[3], rndis->ethaddr[4], rndis->ethaddr[5]);
 
-	ret = gether_setup_name(c->cdev->gadget, rndis->ethaddr, "rndis");
-	if (ret) {
+	dev = gether_setup_name(c->cdev->gadget, rndis->ethaddr, "rndis");
+	if (IS_ERR(dev)) {
+		ret = PTR_ERR(dev);
 		pr_err("%s: gether_setup failed\n", __func__);
 		return ret;
 	}
+	rndis->dev = dev;
 
 	if (rndis->wceis) {
 		/* "Wireless" RNDIS; auto-detected by Windows */
@@ -585,13 +617,14 @@ rndis_function_bind_config(struct android_usb_function *f,
 	}
 
 	return rndis_bind_config_vendor(c, rndis->ethaddr, rndis->vendorID,
-					   rndis->manufacturer);
+					   rndis->manufacturer, rndis->dev);
 }
 
 static void rndis_function_unbind_config(struct android_usb_function *f,
 						struct usb_configuration *c)
 {
-	gether_cleanup();
+	struct rndis_function_config *rndis = f->config;
+	gether_cleanup(rndis->dev);
 }
 
 static ssize_t rndis_manufacturer_show(struct device *dev,
@@ -881,7 +914,7 @@ static ssize_t audio_source_pcm_show(struct device *dev,
 	return sprintf(buf, "%d %d\n", config->card, config->device);
 }
 
-static DEVICE_ATTR(pcm, S_IRUGO | S_IWUSR, audio_source_pcm_show, NULL);
+static DEVICE_ATTR(pcm, S_IRUGO, audio_source_pcm_show, NULL);
 
 static struct device_attribute *audio_source_function_attributes[] = {
 	&dev_attr_pcm,
