@@ -225,15 +225,24 @@
 
 	sata@122F0000 {
 		compatible = "samsung,exynos5-sata-ahci";
+		samsung,exynos-sata-phy = <&phy0>;
 		reg = <0x122F0000 0x1ff>;
 		interrupts = <0 115 0>;
 		clocks = <&clock 277>, <&clock 143>;
 		clock-names = "sata", "sclk_sata";
 	};
 
-	sata-phy@12170000 {
+	phy0:sata-phy@12170000 {
 		compatible = "samsung,exynos5-sata-phy";
 		reg = <0x12170000 0x1ff>;
+		clocks = <&clock 287>;
+		clock-names = "sata_phyctrl";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+		sataphy-pmu {
+			reg = <0x10040724 0x4>;
+		};
 	};
 
 	i2c_0: i2c@12C60000 {
