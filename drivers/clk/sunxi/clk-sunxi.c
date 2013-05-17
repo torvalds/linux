@@ -239,7 +239,7 @@ struct mux_data {
 	u8 shift;
 };
 
-static const __initconst struct mux_data cpu_data = {
+static const __initconst struct mux_data cpu_mux_data = {
 	.shift = 16,
 };
 
@@ -433,7 +433,7 @@ static const __initconst struct of_device_id clk_div_match[] = {
 
 /* Matches for mux clocks */
 static const __initconst struct of_device_id clk_mux_match[] = {
-	{.compatible = "allwinner,sun4i-cpu-clk", .data = &cpu_data,},
+	{.compatible = "allwinner,sun4i-cpu-clk", .data = &cpu_mux_data,},
 	{.compatible = "allwinner,sun4i-apb1-mux-clk", .data = &apb1_mux_data,},
 	{}
 };
