@@ -633,22 +633,21 @@ void omapdss_venc_invert_vid_out_polarity(struct omap_dss_device *dssdev,
 	mutex_unlock(&venc.venc_lock);
 }
 
-static int venc_init_display(struct omap_dss_device *dssdev)
+static int venc_init_regulator(void)
 {
-	DSSDBG("init_display\n");
+	struct regulator *vdda_dac;
 
-	if (venc.vdda_dac_reg == NULL) {
-		struct regulator *vdda_dac;
+	if (venc.vdda_dac_reg != NULL)
+		return 0;
 
-		vdda_dac = regulator_get(&venc.pdev->dev, "vdda_dac");
+	vdda_dac = devm_regulator_get(&venc.pdev->dev, "vdda_dac");
 
-		if (IS_ERR(vdda_dac)) {
-			DSSERR("can't get VDDA_DAC regulator\n");
-			return PTR_ERR(vdda_dac);
-		}
-
-		venc.vdda_dac_reg = vdda_dac;
+	if (IS_ERR(vdda_dac)) {
+		DSSERR("can't get VDDA_DAC regulator\n");
+		return PTR_ERR(vdda_dac);
 	}
+
+	venc.vdda_dac_reg = vdda_dac;
 
 	return 0;
 }
@@ -765,18 +764,15 @@ static int venc_probe_pdata(struct platform_device *vencdev)
 	if (!plat_dssdev)
 		return 0;
 
+	r = venc_init_regulator();
+	if (r)
+		return r;
+
 	dssdev = dss_alloc_and_init_device(&vencdev->dev);
 	if (!dssdev)
 		return -ENOMEM;
 
 	dss_copy_device_pdata(dssdev, plat_dssdev);
-
-	r = venc_init_display(dssdev);
-	if (r) {
-		DSSERR("device %s init failed: %d\n", dssdev->name, r);
-		dss_put_device(dssdev);
-		return r;
-	}
 
 	r = omapdss_output_set_device(&venc.output, dssdev);
 	if (r) {
@@ -886,11 +882,6 @@ err_runtime_get:
 static int __exit omap_venchw_remove(struct platform_device *pdev)
 {
 	dss_unregister_child_devices(&pdev->dev);
-
-	if (venc.vdda_dac_reg != NULL) {
-		regulator_put(venc.vdda_dac_reg);
-		venc.vdda_dac_reg = NULL;
-	}
 
 	venc_panel_exit();
 
