@@ -690,7 +690,7 @@ int gmap_ipte_notify(struct gmap *gmap, unsigned long start, unsigned long len)
 		entry = *ptep;
 		if ((pte_val(entry) & (_PAGE_INVALID | _PAGE_RO)) == 0) {
 			pgste = pgste_get_lock(ptep);
-			pgste_val(pgste) |= RCP_IN_BIT;
+			pgste_val(pgste) |= PGSTE_IN_BIT;
 			pgste_set_unlock(ptep, pgste);
 			start += PAGE_SIZE;
 			len -= PAGE_SIZE;
