@@ -51,7 +51,7 @@ static BYTE  WorkBuf[SECTSIZE];
 static BYTE  Redundant[REDTSIZE];
 static BYTE  WorkRedund[REDTSIZE];
 /* 128 x 1000, Log2Phy[MAX_ZONENUM][MAX_LOGBLOCK]; */
-static WORD  *Log2Phy[MAX_ZONENUM];	
+static WORD  *Log2Phy[MAX_ZONENUM];
 static BYTE  Assign[MAX_ZONENUM][MAX_BLOCKNUM / 8];
 static WORD  AssignStart[MAX_ZONENUM];
 WORD  ReadBlock;
@@ -199,7 +199,7 @@ int Check_D_MediaFmt(struct us_data *us)
 		ErrCode = ERR_UnknownMedia;
 		return ERROR;
 	}
-	
+
 	if (Search_D_CIS(us)) {
 		ErrCode = ERR_IllegalFmt;
 		return ERROR;

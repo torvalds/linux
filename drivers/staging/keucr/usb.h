@@ -197,7 +197,7 @@ struct us_data {
 	BYTE        MMC_SPEC_VER;
 	BYTE        MMC_BusWidth;
 	BYTE        MMC_HIGH_CAPACITY;
-	
+
 	/* ----- MS Control Data ---------------- */
 	BOOLEAN             MS_SWWP;
 	DWORD               MSP_TotalBlock;
@@ -213,7 +213,7 @@ struct us_data {
 	BYTE		BIN_FLAG;
 	DWORD		bl_num;
 	int		SrbStatus;
-	
+
 	/* ------Power Managerment --------------- */
 	BOOLEAN         Power_IsResum;	
 };
