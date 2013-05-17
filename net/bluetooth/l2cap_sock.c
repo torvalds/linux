@@ -1321,6 +1321,8 @@ static void l2cap_sock_init(struct sock *sk, struct sock *parent)
 		chan->tx_win_max = pchan->tx_win_max;
 		chan->sec_level = pchan->sec_level;
 		chan->flags = pchan->flags;
+		chan->tx_credits = pchan->tx_credits;
+		chan->rx_credits = pchan->rx_credits;
 
 		security_sk_clone(parent, sk);
 	} else {

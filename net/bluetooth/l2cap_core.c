@@ -495,6 +495,8 @@ void l2cap_le_flowctl_init(struct l2cap_chan *chan)
 	chan->imtu = L2CAP_DEFAULT_MTU;
 	chan->omtu = L2CAP_LE_MIN_MTU;
 	chan->mode = L2CAP_MODE_LE_FLOWCTL;
+	chan->tx_credits = 0;
+	chan->rx_credits = L2CAP_LE_MAX_CREDITS;
 }
 
 void __l2cap_chan_add(struct l2cap_conn *conn, struct l2cap_chan *chan)
@@ -643,7 +645,7 @@ static void l2cap_chan_le_connect_reject(struct l2cap_chan *chan)
 	rsp.dcid    = cpu_to_le16(chan->scid);
 	rsp.mtu     = cpu_to_le16(chan->imtu);
 	rsp.mps     = __constant_cpu_to_le16(L2CAP_LE_DEFAULT_MPS);
-	rsp.credits = __constant_cpu_to_le16(L2CAP_LE_MAX_CREDITS);
+	rsp.credits = cpu_to_le16(chan->rx_credits);
 	rsp.result  = cpu_to_le16(result);
 
 	l2cap_send_cmd(conn, chan->ident, L2CAP_LE_CONN_RSP, sizeof(rsp),
@@ -1212,7 +1214,7 @@ static void l2cap_le_connect(struct l2cap_chan *chan)
 	req.scid    = cpu_to_le16(chan->scid);
 	req.mtu     = cpu_to_le16(chan->imtu);
 	req.mps     = __constant_cpu_to_le16(L2CAP_LE_DEFAULT_MPS);
-	req.credits = __constant_cpu_to_le16(L2CAP_LE_MAX_CREDITS);
+	req.credits = cpu_to_le16(chan->rx_credits);
 
 	chan->ident = l2cap_get_ident(conn);
 
@@ -3690,7 +3692,7 @@ void __l2cap_le_connect_rsp_defer(struct l2cap_chan *chan)
 	rsp.dcid    = cpu_to_le16(chan->scid);
 	rsp.mtu     = cpu_to_le16(chan->imtu);
 	rsp.mps     = __constant_cpu_to_le16(L2CAP_LE_DEFAULT_MPS);
-	rsp.credits = __constant_cpu_to_le16(L2CAP_LE_MAX_CREDITS);
+	rsp.credits = cpu_to_le16(chan->rx_credits);
 	rsp.result  = __constant_cpu_to_le16(L2CAP_CR_SUCCESS);
 
 	l2cap_send_cmd(conn, chan->ident, L2CAP_LE_CONN_RSP, sizeof(rsp),
@@ -5342,6 +5344,7 @@ static int l2cap_le_connect_rsp(struct l2cap_conn *conn,
 		chan->dcid = dcid;
 		chan->omtu = mtu;
 		chan->remote_mps = mps;
+		chan->tx_credits = credits;
 		l2cap_chan_ready(chan);
 		break;
 
@@ -5445,7 +5448,7 @@ static int l2cap_le_connect_req(struct l2cap_conn *conn,
 	struct l2cap_le_conn_req *req = (struct l2cap_le_conn_req *) data;
 	struct l2cap_le_conn_rsp rsp;
 	struct l2cap_chan *chan, *pchan;
-	u16 dcid, scid, mtu, mps;
+	u16 dcid, scid, credits, mtu, mps;
 	__le16 psm;
 	u8 result;
 
@@ -5457,6 +5460,7 @@ static int l2cap_le_connect_req(struct l2cap_conn *conn,
 	mps  = __le16_to_cpu(req->mps);
 	psm  = req->psm;
 	dcid = 0;
+	credits = 0;
 
 	if (mtu < 23 || mps < 23)
 		return -EPROTO;
@@ -5503,9 +5507,11 @@ static int l2cap_le_connect_req(struct l2cap_conn *conn,
 	chan->dcid = scid;
 	chan->omtu = mtu;
 	chan->remote_mps = mps;
+	chan->tx_credits = __le16_to_cpu(req->credits);
 
 	__l2cap_chan_add(conn, chan);
 	dcid = chan->scid;
+	credits = chan->rx_credits;
 
 	__set_chan_timer(chan, chan->ops->get_sndtimeo(chan));
 
@@ -5537,7 +5543,7 @@ response:
 	}
 
 	rsp.dcid    = cpu_to_le16(dcid);
-	rsp.credits = __constant_cpu_to_le16(L2CAP_LE_MAX_CREDITS);
+	rsp.credits = cpu_to_le16(credits);
 	rsp.result  = cpu_to_le16(result);
 
 	l2cap_send_cmd(conn, cmd->ident, L2CAP_LE_CONN_RSP, sizeof(rsp), &rsp);
