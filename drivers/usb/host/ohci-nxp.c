@@ -360,8 +360,6 @@ static int usb_hcd_nxp_remove(struct platform_device *pdev)
 	i2c_unregister_device(isp1301_i2c_client);
 	isp1301_i2c_client = NULL;
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 
