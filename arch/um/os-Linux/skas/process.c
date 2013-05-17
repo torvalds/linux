@@ -54,7 +54,7 @@ static int ptrace_dump_regs(int pid)
 
 void wait_stub_done(int pid)
 {
-	int n, status, err;
+	int n, status, err, bad_stop = 0;
 
 	while (1) {
 		CATCH_EINTR(n = waitpid(pid, &status, WUNTRACED | __WALL));
@@ -74,6 +74,8 @@ void wait_stub_done(int pid)
 
 	if (((1 << WSTOPSIG(status)) & STUB_DONE_MASK) != 0)
 		return;
+	else
+		bad_stop = 1;
 
 bad_wait:
 	err = ptrace_dump_regs(pid);
@@ -83,7 +85,10 @@ bad_wait:
 	printk(UM_KERN_ERR "wait_stub_done : failed to wait for SIGTRAP, "
 	       "pid = %d, n = %d, errno = %d, status = 0x%x\n", pid, n, errno,
 	       status);
-	fatal_sigsegv();
+	if (bad_stop)
+		kill(pid, SIGKILL);
+	else
+		fatal_sigsegv();
 }
 
 extern unsigned long current_stub_stack(void);
