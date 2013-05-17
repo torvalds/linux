@@ -93,8 +93,7 @@ netdev_budget
 
 Maximum number of packets taken from all interfaces in one polling cycle (NAPI
 poll). In one polling cycle interfaces which are registered to polling are
-probed in a round-robin manner. The limit of packets in one such probe can be
-set per-device via sysfs class/net/<device>/weight .
+probed in a round-robin manner.
 
 netdev_max_backlog
 ------------------
