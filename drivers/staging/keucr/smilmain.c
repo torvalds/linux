@@ -153,7 +153,7 @@ int Media_D_ReadSector(struct us_data *us, DWORD start, WORD count, BYTE *buf)
 	if (Conv_D_MediaAddr(us, start))
 		return ErrCode;
 
-	while(1) {
+	while (1) {
 		len = Ssfdc.MaxSectors - Media.Sector;
 		if (count > len)
 			bn = len;
@@ -194,7 +194,7 @@ int Media_D_CopySector(struct us_data *us, DWORD start, WORD count, BYTE *buf)
 	if (Conv_D_MediaAddr(us, start))
 		return ErrCode;
 
-	while(1) {
+	while (1) {
 		if (Assign_D_WriteBlock())
 			return ERROR;
 
@@ -852,7 +852,7 @@ int Media_D_ReadOneSect(struct us_data *us, WORD count, BYTE *buf)
 	}
 
 	err=ErrCode;
-	for(retry=0; retry<2; retry++) {
+	for (retry=0; retry<2; retry++) {
 		if (Copy_D_BlockAll(us, (err==ERR_EccReadErr)?REQ_FAIL:REQ_ERASE)) {
 			if (ErrCode==ERR_HwError)
 				return ERROR;
@@ -1067,7 +1067,7 @@ int Copy_D_BlockAll(struct us_data *us, DWORD mode)
 	if (mode==REQ_FAIL)
 		SectCopyMode=REQ_FAIL;
 
-	for(Media.Sector=0; Media.Sector<Ssfdc.MaxSectors; Media.Sector++) {
+	for (Media.Sector=0; Media.Sector<Ssfdc.MaxSectors; Media.Sector++) {
 		if (Copy_D_PhyOneSect(us)) {
 			if (ErrCode==ERR_HwError)
 				return ERROR;
@@ -1208,7 +1208,7 @@ int Assign_D_WriteBlock(void)
 	//ADDRESS_T   bb = (ADDRESS_T) &Media;
 	ReadBlock=Media.PhyBlock;
 
-	for(WriteBlock=AssignStart[Media.Zone]; WriteBlock<Ssfdc.MaxBlocks; WriteBlock++) {
+	for (WriteBlock=AssignStart[Media.Zone]; WriteBlock<Ssfdc.MaxBlocks; WriteBlock++) {
 		if (!Chk_D_Bit(Assign[Media.Zone], WriteBlock)) {
 			Set_D_Bit(Assign[Media.Zone], WriteBlock);
 			AssignStart[Media.Zone]=WriteBlock+1;
@@ -1219,7 +1219,7 @@ int Assign_D_WriteBlock(void)
 		}
 	}
 
-	for(WriteBlock=0; WriteBlock<AssignStart[Media.Zone]; WriteBlock++) {
+	for (WriteBlock=0; WriteBlock<AssignStart[Media.Zone]; WriteBlock++) {
 		if (!Chk_D_Bit(Assign[Media.Zone], WriteBlock)) {
 			Set_D_Bit(Assign[Media.Zone], WriteBlock);
 			AssignStart[Media.Zone]=WriteBlock+1;
@@ -1299,7 +1299,7 @@ int Copy_D_PhyOneSect(struct us_data *us)
 	/* pr_info("Copy_D_PhyOneSect --- Secotr = %x\n", Media.Sector); */
 	if (ReadBlock!=NO_ASSIGN) {
 		Media.PhyBlock=ReadBlock;
-		for(retry=0; retry<2; retry++) {
+		for (retry=0; retry<2; retry++) {
 			if (retry!=0) {
 				Ssfdc_D_Reset(us);
 				if (Ssfdc_D_ReadCisSect(us, WorkBuf, WorkRedund)) {
@@ -1338,7 +1338,7 @@ int Copy_D_PhyOneSect(struct us_data *us)
 		}
 	} else {
 		err=SMSUCCESS;
-		for(i=0; i<SECTSIZE; i++)
+		for (i=0; i<SECTSIZE; i++)
 			WorkBuf[i]=DUMMY_DATA;
 		Clr_D_RedundantData(WorkRedund);
 	}
@@ -1375,12 +1375,12 @@ int Read_D_PhyOneSect(struct us_data *us, WORD count, BYTE *buf)
 	//ADDRESS_T   bb = (ADDRESS_T) &Media;
 
 	if (Media.PhyBlock==NO_ASSIGN) {
-		for(i=0; i<SECTSIZE; i++)
+		for (i=0; i<SECTSIZE; i++)
 			*buf++=DUMMY_DATA;
 		return SMSUCCESS;
 	}
 
-	for(retry=0; retry<2; retry++) {
+	for (retry=0; retry<2; retry++) {
 		if (retry!=0) {
 			Ssfdc_D_Reset(us);
 
@@ -1614,13 +1614,13 @@ int Make_D_LogTable(struct us_data *us)
 	{
 		/* pr_info("Make_D_LogTable --- MediaZone = 0x%x\n",
 							Media.Zone); */
-		for(Media.LogBlock=0; Media.LogBlock<Ssfdc.MaxLogBlocks; Media.LogBlock++)
+		for (Media.LogBlock=0; Media.LogBlock<Ssfdc.MaxLogBlocks; Media.LogBlock++)
 			Log2Phy[Media.Zone][Media.LogBlock]=NO_ASSIGN;
 
-		for(Media.PhyBlock=0; Media.PhyBlock<(MAX_BLOCKNUM/8); Media.PhyBlock++)
+		for (Media.PhyBlock=0; Media.PhyBlock<(MAX_BLOCKNUM/8); Media.PhyBlock++)
 			Assign[Media.Zone][Media.PhyBlock]=0x00;
 
-		for(Media.PhyBlock=0; Media.PhyBlock<Ssfdc.MaxBlocks; Media.PhyBlock++) {
+		for (Media.PhyBlock=0; Media.PhyBlock<Ssfdc.MaxBlocks; Media.PhyBlock++) {
 			if ((!Media.Zone) && (Media.PhyBlock<=CisArea.PhyBlock)) {
 				Set_D_Bit(Assign[Media.Zone], Media.PhyBlock);
 				continue;
@@ -1729,7 +1729,7 @@ int MarkFail_D_PhyOneBlock(struct us_data *us)
 	Set_D_FailBlock(WorkRedund);
 	//Ssfdc_D_WriteRedtMode();
 
-	for(Media.Sector=0; Media.Sector<Ssfdc.MaxSectors; Media.Sector++) {
+	for (Media.Sector=0; Media.Sector<Ssfdc.MaxSectors; Media.Sector++) {
 		if (Ssfdc_D_WriteRedtData(us, WorkRedund)) {
 			Ssfdc_D_Reset(us);
 			Media.Sector   = sect;
