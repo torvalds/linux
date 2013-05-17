@@ -24,7 +24,7 @@ MODULE_LICENSE("GPL");
 
 static unsigned int delay_use = 1;
 
-static struct usb_device_id eucr_usb_ids [] = {
+static struct usb_device_id eucr_usb_ids[] = {
 	{ USB_DEVICE(0x058f, 0x6366) },
 	{ USB_DEVICE(0x0cf2, 0x6230) },
 	{ USB_DEVICE(0x0cf2, 0x6250) },
