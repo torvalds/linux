@@ -27,3 +27,6 @@
 #define PHSTATM_PLL_LOCKED		(1 << 0)
 
 #define SATA_PHY_CON_RESET              0xF003F
+
+#define SATA_PHY_PMU_EN			0x1
+
