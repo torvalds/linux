@@ -2492,11 +2492,20 @@ static long fuse_file_fallocate(struct file *file, int mode, loff_t offset,
 	}
 	fuse_put_request(fc, req);
 
+	if (err)
+		goto out;
+
+	/* we could have extended the file */
+	if (!(mode & FALLOC_FL_KEEP_SIZE))
+		fuse_write_update_size(inode, offset + length);
+
+	if (mode & FALLOC_FL_PUNCH_HOLE)
+		truncate_pagecache_range(inode, offset, offset + length - 1);
+
+	fuse_invalidate_attr(inode);
+
 out:
 	if (mode & FALLOC_FL_PUNCH_HOLE) {
-		if (!err)
-			truncate_pagecache_range(inode, offset,
-						 offset + length - 1);
 		fuse_release_nowrite(inode);
 		mutex_unlock(&inode->i_mutex);
 	}
