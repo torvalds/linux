@@ -259,7 +259,7 @@ static int rockchip_i2s_hw_params(struct snd_pcm_substream *substream,
 	/* Working copies of register */
 	iismod = readl(&(pheadi2s->I2S_TXCR));
 	
-//	iismod &= (~((1<<5)-1));
+	iismod &= (~((1<<5)-1));
 	switch (params_format(params)) {
         case SNDRV_PCM_FORMAT_S8:
         	iismod |= SAMPLE_DATA_8bit;
