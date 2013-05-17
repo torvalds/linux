@@ -15,8 +15,6 @@
 #include <linux/zorro.h>
 
 
-#ifdef CONFIG_ZORRO_NAMES
-
 struct zorro_prod_info {
 	__u16 prod;
 	unsigned short seen;
@@ -97,11 +95,3 @@ void __init zorro_name_device(struct zorro_dev *dev)
 		}
 	}
 }
-
-#else
-
-void __init zorro_name_device(struct zorro_dev *dev)
-{
-}
-
-#endif
