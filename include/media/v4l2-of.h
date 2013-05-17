@@ -69,15 +69,42 @@ struct v4l2_of_endpoint {
 	struct list_head head;
 };
 
+/**
+ * struct v4l2_of_link - a link between two endpoints
+ * @local_node: pointer to device_node of this endpoint
+ * @local_port: identifier of the port this endpoint belongs to
+ * @remote_node: pointer to device_node of the remote endpoint
+ * @remote_port: identifier of the port the remote endpoint belongs to
+ */
+struct v4l2_of_link {
+	struct device_node *local_node;
+	unsigned int local_port;
+	struct device_node *remote_node;
+	unsigned int remote_port;
+};
+
 #ifdef CONFIG_OF
 int v4l2_of_parse_endpoint(const struct device_node *node,
 			   struct v4l2_of_endpoint *endpoint);
+int v4l2_of_parse_link(const struct device_node *node,
+		       struct v4l2_of_link *link);
+void v4l2_of_put_link(struct v4l2_of_link *link);
 #else /* CONFIG_OF */
 
 static inline int v4l2_of_parse_endpoint(const struct device_node *node,
 					struct v4l2_of_endpoint *link)
 {
 	return -ENOSYS;
+}
+
+static inline int v4l2_of_parse_link(const struct device_node *node,
+				     struct v4l2_of_link *link)
+{
+	return -ENOSYS;
+}
+
+static inline void v4l2_of_put_link(struct v4l2_of_link *link)
+{
 }
 
 #endif /* CONFIG_OF */
