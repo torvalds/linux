@@ -1462,31 +1462,23 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 	btrfs_dev_replace_unlock(&root->fs_info->dev_replace);
 
 	if ((all_avail & BTRFS_BLOCK_GROUP_RAID10) && num_devices <= 4) {
-		printk(KERN_ERR "btrfs: unable to go below four devices "
-		       "on raid10\n");
-		ret = -EINVAL;
+		ret = BTRFS_ERROR_DEV_RAID10_MIN_NOT_MET;
 		goto out;
 	}
 
 	if ((all_avail & BTRFS_BLOCK_GROUP_RAID1) && num_devices <= 2) {
-		printk(KERN_ERR "btrfs: unable to go below two "
-		       "devices on raid1\n");
-		ret = -EINVAL;
+		ret = BTRFS_ERROR_DEV_RAID1_MIN_NOT_MET;
 		goto out;
 	}
 
 	if ((all_avail & BTRFS_BLOCK_GROUP_RAID5) &&
 	    root->fs_info->fs_devices->rw_devices <= 2) {
-		printk(KERN_ERR "btrfs: unable to go below two "
-		       "devices on raid5\n");
-		ret = -EINVAL;
+		ret = BTRFS_ERROR_DEV_RAID5_MIN_NOT_MET;
 		goto out;
 	}
 	if ((all_avail & BTRFS_BLOCK_GROUP_RAID6) &&
 	    root->fs_info->fs_devices->rw_devices <= 3) {
-		printk(KERN_ERR "btrfs: unable to go below three "
-		       "devices on raid6\n");
-		ret = -EINVAL;
+		ret = BTRFS_ERROR_DEV_RAID6_MIN_NOT_MET;
 		goto out;
 	}
 
@@ -1512,8 +1504,7 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 		bh = NULL;
 		disk_super = NULL;
 		if (!device) {
-			printk(KERN_ERR "btrfs: no missing devices found to "
-			       "remove\n");
+			ret = BTRFS_ERROR_DEV_MISSING_NOT_FOUND;
 			goto out;
 		}
 	} else {
@@ -1535,15 +1526,12 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 	}
 
 	if (device->is_tgtdev_for_dev_replace) {
-		pr_err("btrfs: unable to remove the dev_replace target dev\n");
-		ret = -EINVAL;
+		ret = BTRFS_ERROR_DEV_TGT_REPLACE;
 		goto error_brelse;
 	}
 
 	if (device->writeable && root->fs_info->fs_devices->rw_devices == 1) {
-		printk(KERN_ERR "btrfs: unable to remove the only writeable "
-		       "device\n");
-		ret = -EINVAL;
+		ret = BTRFS_ERROR_DEV_ONLY_WRITABLE;
 		goto error_brelse;
 	}
 
