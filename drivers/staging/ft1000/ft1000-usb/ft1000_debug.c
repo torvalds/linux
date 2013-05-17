@@ -89,8 +89,7 @@ struct dpram_blk *ft1000_get_buffer(struct list_head *bufflist)
     if (list_empty(bufflist)) {
         DEBUG("ft1000_get_buffer:  No more buffer - %d\n", numofmsgbuf);
         ptr = NULL;
-    }
-    else {
+    } else {
         numofmsgbuf--;
 	ptr = list_entry(bufflist->next, struct dpram_blk, list);
         list_del(&ptr->list);
@@ -507,8 +506,7 @@ static long ft1000_ioctl(struct file *file, unsigned int command,
                 ft1000_read_dpram16(ft1000dev, FT1000_MAG_DSP_CON_STATE, (u8 *)&conStat, FT1000_MAG_DSP_CON_STATE_INDX);
                 get_stat_data.ConStat = ntohs(conStat);
                 DEBUG("FT1000:ft1000_ioctl: ConStat = 0x%x\n", get_stat_data.ConStat);
-            }
-            else {
+            } else {
                 get_stat_data.ConStat = 0x0f;
             }
 
@@ -579,8 +577,7 @@ static long ft1000_ioctl(struct file *file, unsigned int command,
                 if (copy_from_user(dpram_data, argp, msgsz+2)) {
                     DEBUG("FT1000:ft1000_ChIoctl: copy fault occurred\n");
                     result = -EFAULT;
-                }
-                else {
+                } else {
                     /* Check if this message came from a registered application */
                     for (i=0; i<MAX_NUM_APP; i++) {
                         if (ft1000dev->app_info[i].fileobject == &file->f_owner) {
@@ -599,8 +596,7 @@ static long ft1000_ioctl(struct file *file, unsigned int command,
                     qtype = ntohs(dpram_data->pseudohdr.qos_class) & 0xff;
                     /* DEBUG("FT1000_ft1000_ioctl: qtype = %d\n", qtype); */
                     if (qtype) {
-                    }
-                    else {
+                    } else {
                         /* Put message into Slow Queue */
                         /* Only put a message into the DPRAM if msg doorbell is available */
                         status = ft1000_read_register(ft1000dev, &tempword, FT1000_REG_DOORBELL);
@@ -658,14 +654,12 @@ static long ft1000_ioctl(struct file *file, unsigned int command,
 
 
                             ft1000dev->app_info[app_index].nTxMsg++;
-                        }
-                        else {
+                        } else {
                             result = -EINVAL;
                         }
                     }
                 }
-            }
-            else {
+            } else {
                 DEBUG("FT1000:ft1000_ioctl: Card not ready take messages\n");
                 result = -EACCES;
             }
