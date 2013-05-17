@@ -80,8 +80,6 @@ Valid names are:
   /dev/sdd: -> 0x0830 (forth SCSI disk)
   /dev/sde: -> 0x0840 (fifth SCSI disk)
   /dev/fd : -> 0x0200 (floppy disk)
-  /dev/xda: -> 0x0c00 (first XT disk, unused in Linux/m68k)
-  /dev/xdb: -> 0x0c40 (second XT disk, unused in Linux/m68k)
 
   The name must be followed by a decimal number, that stands for the
 partition number. Internally, the value of the number is just
