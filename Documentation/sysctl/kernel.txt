@@ -70,7 +70,6 @@ show up in /proc/sys/kernel:
 - shmall
 - shmmax                      [ sysv ipc ]
 - shmmni
-- softlockup_thresh
 - stop-a                      [ SPARC only ]
 - sysrq                       ==> Documentation/sysrq.txt
 - tainted
@@ -602,15 +601,6 @@ need this.
 
 Note that if you change this from 0 to 1, already created segments
 without users and with a dead originative process will be destroyed.
-
-==============================================================
-
-softlockup_thresh:
-
-This value can be used to lower the softlockup tolerance threshold.  The
-default threshold is 60 seconds.  If a cpu is locked up for 60 seconds,
-the kernel complains.  Valid values are 1-60 seconds.  Setting this
-tunable to zero will disable the softlockup detection altogether.
 
 ==============================================================
 
