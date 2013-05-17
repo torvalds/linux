@@ -5019,42 +5019,16 @@ int btrfs_rmap_block(struct btrfs_mapping_tree *map_tree,
 	return 0;
 }
 
-static void *merge_stripe_index_into_bio_private(void *bi_private,
-						 unsigned int stripe_index)
-{
-	/*
-	 * with single, dup, RAID0, RAID1 and RAID10, stripe_index is
-	 * at most 1.
-	 * The alternative solution (instead of stealing bits from the
-	 * pointer) would be to allocate an intermediate structure
-	 * that contains the old private pointer plus the stripe_index.
-	 */
-	BUG_ON((((uintptr_t)bi_private) & 3) != 0);
-	BUG_ON(stripe_index > 3);
-	return (void *)(((uintptr_t)bi_private) | stripe_index);
-}
-
-static struct btrfs_bio *extract_bbio_from_bio_private(void *bi_private)
-{
-	return (struct btrfs_bio *)(((uintptr_t)bi_private) & ~((uintptr_t)3));
-}
-
-static unsigned int extract_stripe_index_from_bio_private(void *bi_private)
-{
-	return (unsigned int)((uintptr_t)bi_private) & 3;
-}
-
 static void btrfs_end_bio(struct bio *bio, int err)
 {
-	struct btrfs_bio *bbio = extract_bbio_from_bio_private(bio->bi_private);
+	struct btrfs_bio *bbio = bio->bi_private;
 	int is_orig_bio = 0;
 
 	if (err) {
 		atomic_inc(&bbio->error);
 		if (err == -EIO || err == -EREMOTEIO) {
 			unsigned int stripe_index =
-				extract_stripe_index_from_bio_private(
-					bio->bi_private);
+				btrfs_io_bio(bio)->stripe_index;
 			struct btrfs_device *dev;
 
 			BUG_ON(stripe_index >= bbio->num_stripes);
@@ -5084,8 +5058,7 @@ static void btrfs_end_bio(struct bio *bio, int err)
 		}
 		bio->bi_private = bbio->private;
 		bio->bi_end_io = bbio->end_io;
-		bio->bi_bdev = (struct block_device *)
-					(unsigned long)bbio->mirror_num;
+		btrfs_io_bio(bio)->mirror_num = bbio->mirror_num;
 		/* only send an error to the higher layers if it is
 		 * beyond the tolerance of the btrfs bio
 		 */
@@ -5211,8 +5184,7 @@ static void submit_stripe_bio(struct btrfs_root *root, struct btrfs_bio *bbio,
 	struct btrfs_device *dev = bbio->stripes[dev_nr].dev;
 
 	bio->bi_private = bbio;
-	bio->bi_private = merge_stripe_index_into_bio_private(
-			bio->bi_private, (unsigned int)dev_nr);
+	btrfs_io_bio(bio)->stripe_index = dev_nr;
 	bio->bi_end_io = btrfs_end_bio;
 	bio->bi_sector = physical >> 9;
 #ifdef DEBUG
@@ -5273,8 +5245,7 @@ static void bbio_error(struct btrfs_bio *bbio, struct bio *bio, u64 logical)
 	if (atomic_dec_and_test(&bbio->stripes_pending)) {
 		bio->bi_private = bbio->private;
 		bio->bi_end_io = bbio->end_io;
-		bio->bi_bdev = (struct block_device *)
-			(unsigned long)bbio->mirror_num;
+		btrfs_io_bio(bio)->mirror_num = bbio->mirror_num;
 		bio->bi_sector = logical >> 9;
 		kfree(bbio);
 		bio_endio(bio, -EIO);
@@ -5352,7 +5323,7 @@ int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
 		}
 
 		if (dev_nr < total_devs - 1) {
-			bio = bio_clone(first_bio, GFP_NOFS);
+			bio = btrfs_bio_clone(first_bio, GFP_NOFS);
 			BUG_ON(!bio); /* -ENOMEM */
 		} else {
 			bio = first_bio;

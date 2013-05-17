@@ -23,6 +23,7 @@
 
 static struct kmem_cache *extent_state_cache;
 static struct kmem_cache *extent_buffer_cache;
+static struct bio_set *btrfs_bioset;
 
 #ifdef CONFIG_BTRFS_DEBUG
 static LIST_HEAD(buffers);
@@ -125,10 +126,20 @@ int __init extent_io_init(void)
 			SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD, NULL);
 	if (!extent_buffer_cache)
 		goto free_state_cache;
+
+	btrfs_bioset = bioset_create(BIO_POOL_SIZE,
+				     offsetof(struct btrfs_io_bio, bio));
+	if (!btrfs_bioset)
+		goto free_buffer_cache;
 	return 0;
+
+free_buffer_cache:
+	kmem_cache_destroy(extent_buffer_cache);
+	extent_buffer_cache = NULL;
 
 free_state_cache:
 	kmem_cache_destroy(extent_state_cache);
+	extent_state_cache = NULL;
 	return -ENOMEM;
 }
 
@@ -145,6 +156,8 @@ void extent_io_exit(void)
 		kmem_cache_destroy(extent_state_cache);
 	if (extent_buffer_cache)
 		kmem_cache_destroy(extent_buffer_cache);
+	if (btrfs_bioset)
+		bioset_free(btrfs_bioset);
 }
 
 void extent_io_tree_init(struct extent_io_tree *tree,
@@ -2046,7 +2059,7 @@ int repair_io_failure(struct btrfs_fs_info *fs_info, u64 start,
 	if (btrfs_is_parity_mirror(map_tree, logical, length, mirror_num))
 		return 0;
 
-	bio = bio_alloc(GFP_NOFS, 1);
+	bio = btrfs_io_bio_alloc(GFP_NOFS, 1);
 	if (!bio)
 		return -EIO;
 	bio->bi_private = &compl;
@@ -2336,7 +2349,7 @@ static int bio_readpage_error(struct bio *failed_bio, struct page *page,
 		return -EIO;
 	}
 
-	bio = bio_alloc(GFP_NOFS, 1);
+	bio = btrfs_io_bio_alloc(GFP_NOFS, 1);
 	if (!bio) {
 		free_io_failure(inode, failrec, 0);
 		return -EIO;
@@ -2457,10 +2470,11 @@ static void end_bio_extent_readpage(struct bio *bio, int err)
 		struct page *page = bvec->bv_page;
 		struct extent_state *cached = NULL;
 		struct extent_state *state;
+		struct btrfs_io_bio *io_bio = btrfs_io_bio(bio);
 
 		pr_debug("end_bio_extent_readpage: bi_sector=%llu, err=%d, "
-			 "mirror=%ld\n", (u64)bio->bi_sector, err,
-			 (long int)bio->bi_bdev);
+			 "mirror=%lu\n", (u64)bio->bi_sector, err,
+			 io_bio->mirror_num);
 		tree = &BTRFS_I(page->mapping->host)->io_tree;
 
 		start = page_offset(page) + bvec->bv_offset;
@@ -2485,7 +2499,7 @@ static void end_bio_extent_readpage(struct bio *bio, int err)
 		}
 		spin_unlock(&tree->lock);
 
-		mirror = (int)(unsigned long)bio->bi_bdev;
+		mirror = io_bio->mirror_num;
 		if (uptodate && tree->ops && tree->ops->readpage_end_io_hook) {
 			ret = tree->ops->readpage_end_io_hook(page, start, end,
 							      state, mirror);
@@ -2550,17 +2564,23 @@ static void end_bio_extent_readpage(struct bio *bio, int err)
 	bio_put(bio);
 }
 
+/*
+ * this allocates from the btrfs_bioset.  We're returning a bio right now
+ * but you can call btrfs_io_bio for the appropriate container_of magic
+ */
 struct bio *
 btrfs_bio_alloc(struct block_device *bdev, u64 first_sector, int nr_vecs,
 		gfp_t gfp_flags)
 {
 	struct bio *bio;
 
-	bio = bio_alloc(gfp_flags, nr_vecs);
+	bio = bio_alloc_bioset(gfp_flags, nr_vecs, btrfs_bioset);
 
 	if (bio == NULL && (current->flags & PF_MEMALLOC)) {
-		while (!bio && (nr_vecs /= 2))
-			bio = bio_alloc(gfp_flags, nr_vecs);
+		while (!bio && (nr_vecs /= 2)) {
+			bio = bio_alloc_bioset(gfp_flags,
+					       nr_vecs, btrfs_bioset);
+		}
 	}
 
 	if (bio) {
@@ -2570,6 +2590,19 @@ btrfs_bio_alloc(struct block_device *bdev, u64 first_sector, int nr_vecs,
 	}
 	return bio;
 }
+
+struct bio *btrfs_bio_clone(struct bio *bio, gfp_t gfp_mask)
+{
+	return bio_clone_bioset(bio, gfp_mask, btrfs_bioset);
+}
+
+
+/* this also allocates from the btrfs_bioset */
+struct bio *btrfs_io_bio_alloc(gfp_t gfp_mask, unsigned int nr_iovecs)
+{
+	return bio_alloc_bioset(gfp_mask, nr_iovecs, btrfs_bioset);
+}
+
 
 static int __must_check submit_one_bio(int rw, struct bio *bio,
 				       int mirror_num, unsigned long bio_flags)

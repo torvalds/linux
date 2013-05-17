@@ -6927,7 +6927,11 @@ struct btrfs_dio_private {
 	/* IO errors */
 	int errors;
 
+	/* orig_bio is our btrfs_io_bio */
 	struct bio *orig_bio;
+
+	/* dio_bio came from fs/direct-io.c */
+	struct bio *dio_bio;
 };
 
 static void btrfs_endio_direct_read(struct bio *bio, int err)
@@ -6937,6 +6941,7 @@ static void btrfs_endio_direct_read(struct bio *bio, int err)
 	struct bio_vec *bvec = bio->bi_io_vec;
 	struct inode *inode = dip->inode;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct bio *dio_bio;
 	u64 start;
 
 	start = dip->logical_offset;
@@ -6976,14 +6981,15 @@ failed:
 
 	unlock_extent(&BTRFS_I(inode)->io_tree, dip->logical_offset,
 		      dip->logical_offset + dip->bytes - 1);
-	bio->bi_private = dip->private;
+	dio_bio = dip->dio_bio;
 
 	kfree(dip);
 
 	/* If we had a csum failure make sure to clear the uptodate flag */
 	if (err)
-		clear_bit(BIO_UPTODATE, &bio->bi_flags);
-	dio_end_io(bio, err);
+		clear_bit(BIO_UPTODATE, &dio_bio->bi_flags);
+	dio_end_io(dio_bio, err);
+	bio_put(bio);
 }
 
 static void btrfs_endio_direct_write(struct bio *bio, int err)
@@ -6994,6 +7000,7 @@ static void btrfs_endio_direct_write(struct bio *bio, int err)
 	struct btrfs_ordered_extent *ordered = NULL;
 	u64 ordered_offset = dip->logical_offset;
 	u64 ordered_bytes = dip->bytes;
+	struct bio *dio_bio;
 	int ret;
 
 	if (err)
@@ -7021,14 +7028,15 @@ out_test:
 		goto again;
 	}
 out_done:
-	bio->bi_private = dip->private;
+	dio_bio = dip->dio_bio;
 
 	kfree(dip);
 
 	/* If we had an error make sure to clear the uptodate flag */
 	if (err)
-		clear_bit(BIO_UPTODATE, &bio->bi_flags);
-	dio_end_io(bio, err);
+		clear_bit(BIO_UPTODATE, &dio_bio->bi_flags);
+	dio_end_io(dio_bio, err);
+	bio_put(bio);
 }
 
 static int __btrfs_submit_bio_start_direct_io(struct inode *inode, int rw,
@@ -7064,10 +7072,10 @@ static void btrfs_end_dio_bio(struct bio *bio, int err)
 	if (!atomic_dec_and_test(&dip->pending_bios))
 		goto out;
 
-	if (dip->errors)
+	if (dip->errors) {
 		bio_io_error(dip->orig_bio);
-	else {
-		set_bit(BIO_UPTODATE, &dip->orig_bio->bi_flags);
+	} else {
+		set_bit(BIO_UPTODATE, &dip->dio_bio->bi_flags);
 		bio_endio(dip->orig_bio, 0);
 	}
 out:
@@ -7242,25 +7250,34 @@ out_err:
 	return 0;
 }
 
-static void btrfs_submit_direct(int rw, struct bio *bio, struct inode *inode,
-				loff_t file_offset)
+static void btrfs_submit_direct(int rw, struct bio *dio_bio,
+				struct inode *inode, loff_t file_offset)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_dio_private *dip;
-	struct bio_vec *bvec = bio->bi_io_vec;
+	struct bio_vec *bvec = dio_bio->bi_io_vec;
+	struct bio *io_bio;
 	int skip_sum;
 	int write = rw & REQ_WRITE;
 	int ret = 0;
 
 	skip_sum = BTRFS_I(inode)->flags & BTRFS_INODE_NODATASUM;
 
-	dip = kmalloc(sizeof(*dip), GFP_NOFS);
-	if (!dip) {
+	io_bio = btrfs_bio_clone(dio_bio, GFP_NOFS);
+
+	if (!io_bio) {
 		ret = -ENOMEM;
 		goto free_ordered;
 	}
 
-	dip->private = bio->bi_private;
+	dip = kmalloc(sizeof(*dip), GFP_NOFS);
+	if (!dip) {
+		ret = -ENOMEM;
+		goto free_io_bio;
+	}
+
+	dip->private = dio_bio->bi_private;
+	io_bio->bi_private = dio_bio->bi_private;
 	dip->inode = inode;
 	dip->logical_offset = file_offset;
 
@@ -7268,22 +7285,27 @@ static void btrfs_submit_direct(int rw, struct bio *bio, struct inode *inode,
 	do {
 		dip->bytes += bvec->bv_len;
 		bvec++;
-	} while (bvec <= (bio->bi_io_vec + bio->bi_vcnt - 1));
+	} while (bvec <= (dio_bio->bi_io_vec + dio_bio->bi_vcnt - 1));
 
-	dip->disk_bytenr = (u64)bio->bi_sector << 9;
-	bio->bi_private = dip;
+	dip->disk_bytenr = (u64)dio_bio->bi_sector << 9;
+	io_bio->bi_private = dip;
 	dip->errors = 0;
-	dip->orig_bio = bio;
+	dip->orig_bio = io_bio;
+	dip->dio_bio = dio_bio;
 	atomic_set(&dip->pending_bios, 0);
 
 	if (write)
-		bio->bi_end_io = btrfs_endio_direct_write;
+		io_bio->bi_end_io = btrfs_endio_direct_write;
 	else
-		bio->bi_end_io = btrfs_endio_direct_read;
+		io_bio->bi_end_io = btrfs_endio_direct_read;
 
 	ret = btrfs_submit_direct_hook(rw, dip, skip_sum);
 	if (!ret)
 		return;
+
+free_io_bio:
+	bio_put(io_bio);
+
 free_ordered:
 	/*
 	 * If this is a write, we need to clean up the reserved space and kill
@@ -7299,7 +7321,7 @@ free_ordered:
 		btrfs_put_ordered_extent(ordered);
 		btrfs_put_ordered_extent(ordered);
 	}
-	bio_endio(bio, ret);
+	bio_endio(dio_bio, ret);
 }
 
 static ssize_t check_direct_IO(struct btrfs_root *root, int rw, struct kiocb *iocb,

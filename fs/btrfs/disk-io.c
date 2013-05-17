@@ -3128,7 +3128,7 @@ static int write_dev_flush(struct btrfs_device *device, int wait)
 	 * caller
 	 */
 	device->flush_bio = NULL;
-	bio = bio_alloc(GFP_NOFS, 0);
+	bio = btrfs_io_bio_alloc(GFP_NOFS, 0);
 	if (!bio)
 		return -ENOMEM;
 
