@@ -33,6 +33,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
 #include <linux/interrupt.h>
+#include <linux/firmware.h>
 
 #include "comedidev.h"
 #include "comedi_internal.h"
@@ -345,6 +346,35 @@ static void comedi_report_boards(struct comedi_driver *driv)
 	if (driv->num_names == 0)
 		pr_info(" %s\n", driv->driver_name);
 }
+
+/**
+ * comedi_load_firmware() - Request and load firmware for a device.
+ * @dev: comedi_device struct
+ * @hw_device: device struct for the comedi_device
+ * @name: the name of the firmware image
+ * @cb: callback to the upload the firmware image
+ */
+int comedi_load_firmware(struct comedi_device *dev,
+			 struct device *device,
+			 const char *name,
+			 int (*cb)(struct comedi_device *dev,
+				   const u8 *data, size_t size))
+{
+	const struct firmware *fw;
+	int ret;
+
+	if (!cb)
+		return -EINVAL;
+
+	ret = request_firmware(&fw, name, device);
+	if (ret == 0) {
+		ret = cb(dev, fw->data, fw->size);
+		release_firmware(fw);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(comedi_load_firmware);
 
 /**
  * __comedi_request_region() - Request an I/O reqion for a legacy driver.

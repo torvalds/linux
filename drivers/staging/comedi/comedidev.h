@@ -346,6 +346,11 @@ int comedi_alloc_subdevices(struct comedi_device *, int);
 
 void comedi_spriv_free(struct comedi_device *, int subdev_num);
 
+int comedi_load_firmware(struct comedi_device *, struct device *,
+			 const char *name,
+			 int (*cb)(struct comedi_device *,
+				   const u8 *data, size_t size));
+
 int __comedi_request_region(struct comedi_device *,
 			    unsigned long start, unsigned long len);
 int comedi_request_region(struct comedi_device *,

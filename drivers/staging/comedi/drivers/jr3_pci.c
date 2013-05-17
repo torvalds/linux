@@ -41,7 +41,6 @@
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/ctype.h>
-#include <linux/firmware.h>
 #include <linux/jiffies.h>
 #include <linux/slab.h>
 #include <linux/timer.h>
@@ -91,33 +90,6 @@ struct jr3_pci_subdev_private {
 	u16 errors;
 	int retries;
 };
-
-/* Hotplug firmware loading stuff */
-static int comedi_load_firmware(struct comedi_device *dev, const char *name,
-				int (*cb)(struct comedi_device *dev,
-					  const u8 *data, size_t size))
-{
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct firmware *fw;
-	char *firmware_path;
-	int ret;
-
-	if (!cb)
-		return -EINVAL;
-
-	firmware_path = kasprintf(GFP_KERNEL, "comedi/%s", name);
-	if (!firmware_path)
-		return -ENOMEM;
-
-	ret = request_firmware(&fw, firmware_path, &pcidev->dev);
-	if (ret == 0) {
-		ret = cb(dev, fw->data, fw->size);
-		release_firmware(fw);
-	}
-	kfree(firmware_path);
-
-	return ret;
-}
 
 static struct poll_delay_t poll_delay_min_max(int min, int max)
 {
@@ -759,7 +731,9 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 	/*  Reset DSP card */
 	writel(0, &devpriv->iobase->channel[0].reset);
 
-	result = comedi_load_firmware(dev, "jr3pci.idm", jr3_download_firmware);
+	result = comedi_load_firmware(dev, &comedi_to_pci_dev(dev)->dev,
+				      "comedi/jr3pci.idm",
+				      jr3_download_firmware);
 	dev_dbg(dev->class_dev, "Firmare load %d\n", result);
 
 	if (result < 0)
@@ -769,7 +743,8 @@ static int jr3_pci_auto_attach(struct comedi_device *dev,
 	 * format:
 	 *     model serial Fx Fy Fz Mx My Mz\n
 	 *
-	 *     comedi_load_firmware(dev, "jr3_offsets_table",
+	 *     comedi_load_firmware(dev, &comedi_to_pci_dev(dev)->dev,
+	 *                          "comedi/jr3_offsets_table",
 	 *                          jr3_download_firmware);
 	 */
 
