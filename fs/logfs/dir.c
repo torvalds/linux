@@ -281,17 +281,23 @@ static int logfs_rmdir(struct inode *dir, struct dentry *dentry)
 
 /* FIXME: readdir currently has it's own dir_walk code.  I don't see a good
  * way to combine the two copies */
-#define IMPLICIT_NODES 2
-static int __logfs_readdir(struct file *file, void *buf, filldir_t filldir)
+static int logfs_readdir(struct file *file, struct dir_context *ctx)
 {
 	struct inode *dir = file_inode(file);
-	loff_t pos = file->f_pos - IMPLICIT_NODES;
+	loff_t pos;
 	struct page *page;
 	struct logfs_disk_dentry *dd;
-	int full;
 
+	if (ctx->pos < 0)
+		return -EINVAL;
+
+	if (!dir_emit_dots(file, ctx))
+		return 0;
+
+	pos = ctx->pos - 2;
 	BUG_ON(pos < 0);
-	for (;; pos++) {
+	for (;; pos++, ctx->pos++) {
+		bool full;
 		if (beyond_eof(dir, pos))
 			break;
 		if (!logfs_exist_block(dir, pos)) {
@@ -306,40 +312,15 @@ static int __logfs_readdir(struct file *file, void *buf, filldir_t filldir)
 		dd = kmap(page);
 		BUG_ON(dd->namelen == 0);
 
-		full = filldir(buf, (char *)dd->name, be16_to_cpu(dd->namelen),
-				pos, be64_to_cpu(dd->ino), dd->type);
+		full = !dir_emit(ctx, (char *)dd->name,
+				be16_to_cpu(dd->namelen),
+				be64_to_cpu(dd->ino), dd->type);
 		kunmap(page);
 		page_cache_release(page);
 		if (full)
 			break;
 	}
-
-	file->f_pos = pos + IMPLICIT_NODES;
 	return 0;
-}
-
-static int logfs_readdir(struct file *file, void *buf, filldir_t filldir)
-{
-	struct inode *inode = file_inode(file);
-	ino_t pino = parent_ino(file->f_dentry);
-	int err;
-
-	if (file->f_pos < 0)
-		return -EINVAL;
-
-	if (file->f_pos == 0) {
-		if (filldir(buf, ".", 1, 1, inode->i_ino, DT_DIR) < 0)
-			return 0;
-		file->f_pos++;
-	}
-	if (file->f_pos == 1) {
-		if (filldir(buf, "..", 2, 2, pino, DT_DIR) < 0)
-			return 0;
-		file->f_pos++;
-	}
-
-	err = __logfs_readdir(file, buf, filldir);
-	return err;
 }
 
 static void logfs_set_name(struct logfs_disk_dentry *dd, struct qstr *name)
@@ -814,7 +795,7 @@ const struct inode_operations logfs_dir_iops = {
 const struct file_operations logfs_dir_fops = {
 	.fsync		= logfs_fsync,
 	.unlocked_ioctl	= logfs_ioctl,
-	.readdir	= logfs_readdir,
+	.iterate	= logfs_readdir,
 	.read		= generic_read_dir,
 	.llseek		= default_llseek,
 };
