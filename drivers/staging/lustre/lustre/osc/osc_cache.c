@@ -2620,7 +2620,7 @@ int osc_queue_sync_pages(const struct lu_env *env, struct osc_object *obj,
 {
 	struct client_obd     *cli = osc_cli(obj);
 	struct osc_extent     *ext;
-	struct osc_async_page *oap;
+	struct osc_async_page *oap, *tmp;
 	int     page_count = 0;
 	int     mppr       = cli->cl_max_pages_per_rpc;
 	pgoff_t start      = CL_PAGE_EOF;
@@ -2639,7 +2639,7 @@ int osc_queue_sync_pages(const struct lu_env *env, struct osc_object *obj,
 
 	ext = osc_extent_alloc(obj);
 	if (ext == NULL) {
-		list_for_each_entry(oap, list, oap_pending_item) {
+		list_for_each_entry_safe(oap, tmp, list, oap_pending_item) {
 			list_del_init(&oap->oap_pending_item);
 			osc_ap_completion(env, cli, oap, 0, -ENOMEM);
 		}
