@@ -15,8 +15,8 @@ endef
 quiet_cmd_offsets = GEN     $@
 define cmd_offsets
 	(set -e; \
-	 echo "#ifndef __DEVICEVTABLE_OFFSETS_H__"; \
-	 echo "#define __DEVICEVTABLE_OFFSETS_H__"; \
+	 echo "#ifndef __DEVICETABLE_OFFSETS_H__"; \
+	 echo "#define __DEVICETABLE_OFFSETS_H__"; \
 	 echo "/*"; \
 	 echo " * DO NOT MODIFY."; \
 	 echo " *"; \
