@@ -449,6 +449,7 @@ void omap4xxx_check_revision(void);
 void omap5xxx_check_revision(void);
 void omap3xxx_check_features(void);
 void ti81xx_check_features(void);
+void am33xx_check_features(void);
 void omap4xxx_check_features(void);
 
 /*

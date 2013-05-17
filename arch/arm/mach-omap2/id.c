@@ -304,6 +304,19 @@ void __init ti81xx_check_features(void)
 	omap3_cpuinfo();
 }
 
+void __init am33xx_check_features(void)
+{
+	u32 status;
+
+	omap_features = OMAP3_HAS_NEON;
+
+	status = omap_ctrl_readl(AM33XX_DEV_FEATURE);
+	if (status & AM33XX_SGX_MASK)
+		omap_features |= OMAP3_HAS_SGX;
+
+	omap3_cpuinfo();
+}
+
 void __init omap3xxx_check_revision(void)
 {
 	const char *cpu_rev;
