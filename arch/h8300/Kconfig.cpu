@@ -64,6 +64,7 @@ choice
 
 config H83002
 	bool "H8/3001,3002,3003"
+	depends on BROKEN
 	select CPU_H8300H
 
 config H83007
@@ -72,6 +73,7 @@ config H83007
 
 config H83048
 	bool "H8/3044,3045,3046,3047,3048,3052"
+	depends on BROKEN
 	select CPU_H8300H
 
 config H83068
