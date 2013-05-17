@@ -1771,20 +1771,7 @@ static struct usb_driver btmtk_usb_driver = {
 	.disable_hub_initiated_lpm = 1,
 };
 
-static int __init btmtk_usb_init(void)
-{
-	BT_INFO("btmtk usb driver ver %s", VERSION);
-
-	return usb_register(&btmtk_usb_driver);
-}
-
-static void __exit btmtk_usb_exit(void)
-{
-	usb_deregister(&btmtk_usb_driver);
-}
-
-module_init(btmtk_usb_init);
-module_exit(btmtk_usb_exit);
+module_usb_driver(btmtk_usb_driver);
 
 MODULE_DESCRIPTION("Mediatek Bluetooth USB driver ver " VERSION);
 MODULE_VERSION(VERSION);
