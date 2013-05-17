@@ -604,26 +604,31 @@ static int frac_div_get_seting(unsigned long rate_out, unsigned long rate,
 
 /*********************pll lock status**********************************/
 //#define GRF_SOC_CON0       0x15c
-static void pll_wait_lock(int pll_idx)
+static int pll_wait_lock(int pll_idx)
 {
 	u32 pll_state[4] = {1, 0, 2, 3};
 	u32 bit = 0x20u << pll_state[pll_idx];
 	int delay = 24000000;
+
 	while (delay > 0) {
 		if (regfile_readl(GRF_SOC_STATUS0) & bit)
 			break;
 		delay--;
 	}
+
 	if (delay == 0) {
 		CLKDATA_ERR("PLL_ID=%d\npll_con0=%08x\npll_con1=%08x\npll_con2=%08x\npll_con3=%08x\n", pll_idx,
-				cru_readl(PLL_CONS(pll_idx, 0)),
-				cru_readl(PLL_CONS(pll_idx, 1)),
-				cru_readl(PLL_CONS(pll_idx, 2)),
-				cru_readl(PLL_CONS(pll_idx, 3)));
+			cru_readl(PLL_CONS(pll_idx, 0)),
+			cru_readl(PLL_CONS(pll_idx, 1)),
+			cru_readl(PLL_CONS(pll_idx, 2)),
+			cru_readl(PLL_CONS(pll_idx, 3)));
+		CLKDATA_ERR("wait pll stat:%8x bit 0x%x time out!\n", regfile_readl(GRF_SOC_STATUS0), bit);
 
-		CLKDATA_ERR("wait pll bit 0x%x time out!\n", bit);
-		while(1);
+		rk30_clock_udelay(1000);
+		return -1;
 	}
+
+	return 0;
 }
 
 
@@ -959,22 +964,33 @@ static int arm_pll_clk_set_rate(struct clk *clk, unsigned long rate)
 
 	/*if core src don't select gpll ,apll neet to enter slow mode */
 	//cru_writel(PLL_MODE_SLOW(APLL_ID), CRU_MODE_CON);
+	do{
+		cru_writel(ps->pllcon0, PLL_CONS(pll_id, 0));
+		cru_writel(ps->pllcon1, PLL_CONS(pll_id, 1));
+
+		cru_writel((0x1<<(16+1))|(0x1<<1), PLL_CONS(pll_id, 3));
+
+		if (!(0x02 & cru_readl(PLL_CONS(pll_id, 3))))
+			CLKDATA_ERR("enter pll pwdn err: pll_id(%d), PLL_CONS3(%x)\n", pll_id, cru_readl(PLL_CONS(pll_id, 3)));
 
 
-	cru_writel((0x1<<(16+1))|(0x1<<1), PLL_CONS(pll_id, 3));
-	dsb();
-	dsb();
-	dsb();
-	dsb();
-	dsb();
-	dsb();
-	cru_writel(ps->pllcon0, PLL_CONS(pll_id, 0));
-	cru_writel(ps->pllcon1, PLL_CONS(pll_id, 1));
+		cru_writel(ps->pllcon0, PLL_CONS(pll_id, 0));
+		cru_writel(ps->pllcon1, PLL_CONS(pll_id, 1));
 
-	rk30_clock_udelay(1);
-	cru_writel((0x1<<(16+1)), PLL_CONS(pll_id, 3));
+		if (((ps->pllcon0&0xffff) != cru_readl(PLL_CONS(pll_id, 0)))
+			||((ps->pllcon1&0xffff) != cru_readl(PLL_CONS(pll_id, 1)))){
+			CLKDATA_ERR("set pll err:pllcon0:%x,pllcon1:%x\n", ps->pllcon0, ps->pllcon1);
+			CLKDATA_ERR("set pll err:id(%d),con0(%x), con1(%x)\n",
+				pll_id, cru_readl(PLL_CONS(pll_id, 0)), cru_readl(PLL_CONS(pll_id, 1)));
+		}
 
-	pll_wait_lock(pll_id);
+		rk30_clock_udelay(1);
+
+		cru_writel((0x1<<(16+1)), PLL_CONS(pll_id, 3));
+
+		if (0x02 & cru_readl(PLL_CONS(pll_id, 3)))
+			printk("quit pwdn err:pll_id(%d), PLL_CONS3:(%x)\n", pll_id, cru_readl(PLL_CONS(pll_id, 3)));
+	} while (pll_wait_lock(pll_id));
 
 	//return form slow
 	//cru_writel(PLL_MODE_NORM(APLL_ID), CRU_MODE_CON);
