@@ -209,6 +209,39 @@ struct usb_interface *usb_find_interface(struct usb_driver *drv, int minor)
 }
 EXPORT_SYMBOL_GPL(usb_find_interface);
 
+struct each_dev_arg {
+	void *data;
+	int (*fn)(struct usb_device *, void *);
+};
+
+static int __each_dev(struct device *dev, void *data)
+{
+	struct each_dev_arg *arg = (struct each_dev_arg *)data;
+
+	/* There are struct usb_interface on the same bus, filter them out */
+	if (!is_usb_device(dev))
+		return 0;
+
+	return arg->fn(container_of(dev, struct usb_device, dev), arg->data);
+}
+
+/**
+ * usb_for_each_dev - iterate over all USB devices in the system
+ * @data: data pointer that will be handed to the callback function
+ * @fn: callback function to be called for each USB device
+ *
+ * Iterate over all USB devices and call @fn for each, passing it @data. If it
+ * returns anything other than 0, we break the iteration prematurely and return
+ * that value.
+ */
+int usb_for_each_dev(void *data, int (*fn)(struct usb_device *, void *))
+{
+	struct each_dev_arg arg = {data, fn};
+
+	return bus_for_each_dev(&usb_bus_type, NULL, &arg, __each_dev);
+}
+EXPORT_SYMBOL_GPL(usb_for_each_dev);
+
 /**
  * usb_release_dev - free a usb device structure when all users of it are finished.
  * @dev: device that's been disconnected
