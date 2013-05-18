@@ -1961,28 +1961,6 @@ static void check_page_uptodate(struct extent_io_tree *tree, struct page *page)
 }
 
 /*
- * helper function to unlock a page if all the extents in the tree
- * for that page are unlocked
- */
-static void check_page_locked(struct extent_io_tree *tree, struct page *page)
-{
-	u64 start = page_offset(page);
-	u64 end = start + PAGE_CACHE_SIZE - 1;
-	if (!test_range_bit(tree, start, end, EXTENT_LOCKED, 0, NULL))
-		unlock_page(page);
-}
-
-/*
- * helper function to end page writeback if all the extents
- * in the tree for that page are done with writeback
- */
-static void check_page_writeback(struct extent_io_tree *tree,
-				 struct page *page)
-{
-	end_page_writeback(page);
-}
-
-/*
  * When IO fails, either with EIO or csum verification fails, we
  * try other mirrors that might have a good copy of the data.  This
  * io_failure_record is used to record state as we go through all the
@@ -2411,19 +2389,24 @@ static void end_bio_extent_writepage(struct bio *bio, int err)
 	struct extent_io_tree *tree;
 	u64 start;
 	u64 end;
-	int whole_page;
 
 	do {
 		struct page *page = bvec->bv_page;
 		tree = &BTRFS_I(page->mapping->host)->io_tree;
 
-		start = page_offset(page) + bvec->bv_offset;
-		end = start + bvec->bv_len - 1;
+		/* We always issue full-page reads, but if some block
+		 * in a page fails to read, blk_update_request() will
+		 * advance bv_offset and adjust bv_len to compensate.
+		 * Print a warning for nonzero offsets, and an error
+		 * if they don't add up to a full page.  */
+		if (bvec->bv_offset || bvec->bv_len != PAGE_CACHE_SIZE)
+			printk("%s page write in btrfs with offset %u and length %u\n",
+			       bvec->bv_offset + bvec->bv_len != PAGE_CACHE_SIZE
+			       ? KERN_ERR "partial" : KERN_INFO "incomplete",
+			       bvec->bv_offset, bvec->bv_len);
 
-		if (bvec->bv_offset == 0 && bvec->bv_len == PAGE_CACHE_SIZE)
-			whole_page = 1;
-		else
-			whole_page = 0;
+		start = page_offset(page);
+		end = start + bvec->bv_offset + bvec->bv_len - 1;
 
 		if (--bvec >= bio->bi_io_vec)
 			prefetchw(&bvec->bv_page->flags);
@@ -2431,10 +2414,7 @@ static void end_bio_extent_writepage(struct bio *bio, int err)
 		if (end_extent_writepage(page, err, start, end))
 			continue;
 
-		if (whole_page)
-			end_page_writeback(page);
-		else
-			check_page_writeback(tree, page);
+		end_page_writeback(page);
 	} while (bvec >= bio->bi_io_vec);
 
 	bio_put(bio);
@@ -2459,7 +2439,6 @@ static void end_bio_extent_readpage(struct bio *bio, int err)
 	struct extent_io_tree *tree;
 	u64 start;
 	u64 end;
-	int whole_page;
 	int mirror;
 	int ret;
 
@@ -2477,13 +2456,19 @@ static void end_bio_extent_readpage(struct bio *bio, int err)
 			 io_bio->mirror_num);
 		tree = &BTRFS_I(page->mapping->host)->io_tree;
 
-		start = page_offset(page) + bvec->bv_offset;
-		end = start + bvec->bv_len - 1;
+		/* We always issue full-page reads, but if some block
+		 * in a page fails to read, blk_update_request() will
+		 * advance bv_offset and adjust bv_len to compensate.
+		 * Print a warning for nonzero offsets, and an error
+		 * if they don't add up to a full page.  */
+		if (bvec->bv_offset || bvec->bv_len != PAGE_CACHE_SIZE)
+			printk("%s page read in btrfs with offset %u and length %u\n",
+			       bvec->bv_offset + bvec->bv_len != PAGE_CACHE_SIZE
+			       ? KERN_ERR "partial" : KERN_INFO "incomplete",
+			       bvec->bv_offset, bvec->bv_len);
 
-		if (bvec->bv_offset == 0 && bvec->bv_len == PAGE_CACHE_SIZE)
-			whole_page = 1;
-		else
-			whole_page = 0;
+		start = page_offset(page);
+		end = start + bvec->bv_offset + bvec->bv_len - 1;
 
 		if (++bvec <= bvec_end)
 			prefetchw(&bvec->bv_page->flags);
@@ -2542,23 +2527,13 @@ static void end_bio_extent_readpage(struct bio *bio, int err)
 		}
 		unlock_extent_cached(tree, start, end, &cached, GFP_ATOMIC);
 
-		if (whole_page) {
-			if (uptodate) {
-				SetPageUptodate(page);
-			} else {
-				ClearPageUptodate(page);
-				SetPageError(page);
-			}
-			unlock_page(page);
+		if (uptodate) {
+			SetPageUptodate(page);
 		} else {
-			if (uptodate) {
-				check_page_uptodate(tree, page);
-			} else {
-				ClearPageUptodate(page);
-				SetPageError(page);
-			}
-			check_page_locked(tree, page);
+			ClearPageUptodate(page);
+			SetPageError(page);
 		}
+		unlock_page(page);
 	} while (bvec <= bvec_end);
 
 	bio_put(bio);
@@ -4022,7 +3997,7 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		last_for_get_extent = isize;
 	}
 
-	lock_extent_bits(&BTRFS_I(inode)->io_tree, start, start + len, 0,
+	lock_extent_bits(&BTRFS_I(inode)->io_tree, start, start + len - 1, 0,
 			 &cached_state);
 
 	em = get_extent_skip_holes(inode, start, last_for_get_extent,
@@ -4109,7 +4084,7 @@ int extent_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 out_free:
 	free_extent_map(em);
 out:
-	unlock_extent_cached(&BTRFS_I(inode)->io_tree, start, start + len,
+	unlock_extent_cached(&BTRFS_I(inode)->io_tree, start, start + len - 1,
 			     &cached_state, GFP_NOFS);
 	return ret;
 }
