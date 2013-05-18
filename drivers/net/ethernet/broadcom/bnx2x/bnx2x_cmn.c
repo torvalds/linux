@@ -4599,6 +4599,7 @@ int bnx2x_set_features(struct net_device *dev, netdev_features_t features)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 	u32 flags = bp->flags;
+	u32 changes;
 	bool bnx2x_reload = false;
 
 	if (features & NETIF_F_LRO)
@@ -4623,10 +4624,16 @@ int bnx2x_set_features(struct net_device *dev, netdev_features_t features)
 		}
 	}
 
-	if (flags ^ bp->flags) {
-		bp->flags = flags;
+	changes = flags ^ bp->flags;
+
+	/* if GRO is changed while LRO is enabled, dont force a reload */
+	if ((changes & GRO_ENABLE_FLAG) && (flags & TPA_ENABLE_FLAG))
+		changes &= ~GRO_ENABLE_FLAG;
+
+	if (changes)
 		bnx2x_reload = true;
-	}
+
+	bp->flags = flags;
 
 	if (bnx2x_reload) {
 		if (bp->recovery_state == BNX2X_RECOVERY_DONE)
