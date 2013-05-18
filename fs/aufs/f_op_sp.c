@@ -22,6 +22,7 @@
  * their file I/O is handled out of aufs.
  */
 
+#include <linux/aio.h>
 #include "aufs.h"
 
 /*
