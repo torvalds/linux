@@ -4540,26 +4540,23 @@ static int tg3_init_5401phy_dsp(struct tg3 *tp)
 
 static bool tg3_phy_eee_config_ok(struct tg3 *tp)
 {
-	u32 val;
-	u32 tgtadv = 0;
-	u32 advertising = tp->link_config.advertising;
+	struct ethtool_eee eee;
 
 	if (!(tp->phy_flags & TG3_PHYFLG_EEE_CAP))
 		return true;
 
-	if (tg3_phy_cl45_read(tp, MDIO_MMD_AN, MDIO_AN_EEE_ADV, &val))
-		return false;
+	tg3_eee_pull_config(tp, &eee);
 
-	val &= (MDIO_AN_EEE_ADV_100TX | MDIO_AN_EEE_ADV_1000T);
-
-
-	if (advertising & ADVERTISED_100baseT_Full)
-		tgtadv |= MDIO_AN_EEE_ADV_100TX;
-	if (advertising & ADVERTISED_1000baseT_Full)
-		tgtadv |= MDIO_AN_EEE_ADV_1000T;
-
-	if (val != tgtadv)
-		return false;
+	if (tp->eee.eee_enabled) {
+		if (tp->eee.advertised != eee.advertised ||
+		    tp->eee.tx_lpi_timer != eee.tx_lpi_timer ||
+		    tp->eee.tx_lpi_enabled != eee.tx_lpi_enabled)
+			return false;
+	} else {
+		/* EEE is disabled but we're advertising */
+		if (eee.advertised)
+			return false;
+	}
 
 	return true;
 }
@@ -4862,8 +4859,10 @@ static int tg3_setup_copper_phy(struct tg3 *tp, bool force_reset)
 			 */
 			if (!eee_config_ok &&
 			    (tp->phy_flags & TG3_PHYFLG_KEEP_LINK_ON_PWRDN) &&
-			    !force_reset)
+			    !force_reset) {
+				tg3_setup_eee(tp);
 				tg3_phy_reset(tp);
+			}
 		} else {
 			if (!(bmcr & BMCR_ANENABLE) &&
 			    tp->link_config.speed == current_speed &&
