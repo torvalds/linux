@@ -1231,6 +1231,51 @@ static int mwifiex_cfg80211_change_beacon(struct wiphy *wiphy,
 	return 0;
 }
 
+/* cfg80211 operation handler for del_station.
+ * Function deauthenticates station which value is provided in mac parameter.
+ * If mac is NULL/broadcast, all stations in associated station list are
+ * deauthenticated. If bss is not started or there are no stations in
+ * associated stations list, no action is taken.
+ */
+static int
+mwifiex_cfg80211_del_station(struct wiphy *wiphy, struct net_device *dev,
+			     u8 *mac)
+{
+	struct mwifiex_private *priv = mwifiex_netdev_get_priv(dev);
+	struct mwifiex_sta_node *sta_node;
+	unsigned long flags;
+
+	if (list_empty(&priv->sta_list) || !priv->bss_started)
+		return 0;
+
+	if (!mac || is_broadcast_ether_addr(mac)) {
+		wiphy_dbg(wiphy, "%s: NULL/broadcast mac address\n", __func__);
+		list_for_each_entry(sta_node, &priv->sta_list, list) {
+			if (mwifiex_send_cmd_sync(priv,
+						  HostCmd_CMD_UAP_STA_DEAUTH,
+						  HostCmd_ACT_GEN_SET, 0,
+						  sta_node->mac_addr))
+				return -1;
+			mwifiex_uap_del_sta_data(priv, sta_node);
+		}
+	} else {
+		wiphy_dbg(wiphy, "%s: mac address %pM\n", __func__, mac);
+		spin_lock_irqsave(&priv->sta_list_spinlock, flags);
+		sta_node = mwifiex_get_sta_entry(priv, mac);
+		spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
+		if (sta_node) {
+			if (mwifiex_send_cmd_sync(priv,
+						  HostCmd_CMD_UAP_STA_DEAUTH,
+						  HostCmd_ACT_GEN_SET, 0,
+						  sta_node->mac_addr))
+				return -1;
+			mwifiex_uap_del_sta_data(priv, sta_node);
+		}
+	}
+
+	return 0;
+}
+
 static int
 mwifiex_cfg80211_set_antenna(struct wiphy *wiphy, u32 tx_ant, u32 rx_ant)
 {
@@ -2425,6 +2470,7 @@ static struct cfg80211_ops mwifiex_cfg80211_ops = {
 	.change_beacon = mwifiex_cfg80211_change_beacon,
 	.set_cqm_rssi_config = mwifiex_cfg80211_set_cqm_rssi_config,
 	.set_antenna = mwifiex_cfg80211_set_antenna,
+	.del_station = mwifiex_cfg80211_del_station,
 #ifdef CONFIG_PM
 	.suspend = mwifiex_cfg80211_suspend,
 	.resume = mwifiex_cfg80211_resume,
