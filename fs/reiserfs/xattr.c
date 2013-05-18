@@ -171,6 +171,7 @@ static struct dentry *open_xa_dir(const struct inode *inode, int flags)
  * modifying extended attributes. This includes operations such as permissions
  * or ownership changes, object deletions, etc. */
 struct reiserfs_dentry_buf {
+	struct dir_context ctx;
 	struct dentry *xadir;
 	int count;
 	struct dentry *dentries[8];
@@ -223,9 +224,8 @@ static int reiserfs_for_each_xattr(struct inode *inode,
 {
 	struct dentry *dir;
 	int i, err = 0;
-	loff_t pos = 0;
 	struct reiserfs_dentry_buf buf = {
-		.count = 0,
+		.ctx.actor = fill_with_dentries,
 	};
 
 	/* Skip out, an xattr has no xattrs associated with it */
@@ -249,7 +249,7 @@ static int reiserfs_for_each_xattr(struct inode *inode,
 	reiserfs_write_lock(inode->i_sb);
 
 	buf.xadir = dir;
-	err = reiserfs_readdir_dentry(dir, &buf, fill_with_dentries, &pos);
+	err = reiserfs_readdir_dentry(dir, &buf.ctx);
 	while ((err == 0 || err == -ENOSPC) && buf.count) {
 		err = 0;
 
@@ -266,8 +266,7 @@ static int reiserfs_for_each_xattr(struct inode *inode,
 		}
 		buf.count = 0;
 		if (!err)
-			err = reiserfs_readdir_dentry(dir, &buf,
-						      fill_with_dentries, &pos);
+			err = reiserfs_readdir_dentry(dir, &buf.ctx);
 	}
 	mutex_unlock(&dir->d_inode->i_mutex);
 
@@ -800,6 +799,7 @@ int reiserfs_removexattr(struct dentry *dentry, const char *name)
 }
 
 struct listxattr_buf {
+	struct dir_context ctx;
 	size_t size;
 	size_t pos;
 	char *buf;
@@ -845,8 +845,8 @@ ssize_t reiserfs_listxattr(struct dentry * dentry, char *buffer, size_t size)
 {
 	struct dentry *dir;
 	int err = 0;
-	loff_t pos = 0;
 	struct listxattr_buf buf = {
+		.ctx.actor = listxattr_filler,
 		.dentry = dentry,
 		.buf = buffer,
 		.size = buffer ? size : 0,
@@ -868,7 +868,7 @@ ssize_t reiserfs_listxattr(struct dentry * dentry, char *buffer, size_t size)
 	}
 
 	mutex_lock_nested(&dir->d_inode->i_mutex, I_MUTEX_XATTR);
-	err = reiserfs_readdir_dentry(dir, &buf, listxattr_filler, &pos);
+	err = reiserfs_readdir_dentry(dir, &buf.ctx);
 	mutex_unlock(&dir->d_inode->i_mutex);
 
 	if (!err)
