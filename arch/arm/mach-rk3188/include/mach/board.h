@@ -75,8 +75,12 @@ enum _codec_pll {
 
 #define RK30_CLOCKS_DEFAULT_FLAGS (CLK_FLG_MAX_I2S_12288KHZ/*|CLK_FLG_EXT_27MHZ*/)
 
-#define codec_pll_default codec_pll_594mhz
-#define periph_pll_default periph_pll_384mhz
+//#define codec_pll_default codec_pll_594mhz
+//#define periph_pll_default periph_pll_384mhz
+
+#define codec_pll_default codec_pll_798mhz
+#define periph_pll_default periph_pll_594mhz
+
 #endif
 
 
