@@ -4304,6 +4304,10 @@ static void rt2800_init_bbp_3572(struct rt2x00_dev *rt2x00dev)
 
 static void rt2800_init_bbp_53xx(struct rt2x00_dev *rt2x00dev)
 {
+	int ant, div_mode;
+	u16 eeprom;
+	u8 value;
+
 	rt2800_bbp4_mac_if_ctrl(rt2x00dev);
 
 	rt2800_bbp_write(rt2x00dev, 31, 0x08);
@@ -4367,6 +4371,43 @@ static void rt2800_init_bbp_53xx(struct rt2x00_dev *rt2x00dev)
 	}
 
 	rt2800_disable_unused_dac_adc(rt2x00dev);
+
+	rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC_CONF1, &eeprom);
+	div_mode = rt2x00_get_field16(eeprom,
+				      EEPROM_NIC_CONF1_ANT_DIVERSITY);
+	ant = (div_mode == 3) ? 1 : 0;
+
+	/* check if this is a Bluetooth combo card */
+	if (test_bit(CAPABILITY_BT_COEXIST, &rt2x00dev->cap_flags)) {
+		u32 reg;
+
+		rt2800_register_read(rt2x00dev, GPIO_CTRL, &reg);
+		rt2x00_set_field32(&reg, GPIO_CTRL_DIR3, 0);
+		rt2x00_set_field32(&reg, GPIO_CTRL_DIR6, 0);
+		rt2x00_set_field32(&reg, GPIO_CTRL_VAL3, 0);
+		rt2x00_set_field32(&reg, GPIO_CTRL_VAL6, 0);
+		if (ant == 0)
+			rt2x00_set_field32(&reg, GPIO_CTRL_VAL3, 1);
+		else if (ant == 1)
+			rt2x00_set_field32(&reg, GPIO_CTRL_VAL6, 1);
+		rt2800_register_write(rt2x00dev, GPIO_CTRL, reg);
+	}
+
+	/* This chip has hardware antenna diversity*/
+	if (rt2x00_rt_rev_gte(rt2x00dev, RT5390, REV_RT5390R)) {
+		rt2800_bbp_write(rt2x00dev, 150, 0); /* Disable Antenna Software OFDM */
+		rt2800_bbp_write(rt2x00dev, 151, 0); /* Disable Antenna Software CCK */
+		rt2800_bbp_write(rt2x00dev, 154, 0); /* Clear previously selected antenna */
+	}
+
+	rt2800_bbp_read(rt2x00dev, 152, &value);
+	if (ant == 0)
+		rt2x00_set_field8(&value, BBP152_RX_DEFAULT_ANT, 1);
+	else
+		rt2x00_set_field8(&value, BBP152_RX_DEFAULT_ANT, 0);
+	rt2800_bbp_write(rt2x00dev, 152, value);
+
+	rt2800_init_freq_calibration(rt2x00dev);
 }
 
 static void rt2800_init_bbp_5592(struct rt2x00_dev *rt2x00dev)
@@ -4483,48 +4524,6 @@ static void rt2800_init_bbp(struct rt2x00_dev *rt2x00dev)
 	case RT5592:
 		rt2800_init_bbp_5592(rt2x00dev);
 		return;
-	}
-
-	if (rt2x00_rt(rt2x00dev, RT5390) ||
-	    rt2x00_rt(rt2x00dev, RT5392)) {
-		int ant, div_mode;
-
-		rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC_CONF1, &eeprom);
-		div_mode = rt2x00_get_field16(eeprom,
-					      EEPROM_NIC_CONF1_ANT_DIVERSITY);
-		ant = (div_mode == 3) ? 1 : 0;
-
-		/* check if this is a Bluetooth combo card */
-		if (test_bit(CAPABILITY_BT_COEXIST, &rt2x00dev->cap_flags)) {
-			u32 reg;
-
-			rt2800_register_read(rt2x00dev, GPIO_CTRL, &reg);
-			rt2x00_set_field32(&reg, GPIO_CTRL_DIR3, 0);
-			rt2x00_set_field32(&reg, GPIO_CTRL_DIR6, 0);
-			rt2x00_set_field32(&reg, GPIO_CTRL_VAL3, 0);
-			rt2x00_set_field32(&reg, GPIO_CTRL_VAL6, 0);
-			if (ant == 0)
-				rt2x00_set_field32(&reg, GPIO_CTRL_VAL3, 1);
-			else if (ant == 1)
-				rt2x00_set_field32(&reg, GPIO_CTRL_VAL6, 1);
-			rt2800_register_write(rt2x00dev, GPIO_CTRL, reg);
-		}
-
-		/* This chip has hardware antenna diversity*/
-		if (rt2x00_rt_rev_gte(rt2x00dev, RT5390, REV_RT5390R)) {
-			rt2800_bbp_write(rt2x00dev, 150, 0); /* Disable Antenna Software OFDM */
-			rt2800_bbp_write(rt2x00dev, 151, 0); /* Disable Antenna Software CCK */
-			rt2800_bbp_write(rt2x00dev, 154, 0); /* Clear previously selected antenna */
-		}
-
-		rt2800_bbp_read(rt2x00dev, 152, &value);
-		if (ant == 0)
-			rt2x00_set_field8(&value, BBP152_RX_DEFAULT_ANT, 1);
-		else
-			rt2x00_set_field8(&value, BBP152_RX_DEFAULT_ANT, 0);
-		rt2800_bbp_write(rt2x00dev, 152, value);
-
-		rt2800_init_freq_calibration(rt2x00dev);
 	}
 
 	for (i = 0; i < EEPROM_BBP_SIZE; i++) {
