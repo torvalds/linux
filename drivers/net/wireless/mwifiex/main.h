@@ -492,7 +492,6 @@ struct mwifiex_private {
 	struct semaphore async_sem;
 	u8 report_scan_result;
 	struct cfg80211_scan_request *scan_request;
-	struct mwifiex_user_scan_cfg *user_scan_cfg;
 	u8 cfg_bssid[6];
 	struct wps wps;
 	u8 scan_block;
@@ -510,6 +509,7 @@ struct mwifiex_private {
 	u8 ap_11ac_enabled;
 	u32 mgmt_frame_mask;
 	struct mwifiex_roc_cfg roc_cfg;
+	bool scan_aborting;
 };
 
 enum mwifiex_ba_status {

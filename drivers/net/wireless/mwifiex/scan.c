@@ -1784,22 +1784,16 @@ check_next_scan:
 		if (priv->report_scan_result)
 			priv->report_scan_result = false;
 
-		if (priv->user_scan_cfg) {
-			if (priv->scan_request) {
-				dev_dbg(priv->adapter->dev,
-					"info: notifying scan done\n");
-				cfg80211_scan_done(priv->scan_request, 0);
-				priv->scan_request = NULL;
-			} else {
-				dev_dbg(priv->adapter->dev,
-					"info: scan already aborted\n");
-			}
-
-			kfree(priv->user_scan_cfg);
-			priv->user_scan_cfg = NULL;
+		if (priv->scan_request) {
+			dev_dbg(adapter->dev, "info: notifying scan done\n");
+			cfg80211_scan_done(priv->scan_request, 0);
+			priv->scan_request = NULL;
+		} else {
+			priv->scan_aborting = false;
+			dev_dbg(adapter->dev, "info: scan already aborted\n");
 		}
 	} else {
-		if (priv->user_scan_cfg && !priv->scan_request) {
+		if (priv->scan_aborting && !priv->scan_request) {
 			spin_unlock_irqrestore(&adapter->scan_pending_q_lock,
 					       flags);
 			adapter->scan_delay_cnt = MWIFIEX_MAX_SCAN_DELAY_CNT;

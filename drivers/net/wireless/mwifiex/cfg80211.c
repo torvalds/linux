@@ -1859,6 +1859,7 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy,
 	int i, offset, ret;
 	struct ieee80211_channel *chan;
 	struct ieee_types_header *ie;
+	struct mwifiex_user_scan_cfg *user_scan_cfg;
 
 	wiphy_dbg(wiphy, "info: received scan request on %s\n", dev->name);
 
@@ -1869,20 +1870,22 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy,
 		return -EBUSY;
 	}
 
-	if (priv->user_scan_cfg) {
+	/* Block scan request if scan operation or scan cleanup when interface
+	 * is disabled is in process
+	 */
+	if (priv->scan_request || priv->scan_aborting) {
 		dev_err(priv->adapter->dev, "cmd: Scan already in process..\n");
 		return -EBUSY;
 	}
 
-	priv->user_scan_cfg = kzalloc(sizeof(struct mwifiex_user_scan_cfg),
-				      GFP_KERNEL);
-	if (!priv->user_scan_cfg)
+	user_scan_cfg = kzalloc(sizeof(*user_scan_cfg), GFP_KERNEL);
+	if (!user_scan_cfg)
 		return -ENOMEM;
 
 	priv->scan_request = request;
 
-	priv->user_scan_cfg->num_ssids = request->n_ssids;
-	priv->user_scan_cfg->ssid_list = request->ssids;
+	user_scan_cfg->num_ssids = request->n_ssids;
+	user_scan_cfg->ssid_list = request->ssids;
 
 	if (request->ie && request->ie_len) {
 		offset = 0;
@@ -1902,25 +1905,25 @@ mwifiex_cfg80211_scan(struct wiphy *wiphy,
 	for (i = 0; i < min_t(u32, request->n_channels,
 			      MWIFIEX_USER_SCAN_CHAN_MAX); i++) {
 		chan = request->channels[i];
-		priv->user_scan_cfg->chan_list[i].chan_number = chan->hw_value;
-		priv->user_scan_cfg->chan_list[i].radio_type = chan->band;
+		user_scan_cfg->chan_list[i].chan_number = chan->hw_value;
+		user_scan_cfg->chan_list[i].radio_type = chan->band;
 
 		if (chan->flags & IEEE80211_CHAN_PASSIVE_SCAN)
-			priv->user_scan_cfg->chan_list[i].scan_type =
+			user_scan_cfg->chan_list[i].scan_type =
 						MWIFIEX_SCAN_TYPE_PASSIVE;
 		else
-			priv->user_scan_cfg->chan_list[i].scan_type =
+			user_scan_cfg->chan_list[i].scan_type =
 						MWIFIEX_SCAN_TYPE_ACTIVE;
 
-		priv->user_scan_cfg->chan_list[i].scan_time = 0;
+		user_scan_cfg->chan_list[i].scan_time = 0;
 	}
 
-	ret = mwifiex_scan_networks(priv, priv->user_scan_cfg);
+	ret = mwifiex_scan_networks(priv, user_scan_cfg);
+	kfree(user_scan_cfg);
 	if (ret) {
 		dev_err(priv->adapter->dev, "scan failed: %d\n", ret);
+		priv->scan_aborting = false;
 		priv->scan_request = NULL;
-		kfree(priv->user_scan_cfg);
-		priv->user_scan_cfg = NULL;
 		return ret;
 	}
 
