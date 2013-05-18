@@ -27,4 +27,26 @@
 			gpios = <&gpio3 16 0x1>;
 		};
 	};
+
+	/* The user LED on the board is set up to be used for heartbeat */
+	leds {
+		compatible = "gpio-leds";
+		user-led {
+			label = "user_led";
+			gpios = <&gpio0 2 0x1>;
+			default-state = "off";
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	/* User key mapped in as "escape" */
+	gpio-keys {
+		compatible = "gpio-keys";
+		user-button {
+			label = "user_button";
+			gpios = <&gpio0 3 0x1>;
+			linux,code = <1>; /* KEY_ESC */
+			gpio-key,wakeup;
+		};
+	};
 };
