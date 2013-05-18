@@ -1084,10 +1084,10 @@ static int mwifiex_sdio_card_to_host_mp_aggr(struct mwifiex_adapter *adapter,
 	if (f_aggr_cur) {
 		dev_dbg(adapter->dev, "info: current packet aggregation\n");
 		/* Curr pkt can be aggregated */
-		MP_RX_AGGR_SETUP(card, skb, port);
+		mp_rx_aggr_setup(card, skb, port);
 
 		if (MP_RX_AGGR_PKT_LIMIT_REACHED(card) ||
-		    MP_RX_AGGR_PORT_LIMIT_REACHED(card)) {
+		    mp_rx_aggr_port_limit_reached(card)) {
 			dev_dbg(adapter->dev, "info: %s: aggregated packet "
 				"limit reached\n", __func__);
 			/* No more pkts allowed in Aggr buf, rx it */
@@ -1358,7 +1358,7 @@ static int mwifiex_host_to_card_mp_aggr(struct mwifiex_adapter *adapter,
 			__func__);
 
 		if (MP_TX_AGGR_IN_PROGRESS(card)) {
-			if (!MP_TX_AGGR_PORT_LIMIT_REACHED(card) &&
+			if (!mp_tx_aggr_port_limit_reached(card) &&
 			    MP_TX_AGGR_BUF_HAS_ROOM(card, pkt_len)) {
 				f_precopy_cur_buf = 1;
 
@@ -1371,7 +1371,7 @@ static int mwifiex_host_to_card_mp_aggr(struct mwifiex_adapter *adapter,
 				/* No room in Aggr buf, send it */
 				f_send_aggr_buf = 1;
 
-				if (MP_TX_AGGR_PORT_LIMIT_REACHED(card) ||
+				if (mp_tx_aggr_port_limit_reached(card) ||
 				    !(card->mp_wr_bitmap &
 				      (1 << card->curr_wr_port)))
 					f_send_cur_buf = 1;
@@ -1410,7 +1410,7 @@ static int mwifiex_host_to_card_mp_aggr(struct mwifiex_adapter *adapter,
 		MP_TX_AGGR_BUF_PUT(card, payload, pkt_len, port);
 
 		if (MP_TX_AGGR_PKT_LIMIT_REACHED(card) ||
-		    MP_TX_AGGR_PORT_LIMIT_REACHED(card))
+		    mp_tx_aggr_port_limit_reached(card))
 			/* No more pkts allowed in Aggr buf, send it */
 			f_send_aggr_buf = 1;
 	}
@@ -1687,6 +1687,11 @@ static int mwifiex_init_sdio(struct mwifiex_adapter *adapter)
 	if (!card->mp_regs)
 		return -ENOMEM;
 
+	/* Allocate skb pointer buffers */
+	card->mpa_rx.skb_arr = kzalloc((sizeof(void *)) *
+				       card->mp_agg_pkt_limit, GFP_KERNEL);
+	card->mpa_rx.len_arr = kzalloc(sizeof(*card->mpa_rx.len_arr) *
+				       card->mp_agg_pkt_limit, GFP_KERNEL);
 	ret = mwifiex_alloc_sdio_mpa_buffers(adapter,
 					     SDIO_MP_TX_AGGR_DEF_BUF_SIZE,
 					     SDIO_MP_RX_AGGR_DEF_BUF_SIZE);
@@ -1723,6 +1728,8 @@ static void mwifiex_cleanup_sdio(struct mwifiex_adapter *adapter)
 	struct sdio_mmc_card *card = adapter->card;
 
 	kfree(card->mp_regs);
+	kfree(card->mpa_rx.skb_arr);
+	kfree(card->mpa_rx.len_arr);
 	kfree(card->mpa_tx.buf);
 	kfree(card->mpa_rx.buf);
 }

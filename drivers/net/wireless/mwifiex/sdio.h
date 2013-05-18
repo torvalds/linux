@@ -46,8 +46,6 @@
 #define CTRL_PORT			0
 #define CTRL_PORT_MASK			0x0001
 
-#define SDIO_MP_AGGR_DEF_PKT_LIMIT		8
-
 #define SDIO_MP_TX_AGGR_DEF_BUF_SIZE        (8192)	/* 8K */
 
 /* Multi port RX aggregation buffer size */
@@ -126,12 +124,6 @@
 #define MP_TX_AGGR_PKT_LIMIT_REACHED(a)					\
 			(a->mpa_tx.pkt_cnt == a->mpa_tx.pkt_aggr_limit)
 
-/* SDIO Tx aggregation port limit ? */
-#define MP_TX_AGGR_PORT_LIMIT_REACHED(a) ((a->curr_wr_port <		\
-			a->mpa_tx.start_port) && (((a->max_ports -\
-			a->mpa_tx.start_port) + a->curr_wr_port) >=	\
-				a->mp_agg_pkt_limit))
-
 /* Reset SDIO Tx aggregation buffer parameters */
 #define MP_TX_AGGR_BUF_RESET(a) do {					\
 	a->mpa_tx.pkt_cnt = 0;						\
@@ -144,32 +136,12 @@
 #define MP_RX_AGGR_PKT_LIMIT_REACHED(a)					\
 			(a->mpa_rx.pkt_cnt == a->mpa_rx.pkt_aggr_limit)
 
-/* SDIO Tx aggregation port limit ? */
-#define MP_RX_AGGR_PORT_LIMIT_REACHED(a) ((a->curr_rd_port <		\
-			a->mpa_rx.start_port) && (((a->max_ports -\
-			a->mpa_rx.start_port) + a->curr_rd_port) >=	\
-			a->mp_agg_pkt_limit))
-
 /* SDIO Rx aggregation in progress ? */
 #define MP_RX_AGGR_IN_PROGRESS(a) (a->mpa_rx.pkt_cnt > 0)
 
 /* SDIO Rx aggregation buffer room for next packet ? */
 #define MP_RX_AGGR_BUF_HAS_ROOM(a, rx_len)				\
 			((a->mpa_rx.buf_len+rx_len) <= a->mpa_rx.buf_size)
-
-/* Prepare to copy current packet from card to SDIO Rx aggregation buffer */
-#define MP_RX_AGGR_SETUP(a, skb, port) do {				\
-	a->mpa_rx.buf_len += skb->len;					\
-	if (!a->mpa_rx.pkt_cnt)						\
-		a->mpa_rx.start_port = port;				\
-	if (a->mpa_rx.start_port <= port)				\
-		a->mpa_rx.ports |= (1<<(a->mpa_rx.pkt_cnt));		\
-	else								\
-		a->mpa_rx.ports |= (1<<(a->mpa_rx.pkt_cnt+1));		\
-	a->mpa_rx.skb_arr[a->mpa_rx.pkt_cnt] = skb;			\
-	a->mpa_rx.len_arr[a->mpa_rx.pkt_cnt] = skb->len;		\
-	a->mpa_rx.pkt_cnt++;						\
-} while (0)
 
 /* Reset SDIO Rx aggregation buffer parameters */
 #define MP_RX_AGGR_BUF_RESET(a) do {					\
@@ -178,7 +150,6 @@
 	a->mpa_rx.ports = 0;						\
 	a->mpa_rx.start_port = 0;					\
 } while (0)
-
 
 /* data structure for SDIO MPA TX */
 struct mwifiex_sdio_mpa_tx {
@@ -200,8 +171,8 @@ struct mwifiex_sdio_mpa_rx {
 	u32 ports;
 	u16 start_port;
 
-	struct sk_buff *skb_arr[SDIO_MP_AGGR_DEF_PKT_LIMIT];
-	u32 len_arr[SDIO_MP_AGGR_DEF_PKT_LIMIT];
+	struct sk_buff **skb_arr;
+	u32 *len_arr;
 
 	u8 enabled;
 	u32 buf_size;
@@ -325,4 +296,54 @@ static inline int mwifiex_sdio_event_complete(struct mwifiex_adapter *adapter,
 	return 0;
 }
 
+static inline bool
+mp_rx_aggr_port_limit_reached(struct sdio_mmc_card *card)
+{
+	u8 tmp;
+
+	if (card->curr_rd_port < card->mpa_rx.start_port) {
+		tmp = card->mp_agg_pkt_limit;
+
+		if (((card->max_ports - card->mpa_rx.start_port) +
+		    card->curr_rd_port) >= tmp)
+			return true;
+	}
+
+	return false;
+}
+
+static inline bool
+mp_tx_aggr_port_limit_reached(struct sdio_mmc_card *card)
+{
+	u16 tmp;
+
+	if (card->curr_wr_port < card->mpa_tx.start_port) {
+		tmp = card->mp_agg_pkt_limit;
+
+		if (((card->max_ports - card->mpa_tx.start_port) +
+		    card->curr_wr_port) >= tmp)
+			return true;
+	}
+
+	return false;
+}
+
+/* Prepare to copy current packet from card to SDIO Rx aggregation buffer */
+static inline void mp_rx_aggr_setup(struct sdio_mmc_card *card,
+				    struct sk_buff *skb, u8 port)
+{
+	card->mpa_rx.buf_len += skb->len;
+
+	if (!card->mpa_rx.pkt_cnt)
+		card->mpa_rx.start_port = port;
+
+	if (card->mpa_rx.start_port <= port)
+		card->mpa_rx.ports |= 1 << (card->mpa_rx.pkt_cnt);
+	else
+		card->mpa_rx.ports |= 1 << (card->mpa_rx.pkt_cnt + 1);
+
+	card->mpa_rx.skb_arr[card->mpa_rx.pkt_cnt] = skb;
+	card->mpa_rx.len_arr[card->mpa_rx.pkt_cnt] = skb->len;
+	card->mpa_rx.pkt_cnt++;
+}
 #endif /* _MWIFIEX_SDIO_H */
