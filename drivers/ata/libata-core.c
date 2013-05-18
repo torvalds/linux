@@ -1602,6 +1602,12 @@ unsigned ata_exec_internal_sg(struct ata_device *dev,
 	qc->tf = *tf;
 	if (cdb)
 		memcpy(qc->cdb, cdb, ATAPI_CDB_LEN);
+
+	/* some SATA bridges need us to indicate data xfer direction */
+	if (tf->protocol == ATAPI_PROT_DMA && (dev->flags & ATA_DFLAG_DMADIR) &&
+	    dma_dir == DMA_FROM_DEVICE)
+		qc->tf.feature |= ATAPI_DMADIR;
+
 	qc->flags |= ATA_QCFLAG_RESULT_TF;
 	qc->dma_dir = dma_dir;
 	if (dma_dir != DMA_NONE) {
