@@ -235,7 +235,7 @@ static void ipgre_err(struct sk_buff *skb, u32 info)
 	   */
 	struct net *net = dev_net(skb->dev);
 	struct ip_tunnel_net *itn;
-	const struct iphdr *iph = (const struct iphdr *)skb->data;
+	const struct iphdr *iph;
 	const int type = icmp_hdr(skb)->type;
 	const int code = icmp_hdr(skb)->code;
 	struct ip_tunnel *t;
@@ -281,6 +281,7 @@ static void ipgre_err(struct sk_buff *skb, u32 info)
 	else
 		itn = net_generic(net, ipgre_net_id);
 
+	iph = (const struct iphdr *)skb->data;
 	t = ip_tunnel_lookup(itn, skb->dev->ifindex, tpi.flags,
 			     iph->daddr, iph->saddr, tpi.key);
 
