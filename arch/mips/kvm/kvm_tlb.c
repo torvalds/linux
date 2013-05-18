@@ -17,6 +17,8 @@
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/kvm_host.h>
+#include <linux/srcu.h>
+
 
 #include <asm/cpu.h>
 #include <asm/bootinfo.h>
@@ -169,21 +171,27 @@ void kvm_mips_dump_shadow_tlbs(struct kvm_vcpu *vcpu)
 	}
 }
 
-static void kvm_mips_map_page(struct kvm *kvm, gfn_t gfn)
+static int kvm_mips_map_page(struct kvm *kvm, gfn_t gfn)
 {
+	int srcu_idx, err = 0;
 	pfn_t pfn;
 
 	if (kvm->arch.guest_pmap[gfn] != KVM_INVALID_PAGE)
-		return;
+		return 0;
 
+        srcu_idx = srcu_read_lock(&kvm->srcu);
 	pfn = kvm_mips_gfn_to_pfn(kvm, gfn);
 
 	if (kvm_mips_is_error_pfn(pfn)) {
-		panic("Couldn't get pfn for gfn %#" PRIx64 "!\n", gfn);
+		kvm_err("Couldn't get pfn for gfn %#" PRIx64 "!\n", gfn);
+		err = -EFAULT;
+		goto out;
 	}
 
 	kvm->arch.guest_pmap[gfn] = pfn;
-	return;
+out:
+	srcu_read_unlock(&kvm->srcu, srcu_idx);
+	return err;
 }
 
 /* Translate guest KSEG0 addresses to Host PA */
@@ -207,7 +215,10 @@ unsigned long kvm_mips_translate_guest_kseg0_to_hpa(struct kvm_vcpu *vcpu,
 			gva);
 		return KVM_INVALID_PAGE;
 	}
-	kvm_mips_map_page(vcpu->kvm, gfn);
+
+	if (kvm_mips_map_page(vcpu->kvm, gfn) < 0)
+		return KVM_INVALID_ADDR;
+
 	return (kvm->arch.guest_pmap[gfn] << PAGE_SHIFT) + offset;
 }
 
@@ -310,8 +321,11 @@ int kvm_mips_handle_kseg0_tlb_fault(unsigned long badvaddr,
 	even = !(gfn & 0x1);
 	vaddr = badvaddr & (PAGE_MASK << 1);
 
-	kvm_mips_map_page(vcpu->kvm, gfn);
-	kvm_mips_map_page(vcpu->kvm, gfn ^ 0x1);
+	if (kvm_mips_map_page(vcpu->kvm, gfn) < 0)
+		return -1;
+
+	if (kvm_mips_map_page(vcpu->kvm, gfn ^ 0x1) < 0)
+		return -1;
 
 	if (even) {
 		pfn0 = kvm->arch.guest_pmap[gfn];
@@ -389,8 +403,11 @@ kvm_mips_handle_mapped_seg_tlb_fault(struct kvm_vcpu *vcpu,
 		pfn0 = 0;
 		pfn1 = 0;
 	} else {
-		kvm_mips_map_page(kvm, mips3_tlbpfn_to_paddr(tlb->tlb_lo0) >> PAGE_SHIFT);
-		kvm_mips_map_page(kvm, mips3_tlbpfn_to_paddr(tlb->tlb_lo1) >> PAGE_SHIFT);
+		if (kvm_mips_map_page(kvm, mips3_tlbpfn_to_paddr(tlb->tlb_lo0) >> PAGE_SHIFT) < 0)
+			return -1;
+
+		if (kvm_mips_map_page(kvm, mips3_tlbpfn_to_paddr(tlb->tlb_lo1) >> PAGE_SHIFT) < 0)
+			return -1;
 
 		pfn0 = kvm->arch.guest_pmap[mips3_tlbpfn_to_paddr(tlb->tlb_lo0) >> PAGE_SHIFT];
 		pfn1 = kvm->arch.guest_pmap[mips3_tlbpfn_to_paddr(tlb->tlb_lo1) >> PAGE_SHIFT];
