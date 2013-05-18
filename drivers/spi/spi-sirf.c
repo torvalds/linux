@@ -140,9 +140,6 @@ struct sirfsoc_spi {
 	unsigned int left_tx_cnt;
 	unsigned int left_rx_cnt;
 
-	/* tasklet to push tx msg into FIFO */
-	struct tasklet_struct tasklet_tx;
-
 	int chipselect[0];
 };
 
@@ -234,17 +231,6 @@ static void spi_sirfsoc_tx_word_u32(struct sirfsoc_spi *sspi)
 	sspi->left_tx_cnt--;
 }
 
-static void spi_sirfsoc_tasklet_tx(unsigned long arg)
-{
-	struct sirfsoc_spi *sspi = (struct sirfsoc_spi *)arg;
-
-	/* Fill Tx FIFO while there are left words to be transmitted */
-	while (!((readl(sspi->base + SIRFSOC_SPI_TXFIFO_STATUS) &
-			SIRFSOC_SPI_FIFO_FULL)) &&
-			sspi->left_tx_cnt)
-		sspi->tx_word(sspi);
-}
-
 static irqreturn_t spi_sirfsoc_irq(int irq, void *dev_id)
 {
 	struct sirfsoc_spi *sspi = dev_id;
@@ -259,25 +245,25 @@ static irqreturn_t spi_sirfsoc_irq(int irq, void *dev_id)
 		writel(0x0, sspi->base + SIRFSOC_SPI_INT_EN);
 	}
 
-	if (spi_stat & SIRFSOC_SPI_FRM_END) {
+	if (spi_stat & (SIRFSOC_SPI_FRM_END
+			| SIRFSOC_SPI_RXFIFO_THD_REACH))
 		while (!((readl(sspi->base + SIRFSOC_SPI_RXFIFO_STATUS)
 				& SIRFSOC_SPI_FIFO_EMPTY)) &&
 				sspi->left_rx_cnt)
 			sspi->rx_word(sspi);
 
-		/* Received all words */
-		if ((sspi->left_rx_cnt == 0) && (sspi->left_tx_cnt == 0)) {
-			complete(&sspi->done);
-			writel(0x0, sspi->base + SIRFSOC_SPI_INT_EN);
-		}
+	if (spi_stat & (SIRFSOC_SPI_FIFO_EMPTY
+			| SIRFSOC_SPI_TXFIFO_THD_REACH))
+		while (!((readl(sspi->base + SIRFSOC_SPI_TXFIFO_STATUS)
+				& SIRFSOC_SPI_FIFO_FULL)) &&
+				sspi->left_tx_cnt)
+			sspi->tx_word(sspi);
+
+	/* Received all words */
+	if ((sspi->left_rx_cnt == 0) && (sspi->left_tx_cnt == 0)) {
+		complete(&sspi->done);
+		writel(0x0, sspi->base + SIRFSOC_SPI_INT_EN);
 	}
-
-	if (spi_stat & SIRFSOC_SPI_RXFIFO_THD_REACH ||
-		spi_stat & SIRFSOC_SPI_TXFIFO_THD_REACH ||
-		spi_stat & SIRFSOC_SPI_RX_FIFO_FULL ||
-		spi_stat & SIRFSOC_SPI_TXFIFO_EMPTY)
-		tasklet_schedule(&sspi->tasklet_tx);
-
 	return IRQ_HANDLED;
 }
 
@@ -565,9 +551,6 @@ static int spi_sirfsoc_probe(struct platform_device *pdev)
 	sspi->ctrl_freq = clk_get_rate(sspi->clk);
 
 	init_completion(&sspi->done);
-
-	tasklet_init(&sspi->tasklet_tx, spi_sirfsoc_tasklet_tx,
-		     (unsigned long)sspi);
 
 	writel(SIRFSOC_SPI_FIFO_RESET, sspi->base + SIRFSOC_SPI_RXFIFO_OP);
 	writel(SIRFSOC_SPI_FIFO_RESET, sspi->base + SIRFSOC_SPI_TXFIFO_OP);
