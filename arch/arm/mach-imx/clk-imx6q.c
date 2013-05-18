@@ -505,7 +505,14 @@ int __init mx6q_clocks_init(void)
 	clk[ldb_di1]      = imx_clk_gate2("ldb_di1",       "ldb_di1_podf",      base + 0x74, 14);
 	clk[ipu2_di1]     = imx_clk_gate2("ipu2_di1",      "ipu2_di1_sel",      base + 0x74, 10);
 	clk[hsi_tx]       = imx_clk_gate2("hsi_tx",        "hsi_tx_podf",       base + 0x74, 16);
-	clk[mlb]          = imx_clk_gate2("mlb",           "axi",               base + 0x74, 18);
+	if (cpu_is_imx6dl())
+		/*
+		 * The multiplexer and divider of the imx6q clock gpu2d get
+		 * redefined/reused as mlb_sys_sel and mlb_sys_clk_podf on imx6dl.
+		 */
+		clk[mlb] = imx_clk_gate2("mlb",            "gpu2d_core_podf",   base + 0x74, 18);
+	else
+		clk[mlb] = imx_clk_gate2("mlb",            "axi",               base + 0x74, 18);
 	clk[mmdc_ch0_axi] = imx_clk_gate2("mmdc_ch0_axi",  "mmdc_ch0_axi_podf", base + 0x74, 20);
 	clk[mmdc_ch1_axi] = imx_clk_gate2("mmdc_ch1_axi",  "mmdc_ch1_axi_podf", base + 0x74, 22);
 	clk[ocram]        = imx_clk_gate2("ocram",         "ahb",               base + 0x74, 28);
