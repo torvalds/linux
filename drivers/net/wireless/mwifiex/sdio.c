@@ -512,22 +512,23 @@ static int mwifiex_get_rd_port(struct mwifiex_adapter *adapter, u8 *port)
 		*port = CTRL_PORT;
 		dev_dbg(adapter->dev, "data: port=%d mp_rd_bitmap=0x%08x\n",
 			*port, card->mp_rd_bitmap);
-	} else {
-		if (card->mp_rd_bitmap & (1 << card->curr_rd_port)) {
-			card->mp_rd_bitmap &= (u32)
-						(~(1 << card->curr_rd_port));
-			*port = card->curr_rd_port;
-
-			if (++card->curr_rd_port == card->max_ports)
-				card->curr_rd_port = reg->start_rd_port;
-		} else {
-			return -1;
-		}
-
-		dev_dbg(adapter->dev,
-			"data: port=%d mp_rd_bitmap=0x%08x -> 0x%08x\n",
-			*port, rd_bitmap, card->mp_rd_bitmap);
+		return 0;
 	}
+
+	if (!(card->mp_rd_bitmap & (1 << card->curr_rd_port)))
+		return -1;
+
+	/* We are now handling the SDIO data ports */
+	card->mp_rd_bitmap &= (u32)(~(1 << card->curr_rd_port));
+	*port = card->curr_rd_port;
+
+	if (++card->curr_rd_port == card->max_ports)
+		card->curr_rd_port = reg->start_rd_port;
+
+	dev_dbg(adapter->dev,
+		"data: port=%d mp_rd_bitmap=0x%08x -> 0x%08x\n",
+		*port, rd_bitmap, card->mp_rd_bitmap);
+
 	return 0;
 }
 
