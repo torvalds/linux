@@ -107,18 +107,15 @@ mwifiex_set_sta_ht_cap(struct mwifiex_private *priv, const u8 *ies,
  */
 static void mwifiex_del_sta_entry(struct mwifiex_private *priv, u8 *mac)
 {
-	struct mwifiex_sta_node *node, *tmp;
+	struct mwifiex_sta_node *node;
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->sta_list_spinlock, flags);
 
 	node = mwifiex_get_sta_entry(priv, mac);
 	if (node) {
-		list_for_each_entry_safe(node, tmp, &priv->sta_list,
-					 list) {
-			list_del(&node->list);
-			kfree(node);
-		}
+		list_del(&node->list);
+		kfree(node);
 	}
 
 	spin_unlock_irqrestore(&priv->sta_list_spinlock, flags);
