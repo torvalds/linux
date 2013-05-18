@@ -1792,10 +1792,15 @@ ENTRY(fast_store_prohibited)
 	l32i	a0, a0, 0
 	beqz	a0, 2f
 
-	/* Note that we assume _PAGE_WRITABLE_BIT is only set if pte is valid.*/
+	/*
+	 * Note that we test _PAGE_WRITABLE_BIT only if PTE is present
+	 * and is not PAGE_NONE. See pgtable.h for possible PTE layouts.
+	 */
 
 	_PTE_OFFSET(a0, a1, a4)
 	l32i	a4, a0, 0		# read pteval
+	movi	a1, _PAGE_CA_INVALID
+	ball	a4, a1, 2f
 	bbci.l	a4, _PAGE_WRITABLE_BIT, 2f
 
 	movi	a1, _PAGE_ACCESSED | _PAGE_DIRTY | _PAGE_HW_WRITE
