@@ -818,6 +818,18 @@ static int mwifiex_ret_subsc_evt(struct mwifiex_private *priv,
 	return 0;
 }
 
+/* This function handles the command response of set_cfg_data */
+static int mwifiex_ret_cfg_data(struct mwifiex_private *priv,
+				struct host_cmd_ds_command *resp)
+{
+	if (resp->result != HostCmd_RESULT_OK) {
+		dev_err(priv->adapter->dev, "Cal data cmd resp failed\n");
+		return -1;
+	}
+
+	return 0;
+}
+
 /*
  * This function handles the command responses.
  *
@@ -840,6 +852,9 @@ int mwifiex_process_sta_cmdresp(struct mwifiex_private *priv, u16 cmdresp_no,
 	switch (cmdresp_no) {
 	case HostCmd_CMD_GET_HW_SPEC:
 		ret = mwifiex_ret_get_hw_spec(priv, resp);
+		break;
+	case HostCmd_CMD_CFG_DATA:
+		ret = mwifiex_ret_cfg_data(priv, resp);
 		break;
 	case HostCmd_CMD_MAC_CONTROL:
 		break;

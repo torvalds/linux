@@ -730,6 +730,7 @@ struct mwifiex_adapter {
 	u16 max_mgmt_ie_index;
 	u8 scan_delay_cnt;
 	u8 empty_tx_q_cnt;
+	const struct firmware *cal_data;
 
 	/* 11AC */
 	u32 is_hw_11ac_capable;
