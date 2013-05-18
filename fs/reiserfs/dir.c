@@ -50,11 +50,10 @@ static int reiserfs_dir_fsync(struct file *filp, loff_t start, loff_t end,
 
 #define store_ih(where,what) copy_item_head (where, what)
 
-static inline bool is_privroot_deh(struct dentry *dir,
-				   struct reiserfs_de_head *deh)
+static inline bool is_privroot_deh(struct inode *dir, struct reiserfs_de_head *deh)
 {
-	struct dentry *privroot = REISERFS_SB(dir->d_sb)->priv_root;
-	return (dir == dir->d_parent && privroot->d_inode &&
+	struct dentry *privroot = REISERFS_SB(dir->i_sb)->priv_root;
+	return (privroot->d_inode &&
 	        deh->deh_objectid == INODE_PKEY(privroot->d_inode)->k_objectid);
 }
 
@@ -153,7 +152,7 @@ int reiserfs_readdir_dentry(struct dentry *dentry, struct dir_context *ctx)
 				}
 
 				/* Ignore the .reiserfs_priv entry */
-				if (is_privroot_deh(dentry, deh))
+				if (is_privroot_deh(inode, deh))
 					continue;
 
 				ctx->pos = deh_offset(deh);
