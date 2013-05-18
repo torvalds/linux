@@ -65,6 +65,9 @@ struct rk29_i2s_info {
 	u32		 suspend_iismod;
 	u32		 suspend_iiscon;
 	u32		 suspend_iispsr;
+	
+	bool 	i2s_tx_status;//active = true;
+	bool 	i2s_rx_status;
 };
 
 static struct rk29_dma_client rk29_dma_client_out = {
@@ -86,12 +89,12 @@ static struct rk29_i2s_info rk29_i2s[MAX_I2S];
 
 struct snd_soc_dai_driver rk29_i2s_dai[MAX_I2S];
 EXPORT_SYMBOL_GPL(rk29_i2s_dai);
-
+#ifdef CONFIG_HDMI_RK30		
+extern int hdmi_get_hotplug(void);
+#endif
 /* 
  *Turn on or off the transmission path. 
  */
-static int flag_i2s_tx = 0;
-static int flag_i2s_rx = 0;
 static void rockchip_snd_txctrl(struct rk29_i2s_info *i2s, int on)
 {
 	u32 opr,xfer,clr;
@@ -112,25 +115,28 @@ static void rockchip_snd_txctrl(struct rk29_i2s_info *i2s, int on)
 			xfer |= I2S_RX_TRAN_START;
 			writel(xfer, &(pheadi2s->I2S_XFER));
 		}
-		flag_i2s_tx = 1;
+		i2s->i2s_tx_status = true;
 	}
 	else
 	{
 		//stop tx
-		flag_i2s_tx = 0;
+		i2s->i2s_tx_status = false;
 		I2S_DBG("rockchip_snd_txctrl: off\n");
 		opr  &= ~I2S_TRAN_DMA_ENABLE;        
-		writel(opr, &(pheadi2s->I2S_DMACR));  		
-		if ((flag_i2s_rx == 0) && (flag_i2s_tx == 0))
+		writel(opr, &(pheadi2s->I2S_DMACR));  
+		if(!i2s->i2s_tx_status && !i2s->i2s_rx_status//sync stop i2s rx tx lcrk
+#ifdef CONFIG_HDMI_RK30	
+			&& 	hdmi_get_hotplug() == 0	//HDMI_HPD_REMOVED
+#endif			
+		)
 		{
 			xfer &= ~I2S_TX_TRAN_START;
 			xfer &= ~I2S_RX_TRAN_START;		
-			writel(xfer, &(pheadi2s->I2S_XFER));
-			I2S_DBG("rockchip_snd_txctrl: off clr = %d\n",clr);		
+			writel(xfer, &(pheadi2s->I2S_XFER));	
 			clr |= I2S_TX_CLEAR;
-			I2S_DBG("rockchip_snd_txctrl: off clr = %d\n",clr);
 			writel(clr, &(pheadi2s->I2S_CLR));
 			udelay(1);
+			I2S_DBG("rockchip_snd_txctrl: stop xfer\n");			
 		}	
 	}
 }
@@ -155,7 +161,7 @@ static void rockchip_snd_rxctrl(struct rk29_i2s_info *i2s, int on)
 			xfer |= I2S_TX_TRAN_START;
 			writel(xfer, &(pheadi2s->I2S_XFER));
 		}
-		flag_i2s_rx = 1;
+		i2s->i2s_rx_status = true;
 #ifdef CONFIG_SND_SOC_RT5631
 //bard 7-16 s
 		schedule_delayed_work(&rt5631_delay_cap,HZ/4);
@@ -164,12 +170,15 @@ static void rockchip_snd_rxctrl(struct rk29_i2s_info *i2s, int on)
 	}
 	else
 	{
-		//stop rx
-		flag_i2s_rx = 0;
+		i2s->i2s_rx_status = false;
 		I2S_DBG("rockchip_snd_rxctrl: off\n");
 		opr  &= ~I2S_RECE_DMA_ENABLE;
 		writel(opr, &(pheadi2s->I2S_DMACR));		
-		if ((flag_i2s_rx == 0) && (flag_i2s_tx == 0))
+		if(!i2s->i2s_tx_status && !i2s->i2s_rx_status	//sync stop i2s rx tx lcrk
+#ifdef CONFIG_HDMI_RK30	
+			&& 	hdmi_get_hotplug() == 0	//HDMI_HPD_REMOVED
+#endif			
+		)
 		{		
 			xfer &= ~I2S_RX_TRAN_START;
 			xfer &= ~I2S_TX_TRAN_START;		
@@ -177,6 +186,7 @@ static void rockchip_snd_rxctrl(struct rk29_i2s_info *i2s, int on)
 			clr |= I2S_RX_CLEAR;
 			writel(clr, &(pheadi2s->I2S_CLR));
 			udelay(1);
+			I2S_DBG("rockchip_snd_rxctrl: stop xfer\n");				
 		}
 	}
 }
@@ -649,6 +659,8 @@ static int __devinit rockchip_i2s_probe(struct platform_device *pdev)
 	i2s->dma_playback->client = &rk29_dma_client_out;
 	i2s->dma_playback->dma_size = 4;
 	i2s->dma_playback->flag = 0;			//add by sxj, used for burst change
+	i2s->i2s_tx_status = false;	
+	i2s->i2s_rx_status = false;	
 #ifdef CONFIG_SND_I2S_DMA_EVENT_STATIC
 	 WARN_ON(rk29_dma_request(i2s->dma_playback->channel, i2s->dma_playback->client, NULL));
 	 WARN_ON(rk29_dma_request(i2s->dma_capture->channel, i2s->dma_capture->client, NULL));
@@ -685,9 +697,6 @@ static int __devinit rockchip_i2s_probe(struct platform_device *pdev)
 		//	printk("-----------------------\n");
 		}		
 #endif
-	
-
-
 	return 0;
 
 err_i2sv2:
