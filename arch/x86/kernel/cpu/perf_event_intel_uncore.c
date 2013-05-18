@@ -644,7 +644,7 @@ snbep_pcu_get_constraint(struct intel_uncore_box *box, struct perf_event *event)
 	    (!uncore_box_is_fake(box) && reg1->alloc))
 		return NULL;
 again:
-	mask = 0xff << (idx * 8);
+	mask = 0xffULL << (idx * 8);
 	raw_spin_lock_irqsave(&er->lock, flags);
 	if (!__BITS_VALUE(atomic_read(&er->ref), idx, 8) ||
 	    !((config1 ^ er->config) & mask)) {
@@ -1923,7 +1923,7 @@ static u64 nhmex_mbox_alter_er(struct perf_event *event, int new_idx, bool modif
 {
 	struct hw_perf_event *hwc = &event->hw;
 	struct hw_perf_event_extra *reg1 = &hwc->extra_reg;
-	int idx, orig_idx = __BITS_VALUE(reg1->idx, 0, 8);
+	u64 idx, orig_idx = __BITS_VALUE(reg1->idx, 0, 8);
 	u64 config = reg1->config;
 
 	/* get the non-shared control bits and shift them */
