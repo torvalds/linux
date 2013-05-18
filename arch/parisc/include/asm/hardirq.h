@@ -28,6 +28,8 @@ typedef struct {
 	unsigned int irq_resched_count;
 	unsigned int irq_call_count;
 #endif
+	unsigned int irq_unaligned_count;
+	unsigned int irq_fpassist_count;
 	unsigned int irq_tlb_count;
 } ____cacheline_aligned irq_cpustat_t;
 
