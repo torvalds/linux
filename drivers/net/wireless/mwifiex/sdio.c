@@ -486,21 +486,21 @@ static int mwifiex_write_data_to_card(struct mwifiex_adapter *adapter,
 static int mwifiex_get_rd_port(struct mwifiex_adapter *adapter, u8 *port)
 {
 	struct sdio_mmc_card *card = adapter->card;
-	u16 rd_bitmap = card->mp_rd_bitmap;
+	u32 rd_bitmap = card->mp_rd_bitmap;
 
-	dev_dbg(adapter->dev, "data: mp_rd_bitmap=0x%04x\n", rd_bitmap);
+	dev_dbg(adapter->dev, "data: mp_rd_bitmap=0x%08x\n", rd_bitmap);
 
 	if (!(rd_bitmap & (CTRL_PORT_MASK | DATA_PORT_MASK)))
 		return -1;
 
 	if (card->mp_rd_bitmap & CTRL_PORT_MASK) {
-		card->mp_rd_bitmap &= (u16) (~CTRL_PORT_MASK);
+		card->mp_rd_bitmap &= (u32) (~CTRL_PORT_MASK);
 		*port = CTRL_PORT;
-		dev_dbg(adapter->dev, "data: port=%d mp_rd_bitmap=0x%04x\n",
+		dev_dbg(adapter->dev, "data: port=%d mp_rd_bitmap=0x%08x\n",
 			*port, card->mp_rd_bitmap);
 	} else {
 		if (card->mp_rd_bitmap & (1 << card->curr_rd_port)) {
-			card->mp_rd_bitmap &= (u16)
+			card->mp_rd_bitmap &= (u32)
 						(~(1 << card->curr_rd_port));
 			*port = card->curr_rd_port;
 
@@ -511,7 +511,7 @@ static int mwifiex_get_rd_port(struct mwifiex_adapter *adapter, u8 *port)
 		}
 
 		dev_dbg(adapter->dev,
-			"data: port=%d mp_rd_bitmap=0x%04x -> 0x%04x\n",
+			"data: port=%d mp_rd_bitmap=0x%08x -> 0x%08x\n",
 			*port, rd_bitmap, card->mp_rd_bitmap);
 	}
 	return 0;
@@ -527,15 +527,15 @@ static int mwifiex_get_rd_port(struct mwifiex_adapter *adapter, u8 *port)
 static int mwifiex_get_wr_port_data(struct mwifiex_adapter *adapter, u8 *port)
 {
 	struct sdio_mmc_card *card = adapter->card;
-	u16 wr_bitmap = card->mp_wr_bitmap;
+	u32 wr_bitmap = card->mp_wr_bitmap;
 
-	dev_dbg(adapter->dev, "data: mp_wr_bitmap=0x%04x\n", wr_bitmap);
+	dev_dbg(adapter->dev, "data: mp_wr_bitmap=0x%08x\n", wr_bitmap);
 
 	if (!(wr_bitmap & card->mp_data_port_mask))
 		return -1;
 
 	if (card->mp_wr_bitmap & (1 << card->curr_wr_port)) {
-		card->mp_wr_bitmap &= (u16) (~(1 << card->curr_wr_port));
+		card->mp_wr_bitmap &= (u32) (~(1 << card->curr_wr_port));
 		*port = card->curr_wr_port;
 		if (++card->curr_wr_port == card->mp_end_port)
 			card->curr_wr_port = 1;
@@ -545,14 +545,14 @@ static int mwifiex_get_wr_port_data(struct mwifiex_adapter *adapter, u8 *port)
 	}
 
 	if (*port == CTRL_PORT) {
-		dev_err(adapter->dev, "invalid data port=%d cur port=%d"
-			" mp_wr_bitmap=0x%04x -> 0x%04x\n",
+		dev_err(adapter->dev,
+			"invalid data port=%d cur port=%d mp_wr_bitmap=0x%08x -> 0x%08x\n",
 			*port, card->curr_wr_port, wr_bitmap,
 			card->mp_wr_bitmap);
 		return -1;
 	}
 
-	dev_dbg(adapter->dev, "data: port=%d mp_wr_bitmap=0x%04x -> 0x%04x\n",
+	dev_dbg(adapter->dev, "data: port=%d mp_wr_bitmap=0x%08x -> 0x%08x\n",
 		*port, wr_bitmap, card->mp_wr_bitmap);
 
 	return 0;
@@ -1024,7 +1024,7 @@ static int mwifiex_sdio_card_to_host_mp_aggr(struct mwifiex_adapter *adapter,
 		goto rx_curr_single;
 	}
 
-	if (card->mp_rd_bitmap & (~((u16) CTRL_PORT_MASK))) {
+	if (card->mp_rd_bitmap & (~((u32) CTRL_PORT_MASK))) {
 		/* Some more data RX pending */
 		dev_dbg(adapter->dev, "info: %s: not last packet\n", __func__);
 
@@ -1185,9 +1185,9 @@ static int mwifiex_process_int_status(struct mwifiex_adapter *adapter)
 		return ret;
 
 	if (sdio_ireg & DN_LD_HOST_INT_STATUS) {
-		card->mp_wr_bitmap = ((u16) card->mp_regs[WR_BITMAP_U]) << 8;
-		card->mp_wr_bitmap |= (u16) card->mp_regs[WR_BITMAP_L];
-		dev_dbg(adapter->dev, "int: DNLD: wr_bitmap=0x%04x\n",
+		card->mp_wr_bitmap = ((u32) card->mp_regs[WR_BITMAP_U]) << 8;
+		card->mp_wr_bitmap |= (u32) card->mp_regs[WR_BITMAP_L];
+		dev_dbg(adapter->dev, "int: DNLD: wr_bitmap=0x%08x\n",
 			card->mp_wr_bitmap);
 		if (adapter->data_sent &&
 		    (card->mp_wr_bitmap & card->mp_data_port_mask)) {
@@ -1204,7 +1204,7 @@ static int mwifiex_process_int_status(struct mwifiex_adapter *adapter)
 		/* Check if firmware has attach buffer at command port and
 		   update just that in wr_bit_map. */
 		card->mp_wr_bitmap |=
-			(u16) card->mp_regs[WR_BITMAP_L] & CTRL_PORT_MASK;
+			(u32) card->mp_regs[WR_BITMAP_L] & CTRL_PORT_MASK;
 		if (card->mp_wr_bitmap & CTRL_PORT_MASK)
 			adapter->cmd_sent = false;
 	}
@@ -1212,9 +1212,9 @@ static int mwifiex_process_int_status(struct mwifiex_adapter *adapter)
 	dev_dbg(adapter->dev, "info: cmd_sent=%d data_sent=%d\n",
 		adapter->cmd_sent, adapter->data_sent);
 	if (sdio_ireg & UP_LD_HOST_INT_STATUS) {
-		card->mp_rd_bitmap = ((u16) card->mp_regs[RD_BITMAP_U]) << 8;
-		card->mp_rd_bitmap |= (u16) card->mp_regs[RD_BITMAP_L];
-		dev_dbg(adapter->dev, "int: UPLD: rd_bitmap=0x%04x\n",
+		card->mp_rd_bitmap = ((u32) card->mp_regs[RD_BITMAP_U]) << 8;
+		card->mp_rd_bitmap |= (u32) card->mp_regs[RD_BITMAP_L];
+		dev_dbg(adapter->dev, "int: UPLD: rd_bitmap=0x%08x\n",
 			card->mp_rd_bitmap);
 
 		while (true) {

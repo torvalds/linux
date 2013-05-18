@@ -261,7 +261,7 @@ struct mwifiex_sdio_mpa_tx {
 	u8 *buf;
 	u32 buf_len;
 	u32 pkt_cnt;
-	u16 ports;
+	u32 ports;
 	u16 start_port;
 	u8 enabled;
 	u32 buf_size;
@@ -272,7 +272,7 @@ struct mwifiex_sdio_mpa_rx {
 	u8 *buf;
 	u32 buf_len;
 	u32 pkt_cnt;
-	u16 ports;
+	u32 ports;
 	u16 start_port;
 
 	struct sk_buff *skb_arr[SDIO_MP_AGGR_DEF_PKT_LIMIT];
@@ -290,11 +290,11 @@ struct sdio_mmc_card {
 	struct sdio_func *func;
 	struct mwifiex_adapter *adapter;
 
-	u16 mp_rd_bitmap;
-	u16 mp_wr_bitmap;
+	u32 mp_rd_bitmap;
+	u32 mp_wr_bitmap;
 
 	u16 mp_end_port;
-	u16 mp_data_port_mask;
+	u32 mp_data_port_mask;
 
 	u8 curr_rd_port;
 	u8 curr_wr_port;
