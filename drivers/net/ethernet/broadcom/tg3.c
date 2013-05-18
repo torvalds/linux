@@ -13618,6 +13618,57 @@ static int tg3_set_coalesce(struct net_device *dev, struct ethtool_coalesce *ec)
 	return 0;
 }
 
+static int tg3_set_eee(struct net_device *dev, struct ethtool_eee *edata)
+{
+	struct tg3 *tp = netdev_priv(dev);
+
+	if (!(tp->phy_flags & TG3_PHYFLG_EEE_CAP)) {
+		netdev_warn(tp->dev, "Board does not support EEE!\n");
+		return -EOPNOTSUPP;
+	}
+
+	if (edata->advertised != tp->eee.advertised) {
+		netdev_warn(tp->dev,
+			    "Direct manipulation of EEE advertisement is not supported\n");
+		return -EINVAL;
+	}
+
+	if (edata->tx_lpi_timer > TG3_CPMU_DBTMR1_LNKIDLE_MAX) {
+		netdev_warn(tp->dev,
+			    "Maximal Tx Lpi timer supported is %#x(u)\n",
+			    TG3_CPMU_DBTMR1_LNKIDLE_MAX);
+		return -EINVAL;
+	}
+
+	tp->eee = *edata;
+
+	tp->phy_flags |= TG3_PHYFLG_USER_CONFIGURED;
+	tg3_warn_mgmt_link_flap(tp);
+
+	if (netif_running(tp->dev)) {
+		tg3_full_lock(tp, 0);
+		tg3_setup_eee(tp);
+		tg3_phy_reset(tp);
+		tg3_full_unlock(tp);
+	}
+
+	return 0;
+}
+
+static int tg3_get_eee(struct net_device *dev, struct ethtool_eee *edata)
+{
+	struct tg3 *tp = netdev_priv(dev);
+
+	if (!(tp->phy_flags & TG3_PHYFLG_EEE_CAP)) {
+		netdev_warn(tp->dev,
+			    "Board does not support EEE!\n");
+		return -EOPNOTSUPP;
+	}
+
+	*edata = tp->eee;
+	return 0;
+}
+
 static const struct ethtool_ops tg3_ethtool_ops = {
 	.get_settings		= tg3_get_settings,
 	.set_settings		= tg3_set_settings,
@@ -13651,6 +13702,8 @@ static const struct ethtool_ops tg3_ethtool_ops = {
 	.get_channels		= tg3_get_channels,
 	.set_channels		= tg3_set_channels,
 	.get_ts_info		= tg3_get_ts_info,
+	.get_eee		= tg3_get_eee,
+	.set_eee		= tg3_set_eee,
 };
 
 static struct rtnl_link_stats64 *tg3_get_stats64(struct net_device *dev,
