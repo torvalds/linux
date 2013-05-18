@@ -1265,7 +1265,7 @@ struct velocity_context {
 #define PHYID_VT3216_64BIT  0x000FC600UL
 #define PHYID_MARVELL_1000  0x01410C50UL
 #define PHYID_MARVELL_1000S 0x01410C40UL
-
+#define PHYID_ICPLUS_IP101A 0x02430C54UL
 #define PHYID_REV_ID_MASK   0x0000000FUL
 
 #define PHYID_GET_PHY_ID(i)         ((i) & ~PHYID_REV_ID_MASK)
@@ -1437,6 +1437,7 @@ struct velocity_info {
 	struct device *dev;
 	struct pci_dev *pdev;
 	struct net_device *netdev;
+	int no_eeprom;
 
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	u8 ip_addr[4];
