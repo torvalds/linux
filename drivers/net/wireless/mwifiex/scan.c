@@ -1793,7 +1793,8 @@ check_next_scan:
 			dev_dbg(adapter->dev, "info: scan already aborted\n");
 		}
 	} else {
-		if (priv->scan_aborting && !priv->scan_request) {
+		if ((priv->scan_aborting && !priv->scan_request) ||
+		    priv->scan_block) {
 			spin_unlock_irqrestore(&adapter->scan_pending_q_lock,
 					       flags);
 			adapter->scan_delay_cnt = MWIFIEX_MAX_SCAN_DELAY_CNT;
