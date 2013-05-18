@@ -35,6 +35,24 @@ config MINNOWBOARD
 
 	  If you have a MinnowBoard, say Y or M here.
 
+if MINNOWBOARD
+config MINNOWBOARD_GPIO
+	tristate "MinnowBoard Expansion GPIO"
+	depends on MINNOWBOARD
+	default n
+	---help---
+	  Export the EG20T (gpio-pch) lines on the expansion connector to sysfs
+	  for easy manipulation from userspace. These will be named
+	  "minnow_gpio_pch[0-7]". If LVDS is not in use, export the E6XX
+	  (gpio-sch) lines on the expansion connector to sysfs, these will be
+	  named "minnow_gpio_aux[0-4]".
+
+	  If you have a MinnowBoard, and want to experiment with the GPIO,
+	  say Y or M here.
+
+endif # MINNOWBOARD
+
+
 config ACER_WMI
 	tristate "Acer WMI Laptop Extras"
 	depends on ACPI
