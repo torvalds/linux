@@ -37,12 +37,6 @@
 #define BYTE_MODE	0
 
 #define REG_PORT			0
-#define RD_BITMAP_L			0x04
-#define RD_BITMAP_U			0x05
-#define WR_BITMAP_L			0x06
-#define WR_BITMAP_U			0x07
-#define RD_LEN_P0_L			0x08
-#define RD_LEN_P0_U			0x09
 
 #define MWIFIEX_SDIO_IO_PORT_MASK		0xfffff
 
@@ -50,12 +44,8 @@
 
 #define CTRL_PORT			0
 #define CTRL_PORT_MASK			0x0001
-#define DATA_PORT_MASK			0xfffe
 
-#define MAX_MP_REGS			64
-#define MAX_PORT			16
-
-#define SDIO_MP_AGGR_DEF_PKT_LIMIT	8
+#define SDIO_MP_AGGR_DEF_PKT_LIMIT		8
 
 #define SDIO_MP_TX_AGGR_DEF_BUF_SIZE        (8192)	/* 8K */
 
@@ -90,8 +80,6 @@
 #define UP_LD_HOST_INT_MASK		(0x1U)
 /* Host Control Registers : Download host interrupt mask */
 #define DN_LD_HOST_INT_MASK		(0x2U)
-/* Enable Host interrupt mask */
-#define HOST_INT_ENABLE	(UP_LD_HOST_INT_MASK | DN_LD_HOST_INT_MASK)
 /* Disable Host interrupt mask */
 #define	HOST_INT_DISABLE		0xff
 
@@ -106,7 +94,6 @@
 #define HOST_INT_RSR_REG		0x01
 /* Host Control Registers : Upload host interrupt RSR */
 #define UP_LD_HOST_INT_RSR		(0x1U)
-#define SDIO_INT_MASK			0x3F
 
 /* Host Control Registers : Host interrupt status */
 #define HOST_INT_STATUS_REG		0x28
@@ -117,8 +104,6 @@
 /* Host Control Registers : Download restart */
 #define DN_LD_RESTART                   (0x1U << 0)
 
-/* Card Control Registers : Card status register */
-#define CARD_STATUS_REG                 0x30
 /* Card Control Registers : Card I/O ready */
 #define CARD_IO_READY                   (0x1U << 3)
 /* Card Control Registers : CIS card ready */
@@ -153,20 +138,9 @@
 /* Card Control Registers : Power down RSR */
 #define POWER_DOWN_RSR                  (0x1U << 3)
 
-/* Card Control Registers : Miscellaneous Configuration Register */
-#define CARD_MISC_CFG_REG               0x6C
-
-/* Host F1 read base 0 */
-#define HOST_F1_RD_BASE_0		0x0040
-/* Host F1 read base 1 */
-#define HOST_F1_RD_BASE_1		0x0041
 /* Host F1 card ready */
 #define HOST_F1_CARD_RDY		0x0020
 
-/* Firmware status 0 register */
-#define CARD_FW_STATUS0_REG		0x60
-/* Firmware status 1 register */
-#define CARD_FW_STATUS1_REG		0x61
 /* Rx length register */
 #define CARD_RX_LEN_REG			0x62
 /* Rx unit register */
@@ -192,7 +166,8 @@
 	if (a->mpa_tx.start_port <= port)				\
 		a->mpa_tx.ports |= (1<<(a->mpa_tx.pkt_cnt));		\
 	else								\
-		a->mpa_tx.ports |= (1<<(a->mpa_tx.pkt_cnt+1+(MAX_PORT -	\
+		a->mpa_tx.ports |= (1<<(a->mpa_tx.pkt_cnt+1+		\
+						(a->max_ports -	\
 						a->mp_end_port)));	\
 	a->mpa_tx.pkt_cnt++;						\
 } while (0)
@@ -203,9 +178,9 @@
 
 /* SDIO Tx aggregation port limit ? */
 #define MP_TX_AGGR_PORT_LIMIT_REACHED(a) ((a->curr_wr_port <		\
-			a->mpa_tx.start_port) && (((MAX_PORT -		\
+			a->mpa_tx.start_port) && (((a->max_ports -\
 			a->mpa_tx.start_port) + a->curr_wr_port) >=	\
-				SDIO_MP_AGGR_DEF_PKT_LIMIT))
+				a->mp_agg_pkt_limit))
 
 /* Reset SDIO Tx aggregation buffer parameters */
 #define MP_TX_AGGR_BUF_RESET(a) do {					\
@@ -221,9 +196,9 @@
 
 /* SDIO Tx aggregation port limit ? */
 #define MP_RX_AGGR_PORT_LIMIT_REACHED(a) ((a->curr_rd_port <		\
-			a->mpa_rx.start_port) && (((MAX_PORT -		\
+			a->mpa_rx.start_port) && (((a->max_ports -\
 			a->mpa_rx.start_port) + a->curr_rd_port) >=	\
-			SDIO_MP_AGGR_DEF_PKT_LIMIT))
+			a->mp_agg_pkt_limit))
 
 /* SDIO Rx aggregation in progress ? */
 #define MP_RX_AGGR_IN_PROGRESS(a) (a->mpa_rx.pkt_cnt > 0)
@@ -286,9 +261,35 @@ struct mwifiex_sdio_mpa_rx {
 int mwifiex_bus_register(void);
 void mwifiex_bus_unregister(void);
 
+struct mwifiex_sdio_card_reg {
+	u8 start_rd_port;
+	u8 start_wr_port;
+	u8 base_0_reg;
+	u8 base_1_reg;
+	u8 poll_reg;
+	u8 host_int_enable;
+	u8 status_reg_0;
+	u8 status_reg_1;
+	u8 sdio_int_mask;
+	u32 data_port_mask;
+	u8 max_mp_regs;
+	u8 rd_bitmap_l;
+	u8 rd_bitmap_u;
+	u8 wr_bitmap_l;
+	u8 wr_bitmap_u;
+	u8 rd_len_p0_l;
+	u8 rd_len_p0_u;
+	u8 card_misc_cfg_reg;
+};
+
 struct sdio_mmc_card {
 	struct sdio_func *func;
 	struct mwifiex_adapter *adapter;
+
+	const char *firmware;
+	const struct mwifiex_sdio_card_reg *reg;
+	u8 max_ports;
+	u8 mp_agg_pkt_limit;
 
 	u32 mp_rd_bitmap;
 	u32 mp_wr_bitmap;
@@ -303,6 +304,55 @@ struct sdio_mmc_card {
 
 	struct mwifiex_sdio_mpa_tx mpa_tx;
 	struct mwifiex_sdio_mpa_rx mpa_rx;
+};
+
+struct mwifiex_sdio_device {
+	const char *firmware;
+	const struct mwifiex_sdio_card_reg *reg;
+	u8 max_ports;
+	u8 mp_agg_pkt_limit;
+};
+
+static const struct mwifiex_sdio_card_reg mwifiex_reg_sd87xx = {
+	.start_rd_port = 1,
+	.start_wr_port = 1,
+	.base_0_reg = 0x0040,
+	.base_1_reg = 0x0041,
+	.poll_reg = 0x30,
+	.host_int_enable = UP_LD_HOST_INT_MASK | DN_LD_HOST_INT_MASK,
+	.status_reg_0 = 0x60,
+	.status_reg_1 = 0x61,
+	.sdio_int_mask = 0x3f,
+	.data_port_mask = 0x0000fffe,
+	.max_mp_regs = 64,
+	.rd_bitmap_l = 0x04,
+	.rd_bitmap_u = 0x05,
+	.wr_bitmap_l = 0x06,
+	.wr_bitmap_u = 0x07,
+	.rd_len_p0_l = 0x08,
+	.rd_len_p0_u = 0x09,
+	.card_misc_cfg_reg = 0x6c,
+};
+
+static const struct mwifiex_sdio_device mwifiex_sdio_sd8786 = {
+	.firmware = SD8786_DEFAULT_FW_NAME,
+	.reg = &mwifiex_reg_sd87xx,
+	.max_ports = 16,
+	.mp_agg_pkt_limit = 8,
+};
+
+static const struct mwifiex_sdio_device mwifiex_sdio_sd8787 = {
+	.firmware = SD8787_DEFAULT_FW_NAME,
+	.reg = &mwifiex_reg_sd87xx,
+	.max_ports = 16,
+	.mp_agg_pkt_limit = 8,
+};
+
+static const struct mwifiex_sdio_device mwifiex_sdio_sd8797 = {
+	.firmware = SD8797_DEFAULT_FW_NAME,
+	.reg = &mwifiex_reg_sd87xx,
+	.max_ports = 16,
+	.mp_agg_pkt_limit = 8,
 };
 
 /*

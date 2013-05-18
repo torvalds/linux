@@ -77,6 +77,15 @@ mwifiex_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
 
 	func->card->quirks |= MMC_QUIRK_BLKSZ_FOR_BYTE_MODE;
 
+	if (id->driver_data) {
+		struct mwifiex_sdio_device *data = (void *)id->driver_data;
+
+		card->firmware = data->firmware;
+		card->reg = data->reg;
+		card->max_ports = data->max_ports;
+		card->mp_agg_pkt_limit = data->mp_agg_pkt_limit;
+	}
+
 	sdio_claim_host(func);
 	ret = sdio_enable_func(func);
 	sdio_release_host(func);
@@ -254,9 +263,12 @@ static int mwifiex_sdio_resume(struct device *dev)
 
 /* WLAN IDs */
 static const struct sdio_device_id mwifiex_ids[] = {
-	{SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8786)},
-	{SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8787)},
-	{SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8797)},
+	{SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8786),
+		.driver_data = (unsigned long) &mwifiex_sdio_sd8786},
+	{SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8787),
+		.driver_data = (unsigned long) &mwifiex_sdio_sd8787},
+	{SDIO_DEVICE(SDIO_VENDOR_ID_MARVELL, SDIO_DEVICE_ID_MARVELL_8797),
+		.driver_data = (unsigned long) &mwifiex_sdio_sd8797},
 	{},
 };
 
@@ -410,6 +422,7 @@ static int mwifiex_pm_wakeup_card_complete(struct mwifiex_adapter *adapter)
 static int mwifiex_init_sdio_ioport(struct mwifiex_adapter *adapter)
 {
 	u32 reg;
+	struct sdio_mmc_card *card = adapter->card;
 
 	adapter->ioport = 0;
 
@@ -434,13 +447,13 @@ static int mwifiex_init_sdio_ioport(struct mwifiex_adapter *adapter)
 	/* Set Host interrupt reset to read to clear */
 	if (!mwifiex_read_reg(adapter, HOST_INT_RSR_REG, &reg))
 		mwifiex_write_reg(adapter, HOST_INT_RSR_REG,
-				  reg | SDIO_INT_MASK);
+				  reg | card->reg->sdio_int_mask);
 	else
 		return -1;
 
 	/* Dnld/Upld ready set to auto reset */
-	if (!mwifiex_read_reg(adapter, CARD_MISC_CFG_REG, &reg))
-		mwifiex_write_reg(adapter, CARD_MISC_CFG_REG,
+	if (!mwifiex_read_reg(adapter, card->reg->card_misc_cfg_reg, &reg))
+		mwifiex_write_reg(adapter, card->reg->card_misc_cfg_reg,
 				  reg | AUTO_RE_ENABLE_INT);
 	else
 		return -1;
@@ -486,11 +499,12 @@ static int mwifiex_write_data_to_card(struct mwifiex_adapter *adapter,
 static int mwifiex_get_rd_port(struct mwifiex_adapter *adapter, u8 *port)
 {
 	struct sdio_mmc_card *card = adapter->card;
+	const struct mwifiex_sdio_card_reg *reg = card->reg;
 	u32 rd_bitmap = card->mp_rd_bitmap;
 
 	dev_dbg(adapter->dev, "data: mp_rd_bitmap=0x%08x\n", rd_bitmap);
 
-	if (!(rd_bitmap & (CTRL_PORT_MASK | DATA_PORT_MASK)))
+	if (!(rd_bitmap & (CTRL_PORT_MASK | reg->data_port_mask)))
 		return -1;
 
 	if (card->mp_rd_bitmap & CTRL_PORT_MASK) {
@@ -504,8 +518,8 @@ static int mwifiex_get_rd_port(struct mwifiex_adapter *adapter, u8 *port)
 						(~(1 << card->curr_rd_port));
 			*port = card->curr_rd_port;
 
-			if (++card->curr_rd_port == MAX_PORT)
-				card->curr_rd_port = 1;
+			if (++card->curr_rd_port == card->max_ports)
+				card->curr_rd_port = reg->start_rd_port;
 		} else {
 			return -1;
 		}
@@ -538,7 +552,7 @@ static int mwifiex_get_wr_port_data(struct mwifiex_adapter *adapter, u8 *port)
 		card->mp_wr_bitmap &= (u32) (~(1 << card->curr_wr_port));
 		*port = card->curr_wr_port;
 		if (++card->curr_wr_port == card->mp_end_port)
-			card->curr_wr_port = 1;
+			card->curr_wr_port = card->reg->start_wr_port;
 	} else {
 		adapter->data_sent = true;
 		return -EBUSY;
@@ -564,11 +578,12 @@ static int mwifiex_get_wr_port_data(struct mwifiex_adapter *adapter, u8 *port)
 static int
 mwifiex_sdio_poll_card_status(struct mwifiex_adapter *adapter, u8 bits)
 {
+	struct sdio_mmc_card *card = adapter->card;
 	u32 tries;
 	u32 cs;
 
 	for (tries = 0; tries < MAX_POLL_TRIES; tries++) {
-		if (mwifiex_read_reg(adapter, CARD_STATUS_REG, &cs))
+		if (mwifiex_read_reg(adapter, card->reg->poll_reg, &cs))
 			break;
 		else if ((cs & bits) == bits)
 			return 0;
@@ -587,12 +602,14 @@ mwifiex_sdio_poll_card_status(struct mwifiex_adapter *adapter, u8 bits)
 static int
 mwifiex_sdio_read_fw_status(struct mwifiex_adapter *adapter, u16 *dat)
 {
+	struct sdio_mmc_card *card = adapter->card;
+	const struct mwifiex_sdio_card_reg *reg = card->reg;
 	u32 fws0, fws1;
 
-	if (mwifiex_read_reg(adapter, CARD_FW_STATUS0_REG, &fws0))
+	if (mwifiex_read_reg(adapter, reg->status_reg_0, &fws0))
 		return -1;
 
-	if (mwifiex_read_reg(adapter, CARD_FW_STATUS1_REG, &fws1))
+	if (mwifiex_read_reg(adapter, reg->status_reg_1, &fws1))
 		return -1;
 
 	*dat = (u16) ((fws1 << 8) | fws0);
@@ -633,8 +650,11 @@ static int mwifiex_sdio_disable_host_int(struct mwifiex_adapter *adapter)
  */
 static int mwifiex_sdio_enable_host_int(struct mwifiex_adapter *adapter)
 {
+	struct sdio_mmc_card *card = adapter->card;
+
 	/* Simply write the mask to the register */
-	if (mwifiex_write_reg(adapter, HOST_INT_MASK_REG, HOST_INT_ENABLE)) {
+	if (mwifiex_write_reg(adapter, HOST_INT_MASK_REG,
+			      card->reg->host_int_enable)) {
 		dev_err(adapter->dev, "enable host interrupt failed\n");
 		return -1;
 	}
@@ -686,6 +706,8 @@ static int mwifiex_sdio_card_to_host(struct mwifiex_adapter *adapter,
 static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 				    struct mwifiex_fw_image *fw)
 {
+	struct sdio_mmc_card *card = adapter->card;
+	const struct mwifiex_sdio_card_reg *reg = card->reg;
 	int ret;
 	u8 *firmware = fw->fw_buf;
 	u32 firmware_len = fw->fw_len;
@@ -727,7 +749,7 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 			break;
 
 		for (tries = 0; tries < MAX_POLL_TRIES; tries++) {
-			ret = mwifiex_read_reg(adapter, HOST_F1_RD_BASE_0,
+			ret = mwifiex_read_reg(adapter, reg->base_0_reg,
 					       &base0);
 			if (ret) {
 				dev_err(adapter->dev,
@@ -736,7 +758,7 @@ static int mwifiex_prog_fw_w_helper(struct mwifiex_adapter *adapter,
 					base0, base0);
 				goto done;
 			}
-			ret = mwifiex_read_reg(adapter, HOST_F1_RD_BASE_1,
+			ret = mwifiex_read_reg(adapter, reg->base_1_reg,
 					       &base1);
 			if (ret) {
 				dev_err(adapter->dev,
@@ -828,6 +850,7 @@ done:
 static int mwifiex_check_fw_status(struct mwifiex_adapter *adapter,
 				   u32 poll_num)
 {
+	struct sdio_mmc_card *card = adapter->card;
 	int ret = 0;
 	u16 firmware_stat;
 	u32 tries;
@@ -849,7 +872,7 @@ static int mwifiex_check_fw_status(struct mwifiex_adapter *adapter,
 
 	if (ret) {
 		if (mwifiex_read_reg
-		    (adapter, CARD_FW_STATUS0_REG, &winner_status))
+		    (adapter, card->reg->status_reg_0, &winner_status))
 			winner_status = 0;
 
 		if (winner_status)
@@ -869,9 +892,9 @@ static void mwifiex_interrupt_status(struct mwifiex_adapter *adapter)
 	u32 sdio_ireg;
 	unsigned long flags;
 
-	if (mwifiex_read_data_sync(adapter, card->mp_regs, MAX_MP_REGS,
-				   REG_PORT | MWIFIEX_SDIO_BYTE_MODE_MASK,
-				   0)) {
+	if (mwifiex_read_data_sync(adapter, card->mp_regs,
+				   card->reg->max_mp_regs,
+				   REG_PORT | MWIFIEX_SDIO_BYTE_MODE_MASK, 0)) {
 		dev_err(adapter->dev, "read mp_regs failed\n");
 		return;
 	}
@@ -1167,6 +1190,7 @@ error:
 static int mwifiex_process_int_status(struct mwifiex_adapter *adapter)
 {
 	struct sdio_mmc_card *card = adapter->card;
+	const struct mwifiex_sdio_card_reg *reg = card->reg;
 	int ret = 0;
 	u8 sdio_ireg;
 	struct sk_buff *skb;
@@ -1185,8 +1209,10 @@ static int mwifiex_process_int_status(struct mwifiex_adapter *adapter)
 		return ret;
 
 	if (sdio_ireg & DN_LD_HOST_INT_STATUS) {
-		card->mp_wr_bitmap = ((u32) card->mp_regs[WR_BITMAP_U]) << 8;
-		card->mp_wr_bitmap |= (u32) card->mp_regs[WR_BITMAP_L];
+		card->mp_wr_bitmap =
+			((u32) card->mp_regs[reg->wr_bitmap_u]) << 8;
+		card->mp_wr_bitmap |=
+			(u32) card->mp_regs[reg->wr_bitmap_l];
 		dev_dbg(adapter->dev, "int: DNLD: wr_bitmap=0x%08x\n",
 			card->mp_wr_bitmap);
 		if (adapter->data_sent &&
@@ -1204,7 +1230,7 @@ static int mwifiex_process_int_status(struct mwifiex_adapter *adapter)
 		/* Check if firmware has attach buffer at command port and
 		   update just that in wr_bit_map. */
 		card->mp_wr_bitmap |=
-			(u32) card->mp_regs[WR_BITMAP_L] & CTRL_PORT_MASK;
+			(u32) card->mp_regs[reg->wr_bitmap_l] & CTRL_PORT_MASK;
 		if (card->mp_wr_bitmap & CTRL_PORT_MASK)
 			adapter->cmd_sent = false;
 	}
@@ -1212,8 +1238,9 @@ static int mwifiex_process_int_status(struct mwifiex_adapter *adapter)
 	dev_dbg(adapter->dev, "info: cmd_sent=%d data_sent=%d\n",
 		adapter->cmd_sent, adapter->data_sent);
 	if (sdio_ireg & UP_LD_HOST_INT_STATUS) {
-		card->mp_rd_bitmap = ((u32) card->mp_regs[RD_BITMAP_U]) << 8;
-		card->mp_rd_bitmap |= (u32) card->mp_regs[RD_BITMAP_L];
+		card->mp_rd_bitmap =
+			((u32) card->mp_regs[reg->rd_bitmap_u]) << 8;
+		card->mp_rd_bitmap |= (u32) card->mp_regs[reg->rd_bitmap_l];
 		dev_dbg(adapter->dev, "int: UPLD: rd_bitmap=0x%08x\n",
 			card->mp_rd_bitmap);
 
@@ -1224,8 +1251,8 @@ static int mwifiex_process_int_status(struct mwifiex_adapter *adapter)
 					"info: no more rd_port available\n");
 				break;
 			}
-			len_reg_l = RD_LEN_P0_L + (port << 1);
-			len_reg_u = RD_LEN_P0_U + (port << 1);
+			len_reg_l = reg->rd_len_p0_l + (port << 1);
+			len_reg_u = reg->rd_len_p0_u + (port << 1);
 			rx_len = ((u16) card->mp_regs[len_reg_u]) << 8;
 			rx_len |= (u16) card->mp_regs[len_reg_l];
 			dev_dbg(adapter->dev, "info: RX: port=%d rx_len=%u\n",
@@ -1586,18 +1613,7 @@ static int mwifiex_register_dev(struct mwifiex_adapter *adapter)
 
 	adapter->dev = &func->dev;
 
-	switch (func->device) {
-	case SDIO_DEVICE_ID_MARVELL_8786:
-		strcpy(adapter->fw_name, SD8786_DEFAULT_FW_NAME);
-		break;
-	case SDIO_DEVICE_ID_MARVELL_8797:
-		strcpy(adapter->fw_name, SD8797_DEFAULT_FW_NAME);
-		break;
-	case SDIO_DEVICE_ID_MARVELL_8787:
-	default:
-		strcpy(adapter->fw_name, SD8787_DEFAULT_FW_NAME);
-		break;
-	}
+	strcpy(adapter->fw_name, card->firmware);
 
 	return 0;
 
@@ -1626,6 +1642,7 @@ disable_func:
 static int mwifiex_init_sdio(struct mwifiex_adapter *adapter)
 {
 	struct sdio_mmc_card *card = adapter->card;
+	const struct mwifiex_sdio_card_reg *reg = card->reg;
 	int ret;
 	u32 sdio_ireg;
 
@@ -1645,27 +1662,27 @@ static int mwifiex_init_sdio(struct mwifiex_adapter *adapter)
 	/* Initialize SDIO variables in card */
 	card->mp_rd_bitmap = 0;
 	card->mp_wr_bitmap = 0;
-	card->curr_rd_port = 1;
-	card->curr_wr_port = 1;
+	card->curr_rd_port = reg->start_rd_port;
+	card->curr_wr_port = reg->start_wr_port;
 
-	card->mp_data_port_mask = DATA_PORT_MASK;
+	card->mp_data_port_mask = reg->data_port_mask;
 
 	card->mpa_tx.buf_len = 0;
 	card->mpa_tx.pkt_cnt = 0;
 	card->mpa_tx.start_port = 0;
 
 	card->mpa_tx.enabled = 1;
-	card->mpa_tx.pkt_aggr_limit = SDIO_MP_AGGR_DEF_PKT_LIMIT;
+	card->mpa_tx.pkt_aggr_limit = card->mp_agg_pkt_limit;
 
 	card->mpa_rx.buf_len = 0;
 	card->mpa_rx.pkt_cnt = 0;
 	card->mpa_rx.start_port = 0;
 
 	card->mpa_rx.enabled = 1;
-	card->mpa_rx.pkt_aggr_limit = SDIO_MP_AGGR_DEF_PKT_LIMIT;
+	card->mpa_rx.pkt_aggr_limit = card->mp_agg_pkt_limit;
 
 	/* Allocate buffers for SDIO MP-A */
-	card->mp_regs = kzalloc(MAX_MP_REGS, GFP_KERNEL);
+	card->mp_regs = kzalloc(reg->max_mp_regs, GFP_KERNEL);
 	if (!card->mp_regs)
 		return -ENOMEM;
 
@@ -1716,16 +1733,17 @@ static void
 mwifiex_update_mp_end_port(struct mwifiex_adapter *adapter, u16 port)
 {
 	struct sdio_mmc_card *card = adapter->card;
+	const struct mwifiex_sdio_card_reg *reg = card->reg;
 	int i;
 
 	card->mp_end_port = port;
 
-	card->mp_data_port_mask = DATA_PORT_MASK;
+	card->mp_data_port_mask = reg->data_port_mask;
 
-	for (i = 1; i <= MAX_PORT - card->mp_end_port; i++)
-		card->mp_data_port_mask &= ~(1 << (MAX_PORT - i));
+	for (i = 1; i <= card->max_ports - card->mp_end_port; i++)
+		card->mp_data_port_mask &= ~(1 << (card->max_ports - i));
 
-	card->curr_wr_port = 1;
+	card->curr_wr_port = reg->start_wr_port;
 
 	dev_dbg(adapter->dev, "cmd: mp_end_port %d, data port mask 0x%x\n",
 		port, card->mp_data_port_mask);
