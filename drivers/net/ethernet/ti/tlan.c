@@ -533,7 +533,6 @@ static int tlan_probe1(struct pci_dev *pdev, long ioaddr, int irq, int rev,
 		/* This is a hack. We need to know which board structure
 		 * is suited for this adapter */
 		device_id = inw(ioaddr + EISA_ID2);
-		priv->is_eisa = 1;
 		if (device_id == 0x20F1) {
 			priv->adapter = &board_info[13]; /* NetFlex-3/E */
 			priv->adapter_rev = 23;		/* TLAN 2.3 */
