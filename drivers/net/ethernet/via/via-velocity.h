@@ -1435,7 +1435,7 @@ struct velocity_opt {
 
 struct velocity_info {
 	struct pci_dev *pdev;
-	struct net_device *dev;
+	struct net_device *netdev;
 
 	unsigned long active_vlans[BITS_TO_LONGS(VLAN_N_VID)];
 	u8 ip_addr[4];
@@ -1514,7 +1514,7 @@ static inline int velocity_get_ip(struct velocity_info *vptr)
 	int res = -ENOENT;
 
 	rcu_read_lock();
-	in_dev = __in_dev_get_rcu(vptr->dev);
+	in_dev = __in_dev_get_rcu(vptr->netdev);
 	if (in_dev != NULL) {
 		ifa = (struct in_ifaddr *) in_dev->ifa_list;
 		if (ifa != NULL) {
