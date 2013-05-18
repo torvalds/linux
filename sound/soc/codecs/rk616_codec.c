@@ -1461,7 +1461,7 @@ static int rk616_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	// bclk = codec_clk / 4
-	// lrck = bclk / (vwl * 2)
+	// lrck = bclk / (wl * 2)
 	div = (((rk616->stereo_sysclk / 4) / rate) / 2);
 
 	if ((rk616->stereo_sysclk % (4 * rate * 2) > 0) ||
@@ -1518,10 +1518,10 @@ static int rk616_hw_params(struct snd_pcm_substream *substream,
 
 	switch (params_channels(params)) {
 	case RK616_MONO:
-		adc_aif1 |= RK616_I2S_TYPE_MONO;
+		adc_aif1 |= RK616_ADC_TYPE_MONO;
 		break;
 	case RK616_STEREO:
-		adc_aif1 |= RK616_I2S_TYPE_STEREO;
+		adc_aif1 |= RK616_ADC_TYPE_STEREO;
 		break;
 	default:
 		return -EINVAL;
@@ -1536,7 +1536,7 @@ static int rk616_hw_params(struct snd_pcm_substream *substream,
 
 	snd_soc_update_bits(codec, RK616_ADC_INT_CTL1,
 			 RK616_ADC_VWL_MASK | RK616_ADC_SWAP_MASK |
-			 RK616_I2S_TYPE_MASK, adc_aif1);
+			 RK616_ADC_TYPE_MASK, adc_aif1);
 	snd_soc_update_bits(codec, RK616_ADC_INT_CTL2,
 			RK616_ADC_WL_MASK | RK616_ADC_RST_MASK, adc_aif2);
 	snd_soc_update_bits(codec, RK616_DAC_INT_CTL1,
@@ -1665,7 +1665,6 @@ static struct rk616_reg_val_typ capture_power_down_list[] = {
 	{0x848, 0x1f}, //MIXINL power down and mute, MININL No selecting, MICMUX from BST_L
 	{0x840, 0x99}, //BST_L power down, mute, and Single-Ended(bit 6), volume 0(bit 5)
 	{0x83c, 0x7c}, //power down
-	{0x828, 0x09}, //Set for Capture pop noise
 };
 #define RK616_CODEC_CAPTURE_POWER_DOWN_LIST_LEN ARRAY_SIZE(capture_power_down_list)
 
