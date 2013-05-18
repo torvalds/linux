@@ -15,6 +15,26 @@ menuconfig X86_PLATFORM_DEVICES
 
 if X86_PLATFORM_DEVICES
 
+config MINNOWBOARD
+	tristate "MinnowBoard GPIO and LVDS support"
+	depends on LPC_SCH
+	depends on GPIO_SCH
+	depends on GPIO_PCH
+	depends on LEDS_GPIO
+	default n
+	---help---
+	  This driver configures the MinnowBoard fixed functionality GPIO lines.
+
+	  It ensures that the E6XX SUS GPIOs muxed with LVDS signals (SUS[0:2])
+	  are disabled if the LVDS_DETECT signal is asserted.
+
+	  If LED_TRIGGER* are enabled, LED0 will use the heartbeat trigger and
+	  LED1 will use the mmc0 trigger.
+
+	  The Minnow Hardware ID is read from the GPIO HWID lines and logged.
+
+	  If you have a MinnowBoard, say Y or M here.
+
 config ACER_WMI
 	tristate "Acer WMI Laptop Extras"
 	depends on ACPI
