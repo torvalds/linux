@@ -41,6 +41,30 @@ static DEFINE_SPINLOCK(gpio_lock);
 
 static unsigned short gpio_ba;
 
+void sch_gpio_resume_set_enable(unsigned gpio_num, int val)
+{
+	u8 curr_en;
+	unsigned short offset, bit;
+
+	spin_lock(&gpio_lock);
+
+	offset = RGEN + gpio_num / 8;
+	bit = gpio_num % 8;
+
+	curr_en = inb(gpio_ba + offset);
+
+	if (val) {
+		if (!(curr_en & (1 << bit)))
+			outb(curr_en | (1 << bit), gpio_ba + offset);
+	} else {
+		if ((curr_en & (1 << bit)))
+			outb(curr_en & ~(1 << bit), gpio_ba + offset);
+	}
+
+	spin_unlock(&gpio_lock);
+}
+EXPORT_SYMBOL_GPL(sch_gpio_resume_set_enable);
+
 static int sch_gpio_core_direction_in(struct gpio_chip *gc, unsigned  gpio_num)
 {
 	u8 curr_dirs;
