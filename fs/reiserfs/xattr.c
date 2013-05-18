@@ -249,28 +249,27 @@ static int reiserfs_for_each_xattr(struct inode *inode,
 	reiserfs_write_lock(inode->i_sb);
 
 	buf.xadir = dir;
-	err = reiserfs_readdir_dentry(dir, &buf.ctx);
-	while ((err == 0 || err == -ENOSPC) && buf.count) {
-		err = 0;
-
-		for (i = 0; i < buf.count && buf.dentries[i]; i++) {
-			int lerr = 0;
+	while (1) {
+		err = reiserfs_readdir_inode(dir->d_inode, &buf.ctx);
+		if (err)
+			break;
+		if (!buf.count)
+			break;
+		for (i = 0; !err && i < buf.count && buf.dentries[i]; i++) {
 			struct dentry *dentry = buf.dentries[i];
 
-			if (err == 0 && !S_ISDIR(dentry->d_inode->i_mode))
-				lerr = action(dentry, data);
+			if (!S_ISDIR(dentry->d_inode->i_mode))
+				err = action(dentry, data);
 
 			dput(dentry);
 			buf.dentries[i] = NULL;
-			err = lerr ?: err;
 		}
+		if (err)
+			break;
 		buf.count = 0;
-		if (!err)
-			err = reiserfs_readdir_dentry(dir, &buf.ctx);
 	}
 	mutex_unlock(&dir->d_inode->i_mutex);
 
-	/* Clean up after a failed readdir */
 	cleanup_dentry_buf(&buf);
 
 	if (!err) {
@@ -868,7 +867,7 @@ ssize_t reiserfs_listxattr(struct dentry * dentry, char *buffer, size_t size)
 	}
 
 	mutex_lock_nested(&dir->d_inode->i_mutex, I_MUTEX_XATTR);
-	err = reiserfs_readdir_dentry(dir, &buf.ctx);
+	err = reiserfs_readdir_inode(dir->d_inode, &buf.ctx);
 	mutex_unlock(&dir->d_inode->i_mutex);
 
 	if (!err)

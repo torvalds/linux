@@ -57,9 +57,8 @@ static inline bool is_privroot_deh(struct inode *dir, struct reiserfs_de_head *d
 	        deh->deh_objectid == INODE_PKEY(privroot->d_inode)->k_objectid);
 }
 
-int reiserfs_readdir_dentry(struct dentry *dentry, struct dir_context *ctx)
+int reiserfs_readdir_inode(struct inode *inode, struct dir_context *ctx)
 {
-	struct inode *inode = dentry->d_inode;
 	struct cpu_key pos_key;	/* key of current position in the directory (key of directory entry) */
 	INITIALIZE_PATH(path_to_entry);
 	struct buffer_head *bh;
@@ -243,7 +242,7 @@ out:
 
 static int reiserfs_readdir(struct file *file, struct dir_context *ctx)
 {
-	return reiserfs_readdir_dentry(file->f_path.dentry, ctx);
+	return reiserfs_readdir_inode(file_inode(file), ctx);
 }
 
 /* compose directory item containing "." and ".." entries (entries are

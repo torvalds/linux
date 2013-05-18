@@ -2709,7 +2709,7 @@ extern const struct inode_operations reiserfs_dir_inode_operations;
 extern const struct inode_operations reiserfs_symlink_inode_operations;
 extern const struct inode_operations reiserfs_special_inode_operations;
 extern const struct file_operations reiserfs_dir_operations;
-int reiserfs_readdir_dentry(struct dentry *, struct dir_context *);
+int reiserfs_readdir_inode(struct inode *, struct dir_context *);
 
 /* tail_conversion.c */
 int direct2indirect(struct reiserfs_transaction_handle *, struct inode *,
