@@ -579,7 +579,7 @@ void __sramfunc board_pmu_tps65910_resume(void)
 {
 	#ifdef CONFIG_CLK_SWITCH_TO_32K
  	sram_gpio_set_value(pmic_sleep, GPIO_LOW);  
-	sram_32k_udelay(2000);
+	sram_32k_udelay(10000);
 	#endif
 }
 static struct tps65910_board tps65910_data = {

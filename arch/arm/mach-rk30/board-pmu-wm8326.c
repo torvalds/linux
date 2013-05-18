@@ -787,7 +787,7 @@ void __sramfunc board_pmu_wm8326_resume(void)
 {
 	#ifdef CONFIG_CLK_SWITCH_TO_32K
 	sram_gpio_set_value(pmic_sleep, GPIO_LOW);  
-	sram_32k_udelay(2000);
+	sram_32k_udelay(10000);
 	#endif
 }
 static struct wm831x_pdata wm831x_platdata = {
