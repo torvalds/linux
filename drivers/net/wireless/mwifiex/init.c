@@ -447,17 +447,16 @@ static void mwifiex_free_lock_list(struct mwifiex_adapter *adapter)
 }
 
 /*
- * This function frees the adapter structure.
+ * This function performs cleanup for adapter structure.
  *
- * The freeing operation is done recursively, by canceling all
- * pending commands, freeing the member buffers previously
- * allocated (command buffers, scan table buffer, sleep confirm
- * command buffer), stopping the timers and calling the cleanup
- * routines for every interface, before the actual adapter
- * structure is freed.
+ * The cleanup is done recursively, by canceling all pending
+ * commands, freeing the member buffers previously allocated
+ * (command buffers, scan table buffer, sleep confirm command
+ * buffer), stopping the timers and calling the cleanup routines
+ * for every interface.
  */
 static void
-mwifiex_free_adapter(struct mwifiex_adapter *adapter)
+mwifiex_adapter_cleanup(struct mwifiex_adapter *adapter)
 {
 	if (!adapter) {
 		pr_err("%s: adapter is NULL\n", __func__);
@@ -733,8 +732,7 @@ mwifiex_shutdown_drv(struct mwifiex_adapter *adapter)
 		}
 	}
 
-	/* Free adapter structure */
-	mwifiex_free_adapter(adapter);
+	mwifiex_adapter_cleanup(adapter);
 
 	spin_unlock_irqrestore(&adapter->mwifiex_lock, flags);
 
