@@ -3371,6 +3371,7 @@ struct tg3 {
 	unsigned int			irq_cnt;
 
 	struct ethtool_coalesce		coal;
+	struct ethtool_eee		eee;
 
 	/* firmware info */
 	const char			*fw_needed;
