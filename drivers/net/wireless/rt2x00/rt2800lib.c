@@ -4084,6 +4084,8 @@ static void rt2800_init_bbp_30xx(struct rt2x00_dev *rt2x00dev)
 
 static void rt2800_init_bbp_3290(struct rt2x00_dev *rt2x00dev)
 {
+	u8 value;
+
 	rt2800_bbp4_mac_if_ctrl(rt2x00dev);
 
 	rt2800_bbp_write(rt2x00dev, 31, 0x08);
@@ -4128,6 +4130,27 @@ static void rt2800_init_bbp_3290(struct rt2x00_dev *rt2x00dev)
 	rt2800_bbp_write(rt2x00dev, 106, 0x03);
 
 	rt2800_bbp_write(rt2x00dev, 128, 0x12);
+
+	rt2800_bbp_write(rt2x00dev, 67, 0x24);
+	rt2800_bbp_write(rt2x00dev, 143, 0x04);
+	rt2800_bbp_write(rt2x00dev, 142, 0x99);
+	rt2800_bbp_write(rt2x00dev, 150, 0x30);
+	rt2800_bbp_write(rt2x00dev, 151, 0x2e);
+	rt2800_bbp_write(rt2x00dev, 152, 0x20);
+	rt2800_bbp_write(rt2x00dev, 153, 0x34);
+	rt2800_bbp_write(rt2x00dev, 154, 0x40);
+	rt2800_bbp_write(rt2x00dev, 155, 0x3b);
+	rt2800_bbp_write(rt2x00dev, 253, 0x04);
+
+	rt2800_bbp_read(rt2x00dev, 47, &value);
+	rt2x00_set_field8(&value, BBP47_TSSI_ADC6, 1);
+	rt2800_bbp_write(rt2x00dev, 47, value);
+
+	/* Use 5-bit ADC for Acquisition and 8-bit ADC for data */
+	rt2800_bbp_read(rt2x00dev, 3, &value);
+	rt2x00_set_field8(&value, BBP3_ADC_MODE_SWITCH, 1);
+	rt2x00_set_field8(&value, BBP3_ADC_INIT_MODE, 1);
+	rt2800_bbp_write(rt2x00dev, 3, value);
 }
 
 static void rt2800_init_bbp_3352(struct rt2x00_dev *rt2x00dev)
@@ -4460,29 +4483,6 @@ static void rt2800_init_bbp(struct rt2x00_dev *rt2x00dev)
 	case RT5592:
 		rt2800_init_bbp_5592(rt2x00dev);
 		return;
-	}
-
-	if (rt2x00_rt(rt2x00dev, RT3290)) {
-		rt2800_bbp_write(rt2x00dev, 67, 0x24);
-		rt2800_bbp_write(rt2x00dev, 143, 0x04);
-		rt2800_bbp_write(rt2x00dev, 142, 0x99);
-		rt2800_bbp_write(rt2x00dev, 150, 0x30);
-		rt2800_bbp_write(rt2x00dev, 151, 0x2e);
-		rt2800_bbp_write(rt2x00dev, 152, 0x20);
-		rt2800_bbp_write(rt2x00dev, 153, 0x34);
-		rt2800_bbp_write(rt2x00dev, 154, 0x40);
-		rt2800_bbp_write(rt2x00dev, 155, 0x3b);
-		rt2800_bbp_write(rt2x00dev, 253, 0x04);
-
-		rt2800_bbp_read(rt2x00dev, 47, &value);
-		rt2x00_set_field8(&value, BBP47_TSSI_ADC6, 1);
-		rt2800_bbp_write(rt2x00dev, 47, value);
-
-		/* Use 5-bit ADC for Acquisition and 8-bit ADC for data */
-		rt2800_bbp_read(rt2x00dev, 3, &value);
-		rt2x00_set_field8(&value, BBP3_ADC_MODE_SWITCH, 1);
-		rt2x00_set_field8(&value, BBP3_ADC_INIT_MODE, 1);
-		rt2800_bbp_write(rt2x00dev, 3, value);
 	}
 
 	if (rt2x00_rt(rt2x00dev, RT5390) ||
