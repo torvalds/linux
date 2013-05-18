@@ -303,12 +303,6 @@ static int i2c_sirfsoc_probe(struct platform_device *pdev)
 	adap->class = I2C_CLASS_HWMON;
 
 	mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (mem_res == NULL) {
-		dev_err(&pdev->dev, "Unable to get MEM resource\n");
-		err = -EINVAL;
-		goto out;
-	}
-
 	siic->base = devm_ioremap_resource(&pdev->dev, mem_res);
 	if (IS_ERR(siic->base)) {
 		err = PTR_ERR(siic->base);
