@@ -786,11 +786,14 @@ static void au_call_cpup_single(void *args)
  * testing CAP_MKNOD is for generic fs,
  * but CAP_FSETID is for xfs only, currently.
  */
-static int au_cpup_sio_test(struct super_block *sb, umode_t mode)
+static int au_cpup_sio_test(struct au_pin *pin, umode_t mode)
 {
 	int do_sio;
+	struct super_block *sb;
+	struct inode *h_dir;
 
 	do_sio = 0;
+	sb = au_pinned_parent(pin)->d_sb;
 	if (!au_wkq_test()
 	    && (!au_sbi(sb)->si_plink_maint_pid
 		|| au_plink_maint(sb, AuLock_NOPLM))) {
@@ -807,6 +810,11 @@ static int au_cpup_sio_test(struct super_block *sb, umode_t mode)
 		if (!do_sio)
 			do_sio = ((mode & (S_ISUID | S_ISGID))
 				  && !capable(CAP_FSETID));
+		/* this workaround may be removed in the future */
+		if (!do_sio) {
+			h_dir = au_pinned_h_dir(pin);
+			do_sio = h_dir->i_mode & S_ISVTX;
+		}
 	}
 
 	return do_sio;
@@ -826,7 +834,7 @@ int au_sio_cpup_single(struct dentry *dentry, aufs_bindex_t bdst,
 	};
 
 	h_dentry = au_h_dptr(dentry, bsrc);
-	if (!au_cpup_sio_test(dentry->d_sb, h_dentry->d_inode->i_mode))
+	if (!au_cpup_sio_test(pin, h_dentry->d_inode->i_mode))
 		err = au_cpup_single(&basic, flags, dst_parent, pin);
 	else {
 		struct au_cpup_single_args args = {
@@ -914,7 +922,7 @@ int au_sio_cpup_simple(struct dentry *dentry, aufs_bindex_t bdst, loff_t len,
 	parent = dget_parent(dentry);
 	h_dir = au_h_iptr(parent->d_inode, bdst);
 	if (!au_test_h_perm_sio(h_dir, MAY_EXEC | MAY_WRITE)
-	    && !au_cpup_sio_test(dentry->d_sb, dentry->d_inode->i_mode))
+	    && !au_cpup_sio_test(pin, dentry->d_inode->i_mode))
 		err = au_cpup_simple(dentry, bdst, len, flags, pin);
 	else {
 		struct au_cpup_simple_args args = {
@@ -1079,7 +1087,7 @@ int au_sio_cpup_wh(struct dentry *dentry, aufs_bindex_t bdst, loff_t len,
 	}
 
 	if (!au_test_h_perm_sio(h_tmpdir, MAY_EXEC | MAY_WRITE)
-	    && !au_cpup_sio_test(dentry->d_sb, dentry->d_inode->i_mode))
+	    && !au_cpup_sio_test(pin, dentry->d_inode->i_mode))
 		err = au_cpup_wh(dentry, bdst, len, file, pin);
 	else {
 		struct au_cpup_wh_args args = {
