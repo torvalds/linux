@@ -146,7 +146,11 @@
 void __sramfunc ddr_suspend(void);
 void __sramfunc ddr_resume(void);
 //void __sramlocalfunc delayus(uint32_t us);
+#if defined(CONFIG_ARCH_RK2928)
+uint32_t __sramfunc ddr_change_freq(uint32_t nMHz);
+#else
 uint32_t ddr_change_freq(uint32_t nMHz);
+#endif
 uint32_t ddr_get_cap(void);
 int ddr_init(uint32_t dram_type, uint32_t freq);
 void ddr_set_auto_self_refresh(bool en);
