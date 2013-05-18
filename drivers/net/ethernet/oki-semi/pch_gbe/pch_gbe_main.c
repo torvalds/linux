@@ -23,6 +23,7 @@
 #include <linux/module.h>
 #include <linux/net_tstamp.h>
 #include <linux/ptp_classify.h>
+#include <linux/gpio.h>
 
 #define DRV_VERSION     "1.01"
 const char pch_driver_version[] = DRV_VERSION;
@@ -110,6 +111,8 @@ const char pch_driver_version[] = DRV_VERSION;
 
 #define PTP_L4_MULTICAST_SA "01:00:5e:00:01:81"
 #define PTP_L2_MULTICAST_SA "01:1b:19:00:00:00"
+
+#define MINNOW_PHY_RESET_GPIO		13
 
 static unsigned int copybreak __read_mostly = PCH_GBE_COPYBREAK_DEFAULT;
 
@@ -2635,6 +2638,9 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 	adapter->pdev = pdev;
 	adapter->hw.back = adapter;
 	adapter->hw.reg = pcim_iomap_table(pdev)[PCH_GBE_PCI_BAR];
+	adapter->pdata = (struct pch_gbe_privdata *)pci_id->driver_data;
+	if (adapter->pdata && adapter->pdata->platform_init)
+		adapter->pdata->platform_init(pdev);
 
 	adapter->ptp_pdev = pci_get_bus_and_slot(adapter->pdev->bus->number,
 					       PCI_DEVFN(12, 4));
@@ -2710,6 +2716,10 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 
 	dev_dbg(&pdev->dev, "PCH Network Connection\n");
 
+	/* Disable hibernation on certain platforms */
+	if (adapter->pdata && adapter->pdata->phy_disable_hibernate)
+		pch_gbe_phy_disable_hibernate(&adapter->hw);
+
 	device_set_wakeup_enable(&pdev->dev, 1);
 	return 0;
 
@@ -2720,7 +2730,46 @@ err_free_netdev:
 	return ret;
 }
 
+/* The AR803X PHY on the MinnowBoard requires a physical pin to be toggled to
+ * ensure it is awake for probe and init. Request the line and reset the PHY.
+ */
+static int pch_gbe_minnow_platform_init(struct pci_dev *pdev)
+{
+	unsigned long flags = GPIOF_DIR_OUT | GPIOF_INIT_HIGH | GPIOF_EXPORT;
+	unsigned gpio = MINNOW_PHY_RESET_GPIO;
+	int ret;
+
+	ret = devm_gpio_request_one(&pdev->dev, gpio, flags,
+				    "minnow_phy_reset");
+	if (ret) {
+		dev_err(&pdev->dev,
+			"ERR: Can't request PHY reset GPIO line '%d'\n", gpio);
+		return ret;
+	}
+
+	gpio_set_value(gpio, 0);
+	usleep_range(1250, 1500);
+	gpio_set_value(gpio, 1);
+	usleep_range(1250, 1500);
+
+	return ret;
+}
+
+static struct pch_gbe_privdata pch_gbe_minnow_privdata = {
+	.phy_tx_clk_delay = true,
+	.phy_disable_hibernate = true,
+	.platform_init = pch_gbe_minnow_platform_init,
+};
+
 static DEFINE_PCI_DEVICE_TABLE(pch_gbe_pcidev_id) = {
+	{.vendor = PCI_VENDOR_ID_INTEL,
+	 .device = PCI_DEVICE_ID_INTEL_IOH1_GBE,
+	 .subvendor = PCI_VENDOR_ID_CIRCUITCO,
+	 .subdevice = PCI_SUBSYSTEM_ID_CIRCUITCO_MINNOWBOARD,
+	 .class = (PCI_CLASS_NETWORK_ETHERNET << 8),
+	 .class_mask = (0xFFFF00),
+	 .driver_data = (kernel_ulong_t)&pch_gbe_minnow_privdata
+	 },
 	{.vendor = PCI_VENDOR_ID_INTEL,
 	 .device = PCI_DEVICE_ID_INTEL_IOH1_GBE,
 	 .subvendor = PCI_ANY_ID,
