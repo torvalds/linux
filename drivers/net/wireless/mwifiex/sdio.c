@@ -1100,7 +1100,7 @@ static int mwifiex_sdio_card_to_host_mp_aggr(struct mwifiex_adapter *adapter,
 		dev_dbg(adapter->dev, "info: do_rx_aggr: num of packets: %d\n",
 			card->mpa_rx.pkt_cnt);
 
-		mport = (adapter->ioport | 0x1000 |
+		mport = (adapter->ioport | SDIO_MPA_ADDR_BASE |
 			 (card->mpa_rx.ports << 4)) + card->mpa_rx.start_port;
 
 		if (mwifiex_read_data_sync(adapter, card->mpa_rx.buf,
@@ -1419,7 +1419,7 @@ static int mwifiex_host_to_card_mp_aggr(struct mwifiex_adapter *adapter,
 		dev_dbg(adapter->dev, "data: %s: send aggr buffer: %d %d\n",
 			__func__,
 				card->mpa_tx.start_port, card->mpa_tx.ports);
-		mport = (adapter->ioport | 0x1000 |
+		mport = (adapter->ioport | SDIO_MPA_ADDR_BASE |
 			 (card->mpa_tx.ports << 4)) + card->mpa_tx.start_port;
 		ret = mwifiex_write_data_to_card(adapter, card->mpa_tx.buf,
 						 card->mpa_tx.buf_len, mport);
