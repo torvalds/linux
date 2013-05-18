@@ -50,6 +50,20 @@ config MINNOWBOARD_GPIO
 	  If you have a MinnowBoard, and want to experiment with the GPIO,
 	  say Y or M here.
 
+config MINNOWBOARD_KEYS
+	tristate "MinnowBoard GPIO Keys"
+	depends on MINNOWBOARD
+	depends on KEYBOARD_GPIO_POLLED
+	default n
+	---help---
+	  Configure the four buttons tied to the E6XX GPIO lines on the
+	  MinnowBoard as keys using the gpio-keys-polled platform driver. From
+	  left to right, bind them to LEFT, DOWN, UP, RIGHT, similar to the VI
+	  directional keys.
+
+	  If you have a MinnowBoard and want to use the buttons as arrow keys,
+	  say Y or M here.
+
 endif # MINNOWBOARD
 
 

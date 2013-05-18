@@ -4,6 +4,7 @@
 #
 obj-$(CONFIG_MINNOWBOARD)	+= minnowboard.o
 obj-$(CONFIG_MINNOWBOARD_GPIO)	+= minnowboard-gpio.o
+obj-$(CONFIG_MINNOWBOARD_KEYS)	+= minnowboard-keys.o
 obj-$(CONFIG_ASUS_LAPTOP)	+= asus-laptop.o
 obj-$(CONFIG_ASUS_WMI)		+= asus-wmi.o
 obj-$(CONFIG_ASUS_NB_WMI)	+= asus-nb-wmi.o
