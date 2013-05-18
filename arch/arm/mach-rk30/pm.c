@@ -781,12 +781,13 @@ static void rk_pm_soc_pll_suspend(void)
 		clk_sel1 = cru_readl(CRU_CLKSELS_CON(1));
 	
 		cru_writel(PLL_MODE_SLOW(APLL_ID), CRU_MODE_CON);
-		/* To make sure aclk_cpu select gpll before div effect */
-		cru_writel(CPU_SEL_PLL_W_MSK | CPU_SEL_APLL, CRU_CLKSELS_CON(0));
+		/* To make sure aclk_cpu select apll before div effect */
+		cru_writel(CPU_SEL_PLL_W_MSK | CPU_SEL_APLL
+                           | CORE_SEL_PLL_W_MSK | CORE_SEL_APLL
+                           , CRU_CLKSELS_CON(0));
 		cru_writel(CORE_PERIPH_W_MSK | CORE_PERIPH_2
 			   | CORE_CLK_DIV_W_MSK | CORE_CLK_DIV(1)
 			   | CPU_CLK_DIV_W_MSK | CPU_CLK_DIV(1)
-			   | CORE_SEL_PLL_W_MSK | CORE_SEL_APLL
 			   , CRU_CLKSELS_CON(0));
 		cru_writel(CORE_ACLK_W_MSK | CORE_ACLK_11
 #if !defined(CONFIG_ARCH_RK3188)
@@ -825,8 +826,8 @@ static void rk_pm_soc_pll_resume(void)
 	//apll
 	cru_writel(0xffff0000 | clk_sel1, CRU_CLKSELS_CON(1));
 	/* To make sure aclk_cpu select gpll after div effect */
-	cru_writel(0xffdf0000 | clk_sel0, CRU_CLKSELS_CON(0));
-	cru_writel(0x00200000 | clk_sel0, CRU_CLKSELS_CON(0));
+	cru_writel((0xffff0000 & ~CPU_SEL_PLL_W_MSK & ~CORE_SEL_PLL_W_MSK) | clk_sel0, CRU_CLKSELS_CON(0));
+	cru_writel(CPU_SEL_PLL_W_MSK | CORE_SEL_PLL_W_MSK | clk_sel0, CRU_CLKSELS_CON(0));
 	power_on_pll(APLL_ID);
 	cru_writel((PLL_MODE_MSK(APLL_ID) << 16) | (PLL_MODE_MSK(APLL_ID) & cru_mode_con), CRU_MODE_CON);
 
