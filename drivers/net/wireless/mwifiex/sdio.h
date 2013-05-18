@@ -32,6 +32,7 @@
 #define SD8786_DEFAULT_FW_NAME "mrvl/sd8786_uapsta.bin"
 #define SD8787_DEFAULT_FW_NAME "mrvl/sd8787_uapsta.bin"
 #define SD8797_DEFAULT_FW_NAME "mrvl/sd8797_uapsta.bin"
+#define SD8897_DEFAULT_FW_NAME "mrvl/sd8897_uapsta.bin"
 
 #define BLOCK_MODE	1
 #define BYTE_MODE	0
@@ -45,6 +46,23 @@
 #define SDIO_MPA_ADDR_BASE		0x1000
 #define CTRL_PORT			0
 #define CTRL_PORT_MASK			0x0001
+
+#define CMD_PORT_UPLD_INT_MASK		(0x1U<<6)
+#define CMD_PORT_DNLD_INT_MASK		(0x1U<<7)
+#define HOST_TERM_CMD53			(0x1U << 2)
+#define REG_PORT			0
+#define MEM_PORT			0x10000
+#define CMD_RD_LEN_0			0xB4
+#define CMD_RD_LEN_1			0xB5
+#define CARD_CONFIG_2_1_REG             0xCD
+#define CMD53_NEW_MODE			(0x1U << 0)
+#define CMD_CONFIG_0			0xB8
+#define CMD_PORT_RD_LEN_EN		(0x1U << 2)
+#define CMD_CONFIG_1			0xB9
+#define CMD_PORT_AUTO_EN		(0x1U << 0)
+#define CMD_PORT_SLCT			0x8000
+#define UP_LD_CMD_PORT_HOST_INT_STATUS	(0x40U)
+#define DN_LD_CMD_PORT_HOST_INT_STATUS	(0x80U)
 
 #define SDIO_MP_TX_AGGR_DEF_BUF_SIZE        (8192)	/* 8K */
 
@@ -73,6 +91,7 @@
 #define UP_LD_HOST_INT_MASK		(0x1U)
 /* Host Control Registers : Download host interrupt mask */
 #define DN_LD_HOST_INT_MASK		(0x2U)
+
 /* Disable Host interrupt mask */
 #define	HOST_INT_DISABLE		0xff
 
@@ -196,8 +215,12 @@ struct mwifiex_sdio_card_reg {
 	u8 max_mp_regs;
 	u8 rd_bitmap_l;
 	u8 rd_bitmap_u;
+	u8 rd_bitmap_1l;
+	u8 rd_bitmap_1u;
 	u8 wr_bitmap_l;
 	u8 wr_bitmap_u;
+	u8 wr_bitmap_1l;
+	u8 wr_bitmap_1u;
 	u8 rd_len_p0_l;
 	u8 rd_len_p0_u;
 	u8 card_misc_cfg_reg;
@@ -211,6 +234,8 @@ struct sdio_mmc_card {
 	const struct mwifiex_sdio_card_reg *reg;
 	u8 max_ports;
 	u8 mp_agg_pkt_limit;
+	bool supports_sdio_new_mode;
+	bool has_control_mask;
 
 	u32 mp_rd_bitmap;
 	u32 mp_wr_bitmap;
@@ -232,6 +257,8 @@ struct mwifiex_sdio_device {
 	const struct mwifiex_sdio_card_reg *reg;
 	u8 max_ports;
 	u8 mp_agg_pkt_limit;
+	bool supports_sdio_new_mode;
+	bool has_control_mask;
 };
 
 static const struct mwifiex_sdio_card_reg mwifiex_reg_sd87xx = {
@@ -255,11 +282,39 @@ static const struct mwifiex_sdio_card_reg mwifiex_reg_sd87xx = {
 	.card_misc_cfg_reg = 0x6c,
 };
 
+static const struct mwifiex_sdio_card_reg mwifiex_reg_sd8897 = {
+	.start_rd_port = 0,
+	.start_wr_port = 0,
+	.base_0_reg = 0x60,
+	.base_1_reg = 0x61,
+	.poll_reg = 0x50,
+	.host_int_enable = UP_LD_HOST_INT_MASK | DN_LD_HOST_INT_MASK |
+			CMD_PORT_UPLD_INT_MASK | CMD_PORT_DNLD_INT_MASK,
+	.status_reg_0 = 0xc0,
+	.status_reg_1 = 0xc1,
+	.sdio_int_mask = 0xff,
+	.data_port_mask = 0xffffffff,
+	.max_mp_regs = 184,
+	.rd_bitmap_l = 0x04,
+	.rd_bitmap_u = 0x05,
+	.rd_bitmap_1l = 0x06,
+	.rd_bitmap_1u = 0x07,
+	.wr_bitmap_l = 0x08,
+	.wr_bitmap_u = 0x09,
+	.wr_bitmap_1l = 0x0a,
+	.wr_bitmap_1u = 0x0b,
+	.rd_len_p0_l = 0x0c,
+	.rd_len_p0_u = 0x0d,
+	.card_misc_cfg_reg = 0xcc,
+};
+
 static const struct mwifiex_sdio_device mwifiex_sdio_sd8786 = {
 	.firmware = SD8786_DEFAULT_FW_NAME,
 	.reg = &mwifiex_reg_sd87xx,
 	.max_ports = 16,
 	.mp_agg_pkt_limit = 8,
+	.supports_sdio_new_mode = false,
+	.has_control_mask = true,
 };
 
 static const struct mwifiex_sdio_device mwifiex_sdio_sd8787 = {
@@ -267,6 +322,8 @@ static const struct mwifiex_sdio_device mwifiex_sdio_sd8787 = {
 	.reg = &mwifiex_reg_sd87xx,
 	.max_ports = 16,
 	.mp_agg_pkt_limit = 8,
+	.supports_sdio_new_mode = false,
+	.has_control_mask = true,
 };
 
 static const struct mwifiex_sdio_device mwifiex_sdio_sd8797 = {
@@ -274,6 +331,17 @@ static const struct mwifiex_sdio_device mwifiex_sdio_sd8797 = {
 	.reg = &mwifiex_reg_sd87xx,
 	.max_ports = 16,
 	.mp_agg_pkt_limit = 8,
+	.supports_sdio_new_mode = false,
+	.has_control_mask = true,
+};
+
+static const struct mwifiex_sdio_device mwifiex_sdio_sd8897 = {
+	.firmware = SD8897_DEFAULT_FW_NAME,
+	.reg = &mwifiex_reg_sd8897,
+	.max_ports = 32,
+	.mp_agg_pkt_limit = 16,
+	.supports_sdio_new_mode = true,
+	.has_control_mask = false,
 };
 
 /*
@@ -302,12 +370,22 @@ mp_rx_aggr_port_limit_reached(struct sdio_mmc_card *card)
 	u8 tmp;
 
 	if (card->curr_rd_port < card->mpa_rx.start_port) {
-		tmp = card->mp_agg_pkt_limit;
+		if (card->supports_sdio_new_mode)
+			tmp = card->mp_end_port >> 1;
+		else
+			tmp = card->mp_agg_pkt_limit;
 
 		if (((card->max_ports - card->mpa_rx.start_port) +
 		    card->curr_rd_port) >= tmp)
 			return true;
 	}
+
+	if (!card->supports_sdio_new_mode)
+		return false;
+
+	if ((card->curr_rd_port - card->mpa_rx.start_port) >=
+	    (card->mp_end_port >> 1))
+		return true;
 
 	return false;
 }
@@ -318,12 +396,22 @@ mp_tx_aggr_port_limit_reached(struct sdio_mmc_card *card)
 	u16 tmp;
 
 	if (card->curr_wr_port < card->mpa_tx.start_port) {
-		tmp = card->mp_agg_pkt_limit;
+		if (card->supports_sdio_new_mode)
+			tmp = card->mp_end_port >> 1;
+		else
+			tmp = card->mp_agg_pkt_limit;
 
 		if (((card->max_ports - card->mpa_tx.start_port) +
 		    card->curr_wr_port) >= tmp)
 			return true;
 	}
+
+	if (!card->supports_sdio_new_mode)
+		return false;
+
+	if ((card->curr_wr_port - card->mpa_tx.start_port) >=
+	    (card->mp_end_port >> 1))
+		return true;
 
 	return false;
 }
@@ -337,11 +425,14 @@ static inline void mp_rx_aggr_setup(struct sdio_mmc_card *card,
 	if (!card->mpa_rx.pkt_cnt)
 		card->mpa_rx.start_port = port;
 
-	if (card->mpa_rx.start_port <= port)
-		card->mpa_rx.ports |= 1 << (card->mpa_rx.pkt_cnt);
-	else
-		card->mpa_rx.ports |= 1 << (card->mpa_rx.pkt_cnt + 1);
-
+	if (card->supports_sdio_new_mode) {
+		card->mpa_rx.ports |= (1 << port);
+	} else {
+		if (card->mpa_rx.start_port <= port)
+			card->mpa_rx.ports |= 1 << (card->mpa_rx.pkt_cnt);
+		else
+			card->mpa_rx.ports |= 1 << (card->mpa_rx.pkt_cnt + 1);
+	}
 	card->mpa_rx.skb_arr[card->mpa_rx.pkt_cnt] = skb;
 	card->mpa_rx.len_arr[card->mpa_rx.pkt_cnt] = skb->len;
 	card->mpa_rx.pkt_cnt++;
