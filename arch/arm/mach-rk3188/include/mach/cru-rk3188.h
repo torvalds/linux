@@ -121,7 +121,7 @@ enum rk_plls_id {
 
 #define CORE_CLK_DIV_W_MSK	(0x1F << 25)
 #define CORE_CLK_DIV_MSK	(0x1F << 9)
-#define CORE_CLK_DIV(i)		(((i) - 1) & 0x1F)
+#define CORE_CLK_DIV(i)		((((i) - 1) & 0x1F) << 9)
 
 #define CPU_SEL_PLL_MSK		(1 << 5)
 #define CPU_SEL_PLL_W_MSK	(1 << 21)
