@@ -3953,6 +3953,20 @@ static void rt2800_init_bbp_early(struct rt2x00_dev *rt2x00dev)
 	rt2800_bbp_write(rt2x00dev, 106, 0x35);
 }
 
+static void rt2800_disable_unused_dac_adc(struct rt2x00_dev *rt2x00dev)
+{
+	u16 eeprom;
+	u8 value;
+
+	rt2800_bbp_read(rt2x00dev, 138, &value);
+	rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC_CONF0, &eeprom);
+	if (rt2x00_get_field16(eeprom, EEPROM_NIC_CONF0_TXPATH) == 1)
+		value |= 0x20;
+	if (rt2x00_get_field16(eeprom, EEPROM_NIC_CONF0_RXPATH) == 1)
+		value &= ~0x02;
+	rt2800_bbp_write(rt2x00dev, 138, value);
+}
+
 static void rt2800_init_bbp_305x_soc(struct rt2x00_dev *rt2x00dev)
 {
 	rt2800_bbp_write(rt2x00dev, 31, 0x08);
@@ -4062,6 +4076,10 @@ static void rt2800_init_bbp_30xx(struct rt2x00_dev *rt2x00dev)
 	rt2800_bbp_write(rt2x00dev, 105, 0x05);
 
 	rt2800_bbp_write(rt2x00dev, 106, 0x35);
+
+	if (rt2x00_rt(rt2x00dev, RT3071) ||
+	    rt2x00_rt(rt2x00dev, RT3090))
+		rt2800_disable_unused_dac_adc(rt2x00dev);
 }
 
 static void rt2800_init_bbp_3290(struct rt2x00_dev *rt2x00dev)
@@ -4200,6 +4218,8 @@ static void rt2800_init_bbp_3390(struct rt2x00_dev *rt2x00dev)
 	rt2800_bbp_write(rt2x00dev, 105, 0x05);
 
 	rt2800_bbp_write(rt2x00dev, 106, 0x35);
+
+	rt2800_disable_unused_dac_adc(rt2x00dev);
 }
 
 static void rt2800_init_bbp_3572(struct rt2x00_dev *rt2x00dev)
@@ -4235,6 +4255,8 @@ static void rt2800_init_bbp_3572(struct rt2x00_dev *rt2x00dev)
 	rt2800_bbp_write(rt2x00dev, 105, 0x05);
 
 	rt2800_bbp_write(rt2x00dev, 106, 0x35);
+
+	rt2800_disable_unused_dac_adc(rt2x00dev);
 }
 
 static void rt2800_init_bbp_53xx(struct rt2x00_dev *rt2x00dev)
@@ -4300,6 +4322,8 @@ static void rt2800_init_bbp_53xx(struct rt2x00_dev *rt2x00dev)
 		rt2800_bbp_write(rt2x00dev, 134, 0xd0);
 		rt2800_bbp_write(rt2x00dev, 135, 0xf6);
 	}
+
+	rt2800_disable_unused_dac_adc(rt2x00dev);
 }
 
 static void rt2800_init_bbp_5592(struct rt2x00_dev *rt2x00dev)
@@ -4416,23 +4440,6 @@ static void rt2800_init_bbp(struct rt2x00_dev *rt2x00dev)
 	case RT5592:
 		rt2800_init_bbp_5592(rt2x00dev);
 		return;
-	}
-
-	if (rt2x00_rt(rt2x00dev, RT3071) ||
-	    rt2x00_rt(rt2x00dev, RT3090) ||
-	    rt2x00_rt(rt2x00dev, RT3390) ||
-	    rt2x00_rt(rt2x00dev, RT3572) ||
-	    rt2x00_rt(rt2x00dev, RT5390) ||
-	    rt2x00_rt(rt2x00dev, RT5392)) {
-		rt2800_bbp_read(rt2x00dev, 138, &value);
-
-		rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC_CONF0, &eeprom);
-		if (rt2x00_get_field16(eeprom, EEPROM_NIC_CONF0_TXPATH) == 1)
-			value |= 0x20;
-		if (rt2x00_get_field16(eeprom, EEPROM_NIC_CONF0_RXPATH) == 1)
-			value &= ~0x02;
-
-		rt2800_bbp_write(rt2x00dev, 138, value);
 	}
 
 	if (rt2x00_rt(rt2x00dev, RT3290)) {
