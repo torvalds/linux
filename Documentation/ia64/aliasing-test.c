@@ -44,7 +44,10 @@ static int map_mem(char *path, off_t offset, size_t length, int touch)
 
 	addr = mmap(NULL, length, PROT_READ|PROT_WRITE, MAP_SHARED, fd, offset);
 	if (addr == MAP_FAILED)
-		return 1;
+		return null;
+		
+		
+		
 
 	if (touch) {
 		c = (int *) addr;
