@@ -4090,6 +4090,8 @@ static void rt2800_init_bbp_3290(struct rt2x00_dev *rt2x00dev)
 	rt2800_bbp_write(rt2x00dev, 92, 0x02);
 
 	rt2800_bbp_write(rt2x00dev, 103, 0xc0);
+
+	rt2800_bbp_write(rt2x00dev, 104, 0x92);
 }
 
 static void rt2800_init_bbp_3352(struct rt2x00_dev *rt2x00dev)
@@ -4134,6 +4136,8 @@ static void rt2800_init_bbp_3352(struct rt2x00_dev *rt2x00dev)
 	rt2800_bbp_write(rt2x00dev, 92, 0x02);
 
 	rt2800_bbp_write(rt2x00dev, 103, 0xc0);
+
+	rt2800_bbp_write(rt2x00dev, 104, 0x92);
 }
 
 static void rt2800_init_bbp_3390(struct rt2x00_dev *rt2x00dev)
@@ -4244,6 +4248,8 @@ static void rt2800_init_bbp_53xx(struct rt2x00_dev *rt2x00dev)
 	}
 
 	rt2800_bbp_write(rt2x00dev, 103, 0xc0);
+
+	rt2800_bbp_write(rt2x00dev, 104, 0x92);
 }
 
 static void rt2800_init_bbp_5592(struct rt2x00_dev *rt2x00dev)
@@ -4361,12 +4367,6 @@ static void rt2800_init_bbp(struct rt2x00_dev *rt2x00dev)
 		rt2800_init_bbp_5592(rt2x00dev);
 		return;
 	}
-
-	if (rt2x00_rt(rt2x00dev, RT3290) ||
-	    rt2x00_rt(rt2x00dev, RT3352) ||
-	    rt2x00_rt(rt2x00dev, RT5390) ||
-	    rt2x00_rt(rt2x00dev, RT5392))
-		rt2800_bbp_write(rt2x00dev, 104, 0x92);
 
 	if (rt2800_is_305x_soc(rt2x00dev))
 		rt2800_bbp_write(rt2x00dev, 105, 0x01);
