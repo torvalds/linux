@@ -3953,6 +3953,10 @@ static void rt2800_init_bbp_early(struct rt2x00_dev *rt2x00dev)
 	rt2800_bbp_write(rt2x00dev, 106, 0x35);
 }
 
+static void rt2800_init_bbp_305x_soc(struct rt2x00_dev *rt2x00dev)
+{
+}
+
 static void rt2800_init_bbp_28xx(struct rt2x00_dev *rt2x00dev)
 {
 }
@@ -4061,6 +4065,9 @@ static void rt2800_init_bbp(struct rt2x00_dev *rt2x00dev)
 	u16 eeprom;
 	u8 reg_id;
 	u8 value;
+
+	if (rt2800_is_305x_soc(rt2x00dev))
+		rt2800_init_bbp_305x_soc(rt2x00dev);
 
 	switch (rt2x00dev->chip.rt) {
 	case RT2860:
