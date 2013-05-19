@@ -45,8 +45,8 @@ static const char nconf_global_help[] = N_(
 "<n> to remove it.  You may press the <Space> key to cycle through the\n"
 "available options.\n"
 "\n"
-"A trailing \"--->\" designates a submenu.\n"
-"\n"
+"A trailing \"--->\" designates a submenu, a trailing \"----\" an\n"
+"empty submenu.\n"
 "\n"
 "Menu navigation keys\n"
 "----------------------------------------------------------------------\n"
@@ -131,7 +131,7 @@ static const char nconf_global_help[] = N_(
 "\n"),
 menu_no_f_instructions[] = N_(
 "Legend:  [*] built-in  [ ] excluded  <M> module  < > module capable.\n"
-"Submenus are designated by a trailing \"--->\".\n"
+"Submenus are designated by a trailing \"--->\", empty ones by \"----\".\n"
 "\n"
 "Use the following keys to navigate the menus:\n"
 "Move up or down with <Up> and <Down>.\n"
@@ -148,7 +148,7 @@ menu_no_f_instructions[] = N_(
 "For help related to the current menu entry press <?> or <h>.\n"),
 menu_instructions[] = N_(
 "Legend:  [*] built-in  [ ] excluded  <M> module  < > module capable.\n"
-"Submenus are designated by a trailing \"--->\".\n"
+"Submenus are designated by a trailing \"--->\", empty ones by \"----\".\n"
 "\n"
 "Use the following keys to navigate the menus:\n"
 "Move up or down with <Up> or <Down>.\n"
@@ -760,9 +760,9 @@ static void build_conf(struct menu *menu)
 						indent + 1, ' ', prompt);
 				} else
 					item_make(menu, 'm',
-						"   %*c%s  --->",
-						indent + 1,
-						' ', prompt);
+						  "   %*c%s  %s",
+						  indent + 1, ' ', prompt,
+						  menu_is_empty(menu) ? "----" : "--->");
 
 				if (single_menu_mode && menu->data)
 					goto conf_childs;
@@ -904,7 +904,7 @@ static void build_conf(struct menu *menu)
 				(sym_has_value(sym) || !sym_is_changable(sym)) ?
 				"" : _(" (NEW)"));
 		if (menu->prompt && menu->prompt->type == P_MENU) {
-			item_add_str("  --->");
+			item_add_str("  %s", menu_is_empty(menu) ? "----" : "--->");
 			return;
 		}
 	}
