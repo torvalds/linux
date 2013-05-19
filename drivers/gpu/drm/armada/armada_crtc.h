@@ -44,10 +44,19 @@ struct armada_crtc {
 		uint32_t	spu_adv_reg;
 	} v[2];
 	bool			interlaced;
+	bool			cursor_update;
 	uint8_t			csc_yuv_mode;
 	uint8_t			csc_rgb_mode;
 
 	struct drm_plane	*plane;
+
+	struct armada_gem_object	*cursor_obj;
+	int			cursor_x;
+	int			cursor_y;
+	uint32_t		cursor_hw_pos;
+	uint32_t		cursor_hw_sz;
+	uint32_t		cursor_w;
+	uint32_t		cursor_h;
 
 	int			dpms;
 	uint32_t		cfg_dumb_ctrl;

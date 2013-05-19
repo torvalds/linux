@@ -60,6 +60,7 @@ struct armada_private;
 
 struct armada_variant {
 	bool	has_spu_adv_reg;
+	uint32_t spu_adv_reg;
 	int (*init)(struct armada_private *, struct device *);
 	int (*crtc_init)(struct armada_crtc *);
 	int (*crtc_compute_clock)(struct armada_crtc *,
