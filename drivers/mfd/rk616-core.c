@@ -91,7 +91,6 @@ static int rk616_i2c_write_reg(struct mfd_rk616 *rk616, u16 reg,u32 *pval)
 	ret = i2c_transfer(adap, &msg, 1);
 	kfree(tx_buf);
 	
-	
 	return (ret == 1) ? 4 : ret;
 }
 
@@ -260,20 +259,12 @@ static  int  rk616_pll_wait_lock(struct mfd_rk616 *rk616,int id)
 }
 
 
-int rk616_pll_set_rate(struct mfd_rk616 *rk616,int id,u32 cfg_val,u32 frac)
+
+int rk616_pll_pwr_down(struct mfd_rk616 *rk616,int id)
 {
 	u32 val = 0;
 	int ret;
 	int offset;
-	u16 con0 = cfg_val & 0xffff;
-	u16 con1 = (cfg_val >> 16)&0xffff;
-	u32 fbdiv = con0 & 0xfff;
-	u32 postdiv1 = (con0 >> 12)&0x7;
-	u32 refdiv = con1 & 0x3f;
-	u32 postdiv2 = (con1 >> 6) & 0x7;
-	u8 mode = !frac;
-	
-	
 	if(id == 0)  //PLL0
 	{
 		offset = 0;
@@ -287,6 +278,59 @@ int rk616_pll_set_rate(struct mfd_rk616 *rk616,int id,u32 cfg_val,u32 frac)
 	val = PLL0_PWR_DN | (PLL0_PWR_DN << 16);
 	ret = rk616->write_dev(rk616,CRU_PLL0_CON1 + offset,&val);
 
+	return 0;
+	
+}
+
+
+
+int rk616_pll_set_rate(struct mfd_rk616 *rk616,int id,u32 cfg_val,u32 frac)
+{
+	u32 val = 0;
+	int ret;
+	int offset;
+	u16 con0 = cfg_val & 0xffff;
+	u16 con1 = (cfg_val >> 16)&0xffff;
+	u32 fbdiv = con0 & 0xfff;
+	u32 postdiv1 = (con0 >> 12)&0x7;
+	u32 refdiv = con1 & 0x3f;
+	u32 postdiv2 = (con1 >> 6) & 0x7;
+	u8 mode = !frac;
+	
+	if(id == 0)  //PLL0
+	{
+		if(((rk616->pll0_rate >> 32) == cfg_val) && 
+			((rk616->pll0_rate & 0xffffffff) == frac))
+		{
+			//return 0;
+		}
+		rk616->pll0_rate = ((u64)cfg_val << 32) | frac;
+		offset = 0;
+	}
+	else // PLL1
+	{
+		if(((rk616->pll1_rate >> 32) == cfg_val) && 
+			((rk616->pll1_rate & 0xffffffff) == frac))
+		{
+			// return 0;
+		}
+		rk616->pll1_rate = ((u64)cfg_val << 32) | frac;
+		offset = 0x0c;
+	}
+
+
+	val = PLL0_PWR_DN | (PLL0_PWR_DN << 16);
+	ret = rk616->write_dev(rk616,CRU_PLL0_CON1 + offset,&val);
+	
+
+	ret = rk616->read_dev(rk616,CRU_PLL0_CON2 + offset,&val);
+	val &= 0xff000000;
+	if(frac)
+		val |= PLL0_FRAC(frac);
+	else
+		val |= 0x800000; //default value
+	ret = rk616->write_dev(rk616,CRU_PLL0_CON2 + offset,&val);
+
 	val = PLL0_POSTDIV1(postdiv1) | PLL0_FBDIV(fbdiv) | PLL0_POSTDIV1_MASK | 
 		PLL0_FBDIV_MASK | (PLL0_BYPASS << 16);
 	ret = rk616->write_dev(rk616,CRU_PLL0_CON0 + offset,&val);
@@ -294,13 +338,13 @@ int rk616_pll_set_rate(struct mfd_rk616 *rk616,int id,u32 cfg_val,u32 frac)
 	val = PLL0_DIV_MODE(mode) | PLL0_POSTDIV2(postdiv2) | PLL0_REFDIV(refdiv) |
 		(PLL0_DIV_MODE_MASK) | PLL0_POSTDIV2_MASK | PLL0_REFDIV_MASK;
 	ret = rk616->write_dev(rk616,CRU_PLL0_CON1 + offset,&val);
-
-	val = PLL0_FRAC(frac);
-	ret = rk616->write_dev(rk616,CRU_PLL0_CON2 + offset,&val);
 	
 	val = (PLL0_PWR_DN << 16);
 	ret = rk616->write_dev(rk616,CRU_PLL0_CON1 + offset,&val);
+	
 	rk616_pll_wait_lock(rk616,id);
+
+	msleep(5);
 
 	return 0;	
 	
@@ -331,9 +375,12 @@ static int rk616_clk_common_init(struct mfd_rk616 *rk616)
 
 	val = (PLL0_BYPASS) | (PLL0_BYPASS << 16);  //bypass pll0 
 	ret = rk616->write_dev(rk616,CRU_PLL0_CON0,&val);
+	val = PLL0_PWR_DN | (PLL0_PWR_DN << 16);
+	ret = rk616->write_dev(rk616,CRU_PLL0_CON1,&val); //power down pll0
 
 	val = (PLL1_BYPASS) | (PLL1_BYPASS << 16);
 	ret = rk616->write_dev(rk616,CRU_PLL1_CON0,&val);
+	
 
 	return 0;
 }
@@ -419,6 +466,14 @@ static int __devexit rk616_i2c_remove(struct i2c_client *client)
 	return 0;
 }
 
+static void rk616_core_shutdown(struct i2c_client *client)
+{
+	struct mfd_rk616 *rk616 = i2c_get_clientdata(client);
+	if(rk616->pdata->power_deinit)
+		rk616->pdata->power_deinit();
+}
+
+
 static const struct i2c_device_id id_table[] = {
 	{"rk616", 0 },
 	{ }
@@ -431,6 +486,7 @@ static struct i2c_driver rk616_i2c_driver  = {
 	},
 	.probe		= &rk616_i2c_probe,
 	.remove     	= &rk616_i2c_remove,
+	.shutdown       = &rk616_core_shutdown,
 	.id_table	= id_table,
 };
 

@@ -5,6 +5,7 @@
 #include <linux/i2c.h>
 #include <linux/rk_fb.h>
 #include <linux/clk.h>
+#include <linux/delay.h>
 
 #define VIF0_REG0 		0x0000
 #define VIF0_DDR_CLK_EN		(1<<3)
@@ -77,7 +78,7 @@
 
 #define CRU_CODEC_DIV		0x0060
 
-#define CRU_CLKSE2_CON  	0x0064
+#define CRU_CLKSEL2_CON  	0x0064
 #define SCL_IN_SEL_MASK		(1<<31)
 #define DITHER_IN_SEL_MASK	(1<<30)
 #define HDMI_IN_SEL_MASK	(3<<28)
@@ -222,6 +223,7 @@ enum lvds_mode {
 };
 struct rk616_platform_data {
 	int (*power_init)(void);
+	int (*power_deinit)(void);
 	int scl_rate;
 	enum lcd_port_func lcd0_func;
 	enum lcd_port_func lcd1_func;
@@ -261,6 +263,8 @@ struct mfd_rk616 {
 	struct rk616_route route;  //display path router
 	struct i2c_client *client;
 	struct clk *mclk;
+	u64 pll0_rate;
+	u64 pll1_rate;
 	struct dentry *debugfs_dir;
 	int (*read_dev)(struct mfd_rk616 *rk616,u16 reg,u32 *pval);
 	int (*write_dev)(struct mfd_rk616 *rk616,u16 reg,u32 *pval);

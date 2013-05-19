@@ -6,8 +6,123 @@
 
 
 extern int rk616_pll_set_rate(struct mfd_rk616 *rk616,int id,u32 cfg_val,u32 frac);
+extern int rk616_pll_pwr_down(struct mfd_rk616 *rk616,int id);
+
 
 /*rk616 video interface config*/
+
+ int rk616_vif_disable(struct mfd_rk616 *rk616,int id)
+{
+	u32 val = 0;
+	int ret = 0;
+	
+	if(id == 0) //video interface 0
+	{
+			val = (VIF0_EN << 16); //disable vif0
+			ret = rk616->write_dev(rk616,VIF0_REG0,&val);
+		
+	}
+	else       //vide0 interface 1
+	{
+			val = (VIF0_EN << 16); //disabl VIF1
+			ret = rk616->write_dev(rk616,VIF1_REG0,&val);
+			
+	}
+	
+	msleep(21);
+	
+	if(id == 0) //video interface 0
+	{
+			val = VIF0_CLK_GATE | (VIF0_CLK_GATE << 16); //gating vif0
+			ret = rk616->write_dev(rk616,CRU_CLKSEL2_CON,&val);
+		
+	}
+	else       //vide0 interface 1
+	{
+			val = VIF1_CLK_GATE | (VIF1_CLK_GATE << 16); //gating vif1
+			ret = rk616->write_dev(rk616,CRU_CLKSEL2_CON,&val);
+			
+	}
+
+	dev_info(rk616->dev,"rk616 vif%d disable\n",id);
+	
+	return 0;
+}
+
+
+int rk616_vif_enable(struct mfd_rk616 *rk616,int id)
+{
+	u32 val = 0;
+	u32 offset = 0;
+	int ret;
+
+	
+	if(id == 0)
+	{
+		val = (VIF0_CLK_BYPASS << 16) | (VIF0_CLK_GATE << 16);
+		offset = 0;
+	}
+	else
+	{
+		val = (VIF1_CLK_BYPASS << 16) |(VIF1_CLK_GATE << 16);
+		offset = 0x18;
+	}
+
+	ret = rk616->write_dev(rk616,CRU_CLKSEL2_CON,&val);
+	
+	val = 0;
+	val |= (VIF0_DDR_CLK_EN <<16) | (VIF0_DDR_PHASEN_EN << 16) | (VIF0_DDR_MODE_EN << 16)|
+		(VIF0_EN <<16) | VIF0_EN; //disable ddr mode,enable VIF
+	ret = rk616->write_dev(rk616,VIF0_REG0 + offset,&val);
+
+	
+	dev_info(rk616->dev,"rk616 vif%d enable\n",id);
+
+	return 0;
+	
+}
+static int  rk616_vif_bypass(struct mfd_rk616 *rk616,int id)
+{
+	u32 val = 0;
+	int ret;
+
+	if(id == 0)
+	{
+		val = (VIF0_CLK_BYPASS | VIF0_CLK_BYPASS << 16);
+	}
+	else
+	{
+		val = (VIF1_CLK_BYPASS | VIF1_CLK_BYPASS << 16);
+	}
+
+	ret = rk616->write_dev(rk616,CRU_CLKSEL2_CON,&val);
+
+	dev_info(rk616->dev,"rk616 vif%d bypass\n",id);
+	return 0;
+}
+
+static bool pll_sel_mclk12m(struct mfd_rk616 *rk616,int pll_id)
+{
+	if(pll_id == 0) //pll0
+	{
+		if(rk616->route.pll0_clk_sel == PLL0_CLK_SEL(MCLK_12M))
+			return true;
+		else
+			return false;
+	}
+	else
+	{
+		if(rk616->route.pll1_clk_sel == PLL1_CLK_SEL(MCLK_12M))
+			return  true;
+		else
+			return false;	
+	}
+
+	return false;
+}
+
+
+
 int rk616_vif_cfg(struct mfd_rk616 *rk616,rk_screen *screen,int id)
 {
 	int ret = 0;
@@ -20,35 +135,26 @@ int rk616_vif_cfg(struct mfd_rk616 *rk616,rk_screen *screen,int id)
 	{
 		if(!rk616->route.vif0_en)
 		{
-			val = (VIF0_EN << 16); //disable vif0
-			ret = rk616->write_dev(rk616,VIF0_REG0,&val);
-			clk_set_rate(rk616->mclk, 11289600);
+			rk616_vif_disable(rk616,id);
 			return 0;
 		}
 		offset = 0;
 		pll_id = rk616->route.vif0_clk_sel;
-		if(rk616->route.pll0_clk_sel == PLL0_CLK_SEL(MCLK_12M))
-			pll_use_mclk12m = true;
-		else
-			pll_use_mclk12m = false;
 	}
 	else       //vide0 interface 1
 	{
 		if(!rk616->route.vif1_en)
 		{
-			val = (VIF0_EN << 16); //disabl VIF1
-			ret = rk616->write_dev(rk616,VIF1_REG0,&val);
-			clk_set_rate(rk616->mclk, 11289600);
+			rk616_vif_disable(rk616,id);
 			return 0;
 		}
 		offset = 0x18;
 		pll_id = (rk616->route.vif1_clk_sel >> 6);
-		if(rk616->route.pll1_clk_sel == PLL1_CLK_SEL(MCLK_12M))
-			pll_use_mclk12m = true;
-		else
-			pll_use_mclk12m = false;
+		
 	}
 
+	pll_use_mclk12m = pll_sel_mclk12m(rk616,pll_id);
+	
 	if(pll_use_mclk12m)
 	{
 		clk_set_rate(rk616->mclk, 12000000);
@@ -61,37 +167,42 @@ int rk616_vif_cfg(struct mfd_rk616 *rk616,rk_screen *screen,int id)
 		return -EINVAL;
 	}
 
-	
-	
-	val |= (VIF0_DDR_CLK_EN <<16) | (VIF0_DDR_PHASEN_EN << 16) | (VIF0_DDR_MODE_EN << 16)|
-		(VIF0_EN <<16) | VIF0_EN; //disable ddr mode,enable VIF
-	
-	ret = rk616->write_dev(rk616,VIF0_REG0 + offset,&val);	
 
+	rk616_vif_disable(rk616,id);
 	if( (screen->x_res == 1920) && (screen->y_res == 1080))
 	{
 		if(pll_use_mclk12m)
-			rk616_pll_set_rate(rk616,pll_id,0xc11025,0x200000);
+			//rk616_pll_set_rate(rk616,pll_id,0xc11025,0x200000);
+			rk616_pll_set_rate(rk616,pll_id,0x028853de,0);
 		else
 			rk616_pll_set_rate(rk616,pll_id,0x02bf5276,0);
+		
+		val = (0xc1) | (0x01 <<16);
 	}
 	else if((screen->x_res == 1280) && (screen->y_res == 720))
 	{
 		if(pll_use_mclk12m)
-			rk616_pll_set_rate(rk616,pll_id,0x01811025,0x200000);
+			//rk616_pll_set_rate(rk616,pll_id,0x01811025,0x200000);
+			rk616_pll_set_rate(rk616,pll_id,0x0288418c,0);
 		else
 			rk616_pll_set_rate(rk616,pll_id,0x1422014,0);
+		
+		val = (0xc1) | (0x01 <<16);
+	
 	}
 	else if((screen->x_res == 720))
 	{
-		if(pll_use_mclk12m)
-			rk616_pll_set_rate(rk616,pll_id,0x01413021,0xc00000);
+		if(pll_use_mclk12m )
+		{
+			rk616_pll_set_rate(rk616,pll_id,0x0306510e,0);
+		}
 		else
 			rk616_pll_set_rate(rk616,pll_id,0x1c13015,0);
+		
+		val = (0x1) | (0x01 <<16);
 	}
 
-	//val = fscreen->vif_hst | (fscreen->vif_vst<<16);
-	val = (0xc1) | (0x01 <<16);
+	
 	ret = rk616->write_dev(rk616,VIF0_REG1 + offset,&val);
 
 	val = (screen->hsync_len << 16) | (screen->hsync_len + screen->left_margin + 
@@ -112,41 +223,13 @@ int rk616_vif_cfg(struct mfd_rk616 *rk616,rk_screen *screen,int id)
 		(screen->vsync_len + screen->upper_margin);
 	ret = rk616->write_dev(rk616,VIF0_REG5 + offset,&val);
 
-	dev_info(rk616->dev,"rk616 vif%d enable\n",id);
+	rk616_vif_enable(rk616,id);
 	
 	return ret;
 	
 }
 
 
-static int rk616_vif_disable(struct mfd_rk616 *rk616,int id)
-{
-	u32 val = 0;
-	int ret = 0;
-
-	printk(KERN_INFO "rk616 vif%d disable\n",id);
-	
-	if(id == 0) //video interface 0
-	{
-		
-			val = (VIF0_EN << 16); //disable vif0
-			ret = rk616->write_dev(rk616,VIF0_REG0,&val);
-			clk_set_rate(rk616->mclk, 11289600);
-			return 0;
-		
-	}
-	else       //vide0 interface 1
-	{
-		
-			val = (VIF0_EN << 16); //disabl VIF1
-			ret = rk616->write_dev(rk616,VIF1_REG0,&val);
-			clk_set_rate(rk616->mclk, 11289600);
-			return 0;
-	}
-	
-	
-	return 0;
-}
 static int rk616_scaler_disable(struct mfd_rk616 *rk616)
 {
 	u32 val = 0;
@@ -158,21 +241,18 @@ static int rk616_scaler_disable(struct mfd_rk616 *rk616)
 }
 int rk616_scaler_cfg(struct mfd_rk616 *rk616,rk_screen *screen)
 {
-	u32 val = 0;
-	int ret = 0;
 	u32 scl_hor_mode,scl_ver_mode;
 	u32 scl_v_factor,scl_h_factor;
 	u32 scl_reg0_value,scl_reg1_value,scl_reg2_value;                //scl_con,scl_h_factor,scl_v_factor,
 	u32 scl_reg3_value,scl_reg4_value,scl_reg5_value,scl_reg6_value; //dsp_frame_hst,dsp_frame_vst,dsp_timing,dsp_act_timing
 	u32 scl_reg7_value,scl_reg8_value;                               //dsp_hbor ,dsp_vbor
 	u32 dst_frame_hst,dst_frame_vst;                    //时序缓存
-	u32 dst_htotal,dst_hs_end,dst_hact_st,dst_hact_end; //屏幕typical h参数
-	u32 dst_vtotal,dst_vs_end,dst_vact_st,dst_vact_end; //屏幕typical v参数
+	u32 dst_vact_st;
 
 	u32 dsp_htotal,dsp_hs_end,dsp_hact_st,dsp_hact_end; //scaler输出的timing参数
 	u32 dsp_vtotal,dsp_vs_end,dsp_vact_st,dsp_vact_end; 
 	u32 dsp_hbor_end,dsp_hbor_st,dsp_vbor_end,dsp_vbor_st;
-	u32 src_w,src_h,src_htotal,src_vtotal,dst_w,dst_h,src_hact_st,src_vact_st;
+	u32 src_w,src_h,src_htotal,dst_w,dst_h,src_vact_st;
 	u16 bor_right = 0;
 	u16 bor_left = 0;
 	u16 bor_up = 0;
@@ -349,7 +429,7 @@ static int rk616_dual_input_cfg(struct mfd_rk616 *rk616,rk_screen *screen,
 	route->vif0_en     = 0;
  	route->vif0_clk_sel = VIF0_CLKIN_SEL(VIF_CLKIN_SEL_PLL0);
 	route->pll0_clk_sel = PLL0_CLK_SEL(LCD0_DCLK);
-	route->pll1_clk_sel = PLL1_CLK_SEL(MCLK_12M);
+	route->pll1_clk_sel = PLL1_CLK_SEL(LCD1_DCLK);
 	route->vif1_clk_sel = VIF1_CLKIN_SEL(VIF_CLKIN_SEL_PLL1);
 	route->hdmi_sel     = HDMI_IN_SEL(HDMI_CLK_SEL_VIF1);
 	if(enable)  //hdmi plug in
@@ -385,11 +465,7 @@ static int rk616_dual_input_cfg(struct mfd_rk616 *rk616,rk_screen *screen,
 	{
 		route->lvds_en = 0;
 	}
-	else
-	{
-		dev_err(rk616->dev,"un supported interface:%d\n",screen->type);
-		return -EINVAL;
-	}
+	
 
 	return 0;
 	
@@ -481,6 +557,9 @@ static int rk616_lcd0_input_lcd1_output_cfg(struct mfd_rk616 *rk616,rk_screen *s
 	route->lcd1_input = 0; //lcd1 as out put
 	route->lvds_en	= 0;
 
+	//route->scl_en      = 0;
+	//route->dither_sel  = DITHER_IN_SEL(DITHER_SEL_VIF0);
+
 	return 0;
 	
 }
@@ -531,11 +610,7 @@ static int rk616_lcd0_unused_lcd1_input_cfg(struct mfd_rk616 *rk616,rk_screen *s
 	{
 		route->lvds_en = 0;
 	}
-	else
-	{
-		dev_err(rk616->dev,"un supported interface:%d\n",screen->type);
-		return -EINVAL;
-	}
+	
 
 	return 0;
 }
@@ -606,7 +681,7 @@ static int rk616_router_cfg(struct mfd_rk616 *rk616)
 		(VIF0_CLK_BYPASS << 16) |(route->sclin_sel) | (route->dither_sel) | 
 		(route->hdmi_sel) | (route->vif1_bypass) | (route->vif0_bypass) |
 		(route->vif1_clk_sel)| (route->vif0_clk_sel); 
-	ret = rk616->write_dev(rk616,CRU_CLKSE2_CON,&val);
+	ret = rk616->write_dev(rk616,CRU_CLKSEL2_CON,&val);
 
 	return ret;
 }
@@ -646,6 +721,7 @@ int rk616_set_vif(struct mfd_rk616 *rk616,rk_screen *screen,bool connect)
 	{
 		rk616_vif_disable(rk616,0);
 		rk616_vif_disable(rk616,1);
+		clk_set_rate(rk616->mclk, 11289600); 
 		return 0;
 	}
 #if defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
