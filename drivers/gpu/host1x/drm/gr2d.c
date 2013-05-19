@@ -84,7 +84,7 @@ static struct host1x_bo *host1x_bo_lookup(struct drm_device *drm,
 
 	gem = drm_gem_object_lookup(drm, file, handle);
 	if (!gem)
-		return 0;
+		return NULL;
 
 	mutex_lock(&drm->struct_mutex);
 	drm_gem_object_unreference(gem);
