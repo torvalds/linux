@@ -428,10 +428,10 @@ static int qxl_framebuffer_surface_dirty(struct drm_framebuffer *fb,
 	int inc = 1;
 
 	qobj = gem_to_qxl_bo(qxl_fb->obj);
-	if (qxl_fb != qdev->active_user_framebuffer) {
-		DRM_INFO("%s: qxl_fb 0x%p != qdev->active_user_framebuffer 0x%p\n",
-			__func__, qxl_fb, qdev->active_user_framebuffer);
-	}
+	/* if we aren't primary surface ignore this */
+	if (!qobj->is_primary)
+		return 0;
+
 	if (!num_clips) {
 		num_clips = 1;
 		clips = &norect;
@@ -604,7 +604,6 @@ static int qxl_crtc_mode_set(struct drm_crtc *crtc,
 					       mode->hdisplay,
 					       mode->vdisplay);
 	}
-	qdev->mode_set = true;
 	return 0;
 }
 
@@ -893,7 +892,6 @@ qxl_user_framebuffer_create(struct drm_device *dev,
 {
 	struct drm_gem_object *obj;
 	struct qxl_framebuffer *qxl_fb;
-	struct qxl_device *qdev = dev->dev_private;
 	int ret;
 
 	obj = drm_gem_object_lookup(dev, file_priv, mode_cmd->handles[0]);
@@ -908,13 +906,6 @@ qxl_user_framebuffer_create(struct drm_device *dev,
 		drm_gem_object_unreference_unlocked(obj);
 		return NULL;
 	}
-
-	if (qdev->active_user_framebuffer) {
-		DRM_INFO("%s: active_user_framebuffer %p -> %p\n",
-			 __func__,
-			 qdev->active_user_framebuffer, qxl_fb);
-	}
-	qdev->active_user_framebuffer = qxl_fb;
 
 	return &qxl_fb->base;
 }

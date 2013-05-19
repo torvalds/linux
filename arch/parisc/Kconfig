@@ -245,7 +245,7 @@ config SMP
 
 config IRQSTACKS
 	bool "Use separate kernel stacks when processing interrupts"
-	default n
+	default y
 	help
 	  If you say Y here the kernel will use separate kernel stacks
 	  for handling hard and soft interrupts.  This can help avoid

@@ -3,6 +3,7 @@
  *
  * Since these may be in userspace, we use (inline) accessors.
  */
+#include <linux/module.h>
 #include <linux/vringh.h>
 #include <linux/virtio_ring.h>
 #include <linux/kernel.h>
@@ -1005,3 +1006,5 @@ int vringh_need_notify_kern(struct vringh *vrh)
 	return __vringh_need_notify(vrh, getu16_kern);
 }
 EXPORT_SYMBOL(vringh_need_notify_kern);
+
+MODULE_LICENSE("GPL");
