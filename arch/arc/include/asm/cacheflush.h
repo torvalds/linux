@@ -93,7 +93,7 @@ static inline int cache_is_vipt_aliasing(void)
 #endif
 }
 
-#define CACHE_COLOR(addr)	(((unsigned long)(addr) >> (PAGE_SHIFT)) & 3)
+#define CACHE_COLOR(addr)	(((unsigned long)(addr) >> (PAGE_SHIFT)) & 1)
 
 /*
  * checks if two addresses (after page aligning) index into same cache set
