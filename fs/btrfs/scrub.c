@@ -1296,7 +1296,7 @@ static void scrub_recheck_block(struct btrfs_fs_info *fs_info,
 		}
 
 		WARN_ON(!page->page);
-		bio = bio_alloc(GFP_NOFS, 1);
+		bio = btrfs_io_bio_alloc(GFP_NOFS, 1);
 		if (!bio) {
 			page->io_error = 1;
 			sblock->no_io_error_seen = 0;
@@ -1431,7 +1431,7 @@ static int scrub_repair_page_from_good_copy(struct scrub_block *sblock_bad,
 			return -EIO;
 		}
 
-		bio = bio_alloc(GFP_NOFS, 1);
+		bio = btrfs_io_bio_alloc(GFP_NOFS, 1);
 		if (!bio)
 			return -EIO;
 		bio->bi_bdev = page_bad->dev->bdev;
@@ -1522,7 +1522,7 @@ again:
 		sbio->dev = wr_ctx->tgtdev;
 		bio = sbio->bio;
 		if (!bio) {
-			bio = bio_alloc(GFP_NOFS, wr_ctx->pages_per_wr_bio);
+			bio = btrfs_io_bio_alloc(GFP_NOFS, wr_ctx->pages_per_wr_bio);
 			if (!bio) {
 				mutex_unlock(&wr_ctx->wr_lock);
 				return -ENOMEM;
@@ -1930,7 +1930,7 @@ again:
 		sbio->dev = spage->dev;
 		bio = sbio->bio;
 		if (!bio) {
-			bio = bio_alloc(GFP_NOFS, sctx->pages_per_rd_bio);
+			bio = btrfs_io_bio_alloc(GFP_NOFS, sctx->pages_per_rd_bio);
 			if (!bio)
 				return -ENOMEM;
 			sbio->bio = bio;
@@ -3307,7 +3307,7 @@ static int write_page_nocow(struct scrub_ctx *sctx,
 			"btrfs: scrub write_page_nocow(bdev == NULL) is unexpected!\n");
 		return -EIO;
 	}
-	bio = bio_alloc(GFP_NOFS, 1);
+	bio = btrfs_io_bio_alloc(GFP_NOFS, 1);
 	if (!bio) {
 		spin_lock(&sctx->stat_lock);
 		sctx->stat.malloc_errors++;

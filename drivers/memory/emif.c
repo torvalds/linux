@@ -1560,12 +1560,6 @@ static int __init_or_module emif_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, emif);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(emif->dev, "%s: error getting memory resource\n",
-			__func__);
-		goto error;
-	}
-
 	emif->base = devm_ioremap_resource(emif->dev, res);
 	if (IS_ERR(emif->base))
 		goto error;

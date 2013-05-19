@@ -11,10 +11,18 @@
 #include <linux/threads.h>
 #include <linux/irq.h>
 
+#ifdef CONFIG_IRQSTACKS
+#define __ARCH_HAS_DO_SOFTIRQ
+#endif
+
 typedef struct {
 	unsigned int __softirq_pending;
 #ifdef CONFIG_DEBUG_STACKOVERFLOW
 	unsigned int kernel_stack_usage;
+#ifdef CONFIG_IRQSTACKS
+	unsigned int irq_stack_usage;
+	unsigned int irq_stack_counter;
+#endif
 #endif
 #ifdef CONFIG_SMP
 	unsigned int irq_resched_count;
@@ -28,6 +36,7 @@ DECLARE_PER_CPU_SHARED_ALIGNED(irq_cpustat_t, irq_stat);
 #define __ARCH_IRQ_STAT
 #define __IRQ_STAT(cpu, member) (irq_stat[cpu].member)
 #define inc_irq_stat(member)	this_cpu_inc(irq_stat.member)
+#define __inc_irq_stat(member)	__this_cpu_inc(irq_stat.member)
 #define local_softirq_pending()	this_cpu_read(irq_stat.__softirq_pending)
 
 #define __ARCH_SET_SOFTIRQ_PENDING
