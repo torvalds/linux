@@ -738,8 +738,19 @@ static int rk616_power_on_init(void)
 }
 
 
+static int rk616_power_deinit(void)
+{
+	gpio_set_value(RK616_PWREN_PIN,GPIO_LOW);
+	gpio_set_value(RK616_RST_PIN,GPIO_LOW);
+	gpio_free(RK616_PWREN_PIN);
+	gpio_free(RK616_RST_PIN);
+	
+	return 0;
+}
+
 static struct rk616_platform_data rk616_pdata = {
 	.power_init = rk616_power_on_init,
+	.power_deinit = rk616_power_deinit,
 	.scl_rate   = RK616_SCL_RATE,
 	.lcd0_func = INPUT,             //port lcd0 as input
 	.lcd1_func = INPUT,             //port lcd1 as input
@@ -1621,8 +1632,8 @@ static struct pmu_info  wm8326_dcdc_info[] = {
 	#else
 	{
 		.name          = "dcdc4",   //vcc_io
-		.min_uv          = 3200000,
-		.max_uv         = 3200000,
+		.min_uv          = 3000000,
+		.max_uv         = 3000000,
 		.suspend_vol  =  2800000,
 	},
 	#endif
