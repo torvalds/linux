@@ -863,25 +863,25 @@ static int batadv_bla_process_claim(struct batadv_priv *bat_priv,
 	struct arphdr *arphdr;
 	uint8_t *hw_src, *hw_dst;
 	struct batadv_bla_claim_dst *bla_dst;
-	uint16_t proto;
+	__be16 proto;
 	int headlen;
 	unsigned short vid = BATADV_NO_FLAGS;
 	int ret;
 
 	ethhdr = eth_hdr(skb);
 
-	if (ntohs(ethhdr->h_proto) == ETH_P_8021Q) {
+	if (ethhdr->h_proto == htons(ETH_P_8021Q)) {
 		vhdr = (struct vlan_ethhdr *)ethhdr;
 		vid = ntohs(vhdr->h_vlan_TCI) & VLAN_VID_MASK;
 		vid |= BATADV_VLAN_HAS_TAG;
-		proto = ntohs(vhdr->h_vlan_encapsulated_proto);
+		proto = vhdr->h_vlan_encapsulated_proto;
 		headlen = sizeof(*vhdr);
 	} else {
-		proto = ntohs(ethhdr->h_proto);
+		proto = ethhdr->h_proto;
 		headlen = ETH_HLEN;
 	}
 
-	if (proto != ETH_P_ARP)
+	if (proto != htons(ETH_P_ARP))
 		return 0; /* not a claim frame */
 
 	/* this must be a ARP frame. check if it is a claim. */
@@ -1379,7 +1379,7 @@ int batadv_bla_is_backbone_gw(struct sk_buff *skb,
 
 	ethhdr = (struct ethhdr *)(((uint8_t *)skb->data) + hdr_size);
 
-	if (ntohs(ethhdr->h_proto) == ETH_P_8021Q) {
+	if (ethhdr->h_proto == htons(ETH_P_8021Q)) {
 		if (!pskb_may_pull(skb, hdr_size + VLAN_ETH_HLEN))
 			return 0;
 

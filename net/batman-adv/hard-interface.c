@@ -379,7 +379,7 @@ int batadv_hardif_enable_interface(struct batadv_hard_iface *hard_iface,
 {
 	struct batadv_priv *bat_priv;
 	struct net_device *soft_iface, *master;
-	__be16 ethertype = __constant_htons(ETH_P_BATMAN);
+	__be16 ethertype = htons(ETH_P_BATMAN);
 	int ret;
 
 	if (hard_iface->if_status != BATADV_IF_NOT_IN_USE)

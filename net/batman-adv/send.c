@@ -63,10 +63,10 @@ int batadv_send_skb_packet(struct sk_buff *skb,
 	ethhdr = eth_hdr(skb);
 	memcpy(ethhdr->h_source, hard_iface->net_dev->dev_addr, ETH_ALEN);
 	memcpy(ethhdr->h_dest, dst_addr, ETH_ALEN);
-	ethhdr->h_proto = __constant_htons(ETH_P_BATMAN);
+	ethhdr->h_proto = htons(ETH_P_BATMAN);
 
 	skb_set_network_header(skb, ETH_HLEN);
-	skb->protocol = __constant_htons(ETH_P_BATMAN);
+	skb->protocol = htons(ETH_P_BATMAN);
 
 	skb->dev = hard_iface->net_dev;
 

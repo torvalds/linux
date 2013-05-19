@@ -716,11 +716,11 @@ bool batadv_gw_is_dhcp_target(struct sk_buff *skb, unsigned int *header_len)
 
 	/* check for bootp port */
 	if ((proto == htons(ETH_P_IP)) &&
-	    (ntohs(udphdr->dest) != 67))
+	    (udphdr->dest != htons(67)))
 		return false;
 
 	if ((proto == htons(ETH_P_IPV6)) &&
-	    (ntohs(udphdr->dest) != 547))
+	    (udphdr->dest != htons(547)))
 		return false;
 
 	return true;
