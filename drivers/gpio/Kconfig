@@ -330,7 +330,7 @@ config GPIO_MAX7300
 	depends on I2C
 	select GPIO_MAX730X
 	help
-	  GPIO driver for Maxim MAX7301 I2C-based GPIO expander.
+	  GPIO driver for Maxim MAX7300 I2C-based GPIO expander.
 
 config GPIO_MAX732X
 	tristate "MAX7319, MAX7320-7327 I2C Port Expanders"
