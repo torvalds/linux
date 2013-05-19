@@ -1009,8 +1009,11 @@ static int phy_probe(struct device *dev)
 	phydrv = to_phy_driver(drv);
 	phydev->drv = phydrv;
 
-	/* Disable the interrupt if the PHY doesn't support it */
-	if (!(phydrv->flags & PHY_HAS_INTERRUPT))
+	/* Disable the interrupt if the PHY doesn't support it
+	 * but the interrupt is still a valid one
+	 */
+	if (!(phydrv->flags & PHY_HAS_INTERRUPT) &&
+			phy_interrupt_is_valid(phydev))
 		phydev->irq = PHY_POLL;
 
 	mutex_lock(&phydev->lock);
