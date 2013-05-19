@@ -390,4 +390,9 @@ extern int iwl_mvm_rate_control_register(void);
  */
 extern void iwl_mvm_rate_control_unregister(void);
 
+struct iwl_mvm_sta;
+
+int iwl_mvm_tx_protection(struct iwl_mvm *mvm, struct iwl_lq_cmd *lq,
+			  struct iwl_mvm_sta *mvmsta, bool enable);
+
 #endif /* __rs__ */

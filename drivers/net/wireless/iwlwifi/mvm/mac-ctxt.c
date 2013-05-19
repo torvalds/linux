@@ -227,7 +227,7 @@ static int iwl_mvm_mac_ctxt_allocate_resources(struct iwl_mvm *mvm,
 		.found_vif = false,
 	};
 	u32 ac;
-	int ret;
+	int ret, i;
 
 	/*
 	 * Allocate a MAC ID and a TSF for this MAC, along with the queues
@@ -334,6 +334,9 @@ static int iwl_mvm_mac_ctxt_allocate_resources(struct iwl_mvm *mvm,
 
 	mvmvif->bcast_sta.sta_id = IWL_MVM_STATION_COUNT;
 	mvmvif->ap_sta_id = IWL_MVM_STATION_COUNT;
+
+	for (i = 0; i < NUM_IWL_MVM_SMPS_REQ; i++)
+		mvmvif->smps_requests[i] = IEEE80211_SMPS_AUTOMATIC;
 
 	return 0;
 

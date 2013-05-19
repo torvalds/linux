@@ -150,6 +150,12 @@ enum iwl_power_scheme {
 
 #define IWL_CONN_MAX_LISTEN_INTERVAL	70
 
+enum iwl_mvm_smps_type_request {
+	IWL_MVM_SMPS_REQ_BT_COEX,
+	IWL_MVM_SMPS_REQ_TT,
+	NUM_IWL_MVM_SMPS_REQ,
+};
+
 /**
  * struct iwl_mvm_vif - data per Virtual Interface, it is a MAC context
  * @id: between 0 and 3
@@ -164,6 +170,8 @@ enum iwl_power_scheme {
  * @bcast_sta: station used for broadcast packets. Used by the following
  *  vifs: P2P_DEVICE, GO and AP.
  * @beacon_skb: the skb used to hold the AP/GO beacon template
+ * @smps_requests: the requests of of differents parts of the driver, regard
+	the desired smps mode.
  */
 struct iwl_mvm_vif {
 	u16 id;
@@ -218,6 +226,8 @@ struct iwl_mvm_vif {
 	struct dentry *dbgfs_slink;
 	void *dbgfs_data;
 #endif
+
+	enum ieee80211_smps_mode smps_requests[NUM_IWL_MVM_SMPS_REQ];
 };
 
 static inline struct iwl_mvm_vif *
@@ -225,12 +235,6 @@ iwl_mvm_vif_from_mac80211(struct ieee80211_vif *vif)
 {
 	return (void *)vif->drv_priv;
 }
-
-enum iwl_mvm_status {
-	IWL_MVM_STATUS_HW_RFKILL,
-	IWL_MVM_STATUS_ROC_RUNNING,
-	IWL_MVM_STATUS_IN_HW_RESTART,
-};
 
 enum iwl_scan_status {
 	IWL_MVM_SCAN_NONE,
@@ -247,6 +251,63 @@ enum iwl_scan_status {
 struct iwl_nvm_section {
 	u16 length;
 	const u8 *data;
+};
+
+/*
+ * Tx-backoff threshold
+ * @temperature: The threshold in Celsius
+ * @backoff: The tx-backoff in uSec
+ */
+struct iwl_tt_tx_backoff {
+	s32 temperature;
+	u32 backoff;
+};
+
+#define TT_TX_BACKOFF_SIZE 6
+
+/**
+ * struct iwl_tt_params - thermal throttling parameters
+ * @ct_kill_entry: CT Kill entry threshold
+ * @ct_kill_exit: CT Kill exit threshold
+ * @ct_kill_duration: The time  intervals (in uSec) in which the driver needs
+ *	to checks whether to exit CT Kill.
+ * @dynamic_smps_entry: Dynamic SMPS entry threshold
+ * @dynamic_smps_exit: Dynamic SMPS exit threshold
+ * @tx_protection_entry: TX protection entry threshold
+ * @tx_protection_exit: TX protection exit threshold
+ * @tx_backoff: Array of thresholds for tx-backoff , in ascending order.
+ * @support_ct_kill: Support CT Kill?
+ * @support_dynamic_smps: Support dynamic SMPS?
+ * @support_tx_protection: Support tx protection?
+ * @support_tx_backoff: Support tx-backoff?
+ */
+struct iwl_tt_params {
+	s32 ct_kill_entry;
+	s32 ct_kill_exit;
+	u32 ct_kill_duration;
+	s32 dynamic_smps_entry;
+	s32 dynamic_smps_exit;
+	s32 tx_protection_entry;
+	s32 tx_protection_exit;
+	struct iwl_tt_tx_backoff tx_backoff[TT_TX_BACKOFF_SIZE];
+	bool support_ct_kill;
+	bool support_dynamic_smps;
+	bool support_tx_protection;
+	bool support_tx_backoff;
+};
+
+/**
+ * struct iwl_mvm_tt_mgnt - Thermal Throttling Management structure
+ * @ct_kill_exit: worker to exit thermal kill
+ * @dynamic_smps: Is thermal throttling enabled dynamic_smps?
+ * @tx_backoff: The current thremal throttling tx backoff in uSec.
+ * @params: Parameters to configure the thermal throttling algorithm.
+ */
+struct iwl_mvm_tt_mgmt {
+	struct delayed_work ct_kill_exit;
+	bool dynamic_smps;
+	u32 tx_backoff;
+	const struct iwl_tt_params *params;
 };
 
 struct iwl_mvm {
@@ -356,6 +417,10 @@ struct iwl_mvm {
 	/* BT-Coex */
 	u8 bt_kill_msk;
 	struct iwl_bt_coex_profile_notif last_bt_notif;
+
+	/* Thermal Throttling and CTkill */
+	struct iwl_mvm_tt_mgmt thermal_throttle;
+	s32 temperature;	/* Celsius */
 };
 
 /* Extract MVM priv from op_mode and _hw */
@@ -364,6 +429,19 @@ struct iwl_mvm {
 
 #define IWL_MAC80211_GET_MVM(_hw)			\
 	IWL_OP_MODE_GET_MVM((struct iwl_op_mode *)((_hw)->priv))
+
+enum iwl_mvm_status {
+	IWL_MVM_STATUS_HW_RFKILL,
+	IWL_MVM_STATUS_HW_CTKILL,
+	IWL_MVM_STATUS_ROC_RUNNING,
+	IWL_MVM_STATUS_IN_HW_RESTART,
+};
+
+static inline bool iwl_mvm_is_radio_killed(struct iwl_mvm *mvm)
+{
+	return test_bit(IWL_MVM_STATUS_HW_RFKILL, &mvm->status) ||
+	       test_bit(IWL_MVM_STATUS_HW_CTKILL, &mvm->status);
+}
 
 extern const u8 iwl_mvm_ac_to_tx_fifo[];
 
@@ -554,5 +632,16 @@ int iwl_mvm_enable_beacon_filter(struct iwl_mvm *mvm,
 				 struct ieee80211_vif *vif);
 int iwl_mvm_disable_beacon_filter(struct iwl_mvm *mvm,
 				  struct ieee80211_vif *vif);
+
+/* SMPS */
+void iwl_mvm_update_smps(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+				enum iwl_mvm_smps_type_request req_type,
+				enum ieee80211_smps_mode smps_request);
+
+/* Thermal management and CT-kill */
+void iwl_mvm_tt_handler(struct iwl_mvm *mvm);
+void iwl_mvm_tt_initialize(struct iwl_mvm *mvm);
+void iwl_mvm_tt_exit(struct iwl_mvm *mvm);
+void iwl_mvm_set_hw_ctkill_state(struct iwl_mvm *mvm, bool state);
 
 #endif /* __IWL_MVM_H__ */

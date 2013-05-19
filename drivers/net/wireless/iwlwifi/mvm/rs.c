@@ -3080,3 +3080,29 @@ void iwl_mvm_rate_control_unregister(void)
 {
 	ieee80211_rate_control_unregister(&rs_mvm_ops);
 }
+
+/**
+ * iwl_mvm_tx_protection - Gets LQ command, change it to enable/disable
+ * Tx protection, according to this rquest and previous requests,
+ * and send the LQ command.
+ * @lq: The LQ command
+ * @mvmsta: The station
+ * @enable: Enable Tx protection?
+ */
+int iwl_mvm_tx_protection(struct iwl_mvm *mvm, struct iwl_lq_cmd *lq,
+			  struct iwl_mvm_sta *mvmsta, bool enable)
+{
+	lockdep_assert_held(&mvm->mutex);
+
+	if (enable) {
+		if (mvmsta->tx_protection == 0)
+			lq->flags |= LQ_FLAG_SET_STA_TLC_RTS_MSK;
+		mvmsta->tx_protection++;
+	} else {
+		mvmsta->tx_protection--;
+		if (mvmsta->tx_protection == 0)
+			lq->flags &= ~LQ_FLAG_SET_STA_TLC_RTS_MSK;
+	}
+
+	return iwl_mvm_send_lq_cmd(mvm, lq, CMD_ASYNC, false);
+}

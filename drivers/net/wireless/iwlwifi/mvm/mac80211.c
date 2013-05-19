@@ -265,8 +265,8 @@ static void iwl_mvm_mac_tx(struct ieee80211_hw *hw,
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 
-	if (test_bit(IWL_MVM_STATUS_HW_RFKILL, &mvm->status)) {
-		IWL_DEBUG_DROP(mvm, "Dropping - RF KILL\n");
+	if (iwl_mvm_is_radio_killed(mvm)) {
+		IWL_DEBUG_DROP(mvm, "Dropping - RF/CT KILL\n");
 		goto drop;
 	}
 
