@@ -34,6 +34,11 @@ struct cpufreq_arm_bL_ops {
 	int (*init_opp_table)(struct device *cpu_dev);
 };
 
+static inline int cpu_to_cluster(int cpu)
+{
+	return topology_physical_package_id(cpu);
+}
+
 int bL_cpufreq_register(struct cpufreq_arm_bL_ops *ops);
 void bL_cpufreq_unregister(struct cpufreq_arm_bL_ops *ops);
 

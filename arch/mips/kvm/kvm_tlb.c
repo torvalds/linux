@@ -51,13 +51,13 @@ EXPORT_SYMBOL(kvm_mips_is_error_pfn);
 
 uint32_t kvm_mips_get_kernel_asid(struct kvm_vcpu *vcpu)
 {
-	return ASID_MASK(vcpu->arch.guest_kernel_asid[smp_processor_id()]);
+	return vcpu->arch.guest_kernel_asid[smp_processor_id()] & ASID_MASK;
 }
 
 
 uint32_t kvm_mips_get_user_asid(struct kvm_vcpu *vcpu)
 {
-	return ASID_MASK(vcpu->arch.guest_user_asid[smp_processor_id()]);
+	return vcpu->arch.guest_user_asid[smp_processor_id()] & ASID_MASK;
 }
 
 inline uint32_t kvm_mips_get_commpage_asid (struct kvm_vcpu *vcpu)
@@ -84,7 +84,7 @@ void kvm_mips_dump_host_tlbs(void)
 	old_pagemask = read_c0_pagemask();
 
 	printk("HOST TLBs:\n");
-	printk("ASID: %#lx\n", ASID_MASK(read_c0_entryhi()));
+	printk("ASID: %#lx\n", read_c0_entryhi() & ASID_MASK);
 
 	for (i = 0; i < current_cpu_data.tlbsize; i++) {
 		write_c0_index(i);
@@ -428,7 +428,7 @@ int kvm_mips_guest_tlb_lookup(struct kvm_vcpu *vcpu, unsigned long entryhi)
 
 	for (i = 0; i < KVM_MIPS_GUEST_TLB_SIZE; i++) {
 		if (((TLB_VPN2(tlb[i]) & ~tlb[i].tlb_mask) == ((entryhi & VPN2_MASK) & ~tlb[i].tlb_mask)) &&
-			(TLB_IS_GLOBAL(tlb[i]) || (TLB_ASID(tlb[i]) == ASID_MASK(entryhi)))) {
+			(TLB_IS_GLOBAL(tlb[i]) || (TLB_ASID(tlb[i]) == (entryhi & ASID_MASK)))) {
 			index = i;
 			break;
 		}
@@ -626,7 +626,7 @@ kvm_get_new_mmu_context(struct mm_struct *mm, unsigned long cpu,
 {
 	unsigned long asid = asid_cache(cpu);
 
-	if (!(ASID_MASK(ASID_INC(asid)))) {
+	if (!((asid += ASID_INC) & ASID_MASK)) {
 		if (cpu_has_vtag_icache) {
 			flush_icache_all();
 		}
@@ -804,7 +804,8 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	if (!newasid) {
 		/* If we preempted while the guest was executing, then reload the pre-empted ASID */
 		if (current->flags & PF_VCPU) {
-			write_c0_entryhi(ASID_MASK(vcpu->arch.preempt_entryhi));
+			write_c0_entryhi(vcpu->arch.
+					 preempt_entryhi & ASID_MASK);
 			ehb();
 		}
 	} else {
@@ -816,11 +817,13 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		 */
 		if (current->flags & PF_VCPU) {
 			if (KVM_GUEST_KERNEL_MODE(vcpu))
-				write_c0_entryhi(ASID_MASK(vcpu->arch.
-						 guest_kernel_asid[cpu]));
+				write_c0_entryhi(vcpu->arch.
+						 guest_kernel_asid[cpu] &
+						 ASID_MASK);
 			else
-				write_c0_entryhi(ASID_MASK(vcpu->arch.
-						 guest_user_asid[cpu]));
+				write_c0_entryhi(vcpu->arch.
+						 guest_user_asid[cpu] &
+						 ASID_MASK);
 			ehb();
 		}
 	}
@@ -879,7 +882,8 @@ uint32_t kvm_get_inst(uint32_t *opc, struct kvm_vcpu *vcpu)
 			    kvm_mips_guest_tlb_lookup(vcpu,
 						      ((unsigned long) opc & VPN2_MASK)
 						      |
-						      ASID_MASK(kvm_read_c0_guest_entryhi(cop0)));
+						      (kvm_read_c0_guest_entryhi
+						       (cop0) & ASID_MASK));
 			if (index < 0) {
 				kvm_err
 				    ("%s: get_user_failed for %p, vcpu: %p, ASID: %#lx\n",

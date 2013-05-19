@@ -255,12 +255,6 @@ struct qxl_device {
 	struct qxl_gem		gem;
 	struct qxl_mode_info mode_info;
 
-	/*
-	 * last created framebuffer with fb_create
-	 * only used by debugfs dumbppm
-	 */
-	struct qxl_framebuffer *active_user_framebuffer;
-
 	struct fb_info			*fbdev_info;
 	struct qxl_framebuffer	*fbdev_qfb;
 	void *ram_physical;
@@ -270,7 +264,6 @@ struct qxl_device {
 	struct qxl_ring *cursor_ring;
 
 	struct qxl_ram_header *ram_header;
-	bool mode_set;
 
 	bool primary_created;
 

@@ -1065,10 +1065,6 @@ static int omapdss_hdmihw_probe(struct platform_device *pdev)
 	mutex_init(&hdmi.ip_data.lock);
 
 	res = platform_get_resource(hdmi.pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		DSSERR("can't get IORESOURCE_MEM HDMI\n");
-		return -EINVAL;
-	}
 
 	/* Base address taken from platform */
 	hdmi.ip_data.base_wp = devm_ioremap_resource(&pdev->dev, res);

@@ -375,6 +375,8 @@ static void ntb_netdev_remove(struct pci_dev *pdev)
 	if (dev == NULL)
 		return;
 
+	list_del(&dev->list);
+
 	ndev = dev->ndev;
 
 	unregister_netdev(ndev);

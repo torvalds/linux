@@ -83,7 +83,7 @@ static inline unsigned char str2hexnum(unsigned char c)
 	return 0; /* foo */
 }
 
-static inline int str2eaddr(unsigned char *ea, unsigned char *str)
+int str2eaddr(unsigned char *ea, unsigned char *str)
 {
 	int index = 0;
 	unsigned char num = 0;

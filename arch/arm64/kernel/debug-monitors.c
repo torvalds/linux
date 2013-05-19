@@ -136,8 +136,6 @@ void disable_debug_monitors(enum debug_el el)
  */
 static void clear_os_lock(void *unused)
 {
-	asm volatile("msr mdscr_el1, %0" : : "r" (0));
-	isb();
 	asm volatile("msr oslar_el1, %0" : : "r" (0));
 	isb();
 }
