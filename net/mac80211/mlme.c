@@ -1779,8 +1779,10 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 		 * probably just won't work at all.
 		 */
 		bss_conf->dtim_period = sdata->u.mgd.dtim_period ?: 1;
+		bss_conf->beacon_rate = bss->beacon_rate;
 		bss_info_changed |= BSS_CHANGED_BEACON_INFO;
 	} else {
+		bss_conf->beacon_rate = NULL;
 		bss_conf->dtim_period = 0;
 	}
 
@@ -1903,6 +1905,8 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	del_timer_sync(&sdata->u.mgd.chswitch_timer);
 
 	sdata->vif.bss_conf.dtim_period = 0;
+	sdata->vif.bss_conf.beacon_rate = NULL;
+
 	ifmgd->have_beacon = false;
 
 	ifmgd->flags = 0;
@@ -2754,8 +2758,10 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 
 	bss = ieee80211_bss_info_update(local, rx_status, mgmt, len, elems,
 					channel);
-	if (bss)
+	if (bss) {
 		ieee80211_rx_bss_put(local, bss);
+		sdata->vif.bss_conf.beacon_rate = bss->beacon_rate;
+	}
 
 	if (!sdata->u.mgd.associated ||
 	    !ether_addr_equal(mgmt->bssid, sdata->u.mgd.associated->bssid))

@@ -94,6 +94,7 @@ struct ieee80211_bss {
 #define IEEE80211_MAX_SUPP_RATES 32
 	u8 supp_rates[IEEE80211_MAX_SUPP_RATES];
 	size_t supp_rates_len;
+	struct ieee80211_rate *beacon_rate;
 
 	/*
 	 * During association, we save an ERP value from a probe response so
