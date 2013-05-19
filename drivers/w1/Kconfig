@@ -25,6 +25,32 @@ config W1_CON
 	  2. Userspace commands. Includes read/write and search/alarm search commands.
 	  3. Replies to userspace commands.
 
+config W1_SUNXI
+	depends on GPIO_SUNXI
+	tristate "1-wire sunxi support"
+	default n
+	--- help ---
+		This adds a way to register a platform device for 1-wire bus.
+		It introduces a new section "[w1_para]" in the FEX to configure the
+		GPIO pin number used for the bus, with the attribute named "gpio".
+		The GPIO pin must also be defined in the "[gpio_para]" section.
+
+		1-wire device can then be accessed using the w1-gpio driver.
+
+		Example configuration :
+		[w1_para]
+		gpio = 3
+
+		[gpio_para]
+		gpio_used = 1
+		gpio_num = 3
+		...
+		gpio_pin_3 = port:PH7<0><default><default><0>
+
+		It is also possible to configure the GPIO pin number with the
+		module paramerer "gpio". In this case, if the pin is valid,
+		it will be used instead of what is configured in the FEX script.
+
 source drivers/w1/masters/Kconfig
 source drivers/w1/slaves/Kconfig
 
