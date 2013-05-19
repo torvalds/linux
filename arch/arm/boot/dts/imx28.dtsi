@@ -699,7 +699,7 @@
 			dcp@80028000 {
 				reg = <0x80028000 0x2000>;
 				interrupts = <52 53 54>;
-				status = "disabled";
+				compatible = "fsl-dcp";
 			};
 
 			pxp@8002a000 {
