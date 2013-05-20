@@ -26,6 +26,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/opp.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/types.h>
 #include "arm_big_little.h"
@@ -95,7 +96,7 @@ static struct cpufreq_arm_bL_ops dt_bL_ops = {
 	.init_opp_table = dt_init_opp_table,
 };
 
-static int generic_bL_init(void)
+static int generic_bL_probe(struct platform_device *pdev)
 {
 	struct device_node *np;
 
@@ -106,13 +107,22 @@ static int generic_bL_init(void)
 	of_node_put(np);
 	return bL_cpufreq_register(&dt_bL_ops);
 }
-module_init(generic_bL_init);
 
-static void generic_bL_exit(void)
+static int generic_bL_remove(struct platform_device *pdev)
 {
-	return bL_cpufreq_unregister(&dt_bL_ops);
+	bL_cpufreq_unregister(&dt_bL_ops);
+	return 0;
 }
-module_exit(generic_bL_exit);
+
+static struct platform_driver generic_bL_platdrv = {
+	.driver = {
+		.name	= "arm-bL-cpufreq-dt",
+		.owner	= THIS_MODULE,
+	},
+	.probe		= generic_bL_probe,
+	.remove		= generic_bL_remove,
+};
+module_platform_driver(generic_bL_platdrv);
 
 MODULE_AUTHOR("Viresh Kumar <viresh.kumar@linaro.org>");
 MODULE_DESCRIPTION("Generic ARM big LITTLE cpufreq driver via DT");
