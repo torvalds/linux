@@ -154,7 +154,6 @@ static const struct vmk80xx_board vmk80xx_boardinfo[] = {
 };
 
 struct vmk80xx_private {
-	struct usb_device *usb;
 	struct usb_interface *intf;
 	struct usb_endpoint_descriptor *ep_rx;
 	struct usb_endpoint_descriptor *ep_tx;
@@ -168,7 +167,7 @@ struct vmk80xx_private {
 static int vmk80xx_check_data_link(struct comedi_device *dev)
 {
 	struct vmk80xx_private *devpriv = dev->private;
-	struct usb_device *usb = devpriv->usb;
+	struct usb_device *usb = comedi_to_usb_dev(dev);
 	unsigned int tx_pipe;
 	unsigned int rx_pipe;
 	unsigned char tx[1];
@@ -193,7 +192,7 @@ static int vmk80xx_check_data_link(struct comedi_device *dev)
 static void vmk80xx_read_eeprom(struct comedi_device *dev, int flag)
 {
 	struct vmk80xx_private *devpriv = dev->private;
-	struct usb_device *usb = devpriv->usb;
+	struct usb_device *usb = comedi_to_usb_dev(dev);
 	unsigned int tx_pipe;
 	unsigned int rx_pipe;
 	unsigned char tx[1];
@@ -223,7 +222,7 @@ static void vmk80xx_read_eeprom(struct comedi_device *dev, int flag)
 static void vmk80xx_do_bulk_msg(struct comedi_device *dev)
 {
 	struct vmk80xx_private *devpriv = dev->private;
-	struct usb_device *usb = devpriv->usb;
+	struct usb_device *usb = comedi_to_usb_dev(dev);
 	__u8 tx_addr;
 	__u8 rx_addr;
 	unsigned int tx_pipe;
@@ -249,7 +248,7 @@ static void vmk80xx_do_bulk_msg(struct comedi_device *dev)
 static int vmk80xx_read_packet(struct comedi_device *dev)
 {
 	struct vmk80xx_private *devpriv = dev->private;
-	struct usb_device *usb;
+	struct usb_device *usb = comedi_to_usb_dev(dev);
 	struct usb_endpoint_descriptor *ep;
 	unsigned int pipe;
 
@@ -261,7 +260,6 @@ static int vmk80xx_read_packet(struct comedi_device *dev)
 		return 0;
 	}
 
-	usb = devpriv->usb;
 	ep = devpriv->ep_rx;
 	pipe = usb_rcvintpipe(usb, ep->bEndpointAddress);
 	return usb_interrupt_msg(usb, pipe, devpriv->usb_rx_buf,
@@ -272,7 +270,7 @@ static int vmk80xx_read_packet(struct comedi_device *dev)
 static int vmk80xx_write_packet(struct comedi_device *dev, int cmd)
 {
 	struct vmk80xx_private *devpriv = dev->private;
-	struct usb_device *usb;
+	struct usb_device *usb = comedi_to_usb_dev(dev);
 	struct usb_endpoint_descriptor *ep;
 	unsigned int pipe;
 
@@ -286,7 +284,6 @@ static int vmk80xx_write_packet(struct comedi_device *dev, int cmd)
 		return 0;
 	}
 
-	usb = devpriv->usb;
 	ep = devpriv->ep_tx;
 	pipe = usb_sndintpipe(usb, ep->bEndpointAddress);
 	return usb_interrupt_msg(usb, pipe, devpriv->usb_tx_buf,
@@ -890,7 +887,6 @@ static int vmk80xx_auto_attach(struct comedi_device *dev,
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	devpriv->usb = interface_to_usbdev(intf);
 	devpriv->intf = intf;
 	devpriv->model = boardinfo->model;
 
