@@ -193,7 +193,6 @@ struct inet6_dev {
 	struct in6_addr		token;
 
 	struct neigh_parms	*nd_parms;
-	struct inet6_dev	*next;
 	struct ipv6_devconf	cnf;
 	struct ipv6_devstat	stats;
 	unsigned long		tstamp; /* ipv6InterfaceTable update timestamp */
