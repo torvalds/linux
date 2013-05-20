@@ -133,6 +133,17 @@ static struct platform_device sw_rfkill_dev = {
 
 static int __init sw_rfkill_init(void)
 {
+	unsigned int mod_sel = mmc_pm_get_mod_type();
+
+	switch (mod_sel) {
+	case 2: /* usi bm01a */
+	case 5: /* swb b23 */
+	case 6: /* huawei mw269x */
+		break;
+	default:
+		return -ENODEV;
+	}
+
     platform_device_register(&sw_rfkill_dev);
     return platform_driver_register(&sw_rfkill_driver);
 }
