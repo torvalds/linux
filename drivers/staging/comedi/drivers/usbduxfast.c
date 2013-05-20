@@ -168,8 +168,7 @@ struct usbduxfast_private {
 
 static int usbduxfast_send_cmd(struct comedi_device *dev, int cmd_type)
 {
-	struct usb_interface *intf = comedi_to_usb_interface(dev);
-	struct usb_device *usb = interface_to_usbdev(intf);
+	struct usb_device *usb = comedi_to_usb_dev(dev);
 	struct usbduxfast_private *devpriv = dev->private;
 	int nsent;
 	int ret;
@@ -239,8 +238,7 @@ static void usbduxfast_ai_interrupt(struct urb *urb)
 	struct comedi_device *dev = urb->context;
 	struct comedi_subdevice *s = dev->read_subdev;
 	struct comedi_async *async = s->async;
-	struct usb_interface *intf = comedi_to_usb_interface(dev);
-	struct usb_device *usb = interface_to_usbdev(intf);
+	struct usb_device *usb = comedi_to_usb_dev(dev);
 	struct usbduxfast_private *devpriv = dev->private;
 	int n, err;
 
@@ -341,8 +339,7 @@ static void usbduxfast_ai_interrupt(struct urb *urb)
 
 static int usbduxfast_submit_urb(struct comedi_device *dev)
 {
-	struct usb_interface *intf = comedi_to_usb_interface(dev);
-	struct usb_device *usb = interface_to_usbdev(intf);
+	struct usb_device *usb = comedi_to_usb_dev(dev);
 	struct usbduxfast_private *devpriv = dev->private;
 	int ret;
 
@@ -871,8 +868,7 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 				   struct comedi_insn *insn,
 				   unsigned int *data)
 {
-	struct usb_interface *intf = comedi_to_usb_interface(dev);
-	struct usb_device *usb = interface_to_usbdev(intf);
+	struct usb_device *usb = comedi_to_usb_dev(dev);
 	struct usbduxfast_private *devpriv = dev->private;
 	unsigned int chan = CR_CHAN(insn->chanspec);
 	unsigned int range = CR_RANGE(insn->chanspec);
@@ -984,8 +980,7 @@ static int usbduxfast_attach_common(struct comedi_device *dev)
 static int usbduxfast_upload_firmware(struct comedi_device *dev,
 				      const struct firmware *fw)
 {
-	struct usb_interface *intf = comedi_to_usb_interface(dev);
-	struct usb_device *usb = interface_to_usbdev(intf);
+	struct usb_device *usb = comedi_to_usb_dev(dev);
 	uint8_t *buf;
 	unsigned char *tmp;
 	int ret;
@@ -1054,8 +1049,7 @@ done:
 
 static int usbduxfast_request_firmware(struct comedi_device *dev)
 {
-	struct usb_interface *intf = comedi_to_usb_interface(dev);
-	struct usb_device *usb = interface_to_usbdev(intf);
+	struct usb_device *usb = comedi_to_usb_dev(dev);
 	const struct firmware *fw;
 	int ret;
 
@@ -1073,7 +1067,7 @@ static int usbduxfast_auto_attach(struct comedi_device *dev,
 				  unsigned long context_unused)
 {
 	struct usb_interface *intf = comedi_to_usb_interface(dev);
-	struct usb_device *usb = interface_to_usbdev(intf);
+	struct usb_device *usb = comedi_to_usb_dev(dev);
 	struct usbduxfast_private *devpriv;
 	int ret;
 
