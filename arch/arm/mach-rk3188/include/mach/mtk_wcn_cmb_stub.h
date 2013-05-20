@@ -1,39 +1,3 @@
-/* Copyright Statement:
- *
- * This software/firmware and related documentation ("MediaTek Software") are
- * protected under relevant copyright laws. The information contained herein
- * is confidential and proprietary to MediaTek Inc. and/or its licensors.
- * Without the prior written permission of MediaTek inc. and/or its licensors,
- * any reproduction, modification, use or disclosure of MediaTek Software,
- * and information contained herein, in whole or in part, shall be strictly prohibited.
- *
- * MediaTek Inc. (C) 2010. All rights reserved.
- *
- * BY OPENING THIS FILE, RECEIVER HEREBY UNEQUIVOCALLY ACKNOWLEDGES AND AGREES
- * THAT THE SOFTWARE/FIRMWARE AND ITS DOCUMENTATIONS ("MEDIATEK SOFTWARE")
- * RECEIVED FROM MEDIATEK AND/OR ITS REPRESENTATIVES ARE PROVIDED TO RECEIVER ON
- * AN "AS-IS" BASIS ONLY. MEDIATEK EXPRESSLY DISCLAIMS ANY AND ALL WARRANTIES,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE OR NONINFRINGEMENT.
- * NEITHER DOES MEDIATEK PROVIDE ANY WARRANTY WHATSOEVER WITH RESPECT TO THE
- * SOFTWARE OF ANY THIRD PARTY WHICH MAY BE USED BY, INCORPORATED IN, OR
- * SUPPLIED WITH THE MEDIATEK SOFTWARE, AND RECEIVER AGREES TO LOOK ONLY TO SUCH
- * THIRD PARTY FOR ANY WARRANTY CLAIM RELATING THERETO. RECEIVER EXPRESSLY ACKNOWLEDGES
- * THAT IT IS RECEIVER'S SOLE RESPONSIBILITY TO OBTAIN FROM ANY THIRD PARTY ALL PROPER LICENSES
- * CONTAINED IN MEDIATEK SOFTWARE. MEDIATEK SHALL ALSO NOT BE RESPONSIBLE FOR ANY MEDIATEK
- * SOFTWARE RELEASES MADE TO RECEIVER'S SPECIFICATION OR TO CONFORM TO A PARTICULAR
- * STANDARD OR OPEN FORUM. RECEIVER'S SOLE AND EXCLUSIVE REMEDY AND MEDIATEK'S ENTIRE AND
- * CUMULATIVE LIABILITY WITH RESPECT TO THE MEDIATEK SOFTWARE RELEASED HEREUNDER WILL BE,
- * AT MEDIATEK'S OPTION, TO REVISE OR REPLACE THE MEDIATEK SOFTWARE AT ISSUE,
- * OR REFUND ANY SOFTWARE LICENSE FEES OR SERVICE CHARGE PAID BY RECEIVER TO
- * MEDIATEK FOR SUCH MEDIATEK SOFTWARE AT ISSUE.
- *
- * The following software/firmware and/or related documentation ("MediaTek Software")
- * have been modified by MediaTek Inc. All revisions are subject to any receiver's
- * applicable license agreements with MediaTek Inc.
- */
-
-
 /*! \file
     \brief  Declaration of library functions
 
@@ -85,6 +49,55 @@
 #ifndef _MTK_WCN_CMB_STUB_H_
 #define _MTK_WCN_CMB_STUB_H_
 
+#include <linux/types.h>
+	typedef enum {
+		COMBO_AUDIO_STATE_0 = 0, /* 0000: BT_PCM_OFF & FM analog (line in/out) */
+		COMBO_AUDIO_STATE_1 = 1, /* 0001: BT_PCM_ON & FM analog (in/out) */
+		COMBO_AUDIO_STATE_2 = 2, /* 0010: BT_PCM_OFF & FM digital (I2S) */
+		COMBO_AUDIO_STATE_3 = 3, /* 0011: BT_PCM_ON & FM digital (I2S) (invalid in 73evb & 1.2 phone configuration) */
+		COMBO_AUDIO_STATE_MAX = 4,
+	} COMBO_AUDIO_STATE;
+	
+	typedef enum {
+		COMBO_FUNC_TYPE_BT = 0,
+		COMBO_FUNC_TYPE_FM = 1,
+		COMBO_FUNC_TYPE_GPS = 2,
+		COMBO_FUNC_TYPE_WIFI = 3,
+		COMBO_FUNC_TYPE_WMT = 4,
+		COMBO_FUNC_TYPE_STP = 5,
+		COMBO_FUNC_TYPE_NUM = 6
+	} COMBO_FUNC_TYPE;
+	
+	typedef enum {
+		COMBO_IF_UART = 0,
+		COMBO_IF_MSDC = 1,
+		COMBO_IF_MAX,
+	} COMBO_IF;
+	
+	
+	/******************************************************************************
+	*					F U N C T I O N   D E C L A R A T I O N S
+	*******************************************************************************
+	*/
+	
+	
+	/* [GeorgeKuo] Stub functions for other kernel built-in modules to call.
+	 * Keep them unchanged temporarily. Move mt_combo functions to mtk_wcn_combo.
+	 */
+	//extern int mt_combo_audio_ctrl_ex(COMBO_AUDIO_STATE state, u32 clt_ctrl);
+	static inline int mt_combo_audio_ctrl(COMBO_AUDIO_STATE state) {
+		//return mt_combo_audio_ctrl_ex(state, 1);
+		return 0;
+	}
+	//extern int mt_combo_plt_enter_deep_idle(COMBO_IF src);
+	//extern int mt_combo_plt_exit_deep_idle(COMBO_IF src);
+	
+	/* Use new mtk_wcn_stub APIs instead of old mt_combo ones for kernel to control
+	 * function on/off.
+	 */
+	//extern void mtk_wcn_cmb_stub_func_ctrl (unsigned int type, unsigned int on);
+	//extern int board_sdio_ctrl (unsigned int sdio_port_num, unsigned int on);
+//#include <mach/mt_combo.h> jake 
 /*******************************************************************************
 *                         C O M P I L E R   F L A G S
 ********************************************************************************
@@ -129,32 +142,6 @@ typedef enum {
     CMB_STUB_AIF_CTRL_MAX = 2,
 } CMB_STUB_AIF_CTRL;
 
-#if 1 /* copied from mt_combo.h */
-typedef enum {
-    COMBO_AUDIO_STATE_0 = 0, /* 0000: BT_PCM_OFF & FM analog (line in/out) */
-    COMBO_AUDIO_STATE_1 = 1, /* 0001: BT_PCM_ON & FM analog (in/out) */
-    COMBO_AUDIO_STATE_2 = 2, /* 0010: BT_PCM_OFF & FM digital (I2S) */
-    COMBO_AUDIO_STATE_3 = 3, /* 0011: BT_PCM_ON & FM digital (I2S) (invalid in 73evb & 1.2 phone configuration) */
-    COMBO_AUDIO_STATE_MAX = 4,
-} COMBO_AUDIO_STATE;
-
-typedef enum {
-    COMBO_FUNC_TYPE_BT = 0,
-    COMBO_FUNC_TYPE_FM = 1,
-    COMBO_FUNC_TYPE_GPS = 2,
-    COMBO_FUNC_TYPE_WIFI = 3,
-    COMBO_FUNC_TYPE_WMT = 4,
-    COMBO_FUNC_TYPE_STP = 5,
-    COMBO_FUNC_TYPE_NUM = 6
-} COMBO_FUNC_TYPE;
-
-typedef enum {
-    COMBO_IF_UART = 0,
-    COMBO_IF_MSDC = 1,
-    COMBO_IF_MAX,
-} COMBO_IF;
-#endif
-
 typedef void (*wmt_bgf_eirq_cb)(void);
 typedef int (*wmt_aif_ctrl_cb)(CMB_STUB_AIF_X, CMB_STUB_AIF_CTRL);
 typedef void (*wmt_func_ctrl_cb)(unsigned int, unsigned int);
@@ -171,10 +158,16 @@ typedef struct _CMB_STUB_CB_ {
 ********************************************************************************
 */
 
+
+
 /*******************************************************************************
 *                           P R I V A T E   D A T A
 ********************************************************************************
 */
+
+
+
+
 
 /*******************************************************************************
 *                  F U N C T I O N   D E C L A R A T I O N S
@@ -186,28 +179,23 @@ extern int mtk_wcn_cmb_stub_unreg (void);
 
 extern int mtk_wcn_cmb_stub_aif_ctrl (CMB_STUB_AIF_X state, CMB_STUB_AIF_CTRL ctrl);
 
-#if 0 /* remove obsolete audio_ctrl APIs. Use stub_aif_ctrl()! */
-/* [GeorgeKuo] Stub functions for other kernel built-in modules to call.
- * Keep them unchanged temporarily. Move mt_combo functions to mtk_wcn_combo.
- */
-extern int mtk_wcn_cmb_stub_audio_ctrl_ex(COMBO_AUDIO_STATE state, u32 clt_ctrl);
-static inline int mtk_wcn_cmb_stub_audio_ctrl(COMBO_AUDIO_STATE state) {
-    return mtk_wcn_cmb_stub_audio_ctrl_ex(state, 1);
-}
+// TODO: [FixMe][GeorgeKuo]: put prototypes into mt_combo.h for board.c temporarily for non-finished porting
+// TODO: old: rfkill->board.c->mt_combo->wmt_lib_plat
+// TODO: new: rfkill->mtk_wcn_cmb_stub_alps->wmt_plat_alps
+#if 0
+extern int mtk_wcn_cmb_stub_func_ctrl(unsigned int type, unsigned int on);
 #endif
-
-/* Use new mtk_wcn_stub APIs instead of old mt_combo ones for kernel to control
- * function on/off.
- */
-extern void mtk_wcn_cmb_stub_func_ctrl (unsigned int type, unsigned int on);
-
-extern int mt_combo_plt_enter_deep_idle(COMBO_IF src);
-extern int mt_combo_plt_exit_deep_idle(COMBO_IF src);
 
 /*******************************************************************************
 *                              F U N C T I O N S
 ********************************************************************************
 */
 
+
 #endif /* _MTK_WCN_CMB_STUB_H_ */
+
+
+
+
+
 
