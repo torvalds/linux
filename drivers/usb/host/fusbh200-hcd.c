@@ -5907,7 +5907,6 @@ int fusbh200_hcd_fusbh200_remove(struct platform_device *pdev)
 	iounmap(hcd->regs);
 	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
