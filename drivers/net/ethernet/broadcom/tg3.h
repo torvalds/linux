@@ -1175,6 +1175,7 @@
 #define TG3_CPMU_EEE_DBTMR1		0x000036b4
 #define  TG3_CPMU_DBTMR1_PCIEXIT_2047US	 0x07ff0000
 #define  TG3_CPMU_DBTMR1_LNKIDLE_2047US	 0x000007ff
+#define  TG3_CPMU_DBTMR1_LNKIDLE_MAX	 0x0000ffff
 #define TG3_CPMU_EEE_DBTMR2		0x000036b8
 #define  TG3_CPMU_DBTMR2_APE_TX_2047US	 0x07ff0000
 #define  TG3_CPMU_DBTMR2_TXIDXEQ_2047US	 0x000007ff
@@ -3371,6 +3372,7 @@ struct tg3 {
 	unsigned int			irq_cnt;
 
 	struct ethtool_coalesce		coal;
+	struct ethtool_eee		eee;
 
 	/* firmware info */
 	const char			*fw_needed;
