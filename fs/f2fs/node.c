@@ -408,10 +408,13 @@ int get_dnode_of_data(struct dnode_of_data *dn, pgoff_t index, int mode)
 	level = get_node_path(index, offset, noffset);
 
 	nids[0] = dn->inode->i_ino;
-	npage[0] = get_node_page(sbi, nids[0]);
-	if (IS_ERR(npage[0]))
-		return PTR_ERR(npage[0]);
+	npage[0] = dn->inode_page;
 
+	if (!npage[0]) {
+		npage[0] = get_node_page(sbi, nids[0]);
+		if (IS_ERR(npage[0]))
+			return PTR_ERR(npage[0]);
+	}
 	parent = npage[0];
 	if (level != 0)
 		nids[1] = get_nid(parent, offset[0], true);
