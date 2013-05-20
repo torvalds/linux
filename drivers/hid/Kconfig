@@ -231,6 +231,7 @@ config HID_HOLTEK
 	Support for Holtek based devices:
 	  - Holtek On Line Grip based game controller
 	  - Trust GXT 18 Gaming Keyboard
+	  - Sharkoon Drakonia / Perixx MX-2000 gaming mice
 
 config HOLTEK_FF
 	bool "Holtek On Line Grip force feedback support"
