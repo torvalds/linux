@@ -977,6 +977,16 @@ static const struct of_device_id samsung_pinctrl_dt_match[] = {
 	{ .compatible = "samsung,s3c64xx-pinctrl",
 		.data = s3c64xx_pin_ctrl },
 #endif
+#ifdef CONFIG_PINCTRL_S3C24XX
+	{ .compatible = "samsung,s3c2412-pinctrl",
+		.data = s3c2412_pin_ctrl },
+	{ .compatible = "samsung,s3c2416-pinctrl",
+		.data = s3c2416_pin_ctrl },
+	{ .compatible = "samsung,s3c2440-pinctrl",
+		.data = s3c2440_pin_ctrl },
+	{ .compatible = "samsung,s3c2450-pinctrl",
+		.data = s3c2450_pin_ctrl },
+#endif
 	{},
 };
 MODULE_DEVICE_TABLE(of, samsung_pinctrl_dt_match);
