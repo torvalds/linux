@@ -55,4 +55,6 @@ void __init tegra_hotplug_init(void)
 		tegra_hotplug_shutdown = tegra20_hotplug_shutdown;
 	if (IS_ENABLED(CONFIG_ARCH_TEGRA_3x_SOC) && tegra_chip_id == TEGRA30)
 		tegra_hotplug_shutdown = tegra30_hotplug_shutdown;
+	if (IS_ENABLED(CONFIG_ARCH_TEGRA_114_SOC) && tegra_chip_id == TEGRA114)
+		tegra_hotplug_shutdown = tegra30_hotplug_shutdown;
 }

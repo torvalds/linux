@@ -38,18 +38,24 @@
  *	  CPU boot vector when restarting the a CPU following
  *	  an LP2 transition. Also branched to by LP0 and LP1 resume after
  *	  re-enabling sdram.
+ *
+ *	r6: SoC ID
  */
 ENTRY(tegra_resume)
 	bl	v7_invalidate_l1
 
 	cpu_id	r0
+	tegra_get_soc_id TEGRA_APB_MISC_BASE, r6
+	cmp	r6, #TEGRA114
+	beq	no_cpu0_chk
+
 	cmp	r0, #0				@ CPU0?
  THUMB(	it	ne )
 	bne	cpu_resume			@ no
+no_cpu0_chk:
 
 #ifndef CONFIG_ARCH_TEGRA_2x_SOC
 	/* Are we on Tegra20? */
-	tegra_get_soc_id TEGRA_APB_MISC_BASE, r6
 	cmp	r6, #TEGRA20
 	beq	1f				@ Yes
 	/* Clear the flow controller flags for this CPU. */
@@ -187,11 +193,14 @@ __is_not_lp2:
 
 #ifdef CONFIG_SMP
 	/*
-	 * Can only be secondary boot (initial or hotplug) but CPU 0
-	 * cannot be here.
+	 * Can only be secondary boot (initial or hotplug)
+	 * CPU0 can't be here for Tegra20/30
 	 */
+	cmp	r6, #TEGRA114
+	beq	__no_cpu0_chk
 	cmp	r10, #0
 	bleq	__die				@ CPU0 cannot be here
+__no_cpu0_chk:
 	ldr	lr, [r12, #RESET_DATA(STARTUP_SECONDARY)]
 	cmp	lr, #0
 	bleq	__die				@ no secondary startup handler
