@@ -1325,7 +1325,6 @@ static int snd_ml403_ac97cr_probe(struct platform_device *pfdev)
 static int snd_ml403_ac97cr_remove(struct platform_device *pfdev)
 {
 	snd_card_free(platform_get_drvdata(pfdev));
-	platform_set_drvdata(pfdev, NULL);
 	return 0;
 }
 
