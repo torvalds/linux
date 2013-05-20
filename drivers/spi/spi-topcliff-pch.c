@@ -1487,7 +1487,7 @@ static int pch_spi_pd_probe(struct platform_device *plat_dev)
 	return 0;
 
 err_spi_register_master:
-	free_irq(board_dat->pdev->irq, board_dat);
+	free_irq(board_dat->pdev->irq, data);
 err_request_irq:
 	pch_spi_free_resources(board_dat, data);
 err_spi_get_resources:
