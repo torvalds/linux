@@ -5769,7 +5769,7 @@ static const struct hc_driver fusbh200_fusbh200_hc_driver = {
 	.clear_tt_buffer_complete = fusbh200_clear_tt_buffer_complete,
 };
 
-void fusbh200_init(struct fusbh200_hcd *fusbh200)
+static void fusbh200_init(struct fusbh200_hcd *fusbh200)
 {
 	u32 reg;
 
@@ -5895,7 +5895,7 @@ fail_create_hcd:
  * the HCD's stop() method.  It is always called from a thread
  * context, normally "rmmod", "apmd", or something similar.
  */
-int fusbh200_hcd_fusbh200_remove(struct platform_device *pdev)
+static int fusbh200_hcd_fusbh200_remove(struct platform_device *pdev)
 {
 	struct device *dev	= &pdev->dev;
 	struct usb_hcd *hcd	= dev_get_drvdata(dev);
@@ -5911,7 +5911,7 @@ int fusbh200_hcd_fusbh200_remove(struct platform_device *pdev)
 	return 0;
 }
 
-struct platform_driver fusbh200_hcd_fusbh200_driver = {
+static struct platform_driver fusbh200_hcd_fusbh200_driver = {
 	.driver = {
 		.name   = "fusbh200",
 	},
