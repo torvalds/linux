@@ -555,7 +555,7 @@ struct v4l2_jpegcompression {
 	__u32 jpeg_markers;     /* Which markers should go into the JPEG
 				 * output. Unless you exactly know what
 				 * you do, leave them untouched.
-				 * Inluding less markers will make the
+				 * Including less markers will make the
 				 * resulting code smaller, but there will
 				 * be fewer applications which can read it.
 				 * The presence of the APP and COM marker
@@ -567,7 +567,7 @@ struct v4l2_jpegcompression {
 #define V4L2_JPEG_MARKER_DRI (1<<5)    /* Define Restart Interval */
 #define V4L2_JPEG_MARKER_COM (1<<6)    /* Comment segment */
 #define V4L2_JPEG_MARKER_APP (1<<7)    /* App segment, driver will
-					* allways use APP0 */
+					* always use APP0 */
 };
 
 /*
@@ -900,7 +900,7 @@ typedef __u64 v4l2_std_id;
 /*
  * "Common" PAL - This macro is there to be compatible with the old
  * V4L1 concept of "PAL": /BGDKHI.
- * Several PAL standards are mising here: /M, /N and /Nc
+ * Several PAL standards are missing here: /M, /N and /Nc
  */
 #define V4L2_STD_PAL		(V4L2_STD_PAL_BG	|\
 				 V4L2_STD_PAL_DK	|\
@@ -1790,7 +1790,7 @@ struct v4l2_event_subscription {
 #define V4L2_CHIP_MATCH_HOST V4L2_CHIP_MATCH_BRIDGE
 #define V4L2_CHIP_MATCH_I2C_DRIVER  1  /* Match against I2C driver name */
 #define V4L2_CHIP_MATCH_I2C_ADDR    2  /* Match against I2C 7-bit address */
-#define V4L2_CHIP_MATCH_AC97        3  /* Match against anciliary AC97 chip */
+#define V4L2_CHIP_MATCH_AC97        3  /* Match against ancillary AC97 chip */
 #define V4L2_CHIP_MATCH_SUBDEV      4  /* Match against subdev index */
 
 struct v4l2_dbg_match {
