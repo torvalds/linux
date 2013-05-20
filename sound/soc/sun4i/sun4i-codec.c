@@ -1241,10 +1241,25 @@ static struct snd_pcm_ops sun4i_pcm_capture_ops = {
 static int __init snd_card_sun4i_codec_pcm(struct sun4i_codec *sun4i_codec, int device)
 {
 	struct snd_pcm *pcm;
-	int err;
-	/*创建PCM实例*/
-	if ((err = snd_pcm_new(sun4i_codec->card, "M1 PCM", device, 1, 1, &pcm)) < 0){
-		printk("error,the func is: %s,the line is:%d\n", __func__, __LINE__);
+	int err, playb, capt;
+
+	err = script_parser_fetch("audio_para", "playback_used", &playb, 1);
+	/* On error set playb to 1 as this is a linux-sunxi.org extension */
+	if (err == 0 && !playb)
+		playb = 0;
+	else
+		playb = 1;
+
+	err = script_parser_fetch("audio_para", "capture_used", &capt, 1);
+	if (err == 0 && capt)
+		capt = 1;
+	else
+		capt = 0;
+
+	err = snd_pcm_new(sun4i_codec->card, "M1 PCM", device,
+			  playb, capt, &pcm);
+	if (err < 0) {
+		pr_err("snd_pcm_new M1 PCM failed: %d\n", err);
 		return err;
 	}
 
@@ -1261,6 +1276,13 @@ static int __init snd_card_sun4i_codec_pcm(struct sun4i_codec *sun4i_codec, int 
 	*	设置PCM操作，第1个参数是snd_pcm的指针，第2 个参数是SNDRV_PCM_STREAM_PLAYBACK
 	*	或SNDRV_ PCM_STREAM_CAPTURE，而第3 个参数是PCM 操作结构体snd_pcm_ops
 	*/
+	if (playb)
+		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK,
+				&sun4i_pcm_playback_ops);
+	if (capt)
+		snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE,
+				&sun4i_pcm_capture_ops);
+
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &sun4i_pcm_playback_ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &sun4i_pcm_capture_ops);
 	pcm->private_data = sun4i_codec;//置pcm->private_data为芯片特定数据
