@@ -586,10 +586,12 @@ static int iwl_mvm_mac_ctxt_send_cmd(struct iwl_mvm *mvm,
  */
 static void iwl_mvm_mac_ctxt_cmd_fill_sta(struct iwl_mvm *mvm,
 					  struct ieee80211_vif *vif,
-					  struct iwl_mac_data_sta *ctxt_sta)
+					  struct iwl_mac_data_sta *ctxt_sta,
+					  bool force_assoc_off)
 {
 	/* We need the dtim_period to set the MAC as associated */
-	if (vif->bss_conf.assoc && vif->bss_conf.dtim_period) {
+	if (vif->bss_conf.assoc && vif->bss_conf.dtim_period &&
+	    !force_assoc_off) {
 		u32 dtim_offs;
 
 		/*
@@ -659,7 +661,8 @@ static int iwl_mvm_mac_ctxt_cmd_station(struct iwl_mvm *mvm,
 		cmd.filter_flags &= ~cpu_to_le32(MAC_FILTER_IN_BEACON);
 
 	/* Fill the data specific for station mode */
-	iwl_mvm_mac_ctxt_cmd_fill_sta(mvm, vif, &cmd.sta);
+	iwl_mvm_mac_ctxt_cmd_fill_sta(mvm, vif, &cmd.sta,
+				      action == FW_CTXT_ACTION_ADD);
 
 	return iwl_mvm_mac_ctxt_send_cmd(mvm, &cmd);
 }
@@ -677,7 +680,8 @@ static int iwl_mvm_mac_ctxt_cmd_p2p_client(struct iwl_mvm *mvm,
 	iwl_mvm_mac_ctxt_cmd_common(mvm, vif, &cmd, action);
 
 	/* Fill the data specific for station mode */
-	iwl_mvm_mac_ctxt_cmd_fill_sta(mvm, vif, &cmd.p2p_sta.sta);
+	iwl_mvm_mac_ctxt_cmd_fill_sta(mvm, vif, &cmd.p2p_sta.sta,
+				      action == FW_CTXT_ACTION_ADD);
 
 	cmd.p2p_sta.ctwin = cpu_to_le32(noa->oppps_ctwindow &
 					IEEE80211_P2P_OPPPS_CTWINDOW_MASK);

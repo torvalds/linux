@@ -906,7 +906,7 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc,
 	if (!ath_is_world_regd(reg)) {
 		error = regulatory_hint(hw->wiphy, reg->alpha2);
 		if (error)
-			goto unregister;
+			goto debug_cleanup;
 	}
 
 	ath_init_leds(sc);
@@ -914,6 +914,8 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc,
 
 	return 0;
 
+debug_cleanup:
+	ath9k_deinit_debug(sc);
 unregister:
 	ieee80211_unregister_hw(hw);
 rx_cleanup:
@@ -942,11 +944,6 @@ static void ath9k_deinit_softc(struct ath_softc *sc)
 		sc->dfs_detector->exit(sc->dfs_detector);
 
 	ath9k_eeprom_release(sc);
-
-	if (config_enabled(CONFIG_ATH9K_DEBUGFS) && sc->rfs_chan_spec_scan) {
-		relay_close(sc->rfs_chan_spec_scan);
-		sc->rfs_chan_spec_scan = NULL;
-	}
 }
 
 void ath9k_deinit_device(struct ath_softc *sc)
@@ -960,6 +957,7 @@ void ath9k_deinit_device(struct ath_softc *sc)
 
 	ath9k_ps_restore(sc);
 
+	ath9k_deinit_debug(sc);
 	ieee80211_unregister_hw(hw);
 	ath_rx_cleanup(sc);
 	ath9k_deinit_softc(sc);
