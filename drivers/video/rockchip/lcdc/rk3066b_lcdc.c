@@ -250,12 +250,11 @@ static int rk3066b_load_screen(struct rk_lcdc_device_driver *dev_drv, bool inits
 	        	v_DEN_POLARITY(screen->pin_den) | v_DCLK_POLARITY(screen->pin_dclk));
 
 		//set background color to black,set swap according to the screen panel,disable blank mode
-		LcdMskReg(lcdc_dev, DSP_CTRL1, m_BG_COLOR | m_OUTPUT_RB_SWAP | m_OUTPUT_RG_SWAP | m_DELTA_SWAP | 
-		 	m_DUMMY_SWAP | m_BLANK_MODE,v_BG_COLOR(0x000000) | v_OUTPUT_RB_SWAP(screen->swap_rb) | 
-		 	v_OUTPUT_RG_SWAP(screen->swap_rg) | v_DELTA_SWAP(screen->swap_delta) | v_DUMMY_SWAP(screen->swap_dumy) |
-		 	v_BLACK_MODE(0));
-
-		
+		LcdMskReg(lcdc_dev,DSP_CTRL1,m_BLANK_MODE | m_BLACK_MODE | m_BG_COLOR, v_BLANK_MODE(0) | 
+					v_BLACK_MODE(0) | v_BG_COLOR(0x000000));
+		LcdMskReg(lcdc_dev,SWAP_CTRL,m_OUTPUT_RB_SWAP | m_OUTPUT_RG_SWAP | m_DELTA_SWAP | m_DUMMY_SWAP, 
+					v_OUTPUT_RB_SWAP(screen->swap_rb) | v_OUTPUT_RG_SWAP(screen->swap_rg) | 
+		 			v_DELTA_SWAP(screen->swap_delta) | v_DUMMY_SWAP(screen->swap_dumy));
 		LcdWrReg(lcdc_dev, DSP_HTOTAL_HS_END,v_HSYNC(screen->hsync_len) |
 	             v_HORPRD(screen->hsync_len + screen->left_margin + x_res + right_margin));
 		LcdWrReg(lcdc_dev, DSP_HACT_ST_END, v_HAEP(screen->hsync_len + screen->left_margin + x_res) |
@@ -635,6 +634,7 @@ int rk3066b_lcdc_pan_display(struct rk_lcdc_device_driver * dev_drv,int layer_id
 		 
 	}
 
+#if 0
 	if(dev_drv->num_buf < 3) //3buffer ,no need to  wait for sysn
 	{
 		spin_lock_irqsave(&dev_drv->cpl_lock,flags);
@@ -647,6 +647,7 @@ int rk3066b_lcdc_pan_display(struct rk_lcdc_device_driver * dev_drv,int layer_id
 			return -ETIMEDOUT;
 		}
 	}
+#endif
 	
 	return 0;
 }
@@ -1042,13 +1043,15 @@ static irqreturn_t rk3066b_lcdc_isr(int irq, void *dev_id)
 	LcdMskReg(lcdc_dev, INT_STATUS, m_FRM_STARTCLEAR, v_FRM_STARTCLEAR(1));
 	
 	//LcdMskReg(lcdc_dev, INT_STATUS, m_LINE_FLAG_INT_CLEAR, v_LINE_FLAG_INT_CLEAR(1));
- 
+
+#if 0
 	if(lcdc_dev->driver.num_buf < 3)  //three buffer ,no need to wait for sync
 	{
 		spin_lock(&(lcdc_dev->driver.cpl_lock));
 		complete(&(lcdc_dev->driver.frame_done));
 		spin_unlock(&(lcdc_dev->driver.cpl_lock));
 	}
+#endif
 
 	lcdc_dev->driver.vsync_info.timestamp = timestamp;
 	wake_up_interruptible_all(&lcdc_dev->driver.vsync_info.wait);
