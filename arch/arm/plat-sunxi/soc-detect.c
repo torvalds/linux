@@ -76,6 +76,7 @@ u32 sunxi_brom_chip_id(void)
 	}
 	return 0;
 }
+EXPORT_SYMBOL(sunxi_brom_chip_id);
 
 /*
  */
