@@ -29,7 +29,6 @@
 
 #include "sndspdif.h"
 
-static int spdif_used = 0;
 static struct clk *xtal;
 static int clk_users;
 static DEFINE_MUTEX(clk_lock);
@@ -230,49 +229,60 @@ static struct snd_soc_dai_link sun4i_sndspdif_dai_link = {
 
 static struct snd_soc_card snd_soc_sun4i_sndspdif = {
 	.name 		= "sun4i-sndspdif",
+	.owner		= THIS_MODULE,
 	.dai_link 	= &sun4i_sndspdif_dai_link,
 	.num_links 	= 1,
 };
 
-static struct platform_device *sun4i_sndspdif_device;
+static int __devinit sun4i_sndspdif_probe(struct platform_device *pdev)
+{
+	snd_soc_sun4i_sndspdif.dev = &pdev->dev;
+	return snd_soc_register_card(&snd_soc_sun4i_sndspdif);
+}
+
+static int __devexit sun4i_sndspdif_remove(struct platform_device *pdev)
+{
+	snd_soc_unregister_card(&snd_soc_sun4i_sndspdif);
+	return 0;
+}
+
+static struct platform_device sun4i_sndspdif_device = {
+	.name = "sun4i-sndspdif",
+};
+
+static struct platform_driver sun4i_sndspdif_driver = {
+	.probe = sun4i_sndspdif_probe,
+	.remove = __devexit_p(sun4i_sndspdif_remove),
+	.driver = {
+		.name = "sun4i-sndspdif",
+		.owner = THIS_MODULE,
+	},
+};
 
 static int __init sun4i_sndspdif_init(void)
 {
-	int ret;
-	int ret2;
+	int ret, spdif_used = 0;
 
-	ret2 = script_parser_fetch("spdif_para","spdif_used", &spdif_used, sizeof(int));
-	if (ret2) {
-        printk("[SPDIF]sun4i_sndspdif_init fetch spdif using configuration failed\n");
-    }
+	ret = script_parser_fetch("spdif_para", "spdif_used", &spdif_used, 1);
+	if (ret != 0 || !spdif_used)
+		return -ENODEV;
 
-    if (spdif_used) {
-		sun4i_sndspdif_device = platform_device_alloc("soc-audio", 1);
+	ret = platform_device_register(&sun4i_sndspdif_device);
+	if (ret < 0)
+		return ret;
 
-		if(!sun4i_sndspdif_device)
-			return -ENOMEM;
-
-		platform_set_drvdata(sun4i_sndspdif_device, &snd_soc_sun4i_sndspdif);
-
-		ret = platform_device_add(sun4i_sndspdif_device);
-		if (ret) {
-			platform_device_put(sun4i_sndspdif_device);
-		}
-	} else {
-		printk("[SPDIF]sun4i_sndspdif cannot find any using configuration for controllers, return directly!\n");
-        return 0;
+	ret = platform_driver_register(&sun4i_sndspdif_driver);
+	if (ret < 0) {
+		platform_device_unregister(&sun4i_sndspdif_device);
+		return ret;
 	}
-
-	return ret;
+	return 0;
 }
 
 static void __exit sun4i_sndspdif_exit(void)
 {
-	if (spdif_used) {
-		spdif_used = 0;
-		platform_device_unregister(sun4i_sndspdif_device);
-	}
-
+	platform_driver_unregister(&sun4i_sndspdif_driver);
+	platform_device_unregister(&sun4i_sndspdif_device);
 }
 
 module_init(sun4i_sndspdif_init);

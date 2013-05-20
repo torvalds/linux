@@ -29,7 +29,6 @@
 
 #include "sndi2s.h"
 
-static int i2s_used = 0;
 static struct clk *xtal;
 static int clk_users;
 static DEFINE_MUTEX(clk_lock);
@@ -255,44 +254,60 @@ static struct snd_soc_dai_link sun4i_sndi2s_dai_link = {
 
 static struct snd_soc_card snd_soc_sun4i_sndi2s = {
 	.name = "sun4i-sndi2s",
+	.owner = THIS_MODULE,
 	.dai_link = &sun4i_sndi2s_dai_link,
 	.num_links = 1,
 };
 
-static struct platform_device *sun4i_sndi2s_device;
+static int __devinit sun4i_sndi2s_probe(struct platform_device *pdev)
+{
+	snd_soc_sun4i_sndi2s.dev = &pdev->dev;
+	return snd_soc_register_card(&snd_soc_sun4i_sndi2s);
+}
+
+static int __devexit sun4i_sndi2s_remove(struct platform_device *pdev)
+{
+	snd_soc_unregister_card(&snd_soc_sun4i_sndi2s);
+	return 0;
+}
+
+static struct platform_device sun4i_sndi2s_device = {
+	.name = "sun4i-sndi2s",
+};
+
+static struct platform_driver sun4i_sndi2s_driver = {
+	.probe = sun4i_sndi2s_probe,
+	.remove = __devexit_p(sun4i_sndi2s_remove),
+	.driver = {
+		.name = "sun4i-sndi2s",
+		.owner = THIS_MODULE,
+	},
+};
 
 static int __init sun4i_sndi2s_init(void)
 {
-	int ret;
-	int ret2;
+	int ret, i2s_used = 0;
 
-	ret2 = script_parser_fetch("i2s_para","i2s_used", &i2s_used, sizeof(int));
-	if (ret2) {
-        printk("[I2S]sun4i_sndi2s_init fetch i2s using configuration failed\n");
-    }
+	ret = script_parser_fetch("i2s_para", "i2s_used", &i2s_used, 1);
+	if (ret != 0 || !i2s_used)
+		return -ENODEV;
 
-    if (i2s_used) {
-		sun4i_sndi2s_device = platform_device_alloc("soc-audio", 2);
-		if(!sun4i_sndi2s_device)
-			return -ENOMEM;
-		platform_set_drvdata(sun4i_sndi2s_device, &snd_soc_sun4i_sndi2s);
-		ret = platform_device_add(sun4i_sndi2s_device);
-		if (ret) {
-			platform_device_put(sun4i_sndi2s_device);
-		}
-	}else{
-		printk("[I2S]sun4i_sndi2s cannot find any using configuration for controllers, return directly!\n");
-        return 0;
+	ret = platform_device_register(&sun4i_sndi2s_device);
+	if (ret < 0)
+		return ret;
+
+	ret = platform_driver_register(&sun4i_sndi2s_driver);
+	if (ret < 0) {
+		platform_device_unregister(&sun4i_sndi2s_device);
+		return ret;
 	}
-	return ret;
+	return 0;
 }
 
 static void __exit sun4i_sndi2s_exit(void)
 {
-	if(i2s_used) {
-		i2s_used = 0;
-		platform_device_unregister(sun4i_sndi2s_device);
-	}
+	platform_driver_unregister(&sun4i_sndi2s_driver);
+	platform_device_unregister(&sun4i_sndi2s_device);
 }
 
 module_init(sun4i_sndi2s_init);
