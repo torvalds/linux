@@ -74,7 +74,7 @@ u32 sunxi_brom_chip_id(void)
 		pr_err("BROM: failed to parse chip-id: \"%s\"\n",
 		       brom->platform);
 	}
-	return 0;
+	return SUNXI_UNKNOWN_MACH;
 }
 EXPORT_SYMBOL(sunxi_brom_chip_id);
 

@@ -36,6 +36,13 @@ static inline void arch_idle(void)
 	cpu_do_idle();
 }
 
+enum sunxi_mach_id {
+	SUNXI_UNKNOWN_MACH = 0xffffffff,
+
+	SUNXI_MACH_SUN4I = 1623,
+	SUNXI_MACH_SUN5I = 1625,
+};
+
 /* BROM access only possible after iomap()s */
 u32 sunxi_brom_chip_id(void);
 int sunxi_pr_chip_id(void);
