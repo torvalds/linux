@@ -246,6 +246,7 @@ struct nfs4_layoutget_res {
 struct nfs4_layoutget {
 	struct nfs4_layoutget_args args;
 	struct nfs4_layoutget_res res;
+	struct rpc_cred *cred;
 	gfp_t gfp_flags;
 };
 

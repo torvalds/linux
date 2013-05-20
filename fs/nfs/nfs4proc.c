@@ -6348,6 +6348,7 @@ nfs4_proc_layoutget(struct nfs4_layoutget *lgp, gfp_t gfp_flags)
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_LAYOUTGET],
 		.rpc_argp = &lgp->args,
 		.rpc_resp = &lgp->res,
+		.rpc_cred = lgp->cred,
 	};
 	struct rpc_task_setup task_setup_data = {
 		.rpc_client = server->client,
