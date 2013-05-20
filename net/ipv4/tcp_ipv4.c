@@ -1026,7 +1026,7 @@ int tcp_md5_do_add(struct sock *sk, const union tcp_md5_addr *addr,
 	key = sock_kmalloc(sk, sizeof(*key), gfp);
 	if (!key)
 		return -ENOMEM;
-	if (hlist_empty(&md5sig->head) && !tcp_alloc_md5sig_pool(sk)) {
+	if (!tcp_alloc_md5sig_pool()) {
 		sock_kfree_s(sk, key, sizeof(*key));
 		return -ENOMEM;
 	}
@@ -1044,9 +1044,7 @@ EXPORT_SYMBOL(tcp_md5_do_add);
 
 int tcp_md5_do_del(struct sock *sk, const union tcp_md5_addr *addr, int family)
 {
-	struct tcp_sock *tp = tcp_sk(sk);
 	struct tcp_md5sig_key *key;
-	struct tcp_md5sig_info *md5sig;
 
 	key = tcp_md5_do_lookup(sk, (union tcp_md5_addr *)&addr, AF_INET);
 	if (!key)
@@ -1054,10 +1052,6 @@ int tcp_md5_do_del(struct sock *sk, const union tcp_md5_addr *addr, int family)
 	hlist_del_rcu(&key->node);
 	atomic_sub(sizeof(*key), &sk->sk_omem_alloc);
 	kfree_rcu(key, rcu);
-	md5sig = rcu_dereference_protected(tp->md5sig_info,
-					   sock_owned_by_user(sk));
-	if (hlist_empty(&md5sig->head))
-		tcp_free_md5sig_pool();
 	return 0;
 }
 EXPORT_SYMBOL(tcp_md5_do_del);
@@ -1071,8 +1065,6 @@ static void tcp_clear_md5_list(struct sock *sk)
 
 	md5sig = rcu_dereference_protected(tp->md5sig_info, 1);
 
-	if (!hlist_empty(&md5sig->head))
-		tcp_free_md5sig_pool();
 	hlist_for_each_entry_safe(key, n, &md5sig->head, node) {
 		hlist_del_rcu(&key->node);
 		atomic_sub(sizeof(*key), &sk->sk_omem_alloc);
