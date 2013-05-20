@@ -237,9 +237,19 @@ enum sw_ic_ver sw_get_ic_ver(void)
 	goto done;
 
 unknown_chip:
-	pr_err("unrecognized IC\n");
+	pr_err("unrecognized IC (chip-id=%u)\n", sunxi_chip_id());
 unknown:
 	ver = SUNXI_VER_UNKNOWN;
+	{
+		unsigned i;
+		u32 reg = SW_VA_SID_IO_BASE;
+
+		pr_err("secure-id dump (0x%08x):\n", reg);
+		for (i=0; i<4; i++, reg += 0x04) {
+			u32 v = readl(reg);
+			pr_err("secure-id[%u]: 0x%08x\n", i, v);
+		}
+	}
 done:
 	return ver;
 }
