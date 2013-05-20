@@ -22,8 +22,6 @@
 #include <linux/module.h>
 #include <linux/io.h>
 
-#include <asm/mach-types.h>
-
 #include <plat/platform.h>
 #include <plat/system.h>
 
@@ -117,17 +115,28 @@ EXPORT_SYMBOL(sunxi_sramc_chip_id);
 
 /*
  */
+u32 sunxi_chip_id(void)
+{
+	static u32 chip_id;
+
+	if (unlikely(chip_id == 0))
+		chip_id = sunxi_sramc_chip_id();
+
+	return chip_id;
+}
+EXPORT_SYMBOL(sunxi_chip_id);
+
 int sunxi_pr_chip_id(void)
 {
-	u32 chip_id = sunxi_brom_chip_id();
+	u32 chip_id = sunxi_chip_id();
 	enum sw_ic_ver ver = sw_get_ic_ver();
 	const char *soc_family = NULL;
 	const char *name = NULL;
 	int rev;
 
-	if (machine_is_sun4i())
+	if (sunxi_is_sun4i())
 		soc_family = "sun4i";
-	else if (machine_is_sun5i())
+	else if (sunxi_is_sun5i())
 		soc_family = "sun5i";
 	else
 		soc_family = "sunNi?";
@@ -173,7 +182,7 @@ enum sw_ic_ver sw_get_ic_ver(void)
 	if (likely(ver))
 		return ver;
 
-	if (machine_is_sun4i()) {
+	if (sunxi_is_sun4i()) {
 		u32 val = readl(SW_VA_TIMERC_IO_BASE + 0x13c);
 		val = (val >> 6) & 0x3;
 
@@ -183,7 +192,7 @@ enum sw_ic_ver sw_get_ic_ver(void)
 			ver = SUNXI_VER_A10B;
 		else
 			ver = SUNXI_VER_A10C;
-	} else if (machine_is_sun5i()) {
+	} else if (sunxi_is_sun5i()) {
 		u32 val = readl(SW_VA_SSE_IO_BASE);
 		val = (val >> 16) & 0x07;
 

@@ -45,10 +45,12 @@ enum sunxi_mach_id {
 
 /* BROM access only possible after iomap()s */
 u32 sunxi_brom_chip_id(void);
-int sunxi_pr_chip_id(void);
 int sunxi_pr_brom(void);
 
 u32 sunxi_sramc_chip_id(void);
+
+u32 sunxi_chip_id(void) __pure;
+int sunxi_pr_chip_id(void);
 
 enum sw_ic_ver {
 	SUNXI_VER_UNKNOWN = 0xffffffff,
@@ -70,6 +72,9 @@ enum sw_ic_ver {
 enum sw_ic_ver sw_get_ic_ver(void) __pure;
 
 #ifdef CONFIG_ARCH_SUN4I
+#define sunxi_is_sun4i()	(sunxi_chip_id() == SUNXI_MACH_SUN4I)
+#define sunxi_is_sun5i()	(0)
+
 static inline int sunxi_is_a10(void)
 {
 	switch (sw_get_ic_ver()) {
@@ -86,6 +91,9 @@ static inline int sunxi_is_a10(void)
 #define sunxi_is_a10s()	(0)
 
 #elif defined(CONFIG_ARCH_SUN5I)
+#define sunxi_is_sun4i()	(0)
+#define sunxi_is_sun5i()	(sunxi_chip_id() == SUNXI_MACH_SUN5I)
+
 static inline int sunxi_is_a13(void)
 {
 	switch (sw_get_ic_ver()) {
