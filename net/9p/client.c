@@ -1015,6 +1015,9 @@ struct p9_client *p9_client_create(const char *dev_name, char *options)
 		goto destroy_tagpool;
 
 	if (!clnt->trans_mod)
+		clnt->trans_mod = v9fs_get_trans_by_name("virtio");
+
+	if (!clnt->trans_mod)
 		clnt->trans_mod = v9fs_get_default_trans();
 
 	if (clnt->trans_mod == NULL) {
