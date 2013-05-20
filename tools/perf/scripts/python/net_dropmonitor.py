@@ -40,10 +40,24 @@ def get_kallsyms_table():
 
 def get_sym(sloc):
 	loc = int(sloc)
-	for symloc, name in kallsyms[::-1]:
-		if loc >= symloc:
-			return (name, loc - symloc)
-	return (None, 0)
+
+	# Invariant: kallsyms[i][0] <= loc for all 0 <= i <= start
+	#            kallsyms[i][0] > loc for all end <= i < len(kallsyms)
+	start, end = -1, len(kallsyms)
+	while end != start + 1:
+		pivot = (start + end) // 2
+		if loc < kallsyms[pivot][0]:
+			end = pivot
+		else:
+			start = pivot
+
+	# Now (start == -1 or kallsyms[start][0] <= loc)
+	# and (start == len(kallsyms) - 1 or loc < kallsyms[start + 1][0])
+	if start >= 0:
+		symloc, name = kallsyms[start]
+		return (name, loc - symloc)
+	else:
+		return (None, 0)
 
 def print_drop_table():
 	print "%25s %25s %25s" % ("LOCATION", "OFFSET", "COUNT")
