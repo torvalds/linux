@@ -89,7 +89,6 @@ sampling rate. If you sample two channels you get 4kHz and so on.
 #include <linux/usb.h>
 #include <linux/fcntl.h>
 #include <linux/compiler.h>
-#include <linux/firmware.h>
 
 #include "../comedidev.h"
 
@@ -724,9 +723,11 @@ static void usbduxsub_ao_isoc_irq(struct urb *urb)
 
 #define FIRMWARE_MAX_LEN 0x2000
 
-static int firmware_upload(struct usbduxsub *usbduxsub,
-			  const u8 *data, int size)
+static int usbdux_firmware_upload(struct comedi_device *dev,
+				  const u8 *data, size_t size,
+				  unsigned long context)
 {
+	struct usbduxsub *usbduxsub = dev->private;
 	struct usb_device *usb = usbduxsub->usbdev;
 	uint8_t *buf;
 	uint8_t *tmp;
@@ -2251,16 +2252,15 @@ static int usbdux_auto_attach(struct comedi_device *dev,
 	struct usb_interface *uinterf = comedi_to_usb_interface(dev);
 	struct usbduxsub *this_usbduxsub = usb_get_intfdata(uinterf);
 	struct usb_device *usb = usbduxsub->usbdev;
-	const struct firmware *fw;
 	int ret;
 
-	ret = request_firmware(&fw, FIRMWARE, &usb->dev);
-	if (ret == 0) {
-		ret = firmware_upload(this_usbduxsub, fw->data, fw->size);
-		release_firmware(fw);
-	}
-	if (ret < 0)
+	dev->private = this_usbduxsub;	/* This is temporary... */
+	ret = comedi_load_firmware(dev, &usb->dev, FIRMWARE,
+				   usbdux_firmware_upload, 0);
+	if (ret < 0) {
+		dev->private = NULL;
 		return ret;
+	}
 
 	dev->private = NULL;
 
