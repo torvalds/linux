@@ -252,8 +252,7 @@ struct dt9812_private {
 static int dt9812_read_info(struct comedi_device *dev,
 			    int offset, void *buf, size_t buf_size)
 {
-	struct usb_interface *intf = comedi_to_usb_interface(dev);
-	struct usb_device *usb = interface_to_usbdev(intf);
+	struct usb_device *usb = comedi_to_usb_dev(dev);
 	struct dt9812_private *devpriv = dev->private;
 	struct dt9812_usb_cmd cmd;
 	int count, ret;
@@ -277,8 +276,7 @@ static int dt9812_read_multiple_registers(struct comedi_device *dev,
 					  int reg_count, u8 *address,
 					  u8 *value)
 {
-	struct usb_interface *intf = comedi_to_usb_interface(dev);
-	struct usb_device *usb = interface_to_usbdev(intf);
+	struct usb_device *usb = comedi_to_usb_dev(dev);
 	struct dt9812_private *devpriv = dev->private;
 	struct dt9812_usb_cmd cmd;
 	int i, count, ret;
@@ -302,8 +300,7 @@ static int dt9812_write_multiple_registers(struct comedi_device *dev,
 					   int reg_count, u8 *address,
 					   u8 *value)
 {
-	struct usb_interface *intf = comedi_to_usb_interface(dev);
-	struct usb_device *usb = interface_to_usbdev(intf);
+	struct usb_device *usb = comedi_to_usb_dev(dev);
 	struct dt9812_private *devpriv = dev->private;
 	struct dt9812_usb_cmd cmd;
 	int i, count;
@@ -324,8 +321,7 @@ static int dt9812_rmw_multiple_registers(struct comedi_device *dev,
 					 int reg_count,
 					 struct dt9812_rmw_byte *rmw)
 {
-	struct usb_interface *intf = comedi_to_usb_interface(dev);
-	struct usb_device *usb = interface_to_usbdev(intf);
+	struct usb_device *usb = comedi_to_usb_dev(dev);
 	struct dt9812_private *devpriv = dev->private;
 	struct dt9812_usb_cmd cmd;
 	int i, count;
@@ -706,8 +702,7 @@ static int dt9812_find_endpoints(struct comedi_device *dev)
 
 static int dt9812_reset_device(struct comedi_device *dev)
 {
-	struct usb_interface *intf = comedi_to_usb_interface(dev);
-	struct usb_device *usb = interface_to_usbdev(intf);
+	struct usb_device *usb = comedi_to_usb_dev(dev);
 	struct dt9812_private *devpriv = dev->private;
 	u32 serial;
 	u16 vendor;
