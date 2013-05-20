@@ -106,9 +106,11 @@ ENTRY(tegra_shut_off_mmu)
 	isb
 #ifdef CONFIG_CACHE_L2X0
 	/* Disable L2 cache */
-	mov32	r4, TEGRA_ARM_PERIF_BASE + 0x3000
-	mov	r5, #0
-	str	r5, [r4, #L2X0_CTRL]
+	check_cpu_part_num 0xc09, r9, r10
+	movweq	r4, #:lower16:(TEGRA_ARM_PERIF_BASE + 0x3000)
+	movteq	r4, #:upper16:(TEGRA_ARM_PERIF_BASE + 0x3000)
+	moveq	r5, #0
+	streq	r5, [r4, #L2X0_CTRL]
 #endif
 	mov	pc, r0
 ENDPROC(tegra_shut_off_mmu)
