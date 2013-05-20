@@ -61,7 +61,7 @@ EXPORT_SYMBOL(del_dsi_ops);
 
 int dsi_probe_current_chip(void) {
 
-	int i = 0, id;
+	u32 i = 0, id;
 	struct mipi_dsi_ops *ops = NULL;
 	if(cur_dsi_ops)
 		return 0;
@@ -71,10 +71,10 @@ int dsi_probe_current_chip(void) {
 			id = ops->get_id();
 			if(id == ops->id) {
 				cur_dsi_ops = ops;
-				printk("load mipi dsi chip:%s id:%04x\n", ops->name, ops->id);
+				printk("load mipi dsi chip:%s id:%08x\n", ops->name, ops->id);
 				break;
 			} else {
-				printk("mipi dsi chip is not found, read id:%04x, but %04x is correct\n", id, ops->id);
+				printk("mipi dsi chip is not found, read id:%08x, but %08x is correct\n", id, ops->id);
 				dsi_ops[i] = NULL;
 				cur_dsi_ops = NULL;
 			}
