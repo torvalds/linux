@@ -1532,40 +1532,49 @@ static int setup_netfront(struct xenbus_device *dev, struct netfront_info *info)
 	FRONT_RING_INIT(&info->tx, txs, PAGE_SIZE);
 
 	err = xenbus_grant_ring(dev, virt_to_mfn(txs));
-	if (err < 0) {
-		free_page((unsigned long)txs);
-		goto fail;
-	}
+	if (err < 0)
+		goto grant_tx_ring_fail;
 
 	info->tx_ring_ref = err;
 	rxs = (struct xen_netif_rx_sring *)get_zeroed_page(GFP_NOIO | __GFP_HIGH);
 	if (!rxs) {
 		err = -ENOMEM;
 		xenbus_dev_fatal(dev, err, "allocating rx ring page");
-		goto fail;
+		goto alloc_rx_ring_fail;
 	}
 	SHARED_RING_INIT(rxs);
 	FRONT_RING_INIT(&info->rx, rxs, PAGE_SIZE);
 
 	err = xenbus_grant_ring(dev, virt_to_mfn(rxs));
-	if (err < 0) {
-		free_page((unsigned long)rxs);
-		goto fail;
-	}
+	if (err < 0)
+		goto grant_rx_ring_fail;
 	info->rx_ring_ref = err;
 
 	err = xenbus_alloc_evtchn(dev, &info->evtchn);
 	if (err)
-		goto fail;
+		goto alloc_evtchn_fail;
 
 	err = bind_evtchn_to_irqhandler(info->evtchn, xennet_interrupt,
 					0, netdev->name, netdev);
 	if (err < 0)
-		goto fail;
+		goto bind_fail;
 	netdev->irq = err;
 	return 0;
 
- fail:
+	/* If we fail to setup netfront, it is safe to just revoke access to
+	 * granted pages because backend is not accessing it at this point.
+	 */
+bind_fail:
+	xenbus_free_evtchn(dev, info->evtchn);
+alloc_evtchn_fail:
+	gnttab_end_foreign_access_ref(info->rx_ring_ref, 0);
+grant_rx_ring_fail:
+	free_page((unsigned long)rxs);
+alloc_rx_ring_fail:
+	gnttab_end_foreign_access_ref(info->tx_ring_ref, 0);
+grant_tx_ring_fail:
+	free_page((unsigned long)txs);
+fail:
 	return err;
 }
 
