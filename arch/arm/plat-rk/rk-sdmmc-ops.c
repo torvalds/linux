@@ -624,9 +624,9 @@ static struct rksdmmc_gpio_board rksdmmc1_gpio_init = {
 * define the varaious operations for SDMMC module
 * Generally only the author of SDMMC module will modify this section.
 *************************************************************************/
-
 #if !defined(CONFIG_SDMMC_RK29_OLD)	
-static void rk29_sdmmc_gpio_open(int device_id, int on)
+//static void rk29_sdmmc_gpio_open(int device_id, int on)
+void rk29_sdmmc_gpio_open(int device_id, int on)
 {
     switch(device_id)
     {

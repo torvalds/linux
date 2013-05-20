@@ -168,7 +168,9 @@ struct rk29_sdmmc_platform_data {
 	int enable_sd_wakeup;
 	int write_prt;
 	int write_prt_enalbe_level;
-	unsigned int sdio_INT_gpio; 
+	unsigned int sdio_INT_gpio;
+	int sdio_INT_level;
+#define USE_SDIO_INT_LEVEL  /*In order to be compatible with old project, those who do not define the member  sdio_INT_level */
 	struct rksdmmc_gpio   det_pin_info;
         int (*sd_vcc_reset)(void);
 };
