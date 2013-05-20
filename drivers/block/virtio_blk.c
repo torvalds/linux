@@ -20,7 +20,7 @@ module_param(use_bio, bool, S_IRUGO);
 static int major;
 static DEFINE_IDA(vd_index_ida);
 
-struct workqueue_struct *virtblk_wq;
+static struct workqueue_struct *virtblk_wq;
 
 struct virtio_blk
 {
