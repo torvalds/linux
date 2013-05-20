@@ -979,6 +979,7 @@ static struct omap_clk am33xx_clks[] = {
 	CLK(NULL,	"trace_pmd_clk_mux_ck",	&trace_pmd_clk_mux_ck),
 	CLK(NULL,	"stm_clk_div_ck",	&stm_clk_div_ck),
 	CLK(NULL,	"trace_clk_div_ck",	&trace_clk_div_ck),
+	CLK(NULL,	"clkout2_ck",		&clkout2_ck),
 };
 
 
@@ -989,6 +990,7 @@ static const char *enable_init_clks[] = {
 	"l4hs_gclk",
 	"l4fw_gclk",
 	"l4ls_gclk",
+	"clkout2_ck",	/* Required for external peripherals like, Audio codecs */
 };
 
 int __init am33xx_clk_init(void)
