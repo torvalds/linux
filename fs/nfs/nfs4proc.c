@@ -5528,7 +5528,8 @@ int nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred)
 	struct nfs41_exchange_id_args args = {
 		.verifier = &verifier,
 		.client = clp,
-		.flags = EXCHGID4_FLAG_SUPP_MOVED_REFER,
+		.flags = EXCHGID4_FLAG_SUPP_MOVED_REFER |
+			EXCHGID4_FLAG_BIND_PRINC_STATEID,
 	};
 	struct nfs41_exchange_id_res res = {
 		0
