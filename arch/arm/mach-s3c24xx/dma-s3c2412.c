@@ -35,131 +35,95 @@ static struct s3c24xx_dma_map __initdata s3c2412_dma_mappings[] = {
 	[DMACH_XD0] = {
 		.name		= "xdreq0",
 		.channels	= MAP(S3C2412_DMAREQSEL_XDREQ0),
-		.channels_rx	= MAP(S3C2412_DMAREQSEL_XDREQ0),
 	},
 	[DMACH_XD1] = {
 		.name		= "xdreq1",
 		.channels	= MAP(S3C2412_DMAREQSEL_XDREQ1),
-		.channels_rx	= MAP(S3C2412_DMAREQSEL_XDREQ1),
 	},
 	[DMACH_SDI] = {
 		.name		= "sdi",
 		.channels	= MAP(S3C2412_DMAREQSEL_SDI),
-		.channels_rx	= MAP(S3C2412_DMAREQSEL_SDI),
 	},
 	[DMACH_SPI0_RX] = {
 		.name		= "spi0-rx",
 		.channels	= MAP(S3C2412_DMAREQSEL_SPI0RX),
-		.channels_rx	= MAP(S3C2412_DMAREQSEL_SPI0RX),
 	},
 	[DMACH_SPI0_TX] = {
 		.name		= "spi0-tx",
 		.channels	= MAP(S3C2412_DMAREQSEL_SPI0TX),
-		.channels_rx	= MAP(S3C2412_DMAREQSEL_SPI0TX),
 	},
 	[DMACH_SPI1_RX] = {
 		.name		= "spi1-rx",
 		.channels	= MAP(S3C2412_DMAREQSEL_SPI1RX),
-		.channels_rx	= MAP(S3C2412_DMAREQSEL_SPI1RX),
 	},
 	[DMACH_SPI1_TX] = {
 		.name		= "spi1-tx",
 		.channels	= MAP(S3C2412_DMAREQSEL_SPI1TX),
-		.channels_rx	= MAP(S3C2412_DMAREQSEL_SPI1TX),
 	},
 	[DMACH_UART0] = {
 		.name		= "uart0",
 		.channels	= MAP(S3C2412_DMAREQSEL_UART0_0),
-		.channels_rx	= MAP(S3C2412_DMAREQSEL_UART0_0),
 	},
 	[DMACH_UART1] = {
 		.name		= "uart1",
 		.channels	= MAP(S3C2412_DMAREQSEL_UART1_0),
-		.channels_rx	= MAP(S3C2412_DMAREQSEL_UART1_0),
 	},
       	[DMACH_UART2] = {
 		.name		= "uart2",
 		.channels	= MAP(S3C2412_DMAREQSEL_UART2_0),
-		.channels_rx	= MAP(S3C2412_DMAREQSEL_UART2_0),
 	},
 	[DMACH_UART0_SRC2] = {
 		.name		= "uart0",
 		.channels	= MAP(S3C2412_DMAREQSEL_UART0_1),
-		.channels_rx	= MAP(S3C2412_DMAREQSEL_UART0_1),
 	},
 	[DMACH_UART1_SRC2] = {
 		.name		= "uart1",
 		.channels	= MAP(S3C2412_DMAREQSEL_UART1_1),
-		.channels_rx	= MAP(S3C2412_DMAREQSEL_UART1_1),
 	},
       	[DMACH_UART2_SRC2] = {
 		.name		= "uart2",
 		.channels	= MAP(S3C2412_DMAREQSEL_UART2_1),
-		.channels_rx	= MAP(S3C2412_DMAREQSEL_UART2_1),
 	},
 	[DMACH_TIMER] = {
 		.name		= "timer",
 		.channels	= MAP(S3C2412_DMAREQSEL_TIMER),
-		.channels_rx	= MAP(S3C2412_DMAREQSEL_TIMER),
 	},
 	[DMACH_I2S_IN] = {
 		.name		= "i2s-sdi",
 		.channels	= MAP(S3C2412_DMAREQSEL_I2SRX),
-		.channels_rx	= MAP(S3C2412_DMAREQSEL_I2SRX),
 	},
 	[DMACH_I2S_OUT] = {
 		.name		= "i2s-sdo",
 		.channels	= MAP(S3C2412_DMAREQSEL_I2STX),
-		.channels_rx	= MAP(S3C2412_DMAREQSEL_I2STX),
 	},
 	[DMACH_USB_EP1] = {
 		.name		= "usb-ep1",
 		.channels	= MAP(S3C2412_DMAREQSEL_USBEP1),
-		.channels_rx	= MAP(S3C2412_DMAREQSEL_USBEP1),
 	},
 	[DMACH_USB_EP2] = {
 		.name		= "usb-ep2",
 		.channels	= MAP(S3C2412_DMAREQSEL_USBEP2),
-		.channels_rx	= MAP(S3C2412_DMAREQSEL_USBEP2),
 	},
 	[DMACH_USB_EP3] = {
 		.name		= "usb-ep3",
 		.channels	= MAP(S3C2412_DMAREQSEL_USBEP3),
-		.channels_rx	= MAP(S3C2412_DMAREQSEL_USBEP3),
 	},
 	[DMACH_USB_EP4] = {
 		.name		= "usb-ep4",
 		.channels	= MAP(S3C2412_DMAREQSEL_USBEP4),
-		.channels_rx	= MAP(S3C2412_DMAREQSEL_USBEP4),
 	},
 };
-
-static void s3c2412_dma_direction(struct s3c2410_dma_chan *chan,
-				  struct s3c24xx_dma_map *map,
-				  enum dma_data_direction dir)
-{
-	unsigned long chsel;
-
-	if (dir == DMA_FROM_DEVICE)
-		chsel = map->channels_rx[0];
-	else
-		chsel = map->channels[0];
-
-	chsel &= ~DMA_CH_VALID;
-	chsel |= S3C2412_DMAREQSEL_HW;
-
-	writel(chsel, chan->regs + S3C2412_DMA_DMAREQSEL);
-}
 
 static void s3c2412_dma_select(struct s3c2410_dma_chan *chan,
 			       struct s3c24xx_dma_map *map)
 {
-	s3c2412_dma_direction(chan, map, chan->source);
+	unsigned long chsel = map->channels[0] & (~DMA_CH_VALID);
+	writel(chsel | S3C2412_DMAREQSEL_HW,
+	       chan->regs + S3C2412_DMA_DMAREQSEL);
 }
 
 static struct s3c24xx_dma_selection __initdata s3c2412_dma_sel = {
 	.select		= s3c2412_dma_select,
-	.direction	= s3c2412_dma_direction,
 	.dcon_mask	= 0,
 	.map		= s3c2412_dma_mappings,
 	.map_size	= ARRAY_SIZE(s3c2412_dma_mappings),
