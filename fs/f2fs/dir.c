@@ -264,14 +264,9 @@ void f2fs_set_link(struct inode *dir, struct f2fs_dir_entry *de,
 	f2fs_put_page(page, 1);
 }
 
-void init_dent_inode(const struct qstr *name, struct page *ipage)
+static void init_dent_inode(const struct qstr *name, struct page *ipage)
 {
 	struct f2fs_node *rn;
-
-	if (IS_ERR(ipage))
-		return;
-
-	wait_on_page_writeback(ipage);
 
 	/* copy name info. to this inode page */
 	rn = (struct f2fs_node *)page_address(ipage);
@@ -280,14 +275,15 @@ void init_dent_inode(const struct qstr *name, struct page *ipage)
 	set_page_dirty(ipage);
 }
 
-static int make_empty_dir(struct inode *inode, struct inode *parent)
+static int make_empty_dir(struct inode *inode,
+		struct inode *parent, struct page *page)
 {
 	struct page *dentry_page;
 	struct f2fs_dentry_block *dentry_blk;
 	struct f2fs_dir_entry *de;
 	void *kaddr;
 
-	dentry_page = get_new_data_page(inode, NULL, 0, true);
+	dentry_page = get_new_data_page(inode, page, 0, true);
 	if (IS_ERR(dentry_page))
 		return PTR_ERR(dentry_page);
 
@@ -317,42 +313,47 @@ static int make_empty_dir(struct inode *inode, struct inode *parent)
 	return 0;
 }
 
-static int init_inode_metadata(struct inode *inode,
+static struct page *init_inode_metadata(struct inode *inode,
 		struct inode *dir, const struct qstr *name)
 {
+	struct page *page;
+	int err;
+
 	if (is_inode_flag_set(F2FS_I(inode), FI_NEW_INODE)) {
-		int err;
-		err = new_inode_page(inode, name);
-		if (err)
-			return err;
+		page = new_inode_page(inode, name);
+		if (IS_ERR(page))
+			return page;
 
 		if (S_ISDIR(inode->i_mode)) {
-			err = make_empty_dir(inode, dir);
-			if (err) {
-				remove_inode_page(inode);
-				return err;
-			}
+			err = make_empty_dir(inode, dir, page);
+			if (err)
+				goto error;
 		}
 
 		err = f2fs_init_acl(inode, dir);
-		if (err) {
-			remove_inode_page(inode);
-			return err;
-		}
+		if (err)
+			goto error;
+
+		wait_on_page_writeback(page);
 	} else {
-		struct page *ipage;
-		ipage = get_node_page(F2FS_SB(dir->i_sb), inode->i_ino);
-		if (IS_ERR(ipage))
-			return PTR_ERR(ipage);
-		set_cold_node(inode, ipage);
-		init_dent_inode(name, ipage);
-		f2fs_put_page(ipage, 1);
+		page = get_node_page(F2FS_SB(dir->i_sb), inode->i_ino);
+		if (IS_ERR(page))
+			return page;
+
+		wait_on_page_writeback(page);
+		set_cold_node(inode, page);
 	}
-	if (is_inode_flag_set(F2FS_I(inode), FI_INC_LINK)) {
+
+	init_dent_inode(name, page);
+
+	if (is_inode_flag_set(F2FS_I(inode), FI_INC_LINK))
 		inc_nlink(inode);
-		update_inode_page(inode);
-	}
-	return 0;
+	return page;
+
+error:
+	f2fs_put_page(page, 1);
+	remove_inode_page(inode);
+	return ERR_PTR(err);
 }
 
 static void update_parent_metadata(struct inode *dir, struct inode *inode,
@@ -423,6 +424,7 @@ int __f2fs_add_link(struct inode *dir, const struct qstr *name, struct inode *in
 	struct page *dentry_page = NULL;
 	struct f2fs_dentry_block *dentry_blk = NULL;
 	int slots = GET_DENTRY_SLOTS(namelen);
+	struct page *page;
 	int err = 0;
 	int i;
 
@@ -465,12 +467,13 @@ start:
 	++level;
 	goto start;
 add_dentry:
-	err = init_inode_metadata(inode, dir, name);
-	if (err)
-		goto fail;
-
 	wait_on_page_writeback(dentry_page);
 
+	page = init_inode_metadata(inode, dir, name);
+	if (IS_ERR(page)) {
+		err = PTR_ERR(page);
+		goto fail;
+	}
 	de = &dentry_blk->dentry[bit_pos];
 	de->hash_code = dentry_hash;
 	de->name_len = cpu_to_le16(namelen);
@@ -481,10 +484,12 @@ add_dentry:
 		test_and_set_bit_le(bit_pos + i, &dentry_blk->dentry_bitmap);
 	set_page_dirty(dentry_page);
 
-	update_parent_metadata(dir, inode, current_depth);
-
-	/* update parent inode number before releasing dentry page */
+	/* we don't need to mark_inode_dirty now */
 	F2FS_I(inode)->i_pino = dir->i_ino;
+	update_inode(inode, page);
+	f2fs_put_page(page, 1);
+
+	update_parent_metadata(dir, inode, current_depth);
 fail:
 	kunmap(dentry_page);
 	f2fs_put_page(dentry_page, 1);

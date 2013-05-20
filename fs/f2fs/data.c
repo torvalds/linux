@@ -279,6 +279,7 @@ repeat:
  *
  * Also, caller should grab and release a mutex by calling mutex_lock_op() and
  * mutex_unlock_op().
+ * Note that, npage is set only by make_empty_dir.
  */
 struct page *get_new_data_page(struct inode *inode,
 		struct page *npage, pgoff_t index, bool new_i_size)

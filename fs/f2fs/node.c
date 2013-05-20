@@ -806,19 +806,15 @@ int remove_inode_page(struct inode *inode)
 	return 0;
 }
 
-int new_inode_page(struct inode *inode, const struct qstr *name)
+struct page *new_inode_page(struct inode *inode, const struct qstr *name)
 {
-	struct page *page;
 	struct dnode_of_data dn;
 
 	/* allocate inode page for new inode */
 	set_new_dnode(&dn, inode, NULL, NULL, inode->i_ino);
-	page = new_node_page(&dn, 0);
-	init_dent_inode(name, page);
-	if (IS_ERR(page))
-		return PTR_ERR(page);
-	f2fs_put_page(page, 1);
-	return 0;
+
+	/* caller should f2fs_put_page(page, 1); */
+	return new_node_page(&dn, 0);
 }
 
 struct page *new_node_page(struct dnode_of_data *dn, unsigned int ofs)
