@@ -29,6 +29,8 @@
 #include <linux/spinlock.h>
 #include <linux/crc32.h>
 #include <linux/mii.h>
+#include <linux/of.h>
+#include <linux/of_net.h>
 #include <linux/ethtool.h>
 #include <linux/dm9000.h>
 #include <linux/delay.h>
@@ -1351,6 +1353,31 @@ static const struct net_device_ops dm9000_netdev_ops = {
 #endif
 };
 
+static struct dm9000_plat_data *dm9000_parse_dt(struct device *dev)
+{
+	struct dm9000_plat_data *pdata;
+	struct device_node *np = dev->of_node;
+	const void *mac_addr;
+
+	if (!IS_ENABLED(CONFIG_OF) || !np)
+		return NULL;
+
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata)
+		return ERR_PTR(-ENOMEM);
+
+	if (of_find_property(np, "davicom,ext-phy", NULL))
+		pdata->flags |= DM9000_PLATF_EXT_PHY;
+	if (of_find_property(np, "davicom,no-eeprom", NULL))
+		pdata->flags |= DM9000_PLATF_NO_EEPROM;
+
+	mac_addr = of_get_mac_address(np);
+	if (mac_addr)
+		memcpy(pdata->dev_addr, mac_addr, sizeof(pdata->dev_addr));
+
+	return pdata;
+}
+
 /*
  * Search DM9000 board, allocate space and register it
  */
@@ -1365,6 +1392,12 @@ dm9000_probe(struct platform_device *pdev)
 	int iosize;
 	int i;
 	u32 id_val;
+
+	if (!pdata) {
+		pdata = dm9000_parse_dt(&pdev->dev);
+		if (IS_ERR(pdata))
+			return PTR_ERR(pdata);
+	}
 
 	/* Init network device */
 	ndev = alloc_etherdev(sizeof(struct board_info));
@@ -1676,11 +1709,20 @@ dm9000_drv_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id dm9000_of_matches[] = {
+	{ .compatible = "davicom,dm9000", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, dm9000_of_matches);
+#endif
+
 static struct platform_driver dm9000_driver = {
 	.driver	= {
 		.name    = "dm9000",
 		.owner	 = THIS_MODULE,
 		.pm	 = &dm9000_drv_pm_ops,
+		.of_match_table = of_match_ptr(dm9000_of_matches),
 	},
 	.probe   = dm9000_probe,
 	.remove  = dm9000_drv_remove,
