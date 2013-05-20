@@ -636,10 +636,6 @@ static int __devexit sun4i_hdmiaudio_dev_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_device sun4i_hdmiaudio_device = {
-	.name = "sun4i-hdmiaudio",
-};
-
 static struct platform_driver sun4i_hdmiaudio_driver = {
 	.probe = sun4i_hdmiaudio_dev_probe,
 	.remove = __devexit_p(sun4i_hdmiaudio_dev_remove),
@@ -652,9 +648,6 @@ static struct platform_driver sun4i_hdmiaudio_driver = {
 static int __init sun4i_hdmiaudio_init(void)
 {
 	int err = 0;
-
-	if((err = platform_device_register(&sun4i_hdmiaudio_device))<0)
-		return err;
 
 	if ((err = platform_driver_register(&sun4i_hdmiaudio_driver)) < 0)
 		return err;

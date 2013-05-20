@@ -172,10 +172,6 @@ static int __devexit sndhdmi_codec_remove(struct platform_device *pdev)
 	return 0;
 }
 
-/*data relating*/
-static struct platform_device sndhdmi_codec_device = {
-	.name = "sun4i-hdmiaudio-codec",
-};
 static struct platform_driver sndhdmi_codec_driver = {
 	.driver = {
 		.name = "sun4i-hdmiaudio-codec",
@@ -188,9 +184,6 @@ static struct platform_driver sndhdmi_codec_driver = {
 static int __init sndhdmi_codec_init(void)
 {
 	int err = 0;
-
-	if((err = platform_device_register(&sndhdmi_codec_device)) < 0)
-		return err;
 
 	if ((err = platform_driver_register(&sndhdmi_codec_driver)) < 0)
 		return err;

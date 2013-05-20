@@ -272,10 +272,6 @@ static int __devexit sun4i_sndhdmi_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct platform_device sun4i_sndhdmi_device = {
-	.name = "sun4i-sndhdmi",
-};
-
 static struct platform_driver sun4i_sndhdmi_driver = {
 	.probe = sun4i_sndhdmi_probe,
 	.remove = __devexit_p(sun4i_sndhdmi_remove),
@@ -287,24 +283,12 @@ static struct platform_driver sun4i_sndhdmi_driver = {
 
 static int __init sun4i_sndhdmi_init(void)
 {
-	int ret;
-
-	ret = platform_device_register(&sun4i_sndhdmi_device);
-	if (ret < 0)
-		return ret;
-
-	ret = platform_driver_register(&sun4i_sndhdmi_driver);
-	if (ret < 0) {
-		platform_device_unregister(&sun4i_sndhdmi_device);
-		return ret;
-	}
-	return 0;
+	return platform_driver_register(&sun4i_sndhdmi_driver);
 }
 
 static void __exit sun4i_sndhdmi_exit(void)
 {
 	platform_driver_unregister(&sun4i_sndhdmi_driver);
-	platform_device_unregister(&sun4i_sndhdmi_device);
 }
 
 module_init(sun4i_sndhdmi_init);
