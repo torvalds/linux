@@ -27,6 +27,9 @@
 #include <plat/platform.h>
 #include <plat/system.h>
 
+/*
+ * BROM
+ */
 struct brom_header {
 	u32 jump_instruction;	/* one intruction jumping to real code */
 	char magic[8];		/* ="eGON.BRM",  not C-style string. */
@@ -59,7 +62,7 @@ int sunxi_pr_brom(void)
 	return 0;
 }
 
-u32 sunxi_chip_id(void)
+u32 sunxi_brom_chip_id(void)
 {
 	const struct brom_header *brom = _sunxi_brom();
 	if (brom) {
@@ -74,9 +77,11 @@ u32 sunxi_chip_id(void)
 	return 0;
 }
 
+/*
+ */
 int sunxi_pr_chip_id(void)
 {
-	u32 chip_id = sunxi_chip_id();
+	u32 chip_id = sunxi_brom_chip_id();
 	enum sw_ic_ver ver = sw_get_ic_ver();
 	const char *soc_family = NULL;
 	const char *name = NULL;
