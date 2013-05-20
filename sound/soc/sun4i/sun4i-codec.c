@@ -1525,12 +1525,21 @@ static struct platform_driver sun4i_codec_driver = {
 
 static int __init sun4i_codec_init(void)
 {
-	int err = 0;
-	if((platform_device_register(&sun4i_device_codec))<0)
-		return err;
+	int ret = 0, audio_used = 0;
 
-	if ((err = platform_driver_register(&sun4i_codec_driver)) < 0)
-		return err;
+	ret = script_parser_fetch("audio_para", "audio_used", &audio_used, 1);
+	if (ret != 0 || !audio_used)
+		return -ENODEV;
+
+	ret = platform_device_register(&sun4i_device_codec);
+	if (ret < 0)
+		return ret;
+
+	ret = platform_driver_register(&sun4i_codec_driver);
+	if (ret < 0) {
+		platform_device_unregister(&sun4i_device_codec);
+		return ret;
+	}
 
 	return 0;
 }
@@ -1538,6 +1547,7 @@ static int __init sun4i_codec_init(void)
 static void __exit sun4i_codec_exit(void)
 {
 	platform_driver_unregister(&sun4i_codec_driver);
+	platform_device_unregister(&sun4i_device_codec);
 }
 
 module_init(sun4i_codec_init);
