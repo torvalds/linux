@@ -2082,7 +2082,7 @@ static int hdmi_remove(struct platform_device *pdev)
 
 	pm_runtime_disable(dev);
 
-	free_irq(hdata->irq, hdata);
+	free_irq(hdata->irq, ctx);
 
 
 	/* hdmiphy i2c driver */
