@@ -2249,13 +2249,22 @@ static int usbdux_auto_attach(struct comedi_device *dev,
 			      unsigned long context_unused)
 {
 	struct usb_interface *uinterf = comedi_to_usb_interface(dev);
+	struct usbduxsub *this_usbduxsub = usb_get_intfdata(uinterf);
+	struct usb_device *usb = usbduxsub->usbdev;
+	const struct firmware *fw;
 	int ret;
-	struct usbduxsub *this_usbduxsub;
+
+	ret = request_firmware(&fw, FIRMWARE, &usb->dev);
+	if (ret == 0) {
+		ret = firmware_upload(this_usbduxsub, fw->data, fw->size);
+		release_firmware(fw);
+	}
+	if (ret < 0)
+		return ret;
 
 	dev->private = NULL;
 
 	down(&start_stop_sem);
-	this_usbduxsub = usb_get_intfdata(uinterf);
 	if (!this_usbduxsub || !this_usbduxsub->probed) {
 		dev_err(dev->class_dev,
 			"usbdux: error: auto_attach failed, not connected\n");
@@ -2295,10 +2304,8 @@ static int usbdux_usb_probe(struct usb_interface *uinterf,
 {
 	struct usb_device *udev = interface_to_usbdev(uinterf);
 	struct device *dev = &uinterf->dev;
-	const struct firmware *fw;
 	int i;
 	int index;
-	int ret;
 
 	dev_dbg(dev, "comedi_: usbdux_: "
 		"finding a free structure for the usb-device\n");
@@ -2514,14 +2521,6 @@ static int usbdux_usb_probe(struct usb_interface *uinterf,
 	/* we've reached the bottom of the function */
 	usbduxsub[index].probed = 1;
 	up(&start_stop_sem);
-
-	ret = request_firmware(&fw, FIRMWARE, &udev->dev);
-	if (ret == 0) {
-		ret = firmware_upload(&usbduxsub[index], fw->data, fw->size);
-		release_firmware(fw);
-	}
-	if (ret < 0)
-		return ret;
 
 	return comedi_usb_auto_config(uinterf, &usbdux_driver, 0);
 }
