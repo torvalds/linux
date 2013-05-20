@@ -667,156 +667,84 @@ static void usbduxsub_ao_IsocIrq(struct urb *urb)
 	}
 }
 
-static int usbduxsub_start(struct usbduxsub *usbduxsub)
-{
-	int errcode = 0;
-	uint8_t *local_transfer_buffer;
-
-	local_transfer_buffer = kmalloc(16, GFP_KERNEL);
-	if (!local_transfer_buffer)
-		return -ENOMEM;
-
-	/* 7f92 to zero */
-	local_transfer_buffer[0] = 0;
-	errcode = usb_control_msg(usbduxsub->usbdev,
-				  /* create a pipe for a control transfer */
-				  usb_sndctrlpipe(usbduxsub->usbdev, 0),
-				  /* bRequest, "Firmware" */
-				  USBDUXSUB_FIRMWARE,
-				  /* bmRequestType */
-				  VENDOR_DIR_OUT,
-				  /* Value */
-				  USBDUXSUB_CPUCS,
-				  /* Index */
-				  0x0000,
-				  /* address of the transfer buffer */
-				  local_transfer_buffer,
-				  /* Length */
-				  1,
-				  /* Timeout */
-				  BULK_TIMEOUT);
-	if (errcode < 0)
-		dev_err(&usbduxsub->interface->dev,
-			"comedi_: control msg failed (start)\n");
-
-	kfree(local_transfer_buffer);
-	return errcode;
-}
-
-static int usbduxsub_stop(struct usbduxsub *usbduxsub)
-{
-	int errcode = 0;
-	uint8_t *local_transfer_buffer;
-
-	local_transfer_buffer = kmalloc(16, GFP_KERNEL);
-	if (!local_transfer_buffer)
-		return -ENOMEM;
-
-	/* 7f92 to one */
-	local_transfer_buffer[0] = 1;
-	errcode = usb_control_msg(usbduxsub->usbdev,
-				  usb_sndctrlpipe(usbduxsub->usbdev, 0),
-				  /* bRequest, "Firmware" */
-				  USBDUXSUB_FIRMWARE,
-				  /* bmRequestType */
-				  VENDOR_DIR_OUT,
-				  /* Value */
-				  USBDUXSUB_CPUCS,
-				  /* Index */
-				  0x0000, local_transfer_buffer,
-				  /* Length */
-				  1,
-				  /* Timeout */
-				  BULK_TIMEOUT);
-	if (errcode < 0)
-		dev_err(&usbduxsub->interface->dev,
-			"comedi_: control msg failed (stop)\n");
-
-	kfree(local_transfer_buffer);
-	return errcode;
-}
-
-static int usbduxsub_upload(struct usbduxsub *usbduxsub,
-			    uint8_t *local_transfer_buffer,
-			    unsigned int startAddr, unsigned int len)
-{
-	int errcode;
-
-	errcode = usb_control_msg(usbduxsub->usbdev,
-				  usb_sndctrlpipe(usbduxsub->usbdev, 0),
-				  /* brequest, firmware */
-				  USBDUXSUB_FIRMWARE,
-				  /* bmRequestType */
-				  VENDOR_DIR_OUT,
-				  /* value */
-				  startAddr,
-				  /* index */
-				  0x0000,
-				  /* our local safe buffer */
-				  local_transfer_buffer,
-				  /* length */
-				  len,
-				  /* timeout */
-				  BULK_TIMEOUT);
-	dev_dbg(&usbduxsub->interface->dev, "comedi_: result=%d\n", errcode);
-	if (errcode < 0) {
-		dev_err(&usbduxsub->interface->dev,
-			"comedi_: upload failed\n");
-		return errcode;
-	}
-	return 0;
-}
-
 /* the FX2LP has twice as much as the standard FX2 */
 #define FIRMWARE_MAX_LEN 0x4000
 
 static int firmwareUpload(struct usbduxsub *usbduxsub,
-			  const u8 *firmwareBinary, int sizeFirmware)
+			  const u8 *data, int size)
 {
+	struct usb_device *usb = usbduxsub->usbdev;
+	uint8_t *buf;
+	uint8_t *tmp;
 	int ret;
-	uint8_t *fwBuf;
 
-	if (!firmwareBinary)
+	if (!data)
 		return 0;
 
-	if (sizeFirmware > FIRMWARE_MAX_LEN) {
+	if (size > FIRMWARE_MAX_LEN) {
 		dev_err(&usbduxsub->interface->dev,
 			"usbduxsigma firmware binary it too large for FX2.\n");
 		return -ENOMEM;
 	}
 
 	/* we generate a local buffer for the firmware */
-	fwBuf = kmemdup(firmwareBinary, sizeFirmware, GFP_KERNEL);
-	if (!fwBuf) {
+	buf = kmemdup(data, size, GFP_KERNEL);
+	if (!buf) {
 		dev_err(&usbduxsub->interface->dev,
 			"comedi_: mem alloc for firmware failed\n");
 		return -ENOMEM;
 	}
 
-	ret = usbduxsub_stop(usbduxsub);
+	/* we need a malloc'ed buffer for usb_control_msg() */
+	tmp = kmalloc(1, GFP_KERNEL);
+	if (!tmp) {
+		kfree(buf);
+		return -ENOMEM;
+	}
+
+	/* stop the current firmware on the device */
+	*tmp = 1;	/* 7f92 to one */
+	ret = usb_control_msg(usb, usb_sndctrlpipe(usb, 0),
+			      USBDUXSUB_FIRMWARE,
+			      VENDOR_DIR_OUT,
+			      USBDUXSUB_CPUCS, 0x0000,
+			      tmp, 1,
+			      BULK_TIMEOUT);
 	if (ret < 0) {
 		dev_err(&usbduxsub->interface->dev,
 			"comedi_: can not stop firmware\n");
-		kfree(fwBuf);
-		return ret;
+		goto done;
 	}
 
-	ret = usbduxsub_upload(usbduxsub, fwBuf, 0, sizeFirmware);
+	/* upload the new firmware to the device */
+	ret = usb_control_msg(usb, usb_sndctrlpipe(usb, 0),
+			      USBDUXSUB_FIRMWARE,
+			      VENDOR_DIR_OUT,
+			      0, 0x0000,
+			      buf, size,
+			      BULK_TIMEOUT);
 	if (ret < 0) {
 		dev_err(&usbduxsub->interface->dev,
 			"comedi_: firmware upload failed\n");
-		kfree(fwBuf);
-		return ret;
+		goto done;
 	}
-	ret = usbduxsub_start(usbduxsub);
-	if (ret < 0) {
+
+	/* start the new firmware on the device */
+	*tmp = 0;	/* 7f92 to zero */
+	ret = usb_control_msg(usb, usb_sndctrlpipe(usb, 0),
+			      USBDUXSUB_FIRMWARE,
+			      VENDOR_DIR_OUT,
+			      USBDUXSUB_CPUCS, 0x0000,
+			      tmp, 1,
+			      BULK_TIMEOUT);
+	if (ret < 0)
 		dev_err(&usbduxsub->interface->dev,
 			"comedi_: can not start firmware\n");
-		kfree(fwBuf);
-		return ret;
-	}
-	kfree(fwBuf);
-	return 0;
+
+done:
+	kfree(tmp);
+	kfree(buf);
+	return ret;
 }
 
 static int usbduxsub_submit_InURBs(struct usbduxsub *usbduxsub)
