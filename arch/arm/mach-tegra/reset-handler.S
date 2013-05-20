@@ -22,11 +22,11 @@
 #include <asm/hardware/cache-l2x0.h>
 
 #include "flowctrl.h"
+#include "fuse.h"
 #include "iomap.h"
 #include "reset.h"
 #include "sleep.h"
 
-#define APB_MISC_GP_HIDREV	0x804
 #define PMC_SCRATCH41	0x140
 
 #define RESET_DATA(x)	((TEGRA_RESET_##x)*4)
@@ -49,10 +49,8 @@ ENTRY(tegra_resume)
 
 #ifdef CONFIG_ARCH_TEGRA_3x_SOC
 	/* Are we on Tegra20? */
-	mov32	r6, TEGRA_APB_MISC_BASE
-	ldr	r0, [r6, #APB_MISC_GP_HIDREV]
-	and	r0, r0, #0xff00
-	cmp	r0, #(0x20 << 8)
+	tegra_get_soc_id TEGRA_APB_MISC_BASE, r6
+	cmp	r6, #TEGRA20
 	beq	1f				@ Yes
 	/* Clear the flow controller flags for this CPU. */
 	mov32	r2, TEGRA_FLOW_CTRL_BASE + FLOW_CTRL_CPU0_CSR	@ CPU0 CSR
@@ -98,7 +96,7 @@ ENTRY(__tegra_cpu_reset_handler_start)
  * Register usage within the reset handler:
  *
  *      Others: scratch
- *      R6  = SoC ID << 8
+ *      R6  = SoC ID
  *      R7  = CPU present (to the OS) mask
  *      R8  = CPU in LP1 state mask
  *      R9  = CPU in LP2 state mask
@@ -115,12 +113,10 @@ ENTRY(__tegra_cpu_reset_handler)
 
 	cpsid	aif, 0x13			@ SVC mode, interrupts disabled
 
-	mov32	r6, TEGRA_APB_MISC_BASE
-	ldr	r6, [r6, #APB_MISC_GP_HIDREV]
-	and	r6, r6, #0xff00
+	tegra_get_soc_id TEGRA_APB_MISC_BASE, r6
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
 t20_check:
-	cmp	r6, #(0x20 << 8)
+	cmp	r6, #TEGRA20
 	bne	after_t20_check
 t20_errata:
 	# Tegra20 is a Cortex-A9 r1p1
@@ -136,7 +132,7 @@ after_t20_check:
 #endif
 #ifdef CONFIG_ARCH_TEGRA_3x_SOC
 t30_check:
-	cmp	r6, #(0x30 << 8)
+	cmp	r6, #TEGRA30
 	bne	after_t30_check
 t30_errata:
 	# Tegra30 is a Cortex-A9 r2p9
@@ -163,7 +159,7 @@ after_errata:
 
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC
 	/* Are we on Tegra20? */
-	cmp	r6, #(0x20 << 8)
+	cmp	r6, #TEGRA20
 	bne	1f
 	/* If not CPU0, don't let CPU0 reset CPU1 now that CPU1 is coming up. */
 	mov32	r5, TEGRA_PMC_BASE
@@ -210,10 +206,7 @@ __die:
 	mov32	r7, TEGRA_CLK_RESET_BASE
 
 	/* Are we on Tegra20? */
-	mov32	r6, TEGRA_APB_MISC_BASE
-	ldr	r0, [r6, #APB_MISC_GP_HIDREV]
-	and	r0, r0, #0xff00
-	cmp	r0, #(0x20 << 8)
+	cmp	r6, #TEGRA20
 	bne	1f
 
 #ifdef CONFIG_ARCH_TEGRA_2x_SOC

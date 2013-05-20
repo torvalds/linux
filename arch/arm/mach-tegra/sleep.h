@@ -85,6 +85,15 @@
 	dsb
 .endm
 
+/* Macro to check Tegra revision */
+#define APB_MISC_GP_HIDREV	0x804
+.macro tegra_get_soc_id base, tmp1
+	mov32	\tmp1, \base
+	ldr	\tmp1, [\tmp1, #APB_MISC_GP_HIDREV]
+	and	\tmp1, \tmp1, #0xff00
+	mov	\tmp1, \tmp1, lsr #8
+.endm
+
 /* Macro to resume & re-enable L2 cache */
 #ifndef L2X0_CTRL_EN
 #define L2X0_CTRL_EN	1
