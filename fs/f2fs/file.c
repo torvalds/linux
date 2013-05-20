@@ -387,7 +387,7 @@ static void fill_zero(struct inode *inode, pgoff_t index,
 	f2fs_balance_fs(sbi);
 
 	ilock = mutex_lock_op(sbi);
-	page = get_new_data_page(inode, index, false);
+	page = get_new_data_page(inode, NULL, index, false);
 	mutex_unlock_op(sbi, ilock);
 
 	if (!IS_ERR(page)) {
