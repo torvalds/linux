@@ -1035,7 +1035,7 @@ static struct rksdmmc_gpio_board rksdmmc1_gpio_init = {
 *************************************************************************/
 
 #if !defined(CONFIG_SDMMC_RK29_OLD)	
-static void rk29_sdmmc_gpio_open(int device_id, int on)
+void rk29_sdmmc_gpio_open(int device_id, int on)
 {
     switch(device_id)
     {
