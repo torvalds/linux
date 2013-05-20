@@ -32,7 +32,7 @@
 
 	am33xx_pinmux: pinmux@44e10800 {
 		pinctrl-names = "default";
-		pinctrl-0 = <&gpio_keys_s0>;
+		pinctrl-0 = <&gpio_keys_s0 &clkout2_pin>;
 
 		user_leds_s0: user_leds_s0 {
 			pinctrl-single,pins = <
@@ -63,6 +63,12 @@
 			pinctrl-single,pins = <
 				0x170 0x30	/* uart0_rxd.uart0_rxd PULLUP | INPUTENABLE | MODE0 */
 				0x174 0x00	/* uart0_txd.uart0_txd PULLDOWN | MODE0 */
+			>;
+		};
+
+		clkout2_pin: pinmux_clkout2_pin {
+			pinctrl-single,pins = <
+				0x1b4 0x03	/* xdma_event_intr1.clkout2 OMAP_MUX_MODE3 | AM33XX_PIN_OUTPUT */
 			>;
 		};
 	};
