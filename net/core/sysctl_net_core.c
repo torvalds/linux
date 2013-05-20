@@ -87,6 +87,96 @@ static int rps_sock_flow_sysctl(ctl_table *table, int write,
 }
 #endif /* CONFIG_RPS */
 
+#ifdef CONFIG_NET_FLOW_LIMIT
+static DEFINE_MUTEX(flow_limit_update_mutex);
+
+static int flow_limit_cpu_sysctl(ctl_table *table, int write,
+				 void __user *buffer, size_t *lenp,
+				 loff_t *ppos)
+{
+	struct sd_flow_limit *cur;
+	struct softnet_data *sd;
+	cpumask_var_t mask;
+	int i, len, ret = 0;
+
+	if (!alloc_cpumask_var(&mask, GFP_KERNEL))
+		return -ENOMEM;
+
+	if (write) {
+		ret = cpumask_parse_user(buffer, *lenp, mask);
+		if (ret)
+			goto done;
+
+		mutex_lock(&flow_limit_update_mutex);
+		len = sizeof(*cur) + netdev_flow_limit_table_len;
+		for_each_possible_cpu(i) {
+			sd = &per_cpu(softnet_data, i);
+			cur = rcu_dereference_protected(sd->flow_limit,
+				     lockdep_is_held(&flow_limit_update_mutex));
+			if (cur && !cpumask_test_cpu(i, mask)) {
+				RCU_INIT_POINTER(sd->flow_limit, NULL);
+				synchronize_rcu();
+				kfree(cur);
+			} else if (!cur && cpumask_test_cpu(i, mask)) {
+				cur = kzalloc(len, GFP_KERNEL);
+				if (!cur) {
+					/* not unwinding previous changes */
+					ret = -ENOMEM;
+					goto write_unlock;
+				}
+				cur->num_buckets = netdev_flow_limit_table_len;
+				rcu_assign_pointer(sd->flow_limit, cur);
+			}
+		}
+write_unlock:
+		mutex_unlock(&flow_limit_update_mutex);
+	} else {
+		if (*ppos || !*lenp) {
+			*lenp = 0;
+			goto done;
+		}
+
+		cpumask_clear(mask);
+		rcu_read_lock();
+		for_each_possible_cpu(i) {
+			sd = &per_cpu(softnet_data, i);
+			if (rcu_dereference(sd->flow_limit))
+				cpumask_set_cpu(i, mask);
+		}
+		rcu_read_unlock();
+
+		len = cpumask_scnprintf(buffer, *lenp, mask);
+		*lenp = len + 1;
+		*ppos += len + 1;
+	}
+
+done:
+	free_cpumask_var(mask);
+	return ret;
+}
+
+static int flow_limit_table_len_sysctl(ctl_table *table, int write,
+				       void __user *buffer, size_t *lenp,
+				       loff_t *ppos)
+{
+	unsigned int old, *ptr;
+	int ret;
+
+	mutex_lock(&flow_limit_update_mutex);
+
+	ptr = table->data;
+	old = *ptr;
+	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+	if (!ret && write && !is_power_of_2(*ptr)) {
+		*ptr = old;
+		ret = -EINVAL;
+	}
+
+	mutex_unlock(&flow_limit_update_mutex);
+	return ret;
+}
+#endif /* CONFIG_NET_FLOW_LIMIT */
+
 static struct ctl_table net_core_table[] = {
 #ifdef CONFIG_NET
 	{
@@ -180,6 +270,20 @@ static struct ctl_table net_core_table[] = {
 		.proc_handler	= rps_sock_flow_sysctl
 	},
 #endif
+#ifdef CONFIG_NET_FLOW_LIMIT
+	{
+		.procname	= "flow_limit_cpu_bitmap",
+		.mode		= 0644,
+		.proc_handler	= flow_limit_cpu_sysctl
+	},
+	{
+		.procname	= "flow_limit_table_len",
+		.data		= &netdev_flow_limit_table_len,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= flow_limit_table_len_sysctl
+	},
+#endif /* CONFIG_NET_FLOW_LIMIT */
 #endif /* CONFIG_NET */
 	{
 		.procname	= "netdev_budget",

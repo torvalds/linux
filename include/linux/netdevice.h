@@ -1778,6 +1778,19 @@ static inline int unregister_gifconf(unsigned int family)
 	return register_gifconf(family, NULL);
 }
 
+#ifdef CONFIG_NET_FLOW_LIMIT
+#define FLOW_LIMIT_HISTORY	(1 << 8)	/* must be ^2 */
+struct sd_flow_limit {
+	u64			count;
+	unsigned int		num_buckets;
+	unsigned int		history_head;
+	u16			history[FLOW_LIMIT_HISTORY];
+	u8			buckets[];
+};
+
+extern int netdev_flow_limit_table_len;
+#endif /* CONFIG_NET_FLOW_LIMIT */
+
 /*
  * Incoming packets are placed on per-cpu queues
  */
@@ -1807,6 +1820,10 @@ struct softnet_data {
 	unsigned int		dropped;
 	struct sk_buff_head	input_pkt_queue;
 	struct napi_struct	backlog;
+
+#ifdef CONFIG_NET_FLOW_LIMIT
+	struct sd_flow_limit	*flow_limit;
+#endif
 };
 
 static inline void input_queue_head_incr(struct softnet_data *sd)
