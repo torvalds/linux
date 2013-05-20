@@ -36,7 +36,7 @@
 #define DBG(x...) do { } while (0)
 #endif
 
-#define INFIN_LOOP
+//#define INFIN_LOOP
 #ifdef INFIN_LOOP
 #define DMA_INFIN_LOOP() rk29_dma_has_infiniteloop()
 #else
