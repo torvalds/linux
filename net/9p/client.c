@@ -127,7 +127,7 @@ static int parse_opts(char *opts, struct p9_client *clnt)
 	char *s;
 	int ret = 0;
 
-	clnt->proto_version = p9_proto_2000u;
+	clnt->proto_version = p9_proto_2000L;
 	clnt->msize = 8192;
 
 	if (!opts)
