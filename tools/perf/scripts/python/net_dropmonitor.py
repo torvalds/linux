@@ -32,7 +32,7 @@ def get_kallsyms_table():
 		j = j +1
 		if ((j % 100) == 0):
 			print "\r" + str(j) + "/" + str(linecount),
-		kallsyms.append({ 'loc': loc, 'name' : name})
+		kallsyms.append((loc, name))
 
 	print "\r" + str(j) + "/" + str(linecount)
 	kallsyms.sort()
@@ -40,9 +40,9 @@ def get_kallsyms_table():
 
 def get_sym(sloc):
 	loc = int(sloc)
-	for i in kallsyms[::-1]:
-		if loc >= i['loc']:
-			return (i['name'], loc - i['loc'])
+	for symloc, name in kallsyms[::-1]:
+		if loc >= symloc:
+			return (name, loc - symloc)
 	return (None, 0)
 
 def print_drop_table():
