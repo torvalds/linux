@@ -2346,40 +2346,12 @@ static struct comedi_driver usbduxsigma_driver = {
 	.detach		= usbduxsigma_detach,
 };
 
-static void usbdux_firmware_request_complete_handler(const struct firmware *fw,
-						     void *context)
-{
-	struct usbduxsub *usbduxsub_tmp = context;
-	struct usb_interface *uinterf = usbduxsub_tmp->interface;
-	int ret;
-
-	if (fw == NULL) {
-		dev_err(&uinterf->dev,
-			"Firmware complete handler without firmware!\n");
-		return;
-	}
-
-	/*
-	 * we need to upload the firmware here because fw will be
-	 * freed once we've left this function
-	 */
-	ret = firmwareUpload(usbduxsub_tmp, fw->data, fw->size);
-
-	if (ret) {
-		dev_err(&uinterf->dev,
-			"Could not upload firmware (err=%d)\n", ret);
-		goto out;
-	}
-	comedi_usb_auto_config(uinterf, &usbduxsigma_driver, 0);
-out:
-	release_firmware(fw);
-}
-
 static int usbduxsigma_usb_probe(struct usb_interface *uinterf,
 				 const struct usb_device_id *id)
 {
 	struct usb_device *udev = interface_to_usbdev(uinterf);
 	struct device *dev = &uinterf->dev;
+	const struct firmware *fw;
 	int i;
 	int index;
 	int ret;
@@ -2600,23 +2572,17 @@ static int usbduxsigma_usb_probe(struct usb_interface *uinterf,
 	usbduxsub[index].probed = 1;
 	up(&start_stop_sem);
 
-	ret = request_firmware_nowait(THIS_MODULE,
-				      FW_ACTION_HOTPLUG,
-				      FIRMWARE,
-				      &udev->dev,
-				      GFP_KERNEL,
-				      usbduxsub + index,
-				      usbdux_firmware_request_complete_handler
-				      );
-
+	ret = request_firmware(&fw, FIRMWARE, &udev->dev);
+	if (ret == 0) {
+		ret = firmwareUpload(&usbduxsub[index], fw->data, fw->size);
+		release_firmware(fw);
+	}
 	if (ret) {
 		dev_err(dev, "Could not load firmware (err=%d)\n", ret);
 		return ret;
 	}
 
-	dev_info(dev, "comedi_: successfully initialised.\n");
-	/* success */
-	return 0;
+	return comedi_usb_auto_config(uinterf, &usbduxsigma_driver, 0);;
 }
 
 static void usbduxsigma_usb_disconnect(struct usb_interface *intf)
