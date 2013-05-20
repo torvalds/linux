@@ -887,6 +887,11 @@ static inline int cond_clear_inode_flag(struct f2fs_inode_info *fi, int flag)
 	return 0;
 }
 
+static inline int f2fs_readonly(struct super_block *sb)
+{
+	return sb->s_flags & MS_RDONLY;
+}
+
 /*
  * file.c
  */
