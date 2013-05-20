@@ -298,12 +298,6 @@ int iwl_mvm_scan_request(struct iwl_mvm *mvm,
 	else
 		cmd->type = cpu_to_le32(SCAN_TYPE_FORCED);
 
-	/*
-	 * TODO: This is a WA due to a bug in the FW AUX framework that does not
-	 * properly handle time events that fail to be scheduled
-	 */
-	cmd->type = cpu_to_le32(SCAN_TYPE_FORCED);
-
 	cmd->repeats = cpu_to_le32(1);
 
 	/*
