@@ -6452,6 +6452,7 @@ int nfs4_proc_layoutreturn(struct nfs4_layoutreturn *lrp)
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_LAYOUTRETURN],
 		.rpc_argp = &lrp->args,
 		.rpc_resp = &lrp->res,
+		.rpc_cred = lrp->cred,
 	};
 	struct rpc_task_setup task_setup_data = {
 		.rpc_client = lrp->clp->cl_rpcclient,
