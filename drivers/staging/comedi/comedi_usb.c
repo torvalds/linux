@@ -31,6 +31,18 @@ struct usb_interface *comedi_to_usb_interface(struct comedi_device *dev)
 EXPORT_SYMBOL_GPL(comedi_to_usb_interface);
 
 /**
+ * comedi_to_usb_dev() - comedi_device pointer to usb_device pointer.
+ * @dev: comedi_device struct
+ */
+struct usb_device *comedi_to_usb_dev(struct comedi_device *dev)
+{
+	struct usb_interface *intf = comedi_to_usb_interface(dev);
+
+	return intf ? interface_to_usbdev(intf) : NULL;
+}
+EXPORT_SYMBOL_GPL(comedi_to_usb_dev);
+
+/**
  * comedi_usb_auto_config() - Configure/probe a comedi USB driver.
  * @intf: usb_interface struct
  * @driver: comedi_driver struct

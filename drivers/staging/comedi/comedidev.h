@@ -491,6 +491,7 @@ struct usb_driver;
 struct usb_interface;
 
 struct usb_interface *comedi_to_usb_interface(struct comedi_device *);
+struct usb_device *comedi_to_usb_dev(struct comedi_device *);
 
 int comedi_usb_auto_config(struct usb_interface *, struct comedi_driver *,
 			   unsigned long context);
