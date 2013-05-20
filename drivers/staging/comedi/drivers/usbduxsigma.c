@@ -50,7 +50,7 @@ Status: testing
 #include <linux/usb.h>
 #include <linux/fcntl.h>
 #include <linux/compiler.h>
-#include <linux/firmware.h>
+
 #include "comedi_fc.h"
 #include "../comedidev.h"
 
@@ -670,9 +670,11 @@ static void usbduxsub_ao_IsocIrq(struct urb *urb)
 /* the FX2LP has twice as much as the standard FX2 */
 #define FIRMWARE_MAX_LEN 0x4000
 
-static int firmwareUpload(struct usbduxsub *usbduxsub,
-			  const u8 *data, int size)
+static int usbduxsigma_firmware_upload(struct comedi_device *dev,
+				       const u8 *data, size_t size,
+				       unsigned long context)
 {
+	struct usbduxsub *usbduxsub = dev->private;
 	struct usb_device *usb = usbduxsub->usbdev;
 	uint8_t *buf;
 	uint8_t *tmp;
@@ -2236,16 +2238,15 @@ static int usbduxsigma_auto_attach(struct comedi_device *dev,
 	struct usb_interface *uinterf = comedi_to_usb_interface(dev);
 	struct usbduxsub *uds = usb_get_intfdata(uinterf);
 	struct usb_device *usb = uds->usbdev;
-	const struct firmware *fw;
 	int ret;
 
-	ret = request_firmware(&fw, FIRMWARE, &usb->dev);
-	if (ret == 0) {
-		ret = firmwareUpload(uds, fw->data, fw->size);
-		release_firmware(fw);
-	}
-	if (ret < 0)
+	dev->private = uds;	/* This is temporary... */
+	ret = comedi_load_firmware(dev, &usb->dev, FIRMWARE,
+				   usbduxsigma_firmware_upload, 0);
+	if (ret < 0) {
+		dev->private = NULL;
 		return ret;
+	}
 
 	dev->private = NULL;
 
