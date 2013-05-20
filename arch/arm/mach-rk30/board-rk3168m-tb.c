@@ -1007,6 +1007,9 @@ struct rk29_sdmmc_platform_data default_sdmmc1_data = {
 
     #if defined(CONFIG_RK29_SDIO_IRQ_FROM_GPIO)
         .sdio_INT_gpio = RK29SDK_WIFI_SDIO_CARD_INT,
+        #ifdef USE_SDIO_INT_LEVEL
+        .sdio_INT_level = RK30SDK_WIFI_GPIO_WIFI_INT_B_ENABLE_VALUE,
+        #endif
     #endif
 
     .det_pin_info = {    
