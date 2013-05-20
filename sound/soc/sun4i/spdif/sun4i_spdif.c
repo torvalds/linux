@@ -38,7 +38,6 @@
 #include "sun4i_spdif.h"
 
 static int regsave[6];
-static int spdif_used = 0;
 
 static struct sw_dma_client sun4i_dma_client_out = {
 	.name = "SPDIF out"
@@ -568,24 +567,21 @@ static int __devinit sun4i_spdif_dev_probe(struct platform_device *pdev)
 
 static int __devexit sun4i_spdif_dev_remove(struct platform_device *pdev)
 {
-	if (spdif_used) {
-		spdif_used = 0;
-		//release the module clock
-		clk_disable(spdif_moduleclk);
+	/* release the module clock */
+	clk_disable(spdif_moduleclk);
 
-		//release pllx8clk
-		clk_put(spdif_pllx8);
+	/* release pllx8clk */
+	clk_put(spdif_pllx8);
 
-		//release pll2clk
-		clk_put(spdif_pll2clk);
+	/* release pll2clk */
+	clk_put(spdif_pll2clk);
 
-		//release apbclk
-		clk_put(spdif_apbclk);
+	/* release apbclk */
+	clk_put(spdif_apbclk);
 
-		gpio_release(spdif_handle, 2);
-		snd_soc_unregister_dai(&pdev->dev);
-		platform_set_drvdata(pdev, NULL);
-	}
+	gpio_release(spdif_handle, 2);
+	snd_soc_unregister_dai(&pdev->dev);
+	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
@@ -605,28 +601,21 @@ static struct platform_driver sun4i_spdif_driver = {
 
 static int __init sun4i_spdif_init(void)
 {
-	int err = 0;
-	int ret;
+	int ret, spdif_used = 0;
 
-	ret = script_parser_fetch("spdif_para","spdif_used", &spdif_used, sizeof(int));
-	if (ret) {
-        printk("[SPDIF]sun4i_spdif_init fetch spdif using configuration failed\n");
-    }
+	ret = script_parser_fetch("spdif_para", "spdif_used", &spdif_used, 1);
+	if (ret != 0 || !spdif_used)
+		return -ENODEV;
 
- 	if (spdif_used) {
-		spdif_handle = gpio_request_ex("spdif_para", NULL);
+	ret = platform_device_register(&sun4i_spdif_device);
+	if (ret < 0)
+		return ret;
 
-		if((platform_device_register(&sun4i_spdif_device))<0)
-			return err;
-
-		if ((err = platform_driver_register(&sun4i_spdif_driver)) < 0)
-			return err;
-
-	} else {
-        printk("[SPDIF]sun4i-spdif cannot find any using configuration for controllers, return directly!\n");
-        return 0;
-    }
-
+	ret = platform_driver_register(&sun4i_spdif_driver);
+	if (ret < 0) {
+		platform_device_unregister(&sun4i_spdif_device);
+		return ret;
+	}
 	return 0;
 }
 module_init(sun4i_spdif_init);
@@ -634,6 +623,7 @@ module_init(sun4i_spdif_init);
 static void __exit sun4i_spdif_exit(void)
 {
 	platform_driver_unregister(&sun4i_spdif_driver);
+	platform_device_unregister(&sun4i_spdif_device);
 }
 module_exit(sun4i_spdif_exit);
 

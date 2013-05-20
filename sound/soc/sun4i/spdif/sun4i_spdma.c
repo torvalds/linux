@@ -29,6 +29,7 @@
 #include <asm/dma.h>
 #include <mach/hardware.h>
 #include <plat/dma.h>
+#include <plat/sys_config.h>
 
 #include "sun4i_spdif.h"
 #include "sun4i_spdma.h"
@@ -421,19 +422,29 @@ static struct platform_driver sun4i_spdif_pcm_driver = {
 
 static int __init sun4i_soc_platform_spdif_init(void)
 {
-	int err = 0;
-	if((err = platform_device_register(&sun4i_spdif_pcm_device)) < 0)
-		return err;
+	int ret, spdif_used = 0;
 
-	if ((err = platform_driver_register(&sun4i_spdif_pcm_driver)) < 0)
-		return err;
+	ret = script_parser_fetch("spdif_para", "spdif_used", &spdif_used, 1);
+	if (ret != 0 || !spdif_used)
+		return -ENODEV;
+
+	ret = platform_device_register(&sun4i_spdif_pcm_device);
+	if (ret < 0)
+		return ret;
+
+	ret = platform_driver_register(&sun4i_spdif_pcm_driver);
+	if (ret < 0) {
+		platform_device_unregister(&sun4i_spdif_pcm_device);
+		return ret;
+	}
 	return 0;
 }
 module_init(sun4i_soc_platform_spdif_init);
 
 static void __exit sun4i_soc_platform_spdif_exit(void)
 {
-	return platform_driver_unregister(&sun4i_spdif_pcm_driver);
+	platform_driver_unregister(&sun4i_spdif_pcm_driver);
+	platform_device_unregister(&sun4i_spdif_pcm_device);
 }
 module_exit(sun4i_soc_platform_spdif_exit);
 
