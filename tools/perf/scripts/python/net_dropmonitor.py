@@ -15,28 +15,17 @@ kallsyms = []
 
 def get_kallsyms_table():
 	global kallsyms
+
 	try:
 		f = open("/proc/kallsyms", "r")
-		linecount = 0
-		for line in f:
-			linecount = linecount+1
-		f.seek(0)
 	except:
 		return
 
-
-	j = 0
 	for line in f:
 		loc = int(line.split()[0], 16)
 		name = line.split()[2]
-		j = j +1
-		if ((j % 100) == 0):
-			print "\r" + str(j) + "/" + str(linecount),
 		kallsyms.append((loc, name))
-
-	print "\r" + str(j) + "/" + str(linecount)
 	kallsyms.sort()
-	return
 
 def get_sym(sloc):
 	loc = int(sloc)
