@@ -53,7 +53,6 @@
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>
 #include <linux/of_net.h>
-#include <linux/pinctrl/consumer.h>
 #include <linux/regulator/consumer.h>
 
 #include <asm/cacheflush.h>
@@ -1841,7 +1840,6 @@ fec_probe(struct platform_device *pdev)
 	struct resource *r;
 	const struct of_device_id *of_id;
 	static int dev_id;
-	struct pinctrl *pinctrl;
 	struct regulator *reg_phy;
 
 	of_id = of_match_device(fec_dt_ids, &pdev->dev);
@@ -1889,12 +1887,6 @@ fec_probe(struct platform_device *pdev)
 			fep->phy_interface = PHY_INTERFACE_MODE_MII;
 	} else {
 		fep->phy_interface = ret;
-	}
-
-	pinctrl = devm_pinctrl_get_select_default(&pdev->dev);
-	if (IS_ERR(pinctrl)) {
-		ret = PTR_ERR(pinctrl);
-		goto failed_pin;
 	}
 
 	fep->clk_ipg = devm_clk_get(&pdev->dev, "ipg");
@@ -1996,7 +1988,6 @@ failed_regulator:
 	clk_disable_unprepare(fep->clk_ipg);
 	clk_disable_unprepare(fep->clk_enet_out);
 	clk_disable_unprepare(fep->clk_ptp);
-failed_pin:
 failed_clk:
 failed_ioremap:
 	free_netdev(ndev);
