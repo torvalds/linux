@@ -532,6 +532,7 @@ int main(int ac, char **av)
 					seed = tmp;
 				}
 			}
+			fprintf( stderr, "KCONFIG_SEED=0x%X\n", seed );
 			srand(seed);
 			break;
 		}
