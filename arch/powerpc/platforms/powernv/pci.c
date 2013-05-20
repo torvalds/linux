@@ -367,7 +367,7 @@ static void pnv_tce_free(struct iommu_table *tbl, long index, long npages)
 	while (npages--)
 		*(tcep++) = 0;
 
-	if (tbl->it_type & TCE_PCI_SWINV_CREATE)
+	if (tbl->it_type & TCE_PCI_SWINV_FREE)
 		pnv_pci_ioda_tce_invalidate(tbl, tces, tcep - 1);
 }
 
