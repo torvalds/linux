@@ -1,0 +1,366 @@
+			RAMSTER HOW-TO
+
+Author: Dan Magenheimer
+Ramster maintainer: Konrad Wilk <konrad.wilk@oracle.com>
+
+This is a HOWTO document for ramster which, as of this writing, is in
+the kernel as a subdirectory of zcache in drivers/staging, called ramster.
+(Zcache can be built with or without ramster functionality.)  If enabled
+and properly configured, ramster allows memory capacity load balancing
+across multiple machines in a cluster.  Further, the ramster code serves
+as an example of asynchronous access for zcache (as well as cleancache and
+frontswap) that may prove useful for future transcendent memory
+implementations, such as KVM and NVRAM.  While ramster works today on
+any network connection that supports kernel sockets, its features may
+become more interesting on future high-speed fabrics/interconnects.
+
+Ramster requires both kernel and userland support.  The userland support,
+called ramster-tools, is known to work with EL6-based distros, but is a
+set of poorly-hacked slightly-modified cluster tools based on ocfs2, which
+includes an init file, a config file, and a userland binary that interfaces
+to the kernel.  This state of userland support reflects the abysmal userland
+skills of this suitably-embarrassed author; any help/patches to turn
+ramster-tools into more distributable rpms/debs useful for a wider range
+of distros would be appreciated.  The source RPM that can be used as a
+starting point is available at:
+    http://oss.oracle.com/projects/tmem/files/RAMster/ 
+
+As a result of this author's ignorance, userland setup described in this
+HOWTO assumes an EL6 distro and is described in EL6 syntax.  Apologies
+if this offends anyone!
+
+Kernel support has only been tested on x86_64.  Systems with an active
+ocfs2 filesystem should work, but since ramster leverages a lot of
+code from ocfs2, there may be latent issues.  A kernel configuration that
+includes CONFIG_OCFS2_FS should build OK, and should certainly run OK
+if no ocfs2 filesystem is mounted.
+
+This HOWTO demonstrates memory capacity load balancing for a two-node
+cluster, where one node called the "local" node becomes overcommitted
+and the other node called the "remote" node provides additional RAM
+capacity for use by the local node.  Ramster is capable of more complex
+topologies; see the last section titled "ADVANCED RAMSTER TOPOLOGIES".
+
+If you find any terms in this HOWTO unfamiliar or don't understand the
+motivation for ramster, the following LWN reading is recommended:
+-- Transcendent Memory in a Nutshell (lwn.net/Articles/454795)
+-- The future calculus of memory management (lwn.net/Articles/475681)
+And since ramster is built on top of zcache, this article may be helpful:
+-- In-kernel memory compression (lwn.net/Articles/545244)
+
+Now that you've memorized the contents of those articles, let's get started!
+
+A. PRELIMINARY
+
+1) Install two x86_64 Linux systems that are known to work when
+   upgraded to a recent upstream Linux kernel version.
+
+On each system:
+
+2) Configure, build and install, then boot Linux, just to ensure it
+   can be done with an unmodified upstream kernel.  Confirm you booted
+   the upstream kernel with "uname -a".
+
+3) If you plan to do any performance testing or unless you plan to
+   test only swapping, the "WasActive" patch is also highly recommended.
+   (Search lkml.org for WasActive, apply the patch, rebuild your kernel.)
+   For a demo or simple testing, the patch can be ignored.
+
+4) Install ramster-tools as root.  An x86_64 rpm for EL6-based systems
+   can be found at:
+    http://oss.oracle.com/projects/tmem/files/RAMster/ 
+   (Sorry but for now, non-EL6 users must recreate ramster-tools on
+   their own from source.  See above.)
+
+5) Ensure that debugfs is mounted at each boot.  Examples below assume it
+   is mounted at /sys/kernel/debug.
+
+B. BUILDING RAMSTER INTO THE KERNEL
+
+Do the following on each system:
+
+1) Using the kernel configuration mechanism of your choice, change
+   your config to include:
+
+	CONFIG_CLEANCACHE=y
+	CONFIG_FRONTSWAP=y
+	CONFIG_STAGING=y
+	CONFIG_CONFIGFS_FS=y # NOTE: MUST BE y, not m
+	CONFIG_ZCACHE=y
+	CONFIG_RAMSTER=y
+
+   For a linux-3.10 or later kernel, you should also set:
+
+	CONFIG_ZCACHE_DEBUG=y
+	CONFIG_RAMSTER_DEBUG=y
+
+   Before building the kernel please doublecheck your kernel config
+   file to ensure all of the settings are correct.
+
+2) Build this kernel and change your boot file (e.g. /etc/grub.conf)
+   so that the new kernel will boot.
+
+3) Add "zcache" and "ramster" as kernel boot parameters for the new kernel.
+
+4) Reboot each system approximately simultaneously.
+
+5) Check dmesg to ensure there are some messages from ramster, prefixed
+   by "ramster:"
+
+	# dmesg | grep ramster
+
+   You should also see a lot of files in:
+
+	# ls /sys/kernel/debug/zcache
+	# ls /sys/kernel/debug/ramster
+
+   These are mostly counters for various zcache and ramster activities.
+   You should also see files in:
+
+	# ls /sys/kernel/mm/ramster
+
+   These are sysfs files that control ramster as we shall see.
+
+   Ramster now will act as a single-system zcache on each system
+   but doesn't yet know anything about the cluster so can't yet do
+   anything remotely.
+
+C. CONFIGURING THE RAMSTER CLUSTER
+
+This part can be error prone unless you are familiar with clustering
+filesystems.  We need to describe the cluster in a /etc/ramster.conf
+file and the init scripts that parse it are extremely picky about
+the syntax.
+
+1) Create a /etc/ramster.conf file and ensure it is identical on both
+   systems.  This file mimics the ocfs2 format and there is a good amount
+   of documentation that can be searched for ocfs2.conf, but you can use:
+
+	cluster:
+		name = ramster
+		node_count = 2
+	node:
+		name = system1
+		cluster = ramster
+		number = 0
+		ip_address = my.ip.ad.r1
+		ip_port = 7777
+	node:
+		name = system2
+		cluster = ramster
+		number = 1
+		ip_address = my.ip.ad.r2
+		ip_port = 7777
+
+   You must ensure that the "name" field in the file exactly matches
+   the output of "hostname" on each system; if "hostname" shows a
+   fully-qualified hostname, ensure the name is fully qualified in
+   /etc/ramster.conf.  Obviously, substitute my.ip.ad.rx with proper
+   ip addresses.
+
+2) Enable the ramster service and configure it.  If you used the
+   EL6 ramster-tools, this would be:
+
+	# chkconfig --add ramster
+	# service ramster configure
+
+   Set "load on boot" to "y", cluster to start is "ramster" (or whatever
+   name you chose in ramster.conf), heartbeat dead threshold as "500",
+   network idle timeout as "1000000".  Leave the others as default.
+
+3) Reboot both systems.  After reboot, try (assuming EL6 ramster-tools):
+
+	# service ramster status
+
+   You should see "Checking RAMSTER cluster "ramster": Online".  If you do
+   not, something is wrong and ramster will not work.  Note that you
+   should also see that the driver for "configfs" is loaded and mounted,
+   the driver for ocfs2_dlmfs is not loaded, and some numbers for network
+   parameters.  You will also see "Checking RAMSTER heartbeat: Not active".
+   That's all OK.
+
+4) Now you need to start the cluster heartbeat; the cluster is not "up"
+   until all nodes detect a heartbeat.  In a real cluster, heartbeat detection
+   is done via a cluster filesystem, but ramster doesn't require one.  Some
+   hack-y kernel code in ramster can start the heartbeat for you though if
+   you tell it what nodes are "up".  To enable the heartbeat, do:
+
+	# echo 0 > /sys/kernel/mm/ramster/manual_node_up
+	# echo 1 > /sys/kernel/mm/ramster/manual_node_up
+
+   This must be done on BOTH nodes and, to avoid timeouts, must be done
+   approximately concurrently on both nodes.  On an EL6 system, it is
+   convenient to put these lines in /etc/rc.local.  To confirm that the
+   cluster is now up, on both systems do:
+
+	# dmesg | grep ramster
+
+   You should see ramster "Accepted connection" messages in dmesg on both
+   nodes after this.  Note that if you check userland status again with
+
+	# service ramster status
+
+   you will still see "Checking RAMSTER heartbeat: Not active".  That's
+   still OK... the ramster kernel heartbeat hack doesn't communicate to
+   userland.
+
+5) You now must tell each node the node to which it should "remotify" pages.
+   On this two node cluster, we will assume the "local" node, node 0, has
+   memory overcommitted and will use ramster to utilize RAM capacity on
+   the "remote node", node 1.  To configure this, on node 0, you do:
+
+	# echo 1 > /sys/kernel/mm/ramster/remote_target_nodenum
+
+   You should see "ramster: node 1 set as remotification target" in dmesg
+   on node 0.  Again, on EL6, /etc/rc.local is a good place to put this
+   on node 0 so you don't forget to do it at each boot.
+
+6) One more step:  By default, the ramster code does not "remotify" any
+   pages; this is primarily for testing purposes, but sometimes it is
+   useful.  This may change in the future, but for now, on node 0, you do:
+
+	# echo 1 > /sys/kernel/mm/ramster/pers_remotify_enable
+	# echo 1 > /sys/kernel/mm/ramster/eph_remotify_enable
+
+   The first enables remotifying swap (persistent, aka frontswap) pages,
+   the second enables remotifying of page cache (ephemeral, cleancache)
+   pages.
+
+   On EL6, these lines can also be put in /etc/rc.local (AFTER the
+   node_up lines), or at the beginning of a script that runs a workload.
+
+7) Note that most testing has been done with both/all machines booted
+   roughly simultaneously to avoid cluster timeouts.  Ideally, you should
+   do this too unless you are trying to break ramster rather than just
+   use it. ;-)
+
+D. TESTING RAMSTER
+
+1) Note that ramster has no value unless pages get "remotified".  For
+   swap/frontswap/persistent pages, this doesn't happen unless/until
+   the workload would cause swapping to occur, at which point pages
+   are put into frontswap/zcache, and the remotification thread starts
+   working.  To get to the point where the system swaps, you either
+   need a workload for which the working set exceeds the RAM in the
+   system; or you need to somehow reduce the amount of RAM one of
+   the system sees.  This latter is easy when testing in a VM, but
+   harder on physical systems.  In some cases, "mem=xxxM" on the
+   kernel command line restricts memory, but for some values of xxx
+   the kernel may fail to boot.  One may also try creating a fixed
+   RAMdisk, doing nothing with it, but ensuring that it eats up a fixed
+   amount of RAM.
+
+2) To see if ramster is working, on the "remote node", node 1, try:
+
+	# grep . /sys/kernel/debug/ramster/foreign_*
+        # # note, that is space-dot-space between grep and the pathname
+
+   to monitor the number (and max) ephemeral and persistent pages
+   that ramster has sent.  If these stay at zero, ramster is not working
+   either because the workload on the local node (node 0) isn't creating
+   enough memory pressure or because "remotifying" isn't working.  On the
+   local system, node 0, you can watch lots of useful information also.
+   Try:
+
+	grep . /sys/kernel/debug/zcache/*pageframes* \
+		/sys/kernel/debug/zcache/*zbytes* \
+		/sys/kernel/debug/zcache/*zpages* \
+		/sys/kernel/debug/ramster/*remote*
+
+   Of particular note are the remote_*_pages_succ_get counters.  These
+   show how many disk reads and/or disk writes have been avoided on the
+   overcommitted local system by storing pages remotely using ramster.
+
+   At the risk of information overload, you can also grep:
+
+        /sys/kernel/debug/cleancache/* and /sys/kernel/debug/frontswap/*
+
+   These show, for example, how many disk reads and/or disk writes have
+   been avoided by using zcache to optimize RAM on the local system.
+
+
+AUTOMATIC SWAP REPATRIATION
+
+You may notice that while the systems are idle, the foreign persistent
+page count on the remote machine slowly decreases.  This is because
+ramster implements "frontswap selfshrinking":  When possible, swap
+pages that have been remotified are slowly repatriated to the local
+machine.  This is so that local RAM can be used when possible and
+so that, in case of remote machine crash, the probability of loss
+of data is reduced.
+
+REBOOTING / POWEROFF
+
+If a system is shut down while some of its swap pages still reside
+on a remote system, the system may lock up during the shutdown
+sequence.  This will occur if the network is shut down before the
+swap mechansim is shut down, which is the default ordering on many
+distros.  To avoid this annoying problem, simply shut off the swap
+subsystem before starting the shutdown sequence, e.g.:
+
+	# swapoff -a
+	# reboot
+
+Ideally, this swapoff-before-ifdown ordering should be enforced permanently
+using shutdown scripts.
+
+KNOWN PROBLEMS
+
+1) You may periodically see messages such as:
+
+    ramster_r2net, message length problem
+
+   This is harmless but indicates that a node is sending messages
+   containing compressed pages that exceed the maximum for zcache
+   (PAGE_SIZE*15/16).  The sender side needs to be fixed.
+
+2) If you see a "No longer connected to node..." message or a "No connection
+   established with node X after N seconds", it is possible you may
+   be in an unrecoverable state.  If you are certain all of the
+   appropriate cluster configuration steps described above have been
+   performed, try rebooting the two servers concurrently to see if
+   the cluster starts.
+
+   Note that "Connection to node... shutdown, state 7" is an intermediate
+   connection state.  As long as you later see "Accepted connection", the
+   intermediate states are harmless.
+
+3) There are known issues in counting certain values.  As a result
+   you may see periodic warnings from the kernel.  Almost always you
+   will see "ramster: bad accounting for XXX".  There are also "WARN_ONCE"
+   messages.  If you see kernel warnings with a tombstone, please report
+   them.  They are harmless but reflect bugs that need to be eventually fixed.
+
+ADVANCED RAMSTER TOPOLOGIES
+
+The kernel code for ramster can support up to eight nodes in a cluster,
+but no testing has been done with more than three nodes.
+
+In the example described above, the "remote" node serves as a RAM
+overflow for the "local" node.  This can be made symmetric by appropriate
+settings of the sysfs remote_target_nodenum file.  For example, by setting:
+
+	# echo 1 > /sys/kernel/mm/ramster/remote_target_nodenum
+
+on node 0, and
+
+	# echo 0 > /sys/kernel/mm/ramster/remote_target_nodenum
+
+on node 1, each node can serve as a RAM overflow for the other.
+
+For more than two nodes, a "RAM server" can be configured.  For a
+three node system, set:
+
+	# echo 0 > /sys/kernel/mm/ramster/remote_target_nodenum
+
+on node 1, and
+
+	# echo 0 > /sys/kernel/mm/ramster/remote_target_nodenum
+
+on node 2.  Then node 0 is a RAM server for node 1 and node 2.
+
+In this implementation of ramster, any remote node is potentially a single
+point of failure (SPOF).  Though the probability of failure is reduced
+by automatic swap repatriation (see above), a proposed future enhancement
+to ramster improves high-availability for the cluster by sending a copy
+of each page of date to two other nodes.  Patches welcome!
