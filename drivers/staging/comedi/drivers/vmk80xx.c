@@ -154,7 +154,6 @@ static const struct vmk80xx_board vmk80xx_boardinfo[] = {
 };
 
 struct vmk80xx_private {
-	struct usb_interface *intf;
 	struct usb_endpoint_descriptor *ep_rx;
 	struct usb_endpoint_descriptor *ep_tx;
 	struct firmware_version fw;
@@ -252,9 +251,6 @@ static int vmk80xx_read_packet(struct comedi_device *dev)
 	struct usb_endpoint_descriptor *ep;
 	unsigned int pipe;
 
-	if (!devpriv->intf)
-		return -ENODEV;
-
 	if (devpriv->model == VMK8061_MODEL) {
 		vmk80xx_do_bulk_msg(dev);
 		return 0;
@@ -273,9 +269,6 @@ static int vmk80xx_write_packet(struct comedi_device *dev, int cmd)
 	struct usb_device *usb = comedi_to_usb_dev(dev);
 	struct usb_endpoint_descriptor *ep;
 	unsigned int pipe;
-
-	if (!devpriv->intf)
-		return -ENODEV;
 
 	devpriv->usb_tx_buf[0] = cmd;
 
@@ -729,7 +722,7 @@ static int vmk80xx_pwm_insn_write(struct comedi_device *dev,
 static int vmk80xx_find_usb_endpoints(struct comedi_device *dev)
 {
 	struct vmk80xx_private *devpriv = dev->private;
-	struct usb_interface *intf = devpriv->intf;
+	struct usb_interface *intf = comedi_to_usb_interface(dev);
 	struct usb_host_interface *iface_desc = intf->cur_altsetting;
 	struct usb_endpoint_descriptor *ep_desc;
 	int i;
@@ -887,7 +880,6 @@ static int vmk80xx_auto_attach(struct comedi_device *dev,
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	devpriv->intf = intf;
 	devpriv->model = boardinfo->model;
 
 	ret = vmk80xx_find_usb_endpoints(dev);
@@ -920,6 +912,7 @@ static int vmk80xx_auto_attach(struct comedi_device *dev,
 
 static void vmk80xx_detach(struct comedi_device *dev)
 {
+	struct usb_interface *intf = comedi_to_usb_interface(dev);
 	struct vmk80xx_private *devpriv = dev->private;
 
 	if (!devpriv)
@@ -927,7 +920,7 @@ static void vmk80xx_detach(struct comedi_device *dev)
 
 	down(&devpriv->limit_sem);
 
-	usb_set_intfdata(devpriv->intf, NULL);
+	usb_set_intfdata(intf, NULL);
 
 	kfree(devpriv->usb_rx_buf);
 	kfree(devpriv->usb_tx_buf);
