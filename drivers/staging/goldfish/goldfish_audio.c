@@ -1,4 +1,5 @@
-/* drivers/misc/goldfish_audio.c
+/*
+ * drivers/misc/goldfish_audio.c
  *
  * Copyright (C) 2007 Google, Inc.
  * Copyright (C) 2012 Intel, Inc.
@@ -47,10 +48,11 @@ struct goldfish_audio {
 	int read_supported;         /* true if we have audio input support */
 };
 
-/* We will allocate two read buffers and two write buffers.
-   Having two read buffers facilitate stereo -> mono conversion.
-   Having two write buffers facilitate interleaved IO.
-*/
+/*
+ *  We will allocate two read buffers and two write buffers.
+ *  Having two read buffers facilitate stereo -> mono conversion.
+ *  Having two write buffers facilitate interleaved IO.
+ */
 #define READ_BUFFER_SIZE        16384
 #define WRITE_BUFFER_SIZE       16384
 #define COMBINED_BUFFER_SIZE    ((2 * READ_BUFFER_SIZE) + \
@@ -59,8 +61,10 @@ struct goldfish_audio {
 #define AUDIO_READ(data, addr)		(readl(data->reg_base + addr))
 #define AUDIO_WRITE(data, addr, x)	(writel(x, data->reg_base + addr))
 
-/* temporary variable used between goldfish_audio_probe() and
-   goldfish_audio_open() */
+/*
+ *  temporary variable used between goldfish_audio_probe() and
+ *  goldfish_audio_open()
+ */
 static struct goldfish_audio *audio_data;
 
 enum {
@@ -161,8 +165,10 @@ static ssize_t goldfish_audio_write(struct file *fp, const char __user *buf,
 		}
 
 		spin_lock_irqsave(&data->lock, irq_flags);
-		/* clear the buffer empty flag, and signal the emulator
-		 * to start writing the buffer */
+		/*
+		 *  clear the buffer empty flag, and signal the emulator
+		 *  to start writing the buffer
+		 */
 		if (kbuf == data->write_buffer1) {
 			data->buffer_status &= ~AUDIO_INT_WRITE_BUFFER_1_EMPTY;
 			AUDIO_WRITE(data, AUDIO_WRITE_BUFFER_1, copy);
@@ -225,8 +231,10 @@ static irqreturn_t goldfish_audio_interrupt(int irq, void *dev_id)
 	/* read buffer status flags */
 	status = AUDIO_READ(data, AUDIO_INT_STATUS);
 	status &= AUDIO_INT_MASK;
-	/* if buffers are newly empty, wake up blocked
-	   goldfish_audio_write() call */
+	/*
+	 *  if buffers are newly empty, wake up blocked
+	 *  goldfish_audio_write() call
+	 */
 	if (status) {
 		data->buffer_status = status;
 		wake_up(&data->wait);
