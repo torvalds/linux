@@ -2574,17 +2574,24 @@ static int wm8994_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	struct wm8994 *control = wm8994->wm8994;
 	int ms_reg;
 	int aif1_reg;
+	int dac_reg;
+	int adc_reg;
 	int ms = 0;
 	int aif1 = 0;
+	int lrclk = 0;
 
 	switch (dai->id) {
 	case 1:
 		ms_reg = WM8994_AIF1_MASTER_SLAVE;
 		aif1_reg = WM8994_AIF1_CONTROL_1;
+		dac_reg = WM8994_AIF1DAC_LRCLK;
+		adc_reg = WM8994_AIF1ADC_LRCLK;
 		break;
 	case 2:
 		ms_reg = WM8994_AIF2_MASTER_SLAVE;
 		aif1_reg = WM8994_AIF2_CONTROL_1;
+		dac_reg = WM8994_AIF1DAC_LRCLK;
+		adc_reg = WM8994_AIF1ADC_LRCLK;
 		break;
 	default:
 		return -EINVAL;
@@ -2603,6 +2610,7 @@ static int wm8994_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_DSP_B:
 		aif1 |= WM8994_AIF1_LRCLK_INV;
+		lrclk |= WM8958_AIF1_LRCLK_INV;
 	case SND_SOC_DAIFMT_DSP_A:
 		aif1 |= 0x18;
 		break;
@@ -2641,12 +2649,14 @@ static int wm8994_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 			break;
 		case SND_SOC_DAIFMT_IB_IF:
 			aif1 |= WM8994_AIF1_BCLK_INV | WM8994_AIF1_LRCLK_INV;
+			lrclk |= WM8958_AIF1_LRCLK_INV;
 			break;
 		case SND_SOC_DAIFMT_IB_NF:
 			aif1 |= WM8994_AIF1_BCLK_INV;
 			break;
 		case SND_SOC_DAIFMT_NB_IF:
 			aif1 |= WM8994_AIF1_LRCLK_INV;
+			lrclk |= WM8958_AIF1_LRCLK_INV;
 			break;
 		default:
 			return -EINVAL;
@@ -2677,6 +2687,10 @@ static int wm8994_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 			    aif1);
 	snd_soc_update_bits(codec, ms_reg, WM8994_AIF1_MSTR,
 			    ms);
+	snd_soc_update_bits(codec, dac_reg,
+			    WM8958_AIF1_LRCLK_INV, lrclk);
+	snd_soc_update_bits(codec, adc_reg,
+			    WM8958_AIF1_LRCLK_INV, lrclk);
 
 	return 0;
 }
