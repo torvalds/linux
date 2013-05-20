@@ -36,7 +36,6 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/kernel.h>
-#include <linux/firmware.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -978,23 +977,24 @@ static int usbduxfast_attach_common(struct comedi_device *dev)
 }
 
 static int usbduxfast_upload_firmware(struct comedi_device *dev,
-				      const struct firmware *fw)
+				      const u8 *data, size_t size,
+				      unsigned long context)
 {
 	struct usb_device *usb = comedi_to_usb_dev(dev);
 	uint8_t *buf;
 	unsigned char *tmp;
 	int ret;
 
-	if (!fw->data)
+	if (!data)
 		return 0;
 
-	if (fw->size > FIRMWARE_MAX_LEN) {
+	if (size > FIRMWARE_MAX_LEN) {
 		dev_err(dev->class_dev, "firmware binary too large for FX2\n");
 		return -ENOMEM;
 	}
 
 	/* we generate a local buffer for the firmware */
-	buf = kmemdup(fw->data, fw->size, GFP_KERNEL);
+	buf = kmemdup(data, size, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
@@ -1023,7 +1023,7 @@ static int usbduxfast_upload_firmware(struct comedi_device *dev,
 			      USBDUXFASTSUB_FIRMWARE,
 			      VENDOR_DIR_OUT,
 			      0, 0x0000,
-			      buf, fw->size,
+			      buf, size,
 			      EZTIMEOUT);
 	if (ret < 0) {
 		dev_err(dev->class_dev, "firmware upload failed\n");
@@ -1044,22 +1044,6 @@ static int usbduxfast_upload_firmware(struct comedi_device *dev,
 done:
 	kfree(tmp);
 	kfree(buf);
-	return ret;
-}
-
-static int usbduxfast_request_firmware(struct comedi_device *dev)
-{
-	struct usb_device *usb = comedi_to_usb_dev(dev);
-	const struct firmware *fw;
-	int ret;
-
-	ret = request_firmware(&fw, FIRMWARE, &usb->dev);
-	if (ret)
-		return ret;
-
-	ret = usbduxfast_upload_firmware(dev, fw);
-	release_firmware(fw);
-
 	return ret;
 }
 
@@ -1107,16 +1091,10 @@ static int usbduxfast_auto_attach(struct comedi_device *dev,
 	if (!devpriv->inbuf)
 		return -ENOMEM;
 
-	/*
-	 * Request, and upload, the firmware so we can
-	 * complete the comedi_driver (*auto_attach).
-	 */
-	ret = usbduxfast_request_firmware(dev);
-	if (ret) {
-		dev_err(dev->class_dev, "could not load firmware (err=%d)\n",
-			ret);
+	ret = comedi_load_firmware(dev, &usb->dev, FIRMWARE,
+				   usbduxfast_upload_firmware, 0);
+	if (ret)
 		return ret;
-	}
 
 	return usbduxfast_attach_common(dev);
 }
