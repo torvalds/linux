@@ -207,7 +207,7 @@ static int altera_gpio_irq_map(struct irq_domain *h, unsigned int virq,
 
 static struct irq_domain_ops altera_gpio_irq_ops = {
 	.map	= altera_gpio_irq_map,
-	.xlate = irq_domain_xlate_twocell,
+	.xlate = irq_domain_xlate_onecell,
 };
 
 int altera_gpio_probe(struct platform_device *pdev)
