@@ -6725,10 +6725,6 @@ static int e1000_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->hw.fc.current_mode = e1000_fc_default;
 	adapter->hw.phy.autoneg_advertised = 0x2f;
 
-	/* ring size defaults */
-	adapter->rx_ring->count = E1000_DEFAULT_RXD;
-	adapter->tx_ring->count = E1000_DEFAULT_TXD;
-
 	/* Initial Wake on LAN setting - If APM wake is enabled in
 	 * the EEPROM, enable the ACPI Magic Packet filter
 	 */
