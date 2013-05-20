@@ -72,7 +72,7 @@ static struct workqueue_struct *rk616_codec_workq;
 static void rk616_codec_capture_work(struct work_struct *work);
 static DECLARE_DELAYED_WORK(capture_delayed_work, rk616_codec_capture_work);
 static int rk616_codec_work_capture_type = RK616_CODEC_WORK_NULL;
-static bool rk616_for_mid = 1;
+static bool rk616_for_mid = 1, is_hdmi_in = false;
 
 static int board_for_mid(char *str)
 {
@@ -535,6 +535,11 @@ int rk616_headset_mic_detect(bool headset_status)
 }
 EXPORT_SYMBOL(rk616_headset_mic_detect);
 
+bool get_hdmi_state(void)
+{
+	return is_hdmi_in;
+}
+
 void codec_set_spk(bool on)
 {
 	struct snd_soc_codec *codec = rk616_priv->codec;
@@ -565,6 +570,17 @@ void codec_set_spk(bool on)
 			snd_soc_dapm_enable_pin(&codec->dapm, "Ext Spk");
 		}
 	} else {
+		if (rk616_priv->spk_ctl_gpio != INVALID_GPIO) {
+			DBG("%s : set spk ctl gpio LOW\n", __func__);
+			gpio_set_value(rk616_priv->spk_ctl_gpio, GPIO_LOW);
+		}
+
+		if (rk616_priv->hp_ctl_gpio != INVALID_GPIO) {
+			DBG("%s : set hp ctl gpio LOW\n", __func__);
+			gpio_set_value(rk616_priv->hp_ctl_gpio, GPIO_LOW);
+			snd_soc_write(codec, RK616_CLK_CHPUMP, 0x41);
+		}
+
 		if (rk616_for_mid)
 		{
 			snd_soc_update_bits(codec, RK616_SPKL_CTL,
@@ -583,6 +599,8 @@ void codec_set_spk(bool on)
 		}
 	}
 	snd_soc_dapm_sync(&codec->dapm);
+
+	is_hdmi_in = on ? 0 : 1;
 }
 EXPORT_SYMBOL_GPL(codec_set_spk);
 
@@ -1553,7 +1571,7 @@ static int rk616_hw_params(struct snd_pcm_substream *substream,
 	case RK616_VOICE:
 		mfd_aif1 |= I2S0_OUT_DISABLE | I2S1_PD_DISABLE;
 		mfd_aif2 |= I2S1_SI_EN;
-		mfd_i2s_ctl |= I2S_CHANNEL_SEL;
+		mfd_i2s_ctl |= I2S_CHANNEL_SEL | PCM_TO_I2S_MUX;
 		break;
 	default:
 		return -EINVAL;
@@ -1595,17 +1613,18 @@ static int rk616_digital_mute(struct snd_soc_dai *dai, int mute)
 			snd_soc_write(codec, RK616_CLK_CHPUMP, 0x41);
 		}
 	} else {
+		if (rk616_priv && rk616_priv->hp_ctl_gpio != INVALID_GPIO &&
+		    !is_hp_pd) {
+			snd_soc_write(codec, RK616_CLK_CHPUMP, 0x21);
+			msleep(10);
+			DBG("%s : set hp ctl gpio HIGH\n", __func__);
+			gpio_set_value(rk616_priv->hp_ctl_gpio, GPIO_HIGH);
+		}
+
 		if (rk616_priv && rk616_priv->spk_ctl_gpio != INVALID_GPIO &&
 		    !is_spk_pd) {
 			DBG("%s : set spk ctl gpio HIGH\n", __func__);
 			gpio_set_value(rk616_priv->spk_ctl_gpio, GPIO_HIGH);
-		}
-
-		if (rk616_priv && rk616_priv->hp_ctl_gpio != INVALID_GPIO &&
-		    !is_hp_pd) {
-			DBG("%s : set hp ctl gpio HIGH\n", __func__);
-			snd_soc_write(codec, RK616_CLK_CHPUMP, 0x21);
-			gpio_set_value(rk616_priv->hp_ctl_gpio, GPIO_HIGH);
 		}
 	}
 

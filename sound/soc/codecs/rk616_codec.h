@@ -11,6 +11,7 @@
 
 /* mfd register */
 //#define CRU_PCM2IS2_CON2   			0x0098
+#define PCM_TO_I2S_MUX				(1 << 3)
 #define APS_SEL					(1 << 2)
 #define APS_CLR					(1 << 1)
 #define I2S_CHANNEL_SEL				(1 << 0)
@@ -756,5 +757,7 @@ struct rk616_init_bit_typ {
 	unsigned int power_bit;
 	unsigned int init_bit;
 };
+
+bool get_hdmi_state(void);
 
 #endif //__RK616_CODEC_H__

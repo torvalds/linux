@@ -98,7 +98,12 @@ static int rk_hifi_hw_params(struct snd_pcm_substream *substream,
 	int ret;
 
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
-                
+
+	/* MCLK must be 12M when HDMI is in */
+	if (get_hdmi_state()) {
+		DBG("%s : HDMI is in, do not set sys clk\n",__FUNCTION__);
+	}
+
 	/* set codec DAI configuration */
 	#if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE) 
 
@@ -111,17 +116,17 @@ static int rk_hifi_hw_params(struct snd_pcm_substream *substream,
 	                SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM ); 
 	#endif
 	if (ret < 0)
-		return ret; 
+		return ret;
 
 	/* set cpu DAI configuration */
 	#if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE) 
 	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
 	                SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBM_CFM);
 	#endif	
-	#if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER) 
+	#if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER)
 	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_I2S |
-	                SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);	
-	#endif		
+	                SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_CBS_CFS);
+	#endif
 	if (ret < 0)
 		return ret;
 
@@ -171,8 +176,13 @@ static int rk_voice_hw_params(struct snd_pcm_substream *substream,
 	unsigned int pll_out = 0;
 	int ret;
 
-	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);    
-       
+	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
+
+	/* MCLK must be 12M when HDMI is in */
+	if (get_hdmi_state()) {
+		DBG("%s : HDMI is in, do not set sys clk\n",__FUNCTION__);
+	}
+
 	/* set codec DAI configuration */
 	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_DSP_A |
 				SND_SOC_DAIFMT_IB_NF | SND_SOC_DAIFMT_CBS_CFS);
@@ -202,12 +212,12 @@ static int rk_voice_hw_params(struct snd_pcm_substream *substream,
 	ret = snd_soc_dai_set_sysclk(codec_dai, 0, pll_out, SND_SOC_CLOCK_IN);
 
 	if (ret < 0) {
-		printk("rk_voice_hw_params:failed to set the sysclk for codec side\n"); 
+		printk("rk_voice_hw_params:failed to set the sysclk for codec side\n");
 		return ret;
 	}
 
 	ret = snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
- 
+
 	return 0;
 }
 
