@@ -6547,7 +6547,9 @@ int nfs4_proc_getdevicelist(struct nfs_server *server,
 EXPORT_SYMBOL_GPL(nfs4_proc_getdevicelist);
 
 static int
-_nfs4_proc_getdeviceinfo(struct nfs_server *server, struct pnfs_device *pdev)
+_nfs4_proc_getdeviceinfo(struct nfs_server *server,
+		struct pnfs_device *pdev,
+		struct rpc_cred *cred)
 {
 	struct nfs4_getdeviceinfo_args args = {
 		.pdev = pdev,
@@ -6559,6 +6561,7 @@ _nfs4_proc_getdeviceinfo(struct nfs_server *server, struct pnfs_device *pdev)
 		.rpc_proc = &nfs4_procedures[NFSPROC4_CLNT_GETDEVICEINFO],
 		.rpc_argp = &args,
 		.rpc_resp = &res,
+		.rpc_cred = cred,
 	};
 	int status;
 
@@ -6569,14 +6572,16 @@ _nfs4_proc_getdeviceinfo(struct nfs_server *server, struct pnfs_device *pdev)
 	return status;
 }
 
-int nfs4_proc_getdeviceinfo(struct nfs_server *server, struct pnfs_device *pdev)
+int nfs4_proc_getdeviceinfo(struct nfs_server *server,
+		struct pnfs_device *pdev,
+		struct rpc_cred *cred)
 {
 	struct nfs4_exception exception = { };
 	int err;
 
 	do {
 		err = nfs4_handle_exception(server,
-					_nfs4_proc_getdeviceinfo(server, pdev),
+					_nfs4_proc_getdeviceinfo(server, pdev, cred),
 					&exception);
 	} while (exception.retry);
 	return err;
