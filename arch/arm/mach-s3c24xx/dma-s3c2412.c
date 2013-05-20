@@ -47,15 +47,25 @@ static struct s3c24xx_dma_map __initdata s3c2412_dma_mappings[] = {
 		.channels	= MAP(S3C2412_DMAREQSEL_SDI),
 		.channels_rx	= MAP(S3C2412_DMAREQSEL_SDI),
 	},
-	[DMACH_SPI0] = {
-		.name		= "spi0",
-		.channels	= MAP(S3C2412_DMAREQSEL_SPI0TX),
+	[DMACH_SPI0_RX] = {
+		.name		= "spi0-rx",
+		.channels	= MAP(S3C2412_DMAREQSEL_SPI0RX),
 		.channels_rx	= MAP(S3C2412_DMAREQSEL_SPI0RX),
 	},
-	[DMACH_SPI1] = {
-		.name		= "spi1",
-		.channels	= MAP(S3C2412_DMAREQSEL_SPI1TX),
+	[DMACH_SPI0_TX] = {
+		.name		= "spi0-tx",
+		.channels	= MAP(S3C2412_DMAREQSEL_SPI0TX),
+		.channels_rx	= MAP(S3C2412_DMAREQSEL_SPI0TX),
+	},
+	[DMACH_SPI1_RX] = {
+		.name		= "spi1-rx",
+		.channels	= MAP(S3C2412_DMAREQSEL_SPI1RX),
 		.channels_rx	= MAP(S3C2412_DMAREQSEL_SPI1RX),
+	},
+	[DMACH_SPI1_TX] = {
+		.name		= "spi1-tx",
+		.channels	= MAP(S3C2412_DMAREQSEL_SPI1TX),
+		.channels_rx	= MAP(S3C2412_DMAREQSEL_SPI1TX),
 	},
 	[DMACH_UART0] = {
 		.name		= "uart0",
