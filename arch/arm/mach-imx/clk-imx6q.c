@@ -276,21 +276,12 @@ int __init mx6q_clocks_init(void)
 	void __iomem *base;
 	int i, irq;
 
+	of_clk_init(NULL);
+
 	clk[dummy] = imx_clk_fixed("dummy", 0);
-
-	/* retrieve the freqency of fixed clocks from device tree */
-	for_each_compatible_node(np, NULL, "fixed-clock") {
-		u32 rate;
-		if (of_property_read_u32(np, "clock-frequency", &rate))
-			continue;
-
-		if (of_device_is_compatible(np, "fsl,imx-ckil"))
-			clk[ckil] = imx_clk_fixed("ckil", rate);
-		else if (of_device_is_compatible(np, "fsl,imx-ckih1"))
-			clk[ckih] = imx_clk_fixed("ckih", rate);
-		else if (of_device_is_compatible(np, "fsl,imx-osc"))
-			clk[osc] = imx_clk_fixed("osc", rate);
-	}
+	clk[ckil] = imx_obtain_fixed_clock("ckil", 0);
+	clk[ckih] = imx_obtain_fixed_clock("ckih1", 0);
+	clk[osc] = imx_obtain_fixed_clock("osc", 0);
 
 	np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-anatop");
 	base = of_iomap(np, 0);
