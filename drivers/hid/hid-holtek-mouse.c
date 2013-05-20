@@ -23,8 +23,10 @@
  * excessively large number of consumer usages (2^15), which is more than
  * HID_MAX_USAGES. This prevents proper parsing of the report descriptor.
  *
- * This driver fixes the report descriptor for USB ID 04d9:a067, sold as
- * Sharkoon Drakonia and Perixx MX-2000.
+ * This driver fixes the report descriptor for:
+ * - USB ID 04d9:a067, sold as Sharkoon Drakonia and Perixx MX-2000
+ * - USB ID 04d9:a04a, sold as Tracer Sniper TRM-503, NOVA Gaming Slider X200
+ *   and Zalman ZM-GM1
  */
 
 static __u8 *holtek_mouse_report_fixup(struct hid_device *hdev, __u8 *rdesc,
@@ -35,11 +37,23 @@ static __u8 *holtek_mouse_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 	if (intf->cur_altsetting->desc.bInterfaceNumber == 1) {
 		/* Change usage maximum and logical maximum from 0x7fff to
 		 * 0x2fff, so they don't exceed HID_MAX_USAGES */
-		if (*rsize >= 122 && rdesc[115] == 0xff && rdesc[116] == 0x7f
-				&& rdesc[120] == 0xff && rdesc[121] == 0x7f) {
-			hid_info(hdev, "Fixing up report descriptor\n");
-			rdesc[116] = rdesc[121] = 0x2f;
+		switch (hdev->product) {
+		case USB_DEVICE_ID_HOLTEK_ALT_MOUSE_A067:
+			if (*rsize >= 122 && rdesc[115] == 0xff && rdesc[116] == 0x7f
+					&& rdesc[120] == 0xff && rdesc[121] == 0x7f) {
+				hid_info(hdev, "Fixing up report descriptor\n");
+				rdesc[116] = rdesc[121] = 0x2f;
+			}
+			break;
+		case USB_DEVICE_ID_HOLTEK_ALT_MOUSE_A04A:
+			if (*rsize >= 113 && rdesc[106] == 0xff && rdesc[107] == 0x7f
+					&& rdesc[111] == 0xff && rdesc[112] == 0x7f) {
+				hid_info(hdev, "Fixing up report descriptor\n");
+				rdesc[107] = rdesc[112] = 0x2f;
+			}
+			break;
 		}
+
 	}
 	return rdesc;
 }
@@ -47,6 +61,8 @@ static __u8 *holtek_mouse_report_fixup(struct hid_device *hdev, __u8 *rdesc,
 static const struct hid_device_id holtek_mouse_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_HOLTEK_ALT,
 			USB_DEVICE_ID_HOLTEK_ALT_MOUSE_A067) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_HOLTEK_ALT,
+			USB_DEVICE_ID_HOLTEK_ALT_MOUSE_A04A) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, holtek_mouse_devices);
