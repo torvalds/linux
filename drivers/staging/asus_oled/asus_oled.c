@@ -324,9 +324,11 @@ static void send_data(struct asus_oled_dev *odev)
 		return;
 
 	if (odev->pack_mode == PACK_MODE_G1) {
-		/* When sending roll-mode data the display updated only
-		   first packet.  I have no idea why, but when static picture
-		   is sent just before rolling picture everything works fine. */
+		/*
+		 * When sending roll-mode data the display updated only
+		 * first packet.  I have no idea why, but when static picture
+		 * is sent just before rolling picture everything works fine.
+		 */
 		if (odev->pic_mode == ASUS_OLED_ROLL)
 			send_packets(odev->udev, packet, odev->buf,
 				     ASUS_OLED_STATIC, 2);
@@ -363,9 +365,11 @@ static int append_values(struct asus_oled_dev *odev, uint8_t val, size_t count)
 
 		switch (odev->pack_mode) {
 		case PACK_MODE_G1:
-			/* i = (x/128)*640 + 127 - x + (y/8)*128;
-			   This one for 128 is the same, but might be better
-			   for different widths? */
+			/*
+			 * i = (x/128)*640 + 127 - x + (y/8)*128;
+			 * This one for 128 is the same, but might be better
+			 * for different widths?
+			 */
 			i = (x/odev->dev_width)*640 +
 				odev->dev_width - 1 - x +
 				(y/8)*odev->dev_width;
@@ -566,9 +570,11 @@ static ssize_t odev_set_picture(struct asus_oled_dev *odev,
 			if (ret < 0)
 				return ret;
 		} else if (buf[offs] == '\n') {
-			/* New line detected. Lets assume, that all characters
-			   till the end of the line were equal to the last
-			   character in this line.*/
+			/*
+			 * New line detected. Lets assume, that all characters
+			 * till the end of the line were equal to the last
+			 * character in this line.
+			 */
 			if (odev->buf_offs % odev->width != 0)
 				ret = append_values(odev, odev->last_val,
 						    odev->width -
