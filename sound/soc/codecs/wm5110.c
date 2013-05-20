@@ -976,6 +976,8 @@ static int wm5110_codec_probe(struct snd_soc_codec *codec)
 	if (ret != 0)
 		return ret;
 
+	arizona_init_spk(codec);
+
 	snd_soc_dapm_disable_pin(&codec->dapm, "HAPTICS");
 
 	priv->core.arizona->dapm = &codec->dapm;
