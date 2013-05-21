@@ -49,7 +49,6 @@
 
 enum {
 	ec_schedule = 0,
-	ec_call_function,
 	ec_call_function_single,
 	ec_stop_cpu,
 };
@@ -438,8 +437,6 @@ static void smp_handle_ext_call(void)
 		smp_stop_cpu();
 	if (test_bit(ec_schedule, &bits))
 		scheduler_ipi();
-	if (test_bit(ec_call_function, &bits))
-		generic_smp_call_function_interrupt();
 	if (test_bit(ec_call_function_single, &bits))
 		generic_smp_call_function_single_interrupt();
 }
@@ -456,7 +453,7 @@ void arch_send_call_function_ipi_mask(const struct cpumask *mask)
 	int cpu;
 
 	for_each_cpu(cpu, mask)
-		pcpu_ec_call(pcpu_devices + cpu, ec_call_function);
+		pcpu_ec_call(pcpu_devices + cpu, ec_call_function_single);
 }
 
 void arch_send_call_function_single_ipi(int cpu)
