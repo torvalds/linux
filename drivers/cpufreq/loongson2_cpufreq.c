@@ -18,6 +18,7 @@
 #include <linux/platform_device.h>
 
 #include <asm/clock.h>
+#include <asm/idle.h>
 
 #include <asm/mach-loongson/loongson.h>
 

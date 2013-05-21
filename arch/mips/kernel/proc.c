@@ -10,6 +10,7 @@
 #include <asm/bootinfo.h>
 #include <asm/cpu.h>
 #include <asm/cpu-features.h>
+#include <asm/idle.h>
 #include <asm/mipsregs.h>
 #include <asm/processor.h>
 #include <asm/prom.h>

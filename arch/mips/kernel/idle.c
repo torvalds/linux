@@ -18,6 +18,7 @@
 #include <linux/sched.h>
 #include <asm/cpu.h>
 #include <asm/cpu-info.h>
+#include <asm/idle.h>
 #include <asm/mipsregs.h>
 
 /*
@@ -43,8 +44,6 @@ static void r39xx_wait(void)
 		write_c0_conf(read_c0_conf() | TX39_CONF_HALT);
 	local_irq_enable();
 }
-
-extern void r4k_wait(void);
 
 /*
  * This variant is preferable as it allows testing need_resched and going to

@@ -41,6 +41,7 @@
 #include <asm/dsp.h>
 #include <asm/fpu.h>
 #include <asm/fpu_emulator.h>
+#include <asm/idle.h>
 #include <asm/mipsregs.h>
 #include <asm/mipsmtregs.h>
 #include <asm/module.h>
@@ -57,7 +58,6 @@
 #include <asm/uasm.h>
 
 extern void check_wait(void);
-extern asmlinkage void r4k_wait(void);
 extern asmlinkage void rollback_handle_int(void);
 extern asmlinkage void handle_int(void);
 extern u32 handle_tlbl[];

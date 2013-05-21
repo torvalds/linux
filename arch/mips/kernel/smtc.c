@@ -34,6 +34,7 @@
 #include <asm/hardirq.h>
 #include <asm/hazards.h>
 #include <asm/irq.h>
+#include <asm/idle.h>
 #include <asm/mmu_context.h>
 #include <asm/mipsregs.h>
 #include <asm/cacheflush.h>
@@ -858,7 +859,6 @@ void smtc_send_ipi(int cpu, int type, unsigned int action)
 	unsigned long flags;
 	int mtflags;
 	unsigned long tcrestart;
-	extern void r4k_wait_irqoff(void), __pastwait(void);
 	int set_resched_flag = (type == LINUX_SMP_IPI &&
 				action == SMP_RESCHEDULE_YOURSELF);
 
