@@ -84,22 +84,30 @@ static ssize_t dev_nvram_read(struct file *file, char __user *buf,
 	char *tmp = NULL;
 	ssize_t size;
 
-	ret = -ENODEV;
-	if (!ppc_md.nvram_size)
+	if (!ppc_md.nvram_size) {
+		ret = -ENODEV;
 		goto out;
+	}
 
-	ret = 0;
 	size = ppc_md.nvram_size();
-	if (*ppos >= size || size < 0)
+	if (size < 0) {
+		ret = size;
 		goto out;
+	}
+
+	if (*ppos >= size) {
+		ret = 0;
+		goto out;
+	}
 
 	count = min_t(size_t, count, size - *ppos);
 	count = min(count, PAGE_SIZE);
 
-	ret = -ENOMEM;
 	tmp = kmalloc(count, GFP_KERNEL);
-	if (!tmp)
+	if (!tmp) {
+		ret = -ENOMEM;
 		goto out;
+	}
 
 	ret = ppc_md.nvram_read(tmp, count, ppos);
 	if (ret <= 0)
