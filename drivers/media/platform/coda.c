@@ -1976,17 +1976,9 @@ static int coda_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	if (devm_request_mem_region(&pdev->dev, res->start,
-			resource_size(res), CODA_NAME) == NULL) {
-		dev_err(&pdev->dev, "failed to request memory region\n");
-		return -ENOENT;
-	}
-	dev->regs_base = devm_ioremap(&pdev->dev, res->start,
-				      resource_size(res));
-	if (!dev->regs_base) {
-		dev_err(&pdev->dev, "failed to ioremap address region\n");
-		return -ENOENT;
-	}
+	dev->regs_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(dev->regs_base))
+		return PTR_ERR(dev->regs_base);
 
 	/* IRQ */
 	irq = platform_get_irq(pdev, 0);
