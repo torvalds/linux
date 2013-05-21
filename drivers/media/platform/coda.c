@@ -323,7 +323,7 @@ static int vidioc_querycap(struct file *file, void *priv,
 {
 	strlcpy(cap->driver, CODA_NAME, sizeof(cap->driver));
 	strlcpy(cap->card, CODA_NAME, sizeof(cap->card));
-	strlcpy(cap->bus_info, CODA_NAME, sizeof(cap->bus_info));
+	strlcpy(cap->bus_info, "platform:" CODA_NAME, sizeof(cap->bus_info));
 	/*
 	 * This is only a mem-to-mem video device. The capture and output
 	 * device capability flags are left only for backward compatibility
