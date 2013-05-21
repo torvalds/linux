@@ -901,10 +901,8 @@ defined:
 struct dentry_operations {
 	int (*d_revalidate)(struct dentry *, unsigned int);
 	int (*d_weak_revalidate)(struct dentry *, unsigned int);
-	int (*d_hash)(const struct dentry *, const struct inode *,
-			struct qstr *);
-	int (*d_compare)(const struct dentry *, const struct inode *,
-			const struct dentry *, const struct inode *,
+	int (*d_hash)(const struct dentry *, struct qstr *);
+	int (*d_compare)(const struct dentry *, const struct dentry *,
 			unsigned int, const char *, const struct qstr *);
 	int (*d_delete)(const struct dentry *);
 	void (*d_release)(struct dentry *);
@@ -949,25 +947,24 @@ struct dentry_operations {
 
   d_hash: called when the VFS adds a dentry to the hash table. The first
 	dentry passed to d_hash is the parent directory that the name is
-	to be hashed into. The inode is the dentry's inode.
+	to be hashed into.
 
 	Same locking and synchronisation rules as d_compare regarding
 	what is safe to dereference etc.
 
   d_compare: called to compare a dentry name with a given name. The first
 	dentry is the parent of the dentry to be compared, the second is
-	the parent's inode, then the dentry and inode (may be NULL) of the
-	child dentry. len and name string are properties of the dentry to be
-	compared. qstr is the name to compare it with.
+	the child dentry. len and name string are properties of the dentry
+	to be compared. qstr is the name to compare it with.
 
 	Must be constant and idempotent, and should not take locks if
-	possible, and should not or store into the dentry or inodes.
-	Should not dereference pointers outside the dentry or inodes without
+	possible, and should not or store into the dentry.
+	Should not dereference pointers outside the dentry without
 	lots of care (eg.  d_parent, d_inode, d_name should not be used).
 
 	However, our vfsmount is pinned, and RCU held, so the dentries and
 	inodes won't disappear, neither will our sb or filesystem module.
-	->i_sb and ->d_sb may be used.
+	->d_sb may be used.
 
 	It is a tricky calling convention because it needs to be called under
 	"rcu-walk", ie. without any locks or references on things.
