@@ -1602,6 +1602,8 @@ static const struct v4l2_subdev_ops saa711x_ops = {
 	.vbi = &saa711x_vbi_ops,
 };
 
+#define CHIP_VER_SIZE	16
+
 /* ----------------------------------------------------------------------- */
 
 /**
@@ -1609,7 +1611,6 @@ static const struct v4l2_subdev_ops saa711x_ops = {
  * @client:		I2C client structure.
  * @id:			I2C device ID structure.
  * @name:		Name of the device to be filled.
- * @size:		Size of the name var.
  *
  * Detects the Philips/NXP saa711x chip, or some clone of it.
  * if 'id' is NULL or id->driver_data is equal to 1, it auto-probes
@@ -1621,9 +1622,9 @@ static const struct v4l2_subdev_ops saa711x_ops = {
  */
 static int saa711x_detect_chip(struct i2c_client *client,
 			       const struct i2c_device_id *id,
-			       char *name, unsigned size)
+			       char *name)
 {
-	char chip_ver[size - 1];
+	char chip_ver[CHIP_VER_SIZE];
 	char chip_id;
 	int i;
 	int autodetect;
@@ -1631,7 +1632,7 @@ static int saa711x_detect_chip(struct i2c_client *client,
 	autodetect = !id || id->driver_data == 1;
 
 	/* Read the chip version register */
-	for (i = 0; i < size - 1; i++) {
+	for (i = 0; i < CHIP_VER_SIZE; i++) {
 		i2c_smbus_write_byte_data(client, 0, i);
 		chip_ver[i] = i2c_smbus_read_byte_data(client, 0);
 		name[i] = (chip_ver[i] & 0x0f) + '0';
@@ -1643,7 +1644,7 @@ static int saa711x_detect_chip(struct i2c_client *client,
 	/* Check if it is a Philips/NXP chip */
 	if (!memcmp(name + 1, "f711", 4)) {
 		chip_id = name[5];
-		snprintf(name, size, "saa711%c", chip_id);
+		snprintf(name, CHIP_VER_SIZE, "saa711%c", chip_id);
 
 		if (!autodetect && strcmp(name, id->name))
 			return -EINVAL;
@@ -1651,7 +1652,7 @@ static int saa711x_detect_chip(struct i2c_client *client,
 		switch (chip_id) {
 		case '1':
 			if (chip_ver[0] & 0xf0) {
-				snprintf(name, size, "saa711%ca", chip_id);
+				snprintf(name, CHIP_VER_SIZE, "saa711%ca", chip_id);
 				v4l_info(client, "saa7111a variant found\n");
 				return V4L2_IDENT_SAA7111A;
 			}
@@ -1689,7 +1690,7 @@ static int saa711x_detect_chip(struct i2c_client *client,
 		 * the lower nibble is a gm7113c.
 		 */
 
-		strlcpy(name, "gm7113c", size);
+		strlcpy(name, "gm7113c", CHIP_VER_SIZE);
 
 		if (!autodetect && strcmp(name, id->name))
 			return -EINVAL;
@@ -1714,13 +1715,13 @@ static int saa711x_probe(struct i2c_client *client,
 	struct v4l2_subdev *sd;
 	struct v4l2_ctrl_handler *hdl;
 	int ident;
-	char name[17];
+	char name[CHIP_VER_SIZE + 1];
 
 	/* Check if the adapter supports the needed features */
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
 
-	ident = saa711x_detect_chip(client, id, name, sizeof(name));
+	ident = saa711x_detect_chip(client, id, name);
 	if (ident == -EINVAL) {
 		/* Chip exists, but doesn't match */
 		v4l_warn(client, "found %s while %s was expected\n",
