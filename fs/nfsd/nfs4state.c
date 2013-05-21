@@ -364,19 +364,12 @@ static struct nfs4_ol_stateid * nfs4_alloc_stateid(struct nfs4_client *clp)
 }
 
 static struct nfs4_delegation *
-alloc_init_deleg(struct nfs4_client *clp, struct nfs4_ol_stateid *stp, struct svc_fh *current_fh, u32 type)
+alloc_init_deleg(struct nfs4_client *clp, struct nfs4_ol_stateid *stp, struct svc_fh *current_fh)
 {
 	struct nfs4_delegation *dp;
 	struct nfs4_file *fp = stp->st_file;
 
 	dprintk("NFSD alloc_init_deleg\n");
-	/*
-	 * Major work on the lease subsystem (for example, to support
-	 * calbacks on stat) will be required before we can support
-	 * write delegations properly.
-	 */
-	if (type != NFS4_OPEN_DELEGATE_READ)
-		return NULL;
 	if (fp->fi_had_conflict)
 		return NULL;
 	if (num_delegations > max_delegations)
@@ -397,7 +390,7 @@ alloc_init_deleg(struct nfs4_client *clp, struct nfs4_ol_stateid *stp, struct sv
 	INIT_LIST_HEAD(&dp->dl_recall_lru);
 	get_nfs4_file(fp);
 	dp->dl_file = fp;
-	dp->dl_type = type;
+	dp->dl_type = NFS4_OPEN_DELEGATE_READ;
 	fh_copy_shallow(&dp->dl_fh, &current_fh->fh_handle);
 	dp->dl_time = 0;
 	atomic_set(&dp->dl_count, 1);
@@ -3020,13 +3013,13 @@ static struct file_lock *nfs4_alloc_init_lease(struct nfs4_delegation *dp, int f
 	return fl;
 }
 
-static int nfs4_setlease(struct nfs4_delegation *dp, int flag)
+static int nfs4_setlease(struct nfs4_delegation *dp)
 {
 	struct nfs4_file *fp = dp->dl_file;
 	struct file_lock *fl;
 	int status;
 
-	fl = nfs4_alloc_init_lease(dp, flag);
+	fl = nfs4_alloc_init_lease(dp, NFS4_OPEN_DELEGATE_READ);
 	if (!fl)
 		return -ENOMEM;
 	fl->fl_file = find_readable_file(fp);
@@ -3044,12 +3037,12 @@ static int nfs4_setlease(struct nfs4_delegation *dp, int flag)
 	return 0;
 }
 
-static int nfs4_set_delegation(struct nfs4_delegation *dp, int flag)
+static int nfs4_set_delegation(struct nfs4_delegation *dp)
 {
 	struct nfs4_file *fp = dp->dl_file;
 
 	if (!fp->fi_lease)
-		return nfs4_setlease(dp, flag);
+		return nfs4_setlease(dp);
 	spin_lock(&recall_lock);
 	if (fp->fi_had_conflict) {
 		spin_unlock(&recall_lock);
@@ -3085,6 +3078,9 @@ static void nfsd4_open_deleg_none_ext(struct nfsd4_open *open, int status)
 
 /*
  * Attempt to hand out a delegation.
+ *
+ * Note we don't support write delegations, and won't until the vfs has
+ * proper support for them.
  */
 static void
 nfs4_open_delegation(struct net *net, struct svc_fh *fh,
@@ -3093,26 +3089,26 @@ nfs4_open_delegation(struct net *net, struct svc_fh *fh,
 	struct nfs4_delegation *dp;
 	struct nfs4_openowner *oo = container_of(stp->st_stateowner, struct nfs4_openowner, oo_owner);
 	int cb_up;
-	int status = 0, flag = 0;
+	int status = 0;
 
 	cb_up = nfsd4_cb_channel_good(oo->oo_owner.so_client);
-	flag = NFS4_OPEN_DELEGATE_NONE;
 	open->op_recall = 0;
 	switch (open->op_claim_type) {
 		case NFS4_OPEN_CLAIM_PREVIOUS:
 			if (!cb_up)
 				open->op_recall = 1;
-			flag = open->op_delegate_type;
-			if (flag == NFS4_OPEN_DELEGATE_NONE)
-				goto out;
+			if (open->op_delegate_type != NFS4_OPEN_DELEGATE_READ)
+				goto out_no_deleg;
 			break;
 		case NFS4_OPEN_CLAIM_NULL:
-			/* Let's not give out any delegations till everyone's
-			 * had the chance to reclaim theirs.... */
+			/*
+			 * Let's not give out any delegations till everyone's
+			 * had the chance to reclaim theirs....
+			 */
 			if (locks_in_grace(net))
-				goto out;
+				goto out_no_deleg;
 			if (!cb_up || !(oo->oo_flags & NFS4_OO_CONFIRMED))
-				goto out;
+				goto out_no_deleg;
 			/*
 			 * Also, if the file was opened for write or
 			 * create, there's a good chance the client's
@@ -3121,20 +3117,17 @@ nfs4_open_delegation(struct net *net, struct svc_fh *fh,
 			 * write delegations):
 			 */
 			if (open->op_share_access & NFS4_SHARE_ACCESS_WRITE)
-				flag = NFS4_OPEN_DELEGATE_WRITE;
-			else if (open->op_create == NFS4_OPEN_CREATE)
-				flag = NFS4_OPEN_DELEGATE_WRITE;
-			else
-				flag = NFS4_OPEN_DELEGATE_READ;
+				goto out_no_deleg;
+			if (open->op_create == NFS4_OPEN_CREATE)
+				goto out_no_deleg;
 			break;
 		default:
-			goto out;
+			goto out_no_deleg;
 	}
-
-	dp = alloc_init_deleg(oo->oo_owner.so_client, stp, fh, flag);
+	dp = alloc_init_deleg(oo->oo_owner.so_client, stp, fh);
 	if (dp == NULL)
 		goto out_no_deleg;
-	status = nfs4_set_delegation(dp, flag);
+	status = nfs4_set_delegation(dp);
 	if (status)
 		goto out_free;
 
@@ -3142,24 +3135,21 @@ nfs4_open_delegation(struct net *net, struct svc_fh *fh,
 
 	dprintk("NFSD: delegation stateid=" STATEID_FMT "\n",
 		STATEID_VAL(&dp->dl_stid.sc_stateid));
-out:
-	open->op_delegate_type = flag;
-	if (flag == NFS4_OPEN_DELEGATE_NONE) {
-		if (open->op_claim_type == NFS4_OPEN_CLAIM_PREVIOUS &&
-		    open->op_delegate_type != NFS4_OPEN_DELEGATE_NONE)
-			dprintk("NFSD: WARNING: refusing delegation reclaim\n");
-
-		/* 4.1 client asking for a delegation? */
-		if (open->op_deleg_want)
-			nfsd4_open_deleg_none_ext(open, status);
-	}
+	open->op_delegate_type = NFS4_OPEN_DELEGATE_READ;
 	return;
 out_free:
 	unhash_stid(&dp->dl_stid);
 	nfs4_put_delegation(dp);
 out_no_deleg:
-	flag = NFS4_OPEN_DELEGATE_NONE;
-	goto out;
+	open->op_delegate_type = NFS4_OPEN_DELEGATE_NONE;
+	if (open->op_claim_type == NFS4_OPEN_CLAIM_PREVIOUS &&
+	    open->op_delegate_type != NFS4_OPEN_DELEGATE_NONE)
+		dprintk("NFSD: WARNING: refusing delegation reclaim\n");
+
+	/* 4.1 client asking for a delegation? */
+	if (open->op_deleg_want)
+		nfsd4_open_deleg_none_ext(open, status);
+	return;
 }
 
 static void nfsd4_deleg_xgrade_none_ext(struct nfsd4_open *open,
