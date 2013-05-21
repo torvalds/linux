@@ -37,7 +37,7 @@
 			#size-cells = <0>;
 			pinctrl-single,bit-per-mux;
 			pinctrl-single,register-width = <32>;
-			pinctrl-single,function-mask = <0xffffffff>;
+			pinctrl-single,function-mask = <0xf>;
 			status = "disabled";
 
 			nand_cs3_pins: pinmux_nand_pins {
