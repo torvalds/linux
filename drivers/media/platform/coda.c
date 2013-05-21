@@ -67,7 +67,7 @@
 #define fh_to_ctx(__fh)	container_of(__fh, struct coda_ctx, fh)
 
 static int coda_debug;
-module_param(coda_debug, int, 0);
+module_param(coda_debug, int, 0644);
 MODULE_PARM_DESC(coda_debug, "Debug level (0-1)");
 
 enum {
