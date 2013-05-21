@@ -150,6 +150,54 @@ enum iwl_power_scheme {
 
 #define IWL_CONN_MAX_LISTEN_INTERVAL	70
 
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+enum iwl_dbgfs_pm_mask {
+	MVM_DEBUGFS_PM_KEEP_ALIVE = BIT(0),
+	MVM_DEBUGFS_PM_SKIP_OVER_DTIM = BIT(1),
+	MVM_DEBUGFS_PM_SKIP_DTIM_PERIODS = BIT(2),
+	MVM_DEBUGFS_PM_RX_DATA_TIMEOUT = BIT(3),
+	MVM_DEBUGFS_PM_TX_DATA_TIMEOUT = BIT(4),
+	MVM_DEBUGFS_PM_DISABLE_POWER_OFF = BIT(5),
+};
+
+struct iwl_dbgfs_pm {
+	u8 keep_alive_seconds;
+	u32 rx_data_timeout;
+	u32 tx_data_timeout;
+	bool skip_over_dtim;
+	u8 skip_dtim_periods;
+	bool disable_power_off;
+	int mask;
+};
+
+/* beacon filtering */
+
+enum iwl_dbgfs_bf_mask {
+	MVM_DEBUGFS_BF_ENERGY_DELTA = BIT(0),
+	MVM_DEBUGFS_BF_ROAMING_ENERGY_DELTA = BIT(1),
+	MVM_DEBUGFS_BF_ROAMING_STATE = BIT(2),
+	MVM_DEBUGFS_BF_TEMPERATURE_DELTA = BIT(3),
+	MVM_DEBUGFS_BF_ENABLE_BEACON_FILTER = BIT(4),
+	MVM_DEBUGFS_BF_DEBUG_FLAG = BIT(5),
+	MVM_DEBUGFS_BF_ESCAPE_TIMER = BIT(6),
+	MVM_DEBUGFS_BA_ESCAPE_TIMER = BIT(7),
+	MVM_DEBUGFS_BA_ENABLE_BEACON_ABORT = BIT(8),
+};
+
+struct iwl_dbgfs_bf {
+	u8 bf_energy_delta;
+	u8 bf_roaming_energy_delta;
+	u8 bf_roaming_state;
+	u8 bf_temperature_delta;
+	u8 bf_enable_beacon_filter;
+	u8 bf_debug_flag;
+	u32 bf_escape_timer;
+	u32 ba_escape_timer;
+	u8 ba_enable_beacon_abort;
+	int mask;
+};
+#endif
+
 enum iwl_mvm_smps_type_request {
 	IWL_MVM_SMPS_REQ_BT_COEX,
 	IWL_MVM_SMPS_REQ_TT,
@@ -225,6 +273,8 @@ struct iwl_mvm_vif {
 	struct dentry *dbgfs_dir;
 	struct dentry *dbgfs_slink;
 	void *dbgfs_data;
+	struct iwl_dbgfs_pm dbgfs_pm;
+	struct iwl_dbgfs_bf dbgfs_bf;
 #endif
 
 	enum ieee80211_smps_mode smps_requests[NUM_IWL_MVM_SMPS_REQ];
@@ -631,6 +681,21 @@ void iwl_mvm_bt_rssi_event(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 void iwl_mvm_bt_coex_vif_assoc(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 
 /* beacon filtering */
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+void
+iwl_mvm_beacon_filter_debugfs_parameters(struct ieee80211_vif *vif,
+					 struct iwl_beacon_filter_cmd *cmd);
+int iwl_mvm_dbgfs_set_fw_dbg_log(struct iwl_mvm *mvm);
+#else
+static inline void
+iwl_mvm_beacon_filter_debugfs_parameters(struct ieee80211_vif *vif,
+					 struct iwl_beacon_filter_cmd *cmd)
+{}
+static inline int iwl_mvm_dbgfs_set_fw_dbg_log(struct iwl_mvm *mvm)
+{
+	return 0;
+}
+#endif
 int iwl_mvm_enable_beacon_filter(struct iwl_mvm *mvm,
 				 struct ieee80211_vif *vif);
 int iwl_mvm_disable_beacon_filter(struct iwl_mvm *mvm,
