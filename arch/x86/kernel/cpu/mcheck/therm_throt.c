@@ -181,20 +181,11 @@ static int therm_throt_process(bool new_event, int event, int level)
 				this_cpu,
 				level == CORE_LEVEL ? "Core" : "Package",
 				state->count);
-		else
-			printk(KERN_CRIT "CPU%d: %s power limit notification (total events = %lu)\n",
-				this_cpu,
-				level == CORE_LEVEL ? "Core" : "Package",
-				state->count);
 		return 1;
 	}
 	if (old_event) {
 		if (event == THERMAL_THROTTLING_EVENT)
 			printk(KERN_INFO "CPU%d: %s temperature/speed normal\n",
-				this_cpu,
-				level == CORE_LEVEL ? "Core" : "Package");
-		else
-			printk(KERN_INFO "CPU%d: %s power limit normal\n",
 				this_cpu,
 				level == CORE_LEVEL ? "Core" : "Package");
 		return 1;
