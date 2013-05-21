@@ -280,4 +280,22 @@ struct panel_acx565akm_platform_data {
 	int datapairs;
 };
 
+/**
+ * panel_lb035q02 platform data
+ * @name: name for this display entity
+ * @source: name of the display entity used as a video source
+ * @data_lines: number of DPI datalines
+ * @backlight_gpio: gpio to enable/disable the backlight (or -1)
+ * @enable_gpio: gpio to enable/disable the panel (or -1)
+ */
+struct panel_lb035q02_platform_data {
+	const char *name;
+	const char *source;
+
+	int data_lines;
+
+	int backlight_gpio;
+	int enable_gpio;
+};
+
 #endif /* __OMAP_PANEL_DATA_H */

@@ -44,4 +44,9 @@ config DISPLAY_PANEL_SONY_ACX565AKM
 	help
 	  This is the LCD panel used on Nokia N900
 
+config DISPLAY_PANEL_LGPHILIPS_LB035Q02
+	tristate "LG.Philips LB035Q02 LCD Panel"
+	depends on SPI
+	help
+	  LCD Panel used on the Gumstix Overo Palo35
 endmenu
