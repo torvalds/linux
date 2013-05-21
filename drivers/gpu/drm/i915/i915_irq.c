@@ -372,14 +372,16 @@ static int
 i915_pipe_enabled(struct drm_device *dev, int pipe)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	enum transcoder cpu_transcoder = intel_pipe_to_cpu_transcoder(dev_priv,
-								      pipe);
 
-	if (!intel_display_power_enabled(dev,
-		POWER_DOMAIN_TRANSCODER(cpu_transcoder)))
-		return false;
+	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+		/* Locking is horribly broken here, but whatever. */
+		struct drm_crtc *crtc = dev_priv->pipe_to_crtc_mapping[pipe];
+		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
-	return I915_READ(PIPECONF(cpu_transcoder)) & PIPECONF_ENABLE;
+		return intel_crtc->active;
+	} else {
+		return I915_READ(PIPECONF(pipe)) & PIPECONF_ENABLE;
+	}
 }
 
 /* Called from drm generic code, passed a 'crtc', which
