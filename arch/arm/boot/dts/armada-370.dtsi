@@ -43,7 +43,7 @@
 				wt-override;
 			};
 
-			mpic: interrupt-controller@20000 {
+			interrupt-controller@20000 {
 				reg = <0x20a00 0x1d0>, <0x21870 0x58>;
 			};
 
