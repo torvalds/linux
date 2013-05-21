@@ -39,7 +39,6 @@ static void r3081_wait(void)
 
 static void r39xx_wait(void)
 {
-	local_irq_disable();
 	if (!need_resched())
 		write_c0_conf(read_c0_conf() | TX39_CONF_HALT);
 	local_irq_enable();
@@ -56,7 +55,6 @@ extern void r4k_wait(void);
  */
 void r4k_wait_irqoff(void)
 {
-	local_irq_disable();
 	if (!need_resched())
 		__asm__(
 		"	.set	push		\n"
@@ -75,7 +73,6 @@ void r4k_wait_irqoff(void)
  */
 static void rm7k_wait_irqoff(void)
 {
-	local_irq_disable();
 	if (!need_resched())
 		__asm__(
 		"	.set	push					\n"
