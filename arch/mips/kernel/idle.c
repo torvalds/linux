@@ -45,6 +45,12 @@ static void r39xx_wait(void)
 	local_irq_enable();
 }
 
+void r4k_wait(void)
+{
+	local_irq_enable();
+	__r4k_wait();
+}
+
 /*
  * This variant is preferable as it allows testing need_resched and going to
  * sleep depending on the outcome atomically.  Unfortunately the "It is

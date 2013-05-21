@@ -4,7 +4,8 @@
 #include <linux/linkage.h>
 
 extern void (*cpu_wait)(void);
-extern asmlinkage void r4k_wait(void);
+extern void r4k_wait(void);
+extern asmlinkage void __r4k_wait(void);
 extern void r4k_wait_irqoff(void);
 extern void __pastwait(void);
 
