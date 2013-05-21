@@ -112,6 +112,7 @@ struct net_bridge_mdb_entry
 	struct timer_list		timer;
 	struct br_ip			addr;
 	bool				mglist;
+	bool				timer_armed;
 };
 
 struct net_bridge_mdb_htable
