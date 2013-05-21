@@ -151,7 +151,7 @@ struct fscache_retrieval {
 	void			*context;	/* netfs read context (pinned) */
 	struct list_head	to_do;		/* list of things to be done by the backend */
 	unsigned long		start_time;	/* time at which retrieval started */
-	unsigned		n_pages;	/* number of pages to be retrieved */
+	atomic_t		n_pages;	/* number of pages to be retrieved */
 };
 
 typedef int (*fscache_page_retrieval_func_t)(struct fscache_retrieval *op,
@@ -195,15 +195,14 @@ static inline void fscache_enqueue_retrieval(struct fscache_retrieval *op)
 static inline void fscache_retrieval_complete(struct fscache_retrieval *op,
 					      int n_pages)
 {
-	op->n_pages -= n_pages;
-	if (op->n_pages <= 0)
+	atomic_sub(n_pages, &op->n_pages);
+	if (atomic_read(&op->n_pages) <= 0)
 		fscache_op_complete(&op->op, true);
 }
 
 /**
  * fscache_put_retrieval - Drop a reference to a retrieval operation
  * @op: The retrieval operation affected
- * @n_pages: The number of pages to account for
  *
  * Drop a reference to a retrieval operation.
  */

@@ -235,7 +235,7 @@ static void fscache_release_retrieval_op(struct fscache_operation *_op)
 
 	_enter("{OP%x}", op->op.debug_id);
 
-	ASSERTCMP(op->n_pages, ==, 0);
+	ASSERTCMP(atomic_read(&op->n_pages), ==, 0);
 
 	fscache_hist(fscache_retrieval_histogram, op->start_time);
 	if (op->context)
@@ -316,7 +316,7 @@ static void fscache_do_cancel_retrieval(struct fscache_operation *_op)
 	struct fscache_retrieval *op =
 		container_of(_op, struct fscache_retrieval, op);
 
-	op->n_pages = 0;
+	atomic_set(&op->n_pages, 0);
 }
 
 /*
@@ -406,7 +406,7 @@ int __fscache_read_or_alloc_page(struct fscache_cookie *cookie,
 		_leave(" = -ENOMEM");
 		return -ENOMEM;
 	}
-	op->n_pages = 1;
+	atomic_set(&op->n_pages, 1);
 
 	spin_lock(&cookie->lock);
 
@@ -533,7 +533,7 @@ int __fscache_read_or_alloc_pages(struct fscache_cookie *cookie,
 	op = fscache_alloc_retrieval(cookie, mapping, end_io_func, context);
 	if (!op)
 		return -ENOMEM;
-	op->n_pages = *nr_pages;
+	atomic_set(&op->n_pages, *nr_pages);
 
 	spin_lock(&cookie->lock);
 
@@ -643,7 +643,7 @@ int __fscache_alloc_page(struct fscache_cookie *cookie,
 	op = fscache_alloc_retrieval(cookie, page->mapping, NULL, NULL);
 	if (!op)
 		return -ENOMEM;
-	op->n_pages = 1;
+	atomic_set(&op->n_pages, 1);
 
 	spin_lock(&cookie->lock);
 
