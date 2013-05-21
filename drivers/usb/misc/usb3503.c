@@ -42,9 +42,6 @@
 #define USB3503_NRD		0x09
 
 #define USB3503_PDS		0x0a
-#define USB3503_PORT1		(1 << 1)
-#define USB3503_PORT2		(1 << 2)
-#define USB3503_PORT3		(1 << 3)
 
 #define USB3503_SP_ILOCK	0xe7
 #define USB3503_SPILOCK_CONNECT	(1 << 1)
@@ -56,6 +53,7 @@
 struct usb3503 {
 	enum usb3503_mode	mode;
 	struct i2c_client	*client;
+	u8	port_off_mask;
 	int	gpio_intn;
 	int	gpio_reset;
 	int	gpio_connect;
@@ -134,12 +132,14 @@ static int usb3503_switch_mode(struct usb3503 *hub, enum usb3503_mode mode)
 			goto err_hubmode;
 		}
 
-		/* PDS : Port2,3 Disable For Self Powered Operation */
-		err = usb3503_set_bits(i2c, USB3503_PDS,
-				(USB3503_PORT2 | USB3503_PORT3));
-		if (err < 0) {
-			dev_err(&i2c->dev, "PDS failed (%d)\n", err);
-			goto err_hubmode;
+		/* PDS : Disable For Self Powered Operation */
+		if (hub->port_off_mask) {
+			err = usb3503_set_bits(i2c, USB3503_PDS,
+					hub->port_off_mask);
+			if (err < 0) {
+				dev_err(&i2c->dev, "PDS failed (%d)\n", err);
+				goto err_hubmode;
+			}
 		}
 
 		/* CFG1 : SELF_BUS_PWR -> Self-Powerd operation */
@@ -197,6 +197,7 @@ static int usb3503_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 	hub->client = i2c;
 
 	if (pdata) {
+		hub->port_off_mask	= pdata->port_off_mask;
 		hub->gpio_intn		= pdata->gpio_intn;
 		hub->gpio_connect	= pdata->gpio_connect;
 		hub->gpio_reset		= pdata->gpio_reset;
