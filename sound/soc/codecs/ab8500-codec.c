@@ -2334,25 +2334,36 @@ static int ab8500_codec_set_dai_tdm_slot(struct snd_soc_dai *dai,
 	}
 
 	/* Setup TDM AD according to active RX-slots */
+
+	if (rx_mask & ~0xff)
+		return -EINVAL;
+
+	rx_mask = rx_mask << AB8500_AD_DATA0_OFFSET;
 	slots_active = hweight32(rx_mask);
+
 	dev_dbg(dai->codec->dev, "%s: Slots, active, RX: %d\n", __func__,
 		slots_active);
+
 	switch (slots_active) {
 	case 0:
 		break;
 	case 1:
-		/* AD_OUT3 -> slot 0 & 1 */
-		snd_soc_update_bits(codec, AB8500_ADSLOTSEL1, AB8500_MASK_ALL,
-				AB8500_ADSLOTSELX_AD_OUT3_TO_SLOT_EVEN |
-				AB8500_ADSLOTSELX_AD_OUT3_TO_SLOT_ODD);
+		slot = find_first_bit((unsigned long *)&rx_mask, 32);
+		snd_soc_update_bits(codec, AB8500_ADSLOTSEL(slot),
+				AB8500_MASK_SLOT(slot),
+				AB8500_ADSLOTSELX_AD_OUT_TO_SLOT(AB8500_AD_OUT3, slot));
 		break;
 	case 2:
-		/* AD_OUT3 -> slot 0, AD_OUT2 -> slot 1 */
+		slot = find_first_bit((unsigned long *)&rx_mask, 32);
 		snd_soc_update_bits(codec,
-				AB8500_ADSLOTSEL1,
-				AB8500_MASK_ALL,
-				AB8500_ADSLOTSELX_AD_OUT3_TO_SLOT_EVEN |
-				AB8500_ADSLOTSELX_AD_OUT2_TO_SLOT_ODD);
+				AB8500_ADSLOTSEL(slot),
+				AB8500_MASK_SLOT(slot),
+				AB8500_ADSLOTSELX_AD_OUT_TO_SLOT(AB8500_AD_OUT3, slot));
+		slot = find_next_bit((unsigned long *)&rx_mask, 32, slot + 1);
+		snd_soc_update_bits(codec,
+				AB8500_ADSLOTSEL(slot),
+				AB8500_MASK_SLOT(slot),
+				AB8500_ADSLOTSELX_AD_OUT_TO_SLOT(AB8500_AD_OUT2, slot));
 		break;
 	case 8:
 		dev_dbg(dai->codec->dev,
