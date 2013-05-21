@@ -213,7 +213,7 @@ int btrfs_check_trunc_cache_free_space(struct btrfs_root *root,
 	else
 		ret = 0;
 	spin_unlock(&rsv->lock);
-	return 0;
+	return ret;
 }
 
 int btrfs_truncate_free_space_cache(struct btrfs_root *root,
