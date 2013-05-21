@@ -71,9 +71,8 @@ enum sw_ic_ver {
 
 enum sw_ic_ver sw_get_ic_ver(void) __pure;
 
-#ifdef CONFIG_ARCH_SUN4I
 #define sunxi_is_sun4i()	(sunxi_chip_id() == SUNXI_MACH_SUN4I)
-#define sunxi_is_sun5i()	(0)
+#define sunxi_is_sun5i()	(sunxi_chip_id() == SUNXI_MACH_SUN5I)
 
 static inline int sunxi_is_a10(void)
 {
@@ -86,13 +85,6 @@ static inline int sunxi_is_a10(void)
 		return 0;
 	}
 }
-#define sunxi_is_a13()	(0)
-#define sunxi_is_a12()	(0)
-#define sunxi_is_a10s()	(0)
-
-#elif defined(CONFIG_ARCH_SUN5I)
-#define sunxi_is_sun4i()	(0)
-#define sunxi_is_sun5i()	(sunxi_chip_id() == SUNXI_MACH_SUN5I)
 
 static inline int sunxi_is_a13(void)
 {
@@ -124,8 +116,6 @@ static inline int sunxi_is_a10s(void)
 		return 0;
 	}
 }
-#define sunxi_is_a10()	(0)
-#endif
 
 struct sw_chip_id
 {
