@@ -852,10 +852,6 @@ const struct gfs2_log_operations gfs2_revoke_lops = {
 	.lo_name = "revoke",
 };
 
-const struct gfs2_log_operations gfs2_rg_lops = {
-	.lo_name = "rg",
-};
-
 const struct gfs2_log_operations gfs2_databuf_lops = {
 	.lo_before_commit = databuf_lo_before_commit,
 	.lo_after_commit = databuf_lo_after_commit,
@@ -867,7 +863,6 @@ const struct gfs2_log_operations gfs2_databuf_lops = {
 const struct gfs2_log_operations *gfs2_log_ops[] = {
 	&gfs2_databuf_lops,
 	&gfs2_buf_lops,
-	&gfs2_rg_lops,
 	&gfs2_revoke_lops,
 	NULL,
 };
