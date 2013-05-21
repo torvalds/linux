@@ -196,5 +196,6 @@ struct smp_operations tegra_smp_ops __initdata = {
 #ifdef CONFIG_HOTPLUG_CPU
 	.cpu_kill		= tegra_cpu_kill,
 	.cpu_die		= tegra_cpu_die,
+	.cpu_disable		= tegra_cpu_disable,
 #endif
 };
