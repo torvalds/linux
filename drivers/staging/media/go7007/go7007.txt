@@ -78,7 +78,6 @@ All vendor-built kernels should already be configured properly.  However,
 for custom-built kernels, the following options need to be enabled in the
 kernel as built-in or modules:
 
-	CONFIG_HOTPLUG           - Support for hot-pluggable devices
 	CONFIG_MODULES           - Enable loadable module support
 	CONFIG_KMOD              - Automatic kernel module loading
 	CONFIG_FW_LOADER         - Hotplug firmware loading support

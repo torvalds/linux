@@ -165,7 +165,7 @@ Searching in menuconfig:
 	Example:
 		/hotplug
 		This lists all config symbols that contain "hotplug",
-		e.g., HOTPLUG, HOTPLUG_CPU, MEMORY_HOTPLUG.
+		e.g., HOTPLUG_CPU, MEMORY_HOTPLUG.
 
 	For search help, enter / followed TAB-TAB-TAB (to highlight
 	<Help>) and Enter.  This will tell you that you can also use

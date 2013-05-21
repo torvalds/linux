@@ -617,7 +617,6 @@ config ETRAX_PV_CHANGEABLE_BITS
 config ETRAX_CARDBUS
         bool "Cardbus support"
         depends on ETRAX_ARCH_V32
-        select HOTPLUG
         help
 	 Enabled the ETRAX Cardbus driver.
 

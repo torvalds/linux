@@ -100,7 +100,6 @@ config PM_SLEEP_SMP
 	depends on SMP
 	depends on ARCH_SUSPEND_POSSIBLE || ARCH_HIBERNATION_POSSIBLE
 	depends on PM_SLEEP
-	select HOTPLUG
 	select HOTPLUG_CPU
 
 config PM_AUTOSLEEP

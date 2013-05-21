@@ -1244,9 +1244,6 @@ config SYSCTL_ARCH_UNALIGN_ALLOW
 	  the unaligned access emulation.
 	  see arch/parisc/kernel/unaligned.c for reference
 
-config HOTPLUG
-	def_bool y
-
 config HAVE_PCSPKR_PLATFORM
 	bool
 

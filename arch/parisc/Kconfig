@@ -254,7 +254,6 @@ config IRQSTACKS
 config HOTPLUG_CPU
 	bool
 	default y if SMP
-	select HOTPLUG
 
 config ARCH_SELECT_MEMORY_MODEL
 	def_bool y

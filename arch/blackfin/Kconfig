@@ -253,7 +253,7 @@ config NR_CPUS
 
 config HOTPLUG_CPU
 	bool "Support for hot-pluggable CPUs"
-	depends on SMP && HOTPLUG
+	depends on SMP
 	default y
 
 config BF_REV_MIN
