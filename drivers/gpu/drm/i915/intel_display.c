@@ -4236,7 +4236,7 @@ static int i9xx_get_refclk(struct drm_crtc *crtc, int num_connectors)
 
 static uint32_t pnv_dpll_compute_fp(struct dpll *dpll)
 {
-	return (1 << dpll->n) << 16 | dpll->m1 << 8 | dpll->m2;
+	return (1 << dpll->n) << 16 | dpll->m2;
 }
 
 static uint32_t i9xx_dpll_compute_fp(struct dpll *dpll)
