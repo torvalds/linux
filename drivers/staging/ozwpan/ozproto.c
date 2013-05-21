@@ -110,7 +110,7 @@ static void oz_send_conn_rsp(struct oz_pd *pd, u8 status)
 	/* Fill in device header */
 	if (dev_hard_header(skb, dev, OZ_ETHERTYPE, pd->mac_addr,
 			dev->dev_addr, skb->len) < 0) {
-		kfree_skb(skb);
+		dev_kfree_skb(skb);
 		return;
 	}
 	oz_hdr->control = (OZ_PROTOCOL_VERSION<<OZ_VERSION_SHIFT);
