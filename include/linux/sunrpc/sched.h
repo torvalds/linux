@@ -249,16 +249,6 @@ static inline int rpc_wait_for_completion_task(struct rpc_task *task)
 	return __rpc_wait_for_completion_task(task, NULL);
 }
 
-static inline void rpc_task_set_priority(struct rpc_task *task, unsigned char prio)
-{
-	task->tk_priority = prio - RPC_PRIORITY_LOW;
-}
-
-static inline int rpc_task_has_priority(struct rpc_task *task, unsigned char prio)
-{
-	return (task->tk_priority + RPC_PRIORITY_LOW == prio);
-}
-
 #if defined(RPC_DEBUG) || defined (RPC_TRACEPOINTS)
 static inline const char * rpc_qname(const struct rpc_wait_queue *q)
 {
