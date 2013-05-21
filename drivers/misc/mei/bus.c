@@ -496,6 +496,8 @@ int mei_cl_disable_device(struct mei_cl_device *device)
 		}
 	}
 
+	device->event_cb = NULL;
+
 	mutex_unlock(&dev->device_lock);
 
 	if (!device->ops || !device->ops->disable)
