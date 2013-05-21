@@ -6662,7 +6662,6 @@ static bool ipr_qc_fill_rtf(struct ata_queued_cmd *qc)
 	tf->hob_lbal = g->hob_lbal;
 	tf->hob_lbam = g->hob_lbam;
 	tf->hob_lbah = g->hob_lbah;
-	tf->ctl = g->alt_status;
 
 	return true;
 }
