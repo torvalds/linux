@@ -80,7 +80,7 @@
 
 			sata@a0000 {
 				compatible = "marvell,orion-sata";
-				reg = <0xa0000 0x2400>;
+				reg = <0xa0000 0x5000>;
 				interrupts = <55>;
 				clocks = <&gateclk 15>, <&gateclk 30>;
 				clock-names = "0", "1";
