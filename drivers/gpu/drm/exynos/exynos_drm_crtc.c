@@ -48,6 +48,8 @@ struct exynos_drm_crtc {
 	unsigned int			pipe;
 	unsigned int			dpms;
 	enum exynos_crtc_mode		mode;
+	wait_queue_head_t		pending_flip_queue;
+	atomic_t			pending_flip;
 };
 
 static void exynos_drm_crtc_dpms(struct drm_crtc *crtc, int mode)
@@ -59,6 +61,13 @@ static void exynos_drm_crtc_dpms(struct drm_crtc *crtc, int mode)
 	if (exynos_crtc->dpms == mode) {
 		DRM_DEBUG_KMS("desired dpms mode is same as previous one.\n");
 		return;
+	}
+
+	if (mode > DRM_MODE_DPMS_ON) {
+		/* wait for the completion of page flip. */
+		wait_event(exynos_crtc->pending_flip_queue,
+				atomic_read(&exynos_crtc->pending_flip) == 0);
+		drm_vblank_off(crtc->dev, exynos_crtc->pipe);
 	}
 
 	exynos_drm_fn_encoder(crtc, &mode, exynos_drm_encoder_crtc_dpms);
@@ -224,6 +233,7 @@ static int exynos_drm_crtc_page_flip(struct drm_crtc *crtc,
 		spin_lock_irq(&dev->event_lock);
 		list_add_tail(&event->base.link,
 				&dev_priv->pageflip_event_list);
+		atomic_set(&exynos_crtc->pending_flip, 1);
 		spin_unlock_irq(&dev->event_lock);
 
 		crtc->fb = fb;
@@ -343,6 +353,8 @@ int exynos_drm_crtc_create(struct drm_device *dev, unsigned int nr)
 
 	exynos_crtc->pipe = nr;
 	exynos_crtc->dpms = DRM_MODE_DPMS_OFF;
+	init_waitqueue_head(&exynos_crtc->pending_flip_queue);
+	atomic_set(&exynos_crtc->pending_flip, 0);
 	exynos_crtc->plane = exynos_plane_init(dev, 1 << nr, true);
 	if (!exynos_crtc->plane) {
 		kfree(exynos_crtc);
@@ -397,6 +409,8 @@ void exynos_drm_crtc_finish_pageflip(struct drm_device *dev, int crtc)
 {
 	struct exynos_drm_private *dev_priv = dev->dev_private;
 	struct drm_pending_vblank_event *e, *t;
+	struct drm_crtc *drm_crtc = dev_priv->crtc[crtc];
+	struct exynos_drm_crtc *exynos_crtc = to_exynos_crtc(drm_crtc);
 	unsigned long flags;
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
@@ -412,6 +426,8 @@ void exynos_drm_crtc_finish_pageflip(struct drm_device *dev, int crtc)
 		list_del(&e->base.link);
 		drm_send_vblank_event(dev, -1, e);
 		drm_vblank_put(dev, crtc);
+		atomic_set(&exynos_crtc->pending_flip, 0);
+		wake_up(&exynos_crtc->pending_flip_queue);
 	}
 
 	spin_unlock_irqrestore(&dev->event_lock, flags);
