@@ -862,10 +862,8 @@ int rv770_uvd_resume(struct radeon_device *rdev)
 		chip_id = 0x0100000b;
 		break;
 	case CHIP_SUMO:
-		chip_id = 0x0100000c;
-		break;
 	case CHIP_SUMO2:
-		chip_id = 0x0100000d;
+		chip_id = 0x0100000c;
 		break;
 	case CHIP_PALM:
 		chip_id = 0x0100000e;
