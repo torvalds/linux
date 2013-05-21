@@ -6340,7 +6340,7 @@ static DEFINE_PCI_DEVICE_TABLE(pci_tbl) = {
 	{0,},
 };
 
-static struct pci_driver driver = {
+static struct pci_driver forcedeth_pci_driver = {
 	.name		= DRV_NAME,
 	.id_table	= pci_tbl,
 	.probe		= nv_probe,
@@ -6348,16 +6348,6 @@ static struct pci_driver driver = {
 	.shutdown	= nv_shutdown,
 	.driver.pm	= NV_PM_OPS,
 };
-
-static int __init init_nic(void)
-{
-	return pci_register_driver(&driver);
-}
-
-static void __exit exit_nic(void)
-{
-	pci_unregister_driver(&driver);
-}
 
 module_param(max_interrupt_work, int, 0);
 MODULE_PARM_DESC(max_interrupt_work, "forcedeth maximum events handled per interrupt");
@@ -6379,11 +6369,8 @@ module_param(debug_tx_timeout, bool, 0);
 MODULE_PARM_DESC(debug_tx_timeout,
 		 "Dump tx related registers and ring when tx_timeout happens");
 
+module_pci_driver(forcedeth_pci_driver);
 MODULE_AUTHOR("Manfred Spraul <manfred@colorfullife.com>");
 MODULE_DESCRIPTION("Reverse Engineered nForce ethernet driver");
 MODULE_LICENSE("GPL");
-
 MODULE_DEVICE_TABLE(pci, pci_tbl);
-
-module_init(init_nic);
-module_exit(exit_nic);
