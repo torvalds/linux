@@ -28,7 +28,7 @@
 #include <linux/sched.h>        /* include for timer */
 #include <linux/timer.h>        /* include for timer */
 #include <linux/hdlc.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 #include "sbecom_inline_linux.h"
 #include "libsbew.h"

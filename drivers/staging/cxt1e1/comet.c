@@ -13,7 +13,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/hdlc.h>
 #include "pmcc4_sysdep.h"
 #include "sbecom_inline_linux.h"

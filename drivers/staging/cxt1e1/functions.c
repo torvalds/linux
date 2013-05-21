@@ -14,7 +14,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/slab.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/byteorder.h>
 #include <linux/netdevice.h>
 #include <linux/delay.h>
