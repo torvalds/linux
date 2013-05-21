@@ -37,18 +37,18 @@ static struct map_desc armada_370_xp_io_desc[] __initdata = {
 	},
 };
 
-void __init armada_370_xp_map_io(void)
+static void __init armada_370_xp_map_io(void)
 {
 	iotable_init(armada_370_xp_io_desc, ARRAY_SIZE(armada_370_xp_io_desc));
 }
 
-void __init armada_370_xp_timer_and_clk_init(void)
+static void __init armada_370_xp_timer_and_clk_init(void)
 {
 	mvebu_clocks_init();
 	armada_370_xp_timer_init();
 }
 
-void __init armada_370_xp_init_early(void)
+static void __init armada_370_xp_init_early(void)
 {
 	char *mbus_soc_name;
 
