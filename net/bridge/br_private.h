@@ -249,6 +249,7 @@ struct net_bridge
 
 	u8				multicast_disabled:1;
 	u8				multicast_querier:1;
+	u8				multicast_query_use_ifaddr:1;
 
 	u32				hash_elasticity;
 	u32				hash_max;
