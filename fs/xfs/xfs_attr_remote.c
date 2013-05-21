@@ -359,6 +359,11 @@ xfs_attr_rmtval_set(
 		 * into requiring more blocks. e.g. for 512 byte blocks, we'll
 		 * spill for another block every 9 headers we require in this
 		 * loop.
+		 *
+		 * Note that this can result in contiguous allocation of blocks,
+		 * so we don't use all the space we allocate for headers as we
+		 * have one less header for each contiguous allocation that
+		 * occurs in the map/write loop below.
 		 */
 		if (crcs && blkcnt == 0) {
 			int total_len;
@@ -439,7 +444,6 @@ xfs_attr_rmtval_set(
 		lblkno += map.br_blockcount;
 	}
 	ASSERT(valuelen == 0);
-	ASSERT(hdrcnt == 0);
 	return 0;
 }
 
