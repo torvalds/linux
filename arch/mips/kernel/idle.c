@@ -218,13 +218,18 @@ void __init check_wait(void)
 	}
 }
 
-void arch_cpu_idle(void)
+static void smtc_idle_hook(void)
 {
 #ifdef CONFIG_MIPS_MT_SMTC
-	extern void smtc_idle_loop_hook(void);
+	void smtc_idle_loop_hook(void);
 
 	smtc_idle_loop_hook();
 #endif
+}
+
+void arch_cpu_idle(void)
+{
+	smtc_idle_hook();
 	if (cpu_wait)
 		(*cpu_wait)();
 	else
