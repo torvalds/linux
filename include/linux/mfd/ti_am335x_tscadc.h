@@ -120,11 +120,6 @@
 
 #define TSCADC_CELLS		2
 
-struct mfd_tscadc_board {
-	struct tsc_data *tsc_init;
-	struct adc_data *adc_init;
-};
-
 struct ti_tscadc_dev {
 	struct device *dev;
 	struct regmap *regmap_tscadc;
