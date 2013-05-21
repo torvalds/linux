@@ -3315,7 +3315,8 @@ static void periph_clk_set_init(void)
 
 static void cpu_axi_init(void)
 {
-	unsigned long cpu_div_rate, aclk_cpu_rate, hclk_cpu_rate, pclk_cpu_rate, ahb2apb_cpu_rate;
+	unsigned long cpu_div_rate = 0, aclk_cpu_rate = 0, hclk_cpu_rate = 0,
+		      pclk_cpu_rate = 0, ahb2apb_cpu_rate = 0;
 	unsigned long gpll_rate = general_pll_clk.rate;
 
 	switch (gpll_rate) {
