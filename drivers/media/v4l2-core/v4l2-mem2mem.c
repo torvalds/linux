@@ -372,6 +372,20 @@ int v4l2_m2m_dqbuf(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 EXPORT_SYMBOL_GPL(v4l2_m2m_dqbuf);
 
 /**
+ * v4l2_m2m_create_bufs() - create a source or destination buffer, depending
+ * on the type
+ */
+int v4l2_m2m_create_bufs(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
+			 struct v4l2_create_buffers *create)
+{
+	struct vb2_queue *vq;
+
+	vq = v4l2_m2m_get_vq(m2m_ctx, create->format.type);
+	return vb2_create_bufs(vq, create);
+}
+EXPORT_SYMBOL_GPL(v4l2_m2m_create_bufs);
+
+/**
  * v4l2_m2m_expbuf() - export a source or destination buffer, depending on
  * the type
  */
