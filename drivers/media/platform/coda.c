@@ -571,6 +571,14 @@ static int vidioc_dqbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 	return v4l2_m2m_dqbuf(file, ctx->m2m_ctx, buf);
 }
 
+static int vidioc_create_bufs(struct file *file, void *priv,
+			      struct v4l2_create_buffers *create)
+{
+	struct coda_ctx *ctx = fh_to_ctx(priv);
+
+	return v4l2_m2m_create_bufs(file, ctx->m2m_ctx, create);
+}
+
 static int vidioc_streamon(struct file *file, void *priv,
 			   enum v4l2_buf_type type)
 {
@@ -605,6 +613,7 @@ static const struct v4l2_ioctl_ops coda_ioctl_ops = {
 
 	.vidioc_qbuf		= vidioc_qbuf,
 	.vidioc_dqbuf		= vidioc_dqbuf,
+	.vidioc_create_bufs	= vidioc_create_bufs,
 
 	.vidioc_streamon	= vidioc_streamon,
 	.vidioc_streamoff	= vidioc_streamoff,
