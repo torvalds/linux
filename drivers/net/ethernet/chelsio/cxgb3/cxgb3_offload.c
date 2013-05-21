@@ -1246,6 +1246,7 @@ int cxgb3_offload_activate(struct adapter *adapter)
 	struct tid_range stid_range, tid_range;
 	struct mtutab mtutab;
 	unsigned int l2t_capacity;
+	struct l2t_data *l2td;
 
 	t = kzalloc(sizeof(*t), GFP_KERNEL);
 	if (!t)
@@ -1261,8 +1262,8 @@ int cxgb3_offload_activate(struct adapter *adapter)
 		goto out_free;
 
 	err = -ENOMEM;
-	RCU_INIT_POINTER(dev->l2opt, t3_init_l2t(l2t_capacity));
-	if (!L2DATA(dev))
+	l2td = t3_init_l2t(l2t_capacity);
+	if (!l2td)
 		goto out_free;
 
 	natids = min(tid_range.num / 2, MAX_ATIDS);
@@ -1279,6 +1280,7 @@ int cxgb3_offload_activate(struct adapter *adapter)
 	INIT_LIST_HEAD(&t->list_node);
 	t->dev = dev;
 
+	RCU_INIT_POINTER(dev->l2opt, l2td);
 	T3C_DATA(dev) = t;
 	dev->recv = process_rx;
 	dev->neigh_update = t3_l2t_update;
@@ -1294,8 +1296,7 @@ int cxgb3_offload_activate(struct adapter *adapter)
 	return 0;
 
 out_free_l2t:
-	t3_free_l2t(L2DATA(dev));
-	RCU_INIT_POINTER(dev->l2opt, NULL);
+	t3_free_l2t(l2td);
 out_free:
 	kfree(t);
 	return err;
