@@ -186,6 +186,8 @@ static int usb3503_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 	struct usb3503 *hub;
 	int err = -ENOMEM;
 	u32 mode = USB3503_MODE_UNKNOWN;
+	const u32 *property;
+	int len;
 
 	hub = kzalloc(sizeof(struct usb3503), GFP_KERNEL);
 	if (!hub) {
@@ -203,6 +205,18 @@ static int usb3503_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
 		hub->gpio_reset		= pdata->gpio_reset;
 		hub->mode		= pdata->initial_mode;
 	} else if (np) {
+		hub->port_off_mask = 0;
+
+		property = of_get_property(np, "disabled-ports", &len);
+		if (property && (len / sizeof(u32)) > 0) {
+			int i;
+			for (i = 0; i < len / sizeof(u32); i++) {
+				u32 port = be32_to_cpu(property[i]);
+				if ((1 <= port) && (port <= 3))
+					hub->port_off_mask |= (1 << port);
+			}
+		}
+
 		hub->gpio_intn	= of_get_named_gpio(np, "connect-gpios", 0);
 		if (hub->gpio_intn == -EPROBE_DEFER)
 			return -EPROBE_DEFER;
