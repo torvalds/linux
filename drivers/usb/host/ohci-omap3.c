@@ -252,7 +252,7 @@ static struct platform_driver ohci_hcd_omap3_driver = {
 	.shutdown	= ohci_hcd_omap3_shutdown,
 	.driver		= {
 		.name	= "ohci-omap3",
-		.of_match_table = of_match_ptr(omap_ohci_dt_ids),
+		.of_match_table = omap_ohci_dt_ids,
 	},
 };
 
