@@ -879,6 +879,78 @@ static inline void page_table_free_pgste(unsigned long *table)
 	__free_page(page);
 }
 
+static inline unsigned long page_table_reset_pte(struct mm_struct *mm,
+			pmd_t *pmd, unsigned long addr, unsigned long end)
+{
+	pte_t *start_pte, *pte;
+	spinlock_t *ptl;
+	pgste_t pgste;
+
+	start_pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
+	pte = start_pte;
+	do {
+		pgste = pgste_get_lock(pte);
+		pgste_val(pgste) &= ~_PGSTE_GPS_USAGE_MASK;
+		pgste_set_unlock(pte, pgste);
+	} while (pte++, addr += PAGE_SIZE, addr != end);
+	pte_unmap_unlock(start_pte, ptl);
+
+	return addr;
+}
+
+static inline unsigned long page_table_reset_pmd(struct mm_struct *mm,
+			pud_t *pud, unsigned long addr, unsigned long end)
+{
+	unsigned long next;
+	pmd_t *pmd;
+
+	pmd = pmd_offset(pud, addr);
+	do {
+		next = pmd_addr_end(addr, end);
+		if (pmd_none_or_clear_bad(pmd))
+			continue;
+		next = page_table_reset_pte(mm, pmd, addr, next);
+	} while (pmd++, addr = next, addr != end);
+
+	return addr;
+}
+
+static inline unsigned long page_table_reset_pud(struct mm_struct *mm,
+			pgd_t *pgd, unsigned long addr, unsigned long end)
+{
+	unsigned long next;
+	pud_t *pud;
+
+	pud = pud_offset(pgd, addr);
+	do {
+		next = pud_addr_end(addr, end);
+		if (pud_none_or_clear_bad(pud))
+			continue;
+		next = page_table_reset_pmd(mm, pud, addr, next);
+	} while (pud++, addr = next, addr != end);
+
+	return addr;
+}
+
+void page_table_reset_pgste(struct mm_struct *mm,
+			unsigned long start, unsigned long end)
+{
+	unsigned long addr, next;
+	pgd_t *pgd;
+
+	addr = start;
+	down_read(&mm->mmap_sem);
+	pgd = pgd_offset(mm, addr);
+	do {
+		next = pgd_addr_end(addr, end);
+		if (pgd_none_or_clear_bad(pgd))
+			continue;
+		next = page_table_reset_pud(mm, pgd, addr, next);
+	} while (pgd++, addr = next, addr != end);
+	up_read(&mm->mmap_sem);
+}
+EXPORT_SYMBOL(page_table_reset_pgste);
+
 int set_guest_storage_key(struct mm_struct *mm, unsigned long addr,
 			  unsigned long key, bool nq)
 {
