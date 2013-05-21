@@ -34,6 +34,7 @@ static void r3081_wait(void)
 {
 	unsigned long cfg = read_c0_conf();
 	write_c0_conf(cfg | R30XX_CONF_HALT);
+	local_irq_enable();
 }
 
 static void r39xx_wait(void)
@@ -109,6 +110,7 @@ static void au1k_wait(void)
 	"	nop				\n"
 	"	.set	mips0			\n"
 	: : "r" (au1k_wait));
+	local_irq_enable();
 }
 
 static int __initdata nowait;
