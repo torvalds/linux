@@ -873,7 +873,7 @@ static int set_con2fb_map(int unit, int newidx, int user)
 /*
  *  Low Level Operations
  */
-/* NOTE: fbcon cannot be __init: it may be called from take_over_console later */
+/* NOTE: fbcon cannot be __init: it may be called from do_take_over_console later */
 static int var_to_display(struct display *disp,
 			  struct fb_var_screeninfo *var,
 			  struct fb_info *info)

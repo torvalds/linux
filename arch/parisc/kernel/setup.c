@@ -155,7 +155,7 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 #if defined(CONFIG_VT) && defined(CONFIG_DUMMY_CONSOLE)
-	conswitchp = &dummy_con;	/* we use take_over_console() later ! */
+	conswitchp = &dummy_con;	/* we use do_take_over_console() later ! */
 #endif
 
 }
