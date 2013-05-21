@@ -272,7 +272,6 @@ typedef union {
 	struct	tpm_output_header out;
 } tpm_cmd_header;
 
-#define TPM_DIGEST_SIZE 20
 struct tpm_pcrread_out {
 	u8	pcr_result[TPM_DIGEST_SIZE];
 } __packed;
