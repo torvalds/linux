@@ -88,15 +88,6 @@ struct rpc_task {
 				tk_rebind_retry : 2;
 };
 
-/* support walking a list of tasks on a wait queue */
-#define	task_for_each(task, pos, head) \
-	list_for_each(pos, head) \
-		if ((task=list_entry(pos, struct rpc_task, u.tk_wait.list)),1)
-
-#define	task_for_first(task, head) \
-	if (!list_empty(head) &&  \
-	    ((task=list_entry((head)->next, struct rpc_task, u.tk_wait.list)),1))
-
 typedef void			(*rpc_action)(struct rpc_task *);
 
 struct rpc_call_ops {
