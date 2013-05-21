@@ -234,7 +234,7 @@ void arch_cpu_idle(void)
 {
 	smtc_idle_hook();
 	if (cpu_wait)
-		(*cpu_wait)();
+		cpu_wait();
 	else
 		local_irq_enable();
 }
