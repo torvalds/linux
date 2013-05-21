@@ -26,26 +26,6 @@ static int query_token, change_token;
 #define RTAS_CHANGE_MSIX_FN	4
 #define RTAS_CHANGE_32MSI_FN	5
 
-static struct pci_dn *get_pdn(struct pci_dev *pdev)
-{
-	struct device_node *dn;
-	struct pci_dn *pdn;
-
-	dn = pci_device_to_OF_node(pdev);
-	if (!dn) {
-		dev_dbg(&pdev->dev, "rtas_msi: No OF device node\n");
-		return NULL;
-	}
-
-	pdn = PCI_DN(dn);
-	if (!pdn) {
-		dev_dbg(&pdev->dev, "rtas_msi: No PCI DN\n");
-		return NULL;
-	}
-
-	return pdn;
-}
-
 /* RTAS Helpers */
 
 static int rtas_change_msi(struct pci_dn *pdn, u32 func, u32 num_irqs)
@@ -91,7 +71,7 @@ static void rtas_disable_msi(struct pci_dev *pdev)
 {
 	struct pci_dn *pdn;
 
-	pdn = get_pdn(pdev);
+	pdn = pci_get_pdn(pdev);
 	if (!pdn)
 		return;
 
@@ -152,7 +132,7 @@ static int check_req(struct pci_dev *pdev, int nvec, char *prop_name)
 	struct pci_dn *pdn;
 	const u32 *req_msi;
 
-	pdn = get_pdn(pdev);
+	pdn = pci_get_pdn(pdev);
 	if (!pdn)
 		return -ENODEV;
 
@@ -402,7 +382,7 @@ static int rtas_setup_msi_irqs(struct pci_dev *pdev, int nvec_in, int type)
 	struct msi_msg msg;
 	int nvec = nvec_in;
 
-	pdn = get_pdn(pdev);
+	pdn = pci_get_pdn(pdev);
 	if (!pdn)
 		return -ENODEV;
 
@@ -518,12 +498,3 @@ static int rtas_msi_init(void)
 }
 arch_initcall(rtas_msi_init);
 
-static void quirk_radeon(struct pci_dev *dev)
-{
-	struct pci_dn *pdn = get_pdn(dev);
-
-	if (pdn)
-		pdn->force_32bit_msi = 1;
-}
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0x68f2, quirk_radeon);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0xaa68, quirk_radeon);
