@@ -52,9 +52,11 @@ xfs_attr3_rmt_blocks(
 	struct xfs_mount *mp,
 	int		attrlen)
 {
-	int		buflen = XFS_ATTR3_RMT_BUF_SPACE(mp,
-							 mp->m_sb.sb_blocksize);
-	return (attrlen + buflen - 1) / buflen;
+	if (xfs_sb_version_hascrc(&mp->m_sb)) {
+		int buflen = XFS_ATTR3_RMT_BUF_SPACE(mp, mp->m_sb.sb_blocksize);
+		return (attrlen + buflen - 1) / buflen;
+	}
+	return XFS_B_TO_FSB(mp, attrlen);
 }
 
 static bool
@@ -206,8 +208,9 @@ xfs_attr_rmtval_get(
 
 	while (valuelen > 0) {
 		nmap = ATTR_RMTVALUE_MAPSIZE;
+		blkcnt = xfs_attr3_rmt_blocks(mp, valuelen);
 		error = xfs_bmapi_read(args->dp, (xfs_fileoff_t)lblkno,
-				       args->rmtblkcnt, map, &nmap,
+				       blkcnt, map, &nmap,
 				       XFS_BMAPI_ATTRFORK);
 		if (error)
 			return error;
@@ -227,8 +230,8 @@ xfs_attr_rmtval_get(
 			if (error)
 				return error;
 
-			byte_cnt = min_t(int, valuelen, BBTOB(bp->b_length));
-			byte_cnt = XFS_ATTR3_RMT_BUF_SPACE(mp, byte_cnt);
+			byte_cnt = XFS_ATTR3_RMT_BUF_SPACE(mp, BBTOB(bp->b_length));
+			byte_cnt = min_t(int, valuelen, byte_cnt);
 
 			src = bp->b_addr;
 			if (xfs_sb_version_hascrc(&mp->m_sb)) {
