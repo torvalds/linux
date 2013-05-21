@@ -64,6 +64,42 @@ static int bcm47xxsflash_poll(struct bcm47xxsflash *b47s, int timeout)
  * MTD ops
  **************************************************/
 
+static int bcm47xxsflash_erase(struct mtd_info *mtd, struct erase_info *erase)
+{
+	struct bcm47xxsflash *b47s = mtd->priv;
+	int err;
+
+	switch (b47s->type) {
+	case BCM47XXSFLASH_TYPE_ST:
+		bcm47xxsflash_cmd(b47s, OPCODE_ST_WREN);
+		b47s->cc_write(b47s, BCMA_CC_FLASHADDR, erase->addr);
+		/* Newer flashes have "sub-sectors" which can be erased
+		 * independently with a new command: ST_SSE. The ST_SE command
+		 * erases 64KB just as before.
+		 */
+		if (b47s->blocksize < (64 * 1024))
+			bcm47xxsflash_cmd(b47s, OPCODE_ST_SSE);
+		else
+			bcm47xxsflash_cmd(b47s, OPCODE_ST_SE);
+		break;
+	case BCM47XXSFLASH_TYPE_ATMEL:
+		b47s->cc_write(b47s, BCMA_CC_FLASHADDR, erase->addr << 1);
+		bcm47xxsflash_cmd(b47s, OPCODE_AT_PAGE_ERASE);
+		break;
+	}
+
+	err = bcm47xxsflash_poll(b47s, HZ);
+	if (err)
+		erase->state = MTD_ERASE_FAILED;
+	else
+		erase->state = MTD_ERASE_DONE;
+
+	if (erase->callback)
+		erase->callback(erase);
+
+	return err;
+}
+
 static int bcm47xxsflash_read(struct mtd_info *mtd, loff_t from, size_t len,
 			      size_t *retlen, u_char *buf)
 {
@@ -88,12 +124,15 @@ static void bcm47xxsflash_fill_mtd(struct bcm47xxsflash *b47s)
 	mtd->name = "bcm47xxsflash";
 	mtd->owner = THIS_MODULE;
 	mtd->type = MTD_ROM;
-	mtd->size = b47s->size;
-	mtd->_read = bcm47xxsflash_read;
 
 	/* TODO: implement writing support and verify/change following code */
 	mtd->flags = MTD_CAP_ROM;
+	mtd->size = b47s->size;
+	mtd->erasesize = b47s->blocksize;
 	mtd->writebufsize = mtd->writesize = 1;
+
+	mtd->_erase = bcm47xxsflash_erase;
+	mtd->_read = bcm47xxsflash_read;
 }
 
 /**************************************************
