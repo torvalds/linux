@@ -119,11 +119,6 @@ static int omap_rng_probe(struct platform_device *pdev)
 	dev_set_drvdata(&pdev->dev, priv);
 
 	priv->mem_res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!priv->mem_res) {
-		ret = -ENOENT;
-		goto err_ioremap;
-	}
-
 	priv->base = devm_ioremap_resource(&pdev->dev, priv->mem_res);
 	if (IS_ERR(priv->base)) {
 		ret = PTR_ERR(priv->base);

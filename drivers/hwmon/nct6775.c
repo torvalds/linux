@@ -3705,8 +3705,10 @@ static int nct6775_probe(struct platform_device *pdev)
 			data->have_temp |= 1 << i;
 			data->have_temp_fixed |= 1 << i;
 			data->reg_temp[0][i] = reg_temp_alternate[i];
-			data->reg_temp[1][i] = reg_temp_over[i];
-			data->reg_temp[2][i] = reg_temp_hyst[i];
+			if (i < num_reg_temp) {
+				data->reg_temp[1][i] = reg_temp_over[i];
+				data->reg_temp[2][i] = reg_temp_hyst[i];
+			}
 			data->temp_src[i] = i + 1;
 			continue;
 		}

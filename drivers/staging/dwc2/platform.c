@@ -102,11 +102,6 @@ static int dwc2_driver_probe(struct platform_device *dev)
 	}
 
 	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&dev->dev, "missing memory base resource\n");
-		return -EINVAL;
-	}
-
 	hsotg->regs = devm_ioremap_resource(&dev->dev, res);
 	if (IS_ERR(hsotg->regs))
 		return PTR_ERR(hsotg->regs);
