@@ -31,7 +31,6 @@
 #include <linux/completion.h>
 #include <linux/firmware.h>
 #include <linux/usb.h>
-#include <linux/version.h>
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
