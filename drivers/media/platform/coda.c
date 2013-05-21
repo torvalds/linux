@@ -1676,7 +1676,7 @@ static void coda_timeout(struct work_struct *work)
 
 	complete(&dev->done);
 
-	v4l2_err(&dev->v4l2_dev, "CODA PIC_RUN timeout, stopping all streams\n");
+	dev_err(&dev->plat_dev->dev, "CODA PIC_RUN timeout, stopping all streams\n");
 
 	mutex_lock(&dev->dev_mutex);
 	list_for_each_entry(ctx, &dev->instances, list) {
