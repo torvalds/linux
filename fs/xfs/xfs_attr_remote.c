@@ -296,10 +296,7 @@ xfs_attr_rmtval_set(
 	 * and we may not need that many, so we have to handle this when
 	 * allocating the blocks below. 
 	 */
-	if (!crcs)
-		blkcnt = XFS_B_TO_FSB(mp, args->valuelen);
-	else
-		blkcnt = xfs_attr3_rmt_blocks(mp, args->valuelen);
+	blkcnt = xfs_attr3_rmt_blocks(mp, args->valuelen);
 
 	error = xfs_bmap_first_unused(args->trans, args->dp, blkcnt, &lfileoff,
 						   XFS_ATTR_FORK);
@@ -394,8 +391,11 @@ xfs_attr_rmtval_set(
 	 */
 	lblkno = args->rmtblkno;
 	valuelen = args->valuelen;
+	blkcnt = args->rmtblkcnt;
 	while (valuelen > 0) {
 		int	byte_cnt;
+		int	hdr_size;
+		int	dblkcnt;
 		char	*buf;
 
 		/*
@@ -404,7 +404,7 @@ xfs_attr_rmtval_set(
 		xfs_bmap_init(args->flist, args->firstblock);
 		nmap = 1;
 		error = xfs_bmapi_read(dp, (xfs_fileoff_t)lblkno,
-				       args->rmtblkcnt, &map, &nmap,
+				       blkcnt, &map, &nmap,
 				       XFS_BMAPI_ATTRFORK);
 		if (error)
 			return(error);
@@ -413,26 +413,25 @@ xfs_attr_rmtval_set(
 		       (map.br_startblock != HOLESTARTBLOCK));
 
 		dblkno = XFS_FSB_TO_DADDR(mp, map.br_startblock),
-		blkcnt = XFS_FSB_TO_BB(mp, map.br_blockcount);
+		dblkcnt = XFS_FSB_TO_BB(mp, map.br_blockcount);
 
-		bp = xfs_buf_get(mp->m_ddev_targp, dblkno, blkcnt, 0);
+		bp = xfs_buf_get(mp->m_ddev_targp, dblkno, dblkcnt, 0);
 		if (!bp)
 			return ENOMEM;
 		bp->b_ops = &xfs_attr3_rmt_buf_ops;
-
-		byte_cnt = BBTOB(bp->b_length);
-		byte_cnt = XFS_ATTR3_RMT_BUF_SPACE(mp, byte_cnt);
-		if (valuelen < byte_cnt)
-			byte_cnt = valuelen;
-
 		buf = bp->b_addr;
-		buf += xfs_attr3_rmt_hdr_set(mp, dp->i_ino, offset,
-					     byte_cnt, bp);
-		memcpy(buf, src, byte_cnt);
 
-		if (byte_cnt < BBTOB(bp->b_length))
-			xfs_buf_zero(bp, byte_cnt,
-				     BBTOB(bp->b_length) - byte_cnt);
+		byte_cnt = XFS_ATTR3_RMT_BUF_SPACE(mp, BBTOB(bp->b_length));
+		byte_cnt = min_t(int, valuelen, byte_cnt);
+		hdr_size = xfs_attr3_rmt_hdr_set(mp, dp->i_ino, offset,
+					     byte_cnt, bp);
+		ASSERT(hdr_size + byte_cnt <= BBTOB(bp->b_length));
+
+		memcpy(buf + hdr_size, src, byte_cnt);
+
+		if (byte_cnt + hdr_size < BBTOB(bp->b_length))
+			xfs_buf_zero(bp, byte_cnt + hdr_size,
+				     BBTOB(bp->b_length) - byte_cnt - hdr_size);
 
 		error = xfs_bwrite(bp);	/* GROT: NOTE: synchronous write */
 		xfs_buf_relse(bp);
@@ -442,9 +441,9 @@ xfs_attr_rmtval_set(
 		src += byte_cnt;
 		valuelen -= byte_cnt;
 		offset += byte_cnt;
-		hdrcnt--;
 
 		lblkno += map.br_blockcount;
+		blkcnt -= map.br_blockcount;
 	}
 	ASSERT(valuelen == 0);
 	return 0;
