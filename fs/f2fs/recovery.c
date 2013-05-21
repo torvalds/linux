@@ -189,14 +189,14 @@ static void destroy_fsync_dnodes(struct f2fs_sb_info *sbi,
 }
 
 static void check_index_in_prev_nodes(struct f2fs_sb_info *sbi,
-						block_t blkaddr)
+			block_t blkaddr, struct dnode_of_data *dn)
 {
 	struct seg_entry *sentry;
 	unsigned int segno = GET_SEGNO(sbi, blkaddr);
 	unsigned short blkoff = GET_SEGOFF_FROM_SEG0(sbi, blkaddr) &
 					(sbi->blocks_per_seg - 1);
 	struct f2fs_summary sum;
-	nid_t ino;
+	nid_t ino, nid;
 	void *kaddr;
 	struct inode *inode;
 	struct page *node_page;
@@ -224,10 +224,26 @@ static void check_index_in_prev_nodes(struct f2fs_sb_info *sbi,
 		f2fs_put_page(sum_page, 1);
 	}
 
+	/* Use the locked dnode page and inode */
+	nid = le32_to_cpu(sum.nid);
+	if (dn->inode->i_ino == nid) {
+		struct dnode_of_data tdn = *dn;
+		tdn.nid = nid;
+		tdn.node_page = dn->inode_page;
+		tdn.ofs_in_node = sum.ofs_in_node;
+		truncate_data_blocks_range(&tdn, 1);
+		return;
+	} else if (dn->nid == nid) {
+		struct dnode_of_data tdn = *dn;
+		tdn.ofs_in_node = sum.ofs_in_node;
+		truncate_data_blocks_range(&tdn, 1);
+		return;
+	}
+
 	/* Get the node page */
-	node_page = get_node_page(sbi, le32_to_cpu(sum.nid));
+	node_page = get_node_page(sbi, nid);
 	bidx = start_bidx_of_node(ofs_of_node(node_page)) +
-				le16_to_cpu(sum.ofs_in_node);
+					le16_to_cpu(sum.ofs_in_node);
 	ino = ino_of_node(node_page);
 	f2fs_put_page(node_page, 1);
 
@@ -285,7 +301,7 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 			}
 
 			/* Check the previous node page having this index */
-			check_index_in_prev_nodes(sbi, dest);
+			check_index_in_prev_nodes(sbi, dest, &dn);
 
 			set_summary(&sum, dn.nid, dn.ofs_in_node, ni.version);
 
