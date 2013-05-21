@@ -2181,14 +2181,24 @@ xfs_attr3_leaf_unbalance(
 		struct xfs_attr_leafblock *tmp_leaf;
 		struct xfs_attr3_icleaf_hdr tmphdr;
 
-		tmp_leaf = kmem_alloc(state->blocksize, KM_SLEEP);
-		memset(tmp_leaf, 0, state->blocksize);
-		memset(&tmphdr, 0, sizeof(tmphdr));
+		tmp_leaf = kmem_zalloc(state->blocksize, KM_SLEEP);
 
+		/*
+		 * Copy the header into the temp leaf so that all the stuff
+		 * not in the incore header is present and gets copied back in
+		 * once we've moved all the entries.
+		 */
+		memcpy(tmp_leaf, save_leaf, xfs_attr3_leaf_hdr_size(save_leaf));
+
+		memset(&tmphdr, 0, sizeof(tmphdr));
 		tmphdr.magic = savehdr.magic;
 		tmphdr.forw = savehdr.forw;
 		tmphdr.back = savehdr.back;
 		tmphdr.firstused = state->blocksize;
+
+		/* write the header to the temp buffer to initialise it */
+		xfs_attr3_leaf_hdr_to_disk(tmp_leaf, &tmphdr);
+
 		if (xfs_attr3_leaf_order(save_blk->bp, &savehdr,
 					 drop_blk->bp, &drophdr)) {
 			xfs_attr3_leaf_moveents(drop_leaf, &drophdr, 0,
