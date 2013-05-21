@@ -1445,11 +1445,12 @@ xfs_attr3_leaf_add_work(
 STATIC void
 xfs_attr3_leaf_compact(
 	struct xfs_da_args	*args,
-	struct xfs_attr3_icleaf_hdr *ichdr_d,
+	struct xfs_attr3_icleaf_hdr *ichdr_dst,
 	struct xfs_buf		*bp)
 {
-	xfs_attr_leafblock_t	*leaf_s, *leaf_d;
-	struct xfs_attr3_icleaf_hdr ichdr_s;
+	struct xfs_attr_leafblock *leaf_src;
+	struct xfs_attr_leafblock *leaf_dst;
+	struct xfs_attr3_icleaf_hdr ichdr_src;
 	struct xfs_trans	*trans = args->trans;
 	struct xfs_mount	*mp = trans->t_mountp;
 	char			*tmpbuffer;
@@ -1457,29 +1458,38 @@ xfs_attr3_leaf_compact(
 	trace_xfs_attr_leaf_compact(args);
 
 	tmpbuffer = kmem_alloc(XFS_LBSIZE(mp), KM_SLEEP);
-	ASSERT(tmpbuffer != NULL);
 	memcpy(tmpbuffer, bp->b_addr, XFS_LBSIZE(mp));
 	memset(bp->b_addr, 0, XFS_LBSIZE(mp));
+	leaf_src = (xfs_attr_leafblock_t *)tmpbuffer;
+	leaf_dst = bp->b_addr;
 
 	/*
-	 * Copy basic information
+	 * Copy the on-disk header back into the destination buffer to ensure
+	 * all the information in the header that is not part of the incore
+	 * header structure is preserved.
 	 */
-	leaf_s = (xfs_attr_leafblock_t *)tmpbuffer;
-	leaf_d = bp->b_addr;
-	ichdr_s = *ichdr_d;	/* struct copy */
-	ichdr_d->firstused = XFS_LBSIZE(mp);
-	ichdr_d->usedbytes = 0;
-	ichdr_d->count = 0;
-	ichdr_d->holes = 0;
-	ichdr_d->freemap[0].base = xfs_attr3_leaf_hdr_size(leaf_s);
-	ichdr_d->freemap[0].size = ichdr_d->firstused - ichdr_d->freemap[0].base;
+	memcpy(bp->b_addr, tmpbuffer, xfs_attr3_leaf_hdr_size(leaf_src));
+
+	/* Initialise the incore headers */
+	ichdr_src = *ichdr_dst;	/* struct copy */
+	ichdr_dst->firstused = XFS_LBSIZE(mp);
+	ichdr_dst->usedbytes = 0;
+	ichdr_dst->count = 0;
+	ichdr_dst->holes = 0;
+	ichdr_dst->freemap[0].base = xfs_attr3_leaf_hdr_size(leaf_src);
+	ichdr_dst->freemap[0].size = ichdr_dst->firstused -
+						ichdr_dst->freemap[0].base;
+
+
+	/* write the header back to initialise the underlying buffer */
+	xfs_attr3_leaf_hdr_to_disk(leaf_dst, ichdr_dst);
 
 	/*
 	 * Copy all entry's in the same (sorted) order,
 	 * but allocate name/value pairs packed and in sequence.
 	 */
-	xfs_attr3_leaf_moveents(leaf_s, &ichdr_s, 0, leaf_d, ichdr_d, 0,
-				ichdr_s.count, mp);
+	xfs_attr3_leaf_moveents(leaf_src, &ichdr_src, 0, leaf_dst, ichdr_dst, 0,
+				ichdr_src.count, mp);
 	/*
 	 * this logs the entire buffer, but the caller must write the header
 	 * back to the buffer when it is finished modifying it.
