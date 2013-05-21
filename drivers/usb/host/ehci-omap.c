@@ -294,7 +294,7 @@ static struct platform_driver ehci_hcd_omap_driver = {
 	/*.resume		= ehci_hcd_omap_resume, */
 	.driver = {
 		.name		= hcd_name,
-		.of_match_table = of_match_ptr(omap_ehci_dt_ids),
+		.of_match_table = omap_ehci_dt_ids,
 	}
 };
 
