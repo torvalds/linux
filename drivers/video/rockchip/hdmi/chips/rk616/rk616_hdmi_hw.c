@@ -88,10 +88,12 @@ static void rk616_hdmi_set_pwr_mode(int mode)
 int rk616_hdmi_detect_hotplug(void)
 {
 	int value = 0;
+#if 0
 	HDMIRdReg(INTERRUPT_STATUS1,&value);
 	if(value){
 		HDMIWrReg(INTERRUPT_STATUS1, value);
 	}
+#endif
 	HDMIRdReg(HDMI_STATUS,&value);
 	
 	hdmi_dbg(hdmi->dev, "[%s] value %02x\n", __FUNCTION__, value);
@@ -419,41 +421,22 @@ int rk616_hdmi_removed(void)
 void rk616_hdmi_work(void)
 {		
 	u32 interrupt = 0;
-        static int hpd = 0;
+        int value = 0;
 
-        /* if hdmi_irq == INVALID_GPIO use irq mode, else use roll polling method */
-        if (g_rk616_hdmi->pdata->hdmi_irq == INVALID_GPIO) {
-	
-	        HDMIRdReg(INTERRUPT_STATUS1,&interrupt);
-        	HDMIWrReg(INTERRUPT_STATUS1, interrupt);
-
-	        if(interrupt & m_HOTPLUG){
-		        if(hdmi->state == HDMI_SLEEP)
-			        hdmi->state = WAIT_HOTPLUG;
-        		if(hdmi->pwr_mode == LOWER_PWR)
-	        		rk616_hdmi_set_pwr_mode(NORMAL);
-
-		        queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, msecs_to_jiffies(10));	
-	        }
-
-        } else {
-                int value = 0;
-                HDMIRdReg(HDMI_STATUS,&value);
-                if((value & m_HOTPLUG)&& hpd == 0){
-		        if(hdmi->state == HDMI_SLEEP)
-			        hdmi->state = WAIT_HOTPLUG;
-        		if(hdmi->pwr_mode == LOWER_PWR)
-	        		rk616_hdmi_set_pwr_mode(NORMAL);
-
-		        queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, msecs_to_jiffies(10));	
-                        hpd = 1;
-                } else if (((value & m_HOTPLUG)== 0) && (hpd == 1)) {
-                        queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, msecs_to_jiffies(10));	
-                        hpd = 0;
-
-                }
+        HDMIRdReg(INTERRUPT_STATUS1,&interrupt);
+        if(interrupt){
+                HDMIWrReg(INTERRUPT_STATUS1, interrupt);
         }
 
+	if(interrupt & m_HOTPLUG){
+                if(hdmi->state == HDMI_SLEEP)
+			hdmi->state = WAIT_HOTPLUG;
+        	if(hdmi->pwr_mode == LOWER_PWR)
+	        	rk616_hdmi_set_pwr_mode(NORMAL);
+
+		queue_delayed_work(hdmi->workqueue, &hdmi->delay_work, msecs_to_jiffies(10));	
+
+        }
 
 #if 0	
 	if(hdmi->state == HDMI_SLEEP) {
