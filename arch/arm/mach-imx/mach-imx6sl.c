@@ -7,6 +7,7 @@
  *
  */
 
+#include <linux/clk-provider.h>
 #include <linux/irqchip.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
@@ -33,7 +34,7 @@ static void __init imx6sl_init_irq(void)
 
 static void __init imx6sl_timer_init(void)
 {
-	imx6sl_clocks_init();
+	of_clk_init(NULL);
 }
 
 static const char *imx6sl_dt_compat[] __initdata = {

@@ -66,14 +66,12 @@ static struct clk_div_table video_div_table[] = {
 static struct clk *clks[IMX6SL_CLK_CLK_END];
 static struct clk_onecell_data clk_data;
 
-int __init imx6sl_clocks_init(void)
+static void __init imx6sl_clocks_init(struct device_node *ccm_node)
 {
 	struct device_node *np;
 	void __iomem *base;
 	int irq;
 	int i;
-
-	of_clk_init(NULL);
 
 	clks[IMX6SL_CLK_DUMMY] = imx_clk_fixed("dummy", 0);
 	clks[IMX6SL_CLK_CKIL] = imx_obtain_fixed_clock("ckil", 0);
@@ -125,7 +123,7 @@ int __init imx6sl_clocks_init(void)
 	clks[IMX6SL_CLK_PLL3_80M]  = imx_clk_fixed_factor("pll3_80m",  "pll3_usb_otg",   1, 6);
 	clks[IMX6SL_CLK_PLL3_60M]  = imx_clk_fixed_factor("pll3_60m",  "pll3_usb_otg",   1, 8);
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx6sl-ccm");
+	np = ccm_node;
 	base = of_iomap(np, 0);
 	WARN_ON(!base);
 
@@ -265,6 +263,5 @@ int __init imx6sl_clocks_init(void)
 	WARN_ON(!base);
 	irq = irq_of_parse_and_map(np, 0);
 	mxc_timer_init(base, irq);
-
-	return 0;
 }
+CLK_OF_DECLARE(imx6sl, "fsl,imx6sl-ccm", imx6sl_clocks_init);

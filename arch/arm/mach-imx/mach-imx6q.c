@@ -11,6 +11,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/clk-provider.h>
 #include <linux/clkdev.h>
 #include <linux/clocksource.h>
 #include <linux/cpu.h>
@@ -298,7 +299,7 @@ static void __init imx6q_init_irq(void)
 
 static void __init imx6q_timer_init(void)
 {
-	mx6q_clocks_init();
+	of_clk_init(NULL);
 	clocksource_of_init();
 	imx_print_silicon_rev(cpu_is_imx6dl() ? "i.MX6DL" : "i.MX6Q",
 			      imx6q_revision());
