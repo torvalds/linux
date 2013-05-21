@@ -139,7 +139,7 @@ int mei_hbm_start_wait(struct mei_device *dev)
 
 	if (ret <= 0 && (dev->hbm_state <= MEI_HBM_START)) {
 		dev->hbm_state = MEI_HBM_IDLE;
-		dev_err(&dev->pdev->dev, "wating for mei start failed\n");
+		dev_err(&dev->pdev->dev, "waiting for mei start failed\n");
 		return -ETIMEDOUT;
 	}
 	return 0;

@@ -1587,7 +1587,7 @@ isert_put_nopin(struct iscsi_cmd *cmd, struct iscsi_conn *conn,
 	isert_init_tx_hdrs(isert_conn, &isert_cmd->tx_desc);
 	isert_init_send_wr(isert_cmd, send_wr);
 
-	pr_debug("Posting NOPIN Reponse IB_WR_SEND >>>>>>>>>>>>>>>>>>>>>>\n");
+	pr_debug("Posting NOPIN Response IB_WR_SEND >>>>>>>>>>>>>>>>>>>>>>\n");
 
 	return isert_post_response(isert_conn, isert_cmd);
 }

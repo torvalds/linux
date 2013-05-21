@@ -551,7 +551,7 @@ static int dsps_create_musb_pdev(struct dsps_glue *glue, u8 id)
 		pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 		if (!pdata) {
 			dev_err(&pdev->dev,
-				"failed to allocate musb platfrom data\n");
+				"failed to allocate musb platform data\n");
 			ret = -ENOMEM;
 			goto err2;
 		}

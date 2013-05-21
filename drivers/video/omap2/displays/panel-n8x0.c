@@ -527,7 +527,7 @@ static int n8x0_panel_update(struct omap_dss_device *dssdev,
 	dh = dssdev->panel.timings.y_res;
 
 	if (x != 0 || y != 0 || w != dw || h != dh) {
-		dev_err(&dssdev->dev, "invaid update region %d, %d, %d, %d\n",
+		dev_err(&dssdev->dev, "invalid update region %d, %d, %d, %d\n",
 			x, y, w, h);
 		return -EINVAL;
 	}

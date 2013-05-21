@@ -954,7 +954,7 @@ static int s5p_mfc_queue_setup(struct vb2_queue *vq,
 		psize[0] = ctx->dec_src_buf_size;
 		allocators[0] = ctx->dev->alloc_ctx[MFC_BANK1_ALLOC_CTX];
 	} else {
-		mfc_err("This video node is dedicated to decoding. Decoding not initalised\n");
+		mfc_err("This video node is dedicated to decoding. Decoding not initialized\n");
 		return -EINVAL;
 	}
 	return 0;
