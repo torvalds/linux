@@ -57,13 +57,15 @@ void r4k_wait_irqoff(void)
 {
 	local_irq_disable();
 	if (!need_resched())
-		__asm__("	.set	push		\n"
-			"	.set	mips3		\n"
-			"	wait			\n"
-			"	.set	pop		\n");
+		__asm__(
+		"	.set	push		\n"
+		"	.set	mips3		\n"
+		"	wait			\n"
+		"	.set	pop		\n");
 	local_irq_enable();
-	__asm__("	.globl __pastwait	\n"
-		"__pastwait:			\n");
+	__asm__(
+	"	.globl __pastwait	\n"
+	"__pastwait:			\n");
 }
 
 /*
@@ -94,18 +96,19 @@ static void rm7k_wait_irqoff(void)
  */
 static void au1k_wait(void)
 {
-	__asm__("	.set	mips3			\n"
-		"	cache	0x14, 0(%0)		\n"
-		"	cache	0x14, 32(%0)		\n"
-		"	sync				\n"
-		"	nop				\n"
-		"	wait				\n"
-		"	nop				\n"
-		"	nop				\n"
-		"	nop				\n"
-		"	nop				\n"
-		"	.set	mips0			\n"
-		: : "r" (au1k_wait));
+	__asm__(
+	"	.set	mips3			\n"
+	"	cache	0x14, 0(%0)		\n"
+	"	cache	0x14, 32(%0)		\n"
+	"	sync				\n"
+	"	nop				\n"
+	"	wait				\n"
+	"	nop				\n"
+	"	nop				\n"
+	"	nop				\n"
+	"	nop				\n"
+	"	.set	mips0			\n"
+	: : "r" (au1k_wait));
 }
 
 static int __initdata nowait;
