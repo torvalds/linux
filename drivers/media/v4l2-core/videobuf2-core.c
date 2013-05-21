@@ -54,10 +54,15 @@ static int __vb2_buf_mem_alloc(struct vb2_buffer *vb)
 	void *mem_priv;
 	int plane;
 
-	/* Allocate memory for all planes in this buffer */
+	/*
+	 * Allocate memory for all planes in this buffer
+	 * NOTE: mmapped areas should be page aligned
+	 */
 	for (plane = 0; plane < vb->num_planes; ++plane) {
+		unsigned long size = PAGE_ALIGN(q->plane_sizes[plane]);
+
 		mem_priv = call_memop(q, alloc, q->alloc_ctx[plane],
-				      q->plane_sizes[plane]);
+				      size, q->gfp_flags);
 		if (IS_ERR_OR_NULL(mem_priv))
 			goto free;
 
@@ -403,7 +408,7 @@ static void __fill_v4l2_buffer(struct vb2_buffer *vb, struct v4l2_buffer *b)
 	 * Clear any buffer state related flags.
 	 */
 	b->flags &= ~V4L2_BUFFER_MASK_FLAGS;
-	b->flags |= V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
+	b->flags |= q->timestamp_type;
 
 	switch (vb->state) {
 	case VB2_BUF_STATE_QUEUED:
@@ -855,7 +860,7 @@ void vb2_buffer_done(struct vb2_buffer *vb, enum vb2_buffer_state state)
 		return;
 
 	dprintk(4, "Done processing on buffer %d, state: %d\n",
-			vb->v4l2_buf.index, vb->state);
+			vb->v4l2_buf.index, state);
 
 	/* sync buffers */
 	for (plane = 0; plane < vb->num_planes; ++plane)
@@ -1852,6 +1857,7 @@ int vb2_mmap(struct vb2_queue *q, struct vm_area_struct *vma)
 	struct vb2_buffer *vb;
 	unsigned int buffer, plane;
 	int ret;
+	unsigned long length;
 
 	if (q->memory != V4L2_MEMORY_MMAP) {
 		dprintk(1, "Queue is not currently set up for mmap\n");
@@ -1885,6 +1891,18 @@ int vb2_mmap(struct vb2_queue *q, struct vm_area_struct *vma)
 		return ret;
 
 	vb = q->bufs[buffer];
+
+	/*
+	 * MMAP requires page_aligned buffers.
+	 * The buffer length was page_aligned at __vb2_buf_mem_alloc(),
+	 * so, we need to do the same here.
+	 */
+	length = PAGE_ALIGN(vb->v4l2_planes[plane].length);
+	if (length < (vma->vm_end - vma->vm_start)) {
+		dprintk(1,
+			"MMAP invalid, as it would overflow buffer length\n");
+		return -EINVAL;
+	}
 
 	ret = call_memop(q, mmap, vb->planes[plane].mem_priv, vma);
 	if (ret)
@@ -2039,8 +2057,12 @@ int vb2_queue_init(struct vb2_queue *q)
 	    WARN_ON(!q->type)		  ||
 	    WARN_ON(!q->io_modes)	  ||
 	    WARN_ON(!q->ops->queue_setup) ||
-	    WARN_ON(!q->ops->buf_queue))
+	    WARN_ON(!q->ops->buf_queue)   ||
+	    WARN_ON(q->timestamp_type & ~V4L2_BUF_FLAG_TIMESTAMP_MASK))
 		return -EINVAL;
+
+	/* Warn that the driver should choose an appropriate timestamp type */
+	WARN_ON(q->timestamp_type == V4L2_BUF_FLAG_TIMESTAMP_UNKNOWN);
 
 	INIT_LIST_HEAD(&q->queued_list);
 	INIT_LIST_HEAD(&q->done_list);

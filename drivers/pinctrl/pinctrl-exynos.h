@@ -48,26 +48,18 @@
 
 #define EXYNOS_PIN_BANK_EINTN(pins, reg, id)		\
 	{						\
+		.type		= &bank_type_off,	\
 		.pctl_offset	= reg,			\
 		.nr_pins	= pins,			\
-		.func_width	= 4,			\
-		.pud_width	= 2,			\
-		.drv_width	= 2,			\
-		.conpdn_width	= 2,			\
-		.pudpdn_width	= 2,			\
 		.eint_type	= EINT_TYPE_NONE,	\
 		.name		= id			\
 	}
 
 #define EXYNOS_PIN_BANK_EINTG(pins, reg, id, offs)	\
 	{						\
+		.type		= &bank_type_off,	\
 		.pctl_offset	= reg,			\
 		.nr_pins	= pins,			\
-		.func_width	= 4,			\
-		.pud_width	= 2,			\
-		.drv_width	= 2,			\
-		.conpdn_width	= 2,			\
-		.pudpdn_width	= 2,			\
 		.eint_type	= EINT_TYPE_GPIO,	\
 		.eint_offset	= offs,			\
 		.name		= id			\
@@ -75,11 +67,9 @@
 
 #define EXYNOS_PIN_BANK_EINTW(pins, reg, id, offs)	\
 	{						\
+		.type		= &bank_type_alive,	\
 		.pctl_offset	= reg,			\
 		.nr_pins	= pins,			\
-		.func_width	= 4,			\
-		.pud_width	= 2,			\
-		.drv_width	= 2,			\
 		.eint_type	= EINT_TYPE_WKUP,	\
 		.eint_offset	= offs,			\
 		.name		= id			\

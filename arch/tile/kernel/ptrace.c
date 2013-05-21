@@ -21,8 +21,12 @@
 #include <linux/uaccess.h>
 #include <linux/regset.h>
 #include <linux/elf.h>
+#include <linux/tracehook.h>
 #include <asm/traps.h>
 #include <arch/chip.h>
+
+#define CREATE_TRACE_POINTS
+#include <trace/events/syscalls.h>
 
 void user_enable_single_step(struct task_struct *child)
 {
@@ -246,29 +250,26 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 }
 #endif
 
-void do_syscall_trace(void)
+int do_syscall_trace_enter(struct pt_regs *regs)
 {
-	if (!test_thread_flag(TIF_SYSCALL_TRACE))
-		return;
-
-	if (!(current->ptrace & PT_PTRACED))
-		return;
-
-	/*
-	 * The 0x80 provides a way for the tracing parent to distinguish
-	 * between a syscall stop and SIGTRAP delivery
-	 */
-	ptrace_notify(SIGTRAP|((current->ptrace & PT_TRACESYSGOOD) ? 0x80 : 0));
-
-	/*
-	 * this isn't the same as continuing with a signal, but it will do
-	 * for normal use.  strace only continues with a signal if the
-	 * stopping signal is not SIGTRAP.  -brl
-	 */
-	if (current->exit_code) {
-		send_sig(current->exit_code, current, 1);
-		current->exit_code = 0;
+	if (test_thread_flag(TIF_SYSCALL_TRACE)) {
+		if (tracehook_report_syscall_entry(regs))
+			regs->regs[TREG_SYSCALL_NR] = -1;
 	}
+
+	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))
+		trace_sys_enter(regs, regs->regs[TREG_SYSCALL_NR]);
+
+	return regs->regs[TREG_SYSCALL_NR];
+}
+
+void do_syscall_trace_exit(struct pt_regs *regs)
+{
+	if (test_thread_flag(TIF_SYSCALL_TRACE))
+		tracehook_report_syscall_exit(regs, 0);
+
+	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))
+		trace_sys_exit(regs, regs->regs[0]);
 }
 
 void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs, int error_code)

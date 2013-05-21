@@ -40,7 +40,7 @@ static DEFINE_SPINLOCK(gpio_mux_lock);
 
 #define IOMUX_REG_MASK (IOMUX_PADNUM_MASK & ~0x3)
 
-unsigned long mxc_pin_alloc_map[NB_PORTS * 32 / BITS_PER_LONG];
+static unsigned long mxc_pin_alloc_map[NB_PORTS * 32 / BITS_PER_LONG];
 /*
  * set the mode for a IOMUX pin.
  */

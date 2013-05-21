@@ -16,7 +16,7 @@ comment "Extcon Device Drivers"
 
 config EXTCON_GPIO
 	tristate "GPIO extcon support"
-	depends on GENERIC_GPIO
+	depends on GPIOLIB
 	help
 	  Say Y here to enable GPIO based extcon support. Note that GPIO
 	  extcon supports single state per extcon instance.

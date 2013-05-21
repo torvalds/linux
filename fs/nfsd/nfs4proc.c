@@ -191,9 +191,18 @@ static __be32 nfsd_check_obj_isreg(struct svc_fh *fh)
 	return nfserr_symlink;
 }
 
-static __be32
-do_open_lookup(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_open *open)
+static void nfsd4_set_open_owner_reply_cache(struct nfsd4_compound_state *cstate, struct nfsd4_open *open, struct svc_fh *resfh)
 {
+	if (nfsd4_has_session(cstate))
+		return;
+	fh_copy_shallow(&open->op_openowner->oo_owner.so_replay.rp_openfh,
+			&resfh->fh_handle);
+}
+
+static __be32
+do_open_lookup(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate, struct nfsd4_open *open)
+{
+	struct svc_fh *current_fh = &cstate->current_fh;
 	struct svc_fh *resfh;
 	int accmode;
 	__be32 status;
@@ -252,9 +261,7 @@ do_open_lookup(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_o
 	if (is_create_with_attrs(open) && open->op_acl != NULL)
 		do_set_nfs4_acl(rqstp, resfh, open->op_acl, open->op_bmval);
 
-	/* set reply cache */
-	fh_copy_shallow(&open->op_openowner->oo_owner.so_replay.rp_openfh,
-			&resfh->fh_handle);
+	nfsd4_set_open_owner_reply_cache(cstate, open, resfh);
 	accmode = NFSD_MAY_NOP;
 	if (open->op_created)
 		accmode |= NFSD_MAY_OWNER_OVERRIDE;
@@ -268,9 +275,11 @@ out:
 }
 
 static __be32
-do_open_fhandle(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_open *open)
+do_open_fhandle(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate, struct nfsd4_open *open)
 {
+	struct svc_fh *current_fh = &cstate->current_fh;
 	__be32 status;
+	int accmode = 0;
 
 	/* We don't know the target directory, and therefore can not
 	* set the change info
@@ -278,15 +287,23 @@ do_open_fhandle(struct svc_rqst *rqstp, struct svc_fh *current_fh, struct nfsd4_
 
 	memset(&open->op_cinfo, 0, sizeof(struct nfsd4_change_info));
 
-	/* set replay cache */
-	fh_copy_shallow(&open->op_openowner->oo_owner.so_replay.rp_openfh,
-			&current_fh->fh_handle);
+	nfsd4_set_open_owner_reply_cache(cstate, open, current_fh);
 
 	open->op_truncate = (open->op_iattr.ia_valid & ATTR_SIZE) &&
 		(open->op_iattr.ia_size == 0);
+	/*
+	 * In the delegation case, the client is telling us about an
+	 * open that it *already* performed locally, some time ago.  We
+	 * should let it succeed now if possible.
+	 *
+	 * In the case of a CLAIM_FH open, on the other hand, the client
+	 * may be counting on us to enforce permissions (the Linux 4.1
+	 * client uses this for normal opens, for example).
+	 */
+	if (open->op_claim_type == NFS4_OPEN_CLAIM_DELEG_CUR_FH)
+		accmode = NFSD_MAY_OWNER_OVERRIDE;
 
-	status = do_open_permission(rqstp, current_fh, open,
-				    NFSD_MAY_OWNER_OVERRIDE);
+	status = do_open_permission(rqstp, current_fh, open, accmode);
 
 	return status;
 }
@@ -351,6 +368,10 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	}
 	if (status)
 		goto out;
+	if (open->op_xdr_error) {
+		status = open->op_xdr_error;
+		goto out;
+	}
 
 	status = nfsd4_check_open_attributes(rqstp, cstate, open);
 	if (status)
@@ -368,8 +389,7 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	switch (open->op_claim_type) {
 		case NFS4_OPEN_CLAIM_DELEGATE_CUR:
 		case NFS4_OPEN_CLAIM_NULL:
-			status = do_open_lookup(rqstp, &cstate->current_fh,
-						open);
+			status = do_open_lookup(rqstp, cstate, open);
 			if (status)
 				goto out;
 			break;
@@ -382,8 +402,7 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 				goto out;
 		case NFS4_OPEN_CLAIM_FH:
 		case NFS4_OPEN_CLAIM_DELEG_CUR_FH:
-			status = do_open_fhandle(rqstp, &cstate->current_fh,
-						 open);
+			status = do_open_fhandle(rqstp, cstate, open);
 			if (status)
 				goto out;
 			break;
@@ -409,11 +428,30 @@ nfsd4_open(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	WARN_ON(status && open->op_created);
 out:
 	nfsd4_cleanup_open_state(open, status);
-	if (open->op_openowner)
+	if (open->op_openowner && !nfsd4_has_session(cstate))
 		cstate->replay_owner = &open->op_openowner->oo_owner;
-	else
+	nfsd4_bump_seqid(cstate, status);
+	if (!cstate->replay_owner)
 		nfs4_unlock_state();
 	return status;
+}
+
+/*
+ * OPEN is the only seqid-mutating operation whose decoding can fail
+ * with a seqid-mutating error (specifically, decoding of user names in
+ * the attributes).  Therefore we have to do some processing to look up
+ * the stateowner so that we can bump the seqid.
+ */
+static __be32 nfsd4_open_omfg(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate, struct nfsd4_op *op)
+{
+	struct nfsd4_open *open = (struct nfsd4_open *)&op->u;
+
+	if (!seqid_mutating_err(ntohl(op->status)))
+		return op->status;
+	if (nfsd4_has_session(cstate))
+		return op->status;
+	open->op_xdr_error = op->status;
+	return nfsd4_open(rqstp, cstate, open);
 }
 
 /*
@@ -786,21 +824,11 @@ nfsd4_rename(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	status = nfsd_rename(rqstp, &cstate->save_fh, rename->rn_sname,
 			     rename->rn_snamelen, &cstate->current_fh,
 			     rename->rn_tname, rename->rn_tnamelen);
-
-	/* the underlying filesystem returns different error's than required
-	 * by NFSv4. both save_fh and current_fh have been verified.. */
-	if (status == nfserr_isdir)
-		status = nfserr_exist;
-	else if ((status == nfserr_notdir) &&
-                  (S_ISDIR(cstate->save_fh.fh_dentry->d_inode->i_mode) &&
-                   S_ISDIR(cstate->current_fh.fh_dentry->d_inode->i_mode)))
-		status = nfserr_exist;
-
-	if (!status) {
-		set_change_info(&rename->rn_sinfo, &cstate->current_fh);
-		set_change_info(&rename->rn_tinfo, &cstate->save_fh);
-	}
-	return status;
+	if (status)
+		return status;
+	set_change_info(&rename->rn_sinfo, &cstate->current_fh);
+	set_change_info(&rename->rn_tinfo, &cstate->save_fh);
+	return nfs_ok;
 }
 
 static __be32
@@ -931,14 +959,14 @@ nfsd4_write(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	nfs4_lock_state();
 	status = nfs4_preprocess_stateid_op(SVC_NET(rqstp),
 					cstate, stateid, WR_STATE, &filp);
-	if (filp)
-		get_file(filp);
-	nfs4_unlock_state();
-
 	if (status) {
+		nfs4_unlock_state();
 		dprintk("NFSD: nfsd4_write: couldn't process stateid!\n");
 		return status;
 	}
+	if (filp)
+		get_file(filp);
+	nfs4_unlock_state();
 
 	cnt = write->wr_buflen;
 	write->wr_how_written = write->wr_stable_how;
@@ -1244,8 +1272,11 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 		 * for example, if there is a miscellaneous XDR error
 		 * it will be set to nfserr_bad_xdr.
 		 */
-		if (op->status)
+		if (op->status) {
+			if (op->opnum == OP_OPEN)
+				op->status = nfsd4_open_omfg(rqstp, cstate, op);
 			goto encode_op;
+		}
 
 		/* We must be able to encode a successful response to
 		 * this operation, with enough room left over to encode a
@@ -1282,12 +1313,9 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 		if (op->status)
 			goto encode_op;
 
-		if (opdesc->op_func) {
-			if (opdesc->op_get_currentstateid)
-				opdesc->op_get_currentstateid(cstate, &op->u);
-			op->status = opdesc->op_func(rqstp, cstate, &op->u);
-		} else
-			BUG_ON(op->status == nfs_ok);
+		if (opdesc->op_get_currentstateid)
+			opdesc->op_get_currentstateid(cstate, &op->u);
+		op->status = opdesc->op_func(rqstp, cstate, &op->u);
 
 		if (!op->status) {
 			if (opdesc->op_set_currentstateid)

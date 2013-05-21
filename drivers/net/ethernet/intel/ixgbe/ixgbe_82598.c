@@ -1305,6 +1305,7 @@ static struct ixgbe_mac_operations mac_ops_82598 = {
 	.release_swfw_sync      = &ixgbe_release_swfw_sync,
 	.get_thermal_sensor_data = NULL,
 	.init_thermal_sensor_thresh = NULL,
+	.mng_fw_enabled		= NULL,
 };
 
 static struct ixgbe_eeprom_operations eeprom_ops_82598 = {

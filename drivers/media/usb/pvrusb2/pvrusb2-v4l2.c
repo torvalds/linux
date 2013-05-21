@@ -196,13 +196,13 @@ static int pvr2_g_std(struct file *file, void *priv, v4l2_std_id *std)
 	return ret;
 }
 
-static int pvr2_s_std(struct file *file, void *priv, v4l2_std_id *std)
+static int pvr2_s_std(struct file *file, void *priv, v4l2_std_id std)
 {
 	struct pvr2_v4l2_fh *fh = file->private_data;
 	struct pvr2_hdw *hdw = fh->channel.mc_head->hdw;
 
 	return pvr2_ctrl_set_value(
-		pvr2_hdw_get_ctrl_by_id(hdw, PVR2_CID_STDCUR), *std);
+		pvr2_hdw_get_ctrl_by_id(hdw, PVR2_CID_STDCUR), std);
 }
 
 static int pvr2_querystd(struct file *file, void *priv, v4l2_std_id *std)
@@ -352,7 +352,7 @@ static int pvr2_g_tuner(struct file *file, void *priv, struct v4l2_tuner *vt)
 	return pvr2_hdw_get_tuner_status(hdw, vt);
 }
 
-static int pvr2_s_tuner(struct file *file, void *priv, struct v4l2_tuner *vt)
+static int pvr2_s_tuner(struct file *file, void *priv, const struct v4l2_tuner *vt)
 {
 	struct pvr2_v4l2_fh *fh = file->private_data;
 	struct pvr2_hdw *hdw = fh->channel.mc_head->hdw;
@@ -365,7 +365,7 @@ static int pvr2_s_tuner(struct file *file, void *priv, struct v4l2_tuner *vt)
 			vt->audmode);
 }
 
-static int pvr2_s_frequency(struct file *file, void *priv, struct v4l2_frequency *vf)
+static int pvr2_s_frequency(struct file *file, void *priv, const struct v4l2_frequency *vf)
 {
 	struct pvr2_v4l2_fh *fh = file->private_data;
 	struct pvr2_hdw *hdw = fh->channel.mc_head->hdw;
@@ -815,7 +815,7 @@ static int pvr2_g_register(struct file *file, void *priv, struct v4l2_dbg_regist
 	return ret;
 }
 
-static int pvr2_s_register(struct file *file, void *priv, struct v4l2_dbg_register *req)
+static int pvr2_s_register(struct file *file, void *priv, const struct v4l2_dbg_register *req)
 {
 	struct pvr2_v4l2_fh *fh = file->private_data;
 	struct pvr2_hdw *hdw = fh->channel.mc_head->hdw;

@@ -31,26 +31,14 @@
 #define _CHANNEL_H_
 
 #include "device.h"
-#include "ttype.h"
-
-/*---------------------  Export Definitions -------------------------*/
-
-/*---------------------  Export Classes  ----------------------------*/
 
 typedef struct tagSChannelTblElement {
-    BYTE    byChannelNumber;
+    u8    byChannelNumber;
     unsigned int    uFrequency;
     bool    bValid;
 } SChannelTblElement, *PSChannelTblElement;
 
-/*---------------------  Export Variables  --------------------------*/
-
-/*---------------------  Export Functions  --------------------------*/
-
 bool    ChannelValid(unsigned int CountryCode, unsigned int ChannelNum);
 void    CHvInitChannelTable(struct vnt_private *pDevice);
-BYTE    CHbyGetChannelMapping(BYTE byChannelNumber);
-
-bool CHvChannelGetList(unsigned int uCountryCodeIdx, PBYTE pbyChannelTable);
 
 #endif  /* _CHANNEL_H_ */

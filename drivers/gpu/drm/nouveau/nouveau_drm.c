@@ -31,13 +31,13 @@
 #include <core/gpuobj.h>
 #include <core/class.h>
 
-#include <subdev/device.h>
+#include <engine/device.h>
+#include <engine/disp.h>
+#include <engine/fifo.h>
+
 #include <subdev/vm.h>
 
-#include <engine/disp.h>
-
 #include "nouveau_drm.h"
-#include "nouveau_irq.h"
 #include "nouveau_dma.h"
 #include "nouveau_ttm.h"
 #include "nouveau_gem.h"
@@ -72,11 +72,25 @@ module_param_named(modeset, nouveau_modeset, int, 0400);
 static struct drm_driver driver;
 
 static int
+nouveau_drm_vblank_handler(struct nouveau_eventh *event, int head)
+{
+	struct nouveau_drm *drm =
+		container_of(event, struct nouveau_drm, vblank[head]);
+	drm_handle_vblank(drm->dev, head);
+	return NVKM_EVENT_KEEP;
+}
+
+static int
 nouveau_drm_vblank_enable(struct drm_device *dev, int head)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_disp *pdisp = nouveau_disp(drm->device);
-	nouveau_event_get(pdisp->vblank, head, &drm->vblank);
+
+	if (WARN_ON_ONCE(head > ARRAY_SIZE(drm->vblank)))
+		return -EIO;
+	WARN_ON_ONCE(drm->vblank[head].func);
+	drm->vblank[head].func = nouveau_drm_vblank_handler;
+	nouveau_event_get(pdisp->vblank, head, &drm->vblank[head]);
 	return 0;
 }
 
@@ -85,16 +99,11 @@ nouveau_drm_vblank_disable(struct drm_device *dev, int head)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_disp *pdisp = nouveau_disp(drm->device);
-	nouveau_event_put(pdisp->vblank, head, &drm->vblank);
-}
-
-static int
-nouveau_drm_vblank_handler(struct nouveau_eventh *event, int head)
-{
-	struct nouveau_drm *drm =
-		container_of(event, struct nouveau_drm, vblank);
-	drm_handle_vblank(drm->dev, head);
-	return NVKM_EVENT_KEEP;
+	if (drm->vblank[head].func)
+		nouveau_event_put(pdisp->vblank, head, &drm->vblank[head]);
+	else
+		WARN_ON_ONCE(1);
+	drm->vblank[head].func = NULL;
 }
 
 static u64
@@ -156,7 +165,7 @@ nouveau_accel_init(struct nouveau_drm *drm)
 	u32 arg0, arg1;
 	int ret;
 
-	if (nouveau_noaccel)
+	if (nouveau_noaccel || !nouveau_fifo(device) /*XXX*/)
 		return;
 
 	/* initialise synchronisation routines */
@@ -292,7 +301,6 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 
 	dev->dev_private = drm;
 	drm->dev = dev;
-	drm->vblank.func = nouveau_drm_vblank_handler;
 
 	INIT_LIST_HEAD(&drm->clients);
 	spin_lock_init(&drm->tile.lock);
@@ -357,10 +365,6 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 	if (ret)
 		goto fail_bios;
 
-	ret = nouveau_irq_init(dev);
-	if (ret)
-		goto fail_irq;
-
 	ret = nouveau_display_create(dev);
 	if (ret)
 		goto fail_dispctor;
@@ -380,8 +384,6 @@ nouveau_drm_load(struct drm_device *dev, unsigned long flags)
 fail_dispinit:
 	nouveau_display_destroy(dev);
 fail_dispctor:
-	nouveau_irq_fini(dev);
-fail_irq:
 	nouveau_bios_takedown(dev);
 fail_bios:
 	nouveau_ttm_fini(drm);
@@ -407,7 +409,6 @@ nouveau_drm_unload(struct drm_device *dev)
 		nouveau_display_fini(dev);
 	nouveau_display_destroy(dev);
 
-	nouveau_irq_fini(dev);
 	nouveau_bios_takedown(dev);
 
 	nouveau_ttm_fini(drm);
@@ -525,7 +526,6 @@ nouveau_do_resume(struct drm_device *dev)
 		nouveau_fence(drm)->resume(drm);
 
 	nouveau_run_vbios_init(dev);
-	nouveau_irq_postinstall(dev);
 	nouveau_pm_resume(dev);
 
 	if (dev->mode_config.num_crtc) {
@@ -661,8 +661,7 @@ static struct drm_driver
 driver = {
 	.driver_features =
 		DRIVER_USE_AGP | DRIVER_PCI_DMA | DRIVER_SG |
-		DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | DRIVER_GEM |
-		DRIVER_MODESET | DRIVER_PRIME,
+		DRIVER_GEM | DRIVER_MODESET | DRIVER_PRIME,
 
 	.load = nouveau_drm_load,
 	.unload = nouveau_drm_unload,
@@ -675,11 +674,6 @@ driver = {
 	.debugfs_init = nouveau_debugfs_init,
 	.debugfs_cleanup = nouveau_debugfs_takedown,
 #endif
-
-	.irq_preinstall = nouveau_irq_preinstall,
-	.irq_postinstall = nouveau_irq_postinstall,
-	.irq_uninstall = nouveau_irq_uninstall,
-	.irq_handler = nouveau_irq_handler,
 
 	.get_vblank_counter = drm_vblank_count,
 	.enable_vblank = nouveau_drm_vblank_enable,

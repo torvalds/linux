@@ -47,21 +47,6 @@ CsrResult unifi_remove_udi_hook(card_t *card, udi_func_t udi_fn);
  * This is used in the linux /proc interface and might be useful
  * in other systems.
  */
-s32 unifi_print_status(card_t *card, char *str, s32 *remain);
-
-#define UNIFI_SNPRINTF_RET(buf_p, remain, written)                  \
-    do {                                                            \
-        if (written >= remain) {                                    \
-            if (remain >= 2) {                                      \
-                buf_p[remain - 2] = '\n';                           \
-                buf_p[remain - 1] = 0;                              \
-            }                                                       \
-            buf_p += remain;                                        \
-            remain = 0;                                             \
-        } else if (written > 0) {                                   \
-            buf_p += written;                                       \
-            remain -= written;                                      \
-        }                                                           \
-    } while (0)
+s32 unifi_print_status(card_t *card, struct seq_file *m);
 
 #endif /* __CSR_WIFI_HIP_UNIFI_UDI_H__ */

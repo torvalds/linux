@@ -97,7 +97,7 @@ static int flush_commit_list(struct super_block *s,
 static int can_dirty(struct reiserfs_journal_cnode *cn);
 static int journal_join(struct reiserfs_transaction_handle *th,
 			struct super_block *sb, unsigned long nblocks);
-static int release_journal_dev(struct super_block *super,
+static void release_journal_dev(struct super_block *super,
 			       struct reiserfs_journal *journal);
 static int dirty_one_transaction(struct super_block *s,
 				 struct reiserfs_journal_list *jl);
@@ -2532,23 +2532,13 @@ static void journal_list_init(struct super_block *sb)
 	SB_JOURNAL(sb)->j_current_jl = alloc_journal_list(sb);
 }
 
-static int release_journal_dev(struct super_block *super,
+static void release_journal_dev(struct super_block *super,
 			       struct reiserfs_journal *journal)
 {
-	int result;
-
-	result = 0;
-
 	if (journal->j_dev_bd != NULL) {
-		result = blkdev_put(journal->j_dev_bd, journal->j_dev_mode);
+		blkdev_put(journal->j_dev_bd, journal->j_dev_mode);
 		journal->j_dev_bd = NULL;
 	}
-
-	if (result != 0) {
-		reiserfs_warning(super, "sh-457",
-				 "Cannot release journal device: %i", result);
-	}
-	return result;
 }
 
 static int journal_init_dev(struct super_block *super,

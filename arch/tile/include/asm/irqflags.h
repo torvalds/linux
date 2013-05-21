@@ -40,7 +40,15 @@
 #include <asm/percpu.h>
 #include <arch/spr_def.h>
 
-/* Set and clear kernel interrupt masks. */
+/*
+ * Set and clear kernel interrupt masks.
+ *
+ * NOTE: __insn_mtspr() is a compiler builtin marked as a memory
+ * clobber.  We rely on it being equivalent to a compiler barrier in
+ * this code since arch_local_irq_save() and friends must act as
+ * compiler barriers.  This compiler semantic is baked into enough
+ * places that the compiler will maintain it going forward.
+ */
 #if CHIP_HAS_SPLIT_INTR_MASK()
 #if INT_PERF_COUNT < 32 || INT_AUX_PERF_COUNT < 32 || INT_MEM_ERROR >= 32
 # error Fix assumptions about which word various interrupts are in

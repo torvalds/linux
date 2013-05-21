@@ -1,7 +1,7 @@
 /*
  * Kernel traps/events for Hexagon processor
  *
- * Copyright (c) 2010-2011, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2010-2013, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -65,6 +65,10 @@ static const char *ex_name(int ex)
 		return "Write protection fault";
 	case HVM_GE_C_XMAL:
 		return "Misaligned instruction";
+	case HVM_GE_C_WREG:
+		return "Multiple writes to same register in packet";
+	case HVM_GE_C_PCAL:
+		return "Program counter values that are not properly aligned";
 	case HVM_GE_C_RMAL:
 		return "Misaligned data load";
 	case HVM_GE_C_WMAL:
@@ -191,14 +195,6 @@ void show_stack(struct task_struct *task, unsigned long *fp)
 	do_show_stack(task, fp, 0);
 }
 
-void dump_stack(void)
-{
-	unsigned long *fp;
-	asm("%0 = r30" : "=r" (fp));
-	show_stack(current, fp);
-}
-EXPORT_SYMBOL(dump_stack);
-
 int die(const char *str, struct pt_regs *regs, long err)
 {
 	static struct {
@@ -324,6 +320,12 @@ void do_genex(struct pt_regs *regs)
 	case HVM_GE_C_XMAL:
 		misaligned_instruction(regs);
 		break;
+	case HVM_GE_C_WREG:
+		illegal_instruction(regs);
+		break;
+	case HVM_GE_C_PCAL:
+		misaligned_instruction(regs);
+		break;
 	case HVM_GE_C_RMAL:
 		misaligned_data_load(regs);
 		break;
@@ -356,7 +358,6 @@ long sys_syscall(void)
 
 void do_trap0(struct pt_regs *regs)
 {
-	unsigned long syscallret = 0;
 	syscall_fn syscall;
 
 	switch (pt_cause(regs)) {
@@ -396,20 +397,10 @@ void do_trap0(struct pt_regs *regs)
 		} else {
 			syscall = (syscall_fn)
 				  (sys_call_table[regs->syscall_nr]);
-			syscallret = syscall(regs->r00, regs->r01,
+			regs->r00 = syscall(regs->r00, regs->r01,
 				   regs->r02, regs->r03,
 				   regs->r04, regs->r05);
 		}
-
-		/*
-		 * If it was a sigreturn system call, don't overwrite
-		 * r0 value in stack frame with return value.
-		 *
-		 * __NR_sigreturn doesn't seem to exist in new unistd.h
-		 */
-
-		if (regs->syscall_nr != __NR_rt_sigreturn)
-			regs->r00 = syscallret;
 
 		/* allow strace to get the syscall return state  */
 		if (unlikely(test_thread_flag(TIF_SYSCALL_TRACE)))
@@ -451,4 +442,15 @@ void do_machcheck(struct pt_regs *regs)
 {
 	/* Halt and catch fire */
 	__vmstop();
+}
+
+/*
+ * Treat this like the old 0xdb trap.
+ */
+
+void do_debug_exception(struct pt_regs *regs)
+{
+	regs->hvmer.vmest &= ~HVM_VMEST_CAUSE_MSK;
+	regs->hvmer.vmest |= (TRAP_DEBUG << HVM_VMEST_CAUSE_SFT);
+	do_trap0(regs);
 }

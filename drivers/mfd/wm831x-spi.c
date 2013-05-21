@@ -37,7 +37,7 @@ static int wm831x_spi_probe(struct spi_device *spi)
 	spi->bits_per_word = 16;
 	spi->mode = SPI_MODE_0;
 
-	dev_set_drvdata(&spi->dev, wm831x);
+	spi_set_drvdata(spi, wm831x);
 	wm831x->dev = &spi->dev;
 
 	wm831x->regmap = devm_regmap_init_spi(spi, &wm831x_regmap_config);
@@ -53,7 +53,7 @@ static int wm831x_spi_probe(struct spi_device *spi)
 
 static int wm831x_spi_remove(struct spi_device *spi)
 {
-	struct wm831x *wm831x = dev_get_drvdata(&spi->dev);
+	struct wm831x *wm831x = spi_get_drvdata(spi);
 
 	wm831x_device_exit(wm831x);
 
@@ -69,7 +69,7 @@ static int wm831x_spi_suspend(struct device *dev)
 
 static void wm831x_spi_shutdown(struct spi_device *spi)
 {
-	struct wm831x *wm831x = dev_get_drvdata(&spi->dev);
+	struct wm831x *wm831x = spi_get_drvdata(spi);
 
 	wm831x_device_shutdown(wm831x);
 }

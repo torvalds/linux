@@ -474,7 +474,14 @@ ipt_log_packet(u_int8_t pf,
 	       const struct nf_loginfo *loginfo,
 	       const char *prefix)
 {
-	struct sbuff *m = sb_open();
+	struct sbuff *m;
+	struct net *net = dev_net(in ? in : out);
+
+	/* FIXME: Disabled from containers until syslog ns is supported */
+	if (!net_eq(net, &init_net))
+		return;
+
+	m = sb_open();
 
 	if (!loginfo)
 		loginfo = &default_loginfo;
@@ -798,7 +805,14 @@ ip6t_log_packet(u_int8_t pf,
 		const struct nf_loginfo *loginfo,
 		const char *prefix)
 {
-	struct sbuff *m = sb_open();
+	struct sbuff *m;
+	struct net *net = dev_net(in ? in : out);
+
+	/* FIXME: Disabled from containers until syslog ns is supported */
+	if (!net_eq(net, &init_net))
+		return;
+
+	m = sb_open();
 
 	if (!loginfo)
 		loginfo = &default_loginfo;
@@ -893,23 +907,55 @@ static struct nf_logger ip6t_log_logger __read_mostly = {
 };
 #endif
 
+static int __net_init log_net_init(struct net *net)
+{
+	nf_log_set(net, NFPROTO_IPV4, &ipt_log_logger);
+#if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
+	nf_log_set(net, NFPROTO_IPV6, &ip6t_log_logger);
+#endif
+	return 0;
+}
+
+static void __net_exit log_net_exit(struct net *net)
+{
+	nf_log_unset(net, &ipt_log_logger);
+#if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
+	nf_log_unset(net, &ip6t_log_logger);
+#endif
+}
+
+static struct pernet_operations log_net_ops = {
+	.init = log_net_init,
+	.exit = log_net_exit,
+};
+
 static int __init log_tg_init(void)
 {
 	int ret;
 
+	ret = register_pernet_subsys(&log_net_ops);
+	if (ret < 0)
+		goto err_pernet;
+
 	ret = xt_register_targets(log_tg_regs, ARRAY_SIZE(log_tg_regs));
 	if (ret < 0)
-		return ret;
+		goto err_target;
 
 	nf_log_register(NFPROTO_IPV4, &ipt_log_logger);
 #if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
 	nf_log_register(NFPROTO_IPV6, &ip6t_log_logger);
 #endif
 	return 0;
+
+err_target:
+	unregister_pernet_subsys(&log_net_ops);
+err_pernet:
+	return ret;
 }
 
 static void __exit log_tg_exit(void)
 {
+	unregister_pernet_subsys(&log_net_ops);
 	nf_log_unregister(&ipt_log_logger);
 #if IS_ENABLED(CONFIG_IP6_NF_IPTABLES)
 	nf_log_unregister(&ip6t_log_logger);

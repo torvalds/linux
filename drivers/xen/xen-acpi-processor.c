@@ -25,6 +25,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/types.h>
+#include <linux/syscore_ops.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 #include <acpi/processor.h>
@@ -51,9 +52,9 @@ static DEFINE_MUTEX(acpi_ids_mutex);
 /* Which ACPI ID we have processed from 'struct acpi_processor'. */
 static unsigned long *acpi_ids_done;
 /* Which ACPI ID exist in the SSDT/DSDT processor definitions. */
-static unsigned long __initdata *acpi_id_present;
+static unsigned long *acpi_id_present;
 /* And if there is an _CST definition (or a PBLK) for the ACPI IDs */
-static unsigned long __initdata *acpi_id_cst_present;
+static unsigned long *acpi_id_cst_present;
 
 static int push_cxx_to_hypervisor(struct acpi_processor *_pr)
 {
@@ -329,7 +330,7 @@ static unsigned int __init get_max_acpi_id(void)
  * for_each_[present|online]_cpu macros which are banded to the virtual
  * CPU amount.
  */
-static acpi_status __init
+static acpi_status
 read_acpi_id(acpi_handle handle, u32 lvl, void *context, void **rv)
 {
 	u32 acpi_id;
@@ -384,11 +385,15 @@ read_acpi_id(acpi_handle handle, u32 lvl, void *context, void **rv)
 
 	return AE_OK;
 }
-static int __init check_acpi_ids(struct acpi_processor *pr_backup)
+static int check_acpi_ids(struct acpi_processor *pr_backup)
 {
 
 	if (!pr_backup)
 		return -ENODEV;
+
+	if (acpi_id_present && acpi_id_cst_present)
+		/* OK, done this once .. skip to uploading */
+		goto upload;
 
 	/* All online CPUs have been processed at this stage. Now verify
 	 * whether in fact "online CPUs" == physical CPUs.
@@ -408,6 +413,7 @@ static int __init check_acpi_ids(struct acpi_processor *pr_backup)
 			    read_acpi_id, NULL, NULL, NULL);
 	acpi_get_devices("ACPI0007", read_acpi_id, NULL, NULL);
 
+upload:
 	if (!bitmap_equal(acpi_id_present, acpi_ids_done, nr_acpi_bits)) {
 		unsigned int i;
 		for_each_set_bit(i, acpi_id_present, nr_acpi_bits) {
@@ -417,10 +423,7 @@ static int __init check_acpi_ids(struct acpi_processor *pr_backup)
 			(void)upload_pm_data(pr_backup);
 		}
 	}
-	kfree(acpi_id_present);
-	acpi_id_present = NULL;
-	kfree(acpi_id_cst_present);
-	acpi_id_cst_present = NULL;
+
 	return 0;
 }
 static int __init check_prereq(void)
@@ -467,9 +470,46 @@ static void free_acpi_perf_data(void)
 	free_percpu(acpi_perf_data);
 }
 
-static int __init xen_acpi_processor_init(void)
+static int xen_upload_processor_pm_data(void)
 {
 	struct acpi_processor *pr_backup = NULL;
+	unsigned int i;
+	int rc = 0;
+
+	pr_info(DRV_NAME "Uploading Xen processor PM info\n");
+
+	for_each_possible_cpu(i) {
+		struct acpi_processor *_pr;
+		_pr = per_cpu(processors, i /* APIC ID */);
+		if (!_pr)
+			continue;
+
+		if (!pr_backup) {
+			pr_backup = kzalloc(sizeof(struct acpi_processor), GFP_KERNEL);
+			if (pr_backup)
+				memcpy(pr_backup, _pr, sizeof(struct acpi_processor));
+		}
+		(void)upload_pm_data(_pr);
+	}
+
+	rc = check_acpi_ids(pr_backup);
+	kfree(pr_backup);
+
+	return rc;
+}
+
+static void xen_acpi_processor_resume(void)
+{
+	bitmap_zero(acpi_ids_done, nr_acpi_bits);
+	xen_upload_processor_pm_data();
+}
+
+static struct syscore_ops xap_syscore_ops = {
+	.resume	= xen_acpi_processor_resume,
+};
+
+static int __init xen_acpi_processor_init(void)
+{
 	unsigned int i;
 	int rc = check_prereq();
 
@@ -514,26 +554,11 @@ static int __init xen_acpi_processor_init(void)
 			goto err_out;
 	}
 
-	for_each_possible_cpu(i) {
-		struct acpi_processor *_pr;
-		_pr = per_cpu(processors, i /* APIC ID */);
-		if (!_pr)
-			continue;
-
-		if (!pr_backup) {
-			pr_backup = kzalloc(sizeof(struct acpi_processor), GFP_KERNEL);
-			if (pr_backup)
-				memcpy(pr_backup, _pr, sizeof(struct acpi_processor));
-		}
-		(void)upload_pm_data(_pr);
-	}
-	rc = check_acpi_ids(pr_backup);
-
-	kfree(pr_backup);
-	pr_backup = NULL;
-
+	rc = xen_upload_processor_pm_data();
 	if (rc)
 		goto err_unregister;
+
+	register_syscore_ops(&xap_syscore_ops);
 
 	return 0;
 err_unregister:
@@ -552,7 +577,10 @@ static void __exit xen_acpi_processor_exit(void)
 {
 	int i;
 
+	unregister_syscore_ops(&xap_syscore_ops);
 	kfree(acpi_ids_done);
+	kfree(acpi_id_present);
+	kfree(acpi_id_cst_present);
 	for_each_possible_cpu(i) {
 		struct acpi_processor_performance *perf;
 		perf = per_cpu_ptr(acpi_perf_data, i);

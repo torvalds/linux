@@ -200,6 +200,7 @@ ENTRY(secondary_startup_64)
 	btl	$20,%edi		/* No Execute supported? */
 	jnc     1f
 	btsl	$_EFER_NX, %eax
+	btsq	$_PAGE_BIT_NX,early_pmd_flags(%rip)
 1:	wrmsr				/* Make changes effective */
 
 	/* Setup cr0 */

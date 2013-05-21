@@ -52,7 +52,7 @@
 #endif
 
 extern const char *drbd_buildtag(void);
-#define REL_VERSION "8.4.2"
+#define REL_VERSION "8.4.3"
 #define API_VERSION 1
 #define PRO_VERSION_MIN 86
 #define PRO_VERSION_MAX 101
@@ -319,7 +319,8 @@ enum drbd_state_rv {
 	SS_IN_TRANSIENT_STATE = -18,  /* Retry after the next state change */
 	SS_CONCURRENT_ST_CHG = -19,   /* Concurrent cluster side state change! */
 	SS_O_VOL_PEER_PRI = -20,
-	SS_AFTER_LAST_ERROR = -21,    /* Keep this at bottom */
+	SS_OUTDATE_WO_CONN = -21,
+	SS_AFTER_LAST_ERROR = -22,    /* Keep this at bottom */
 };
 
 /* from drbd_strings.c */

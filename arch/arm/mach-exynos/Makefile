@@ -13,10 +13,6 @@ obj-				:=
 # Core
 
 obj-$(CONFIG_ARCH_EXYNOS)	+= common.o
-obj-$(CONFIG_ARCH_EXYNOS4)	+= clock-exynos4.o
-obj-$(CONFIG_CPU_EXYNOS4210)	+= clock-exynos4210.o
-obj-$(CONFIG_SOC_EXYNOS4212)	+= clock-exynos4212.o
-obj-$(CONFIG_SOC_EXYNOS5250)	+= clock-exynos5.o
 
 obj-$(CONFIG_PM)		+= pm.o
 obj-$(CONFIG_PM_GENERIC_DOMAINS) += pm_domains.o
@@ -26,9 +22,13 @@ obj-$(CONFIG_ARCH_EXYNOS)	+= pmu.o
 
 obj-$(CONFIG_SMP)		+= platsmp.o headsmp.o
 
-obj-$(CONFIG_EXYNOS4_MCT)	+= mct.o
-
 obj-$(CONFIG_HOTPLUG_CPU)	+= hotplug.o
+
+obj-$(CONFIG_ARCH_EXYNOS)	+= exynos-smc.o
+obj-$(CONFIG_ARCH_EXYNOS)	+= firmware.o
+
+plus_sec := $(call as-instr,.arch_extension sec,+sec)
+AFLAGS_exynos-smc.o		:=-Wa,-march=armv7-a$(plus_sec)
 
 # machine support
 

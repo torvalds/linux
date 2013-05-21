@@ -27,6 +27,63 @@
 
 #include <linux/types.h>
 
+
+/*
+ * Implementation of host controlled snapshot of the guest.
+ */
+
+#define VSS_OP_REGISTER 128
+
+enum hv_vss_op {
+	VSS_OP_CREATE = 0,
+	VSS_OP_DELETE,
+	VSS_OP_HOT_BACKUP,
+	VSS_OP_GET_DM_INFO,
+	VSS_OP_BU_COMPLETE,
+	/*
+	 * Following operations are only supported with IC version >= 5.0
+	 */
+	VSS_OP_FREEZE, /* Freeze the file systems in the VM */
+	VSS_OP_THAW, /* Unfreeze the file systems */
+	VSS_OP_AUTO_RECOVER,
+	VSS_OP_COUNT /* Number of operations, must be last */
+};
+
+
+/*
+ * Header for all VSS messages.
+ */
+struct hv_vss_hdr {
+	__u8 operation;
+	__u8 reserved[7];
+} __attribute__((packed));
+
+
+/*
+ * Flag values for the hv_vss_check_feature. Linux supports only
+ * one value.
+ */
+#define VSS_HBU_NO_AUTO_RECOVERY	0x00000005
+
+struct hv_vss_check_feature {
+	__u32 flags;
+} __attribute__((packed));
+
+struct hv_vss_check_dm_info {
+	__u32 flags;
+} __attribute__((packed));
+
+struct hv_vss_msg {
+	union {
+		struct hv_vss_hdr vss_hdr;
+		int error;
+	};
+	union {
+		struct hv_vss_check_feature vss_cf;
+		struct hv_vss_check_dm_info dm_info;
+	};
+} __attribute__((packed));
+
 /*
  * An implementation of HyperV key value pair (KVP) functionality for Linux.
  *
@@ -1253,6 +1310,25 @@ void vmbus_driver_unregister(struct hv_driver *hv_driver);
 		}
 
 /*
+ * VSS (Backup/Restore) GUID
+ */
+#define HV_VSS_GUID \
+	.guid = { \
+			0x29, 0x2e, 0xfa, 0x35, 0x23, 0xea, 0x36, 0x42, \
+			0x96, 0xae, 0x3a, 0x6e, 0xba, 0xcb, 0xa4,  0x40 \
+		}
+/*
+ * Synthetic Video GUID
+ * {DA0A7802-E377-4aac-8E77-0558EB1073F8}
+ */
+#define HV_SYNTHVID_GUID \
+	.guid = { \
+			0x02, 0x78, 0x0a, 0xda, 0x77, 0xe3, 0xac, 0x4a, \
+			0x8e, 0x77, 0x05, 0x58, 0xeb, 0x10, 0x73, 0xf8 \
+		}
+
+
+/*
  * Common header for Hyper-V ICs
  */
 
@@ -1355,6 +1431,10 @@ extern void vmbus_prep_negotiate_resp(struct icmsg_hdr *,
 int hv_kvp_init(struct hv_util_service *);
 void hv_kvp_deinit(void);
 void hv_kvp_onchannelcallback(void *);
+
+int hv_vss_init(struct hv_util_service *);
+void hv_vss_deinit(void);
+void hv_vss_onchannelcallback(void *);
 
 /*
  * Negotiated version with the Host.

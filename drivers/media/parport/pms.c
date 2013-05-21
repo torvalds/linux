@@ -735,12 +735,12 @@ static int pms_g_std(struct file *file, void *fh, v4l2_std_id *std)
 	return 0;
 }
 
-static int pms_s_std(struct file *file, void *fh, v4l2_std_id *std)
+static int pms_s_std(struct file *file, void *fh, v4l2_std_id std)
 {
 	struct pms *dev = video_drvdata(file);
 	int ret = 0;
 
-	dev->std = *std;
+	dev->std = std;
 	if (dev->std & V4L2_STD_NTSC) {
 		pms_framerate(dev, 30);
 		pms_secamcross(dev, 0);

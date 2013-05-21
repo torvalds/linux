@@ -97,17 +97,6 @@ void kvmppc_add_revmap_chain(struct kvm *kvm, struct revmap_entry *rev,
 }
 EXPORT_SYMBOL_GPL(kvmppc_add_revmap_chain);
 
-/*
- * Note modification of an HPTE; set the HPTE modified bit
- * if anyone is interested.
- */
-static inline void note_hpte_modification(struct kvm *kvm,
-					  struct revmap_entry *rev)
-{
-	if (atomic_read(&kvm->arch.hpte_mod_interest))
-		rev->guest_rpte |= HPTE_GR_MODIFIED;
-}
-
 /* Remove this HPTE from the chain for a real page */
 static void remove_revmap_chain(struct kvm *kvm, long pte_index,
 				struct revmap_entry *rev,

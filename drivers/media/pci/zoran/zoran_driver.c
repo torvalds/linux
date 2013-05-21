@@ -2435,14 +2435,14 @@ static int zoran_g_std(struct file *file, void *__fh, v4l2_std_id *std)
 	return 0;
 }
 
-static int zoran_s_std(struct file *file, void *__fh, v4l2_std_id *std)
+static int zoran_s_std(struct file *file, void *__fh, v4l2_std_id std)
 {
 	struct zoran_fh *fh = __fh;
 	struct zoran *zr = fh->zr;
 	int res = 0;
 
 	mutex_lock(&zr->resource_lock);
-	res = zoran_set_norm(zr, *std);
+	res = zoran_set_norm(zr, std);
 	if (res)
 		goto sstd_unlock_and_return;
 

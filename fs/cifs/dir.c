@@ -102,7 +102,7 @@ cifs_bp_rename_retry:
 		namelen += (1 + temp->d_name.len);
 		temp = temp->d_parent;
 		if (temp == NULL) {
-			cERROR(1, "corrupt dentry");
+			cifs_dbg(VFS, "corrupt dentry\n");
 			rcu_read_unlock();
 			return NULL;
 		}
@@ -124,12 +124,12 @@ cifs_bp_rename_retry:
 			full_path[namelen] = dirsep;
 			strncpy(full_path + namelen + 1, temp->d_name.name,
 				temp->d_name.len);
-			cFYI(0, "name: %s", full_path + namelen);
+			cifs_dbg(FYI, "name: %s\n", full_path + namelen);
 		}
 		spin_unlock(&temp->d_lock);
 		temp = temp->d_parent;
 		if (temp == NULL) {
-			cERROR(1, "corrupt dentry");
+			cifs_dbg(VFS, "corrupt dentry\n");
 			rcu_read_unlock();
 			kfree(full_path);
 			return NULL;
@@ -137,8 +137,8 @@ cifs_bp_rename_retry:
 	}
 	rcu_read_unlock();
 	if (namelen != dfsplen || read_seqretry(&rename_lock, seq)) {
-		cFYI(1, "did not end path lookup where expected. namelen=%d "
-			"dfsplen=%d", namelen, dfsplen);
+		cifs_dbg(FYI, "did not end path lookup where expected. namelen=%ddfsplen=%d\n",
+			 namelen, dfsplen);
 		/* presumably this is only possible if racing with a rename
 		of one of the parent directories  (we can not lock the dentries
 		above us to prevent this, but retrying should be harmless) */
@@ -178,7 +178,7 @@ check_name(struct dentry *direntry)
 	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_POSIX_PATHS)) {
 		for (i = 0; i < direntry->d_name.len; i++) {
 			if (direntry->d_name.name[i] == '\\') {
-				cFYI(1, "Invalid file name");
+				cifs_dbg(FYI, "Invalid file name\n");
 				return -EINVAL;
 			}
 		}
@@ -291,7 +291,7 @@ cifs_do_create(struct inode *inode, struct dentry *direntry, unsigned int xid,
 	else if ((oflags & O_CREAT) == O_CREAT)
 		disposition = FILE_OPEN_IF;
 	else
-		cFYI(1, "Create flag not set in create function");
+		cifs_dbg(FYI, "Create flag not set in create function\n");
 
 	/*
 	 * BB add processing to set equivalent of mode - e.g. via CreateX with
@@ -323,7 +323,7 @@ cifs_do_create(struct inode *inode, struct dentry *direntry, unsigned int xid,
 			       desired_access, create_options, fid, oplock,
 			       buf, cifs_sb);
 	if (rc) {
-		cFYI(1, "cifs_create returned 0x%x", rc);
+		cifs_dbg(FYI, "cifs_create returned 0x%x\n", rc);
 		goto out;
 	}
 
@@ -389,7 +389,8 @@ cifs_create_get_file_info:
 
 cifs_create_set_dentry:
 	if (rc != 0) {
-		cFYI(1, "Create worked, get_inode_info failed rc = %d", rc);
+		cifs_dbg(FYI, "Create worked, get_inode_info failed rc = %d\n",
+			 rc);
 		if (server->ops->close)
 			server->ops->close(xid, tcon, fid);
 		goto out;
@@ -452,12 +453,14 @@ cifs_atomic_open(struct inode *inode, struct dentry *direntry,
 
 	xid = get_xid();
 
-	cFYI(1, "parent inode = 0x%p name is: %s and dentry = 0x%p",
-	     inode, direntry->d_name.name, direntry);
+	cifs_dbg(FYI, "parent inode = 0x%p name is: %s and dentry = 0x%p\n",
+		 inode, direntry->d_name.name, direntry);
 
 	tlink = cifs_sb_tlink(CIFS_SB(inode->i_sb));
-	if (IS_ERR(tlink))
+	if (IS_ERR(tlink)) {
+		rc = PTR_ERR(tlink);
 		goto out_free_xid;
+	}
 
 	tcon = tlink_tcon(tlink);
 	server = tcon->ses->server;
@@ -518,8 +521,8 @@ int cifs_create(struct inode *inode, struct dentry *direntry, umode_t mode,
 	__u32 oplock;
 	int created = FILE_CREATED;
 
-	cFYI(1, "cifs_create parent inode = 0x%p name is: %s and dentry = 0x%p",
-	     inode, direntry->d_name.name, direntry);
+	cifs_dbg(FYI, "cifs_create parent inode = 0x%p name is: %s and dentry = 0x%p\n",
+		 inode, direntry->d_name.name, direntry);
 
 	tlink = cifs_sb_tlink(CIFS_SB(inode->i_sb));
 	rc = PTR_ERR(tlink);
@@ -613,7 +616,7 @@ int cifs_mknod(struct inode *inode, struct dentry *direntry, umode_t mode,
 		goto mknod_out;
 
 
-	cFYI(1, "sfu compat create special file");
+	cifs_dbg(FYI, "sfu compat create special file\n");
 
 	buf = kmalloc(sizeof(FILE_ALL_INFO), GFP_KERNEL);
 	if (buf == NULL) {
@@ -688,8 +691,8 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 
 	xid = get_xid();
 
-	cFYI(1, "parent inode = 0x%p name is: %s and dentry = 0x%p",
-	      parent_dir_inode, direntry->d_name.name, direntry);
+	cifs_dbg(FYI, "parent inode = 0x%p name is: %s and dentry = 0x%p\n",
+		 parent_dir_inode, direntry->d_name.name, direntry);
 
 	/* check whether path exists */
 
@@ -715,11 +718,12 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	}
 
 	if (direntry->d_inode != NULL) {
-		cFYI(1, "non-NULL inode in lookup");
+		cifs_dbg(FYI, "non-NULL inode in lookup\n");
 	} else {
-		cFYI(1, "NULL inode in lookup");
+		cifs_dbg(FYI, "NULL inode in lookup\n");
 	}
-	cFYI(1, "Full path: %s inode = 0x%p", full_path, direntry->d_inode);
+	cifs_dbg(FYI, "Full path: %s inode = 0x%p\n",
+		 full_path, direntry->d_inode);
 
 	if (pTcon->unix_ext) {
 		rc = cifs_get_inode_info_unix(&newInode, full_path,
@@ -742,7 +746,7 @@ cifs_lookup(struct inode *parent_dir_inode, struct dentry *direntry,
 	/*	if it was once a directory (but how can we tell?) we could do
 		shrink_dcache_parent(direntry); */
 	} else if (rc != -EACCES) {
-		cERROR(1, "Unexpected lookup error %d", rc);
+		cifs_dbg(VFS, "Unexpected lookup error %d\n", rc);
 		/* We special case check for Access Denied - since that
 		is a common return code */
 	}
@@ -807,7 +811,7 @@ cifs_d_revalidate(struct dentry *direntry, unsigned int flags)
 {
 	int rc = 0;
 
-	cFYI(1, "In cifs d_delete, name = %s", direntry->d_name.name);
+	cifs_dbg(FYI, "In cifs d_delete, name = %s\n", direntry->d_name.name);
 
 	return rc;
 }     */

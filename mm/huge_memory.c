@@ -163,35 +163,34 @@ static int start_khugepaged(void)
 }
 
 static atomic_t huge_zero_refcount;
-static unsigned long huge_zero_pfn __read_mostly;
+static struct page *huge_zero_page __read_mostly;
 
-static inline bool is_huge_zero_pfn(unsigned long pfn)
+static inline bool is_huge_zero_page(struct page *page)
 {
-	unsigned long zero_pfn = ACCESS_ONCE(huge_zero_pfn);
-	return zero_pfn && pfn == zero_pfn;
+	return ACCESS_ONCE(huge_zero_page) == page;
 }
 
 static inline bool is_huge_zero_pmd(pmd_t pmd)
 {
-	return is_huge_zero_pfn(pmd_pfn(pmd));
+	return is_huge_zero_page(pmd_page(pmd));
 }
 
-static unsigned long get_huge_zero_page(void)
+static struct page *get_huge_zero_page(void)
 {
 	struct page *zero_page;
 retry:
 	if (likely(atomic_inc_not_zero(&huge_zero_refcount)))
-		return ACCESS_ONCE(huge_zero_pfn);
+		return ACCESS_ONCE(huge_zero_page);
 
 	zero_page = alloc_pages((GFP_TRANSHUGE | __GFP_ZERO) & ~__GFP_MOVABLE,
 			HPAGE_PMD_ORDER);
 	if (!zero_page) {
 		count_vm_event(THP_ZERO_PAGE_ALLOC_FAILED);
-		return 0;
+		return NULL;
 	}
 	count_vm_event(THP_ZERO_PAGE_ALLOC);
 	preempt_disable();
-	if (cmpxchg(&huge_zero_pfn, 0, page_to_pfn(zero_page))) {
+	if (cmpxchg(&huge_zero_page, NULL, zero_page)) {
 		preempt_enable();
 		__free_page(zero_page);
 		goto retry;
@@ -200,7 +199,7 @@ retry:
 	/* We take additional reference here. It will be put back by shrinker */
 	atomic_set(&huge_zero_refcount, 2);
 	preempt_enable();
-	return ACCESS_ONCE(huge_zero_pfn);
+	return ACCESS_ONCE(huge_zero_page);
 }
 
 static void put_huge_zero_page(void)
@@ -220,9 +219,9 @@ static int shrink_huge_zero_page(struct shrinker *shrink,
 		return atomic_read(&huge_zero_refcount) == 1 ? HPAGE_PMD_NR : 0;
 
 	if (atomic_cmpxchg(&huge_zero_refcount, 1, 0) == 1) {
-		unsigned long zero_pfn = xchg(&huge_zero_pfn, 0);
-		BUG_ON(zero_pfn == 0);
-		__free_page(__pfn_to_page(zero_pfn));
+		struct page *zero_page = xchg(&huge_zero_page, NULL);
+		BUG_ON(zero_page == NULL);
+		__free_page(zero_page);
 	}
 
 	return 0;
@@ -713,6 +712,11 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
 		return VM_FAULT_OOM;
 
 	clear_huge_page(page, haddr, HPAGE_PMD_NR);
+	/*
+	 * The memory barrier inside __SetPageUptodate makes sure that
+	 * clear_huge_page writes become visible before the set_pmd_at()
+	 * write.
+	 */
 	__SetPageUptodate(page);
 
 	spin_lock(&mm->page_table_lock);
@@ -724,12 +728,6 @@ static int __do_huge_pmd_anonymous_page(struct mm_struct *mm,
 	} else {
 		pmd_t entry;
 		entry = mk_huge_pmd(page, vma);
-		/*
-		 * The spinlocking to take the lru_lock inside
-		 * page_add_new_anon_rmap() acts as a full memory
-		 * barrier to be sure clear_huge_page writes become
-		 * visible after the set_pmd_at() write.
-		 */
 		page_add_new_anon_rmap(page, vma, haddr);
 		set_pmd_at(mm, haddr, pmd, entry);
 		pgtable_trans_huge_deposit(mm, pgtable);
@@ -765,12 +763,12 @@ static inline struct page *alloc_hugepage(int defrag)
 
 static bool set_huge_zero_page(pgtable_t pgtable, struct mm_struct *mm,
 		struct vm_area_struct *vma, unsigned long haddr, pmd_t *pmd,
-		unsigned long zero_pfn)
+		struct page *zero_page)
 {
 	pmd_t entry;
 	if (!pmd_none(*pmd))
 		return false;
-	entry = pfn_pmd(zero_pfn, vma->vm_page_prot);
+	entry = mk_pmd(zero_page, vma->vm_page_prot);
 	entry = pmd_wrprotect(entry);
 	entry = pmd_mkhuge(entry);
 	set_pmd_at(mm, haddr, pmd, entry);
@@ -795,20 +793,20 @@ int do_huge_pmd_anonymous_page(struct mm_struct *mm, struct vm_area_struct *vma,
 		if (!(flags & FAULT_FLAG_WRITE) &&
 				transparent_hugepage_use_zero_page()) {
 			pgtable_t pgtable;
-			unsigned long zero_pfn;
+			struct page *zero_page;
 			bool set;
 			pgtable = pte_alloc_one(mm, haddr);
 			if (unlikely(!pgtable))
 				return VM_FAULT_OOM;
-			zero_pfn = get_huge_zero_page();
-			if (unlikely(!zero_pfn)) {
+			zero_page = get_huge_zero_page();
+			if (unlikely(!zero_page)) {
 				pte_free(mm, pgtable);
 				count_vm_event(THP_FAULT_FALLBACK);
 				goto out;
 			}
 			spin_lock(&mm->page_table_lock);
 			set = set_huge_zero_page(pgtable, mm, vma, haddr, pmd,
-					zero_pfn);
+					zero_page);
 			spin_unlock(&mm->page_table_lock);
 			if (!set) {
 				pte_free(mm, pgtable);
@@ -887,16 +885,16 @@ int copy_huge_pmd(struct mm_struct *dst_mm, struct mm_struct *src_mm,
 	 * a page table.
 	 */
 	if (is_huge_zero_pmd(pmd)) {
-		unsigned long zero_pfn;
+		struct page *zero_page;
 		bool set;
 		/*
 		 * get_huge_zero_page() will never allocate a new page here,
 		 * since we already have a zero page to copy. It just takes a
 		 * reference.
 		 */
-		zero_pfn = get_huge_zero_page();
+		zero_page = get_huge_zero_page();
 		set = set_huge_zero_page(pgtable, dst_mm, vma, addr, dst_pmd,
-				zero_pfn);
+				zero_page);
 		BUG_ON(!set); /* unexpected !pmd_none(dst_pmd) */
 		ret = 0;
 		goto out_unlock;
@@ -1560,7 +1558,8 @@ static int __split_huge_page_splitting(struct page *page,
 	return ret;
 }
 
-static void __split_huge_page_refcount(struct page *page)
+static void __split_huge_page_refcount(struct page *page,
+				       struct list_head *list)
 {
 	int i;
 	struct zone *zone = page_zone(page);
@@ -1646,7 +1645,7 @@ static void __split_huge_page_refcount(struct page *page)
 		BUG_ON(!PageDirty(page_tail));
 		BUG_ON(!PageSwapBacked(page_tail));
 
-		lru_add_page_tail(page, page_tail, lruvec);
+		lru_add_page_tail(page, page_tail, lruvec, list);
 	}
 	atomic_sub(tail_count, &page->_count);
 	BUG_ON(atomic_read(&page->_count) <= 0);
@@ -1753,7 +1752,8 @@ static int __split_huge_page_map(struct page *page,
 
 /* must be called with anon_vma->root->rwsem held */
 static void __split_huge_page(struct page *page,
-			      struct anon_vma *anon_vma)
+			      struct anon_vma *anon_vma,
+			      struct list_head *list)
 {
 	int mapcount, mapcount2;
 	pgoff_t pgoff = page->index << (PAGE_CACHE_SHIFT - PAGE_SHIFT);
@@ -1784,7 +1784,7 @@ static void __split_huge_page(struct page *page,
 		       mapcount, page_mapcount(page));
 	BUG_ON(mapcount != page_mapcount(page));
 
-	__split_huge_page_refcount(page);
+	__split_huge_page_refcount(page, list);
 
 	mapcount2 = 0;
 	anon_vma_interval_tree_foreach(avc, &anon_vma->rb_root, pgoff, pgoff) {
@@ -1799,12 +1799,19 @@ static void __split_huge_page(struct page *page,
 	BUG_ON(mapcount != mapcount2);
 }
 
-int split_huge_page(struct page *page)
+/*
+ * Split a hugepage into normal pages. This doesn't change the position of head
+ * page. If @list is null, tail pages will be added to LRU list, otherwise, to
+ * @list. Both head page and tail pages will inherit mapping, flags, and so on
+ * from the hugepage.
+ * Return 0 if the hugepage is split successfully otherwise return 1.
+ */
+int split_huge_page_to_list(struct page *page, struct list_head *list)
 {
 	struct anon_vma *anon_vma;
 	int ret = 1;
 
-	BUG_ON(is_huge_zero_pfn(page_to_pfn(page)));
+	BUG_ON(is_huge_zero_page(page));
 	BUG_ON(!PageAnon(page));
 
 	/*
@@ -1824,7 +1831,7 @@ int split_huge_page(struct page *page)
 		goto out_unlock;
 
 	BUG_ON(!PageSwapBacked(page));
-	__split_huge_page(page, anon_vma);
+	__split_huge_page(page, anon_vma, list);
 	count_vm_event(THP_SPLIT);
 
 	BUG_ON(PageCompound(page));

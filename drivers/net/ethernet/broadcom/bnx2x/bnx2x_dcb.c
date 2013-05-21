@@ -591,7 +591,7 @@ static int bnx2x_dcbx_read_shmem_remote_mib(struct bnx2x *bp)
 				 DCBX_READ_REMOTE_MIB);
 
 	if (rc) {
-		BNX2X_ERR("Faild to read remote mib from FW\n");
+		BNX2X_ERR("Failed to read remote mib from FW\n");
 		return rc;
 	}
 
@@ -619,7 +619,7 @@ static int bnx2x_dcbx_read_shmem_neg_results(struct bnx2x *bp)
 				 DCBX_READ_LOCAL_MIB);
 
 	if (rc) {
-		BNX2X_ERR("Faild to read local mib from FW\n");
+		BNX2X_ERR("Failed to read local mib from FW\n");
 		return rc;
 	}
 

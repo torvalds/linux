@@ -493,7 +493,8 @@ int mesh_gate_num(struct ieee80211_sub_if_data *sdata)
  *
  * State: the initial state of the new path is set to 0
  */
-int mesh_path_add(struct ieee80211_sub_if_data *sdata, const u8 *dst)
+struct mesh_path *mesh_path_add(struct ieee80211_sub_if_data *sdata,
+				const u8 *dst)
 {
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct ieee80211_local *local = sdata->local;
@@ -502,18 +503,33 @@ int mesh_path_add(struct ieee80211_sub_if_data *sdata, const u8 *dst)
 	struct mpath_node *node, *new_node;
 	struct hlist_head *bucket;
 	int grow = 0;
-	int err = 0;
+	int err;
 	u32 hash_idx;
 
 	if (ether_addr_equal(dst, sdata->vif.addr))
 		/* never add ourselves as neighbours */
-		return -ENOTSUPP;
+		return ERR_PTR(-ENOTSUPP);
 
 	if (is_multicast_ether_addr(dst))
-		return -ENOTSUPP;
+		return ERR_PTR(-ENOTSUPP);
 
 	if (atomic_add_unless(&sdata->u.mesh.mpaths, 1, MESH_MAX_MPATHS) == 0)
-		return -ENOSPC;
+		return ERR_PTR(-ENOSPC);
+
+	read_lock_bh(&pathtbl_resize_lock);
+	tbl = resize_dereference_mesh_paths();
+
+	hash_idx = mesh_table_hash(dst, sdata, tbl);
+	bucket = &tbl->hash_buckets[hash_idx];
+
+	spin_lock(&tbl->hashwlock[hash_idx]);
+
+	hlist_for_each_entry(node, bucket, list) {
+		mpath = node->mpath;
+		if (mpath->sdata == sdata &&
+		    ether_addr_equal(dst, mpath->dst))
+			goto found;
+	}
 
 	err = -ENOMEM;
 	new_mpath = kzalloc(sizeof(struct mesh_path), GFP_ATOMIC);
@@ -524,7 +540,6 @@ int mesh_path_add(struct ieee80211_sub_if_data *sdata, const u8 *dst)
 	if (!new_node)
 		goto err_node_alloc;
 
-	read_lock_bh(&pathtbl_resize_lock);
 	memcpy(new_mpath->dst, dst, ETH_ALEN);
 	eth_broadcast_addr(new_mpath->rann_snd_addr);
 	new_mpath->is_root = false;
@@ -538,21 +553,6 @@ int mesh_path_add(struct ieee80211_sub_if_data *sdata, const u8 *dst)
 	spin_lock_init(&new_mpath->state_lock);
 	init_timer(&new_mpath->timer);
 
-	tbl = resize_dereference_mesh_paths();
-
-	hash_idx = mesh_table_hash(dst, sdata, tbl);
-	bucket = &tbl->hash_buckets[hash_idx];
-
-	spin_lock(&tbl->hashwlock[hash_idx]);
-
-	err = -EEXIST;
-	hlist_for_each_entry(node, bucket, list) {
-		mpath = node->mpath;
-		if (mpath->sdata == sdata &&
-		    ether_addr_equal(dst, mpath->dst))
-			goto err_exists;
-	}
-
 	hlist_add_head_rcu(&new_node->list, bucket);
 	if (atomic_inc_return(&tbl->entries) >=
 	    tbl->mean_chain_len * (tbl->hash_mask + 1))
@@ -560,23 +560,23 @@ int mesh_path_add(struct ieee80211_sub_if_data *sdata, const u8 *dst)
 
 	mesh_paths_generation++;
 
-	spin_unlock(&tbl->hashwlock[hash_idx]);
-	read_unlock_bh(&pathtbl_resize_lock);
 	if (grow) {
 		set_bit(MESH_WORK_GROW_MPATH_TABLE,  &ifmsh->wrkq_flags);
 		ieee80211_queue_work(&local->hw, &sdata->work);
 	}
-	return 0;
-
-err_exists:
+	mpath = new_mpath;
+found:
 	spin_unlock(&tbl->hashwlock[hash_idx]);
 	read_unlock_bh(&pathtbl_resize_lock);
-	kfree(new_node);
+	return mpath;
+
 err_node_alloc:
 	kfree(new_mpath);
 err_path_alloc:
 	atomic_dec(&sdata->u.mesh.mpaths);
-	return err;
+	spin_unlock(&tbl->hashwlock[hash_idx]);
+	read_unlock_bh(&pathtbl_resize_lock);
+	return ERR_PTR(err);
 }
 
 static void mesh_table_free_rcu(struct rcu_head *rcu)

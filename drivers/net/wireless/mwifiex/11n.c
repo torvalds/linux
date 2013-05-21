@@ -679,3 +679,25 @@ void mwifiex_del_tx_ba_stream_tbl_by_ra(struct mwifiex_private *priv, u8 *ra)
 
 	return;
 }
+
+/* This function initializes the BlockACK setup information for given
+ * mwifiex_private structure.
+ */
+void mwifiex_set_ba_params(struct mwifiex_private *priv)
+{
+	priv->add_ba_param.timeout = MWIFIEX_DEFAULT_BLOCK_ACK_TIMEOUT;
+
+	if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_UAP) {
+		priv->add_ba_param.tx_win_size =
+						MWIFIEX_UAP_AMPDU_DEF_TXWINSIZE;
+		priv->add_ba_param.rx_win_size =
+						MWIFIEX_UAP_AMPDU_DEF_RXWINSIZE;
+	} else {
+		priv->add_ba_param.tx_win_size =
+						MWIFIEX_STA_AMPDU_DEF_TXWINSIZE;
+		priv->add_ba_param.rx_win_size =
+						MWIFIEX_STA_AMPDU_DEF_RXWINSIZE;
+	}
+
+	return;
+}

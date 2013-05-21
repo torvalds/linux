@@ -389,10 +389,8 @@ static void queue_bus_reset_event(struct client *client)
 	struct bus_reset_event *e;
 
 	e = kzalloc(sizeof(*e), GFP_KERNEL);
-	if (e == NULL) {
-		fw_notice(client->device->card, "out of memory when allocating event\n");
+	if (e == NULL)
 		return;
-	}
 
 	fill_bus_reset_event(&e->reset, client);
 
@@ -693,10 +691,9 @@ static void handle_request(struct fw_card *card, struct fw_request *request,
 
 	r = kmalloc(sizeof(*r), GFP_ATOMIC);
 	e = kmalloc(sizeof(*e), GFP_ATOMIC);
-	if (r == NULL || e == NULL) {
-		fw_notice(card, "out of memory when allocating event\n");
+	if (r == NULL || e == NULL)
 		goto failed;
-	}
+
 	r->card    = card;
 	r->request = request;
 	r->data    = payload;
@@ -930,10 +927,9 @@ static void iso_callback(struct fw_iso_context *context, u32 cycle,
 	struct iso_interrupt_event *e;
 
 	e = kmalloc(sizeof(*e) + header_length, GFP_ATOMIC);
-	if (e == NULL) {
-		fw_notice(context->card, "out of memory when allocating event\n");
+	if (e == NULL)
 		return;
-	}
+
 	e->interrupt.type      = FW_CDEV_EVENT_ISO_INTERRUPT;
 	e->interrupt.closure   = client->iso_closure;
 	e->interrupt.cycle     = cycle;
@@ -950,10 +946,9 @@ static void iso_mc_callback(struct fw_iso_context *context,
 	struct iso_interrupt_mc_event *e;
 
 	e = kmalloc(sizeof(*e), GFP_ATOMIC);
-	if (e == NULL) {
-		fw_notice(context->card, "out of memory when allocating event\n");
+	if (e == NULL)
 		return;
-	}
+
 	e->interrupt.type      = FW_CDEV_EVENT_ISO_INTERRUPT_MULTICHANNEL;
 	e->interrupt.closure   = client->iso_closure;
 	e->interrupt.completed = fw_iso_buffer_lookup(&client->buffer,
@@ -1366,8 +1361,7 @@ static int init_iso_resource(struct client *client,
 	int ret;
 
 	if ((request->channels == 0 && request->bandwidth == 0) ||
-	    request->bandwidth > BANDWIDTH_AVAILABLE_INITIAL ||
-	    request->bandwidth < 0)
+	    request->bandwidth > BANDWIDTH_AVAILABLE_INITIAL)
 		return -EINVAL;
 
 	r  = kmalloc(sizeof(*r), GFP_KERNEL);
@@ -1582,10 +1576,9 @@ void fw_cdev_handle_phy_packet(struct fw_card *card, struct fw_packet *p)
 
 	list_for_each_entry(client, &card->phy_receiver_list, phy_receiver_link) {
 		e = kmalloc(sizeof(*e) + 8, GFP_ATOMIC);
-		if (e == NULL) {
-			fw_notice(card, "out of memory when allocating event\n");
+		if (e == NULL)
 			break;
-		}
+
 		e->phy_packet.closure	= client->phy_receiver_closure;
 		e->phy_packet.type	= FW_CDEV_EVENT_PHY_PACKET_RECEIVED;
 		e->phy_packet.rcode	= RCODE_COMPLETE;

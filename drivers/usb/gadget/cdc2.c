@@ -103,18 +103,16 @@ static struct usb_gadget_strings *dev_strings[] = {
 };
 
 static u8 hostaddr[ETH_ALEN];
-
+static struct eth_dev *the_dev;
 /*-------------------------------------------------------------------------*/
 static struct usb_function *f_acm;
 static struct usb_function_instance *fi_serial;
 
-static unsigned char tty_line;
 /*
  * We _always_ have both CDC ECM and CDC ACM functions.
  */
 static int __init cdc_do_config(struct usb_configuration *c)
 {
-	struct f_serial_opts *opts;
 	int	status;
 
 	if (gadget_is_otg(c->cdev->gadget)) {
@@ -122,7 +120,7 @@ static int __init cdc_do_config(struct usb_configuration *c)
 		c->bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
 
-	status = ecm_bind_config(c, hostaddr);
+	status = ecm_bind_config(c, hostaddr, the_dev);
 	if (status < 0)
 		return status;
 
@@ -130,12 +128,11 @@ static int __init cdc_do_config(struct usb_configuration *c)
 	if (IS_ERR(fi_serial))
 		return PTR_ERR(fi_serial);
 
-	opts = container_of(fi_serial, struct f_serial_opts, func_inst);
-	opts->port_num = tty_line;
-
 	f_acm = usb_get_function(fi_serial);
-	if (IS_ERR(f_acm))
+	if (IS_ERR(f_acm)) {
+		status = PTR_ERR(f_acm);
 		goto err_func_acm;
+	}
 
 	status = usb_add_function(c, f_acm);
 	if (status)
@@ -169,14 +166,9 @@ static int __init cdc_bind(struct usb_composite_dev *cdev)
 	}
 
 	/* set up network link layer */
-	status = gether_setup(cdev->gadget, hostaddr);
-	if (status < 0)
-		return status;
-
-	/* set up serial link layer */
-	status = gserial_alloc_line(&tty_line);
-	if (status < 0)
-		goto fail0;
+	the_dev = gether_setup(cdev->gadget, hostaddr);
+	if (IS_ERR(the_dev))
+		return PTR_ERR(the_dev);
 
 	/* Allocate string descriptor numbers ... note that string
 	 * contents can be overridden by the composite_dev glue.
@@ -200,9 +192,7 @@ static int __init cdc_bind(struct usb_composite_dev *cdev)
 	return 0;
 
 fail1:
-	gserial_free_line(tty_line);
-fail0:
-	gether_cleanup();
+	gether_cleanup(the_dev);
 	return status;
 }
 
@@ -210,8 +200,7 @@ static int __exit cdc_unbind(struct usb_composite_dev *cdev)
 {
 	usb_put_function(f_acm);
 	usb_put_function_instance(fi_serial);
-	gserial_free_line(tty_line);
-	gether_cleanup();
+	gether_cleanup(the_dev);
 	return 0;
 }
 

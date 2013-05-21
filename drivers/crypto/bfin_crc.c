@@ -151,7 +151,7 @@ static int bfin_crypto_crc_init(struct ahash_request *req)
 	struct bfin_crypto_crc_reqctx *ctx = ahash_request_ctx(req);
 	struct bfin_crypto_crc *crc;
 
-	dev_dbg(crc->dev, "crc_init\n");
+	dev_dbg(ctx->crc->dev, "crc_init\n");
 	spin_lock_bh(&crc_list.lock);
 	list_for_each_entry(crc, &crc_list.dev_list, list) {
 		crc_ctx->crc = crc;
@@ -160,7 +160,7 @@ static int bfin_crypto_crc_init(struct ahash_request *req)
 	spin_unlock_bh(&crc_list.lock);
 
 	if (sg_count(req->src) > CRC_MAX_DMA_DESC) {
-		dev_dbg(crc->dev, "init: requested sg list is too big > %d\n",
+		dev_dbg(ctx->crc->dev, "init: requested sg list is too big > %d\n",
 			CRC_MAX_DMA_DESC);
 		return -EINVAL;
 	}
@@ -175,7 +175,7 @@ static int bfin_crypto_crc_init(struct ahash_request *req)
 	/* init crc results */
 	put_unaligned_le32(crc_ctx->key, req->result);
 
-	dev_dbg(crc->dev, "init: digest size: %d\n",
+	dev_dbg(ctx->crc->dev, "init: digest size: %d\n",
 		crypto_ahash_digestsize(tfm));
 
 	return bfin_crypto_crc_init_hw(crc, crc_ctx->key);

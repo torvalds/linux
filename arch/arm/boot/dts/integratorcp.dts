@@ -24,15 +24,15 @@
 	};
 
 	timer0: timer@13000000 {
-		compatible = "arm,sp804", "arm,primecell";
+		compatible = "arm,integrator-cp-timer";
 	};
 
 	timer1: timer@13000100 {
-		compatible = "arm,sp804", "arm,primecell";
+		compatible = "arm,integrator-cp-timer";
 	};
 
 	timer2: timer@13000200 {
-		compatible = "arm,sp804", "arm,primecell";
+		compatible = "arm,integrator-cp-timer";
 	};
 
 	pic: pic@14000000 {

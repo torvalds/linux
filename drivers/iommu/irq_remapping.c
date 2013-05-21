@@ -18,6 +18,7 @@
 int irq_remapping_enabled;
 
 int disable_irq_remap;
+int irq_remap_broken;
 int disable_sourceid_checking;
 int no_x2apic_optout;
 
@@ -208,6 +209,11 @@ void __init setup_irq_remapping_ops(void)
 	if (amd_iommu_irq_ops.prepare() == 0)
 		remap_ops = &amd_iommu_irq_ops;
 #endif
+}
+
+void set_irq_remapping_broken(void)
+{
+	irq_remap_broken = 1;
 }
 
 int irq_remapping_supported(void)

@@ -1,5 +1,5 @@
 /*
- * PMC-Sierra SPC 8001 SAS/SATA based host adapters driver
+ * PMC-Sierra 8001/8081/8088/8089 SAS/SATA based host adapters driver
  *
  * Copyright (c) 2008-2009 USI Co., Ltd.
  * All rights reserved.
@@ -43,9 +43,12 @@
 
 enum chip_flavors {
 	chip_8001,
+	chip_8008,
+	chip_8009,
+	chip_8018,
+	chip_8019
 };
-#define USI_MAX_MEMCNT			9
-#define PM8001_MAX_DMA_SG		SG_ALL
+
 enum phy_speed {
 	PHY_SPEED_15 = 0x01,
 	PHY_SPEED_30 = 0x02,
@@ -69,23 +72,34 @@ enum port_type {
 #define PM8001_MPI_QUEUE         1024   /* maximum mpi queue entries */
 #define	PM8001_MAX_INB_NUM	 1
 #define	PM8001_MAX_OUTB_NUM	 1
+#define	PM8001_MAX_SPCV_INB_NUM		1
+#define	PM8001_MAX_SPCV_OUTB_NUM	4
 #define	PM8001_CAN_QUEUE	 508	/* SCSI Queue depth */
 
-/* unchangeable hardware details */
-#define	PM8001_MAX_PHYS		 8	/* max. possible phys */
-#define	PM8001_MAX_PORTS	 8	/* max. possible ports */
-#define	PM8001_MAX_DEVICES	 1024	/* max supported device */
+/* Inbound/Outbound queue size */
+#define IOMB_SIZE_SPC		64
+#define IOMB_SIZE_SPCV		128
 
+/* unchangeable hardware details */
+#define	PM8001_MAX_PHYS		 16	/* max. possible phys */
+#define	PM8001_MAX_PORTS	 16	/* max. possible ports */
+#define	PM8001_MAX_DEVICES	 2048	/* max supported device */
+#define	PM8001_MAX_MSIX_VEC	 64	/* max msi-x int for spcv/ve */
+
+#define USI_MAX_MEMCNT_BASE	5
+#define IB			(USI_MAX_MEMCNT_BASE + 1)
+#define CI			(IB + PM8001_MAX_SPCV_INB_NUM)
+#define OB			(CI + PM8001_MAX_SPCV_INB_NUM)
+#define PI			(OB + PM8001_MAX_SPCV_OUTB_NUM)
+#define USI_MAX_MEMCNT		(PI + PM8001_MAX_SPCV_OUTB_NUM)
+#define PM8001_MAX_DMA_SG	SG_ALL
 enum memory_region_num {
 	AAP1 = 0x0, /* application acceleration processor */
 	IOP,	    /* IO processor */
-	CI,	    /* consumer index */
-	PI,	    /* producer index */
-	IB,	    /* inbound queue */
-	OB,	    /* outbound queue */
 	NVMD,	    /* NVM device */
 	DEV_MEM,    /* memory for devices */
 	CCB_MEM,    /* memory for command control block */
+	FW_FLASH    /* memory for fw flash update */
 };
 #define	PM8001_EVENT_LOG_SIZE	 (128 * 1024)
 

@@ -287,7 +287,10 @@ acpi_status acpi_install_interface(acpi_string interface_name)
 		return (AE_BAD_PARAMETER);
 	}
 
-	(void)acpi_os_acquire_mutex(acpi_gbl_osi_mutex, ACPI_WAIT_FOREVER);
+	status = acpi_os_acquire_mutex(acpi_gbl_osi_mutex, ACPI_WAIT_FOREVER);
+	if (ACPI_FAILURE(status)) {
+		return (status);
+	}
 
 	/* Check if the interface name is already in the global list */
 
@@ -336,7 +339,10 @@ acpi_status acpi_remove_interface(acpi_string interface_name)
 		return (AE_BAD_PARAMETER);
 	}
 
-	(void)acpi_os_acquire_mutex(acpi_gbl_osi_mutex, ACPI_WAIT_FOREVER);
+	status = acpi_os_acquire_mutex(acpi_gbl_osi_mutex, ACPI_WAIT_FOREVER);
+	if (ACPI_FAILURE(status)) {
+		return (status);
+	}
 
 	status = acpi_ut_remove_interface(interface_name);
 
@@ -362,9 +368,12 @@ ACPI_EXPORT_SYMBOL(acpi_remove_interface)
  ****************************************************************************/
 acpi_status acpi_install_interface_handler(acpi_interface_handler handler)
 {
-	acpi_status status = AE_OK;
+	acpi_status status;
 
-	(void)acpi_os_acquire_mutex(acpi_gbl_osi_mutex, ACPI_WAIT_FOREVER);
+	status = acpi_os_acquire_mutex(acpi_gbl_osi_mutex, ACPI_WAIT_FOREVER);
+	if (ACPI_FAILURE(status)) {
+		return (status);
+	}
 
 	if (handler && acpi_gbl_interface_handler) {
 		status = AE_ALREADY_EXISTS;

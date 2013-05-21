@@ -669,7 +669,7 @@ __cpuinit void start_secondary(void *unused)
 
 	local_irq_enable();
 
-	cpu_idle();
+	cpu_startup_entry(CPUHP_ONLINE);
 
 	BUG();
 }

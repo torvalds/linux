@@ -177,6 +177,23 @@ const char *qeth_get_cardname_short(struct qeth_card *card)
 	return "n/a";
 }
 
+void qeth_set_recovery_task(struct qeth_card *card)
+{
+	card->recovery_task = current;
+}
+EXPORT_SYMBOL_GPL(qeth_set_recovery_task);
+
+void qeth_clear_recovery_task(struct qeth_card *card)
+{
+	card->recovery_task = NULL;
+}
+EXPORT_SYMBOL_GPL(qeth_clear_recovery_task);
+
+static bool qeth_is_recovery_task(const struct qeth_card *card)
+{
+	return card->recovery_task == current;
+}
+
 void qeth_set_allowed_threads(struct qeth_card *card, unsigned long threads,
 			 int clear_start_mask)
 {
@@ -205,6 +222,8 @@ EXPORT_SYMBOL_GPL(qeth_threads_running);
 
 int qeth_wait_for_threads(struct qeth_card *card, unsigned long threads)
 {
+	if (qeth_is_recovery_task(card))
+		return 0;
 	return wait_event_interruptible(card->wait_q,
 			qeth_threads_running(card, threads) == 0);
 }
@@ -316,7 +335,7 @@ static inline int qeth_alloc_cq(struct qeth_card *card)
 
 		card->qdio.no_in_queues = 2;
 
-		card->qdio.out_bufstates = (struct qdio_outbuf_state *)
+		card->qdio.out_bufstates =
 			kzalloc(card->qdio.no_out_queues *
 				QDIO_MAX_BUFFERS_PER_Q *
 				sizeof(struct qdio_outbuf_state), GFP_KERNEL);
@@ -3698,7 +3717,7 @@ int qeth_get_elements_for_frags(struct sk_buff *skb)
 }
 EXPORT_SYMBOL_GPL(qeth_get_elements_for_frags);
 
-int qeth_get_elements_no(struct qeth_card *card, void *hdr,
+int qeth_get_elements_no(struct qeth_card *card,
 		     struct sk_buff *skb, int elems)
 {
 	int dlen = skb->len - skb->data_len;
@@ -3717,7 +3736,7 @@ int qeth_get_elements_no(struct qeth_card *card, void *hdr,
 }
 EXPORT_SYMBOL_GPL(qeth_get_elements_no);
 
-int qeth_hdr_chk_and_bounce(struct sk_buff *skb, int len)
+int qeth_hdr_chk_and_bounce(struct sk_buff *skb, struct qeth_hdr **hdr, int len)
 {
 	int hroom, inpage, rest;
 
@@ -3730,6 +3749,8 @@ int qeth_hdr_chk_and_bounce(struct sk_buff *skb, int len)
 			return 1;
 		memmove(skb->data - rest, skb->data, skb->len - skb->data_len);
 		skb->data -= rest;
+		skb->tail -= rest;
+		*hdr = (struct qeth_hdr *)skb->data;
 		QETH_DBF_MESSAGE(2, "skb bounce len: %d rest: %d\n", len, rest);
 	}
 	return 0;

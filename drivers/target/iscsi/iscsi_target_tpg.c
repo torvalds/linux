@@ -31,6 +31,8 @@
 #include "iscsi_target.h"
 #include "iscsi_target_parameters.h"
 
+#include <target/iscsi/iscsi_transport.h>
+
 struct iscsi_portal_group *iscsit_alloc_portal_group(struct iscsi_tiqn *tiqn, u16 tpgt)
 {
 	struct iscsi_portal_group *tpg;
@@ -508,7 +510,7 @@ struct iscsi_tpg_np *iscsit_tpg_add_network_portal(
 
 	pr_debug("CORE[%s] - Added Network Portal: %s:%hu,%hu on %s\n",
 		tpg->tpg_tiqn->tiqn, np->np_ip, np->np_port, tpg->tpgt,
-		(np->np_network_transport == ISCSI_TCP) ? "TCP" : "SCTP");
+		np->np_transport->name);
 
 	return tpg_np;
 }
@@ -522,7 +524,7 @@ static int iscsit_tpg_release_np(
 
 	pr_debug("CORE[%s] - Removed Network Portal: %s:%hu,%hu on %s\n",
 		tpg->tpg_tiqn->tiqn, np->np_ip, np->np_port, tpg->tpgt,
-		(np->np_network_transport == ISCSI_TCP) ? "TCP" : "SCTP");
+		np->np_transport->name);
 
 	tpg_np->tpg_np = NULL;
 	tpg_np->tpg = NULL;

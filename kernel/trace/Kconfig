@@ -71,6 +71,7 @@ config TRACE_CLOCK
 config RING_BUFFER
 	bool
 	select TRACE_CLOCK
+	select IRQ_WORK
 
 config FTRACE_NMI_ENTER
        bool
@@ -107,7 +108,6 @@ config TRACING
 	select BINARY_PRINTF
 	select EVENT_TRACING
 	select TRACE_CLOCK
-	select IRQ_WORK
 
 config GENERIC_TRACER
 	bool
@@ -176,6 +176,8 @@ config IRQSOFF_TRACER
 	select GENERIC_TRACER
 	select TRACER_MAX_TRACE
 	select RING_BUFFER_ALLOW_SWAP
+	select TRACER_SNAPSHOT
+	select TRACER_SNAPSHOT_PER_CPU_SWAP
 	help
 	  This option measures the time spent in irqs-off critical
 	  sections, with microsecond accuracy.
@@ -198,6 +200,8 @@ config PREEMPT_TRACER
 	select GENERIC_TRACER
 	select TRACER_MAX_TRACE
 	select RING_BUFFER_ALLOW_SWAP
+	select TRACER_SNAPSHOT
+	select TRACER_SNAPSHOT_PER_CPU_SWAP
 	help
 	  This option measures the time spent in preemption-off critical
 	  sections, with microsecond accuracy.
@@ -217,6 +221,7 @@ config SCHED_TRACER
 	select GENERIC_TRACER
 	select CONTEXT_SWITCH_TRACER
 	select TRACER_MAX_TRACE
+	select TRACER_SNAPSHOT
 	help
 	  This tracer tracks the latency of the highest priority task
 	  to be scheduled in, starting from the point it has woken up.
@@ -247,6 +252,27 @@ config TRACER_SNAPSHOT
 
 	      echo 1 > /sys/kernel/debug/tracing/snapshot
 	      cat snapshot
+
+config TRACER_SNAPSHOT_PER_CPU_SWAP
+        bool "Allow snapshot to swap per CPU"
+	depends on TRACER_SNAPSHOT
+	select RING_BUFFER_ALLOW_SWAP
+	help
+	  Allow doing a snapshot of a single CPU buffer instead of a
+	  full swap (all buffers). If this is set, then the following is
+	  allowed:
+
+	      echo 1 > /sys/kernel/debug/tracing/per_cpu/cpu2/snapshot
+
+	  After which, only the tracing buffer for CPU 2 was swapped with
+	  the main tracing buffer, and the other CPU buffers remain the same.
+
+	  When this is enabled, this adds a little more overhead to the
+	  trace recording, as it needs to add some checks to synchronize
+	  recording with swaps. But this does not affect the performance
+	  of the overall system. This is enabled by default when the preempt
+	  or irq latency tracers are enabled, as those need to swap as well
+	  and already adds the overhead (plus a lot more).
 
 config TRACE_BRANCH_PROFILING
 	bool
@@ -523,6 +549,29 @@ config RING_BUFFER_BENCHMARK
 	  affected by processes that are running.
 
 	  If unsure, say N.
+
+config RING_BUFFER_STARTUP_TEST
+       bool "Ring buffer startup self test"
+       depends on RING_BUFFER
+       help
+         Run a simple self test on the ring buffer on boot up. Late in the
+	 kernel boot sequence, the test will start that kicks off
+	 a thread per cpu. Each thread will write various size events
+	 into the ring buffer. Another thread is created to send IPIs
+	 to each of the threads, where the IPI handler will also write
+	 to the ring buffer, to test/stress the nesting ability.
+	 If any anomalies are discovered, a warning will be displayed
+	 and all ring buffers will be disabled.
+
+	 The test runs for 10 seconds. This will slow your boot time
+	 by at least 10 more seconds.
+
+	 At the end of the test, statics and more checks are done.
+	 It will output the stats of each per cpu buffer. What
+	 was written, the sizes, what was read, what was lost, and
+	 other similar details.
+
+	 If unsure, say N
 
 endif # FTRACE
 

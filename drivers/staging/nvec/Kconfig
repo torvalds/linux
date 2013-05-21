@@ -1,5 +1,5 @@
 config MFD_NVEC
-	bool "NV Tegra Embedded Controller SMBus Interface"
+	tristate "NV Tegra Embedded Controller SMBus Interface"
 	depends on I2C && GPIOLIB && ARCH_TEGRA
 	select MFD_CORE
 	help
@@ -7,28 +7,28 @@ config MFD_NVEC
 	    controller.
 
 config KEYBOARD_NVEC
-	bool "Keyboard on nVidia compliant EC"
+	tristate "Keyboard on nVidia compliant EC"
 	depends on MFD_NVEC && INPUT
 	help
 	  Say Y here to enable support for a keyboard connected to 
 	  a nVidia compliant embedded controller.
 
 config SERIO_NVEC_PS2
-	bool "PS2 on nVidia EC"
+	tristate "PS2 on nVidia EC"
 	depends on MFD_NVEC && SERIO
 	help
 	  Say Y here to enable support for a Touchpad / Mouse connected
 	  to a nVidia compliant embedded controller.
 
 config NVEC_POWER
-	bool "NVEC charger and battery"
+	tristate "NVEC charger and battery"
 	depends on MFD_NVEC && POWER_SUPPLY
 	help
 	  Say Y to enable support for battery and charger interface for
 	  nVidia compliant embedded controllers.
 
 config NVEC_PAZ00
-	bool "Support for OEM specific functions on Compal PAZ00 based devices"
+	tristate "Support for OEM specific functions on Compal PAZ00 based devices"
 	depends on MFD_NVEC && LEDS_CLASS
 	help
 	  Say Y to enable control of the yellow side leds on Compal PAZ00 based

@@ -178,7 +178,7 @@ static int goldfish_battery_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	data->reg_base = devm_ioremap(&pdev->dev, r->start, r->end - r->start + 1);
+	data->reg_base = devm_ioremap(&pdev->dev, r->start, resource_size(r));
 	if (data->reg_base == NULL) {
 		dev_err(&pdev->dev, "unable to remap MMIO\n");
 		return -ENOMEM;

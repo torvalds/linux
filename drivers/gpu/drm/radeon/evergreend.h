@@ -53,6 +53,43 @@
 #define RCU_IND_INDEX           			0x100
 #define RCU_IND_DATA            			0x104
 
+/* discrete uvd clocks */
+#define CG_UPLL_FUNC_CNTL				0x718
+#	define UPLL_RESET_MASK				0x00000001
+#	define UPLL_SLEEP_MASK				0x00000002
+#	define UPLL_BYPASS_EN_MASK			0x00000004
+#	define UPLL_CTLREQ_MASK				0x00000008
+#	define UPLL_REF_DIV_MASK			0x003F0000
+#	define UPLL_VCO_MODE_MASK			0x00000200
+#	define UPLL_CTLACK_MASK				0x40000000
+#	define UPLL_CTLACK2_MASK			0x80000000
+#define CG_UPLL_FUNC_CNTL_2				0x71c
+#	define UPLL_PDIV_A(x)				((x) << 0)
+#	define UPLL_PDIV_A_MASK				0x0000007F
+#	define UPLL_PDIV_B(x)				((x) << 8)
+#	define UPLL_PDIV_B_MASK				0x00007F00
+#	define VCLK_SRC_SEL(x)				((x) << 20)
+#	define VCLK_SRC_SEL_MASK			0x01F00000
+#	define DCLK_SRC_SEL(x)				((x) << 25)
+#	define DCLK_SRC_SEL_MASK			0x3E000000
+#define CG_UPLL_FUNC_CNTL_3				0x720
+#	define UPLL_FB_DIV(x)				((x) << 0)
+#	define UPLL_FB_DIV_MASK				0x01FFFFFF
+#define CG_UPLL_FUNC_CNTL_4				0x854
+#	define UPLL_SPARE_ISPARE9			0x00020000
+#define CG_UPLL_SPREAD_SPECTRUM				0x79c
+#	define SSEN_MASK				0x00000001
+
+/* fusion uvd clocks */
+#define CG_DCLK_CNTL                                    0x610
+#       define DCLK_DIVIDER_MASK                        0x7f
+#       define DCLK_DIR_CNTL_EN                         (1 << 8)
+#define CG_DCLK_STATUS                                  0x614
+#       define DCLK_STATUS                              (1 << 0)
+#define CG_VCLK_CNTL                                    0x618
+#define CG_VCLK_STATUS                                  0x61c
+#define	CG_SCRATCH1					0x820
+
 #define GRBM_GFX_INDEX          			0x802C
 #define		INSTANCE_INDEX(x)			((x) << 0)
 #define		SE_INDEX(x)     			((x) << 16)
@@ -197,6 +234,7 @@
 #       define HDMI_MPEG_INFO_CONT           (1 << 9)
 #define HDMI_INFOFRAME_CONTROL1              0x7048
 #       define HDMI_AVI_INFO_LINE(x)         (((x) & 0x3f) << 0)
+#       define HDMI_AVI_INFO_LINE_MASK       (0x3f << 0)
 #       define HDMI_AUDIO_INFO_LINE(x)       (((x) & 0x3f) << 8)
 #       define HDMI_MPEG_INFO_LINE(x)        (((x) & 0x3f) << 16)
 #define HDMI_GENERIC_PACKET_CONTROL          0x704c
@@ -991,6 +1029,16 @@
 #define LINK_CNTL2                                        0x88 /* F0 */
 #       define TARGET_LINK_SPEED_MASK                     (0xf << 0)
 #       define SELECTABLE_DEEMPHASIS                      (1 << 6)
+
+
+/*
+ * UVD
+ */
+#define UVD_UDEC_ADDR_CONFIG				0xef4c
+#define UVD_UDEC_DB_ADDR_CONFIG				0xef50
+#define UVD_UDEC_DBW_ADDR_CONFIG			0xef54
+#define UVD_RBC_RB_RPTR					0xf690
+#define UVD_RBC_RB_WPTR					0xf694
 
 /*
  * PM4

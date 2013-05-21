@@ -190,6 +190,7 @@ static int pb0100_start(struct sd *sd)
 	int err, packet_size, max_packet_size;
 	struct usb_host_interface *alt;
 	struct usb_interface *intf;
+	struct gspca_dev *gspca_dev = (struct gspca_dev *)sd;
 	struct cam *cam = &sd->gspca_dev.cam;
 	u32 mode = cam->cam_mode[sd->gspca_dev.curr_mode].priv;
 
@@ -239,6 +240,7 @@ static int pb0100_start(struct sd *sd)
 
 static int pb0100_stop(struct sd *sd)
 {
+	struct gspca_dev *gspca_dev = (struct gspca_dev *)sd;
 	int err;
 
 	err = stv06xx_write_sensor(sd, PB_ABORTFRAME, 1);
@@ -334,7 +336,7 @@ static int pb0100_set_gain(struct gspca_dev *gspca_dev, __s32 val)
 	err = stv06xx_write_sensor(sd, PB_G1GAIN, val);
 	if (!err)
 		err = stv06xx_write_sensor(sd, PB_G2GAIN, val);
-	PDEBUG(D_V4L2, "Set green gain to %d, status: %d", val, err);
+	PDEBUG(D_CONF, "Set green gain to %d, status: %d", val, err);
 
 	if (!err)
 		err = pb0100_set_red_balance(gspca_dev, ctrls->red->val);
@@ -357,7 +359,7 @@ static int pb0100_set_red_balance(struct gspca_dev *gspca_dev, __s32 val)
 		val = 255;
 
 	err = stv06xx_write_sensor(sd, PB_RGAIN, val);
-	PDEBUG(D_V4L2, "Set red gain to %d, status: %d", val, err);
+	PDEBUG(D_CONF, "Set red gain to %d, status: %d", val, err);
 
 	return err;
 }
@@ -375,7 +377,7 @@ static int pb0100_set_blue_balance(struct gspca_dev *gspca_dev, __s32 val)
 		val = 255;
 
 	err = stv06xx_write_sensor(sd, PB_BGAIN, val);
-	PDEBUG(D_V4L2, "Set blue gain to %d, status: %d", val, err);
+	PDEBUG(D_CONF, "Set blue gain to %d, status: %d", val, err);
 
 	return err;
 }
@@ -386,7 +388,7 @@ static int pb0100_set_exposure(struct gspca_dev *gspca_dev, __s32 val)
 	int err;
 
 	err = stv06xx_write_sensor(sd, PB_RINTTIME, val);
-	PDEBUG(D_V4L2, "Set exposure to %d, status: %d", val, err);
+	PDEBUG(D_CONF, "Set exposure to %d, status: %d", val, err);
 
 	return err;
 }
@@ -406,7 +408,7 @@ static int pb0100_set_autogain(struct gspca_dev *gspca_dev, __s32 val)
 		val = 0;
 
 	err = stv06xx_write_sensor(sd, PB_EXPGAIN, val);
-	PDEBUG(D_V4L2, "Set autogain to %d (natural: %d), status: %d",
+	PDEBUG(D_CONF, "Set autogain to %d (natural: %d), status: %d",
 	       val, ctrls->natural->val, err);
 
 	return err;
@@ -428,7 +430,7 @@ static int pb0100_set_autogain_target(struct gspca_dev *gspca_dev, __s32 val)
 	if (!err)
 		err = stv06xx_write_sensor(sd, PB_R22, darkpixels);
 
-	PDEBUG(D_V4L2, "Set autogain target to %d, status: %d", val, err);
+	PDEBUG(D_CONF, "Set autogain target to %d, status: %d", val, err);
 
 	return err;
 }

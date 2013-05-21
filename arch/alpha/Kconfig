@@ -4,7 +4,6 @@ config ALPHA
 	select HAVE_AOUT
 	select HAVE_IDE
 	select HAVE_OPROFILE
-	select HAVE_SYSCALL_WRAPPERS
 	select HAVE_PCSPKR_PLATFORM
 	select HAVE_PERF_EVENTS
 	select HAVE_DMA_ATTRS
@@ -55,9 +54,6 @@ config ARCH_HAS_ILOG2_U64
 config GENERIC_CALIBRATE_DELAY
 	bool
 	default y
-
-config GENERIC_GPIO
-	bool
 
 config ZONE_DMA
 	bool

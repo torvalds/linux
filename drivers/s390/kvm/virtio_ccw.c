@@ -31,6 +31,7 @@
 #include <asm/irq.h>
 #include <asm/cio.h>
 #include <asm/ccwdev.h>
+#include <asm/virtio-ccw.h>
 
 /*
  * virtio related functions
@@ -77,11 +78,8 @@ struct virtio_ccw_vq_info {
 	void *queue;
 	struct vq_info_block *info_block;
 	struct list_head node;
+	long cookie;
 };
-
-#define KVM_VIRTIO_CCW_RING_ALIGN 4096
-
-#define KVM_S390_VIRTIO_CCW_NOTIFY 3
 
 #define CCW_CMD_SET_VQ 0x13
 #define CCW_CMD_VDEV_RESET 0x33
@@ -135,8 +133,11 @@ static int ccw_io_helper(struct virtio_ccw_device *vcdev,
 	do {
 		spin_lock_irqsave(get_ccwdev_lock(vcdev->cdev), flags);
 		ret = ccw_device_start(vcdev->cdev, ccw, intparm, 0, 0);
-		if (!ret)
+		if (!ret) {
+			if (!vcdev->curr_io)
+				vcdev->err = 0;
 			vcdev->curr_io |= flag;
+		}
 		spin_unlock_irqrestore(get_ccwdev_lock(vcdev->cdev), flags);
 		cpu_relax();
 	} while (ret == -EBUSY);
@@ -145,15 +146,18 @@ static int ccw_io_helper(struct virtio_ccw_device *vcdev,
 }
 
 static inline long do_kvm_notify(struct subchannel_id schid,
-				 unsigned long queue_index)
+				 unsigned long queue_index,
+				 long cookie)
 {
 	register unsigned long __nr asm("1") = KVM_S390_VIRTIO_CCW_NOTIFY;
 	register struct subchannel_id __schid asm("2") = schid;
 	register unsigned long __index asm("3") = queue_index;
 	register long __rc asm("2");
+	register long __cookie asm("4") = cookie;
 
 	asm volatile ("diag 2,4,0x500\n"
-		      : "=d" (__rc) : "d" (__nr), "d" (__schid), "d" (__index)
+		      : "=d" (__rc) : "d" (__nr), "d" (__schid), "d" (__index),
+		      "d"(__cookie)
 		      : "memory", "cc");
 	return __rc;
 }
@@ -166,7 +170,7 @@ static void virtio_ccw_kvm_notify(struct virtqueue *vq)
 
 	vcdev = to_vc_device(info->vq->vdev);
 	ccw_device_get_schid(vcdev->cdev, &schid);
-	do_kvm_notify(schid, virtqueue_get_queue_index(vq));
+	info->cookie = do_kvm_notify(schid, vq->index, info->cookie);
 }
 
 static int virtio_ccw_read_vq_conf(struct virtio_ccw_device *vcdev,
@@ -188,7 +192,7 @@ static void virtio_ccw_del_vq(struct virtqueue *vq, struct ccw1 *ccw)
 	unsigned long flags;
 	unsigned long size;
 	int ret;
-	unsigned int index = virtqueue_get_queue_index(vq);
+	unsigned int index = vq->index;
 
 	/* Remove from our list. */
 	spin_lock_irqsave(&vcdev->lock, flags);
@@ -610,7 +614,7 @@ static struct virtqueue *virtio_ccw_vq_by_ind(struct virtio_ccw_device *vcdev,
 	vq = NULL;
 	spin_lock_irqsave(&vcdev->lock, flags);
 	list_for_each_entry(info, &vcdev->virtqueues, node) {
-		if (virtqueue_get_queue_index(info->vq) == index) {
+		if (info->vq->index == index) {
 			vq = info->vq;
 			break;
 		}

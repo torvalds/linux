@@ -36,6 +36,7 @@ enum nfs4_client_state {
 
 struct nfs4_minor_version_ops {
 	u32	minor_version;
+	unsigned init_caps;
 
 	int	(*call_sync)(struct rpc_clnt *clnt,
 			struct nfs_server *server,
@@ -46,6 +47,8 @@ struct nfs4_minor_version_ops {
 			const nfs4_stateid *);
 	int	(*find_root_sec)(struct nfs_server *, struct nfs_fh *,
 			struct nfs_fsinfo *);
+	int	(*free_lock_state)(struct nfs_server *,
+			struct nfs4_lock_state *);
 	const struct nfs4_state_recovery_ops *reboot_recovery_ops;
 	const struct nfs4_state_recovery_ops *nograce_recovery_ops;
 	const struct nfs4_state_maintenance_ops *state_renewal_ops;
@@ -143,12 +146,14 @@ struct nfs4_lock_state {
 enum {
 	LK_STATE_IN_USE,
 	NFS_DELEGATED_STATE,		/* Current stateid is delegation */
+	NFS_OPEN_STATE,			/* OPEN stateid is set */
 	NFS_O_RDONLY_STATE,		/* OPEN stateid has read-only state */
 	NFS_O_WRONLY_STATE,		/* OPEN stateid has write-only state */
 	NFS_O_RDWR_STATE,		/* OPEN stateid has read/write state */
 	NFS_STATE_RECLAIM_REBOOT,	/* OPEN stateid server rebooted */
 	NFS_STATE_RECLAIM_NOGRACE,	/* OPEN stateid needs to recover state */
 	NFS_STATE_POSIX_LOCKS,		/* Posix locks are supported */
+	NFS_STATE_RECOVERY_FAILED,	/* OPEN stateid state recovery failed */
 };
 
 struct nfs4_state {
@@ -231,8 +236,11 @@ extern int nfs4_proc_fs_locations(struct rpc_clnt *, struct inode *, const struc
 extern struct rpc_clnt *nfs4_proc_lookup_mountpoint(struct inode *, struct qstr *,
 			    struct nfs_fh *, struct nfs_fattr *);
 extern int nfs4_proc_secinfo(struct inode *, const struct qstr *, struct nfs4_secinfo_flavors *);
-extern int nfs4_release_lockowner(struct nfs4_lock_state *);
 extern const struct xattr_handler *nfs4_xattr_handlers[];
+extern int nfs4_set_rw_stateid(nfs4_stateid *stateid,
+		const struct nfs_open_context *ctx,
+		const struct nfs_lock_context *l_ctx,
+		fmode_t fmode);
 
 #if defined(CONFIG_NFS_V4_1)
 static inline struct nfs4_session *nfs4_get_session(const struct nfs_server *server)
@@ -347,13 +355,13 @@ extern int nfs4_wait_clnt_recover(struct nfs_client *clp);
 extern int nfs4_client_recover_expired_lease(struct nfs_client *clp);
 extern void nfs4_schedule_state_manager(struct nfs_client *);
 extern void nfs4_schedule_path_down_recovery(struct nfs_client *clp);
-extern void nfs4_schedule_stateid_recovery(const struct nfs_server *, struct nfs4_state *);
+extern int nfs4_schedule_stateid_recovery(const struct nfs_server *, struct nfs4_state *);
 extern void nfs41_handle_sequence_flag_errors(struct nfs_client *clp, u32 flags);
 extern void nfs41_handle_server_scope(struct nfs_client *,
 				      struct nfs41_server_scope **);
 extern void nfs4_put_lock_state(struct nfs4_lock_state *lsp);
 extern int nfs4_set_lock_state(struct nfs4_state *state, struct file_lock *fl);
-extern void nfs4_select_rw_stateid(nfs4_stateid *, struct nfs4_state *,
+extern int nfs4_select_rw_stateid(nfs4_stateid *, struct nfs4_state *,
 		fmode_t, const struct nfs_lockowner *);
 
 extern struct nfs_seqid *nfs_alloc_seqid(struct nfs_seqid_counter *counter, gfp_t gfp_mask);
@@ -410,6 +418,11 @@ static inline void nfs4_stateid_copy(nfs4_stateid *dst, const nfs4_stateid *src)
 static inline bool nfs4_stateid_match(const nfs4_stateid *dst, const nfs4_stateid *src)
 {
 	return memcmp(dst, src, sizeof(*dst)) == 0;
+}
+
+static inline bool nfs4_valid_open_stateid(const struct nfs4_state *state)
+{
+	return test_bit(NFS_STATE_RECOVERY_FAILED, &state->flags) == 0;
 }
 
 #else

@@ -24,6 +24,7 @@
 #include <linux/sysctl.h>
 #include <linux/ctype.h>
 #include <linux/string.h>
+#include <linux/string_helpers.h>
 #include <linux/uaccess.h>
 #include <linux/dynamic_debug.h>
 #include <linux/debugfs.h>
@@ -276,48 +277,6 @@ static inline int parse_lineno(const char *str, unsigned int *val)
 	return 0;
 }
 
-/*
- * Undo octal escaping in a string, inplace.  This is useful to
- * allow the user to express a query which matches a format
- * containing embedded spaces.
- */
-#define isodigit(c)		((c) >= '0' && (c) <= '7')
-static char *unescape(char *str)
-{
-	char *in = str;
-	char *out = str;
-
-	while (*in) {
-		if (*in == '\\') {
-			if (in[1] == '\\') {
-				*out++ = '\\';
-				in += 2;
-				continue;
-			} else if (in[1] == 't') {
-				*out++ = '\t';
-				in += 2;
-				continue;
-			} else if (in[1] == 'n') {
-				*out++ = '\n';
-				in += 2;
-				continue;
-			} else if (isodigit(in[1]) &&
-				   isodigit(in[2]) &&
-				   isodigit(in[3])) {
-				*out++ = (((in[1] - '0') << 6) |
-					  ((in[2] - '0') << 3) |
-					  (in[3] - '0'));
-				in += 4;
-				continue;
-			}
-		}
-		*out++ = *in++;
-	}
-	*out = '\0';
-
-	return str;
-}
-
 static int check_set(const char **dest, char *src, char *name)
 {
 	int rc = 0;
@@ -371,8 +330,10 @@ static int ddebug_parse_query(char *words[], int nwords,
 		} else if (!strcmp(words[i], "module")) {
 			rc = check_set(&query->module, words[i+1], "module");
 		} else if (!strcmp(words[i], "format")) {
-			rc = check_set(&query->format, unescape(words[i+1]),
-				       "format");
+			string_unescape_inplace(words[i+1], UNESCAPE_SPACE |
+							    UNESCAPE_OCTAL |
+							    UNESCAPE_SPECIAL);
+			rc = check_set(&query->format, words[i+1], "format");
 		} else if (!strcmp(words[i], "line")) {
 			char *first = words[i+1];
 			char *last = strchr(first, '-');

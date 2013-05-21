@@ -1387,7 +1387,7 @@ static int usbduxfast_attach_common(struct comedi_device *dev,
 	down(&udfs->sem);
 	/* pointer back to the corresponding comedi device */
 	udfs->comedidev = dev;
-	dev->board_name = "usbduxfast";
+
 	ret = comedi_alloc_subdevices(dev, 1);
 	if (ret) {
 		up(&udfs->sem);

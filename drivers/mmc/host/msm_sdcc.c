@@ -43,7 +43,6 @@
 #include <asm/sizes.h>
 
 #include <linux/platform_data/mmc-msm_sdcc.h>
-#include <mach/msm_iomap.h>
 #include <mach/dma.h>
 #include <mach/clk.h>
 

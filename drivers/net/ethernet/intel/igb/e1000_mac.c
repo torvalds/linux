@@ -214,7 +214,7 @@ s32 igb_vfta_set(struct e1000_hw *hw, u32 vid, bool add)
 		else
 			vfta &= ~mask;
 	}
-	if (hw->mac.type == e1000_i350)
+	if ((hw->mac.type == e1000_i350) || (hw->mac.type == e1000_i354))
 		igb_write_vfta_i350(hw, index, vfta);
 	else
 		igb_write_vfta(hw, index, vfta);
@@ -230,8 +230,8 @@ s32 igb_vfta_set(struct e1000_hw *hw, u32 vid, bool add)
  *  Checks the nvm for an alternate MAC address.  An alternate MAC address
  *  can be setup by pre-boot software and must be treated like a permanent
  *  address and must override the actual permanent MAC address.  If an
- *  alternate MAC address is fopund it is saved in the hw struct and
- *  prgrammed into RAR0 and the cuntion returns success, otherwise the
+ *  alternate MAC address is found it is saved in the hw struct and
+ *  programmed into RAR0 and the function returns success, otherwise the
  *  function returns an error.
  **/
 s32 igb_check_alt_mac_addr(struct e1000_hw *hw)
@@ -241,8 +241,7 @@ s32 igb_check_alt_mac_addr(struct e1000_hw *hw)
 	u16 offset, nvm_alt_mac_addr_offset, nvm_data;
 	u8 alt_mac_addr[ETH_ALEN];
 
-	/*
-	 * Alternate MAC address is handled by the option ROM for 82580
+	/* Alternate MAC address is handled by the option ROM for 82580
 	 * and newer. SW support not required.
 	 */
 	if (hw->mac.type >= e1000_82580)
@@ -285,8 +284,7 @@ s32 igb_check_alt_mac_addr(struct e1000_hw *hw)
 		goto out;
 	}
 
-	/*
-	 * We have a valid alternate MAC address, and we want to treat it the
+	/* We have a valid alternate MAC address, and we want to treat it the
 	 * same as the normal permanent MAC address stored by the HW into the
 	 * RAR. Do this by mapping this address into RAR0.
 	 */
@@ -309,8 +307,7 @@ void igb_rar_set(struct e1000_hw *hw, u8 *addr, u32 index)
 {
 	u32 rar_low, rar_high;
 
-	/*
-	 * HW expects these in little endian so we reverse the byte order
+	/* HW expects these in little endian so we reverse the byte order
 	 * from network order (big endian) to little endian
 	 */
 	rar_low = ((u32) addr[0] |
@@ -323,8 +320,7 @@ void igb_rar_set(struct e1000_hw *hw, u8 *addr, u32 index)
 	if (rar_low || rar_high)
 		rar_high |= E1000_RAH_AV;
 
-	/*
-	 * Some bridges will combine consecutive 32-bit writes into
+	/* Some bridges will combine consecutive 32-bit writes into
 	 * a single burst write, which will malfunction on some parts.
 	 * The flushes avoid this.
 	 */
@@ -348,8 +344,7 @@ void igb_mta_set(struct e1000_hw *hw, u32 hash_value)
 {
 	u32 hash_bit, hash_reg, mta;
 
-	/*
-	 * The MTA is a register array of 32-bit registers. It is
+	/* The MTA is a register array of 32-bit registers. It is
 	 * treated like an array of (32*mta_reg_count) bits.  We want to
 	 * set bit BitArray[hash_value]. So we figure out what register
 	 * the bit is in, read it, OR in the new bit, then write
@@ -386,15 +381,13 @@ static u32 igb_hash_mc_addr(struct e1000_hw *hw, u8 *mc_addr)
 	/* Register count multiplied by bits per register */
 	hash_mask = (hw->mac.mta_reg_count * 32) - 1;
 
-	/*
-	 * For a mc_filter_type of 0, bit_shift is the number of left-shifts
+	/* For a mc_filter_type of 0, bit_shift is the number of left-shifts
 	 * where 0xFF would still fall within the hash mask.
 	 */
 	while (hash_mask >> bit_shift != 0xFF)
 		bit_shift++;
 
-	/*
-	 * The portion of the address that is used for the hash table
+	/* The portion of the address that is used for the hash table
 	 * is determined by the mc_filter_type setting.
 	 * The algorithm is such that there is a total of 8 bits of shifting.
 	 * The bit_shift for a mc_filter_type of 0 represents the number of
@@ -536,8 +529,7 @@ s32 igb_check_for_copper_link(struct e1000_hw *hw)
 	s32 ret_val;
 	bool link;
 
-	/*
-	 * We only want to go out to the PHY registers to see if Auto-Neg
+	/* We only want to go out to the PHY registers to see if Auto-Neg
 	 * has completed and/or if our link status has changed.  The
 	 * get_link_status flag is set upon receiving a Link Status
 	 * Change or Rx Sequence Error interrupt.
@@ -547,8 +539,7 @@ s32 igb_check_for_copper_link(struct e1000_hw *hw)
 		goto out;
 	}
 
-	/*
-	 * First we want to see if the MII Status Register reports
+	/* First we want to see if the MII Status Register reports
 	 * link.  If so, then we want to get the current speed/duplex
 	 * of the PHY.
 	 */
@@ -561,14 +552,12 @@ s32 igb_check_for_copper_link(struct e1000_hw *hw)
 
 	mac->get_link_status = false;
 
-	/*
-	 * Check if there was DownShift, must be checked
+	/* Check if there was DownShift, must be checked
 	 * immediately after link-up
 	 */
 	igb_check_downshift(hw);
 
-	/*
-	 * If we are forcing speed/duplex, then we simply return since
+	/* If we are forcing speed/duplex, then we simply return since
 	 * we have already determined whether we have link or not.
 	 */
 	if (!mac->autoneg) {
@@ -576,15 +565,13 @@ s32 igb_check_for_copper_link(struct e1000_hw *hw)
 		goto out;
 	}
 
-	/*
-	 * Auto-Neg is enabled.  Auto Speed Detection takes care
+	/* Auto-Neg is enabled.  Auto Speed Detection takes care
 	 * of MAC speed/duplex configuration.  So we only need to
 	 * configure Collision Distance in the MAC.
 	 */
 	igb_config_collision_dist(hw);
 
-	/*
-	 * Configure Flow Control now that Auto-Neg has completed.
+	/* Configure Flow Control now that Auto-Neg has completed.
 	 * First, we need to restore the desired flow control
 	 * settings because we may have had to re-autoneg with a
 	 * different link partner.
@@ -611,15 +598,13 @@ s32 igb_setup_link(struct e1000_hw *hw)
 {
 	s32 ret_val = 0;
 
-	/*
-	 * In the case of the phy reset being blocked, we already have a link.
+	/* In the case of the phy reset being blocked, we already have a link.
 	 * We do not need to set it up again.
 	 */
 	if (igb_check_reset_block(hw))
 		goto out;
 
-	/*
-	 * If requested flow control is set to default, set flow control
+	/* If requested flow control is set to default, set flow control
 	 * based on the EEPROM flow control settings.
 	 */
 	if (hw->fc.requested_mode == e1000_fc_default) {
@@ -628,8 +613,7 @@ s32 igb_setup_link(struct e1000_hw *hw)
 			goto out;
 	}
 
-	/*
-	 * We want to save off the original Flow Control configuration just
+	/* We want to save off the original Flow Control configuration just
 	 * in case we get disconnected and then reconnected into a different
 	 * hub or switch with different Flow Control capabilities.
 	 */
@@ -642,8 +626,7 @@ s32 igb_setup_link(struct e1000_hw *hw)
 	if (ret_val)
 		goto out;
 
-	/*
-	 * Initialize the flow control address, type, and PAUSE timer
+	/* Initialize the flow control address, type, and PAUSE timer
 	 * registers to their default values.  This is done even if flow
 	 * control is disabled, because it does not hurt anything to
 	 * initialize these registers.
@@ -696,16 +679,14 @@ static s32 igb_set_fc_watermarks(struct e1000_hw *hw)
 	s32 ret_val = 0;
 	u32 fcrtl = 0, fcrth = 0;
 
-	/*
-	 * Set the flow control receive threshold registers.  Normally,
+	/* Set the flow control receive threshold registers.  Normally,
 	 * these registers will be set to a default threshold that may be
 	 * adjusted later by the driver's runtime code.  However, if the
 	 * ability to transmit pause frames is not enabled, then these
 	 * registers will be set to 0.
 	 */
 	if (hw->fc.current_mode & e1000_fc_tx_pause) {
-		/*
-		 * We need to set up the Receive Threshold high and low water
+		/* We need to set up the Receive Threshold high and low water
 		 * marks as well as (optionally) enabling the transmission of
 		 * XON frames.
 		 */
@@ -733,8 +714,7 @@ static s32 igb_set_default_fc(struct e1000_hw *hw)
 	s32 ret_val = 0;
 	u16 nvm_data;
 
-	/*
-	 * Read and store word 0x0F of the EEPROM. This word contains bits
+	/* Read and store word 0x0F of the EEPROM. This word contains bits
 	 * that determine the hardware's default PAUSE (flow control) mode,
 	 * a bit that determines whether the HW defaults to enabling or
 	 * disabling auto-negotiation, and the direction of the
@@ -778,8 +758,7 @@ s32 igb_force_mac_fc(struct e1000_hw *hw)
 
 	ctrl = rd32(E1000_CTRL);
 
-	/*
-	 * Because we didn't get link via the internal auto-negotiation
+	/* Because we didn't get link via the internal auto-negotiation
 	 * mechanism (we either forced link or we got link via PHY
 	 * auto-neg), we have to manually enable/disable transmit an
 	 * receive flow control.
@@ -843,8 +822,7 @@ s32 igb_config_fc_after_link_up(struct e1000_hw *hw)
 	u16 mii_status_reg, mii_nway_adv_reg, mii_nway_lp_ability_reg;
 	u16 speed, duplex;
 
-	/*
-	 * Check for the case where we have fiber media and auto-neg failed
+	/* Check for the case where we have fiber media and auto-neg failed
 	 * so we had to force link.  In this case, we need to force the
 	 * configuration of the MAC to match the "fc" parameter.
 	 */
@@ -861,15 +839,13 @@ s32 igb_config_fc_after_link_up(struct e1000_hw *hw)
 		goto out;
 	}
 
-	/*
-	 * Check for the case where we have copper media and auto-neg is
+	/* Check for the case where we have copper media and auto-neg is
 	 * enabled.  In this case, we need to check and see if Auto-Neg
 	 * has completed, and if so, how the PHY and link partner has
 	 * flow control configured.
 	 */
 	if ((hw->phy.media_type == e1000_media_type_copper) && mac->autoneg) {
-		/*
-		 * Read the MII Status Register and check to see if AutoNeg
+		/* Read the MII Status Register and check to see if AutoNeg
 		 * has completed.  We read this twice because this reg has
 		 * some "sticky" (latched) bits.
 		 */
@@ -888,8 +864,7 @@ s32 igb_config_fc_after_link_up(struct e1000_hw *hw)
 			goto out;
 		}
 
-		/*
-		 * The AutoNeg process has completed, so we now need to
+		/* The AutoNeg process has completed, so we now need to
 		 * read both the Auto Negotiation Advertisement
 		 * Register (Address 4) and the Auto_Negotiation Base
 		 * Page Ability Register (Address 5) to determine how
@@ -904,8 +879,7 @@ s32 igb_config_fc_after_link_up(struct e1000_hw *hw)
 		if (ret_val)
 			goto out;
 
-		/*
-		 * Two bits in the Auto Negotiation Advertisement Register
+		/* Two bits in the Auto Negotiation Advertisement Register
 		 * (Address 4) and two bits in the Auto Negotiation Base
 		 * Page Ability Register (Address 5) determine flow control
 		 * for both the PHY and the link partner.  The following
@@ -940,8 +914,7 @@ s32 igb_config_fc_after_link_up(struct e1000_hw *hw)
 		 */
 		if ((mii_nway_adv_reg & NWAY_AR_PAUSE) &&
 		    (mii_nway_lp_ability_reg & NWAY_LPAR_PAUSE)) {
-			/*
-			 * Now we need to check if the user selected RX ONLY
+			/* Now we need to check if the user selected RX ONLY
 			 * of pause frames.  In this case, we had to advertise
 			 * FULL flow control because we could not advertise RX
 			 * ONLY. Hence, we must now check to see if we need to
@@ -956,8 +929,7 @@ s32 igb_config_fc_after_link_up(struct e1000_hw *hw)
 				       "RX PAUSE frames only.\r\n");
 			}
 		}
-		/*
-		 * For receiving PAUSE frames ONLY.
+		/* For receiving PAUSE frames ONLY.
 		 *
 		 *   LOCAL DEVICE  |   LINK PARTNER
 		 * PAUSE | ASM_DIR | PAUSE | ASM_DIR | Result
@@ -971,8 +943,7 @@ s32 igb_config_fc_after_link_up(struct e1000_hw *hw)
 			hw->fc.current_mode = e1000_fc_tx_pause;
 			hw_dbg("Flow Control = TX PAUSE frames only.\r\n");
 		}
-		/*
-		 * For transmitting PAUSE frames ONLY.
+		/* For transmitting PAUSE frames ONLY.
 		 *
 		 *   LOCAL DEVICE  |   LINK PARTNER
 		 * PAUSE | ASM_DIR | PAUSE | ASM_DIR | Result
@@ -986,8 +957,7 @@ s32 igb_config_fc_after_link_up(struct e1000_hw *hw)
 			hw->fc.current_mode = e1000_fc_rx_pause;
 			hw_dbg("Flow Control = RX PAUSE frames only.\r\n");
 		}
-		/*
-		 * Per the IEEE spec, at this point flow control should be
+		/* Per the IEEE spec, at this point flow control should be
 		 * disabled.  However, we want to consider that we could
 		 * be connected to a legacy switch that doesn't advertise
 		 * desired flow control, but can be forced on the link
@@ -1007,9 +977,9 @@ s32 igb_config_fc_after_link_up(struct e1000_hw *hw)
 		 * be asked to delay transmission of packets than asking
 		 * our link partner to pause transmission of frames.
 		 */
-		else if ((hw->fc.requested_mode == e1000_fc_none ||
-			  hw->fc.requested_mode == e1000_fc_tx_pause) ||
-			 hw->fc.strict_ieee) {
+		else if ((hw->fc.requested_mode == e1000_fc_none) ||
+			 (hw->fc.requested_mode == e1000_fc_tx_pause) ||
+			 (hw->fc.strict_ieee)) {
 			hw->fc.current_mode = e1000_fc_none;
 			hw_dbg("Flow Control = NONE.\r\n");
 		} else {
@@ -1017,8 +987,7 @@ s32 igb_config_fc_after_link_up(struct e1000_hw *hw)
 			hw_dbg("Flow Control = RX PAUSE frames only.\r\n");
 		}
 
-		/*
-		 * Now we need to do one last check...  If we auto-
+		/* Now we need to do one last check...  If we auto-
 		 * negotiated to HALF DUPLEX, flow control should not be
 		 * enabled per IEEE 802.3 spec.
 		 */
@@ -1031,8 +1000,7 @@ s32 igb_config_fc_after_link_up(struct e1000_hw *hw)
 		if (duplex == HALF_DUPLEX)
 			hw->fc.current_mode = e1000_fc_none;
 
-		/*
-		 * Now we call a subroutine to actually force the MAC
+		/* Now we call a subroutine to actually force the MAC
 		 * controller to use the correct flow control settings.
 		 */
 		ret_val = igb_force_mac_fc(hw);
@@ -1201,6 +1169,17 @@ s32 igb_get_speed_and_duplex_copper(struct e1000_hw *hw, u16 *speed,
 	} else {
 		*duplex = HALF_DUPLEX;
 		hw_dbg("Half Duplex\n");
+	}
+
+	/* Check if it is an I354 2.5Gb backplane connection. */
+	if (hw->mac.type == e1000_i354) {
+		if ((status & E1000_STATUS_2P5_SKU) &&
+		    !(status & E1000_STATUS_2P5_SKU_OVER)) {
+			*speed = SPEED_2500;
+			*duplex = FULL_DUPLEX;
+			hw_dbg("2500 Mbs, ");
+			hw_dbg("Full Duplex\n");
+		}
 	}
 
 	return 0;
@@ -1427,8 +1406,7 @@ s32 igb_blink_led(struct e1000_hw *hw)
 	u32 ledctl_blink = 0;
 	u32 i;
 
-	/*
-	 * set the blink bit for each LED that's "on" (0x0E)
+	/* set the blink bit for each LED that's "on" (0x0E)
 	 * in ledctl_mode2
 	 */
 	ledctl_blink = hw->mac.ledctl_mode2;
@@ -1467,7 +1445,7 @@ s32 igb_led_off(struct e1000_hw *hw)
  *  @hw: pointer to the HW structure
  *
  *  Returns 0 (0) if successful, else returns -10
- *  (-E1000_ERR_MASTER_REQUESTS_PENDING) if master disable bit has not casued
+ *  (-E1000_ERR_MASTER_REQUESTS_PENDING) if master disable bit has not caused
  *  the master requests to be disabled.
  *
  *  Disables PCI-Express master access and verifies there are no pending

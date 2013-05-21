@@ -584,12 +584,14 @@ static int init_hash_table(struct pxa168_eth_private *pep)
 	 */
 	if (pep->htpr == NULL) {
 		pep->htpr = dma_alloc_coherent(pep->dev->dev.parent,
-					      HASH_ADDR_TABLE_SIZE,
-					      &pep->htpr_dma, GFP_KERNEL);
+					       HASH_ADDR_TABLE_SIZE,
+					       &pep->htpr_dma,
+					       GFP_KERNEL | __GFP_ZERO);
 		if (pep->htpr == NULL)
 			return -ENOMEM;
+	} else {
+		memset(pep->htpr, 0, HASH_ADDR_TABLE_SIZE);
 	}
-	memset(pep->htpr, 0, HASH_ADDR_TABLE_SIZE);
 	wrl(pep, HTPR, pep->htpr_dma);
 	return 0;
 }
@@ -1023,13 +1025,11 @@ static int rxq_init(struct net_device *dev)
 	size = pep->rx_ring_size * sizeof(struct rx_desc);
 	pep->rx_desc_area_size = size;
 	pep->p_rx_desc_area = dma_alloc_coherent(pep->dev->dev.parent, size,
-						&pep->rx_desc_dma, GFP_KERNEL);
-	if (!pep->p_rx_desc_area) {
-		printk(KERN_ERR "%s: Cannot alloc RX ring (size %d bytes)\n",
-		       dev->name, size);
+						 &pep->rx_desc_dma,
+						 GFP_KERNEL | __GFP_ZERO);
+	if (!pep->p_rx_desc_area)
 		goto out;
-	}
-	memset((void *)pep->p_rx_desc_area, 0, size);
+
 	/* initialize the next_desc_ptr links in the Rx descriptors ring */
 	p_rx_desc = pep->p_rx_desc_area;
 	for (i = 0; i < rx_desc_num; i++) {
@@ -1086,13 +1086,10 @@ static int txq_init(struct net_device *dev)
 	size = pep->tx_ring_size * sizeof(struct tx_desc);
 	pep->tx_desc_area_size = size;
 	pep->p_tx_desc_area = dma_alloc_coherent(pep->dev->dev.parent, size,
-						&pep->tx_desc_dma, GFP_KERNEL);
-	if (!pep->p_tx_desc_area) {
-		printk(KERN_ERR "%s: Cannot allocate Tx Ring (size %d bytes)\n",
-		       dev->name, size);
+						 &pep->tx_desc_dma,
+						 GFP_KERNEL | __GFP_ZERO);
+	if (!pep->p_tx_desc_area)
 		goto out;
-	}
-	memset((void *)pep->p_tx_desc_area, 0, pep->tx_desc_area_size);
 	/* Initialize the next_desc_ptr links in the Tx descriptors ring */
 	p_tx_desc = pep->p_tx_desc_area;
 	for (i = 0; i < tx_desc_num; i++) {

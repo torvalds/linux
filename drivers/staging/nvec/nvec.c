@@ -352,10 +352,10 @@ static void nvec_toggle_global_events(struct nvec_chip *nvec, bool state)
  */
 static void nvec_event_mask(char *ev, u32 mask)
 {
-	ev[3] = mask >> 16 && 0xff;
-	ev[4] = mask >> 24 && 0xff;
-	ev[5] = mask >> 0  && 0xff;
-	ev[6] = mask >> 8  && 0xff;
+	ev[3] = mask >> 16 & 0xff;
+	ev[4] = mask >> 24 & 0xff;
+	ev[5] = mask >> 0  & 0xff;
+	ev[6] = mask >> 8  & 0xff;
 }
 
 /**
@@ -800,11 +800,6 @@ static int tegra_nvec_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "no mem resource?\n");
-		return -ENODEV;
-	}
-
 	base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(base))
 		return PTR_ERR(base);

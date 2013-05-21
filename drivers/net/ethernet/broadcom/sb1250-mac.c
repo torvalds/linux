@@ -831,11 +831,8 @@ static int sbdma_add_rcvbuffer(struct sbmac_softc *sc, struct sbmacdma *d,
 		sb_new = netdev_alloc_skb(dev, ENET_PACKET_SIZE +
 					       SMP_CACHE_BYTES * 2 +
 					       NET_IP_ALIGN);
-		if (sb_new == NULL) {
-			pr_info("%s: sk_buff allocation failed\n",
-			       d->sbdma_eth->sbm_dev->name);
+		if (sb_new == NULL)
 			return -ENOBUFS;
-		}
 
 		sbdma_align_skb(sb_new, SMP_CACHE_BYTES, NET_IP_ALIGN);
 	}

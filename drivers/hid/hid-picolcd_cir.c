@@ -21,8 +21,6 @@
 #include <linux/hid-debug.h>
 #include <linux/input.h>
 #include "hid-ids.h"
-#include "usbhid/usbhid.h"
-#include <linux/usb.h>
 
 #include <linux/fb.h>
 #include <linux/vmalloc.h>

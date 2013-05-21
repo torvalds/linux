@@ -18,6 +18,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/irqdomain.h>
+#include <linux/irqchip/chained_irq.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/pinctrl/machine.h>
@@ -26,8 +27,6 @@
 #include <linux/pinctrl/pinmux.h>
 /* Since we request GPIOs from ourself */
 #include <linux/pinctrl/consumer.h>
-
-#include <asm/mach/irq.h>
 
 #include <mach/hardware.h>
 #include <mach/at91_pio.h>
@@ -294,7 +293,7 @@ static void at91_dt_free_map(struct pinctrl_dev *pctldev,
 {
 }
 
-static struct pinctrl_ops at91_pctrl_ops = {
+static const struct pinctrl_ops at91_pctrl_ops = {
 	.get_groups_count	= at91_get_groups_count,
 	.get_group_name		= at91_get_group_name,
 	.get_group_pins		= at91_get_group_pins,
@@ -303,7 +302,7 @@ static struct pinctrl_ops at91_pctrl_ops = {
 	.dt_free_map		= at91_dt_free_map,
 };
 
-static void __iomem * pin_to_controller(struct at91_pinctrl *info,
+static void __iomem *pin_to_controller(struct at91_pinctrl *info,
 				 unsigned int bank)
 {
 	return gpio_chips[bank]->regbase;
@@ -501,7 +500,7 @@ static void at91_pin_dbg(const struct device *dev, const struct at91_pmx_pin *pi
 	}
 }
 
-static int pin_check_config(struct at91_pinctrl *info, const char* name,
+static int pin_check_config(struct at91_pinctrl *info, const char *name,
 			    int index, const struct at91_pmx_pin *pin)
 {
 	int mux;
@@ -579,7 +578,7 @@ static int at91_pmx_enable(struct pinctrl_dev *pctldev, unsigned selector,
 		pio = pin_to_controller(info, pin->bank);
 		mask = pin_to_mask(pin->pin);
 		at91_mux_disable_interrupt(pio, mask);
-		switch(pin->mux) {
+		switch (pin->mux) {
 		case AT91_MUX_GPIO:
 			at91_mux_gpio_enable(pio, mask, 1);
 			break;
@@ -696,7 +695,7 @@ static void at91_gpio_disable_free(struct pinctrl_dev *pctldev,
 	/* Set the pin to some default state, GPIO is usually default */
 }
 
-static struct pinmux_ops at91_pmx_ops = {
+static const struct pinmux_ops at91_pmx_ops = {
 	.get_functions_count	= at91_pmx_get_funcs_count,
 	.get_function_name	= at91_pmx_get_func_name,
 	.get_function_groups	= at91_pmx_get_groups,
@@ -776,7 +775,7 @@ static void at91_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
 {
 }
 
-static struct pinconf_ops at91_pinconf_ops = {
+static const struct pinconf_ops at91_pinconf_ops = {
 	.pin_config_get			= at91_pinconf_get,
 	.pin_config_set			= at91_pinconf_set,
 	.pin_config_dbg_show		= at91_pinconf_dbg_show,
@@ -812,7 +811,7 @@ static int at91_pinctrl_mux_mask(struct at91_pinctrl *info,
 {
 	int ret = 0;
 	int size;
-	const const __be32 *list;
+	const __be32 *list;
 
 	list = of_get_property(np, "atmel,mux-mask", &size);
 	if (!list) {
@@ -846,7 +845,7 @@ static int at91_pinctrl_parse_groups(struct device_node *np,
 {
 	struct at91_pmx_pin *pin;
 	int size;
-	const const __be32 *list;
+	const __be32 *list;
 	int i, j;
 
 	dev_dbg(info->dev, "group(%d): %s\n", index, np->name);
@@ -944,7 +943,7 @@ static int at91_pinctrl_probe_dt(struct platform_device *pdev,
 		return -ENODEV;
 
 	info->dev = &pdev->dev;
-	info->ops = (struct at91_pinctrl_mux_ops*)
+	info->ops = (struct at91_pinctrl_mux_ops *)
 		of_match_device(at91_pinctrl_of_match, &pdev->dev)->data;
 	at91_pinctrl_child_count(info, np);
 
@@ -1002,7 +1001,7 @@ static int at91_pinctrl_probe(struct platform_device *pdev)
 {
 	struct at91_pinctrl *info;
 	struct pinctrl_pin_desc *pdesc;
-	int ret, i, j ,k;
+	int ret, i, j, k;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
@@ -1568,7 +1567,7 @@ static int at91_gpio_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	at91_chip->ops = (struct at91_pinctrl_mux_ops*)
+	at91_chip->ops = (struct at91_pinctrl_mux_ops *)
 		of_match_device(at91_gpio_of_match, &pdev->dev)->data;
 	at91_chip->pioc_virq = irq;
 	at91_chip->pioc_idx = alias_idx;
@@ -1605,7 +1604,8 @@ static int at91_gpio_probe(struct platform_device *pdev)
 			chip->ngpio = ngpio;
 	}
 
-	names = devm_kzalloc(&pdev->dev, sizeof(char*) * chip->ngpio, GFP_KERNEL);
+	names = devm_kzalloc(&pdev->dev, sizeof(char *) * chip->ngpio,
+			     GFP_KERNEL);
 
 	if (!names) {
 		ret = -ENOMEM;
@@ -1615,7 +1615,7 @@ static int at91_gpio_probe(struct platform_device *pdev)
 	for (i = 0; i < chip->ngpio; i++)
 		names[i] = kasprintf(GFP_KERNEL, "pio%c%d", alias_idx + 'A', i);
 
-	chip->names = (const char*const*)names;
+	chip->names = (const char *const *)names;
 
 	range = &at91_chip->range;
 	range->name = chip->label;

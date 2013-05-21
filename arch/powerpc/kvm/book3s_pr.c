@@ -762,9 +762,7 @@ program_interrupt:
 			run->exit_reason = KVM_EXIT_MMIO;
 			r = RESUME_HOST_NV;
 			break;
-		case EMULATE_DO_PAPR:
-			run->exit_reason = KVM_EXIT_PAPR_HCALL;
-			vcpu->arch.hcall_needed = 1;
+		case EMULATE_EXIT_USER:
 			r = RESUME_HOST_NV;
 			break;
 		default:
@@ -1039,7 +1037,7 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 	if (!vcpu_book3s)
 		goto out;
 
-	vcpu_book3s->shadow_vcpu = (struct kvmppc_book3s_shadow_vcpu *)
+	vcpu_book3s->shadow_vcpu =
 		kzalloc(sizeof(*vcpu_book3s->shadow_vcpu), GFP_KERNEL);
 	if (!vcpu_book3s->shadow_vcpu)
 		goto free_vcpu;
@@ -1283,7 +1281,7 @@ int kvmppc_core_prepare_memory_region(struct kvm *kvm,
 
 void kvmppc_core_commit_memory_region(struct kvm *kvm,
 				struct kvm_userspace_memory_region *mem,
-				struct kvm_memory_slot old)
+				const struct kvm_memory_slot *old)
 {
 }
 
@@ -1298,6 +1296,7 @@ int kvmppc_core_init_vm(struct kvm *kvm)
 {
 #ifdef CONFIG_PPC64
 	INIT_LIST_HEAD(&kvm->arch.spapr_tce_tables);
+	INIT_LIST_HEAD(&kvm->arch.rtas_tokens);
 #endif
 
 	if (firmware_has_feature(FW_FEATURE_SET_MODE)) {

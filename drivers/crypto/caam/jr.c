@@ -407,6 +407,7 @@ int caam_jr_shutdown(struct device *dev)
 	dma_free_coherent(dev, sizeof(struct jr_outentry) * JOBR_DEPTH,
 			  jrp->outring, outbusaddr);
 	kfree(jrp->entinfo);
+	of_device_unregister(jrp->jr_pdev);
 
 	return ret;
 }
@@ -454,6 +455,8 @@ int caam_jr_probe(struct platform_device *pdev, struct device_node *np,
 		kfree(jrpriv);
 		return -EINVAL;
 	}
+
+	jrpriv->jr_pdev = jr_pdev;
 	jrdev = &jr_pdev->dev;
 	dev_set_drvdata(jrdev, jrpriv);
 	ctrlpriv->jrdev[ring] = jrdev;
@@ -472,6 +475,7 @@ int caam_jr_probe(struct platform_device *pdev, struct device_node *np,
 	/* Now do the platform independent part */
 	error = caam_jr_init(jrdev); /* now turn on hardware */
 	if (error) {
+		of_device_unregister(jr_pdev);
 		kfree(jrpriv);
 		return error;
 	}

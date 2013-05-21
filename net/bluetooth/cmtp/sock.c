@@ -245,7 +245,7 @@ int cmtp_init_sockets(void)
 		goto error;
 	}
 
-	err = bt_procfs_init(THIS_MODULE, &init_net, "cmtp", &cmtp_sk_list, NULL);
+	err = bt_procfs_init(&init_net, "cmtp", &cmtp_sk_list, NULL);
 	if (err < 0) {
 		BT_ERR("Failed to create CMTP proc file");
 		bt_sock_unregister(BTPROTO_HIDP);
@@ -264,8 +264,6 @@ error:
 void cmtp_cleanup_sockets(void)
 {
 	bt_procfs_cleanup(&init_net, "cmtp");
-	if (bt_sock_unregister(BTPROTO_CMTP) < 0)
-		BT_ERR("Can't unregister CMTP socket");
-
+	bt_sock_unregister(BTPROTO_CMTP);
 	proto_unregister(&cmtp_proto);
 }

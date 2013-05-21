@@ -449,7 +449,7 @@ static void rp_do_transmit(struct r_port *info)
 
 	/*  Loop sending data to FIFO until done or FIFO full */
 	while (1) {
-		if (tty->stopped || tty->hw_stopped)
+		if (tty->stopped)
 			break;
 		c = min(info->xmit_fifo_room, info->xmit_cnt);
 		c = min(c, XMIT_BUF_SIZE - info->xmit_tail);
@@ -521,15 +521,10 @@ static void rp_handle_port(struct r_port *info)
 		       (ChanStatus & CD_ACT) ? "on" : "off");
 #endif
 		if (!(ChanStatus & CD_ACT) && info->cd_status) {
-			struct tty_struct *tty;
 #ifdef ROCKET_DEBUG_HANGUP
 			printk(KERN_INFO "CD drop, calling hangup.\n");
 #endif
-			tty = tty_port_tty_get(&info->port);
-			if (tty) {
-				tty_hangup(tty);
-				tty_kref_put(tty);
-			}
+			tty_port_tty_hangup(&info->port, false);
 		}
 		info->cd_status = (ChanStatus & CD_ACT) ? 1 : 0;
 		wake_up_interruptible(&info->port.open_wait);
@@ -1111,15 +1106,12 @@ static void rp_set_termios(struct tty_struct *tty,
 
 	/* Handle transition away from B0 status */
 	if (!(old_termios->c_cflag & CBAUD) && (tty->termios.c_cflag & CBAUD)) {
-		if (!tty->hw_stopped || !(tty->termios.c_cflag & CRTSCTS))
-			sSetRTS(cp);
+		sSetRTS(cp);
 		sSetDTR(cp);
 	}
 
-	if ((old_termios->c_cflag & CRTSCTS) && !(tty->termios.c_cflag & CRTSCTS)) {
-		tty->hw_stopped = 0;
+	if ((old_termios->c_cflag & CRTSCTS) && !(tty->termios.c_cflag & CRTSCTS))
 		rp_start(tty);
-	}
 }
 
 static int rp_break(struct tty_struct *tty, int break_state)
@@ -1575,10 +1567,10 @@ static int rp_put_char(struct tty_struct *tty, unsigned char ch)
 	spin_lock_irqsave(&info->slock, flags);
 	cp = &info->channel;
 
-	if (!tty->stopped && !tty->hw_stopped && info->xmit_fifo_room == 0)
+	if (!tty->stopped && info->xmit_fifo_room == 0)
 		info->xmit_fifo_room = TXFIFO_SIZE - sGetTxCnt(cp);
 
-	if (tty->stopped || tty->hw_stopped || info->xmit_fifo_room == 0 || info->xmit_cnt != 0) {
+	if (tty->stopped || info->xmit_fifo_room == 0 || info->xmit_cnt != 0) {
 		info->xmit_buf[info->xmit_head++] = ch;
 		info->xmit_head &= XMIT_BUF_SIZE - 1;
 		info->xmit_cnt++;
@@ -1619,14 +1611,14 @@ static int rp_write(struct tty_struct *tty,
 #endif
 	cp = &info->channel;
 
-	if (!tty->stopped && !tty->hw_stopped && info->xmit_fifo_room < count)
+	if (!tty->stopped && info->xmit_fifo_room < count)
 		info->xmit_fifo_room = TXFIFO_SIZE - sGetTxCnt(cp);
 
         /*
 	 *  If the write queue for the port is empty, and there is FIFO space, stuff bytes 
 	 *  into FIFO.  Use the write queue for temp storage.
          */
-	if (!tty->stopped && !tty->hw_stopped && info->xmit_cnt == 0 && info->xmit_fifo_room > 0) {
+	if (!tty->stopped && info->xmit_cnt == 0 && info->xmit_fifo_room > 0) {
 		c = min(count, info->xmit_fifo_room);
 		b = buf;
 
@@ -1674,7 +1666,7 @@ static int rp_write(struct tty_struct *tty,
 		retval += c;
 	}
 
-	if ((retval > 0) && !tty->stopped && !tty->hw_stopped)
+	if ((retval > 0) && !tty->stopped)
 		set_bit((info->aiop * 8) + info->chan, (void *) &xmit_flags[info->board]);
 	
 end:
@@ -2527,6 +2519,7 @@ static int sInitController(CONTROLLER_T * CtlP, int CtlNum, ByteIO_t MudbacIO,
 		return (CtlP->NumAiop);
 }
 
+#ifdef CONFIG_PCI
 /***************************************************************************
 Function: sPCIInitController
 Purpose:  Initialization of controller global registers and controller
@@ -2646,6 +2639,26 @@ static int sPCIInitController(CONTROLLER_T * CtlP, int CtlNum,
 	else
 		return (CtlP->NumAiop);
 }
+
+/*  Resets the speaker controller on RocketModem II and III devices */
+static void rmSpeakerReset(CONTROLLER_T * CtlP, unsigned long model)
+{
+	ByteIO_t addr;
+
+	/* RocketModem II speaker control is at the 8th port location of offset 0x40 */
+	if ((model == MODEL_RP4M) || (model == MODEL_RP6M)) {
+		addr = CtlP->AiopIO[0] + 0x4F;
+		sOutB(addr, 0);
+	}
+
+	/* RocketModem III speaker control is at the 1st port location of offset 0x80 */
+	if ((model == MODEL_UPCI_RM3_8PORT)
+	    || (model == MODEL_UPCI_RM3_4PORT)) {
+		addr = CtlP->AiopIO[0] + 0x88;
+		sOutB(addr, 0);
+	}
+}
+#endif
 
 /***************************************************************************
 Function: sReadAiopID
@@ -3134,25 +3147,6 @@ static void sPCIModemReset(CONTROLLER_T * CtlP, int chan, int on)
 	if (!on)
 		addr += 8;
 	sOutB(addr + chan, 0);	/* apply or remove reset */
-}
-
-/*  Resets the speaker controller on RocketModem II and III devices */
-static void rmSpeakerReset(CONTROLLER_T * CtlP, unsigned long model)
-{
-	ByteIO_t addr;
-
-	/* RocketModem II speaker control is at the 8th port location of offset 0x40 */
-	if ((model == MODEL_RP4M) || (model == MODEL_RP6M)) {
-		addr = CtlP->AiopIO[0] + 0x4F;
-		sOutB(addr, 0);
-	}
-
-	/* RocketModem III speaker control is at the 1st port location of offset 0x80 */
-	if ((model == MODEL_UPCI_RM3_8PORT)
-	    || (model == MODEL_UPCI_RM3_4PORT)) {
-		addr = CtlP->AiopIO[0] + 0x88;
-		sOutB(addr, 0);
-	}
 }
 
 /*  Returns the line number given the controller (board), aiop and channel number */

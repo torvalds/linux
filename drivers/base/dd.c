@@ -380,7 +380,7 @@ int driver_probe_device(struct device_driver *drv, struct device *dev)
 
 	pm_runtime_barrier(dev);
 	ret = really_probe(dev, drv);
-	pm_runtime_idle(dev);
+	pm_request_idle(dev);
 
 	return ret;
 }
@@ -428,7 +428,7 @@ int device_attach(struct device *dev)
 		}
 	} else {
 		ret = bus_for_each_drv(dev->bus, NULL, dev, __device_attach);
-		pm_runtime_idle(dev);
+		pm_request_idle(dev);
 	}
 out_unlock:
 	device_unlock(dev);
@@ -499,7 +499,7 @@ static void __device_release_driver(struct device *dev)
 						     BUS_NOTIFY_UNBIND_DRIVER,
 						     dev);
 
-		pm_runtime_put_sync(dev);
+		pm_runtime_put(dev);
 
 		if (dev->bus && dev->bus->remove)
 			dev->bus->remove(dev);

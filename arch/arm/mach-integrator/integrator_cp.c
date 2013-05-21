@@ -250,39 +250,6 @@ static void __init intcp_init_early(void)
 }
 
 #ifdef CONFIG_OF
-
-static void __init cp_of_timer_init(void)
-{
-	struct device_node *node;
-	const char *path;
-	void __iomem *base;
-	int err;
-	int irq;
-
-	err = of_property_read_string(of_aliases,
-				"arm,timer-primary", &path);
-	if (WARN_ON(err))
-		return;
-	node = of_find_node_by_path(path);
-	base = of_iomap(node, 0);
-	if (WARN_ON(!base))
-		return;
-	writel(0, base + TIMER_CTRL);
-	sp804_clocksource_init(base, node->name);
-
-	err = of_property_read_string(of_aliases,
-				"arm,timer-secondary", &path);
-	if (WARN_ON(err))
-		return;
-	node = of_find_node_by_path(path);
-	base = of_iomap(node, 0);
-	if (WARN_ON(!base))
-		return;
-	irq = irq_of_parse_and_map(node, 0);
-	writel(0, base + TIMER_CTRL);
-	sp804_clockevents_init(base, irq, node->name);
-}
-
 static const struct of_device_id fpga_irq_of_match[] __initconst = {
 	{ .compatible = "arm,versatile-fpga-irq", .data = fpga_irq_of_init, },
 	{ /* Sentinel */ }
@@ -360,17 +327,14 @@ static void __init intcp_init_of(void)
 					   'A' + (intcp_sc_id & 0x0f));
 
 	soc_dev = soc_device_register(soc_dev_attr);
-	if (IS_ERR_OR_NULL(soc_dev)) {
+	if (IS_ERR(soc_dev)) {
 		kfree(soc_dev_attr->revision);
 		kfree(soc_dev_attr);
 		return;
 	}
 
 	parent = soc_device_to_device(soc_dev);
-
-	if (!IS_ERR_OR_NULL(parent))
-		integrator_init_sysfs(parent, intcp_sc_id);
-
+	integrator_init_sysfs(parent, intcp_sc_id);
 	of_platform_populate(root, of_default_bus_match_table,
 			intcp_auxdata_lookup, parent);
 }
@@ -386,7 +350,6 @@ DT_MACHINE_START(INTEGRATOR_CP_DT, "ARM Integrator/CP (Device Tree)")
 	.init_early	= intcp_init_early,
 	.init_irq	= intcp_init_irq_of,
 	.handle_irq	= fpga_handle_irq,
-	.init_time	= cp_of_timer_init,
 	.init_machine	= intcp_init_of,
 	.restart	= integrator_restart,
 	.dt_compat      = intcp_dt_board_compat,

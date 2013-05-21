@@ -1379,27 +1379,6 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	}
 }
 
-static int sd_querymenu(struct gspca_dev *gspca_dev,
-			struct v4l2_querymenu *menu)
-{
-	switch (menu->id) {
-	case V4L2_CID_POWER_LINE_FREQUENCY:
-		switch (menu->index) {
-		case 0:		/* V4L2_CID_POWER_LINE_FREQUENCY_DISABLED */
-			strcpy((char *) menu->name, "NoFliker");
-			return 0;
-		case 1:		/* V4L2_CID_POWER_LINE_FREQUENCY_50HZ */
-			strcpy((char *) menu->name, "50 Hz");
-			return 0;
-		case 2:		/* V4L2_CID_POWER_LINE_FREQUENCY_60HZ */
-			strcpy((char *) menu->name, "60 Hz");
-			return 0;
-		}
-		break;
-	}
-	return -EINVAL;
-}
-
 #if IS_ENABLED(CONFIG_INPUT)
 static int sd_int_pkt_scan(struct gspca_dev *gspca_dev,
 			u8 *data,		/* interrupt packet data */
@@ -1428,7 +1407,6 @@ static const struct sd_desc sd_desc = {
 	.start = sd_start,
 	.stopN = sd_stopN,
 	.pkt_scan = sd_pkt_scan,
-	.querymenu = sd_querymenu,
 	.dq_callback = do_autogain,
 #if IS_ENABLED(CONFIG_INPUT)
 	.int_pkt_scan = sd_int_pkt_scan,

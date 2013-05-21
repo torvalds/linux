@@ -36,8 +36,6 @@
 #include "card.h"
 #include "mib.h"
 
-/*---------------------  Export Definitions -------------------------*/
-
 #define MAX_NODE_NUM             64
 #define MAX_BSS_NUM              42
 #define LOST_BEACON_COUNT        10   /* 10 sec, XP defined */
@@ -66,46 +64,37 @@
 
 #define MAX_WPA_IE_LEN      64
 
-
-/*---------------------  Export Classes  ----------------------------*/
-
-/*---------------------  Export Variables  --------------------------*/
-
-
-/*---------------------  Export Types  ------------------------------*/
-
 //
 // IEEE 802.11 Structures and definitions
 //
 
 typedef struct tagSERPObject {
     bool    bERPExist;
-    BYTE    byERP;
+    u8    byERP;
 } ERPObject, *PERPObject;
-
 
 typedef struct tagSRSNCapObject {
     bool    bRSNCapExist;
-    WORD    wRSNCap;
+    u16    wRSNCap;
 } SRSNCapObject, *PSRSNCapObject;
 
 // BSS info(AP)
 typedef struct tagKnownBSS {
     // BSS info
     bool            bActive;
-    BYTE            abyBSSID[WLAN_BSSID_LEN];
+    u8            abyBSSID[WLAN_BSSID_LEN];
     unsigned int            uChannel;
-    BYTE            abySuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
-    BYTE            abyExtSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
+    u8            abySuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
+    u8            abyExtSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
     unsigned int            uRSSI;
-    BYTE            bySQ;
-    WORD            wBeaconInterval;
-    WORD            wCapInfo;
-    BYTE            abySSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
-    BYTE            byRxRate;
+    u8            bySQ;
+    u16            wBeaconInterval;
+    u16            wCapInfo;
+    u8            abySSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
+    u8            byRxRate;
 
-//    WORD            wATIMWindow;
-    BYTE            byRSSIStatCnt;
+//    u16            wATIMWindow;
+    u8            byRSSIStatCnt;
     signed long            ldBmMAX;
     signed long            ldBmAverage[RSSI_STAT_COUNT];
     signed long            ldBmAverRange;
@@ -114,32 +103,32 @@ typedef struct tagKnownBSS {
 
     //++ WPA informations
     bool            bWPAValid;
-    BYTE            byGKType;
-    BYTE            abyPKType[4];
-    WORD            wPKCount;
-    BYTE            abyAuthType[4];
-    WORD            wAuthCount;
-    BYTE            byDefaultK_as_PK;
-    BYTE            byReplayIdx;
+    u8            byGKType;
+    u8            abyPKType[4];
+    u16            wPKCount;
+    u8            abyAuthType[4];
+    u16            wAuthCount;
+    u8            byDefaultK_as_PK;
+    u8            byReplayIdx;
     //--
 
     //++ WPA2 informations
     bool            bWPA2Valid;
-    BYTE            byCSSGK;
-    WORD            wCSSPKCount;
-    BYTE            abyCSSPK[4];
-    WORD            wAKMSSAuthCount;
-    BYTE            abyAKMSSAuthType[4];
+    u8            byCSSGK;
+    u16            wCSSPKCount;
+    u8            abyCSSPK[4];
+    u16            wAKMSSAuthCount;
+    u8            abyAKMSSAuthType[4];
 
     //++  wpactl
-    BYTE            byWPAIE[MAX_WPA_IE_LEN];
-    BYTE            byRSNIE[MAX_WPA_IE_LEN];
-    WORD            wWPALen;
-    WORD            wRSNLen;
+    u8            byWPAIE[MAX_WPA_IE_LEN];
+    u8            byRSNIE[MAX_WPA_IE_LEN];
+    u16            wWPALen;
+    u16            wRSNLen;
 
     // Clear count
     unsigned int            uClearCount;
-//    BYTE            abyIEs[WLAN_BEACON_FR_MAXLEN];
+//    u8            abyIEs[WLAN_BEACON_FR_MAXLEN];
     unsigned int            uIELength;
 	u64 qwBSSTimestamp;
 	u64 qwLocalTSF;/* local TSF timer */
@@ -148,12 +137,10 @@ typedef struct tagKnownBSS {
 
     ERPObject       sERP;
     SRSNCapObject   sRSNCapObj;
-    BYTE            abyIEs[1024];   // don't move this field !!
+    u8            abyIEs[1024];   // don't move this field !!
 
 } __attribute__ ((__packed__))
 KnownBSS , *PKnownBSS;
-
-
 
 typedef enum tagNODE_STATE {
     NODE_FREE,
@@ -163,48 +150,47 @@ typedef enum tagNODE_STATE {
     NODE_ASSOC
 } NODE_STATE, *PNODE_STATE;
 
-
 // STA node info
 typedef struct tagKnownNodeDB {
     // STA info
     bool            bActive;
-    BYTE            abyMACAddr[WLAN_ADDR_LEN];
-    BYTE            abyCurrSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN];
-    BYTE            abyCurrExtSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN];
-    WORD            wTxDataRate;
+    u8            abyMACAddr[WLAN_ADDR_LEN];
+    u8            abyCurrSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN];
+    u8            abyCurrExtSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN];
+    u16            wTxDataRate;
     bool            bShortPreamble;
     bool            bERPExist;
     bool            bShortSlotTime;
     unsigned int            uInActiveCount;
-    WORD            wMaxBasicRate;     //Get from byTopOFDMBasicRate or byTopCCKBasicRate which depends on packetTyp.
-    WORD            wMaxSuppRate;      //Records the highest supported rate getting from SuppRates IE and ExtSuppRates IE in Beacon.
-    WORD            wSuppRate;
-    BYTE            byTopOFDMBasicRate;//Records the highest basic rate in OFDM mode
-    BYTE            byTopCCKBasicRate; //Records the highest basic rate in CCK mode
+    u16            wMaxBasicRate;     //Get from byTopOFDMBasicRate or byTopCCKBasicRate which depends on packetTyp.
+    u16            wMaxSuppRate;      //Records the highest supported rate getting from SuppRates IE and ExtSuppRates IE in Beacon.
+    u16            wSuppRate;
+    u8            byTopOFDMBasicRate;//Records the highest basic rate in OFDM mode
+    u8            byTopCCKBasicRate; //Records the highest basic rate in CCK mode
 
     // For AP mode
     struct sk_buff_head sTxPSQueue;
-    WORD            wCapInfo;
-    WORD            wListenInterval;
-    WORD            wAID;
+    u16            wCapInfo;
+    u16            wListenInterval;
+    u16            wAID;
     NODE_STATE      eNodeState;
     bool            bPSEnable;
     bool            bRxPSPoll;
-    BYTE            byAuthSequence;
+    u8            byAuthSequence;
     unsigned long           ulLastRxJiffer;
-    BYTE            bySuppRate;
-    DWORD           dwFlags;
-    WORD            wEnQueueCnt;
+    u8            bySuppRate;
+    u32           dwFlags;
+    u16            wEnQueueCnt;
 
     bool            bOnFly;
     unsigned long long       KeyRSC;
-    BYTE            byKeyIndex;
-    DWORD           dwKeyIndex;
-    BYTE            byCipherSuite;
-    DWORD           dwTSC47_16;
-    WORD            wTSC15_0;
+    u8            byKeyIndex;
+    u32           dwKeyIndex;
+    u8            byCipherSuite;
+    u32           dwTSC47_16;
+    u16            wTSC15_0;
     unsigned int            uWepKeyLength;
-    BYTE            abyWepKey[WLAN_WEPMAX_KEYLEN];
+    u8            abyWepKey[WLAN_WEPMAX_KEYLEN];
     //
     // Auto rate fallback vars
     bool            bIsInFallback;
@@ -222,8 +208,6 @@ typedef struct tagKnownNodeDB {
     unsigned int            uTimeCount;
 
 } KnownNodeDB, *PKnownNodeDB;
-
-/*---------------------  Export Functions  --------------------------*/
 
 PKnownBSS BSSpSearchBSSList(struct vnt_private *, u8 *pbyDesireBSSID,
 	u8 *pbyDesireSSID, CARD_PHY_TYPE ePhyType);
@@ -270,7 +254,7 @@ int BSSbUpdateToBSSList(struct vnt_private *,
 			u8 *pbyIEs,
 			void *pRxPacketContext);
 
-int BSSbIsSTAInNodeDB(struct vnt_private *, PBYTE abyDstAddr,
+int BSSbIsSTAInNodeDB(struct vnt_private *, u8 * abyDstAddr,
 	u32 *puNodeIndex);
 
 void BSSvCreateOneNode(struct vnt_private *, u32 *puNodeIndex);

@@ -412,9 +412,9 @@ static int lbtf_op_config(struct ieee80211_hw *hw, u32 changed)
 	struct ieee80211_conf *conf = &hw->conf;
 	lbtf_deb_enter(LBTF_DEB_MACOPS);
 
-	if (conf->channel->center_freq != priv->cur_freq) {
-		priv->cur_freq = conf->channel->center_freq;
-		lbtf_set_channel(priv, conf->channel->hw_value);
+	if (conf->chandef.chan->center_freq != priv->cur_freq) {
+		priv->cur_freq = conf->chandef.chan->center_freq;
+		lbtf_set_channel(priv, conf->chandef.chan->hw_value);
 	}
 	lbtf_deb_leave(LBTF_DEB_MACOPS);
 	return 0;
@@ -537,7 +537,7 @@ static int lbtf_op_get_survey(struct ieee80211_hw *hw, int idx,
 	if (idx != 0)
 		return -ENOENT;
 
-	survey->channel = conf->channel;
+	survey->channel = conf->chandef.chan;
 	survey->filled = SURVEY_INFO_NOISE_DBM;
 	survey->noise = priv->noise;
 

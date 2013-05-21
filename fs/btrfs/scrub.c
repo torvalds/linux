@@ -1296,7 +1296,7 @@ static void scrub_recheck_block(struct btrfs_fs_info *fs_info,
 		}
 
 		WARN_ON(!page->page);
-		bio = bio_alloc(GFP_NOFS, 1);
+		bio = btrfs_io_bio_alloc(GFP_NOFS, 1);
 		if (!bio) {
 			page->io_error = 1;
 			sblock->no_io_error_seen = 0;
@@ -1336,7 +1336,6 @@ static void scrub_recheck_block_checksum(struct btrfs_fs_info *fs_info,
 	int page_num;
 	u8 calculated_csum[BTRFS_CSUM_SIZE];
 	u32 crc = ~(u32)0;
-	struct btrfs_root *root = fs_info->extent_root;
 	void *mapped_buffer;
 
 	WARN_ON(!sblock->pagev[0]->page);
@@ -1365,12 +1364,11 @@ static void scrub_recheck_block_checksum(struct btrfs_fs_info *fs_info,
 
 	for (page_num = 0;;) {
 		if (page_num == 0 && is_metadata)
-			crc = btrfs_csum_data(root,
+			crc = btrfs_csum_data(
 				((u8 *)mapped_buffer) + BTRFS_CSUM_SIZE,
 				crc, PAGE_SIZE - BTRFS_CSUM_SIZE);
 		else
-			crc = btrfs_csum_data(root, mapped_buffer, crc,
-					      PAGE_SIZE);
+			crc = btrfs_csum_data(mapped_buffer, crc, PAGE_SIZE);
 
 		kunmap_atomic(mapped_buffer);
 		page_num++;
@@ -1433,7 +1431,7 @@ static int scrub_repair_page_from_good_copy(struct scrub_block *sblock_bad,
 			return -EIO;
 		}
 
-		bio = bio_alloc(GFP_NOFS, 1);
+		bio = btrfs_io_bio_alloc(GFP_NOFS, 1);
 		if (!bio)
 			return -EIO;
 		bio->bi_bdev = page_bad->dev->bdev;
@@ -1524,7 +1522,7 @@ again:
 		sbio->dev = wr_ctx->tgtdev;
 		bio = sbio->bio;
 		if (!bio) {
-			bio = bio_alloc(GFP_NOFS, wr_ctx->pages_per_wr_bio);
+			bio = btrfs_io_bio_alloc(GFP_NOFS, wr_ctx->pages_per_wr_bio);
 			if (!bio) {
 				mutex_unlock(&wr_ctx->wr_lock);
 				return -ENOMEM;
@@ -1657,7 +1655,6 @@ static int scrub_checksum_data(struct scrub_block *sblock)
 	void *buffer;
 	u32 crc = ~(u32)0;
 	int fail = 0;
-	struct btrfs_root *root = sctx->dev_root;
 	u64 len;
 	int index;
 
@@ -1674,7 +1671,7 @@ static int scrub_checksum_data(struct scrub_block *sblock)
 	for (;;) {
 		u64 l = min_t(u64, len, PAGE_SIZE);
 
-		crc = btrfs_csum_data(root, buffer, crc, l);
+		crc = btrfs_csum_data(buffer, crc, l);
 		kunmap_atomic(buffer);
 		len -= l;
 		if (len == 0)
@@ -1744,7 +1741,7 @@ static int scrub_checksum_tree_block(struct scrub_block *sblock)
 	for (;;) {
 		u64 l = min_t(u64, len, mapped_size);
 
-		crc = btrfs_csum_data(root, p, crc, l);
+		crc = btrfs_csum_data(p, crc, l);
 		kunmap_atomic(mapped_buffer);
 		len -= l;
 		if (len == 0)
@@ -1805,7 +1802,7 @@ static int scrub_checksum_super(struct scrub_block *sblock)
 	for (;;) {
 		u64 l = min_t(u64, len, mapped_size);
 
-		crc = btrfs_csum_data(root, p, crc, l);
+		crc = btrfs_csum_data(p, crc, l);
 		kunmap_atomic(mapped_buffer);
 		len -= l;
 		if (len == 0)
@@ -1933,7 +1930,7 @@ again:
 		sbio->dev = spage->dev;
 		bio = sbio->bio;
 		if (!bio) {
-			bio = bio_alloc(GFP_NOFS, sctx->pages_per_rd_bio);
+			bio = btrfs_io_bio_alloc(GFP_NOFS, sctx->pages_per_rd_bio);
 			if (!bio)
 				return -ENOMEM;
 			sbio->bio = bio;
@@ -2236,12 +2233,12 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	u64 flags;
 	int ret;
 	int slot;
-	int i;
 	u64 nstripes;
 	struct extent_buffer *l;
 	struct btrfs_key key;
 	u64 physical;
 	u64 logical;
+	u64 logic_end;
 	u64 generation;
 	int mirror_num;
 	struct reada_control *reada1;
@@ -2255,6 +2252,7 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	u64 extent_len;
 	struct btrfs_device *extent_dev;
 	int extent_mirror_num;
+	int stop_loop;
 
 	if (map->type & (BTRFS_BLOCK_GROUP_RAID5 |
 			 BTRFS_BLOCK_GROUP_RAID6)) {
@@ -2315,8 +2313,8 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	key_start.type = BTRFS_EXTENT_ITEM_KEY;
 	key_start.offset = (u64)0;
 	key_end.objectid = base + offset + nstripes * increment;
-	key_end.type = BTRFS_EXTENT_ITEM_KEY;
-	key_end.offset = (u64)0;
+	key_end.type = BTRFS_METADATA_ITEM_KEY;
+	key_end.offset = (u64)-1;
 	reada1 = btrfs_reada_add(root, &key_start, &key_end);
 
 	key_start.objectid = BTRFS_EXTENT_CSUM_OBJECTID;
@@ -2354,8 +2352,9 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 	 */
 	logical = base + offset;
 	physical = map->stripes[num].physical;
+	logic_end = logical + increment * nstripes;
 	ret = 0;
-	for (i = 0; i < nstripes; ++i) {
+	while (logical < logic_end) {
 		/*
 		 * canceled?
 		 */
@@ -2391,19 +2390,14 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 			wake_up(&fs_info->scrub_pause_wait);
 		}
 
-		ret = btrfs_lookup_csums_range(csum_root, logical,
-					       logical + map->stripe_len - 1,
-					       &sctx->csum_list, 1);
-		if (ret)
-			goto out;
-
 		key.objectid = logical;
 		key.type = BTRFS_EXTENT_ITEM_KEY;
-		key.offset = (u64)0;
+		key.offset = (u64)-1;
 
 		ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 		if (ret < 0)
 			goto out;
+
 		if (ret > 0) {
 			ret = btrfs_previous_item(root, path, 0,
 						  BTRFS_EXTENT_ITEM_KEY);
@@ -2420,7 +2414,10 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 			}
 		}
 
+		stop_loop = 0;
 		while (1) {
+			u64 bytes;
+
 			l = path->nodes[0];
 			slot = path->slots[0];
 			if (slot >= btrfs_header_nritems(l)) {
@@ -2430,18 +2427,29 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 				if (ret < 0)
 					goto out;
 
+				stop_loop = 1;
 				break;
 			}
 			btrfs_item_key_to_cpu(l, &key, slot);
 
-			if (key.objectid + key.offset <= logical)
+			if (key.type == BTRFS_METADATA_ITEM_KEY)
+				bytes = root->leafsize;
+			else
+				bytes = key.offset;
+
+			if (key.objectid + bytes <= logical)
 				goto next;
 
-			if (key.objectid >= logical + map->stripe_len)
+			if (key.type != BTRFS_EXTENT_ITEM_KEY &&
+			    key.type != BTRFS_METADATA_ITEM_KEY)
+				goto next;
+
+			if (key.objectid >= logical + map->stripe_len) {
+				/* out of this device extent */
+				if (key.objectid >= logic_end)
+					stop_loop = 1;
 				break;
-
-			if (btrfs_key_type(&key) != BTRFS_EXTENT_ITEM_KEY)
-				goto next;
+			}
 
 			extent = btrfs_item_ptr(l, slot,
 						struct btrfs_extent_item);
@@ -2458,22 +2466,24 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 				goto next;
 			}
 
+again:
+			extent_logical = key.objectid;
+			extent_len = bytes;
+
 			/*
 			 * trim extent to this stripe
 			 */
-			if (key.objectid < logical) {
-				key.offset -= logical - key.objectid;
-				key.objectid = logical;
+			if (extent_logical < logical) {
+				extent_len -= logical - extent_logical;
+				extent_logical = logical;
 			}
-			if (key.objectid + key.offset >
+			if (extent_logical + extent_len >
 			    logical + map->stripe_len) {
-				key.offset = logical + map->stripe_len -
-					     key.objectid;
+				extent_len = logical + map->stripe_len -
+					     extent_logical;
 			}
 
-			extent_logical = key.objectid;
-			extent_physical = key.objectid - logical + physical;
-			extent_len = key.offset;
+			extent_physical = extent_logical - logical + physical;
 			extent_dev = scrub_dev;
 			extent_mirror_num = mirror_num;
 			if (is_dev_replace)
@@ -2481,13 +2491,35 @@ static noinline_for_stack int scrub_stripe(struct scrub_ctx *sctx,
 						   extent_len, &extent_physical,
 						   &extent_dev,
 						   &extent_mirror_num);
-			ret = scrub_extent(sctx, extent_logical, extent_len,
-					   extent_physical, extent_dev, flags,
-					   generation, extent_mirror_num,
-					   key.objectid - logical + physical);
+
+			ret = btrfs_lookup_csums_range(csum_root, logical,
+						logical + map->stripe_len - 1,
+						&sctx->csum_list, 1);
 			if (ret)
 				goto out;
 
+			ret = scrub_extent(sctx, extent_logical, extent_len,
+					   extent_physical, extent_dev, flags,
+					   generation, extent_mirror_num,
+					   extent_physical);
+			if (ret)
+				goto out;
+
+			if (extent_logical + extent_len <
+			    key.objectid + bytes) {
+				logical += increment;
+				physical += map->stripe_len;
+
+				if (logical < key.objectid + bytes) {
+					cond_resched();
+					goto again;
+				}
+
+				if (logical >= logic_end) {
+					stop_loop = 1;
+					break;
+				}
+			}
 next:
 			path->slots[0]++;
 		}
@@ -2495,8 +2527,14 @@ next:
 		logical += increment;
 		physical += map->stripe_len;
 		spin_lock(&sctx->stat_lock);
-		sctx->stat.last_physical = physical;
+		if (stop_loop)
+			sctx->stat.last_physical = map->stripes[num].physical +
+						   length;
+		else
+			sctx->stat.last_physical = physical;
 		spin_unlock(&sctx->stat_lock);
+		if (stop_loop)
+			break;
 	}
 out:
 	/* push queued extents */
@@ -3005,28 +3043,6 @@ int btrfs_scrub_cancel_dev(struct btrfs_fs_info *fs_info,
 	return 0;
 }
 
-int btrfs_scrub_cancel_devid(struct btrfs_root *root, u64 devid)
-{
-	struct btrfs_fs_info *fs_info = root->fs_info;
-	struct btrfs_device *dev;
-	int ret;
-
-	/*
-	 * we have to hold the device_list_mutex here so the device
-	 * does not go away in cancel_dev. FIXME: find a better solution
-	 */
-	mutex_lock(&fs_info->fs_devices->device_list_mutex);
-	dev = btrfs_find_device(fs_info, devid, NULL, NULL);
-	if (!dev) {
-		mutex_unlock(&fs_info->fs_devices->device_list_mutex);
-		return -ENODEV;
-	}
-	ret = btrfs_scrub_cancel_dev(fs_info, dev);
-	mutex_unlock(&fs_info->fs_devices->device_list_mutex);
-
-	return ret;
-}
-
 int btrfs_scrub_progress(struct btrfs_root *root, u64 devid,
 			 struct btrfs_scrub_progress *progress)
 {
@@ -3291,7 +3307,7 @@ static int write_page_nocow(struct scrub_ctx *sctx,
 			"btrfs: scrub write_page_nocow(bdev == NULL) is unexpected!\n");
 		return -EIO;
 	}
-	bio = bio_alloc(GFP_NOFS, 1);
+	bio = btrfs_io_bio_alloc(GFP_NOFS, 1);
 	if (!bio) {
 		spin_lock(&sctx->stat_lock);
 		sctx->stat.malloc_errors++;

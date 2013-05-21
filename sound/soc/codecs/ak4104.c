@@ -55,6 +55,7 @@ static int ak4104_set_dai_fmt(struct snd_soc_dai *codec_dai,
 			      unsigned int format)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
+	struct ak4104_private *ak4104 = snd_soc_codec_get_drvdata(codec);
 	int val = 0;
 	int ret;
 
@@ -77,9 +78,9 @@ static int ak4104_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	if ((format & SND_SOC_DAIFMT_MASTER_MASK) != SND_SOC_DAIFMT_CBS_CFS)
 		return -EINVAL;
 
-	ret = snd_soc_update_bits(codec, AK4104_REG_CONTROL1,
-				  AK4104_CONTROL1_DIF0 | AK4104_CONTROL1_DIF1,
-				  val);
+	ret = regmap_update_bits(ak4104->regmap, AK4104_REG_CONTROL1,
+				 AK4104_CONTROL1_DIF0 | AK4104_CONTROL1_DIF1,
+				 val);
 	if (ret < 0)
 		return ret;
 
@@ -91,11 +92,12 @@ static int ak4104_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_soc_dai *dai)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	int val = 0;
+	struct ak4104_private *ak4104 = snd_soc_codec_get_drvdata(codec);
+	int ret, val = 0;
 
 	/* set the IEC958 bits: consumer mode, no copyright bit */
 	val |= IEC958_AES0_CON_NOT_COPYRIGHT;
-	snd_soc_write(codec, AK4104_REG_CHN_STATUS(0), val);
+	regmap_write(ak4104->regmap, AK4104_REG_CHN_STATUS(0), val);
 
 	val = 0;
 
@@ -132,11 +134,33 @@ static int ak4104_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	return snd_soc_write(codec, AK4104_REG_CHN_STATUS(3), val);
+	ret = regmap_write(ak4104->regmap, AK4104_REG_CHN_STATUS(3), val);
+	if (ret < 0)
+		return ret;
+
+	/* enable transmitter */
+	ret = regmap_update_bits(ak4104->regmap, AK4104_REG_TX,
+				 AK4104_TX_TXE, AK4104_TX_TXE);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+static int ak4104_hw_free(struct snd_pcm_substream *substream,
+			  struct snd_soc_dai *dai)
+{
+	struct snd_soc_codec *codec = dai->codec;
+	struct ak4104_private *ak4104 = snd_soc_codec_get_drvdata(codec);
+
+	/* disable transmitter */
+	return regmap_update_bits(ak4104->regmap, AK4104_REG_TX,
+				  AK4104_TX_TXE, 0);
 }
 
 static const struct snd_soc_dai_ops ak4101_dai_ops = {
 	.hw_params = ak4104_hw_params,
+	.hw_free = ak4104_hw_free,
 	.set_fmt = ak4104_set_dai_fmt,
 };
 
@@ -160,20 +184,17 @@ static int ak4104_probe(struct snd_soc_codec *codec)
 	int ret;
 
 	codec->control_data = ak4104->regmap;
-	ret = snd_soc_codec_set_cache_io(codec, 8, 8, SND_SOC_REGMAP);
-	if (ret != 0)
-		return ret;
 
 	/* set power-up and non-reset bits */
-	ret = snd_soc_update_bits(codec, AK4104_REG_CONTROL1,
-				  AK4104_CONTROL1_PW | AK4104_CONTROL1_RSTN,
-				  AK4104_CONTROL1_PW | AK4104_CONTROL1_RSTN);
+	ret = regmap_update_bits(ak4104->regmap, AK4104_REG_CONTROL1,
+				 AK4104_CONTROL1_PW | AK4104_CONTROL1_RSTN,
+				 AK4104_CONTROL1_PW | AK4104_CONTROL1_RSTN);
 	if (ret < 0)
 		return ret;
 
 	/* enable transmitter */
-	ret = snd_soc_update_bits(codec, AK4104_REG_TX,
-				  AK4104_TX_TXE, AK4104_TX_TXE);
+	ret = regmap_update_bits(ak4104->regmap, AK4104_REG_TX,
+				 AK4104_TX_TXE, AK4104_TX_TXE);
 	if (ret < 0)
 		return ret;
 
@@ -182,8 +203,10 @@ static int ak4104_probe(struct snd_soc_codec *codec)
 
 static int ak4104_remove(struct snd_soc_codec *codec)
 {
-	snd_soc_update_bits(codec, AK4104_REG_CONTROL1,
-			    AK4104_CONTROL1_PW | AK4104_CONTROL1_RSTN, 0);
+	struct ak4104_private *ak4104 = snd_soc_codec_get_drvdata(codec);
+
+	regmap_update_bits(ak4104->regmap, AK4104_REG_CONTROL1,
+			   AK4104_CONTROL1_PW | AK4104_CONTROL1_RSTN, 0);
 
 	return 0;
 }

@@ -81,32 +81,23 @@ Updated: Sat, 25 Jan 2003 13:24:40 -0800
 #define Rising_Edge_Detection_Enable(x)		(0x018+(x))
 #define Falling_Edge_Detection_Enable(x)	(0x020+(x))
 
-struct ni6527_board {
+enum ni6527_boardid {
+	BOARD_PCI6527,
+	BOARD_PXI6527,
+};
 
-	int dev_id;
+struct ni6527_board {
 	const char *name;
 };
 
 static const struct ni6527_board ni6527_boards[] = {
-	{
-	 .dev_id = 0x2b20,
-	 .name = "pci-6527",
-	 },
-	{
-	 .dev_id = 0x2b10,
-	 .name = "pxi-6527",
-	 },
+	[BOARD_PCI6527] = {
+		.name		= "pci-6527",
+	},
+	[BOARD_PXI6527] = {
+		.name		= "pxi-6527",
+	},
 };
-
-#define this_board ((const struct ni6527_board *)dev->board_ptr)
-
-static DEFINE_PCI_DEVICE_TABLE(ni6527_pci_table) = {
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2b10)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2b20)},
-	{0}
-};
-
-MODULE_DEVICE_TABLE(pci, ni6527_pci_table);
 
 struct ni6527_private {
 	struct mite_struct *mite;
@@ -329,36 +320,30 @@ static int ni6527_intr_insn_config(struct comedi_device *dev,
 	return 2;
 }
 
-static const struct ni6527_board *
-ni6527_find_boardinfo(struct pci_dev *pcidev)
-{
-	unsigned int dev_id = pcidev->device;
-	unsigned int n;
-
-	for (n = 0; n < ARRAY_SIZE(ni6527_boards); n++) {
-		const struct ni6527_board *board = &ni6527_boards[n];
-		if (board->dev_id == dev_id)
-			return board;
-	}
-	return NULL;
-}
-
 static int ni6527_auto_attach(struct comedi_device *dev,
-					unsigned long context_unused)
+			      unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	const struct ni6527_board *board = NULL;
 	struct ni6527_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
+
+	if (context < ARRAY_SIZE(ni6527_boards))
+		board = &ni6527_boards[context];
+	if (!board)
+		return -ENODEV;
+	dev->board_ptr = board;
+	dev->board_name = board->name;
+
+	ret = comedi_pci_enable(dev);
+	if (ret)
+		return ret;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
 		return -ENOMEM;
 	dev->private = devpriv;
-
-	dev->board_ptr = ni6527_find_boardinfo(pcidev);
-	if (!dev->board_ptr)
-		return -ENODEV;
 
 	devpriv->mite = mite_alloc(pcidev);
 	if (!devpriv->mite)
@@ -370,7 +355,6 @@ static int ni6527_auto_attach(struct comedi_device *dev,
 		return ret;
 	}
 
-	dev->board_name = this_board->name;
 	dev_info(dev->class_dev, "board: %s, ID=0x%02x\n", dev->board_name,
 		 readb(devpriv->mite->daq_io_addr + ID_Register));
 
@@ -439,6 +423,7 @@ static void ni6527_detach(struct comedi_device *dev)
 		mite_unsetup(devpriv->mite);
 		mite_free(devpriv->mite);
 	}
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver ni6527_driver = {
@@ -449,15 +434,22 @@ static struct comedi_driver ni6527_driver = {
 };
 
 static int ni6527_pci_probe(struct pci_dev *dev,
-				      const struct pci_device_id *ent)
+			    const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &ni6527_driver);
+	return comedi_pci_auto_config(dev, &ni6527_driver, id->driver_data);
 }
 
+static DEFINE_PCI_DEVICE_TABLE(ni6527_pci_table) = {
+	{ PCI_VDEVICE(NI, 0x2b10), BOARD_PXI6527 },
+	{ PCI_VDEVICE(NI, 0x2b20), BOARD_PCI6527 },
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, ni6527_pci_table);
+
 static struct pci_driver ni6527_pci_driver = {
-	.name = DRIVER_NAME,
-	.id_table = ni6527_pci_table,
-	.probe = ni6527_pci_probe,
+	.name		= DRIVER_NAME,
+	.id_table	= ni6527_pci_table,
+	.probe		= ni6527_pci_probe,
 	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(ni6527_driver, ni6527_pci_driver);

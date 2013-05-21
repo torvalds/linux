@@ -1145,7 +1145,7 @@ static void r600_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc 
 	}
 	if (rdev->flags & RADEON_IS_AGP) {
 		size_bf = mc->gtt_start;
-		size_af = 0xFFFFFFFF - mc->gtt_end;
+		size_af = mc->mc_mask - mc->gtt_end;
 		if (size_bf > size_af) {
 			if (mc->mc_vram_size > size_bf) {
 				dev_warn(rdev->dev, "limiting VRAM\n");
@@ -2552,6 +2552,193 @@ void r600_dma_fini(struct radeon_device *rdev)
 }
 
 /*
+ * UVD
+ */
+int r600_uvd_rbc_start(struct radeon_device *rdev)
+{
+	struct radeon_ring *ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
+	uint64_t rptr_addr;
+	uint32_t rb_bufsz, tmp;
+	int r;
+
+	rptr_addr = rdev->wb.gpu_addr + R600_WB_UVD_RPTR_OFFSET;
+
+	if (upper_32_bits(rptr_addr) != upper_32_bits(ring->gpu_addr)) {
+		DRM_ERROR("UVD ring and rptr not in the same 4GB segment!\n");
+		return -EINVAL;
+	}
+
+	/* force RBC into idle state */
+	WREG32(UVD_RBC_RB_CNTL, 0x11010101);
+
+	/* Set the write pointer delay */
+	WREG32(UVD_RBC_RB_WPTR_CNTL, 0);
+
+	/* set the wb address */
+	WREG32(UVD_RBC_RB_RPTR_ADDR, rptr_addr >> 2);
+
+	/* programm the 4GB memory segment for rptr and ring buffer */
+	WREG32(UVD_LMI_EXT40_ADDR, upper_32_bits(rptr_addr) |
+				   (0x7 << 16) | (0x1 << 31));
+
+	/* Initialize the ring buffer's read and write pointers */
+	WREG32(UVD_RBC_RB_RPTR, 0x0);
+
+	ring->wptr = ring->rptr = RREG32(UVD_RBC_RB_RPTR);
+	WREG32(UVD_RBC_RB_WPTR, ring->wptr);
+
+	/* set the ring address */
+	WREG32(UVD_RBC_RB_BASE, ring->gpu_addr);
+
+	/* Set ring buffer size */
+	rb_bufsz = drm_order(ring->ring_size);
+	rb_bufsz = (0x1 << 8) | rb_bufsz;
+	WREG32(UVD_RBC_RB_CNTL, rb_bufsz);
+
+	ring->ready = true;
+	r = radeon_ring_test(rdev, R600_RING_TYPE_UVD_INDEX, ring);
+	if (r) {
+		ring->ready = false;
+		return r;
+	}
+
+	r = radeon_ring_lock(rdev, ring, 10);
+	if (r) {
+		DRM_ERROR("radeon: ring failed to lock UVD ring (%d).\n", r);
+		return r;
+	}
+
+	tmp = PACKET0(UVD_SEMA_WAIT_FAULT_TIMEOUT_CNTL, 0);
+	radeon_ring_write(ring, tmp);
+	radeon_ring_write(ring, 0xFFFFF);
+
+	tmp = PACKET0(UVD_SEMA_WAIT_INCOMPLETE_TIMEOUT_CNTL, 0);
+	radeon_ring_write(ring, tmp);
+	radeon_ring_write(ring, 0xFFFFF);
+
+	tmp = PACKET0(UVD_SEMA_SIGNAL_INCOMPLETE_TIMEOUT_CNTL, 0);
+	radeon_ring_write(ring, tmp);
+	radeon_ring_write(ring, 0xFFFFF);
+
+	/* Clear timeout status bits */
+	radeon_ring_write(ring, PACKET0(UVD_SEMA_TIMEOUT_STATUS, 0));
+	radeon_ring_write(ring, 0x8);
+
+	radeon_ring_write(ring, PACKET0(UVD_SEMA_CNTL, 0));
+	radeon_ring_write(ring, 3);
+
+	radeon_ring_unlock_commit(rdev, ring);
+
+	return 0;
+}
+
+void r600_uvd_rbc_stop(struct radeon_device *rdev)
+{
+	struct radeon_ring *ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
+
+	/* force RBC into idle state */
+	WREG32(UVD_RBC_RB_CNTL, 0x11010101);
+	ring->ready = false;
+}
+
+int r600_uvd_init(struct radeon_device *rdev)
+{
+	int i, j, r;
+
+	/* raise clocks while booting up the VCPU */
+	radeon_set_uvd_clocks(rdev, 53300, 40000);
+
+	/* disable clock gating */
+	WREG32(UVD_CGC_GATE, 0);
+
+	/* disable interupt */
+	WREG32_P(UVD_MASTINT_EN, 0, ~(1 << 1));
+
+	/* put LMI, VCPU, RBC etc... into reset */
+	WREG32(UVD_SOFT_RESET, LMI_SOFT_RESET | VCPU_SOFT_RESET |
+	       LBSI_SOFT_RESET | RBC_SOFT_RESET | CSM_SOFT_RESET |
+	       CXW_SOFT_RESET | TAP_SOFT_RESET | LMI_UMC_SOFT_RESET);
+	mdelay(5);
+
+	/* take UVD block out of reset */
+	WREG32_P(SRBM_SOFT_RESET, 0, ~SOFT_RESET_UVD);
+	mdelay(5);
+
+	/* initialize UVD memory controller */
+	WREG32(UVD_LMI_CTRL, 0x40 | (1 << 8) | (1 << 13) |
+			     (1 << 21) | (1 << 9) | (1 << 20));
+
+	/* disable byte swapping */
+	WREG32(UVD_LMI_SWAP_CNTL, 0);
+	WREG32(UVD_MP_SWAP_CNTL, 0);
+
+	WREG32(UVD_MPC_SET_MUXA0, 0x40c2040);
+	WREG32(UVD_MPC_SET_MUXA1, 0x0);
+	WREG32(UVD_MPC_SET_MUXB0, 0x40c2040);
+	WREG32(UVD_MPC_SET_MUXB1, 0x0);
+	WREG32(UVD_MPC_SET_ALU, 0);
+	WREG32(UVD_MPC_SET_MUX, 0x88);
+
+	/* Stall UMC */
+	WREG32_P(UVD_LMI_CTRL2, 1 << 8, ~(1 << 8));
+	WREG32_P(UVD_RB_ARB_CTRL, 1 << 3, ~(1 << 3));
+
+	/* take all subblocks out of reset, except VCPU */
+	WREG32(UVD_SOFT_RESET, VCPU_SOFT_RESET);
+	mdelay(5);
+
+	/* enable VCPU clock */
+	WREG32(UVD_VCPU_CNTL,  1 << 9);
+
+	/* enable UMC */
+	WREG32_P(UVD_LMI_CTRL2, 0, ~(1 << 8));
+
+	/* boot up the VCPU */
+	WREG32(UVD_SOFT_RESET, 0);
+	mdelay(10);
+
+	WREG32_P(UVD_RB_ARB_CTRL, 0, ~(1 << 3));
+
+	for (i = 0; i < 10; ++i) {
+		uint32_t status;
+		for (j = 0; j < 100; ++j) {
+			status = RREG32(UVD_STATUS);
+			if (status & 2)
+				break;
+			mdelay(10);
+		}
+		r = 0;
+		if (status & 2)
+			break;
+
+		DRM_ERROR("UVD not responding, trying to reset the VCPU!!!\n");
+		WREG32_P(UVD_SOFT_RESET, VCPU_SOFT_RESET, ~VCPU_SOFT_RESET);
+		mdelay(10);
+		WREG32_P(UVD_SOFT_RESET, 0, ~VCPU_SOFT_RESET);
+		mdelay(10);
+		r = -1;
+	}
+
+	if (r) {
+		DRM_ERROR("UVD not responding, giving up!!!\n");
+		radeon_set_uvd_clocks(rdev, 0, 0);
+		return r;
+	}
+
+	/* enable interupt */
+	WREG32_P(UVD_MASTINT_EN, 3<<1, ~(3 << 1));
+
+	r = r600_uvd_rbc_start(rdev);
+	if (!r)
+		DRM_INFO("UVD initialized successfully.\n");
+
+	/* lower clocks again */
+	radeon_set_uvd_clocks(rdev, 0, 0);
+
+	return r;
+}
+
+/*
  * GPU scratch registers helpers function.
  */
 void r600_scratch_init(struct radeon_device *rdev)
@@ -2660,6 +2847,40 @@ int r600_dma_ring_test(struct radeon_device *rdev,
 	return r;
 }
 
+int r600_uvd_ring_test(struct radeon_device *rdev, struct radeon_ring *ring)
+{
+	uint32_t tmp = 0;
+	unsigned i;
+	int r;
+
+	WREG32(UVD_CONTEXT_ID, 0xCAFEDEAD);
+	r = radeon_ring_lock(rdev, ring, 3);
+	if (r) {
+		DRM_ERROR("radeon: cp failed to lock ring %d (%d).\n",
+			  ring->idx, r);
+		return r;
+	}
+	radeon_ring_write(ring, PACKET0(UVD_CONTEXT_ID, 0));
+	radeon_ring_write(ring, 0xDEADBEEF);
+	radeon_ring_unlock_commit(rdev, ring);
+	for (i = 0; i < rdev->usec_timeout; i++) {
+		tmp = RREG32(UVD_CONTEXT_ID);
+		if (tmp == 0xDEADBEEF)
+			break;
+		DRM_UDELAY(1);
+	}
+
+	if (i < rdev->usec_timeout) {
+		DRM_INFO("ring test on %d succeeded in %d usecs\n",
+			 ring->idx, i);
+	} else {
+		DRM_ERROR("radeon: ring %d test failed (0x%08X)\n",
+			  ring->idx, tmp);
+		r = -EINVAL;
+	}
+	return r;
+}
+
 /*
  * CP fences/semaphores
  */
@@ -2709,6 +2930,30 @@ void r600_fence_ring_emit(struct radeon_device *rdev,
 		radeon_ring_write(ring, PACKET0(CP_INT_STATUS, 0));
 		radeon_ring_write(ring, RB_INT_STAT);
 	}
+}
+
+void r600_uvd_fence_emit(struct radeon_device *rdev,
+			 struct radeon_fence *fence)
+{
+	struct radeon_ring *ring = &rdev->ring[fence->ring];
+	uint32_t addr = rdev->fence_drv[fence->ring].gpu_addr;
+
+	radeon_ring_write(ring, PACKET0(UVD_CONTEXT_ID, 0));
+	radeon_ring_write(ring, fence->seq);
+	radeon_ring_write(ring, PACKET0(UVD_GPCOM_VCPU_DATA0, 0));
+	radeon_ring_write(ring, addr & 0xffffffff);
+	radeon_ring_write(ring, PACKET0(UVD_GPCOM_VCPU_DATA1, 0));
+	radeon_ring_write(ring, upper_32_bits(addr) & 0xff);
+	radeon_ring_write(ring, PACKET0(UVD_GPCOM_VCPU_CMD, 0));
+	radeon_ring_write(ring, 0);
+
+	radeon_ring_write(ring, PACKET0(UVD_GPCOM_VCPU_DATA0, 0));
+	radeon_ring_write(ring, 0);
+	radeon_ring_write(ring, PACKET0(UVD_GPCOM_VCPU_DATA1, 0));
+	radeon_ring_write(ring, 0);
+	radeon_ring_write(ring, PACKET0(UVD_GPCOM_VCPU_CMD, 0));
+	radeon_ring_write(ring, 2);
+	return;
 }
 
 void r600_semaphore_ring_emit(struct radeon_device *rdev,
@@ -2778,6 +3023,23 @@ void r600_dma_semaphore_ring_emit(struct radeon_device *rdev,
 	radeon_ring_write(ring, DMA_PACKET(DMA_PACKET_SEMAPHORE, 0, s, 0));
 	radeon_ring_write(ring, addr & 0xfffffffc);
 	radeon_ring_write(ring, upper_32_bits(addr) & 0xff);
+}
+
+void r600_uvd_semaphore_emit(struct radeon_device *rdev,
+			     struct radeon_ring *ring,
+			     struct radeon_semaphore *semaphore,
+			     bool emit_wait)
+{
+	uint64_t addr = semaphore->gpu_addr;
+
+	radeon_ring_write(ring, PACKET0(UVD_SEMA_ADDR_LOW, 0));
+	radeon_ring_write(ring, (addr >> 3) & 0x000FFFFF);
+
+	radeon_ring_write(ring, PACKET0(UVD_SEMA_ADDR_HIGH, 0));
+	radeon_ring_write(ring, (addr >> 23) & 0x000FFFFF);
+
+	radeon_ring_write(ring, PACKET0(UVD_SEMA_CMD, 0));
+	radeon_ring_write(ring, emit_wait ? 1 : 0);
 }
 
 int r600_copy_blit(struct radeon_device *rdev,
@@ -3183,6 +3445,16 @@ void r600_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
 	radeon_ring_write(ring, ib->length_dw);
 }
 
+void r600_uvd_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib)
+{
+	struct radeon_ring *ring = &rdev->ring[ib->ring];
+
+	radeon_ring_write(ring, PACKET0(UVD_RBC_IB_BASE, 0));
+	radeon_ring_write(ring, ib->gpu_addr);
+	radeon_ring_write(ring, PACKET0(UVD_RBC_IB_SIZE, 0));
+	radeon_ring_write(ring, ib->length_dw);
+}
+
 int r600_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 {
 	struct radeon_ib ib;
@@ -3297,6 +3569,41 @@ int r600_dma_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
 		r = -EINVAL;
 	}
 	radeon_ib_free(rdev, &ib);
+	return r;
+}
+
+int r600_uvd_ib_test(struct radeon_device *rdev, struct radeon_ring *ring)
+{
+	struct radeon_fence *fence = NULL;
+	int r;
+
+	r = radeon_set_uvd_clocks(rdev, 53300, 40000);
+	if (r) {
+		DRM_ERROR("radeon: failed to raise UVD clocks (%d).\n", r);
+		return r;
+	}
+
+	r = radeon_uvd_get_create_msg(rdev, ring->idx, 1, NULL);
+	if (r) {
+		DRM_ERROR("radeon: failed to get create msg (%d).\n", r);
+		goto error;
+	}
+
+	r = radeon_uvd_get_destroy_msg(rdev, ring->idx, 1, &fence);
+	if (r) {
+		DRM_ERROR("radeon: failed to get destroy ib (%d).\n", r);
+		goto error;
+	}
+
+	r = radeon_fence_wait(fence, false);
+	if (r) {
+		DRM_ERROR("radeon: fence wait failed (%d).\n", r);
+		goto error;
+	}
+	DRM_INFO("ib test on ring %d succeeded\n",  ring->idx);
+error:
+	radeon_fence_unref(&fence);
+	radeon_set_uvd_clocks(rdev, 0, 0);
 	return r;
 }
 
@@ -4232,7 +4539,7 @@ void r600_ioctl_wait_idle(struct radeon_device *rdev, struct radeon_bo *bo)
 
 void r600_set_pcie_lanes(struct radeon_device *rdev, int lanes)
 {
-	u32 link_width_cntl, mask, target_reg;
+	u32 link_width_cntl, mask;
 
 	if (rdev->flags & RADEON_IS_IGP)
 		return;
@@ -4244,7 +4551,7 @@ void r600_set_pcie_lanes(struct radeon_device *rdev, int lanes)
 	if (ASIC_IS_X2(rdev))
 		return;
 
-	/* FIXME wait for idle */
+	radeon_gui_idle(rdev);
 
 	switch (lanes) {
 	case 0:
@@ -4263,53 +4570,24 @@ void r600_set_pcie_lanes(struct radeon_device *rdev, int lanes)
 		mask = RADEON_PCIE_LC_LINK_WIDTH_X8;
 		break;
 	case 12:
+		/* not actually supported */
 		mask = RADEON_PCIE_LC_LINK_WIDTH_X12;
 		break;
 	case 16:
-	default:
 		mask = RADEON_PCIE_LC_LINK_WIDTH_X16;
 		break;
+	default:
+		DRM_ERROR("invalid pcie lane request: %d\n", lanes);
+		return;
 	}
 
-	link_width_cntl = RREG32_PCIE_P(RADEON_PCIE_LC_LINK_WIDTH_CNTL);
+	link_width_cntl = RREG32_PCIE_PORT(RADEON_PCIE_LC_LINK_WIDTH_CNTL);
+	link_width_cntl &= ~RADEON_PCIE_LC_LINK_WIDTH_MASK;
+	link_width_cntl |= mask << RADEON_PCIE_LC_LINK_WIDTH_SHIFT;
+	link_width_cntl |= (RADEON_PCIE_LC_RECONFIG_NOW |
+			    R600_PCIE_LC_RECONFIG_ARC_MISSING_ESCAPE);
 
-	if ((link_width_cntl & RADEON_PCIE_LC_LINK_WIDTH_RD_MASK) ==
-	    (mask << RADEON_PCIE_LC_LINK_WIDTH_RD_SHIFT))
-		return;
-
-	if (link_width_cntl & R600_PCIE_LC_UPCONFIGURE_DIS)
-		return;
-
-	link_width_cntl &= ~(RADEON_PCIE_LC_LINK_WIDTH_MASK |
-			     RADEON_PCIE_LC_RECONFIG_NOW |
-			     R600_PCIE_LC_RENEGOTIATE_EN |
-			     R600_PCIE_LC_RECONFIG_ARC_MISSING_ESCAPE);
-	link_width_cntl |= mask;
-
-	WREG32_PCIE_P(RADEON_PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
-
-        /* some northbridges can renegotiate the link rather than requiring                                  
-         * a complete re-config.                                                                             
-         * e.g., AMD 780/790 northbridges (pci ids: 0x5956, 0x5957, 0x5958, etc.)                            
-         */
-        if (link_width_cntl & R600_PCIE_LC_RENEGOTIATION_SUPPORT)
-		link_width_cntl |= R600_PCIE_LC_RENEGOTIATE_EN | R600_PCIE_LC_UPCONFIGURE_SUPPORT;
-        else
-		link_width_cntl |= R600_PCIE_LC_RECONFIG_ARC_MISSING_ESCAPE;
-
-	WREG32_PCIE_P(RADEON_PCIE_LC_LINK_WIDTH_CNTL, (link_width_cntl |
-						       RADEON_PCIE_LC_RECONFIG_NOW));
-
-        if (rdev->family >= CHIP_RV770)
-		target_reg = R700_TARGET_AND_CURRENT_PROFILE_INDEX;
-        else
-		target_reg = R600_TARGET_AND_CURRENT_PROFILE_INDEX;
-
-        /* wait for lane set to complete */
-        link_width_cntl = RREG32(target_reg);
-        while (link_width_cntl == 0xffffffff)
-		link_width_cntl = RREG32(target_reg);
-
+	WREG32_PCIE_PORT(RADEON_PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
 }
 
 int r600_get_pcie_lanes(struct radeon_device *rdev)
@@ -4326,13 +4604,11 @@ int r600_get_pcie_lanes(struct radeon_device *rdev)
 	if (ASIC_IS_X2(rdev))
 		return 0;
 
-	/* FIXME wait for idle */
+	radeon_gui_idle(rdev);
 
-	link_width_cntl = RREG32_PCIE_P(RADEON_PCIE_LC_LINK_WIDTH_CNTL);
+	link_width_cntl = RREG32_PCIE_PORT(RADEON_PCIE_LC_LINK_WIDTH_CNTL);
 
 	switch ((link_width_cntl & RADEON_PCIE_LC_LINK_WIDTH_RD_MASK) >> RADEON_PCIE_LC_LINK_WIDTH_RD_SHIFT) {
-	case RADEON_PCIE_LC_LINK_WIDTH_X0:
-		return 0;
 	case RADEON_PCIE_LC_LINK_WIDTH_X1:
 		return 1;
 	case RADEON_PCIE_LC_LINK_WIDTH_X2:
@@ -4341,6 +4617,10 @@ int r600_get_pcie_lanes(struct radeon_device *rdev)
 		return 4;
 	case RADEON_PCIE_LC_LINK_WIDTH_X8:
 		return 8;
+	case RADEON_PCIE_LC_LINK_WIDTH_X12:
+		/* not actually supported */
+		return 12;
+	case RADEON_PCIE_LC_LINK_WIDTH_X0:
 	case RADEON_PCIE_LC_LINK_WIDTH_X16:
 	default:
 		return 16;
@@ -4378,7 +4658,7 @@ static void r600_pcie_gen2_enable(struct radeon_device *rdev)
 	if (!(mask & DRM_PCIE_SPEED_50))
 		return;
 
-	speed_cntl = RREG32_PCIE_P(PCIE_LC_SPEED_CNTL);
+	speed_cntl = RREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL);
 	if (speed_cntl & LC_CURRENT_DATA_RATE) {
 		DRM_INFO("PCIE gen 2 link speeds already enabled\n");
 		return;
@@ -4391,23 +4671,23 @@ static void r600_pcie_gen2_enable(struct radeon_device *rdev)
 	    (rdev->family == CHIP_RV620) ||
 	    (rdev->family == CHIP_RV635)) {
 		/* advertise upconfig capability */
-		link_width_cntl = RREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL);
+		link_width_cntl = RREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL);
 		link_width_cntl &= ~LC_UPCONFIGURE_DIS;
-		WREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
-		link_width_cntl = RREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL);
+		WREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
+		link_width_cntl = RREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL);
 		if (link_width_cntl & LC_RENEGOTIATION_SUPPORT) {
 			lanes = (link_width_cntl & LC_LINK_WIDTH_RD_MASK) >> LC_LINK_WIDTH_RD_SHIFT;
 			link_width_cntl &= ~(LC_LINK_WIDTH_MASK |
 					     LC_RECONFIG_ARC_MISSING_ESCAPE);
 			link_width_cntl |= lanes | LC_RECONFIG_NOW | LC_RENEGOTIATE_EN;
-			WREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
+			WREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
 		} else {
 			link_width_cntl |= LC_UPCONFIGURE_DIS;
-			WREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
+			WREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
 		}
 	}
 
-	speed_cntl = RREG32_PCIE_P(PCIE_LC_SPEED_CNTL);
+	speed_cntl = RREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL);
 	if ((speed_cntl & LC_OTHER_SIDE_EVER_SENT_GEN2) &&
 	    (speed_cntl & LC_OTHER_SIDE_SUPPORTS_GEN2)) {
 
@@ -4428,7 +4708,7 @@ static void r600_pcie_gen2_enable(struct radeon_device *rdev)
 		speed_cntl &= ~LC_VOLTAGE_TIMER_SEL_MASK;
 		speed_cntl &= ~LC_FORCE_DIS_HW_SPEED_CHANGE;
 		speed_cntl |= LC_FORCE_EN_HW_SPEED_CHANGE;
-		WREG32_PCIE_P(PCIE_LC_SPEED_CNTL, speed_cntl);
+		WREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL, speed_cntl);
 
 		tmp = RREG32(0x541c);
 		WREG32(0x541c, tmp | 0x8);
@@ -4442,27 +4722,27 @@ static void r600_pcie_gen2_enable(struct radeon_device *rdev)
 		if ((rdev->family == CHIP_RV670) ||
 		    (rdev->family == CHIP_RV620) ||
 		    (rdev->family == CHIP_RV635)) {
-			training_cntl = RREG32_PCIE_P(PCIE_LC_TRAINING_CNTL);
+			training_cntl = RREG32_PCIE_PORT(PCIE_LC_TRAINING_CNTL);
 			training_cntl &= ~LC_POINT_7_PLUS_EN;
-			WREG32_PCIE_P(PCIE_LC_TRAINING_CNTL, training_cntl);
+			WREG32_PCIE_PORT(PCIE_LC_TRAINING_CNTL, training_cntl);
 		} else {
-			speed_cntl = RREG32_PCIE_P(PCIE_LC_SPEED_CNTL);
+			speed_cntl = RREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL);
 			speed_cntl &= ~LC_TARGET_LINK_SPEED_OVERRIDE_EN;
-			WREG32_PCIE_P(PCIE_LC_SPEED_CNTL, speed_cntl);
+			WREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL, speed_cntl);
 		}
 
-		speed_cntl = RREG32_PCIE_P(PCIE_LC_SPEED_CNTL);
+		speed_cntl = RREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL);
 		speed_cntl |= LC_GEN2_EN_STRAP;
-		WREG32_PCIE_P(PCIE_LC_SPEED_CNTL, speed_cntl);
+		WREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL, speed_cntl);
 
 	} else {
-		link_width_cntl = RREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL);
+		link_width_cntl = RREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL);
 		/* XXX: only disable it if gen1 bridge vendor == 0x111d or 0x1106 */
 		if (1)
 			link_width_cntl |= LC_UPCONFIGURE_DIS;
 		else
 			link_width_cntl &= ~LC_UPCONFIGURE_DIS;
-		WREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
+		WREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
 	}
 }
 

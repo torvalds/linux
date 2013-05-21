@@ -64,27 +64,33 @@ init_exec_force(struct nvbios_init *init, bool exec)
 static inline int
 init_or(struct nvbios_init *init)
 {
-	if (init->outp)
-		return ffs(init->outp->or) - 1;
-	error("script needs OR!!\n");
+	if (init_exec(init)) {
+		if (init->outp)
+			return ffs(init->outp->or) - 1;
+		error("script needs OR!!\n");
+	}
 	return 0;
 }
 
 static inline int
 init_link(struct nvbios_init *init)
 {
-	if (init->outp)
-		return !(init->outp->sorconf.link & 1);
-	error("script needs OR link\n");
+	if (init_exec(init)) {
+		if (init->outp)
+			return !(init->outp->sorconf.link & 1);
+		error("script needs OR link\n");
+	}
 	return 0;
 }
 
 static inline int
 init_crtc(struct nvbios_init *init)
 {
-	if (init->crtc >= 0)
-		return init->crtc;
-	error("script needs crtc\n");
+	if (init_exec(init)) {
+		if (init->crtc >= 0)
+			return init->crtc;
+		error("script needs crtc\n");
+	}
 	return 0;
 }
 
@@ -92,16 +98,21 @@ static u8
 init_conn(struct nvbios_init *init)
 {
 	struct nouveau_bios *bios = init->bios;
+	u8  ver, len;
+	u16 conn;
 
-	if (init->outp) {
-		u8  ver, len;
-		u16 conn = dcb_conn(bios, init->outp->connector, &ver, &len);
-		if (conn)
-			return nv_ro08(bios, conn);
+	if (init_exec(init)) {
+		if (init->outp) {
+			conn = init->outp->connector;
+			conn = dcb_conn(bios, conn, &ver, &len);
+			if (conn)
+				return nv_ro08(bios, conn);
+		}
+
+		error("script needs connector type\n");
 	}
 
-	error("script needs connector type\n");
-	return 0x00;
+	return 0xff;
 }
 
 static inline u32
@@ -227,7 +238,8 @@ init_i2c(struct nvbios_init *init, int index)
 	} else
 	if (index < 0) {
 		if (!init->outp) {
-			error("script needs output for i2c\n");
+			if (init_exec(init))
+				error("script needs output for i2c\n");
 			return NULL;
 		}
 
@@ -544,7 +556,8 @@ init_tmds_reg(struct nvbios_init *init, u8 tmds)
 			return 0x6808b0 + dacoffset;
 		}
 
-		error("tmds opcodes need dcb\n");
+		if (init_exec(init))
+			error("tmds opcodes need dcb\n");
 	} else {
 		if (tmds < ARRAY_SIZE(pramdac_table))
 			return pramdac_table[tmds];
@@ -792,7 +805,8 @@ init_dp_condition(struct nvbios_init *init)
 			break;
 		}
 
-		warn("script needs dp output table data\n");
+		if (init_exec(init))
+			warn("script needs dp output table data\n");
 		break;
 	case 5:
 		if (!(init_rdauxr(init, 0x0d) & 1))
@@ -816,7 +830,7 @@ init_io_mask_or(struct nvbios_init *init)
 	u8    or = init_or(init);
 	u8  data;
 
-	trace("IO_MASK_OR\t0x03d4[0x%02x] &= ~(1 << 0x%02x)", index, or);
+	trace("IO_MASK_OR\t0x03d4[0x%02x] &= ~(1 << 0x%02x)\n", index, or);
 	init->offset += 2;
 
 	data = init_rdvgai(init, 0x03d4, index);
@@ -835,7 +849,7 @@ init_io_or(struct nvbios_init *init)
 	u8    or = init_or(init);
 	u8  data;
 
-	trace("IO_OR\t0x03d4[0x%02x] |= (1 << 0x%02x)", index, or);
+	trace("IO_OR\t0x03d4[0x%02x] |= (1 << 0x%02x)\n", index, or);
 	init->offset += 2;
 
 	data = init_rdvgai(init, 0x03d4, index);

@@ -19,11 +19,10 @@ config XEN_SELFBALLOONING
 	  by the current usage of anonymous memory ("committed AS") and
 	  controlled by various sysfs-settable parameters.  Configuring
 	  FRONTSWAP is highly recommended; if it is not configured, self-
-	  ballooning is disabled by default but can be enabled with the
-	  'selfballooning' kernel boot parameter.  If FRONTSWAP is configured,
+	  ballooning is disabled by default. If FRONTSWAP is configured,
 	  frontswap-selfshrinking is enabled by default but can be disabled
-	  with the 'noselfshrink' kernel boot parameter; and self-ballooning
-	  is enabled by default but can be disabled with the 'noselfballooning'
+	  with the 'tmem.selfshrink=0' kernel boot parameter; and self-ballooning
+	  is enabled by default but can be disabled with the 'tmem.selfballooning=0'
 	  kernel boot parameter.  Note that systems without a sufficiently
 	  large swap device should not enable self-ballooning.
 
@@ -141,13 +140,13 @@ config XEN_GRANT_DEV_ALLOC
 
 config SWIOTLB_XEN
 	def_bool y
-	depends on PCI
+	depends on PCI && X86
 	select SWIOTLB
 
 config XEN_TMEM
-	bool
+	tristate
 	depends on !ARM
-	default y if (CLEANCACHE || FRONTSWAP)
+	default m if (CLEANCACHE || FRONTSWAP)
 	help
 	  Shim to interface in-kernel Transcendent Memory hooks
 	  (e.g. cleancache and frontswap) to Xen tmem hypercalls.

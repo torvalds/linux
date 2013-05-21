@@ -36,9 +36,6 @@
 #include <linux/delay.h>
 #include <linux/input.h>
 
-#include <mach/mxs.h>
-#include <mach/common.h>
-
 #include <linux/iio/iio.h>
 #include <linux/iio/buffer.h>
 #include <linux/iio/trigger.h>
@@ -646,7 +643,7 @@ static irqreturn_t mxs_lradc_trigger_handler(int irq, void *p)
 
 static int mxs_lradc_configure_trigger(struct iio_trigger *trig, bool state)
 {
-	struct iio_dev *iio = trig->private_data;
+	struct iio_dev *iio = iio_trigger_get_drvdata(trig);
 	struct mxs_lradc *lradc = iio_priv(iio);
 	const uint32_t st = state ? STMP_OFFSET_REG_SET : STMP_OFFSET_REG_CLR;
 
@@ -670,7 +667,7 @@ static int mxs_lradc_trigger_init(struct iio_dev *iio)
 		return -ENOMEM;
 
 	trig->dev.parent = iio->dev.parent;
-	trig->private_data = iio;
+	iio_trigger_set_drvdata(trig, iio);
 	trig->ops = &mxs_lradc_trigger_ops;
 
 	ret = iio_trigger_register(trig);
@@ -822,7 +819,7 @@ static const struct iio_buffer_setup_ops mxs_lradc_buffer_ops = {
 	.type = (chan_type),					\
 	.indexed = 1,						\
 	.scan_index = (idx),					\
-	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,		\
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),		\
 	.channel = (idx),					\
 	.scan_type = {						\
 		.sign = 'u',					\
@@ -983,6 +980,9 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_trig;
 
+	/* Configure the hardware. */
+	mxs_lradc_hw_init(lradc);
+
 	/* Register the touchscreen input device. */
 	ret = mxs_lradc_ts_register(lradc);
 	if (ret)
@@ -994,9 +994,6 @@ static int mxs_lradc_probe(struct platform_device *pdev)
 		dev_err(dev, "Failed to register IIO device\n");
 		goto err_ts;
 	}
-
-	/* Configure the hardware. */
-	mxs_lradc_hw_init(lradc);
 
 	return 0;
 

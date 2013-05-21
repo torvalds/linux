@@ -117,7 +117,7 @@ static void omap2430_musb_try_idle(struct musb *musb, unsigned long timeout)
 	if (musb->is_active || ((musb->a_wait_bcon == 0)
 			&& (musb->xceiv->state == OTG_STATE_A_WAIT_BCON))) {
 		dev_dbg(musb->controller, "%s active, deleting timer\n",
-			otg_state_string(musb->xceiv->state));
+			usb_otg_state_string(musb->xceiv->state));
 		del_timer(&musb_idle_timer);
 		last_timer = jiffies;
 		return;
@@ -134,7 +134,7 @@ static void omap2430_musb_try_idle(struct musb *musb, unsigned long timeout)
 	last_timer = timeout;
 
 	dev_dbg(musb->controller, "%s inactive, for idle timer for %lu ms\n",
-		otg_state_string(musb->xceiv->state),
+		usb_otg_state_string(musb->xceiv->state),
 		(unsigned long)jiffies_to_msecs(timeout - jiffies));
 	mod_timer(&musb_idle_timer, timeout);
 }
@@ -174,8 +174,7 @@ static void omap2430_musb_set_vbus(struct musb *musb, int is_on)
 				}
 			}
 
-			if (otg->set_vbus)
-				otg_set_vbus(otg, 1);
+			otg_set_vbus(otg, 1);
 		} else {
 			musb->is_active = 1;
 			otg->default_a = 1;
@@ -200,7 +199,7 @@ static void omap2430_musb_set_vbus(struct musb *musb, int is_on)
 
 	dev_dbg(musb->controller, "VBUS %s, devctl %02x "
 		/* otg %3x conf %08x prcm %08x */ "\n",
-		otg_state_string(musb->xceiv->state),
+		usb_otg_state_string(musb->xceiv->state),
 		musb_readb(musb->mregs, MUSB_DEVCTL));
 }
 
@@ -292,14 +291,14 @@ static void omap_musb_set_mailbox(struct omap2430_glue *glue)
 
 		musb->xceiv->last_event = USB_EVENT_NONE;
 		if (musb->gadget_driver) {
+			omap2430_musb_set_vbus(musb, 0);
 			pm_runtime_mark_last_busy(dev);
 			pm_runtime_put_autosuspend(dev);
 		}
 
-		if (data->interface_type == MUSB_INTERFACE_UTMI) {
-			if (musb->xceiv->otg->set_vbus)
-				otg_set_vbus(musb->xceiv->otg, 0);
-		}
+		if (data->interface_type == MUSB_INTERFACE_UTMI)
+			otg_set_vbus(musb->xceiv->otg, 0);
+
 		omap_control_usb_set_mode(glue->control_otghs,
 			USB_MODE_DISCONNECT);
 		break;
@@ -355,7 +354,12 @@ static int omap2430_musb_init(struct musb *musb)
 	else
 		musb->xceiv = devm_usb_get_phy_dev(dev, 0);
 
-	if (IS_ERR_OR_NULL(musb->xceiv)) {
+	if (IS_ERR(musb->xceiv)) {
+		status = PTR_ERR(musb->xceiv);
+
+		if (status == -ENXIO)
+			return status;
+
 		pr_err("HS USB OTG: no transceiver configured\n");
 		return -EPROBE_DEFER;
 	}
@@ -392,6 +396,8 @@ static int omap2430_musb_init(struct musb *musb)
 
 	if (glue->status != OMAP_MUSB_UNKNOWN)
 		omap_musb_set_mailbox(glue);
+
+	usb_phy_init(musb->xceiv);
 
 	pm_runtime_put_noidle(musb->controller);
 	return 0;
@@ -526,10 +532,10 @@ static int omap2430_probe(struct platform_device *pdev)
 		}
 
 		of_property_read_u32(np, "mode", (u32 *)&pdata->mode);
-		of_property_read_u32(np, "interface_type",
+		of_property_read_u32(np, "interface-type",
 						(u32 *)&data->interface_type);
-		of_property_read_u32(np, "num_eps", (u32 *)&config->num_eps);
-		of_property_read_u32(np, "ram_bits", (u32 *)&config->ram_bits);
+		of_property_read_u32(np, "num-eps", (u32 *)&config->num_eps);
+		of_property_read_u32(np, "ram-bits", (u32 *)&config->ram_bits);
 		of_property_read_u32(np, "power", (u32 *)&pdata->power);
 		config->multipoint = of_property_read_bool(np, "multipoint");
 		pdata->has_mailbox = of_property_read_bool(np,

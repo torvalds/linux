@@ -31,6 +31,8 @@
 #include <linux/delay.h>
 #include <linux/gpio.h>
 #include <linux/input/auo-pixcir-ts.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
 
 /*
  * Coordinate calculation:
@@ -111,6 +113,7 @@
 struct auo_pixcir_ts {
 	struct i2c_client	*client;
 	struct input_dev	*input;
+	const struct auo_pixcir_ts_platdata *pdata;
 	char			phys[32];
 
 	/* special handling for touch_indicate interupt mode */
@@ -132,7 +135,7 @@ static int auo_pixcir_collect_data(struct auo_pixcir_ts *ts,
 				   struct auo_point_t *point)
 {
 	struct i2c_client *client = ts->client;
-	const struct auo_pixcir_ts_platdata *pdata = client->dev.platform_data;
+	const struct auo_pixcir_ts_platdata *pdata = ts->pdata;
 	uint8_t raw_coord[8];
 	uint8_t raw_area[4];
 	int i, ret;
@@ -178,8 +181,7 @@ static int auo_pixcir_collect_data(struct auo_pixcir_ts *ts,
 static irqreturn_t auo_pixcir_interrupt(int irq, void *dev_id)
 {
 	struct auo_pixcir_ts *ts = dev_id;
-	struct i2c_client *client = ts->client;
-	const struct auo_pixcir_ts_platdata *pdata = client->dev.platform_data;
+	const struct auo_pixcir_ts_platdata *pdata = ts->pdata;
 	struct auo_point_t point[AUO_PIXCIR_REPORT_POINTS];
 	int i;
 	int ret;
@@ -290,7 +292,7 @@ static int auo_pixcir_int_config(struct auo_pixcir_ts *ts,
 					   int int_setting)
 {
 	struct i2c_client *client = ts->client;
-	struct auo_pixcir_ts_platdata *pdata = client->dev.platform_data;
+	const struct auo_pixcir_ts_platdata *pdata = ts->pdata;
 	int ret;
 
 	ret = i2c_smbus_read_byte_data(client, AUO_PIXCIR_REG_INT_SETTING);
@@ -479,53 +481,105 @@ unlock:
 }
 #endif
 
-static SIMPLE_DEV_PM_OPS(auo_pixcir_pm_ops, auo_pixcir_suspend,
-			 auo_pixcir_resume);
+static SIMPLE_DEV_PM_OPS(auo_pixcir_pm_ops,
+			 auo_pixcir_suspend, auo_pixcir_resume);
+
+#ifdef CONFIG_OF
+static struct auo_pixcir_ts_platdata *auo_pixcir_parse_dt(struct device *dev)
+{
+	struct auo_pixcir_ts_platdata *pdata;
+	struct device_node *np = dev->of_node;
+
+	if (!np)
+		return ERR_PTR(-ENOENT);
+
+	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+	if (!pdata) {
+		dev_err(dev, "failed to allocate platform data\n");
+		return ERR_PTR(-ENOMEM);
+	}
+
+	pdata->gpio_int = of_get_gpio(np, 0);
+	if (!gpio_is_valid(pdata->gpio_int)) {
+		dev_err(dev, "failed to get interrupt gpio\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	pdata->gpio_rst = of_get_gpio(np, 1);
+	if (!gpio_is_valid(pdata->gpio_rst)) {
+		dev_err(dev, "failed to get reset gpio\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	if (of_property_read_u32(np, "x-size", &pdata->x_max)) {
+		dev_err(dev, "failed to get x-size property\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	if (of_property_read_u32(np, "y-size", &pdata->y_max)) {
+		dev_err(dev, "failed to get y-size property\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	/* default to asserting the interrupt when the screen is touched */
+	pdata->int_setting = AUO_PIXCIR_INT_TOUCH_IND;
+
+	return pdata;
+}
+#else
+static struct auo_pixcir_ts_platdata *auo_pixcir_parse_dt(struct device *dev)
+{
+	return ERR_PTR(-EINVAL);
+}
+#endif
+
+static void auo_pixcir_reset(void *data)
+{
+	struct auo_pixcir_ts *ts = data;
+
+	gpio_set_value(ts->pdata->gpio_rst, 0);
+}
 
 static int auo_pixcir_probe(struct i2c_client *client,
-				      const struct i2c_device_id *id)
+			    const struct i2c_device_id *id)
 {
-	const struct auo_pixcir_ts_platdata *pdata = client->dev.platform_data;
+	const struct auo_pixcir_ts_platdata *pdata;
 	struct auo_pixcir_ts *ts;
 	struct input_dev *input_dev;
-	int ret;
+	int version;
+	int error;
 
-	if (!pdata)
-		return -EINVAL;
+	pdata = dev_get_platdata(&client->dev);
+	if (!pdata) {
+		pdata = auo_pixcir_parse_dt(&client->dev);
+		if (IS_ERR(pdata))
+			return PTR_ERR(pdata);
+	}
 
-	ts = kzalloc(sizeof(struct auo_pixcir_ts), GFP_KERNEL);
+	ts = devm_kzalloc(&client->dev,
+			  sizeof(struct auo_pixcir_ts), GFP_KERNEL);
 	if (!ts)
 		return -ENOMEM;
 
-	ret = gpio_request(pdata->gpio_int, "auo_pixcir_ts_int");
-	if (ret) {
-		dev_err(&client->dev, "request of gpio %d failed, %d\n",
-			pdata->gpio_int, ret);
-		goto err_gpio_int;
+	input_dev = devm_input_allocate_device(&client->dev);
+	if (!input_dev) {
+		dev_err(&client->dev, "could not allocate input device\n");
+		return -ENOMEM;
 	}
 
-	if (pdata->init_hw)
-		pdata->init_hw(client);
-
+	ts->pdata = pdata;
 	ts->client = client;
+	ts->input = input_dev;
 	ts->touch_ind_mode = 0;
+	ts->stopped = true;
 	init_waitqueue_head(&ts->wait);
 
 	snprintf(ts->phys, sizeof(ts->phys),
 		 "%s/input0", dev_name(&client->dev));
 
-	input_dev = input_allocate_device();
-	if (!input_dev) {
-		dev_err(&client->dev, "could not allocate input device\n");
-		goto err_input_alloc;
-	}
-
-	ts->input = input_dev;
-
 	input_dev->name = "AUO-Pixcir touchscreen";
 	input_dev->phys = ts->phys;
 	input_dev->id.bustype = BUS_I2C;
-	input_dev->dev.parent = &client->dev;
 
 	input_dev->open = auo_pixcir_input_open;
 	input_dev->close = auo_pixcir_input_close;
@@ -550,70 +604,70 @@ static int auo_pixcir_probe(struct i2c_client *client,
 			     AUO_PIXCIR_MAX_AREA, 0, 0);
 	input_set_abs_params(input_dev, ABS_MT_ORIENTATION, 0, 1, 0, 0);
 
-	ret = i2c_smbus_read_byte_data(client, AUO_PIXCIR_REG_VERSION);
-	if (ret < 0)
-		goto err_fw_vers;
-	dev_info(&client->dev, "firmware version 0x%X\n", ret);
-
-	ret = auo_pixcir_int_config(ts, pdata->int_setting);
-	if (ret)
-		goto err_fw_vers;
-
 	input_set_drvdata(ts->input, ts);
-	ts->stopped = true;
 
-	ret = request_threaded_irq(client->irq, NULL, auo_pixcir_interrupt,
-				   IRQF_TRIGGER_RISING | IRQF_ONESHOT,
-				   input_dev->name, ts);
-	if (ret) {
-		dev_err(&client->dev, "irq %d requested failed\n", client->irq);
-		goto err_fw_vers;
+	error = devm_gpio_request_one(&client->dev, pdata->gpio_int,
+				      GPIOF_DIR_IN, "auo_pixcir_ts_int");
+	if (error) {
+		dev_err(&client->dev, "request of gpio %d failed, %d\n",
+			pdata->gpio_int, error);
+		return error;
+	}
+
+	error = devm_gpio_request_one(&client->dev, pdata->gpio_rst,
+				      GPIOF_DIR_OUT | GPIOF_INIT_HIGH,
+				      "auo_pixcir_ts_rst");
+	if (error) {
+		dev_err(&client->dev, "request of gpio %d failed, %d\n",
+			pdata->gpio_rst, error);
+		return error;
+	}
+
+	error = devm_add_action(&client->dev, auo_pixcir_reset, ts);
+	if (error) {
+		auo_pixcir_reset(ts);
+		dev_err(&client->dev, "failed to register reset action, %d\n",
+			error);
+		return error;
+	}
+
+	msleep(200);
+
+	version = i2c_smbus_read_byte_data(client, AUO_PIXCIR_REG_VERSION);
+	if (version < 0) {
+		error = version;
+		return error;
+	}
+
+	dev_info(&client->dev, "firmware version 0x%X\n", version);
+
+	error = auo_pixcir_int_config(ts, pdata->int_setting);
+	if (error)
+		return error;
+
+	error = devm_request_threaded_irq(&client->dev, client->irq,
+					  NULL, auo_pixcir_interrupt,
+					  IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+					  input_dev->name, ts);
+	if (error) {
+		dev_err(&client->dev, "irq %d requested failed, %d\n",
+			client->irq, error);
+		return error;
 	}
 
 	/* stop device and put it into deep sleep until it is opened */
-	ret = auo_pixcir_stop(ts);
-	if (ret < 0)
-		goto err_input_register;
+	error = auo_pixcir_stop(ts);
+	if (error)
+		return error;
 
-	ret = input_register_device(input_dev);
-	if (ret) {
-		dev_err(&client->dev, "could not register input device\n");
-		goto err_input_register;
+	error = input_register_device(input_dev);
+	if (error) {
+		dev_err(&client->dev, "could not register input device, %d\n",
+			error);
+		return error;
 	}
 
 	i2c_set_clientdata(client, ts);
-
-	return 0;
-
-err_input_register:
-	free_irq(client->irq, ts);
-err_fw_vers:
-	input_free_device(input_dev);
-err_input_alloc:
-	if (pdata->exit_hw)
-		pdata->exit_hw(client);
-	gpio_free(pdata->gpio_int);
-err_gpio_int:
-	kfree(ts);
-
-	return ret;
-}
-
-static int auo_pixcir_remove(struct i2c_client *client)
-{
-	struct auo_pixcir_ts *ts = i2c_get_clientdata(client);
-	const struct auo_pixcir_ts_platdata *pdata = client->dev.platform_data;
-
-	free_irq(client->irq, ts);
-
-	input_unregister_device(ts->input);
-
-	if (pdata->exit_hw)
-		pdata->exit_hw(client);
-
-	gpio_free(pdata->gpio_int);
-
-	kfree(ts);
 
 	return 0;
 }
@@ -624,14 +678,22 @@ static const struct i2c_device_id auo_pixcir_idtable[] = {
 };
 MODULE_DEVICE_TABLE(i2c, auo_pixcir_idtable);
 
+#ifdef CONFIG_OF
+static struct of_device_id auo_pixcir_ts_dt_idtable[] = {
+	{ .compatible = "auo,auo_pixcir_ts" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, auo_pixcir_ts_dt_idtable);
+#endif
+
 static struct i2c_driver auo_pixcir_driver = {
 	.driver = {
 		.owner	= THIS_MODULE,
 		.name	= "auo_pixcir_ts",
 		.pm	= &auo_pixcir_pm_ops,
+		.of_match_table	= of_match_ptr(auo_pixcir_ts_dt_idtable),
 	},
 	.probe		= auo_pixcir_probe,
-	.remove		= auo_pixcir_remove,
 	.id_table	= auo_pixcir_idtable,
 };
 

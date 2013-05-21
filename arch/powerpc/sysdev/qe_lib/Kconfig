@@ -22,6 +22,6 @@ config UCC
 
 config QE_USB
 	bool
-	default y if USB_GADGET_FSL_QE
+	default y if USB_FSL_QE
 	help
 	  QE USB Controller support

@@ -362,6 +362,7 @@ static int setup_frame32(int sig, struct k_sigaction *ka,
 		/* set extra registers only for synchronous signals */
 		regs->gprs[4] = regs->int_code & 127;
 		regs->gprs[5] = regs->int_parm_long;
+		regs->gprs[6] = task_thread_info(current)->last_break;
 	}
 
 	/* Place signal number on stack to allow backtrace from handler.  */
@@ -421,6 +422,7 @@ static int setup_rt_frame32(int sig, struct k_sigaction *ka, siginfo_t *info,
 	regs->gprs[2] = map_signal(sig);
 	regs->gprs[3] = (__force __u64) &frame->info;
 	regs->gprs[4] = (__force __u64) &frame->uc;
+	regs->gprs[5] = task_thread_info(current)->last_break;
 	return 0;
 
 give_sigsegv:

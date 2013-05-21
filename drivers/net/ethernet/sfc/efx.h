@@ -33,17 +33,22 @@ extern int efx_setup_tc(struct net_device *net_dev, u8 num_tc);
 extern unsigned int efx_tx_max_skb_descs(struct efx_nic *efx);
 
 /* RX */
+extern void efx_rx_config_page_split(struct efx_nic *efx);
 extern int efx_probe_rx_queue(struct efx_rx_queue *rx_queue);
 extern void efx_remove_rx_queue(struct efx_rx_queue *rx_queue);
 extern void efx_init_rx_queue(struct efx_rx_queue *rx_queue);
 extern void efx_fini_rx_queue(struct efx_rx_queue *rx_queue);
-extern void efx_rx_strategy(struct efx_channel *channel);
 extern void efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue);
 extern void efx_rx_slow_fill(unsigned long context);
-extern void __efx_rx_packet(struct efx_channel *channel,
-			    struct efx_rx_buffer *rx_buf);
-extern void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
+extern void __efx_rx_packet(struct efx_channel *channel);
+extern void efx_rx_packet(struct efx_rx_queue *rx_queue,
+			  unsigned int index, unsigned int n_frags,
 			  unsigned int len, u16 flags);
+static inline void efx_rx_flush_packet(struct efx_channel *channel)
+{
+	if (channel->rx_pkt_n_frags)
+		__efx_rx_packet(channel);
+}
 extern void efx_schedule_slow_fill(struct efx_rx_queue *rx_queue);
 
 #define EFX_MAX_DMAQ_SIZE 4096UL
@@ -67,6 +72,7 @@ extern void efx_schedule_slow_fill(struct efx_rx_queue *rx_queue);
 extern int efx_probe_filters(struct efx_nic *efx);
 extern void efx_restore_filters(struct efx_nic *efx);
 extern void efx_remove_filters(struct efx_nic *efx);
+extern void efx_filter_update_rx_scatter(struct efx_nic *efx);
 extern s32 efx_filter_insert_filter(struct efx_nic *efx,
 				    struct efx_filter_spec *spec,
 				    bool replace);

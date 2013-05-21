@@ -138,7 +138,7 @@ struct vpfe_video_device {
 	v4l2_std_id				stdid;
 	/*
 	 * offset where second field starts from the starting of the
-	 * buffer for field seperated YCbCr formats
+	 * buffer for field separated YCbCr formats
 	 */
 	u32					field_off;
 };

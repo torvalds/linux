@@ -17,6 +17,7 @@
 #include <linux/libata.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/err.h>
 
 #define DRV_NAME "sata_rcar"
 
@@ -799,9 +800,9 @@ static int sata_rcar_probe(struct platform_device *pdev)
 
 	host->private_data = priv;
 
-	priv->base = devm_request_and_ioremap(&pdev->dev, mem);
-	if (!priv->base) {
-		ret = -EADDRNOTAVAIL;
+	priv->base = devm_ioremap_resource(&pdev->dev, mem);
+	if (IS_ERR(priv->base)) {
+		ret = PTR_ERR(priv->base);
 		goto cleanup;
 	}
 

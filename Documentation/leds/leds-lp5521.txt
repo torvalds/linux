@@ -81,22 +81,3 @@ static struct lp55xx_platform_data lp5521_platform_data = {
 
 If the current is set to 0 in the platform data, that channel is
 disabled and it is not visible in the sysfs.
-
-The 'update_config' : CONFIG register (ADDR 08h)
-This value is platform-specific data.
-If update_config is not defined, the CONFIG register is set with
-'LP5521_PWRSAVE_EN | LP5521_CP_MODE_AUTO | LP5521_R_TO_BATT'.
-(Enable auto-powersave, set charge pump to auto, red to battery)
-
-example of update_config :
-
-#define LP5521_CONFIGS	(LP5521_PWM_HF | LP5521_PWRSAVE_EN | \
-			LP5521_CP_MODE_AUTO | LP5521_R_TO_BATT | \
-			LP5521_CLK_INT)
-
-static struct lp55xx_platform_data lp5521_pdata = {
-	.led_config = lp5521_led_config,
-	.num_channels = ARRAY_SIZE(lp5521_led_config),
-	.clock_mode = LP55XX_CLOCK_INT,
-	.update_config = LP5521_CONFIGS,
-};

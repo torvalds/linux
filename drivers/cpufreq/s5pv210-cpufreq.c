@@ -229,7 +229,6 @@ static int s5pv210_target(struct cpufreq_policy *policy,
 	}
 
 	freqs.new = s5pv210_freq_table[index].frequency;
-	freqs.cpu = 0;
 
 	if (freqs.new == freqs.old)
 		goto exit;
@@ -256,7 +255,7 @@ static int s5pv210_target(struct cpufreq_policy *policy,
 			goto exit;
 	}
 
-	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 
 	/* Check if there need to change PLL */
 	if ((index == L0) || (priv_index == L0))
@@ -468,7 +467,7 @@ static int s5pv210_target(struct cpufreq_policy *policy,
 		}
 	}
 
-	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
 	if (freqs.new < freqs.old) {
 		regulator_set_voltage(int_regulator,

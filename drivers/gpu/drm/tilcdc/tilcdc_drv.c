@@ -75,7 +75,7 @@ static int modeset_init(struct drm_device *dev)
 		mod->funcs->modeset_init(mod, dev);
 	}
 
-	if ((priv->num_encoders = 0) || (priv->num_connectors == 0)) {
+	if ((priv->num_encoders == 0) || (priv->num_connectors == 0)) {
 		/* oh nos! */
 		dev_err(dev->dev, "no encoders/connectors found\n");
 		return -ENXIO;
@@ -299,11 +299,10 @@ static int tilcdc_irq_postinstall(struct drm_device *dev)
 	struct tilcdc_drm_private *priv = dev->dev_private;
 
 	/* enable FIFO underflow irq: */
-	if (priv->rev == 1) {
+	if (priv->rev == 1)
 		tilcdc_set(dev, LCDC_RASTER_CTRL_REG, LCDC_V1_UNDERFLOW_INT_ENA);
-	} else {
+	else
 		tilcdc_set(dev, LCDC_INT_ENABLE_SET_REG, LCDC_V2_UNDERFLOW_INT_ENA);
-	}
 
 	return 0;
 }
@@ -363,7 +362,7 @@ static const struct {
 	uint8_t  rev;
 	uint8_t  save;
 	uint32_t reg;
-} registers[] = 	{
+} registers[] =		{
 #define REG(rev, save, reg) { #reg, rev, save, reg }
 		/* exists in revision 1: */
 		REG(1, false, LCDC_PID_REG),

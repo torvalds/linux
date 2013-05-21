@@ -106,14 +106,15 @@ static int usb_serial_device_remove(struct device *dev)
 	/* make sure suspend/resume doesn't race against port_remove */
 	usb_autopm_get_interface(port->serial->interface);
 
+	minor = port->number;
+	tty_unregister_device(usb_serial_tty_driver, minor);
+
 	device_remove_file(&port->dev, &dev_attr_port_number);
 
 	driver = port->serial->type;
 	if (driver->port_remove)
 		retval = driver->port_remove(port);
 
-	minor = port->number;
-	tty_unregister_device(usb_serial_tty_driver, minor);
 	dev_info(dev, "%s converter now disconnected from ttyUSB%d\n",
 		 driver->description, minor);
 

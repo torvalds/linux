@@ -253,7 +253,8 @@ static int max8925_rtc_probe(struct platform_device *pdev)
 	struct max8925_rtc_info *info;
 	int ret;
 
-	info = kzalloc(sizeof(struct max8925_rtc_info), GFP_KERNEL);
+	info = devm_kzalloc(&pdev->dev, sizeof(struct max8925_rtc_info),
+			    GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 	info->chip = chip;
@@ -261,12 +262,13 @@ static int max8925_rtc_probe(struct platform_device *pdev)
 	info->dev = &pdev->dev;
 	info->irq = platform_get_irq(pdev, 0);
 
-	ret = request_threaded_irq(info->irq, NULL, rtc_update_handler,
-				   IRQF_ONESHOT, "rtc-alarm0", info);
+	ret = devm_request_threaded_irq(&pdev->dev, info->irq, NULL,
+					rtc_update_handler, IRQF_ONESHOT,
+					"rtc-alarm0", info);
 	if (ret < 0) {
 		dev_err(chip->dev, "Failed to request IRQ: #%d: %d\n",
 			info->irq, ret);
-		goto out_irq;
+		goto err;
 	}
 
 	dev_set_drvdata(&pdev->dev, info);
@@ -275,32 +277,22 @@ static int max8925_rtc_probe(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, 1);
 
-	info->rtc_dev = rtc_device_register("max8925-rtc", &pdev->dev,
+	info->rtc_dev = devm_rtc_device_register(&pdev->dev, "max8925-rtc",
 					&max8925_rtc_ops, THIS_MODULE);
 	ret = PTR_ERR(info->rtc_dev);
 	if (IS_ERR(info->rtc_dev)) {
 		dev_err(&pdev->dev, "Failed to register RTC device: %d\n", ret);
-		goto out_rtc;
+		goto err;
 	}
 
 	return 0;
-out_rtc:
+err:
 	platform_set_drvdata(pdev, NULL);
-	free_irq(info->irq, info);
-out_irq:
-	kfree(info);
 	return ret;
 }
 
 static int max8925_rtc_remove(struct platform_device *pdev)
 {
-	struct max8925_rtc_info *info = platform_get_drvdata(pdev);
-
-	if (info) {
-		free_irq(info->irq, info);
-		rtc_device_unregister(info->rtc_dev);
-		kfree(info);
-	}
 	return 0;
 }
 

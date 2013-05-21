@@ -21,6 +21,7 @@
  * complete pgtable.h but only a portion of it.
  */
 #include <asm/pgtable-ppc64.h>
+#include <asm/bug.h>
 
 /*
  * Segment table
@@ -154,11 +155,29 @@ extern unsigned long htab_hash_mask;
 struct mmu_psize_def
 {
 	unsigned int	shift;	/* number of bits */
-	unsigned int	penc;	/* HPTE encoding */
+	int		penc[MMU_PAGE_COUNT];	/* HPTE encoding */
 	unsigned int	tlbiel;	/* tlbiel supported for that page size */
 	unsigned long	avpnm;	/* bits to mask out in AVPN in the HPTE */
 	unsigned long	sllp;	/* SLB L||LP (exact mask to use in slbmte) */
 };
+extern struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
+
+static inline int shift_to_mmu_psize(unsigned int shift)
+{
+	int psize;
+
+	for (psize = 0; psize < MMU_PAGE_COUNT; ++psize)
+		if (mmu_psize_defs[psize].shift == shift)
+			return psize;
+	return -1;
+}
+
+static inline unsigned int mmu_psize_to_shift(unsigned int mmu_psize)
+{
+	if (mmu_psize_defs[mmu_psize].shift)
+		return mmu_psize_defs[mmu_psize].shift;
+	BUG();
+}
 
 #endif /* __ASSEMBLY__ */
 
@@ -181,6 +200,13 @@ struct mmu_psize_def
  */
 #define VPN_SHIFT	12
 
+/*
+ * HPTE Large Page (LP) details
+ */
+#define LP_SHIFT	12
+#define LP_BITS		8
+#define LP_MASK(i)	((0xFF >> (i)) << LP_SHIFT)
+
 #ifndef __ASSEMBLY__
 
 static inline int segment_shift(int ssize)
@@ -193,7 +219,6 @@ static inline int segment_shift(int ssize)
 /*
  * The current system page and segment sizes
  */
-extern struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
 extern int mmu_linear_psize;
 extern int mmu_virtual_psize;
 extern int mmu_vmalloc_psize;
@@ -237,14 +262,14 @@ static inline unsigned long hpte_encode_avpn(unsigned long vpn, int psize,
 
 /*
  * This function sets the AVPN and L fields of the HPTE  appropriately
- * for the page size
+ * using the base page size and actual page size.
  */
-static inline unsigned long hpte_encode_v(unsigned long vpn,
-					  int psize, int ssize)
+static inline unsigned long hpte_encode_v(unsigned long vpn, int base_psize,
+					  int actual_psize, int ssize)
 {
 	unsigned long v;
-	v = hpte_encode_avpn(vpn, psize, ssize);
-	if (psize != MMU_PAGE_4K)
+	v = hpte_encode_avpn(vpn, base_psize, ssize);
+	if (actual_psize != MMU_PAGE_4K)
 		v |= HPTE_V_LARGE;
 	return v;
 }
@@ -254,19 +279,17 @@ static inline unsigned long hpte_encode_v(unsigned long vpn,
  * for the page size. We assume the pa is already "clean" that is properly
  * aligned for the requested page size
  */
-static inline unsigned long hpte_encode_r(unsigned long pa, int psize)
+static inline unsigned long hpte_encode_r(unsigned long pa, int base_psize,
+					  int actual_psize)
 {
-	unsigned long r;
-
 	/* A 4K page needs no special encoding */
-	if (psize == MMU_PAGE_4K)
+	if (actual_psize == MMU_PAGE_4K)
 		return pa & HPTE_R_RPN;
 	else {
-		unsigned int penc = mmu_psize_defs[psize].penc;
-		unsigned int shift = mmu_psize_defs[psize].shift;
-		return (pa & ~((1ul << shift) - 1)) | (penc << 12);
+		unsigned int penc = mmu_psize_defs[base_psize].penc[actual_psize];
+		unsigned int shift = mmu_psize_defs[actual_psize].shift;
+		return (pa & ~((1ul << shift) - 1)) | (penc << LP_SHIFT);
 	}
-	return r;
 }
 
 /*
@@ -319,7 +342,8 @@ int __hash_page_huge(unsigned long ea, unsigned long access, unsigned long vsid,
 		     unsigned int shift, unsigned int mmu_psize);
 extern void hash_failure_debug(unsigned long ea, unsigned long access,
 			       unsigned long vsid, unsigned long trap,
-			       int ssize, int psize, unsigned long pte);
+			       int ssize, int psize, int lpsize,
+			       unsigned long pte);
 extern int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 			     unsigned long pstart, unsigned long prot,
 			     int psize, int ssize);
@@ -498,6 +522,10 @@ typedef struct {
 	unsigned long acop;	/* mask of enabled coprocessor types */
 	unsigned int cop_pid;	/* pid value used with coprocessors */
 #endif /* CONFIG_PPC_ICSWX */
+#ifdef CONFIG_PPC_64K_PAGES
+	/* for 4K PTE fragment support */
+	void *pte_frag;
+#endif
 } mm_context_t;
 
 

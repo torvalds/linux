@@ -112,8 +112,32 @@ static inline unsigned Filter_Enable(unsigned port)
 #define OverflowIntEnable		0x02
 #define EdgeIntEnable			0x01
 
+enum ni_65xx_boardid {
+	BOARD_PCI6509,
+	BOARD_PXI6509,
+	BOARD_PCI6510,
+	BOARD_PCI6511,
+	BOARD_PXI6511,
+	BOARD_PCI6512,
+	BOARD_PXI6512,
+	BOARD_PCI6513,
+	BOARD_PXI6513,
+	BOARD_PCI6514,
+	BOARD_PXI6514,
+	BOARD_PCI6515,
+	BOARD_PXI6515,
+	BOARD_PCI6516,
+	BOARD_PCI6517,
+	BOARD_PCI6518,
+	BOARD_PCI6519,
+	BOARD_PCI6520,
+	BOARD_PCI6521,
+	BOARD_PXI6521,
+	BOARD_PCI6528,
+	BOARD_PXI6528,
+};
+
 struct ni_65xx_board {
-	int dev_id;
 	const char *name;
 	unsigned num_dio_ports;
 	unsigned num_di_ports;
@@ -122,129 +146,116 @@ struct ni_65xx_board {
 };
 
 static const struct ni_65xx_board ni_65xx_boards[] = {
-	{
-	 .dev_id = 0x7085,
-	 .name = "pci-6509",
-	 .num_dio_ports = 12,
-	 .invert_outputs = 0},
-	{
-	 .dev_id = 0x1710,
-	 .name = "pxi-6509",
-	 .num_dio_ports = 12,
-	 .invert_outputs = 0},
-	{
-	 .dev_id = 0x7124,
-	 .name = "pci-6510",
-	 .num_di_ports = 4},
-	{
-	 .dev_id = 0x70c3,
-	 .name = "pci-6511",
-	 .num_di_ports = 8},
-	{
-	 .dev_id = 0x70d3,
-	 .name = "pxi-6511",
-	 .num_di_ports = 8},
-	{
-	 .dev_id = 0x70cc,
-	 .name = "pci-6512",
-	 .num_do_ports = 8},
-	{
-	 .dev_id = 0x70d2,
-	 .name = "pxi-6512",
-	 .num_do_ports = 8},
-	{
-	 .dev_id = 0x70c8,
-	 .name = "pci-6513",
-	 .num_do_ports = 8,
-	 .invert_outputs = 1},
-	{
-	 .dev_id = 0x70d1,
-	 .name = "pxi-6513",
-	 .num_do_ports = 8,
-	 .invert_outputs = 1},
-	{
-	 .dev_id = 0x7088,
-	 .name = "pci-6514",
-	 .num_di_ports = 4,
-	 .num_do_ports = 4,
-	 .invert_outputs = 1},
-	{
-	 .dev_id = 0x70CD,
-	 .name = "pxi-6514",
-	 .num_di_ports = 4,
-	 .num_do_ports = 4,
-	 .invert_outputs = 1},
-	{
-	 .dev_id = 0x7087,
-	 .name = "pci-6515",
-	 .num_di_ports = 4,
-	 .num_do_ports = 4,
-	 .invert_outputs = 1},
-	{
-	 .dev_id = 0x70c9,
-	 .name = "pxi-6515",
-	 .num_di_ports = 4,
-	 .num_do_ports = 4,
-	 .invert_outputs = 1},
-	{
-	 .dev_id = 0x7125,
-	 .name = "pci-6516",
-	 .num_do_ports = 4,
-	 .invert_outputs = 1},
-	{
-	 .dev_id = 0x7126,
-	 .name = "pci-6517",
-	 .num_do_ports = 4,
-	 .invert_outputs = 1},
-	{
-	 .dev_id = 0x7127,
-	 .name = "pci-6518",
-	 .num_di_ports = 2,
-	 .num_do_ports = 2,
-	 .invert_outputs = 1},
-	{
-	 .dev_id = 0x7128,
-	 .name = "pci-6519",
-	 .num_di_ports = 2,
-	 .num_do_ports = 2,
-	 .invert_outputs = 1},
-	{
-	 .dev_id = 0x71c5,
-	 .name = "pci-6520",
-	 .num_di_ports = 1,
-	 .num_do_ports = 1,
-	 },
-	{
-	 .dev_id = 0x718b,
-	 .name = "pci-6521",
-	 .num_di_ports = 1,
-	 .num_do_ports = 1,
-	 },
-	{
-	 .dev_id = 0x718c,
-	 .name = "pxi-6521",
-	 .num_di_ports = 1,
-	 .num_do_ports = 1,
-	 },
-	{
-	 .dev_id = 0x70a9,
-	 .name = "pci-6528",
-	 .num_di_ports = 3,
-	 .num_do_ports = 3,
-	 },
-	{
-	 .dev_id = 0x7086,
-	 .name = "pxi-6528",
-	 .num_di_ports = 3,
-	 .num_do_ports = 3,
-	 },
+	[BOARD_PCI6509] = {
+		.name		= "pci-6509",
+		.num_dio_ports	= 12,
+	},
+	[BOARD_PXI6509] = {
+		.name		= "pxi-6509",
+		.num_dio_ports	= 12,
+	},
+	[BOARD_PCI6510] = {
+		.name		= "pci-6510",
+		.num_di_ports	= 4,
+	},
+	[BOARD_PCI6511] = {
+		.name		= "pci-6511",
+		.num_di_ports	= 8,
+	},
+	[BOARD_PXI6511] = {
+		.name		= "pxi-6511",
+		.num_di_ports	= 8,
+	},
+	[BOARD_PCI6512] = {
+		.name		= "pci-6512",
+		.num_do_ports	= 8,
+	},
+	[BOARD_PXI6512] = {
+		.name		= "pxi-6512",
+		.num_do_ports	= 8,
+	},
+	[BOARD_PCI6513] = {
+		.name		= "pci-6513",
+		.num_do_ports	= 8,
+		.invert_outputs	= 1,
+	},
+	[BOARD_PXI6513] = {
+		.name		= "pxi-6513",
+		.num_do_ports	= 8,
+		.invert_outputs	= 1,
+	},
+	[BOARD_PCI6514] = {
+		.name		= "pci-6514",
+		.num_di_ports	= 4,
+		.num_do_ports	= 4,
+		.invert_outputs	= 1,
+	},
+	[BOARD_PXI6514] = {
+		.name		= "pxi-6514",
+		.num_di_ports	= 4,
+		.num_do_ports	= 4,
+		.invert_outputs	= 1,
+	},
+	[BOARD_PCI6515] = {
+		.name		= "pci-6515",
+		.num_di_ports	= 4,
+		.num_do_ports	= 4,
+		.invert_outputs	= 1,
+	},
+	[BOARD_PXI6515] = {
+		.name		= "pxi-6515",
+		.num_di_ports	= 4,
+		.num_do_ports	= 4,
+		.invert_outputs	= 1,
+	},
+	[BOARD_PCI6516] = {
+		.name		= "pci-6516",
+		.num_do_ports	= 4,
+		.invert_outputs	= 1,
+	},
+	[BOARD_PCI6517] = {
+		.name		= "pci-6517",
+		.num_do_ports	= 4,
+		.invert_outputs	= 1,
+	},
+	[BOARD_PCI6518] = {
+		.name		= "pci-6518",
+		.num_di_ports	= 2,
+		.num_do_ports	= 2,
+		.invert_outputs	= 1,
+	},
+	[BOARD_PCI6519] = {
+		.name		= "pci-6519",
+		.num_di_ports	= 2,
+		.num_do_ports	= 2,
+		.invert_outputs	= 1,
+	},
+	[BOARD_PCI6520] = {
+		.name		= "pci-6520",
+		.num_di_ports	= 1,
+		.num_do_ports	= 1,
+	},
+	[BOARD_PCI6521] = {
+		.name		= "pci-6521",
+		.num_di_ports	= 1,
+		.num_do_ports	= 1,
+	},
+	[BOARD_PXI6521] = {
+		.name		= "pxi-6521",
+		.num_di_ports	= 1,
+		.num_do_ports	= 1,
+	},
+	[BOARD_PCI6528] = {
+		.name		= "pci-6528",
+		.num_di_ports	= 3,
+		.num_do_ports	= 3,
+	},
+	[BOARD_PXI6528] = {
+		.name		= "pxi-6528",
+		.num_di_ports	= 3,
+		.num_do_ports	= 3,
+	},
 };
-
-#define n_ni_65xx_boards ARRAY_SIZE(ni_65xx_boards)
-static inline const struct ni_65xx_board *board(struct comedi_device *dev)
-{
-	return dev->board_ptr;
-}
 
 static inline unsigned ni_65xx_port_by_channel(unsigned channel)
 {
@@ -256,34 +267,6 @@ static inline unsigned ni_65xx_total_num_ports(const struct ni_65xx_board
 {
 	return board->num_dio_ports + board->num_di_ports + board->num_do_ports;
 }
-
-static DEFINE_PCI_DEVICE_TABLE(ni_65xx_pci_table) = {
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1710)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x7085)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x7086)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x7087)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x7088)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70a9)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70c3)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70c8)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70c9)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70cc)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70CD)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70d1)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70d2)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x70d3)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x7124)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x7125)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x7126)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x7127)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x7128)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x718b)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x718c)},
-	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x71c5)},
-	{0}
-};
-
-MODULE_DEVICE_TABLE(pci, ni_65xx_pci_table);
 
 struct ni_65xx_private {
 	struct mite_struct *mite;
@@ -398,6 +381,7 @@ static int ni_65xx_dio_insn_bits(struct comedi_device *dev,
 				 struct comedi_subdevice *s,
 				 struct comedi_insn *insn, unsigned int *data)
 {
+	const struct ni_65xx_board *board = comedi_board(dev);
 	struct ni_65xx_private *devpriv = dev->private;
 	unsigned base_bitfield_channel;
 	const unsigned max_ports_per_bitfield = 5;
@@ -413,7 +397,7 @@ static int ni_65xx_dio_insn_bits(struct comedi_device *dev,
 		unsigned base_port_channel;
 		unsigned port_mask, port_data, port_read_bits;
 		int bitshift;
-		if (port >= ni_65xx_total_num_ports(board(dev)))
+		if (port >= ni_65xx_total_num_ports(board))
 			break;
 		base_port_channel = port_offset * ni_65xx_channels_per_port;
 		port_mask = data[0];
@@ -436,7 +420,7 @@ static int ni_65xx_dio_insn_bits(struct comedi_device *dev,
 			devpriv->output_bits[port] |=
 			    port_data & port_mask;
 			bits = devpriv->output_bits[port];
-			if (board(dev)->invert_outputs)
+			if (board->invert_outputs)
 				bits = ~bits;
 			writeb(bits,
 			       devpriv->mite->daq_io_addr +
@@ -444,7 +428,7 @@ static int ni_65xx_dio_insn_bits(struct comedi_device *dev,
 		}
 		port_read_bits =
 		    readb(devpriv->mite->daq_io_addr + Port_Data(port));
-		if (s->type == COMEDI_SUBD_DO && board(dev)->invert_outputs) {
+		if (s->type == COMEDI_SUBD_DO && board->invert_outputs) {
 			/* Outputs inverted, so invert value read back from
 			 * DO subdevice.  (Does not apply to boards with DIO
 			 * subdevice.) */
@@ -599,37 +583,31 @@ static int ni_65xx_intr_insn_config(struct comedi_device *dev,
 	return 2;
 }
 
-static const struct ni_65xx_board *
-ni_65xx_find_boardinfo(struct pci_dev *pcidev)
-{
-	unsigned int dev_id = pcidev->device;
-	unsigned int n;
-
-	for (n = 0; n < ARRAY_SIZE(ni_65xx_boards); n++) {
-		const struct ni_65xx_board *board = &ni_65xx_boards[n];
-		if (board->dev_id == dev_id)
-			return board;
-	}
-	return NULL;
-}
-
 static int ni_65xx_auto_attach(struct comedi_device *dev,
-					 unsigned long context_unused)
+			       unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	const struct ni_65xx_board *board = NULL;
 	struct ni_65xx_private *devpriv;
 	struct comedi_subdevice *s;
 	unsigned i;
 	int ret;
 
+	if (context < ARRAY_SIZE(ni_65xx_boards))
+		board = &ni_65xx_boards[context];
+	if (!board)
+		return -ENODEV;
+	dev->board_ptr = board;
+	dev->board_name = board->name;
+
+	ret = comedi_pci_enable(dev);
+	if (ret)
+		return ret;
+
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
 		return -ENOMEM;
 	dev->private = devpriv;
-
-	dev->board_ptr = ni_65xx_find_boardinfo(pcidev);
-	if (!dev->board_ptr)
-		return -ENODEV;
 
 	devpriv->mite = mite_alloc(pcidev);
 	if (!devpriv->mite)
@@ -641,7 +619,6 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 		return ret;
 	}
 
-	dev->board_name = board(dev)->name;
 	dev->irq = mite_irq(devpriv->mite);
 	dev_info(dev->class_dev, "board: %s, ID=0x%02x", dev->board_name,
 	       readb(devpriv->mite->daq_io_addr + ID_Register));
@@ -651,11 +628,11 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 		return ret;
 
 	s = &dev->subdevices[0];
-	if (board(dev)->num_di_ports) {
+	if (board->num_di_ports) {
 		s->type = COMEDI_SUBD_DI;
 		s->subdev_flags = SDF_READABLE;
 		s->n_chan =
-		    board(dev)->num_di_ports * ni_65xx_channels_per_port;
+		    board->num_di_ports * ni_65xx_channels_per_port;
 		s->range_table = &range_digital;
 		s->maxdata = 1;
 		s->insn_config = ni_65xx_dio_insn_config;
@@ -669,28 +646,28 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 	}
 
 	s = &dev->subdevices[1];
-	if (board(dev)->num_do_ports) {
+	if (board->num_do_ports) {
 		s->type = COMEDI_SUBD_DO;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
 		s->n_chan =
-		    board(dev)->num_do_ports * ni_65xx_channels_per_port;
+		    board->num_do_ports * ni_65xx_channels_per_port;
 		s->range_table = &range_digital;
 		s->maxdata = 1;
 		s->insn_bits = ni_65xx_dio_insn_bits;
 		s->private = ni_65xx_alloc_subdevice_private();
 		if (s->private == NULL)
 			return -ENOMEM;
-		sprivate(s)->base_port = board(dev)->num_di_ports;
+		sprivate(s)->base_port = board->num_di_ports;
 	} else {
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
 	s = &dev->subdevices[2];
-	if (board(dev)->num_dio_ports) {
+	if (board->num_dio_ports) {
 		s->type = COMEDI_SUBD_DIO;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
 		s->n_chan =
-		    board(dev)->num_dio_ports * ni_65xx_channels_per_port;
+		    board->num_dio_ports * ni_65xx_channels_per_port;
 		s->range_table = &range_digital;
 		s->maxdata = 1;
 		s->insn_config = ni_65xx_dio_insn_config;
@@ -699,7 +676,7 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 		if (s->private == NULL)
 			return -ENOMEM;
 		sprivate(s)->base_port = 0;
-		for (i = 0; i < board(dev)->num_dio_ports; ++i) {
+		for (i = 0; i < board->num_dio_ports; ++i) {
 			/*  configure all ports for input */
 			writeb(0x1,
 			       devpriv->mite->daq_io_addr +
@@ -722,10 +699,10 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 	s->insn_bits = ni_65xx_intr_insn_bits;
 	s->insn_config = ni_65xx_intr_insn_config;
 
-	for (i = 0; i < ni_65xx_total_num_ports(board(dev)); ++i) {
+	for (i = 0; i < ni_65xx_total_num_ports(board); ++i) {
 		writeb(0x00,
 		       devpriv->mite->daq_io_addr + Filter_Enable(i));
-		if (board(dev)->invert_outputs)
+		if (board->invert_outputs)
 			writeb(0x01,
 			       devpriv->mite->daq_io_addr + Port_Data(i));
 		else
@@ -753,6 +730,7 @@ static int ni_65xx_auto_attach(struct comedi_device *dev,
 static void ni_65xx_detach(struct comedi_device *dev)
 {
 	struct ni_65xx_private *devpriv = dev->private;
+	int i;
 
 	if (devpriv && devpriv->mite && devpriv->mite->daq_io_addr) {
 		writeb(0x00,
@@ -761,20 +739,15 @@ static void ni_65xx_detach(struct comedi_device *dev)
 	}
 	if (dev->irq)
 		free_irq(dev->irq, dev);
+	for (i = 0; i < dev->n_subdevices; ++i)
+		comedi_spriv_free(dev, i);
 	if (devpriv) {
-		struct comedi_subdevice *s;
-		unsigned i;
-
-		for (i = 0; i < dev->n_subdevices; ++i) {
-			s = &dev->subdevices[i];
-			kfree(s->private);
-			s->private = NULL;
-		}
 		if (devpriv->mite) {
 			mite_unsetup(devpriv->mite);
 			mite_free(devpriv->mite);
 		}
 	}
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver ni_65xx_driver = {
@@ -785,15 +758,42 @@ static struct comedi_driver ni_65xx_driver = {
 };
 
 static int ni_65xx_pci_probe(struct pci_dev *dev,
-				       const struct pci_device_id *ent)
+			     const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &ni_65xx_driver);
+	return comedi_pci_auto_config(dev, &ni_65xx_driver, id->driver_data);
 }
 
+static DEFINE_PCI_DEVICE_TABLE(ni_65xx_pci_table) = {
+	{ PCI_VDEVICE(NI, 0x1710), BOARD_PXI6509 },
+	{ PCI_VDEVICE(NI, 0x7085), BOARD_PCI6509 },
+	{ PCI_VDEVICE(NI, 0x7086), BOARD_PXI6528 },
+	{ PCI_VDEVICE(NI, 0x7087), BOARD_PCI6515 },
+	{ PCI_VDEVICE(NI, 0x7088), BOARD_PCI6514 },
+	{ PCI_VDEVICE(NI, 0x70a9), BOARD_PCI6528 },
+	{ PCI_VDEVICE(NI, 0x70c3), BOARD_PCI6511 },
+	{ PCI_VDEVICE(NI, 0x70c8), BOARD_PCI6513 },
+	{ PCI_VDEVICE(NI, 0x70c9), BOARD_PXI6515 },
+	{ PCI_VDEVICE(NI, 0x70cc), BOARD_PCI6512 },
+	{ PCI_VDEVICE(NI, 0x70cd), BOARD_PXI6514 },
+	{ PCI_VDEVICE(NI, 0x70d1), BOARD_PXI6513 },
+	{ PCI_VDEVICE(NI, 0x70d2), BOARD_PXI6512 },
+	{ PCI_VDEVICE(NI, 0x70d3), BOARD_PXI6511 },
+	{ PCI_VDEVICE(NI, 0x7124), BOARD_PCI6510 },
+	{ PCI_VDEVICE(NI, 0x7125), BOARD_PCI6516 },
+	{ PCI_VDEVICE(NI, 0x7126), BOARD_PCI6517 },
+	{ PCI_VDEVICE(NI, 0x7127), BOARD_PCI6518 },
+	{ PCI_VDEVICE(NI, 0x7128), BOARD_PCI6519 },
+	{ PCI_VDEVICE(NI, 0x718b), BOARD_PCI6521 },
+	{ PCI_VDEVICE(NI, 0x718c), BOARD_PXI6521 },
+	{ PCI_VDEVICE(NI, 0x71c5), BOARD_PCI6520 },
+	{ 0 }
+};
+MODULE_DEVICE_TABLE(pci, ni_65xx_pci_table);
+
 static struct pci_driver ni_65xx_pci_driver = {
-	.name = "ni_65xx",
-	.id_table = ni_65xx_pci_table,
-	.probe = ni_65xx_pci_probe,
+	.name		= "ni_65xx",
+	.id_table	= ni_65xx_pci_table,
+	.probe		= ni_65xx_pci_probe,
 	.remove		= comedi_pci_auto_unconfig,
 };
 module_comedi_pci_driver(ni_65xx_driver, ni_65xx_pci_driver);

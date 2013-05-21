@@ -119,7 +119,7 @@ void __init davinci_init_ide(void)
 	platform_device_register(&ide_device);
 }
 
-#if	defined(CONFIG_MMC_DAVINCI) || defined(CONFIG_MMC_DAVINCI_MODULE)
+#if IS_ENABLED(CONFIG_MMC_DAVINCI)
 
 static u64 mmcsd0_dma_mask = DMA_BIT_MASK(32);
 
@@ -150,7 +150,7 @@ static struct resource mmcsd0_resources[] = {
 };
 
 static struct platform_device davinci_mmcsd0_device = {
-	.name = "davinci_mmc",
+	.name = "dm6441-mmc",
 	.id = 0,
 	.dev = {
 		.dma_mask = &mmcsd0_dma_mask,
@@ -187,7 +187,7 @@ static struct resource mmcsd1_resources[] = {
 };
 
 static struct platform_device davinci_mmcsd1_device = {
-	.name = "davinci_mmc",
+	.name = "dm6441-mmc",
 	.id = 1,
 	.dev = {
 		.dma_mask = &mmcsd1_dma_mask,
@@ -235,6 +235,7 @@ void __init davinci_setup_mmc(int module, struct davinci_mmc_config *config)
 			mmcsd1_resources[0].end = DM365_MMCSD1_BASE +
 							SZ_4K - 1;
 			mmcsd1_resources[2].start = IRQ_DM365_SDIOINT1;
+			davinci_mmcsd1_device.name = "da830-mmc";
 		} else
 			break;
 
@@ -256,6 +257,7 @@ void __init davinci_setup_mmc(int module, struct davinci_mmc_config *config)
 			mmcsd0_resources[0].end = DM365_MMCSD0_BASE +
 							SZ_4K - 1;
 			mmcsd0_resources[2].start = IRQ_DM365_SDIOINT0;
+			davinci_mmcsd0_device.name = "da830-mmc";
 		} else if (cpu_is_davinci_dm644x()) {
 			/* REVISIT: should this be in board-init code? */
 			/* Power-on 3.3V IO cells */

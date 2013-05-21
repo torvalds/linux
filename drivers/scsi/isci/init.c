@@ -721,7 +721,7 @@ static void isci_pci_remove(struct pci_dev *pdev)
 	}
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int isci_suspend(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
@@ -770,18 +770,16 @@ static int isci_resume(struct device *dev)
 
 	return 0;
 }
+#endif
 
 static SIMPLE_DEV_PM_OPS(isci_pm_ops, isci_suspend, isci_resume);
-#endif
 
 static struct pci_driver isci_pci_driver = {
 	.name		= DRV_NAME,
 	.id_table	= isci_id_table,
 	.probe		= isci_pci_probe,
 	.remove		= isci_pci_remove,
-#ifdef CONFIG_PM
 	.driver.pm      = &isci_pm_ops,
-#endif
 };
 
 static __init int isci_init(void)

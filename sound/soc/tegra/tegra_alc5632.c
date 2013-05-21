@@ -161,19 +161,12 @@ static int tegra_alc5632_probe(struct platform_device *pdev)
 			sizeof(struct tegra_alc5632), GFP_KERNEL);
 	if (!alc5632) {
 		dev_err(&pdev->dev, "Can't allocate tegra_alc5632\n");
-		ret = -ENOMEM;
-		goto err;
+		return -ENOMEM;
 	}
 
 	card->dev = &pdev->dev;
 	platform_set_drvdata(pdev, card);
 	snd_soc_card_set_drvdata(card, alc5632);
-
-	if (!(pdev->dev.of_node)) {
-		dev_err(&pdev->dev, "Must be instantiated using device tree\n");
-		ret = -EINVAL;
-		goto err;
-	}
 
 	alc5632->gpio_hp_det = of_get_named_gpio(np, "nvidia,hp-det-gpios", 0);
 	if (alc5632->gpio_hp_det == -EPROBE_DEFER)
@@ -197,11 +190,11 @@ static int tegra_alc5632_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	tegra_alc5632_dai.cpu_of_node = of_parse_phandle(
-			pdev->dev.of_node, "nvidia,i2s-controller", 0);
+	tegra_alc5632_dai.cpu_of_node = of_parse_phandle(np,
+			"nvidia,i2s-controller", 0);
 	if (!tegra_alc5632_dai.cpu_of_node) {
 		dev_err(&pdev->dev,
-		"Property 'nvidia,i2s-controller' missing or invalid\n");
+			"Property 'nvidia,i2s-controller' missing or invalid\n");
 		ret = -EINVAL;
 		goto err;
 	}

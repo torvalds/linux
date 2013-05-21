@@ -10,7 +10,18 @@
 
 #define DRIVER_MAJOR		1
 #define DRIVER_MINOR		1
-#define DRIVER_PATCHLEVEL	0
+#define DRIVER_PATCHLEVEL	1
+
+/*
+ * 1.1.1:
+ * 	- added support for tiled system memory buffer objects
+ *      - added support for NOUVEAU_GETPARAM_GRAPH_UNITS on [nvc0,nve0].
+ *      - added support for compressed memory storage types on [nvc0,nve0].
+ *      - added support for software methods 0x600,0x644,0x6ac on nvc0
+ *        to control registers on the MPs to enable performance counters,
+ *        and to control the warp error enable mask (OpenGL requires out of
+ *        bounds access to local memory to be silently ignored / return 0).
+ */
 
 #include <core/client.h>
 #include <core/event.h>
@@ -113,7 +124,7 @@ struct nouveau_drm {
 	struct nvbios vbios;
 	struct nouveau_display *display;
 	struct backlight_device *backlight;
-	struct nouveau_eventh vblank;
+	struct nouveau_eventh vblank[4];
 
 	/* power management */
 	struct nouveau_pm *pm;

@@ -36,7 +36,6 @@
 #define GPMI_NAND_GPMI_REGS_ADDR_RES_NAME  "gpmi-nand"
 #define GPMI_NAND_BCH_REGS_ADDR_RES_NAME   "bch"
 #define GPMI_NAND_BCH_INTERRUPT_RES_NAME   "bch"
-#define GPMI_NAND_DMA_INTERRUPT_RES_NAME   "gpmi-dma"
 
 /* add our owner bbt descriptor */
 static uint8_t scan_ff_pattern[] = { 0xff };
@@ -420,28 +419,6 @@ static void release_bch_irq(struct gpmi_nand_data *this)
 		free_irq(i, this);
 }
 
-static bool gpmi_dma_filter(struct dma_chan *chan, void *param)
-{
-	struct gpmi_nand_data *this = param;
-	int dma_channel = (int)this->private;
-
-	if (!mxs_dma_is_apbh(chan))
-		return false;
-	/*
-	 * only catch the GPMI dma channels :
-	 *	for mx23 :	MX23_DMA_GPMI0 ~ MX23_DMA_GPMI3
-	 *		(These four channels share the same IRQ!)
-	 *
-	 *	for mx28 :	MX28_DMA_GPMI0 ~ MX28_DMA_GPMI7
-	 *		(These eight channels share the same IRQ!)
-	 */
-	if (dma_channel == chan->chan_id) {
-		chan->private = &this->dma_data;
-		return true;
-	}
-	return false;
-}
-
 static void release_dma_channels(struct gpmi_nand_data *this)
 {
 	unsigned int i;
@@ -455,36 +432,10 @@ static void release_dma_channels(struct gpmi_nand_data *this)
 static int acquire_dma_channels(struct gpmi_nand_data *this)
 {
 	struct platform_device *pdev = this->pdev;
-	struct resource *r_dma;
-	struct device_node *dn;
-	u32 dma_channel;
-	int ret;
 	struct dma_chan *dma_chan;
-	dma_cap_mask_t mask;
-
-	/* dma channel, we only use the first one. */
-	dn = pdev->dev.of_node;
-	ret = of_property_read_u32(dn, "fsl,gpmi-dma-channel", &dma_channel);
-	if (ret) {
-		pr_err("unable to get DMA channel from dt.\n");
-		goto acquire_err;
-	}
-	this->private = (void *)dma_channel;
-
-	/* gpmi dma interrupt */
-	r_dma = platform_get_resource_byname(pdev, IORESOURCE_IRQ,
-					GPMI_NAND_DMA_INTERRUPT_RES_NAME);
-	if (!r_dma) {
-		pr_err("Can't get resource for DMA\n");
-		goto acquire_err;
-	}
-	this->dma_data.chan_irq = r_dma->start;
 
 	/* request dma channel */
-	dma_cap_zero(mask);
-	dma_cap_set(DMA_SLAVE, mask);
-
-	dma_chan = dma_request_channel(mask, gpmi_dma_filter, this);
+	dma_chan = dma_request_slave_channel(&pdev->dev, "rx-tx");
 	if (!dma_chan) {
 		pr_err("Failed to request DMA channel.\n");
 		goto acquire_err;

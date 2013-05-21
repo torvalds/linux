@@ -68,7 +68,7 @@ extern void smp_tsb_sync(struct mm_struct *mm);
 
 extern void __flush_tlb_mm(unsigned long, unsigned long);
 
-/* Switch the current MM context.  Interrupts are disabled.  */
+/* Switch the current MM context. */
 static inline void switch_mm(struct mm_struct *old_mm, struct mm_struct *mm, struct task_struct *tsk)
 {
 	unsigned long ctx_valid, flags;

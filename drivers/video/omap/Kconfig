@@ -39,17 +39,6 @@ config FB_OMAP_LCD_MIPID
 	  the Mobile Industry Processor Interface DBI-C/DCS
 	  specification. (Supported LCDs: Philips LPH8923, Sharp LS041Y3)
 
-config FB_OMAP_CONSISTENT_DMA_SIZE
-	int "Consistent DMA memory size (MB)"
-	depends on FB_OMAP
-	range 1 14
-	default 2
-	help
-	  Increase the DMA consistent memory size according to your video
-	  memory needs, for example if you want to use multiple planes.
-	  The size must be 2MB aligned.
-	  If unsure say 1.
-
 config FB_OMAP_DMA_TUNE
         bool "Set DMA SDRAM access priority high"
         depends on FB_OMAP

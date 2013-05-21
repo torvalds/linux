@@ -53,17 +53,6 @@ struct kmem_cache_cpu {
 #endif
 };
 
-struct kmem_cache_node {
-	spinlock_t list_lock;	/* Protect partial list and nr_partial */
-	unsigned long nr_partial;
-	struct list_head partial;
-#ifdef CONFIG_SLUB_DEBUG
-	atomic_long_t nr_slabs;
-	atomic_long_t total_objects;
-	struct list_head full;
-#endif
-};
-
 /*
  * Word size structure that can be atomically updated or read and that
  * contains both the order and the number of objects that a slab of the
@@ -114,111 +103,6 @@ struct kmem_cache {
 #endif
 	struct kmem_cache_node *node[MAX_NUMNODES];
 };
-
-/*
- * Kmalloc subsystem.
- */
-#if defined(ARCH_DMA_MINALIGN) && ARCH_DMA_MINALIGN > 8
-#define KMALLOC_MIN_SIZE ARCH_DMA_MINALIGN
-#else
-#define KMALLOC_MIN_SIZE 8
-#endif
-
-#define KMALLOC_SHIFT_LOW ilog2(KMALLOC_MIN_SIZE)
-
-/*
- * Maximum kmalloc object size handled by SLUB. Larger object allocations
- * are passed through to the page allocator. The page allocator "fastpath"
- * is relatively slow so we need this value sufficiently high so that
- * performance critical objects are allocated through the SLUB fastpath.
- *
- * This should be dropped to PAGE_SIZE / 2 once the page allocator
- * "fastpath" becomes competitive with the slab allocator fastpaths.
- */
-#define SLUB_MAX_SIZE (2 * PAGE_SIZE)
-
-#define SLUB_PAGE_SHIFT (PAGE_SHIFT + 2)
-
-#ifdef CONFIG_ZONE_DMA
-#define SLUB_DMA __GFP_DMA
-#else
-/* Disable DMA functionality */
-#define SLUB_DMA (__force gfp_t)0
-#endif
-
-/*
- * We keep the general caches in an array of slab caches that are used for
- * 2^x bytes of allocations.
- */
-extern struct kmem_cache *kmalloc_caches[SLUB_PAGE_SHIFT];
-
-/*
- * Sorry that the following has to be that ugly but some versions of GCC
- * have trouble with constant propagation and loops.
- */
-static __always_inline int kmalloc_index(size_t size)
-{
-	if (!size)
-		return 0;
-
-	if (size <= KMALLOC_MIN_SIZE)
-		return KMALLOC_SHIFT_LOW;
-
-	if (KMALLOC_MIN_SIZE <= 32 && size > 64 && size <= 96)
-		return 1;
-	if (KMALLOC_MIN_SIZE <= 64 && size > 128 && size <= 192)
-		return 2;
-	if (size <=          8) return 3;
-	if (size <=         16) return 4;
-	if (size <=         32) return 5;
-	if (size <=         64) return 6;
-	if (size <=        128) return 7;
-	if (size <=        256) return 8;
-	if (size <=        512) return 9;
-	if (size <=       1024) return 10;
-	if (size <=   2 * 1024) return 11;
-	if (size <=   4 * 1024) return 12;
-/*
- * The following is only needed to support architectures with a larger page
- * size than 4k. We need to support 2 * PAGE_SIZE here. So for a 64k page
- * size we would have to go up to 128k.
- */
-	if (size <=   8 * 1024) return 13;
-	if (size <=  16 * 1024) return 14;
-	if (size <=  32 * 1024) return 15;
-	if (size <=  64 * 1024) return 16;
-	if (size <= 128 * 1024) return 17;
-	if (size <= 256 * 1024) return 18;
-	if (size <= 512 * 1024) return 19;
-	if (size <= 1024 * 1024) return 20;
-	if (size <=  2 * 1024 * 1024) return 21;
-	BUG();
-	return -1; /* Will never be reached */
-
-/*
- * What we really wanted to do and cannot do because of compiler issues is:
- *	int i;
- *	for (i = KMALLOC_SHIFT_LOW; i <= KMALLOC_SHIFT_HIGH; i++)
- *		if (size <= (1 << i))
- *			return i;
- */
-}
-
-/*
- * Find the slab cache for a given combination of allocation flags and size.
- *
- * This ought to end up with a global pointer to the right cache
- * in kmalloc_caches.
- */
-static __always_inline struct kmem_cache *kmalloc_slab(size_t size)
-{
-	int index = kmalloc_index(size);
-
-	if (index == 0)
-		return NULL;
-
-	return kmalloc_caches[index];
-}
 
 void *kmem_cache_alloc(struct kmem_cache *, gfp_t);
 void *__kmalloc(size_t size, gfp_t flags);
@@ -274,16 +158,17 @@ static __always_inline void *kmalloc_large(size_t size, gfp_t flags)
 static __always_inline void *kmalloc(size_t size, gfp_t flags)
 {
 	if (__builtin_constant_p(size)) {
-		if (size > SLUB_MAX_SIZE)
+		if (size > KMALLOC_MAX_CACHE_SIZE)
 			return kmalloc_large(size, flags);
 
-		if (!(flags & SLUB_DMA)) {
-			struct kmem_cache *s = kmalloc_slab(size);
+		if (!(flags & GFP_DMA)) {
+			int index = kmalloc_index(size);
 
-			if (!s)
+			if (!index)
 				return ZERO_SIZE_PTR;
 
-			return kmem_cache_alloc_trace(s, flags, size);
+			return kmem_cache_alloc_trace(kmalloc_caches[index],
+					flags, size);
 		}
 	}
 	return __kmalloc(size, flags);
@@ -310,13 +195,14 @@ kmem_cache_alloc_node_trace(struct kmem_cache *s,
 static __always_inline void *kmalloc_node(size_t size, gfp_t flags, int node)
 {
 	if (__builtin_constant_p(size) &&
-		size <= SLUB_MAX_SIZE && !(flags & SLUB_DMA)) {
-			struct kmem_cache *s = kmalloc_slab(size);
+		size <= KMALLOC_MAX_CACHE_SIZE && !(flags & GFP_DMA)) {
+		int index = kmalloc_index(size);
 
-		if (!s)
+		if (!index)
 			return ZERO_SIZE_PTR;
 
-		return kmem_cache_alloc_node_trace(s, flags, node, size);
+		return kmem_cache_alloc_node_trace(kmalloc_caches[index],
+			       flags, node, size);
 	}
 	return __kmalloc_node(size, flags, node);
 }

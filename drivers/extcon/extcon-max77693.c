@@ -38,7 +38,7 @@
  * extcon-max77693 driver use 'default_init_data' to bring up base operation
  * of MAX77693 MUIC device.
  */
-struct max77693_reg_data default_init_data[] = {
+static struct max77693_reg_data default_init_data[] = {
 	{
 		/* STATUS2 - [3]ChgDetRun */
 		.addr = MAX77693_MUIC_REG_STATUS2,
@@ -258,7 +258,7 @@ static int max77693_muic_set_debounce_time(struct max77693_muic_info *info,
 					  CONTROL3_ADCDBSET_MASK);
 		if (ret) {
 			dev_err(info->dev, "failed to set ADC debounce time\n");
-			return -EAGAIN;
+			return ret;
 		}
 		break;
 	default:
@@ -294,7 +294,7 @@ static int max77693_muic_set_path(struct max77693_muic_info *info,
 			MAX77693_MUIC_REG_CTRL1, ctrl1, COMP_SW_MASK);
 	if (ret < 0) {
 		dev_err(info->dev, "failed to update MUIC register\n");
-		return -EAGAIN;
+		return ret;
 	}
 
 	if (attached)
@@ -307,7 +307,7 @@ static int max77693_muic_set_path(struct max77693_muic_info *info,
 			CONTROL2_LOWPWR_MASK | CONTROL2_CPEN_MASK);
 	if (ret < 0) {
 		dev_err(info->dev, "failed to update MUIC register\n");
-		return -EAGAIN;
+		return ret;
 	}
 
 	dev_info(info->dev,
@@ -1035,7 +1035,7 @@ static int max77693_muic_detect_accessory(struct max77693_muic_info *info)
 	if (ret) {
 		dev_err(info->dev, "failed to read MUIC register\n");
 		mutex_unlock(&info->mutex);
-		return -EINVAL;
+		return ret;
 	}
 
 	adc = max77693_muic_get_cable_type(info, MAX77693_CABLE_GROUP_ADC,

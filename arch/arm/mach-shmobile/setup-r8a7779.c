@@ -1,8 +1,9 @@
 /*
  * r8a7779 processor support
  *
- * Copyright (C) 2011  Renesas Solutions Corp.
+ * Copyright (C) 2011, 2013  Renesas Solutions Corp.
  * Copyright (C) 2011  Magnus Damm
+ * Copyright (C) 2013  Cogent Embedded, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,6 +22,8 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/of_platform.h>
+#include <linux/platform_data/gpio-rcar.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/input.h>
@@ -28,6 +31,7 @@
 #include <linux/serial_sci.h>
 #include <linux/sh_intc.h>
 #include <linux/sh_timer.h>
+#include <linux/dma-mapping.h>
 #include <mach/hardware.h>
 #include <mach/irqs.h>
 #include <mach/r8a7779.h>
@@ -66,11 +70,6 @@ static struct resource r8a7779_pfc_resources[] = {
 		.end	= 0xfffc023b,
 		.flags	= IORESOURCE_MEM,
 	},
-	[1] = {
-		.start	= 0xffc40000,
-		.end	= 0xffc46fff,
-		.flags	= IORESOURCE_MEM,
-	}
 };
 
 static struct platform_device r8a7779_pfc_device = {
@@ -80,9 +79,59 @@ static struct platform_device r8a7779_pfc_device = {
 	.num_resources	= ARRAY_SIZE(r8a7779_pfc_resources),
 };
 
+#define R8A7779_GPIO(idx, npins) \
+static struct resource r8a7779_gpio##idx##_resources[] = {		\
+	[0] = {								\
+		.start	= 0xffc40000 + 0x1000 * (idx),			\
+		.end	= 0xffc4002b + 0x1000 * (idx),			\
+		.flags	= IORESOURCE_MEM,				\
+	},								\
+	[1] = {								\
+		.start	= gic_iid(0xad + (idx)),			\
+		.flags	= IORESOURCE_IRQ,				\
+	}								\
+};									\
+									\
+static struct gpio_rcar_config r8a7779_gpio##idx##_platform_data = {	\
+	.gpio_base	= 32 * (idx),					\
+	.irq_base	= 0,						\
+	.number_of_pins	= npins,					\
+	.pctl_name	= "pfc-r8a7779",				\
+};									\
+									\
+static struct platform_device r8a7779_gpio##idx##_device = {		\
+	.name		= "gpio_rcar",					\
+	.id		= idx,						\
+	.resource	= r8a7779_gpio##idx##_resources,		\
+	.num_resources	= ARRAY_SIZE(r8a7779_gpio##idx##_resources),	\
+	.dev		= {						\
+		.platform_data	= &r8a7779_gpio##idx##_platform_data,	\
+	},								\
+}
+
+R8A7779_GPIO(0, 32);
+R8A7779_GPIO(1, 32);
+R8A7779_GPIO(2, 32);
+R8A7779_GPIO(3, 32);
+R8A7779_GPIO(4, 32);
+R8A7779_GPIO(5, 32);
+R8A7779_GPIO(6, 9);
+
+static struct platform_device *r8a7779_pinctrl_devices[] __initdata = {
+	&r8a7779_pfc_device,
+	&r8a7779_gpio0_device,
+	&r8a7779_gpio1_device,
+	&r8a7779_gpio2_device,
+	&r8a7779_gpio3_device,
+	&r8a7779_gpio4_device,
+	&r8a7779_gpio5_device,
+	&r8a7779_gpio6_device,
+};
+
 void __init r8a7779_pinmux_init(void)
 {
-	platform_device_register(&r8a7779_pfc_device);
+	platform_add_devices(r8a7779_pinctrl_devices,
+			    ARRAY_SIZE(r8a7779_pinctrl_devices));
 }
 
 static struct plat_sci_port scif0_platform_data = {
@@ -91,7 +140,7 @@ static struct plat_sci_port scif0_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_CKE1,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= SCIx_IRQ_MUXED(gic_spi(88)),
+	.irqs		= SCIx_IRQ_MUXED(gic_iid(0x78)),
 };
 
 static struct platform_device scif0_device = {
@@ -108,7 +157,7 @@ static struct plat_sci_port scif1_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_CKE1,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= SCIx_IRQ_MUXED(gic_spi(89)),
+	.irqs		= SCIx_IRQ_MUXED(gic_iid(0x79)),
 };
 
 static struct platform_device scif1_device = {
@@ -125,7 +174,7 @@ static struct plat_sci_port scif2_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_CKE1,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= SCIx_IRQ_MUXED(gic_spi(90)),
+	.irqs		= SCIx_IRQ_MUXED(gic_iid(0x7a)),
 };
 
 static struct platform_device scif2_device = {
@@ -142,7 +191,7 @@ static struct plat_sci_port scif3_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_CKE1,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= SCIx_IRQ_MUXED(gic_spi(91)),
+	.irqs		= SCIx_IRQ_MUXED(gic_iid(0x7b)),
 };
 
 static struct platform_device scif3_device = {
@@ -159,7 +208,7 @@ static struct plat_sci_port scif4_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_CKE1,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= SCIx_IRQ_MUXED(gic_spi(92)),
+	.irqs		= SCIx_IRQ_MUXED(gic_iid(0x7c)),
 };
 
 static struct platform_device scif4_device = {
@@ -176,7 +225,7 @@ static struct plat_sci_port scif5_platform_data = {
 	.scscr		= SCSCR_RE | SCSCR_TE | SCSCR_CKE1,
 	.scbrr_algo_id	= SCBRR_ALGO_2,
 	.type		= PORT_SCIF,
-	.irqs		= SCIx_IRQ_MUXED(gic_spi(93)),
+	.irqs		= SCIx_IRQ_MUXED(gic_iid(0x7d)),
 };
 
 static struct platform_device scif5_device = {
@@ -203,7 +252,7 @@ static struct resource tmu00_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= gic_spi(32),
+		.start	= gic_iid(0x40),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -233,7 +282,7 @@ static struct resource tmu01_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= gic_spi(33),
+		.start	= gic_iid(0x41),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -255,7 +304,7 @@ static struct resource rcar_i2c0_res[] = {
 		.end    = 0xffc70fff,
 		.flags  = IORESOURCE_MEM,
 	}, {
-		.start  = gic_spi(79),
+		.start  = gic_iid(0x6f),
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -273,7 +322,7 @@ static struct resource rcar_i2c1_res[] = {
 		.end    = 0xffc71fff,
 		.flags  = IORESOURCE_MEM,
 	}, {
-		.start  = gic_spi(82),
+		.start  = gic_iid(0x72),
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -291,7 +340,7 @@ static struct resource rcar_i2c2_res[] = {
 		.end    = 0xffc72fff,
 		.flags  = IORESOURCE_MEM,
 	}, {
-		.start  = gic_spi(80),
+		.start  = gic_iid(0x70),
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -309,7 +358,7 @@ static struct resource rcar_i2c3_res[] = {
 		.end    = 0xffc73fff,
 		.flags  = IORESOURCE_MEM,
 	}, {
-		.start  = gic_spi(81),
+		.start  = gic_iid(0x71),
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -321,7 +370,43 @@ static struct platform_device i2c3_device = {
 	.num_resources	= ARRAY_SIZE(rcar_i2c3_res),
 };
 
-static struct platform_device *r8a7779_early_devices[] __initdata = {
+static struct resource sata_resources[] = {
+	[0] = {
+		.name	= "rcar-sata",
+		.start	= 0xfc600000,
+		.end	= 0xfc601fff,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= gic_iid(0x84),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device sata_device = {
+	.name		= "sata_rcar",
+	.id		= -1,
+	.resource	= sata_resources,
+	.num_resources	= ARRAY_SIZE(sata_resources),
+	.dev		= {
+		.dma_mask		= &sata_device.dev.coherent_dma_mask,
+		.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+};
+
+/* Ether */
+static struct resource ether_resources[] = {
+	{
+		.start	= 0xfde00000,
+		.end	= 0xfde003ff,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= gic_iid(0xb4),
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device *r8a7779_devices_dt[] __initdata = {
 	&scif0_device,
 	&scif1_device,
 	&scif2_device,
@@ -330,13 +415,14 @@ static struct platform_device *r8a7779_early_devices[] __initdata = {
 	&scif5_device,
 	&tmu00_device,
 	&tmu01_device,
+};
+
+static struct platform_device *r8a7779_late_devices[] __initdata = {
 	&i2c0_device,
 	&i2c1_device,
 	&i2c2_device,
 	&i2c3_device,
-};
-
-static struct platform_device *r8a7779_late_devices[] __initdata = {
+	&sata_device,
 };
 
 void __init r8a7779_add_standard_devices(void)
@@ -349,10 +435,18 @@ void __init r8a7779_add_standard_devices(void)
 
 	r8a7779_init_pm_domains();
 
-	platform_add_devices(r8a7779_early_devices,
-			    ARRAY_SIZE(r8a7779_early_devices));
+	platform_add_devices(r8a7779_devices_dt,
+			    ARRAY_SIZE(r8a7779_devices_dt));
 	platform_add_devices(r8a7779_late_devices,
 			    ARRAY_SIZE(r8a7779_late_devices));
+}
+
+void __init r8a7779_add_ether_device(struct sh_eth_plat_data *pdata)
+{
+	platform_device_register_resndata(&platform_bus, "sh_eth", -1,
+					  ether_resources,
+					  ARRAY_SIZE(ether_resources),
+					  pdata, sizeof(*pdata));
 }
 
 /* do nothing for !CONFIG_SMP or !CONFIG_HAVE_TWD */
@@ -367,8 +461,8 @@ void __init r8a7779_earlytimer_init(void)
 
 void __init r8a7779_add_early_devices(void)
 {
-	early_platform_add_devices(r8a7779_early_devices,
-				   ARRAY_SIZE(r8a7779_early_devices));
+	early_platform_add_devices(r8a7779_devices_dt,
+				   ARRAY_SIZE(r8a7779_devices_dt));
 
 	/* Early serial console setup is not included here due to
 	 * memory map collisions. The SCIF serial ports in r8a7779
@@ -386,3 +480,40 @@ void __init r8a7779_add_early_devices(void)
 	 * command line in case of the marzen board.
 	 */
 }
+
+#ifdef CONFIG_USE_OF
+void __init r8a7779_init_delay(void)
+{
+	shmobile_setup_delay(1000, 2, 4); /* Cortex-A9 @ 1000MHz */
+}
+
+static const struct of_dev_auxdata r8a7779_auxdata_lookup[] __initconst = {
+	{},
+};
+
+void __init r8a7779_add_standard_devices_dt(void)
+{
+	/* clocks are setup late during boot in the case of DT */
+	r8a7779_clock_init();
+
+	platform_add_devices(r8a7779_devices_dt,
+			     ARRAY_SIZE(r8a7779_devices_dt));
+	of_platform_populate(NULL, of_default_bus_match_table,
+			     r8a7779_auxdata_lookup, NULL);
+}
+
+static const char *r8a7779_compat_dt[] __initdata = {
+	"renesas,r8a7779",
+	NULL,
+};
+
+DT_MACHINE_START(R8A7779_DT, "Generic R8A7779 (Flattened Device Tree)")
+	.map_io		= r8a7779_map_io,
+	.init_early	= r8a7779_init_delay,
+	.nr_irqs	= NR_IRQS_LEGACY,
+	.init_irq	= r8a7779_init_irq_dt,
+	.init_machine	= r8a7779_add_standard_devices_dt,
+	.init_time	= shmobile_timer_init,
+	.dt_compat	= r8a7779_compat_dt,
+MACHINE_END
+#endif /* CONFIG_USE_OF */

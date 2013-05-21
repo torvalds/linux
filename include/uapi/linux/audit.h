@@ -246,6 +246,7 @@
 #define AUDIT_OBJ_TYPE	21
 #define AUDIT_OBJ_LEV_LOW	22
 #define AUDIT_OBJ_LEV_HIGH	23
+#define AUDIT_LOGINUID_SET	24
 
 				/* These are ONLY useful when checking
 				 * at syscall exit time (AUDIT_AT_EXIT). */
@@ -369,7 +370,8 @@ struct audit_status {
 };
 
 struct audit_tty_status {
-	__u32		enabled; /* 1 = enabled, 0 = disabled */
+	__u32		enabled;	/* 1 = enabled, 0 = disabled */
+	__u32		log_passwd;	/* 1 = enabled, 0 = disabled */
 };
 
 /* audit_rule_data supports filter rules with both integer and string

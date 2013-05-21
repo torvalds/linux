@@ -75,14 +75,14 @@ ENTRY(cpu_v7_do_idle)
 ENDPROC(cpu_v7_do_idle)
 
 ENTRY(cpu_v7_dcache_clean_area)
-#ifndef TLB_CAN_READ_FROM_L1_CACHE
+	ALT_SMP(mov	pc, lr)			@ MP extensions imply L1 PTW
+	ALT_UP(W(nop))
 	dcache_line_size r2, r3
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
 	add	r0, r0, r2
 	subs	r1, r1, r2
 	bhi	1b
 	dsb
-#endif
 	mov	pc, lr
 ENDPROC(cpu_v7_dcache_clean_area)
 
@@ -402,6 +402,8 @@ __v7_ca9mp_proc_info:
 	__v7_proc __v7_ca9mp_setup
 	.size	__v7_ca9mp_proc_info, . - __v7_ca9mp_proc_info
 
+#endif	/* CONFIG_ARM_LPAE */
+
 	/*
 	 * Marvell PJ4B processor.
 	 */
@@ -411,7 +413,6 @@ __v7_pj4b_proc_info:
 	.long	0xfffffff0
 	__v7_proc __v7_pj4b_setup
 	.size	__v7_pj4b_proc_info, . - __v7_pj4b_proc_info
-#endif	/* CONFIG_ARM_LPAE */
 
 	/*
 	 * ARM Ltd. Cortex A7 processor.
@@ -420,7 +421,7 @@ __v7_pj4b_proc_info:
 __v7_ca7mp_proc_info:
 	.long	0x410fc070
 	.long	0xff0ffff0
-	__v7_proc __v7_ca7mp_setup, hwcaps = HWCAP_IDIV
+	__v7_proc __v7_ca7mp_setup
 	.size	__v7_ca7mp_proc_info, . - __v7_ca7mp_proc_info
 
 	/*
@@ -430,8 +431,23 @@ __v7_ca7mp_proc_info:
 __v7_ca15mp_proc_info:
 	.long	0x410fc0f0
 	.long	0xff0ffff0
-	__v7_proc __v7_ca15mp_setup, hwcaps = HWCAP_IDIV
+	__v7_proc __v7_ca15mp_setup
 	.size	__v7_ca15mp_proc_info, . - __v7_ca15mp_proc_info
+
+	/*
+	 * Qualcomm Inc. Krait processors.
+	 */
+	.type	__krait_proc_info, #object
+__krait_proc_info:
+	.long	0x510f0400		@ Required ID value
+	.long	0xff0ffc00		@ Mask for ID
+	/*
+	 * Some Krait processors don't indicate support for SDIV and UDIV
+	 * instructions in the ARM instruction set, even though they actually
+	 * do support them.
+	 */
+	__v7_proc __v7_setup, hwcaps = HWCAP_IDIV
+	.size	__krait_proc_info, . - __krait_proc_info
 
 	/*
 	 * Match any ARMv7 processor core.

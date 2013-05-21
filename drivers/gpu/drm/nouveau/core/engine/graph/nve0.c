@@ -77,11 +77,207 @@ nve0_graph_ctxctl_isr(struct nvc0_graph_priv *priv)
 	nv_wr32(priv, 0x409c20, ustat);
 }
 
+static const struct nouveau_enum nve0_mp_warp_error[] = {
+	{ 0x00, "NO_ERROR" },
+	{ 0x01, "STACK_MISMATCH" },
+	{ 0x05, "MISALIGNED_PC" },
+	{ 0x08, "MISALIGNED_GPR" },
+	{ 0x09, "INVALID_OPCODE" },
+	{ 0x0d, "GPR_OUT_OF_BOUNDS" },
+	{ 0x0e, "MEM_OUT_OF_BOUNDS" },
+	{ 0x0f, "UNALIGNED_MEM_ACCESS" },
+	{ 0x11, "INVALID_PARAM" },
+	{}
+};
+
+static const struct nouveau_enum nve0_mp_global_error[] = {
+	{ 2, "MULTIPLE_WARP_ERRORS" },
+	{ 3, "OUT_OF_STACK_SPACE" },
+	{}
+};
+
+static const struct nouveau_enum nve0_gpc_rop_error[] = {
+	{ 1, "RT_PITCH_OVERRUN" },
+	{ 4, "RT_WIDTH_OVERRUN" },
+	{ 5, "RT_HEIGHT_OVERRUN" },
+	{ 7, "ZETA_STORAGE_TYPE_MISMATCH" },
+	{ 8, "RT_STORAGE_TYPE_MISMATCH" },
+	{ 10, "RT_LINEAR_MISMATCH" },
+	{}
+};
+
+static const struct nouveau_enum nve0_sked_error[] = {
+	{ 7, "CONSTANT_BUFFER_SIZE" },
+	{ 9, "LOCAL_MEMORY_SIZE_POS" },
+	{ 10, "LOCAL_MEMORY_SIZE_NEG" },
+	{ 11, "WARP_CSTACK_SIZE" },
+	{ 12, "TOTAL_TEMP_SIZE" },
+	{ 13, "REGISTER_COUNT" },
+	{ 18, "TOTAL_THREADS" },
+	{ 20, "PROGRAM_OFFSET" },
+	{ 21, "SHARED_MEMORY_SIZE" },
+	{ 25, "SHARED_CONFIG_TOO_SMALL" },
+	{ 26, "TOTAL_REGISTER_COUNT" },
+	{}
+};
+
+static void
+nve0_graph_mp_trap(struct nvc0_graph_priv *priv, int gpc, int tp)
+{
+	int i;
+	u32 werr = nv_rd32(priv, TPC_UNIT(gpc, tp, 0x648));
+	u32 gerr = nv_rd32(priv, TPC_UNIT(gpc, tp, 0x650));
+
+	nv_error(priv, "GPC%i/TP%i/MP trap:", gpc, tp);
+
+	for (i = 0; i <= 31; ++i) {
+		if (!(gerr & (1 << i)))
+			continue;
+		pr_cont(" ");
+		nouveau_enum_print(nve0_mp_global_error, i);
+	}
+	if (werr) {
+		pr_cont(" ");
+		nouveau_enum_print(nve0_mp_warp_error, werr & 0xffff);
+	}
+	pr_cont("\n");
+
+	/* disable MP trap to avoid spam */
+	nv_mask(priv, TPC_UNIT(gpc, tp, 0x50c), 0x2, 0x0);
+
+	/* TODO: figure out how to resume after an MP trap */
+}
+
+static void
+nve0_graph_tp_trap(struct nvc0_graph_priv *priv, int gpc, int tp)
+{
+	u32 stat = nv_rd32(priv, TPC_UNIT(gpc, tp, 0x508));
+
+	if (stat & 0x1) {
+		u32 trap = nv_rd32(priv, TPC_UNIT(gpc, tp, 0x224));
+		nv_error(priv, "GPC%i/TP%i/TEX trap: %08x\n",
+			 gpc, tp, trap);
+
+		nv_wr32(priv, TPC_UNIT(gpc, tp, 0x224), 0xc0000000);
+		stat &= ~0x1;
+	}
+
+	if (stat & 0x2) {
+		nve0_graph_mp_trap(priv, gpc, tp);
+		stat &= ~0x2;
+	}
+
+	if (stat & 0x4) {
+		u32 trap = nv_rd32(priv, TPC_UNIT(gpc, tp, 0x084));
+		nv_error(priv, "GPC%i/TP%i/POLY trap: %08x\n",
+			 gpc, tp, trap);
+
+		nv_wr32(priv, TPC_UNIT(gpc, tp, 0x084), 0xc0000000);
+		stat &= ~0x4;
+	}
+
+	if (stat & 0x8) {
+		u32 trap = nv_rd32(priv, TPC_UNIT(gpc, tp, 0x48c));
+		nv_error(priv, "GPC%i/TP%i/L1C trap: %08x\n",
+			 gpc, tp, trap);
+
+		nv_wr32(priv, TPC_UNIT(gpc, tp, 0x48c), 0xc0000000);
+		stat &= ~0x8;
+	}
+
+	if (stat) {
+		nv_error(priv, "GPC%i/TP%i: unknown stat %08x\n",
+			 gpc, tp, stat);
+	}
+}
+
+static void
+nve0_graph_gpc_trap(struct nvc0_graph_priv *priv)
+{
+	const u32 mask = nv_rd32(priv, 0x400118);
+	int gpc;
+
+	for (gpc = 0; gpc < 4; ++gpc) {
+		u32 stat;
+		int tp;
+
+		if (!(mask & (1 << gpc)))
+			continue;
+		stat = nv_rd32(priv, GPC_UNIT(gpc, 0x2c90));
+
+		if (stat & 0x0001) {
+			u32 trap[4];
+			int i;
+
+			trap[0] = nv_rd32(priv, GPC_UNIT(gpc, 0x0420));
+			trap[1] = nv_rd32(priv, GPC_UNIT(gpc, 0x0434));
+			trap[2] = nv_rd32(priv, GPC_UNIT(gpc, 0x0438));
+			trap[3] = nv_rd32(priv, GPC_UNIT(gpc, 0x043c));
+
+			nv_error(priv, "GPC%i/PROP trap:", gpc);
+			for (i = 0; i <= 29; ++i) {
+				if (!(trap[0] & (1 << i)))
+					continue;
+				pr_cont(" ");
+				nouveau_enum_print(nve0_gpc_rop_error, i);
+			}
+			pr_cont("\n");
+
+			nv_error(priv, "x = %u, y = %u, "
+				 "format = %x, storage type = %x\n",
+				 trap[1] & 0xffff,
+				 trap[1] >> 16,
+				 (trap[2] >> 8) & 0x3f,
+				 trap[3] & 0xff);
+
+			nv_wr32(priv, GPC_UNIT(gpc, 0x0420), 0xc0000000);
+			stat &= ~0x0001;
+		}
+
+		if (stat & 0x0002) {
+			u32 trap = nv_rd32(priv, GPC_UNIT(gpc, 0x0900));
+			nv_error(priv, "GPC%i/ZCULL trap: %08x\n", gpc,
+				 trap);
+			nv_wr32(priv, GPC_UNIT(gpc, 0x0900), 0xc0000000);
+			stat &= ~0x0002;
+		}
+
+		if (stat & 0x0004) {
+			u32 trap = nv_rd32(priv, GPC_UNIT(gpc, 0x1028));
+			nv_error(priv, "GPC%i/CCACHE trap: %08x\n", gpc,
+				 trap);
+			nv_wr32(priv, GPC_UNIT(gpc, 0x1028), 0xc0000000);
+			stat &= ~0x0004;
+		}
+
+		if (stat & 0x0008) {
+			u32 trap = nv_rd32(priv, GPC_UNIT(gpc, 0x0824));
+			nv_error(priv, "GPC%i/ESETUP trap %08x\n", gpc,
+				 trap);
+			nv_wr32(priv, GPC_UNIT(gpc, 0x0824), 0xc0000000);
+			stat &= ~0x0008;
+		}
+
+		for (tp = 0; tp < 8; ++tp) {
+			if (stat & (1 << (16 + tp)))
+				nve0_graph_tp_trap(priv, gpc, tp);
+		}
+		stat &= ~0xff0000;
+
+		if (stat) {
+			nv_error(priv, "GPC%i: unknown stat %08x\n",
+				 gpc, stat);
+		}
+	}
+}
+
+
 static void
 nve0_graph_trap_isr(struct nvc0_graph_priv *priv, int chid, u64 inst,
 		struct nouveau_object *engctx)
 {
 	u32 trap = nv_rd32(priv, 0x400108);
+	int i;
 	int rop;
 
 	if (trap & 0x00000001) {
@@ -100,6 +296,32 @@ nve0_graph_trap_isr(struct nvc0_graph_priv *priv, int chid, u64 inst,
 		nv_wr32(priv, 0x405840, 0xc0000000);
 		nv_wr32(priv, 0x400108, 0x00000010);
 		trap &= ~0x00000010;
+	}
+
+	if (trap & 0x00000100) {
+		u32 stat = nv_rd32(priv, 0x407020);
+		nv_error(priv, "SKED ch %d [0x%010llx %s]:",
+			 chid, inst, nouveau_client_name(engctx));
+
+		for (i = 0; i <= 29; ++i) {
+			if (!(stat & (1 << i)))
+				continue;
+			pr_cont(" ");
+			nouveau_enum_print(nve0_sked_error, i);
+		}
+		pr_cont("\n");
+
+		if (stat & 0x3fffffff)
+			nv_wr32(priv, 0x407020, 0x40000000);
+		nv_wr32(priv, 0x400108, 0x00000100);
+		trap &= ~0x00000100;
+	}
+
+	if (trap & 0x01000000) {
+		nv_error(priv, "GPC ch %d [0x%010llx %s]:\n",
+			 chid, inst, nouveau_client_name(engctx));
+		nve0_graph_gpc_trap(priv);
+		trap &= ~0x01000000;
 	}
 
 	if (trap & 0x02000000) {
@@ -217,6 +439,8 @@ nve0_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	nv_engine(priv)->cclass = &nve0_graph_cclass;
 	nv_engine(priv)->sclass = nve0_graph_sclass;
 
+	priv->base.units = nvc0_graph_units;
+
 	if (nouveau_boolopt(device->cfgopt, "NvGrUseFW", false)) {
 		nv_info(priv, "using external firmware\n");
 		if (nvc0_graph_ctor_fw(priv, "fuc409c", &priv->fuc409c) ||
@@ -227,11 +451,13 @@ nve0_graph_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		priv->firmware = true;
 	}
 
-	ret = nouveau_gpuobj_new(parent, NULL, 0x1000, 256, 0, &priv->unk4188b4);
+	ret = nouveau_gpuobj_new(nv_object(priv), NULL, 0x1000, 256, 0,
+				&priv->unk4188b4);
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(parent, NULL, 0x1000, 256, 0, &priv->unk4188b8);
+	ret = nouveau_gpuobj_new(nv_object(priv), NULL, 0x1000, 256, 0,
+				&priv->unk4188b8);
 	if (ret)
 		return ret;
 

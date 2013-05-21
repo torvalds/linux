@@ -27,9 +27,10 @@ sctp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
 	if (sch == NULL)
 		return 0;
 	net = skb_net(skb);
+	rcu_read_lock();
 	if ((sch->type == SCTP_CID_INIT) &&
-	    (svc = ip_vs_service_get(net, af, skb->mark, iph->protocol,
-				     &iph->daddr, sh->dest))) {
+	    (svc = ip_vs_service_find(net, af, skb->mark, iph->protocol,
+				      &iph->daddr, sh->dest))) {
 		int ignored;
 
 		if (ip_vs_todrop(net_ipvs(net))) {
@@ -37,7 +38,7 @@ sctp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
 			 * It seems that we are very loaded.
 			 * We have to drop this packet :(
 			 */
-			ip_vs_service_put(svc);
+			rcu_read_unlock();
 			*verdict = NF_DROP;
 			return 0;
 		}
@@ -49,14 +50,13 @@ sctp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_proto_data *pd,
 		if (!*cpp && ignored <= 0) {
 			if (!ignored)
 				*verdict = ip_vs_leave(svc, skb, pd, iph);
-			else {
-				ip_vs_service_put(svc);
+			else
 				*verdict = NF_DROP;
-			}
+			rcu_read_unlock();
 			return 0;
 		}
-		ip_vs_service_put(svc);
 	}
+	rcu_read_unlock();
 	/* NF_ACCEPT */
 	return 1;
 }
@@ -208,7 +208,7 @@ enum ipvs_sctp_event_t {
 	IP_VS_SCTP_EVE_LAST
 };
 
-static enum ipvs_sctp_event_t sctp_events[255] = {
+static enum ipvs_sctp_event_t sctp_events[256] = {
 	IP_VS_SCTP_EVE_DATA_CLI,
 	IP_VS_SCTP_EVE_INIT_CLI,
 	IP_VS_SCTP_EVE_INIT_ACK_CLI,
@@ -994,9 +994,9 @@ static void
 sctp_state_transition(struct ip_vs_conn *cp, int direction,
 		const struct sk_buff *skb, struct ip_vs_proto_data *pd)
 {
-	spin_lock(&cp->lock);
+	spin_lock_bh(&cp->lock);
 	set_sctp_state(pd, cp, direction, skb);
-	spin_unlock(&cp->lock);
+	spin_unlock_bh(&cp->lock);
 }
 
 static inline __u16 sctp_app_hashkey(__be16 port)
@@ -1016,30 +1016,25 @@ static int sctp_register_app(struct net *net, struct ip_vs_app *inc)
 
 	hash = sctp_app_hashkey(port);
 
-	spin_lock_bh(&ipvs->sctp_app_lock);
 	list_for_each_entry(i, &ipvs->sctp_apps[hash], p_list) {
 		if (i->port == port) {
 			ret = -EEXIST;
 			goto out;
 		}
 	}
-	list_add(&inc->p_list, &ipvs->sctp_apps[hash]);
+	list_add_rcu(&inc->p_list, &ipvs->sctp_apps[hash]);
 	atomic_inc(&pd->appcnt);
 out:
-	spin_unlock_bh(&ipvs->sctp_app_lock);
 
 	return ret;
 }
 
 static void sctp_unregister_app(struct net *net, struct ip_vs_app *inc)
 {
-	struct netns_ipvs *ipvs = net_ipvs(net);
 	struct ip_vs_proto_data *pd = ip_vs_proto_data_get(net, IPPROTO_SCTP);
 
-	spin_lock_bh(&ipvs->sctp_app_lock);
 	atomic_dec(&pd->appcnt);
-	list_del(&inc->p_list);
-	spin_unlock_bh(&ipvs->sctp_app_lock);
+	list_del_rcu(&inc->p_list);
 }
 
 static int sctp_app_conn_bind(struct ip_vs_conn *cp)
@@ -1055,12 +1050,12 @@ static int sctp_app_conn_bind(struct ip_vs_conn *cp)
 	/* Lookup application incarnations and bind the right one */
 	hash = sctp_app_hashkey(cp->vport);
 
-	spin_lock(&ipvs->sctp_app_lock);
-	list_for_each_entry(inc, &ipvs->sctp_apps[hash], p_list) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(inc, &ipvs->sctp_apps[hash], p_list) {
 		if (inc->port == cp->vport) {
 			if (unlikely(!ip_vs_app_inc_get(inc)))
 				break;
-			spin_unlock(&ipvs->sctp_app_lock);
+			rcu_read_unlock();
 
 			IP_VS_DBG_BUF(9, "%s: Binding conn %s:%u->"
 					"%s:%u to app %s on port %u\n",
@@ -1076,7 +1071,7 @@ static int sctp_app_conn_bind(struct ip_vs_conn *cp)
 			goto out;
 		}
 	}
-	spin_unlock(&ipvs->sctp_app_lock);
+	rcu_read_unlock();
 out:
 	return result;
 }
@@ -1090,7 +1085,6 @@ static int __ip_vs_sctp_init(struct net *net, struct ip_vs_proto_data *pd)
 	struct netns_ipvs *ipvs = net_ipvs(net);
 
 	ip_vs_init_hash_table(ipvs->sctp_apps, SCTP_APP_TAB_SIZE);
-	spin_lock_init(&ipvs->sctp_app_lock);
 	pd->timeout_table = ip_vs_create_timeout_table((int *)sctp_timeouts,
 							sizeof(sctp_timeouts));
 	if (!pd->timeout_table)

@@ -234,7 +234,7 @@ static int __alloc_objio_seg(unsigned numdevs, gfp_t gfp_flags,
 
 	lseg = kzalloc(lseg_size, gfp_flags);
 	if (unlikely(!lseg)) {
-		dprintk("%s: Faild allocation numdevs=%d size=%zd\n", __func__,
+		dprintk("%s: Failed allocation numdevs=%d size=%zd\n", __func__,
 			numdevs, lseg_size);
 		return -ENOMEM;
 	}

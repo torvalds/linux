@@ -186,7 +186,7 @@ static int mlx4_en_dcbnl_ieee_setpfc(struct net_device *dev,
 
 static u8 mlx4_en_dcbnl_getdcbx(struct net_device *dev)
 {
-	return DCB_CAP_DCBX_VER_IEEE;
+	return DCB_CAP_DCBX_HOST | DCB_CAP_DCBX_VER_IEEE;
 }
 
 static u8 mlx4_en_dcbnl_setdcbx(struct net_device *dev, u8 mode)
@@ -247,6 +247,14 @@ const struct dcbnl_rtnl_ops mlx4_en_dcbnl_ops = {
 	.ieee_setets	= mlx4_en_dcbnl_ieee_setets,
 	.ieee_getmaxrate = mlx4_en_dcbnl_ieee_getmaxrate,
 	.ieee_setmaxrate = mlx4_en_dcbnl_ieee_setmaxrate,
+	.ieee_getpfc	= mlx4_en_dcbnl_ieee_getpfc,
+	.ieee_setpfc	= mlx4_en_dcbnl_ieee_setpfc,
+
+	.getdcbx	= mlx4_en_dcbnl_getdcbx,
+	.setdcbx	= mlx4_en_dcbnl_setdcbx,
+};
+
+const struct dcbnl_rtnl_ops mlx4_en_dcbnl_pfc_ops = {
 	.ieee_getpfc	= mlx4_en_dcbnl_ieee_getpfc,
 	.ieee_setpfc	= mlx4_en_dcbnl_ieee_setpfc,
 

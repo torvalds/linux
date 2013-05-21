@@ -12,6 +12,7 @@
 
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/gpio-pxa.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/regulator/machine.h>
@@ -99,6 +100,10 @@ static unsigned long jasper_pin_config[] __initdata = {
 	GPIO151_MMC3_CLK,
 };
 
+static struct pxa_gpio_platform_data mmp2_gpio_pdata = {
+	.irq_base	= MMP_GPIO_TO_IRQ(0),
+};
+
 static struct regulator_consumer_supply max8649_supply[] = {
 	REGULATOR_SUPPLY("vcc_core", NULL),
 };
@@ -165,6 +170,9 @@ static void __init jasper_init(void)
 	mmp2_add_uart(1);
 	mmp2_add_uart(3);
 	mmp2_add_twsi(1, NULL, ARRAY_AND_SIZE(jasper_twsi1_info));
+	platform_device_add_data(&mmp2_device_gpio, &mmp2_gpio_pdata,
+				 sizeof(struct pxa_gpio_platform_data));
+	platform_device_register(&mmp2_device_gpio);
 	mmp2_add_sdhost(0, &mmp2_sdh_platdata_mmc0); /* SD/MMC */
 
 	regulator_has_full_constraints();

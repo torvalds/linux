@@ -14,6 +14,7 @@
 #include <linux/leds.h>
 #include <linux/input.h>
 #include <linux/gpio_keys.h>
+#include <linux/sizes.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -87,4 +88,5 @@ MACHINE_START(RUT100, "Teltonika RUT100")
 	.init_irq	= gemini_init_irq,
 	.init_time	= gemini_timer_init,
 	.init_machine	= rut1xx_init,
+	.restart	= gemini_restart,
 MACHINE_END

@@ -13,11 +13,18 @@
 #include <linux/perf_event.h>
 #include <linux/percpu.h>
 #include <linux/hardirq.h>
+#include <linux/uaccess.h>
 #include <asm/reg.h>
 #include <asm/pmc.h>
 #include <asm/machdep.h>
 #include <asm/firmware.h>
 #include <asm/ptrace.h>
+#include <asm/code-patching.h>
+
+#define BHRB_MAX_ENTRIES	32
+#define BHRB_TARGET		0x0000000000000002
+#define BHRB_PREDICTION		0x0000000000000001
+#define BHRB_EA			0xFFFFFFFFFFFFFFFC
 
 struct cpu_hw_events {
 	int n_events;
@@ -38,7 +45,15 @@ struct cpu_hw_events {
 
 	unsigned int group_flag;
 	int n_txn_start;
+
+	/* BHRB bits */
+	u64				bhrb_filter;	/* BHRB HW branch filter */
+	int				bhrb_users;
+	void				*bhrb_context;
+	struct	perf_branch_stack	bhrb_stack;
+	struct	perf_branch_entry	bhrb_entries[BHRB_MAX_ENTRIES];
 };
+
 DEFINE_PER_CPU(struct cpu_hw_events, cpu_hw_events);
 
 struct power_pmu *ppmu;
@@ -87,7 +102,16 @@ static inline int siar_valid(struct pt_regs *regs)
 	return 1;
 }
 
+static inline void power_pmu_bhrb_enable(struct perf_event *event) {}
+static inline void power_pmu_bhrb_disable(struct perf_event *event) {}
+void power_pmu_flush_branch_stack(void) {}
+static inline void power_pmu_bhrb_read(struct cpu_hw_events *cpuhw) {}
 #endif /* CONFIG_PPC32 */
+
+static bool regs_use_siar(struct pt_regs *regs)
+{
+	return !!(regs->result & 1);
+}
 
 /*
  * Things that are specific to 64-bit implementations.
@@ -98,11 +122,12 @@ static inline unsigned long perf_ip_adjust(struct pt_regs *regs)
 {
 	unsigned long mmcra = regs->dsisr;
 
-	if ((mmcra & MMCRA_SAMPLE_ENABLE) && !(ppmu->flags & PPMU_ALT_SIPR)) {
+	if ((ppmu->flags & PPMU_HAS_SSLOT) && (mmcra & MMCRA_SAMPLE_ENABLE)) {
 		unsigned long slot = (mmcra & MMCRA_SLOT) >> MMCRA_SLOT_SHIFT;
 		if (slot > 1)
 			return 4 * (slot - 1);
 	}
+
 	return 0;
 }
 
@@ -130,24 +155,35 @@ static inline void perf_get_data_addr(struct pt_regs *regs, u64 *addrp)
 		*addrp = mfspr(SPRN_SDAR);
 }
 
-static bool mmcra_sihv(unsigned long mmcra)
+static bool regs_sihv(struct pt_regs *regs)
 {
 	unsigned long sihv = MMCRA_SIHV;
+
+	if (ppmu->flags & PPMU_HAS_SIER)
+		return !!(regs->dar & SIER_SIHV);
 
 	if (ppmu->flags & PPMU_ALT_SIPR)
 		sihv = POWER6_MMCRA_SIHV;
 
-	return !!(mmcra & sihv);
+	return !!(regs->dsisr & sihv);
 }
 
-static bool mmcra_sipr(unsigned long mmcra)
+static bool regs_sipr(struct pt_regs *regs)
 {
 	unsigned long sipr = MMCRA_SIPR;
+
+	if (ppmu->flags & PPMU_HAS_SIER)
+		return !!(regs->dar & SIER_SIPR);
 
 	if (ppmu->flags & PPMU_ALT_SIPR)
 		sipr = POWER6_MMCRA_SIPR;
 
-	return !!(mmcra & sipr);
+	return !!(regs->dsisr & sipr);
+}
+
+static bool regs_no_sipr(struct pt_regs *regs)
+{
+	return !!(regs->result & 2);
 }
 
 static inline u32 perf_flags_from_msr(struct pt_regs *regs)
@@ -161,8 +197,7 @@ static inline u32 perf_flags_from_msr(struct pt_regs *regs)
 
 static inline u32 perf_get_misc_flags(struct pt_regs *regs)
 {
-	unsigned long mmcra = regs->dsisr;
-	unsigned long use_siar = regs->result;
+	bool use_siar = regs_use_siar(regs);
 
 	if (!use_siar)
 		return perf_flags_from_msr(regs);
@@ -173,7 +208,7 @@ static inline u32 perf_get_misc_flags(struct pt_regs *regs)
 	 * SIAR which should give slightly more reliable
 	 * results
 	 */
-	if (ppmu->flags & PPMU_NO_SIPR) {
+	if (regs_no_sipr(regs)) {
 		unsigned long siar = mfspr(SPRN_SIAR);
 		if (siar >= PAGE_OFFSET)
 			return PERF_RECORD_MISC_KERNEL;
@@ -181,16 +216,19 @@ static inline u32 perf_get_misc_flags(struct pt_regs *regs)
 	}
 
 	/* PR has priority over HV, so order below is important */
-	if (mmcra_sipr(mmcra))
+	if (regs_sipr(regs))
 		return PERF_RECORD_MISC_USER;
-	if (mmcra_sihv(mmcra) && (freeze_events_kernel != MMCR0_FCHV))
+
+	if (regs_sihv(regs) && (freeze_events_kernel != MMCR0_FCHV))
 		return PERF_RECORD_MISC_HYPERVISOR;
+
 	return PERF_RECORD_MISC_KERNEL;
 }
 
 /*
  * Overload regs->dsisr to store MMCRA so we only need to read it once
  * on each interrupt.
+ * Overload regs->dar to store SIER if we have it.
  * Overload regs->result to specify whether we should use the MSR (result
  * is zero) or the SIAR (result is non zero).
  */
@@ -199,6 +237,24 @@ static inline void perf_read_regs(struct pt_regs *regs)
 	unsigned long mmcra = mfspr(SPRN_MMCRA);
 	int marked = mmcra & MMCRA_SAMPLE_ENABLE;
 	int use_siar;
+
+	regs->dsisr = mmcra;
+	regs->result = 0;
+
+	if (ppmu->flags & PPMU_NO_SIPR)
+		regs->result |= 2;
+
+	/*
+	 * On power8 if we're in random sampling mode, the SIER is updated.
+	 * If we're in continuous sampling mode, we don't have SIPR.
+	 */
+	if (ppmu->flags & PPMU_HAS_SIER) {
+		if (marked)
+			regs->dar = mfspr(SPRN_SIER);
+		else
+			regs->result |= 2;
+	}
+
 
 	/*
 	 * If this isn't a PMU exception (eg a software event) the SIAR is
@@ -223,13 +279,12 @@ static inline void perf_read_regs(struct pt_regs *regs)
 		use_siar = 1;
 	else if ((ppmu->flags & PPMU_NO_CONT_SAMPLING))
 		use_siar = 0;
-	else if (!(ppmu->flags & PPMU_NO_SIPR) && mmcra_sipr(mmcra))
+	else if (!regs_no_sipr(regs) && regs_sipr(regs))
 		use_siar = 0;
 	else
 		use_siar = 1;
 
-	regs->dsisr = mmcra;
-	regs->result = use_siar;
+	regs->result |= use_siar;
 }
 
 /*
@@ -257,6 +312,159 @@ static inline int siar_valid(struct pt_regs *regs)
 		return mmcra & POWER7P_MMCRA_SIAR_VALID;
 
 	return 1;
+}
+
+
+/* Reset all possible BHRB entries */
+static void power_pmu_bhrb_reset(void)
+{
+	asm volatile(PPC_CLRBHRB);
+}
+
+static void power_pmu_bhrb_enable(struct perf_event *event)
+{
+	struct cpu_hw_events *cpuhw = &__get_cpu_var(cpu_hw_events);
+
+	if (!ppmu->bhrb_nr)
+		return;
+
+	/* Clear BHRB if we changed task context to avoid data leaks */
+	if (event->ctx->task && cpuhw->bhrb_context != event->ctx) {
+		power_pmu_bhrb_reset();
+		cpuhw->bhrb_context = event->ctx;
+	}
+	cpuhw->bhrb_users++;
+}
+
+static void power_pmu_bhrb_disable(struct perf_event *event)
+{
+	struct cpu_hw_events *cpuhw = &__get_cpu_var(cpu_hw_events);
+
+	if (!ppmu->bhrb_nr)
+		return;
+
+	cpuhw->bhrb_users--;
+	WARN_ON_ONCE(cpuhw->bhrb_users < 0);
+
+	if (!cpuhw->disabled && !cpuhw->bhrb_users) {
+		/* BHRB cannot be turned off when other
+		 * events are active on the PMU.
+		 */
+
+		/* avoid stale pointer */
+		cpuhw->bhrb_context = NULL;
+	}
+}
+
+/* Called from ctxsw to prevent one process's branch entries to
+ * mingle with the other process's entries during context switch.
+ */
+void power_pmu_flush_branch_stack(void)
+{
+	if (ppmu->bhrb_nr)
+		power_pmu_bhrb_reset();
+}
+/* Calculate the to address for a branch */
+static __u64 power_pmu_bhrb_to(u64 addr)
+{
+	unsigned int instr;
+	int ret;
+	__u64 target;
+
+	if (is_kernel_addr(addr))
+		return branch_target((unsigned int *)addr);
+
+	/* Userspace: need copy instruction here then translate it */
+	pagefault_disable();
+	ret = __get_user_inatomic(instr, (unsigned int __user *)addr);
+	if (ret) {
+		pagefault_enable();
+		return 0;
+	}
+	pagefault_enable();
+
+	target = branch_target(&instr);
+	if ((!target) || (instr & BRANCH_ABSOLUTE))
+		return target;
+
+	/* Translate relative branch target from kernel to user address */
+	return target - (unsigned long)&instr + addr;
+}
+
+/* Processing BHRB entries */
+void power_pmu_bhrb_read(struct cpu_hw_events *cpuhw)
+{
+	u64 val;
+	u64 addr;
+	int r_index, u_index, pred;
+
+	r_index = 0;
+	u_index = 0;
+	while (r_index < ppmu->bhrb_nr) {
+		/* Assembly read function */
+		val = read_bhrb(r_index++);
+		if (!val)
+			/* Terminal marker: End of valid BHRB entries */
+			break;
+		else {
+			addr = val & BHRB_EA;
+			pred = val & BHRB_PREDICTION;
+
+			if (!addr)
+				/* invalid entry */
+				continue;
+
+			/* Branches are read most recent first (ie. mfbhrb 0 is
+			 * the most recent branch).
+			 * There are two types of valid entries:
+			 * 1) a target entry which is the to address of a
+			 *    computed goto like a blr,bctr,btar.  The next
+			 *    entry read from the bhrb will be branch
+			 *    corresponding to this target (ie. the actual
+			 *    blr/bctr/btar instruction).
+			 * 2) a from address which is an actual branch.  If a
+			 *    target entry proceeds this, then this is the
+			 *    matching branch for that target.  If this is not
+			 *    following a target entry, then this is a branch
+			 *    where the target is given as an immediate field
+			 *    in the instruction (ie. an i or b form branch).
+			 *    In this case we need to read the instruction from
+			 *    memory to determine the target/to address.
+			 */
+
+			if (val & BHRB_TARGET) {
+				/* Target branches use two entries
+				 * (ie. computed gotos/XL form)
+				 */
+				cpuhw->bhrb_entries[u_index].to = addr;
+				cpuhw->bhrb_entries[u_index].mispred = pred;
+				cpuhw->bhrb_entries[u_index].predicted = ~pred;
+
+				/* Get from address in next entry */
+				val = read_bhrb(r_index++);
+				addr = val & BHRB_EA;
+				if (val & BHRB_TARGET) {
+					/* Shouldn't have two targets in a
+					   row.. Reset index and try again */
+					r_index--;
+					addr = 0;
+				}
+				cpuhw->bhrb_entries[u_index].from = addr;
+			} else {
+				/* Branches to immediate field 
+				   (ie I or B form) */
+				cpuhw->bhrb_entries[u_index].from = addr;
+				cpuhw->bhrb_entries[u_index].to =
+					power_pmu_bhrb_to(addr);
+				cpuhw->bhrb_entries[u_index].mispred = pred;
+				cpuhw->bhrb_entries[u_index].predicted = ~pred;
+			}
+			u_index++;
+
+		}
+	}
+	cpuhw->bhrb_stack.nr = u_index;
+	return;
 }
 
 #endif /* CONFIG_PPC64 */
@@ -822,6 +1030,9 @@ static void power_pmu_enable(struct pmu *pmu)
 	}
 
  out:
+	if (cpuhw->bhrb_users)
+		ppmu->config_bhrb(cpuhw->bhrb_filter);
+
 	local_irq_restore(flags);
 }
 
@@ -911,6 +1122,9 @@ nocheck:
 
 	ret = 0;
  out:
+	if (has_branch_stack(event))
+		power_pmu_bhrb_enable(event);
+
 	perf_pmu_enable(event->pmu);
 	local_irq_restore(flags);
 	return ret;
@@ -962,6 +1176,9 @@ static void power_pmu_del(struct perf_event *event, int ef_flags)
 		/* disable exceptions if no events are running */
 		cpuhw->mmcr[0] &= ~(MMCR0_PMXE | MMCR0_FCECE);
 	}
+
+	if (has_branch_stack(event))
+		power_pmu_bhrb_disable(event);
 
 	perf_pmu_enable(event->pmu);
 	local_irq_restore(flags);
@@ -1195,9 +1412,11 @@ static int power_pmu_event_init(struct perf_event *event)
 	if (!ppmu)
 		return -ENOENT;
 
-	/* does not support taken branch sampling */
-	if (has_branch_stack(event))
-		return -EOPNOTSUPP;
+	if (has_branch_stack(event)) {
+	        /* PMU has BHRB enabled */
+		if (!(ppmu->flags & PPMU_BHRB))
+			return -EOPNOTSUPP;
+	}
 
 	switch (event->attr.type) {
 	case PERF_TYPE_HARDWARE:
@@ -1278,6 +1497,15 @@ static int power_pmu_event_init(struct perf_event *event)
 
 	cpuhw = &get_cpu_var(cpu_hw_events);
 	err = power_check_constraints(cpuhw, events, cflags, n + 1);
+
+	if (has_branch_stack(event)) {
+		cpuhw->bhrb_filter = ppmu->bhrb_filter_map(
+					event->attr.branch_sample_type);
+
+		if(cpuhw->bhrb_filter == -1)
+			return -EOPNOTSUPP;
+	}
+
 	put_cpu_var(cpu_hw_events);
 	if (err)
 		return -EINVAL;
@@ -1336,8 +1564,8 @@ struct pmu power_pmu = {
 	.cancel_txn	= power_pmu_cancel_txn,
 	.commit_txn	= power_pmu_commit_txn,
 	.event_idx	= power_pmu_event_idx,
+	.flush_branch_stack = power_pmu_flush_branch_stack,
 };
-
 
 /*
  * A counter has overflowed; update its count and record
@@ -1397,6 +1625,13 @@ static void record_and_restart(struct perf_event *event, unsigned long val,
 		if (event->attr.sample_type & PERF_SAMPLE_ADDR)
 			perf_get_data_addr(regs, &data.addr);
 
+		if (event->attr.sample_type & PERF_SAMPLE_BRANCH_STACK) {
+			struct cpu_hw_events *cpuhw;
+			cpuhw = &__get_cpu_var(cpu_hw_events);
+			power_pmu_bhrb_read(cpuhw);
+			data.br_stack = &cpuhw->bhrb_stack;
+		}
+
 		if (perf_event_overflow(event, &data, regs))
 			power_pmu_stop(event, 0);
 	}
@@ -1422,7 +1657,7 @@ unsigned long perf_misc_flags(struct pt_regs *regs)
  */
 unsigned long perf_instruction_pointer(struct pt_regs *regs)
 {
-	unsigned long use_siar = regs->result;
+	bool use_siar = regs_use_siar(regs);
 
 	if (use_siar && siar_valid(regs))
 		return mfspr(SPRN_SIAR) + perf_ip_adjust(regs);

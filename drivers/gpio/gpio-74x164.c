@@ -137,7 +137,7 @@ static int gen_74x164_probe(struct spi_device *spi)
 
 	mutex_init(&chip->lock);
 
-	dev_set_drvdata(&spi->dev, chip);
+	spi_set_drvdata(spi, chip);
 
 	chip->spi = spi;
 
@@ -176,7 +176,7 @@ static int gen_74x164_probe(struct spi_device *spi)
 	return ret;
 
 exit_destroy:
-	dev_set_drvdata(&spi->dev, NULL);
+	spi_set_drvdata(spi, NULL);
 	mutex_destroy(&chip->lock);
 	return ret;
 }
@@ -186,11 +186,11 @@ static int gen_74x164_remove(struct spi_device *spi)
 	struct gen_74x164_chip *chip;
 	int ret;
 
-	chip = dev_get_drvdata(&spi->dev);
+	chip = spi_get_drvdata(spi);
 	if (chip == NULL)
 		return -ENODEV;
 
-	dev_set_drvdata(&spi->dev, NULL);
+	spi_set_drvdata(spi, NULL);
 
 	ret = gpiochip_remove(&chip->gpio_chip);
 	if (!ret)

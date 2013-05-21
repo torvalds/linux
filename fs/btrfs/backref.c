@@ -352,6 +352,8 @@ static int __resolve_indirect_refs(struct btrfs_fs_info *fs_info,
 		err = __resolve_indirect_ref(fs_info, search_commit_root,
 					     time_seq, ref, parents,
 					     extent_item_pos);
+		if (err == -ENOMEM)
+			goto out;
 		if (err)
 			continue;
 
@@ -367,7 +369,7 @@ static int __resolve_indirect_refs(struct btrfs_fs_info *fs_info,
 			new_ref = kmalloc(sizeof(*new_ref), GFP_NOFS);
 			if (!new_ref) {
 				ret = -ENOMEM;
-				break;
+				goto out;
 			}
 			memcpy(new_ref, ref, sizeof(*ref));
 			new_ref->parent = node->val;
@@ -377,7 +379,7 @@ static int __resolve_indirect_refs(struct btrfs_fs_info *fs_info,
 		}
 		ulist_reinit(parents);
 	}
-
+out:
 	ulist_free(parents);
 	return ret;
 }
@@ -421,7 +423,10 @@ static int __add_missing_keys(struct btrfs_fs_info *fs_info,
 		BUG_ON(!ref->wanted_disk_byte);
 		eb = read_tree_block(fs_info->tree_root, ref->wanted_disk_byte,
 				     fs_info->tree_root->leafsize, 0);
-		BUG_ON(!eb);
+		if (!eb || !extent_buffer_uptodate(eb)) {
+			free_extent_buffer(eb);
+			return -EIO;
+		}
 		btrfs_tree_read_lock(eb);
 		if (btrfs_header_level(eb) == 0)
 			btrfs_item_key_to_cpu(eb, &ref->key_for_search, 0);
@@ -443,7 +448,7 @@ static int __add_missing_keys(struct btrfs_fs_info *fs_info,
  *           having a parent).
  * mode = 2: merge identical parents
  */
-static int __merge_refs(struct list_head *head, int mode)
+static void __merge_refs(struct list_head *head, int mode)
 {
 	struct list_head *pos1;
 
@@ -489,7 +494,6 @@ static int __merge_refs(struct list_head *head, int mode)
 		}
 
 	}
-	return 0;
 }
 
 /*
@@ -582,7 +586,8 @@ static int __add_delayed_refs(struct btrfs_delayed_ref_head *head, u64 seq,
 		default:
 			WARN_ON(1);
 		}
-		BUG_ON(ret);
+		if (ret)
+			return ret;
 	}
 
 	return 0;
@@ -680,7 +685,8 @@ static int __add_inline_refs(struct btrfs_fs_info *fs_info,
 		default:
 			WARN_ON(1);
 		}
-		BUG_ON(ret);
+		if (ret)
+			return ret;
 		ptr += btrfs_extent_inline_ref_size(type);
 	}
 
@@ -762,7 +768,9 @@ static int __add_keyed_refs(struct btrfs_fs_info *fs_info,
 		default:
 			WARN_ON(1);
 		}
-		BUG_ON(ret);
+		if (ret)
+			return ret;
+
 	}
 
 	return ret;
@@ -880,18 +888,14 @@ again:
 	if (ret)
 		goto out;
 
-	ret = __merge_refs(&prefs, 1);
-	if (ret)
-		goto out;
+	__merge_refs(&prefs, 1);
 
 	ret = __resolve_indirect_refs(fs_info, search_commit_root, time_seq,
 				      &prefs, extent_item_pos);
 	if (ret)
 		goto out;
 
-	ret = __merge_refs(&prefs, 2);
-	if (ret)
-		goto out;
+	__merge_refs(&prefs, 2);
 
 	while (!list_empty(&prefs)) {
 		ref = list_first_entry(&prefs, struct __prelim_ref, list);
@@ -900,7 +904,8 @@ again:
 		if (ref->count && ref->root_id && ref->parent == 0) {
 			/* no parent == root of tree */
 			ret = ulist_add(roots, ref->root_id, 0, GFP_NOFS);
-			BUG_ON(ret < 0);
+			if (ret < 0)
+				goto out;
 		}
 		if (ref->count && ref->parent) {
 			struct extent_inode_elem *eie = NULL;
@@ -911,7 +916,11 @@ again:
 							info_level);
 				eb = read_tree_block(fs_info->extent_root,
 							   ref->parent, bsz, 0);
-				BUG_ON(!eb);
+				if (!eb || !extent_buffer_uptodate(eb)) {
+					free_extent_buffer(eb);
+					ret = -EIO;
+					goto out;
+				}
 				ret = find_extent_in_eb(eb, bytenr,
 							*extent_item_pos, &eie);
 				ref->inode_list = eie;
@@ -920,6 +929,8 @@ again:
 			ret = ulist_add_merge(refs, ref->parent,
 					      (uintptr_t)ref->inode_list,
 					      (u64 *)&eie, GFP_NOFS);
+			if (ret < 0)
+				goto out;
 			if (!ret && extent_item_pos) {
 				/*
 				 * we've recorded that parent, so we must extend
@@ -930,7 +941,6 @@ again:
 					eie = eie->next;
 				eie->next = ref->inode_list;
 			}
-			BUG_ON(ret < 0);
 		}
 		kfree(ref);
 	}
@@ -1180,6 +1190,20 @@ int btrfs_find_one_extref(struct btrfs_root *root, u64 inode_objectid,
 	return ret;
 }
 
+/*
+ * this iterates to turn a name (from iref/extref) into a full filesystem path.
+ * Elements of the path are separated by '/' and the path is guaranteed to be
+ * 0-terminated. the path is only given within the current file system.
+ * Therefore, it never starts with a '/'. the caller is responsible to provide
+ * "size" bytes in "dest". the dest buffer will be filled backwards. finally,
+ * the start point of the resulting string is returned. this pointer is within
+ * dest, normally.
+ * in case the path buffer would overflow, the pointer is decremented further
+ * as if output was written to the buffer, though no more output is actually
+ * generated. that way, the caller can determine how much space would be
+ * required for the path to fit into the buffer. in that case, the returned
+ * value will be smaller than dest. callers must check this!
+ */
 char *btrfs_ref_to_path(struct btrfs_root *fs_root, struct btrfs_path *path,
 			u32 name_len, unsigned long name_off,
 			struct extent_buffer *eb_in, u64 parent,
@@ -1246,32 +1270,6 @@ char *btrfs_ref_to_path(struct btrfs_root *fs_root, struct btrfs_path *path,
 		return ERR_PTR(ret);
 
 	return dest + bytes_left;
-}
-
-/*
- * this iterates to turn a btrfs_inode_ref into a full filesystem path. elements
- * of the path are separated by '/' and the path is guaranteed to be
- * 0-terminated. the path is only given within the current file system.
- * Therefore, it never starts with a '/'. the caller is responsible to provide
- * "size" bytes in "dest". the dest buffer will be filled backwards. finally,
- * the start point of the resulting string is returned. this pointer is within
- * dest, normally.
- * in case the path buffer would overflow, the pointer is decremented further
- * as if output was written to the buffer, though no more output is actually
- * generated. that way, the caller can determine how much space would be
- * required for the path to fit into the buffer. in that case, the returned
- * value will be smaller than dest. callers must check this!
- */
-char *btrfs_iref_to_path(struct btrfs_root *fs_root,
-			 struct btrfs_path *path,
-			 struct btrfs_inode_ref *iref,
-			 struct extent_buffer *eb_in, u64 parent,
-			 char *dest, u32 size)
-{
-	return btrfs_ref_to_path(fs_root, path,
-				 btrfs_inode_ref_name_len(eb_in, iref),
-				 (unsigned long)(iref + 1),
-				 eb_in, parent, dest, size);
 }
 
 /*
@@ -1461,8 +1459,6 @@ int iterate_extent_inodes(struct btrfs_fs_info *fs_info,
 				iterate_extent_inodes_t *iterate, void *ctx)
 {
 	int ret;
-	struct list_head data_refs = LIST_HEAD_INIT(data_refs);
-	struct list_head shared_refs = LIST_HEAD_INIT(shared_refs);
 	struct btrfs_trans_handle *trans;
 	struct ulist *refs = NULL;
 	struct ulist *roots = NULL;
@@ -1508,11 +1504,9 @@ int iterate_extent_inodes(struct btrfs_fs_info *fs_info,
 						iterate, ctx);
 		}
 		ulist_free(roots);
-		roots = NULL;
 	}
 
 	free_leaf_list(refs);
-	ulist_free(roots);
 out:
 	if (!search_commit_root) {
 		btrfs_put_tree_mod_seq(fs_info, &tree_mod_seq_elem);

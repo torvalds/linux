@@ -20,6 +20,7 @@
 #include <linux/err.h>
 #include <linux/dma-mapping.h>
 #include <linux/io.h>
+#include <linux/delay.h>
 
 #include "davinci_cpdma.h"
 
@@ -312,14 +313,16 @@ int cpdma_ctlr_start(struct cpdma_ctlr *ctlr)
 	}
 
 	if (ctlr->params.has_soft_reset) {
-		unsigned long timeout = jiffies + HZ/10;
+		unsigned timeout = 10 * 100;
 
 		dma_reg_write(ctlr, CPDMA_SOFTRESET, 1);
-		while (time_before(jiffies, timeout)) {
+		while (timeout) {
 			if (dma_reg_read(ctlr, CPDMA_SOFTRESET) == 0)
 				break;
+			udelay(10);
+			timeout--;
 		}
-		WARN_ON(!time_before(jiffies, timeout));
+		WARN_ON(!timeout);
 	}
 
 	for (i = 0; i < ctlr->num_chan; i++) {
@@ -673,7 +676,7 @@ static void __cpdma_chan_submit(struct cpdma_chan *chan,
 }
 
 int cpdma_chan_submit(struct cpdma_chan *chan, void *token, void *data,
-		      int len, int directed, gfp_t gfp_mask)
+		      int len, int directed)
 {
 	struct cpdma_ctlr		*ctlr = chan->ctlr;
 	struct cpdma_desc __iomem	*desc;
@@ -773,6 +776,7 @@ static int __cpdma_chan_process(struct cpdma_chan *chan)
 	struct cpdma_ctlr		*ctlr = chan->ctlr;
 	struct cpdma_desc __iomem	*desc;
 	int				status, outlen;
+	int				cb_status = 0;
 	struct cpdma_desc_pool		*pool = ctlr->pool;
 	dma_addr_t			desc_dma;
 	unsigned long			flags;
@@ -808,8 +812,12 @@ static int __cpdma_chan_process(struct cpdma_chan *chan)
 	}
 
 	spin_unlock_irqrestore(&chan->lock, flags);
+	if (unlikely(status & CPDMA_DESC_TD_COMPLETE))
+		cb_status = -ENOSYS;
+	else
+		cb_status = status;
 
-	__cpdma_chan_free(chan, desc, outlen, status);
+	__cpdma_chan_free(chan, desc, outlen, cb_status);
 	return status;
 
 unlock_ret:
@@ -868,7 +876,7 @@ int cpdma_chan_stop(struct cpdma_chan *chan)
 	struct cpdma_desc_pool	*pool = ctlr->pool;
 	unsigned long		flags;
 	int			ret;
-	unsigned long		timeout;
+	unsigned		timeout;
 
 	spin_lock_irqsave(&chan->lock, flags);
 	if (chan->state != CPDMA_STATE_ACTIVE) {
@@ -883,14 +891,15 @@ int cpdma_chan_stop(struct cpdma_chan *chan)
 	dma_reg_write(ctlr, chan->td, chan_linear(chan));
 
 	/* wait for teardown complete */
-	timeout = jiffies + HZ/10;	/* 100 msec */
-	while (time_before(jiffies, timeout)) {
+	timeout = 100 * 100; /* 100 ms */
+	while (timeout) {
 		u32 cp = chan_read(chan, cp);
 		if ((cp & CPDMA_TEARDOWN_VALUE) == CPDMA_TEARDOWN_VALUE)
 			break;
-		cpu_relax();
+		udelay(10);
+		timeout--;
 	}
-	WARN_ON(!time_before(jiffies, timeout));
+	WARN_ON(!timeout);
 	chan_write(chan, cp, CPDMA_TEARDOWN_VALUE);
 
 	/* handle completed packets */
@@ -1031,3 +1040,5 @@ unlock_ret:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(cpdma_control_set);
+
+MODULE_LICENSE("GPL");

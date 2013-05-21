@@ -726,11 +726,11 @@ void __init board_prom_init(void)
 	u32 val;
 
 	/* read base address of boot chip select (0)
-	 * 6328 does not have MPI but boots from a fixed address
+	 * 6328/6362 do not have MPI but boot from a fixed address
 	 */
-	if (BCMCPU_IS_6328())
+	if (BCMCPU_IS_6328() || BCMCPU_IS_6362()) {
 		val = 0x18000000;
-	else {
+	} else {
 		val = bcm_mpi_readl(MPI_CSBASE_REG(0));
 		val &= MPI_CSBASE_BASE_MASK;
 	}
@@ -745,10 +745,7 @@ void __init board_prom_init(void)
 		strcpy(cfe_version, "unknown");
 	printk(KERN_INFO PFX "CFE version: %s\n", cfe_version);
 
-	if (bcm63xx_nvram_init(boot_addr + BCM963XX_NVRAM_OFFSET)) {
-		printk(KERN_ERR PFX "invalid nvram checksum\n");
-		return;
-	}
+	bcm63xx_nvram_init(boot_addr + BCM963XX_NVRAM_OFFSET);
 
 	board_name = bcm63xx_nvram_get_name();
 	/* find board by name */

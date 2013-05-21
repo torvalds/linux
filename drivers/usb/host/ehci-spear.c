@@ -1,5 +1,5 @@
 /*
-* Driver for EHCI HCD on SPEAR SOC
+* Driver for EHCI HCD on SPEAr SOC
 *
 * Copyright (C) 2010 ST Micro Electronics,
 * Deepak Sikri <deepak.sikri@st.com>
@@ -12,73 +12,32 @@
 */
 
 #include <linux/clk.h>
+#include <linux/dma-mapping.h>
+#include <linux/io.h>
 #include <linux/jiffies.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
+#include <linux/usb.h>
+#include <linux/usb/hcd.h>
+
+#include "ehci.h"
+
+#define DRIVER_DESC "EHCI SPEAr driver"
+
+static const char hcd_name[] = "SPEAr-ehci";
 
 struct spear_ehci {
-	struct ehci_hcd ehci;
 	struct clk *clk;
 };
 
-#define to_spear_ehci(hcd)	(struct spear_ehci *)hcd_to_ehci(hcd)
+#define to_spear_ehci(hcd)	(struct spear_ehci *)(hcd_to_ehci(hcd)->priv)
 
-static void spear_start_ehci(struct spear_ehci *ehci)
-{
-	clk_prepare_enable(ehci->clk);
-}
+static struct hc_driver __read_mostly ehci_spear_hc_driver;
 
-static void spear_stop_ehci(struct spear_ehci *ehci)
-{
-	clk_disable_unprepare(ehci->clk);
-}
-
-static int ehci_spear_setup(struct usb_hcd *hcd)
-{
-	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
-
-	/* registers start at offset 0x0 */
-	ehci->caps = hcd->regs;
-
-	return ehci_setup(hcd);
-}
-
-static const struct hc_driver ehci_spear_hc_driver = {
-	.description			= hcd_name,
-	.product_desc			= "SPEAr EHCI",
-	.hcd_priv_size			= sizeof(struct spear_ehci),
-
-	/* generic hardware linkage */
-	.irq				= ehci_irq,
-	.flags				= HCD_MEMORY | HCD_USB2,
-
-	/* basic lifecycle operations */
-	.reset				= ehci_spear_setup,
-	.start				= ehci_run,
-	.stop				= ehci_stop,
-	.shutdown			= ehci_shutdown,
-
-	/* managing i/o requests and associated device resources */
-	.urb_enqueue			= ehci_urb_enqueue,
-	.urb_dequeue			= ehci_urb_dequeue,
-	.endpoint_disable		= ehci_endpoint_disable,
-	.endpoint_reset			= ehci_endpoint_reset,
-
-	/* scheduling support */
-	.get_frame_number		= ehci_get_frame,
-
-	/* root hub support */
-	.hub_status_data		= ehci_hub_status_data,
-	.hub_control			= ehci_hub_control,
-	.bus_suspend			= ehci_bus_suspend,
-	.bus_resume			= ehci_bus_resume,
-	.relinquish_port		= ehci_relinquish_port,
-	.port_handed_over		= ehci_port_handed_over,
-	.clear_tt_buffer_complete	= ehci_clear_tt_buffer_complete,
-};
-
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int ehci_spear_drv_suspend(struct device *dev)
 {
 	struct usb_hcd *hcd = dev_get_drvdata(dev);
@@ -94,7 +53,7 @@ static int ehci_spear_drv_resume(struct device *dev)
 	ehci_resume(hcd, false);
 	return 0;
 }
-#endif /* CONFIG_PM */
+#endif /* CONFIG_PM_SLEEP */
 
 static SIMPLE_DEV_PM_OPS(ehci_spear_pm_ops, ehci_spear_drv_suspend,
 		ehci_spear_drv_resume);
@@ -104,7 +63,7 @@ static u64 spear_ehci_dma_mask = DMA_BIT_MASK(32);
 static int spear_ehci_hcd_drv_probe(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd ;
-	struct spear_ehci *ehci;
+	struct spear_ehci *sehci;
 	struct resource *res;
 	struct clk *usbh_clk;
 	const struct hc_driver *driver = &ehci_spear_hc_driver;
@@ -161,10 +120,13 @@ static int spear_ehci_hcd_drv_probe(struct platform_device *pdev)
 		goto err_put_hcd;
 	}
 
-	ehci = (struct spear_ehci *)hcd_to_ehci(hcd);
-	ehci->clk = usbh_clk;
+	sehci = to_spear_ehci(hcd);
+	sehci->clk = usbh_clk;
 
-	spear_start_ehci(ehci);
+	/* registers start at offset 0x0 */
+	hcd_to_ehci(hcd)->caps = hcd->regs;
+
+	clk_prepare_enable(sehci->clk);
 	retval = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (retval)
 		goto err_stop_ehci;
@@ -172,7 +134,7 @@ static int spear_ehci_hcd_drv_probe(struct platform_device *pdev)
 	return retval;
 
 err_stop_ehci:
-	spear_stop_ehci(ehci);
+	clk_disable_unprepare(sehci->clk);
 err_put_hcd:
 	usb_put_hcd(hcd);
 fail:
@@ -184,7 +146,7 @@ fail:
 static int spear_ehci_hcd_drv_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
-	struct spear_ehci *ehci_p = to_spear_ehci(hcd);
+	struct spear_ehci *sehci = to_spear_ehci(hcd);
 
 	if (!hcd)
 		return 0;
@@ -192,8 +154,8 @@ static int spear_ehci_hcd_drv_remove(struct platform_device *pdev)
 		BUG();
 	usb_remove_hcd(hcd);
 
-	if (ehci_p->clk)
-		spear_stop_ehci(ehci_p);
+	if (sehci->clk)
+		clk_disable_unprepare(sehci->clk);
 	usb_put_hcd(hcd);
 
 	return 0;
@@ -216,4 +178,29 @@ static struct platform_driver spear_ehci_hcd_driver = {
 	}
 };
 
+static const struct ehci_driver_overrides spear_overrides __initdata = {
+	.extra_priv_size = sizeof(struct spear_ehci),
+};
+
+static int __init ehci_spear_init(void)
+{
+	if (usb_disabled())
+		return -ENODEV;
+
+	pr_info("%s: " DRIVER_DESC "\n", hcd_name);
+
+	ehci_init_driver(&ehci_spear_hc_driver, &spear_overrides);
+	return platform_driver_register(&spear_ehci_hcd_driver);
+}
+module_init(ehci_spear_init);
+
+static void __exit ehci_spear_cleanup(void)
+{
+	platform_driver_unregister(&spear_ehci_hcd_driver);
+}
+module_exit(ehci_spear_cleanup);
+
+MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_ALIAS("platform:spear-ehci");
+MODULE_AUTHOR("Deepak Sikri");
+MODULE_LICENSE("GPL");

@@ -33,6 +33,7 @@
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/crc32.h>
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/etherdevice.h>
@@ -144,6 +145,9 @@ struct smsc911x_data {
 
 	/* regulators */
 	struct regulator_bulk_data supplies[SMSC911X_NUM_SUPPLIES];
+
+	/* clock */
+	struct clk *clk;
 };
 
 /* Easy access to information */
@@ -369,7 +373,7 @@ out:
 }
 
 /*
- * enable resources, currently just regulators.
+ * enable regulator and clock resources.
  */
 static int smsc911x_enable_resources(struct platform_device *pdev)
 {
@@ -382,6 +386,13 @@ static int smsc911x_enable_resources(struct platform_device *pdev)
 	if (ret)
 		netdev_err(ndev, "failed to enable regulators %d\n",
 				ret);
+
+	if (!IS_ERR(pdata->clk)) {
+		ret = clk_prepare_enable(pdata->clk);
+		if (ret < 0)
+			netdev_err(ndev, "failed to enable clock %d\n", ret);
+	}
+
 	return ret;
 }
 
@@ -396,6 +407,10 @@ static int smsc911x_disable_resources(struct platform_device *pdev)
 
 	ret = regulator_bulk_disable(ARRAY_SIZE(pdata->supplies),
 			pdata->supplies);
+
+	if (!IS_ERR(pdata->clk))
+		clk_disable_unprepare(pdata->clk);
+
 	return ret;
 }
 
@@ -421,6 +436,12 @@ static int smsc911x_request_resources(struct platform_device *pdev)
 	if (ret)
 		netdev_err(ndev, "couldn't get regulators %d\n",
 				ret);
+
+	/* Request clock */
+	pdata->clk = clk_get(&pdev->dev, NULL);
+	if (IS_ERR(pdata->clk))
+		netdev_warn(ndev, "couldn't get clock %li\n", PTR_ERR(pdata->clk));
+
 	return ret;
 }
 
@@ -436,6 +457,12 @@ static void smsc911x_free_resources(struct platform_device *pdev)
 	/* Free regulators */
 	regulator_bulk_free(ARRAY_SIZE(pdata->supplies),
 			pdata->supplies);
+
+	/* Free clock */
+	if (!IS_ERR(pdata->clk)) {
+		clk_put(pdata->clk);
+		pdata->clk = NULL;
+	}
 }
 
 /* waits for MAC not busy, with timeout.  Only called by smsc911x_mac_read
@@ -2115,7 +2142,7 @@ static int smsc911x_init(struct net_device *dev)
 	spin_lock_init(&pdata->dev_lock);
 	spin_lock_init(&pdata->mac_lock);
 
-	if (pdata->ioaddr == 0) {
+	if (pdata->ioaddr == NULL) {
 		SMSC_WARN(pdata, probe, "pdata->ioaddr: 0x00000000");
 		return -ENODEV;
 	}

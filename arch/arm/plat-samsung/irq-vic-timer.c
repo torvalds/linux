@@ -16,14 +16,14 @@
 #include <linux/kernel.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/irqchip/chained_irq.h>
 #include <linux/io.h>
 
 #include <mach/map.h>
+#include <mach/irqs.h>
 #include <plat/cpu.h>
 #include <plat/irq-vic-timer.h>
 #include <plat/regs-timer.h>
-
-#include <asm/mach/irq.h>
 
 static void s3c_irq_demux_vic_timer(unsigned int irq, struct irq_desc *desc)
 {

@@ -38,7 +38,7 @@
 #include <net/sock.h>
 #include <net/ip.h>
 #include <net/icmp.h>
-#include <net/ipip.h>
+#include <net/ip_tunnels.h>
 #include <net/inet_ecn.h>
 #include <net/xfrm.h>
 #include <net/net_namespace.h>
@@ -81,44 +81,6 @@ static int vti_tunnel_bind_dev(struct net_device *dev);
 	}							\
 } while (0)
 
-
-static struct rtnl_link_stats64 *vti_get_stats64(struct net_device *dev,
-						 struct rtnl_link_stats64 *tot)
-{
-	int i;
-
-	for_each_possible_cpu(i) {
-		const struct pcpu_tstats *tstats = per_cpu_ptr(dev->tstats, i);
-		u64 rx_packets, rx_bytes, tx_packets, tx_bytes;
-		unsigned int start;
-
-		do {
-			start = u64_stats_fetch_begin_bh(&tstats->syncp);
-			rx_packets = tstats->rx_packets;
-			tx_packets = tstats->tx_packets;
-			rx_bytes = tstats->rx_bytes;
-			tx_bytes = tstats->tx_bytes;
-		} while (u64_stats_fetch_retry_bh(&tstats->syncp, start));
-
-		tot->rx_packets += rx_packets;
-		tot->tx_packets += tx_packets;
-		tot->rx_bytes   += rx_bytes;
-		tot->tx_bytes   += tx_bytes;
-	}
-
-	tot->multicast = dev->stats.multicast;
-	tot->rx_crc_errors = dev->stats.rx_crc_errors;
-	tot->rx_fifo_errors = dev->stats.rx_fifo_errors;
-	tot->rx_length_errors = dev->stats.rx_length_errors;
-	tot->rx_errors = dev->stats.rx_errors;
-	tot->tx_fifo_errors = dev->stats.tx_fifo_errors;
-	tot->tx_carrier_errors = dev->stats.tx_carrier_errors;
-	tot->tx_dropped = dev->stats.tx_dropped;
-	tot->tx_aborted_errors = dev->stats.tx_aborted_errors;
-	tot->tx_errors = dev->stats.tx_errors;
-
-	return tot;
-}
 
 static struct ip_tunnel *vti_tunnel_lookup(struct net *net,
 					   __be32 remote, __be32 local)
@@ -597,7 +559,7 @@ static const struct net_device_ops vti_netdev_ops = {
 	.ndo_start_xmit	= vti_tunnel_xmit,
 	.ndo_do_ioctl	= vti_tunnel_ioctl,
 	.ndo_change_mtu	= vti_tunnel_change_mtu,
-	.ndo_get_stats64 = vti_get_stats64,
+	.ndo_get_stats64 = ip_tunnel_get_stats64,
 };
 
 static void vti_dev_free(struct net_device *dev)

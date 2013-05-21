@@ -196,7 +196,7 @@ static int max8997_muic_set_debounce_time(struct max8997_muic_info *info,
 					  CONTROL3_ADCDBSET_MASK);
 		if (ret) {
 			dev_err(info->dev, "failed to set ADC debounce time\n");
-			return -EAGAIN;
+			return ret;
 		}
 		break;
 	default:
@@ -232,7 +232,7 @@ static int max8997_muic_set_path(struct max8997_muic_info *info,
 			MAX8997_MUIC_REG_CONTROL1, ctrl1, COMP_SW_MASK);
 	if (ret < 0) {
 		dev_err(info->dev, "failed to update MUIC register\n");
-		return -EAGAIN;
+		return ret;
 	}
 
 	if (attached)
@@ -245,7 +245,7 @@ static int max8997_muic_set_path(struct max8997_muic_info *info,
 			CONTROL2_LOWPWR_MASK | CONTROL2_CPEN_MASK);
 	if (ret < 0) {
 		dev_err(info->dev, "failed to update MUIC register\n");
-		return -EAGAIN;
+		return ret;
 	}
 
 	dev_info(info->dev,
@@ -397,7 +397,7 @@ static int max8997_muic_handle_jig_uart(struct max8997_muic_info *info,
 	ret = max8997_muic_set_path(info, info->path_uart, attached);
 	if (ret) {
 		dev_err(info->dev, "failed to update muic register\n");
-		return -EINVAL;
+		return ret;
 	}
 
 	extcon_set_cable_state(info->edev, "JIG", attached);
@@ -608,7 +608,7 @@ static int max8997_muic_detect_dev(struct max8997_muic_info *info)
 	if (ret) {
 		dev_err(info->dev, "failed to read MUIC register\n");
 		mutex_unlock(&info->mutex);
-		return -EINVAL;
+		return ret;
 	}
 
 	adc = max8997_muic_get_cable_type(info, MAX8997_CABLE_GROUP_ADC,
@@ -646,7 +646,7 @@ static void max8997_muic_detect_cable_wq(struct work_struct *work)
 
 	ret = max8997_muic_detect_dev(info);
 	if (ret < 0)
-		pr_err("failed to detect cable type\n");
+		dev_err(info->dev, "failed to detect cable type\n");
 }
 
 static int max8997_muic_probe(struct platform_device *pdev)

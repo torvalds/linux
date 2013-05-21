@@ -62,7 +62,6 @@ static int is_irda(struct usb_serial *serial)
 }
 
 struct ark3116_private {
-	struct async_icount	icount;
 	int			irda;	/* 1 for irda device */
 
 	/* protects hw register updates */
@@ -341,18 +340,15 @@ static void ark3116_close(struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
 
-	if (serial->dev) {
-		/* disable DMA */
-		ark3116_write_reg(serial, UART_FCR, 0);
+	/* disable DMA */
+	ark3116_write_reg(serial, UART_FCR, 0);
 
-		/* deactivate interrupts */
-		ark3116_write_reg(serial, UART_IER, 0);
+	/* deactivate interrupts */
+	ark3116_write_reg(serial, UART_IER, 0);
 
-		usb_serial_generic_close(port);
-		if (serial->num_interrupt_in)
-			usb_kill_urb(port->interrupt_in_urb);
-	}
-
+	usb_serial_generic_close(port);
+	if (serial->num_interrupt_in)
+		usb_kill_urb(port->interrupt_in_urb);
 }
 
 static int ark3116_open(struct tty_struct *tty, struct usb_serial_port *port)
@@ -405,31 +401,10 @@ err_out:
 	return result;
 }
 
-static int ark3116_get_icount(struct tty_struct *tty,
-					struct serial_icounter_struct *icount)
-{
-	struct usb_serial_port *port = tty->driver_data;
-	struct ark3116_private *priv = usb_get_serial_port_data(port);
-	struct async_icount cnow = priv->icount;
-	icount->cts = cnow.cts;
-	icount->dsr = cnow.dsr;
-	icount->rng = cnow.rng;
-	icount->dcd = cnow.dcd;
-	icount->rx = cnow.rx;
-	icount->tx = cnow.tx;
-	icount->frame = cnow.frame;
-	icount->overrun = cnow.overrun;
-	icount->parity = cnow.parity;
-	icount->brk = cnow.brk;
-	icount->buf_overrun = cnow.buf_overrun;
-	return 0;
-}
-
 static int ark3116_ioctl(struct tty_struct *tty,
 			 unsigned int cmd, unsigned long arg)
 {
 	struct usb_serial_port *port = tty->driver_data;
-	struct ark3116_private *priv = usb_get_serial_port_data(port);
 	struct serial_struct serstruct;
 	void __user *user_arg = (void __user *)arg;
 
@@ -451,33 +426,6 @@ static int ark3116_ioctl(struct tty_struct *tty,
 		if (copy_from_user(&serstruct, user_arg, sizeof(serstruct)))
 			return -EFAULT;
 		return 0;
-	case TIOCMIWAIT:
-		for (;;) {
-			struct async_icount prev = priv->icount;
-			interruptible_sleep_on(&port->delta_msr_wait);
-			/* see if a signal did it */
-			if (signal_pending(current))
-				return -ERESTARTSYS;
-
-			if (port->serial->disconnected)
-				return -EIO;
-
-			if ((prev.rng == priv->icount.rng) &&
-			    (prev.dsr == priv->icount.dsr) &&
-			    (prev.dcd == priv->icount.dcd) &&
-			    (prev.cts == priv->icount.cts))
-				return -EIO;
-			if ((arg & TIOCM_RNG &&
-			     (prev.rng != priv->icount.rng)) ||
-			    (arg & TIOCM_DSR &&
-			     (prev.dsr != priv->icount.dsr)) ||
-			    (arg & TIOCM_CD  &&
-			     (prev.dcd != priv->icount.dcd)) ||
-			    (arg & TIOCM_CTS &&
-			     (prev.cts != priv->icount.cts)))
-				return 0;
-		}
-		break;
 	}
 
 	return -ENOIOCTLCMD;
@@ -575,14 +523,14 @@ static void ark3116_update_msr(struct usb_serial_port *port, __u8 msr)
 	if (msr & UART_MSR_ANY_DELTA) {
 		/* update input line counters */
 		if (msr & UART_MSR_DCTS)
-			priv->icount.cts++;
+			port->icount.cts++;
 		if (msr & UART_MSR_DDSR)
-			priv->icount.dsr++;
+			port->icount.dsr++;
 		if (msr & UART_MSR_DDCD)
-			priv->icount.dcd++;
+			port->icount.dcd++;
 		if (msr & UART_MSR_TERI)
-			priv->icount.rng++;
-		wake_up_interruptible(&port->delta_msr_wait);
+			port->icount.rng++;
+		wake_up_interruptible(&port->port.delta_msr_wait);
 	}
 }
 
@@ -598,13 +546,13 @@ static void ark3116_update_lsr(struct usb_serial_port *port, __u8 lsr)
 
 	if (lsr&UART_LSR_BRK_ERROR_BITS) {
 		if (lsr & UART_LSR_BI)
-			priv->icount.brk++;
+			port->icount.brk++;
 		if (lsr & UART_LSR_FE)
-			priv->icount.frame++;
+			port->icount.frame++;
 		if (lsr & UART_LSR_PE)
-			priv->icount.parity++;
+			port->icount.parity++;
 		if (lsr & UART_LSR_OE)
-			priv->icount.overrun++;
+			port->icount.overrun++;
 	}
 }
 
@@ -722,7 +670,8 @@ static struct usb_serial_driver ark3116_device = {
 	.ioctl =		ark3116_ioctl,
 	.tiocmget =		ark3116_tiocmget,
 	.tiocmset =		ark3116_tiocmset,
-	.get_icount =		ark3116_get_icount,
+	.tiocmiwait =		usb_serial_generic_tiocmiwait,
+	.get_icount =		usb_serial_generic_get_icount,
 	.open =			ark3116_open,
 	.close =		ark3116_close,
 	.break_ctl = 		ark3116_break_ctl,

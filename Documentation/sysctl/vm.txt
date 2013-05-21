@@ -18,6 +18,7 @@ files can be found in mm/swap.c.
 
 Currently, these files are in /proc/sys/vm:
 
+- admin_reserve_kbytes
 - block_dump
 - compact_memory
 - dirty_background_bytes
@@ -53,8 +54,38 @@ Currently, these files are in /proc/sys/vm:
 - percpu_pagelist_fraction
 - stat_interval
 - swappiness
+- user_reserve_kbytes
 - vfs_cache_pressure
 - zone_reclaim_mode
+
+==============================================================
+
+admin_reserve_kbytes
+
+The amount of free memory in the system that should be reserved for users
+with the capability cap_sys_admin.
+
+admin_reserve_kbytes defaults to min(3% of free pages, 8MB)
+
+That should provide enough for the admin to log in and kill a process,
+if necessary, under the default overcommit 'guess' mode.
+
+Systems running under overcommit 'never' should increase this to account
+for the full Virtual Memory Size of programs used to recover. Otherwise,
+root may not be able to log in to recover the system.
+
+How do you calculate a minimum useful reserve?
+
+sshd or login + bash (or some other shell) + top (or ps, kill, etc.)
+
+For overcommit 'guess', we can sum resident set sizes (RSS).
+On x86_64 this is about 8MB.
+
+For overcommit 'never', we can take the max of their virtual sizes (VSZ)
+and add the sum of their RSS.
+On x86_64 this is about 128MB.
+
+Changing this takes effect whenever an application requests memory.
 
 ==============================================================
 
@@ -542,6 +573,7 @@ memory until it actually runs out.
 
 When this flag is 2, the kernel uses a "never overcommit"
 policy that attempts to prevent any overcommit of memory.
+Note that user_reserve_kbytes affects this policy.
 
 This feature can be very useful because there are a lot of
 programs that malloc() huge amounts of memory "just-in-case"
@@ -642,6 +674,24 @@ memory pages.  Higher values will increase agressiveness, lower values
 decrease the amount of swap.
 
 The default value is 60.
+
+==============================================================
+
+- user_reserve_kbytes
+
+When overcommit_memory is set to 2, "never overommit" mode, reserve
+min(3% of current process size, user_reserve_kbytes) of free memory.
+This is intended to prevent a user from starting a single memory hogging
+process, such that they cannot recover (kill the hog).
+
+user_reserve_kbytes defaults to min(3% of the current process size, 128MB).
+
+If this is reduced to zero, then the user will be allowed to allocate
+all free memory with a single process, minus admin_reserve_kbytes.
+Any subsequent attempts to execute a command will result in
+"fork: Cannot allocate memory".
+
+Changing this takes effect whenever an application requests memory.
 
 ==============================================================
 

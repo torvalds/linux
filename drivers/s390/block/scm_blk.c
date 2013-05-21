@@ -123,10 +123,9 @@ static int scm_open(struct block_device *blkdev, fmode_t mode)
 	return scm_get_ref();
 }
 
-static int scm_release(struct gendisk *gendisk, fmode_t mode)
+static void scm_release(struct gendisk *gendisk, fmode_t mode)
 {
 	scm_put_ref();
-	return 0;
 }
 
 static const struct block_device_operations scm_blk_devops = {
@@ -307,7 +306,7 @@ static void scm_blk_handle_error(struct scm_request *scmrq)
 	case EQC_WR_PROHIBIT:
 		spin_lock_irqsave(&bdev->lock, flags);
 		if (bdev->state != SCM_WR_PROHIBIT)
-			pr_info("%lu: Write access to the SCM increment is suspended\n",
+			pr_info("%lx: Write access to the SCM increment is suspended\n",
 				(unsigned long) bdev->scmdev->address);
 		bdev->state = SCM_WR_PROHIBIT;
 		spin_unlock_irqrestore(&bdev->lock, flags);
@@ -445,7 +444,7 @@ void scm_blk_set_available(struct scm_blk_dev *bdev)
 
 	spin_lock_irqsave(&bdev->lock, flags);
 	if (bdev->state == SCM_WR_PROHIBIT)
-		pr_info("%lu: Write access to the SCM increment is restored\n",
+		pr_info("%lx: Write access to the SCM increment is restored\n",
 			(unsigned long) bdev->scmdev->address);
 	bdev->state = SCM_OPER;
 	spin_unlock_irqrestore(&bdev->lock, flags);
@@ -463,12 +462,15 @@ static int __init scm_blk_init(void)
 		goto out;
 
 	scm_major = ret;
-	if (scm_alloc_rqs(nr_requests))
-		goto out_unreg;
+	ret = scm_alloc_rqs(nr_requests);
+	if (ret)
+		goto out_free;
 
 	scm_debug = debug_register("scm_log", 16, 1, 16);
-	if (!scm_debug)
+	if (!scm_debug) {
+		ret = -ENOMEM;
 		goto out_free;
+	}
 
 	debug_register_view(scm_debug, &debug_hex_ascii_view);
 	debug_set_level(scm_debug, 2);
@@ -483,7 +485,6 @@ out_dbf:
 	debug_unregister(scm_debug);
 out_free:
 	scm_free_rqs();
-out_unreg:
 	unregister_blkdev(scm_major, "scm");
 out:
 	return ret;

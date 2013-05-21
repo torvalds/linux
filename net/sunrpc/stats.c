@@ -64,7 +64,7 @@ static int rpc_proc_show(struct seq_file *seq, void *v) {
 
 static int rpc_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, rpc_proc_show, PDE(inode)->data);
+	return single_open(file, rpc_proc_show, PDE_DATA(inode));
 }
 
 static const struct file_operations rpc_proc_fops = {

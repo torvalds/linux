@@ -471,7 +471,7 @@ static int ocfs2_validate_and_adjust_move_goal(struct inode *inode,
 	int ret, goal_bit = 0;
 
 	struct buffer_head *gd_bh = NULL;
-	struct ocfs2_group_desc *bg = NULL;
+	struct ocfs2_group_desc *bg;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	int c_to_b = 1 << (osb->s_clustersize_bits -
 					inode->i_sb->s_blocksize_bits);
@@ -481,13 +481,6 @@ static int ocfs2_validate_and_adjust_move_goal(struct inode *inode,
 	 */
 	range->me_goal = ocfs2_block_to_cluster_start(inode->i_sb,
 						      range->me_goal);
-	/*
-	 * moving goal is not allowd to start with a group desc blok(#0 blk)
-	 * let's compromise to the latter cluster.
-	 */
-	if (range->me_goal == le64_to_cpu(bg->bg_blkno))
-		range->me_goal += c_to_b;
-
 	/*
 	 * validate goal sits within global_bitmap, and return the victim
 	 * group desc
@@ -500,6 +493,13 @@ static int ocfs2_validate_and_adjust_move_goal(struct inode *inode,
 		goto out;
 
 	bg = (struct ocfs2_group_desc *)gd_bh->b_data;
+
+	/*
+	 * moving goal is not allowd to start with a group desc blok(#0 blk)
+	 * let's compromise to the latter cluster.
+	 */
+	if (range->me_goal == le64_to_cpu(bg->bg_blkno))
+		range->me_goal += c_to_b;
 
 	/*
 	 * movement is not gonna cross two groups.
@@ -1057,42 +1057,40 @@ int ocfs2_ioctl_move_extents(struct file *filp, void __user *argp)
 
 	struct inode *inode = file_inode(filp);
 	struct ocfs2_move_extents range;
-	struct ocfs2_move_extents_context *context = NULL;
+	struct ocfs2_move_extents_context *context;
+
+	if (!argp)
+		return -EINVAL;
 
 	status = mnt_want_write_file(filp);
 	if (status)
 		return status;
 
 	if ((!S_ISREG(inode->i_mode)) || !(filp->f_mode & FMODE_WRITE))
-		goto out;
+		goto out_drop;
 
 	if (inode->i_flags & (S_IMMUTABLE|S_APPEND)) {
 		status = -EPERM;
-		goto out;
+		goto out_drop;
 	}
 
 	context = kzalloc(sizeof(struct ocfs2_move_extents_context), GFP_NOFS);
 	if (!context) {
 		status = -ENOMEM;
 		mlog_errno(status);
-		goto out;
+		goto out_drop;
 	}
 
 	context->inode = inode;
 	context->file = filp;
 
-	if (argp) {
-		if (copy_from_user(&range, argp, sizeof(range))) {
-			status = -EFAULT;
-			goto out;
-		}
-	} else {
-		status = -EINVAL;
-		goto out;
+	if (copy_from_user(&range, argp, sizeof(range))) {
+		status = -EFAULT;
+		goto out_free;
 	}
 
 	if (range.me_start > i_size_read(inode))
-		goto out;
+		goto out_free;
 
 	if (range.me_start + range.me_len > i_size_read(inode))
 			range.me_len = i_size_read(inode) - range.me_start;
@@ -1124,25 +1122,24 @@ int ocfs2_ioctl_move_extents(struct file *filp, void __user *argp)
 
 		status = ocfs2_validate_and_adjust_move_goal(inode, &range);
 		if (status)
-			goto out;
+			goto out_copy;
 	}
 
 	status = ocfs2_move_extents(context);
 	if (status)
 		mlog_errno(status);
-out:
+out_copy:
 	/*
 	 * movement/defragmentation may end up being partially completed,
 	 * that's the reason why we need to return userspace the finished
 	 * length and new_offset even if failure happens somewhere.
 	 */
-	if (argp) {
-		if (copy_to_user(argp, &range, sizeof(range)))
-			status = -EFAULT;
-	}
+	if (copy_to_user(argp, &range, sizeof(range)))
+		status = -EFAULT;
 
+out_free:
 	kfree(context);
-
+out_drop:
 	mnt_drop_write_file(filp);
 
 	return status;

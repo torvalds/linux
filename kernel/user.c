@@ -16,7 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/export.h>
 #include <linux/user_namespace.h>
-#include <linux/proc_fs.h>
+#include <linux/proc_ns.h>
 
 /*
  * userns count is 1 for root user, 1 for init_uts_ns,

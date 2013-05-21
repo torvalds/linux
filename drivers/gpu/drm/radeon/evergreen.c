@@ -53,6 +53,864 @@ void evergreen_pcie_gen2_enable(struct radeon_device *rdev);
 extern void cayman_cp_int_cntl_setup(struct radeon_device *rdev,
 				     int ring, u32 cp_int_cntl);
 
+static const u32 evergreen_golden_registers[] =
+{
+	0x3f90, 0xffff0000, 0xff000000,
+	0x9148, 0xffff0000, 0xff000000,
+	0x3f94, 0xffff0000, 0xff000000,
+	0x914c, 0xffff0000, 0xff000000,
+	0x9b7c, 0xffffffff, 0x00000000,
+	0x8a14, 0xffffffff, 0x00000007,
+	0x8b10, 0xffffffff, 0x00000000,
+	0x960c, 0xffffffff, 0x54763210,
+	0x88c4, 0xffffffff, 0x000000c2,
+	0x88d4, 0xffffffff, 0x00000010,
+	0x8974, 0xffffffff, 0x00000000,
+	0xc78, 0x00000080, 0x00000080,
+	0x5eb4, 0xffffffff, 0x00000002,
+	0x5e78, 0xffffffff, 0x001000f0,
+	0x6104, 0x01000300, 0x00000000,
+	0x5bc0, 0x00300000, 0x00000000,
+	0x7030, 0xffffffff, 0x00000011,
+	0x7c30, 0xffffffff, 0x00000011,
+	0x10830, 0xffffffff, 0x00000011,
+	0x11430, 0xffffffff, 0x00000011,
+	0x12030, 0xffffffff, 0x00000011,
+	0x12c30, 0xffffffff, 0x00000011,
+	0xd02c, 0xffffffff, 0x08421000,
+	0x240c, 0xffffffff, 0x00000380,
+	0x8b24, 0xffffffff, 0x00ff0fff,
+	0x28a4c, 0x06000000, 0x06000000,
+	0x10c, 0x00000001, 0x00000001,
+	0x8d00, 0xffffffff, 0x100e4848,
+	0x8d04, 0xffffffff, 0x00164745,
+	0x8c00, 0xffffffff, 0xe4000003,
+	0x8c04, 0xffffffff, 0x40600060,
+	0x8c08, 0xffffffff, 0x001c001c,
+	0x8cf0, 0xffffffff, 0x08e00620,
+	0x8c20, 0xffffffff, 0x00800080,
+	0x8c24, 0xffffffff, 0x00800080,
+	0x8c18, 0xffffffff, 0x20202078,
+	0x8c1c, 0xffffffff, 0x00001010,
+	0x28350, 0xffffffff, 0x00000000,
+	0xa008, 0xffffffff, 0x00010000,
+	0x5cc, 0xffffffff, 0x00000001,
+	0x9508, 0xffffffff, 0x00000002,
+	0x913c, 0x0000000f, 0x0000000a
+};
+
+static const u32 evergreen_golden_registers2[] =
+{
+	0x2f4c, 0xffffffff, 0x00000000,
+	0x54f4, 0xffffffff, 0x00000000,
+	0x54f0, 0xffffffff, 0x00000000,
+	0x5498, 0xffffffff, 0x00000000,
+	0x549c, 0xffffffff, 0x00000000,
+	0x5494, 0xffffffff, 0x00000000,
+	0x53cc, 0xffffffff, 0x00000000,
+	0x53c8, 0xffffffff, 0x00000000,
+	0x53c4, 0xffffffff, 0x00000000,
+	0x53c0, 0xffffffff, 0x00000000,
+	0x53bc, 0xffffffff, 0x00000000,
+	0x53b8, 0xffffffff, 0x00000000,
+	0x53b4, 0xffffffff, 0x00000000,
+	0x53b0, 0xffffffff, 0x00000000
+};
+
+static const u32 cypress_mgcg_init[] =
+{
+	0x802c, 0xffffffff, 0xc0000000,
+	0x5448, 0xffffffff, 0x00000100,
+	0x55e4, 0xffffffff, 0x00000100,
+	0x160c, 0xffffffff, 0x00000100,
+	0x5644, 0xffffffff, 0x00000100,
+	0xc164, 0xffffffff, 0x00000100,
+	0x8a18, 0xffffffff, 0x00000100,
+	0x897c, 0xffffffff, 0x06000100,
+	0x8b28, 0xffffffff, 0x00000100,
+	0x9144, 0xffffffff, 0x00000100,
+	0x9a60, 0xffffffff, 0x00000100,
+	0x9868, 0xffffffff, 0x00000100,
+	0x8d58, 0xffffffff, 0x00000100,
+	0x9510, 0xffffffff, 0x00000100,
+	0x949c, 0xffffffff, 0x00000100,
+	0x9654, 0xffffffff, 0x00000100,
+	0x9030, 0xffffffff, 0x00000100,
+	0x9034, 0xffffffff, 0x00000100,
+	0x9038, 0xffffffff, 0x00000100,
+	0x903c, 0xffffffff, 0x00000100,
+	0x9040, 0xffffffff, 0x00000100,
+	0xa200, 0xffffffff, 0x00000100,
+	0xa204, 0xffffffff, 0x00000100,
+	0xa208, 0xffffffff, 0x00000100,
+	0xa20c, 0xffffffff, 0x00000100,
+	0x971c, 0xffffffff, 0x00000100,
+	0x977c, 0xffffffff, 0x00000100,
+	0x3f80, 0xffffffff, 0x00000100,
+	0xa210, 0xffffffff, 0x00000100,
+	0xa214, 0xffffffff, 0x00000100,
+	0x4d8, 0xffffffff, 0x00000100,
+	0x9784, 0xffffffff, 0x00000100,
+	0x9698, 0xffffffff, 0x00000100,
+	0x4d4, 0xffffffff, 0x00000200,
+	0x30cc, 0xffffffff, 0x00000100,
+	0xd0c0, 0xffffffff, 0xff000100,
+	0x802c, 0xffffffff, 0x40000000,
+	0x915c, 0xffffffff, 0x00010000,
+	0x9160, 0xffffffff, 0x00030002,
+	0x9178, 0xffffffff, 0x00070000,
+	0x917c, 0xffffffff, 0x00030002,
+	0x9180, 0xffffffff, 0x00050004,
+	0x918c, 0xffffffff, 0x00010006,
+	0x9190, 0xffffffff, 0x00090008,
+	0x9194, 0xffffffff, 0x00070000,
+	0x9198, 0xffffffff, 0x00030002,
+	0x919c, 0xffffffff, 0x00050004,
+	0x91a8, 0xffffffff, 0x00010006,
+	0x91ac, 0xffffffff, 0x00090008,
+	0x91b0, 0xffffffff, 0x00070000,
+	0x91b4, 0xffffffff, 0x00030002,
+	0x91b8, 0xffffffff, 0x00050004,
+	0x91c4, 0xffffffff, 0x00010006,
+	0x91c8, 0xffffffff, 0x00090008,
+	0x91cc, 0xffffffff, 0x00070000,
+	0x91d0, 0xffffffff, 0x00030002,
+	0x91d4, 0xffffffff, 0x00050004,
+	0x91e0, 0xffffffff, 0x00010006,
+	0x91e4, 0xffffffff, 0x00090008,
+	0x91e8, 0xffffffff, 0x00000000,
+	0x91ec, 0xffffffff, 0x00070000,
+	0x91f0, 0xffffffff, 0x00030002,
+	0x91f4, 0xffffffff, 0x00050004,
+	0x9200, 0xffffffff, 0x00010006,
+	0x9204, 0xffffffff, 0x00090008,
+	0x9208, 0xffffffff, 0x00070000,
+	0x920c, 0xffffffff, 0x00030002,
+	0x9210, 0xffffffff, 0x00050004,
+	0x921c, 0xffffffff, 0x00010006,
+	0x9220, 0xffffffff, 0x00090008,
+	0x9224, 0xffffffff, 0x00070000,
+	0x9228, 0xffffffff, 0x00030002,
+	0x922c, 0xffffffff, 0x00050004,
+	0x9238, 0xffffffff, 0x00010006,
+	0x923c, 0xffffffff, 0x00090008,
+	0x9240, 0xffffffff, 0x00070000,
+	0x9244, 0xffffffff, 0x00030002,
+	0x9248, 0xffffffff, 0x00050004,
+	0x9254, 0xffffffff, 0x00010006,
+	0x9258, 0xffffffff, 0x00090008,
+	0x925c, 0xffffffff, 0x00070000,
+	0x9260, 0xffffffff, 0x00030002,
+	0x9264, 0xffffffff, 0x00050004,
+	0x9270, 0xffffffff, 0x00010006,
+	0x9274, 0xffffffff, 0x00090008,
+	0x9278, 0xffffffff, 0x00070000,
+	0x927c, 0xffffffff, 0x00030002,
+	0x9280, 0xffffffff, 0x00050004,
+	0x928c, 0xffffffff, 0x00010006,
+	0x9290, 0xffffffff, 0x00090008,
+	0x9294, 0xffffffff, 0x00000000,
+	0x929c, 0xffffffff, 0x00000001,
+	0x802c, 0xffffffff, 0x40010000,
+	0x915c, 0xffffffff, 0x00010000,
+	0x9160, 0xffffffff, 0x00030002,
+	0x9178, 0xffffffff, 0x00070000,
+	0x917c, 0xffffffff, 0x00030002,
+	0x9180, 0xffffffff, 0x00050004,
+	0x918c, 0xffffffff, 0x00010006,
+	0x9190, 0xffffffff, 0x00090008,
+	0x9194, 0xffffffff, 0x00070000,
+	0x9198, 0xffffffff, 0x00030002,
+	0x919c, 0xffffffff, 0x00050004,
+	0x91a8, 0xffffffff, 0x00010006,
+	0x91ac, 0xffffffff, 0x00090008,
+	0x91b0, 0xffffffff, 0x00070000,
+	0x91b4, 0xffffffff, 0x00030002,
+	0x91b8, 0xffffffff, 0x00050004,
+	0x91c4, 0xffffffff, 0x00010006,
+	0x91c8, 0xffffffff, 0x00090008,
+	0x91cc, 0xffffffff, 0x00070000,
+	0x91d0, 0xffffffff, 0x00030002,
+	0x91d4, 0xffffffff, 0x00050004,
+	0x91e0, 0xffffffff, 0x00010006,
+	0x91e4, 0xffffffff, 0x00090008,
+	0x91e8, 0xffffffff, 0x00000000,
+	0x91ec, 0xffffffff, 0x00070000,
+	0x91f0, 0xffffffff, 0x00030002,
+	0x91f4, 0xffffffff, 0x00050004,
+	0x9200, 0xffffffff, 0x00010006,
+	0x9204, 0xffffffff, 0x00090008,
+	0x9208, 0xffffffff, 0x00070000,
+	0x920c, 0xffffffff, 0x00030002,
+	0x9210, 0xffffffff, 0x00050004,
+	0x921c, 0xffffffff, 0x00010006,
+	0x9220, 0xffffffff, 0x00090008,
+	0x9224, 0xffffffff, 0x00070000,
+	0x9228, 0xffffffff, 0x00030002,
+	0x922c, 0xffffffff, 0x00050004,
+	0x9238, 0xffffffff, 0x00010006,
+	0x923c, 0xffffffff, 0x00090008,
+	0x9240, 0xffffffff, 0x00070000,
+	0x9244, 0xffffffff, 0x00030002,
+	0x9248, 0xffffffff, 0x00050004,
+	0x9254, 0xffffffff, 0x00010006,
+	0x9258, 0xffffffff, 0x00090008,
+	0x925c, 0xffffffff, 0x00070000,
+	0x9260, 0xffffffff, 0x00030002,
+	0x9264, 0xffffffff, 0x00050004,
+	0x9270, 0xffffffff, 0x00010006,
+	0x9274, 0xffffffff, 0x00090008,
+	0x9278, 0xffffffff, 0x00070000,
+	0x927c, 0xffffffff, 0x00030002,
+	0x9280, 0xffffffff, 0x00050004,
+	0x928c, 0xffffffff, 0x00010006,
+	0x9290, 0xffffffff, 0x00090008,
+	0x9294, 0xffffffff, 0x00000000,
+	0x929c, 0xffffffff, 0x00000001,
+	0x802c, 0xffffffff, 0xc0000000
+};
+
+static const u32 redwood_mgcg_init[] =
+{
+	0x802c, 0xffffffff, 0xc0000000,
+	0x5448, 0xffffffff, 0x00000100,
+	0x55e4, 0xffffffff, 0x00000100,
+	0x160c, 0xffffffff, 0x00000100,
+	0x5644, 0xffffffff, 0x00000100,
+	0xc164, 0xffffffff, 0x00000100,
+	0x8a18, 0xffffffff, 0x00000100,
+	0x897c, 0xffffffff, 0x06000100,
+	0x8b28, 0xffffffff, 0x00000100,
+	0x9144, 0xffffffff, 0x00000100,
+	0x9a60, 0xffffffff, 0x00000100,
+	0x9868, 0xffffffff, 0x00000100,
+	0x8d58, 0xffffffff, 0x00000100,
+	0x9510, 0xffffffff, 0x00000100,
+	0x949c, 0xffffffff, 0x00000100,
+	0x9654, 0xffffffff, 0x00000100,
+	0x9030, 0xffffffff, 0x00000100,
+	0x9034, 0xffffffff, 0x00000100,
+	0x9038, 0xffffffff, 0x00000100,
+	0x903c, 0xffffffff, 0x00000100,
+	0x9040, 0xffffffff, 0x00000100,
+	0xa200, 0xffffffff, 0x00000100,
+	0xa204, 0xffffffff, 0x00000100,
+	0xa208, 0xffffffff, 0x00000100,
+	0xa20c, 0xffffffff, 0x00000100,
+	0x971c, 0xffffffff, 0x00000100,
+	0x977c, 0xffffffff, 0x00000100,
+	0x3f80, 0xffffffff, 0x00000100,
+	0xa210, 0xffffffff, 0x00000100,
+	0xa214, 0xffffffff, 0x00000100,
+	0x4d8, 0xffffffff, 0x00000100,
+	0x9784, 0xffffffff, 0x00000100,
+	0x9698, 0xffffffff, 0x00000100,
+	0x4d4, 0xffffffff, 0x00000200,
+	0x30cc, 0xffffffff, 0x00000100,
+	0xd0c0, 0xffffffff, 0xff000100,
+	0x802c, 0xffffffff, 0x40000000,
+	0x915c, 0xffffffff, 0x00010000,
+	0x9160, 0xffffffff, 0x00030002,
+	0x9178, 0xffffffff, 0x00070000,
+	0x917c, 0xffffffff, 0x00030002,
+	0x9180, 0xffffffff, 0x00050004,
+	0x918c, 0xffffffff, 0x00010006,
+	0x9190, 0xffffffff, 0x00090008,
+	0x9194, 0xffffffff, 0x00070000,
+	0x9198, 0xffffffff, 0x00030002,
+	0x919c, 0xffffffff, 0x00050004,
+	0x91a8, 0xffffffff, 0x00010006,
+	0x91ac, 0xffffffff, 0x00090008,
+	0x91b0, 0xffffffff, 0x00070000,
+	0x91b4, 0xffffffff, 0x00030002,
+	0x91b8, 0xffffffff, 0x00050004,
+	0x91c4, 0xffffffff, 0x00010006,
+	0x91c8, 0xffffffff, 0x00090008,
+	0x91cc, 0xffffffff, 0x00070000,
+	0x91d0, 0xffffffff, 0x00030002,
+	0x91d4, 0xffffffff, 0x00050004,
+	0x91e0, 0xffffffff, 0x00010006,
+	0x91e4, 0xffffffff, 0x00090008,
+	0x91e8, 0xffffffff, 0x00000000,
+	0x91ec, 0xffffffff, 0x00070000,
+	0x91f0, 0xffffffff, 0x00030002,
+	0x91f4, 0xffffffff, 0x00050004,
+	0x9200, 0xffffffff, 0x00010006,
+	0x9204, 0xffffffff, 0x00090008,
+	0x9294, 0xffffffff, 0x00000000,
+	0x929c, 0xffffffff, 0x00000001,
+	0x802c, 0xffffffff, 0xc0000000
+};
+
+static const u32 cedar_golden_registers[] =
+{
+	0x3f90, 0xffff0000, 0xff000000,
+	0x9148, 0xffff0000, 0xff000000,
+	0x3f94, 0xffff0000, 0xff000000,
+	0x914c, 0xffff0000, 0xff000000,
+	0x9b7c, 0xffffffff, 0x00000000,
+	0x8a14, 0xffffffff, 0x00000007,
+	0x8b10, 0xffffffff, 0x00000000,
+	0x960c, 0xffffffff, 0x54763210,
+	0x88c4, 0xffffffff, 0x000000c2,
+	0x88d4, 0xffffffff, 0x00000000,
+	0x8974, 0xffffffff, 0x00000000,
+	0xc78, 0x00000080, 0x00000080,
+	0x5eb4, 0xffffffff, 0x00000002,
+	0x5e78, 0xffffffff, 0x001000f0,
+	0x6104, 0x01000300, 0x00000000,
+	0x5bc0, 0x00300000, 0x00000000,
+	0x7030, 0xffffffff, 0x00000011,
+	0x7c30, 0xffffffff, 0x00000011,
+	0x10830, 0xffffffff, 0x00000011,
+	0x11430, 0xffffffff, 0x00000011,
+	0xd02c, 0xffffffff, 0x08421000,
+	0x240c, 0xffffffff, 0x00000380,
+	0x8b24, 0xffffffff, 0x00ff0fff,
+	0x28a4c, 0x06000000, 0x06000000,
+	0x10c, 0x00000001, 0x00000001,
+	0x8d00, 0xffffffff, 0x100e4848,
+	0x8d04, 0xffffffff, 0x00164745,
+	0x8c00, 0xffffffff, 0xe4000003,
+	0x8c04, 0xffffffff, 0x40600060,
+	0x8c08, 0xffffffff, 0x001c001c,
+	0x8cf0, 0xffffffff, 0x08e00410,
+	0x8c20, 0xffffffff, 0x00800080,
+	0x8c24, 0xffffffff, 0x00800080,
+	0x8c18, 0xffffffff, 0x20202078,
+	0x8c1c, 0xffffffff, 0x00001010,
+	0x28350, 0xffffffff, 0x00000000,
+	0xa008, 0xffffffff, 0x00010000,
+	0x5cc, 0xffffffff, 0x00000001,
+	0x9508, 0xffffffff, 0x00000002
+};
+
+static const u32 cedar_mgcg_init[] =
+{
+	0x802c, 0xffffffff, 0xc0000000,
+	0x5448, 0xffffffff, 0x00000100,
+	0x55e4, 0xffffffff, 0x00000100,
+	0x160c, 0xffffffff, 0x00000100,
+	0x5644, 0xffffffff, 0x00000100,
+	0xc164, 0xffffffff, 0x00000100,
+	0x8a18, 0xffffffff, 0x00000100,
+	0x897c, 0xffffffff, 0x06000100,
+	0x8b28, 0xffffffff, 0x00000100,
+	0x9144, 0xffffffff, 0x00000100,
+	0x9a60, 0xffffffff, 0x00000100,
+	0x9868, 0xffffffff, 0x00000100,
+	0x8d58, 0xffffffff, 0x00000100,
+	0x9510, 0xffffffff, 0x00000100,
+	0x949c, 0xffffffff, 0x00000100,
+	0x9654, 0xffffffff, 0x00000100,
+	0x9030, 0xffffffff, 0x00000100,
+	0x9034, 0xffffffff, 0x00000100,
+	0x9038, 0xffffffff, 0x00000100,
+	0x903c, 0xffffffff, 0x00000100,
+	0x9040, 0xffffffff, 0x00000100,
+	0xa200, 0xffffffff, 0x00000100,
+	0xa204, 0xffffffff, 0x00000100,
+	0xa208, 0xffffffff, 0x00000100,
+	0xa20c, 0xffffffff, 0x00000100,
+	0x971c, 0xffffffff, 0x00000100,
+	0x977c, 0xffffffff, 0x00000100,
+	0x3f80, 0xffffffff, 0x00000100,
+	0xa210, 0xffffffff, 0x00000100,
+	0xa214, 0xffffffff, 0x00000100,
+	0x4d8, 0xffffffff, 0x00000100,
+	0x9784, 0xffffffff, 0x00000100,
+	0x9698, 0xffffffff, 0x00000100,
+	0x4d4, 0xffffffff, 0x00000200,
+	0x30cc, 0xffffffff, 0x00000100,
+	0xd0c0, 0xffffffff, 0xff000100,
+	0x802c, 0xffffffff, 0x40000000,
+	0x915c, 0xffffffff, 0x00010000,
+	0x9178, 0xffffffff, 0x00050000,
+	0x917c, 0xffffffff, 0x00030002,
+	0x918c, 0xffffffff, 0x00010004,
+	0x9190, 0xffffffff, 0x00070006,
+	0x9194, 0xffffffff, 0x00050000,
+	0x9198, 0xffffffff, 0x00030002,
+	0x91a8, 0xffffffff, 0x00010004,
+	0x91ac, 0xffffffff, 0x00070006,
+	0x91e8, 0xffffffff, 0x00000000,
+	0x9294, 0xffffffff, 0x00000000,
+	0x929c, 0xffffffff, 0x00000001,
+	0x802c, 0xffffffff, 0xc0000000
+};
+
+static const u32 juniper_mgcg_init[] =
+{
+	0x802c, 0xffffffff, 0xc0000000,
+	0x5448, 0xffffffff, 0x00000100,
+	0x55e4, 0xffffffff, 0x00000100,
+	0x160c, 0xffffffff, 0x00000100,
+	0x5644, 0xffffffff, 0x00000100,
+	0xc164, 0xffffffff, 0x00000100,
+	0x8a18, 0xffffffff, 0x00000100,
+	0x897c, 0xffffffff, 0x06000100,
+	0x8b28, 0xffffffff, 0x00000100,
+	0x9144, 0xffffffff, 0x00000100,
+	0x9a60, 0xffffffff, 0x00000100,
+	0x9868, 0xffffffff, 0x00000100,
+	0x8d58, 0xffffffff, 0x00000100,
+	0x9510, 0xffffffff, 0x00000100,
+	0x949c, 0xffffffff, 0x00000100,
+	0x9654, 0xffffffff, 0x00000100,
+	0x9030, 0xffffffff, 0x00000100,
+	0x9034, 0xffffffff, 0x00000100,
+	0x9038, 0xffffffff, 0x00000100,
+	0x903c, 0xffffffff, 0x00000100,
+	0x9040, 0xffffffff, 0x00000100,
+	0xa200, 0xffffffff, 0x00000100,
+	0xa204, 0xffffffff, 0x00000100,
+	0xa208, 0xffffffff, 0x00000100,
+	0xa20c, 0xffffffff, 0x00000100,
+	0x971c, 0xffffffff, 0x00000100,
+	0xd0c0, 0xffffffff, 0xff000100,
+	0x802c, 0xffffffff, 0x40000000,
+	0x915c, 0xffffffff, 0x00010000,
+	0x9160, 0xffffffff, 0x00030002,
+	0x9178, 0xffffffff, 0x00070000,
+	0x917c, 0xffffffff, 0x00030002,
+	0x9180, 0xffffffff, 0x00050004,
+	0x918c, 0xffffffff, 0x00010006,
+	0x9190, 0xffffffff, 0x00090008,
+	0x9194, 0xffffffff, 0x00070000,
+	0x9198, 0xffffffff, 0x00030002,
+	0x919c, 0xffffffff, 0x00050004,
+	0x91a8, 0xffffffff, 0x00010006,
+	0x91ac, 0xffffffff, 0x00090008,
+	0x91b0, 0xffffffff, 0x00070000,
+	0x91b4, 0xffffffff, 0x00030002,
+	0x91b8, 0xffffffff, 0x00050004,
+	0x91c4, 0xffffffff, 0x00010006,
+	0x91c8, 0xffffffff, 0x00090008,
+	0x91cc, 0xffffffff, 0x00070000,
+	0x91d0, 0xffffffff, 0x00030002,
+	0x91d4, 0xffffffff, 0x00050004,
+	0x91e0, 0xffffffff, 0x00010006,
+	0x91e4, 0xffffffff, 0x00090008,
+	0x91e8, 0xffffffff, 0x00000000,
+	0x91ec, 0xffffffff, 0x00070000,
+	0x91f0, 0xffffffff, 0x00030002,
+	0x91f4, 0xffffffff, 0x00050004,
+	0x9200, 0xffffffff, 0x00010006,
+	0x9204, 0xffffffff, 0x00090008,
+	0x9208, 0xffffffff, 0x00070000,
+	0x920c, 0xffffffff, 0x00030002,
+	0x9210, 0xffffffff, 0x00050004,
+	0x921c, 0xffffffff, 0x00010006,
+	0x9220, 0xffffffff, 0x00090008,
+	0x9224, 0xffffffff, 0x00070000,
+	0x9228, 0xffffffff, 0x00030002,
+	0x922c, 0xffffffff, 0x00050004,
+	0x9238, 0xffffffff, 0x00010006,
+	0x923c, 0xffffffff, 0x00090008,
+	0x9240, 0xffffffff, 0x00070000,
+	0x9244, 0xffffffff, 0x00030002,
+	0x9248, 0xffffffff, 0x00050004,
+	0x9254, 0xffffffff, 0x00010006,
+	0x9258, 0xffffffff, 0x00090008,
+	0x925c, 0xffffffff, 0x00070000,
+	0x9260, 0xffffffff, 0x00030002,
+	0x9264, 0xffffffff, 0x00050004,
+	0x9270, 0xffffffff, 0x00010006,
+	0x9274, 0xffffffff, 0x00090008,
+	0x9278, 0xffffffff, 0x00070000,
+	0x927c, 0xffffffff, 0x00030002,
+	0x9280, 0xffffffff, 0x00050004,
+	0x928c, 0xffffffff, 0x00010006,
+	0x9290, 0xffffffff, 0x00090008,
+	0x9294, 0xffffffff, 0x00000000,
+	0x929c, 0xffffffff, 0x00000001,
+	0x802c, 0xffffffff, 0xc0000000,
+	0x977c, 0xffffffff, 0x00000100,
+	0x3f80, 0xffffffff, 0x00000100,
+	0xa210, 0xffffffff, 0x00000100,
+	0xa214, 0xffffffff, 0x00000100,
+	0x4d8, 0xffffffff, 0x00000100,
+	0x9784, 0xffffffff, 0x00000100,
+	0x9698, 0xffffffff, 0x00000100,
+	0x4d4, 0xffffffff, 0x00000200,
+	0x30cc, 0xffffffff, 0x00000100,
+	0x802c, 0xffffffff, 0xc0000000
+};
+
+static const u32 supersumo_golden_registers[] =
+{
+	0x5eb4, 0xffffffff, 0x00000002,
+	0x5cc, 0xffffffff, 0x00000001,
+	0x7030, 0xffffffff, 0x00000011,
+	0x7c30, 0xffffffff, 0x00000011,
+	0x6104, 0x01000300, 0x00000000,
+	0x5bc0, 0x00300000, 0x00000000,
+	0x8c04, 0xffffffff, 0x40600060,
+	0x8c08, 0xffffffff, 0x001c001c,
+	0x8c20, 0xffffffff, 0x00800080,
+	0x8c24, 0xffffffff, 0x00800080,
+	0x8c18, 0xffffffff, 0x20202078,
+	0x8c1c, 0xffffffff, 0x00001010,
+	0x918c, 0xffffffff, 0x00010006,
+	0x91a8, 0xffffffff, 0x00010006,
+	0x91c4, 0xffffffff, 0x00010006,
+	0x91e0, 0xffffffff, 0x00010006,
+	0x9200, 0xffffffff, 0x00010006,
+	0x9150, 0xffffffff, 0x6e944040,
+	0x917c, 0xffffffff, 0x00030002,
+	0x9180, 0xffffffff, 0x00050004,
+	0x9198, 0xffffffff, 0x00030002,
+	0x919c, 0xffffffff, 0x00050004,
+	0x91b4, 0xffffffff, 0x00030002,
+	0x91b8, 0xffffffff, 0x00050004,
+	0x91d0, 0xffffffff, 0x00030002,
+	0x91d4, 0xffffffff, 0x00050004,
+	0x91f0, 0xffffffff, 0x00030002,
+	0x91f4, 0xffffffff, 0x00050004,
+	0x915c, 0xffffffff, 0x00010000,
+	0x9160, 0xffffffff, 0x00030002,
+	0x3f90, 0xffff0000, 0xff000000,
+	0x9178, 0xffffffff, 0x00070000,
+	0x9194, 0xffffffff, 0x00070000,
+	0x91b0, 0xffffffff, 0x00070000,
+	0x91cc, 0xffffffff, 0x00070000,
+	0x91ec, 0xffffffff, 0x00070000,
+	0x9148, 0xffff0000, 0xff000000,
+	0x9190, 0xffffffff, 0x00090008,
+	0x91ac, 0xffffffff, 0x00090008,
+	0x91c8, 0xffffffff, 0x00090008,
+	0x91e4, 0xffffffff, 0x00090008,
+	0x9204, 0xffffffff, 0x00090008,
+	0x3f94, 0xffff0000, 0xff000000,
+	0x914c, 0xffff0000, 0xff000000,
+	0x929c, 0xffffffff, 0x00000001,
+	0x8a18, 0xffffffff, 0x00000100,
+	0x8b28, 0xffffffff, 0x00000100,
+	0x9144, 0xffffffff, 0x00000100,
+	0x5644, 0xffffffff, 0x00000100,
+	0x9b7c, 0xffffffff, 0x00000000,
+	0x8030, 0xffffffff, 0x0000100a,
+	0x8a14, 0xffffffff, 0x00000007,
+	0x8b24, 0xffffffff, 0x00ff0fff,
+	0x8b10, 0xffffffff, 0x00000000,
+	0x28a4c, 0x06000000, 0x06000000,
+	0x4d8, 0xffffffff, 0x00000100,
+	0x913c, 0xffff000f, 0x0100000a,
+	0x960c, 0xffffffff, 0x54763210,
+	0x88c4, 0xffffffff, 0x000000c2,
+	0x88d4, 0xffffffff, 0x00000010,
+	0x8974, 0xffffffff, 0x00000000,
+	0xc78, 0x00000080, 0x00000080,
+	0x5e78, 0xffffffff, 0x001000f0,
+	0xd02c, 0xffffffff, 0x08421000,
+	0xa008, 0xffffffff, 0x00010000,
+	0x8d00, 0xffffffff, 0x100e4848,
+	0x8d04, 0xffffffff, 0x00164745,
+	0x8c00, 0xffffffff, 0xe4000003,
+	0x8cf0, 0x1fffffff, 0x08e00620,
+	0x28350, 0xffffffff, 0x00000000,
+	0x9508, 0xffffffff, 0x00000002
+};
+
+static const u32 sumo_golden_registers[] =
+{
+	0x900c, 0x00ffffff, 0x0017071f,
+	0x8c18, 0xffffffff, 0x10101060,
+	0x8c1c, 0xffffffff, 0x00001010,
+	0x8c30, 0x0000000f, 0x00000005,
+	0x9688, 0x0000000f, 0x00000007
+};
+
+static const u32 wrestler_golden_registers[] =
+{
+	0x5eb4, 0xffffffff, 0x00000002,
+	0x5cc, 0xffffffff, 0x00000001,
+	0x7030, 0xffffffff, 0x00000011,
+	0x7c30, 0xffffffff, 0x00000011,
+	0x6104, 0x01000300, 0x00000000,
+	0x5bc0, 0x00300000, 0x00000000,
+	0x918c, 0xffffffff, 0x00010006,
+	0x91a8, 0xffffffff, 0x00010006,
+	0x9150, 0xffffffff, 0x6e944040,
+	0x917c, 0xffffffff, 0x00030002,
+	0x9198, 0xffffffff, 0x00030002,
+	0x915c, 0xffffffff, 0x00010000,
+	0x3f90, 0xffff0000, 0xff000000,
+	0x9178, 0xffffffff, 0x00070000,
+	0x9194, 0xffffffff, 0x00070000,
+	0x9148, 0xffff0000, 0xff000000,
+	0x9190, 0xffffffff, 0x00090008,
+	0x91ac, 0xffffffff, 0x00090008,
+	0x3f94, 0xffff0000, 0xff000000,
+	0x914c, 0xffff0000, 0xff000000,
+	0x929c, 0xffffffff, 0x00000001,
+	0x8a18, 0xffffffff, 0x00000100,
+	0x8b28, 0xffffffff, 0x00000100,
+	0x9144, 0xffffffff, 0x00000100,
+	0x9b7c, 0xffffffff, 0x00000000,
+	0x8030, 0xffffffff, 0x0000100a,
+	0x8a14, 0xffffffff, 0x00000001,
+	0x8b24, 0xffffffff, 0x00ff0fff,
+	0x8b10, 0xffffffff, 0x00000000,
+	0x28a4c, 0x06000000, 0x06000000,
+	0x4d8, 0xffffffff, 0x00000100,
+	0x913c, 0xffff000f, 0x0100000a,
+	0x960c, 0xffffffff, 0x54763210,
+	0x88c4, 0xffffffff, 0x000000c2,
+	0x88d4, 0xffffffff, 0x00000010,
+	0x8974, 0xffffffff, 0x00000000,
+	0xc78, 0x00000080, 0x00000080,
+	0x5e78, 0xffffffff, 0x001000f0,
+	0xd02c, 0xffffffff, 0x08421000,
+	0xa008, 0xffffffff, 0x00010000,
+	0x8d00, 0xffffffff, 0x100e4848,
+	0x8d04, 0xffffffff, 0x00164745,
+	0x8c00, 0xffffffff, 0xe4000003,
+	0x8cf0, 0x1fffffff, 0x08e00410,
+	0x28350, 0xffffffff, 0x00000000,
+	0x9508, 0xffffffff, 0x00000002,
+	0x900c, 0xffffffff, 0x0017071f,
+	0x8c18, 0xffffffff, 0x10101060,
+	0x8c1c, 0xffffffff, 0x00001010
+};
+
+static const u32 barts_golden_registers[] =
+{
+	0x5eb4, 0xffffffff, 0x00000002,
+	0x5e78, 0x8f311ff1, 0x001000f0,
+	0x3f90, 0xffff0000, 0xff000000,
+	0x9148, 0xffff0000, 0xff000000,
+	0x3f94, 0xffff0000, 0xff000000,
+	0x914c, 0xffff0000, 0xff000000,
+	0xc78, 0x00000080, 0x00000080,
+	0xbd4, 0x70073777, 0x00010001,
+	0xd02c, 0xbfffff1f, 0x08421000,
+	0xd0b8, 0x03773777, 0x02011003,
+	0x5bc0, 0x00200000, 0x50100000,
+	0x98f8, 0x33773777, 0x02011003,
+	0x98fc, 0xffffffff, 0x76543210,
+	0x7030, 0x31000311, 0x00000011,
+	0x2f48, 0x00000007, 0x02011003,
+	0x6b28, 0x00000010, 0x00000012,
+	0x7728, 0x00000010, 0x00000012,
+	0x10328, 0x00000010, 0x00000012,
+	0x10f28, 0x00000010, 0x00000012,
+	0x11b28, 0x00000010, 0x00000012,
+	0x12728, 0x00000010, 0x00000012,
+	0x240c, 0x000007ff, 0x00000380,
+	0x8a14, 0xf000001f, 0x00000007,
+	0x8b24, 0x3fff3fff, 0x00ff0fff,
+	0x8b10, 0x0000ff0f, 0x00000000,
+	0x28a4c, 0x07ffffff, 0x06000000,
+	0x10c, 0x00000001, 0x00010003,
+	0xa02c, 0xffffffff, 0x0000009b,
+	0x913c, 0x0000000f, 0x0100000a,
+	0x8d00, 0xffff7f7f, 0x100e4848,
+	0x8d04, 0x00ffffff, 0x00164745,
+	0x8c00, 0xfffc0003, 0xe4000003,
+	0x8c04, 0xf8ff00ff, 0x40600060,
+	0x8c08, 0x00ff00ff, 0x001c001c,
+	0x8cf0, 0x1fff1fff, 0x08e00620,
+	0x8c20, 0x0fff0fff, 0x00800080,
+	0x8c24, 0x0fff0fff, 0x00800080,
+	0x8c18, 0xffffffff, 0x20202078,
+	0x8c1c, 0x0000ffff, 0x00001010,
+	0x28350, 0x00000f01, 0x00000000,
+	0x9508, 0x3700001f, 0x00000002,
+	0x960c, 0xffffffff, 0x54763210,
+	0x88c4, 0x001f3ae3, 0x000000c2,
+	0x88d4, 0x0000001f, 0x00000010,
+	0x8974, 0xffffffff, 0x00000000
+};
+
+static const u32 turks_golden_registers[] =
+{
+	0x5eb4, 0xffffffff, 0x00000002,
+	0x5e78, 0x8f311ff1, 0x001000f0,
+	0x8c8, 0x00003000, 0x00001070,
+	0x8cc, 0x000fffff, 0x00040035,
+	0x3f90, 0xffff0000, 0xfff00000,
+	0x9148, 0xffff0000, 0xfff00000,
+	0x3f94, 0xffff0000, 0xfff00000,
+	0x914c, 0xffff0000, 0xfff00000,
+	0xc78, 0x00000080, 0x00000080,
+	0xbd4, 0x00073007, 0x00010002,
+	0xd02c, 0xbfffff1f, 0x08421000,
+	0xd0b8, 0x03773777, 0x02010002,
+	0x5bc0, 0x00200000, 0x50100000,
+	0x98f8, 0x33773777, 0x00010002,
+	0x98fc, 0xffffffff, 0x33221100,
+	0x7030, 0x31000311, 0x00000011,
+	0x2f48, 0x33773777, 0x00010002,
+	0x6b28, 0x00000010, 0x00000012,
+	0x7728, 0x00000010, 0x00000012,
+	0x10328, 0x00000010, 0x00000012,
+	0x10f28, 0x00000010, 0x00000012,
+	0x11b28, 0x00000010, 0x00000012,
+	0x12728, 0x00000010, 0x00000012,
+	0x240c, 0x000007ff, 0x00000380,
+	0x8a14, 0xf000001f, 0x00000007,
+	0x8b24, 0x3fff3fff, 0x00ff0fff,
+	0x8b10, 0x0000ff0f, 0x00000000,
+	0x28a4c, 0x07ffffff, 0x06000000,
+	0x10c, 0x00000001, 0x00010003,
+	0xa02c, 0xffffffff, 0x0000009b,
+	0x913c, 0x0000000f, 0x0100000a,
+	0x8d00, 0xffff7f7f, 0x100e4848,
+	0x8d04, 0x00ffffff, 0x00164745,
+	0x8c00, 0xfffc0003, 0xe4000003,
+	0x8c04, 0xf8ff00ff, 0x40600060,
+	0x8c08, 0x00ff00ff, 0x001c001c,
+	0x8cf0, 0x1fff1fff, 0x08e00410,
+	0x8c20, 0x0fff0fff, 0x00800080,
+	0x8c24, 0x0fff0fff, 0x00800080,
+	0x8c18, 0xffffffff, 0x20202078,
+	0x8c1c, 0x0000ffff, 0x00001010,
+	0x28350, 0x00000f01, 0x00000000,
+	0x9508, 0x3700001f, 0x00000002,
+	0x960c, 0xffffffff, 0x54763210,
+	0x88c4, 0x001f3ae3, 0x000000c2,
+	0x88d4, 0x0000001f, 0x00000010,
+	0x8974, 0xffffffff, 0x00000000
+};
+
+static const u32 caicos_golden_registers[] =
+{
+	0x5eb4, 0xffffffff, 0x00000002,
+	0x5e78, 0x8f311ff1, 0x001000f0,
+	0x8c8, 0x00003420, 0x00001450,
+	0x8cc, 0x000fffff, 0x00040035,
+	0x3f90, 0xffff0000, 0xfffc0000,
+	0x9148, 0xffff0000, 0xfffc0000,
+	0x3f94, 0xffff0000, 0xfffc0000,
+	0x914c, 0xffff0000, 0xfffc0000,
+	0xc78, 0x00000080, 0x00000080,
+	0xbd4, 0x00073007, 0x00010001,
+	0xd02c, 0xbfffff1f, 0x08421000,
+	0xd0b8, 0x03773777, 0x02010001,
+	0x5bc0, 0x00200000, 0x50100000,
+	0x98f8, 0x33773777, 0x02010001,
+	0x98fc, 0xffffffff, 0x33221100,
+	0x7030, 0x31000311, 0x00000011,
+	0x2f48, 0x33773777, 0x02010001,
+	0x6b28, 0x00000010, 0x00000012,
+	0x7728, 0x00000010, 0x00000012,
+	0x10328, 0x00000010, 0x00000012,
+	0x10f28, 0x00000010, 0x00000012,
+	0x11b28, 0x00000010, 0x00000012,
+	0x12728, 0x00000010, 0x00000012,
+	0x240c, 0x000007ff, 0x00000380,
+	0x8a14, 0xf000001f, 0x00000001,
+	0x8b24, 0x3fff3fff, 0x00ff0fff,
+	0x8b10, 0x0000ff0f, 0x00000000,
+	0x28a4c, 0x07ffffff, 0x06000000,
+	0x10c, 0x00000001, 0x00010003,
+	0xa02c, 0xffffffff, 0x0000009b,
+	0x913c, 0x0000000f, 0x0100000a,
+	0x8d00, 0xffff7f7f, 0x100e4848,
+	0x8d04, 0x00ffffff, 0x00164745,
+	0x8c00, 0xfffc0003, 0xe4000003,
+	0x8c04, 0xf8ff00ff, 0x40600060,
+	0x8c08, 0x00ff00ff, 0x001c001c,
+	0x8cf0, 0x1fff1fff, 0x08e00410,
+	0x8c20, 0x0fff0fff, 0x00800080,
+	0x8c24, 0x0fff0fff, 0x00800080,
+	0x8c18, 0xffffffff, 0x20202078,
+	0x8c1c, 0x0000ffff, 0x00001010,
+	0x28350, 0x00000f01, 0x00000000,
+	0x9508, 0x3700001f, 0x00000002,
+	0x960c, 0xffffffff, 0x54763210,
+	0x88c4, 0x001f3ae3, 0x000000c2,
+	0x88d4, 0x0000001f, 0x00000010,
+	0x8974, 0xffffffff, 0x00000000
+};
+
+static void evergreen_init_golden_registers(struct radeon_device *rdev)
+{
+	switch (rdev->family) {
+	case CHIP_CYPRESS:
+	case CHIP_HEMLOCK:
+		radeon_program_register_sequence(rdev,
+						 evergreen_golden_registers,
+						 (const u32)ARRAY_SIZE(evergreen_golden_registers));
+		radeon_program_register_sequence(rdev,
+						 evergreen_golden_registers2,
+						 (const u32)ARRAY_SIZE(evergreen_golden_registers2));
+		radeon_program_register_sequence(rdev,
+						 cypress_mgcg_init,
+						 (const u32)ARRAY_SIZE(cypress_mgcg_init));
+		break;
+	case CHIP_JUNIPER:
+		radeon_program_register_sequence(rdev,
+						 evergreen_golden_registers,
+						 (const u32)ARRAY_SIZE(evergreen_golden_registers));
+		radeon_program_register_sequence(rdev,
+						 evergreen_golden_registers2,
+						 (const u32)ARRAY_SIZE(evergreen_golden_registers2));
+		radeon_program_register_sequence(rdev,
+						 juniper_mgcg_init,
+						 (const u32)ARRAY_SIZE(juniper_mgcg_init));
+		break;
+	case CHIP_REDWOOD:
+		radeon_program_register_sequence(rdev,
+						 evergreen_golden_registers,
+						 (const u32)ARRAY_SIZE(evergreen_golden_registers));
+		radeon_program_register_sequence(rdev,
+						 evergreen_golden_registers2,
+						 (const u32)ARRAY_SIZE(evergreen_golden_registers2));
+		radeon_program_register_sequence(rdev,
+						 redwood_mgcg_init,
+						 (const u32)ARRAY_SIZE(redwood_mgcg_init));
+		break;
+	case CHIP_CEDAR:
+		radeon_program_register_sequence(rdev,
+						 cedar_golden_registers,
+						 (const u32)ARRAY_SIZE(cedar_golden_registers));
+		radeon_program_register_sequence(rdev,
+						 evergreen_golden_registers2,
+						 (const u32)ARRAY_SIZE(evergreen_golden_registers2));
+		radeon_program_register_sequence(rdev,
+						 cedar_mgcg_init,
+						 (const u32)ARRAY_SIZE(cedar_mgcg_init));
+		break;
+	case CHIP_PALM:
+		radeon_program_register_sequence(rdev,
+						 wrestler_golden_registers,
+						 (const u32)ARRAY_SIZE(wrestler_golden_registers));
+		break;
+	case CHIP_SUMO:
+		radeon_program_register_sequence(rdev,
+						 supersumo_golden_registers,
+						 (const u32)ARRAY_SIZE(supersumo_golden_registers));
+		break;
+	case CHIP_SUMO2:
+		radeon_program_register_sequence(rdev,
+						 supersumo_golden_registers,
+						 (const u32)ARRAY_SIZE(supersumo_golden_registers));
+		radeon_program_register_sequence(rdev,
+						 sumo_golden_registers,
+						 (const u32)ARRAY_SIZE(sumo_golden_registers));
+		break;
+	case CHIP_BARTS:
+		radeon_program_register_sequence(rdev,
+						 barts_golden_registers,
+						 (const u32)ARRAY_SIZE(barts_golden_registers));
+		break;
+	case CHIP_TURKS:
+		radeon_program_register_sequence(rdev,
+						 turks_golden_registers,
+						 (const u32)ARRAY_SIZE(turks_golden_registers));
+		break;
+	case CHIP_CAICOS:
+		radeon_program_register_sequence(rdev,
+						 caicos_golden_registers,
+						 (const u32)ARRAY_SIZE(caicos_golden_registers));
+		break;
+	default:
+		break;
+	}
+}
+
 void evergreen_tiling_fields(unsigned tiling_flags, unsigned *bankw,
 			     unsigned *bankh, unsigned *mtaspect,
 			     unsigned *tile_split)
@@ -84,6 +942,142 @@ void evergreen_tiling_fields(unsigned tiling_flags, unsigned *bankw,
 	}
 }
 
+static int sumo_set_uvd_clock(struct radeon_device *rdev, u32 clock,
+			      u32 cntl_reg, u32 status_reg)
+{
+	int r, i;
+	struct atom_clock_dividers dividers;
+
+        r = radeon_atom_get_clock_dividers(rdev, COMPUTE_ENGINE_PLL_PARAM,
+					   clock, false, &dividers);
+	if (r)
+		return r;
+
+	WREG32_P(cntl_reg, dividers.post_div, ~(DCLK_DIR_CNTL_EN|DCLK_DIVIDER_MASK));
+
+	for (i = 0; i < 100; i++) {
+		if (RREG32(status_reg) & DCLK_STATUS)
+			break;
+		mdelay(10);
+	}
+	if (i == 100)
+		return -ETIMEDOUT;
+
+	return 0;
+}
+
+int sumo_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk)
+{
+	int r = 0;
+	u32 cg_scratch = RREG32(CG_SCRATCH1);
+
+	r = sumo_set_uvd_clock(rdev, vclk, CG_VCLK_CNTL, CG_VCLK_STATUS);
+	if (r)
+		goto done;
+	cg_scratch &= 0xffff0000;
+	cg_scratch |= vclk / 100; /* Mhz */
+
+	r = sumo_set_uvd_clock(rdev, dclk, CG_DCLK_CNTL, CG_DCLK_STATUS);
+	if (r)
+		goto done;
+	cg_scratch &= 0x0000ffff;
+	cg_scratch |= (dclk / 100) << 16; /* Mhz */
+
+done:
+	WREG32(CG_SCRATCH1, cg_scratch);
+
+	return r;
+}
+
+int evergreen_set_uvd_clocks(struct radeon_device *rdev, u32 vclk, u32 dclk)
+{
+	/* start off with something large */
+	unsigned fb_div = 0, vclk_div = 0, dclk_div = 0;
+	int r;
+
+	/* bypass vclk and dclk with bclk */
+	WREG32_P(CG_UPLL_FUNC_CNTL_2,
+		VCLK_SRC_SEL(1) | DCLK_SRC_SEL(1),
+		~(VCLK_SRC_SEL_MASK | DCLK_SRC_SEL_MASK));
+
+	/* put PLL in bypass mode */
+	WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_BYPASS_EN_MASK, ~UPLL_BYPASS_EN_MASK);
+
+	if (!vclk || !dclk) {
+		/* keep the Bypass mode, put PLL to sleep */
+		WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_SLEEP_MASK, ~UPLL_SLEEP_MASK);
+		return 0;
+	}
+
+	r = radeon_uvd_calc_upll_dividers(rdev, vclk, dclk, 125000, 250000,
+					  16384, 0x03FFFFFF, 0, 128, 5,
+					  &fb_div, &vclk_div, &dclk_div);
+	if (r)
+		return r;
+
+	/* set VCO_MODE to 1 */
+	WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_VCO_MODE_MASK, ~UPLL_VCO_MODE_MASK);
+
+	/* toggle UPLL_SLEEP to 1 then back to 0 */
+	WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_SLEEP_MASK, ~UPLL_SLEEP_MASK);
+	WREG32_P(CG_UPLL_FUNC_CNTL, 0, ~UPLL_SLEEP_MASK);
+
+	/* deassert UPLL_RESET */
+	WREG32_P(CG_UPLL_FUNC_CNTL, 0, ~UPLL_RESET_MASK);
+
+	mdelay(1);
+
+	r = radeon_uvd_send_upll_ctlreq(rdev, CG_UPLL_FUNC_CNTL);
+	if (r)
+		return r;
+
+	/* assert UPLL_RESET again */
+	WREG32_P(CG_UPLL_FUNC_CNTL, UPLL_RESET_MASK, ~UPLL_RESET_MASK);
+
+	/* disable spread spectrum. */
+	WREG32_P(CG_UPLL_SPREAD_SPECTRUM, 0, ~SSEN_MASK);
+
+	/* set feedback divider */
+	WREG32_P(CG_UPLL_FUNC_CNTL_3, UPLL_FB_DIV(fb_div), ~UPLL_FB_DIV_MASK);
+
+	/* set ref divider to 0 */
+	WREG32_P(CG_UPLL_FUNC_CNTL, 0, ~UPLL_REF_DIV_MASK);
+
+	if (fb_div < 307200)
+		WREG32_P(CG_UPLL_FUNC_CNTL_4, 0, ~UPLL_SPARE_ISPARE9);
+	else
+		WREG32_P(CG_UPLL_FUNC_CNTL_4, UPLL_SPARE_ISPARE9, ~UPLL_SPARE_ISPARE9);
+
+	/* set PDIV_A and PDIV_B */
+	WREG32_P(CG_UPLL_FUNC_CNTL_2,
+		UPLL_PDIV_A(vclk_div) | UPLL_PDIV_B(dclk_div),
+		~(UPLL_PDIV_A_MASK | UPLL_PDIV_B_MASK));
+
+	/* give the PLL some time to settle */
+	mdelay(15);
+
+	/* deassert PLL_RESET */
+	WREG32_P(CG_UPLL_FUNC_CNTL, 0, ~UPLL_RESET_MASK);
+
+	mdelay(15);
+
+	/* switch from bypass mode to normal mode */
+	WREG32_P(CG_UPLL_FUNC_CNTL, 0, ~UPLL_BYPASS_EN_MASK);
+
+	r = radeon_uvd_send_upll_ctlreq(rdev, CG_UPLL_FUNC_CNTL);
+	if (r)
+		return r;
+
+	/* switch VCLK and DCLK selection */
+	WREG32_P(CG_UPLL_FUNC_CNTL_2,
+		VCLK_SRC_SEL(2) | DCLK_SRC_SEL(2),
+		~(VCLK_SRC_SEL_MASK | DCLK_SRC_SEL_MASK));
+
+	mdelay(100);
+
+	return 0;
+}
+
 void evergreen_fix_pci_max_read_req_size(struct radeon_device *rdev)
 {
 	u16 ctl, v;
@@ -105,6 +1099,27 @@ void evergreen_fix_pci_max_read_req_size(struct radeon_device *rdev)
 	}
 }
 
+static bool dce4_is_in_vblank(struct radeon_device *rdev, int crtc)
+{
+	if (RREG32(EVERGREEN_CRTC_STATUS + crtc_offsets[crtc]) & EVERGREEN_CRTC_V_BLANK)
+		return true;
+	else
+		return false;
+}
+
+static bool dce4_is_counter_moving(struct radeon_device *rdev, int crtc)
+{
+	u32 pos1, pos2;
+
+	pos1 = RREG32(EVERGREEN_CRTC_STATUS_POSITION + crtc_offsets[crtc]);
+	pos2 = RREG32(EVERGREEN_CRTC_STATUS_POSITION + crtc_offsets[crtc]);
+
+	if (pos1 != pos2)
+		return true;
+	else
+		return false;
+}
+
 /**
  * dce4_wait_for_vblank - vblank wait asic callback.
  *
@@ -115,21 +1130,28 @@ void evergreen_fix_pci_max_read_req_size(struct radeon_device *rdev)
  */
 void dce4_wait_for_vblank(struct radeon_device *rdev, int crtc)
 {
-	int i;
+	unsigned i = 0;
 
 	if (crtc >= rdev->num_crtc)
 		return;
 
-	if (RREG32(EVERGREEN_CRTC_CONTROL + crtc_offsets[crtc]) & EVERGREEN_CRTC_MASTER_EN) {
-		for (i = 0; i < rdev->usec_timeout; i++) {
-			if (!(RREG32(EVERGREEN_CRTC_STATUS + crtc_offsets[crtc]) & EVERGREEN_CRTC_V_BLANK))
+	if (!(RREG32(EVERGREEN_CRTC_CONTROL + crtc_offsets[crtc]) & EVERGREEN_CRTC_MASTER_EN))
+		return;
+
+	/* depending on when we hit vblank, we may be close to active; if so,
+	 * wait for another frame.
+	 */
+	while (dce4_is_in_vblank(rdev, crtc)) {
+		if (i++ % 100 == 0) {
+			if (!dce4_is_counter_moving(rdev, crtc))
 				break;
-			udelay(1);
 		}
-		for (i = 0; i < rdev->usec_timeout; i++) {
-			if (RREG32(EVERGREEN_CRTC_STATUS + crtc_offsets[crtc]) & EVERGREEN_CRTC_V_BLANK)
+	}
+
+	while (!dce4_is_in_vblank(rdev, crtc)) {
+		if (i++ % 100 == 0) {
+			if (!dce4_is_counter_moving(rdev, crtc))
 				break;
-			udelay(1);
 		}
 	}
 }
@@ -608,6 +1630,16 @@ void evergreen_hpd_init(struct radeon_device *rdev)
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
 		struct radeon_connector *radeon_connector = to_radeon_connector(connector);
+
+		if (connector->connector_type == DRM_MODE_CONNECTOR_eDP ||
+		    connector->connector_type == DRM_MODE_CONNECTOR_LVDS) {
+			/* don't try to enable hpd on eDP or LVDS avoid breaking the
+			 * aux dp channel on imac and help (but not completely fix)
+			 * https://bugzilla.redhat.com/show_bug.cgi?id=726143
+			 * also avoid interrupt storms during dpms.
+			 */
+			continue;
+		}
 		switch (radeon_connector->hpd.hpd) {
 		case RADEON_HPD_1:
 			WREG32(DC_HPD1_CONTROL, tmp);
@@ -1325,17 +2357,16 @@ void evergreen_mc_stop(struct radeon_device *rdev, struct evergreen_mc_save *sav
 				tmp = RREG32(EVERGREEN_CRTC_BLANK_CONTROL + crtc_offsets[i]);
 				if (!(tmp & EVERGREEN_CRTC_BLANK_DATA_EN)) {
 					radeon_wait_for_vblank(rdev, i);
-					tmp |= EVERGREEN_CRTC_BLANK_DATA_EN;
 					WREG32(EVERGREEN_CRTC_UPDATE_LOCK + crtc_offsets[i], 1);
+					tmp |= EVERGREEN_CRTC_BLANK_DATA_EN;
 					WREG32(EVERGREEN_CRTC_BLANK_CONTROL + crtc_offsets[i], tmp);
-					WREG32(EVERGREEN_CRTC_UPDATE_LOCK + crtc_offsets[i], 0);
 				}
 			} else {
 				tmp = RREG32(EVERGREEN_CRTC_CONTROL + crtc_offsets[i]);
 				if (!(tmp & EVERGREEN_CRTC_DISP_READ_REQUEST_DISABLE)) {
 					radeon_wait_for_vblank(rdev, i);
-					tmp |= EVERGREEN_CRTC_DISP_READ_REQUEST_DISABLE;
 					WREG32(EVERGREEN_CRTC_UPDATE_LOCK + crtc_offsets[i], 1);
+					tmp |= EVERGREEN_CRTC_DISP_READ_REQUEST_DISABLE;
 					WREG32(EVERGREEN_CRTC_CONTROL + crtc_offsets[i], tmp);
 					WREG32(EVERGREEN_CRTC_UPDATE_LOCK + crtc_offsets[i], 0);
 				}
@@ -1347,6 +2378,15 @@ void evergreen_mc_stop(struct radeon_device *rdev, struct evergreen_mc_save *sav
 					break;
 				udelay(1);
 			}
+
+			/* XXX this is a hack to avoid strange behavior with EFI on certain systems */
+			WREG32(EVERGREEN_CRTC_UPDATE_LOCK + crtc_offsets[i], 1);
+			tmp = RREG32(EVERGREEN_CRTC_CONTROL + crtc_offsets[i]);
+			tmp &= ~EVERGREEN_CRTC_MASTER_EN;
+			WREG32(EVERGREEN_CRTC_CONTROL + crtc_offsets[i], tmp);
+			WREG32(EVERGREEN_CRTC_UPDATE_LOCK + crtc_offsets[i], 0);
+			save->crtc_enabled[i] = false;
+			/* ***** */
 		} else {
 			save->crtc_enabled[i] = false;
 		}
@@ -1364,6 +2404,22 @@ void evergreen_mc_stop(struct radeon_device *rdev, struct evergreen_mc_save *sav
 	}
 	/* wait for the MC to settle */
 	udelay(100);
+
+	/* lock double buffered regs */
+	for (i = 0; i < rdev->num_crtc; i++) {
+		if (save->crtc_enabled[i]) {
+			tmp = RREG32(EVERGREEN_GRPH_UPDATE + crtc_offsets[i]);
+			if (!(tmp & EVERGREEN_GRPH_UPDATE_LOCK)) {
+				tmp |= EVERGREEN_GRPH_UPDATE_LOCK;
+				WREG32(EVERGREEN_GRPH_UPDATE + crtc_offsets[i], tmp);
+			}
+			tmp = RREG32(EVERGREEN_MASTER_UPDATE_LOCK + crtc_offsets[i]);
+			if (!(tmp & 1)) {
+				tmp |= 1;
+				WREG32(EVERGREEN_MASTER_UPDATE_LOCK + crtc_offsets[i], tmp);
+			}
+		}
+	}
 }
 
 void evergreen_mc_resume(struct radeon_device *rdev, struct evergreen_mc_save *save)
@@ -1384,6 +2440,33 @@ void evergreen_mc_resume(struct radeon_device *rdev, struct evergreen_mc_save *s
 	}
 	WREG32(EVERGREEN_VGA_MEMORY_BASE_ADDRESS_HIGH, upper_32_bits(rdev->mc.vram_start));
 	WREG32(EVERGREEN_VGA_MEMORY_BASE_ADDRESS, (u32)rdev->mc.vram_start);
+
+	/* unlock regs and wait for update */
+	for (i = 0; i < rdev->num_crtc; i++) {
+		if (save->crtc_enabled[i]) {
+			tmp = RREG32(EVERGREEN_MASTER_UPDATE_MODE + crtc_offsets[i]);
+			if ((tmp & 0x3) != 0) {
+				tmp &= ~0x3;
+				WREG32(EVERGREEN_MASTER_UPDATE_MODE + crtc_offsets[i], tmp);
+			}
+			tmp = RREG32(EVERGREEN_GRPH_UPDATE + crtc_offsets[i]);
+			if (tmp & EVERGREEN_GRPH_UPDATE_LOCK) {
+				tmp &= ~EVERGREEN_GRPH_UPDATE_LOCK;
+				WREG32(EVERGREEN_GRPH_UPDATE + crtc_offsets[i], tmp);
+			}
+			tmp = RREG32(EVERGREEN_MASTER_UPDATE_LOCK + crtc_offsets[i]);
+			if (tmp & 1) {
+				tmp &= ~1;
+				WREG32(EVERGREEN_MASTER_UPDATE_LOCK + crtc_offsets[i], tmp);
+			}
+			for (j = 0; j < rdev->usec_timeout; j++) {
+				tmp = RREG32(EVERGREEN_GRPH_UPDATE + crtc_offsets[i]);
+				if ((tmp & EVERGREEN_GRPH_SURFACE_UPDATE_PENDING) == 0)
+					break;
+				udelay(1);
+			}
+		}
+	}
 
 	/* unblackout the MC */
 	tmp = RREG32(MC_SHARED_BLACKOUT_CNTL);
@@ -2050,6 +3133,14 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 	}
 	/* enabled rb are just the one not disabled :) */
 	disabled_rb_mask = tmp;
+	tmp = 0;
+	for (i = 0; i < rdev->config.evergreen.max_backends; i++)
+		tmp |= (1 << i);
+	/* if all the backends are disabled, fix it up here */
+	if ((disabled_rb_mask & tmp) == tmp) {
+		for (i = 0; i < rdev->config.evergreen.max_backends; i++)
+			disabled_rb_mask &= ~(1 << i);
+	}
 
 	WREG32(GRBM_GFX_INDEX, INSTANCE_BROADCAST_WRITES | SE_BROADCAST_WRITES);
 	WREG32(RLC_GFX_INDEX, INSTANCE_BROADCAST_WRITES | SE_BROADCAST_WRITES);
@@ -2058,6 +3149,9 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 	WREG32(DMIF_ADDR_CONFIG, gb_addr_config);
 	WREG32(HDP_ADDR_CONFIG, gb_addr_config);
 	WREG32(DMA_TILING_CONFIG, gb_addr_config);
+	WREG32(UVD_UDEC_ADDR_CONFIG, gb_addr_config);
+	WREG32(UVD_UDEC_DB_ADDR_CONFIG, gb_addr_config);
+	WREG32(UVD_UDEC_DBW_ADDR_CONFIG, gb_addr_config);
 
 	if ((rdev->config.evergreen.max_backends == 1) &&
 	    (rdev->flags & RADEON_IS_IGP)) {
@@ -3360,6 +4454,9 @@ restart_ih:
 				DRM_ERROR("Unhandled interrupt: %d %d\n", src_id, src_data);
 				break;
 			}
+		case 124: /* UVD */
+			DRM_DEBUG("IH: UVD int: 0x%08x\n", src_data);
+			radeon_fence_process(rdev, R600_RING_TYPE_UVD_INDEX);
 			break;
 		case 146:
 		case 147:
@@ -3571,7 +4668,7 @@ int evergreen_copy_dma(struct radeon_device *rdev,
 
 static int evergreen_startup(struct radeon_device *rdev)
 {
-	struct radeon_ring *ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
+	struct radeon_ring *ring;
 	int r;
 
 	/* enable pcie gen2 link */
@@ -3638,6 +4735,17 @@ static int evergreen_startup(struct radeon_device *rdev)
 		return r;
 	}
 
+	r = rv770_uvd_resume(rdev);
+	if (!r) {
+		r = radeon_fence_driver_start_ring(rdev,
+						   R600_RING_TYPE_UVD_INDEX);
+		if (r)
+			dev_err(rdev->dev, "UVD fences init error (%d).\n", r);
+	}
+
+	if (r)
+		rdev->ring[R600_RING_TYPE_UVD_INDEX].ring_size = 0;
+
 	/* Enable IRQ */
 	r = r600_irq_init(rdev);
 	if (r) {
@@ -3647,6 +4755,7 @@ static int evergreen_startup(struct radeon_device *rdev)
 	}
 	evergreen_irq_set(rdev);
 
+	ring = &rdev->ring[RADEON_RING_TYPE_GFX_INDEX];
 	r = radeon_ring_init(rdev, ring, ring->ring_size, RADEON_WB_CP_RPTR_OFFSET,
 			     R600_CP_RB_RPTR, R600_CP_RB_WPTR,
 			     0, 0xfffff, RADEON_CP_PACKET2);
@@ -3669,6 +4778,19 @@ static int evergreen_startup(struct radeon_device *rdev)
 	r = r600_dma_resume(rdev);
 	if (r)
 		return r;
+
+	ring = &rdev->ring[R600_RING_TYPE_UVD_INDEX];
+	if (ring->ring_size) {
+		r = radeon_ring_init(rdev, ring, ring->ring_size,
+				     R600_WB_UVD_RPTR_OFFSET,
+				     UVD_RBC_RB_RPTR, UVD_RBC_RB_WPTR,
+				     0, 0xfffff, RADEON_CP_PACKET2);
+		if (!r)
+			r = r600_uvd_init(rdev);
+
+		if (r)
+			DRM_ERROR("radeon: error initializing UVD (%d).\n", r);
+	}
 
 	r = radeon_ib_pool_init(rdev);
 	if (r) {
@@ -3701,6 +4823,9 @@ int evergreen_resume(struct radeon_device *rdev)
 	/* post card */
 	atom_asic_init(rdev->mode_info.atom_context);
 
+	/* init golden registers */
+	evergreen_init_golden_registers(rdev);
+
 	rdev->accel_working = true;
 	r = evergreen_startup(rdev);
 	if (r) {
@@ -3716,8 +4841,10 @@ int evergreen_resume(struct radeon_device *rdev)
 int evergreen_suspend(struct radeon_device *rdev)
 {
 	r600_audio_fini(rdev);
+	radeon_uvd_suspend(rdev);
 	r700_cp_stop(rdev);
 	r600_dma_stop(rdev);
+	r600_uvd_rbc_stop(rdev);
 	evergreen_irq_suspend(rdev);
 	radeon_wb_disable(rdev);
 	evergreen_pcie_gart_disable(rdev);
@@ -3762,6 +4889,8 @@ int evergreen_init(struct radeon_device *rdev)
 		DRM_INFO("GPU not posted. posting now...\n");
 		atom_asic_init(rdev->mode_info.atom_context);
 	}
+	/* init golden registers */
+	evergreen_init_golden_registers(rdev);
 	/* Initialize scratch registers */
 	r600_scratch_init(rdev);
 	/* Initialize surface registers */
@@ -3796,6 +4925,13 @@ int evergreen_init(struct radeon_device *rdev)
 
 	rdev->ring[R600_RING_TYPE_DMA_INDEX].ring_obj = NULL;
 	r600_ring_init(rdev, &rdev->ring[R600_RING_TYPE_DMA_INDEX], 64 * 1024);
+
+	r = radeon_uvd_init(rdev);
+	if (!r) {
+		rdev->ring[R600_RING_TYPE_UVD_INDEX].ring_obj = NULL;
+		r600_ring_init(rdev, &rdev->ring[R600_RING_TYPE_UVD_INDEX],
+			       4096);
+	}
 
 	rdev->ih.ring_obj = NULL;
 	r600_ih_ring_init(rdev, 64 * 1024);
@@ -3843,6 +4979,7 @@ void evergreen_fini(struct radeon_device *rdev)
 	radeon_ib_pool_fini(rdev);
 	radeon_irq_kms_fini(rdev);
 	evergreen_pcie_gart_fini(rdev);
+	radeon_uvd_fini(rdev);
 	r600_vram_scratch_fini(rdev);
 	radeon_gem_fini(rdev);
 	radeon_fence_driver_fini(rdev);
@@ -3878,7 +5015,7 @@ void evergreen_pcie_gen2_enable(struct radeon_device *rdev)
 	if (!(mask & DRM_PCIE_SPEED_50))
 		return;
 
-	speed_cntl = RREG32_PCIE_P(PCIE_LC_SPEED_CNTL);
+	speed_cntl = RREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL);
 	if (speed_cntl & LC_CURRENT_DATA_RATE) {
 		DRM_INFO("PCIE gen 2 link speeds already enabled\n");
 		return;
@@ -3889,33 +5026,33 @@ void evergreen_pcie_gen2_enable(struct radeon_device *rdev)
 	if ((speed_cntl & LC_OTHER_SIDE_EVER_SENT_GEN2) ||
 	    (speed_cntl & LC_OTHER_SIDE_SUPPORTS_GEN2)) {
 
-		link_width_cntl = RREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL);
+		link_width_cntl = RREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL);
 		link_width_cntl &= ~LC_UPCONFIGURE_DIS;
-		WREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
+		WREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
 
-		speed_cntl = RREG32_PCIE_P(PCIE_LC_SPEED_CNTL);
+		speed_cntl = RREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL);
 		speed_cntl &= ~LC_TARGET_LINK_SPEED_OVERRIDE_EN;
-		WREG32_PCIE_P(PCIE_LC_SPEED_CNTL, speed_cntl);
+		WREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL, speed_cntl);
 
-		speed_cntl = RREG32_PCIE_P(PCIE_LC_SPEED_CNTL);
+		speed_cntl = RREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL);
 		speed_cntl |= LC_CLR_FAILED_SPD_CHANGE_CNT;
-		WREG32_PCIE_P(PCIE_LC_SPEED_CNTL, speed_cntl);
+		WREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL, speed_cntl);
 
-		speed_cntl = RREG32_PCIE_P(PCIE_LC_SPEED_CNTL);
+		speed_cntl = RREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL);
 		speed_cntl &= ~LC_CLR_FAILED_SPD_CHANGE_CNT;
-		WREG32_PCIE_P(PCIE_LC_SPEED_CNTL, speed_cntl);
+		WREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL, speed_cntl);
 
-		speed_cntl = RREG32_PCIE_P(PCIE_LC_SPEED_CNTL);
+		speed_cntl = RREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL);
 		speed_cntl |= LC_GEN2_EN_STRAP;
-		WREG32_PCIE_P(PCIE_LC_SPEED_CNTL, speed_cntl);
+		WREG32_PCIE_PORT(PCIE_LC_SPEED_CNTL, speed_cntl);
 
 	} else {
-		link_width_cntl = RREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL);
+		link_width_cntl = RREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL);
 		/* XXX: only disable it if gen1 bridge vendor == 0x111d or 0x1106 */
 		if (1)
 			link_width_cntl |= LC_UPCONFIGURE_DIS;
 		else
 			link_width_cntl &= ~LC_UPCONFIGURE_DIS;
-		WREG32_PCIE_P(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
+		WREG32_PCIE_PORT(PCIE_LC_LINK_WIDTH_CNTL, link_width_cntl);
 	}
 }

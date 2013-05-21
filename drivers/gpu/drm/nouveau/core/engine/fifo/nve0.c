@@ -96,7 +96,7 @@ nve0_fifo_playlist_update(struct nve0_fifo_priv *priv, u32 engine)
 
 	cur = engn->playlist[engn->cur_playlist];
 	if (unlikely(cur == NULL)) {
-		int ret = nouveau_gpuobj_new(nv_object(priv)->parent, NULL,
+		int ret = nouveau_gpuobj_new(nv_object(priv), NULL,
 					     0x8000, 0x1000, 0, &cur);
 		if (ret) {
 			nv_error(priv, "playlist alloc failed\n");
@@ -333,7 +333,8 @@ nve0_fifo_context_ctor(struct nouveau_object *parent,
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(parent, NULL, 0x10000, 0x1000, 0, &base->pgd);
+	ret = nouveau_gpuobj_new(nv_object(base), NULL, 0x10000, 0x1000, 0,
+				&base->pgd);
 	if (ret)
 		return ret;
 
@@ -595,7 +596,7 @@ nve0_fifo_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(parent, NULL, 4096 * 0x200, 0x1000,
+	ret = nouveau_gpuobj_new(nv_object(priv), NULL, 4096 * 0x200, 0x1000,
 				 NVOBJ_FLAG_ZERO_ALLOC, &priv->user.mem);
 	if (ret)
 		return ret;

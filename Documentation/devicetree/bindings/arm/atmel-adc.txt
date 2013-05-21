@@ -14,9 +14,19 @@ Required properties:
   - atmel,adc-status-register: Offset of the Interrupt Status Register
   - atmel,adc-trigger-register: Offset of the Trigger Register
   - atmel,adc-vref: Reference voltage in millivolts for the conversions
+  - atmel,adc-res: List of resolution in bits supported by the ADC. List size
+		   must be two at least.
+  - atmel,adc-res-names: Contains one identifier string for each resolution
+			 in atmel,adc-res property. "lowres" and "highres"
+			 identifiers are required.
 
 Optional properties:
   - atmel,adc-use-external: Boolean to enable of external triggers
+  - atmel,adc-use-res: String corresponding to an identifier from
+		       atmel,adc-res-names property. If not specified, the highest
+		       resolution will be used.
+  - atmel,adc-sleep-mode: Boolean to enable sleep mode when no conversion
+  - atmel,adc-sample-hold-time: Sample and Hold Time in microseconds
  
 Optional trigger Nodes:
   - Required properties:
@@ -40,6 +50,9 @@ adc0: adc@fffb0000 {
 	atmel,adc-trigger-register = <0x08>;
 	atmel,adc-use-external;
 	atmel,adc-vref = <3300>;
+	atmel,adc-res = <8 10>;
+	atmel,adc-res-names = "lowres", "highres";
+	atmel,adc-use-res = "lowres";
 
 	trigger@0 {
 		trigger-name = "external-rising";

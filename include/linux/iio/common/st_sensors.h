@@ -15,6 +15,7 @@
 #include <linux/spi/spi.h>
 #include <linux/irqreturn.h>
 #include <linux/iio/trigger.h>
+#include <linux/bitops.h>
 
 #define ST_SENSORS_TX_MAX_LENGTH		2
 #define ST_SENSORS_RX_MAX_LENGTH		6
@@ -45,8 +46,8 @@
 { \
 	.type = device_type, \
 	.modified = 1, \
-	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT | \
-			IIO_CHAN_INFO_SCALE_SEPARATE_BIT, \
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | \
+			BIT(IIO_CHAN_INFO_SCALE), \
 	.scan_index = index, \
 	.channel2 = mod, \
 	.address = addr, \

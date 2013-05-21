@@ -5,6 +5,7 @@
  * way.
  *
  * Rusty Russell (C)2000 -- This code is GPL.
+ * Patrick McHardy (c) 2006-2012
  */
 #include <linux/kernel.h>
 #include <linux/netfilter.h>
@@ -276,10 +277,30 @@ void (*nf_nat_decode_session_hook)(struct sk_buff *, struct flowi *);
 EXPORT_SYMBOL(nf_nat_decode_session_hook);
 #endif
 
+static int __net_init netfilter_net_init(struct net *net)
+{
 #ifdef CONFIG_PROC_FS
-struct proc_dir_entry *proc_net_netfilter;
-EXPORT_SYMBOL(proc_net_netfilter);
+	net->nf.proc_netfilter = proc_net_mkdir(net, "netfilter",
+						net->proc_net);
+	if (!net->nf.proc_netfilter) {
+		if (!net_eq(net, &init_net))
+			pr_err("cannot create netfilter proc entry");
+
+		return -ENOMEM;
+	}
 #endif
+	return 0;
+}
+
+static void __net_exit netfilter_net_exit(struct net *net)
+{
+	remove_proc_entry("netfilter", net->proc_net);
+}
+
+static struct pernet_operations netfilter_net_ops = {
+	.init = netfilter_net_init,
+	.exit = netfilter_net_exit,
+};
 
 void __init netfilter_init(void)
 {
@@ -289,11 +310,8 @@ void __init netfilter_init(void)
 			INIT_LIST_HEAD(&nf_hooks[i][h]);
 	}
 
-#ifdef CONFIG_PROC_FS
-	proc_net_netfilter = proc_mkdir("netfilter", init_net.proc_net);
-	if (!proc_net_netfilter)
+	if (register_pernet_subsys(&netfilter_net_ops) < 0)
 		panic("cannot create netfilter proc entry");
-#endif
 
 	if (netfilter_log_init() < 0)
 		panic("cannot initialize nf_log");

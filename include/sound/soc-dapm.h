@@ -488,6 +488,7 @@ struct snd_soc_dapm_path {
 	/* status */
 	u32 connect:1;	/* source and sink widgets are connected */
 	u32 walked:1;	/* path has been walked */
+	u32 walking:1;  /* path is in the process of being walked */
 	u32 weak:1;	/* path ignored for power management */
 
 	int (*connected)(struct snd_soc_dapm_widget *source,
@@ -565,7 +566,6 @@ struct snd_soc_dapm_update {
 
 /* DAPM context */
 struct snd_soc_dapm_context {
-	int n_widgets; /* number of widgets in this context */
 	enum snd_soc_bias_level bias_level;
 	enum snd_soc_bias_level suspend_bias_level;
 	struct delayed_work delayed_work;

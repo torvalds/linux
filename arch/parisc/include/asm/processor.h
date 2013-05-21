@@ -20,8 +20,6 @@
 
 #endif /* __ASSEMBLY__ */
 
-#define KERNEL_STACK_SIZE 	(4*PAGE_SIZE)
-
 /*
  * Default implementation of macro that returns current
  * instruction pointer ("program counter").
@@ -61,6 +59,26 @@
 #ifndef __ASSEMBLY__
 
 /*
+ * IRQ STACK - used for irq handler
+ */
+#ifdef __KERNEL__
+
+#include <linux/spinlock_types.h>
+
+#define IRQ_STACK_SIZE      (4096 << 2) /* 16k irq stack size */
+
+union irq_stack_union {
+	unsigned long stack[IRQ_STACK_SIZE/sizeof(unsigned long)];
+	raw_spinlock_t lock;
+};
+
+DECLARE_PER_CPU(union irq_stack_union, irq_stack_union);
+
+void call_on_stack(unsigned long p1, void *func, unsigned long new_stack);
+
+#endif /* __KERNEL__ */
+
+/*
  * Data detected about CPUs at boot time which is the same for all CPU's.
  * HP boxes are SMP - ie identical processors.
  *
@@ -97,7 +115,6 @@ struct cpuinfo_parisc {
 	unsigned long txn_addr;     /* MMIO addr of EIR or id_eid */
 #ifdef CONFIG_SMP
 	unsigned long pending_ipi;  /* bitmap of type ipi_message_type */
-	unsigned long ipi_count;    /* number ipi Interrupts */
 #endif
 	unsigned long bh_count;     /* number of times bh was invoked */
 	unsigned long prof_counter; /* per CPU profiling support */

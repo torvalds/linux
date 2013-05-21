@@ -9,6 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/mtd/nand.h>
 #include <linux/module.h>
+#include <linux/sizes.h>
 #include "sm_common.h"
 
 static struct nand_ecclayout nand_oob_sm = {
@@ -67,44 +68,37 @@ static int sm_block_markbad(struct mtd_info *mtd, loff_t ofs)
 	return error;
 }
 
-
 static struct nand_flash_dev nand_smartmedia_flash_ids[] = {
-	{"SmartMedia 1MiB 5V",          0x6e, 256, 1, 0x1000, 0},
-	{"SmartMedia 1MiB 3,3V",        0xe8, 256, 1, 0x1000, 0},
-	{"SmartMedia 1MiB 3,3V",        0xec, 256, 1, 0x1000, 0},
-	{"SmartMedia 2MiB 3,3V",        0xea, 256, 2, 0x1000, 0},
-	{"SmartMedia 2MiB 5V",          0x64, 256, 2, 0x1000, 0},
-	{"SmartMedia 2MiB 3,3V ROM",    0x5d, 512, 2, 0x2000, NAND_ROM},
-	{"SmartMedia 4MiB 3,3V",        0xe3, 512, 4, 0x2000, 0},
-	{"SmartMedia 4MiB 3,3/5V",      0xe5, 512, 4, 0x2000, 0},
-	{"SmartMedia 4MiB 5V",          0x6b, 512, 4, 0x2000, 0},
-	{"SmartMedia 4MiB 3,3V ROM",    0xd5, 512, 4, 0x2000, NAND_ROM},
-	{"SmartMedia 8MiB 3,3V",        0xe6, 512, 8, 0x2000, 0},
-	{"SmartMedia 8MiB 3,3V ROM",    0xd6, 512, 8, 0x2000, NAND_ROM},
-	{"SmartMedia 16MiB 3,3V",       0x73, 512, 16, 0x4000, 0},
-	{"SmartMedia 16MiB 3,3V ROM",   0x57, 512, 16, 0x4000, NAND_ROM},
-	{"SmartMedia 32MiB 3,3V",       0x75, 512, 32, 0x4000, 0},
-	{"SmartMedia 32MiB 3,3V ROM",   0x58, 512, 32, 0x4000, NAND_ROM},
-	{"SmartMedia 64MiB 3,3V",       0x76, 512, 64, 0x4000, 0},
-	{"SmartMedia 64MiB 3,3V ROM",   0xd9, 512, 64, 0x4000, NAND_ROM},
-	{"SmartMedia 128MiB 3,3V",      0x79, 512, 128, 0x4000, 0},
-	{"SmartMedia 128MiB 3,3V ROM",  0xda, 512, 128, 0x4000, NAND_ROM},
-	{"SmartMedia 256MiB 3,3V",      0x71, 512, 256, 0x4000 },
-	{"SmartMedia 256MiB 3,3V ROM",  0x5b, 512, 256, 0x4000, NAND_ROM},
-	{NULL,}
+	LEGACY_ID_NAND("SmartMedia 2MiB 3,3V ROM",   0x5d, 2,   SZ_8K, NAND_ROM),
+	LEGACY_ID_NAND("SmartMedia 4MiB 3,3V",       0xe3, 4,   SZ_8K, 0),
+	LEGACY_ID_NAND("SmartMedia 4MiB 3,3/5V",     0xe5, 4,   SZ_8K, 0),
+	LEGACY_ID_NAND("SmartMedia 4MiB 5V",         0x6b, 4,   SZ_8K, 0),
+	LEGACY_ID_NAND("SmartMedia 4MiB 3,3V ROM",   0xd5, 4,   SZ_8K, NAND_ROM),
+	LEGACY_ID_NAND("SmartMedia 8MiB 3,3V",       0xe6, 8,   SZ_8K, 0),
+	LEGACY_ID_NAND("SmartMedia 8MiB 3,3V ROM",   0xd6, 8,   SZ_8K, NAND_ROM),
+	LEGACY_ID_NAND("SmartMedia 16MiB 3,3V",      0x73, 16,  SZ_16K, 0),
+	LEGACY_ID_NAND("SmartMedia 16MiB 3,3V ROM",  0x57, 16,  SZ_16K, NAND_ROM),
+	LEGACY_ID_NAND("SmartMedia 32MiB 3,3V",      0x75, 32,  SZ_16K, 0),
+	LEGACY_ID_NAND("SmartMedia 32MiB 3,3V ROM",  0x58, 32,  SZ_16K, NAND_ROM),
+	LEGACY_ID_NAND("SmartMedia 64MiB 3,3V",      0x76, 64,  SZ_16K, 0),
+	LEGACY_ID_NAND("SmartMedia 64MiB 3,3V ROM",  0xd9, 64,  SZ_16K, NAND_ROM),
+	LEGACY_ID_NAND("SmartMedia 128MiB 3,3V",     0x79, 128, SZ_16K, 0),
+	LEGACY_ID_NAND("SmartMedia 128MiB 3,3V ROM", 0xda, 128, SZ_16K, NAND_ROM),
+	LEGACY_ID_NAND("SmartMedia 256MiB 3, 3V",    0x71, 256, SZ_16K, 0),
+	LEGACY_ID_NAND("SmartMedia 256MiB 3,3V ROM", 0x5b, 256, SZ_16K, NAND_ROM),
+	{NULL}
 };
 
 static struct nand_flash_dev nand_xd_flash_ids[] = {
-
-	{"xD 16MiB 3,3V",    0x73, 512, 16, 0x4000, 0},
-	{"xD 32MiB 3,3V",    0x75, 512, 32, 0x4000, 0},
-	{"xD 64MiB 3,3V",    0x76, 512, 64, 0x4000, 0},
-	{"xD 128MiB 3,3V",   0x79, 512, 128, 0x4000, 0},
-	{"xD 256MiB 3,3V",   0x71, 512, 256, 0x4000, NAND_BROKEN_XD},
-	{"xD 512MiB 3,3V",   0xdc, 512, 512, 0x4000, NAND_BROKEN_XD},
-	{"xD 1GiB 3,3V",     0xd3, 512, 1024, 0x4000, NAND_BROKEN_XD},
-	{"xD 2GiB 3,3V",     0xd5, 512, 2048, 0x4000, NAND_BROKEN_XD},
-	{NULL,}
+	LEGACY_ID_NAND("xD 16MiB 3,3V",  0x73, 16,   SZ_16K, 0),
+	LEGACY_ID_NAND("xD 32MiB 3,3V",  0x75, 32,   SZ_16K, 0),
+	LEGACY_ID_NAND("xD 64MiB 3,3V",  0x76, 64,   SZ_16K, 0),
+	LEGACY_ID_NAND("xD 128MiB 3,3V", 0x79, 128,  SZ_16K, 0),
+	LEGACY_ID_NAND("xD 256MiB 3,3V", 0x71, 256,  SZ_16K, NAND_BROKEN_XD),
+	LEGACY_ID_NAND("xD 512MiB 3,3V", 0xdc, 512,  SZ_16K, NAND_BROKEN_XD),
+	LEGACY_ID_NAND("xD 1GiB 3,3V",   0xd3, 1024, SZ_16K, NAND_BROKEN_XD),
+	LEGACY_ID_NAND("xD 2GiB 3,3V",   0xd5, 2048, SZ_16K, NAND_BROKEN_XD),
+	{NULL}
 };
 
 int sm_register_device(struct mtd_info *mtd, int smartmedia)

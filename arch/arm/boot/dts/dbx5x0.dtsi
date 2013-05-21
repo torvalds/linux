@@ -191,8 +191,8 @@
 
 		prcmu: prcmu@80157000 {
 			compatible = "stericsson,db8500-prcmu";
-			reg = <0x80157000 0x1000>;
-			reg-names = "prcmu";
+			reg = <0x80157000 0x2000>, <0x801b0000 0x8000>, <0x801b8000 0x1000>;
+			reg-names = "prcmu", "prcmu-tcpm", "prcmu-tcdm";
 			interrupts = <0 47 0x4>;
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -674,9 +674,12 @@
 			compatible = "regulator-gpio";
 
 			regulator-min-microvolt = <1800000>;
-			regulator-max-microvolt = <2600000>;
+			regulator-max-microvolt = <2900000>;
 			regulator-name = "mmci-reg";
 			regulator-type = "voltage";
+
+			startup-delay-us = <100>;
+			enable-active-high;
 
 			states = <1800000 0x1
 				  2900000 0x0>;

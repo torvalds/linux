@@ -71,8 +71,9 @@ submits skb to qdisc), so if you need something from that cb later, you should
 store info in the skb->data on your own.
 
 To hook the MLME interface you have to populate the ml_priv field of your
-net_device with a pointer to struct ieee802154_mlme_ops instance. All fields are
-required.
+net_device with a pointer to struct ieee802154_mlme_ops instance. The fields
+assoc_req, assoc_resp, disassoc_req, start_req, and scan_req are optional.
+All other fields are required.
 
 We provide an example of simple HardMAC driver at drivers/ieee802154/fakehard.c
 

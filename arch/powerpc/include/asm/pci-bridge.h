@@ -39,11 +39,6 @@ struct pci_controller {
 	resource_size_t io_base_phys;
 	resource_size_t pci_io_size;
 
-	/* Some machines (PReP) have a non 1:1 mapping of
-	 * the PCI memory space in the CPU bus space
-	 */
-	resource_size_t pci_mem_offset;
-
 	/* Some machines have a special region to forward the ISA
 	 * "memory" cycles such as VGA memory regions. Left to 0
 	 * if unsupported
@@ -70,6 +65,8 @@ struct pci_controller {
 	 *  BIG_ENDIAN - cfg_addr is a big endian register
 	 *  BROKEN_MRM - the 440EPx/GRx chips have an errata that causes hangs on
 	 *   the PLB4.  Effectively disable MRM commands by setting this.
+	 *  FSL_CFG_REG_LINK - Freescale controller version in which the PCIe
+	 *   link status is in a RC PCIe cfg register (vs being a SoC register)
 	 */
 #define PPC_INDIRECT_TYPE_SET_CFG_TYPE		0x00000001
 #define PPC_INDIRECT_TYPE_EXT_REG		0x00000002
@@ -77,12 +74,14 @@ struct pci_controller {
 #define PPC_INDIRECT_TYPE_NO_PCIE_LINK		0x00000008
 #define PPC_INDIRECT_TYPE_BIG_ENDIAN		0x00000010
 #define PPC_INDIRECT_TYPE_BROKEN_MRM		0x00000020
+#define PPC_INDIRECT_TYPE_FSL_CFG_REG_LINK	0x00000040
 	u32 indirect_type;
 	/* Currently, we limit ourselves to 1 IO range and 3 mem
 	 * ranges since the common pci_bus structure can't handle more
 	 */
 	struct resource	io_resource;
 	struct resource mem_resources[3];
+	resource_size_t mem_offset[3];
 	int global_number;		/* PCI domain number */
 
 	resource_size_t dma_window_base_cur;
@@ -90,9 +89,9 @@ struct pci_controller {
 
 #ifdef CONFIG_PPC64
 	unsigned long buid;
+#endif	/* CONFIG_PPC64 */
 
 	void *private_data;
-#endif	/* CONFIG_PPC64 */
 };
 
 /* These are used for config access before all the PCI probing
@@ -116,6 +115,12 @@ extern int early_find_capability(struct pci_controller *hose, int bus,
 extern void setup_indirect_pci(struct pci_controller* hose,
 			       resource_size_t cfg_addr,
 			       resource_size_t cfg_data, u32 flags);
+
+extern int indirect_read_config(struct pci_bus *bus, unsigned int devfn,
+				int offset, int len, u32 *val);
+
+extern int indirect_write_config(struct pci_bus *bus, unsigned int devfn,
+				 int offset, int len, u32 val);
 
 static inline struct pci_controller *pci_bus_to_host(const struct pci_bus *bus)
 {
@@ -153,6 +158,8 @@ struct pci_dn {
 	struct	device_node *node;	/* back-pointer to the device_node */
 
 	int	pci_ext_config_space;	/* for pci devices */
+
+	int	force_32bit_msi:1;
 
 	struct	pci_dev *pcidev;	/* back-pointer to the pci device */
 #ifdef CONFIG_EEH

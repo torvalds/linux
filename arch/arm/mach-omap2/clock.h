@@ -27,31 +27,14 @@ struct omap_clk {
 	struct clk_lookup		lk;
 };
 
-#define CLK(dev, con, ck, cp)		\
+#define CLK(dev, con, ck)		\
 	{				\
-		 .cpu = cp,		\
 		.lk = {			\
 			.dev_id = dev,	\
 			.con_id = con,	\
 			.clk = ck,	\
 		},			\
 	}
-
-/* Platform flags for the clkdev-OMAP integration code */
-#define CK_242X		(1 << 0)
-#define CK_243X		(1 << 1)	/* 243x, 253x */
-#define CK_3430ES1	(1 << 2)	/* 34xxES1 only */
-#define CK_3430ES2PLUS	(1 << 3)	/* 34xxES2, ES3, non-Sitara 35xx only */
-#define CK_AM35XX	(1 << 4)	/* Sitara AM35xx */
-#define CK_36XX		(1 << 5)	/* 36xx/37xx-specific clocks */
-#define CK_443X		(1 << 6)
-#define CK_TI816X	(1 << 7)
-#define CK_446X		(1 << 8)
-#define CK_AM33XX	(1 << 9)	/* AM33xx specific clocks */
-
-
-#define CK_34XX		(CK_3430ES1 | CK_3430ES2PLUS)
-#define CK_3XXX		(CK_34XX | CK_AM35XX | CK_36XX)
 
 struct clockdomain;
 #define to_clk_hw_omap(_hw) container_of(_hw, struct clk_hw_omap, hw)
@@ -480,4 +463,5 @@ extern int am33xx_clk_init(void);
 extern int omap2_clkops_enable_clkdm(struct clk_hw *hw);
 extern void omap2_clkops_disable_clkdm(struct clk_hw *hw);
 
+extern void omap_clocks_register(struct omap_clk *oclks, int cnt);
 #endif

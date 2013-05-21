@@ -41,8 +41,8 @@ enum chips { thmc50, adm1022 };
 static unsigned short adm1022_temp3[16];
 static unsigned int adm1022_temp3_num;
 module_param_array(adm1022_temp3, ushort, &adm1022_temp3_num, 0);
-MODULE_PARM_DESC(adm1022_temp3, "List of adapter,address pairs "
-			"to enable 3rd temperature (ADM1022 only)");
+MODULE_PARM_DESC(adm1022_temp3,
+		 "List of adapter,address pairs to enable 3rd temperature (ADM1022 only)");
 
 /* Many THMC50 constants specified below */
 
@@ -312,8 +312,7 @@ static int thmc50_detect(struct i2c_client *client,
 	const char *type_name;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
-		pr_debug("thmc50: detect failed, "
-			 "smbus byte data not supported!\n");
+		pr_debug("thmc50: detect failed, smbus byte data not supported!\n");
 		return -ENODEV;
 	}
 

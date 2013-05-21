@@ -58,8 +58,7 @@ static int cpufreq_p4_setdc(unsigned int cpu, unsigned int newstate)
 {
 	u32 l, h;
 
-	if (!cpu_online(cpu) ||
-	    (newstate > DC_DISABLE) || (newstate == DC_RESV))
+	if ((newstate > DC_DISABLE) || (newstate == DC_RESV))
 		return -EINVAL;
 
 	rdmsr_on_cpu(cpu, MSR_IA32_THERM_STATUS, &l, &h);
@@ -125,10 +124,7 @@ static int cpufreq_p4_target(struct cpufreq_policy *policy,
 		return 0;
 
 	/* notifiers */
-	for_each_cpu(i, policy->cpus) {
-		freqs.cpu = i;
-		cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
-	}
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 
 	/* run on each logical CPU,
 	 * see section 13.15.3 of IA32 Intel Architecture Software
@@ -138,10 +134,7 @@ static int cpufreq_p4_target(struct cpufreq_policy *policy,
 		cpufreq_p4_setdc(i, p4clockmod_table[newstate].index);
 
 	/* notifiers */
-	for_each_cpu(i, policy->cpus) {
-		freqs.cpu = i;
-		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
-	}
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
 	return 0;
 }

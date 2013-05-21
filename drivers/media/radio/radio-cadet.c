@@ -90,6 +90,26 @@ static u16 sigtable[2][4] = {
 	{ 2185, 4369, 13107, 65535 },
 };
 
+static const struct v4l2_frequency_band bands[] = {
+	{
+		.index = 0,
+		.type = V4L2_TUNER_RADIO,
+		.capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_FREQ_BANDS,
+		.rangelow = 8320,      /* 520 kHz */
+		.rangehigh = 26400,    /* 1650 kHz */
+		.modulation = V4L2_BAND_MODULATION_AM,
+	}, {
+		.index = 1,
+		.type = V4L2_TUNER_RADIO,
+		.capability = V4L2_TUNER_CAP_STEREO | V4L2_TUNER_CAP_RDS |
+			V4L2_TUNER_CAP_RDS_BLOCK_IO | V4L2_TUNER_CAP_LOW |
+			V4L2_TUNER_CAP_FREQ_BANDS,
+		.rangelow = 1400000,   /* 87.5 MHz */
+		.rangehigh = 1728000,  /* 108.0 MHz */
+		.modulation = V4L2_BAND_MODULATION_FM,
+	},
+};
+
 
 static int cadet_getstereo(struct cadet *dev)
 {
@@ -196,6 +216,8 @@ static void cadet_setfreq(struct cadet *dev, unsigned freq)
 	int i, j, test;
 	int curvol;
 
+	freq = clamp(freq, bands[dev->is_fm_band].rangelow,
+			   bands[dev->is_fm_band].rangehigh);
 	dev->curfreq = freq;
 	/*
 	 * Formulate a fifo command
@@ -337,26 +359,6 @@ static int vidioc_querycap(struct file *file, void *priv,
 	return 0;
 }
 
-static const struct v4l2_frequency_band bands[] = {
-	{
-		.index = 0,
-		.type = V4L2_TUNER_RADIO,
-		.capability = V4L2_TUNER_CAP_LOW | V4L2_TUNER_CAP_FREQ_BANDS,
-		.rangelow = 8320,      /* 520 kHz */
-		.rangehigh = 26400,    /* 1650 kHz */
-		.modulation = V4L2_BAND_MODULATION_AM,
-	}, {
-		.index = 1,
-		.type = V4L2_TUNER_RADIO,
-		.capability = V4L2_TUNER_CAP_STEREO | V4L2_TUNER_CAP_RDS |
-			V4L2_TUNER_CAP_RDS_BLOCK_IO | V4L2_TUNER_CAP_LOW |
-			V4L2_TUNER_CAP_FREQ_BANDS,
-		.rangelow = 1400000,   /* 87.5 MHz */
-		.rangehigh = 1728000,  /* 108.0 MHz */
-		.modulation = V4L2_BAND_MODULATION_FM,
-	},
-};
-
 static int vidioc_g_tuner(struct file *file, void *priv,
 				struct v4l2_tuner *v)
 {
@@ -388,7 +390,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 }
 
 static int vidioc_s_tuner(struct file *file, void *priv,
-				struct v4l2_tuner *v)
+				const struct v4l2_tuner *v)
 {
 	return v->index ? -EINVAL : 0;
 }
@@ -418,7 +420,7 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 
 
 static int vidioc_s_frequency(struct file *file, void *priv,
-				struct v4l2_frequency *f)
+				const struct v4l2_frequency *f)
 {
 	struct cadet *dev = video_drvdata(file);
 
@@ -426,8 +428,6 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 		return -EINVAL;
 	dev->is_fm_band =
 		f->frequency >= (bands[0].rangehigh + bands[1].rangelow) / 2;
-	clamp(f->frequency, bands[dev->is_fm_band].rangelow,
-			    bands[dev->is_fm_band].rangehigh);
 	cadet_setfreq(dev, f->frequency);
 	return 0;
 }

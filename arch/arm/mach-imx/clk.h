@@ -59,6 +59,14 @@ static inline struct clk *imx_clk_divider(const char *name, const char *parent,
 			reg, shift, width, 0, &imx_ccm_lock);
 }
 
+static inline struct clk *imx_clk_divider_flags(const char *name,
+		const char *parent, void __iomem *reg, u8 shift, u8 width,
+		unsigned long flags)
+{
+	return clk_register_divider(NULL, name, parent, flags,
+			reg, shift, width, 0, &imx_ccm_lock);
+}
+
 static inline struct clk *imx_clk_gate(const char *name, const char *parent,
 		void __iomem *reg, u8 shift)
 {
@@ -71,6 +79,15 @@ static inline struct clk *imx_clk_mux(const char *name, void __iomem *reg,
 {
 	return clk_register_mux(NULL, name, parents, num_parents, 0, reg, shift,
 			width, 0, &imx_ccm_lock);
+}
+
+static inline struct clk *imx_clk_mux_flags(const char *name,
+		void __iomem *reg, u8 shift, u8 width, const char **parents,
+		int num_parents, unsigned long flags)
+{
+	return clk_register_mux(NULL, name, parents, num_parents,
+			flags, reg, shift, width, 0,
+			&imx_ccm_lock);
 }
 
 static inline struct clk *imx_clk_fixed_factor(const char *name,

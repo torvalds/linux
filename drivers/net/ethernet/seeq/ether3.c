@@ -651,8 +651,11 @@ if (next_ptr < RX_START || next_ptr >= RX_END) {
 				skb->protocol = eth_type_trans(skb, dev);
 				netif_rx(skb);
 				received ++;
-			} else
-				goto dropping;
+			} else {
+				ether3_outw(next_ptr >> 8, REG_RECVEND);
+				dev->stats.rx_dropped++;
+				goto done;
+			}
 		} else {
 			struct net_device_stats *stats = &dev->stats;
 			ether3_outw(next_ptr >> 8, REG_RECVEND);
@@ -679,21 +682,6 @@ done:
 	}
 
 	return maxcnt;
-
-dropping:{
-	static unsigned long last_warned;
-
-	ether3_outw(next_ptr >> 8, REG_RECVEND);
-	/*
-	 * Don't print this message too many times...
-	 */
-	if (time_after(jiffies, last_warned + 10 * HZ)) {
-		last_warned = jiffies;
-		printk("%s: memory squeeze, dropping packet.\n", dev->name);
-	}
-	dev->stats.rx_dropped++;
-	goto done;
-	}
 }
 
 /*

@@ -26,9 +26,9 @@ struct ssb_sprom_core_pwr_info {
 
 struct ssb_sprom {
 	u8 revision;
-	u8 il0mac[6];		/* MAC address for 802.11b/g */
-	u8 et0mac[6];		/* MAC address for Ethernet */
-	u8 et1mac[6];		/* MAC address for 802.11a */
+	u8 il0mac[6] __aligned(sizeof(u16));	/* MAC address for 802.11b/g */
+	u8 et0mac[6] __aligned(sizeof(u16));	/* MAC address for Ethernet */
+	u8 et1mac[6] __aligned(sizeof(u16));	/* MAC address for 802.11a */
 	u8 et0phyaddr;		/* MII address for enet0 */
 	u8 et1phyaddr;		/* MII address for enet1 */
 	u8 et0mdcport;		/* MDIO for enet0 */
@@ -340,13 +340,61 @@ enum ssb_bustype {
 #define SSB_BOARDVENDOR_DELL	0x1028	/* Dell */
 #define SSB_BOARDVENDOR_HP	0x0E11	/* HP */
 /* board_type */
+#define SSB_BOARD_BCM94301CB	0x0406
+#define SSB_BOARD_BCM94301MP	0x0407
+#define SSB_BOARD_BU4309	0x040A
+#define SSB_BOARD_BCM94309CB	0x040B
+#define SSB_BOARD_BCM4309MP	0x040C
+#define SSB_BOARD_BU4306	0x0416
 #define SSB_BOARD_BCM94306MP	0x0418
 #define SSB_BOARD_BCM4309G	0x0421
 #define SSB_BOARD_BCM4306CB	0x0417
-#define SSB_BOARD_BCM4309MP	0x040C
+#define SSB_BOARD_BCM94306PC	0x0425	/* pcmcia 3.3v 4306 card */
+#define SSB_BOARD_BCM94306CBSG	0x042B	/* with SiGe PA */
+#define SSB_BOARD_PCSG94306	0x042D	/* with SiGe PA */
+#define SSB_BOARD_BU4704SD	0x042E	/* with sdram */
+#define SSB_BOARD_BCM94704AGR	0x042F	/* dual 11a/11g Router */
+#define SSB_BOARD_BCM94308MP	0x0430	/* 11a-only minipci */
+#define SSB_BOARD_BU4318	0x0447
+#define SSB_BOARD_CB4318	0x0448
+#define SSB_BOARD_MPG4318	0x0449
 #define SSB_BOARD_MP4318	0x044A
-#define SSB_BOARD_BU4306	0x0416
-#define SSB_BOARD_BU4309	0x040A
+#define SSB_BOARD_SD4318	0x044B
+#define SSB_BOARD_BCM94306P	0x044C	/* with SiGe */
+#define SSB_BOARD_BCM94303MP	0x044E
+#define SSB_BOARD_BCM94306MPM	0x0450
+#define SSB_BOARD_BCM94306MPL	0x0453
+#define SSB_BOARD_PC4303	0x0454	/* pcmcia */
+#define SSB_BOARD_BCM94306MPLNA	0x0457
+#define SSB_BOARD_BCM94306MPH	0x045B
+#define SSB_BOARD_BCM94306PCIV	0x045C
+#define SSB_BOARD_BCM94318MPGH	0x0463
+#define SSB_BOARD_BU4311	0x0464
+#define SSB_BOARD_BCM94311MC	0x0465
+#define SSB_BOARD_BCM94311MCAG	0x0466
+/* 4321 boards */
+#define SSB_BOARD_BU4321	0x046B
+#define SSB_BOARD_BU4321E	0x047C
+#define SSB_BOARD_MP4321	0x046C
+#define SSB_BOARD_CB2_4321	0x046D
+#define SSB_BOARD_CB2_4321_AG	0x0066
+#define SSB_BOARD_MC4321	0x046E
+/* 4325 boards */
+#define SSB_BOARD_BCM94325DEVBU	0x0490
+#define SSB_BOARD_BCM94325BGABU	0x0491
+#define SSB_BOARD_BCM94325SDGWB	0x0492
+#define SSB_BOARD_BCM94325SDGMDL	0x04AA
+#define SSB_BOARD_BCM94325SDGMDL2	0x04C6
+#define SSB_BOARD_BCM94325SDGMDL3	0x04C9
+#define SSB_BOARD_BCM94325SDABGWBA	0x04E1
+/* 4322 boards */
+#define SSB_BOARD_BCM94322MC	0x04A4
+#define SSB_BOARD_BCM94322USB	0x04A8	/* dualband */
+#define SSB_BOARD_BCM94322HM	0x04B0
+#define SSB_BOARD_BCM94322USB2D	0x04Bf	/* single band discrete front end */
+/* 4312 boards */
+#define SSB_BOARD_BU4312	0x048A
+#define SSB_BOARD_BCM4312MCGSG	0x04B5
 /* chip_package */
 #define SSB_CHIPPACK_BCM4712S	1	/* Small 200pin 4712 */
 #define SSB_CHIPPACK_BCM4712M	2	/* Medium 225pin 4712 */

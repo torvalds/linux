@@ -455,6 +455,14 @@ struct phy_driver {
 	 */
 	void (*txtstamp)(struct phy_device *dev, struct sk_buff *skb, int type);
 
+	/* Some devices (e.g. qnap TS-119P II) require PHY register changes to
+	 * enable Wake on LAN, so set_wol is provided to be called in the
+	 * ethernet driver's set_wol function. */
+	int (*set_wol)(struct phy_device *dev, struct ethtool_wolinfo *wol);
+
+	/* See set_wol, but for checking whether Wake on LAN is enabled. */
+	void (*get_wol)(struct phy_device *dev, struct ethtool_wolinfo *wol);
+
 	struct device_driver driver;
 };
 #define to_phy_driver(d) container_of(d, struct phy_driver, driver)
@@ -560,6 +568,8 @@ int phy_init_eee(struct phy_device *phydev, bool clk_stop_enable);
 int phy_get_eee_err(struct phy_device *phydev);
 int phy_ethtool_set_eee(struct phy_device *phydev, struct ethtool_eee *data);
 int phy_ethtool_get_eee(struct phy_device *phydev, struct ethtool_eee *data);
+int phy_ethtool_set_wol(struct phy_device *phydev, struct ethtool_wolinfo *wol);
+void phy_ethtool_get_wol(struct phy_device *phydev, struct ethtool_wolinfo *wol);
 
 int __init mdio_bus_init(void);
 void mdio_bus_exit(void);

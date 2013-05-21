@@ -485,6 +485,7 @@ static const struct of_device_id davinci_mdio_of_mtable[] = {
 	{ .compatible = "ti,davinci_mdio", },
 	{ /* sentinel */ },
 };
+MODULE_DEVICE_TABLE(of, davinci_mdio_of_mtable);
 
 static struct platform_driver davinci_mdio_driver = {
 	.driver = {

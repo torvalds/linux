@@ -46,10 +46,15 @@ struct lpfc_sli2_slim;
 #define LPFC_DEFAULT_MENLO_SG_SEG_CNT 128	/* sg element count per scsi
 		cmnd for menlo needs nearly twice as for firmware
 		downloads using bsg */
-#define LPFC_DEFAULT_PROT_SG_SEG_CNT 4096 /* sg protection elements count */
+
+#define LPFC_MIN_SG_SLI4_BUF_SZ	0x800	/* based on LPFC_DEFAULT_SG_SEG_CNT */
+#define LPFC_MAX_SG_SLI4_SEG_CNT_DIF 128 /* sg element count per scsi cmnd */
+#define LPFC_MAX_SG_SEG_CNT_DIF 512	/* sg element count per scsi cmnd  */
 #define LPFC_MAX_SG_SEG_CNT	4096	/* sg element count per scsi cmnd */
+#define LPFC_MAX_SGL_SEG_CNT	512	/* SGL element count per scsi cmnd */
+#define LPFC_MAX_BPL_SEG_CNT	4096	/* BPL element count per scsi cmnd */
+
 #define LPFC_MAX_SGE_SIZE       0x80000000 /* Maximum data allowed in a SGE */
-#define LPFC_MAX_PROT_SG_SEG_CNT 4096	/* prot sg element count per scsi cmd*/
 #define LPFC_IOCB_LIST_CNT	2250	/* list of IOCBs for fast-path usage. */
 #define LPFC_Q_RAMP_UP_INTERVAL 120     /* lun q_depth ramp up interval */
 #define LPFC_VNAME_LEN		100	/* vport symbolic name length */
@@ -66,8 +71,10 @@ struct lpfc_sli2_slim;
  * queue depths when there are driver resource error or Firmware
  * resource error.
  */
-#define QUEUE_RAMP_DOWN_INTERVAL	(1 * HZ)   /* 1 Second */
-#define QUEUE_RAMP_UP_INTERVAL		(300 * HZ) /* 5 minutes */
+/* 1 Second */
+#define QUEUE_RAMP_DOWN_INTERVAL	(msecs_to_jiffies(1000 * 1))
+/* 5 minutes */
+#define QUEUE_RAMP_UP_INTERVAL		(msecs_to_jiffies(1000 * 300))
 
 /* Number of exchanges reserved for discovery to complete */
 #define LPFC_DISC_IOCB_BUFF_COUNT 20
@@ -671,6 +678,7 @@ struct lpfc_hba {
 	uint32_t lmt;
 
 	uint32_t fc_topology;	/* link topology, from LINK INIT */
+	uint32_t fc_topology_changed;	/* link topology, from LINK INIT */
 
 	struct lpfc_stats fc_stat;
 
@@ -701,9 +709,11 @@ struct lpfc_hba {
 	uint32_t cfg_poll_tmo;
 	uint32_t cfg_use_msi;
 	uint32_t cfg_fcp_imax;
+	uint32_t cfg_fcp_cpu_map;
 	uint32_t cfg_fcp_wq_count;
 	uint32_t cfg_fcp_eq_count;
 	uint32_t cfg_fcp_io_channel;
+	uint32_t cfg_total_seg_cnt;
 	uint32_t cfg_sg_seg_cnt;
 	uint32_t cfg_prot_sg_seg_cnt;
 	uint32_t cfg_sg_dma_buf_size;
@@ -804,8 +814,10 @@ struct lpfc_hba {
 	uint64_t bg_reftag_err_cnt;
 
 	/* fastpath list. */
-	spinlock_t scsi_buf_list_lock;
-	struct list_head lpfc_scsi_buf_list;
+	spinlock_t scsi_buf_list_get_lock;  /* SCSI buf alloc list lock */
+	spinlock_t scsi_buf_list_put_lock;  /* SCSI buf free list lock */
+	struct list_head lpfc_scsi_buf_list_get;
+	struct list_head lpfc_scsi_buf_list_put;
 	uint32_t total_scsi_bufs;
 	struct list_head lpfc_iocb_list;
 	uint32_t total_iocbq_bufs;

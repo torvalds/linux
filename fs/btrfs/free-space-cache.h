@@ -54,6 +54,8 @@ int create_free_space_inode(struct btrfs_root *root,
 			    struct btrfs_block_group_cache *block_group,
 			    struct btrfs_path *path);
 
+int btrfs_check_trunc_cache_free_space(struct btrfs_root *root,
+				       struct btrfs_block_rsv *rsv);
 int btrfs_truncate_free_space_cache(struct btrfs_root *root,
 				    struct btrfs_trans_handle *trans,
 				    struct btrfs_path *path,
@@ -110,4 +112,9 @@ int btrfs_return_cluster_to_free_space(
 			       struct btrfs_free_cluster *cluster);
 int btrfs_trim_block_group(struct btrfs_block_group_cache *block_group,
 			   u64 *trimmed, u64 start, u64 end, u64 minlen);
+
+#ifdef CONFIG_BTRFS_FS_RUN_SANITY_TESTS
+void btrfs_test_free_space_cache(void);
+#endif
+
 #endif

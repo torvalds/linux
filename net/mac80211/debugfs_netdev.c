@@ -124,6 +124,15 @@ static ssize_t ieee80211_if_fmt_##name(					\
 	return scnprintf(buf, buflen, "%d\n", sdata->field / 16);	\
 }
 
+#define IEEE80211_IF_FMT_JIFFIES_TO_MS(name, field)			\
+static ssize_t ieee80211_if_fmt_##name(					\
+	const struct ieee80211_sub_if_data *sdata,			\
+	char *buf, int buflen)						\
+{									\
+	return scnprintf(buf, buflen, "%d\n",				\
+			 jiffies_to_msecs(sdata->field));		\
+}
+
 #define __IEEE80211_IF_FILE(name, _write)				\
 static ssize_t ieee80211_if_read_##name(struct file *file,		\
 					char __user *userbuf,		\
@@ -197,6 +206,7 @@ IEEE80211_IF_FILE(bssid, u.mgd.bssid, MAC);
 IEEE80211_IF_FILE(aid, u.mgd.aid, DEC);
 IEEE80211_IF_FILE(last_beacon, u.mgd.last_beacon_signal, DEC);
 IEEE80211_IF_FILE(ave_beacon, u.mgd.ave_beacon_signal, DEC_DIV_16);
+IEEE80211_IF_FILE(beacon_timeout, u.mgd.beacon_timeout, JIFFIES_TO_MS);
 
 static int ieee80211_set_smps(struct ieee80211_sub_if_data *sdata,
 			      enum ieee80211_smps_mode smps_mode)
@@ -521,7 +531,7 @@ IEEE80211_IF_FILE(dot11MeshAwakeWindowDuration,
 #endif
 
 #define DEBUGFS_ADD_MODE(name, mode) \
-	debugfs_create_file(#name, mode, sdata->debugfs.dir, \
+	debugfs_create_file(#name, mode, sdata->vif.debugfs_dir, \
 			    sdata, &name##_ops);
 
 #define DEBUGFS_ADD(name) DEBUGFS_ADD_MODE(name, 0400)
@@ -542,6 +552,7 @@ static void add_sta_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_ADD(aid);
 	DEBUGFS_ADD(last_beacon);
 	DEBUGFS_ADD(ave_beacon);
+	DEBUGFS_ADD(beacon_timeout);
 	DEBUGFS_ADD_MODE(smps, 0600);
 	DEBUGFS_ADD_MODE(tkip_mic_test, 0200);
 	DEBUGFS_ADD_MODE(uapsd_queues, 0600);
@@ -577,7 +588,7 @@ static void add_mesh_files(struct ieee80211_sub_if_data *sdata)
 static void add_mesh_stats(struct ieee80211_sub_if_data *sdata)
 {
 	struct dentry *dir = debugfs_create_dir("mesh_stats",
-						sdata->debugfs.dir);
+						sdata->vif.debugfs_dir);
 #define MESHSTATS_ADD(name)\
 	debugfs_create_file(#name, 0400, dir, sdata, &name##_ops);
 
@@ -594,7 +605,7 @@ static void add_mesh_stats(struct ieee80211_sub_if_data *sdata)
 static void add_mesh_config(struct ieee80211_sub_if_data *sdata)
 {
 	struct dentry *dir = debugfs_create_dir("mesh_config",
-						sdata->debugfs.dir);
+						sdata->vif.debugfs_dir);
 
 #define MESHPARAMS_ADD(name) \
 	debugfs_create_file(#name, 0600, dir, sdata, &name##_ops);
@@ -631,7 +642,7 @@ static void add_mesh_config(struct ieee80211_sub_if_data *sdata)
 
 static void add_files(struct ieee80211_sub_if_data *sdata)
 {
-	if (!sdata->debugfs.dir)
+	if (!sdata->vif.debugfs_dir)
 		return;
 
 	DEBUGFS_ADD(flags);
@@ -673,21 +684,21 @@ void ieee80211_debugfs_add_netdev(struct ieee80211_sub_if_data *sdata)
 	char buf[10+IFNAMSIZ];
 
 	sprintf(buf, "netdev:%s", sdata->name);
-	sdata->debugfs.dir = debugfs_create_dir(buf,
+	sdata->vif.debugfs_dir = debugfs_create_dir(buf,
 		sdata->local->hw.wiphy->debugfsdir);
-	if (sdata->debugfs.dir)
+	if (sdata->vif.debugfs_dir)
 		sdata->debugfs.subdir_stations = debugfs_create_dir("stations",
-			sdata->debugfs.dir);
+			sdata->vif.debugfs_dir);
 	add_files(sdata);
 }
 
 void ieee80211_debugfs_remove_netdev(struct ieee80211_sub_if_data *sdata)
 {
-	if (!sdata->debugfs.dir)
+	if (!sdata->vif.debugfs_dir)
 		return;
 
-	debugfs_remove_recursive(sdata->debugfs.dir);
-	sdata->debugfs.dir = NULL;
+	debugfs_remove_recursive(sdata->vif.debugfs_dir);
+	sdata->vif.debugfs_dir = NULL;
 }
 
 void ieee80211_debugfs_rename_netdev(struct ieee80211_sub_if_data *sdata)
@@ -695,7 +706,7 @@ void ieee80211_debugfs_rename_netdev(struct ieee80211_sub_if_data *sdata)
 	struct dentry *dir;
 	char buf[10 + IFNAMSIZ];
 
-	dir = sdata->debugfs.dir;
+	dir = sdata->vif.debugfs_dir;
 
 	if (!dir)
 		return;

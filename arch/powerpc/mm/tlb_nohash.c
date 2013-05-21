@@ -414,9 +414,9 @@ static void setup_page_sizes(void)
 
 #ifdef CONFIG_PPC_FSL_BOOK3E
 	unsigned int mmucfg = mfspr(SPRN_MMUCFG);
+	int fsl_mmu = mmu_has_feature(MMU_FTR_TYPE_FSL_E);
 
-	if (((mmucfg & MMUCFG_MAVN) == MMUCFG_MAVN_V1) &&
-		(mmu_has_feature(MMU_FTR_TYPE_FSL_E))) {
+	if (fsl_mmu && (mmucfg & MMUCFG_MAVN) == MMUCFG_MAVN_V1) {
 		unsigned int tlb1cfg = mfspr(SPRN_TLB1CFG);
 		unsigned int min_pg, max_pg;
 
@@ -438,6 +438,20 @@ static void setup_page_sizes(void)
 
 			if ((shift >= min_pg) && (shift <= max_pg))
 				def->flags |= MMU_PAGE_SIZE_DIRECT;
+		}
+
+		goto no_indirect;
+	}
+
+	if (fsl_mmu && (mmucfg & MMUCFG_MAVN) == MMUCFG_MAVN_V2) {
+		u32 tlb1ps = mfspr(SPRN_TLB1PS);
+
+		for (psize = 0; psize < MMU_PAGE_COUNT; ++psize) {
+			struct mmu_psize_def *def = &mmu_psize_defs[psize];
+
+			if (tlb1ps & (1U << (def->shift - 10))) {
+				def->flags |= MMU_PAGE_SIZE_DIRECT;
+			}
 		}
 
 		goto no_indirect;

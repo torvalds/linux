@@ -681,10 +681,9 @@ void get_new_mmu_context(struct mm_struct *mm)
 {
 	unsigned long ctx, new_ctx;
 	unsigned long orig_pgsz_bits;
-	unsigned long flags;
 	int new_version;
 
-	spin_lock_irqsave(&ctx_alloc_lock, flags);
+	spin_lock(&ctx_alloc_lock);
 	orig_pgsz_bits = (mm->context.sparc64_ctx_val & CTX_PGSZ_MASK);
 	ctx = (tlb_context_cache + 1) & CTX_NR_MASK;
 	new_ctx = find_next_zero_bit(mmu_context_bmap, 1 << CTX_NR_BITS, ctx);
@@ -720,7 +719,7 @@ void get_new_mmu_context(struct mm_struct *mm)
 out:
 	tlb_context_cache = new_ctx;
 	mm->context.sparc64_ctx_val = new_ctx | orig_pgsz_bits;
-	spin_unlock_irqrestore(&ctx_alloc_lock, flags);
+	spin_unlock(&ctx_alloc_lock);
 
 	if (unlikely(new_version))
 		smp_new_mmu_context_version();
@@ -2060,8 +2059,7 @@ void __init mem_init(void)
 	/* We subtract one to account for the mem_map_zero page
 	 * allocated below.
 	 */
-	totalram_pages -= 1;
-	num_physpages = totalram_pages;
+	num_physpages = totalram_pages - 1;
 
 	/*
 	 * Set up the zero page, mark it reserved, so that page count
@@ -2072,7 +2070,7 @@ void __init mem_init(void)
 		prom_printf("paging_init: Cannot alloc zero page.\n");
 		prom_halt();
 	}
-	SetPageReserved(mem_map_zero);
+	mark_page_reserved(mem_map_zero);
 
 	codepages = (((unsigned long) _etext) - ((unsigned long) _start));
 	codepages = PAGE_ALIGN(codepages) >> PAGE_SHIFT;
@@ -2112,39 +2110,22 @@ void free_initmem(void)
 	initend = (unsigned long)(__init_end) & PAGE_MASK;
 	for (; addr < initend; addr += PAGE_SIZE) {
 		unsigned long page;
-		struct page *p;
 
 		page = (addr +
 			((unsigned long) __va(kern_base)) -
 			((unsigned long) KERNBASE));
 		memset((void *)addr, POISON_FREE_INITMEM, PAGE_SIZE);
 
-		if (do_free) {
-			p = virt_to_page(page);
-
-			ClearPageReserved(p);
-			init_page_count(p);
-			__free_page(p);
-			num_physpages++;
-			totalram_pages++;
-		}
+		if (do_free)
+			free_reserved_page(virt_to_page(page));
 	}
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
 void free_initrd_mem(unsigned long start, unsigned long end)
 {
-	if (start < end)
-		printk ("Freeing initrd memory: %ldk freed\n", (end - start) >> 10);
-	for (; start < end; start += PAGE_SIZE) {
-		struct page *p = virt_to_page(start);
-
-		ClearPageReserved(p);
-		init_page_count(p);
-		__free_page(p);
-		num_physpages++;
-		totalram_pages++;
-	}
+	num_physpages += free_reserved_area(start, end, POISON_FREE_INITMEM,
+					    "initrd");
 }
 #endif
 
@@ -2181,10 +2162,9 @@ unsigned long vmemmap_table[VMEMMAP_SIZE];
 static long __meminitdata addr_start, addr_end;
 static int __meminitdata node_start;
 
-int __meminit vmemmap_populate(struct page *start, unsigned long nr, int node)
+int __meminit vmemmap_populate(unsigned long vstart, unsigned long vend,
+			       int node)
 {
-	unsigned long vstart = (unsigned long) start;
-	unsigned long vend = (unsigned long) (start + nr);
 	unsigned long phys_start = (vstart - VMEMMAP_BASE);
 	unsigned long phys_end = (vend - VMEMMAP_BASE);
 	unsigned long addr = phys_start & VMEMMAP_CHUNK_MASK;
@@ -2236,7 +2216,7 @@ void __meminit vmemmap_populate_print_last(void)
 	}
 }
 
-void vmemmap_free(struct page *memmap, unsigned long nr_pages)
+void vmemmap_free(unsigned long start, unsigned long end)
 {
 }
 

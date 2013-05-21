@@ -96,6 +96,18 @@ static void __cpuinit early_init_intel(struct cpuinfo_x86 *c)
 			sched_clock_stable = 1;
 	}
 
+	/* Penwell and Cloverview have the TSC which doesn't sleep on S3 */
+	if (c->x86 == 6) {
+		switch (c->x86_model) {
+		case 0x27:	/* Penwell */
+		case 0x35:	/* Cloverview */
+			set_cpu_cap(c, X86_FEATURE_NONSTOP_TSC_S3);
+			break;
+		default:
+			break;
+		}
+	}
+
 	/*
 	 * There is a known erratum on Pentium III and Core Solo
 	 * and Core Duo CPUs.
@@ -164,20 +176,6 @@ int __cpuinit ppro_with_ram_bug(void)
 	return 0;
 }
 
-#ifdef CONFIG_X86_F00F_BUG
-static void __cpuinit trap_init_f00f_bug(void)
-{
-	__set_fixmap(FIX_F00F_IDT, __pa_symbol(idt_table), PAGE_KERNEL_RO);
-
-	/*
-	 * Update the IDT descriptor and reload the IDT so that
-	 * it uses the read-only mapped virtual address.
-	 */
-	idt_descr.address = fix_to_virt(FIX_F00F_IDT);
-	load_idt(&idt_descr);
-}
-#endif
-
 static void __cpuinit intel_smp_check(struct cpuinfo_x86 *c)
 {
 	/* calling is from identify_secondary_cpu() ? */
@@ -206,16 +204,14 @@ static void __cpuinit intel_workarounds(struct cpuinfo_x86 *c)
 	/*
 	 * All current models of Pentium and Pentium with MMX technology CPUs
 	 * have the F0 0F bug, which lets nonprivileged users lock up the
-	 * system.
-	 * Note that the workaround only should be initialized once...
+	 * system. Announce that the fault handler will be checking for it.
 	 */
-	c->f00f_bug = 0;
+	clear_cpu_bug(c, X86_BUG_F00F);
 	if (!paravirt_enabled() && c->x86 == 5) {
 		static int f00f_workaround_enabled;
 
-		c->f00f_bug = 1;
+		set_cpu_bug(c, X86_BUG_F00F);
 		if (!f00f_workaround_enabled) {
-			trap_init_f00f_bug();
 			printk(KERN_NOTICE "Intel Pentium with F0 0F bug - workaround enabled.\n");
 			f00f_workaround_enabled = 1;
 		}

@@ -82,12 +82,12 @@ static void notrace persistent_ram_encode_rs8(struct persistent_ram_zone *prz,
 	uint8_t *data, size_t len, uint8_t *ecc)
 {
 	int i;
-	uint16_t par[prz->ecc_size];
+	uint16_t par[prz->ecc_info.ecc_size];
 
 	/* Initialize the parity buffer */
 	memset(par, 0, sizeof(par));
 	encode_rs8(prz->rs_decoder, data, len, par, 0);
-	for (i = 0; i < prz->ecc_size; i++)
+	for (i = 0; i < prz->ecc_info.ecc_size; i++)
 		ecc[i] = par[i];
 }
 
@@ -95,9 +95,9 @@ static int persistent_ram_decode_rs8(struct persistent_ram_zone *prz,
 	void *data, size_t len, uint8_t *ecc)
 {
 	int i;
-	uint16_t par[prz->ecc_size];
+	uint16_t par[prz->ecc_info.ecc_size];
 
-	for (i = 0; i < prz->ecc_size; i++)
+	for (i = 0; i < prz->ecc_info.ecc_size; i++)
 		par[i] = ecc[i];
 	return decode_rs8(prz->rs_decoder, data, par, len,
 				NULL, 0, NULL, 0, NULL);
@@ -110,15 +110,15 @@ static void notrace persistent_ram_update_ecc(struct persistent_ram_zone *prz,
 	uint8_t *buffer_end = buffer->data + prz->buffer_size;
 	uint8_t *block;
 	uint8_t *par;
-	int ecc_block_size = prz->ecc_block_size;
-	int ecc_size = prz->ecc_size;
-	int size = prz->ecc_block_size;
+	int ecc_block_size = prz->ecc_info.block_size;
+	int ecc_size = prz->ecc_info.ecc_size;
+	int size = ecc_block_size;
 
-	if (!prz->ecc_size)
+	if (!ecc_size)
 		return;
 
 	block = buffer->data + (start & ~(ecc_block_size - 1));
-	par = prz->par_buffer + (start / ecc_block_size) * prz->ecc_size;
+	par = prz->par_buffer + (start / ecc_block_size) * ecc_size;
 
 	do {
 		if (block + ecc_block_size > buffer_end)
@@ -133,7 +133,7 @@ static void persistent_ram_update_header_ecc(struct persistent_ram_zone *prz)
 {
 	struct persistent_ram_buffer *buffer = prz->buffer;
 
-	if (!prz->ecc_size)
+	if (!prz->ecc_info.ecc_size)
 		return;
 
 	persistent_ram_encode_rs8(prz, (uint8_t *)buffer, sizeof(*buffer),
@@ -146,14 +146,14 @@ static void persistent_ram_ecc_old(struct persistent_ram_zone *prz)
 	uint8_t *block;
 	uint8_t *par;
 
-	if (!prz->ecc_size)
+	if (!prz->ecc_info.ecc_size)
 		return;
 
 	block = buffer->data;
 	par = prz->par_buffer;
 	while (block < buffer->data + buffer_size(prz)) {
 		int numerr;
-		int size = prz->ecc_block_size;
+		int size = prz->ecc_info.block_size;
 		if (block + size > buffer->data + prz->buffer_size)
 			size = buffer->data + prz->buffer_size - block;
 		numerr = persistent_ram_decode_rs8(prz, block, size, par);
@@ -166,44 +166,49 @@ static void persistent_ram_ecc_old(struct persistent_ram_zone *prz)
 				block);
 			prz->bad_blocks++;
 		}
-		block += prz->ecc_block_size;
-		par += prz->ecc_size;
+		block += prz->ecc_info.block_size;
+		par += prz->ecc_info.ecc_size;
 	}
 }
 
 static int persistent_ram_init_ecc(struct persistent_ram_zone *prz,
-				   int ecc_size)
+				   struct persistent_ram_ecc_info *ecc_info)
 {
 	int numerr;
 	struct persistent_ram_buffer *buffer = prz->buffer;
 	int ecc_blocks;
 	size_t ecc_total;
-	int ecc_symsize = 8;
-	int ecc_poly = 0x11d;
 
-	if (!ecc_size)
+	if (!ecc_info || !ecc_info->ecc_size)
 		return 0;
 
-	prz->ecc_block_size = 128;
-	prz->ecc_size = ecc_size;
+	prz->ecc_info.block_size = ecc_info->block_size ?: 128;
+	prz->ecc_info.ecc_size = ecc_info->ecc_size ?: 16;
+	prz->ecc_info.symsize = ecc_info->symsize ?: 8;
+	prz->ecc_info.poly = ecc_info->poly ?: 0x11d;
 
-	ecc_blocks = DIV_ROUND_UP(prz->buffer_size, prz->ecc_block_size);
-	ecc_total = (ecc_blocks + 1) * prz->ecc_size;
+	ecc_blocks = DIV_ROUND_UP(prz->buffer_size - prz->ecc_info.ecc_size,
+				  prz->ecc_info.block_size +
+				  prz->ecc_info.ecc_size);
+	ecc_total = (ecc_blocks + 1) * prz->ecc_info.ecc_size;
 	if (ecc_total >= prz->buffer_size) {
 		pr_err("%s: invalid ecc_size %u (total %zu, buffer size %zu)\n",
-		       __func__, prz->ecc_size, ecc_total, prz->buffer_size);
+		       __func__, prz->ecc_info.ecc_size,
+		       ecc_total, prz->buffer_size);
 		return -EINVAL;
 	}
 
 	prz->buffer_size -= ecc_total;
 	prz->par_buffer = buffer->data + prz->buffer_size;
-	prz->par_header = prz->par_buffer + ecc_blocks * prz->ecc_size;
+	prz->par_header = prz->par_buffer +
+			  ecc_blocks * prz->ecc_info.ecc_size;
 
 	/*
 	 * first consecutive root is 0
 	 * primitive element to generate roots = 1
 	 */
-	prz->rs_decoder = init_rs(ecc_symsize, ecc_poly, 0, 1, prz->ecc_size);
+	prz->rs_decoder = init_rs(prz->ecc_info.symsize, prz->ecc_info.poly,
+				  0, 1, prz->ecc_info.ecc_size);
 	if (prz->rs_decoder == NULL) {
 		pr_info("persistent_ram: init_rs failed\n");
 		return -EINVAL;
@@ -229,6 +234,9 @@ ssize_t persistent_ram_ecc_string(struct persistent_ram_zone *prz,
 	char *str, size_t len)
 {
 	ssize_t ret;
+
+	if (!prz->ecc_info.ecc_size)
+		return 0;
 
 	if (prz->corrected_bytes || prz->bad_blocks)
 		ret = snprintf(str, len, ""
@@ -391,11 +399,11 @@ static int persistent_ram_buffer_map(phys_addr_t start, phys_addr_t size,
 }
 
 static int persistent_ram_post_init(struct persistent_ram_zone *prz, u32 sig,
-				    int ecc_size)
+				    struct persistent_ram_ecc_info *ecc_info)
 {
 	int ret;
 
-	ret = persistent_ram_init_ecc(prz, ecc_size);
+	ret = persistent_ram_init_ecc(prz, ecc_info);
 	if (ret)
 		return ret;
 
@@ -444,7 +452,7 @@ void persistent_ram_free(struct persistent_ram_zone *prz)
 }
 
 struct persistent_ram_zone *persistent_ram_new(phys_addr_t start, size_t size,
-					       u32 sig, int ecc_size)
+			u32 sig, struct persistent_ram_ecc_info *ecc_info)
 {
 	struct persistent_ram_zone *prz;
 	int ret = -ENOMEM;
@@ -459,7 +467,7 @@ struct persistent_ram_zone *persistent_ram_new(phys_addr_t start, size_t size,
 	if (ret)
 		goto err;
 
-	ret = persistent_ram_post_init(prz, sig, ecc_size);
+	ret = persistent_ram_post_init(prz, sig, ecc_info);
 	if (ret)
 		goto err;
 

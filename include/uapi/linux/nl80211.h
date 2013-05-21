@@ -36,7 +36,21 @@
  * The station is still assumed to belong to the AP interface it was added
  * to.
  *
- * TODO: need more info?
+ * Station handling varies per interface type and depending on the driver's
+ * capabilities.
+ *
+ * For drivers supporting TDLS with external setup (WIPHY_FLAG_SUPPORTS_TDLS
+ * and WIPHY_FLAG_TDLS_EXTERNAL_SETUP), the station lifetime is as follows:
+ *  - a setup station entry is added, not yet authorized, without any rate
+ *    or capability information, this just exists to avoid race conditions
+ *  - when the TDLS setup is done, a single NL80211_CMD_SET_STATION is valid
+ *    to add rate and capability information to the station and at the same
+ *    time mark it authorized.
+ *  - %NL80211_TDLS_ENABLE_LINK is then used
+ *  - after this, the only valid operation is to remove it by tearing down
+ *    the TDLS link (%NL80211_TDLS_DISABLE_LINK)
+ *
+ * TODO: need more info for other interface types
  */
 
 /**
@@ -499,9 +513,11 @@
  * @NL80211_CMD_NEW_PEER_CANDIDATE: Notification on the reception of a
  *      beacon or probe response from a compatible mesh peer.  This is only
  *      sent while no station information (sta_info) exists for the new peer
- *      candidate and when @NL80211_MESH_SETUP_USERSPACE_AUTH is set.  On
- *      reception of this notification, userspace may decide to create a new
- *      station (@NL80211_CMD_NEW_STATION).  To stop this notification from
+ *      candidate and when @NL80211_MESH_SETUP_USERSPACE_AUTH,
+ *      @NL80211_MESH_SETUP_USERSPACE_AMPE, or
+ *      @NL80211_MESH_SETUP_USERSPACE_MPM is set.  On reception of this
+ *      notification, userspace may decide to create a new station
+ *      (@NL80211_CMD_NEW_STATION).  To stop this notification from
  *      reoccurring, the userspace authentication daemon may want to create the
  *      new station with the AUTHENTICATED flag unset and maybe change it later
  *      depending on the authentication result.
@@ -610,6 +626,25 @@
  *	while operating on this channel.
  *	%NL80211_ATTR_RADAR_EVENT is used to inform about the type of the
  *	event.
+ *
+ * @NL80211_CMD_GET_PROTOCOL_FEATURES: Get global nl80211 protocol features,
+ *	i.e. features for the nl80211 protocol rather than device features.
+ *	Returns the features in the %NL80211_ATTR_PROTOCOL_FEATURES bitmap.
+ *
+ * @NL80211_CMD_UPDATE_FT_IES: Pass down the most up-to-date Fast Transition
+ *	Information Element to the WLAN driver
+ *
+ * @NL80211_CMD_FT_EVENT: Send a Fast transition event from the WLAN driver
+ *	to the supplicant. This will carry the target AP's MAC address along
+ *	with the relevant Information Elements. This event is used to report
+ *	received FT IEs (MDIE, FTIE, RSN IE, TIE, RICIE).
+ *
+ * @NL80211_CMD_CRIT_PROTOCOL_START: Indicates user-space will start running
+ *	a critical protocol that needs more reliability in the connection to
+ *	complete.
+ *
+ * @NL80211_CMD_CRIT_PROTOCOL_STOP: Indicates the connection reliability can
+ *	return back to normal.
  *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
@@ -765,6 +800,14 @@ enum nl80211_commands {
 
 	NL80211_CMD_RADAR_DETECT,
 
+	NL80211_CMD_GET_PROTOCOL_FEATURES,
+
+	NL80211_CMD_UPDATE_FT_IES,
+	NL80211_CMD_FT_EVENT,
+
+	NL80211_CMD_CRIT_PROTOCOL_START,
+	NL80211_CMD_CRIT_PROTOCOL_STOP,
+
 	/* add new commands above here */
 
 	/* used to define NL80211_CMD_MAX below */
@@ -884,7 +927,8 @@ enum nl80211_commands {
  *	consisting of a nested array.
  *
  * @NL80211_ATTR_MESH_ID: mesh id (1-32 bytes).
- * @NL80211_ATTR_STA_PLINK_ACTION: action to perform on the mesh peer link.
+ * @NL80211_ATTR_STA_PLINK_ACTION: action to perform on the mesh peer link
+ *	(see &enum nl80211_plink_action).
  * @NL80211_ATTR_MPATH_NEXT_HOP: MAC address of the next hop for a mesh path.
  * @NL80211_ATTR_MPATH_INFO: information about a mesh_path, part of mesh path
  * 	info given for %NL80211_CMD_GET_MPATH, nested attribute described at
@@ -1167,10 +1211,10 @@ enum nl80211_commands {
  * @NL80211_ATTR_SUPPORT_MESH_AUTH: Currently, this means the underlying driver
  *	allows auth frames in a mesh to be passed to userspace for processing via
  *	the @NL80211_MESH_SETUP_USERSPACE_AUTH flag.
- * @NL80211_ATTR_STA_PLINK_STATE: The state of a mesh peer link as
- *	defined in &enum nl80211_plink_state. Used when userspace is
- *	driving the peer link management state machine.
- *	@NL80211_MESH_SETUP_USERSPACE_AMPE must be enabled.
+ * @NL80211_ATTR_STA_PLINK_STATE: The state of a mesh peer link as defined in
+ *	&enum nl80211_plink_state. Used when userspace is driving the peer link
+ *	management state machine.  @NL80211_MESH_SETUP_USERSPACE_AMPE or
+ *	@NL80211_MESH_SETUP_USERSPACE_MPM must be enabled.
  *
  * @NL80211_ATTR_WOWLAN_TRIGGERS_SUPPORTED: indicates, as part of the wiphy
  *	capabilities, the supported WoWLAN triggers
@@ -1367,6 +1411,23 @@ enum nl80211_commands {
  * @NL80211_ATTR_STA_EXT_CAPABILITY: Station extended capabilities are
  *	advertised to the driver, e.g., to enable TDLS off channel operations
  *	and PU-APSD.
+ *
+ * @NL80211_ATTR_PROTOCOL_FEATURES: global nl80211 feature flags, see
+ *	&enum nl80211_protocol_features, the attribute is a u32.
+ *
+ * @NL80211_ATTR_SPLIT_WIPHY_DUMP: flag attribute, userspace supports
+ *	receiving the data for a single wiphy split across multiple
+ *	messages, given with wiphy dump message
+ *
+ * @NL80211_ATTR_MDID: Mobility Domain Identifier
+ *
+ * @NL80211_ATTR_IE_RIC: Resource Information Container Information
+ *	Element
+ *
+ * @NL80211_ATTR_CRIT_PROT_ID: critical protocol identifier requiring increased
+ *	reliability, see &enum nl80211_crit_proto_id (u16).
+ * @NL80211_ATTR_MAX_CRIT_PROT_DURATION: duration in milliseconds in which
+ *      the connection should have increased reliability (u16).
  *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -1653,6 +1714,18 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_STA_CAPABILITY,
 	NL80211_ATTR_STA_EXT_CAPABILITY,
+
+	NL80211_ATTR_PROTOCOL_FEATURES,
+	NL80211_ATTR_SPLIT_WIPHY_DUMP,
+
+	NL80211_ATTR_DISABLE_VHT,
+	NL80211_ATTR_VHT_CAPABILITY_MASK,
+
+	NL80211_ATTR_MDID,
+	NL80211_ATTR_IE_RIC,
+
+	NL80211_ATTR_CRIT_PROT_ID,
+	NL80211_ATTR_MAX_CRIT_PROT_DURATION,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -2412,8 +2485,10 @@ enum nl80211_mesh_power_mode {
  * @NL80211_MESHCONF_TTL: specifies the value of TTL field set at a source mesh
  *	point.
  *
- * @NL80211_MESHCONF_AUTO_OPEN_PLINKS: whether we should automatically
- *	open peer links when we detect compatible mesh peers.
+ * @NL80211_MESHCONF_AUTO_OPEN_PLINKS: whether we should automatically open
+ *	peer links when we detect compatible mesh peers. Disabled if
+ *	@NL80211_MESH_SETUP_USERSPACE_MPM or @NL80211_MESH_SETUP_USERSPACE_AMPE are
+ *	set.
  *
  * @NL80211_MESHCONF_HWMP_MAX_PREQ_RETRIES: the number of action frames
  *	containing a PREQ that an MP can send to a particular destination (path
@@ -2559,6 +2634,9 @@ enum nl80211_meshconf_params {
  *	vendor specific synchronization method or disable it to use the default
  *	neighbor offset synchronization
  *
+ * @NL80211_MESH_SETUP_USERSPACE_MPM: Enable this option if userspace will
+ *	implement an MPM which handles peer allocation and state.
+ *
  * @NL80211_MESH_SETUP_ATTR_MAX: highest possible mesh setup attribute number
  *
  * @__NL80211_MESH_SETUP_ATTR_AFTER_LAST: Internal use
@@ -2571,6 +2649,7 @@ enum nl80211_mesh_setup_params {
 	NL80211_MESH_SETUP_USERSPACE_AUTH,
 	NL80211_MESH_SETUP_USERSPACE_AMPE,
 	NL80211_MESH_SETUP_ENABLE_VENDOR_SYNC,
+	NL80211_MESH_SETUP_USERSPACE_MPM,
 
 	/* keep last */
 	__NL80211_MESH_SETUP_ATTR_AFTER_LAST,
@@ -3307,6 +3386,23 @@ enum nl80211_plink_state {
 	MAX_NL80211_PLINK_STATES = NUM_NL80211_PLINK_STATES - 1
 };
 
+/**
+ * enum nl80211_plink_action - actions to perform in mesh peers
+ *
+ * @NL80211_PLINK_ACTION_NO_ACTION: perform no action
+ * @NL80211_PLINK_ACTION_OPEN: start mesh peer link establishment
+ * @NL80211_PLINK_ACTION_BLOCK: block traffic from this mesh peer
+ * @NUM_NL80211_PLINK_ACTIONS: number of possible actions
+ */
+enum plink_actions {
+	NL80211_PLINK_ACTION_NO_ACTION,
+	NL80211_PLINK_ACTION_OPEN,
+	NL80211_PLINK_ACTION_BLOCK,
+
+	NUM_NL80211_PLINK_ACTIONS,
+};
+
+
 #define NL80211_KCK_LEN			16
 #define NL80211_KEK_LEN			16
 #define NL80211_REPLAY_CTR_LEN		8
@@ -3456,6 +3552,10 @@ enum nl80211_ap_sme_features {
  *	stations the authenticated/associated bits have to be set in the mask.
  * @NL80211_FEATURE_ADVERTISE_CHAN_LIMITS: cfg80211 advertises channel limits
  *	(HT40, VHT 80/160 MHz) if this flag is set
+ * @NL80211_FEATURE_USERSPACE_MPM: This driver supports a userspace Mesh
+ *	Peering Management entity which may be implemented by registering for
+ *	beacons or NL80211_CMD_NEW_PEER_CANDIDATE events. The mesh beacon is
+ *	still generated by the driver.
  */
 enum nl80211_feature_flags {
 	NL80211_FEATURE_SK_TX_STATUS			= 1 << 0,
@@ -3474,6 +3574,7 @@ enum nl80211_feature_flags {
 	/* bit 13 is reserved */
 	NL80211_FEATURE_ADVERTISE_CHAN_LIMITS		= 1 << 14,
 	NL80211_FEATURE_FULL_AP_CLIENT_STATE		= 1 << 15,
+	NL80211_FEATURE_USERSPACE_MPM			= 1 << 16,
 };
 
 /**
@@ -3586,5 +3687,38 @@ enum nl80211_dfs_state {
 	NL80211_DFS_UNAVAILABLE,
 	NL80211_DFS_AVAILABLE,
 };
+
+/**
+ * enum enum nl80211_protocol_features - nl80211 protocol features
+ * @NL80211_PROTOCOL_FEATURE_SPLIT_WIPHY_DUMP: nl80211 supports splitting
+ *	wiphy dumps (if requested by the application with the attribute
+ *	%NL80211_ATTR_SPLIT_WIPHY_DUMP. Also supported is filtering the
+ *	wiphy dump by %NL80211_ATTR_WIPHY, %NL80211_ATTR_IFINDEX or
+ *	%NL80211_ATTR_WDEV.
+ */
+enum nl80211_protocol_features {
+	NL80211_PROTOCOL_FEATURE_SPLIT_WIPHY_DUMP =	1 << 0,
+};
+
+/**
+ * enum nl80211_crit_proto_id - nl80211 critical protocol identifiers
+ *
+ * @NL80211_CRIT_PROTO_UNSPEC: protocol unspecified.
+ * @NL80211_CRIT_PROTO_DHCP: BOOTP or DHCPv6 protocol.
+ * @NL80211_CRIT_PROTO_EAPOL: EAPOL protocol.
+ * @NL80211_CRIT_PROTO_APIPA: APIPA protocol.
+ * @NUM_NL80211_CRIT_PROTO: must be kept last.
+ */
+enum nl80211_crit_proto_id {
+	NL80211_CRIT_PROTO_UNSPEC,
+	NL80211_CRIT_PROTO_DHCP,
+	NL80211_CRIT_PROTO_EAPOL,
+	NL80211_CRIT_PROTO_APIPA,
+	/* add other protocols before this one */
+	NUM_NL80211_CRIT_PROTO
+};
+
+/* maximum duration for critical protocol measures */
+#define NL80211_CRIT_PROTO_MAX_DURATION		5000 /* msec */
 
 #endif /* __LINUX_NL80211_H */

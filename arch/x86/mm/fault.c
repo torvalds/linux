@@ -13,12 +13,12 @@
 #include <linux/perf_event.h>		/* perf_sw_event		*/
 #include <linux/hugetlb.h>		/* hstate_index_to_shift	*/
 #include <linux/prefetch.h>		/* prefetchw			*/
+#include <linux/context_tracking.h>	/* exception_enter(), ...	*/
 
 #include <asm/traps.h>			/* dotraplinkage, ...		*/
 #include <asm/pgalloc.h>		/* pgd_*(), ...			*/
 #include <asm/kmemcheck.h>		/* kmemcheck_*(), ...		*/
 #include <asm/fixmap.h>			/* VSYSCALL_START		*/
-#include <asm/context_tracking.h>	/* exception_enter(), ...	*/
 
 /*
  * Page fault error code bits:
@@ -378,10 +378,12 @@ static noinline __kprobes int vmalloc_fault(unsigned long address)
 	if (pgd_none(*pgd_ref))
 		return -1;
 
-	if (pgd_none(*pgd))
+	if (pgd_none(*pgd)) {
 		set_pgd(pgd, *pgd_ref);
-	else
+		arch_flush_lazy_mmu_mode();
+	} else {
 		BUG_ON(pgd_page_vaddr(*pgd) != pgd_page_vaddr(*pgd_ref));
+	}
 
 	/*
 	 * Below here mismatches are bugs because these lower tables
@@ -555,7 +557,7 @@ static int is_f00f_bug(struct pt_regs *regs, unsigned long address)
 	/*
 	 * Pentium F0 0F C7 C8 bug workaround:
 	 */
-	if (boot_cpu_data.f00f_bug) {
+	if (boot_cpu_has_bug(X86_BUG_F00F)) {
 		nr = (address - idt_descr.address) >> 3;
 
 		if (nr == 6) {
@@ -1222,7 +1224,9 @@ good_area:
 dotraplinkage void __kprobes
 do_page_fault(struct pt_regs *regs, unsigned long error_code)
 {
-	exception_enter(regs);
+	enum ctx_state prev_state;
+
+	prev_state = exception_enter();
 	__do_page_fault(regs, error_code);
-	exception_exit(regs);
+	exception_exit(prev_state);
 }

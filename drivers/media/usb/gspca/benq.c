@@ -186,7 +186,7 @@ static void sd_isoc_irq(struct urb *urb)
 		/* check the packet status and length */
 		if (urb0->iso_frame_desc[i].actual_length != SD_PKT_SZ
 		    || urb->iso_frame_desc[i].actual_length != SD_PKT_SZ) {
-			PDEBUG(D_ERR, "ISOC bad lengths %d / %d",
+			PERR("ISOC bad lengths %d / %d",
 				urb0->iso_frame_desc[i].actual_length,
 				urb->iso_frame_desc[i].actual_length);
 			gspca_dev->last_packet_type = DISCARD_PACKET;

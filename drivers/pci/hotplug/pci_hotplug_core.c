@@ -41,6 +41,7 @@
 #include <linux/pci_hotplug.h>
 #include <asm/uaccess.h>
 #include "../pci.h"
+#include "cpci_hotplug.h"
 
 #define MY_NAME	"pci_hotplug"
 
@@ -62,14 +63,6 @@ static bool debug;
 
 static LIST_HEAD(pci_hotplug_slot_list);
 static DEFINE_MUTEX(pci_hp_mutex);
-
-#ifdef CONFIG_HOTPLUG_PCI_CPCI
-extern int cpci_hotplug_init(int debug);
-extern void cpci_hotplug_exit(void);
-#else
-static inline int cpci_hotplug_init(int debug) { return 0; }
-static inline void cpci_hotplug_exit(void) { }
-#endif
 
 /* Weee, fun with macros... */
 #define GET_STATUS(name,type)	\
@@ -524,13 +517,11 @@ int pci_hp_deregister(struct hotplug_slot *hotplug)
  *
  * Returns 0 if successful, anything else for an error.
  */
-int __must_check pci_hp_change_slot_info(struct hotplug_slot *hotplug,
-					 struct hotplug_slot_info *info)
+int pci_hp_change_slot_info(struct hotplug_slot *hotplug,
+			    struct hotplug_slot_info *info)
 {
-	struct pci_slot *slot;
 	if (!hotplug || !info)
 		return -ENODEV;
-	slot = hotplug->pci_slot;
 
 	memcpy(hotplug->info, info, sizeof(struct hotplug_slot_info));
 

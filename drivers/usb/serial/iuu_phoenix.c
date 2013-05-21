@@ -55,7 +55,6 @@ static void read_rxcmd_callback(struct urb *urb);
 
 struct iuu_private {
 	spinlock_t lock;	/* store irq state */
-	wait_queue_head_t delta_msr_wait;
 	u8 line_status;
 	int tiostatus;		/* store IUART SIGNAL for tiocmget call */
 	u8 reset;		/* if 1 reset is needed */
@@ -94,7 +93,6 @@ static int iuu_port_probe(struct usb_serial_port *port)
 
 	priv->vcc = vcc_default;
 	spin_lock_init(&priv->lock);
-	init_waitqueue_head(&priv->delta_msr_wait);
 
 	usb_set_serial_port_data(port, priv);
 
@@ -944,22 +942,13 @@ static void iuu_set_termios(struct tty_struct *tty,
 static void iuu_close(struct usb_serial_port *port)
 {
 	/* iuu_led (port,255,0,0,0); */
-	struct usb_serial *serial;
-
-	serial = port->serial;
-	if (!serial)
-		return;
 
 	iuu_uart_off(port);
-	if (serial->dev) {
-		/* free writebuf */
-		/* shutdown our urbs */
-		dev_dbg(&port->dev, "%s - shutting down urbs\n", __func__);
-		usb_kill_urb(port->write_urb);
-		usb_kill_urb(port->read_urb);
-		usb_kill_urb(port->interrupt_in_urb);
-		iuu_led(port, 0, 0, 0xF000, 0xFF);
-	}
+
+	usb_kill_urb(port->write_urb);
+	usb_kill_urb(port->read_urb);
+
+	iuu_led(port, 0, 0, 0xF000, 0xFF);
 }
 
 static void iuu_init_termios(struct tty_struct *tty)

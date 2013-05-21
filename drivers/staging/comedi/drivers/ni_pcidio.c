@@ -280,28 +280,29 @@ enum FPGA_Control_Bits {
 static int ni_pcidio_cancel(struct comedi_device *dev,
 			    struct comedi_subdevice *s);
 
+enum nidio_boardid {
+	BOARD_PCIDIO_32HS,
+	BOARD_PXI6533,
+	BOARD_PCI6534,
+};
+
 struct nidio_board {
-	int dev_id;
 	const char *name;
 	unsigned int uses_firmware:1;
 };
 
 static const struct nidio_board nidio_boards[] = {
-	{
-		.dev_id		= 0x1150,
+	[BOARD_PCIDIO_32HS] = {
 		.name		= "pci-dio-32hs",
-	}, {
-		.dev_id		= 0x1320,
+	},
+	[BOARD_PXI6533] = {
 		.name		= "pxi-6533",
-	}, {
-		.dev_id		= 0x12b0,
+	},
+	[BOARD_PCI6534] = {
 		.name		= "pci-6534",
 		.uses_firmware	= 1,
 	},
 };
-
-#define n_nidio_boards ARRAY_SIZE(nidio_boards)
-#define this_board ((const struct nidio_board *)dev->board_ptr)
 
 struct nidio96_private {
 	struct mite_struct *mite;
@@ -419,7 +420,7 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 	unsigned int m_status = 0;
 
 	/* interrupcions parasites */
-	if (dev->attached == 0) {
+	if (!dev->attached) {
 		/* assume it's from another card */
 		return IRQ_NONE;
 	}
@@ -1094,28 +1095,26 @@ static int pci_6534_upload_firmware(struct comedi_device *dev)
 	return ret;
 }
 
-static const struct nidio_board *
-nidio_find_boardinfo(struct pci_dev *pcidev)
-{
-	unsigned int dev_id = pcidev->device;
-	unsigned int n;
-
-	for (n = 0; n < ARRAY_SIZE(nidio_boards); n++) {
-		const struct nidio_board *board = &nidio_boards[n];
-		if (board->dev_id == dev_id)
-			return board;
-	}
-	return NULL;
-}
-
 static int nidio_auto_attach(struct comedi_device *dev,
-				       unsigned long context_unused)
+			     unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
+	const struct nidio_board *board = NULL;
 	struct nidio96_private *devpriv;
 	struct comedi_subdevice *s;
 	int ret;
 	unsigned int irq;
+
+	if (context < ARRAY_SIZE(nidio_boards))
+		board = &nidio_boards[context];
+	if (!board)
+		return -ENODEV;
+	dev->board_ptr = board;
+	dev->board_name = board->name;
+
+	ret = comedi_pci_enable(dev);
+	if (ret)
+		return ret;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
@@ -1124,9 +1123,6 @@ static int nidio_auto_attach(struct comedi_device *dev,
 
 	spin_lock_init(&devpriv->mite_channel_lock);
 
-	dev->board_ptr = nidio_find_boardinfo(pcidev);
-	if (!dev->board_ptr)
-		return -ENODEV;
 	devpriv->mite = mite_alloc(pcidev);
 	if (!devpriv->mite)
 		return -ENOMEM;
@@ -1141,9 +1137,8 @@ static int nidio_auto_attach(struct comedi_device *dev,
 	if (devpriv->di_mite_ring == NULL)
 		return -ENOMEM;
 
-	dev->board_name = this_board->name;
 	irq = mite_irq(devpriv->mite);
-	if (this_board->uses_firmware) {
+	if (board->uses_firmware) {
 		ret = pci_6534_upload_firmware(dev);
 		if (ret < 0)
 			return ret;
@@ -1211,6 +1206,7 @@ static void nidio_detach(struct comedi_device *dev)
 			mite_free(devpriv->mite);
 		}
 	}
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver ni_pcidio_driver = {
@@ -1221,15 +1217,15 @@ static struct comedi_driver ni_pcidio_driver = {
 };
 
 static int ni_pcidio_pci_probe(struct pci_dev *dev,
-					 const struct pci_device_id *ent)
+			       const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &ni_pcidio_driver);
+	return comedi_pci_auto_config(dev, &ni_pcidio_driver, id->driver_data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(ni_pcidio_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1150) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1320) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_NI, 0x12b0) },
+	{ PCI_VDEVICE(NI, 0x1150), BOARD_PCIDIO_32HS },
+	{ PCI_VDEVICE(NI, 0x12b0), BOARD_PCI6534 },
+	{ PCI_VDEVICE(NI, 0x1320), BOARD_PXI6533 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, ni_pcidio_pci_table);

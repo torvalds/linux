@@ -35,7 +35,8 @@
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/atomic.h>
-#ifdef CONFIG_RAMSTER
+#include <linux/export.h>
+#if defined(CONFIG_RAMSTER) || defined(CONFIG_RAMSTER_MODULE)
 #include <linux/delay.h>
 #endif
 
@@ -641,6 +642,7 @@ void *tmem_localify_get_pampd(struct tmem_pool *pool, struct tmem_oid *oidp,
 	/* note, hashbucket remains locked */
 	return pampd;
 }
+EXPORT_SYMBOL_GPL(tmem_localify_get_pampd);
 
 void tmem_localify_finish(struct tmem_obj *obj, uint32_t index,
 			  void *pampd, void *saved_hb, bool delete)
@@ -658,6 +660,7 @@ void tmem_localify_finish(struct tmem_obj *obj, uint32_t index,
 	}
 	spin_unlock(&hb->lock);
 }
+EXPORT_SYMBOL_GPL(tmem_localify_finish);
 
 /*
  * For ramster only.  Helper function to support asynchronous tmem_get.
@@ -719,6 +722,7 @@ out:
 	spin_unlock(&hb->lock);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(tmem_replace);
 #endif
 
 /*

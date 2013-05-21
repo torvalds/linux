@@ -263,7 +263,7 @@ static void mvebu_pinconf_group_dbg_show(struct pinctrl_dev *pctldev,
 	return;
 }
 
-static struct pinconf_ops mvebu_pinconf_ops = {
+static const struct pinconf_ops mvebu_pinconf_ops = {
 	.pin_config_group_get = mvebu_pinconf_group_get,
 	.pin_config_group_set = mvebu_pinconf_group_set,
 	.pin_config_group_dbg_show = mvebu_pinconf_group_dbg_show,
@@ -369,7 +369,7 @@ static int mvebu_pinmux_gpio_set_direction(struct pinctrl_dev *pctldev,
 	return -ENOTSUPP;
 }
 
-static struct pinmux_ops mvebu_pinmux_ops = {
+static const struct pinmux_ops mvebu_pinmux_ops = {
 	.get_functions_count = mvebu_pinmux_get_funcs_count,
 	.get_function_name = mvebu_pinmux_get_func_name,
 	.get_function_groups = mvebu_pinmux_get_groups,
@@ -470,7 +470,7 @@ static void mvebu_pinctrl_dt_free_map(struct pinctrl_dev *pctldev,
 	kfree(map);
 }
 
-static struct pinctrl_ops mvebu_pinctrl_ops = {
+static const struct pinctrl_ops mvebu_pinctrl_ops = {
 	.get_groups_count = mvebu_pinctrl_get_groups_count,
 	.get_group_name = mvebu_pinctrl_get_group_name,
 	.get_group_pins = mvebu_pinctrl_get_group_pins,
@@ -478,8 +478,12 @@ static struct pinctrl_ops mvebu_pinctrl_ops = {
 	.dt_free_map = mvebu_pinctrl_dt_free_map,
 };
 
-static int _add_function(struct mvebu_pinctrl_function *funcs, const char *name)
+static int _add_function(struct mvebu_pinctrl_function *funcs, int *funcsize,
+			const char *name)
 {
+	if (*funcsize <= 0)
+		return -EOVERFLOW;
+
 	while (funcs->num_groups) {
 		/* function already there */
 		if (strcmp(funcs->name, name) == 0) {
@@ -488,8 +492,12 @@ static int _add_function(struct mvebu_pinctrl_function *funcs, const char *name)
 		}
 		funcs++;
 	}
+
+	/* append new unique function */
 	funcs->name = name;
 	funcs->num_groups = 1;
+	(*funcsize)--;
+
 	return 0;
 }
 
@@ -497,12 +505,12 @@ static int mvebu_pinctrl_build_functions(struct platform_device *pdev,
 					 struct mvebu_pinctrl *pctl)
 {
 	struct mvebu_pinctrl_function *funcs;
-	int num = 0;
+	int num = 0, funcsize = pctl->desc.npins;
 	int n, s;
 
 	/* we allocate functions for number of pins and hope
-	 * there are less unique functions than pins available */
-	funcs = devm_kzalloc(&pdev->dev, pctl->desc.npins *
+	 * there are fewer unique functions than pins available */
+	funcs = devm_kzalloc(&pdev->dev, funcsize *
 			     sizeof(struct mvebu_pinctrl_function), GFP_KERNEL);
 	if (!funcs)
 		return -ENOMEM;
@@ -510,25 +518,26 @@ static int mvebu_pinctrl_build_functions(struct platform_device *pdev,
 	for (n = 0; n < pctl->num_groups; n++) {
 		struct mvebu_pinctrl_group *grp = &pctl->groups[n];
 		for (s = 0; s < grp->num_settings; s++) {
+			int ret;
+
 			/* skip unsupported settings on this variant */
 			if (pctl->variant &&
 			    !(pctl->variant & grp->settings[s].variant))
 				continue;
 
 			/* check for unique functions and count groups */
-			if (_add_function(funcs, grp->settings[s].name))
+			ret = _add_function(funcs, &funcsize,
+					    grp->settings[s].name);
+			if (ret == -EOVERFLOW)
+				dev_err(&pdev->dev,
+					"More functions than pins(%d)\n",
+					pctl->desc.npins);
+			if (ret < 0)
 				continue;
 
 			num++;
 		}
 	}
-
-	/* with the number of unique functions and it's groups known,
-	   reallocate functions and assign group names */
-	funcs = krealloc(funcs, num * sizeof(struct mvebu_pinctrl_function),
-			 GFP_KERNEL);
-	if (!funcs)
-		return -ENOMEM;
 
 	pctl->num_functions = num;
 	pctl->functions = funcs;

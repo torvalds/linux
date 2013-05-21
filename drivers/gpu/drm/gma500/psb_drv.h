@@ -876,7 +876,6 @@ extern const struct psb_ops cdv_chip_ops;
 #define PSB_D_MSVDX   (1 << 9)
 #define PSB_D_TOPAZ   (1 << 10)
 
-extern int drm_psb_no_fb;
 extern int drm_idle_check_interval;
 
 /*

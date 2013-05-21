@@ -130,6 +130,9 @@ enum {
 #define MWIFIEX_USB_TYPE_DATA			0xBEADC0DE
 #define MWIFIEX_USB_TYPE_EVENT			0xBEEFFACE
 
+/* Threshold for tx_timeout_cnt before we trigger a card reset */
+#define TX_TIMEOUT_THRESHOLD	6
+
 struct mwifiex_dbg {
 	u32 num_cmd_host_to_card_failure;
 	u32 num_cmd_sleep_cfm_host_to_card_failure;
@@ -210,15 +213,11 @@ struct mwifiex_ra_list_tbl {
 
 struct mwifiex_tid_tbl {
 	struct list_head ra_list;
-	/* spin lock for tid table */
-	spinlock_t tid_tbl_lock;
-	struct mwifiex_ra_list_tbl *ra_list_curr;
 };
 
 #define WMM_HIGHEST_PRIORITY		7
 #define HIGH_PRIO_TID				7
 #define LOW_PRIO_TID				0
-#define NO_PKT_PRIO_TID				(-1)
 
 struct mwifiex_wmm_desc {
 	struct mwifiex_tid_tbl tid_tbl_ptr[MAX_NUM_TID];
@@ -394,6 +393,8 @@ struct mwifiex_private {
 	u8 curr_addr[ETH_ALEN];
 	u8 media_connected;
 	u32 num_tx_timeout;
+	/* track consecutive timeout */
+	u8 tx_timeout_cnt;
 	struct net_device *netdev;
 	struct net_device_stats stats;
 	u16 curr_pkt_filter;
@@ -793,6 +794,8 @@ void mwifiex_cancel_pending_ioctl(struct mwifiex_adapter *adapter);
 
 void mwifiex_insert_cmd_to_free_q(struct mwifiex_adapter *adapter,
 				  struct cmd_ctrl_node *cmd_node);
+void mwifiex_recycle_cmd_node(struct mwifiex_adapter *adapter,
+			      struct cmd_ctrl_node *cmd_node);
 
 void mwifiex_insert_cmd_to_pending_q(struct mwifiex_adapter *adapter,
 				     struct cmd_ctrl_node *cmd_node,
@@ -907,12 +910,20 @@ int mwifiex_set_secure_params(struct mwifiex_private *priv,
 void mwifiex_set_ht_params(struct mwifiex_private *priv,
 			   struct mwifiex_uap_bss_param *bss_cfg,
 			   struct cfg80211_ap_settings *params);
+void mwifiex_set_vht_params(struct mwifiex_private *priv,
+			    struct mwifiex_uap_bss_param *bss_cfg,
+			    struct cfg80211_ap_settings *params);
 void mwifiex_set_uap_rates(struct mwifiex_uap_bss_param *bss_cfg,
 			   struct cfg80211_ap_settings *params);
+void mwifiex_set_vht_width(struct mwifiex_private *priv,
+			   enum nl80211_chan_width width,
+			   bool ap_11ac_disable);
 void
 mwifiex_set_wmm_params(struct mwifiex_private *priv,
 		       struct mwifiex_uap_bss_param *bss_cfg,
 		       struct cfg80211_ap_settings *params);
+void mwifiex_set_ba_params(struct mwifiex_private *priv);
+void mwifiex_set_11ac_ba_params(struct mwifiex_private *priv);
 
 /*
  * This function checks if the queuing is RA based or not.
@@ -1098,10 +1109,14 @@ int mwifiex_del_virtual_intf(struct wiphy *wiphy, struct wireless_dev *wdev);
 
 void mwifiex_set_sys_config_invalid_data(struct mwifiex_uap_bss_param *config);
 
+int mwifiex_add_wowlan_magic_pkt_filter(struct mwifiex_adapter *adapter);
+
 int mwifiex_set_mgmt_ies(struct mwifiex_private *priv,
 			 struct cfg80211_beacon_data *data);
 int mwifiex_del_mgmt_ies(struct mwifiex_private *priv);
 u8 *mwifiex_11d_code_2_region(u8 code);
+
+extern const struct ethtool_ops mwifiex_ethtool_ops;
 
 #ifdef CONFIG_DEBUG_FS
 void mwifiex_debugfs_init(void);

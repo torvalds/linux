@@ -332,7 +332,6 @@ static handle_t *new_handle(int nblocks)
 	handle_t *handle = jbd2_alloc_handle(GFP_NOFS);
 	if (!handle)
 		return NULL;
-	memset(handle, 0, sizeof(*handle));
 	handle->h_buffer_credits = nblocks;
 	handle->h_ref = 1;
 
@@ -640,6 +639,7 @@ do_get_write_access(handle_t *handle, struct journal_head *jh,
 	int error;
 	char *frozen_buffer = NULL;
 	int need_copy = 0;
+	unsigned long start_lock, time_lock;
 
 	if (is_handle_aborted(handle))
 		return -EROFS;
@@ -655,8 +655,15 @@ repeat:
 
 	/* @@@ Need to check for errors here at some point. */
 
+ 	start_lock = jiffies;
 	lock_buffer(bh);
 	jbd_lock_bh_state(bh);
+
+	/* If it takes too long to lock the buffer, trace it */
+	time_lock = jbd2_time_diff(start_lock, jiffies);
+	if (time_lock > HZ/10)
+		trace_jbd2_lock_buffer_stall(bh->b_bdev->bd_dev,
+			jiffies_to_msecs(time_lock));
 
 	/* We now hold the buffer lock so it is safe to query the buffer
 	 * state.  Is the buffer dirty?

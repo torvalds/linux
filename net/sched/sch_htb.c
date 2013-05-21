@@ -981,6 +981,7 @@ static const struct nla_policy htb_policy[TCA_HTB_MAX + 1] = {
 	[TCA_HTB_INIT]	= { .len = sizeof(struct tc_htb_glob) },
 	[TCA_HTB_CTAB]	= { .type = NLA_BINARY, .len = TC_RTAB_SIZE },
 	[TCA_HTB_RTAB]	= { .type = NLA_BINARY, .len = TC_RTAB_SIZE },
+	[TCA_HTB_DIRECT_QLEN] = { .type = NLA_U32 },
 };
 
 static void htb_work_func(struct work_struct *work)
@@ -994,7 +995,7 @@ static void htb_work_func(struct work_struct *work)
 static int htb_init(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct htb_sched *q = qdisc_priv(sch);
-	struct nlattr *tb[TCA_HTB_INIT + 1];
+	struct nlattr *tb[TCA_HTB_MAX + 1];
 	struct tc_htb_glob *gopt;
 	int err;
 	int i;
@@ -1002,20 +1003,16 @@ static int htb_init(struct Qdisc *sch, struct nlattr *opt)
 	if (!opt)
 		return -EINVAL;
 
-	err = nla_parse_nested(tb, TCA_HTB_INIT, opt, htb_policy);
+	err = nla_parse_nested(tb, TCA_HTB_MAX, opt, htb_policy);
 	if (err < 0)
 		return err;
 
-	if (tb[TCA_HTB_INIT] == NULL) {
-		pr_err("HTB: hey probably you have bad tc tool ?\n");
+	if (!tb[TCA_HTB_INIT])
 		return -EINVAL;
-	}
+
 	gopt = nla_data(tb[TCA_HTB_INIT]);
-	if (gopt->version != HTB_VER >> 16) {
-		pr_err("HTB: need tc/htb version %d (minor is %d), you have %d\n",
-		       HTB_VER >> 16, HTB_VER & 0xffff, gopt->version);
+	if (gopt->version != HTB_VER >> 16)
 		return -EINVAL;
-	}
 
 	err = qdisc_class_hash_init(&q->clhash);
 	if (err < 0)
@@ -1027,10 +1024,13 @@ static int htb_init(struct Qdisc *sch, struct nlattr *opt)
 	INIT_WORK(&q->work, htb_work_func);
 	skb_queue_head_init(&q->direct_queue);
 
-	q->direct_qlen = qdisc_dev(sch)->tx_queue_len;
-	if (q->direct_qlen < 2)	/* some devices have zero tx_queue_len */
-		q->direct_qlen = 2;
-
+	if (tb[TCA_HTB_DIRECT_QLEN])
+		q->direct_qlen = nla_get_u32(tb[TCA_HTB_DIRECT_QLEN]);
+	else {
+		q->direct_qlen = qdisc_dev(sch)->tx_queue_len;
+		if (q->direct_qlen < 2)	/* some devices have zero tx_queue_len */
+			q->direct_qlen = 2;
+	}
 	if ((q->rate2quantum = gopt->rate2quantum) < 1)
 		q->rate2quantum = 1;
 	q->defcls = gopt->defcls;
@@ -1056,7 +1056,8 @@ static int htb_dump(struct Qdisc *sch, struct sk_buff *skb)
 	nest = nla_nest_start(skb, TCA_OPTIONS);
 	if (nest == NULL)
 		goto nla_put_failure;
-	if (nla_put(skb, TCA_HTB_INIT, sizeof(gopt), &gopt))
+	if (nla_put(skb, TCA_HTB_INIT, sizeof(gopt), &gopt) ||
+	    nla_put_u32(skb, TCA_HTB_DIRECT_QLEN, q->direct_qlen))
 		goto nla_put_failure;
 	nla_nest_end(skb, nest);
 
@@ -1311,7 +1312,7 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 	struct htb_sched *q = qdisc_priv(sch);
 	struct htb_class *cl = (struct htb_class *)*arg, *parent;
 	struct nlattr *opt = tca[TCA_OPTIONS];
-	struct nlattr *tb[__TCA_HTB_MAX];
+	struct nlattr *tb[TCA_HTB_MAX + 1];
 	struct tc_htb_opt *hopt;
 
 	/* extract all subattrs from opt attr */

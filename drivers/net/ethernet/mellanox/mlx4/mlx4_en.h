@@ -40,6 +40,7 @@
 #include <linux/mutex.h>
 #include <linux/netdevice.h>
 #include <linux/if_vlan.h>
+#include <linux/net_tstamp.h>
 #ifdef CONFIG_MLX4_EN_DCB
 #include <linux/dcbnl.h>
 #endif
@@ -77,6 +78,7 @@
 #define STAMP_SHIFT		31
 #define STAMP_VAL		0x7fffffff
 #define STATS_DELAY		(HZ / 4)
+#define SERVICE_TASK_DELAY	(HZ / 4)
 #define MAX_NUM_OF_FS_RULES	256
 
 #define MLX4_EN_FILTER_HASH_SHIFT 4
@@ -207,6 +209,7 @@ struct mlx4_en_tx_info {
 	u8 linear;
 	u8 data_offset;
 	u8 inl;
+	u8 ts_requested;
 };
 
 
@@ -262,6 +265,7 @@ struct mlx4_en_tx_ring {
 	struct mlx4_bf bf;
 	bool bf_enabled;
 	struct netdev_queue *tx_queue;
+	int hwtstamp_tx_type;
 };
 
 struct mlx4_en_rx_desc {
@@ -288,6 +292,7 @@ struct mlx4_en_rx_ring {
 	unsigned long packets;
 	unsigned long csum_ok;
 	unsigned long csum_none;
+	int hwtstamp_rx_filter;
 };
 
 struct mlx4_en_cq {
@@ -348,6 +353,10 @@ struct mlx4_en_dev {
 	u32                     priv_pdn;
 	spinlock_t              uar_lock;
 	u8			mac_removed[MLX4_MAX_PORTS + 1];
+	struct cyclecounter	cycles;
+	struct timecounter	clock;
+	unsigned long		last_overflow_check;
+	unsigned long		overflow_period;
 };
 
 
@@ -512,6 +521,7 @@ struct mlx4_en_priv {
 	struct work_struct watchdog_task;
 	struct work_struct linkstate_task;
 	struct delayed_work stats_task;
+	struct delayed_work service_task;
 	struct mlx4_en_perf_stats pstats;
 	struct mlx4_en_pkt_stats pkstats;
 	struct mlx4_en_port_stats port_stats;
@@ -525,6 +535,7 @@ struct mlx4_en_priv {
 	struct device *ddev;
 	int base_tx_qpn;
 	struct hlist_head mac_hash[MLX4_EN_MAC_HASH_SIZE];
+	struct hwtstamp_config hwtstamp_config;
 
 #ifdef CONFIG_MLX4_EN_DCB
 	struct ieee_ets ets;
@@ -624,6 +635,7 @@ int mlx4_en_QUERY_PORT(struct mlx4_en_dev *mdev, u8 port);
 
 #ifdef CONFIG_MLX4_EN_DCB
 extern const struct dcbnl_rtnl_ops mlx4_en_dcbnl_ops;
+extern const struct dcbnl_rtnl_ops mlx4_en_dcbnl_pfc_ops;
 #endif
 
 int mlx4_en_setup_tc(struct net_device *dev, u8 up);
@@ -636,9 +648,21 @@ void mlx4_en_cleanup_filters(struct mlx4_en_priv *priv,
 #define MLX4_EN_NUM_SELF_TEST	5
 void mlx4_en_ex_selftest(struct net_device *dev, u32 *flags, u64 *buf);
 u64 mlx4_en_mac_to_u64(u8 *addr);
+void mlx4_en_ptp_overflow_check(struct mlx4_en_dev *mdev);
 
 /*
- * Globals
+ * Functions for time stamping
+ */
+u64 mlx4_en_get_cqe_ts(struct mlx4_cqe *cqe);
+void mlx4_en_fill_hwtstamps(struct mlx4_en_dev *mdev,
+			    struct skb_shared_hwtstamps *hwts,
+			    u64 timestamp);
+void mlx4_en_init_timestamp(struct mlx4_en_dev *mdev);
+int mlx4_en_timestamp_config(struct net_device *dev,
+			     int tx_type,
+			     int rx_filter);
+
+/* Globals
  */
 extern const struct ethtool_ops mlx4_en_ethtool_ops;
 

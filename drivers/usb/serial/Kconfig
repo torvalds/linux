@@ -4,7 +4,7 @@
 
 menuconfig USB_SERIAL
 	tristate "USB Serial Converter support"
-	depends on USB && TTY
+	depends on TTY
 	---help---
 	  Say Y here if you have a USB device that provides normal serial
 	  ports, or acts like a serial device, and you want to connect it to
@@ -666,6 +666,23 @@ config USB_SERIAL_ZIO
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called zio.
+
+config USB_SERIAL_WISHBONE
+	tristate "USB-Wishbone adapter interface driver"
+	help
+	  Say Y here if you want to use a USB attached Wishbone bus.
+
+	  Wishbone is an open hardware SoC bus commonly used in FPGA
+	  designs. Bus access can be serialized using the Etherbone
+	  protocol <http://www.ohwr.org/projects/etherbone-core>.
+
+	  This driver is intended to be used with devices which attach
+	  their internal Wishbone bus to a USB serial interface using
+	  the Etherbone protocol. A userspace library is required to
+	  speak the protocol made available by this driver as ttyUSBx.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called wishbone-serial.
 
 config USB_SERIAL_ZTE
 	tristate "ZTE USB serial driver"

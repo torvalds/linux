@@ -613,10 +613,13 @@ static __modinit int add_sysfs_param(struct module_kobject *mk,
 		       sizeof(*mk->mp) + sizeof(mk->mp->attrs[0]) * (num+1),
 		       GFP_KERNEL);
 	if (!new) {
-		kfree(mk->mp);
+		kfree(attrs);
 		err = -ENOMEM;
 		goto fail;
 	}
+	/* Despite looking like the typical realloc() bug, this is safe.
+	 * We *want* the old 'attrs' to be freed either way, and we'll store
+	 * the new one in the success case. */
 	attrs = krealloc(attrs, sizeof(new->grp.attrs[0])*(num+2), GFP_KERNEL);
 	if (!attrs) {
 		err = -ENOMEM;

@@ -52,11 +52,15 @@ struct at91_adc_state {
 	void __iomem		*reg_base;
 	struct at91_adc_reg_desc *registers;
 	u8			startup_time;
+	u8			sample_hold_time;
+	bool			sleep_mode;
 	struct iio_trigger	**trig;
 	struct at91_adc_trigger	*trigger_list;
 	u32			trigger_number;
 	bool			use_external;
 	u32			vref_mv;
+	u32			res;		/* resolution used for convertions */
+	bool			low_res;	/* the resolution corresponds to the lowest one */
 	wait_queue_head_t	wq_data_avail;
 };
 
@@ -138,10 +142,10 @@ static int at91_adc_channel_init(struct iio_dev *idev)
 		chan->channel = bit;
 		chan->scan_index = idx;
 		chan->scan_type.sign = 'u';
-		chan->scan_type.realbits = 10;
+		chan->scan_type.realbits = st->res;
 		chan->scan_type.storagebits = 16;
-		chan->info_mask = IIO_CHAN_INFO_SCALE_SHARED_BIT |
-			IIO_CHAN_INFO_RAW_SEPARATE_BIT;
+		chan->info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE);
+		chan->info_mask_separate = BIT(IIO_CHAN_INFO_RAW);
 		idx++;
 	}
 	timestamp = chan_array + idx;
@@ -188,7 +192,7 @@ static u8 at91_adc_get_trigger_value_by_name(struct iio_dev *idev,
 
 static int at91_adc_configure_trigger(struct iio_trigger *trig, bool state)
 {
-	struct iio_dev *idev = trig->private_data;
+	struct iio_dev *idev = iio_trigger_get_drvdata(trig);
 	struct at91_adc_state *st = iio_priv(idev);
 	struct iio_buffer *buffer = idev->buffer;
 	struct at91_adc_reg_desc *reg = st->registers;
@@ -254,7 +258,7 @@ static struct iio_trigger *at91_adc_allocate_trigger(struct iio_dev *idev,
 		return NULL;
 
 	trig->dev.parent = idev->dev.parent;
-	trig->private_data = idev;
+	iio_trigger_set_drvdata(trig, idev);
 	trig->ops = &at91_adc_trigger_ops;
 
 	ret = iio_trigger_register(trig);
@@ -372,6 +376,59 @@ static int at91_adc_read_raw(struct iio_dev *idev,
 	return -EINVAL;
 }
 
+static int at91_adc_of_get_resolution(struct at91_adc_state *st,
+				      struct platform_device *pdev)
+{
+	struct iio_dev *idev = iio_priv_to_dev(st);
+	struct device_node *np = pdev->dev.of_node;
+	int count, i, ret = 0;
+	char *res_name, *s;
+	u32 *resolutions;
+
+	count = of_property_count_strings(np, "atmel,adc-res-names");
+	if (count < 2) {
+		dev_err(&idev->dev, "You must specified at least two resolution names for "
+				    "adc-res-names property in the DT\n");
+		return count;
+	}
+
+	resolutions = kmalloc(count * sizeof(*resolutions), GFP_KERNEL);
+	if (!resolutions)
+		return -ENOMEM;
+
+	if (of_property_read_u32_array(np, "atmel,adc-res", resolutions, count)) {
+		dev_err(&idev->dev, "Missing adc-res property in the DT.\n");
+		ret = -ENODEV;
+		goto ret;
+	}
+
+	if (of_property_read_string(np, "atmel,adc-use-res", (const char **)&res_name))
+		res_name = "highres";
+
+	for (i = 0; i < count; i++) {
+		if (of_property_read_string_index(np, "atmel,adc-res-names", i, (const char **)&s))
+			continue;
+
+		if (strcmp(res_name, s))
+			continue;
+
+		st->res = resolutions[i];
+		if (!strcmp(res_name, "lowres"))
+			st->low_res = true;
+		else
+			st->low_res = false;
+
+		dev_info(&idev->dev, "Resolution used: %u bits\n", st->res);
+		goto ret;
+	}
+
+	dev_err(&idev->dev, "There is no resolution for %s\n", res_name);
+
+ret:
+	kfree(resolutions);
+	return ret;
+}
+
 static int at91_adc_probe_dt(struct at91_adc_state *st,
 			     struct platform_device *pdev)
 {
@@ -400,6 +457,8 @@ static int at91_adc_probe_dt(struct at91_adc_state *st,
 	}
 	st->num_channels = prop;
 
+	st->sleep_mode = of_property_read_bool(node, "atmel,adc-sleep-mode");
+
 	if (of_property_read_u32(node, "atmel,adc-startup-time", &prop)) {
 		dev_err(&idev->dev, "Missing adc-startup-time property in the DT.\n");
 		ret = -EINVAL;
@@ -407,6 +466,9 @@ static int at91_adc_probe_dt(struct at91_adc_state *st,
 	}
 	st->startup_time = prop;
 
+	prop = 0;
+	of_property_read_u32(node, "atmel,adc-sample-hold-time", &prop);
+	st->sample_hold_time = prop;
 
 	if (of_property_read_u32(node, "atmel,adc-vref", &prop)) {
 		dev_err(&idev->dev, "Missing adc-vref property in the DT.\n");
@@ -414,6 +476,10 @@ static int at91_adc_probe_dt(struct at91_adc_state *st,
 		goto error_ret;
 	}
 	st->vref_mv = prop;
+
+	ret = at91_adc_of_get_resolution(st, pdev);
+	if (ret)
+		goto error_ret;
 
 	st->registers = devm_kzalloc(&idev->dev,
 				     sizeof(struct at91_adc_reg_desc),
@@ -516,11 +582,12 @@ static const struct iio_info at91_adc_info = {
 
 static int at91_adc_probe(struct platform_device *pdev)
 {
-	unsigned int prsc, mstrclk, ticks, adc_clk;
+	unsigned int prsc, mstrclk, ticks, adc_clk, shtim;
 	int ret;
 	struct iio_dev *idev;
 	struct at91_adc_state *st;
 	struct resource *res;
+	u32 reg;
 
 	idev = iio_device_alloc(sizeof(struct at91_adc_state));
 	if (idev == NULL) {
@@ -628,9 +695,22 @@ static int at91_adc_probe(struct platform_device *pdev)
 	 */
 	ticks = round_up((st->startup_time * adc_clk /
 			  1000000) - 1, 8) / 8;
-	at91_adc_writel(st, AT91_ADC_MR,
-			(AT91_ADC_PRESCAL_(prsc) & AT91_ADC_PRESCAL) |
-			(AT91_ADC_STARTUP_(ticks) & AT91_ADC_STARTUP));
+	/*
+	 * a minimal Sample and Hold Time is necessary for the ADC to guarantee
+	 * the best converted final value between two channels selection
+	 * The formula thus is : Sample and Hold Time = (shtim + 1) / ADCClock
+	 */
+	shtim = round_up((st->sample_hold_time * adc_clk /
+			  1000000) - 1, 1);
+
+	reg = AT91_ADC_PRESCAL_(prsc) & AT91_ADC_PRESCAL;
+	reg |= AT91_ADC_STARTUP_(ticks) & AT91_ADC_STARTUP;
+	if (st->low_res)
+		reg |= AT91_ADC_LOWRES;
+	if (st->sleep_mode)
+		reg |= AT91_ADC_SLEEP;
+	reg |= AT91_ADC_SHTIM_(shtim) & AT91_ADC_SHTIM;
+	at91_adc_writel(st, AT91_ADC_MR, reg);
 
 	/* Setup the ADC channels available on the board */
 	ret = at91_adc_channel_init(idev);

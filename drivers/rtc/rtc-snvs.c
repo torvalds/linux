@@ -283,7 +283,7 @@ static int snvs_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	data->rtc = rtc_device_register(pdev->name, &pdev->dev,
+	data->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
 					&snvs_rtc_ops, THIS_MODULE);
 	if (IS_ERR(data->rtc)) {
 		ret = PTR_ERR(data->rtc);
@@ -296,10 +296,6 @@ static int snvs_rtc_probe(struct platform_device *pdev)
 
 static int snvs_rtc_remove(struct platform_device *pdev)
 {
-	struct snvs_rtc_data *data = platform_get_drvdata(pdev);
-
-	rtc_device_unregister(data->rtc);
-
 	return 0;
 }
 

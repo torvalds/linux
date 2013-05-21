@@ -50,4 +50,31 @@ struct thermal_instance {
 	struct list_head cdev_node; /* node in cdev->thermal_instances */
 };
 
+int thermal_register_governor(struct thermal_governor *);
+void thermal_unregister_governor(struct thermal_governor *);
+
+#ifdef CONFIG_THERMAL_GOV_STEP_WISE
+int thermal_gov_step_wise_register(void);
+void thermal_gov_step_wise_unregister(void);
+#else
+static inline int thermal_gov_step_wise_register(void) { return 0; }
+static inline void thermal_gov_step_wise_unregister(void) {}
+#endif /* CONFIG_THERMAL_GOV_STEP_WISE */
+
+#ifdef CONFIG_THERMAL_GOV_FAIR_SHARE
+int thermal_gov_fair_share_register(void);
+void thermal_gov_fair_share_unregister(void);
+#else
+static inline int thermal_gov_fair_share_register(void) { return 0; }
+static inline void thermal_gov_fair_share_unregister(void) {}
+#endif /* CONFIG_THERMAL_GOV_FAIR_SHARE */
+
+#ifdef CONFIG_THERMAL_GOV_USER_SPACE
+int thermal_gov_user_space_register(void);
+void thermal_gov_user_space_unregister(void);
+#else
+static inline int thermal_gov_user_space_register(void) { return 0; }
+static inline void thermal_gov_user_space_unregister(void) {}
+#endif /* CONFIG_THERMAL_GOV_USER_SPACE */
+
 #endif /* __THERMAL_CORE_H__ */

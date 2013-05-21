@@ -204,41 +204,31 @@ static int axienet_dma_bd_init(struct net_device *ndev)
 	lp->tx_bd_v = dma_alloc_coherent(ndev->dev.parent,
 					 sizeof(*lp->tx_bd_v) * TX_BD_NUM,
 					 &lp->tx_bd_p,
-					 GFP_KERNEL);
-	if (!lp->tx_bd_v) {
-		dev_err(&ndev->dev, "unable to allocate DMA Tx buffer "
-			"descriptors");
+					 GFP_KERNEL | __GFP_ZERO);
+	if (!lp->tx_bd_v)
 		goto out;
-	}
 
 	lp->rx_bd_v = dma_alloc_coherent(ndev->dev.parent,
 					 sizeof(*lp->rx_bd_v) * RX_BD_NUM,
 					 &lp->rx_bd_p,
-					 GFP_KERNEL);
-	if (!lp->rx_bd_v) {
-		dev_err(&ndev->dev, "unable to allocate DMA Rx buffer "
-			"descriptors");
+					 GFP_KERNEL | __GFP_ZERO);
+	if (!lp->rx_bd_v)
 		goto out;
-	}
 
-	memset(lp->tx_bd_v, 0, sizeof(*lp->tx_bd_v) * TX_BD_NUM);
 	for (i = 0; i < TX_BD_NUM; i++) {
 		lp->tx_bd_v[i].next = lp->tx_bd_p +
 				      sizeof(*lp->tx_bd_v) *
 				      ((i + 1) % TX_BD_NUM);
 	}
 
-	memset(lp->rx_bd_v, 0, sizeof(*lp->rx_bd_v) * RX_BD_NUM);
 	for (i = 0; i < RX_BD_NUM; i++) {
 		lp->rx_bd_v[i].next = lp->rx_bd_p +
 				      sizeof(*lp->rx_bd_v) *
 				      ((i + 1) % RX_BD_NUM);
 
 		skb = netdev_alloc_skb_ip_align(ndev, lp->max_frm_size);
-		if (!skb) {
-			dev_err(&ndev->dev, "alloc_skb error %d\n", i);
+		if (!skb)
 			goto out;
-		}
 
 		lp->rx_bd_v[i].sw_id_offset = (u32) skb;
 		lp->rx_bd_v[i].phys = dma_map_single(ndev->dev.parent,
@@ -777,10 +767,9 @@ static void axienet_recv(struct net_device *ndev)
 		packets++;
 
 		new_skb = netdev_alloc_skb_ip_align(ndev, lp->max_frm_size);
-		if (!new_skb) {
-			dev_err(&ndev->dev, "no memory for new sk_buff\n");
+		if (!new_skb)
 			return;
-		}
+
 		cur_p->phys = dma_map_single(ndev->dev.parent, new_skb->data,
 					     lp->max_frm_size,
 					     DMA_FROM_DEVICE);

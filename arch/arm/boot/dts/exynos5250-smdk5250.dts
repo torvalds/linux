@@ -30,8 +30,6 @@
 	i2c@12C60000 {
 		samsung,i2c-sda-delay = <100>;
 		samsung,i2c-max-bus-freq = <20000>;
-		gpios = <&gpb3 0 2 3 0>,
-			<&gpb3 1 2 3 0>;
 
 		eeprom@50 {
 			compatible = "samsung,s524ad0xd1";
@@ -42,8 +40,6 @@
 	i2c@12C70000 {
 		samsung,i2c-sda-delay = <100>;
 		samsung,i2c-max-bus-freq = <20000>;
-		gpios = <&gpb3 2 2 3 0>,
-			<&gpb3 3 2 3 0>;
 
 		eeprom@51 {
 			compatible = "samsung,s524ad0xd1";
@@ -74,8 +70,6 @@
 	i2c@12C80000 {
 		samsung,i2c-sda-delay = <100>;
 		samsung,i2c-max-bus-freq = <66000>;
-		gpios = <&gpa0 6 3 3 0>,
-			<&gpa0 7 3 3 0>;
 
 		hdmiddc@50 {
 			compatible = "samsung,exynos5-hdmiddc";
@@ -122,15 +116,12 @@
 		samsung,dw-mshc-ciu-div = <3>;
 		samsung,dw-mshc-sdr-timing = <2 3>;
 		samsung,dw-mshc-ddr-timing = <1 2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sd0_clk &sd0_cmd &sd0_bus4 &sd0_bus8>;
 
 		slot@0 {
 			reg = <0>;
 			bus-width = <8>;
-			gpios = <&gpc0 0 2 0 3>, <&gpc0 1 2 0 3>,
-				<&gpc1 0 2 3 3>, <&gpc1 1 2 3 3>,
-				<&gpc1 2 2 3 3>, <&gpc1 3 2 3 3>,
-				<&gpc0 3 2 3 3>, <&gpc0 4 2 3 3>,
-				<&gpc0 5 2 3 3>, <&gpc0 6 2 3 3>;
 		};
 	};
 
@@ -146,17 +137,13 @@
 		samsung,dw-mshc-ciu-div = <3>;
 		samsung,dw-mshc-sdr-timing = <2 3>;
 		samsung,dw-mshc-ddr-timing = <1 2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_cd &sd2_bus4>;
 
 		slot@0 {
 			reg = <0>;
 			bus-width = <4>;
-			samsung,cd-pinmux-gpio = <&gpc3 2 2 3 3>;
 			disable-wp;
-			gpios = <&gpc3 0 2 0 3>, <&gpc3 1 2 0 3>,
-				<&gpc3 3 2 3 3>, <&gpc3 4 2 3 3>,
-				<&gpc3 5 2 3 3>, <&gpc3 6 2 3 3>,
-				<&gpc4 3 3 3 3>, <&gpc4 3 3 3 3>,
-				<&gpc4 5 3 3 3>, <&gpc4 6 3 3 3>;
 		};
 	};
 
@@ -169,10 +156,6 @@
 	};
 
 	spi_1: spi@12d30000 {
-		gpios = <&gpa2 4 2 3 0>,
-			<&gpa2 6 2 3 0>,
-			<&gpa2 7 2 3 0>;
-
 		w25q80bw@0 {
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -181,7 +164,7 @@
 			spi-max-frequency = <1000000>;
 
 			controller-data {
-				cs-gpio = <&gpa2 5 1 0 3>;
+				cs-gpio = <&gpa2 5 0>;
 				samsung,spi-feedback-delay = <0>;
 			};
 
@@ -203,7 +186,7 @@
 	};
 
 	hdmi {
-		hpd-gpio = <&gpx3 7 0xf 1 3>;
+		hpd-gpio = <&gpx3 7 0>;
 	};
 
 	codec@11000000 {
@@ -212,9 +195,7 @@
 	};
 
 	i2s0: i2s@03830000 {
-		gpios = <&gpz 0 2 0 0>, <&gpz 1 2 0 0>, <&gpz 2 2 0 0>,
-			<&gpz 3 2 0 0>, <&gpz 4 2 0 0>, <&gpz 5 2 0 0>,
-			<&gpz 6 2 0 0>;
+		status = "okay";
 	};
 
 	i2s1: i2s@12D60000 {
@@ -230,5 +211,41 @@
 
 		samsung,i2s-controller = <&i2s0>;
 		samsung,audio-codec = <&wm8994>;
+	};
+
+	usb@12110000 {
+		samsung,vbus-gpio = <&gpx2 6 0>;
+	};
+
+	dp-controller {
+		samsung,color-space = <0>;
+		samsung,dynamic-range = <0>;
+		samsung,ycbcr-coeff = <0>;
+		samsung,color-depth = <1>;
+		samsung,link-rate = <0x0a>;
+		samsung,lane-count = <4>;
+	};
+
+	display-timings {
+		native-mode = <&timing0>;
+		timing0: timing@0 {
+			/* 1280x800 */
+			clock-frequency = <50000>;
+			hactive = <1280>;
+			vactive = <800>;
+			hfront-porch = <4>;
+			hback-porch = <4>;
+			hsync-len = <4>;
+			vback-porch = <4>;
+			vfront-porch = <4>;
+			vsync-len = <4>;
+		};
+	};
+
+	fixed-rate-clocks {
+		xxti {
+			compatible = "samsung,clock-xxti";
+			clock-frequency = <24000000>;
+		};
 	};
 };

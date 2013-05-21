@@ -61,11 +61,10 @@ struct usb_skel {
 	__u8			bulk_out_endpointAddr;	/* the address of the bulk out endpoint */
 	int			errors;			/* the last request tanked */
 	bool			ongoing_read;		/* a read is going on */
-	bool			processed_urb;		/* indicates we haven't processed the urb */
 	spinlock_t		err_lock;		/* lock for errors */
 	struct kref		kref;
 	struct mutex		io_mutex;		/* synchronize I/O with disconnect */
-	struct completion	bulk_in_completion;	/* to wait for an ongoing read */
+	wait_queue_head_t	bulk_in_wait;		/* to wait for an ongoing read */
 };
 #define to_skel_dev(d) container_of(d, struct usb_skel, kref)
 
@@ -185,7 +184,7 @@ static void skel_read_bulk_callback(struct urb *urb)
 	dev->ongoing_read = 0;
 	spin_unlock(&dev->err_lock);
 
-	complete(&dev->bulk_in_completion);
+	wake_up_interruptible(&dev->bulk_in_wait);
 }
 
 static int skel_do_read_io(struct usb_skel *dev, size_t count)
@@ -206,13 +205,16 @@ static int skel_do_read_io(struct usb_skel *dev, size_t count)
 	dev->ongoing_read = 1;
 	spin_unlock_irq(&dev->err_lock);
 
+	/* submit bulk in urb, which means no data to deliver */
+	dev->bulk_in_filled = 0;
+	dev->bulk_in_copied = 0;
+
 	/* do it */
 	rv = usb_submit_urb(dev->bulk_in_urb, GFP_KERNEL);
 	if (rv < 0) {
 		dev_err(&dev->interface->dev,
 			"%s - failed submitting read urb, error %d\n",
 			__func__, rv);
-		dev->bulk_in_filled = 0;
 		rv = (rv == -ENOMEM) ? rv : -EIO;
 		spin_lock_irq(&dev->err_lock);
 		dev->ongoing_read = 0;
@@ -261,25 +263,9 @@ retry:
 		 * IO may take forever
 		 * hence wait in an interruptible state
 		 */
-		rv = wait_for_completion_interruptible(&dev->bulk_in_completion);
+		rv = wait_event_interruptible(dev->bulk_in_wait, (!dev->ongoing_read));
 		if (rv < 0)
 			goto exit;
-		/*
-		 * by waiting we also semiprocessed the urb
-		 * we must finish now
-		 */
-		dev->bulk_in_copied = 0;
-		dev->processed_urb = 1;
-	}
-
-	if (!dev->processed_urb) {
-		/*
-		 * the URB hasn't been processed
-		 * do it now
-		 */
-		wait_for_completion(&dev->bulk_in_completion);
-		dev->bulk_in_copied = 0;
-		dev->processed_urb = 1;
 	}
 
 	/* errors must be reported */
@@ -289,8 +275,6 @@ retry:
 		dev->errors = 0;
 		/* to preserve notifications about reset */
 		rv = (rv == -EPIPE) ? rv : -EIO;
-		/* no data to deliver */
-		dev->bulk_in_filled = 0;
 		/* report it */
 		goto exit;
 	}
@@ -526,7 +510,7 @@ static int skel_probe(struct usb_interface *interface,
 	mutex_init(&dev->io_mutex);
 	spin_lock_init(&dev->err_lock);
 	init_usb_anchor(&dev->submitted);
-	init_completion(&dev->bulk_in_completion);
+	init_waitqueue_head(&dev->bulk_in_wait);
 
 	dev->udev = usb_get_dev(interface_to_usbdev(interface));
 	dev->interface = interface;

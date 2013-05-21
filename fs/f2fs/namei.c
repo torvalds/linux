@@ -15,8 +15,10 @@
 #include <linux/ctype.h>
 
 #include "f2fs.h"
+#include "node.h"
 #include "xattr.h"
 #include "acl.h"
+#include <trace/events/f2fs.h>
 
 static struct inode *f2fs_new_inode(struct inode *dir, umode_t mode)
 {
@@ -25,19 +27,19 @@ static struct inode *f2fs_new_inode(struct inode *dir, umode_t mode)
 	nid_t ino;
 	struct inode *inode;
 	bool nid_free = false;
-	int err;
+	int err, ilock;
 
 	inode = new_inode(sb);
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
 
-	mutex_lock_op(sbi, NODE_NEW);
+	ilock = mutex_lock_op(sbi);
 	if (!alloc_nid(sbi, &ino)) {
-		mutex_unlock_op(sbi, NODE_NEW);
+		mutex_unlock_op(sbi, ilock);
 		err = -ENOSPC;
 		goto fail;
 	}
-	mutex_unlock_op(sbi, NODE_NEW);
+	mutex_unlock_op(sbi, ilock);
 
 	inode->i_uid = current_fsuid();
 
@@ -61,7 +63,7 @@ static struct inode *f2fs_new_inode(struct inode *dir, umode_t mode)
 		nid_free = true;
 		goto out;
 	}
-
+	trace_f2fs_new_inode(inode, 0);
 	mark_inode_dirty(inode);
 	return inode;
 
@@ -69,6 +71,8 @@ out:
 	clear_nlink(inode);
 	unlock_new_inode(inode);
 fail:
+	trace_f2fs_new_inode(inode, err);
+	make_bad_inode(inode);
 	iput(inode);
 	if (nid_free)
 		alloc_nid_failed(sbi, ino);
@@ -82,7 +86,7 @@ static int is_multimedia_file(const unsigned char *s, const char *sub)
 	int ret;
 
 	if (sublen > slen)
-		return 1;
+		return 0;
 
 	ret = memcmp(s + slen - sublen, sub, sublen);
 	if (ret) {	/* compare upper case */
@@ -90,16 +94,16 @@ static int is_multimedia_file(const unsigned char *s, const char *sub)
 		char upper_sub[8];
 		for (i = 0; i < sublen && i < sizeof(upper_sub); i++)
 			upper_sub[i] = toupper(sub[i]);
-		return memcmp(s + slen - sublen, upper_sub, sublen);
+		return !memcmp(s + slen - sublen, upper_sub, sublen);
 	}
 
-	return ret;
+	return !ret;
 }
 
 /*
  * Set multimedia files as cold files for hot/cold data separation
  */
-static inline void set_cold_file(struct f2fs_sb_info *sbi, struct inode *inode,
+static inline void set_cold_files(struct f2fs_sb_info *sbi, struct inode *inode,
 		const unsigned char *name)
 {
 	int i;
@@ -107,8 +111,8 @@ static inline void set_cold_file(struct f2fs_sb_info *sbi, struct inode *inode,
 
 	int count = le32_to_cpu(sbi->raw_super->extension_count);
 	for (i = 0; i < count; i++) {
-		if (!is_multimedia_file(name, extlist[i])) {
-			F2FS_I(inode)->i_advise |= FADVISE_COLD_BIT;
+		if (is_multimedia_file(name, extlist[i])) {
+			set_cold_file(inode);
 			break;
 		}
 	}
@@ -121,7 +125,7 @@ static int f2fs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 	struct f2fs_sb_info *sbi = F2FS_SB(sb);
 	struct inode *inode;
 	nid_t ino = 0;
-	int err;
+	int err, ilock;
 
 	f2fs_balance_fs(sbi);
 
@@ -130,14 +134,16 @@ static int f2fs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 		return PTR_ERR(inode);
 
 	if (!test_opt(sbi, DISABLE_EXT_IDENTIFY))
-		set_cold_file(sbi, inode, dentry->d_name.name);
+		set_cold_files(sbi, inode, dentry->d_name.name);
 
 	inode->i_op = &f2fs_file_inode_operations;
 	inode->i_fop = &f2fs_file_operations;
 	inode->i_mapping->a_ops = &f2fs_dblock_aops;
 	ino = inode->i_ino;
 
+	ilock = mutex_lock_op(sbi);
 	err = f2fs_add_link(dentry, inode);
+	mutex_unlock_op(sbi, ilock);
 	if (err)
 		goto out;
 
@@ -150,6 +156,7 @@ static int f2fs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
 out:
 	clear_nlink(inode);
 	unlock_new_inode(inode);
+	make_bad_inode(inode);
 	iput(inode);
 	alloc_nid_failed(sbi, ino);
 	return err;
@@ -161,7 +168,7 @@ static int f2fs_link(struct dentry *old_dentry, struct inode *dir,
 	struct inode *inode = old_dentry->d_inode;
 	struct super_block *sb = dir->i_sb;
 	struct f2fs_sb_info *sbi = F2FS_SB(sb);
-	int err;
+	int err, ilock;
 
 	f2fs_balance_fs(sbi);
 
@@ -169,14 +176,23 @@ static int f2fs_link(struct dentry *old_dentry, struct inode *dir,
 	atomic_inc(&inode->i_count);
 
 	set_inode_flag(F2FS_I(inode), FI_INC_LINK);
+	ilock = mutex_lock_op(sbi);
 	err = f2fs_add_link(dentry, inode);
+	mutex_unlock_op(sbi, ilock);
 	if (err)
 		goto out;
+
+	/*
+	 * This file should be checkpointed during fsync.
+	 * We lost i_pino from now on.
+	 */
+	set_cp_file(inode);
 
 	d_instantiate(dentry, inode);
 	return 0;
 out:
 	clear_inode_flag(F2FS_I(inode), FI_INC_LINK);
+	make_bad_inode(inode);
 	iput(inode);
 	return err;
 }
@@ -197,7 +213,7 @@ static struct dentry *f2fs_lookup(struct inode *dir, struct dentry *dentry,
 	struct f2fs_dir_entry *de;
 	struct page *page;
 
-	if (dentry->d_name.len > F2FS_MAX_NAME_LEN)
+	if (dentry->d_name.len > F2FS_NAME_LEN)
 		return ERR_PTR(-ENAMETOOLONG);
 
 	de = f2fs_find_entry(dir, &dentry->d_name, &page);
@@ -222,7 +238,9 @@ static int f2fs_unlink(struct inode *dir, struct dentry *dentry)
 	struct f2fs_dir_entry *de;
 	struct page *page;
 	int err = -ENOENT;
+	int ilock;
 
+	trace_f2fs_unlink_enter(dir, dentry);
 	f2fs_balance_fs(sbi);
 
 	de = f2fs_find_entry(dir, &dentry->d_name, &page);
@@ -236,11 +254,14 @@ static int f2fs_unlink(struct inode *dir, struct dentry *dentry)
 		goto fail;
 	}
 
+	ilock = mutex_lock_op(sbi);
 	f2fs_delete_entry(de, page, inode);
+	mutex_unlock_op(sbi, ilock);
 
 	/* In order to evict this inode,  we set it dirty */
 	mark_inode_dirty(inode);
 fail:
+	trace_f2fs_unlink_exit(inode, err);
 	return err;
 }
 
@@ -251,7 +272,7 @@ static int f2fs_symlink(struct inode *dir, struct dentry *dentry,
 	struct f2fs_sb_info *sbi = F2FS_SB(sb);
 	struct inode *inode;
 	size_t symlen = strlen(symname) + 1;
-	int err;
+	int err, ilock;
 
 	f2fs_balance_fs(sbi);
 
@@ -262,7 +283,9 @@ static int f2fs_symlink(struct inode *dir, struct dentry *dentry,
 	inode->i_op = &f2fs_symlink_inode_operations;
 	inode->i_mapping->a_ops = &f2fs_dblock_aops;
 
+	ilock = mutex_lock_op(sbi);
 	err = f2fs_add_link(dentry, inode);
+	mutex_unlock_op(sbi, ilock);
 	if (err)
 		goto out;
 
@@ -275,6 +298,7 @@ static int f2fs_symlink(struct inode *dir, struct dentry *dentry,
 out:
 	clear_nlink(inode);
 	unlock_new_inode(inode);
+	make_bad_inode(inode);
 	iput(inode);
 	alloc_nid_failed(sbi, inode->i_ino);
 	return err;
@@ -284,7 +308,7 @@ static int f2fs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 {
 	struct f2fs_sb_info *sbi = F2FS_SB(dir->i_sb);
 	struct inode *inode;
-	int err;
+	int err, ilock;
 
 	f2fs_balance_fs(sbi);
 
@@ -298,7 +322,9 @@ static int f2fs_mkdir(struct inode *dir, struct dentry *dentry, umode_t mode)
 	mapping_set_gfp_mask(inode->i_mapping, GFP_F2FS_ZERO);
 
 	set_inode_flag(F2FS_I(inode), FI_INC_LINK);
+	ilock = mutex_lock_op(sbi);
 	err = f2fs_add_link(dentry, inode);
+	mutex_unlock_op(sbi, ilock);
 	if (err)
 		goto out_fail;
 
@@ -313,6 +339,7 @@ out_fail:
 	clear_inode_flag(F2FS_I(inode), FI_INC_LINK);
 	clear_nlink(inode);
 	unlock_new_inode(inode);
+	make_bad_inode(inode);
 	iput(inode);
 	alloc_nid_failed(sbi, inode->i_ino);
 	return err;
@@ -333,6 +360,7 @@ static int f2fs_mknod(struct inode *dir, struct dentry *dentry,
 	struct f2fs_sb_info *sbi = F2FS_SB(sb);
 	struct inode *inode;
 	int err = 0;
+	int ilock;
 
 	if (!new_valid_dev(rdev))
 		return -EINVAL;
@@ -346,7 +374,9 @@ static int f2fs_mknod(struct inode *dir, struct dentry *dentry,
 	init_special_inode(inode, inode->i_mode, rdev);
 	inode->i_op = &f2fs_special_inode_operations;
 
+	ilock = mutex_lock_op(sbi);
 	err = f2fs_add_link(dentry, inode);
+	mutex_unlock_op(sbi, ilock);
 	if (err)
 		goto out;
 
@@ -357,6 +387,7 @@ static int f2fs_mknod(struct inode *dir, struct dentry *dentry,
 out:
 	clear_nlink(inode);
 	unlock_new_inode(inode);
+	make_bad_inode(inode);
 	iput(inode);
 	alloc_nid_failed(sbi, inode->i_ino);
 	return err;
@@ -374,7 +405,7 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct f2fs_dir_entry *old_dir_entry = NULL;
 	struct f2fs_dir_entry *old_entry;
 	struct f2fs_dir_entry *new_entry;
-	int err = -ENOENT;
+	int err = -ENOENT, ilock = -1;
 
 	f2fs_balance_fs(sbi);
 
@@ -389,7 +420,7 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			goto out_old;
 	}
 
-	mutex_lock_op(sbi, RENAME);
+	ilock = mutex_lock_op(sbi);
 
 	if (new_inode) {
 		struct page *new_page;
@@ -412,7 +443,7 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		drop_nlink(new_inode);
 		if (!new_inode->i_nlink)
 			add_orphan_inode(sbi, new_inode->i_ino);
-		f2fs_write_inode(new_inode, NULL);
+		update_inode_page(new_inode);
 	} else {
 		err = f2fs_add_link(new_dentry, old_inode);
 		if (err)
@@ -420,12 +451,11 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 		if (old_dir_entry) {
 			inc_nlink(new_dir);
-			f2fs_write_inode(new_dir, NULL);
+			update_inode_page(new_dir);
 		}
 	}
 
 	old_inode->i_ctime = CURRENT_TIME;
-	set_inode_flag(F2FS_I(old_inode), FI_NEED_CP);
 	mark_inode_dirty(old_inode);
 
 	f2fs_delete_entry(old_entry, old_page, NULL);
@@ -439,10 +469,10 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			f2fs_put_page(old_dir_page, 0);
 		}
 		drop_nlink(old_dir);
-		f2fs_write_inode(old_dir, NULL);
+		update_inode_page(old_dir);
 	}
 
-	mutex_unlock_op(sbi, RENAME);
+	mutex_unlock_op(sbi, ilock);
 	return 0;
 
 out_dir:
@@ -450,7 +480,7 @@ out_dir:
 		kunmap(old_dir_page);
 		f2fs_put_page(old_dir_page, 0);
 	}
-	mutex_unlock_op(sbi, RENAME);
+	mutex_unlock_op(sbi, ilock);
 out_old:
 	kunmap(old_page);
 	f2fs_put_page(old_page, 0);

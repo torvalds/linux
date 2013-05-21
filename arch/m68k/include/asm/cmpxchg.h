@@ -124,6 +124,9 @@ static inline unsigned long __cmpxchg(volatile void *p, unsigned long old,
 #define cmpxchg_local(ptr, o, n)					    \
 	((__typeof__(*(ptr)))__cmpxchg((ptr), (unsigned long)(o),	    \
 			(unsigned long)(n), sizeof(*(ptr))))
+
+#define cmpxchg64(ptr, o, n)	cmpxchg64_local((ptr), (o), (n))
+
 #else
 
 /*

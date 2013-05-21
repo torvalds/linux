@@ -380,10 +380,6 @@ static int vprbrd_gpiob_direction_output(struct gpio_chip *chip,
 	struct vprbrd *vb = gpio->vb;
 
 	gpio->gpiob_out |= (1 << offset);
-	if (value)
-		gpio->gpiob_val |= (1 << offset);
-	else
-		gpio->gpiob_val &= ~(1 << offset);
 
 	mutex_lock(&vb->lock);
 

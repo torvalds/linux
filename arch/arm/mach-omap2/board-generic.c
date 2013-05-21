@@ -110,6 +110,7 @@ MACHINE_END
 
 static const char *omap3_gp_boards_compat[] __initdata = {
 	"ti,omap3-beagle",
+	"timll,omap3-devkit8000",
 	NULL,
 };
 
@@ -140,7 +141,7 @@ DT_MACHINE_START(AM33XX_DT, "Generic AM33XX (Flattened Device Tree)")
 	.init_irq	= omap_intc_of_init,
 	.handle_irq	= omap3_intc_handle_irq,
 	.init_machine	= omap_generic_init,
-	.init_time	= omap3_am33xx_gptimer_timer_init,
+	.init_time	= omap3_gptimer_timer_init,
 	.dt_compat	= am33xx_boards_compat,
 	.restart	= am33xx_restart,
 MACHINE_END

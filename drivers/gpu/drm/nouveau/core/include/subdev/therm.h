@@ -73,6 +73,7 @@ int  _nouveau_therm_fini(struct nouveau_object *, bool);
 
 extern struct nouveau_oclass nv40_therm_oclass;
 extern struct nouveau_oclass nv50_therm_oclass;
+extern struct nouveau_oclass nv84_therm_oclass;
 extern struct nouveau_oclass nva3_therm_oclass;
 extern struct nouveau_oclass nvd0_therm_oclass;
 

@@ -101,7 +101,7 @@ EXPORT_SYMBOL(arch_spin_unlock_wait);
  * preserve the semantic that the same read lock can be acquired in an
  * interrupt context.
  */
-inline int arch_read_trylock(arch_rwlock_t *rwlock)
+int arch_read_trylock(arch_rwlock_t *rwlock)
 {
 	u32 val;
 	__insn_mtspr(SPR_INTERRUPT_CRITICAL_SECTION, 1);

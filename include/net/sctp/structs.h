@@ -399,7 +399,6 @@ struct sctp_stream {
 struct sctp_ssnmap {
 	struct sctp_stream in;
 	struct sctp_stream out;
-	int malloced;
 };
 
 struct sctp_ssnmap *sctp_ssnmap_new(__u16 in, __u16 out,
@@ -715,8 +714,7 @@ struct sctp_packet {
 	    has_sack:1,		/* This packet contains a SACK chunk. */
 	    has_auth:1,		/* This packet contains an AUTH chunk */
 	    has_data:1,		/* This packet contains at least 1 DATA chunk */
-	    ipfragok:1,		/* So let ip fragment this packet */
-	    malloced:1;		/* Is it malloced? */
+	    ipfragok:1;		/* So let ip fragment this packet */
 };
 
 struct sctp_packet *sctp_packet_init(struct sctp_packet *,
@@ -780,10 +778,7 @@ struct sctp_transport {
 		hb_sent:1,
 
 		/* Is the Path MTU update pending on this tranport */
-		pmtu_pending:1,
-
-		/* Is this structure kfree()able? */
-		malloced:1;
+		pmtu_pending:1;
 
 	/* Has this transport moved the ctsn since we last sacked */
 	__u32 sack_generation;
@@ -992,8 +987,6 @@ struct sctp_inq {
 	 * messages.
 	 */
 	struct work_struct immediate;
-
-	int malloced;	     /* Is this structure kfree()able?	*/
 };
 
 void sctp_inq_init(struct sctp_inq *);
@@ -1062,9 +1055,6 @@ struct sctp_outq {
 
 	/* Is this structure empty?  */
 	char empty;
-
-	/* Are we kfree()able? */
-	char malloced;
 };
 
 void sctp_outq_init(struct sctp_association *, struct sctp_outq *);
@@ -1102,8 +1092,6 @@ struct sctp_bind_addr {
 	 *	peer(s) in INIT and INIT ACK chunks.
 	 */
 	struct list_head address_list;
-
-	int malloced;	     /* Are we kfree()able?  */
 };
 
 void sctp_bind_addr_init(struct sctp_bind_addr *, __u16 port);
@@ -1174,11 +1162,9 @@ struct sctp_ep_common {
 	/* Some fields to help us manage this object.
 	 *   refcnt   - Reference count access to this object.
 	 *   dead     - Do not attempt to use this object.
-	 *   malloced - Do we need to kfree this object?
 	 */
 	atomic_t    refcnt;
-	char	    dead;
-	char	    malloced;
+	bool	    dead;
 
 	/* What socket does this endpoint belong to?  */
 	struct sock *sk;

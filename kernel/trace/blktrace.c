@@ -72,7 +72,7 @@ static void trace_note(struct blk_trace *bt, pid_t pid, int action,
 	bool blk_tracer = blk_tracer_enabled;
 
 	if (blk_tracer) {
-		buffer = blk_tr->buffer;
+		buffer = blk_tr->trace_buffer.buffer;
 		pc = preempt_count();
 		event = trace_buffer_lock_reserve(buffer, TRACE_BLK,
 						  sizeof(*t) + len,
@@ -218,7 +218,7 @@ static void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 	if (blk_tracer) {
 		tracing_record_cmdline(current);
 
-		buffer = blk_tr->buffer;
+		buffer = blk_tr->trace_buffer.buffer;
 		pc = preempt_count();
 		event = trace_buffer_lock_reserve(buffer, TRACE_BLK,
 						  sizeof(*t) + pdu_len,
@@ -739,12 +739,6 @@ static void blk_add_trace_rq_complete(void *ignore,
 				      struct request_queue *q,
 				      struct request *rq)
 {
-	struct blk_trace *bt = q->blk_trace;
-
-	/* if control ever passes through here, it's a request based driver */
-	if (unlikely(bt && !bt->rq_based))
-		bt->rq_based = true;
-
 	blk_add_trace_rq(q, rq, BLK_TA_COMPLETE);
 }
 
@@ -780,24 +774,10 @@ static void blk_add_trace_bio_bounce(void *ignore,
 	blk_add_trace_bio(q, bio, BLK_TA_BOUNCE, 0);
 }
 
-static void blk_add_trace_bio_complete(void *ignore, struct bio *bio, int error)
+static void blk_add_trace_bio_complete(void *ignore,
+				       struct request_queue *q, struct bio *bio,
+				       int error)
 {
-	struct request_queue *q;
-	struct blk_trace *bt;
-
-	if (!bio->bi_bdev)
-		return;
-
-	q = bdev_get_queue(bio->bi_bdev);
-	bt = q->blk_trace;
-
-	/*
-	 * Request based drivers will generate both rq and bio completions.
-	 * Ignore bio ones.
-	 */
-	if (likely(!bt) || bt->rq_based)
-		return;
-
 	blk_add_trace_bio(q, bio, BLK_TA_COMPLETE, error);
 }
 
@@ -1828,6 +1808,7 @@ void blk_fill_rwbs(char *rwbs, u32 rw, int bytes)
 
 	rwbs[i] = '\0';
 }
+EXPORT_SYMBOL_GPL(blk_fill_rwbs);
 
 #endif /* CONFIG_EVENT_TRACING */
 

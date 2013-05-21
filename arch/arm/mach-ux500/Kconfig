@@ -1,8 +1,26 @@
+config ARCH_U8500
+	bool "ST-Ericsson U8500 Series" if ARCH_MULTI_V7
+	depends on MMU
+	select ARCH_HAS_CPUFREQ
+	select ARCH_REQUIRE_GPIOLIB
+	select ARM_AMBA
+	select CLKDEV_LOOKUP
+	select CPU_V7
+	select GENERIC_CLOCKEVENTS
+	select HAVE_ARM_SCU if SMP
+	select HAVE_ARM_TWD if LOCAL_TIMERS
+	select HAVE_SMP
+	select MIGHT_HAVE_CACHE_L2X0
+	help
+	  Support for ST-Ericsson's Ux500 architecture
+
 if ARCH_U8500
 
 config UX500_SOC_COMMON
 	bool
 	default y
+	select ABX500_CORE
+	select AB8500_CORE
 	select ARM_ERRATA_754322
 	select ARM_ERRATA_764369 if SMP
 	select ARM_GIC

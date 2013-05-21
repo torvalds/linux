@@ -672,9 +672,6 @@ static int usbatm_atm_send(struct atm_vcc *vcc, struct sk_buff *skb)
 	struct usbatm_control *ctrl = UDSL_SKB(skb);
 	int err;
 
-	vdbg(&instance->usb_intf->dev, "%s called (skb 0x%p, len %u)", __func__,
-	     skb, skb->len);
-
 	/* racy disconnection check - fine */
 	if (!instance || instance->disconnected) {
 #ifdef DEBUG
@@ -683,6 +680,9 @@ static int usbatm_atm_send(struct atm_vcc *vcc, struct sk_buff *skb)
 		err = -ENODEV;
 		goto fail;
 	}
+
+	vdbg(&instance->usb_intf->dev, "%s called (skb 0x%p, len %u)", __func__,
+	     skb, skb->len);
 
 	if (vcc->qos.aal != ATM_AAL5) {
 		atm_rldbg(instance, "%s: unsupported ATM type %d!\n", __func__, vcc->qos.aal);

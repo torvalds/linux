@@ -367,12 +367,12 @@ static int aat2870_i2c_probe(struct i2c_client *client,
 	int i, j;
 	int ret = 0;
 
-	aat2870 = kzalloc(sizeof(struct aat2870_data), GFP_KERNEL);
+	aat2870 = devm_kzalloc(&client->dev, sizeof(struct aat2870_data),
+				GFP_KERNEL);
 	if (!aat2870) {
 		dev_err(&client->dev,
 			"Failed to allocate memory for aat2870\n");
-		ret = -ENOMEM;
-		goto out;
+		return -ENOMEM;
 	}
 
 	aat2870->dev = &client->dev;
@@ -400,12 +400,12 @@ static int aat2870_i2c_probe(struct i2c_client *client,
 		aat2870->init(aat2870);
 
 	if (aat2870->en_pin >= 0) {
-		ret = gpio_request_one(aat2870->en_pin, GPIOF_OUT_INIT_HIGH,
-				       "aat2870-en");
+		ret = devm_gpio_request_one(&client->dev, aat2870->en_pin,
+					GPIOF_OUT_INIT_HIGH, "aat2870-en");
 		if (ret < 0) {
 			dev_err(&client->dev,
 				"Failed to request GPIO %d\n", aat2870->en_pin);
-			goto out_kfree;
+			return ret;
 		}
 	}
 
@@ -436,11 +436,6 @@ static int aat2870_i2c_probe(struct i2c_client *client,
 
 out_disable:
 	aat2870_disable(aat2870);
-	if (aat2870->en_pin >= 0)
-		gpio_free(aat2870->en_pin);
-out_kfree:
-	kfree(aat2870);
-out:
 	return ret;
 }
 
@@ -452,11 +447,8 @@ static int aat2870_i2c_remove(struct i2c_client *client)
 
 	mfd_remove_devices(aat2870->dev);
 	aat2870_disable(aat2870);
-	if (aat2870->en_pin >= 0)
-		gpio_free(aat2870->en_pin);
 	if (aat2870->uninit)
 		aat2870->uninit(aat2870);
-	kfree(aat2870);
 
 	return 0;
 }

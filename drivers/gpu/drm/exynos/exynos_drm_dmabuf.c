@@ -235,7 +235,6 @@ struct drm_gem_object *exynos_dmabuf_prime_import(struct drm_device *drm_dev,
 			 * refcount on gem itself instead of f_count of dmabuf.
 			 */
 			drm_gem_object_reference(obj);
-			dma_buf_put(dma_buf);
 			return obj;
 		}
 	}
@@ -244,6 +243,7 @@ struct drm_gem_object *exynos_dmabuf_prime_import(struct drm_device *drm_dev,
 	if (IS_ERR(attach))
 		return ERR_PTR(-EINVAL);
 
+	get_dma_buf(dma_buf);
 
 	sgt = dma_buf_map_attachment(attach, DMA_BIDIRECTIONAL);
 	if (IS_ERR_OR_NULL(sgt)) {
@@ -298,6 +298,8 @@ err_unmap_attach:
 	dma_buf_unmap_attachment(attach, sgt, DMA_BIDIRECTIONAL);
 err_buf_detach:
 	dma_buf_detach(dma_buf, attach);
+	dma_buf_put(dma_buf);
+
 	return ERR_PTR(ret);
 }
 

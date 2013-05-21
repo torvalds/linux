@@ -348,10 +348,10 @@ void br_dev_setup(struct net_device *dev)
 
 	dev->features = NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HIGHDMA |
 			NETIF_F_GSO_MASK | NETIF_F_HW_CSUM | NETIF_F_LLTX |
-			NETIF_F_NETNS_LOCAL | NETIF_F_HW_VLAN_TX;
+			NETIF_F_NETNS_LOCAL | NETIF_F_HW_VLAN_CTAG_TX;
 	dev->hw_features = NETIF_F_SG | NETIF_F_FRAGLIST | NETIF_F_HIGHDMA |
 			   NETIF_F_GSO_MASK | NETIF_F_HW_CSUM |
-			   NETIF_F_HW_VLAN_TX;
+			   NETIF_F_HW_VLAN_CTAG_TX;
 
 	br->dev = dev;
 	spin_lock_init(&br->lock);

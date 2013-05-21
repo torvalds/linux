@@ -353,7 +353,11 @@ int __kprobes __copy_instruction(u8 *dest, u8 *src)
 		 * have given.
 		 */
 		newdisp = (u8 *) src + (s64) insn.displacement.value - (u8 *) dest;
-		BUG_ON((s64) (s32) newdisp != newdisp); /* Sanity check.  */
+		if ((s64) (s32) newdisp != newdisp) {
+			pr_err("Kprobes error: new displacement does not fit into s32 (%llx)\n", newdisp);
+			pr_err("\tSrc: %p, Dest: %p, old disp: %x\n", src, dest, insn.displacement.value);
+			return 0;
+		}
 		disp = (u8 *) dest + insn_offset_displacement(&insn);
 		*(s32 *) disp = (s32) newdisp;
 	}

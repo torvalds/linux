@@ -48,7 +48,11 @@ typedef elf_fpreg_t elf_fpregset_t[ELF_NFPREG];
 	__res;								\
 })
 
+#ifdef CONFIG_KVM_GUEST
+#define TASK32_SIZE		0x3fff8000UL
+#else
 #define TASK32_SIZE		0x7fff8000UL
+#endif
 #undef ELF_ET_DYN_BASE
 #define ELF_ET_DYN_BASE		(TASK32_SIZE / 3 * 2)
 

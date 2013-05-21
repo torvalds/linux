@@ -1192,7 +1192,7 @@ config MEMORY_NOTIFIER_ERROR_INJECT
 	  bash: echo: write error: Cannot allocate memory
 
 	  To compile this code as a module, choose M here: the module will
-	  be called pSeries-reconfig-notifier-error-inject.
+	  be called memory-notifier-error-inject.
 
 	  If unsure, say N.
 
@@ -1209,7 +1209,7 @@ config OF_RECONFIG_NOTIFIER_ERROR_INJECT
 	  notified, write the error code to "actions/<notifier event>/error".
 
 	  To compile this code as a module, choose M here: the module will
-	  be called memory-notifier-error-inject.
+	  be called of-reconfig-notifier-error-inject.
 
 	  If unsure, say N.
 
@@ -1291,6 +1291,24 @@ config LATENCYTOP
 	help
 	  Enable this option if you want to use the LatencyTOP tool
 	  to find out which userspace is blocking on what kernel operations.
+
+config ARCH_HAS_DEBUG_STRICT_USER_COPY_CHECKS
+	bool
+
+config DEBUG_STRICT_USER_COPY_CHECKS
+	bool "Strict user copy size checks"
+	depends on ARCH_HAS_DEBUG_STRICT_USER_COPY_CHECKS
+	depends on DEBUG_KERNEL && !TRACE_BRANCH_PROFILING
+	help
+	  Enabling this option turns a certain set of sanity checks for user
+	  copy operations into compile time failures.
+
+	  The copy_from_user() etc checks are there to help test if there
+	  are sufficient security checks on the length argument of
+	  the copy operation, by having gcc prove that the argument is
+	  within bounds.
+
+	  If unsure, say N.
 
 source mm/Kconfig.debug
 source kernel/trace/Kconfig
@@ -1462,6 +1480,9 @@ source "samples/Kconfig"
 source "lib/Kconfig.kgdb"
 
 source "lib/Kconfig.kmemcheck"
+
+config TEST_STRING_HELPERS
+	tristate "Test functions located in the string_helpers module at runtime"
 
 config TEST_KSTRTOX
 	tristate "Test kstrto*() family of functions at runtime"

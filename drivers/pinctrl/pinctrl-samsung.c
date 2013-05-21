@@ -27,6 +27,7 @@
 #include <linux/err.h>
 #include <linux/gpio.h>
 #include <linux/irqdomain.h>
+#include <linux/spinlock.h>
 
 #include "core.h"
 #include "pinctrl-samsung.h"
@@ -214,7 +215,7 @@ static void samsung_dt_free_map(struct pinctrl_dev *pctldev,
 }
 
 /* list of pinctrl callbacks for the pinctrl core */
-static struct pinctrl_ops samsung_pctrl_ops = {
+static const struct pinctrl_ops samsung_pctrl_ops = {
 	.get_groups_count	= samsung_get_group_count,
 	.get_group_name		= samsung_get_group_name,
 	.get_group_pins		= samsung_get_group_pins,
@@ -274,10 +275,6 @@ static void pin_to_reg_bank(struct samsung_pinctrl_drv_data *drvdata,
 	*offset = pin - b->pin_base;
 	if (bank)
 		*bank = b;
-
-	/* some banks have two config registers in a single bank */
-	if (*offset * b->func_width > BITS_PER_LONG)
-		*reg += 4;
 }
 
 /* enable or disable a pinmux function */
@@ -289,6 +286,7 @@ static void samsung_pinmux_setup(struct pinctrl_dev *pctldev, unsigned selector,
 	struct samsung_pin_bank *bank;
 	void __iomem *reg;
 	u32 mask, shift, data, pin_offset, cnt;
+	unsigned long flags;
 
 	drvdata = pinctrl_dev_get_drvdata(pctldev);
 	pins = drvdata->pin_groups[group].pins;
@@ -298,16 +296,28 @@ static void samsung_pinmux_setup(struct pinctrl_dev *pctldev, unsigned selector,
 	 * pin function number in the config register.
 	 */
 	for (cnt = 0; cnt < drvdata->pin_groups[group].num_pins; cnt++) {
+		struct samsung_pin_bank_type *type;
+
 		pin_to_reg_bank(drvdata, pins[cnt] - drvdata->ctrl->base,
 				&reg, &pin_offset, &bank);
-		mask = (1 << bank->func_width) - 1;
-		shift = pin_offset * bank->func_width;
+		type = bank->type;
+		mask = (1 << type->fld_width[PINCFG_TYPE_FUNC]) - 1;
+		shift = pin_offset * type->fld_width[PINCFG_TYPE_FUNC];
+		if (shift >= 32) {
+			/* Some banks have two config registers */
+			shift -= 32;
+			reg += 4;
+		}
 
-		data = readl(reg);
+		spin_lock_irqsave(&bank->slock, flags);
+
+		data = readl(reg + type->reg_offset[PINCFG_TYPE_FUNC]);
 		data &= ~(mask << shift);
 		if (enable)
 			data |= drvdata->pin_groups[group].func << shift;
-		writel(data, reg);
+		writel(data, reg + type->reg_offset[PINCFG_TYPE_FUNC]);
+
+		spin_unlock_irqrestore(&bank->slock, flags);
 	}
 }
 
@@ -334,30 +344,44 @@ static void samsung_pinmux_disable(struct pinctrl_dev *pctldev,
 static int samsung_pinmux_gpio_set_direction(struct pinctrl_dev *pctldev,
 		struct pinctrl_gpio_range *range, unsigned offset, bool input)
 {
+	struct samsung_pin_bank_type *type;
 	struct samsung_pin_bank *bank;
 	struct samsung_pinctrl_drv_data *drvdata;
 	void __iomem *reg;
 	u32 data, pin_offset, mask, shift;
+	unsigned long flags;
 
 	bank = gc_to_pin_bank(range->gc);
+	type = bank->type;
 	drvdata = pinctrl_dev_get_drvdata(pctldev);
 
 	pin_offset = offset - bank->pin_base;
-	reg = drvdata->virt_base + bank->pctl_offset;
+	reg = drvdata->virt_base + bank->pctl_offset +
+					type->reg_offset[PINCFG_TYPE_FUNC];
 
-	mask = (1 << bank->func_width) - 1;
-	shift = pin_offset * bank->func_width;
+	mask = (1 << type->fld_width[PINCFG_TYPE_FUNC]) - 1;
+	shift = pin_offset * type->fld_width[PINCFG_TYPE_FUNC];
+	if (shift >= 32) {
+		/* Some banks have two config registers */
+		shift -= 32;
+		reg += 4;
+	}
+
+	spin_lock_irqsave(&bank->slock, flags);
 
 	data = readl(reg);
 	data &= ~(mask << shift);
 	if (!input)
 		data |= FUNC_OUTPUT << shift;
 	writel(data, reg);
+
+	spin_unlock_irqrestore(&bank->slock, flags);
+
 	return 0;
 }
 
 /* list of pinmux callbacks for the pinmux vertical in pinctrl core */
-static struct pinmux_ops samsung_pinmux_ops = {
+static const struct pinmux_ops samsung_pinmux_ops = {
 	.get_functions_count	= samsung_get_functions_count,
 	.get_function_name	= samsung_pinmux_get_fname,
 	.get_function_groups	= samsung_pinmux_get_groups,
@@ -371,40 +395,26 @@ static int samsung_pinconf_rw(struct pinctrl_dev *pctldev, unsigned int pin,
 				unsigned long *config, bool set)
 {
 	struct samsung_pinctrl_drv_data *drvdata;
+	struct samsung_pin_bank_type *type;
 	struct samsung_pin_bank *bank;
 	void __iomem *reg_base;
 	enum pincfg_type cfg_type = PINCFG_UNPACK_TYPE(*config);
 	u32 data, width, pin_offset, mask, shift;
 	u32 cfg_value, cfg_reg;
+	unsigned long flags;
 
 	drvdata = pinctrl_dev_get_drvdata(pctldev);
 	pin_to_reg_bank(drvdata, pin - drvdata->ctrl->base, &reg_base,
 					&pin_offset, &bank);
+	type = bank->type;
 
-	switch (cfg_type) {
-	case PINCFG_TYPE_PUD:
-		width = bank->pud_width;
-		cfg_reg = PUD_REG;
-		break;
-	case PINCFG_TYPE_DRV:
-		width = bank->drv_width;
-		cfg_reg = DRV_REG;
-		break;
-	case PINCFG_TYPE_CON_PDN:
-		width = bank->conpdn_width;
-		cfg_reg = CONPDN_REG;
-		break;
-	case PINCFG_TYPE_PUD_PDN:
-		width = bank->pudpdn_width;
-		cfg_reg = PUDPDN_REG;
-		break;
-	default:
-		WARN_ON(1);
+	if (cfg_type >= PINCFG_TYPE_NUM || !type->fld_width[cfg_type])
 		return -EINVAL;
-	}
 
-	if (!width)
-		return -EINVAL;
+	width = type->fld_width[cfg_type];
+	cfg_reg = type->reg_offset[cfg_type];
+
+	spin_lock_irqsave(&bank->slock, flags);
 
 	mask = (1 << width) - 1;
 	shift = pin_offset * width;
@@ -420,6 +430,9 @@ static int samsung_pinconf_rw(struct pinctrl_dev *pctldev, unsigned int pin,
 		data &= mask;
 		*config = PINCFG_PACK(cfg_type, data);
 	}
+
+	spin_unlock_irqrestore(&bank->slock, flags);
+
 	return 0;
 }
 
@@ -468,7 +481,7 @@ static int samsung_pinconf_group_get(struct pinctrl_dev *pctldev,
 }
 
 /* list of pinconfig callbacks for pinconfig vertical in the pinctrl code */
-static struct pinconf_ops samsung_pinconf_ops = {
+static const struct pinconf_ops samsung_pinconf_ops = {
 	.pin_config_get		= samsung_pinconf_get,
 	.pin_config_set		= samsung_pinconf_set,
 	.pin_config_group_get	= samsung_pinconf_group_get,
@@ -479,16 +492,22 @@ static struct pinconf_ops samsung_pinconf_ops = {
 static void samsung_gpio_set(struct gpio_chip *gc, unsigned offset, int value)
 {
 	struct samsung_pin_bank *bank = gc_to_pin_bank(gc);
+	struct samsung_pin_bank_type *type = bank->type;
+	unsigned long flags;
 	void __iomem *reg;
 	u32 data;
 
 	reg = bank->drvdata->virt_base + bank->pctl_offset;
 
-	data = readl(reg + DAT_REG);
+	spin_lock_irqsave(&bank->slock, flags);
+
+	data = readl(reg + type->reg_offset[PINCFG_TYPE_DAT]);
 	data &= ~(1 << offset);
 	if (value)
 		data |= 1 << offset;
-	writel(data, reg + DAT_REG);
+	writel(data, reg + type->reg_offset[PINCFG_TYPE_DAT]);
+
+	spin_unlock_irqrestore(&bank->slock, flags);
 }
 
 /* gpiolib gpio_get callback function */
@@ -497,10 +516,11 @@ static int samsung_gpio_get(struct gpio_chip *gc, unsigned offset)
 	void __iomem *reg;
 	u32 data;
 	struct samsung_pin_bank *bank = gc_to_pin_bank(gc);
+	struct samsung_pin_bank_type *type = bank->type;
 
 	reg = bank->drvdata->virt_base + bank->pctl_offset;
 
-	data = readl(reg + DAT_REG);
+	data = readl(reg + type->reg_offset[PINCFG_TYPE_DAT]);
 	data >>= offset;
 	data &= 1;
 	return data;
@@ -859,6 +879,7 @@ static struct samsung_pin_ctrl *samsung_pinctrl_get_soc_data(
 
 	bank = ctrl->pin_banks;
 	for (i = 0; i < ctrl->nr_banks; ++i, ++bank) {
+		spin_lock_init(&bank->slock);
 		bank->drvdata = d;
 		bank->pin_base = ctrl->nr_pins;
 		ctrl->nr_pins += bank->nr_pins;
@@ -911,11 +932,6 @@ static int samsung_pinctrl_probe(struct platform_device *pdev)
 	drvdata->dev = dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "cannot find IO resource\n");
-		return -ENOENT;
-	}
-
 	drvdata->virt_base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(drvdata->virt_base))
 		return PTR_ERR(drvdata->virt_base);
@@ -944,10 +960,18 @@ static int samsung_pinctrl_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id samsung_pinctrl_dt_match[] = {
+#ifdef CONFIG_PINCTRL_EXYNOS
 	{ .compatible = "samsung,exynos4210-pinctrl",
 		.data = (void *)exynos4210_pin_ctrl },
 	{ .compatible = "samsung,exynos4x12-pinctrl",
 		.data = (void *)exynos4x12_pin_ctrl },
+	{ .compatible = "samsung,exynos5250-pinctrl",
+		.data = (void *)exynos5250_pin_ctrl },
+#endif
+#ifdef CONFIG_PINCTRL_S3C64XX
+	{ .compatible = "samsung,s3c64xx-pinctrl",
+		.data = s3c64xx_pin_ctrl },
+#endif
 	{},
 };
 MODULE_DEVICE_TABLE(of, samsung_pinctrl_dt_match);

@@ -1353,17 +1353,17 @@ static void valleyview_update_wm(struct drm_device *dev)
 
 	vlv_update_drain_latency(dev);
 
-	if (g4x_compute_wm0(dev, 0,
+	if (g4x_compute_wm0(dev, PIPE_A,
 			    &valleyview_wm_info, latency_ns,
 			    &valleyview_cursor_wm_info, latency_ns,
 			    &planea_wm, &cursora_wm))
-		enabled |= 1;
+		enabled |= 1 << PIPE_A;
 
-	if (g4x_compute_wm0(dev, 1,
+	if (g4x_compute_wm0(dev, PIPE_B,
 			    &valleyview_wm_info, latency_ns,
 			    &valleyview_cursor_wm_info, latency_ns,
 			    &planeb_wm, &cursorb_wm))
-		enabled |= 2;
+		enabled |= 1 << PIPE_B;
 
 	if (single_plane_enabled(enabled) &&
 	    g4x_compute_srwm(dev, ffs(enabled) - 1,
@@ -1409,17 +1409,17 @@ static void g4x_update_wm(struct drm_device *dev)
 	int plane_sr, cursor_sr;
 	unsigned int enabled = 0;
 
-	if (g4x_compute_wm0(dev, 0,
+	if (g4x_compute_wm0(dev, PIPE_A,
 			    &g4x_wm_info, latency_ns,
 			    &g4x_cursor_wm_info, latency_ns,
 			    &planea_wm, &cursora_wm))
-		enabled |= 1;
+		enabled |= 1 << PIPE_A;
 
-	if (g4x_compute_wm0(dev, 1,
+	if (g4x_compute_wm0(dev, PIPE_B,
 			    &g4x_wm_info, latency_ns,
 			    &g4x_cursor_wm_info, latency_ns,
 			    &planeb_wm, &cursorb_wm))
-		enabled |= 2;
+		enabled |= 1 << PIPE_B;
 
 	if (single_plane_enabled(enabled) &&
 	    g4x_compute_srwm(dev, ffs(enabled) - 1,
@@ -1772,7 +1772,7 @@ static void ironlake_update_wm(struct drm_device *dev)
 	unsigned int enabled;
 
 	enabled = 0;
-	if (g4x_compute_wm0(dev, 0,
+	if (g4x_compute_wm0(dev, PIPE_A,
 			    &ironlake_display_wm_info,
 			    ILK_LP0_PLANE_LATENCY,
 			    &ironlake_cursor_wm_info,
@@ -1783,10 +1783,10 @@ static void ironlake_update_wm(struct drm_device *dev)
 		DRM_DEBUG_KMS("FIFO watermarks For pipe A -"
 			      " plane %d, " "cursor: %d\n",
 			      plane_wm, cursor_wm);
-		enabled |= 1;
+		enabled |= 1 << PIPE_A;
 	}
 
-	if (g4x_compute_wm0(dev, 1,
+	if (g4x_compute_wm0(dev, PIPE_B,
 			    &ironlake_display_wm_info,
 			    ILK_LP0_PLANE_LATENCY,
 			    &ironlake_cursor_wm_info,
@@ -1797,7 +1797,7 @@ static void ironlake_update_wm(struct drm_device *dev)
 		DRM_DEBUG_KMS("FIFO watermarks For pipe B -"
 			      " plane %d, cursor: %d\n",
 			      plane_wm, cursor_wm);
-		enabled |= 2;
+		enabled |= 1 << PIPE_B;
 	}
 
 	/*
@@ -1857,7 +1857,7 @@ static void sandybridge_update_wm(struct drm_device *dev)
 	unsigned int enabled;
 
 	enabled = 0;
-	if (g4x_compute_wm0(dev, 0,
+	if (g4x_compute_wm0(dev, PIPE_A,
 			    &sandybridge_display_wm_info, latency,
 			    &sandybridge_cursor_wm_info, latency,
 			    &plane_wm, &cursor_wm)) {
@@ -1868,10 +1868,10 @@ static void sandybridge_update_wm(struct drm_device *dev)
 		DRM_DEBUG_KMS("FIFO watermarks For pipe A -"
 			      " plane %d, " "cursor: %d\n",
 			      plane_wm, cursor_wm);
-		enabled |= 1;
+		enabled |= 1 << PIPE_A;
 	}
 
-	if (g4x_compute_wm0(dev, 1,
+	if (g4x_compute_wm0(dev, PIPE_B,
 			    &sandybridge_display_wm_info, latency,
 			    &sandybridge_cursor_wm_info, latency,
 			    &plane_wm, &cursor_wm)) {
@@ -1882,7 +1882,7 @@ static void sandybridge_update_wm(struct drm_device *dev)
 		DRM_DEBUG_KMS("FIFO watermarks For pipe B -"
 			      " plane %d, cursor: %d\n",
 			      plane_wm, cursor_wm);
-		enabled |= 2;
+		enabled |= 1 << PIPE_B;
 	}
 
 	/*
@@ -1960,7 +1960,7 @@ static void ivybridge_update_wm(struct drm_device *dev)
 	unsigned int enabled;
 
 	enabled = 0;
-	if (g4x_compute_wm0(dev, 0,
+	if (g4x_compute_wm0(dev, PIPE_A,
 			    &sandybridge_display_wm_info, latency,
 			    &sandybridge_cursor_wm_info, latency,
 			    &plane_wm, &cursor_wm)) {
@@ -1971,10 +1971,10 @@ static void ivybridge_update_wm(struct drm_device *dev)
 		DRM_DEBUG_KMS("FIFO watermarks For pipe A -"
 			      " plane %d, " "cursor: %d\n",
 			      plane_wm, cursor_wm);
-		enabled |= 1;
+		enabled |= 1 << PIPE_A;
 	}
 
-	if (g4x_compute_wm0(dev, 1,
+	if (g4x_compute_wm0(dev, PIPE_B,
 			    &sandybridge_display_wm_info, latency,
 			    &sandybridge_cursor_wm_info, latency,
 			    &plane_wm, &cursor_wm)) {
@@ -1985,10 +1985,10 @@ static void ivybridge_update_wm(struct drm_device *dev)
 		DRM_DEBUG_KMS("FIFO watermarks For pipe B -"
 			      " plane %d, cursor: %d\n",
 			      plane_wm, cursor_wm);
-		enabled |= 2;
+		enabled |= 1 << PIPE_B;
 	}
 
-	if (g4x_compute_wm0(dev, 2,
+	if (g4x_compute_wm0(dev, PIPE_C,
 			    &sandybridge_display_wm_info, latency,
 			    &sandybridge_cursor_wm_info, latency,
 			    &plane_wm, &cursor_wm)) {
@@ -1999,7 +1999,7 @@ static void ivybridge_update_wm(struct drm_device *dev)
 		DRM_DEBUG_KMS("FIFO watermarks For pipe C -"
 			      " plane %d, cursor: %d\n",
 			      plane_wm, cursor_wm);
-		enabled |= 3;
+		enabled |= 1 << PIPE_C;
 	}
 
 	/*
@@ -2765,7 +2765,7 @@ static void gen6_enable_rps(struct drm_device *dev)
 		   (IS_HASWELL(dev) ? GEN7_RP_DOWN_IDLE_AVG : GEN6_RP_DOWN_IDLE_CONT));
 
 	ret = sandybridge_pcode_write(dev_priv, GEN6_PCODE_WRITE_MIN_FREQ_TABLE, 0);
-	if (!ret && (IS_GEN6(dev) || IS_IVYBRIDGE(dev))) {
+	if (!ret) {
 		pcu_mbox = 0;
 		ret = sandybridge_pcode_read(dev_priv, GEN6_READ_OC_PARAMS, &pcu_mbox);
 		if (!ret && (pcu_mbox & (1<<31))) { /* OC supported */

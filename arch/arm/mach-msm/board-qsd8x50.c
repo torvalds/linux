@@ -89,6 +89,7 @@ static struct msm_otg_platform_data msm_otg_pdata = {
 };
 
 static struct platform_device *devices[] __initdata = {
+	&msm_device_gpio_8x50,
 	&msm_device_uart3,
 	&msm_device_smd,
 	&msm_device_otg,

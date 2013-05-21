@@ -2248,8 +2248,6 @@ static ssize_t ocfs2_file_aio_write(struct kiocb *iocb,
 	if (iocb->ki_left == 0)
 		return 0;
 
-	sb_start_write(inode->i_sb);
-
 	appending = file->f_flags & O_APPEND ? 1 : 0;
 	direct_io = file->f_flags & O_DIRECT ? 1 : 0;
 
@@ -2423,7 +2421,6 @@ out_sems:
 		ocfs2_iocb_clear_sem_locked(iocb);
 
 	mutex_unlock(&inode->i_mutex);
-	sb_end_write(inode->i_sb);
 
 	if (written)
 		ret = written;
@@ -2468,8 +2465,7 @@ static ssize_t ocfs2_file_splice_write(struct pipe_inode_info *pipe,
 			out->f_path.dentry->d_name.len,
 			out->f_path.dentry->d_name.name, len);
 
-	if (pipe->inode)
-		mutex_lock_nested(&pipe->inode->i_mutex, I_MUTEX_PARENT);
+	pipe_lock(pipe);
 
 	splice_from_pipe_begin(&sd);
 	do {
@@ -2489,8 +2485,7 @@ static ssize_t ocfs2_file_splice_write(struct pipe_inode_info *pipe,
 	} while (ret > 0);
 	splice_from_pipe_end(pipe, &sd);
 
-	if (pipe->inode)
-		mutex_unlock(&pipe->inode->i_mutex);
+	pipe_unlock(pipe);
 
 	if (sd.num_spliced)
 		ret = sd.num_spliced;

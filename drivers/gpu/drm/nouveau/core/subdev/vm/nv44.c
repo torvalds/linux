@@ -196,7 +196,7 @@ nv44_vmmgr_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(parent, NULL,
+	ret = nouveau_gpuobj_new(nv_object(priv), NULL,
 				(NV44_GART_SIZE / NV44_GART_PAGE) * 4,
 				 512 * 1024, NVOBJ_FLAG_ZERO_ALLOC,
 				 &priv->vm->pgt[0].obj[0]);

@@ -141,18 +141,18 @@ void regulator_put(struct regulator *regulator);
 void devm_regulator_put(struct regulator *regulator);
 
 /* regulator output control and status */
-int regulator_enable(struct regulator *regulator);
+int __must_check regulator_enable(struct regulator *regulator);
 int regulator_disable(struct regulator *regulator);
 int regulator_force_disable(struct regulator *regulator);
 int regulator_is_enabled(struct regulator *regulator);
 int regulator_disable_deferred(struct regulator *regulator, int ms);
 
-int regulator_bulk_get(struct device *dev, int num_consumers,
-		       struct regulator_bulk_data *consumers);
-int devm_regulator_bulk_get(struct device *dev, int num_consumers,
-			    struct regulator_bulk_data *consumers);
-int regulator_bulk_enable(int num_consumers,
-			  struct regulator_bulk_data *consumers);
+int __must_check regulator_bulk_get(struct device *dev, int num_consumers,
+				    struct regulator_bulk_data *consumers);
+int __must_check devm_regulator_bulk_get(struct device *dev, int num_consumers,
+					 struct regulator_bulk_data *consumers);
+int __must_check regulator_bulk_enable(int num_consumers,
+				       struct regulator_bulk_data *consumers);
 int regulator_bulk_disable(int num_consumers,
 			   struct regulator_bulk_data *consumers);
 int regulator_bulk_force_disable(int num_consumers,

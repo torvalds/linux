@@ -396,6 +396,7 @@ IS_OMAP_TYPE(3430, 0x3430)
 #define AM335X_CLASS		0x33500033
 #define AM335X_REV_ES1_0	AM335X_CLASS
 #define AM335X_REV_ES2_0	(AM335X_CLASS | (0x1 << 8))
+#define AM335X_REV_ES2_1	(AM335X_CLASS | (0x2 << 8))
 
 #define OMAP443X_CLASS		0x44300044
 #define OMAP4430_REV_ES1_0	(OMAP443X_CLASS | (0x10 << 8))
@@ -413,7 +414,9 @@ IS_OMAP_TYPE(3430, 0x3430)
 
 #define OMAP54XX_CLASS		0x54000054
 #define OMAP5430_REV_ES1_0	(OMAP54XX_CLASS | (0x30 << 16) | (0x10 << 8))
+#define OMAP5430_REV_ES2_0	(OMAP54XX_CLASS | (0x30 << 16) | (0x20 << 8))
 #define OMAP5432_REV_ES1_0	(OMAP54XX_CLASS | (0x32 << 16) | (0x10 << 8))
+#define OMAP5432_REV_ES2_0	(OMAP54XX_CLASS | (0x32 << 16) | (0x20 << 8))
 
 void omap2xxx_check_revision(void);
 void omap3xxx_check_revision(void);
@@ -494,6 +497,7 @@ level(__##fn);
 #define omap_subsys_initcall(fn)	omap_initcall(subsys_initcall, fn)
 #define omap_device_initcall(fn)	omap_initcall(device_initcall, fn)
 #define omap_late_initcall(fn)		omap_initcall(late_initcall, fn)
+#define omap_late_initcall_sync(fn)	omap_initcall(late_initcall_sync, fn)
 
 #endif	/* __ASSEMBLY__ */
 

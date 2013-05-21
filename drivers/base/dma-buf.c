@@ -27,8 +27,17 @@
 #include <linux/dma-buf.h>
 #include <linux/anon_inodes.h>
 #include <linux/export.h>
+#include <linux/debugfs.h>
+#include <linux/seq_file.h>
 
 static inline int is_dma_buf_file(struct file *);
+
+struct dma_buf_list {
+	struct list_head head;
+	struct mutex lock;
+};
+
+static struct dma_buf_list db_list;
 
 static int dma_buf_release(struct inode *inode, struct file *file)
 {
@@ -42,6 +51,11 @@ static int dma_buf_release(struct inode *inode, struct file *file)
 	BUG_ON(dmabuf->vmapping_counter);
 
 	dmabuf->ops->release(dmabuf);
+
+	mutex_lock(&db_list.lock);
+	list_del(&dmabuf->list_node);
+	mutex_unlock(&db_list.lock);
+
 	kfree(dmabuf);
 	return 0;
 }
@@ -77,22 +91,24 @@ static inline int is_dma_buf_file(struct file *file)
 }
 
 /**
- * dma_buf_export - Creates a new dma_buf, and associates an anon file
+ * dma_buf_export_named - Creates a new dma_buf, and associates an anon file
  * with this buffer, so it can be exported.
  * Also connect the allocator specific data and ops to the buffer.
+ * Additionally, provide a name string for exporter; useful in debugging.
  *
  * @priv:	[in]	Attach private data of allocator to this buffer
  * @ops:	[in]	Attach allocator-defined dma buf ops to the new buffer.
  * @size:	[in]	Size of the buffer
  * @flags:	[in]	mode flags for the file.
+ * @exp_name:	[in]	name of the exporting module - useful for debugging.
  *
  * Returns, on success, a newly created dma_buf object, which wraps the
  * supplied private data and operations for dma_buf_ops. On either missing
  * ops, or error in allocating struct dma_buf, will return negative error.
  *
  */
-struct dma_buf *dma_buf_export(void *priv, const struct dma_buf_ops *ops,
-				size_t size, int flags)
+struct dma_buf *dma_buf_export_named(void *priv, const struct dma_buf_ops *ops,
+				size_t size, int flags, const char *exp_name)
 {
 	struct dma_buf *dmabuf;
 	struct file *file;
@@ -114,6 +130,7 @@ struct dma_buf *dma_buf_export(void *priv, const struct dma_buf_ops *ops,
 	dmabuf->priv = priv;
 	dmabuf->ops = ops;
 	dmabuf->size = size;
+	dmabuf->exp_name = exp_name;
 
 	file = anon_inode_getfile("dmabuf", &dma_buf_fops, dmabuf, flags);
 
@@ -122,9 +139,13 @@ struct dma_buf *dma_buf_export(void *priv, const struct dma_buf_ops *ops,
 	mutex_init(&dmabuf->lock);
 	INIT_LIST_HEAD(&dmabuf->attachments);
 
+	mutex_lock(&db_list.lock);
+	list_add(&dmabuf->list_node, &db_list.head);
+	mutex_unlock(&db_list.lock);
+
 	return dmabuf;
 }
-EXPORT_SYMBOL_GPL(dma_buf_export);
+EXPORT_SYMBOL_GPL(dma_buf_export_named);
 
 
 /**
@@ -548,3 +569,143 @@ void dma_buf_vunmap(struct dma_buf *dmabuf, void *vaddr)
 	mutex_unlock(&dmabuf->lock);
 }
 EXPORT_SYMBOL_GPL(dma_buf_vunmap);
+
+#ifdef CONFIG_DEBUG_FS
+static int dma_buf_describe(struct seq_file *s)
+{
+	int ret;
+	struct dma_buf *buf_obj;
+	struct dma_buf_attachment *attach_obj;
+	int count = 0, attach_count;
+	size_t size = 0;
+
+	ret = mutex_lock_interruptible(&db_list.lock);
+
+	if (ret)
+		return ret;
+
+	seq_printf(s, "\nDma-buf Objects:\n");
+	seq_printf(s, "\texp_name\tsize\tflags\tmode\tcount\n");
+
+	list_for_each_entry(buf_obj, &db_list.head, list_node) {
+		ret = mutex_lock_interruptible(&buf_obj->lock);
+
+		if (ret) {
+			seq_printf(s,
+				  "\tERROR locking buffer object: skipping\n");
+			continue;
+		}
+
+		seq_printf(s, "\t");
+
+		seq_printf(s, "\t%s\t%08zu\t%08x\t%08x\t%08ld\n",
+				buf_obj->exp_name, buf_obj->size,
+				buf_obj->file->f_flags, buf_obj->file->f_mode,
+				(long)(buf_obj->file->f_count.counter));
+
+		seq_printf(s, "\t\tAttached Devices:\n");
+		attach_count = 0;
+
+		list_for_each_entry(attach_obj, &buf_obj->attachments, node) {
+			seq_printf(s, "\t\t");
+
+			seq_printf(s, "%s\n", attach_obj->dev->init_name);
+			attach_count++;
+		}
+
+		seq_printf(s, "\n\t\tTotal %d devices attached\n",
+				attach_count);
+
+		count++;
+		size += buf_obj->size;
+		mutex_unlock(&buf_obj->lock);
+	}
+
+	seq_printf(s, "\nTotal %d objects, %zu bytes\n", count, size);
+
+	mutex_unlock(&db_list.lock);
+	return 0;
+}
+
+static int dma_buf_show(struct seq_file *s, void *unused)
+{
+	void (*func)(struct seq_file *) = s->private;
+	func(s);
+	return 0;
+}
+
+static int dma_buf_debug_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, dma_buf_show, inode->i_private);
+}
+
+static const struct file_operations dma_buf_debug_fops = {
+	.open           = dma_buf_debug_open,
+	.read           = seq_read,
+	.llseek         = seq_lseek,
+	.release        = single_release,
+};
+
+static struct dentry *dma_buf_debugfs_dir;
+
+static int dma_buf_init_debugfs(void)
+{
+	int err = 0;
+	dma_buf_debugfs_dir = debugfs_create_dir("dma_buf", NULL);
+	if (IS_ERR(dma_buf_debugfs_dir)) {
+		err = PTR_ERR(dma_buf_debugfs_dir);
+		dma_buf_debugfs_dir = NULL;
+		return err;
+	}
+
+	err = dma_buf_debugfs_create_file("bufinfo", dma_buf_describe);
+
+	if (err)
+		pr_debug("dma_buf: debugfs: failed to create node bufinfo\n");
+
+	return err;
+}
+
+static void dma_buf_uninit_debugfs(void)
+{
+	if (dma_buf_debugfs_dir)
+		debugfs_remove_recursive(dma_buf_debugfs_dir);
+}
+
+int dma_buf_debugfs_create_file(const char *name,
+				int (*write)(struct seq_file *))
+{
+	struct dentry *d;
+
+	d = debugfs_create_file(name, S_IRUGO, dma_buf_debugfs_dir,
+			write, &dma_buf_debug_fops);
+
+	if (IS_ERR(d))
+		return PTR_ERR(d);
+
+	return 0;
+}
+#else
+static inline int dma_buf_init_debugfs(void)
+{
+	return 0;
+}
+static inline void dma_buf_uninit_debugfs(void)
+{
+}
+#endif
+
+static int __init dma_buf_init(void)
+{
+	mutex_init(&db_list.lock);
+	INIT_LIST_HEAD(&db_list.head);
+	dma_buf_init_debugfs();
+	return 0;
+}
+subsys_initcall(dma_buf_init);
+
+static void __exit dma_buf_deinit(void)
+{
+	dma_buf_uninit_debugfs();
+}
+__exitcall(dma_buf_deinit);

@@ -645,6 +645,10 @@ static struct snd_soc_dai_driver davinci_i2s_dai = {
 
 };
 
+static const struct snd_soc_component_driver davinci_i2s_component = {
+	.name		= "davinci-i2s",
+};
+
 static int davinci_i2s_probe(struct platform_device *pdev)
 {
 	struct snd_platform_data *pdata = pdev->dev.platform_data;
@@ -727,20 +731,21 @@ static int davinci_i2s_probe(struct platform_device *pdev)
 
 	dev_set_drvdata(&pdev->dev, dev);
 
-	ret = snd_soc_register_dai(&pdev->dev, &davinci_i2s_dai);
+	ret = snd_soc_register_component(&pdev->dev, &davinci_i2s_component,
+					 &davinci_i2s_dai, 1);
 	if (ret != 0)
 		goto err_release_clk;
 
 	ret = davinci_soc_platform_register(&pdev->dev);
 	if (ret) {
 		dev_err(&pdev->dev, "register PCM failed: %d\n", ret);
-		goto err_unregister_dai;
+		goto err_unregister_component;
 	}
 
 	return 0;
 
-err_unregister_dai:
-	snd_soc_unregister_dai(&pdev->dev);
+err_unregister_component:
+	snd_soc_unregister_component(&pdev->dev);
 err_release_clk:
 	clk_disable(dev->clk);
 	clk_put(dev->clk);
@@ -751,7 +756,7 @@ static int davinci_i2s_remove(struct platform_device *pdev)
 {
 	struct davinci_mcbsp_dev *dev = dev_get_drvdata(&pdev->dev);
 
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 	davinci_soc_platform_unregister(&pdev->dev);
 
 	clk_disable(dev->clk);

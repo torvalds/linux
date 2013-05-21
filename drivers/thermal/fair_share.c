@@ -22,9 +22,6 @@
  * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
-#include <linux/module.h>
 #include <linux/thermal.h>
 
 #include "thermal_core.h"
@@ -111,23 +108,15 @@ static int fair_share_throttle(struct thermal_zone_device *tz, int trip)
 static struct thermal_governor thermal_gov_fair_share = {
 	.name		= "fair_share",
 	.throttle	= fair_share_throttle,
-	.owner		= THIS_MODULE,
 };
 
-static int __init thermal_gov_fair_share_init(void)
+int thermal_gov_fair_share_register(void)
 {
 	return thermal_register_governor(&thermal_gov_fair_share);
 }
 
-static void __exit thermal_gov_fair_share_exit(void)
+void thermal_gov_fair_share_unregister(void)
 {
 	thermal_unregister_governor(&thermal_gov_fair_share);
 }
 
-/* This should load after thermal framework */
-fs_initcall(thermal_gov_fair_share_init);
-module_exit(thermal_gov_fair_share_exit);
-
-MODULE_AUTHOR("Durgadoss R");
-MODULE_DESCRIPTION("A simple weight based thermal throttling governor");
-MODULE_LICENSE("GPL");

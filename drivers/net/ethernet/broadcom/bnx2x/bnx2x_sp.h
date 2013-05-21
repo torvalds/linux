@@ -100,6 +100,7 @@ struct bnx2x_raw_obj {
 /************************* VLAN-MAC commands related parameters ***************/
 struct bnx2x_mac_ramrod_data {
 	u8 mac[ETH_ALEN];
+	u8 is_inner_mac;
 };
 
 struct bnx2x_vlan_ramrod_data {
@@ -108,6 +109,7 @@ struct bnx2x_vlan_ramrod_data {
 
 struct bnx2x_vlan_mac_ramrod_data {
 	u8 mac[ETH_ALEN];
+	u8 is_inner_mac;
 	u16 vlan;
 };
 
@@ -313,8 +315,9 @@ struct bnx2x_vlan_mac_obj {
 	 *
 	 * @return number of copied bytes
 	 */
-	int (*get_n_elements)(struct bnx2x *bp, struct bnx2x_vlan_mac_obj *o,
-			      int n, u8 *buf);
+	int (*get_n_elements)(struct bnx2x *bp,
+			      struct bnx2x_vlan_mac_obj *o, int n, u8 *base,
+			      u8 stride, u8 size);
 
 	/**
 	 * Checks if ADD-ramrod with the given params may be performed.
@@ -824,7 +827,9 @@ enum {
 	BNX2X_Q_FLG_TX_SEC,
 	BNX2X_Q_FLG_ANTI_SPOOF,
 	BNX2X_Q_FLG_SILENT_VLAN_REM,
-	BNX2X_Q_FLG_FORCE_DEFAULT_PRI
+	BNX2X_Q_FLG_FORCE_DEFAULT_PRI,
+	BNX2X_Q_FLG_PCSUM_ON_PKT,
+	BNX2X_Q_FLG_TUN_INC_INNER_IP_ID
 };
 
 /* Queue type options: queue type may be a compination of below. */
@@ -842,6 +847,7 @@ enum bnx2x_q_type {
 #define BNX2X_MULTI_TX_COS_E3B0			3
 #define BNX2X_MULTI_TX_COS			3 /* Maximum possible */
 
+#define MAC_PAD (ALIGN(ETH_ALEN, sizeof(u32)) - ETH_ALEN)
 
 struct bnx2x_queue_init_params {
 	struct {
@@ -1118,6 +1124,15 @@ struct bnx2x_func_start_params {
 
 	/* Function cos mode */
 	u8 network_cos_mode;
+
+	/* NVGRE classification enablement */
+	u8 nvgre_clss_en;
+
+	/* NO_GRE_TUNNEL/NVGRE_TUNNEL/L2GRE_TUNNEL/IPGRE_TUNNEL */
+	u8 gre_tunnel_mode;
+
+	/* GRE_OUTER_HEADERS_RSS/GRE_INNER_HEADERS_RSS/NVGRE_KEY_ENTROPY_RSS */
+	u8 gre_tunnel_rss;
 };
 
 struct bnx2x_func_switch_update_params {

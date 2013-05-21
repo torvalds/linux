@@ -443,7 +443,6 @@ static int usX2Y_usbpcm_urbs_start(struct snd_usX2Y_substream *subs)
 					if (0 == u)
 						atomic_set(&subs->state, state_STARTING3);
 					urb->dev = usX2Y->dev;
-					urb->transfer_flags = URB_ISO_ASAP;
 					for (pack = 0; pack < nr_of_packs(); pack++) {
 						urb->iso_frame_desc[pack].offset = subs->maxpacksize * (pack + u * nr_of_packs());
 						urb->iso_frame_desc[pack].length = subs->maxpacksize;

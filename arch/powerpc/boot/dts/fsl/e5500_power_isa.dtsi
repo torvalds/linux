@@ -54,6 +54,7 @@
 		power-isa-scpm;		// Store Conditional Page Mobility
 		power-isa-wt;		// Wait
 		power-isa-64;		// 64-bit
+		fsl,eref-deo;		// Data Cache Extended Operations
 		mmu-type = "power-embedded";
 	};
 };

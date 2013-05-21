@@ -193,10 +193,10 @@ struct mwl8k_priv {
 	struct rxd_ops *rxd_ops;
 	struct ieee80211_supported_band band_24;
 	struct ieee80211_channel channels_24[14];
-	struct ieee80211_rate rates_24[14];
+	struct ieee80211_rate rates_24[13];
 	struct ieee80211_supported_band band_50;
 	struct ieee80211_channel channels_50[4];
-	struct ieee80211_rate rates_50[9];
+	struct ieee80211_rate rates_50[8];
 	u32 ap_macids_supported;
 	u32 sta_macids_supported;
 
@@ -232,6 +232,7 @@ struct mwl8k_priv {
 	u16 num_mcaddrs;
 	u8 hw_rev;
 	u32 fw_rev;
+	u32 caps;
 
 	/*
 	 * Running count of TX packets in flight, to avoid
@@ -284,6 +285,7 @@ struct mwl8k_priv {
 	unsigned fw_state;
 	char *fw_pref;
 	char *fw_alt;
+	bool is_8764;
 	struct completion firmware_loading_complete;
 
 	/* bitmap of running BSSes */
@@ -364,7 +366,6 @@ static const struct ieee80211_rate mwl8k_rates_24[] = {
 	{ .bitrate = 360, .hw_value = 72, },
 	{ .bitrate = 480, .hw_value = 96, },
 	{ .bitrate = 540, .hw_value = 108, },
-	{ .bitrate = 720, .hw_value = 144, },
 };
 
 static const struct ieee80211_channel mwl8k_channels_50[] = {
@@ -383,7 +384,6 @@ static const struct ieee80211_rate mwl8k_rates_50[] = {
 	{ .bitrate = 360, .hw_value = 72, },
 	{ .bitrate = 480, .hw_value = 96, },
 	{ .bitrate = 540, .hw_value = 108, },
-	{ .bitrate = 720, .hw_value = 144, },
 };
 
 /* Set or get info from Firmware */
@@ -600,13 +600,18 @@ mwl8k_send_fw_load_cmd(struct mwl8k_priv *priv, void *data, int length)
 	loops = 1000;
 	do {
 		u32 int_code;
-
-		int_code = ioread32(regs + MWL8K_HIU_INT_CODE);
-		if (int_code == MWL8K_INT_CODE_CMD_FINISHED) {
-			iowrite32(0, regs + MWL8K_HIU_INT_CODE);
-			break;
+		if (priv->is_8764) {
+			int_code = ioread32(regs +
+					    MWL8K_HIU_H2A_INTERRUPT_STATUS);
+			if (int_code == 0)
+				break;
+		} else {
+			int_code = ioread32(regs + MWL8K_HIU_INT_CODE);
+			if (int_code == MWL8K_INT_CODE_CMD_FINISHED) {
+				iowrite32(0, regs + MWL8K_HIU_INT_CODE);
+				break;
+			}
 		}
-
 		cond_resched();
 		udelay(1);
 	} while (--loops);
@@ -724,7 +729,7 @@ static int mwl8k_load_firmware(struct ieee80211_hw *hw)
 	int rc;
 	int loops;
 
-	if (!memcmp(fw->data, "\x01\x00\x00\x00", 4)) {
+	if (!memcmp(fw->data, "\x01\x00\x00\x00", 4) && !priv->is_8764) {
 		const struct firmware *helper = priv->fw_helper;
 
 		if (helper == NULL) {
@@ -743,7 +748,10 @@ static int mwl8k_load_firmware(struct ieee80211_hw *hw)
 
 		rc = mwl8k_feed_fw_image(priv, fw->data, fw->size);
 	} else {
-		rc = mwl8k_load_fw_image(priv, fw->data, fw->size);
+		if (priv->is_8764)
+			rc = mwl8k_feed_fw_image(priv, fw->data, fw->size);
+		else
+			rc = mwl8k_load_fw_image(priv, fw->data, fw->size);
 	}
 
 	if (rc) {
@@ -908,9 +916,9 @@ static void mwl8k_encapsulate_tx_frame(struct mwl8k_priv *priv,
 }
 
 /*
- * Packet reception for 88w8366 AP firmware.
+ * Packet reception for 88w8366/88w8764 AP firmware.
  */
-struct mwl8k_rxd_8366_ap {
+struct mwl8k_rxd_ap {
 	__le16 pkt_len;
 	__u8 sq2;
 	__u8 rate;
@@ -928,30 +936,30 @@ struct mwl8k_rxd_8366_ap {
 	__u8 rx_ctrl;
 } __packed;
 
-#define MWL8K_8366_AP_RATE_INFO_MCS_FORMAT	0x80
-#define MWL8K_8366_AP_RATE_INFO_40MHZ		0x40
-#define MWL8K_8366_AP_RATE_INFO_RATEID(x)	((x) & 0x3f)
+#define MWL8K_AP_RATE_INFO_MCS_FORMAT		0x80
+#define MWL8K_AP_RATE_INFO_40MHZ		0x40
+#define MWL8K_AP_RATE_INFO_RATEID(x)		((x) & 0x3f)
 
-#define MWL8K_8366_AP_RX_CTRL_OWNED_BY_HOST	0x80
+#define MWL8K_AP_RX_CTRL_OWNED_BY_HOST		0x80
 
-/* 8366 AP rx_status bits */
-#define MWL8K_8366_AP_RXSTAT_DECRYPT_ERR_MASK		0x80
-#define MWL8K_8366_AP_RXSTAT_GENERAL_DECRYPT_ERR	0xFF
-#define MWL8K_8366_AP_RXSTAT_TKIP_DECRYPT_MIC_ERR	0x02
-#define MWL8K_8366_AP_RXSTAT_WEP_DECRYPT_ICV_ERR	0x04
-#define MWL8K_8366_AP_RXSTAT_TKIP_DECRYPT_ICV_ERR	0x08
+/* 8366/8764 AP rx_status bits */
+#define MWL8K_AP_RXSTAT_DECRYPT_ERR_MASK		0x80
+#define MWL8K_AP_RXSTAT_GENERAL_DECRYPT_ERR		0xFF
+#define MWL8K_AP_RXSTAT_TKIP_DECRYPT_MIC_ERR		0x02
+#define MWL8K_AP_RXSTAT_WEP_DECRYPT_ICV_ERR		0x04
+#define MWL8K_AP_RXSTAT_TKIP_DECRYPT_ICV_ERR		0x08
 
-static void mwl8k_rxd_8366_ap_init(void *_rxd, dma_addr_t next_dma_addr)
+static void mwl8k_rxd_ap_init(void *_rxd, dma_addr_t next_dma_addr)
 {
-	struct mwl8k_rxd_8366_ap *rxd = _rxd;
+	struct mwl8k_rxd_ap *rxd = _rxd;
 
 	rxd->next_rxd_phys_addr = cpu_to_le32(next_dma_addr);
-	rxd->rx_ctrl = MWL8K_8366_AP_RX_CTRL_OWNED_BY_HOST;
+	rxd->rx_ctrl = MWL8K_AP_RX_CTRL_OWNED_BY_HOST;
 }
 
-static void mwl8k_rxd_8366_ap_refill(void *_rxd, dma_addr_t addr, int len)
+static void mwl8k_rxd_ap_refill(void *_rxd, dma_addr_t addr, int len)
 {
-	struct mwl8k_rxd_8366_ap *rxd = _rxd;
+	struct mwl8k_rxd_ap *rxd = _rxd;
 
 	rxd->pkt_len = cpu_to_le16(len);
 	rxd->pkt_phys_addr = cpu_to_le32(addr);
@@ -960,12 +968,12 @@ static void mwl8k_rxd_8366_ap_refill(void *_rxd, dma_addr_t addr, int len)
 }
 
 static int
-mwl8k_rxd_8366_ap_process(void *_rxd, struct ieee80211_rx_status *status,
-			  __le16 *qos, s8 *noise)
+mwl8k_rxd_ap_process(void *_rxd, struct ieee80211_rx_status *status,
+		     __le16 *qos, s8 *noise)
 {
-	struct mwl8k_rxd_8366_ap *rxd = _rxd;
+	struct mwl8k_rxd_ap *rxd = _rxd;
 
-	if (!(rxd->rx_ctrl & MWL8K_8366_AP_RX_CTRL_OWNED_BY_HOST))
+	if (!(rxd->rx_ctrl & MWL8K_AP_RX_CTRL_OWNED_BY_HOST))
 		return -1;
 	rmb();
 
@@ -974,11 +982,11 @@ mwl8k_rxd_8366_ap_process(void *_rxd, struct ieee80211_rx_status *status,
 	status->signal = -rxd->rssi;
 	*noise = -rxd->noise_floor;
 
-	if (rxd->rate & MWL8K_8366_AP_RATE_INFO_MCS_FORMAT) {
+	if (rxd->rate & MWL8K_AP_RATE_INFO_MCS_FORMAT) {
 		status->flag |= RX_FLAG_HT;
-		if (rxd->rate & MWL8K_8366_AP_RATE_INFO_40MHZ)
+		if (rxd->rate & MWL8K_AP_RATE_INFO_40MHZ)
 			status->flag |= RX_FLAG_40MHZ;
-		status->rate_idx = MWL8K_8366_AP_RATE_INFO_RATEID(rxd->rate);
+		status->rate_idx = MWL8K_AP_RATE_INFO_RATEID(rxd->rate);
 	} else {
 		int i;
 
@@ -1002,19 +1010,19 @@ mwl8k_rxd_8366_ap_process(void *_rxd, struct ieee80211_rx_status *status,
 
 	*qos = rxd->qos_control;
 
-	if ((rxd->rx_status != MWL8K_8366_AP_RXSTAT_GENERAL_DECRYPT_ERR) &&
-	    (rxd->rx_status & MWL8K_8366_AP_RXSTAT_DECRYPT_ERR_MASK) &&
-	    (rxd->rx_status & MWL8K_8366_AP_RXSTAT_TKIP_DECRYPT_MIC_ERR))
+	if ((rxd->rx_status != MWL8K_AP_RXSTAT_GENERAL_DECRYPT_ERR) &&
+	    (rxd->rx_status & MWL8K_AP_RXSTAT_DECRYPT_ERR_MASK) &&
+	    (rxd->rx_status & MWL8K_AP_RXSTAT_TKIP_DECRYPT_MIC_ERR))
 		status->flag |= RX_FLAG_MMIC_ERROR;
 
 	return le16_to_cpu(rxd->pkt_len);
 }
 
-static struct rxd_ops rxd_8366_ap_ops = {
-	.rxd_size	= sizeof(struct mwl8k_rxd_8366_ap),
-	.rxd_init	= mwl8k_rxd_8366_ap_init,
-	.rxd_refill	= mwl8k_rxd_8366_ap_refill,
-	.rxd_process	= mwl8k_rxd_8366_ap_process,
+static struct rxd_ops rxd_ap_ops = {
+	.rxd_size	= sizeof(struct mwl8k_rxd_ap),
+	.rxd_init	= mwl8k_rxd_ap_init,
+	.rxd_refill	= mwl8k_rxd_ap_refill,
+	.rxd_process	= mwl8k_rxd_ap_process,
 };
 
 /*
@@ -2401,6 +2409,9 @@ mwl8k_set_caps(struct ieee80211_hw *hw, u32 caps)
 {
 	struct mwl8k_priv *priv = hw->priv;
 
+	if (priv->caps)
+		return;
+
 	if ((caps & MWL8K_CAP_2GHZ4) || !(caps & MWL8K_CAP_BAND_MASK)) {
 		mwl8k_setup_2ghz_band(hw);
 		if (caps & MWL8K_CAP_MIMO)
@@ -2412,6 +2423,8 @@ mwl8k_set_caps(struct ieee80211_hw *hw, u32 caps)
 		if (caps & MWL8K_CAP_MIMO)
 			mwl8k_set_ht_caps(hw, &priv->band_50, caps);
 	}
+
+	priv->caps = caps;
 }
 
 static int mwl8k_cmd_get_hw_spec_sta(struct ieee80211_hw *hw)
@@ -2837,7 +2850,9 @@ static int mwl8k_cmd_tx_power(struct ieee80211_hw *hw,
 				     struct ieee80211_conf *conf,
 				     unsigned short pwr)
 {
-	struct ieee80211_channel *channel = conf->channel;
+	struct ieee80211_channel *channel = conf->chandef.chan;
+	enum nl80211_channel_type channel_type =
+		cfg80211_get_chandef_type(&conf->chandef);
 	struct mwl8k_cmd_tx_power *cmd;
 	int rc;
 	int i;
@@ -2857,14 +2872,14 @@ static int mwl8k_cmd_tx_power(struct ieee80211_hw *hw,
 
 	cmd->channel = cpu_to_le16(channel->hw_value);
 
-	if (conf->channel_type == NL80211_CHAN_NO_HT ||
-	    conf->channel_type == NL80211_CHAN_HT20) {
+	if (channel_type == NL80211_CHAN_NO_HT ||
+	    channel_type == NL80211_CHAN_HT20) {
 		cmd->bw = cpu_to_le16(0x2);
 	} else {
 		cmd->bw = cpu_to_le16(0x4);
-		if (conf->channel_type == NL80211_CHAN_HT40MINUS)
+		if (channel_type == NL80211_CHAN_HT40MINUS)
 			cmd->sub_ch = cpu_to_le16(0x3);
-		else if (conf->channel_type == NL80211_CHAN_HT40PLUS)
+		else if (channel_type == NL80211_CHAN_HT40PLUS)
 			cmd->sub_ch = cpu_to_le16(0x1);
 	}
 
@@ -3008,7 +3023,9 @@ struct mwl8k_cmd_set_rf_channel {
 static int mwl8k_cmd_set_rf_channel(struct ieee80211_hw *hw,
 				    struct ieee80211_conf *conf)
 {
-	struct ieee80211_channel *channel = conf->channel;
+	struct ieee80211_channel *channel = conf->chandef.chan;
+	enum nl80211_channel_type channel_type =
+		cfg80211_get_chandef_type(&conf->chandef);
 	struct mwl8k_cmd_set_rf_channel *cmd;
 	int rc;
 
@@ -3026,12 +3043,12 @@ static int mwl8k_cmd_set_rf_channel(struct ieee80211_hw *hw,
 	else if (channel->band == IEEE80211_BAND_5GHZ)
 		cmd->channel_flags |= cpu_to_le32(0x00000004);
 
-	if (conf->channel_type == NL80211_CHAN_NO_HT ||
-	    conf->channel_type == NL80211_CHAN_HT20)
+	if (channel_type == NL80211_CHAN_NO_HT ||
+	    channel_type == NL80211_CHAN_HT20)
 		cmd->channel_flags |= cpu_to_le32(0x00000080);
-	else if (conf->channel_type == NL80211_CHAN_HT40MINUS)
+	else if (channel_type == NL80211_CHAN_HT40MINUS)
 		cmd->channel_flags |= cpu_to_le32(0x000001900);
-	else if (conf->channel_type == NL80211_CHAN_HT40PLUS)
+	else if (channel_type == NL80211_CHAN_HT40PLUS)
 		cmd->channel_flags |= cpu_to_le32(0x000000900);
 
 	rc = mwl8k_post_cmd(hw, &cmd->header);
@@ -3064,11 +3081,11 @@ static void legacy_rate_mask_to_array(u8 *rates, u32 mask)
 	int j;
 
 	/*
-	 * Clear nonstandard rates 4 and 13.
+	 * Clear nonstandard rate 4.
 	 */
 	mask &= 0x1fef;
 
-	for (i = 0, j = 0; i < 14; i++) {
+	for (i = 0, j = 0; i < 13; i++) {
 		if (mask & (1 << i))
 			rates[j++] = mwl8k_rates_24[i].hw_value;
 	}
@@ -3950,7 +3967,7 @@ static int mwl8k_cmd_set_new_stn_add(struct ieee80211_hw *hw,
 	memcpy(cmd->mac_addr, sta->addr, ETH_ALEN);
 	cmd->stn_id = cpu_to_le16(sta->aid);
 	cmd->action = cpu_to_le16(MWL8K_STA_ACTION_ADD);
-	if (hw->conf.channel->band == IEEE80211_BAND_2GHZ)
+	if (hw->conf.chandef.chan->band == IEEE80211_BAND_2GHZ)
 		rates = sta->supp_rates[IEEE80211_BAND_2GHZ];
 	else
 		rates = sta->supp_rates[IEEE80211_BAND_5GHZ] << 5;
@@ -4385,7 +4402,7 @@ static int mwl8k_cmd_update_stadb_add(struct ieee80211_hw *hw,
 	p->ht_caps = cpu_to_le16(sta->ht_cap.cap);
 	p->extended_ht_caps = (sta->ht_cap.ampdu_factor & 3) |
 		((sta->ht_cap.ampdu_density & 7) << 2);
-	if (hw->conf.channel->band == IEEE80211_BAND_2GHZ)
+	if (hw->conf.chandef.chan->band == IEEE80211_BAND_2GHZ)
 		rates = sta->supp_rates[IEEE80211_BAND_2GHZ];
 	else
 		rates = sta->supp_rates[IEEE80211_BAND_5GHZ] << 5;
@@ -4792,16 +4809,14 @@ static int mwl8k_config(struct ieee80211_hw *hw, u32 changed)
 	struct mwl8k_priv *priv = hw->priv;
 	int rc;
 
-	if (conf->flags & IEEE80211_CONF_IDLE) {
-		mwl8k_cmd_radio_disable(hw);
-		return 0;
-	}
-
 	rc = mwl8k_fw_lock(hw);
 	if (rc)
 		return rc;
 
-	rc = mwl8k_cmd_radio_enable(hw);
+	if (conf->flags & IEEE80211_CONF_IDLE)
+		rc = mwl8k_cmd_radio_disable(hw);
+	else
+		rc = mwl8k_cmd_radio_enable(hw);
 	if (rc)
 		goto out;
 
@@ -4868,7 +4883,7 @@ mwl8k_bss_info_changed_sta(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			goto out;
 		}
 
-		if (hw->conf.channel->band == IEEE80211_BAND_2GHZ) {
+		if (hw->conf.chandef.chan->band == IEEE80211_BAND_2GHZ) {
 			ap_legacy_rates = ap->supp_rates[IEEE80211_BAND_2GHZ];
 		} else {
 			ap_legacy_rates =
@@ -4900,7 +4915,7 @@ mwl8k_bss_info_changed_sta(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			if (idx)
 				idx--;
 
-			if (hw->conf.channel->band == IEEE80211_BAND_2GHZ)
+			if (hw->conf.chandef.chan->band == IEEE80211_BAND_2GHZ)
 				rate = mwl8k_rates_24[idx].hw_value;
 			else
 				rate = mwl8k_rates_50[idx].hw_value;
@@ -4973,7 +4988,7 @@ mwl8k_bss_info_changed_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		if (idx)
 			idx--;
 
-		if (hw->conf.channel->band == IEEE80211_BAND_2GHZ)
+		if (hw->conf.chandef.chan->band == IEEE80211_BAND_2GHZ)
 			rate = mwl8k_rates_24[idx].hw_value;
 		else
 			rate = mwl8k_rates_50[idx].hw_value;
@@ -5246,7 +5261,7 @@ static int mwl8k_get_survey(struct ieee80211_hw *hw, int idx,
 	if (idx != 0)
 		return -ENOENT;
 
-	survey->channel = conf->channel;
+	survey->channel = conf->chandef.chan;
 	survey->filled = SURVEY_INFO_NOISE_DBM;
 	survey->noise = priv->noise;
 
@@ -5429,11 +5444,16 @@ enum {
 	MWL8363 = 0,
 	MWL8687,
 	MWL8366,
+	MWL8764,
 };
 
 #define MWL8K_8366_AP_FW_API 3
 #define _MWL8K_8366_AP_FW(api) "mwl8k/fmimage_8366_ap-" #api ".fw"
 #define MWL8K_8366_AP_FW(api) _MWL8K_8366_AP_FW(api)
+
+#define MWL8K_8764_AP_FW_API 1
+#define _MWL8K_8764_AP_FW(api) "mwl8k/fmimage_8764_ap-" #api ".fw"
+#define MWL8K_8764_AP_FW(api) _MWL8K_8764_AP_FW(api)
 
 static struct mwl8k_device_info mwl8k_info_tbl[] = {
 	[MWL8363] = {
@@ -5452,7 +5472,13 @@ static struct mwl8k_device_info mwl8k_info_tbl[] = {
 		.fw_image_sta	= "mwl8k/fmimage_8366.fw",
 		.fw_image_ap	= MWL8K_8366_AP_FW(MWL8K_8366_AP_FW_API),
 		.fw_api_ap	= MWL8K_8366_AP_FW_API,
-		.ap_rxd_ops	= &rxd_8366_ap_ops,
+		.ap_rxd_ops	= &rxd_ap_ops,
+	},
+	[MWL8764] = {
+		.part_name	= "88w8764",
+		.fw_image_ap	= MWL8K_8764_AP_FW(MWL8K_8764_AP_FW_API),
+		.fw_api_ap	= MWL8K_8764_AP_FW_API,
+		.ap_rxd_ops	= &rxd_ap_ops,
 	},
 };
 
@@ -5474,6 +5500,7 @@ static DEFINE_PCI_DEVICE_TABLE(mwl8k_pci_id_table) = {
 	{ PCI_VDEVICE(MARVELL, 0x2a41), .driver_data = MWL8366, },
 	{ PCI_VDEVICE(MARVELL, 0x2a42), .driver_data = MWL8366, },
 	{ PCI_VDEVICE(MARVELL, 0x2a43), .driver_data = MWL8366, },
+	{ PCI_VDEVICE(MARVELL, 0x2b36), .driver_data = MWL8764, },
 	{ },
 };
 MODULE_DEVICE_TABLE(pci, mwl8k_pci_id_table);
@@ -5995,6 +6022,8 @@ static int mwl8k_probe(struct pci_dev *pdev,
 	priv->pdev = pdev;
 	priv->device_info = &mwl8k_info_tbl[id->driver_data];
 
+	if (id->driver_data == MWL8764)
+		priv->is_8764 = true;
 
 	priv->sram = pci_iomap(pdev, 0, 0x10000);
 	if (priv->sram == NULL) {

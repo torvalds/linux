@@ -3099,38 +3099,14 @@ static const char *atp870u_info(struct Scsi_Host *notused)
 	return buffer;
 }
 
-#define BLS buffer + len + size
-static int atp870u_proc_info(struct Scsi_Host *HBAptr, char *buffer, 
-			     char **start, off_t offset, int length, int inout)
+static int atp870u_show_info(struct seq_file *m, struct Scsi_Host *HBAptr)
 {
-	static u8 buff[512];
-	int size = 0;
-	int len = 0;
-	off_t begin = 0;
-	off_t pos = 0;
-	
-	if (inout) 	
-		return -EINVAL;
-	if (offset == 0)
-		memset(buff, 0, sizeof(buff));
-	size += sprintf(BLS, "ACARD AEC-671X Driver Version: 2.6+ac\n");
-	len += size;
-	pos = begin + len;
-	size = 0;
-
-	size += sprintf(BLS, "\n");
-	size += sprintf(BLS, "Adapter Configuration:\n");
-	size += sprintf(BLS, "               Base IO: %#.4lx\n", HBAptr->io_port);
-	size += sprintf(BLS, "                   IRQ: %d\n", HBAptr->irq);
-	len += size;
-	pos = begin + len;
-	
-	*start = buffer + (offset - begin);	/* Start of wanted data */
-	len -= (offset - begin);	/* Start slop */
-	if (len > length) {
-		len = length;	/* Ending slop */
-	}
-	return (len);
+	seq_printf(m, "ACARD AEC-671X Driver Version: 2.6+ac\n");
+	seq_printf(m, "\n");
+	seq_printf(m, "Adapter Configuration:\n");
+	seq_printf(m, "               Base IO: %#.4lx\n", HBAptr->io_port);
+	seq_printf(m, "                   IRQ: %d\n", HBAptr->irq);
+	return 0;
 }
 
 
@@ -3177,7 +3153,7 @@ static struct scsi_host_template atp870u_template = {
      .module			= THIS_MODULE,
      .name              	= "atp870u"		/* name */,
      .proc_name			= "atp870u",
-     .proc_info			= atp870u_proc_info,
+     .show_info			= atp870u_show_info,
      .info              	= atp870u_info		/* info */,
      .queuecommand      	= atp870u_queuecommand	/* queuecommand */,
      .eh_abort_handler  	= atp870u_abort		/* abort */,

@@ -7,6 +7,7 @@
 #include <linux/mm.h>
 #include <linux/memory.h>
 #include <linux/vmstat.h>
+#include <linux/notifier.h>
 #include <linux/node.h>
 #include <linux/hugetlb.h>
 #include <linux/compaction.h>
@@ -683,8 +684,11 @@ static int __init register_node_type(void)
 
 	ret = subsys_system_register(&node_subsys, cpu_root_attr_groups);
 	if (!ret) {
-		hotplug_memory_notifier(node_memory_callback,
-					NODE_CALLBACK_PRI);
+		static struct notifier_block node_memory_callback_nb = {
+			.notifier_call = node_memory_callback,
+			.priority = NODE_CALLBACK_PRI,
+		};
+		register_hotmemory_notifier(&node_memory_callback_nb);
 	}
 
 	/*

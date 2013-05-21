@@ -1287,7 +1287,8 @@ ncm_unbind(struct usb_configuration *c, struct usb_function *f)
  * Caller must have called @gether_setup().  Caller is also responsible
  * for calling @gether_cleanup() before module unload.
  */
-int __init ncm_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN])
+int __init ncm_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
+		struct eth_dev *dev)
 {
 	struct f_ncm	*ncm;
 	int		status;
@@ -1321,6 +1322,7 @@ int __init ncm_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN])
 
 	spin_lock_init(&ncm->lock);
 	ncm_reset_values(ncm);
+	ncm->port.ioport = dev;
 	ncm->port.is_fixed = true;
 
 	ncm->port.func.name = "cdc_network";

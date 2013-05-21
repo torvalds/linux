@@ -192,7 +192,7 @@ static int  __init init_nsp32  (void);
 static void __exit exit_nsp32  (void);
 
 /* struct struct scsi_host_template */
-static int         nsp32_proc_info   (struct Scsi_Host *, char *, char **, off_t, int, int);
+static int         nsp32_show_info   (struct seq_file *, struct Scsi_Host *);
 
 static int         nsp32_detect      (struct pci_dev *pdev);
 static int         nsp32_queuecommand(struct Scsi_Host *, struct scsi_cmnd *);
@@ -268,7 +268,7 @@ static void nsp32_dmessage(const char *, int, int,    char *, ...);
 static struct scsi_host_template nsp32_template = {
 	.proc_name			= "nsp32",
 	.name				= "Workbit NinjaSCSI-32Bi/UDE",
-	.proc_info			= nsp32_proc_info,
+	.show_info			= nsp32_show_info,
 	.info				= nsp32_info,
 	.queuecommand			= nsp32_queuecommand,
 	.can_queue			= 1,
@@ -1442,19 +1442,10 @@ static irqreturn_t do_nsp32_isr(int irq, void *dev_id)
 }
 
 #undef SPRINTF
-#define SPRINTF(args...) \
-	do { \
-		if(length > (pos - buffer)) { \
-			pos += snprintf(pos, length - (pos - buffer) + 1, ## args); \
-			nsp32_dbg(NSP32_DEBUG_PROC, "buffer=0x%p pos=0x%p length=%d %d\n", buffer, pos, length,  length - (pos - buffer));\
-		} \
-	} while(0)
+#define SPRINTF(args...) seq_printf(m, ##args)
 
-static int nsp32_proc_info(struct Scsi_Host *host, char *buffer, char **start,
-			   off_t offset, int length, int inout)
+static int nsp32_show_info(struct seq_file *m, struct Scsi_Host *host)
 {
-	char             *pos = buffer;
-	int               thislength;
 	unsigned long     flags;
 	nsp32_hw_data    *data;
 	int               hostno;
@@ -1462,11 +1453,6 @@ static int nsp32_proc_info(struct Scsi_Host *host, char *buffer, char **start,
 	unsigned char     mode_reg;
 	int               id, speed;
 	long              model;
-
-	/* Write is not supported, just return. */
-	if (inout == TRUE) {
-		return -EINVAL;
-	}
 
 	hostno = host->host_no;
 	data = (nsp32_hw_data *)host->hostdata;
@@ -1527,20 +1513,7 @@ static int nsp32_proc_info(struct Scsi_Host *host, char *buffer, char **start,
 		}
 		SPRINTF("\n");
 	}
-
-
-	thislength = pos - (buffer + offset);
-
-	if(thislength < 0) {
-		*start = NULL;
-                return 0;
-        }
-
-
-	thislength = min(thislength, length);
-	*start = buffer + offset;
-
-	return thislength;
+	return 0;
 }
 #undef SPRINTF
 

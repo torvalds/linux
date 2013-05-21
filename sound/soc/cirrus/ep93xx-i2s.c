@@ -30,8 +30,6 @@
 #include <mach/ep93xx-regs.h>
 #include <linux/platform_data/dma-ep93xx.h>
 
-#include "ep93xx-pcm.h"
-
 #define EP93XX_I2S_TXCLKCFG		0x00
 #define EP93XX_I2S_RXCLKCFG		0x04
 #define EP93XX_I2S_GLCTRL		0x0C
@@ -62,18 +60,20 @@ struct ep93xx_i2s_info {
 	struct clk			*mclk;
 	struct clk			*sclk;
 	struct clk			*lrclk;
-	struct ep93xx_pcm_dma_params	*dma_params;
+	struct ep93xx_dma_data		*dma_data;
 	void __iomem			*regs;
 };
 
-struct ep93xx_pcm_dma_params ep93xx_i2s_dma_params[] = {
+struct ep93xx_dma_data ep93xx_i2s_dma_data[] = {
 	[SNDRV_PCM_STREAM_PLAYBACK] = {
 		.name		= "i2s-pcm-out",
-		.dma_port	= EP93XX_DMA_I2S1,
+		.port		= EP93XX_DMA_I2S1,
+		.direction	= DMA_MEM_TO_DEV,
 	},
 	[SNDRV_PCM_STREAM_CAPTURE] = {
 		.name		= "i2s-pcm-in",
-		.dma_port	= EP93XX_DMA_I2S1,
+		.port		= EP93XX_DMA_I2S1,
+		.direction	= DMA_DEV_TO_MEM,
 	},
 };
 
@@ -147,7 +147,7 @@ static int ep93xx_i2s_startup(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 
 	snd_soc_dai_set_dma_data(cpu_dai, substream,
-				 &info->dma_params[substream->stream]);
+				 &info->dma_data[substream->stream]);
 	return 0;
 }
 
@@ -366,6 +366,10 @@ static struct snd_soc_dai_driver ep93xx_i2s_dai = {
 	.ops		= &ep93xx_i2s_dai_ops,
 };
 
+static const struct snd_soc_component_driver ep93xx_i2s_component = {
+	.name		= "ep93xx-i2s",
+};
+
 static int ep93xx_i2s_probe(struct platform_device *pdev)
 {
 	struct ep93xx_i2s_info *info;
@@ -403,9 +407,10 @@ static int ep93xx_i2s_probe(struct platform_device *pdev)
 	}
 
 	dev_set_drvdata(&pdev->dev, info);
-	info->dma_params = ep93xx_i2s_dma_params;
+	info->dma_data = ep93xx_i2s_dma_data;
 
-	err = snd_soc_register_dai(&pdev->dev, &ep93xx_i2s_dai);
+	err = snd_soc_register_component(&pdev->dev, &ep93xx_i2s_component,
+					 &ep93xx_i2s_dai, 1);
 	if (err)
 		goto fail_put_lrclk;
 
@@ -426,7 +431,7 @@ static int ep93xx_i2s_remove(struct platform_device *pdev)
 {
 	struct ep93xx_i2s_info *info = dev_get_drvdata(&pdev->dev);
 
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 	dev_set_drvdata(&pdev->dev, NULL);
 	clk_put(info->lrclk);
 	clk_put(info->sclk);

@@ -286,8 +286,8 @@ static void __init qnap_ts209_init(void)
 	/*
 	 * Configure peripherals.
 	 */
-	orion5x_setup_dev_boot_win(QNAP_TS209_NOR_BOOT_BASE,
-				   QNAP_TS209_NOR_BOOT_SIZE);
+	mvebu_mbus_add_window("devbus-boot", QNAP_TS209_NOR_BOOT_BASE,
+			      QNAP_TS209_NOR_BOOT_SIZE);
 	platform_device_register(&qnap_ts209_nor_flash);
 
 	orion5x_ehci0_init();

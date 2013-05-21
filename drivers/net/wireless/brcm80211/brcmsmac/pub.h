@@ -164,8 +164,6 @@ struct brcms_pub {
 
 	u8 cur_etheraddr[ETH_ALEN];	/* our local ethernet address */
 
-	int bcmerror;		/* last bcm error */
-
 	u32 radio_disabled;	/* bit vector for radio disabled reasons */
 
 	u16 boardrev;	/* version # of particular board */
@@ -326,10 +324,25 @@ extern void brcms_c_set_shortslot_override(struct brcms_c_info *wlc,
 				    s8 sslot_override);
 extern void brcms_c_set_beacon_listen_interval(struct brcms_c_info *wlc,
 					u8 interval);
+extern u64 brcms_c_tsf_get(struct brcms_c_info *wlc);
+extern void brcms_c_tsf_set(struct brcms_c_info *wlc, u64 tsf);
 extern int brcms_c_set_tx_power(struct brcms_c_info *wlc, int txpwr);
 extern int brcms_c_get_tx_power(struct brcms_c_info *wlc);
 extern bool brcms_c_check_radio_disabled(struct brcms_c_info *wlc);
 extern void brcms_c_mute(struct brcms_c_info *wlc, bool on);
 extern bool brcms_c_tx_flush_completed(struct brcms_c_info *wlc);
+extern void brcms_c_start_station(struct brcms_c_info *wlc, u8 *addr);
+extern void brcms_c_start_ap(struct brcms_c_info *wlc, u8 *addr,
+			     const u8 *bssid, u8 *ssid, size_t ssid_len);
+extern void brcms_c_start_adhoc(struct brcms_c_info *wlc, u8 *addr);
+extern void brcms_c_update_beacon(struct brcms_c_info *wlc);
+extern void brcms_c_set_new_beacon(struct brcms_c_info *wlc,
+				   struct sk_buff *beacon, u16 tim_offset,
+				   u16 dtim_period);
+extern void brcms_c_set_new_probe_resp(struct brcms_c_info *wlc,
+				       struct sk_buff *probe_resp);
+extern void brcms_c_enable_probe_resp(struct brcms_c_info *wlc, bool enable);
+extern void brcms_c_set_ssid(struct brcms_c_info *wlc, u8 *ssid,
+			     size_t ssid_len);
 
 #endif				/* _BRCM_PUB_H_ */

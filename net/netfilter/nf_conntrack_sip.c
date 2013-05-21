@@ -1593,10 +1593,8 @@ static int sip_help_tcp(struct sk_buff *skb, unsigned int protoff,
 		end += strlen("\r\n\r\n") + clen;
 
 		msglen = origlen = end - dptr;
-		if (msglen > datalen) {
-			nf_ct_helper_log(skb, ct, "incomplete/bad SIP message");
-			return NF_DROP;
-		}
+		if (msglen > datalen)
+			return NF_ACCEPT;
 
 		ret = process_sip_msg(skb, ct, protoff, dataoff,
 				      &dptr, &msglen);

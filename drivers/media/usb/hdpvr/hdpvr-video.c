@@ -10,6 +10,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/kconfig.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -20,9 +21,11 @@
 #include <linux/workqueue.h>
 
 #include <linux/videodev2.h>
+#include <linux/v4l2-dv-timings.h>
 #include <media/v4l2-dev.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-event.h>
 #include "hdpvr.h"
 
 #define BULK_URB_TIMEOUT   90 /* 0.09 seconds */
@@ -34,8 +37,23 @@
 			 list_size(&dev->free_buff_list),		\
 			 list_size(&dev->rec_buff_list)); }
 
+static const struct v4l2_dv_timings hdpvr_dv_timings[] = {
+	V4L2_DV_BT_CEA_720X480I59_94,
+	V4L2_DV_BT_CEA_720X576I50,
+	V4L2_DV_BT_CEA_720X480P59_94,
+	V4L2_DV_BT_CEA_720X576P50,
+	V4L2_DV_BT_CEA_1280X720P50,
+	V4L2_DV_BT_CEA_1280X720P60,
+	V4L2_DV_BT_CEA_1920X1080I50,
+	V4L2_DV_BT_CEA_1920X1080I60,
+};
+
+/* Use 480i59 as the default timings */
+#define HDPVR_DEF_DV_TIMINGS_IDX (0)
+
 struct hdpvr_fh {
-	struct hdpvr_device	*dev;
+	struct v4l2_fh fh;
+	bool legacy_mode;
 };
 
 static uint list_size(struct list_head *list)
@@ -359,53 +377,29 @@ static int hdpvr_stop_streaming(struct hdpvr_device *dev)
 
 static int hdpvr_open(struct file *file)
 {
-	struct hdpvr_device *dev;
-	struct hdpvr_fh *fh;
-	int retval = -ENOMEM;
+	struct hdpvr_fh *fh = kzalloc(sizeof(*fh), GFP_KERNEL);
 
-	dev = (struct hdpvr_device *)video_get_drvdata(video_devdata(file));
-	if (!dev) {
-		pr_err("open failing with with ENODEV\n");
-		retval = -ENODEV;
-		goto err;
-	}
-
-	fh = kzalloc(sizeof(struct hdpvr_fh), GFP_KERNEL);
-	if (!fh) {
-		v4l2_err(&dev->v4l2_dev, "Out of memory\n");
-		goto err;
-	}
-	/* lock the device to allow correctly handling errors
-	 * in resumption */
-	mutex_lock(&dev->io_mutex);
-	dev->open_count++;
-	mutex_unlock(&dev->io_mutex);
-
-	fh->dev = dev;
-
-	/* save our object in the file's private structure */
+	if (fh == NULL)
+		return -ENOMEM;
+	fh->legacy_mode = true;
+	v4l2_fh_init(&fh->fh, video_devdata(file));
+	v4l2_fh_add(&fh->fh);
 	file->private_data = fh;
-
-	retval = 0;
-err:
-	return retval;
+	return 0;
 }
 
 static int hdpvr_release(struct file *file)
 {
-	struct hdpvr_fh		*fh  = file->private_data;
-	struct hdpvr_device	*dev = fh->dev;
-
-	if (!dev)
-		return -ENODEV;
+	struct hdpvr_device *dev = video_drvdata(file);
 
 	mutex_lock(&dev->io_mutex);
-	if (!(--dev->open_count) && dev->status == STATUS_STREAMING)
+	if (file->private_data == dev->owner) {
 		hdpvr_stop_streaming(dev);
-
+		dev->owner = NULL;
+	}
 	mutex_unlock(&dev->io_mutex);
 
-	return 0;
+	return v4l2_fh_release(file);
 }
 
 /*
@@ -415,8 +409,7 @@ static int hdpvr_release(struct file *file)
 static ssize_t hdpvr_read(struct file *file, char __user *buffer, size_t count,
 			  loff_t *pos)
 {
-	struct hdpvr_fh *fh = file->private_data;
-	struct hdpvr_device *dev = fh->dev;
+	struct hdpvr_device *dev = video_drvdata(file);
 	struct hdpvr_buffer *buf = NULL;
 	struct urb *urb;
 	unsigned int ret = 0;
@@ -424,9 +417,6 @@ static ssize_t hdpvr_read(struct file *file, char __user *buffer, size_t count,
 
 	if (*pos)
 		return -ESPIPE;
-
-	if (!dev)
-		return -ENODEV;
 
 	mutex_lock(&dev->io_mutex);
 	if (dev->status == STATUS_IDLE) {
@@ -439,6 +429,7 @@ static ssize_t hdpvr_read(struct file *file, char __user *buffer, size_t count,
 			mutex_unlock(&dev->io_mutex);
 			goto err;
 		}
+		dev->owner = file->private_data;
 		print_buffer_status();
 	}
 	mutex_unlock(&dev->io_mutex);
@@ -516,23 +507,23 @@ err:
 
 static unsigned int hdpvr_poll(struct file *filp, poll_table *wait)
 {
+	unsigned long req_events = poll_requested_events(wait);
 	struct hdpvr_buffer *buf = NULL;
-	struct hdpvr_fh *fh = filp->private_data;
-	struct hdpvr_device *dev = fh->dev;
-	unsigned int mask = 0;
+	struct hdpvr_device *dev = video_drvdata(filp);
+	unsigned int mask = v4l2_ctrl_poll(filp, wait);
+
+	if (!(req_events & (POLLIN | POLLRDNORM)))
+		return mask;
 
 	mutex_lock(&dev->io_mutex);
-
-	if (!video_is_registered(dev->video_dev)) {
-		mutex_unlock(&dev->io_mutex);
-		return -EIO;
-	}
 
 	if (dev->status == STATUS_IDLE) {
 		if (hdpvr_start_streaming(dev)) {
 			v4l2_dbg(MSG_BUFFER, hdpvr_debug, &dev->v4l2_dev,
 				 "start_streaming failed\n");
 			dev->status = STATUS_IDLE;
+		} else {
+			dev->owner = filp->private_data;
 		}
 
 		print_buffer_status();
@@ -574,23 +565,178 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	strcpy(cap->driver, "hdpvr");
 	strcpy(cap->card, "Hauppauge HD PVR");
 	usb_make_path(dev->udev, cap->bus_info, sizeof(cap->bus_info));
-	cap->capabilities =     V4L2_CAP_VIDEO_CAPTURE |
-				V4L2_CAP_AUDIO         |
-				V4L2_CAP_READWRITE;
+	cap->device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_AUDIO |
+			    V4L2_CAP_READWRITE;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 	return 0;
 }
 
-static int vidioc_s_std(struct file *file, void *private_data,
-			v4l2_std_id *std)
+static int vidioc_s_std(struct file *file, void *_fh,
+			v4l2_std_id std)
 {
-	struct hdpvr_fh *fh = file->private_data;
-	struct hdpvr_device *dev = fh->dev;
+	struct hdpvr_device *dev = video_drvdata(file);
+	struct hdpvr_fh *fh = _fh;
 	u8 std_type = 1;
 
-	if (*std & (V4L2_STD_NTSC | V4L2_STD_PAL_60))
+	if (!fh->legacy_mode && dev->options.video_input == HDPVR_COMPONENT)
+		return -ENODATA;
+	if (dev->status != STATUS_IDLE)
+		return -EBUSY;
+	if (std & V4L2_STD_525_60)
 		std_type = 0;
+	dev->cur_std = std;
+	dev->width = 720;
+	dev->height = std_type ? 576 : 480;
 
 	return hdpvr_config_call(dev, CTRL_VIDEO_STD_TYPE, std_type);
+}
+
+static int vidioc_g_std(struct file *file, void *_fh,
+			v4l2_std_id *std)
+{
+	struct hdpvr_device *dev = video_drvdata(file);
+	struct hdpvr_fh *fh = _fh;
+
+	if (!fh->legacy_mode && dev->options.video_input == HDPVR_COMPONENT)
+		return -ENODATA;
+	*std = dev->cur_std;
+	return 0;
+}
+
+static int vidioc_querystd(struct file *file, void *_fh, v4l2_std_id *a)
+{
+	struct hdpvr_device *dev = video_drvdata(file);
+	struct hdpvr_video_info *vid_info;
+	struct hdpvr_fh *fh = _fh;
+
+	*a = V4L2_STD_ALL;
+	if (dev->options.video_input == HDPVR_COMPONENT)
+		return fh->legacy_mode ? 0 : -ENODATA;
+	vid_info = get_video_info(dev);
+	if (vid_info == NULL)
+		return 0;
+	if (vid_info->width == 720 &&
+	    (vid_info->height == 480 || vid_info->height == 576)) {
+		*a = (vid_info->height == 480) ?
+			V4L2_STD_525_60 : V4L2_STD_625_50;
+	}
+	kfree(vid_info);
+	return 0;
+}
+
+static int vidioc_s_dv_timings(struct file *file, void *_fh,
+				    struct v4l2_dv_timings *timings)
+{
+	struct hdpvr_device *dev = video_drvdata(file);
+	struct hdpvr_fh *fh = _fh;
+	int i;
+
+	fh->legacy_mode = false;
+	if (dev->options.video_input)
+		return -ENODATA;
+	if (dev->status != STATUS_IDLE)
+		return -EBUSY;
+	for (i = 0; i < ARRAY_SIZE(hdpvr_dv_timings); i++)
+		if (v4l_match_dv_timings(timings, hdpvr_dv_timings + i, 0))
+			break;
+	if (i == ARRAY_SIZE(hdpvr_dv_timings))
+		return -EINVAL;
+	dev->cur_dv_timings = hdpvr_dv_timings[i];
+	dev->width = hdpvr_dv_timings[i].bt.width;
+	dev->height = hdpvr_dv_timings[i].bt.height;
+	return 0;
+}
+
+static int vidioc_g_dv_timings(struct file *file, void *_fh,
+				    struct v4l2_dv_timings *timings)
+{
+	struct hdpvr_device *dev = video_drvdata(file);
+	struct hdpvr_fh *fh = _fh;
+
+	fh->legacy_mode = false;
+	if (dev->options.video_input)
+		return -ENODATA;
+	*timings = dev->cur_dv_timings;
+	return 0;
+}
+
+static int vidioc_query_dv_timings(struct file *file, void *_fh,
+				    struct v4l2_dv_timings *timings)
+{
+	struct hdpvr_device *dev = video_drvdata(file);
+	struct hdpvr_fh *fh = _fh;
+	struct hdpvr_video_info *vid_info;
+	bool interlaced;
+	int ret = 0;
+	int i;
+
+	fh->legacy_mode = false;
+	if (dev->options.video_input)
+		return -ENODATA;
+	vid_info = get_video_info(dev);
+	if (vid_info == NULL)
+		return -ENOLCK;
+	interlaced = vid_info->fps <= 30;
+	for (i = 0; i < ARRAY_SIZE(hdpvr_dv_timings); i++) {
+		const struct v4l2_bt_timings *bt = &hdpvr_dv_timings[i].bt;
+		unsigned hsize;
+		unsigned vsize;
+		unsigned fps;
+
+		hsize = bt->hfrontporch + bt->hsync + bt->hbackporch + bt->width;
+		vsize = bt->vfrontporch + bt->vsync + bt->vbackporch +
+			bt->il_vfrontporch + bt->il_vsync + bt->il_vbackporch +
+			bt->height;
+		fps = (unsigned)bt->pixelclock / (hsize * vsize);
+		if (bt->width != vid_info->width ||
+		    bt->height != vid_info->height ||
+		    bt->interlaced != interlaced ||
+		    (fps != vid_info->fps && fps + 1 != vid_info->fps))
+			continue;
+		*timings = hdpvr_dv_timings[i];
+		break;
+	}
+	if (i == ARRAY_SIZE(hdpvr_dv_timings))
+		ret = -ERANGE;
+	kfree(vid_info);
+	return ret;
+}
+
+static int vidioc_enum_dv_timings(struct file *file, void *_fh,
+				    struct v4l2_enum_dv_timings *timings)
+{
+	struct hdpvr_device *dev = video_drvdata(file);
+	struct hdpvr_fh *fh = _fh;
+
+	fh->legacy_mode = false;
+	memset(timings->reserved, 0, sizeof(timings->reserved));
+	if (dev->options.video_input)
+		return -ENODATA;
+	if (timings->index >= ARRAY_SIZE(hdpvr_dv_timings))
+		return -EINVAL;
+	timings->timings = hdpvr_dv_timings[timings->index];
+	return 0;
+}
+
+static int vidioc_dv_timings_cap(struct file *file, void *_fh,
+				    struct v4l2_dv_timings_cap *cap)
+{
+	struct hdpvr_device *dev = video_drvdata(file);
+	struct hdpvr_fh *fh = _fh;
+
+	fh->legacy_mode = false;
+	if (dev->options.video_input)
+		return -ENODATA;
+	cap->type = V4L2_DV_BT_656_1120;
+	cap->bt.min_width = 720;
+	cap->bt.max_width = 1920;
+	cap->bt.min_height = 480;
+	cap->bt.max_height = 1080;
+	cap->bt.min_pixelclock = 27000000;
+	cap->bt.max_pixelclock = 74250000;
+	cap->bt.standards = V4L2_DV_BT_STD_CEA861;
+	cap->bt.capabilities = V4L2_DV_BT_CAP_INTERLACED | V4L2_DV_BT_CAP_PROGRESSIVE;
+	return 0;
 }
 
 static const char *iname[] = {
@@ -599,11 +745,8 @@ static const char *iname[] = {
 	[HDPVR_COMPOSITE] = "Composite",
 };
 
-static int vidioc_enum_input(struct file *file, void *priv,
-				struct v4l2_input *i)
+static int vidioc_enum_input(struct file *file, void *_fh, struct v4l2_input *i)
 {
-	struct hdpvr_fh *fh = file->private_data;
-	struct hdpvr_device *dev = fh->dev;
 	unsigned int n;
 
 	n = i->index;
@@ -617,27 +760,42 @@ static int vidioc_enum_input(struct file *file, void *priv,
 
 	i->audioset = 1<<HDPVR_RCA_FRONT | 1<<HDPVR_RCA_BACK | 1<<HDPVR_SPDIF;
 
-	i->std = dev->video_dev->tvnorms;
+	i->capabilities = n ? V4L2_IN_CAP_STD : V4L2_IN_CAP_DV_TIMINGS;
+	i->std = n ? V4L2_STD_ALL : 0;
 
 	return 0;
 }
 
-static int vidioc_s_input(struct file *file, void *private_data,
+static int vidioc_s_input(struct file *file, void *_fh,
 			  unsigned int index)
 {
-	struct hdpvr_fh *fh = file->private_data;
-	struct hdpvr_device *dev = fh->dev;
+	struct hdpvr_device *dev = video_drvdata(file);
 	int retval;
 
 	if (index >= HDPVR_VIDEO_INPUTS)
 		return -EINVAL;
 
 	if (dev->status != STATUS_IDLE)
-		return -EAGAIN;
+		return -EBUSY;
 
 	retval = hdpvr_config_call(dev, CTRL_VIDEO_INPUT_VALUE, index+1);
-	if (!retval)
+	if (!retval) {
 		dev->options.video_input = index;
+		/*
+		 * Unfortunately gstreamer calls ENUMSTD and bails out if it
+		 * won't find any formats, even though component input is
+		 * selected. This means that we have to leave tvnorms at
+		 * V4L2_STD_ALL. We cannot use the 'legacy' trick since
+		 * tvnorms is set at the device node level and not at the
+		 * filehandle level.
+		 *
+		 * Comment this out for now, but if the legacy mode can be
+		 * removed in the future, then this code should be enabled
+		 * again.
+		dev->video_dev->tvnorms =
+			(index != HDPVR_COMPONENT) ? V4L2_STD_ALL : 0;
+		 */
+	}
 
 	return retval;
 }
@@ -645,8 +803,7 @@ static int vidioc_s_input(struct file *file, void *private_data,
 static int vidioc_g_input(struct file *file, void *private_data,
 			  unsigned int *index)
 {
-	struct hdpvr_fh *fh = file->private_data;
-	struct hdpvr_device *dev = fh->dev;
+	struct hdpvr_device *dev = video_drvdata(file);
 
 	*index = dev->options.video_input;
 	return 0;
@@ -679,15 +836,14 @@ static int vidioc_enumaudio(struct file *file, void *priv,
 static int vidioc_s_audio(struct file *file, void *private_data,
 			  const struct v4l2_audio *audio)
 {
-	struct hdpvr_fh *fh = file->private_data;
-	struct hdpvr_device *dev = fh->dev;
+	struct hdpvr_device *dev = video_drvdata(file);
 	int retval;
 
 	if (audio->index >= HDPVR_AUDIO_INPUTS)
 		return -EINVAL;
 
 	if (dev->status != STATUS_IDLE)
-		return -EAGAIN;
+		return -EBUSY;
 
 	retval = hdpvr_set_audio(dev, audio->index+1, dev->options.audio_codec);
 	if (!retval)
@@ -699,8 +855,7 @@ static int vidioc_s_audio(struct file *file, void *private_data,
 static int vidioc_g_audio(struct file *file, void *private_data,
 			  struct v4l2_audio *audio)
 {
-	struct hdpvr_fh *fh = file->private_data;
-	struct hdpvr_device *dev = fh->dev;
+	struct hdpvr_device *dev = video_drvdata(file);
 
 	audio->index = dev->options.audio_input;
 	audio->capability = V4L2_AUDCAP_STEREO;
@@ -709,335 +864,69 @@ static int vidioc_g_audio(struct file *file, void *private_data,
 	return 0;
 }
 
-static const s32 supported_v4l2_ctrls[] = {
-	V4L2_CID_BRIGHTNESS,
-	V4L2_CID_CONTRAST,
-	V4L2_CID_SATURATION,
-	V4L2_CID_HUE,
-	V4L2_CID_SHARPNESS,
-	V4L2_CID_MPEG_AUDIO_ENCODING,
-	V4L2_CID_MPEG_VIDEO_ENCODING,
-	V4L2_CID_MPEG_VIDEO_BITRATE_MODE,
-	V4L2_CID_MPEG_VIDEO_BITRATE,
-	V4L2_CID_MPEG_VIDEO_BITRATE_PEAK,
-};
-
-static int fill_queryctrl(struct hdpvr_options *opt, struct v4l2_queryctrl *qc,
-			  int ac3, int fw_ver)
+static int hdpvr_try_ctrl(struct v4l2_ctrl *ctrl)
 {
-	int err;
-
-	if (fw_ver > 0x15) {
-		switch (qc->id) {
-		case V4L2_CID_BRIGHTNESS:
-			return v4l2_ctrl_query_fill(qc, 0x0, 0xff, 1, 0x80);
-		case V4L2_CID_CONTRAST:
-			return v4l2_ctrl_query_fill(qc, 0x0, 0xff, 1, 0x40);
-		case V4L2_CID_SATURATION:
-			return v4l2_ctrl_query_fill(qc, 0x0, 0xff, 1, 0x40);
-		case V4L2_CID_HUE:
-			return v4l2_ctrl_query_fill(qc, 0x0, 0x1e, 1, 0xf);
-		case V4L2_CID_SHARPNESS:
-			return v4l2_ctrl_query_fill(qc, 0x0, 0xff, 1, 0x80);
-		}
-	} else {
-		switch (qc->id) {
-		case V4L2_CID_BRIGHTNESS:
-			return v4l2_ctrl_query_fill(qc, 0x0, 0xff, 1, 0x86);
-		case V4L2_CID_CONTRAST:
-			return v4l2_ctrl_query_fill(qc, 0x0, 0xff, 1, 0x80);
-		case V4L2_CID_SATURATION:
-			return v4l2_ctrl_query_fill(qc, 0x0, 0xff, 1, 0x80);
-		case V4L2_CID_HUE:
-			return v4l2_ctrl_query_fill(qc, 0x0, 0xff, 1, 0x80);
-		case V4L2_CID_SHARPNESS:
-			return v4l2_ctrl_query_fill(qc, 0x0, 0xff, 1, 0x80);
-		}
-	}
-
-	switch (qc->id) {
-	case V4L2_CID_MPEG_AUDIO_ENCODING:
-		return v4l2_ctrl_query_fill(
-			qc, V4L2_MPEG_AUDIO_ENCODING_AAC,
-			ac3 ? V4L2_MPEG_AUDIO_ENCODING_AC3
-			: V4L2_MPEG_AUDIO_ENCODING_AAC,
-			1, V4L2_MPEG_AUDIO_ENCODING_AAC);
-	case V4L2_CID_MPEG_VIDEO_ENCODING:
-		return v4l2_ctrl_query_fill(
-			qc, V4L2_MPEG_VIDEO_ENCODING_MPEG_4_AVC,
-			V4L2_MPEG_VIDEO_ENCODING_MPEG_4_AVC, 1,
-			V4L2_MPEG_VIDEO_ENCODING_MPEG_4_AVC);
-
-/* 	case V4L2_CID_MPEG_VIDEO_? maybe keyframe interval: */
-/* 		return v4l2_ctrl_query_fill(qc, 0, 128, 128, 0); */
-	case V4L2_CID_MPEG_VIDEO_BITRATE_MODE:
-		return v4l2_ctrl_query_fill(
-			qc, V4L2_MPEG_VIDEO_BITRATE_MODE_VBR,
-			V4L2_MPEG_VIDEO_BITRATE_MODE_CBR, 1,
-			V4L2_MPEG_VIDEO_BITRATE_MODE_CBR);
-
-	case V4L2_CID_MPEG_VIDEO_BITRATE:
-		return v4l2_ctrl_query_fill(qc, 1000000, 13500000, 100000,
-					    6500000);
-	case V4L2_CID_MPEG_VIDEO_BITRATE_PEAK:
-		err = v4l2_ctrl_query_fill(qc, 1100000, 20200000, 100000,
-					   9000000);
-		if (!err && opt->bitrate_mode == HDPVR_CONSTANT)
-			qc->flags |= V4L2_CTRL_FLAG_INACTIVE;
-		return err;
-	default:
-		return -EINVAL;
-	}
-}
-
-static int vidioc_queryctrl(struct file *file, void *private_data,
-			    struct v4l2_queryctrl *qc)
-{
-	struct hdpvr_fh *fh = file->private_data;
-	struct hdpvr_device *dev = fh->dev;
-	int i, next;
-	u32 id = qc->id;
-
-	memset(qc, 0, sizeof(*qc));
-
-	next = !!(id &  V4L2_CTRL_FLAG_NEXT_CTRL);
-	qc->id = id & ~V4L2_CTRL_FLAG_NEXT_CTRL;
-
-	for (i = 0; i < ARRAY_SIZE(supported_v4l2_ctrls); i++) {
-		if (next) {
-			if (qc->id < supported_v4l2_ctrls[i])
-				qc->id = supported_v4l2_ctrls[i];
-			else
-				continue;
-		}
-
-		if (qc->id == supported_v4l2_ctrls[i])
-			return fill_queryctrl(&dev->options, qc,
-					      dev->flags & HDPVR_FLAG_AC3_CAP,
-					      dev->fw_ver);
-
-		if (qc->id < supported_v4l2_ctrls[i])
-			break;
-	}
-
-	return -EINVAL;
-}
-
-static int vidioc_g_ctrl(struct file *file, void *private_data,
-			 struct v4l2_control *ctrl)
-{
-	struct hdpvr_fh *fh = file->private_data;
-	struct hdpvr_device *dev = fh->dev;
+	struct hdpvr_device *dev =
+		container_of(ctrl->handler, struct hdpvr_device, hdl);
 
 	switch (ctrl->id) {
-	case V4L2_CID_BRIGHTNESS:
-		ctrl->value = dev->options.brightness;
+	case V4L2_CID_MPEG_VIDEO_BITRATE_MODE:
+		if (ctrl->val == V4L2_MPEG_VIDEO_BITRATE_MODE_VBR &&
+		    dev->video_bitrate->val >= dev->video_bitrate_peak->val)
+			dev->video_bitrate_peak->val =
+					dev->video_bitrate->val + 100000;
 		break;
-	case V4L2_CID_CONTRAST:
-		ctrl->value = dev->options.contrast;
-		break;
-	case V4L2_CID_SATURATION:
-		ctrl->value = dev->options.saturation;
-		break;
-	case V4L2_CID_HUE:
-		ctrl->value = dev->options.hue;
-		break;
-	case V4L2_CID_SHARPNESS:
-		ctrl->value = dev->options.sharpness;
-		break;
-	default:
-		return -EINVAL;
 	}
 	return 0;
 }
 
-static int vidioc_s_ctrl(struct file *file, void *private_data,
-			 struct v4l2_control *ctrl)
+static int hdpvr_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct hdpvr_fh *fh = file->private_data;
-	struct hdpvr_device *dev = fh->dev;
-	int retval;
-
-	switch (ctrl->id) {
-	case V4L2_CID_BRIGHTNESS:
-		retval = hdpvr_config_call(dev, CTRL_BRIGHTNESS, ctrl->value);
-		if (!retval)
-			dev->options.brightness = ctrl->value;
-		break;
-	case V4L2_CID_CONTRAST:
-		retval = hdpvr_config_call(dev, CTRL_CONTRAST, ctrl->value);
-		if (!retval)
-			dev->options.contrast = ctrl->value;
-		break;
-	case V4L2_CID_SATURATION:
-		retval = hdpvr_config_call(dev, CTRL_SATURATION, ctrl->value);
-		if (!retval)
-			dev->options.saturation = ctrl->value;
-		break;
-	case V4L2_CID_HUE:
-		retval = hdpvr_config_call(dev, CTRL_HUE, ctrl->value);
-		if (!retval)
-			dev->options.hue = ctrl->value;
-		break;
-	case V4L2_CID_SHARPNESS:
-		retval = hdpvr_config_call(dev, CTRL_SHARPNESS, ctrl->value);
-		if (!retval)
-			dev->options.sharpness = ctrl->value;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	return retval;
-}
-
-
-static int hdpvr_get_ctrl(struct hdpvr_options *opt,
-			  struct v4l2_ext_control *ctrl)
-{
-	switch (ctrl->id) {
-	case V4L2_CID_MPEG_AUDIO_ENCODING:
-		ctrl->value = opt->audio_codec;
-		break;
-	case V4L2_CID_MPEG_VIDEO_ENCODING:
-		ctrl->value = V4L2_MPEG_VIDEO_ENCODING_MPEG_4_AVC;
-		break;
-/* 	case V4L2_CID_MPEG_VIDEO_B_FRAMES: */
-/* 		ctrl->value = (opt->gop_mode & 0x2) ? 0 : 128; */
-/* 		break; */
-	case V4L2_CID_MPEG_VIDEO_BITRATE_MODE:
-		ctrl->value = opt->bitrate_mode == HDPVR_CONSTANT
-			? V4L2_MPEG_VIDEO_BITRATE_MODE_CBR
-			: V4L2_MPEG_VIDEO_BITRATE_MODE_VBR;
-		break;
-	case V4L2_CID_MPEG_VIDEO_BITRATE:
-		ctrl->value = opt->bitrate * 100000;
-		break;
-	case V4L2_CID_MPEG_VIDEO_BITRATE_PEAK:
-		ctrl->value = opt->peak_bitrate * 100000;
-		break;
-	case V4L2_CID_MPEG_STREAM_TYPE:
-		ctrl->value = V4L2_MPEG_STREAM_TYPE_MPEG2_TS;
-		break;
-	default:
-		return -EINVAL;
-	}
-	return 0;
-}
-
-static int vidioc_g_ext_ctrls(struct file *file, void *priv,
-			      struct v4l2_ext_controls *ctrls)
-{
-	struct hdpvr_fh *fh = file->private_data;
-	struct hdpvr_device *dev = fh->dev;
-	int i, err = 0;
-
-	if (ctrls->ctrl_class == V4L2_CTRL_CLASS_MPEG) {
-		for (i = 0; i < ctrls->count; i++) {
-			struct v4l2_ext_control *ctrl = ctrls->controls + i;
-
-			err = hdpvr_get_ctrl(&dev->options, ctrl);
-			if (err) {
-				ctrls->error_idx = i;
-				break;
-			}
-		}
-		return err;
-
-	}
-
-	return -EINVAL;
-}
-
-
-static int hdpvr_try_ctrl(struct v4l2_ext_control *ctrl, int ac3)
-{
+	struct hdpvr_device *dev =
+		container_of(ctrl->handler, struct hdpvr_device, hdl);
+	struct hdpvr_options *opt = &dev->options;
 	int ret = -EINVAL;
 
 	switch (ctrl->id) {
-	case V4L2_CID_MPEG_AUDIO_ENCODING:
-		if (ctrl->value == V4L2_MPEG_AUDIO_ENCODING_AAC ||
-		    (ac3 && ctrl->value == V4L2_MPEG_AUDIO_ENCODING_AC3))
-			ret = 0;
-		break;
-	case V4L2_CID_MPEG_VIDEO_ENCODING:
-		if (ctrl->value == V4L2_MPEG_VIDEO_ENCODING_MPEG_4_AVC)
-			ret = 0;
-		break;
-/* 	case V4L2_CID_MPEG_VIDEO_B_FRAMES: */
-/* 		if (ctrl->value == 0 || ctrl->value == 128) */
-/* 			ret = 0; */
-/* 		break; */
-	case V4L2_CID_MPEG_VIDEO_BITRATE_MODE:
-		if (ctrl->value == V4L2_MPEG_VIDEO_BITRATE_MODE_CBR ||
-		    ctrl->value == V4L2_MPEG_VIDEO_BITRATE_MODE_VBR)
-			ret = 0;
-		break;
-	case V4L2_CID_MPEG_VIDEO_BITRATE:
-	{
-		uint bitrate = ctrl->value / 100000;
-		if (bitrate >= 10 && bitrate <= 135)
-			ret = 0;
-		break;
-	}
-	case V4L2_CID_MPEG_VIDEO_BITRATE_PEAK:
-	{
-		uint peak_bitrate = ctrl->value / 100000;
-		if (peak_bitrate >= 10 && peak_bitrate <= 202)
-			ret = 0;
-		break;
-	}
-	case V4L2_CID_MPEG_STREAM_TYPE:
-		if (ctrl->value == V4L2_MPEG_STREAM_TYPE_MPEG2_TS)
-			ret = 0;
-		break;
-	default:
-		return -EINVAL;
-	}
-	return ret;
-}
-
-static int vidioc_try_ext_ctrls(struct file *file, void *priv,
-				struct v4l2_ext_controls *ctrls)
-{
-	struct hdpvr_fh *fh = file->private_data;
-	struct hdpvr_device *dev = fh->dev;
-	int i, err = 0;
-
-	if (ctrls->ctrl_class == V4L2_CTRL_CLASS_MPEG) {
-		for (i = 0; i < ctrls->count; i++) {
-			struct v4l2_ext_control *ctrl = ctrls->controls + i;
-
-			err = hdpvr_try_ctrl(ctrl,
-					     dev->flags & HDPVR_FLAG_AC3_CAP);
-			if (err) {
-				ctrls->error_idx = i;
-				break;
-			}
-		}
-		return err;
-	}
-
-	return -EINVAL;
-}
-
-
-static int hdpvr_set_ctrl(struct hdpvr_device *dev,
-			  struct v4l2_ext_control *ctrl)
-{
-	struct hdpvr_options *opt = &dev->options;
-	int ret = 0;
-
-	switch (ctrl->id) {
+	case V4L2_CID_BRIGHTNESS:
+		ret = hdpvr_config_call(dev, CTRL_BRIGHTNESS, ctrl->val);
+		if (ret)
+			break;
+		dev->options.brightness = ctrl->val;
+		return 0;
+	case V4L2_CID_CONTRAST:
+		ret = hdpvr_config_call(dev, CTRL_CONTRAST, ctrl->val);
+		if (ret)
+			break;
+		dev->options.contrast = ctrl->val;
+		return 0;
+	case V4L2_CID_SATURATION:
+		ret = hdpvr_config_call(dev, CTRL_SATURATION, ctrl->val);
+		if (ret)
+			break;
+		dev->options.saturation = ctrl->val;
+		return 0;
+	case V4L2_CID_HUE:
+		ret = hdpvr_config_call(dev, CTRL_HUE, ctrl->val);
+		if (ret)
+			break;
+		dev->options.hue = ctrl->val;
+		return 0;
+	case V4L2_CID_SHARPNESS:
+		ret = hdpvr_config_call(dev, CTRL_SHARPNESS, ctrl->val);
+		if (ret)
+			break;
+		dev->options.sharpness = ctrl->val;
+		return 0;
 	case V4L2_CID_MPEG_AUDIO_ENCODING:
 		if (dev->flags & HDPVR_FLAG_AC3_CAP) {
-			opt->audio_codec = ctrl->value;
-			ret = hdpvr_set_audio(dev, opt->audio_input,
+			opt->audio_codec = ctrl->val;
+			return hdpvr_set_audio(dev, opt->audio_input,
 					      opt->audio_codec);
 		}
-		break;
+		return 0;
 	case V4L2_CID_MPEG_VIDEO_ENCODING:
-		break;
+		return 0;
 /* 	case V4L2_CID_MPEG_VIDEO_B_FRAMES: */
 /* 		if (ctrl->value == 0 && !(opt->gop_mode & 0x2)) { */
 /* 			opt->gop_mode |= 0x2; */
@@ -1050,86 +939,41 @@ static int hdpvr_set_ctrl(struct hdpvr_device *dev,
 /* 					  opt->gop_mode); */
 /* 		} */
 /* 		break; */
-	case V4L2_CID_MPEG_VIDEO_BITRATE_MODE:
-		if (ctrl->value == V4L2_MPEG_VIDEO_BITRATE_MODE_CBR &&
-		    opt->bitrate_mode != HDPVR_CONSTANT) {
-			opt->bitrate_mode = HDPVR_CONSTANT;
+	case V4L2_CID_MPEG_VIDEO_BITRATE_MODE: {
+		uint peak_bitrate = dev->video_bitrate_peak->val / 100000;
+		uint bitrate = dev->video_bitrate->val / 100000;
+
+		if (ctrl->is_new) {
+			if (ctrl->val == V4L2_MPEG_VIDEO_BITRATE_MODE_CBR)
+				opt->bitrate_mode = HDPVR_CONSTANT;
+			else
+				opt->bitrate_mode = HDPVR_VARIABLE_AVERAGE;
 			hdpvr_config_call(dev, CTRL_BITRATE_MODE_VALUE,
 					  opt->bitrate_mode);
+			v4l2_ctrl_activate(dev->video_bitrate_peak,
+				ctrl->val != V4L2_MPEG_VIDEO_BITRATE_MODE_CBR);
 		}
-		if (ctrl->value == V4L2_MPEG_VIDEO_BITRATE_MODE_VBR &&
-		    opt->bitrate_mode == HDPVR_CONSTANT) {
-			opt->bitrate_mode = HDPVR_VARIABLE_AVERAGE;
-			hdpvr_config_call(dev, CTRL_BITRATE_MODE_VALUE,
-					  opt->bitrate_mode);
-		}
-		break;
-	case V4L2_CID_MPEG_VIDEO_BITRATE: {
-		uint bitrate = ctrl->value / 100000;
 
-		opt->bitrate = bitrate;
-		if (bitrate >= opt->peak_bitrate)
-			opt->peak_bitrate = bitrate+1;
-
-		hdpvr_set_bitrate(dev);
-		break;
-	}
-	case V4L2_CID_MPEG_VIDEO_BITRATE_PEAK: {
-		uint peak_bitrate = ctrl->value / 100000;
-
-		if (opt->bitrate_mode == HDPVR_CONSTANT)
-			break;
-
-		if (opt->bitrate < peak_bitrate) {
+		if (dev->video_bitrate_peak->is_new ||
+		    dev->video_bitrate->is_new) {
+			opt->bitrate = bitrate;
 			opt->peak_bitrate = peak_bitrate;
 			hdpvr_set_bitrate(dev);
-		} else
-			ret = -EINVAL;
-		break;
+		}
+		return 0;
 	}
 	case V4L2_CID_MPEG_STREAM_TYPE:
-		break;
+		return 0;
 	default:
-		return -EINVAL;
+		break;
 	}
 	return ret;
-}
-
-static int vidioc_s_ext_ctrls(struct file *file, void *priv,
-			      struct v4l2_ext_controls *ctrls)
-{
-	struct hdpvr_fh *fh = file->private_data;
-	struct hdpvr_device *dev = fh->dev;
-	int i, err = 0;
-
-	if (ctrls->ctrl_class == V4L2_CTRL_CLASS_MPEG) {
-		for (i = 0; i < ctrls->count; i++) {
-			struct v4l2_ext_control *ctrl = ctrls->controls + i;
-
-			err = hdpvr_try_ctrl(ctrl,
-					     dev->flags & HDPVR_FLAG_AC3_CAP);
-			if (err) {
-				ctrls->error_idx = i;
-				break;
-			}
-			err = hdpvr_set_ctrl(dev, ctrl);
-			if (err) {
-				ctrls->error_idx = i;
-				break;
-			}
-		}
-		return err;
-
-	}
-
-	return -EINVAL;
 }
 
 static int vidioc_enum_fmt_vid_cap(struct file *file, void *private_data,
 				    struct v4l2_fmtdesc *f)
 {
-
-	if (f->index != 0 || f->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
+	if (f->index != 0)
 		return -EINVAL;
 
 	f->flags = V4L2_FMT_FLAG_COMPRESSED;
@@ -1139,56 +983,92 @@ static int vidioc_enum_fmt_vid_cap(struct file *file, void *private_data,
 	return 0;
 }
 
-static int vidioc_g_fmt_vid_cap(struct file *file, void *private_data,
+static int vidioc_g_fmt_vid_cap(struct file *file, void *_fh,
 				struct v4l2_format *f)
 {
-	struct hdpvr_fh *fh = file->private_data;
-	struct hdpvr_device *dev = fh->dev;
-	struct hdpvr_video_info *vid_info;
+	struct hdpvr_device *dev = video_drvdata(file);
+	struct hdpvr_fh *fh = _fh;
 
-	if (!dev)
-		return -ENODEV;
+	/*
+	 * The original driver would always returns the current detected
+	 * resolution as the format (and EFAULT if it couldn't be detected).
+	 * With the introduction of VIDIOC_QUERY_DV_TIMINGS there is now a
+	 * better way of doing this, but to stay compatible with existing
+	 * applications we assume legacy mode every time an application opens
+	 * the device. Only if one of the new DV_TIMINGS ioctls is called
+	 * will the filehandle go into 'normal' mode where g_fmt returns the
+	 * last set format.
+	 */
+	if (fh->legacy_mode) {
+		struct hdpvr_video_info *vid_info;
 
-	vid_info = get_video_info(dev);
-	if (!vid_info)
-		return -EFAULT;
-
-	f->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+		vid_info = get_video_info(dev);
+		if (!vid_info)
+			return -EFAULT;
+		f->fmt.pix.width = vid_info->width;
+		f->fmt.pix.height = vid_info->height;
+		kfree(vid_info);
+	} else {
+		f->fmt.pix.width = dev->width;
+		f->fmt.pix.height = dev->height;
+	}
 	f->fmt.pix.pixelformat	= V4L2_PIX_FMT_MPEG;
-	f->fmt.pix.width	= vid_info->width;
-	f->fmt.pix.height	= vid_info->height;
 	f->fmt.pix.sizeimage	= dev->bulk_in_size;
-	f->fmt.pix.colorspace	= 0;
 	f->fmt.pix.bytesperline	= 0;
-	f->fmt.pix.field	= V4L2_FIELD_ANY;
-
-	kfree(vid_info);
+	f->fmt.pix.priv		= 0;
+	if (f->fmt.pix.width == 720) {
+		/* SDTV formats */
+		f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE170M;
+		f->fmt.pix.field = V4L2_FIELD_INTERLACED;
+	} else {
+		/* HDTV formats */
+		f->fmt.pix.colorspace = V4L2_COLORSPACE_SMPTE240M;
+		f->fmt.pix.field = V4L2_FIELD_NONE;
+	}
 	return 0;
 }
 
 static int vidioc_encoder_cmd(struct file *filp, void *priv,
 			       struct v4l2_encoder_cmd *a)
 {
-	struct hdpvr_fh *fh = filp->private_data;
-	struct hdpvr_device *dev = fh->dev;
-	int res;
+	struct hdpvr_device *dev = video_drvdata(filp);
+	int res = 0;
 
 	mutex_lock(&dev->io_mutex);
+	a->flags = 0;
 
-	memset(&a->raw, 0, sizeof(a->raw));
 	switch (a->cmd) {
 	case V4L2_ENC_CMD_START:
-		a->flags = 0;
+		if (dev->owner && filp->private_data != dev->owner) {
+			res = -EBUSY;
+			break;
+		}
+		if (dev->status == STATUS_STREAMING)
+			break;
 		res = hdpvr_start_streaming(dev);
+		if (!res)
+			dev->owner = filp->private_data;
+		else
+			dev->status = STATUS_IDLE;
 		break;
 	case V4L2_ENC_CMD_STOP:
+		if (dev->owner && filp->private_data != dev->owner) {
+			res = -EBUSY;
+			break;
+		}
+		if (dev->status == STATUS_IDLE)
+			break;
 		res = hdpvr_stop_streaming(dev);
+		if (!res)
+			dev->owner = NULL;
 		break;
 	default:
 		v4l2_dbg(MSG_INFO, hdpvr_debug, &dev->v4l2_dev,
 			 "Unsupported encoder cmd %d\n", a->cmd);
 		res = -EINVAL;
+		break;
 	}
+
 	mutex_unlock(&dev->io_mutex);
 	return res;
 }
@@ -1196,6 +1076,7 @@ static int vidioc_encoder_cmd(struct file *filp, void *priv,
 static int vidioc_try_encoder_cmd(struct file *filp, void *priv,
 					struct v4l2_encoder_cmd *a)
 {
+	a->flags = 0;
 	switch (a->cmd) {
 	case V4L2_ENC_CMD_START:
 	case V4L2_ENC_CMD_STOP:
@@ -1208,22 +1089,28 @@ static int vidioc_try_encoder_cmd(struct file *filp, void *priv,
 static const struct v4l2_ioctl_ops hdpvr_ioctl_ops = {
 	.vidioc_querycap	= vidioc_querycap,
 	.vidioc_s_std		= vidioc_s_std,
+	.vidioc_g_std		= vidioc_g_std,
+	.vidioc_querystd	= vidioc_querystd,
+	.vidioc_s_dv_timings	= vidioc_s_dv_timings,
+	.vidioc_g_dv_timings	= vidioc_g_dv_timings,
+	.vidioc_query_dv_timings= vidioc_query_dv_timings,
+	.vidioc_enum_dv_timings	= vidioc_enum_dv_timings,
+	.vidioc_dv_timings_cap	= vidioc_dv_timings_cap,
 	.vidioc_enum_input	= vidioc_enum_input,
 	.vidioc_g_input		= vidioc_g_input,
 	.vidioc_s_input		= vidioc_s_input,
 	.vidioc_enumaudio	= vidioc_enumaudio,
 	.vidioc_g_audio		= vidioc_g_audio,
 	.vidioc_s_audio		= vidioc_s_audio,
-	.vidioc_queryctrl	= vidioc_queryctrl,
-	.vidioc_g_ctrl		= vidioc_g_ctrl,
-	.vidioc_s_ctrl		= vidioc_s_ctrl,
-	.vidioc_g_ext_ctrls	= vidioc_g_ext_ctrls,
-	.vidioc_s_ext_ctrls	= vidioc_s_ext_ctrls,
-	.vidioc_try_ext_ctrls	= vidioc_try_ext_ctrls,
-	.vidioc_enum_fmt_vid_cap	= vidioc_enum_fmt_vid_cap,
-	.vidioc_g_fmt_vid_cap		= vidioc_g_fmt_vid_cap,
+	.vidioc_enum_fmt_vid_cap= vidioc_enum_fmt_vid_cap,
+	.vidioc_g_fmt_vid_cap	= vidioc_g_fmt_vid_cap,
+	.vidioc_s_fmt_vid_cap	= vidioc_g_fmt_vid_cap,
+	.vidioc_try_fmt_vid_cap	= vidioc_g_fmt_vid_cap,
 	.vidioc_encoder_cmd	= vidioc_encoder_cmd,
 	.vidioc_try_encoder_cmd	= vidioc_try_encoder_cmd,
+	.vidioc_log_status	= v4l2_ctrl_log_status,
+	.vidioc_subscribe_event = v4l2_ctrl_subscribe_event,
+	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
 };
 
 static void hdpvr_device_release(struct video_device *vdev)
@@ -1236,9 +1123,10 @@ static void hdpvr_device_release(struct video_device *vdev)
 	mutex_unlock(&dev->io_mutex);
 
 	v4l2_device_unregister(&dev->v4l2_dev);
+	v4l2_ctrl_handler_free(&dev->hdl);
 
 	/* deregister I2C adapter */
-#if defined(CONFIG_I2C) || (CONFIG_I2C_MODULE)
+#if IS_ENABLED(CONFIG_I2C)
 	mutex_lock(&dev->i2c_mutex);
 	i2c_del_adapter(&dev->i2c_adapter);
 	mutex_unlock(&dev->i2c_mutex);
@@ -1249,41 +1137,112 @@ static void hdpvr_device_release(struct video_device *vdev)
 }
 
 static const struct video_device hdpvr_video_template = {
-/* 	.type			= VFL_TYPE_GRABBER, */
-/* 	.type2			= VID_TYPE_CAPTURE | VID_TYPE_MPEG_ENCODER, */
 	.fops			= &hdpvr_fops,
 	.release		= hdpvr_device_release,
 	.ioctl_ops 		= &hdpvr_ioctl_ops,
-	.tvnorms 		=
-		V4L2_STD_NTSC  | V4L2_STD_SECAM | V4L2_STD_PAL_B |
-		V4L2_STD_PAL_G | V4L2_STD_PAL_H | V4L2_STD_PAL_I |
-		V4L2_STD_PAL_D | V4L2_STD_PAL_M | V4L2_STD_PAL_N |
-		V4L2_STD_PAL_60,
-	.current_norm 		= V4L2_STD_NTSC | V4L2_STD_PAL_M |
-		V4L2_STD_PAL_60,
+	.tvnorms		= V4L2_STD_ALL,
+};
+
+static const struct v4l2_ctrl_ops hdpvr_ctrl_ops = {
+	.try_ctrl = hdpvr_try_ctrl,
+	.s_ctrl = hdpvr_s_ctrl,
 };
 
 int hdpvr_register_videodev(struct hdpvr_device *dev, struct device *parent,
 			    int devnum)
 {
+	struct v4l2_ctrl_handler *hdl = &dev->hdl;
+	bool ac3 = dev->flags & HDPVR_FLAG_AC3_CAP;
+	int res;
+
+	dev->cur_std = V4L2_STD_525_60;
+	dev->width = 720;
+	dev->height = 480;
+	dev->cur_dv_timings = hdpvr_dv_timings[HDPVR_DEF_DV_TIMINGS_IDX];
+	v4l2_ctrl_handler_init(hdl, 11);
+	if (dev->fw_ver > 0x15) {
+		v4l2_ctrl_new_std(hdl, &hdpvr_ctrl_ops,
+			V4L2_CID_BRIGHTNESS, 0x0, 0xff, 1, 0x80);
+		v4l2_ctrl_new_std(hdl, &hdpvr_ctrl_ops,
+			V4L2_CID_CONTRAST, 0x0, 0xff, 1, 0x40);
+		v4l2_ctrl_new_std(hdl, &hdpvr_ctrl_ops,
+			V4L2_CID_SATURATION, 0x0, 0xff, 1, 0x40);
+		v4l2_ctrl_new_std(hdl, &hdpvr_ctrl_ops,
+			V4L2_CID_HUE, 0x0, 0x1e, 1, 0xf);
+		v4l2_ctrl_new_std(hdl, &hdpvr_ctrl_ops,
+			V4L2_CID_SHARPNESS, 0x0, 0xff, 1, 0x80);
+	} else {
+		v4l2_ctrl_new_std(hdl, &hdpvr_ctrl_ops,
+			V4L2_CID_BRIGHTNESS, 0x0, 0xff, 1, 0x86);
+		v4l2_ctrl_new_std(hdl, &hdpvr_ctrl_ops,
+			V4L2_CID_CONTRAST, 0x0, 0xff, 1, 0x80);
+		v4l2_ctrl_new_std(hdl, &hdpvr_ctrl_ops,
+			V4L2_CID_SATURATION, 0x0, 0xff, 1, 0x80);
+		v4l2_ctrl_new_std(hdl, &hdpvr_ctrl_ops,
+			V4L2_CID_HUE, 0x0, 0xff, 1, 0x80);
+		v4l2_ctrl_new_std(hdl, &hdpvr_ctrl_ops,
+			V4L2_CID_SHARPNESS, 0x0, 0xff, 1, 0x80);
+	}
+
+	v4l2_ctrl_new_std_menu(hdl, &hdpvr_ctrl_ops,
+		V4L2_CID_MPEG_STREAM_TYPE,
+		V4L2_MPEG_STREAM_TYPE_MPEG2_TS,
+		0x1, V4L2_MPEG_STREAM_TYPE_MPEG2_TS);
+	v4l2_ctrl_new_std_menu(hdl, &hdpvr_ctrl_ops,
+		V4L2_CID_MPEG_AUDIO_ENCODING,
+		ac3 ? V4L2_MPEG_AUDIO_ENCODING_AC3 : V4L2_MPEG_AUDIO_ENCODING_AAC,
+		0x7, V4L2_MPEG_AUDIO_ENCODING_AAC);
+	v4l2_ctrl_new_std_menu(hdl, &hdpvr_ctrl_ops,
+		V4L2_CID_MPEG_VIDEO_ENCODING,
+		V4L2_MPEG_VIDEO_ENCODING_MPEG_4_AVC, 0x3,
+		V4L2_MPEG_VIDEO_ENCODING_MPEG_4_AVC);
+
+	dev->video_mode = v4l2_ctrl_new_std_menu(hdl, &hdpvr_ctrl_ops,
+		V4L2_CID_MPEG_VIDEO_BITRATE_MODE,
+		V4L2_MPEG_VIDEO_BITRATE_MODE_CBR, 0,
+		V4L2_MPEG_VIDEO_BITRATE_MODE_CBR);
+
+	dev->video_bitrate = v4l2_ctrl_new_std(hdl, &hdpvr_ctrl_ops,
+		V4L2_CID_MPEG_VIDEO_BITRATE,
+		1000000, 13500000, 100000, 6500000);
+	dev->video_bitrate_peak = v4l2_ctrl_new_std(hdl, &hdpvr_ctrl_ops,
+		V4L2_CID_MPEG_VIDEO_BITRATE_PEAK,
+		1100000, 20200000, 100000, 9000000);
+	dev->v4l2_dev.ctrl_handler = hdl;
+	if (hdl->error) {
+		res = hdl->error;
+		v4l2_err(&dev->v4l2_dev, "Could not register controls\n");
+		goto error;
+	}
+	v4l2_ctrl_cluster(3, &dev->video_mode);
+	res = v4l2_ctrl_handler_setup(hdl);
+	if (res < 0) {
+		v4l2_err(&dev->v4l2_dev, "Could not setup controls\n");
+		goto error;
+	}
+
 	/* setup and register video device */
 	dev->video_dev = video_device_alloc();
 	if (!dev->video_dev) {
 		v4l2_err(&dev->v4l2_dev, "video_device_alloc() failed\n");
+		res = -ENOMEM;
 		goto error;
 	}
 
-	*(dev->video_dev) = hdpvr_video_template;
+	*dev->video_dev = hdpvr_video_template;
 	strcpy(dev->video_dev->name, "Hauppauge HD PVR");
-	dev->video_dev->parent = parent;
+	dev->video_dev->v4l2_dev = &dev->v4l2_dev;
 	video_set_drvdata(dev->video_dev, dev);
+	set_bit(V4L2_FL_USE_FH_PRIO, &dev->video_dev->flags);
 
-	if (video_register_device(dev->video_dev, VFL_TYPE_GRABBER, devnum)) {
+	res = video_register_device(dev->video_dev, VFL_TYPE_GRABBER, devnum);
+	if (res < 0) {
 		v4l2_err(&dev->v4l2_dev, "video_device registration failed\n");
 		goto error;
 	}
 
 	return 0;
 error:
-	return -ENOMEM;
+	v4l2_ctrl_handler_free(hdl);
+	return res;
 }

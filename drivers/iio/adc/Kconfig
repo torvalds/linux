@@ -30,6 +30,18 @@ config AD7298
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad7298.
 
+config AD7923
+	tristate "Analog Devices AD7923 and similar ADCs driver"
+	depends on SPI
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	help
+	  Say yes here to build support for Analog Devices
+	  AD7904, AD7914, AD7923, AD7924 4 Channel ADCs.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ad7923.
+
 config AD7791
 	tristate "Analog Devices AD7791 ADC driver"
 	depends on SPI
@@ -90,6 +102,14 @@ config AT91_ADC
 	select SYSFS
 	help
 	  Say yes here to build support for Atmel AT91 ADC.
+
+config EXYNOS_ADC
+	bool "Exynos ADC driver support"
+	depends on OF
+	help
+	  Core support for the ADC block found in the Samsung EXYNOS series
+	  of SoCs for drivers such as the touchscreen and hwmon to use to share
+	  this resource.
 
 config LP8788_ADC
 	bool "LP8788 ADC driver"

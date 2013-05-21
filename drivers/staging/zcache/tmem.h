@@ -126,7 +126,7 @@ static inline unsigned tmem_oid_hash(struct tmem_oid *oidp)
 				TMEM_HASH_BUCKET_BITS);
 }
 
-#ifdef CONFIG_RAMSTER
+#if defined(CONFIG_RAMSTER) || defined(CONFIG_RAMSTER_MODULE)
 struct tmem_xhandle {
 	uint8_t client_id;
 	uint8_t xh_data_cksum;
@@ -171,7 +171,7 @@ struct tmem_obj {
 	unsigned int objnode_tree_height;
 	unsigned long objnode_count;
 	long pampd_count;
-#ifdef CONFIG_RAMSTER
+#if defined(CONFIG_RAMSTER) || defined(CONFIG_RAMSTER_MODULE)
 	/*
 	 * for current design of ramster, all pages belonging to
 	 * an object reside on the same remotenode and extra is
@@ -215,7 +215,7 @@ struct tmem_pamops {
 				uint32_t);
 	void (*free)(void *, struct tmem_pool *,
 				struct tmem_oid *, uint32_t, bool);
-#ifdef CONFIG_RAMSTER
+#if defined(CONFIG_RAMSTER) || defined(CONFIG_RAMSTER_MODULE)
 	void (*new_obj)(struct tmem_obj *);
 	void (*free_obj)(struct tmem_pool *, struct tmem_obj *, bool);
 	void *(*repatriate_preload)(void *, struct tmem_pool *,
@@ -247,7 +247,7 @@ extern int tmem_flush_page(struct tmem_pool *, struct tmem_oid *,
 extern int tmem_flush_object(struct tmem_pool *, struct tmem_oid *);
 extern int tmem_destroy_pool(struct tmem_pool *);
 extern void tmem_new_pool(struct tmem_pool *, uint32_t);
-#ifdef CONFIG_RAMSTER
+#if defined(CONFIG_RAMSTER) || defined(CONFIG_RAMSTER_MODULE)
 extern int tmem_replace(struct tmem_pool *, struct tmem_oid *, uint32_t index,
 			void *);
 extern void *tmem_localify_get_pampd(struct tmem_pool *, struct tmem_oid *,

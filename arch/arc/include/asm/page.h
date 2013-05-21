@@ -16,12 +16,26 @@
 #define get_user_page(vaddr)		__get_free_page(GFP_KERNEL)
 #define free_user_page(page, addr)	free_page(addr)
 
-/* TBD: for now don't worry about VIPT D$ aliasing */
 #define clear_page(paddr)		memset((paddr), 0, PAGE_SIZE)
 #define copy_page(to, from)		memcpy((to), (from), PAGE_SIZE)
 
+#ifndef CONFIG_ARC_CACHE_VIPT_ALIASING
+
 #define clear_user_page(addr, vaddr, pg)	clear_page(addr)
 #define copy_user_page(vto, vfrom, vaddr, pg)	copy_page(vto, vfrom)
+
+#else	/* VIPT aliasing dcache */
+
+struct vm_area_struct;
+struct page;
+
+#define __HAVE_ARCH_COPY_USER_HIGHPAGE
+
+void copy_user_highpage(struct page *to, struct page *from,
+			unsigned long u_vaddr, struct vm_area_struct *vma);
+void clear_user_page(void *to, unsigned long u_vaddr, struct page *page);
+
+#endif	/* CONFIG_ARC_CACHE_VIPT_ALIASING */
 
 #undef STRICT_MM_TYPECHECKS
 

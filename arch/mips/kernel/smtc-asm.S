@@ -49,6 +49,9 @@ CAN WE PROVE THAT WE WON'T DO THIS IF INTS DISABLED??
 	.text
 	.align 5
 FEXPORT(__smtc_ipi_vector)
+#ifdef CONFIG_CPU_MICROMIPS
+	nop
+#endif
 	.set	noat
 	/* Disable thread scheduling to make Status update atomic */
 	DMT	27					# dmt	k1

@@ -15,10 +15,6 @@
 extern int check_legacy_ioport(unsigned long base_port);
 #define I8042_DATA_REG	0x60
 #define FDC_BASE	0x3f0
-/* only relevant for PReP */
-#define _PIDXR		0x279
-#define _PNPWRP		0xa79
-#define PNPBIOS_BASE	0xf000
 
 #if defined(CONFIG_PPC64) && defined(CONFIG_PCI)
 extern struct pci_dev *isa_bridge_pcidev;

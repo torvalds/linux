@@ -285,9 +285,10 @@ static const __u16 spca561_161rev12A_data2[][2] = {
 	{}
 };
 
-static void reg_w_val(struct usb_device *dev, __u16 index, __u8 value)
+static void reg_w_val(struct gspca_dev *gspca_dev, __u16 index, __u8 value)
 {
 	int ret;
+	struct usb_device *dev = gspca_dev->dev;
 
 	ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 			      0,		/* request */
@@ -301,12 +302,11 @@ static void reg_w_val(struct usb_device *dev, __u16 index, __u8 value)
 static void write_vector(struct gspca_dev *gspca_dev,
 			const __u16 data[][2])
 {
-	struct usb_device *dev = gspca_dev->dev;
 	int i;
 
 	i = 0;
 	while (data[i][1] != 0) {
-		reg_w_val(dev, data[i][1], data[i][0]);
+		reg_w_val(gspca_dev, data[i][1], data[i][0]);
 		i++;
 	}
 }
@@ -339,9 +339,9 @@ static void i2c_write(struct gspca_dev *gspca_dev, __u16 value, __u16 reg)
 {
 	int retry = 60;
 
-	reg_w_val(gspca_dev->dev, 0x8801, reg);
-	reg_w_val(gspca_dev->dev, 0x8805, value);
-	reg_w_val(gspca_dev->dev, 0x8800, value >> 8);
+	reg_w_val(gspca_dev, 0x8801, reg);
+	reg_w_val(gspca_dev, 0x8805, value);
+	reg_w_val(gspca_dev, 0x8800, value >> 8);
 	do {
 		reg_r(gspca_dev, 0x8803, 1);
 		if (!gspca_dev->usb_buf[0])
@@ -355,9 +355,9 @@ static int i2c_read(struct gspca_dev *gspca_dev, __u16 reg, __u8 mode)
 	int retry = 60;
 	__u8 value;
 
-	reg_w_val(gspca_dev->dev, 0x8804, 0x92);
-	reg_w_val(gspca_dev->dev, 0x8801, reg);
-	reg_w_val(gspca_dev->dev, 0x8802, mode | 0x01);
+	reg_w_val(gspca_dev, 0x8804, 0x92);
+	reg_w_val(gspca_dev, 0x8801, reg);
+	reg_w_val(gspca_dev, 0x8802, mode | 0x01);
 	do {
 		reg_r(gspca_dev, 0x8803, 1);
 		if (!gspca_dev->usb_buf[0]) {
@@ -459,14 +459,13 @@ static int sd_init_72a(struct gspca_dev *gspca_dev)
 	write_sensor_72a(gspca_dev, rev72a_init_sensor1);
 	write_vector(gspca_dev, rev72a_init_data2);
 	write_sensor_72a(gspca_dev, rev72a_init_sensor2);
-	reg_w_val(gspca_dev->dev, 0x8112, 0x30);
+	reg_w_val(gspca_dev, 0x8112, 0x30);
 	return 0;
 }
 
 static void setbrightness(struct gspca_dev *gspca_dev, s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	struct usb_device *dev = gspca_dev->dev;
 	__u16 reg;
 
 	if (sd->chip_revision == Rev012A)
@@ -474,16 +473,15 @@ static void setbrightness(struct gspca_dev *gspca_dev, s32 val)
 	else
 		reg = 0x8611;
 
-	reg_w_val(dev, reg + 0, val);		/* R */
-	reg_w_val(dev, reg + 1, val);		/* Gr */
-	reg_w_val(dev, reg + 2, val);		/* B */
-	reg_w_val(dev, reg + 3, val);		/* Gb */
+	reg_w_val(gspca_dev, reg + 0, val);		/* R */
+	reg_w_val(gspca_dev, reg + 1, val);		/* Gr */
+	reg_w_val(gspca_dev, reg + 2, val);		/* B */
+	reg_w_val(gspca_dev, reg + 3, val);		/* Gb */
 }
 
 static void setwhite(struct gspca_dev *gspca_dev, s32 white, s32 contrast)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	struct usb_device *dev = gspca_dev->dev;
 	__u8 blue, red;
 	__u16 reg;
 
@@ -496,11 +494,11 @@ static void setwhite(struct gspca_dev *gspca_dev, s32 white, s32 contrast)
 		reg = 0x8651;
 		red += contrast - 0x20;
 		blue += contrast - 0x20;
-		reg_w_val(dev, 0x8652, contrast + 0x20); /* Gr */
-		reg_w_val(dev, 0x8654, contrast + 0x20); /* Gb */
+		reg_w_val(gspca_dev, 0x8652, contrast + 0x20); /* Gr */
+		reg_w_val(gspca_dev, 0x8654, contrast + 0x20); /* Gb */
 	}
-	reg_w_val(dev, reg, red);
-	reg_w_val(dev, reg + 2, blue);
+	reg_w_val(gspca_dev, reg, red);
+	reg_w_val(gspca_dev, reg + 2, blue);
 }
 
 /* rev 12a only */
@@ -570,7 +568,6 @@ static void setautogain(struct gspca_dev *gspca_dev, s32 val)
 
 static int sd_start_12a(struct gspca_dev *gspca_dev)
 {
-	struct usb_device *dev = gspca_dev->dev;
 	int mode;
 	static const __u8 Reg8391[8] =
 		{0x92, 0x30, 0x20, 0x00, 0x0c, 0x00, 0x00, 0x00};
@@ -578,34 +575,33 @@ static int sd_start_12a(struct gspca_dev *gspca_dev)
 	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv;
 	if (mode <= 1) {
 		/* Use compression on 320x240 and above */
-		reg_w_val(dev, 0x8500, 0x10 | mode);
+		reg_w_val(gspca_dev, 0x8500, 0x10 | mode);
 	} else {
 		/* I couldn't get the compression to work below 320x240
 		 * Fortunately at these resolutions the bandwidth
 		 * is sufficient to push raw frames at ~20fps */
-		reg_w_val(dev, 0x8500, mode);
+		reg_w_val(gspca_dev, 0x8500, mode);
 	}		/* -- qq@kuku.eu.org */
 
 	gspca_dev->usb_buf[0] = 0xaa;
 	gspca_dev->usb_buf[1] = 0x00;
 	reg_w_buf(gspca_dev, 0x8307, 2);
 	/* clock - lower 0x8X values lead to fps > 30 */
-	reg_w_val(gspca_dev->dev, 0x8700, 0x8a);
+	reg_w_val(gspca_dev, 0x8700, 0x8a);
 					/* 0x8f 0x85 0x27 clock */
-	reg_w_val(gspca_dev->dev, 0x8112, 0x1e | 0x20);
-	reg_w_val(gspca_dev->dev, 0x850b, 0x03);
+	reg_w_val(gspca_dev, 0x8112, 0x1e | 0x20);
+	reg_w_val(gspca_dev, 0x850b, 0x03);
 	memcpy(gspca_dev->usb_buf, Reg8391, 8);
 	reg_w_buf(gspca_dev, 0x8391, 8);
 	reg_w_buf(gspca_dev, 0x8390, 8);
 
 	/* Led ON (bit 3 -> 0 */
-	reg_w_val(gspca_dev->dev, 0x8114, 0x00);
+	reg_w_val(gspca_dev, 0x8114, 0x00);
 	return 0;
 }
 static int sd_start_72a(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	struct usb_device *dev = gspca_dev->dev;
 	int Clck;
 	int mode;
 
@@ -630,15 +626,15 @@ static int sd_start_72a(struct gspca_dev *gspca_dev)
 		Clck = 0x21;
 		break;
 	}
-	reg_w_val(dev, 0x8700, Clck);	/* 0x27 clock */
-	reg_w_val(dev, 0x8702, 0x81);
-	reg_w_val(dev, 0x8500, mode);	/* mode */
+	reg_w_val(gspca_dev, 0x8700, Clck);	/* 0x27 clock */
+	reg_w_val(gspca_dev, 0x8702, 0x81);
+	reg_w_val(gspca_dev, 0x8500, mode);	/* mode */
 	write_sensor_72a(gspca_dev, rev72a_init_sensor2);
 	setwhite(gspca_dev, v4l2_ctrl_g_ctrl(sd->hue),
 			v4l2_ctrl_g_ctrl(sd->contrast));
 /*	setbrightness(gspca_dev);	 * fixme: bad values */
 	setautogain(gspca_dev, v4l2_ctrl_g_ctrl(sd->autogain));
-	reg_w_val(dev, 0x8112, 0x10 | 0x20);
+	reg_w_val(gspca_dev, 0x8112, 0x10 | 0x20);
 	return 0;
 }
 
@@ -647,12 +643,12 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	if (sd->chip_revision == Rev012A) {
-		reg_w_val(gspca_dev->dev, 0x8112, 0x0e);
+		reg_w_val(gspca_dev, 0x8112, 0x0e);
 		/* Led Off (bit 3 -> 1 */
-		reg_w_val(gspca_dev->dev, 0x8114, 0x08);
+		reg_w_val(gspca_dev, 0x8114, 0x08);
 	} else {
-		reg_w_val(gspca_dev->dev, 0x8112, 0x20);
-/*		reg_w_val(gspca_dev->dev, 0x8102, 0x00); ?? */
+		reg_w_val(gspca_dev, 0x8112, 0x20);
+/*		reg_w_val(gspca_dev, 0x8102, 0x00); ?? */
 	}
 }
 
@@ -736,7 +732,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 
 		/* This should never happen */
 		if (len < 2) {
-			PDEBUG(D_ERR, "Short SOF packet, ignoring");
+			PERR("Short SOF packet, ignoring");
 			gspca_dev->last_packet_type = DISCARD_PACKET;
 			return;
 		}

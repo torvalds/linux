@@ -895,8 +895,8 @@ static void p4_pmu_disable_pebs(void)
 	 * So at moment let leave metrics turned on forever -- it's
 	 * ok for now but need to be revisited!
 	 *
-	 * (void)wrmsrl_safe(MSR_IA32_PEBS_ENABLE, (u64)0);
-	 * (void)wrmsrl_safe(MSR_P4_PEBS_MATRIX_VERT, (u64)0);
+	 * (void)wrmsrl_safe(MSR_IA32_PEBS_ENABLE, 0);
+	 * (void)wrmsrl_safe(MSR_P4_PEBS_MATRIX_VERT, 0);
 	 */
 }
 
@@ -910,8 +910,7 @@ static inline void p4_pmu_disable_event(struct perf_event *event)
 	 * asserted again and again
 	 */
 	(void)wrmsrl_safe(hwc->config_base,
-		(u64)(p4_config_unpack_cccr(hwc->config)) &
-			~P4_CCCR_ENABLE & ~P4_CCCR_OVF & ~P4_CCCR_RESERVED);
+		p4_config_unpack_cccr(hwc->config) & ~P4_CCCR_ENABLE & ~P4_CCCR_OVF & ~P4_CCCR_RESERVED);
 }
 
 static void p4_pmu_disable_all(void)
@@ -957,7 +956,7 @@ static void p4_pmu_enable_event(struct perf_event *event)
 	u64 escr_addr, cccr;
 
 	bind = &p4_event_bind_map[idx];
-	escr_addr = (u64)bind->escr_msr[thread];
+	escr_addr = bind->escr_msr[thread];
 
 	/*
 	 * - we dont support cascaded counters yet

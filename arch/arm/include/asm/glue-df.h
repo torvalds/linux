@@ -18,12 +18,12 @@
  *	================
  *
  *	We have the following to choose from:
- *	  arm6          - ARM6 style
  *	  arm7		- ARM7 style
  *	  v4_early	- ARMv4 without Thumb early abort handler
  *	  v4t_late	- ARMv4 with Thumb late abort handler
  *	  v4t_early	- ARMv4 with Thumb early abort handler
- *	  v5tej_early	- ARMv5 with Thumb and Java early abort handler
+ *	  v5t_early	- ARMv5 with Thumb early abort handler
+ *	  v5tj_early	- ARMv5 with Thumb and Java early abort handler
  *	  xscale	- ARMv5 with Thumb with Xscale extensions
  *	  v6_early	- ARMv6 generic early abort handler
  *	  v7_early	- ARMv7 generic early abort handler
@@ -39,19 +39,19 @@
 # endif
 #endif
 
-#ifdef CONFIG_CPU_ABRT_LV4T
-# ifdef CPU_DABORT_HANDLER
-#  define MULTI_DABORT 1
-# else
-#  define CPU_DABORT_HANDLER v4t_late_abort
-# endif
-#endif
-
 #ifdef CONFIG_CPU_ABRT_EV4
 # ifdef CPU_DABORT_HANDLER
 #  define MULTI_DABORT 1
 # else
 #  define CPU_DABORT_HANDLER v4_early_abort
+# endif
+#endif
+
+#ifdef CONFIG_CPU_ABRT_LV4T
+# ifdef CPU_DABORT_HANDLER
+#  define MULTI_DABORT 1
+# else
+#  define CPU_DABORT_HANDLER v4t_late_abort
 # endif
 #endif
 
@@ -63,19 +63,19 @@
 # endif
 #endif
 
-#ifdef CONFIG_CPU_ABRT_EV5TJ
-# ifdef CPU_DABORT_HANDLER
-#  define MULTI_DABORT 1
-# else
-#  define CPU_DABORT_HANDLER v5tj_early_abort
-# endif
-#endif
-
 #ifdef CONFIG_CPU_ABRT_EV5T
 # ifdef CPU_DABORT_HANDLER
 #  define MULTI_DABORT 1
 # else
 #  define CPU_DABORT_HANDLER v5t_early_abort
+# endif
+#endif
+
+#ifdef CONFIG_CPU_ABRT_EV5TJ
+# ifdef CPU_DABORT_HANDLER
+#  define MULTI_DABORT 1
+# else
+#  define CPU_DABORT_HANDLER v5tj_early_abort
 # endif
 #endif
 

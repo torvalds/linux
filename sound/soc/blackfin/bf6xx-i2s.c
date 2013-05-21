@@ -186,6 +186,10 @@ static struct snd_soc_dai_driver bfin_i2s_dai = {
 	.ops = &bfin_i2s_dai_ops,
 };
 
+static const struct snd_soc_component_driver bfin_i2s_component = {
+	.name		= "bfin-i2s",
+};
+
 static int bfin_i2s_probe(struct platform_device *pdev)
 {
 	struct sport_device *sport;
@@ -197,7 +201,8 @@ static int bfin_i2s_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	/* register with the ASoC layers */
-	ret = snd_soc_register_dai(dev, &bfin_i2s_dai);
+	ret = snd_soc_register_component(dev, &bfin_i2s_component,
+					 &bfin_i2s_dai, 1);
 	if (ret) {
 		dev_err(dev, "Failed to register DAI: %d\n", ret);
 		sport_delete(sport);
@@ -212,7 +217,7 @@ static int bfin_i2s_remove(struct platform_device *pdev)
 {
 	struct sport_device *sport = platform_get_drvdata(pdev);
 
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 	sport_delete(sport);
 
 	return 0;

@@ -20,10 +20,15 @@ static struct mv643xx_eth_platform_data iomega_ix2_200_ge00_data = {
 	.duplex         = DUPLEX_FULL,
 };
 
+static struct mv643xx_eth_platform_data iomega_ix2_200_ge01_data = {
+        .phy_addr       = MV643XX_ETH_PHY_ADDR(11),
+};
+
 void __init iomega_ix2_200_init(void)
 {
 	/*
 	 * Basic setup. Needs to be called early.
 	 */
-	kirkwood_ge01_init(&iomega_ix2_200_ge00_data);
+	kirkwood_ge00_init(&iomega_ix2_200_ge00_data);
+	kirkwood_ge01_init(&iomega_ix2_200_ge01_data);
 }

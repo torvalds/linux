@@ -205,7 +205,7 @@ struct chipcregs {
 	u32 res_req_timer_sel;
 	u32 res_req_timer;
 	u32 res_req_mask;
-	u32 PAD;
+	u32 pmucapabilities_ext; /* 0x64c, pmurev >=15 */
 	u32 chipcontrol_addr;	/* 0x650 */
 	u32 chipcontrol_data;	/* 0x654 */
 	u32 regcontrol_addr;
@@ -214,7 +214,11 @@ struct chipcregs {
 	u32 pllcontrol_data;
 	u32 pmustrapopt;	/* 0x668, corerev >= 28 */
 	u32 pmu_xtalfreq;	/* 0x66C, pmurev >= 10 */
-	u32 PAD[100];
+	u32 retention_ctl;          /* 0x670, pmurev >= 15 */
+	u32 PAD[3];
+	u32 retention_grpidx;       /* 0x680 */
+	u32 retention_grpctl;       /* 0x684 */
+	u32 PAD[94];
 	u16 sromotp[768];
 };
 
@@ -276,6 +280,12 @@ struct chipcregs {
 #define PCAP5_VC_SHIFT	22
 #define PCAP5_CC_MASK	0xf8000000
 #define PCAP5_CC_SHIFT	27
+/* pmucapabilites_ext PMU rev >= 15 */
+#define PCAPEXT_SR_SUPPORTED_MASK	(1 << 1)
+/* retention_ctl PMU rev >= 15 */
+#define PMU_RCTL_MACPHY_DISABLE_MASK        (1 << 26)
+#define PMU_RCTL_LOGIC_DISABLE_MASK         (1 << 27)
+
 
 /*
 * Maximum delay for the PMU state transition in us.

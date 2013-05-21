@@ -84,7 +84,7 @@
 #define CCDC_VDHDEN_ENABLE			(1 << 16)
 #define CCDC_LPF_ENABLE				(1 << 14)
 #define CCDC_ALAW_ENABLE			(1 << 3)
-#define CCDC_ALAW_GAMA_WD_MASK			7
+#define CCDC_ALAW_GAMMA_WD_MASK			7
 #define CCDC_BLK_CLAMP_ENABLE			(1 << 31)
 #define CCDC_BLK_SGAIN_MASK			0x1F
 #define CCDC_BLK_ST_PXL_MASK			0x7FFF

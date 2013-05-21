@@ -10,7 +10,7 @@
 #include <byteswap.h>
 #include <linux/bitops.h>
 #include "asm/bug.h"
-#include "debugfs.h"
+#include <lk/debugfs.h>
 #include "event-parse.h"
 #include "evsel.h"
 #include "evlist.h"
@@ -554,6 +554,9 @@ void perf_evsel__config(struct perf_evsel *evsel,
 		perf_evsel__set_sample_bit(evsel, CPU);
 	}
 
+	if (opts->sample_address)
+		attr->sample_type	|= PERF_SAMPLE_DATA_SRC;
+
 	if (opts->no_delay) {
 		attr->watermark = 0;
 		attr->wakeup_events = 1;
@@ -562,6 +565,9 @@ void perf_evsel__config(struct perf_evsel *evsel,
 		perf_evsel__set_sample_bit(evsel, BRANCH_STACK);
 		attr->branch_sample_type = opts->branch_stack;
 	}
+
+	if (opts->sample_weight)
+		attr->sample_type	|= PERF_SAMPLE_WEIGHT;
 
 	attr->mmap = track;
 	attr->comm = track;
@@ -633,6 +639,12 @@ int perf_evsel__alloc_id(struct perf_evsel *evsel, int ncpus, int nthreads)
 	return 0;
 }
 
+void perf_evsel__reset_counts(struct perf_evsel *evsel, int ncpus)
+{
+	memset(evsel->counts, 0, (sizeof(*evsel->counts) +
+				 (ncpus * sizeof(struct perf_counts_values))));
+}
+
 int perf_evsel__alloc_counts(struct perf_evsel *evsel, int ncpus)
 {
 	evsel->counts = zalloc((sizeof(*evsel->counts) +
@@ -673,9 +685,8 @@ void perf_evsel__free_counts(struct perf_evsel *evsel)
 void perf_evsel__exit(struct perf_evsel *evsel)
 {
 	assert(list_empty(&evsel->node));
-	xyarray__delete(evsel->fd);
-	xyarray__delete(evsel->sample_id);
-	free(evsel->id);
+	perf_evsel__free_fd(evsel);
+	perf_evsel__free_id(evsel);
 }
 
 void perf_evsel__delete(struct perf_evsel *evsel)
@@ -1012,6 +1023,7 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 	data->cpu = data->pid = data->tid = -1;
 	data->stream_id = data->id = data->time = -1ULL;
 	data->period = 1;
+	data->weight = 0;
 
 	if (event->header.type != PERF_RECORD_SAMPLE) {
 		if (!evsel->attr.sample_id_all)
@@ -1160,6 +1172,18 @@ int perf_evsel__parse_sample(struct perf_evsel *evsel, union perf_event *event,
 			array += size / sizeof(*array);
 			data->user_stack.size = *array;
 		}
+	}
+
+	data->weight = 0;
+	if (type & PERF_SAMPLE_WEIGHT) {
+		data->weight = *array;
+		array++;
+	}
+
+	data->data_src = PERF_MEM_DATA_SRC_NONE;
+	if (type & PERF_SAMPLE_DATA_SRC) {
+		data->data_src = *array;
+		array++;
 	}
 
 	return 0;

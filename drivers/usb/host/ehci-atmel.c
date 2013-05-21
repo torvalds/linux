@@ -12,9 +12,22 @@
  */
 
 #include <linux/clk.h>
-#include <linux/platform_device.h>
+#include <linux/dma-mapping.h>
+#include <linux/io.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/platform_device.h>
+#include <linux/usb.h>
+#include <linux/usb/hcd.h>
+
+#include "ehci.h"
+
+#define DRIVER_DESC "EHCI Atmel driver"
+
+static const char hcd_name[] = "ehci-atmel";
+static struct hc_driver __read_mostly ehci_atmel_hc_driver;
 
 /* interface and function clocks */
 static struct clk *iclk, *fclk;
@@ -50,51 +63,6 @@ static void atmel_stop_ehci(struct platform_device *pdev)
 
 /*-------------------------------------------------------------------------*/
 
-static int ehci_atmel_setup(struct usb_hcd *hcd)
-{
-	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
-
-	/* registers start at offset 0x0 */
-	ehci->caps = hcd->regs;
-
-	return ehci_setup(hcd);
-}
-
-static const struct hc_driver ehci_atmel_hc_driver = {
-	.description		= hcd_name,
-	.product_desc		= "Atmel EHCI UHP HS",
-	.hcd_priv_size		= sizeof(struct ehci_hcd),
-
-	/* generic hardware linkage */
-	.irq			= ehci_irq,
-	.flags			= HCD_MEMORY | HCD_USB2,
-
-	/* basic lifecycle operations */
-	.reset			= ehci_atmel_setup,
-	.start			= ehci_run,
-	.stop			= ehci_stop,
-	.shutdown		= ehci_shutdown,
-
-	/* managing i/o requests and associated device resources */
-	.urb_enqueue		= ehci_urb_enqueue,
-	.urb_dequeue		= ehci_urb_dequeue,
-	.endpoint_disable	= ehci_endpoint_disable,
-	.endpoint_reset		= ehci_endpoint_reset,
-
-	/* scheduling support */
-	.get_frame_number	= ehci_get_frame,
-
-	/* root hub support */
-	.hub_status_data	= ehci_hub_status_data,
-	.hub_control		= ehci_hub_control,
-	.bus_suspend		= ehci_bus_suspend,
-	.bus_resume		= ehci_bus_resume,
-	.relinquish_port	= ehci_relinquish_port,
-	.port_handed_over	= ehci_port_handed_over,
-
-	.clear_tt_buffer_complete	= ehci_clear_tt_buffer_complete,
-};
-
 static u64 at91_ehci_dma_mask = DMA_BIT_MASK(32);
 
 static int ehci_atmel_drv_probe(struct platform_device *pdev)
@@ -102,6 +70,7 @@ static int ehci_atmel_drv_probe(struct platform_device *pdev)
 	struct usb_hcd *hcd;
 	const struct hc_driver *driver = &ehci_atmel_hc_driver;
 	struct resource *res;
+	struct ehci_hcd *ehci;
 	int irq;
 	int retval;
 
@@ -162,6 +131,10 @@ static int ehci_atmel_drv_probe(struct platform_device *pdev)
 		goto fail_request_resource;
 	}
 
+	ehci = hcd_to_ehci(hcd);
+	/* registers start at offset 0x0 */
+	ehci->caps = hcd->regs;
+
 	atmel_start_ehci(pdev);
 
 	retval = usb_add_hcd(hcd, irq, IRQF_SHARED);
@@ -185,7 +158,6 @@ static int ehci_atmel_drv_remove(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 
-	ehci_shutdown(hcd);
 	usb_remove_hcd(hcd);
 	usb_put_hcd(hcd);
 
@@ -213,3 +185,25 @@ static struct platform_driver ehci_atmel_driver = {
 		.of_match_table	= of_match_ptr(atmel_ehci_dt_ids),
 	},
 };
+
+static int __init ehci_atmel_init(void)
+{
+	if (usb_disabled())
+		return -ENODEV;
+
+	pr_info("%s: " DRIVER_DESC "\n", hcd_name);
+	ehci_init_driver(&ehci_atmel_hc_driver, NULL);
+	return platform_driver_register(&ehci_atmel_driver);
+}
+module_init(ehci_atmel_init);
+
+static void __exit ehci_atmel_cleanup(void)
+{
+	platform_driver_unregister(&ehci_atmel_driver);
+}
+module_exit(ehci_atmel_cleanup);
+
+MODULE_DESCRIPTION(DRIVER_DESC);
+MODULE_ALIAS("platform:atmel-ehci");
+MODULE_AUTHOR("Nicolas Ferre");
+MODULE_LICENSE("GPL");

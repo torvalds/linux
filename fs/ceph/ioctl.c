@@ -208,8 +208,9 @@ static long ceph_ioctl_get_dataloc(struct file *file, void __user *arg)
 
 	snprintf(dl.object_name, sizeof(dl.object_name), "%llx.%08llx",
 		 ceph_ino(inode), dl.object_no);
-	ceph_calc_object_layout(&pgid, dl.object_name, &ci->i_layout,
-				osdc->osdmap);
+
+	ceph_calc_ceph_pg(&pgid, dl.object_name, osdc->osdmap,
+		ceph_file_layout_pg_pool(ci->i_layout));
 
 	dl.osd = ceph_calc_pg_primary(osdc->osdmap, pgid);
 	if (dl.osd >= 0) {

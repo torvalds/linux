@@ -144,6 +144,7 @@ config USB_AT91
 config USB_LPC32XX
 	tristate "LPC32XX USB Peripheral Controller"
 	depends on ARCH_LPC32XX
+	depends on USB_PHY
 	select USB_ISP1301
 	select USB_OTG_UTILS
 	help
@@ -195,8 +196,8 @@ config USB_FUSB300
 config USB_OMAP
 	tristate "OMAP USB Device Controller"
 	depends on ARCH_OMAP1
+	depends on USB_PHY
 	select ISP1301_OMAP if MACH_OMAP_H2 || MACH_OMAP_H3 || MACH_OMAP_H4_OTG
-	select USB_OTG_UTILS if ARCH_OMAP
 	help
 	   Many Texas Instruments OMAP processors have flexible full
 	   speed USB device controllers, with support for up to 30
@@ -211,7 +212,6 @@ config USB_OMAP
 config USB_PXA25X
 	tristate "PXA 25x or IXP 4xx"
 	depends on (ARCH_PXA && PXA25x) || ARCH_IXP4XX
-	select USB_OTG_UTILS
 	help
 	   Intel's PXA 25x series XScale ARM-5TE processors include
 	   an integrated full speed USB 1.1 device controller.  The
@@ -259,8 +259,6 @@ config USB_RENESAS_USBHS_UDC
 
 config USB_PXA27X
 	tristate "PXA 27x"
-	depends on ARCH_PXA && (PXA27x || PXA3xx)
-	select USB_OTG_UTILS
 	help
 	   Intel's PXA 27x series XScale ARM v5TE processors include
 	   an integrated full speed USB 1.1 device controller.
@@ -329,9 +327,6 @@ config USB_MV_UDC
 
 config USB_MV_U3D
 	tristate "MARVELL PXA2128 USB 3.0 controller"
-	depends on CPU_MMP3
-	select USB_GADGET_DUALSPEED
-	select USB_GADGET_SUPERSPEED
 	help
 	  MARVELL PXA2128 Processor series include a super speed USB3.0 device
 	  controller, which support super speed USB peripheral.
@@ -501,6 +496,7 @@ endmenu
 # composite based drivers
 config USB_LIBCOMPOSITE
 	tristate
+	select CONFIGFS_FS
 	depends on USB_GADGET
 
 config USB_F_ACM
@@ -510,6 +506,12 @@ config USB_F_SS_LB
 	tristate
 
 config USB_U_SERIAL
+	tristate
+
+config USB_F_SERIAL
+	tristate
+
+config USB_F_OBEX
 	tristate
 
 choice
@@ -766,6 +768,8 @@ config USB_G_SERIAL
 	depends on TTY
 	select USB_U_SERIAL
 	select USB_F_ACM
+	select USB_F_SERIAL
+	select USB_F_OBEX
 	select USB_LIBCOMPOSITE
 	help
 	  The Serial Gadget talks to the Linux-USB generic serial driver.
@@ -839,6 +843,7 @@ config USB_G_NOKIA
 	depends on PHONET
 	select USB_LIBCOMPOSITE
 	select USB_U_SERIAL
+	select USB_F_ACM
 	help
 	  The Nokia composite gadget provides support for acm, obex
 	  and phonet in only one composite gadget driver.
@@ -957,6 +962,7 @@ config USB_G_WEBCAM
 	tristate "USB Webcam Gadget"
 	depends on VIDEO_DEV
 	select USB_LIBCOMPOSITE
+	select VIDEOBUF2_VMALLOC
 	help
 	  The Webcam Gadget acts as a composite USB Audio and Video Class
 	  device. It provides a userspace API to process UVC control requests

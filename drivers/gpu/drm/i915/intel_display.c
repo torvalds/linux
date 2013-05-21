@@ -4211,12 +4211,21 @@ static int i830_get_display_clock_speed(struct drm_device *dev)
 }
 
 static void
-intel_reduce_ratio(uint32_t *num, uint32_t *den)
+intel_reduce_m_n_ratio(uint32_t *num, uint32_t *den)
 {
-	while (*num > 0xffffff || *den > 0xffffff) {
+	while (*num > DATA_LINK_M_N_MASK ||
+	       *den > DATA_LINK_M_N_MASK) {
 		*num >>= 1;
 		*den >>= 1;
 	}
+}
+
+static void compute_m_n(unsigned int m, unsigned int n,
+			uint32_t *ret_m, uint32_t *ret_n)
+{
+	*ret_n = min_t(unsigned int, roundup_pow_of_two(n), DATA_LINK_N_MAX);
+	*ret_m = div_u64((uint64_t) m * *ret_n, n);
+	intel_reduce_m_n_ratio(ret_m, ret_n);
 }
 
 void
@@ -4225,12 +4234,13 @@ intel_link_compute_m_n(int bits_per_pixel, int nlanes,
 		       struct intel_link_m_n *m_n)
 {
 	m_n->tu = 64;
-	m_n->gmch_m = bits_per_pixel * pixel_clock;
-	m_n->gmch_n = link_clock * nlanes * 8;
-	intel_reduce_ratio(&m_n->gmch_m, &m_n->gmch_n);
-	m_n->link_m = pixel_clock;
-	m_n->link_n = link_clock;
-	intel_reduce_ratio(&m_n->link_m, &m_n->link_n);
+
+	compute_m_n(bits_per_pixel * pixel_clock,
+		    link_clock * nlanes * 8,
+		    &m_n->gmch_m, &m_n->gmch_n);
+
+	compute_m_n(pixel_clock, link_clock,
+		    &m_n->link_m, &m_n->link_n);
 }
 
 static inline bool intel_panel_use_ssc(struct drm_i915_private *dev_priv)

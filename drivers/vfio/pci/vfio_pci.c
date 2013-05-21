@@ -70,7 +70,7 @@ static int vfio_pci_enable(struct vfio_pci_device *vdev)
 		pci_write_config_word(pdev, PCI_COMMAND, cmd);
 	}
 
-	msix_pos = pci_find_capability(pdev, PCI_CAP_ID_MSIX);
+	msix_pos = pdev->msix_cap;
 	if (msix_pos) {
 		u16 flags;
 		u32 table;
@@ -78,8 +78,8 @@ static int vfio_pci_enable(struct vfio_pci_device *vdev)
 		pci_read_config_word(pdev, msix_pos + PCI_MSIX_FLAGS, &flags);
 		pci_read_config_dword(pdev, msix_pos + PCI_MSIX_TABLE, &table);
 
-		vdev->msix_bar = table & PCI_MSIX_FLAGS_BIRMASK;
-		vdev->msix_offset = table & ~PCI_MSIX_FLAGS_BIRMASK;
+		vdev->msix_bar = table & PCI_MSIX_TABLE_BIR;
+		vdev->msix_offset = table & PCI_MSIX_TABLE_OFFSET;
 		vdev->msix_size = ((flags & PCI_MSIX_FLAGS_QSIZE) + 1) * 16;
 	} else
 		vdev->msix_bar = 0xFF;
@@ -183,7 +183,7 @@ static int vfio_pci_get_irq_count(struct vfio_pci_device *vdev, int irq_type)
 		u8 pos;
 		u16 flags;
 
-		pos = pci_find_capability(vdev->pdev, PCI_CAP_ID_MSI);
+		pos = vdev->pdev->msi_cap;
 		if (pos) {
 			pci_read_config_word(vdev->pdev,
 					     pos + PCI_MSI_FLAGS, &flags);
@@ -194,14 +194,16 @@ static int vfio_pci_get_irq_count(struct vfio_pci_device *vdev, int irq_type)
 		u8 pos;
 		u16 flags;
 
-		pos = pci_find_capability(vdev->pdev, PCI_CAP_ID_MSIX);
+		pos = vdev->pdev->msix_cap;
 		if (pos) {
 			pci_read_config_word(vdev->pdev,
 					     pos + PCI_MSIX_FLAGS, &flags);
 
 			return (flags & PCI_MSIX_FLAGS_QSIZE) + 1;
 		}
-	}
+	} else if (irq_type == VFIO_PCI_ERR_IRQ_INDEX)
+		if (pci_is_pcie(vdev->pdev))
+			return 1;
 
 	return 0;
 }
@@ -317,6 +319,17 @@ static long vfio_pci_ioctl(void *device_data,
 		if (info.argsz < minsz || info.index >= VFIO_PCI_NUM_IRQS)
 			return -EINVAL;
 
+		switch (info.index) {
+		case VFIO_PCI_INTX_IRQ_INDEX ... VFIO_PCI_MSIX_IRQ_INDEX:
+			break;
+		case VFIO_PCI_ERR_IRQ_INDEX:
+			if (pci_is_pcie(vdev->pdev))
+				break;
+		/* pass thru to return error */
+		default:
+			return -EINVAL;
+		}
+
 		info.flags = VFIO_IRQ_INFO_EVENTFD;
 
 		info.count = vfio_pci_get_irq_count(vdev, info.index);
@@ -346,6 +359,7 @@ static long vfio_pci_ioctl(void *device_data,
 
 		if (!(hdr.flags & VFIO_IRQ_SET_DATA_NONE)) {
 			size_t size;
+			int max = vfio_pci_get_irq_count(vdev, hdr.index);
 
 			if (hdr.flags & VFIO_IRQ_SET_DATA_BOOL)
 				size = sizeof(uint8_t);
@@ -355,7 +369,7 @@ static long vfio_pci_ioctl(void *device_data,
 				return -EINVAL;
 
 			if (hdr.argsz - minsz < hdr.count * size ||
-			    hdr.count > vfio_pci_get_irq_count(vdev, hdr.index))
+			    hdr.start >= max || hdr.start + hdr.count > max)
 				return -EINVAL;
 
 			data = memdup_user((void __user *)(arg + minsz),
@@ -551,11 +565,40 @@ static void vfio_pci_remove(struct pci_dev *pdev)
 	kfree(vdev);
 }
 
+static pci_ers_result_t vfio_pci_aer_err_detected(struct pci_dev *pdev,
+						  pci_channel_state_t state)
+{
+	struct vfio_pci_device *vdev;
+	struct vfio_device *device;
+
+	device = vfio_device_get_from_dev(&pdev->dev);
+	if (device == NULL)
+		return PCI_ERS_RESULT_DISCONNECT;
+
+	vdev = vfio_device_data(device);
+	if (vdev == NULL) {
+		vfio_device_put(device);
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+
+	if (vdev->err_trigger)
+		eventfd_signal(vdev->err_trigger, 1);
+
+	vfio_device_put(device);
+
+	return PCI_ERS_RESULT_CAN_RECOVER;
+}
+
+static struct pci_error_handlers vfio_err_handlers = {
+	.error_detected = vfio_pci_aer_err_detected,
+};
+
 static struct pci_driver vfio_pci_driver = {
 	.name		= "vfio-pci",
 	.id_table	= NULL, /* only dynamic ids */
 	.probe		= vfio_pci_probe,
 	.remove		= vfio_pci_remove,
+	.err_handler	= &vfio_err_handlers,
 };
 
 static void __exit vfio_pci_cleanup(void)

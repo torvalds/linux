@@ -51,6 +51,7 @@
  * RF3320 2.4G 1T1R(RT3350/RT3370/RT3390)
  * RF3322 2.4G 2T2R(RT3352/RT3371/RT3372/RT3391/RT3392)
  * RF3053 2.4G/5G 3T3R(RT3883/RT3563/RT3573/RT3593/RT3662)
+ * RF5592 2.4G/5G 2T2R
  * RF5360 2.4G 1T1R
  * RF5370 2.4G 1T1R
  * RF5390 2.4G 1T1R
@@ -68,6 +69,7 @@
 #define RF3320				0x000b
 #define RF3322				0x000c
 #define RF3053				0x000d
+#define RF5592				0x000f
 #define RF3290				0x3290
 #define RF5360				0x5360
 #define RF5370				0x5370
@@ -88,11 +90,8 @@
 #define REV_RT3390E			0x0211
 #define REV_RT5390F			0x0502
 #define REV_RT5390R			0x1502
+#define REV_RT5592C			0x0221
 
-/*
- * Signal information.
- * Default offset is required for RSSI <-> dBm conversion.
- */
 #define DEFAULT_RSSI_OFFSET		120
 
 /*
@@ -688,6 +687,12 @@
 #define GPIO_SWITCH_5			FIELD32(0x00000020)
 #define GPIO_SWITCH_6			FIELD32(0x00000040)
 #define GPIO_SWITCH_7			FIELD32(0x00000080)
+
+/*
+ * FIXME: where the DEBUG_INDEX name come from?
+ */
+#define MAC_DEBUG_INDEX			0x05e8
+#define MAC_DEBUG_INDEX_XTAL		FIELD32(0x80000000)
 
 /*
  * MAC Control/Status Registers(CSR).
@@ -1934,6 +1939,9 @@ struct mac_iveiv_entry {
 #define BBP4_BANDWIDTH			FIELD8(0x18)
 #define BBP4_MAC_IF_CTRL		FIELD8(0x40)
 
+/* BBP27 */
+#define BBP27_RX_CHAIN_SEL		FIELD8(0x60)
+
 /*
  * BBP 47: Bandwidth
  */
@@ -1946,6 +1954,20 @@ struct mac_iveiv_entry {
  * BBP 49
  */
 #define BBP49_UPDATE_FLAG		FIELD8(0x01)
+
+/*
+ * BBP 105:
+ * - bit0: detect SIG on primary channel only (on 40MHz bandwidth)
+ * - bit1: FEQ (Feed Forward Compensation) for independend streams
+ * - bit2: MLD (Maximum Likehood Detection) for 2 streams (reserved on single
+ *	   stream)
+ * - bit4: channel estimation updates based on remodulation of
+ *	   L-SIG and HT-SIG symbols
+ */
+#define BBP105_DETECT_SIG_ON_PRIMARY	FIELD8(0x01)
+#define BBP105_FEQ			FIELD8(0x02)
+#define BBP105_MLD			FIELD8(0x04)
+#define BBP105_SIG_REMODULATION		FIELD8(0x08)
 
 /*
  * BBP 109
@@ -1965,6 +1987,11 @@ struct mac_iveiv_entry {
  * BBP 152: Rx Ant
  */
 #define BBP152_RX_DEFAULT_ANT		FIELD8(0x80)
+
+/*
+ * BBP 254: unknown
+ */
+#define BBP254_BIT7			FIELD8(0x80)
 
 /*
  * RFCSR registers
@@ -2022,9 +2049,18 @@ struct mac_iveiv_entry {
 #define RFCSR7_BITS67			FIELD8(0xc0)
 
 /*
+ * RFCSR 9:
+ */
+#define RFCSR9_K			FIELD8(0x0f)
+#define RFCSR9_N			FIELD8(0x10)
+#define RFCSR9_UNKNOWN			FIELD8(0x60)
+#define RFCSR9_MOD			FIELD8(0x80)
+
+/*
  * RFCSR 11:
  */
 #define RFCSR11_R			FIELD8(0x03)
+#define RFCSR11_MOD			FIELD8(0xc0)
 
 /*
  * RFCSR 12:
@@ -2130,11 +2166,13 @@ struct mac_iveiv_entry {
  * RFCSR 49:
  */
 #define RFCSR49_TX			FIELD8(0x3f)
+#define RFCSR49_EP			FIELD8(0xc0)
 
 /*
  * RFCSR 50:
  */
 #define RFCSR50_TX			FIELD8(0x3f)
+#define RFCSR50_EP			FIELD8(0xc0)
 
 /*
  * RF registers
@@ -2497,6 +2535,61 @@ struct mac_iveiv_entry {
 #define EEPROM_BBP_REG_ID		FIELD16(0xff00)
 
 /*
+ * EEPROM IQ Calibration, unlike other entries those are byte addresses.
+ */
+
+#define EEPROM_IQ_GAIN_CAL_TX0_2G			0x130
+#define EEPROM_IQ_PHASE_CAL_TX0_2G			0x131
+#define EEPROM_IQ_GROUPDELAY_CAL_TX0_2G			0x132
+#define EEPROM_IQ_GAIN_CAL_TX1_2G			0x133
+#define EEPROM_IQ_PHASE_CAL_TX1_2G			0x134
+#define EEPROM_IQ_GROUPDELAY_CAL_TX1_2G			0x135
+#define EEPROM_IQ_GAIN_CAL_RX0_2G			0x136
+#define EEPROM_IQ_PHASE_CAL_RX0_2G			0x137
+#define EEPROM_IQ_GROUPDELAY_CAL_RX0_2G			0x138
+#define EEPROM_IQ_GAIN_CAL_RX1_2G			0x139
+#define EEPROM_IQ_PHASE_CAL_RX1_2G			0x13A
+#define EEPROM_IQ_GROUPDELAY_CAL_RX1_2G			0x13B
+#define EEPROM_RF_IQ_COMPENSATION_CONTROL		0x13C
+#define EEPROM_RF_IQ_IMBALANCE_COMPENSATION_CONTROL	0x13D
+#define EEPROM_IQ_GAIN_CAL_TX0_CH36_TO_CH64_5G		0x144
+#define EEPROM_IQ_PHASE_CAL_TX0_CH36_TO_CH64_5G		0x145
+#define EEPROM_IQ_GAIN_CAL_TX0_CH100_TO_CH138_5G	0X146
+#define EEPROM_IQ_PHASE_CAL_TX0_CH100_TO_CH138_5G	0x147
+#define EEPROM_IQ_GAIN_CAL_TX0_CH140_TO_CH165_5G	0x148
+#define EEPROM_IQ_PHASE_CAL_TX0_CH140_TO_CH165_5G	0x149
+#define EEPROM_IQ_GAIN_CAL_TX1_CH36_TO_CH64_5G		0x14A
+#define EEPROM_IQ_PHASE_CAL_TX1_CH36_TO_CH64_5G		0x14B
+#define EEPROM_IQ_GAIN_CAL_TX1_CH100_TO_CH138_5G	0X14C
+#define EEPROM_IQ_PHASE_CAL_TX1_CH100_TO_CH138_5G	0x14D
+#define EEPROM_IQ_GAIN_CAL_TX1_CH140_TO_CH165_5G	0x14E
+#define EEPROM_IQ_PHASE_CAL_TX1_CH140_TO_CH165_5G	0x14F
+#define EEPROM_IQ_GROUPDELAY_CAL_TX0_CH36_TO_CH64_5G	0x150
+#define EEPROM_IQ_GROUPDELAY_CAL_TX1_CH36_TO_CH64_5G	0x151
+#define EEPROM_IQ_GROUPDELAY_CAL_TX0_CH100_TO_CH138_5G	0x152
+#define EEPROM_IQ_GROUPDELAY_CAL_TX1_CH100_TO_CH138_5G	0x153
+#define EEPROM_IQ_GROUPDELAY_CAL_TX0_CH140_TO_CH165_5G	0x154
+#define EEPROM_IQ_GROUPDELAY_CAL_TX1_CH140_TO_CH165_5G	0x155
+#define EEPROM_IQ_GAIN_CAL_RX0_CH36_TO_CH64_5G		0x156
+#define EEPROM_IQ_PHASE_CAL_RX0_CH36_TO_CH64_5G		0x157
+#define EEPROM_IQ_GAIN_CAL_RX0_CH100_TO_CH138_5G	0X158
+#define EEPROM_IQ_PHASE_CAL_RX0_CH100_TO_CH138_5G	0x159
+#define EEPROM_IQ_GAIN_CAL_RX0_CH140_TO_CH165_5G	0x15A
+#define EEPROM_IQ_PHASE_CAL_RX0_CH140_TO_CH165_5G	0x15B
+#define EEPROM_IQ_GAIN_CAL_RX1_CH36_TO_CH64_5G		0x15C
+#define EEPROM_IQ_PHASE_CAL_RX1_CH36_TO_CH64_5G		0x15D
+#define EEPROM_IQ_GAIN_CAL_RX1_CH100_TO_CH138_5G	0X15E
+#define EEPROM_IQ_PHASE_CAL_RX1_CH100_TO_CH138_5G	0x15F
+#define EEPROM_IQ_GAIN_CAL_RX1_CH140_TO_CH165_5G	0x160
+#define EEPROM_IQ_PHASE_CAL_RX1_CH140_TO_CH165_5G	0x161
+#define EEPROM_IQ_GROUPDELAY_CAL_RX0_CH36_TO_CH64_5G	0x162
+#define EEPROM_IQ_GROUPDELAY_CAL_RX1_CH36_TO_CH64_5G	0x163
+#define EEPROM_IQ_GROUPDELAY_CAL_RX0_CH100_TO_CH138_5G	0x164
+#define EEPROM_IQ_GROUPDELAY_CAL_RX1_CH100_TO_CH138_5G	0x165
+#define EEPROM_IQ_GROUPDELAY_CAL_RX0_CH140_TO_CH165_5G	0x166
+#define EEPROM_IQ_GROUPDELAY_CAL_RX1_CH140_TO_CH165_5G	0x167
+
+/*
  * MCU mailbox commands.
  * MCU_SLEEP - go to power-save mode.
  *             arg1: 1: save as much power as possible, 0: save less power.
@@ -2535,6 +2628,8 @@ struct mac_iveiv_entry {
 #define TXWI_DESC_SIZE			(4 * sizeof(__le32))
 #define RXWI_DESC_SIZE			(4 * sizeof(__le32))
 
+#define TXWI_DESC_SIZE_5592		(5 * sizeof(__le32))
+#define RXWI_DESC_SIZE_5592		(6 * sizeof(__le32))
 /*
  * TX WI structure
  */

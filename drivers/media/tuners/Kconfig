@@ -241,4 +241,18 @@ config MEDIA_TUNER_TUA9001
 	default m if !MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Infineon TUA 9001 silicon tuner driver.
+
+config MEDIA_TUNER_IT913X
+	tristate "ITE Tech IT913x silicon tuner"
+	depends on MEDIA_SUPPORT && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  ITE Tech IT913x silicon tuner driver.
+
+config MEDIA_TUNER_R820T
+	tristate "Rafael Micro R820T silicon tuner"
+	depends on MEDIA_SUPPORT && I2C
+	default m if !MEDIA_SUBDRV_AUTOSELECT
+	help
+	  Rafael Micro R820T silicon tuner driver.
 endmenu

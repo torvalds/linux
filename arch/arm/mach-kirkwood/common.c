@@ -33,7 +33,6 @@
 #include <linux/platform_data/usb-ehci-orion.h>
 #include <plat/common.h>
 #include <plat/time.h>
-#include <plat/addr-map.h>
 #include <linux/platform_data/dma-mv_xor.h>
 #include "common.h"
 
@@ -535,6 +534,9 @@ void __init kirkwood_init_early(void)
 	 * the allocations won't fail.
 	 */
 	init_dma_coherent_pool_size(SZ_1M);
+	mvebu_mbus_init("marvell,kirkwood-mbus",
+			BRIDGE_WINS_BASE, BRIDGE_WINS_SZ,
+			DDR_WINDOW_CPU_BASE, DDR_WINDOW_CPU_SZ);
 }
 
 int kirkwood_tclk;
@@ -650,6 +652,38 @@ char * __init kirkwood_id(void)
 	}
 }
 
+void __init kirkwood_setup_wins(void)
+{
+	/*
+	 * The PCIe windows will no longer be statically allocated
+	 * here once Kirkwood is migrated to the pci-mvebu driver.
+	 */
+	mvebu_mbus_add_window_remap_flags("pcie0.0",
+					  KIRKWOOD_PCIE_IO_PHYS_BASE,
+					  KIRKWOOD_PCIE_IO_SIZE,
+					  KIRKWOOD_PCIE_IO_BUS_BASE,
+					  MVEBU_MBUS_PCI_IO);
+	mvebu_mbus_add_window_remap_flags("pcie0.0",
+					  KIRKWOOD_PCIE_MEM_PHYS_BASE,
+					  KIRKWOOD_PCIE_MEM_SIZE,
+					  MVEBU_MBUS_NO_REMAP,
+					  MVEBU_MBUS_PCI_MEM);
+	mvebu_mbus_add_window_remap_flags("pcie1.0",
+					  KIRKWOOD_PCIE1_IO_PHYS_BASE,
+					  KIRKWOOD_PCIE1_IO_SIZE,
+					  KIRKWOOD_PCIE1_IO_BUS_BASE,
+					  MVEBU_MBUS_PCI_IO);
+	mvebu_mbus_add_window_remap_flags("pcie1.0",
+					  KIRKWOOD_PCIE1_MEM_PHYS_BASE,
+					  KIRKWOOD_PCIE1_MEM_SIZE,
+					  MVEBU_MBUS_NO_REMAP,
+					  MVEBU_MBUS_PCI_MEM);
+	mvebu_mbus_add_window("nand", KIRKWOOD_NAND_MEM_PHYS_BASE,
+			      KIRKWOOD_NAND_MEM_SIZE);
+	mvebu_mbus_add_window("sram", KIRKWOOD_SRAM_PHYS_BASE,
+			      KIRKWOOD_SRAM_SIZE);
+}
+
 void __init kirkwood_l2_init(void)
 {
 #ifdef CONFIG_CACHE_FEROCEON_L2
@@ -675,7 +709,7 @@ void __init kirkwood_init(void)
 	 */
 	writel(readl(CPU_CONFIG) & ~CPU_CONFIG_ERROR_PROP, CPU_CONFIG);
 
-	kirkwood_setup_cpu_mbus();
+	kirkwood_setup_wins();
 
 	kirkwood_l2_init();
 

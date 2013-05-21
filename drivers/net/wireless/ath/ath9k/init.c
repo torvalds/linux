@@ -319,6 +319,10 @@ static void ath9k_reg_notifier(struct wiphy *wiphy,
 		ath9k_ps_wakeup(sc);
 		ath9k_hw_set_txpowerlimit(ah, sc->config.txpowlimit, false);
 		sc->curtxpow = ath9k_hw_regulatory(ah)->power_limit;
+		/* synchronize DFS detector if regulatory domain changed */
+		if (sc->dfs_detector != NULL)
+			sc->dfs_detector->set_dfs_domain(sc->dfs_detector,
+							 request->dfs_region);
 		ath9k_ps_restore(sc);
 	}
 }
@@ -573,7 +577,7 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 	atomic_set(&ah->intr_ref_cnt, -1);
 	sc->sc_ah = ah;
 
-	sc->dfs_detector = dfs_pattern_detector_init(NL80211_DFS_UNSET);
+	sc->dfs_detector = dfs_pattern_detector_init(ah, NL80211_DFS_UNSET);
 
 	if (!pdata) {
 		ah->ah_flags |= AH_USE_EEPROM;
@@ -727,12 +731,28 @@ static const struct ieee80211_iface_limit if_limits[] = {
 				 BIT(NL80211_IFTYPE_P2P_GO) },
 };
 
-static const struct ieee80211_iface_combination if_comb = {
-	.limits = if_limits,
-	.n_limits = ARRAY_SIZE(if_limits),
-	.max_interfaces = 2048,
-	.num_different_channels = 1,
-	.beacon_int_infra_match = true,
+
+static const struct ieee80211_iface_limit if_dfs_limits[] = {
+	{ .max = 1,	.types = BIT(NL80211_IFTYPE_AP) },
+};
+
+static const struct ieee80211_iface_combination if_comb[] = {
+	{
+		.limits = if_limits,
+		.n_limits = ARRAY_SIZE(if_limits),
+		.max_interfaces = 2048,
+		.num_different_channels = 1,
+		.beacon_int_infra_match = true,
+	},
+	{
+		.limits = if_dfs_limits,
+		.n_limits = ARRAY_SIZE(if_dfs_limits),
+		.max_interfaces = 1,
+		.num_different_channels = 1,
+		.beacon_int_infra_match = true,
+		.radar_detect_widths =	BIT(NL80211_CHAN_NO_HT) |
+					BIT(NL80211_CHAN_HT20),
+	}
 };
 
 void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
@@ -746,7 +766,8 @@ void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 		IEEE80211_HW_SUPPORTS_PS |
 		IEEE80211_HW_PS_NULLFUNC_STACK |
 		IEEE80211_HW_SPECTRUM_MGMT |
-		IEEE80211_HW_REPORTS_TX_ACK_STATUS;
+		IEEE80211_HW_REPORTS_TX_ACK_STATUS |
+		IEEE80211_HW_SUPPORTS_RC_TABLE;
 
 	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT)
 		 hw->flags |= IEEE80211_HW_AMPDU_AGGREGATION;
@@ -763,8 +784,8 @@ void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 		BIT(NL80211_IFTYPE_ADHOC) |
 		BIT(NL80211_IFTYPE_MESH_POINT);
 
-	hw->wiphy->iface_combinations = &if_comb;
-	hw->wiphy->n_iface_combinations = 1;
+	hw->wiphy->iface_combinations = if_comb;
+	hw->wiphy->n_iface_combinations = ARRAY_SIZE(if_comb);
 
 	if (AR_SREV_5416(sc->sc_ah))
 		hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;

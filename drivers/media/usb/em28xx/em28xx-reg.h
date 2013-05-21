@@ -48,7 +48,7 @@
 #define EM28XX_CHIPCFG2_TS_PACKETSIZE_752	0x03
 
 
-	/* GPIO/GPO registers */
+/* GPIO/GPO registers */
 #define EM2880_R04_GPO	0x04    /* em2880-em2883 only */
 #define EM28XX_R08_GPIO	0x08	/* em2820 or upper */
 
@@ -120,12 +120,23 @@
 #define EM28XX_R1E_CWIDTH	0x1e
 #define EM28XX_R1F_CHEIGHT	0x1f
 
-#define EM28XX_R20_YGAIN	0x20
-#define EM28XX_R21_YOFFSET	0x21
-#define EM28XX_R22_UVGAIN	0x22
-#define EM28XX_R23_UOFFSET	0x23
-#define EM28XX_R24_VOFFSET	0x24
-#define EM28XX_R25_SHARPNESS	0x25
+#define EM28XX_R20_YGAIN	0x20 /* contrast [0:4]   */
+#define   CONTRAST_DEFAULT	0x10
+
+#define EM28XX_R21_YOFFSET	0x21 /* brightness       */	/* signed */
+#define   BRIGHTNESS_DEFAULT	0x00
+
+#define EM28XX_R22_UVGAIN	0x22 /* saturation [0:4] */
+#define   SATURATION_DEFAULT	0x10
+
+#define EM28XX_R23_UOFFSET	0x23 /* blue balance     */	/* signed */
+#define   BLUE_BALANCE_DEFAULT	0x00
+
+#define EM28XX_R24_VOFFSET	0x24 /* red balance      */	/* signed */
+#define   RED_BALANCE_DEFAULT	0x00
+
+#define EM28XX_R25_SHARPNESS	0x25 /* sharpness [0:4]  */
+#define   SHARPNESS_DEFAULT	0x00
 
 #define EM28XX_R26_COMPR	0x26
 #define EM28XX_R27_OUTFMT	0x27
@@ -152,8 +163,17 @@
 #define EM28XX_R31_HSCALEHIGH	0x31
 #define EM28XX_R32_VSCALELOW	0x32
 #define EM28XX_R33_VSCALEHIGH	0x33
+#define   EM28XX_HVSCALE_MAX	0x3fff /* => 20% */
+
 #define EM28XX_R34_VBI_START_H	0x34
 #define EM28XX_R35_VBI_START_V	0x35
+/*
+ * NOTE: the EM276x (and EM25xx, EM277x/8x ?) (camera bridges) use these
+ * registers for a different unknown purpose.
+ *   => register 0x34 is set to capture width / 16
+ *   => register 0x35 is set to capture height / 16
+ */
+
 #define EM28XX_R36_VBI_WIDTH	0x36
 #define EM28XX_R37_VBI_HEIGHT	0x37
 
@@ -206,6 +226,7 @@ enum em28xx_chip_id {
 	CHIP_ID_EM2860 = 34,
 	CHIP_ID_EM2870 = 35,
 	CHIP_ID_EM2883 = 36,
+	CHIP_ID_EM2765 = 54,
 	CHIP_ID_EM2874 = 65,
 	CHIP_ID_EM2884 = 68,
 	CHIP_ID_EM28174 = 113,

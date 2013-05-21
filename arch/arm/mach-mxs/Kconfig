@@ -1,8 +1,7 @@
-if ARCH_MXS
-
 config SOC_IMX23
 	bool
 	select ARM_AMBA
+	select ARM_CPU_SUSPEND if PM
 	select CPU_ARM926T
 	select HAVE_PWM
 	select PINCTRL_IMX23
@@ -10,19 +9,24 @@ config SOC_IMX23
 config SOC_IMX28
 	bool
 	select ARM_AMBA
+	select ARM_CPU_SUSPEND if PM
 	select CPU_ARM926T
 	select HAVE_CAN_FLEXCAN if CAN
 	select HAVE_PWM
 	select PINCTRL_IMX28
 
-comment "MXS platforms:"
-
-config MACH_MXS_DT
-	bool "Support MXS platforms from device tree"
+config ARCH_MXS
+	bool "Freescale MXS (i.MX23, i.MX28) support"
+	depends on ARCH_MULTI_V5
+	select ARCH_REQUIRE_GPIOLIB
+	select CLKDEV_LOOKUP
+	select CLKSRC_MMIO
+	select CLKSRC_OF
+	select GENERIC_CLOCKEVENTS
+	select HAVE_CLK_PREPARE
+	select PINCTRL
 	select SOC_IMX23
 	select SOC_IMX28
+	select STMP_DEVICE
 	help
-	  Include support for Freescale MXS platforms(i.MX23 and i.MX28)
-	  using the device tree for discovery
-
-endif
+	  Support for Freescale MXS-based family of processors

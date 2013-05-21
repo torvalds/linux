@@ -191,7 +191,7 @@ dp_link_train_cr(struct dp_state *dp)
 static int
 dp_link_train_eq(struct dp_state *dp)
 {
-	bool eq_done, cr_done = true;
+	bool eq_done = false, cr_done = true;
 	int tries = 0, i;
 
 	dp_set_training_pattern(dp, 2);

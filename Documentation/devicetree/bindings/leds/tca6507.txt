@@ -1,4 +1,4 @@
-LEDs conected to tca6507
+LEDs connected to tca6507
 
 Required properties:
 - compatible : should be : "ti,tca6507".

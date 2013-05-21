@@ -145,8 +145,6 @@ smp_boot_one_cpu(int cpuid, struct task_struct idle)
  * specific stuff such as the local timer and the MMU. */
 void __init smp_callin(void)
 {
-	extern void cpu_idle(void);
-
 	int cpu = cpu_now_booting;
 	reg_intr_vect_rw_mask vect_mask = {0};
 
@@ -170,7 +168,7 @@ void __init smp_callin(void)
 	local_irq_enable();
 
 	set_cpu_online(cpu, true);
-	cpu_idle();
+	cpu_startup_entry(CPUHP_ONLINE);
 }
 
 /* Stop execution on this CPU.*/

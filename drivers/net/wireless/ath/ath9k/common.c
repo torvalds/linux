@@ -27,20 +27,6 @@ MODULE_AUTHOR("Atheros Communications");
 MODULE_DESCRIPTION("Shared library for Atheros wireless 802.11n LAN cards.");
 MODULE_LICENSE("Dual BSD/GPL");
 
-int ath9k_cmn_padpos(__le16 frame_control)
-{
-	int padpos = 24;
-	if (ieee80211_has_a4(frame_control)) {
-		padpos += ETH_ALEN;
-	}
-	if (ieee80211_is_data_qos(frame_control)) {
-		padpos += IEEE80211_QOS_CTL_LEN;
-	}
-
-	return padpos;
-}
-EXPORT_SYMBOL(ath9k_cmn_padpos);
-
 int ath9k_cmn_get_hw_crypto_keytype(struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
@@ -133,13 +119,14 @@ EXPORT_SYMBOL(ath9k_cmn_update_ichannel);
 struct ath9k_channel *ath9k_cmn_get_curchannel(struct ieee80211_hw *hw,
 					       struct ath_hw *ah)
 {
-	struct ieee80211_channel *curchan = hw->conf.channel;
+	struct ieee80211_channel *curchan = hw->conf.chandef.chan;
 	struct ath9k_channel *channel;
 	u8 chan_idx;
 
 	chan_idx = curchan->hw_value;
 	channel = &ah->channels[chan_idx];
-	ath9k_cmn_update_ichannel(channel, curchan, hw->conf.channel_type);
+	ath9k_cmn_update_ichannel(channel, curchan,
+				  cfg80211_get_chandef_type(&hw->conf.chandef));
 
 	return channel;
 }

@@ -20,7 +20,7 @@
 #include <sound/soc.h>
 
 #include <mach/dma.h>
-#include <plat/regs-ac97.h>
+#include "regs-ac97.h"
 #include <linux/platform_data/asoc-s3c.h>
 
 #include "dma.h"
@@ -370,6 +370,10 @@ static struct snd_soc_dai_driver s3c_ac97_dai[] = {
 	},
 };
 
+static const struct snd_soc_component_driver s3c_ac97_component = {
+	.name		= "s3c-ac97",
+};
+
 static int s3c_ac97_probe(struct platform_device *pdev)
 {
 	struct resource *mem_res, *dmatx_res, *dmarx_res, *dmamic_res, *irq_res;
@@ -457,8 +461,8 @@ static int s3c_ac97_probe(struct platform_device *pdev)
 		goto err4;
 	}
 
-	ret = snd_soc_register_dais(&pdev->dev, s3c_ac97_dai,
-			ARRAY_SIZE(s3c_ac97_dai));
+	ret = snd_soc_register_component(&pdev->dev, &s3c_ac97_component,
+					 s3c_ac97_dai, ARRAY_SIZE(s3c_ac97_dai));
 	if (ret)
 		goto err5;
 
@@ -470,7 +474,7 @@ static int s3c_ac97_probe(struct platform_device *pdev)
 
 	return 0;
 err6:
-	snd_soc_unregister_dais(&pdev->dev, ARRAY_SIZE(s3c_ac97_dai));
+	snd_soc_unregister_component(&pdev->dev);
 err5:
 	free_irq(irq_res->start, NULL);
 err4:
@@ -490,7 +494,7 @@ static int s3c_ac97_remove(struct platform_device *pdev)
 	struct resource *mem_res, *irq_res;
 
 	asoc_dma_platform_unregister(&pdev->dev);
-	snd_soc_unregister_dais(&pdev->dev, ARRAY_SIZE(s3c_ac97_dai));
+	snd_soc_unregister_component(&pdev->dev);
 
 	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (irq_res)

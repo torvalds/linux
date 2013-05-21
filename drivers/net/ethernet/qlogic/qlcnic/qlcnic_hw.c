@@ -423,7 +423,7 @@ qlcnic_send_cmd_descs(struct qlcnic_adapter *adapter,
 }
 
 int qlcnic_82xx_sre_macaddr_change(struct qlcnic_adapter *adapter, u8 *addr,
-				   __le16 vlan_id, u8 op)
+				   u16 vlan_id, u8 op)
 {
 	struct qlcnic_nic_req req;
 	struct qlcnic_mac_req *mac_req;
@@ -441,7 +441,7 @@ int qlcnic_82xx_sre_macaddr_change(struct qlcnic_adapter *adapter, u8 *addr,
 	memcpy(mac_req->mac_addr, addr, 6);
 
 	vlan_req = (struct qlcnic_vlan_req *)&req.words[1];
-	vlan_req->vlan_id = vlan_id;
+	vlan_req->vlan_id = cpu_to_le16(vlan_id);
 
 	return qlcnic_send_cmd_descs(adapter, (struct cmd_desc_type0 *)&req, 1);
 }
@@ -468,7 +468,7 @@ int qlcnic_nic_del_mac(struct qlcnic_adapter *adapter, const u8 *addr)
 	return err;
 }
 
-int qlcnic_nic_add_mac(struct qlcnic_adapter *adapter, const u8 *addr)
+int qlcnic_nic_add_mac(struct qlcnic_adapter *adapter, const u8 *addr, u16 vlan)
 {
 	struct list_head *head;
 	struct qlcnic_mac_list_s *cur;
@@ -487,7 +487,7 @@ int qlcnic_nic_add_mac(struct qlcnic_adapter *adapter, const u8 *addr)
 	memcpy(cur->mac_addr, addr, ETH_ALEN);
 
 	if (qlcnic_sre_macaddr_change(adapter,
-				cur->mac_addr, 0, QLCNIC_MAC_ADD)) {
+				cur->mac_addr, vlan, QLCNIC_MAC_ADD)) {
 		kfree(cur);
 		return -EIO;
 	}
@@ -496,7 +496,7 @@ int qlcnic_nic_add_mac(struct qlcnic_adapter *adapter, const u8 *addr)
 	return 0;
 }
 
-void qlcnic_set_multi(struct net_device *netdev)
+void __qlcnic_set_multi(struct net_device *netdev, u16 vlan)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
 	struct netdev_hw_addr *ha;
@@ -508,8 +508,9 @@ void qlcnic_set_multi(struct net_device *netdev)
 	if (!test_bit(__QLCNIC_FW_ATTACHED, &adapter->state))
 		return;
 
-	qlcnic_nic_add_mac(adapter, adapter->mac_addr);
-	qlcnic_nic_add_mac(adapter, bcast_addr);
+	if (!qlcnic_sriov_vf_check(adapter))
+		qlcnic_nic_add_mac(adapter, adapter->mac_addr, vlan);
+	qlcnic_nic_add_mac(adapter, bcast_addr, vlan);
 
 	if (netdev->flags & IFF_PROMISC) {
 		if (!(adapter->flags & QLCNIC_PROMISC_DISABLED))
@@ -523,21 +524,53 @@ void qlcnic_set_multi(struct net_device *netdev)
 		goto send_fw_cmd;
 	}
 
-	if (!netdev_mc_empty(netdev)) {
+	if (!netdev_mc_empty(netdev) && !qlcnic_sriov_vf_check(adapter)) {
 		netdev_for_each_mc_addr(ha, netdev) {
-			qlcnic_nic_add_mac(adapter, ha->addr);
+			qlcnic_nic_add_mac(adapter, ha->addr, vlan);
 		}
 	}
 
+	if (qlcnic_sriov_vf_check(adapter))
+		qlcnic_vf_add_mc_list(netdev, vlan);
+
 send_fw_cmd:
-	if (mode == VPORT_MISS_MODE_ACCEPT_ALL && !adapter->fdb_mac_learn) {
-		qlcnic_alloc_lb_filters_mem(adapter);
-		adapter->drv_mac_learn = true;
-	} else {
-		adapter->drv_mac_learn = false;
+	if (!qlcnic_sriov_vf_check(adapter)) {
+		if (mode == VPORT_MISS_MODE_ACCEPT_ALL &&
+		    !adapter->fdb_mac_learn) {
+			qlcnic_alloc_lb_filters_mem(adapter);
+			adapter->drv_mac_learn = true;
+		} else {
+			adapter->drv_mac_learn = false;
+		}
 	}
 
 	qlcnic_nic_set_promisc(adapter, mode);
+}
+
+void qlcnic_set_multi(struct net_device *netdev)
+{
+	struct qlcnic_adapter *adapter = netdev_priv(netdev);
+	struct netdev_hw_addr *ha;
+	struct qlcnic_mac_list_s *cur;
+
+	if (!test_bit(__QLCNIC_FW_ATTACHED, &adapter->state))
+		return;
+	if (qlcnic_sriov_vf_check(adapter)) {
+		if (!netdev_mc_empty(netdev)) {
+			netdev_for_each_mc_addr(ha, netdev) {
+				cur = kzalloc(sizeof(struct qlcnic_mac_list_s),
+					      GFP_ATOMIC);
+				if (cur == NULL)
+					break;
+				memcpy(cur->mac_addr,
+				       ha->addr, ETH_ALEN);
+				list_add_tail(&cur->list, &adapter->vf_mc_list);
+			}
+		}
+		qlcnic_sriov_vf_schedule_multi(adapter->netdev);
+		return;
+	}
+	__qlcnic_set_multi(netdev, 0);
 }
 
 int qlcnic_82xx_nic_set_promisc(struct qlcnic_adapter *adapter, u32 mode)
@@ -559,7 +592,7 @@ int qlcnic_82xx_nic_set_promisc(struct qlcnic_adapter *adapter, u32 mode)
 				(struct cmd_desc_type0 *)&req, 1);
 }
 
-void qlcnic_free_mac_list(struct qlcnic_adapter *adapter)
+void qlcnic_82xx_free_mac_list(struct qlcnic_adapter *adapter)
 {
 	struct qlcnic_mac_list_s *cur;
 	struct list_head *head = &adapter->mac_list;

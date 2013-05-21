@@ -92,7 +92,6 @@ static void r1bio_pool_free(void *r1_bio, void *data)
 static void * r1buf_pool_alloc(gfp_t gfp_flags, void *data)
 {
 	struct pool_info *pi = data;
-	struct page *page;
 	struct r1bio *r1_bio;
 	struct bio *bio;
 	int i, j;
@@ -122,14 +121,10 @@ static void * r1buf_pool_alloc(gfp_t gfp_flags, void *data)
 		j = 1;
 	while(j--) {
 		bio = r1_bio->bios[j];
-		for (i = 0; i < RESYNC_PAGES; i++) {
-			page = alloc_page(gfp_flags);
-			if (unlikely(!page))
-				goto out_free_pages;
+		bio->bi_vcnt = RESYNC_PAGES;
 
-			bio->bi_io_vec[i].bv_page = page;
-			bio->bi_vcnt = i+1;
-		}
+		if (bio_alloc_pages(bio, gfp_flags))
+			goto out_free_bio;
 	}
 	/* If not user-requests, copy the page pointers to all bios */
 	if (!test_bit(MD_RECOVERY_REQUESTED, &pi->mddev->recovery)) {
@@ -143,11 +138,6 @@ static void * r1buf_pool_alloc(gfp_t gfp_flags, void *data)
 
 	return r1_bio;
 
-out_free_pages:
-	for (j=0 ; j < pi->raid_disks; j++)
-		for (i=0; i < r1_bio->bios[j]->bi_vcnt ; i++)
-			put_page(r1_bio->bios[j]->bi_io_vec[i].bv_page);
-	j = -1;
 out_free_bio:
 	while (++j < pi->raid_disks)
 		bio_put(r1_bio->bios[j]);
@@ -267,7 +257,7 @@ static void raid_end_bio_io(struct r1bio *r1_bio)
 			 (bio_data_dir(bio) == WRITE) ? "write" : "read",
 			 (unsigned long long) bio->bi_sector,
 			 (unsigned long long) bio->bi_sector +
-			 (bio->bi_size >> 9) - 1);
+			 bio_sectors(bio) - 1);
 
 		call_bio_endio(r1_bio);
 	}
@@ -458,7 +448,7 @@ static void raid1_end_write_request(struct bio *bio, int error)
 					 " %llu-%llu\n",
 					 (unsigned long long) mbio->bi_sector,
 					 (unsigned long long) mbio->bi_sector +
-					 (mbio->bi_size >> 9) - 1);
+					 bio_sectors(mbio) - 1);
 				call_bio_endio(r1_bio);
 			}
 		}
@@ -925,7 +915,7 @@ static void alloc_behind_pages(struct bio *bio, struct r1bio *r1_bio)
 	if (unlikely(!bvecs))
 		return;
 
-	bio_for_each_segment(bvec, bio, i) {
+	bio_for_each_segment_all(bvec, bio, i) {
 		bvecs[i] = *bvec;
 		bvecs[i].bv_page = alloc_page(GFP_NOIO);
 		if (unlikely(!bvecs[i].bv_page))
@@ -981,7 +971,12 @@ static void raid1_unplug(struct blk_plug_cb *cb, bool from_schedule)
 	while (bio) { /* submit pending writes */
 		struct bio *next = bio->bi_next;
 		bio->bi_next = NULL;
-		generic_make_request(bio);
+		if (unlikely((bio->bi_rw & REQ_DISCARD) &&
+		    !blk_queue_discard(bdev_get_queue(bio->bi_bdev))))
+			/* Just ignore it */
+			bio_endio(bio, 0);
+		else
+			generic_make_request(bio);
 		bio = next;
 	}
 	kfree(plug);
@@ -1018,7 +1013,7 @@ static void make_request(struct mddev *mddev, struct bio * bio)
 	md_write_start(mddev, bio); /* wait on superblock update early */
 
 	if (bio_data_dir(bio) == WRITE &&
-	    bio->bi_sector + bio->bi_size/512 > mddev->suspend_lo &&
+	    bio_end_sector(bio) > mddev->suspend_lo &&
 	    bio->bi_sector < mddev->suspend_hi) {
 		/* As the suspend_* range is controlled by
 		 * userspace, we want an interruptible
@@ -1029,7 +1024,7 @@ static void make_request(struct mddev *mddev, struct bio * bio)
 			flush_signals(current);
 			prepare_to_wait(&conf->wait_barrier,
 					&w, TASK_INTERRUPTIBLE);
-			if (bio->bi_sector + bio->bi_size/512 <= mddev->suspend_lo ||
+			if (bio_end_sector(bio) <= mddev->suspend_lo ||
 			    bio->bi_sector >= mddev->suspend_hi)
 				break;
 			schedule();
@@ -1049,7 +1044,7 @@ static void make_request(struct mddev *mddev, struct bio * bio)
 	r1_bio = mempool_alloc(conf->r1bio_pool, GFP_NOIO);
 
 	r1_bio->master_bio = bio;
-	r1_bio->sectors = bio->bi_size >> 9;
+	r1_bio->sectors = bio_sectors(bio);
 	r1_bio->state = 0;
 	r1_bio->mddev = mddev;
 	r1_bio->sector = bio->bi_sector;
@@ -1127,7 +1122,7 @@ read_again:
 			r1_bio = mempool_alloc(conf->r1bio_pool, GFP_NOIO);
 
 			r1_bio->master_bio = bio;
-			r1_bio->sectors = (bio->bi_size >> 9) - sectors_handled;
+			r1_bio->sectors = bio_sectors(bio) - sectors_handled;
 			r1_bio->state = 0;
 			r1_bio->mddev = mddev;
 			r1_bio->sector = bio->bi_sector + sectors_handled;
@@ -1284,14 +1279,10 @@ read_again:
 			struct bio_vec *bvec;
 			int j;
 
-			/* Yes, I really want the '__' version so that
-			 * we clear any unused pointer in the io_vec, rather
-			 * than leave them unchanged.  This is important
-			 * because when we come to free the pages, we won't
-			 * know the original bi_idx, so we just free
-			 * them all
+			/*
+			 * We trimmed the bio, so _all is legit
 			 */
-			__bio_for_each_segment(bvec, mbio, j, 0)
+			bio_for_each_segment_all(bvec, mbio, j)
 				bvec->bv_page = r1_bio->behind_bvecs[j].bv_page;
 			if (test_bit(WriteMostly, &conf->mirrors[i].rdev->flags))
 				atomic_inc(&r1_bio->behind_remaining);
@@ -1329,14 +1320,14 @@ read_again:
 	/* Mustn't call r1_bio_write_done before this next test,
 	 * as it could result in the bio being freed.
 	 */
-	if (sectors_handled < (bio->bi_size >> 9)) {
+	if (sectors_handled < bio_sectors(bio)) {
 		r1_bio_write_done(r1_bio);
 		/* We need another r1_bio.  It has already been counted
 		 * in bio->bi_phys_segments
 		 */
 		r1_bio = mempool_alloc(conf->r1bio_pool, GFP_NOIO);
 		r1_bio->master_bio = bio;
-		r1_bio->sectors = (bio->bi_size >> 9) - sectors_handled;
+		r1_bio->sectors = bio_sectors(bio) - sectors_handled;
 		r1_bio->state = 0;
 		r1_bio->mddev = mddev;
 		r1_bio->sector = bio->bi_sector + sectors_handled;
@@ -1862,7 +1853,7 @@ static int process_checks(struct r1bio *r1_bio)
 		struct bio *sbio = r1_bio->bios[i];
 		int size;
 
-		if (r1_bio->bios[i]->bi_end_io != end_sync_read)
+		if (sbio->bi_end_io != end_sync_read)
 			continue;
 
 		if (test_bit(BIO_UPTODATE, &sbio->bi_flags)) {
@@ -1887,16 +1878,15 @@ static int process_checks(struct r1bio *r1_bio)
 			continue;
 		}
 		/* fixup the bio for reuse */
+		bio_reset(sbio);
 		sbio->bi_vcnt = vcnt;
 		sbio->bi_size = r1_bio->sectors << 9;
-		sbio->bi_idx = 0;
-		sbio->bi_phys_segments = 0;
-		sbio->bi_flags &= ~(BIO_POOL_MASK - 1);
-		sbio->bi_flags |= 1 << BIO_UPTODATE;
-		sbio->bi_next = NULL;
 		sbio->bi_sector = r1_bio->sector +
 			conf->mirrors[i].rdev->data_offset;
 		sbio->bi_bdev = conf->mirrors[i].rdev->bdev;
+		sbio->bi_end_io = end_sync_read;
+		sbio->bi_private = r1_bio;
+
 		size = sbio->bi_size;
 		for (j = 0; j < vcnt ; j++) {
 			struct bio_vec *bi;
@@ -1907,10 +1897,9 @@ static int process_checks(struct r1bio *r1_bio)
 			else
 				bi->bv_len = size;
 			size -= PAGE_SIZE;
-			memcpy(page_address(bi->bv_page),
-			       page_address(pbio->bi_io_vec[j].bv_page),
-			       PAGE_SIZE);
 		}
+
+		bio_copy_data(sbio, pbio);
 	}
 	return 0;
 }
@@ -1947,7 +1936,7 @@ static void sync_request_write(struct mddev *mddev, struct r1bio *r1_bio)
 		wbio->bi_rw = WRITE;
 		wbio->bi_end_io = end_sync_write;
 		atomic_inc(&r1_bio->remaining);
-		md_sync_acct(conf->mirrors[i].rdev->bdev, wbio->bi_size >> 9);
+		md_sync_acct(conf->mirrors[i].rdev->bdev, bio_sectors(wbio));
 
 		generic_make_request(wbio);
 	}
@@ -2059,32 +2048,11 @@ static void fix_read_error(struct r1conf *conf, int read_disk,
 	}
 }
 
-static void bi_complete(struct bio *bio, int error)
-{
-	complete((struct completion *)bio->bi_private);
-}
-
-static int submit_bio_wait(int rw, struct bio *bio)
-{
-	struct completion event;
-	rw |= REQ_SYNC;
-
-	init_completion(&event);
-	bio->bi_private = &event;
-	bio->bi_end_io = bi_complete;
-	submit_bio(rw, bio);
-	wait_for_completion(&event);
-
-	return test_bit(BIO_UPTODATE, &bio->bi_flags);
-}
-
 static int narrow_write_error(struct r1bio *r1_bio, int i)
 {
 	struct mddev *mddev = r1_bio->mddev;
 	struct r1conf *conf = mddev->private;
 	struct md_rdev *rdev = conf->mirrors[i].rdev;
-	int vcnt, idx;
-	struct bio_vec *vec;
 
 	/* bio has the data to be written to device 'i' where
 	 * we just recently had a write error.
@@ -2112,30 +2080,32 @@ static int narrow_write_error(struct r1bio *r1_bio, int i)
 		   & ~(sector_t)(block_sectors - 1))
 		- sector;
 
-	if (test_bit(R1BIO_BehindIO, &r1_bio->state)) {
-		vcnt = r1_bio->behind_page_count;
-		vec = r1_bio->behind_bvecs;
-		idx = 0;
-		while (vec[idx].bv_page == NULL)
-			idx++;
-	} else {
-		vcnt = r1_bio->master_bio->bi_vcnt;
-		vec = r1_bio->master_bio->bi_io_vec;
-		idx = r1_bio->master_bio->bi_idx;
-	}
 	while (sect_to_write) {
 		struct bio *wbio;
 		if (sectors > sect_to_write)
 			sectors = sect_to_write;
 		/* Write at 'sector' for 'sectors'*/
 
-		wbio = bio_alloc_mddev(GFP_NOIO, vcnt, mddev);
-		memcpy(wbio->bi_io_vec, vec, vcnt * sizeof(struct bio_vec));
-		wbio->bi_sector = r1_bio->sector;
+		if (test_bit(R1BIO_BehindIO, &r1_bio->state)) {
+			unsigned vcnt = r1_bio->behind_page_count;
+			struct bio_vec *vec = r1_bio->behind_bvecs;
+
+			while (!vec->bv_page) {
+				vec++;
+				vcnt--;
+			}
+
+			wbio = bio_alloc_mddev(GFP_NOIO, vcnt, mddev);
+			memcpy(wbio->bi_io_vec, vec, vcnt * sizeof(struct bio_vec));
+
+			wbio->bi_vcnt = vcnt;
+		} else {
+			wbio = bio_clone_mddev(r1_bio->master_bio, GFP_NOIO, mddev);
+		}
+
 		wbio->bi_rw = WRITE;
-		wbio->bi_vcnt = vcnt;
+		wbio->bi_sector = r1_bio->sector;
 		wbio->bi_size = r1_bio->sectors << 9;
-		wbio->bi_idx = idx;
 
 		md_trim_bio(wbio, sector - r1_bio->sector, sectors);
 		wbio->bi_sector += rdev->data_offset;
@@ -2284,8 +2254,7 @@ read_more:
 			r1_bio = mempool_alloc(conf->r1bio_pool, GFP_NOIO);
 
 			r1_bio->master_bio = mbio;
-			r1_bio->sectors = (mbio->bi_size >> 9)
-					  - sectors_handled;
+			r1_bio->sectors = bio_sectors(mbio) - sectors_handled;
 			r1_bio->state = 0;
 			set_bit(R1BIO_ReadError, &r1_bio->state);
 			r1_bio->mddev = mddev;
@@ -2459,18 +2428,7 @@ static sector_t sync_request(struct mddev *mddev, sector_t sector_nr, int *skipp
 	for (i = 0; i < conf->raid_disks * 2; i++) {
 		struct md_rdev *rdev;
 		bio = r1_bio->bios[i];
-
-		/* take from bio_init */
-		bio->bi_next = NULL;
-		bio->bi_flags &= ~(BIO_POOL_MASK-1);
-		bio->bi_flags |= 1 << BIO_UPTODATE;
-		bio->bi_rw = READ;
-		bio->bi_vcnt = 0;
-		bio->bi_idx = 0;
-		bio->bi_phys_segments = 0;
-		bio->bi_size = 0;
-		bio->bi_end_io = NULL;
-		bio->bi_private = NULL;
+		bio_reset(bio);
 
 		rdev = rcu_dereference(conf->mirrors[i].rdev);
 		if (rdev == NULL ||
@@ -2901,6 +2859,7 @@ static int stop(struct mddev *mddev)
 	if (conf->r1bio_pool)
 		mempool_destroy(conf->r1bio_pool);
 	kfree(conf->mirrors);
+	safe_put_page(conf->tmppage);
 	kfree(conf->poolinfo);
 	kfree(conf);
 	mddev->private = NULL;

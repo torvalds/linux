@@ -1,5 +1,3 @@
-#define _FILE_OFFSET_BITS 64
-
 #include <linux/kernel.h>
 
 #include <byteswap.h>
@@ -800,6 +798,12 @@ static void dump_sample(struct perf_evsel *evsel, union perf_event *event,
 
 	if (sample_type & PERF_SAMPLE_STACK_USER)
 		stack_user__printf(&sample->user_stack);
+
+	if (sample_type & PERF_SAMPLE_WEIGHT)
+		printf("... weight: %" PRIu64 "\n", sample->weight);
+
+	if (sample_type & PERF_SAMPLE_DATA_SRC)
+		printf(" . data_src: 0x%"PRIx64"\n", sample->data_src);
 }
 
 static struct machine *
@@ -1363,18 +1367,6 @@ size_t perf_session__fprintf(struct perf_session *session, FILE *fp)
 	 * session, not just the host...
 	 */
 	return machine__fprintf(&session->machines.host, fp);
-}
-
-void perf_session__remove_thread(struct perf_session *session,
-				 struct thread *th)
-{
-	/*
-	 * FIXME: This one makes no sense, we need to remove the thread from
-	 * the machine it belongs to, perf_session can have many machines, so
-	 * doing it always on ->machines.host is wrong.  Fix when auditing all
-	 * the 'perf kvm' code.
-	 */
-	machine__remove_thread(&session->machines.host, th);
 }
 
 struct perf_evsel *perf_session__find_first_evtype(struct perf_session *session,

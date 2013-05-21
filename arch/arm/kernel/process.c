@@ -57,38 +57,6 @@ static const char *isa_modes[] = {
   "ARM" , "Thumb" , "Jazelle", "ThumbEE"
 };
 
-static volatile int hlt_counter;
-
-void disable_hlt(void)
-{
-	hlt_counter++;
-}
-
-EXPORT_SYMBOL(disable_hlt);
-
-void enable_hlt(void)
-{
-	hlt_counter--;
-	BUG_ON(hlt_counter < 0);
-}
-
-EXPORT_SYMBOL(enable_hlt);
-
-static int __init nohlt_setup(char *__unused)
-{
-	hlt_counter = 1;
-	return 1;
-}
-
-static int __init hlt_setup(char *__unused)
-{
-	hlt_counter = 0;
-	return 1;
-}
-
-__setup("nohlt", nohlt_setup);
-__setup("hlt", hlt_setup);
-
 extern void call_with_stack(void (*fn)(void *), void *arg, void *sp);
 typedef void (*phys_reset_t)(unsigned long);
 
@@ -172,54 +140,38 @@ static void default_idle(void)
 	local_irq_enable();
 }
 
-/*
- * The idle thread.
- * We always respect 'hlt_counter' to prevent low power idle.
- */
-void cpu_idle(void)
+void arch_cpu_idle_prepare(void)
 {
 	local_fiq_enable();
+}
 
-	/* endless idle loop with no priority at all */
-	while (1) {
-		tick_nohz_idle_enter();
-		rcu_idle_enter();
-		ledtrig_cpu(CPU_LED_IDLE_START);
-		while (!need_resched()) {
-#ifdef CONFIG_HOTPLUG_CPU
-			if (cpu_is_offline(smp_processor_id()))
-				cpu_die();
-#endif
-
-			/*
-			 * We need to disable interrupts here
-			 * to ensure we don't miss a wakeup call.
-			 */
-			local_irq_disable();
+void arch_cpu_idle_enter(void)
+{
+	ledtrig_cpu(CPU_LED_IDLE_START);
 #ifdef CONFIG_PL310_ERRATA_769419
-			wmb();
+	wmb();
 #endif
-			if (hlt_counter) {
-				local_irq_enable();
-				cpu_relax();
-			} else if (!need_resched()) {
-				stop_critical_timings();
-				if (cpuidle_idle_call())
-					default_idle();
-				start_critical_timings();
-				/*
-				 * default_idle functions must always
-				 * return with IRQs enabled.
-				 */
-				WARN_ON(irqs_disabled());
-			} else
-				local_irq_enable();
-		}
-		ledtrig_cpu(CPU_LED_IDLE_END);
-		rcu_idle_exit();
-		tick_nohz_idle_exit();
-		schedule_preempt_disabled();
-	}
+}
+
+void arch_cpu_idle_exit(void)
+{
+	ledtrig_cpu(CPU_LED_IDLE_END);
+}
+
+#ifdef CONFIG_HOTPLUG_CPU
+void arch_cpu_idle_dead(void)
+{
+	cpu_die();
+}
+#endif
+
+/*
+ * Called from the core idle loop.
+ */
+void arch_cpu_idle(void)
+{
+	if (cpuidle_idle_call())
+		default_idle();
 }
 
 static char reboot_mode = 'h';
@@ -273,11 +225,8 @@ void __show_regs(struct pt_regs *regs)
 	unsigned long flags;
 	char buf[64];
 
-	printk("CPU: %d    %s  (%s %.*s)\n",
-		raw_smp_processor_id(), print_tainted(),
-		init_utsname()->release,
-		(int)strcspn(init_utsname()->version, " "),
-		init_utsname()->version);
+	show_regs_print_info(KERN_DEFAULT);
+
 	print_symbol("PC is at %s\n", instruction_pointer(regs));
 	print_symbol("LR is at %s\n", regs->ARM_lr);
 	printk("pc : [<%08lx>]    lr : [<%08lx>]    psr: %08lx\n"
@@ -332,7 +281,6 @@ void __show_regs(struct pt_regs *regs)
 void show_regs(struct pt_regs * regs)
 {
 	printk("\n");
-	printk("Pid: %d, comm: %20s\n", task_pid_nr(current), current->comm);
 	__show_regs(regs);
 	dump_stack();
 }
@@ -459,15 +407,16 @@ unsigned long arch_randomize_brk(struct mm_struct *mm)
  * atomic helpers and the signal restart code. Insert it into the
  * gate_vma so that it is visible through ptrace and /proc/<pid>/mem.
  */
-static struct vm_area_struct gate_vma;
+static struct vm_area_struct gate_vma = {
+	.vm_start	= 0xffff0000,
+	.vm_end		= 0xffff0000 + PAGE_SIZE,
+	.vm_flags	= VM_READ | VM_EXEC | VM_MAYREAD | VM_MAYEXEC,
+	.vm_mm		= &init_mm,
+};
 
 static int __init gate_vma_init(void)
 {
-	gate_vma.vm_start	= 0xffff0000;
-	gate_vma.vm_end		= 0xffff0000 + PAGE_SIZE;
-	gate_vma.vm_page_prot	= PAGE_READONLY_EXEC;
-	gate_vma.vm_flags	= VM_READ | VM_EXEC |
-				  VM_MAYREAD | VM_MAYEXEC;
+	gate_vma.vm_page_prot = PAGE_READONLY_EXEC;
 	return 0;
 }
 arch_initcall(gate_vma_init);

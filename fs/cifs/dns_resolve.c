@@ -55,7 +55,7 @@ dns_resolve_server_name_to_ip(const char *unc, char **ip_addr)
 
 	len = strlen(unc);
 	if (len < 3) {
-		cFYI(1, "%s: unc is too short: %s", __func__, unc);
+		cifs_dbg(FYI, "%s: unc is too short: %s\n", __func__, unc);
 		return -EINVAL;
 	}
 
@@ -68,8 +68,8 @@ dns_resolve_server_name_to_ip(const char *unc, char **ip_addr)
 	if (sep)
 		len = sep - hostname;
 	else
-		cFYI(1, "%s: probably server name is whole unc: %s",
-		     __func__, unc);
+		cifs_dbg(FYI, "%s: probably server name is whole unc: %s\n",
+			 __func__, unc);
 
 	/* Try to interpret hostname as an IPv4 or IPv6 address */
 	rc = cifs_convert_address((struct sockaddr *)&ss, hostname, len);
@@ -79,11 +79,11 @@ dns_resolve_server_name_to_ip(const char *unc, char **ip_addr)
 	/* Perform the upcall */
 	rc = dns_query(NULL, hostname, len, NULL, ip_addr, NULL);
 	if (rc < 0)
-		cFYI(1, "%s: unable to resolve: %*.*s",
-			__func__, len, len, hostname);
+		cifs_dbg(FYI, "%s: unable to resolve: %*.*s\n",
+			 __func__, len, len, hostname);
 	else
-		cFYI(1, "%s: resolved: %*.*s to %s",
-		     __func__, len, len, hostname, *ip_addr);
+		cifs_dbg(FYI, "%s: resolved: %*.*s to %s\n",
+			 __func__, len, len, hostname, *ip_addr);
 	return rc;
 
 name_is_IP_address:
@@ -92,7 +92,8 @@ name_is_IP_address:
 		return -ENOMEM;
 	memcpy(name, hostname, len);
 	name[len] = 0;
-	cFYI(1, "%s: unc is IP, skipping dns upcall: %s", __func__, name);
+	cifs_dbg(FYI, "%s: unc is IP, skipping dns upcall: %s\n",
+		 __func__, name);
 	*ip_addr = name;
 	return 0;
 }

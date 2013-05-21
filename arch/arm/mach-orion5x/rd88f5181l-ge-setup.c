@@ -130,8 +130,8 @@ static void __init rd88f5181l_ge_init(void)
 	orion5x_i2c_init();
 	orion5x_uart0_init();
 
-	orion5x_setup_dev_boot_win(RD88F5181L_GE_NOR_BOOT_BASE,
-				   RD88F5181L_GE_NOR_BOOT_SIZE);
+	mvebu_mbus_add_window("devbus-boot", RD88F5181L_GE_NOR_BOOT_BASE,
+			      RD88F5181L_GE_NOR_BOOT_SIZE);
 	platform_device_register(&rd88f5181l_ge_nor_boot_flash);
 
 	i2c_register_board_info(0, &rd88f5181l_ge_i2c_rtc, 1);

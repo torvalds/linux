@@ -164,7 +164,7 @@ struct resource mmp2_resource_gpio[] = {
 };
 
 struct platform_device mmp2_device_gpio = {
-	.name		= "pxa-gpio",
+	.name		= "mmp2-gpio",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(mmp2_resource_gpio),
 	.resource	= mmp2_resource_gpio,

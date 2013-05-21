@@ -255,8 +255,9 @@ static int hid_time_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	time_state->rtc = rtc_device_register("hid-sensor-time",
-				&pdev->dev, &hid_time_rtc_ops, THIS_MODULE);
+	time_state->rtc = devm_rtc_device_register(&pdev->dev,
+					"hid-sensor-time", &hid_time_rtc_ops,
+					THIS_MODULE);
 
 	if (IS_ERR(time_state->rtc)) {
 		dev_err(&pdev->dev, "rtc device register failed!\n");
@@ -269,9 +270,7 @@ static int hid_time_probe(struct platform_device *pdev)
 static int hid_time_remove(struct platform_device *pdev)
 {
 	struct hid_sensor_hub_device *hsdev = pdev->dev.platform_data;
-	struct hid_time_state *time_state = platform_get_drvdata(pdev);
 
-	rtc_device_unregister(time_state->rtc);
 	sensor_hub_remove_callback(hsdev, HID_USAGE_SENSOR_TIME);
 
 	return 0;

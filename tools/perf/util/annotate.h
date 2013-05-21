@@ -50,6 +50,8 @@ bool ins__is_jump(const struct ins *ins);
 bool ins__is_call(const struct ins *ins);
 int ins__scnprintf(struct ins *ins, char *bf, size_t size, struct ins_operands *ops);
 
+struct annotation;
+
 struct disasm_line {
 	struct list_head    node;
 	s64		    offset;
@@ -68,17 +70,24 @@ void disasm_line__free(struct disasm_line *dl);
 struct disasm_line *disasm__get_next_ip_line(struct list_head *head, struct disasm_line *pos);
 int disasm_line__scnprintf(struct disasm_line *dl, char *bf, size_t size, bool raw);
 size_t disasm__fprintf(struct list_head *head, FILE *fp);
+double disasm__calc_percent(struct annotation *notes, int evidx, s64 offset,
+			    s64 end, const char **path);
 
 struct sym_hist {
 	u64		sum;
 	u64		addr[0];
 };
 
-struct source_line {
-	struct rb_node	node;
+struct source_line_percent {
 	double		percent;
 	double		percent_sum;
+};
+
+struct source_line {
+	struct rb_node	node;
 	char		*path;
+	int		nr_pcnt;
+	struct source_line_percent p[1];
 };
 
 /** struct annotated_source - symbols with hits have this attached as in sannotation
@@ -130,47 +139,49 @@ void symbol__annotate_zero_histograms(struct symbol *sym);
 
 int symbol__annotate(struct symbol *sym, struct map *map, size_t privsize);
 int symbol__annotate_init(struct map *map __maybe_unused, struct symbol *sym);
-int symbol__annotate_printf(struct symbol *sym, struct map *map, int evidx,
-			    bool full_paths, int min_pcnt, int max_lines,
-			    int context);
+int symbol__annotate_printf(struct symbol *sym, struct map *map,
+			    struct perf_evsel *evsel, bool full_paths,
+			    int min_pcnt, int max_lines, int context);
 void symbol__annotate_zero_histogram(struct symbol *sym, int evidx);
 void symbol__annotate_decay_histogram(struct symbol *sym, int evidx);
 void disasm__purge(struct list_head *head);
 
-int symbol__tty_annotate(struct symbol *sym, struct map *map, int evidx,
-			 bool print_lines, bool full_paths, int min_pcnt,
-			 int max_lines);
+int symbol__tty_annotate(struct symbol *sym, struct map *map,
+			 struct perf_evsel *evsel, bool print_lines,
+			 bool full_paths, int min_pcnt, int max_lines);
 
-#ifdef NEWT_SUPPORT
-int symbol__tui_annotate(struct symbol *sym, struct map *map, int evidx,
+#ifdef SLANG_SUPPORT
+int symbol__tui_annotate(struct symbol *sym, struct map *map,
+			 struct perf_evsel *evsel,
 			 struct hist_browser_timer *hbt);
 #else
 static inline int symbol__tui_annotate(struct symbol *sym __maybe_unused,
-				       struct map *map __maybe_unused,
-				       int evidx __maybe_unused,
-				       struct hist_browser_timer *hbt
-				       __maybe_unused)
+				struct map *map __maybe_unused,
+				struct perf_evsel *evsel  __maybe_unused,
+				struct hist_browser_timer *hbt
+				__maybe_unused)
 {
 	return 0;
 }
 #endif
 
 #ifdef GTK2_SUPPORT
-int symbol__gtk_annotate(struct symbol *sym, struct map *map, int evidx,
+int symbol__gtk_annotate(struct symbol *sym, struct map *map,
+			 struct perf_evsel *evsel,
 			 struct hist_browser_timer *hbt);
 
-static inline int hist_entry__gtk_annotate(struct hist_entry *he, int evidx,
+static inline int hist_entry__gtk_annotate(struct hist_entry *he,
+					   struct perf_evsel *evsel,
 					   struct hist_browser_timer *hbt)
 {
-	return symbol__gtk_annotate(he->ms.sym, he->ms.map, evidx, hbt);
+	return symbol__gtk_annotate(he->ms.sym, he->ms.map, evsel, hbt);
 }
 
 void perf_gtk__show_annotations(void);
 #else
 static inline int hist_entry__gtk_annotate(struct hist_entry *he __maybe_unused,
-					   int evidx __maybe_unused,
-					   struct hist_browser_timer *hbt
-					   __maybe_unused)
+				struct perf_evsel *evsel __maybe_unused,
+				struct hist_browser_timer *hbt __maybe_unused)
 {
 	return 0;
 }

@@ -915,7 +915,7 @@ static int ace_open(struct block_device *bdev, fmode_t mode)
 	return 0;
 }
 
-static int ace_release(struct gendisk *disk, fmode_t mode)
+static void ace_release(struct gendisk *disk, fmode_t mode)
 {
 	struct ace_device *ace = disk->private_data;
 	unsigned long flags;
@@ -932,7 +932,6 @@ static int ace_release(struct gendisk *disk, fmode_t mode)
 	}
 	spin_unlock_irqrestore(&ace->lock, flags);
 	mutex_unlock(&xsysace_mutex);
-	return 0;
 }
 
 static int ace_getgeo(struct block_device *bdev, struct hd_geometry *geo)

@@ -427,18 +427,7 @@ static struct platform_driver txx9ndfmc_driver = {
 	},
 };
 
-static int __init txx9ndfmc_init(void)
-{
-	return platform_driver_probe(&txx9ndfmc_driver, txx9ndfmc_probe);
-}
-
-static void __exit txx9ndfmc_exit(void)
-{
-	platform_driver_unregister(&txx9ndfmc_driver);
-}
-
-module_init(txx9ndfmc_init);
-module_exit(txx9ndfmc_exit);
+module_platform_driver_probe(txx9ndfmc_driver, txx9ndfmc_probe);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("TXx9 SoC NAND flash controller driver");

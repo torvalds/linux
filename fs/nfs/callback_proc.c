@@ -500,7 +500,7 @@ __be32 nfs4_callback_recallany(struct cb_recallanyargs *args, void *dummy,
 		     &args->craa_type_mask))
 		pnfs_recall_all_layouts(cps->clp);
 	if (flags)
-		nfs_expire_all_delegation_types(cps->clp, flags);
+		nfs_expire_unused_delegation_types(cps->clp, flags);
 out:
 	dprintk("%s: exit with status = %d\n", __func__, ntohl(status));
 	return status;

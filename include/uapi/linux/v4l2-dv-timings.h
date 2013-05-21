@@ -42,11 +42,29 @@
 		V4L2_DV_BT_STD_DMT | V4L2_DV_BT_STD_CEA861, 0) \
 }
 
+/* Note: these are the nominal timings, for HDMI links this format is typically
+ * double-clocked to meet the minimum pixelclock requirements.  */
+#define V4L2_DV_BT_CEA_720X480I59_94 { \
+	.type = V4L2_DV_BT_656_1120, \
+	V4L2_INIT_BT_TIMINGS(720, 480, 1, 0, \
+		13500000, 19, 62, 57, 4, 3, 15, 4, 3, 16, \
+		V4L2_DV_BT_STD_CEA861, V4L2_DV_FL_HALF_LINE) \
+}
+
 #define V4L2_DV_BT_CEA_720X480P59_94 { \
 	.type = V4L2_DV_BT_656_1120, \
 	V4L2_INIT_BT_TIMINGS(720, 480, 0, 0, \
 		27000000, 16, 62, 60, 9, 6, 30, 0, 0, 0, \
 		V4L2_DV_BT_STD_CEA861, 0) \
+}
+
+/* Note: these are the nominal timings, for HDMI links this format is typically
+ * double-clocked to meet the minimum pixelclock requirements.  */
+#define V4L2_DV_BT_CEA_720X576I50 { \
+	.type = V4L2_DV_BT_656_1120, \
+	V4L2_INIT_BT_TIMINGS(720, 576, 1, 0, \
+		13500000, 12, 63, 69, 2, 3, 19, 2, 3, 20, \
+		V4L2_DV_BT_STD_CEA861, V4L2_DV_FL_HALF_LINE) \
 }
 
 #define V4L2_DV_BT_CEA_720X576P50 { \

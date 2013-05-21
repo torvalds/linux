@@ -37,7 +37,6 @@
 #include <asm/mach-types.h>
 
 #include "omap-mcbsp.h"
-#include "omap-pcm.h"
 
 #define RX51_TVOUT_SEL_GPIO		40
 #define RX51_JACK_DETECT_GPIO		177

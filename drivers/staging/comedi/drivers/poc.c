@@ -139,29 +139,11 @@ static int poc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	const struct boarddef_struct *board = comedi_board(dev);
 	struct poc_private *devpriv;
 	struct comedi_subdevice *s;
-	unsigned long iobase;
-	unsigned int iosize;
 	int ret;
 
-	iobase = it->options[0];
-	printk(KERN_INFO "comedi%d: poc: using %s iobase 0x%lx\n", dev->minor,
-	       board->name, iobase);
-
-	dev->board_name = board->name;
-
-	if (iobase == 0) {
-		printk(KERN_ERR "io base address required\n");
-		return -EINVAL;
-	}
-
-	iosize = board->iosize;
-	/* check if io addresses are available */
-	if (!request_region(iobase, iosize, "dac02")) {
-		printk(KERN_ERR "I/O port conflict: failed to allocate ports "
-			"0x%lx to 0x%lx\n", iobase, iobase + iosize - 1);
-		return -EIO;
-	}
-	dev->iobase = iobase;
+	ret = comedi_request_region(dev, it->options[0], board->iosize);
+	if (ret)
+		return ret;
 
 	ret = comedi_alloc_subdevices(dev, 1);
 	if (ret)
@@ -185,14 +167,6 @@ static int poc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->subdev_flags = SDF_WRITABLE;
 
 	return 0;
-}
-
-static void poc_detach(struct comedi_device *dev)
-{
-	const struct boarddef_struct *board = comedi_board(dev);
-
-	if (dev->iobase)
-		release_region(dev->iobase, board->iosize);
 }
 
 static const struct boarddef_struct boards[] = {
@@ -229,7 +203,7 @@ static struct comedi_driver poc_driver = {
 	.driver_name	= "poc",
 	.module		= THIS_MODULE,
 	.attach		= poc_attach,
-	.detach		= poc_detach,
+	.detach		= comedi_legacy_detach,
 	.board_name	= &boards[0].name,
 	.num_names	= ARRAY_SIZE(boards),
 	.offset		= sizeof(boards[0]),

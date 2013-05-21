@@ -48,7 +48,7 @@ static DEFINE_RAW_SPINLOCK(cpu_asid_lock);
 static atomic64_t asid_generation = ATOMIC64_INIT(ASID_FIRST_VERSION);
 static DECLARE_BITMAP(asid_map, NUM_USER_ASIDS);
 
-static DEFINE_PER_CPU(atomic64_t, active_asids);
+DEFINE_PER_CPU(atomic64_t, active_asids);
 static DEFINE_PER_CPU(u64, reserved_asids);
 static cpumask_t tlb_flush_pending;
 
@@ -215,6 +215,7 @@ void check_and_switch_context(struct mm_struct *mm, struct task_struct *tsk)
 	if (cpumask_test_and_clear_cpu(cpu, &tlb_flush_pending)) {
 		local_flush_bp_all();
 		local_flush_tlb_all();
+		dummy_flush_tlb_a15_erratum();
 	}
 
 	atomic64_set(&per_cpu(active_asids, cpu), asid);

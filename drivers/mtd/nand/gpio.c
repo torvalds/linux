@@ -190,7 +190,6 @@ static struct resource *gpio_nand_get_io_sync_of(struct platform_device *pdev)
 	return r;
 }
 #else /* CONFIG_OF */
-#define gpio_nand_id_table NULL
 static inline int gpio_nand_get_config_of(const struct device *dev,
 					  struct gpio_nand_platdata *plat)
 {
@@ -259,8 +258,6 @@ static int gpio_nand_remove(struct platform_device *dev)
 	if (gpio_is_valid(gpiomtd->plat.gpio_rdy))
 		gpio_free(gpiomtd->plat.gpio_rdy);
 
-	kfree(gpiomtd);
-
 	return 0;
 }
 
@@ -297,7 +294,7 @@ static int gpio_nand_probe(struct platform_device *dev)
 	if (!res0)
 		return -EINVAL;
 
-	gpiomtd = kzalloc(sizeof(*gpiomtd), GFP_KERNEL);
+	gpiomtd = devm_kzalloc(&dev->dev, sizeof(*gpiomtd), GFP_KERNEL);
 	if (gpiomtd == NULL) {
 		dev_err(&dev->dev, "failed to create NAND MTD\n");
 		return -ENOMEM;
@@ -412,7 +409,6 @@ err_sync:
 	iounmap(gpiomtd->nand_chip.IO_ADDR_R);
 	release_mem_region(res0->start, resource_size(res0));
 err_map:
-	kfree(gpiomtd);
 	return ret;
 }
 
@@ -421,7 +417,7 @@ static struct platform_driver gpio_nand_driver = {
 	.remove		= gpio_nand_remove,
 	.driver		= {
 		.name	= "gpio-nand",
-		.of_match_table = gpio_nand_id_table,
+		.of_match_table = of_match_ptr(gpio_nand_id_table),
 	},
 };
 

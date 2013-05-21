@@ -246,7 +246,7 @@ long sys_pciconfig_iobase(long which, unsigned long in_bus,
 	case IOBASE_BRIDGE_NUMBER:
 		return (long)hose->first_busno;
 	case IOBASE_MEMORY:
-		return (long)hose->pci_mem_offset;
+		return (long)hose->mem_offset[0];
 	case IOBASE_IO:
 		return (long)hose->io_base_phys;
 	case IOBASE_ISA_IO:

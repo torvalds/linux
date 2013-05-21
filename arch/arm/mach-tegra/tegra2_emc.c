@@ -276,7 +276,7 @@ static struct tegra_emc_pdata *tegra_emc_fill_pdata(struct platform_device *pdev
 	int i;
 
 	WARN_ON(pdev->dev.platform_data);
-	BUG_ON(IS_ERR_OR_NULL(c));
+	BUG_ON(IS_ERR(c));
 
 	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	pdata->tables = devm_kzalloc(&pdev->dev, sizeof(*pdata->tables),
@@ -307,11 +307,6 @@ static int tegra_emc_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "missing register base\n");
-		return -ENOMEM;
-	}
-
 	emc_regbase = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(emc_regbase))
 		return PTR_ERR(emc_regbase);

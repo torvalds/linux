@@ -60,28 +60,28 @@ static const struct iio_chan_spec magn_3d_channels[] = {
 		.type = IIO_MAGN,
 		.modified = 1,
 		.channel2 = IIO_MOD_X,
-		.info_mask = IIO_CHAN_INFO_OFFSET_SHARED_BIT |
-		IIO_CHAN_INFO_SCALE_SHARED_BIT |
-		IIO_CHAN_INFO_SAMP_FREQ_SHARED_BIT |
-		IIO_CHAN_INFO_HYSTERESIS_SHARED_BIT,
+		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_OFFSET) |
+		BIT(IIO_CHAN_INFO_SCALE) |
+		BIT(IIO_CHAN_INFO_SAMP_FREQ) |
+		BIT(IIO_CHAN_INFO_HYSTERESIS),
 		.scan_index = CHANNEL_SCAN_INDEX_X,
 	}, {
 		.type = IIO_MAGN,
 		.modified = 1,
 		.channel2 = IIO_MOD_Y,
-		.info_mask = IIO_CHAN_INFO_OFFSET_SHARED_BIT |
-		IIO_CHAN_INFO_SCALE_SHARED_BIT |
-		IIO_CHAN_INFO_SAMP_FREQ_SHARED_BIT |
-		IIO_CHAN_INFO_HYSTERESIS_SHARED_BIT,
+		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_OFFSET) |
+		BIT(IIO_CHAN_INFO_SCALE) |
+		BIT(IIO_CHAN_INFO_SAMP_FREQ) |
+		BIT(IIO_CHAN_INFO_HYSTERESIS),
 		.scan_index = CHANNEL_SCAN_INDEX_Y,
 	}, {
 		.type = IIO_MAGN,
 		.modified = 1,
 		.channel2 = IIO_MOD_Z,
-		.info_mask = IIO_CHAN_INFO_OFFSET_SHARED_BIT |
-		IIO_CHAN_INFO_SCALE_SHARED_BIT |
-		IIO_CHAN_INFO_SAMP_FREQ_SHARED_BIT |
-		IIO_CHAN_INFO_HYSTERESIS_SHARED_BIT,
+		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_OFFSET) |
+		BIT(IIO_CHAN_INFO_SCALE) |
+		BIT(IIO_CHAN_INFO_SAMP_FREQ) |
+		BIT(IIO_CHAN_INFO_HYSTERESIS),
 		.scan_index = CHANNEL_SCAN_INDEX_Z,
 	}
 };

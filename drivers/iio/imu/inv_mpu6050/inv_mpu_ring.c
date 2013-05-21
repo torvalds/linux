@@ -105,9 +105,8 @@ irqreturn_t inv_mpu6050_irq_handler(int irq, void *p)
 	s64 timestamp;
 
 	timestamp = iio_get_time_ns();
-	spin_lock(&st->time_stamp_lock);
-	kfifo_in(&st->timestamps, &timestamp, 1);
-	spin_unlock(&st->time_stamp_lock);
+	kfifo_in_spinlocked(&st->timestamps, &timestamp, 1,
+				&st->time_stamp_lock);
 
 	return IRQ_WAKE_THREAD;
 }

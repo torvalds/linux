@@ -42,7 +42,30 @@
 #include <asm/netlogic/haldefs.h>
 #include <asm/netlogic/xlp-hal/iomap.h>
 #include <asm/netlogic/xlp-hal/xlp.h>
-#include <asm/netlogic/xlp-hal/usb.h>
+
+/*
+ * USB glue logic registers, used only during initialization
+ */
+#define USB_CTL_0			0x01
+#define USB_PHY_0			0x0A
+#define USB_PHY_RESET			0x01
+#define USB_PHY_PORT_RESET_0		0x10
+#define USB_PHY_PORT_RESET_1		0x20
+#define USB_CONTROLLER_RESET		0x01
+#define USB_INT_STATUS			0x0E
+#define USB_INT_EN			0x0F
+#define USB_PHY_INTERRUPT_EN		0x01
+#define USB_OHCI_INTERRUPT_EN		0x02
+#define USB_OHCI_INTERRUPT1_EN		0x04
+#define USB_OHCI_INTERRUPT2_EN		0x08
+#define USB_CTRL_INTERRUPT_EN		0x10
+
+#define nlm_read_usb_reg(b, r)			nlm_read_reg(b, r)
+#define nlm_write_usb_reg(b, r, v)		nlm_write_reg(b, r, v)
+#define nlm_get_usb_pcibase(node, inst)		\
+	nlm_pcicfg_base(XLP_IO_USB_OFFSET(node, inst))
+#define nlm_get_usb_regbase(node, inst)		\
+	(nlm_get_usb_pcibase(node, inst) + XLP_IO_PCI_HDRSZ)
 
 static void nlm_usb_intr_en(int node, int port)
 {
@@ -99,23 +122,23 @@ static void nlm_usb_fixup_final(struct pci_dev *dev)
 	dev->dev.coherent_dma_mask	= DMA_BIT_MASK(64);
 	switch (dev->devfn) {
 	case 0x10:
-	       dev->irq = PIC_EHCI_0_IRQ;
-	       break;
+		dev->irq = PIC_EHCI_0_IRQ;
+		break;
 	case 0x11:
-	       dev->irq = PIC_OHCI_0_IRQ;
-	       break;
+		dev->irq = PIC_OHCI_0_IRQ;
+		break;
 	case 0x12:
-	       dev->irq = PIC_OHCI_1_IRQ;
-	       break;
+		dev->irq = PIC_OHCI_1_IRQ;
+		break;
 	case 0x13:
-	       dev->irq = PIC_EHCI_1_IRQ;
-	       break;
+		dev->irq = PIC_EHCI_1_IRQ;
+		break;
 	case 0x14:
-	       dev->irq = PIC_OHCI_2_IRQ;
-	       break;
+		dev->irq = PIC_OHCI_2_IRQ;
+		break;
 	case 0x15:
-	       dev->irq = PIC_OHCI_3_IRQ;
-	       break;
+		dev->irq = PIC_OHCI_3_IRQ;
+		break;
 	}
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_NETLOGIC, PCI_DEVICE_ID_NLM_EHCI,

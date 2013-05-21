@@ -19,10 +19,8 @@
  *
  */
 #include <linux/platform_device.h>
+#include <linux/clocksource.h>
 #include <linux/delay.h>
-#include <asm/arch_timer.h>
-#include <asm/mach/time.h>
-#include <asm/smp_twd.h>
 
 void __init shmobile_setup_delay(unsigned int max_cpu_core_mhz,
 				 unsigned int mult, unsigned int div)
@@ -63,6 +61,5 @@ void __init shmobile_earlytimer_init(void)
 
 void __init shmobile_timer_init(void)
 {
-	arch_timer_of_register();
-	arch_timer_sched_clock_init();
+	clocksource_of_init();
 }

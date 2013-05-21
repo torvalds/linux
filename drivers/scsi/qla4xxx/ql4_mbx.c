@@ -1129,6 +1129,7 @@ int qla4xxx_reset_lun(struct scsi_qla_host * ha, struct ddb_entry * ddb_entry,
 {
 	uint32_t mbox_cmd[MBOX_REG_COUNT];
 	uint32_t mbox_sts[MBOX_REG_COUNT];
+	uint32_t scsi_lun[2];
 	int status = QLA_SUCCESS;
 
 	DEBUG2(printk("scsi%ld:%d:%d: lun reset issued\n", ha->host_no,
@@ -1140,10 +1141,16 @@ int qla4xxx_reset_lun(struct scsi_qla_host * ha, struct ddb_entry * ddb_entry,
 	 */
 	memset(&mbox_cmd, 0, sizeof(mbox_cmd));
 	memset(&mbox_sts, 0, sizeof(mbox_sts));
+	int_to_scsilun(lun, (struct scsi_lun *) scsi_lun);
 
 	mbox_cmd[0] = MBOX_CMD_LUN_RESET;
 	mbox_cmd[1] = ddb_entry->fw_ddb_index;
-	mbox_cmd[2] = lun << 8;
+	/* FW expects LUN bytes 0-3 in Incoming Mailbox 2
+	 * (LUN byte 0 is LSByte, byte 3 is MSByte) */
+	mbox_cmd[2] = cpu_to_le32(scsi_lun[0]);
+	/* FW expects LUN bytes 4-7 in Incoming Mailbox 3
+	 * (LUN byte 4 is LSByte, byte 7 is MSByte) */
+	mbox_cmd[3] = cpu_to_le32(scsi_lun[1]);
 	mbox_cmd[5] = 0x01;	/* Immediate Command Enable */
 
 	qla4xxx_mailbox_command(ha, MBOX_REG_COUNT, 1, &mbox_cmd[0], &mbox_sts[0]);
@@ -1281,8 +1288,8 @@ exit_about_fw:
 	return status;
 }
 
-static int qla4xxx_get_default_ddb(struct scsi_qla_host *ha, uint32_t options,
-				   dma_addr_t dma_addr)
+int qla4xxx_get_default_ddb(struct scsi_qla_host *ha, uint32_t options,
+			    dma_addr_t dma_addr)
 {
 	uint32_t mbox_cmd[MBOX_REG_COUNT];
 	uint32_t mbox_sts[MBOX_REG_COUNT];
@@ -1410,6 +1417,55 @@ exit_bootdb_failed:
 	return status;
 }
 
+int qla4xxx_flashdb_by_index(struct scsi_qla_host *ha,
+			     struct dev_db_entry *fw_ddb_entry,
+			     dma_addr_t fw_ddb_entry_dma, uint16_t ddb_index)
+{
+	uint32_t dev_db_start_offset;
+	uint32_t dev_db_end_offset;
+	int status = QLA_ERROR;
+
+	memset(fw_ddb_entry, 0, sizeof(*fw_ddb_entry));
+
+	if (is_qla40XX(ha)) {
+		dev_db_start_offset = FLASH_OFFSET_DB_INFO;
+		dev_db_end_offset = FLASH_OFFSET_DB_END;
+	} else {
+		dev_db_start_offset = FLASH_RAW_ACCESS_ADDR +
+				      (ha->hw.flt_region_ddb << 2);
+		/* flt_ddb_size is DDB table size for both ports
+		 * so divide it by 2 to calculate the offset for second port
+		 */
+		if (ha->port_num == 1)
+			dev_db_start_offset += (ha->hw.flt_ddb_size / 2);
+
+		dev_db_end_offset = dev_db_start_offset +
+				    (ha->hw.flt_ddb_size / 2);
+	}
+
+	dev_db_start_offset += (ddb_index * sizeof(*fw_ddb_entry));
+
+	if (dev_db_start_offset > dev_db_end_offset) {
+		DEBUG2(ql4_printk(KERN_ERR, ha,
+				  "%s:Invalid DDB index %d", __func__,
+				  ddb_index));
+		goto exit_fdb_failed;
+	}
+
+	if (qla4xxx_get_flash(ha, fw_ddb_entry_dma, dev_db_start_offset,
+			      sizeof(*fw_ddb_entry)) != QLA_SUCCESS) {
+		ql4_printk(KERN_ERR, ha, "scsi%ld: %s: Get Flash failed\n",
+			   ha->host_no, __func__);
+		goto exit_fdb_failed;
+	}
+
+	if (fw_ddb_entry->cookie == DDB_VALID_COOKIE)
+		status = QLA_SUCCESS;
+
+exit_fdb_failed:
+	return status;
+}
+
 int qla4xxx_get_chap(struct scsi_qla_host *ha, char *username, char *password,
 		     uint16_t idx)
 {
@@ -1503,6 +1559,62 @@ exit_set_chap:
 	return ret;
 }
 
+
+int qla4xxx_get_uni_chap_at_index(struct scsi_qla_host *ha, char *username,
+				  char *password, uint16_t chap_index)
+{
+	int rval = QLA_ERROR;
+	struct ql4_chap_table *chap_table = NULL;
+	int max_chap_entries;
+
+	if (!ha->chap_list) {
+		ql4_printk(KERN_ERR, ha, "Do not have CHAP table cache\n");
+		rval = QLA_ERROR;
+		goto exit_uni_chap;
+	}
+
+	if (!username || !password) {
+		ql4_printk(KERN_ERR, ha, "No memory for username & secret\n");
+		rval = QLA_ERROR;
+		goto exit_uni_chap;
+	}
+
+	if (is_qla80XX(ha))
+		max_chap_entries = (ha->hw.flt_chap_size / 2) /
+				   sizeof(struct ql4_chap_table);
+	else
+		max_chap_entries = MAX_CHAP_ENTRIES_40XX;
+
+	if (chap_index > max_chap_entries) {
+		ql4_printk(KERN_ERR, ha, "Invalid Chap index\n");
+		rval = QLA_ERROR;
+		goto exit_uni_chap;
+	}
+
+	mutex_lock(&ha->chap_sem);
+	chap_table = (struct ql4_chap_table *)ha->chap_list + chap_index;
+	if (chap_table->cookie != __constant_cpu_to_le16(CHAP_VALID_COOKIE)) {
+		rval = QLA_ERROR;
+		goto exit_unlock_uni_chap;
+	}
+
+	if (!(chap_table->flags & BIT_6)) {
+		ql4_printk(KERN_ERR, ha, "Unidirectional entry not set\n");
+		rval = QLA_ERROR;
+		goto exit_unlock_uni_chap;
+	}
+
+	strncpy(password, chap_table->secret, MAX_CHAP_SECRET_LEN);
+	strncpy(username, chap_table->name, MAX_CHAP_NAME_LEN);
+
+	rval = QLA_SUCCESS;
+
+exit_unlock_uni_chap:
+	mutex_unlock(&ha->chap_sem);
+exit_uni_chap:
+	return rval;
+}
+
 /**
  * qla4xxx_get_chap_index - Get chap index given username and secret
  * @ha: pointer to adapter structure
@@ -1524,7 +1636,7 @@ int qla4xxx_get_chap_index(struct scsi_qla_host *ha, char *username,
 	int max_chap_entries = 0;
 	struct ql4_chap_table *chap_table;
 
-	if (is_qla8022(ha))
+	if (is_qla80XX(ha))
 		max_chap_entries = (ha->hw.flt_chap_size / 2) /
 						sizeof(struct ql4_chap_table);
 	else

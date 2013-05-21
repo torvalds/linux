@@ -90,17 +90,25 @@ static inline int ___range_ok(unsigned long addr, unsigned long size)
 
 #else
 
-/*
- * Address is valid if:
- *  - "addr", "addr + size" and "size" are all below the limit
- */
-#define access_ok(type, addr, size) \
-	(get_fs().seg >= (((unsigned long)(addr)) | \
-		(size) | ((unsigned long)(addr) + (size))))
+static inline int access_ok(int type, const void __user *addr,
+							unsigned long size)
+{
+	if (!size)
+		goto ok;
 
-/* || printk("access_ok failed for %s at 0x%08lx (size %d), seg 0x%08x\n",
- type?"WRITE":"READ",addr,size,get_fs().seg)) */
-
+	if ((get_fs().seg < ((unsigned long)addr)) ||
+			(get_fs().seg < ((unsigned long)addr + size - 1))) {
+		pr_debug("ACCESS fail: %s at 0x%08x (size 0x%x), seg 0x%08x\n",
+			type ? "WRITE" : "READ ", (u32)addr, (u32)size,
+			(u32)get_fs().seg);
+		return 0;
+	}
+ok:
+	pr_debug("ACCESS OK: %s at 0x%08x (size 0x%x), seg 0x%08x\n",
+			type ? "WRITE" : "READ ", (u32)addr, (u32)size,
+			(u32)get_fs().seg);
+	return 1;
+}
 #endif
 
 #ifdef CONFIG_MMU

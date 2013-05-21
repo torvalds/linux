@@ -419,7 +419,7 @@ static struct fb_ops ep93xxfb_ops = {
 	.fb_mmap	= ep93xxfb_mmap,
 };
 
-static int __init ep93xxfb_calc_fbsize(struct ep93xxfb_mach_info *mach_info)
+static int ep93xxfb_calc_fbsize(struct ep93xxfb_mach_info *mach_info)
 {
 	int i, fb_size = 0;
 
@@ -441,7 +441,7 @@ static int __init ep93xxfb_calc_fbsize(struct ep93xxfb_mach_info *mach_info)
 	return fb_size;
 }
 
-static int __init ep93xxfb_alloc_videomem(struct fb_info *info)
+static int ep93xxfb_alloc_videomem(struct fb_info *info)
 {
 	struct ep93xx_fbi *fbi = info->par;
 	char __iomem *virt_addr;
@@ -627,19 +627,7 @@ static struct platform_driver ep93xxfb_driver = {
 		.owner	= THIS_MODULE,
 	},
 };
-
-static int ep93xxfb_init(void)
-{
-	return platform_driver_register(&ep93xxfb_driver);
-}
-
-static void __exit ep93xxfb_exit(void)
-{
-	platform_driver_unregister(&ep93xxfb_driver);
-}
-
-module_init(ep93xxfb_init);
-module_exit(ep93xxfb_exit);
+module_platform_driver(ep93xxfb_driver);
 
 MODULE_DESCRIPTION("EP93XX Framebuffer Driver");
 MODULE_ALIAS("platform:ep93xx-fb");

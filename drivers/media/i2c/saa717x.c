@@ -988,7 +988,7 @@ static int saa717x_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *
 	return 0;
 }
 
-static int saa717x_s_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
+static int saa717x_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_register *reg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	u16 addr = reg->reg & 0xffff;
@@ -1113,7 +1113,7 @@ static int saa717x_s_stream(struct v4l2_subdev *sd, int enable)
 }
 
 /* change audio mode */
-static int saa717x_s_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
+static int saa717x_s_tuner(struct v4l2_subdev *sd, const struct v4l2_tuner *vt)
 {
 	struct saa717x_state *decoder = to_state(sd);
 	int audio_mode;

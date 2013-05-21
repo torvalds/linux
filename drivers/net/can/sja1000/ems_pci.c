@@ -168,12 +168,12 @@ static inline int ems_pci_check_chan(const struct sja1000_priv *priv)
 	unsigned char res;
 
 	/* Make sure SJA1000 is in reset mode */
-	priv->write_reg(priv, REG_MOD, 1);
+	priv->write_reg(priv, SJA1000_MOD, 1);
 
-	priv->write_reg(priv, REG_CDR, CDR_PELICAN);
+	priv->write_reg(priv, SJA1000_CDR, CDR_PELICAN);
 
 	/* read reset-values */
-	res = priv->read_reg(priv, REG_CDR);
+	res = priv->read_reg(priv, SJA1000_CDR);
 
 	if (res == CDR_PELICAN)
 		return 1;

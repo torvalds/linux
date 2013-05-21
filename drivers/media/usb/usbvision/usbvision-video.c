@@ -483,7 +483,7 @@ static int vidioc_g_register(struct file *file, void *priv,
 }
 
 static int vidioc_s_register(struct file *file, void *priv,
-				struct v4l2_dbg_register *reg)
+				const struct v4l2_dbg_register *reg)
 {
 	struct usb_usbvision *usbvision = video_drvdata(file);
 	int err_code;
@@ -595,11 +595,11 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int input)
 	return 0;
 }
 
-static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *id)
+static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id id)
 {
 	struct usb_usbvision *usbvision = video_drvdata(file);
 
-	usbvision->tvnorm_id = *id;
+	usbvision->tvnorm_id = id;
 
 	call_all(usbvision, core, s_std, usbvision->tvnorm_id);
 	/* propagate the change to the decoder */
@@ -628,7 +628,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 }
 
 static int vidioc_s_tuner(struct file *file, void *priv,
-				struct v4l2_tuner *vt)
+				const struct v4l2_tuner *vt)
 {
 	struct usb_usbvision *usbvision = video_drvdata(file);
 
@@ -657,7 +657,7 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 }
 
 static int vidioc_s_frequency(struct file *file, void *priv,
-				struct v4l2_frequency *freq)
+				const struct v4l2_frequency *freq)
 {
 	struct usb_usbvision *usbvision = video_drvdata(file);
 

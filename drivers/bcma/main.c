@@ -120,6 +120,11 @@ static int bcma_register_cores(struct bcma_bus *bus)
 			continue;
 		}
 
+		/* Only first GMAC core on BCM4706 is connected and working */
+		if (core->id.id == BCMA_CORE_4706_MAC_GBIT &&
+		    core->core_unit > 0)
+			continue;
+
 		core->dev.release = bcma_release_core_dev;
 		core->dev.bus = &bcma_bus_type;
 		dev_set_name(&core->dev, "bcma%d:%d", bus->num, dev_id);

@@ -23,12 +23,11 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/irqchip/chained_irq.h>
 #include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
-
-#include <asm/mach/irq.h>
 
 #include <mach/msm_gpiomux.h>
 #include <mach/msm_iomap.h>

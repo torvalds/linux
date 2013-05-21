@@ -33,6 +33,7 @@
 #include <linux/slab.h>
 #include <linux/firmware.h>
 #include <linux/miscdevice.h>
+#include <linux/percpu.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_device.h>
@@ -57,6 +58,9 @@ unsigned long _dump_buf_data_order;
 char *_dump_buf_dif;
 unsigned long _dump_buf_dif_order;
 spinlock_t _dump_buf_lock;
+
+/* Used when mapping IRQ vectors in a driver centric manner */
+uint16_t lpfc_used_cpu[LPFC_MAX_CPU];
 
 static void lpfc_get_hba_model_desc(struct lpfc_hba *, uint8_t *, uint8_t *);
 static int lpfc_post_rcv_buf(struct lpfc_hba *);
@@ -541,13 +545,16 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 
 	/* Set up ring-0 (ELS) timer */
 	timeout = phba->fc_ratov * 2;
-	mod_timer(&vport->els_tmofunc, jiffies + HZ * timeout);
+	mod_timer(&vport->els_tmofunc,
+		  jiffies + msecs_to_jiffies(1000 * timeout));
 	/* Set up heart beat (HB) timer */
-	mod_timer(&phba->hb_tmofunc, jiffies + HZ * LPFC_HB_MBOX_INTERVAL);
+	mod_timer(&phba->hb_tmofunc,
+		  jiffies + msecs_to_jiffies(1000 * LPFC_HB_MBOX_INTERVAL));
 	phba->hb_outstanding = 0;
 	phba->last_completion_time = jiffies;
 	/* Set up error attention (ERATT) polling timer */
-	mod_timer(&phba->eratt_poll, jiffies + HZ * LPFC_ERATT_POLL_INTERVAL);
+	mod_timer(&phba->eratt_poll,
+		  jiffies + msecs_to_jiffies(1000 * LPFC_ERATT_POLL_INTERVAL));
 
 	if (phba->hba_flag & LINK_DISABLED) {
 		lpfc_printf_log(phba,
@@ -839,7 +846,6 @@ lpfc_hba_down_post_s3(struct lpfc_hba *phba)
 		 * way, nothing should be on txcmplq as it will NEVER complete.
 		 */
 		list_splice_init(&pring->txcmplq, &completions);
-		pring->txcmplq_cnt = 0;
 		spin_unlock_irq(&phba->hbalock);
 
 		/* Cancel all the IOCBs from the completions list */
@@ -909,9 +915,9 @@ lpfc_hba_down_post_s4(struct lpfc_hba *phba)
 		psb->pCmd = NULL;
 		psb->status = IOSTAT_SUCCESS;
 	}
-	spin_lock_irqsave(&phba->scsi_buf_list_lock, iflag);
-	list_splice(&aborts, &phba->lpfc_scsi_buf_list);
-	spin_unlock_irqrestore(&phba->scsi_buf_list_lock, iflag);
+	spin_lock_irqsave(&phba->scsi_buf_list_put_lock, iflag);
+	list_splice(&aborts, &phba->lpfc_scsi_buf_list_put);
+	spin_unlock_irqrestore(&phba->scsi_buf_list_put_lock, iflag);
 	return 0;
 }
 
@@ -1022,7 +1028,8 @@ lpfc_hb_mbox_cmpl(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmboxq)
 		!(phba->link_state == LPFC_HBA_ERROR) &&
 		!(phba->pport->load_flag & FC_UNLOADING))
 		mod_timer(&phba->hb_tmofunc,
-			jiffies + HZ * LPFC_HB_MBOX_INTERVAL);
+			  jiffies +
+			  msecs_to_jiffies(1000 * LPFC_HB_MBOX_INTERVAL));
 	return;
 }
 
@@ -1065,15 +1072,18 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 
 	spin_lock_irq(&phba->pport->work_port_lock);
 
-	if (time_after(phba->last_completion_time + LPFC_HB_MBOX_INTERVAL * HZ,
-		jiffies)) {
+	if (time_after(phba->last_completion_time +
+			msecs_to_jiffies(1000 * LPFC_HB_MBOX_INTERVAL),
+			jiffies)) {
 		spin_unlock_irq(&phba->pport->work_port_lock);
 		if (!phba->hb_outstanding)
 			mod_timer(&phba->hb_tmofunc,
-				jiffies + HZ * LPFC_HB_MBOX_INTERVAL);
+				jiffies +
+				msecs_to_jiffies(1000 * LPFC_HB_MBOX_INTERVAL));
 		else
 			mod_timer(&phba->hb_tmofunc,
-				jiffies + HZ * LPFC_HB_MBOX_TIMEOUT);
+				jiffies +
+				msecs_to_jiffies(1000 * LPFC_HB_MBOX_TIMEOUT));
 		return;
 	}
 	spin_unlock_irq(&phba->pport->work_port_lock);
@@ -1105,7 +1115,8 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 				if (!pmboxq) {
 					mod_timer(&phba->hb_tmofunc,
 						 jiffies +
-						 HZ * LPFC_HB_MBOX_INTERVAL);
+						 msecs_to_jiffies(1000 *
+						 LPFC_HB_MBOX_INTERVAL));
 					return;
 				}
 
@@ -1121,7 +1132,8 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 							phba->mbox_mem_pool);
 					mod_timer(&phba->hb_tmofunc,
 						jiffies +
-						HZ * LPFC_HB_MBOX_INTERVAL);
+						msecs_to_jiffies(1000 *
+						LPFC_HB_MBOX_INTERVAL));
 					return;
 				}
 				phba->skipped_hb = 0;
@@ -1137,7 +1149,8 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 				phba->skipped_hb = jiffies;
 
 			mod_timer(&phba->hb_tmofunc,
-				  jiffies + HZ * LPFC_HB_MBOX_TIMEOUT);
+				 jiffies +
+				 msecs_to_jiffies(1000 * LPFC_HB_MBOX_TIMEOUT));
 			return;
 		} else {
 			/*
@@ -1151,7 +1164,8 @@ lpfc_hb_timeout_handler(struct lpfc_hba *phba)
 					jiffies_to_msecs(jiffies
 						 - phba->last_completion_time));
 			mod_timer(&phba->hb_tmofunc,
-				  jiffies + HZ * LPFC_HB_MBOX_TIMEOUT);
+				jiffies +
+				msecs_to_jiffies(1000 * LPFC_HB_MBOX_TIMEOUT));
 		}
 	}
 }
@@ -1192,7 +1206,7 @@ lpfc_offline_eratt(struct lpfc_hba *phba)
  * This routine is called to bring a SLI4 HBA offline when HBA hardware error
  * other than Port Error 6 has been detected.
  **/
-static void
+void
 lpfc_sli4_offline_eratt(struct lpfc_hba *phba)
 {
 	lpfc_offline_prep(phba, LPFC_MBX_NO_WAIT);
@@ -2634,6 +2648,7 @@ lpfc_online(struct lpfc_hba *phba)
 	struct lpfc_vport *vport;
 	struct lpfc_vport **vports;
 	int i;
+	bool vpis_cleared = false;
 
 	if (!phba)
 		return 0;
@@ -2657,6 +2672,10 @@ lpfc_online(struct lpfc_hba *phba)
 			lpfc_unblock_mgmt_io(phba);
 			return 1;
 		}
+		spin_lock_irq(&phba->hbalock);
+		if (!phba->sli4_hba.max_cfg_param.vpi_used)
+			vpis_cleared = true;
+		spin_unlock_irq(&phba->hbalock);
 	} else {
 		if (lpfc_sli_hba_setup(phba)) {	/* Initialize SLI2/SLI3 HBA */
 			lpfc_unblock_mgmt_io(phba);
@@ -2673,8 +2692,13 @@ lpfc_online(struct lpfc_hba *phba)
 			vports[i]->fc_flag &= ~FC_OFFLINE_MODE;
 			if (phba->sli3_options & LPFC_SLI3_NPIV_ENABLED)
 				vports[i]->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
-			if (phba->sli_rev == LPFC_SLI_REV4)
+			if (phba->sli_rev == LPFC_SLI_REV4) {
 				vports[i]->fc_flag |= FC_VPORT_NEEDS_INIT_VPI;
+				if ((vpis_cleared) &&
+				    (vports[i]->port_type !=
+					LPFC_PHYSICAL_PORT))
+					vports[i]->vpi = 0;
+			}
 			spin_unlock_irq(shost->host_lock);
 		}
 		lpfc_destroy_vport_work_array(phba, vports);
@@ -2834,16 +2858,30 @@ lpfc_scsi_free(struct lpfc_hba *phba)
 	struct lpfc_iocbq *io, *io_next;
 
 	spin_lock_irq(&phba->hbalock);
+
 	/* Release all the lpfc_scsi_bufs maintained by this host. */
-	spin_lock(&phba->scsi_buf_list_lock);
-	list_for_each_entry_safe(sb, sb_next, &phba->lpfc_scsi_buf_list, list) {
+
+	spin_lock(&phba->scsi_buf_list_put_lock);
+	list_for_each_entry_safe(sb, sb_next, &phba->lpfc_scsi_buf_list_put,
+				 list) {
 		list_del(&sb->list);
 		pci_pool_free(phba->lpfc_scsi_dma_buf_pool, sb->data,
 			      sb->dma_handle);
 		kfree(sb);
 		phba->total_scsi_bufs--;
 	}
-	spin_unlock(&phba->scsi_buf_list_lock);
+	spin_unlock(&phba->scsi_buf_list_put_lock);
+
+	spin_lock(&phba->scsi_buf_list_get_lock);
+	list_for_each_entry_safe(sb, sb_next, &phba->lpfc_scsi_buf_list_get,
+				 list) {
+		list_del(&sb->list);
+		pci_pool_free(phba->lpfc_scsi_dma_buf_pool, sb->data,
+			      sb->dma_handle);
+		kfree(sb);
+		phba->total_scsi_bufs--;
+	}
+	spin_unlock(&phba->scsi_buf_list_get_lock);
 
 	/* Release all the lpfc_iocbq entries maintained by this host. */
 	list_for_each_entry_safe(io, io_next, &phba->lpfc_iocb_list, list) {
@@ -2915,9 +2953,9 @@ lpfc_sli4_xri_sgl_update(struct lpfc_hba *phba)
 			sglq_entry->state = SGL_FREED;
 			list_add_tail(&sglq_entry->list, &els_sgl_list);
 		}
-		spin_lock(&phba->hbalock);
+		spin_lock_irq(&phba->hbalock);
 		list_splice_init(&els_sgl_list, &phba->sli4_hba.lpfc_sgl_list);
-		spin_unlock(&phba->hbalock);
+		spin_unlock_irq(&phba->hbalock);
 	} else if (els_xri_cnt < phba->sli4_hba.els_xri_cnt) {
 		/* els xri-sgl shrinked */
 		xri_cnt = phba->sli4_hba.els_xri_cnt - els_xri_cnt;
@@ -2979,9 +3017,12 @@ lpfc_sli4_xri_sgl_update(struct lpfc_hba *phba)
 			phba->sli4_hba.scsi_xri_cnt,
 			phba->sli4_hba.scsi_xri_max);
 
-	spin_lock_irq(&phba->scsi_buf_list_lock);
-	list_splice_init(&phba->lpfc_scsi_buf_list, &scsi_sgl_list);
-	spin_unlock_irq(&phba->scsi_buf_list_lock);
+	spin_lock_irq(&phba->scsi_buf_list_get_lock);
+	spin_lock_irq(&phba->scsi_buf_list_put_lock);
+	list_splice_init(&phba->lpfc_scsi_buf_list_get, &scsi_sgl_list);
+	list_splice(&phba->lpfc_scsi_buf_list_put, &scsi_sgl_list);
+	spin_unlock_irq(&phba->scsi_buf_list_put_lock);
+	spin_unlock_irq(&phba->scsi_buf_list_get_lock);
 
 	if (phba->sli4_hba.scsi_xri_cnt > phba->sli4_hba.scsi_xri_max) {
 		/* max scsi xri shrinked below the allocated scsi buffers */
@@ -2995,9 +3036,9 @@ lpfc_sli4_xri_sgl_update(struct lpfc_hba *phba)
 				      psb->dma_handle);
 			kfree(psb);
 		}
-		spin_lock_irq(&phba->scsi_buf_list_lock);
+		spin_lock_irq(&phba->scsi_buf_list_get_lock);
 		phba->sli4_hba.scsi_xri_cnt -= scsi_xri_cnt;
-		spin_unlock_irq(&phba->scsi_buf_list_lock);
+		spin_unlock_irq(&phba->scsi_buf_list_get_lock);
 	}
 
 	/* update xris associated to remaining allocated scsi buffers */
@@ -3015,9 +3056,12 @@ lpfc_sli4_xri_sgl_update(struct lpfc_hba *phba)
 		psb->cur_iocbq.sli4_lxritag = lxri;
 		psb->cur_iocbq.sli4_xritag = phba->sli4_hba.xri_ids[lxri];
 	}
-	spin_lock(&phba->scsi_buf_list_lock);
-	list_splice_init(&scsi_sgl_list, &phba->lpfc_scsi_buf_list);
-	spin_unlock(&phba->scsi_buf_list_lock);
+	spin_lock_irq(&phba->scsi_buf_list_get_lock);
+	spin_lock_irq(&phba->scsi_buf_list_put_lock);
+	list_splice_init(&scsi_sgl_list, &phba->lpfc_scsi_buf_list_get);
+	INIT_LIST_HEAD(&phba->lpfc_scsi_buf_list_put);
+	spin_unlock_irq(&phba->scsi_buf_list_put_lock);
+	spin_unlock_irq(&phba->scsi_buf_list_get_lock);
 
 	return 0;
 
@@ -3198,14 +3242,15 @@ int lpfc_scan_finished(struct Scsi_Host *shost, unsigned long time)
 		stat = 1;
 		goto finished;
 	}
-	if (time >= 30 * HZ) {
+	if (time >= msecs_to_jiffies(30 * 1000)) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 				"0461 Scanning longer than 30 "
 				"seconds.  Continuing initialization\n");
 		stat = 1;
 		goto finished;
 	}
-	if (time >= 15 * HZ && phba->link_state <= LPFC_LINK_DOWN) {
+	if (time >= msecs_to_jiffies(15 * 1000) &&
+	    phba->link_state <= LPFC_LINK_DOWN) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 				"0465 Link down longer than 15 "
 				"seconds.  Continuing initialization\n");
@@ -3217,7 +3262,7 @@ int lpfc_scan_finished(struct Scsi_Host *shost, unsigned long time)
 		goto finished;
 	if (vport->num_disc_nodes || vport->fc_prli_sent)
 		goto finished;
-	if (vport->fc_map_cnt == 0 && time < 2 * HZ)
+	if (vport->fc_map_cnt == 0 && time < msecs_to_jiffies(2 * 1000))
 		goto finished;
 	if ((phba->sli.sli_flag & LPFC_SLI_MBOX_ACTIVE) != 0)
 		goto finished;
@@ -4004,6 +4049,52 @@ lpfc_sli4_perform_all_vport_cvl(struct lpfc_hba *phba)
 }
 
 /**
+ * lpfc_sli4_perform_inuse_fcf_recovery - Perform inuse fcf recovery
+ * @vport: pointer to lpfc hba data structure.
+ *
+ * This routine is to perform FCF recovery when the in-use FCF either dead or
+ * got modified.
+ **/
+static void
+lpfc_sli4_perform_inuse_fcf_recovery(struct lpfc_hba *phba,
+				     struct lpfc_acqe_fip *acqe_fip)
+{
+	int rc;
+
+	spin_lock_irq(&phba->hbalock);
+	/* Mark the fast failover process in progress */
+	phba->fcf.fcf_flag |= FCF_DEAD_DISC;
+	spin_unlock_irq(&phba->hbalock);
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_FIP | LOG_DISCOVERY,
+			"2771 Start FCF fast failover process due to in-use "
+			"FCF DEAD/MODIFIED event: evt_tag:x%x, index:x%x\n",
+			acqe_fip->event_tag, acqe_fip->index);
+	rc = lpfc_sli4_redisc_fcf_table(phba);
+	if (rc) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_FIP | LOG_DISCOVERY,
+				"2772 Issue FCF rediscover mabilbox command "
+				"failed, fail through to FCF dead event\n");
+		spin_lock_irq(&phba->hbalock);
+		phba->fcf.fcf_flag &= ~FCF_DEAD_DISC;
+		spin_unlock_irq(&phba->hbalock);
+		/*
+		 * Last resort will fail over by treating this as a link
+		 * down to FCF registration.
+		 */
+		lpfc_sli4_fcf_dead_failthrough(phba);
+	} else {
+		/* Reset FCF roundrobin bmask for new discovery */
+		lpfc_sli4_clear_fcf_rr_bmask(phba);
+		/*
+		 * Handling fast FCF failover to a DEAD FCF event is
+		 * considered equalivant to receiving CVL to all vports.
+		 */
+		lpfc_sli4_perform_all_vport_cvl(phba);
+	}
+}
+
+/**
  * lpfc_sli4_async_fip_evt - Process the asynchronous FCoE FIP event
  * @phba: pointer to lpfc hba data structure.
  * @acqe_link: pointer to the async fcoe completion queue entry.
@@ -4068,9 +4159,22 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 			break;
 		}
 
-		/* If the FCF has been in discovered state, do nothing. */
-		if (phba->fcf.fcf_flag & FCF_SCAN_DONE) {
+		/* If FCF has been in discovered state, perform rediscovery
+		 * only if the FCF with the same index of the in-use FCF got
+		 * modified during normal operation. Otherwise, do nothing.
+		 */
+		if (phba->pport->port_state > LPFC_FLOGI) {
 			spin_unlock_irq(&phba->hbalock);
+			if (phba->fcf.current_rec.fcf_indx ==
+			    acqe_fip->index) {
+				lpfc_printf_log(phba, KERN_ERR, LOG_FIP,
+						"3300 In-use FCF (%d) "
+						"modified, perform FCF "
+						"rediscovery\n",
+						acqe_fip->index);
+				lpfc_sli4_perform_inuse_fcf_recovery(phba,
+								     acqe_fip);
+			}
 			break;
 		}
 		spin_unlock_irq(&phba->hbalock);
@@ -4123,39 +4227,7 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 		 * is no longer valid as we are not in the middle of FCF
 		 * failover process already.
 		 */
-		spin_lock_irq(&phba->hbalock);
-		/* Mark the fast failover process in progress */
-		phba->fcf.fcf_flag |= FCF_DEAD_DISC;
-		spin_unlock_irq(&phba->hbalock);
-
-		lpfc_printf_log(phba, KERN_INFO, LOG_FIP | LOG_DISCOVERY,
-				"2771 Start FCF fast failover process due to "
-				"FCF DEAD event: evt_tag:x%x, fcf_index:x%x "
-				"\n", acqe_fip->event_tag, acqe_fip->index);
-		rc = lpfc_sli4_redisc_fcf_table(phba);
-		if (rc) {
-			lpfc_printf_log(phba, KERN_ERR, LOG_FIP |
-					LOG_DISCOVERY,
-					"2772 Issue FCF rediscover mabilbox "
-					"command failed, fail through to FCF "
-					"dead event\n");
-			spin_lock_irq(&phba->hbalock);
-			phba->fcf.fcf_flag &= ~FCF_DEAD_DISC;
-			spin_unlock_irq(&phba->hbalock);
-			/*
-			 * Last resort will fail over by treating this
-			 * as a link down to FCF registration.
-			 */
-			lpfc_sli4_fcf_dead_failthrough(phba);
-		} else {
-			/* Reset FCF roundrobin bmask for new discovery */
-			lpfc_sli4_clear_fcf_rr_bmask(phba);
-			/*
-			 * Handling fast FCF failover to a DEAD FCF event is
-			 * considered equalivant to receiving CVL to all vports.
-			 */
-			lpfc_sli4_perform_all_vport_cvl(phba);
-		}
+		lpfc_sli4_perform_inuse_fcf_recovery(phba, acqe_fip);
 		break;
 	case LPFC_FIP_EVENT_TYPE_CVL:
 		phba->fcoe_cvl_eventtag = acqe_fip->event_tag;
@@ -4189,7 +4261,8 @@ lpfc_sli4_async_fip_evt(struct lpfc_hba *phba,
 			 * If there are other active VLinks present,
 			 * re-instantiate the Vlink using FDISC.
 			 */
-			mod_timer(&ndlp->nlp_delayfunc, jiffies + HZ);
+			mod_timer(&ndlp->nlp_delayfunc,
+				  jiffies + msecs_to_jiffies(1000));
 			shost = lpfc_shost_from_vport(vport);
 			spin_lock_irq(shost->host_lock);
 			ndlp->nlp_flag |= NLP_DELAY_TMO;
@@ -4681,23 +4754,52 @@ lpfc_sli_driver_resource_setup(struct lpfc_hba *phba)
 		return -ENOMEM;
 
 	/*
-	 * Since the sg_tablesize is module parameter, the sg_dma_buf_size
+	 * Since lpfc_sg_seg_cnt is module parameter, the sg_dma_buf_size
 	 * used to create the sg_dma_buf_pool must be dynamically calculated.
-	 * 2 segments are added since the IOCB needs a command and response bde.
 	 */
-	phba->cfg_sg_dma_buf_size = sizeof(struct fcp_cmnd) +
-		sizeof(struct fcp_rsp) +
-			((phba->cfg_sg_seg_cnt + 2) * sizeof(struct ulp_bde64));
 
-	if (phba->cfg_enable_bg) {
-		phba->cfg_sg_seg_cnt = LPFC_MAX_SG_SEG_CNT;
-		phba->cfg_sg_dma_buf_size +=
-			phba->cfg_prot_sg_seg_cnt * sizeof(struct ulp_bde64);
-	}
-
-	/* Also reinitialize the host templates with new values. */
+	/* Initialize the host templates the configured values. */
 	lpfc_vport_template.sg_tablesize = phba->cfg_sg_seg_cnt;
 	lpfc_template.sg_tablesize = phba->cfg_sg_seg_cnt;
+
+	/* There are going to be 2 reserved BDEs: 1 FCP cmnd + 1 FCP rsp */
+	if (phba->cfg_enable_bg) {
+		/*
+		 * The scsi_buf for a T10-DIF I/O will hold the FCP cmnd,
+		 * the FCP rsp, and a BDE for each. Sice we have no control
+		 * over how many protection data segments the SCSI Layer
+		 * will hand us (ie: there could be one for every block
+		 * in the IO), we just allocate enough BDEs to accomidate
+		 * our max amount and we need to limit lpfc_sg_seg_cnt to
+		 * minimize the risk of running out.
+		 */
+		phba->cfg_sg_dma_buf_size = sizeof(struct fcp_cmnd) +
+			sizeof(struct fcp_rsp) +
+			(LPFC_MAX_SG_SEG_CNT * sizeof(struct ulp_bde64));
+
+		if (phba->cfg_sg_seg_cnt > LPFC_MAX_SG_SEG_CNT_DIF)
+			phba->cfg_sg_seg_cnt = LPFC_MAX_SG_SEG_CNT_DIF;
+
+		/* Total BDEs in BPL for scsi_sg_list and scsi_sg_prot_list */
+		phba->cfg_total_seg_cnt = LPFC_MAX_SG_SEG_CNT;
+	} else {
+		/*
+		 * The scsi_buf for a regular I/O will hold the FCP cmnd,
+		 * the FCP rsp, a BDE for each, and a BDE for up to
+		 * cfg_sg_seg_cnt data segments.
+		 */
+		phba->cfg_sg_dma_buf_size = sizeof(struct fcp_cmnd) +
+			sizeof(struct fcp_rsp) +
+			((phba->cfg_sg_seg_cnt + 2) * sizeof(struct ulp_bde64));
+
+		/* Total BDEs in BPL for scsi_sg_list */
+		phba->cfg_total_seg_cnt = phba->cfg_sg_seg_cnt + 2;
+	}
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_INIT | LOG_FCP,
+			"9088 sg_tablesize:%d dmabuf_size:%d total_bde:%d\n",
+			phba->cfg_sg_seg_cnt, phba->cfg_sg_dma_buf_size,
+			phba->cfg_total_seg_cnt);
 
 	phba->max_vpi = LPFC_MAX_VPI;
 	/* This will be set to correct value after config_port mbox */
@@ -4763,13 +4865,13 @@ lpfc_sli_driver_resource_unset(struct lpfc_hba *phba)
 static int
 lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 {
+	struct lpfc_vector_map_info *cpup;
 	struct lpfc_sli *psli;
 	LPFC_MBOXQ_t *mboxq;
-	int rc, i, hbq_count, buf_size, dma_buf_size, max_buf_size;
+	int rc, i, hbq_count, max_buf_size;
 	uint8_t pn_page[LPFC_MAX_SUPPORTED_PAGES] = {0};
 	struct lpfc_mqe *mqe;
-	int longs, sli_family;
-	int sges_per_segment;
+	int longs;
 
 	/* Before proceed, wait for POST done and device ready */
 	rc = lpfc_sli4_post_status_check(phba);
@@ -4837,11 +4939,6 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	phba->fc_map[1] = LPFC_FCOE_FCF_MAP1;
 	phba->fc_map[2] = LPFC_FCOE_FCF_MAP2;
 
-	/* With BlockGuard we can have multiple SGEs per Data Segemnt */
-	sges_per_segment = 1;
-	if (phba->cfg_enable_bg)
-		sges_per_segment = 2;
-
 	/*
 	 * For SLI4, instead of using ring 0 (LPFC_FCP_RING) for FCP commands
 	 * we will associate a new ring, for each FCP fastpath EQ/CQ/WQ tuple.
@@ -4852,43 +4949,71 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 			sizeof(struct lpfc_sli_ring), GFP_KERNEL);
 	if (!phba->sli.ring)
 		return -ENOMEM;
-	/*
-	 * Since the sg_tablesize is module parameter, the sg_dma_buf_size
-	 * used to create the sg_dma_buf_pool must be dynamically calculated.
-	 * 2 segments are added since the IOCB needs a command and response bde.
-	 * To insure that the scsi sgl does not cross a 4k page boundary only
-	 * sgl sizes of must be a power of 2.
-	 */
-	buf_size = (sizeof(struct fcp_cmnd) + sizeof(struct fcp_rsp) +
-		    (((phba->cfg_sg_seg_cnt * sges_per_segment) + 2) *
-		    sizeof(struct sli4_sge)));
 
-	sli_family = bf_get(lpfc_sli_intf_sli_family, &phba->sli4_hba.sli_intf);
-	max_buf_size = LPFC_SLI4_MAX_BUF_SIZE;
-	switch (sli_family) {
-	case LPFC_SLI_INTF_FAMILY_BE2:
-	case LPFC_SLI_INTF_FAMILY_BE3:
-		/* There is a single hint for BE - 2 pages per BPL. */
-		if (bf_get(lpfc_sli_intf_sli_hint1, &phba->sli4_hba.sli_intf) ==
-		    LPFC_SLI_INTF_SLI_HINT1_1)
-			max_buf_size = LPFC_SLI4_FL1_MAX_BUF_SIZE;
-		break;
-	case LPFC_SLI_INTF_FAMILY_LNCR_A0:
-	case LPFC_SLI_INTF_FAMILY_LNCR_B0:
-	default:
-		break;
+	/*
+	 * It doesn't matter what family our adapter is in, we are
+	 * limited to 2 Pages, 512 SGEs, for our SGL.
+	 * There are going to be 2 reserved SGEs: 1 FCP cmnd + 1 FCP rsp
+	 */
+	max_buf_size = (2 * SLI4_PAGE_SIZE);
+	if (phba->cfg_sg_seg_cnt > LPFC_MAX_SGL_SEG_CNT - 2)
+		phba->cfg_sg_seg_cnt = LPFC_MAX_SGL_SEG_CNT - 2;
+
+	/*
+	 * Since lpfc_sg_seg_cnt is module parameter, the sg_dma_buf_size
+	 * used to create the sg_dma_buf_pool must be dynamically calculated.
+	 */
+
+	if (phba->cfg_enable_bg) {
+		/*
+		 * The scsi_buf for a T10-DIF I/O will hold the FCP cmnd,
+		 * the FCP rsp, and a SGE for each. Sice we have no control
+		 * over how many protection data segments the SCSI Layer
+		 * will hand us (ie: there could be one for every block
+		 * in the IO), we just allocate enough SGEs to accomidate
+		 * our max amount and we need to limit lpfc_sg_seg_cnt to
+		 * minimize the risk of running out.
+		 */
+		phba->cfg_sg_dma_buf_size = sizeof(struct fcp_cmnd) +
+			sizeof(struct fcp_rsp) + max_buf_size;
+
+		/* Total SGEs for scsi_sg_list and scsi_sg_prot_list */
+		phba->cfg_total_seg_cnt = LPFC_MAX_SGL_SEG_CNT;
+
+		if (phba->cfg_sg_seg_cnt > LPFC_MAX_SG_SLI4_SEG_CNT_DIF)
+			phba->cfg_sg_seg_cnt = LPFC_MAX_SG_SLI4_SEG_CNT_DIF;
+	} else {
+		/*
+		 * The scsi_buf for a regular I/O will hold the FCP cmnd,
+		 * the FCP rsp, a SGE for each, and a SGE for up to
+		 * cfg_sg_seg_cnt data segments.
+		 */
+		phba->cfg_sg_dma_buf_size = sizeof(struct fcp_cmnd) +
+			sizeof(struct fcp_rsp) +
+			((phba->cfg_sg_seg_cnt + 2) * sizeof(struct sli4_sge));
+
+		/* Total SGEs for scsi_sg_list */
+		phba->cfg_total_seg_cnt = phba->cfg_sg_seg_cnt + 2;
+		/*
+		 * NOTE: if (phba->cfg_sg_seg_cnt + 2) <= 256 we only need
+		 * to post 1 page for the SGL.
+		 */
 	}
 
-	for (dma_buf_size = LPFC_SLI4_MIN_BUF_SIZE;
-	     dma_buf_size < max_buf_size && buf_size > dma_buf_size;
-	     dma_buf_size = dma_buf_size << 1)
-		;
-	if (dma_buf_size == max_buf_size)
-		phba->cfg_sg_seg_cnt = (dma_buf_size -
-			sizeof(struct fcp_cmnd) - sizeof(struct fcp_rsp) -
-			(2 * sizeof(struct sli4_sge))) /
-				sizeof(struct sli4_sge);
-	phba->cfg_sg_dma_buf_size = dma_buf_size;
+	/* Initialize the host templates with the updated values. */
+	lpfc_vport_template.sg_tablesize = phba->cfg_sg_seg_cnt;
+	lpfc_template.sg_tablesize = phba->cfg_sg_seg_cnt;
+
+	if (phba->cfg_sg_dma_buf_size  <= LPFC_MIN_SG_SLI4_BUF_SZ)
+		phba->cfg_sg_dma_buf_size = LPFC_MIN_SG_SLI4_BUF_SZ;
+	else
+		phba->cfg_sg_dma_buf_size =
+			SLI4_PAGE_ALIGN(phba->cfg_sg_dma_buf_size);
+
+	lpfc_printf_log(phba, KERN_INFO, LOG_INIT | LOG_FCP,
+			"9087 sg_tablesize:%d dmabuf_size:%d total_sge:%d\n",
+			phba->cfg_sg_seg_cnt, phba->cfg_sg_dma_buf_size,
+			phba->cfg_total_seg_cnt);
 
 	/* Initialize buffer queue management fields */
 	hbq_count = lpfc_sli_hbq_count();
@@ -5078,6 +5203,26 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		goto out_free_fcp_eq_hdl;
 	}
 
+	phba->sli4_hba.cpu_map = kzalloc((sizeof(struct lpfc_vector_map_info) *
+					 phba->sli4_hba.num_present_cpu),
+					 GFP_KERNEL);
+	if (!phba->sli4_hba.cpu_map) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3327 Failed allocate memory for msi-x "
+				"interrupt vector mapping\n");
+		rc = -ENOMEM;
+		goto out_free_msix;
+	}
+	/* Initialize io channels for round robin */
+	cpup = phba->sli4_hba.cpu_map;
+	rc = 0;
+	for (i = 0; i < phba->sli4_hba.num_present_cpu; i++) {
+		cpup->channel_id = rc;
+		rc++;
+		if (rc >= phba->cfg_fcp_io_channel)
+			rc = 0;
+	}
+
 	/*
 	 * Enable sr-iov virtual functions if supported and configured
 	 * through the module parameter.
@@ -5097,6 +5242,8 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 
 	return 0;
 
+out_free_msix:
+	kfree(phba->sli4_hba.msix_entries);
 out_free_fcp_eq_hdl:
 	kfree(phba->sli4_hba.fcp_eq_hdl);
 out_free_fcf_rr_bmask:
@@ -5125,6 +5272,11 @@ static void
 lpfc_sli4_driver_resource_unset(struct lpfc_hba *phba)
 {
 	struct lpfc_fcf_conn_entry *conn_entry, *next_conn_entry;
+
+	/* Free memory allocated for msi-x interrupt vector to CPU mapping */
+	kfree(phba->sli4_hba.cpu_map);
+	phba->sli4_hba.num_present_cpu = 0;
+	phba->sli4_hba.num_online_cpu = 0;
 
 	/* Free memory allocated for msi-x interrupt vector entries */
 	kfree(phba->sli4_hba.msix_entries);
@@ -5234,8 +5386,10 @@ lpfc_setup_driver_resource_phase1(struct lpfc_hba *phba)
 	init_waitqueue_head(&phba->work_waitq);
 
 	/* Initialize the scsi buffer list used by driver for scsi IO */
-	spin_lock_init(&phba->scsi_buf_list_lock);
-	INIT_LIST_HEAD(&phba->lpfc_scsi_buf_list);
+	spin_lock_init(&phba->scsi_buf_list_get_lock);
+	INIT_LIST_HEAD(&phba->lpfc_scsi_buf_list_get);
+	spin_lock_init(&phba->scsi_buf_list_put_lock);
+	INIT_LIST_HEAD(&phba->lpfc_scsi_buf_list_put);
 
 	/* Initialize the fabric iocb list */
 	INIT_LIST_HEAD(&phba->fabric_iocb_list);
@@ -6670,6 +6824,7 @@ lpfc_sli4_queue_verify(struct lpfc_hba *phba)
 	int cfg_fcp_io_channel;
 	uint32_t cpu;
 	uint32_t i = 0;
+	uint32_t j = 0;
 
 
 	/*
@@ -6680,15 +6835,21 @@ lpfc_sli4_queue_verify(struct lpfc_hba *phba)
 	/* Sanity check on HBA EQ parameters */
 	cfg_fcp_io_channel = phba->cfg_fcp_io_channel;
 
-	/* It doesn't make sense to have more io channels then CPUs */
-	for_each_online_cpu(cpu) {
-		i++;
+	/* It doesn't make sense to have more io channels then online CPUs */
+	for_each_present_cpu(cpu) {
+		if (cpu_online(cpu))
+			i++;
+		j++;
 	}
+	phba->sli4_hba.num_online_cpu = i;
+	phba->sli4_hba.num_present_cpu = j;
+
 	if (i < cfg_fcp_io_channel) {
 		lpfc_printf_log(phba,
 				KERN_ERR, LOG_INIT,
 				"3188 Reducing IO channels to match number of "
-				"CPUs: from %d to %d\n", cfg_fcp_io_channel, i);
+				"online CPUs: from %d to %d\n",
+				cfg_fcp_io_channel, i);
 		cfg_fcp_io_channel = i;
 	}
 
@@ -7717,8 +7878,13 @@ lpfc_pci_function_reset(struct lpfc_hba *phba)
 
 out:
 	/* Catch the not-ready port failure after a port reset. */
-	if (num_resets >= MAX_IF_TYPE_2_RESETS)
+	if (num_resets >= MAX_IF_TYPE_2_RESETS) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3317 HBA not functional: IP Reset Failed "
+				"after (%d) retries, try: "
+				"echo fw_reset > board_mode\n", num_resets);
 		rc = -ENODEV;
+	}
 
 	return rc;
 }
@@ -8183,6 +8349,269 @@ lpfc_sli_disable_intr(struct lpfc_hba *phba)
 }
 
 /**
+ * lpfc_find_next_cpu - Find next available CPU that matches the phys_id
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * Find next available CPU to use for IRQ to CPU affinity.
+ */
+static int
+lpfc_find_next_cpu(struct lpfc_hba *phba, uint32_t phys_id)
+{
+	struct lpfc_vector_map_info *cpup;
+	int cpu;
+
+	cpup = phba->sli4_hba.cpu_map;
+	for (cpu = 0; cpu < phba->sli4_hba.num_present_cpu; cpu++) {
+		/* CPU must be online */
+		if (cpu_online(cpu)) {
+			if ((cpup->irq == LPFC_VECTOR_MAP_EMPTY) &&
+			    (lpfc_used_cpu[cpu] == LPFC_VECTOR_MAP_EMPTY) &&
+			    (cpup->phys_id == phys_id)) {
+				return cpu;
+			}
+		}
+		cpup++;
+	}
+
+	/*
+	 * If we get here, we have used ALL CPUs for the specific
+	 * phys_id. Now we need to clear out lpfc_used_cpu and start
+	 * reusing CPUs.
+	 */
+
+	for (cpu = 0; cpu < phba->sli4_hba.num_present_cpu; cpu++) {
+		if (lpfc_used_cpu[cpu] == phys_id)
+			lpfc_used_cpu[cpu] = LPFC_VECTOR_MAP_EMPTY;
+	}
+
+	cpup = phba->sli4_hba.cpu_map;
+	for (cpu = 0; cpu < phba->sli4_hba.num_present_cpu; cpu++) {
+		/* CPU must be online */
+		if (cpu_online(cpu)) {
+			if ((cpup->irq == LPFC_VECTOR_MAP_EMPTY) &&
+			    (cpup->phys_id == phys_id)) {
+				return cpu;
+			}
+		}
+		cpup++;
+	}
+	return LPFC_VECTOR_MAP_EMPTY;
+}
+
+/**
+ * lpfc_sli4_set_affinity - Set affinity for HBA IRQ vectors
+ * @phba:	pointer to lpfc hba data structure.
+ * @vectors:	number of HBA vectors
+ *
+ * Affinitize MSIX IRQ vectors to CPUs. Try to equally spread vector
+ * affinization across multple physical CPUs (numa nodes).
+ * In addition, this routine will assign an IO channel for each CPU
+ * to use when issuing I/Os.
+ */
+static int
+lpfc_sli4_set_affinity(struct lpfc_hba *phba, int vectors)
+{
+	int i, idx, saved_chann, used_chann, cpu, phys_id;
+	int max_phys_id, num_io_channel, first_cpu;
+	struct lpfc_vector_map_info *cpup;
+#ifdef CONFIG_X86
+	struct cpuinfo_x86 *cpuinfo;
+#endif
+	struct cpumask *mask;
+	uint8_t chann[LPFC_FCP_IO_CHAN_MAX+1];
+
+	/* If there is no mapping, just return */
+	if (!phba->cfg_fcp_cpu_map)
+		return 1;
+
+	/* Init cpu_map array */
+	memset(phba->sli4_hba.cpu_map, 0xff,
+	       (sizeof(struct lpfc_vector_map_info) *
+		phba->sli4_hba.num_present_cpu));
+
+	max_phys_id = 0;
+	phys_id = 0;
+	num_io_channel = 0;
+	first_cpu = LPFC_VECTOR_MAP_EMPTY;
+
+	/* Update CPU map with physical id and core id of each CPU */
+	cpup = phba->sli4_hba.cpu_map;
+	for (cpu = 0; cpu < phba->sli4_hba.num_present_cpu; cpu++) {
+#ifdef CONFIG_X86
+		cpuinfo = &cpu_data(cpu);
+		cpup->phys_id = cpuinfo->phys_proc_id;
+		cpup->core_id = cpuinfo->cpu_core_id;
+#else
+		/* No distinction between CPUs for other platforms */
+		cpup->phys_id = 0;
+		cpup->core_id = 0;
+#endif
+
+		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+				"3328 CPU physid %d coreid %d\n",
+				cpup->phys_id, cpup->core_id);
+
+		if (cpup->phys_id > max_phys_id)
+			max_phys_id = cpup->phys_id;
+		cpup++;
+	}
+
+	/* Now associate the HBA vectors with specific CPUs */
+	for (idx = 0; idx < vectors; idx++) {
+		cpup = phba->sli4_hba.cpu_map;
+		cpu = lpfc_find_next_cpu(phba, phys_id);
+		if (cpu == LPFC_VECTOR_MAP_EMPTY) {
+
+			/* Try for all phys_id's */
+			for (i = 1; i < max_phys_id; i++) {
+				phys_id++;
+				if (phys_id > max_phys_id)
+					phys_id = 0;
+				cpu = lpfc_find_next_cpu(phba, phys_id);
+				if (cpu == LPFC_VECTOR_MAP_EMPTY)
+					continue;
+				goto found;
+			}
+
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"3329 Cannot set affinity:"
+					"Error mapping vector %d (%d)\n",
+					idx, vectors);
+			return 0;
+		}
+found:
+		cpup += cpu;
+		if (phba->cfg_fcp_cpu_map == LPFC_DRIVER_CPU_MAP)
+			lpfc_used_cpu[cpu] = phys_id;
+
+		/* Associate vector with selected CPU */
+		cpup->irq = phba->sli4_hba.msix_entries[idx].vector;
+
+		/* Associate IO channel with selected CPU */
+		cpup->channel_id = idx;
+		num_io_channel++;
+
+		if (first_cpu == LPFC_VECTOR_MAP_EMPTY)
+			first_cpu = cpu;
+
+		/* Now affinitize to the selected CPU */
+		mask = &cpup->maskbits;
+		cpumask_clear(mask);
+		cpumask_set_cpu(cpu, mask);
+		i = irq_set_affinity_hint(phba->sli4_hba.msix_entries[idx].
+					  vector, mask);
+
+		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+				"3330 Set Affinity: CPU %d channel %d "
+				"irq %d (%x)\n",
+				cpu, cpup->channel_id,
+				phba->sli4_hba.msix_entries[idx].vector, i);
+
+		/* Spread vector mapping across multple physical CPU nodes */
+		phys_id++;
+		if (phys_id > max_phys_id)
+			phys_id = 0;
+	}
+
+	/*
+	 * Finally fill in the IO channel for any remaining CPUs.
+	 * At this point, all IO channels have been assigned to a specific
+	 * MSIx vector, mapped to a specific CPU.
+	 * Base the remaining IO channel assigned, to IO channels already
+	 * assigned to other CPUs on the same phys_id.
+	 */
+	for (i = 0; i <= max_phys_id; i++) {
+		/*
+		 * If there are no io channels already mapped to
+		 * this phys_id, just round robin thru the io_channels.
+		 * Setup chann[] for round robin.
+		 */
+		for (idx = 0; idx < phba->cfg_fcp_io_channel; idx++)
+			chann[idx] = idx;
+
+		saved_chann = 0;
+		used_chann = 0;
+
+		/*
+		 * First build a list of IO channels already assigned
+		 * to this phys_id before reassigning the same IO
+		 * channels to the remaining CPUs.
+		 */
+		cpup = phba->sli4_hba.cpu_map;
+		cpu = first_cpu;
+		cpup += cpu;
+		for (idx = 0; idx < phba->sli4_hba.num_present_cpu;
+		     idx++) {
+			if (cpup->phys_id == i) {
+				/*
+				 * Save any IO channels that are
+				 * already mapped to this phys_id.
+				 */
+				if (cpup->irq != LPFC_VECTOR_MAP_EMPTY) {
+					chann[saved_chann] =
+						cpup->channel_id;
+					saved_chann++;
+					goto out;
+				}
+
+				/* See if we are using round-robin */
+				if (saved_chann == 0)
+					saved_chann =
+						phba->cfg_fcp_io_channel;
+
+				/* Associate next IO channel with CPU */
+				cpup->channel_id = chann[used_chann];
+				num_io_channel++;
+				used_chann++;
+				if (used_chann == saved_chann)
+					used_chann = 0;
+
+				lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+						"3331 Set IO_CHANN "
+						"CPU %d channel %d\n",
+						idx, cpup->channel_id);
+			}
+out:
+			cpu++;
+			if (cpu >= phba->sli4_hba.num_present_cpu) {
+				cpup = phba->sli4_hba.cpu_map;
+				cpu = 0;
+			} else {
+				cpup++;
+			}
+		}
+	}
+
+	if (phba->sli4_hba.num_online_cpu != phba->sli4_hba.num_present_cpu) {
+		cpup = phba->sli4_hba.cpu_map;
+		for (idx = 0; idx < phba->sli4_hba.num_present_cpu; idx++) {
+			if (cpup->channel_id == LPFC_VECTOR_MAP_EMPTY) {
+				cpup->channel_id = 0;
+				num_io_channel++;
+
+				lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+						"3332 Assign IO_CHANN "
+						"CPU %d channel %d\n",
+						idx, cpup->channel_id);
+			}
+			cpup++;
+		}
+	}
+
+	/* Sanity check */
+	if (num_io_channel != phba->sli4_hba.num_present_cpu)
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"3333 Set affinity mismatch:"
+				"%d chann != %d cpus: %d vactors\n",
+				num_io_channel, phba->sli4_hba.num_present_cpu,
+				vectors);
+
+	phba->cfg_fcp_io_sched = LPFC_FCP_SCHED_BY_CPU;
+	return 1;
+}
+
+
+/**
  * lpfc_sli4_enable_msix - Enable MSI-X interrupt mode to SLI-4 device
  * @phba: pointer to lpfc hba data structure.
  *
@@ -8233,9 +8662,7 @@ enable_msix_vectors:
 				phba->sli4_hba.msix_entries[index].vector,
 				phba->sli4_hba.msix_entries[index].entry);
 
-	/*
-	 * Assign MSI-X vectors to interrupt handlers
-	 */
+	/* Assign MSI-X vectors to interrupt handlers */
 	for (index = 0; index < vectors; index++) {
 		memset(&phba->sli4_hba.handler_name[index], 0, 16);
 		sprintf((char *)&phba->sli4_hba.handler_name[index],
@@ -8263,6 +8690,8 @@ enable_msix_vectors:
 				phba->cfg_fcp_io_channel, vectors);
 		phba->cfg_fcp_io_channel = vectors;
 	}
+
+	lpfc_sli4_set_affinity(phba, vectors);
 	return rc;
 
 cfg_fail_out:
@@ -9187,15 +9616,15 @@ lpfc_sli_prep_dev_for_reset(struct lpfc_hba *phba)
 	/* Block all SCSI devices' I/Os on the host */
 	lpfc_scsi_dev_block(phba);
 
+	/* Flush all driver's outstanding SCSI I/Os as we are to reset */
+	lpfc_sli_flush_fcp_rings(phba);
+
 	/* stop all timers */
 	lpfc_stop_hba_timers(phba);
 
 	/* Disable interrupt and pci device */
 	lpfc_sli_disable_intr(phba);
 	pci_disable_device(phba->pcidev);
-
-	/* Flush all driver's outstanding SCSI I/Os as we are to reset */
-	lpfc_sli_flush_fcp_rings(phba);
 }
 
 /**
@@ -9940,6 +10369,9 @@ lpfc_sli4_prep_dev_for_reset(struct lpfc_hba *phba)
 	/* Block all SCSI devices' I/Os on the host */
 	lpfc_scsi_dev_block(phba);
 
+	/* Flush all driver's outstanding SCSI I/Os as we are to reset */
+	lpfc_sli_flush_fcp_rings(phba);
+
 	/* stop all timers */
 	lpfc_stop_hba_timers(phba);
 
@@ -9947,9 +10379,6 @@ lpfc_sli4_prep_dev_for_reset(struct lpfc_hba *phba)
 	lpfc_sli4_disable_intr(phba);
 	lpfc_sli4_queue_destroy(phba);
 	pci_disable_device(phba->pcidev);
-
-	/* Flush all driver's outstanding SCSI I/Os as we are to reset */
-	lpfc_sli_flush_fcp_rings(phba);
 }
 
 /**
@@ -10368,36 +10797,6 @@ lpfc_io_resume(struct pci_dev *pdev)
 	return;
 }
 
-/**
- * lpfc_mgmt_open - method called when 'lpfcmgmt' is opened from userspace
- * @inode: pointer to the inode representing the lpfcmgmt device
- * @filep: pointer to the file representing the open lpfcmgmt device
- *
- * This routine puts a reference count on the lpfc module whenever the
- * character device is opened
- **/
-static int
-lpfc_mgmt_open(struct inode *inode, struct file *filep)
-{
-	try_module_get(THIS_MODULE);
-	return 0;
-}
-
-/**
- * lpfc_mgmt_release - method called when 'lpfcmgmt' is closed in userspace
- * @inode: pointer to the inode representing the lpfcmgmt device
- * @filep: pointer to the file representing the open lpfcmgmt device
- *
- * This routine removes a reference count from the lpfc module when the
- * character device is closed
- **/
-static int
-lpfc_mgmt_release(struct inode *inode, struct file *filep)
-{
-	module_put(THIS_MODULE);
-	return 0;
-}
-
 static struct pci_device_id lpfc_id_table[] = {
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_VIPER,
 		PCI_ANY_ID, PCI_ANY_ID, },
@@ -10515,8 +10914,7 @@ static struct pci_driver lpfc_driver = {
 };
 
 static const struct file_operations lpfc_mgmt_fop = {
-	.open = lpfc_mgmt_open,
-	.release = lpfc_mgmt_release,
+	.owner = THIS_MODULE,
 };
 
 static struct miscdevice lpfc_mgmt_dev = {
@@ -10540,6 +10938,7 @@ static struct miscdevice lpfc_mgmt_dev = {
 static int __init
 lpfc_init(void)
 {
+	int cpu;
 	int error = 0;
 
 	printk(LPFC_MODULE_DESC "\n");
@@ -10566,6 +10965,11 @@ lpfc_init(void)
 			return -ENOMEM;
 		}
 	}
+
+	/* Initialize in case vector mapping is needed */
+	for (cpu = 0; cpu < LPFC_MAX_CPU; cpu++)
+		lpfc_used_cpu[cpu] = LPFC_VECTOR_MAP_EMPTY;
+
 	error = pci_register_driver(&lpfc_driver);
 	if (error) {
 		fc_release_transport(lpfc_transport_template);

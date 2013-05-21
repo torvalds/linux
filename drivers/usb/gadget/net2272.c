@@ -58,7 +58,6 @@ static const char * const ep_name[] = {
 	"ep-a", "ep-b", "ep-c",
 };
 
-#define DMA_ADDR_INVALID	(~(dma_addr_t)0)
 #ifdef CONFIG_USB_NET2272_DMA
 /*
  * use_dma: the NET2272 can use an external DMA controller.
@@ -341,7 +340,6 @@ net2272_alloc_request(struct usb_ep *_ep, gfp_t gfp_flags)
 	if (!req)
 		return NULL;
 
-	req->req.dma = DMA_ADDR_INVALID;
 	INIT_LIST_HEAD(&req->queue);
 
 	return &req->req;
@@ -913,7 +911,7 @@ net2272_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 			}
 		}
 	}
-	if (likely(req != 0))
+	if (likely(req))
 		list_add_tail(&req->queue, &ep->queue);
 
 	if (likely(!list_empty(&ep->queue)))
@@ -1467,7 +1465,6 @@ static int net2272_start(struct usb_gadget *_gadget,
 	dev->softconnect = 1;
 	driver->driver.bus = NULL;
 	dev->driver = driver;
-	dev->gadget.dev.driver = &driver->driver;
 
 	/* ... then enable host detection and ep0; and we're ready
 	 * for set_configuration as well as eventual disconnect.
@@ -1517,7 +1514,6 @@ static int net2272_stop(struct usb_gadget *_gadget,
 	stop_activity(dev, driver);
 	spin_unlock_irqrestore(&dev->lock, flags);
 
-	dev->gadget.dev.driver = NULL;
 	dev->driver = NULL;
 
 	dev_dbg(dev->dev, "unregistered driver '%s'\n", driver->driver.name);
@@ -1549,7 +1545,7 @@ net2272_handle_dma(struct net2272_ep *ep)
 	      | (ep->dev->dma_eot_polarity << EOT_POLARITY)
 	      | (ep->dev->dma_dack_polarity << DACK_POLARITY)
 	      | (ep->dev->dma_dreq_polarity << DREQ_POLARITY)
-	      | ((ep->dma >> 1) << DMA_ENDPOINT_SELECT));
+	      | (ep->dma << DMA_ENDPOINT_SELECT));
 
 	ep->dev->dma_busy = 0;
 
@@ -1622,7 +1618,7 @@ net2272_handle_ep(struct net2272_ep *ep)
 	ep->irqs++;
 
 	dev_vdbg(ep->dev->dev, "%s ack ep_stat0 %02x, ep_stat1 %02x, req %p\n",
-		ep->ep.name, stat0, stat1, req ? &req->req : 0);
+		ep->ep.name, stat0, stat1, req ? &req->req : NULL);
 
 	net2272_ep_write(ep, EP_STAT0, stat0 &
 		~((1 << NAK_OUT_PACKETS)
@@ -2216,7 +2212,6 @@ net2272_remove(struct net2272 *dev)
 	free_irq(dev->irq, dev);
 	iounmap(dev->base_addr);
 
-	device_unregister(&dev->gadget.dev);
 	device_remove_file(dev->dev, &dev_attr_registers);
 
 	dev_info(dev->dev, "unbind\n");
@@ -2243,10 +2238,6 @@ static struct net2272 *net2272_probe_init(struct device *dev, unsigned int irq)
 	ret->gadget.max_speed = USB_SPEED_HIGH;
 
 	/* the "gadget" abstracts/virtualizes the controller */
-	dev_set_name(&ret->gadget.dev, "gadget");
-	ret->gadget.dev.parent = dev;
-	ret->gadget.dev.dma_mask = dev->dma_mask;
-	ret->gadget.dev.release = net2272_gadget_release;
 	ret->gadget.name = driver_name;
 
 	return ret;
@@ -2282,14 +2273,12 @@ net2272_probe_fin(struct net2272 *dev, unsigned int irqflags)
 		dma_mode_string());
 	dev_info(dev->dev, "version: %s\n", driver_vers);
 
-	ret = device_register(&dev->gadget.dev);
-	if (ret)
-		goto err_irq;
 	ret = device_create_file(dev->dev, &dev_attr_registers);
 	if (ret)
-		goto err_dev_reg;
+		goto err_irq;
 
-	ret = usb_add_gadget_udc(dev->dev, &dev->gadget);
+	ret = usb_add_gadget_udc_release(dev->dev, &dev->gadget,
+			net2272_gadget_release);
 	if (ret)
 		goto err_add_udc;
 
@@ -2297,8 +2286,6 @@ net2272_probe_fin(struct net2272 *dev, unsigned int irqflags)
 
 err_add_udc:
 	device_remove_file(dev->dev, &dev_attr_registers);
- err_dev_reg:
-	device_unregister(&dev->gadget.dev);
  err_irq:
 	free_irq(dev->irq, dev);
  err:

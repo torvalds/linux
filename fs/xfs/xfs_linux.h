@@ -72,6 +72,7 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 #include <linux/list_sort.h>
+#include <linux/ratelimit.h>
 
 #include <asm/page.h>
 #include <asm/div64.h>
@@ -292,15 +293,7 @@ static inline __uint64_t howmany_64(__uint64_t x, __uint32_t y)
 #define ASSERT_ALWAYS(expr)	\
 	(unlikely(expr) ? (void)0 : assfail(#expr, __FILE__, __LINE__))
 
-#ifndef DEBUG
-#define ASSERT(expr)	((void)0)
-
-#ifndef STATIC
-# define STATIC static noinline
-#endif
-
-#else /* DEBUG */
-
+#ifdef DEBUG
 #define ASSERT(expr)	\
 	(unlikely(expr) ? (void)0 : assfail(#expr, __FILE__, __LINE__))
 
@@ -308,6 +301,26 @@ static inline __uint64_t howmany_64(__uint64_t x, __uint32_t y)
 # define STATIC noinline
 #endif
 
+#else	/* !DEBUG */
+
+#ifdef XFS_WARN
+
+#define ASSERT(expr)	\
+	(unlikely(expr) ? (void)0 : asswarn(#expr, __FILE__, __LINE__))
+
+#ifndef STATIC
+# define STATIC static noinline
+#endif
+
+#else	/* !DEBUG && !XFS_WARN */
+
+#define ASSERT(expr)	((void)0)
+
+#ifndef STATIC
+# define STATIC static noinline
+#endif
+
+#endif /* XFS_WARN */
 #endif /* DEBUG */
 
 #endif /* __XFS_LINUX__ */

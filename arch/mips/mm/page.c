@@ -247,6 +247,11 @@ void __cpuinit build_clear_page(void)
 	struct uasm_label *l = labels;
 	struct uasm_reloc *r = relocs;
 	int i;
+	static atomic_t run_once = ATOMIC_INIT(0);
+
+	if (atomic_xchg(&run_once, 1)) {
+		return;
+	}
 
 	memset(labels, 0, sizeof(labels));
 	memset(relocs, 0, sizeof(relocs));
@@ -389,6 +394,11 @@ void __cpuinit build_copy_page(void)
 	struct uasm_label *l = labels;
 	struct uasm_reloc *r = relocs;
 	int i;
+	static atomic_t run_once = ATOMIC_INIT(0);
+
+	if (atomic_xchg(&run_once, 1)) {
+		return;
+	}
 
 	memset(labels, 0, sizeof(labels));
 	memset(relocs, 0, sizeof(relocs));

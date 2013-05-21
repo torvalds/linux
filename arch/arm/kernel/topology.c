@@ -100,7 +100,7 @@ static void __init parse_dt_topology(void)
 	int alloc_size, cpu = 0;
 
 	alloc_size = nr_cpu_ids * sizeof(struct cpu_capacity);
-	cpu_capacity = (struct cpu_capacity *)kzalloc(alloc_size, GFP_NOWAIT);
+	cpu_capacity = kzalloc(alloc_size, GFP_NOWAIT);
 
 	while ((cn = of_find_node_by_type(cn, "cpu"))) {
 		const u32 *rate, *reg;

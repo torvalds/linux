@@ -234,6 +234,7 @@ struct ath_buf {
 	dma_addr_t bf_daddr;		/* physical addr of desc */
 	dma_addr_t bf_buf_addr;	/* physical addr of data buffer, for DMA */
 	bool bf_stale;
+	struct ieee80211_tx_rate rates[4];
 	struct ath_buf_state bf_state;
 };
 
@@ -311,6 +312,7 @@ struct ath_rx_edma {
 struct ath_rx {
 	u8 defant;
 	u8 rxotherant;
+	bool discard_next;
 	u32 *rxlink;
 	u32 num_pkts;
 	unsigned int rxfilter;
@@ -657,11 +659,10 @@ enum sc_op_flags {
 struct ath_rate_table;
 
 struct ath9k_vif_iter_data {
-	const u8 *hw_macaddr; /* phy's hardware address, set
-			       * before starting iteration for
-			       * valid bssid mask.
-			       */
+	u8 hw_macaddr[ETH_ALEN]; /* address of the first vif */
 	u8 mask[ETH_ALEN]; /* bssid mask */
+	bool has_hw_macaddr;
+
 	int naps;      /* number of AP vifs */
 	int nmeshes;   /* number of mesh vifs */
 	int nstations; /* number of station vifs */

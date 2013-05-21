@@ -511,7 +511,7 @@ static int vpif_update_std_info(struct channel_obj *ch)
 	int i;
 
 	for (i = 0; i < vpif_ch_params_count; i++) {
-		config = &ch_params[i];
+		config = &vpif_ch_params[i];
 		if (config->hd_sd == 0) {
 			vpif_dbg(2, debug, "SD format\n");
 			if (config->stdid & vid_ch->stdid) {
@@ -1001,6 +1001,7 @@ static int vpif_reqbufs(struct file *file, void *priv,
 	q->ops = &video_qops;
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->buf_struct_size = sizeof(struct vpif_disp_buffer);
+	q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 
 	ret = vb2_queue_init(q);
 	if (ret) {
@@ -1058,14 +1059,14 @@ static int vpif_qbuf(struct file *file, void *priv, struct v4l2_buffer *buf)
 	return vb2_qbuf(&common->buffer_queue, buf);
 }
 
-static int vpif_s_std(struct file *file, void *priv, v4l2_std_id *std_id)
+static int vpif_s_std(struct file *file, void *priv, v4l2_std_id std_id)
 {
 	struct vpif_fh *fh = priv;
 	struct channel_obj *ch = fh->channel;
 	struct common_obj *common = &ch->common[VPIF_VIDEO_INDEX];
 	int ret = 0;
 
-	if (!(*std_id & VPIF_V4L2_STD))
+	if (!(std_id & VPIF_V4L2_STD))
 		return -EINVAL;
 
 	if (common->started) {
@@ -1074,7 +1075,7 @@ static int vpif_s_std(struct file *file, void *priv, v4l2_std_id *std_id)
 	}
 
 	/* Call encoder subdevice function to set the standard */
-	ch->video.stdid = *std_id;
+	ch->video.stdid = std_id;
 	memset(&ch->video.dv_timings, 0, sizeof(ch->video.dv_timings));
 	/* Get the information about the standard */
 	if (vpif_update_resolution(ch))
@@ -1092,14 +1093,14 @@ static int vpif_s_std(struct file *file, void *priv, v4l2_std_id *std_id)
 	vpif_config_format(ch);
 
 	ret = v4l2_device_call_until_err(&vpif_obj.v4l2_dev, 1, video,
-						s_std_output, *std_id);
+						s_std_output, std_id);
 	if (ret < 0) {
 		vpif_err("Failed to set output standard\n");
 		return ret;
 	}
 
 	ret = v4l2_device_call_until_err(&vpif_obj.v4l2_dev, 1, core,
-							s_std, *std_id);
+							s_std, std_id);
 	if (ret < 0)
 		vpif_err("Failed to set standard for sub devices\n");
 	return ret;
@@ -1567,7 +1568,8 @@ static int vpif_dbg_g_register(struct file *file, void *priv,
  * Returns zero or -EINVAL if write operations fails.
  */
 static int vpif_dbg_s_register(struct file *file, void *priv,
-		struct v4l2_dbg_register *reg){
+		const struct v4l2_dbg_register *reg)
+{
 	struct vpif_fh *fh = priv;
 	struct channel_obj *ch = fh->channel;
 

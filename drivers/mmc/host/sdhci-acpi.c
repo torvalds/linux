@@ -195,6 +195,8 @@ static int sdhci_acpi_probe(struct platform_device *pdev)
 		host->mmc->pm_caps  |= c->slot->pm_caps;
 	}
 
+	host->mmc->caps2 |= MMC_CAP2_NO_PRESCAN_POWERUP;
+
 	err = sdhci_add_host(host);
 	if (err)
 		goto err_free;

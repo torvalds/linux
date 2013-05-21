@@ -465,8 +465,6 @@ static inline void  smc_rcv(struct net_device *dev)
 		 */
 		skb = netdev_alloc_skb(dev, packet_len);
 		if (unlikely(skb == NULL)) {
-			printk(KERN_NOTICE "%s: Low memory, packet dropped.\n",
-				dev->name);
 			SMC_WAIT_MMU_BUSY(lp);
 			SMC_SET_MMU_CMD(lp, MC_RELEASE);
 			dev->stats.rx_dropped++;

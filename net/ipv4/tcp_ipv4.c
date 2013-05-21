@@ -838,7 +838,6 @@ static void tcp_v4_reqsk_send_ack(struct sock *sk, struct sk_buff *skb,
  */
 static int tcp_v4_send_synack(struct sock *sk, struct dst_entry *dst,
 			      struct request_sock *req,
-			      struct request_values *rvp,
 			      u16 queue_mapping,
 			      bool nocache)
 {
@@ -851,7 +850,7 @@ static int tcp_v4_send_synack(struct sock *sk, struct dst_entry *dst,
 	if (!dst && (dst = inet_csk_route_req(sk, &fl4, req)) == NULL)
 		return -1;
 
-	skb = tcp_make_synack(sk, dst, req, rvp, NULL);
+	skb = tcp_make_synack(sk, dst, req, NULL);
 
 	if (skb) {
 		__tcp_v4_send_check(skb, ireq->loc_addr, ireq->rmt_addr);
@@ -868,10 +867,9 @@ static int tcp_v4_send_synack(struct sock *sk, struct dst_entry *dst,
 	return err;
 }
 
-static int tcp_v4_rtx_synack(struct sock *sk, struct request_sock *req,
-			     struct request_values *rvp)
+static int tcp_v4_rtx_synack(struct sock *sk, struct request_sock *req)
 {
-	int res = tcp_v4_send_synack(sk, NULL, req, rvp, 0, false);
+	int res = tcp_v4_send_synack(sk, NULL, req, 0, false);
 
 	if (!res)
 		TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_RETRANSSEGS);
@@ -1371,8 +1369,7 @@ static bool tcp_fastopen_check(struct sock *sk, struct sk_buff *skb,
 static int tcp_v4_conn_req_fastopen(struct sock *sk,
 				    struct sk_buff *skb,
 				    struct sk_buff *skb_synack,
-				    struct request_sock *req,
-				    struct request_values *rvp)
+				    struct request_sock *req)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct request_sock_queue *queue = &inet_csk(sk)->icsk_accept_queue;
@@ -1467,9 +1464,7 @@ static int tcp_v4_conn_req_fastopen(struct sock *sk,
 
 int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 {
-	struct tcp_extend_values tmp_ext;
 	struct tcp_options_received tmp_opt;
-	const u8 *hash_location;
 	struct request_sock *req;
 	struct inet_request_sock *ireq;
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -1519,42 +1514,7 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	tcp_clear_options(&tmp_opt);
 	tmp_opt.mss_clamp = TCP_MSS_DEFAULT;
 	tmp_opt.user_mss  = tp->rx_opt.user_mss;
-	tcp_parse_options(skb, &tmp_opt, &hash_location, 0,
-	    want_cookie ? NULL : &foc);
-
-	if (tmp_opt.cookie_plus > 0 &&
-	    tmp_opt.saw_tstamp &&
-	    !tp->rx_opt.cookie_out_never &&
-	    (sysctl_tcp_cookie_size > 0 ||
-	     (tp->cookie_values != NULL &&
-	      tp->cookie_values->cookie_desired > 0))) {
-		u8 *c;
-		u32 *mess = &tmp_ext.cookie_bakery[COOKIE_DIGEST_WORDS];
-		int l = tmp_opt.cookie_plus - TCPOLEN_COOKIE_BASE;
-
-		if (tcp_cookie_generator(&tmp_ext.cookie_bakery[0]) != 0)
-			goto drop_and_release;
-
-		/* Secret recipe starts with IP addresses */
-		*mess++ ^= (__force u32)daddr;
-		*mess++ ^= (__force u32)saddr;
-
-		/* plus variable length Initiator Cookie */
-		c = (u8 *)mess;
-		while (l-- > 0)
-			*c++ ^= *hash_location++;
-
-		want_cookie = false;	/* not our kind of cookie */
-		tmp_ext.cookie_out_never = 0; /* false */
-		tmp_ext.cookie_plus = tmp_opt.cookie_plus;
-	} else if (!tp->rx_opt.cookie_in_always) {
-		/* redundant indications, but ensure initialization. */
-		tmp_ext.cookie_out_never = 1; /* true */
-		tmp_ext.cookie_plus = 0;
-	} else {
-		goto drop_and_release;
-	}
-	tmp_ext.cookie_in_always = tp->rx_opt.cookie_in_always;
+	tcp_parse_options(skb, &tmp_opt, 0, want_cookie ? NULL : &foc);
 
 	if (want_cookie && !tmp_opt.saw_tstamp)
 		tcp_clear_options(&tmp_opt);
@@ -1636,7 +1596,6 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	 * of tcp_v4_send_synack()->tcp_select_initial_window().
 	 */
 	skb_synack = tcp_make_synack(sk, dst, req,
-	    (struct request_values *)&tmp_ext,
 	    fastopen_cookie_present(&valid_foc) ? &valid_foc : NULL);
 
 	if (skb_synack) {
@@ -1660,8 +1619,7 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 		if (fastopen_cookie_present(&foc) && foc.len != 0)
 			NET_INC_STATS_BH(sock_net(sk),
 			    LINUX_MIB_TCPFASTOPENPASSIVEFAIL);
-	} else if (tcp_v4_conn_req_fastopen(sk, skb, skb_synack, req,
-	    (struct request_values *)&tmp_ext))
+	} else if (tcp_v4_conn_req_fastopen(sk, skb, skb_synack, req))
 		goto drop_and_free;
 
 	return 0;
@@ -1908,6 +1866,7 @@ discard:
 	return 0;
 
 csum_err:
+	TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_CSUMERRORS);
 	TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_INERRS);
 	goto discard;
 }
@@ -1950,6 +1909,51 @@ void tcp_v4_early_demux(struct sk_buff *skb)
 	}
 }
 
+/* Packet is added to VJ-style prequeue for processing in process
+ * context, if a reader task is waiting. Apparently, this exciting
+ * idea (VJ's mail "Re: query about TCP header on tcp-ip" of 07 Sep 93)
+ * failed somewhere. Latency? Burstiness? Well, at least now we will
+ * see, why it failed. 8)8)				  --ANK
+ *
+ */
+bool tcp_prequeue(struct sock *sk, struct sk_buff *skb)
+{
+	struct tcp_sock *tp = tcp_sk(sk);
+
+	if (sysctl_tcp_low_latency || !tp->ucopy.task)
+		return false;
+
+	if (skb->len <= tcp_hdrlen(skb) &&
+	    skb_queue_len(&tp->ucopy.prequeue) == 0)
+		return false;
+
+	skb_dst_force(skb);
+	__skb_queue_tail(&tp->ucopy.prequeue, skb);
+	tp->ucopy.memory += skb->truesize;
+	if (tp->ucopy.memory > sk->sk_rcvbuf) {
+		struct sk_buff *skb1;
+
+		BUG_ON(sock_owned_by_user(sk));
+
+		while ((skb1 = __skb_dequeue(&tp->ucopy.prequeue)) != NULL) {
+			sk_backlog_rcv(sk, skb1);
+			NET_INC_STATS_BH(sock_net(sk),
+					 LINUX_MIB_TCPPREQUEUEDROPPED);
+		}
+
+		tp->ucopy.memory = 0;
+	} else if (skb_queue_len(&tp->ucopy.prequeue) == 1) {
+		wake_up_interruptible_sync_poll(sk_sleep(sk),
+					   POLLIN | POLLRDNORM | POLLRDBAND);
+		if (!inet_csk_ack_scheduled(sk))
+			inet_csk_reset_xmit_timer(sk, ICSK_TIME_DACK,
+						  (3 * tcp_rto_min(sk)) / 4,
+						  TCP_RTO_MAX);
+	}
+	return true;
+}
+EXPORT_SYMBOL(tcp_prequeue);
+
 /*
  *	From tcp_input.c
  */
@@ -1983,7 +1987,7 @@ int tcp_v4_rcv(struct sk_buff *skb)
 	 * provided case of th->doff==0 is eliminated.
 	 * So, we defer the checks. */
 	if (!skb_csum_unnecessary(skb) && tcp_v4_checksum_init(skb))
-		goto bad_packet;
+		goto csum_error;
 
 	th = tcp_hdr(skb);
 	iph = ip_hdr(skb);
@@ -2049,6 +2053,8 @@ no_tcp_socket:
 		goto discard_it;
 
 	if (skb->len < (th->doff << 2) || tcp_checksum_complete(skb)) {
+csum_error:
+		TCP_INC_STATS_BH(net, TCP_MIB_CSUMERRORS);
 bad_packet:
 		TCP_INC_STATS_BH(net, TCP_MIB_INERRS);
 	} else {
@@ -2070,10 +2076,13 @@ do_time_wait:
 		goto discard_it;
 	}
 
-	if (skb->len < (th->doff << 2) || tcp_checksum_complete(skb)) {
-		TCP_INC_STATS_BH(net, TCP_MIB_INERRS);
+	if (skb->len < (th->doff << 2)) {
 		inet_twsk_put(inet_twsk(sk));
-		goto discard_it;
+		goto bad_packet;
+	}
+	if (tcp_checksum_complete(skb)) {
+		inet_twsk_put(inet_twsk(sk));
+		goto csum_error;
 	}
 	switch (tcp_timewait_state_process(inet_twsk(sk), skb, th)) {
 	case TCP_TW_SYN: {
@@ -2197,12 +2206,6 @@ void tcp_v4_destroy_sock(struct sock *sk)
 	if (inet_csk(sk)->icsk_bind_hash)
 		inet_put_port(sk);
 
-	/* TCP Cookie Transactions */
-	if (tp->cookie_values != NULL) {
-		kref_put(&tp->cookie_values->kref,
-			 tcp_cookie_values_release);
-		tp->cookie_values = NULL;
-	}
 	BUG_ON(tp->fastopen_rsk != NULL);
 
 	/* If socket is aborted during connect operation */
@@ -2580,7 +2583,7 @@ static void tcp_seq_stop(struct seq_file *seq, void *v)
 
 int tcp_seq_open(struct inode *inode, struct file *file)
 {
-	struct tcp_seq_afinfo *afinfo = PDE(inode)->data;
+	struct tcp_seq_afinfo *afinfo = PDE_DATA(inode);
 	struct tcp_iter_state *s;
 	int err;
 
@@ -2659,7 +2662,9 @@ static void get_tcp4_sock(struct sock *sk, struct seq_file *f, int i, int *len)
 	__u16 srcp = ntohs(inet->inet_sport);
 	int rx_queue;
 
-	if (icsk->icsk_pending == ICSK_TIME_RETRANS) {
+	if (icsk->icsk_pending == ICSK_TIME_RETRANS ||
+	    icsk->icsk_pending == ICSK_TIME_EARLY_RETRANS ||
+	    icsk->icsk_pending == ICSK_TIME_LOSS_PROBE) {
 		timer_active	= 1;
 		timer_expires	= icsk->icsk_timeout;
 	} else if (icsk->icsk_pending == ICSK_TIME_PROBE0) {

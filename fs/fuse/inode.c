@@ -346,6 +346,7 @@ static void fuse_send_destroy(struct fuse_conn *fc)
 		fc->destroy_req = NULL;
 		req->in.h.opcode = FUSE_DESTROY;
 		req->force = 1;
+		req->background = 0;
 		fuse_request_send(fc, req);
 		fuse_put_request(fc, req);
 	}
@@ -362,6 +363,7 @@ void fuse_conn_kill(struct fuse_conn *fc)
 	spin_lock(&fc->lock);
 	fc->connected = 0;
 	fc->blocked = 0;
+	fc->initialized = 1;
 	spin_unlock(&fc->lock);
 	/* Flush all readers on this fs */
 	kill_fasync(&fc->fasync, SIGIO, POLL_IN);
@@ -581,7 +583,8 @@ void fuse_conn_init(struct fuse_conn *fc)
 	fc->khctr = 0;
 	fc->polled_files = RB_ROOT;
 	fc->reqctr = 0;
-	fc->blocked = 1;
+	fc->blocked = 0;
+	fc->initialized = 0;
 	fc->attr_version = 1;
 	get_random_bytes(&fc->scramble_key, sizeof(fc->scramble_key));
 }
@@ -868,6 +871,8 @@ static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 				fc->do_readdirplus = 1;
 			if (arg->flags & FUSE_READDIRPLUS_AUTO)
 				fc->readdirplus_auto = 1;
+			if (arg->flags & FUSE_ASYNC_DIO)
+				fc->async_dio = 1;
 		} else {
 			ra_pages = fc->max_read / PAGE_CACHE_SIZE;
 			fc->no_lock = 1;
@@ -880,7 +885,7 @@ static void process_init_reply(struct fuse_conn *fc, struct fuse_req *req)
 		fc->max_write = max_t(unsigned, 4096, fc->max_write);
 		fc->conn_init = 1;
 	}
-	fc->blocked = 0;
+	fc->initialized = 1;
 	wake_up_all(&fc->blocked_waitq);
 }
 
@@ -895,7 +900,7 @@ static void fuse_send_init(struct fuse_conn *fc, struct fuse_req *req)
 		FUSE_EXPORT_SUPPORT | FUSE_BIG_WRITES | FUSE_DONT_MASK |
 		FUSE_SPLICE_WRITE | FUSE_SPLICE_MOVE | FUSE_SPLICE_READ |
 		FUSE_FLOCK_LOCKS | FUSE_IOCTL_DIR | FUSE_AUTO_INVAL_DATA |
-		FUSE_DO_READDIRPLUS | FUSE_READDIRPLUS_AUTO;
+		FUSE_DO_READDIRPLUS | FUSE_READDIRPLUS_AUTO | FUSE_ASYNC_DIO;
 	req->in.h.opcode = FUSE_INIT;
 	req->in.numargs = 1;
 	req->in.args[0].size = sizeof(*arg);
@@ -1043,6 +1048,7 @@ static int fuse_fill_super(struct super_block *sb, void *data, int silent)
 	init_req = fuse_request_alloc(0);
 	if (!init_req)
 		goto err_put_root;
+	init_req->background = 1;
 
 	if (is_bdev) {
 		fc->destroy_req = fuse_request_alloc(0);

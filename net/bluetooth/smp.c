@@ -522,7 +522,7 @@ void smp_chan_destroy(struct l2cap_conn *conn)
 	kfree(smp);
 	conn->smp_chan = NULL;
 	conn->hcon->smp_conn = NULL;
-	hci_conn_put(conn->hcon);
+	hci_conn_drop(conn->hcon);
 }
 
 int smp_user_confirm_reply(struct hci_conn *hcon, u16 mgmt_op, __le32 passkey)

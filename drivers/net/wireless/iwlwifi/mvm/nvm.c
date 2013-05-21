@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -74,26 +74,11 @@ static const int nvm_to_read[] = {
 	NVM_SECTION_TYPE_PRODUCTION,
 };
 
-/* used to simplify the shared operations on NCM_ACCESS_CMD versions */
-union iwl_nvm_access_cmd {
-	struct iwl_nvm_access_cmd_ver1 ver1;
-	struct iwl_nvm_access_cmd_ver2 ver2;
-};
-union iwl_nvm_access_resp {
-	struct iwl_nvm_access_resp_ver1 ver1;
-	struct iwl_nvm_access_resp_ver2 ver2;
-};
+/* Default NVM size to read */
+#define IWL_NVM_DEFAULT_CHUNK_SIZE (2*1024);
 
-static inline void iwl_nvm_fill_read_ver1(struct iwl_nvm_access_cmd_ver1 *cmd,
-					  u16 offset, u16 length)
-{
-	cmd->offset = cpu_to_le16(offset);
-	cmd->length = cpu_to_le16(length);
-	cmd->cache_refresh = 1;
-}
-
-static inline void iwl_nvm_fill_read_ver2(struct iwl_nvm_access_cmd_ver2 *cmd,
-					  u16 offset, u16 length, u16 section)
+static inline void iwl_nvm_fill_read(struct iwl_nvm_access_cmd *cmd,
+				     u16 offset, u16 length, u16 section)
 {
 	cmd->offset = cpu_to_le16(offset);
 	cmd->length = cpu_to_le16(length);
@@ -103,8 +88,8 @@ static inline void iwl_nvm_fill_read_ver2(struct iwl_nvm_access_cmd_ver2 *cmd,
 static int iwl_nvm_read_chunk(struct iwl_mvm *mvm, u16 section,
 			      u16 offset, u16 length, u8 *data)
 {
-	union iwl_nvm_access_cmd nvm_access_cmd;
-	union iwl_nvm_access_resp *nvm_resp;
+	struct iwl_nvm_access_cmd nvm_access_cmd = {};
+	struct iwl_nvm_access_resp *nvm_resp;
 	struct iwl_rx_packet *pkt;
 	struct iwl_host_cmd cmd = {
 		.id = NVM_ACCESS_CMD,
@@ -114,18 +99,8 @@ static int iwl_nvm_read_chunk(struct iwl_mvm *mvm, u16 section,
 	int ret, bytes_read, offset_read;
 	u8 *resp_data;
 
-	memset(&nvm_access_cmd, 0, sizeof(nvm_access_cmd));
-
-	/* TODO: not sure family should be the decider, maybe FW version? */
-	if (mvm->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
-		iwl_nvm_fill_read_ver2(&(nvm_access_cmd.ver2),
-				       offset, length, section);
-		cmd.len[0] = sizeof(struct iwl_nvm_access_cmd_ver2);
-	} else {
-		iwl_nvm_fill_read_ver1(&(nvm_access_cmd.ver1),
-				       offset, length);
-		cmd.len[0] = sizeof(struct iwl_nvm_access_cmd_ver1);
-	}
+	iwl_nvm_fill_read(&nvm_access_cmd, offset, length, section);
+	cmd.len[0] = sizeof(struct iwl_nvm_access_cmd);
 
 	ret = iwl_mvm_send_cmd(mvm, &cmd);
 	if (ret)
@@ -141,17 +116,10 @@ static int iwl_nvm_read_chunk(struct iwl_mvm *mvm, u16 section,
 
 	/* Extract NVM response */
 	nvm_resp = (void *)pkt->data;
-	if (mvm->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
-		ret = le16_to_cpu(nvm_resp->ver2.status);
-		bytes_read = le16_to_cpu(nvm_resp->ver2.length);
-		offset_read = le16_to_cpu(nvm_resp->ver2.offset);
-		resp_data = nvm_resp->ver2.data;
-	} else {
-		ret = le16_to_cpu(nvm_resp->ver1.length) <= 0;
-		bytes_read = le16_to_cpu(nvm_resp->ver1.length);
-		offset_read = le16_to_cpu(nvm_resp->ver1.offset);
-		resp_data = nvm_resp->ver1.data;
-	}
+	ret = le16_to_cpu(nvm_resp->status);
+	bytes_read = le16_to_cpu(nvm_resp->length);
+	offset_read = le16_to_cpu(nvm_resp->offset);
+	resp_data = nvm_resp->data;
 	if (ret) {
 		IWL_ERR(mvm,
 			"NVM access command failed with status %d (device: %s)\n",
@@ -191,17 +159,10 @@ static int iwl_nvm_read_section(struct iwl_mvm *mvm, u16 section,
 {
 	u16 length, offset = 0;
 	int ret;
-	bool old_eeprom = mvm->cfg->device_family != IWL_DEVICE_FAMILY_7000;
 
-	length = (iwlwifi_mod_params.amsdu_size_8K ? (8 * 1024) : (4 * 1024))
-		- sizeof(union iwl_nvm_access_cmd)
-		- sizeof(struct iwl_rx_packet);
-	/*
-	 * if length is greater than EEPROM size, truncate it because uCode
-	 * doesn't check it by itself, and exit the loop when reached.
-	 */
-	if (old_eeprom && length > mvm->cfg->base_params->eeprom_size)
-		length = mvm->cfg->base_params->eeprom_size;
+	/* Set nvm section read length */
+	length = IWL_NVM_DEFAULT_CHUNK_SIZE;
+
 	ret = length;
 
 	/* Read the NVM until exhausted (reading less than requested) */
@@ -214,8 +175,6 @@ static int iwl_nvm_read_section(struct iwl_mvm *mvm, u16 section,
 			return ret;
 		}
 		offset += ret;
-		if (old_eeprom && offset == mvm->cfg->base_params->eeprom_size)
-			break;
 	}
 
 	IWL_INFO(mvm, "NVM section %d read completed\n", section);
@@ -249,63 +208,31 @@ int iwl_nvm_init(struct iwl_mvm *mvm)
 	int ret, i, section;
 	u8 *nvm_buffer, *temp;
 
-	if (mvm->cfg->device_family == IWL_DEVICE_FAMILY_7000) {
-		/* TODO: find correct NVM max size for a section */
-		nvm_buffer = kmalloc(mvm->cfg->base_params->eeprom_size,
-				     GFP_KERNEL);
-		if (!nvm_buffer)
-			return -ENOMEM;
-		for (i = 0; i < ARRAY_SIZE(nvm_to_read); i++) {
-			section = nvm_to_read[i];
-			/* we override the constness for initial read */
-			ret = iwl_nvm_read_section(mvm, section, nvm_buffer);
-			if (ret < 0)
-				break;
-			temp = kmemdup(nvm_buffer, ret, GFP_KERNEL);
-			if (!temp) {
-				ret = -ENOMEM;
-				break;
-			}
-			mvm->nvm_sections[section].data = temp;
-			mvm->nvm_sections[section].length = ret;
-		}
-		kfree(nvm_buffer);
+	/* TODO: find correct NVM max size for a section */
+	nvm_buffer = kmalloc(mvm->cfg->base_params->eeprom_size,
+			     GFP_KERNEL);
+	if (!nvm_buffer)
+		return -ENOMEM;
+	for (i = 0; i < ARRAY_SIZE(nvm_to_read); i++) {
+		section = nvm_to_read[i];
+		/* we override the constness for initial read */
+		ret = iwl_nvm_read_section(mvm, section, nvm_buffer);
 		if (ret < 0)
-			return ret;
-	} else {
-		/* allocate eeprom */
-		mvm->eeprom_blob_size = mvm->cfg->base_params->eeprom_size;
-		IWL_DEBUG_EEPROM(mvm->trans->dev, "NVM size = %zd\n",
-				 mvm->eeprom_blob_size);
-		mvm->eeprom_blob = kzalloc(mvm->eeprom_blob_size, GFP_KERNEL);
-		if (!mvm->eeprom_blob)
-			return -ENOMEM;
-
-		ret = iwl_nvm_read_section(mvm, 0, mvm->eeprom_blob);
-		if (ret != mvm->eeprom_blob_size) {
-			IWL_ERR(mvm, "Read partial NVM %d/%zd\n",
-				ret, mvm->eeprom_blob_size);
-			kfree(mvm->eeprom_blob);
-			mvm->eeprom_blob = NULL;
-			return -EINVAL;
+			break;
+		temp = kmemdup(nvm_buffer, ret, GFP_KERNEL);
+		if (!temp) {
+			ret = -ENOMEM;
+			break;
 		}
+		mvm->nvm_sections[section].data = temp;
+		mvm->nvm_sections[section].length = ret;
 	}
+	kfree(nvm_buffer);
+	if (ret < 0)
+		return ret;
 
 	ret = 0;
-	if (mvm->cfg->device_family == IWL_DEVICE_FAMILY_7000)
-		mvm->nvm_data = iwl_parse_nvm_sections(mvm);
-	else
-		mvm->nvm_data =
-			iwl_parse_eeprom_data(mvm->trans->dev,
-					      mvm->cfg,
-					      mvm->eeprom_blob,
-					      mvm->eeprom_blob_size);
-
-	if (!mvm->nvm_data) {
-		kfree(mvm->eeprom_blob);
-		mvm->eeprom_blob = NULL;
-		ret = -ENOMEM;
-	}
+	mvm->nvm_data = iwl_parse_nvm_sections(mvm);
 
 	return ret;
 }

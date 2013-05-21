@@ -1559,7 +1559,7 @@ out:
 }
 
 static int wl1273_fm_vidioc_s_tuner(struct file *file, void *priv,
-				    struct v4l2_tuner *tuner)
+				    const struct v4l2_tuner *tuner)
 {
 	struct wl1273_device *radio = video_get_drvdata(video_devdata(file));
 	struct wl1273_core *core = radio->core;
@@ -1640,7 +1640,7 @@ static int wl1273_fm_vidioc_g_frequency(struct file *file, void *priv,
 }
 
 static int wl1273_fm_vidioc_s_frequency(struct file *file, void *priv,
-					struct v4l2_frequency *freq)
+					const struct v4l2_frequency *freq)
 {
 	struct wl1273_device *radio = video_get_drvdata(video_devdata(file));
 	struct wl1273_core *core = radio->core;

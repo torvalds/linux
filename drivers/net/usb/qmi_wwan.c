@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/ethtool.h>
+#include <linux/etherdevice.h>
 #include <linux/mii.h>
 #include <linux/usb.h>
 #include <linux/usb/cdc.h>
@@ -50,6 +51,96 @@ struct qmi_wwan_state {
 	unsigned long unused;
 	struct usb_interface *control;
 	struct usb_interface *data;
+};
+
+/* default ethernet address used by the modem */
+static const u8 default_modem_addr[ETH_ALEN] = {0x02, 0x50, 0xf3};
+
+/* Make up an ethernet header if the packet doesn't have one.
+ *
+ * A firmware bug common among several devices cause them to send raw
+ * IP packets under some circumstances.  There is no way for the
+ * driver/host to know when this will happen.  And even when the bug
+ * hits, some packets will still arrive with an intact header.
+ *
+ * The supported devices are only capably of sending IPv4, IPv6 and
+ * ARP packets on a point-to-point link. Any packet with an ethernet
+ * header will have either our address or a broadcast/multicast
+ * address as destination.  ARP packets will always have a header.
+ *
+ * This means that this function will reliably add the appropriate
+ * header iff necessary, provided our hardware address does not start
+ * with 4 or 6.
+ *
+ * Another common firmware bug results in all packets being addressed
+ * to 00:a0:c6:00:00:00 despite the host address being different.
+ * This function will also fixup such packets.
+ */
+static int qmi_wwan_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
+{
+	__be16 proto;
+
+	/* usbnet rx_complete guarantees that skb->len is at least
+	 * hard_header_len, so we can inspect the dest address without
+	 * checking skb->len
+	 */
+	switch (skb->data[0] & 0xf0) {
+	case 0x40:
+		proto = htons(ETH_P_IP);
+		break;
+	case 0x60:
+		proto = htons(ETH_P_IPV6);
+		break;
+	case 0x00:
+		if (is_multicast_ether_addr(skb->data))
+			return 1;
+		/* possibly bogus destination - rewrite just in case */
+		skb_reset_mac_header(skb);
+		goto fix_dest;
+	default:
+		/* pass along other packets without modifications */
+		return 1;
+	}
+	if (skb_headroom(skb) < ETH_HLEN)
+		return 0;
+	skb_push(skb, ETH_HLEN);
+	skb_reset_mac_header(skb);
+	eth_hdr(skb)->h_proto = proto;
+	memset(eth_hdr(skb)->h_source, 0, ETH_ALEN);
+fix_dest:
+	memcpy(eth_hdr(skb)->h_dest, dev->net->dev_addr, ETH_ALEN);
+	return 1;
+}
+
+/* very simplistic detection of IPv4 or IPv6 headers */
+static bool possibly_iphdr(const char *data)
+{
+	return (data[0] & 0xd0) == 0x40;
+}
+
+/* disallow addresses which may be confused with IP headers */
+static int qmi_wwan_mac_addr(struct net_device *dev, void *p)
+{
+	int ret;
+	struct sockaddr *addr = p;
+
+	ret = eth_prepare_mac_addr_change(dev, p);
+	if (ret < 0)
+		return ret;
+	if (possibly_iphdr(addr->sa_data))
+		return -EADDRNOTAVAIL;
+	eth_commit_mac_addr_change(dev, p);
+	return 0;
+}
+
+static const struct net_device_ops qmi_wwan_netdev_ops = {
+	.ndo_open		= usbnet_open,
+	.ndo_stop		= usbnet_stop,
+	.ndo_start_xmit		= usbnet_start_xmit,
+	.ndo_tx_timeout		= usbnet_tx_timeout,
+	.ndo_change_mtu		= usbnet_change_mtu,
+	.ndo_set_mac_address	= qmi_wwan_mac_addr,
+	.ndo_validate_addr	= eth_validate_addr,
 };
 
 /* using a counter to merge subdriver requests with our own into a combined state */
@@ -229,6 +320,18 @@ next_desc:
 		usb_driver_release_interface(driver, info->data);
 	}
 
+	/* Never use the same address on both ends of the link, even
+	 * if the buggy firmware told us to.
+	 */
+	if (!compare_ether_addr(dev->net->dev_addr, default_modem_addr))
+		eth_hw_addr_random(dev->net);
+
+	/* make MAC addr easily distinguishable from an IP header */
+	if (possibly_iphdr(dev->net->dev_addr)) {
+		dev->net->dev_addr[0] |= 0x02;	/* set local assignment bit */
+		dev->net->dev_addr[0] &= 0xbf;	/* clear "IP" bit */
+	}
+	dev->net->netdev_ops = &qmi_wwan_netdev_ops;
 err:
 	return status;
 }
@@ -271,6 +374,11 @@ static int qmi_wwan_suspend(struct usb_interface *intf, pm_message_t message)
 	struct qmi_wwan_state *info = (void *)&dev->data;
 	int ret;
 
+	/*
+	 * Both usbnet_suspend() and subdriver->suspend() MUST return 0
+	 * in system sleep context, otherwise, the resume callback has
+	 * to recover device from previous suspend failure.
+	 */
 	ret = usbnet_suspend(intf, message);
 	if (ret < 0)
 		goto err;
@@ -307,6 +415,7 @@ static const struct driver_info	qmi_wwan_info = {
 	.bind		= qmi_wwan_bind,
 	.unbind		= qmi_wwan_unbind,
 	.manage_power	= qmi_wwan_manage_power,
+	.rx_fixup       = qmi_wwan_rx_fixup,
 };
 
 #define HUAWEI_VENDOR_ID	0x12D1
@@ -392,6 +501,13 @@ static const struct usb_device_id products[] = {
 					      USB_CDC_PROTO_NONE),
 		.driver_info        = (unsigned long)&qmi_wwan_info,
 	},
+	{	/* Dell Wireless 5804 (Novatel E371) */
+		USB_DEVICE_AND_INTERFACE_INFO(0x413C, 0x819b,
+					      USB_CLASS_COMM,
+					      USB_CDC_SUBCLASS_ETHERNET,
+					      USB_CDC_PROTO_NONE),
+		.driver_info        = (unsigned long)&qmi_wwan_info,
+	},
 	{	/* ADU960S */
 		USB_DEVICE_AND_INTERFACE_INFO(0x16d5, 0x650a,
 					      USB_CLASS_COMM,
@@ -439,6 +555,7 @@ static const struct usb_device_id products[] = {
 	{QMI_FIXED_INTF(0x19d2, 0x0265, 4)},	/* ONDA MT8205 4G LTE */
 	{QMI_FIXED_INTF(0x19d2, 0x0284, 4)},	/* ZTE MF880 */
 	{QMI_FIXED_INTF(0x19d2, 0x0326, 4)},	/* ZTE MF821D */
+	{QMI_FIXED_INTF(0x19d2, 0x0412, 4)},	/* Telewell TW-LTE 4G */
 	{QMI_FIXED_INTF(0x19d2, 0x1008, 4)},	/* ZTE (Vodafone) K3570-Z */
 	{QMI_FIXED_INTF(0x19d2, 0x1010, 4)},	/* ZTE (Vodafone) K3571-Z */
 	{QMI_FIXED_INTF(0x19d2, 0x1012, 4)},

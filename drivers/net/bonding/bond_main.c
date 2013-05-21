@@ -428,14 +428,15 @@ int bond_dev_queue_xmit(struct bonding *bond, struct sk_buff *skb,
  * @bond_dev: bonding net device that got called
  * @vid: vlan id being added
  */
-static int bond_vlan_rx_add_vid(struct net_device *bond_dev, uint16_t vid)
+static int bond_vlan_rx_add_vid(struct net_device *bond_dev,
+				__be16 proto, u16 vid)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct slave *slave, *stop_at;
 	int i, res;
 
 	bond_for_each_slave(bond, slave, i) {
-		res = vlan_vid_add(slave->dev, vid);
+		res = vlan_vid_add(slave->dev, proto, vid);
 		if (res)
 			goto unwind;
 	}
@@ -453,7 +454,7 @@ unwind:
 	/* unwind from head to the slave that failed */
 	stop_at = slave;
 	bond_for_each_slave_from_to(bond, slave, i, bond->first_slave, stop_at)
-		vlan_vid_del(slave->dev, vid);
+		vlan_vid_del(slave->dev, proto, vid);
 
 	return res;
 }
@@ -463,14 +464,15 @@ unwind:
  * @bond_dev: bonding net device that got called
  * @vid: vlan id being removed
  */
-static int bond_vlan_rx_kill_vid(struct net_device *bond_dev, uint16_t vid)
+static int bond_vlan_rx_kill_vid(struct net_device *bond_dev,
+				 __be16 proto, u16 vid)
 {
 	struct bonding *bond = netdev_priv(bond_dev);
 	struct slave *slave;
 	int i, res;
 
 	bond_for_each_slave(bond, slave, i)
-		vlan_vid_del(slave->dev, vid);
+		vlan_vid_del(slave->dev, proto, vid);
 
 	res = bond_del_vlan(bond, vid);
 	if (res) {
@@ -488,7 +490,8 @@ static void bond_add_vlans_on_slave(struct bonding *bond, struct net_device *sla
 	int res;
 
 	list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
-		res = vlan_vid_add(slave_dev, vlan->vlan_id);
+		res = vlan_vid_add(slave_dev, htons(ETH_P_8021Q),
+				   vlan->vlan_id);
 		if (res)
 			pr_warning("%s: Failed to add vlan id %d to device %s\n",
 				   bond->dev->name, vlan->vlan_id,
@@ -504,7 +507,7 @@ static void bond_del_vlans_from_slave(struct bonding *bond,
 	list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
 		if (!vlan->vlan_id)
 			continue;
-		vlan_vid_del(slave_dev, vlan->vlan_id);
+		vlan_vid_del(slave_dev, htons(ETH_P_8021Q), vlan->vlan_id);
 	}
 }
 
@@ -779,7 +782,7 @@ static void bond_resend_igmp_join_requests(struct bonding *bond)
 
 	/* rejoin all groups on vlan devices */
 	list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
-		vlan_dev = __vlan_find_dev_deep(bond_dev,
+		vlan_dev = __vlan_find_dev_deep(bond_dev, htons(ETH_P_8021Q),
 						vlan->vlan_id);
 		if (vlan_dev)
 			__bond_resend_igmp_join_requests(vlan_dev);
@@ -796,9 +799,8 @@ static void bond_resend_igmp_join_requests_delayed(struct work_struct *work)
 {
 	struct bonding *bond = container_of(work, struct bonding,
 					    mcast_work.work);
-	rcu_read_lock();
+
 	bond_resend_igmp_join_requests(bond);
-	rcu_read_unlock();
 }
 
 /*
@@ -846,8 +848,10 @@ static void bond_mc_swap(struct bonding *bond, struct slave *new_active,
 		if (bond->dev->flags & IFF_ALLMULTI)
 			dev_set_allmulti(old_active->dev, -1);
 
+		netif_addr_lock_bh(bond->dev);
 		netdev_for_each_mc_addr(ha, bond->dev)
 			dev_mc_del(old_active->dev, ha->addr);
+		netif_addr_unlock_bh(bond->dev);
 	}
 
 	if (new_active) {
@@ -858,8 +862,10 @@ static void bond_mc_swap(struct bonding *bond, struct slave *new_active,
 		if (bond->dev->flags & IFF_ALLMULTI)
 			dev_set_allmulti(new_active->dev, 1);
 
+		netif_addr_lock_bh(bond->dev);
 		netdev_for_each_mc_addr(ha, bond->dev)
 			dev_mc_add(new_active->dev, ha->addr);
+		netif_addr_unlock_bh(bond->dev);
 	}
 }
 
@@ -1901,11 +1907,31 @@ err_dest_symlinks:
 	bond_destroy_slave_symlinks(bond_dev, slave_dev);
 
 err_detach:
+	if (!USES_PRIMARY(bond->params.mode)) {
+		netif_addr_lock_bh(bond_dev);
+		bond_mc_list_flush(bond_dev, slave_dev);
+		netif_addr_unlock_bh(bond_dev);
+	}
+	bond_del_vlans_from_slave(bond, slave_dev);
 	write_lock_bh(&bond->lock);
 	bond_detach_slave(bond, new_slave);
-	write_unlock_bh(&bond->lock);
+	if (bond->primary_slave == new_slave)
+		bond->primary_slave = NULL;
+	if (bond->curr_active_slave == new_slave) {
+		bond_change_active_slave(bond, NULL);
+		write_unlock_bh(&bond->lock);
+		read_lock(&bond->lock);
+		write_lock_bh(&bond->curr_slave_lock);
+		bond_select_active_slave(bond);
+		write_unlock_bh(&bond->curr_slave_lock);
+		read_unlock(&bond->lock);
+	} else {
+		write_unlock_bh(&bond->lock);
+	}
+	slave_disable_netpoll(new_slave);
 
 err_close:
+	slave_dev->priv_flags &= ~IFF_BONDING;
 	dev_close(slave_dev);
 
 err_unset_master:
@@ -1976,12 +2002,11 @@ static int __bond_release_one(struct net_device *bond_dev,
 		return -EINVAL;
 	}
 
+	write_unlock_bh(&bond->lock);
 	/* unregister rx_handler early so bond_handle_frame wouldn't be called
 	 * for this slave anymore.
 	 */
 	netdev_rx_handler_unregister(slave_dev);
-	write_unlock_bh(&bond->lock);
-	synchronize_net();
 	write_lock_bh(&bond->lock);
 
 	if (!all && !bond->params.fail_over_mac) {
@@ -2511,7 +2536,8 @@ static int bond_has_this_ip(struct bonding *bond, __be32 ip)
 
 	list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
 		rcu_read_lock();
-		vlan_dev = __vlan_find_dev_deep(bond->dev, vlan->vlan_id);
+		vlan_dev = __vlan_find_dev_deep(bond->dev, htons(ETH_P_8021Q),
+						vlan->vlan_id);
 		rcu_read_unlock();
 		if (vlan_dev && ip == bond_confirm_addr(vlan_dev, 0, ip))
 			return 1;
@@ -2540,7 +2566,7 @@ static void bond_arp_send(struct net_device *slave_dev, int arp_op, __be32 dest_
 		return;
 	}
 	if (vlan_id) {
-		skb = vlan_put_tag(skb, vlan_id);
+		skb = vlan_put_tag(skb, htons(ETH_P_8021Q), vlan_id);
 		if (!skb) {
 			pr_err("failed to insert VLAN tag\n");
 			return;
@@ -2602,6 +2628,7 @@ static void bond_arp_send_all(struct bonding *bond, struct slave *slave)
 		list_for_each_entry(vlan, &bond->vlan_list, vlan_list) {
 			rcu_read_lock();
 			vlan_dev = __vlan_find_dev_deep(bond->dev,
+							htons(ETH_P_8021Q),
 							vlan->vlan_id);
 			rcu_read_unlock();
 			if (vlan_dev == rt->dst.dev) {
@@ -3169,10 +3196,19 @@ static int bond_slave_netdev_event(unsigned long event,
 				   struct net_device *slave_dev)
 {
 	struct slave *slave = bond_slave_get_rtnl(slave_dev);
-	struct bonding *bond = slave->bond;
-	struct net_device *bond_dev = slave->bond->dev;
+	struct bonding *bond;
+	struct net_device *bond_dev;
 	u32 old_speed;
 	u8 old_duplex;
+
+	/* A netdev event can be generated while enslaving a device
+	 * before netdev_rx_handler_register is called in which case
+	 * slave will be NULL
+	 */
+	if (!slave)
+		return NOTIFY_DONE;
+	bond_dev = slave->bond->dev;
+	bond = slave->bond;
 
 	switch (event) {
 	case NETDEV_UNREGISTER:
@@ -3287,20 +3323,22 @@ static int bond_xmit_hash_policy_l2(struct sk_buff *skb, int count)
  */
 static int bond_xmit_hash_policy_l23(struct sk_buff *skb, int count)
 {
-	struct ethhdr *data = (struct ethhdr *)skb->data;
-	struct iphdr *iph;
-	struct ipv6hdr *ipv6h;
+	const struct ethhdr *data;
+	const struct iphdr *iph;
+	const struct ipv6hdr *ipv6h;
 	u32 v6hash;
-	__be32 *s, *d;
+	const __be32 *s, *d;
 
 	if (skb->protocol == htons(ETH_P_IP) &&
-	    skb_network_header_len(skb) >= sizeof(*iph)) {
+	    pskb_network_may_pull(skb, sizeof(*iph))) {
 		iph = ip_hdr(skb);
+		data = (struct ethhdr *)skb->data;
 		return ((ntohl(iph->saddr ^ iph->daddr) & 0xffff) ^
 			(data->h_dest[5] ^ data->h_source[5])) % count;
 	} else if (skb->protocol == htons(ETH_P_IPV6) &&
-		   skb_network_header_len(skb) >= sizeof(*ipv6h)) {
+		   pskb_network_may_pull(skb, sizeof(*ipv6h))) {
 		ipv6h = ipv6_hdr(skb);
+		data = (struct ethhdr *)skb->data;
 		s = &ipv6h->saddr.s6_addr32[0];
 		d = &ipv6h->daddr.s6_addr32[0];
 		v6hash = (s[1] ^ d[1]) ^ (s[2] ^ d[2]) ^ (s[3] ^ d[3]);
@@ -3319,33 +3357,36 @@ static int bond_xmit_hash_policy_l23(struct sk_buff *skb, int count)
 static int bond_xmit_hash_policy_l34(struct sk_buff *skb, int count)
 {
 	u32 layer4_xor = 0;
-	struct iphdr *iph;
-	struct ipv6hdr *ipv6h;
-	__be32 *s, *d;
-	__be16 *layer4hdr;
+	const struct iphdr *iph;
+	const struct ipv6hdr *ipv6h;
+	const __be32 *s, *d;
+	const __be16 *l4 = NULL;
+	__be16 _l4[2];
+	int noff = skb_network_offset(skb);
+	int poff;
 
 	if (skb->protocol == htons(ETH_P_IP) &&
-	    skb_network_header_len(skb) >= sizeof(*iph)) {
+	    pskb_may_pull(skb, noff + sizeof(*iph))) {
 		iph = ip_hdr(skb);
-		if (!ip_is_fragment(iph) &&
-		    (iph->protocol == IPPROTO_TCP ||
-		     iph->protocol == IPPROTO_UDP) &&
-		    (skb_headlen(skb) - skb_network_offset(skb) >=
-		     iph->ihl * sizeof(u32) + sizeof(*layer4hdr) * 2)) {
-			layer4hdr = (__be16 *)((u32 *)iph + iph->ihl);
-			layer4_xor = ntohs(*layer4hdr ^ *(layer4hdr + 1));
+		poff = proto_ports_offset(iph->protocol);
+
+		if (!ip_is_fragment(iph) && poff >= 0) {
+			l4 = skb_header_pointer(skb, noff + (iph->ihl << 2) + poff,
+						sizeof(_l4), &_l4);
+			if (l4)
+				layer4_xor = ntohs(l4[0] ^ l4[1]);
 		}
 		return (layer4_xor ^
 			((ntohl(iph->saddr ^ iph->daddr)) & 0xffff)) % count;
 	} else if (skb->protocol == htons(ETH_P_IPV6) &&
-		   skb_network_header_len(skb) >= sizeof(*ipv6h)) {
+		   pskb_may_pull(skb, noff + sizeof(*ipv6h))) {
 		ipv6h = ipv6_hdr(skb);
-		if ((ipv6h->nexthdr == IPPROTO_TCP ||
-		     ipv6h->nexthdr == IPPROTO_UDP) &&
-		    (skb_headlen(skb) - skb_network_offset(skb) >=
-		     sizeof(*ipv6h) + sizeof(*layer4hdr) * 2)) {
-			layer4hdr = (__be16 *)(ipv6h + 1);
-			layer4_xor = ntohs(*layer4hdr ^ *(layer4hdr + 1));
+		poff = proto_ports_offset(ipv6h->nexthdr);
+		if (poff >= 0) {
+			l4 = skb_header_pointer(skb, noff + sizeof(*ipv6h) + poff,
+						sizeof(_l4), &_l4);
+			if (l4)
+				layer4_xor = ntohs(l4[0] ^ l4[1]);
 		}
 		s = &ipv6h->saddr.s6_addr32[0];
 		d = &ipv6h->daddr.s6_addr32[0];
@@ -4223,6 +4264,37 @@ void bond_set_mode_ops(struct bonding *bond, int mode)
 	}
 }
 
+static int bond_ethtool_get_settings(struct net_device *bond_dev,
+				     struct ethtool_cmd *ecmd)
+{
+	struct bonding *bond = netdev_priv(bond_dev);
+	struct slave *slave;
+	int i;
+	unsigned long speed = 0;
+
+	ecmd->duplex = DUPLEX_UNKNOWN;
+	ecmd->port = PORT_OTHER;
+
+	/* Since SLAVE_IS_OK returns false for all inactive or down slaves, we
+	 * do not need to check mode.  Though link speed might not represent
+	 * the true receive or transmit bandwidth (not all modes are symmetric)
+	 * this is an accurate maximum.
+	 */
+	read_lock(&bond->lock);
+	bond_for_each_slave(bond, slave, i) {
+		if (SLAVE_IS_OK(slave)) {
+			if (slave->speed != SPEED_UNKNOWN)
+				speed += slave->speed;
+			if (ecmd->duplex == DUPLEX_UNKNOWN &&
+			    slave->duplex != DUPLEX_UNKNOWN)
+				ecmd->duplex = slave->duplex;
+		}
+	}
+	ethtool_cmd_speed_set(ecmd, speed ? : SPEED_UNKNOWN);
+	read_unlock(&bond->lock);
+	return 0;
+}
+
 static void bond_ethtool_get_drvinfo(struct net_device *bond_dev,
 				     struct ethtool_drvinfo *drvinfo)
 {
@@ -4234,6 +4306,7 @@ static void bond_ethtool_get_drvinfo(struct net_device *bond_dev,
 
 static const struct ethtool_ops bond_ethtool_ops = {
 	.get_drvinfo		= bond_ethtool_get_drvinfo,
+	.get_settings		= bond_ethtool_get_settings,
 	.get_link		= ethtool_op_get_link,
 };
 
@@ -4324,9 +4397,9 @@ static void bond_setup(struct net_device *bond_dev)
 	 */
 
 	bond_dev->hw_features = BOND_VLAN_FEATURES |
-				NETIF_F_HW_VLAN_TX |
-				NETIF_F_HW_VLAN_RX |
-				NETIF_F_HW_VLAN_FILTER;
+				NETIF_F_HW_VLAN_CTAG_TX |
+				NETIF_F_HW_VLAN_CTAG_RX |
+				NETIF_F_HW_VLAN_CTAG_FILTER;
 
 	bond_dev->hw_features &= ~(NETIF_F_ALL_CSUM & ~NETIF_F_HW_CSUM);
 	bond_dev->features |= bond_dev->hw_features;
@@ -4847,9 +4920,18 @@ static int __net_init bond_net_init(struct net *net)
 static void __net_exit bond_net_exit(struct net *net)
 {
 	struct bond_net *bn = net_generic(net, bond_net_id);
+	struct bonding *bond, *tmp_bond;
+	LIST_HEAD(list);
 
 	bond_destroy_sysfs(bn);
 	bond_destroy_proc_dir(bn);
+
+	/* Kill off any bonds created after unregistering bond rtnl ops */
+	rtnl_lock();
+	list_for_each_entry_safe(bond, tmp_bond, &bn->dev_list, bond_list)
+		unregister_netdevice_queue(bond->dev, &list);
+	unregister_netdevice_many(&list);
+	rtnl_unlock();
 }
 
 static struct pernet_operations bond_net_ops = {

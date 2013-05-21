@@ -699,11 +699,6 @@ static int bcm2835_pctl_dt_node_to_map_pull(struct bcm2835_pinctrl *pc,
 	return 0;
 }
 
-static inline u32 prop_u32(struct property *p, int i)
-{
-	return be32_to_cpup(((__be32 *)p->value) + i);
-}
-
 static int bcm2835_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
 		struct device_node *np,
 		struct pinctrl_map **map, unsigned *num_maps)
@@ -761,7 +756,9 @@ static int bcm2835_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
 		return -ENOMEM;
 
 	for (i = 0; i < num_pins; i++) {
-		pin = prop_u32(pins, i);
+		err = of_property_read_u32_index(np, "brcm,pins", i, &pin);
+		if (err)
+			goto out;
 		if (pin >= ARRAY_SIZE(bcm2835_gpio_pins)) {
 			dev_err(pc->dev, "%s: invalid brcm,pins value %d\n",
 				of_node_full_name(np), pin);
@@ -770,14 +767,20 @@ static int bcm2835_pctl_dt_node_to_map(struct pinctrl_dev *pctldev,
 		}
 
 		if (num_funcs) {
-			func = prop_u32(funcs, (num_funcs > 1) ? i : 0);
+			err = of_property_read_u32_index(np, "brcm,function",
+					(num_funcs > 1) ? i : 0, &func);
+			if (err)
+				goto out;
 			err = bcm2835_pctl_dt_node_to_map_func(pc, np, pin,
 							func, &cur_map);
 			if (err)
 				goto out;
 		}
 		if (num_pulls) {
-			pull = prop_u32(pulls, (num_pulls > 1) ? i : 0);
+			err = of_property_read_u32_index(np, "brcm,pull",
+					(num_funcs > 1) ? i : 0, &pull);
+			if (err)
+				goto out;
 			err = bcm2835_pctl_dt_node_to_map_pull(pc, np, pin,
 							pull, &cur_map);
 			if (err)
@@ -795,7 +798,7 @@ out:
 	return err;
 }
 
-static struct pinctrl_ops bcm2835_pctl_ops = {
+static const struct pinctrl_ops bcm2835_pctl_ops = {
 	.get_groups_count = bcm2835_pctl_get_groups_count,
 	.get_group_name = bcm2835_pctl_get_group_name,
 	.get_group_pins = bcm2835_pctl_get_group_pins,
@@ -872,7 +875,7 @@ static int bcm2835_pmx_gpio_set_direction(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static struct pinmux_ops bcm2835_pmx_ops = {
+static const struct pinmux_ops bcm2835_pmx_ops = {
 	.get_functions_count = bcm2835_pmx_get_functions_count,
 	.get_function_name = bcm2835_pmx_get_function_name,
 	.get_function_groups = bcm2835_pmx_get_function_groups,
@@ -916,7 +919,7 @@ static int bcm2835_pinconf_set(struct pinctrl_dev *pctldev,
 	return 0;
 }
 
-static struct pinconf_ops bcm2835_pinconf_ops = {
+static const struct pinconf_ops bcm2835_pinconf_ops = {
 	.pin_config_get = bcm2835_pinconf_get,
 	.pin_config_set = bcm2835_pinconf_set,
 };

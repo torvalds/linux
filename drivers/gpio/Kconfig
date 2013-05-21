@@ -38,7 +38,6 @@ config GPIO_DEVRES
 menuconfig GPIOLIB
 	bool "GPIO Support"
 	depends on ARCH_WANT_OPTIONAL_GPIOLIB || ARCH_REQUIRE_GPIOLIB
-	select GENERIC_GPIO
 	help
 	  This enables GPIO support through the generic GPIO library.
 	  You only need to enable this, if you also want to enable
@@ -204,6 +203,12 @@ config GPIO_PXA
 	help
 	  Say yes here to support the PXA GPIO device
 
+config GPIO_RCAR
+	tristate "Renesas R-Car GPIO"
+	depends on ARM
+	help
+	  Say yes here to support GPIO on Renesas R-Car SoCs.
+
 config GPIO_SPEAR_SPICS
 	bool "ST SPEAr13xx SPI Chip Select as GPIO support"
 	depends on PLAT_SPEAR
@@ -226,12 +231,6 @@ config GPIO_TS5500
 	  Technologic Systems platforms. It includes, but is not limited to, 3
 	  blocks of the TS-5500: DIO1, DIO2 and the LCD port, and the TS-5600
 	  LCD port.
-
-config GPIO_VT8500
-	bool "VIA/Wondermedia SoC GPIO Support"
-	depends on ARCH_VT8500
-	help
-	  Say yes here to support the VT8500/WM8505/WM8650 GPIO controller.
 
 config GPIO_XILINX
 	bool "Xilinx GPIO support"
@@ -303,11 +302,20 @@ config GPIO_GE_FPGA
 
 config GPIO_LYNXPOINT
 	bool "Intel Lynxpoint GPIO support"
-	depends on ACPI
+	depends on ACPI && X86
 	select IRQ_DOMAIN
 	help
 	  driver for GPIO functionality on Intel Lynxpoint PCH chipset
 	  Requires ACPI device enumeration code to set up a platform device.
+
+config GPIO_GRGPIO
+	tristate "Aeroflex Gaisler GRGPIO support"
+	depends on OF
+	select GPIO_GENERIC
+	select IRQ_DOMAIN
+	help
+	  Select this to support Aeroflex Gaisler GRGPIO cores from the GRLIB
+	  VHDL IP core library.
 
 comment "I2C GPIO expanders:"
 

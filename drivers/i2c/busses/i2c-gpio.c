@@ -85,22 +85,28 @@ static int i2c_gpio_getscl(void *data)
 	return gpio_get_value(pdata->scl_pin);
 }
 
-static int of_i2c_gpio_probe(struct device_node *np,
-			     struct i2c_gpio_platform_data *pdata)
+static int of_i2c_gpio_get_pins(struct device_node *np,
+				unsigned int *sda_pin, unsigned int *scl_pin)
 {
-	u32 reg;
-
 	if (of_gpio_count(np) < 2)
 		return -ENODEV;
 
-	pdata->sda_pin = of_get_gpio(np, 0);
-	pdata->scl_pin = of_get_gpio(np, 1);
+	*sda_pin = of_get_gpio(np, 0);
+	*scl_pin = of_get_gpio(np, 1);
 
-	if (!gpio_is_valid(pdata->sda_pin) || !gpio_is_valid(pdata->scl_pin)) {
+	if (!gpio_is_valid(*sda_pin) || !gpio_is_valid(*scl_pin)) {
 		pr_err("%s: invalid GPIO pins, sda=%d/scl=%d\n",
-		       np->full_name, pdata->sda_pin, pdata->scl_pin);
+		       np->full_name, *sda_pin, *scl_pin);
 		return -ENODEV;
 	}
+
+	return 0;
+}
+
+static void of_i2c_gpio_get_props(struct device_node *np,
+				  struct i2c_gpio_platform_data *pdata)
+{
+	u32 reg;
 
 	of_property_read_u32(np, "i2c-gpio,delay-us", &pdata->udelay);
 
@@ -113,8 +119,6 @@ static int of_i2c_gpio_probe(struct device_node *np,
 		of_property_read_bool(np, "i2c-gpio,scl-open-drain");
 	pdata->scl_is_output_only =
 		of_property_read_bool(np, "i2c-gpio,scl-output-only");
-
-	return 0;
 }
 
 static int i2c_gpio_probe(struct platform_device *pdev)
@@ -123,31 +127,52 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 	struct i2c_gpio_platform_data *pdata;
 	struct i2c_algo_bit_data *bit_data;
 	struct i2c_adapter *adap;
+	unsigned int sda_pin, scl_pin;
 	int ret;
 
-	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
-	if (!priv)
-		return -ENOMEM;
-	adap = &priv->adap;
-	bit_data = &priv->bit_data;
-	pdata = &priv->pdata;
-
+	/* First get the GPIO pins; if it fails, we'll defer the probe. */
 	if (pdev->dev.of_node) {
-		ret = of_i2c_gpio_probe(pdev->dev.of_node, pdata);
+		ret = of_i2c_gpio_get_pins(pdev->dev.of_node,
+					   &sda_pin, &scl_pin);
 		if (ret)
 			return ret;
 	} else {
 		if (!pdev->dev.platform_data)
 			return -ENXIO;
-		memcpy(pdata, pdev->dev.platform_data, sizeof(*pdata));
+		pdata = pdev->dev.platform_data;
+		sda_pin = pdata->sda_pin;
+		scl_pin = pdata->scl_pin;
 	}
 
-	ret = gpio_request(pdata->sda_pin, "sda");
-	if (ret)
+	ret = gpio_request(sda_pin, "sda");
+	if (ret) {
+		if (ret == -EINVAL)
+			ret = -EPROBE_DEFER;	/* Try again later */
 		goto err_request_sda;
-	ret = gpio_request(pdata->scl_pin, "scl");
-	if (ret)
+	}
+	ret = gpio_request(scl_pin, "scl");
+	if (ret) {
+		if (ret == -EINVAL)
+			ret = -EPROBE_DEFER;	/* Try again later */
 		goto err_request_scl;
+	}
+
+	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv) {
+		ret = -ENOMEM;
+		goto err_add_bus;
+	}
+	adap = &priv->adap;
+	bit_data = &priv->bit_data;
+	pdata = &priv->pdata;
+
+	if (pdev->dev.of_node) {
+		pdata->sda_pin = sda_pin;
+		pdata->scl_pin = scl_pin;
+		of_i2c_gpio_get_props(pdev->dev.of_node, pdata);
+	} else {
+		memcpy(pdata, pdev->dev.platform_data, sizeof(*pdata));
+	}
 
 	if (pdata->sda_is_open_drain) {
 		gpio_direction_output(pdata->sda_pin, 1);
@@ -211,9 +236,9 @@ static int i2c_gpio_probe(struct platform_device *pdev)
 	return 0;
 
 err_add_bus:
-	gpio_free(pdata->scl_pin);
+	gpio_free(scl_pin);
 err_request_scl:
-	gpio_free(pdata->sda_pin);
+	gpio_free(sda_pin);
 err_request_sda:
 	return ret;
 }

@@ -591,6 +591,21 @@ static inline int cpulist_scnprintf(char *buf, int len,
 }
 
 /**
+ * cpumask_parse - extract a cpumask from from a string
+ * @buf: the buffer to extract from
+ * @dstp: the cpumask to set.
+ *
+ * Returns -errno, or 0 for success.
+ */
+static inline int cpumask_parse(const char *buf, struct cpumask *dstp)
+{
+	char *nl = strchr(buf, '\n');
+	int len = nl ? nl - buf : strlen(buf);
+
+	return bitmap_parse(buf, len, cpumask_bits(dstp), nr_cpumask_bits);
+}
+
+/**
  * cpulist_parse - extract a cpumask from a user string of ranges
  * @buf: the buffer to extract from
  * @dstp: the cpumask to set.

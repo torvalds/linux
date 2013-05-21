@@ -1,7 +1,7 @@
 /* bnx2fc_io.c: Broadcom NetXtreme II Linux FCoE offload driver.
  * IO manager and SCSI IO processing.
  *
- * Copyright (c) 2008 - 2011 Broadcom Corporation
+ * Copyright (c) 2008 - 2013 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -239,8 +239,7 @@ static void bnx2fc_scsi_done(struct bnx2fc_cmd *io_req, int err_code)
 	sc_cmd->scsi_done(sc_cmd);
 }
 
-struct bnx2fc_cmd_mgr *bnx2fc_cmd_mgr_alloc(struct bnx2fc_hba *hba,
-						u16 min_xid, u16 max_xid)
+struct bnx2fc_cmd_mgr *bnx2fc_cmd_mgr_alloc(struct bnx2fc_hba *hba)
 {
 	struct bnx2fc_cmd_mgr *cmgr;
 	struct io_bdt *bdt_info;
@@ -252,6 +251,8 @@ struct bnx2fc_cmd_mgr *bnx2fc_cmd_mgr_alloc(struct bnx2fc_hba *hba,
 	int num_ios, num_pri_ios;
 	size_t bd_tbl_sz;
 	int arr_sz = num_possible_cpus() + 1;
+	u16 min_xid = BNX2FC_MIN_XID;
+	u16 max_xid = hba->max_xid;
 
 	if (max_xid <= min_xid || max_xid == FC_XID_UNKNOWN) {
 		printk(KERN_ERR PFX "cmd_mgr_alloc: Invalid min_xid 0x%x \
@@ -298,7 +299,7 @@ struct bnx2fc_cmd_mgr *bnx2fc_cmd_mgr_alloc(struct bnx2fc_hba *hba,
 	 * of slow path requests.
 	 */
 	xid = BNX2FC_MIN_XID;
-	num_pri_ios = num_ios - BNX2FC_ELSTM_XIDS;
+	num_pri_ios = num_ios - hba->elstm_xids;
 	for (i = 0; i < num_ios; i++) {
 		io_req = kzalloc(sizeof(*io_req), GFP_KERNEL);
 
@@ -367,7 +368,7 @@ void bnx2fc_cmd_mgr_free(struct bnx2fc_cmd_mgr *cmgr)
 	struct bnx2fc_hba *hba = cmgr->hba;
 	size_t bd_tbl_sz;
 	u16 min_xid = BNX2FC_MIN_XID;
-	u16 max_xid = BNX2FC_MAX_XID;
+	u16 max_xid = hba->max_xid;
 	int num_ios;
 	int i;
 
@@ -1269,8 +1270,11 @@ int bnx2fc_eh_abort(struct scsi_cmnd *sc_cmd)
 
 	spin_lock_bh(&tgt->tgt_lock);
 	io_req->wait_for_comp = 0;
-	if (!(test_and_set_bit(BNX2FC_FLAG_ABTS_DONE,
-				    &io_req->req_flags))) {
+	if (test_bit(BNX2FC_FLAG_IO_COMPL, &io_req->req_flags)) {
+		BNX2FC_IO_DBG(io_req, "IO completed in a different context\n");
+		rc = SUCCESS;
+	} else if (!(test_and_set_bit(BNX2FC_FLAG_ABTS_DONE,
+				      &io_req->req_flags))) {
 		/* Let the scsi-ml try to recover this command */
 		printk(KERN_ERR PFX "abort failed, xid = 0x%x\n",
 		       io_req->xid);

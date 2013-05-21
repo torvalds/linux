@@ -29,6 +29,35 @@
 #define TAHITI_GB_ADDR_CONFIG_GOLDEN        0x12011003
 #define VERDE_GB_ADDR_CONFIG_GOLDEN         0x12010002
 
+/* discrete uvd clocks */
+#define	CG_UPLL_FUNC_CNTL				0x634
+#	define UPLL_RESET_MASK				0x00000001
+#	define UPLL_SLEEP_MASK				0x00000002
+#	define UPLL_BYPASS_EN_MASK			0x00000004
+#	define UPLL_CTLREQ_MASK				0x00000008
+#	define UPLL_VCO_MODE_MASK			0x00000600
+#	define UPLL_REF_DIV_MASK			0x003F0000
+#	define UPLL_CTLACK_MASK				0x40000000
+#	define UPLL_CTLACK2_MASK			0x80000000
+#define	CG_UPLL_FUNC_CNTL_2				0x638
+#	define UPLL_PDIV_A(x)				((x) << 0)
+#	define UPLL_PDIV_A_MASK				0x0000007F
+#	define UPLL_PDIV_B(x)				((x) << 8)
+#	define UPLL_PDIV_B_MASK				0x00007F00
+#	define VCLK_SRC_SEL(x)				((x) << 20)
+#	define VCLK_SRC_SEL_MASK			0x01F00000
+#	define DCLK_SRC_SEL(x)				((x) << 25)
+#	define DCLK_SRC_SEL_MASK			0x3E000000
+#define	CG_UPLL_FUNC_CNTL_3				0x63C
+#	define UPLL_FB_DIV(x)				((x) << 0)
+#	define UPLL_FB_DIV_MASK				0x01FFFFFF
+#define	CG_UPLL_FUNC_CNTL_4                             0x644
+#	define UPLL_SPARE_ISPARE9			0x00020000
+#define	CG_UPLL_FUNC_CNTL_5				0x648
+#	define RESET_ANTI_MUX_MASK			0x00000200
+#define	CG_UPLL_SPREAD_SPECTRUM				0x650
+#	define SSEN_MASK				0x00000001
+
 #define	CG_MULT_THERMAL_STATUS					0x714
 #define		ASIC_MAX_TEMP(x)				((x) << 0)
 #define		ASIC_MAX_TEMP_MASK				0x000001ff
@@ -64,6 +93,8 @@
 #       define MUX_TCLK_TO_XCLK                           (1 << 8)
 
 #define DMIF_ADDR_CONFIG  				0xBD4
+
+#define DMIF_ADDR_CALC  				0xC00
 
 #define	SRBM_STATUS				        0xE50
 #define		GRBM_RQ_PENDING 			(1 << 5)
@@ -796,6 +827,15 @@
 #       define THREAD_TRACE_STOP                        (52 << 0)
 #       define THREAD_TRACE_FLUSH                       (54 << 0)
 #       define THREAD_TRACE_FINISH                      (55 << 0)
+
+/*
+ * UVD
+ */
+#define UVD_UDEC_ADDR_CONFIG				0xEF4C
+#define UVD_UDEC_DB_ADDR_CONFIG				0xEF50
+#define UVD_UDEC_DBW_ADDR_CONFIG			0xEF54
+#define UVD_RBC_RB_RPTR					0xF690
+#define UVD_RBC_RB_WPTR					0xF694
 
 /*
  * PM4

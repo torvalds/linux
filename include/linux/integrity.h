@@ -36,5 +36,5 @@ static inline void integrity_inode_free(struct inode *inode)
 {
 	return;
 }
-#endif /* CONFIG_INTEGRITY_H */
+#endif /* CONFIG_INTEGRITY */
 #endif /* _LINUX_INTEGRITY_H */

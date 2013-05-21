@@ -66,13 +66,6 @@ static void sctp_assoc_bh_rcv(struct work_struct *work);
 static void sctp_assoc_free_asconf_acks(struct sctp_association *asoc);
 static void sctp_assoc_free_asconf_queue(struct sctp_association *asoc);
 
-/* Keep track of the new idr low so that we don't re-use association id
- * numbers too fast.  It is protected by they idr spin lock is in the
- * range of 1 - INT_MAX.
- */
-static u32 idr_low = 1;
-
-
 /* 1st Level Abstractions. */
 
 /* Initialize a new association from provided memory. */
@@ -104,8 +97,7 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 
 	/* Initialize the object handling fields.  */
 	atomic_set(&asoc->base.refcnt, 1);
-	asoc->base.dead = 0;
-	asoc->base.malloced = 0;
+	asoc->base.dead = false;
 
 	/* Initialize the bind addr area.  */
 	sctp_bind_addr_init(&asoc->base.bind_addr, ep->base.bind_addr.port);
@@ -371,7 +363,6 @@ struct sctp_association *sctp_association_new(const struct sctp_endpoint *ep,
 	if (!sctp_association_init(asoc, ep, sk, scope, gfp))
 		goto fail_init;
 
-	asoc->base.malloced = 1;
 	SCTP_DBG_OBJCNT_INC(assoc);
 	SCTP_DEBUG_PRINTK("Created asoc %p\n", asoc);
 
@@ -409,7 +400,7 @@ void sctp_association_free(struct sctp_association *asoc)
 	/* Mark as dead, so other users can know this structure is
 	 * going away.
 	 */
-	asoc->base.dead = 1;
+	asoc->base.dead = true;
 
 	/* Dispose of any data lying around in the outqueue. */
 	sctp_outq_free(&asoc->outqueue);
@@ -484,10 +475,8 @@ static void sctp_association_destroy(struct sctp_association *asoc)
 
 	WARN_ON(atomic_read(&asoc->rmem_alloc));
 
-	if (asoc->base.malloced) {
-		kfree(asoc);
-		SCTP_DBG_OBJCNT_DEC(assoc);
-	}
+	kfree(asoc);
+	SCTP_DBG_OBJCNT_DEC(assoc);
 }
 
 /* Change the primary destination address for the peer. */
@@ -1601,13 +1590,8 @@ int sctp_assoc_set_id(struct sctp_association *asoc, gfp_t gfp)
 	if (preload)
 		idr_preload(gfp);
 	spin_lock_bh(&sctp_assocs_id_lock);
-	/* 0 is not a valid id, idr_low is always >= 1 */
-	ret = idr_alloc(&sctp_assocs_id, asoc, idr_low, 0, GFP_NOWAIT);
-	if (ret >= 0) {
-		idr_low = ret + 1;
-		if (idr_low == INT_MAX)
-			idr_low = 1;
-	}
+	/* 0 is not a valid assoc_id, must be >= 1 */
+	ret = idr_alloc_cyclic(&sctp_assocs_id, asoc, 1, 0, GFP_NOWAIT);
 	spin_unlock_bh(&sctp_assocs_id_lock);
 	if (preload)
 		idr_preload_end();

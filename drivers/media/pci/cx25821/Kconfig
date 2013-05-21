@@ -1,14 +1,9 @@
 config VIDEO_CX25821
 	tristate "Conexant cx25821 support"
-	depends on DVB_CORE && VIDEO_DEV && PCI && I2C
+	depends on VIDEO_DEV && PCI && I2C
 	select I2C_ALGOBIT
 	select VIDEO_BTCX
-	select VIDEO_TVEEPROM
-	depends on RC_CORE
-	select VIDEOBUF_DVB
 	select VIDEOBUF_DMA_SG
-	select VIDEO_CX25840
-	select VIDEO_CX2341X
 	---help---
 	  This is a video4linux driver for Conexant 25821 based
 	  TV cards.

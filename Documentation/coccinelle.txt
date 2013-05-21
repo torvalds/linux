@@ -114,7 +114,7 @@ To apply Coccinelle to a specific directory, M= can be used.
 For example, to check drivers/net/wireless/ one may write:
 
     make coccicheck M=drivers/net/wireless/
-    
+
 To apply Coccinelle on a file basis, instead of a directory basis, the
 following command may be used:
 
@@ -134,6 +134,15 @@ MODE variable explained above.
 In this mode, there is no information about semantic patches
 displayed, and no commit message proposed.
 
+ Additional flags
+~~~~~~~~~~~~~~~~~~
+
+Additional flags can be passed to spatch through the SPFLAGS
+variable.
+
+    make SPFLAGS=--use_glimpse coccicheck
+
+See spatch --help to learn more about spatch options.
 
  Proposing new semantic patches
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

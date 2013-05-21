@@ -504,12 +504,12 @@ static int ene_send_scsi_cmd(struct us_data *us, u8 fDir, void *buf, int use_sg)
 	unsigned int cswlen = 0, partial = 0;
 	unsigned int transfer_length = bcb->DataTransferLength;
 
-	/* US_DEBUGP("transport --- ene_send_scsi_cmd\n"); */
+	/* usb_stor_dbg(us, "transport --- ene_send_scsi_cmd\n"); */
 	/* send cmd to out endpoint */
 	result = usb_stor_bulk_transfer_buf(us, us->send_bulk_pipe,
 					    bcb, US_BULK_CB_WRAP_LEN, NULL);
 	if (result != USB_STOR_XFER_GOOD) {
-		US_DEBUGP("send cmd to out endpoint fail ---\n");
+		usb_stor_dbg(us, "send cmd to out endpoint fail ---\n");
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
@@ -529,7 +529,7 @@ static int ene_send_scsi_cmd(struct us_data *us, u8 fDir, void *buf, int use_sg)
 						transfer_length, 0, &partial);
 		}
 		if (result != USB_STOR_XFER_GOOD) {
-			US_DEBUGP("data transfer fail ---\n");
+			usb_stor_dbg(us, "data transfer fail ---\n");
 			return USB_STOR_TRANSPORT_ERROR;
 		}
 	}
@@ -539,14 +539,14 @@ static int ene_send_scsi_cmd(struct us_data *us, u8 fDir, void *buf, int use_sg)
 					    US_BULK_CS_WRAP_LEN, &cswlen);
 
 	if (result == USB_STOR_XFER_SHORT && cswlen == 0) {
-		US_DEBUGP("Received 0-length CSW; retrying...\n");
+		usb_stor_dbg(us, "Received 0-length CSW; retrying...\n");
 		result = usb_stor_bulk_transfer_buf(us, us->recv_bulk_pipe,
 					    bcs, US_BULK_CS_WRAP_LEN, &cswlen);
 	}
 
 	if (result == USB_STOR_XFER_STALLED) {
 		/* get the status again */
-		US_DEBUGP("Attempting to get CSW (2nd try)...\n");
+		usb_stor_dbg(us, "Attempting to get CSW (2nd try)...\n");
 		result = usb_stor_bulk_transfer_buf(us, us->recv_bulk_pipe,
 						bcs, US_BULK_CS_WRAP_LEN, NULL);
 	}
@@ -626,7 +626,7 @@ static int sd_scsi_read_capacity(struct us_data *us, struct scsi_cmnd *srb)
 	struct scatterlist *sg = NULL;
 	struct ene_ub6250_info *info = (struct ene_ub6250_info *) us->extra;
 
-	US_DEBUGP("sd_scsi_read_capacity\n");
+	usb_stor_dbg(us, "sd_scsi_read_capacity\n");
 	if (info->SD_Status.HiCapacity) {
 		bl_len = 0x200;
 		if (info->SD_Status.IsMMC)
@@ -639,8 +639,8 @@ static int sd_scsi_read_capacity(struct us_data *us, struct scsi_cmnd *srb)
 				* (1 << (info->SD_C_SIZE_MULT + 2)) - 1;
 	}
 	info->bl_num = bl_num;
-	US_DEBUGP("bl_len = %x\n", bl_len);
-	US_DEBUGP("bl_num = %x\n", bl_num);
+	usb_stor_dbg(us, "bl_len = %x\n", bl_len);
+	usb_stor_dbg(us, "bl_num = %x\n", bl_num);
 
 	/*srb->request_bufflen = 8; */
 	buf[0] = (bl_num >> 24) & 0xff;
@@ -675,7 +675,7 @@ static int sd_scsi_read(struct us_data *us, struct scsi_cmnd *srb)
 
 	result = ene_load_bincode(us, SD_RW_PATTERN);
 	if (result != USB_STOR_XFER_GOOD) {
-		US_DEBUGP("Load SD RW pattern Fail !!\n");
+		usb_stor_dbg(us, "Load SD RW pattern Fail !!\n");
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
@@ -715,7 +715,7 @@ static int sd_scsi_write(struct us_data *us, struct scsi_cmnd *srb)
 
 	result = ene_load_bincode(us, SD_RW_PATTERN);
 	if (result != USB_STOR_XFER_GOOD) {
-		US_DEBUGP("Load SD RW pattern Fail !!\n");
+		usb_stor_dbg(us, "Load SD RW pattern Fail !!\n");
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
@@ -1493,7 +1493,7 @@ static int ms_scsi_read_capacity(struct us_data *us, struct scsi_cmnd *srb)
 	struct scatterlist *sg = NULL;
 	struct ene_ub6250_info *info = (struct ene_ub6250_info *) us->extra;
 
-	US_DEBUGP("ms_scsi_read_capacity\n");
+	usb_stor_dbg(us, "ms_scsi_read_capacity\n");
 	bl_len = 0x200;
 	if (info->MS_Status.IsMSPro)
 		bl_num = info->MSP_TotalBlock - 1;
@@ -1501,8 +1501,8 @@ static int ms_scsi_read_capacity(struct us_data *us, struct scsi_cmnd *srb)
 		bl_num = info->MS_Lib.NumberOfLogBlock * info->MS_Lib.blockSize * 2 - 1;
 
 	info->bl_num = bl_num;
-	US_DEBUGP("bl_len = %x\n", bl_len);
-	US_DEBUGP("bl_num = %x\n", bl_num);
+	usb_stor_dbg(us, "bl_len = %x\n", bl_len);
+	usb_stor_dbg(us, "bl_num = %x\n", bl_num);
 
 	/*srb->request_bufflen = 8; */
 	buf[0] = (bl_num >> 24) & 0xff;
@@ -1654,7 +1654,7 @@ static int ms_scsi_read(struct us_data *us, struct scsi_cmnd *srb)
 	if (info->MS_Status.IsMSPro) {
 		result = ene_load_bincode(us, MSP_RW_PATTERN);
 		if (result != USB_STOR_XFER_GOOD) {
-			US_DEBUGP("Load MPS RW pattern Fail !!\n");
+			usb_stor_dbg(us, "Load MPS RW pattern Fail !!\n");
 			return USB_STOR_TRANSPORT_ERROR;
 		}
 
@@ -1854,7 +1854,7 @@ static int ene_get_card_status(struct us_data *us, u8 *buf)
 	u32 reg4b;
 	struct ene_ub6250_info *info = (struct ene_ub6250_info *) us->extra;
 
-	/*US_DEBUGP("transport --- ENE_ReadSDReg\n");*/
+	/*usb_stor_dbg(us, "transport --- ENE_ReadSDReg\n");*/
 	reg4b = *(u32 *)&buf[0x18];
 	info->SD_READ_BL_LEN = (u8)((reg4b >> 8) & 0x0f);
 
@@ -1894,45 +1894,44 @@ static int ene_load_bincode(struct us_data *us, unsigned char flag)
 	switch (flag) {
 	/* For SD */
 	case SD_INIT1_PATTERN:
-		US_DEBUGP("SD_INIT1_PATTERN\n");
+		usb_stor_dbg(us, "SD_INIT1_PATTERN\n");
 		fw_name = SD_INIT1_FIRMWARE;
 		break;
 	case SD_INIT2_PATTERN:
-		US_DEBUGP("SD_INIT2_PATTERN\n");
+		usb_stor_dbg(us, "SD_INIT2_PATTERN\n");
 		fw_name = SD_INIT2_FIRMWARE;
 		break;
 	case SD_RW_PATTERN:
-		US_DEBUGP("SD_RW_PATTERN\n");
+		usb_stor_dbg(us, "SD_RW_PATTERN\n");
 		fw_name = SD_RW_FIRMWARE;
 		break;
 	/* For MS */
 	case MS_INIT_PATTERN:
-		US_DEBUGP("MS_INIT_PATTERN\n");
+		usb_stor_dbg(us, "MS_INIT_PATTERN\n");
 		fw_name = MS_INIT_FIRMWARE;
 		break;
 	case MSP_RW_PATTERN:
-		US_DEBUGP("MSP_RW_PATTERN\n");
+		usb_stor_dbg(us, "MSP_RW_PATTERN\n");
 		fw_name = MSP_RW_FIRMWARE;
 		break;
 	case MS_RW_PATTERN:
-		US_DEBUGP("MS_RW_PATTERN\n");
+		usb_stor_dbg(us, "MS_RW_PATTERN\n");
 		fw_name = MS_RW_FIRMWARE;
 		break;
 	default:
-		US_DEBUGP("----------- Unknown PATTERN ----------\n");
+		usb_stor_dbg(us, "----------- Unknown PATTERN ----------\n");
 		goto nofw;
 	}
 
 	err = request_firmware(&sd_fw, fw_name, &us->pusb_dev->dev);
 	if (err) {
-		US_DEBUGP("load firmware %s failed\n", fw_name);
+		usb_stor_dbg(us, "load firmware %s failed\n", fw_name);
 		goto nofw;
 	}
 	buf = kmalloc(sd_fw->size, GFP_KERNEL);
-	if (buf == NULL) {
-		US_DEBUGP("Malloc memory for fireware failed!\n");
+	if (buf == NULL)
 		goto nofw;
-	}
+
 	memcpy(buf, sd_fw->data, sd_fw->size);
 	memset(bcb, 0, sizeof(struct bulk_cb_wrap));
 	bcb->Signature = cpu_to_le32(US_BULK_CB_SIGN);
@@ -2116,9 +2115,9 @@ static int ene_ms_init(struct us_data *us)
 		} else {
 			ms_card_init(us); /* Card is MS (to ms.c)*/
 		}
-		US_DEBUGP("MS Init Code OK !!\n");
+		usb_stor_dbg(us, "MS Init Code OK !!\n");
 	} else {
-		US_DEBUGP("MS Card Not Ready --- %x\n", buf[0]);
+		usb_stor_dbg(us, "MS Card Not Ready --- %x\n", buf[0]);
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
@@ -2132,11 +2131,11 @@ static int ene_sd_init(struct us_data *us)
 	struct bulk_cb_wrap *bcb = (struct bulk_cb_wrap *) us->iobuf;
 	struct ene_ub6250_info *info = (struct ene_ub6250_info *) us->extra;
 
-	US_DEBUGP("transport --- ENE_SDInit\n");
+	usb_stor_dbg(us, "transport --- ENE_SDInit\n");
 	/* SD Init Part-1 */
 	result = ene_load_bincode(us, SD_INIT1_PATTERN);
 	if (result != USB_STOR_XFER_GOOD) {
-		US_DEBUGP("Load SD Init Code Part-1 Fail !!\n");
+		usb_stor_dbg(us, "Load SD Init Code Part-1 Fail !!\n");
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
@@ -2147,14 +2146,14 @@ static int ene_sd_init(struct us_data *us)
 
 	result = ene_send_scsi_cmd(us, FDIR_READ, NULL, 0);
 	if (result != USB_STOR_XFER_GOOD) {
-		US_DEBUGP("Execution SD Init Code Fail !!\n");
+		usb_stor_dbg(us, "Execution SD Init Code Fail !!\n");
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
 	/* SD Init Part-2 */
 	result = ene_load_bincode(us, SD_INIT2_PATTERN);
 	if (result != USB_STOR_XFER_GOOD) {
-		US_DEBUGP("Load SD Init Code Part-2 Fail !!\n");
+		usb_stor_dbg(us, "Load SD Init Code Part-2 Fail !!\n");
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
@@ -2166,21 +2165,23 @@ static int ene_sd_init(struct us_data *us)
 
 	result = ene_send_scsi_cmd(us, FDIR_READ, &buf, 0);
 	if (result != USB_STOR_XFER_GOOD) {
-		US_DEBUGP("Execution SD Init Code Fail !!\n");
+		usb_stor_dbg(us, "Execution SD Init Code Fail !!\n");
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 
 	info->SD_Status =  *(struct SD_STATUS *)&buf[0];
 	if (info->SD_Status.Insert && info->SD_Status.Ready) {
+		struct SD_STATUS *s = &info->SD_Status;
+
 		ene_get_card_status(us, (unsigned char *)&buf);
-		US_DEBUGP("Insert     = %x\n", info->SD_Status.Insert);
-		US_DEBUGP("Ready      = %x\n", info->SD_Status.Ready);
-		US_DEBUGP("IsMMC      = %x\n", info->SD_Status.IsMMC);
-		US_DEBUGP("HiCapacity = %x\n", info->SD_Status.HiCapacity);
-		US_DEBUGP("HiSpeed    = %x\n", info->SD_Status.HiSpeed);
-		US_DEBUGP("WtP        = %x\n", info->SD_Status.WtP);
+		usb_stor_dbg(us, "Insert     = %x\n", s->Insert);
+		usb_stor_dbg(us, "Ready      = %x\n", s->Ready);
+		usb_stor_dbg(us, "IsMMC      = %x\n", s->IsMMC);
+		usb_stor_dbg(us, "HiCapacity = %x\n", s->HiCapacity);
+		usb_stor_dbg(us, "HiSpeed    = %x\n", s->HiSpeed);
+		usb_stor_dbg(us, "WtP        = %x\n", s->WtP);
 	} else {
-		US_DEBUGP("SD Card Not Ready --- %x\n", buf[0]);
+		usb_stor_dbg(us, "SD Card Not Ready --- %x\n", buf[0]);
 		return USB_STOR_TRANSPORT_ERROR;
 	}
 	return USB_STOR_TRANSPORT_GOOD;
@@ -2293,7 +2294,7 @@ static int ene_transport(struct scsi_cmnd *srb, struct us_data *us)
 	int result = 0;
 	struct ene_ub6250_info *info = (struct ene_ub6250_info *)(us->extra);
 
-	/*US_DEBUG(usb_stor_show_command(srb)); */
+	/*US_DEBUG(usb_stor_show_command(us, srb)); */
 	scsi_set_resid(srb, 0);
 	if (unlikely(!(info->SD_Status.Ready || info->MS_Status.Ready))) {
 		result = ene_init(us);
@@ -2362,7 +2363,6 @@ static int ene_ub6250_resume(struct usb_interface *iface)
 
 	mutex_lock(&us->dev_mutex);
 
-	US_DEBUGP("%s\n", __func__);
 	if (us->suspend_resume_hook)
 		(us->suspend_resume_hook)(us, US_RESUME);
 
@@ -2382,7 +2382,7 @@ static int ene_ub6250_reset_resume(struct usb_interface *iface)
 	u8 tmp = 0;
 	struct us_data *us = usb_get_intfdata(iface);
 	struct ene_ub6250_info *info = (struct ene_ub6250_info *)(us->extra);
-	US_DEBUGP("%s\n", __func__);
+
 	/* Report the reset to the SCSI core */
 	usb_stor_reset_resume(iface);
 

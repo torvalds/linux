@@ -16,19 +16,13 @@
 	};
 
 	timer@2000004 {
-		compatible = "qcom,msm-gpt", "qcom,msm-timer";
-		interrupts = <1 1 0x301>;
-		reg = <0x02000004 0x10>;
-		clock-frequency = <32768>;
-		cpu-offset = <0x40000>;
-	};
-
-	timer@2000024 {
-		compatible = "qcom,msm-dgt", "qcom,msm-timer";
-		interrupts = <1 0 0x301>;
-		reg = <0x02000024 0x10>,
-		      <0x02000034 0x4>;
-		clock-frequency = <6750000>;
+		compatible = "qcom,scss-timer", "qcom,msm-timer";
+		interrupts = <1 0 0x301>,
+			     <1 1 0x301>,
+			     <1 2 0x301>;
+		reg = <0x02000000 0x100>;
+		clock-frequency = <27000000>,
+				  <32768>;
 		cpu-offset = <0x40000>;
 	};
 
@@ -37,5 +31,11 @@
 		reg = <0x19c40000 0x1000>,
 		      <0x19c00000 0x1000>;
 		interrupts = <0 195 0x0>;
+	};
+
+	qcom,ssbi@500000 {
+		compatible = "qcom,ssbi";
+		reg = <0x500000 0x1000>;
+		qcom,controller-type = "pmic-arbiter";
 	};
 };

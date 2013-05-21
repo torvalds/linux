@@ -38,7 +38,7 @@
 
 #define DRV_NAME		"fnic"
 #define DRV_DESCRIPTION		"Cisco FCoE HBA Driver"
-#define DRV_VERSION		"1.5.0.2"
+#define DRV_VERSION		"1.5.0.22"
 #define PFX			DRV_NAME ": "
 #define DFX                     DRV_NAME "%d: "
 
@@ -192,6 +192,18 @@ enum fnic_state {
 
 struct mempool;
 
+enum fnic_evt {
+	FNIC_EVT_START_VLAN_DISC = 1,
+	FNIC_EVT_START_FCF_DISC = 2,
+	FNIC_EVT_MAX,
+};
+
+struct fnic_event {
+	struct list_head list;
+	struct fnic *fnic;
+	enum fnic_evt event;
+};
+
 /* Per-instance private data structure */
 struct fnic {
 	struct fc_lport *lport;
@@ -254,6 +266,18 @@ struct fnic {
 	struct sk_buff_head frame_queue;
 	struct sk_buff_head tx_queue;
 
+	/*** FIP related data members  -- start ***/
+	void (*set_vlan)(struct fnic *, u16 vlan);
+	struct work_struct      fip_frame_work;
+	struct sk_buff_head     fip_frame_queue;
+	struct timer_list       fip_timer;
+	struct list_head        vlans;
+	spinlock_t              vlans_lock;
+
+	struct work_struct      event_work;
+	struct list_head        evlist;
+	/*** FIP related data members  -- end ***/
+
 	/* copy work queue cache line section */
 	____cacheline_aligned struct vnic_wq_copy wq_copy[FNIC_WQ_COPY_MAX];
 	/* completion queue cache line section */
@@ -278,6 +302,7 @@ static inline struct fnic *fnic_from_ctlr(struct fcoe_ctlr *fip)
 }
 
 extern struct workqueue_struct *fnic_event_queue;
+extern struct workqueue_struct *fnic_fip_queue;
 extern struct device_attribute *fnic_attrs[];
 
 void fnic_clear_intr_mode(struct fnic *fnic);
@@ -289,6 +314,7 @@ int fnic_send(struct fc_lport *, struct fc_frame *);
 void fnic_free_wq_buf(struct vnic_wq *wq, struct vnic_wq_buf *buf);
 void fnic_handle_frame(struct work_struct *work);
 void fnic_handle_link(struct work_struct *work);
+void fnic_handle_event(struct work_struct *work);
 int fnic_rq_cmpl_handler(struct fnic *fnic, int);
 int fnic_alloc_rq_frame(struct vnic_rq *rq);
 void fnic_free_rq_buf(struct vnic_rq *rq, struct vnic_rq_buf *buf);
@@ -320,6 +346,12 @@ void fnic_log_q_error(struct fnic *fnic);
 void fnic_handle_link_event(struct fnic *fnic);
 
 int fnic_is_abts_pending(struct fnic *, struct scsi_cmnd *);
+
+void fnic_handle_fip_frame(struct work_struct *work);
+void fnic_handle_fip_event(struct fnic *fnic);
+void fnic_fcoe_reset_vlans(struct fnic *fnic);
+void fnic_fcoe_evlist_free(struct fnic *fnic);
+extern void fnic_handle_fip_timer(struct fnic *fnic);
 
 static inline int
 fnic_chk_state_flags_locked(struct fnic *fnic, unsigned long st_flags)

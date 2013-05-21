@@ -2472,7 +2472,7 @@ map_smb2_to_linux_error(char *buf, bool log_err)
 
 	/* on error mapping not found  - return EIO */
 
-	cFYI(1, "Mapping SMB2 status code %d to POSIX err %d",
+	cifs_dbg(FYI, "Mapping SMB2 status code %d to POSIX err %d\n",
 		 smb2err, rc);
 
 	return rc;

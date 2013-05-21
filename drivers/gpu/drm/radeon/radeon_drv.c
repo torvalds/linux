@@ -71,9 +71,12 @@
  *   2.28.0 - r600-eg: Add MEM_WRITE packet support
  *   2.29.0 - R500 FP16 color clear registers
  *   2.30.0 - fix for FMASK texturing
+ *   2.31.0 - Add fastfb support for rs690
+ *   2.32.0 - new info request for rings working
+ *   2.33.0 - Add SI tiling mode array query
  */
 #define KMS_DRIVER_MAJOR	2
-#define KMS_DRIVER_MINOR	30
+#define KMS_DRIVER_MINOR	33
 #define KMS_DRIVER_PATCHLEVEL	0
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags);
 int radeon_driver_unload_kms(struct drm_device *dev);
@@ -144,7 +147,7 @@ static inline void radeon_unregister_atpx_handler(void) {}
 #endif
 
 int radeon_no_wb;
-int radeon_modeset = 1;
+int radeon_modeset = -1;
 int radeon_dynclks = -1;
 int radeon_r4xx_atom = 0;
 int radeon_agpmode = 0;
@@ -160,6 +163,7 @@ int radeon_hw_i2c = 0;
 int radeon_pcie_gen2 = -1;
 int radeon_msi = -1;
 int radeon_lockup_timeout = 10000;
+int radeon_fastfb = 0;
 
 MODULE_PARM_DESC(no_wb, "Disable AGP writeback for scratch registers");
 module_param_named(no_wb, radeon_no_wb, int, 0444);
@@ -211,6 +215,9 @@ module_param_named(msi, radeon_msi, int, 0444);
 
 MODULE_PARM_DESC(lockup_timeout, "GPU lockup timeout in ms (defaul 10000 = 10 seconds, 0 = disable)");
 module_param_named(lockup_timeout, radeon_lockup_timeout, int, 0444);
+
+MODULE_PARM_DESC(fastfb, "Direct FB access for IGP chips (0 = disable, 1 = enable)");
+module_param_named(fastfb, radeon_fastfb, int, 0444);
 
 static struct pci_device_id pciidlist[] = {
 	radeon_PCI_IDS
@@ -449,6 +456,16 @@ static struct pci_driver radeon_kms_pci_driver = {
 
 static int __init radeon_init(void)
 {
+#ifdef CONFIG_VGA_CONSOLE
+	if (vgacon_text_force() && radeon_modeset == -1) {
+		DRM_INFO("VGACON disable radeon kernel modesetting.\n");
+		radeon_modeset = 0;
+	}
+#endif
+	/* set to modesetting by default if not nomodeset */
+	if (radeon_modeset == -1)
+		radeon_modeset = 1;
+
 	if (radeon_modeset == 1) {
 		DRM_INFO("radeon kernel modesetting enabled.\n");
 		driver = &kms_driver;

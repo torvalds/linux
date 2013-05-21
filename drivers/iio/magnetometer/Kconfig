@@ -3,6 +3,17 @@
 #
 menu "Magnetometer sensors"
 
+config AK8975
+	tristate "Asahi Kasei AK8975 3-Axis Magnetometer"
+	depends on I2C
+	depends on GPIOLIB
+	help
+	  Say yes here to build support for Asahi Kasei AK8975 3-Axis
+	  Magnetometer.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called ak8975.
+
 config HID_SENSOR_MAGNETOMETER_3D
 	depends on HID_SENSOR_HUB
 	select IIO_BUFFER

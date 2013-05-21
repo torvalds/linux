@@ -1899,8 +1899,8 @@ static int ibmvscsi_slave_configure(struct scsi_device *sdev)
 		sdev->allow_restart = 1;
 		blk_queue_rq_timeout(sdev->request_queue, 120 * HZ);
 	}
-	scsi_adjust_queue_depth(sdev, 0, shost->cmd_per_lun);
 	spin_unlock_irqrestore(shost->host_lock, lock_flags);
+	scsi_adjust_queue_depth(sdev, 0, shost->cmd_per_lun);
 	return 0;
 }
 

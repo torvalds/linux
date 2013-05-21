@@ -782,8 +782,7 @@ static int create_proc_mconsole(void)
 
 	ent = proc_create("mconsole", 0200, NULL, &mconsole_proc_fops);
 	if (ent == NULL) {
-		printk(KERN_INFO "create_proc_mconsole : create_proc_entry "
-		       "failed\n");
+		printk(KERN_INFO "create_proc_mconsole : proc_create failed\n");
 		return 0;
 	}
 	return 0;

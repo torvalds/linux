@@ -94,6 +94,7 @@
 #define RTL_PCI_8192CU_DID	0x8191	/*8192ce */
 #define RTL_PCI_8192DE_DID	0x8193	/*8192de */
 #define RTL_PCI_8192DE_DID2	0x002B	/*92DE*/
+#define RTL_PCI_8188EE_DID	0x8179  /*8188ee*/
 
 /*8192 support 16 pages of IO registers*/
 #define RTL_MEM_MAPPED_IO_RANGE_8190PCI		0x1000
@@ -175,6 +176,7 @@ struct rtl_pci {
 	/*irq */
 	u8 irq_alloc;
 	u32 irq_mask[2];
+	u32 sys_irq_mask;
 
 	/*Bcn control register setting */
 	u32 reg_bcn_ctrl_val;

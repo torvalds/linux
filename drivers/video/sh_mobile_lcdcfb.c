@@ -858,6 +858,7 @@ static void sh_mobile_lcdc_geometry(struct sh_mobile_lcdc_chan *ch)
 	tmp = ((mode->xres & 7) << 24) | ((display_h_total & 7) << 16)
 	    | ((mode->hsync_len & 7) << 8) | (hsync_pos & 7);
 	lcdc_write_chan(ch, LDHAJR, tmp);
+	lcdc_write_chan_mirror(ch, LDHAJR, tmp);
 }
 
 static void sh_mobile_lcdc_overlay_setup(struct sh_mobile_lcdc_overlay *ovl)

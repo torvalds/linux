@@ -178,6 +178,15 @@ static ssize_t w1_f29_write_output(
 		w1_write_block(sl->master, w1_buf, 3);
 
 		readBack = w1_read_8(sl->master);
+
+		if (readBack != W1_F29_SUCCESS_CONFIRM_BYTE) {
+			if (w1_reset_resume_command(sl->master))
+				goto error;
+			/* try again, the slave is ready for a command */
+			continue;
+		}
+
+#ifdef CONFIG_W1_SLAVE_DS2408_READBACK
 		/* here the master could read another byte which
 		   would be the PIO reg (the actual pin logic state)
 		   since in this driver we don't know which pins are
@@ -186,11 +195,6 @@ static ssize_t w1_f29_write_output(
 		if (w1_reset_resume_command(sl->master))
 			goto error;
 
-		if (readBack != 0xAA) {
-			/* try again, the slave is ready for a command */
-			continue;
-		}
-
 		/* go read back the output latches */
 		/* (the direct effect of the write above) */
 		w1_buf[0] = W1_F29_FUNC_READ_PIO_REGS;
@@ -198,7 +202,9 @@ static ssize_t w1_f29_write_output(
 		w1_buf[2] = 0;
 		w1_write_block(sl->master, w1_buf, 3);
 		/* read the result of the READ_PIO_REGS command */
-		if (w1_read_8(sl->master) == *buf) {
+		if (w1_read_8(sl->master) == *buf)
+#endif
+		{
 			/* success! */
 			mutex_unlock(&sl->master->bus_mutex);
 			dev_dbg(&sl->dev,
@@ -297,8 +303,7 @@ error:
 
 
 
-#define NB_SYSFS_BIN_FILES 6
-static struct bin_attribute w1_f29_sysfs_bin_files[NB_SYSFS_BIN_FILES] = {
+static struct bin_attribute w1_f29_sysfs_bin_files[] = {
 	{
 		.attr =	{
 			.name = "state",
@@ -357,7 +362,7 @@ static int w1_f29_add_slave(struct w1_slave *sl)
 	int err = 0;
 	int i;
 
-	for (i = 0; i < NB_SYSFS_BIN_FILES && !err; ++i)
+	for (i = 0; i < ARRAY_SIZE(w1_f29_sysfs_bin_files) && !err; ++i)
 		err = sysfs_create_bin_file(
 			&sl->dev.kobj,
 			&(w1_f29_sysfs_bin_files[i]));
@@ -371,7 +376,7 @@ static int w1_f29_add_slave(struct w1_slave *sl)
 static void w1_f29_remove_slave(struct w1_slave *sl)
 {
 	int i;
-	for (i = NB_SYSFS_BIN_FILES - 1; i >= 0; --i)
+	for (i = ARRAY_SIZE(w1_f29_sysfs_bin_files) - 1; i >= 0; --i)
 		sysfs_remove_bin_file(&sl->dev.kobj,
 			&(w1_f29_sysfs_bin_files[i]));
 }

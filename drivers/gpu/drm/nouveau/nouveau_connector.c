@@ -32,7 +32,7 @@
 
 #include "nouveau_reg.h"
 #include "nouveau_drm.h"
-#include "nouveau_hw.h"
+#include "dispnv04/hw.h"
 #include "nouveau_acpi.h"
 
 #include "nouveau_display.h"

@@ -907,6 +907,7 @@ static int multipath_ctr(struct dm_target *ti, unsigned int argc,
 
 	ti->num_flush_bios = 1;
 	ti->num_discard_bios = 1;
+	ti->num_write_same_bios = 1;
 
 	return 0;
 

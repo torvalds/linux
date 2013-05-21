@@ -53,6 +53,7 @@
 #include <plat/fimc-core.h>
 #include <plat/camport.h>
 
+#include <mach/irqs.h>
 #include <mach/map.h>
 
 #include "common.h"
@@ -1251,7 +1252,7 @@ static void __init nuri_camera_init(void)
 	}
 
 	m5mols_board_info.irq = s5p_register_gpio_interrupt(GPIO_CAM_8M_ISP_INT);
-	if (!IS_ERR_VALUE(m5mols_board_info.irq))
+	if (m5mols_board_info.irq >= 0)
 		s3c_gpio_cfgpin(GPIO_CAM_8M_ISP_INT, S3C_GPIO_SFN(0xF));
 	else
 		pr_err("%s: Failed to configure 8M_ISP_INT GPIO\n", __func__);
@@ -1330,8 +1331,9 @@ static struct platform_device *nuri_devices[] __initdata = {
 static void __init nuri_map_io(void)
 {
 	exynos_init_io(NULL, 0);
-	s3c24xx_init_clocks(clk_xusbxti.rate);
 	s3c24xx_init_uarts(nuri_uartcfgs, ARRAY_SIZE(nuri_uartcfgs));
+	xxti_f = 0;
+	xusbxti_f = 24000000;
 }
 
 static void __init nuri_reserve(void)
@@ -1380,7 +1382,7 @@ MACHINE_START(NURI, "NURI")
 	.map_io		= nuri_map_io,
 	.init_machine	= nuri_machine_init,
 	.init_late	= exynos_init_late,
-	.init_time	= exynos4_timer_init,
+	.init_time	= exynos_init_time,
 	.reserve        = &nuri_reserve,
 	.restart	= exynos4_restart,
 MACHINE_END

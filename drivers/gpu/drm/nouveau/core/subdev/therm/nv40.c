@@ -165,7 +165,7 @@ nv40_fan_pwm_set(struct nouveau_therm *therm, int line, u32 divs, u32 duty)
 	return 0;
 }
 
-static void
+void
 nv40_therm_intr(struct nouveau_subdev *subdev)
 {
 	struct nouveau_therm *therm = nouveau_therm(subdev);

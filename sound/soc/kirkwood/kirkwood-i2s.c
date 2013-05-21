@@ -451,6 +451,10 @@ static struct snd_soc_dai_driver kirkwood_i2s_dai_extclk = {
 	.ops = &kirkwood_i2s_dai_ops,
 };
 
+static const struct snd_soc_component_driver kirkwood_i2s_component = {
+	.name		= DRV_NAME,
+};
+
 static int kirkwood_i2s_dev_probe(struct platform_device *pdev)
 {
 	struct kirkwood_asoc_platform_data *data = pdev->dev.platform_data;
@@ -467,11 +471,6 @@ static int kirkwood_i2s_dev_probe(struct platform_device *pdev)
 	dev_set_drvdata(&pdev->dev, priv);
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!mem) {
-		dev_err(&pdev->dev, "platform_get_resource failed\n");
-		return -ENXIO;
-	}
-
 	priv->io = devm_ioremap_resource(&pdev->dev, mem);
 	if (IS_ERR(priv->io))
 		return PTR_ERR(priv->io);
@@ -524,10 +523,11 @@ static int kirkwood_i2s_dev_probe(struct platform_device *pdev)
 		priv->ctl_rec |= KIRKWOOD_RECCTL_BURST_128;
 	}
 
-	err = snd_soc_register_dai(&pdev->dev, soc_dai);
+	err = snd_soc_register_component(&pdev->dev, &kirkwood_i2s_component,
+					 soc_dai, 1);
 	if (!err)
 		return 0;
-	dev_err(&pdev->dev, "snd_soc_register_dai failed\n");
+	dev_err(&pdev->dev, "snd_soc_register_component failed\n");
 
 	if (!IS_ERR(priv->extclk)) {
 		clk_disable_unprepare(priv->extclk);
@@ -542,7 +542,7 @@ static int kirkwood_i2s_dev_remove(struct platform_device *pdev)
 {
 	struct kirkwood_dma_data *priv = dev_get_drvdata(&pdev->dev);
 
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 
 	if (!IS_ERR(priv->extclk)) {
 		clk_disable_unprepare(priv->extclk);

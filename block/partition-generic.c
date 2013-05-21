@@ -257,7 +257,6 @@ void delete_partition(struct gendisk *disk, int partno)
 
 	hd_struct_put(part);
 }
-EXPORT_SYMBOL(delete_partition);
 
 static ssize_t whole_disk_show(struct device *dev,
 			       struct device_attribute *attr, char *buf)

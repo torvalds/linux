@@ -170,6 +170,10 @@ struct snd_soc_dai_driver spdif_in_dai = {
 	.ops = &spdif_in_dai_ops,
 };
 
+static const struct snd_soc_component_driver spdif_in_component = {
+	.name		= "spdif-in",
+};
+
 static irqreturn_t spdif_in_irq(int irq, void *arg)
 {
 	struct spdif_in_dev *host = (struct spdif_in_dev *)arg;
@@ -258,7 +262,8 @@ static int spdif_in_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = snd_soc_register_dai(&pdev->dev, &spdif_in_dai);
+	ret = snd_soc_register_component(&pdev->dev, &spdif_in_component,
+					 &spdif_in_dai, 1);
 	if (ret != 0) {
 		clk_put(host->clk);
 		return ret;
@@ -271,7 +276,7 @@ static int spdif_in_remove(struct platform_device *pdev)
 {
 	struct spdif_in_dev *host = dev_get_drvdata(&pdev->dev);
 
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 	dev_set_drvdata(&pdev->dev, NULL);
 
 	clk_put(host->clk);

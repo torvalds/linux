@@ -1629,9 +1629,37 @@ static void __qla4_83xx_disable_pause(struct scsi_qla_host *ha)
 	ql4_printk(KERN_INFO, ha, "Disabled pause frames successfully.\n");
 }
 
+/**
+ * qla4_83xx_eport_init - Initialize EPort.
+ * @ha: Pointer to host adapter structure.
+ *
+ * If EPort hardware is in reset state before disabling pause, there would be
+ * serious hardware wedging issues. To prevent this perform eport init everytime
+ * before disabling pause frames.
+ **/
+static void qla4_83xx_eport_init(struct scsi_qla_host *ha)
+{
+	/* Clear the 8 registers */
+	qla4_83xx_wr_reg_indirect(ha, QLA83XX_RESET_REG, 0x0);
+	qla4_83xx_wr_reg_indirect(ha, QLA83XX_RESET_PORT0, 0x0);
+	qla4_83xx_wr_reg_indirect(ha, QLA83XX_RESET_PORT1, 0x0);
+	qla4_83xx_wr_reg_indirect(ha, QLA83XX_RESET_PORT2, 0x0);
+	qla4_83xx_wr_reg_indirect(ha, QLA83XX_RESET_PORT3, 0x0);
+	qla4_83xx_wr_reg_indirect(ha, QLA83XX_RESET_SRE_SHIM, 0x0);
+	qla4_83xx_wr_reg_indirect(ha, QLA83XX_RESET_EPG_SHIM, 0x0);
+	qla4_83xx_wr_reg_indirect(ha, QLA83XX_RESET_ETHER_PCS, 0x0);
+
+	/* Write any value to Reset Control register */
+	qla4_83xx_wr_reg_indirect(ha, QLA83XX_RESET_CONTROL, 0xFF);
+
+	ql4_printk(KERN_INFO, ha, "EPORT is out of reset.\n");
+}
+
 void qla4_83xx_disable_pause(struct scsi_qla_host *ha)
 {
 	ha->isp_ops->idc_lock(ha);
+	/* Before disabling pause frames, ensure that eport is not in reset */
+	qla4_83xx_eport_init(ha);
 	qla4_83xx_dump_pause_control_regs(ha);
 	__qla4_83xx_disable_pause(ha);
 	ha->isp_ops->idc_unlock(ha);

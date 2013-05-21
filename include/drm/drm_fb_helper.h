@@ -50,13 +50,14 @@ struct drm_fb_helper_surface_size {
 
 /**
  * struct drm_fb_helper_funcs - driver callbacks for the fbdev emulation library
- * @gamma_set: - Set the given gamma lut register on the given crtc.
- * @gamma_get: - Read the given gamma lut register on the given crtc, used to
- * 		 save the current lut when force-restoring the fbdev for e.g.
- * 		 kdbg.
- * @fb_probe: - Driver callback to allocate and initialize the fbdev info
- * 		structure. Futhermore it also needs to allocate the drm
- * 		framebuffer used to back the fbdev.
+ * @gamma_set: Set the given gamma lut register on the given crtc.
+ * @gamma_get: Read the given gamma lut register on the given crtc, used to
+ *             save the current lut when force-restoring the fbdev for e.g.
+ *             kdbg.
+ * @fb_probe: Driver callback to allocate and initialize the fbdev info
+ *            structure. Futhermore it also needs to allocate the drm
+ *            framebuffer used to back the fbdev.
+ * @initial_config: Setup an initial fbdev display configuration
  *
  * Driver callbacks used by the fbdev emulation helper library.
  */
@@ -105,12 +106,6 @@ int drm_fb_helper_pan_display(struct fb_var_screeninfo *var,
 			      struct fb_info *info);
 int drm_fb_helper_set_par(struct fb_info *info);
 int drm_fb_helper_check_var(struct fb_var_screeninfo *var,
-			    struct fb_info *info);
-int drm_fb_helper_setcolreg(unsigned regno,
-			    unsigned red,
-			    unsigned green,
-			    unsigned blue,
-			    unsigned transp,
 			    struct fb_info *info);
 
 bool drm_fb_helper_restore_fbdev_mode(struct drm_fb_helper *fb_helper);

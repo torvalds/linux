@@ -254,7 +254,7 @@ static int mvs_alloc(struct mvs_info *mvi, struct Scsi_Host *shost)
 	}
 	for (i = 0; i < MVS_MAX_DEVICES; i++) {
 		mvi->devices[i].taskfileset = MVS_ID_NOT_MAPPED;
-		mvi->devices[i].dev_type = NO_DEVICE;
+		mvi->devices[i].dev_type = SAS_PHY_UNUSED;
 		mvi->devices[i].device_id = i;
 		mvi->devices[i].dev_status = MVS_DEV_NORMAL;
 		init_timer(&mvi->devices[i].timer);
@@ -703,7 +703,7 @@ static struct pci_device_id mvs_pci_table[] = {
 	{ PCI_VDEVICE(TTI, 0x2744), chip_9480 },
 	{ PCI_VDEVICE(TTI, 0x2760), chip_9480 },
 	{
-		.vendor		= 0x1b4b,
+		.vendor		= PCI_VENDOR_ID_MARVELL_EXT,
 		.device		= 0x9480,
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= 0x9480,
@@ -712,7 +712,7 @@ static struct pci_device_id mvs_pci_table[] = {
 		.driver_data	= chip_9480,
 	},
 	{
-		.vendor		= 0x1b4b,
+		.vendor		= PCI_VENDOR_ID_MARVELL_EXT,
 		.device		= 0x9445,
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= 0x9480,
@@ -721,7 +721,7 @@ static struct pci_device_id mvs_pci_table[] = {
 		.driver_data	= chip_9445,
 	},
 	{
-		.vendor		= 0x1b4b,
+		.vendor		= PCI_VENDOR_ID_MARVELL_EXT,
 		.device		= 0x9485,
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= 0x9480,

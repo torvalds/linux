@@ -8,6 +8,7 @@
  * This code is licenced under the GPL.
  */
 
+#include <linux/clockchips.h>
 #include <linux/kernel.h>
 #include <linux/mutex.h>
 #include <linux/sched.h>
@@ -23,6 +24,7 @@
 #include "cpuidle.h"
 
 DEFINE_PER_CPU(struct cpuidle_device *, cpuidle_devices);
+DEFINE_PER_CPU(struct cpuidle_device, cpuidle_dev);
 
 DEFINE_MUTEX(cpuidle_lock);
 LIST_HEAD(cpuidle_detected_devices);
@@ -41,24 +43,6 @@ void disable_cpuidle(void)
 }
 
 static int __cpuidle_register_device(struct cpuidle_device *dev);
-
-static inline int cpuidle_enter(struct cpuidle_device *dev,
-				struct cpuidle_driver *drv, int index)
-{
-	struct cpuidle_state *target_state = &drv->states[index];
-	return target_state->enter(dev, drv, index);
-}
-
-static inline int cpuidle_enter_tk(struct cpuidle_device *dev,
-			       struct cpuidle_driver *drv, int index)
-{
-	return cpuidle_wrap_enter(dev, drv, index, cpuidle_enter);
-}
-
-typedef int (*cpuidle_enter_t)(struct cpuidle_device *dev,
-			       struct cpuidle_driver *drv, int index);
-
-static cpuidle_enter_t cpuidle_enter_ops;
 
 /**
  * cpuidle_play_dead - cpu off-lining
@@ -89,11 +73,27 @@ int cpuidle_play_dead(void)
  * @next_state: index into drv->states of the state to enter
  */
 int cpuidle_enter_state(struct cpuidle_device *dev, struct cpuidle_driver *drv,
-		int next_state)
+			int index)
 {
 	int entered_state;
 
-	entered_state = cpuidle_enter_ops(dev, drv, next_state);
+	struct cpuidle_state *target_state = &drv->states[index];
+	ktime_t time_start, time_end;
+	s64 diff;
+
+	time_start = ktime_get();
+
+	entered_state = target_state->enter(dev, drv, index);
+
+	time_end = ktime_get();
+
+	local_irq_enable();
+
+	diff = ktime_to_us(ktime_sub(time_end, time_start));
+	if (diff > INT_MAX)
+		diff = INT_MAX;
+
+	dev->last_residency = (int) diff;
 
 	if (entered_state >= 0) {
 		/* Update cpuidle counters */
@@ -146,11 +146,19 @@ int cpuidle_idle_call(void)
 
 	trace_cpu_idle_rcuidle(next_state, dev->cpu);
 
+	if (drv->states[next_state].flags & CPUIDLE_FLAG_TIMER_STOP)
+		clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER,
+				   &dev->cpu);
+
 	if (cpuidle_state_is_coupled(dev, drv, next_state))
 		entered_state = cpuidle_enter_state_coupled(dev, drv,
 							    next_state);
 	else
 		entered_state = cpuidle_enter_state(dev, drv, next_state);
+
+	if (drv->states[next_state].flags & CPUIDLE_FLAG_TIMER_STOP)
+		clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_EXIT,
+				   &dev->cpu);
 
 	trace_cpu_idle_rcuidle(PWR_EVENT_EXIT, dev->cpu);
 
@@ -220,37 +228,6 @@ void cpuidle_resume(void)
 	mutex_lock(&cpuidle_lock);
 	cpuidle_install_idle_handler();
 	mutex_unlock(&cpuidle_lock);
-}
-
-/**
- * cpuidle_wrap_enter - performs timekeeping and irqen around enter function
- * @dev: pointer to a valid cpuidle_device object
- * @drv: pointer to a valid cpuidle_driver object
- * @index: index of the target cpuidle state.
- */
-int cpuidle_wrap_enter(struct cpuidle_device *dev,
-				struct cpuidle_driver *drv, int index,
-				int (*enter)(struct cpuidle_device *dev,
-					struct cpuidle_driver *drv, int index))
-{
-	ktime_t time_start, time_end;
-	s64 diff;
-
-	time_start = ktime_get();
-
-	index = enter(dev, drv, index);
-
-	time_end = ktime_get();
-
-	local_irq_enable();
-
-	diff = ktime_to_us(ktime_sub(time_end, time_start));
-	if (diff > INT_MAX)
-		diff = INT_MAX;
-
-	dev->last_residency = (int) diff;
-
-	return index;
 }
 
 #ifdef CONFIG_ARCH_HAS_CPU_RELAX
@@ -323,9 +300,6 @@ int cpuidle_enable_device(struct cpuidle_device *dev)
 		if (ret)
 			return ret;
 	}
-
-	cpuidle_enter_ops = drv->en_core_tk_irqen ?
-		cpuidle_enter_tk : cpuidle_enter;
 
 	poll_idle_init(drv);
 
@@ -479,6 +453,77 @@ void cpuidle_unregister_device(struct cpuidle_device *dev)
 }
 
 EXPORT_SYMBOL_GPL(cpuidle_unregister_device);
+
+/**
+ * cpuidle_unregister: unregister a driver and the devices. This function
+ * can be used only if the driver has been previously registered through
+ * the cpuidle_register function.
+ *
+ * @drv: a valid pointer to a struct cpuidle_driver
+ */
+void cpuidle_unregister(struct cpuidle_driver *drv)
+{
+	int cpu;
+	struct cpuidle_device *device;
+
+	for_each_possible_cpu(cpu) {
+		device = &per_cpu(cpuidle_dev, cpu);
+		cpuidle_unregister_device(device);
+	}
+
+	cpuidle_unregister_driver(drv);
+}
+EXPORT_SYMBOL_GPL(cpuidle_unregister);
+
+/**
+ * cpuidle_register: registers the driver and the cpu devices with the
+ * coupled_cpus passed as parameter. This function is used for all common
+ * initialization pattern there are in the arch specific drivers. The
+ * devices is globally defined in this file.
+ *
+ * @drv         : a valid pointer to a struct cpuidle_driver
+ * @coupled_cpus: a cpumask for the coupled states
+ *
+ * Returns 0 on success, < 0 otherwise
+ */
+int cpuidle_register(struct cpuidle_driver *drv,
+		     const struct cpumask *const coupled_cpus)
+{
+	int ret, cpu;
+	struct cpuidle_device *device;
+
+	ret = cpuidle_register_driver(drv);
+	if (ret) {
+		pr_err("failed to register cpuidle driver\n");
+		return ret;
+	}
+
+	for_each_possible_cpu(cpu) {
+		device = &per_cpu(cpuidle_dev, cpu);
+		device->cpu = cpu;
+
+#ifdef CONFIG_ARCH_NEEDS_CPU_IDLE_COUPLED
+		/*
+		 * On multiplatform for ARM, the coupled idle states could
+		 * enabled in the kernel even if the cpuidle driver does not
+		 * use it. Note, coupled_cpus is a struct copy.
+		 */
+		if (coupled_cpus)
+			device->coupled_cpus = *coupled_cpus;
+#endif
+		ret = cpuidle_register_device(device);
+		if (!ret)
+			continue;
+
+		pr_err("Failed to register cpuidle device for cpu%d\n", cpu);
+
+		cpuidle_unregister(drv);
+		break;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(cpuidle_register);
 
 #ifdef CONFIG_SMP
 

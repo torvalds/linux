@@ -1592,6 +1592,7 @@ static int __init sunsu_init(void)
 
 static void __exit sunsu_exit(void)
 {
+	platform_driver_unregister(&su_driver);
 	if (sunsu_reg.nr)
 		sunserial_unregister_minors(&sunsu_reg, sunsu_reg.nr);
 }

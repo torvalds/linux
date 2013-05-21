@@ -359,7 +359,7 @@ static int wacom_intuos_inout(struct wacom_wac *wacom)
 		case 0x802: /* Intuos4 General Pen */
 		case 0x804: /* Intuos4 Marker Pen */
 		case 0x40802: /* Intuos4 Classic Pen */
-		case 0x18803: /* DTH2242 Grip Pen */
+		case 0x18802: /* DTH2242 Grip Pen */
 		case 0x022:
 			wacom->tool[idx] = BTN_TOOL_PEN;
 			break;
@@ -1912,7 +1912,7 @@ static const struct wacom_features wacom_features_0xBB =
 	{ "Wacom Intuos4 12x19",  WACOM_PKGLEN_INTUOS,    97536, 60960, 2047,
 	  63, INTUOS4L, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
 static const struct wacom_features wacom_features_0xBC =
-	{ "Wacom Intuos4 WL",     WACOM_PKGLEN_INTUOS,    40840, 25400, 2047,
+	{ "Wacom Intuos4 WL",     WACOM_PKGLEN_INTUOS,    40640, 25400, 2047,
 	  63, INTUOS4, WACOM_INTUOS3_RES, WACOM_INTUOS3_RES };
 static const struct wacom_features wacom_features_0x26 =
 	{ "Wacom Intuos5 touch S", WACOM_PKGLEN_INTUOS,  31496, 19685, 2047,
@@ -2144,7 +2144,7 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x44) },
 	{ USB_DEVICE_WACOM(0x45) },
 	{ USB_DEVICE_WACOM(0x59) },
-	{ USB_DEVICE_WACOM(0x5D) },
+	{ USB_DEVICE_DETAILED(0x5D, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_WACOM(0xB0) },
 	{ USB_DEVICE_WACOM(0xB1) },
 	{ USB_DEVICE_WACOM(0xB2) },
@@ -2209,7 +2209,7 @@ const struct usb_device_id wacom_ids[] = {
 	{ USB_DEVICE_WACOM(0x47) },
 	{ USB_DEVICE_WACOM(0xF4) },
 	{ USB_DEVICE_WACOM(0xF8) },
-	{ USB_DEVICE_WACOM(0xF6) },
+	{ USB_DEVICE_DETAILED(0xF6, USB_CLASS_HID, 0, 0) },
 	{ USB_DEVICE_WACOM(0xFA) },
 	{ USB_DEVICE_LENOVO(0x6004) },
 	{ }

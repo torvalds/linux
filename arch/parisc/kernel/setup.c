@@ -129,6 +129,8 @@ void __init setup_arch(char **cmdline_p)
 	printk(KERN_INFO "The 32-bit Kernel has started...\n");
 #endif
 
+	printk(KERN_INFO "Default page size is %dKB.\n", (int)(PAGE_SIZE / 1024));
+
 	pdc_console_init();
 
 #ifdef CONFIG_64BIT

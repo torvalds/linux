@@ -129,7 +129,7 @@ static void *i915_gem_dmabuf_vmap(struct dma_buf *dma_buf)
 		goto error;
 
 	i = 0;
-	for_each_sg_page(obj->pages->sgl, &sg_iter, obj->pages->nents, 0);
+	for_each_sg_page(obj->pages->sgl, &sg_iter, obj->pages->nents, 0)
 		pages[i++] = sg_page_iter_page(&sg_iter);
 
 	obj->dma_buf_vmapping = vmap(pages, i, 0, PAGE_KERNEL);
@@ -272,7 +272,6 @@ struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 			 * refcount on gem itself instead of f_count of dmabuf.
 			 */
 			drm_gem_object_reference(&obj->base);
-			dma_buf_put(dma_buf);
 			return &obj->base;
 		}
 	}
@@ -281,6 +280,8 @@ struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 	attach = dma_buf_attach(dma_buf, dev->dev);
 	if (IS_ERR(attach))
 		return ERR_CAST(attach);
+
+	get_dma_buf(dma_buf);
 
 	obj = i915_gem_object_alloc(dev);
 	if (obj == NULL) {
@@ -301,5 +302,7 @@ struct drm_gem_object *i915_gem_prime_import(struct drm_device *dev,
 
 fail_detach:
 	dma_buf_detach(dma_buf, attach);
+	dma_buf_put(dma_buf);
+
 	return ERR_PTR(ret);
 }

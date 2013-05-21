@@ -462,9 +462,23 @@ int irq_domain_associate_many(struct irq_domain *domain, unsigned int irq_base,
 		if (domain->ops->map) {
 			ret = domain->ops->map(domain, virq, hwirq);
 			if (ret != 0) {
-				pr_err("irq-%i==>hwirq-0x%lx mapping failed: %d\n",
-				       virq, hwirq, ret);
-				WARN_ON(1);
+				/*
+				 * If map() returns -EPERM, this interrupt is protected
+				 * by the firmware or some other service and shall not
+				 * be mapped.
+				 *
+				 * Since on some platforms we blindly try to map everything
+				 * we end up with a log full of backtraces.
+				 *
+				 * So instead, we silently fail on -EPERM, it is the
+				 * responsibility of the PIC driver to display a relevant
+				 * message if needed.
+				 */
+				if (ret != -EPERM) {
+					pr_err("irq-%i==>hwirq-0x%lx mapping failed: %d\n",
+					       virq, hwirq, ret);
+					WARN_ON(1);
+				}
 				irq_data->domain = NULL;
 				irq_data->hwirq = 0;
 				goto err_unmap;

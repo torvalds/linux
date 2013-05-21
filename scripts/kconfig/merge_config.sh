@@ -120,10 +120,18 @@ if [ "$MAKE" = "false" ]; then
 	exit
 fi
 
+# If we have an output dir, setup the O= argument, otherwise leave
+# it blank, since O=. will create an unnecessary ./source softlink
+OUTPUT_ARG=""
+if [ "$OUTPUT" != "." ] ; then
+	OUTPUT_ARG="O=$OUTPUT"
+fi
+
+
 # Use the merged file as the starting point for:
 # alldefconfig: Fills in any missing symbols with Kconfig default
 # allnoconfig: Fills in any missing symbols with # CONFIG_* is not set
-make KCONFIG_ALLCONFIG=$TMP_FILE O=$OUTPUT $ALLTARGET
+make KCONFIG_ALLCONFIG=$TMP_FILE $OUTPUT_ARG $ALLTARGET
 
 
 # Check all specified config values took (might have missed-dependency issues)

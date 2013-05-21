@@ -13,7 +13,7 @@
 
 #include <linux/eventfd.h>
 #include <linux/vhost.h>
-#include <linux/virtio_net.h>
+#include <linux/socket.h> /* memcpy_fromiovec */
 #include <linux/mm.h>
 #include <linux/mmu_context.h>
 #include <linux/miscdevice.h>
@@ -32,8 +32,6 @@ enum {
 	VHOST_MEMORY_MAX_NREGIONS = 64,
 	VHOST_MEMORY_F_LOG = 0x1,
 };
-
-static unsigned vhost_zcopy_mask __read_mostly;
 
 #define vhost_used_event(vq) ((u16 __user *)&vq->avail->ring[vq->num])
 #define vhost_avail_event(vq) ((u16 __user *)&vq->used->ring[vq->num])
@@ -88,6 +86,9 @@ int vhost_poll_start(struct vhost_poll *poll, struct file *file)
 {
 	unsigned long mask;
 	int ret = 0;
+
+	if (poll->wqh)
+		return 0;
 
 	mask = file->f_op->poll(file, &poll->table);
 	if (mask)
@@ -178,8 +179,6 @@ static void vhost_vq_reset(struct vhost_dev *dev,
 	vq->used_flags = 0;
 	vq->log_used = false;
 	vq->log_addr = -1ull;
-	vq->vhost_hlen = 0;
-	vq->sock_hlen = 0;
 	vq->private_data = NULL;
 	vq->log_base = NULL;
 	vq->error_ctx = NULL;
@@ -188,9 +187,6 @@ static void vhost_vq_reset(struct vhost_dev *dev,
 	vq->call_ctx = NULL;
 	vq->call = NULL;
 	vq->log_ctx = NULL;
-	vq->upend_idx = 0;
-	vq->done_idx = 0;
-	vq->ubufs = NULL;
 }
 
 static int vhost_worker(void *data)
@@ -250,43 +246,29 @@ static void vhost_vq_free_iovecs(struct vhost_virtqueue *vq)
 	vq->log = NULL;
 	kfree(vq->heads);
 	vq->heads = NULL;
-	kfree(vq->ubuf_info);
-	vq->ubuf_info = NULL;
-}
-
-void vhost_enable_zcopy(int vq)
-{
-	vhost_zcopy_mask |= 0x1 << vq;
 }
 
 /* Helper to allocate iovec buffers for all vqs. */
 static long vhost_dev_alloc_iovecs(struct vhost_dev *dev)
 {
 	int i;
-	bool zcopy;
 
 	for (i = 0; i < dev->nvqs; ++i) {
-		dev->vqs[i].indirect = kmalloc(sizeof *dev->vqs[i].indirect *
+		dev->vqs[i]->indirect = kmalloc(sizeof *dev->vqs[i]->indirect *
 					       UIO_MAXIOV, GFP_KERNEL);
-		dev->vqs[i].log = kmalloc(sizeof *dev->vqs[i].log * UIO_MAXIOV,
+		dev->vqs[i]->log = kmalloc(sizeof *dev->vqs[i]->log * UIO_MAXIOV,
 					  GFP_KERNEL);
-		dev->vqs[i].heads = kmalloc(sizeof *dev->vqs[i].heads *
+		dev->vqs[i]->heads = kmalloc(sizeof *dev->vqs[i]->heads *
 					    UIO_MAXIOV, GFP_KERNEL);
-		zcopy = vhost_zcopy_mask & (0x1 << i);
-		if (zcopy)
-			dev->vqs[i].ubuf_info =
-				kmalloc(sizeof *dev->vqs[i].ubuf_info *
-					UIO_MAXIOV, GFP_KERNEL);
-		if (!dev->vqs[i].indirect || !dev->vqs[i].log ||
-			!dev->vqs[i].heads ||
-			(zcopy && !dev->vqs[i].ubuf_info))
+		if (!dev->vqs[i]->indirect || !dev->vqs[i]->log ||
+			!dev->vqs[i]->heads)
 			goto err_nomem;
 	}
 	return 0;
 
 err_nomem:
 	for (; i >= 0; --i)
-		vhost_vq_free_iovecs(&dev->vqs[i]);
+		vhost_vq_free_iovecs(dev->vqs[i]);
 	return -ENOMEM;
 }
 
@@ -295,11 +277,11 @@ static void vhost_dev_free_iovecs(struct vhost_dev *dev)
 	int i;
 
 	for (i = 0; i < dev->nvqs; ++i)
-		vhost_vq_free_iovecs(&dev->vqs[i]);
+		vhost_vq_free_iovecs(dev->vqs[i]);
 }
 
 long vhost_dev_init(struct vhost_dev *dev,
-		    struct vhost_virtqueue *vqs, int nvqs)
+		    struct vhost_virtqueue **vqs, int nvqs)
 {
 	int i;
 
@@ -315,16 +297,15 @@ long vhost_dev_init(struct vhost_dev *dev,
 	dev->worker = NULL;
 
 	for (i = 0; i < dev->nvqs; ++i) {
-		dev->vqs[i].log = NULL;
-		dev->vqs[i].indirect = NULL;
-		dev->vqs[i].heads = NULL;
-		dev->vqs[i].ubuf_info = NULL;
-		dev->vqs[i].dev = dev;
-		mutex_init(&dev->vqs[i].mutex);
-		vhost_vq_reset(dev, dev->vqs + i);
-		if (dev->vqs[i].handle_kick)
-			vhost_poll_init(&dev->vqs[i].poll,
-					dev->vqs[i].handle_kick, POLLIN, dev);
+		dev->vqs[i]->log = NULL;
+		dev->vqs[i]->indirect = NULL;
+		dev->vqs[i]->heads = NULL;
+		dev->vqs[i]->dev = dev;
+		mutex_init(&dev->vqs[i]->mutex);
+		vhost_vq_reset(dev, dev->vqs[i]);
+		if (dev->vqs[i]->handle_kick)
+			vhost_poll_init(&dev->vqs[i]->poll,
+					dev->vqs[i]->handle_kick, POLLIN, dev);
 	}
 
 	return 0;
@@ -363,7 +344,7 @@ static int vhost_attach_cgroups(struct vhost_dev *dev)
 }
 
 /* Caller should have device mutex */
-static long vhost_dev_set_owner(struct vhost_dev *dev)
+long vhost_dev_set_owner(struct vhost_dev *dev)
 {
 	struct task_struct *worker;
 	int err;
@@ -405,21 +386,19 @@ err_mm:
 	return err;
 }
 
-/* Caller should have device mutex */
-long vhost_dev_reset_owner(struct vhost_dev *dev)
+struct vhost_memory *vhost_dev_reset_owner_prepare(void)
 {
-	struct vhost_memory *memory;
+	return kmalloc(offsetof(struct vhost_memory, regions), GFP_KERNEL);
+}
 
-	/* Restore memory to default empty mapping. */
-	memory = kmalloc(offsetof(struct vhost_memory, regions), GFP_KERNEL);
-	if (!memory)
-		return -ENOMEM;
-
+/* Caller should have device mutex */
+void vhost_dev_reset_owner(struct vhost_dev *dev, struct vhost_memory *memory)
+{
 	vhost_dev_cleanup(dev, true);
 
+	/* Restore memory to default empty mapping. */
 	memory->nregions = 0;
 	RCU_INIT_POINTER(dev->memory, memory);
-	return 0;
 }
 
 void vhost_dev_stop(struct vhost_dev *dev)
@@ -427,9 +406,9 @@ void vhost_dev_stop(struct vhost_dev *dev)
 	int i;
 
 	for (i = 0; i < dev->nvqs; ++i) {
-		if (dev->vqs[i].kick && dev->vqs[i].handle_kick) {
-			vhost_poll_stop(&dev->vqs[i].poll);
-			vhost_poll_flush(&dev->vqs[i].poll);
+		if (dev->vqs[i]->kick && dev->vqs[i]->handle_kick) {
+			vhost_poll_stop(&dev->vqs[i]->poll);
+			vhost_poll_flush(&dev->vqs[i]->poll);
 		}
 	}
 }
@@ -440,17 +419,17 @@ void vhost_dev_cleanup(struct vhost_dev *dev, bool locked)
 	int i;
 
 	for (i = 0; i < dev->nvqs; ++i) {
-		if (dev->vqs[i].error_ctx)
-			eventfd_ctx_put(dev->vqs[i].error_ctx);
-		if (dev->vqs[i].error)
-			fput(dev->vqs[i].error);
-		if (dev->vqs[i].kick)
-			fput(dev->vqs[i].kick);
-		if (dev->vqs[i].call_ctx)
-			eventfd_ctx_put(dev->vqs[i].call_ctx);
-		if (dev->vqs[i].call)
-			fput(dev->vqs[i].call);
-		vhost_vq_reset(dev, dev->vqs + i);
+		if (dev->vqs[i]->error_ctx)
+			eventfd_ctx_put(dev->vqs[i]->error_ctx);
+		if (dev->vqs[i]->error)
+			fput(dev->vqs[i]->error);
+		if (dev->vqs[i]->kick)
+			fput(dev->vqs[i]->kick);
+		if (dev->vqs[i]->call_ctx)
+			eventfd_ctx_put(dev->vqs[i]->call_ctx);
+		if (dev->vqs[i]->call)
+			fput(dev->vqs[i]->call);
+		vhost_vq_reset(dev, dev->vqs[i]);
 	}
 	vhost_dev_free_iovecs(dev);
 	if (dev->log_ctx)
@@ -521,14 +500,14 @@ static int memory_access_ok(struct vhost_dev *d, struct vhost_memory *mem,
 
 	for (i = 0; i < d->nvqs; ++i) {
 		int ok;
-		mutex_lock(&d->vqs[i].mutex);
+		mutex_lock(&d->vqs[i]->mutex);
 		/* If ring is inactive, will check when it's enabled. */
-		if (d->vqs[i].private_data)
-			ok = vq_memory_access_ok(d->vqs[i].log_base, mem,
+		if (d->vqs[i]->private_data)
+			ok = vq_memory_access_ok(d->vqs[i]->log_base, mem,
 						 log_all);
 		else
 			ok = 1;
-		mutex_unlock(&d->vqs[i].mutex);
+		mutex_unlock(&d->vqs[i]->mutex);
 		if (!ok)
 			return 0;
 	}
@@ -638,7 +617,7 @@ long vhost_vring_ioctl(struct vhost_dev *d, int ioctl, void __user *argp)
 	if (idx >= d->nvqs)
 		return -ENOBUFS;
 
-	vq = d->vqs + idx;
+	vq = d->vqs[idx];
 
 	mutex_lock(&vq->mutex);
 
@@ -849,7 +828,7 @@ long vhost_dev_ioctl(struct vhost_dev *d, unsigned int ioctl, void __user *argp)
 		for (i = 0; i < d->nvqs; ++i) {
 			struct vhost_virtqueue *vq;
 			void __user *base = (void __user *)(unsigned long)p;
-			vq = d->vqs + i;
+			vq = d->vqs[i];
 			mutex_lock(&vq->mutex);
 			/* If ring is inactive, will check when it's enabled. */
 			if (vq->private_data && !vq_log_access_ok(d, vq, base))
@@ -876,9 +855,9 @@ long vhost_dev_ioctl(struct vhost_dev *d, unsigned int ioctl, void __user *argp)
 		} else
 			filep = eventfp;
 		for (i = 0; i < d->nvqs; ++i) {
-			mutex_lock(&d->vqs[i].mutex);
-			d->vqs[i].log_ctx = d->log_ctx;
-			mutex_unlock(&d->vqs[i].mutex);
+			mutex_lock(&d->vqs[i]->mutex);
+			d->vqs[i]->log_ctx = d->log_ctx;
+			mutex_unlock(&d->vqs[i]->mutex);
 		}
 		if (ctx)
 			eventfd_ctx_put(ctx);
@@ -1547,39 +1526,4 @@ void vhost_disable_notify(struct vhost_dev *dev, struct vhost_virtqueue *vq)
 			vq_err(vq, "Failed to enable notification at %p: %d\n",
 			       &vq->used->flags, r);
 	}
-}
-
-static void vhost_zerocopy_done_signal(struct kref *kref)
-{
-	struct vhost_ubuf_ref *ubufs = container_of(kref, struct vhost_ubuf_ref,
-						    kref);
-	wake_up(&ubufs->wait);
-}
-
-struct vhost_ubuf_ref *vhost_ubuf_alloc(struct vhost_virtqueue *vq,
-					bool zcopy)
-{
-	struct vhost_ubuf_ref *ubufs;
-	/* No zero copy backend? Nothing to count. */
-	if (!zcopy)
-		return NULL;
-	ubufs = kmalloc(sizeof *ubufs, GFP_KERNEL);
-	if (!ubufs)
-		return ERR_PTR(-ENOMEM);
-	kref_init(&ubufs->kref);
-	init_waitqueue_head(&ubufs->wait);
-	ubufs->vq = vq;
-	return ubufs;
-}
-
-void vhost_ubuf_put(struct vhost_ubuf_ref *ubufs)
-{
-	kref_put(&ubufs->kref, vhost_zerocopy_done_signal);
-}
-
-void vhost_ubuf_put_and_wait(struct vhost_ubuf_ref *ubufs)
-{
-	kref_put(&ubufs->kref, vhost_zerocopy_done_signal);
-	wait_event(ubufs->wait, !atomic_read(&ubufs->kref.refcount));
-	kfree(ubufs);
 }

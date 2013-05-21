@@ -6,7 +6,7 @@
 #include <core/engine.h>
 
 enum nv_subdev_type {
-	NVDEV_SUBDEV_DEVICE,
+	NVDEV_ENGINE_DEVICE,
 	NVDEV_SUBDEV_VBIOS,
 
 	/* All subdevs from DEVINIT to DEVINIT_LAST will be created before
@@ -57,7 +57,7 @@ enum nv_subdev_type {
 };
 
 struct nouveau_device {
-	struct nouveau_subdev base;
+	struct nouveau_engine base;
 	struct list_head head;
 
 	struct pci_dev *pdev;
@@ -99,7 +99,7 @@ nv_device(void *obj)
 
 #if CONFIG_NOUVEAU_DEBUG >= NV_DBG_PARANOIA
 	if (unlikely(!nv_iclass(device, NV_SUBDEV_CLASS) ||
-		     (nv_hclass(device) & 0xff) != NVDEV_SUBDEV_DEVICE)) {
+		     (nv_hclass(device) & 0xff) != NVDEV_ENGINE_DEVICE)) {
 		nv_assert("BAD CAST -> NvDevice, 0x%08x 0x%08x",
 			  nv_hclass(object), nv_hclass(device));
 	}

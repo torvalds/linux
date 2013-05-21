@@ -131,7 +131,7 @@ static int udplite_error(struct net *net, struct nf_conn *tmpl,
 	hdr = skb_header_pointer(skb, dataoff, sizeof(_hdr), &_hdr);
 	if (hdr == NULL) {
 		if (LOG_INVALID(net, IPPROTO_UDPLITE))
-			nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
+			nf_log_packet(net, pf, 0, skb, NULL, NULL, NULL,
 				      "nf_ct_udplite: short packet ");
 		return -NF_ACCEPT;
 	}
@@ -141,7 +141,7 @@ static int udplite_error(struct net *net, struct nf_conn *tmpl,
 		cscov = udplen;
 	else if (cscov < sizeof(*hdr) || cscov > udplen) {
 		if (LOG_INVALID(net, IPPROTO_UDPLITE))
-			nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
+			nf_log_packet(net, pf, 0, skb, NULL, NULL, NULL,
 				"nf_ct_udplite: invalid checksum coverage ");
 		return -NF_ACCEPT;
 	}
@@ -149,7 +149,7 @@ static int udplite_error(struct net *net, struct nf_conn *tmpl,
 	/* UDPLITE mandates checksums */
 	if (!hdr->check) {
 		if (LOG_INVALID(net, IPPROTO_UDPLITE))
-			nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
+			nf_log_packet(net, pf, 0, skb, NULL, NULL, NULL,
 				      "nf_ct_udplite: checksum missing ");
 		return -NF_ACCEPT;
 	}
@@ -159,7 +159,7 @@ static int udplite_error(struct net *net, struct nf_conn *tmpl,
 	    nf_checksum_partial(skb, hooknum, dataoff, cscov, IPPROTO_UDP,
 	    			pf)) {
 		if (LOG_INVALID(net, IPPROTO_UDPLITE))
-			nf_log_packet(pf, 0, skb, NULL, NULL, NULL,
+			nf_log_packet(net, pf, 0, skb, NULL, NULL, NULL,
 				      "nf_ct_udplite: bad UDPLite checksum ");
 		return -NF_ACCEPT;
 	}

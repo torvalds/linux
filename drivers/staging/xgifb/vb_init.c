@@ -90,18 +90,14 @@ static void XGINew_DDR1x_MRS_340(unsigned long P3c4,
 	xgifb_reg_set(P3c4, 0x16, 0x80);
 
 	udelay(60);
-	xgifb_reg_set(P3c4,
-		      0x18,
-		      pVBInfo->SR15[2][pVBInfo->ram_type]); /* SR18 */
+	xgifb_reg_set(P3c4, 0x18, pVBInfo->SR18[pVBInfo->ram_type]); /* SR18 */
 	xgifb_reg_set(P3c4, 0x19, 0x01);
 	xgifb_reg_set(P3c4, 0x16, 0x03);
 	xgifb_reg_set(P3c4, 0x16, 0x83);
 	mdelay(1);
 	xgifb_reg_set(P3c4, 0x1B, 0x03);
 	udelay(500);
-	xgifb_reg_set(P3c4,
-		      0x18,
-		      pVBInfo->SR15[2][pVBInfo->ram_type]); /* SR18 */
+	xgifb_reg_set(P3c4, 0x18, pVBInfo->SR18[pVBInfo->ram_type]); /* SR18 */
 	xgifb_reg_set(P3c4, 0x19, 0x00);
 	xgifb_reg_set(P3c4, 0x16, 0x03);
 	xgifb_reg_set(P3c4, 0x16, 0x83);
@@ -265,18 +261,14 @@ static void XGINew_DDR1x_MRS_XG20(unsigned long P3c4,
 	xgifb_reg_set(P3c4, 0x16, 0x00);
 	xgifb_reg_set(P3c4, 0x16, 0x80);
 	udelay(60);
-	xgifb_reg_set(P3c4,
-		      0x18,
-		      pVBInfo->SR15[2][pVBInfo->ram_type]); /* SR18 */
+	xgifb_reg_set(P3c4, 0x18, pVBInfo->SR18[pVBInfo->ram_type]); /* SR18 */
 	xgifb_reg_set(P3c4, 0x19, 0x01);
 	xgifb_reg_set(P3c4, 0x16, 0x03);
 	xgifb_reg_set(P3c4, 0x16, 0x83);
 	mdelay(1);
 	xgifb_reg_set(P3c4, 0x1B, 0x03);
 	udelay(500);
-	xgifb_reg_set(P3c4,
-		      0x18,
-		      pVBInfo->SR15[2][pVBInfo->ram_type]); /* SR18 */
+	xgifb_reg_set(P3c4, 0x18, pVBInfo->SR18[pVBInfo->ram_type]); /* SR18 */
 	xgifb_reg_set(P3c4, 0x19, 0x00);
 	xgifb_reg_set(P3c4, 0x16, 0x03);
 	xgifb_reg_set(P3c4, 0x16, 0x83);
@@ -507,9 +499,7 @@ static void XGINew_SetDRAMDefaultRegister340(
 		xgifb_reg_set(P3d4, 0xB0, 0x80); /* DDRII Dual frequency mode */
 		XGINew_DDR2_DefaultRegister(HwDeviceExtension, P3d4, pVBInfo);
 	}
-	xgifb_reg_set(P3c4,
-		      0x1B,
-		      pVBInfo->SR15[3][pVBInfo->ram_type]); /* SR1B */
+	xgifb_reg_set(P3c4, 0x1B, 0x03); /* SR1B */
 }
 
 
@@ -888,7 +878,7 @@ done:
 	return rom_copy;
 }
 
-static void xgifb_read_vbios(struct pci_dev *pdev,
+static bool xgifb_read_vbios(struct pci_dev *pdev,
 			      struct vb_device_info *pVBInfo)
 {
 	struct xgifb_video_info *xgifb_info = pci_get_drvdata(pdev);
@@ -899,13 +889,10 @@ static void xgifb_read_vbios(struct pci_dev *pdev,
 	size_t vbios_size;
 	int entry;
 
-	if (xgifb_info->chip != XG21)
-		return;
-	pVBInfo->IF_DEF_LVDS = 0;
 	vbios = xgifb_copy_rom(pdev, &vbios_size);
 	if (vbios == NULL) {
 		dev_err(&pdev->dev, "Video BIOS not available\n");
-		return;
+		return false;
 	}
 	if (vbios_size <= 0x65)
 		goto error;
@@ -917,7 +904,7 @@ static void xgifb_read_vbios(struct pci_dev *pdev,
 	    (!xgifb_info->display2_force ||
 	     xgifb_info->display2 != XGIFB_DISP_LCD)) {
 		vfree(vbios);
-		return;
+		return false;
 	}
 	if (vbios_size <= 0x317)
 		goto error;
@@ -956,11 +943,11 @@ static void xgifb_read_vbios(struct pci_dev *pdev,
 	lvds->PSC_S4		= vbios[i + 23];
 	lvds->PSC_S5		= vbios[i + 24];
 	vfree(vbios);
-	pVBInfo->IF_DEF_LVDS = 1;
-	return;
+	return true;
 error:
 	dev_err(&pdev->dev, "Video BIOS corrupted\n");
 	vfree(vbios);
+	return false;
 }
 
 static void XGINew_ChkSenseStatus(struct xgi_hw_device_info *HwDeviceExtension,
@@ -1132,12 +1119,13 @@ static unsigned short XGINew_SenseLCD(struct xgi_hw_device_info
 	}
 }
 
-static void XGINew_GetXG21Sense(struct xgi_hw_device_info *HwDeviceExtension,
+static void XGINew_GetXG21Sense(struct pci_dev *pdev,
 		struct vb_device_info *pVBInfo)
 {
+	struct xgifb_video_info *xgifb_info = pci_get_drvdata(pdev);
 	unsigned char Temp;
 
-	if (pVBInfo->IF_DEF_LVDS) { /* For XG21 LVDS */
+	if (xgifb_read_vbios(pdev, pVBInfo)) { /* For XG21 LVDS */
 		xgifb_reg_or(pVBInfo->P3d4, 0x32, LCDSense);
 		/* LVDS on chip */
 		xgifb_reg_and_or(pVBInfo->P3d4, 0x38, ~0xE0, 0xC0);
@@ -1146,7 +1134,7 @@ static void XGINew_GetXG21Sense(struct xgi_hw_device_info *HwDeviceExtension,
 		xgifb_reg_and_or(pVBInfo->P3d4, 0x4A, ~0x03, 0x03);
 		Temp = xgifb_reg_get(pVBInfo->P3d4, 0x48) & 0xC0;
 		if (Temp == 0xC0) { /* DVI & DVO GPIOA/B pull high */
-			XGINew_SenseLCD(HwDeviceExtension, pVBInfo);
+			XGINew_SenseLCD(&xgifb_info->hw_info, pVBInfo);
 			xgifb_reg_or(pVBInfo->P3d4, 0x32, LCDSense);
 			/* Enable read GPIOF */
 			xgifb_reg_and_or(pVBInfo->P3d4, 0x4A, ~0x20, 0x20);
@@ -1172,7 +1160,6 @@ static void XGINew_GetXG27Sense(struct xgi_hw_device_info *HwDeviceExtension,
 {
 	unsigned char Temp, bCR4A;
 
-	pVBInfo->IF_DEF_LVDS = 0;
 	bCR4A = xgifb_reg_get(pVBInfo->P3d4, 0x4A);
 	/* Enable GPIOA/B/C read  */
 	xgifb_reg_and_or(pVBInfo->P3d4, 0x4A, ~0x07, 0x07);
@@ -1254,14 +1241,12 @@ unsigned char XGIInitNew(struct pci_dev *pdev)
 
 	InitTo330Pointer(HwDeviceExtension->jChipType, pVBInfo);
 
-	xgifb_read_vbios(pdev, pVBInfo);
-
 	/* Openkey */
 	xgifb_reg_set(pVBInfo->P3c4, 0x05, 0x86);
 
 	/* GetXG21Sense (GPIO) */
 	if (HwDeviceExtension->jChipType == XG21)
-		XGINew_GetXG21Sense(HwDeviceExtension, pVBInfo);
+		XGINew_GetXG21Sense(pdev, pVBInfo);
 
 	if (HwDeviceExtension->jChipType == XG27)
 		XGINew_GetXG27Sense(HwDeviceExtension, pVBInfo);
@@ -1369,17 +1354,14 @@ unsigned char XGIInitNew(struct pci_dev *pdev)
 
 	if (HwDeviceExtension->jChipType < XG20) {
 		if (XGI_BridgeIsOn(pVBInfo) == 1) {
-			if (pVBInfo->IF_DEF_LVDS == 0) {
-				xgifb_reg_set(pVBInfo->Part2Port, 0x00, 0x1C);
-				xgifb_reg_set(pVBInfo->Part4Port,
-					      0x0D, XGI330_CRT2Data_4_D);
-				xgifb_reg_set(pVBInfo->Part4Port,
-					      0x0E, XGI330_CRT2Data_4_E);
-				xgifb_reg_set(pVBInfo->Part4Port,
-					      0x10, XGI330_CRT2Data_4_10);
-				xgifb_reg_set(pVBInfo->Part4Port, 0x0F, 0x3F);
-			}
-
+			xgifb_reg_set(pVBInfo->Part2Port, 0x00, 0x1C);
+			xgifb_reg_set(pVBInfo->Part4Port,
+				      0x0D, XGI330_CRT2Data_4_D);
+			xgifb_reg_set(pVBInfo->Part4Port,
+				      0x0E, XGI330_CRT2Data_4_E);
+			xgifb_reg_set(pVBInfo->Part4Port,
+				      0x10, XGI330_CRT2Data_4_10);
+			xgifb_reg_set(pVBInfo->Part4Port, 0x0F, 0x3F);
 			XGI_LockCRT2(HwDeviceExtension, pVBInfo);
 		}
 	} /* != XG20 */

@@ -311,6 +311,19 @@ static struct xfrm_algo_desc aalg_list[] = {
 		.sadb_alg_maxbits = 128
 	}
 },
+{
+	/* rfc4494 */
+	.name = "cmac(aes)",
+
+	.uinfo = {
+		.auth = {
+			.icv_truncbits = 96,
+			.icv_fullbits = 128,
+		}
+	},
+
+	.pfkey_supported = 0,
+},
 };
 
 static struct xfrm_algo_desc ealg_list[] = {

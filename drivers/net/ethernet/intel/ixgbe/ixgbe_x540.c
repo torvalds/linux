@@ -854,6 +854,7 @@ static struct ixgbe_mac_operations mac_ops_X540 = {
 	.enable_rx_buff		= &ixgbe_enable_rx_buff_generic,
 	.get_thermal_sensor_data = NULL,
 	.init_thermal_sensor_thresh = NULL,
+	.mng_fw_enabled		= NULL,
 };
 
 static struct ixgbe_eeprom_operations eeprom_ops_X540 = {

@@ -1736,6 +1736,35 @@ out:
 
 }
 
+int wlcore_acx_average_rssi(struct wl1271 *wl, struct wl12xx_vif *wlvif,
+			    s8 *avg_rssi)
+{
+	struct acx_roaming_stats *acx;
+	int ret = 0;
+
+	wl1271_debug(DEBUG_ACX, "acx roaming statistics");
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	if (!acx) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	acx->role_id = wlvif->role_id;
+	ret = wl1271_cmd_interrogate(wl, ACX_ROAMING_STATISTICS_TBL,
+				     acx, sizeof(*acx));
+	if (ret	< 0) {
+		wl1271_warning("acx roaming statistics failed: %d", ret);
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	*avg_rssi = acx->rssi_beacon;
+out:
+	kfree(acx);
+	return ret;
+}
+
 #ifdef CONFIG_PM
 /* Set the global behaviour of RX filters - On/Off + default action */
 int wl1271_acx_default_rx_filter_enable(struct wl1271 *wl, bool enable,

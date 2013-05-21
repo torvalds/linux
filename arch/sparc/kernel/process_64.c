@@ -52,20 +52,17 @@
 
 #include "kstack.h"
 
-static void sparc64_yield(int cpu)
+/* Idle loop support on sparc64. */
+void arch_cpu_idle(void)
 {
 	if (tlb_type != hypervisor) {
 		touch_nmi_watchdog();
-		return;
-	}
-
-	clear_thread_flag(TIF_POLLING_NRFLAG);
-	smp_mb__after_clear_bit();
-
-	while (!need_resched() && !cpu_is_offline(cpu)) {
+	} else {
 		unsigned long pstate;
 
-		/* Disable interrupts. */
+                /* The sun4v sleeping code requires that we have PSTATE.IE cleared over
+                 * the cpu sleep hypervisor call.
+                 */
 		__asm__ __volatile__(
 			"rdpr %%pstate, %0\n\t"
 			"andn %0, %1, %0\n\t"
@@ -73,7 +70,7 @@ static void sparc64_yield(int cpu)
 			: "=&r" (pstate)
 			: "i" (PSTATE_IE));
 
-		if (!need_resched() && !cpu_is_offline(cpu))
+		if (!need_resched() && !cpu_is_offline(smp_processor_id()))
 			sun4v_cpu_yield();
 
 		/* Re-enable interrupts. */
@@ -84,36 +81,16 @@ static void sparc64_yield(int cpu)
 			: "=&r" (pstate)
 			: "i" (PSTATE_IE));
 	}
-
-	set_thread_flag(TIF_POLLING_NRFLAG);
+	local_irq_enable();
 }
-
-/* The idle loop on sparc64. */
-void cpu_idle(void)
-{
-	int cpu = smp_processor_id();
-
-	set_thread_flag(TIF_POLLING_NRFLAG);
-
-	while(1) {
-		tick_nohz_idle_enter();
-		rcu_idle_enter();
-
-		while (!need_resched() && !cpu_is_offline(cpu))
-			sparc64_yield(cpu);
-
-		rcu_idle_exit();
-		tick_nohz_idle_exit();
 
 #ifdef CONFIG_HOTPLUG_CPU
-		if (cpu_is_offline(cpu)) {
-			sched_preempt_enable_no_resched();
-			cpu_play_dead();
-		}
-#endif
-		schedule_preempt_disabled();
-	}
+void arch_cpu_idle_dead()
+{
+	sched_preempt_enable_no_resched();
+	cpu_play_dead();
 }
+#endif
 
 #ifdef CONFIG_COMPAT
 static void show_regwindow32(struct pt_regs *regs)
@@ -186,6 +163,8 @@ static void show_regwindow(struct pt_regs *regs)
 
 void show_regs(struct pt_regs *regs)
 {
+	show_regs_print_info(KERN_DEFAULT);
+
 	printk("TSTATE: %016lx TPC: %016lx TNPC: %016lx Y: %08x    %s\n", regs->tstate,
 	       regs->tpc, regs->tnpc, regs->y, print_tainted());
 	printk("TPC: <%pS>\n", (void *) regs->tpc);
@@ -315,7 +294,7 @@ static void sysrq_handle_globreg(int key)
 
 static struct sysrq_key_op sparc_globalreg_op = {
 	.handler	= sysrq_handle_globreg,
-	.help_msg	= "global-regs(Y)",
+	.help_msg	= "global-regs(y)",
 	.action_msg	= "Show Global CPU Regs",
 };
 
@@ -385,7 +364,7 @@ static void sysrq_handle_globpmu(int key)
 
 static struct sysrq_key_op sparc_globalpmu_op = {
 	.handler	= sysrq_handle_globpmu,
-	.help_msg	= "global-pmu(X)",
+	.help_msg	= "global-pmu(x)",
 	.action_msg	= "Show Global PMU Regs",
 };
 

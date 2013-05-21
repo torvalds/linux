@@ -427,8 +427,8 @@ struct omap_hwmod_omap4_prcm {
  *
  * HWMOD_SWSUP_SIDLE: omap_hwmod code should manually bring module in and out
  *     of idle, rather than relying on module smart-idle
- * HWMOD_SWSUP_MSTDBY: omap_hwmod code should manually bring module in and out
- *     of standby, rather than relying on module smart-standby
+ * HWMOD_SWSUP_MSTANDBY: omap_hwmod code should manually bring module in and
+ *     out of standby, rather than relying on module smart-standby
  * HWMOD_INIT_NO_RESET: don't reset this module at boot - important for
  *     SDRAM controller, etc. XXX probably belongs outside the main hwmod file
  *     XXX Should be HWMOD_SETUP_NO_RESET
@@ -459,6 +459,10 @@ struct omap_hwmod_omap4_prcm {
  *     correctly, or this is being abused to deal with some PM latency
  *     issues -- but we're currently suffering from a shortage of
  *     folks who are able to track these issues down properly.
+ * HWMOD_FORCE_MSTANDBY: Always keep MIDLEMODE bits cleared so that device
+ *     is kept in force-standby mode. Failing to do so causes PM problems
+ *     with musb on OMAP3630 at least. Note that musb has a dedicated register
+ *     to control MSTANDBY signal when MIDLEMODE is set to force-standby.
  */
 #define HWMOD_SWSUP_SIDLE			(1 << 0)
 #define HWMOD_SWSUP_MSTANDBY			(1 << 1)
@@ -471,21 +475,20 @@ struct omap_hwmod_omap4_prcm {
 #define HWMOD_16BIT_REG				(1 << 8)
 #define HWMOD_EXT_OPT_MAIN_CLK			(1 << 9)
 #define HWMOD_BLOCK_WFI				(1 << 10)
+#define HWMOD_FORCE_MSTANDBY			(1 << 11)
 
 /*
  * omap_hwmod._int_flags definitions
  * These are for internal use only and are managed by the omap_hwmod code.
  *
  * _HWMOD_NO_MPU_PORT: no path exists for the MPU to write to this module
- * _HWMOD_WAKEUP_ENABLED: set when the omap_hwmod code has enabled ENAWAKEUP
  * _HWMOD_SYSCONFIG_LOADED: set when the OCP_SYSCONFIG value has been cached
  * _HWMOD_SKIP_ENABLE: set if hwmod enabled during init (HWMOD_INIT_NO_IDLE) -
  *     causes the first call to _enable() to only update the pinmux
  */
 #define _HWMOD_NO_MPU_PORT			(1 << 0)
-#define _HWMOD_WAKEUP_ENABLED			(1 << 1)
-#define _HWMOD_SYSCONFIG_LOADED			(1 << 2)
-#define _HWMOD_SKIP_ENABLE			(1 << 3)
+#define _HWMOD_SYSCONFIG_LOADED			(1 << 1)
+#define _HWMOD_SKIP_ENABLE			(1 << 2)
 
 /*
  * omap_hwmod._state definitions

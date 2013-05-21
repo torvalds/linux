@@ -15,6 +15,7 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
+#include <linux/notifier.h>
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
@@ -52,10 +53,15 @@
 #define VBUS_DET_DBNC100		0x02
 #define VBUS_DET_DBNC1			0x01
 #define OTP_ENABLE_WD			0x01
+#define DROP_COUNT_RESET		0x01
+#define USB_CH_DET			0x01
 
 #define MAIN_CH_INPUT_CURR_SHIFT	4
 #define VBUS_IN_CURR_LIM_SHIFT		4
+#define AB8540_VBUS_IN_CURR_LIM_SHIFT	2
 #define AUTO_VBUS_IN_CURR_LIM_SHIFT	4
+#define AB8540_AUTO_VBUS_IN_CURR_MASK	0x3F
+#define VBUS_IN_CURR_LIM_RETRY_SET_TIME	30 /* seconds */
 
 #define LED_INDICATOR_PWM_ENA		0x01
 #define LED_INDICATOR_PWM_DIS		0x00
@@ -77,7 +83,9 @@
 
 /* UsbLineStatus register bit masks */
 #define AB8500_USB_LINK_STATUS		0x78
+#define AB8505_USB_LINK_STATUS		0xF8
 #define AB8500_STD_HOST_SUSP		0x18
+#define USB_LINK_STATUS_SHIFT		3
 
 /* Watchdog timeout constant */
 #define WD_TIMER			0x30 /* 4min */
@@ -96,6 +104,10 @@
 #define AB8500_SW_CONTROL_FALLBACK	0x03
 /* Wait for enumeration before charing in us */
 #define WAIT_ACA_RID_ENUMERATION	(5 * 1000)
+/*External charger control*/
+#define AB8500_SYS_CHARGER_CONTROL_REG		0x52
+#define EXTERNAL_CHARGER_DISABLE_REG_VAL	0x03
+#define EXTERNAL_CHARGER_ENABLE_REG_VAL		0x07
 
 /* UsbLineStatus register - usb types */
 enum ab8500_charger_link_status {
@@ -196,10 +208,15 @@ struct ab8500_charger_usb_state {
 	spinlock_t usb_lock;
 };
 
+struct ab8500_charger_max_usb_in_curr {
+	int usb_type_max;
+	int set_max;
+	int calculated_max;
+};
+
 /**
  * struct ab8500_charger - ab8500 Charger device information
  * @dev:		Pointer to the structure device
- * @max_usb_in_curr:	Max USB charger input current
  * @vbus_detected:	VBUS detected
  * @vbus_detected_start:
  *			VBUS detected during startup
@@ -214,7 +231,6 @@ struct ab8500_charger_usb_state {
  * @autopower		Indicate if we should have automatic pwron after pwrloss
  * @autopower_cfg	platform specific power config support for "pwron after pwrloss"
  * @invalid_charger_detect_state State when forcing AB to use invalid charger
- * @is_usb_host:	Indicate if last detected USB type is host
  * @is_aca_rid:		Incicate if accessory is ACA type
  * @current_stepping_sessions:
  *			Counter for current stepping sessions
@@ -223,6 +239,7 @@ struct ab8500_charger_usb_state {
  * @bm:           	Platform specific battery management information
  * @flags:		Structure for information about events triggered
  * @usb_state:		Structure for usb stack information
+ * @max_usb_in_curr:	Max USB charger input current
  * @ac_chg:		AC charger power supply
  * @usb_chg:		USB charger power supply
  * @ac:			Structure that holds the AC charger properties
@@ -254,7 +271,6 @@ struct ab8500_charger_usb_state {
  */
 struct ab8500_charger {
 	struct device *dev;
-	int max_usb_in_curr;
 	bool vbus_detected;
 	bool vbus_detected_start;
 	bool ac_conn;
@@ -266,7 +282,6 @@ struct ab8500_charger {
 	bool autopower;
 	bool autopower_cfg;
 	int invalid_charger_detect_state;
-	bool is_usb_host;
 	int is_aca_rid;
 	atomic_t current_stepping_sessions;
 	struct ab8500 *parent;
@@ -274,6 +289,7 @@ struct ab8500_charger {
 	struct abx500_bm_data *bm;
 	struct ab8500_charger_event_flags flags;
 	struct ab8500_charger_usb_state usb_state;
+	struct ab8500_charger_max_usb_in_curr max_usb_in_curr;
 	struct ux500_charger ac_chg;
 	struct ux500_charger usb_chg;
 	struct ab8500_charger_info ac;
@@ -415,13 +431,18 @@ static void ab8500_charger_set_usb_connected(struct ab8500_charger *di,
 	if (connected != di->usb.charger_connected) {
 		dev_dbg(di->dev, "USB connected:%i\n", connected);
 		di->usb.charger_connected = connected;
+
+		if (!connected)
+			di->flags.vbus_drop_end = false;
+
 		sysfs_notify(&di->usb_chg.psy.dev->kobj, NULL, "present");
 
 		if (connected) {
 			mutex_lock(&di->charger_attached_mutex);
 			mutex_unlock(&di->charger_attached_mutex);
 
-			queue_delayed_work(di->charger_wq,
+			if (is_ab8500(di->parent))
+				queue_delayed_work(di->charger_wq,
 					   &di->usb_charger_attached_work,
 					   HZ);
 		} else {
@@ -668,23 +689,19 @@ static int ab8500_charger_max_usb_curr(struct ab8500_charger *di,
 	case USB_STAT_STD_HOST_C_S:
 		dev_dbg(di->dev, "USB Type - Standard host is "
 			"detected through USB driver\n");
-		di->max_usb_in_curr = USB_CH_IP_CUR_LVL_0P5;
-		di->is_usb_host = true;
+		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P5;
 		di->is_aca_rid = 0;
 		break;
 	case USB_STAT_HOST_CHG_HS_CHIRP:
-		di->max_usb_in_curr = USB_CH_IP_CUR_LVL_0P5;
-		di->is_usb_host = true;
+		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P5;
 		di->is_aca_rid = 0;
 		break;
 	case USB_STAT_HOST_CHG_HS:
-		di->max_usb_in_curr = USB_CH_IP_CUR_LVL_0P5;
-		di->is_usb_host = true;
+		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P5;
 		di->is_aca_rid = 0;
 		break;
 	case USB_STAT_ACA_RID_C_HS:
-		di->max_usb_in_curr = USB_CH_IP_CUR_LVL_0P9;
-		di->is_usb_host = false;
+		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P9;
 		di->is_aca_rid = 0;
 		break;
 	case USB_STAT_ACA_RID_A:
@@ -693,8 +710,7 @@ static int ab8500_charger_max_usb_curr(struct ab8500_charger *di,
 		 * can consume (900mA). Closest level is 500mA
 		 */
 		dev_dbg(di->dev, "USB_STAT_ACA_RID_A detected\n");
-		di->max_usb_in_curr = USB_CH_IP_CUR_LVL_0P5;
-		di->is_usb_host = false;
+		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P5;
 		di->is_aca_rid = 1;
 		break;
 	case USB_STAT_ACA_RID_B:
@@ -702,38 +718,35 @@ static int ab8500_charger_max_usb_curr(struct ab8500_charger *di,
 		 * Dedicated charger level minus 120mA (20mA for ACA and
 		 * 100mA for potential accessory). Closest level is 1300mA
 		 */
-		di->max_usb_in_curr = USB_CH_IP_CUR_LVL_1P3;
+		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_1P3;
 		dev_dbg(di->dev, "USB Type - 0x%02x MaxCurr: %d", link_status,
-				di->max_usb_in_curr);
-		di->is_usb_host = false;
+				di->max_usb_in_curr.usb_type_max);
 		di->is_aca_rid = 1;
 		break;
 	case USB_STAT_HOST_CHG_NM:
-		di->max_usb_in_curr = USB_CH_IP_CUR_LVL_0P5;
-		di->is_usb_host = true;
+		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P5;
 		di->is_aca_rid = 0;
 		break;
 	case USB_STAT_DEDICATED_CHG:
-		di->max_usb_in_curr = USB_CH_IP_CUR_LVL_1P5;
-		di->is_usb_host = false;
+		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_1P5;
 		di->is_aca_rid = 0;
 		break;
 	case USB_STAT_ACA_RID_C_HS_CHIRP:
 	case USB_STAT_ACA_RID_C_NM:
-		di->max_usb_in_curr = USB_CH_IP_CUR_LVL_1P5;
-		di->is_usb_host = false;
+		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_1P5;
 		di->is_aca_rid = 1;
 		break;
 	case USB_STAT_NOT_CONFIGURED:
 		if (di->vbus_detected) {
 			di->usb_device_is_unrecognised = true;
 			dev_dbg(di->dev, "USB Type - Legacy charger.\n");
-			di->max_usb_in_curr = USB_CH_IP_CUR_LVL_1P5;
+			di->max_usb_in_curr.usb_type_max =
+						USB_CH_IP_CUR_LVL_1P5;
 			break;
 		}
 	case USB_STAT_HM_IDGND:
 		dev_err(di->dev, "USB Type - Charging not allowed\n");
-		di->max_usb_in_curr = USB_CH_IP_CUR_LVL_0P05;
+		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P05;
 		ret = -ENXIO;
 		break;
 	case USB_STAT_RESERVED:
@@ -743,12 +756,13 @@ static int ab8500_charger_max_usb_curr(struct ab8500_charger *di,
 						"VBUS has collapsed\n");
 			ret = -ENXIO;
 			break;
-		}
-		if (is_ab9540(di->parent) || is_ab8505(di->parent)) {
+		} else {
 			dev_dbg(di->dev, "USB Type - Charging not allowed\n");
-			di->max_usb_in_curr = USB_CH_IP_CUR_LVL_0P05;
+			di->max_usb_in_curr.usb_type_max =
+						USB_CH_IP_CUR_LVL_0P05;
 			dev_dbg(di->dev, "USB Type - 0x%02x MaxCurr: %d",
-					link_status, di->max_usb_in_curr);
+				link_status,
+				di->max_usb_in_curr.usb_type_max);
 			ret = -ENXIO;
 			break;
 		}
@@ -757,23 +771,24 @@ static int ab8500_charger_max_usb_curr(struct ab8500_charger *di,
 	case USB_STAT_CARKIT_2:
 	case USB_STAT_ACA_DOCK_CHARGER:
 	case USB_STAT_CHARGER_LINE_1:
-		di->max_usb_in_curr = USB_CH_IP_CUR_LVL_0P5;
+		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P5;
 		dev_dbg(di->dev, "USB Type - 0x%02x MaxCurr: %d", link_status,
-				di->max_usb_in_curr);
+				di->max_usb_in_curr.usb_type_max);
 	case USB_STAT_NOT_VALID_LINK:
 		dev_err(di->dev, "USB Type invalid - try charging anyway\n");
-		di->max_usb_in_curr = USB_CH_IP_CUR_LVL_0P5;
+		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P5;
 		break;
 
 	default:
 		dev_err(di->dev, "USB Type - Unknown\n");
-		di->max_usb_in_curr = USB_CH_IP_CUR_LVL_0P05;
+		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P05;
 		ret = -ENXIO;
 		break;
 	};
 
+	di->max_usb_in_curr.set_max = di->max_usb_in_curr.usb_type_max;
 	dev_dbg(di->dev, "USB Type - 0x%02x MaxCurr: %d",
-		link_status, di->max_usb_in_curr);
+		link_status, di->max_usb_in_curr.set_max);
 
 	return ret;
 }
@@ -796,21 +811,22 @@ static int ab8500_charger_read_usb_type(struct ab8500_charger *di)
 		dev_err(di->dev, "%s ab8500 read failed\n", __func__);
 		return ret;
 	}
-	if (is_ab8500(di->parent)) {
+	if (is_ab8500(di->parent))
 		ret = abx500_get_register_interruptible(di->dev, AB8500_USB,
-				AB8500_USB_LINE_STAT_REG, &val);
-	} else {
-		if (is_ab9540(di->parent) || is_ab8505(di->parent))
-			ret = abx500_get_register_interruptible(di->dev,
-				AB8500_USB, AB8500_USB_LINK1_STAT_REG, &val);
-	}
+			AB8500_USB_LINE_STAT_REG, &val);
+	else
+		ret = abx500_get_register_interruptible(di->dev,
+			AB8500_USB, AB8500_USB_LINK1_STAT_REG, &val);
 	if (ret < 0) {
 		dev_err(di->dev, "%s ab8500 read failed\n", __func__);
 		return ret;
 	}
 
 	/* get the USB type */
-	val = (val & AB8500_USB_LINK_STATUS) >> 3;
+	if (is_ab8500(di->parent))
+		val = (val & AB8500_USB_LINK_STATUS) >> USB_LINK_STATUS_SHIFT;
+	else
+		val = (val & AB8505_USB_LINK_STATUS) >> USB_LINK_STATUS_SHIFT;
 	ret = ab8500_charger_max_usb_curr(di,
 		(enum ab8500_charger_link_status) val);
 
@@ -865,7 +881,12 @@ static int ab8500_charger_detect_usb_type(struct ab8500_charger *di)
 		 */
 
 		/* get the USB type */
-		val = (val & AB8500_USB_LINK_STATUS) >> 3;
+		if (is_ab8500(di->parent))
+			val = (val & AB8500_USB_LINK_STATUS) >>
+							USB_LINK_STATUS_SHIFT;
+		else
+			val = (val & AB8505_USB_LINK_STATUS) >>
+							USB_LINK_STATUS_SHIFT;
 		if (val)
 			break;
 	}
@@ -960,51 +981,6 @@ static int ab8500_charger_voltage_map[] = {
 	4600 ,
 };
 
-/*
- * This array maps the raw hex value to charger current used by the AB8500
- * Values taken from the UM0836
- */
-static int ab8500_charger_current_map[] = {
-	100 ,
-	200 ,
-	300 ,
-	400 ,
-	500 ,
-	600 ,
-	700 ,
-	800 ,
-	900 ,
-	1000 ,
-	1100 ,
-	1200 ,
-	1300 ,
-	1400 ,
-	1500 ,
-};
-
-/*
- * This array maps the raw hex value to VBUS input current used by the AB8500
- * Values taken from the UM0836
- */
-static int ab8500_charger_vbus_in_curr_map[] = {
-	USB_CH_IP_CUR_LVL_0P05,
-	USB_CH_IP_CUR_LVL_0P09,
-	USB_CH_IP_CUR_LVL_0P19,
-	USB_CH_IP_CUR_LVL_0P29,
-	USB_CH_IP_CUR_LVL_0P38,
-	USB_CH_IP_CUR_LVL_0P45,
-	USB_CH_IP_CUR_LVL_0P5,
-	USB_CH_IP_CUR_LVL_0P6,
-	USB_CH_IP_CUR_LVL_0P7,
-	USB_CH_IP_CUR_LVL_0P8,
-	USB_CH_IP_CUR_LVL_0P9,
-	USB_CH_IP_CUR_LVL_1P0,
-	USB_CH_IP_CUR_LVL_1P1,
-	USB_CH_IP_CUR_LVL_1P3,
-	USB_CH_IP_CUR_LVL_1P4,
-	USB_CH_IP_CUR_LVL_1P5,
-};
-
 static int ab8500_voltage_to_regval(int voltage)
 {
 	int i;
@@ -1026,41 +1002,41 @@ static int ab8500_voltage_to_regval(int voltage)
 		return -1;
 }
 
-static int ab8500_current_to_regval(int curr)
+static int ab8500_current_to_regval(struct ab8500_charger *di, int curr)
 {
 	int i;
 
-	if (curr < ab8500_charger_current_map[0])
+	if (curr < di->bm->chg_output_curr[0])
 		return 0;
 
-	for (i = 0; i < ARRAY_SIZE(ab8500_charger_current_map); i++) {
-		if (curr < ab8500_charger_current_map[i])
+	for (i = 0; i < di->bm->n_chg_out_curr; i++) {
+		if (curr < di->bm->chg_output_curr[i])
 			return i - 1;
 	}
 
 	/* If not last element, return error */
-	i = ARRAY_SIZE(ab8500_charger_current_map) - 1;
-	if (curr == ab8500_charger_current_map[i])
+	i = di->bm->n_chg_out_curr - 1;
+	if (curr == di->bm->chg_output_curr[i])
 		return i;
 	else
 		return -1;
 }
 
-static int ab8500_vbus_in_curr_to_regval(int curr)
+static int ab8500_vbus_in_curr_to_regval(struct ab8500_charger *di, int curr)
 {
 	int i;
 
-	if (curr < ab8500_charger_vbus_in_curr_map[0])
+	if (curr < di->bm->chg_input_curr[0])
 		return 0;
 
-	for (i = 0; i < ARRAY_SIZE(ab8500_charger_vbus_in_curr_map); i++) {
-		if (curr < ab8500_charger_vbus_in_curr_map[i])
+	for (i = 0; i < di->bm->n_chg_in_curr; i++) {
+		if (curr < di->bm->chg_input_curr[i])
 			return i - 1;
 	}
 
 	/* If not last element, return error */
-	i = ARRAY_SIZE(ab8500_charger_vbus_in_curr_map) - 1;
-	if (curr == ab8500_charger_vbus_in_curr_map[i])
+	i = di->bm->n_chg_in_curr - 1;
+	if (curr == di->bm->chg_input_curr[i])
 		return i;
 	else
 		return -1;
@@ -1077,28 +1053,48 @@ static int ab8500_vbus_in_curr_to_regval(int curr)
  */
 static int ab8500_charger_get_usb_cur(struct ab8500_charger *di)
 {
+	int ret = 0;
 	switch (di->usb_state.usb_current) {
 	case 100:
-		di->max_usb_in_curr = USB_CH_IP_CUR_LVL_0P09;
+		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P09;
 		break;
 	case 200:
-		di->max_usb_in_curr = USB_CH_IP_CUR_LVL_0P19;
+		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P19;
 		break;
 	case 300:
-		di->max_usb_in_curr = USB_CH_IP_CUR_LVL_0P29;
+		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P29;
 		break;
 	case 400:
-		di->max_usb_in_curr = USB_CH_IP_CUR_LVL_0P38;
+		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P38;
 		break;
 	case 500:
-		di->max_usb_in_curr = USB_CH_IP_CUR_LVL_0P5;
+		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P5;
 		break;
 	default:
-		di->max_usb_in_curr = USB_CH_IP_CUR_LVL_0P05;
-		return -1;
+		di->max_usb_in_curr.usb_type_max = USB_CH_IP_CUR_LVL_0P05;
+		ret = -EPERM;
 		break;
 	};
-	return 0;
+	di->max_usb_in_curr.set_max = di->max_usb_in_curr.usb_type_max;
+	return ret;
+}
+
+/**
+ * ab8500_charger_check_continue_stepping() - Check to allow stepping
+ * @di:		pointer to the ab8500_charger structure
+ * @reg:	select what charger register to check
+ *
+ * Check if current stepping should be allowed to continue.
+ * Checks if charger source has not collapsed. If it has, further stepping
+ * is not allowed.
+ */
+static bool ab8500_charger_check_continue_stepping(struct ab8500_charger *di,
+						   int reg)
+{
+	if (reg == AB8500_USBCH_IPT_CRNTLVL_REG)
+		return !di->flags.vbus_drop_end;
+	else
+		return true;
 }
 
 /**
@@ -1118,7 +1114,7 @@ static int ab8500_charger_set_current(struct ab8500_charger *di,
 	int ich, int reg)
 {
 	int ret = 0;
-	int auto_curr_index, curr_index, prev_curr_index, shift_value, i;
+	int curr_index, prev_curr_index, shift_value, i;
 	u8 reg_value;
 	u32 step_udelay;
 	bool no_stepping = false;
@@ -1136,31 +1132,19 @@ static int ab8500_charger_set_current(struct ab8500_charger *di,
 	case AB8500_MCH_IPT_CURLVL_REG:
 		shift_value = MAIN_CH_INPUT_CURR_SHIFT;
 		prev_curr_index = (reg_value >> shift_value);
-		curr_index = ab8500_current_to_regval(ich);
+		curr_index = ab8500_current_to_regval(di, ich);
 		step_udelay = STEP_UDELAY;
 		if (!di->ac.charger_connected)
 			no_stepping = true;
 		break;
 	case AB8500_USBCH_IPT_CRNTLVL_REG:
-		shift_value = VBUS_IN_CURR_LIM_SHIFT;
+		if (is_ab8540(di->parent))
+			shift_value = AB8540_VBUS_IN_CURR_LIM_SHIFT;
+		else
+			shift_value = VBUS_IN_CURR_LIM_SHIFT;
 		prev_curr_index = (reg_value >> shift_value);
-		curr_index = ab8500_vbus_in_curr_to_regval(ich);
+		curr_index = ab8500_vbus_in_curr_to_regval(di, ich);
 		step_udelay = STEP_UDELAY * 100;
-
-		ret = abx500_get_register_interruptible(di->dev, AB8500_CHARGER,
-					AB8500_CH_USBCH_STAT2_REG, &reg_value);
-		if (ret < 0) {
-			dev_err(di->dev, "%s read failed\n", __func__);
-			goto exit_set_current;
-		}
-		auto_curr_index =
-			reg_value >> AUTO_VBUS_IN_CURR_LIM_SHIFT;
-
-		dev_dbg(di->dev, "%s Auto VBUS curr is %d mA\n",
-			__func__,
-			ab8500_charger_vbus_in_curr_map[auto_curr_index]);
-
-		prev_curr_index = min(prev_curr_index, auto_curr_index);
 
 		if (!di->usb.charger_connected)
 			no_stepping = true;
@@ -1168,7 +1152,7 @@ static int ab8500_charger_set_current(struct ab8500_charger *di,
 	case AB8500_CH_OPT_CRNTLVL_REG:
 		shift_value = 0;
 		prev_curr_index = (reg_value >> shift_value);
-		curr_index = ab8500_current_to_regval(ich);
+		curr_index = ab8500_current_to_regval(di, ich);
 		step_udelay = STEP_UDELAY;
 		if (curr_index && (curr_index - prev_curr_index) > 1)
 			step_udelay *= 100;
@@ -1219,7 +1203,8 @@ static int ab8500_charger_set_current(struct ab8500_charger *di,
 				usleep_range(step_udelay, step_udelay * 2);
 		}
 	} else {
-		for (i = prev_curr_index + 1; i <= curr_index; i++) {
+		bool allow = true;
+		for (i = prev_curr_index + 1; i <= curr_index && allow; i++) {
 			dev_dbg(di->dev, "curr change_2 to: %x for 0x%02x\n",
 				(u8)i << shift_value, reg);
 			ret = abx500_set_register_interruptible(di->dev,
@@ -1230,6 +1215,8 @@ static int ab8500_charger_set_current(struct ab8500_charger *di,
 			}
 			if (i != curr_index)
 				usleep_range(step_udelay, step_udelay * 2);
+
+			allow = ab8500_charger_check_continue_stepping(di, reg);
 		}
 	}
 
@@ -1255,6 +1242,11 @@ static int ab8500_charger_set_vbus_in_curr(struct ab8500_charger *di,
 
 	/* We should always use to lowest current limit */
 	min_value = min(di->bm->chg_params->usb_curr_max, ich_in);
+	if (di->max_usb_in_curr.set_max > 0)
+		min_value = min(di->max_usb_in_curr.set_max, min_value);
+
+	if (di->usb_state.usb_current >= 0)
+		min_value = min(di->usb_state.usb_current, min_value);
 
 	switch (min_value) {
 	case 100:
@@ -1400,8 +1392,8 @@ static int ab8500_charger_ac_en(struct ux500_charger *charger,
 
 		/* Check if the requested voltage or current is valid */
 		volt_index = ab8500_voltage_to_regval(vset);
-		curr_index = ab8500_current_to_regval(iset);
-		input_curr_index = ab8500_current_to_regval(
+		curr_index = ab8500_current_to_regval(di, iset);
+		input_curr_index = ab8500_current_to_regval(di,
 			di->bm->chg_params->ac_curr_max);
 		if (volt_index < 0 || curr_index < 0 || input_curr_index < 0) {
 			dev_err(di->dev,
@@ -1572,7 +1564,7 @@ static int ab8500_charger_usb_en(struct ux500_charger *charger,
 
 		/* Check if the requested voltage or current is valid */
 		volt_index = ab8500_voltage_to_regval(vset);
-		curr_index = ab8500_current_to_regval(ich_out);
+		curr_index = ab8500_current_to_regval(di, ich_out);
 		if (volt_index < 0 || curr_index < 0) {
 			dev_err(di->dev,
 				"Charger voltage or current too high, "
@@ -1609,7 +1601,8 @@ static int ab8500_charger_usb_en(struct ux500_charger *charger,
 		di->usb.charger_online = 1;
 
 		/* USBChInputCurr: current that can be drawn from the usb */
-		ret = ab8500_charger_set_vbus_in_curr(di, di->max_usb_in_curr);
+		ret = ab8500_charger_set_vbus_in_curr(di,
+					di->max_usb_in_curr.usb_type_max);
 		if (ret) {
 			dev_err(di->dev, "setting USBChInputCurr failed\n");
 			return ret;
@@ -1668,12 +1661,133 @@ static int ab8500_charger_usb_en(struct ux500_charger *charger,
 		dev_dbg(di->dev, "%s Disabled USB charging\n", __func__);
 
 		/* Cancel any pending Vbat check work */
-		if (delayed_work_pending(&di->check_vbat_work))
-			cancel_delayed_work(&di->check_vbat_work);
+		cancel_delayed_work(&di->check_vbat_work);
 
 	}
 	ab8500_power_supply_changed(di, &di->usb_chg.psy);
 
+	return ret;
+}
+
+static int ab8500_external_charger_prepare(struct notifier_block *charger_nb,
+				unsigned long event, void *data)
+{
+	int ret;
+	struct device *dev = data;
+	/*Toggle External charger control pin*/
+	ret = abx500_set_register_interruptible(dev, AB8500_SYS_CTRL1_BLOCK,
+				  AB8500_SYS_CHARGER_CONTROL_REG,
+				  EXTERNAL_CHARGER_DISABLE_REG_VAL);
+	if (ret < 0) {
+		dev_err(dev, "write reg failed %d\n", ret);
+		goto out;
+	}
+	ret = abx500_set_register_interruptible(dev, AB8500_SYS_CTRL1_BLOCK,
+				  AB8500_SYS_CHARGER_CONTROL_REG,
+				  EXTERNAL_CHARGER_ENABLE_REG_VAL);
+	if (ret < 0)
+		dev_err(dev, "Write reg failed %d\n", ret);
+
+out:
+	return ret;
+}
+
+/**
+ * ab8500_charger_usb_check_enable() - enable usb charging
+ * @charger:	pointer to the ux500_charger structure
+ * @vset:	charging voltage
+ * @iset:	charger output current
+ *
+ * Check if the VBUS charger has been disconnected and reconnected without
+ * AB8500 rising an interrupt. Returns 0 on success.
+ */
+static int ab8500_charger_usb_check_enable(struct ux500_charger *charger,
+	int vset, int iset)
+{
+	u8 usbch_ctrl1 = 0;
+	int ret = 0;
+
+	struct ab8500_charger *di = to_ab8500_charger_usb_device_info(charger);
+
+	if (!di->usb.charger_connected)
+		return ret;
+
+	ret = abx500_get_register_interruptible(di->dev, AB8500_CHARGER,
+				AB8500_USBCH_CTRL1_REG, &usbch_ctrl1);
+	if (ret < 0) {
+		dev_err(di->dev, "ab8500 read failed %d\n", __LINE__);
+		return ret;
+	}
+	dev_dbg(di->dev, "USB charger ctrl: 0x%02x\n", usbch_ctrl1);
+
+	if (!(usbch_ctrl1 & USB_CH_ENA)) {
+		dev_info(di->dev, "Charging has been disabled abnormally and will be re-enabled\n");
+
+		ret = abx500_mask_and_set_register_interruptible(di->dev,
+					AB8500_CHARGER, AB8500_CHARGER_CTRL,
+					DROP_COUNT_RESET, DROP_COUNT_RESET);
+		if (ret < 0) {
+			dev_err(di->dev, "ab8500 write failed %d\n", __LINE__);
+			return ret;
+		}
+
+		ret = ab8500_charger_usb_en(&di->usb_chg, true, vset, iset);
+		if (ret < 0) {
+			dev_err(di->dev, "Failed to enable VBUS charger %d\n",
+					__LINE__);
+			return ret;
+		}
+	}
+	return ret;
+}
+
+/**
+ * ab8500_charger_ac_check_enable() - enable usb charging
+ * @charger:	pointer to the ux500_charger structure
+ * @vset:	charging voltage
+ * @iset:	charger output current
+ *
+ * Check if the AC charger has been disconnected and reconnected without
+ * AB8500 rising an interrupt. Returns 0 on success.
+ */
+static int ab8500_charger_ac_check_enable(struct ux500_charger *charger,
+	int vset, int iset)
+{
+	u8 mainch_ctrl1 = 0;
+	int ret = 0;
+
+	struct ab8500_charger *di = to_ab8500_charger_ac_device_info(charger);
+
+	if (!di->ac.charger_connected)
+		return ret;
+
+	ret = abx500_get_register_interruptible(di->dev, AB8500_CHARGER,
+				AB8500_MCH_CTRL1, &mainch_ctrl1);
+	if (ret < 0) {
+		dev_err(di->dev, "ab8500 read failed %d\n", __LINE__);
+		return ret;
+	}
+	dev_dbg(di->dev, "AC charger ctrl: 0x%02x\n", mainch_ctrl1);
+
+	if (!(mainch_ctrl1 & MAIN_CH_ENA)) {
+		dev_info(di->dev, "Charging has been disabled abnormally and will be re-enabled\n");
+
+		ret = abx500_mask_and_set_register_interruptible(di->dev,
+					AB8500_CHARGER, AB8500_CHARGER_CTRL,
+					DROP_COUNT_RESET, DROP_COUNT_RESET);
+
+		if (ret < 0) {
+			dev_err(di->dev, "ab8500 write failed %d\n", __LINE__);
+			return ret;
+		}
+
+		ret = ab8500_charger_ac_en(&di->usb_chg, true, vset, iset);
+		if (ret < 0) {
+			dev_err(di->dev, "failed to enable AC charger %d\n",
+				__LINE__);
+			return ret;
+		}
+	}
 	return ret;
 }
 
@@ -1734,8 +1848,68 @@ static int ab8500_charger_update_charger_current(struct ux500_charger *charger,
 
 	/* Reset the main and usb drop input current measurement counter */
 	ret = abx500_set_register_interruptible(di->dev, AB8500_CHARGER,
-				AB8500_CHARGER_CTRL,
-				0x1);
+				AB8500_CHARGER_CTRL, DROP_COUNT_RESET);
+	if (ret) {
+		dev_err(di->dev, "%s write failed\n", __func__);
+		return ret;
+	}
+
+	return ret;
+}
+
+/**
+ * ab8540_charger_power_path_enable() - enable usb power path mode
+ * @charger:	pointer to the ux500_charger structure
+ * @enable:	enable/disable flag
+ *
+ * Enable or disable the power path for usb mode
+ * Returns error code in case of failure else 0(on success)
+ */
+static int ab8540_charger_power_path_enable(struct ux500_charger *charger,
+		bool enable)
+{
+	int ret;
+	struct ab8500_charger *di;
+
+	if (charger->psy.type == POWER_SUPPLY_TYPE_USB)
+		di = to_ab8500_charger_usb_device_info(charger);
+	else
+		return -ENXIO;
+
+	ret = abx500_mask_and_set_register_interruptible(di->dev,
+				AB8500_CHARGER, AB8540_USB_PP_MODE_REG,
+				BUS_POWER_PATH_MODE_ENA, enable);
+	if (ret) {
+		dev_err(di->dev, "%s write failed\n", __func__);
+		return ret;
+	}
+
+	return ret;
+}
+
+
+/**
+ * ab8540_charger_usb_pre_chg_enable() - enable usb pre change
+ * @charger:	pointer to the ux500_charger structure
+ * @enable:	enable/disable flag
+ *
+ * Enable or disable the pre-chage for usb mode
+ * Returns error code in case of failure else 0(on success)
+ */
+static int ab8540_charger_usb_pre_chg_enable(struct ux500_charger *charger,
+		bool enable)
+{
+	int ret;
+	struct ab8500_charger *di;
+
+	if (charger->psy.type == POWER_SUPPLY_TYPE_USB)
+		di = to_ab8500_charger_usb_device_info(charger);
+	else
+		return -ENXIO;
+
+	ret = abx500_mask_and_set_register_interruptible(di->dev,
+				AB8500_CHARGER, AB8540_USB_PP_CHR_REG,
+				BUS_POWER_PATH_PRECHG_ENA, enable);
 	if (ret) {
 		dev_err(di->dev, "%s write failed\n", __func__);
 		return ret;
@@ -1823,9 +1997,10 @@ static void ab8500_charger_check_vbat_work(struct work_struct *work)
 		di->vbat > VBAT_TRESH_IP_CUR_RED))) {
 
 		dev_dbg(di->dev, "Vbat did cross threshold, curr: %d, new: %d,"
-			" old: %d\n", di->max_usb_in_curr, di->vbat,
-			di->old_vbat);
-		ab8500_charger_set_vbus_in_curr(di, di->max_usb_in_curr);
+			" old: %d\n", di->max_usb_in_curr.usb_type_max,
+			di->vbat, di->old_vbat);
+		ab8500_charger_set_vbus_in_curr(di,
+					di->max_usb_in_curr.usb_type_max);
 		power_supply_changed(&di->usb_chg.psy);
 	}
 
@@ -2105,7 +2280,8 @@ static void ab8500_charger_usb_link_attach_work(struct work_struct *work)
 
 	/* Update maximum input current if USB enumeration is not detected */
 	if (!di->usb.charger_online) {
-		ret = ab8500_charger_set_vbus_in_curr(di, di->max_usb_in_curr);
+		ret = ab8500_charger_set_vbus_in_curr(di,
+					di->max_usb_in_curr.usb_type_max);
 		if (ret)
 			return;
 	}
@@ -2125,6 +2301,7 @@ static void ab8500_charger_usb_link_status_work(struct work_struct *work)
 	int detected_chargers;
 	int ret;
 	u8 val;
+	u8 link_status;
 
 	struct ab8500_charger *di = container_of(work,
 		struct ab8500_charger, usb_link_status_work);
@@ -2144,38 +2321,61 @@ static void ab8500_charger_usb_link_status_work(struct work_struct *work)
 	 * to start the charging process. but by jumping
 	 * thru a few hoops it can be forced to start.
 	 */
-	ret = abx500_get_register_interruptible(di->dev, AB8500_USB,
-			AB8500_USB_LINE_STAT_REG, &val);
+	if (is_ab8500(di->parent))
+		ret = abx500_get_register_interruptible(di->dev, AB8500_USB,
+					AB8500_USB_LINE_STAT_REG, &val);
+	else
+		ret = abx500_get_register_interruptible(di->dev, AB8500_USB,
+					AB8500_USB_LINK1_STAT_REG, &val);
+
 	if (ret >= 0)
 		dev_dbg(di->dev, "UsbLineStatus register = 0x%02x\n", val);
 	else
 		dev_dbg(di->dev, "Error reading USB link status\n");
 
+	if (is_ab8500(di->parent))
+		link_status = AB8500_USB_LINK_STATUS;
+	else
+		link_status = AB8505_USB_LINK_STATUS;
+
 	if (detected_chargers & USB_PW_CONN) {
-		if (((val & AB8500_USB_LINK_STATUS) >> 3) == USB_STAT_NOT_VALID_LINK &&
+		if (((val & link_status) >> USB_LINK_STATUS_SHIFT) ==
+				USB_STAT_NOT_VALID_LINK &&
 				di->invalid_charger_detect_state == 0) {
-			dev_dbg(di->dev, "Invalid charger detected, state= 0\n");
+			dev_dbg(di->dev,
+					"Invalid charger detected, state= 0\n");
 			/*Enable charger*/
 			abx500_mask_and_set_register_interruptible(di->dev,
-					AB8500_CHARGER, AB8500_USBCH_CTRL1_REG, 0x01, 0x01);
+					AB8500_CHARGER, AB8500_USBCH_CTRL1_REG,
+					USB_CH_ENA, USB_CH_ENA);
 			/*Enable charger detection*/
-			abx500_mask_and_set_register_interruptible(di->dev, AB8500_USB,
-					AB8500_MCH_IPT_CURLVL_REG, 0x01, 0x01);
+			abx500_mask_and_set_register_interruptible(di->dev,
+					AB8500_USB, AB8500_USB_LINE_CTRL2_REG,
+					USB_CH_DET, USB_CH_DET);
 			di->invalid_charger_detect_state = 1;
 			/*exit and wait for new link status interrupt.*/
 			return;
 
 		}
 		if (di->invalid_charger_detect_state == 1) {
-			dev_dbg(di->dev, "Invalid charger detected, state= 1\n");
+			dev_dbg(di->dev,
+					"Invalid charger detected, state= 1\n");
 			/*Stop charger detection*/
-			abx500_mask_and_set_register_interruptible(di->dev, AB8500_USB,
-					AB8500_MCH_IPT_CURLVL_REG, 0x01, 0x00);
+			abx500_mask_and_set_register_interruptible(di->dev,
+					AB8500_USB, AB8500_USB_LINE_CTRL2_REG,
+					USB_CH_DET, 0x00);
 			/*Check link status*/
-			ret = abx500_get_register_interruptible(di->dev, AB8500_USB,
-					AB8500_USB_LINE_STAT_REG, &val);
+			if (is_ab8500(di->parent))
+				ret = abx500_get_register_interruptible(di->dev,
+					AB8500_USB, AB8500_USB_LINE_STAT_REG,
+					&val);
+			else
+				ret = abx500_get_register_interruptible(di->dev,
+					AB8500_USB, AB8500_USB_LINK1_STAT_REG,
+					&val);
+
 			dev_dbg(di->dev, "USB link status= 0x%02x\n",
-					(val & AB8500_USB_LINK_STATUS) >> 3);
+				(val & link_status) >> USB_LINK_STATUS_SHIFT);
 			di->invalid_charger_detect_state = 2;
 		}
 	} else {
@@ -2273,7 +2473,7 @@ static void ab8500_charger_usb_state_changed_work(struct work_struct *work)
 		if (!ab8500_charger_get_usb_cur(di)) {
 			/* Update maximum input current */
 			ret = ab8500_charger_set_vbus_in_curr(di,
-					di->max_usb_in_curr);
+					di->max_usb_in_curr.usb_type_max);
 			if (ret)
 				return;
 
@@ -2422,7 +2622,9 @@ static irqreturn_t ab8500_charger_mainchplugdet_handler(int irq, void *_di)
 
 	mutex_lock(&di->charger_attached_mutex);
 	mutex_unlock(&di->charger_attached_mutex);
-	queue_delayed_work(di->charger_wq,
+
+	if (is_ab8500(di->parent))
+		queue_delayed_work(di->charger_wq,
 			   &di->ac_charger_attached_work,
 			   HZ);
 	return IRQ_HANDLED;
@@ -2491,6 +2693,8 @@ static void ab8500_charger_vbus_drop_end_work(struct work_struct *work)
 {
 	struct ab8500_charger *di = container_of(work,
 		struct ab8500_charger, vbus_drop_end_work.work);
+	int ret, curr;
+	u8 reg_value;
 
 	di->flags.vbus_drop_end = false;
 
@@ -2498,8 +2702,45 @@ static void ab8500_charger_vbus_drop_end_work(struct work_struct *work)
 	abx500_set_register_interruptible(di->dev,
 				  AB8500_CHARGER, AB8500_CHARGER_CTRL, 0x01);
 
+	if (is_ab8540(di->parent))
+		ret = abx500_get_register_interruptible(di->dev, AB8500_CHARGER,
+				AB8540_CH_USBCH_STAT3_REG, &reg_value);
+	else
+		ret = abx500_get_register_interruptible(di->dev, AB8500_CHARGER,
+				AB8500_CH_USBCH_STAT2_REG, &reg_value);
+	if (ret < 0) {
+		dev_err(di->dev, "%s read failed\n", __func__);
+		return;
+	}
+
+	if (is_ab8540(di->parent))
+		curr = di->bm->chg_input_curr[
+			reg_value & AB8540_AUTO_VBUS_IN_CURR_MASK];
+	else
+		curr = di->bm->chg_input_curr[
+			reg_value >> AUTO_VBUS_IN_CURR_LIM_SHIFT];
+
+	if (di->max_usb_in_curr.calculated_max != curr) {
+		/* USB source is collapsing */
+		di->max_usb_in_curr.calculated_max = curr;
+		dev_dbg(di->dev,
+			 "VBUS input current limiting to %d mA\n",
+			 di->max_usb_in_curr.calculated_max);
+	} else {
+		/*
+		 * USB source can not give more than this amount.
+		 * Taking more will collapse the source.
+		 */
+		di->max_usb_in_curr.set_max =
+			di->max_usb_in_curr.calculated_max;
+		dev_dbg(di->dev,
+			 "VBUS input current limited to %d mA\n",
+			 di->max_usb_in_curr.set_max);
+	}
+
 	if (di->usb.charger_connected)
-		ab8500_charger_set_vbus_in_curr(di, di->max_usb_in_curr);
+		ab8500_charger_set_vbus_in_curr(di,
+					di->max_usb_in_curr.usb_type_max);
 }
 
 /**
@@ -2654,8 +2895,13 @@ static irqreturn_t ab8500_charger_vbuschdropend_handler(int irq, void *_di)
 
 	dev_dbg(di->dev, "VBUS charger drop ended\n");
 	di->flags.vbus_drop_end = true;
+
+	/*
+	 * VBUS might have dropped due to bad connection.
+	 * Schedule a new input limit set to the value SW requests.
+	 */
 	queue_delayed_work(di->charger_wq, &di->vbus_drop_end_work,
-			   round_jiffies(30 * HZ));
+			   round_jiffies(VBUS_IN_CURR_LIM_RETRY_SET_TIME * HZ));
 
 	return IRQ_HANDLED;
 }
@@ -2836,6 +3082,7 @@ static int ab8500_charger_usb_get_property(struct power_supply *psy,
 static int ab8500_charger_init_hw_registers(struct ab8500_charger *di)
 {
 	int ret = 0;
+	u8 bup_vch_range = 0, vbup33_vrtcn = 0;
 
 	/* Setup maximum charger current and voltage for ABB cut2.0 */
 	if (!is_ab8500_1p1_or_earlier(di->parent)) {
@@ -2848,9 +3095,14 @@ static int ab8500_charger_init_hw_registers(struct ab8500_charger *di)
 			goto out;
 		}
 
-		ret = abx500_set_register_interruptible(di->dev,
-			AB8500_CHARGER,
-			AB8500_CH_OPT_CRNTLVL_MAX_REG, CH_OP_CUR_LVL_1P6);
+		if (is_ab8540(di->parent))
+			ret = abx500_set_register_interruptible(di->dev,
+				AB8500_CHARGER, AB8500_CH_OPT_CRNTLVL_MAX_REG,
+				CH_OP_CUR_LVL_2P);
+		else
+			ret = abx500_set_register_interruptible(di->dev,
+				AB8500_CHARGER, AB8500_CH_OPT_CRNTLVL_MAX_REG,
+				CH_OP_CUR_LVL_1P6);
 		if (ret) {
 			dev_err(di->dev,
 				"failed to set CH_OPT_CRNTLVL_MAX_REG\n");
@@ -2858,7 +3110,8 @@ static int ab8500_charger_init_hw_registers(struct ab8500_charger *di)
 		}
 	}
 
-	if (is_ab9540_2p0(di->parent) || is_ab8505_2p0(di->parent))
+	if (is_ab9540_2p0(di->parent) || is_ab9540_3p0(di->parent)
+	 || is_ab8505_2p0(di->parent) || is_ab8540(di->parent))
 		ret = abx500_mask_and_set_register_interruptible(di->dev,
 			AB8500_CHARGER,
 			AB8500_USBCH_CTRL2_REG,
@@ -2930,14 +3183,6 @@ static int ab8500_charger_init_hw_registers(struct ab8500_charger *di)
 		goto out;
 	}
 
-	/* Set charger watchdog timeout */
-	ret = abx500_set_register_interruptible(di->dev, AB8500_CHARGER,
-		AB8500_CH_WD_TIMER_REG, WD_TIMER);
-	if (ret) {
-		dev_err(di->dev, "failed to set charger watchdog timeout\n");
-		goto out;
-	}
-
 	ret = ab8500_charger_led_en(di, false);
 	if (ret < 0) {
 		dev_err(di->dev, "failed to disable LED\n");
@@ -2945,14 +3190,29 @@ static int ab8500_charger_init_hw_registers(struct ab8500_charger *di)
 	}
 
 	/* Backup battery voltage and current */
+	if (di->bm->bkup_bat_v > BUP_VCH_SEL_3P1V)
+		bup_vch_range = BUP_VCH_RANGE;
+	if (di->bm->bkup_bat_v == BUP_VCH_SEL_3P3V)
+		vbup33_vrtcn = VBUP33_VRTCN;
+
 	ret = abx500_set_register_interruptible(di->dev,
 		AB8500_RTC,
 		AB8500_RTC_BACKUP_CHG_REG,
-		di->bm->bkup_bat_v |
-		di->bm->bkup_bat_i);
+		(di->bm->bkup_bat_v & 0x3) | di->bm->bkup_bat_i);
 	if (ret) {
 		dev_err(di->dev, "failed to setup backup battery charging\n");
 		goto out;
+	}
+	if (is_ab8540(di->parent)) {
+		ret = abx500_set_register_interruptible(di->dev,
+			AB8500_RTC,
+			AB8500_RTC_CTRL1_REG,
+			bup_vch_range | vbup33_vrtcn);
+		if (ret) {
+			dev_err(di->dev,
+				"failed to setup backup battery charging\n");
+			goto out;
+		}
 	}
 
 	/* Enable backup battery charging */
@@ -2961,6 +3221,25 @@ static int ab8500_charger_init_hw_registers(struct ab8500_charger *di)
 		RTC_BUP_CH_ENA, RTC_BUP_CH_ENA);
 	if (ret < 0)
 		dev_err(di->dev, "%s mask and set failed\n", __func__);
+
+	if (is_ab8540(di->parent)) {
+		ret = abx500_mask_and_set_register_interruptible(di->dev,
+			AB8500_CHARGER, AB8540_USB_PP_MODE_REG,
+			BUS_VSYS_VOL_SELECT_MASK, BUS_VSYS_VOL_SELECT_3P6V);
+		if (ret) {
+			dev_err(di->dev,
+				"failed to setup usb power path vsys voltage\n");
+			goto out;
+		}
+		ret = abx500_mask_and_set_register_interruptible(di->dev,
+			AB8500_CHARGER, AB8540_USB_PP_CHR_REG,
+			BUS_PP_PRECHG_CURRENT_MASK, 0);
+		if (ret) {
+			dev_err(di->dev,
+				"failed to setup usb power path prechage current\n");
+			goto out;
+		}
+	}
 
 out:
 	return ret;
@@ -3055,11 +3334,8 @@ static int ab8500_charger_resume(struct platform_device *pdev)
 			dev_err(di->dev, "Failed to kick WD!\n");
 
 		/* If not already pending start a new timer */
-		if (!delayed_work_pending(
-			&di->kick_wd_work)) {
-			queue_delayed_work(di->charger_wq, &di->kick_wd_work,
-				round_jiffies(WD_KICK_INTERVAL));
-		}
+		queue_delayed_work(di->charger_wq, &di->kick_wd_work,
+				   round_jiffies(WD_KICK_INTERVAL));
 	}
 
 	/* If we still have a HW failure, schedule a new check */
@@ -3079,12 +3355,9 @@ static int ab8500_charger_suspend(struct platform_device *pdev,
 {
 	struct ab8500_charger *di = platform_get_drvdata(pdev);
 
-	/* Cancel any pending HW failure check */
-	if (delayed_work_pending(&di->check_hw_failure_work))
-		cancel_delayed_work(&di->check_hw_failure_work);
-
-	if (delayed_work_pending(&di->vbus_drop_end_work))
-		cancel_delayed_work(&di->vbus_drop_end_work);
+	/* Cancel any pending jobs */
+	cancel_delayed_work(&di->check_hw_failure_work);
+	cancel_delayed_work(&di->vbus_drop_end_work);
 
 	flush_delayed_work(&di->attach_work);
 	flush_delayed_work(&di->usb_charger_attached_work);
@@ -3106,6 +3379,10 @@ static int ab8500_charger_suspend(struct platform_device *pdev,
 #define ab8500_charger_suspend      NULL
 #define ab8500_charger_resume       NULL
 #endif
+
+static struct notifier_block charger_nb = {
+	.notifier_call = ab8500_external_charger_prepare,
+};
 
 static int ab8500_charger_remove(struct platform_device *pdev)
 {
@@ -3136,13 +3413,18 @@ static int ab8500_charger_remove(struct platform_device *pdev)
 	/* Delete the work queue */
 	destroy_workqueue(di->charger_wq);
 
+	/* Unregister external charger enable notifier */
+	if (!di->ac_chg.enabled)
+		blocking_notifier_chain_unregister(
+			&charger_notifier_list, &charger_nb);
+
 	flush_scheduled_work();
-	if(di->usb_chg.enabled)
+	if (di->usb_chg.enabled)
 		power_supply_unregister(&di->usb_chg.psy);
-#if !defined(CONFIG_CHARGER_PM2301)
-	if(di->ac_chg.enabled)
+
+	if (di->ac_chg.enabled && !di->ac_chg.external)
 		power_supply_unregister(&di->ac_chg.psy);
-#endif
+
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;
@@ -3206,15 +3488,21 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	di->ac_chg.psy.num_supplicants = ARRAY_SIZE(supply_interface),
 	/* ux500_charger sub-class */
 	di->ac_chg.ops.enable = &ab8500_charger_ac_en;
+	di->ac_chg.ops.check_enable = &ab8500_charger_ac_check_enable;
 	di->ac_chg.ops.kick_wd = &ab8500_charger_watchdog_kick;
 	di->ac_chg.ops.update_curr = &ab8500_charger_update_charger_current;
 	di->ac_chg.max_out_volt = ab8500_charger_voltage_map[
 		ARRAY_SIZE(ab8500_charger_voltage_map) - 1];
-	di->ac_chg.max_out_curr = ab8500_charger_current_map[
-		ARRAY_SIZE(ab8500_charger_current_map) - 1];
+	di->ac_chg.max_out_curr =
+		di->bm->chg_output_curr[di->bm->n_chg_out_curr - 1];
 	di->ac_chg.wdt_refresh = CHG_WD_INTERVAL;
 	di->ac_chg.enabled = di->bm->ac_enabled;
 	di->ac_chg.external = false;
+
+	/*notifier for external charger enabling*/
+	if (!di->ac_chg.enabled)
+		blocking_notifier_chain_register(
+			&charger_notifier_list, &charger_nb);
 
 	/* USB supply */
 	/* power_supply base class */
@@ -3227,15 +3515,20 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	di->usb_chg.psy.num_supplicants = ARRAY_SIZE(supply_interface),
 	/* ux500_charger sub-class */
 	di->usb_chg.ops.enable = &ab8500_charger_usb_en;
+	di->usb_chg.ops.check_enable = &ab8500_charger_usb_check_enable;
 	di->usb_chg.ops.kick_wd = &ab8500_charger_watchdog_kick;
 	di->usb_chg.ops.update_curr = &ab8500_charger_update_charger_current;
+	di->usb_chg.ops.pp_enable = &ab8540_charger_power_path_enable;
+	di->usb_chg.ops.pre_chg_enable = &ab8540_charger_usb_pre_chg_enable;
 	di->usb_chg.max_out_volt = ab8500_charger_voltage_map[
 		ARRAY_SIZE(ab8500_charger_voltage_map) - 1];
-	di->usb_chg.max_out_curr = ab8500_charger_current_map[
-		ARRAY_SIZE(ab8500_charger_current_map) - 1];
+	di->usb_chg.max_out_curr =
+		di->bm->chg_output_curr[di->bm->n_chg_out_curr - 1];
 	di->usb_chg.wdt_refresh = CHG_WD_INTERVAL;
 	di->usb_chg.enabled = di->bm->usb_enabled;
 	di->usb_chg.external = false;
+	di->usb_chg.power_path = di->bm->usb_power_path;
+	di->usb_state.usb_current = -1;
 
 	/* Create a work queue for the charger */
 	di->charger_wq =
@@ -3316,7 +3609,7 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	}
 
 	/* Register AC charger class */
-	if(di->ac_chg.enabled) {
+	if (di->ac_chg.enabled) {
 		ret = power_supply_register(di->dev, &di->ac_chg.psy);
 		if (ret) {
 			dev_err(di->dev, "failed to register AC charger\n");
@@ -3325,7 +3618,7 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	}
 
 	/* Register USB charger class */
-	if(di->usb_chg.enabled) {
+	if (di->usb_chg.enabled) {
 		ret = power_supply_register(di->dev, &di->usb_chg.psy);
 		if (ret) {
 			dev_err(di->dev, "failed to register USB charger\n");
@@ -3385,14 +3678,16 @@ static int ab8500_charger_probe(struct platform_device *pdev)
 	ch_stat = ab8500_charger_detect_chargers(di, false);
 
 	if ((ch_stat & AC_PW_CONN) == AC_PW_CONN) {
-		queue_delayed_work(di->charger_wq,
-				   &di->ac_charger_attached_work,
-				   HZ);
+		if (is_ab8500(di->parent))
+			queue_delayed_work(di->charger_wq,
+					   &di->ac_charger_attached_work,
+					   HZ);
 	}
 	if ((ch_stat & USB_PW_CONN) == USB_PW_CONN) {
-		queue_delayed_work(di->charger_wq,
-				   &di->usb_charger_attached_work,
-				   HZ);
+		if (is_ab8500(di->parent))
+			queue_delayed_work(di->charger_wq,
+					   &di->usb_charger_attached_work,
+					   HZ);
 	}
 
 	mutex_unlock(&di->charger_attached_mutex);
@@ -3410,10 +3705,10 @@ free_irq:
 put_usb_phy:
 	usb_put_phy(di->usb_phy);
 free_usb:
-	if(di->usb_chg.enabled)
+	if (di->usb_chg.enabled)
 		power_supply_unregister(&di->usb_chg.psy);
 free_ac:
-	if(di->ac_chg.enabled)
+	if (di->ac_chg.enabled)
 		power_supply_unregister(&di->ac_chg.psy);
 free_charger_wq:
 	destroy_workqueue(di->charger_wq);

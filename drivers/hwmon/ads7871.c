@@ -40,25 +40,25 @@
  * the instruction byte
  */
 /*Instruction Bit masks*/
-#define INST_MODE_bm	(1<<7)
-#define INST_READ_bm	(1<<6)
-#define INST_16BIT_bm	(1<<5)
+#define INST_MODE_BM	(1 << 7)
+#define INST_READ_BM	(1 << 6)
+#define INST_16BIT_BM	(1 << 5)
 
 /*From figure 18 in the datasheet*/
 /*bit masks for Rev/Oscillator Control Register*/
-#define MUX_CNV_bv	7
-#define MUX_CNV_bm	(1<<MUX_CNV_bv)
-#define MUX_M3_bm	(1<<3) /*M3 selects single ended*/
-#define MUX_G_bv	4 /*allows for reg = (gain << MUX_G_bv) | ...*/
+#define MUX_CNV_BV	7
+#define MUX_CNV_BM	(1 << MUX_CNV_BV)
+#define MUX_M3_BM	(1 << 3) /*M3 selects single ended*/
+#define MUX_G_BV	4 /*allows for reg = (gain << MUX_G_BV) | ...*/
 
 /*From figure 18 in the datasheet*/
 /*bit masks for Rev/Oscillator Control Register*/
-#define OSC_OSCR_bm	(1<<5)
-#define OSC_OSCE_bm	(1<<4)
-#define OSC_REFE_bm	(1<<3)
-#define OSC_BUFE_bm	(1<<2)
-#define OSC_R2V_bm	(1<<1)
-#define OSC_RBG_bm	(1<<0)
+#define OSC_OSCR_BM	(1 << 5)
+#define OSC_OSCE_BM	(1 << 4)
+#define OSC_REFE_BM	(1 << 3)
+#define OSC_BUFE_BM	(1 << 2)
+#define OSC_R2V_BM	(1 << 1)
+#define OSC_RBG_BM	(1 << 0)
 
 #include <linux/module.h>
 #include <linux/init.h>
@@ -79,7 +79,7 @@ struct ads7871_data {
 static int ads7871_read_reg8(struct spi_device *spi, int reg)
 {
 	int ret;
-	reg = reg | INST_READ_bm;
+	reg = reg | INST_READ_BM;
 	ret = spi_w8r8(spi, reg);
 	return ret;
 }
@@ -87,7 +87,7 @@ static int ads7871_read_reg8(struct spi_device *spi, int reg)
 static int ads7871_read_reg16(struct spi_device *spi, int reg)
 {
 	int ret;
-	reg = reg | INST_READ_bm | INST_16BIT_bm;
+	reg = reg | INST_READ_BM | INST_16BIT_BM;
 	ret = spi_w8r16(spi, reg);
 	return ret;
 }
@@ -111,13 +111,13 @@ static ssize_t show_voltage(struct device *dev,
 	 * TODO: add support for conversions
 	 * other than single ended with a gain of 1
 	 */
-	/*MUX_M3_bm forces single ended*/
+	/*MUX_M3_BM forces single ended*/
 	/*This is also where the gain of the PGA would be set*/
 	ads7871_write_reg8(spi, REG_GAIN_MUX,
-		(MUX_CNV_bm | MUX_M3_bm | channel));
+		(MUX_CNV_BM | MUX_M3_BM | channel));
 
 	ret = ads7871_read_reg8(spi, REG_GAIN_MUX);
-	mux_cnv = ((ret & MUX_CNV_bm)>>MUX_CNV_bv);
+	mux_cnv = ((ret & MUX_CNV_BM) >> MUX_CNV_BV);
 	/*
 	 * on 400MHz arm9 platform the conversion
 	 * is already done when we do this test
@@ -125,14 +125,14 @@ static ssize_t show_voltage(struct device *dev,
 	while ((i < 2) && mux_cnv) {
 		i++;
 		ret = ads7871_read_reg8(spi, REG_GAIN_MUX);
-		mux_cnv = ((ret & MUX_CNV_bm)>>MUX_CNV_bv);
+		mux_cnv = ((ret & MUX_CNV_BM) >> MUX_CNV_BV);
 		msleep_interruptible(1);
 	}
 
 	if (mux_cnv == 0) {
 		val = ads7871_read_reg16(spi, REG_LS_BYTE);
 		/*result in volts*10000 = (val/8192)*2.5*10000*/
-		val = ((val>>2) * 25000) / 8192;
+		val = ((val >> 2) * 25000) / 8192;
 		return sprintf(buf, "%d\n", val);
 	} else {
 		return -1;
@@ -189,7 +189,7 @@ static int ads7871_probe(struct spi_device *spi)
 	ads7871_write_reg8(spi, REG_SER_CONTROL, 0);
 	ads7871_write_reg8(spi, REG_AD_CONTROL, 0);
 
-	val = (OSC_OSCR_bm | OSC_OSCE_bm | OSC_REFE_bm | OSC_BUFE_bm);
+	val = (OSC_OSCR_BM | OSC_OSCE_BM | OSC_REFE_BM | OSC_BUFE_BM);
 	ads7871_write_reg8(spi, REG_OSC_CONTROL, val);
 	ret = ads7871_read_reg8(spi, REG_OSC_CONTROL);
 

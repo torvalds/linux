@@ -1958,6 +1958,9 @@ intel_sdvo_set_property(struct drm_connector *connector,
 	}
 
 	if (property == dev_priv->broadcast_rgb_property) {
+		bool old_auto = intel_sdvo->color_range_auto;
+		uint32_t old_range = intel_sdvo->color_range;
+
 		switch (val) {
 		case INTEL_BROADCAST_RGB_AUTO:
 			intel_sdvo->color_range_auto = true;
@@ -1975,6 +1978,11 @@ intel_sdvo_set_property(struct drm_connector *connector,
 		default:
 			return -EINVAL;
 		}
+
+		if (old_auto == intel_sdvo->color_range_auto &&
+		    old_range == intel_sdvo->color_range)
+			return 0;
+
 		goto done;
 	}
 

@@ -46,8 +46,6 @@
 #define    SNB_GMCH_GGMS_MASK	0x3
 #define    SNB_GMCH_GMS_SHIFT   3 /* Graphics Mode Select */
 #define    SNB_GMCH_GMS_MASK    0x1f
-#define    IVB_GMCH_GMS_SHIFT   4
-#define    IVB_GMCH_GMS_MASK    0xf
 
 
 /* PCI config space */
@@ -2789,11 +2787,12 @@
 #define _PIPEB_DATA_M_G4X	0x71050
 
 /* Transfer unit size for display port - 1, default is 0x3f (for TU size 64) */
-#define   PIPE_GMCH_DATA_M_TU_SIZE_MASK		(0x3f << 25)
-#define   PIPE_GMCH_DATA_M_TU_SIZE_SHIFT	25
+#define  TU_SIZE(x)             (((x)-1) << 25) /* default size 64 */
 #define  TU_SIZE_SHIFT		25
+#define  TU_SIZE_MASK           (0x3f << 25)
 
-#define   PIPE_GMCH_DATA_M_MASK			(0xffffff)
+#define  DATA_LINK_M_N_MASK	(0xffffff)
+#define  DATA_LINK_N_MAX	(0x800000)
 
 #define _PIPEA_DATA_N_G4X	0x70054
 #define _PIPEB_DATA_N_G4X	0x71054
@@ -3543,8 +3542,6 @@
 
 
 #define _PIPEA_DATA_M1           (dev_priv->info->display_mmio_offset + 0x60030)
-#define  TU_SIZE(x)             (((x)-1) << 25) /* default size 64 */
-#define  TU_SIZE_MASK           0x7e000000
 #define  PIPE_DATA_M1_OFFSET    0
 #define _PIPEA_DATA_N1           (dev_priv->info->display_mmio_offset + 0x60034)
 #define  PIPE_DATA_N1_OFFSET    0

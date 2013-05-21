@@ -1,6 +1,5 @@
 #include "../libslang.h"
 #include <elf.h>
-#include <newt.h>
 #include <inttypes.h>
 #include <sys/ttydefaults.h>
 #include <string.h>
@@ -10,40 +9,8 @@
 #include "../../util/symbol.h"
 #include "../browser.h"
 #include "../helpline.h"
+#include "../keysyms.h"
 #include "map.h"
-
-static int ui_entry__read(const char *title, char *bf, size_t size, int width)
-{
-	struct newtExitStruct es;
-	newtComponent form, entry;
-	const char *result;
-	int err = -1;
-
-	newtCenteredWindow(width, 1, title);
-	form = newtForm(NULL, NULL, 0);
-	if (form == NULL)
-		return -1;
-
-	entry = newtEntry(0, 0, "0x", width, &result, NEWT_FLAG_SCROLL);
-	if (entry == NULL)
-		goto out_free_form;
-
-	newtFormAddComponent(form, entry);
-	newtFormAddHotKey(form, NEWT_KEY_ENTER);
-	newtFormAddHotKey(form, NEWT_KEY_ESCAPE);
-	newtFormAddHotKey(form, NEWT_KEY_LEFT);
-	newtFormAddHotKey(form, CTRL('c'));
-	newtFormRun(form, &es);
-
-	if (result != NULL) {
-		strncpy(bf, result, size);
-		err = 0;
-	}
-out_free_form:
-	newtPopWindow();
-	newtFormDestroy(form);
-	return err;
-}
 
 struct map_browser {
 	struct ui_browser b;
@@ -78,10 +45,11 @@ static int map_browser__search(struct map_browser *self)
 {
 	char target[512];
 	struct symbol *sym;
-	int err = ui_entry__read("Search by name/addr", target, sizeof(target), 40);
-
-	if (err)
-		return err;
+	int err = ui_browser__input_window("Search by name/addr",
+					   "Prefix with 0x to search by address",
+					   target, "ENTER: OK, ESC: Cancel", 0);
+	if (err != K_ENTER)
+		return -1;
 
 	if (target[0] == '0' && tolower(target[1]) == 'x') {
 		u64 addr = strtoull(target, NULL, 16);
@@ -112,12 +80,20 @@ static int map_browser__run(struct map_browser *self)
 	while (1) {
 		key = ui_browser__run(&self->b, 0);
 
-		if (verbose && key == '/')
-			map_browser__search(self);
-		else
+		switch (key) {
+		case '/':
+			if (verbose)
+				map_browser__search(self);
+		default:
 			break;
+                case K_LEFT:
+                case K_ESC:
+                case 'q':
+                case CTRL('c'):
+                        goto out;
+		}
 	}
-
+out:
 	ui_browser__hide(&self->b);
 	return key;
 }

@@ -65,7 +65,6 @@
 #define	DRIVER_DESC		"PLX NET228x USB Peripheral Controller"
 #define	DRIVER_VERSION		"2005 Sept 27"
 
-#define	DMA_ADDR_INVALID	(~(dma_addr_t)0)
 #define	EP_DONTUSE		13	/* nonzero */
 
 #define USE_RDK_LEDS		/* GPIO pins control three LEDs */
@@ -406,7 +405,6 @@ net2280_alloc_request (struct usb_ep *_ep, gfp_t gfp_flags)
 	if (!req)
 		return NULL;
 
-	req->req.dma = DMA_ADDR_INVALID;
 	INIT_LIST_HEAD (&req->queue);
 
 	/* this dma descriptor may be swapped with the previous dummy */
@@ -420,7 +418,6 @@ net2280_alloc_request (struct usb_ep *_ep, gfp_t gfp_flags)
 			return NULL;
 		}
 		td->dmacount = 0;	/* not VALID */
-		td->dmaaddr = cpu_to_le32 (DMA_ADDR_INVALID);
 		td->dmadesc = td->dmaaddr;
 		req->td = td;
 	}
@@ -1896,7 +1893,6 @@ static int net2280_start(struct usb_gadget *_gadget,
 	dev->softconnect = 1;
 	driver->driver.bus = NULL;
 	dev->driver = driver;
-	dev->gadget.dev.driver = &driver->driver;
 
 	retval = device_create_file (&dev->pdev->dev, &dev_attr_function);
 	if (retval) goto err_unbind;
@@ -1924,7 +1920,6 @@ static int net2280_start(struct usb_gadget *_gadget,
 err_func:
 	device_remove_file (&dev->pdev->dev, &dev_attr_function);
 err_unbind:
-	dev->gadget.dev.driver = NULL;
 	dev->driver = NULL;
 	return retval;
 }
@@ -1967,7 +1962,6 @@ static int net2280_stop(struct usb_gadget *_gadget,
 	stop_activity (dev, driver);
 	spin_unlock_irqrestore (&dev->lock, flags);
 
-	dev->gadget.dev.driver = NULL;
 	dev->driver = NULL;
 
 	net2280_led_active (dev, 0);
@@ -2072,7 +2066,7 @@ static void handle_ep_small (struct net2280_ep *ep)
 		return;
 
 	/* manual DMA queue advance after short OUT */
-	if (likely (ep->dma != 0)) {
+	if (likely (ep->dma)) {
 		if (t & (1 << SHORT_PACKET_TRANSFERRED_INTERRUPT)) {
 			u32	count;
 			int	stopped = ep->stopped;
@@ -2330,7 +2324,7 @@ static void handle_stat0_irqs (struct net2280 *dev, u32 stat)
 			/* hw handles device and interface status */
 			if (u.r.bRequestType != (USB_DIR_IN|USB_RECIP_ENDPOINT))
 				goto delegate;
-			if ((e = get_ep_by_addr (dev, w_index)) == 0
+			if ((e = get_ep_by_addr (dev, w_index)) == NULL
 					|| w_length > 2)
 				goto do_stall;
 
@@ -2358,7 +2352,7 @@ static void handle_stat0_irqs (struct net2280 *dev, u32 stat)
 			if (w_value != USB_ENDPOINT_HALT
 					|| w_length != 0)
 				goto do_stall;
-			if ((e = get_ep_by_addr (dev, w_index)) == 0)
+			if ((e = get_ep_by_addr (dev, w_index)) == NULL)
 				goto do_stall;
 			if (e->wedged) {
 				VDEBUG(dev, "%s wedged, halt not cleared\n",
@@ -2380,7 +2374,7 @@ static void handle_stat0_irqs (struct net2280 *dev, u32 stat)
 			if (w_value != USB_ENDPOINT_HALT
 					|| w_length != 0)
 				goto do_stall;
-			if ((e = get_ep_by_addr (dev, w_index)) == 0)
+			if ((e = get_ep_by_addr (dev, w_index)) == NULL)
 				goto do_stall;
 			if (e->ep.name == ep0name)
 				goto do_stall;
@@ -2685,7 +2679,6 @@ static void net2280_remove (struct pci_dev *pdev)
 				pci_resource_len (pdev, 0));
 	if (dev->enabled)
 		pci_disable_device (pdev);
-	device_unregister (&dev->gadget.dev);
 	device_remove_file (&pdev->dev, &dev_attr_registers);
 	pci_set_drvdata (pdev, NULL);
 
@@ -2717,10 +2710,6 @@ static int net2280_probe (struct pci_dev *pdev, const struct pci_device_id *id)
 	dev->gadget.max_speed = USB_SPEED_HIGH;
 
 	/* the "gadget" abstracts/virtualizes the controller */
-	dev_set_name(&dev->gadget.dev, "gadget");
-	dev->gadget.dev.parent = &pdev->dev;
-	dev->gadget.dev.dma_mask = pdev->dev.dma_mask;
-	dev->gadget.dev.release = gadget_release;
 	dev->gadget.name = driver_name;
 
 	/* now all the pci goodies ... */
@@ -2802,7 +2791,6 @@ static int net2280_probe (struct pci_dev *pdev, const struct pci_device_id *id)
 			goto done;
 		}
 		td->dmacount = 0;	/* not VALID */
-		td->dmaaddr = cpu_to_le32 (DMA_ADDR_INVALID);
 		td->dmadesc = td->dmaaddr;
 		dev->ep [i].dummy = td;
 	}
@@ -2829,12 +2817,11 @@ static int net2280_probe (struct pci_dev *pdev, const struct pci_device_id *id)
 			use_dma
 				? (use_dma_chaining ? "chaining" : "enabled")
 				: "disabled");
-	retval = device_register (&dev->gadget.dev);
-	if (retval) goto done;
 	retval = device_create_file (&pdev->dev, &dev_attr_registers);
 	if (retval) goto done;
 
-	retval = usb_add_gadget_udc(&pdev->dev, &dev->gadget);
+	retval = usb_add_gadget_udc_release(&pdev->dev, &dev->gadget,
+			gadget_release);
 	if (retval)
 		goto done;
 	return 0;

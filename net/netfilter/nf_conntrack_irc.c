@@ -1,6 +1,7 @@
 /* IRC extension for IP connection tracking, Version 1.21
  * (C) 2000-2002 by Harald Welte <laforge@gnumonks.org>
  * based on RR's ip_conntrack_ftp.c
+ * (C) 2006-2012 Patrick McHardy <kaber@trash.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License

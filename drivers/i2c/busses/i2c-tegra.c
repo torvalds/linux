@@ -25,7 +25,6 @@
 #include <linux/interrupt.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
-#include <linux/i2c-tegra.h>
 #include <linux/of_i2c.h>
 #include <linux/of_device.h>
 #include <linux/module.h>
@@ -172,7 +171,7 @@ struct tegra_i2c_dev {
 	u8 *msg_buf;
 	size_t msg_buf_remaining;
 	int msg_read;
-	unsigned long bus_clk_rate;
+	u32 bus_clk_rate;
 	bool is_suspended;
 };
 
@@ -694,7 +693,6 @@ static const struct tegra_i2c_hw_feature tegra114_i2c_hw = {
 	.clk_divisor_std_fast_mode = 0x19,
 };
 
-#if defined(CONFIG_OF)
 /* Match table for of_platform binding */
 static const struct of_device_id tegra_i2c_of_match[] = {
 	{ .compatible = "nvidia,tegra114-i2c", .data = &tegra114_i2c_hw, },
@@ -704,26 +702,18 @@ static const struct of_device_id tegra_i2c_of_match[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, tegra_i2c_of_match);
-#endif
 
 static int tegra_i2c_probe(struct platform_device *pdev)
 {
 	struct tegra_i2c_dev *i2c_dev;
-	struct tegra_i2c_platform_data *pdata = pdev->dev.platform_data;
 	struct resource *res;
 	struct clk *div_clk;
 	struct clk *fast_clk;
-	const unsigned int *prop;
 	void __iomem *base;
 	int irq;
 	int ret = 0;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "no mem resource\n");
-		return -EINVAL;
-	}
-
 	base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
@@ -754,23 +744,16 @@ static int tegra_i2c_probe(struct platform_device *pdev)
 	i2c_dev->cont_id = pdev->id;
 	i2c_dev->dev = &pdev->dev;
 
-	i2c_dev->bus_clk_rate = 100000; /* default clock rate */
-	if (pdata) {
-		i2c_dev->bus_clk_rate = pdata->bus_clk_rate;
-
-	} else if (i2c_dev->dev->of_node) {    /* if there is a device tree node ... */
-		prop = of_get_property(i2c_dev->dev->of_node,
-				"clock-frequency", NULL);
-		if (prop)
-			i2c_dev->bus_clk_rate = be32_to_cpup(prop);
-	}
+	ret = of_property_read_u32(i2c_dev->dev->of_node, "clock-frequency",
+					&i2c_dev->bus_clk_rate);
+	if (ret)
+		i2c_dev->bus_clk_rate = 100000; /* default clock rate */
 
 	i2c_dev->hw = &tegra20_i2c_hw;
 
 	if (pdev->dev.of_node) {
 		const struct of_device_id *match;
-		match = of_match_device(of_match_ptr(tegra_i2c_of_match),
-						&pdev->dev);
+		match = of_match_device(tegra_i2c_of_match, &pdev->dev);
 		i2c_dev->hw = match->data;
 		i2c_dev->is_dvc = of_device_is_compatible(pdev->dev.of_node,
 						"nvidia,tegra20-i2c-dvc");
@@ -876,7 +859,7 @@ static struct platform_driver tegra_i2c_driver = {
 	.driver  = {
 		.name  = "tegra-i2c",
 		.owner = THIS_MODULE,
-		.of_match_table = of_match_ptr(tegra_i2c_of_match),
+		.of_match_table = tegra_i2c_of_match,
 		.pm    = TEGRA_I2C_PM,
 	},
 };

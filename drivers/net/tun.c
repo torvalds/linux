@@ -409,14 +409,12 @@ static void __tun_detach(struct tun_file *tfile, bool clean)
 {
 	struct tun_file *ntfile;
 	struct tun_struct *tun;
-	struct net_device *dev;
 
 	tun = rtnl_dereference(tfile->tun);
 
 	if (tun && !tfile->detached) {
 		u16 index = tfile->queue_index;
 		BUG_ON(index >= tun->numqueues);
-		dev = tun->dev;
 
 		rcu_assign_pointer(tun->tfiles[index],
 				   tun->tfiles[tun->numqueues - 1]);
@@ -1205,6 +1203,8 @@ static ssize_t tun_get_user(struct tun_struct *tun, struct tun_file *tfile,
 	}
 
 	skb_reset_network_header(skb);
+	skb_probe_transport_header(skb, 0);
+
 	rxhash = skb_get_rxhash(skb);
 	netif_rx_ni(skb);
 
@@ -1471,14 +1471,17 @@ static int tun_recvmsg(struct kiocb *iocb, struct socket *sock,
 	if (!tun)
 		return -EBADFD;
 
-	if (flags & ~(MSG_DONTWAIT|MSG_TRUNC))
-		return -EINVAL;
+	if (flags & ~(MSG_DONTWAIT|MSG_TRUNC)) {
+		ret = -EINVAL;
+		goto out;
+	}
 	ret = tun_do_read(tun, tfile, iocb, m->msg_iov, total_len,
 			  flags & MSG_DONTWAIT);
 	if (ret > total_len) {
 		m->msg_flags |= MSG_TRUNC;
 		ret = flags & MSG_TRUNC ? ret : total_len;
 	}
+out:
 	tun_put(tun);
 	return ret;
 }
@@ -1593,8 +1596,12 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 			return err;
 
 		if (tun->flags & TUN_TAP_MQ &&
-		    (tun->numqueues + tun->numdisabled > 1))
-			return err;
+		    (tun->numqueues + tun->numdisabled > 1)) {
+			/* One or more queue has already been attached, no need
+			 * to initialize the device again.
+			 */
+			return 0;
+		}
 	}
 	else {
 		char *name;
@@ -1656,6 +1663,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		dev->hw_features = NETIF_F_SG | NETIF_F_FRAGLIST |
 			TUN_USER_FEATURES;
 		dev->features = dev->hw_features;
+		dev->vlan_features = dev->features;
 
 		INIT_LIST_HEAD(&tun->disabled);
 		err = tun_attach(tun, file);

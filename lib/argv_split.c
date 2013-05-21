@@ -8,23 +8,17 @@
 #include <linux/slab.h>
 #include <linux/export.h>
 
-static const char *skip_arg(const char *cp)
-{
-	while (*cp && !isspace(*cp))
-		cp++;
-
-	return cp;
-}
-
 static int count_argc(const char *str)
 {
 	int count = 0;
+	bool was_space;
 
-	while (*str) {
-		str = skip_spaces(str);
-		if (*str) {
+	for (was_space = true; *str; str++) {
+		if (isspace(*str)) {
+			was_space = true;
+		} else if (was_space) {
+			was_space = false;
 			count++;
-			str = skip_arg(str);
 		}
 	}
 
@@ -39,10 +33,8 @@ static int count_argc(const char *str)
  */
 void argv_free(char **argv)
 {
-	char **p;
-	for (p = argv; *p; p++)
-		kfree(*p);
-
+	argv--;
+	kfree(argv[0]);
 	kfree(argv);
 }
 EXPORT_SYMBOL(argv_free);
@@ -59,43 +51,44 @@ EXPORT_SYMBOL(argv_free);
  * considered to be a single argument separator.  The returned array
  * is always NULL-terminated.  Returns NULL on memory allocation
  * failure.
+ *
+ * The source string at `str' may be undergoing concurrent alteration via
+ * userspace sysctl activity (at least).  The argv_split() implementation
+ * attempts to handle this gracefully by taking a local copy to work on.
  */
 char **argv_split(gfp_t gfp, const char *str, int *argcp)
 {
-	int argc = count_argc(str);
-	char **argv = kzalloc(sizeof(*argv) * (argc+1), gfp);
-	char **argvp;
+	char *argv_str;
+	bool was_space;
+	char **argv, **argv_ret;
+	int argc;
 
-	if (argv == NULL)
-		goto out;
+	argv_str = kstrndup(str, KMALLOC_MAX_SIZE - 1, gfp);
+	if (!argv_str)
+		return NULL;
+
+	argc = count_argc(argv_str);
+	argv = kmalloc(sizeof(*argv) * (argc + 2), gfp);
+	if (!argv) {
+		kfree(argv_str);
+		return NULL;
+	}
+
+	*argv = argv_str;
+	argv_ret = ++argv;
+	for (was_space = true; *argv_str; argv_str++) {
+		if (isspace(*argv_str)) {
+			was_space = true;
+			*argv_str = 0;
+		} else if (was_space) {
+			was_space = false;
+			*argv++ = argv_str;
+		}
+	}
+	*argv = NULL;
 
 	if (argcp)
 		*argcp = argc;
-
-	argvp = argv;
-
-	while (*str) {
-		str = skip_spaces(str);
-
-		if (*str) {
-			const char *p = str;
-			char *t;
-
-			str = skip_arg(str);
-
-			t = kstrndup(p, str-p, gfp);
-			if (t == NULL)
-				goto fail;
-			*argvp++ = t;
-		}
-	}
-	*argvp = NULL;
-
-  out:
-	return argv;
-
-  fail:
-	argv_free(argv);
-	return NULL;
+	return argv_ret;
 }
 EXPORT_SYMBOL(argv_split);

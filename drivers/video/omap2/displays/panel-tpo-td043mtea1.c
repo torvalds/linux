@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 
 #include <video/omapdss.h>
+#include <video/omap-panel-data.h>
 
 #define TPO_R02_MODE(x)		((x) & 7)
 #define TPO_R02_MODE_800x480	7
@@ -278,9 +279,14 @@ static const struct omap_video_timings tpo_td043_timings = {
 	.sync_pclk_edge	= OMAPDSS_DRIVE_SIG_OPPOSITE_EDGES,
 };
 
+static inline struct panel_tpo_td043_data
+*get_panel_data(const struct omap_dss_device *dssdev)
+{
+	return (struct panel_tpo_td043_data *) dssdev->data;
+}
+
 static int tpo_td043_power_on(struct tpo_td043_device *tpo_td043)
 {
-	int nreset_gpio = tpo_td043->nreset_gpio;
 	int r;
 
 	if (tpo_td043->powered_on)
@@ -293,8 +299,8 @@ static int tpo_td043_power_on(struct tpo_td043_device *tpo_td043)
 	/* wait for panel to stabilize */
 	msleep(160);
 
-	if (gpio_is_valid(nreset_gpio))
-		gpio_set_value(nreset_gpio, 1);
+	if (gpio_is_valid(tpo_td043->nreset_gpio))
+		gpio_set_value(tpo_td043->nreset_gpio, 1);
 
 	tpo_td043_write(tpo_td043->spi, 2,
 			TPO_R02_MODE(tpo_td043->mode) | TPO_R02_NCLK_RISING);
@@ -311,16 +317,14 @@ static int tpo_td043_power_on(struct tpo_td043_device *tpo_td043)
 
 static void tpo_td043_power_off(struct tpo_td043_device *tpo_td043)
 {
-	int nreset_gpio = tpo_td043->nreset_gpio;
-
 	if (!tpo_td043->powered_on)
 		return;
 
 	tpo_td043_write(tpo_td043->spi, 3,
 			TPO_R03_VAL_STANDBY | TPO_R03_EN_PWM);
 
-	if (gpio_is_valid(nreset_gpio))
-		gpio_set_value(nreset_gpio, 0);
+	if (gpio_is_valid(tpo_td043->nreset_gpio))
+		gpio_set_value(tpo_td043->nreset_gpio, 0);
 
 	/* wait for at least 2 vsyncs before cutting off power */
 	msleep(50);
@@ -346,12 +350,6 @@ static int tpo_td043_enable_dss(struct omap_dss_device *dssdev)
 	r = omapdss_dpi_display_enable(dssdev);
 	if (r)
 		goto err0;
-
-	if (dssdev->platform_enable) {
-		r = dssdev->platform_enable(dssdev);
-		if (r)
-			goto err1;
-	}
 
 	/*
 	 * If we are resuming from system suspend, SPI clocks might not be
@@ -379,9 +377,6 @@ static void tpo_td043_disable_dss(struct omap_dss_device *dssdev)
 	if (dssdev->state != OMAP_DSS_DISPLAY_ACTIVE)
 		return;
 
-	if (dssdev->platform_disable)
-		dssdev->platform_disable(dssdev);
-
 	omapdss_dpi_display_disable(dssdev);
 
 	if (!tpo_td043->spi_suspended)
@@ -407,7 +402,7 @@ static void tpo_td043_disable(struct omap_dss_device *dssdev)
 static int tpo_td043_probe(struct omap_dss_device *dssdev)
 {
 	struct tpo_td043_device *tpo_td043 = g_tpo_td043;
-	int nreset_gpio = dssdev->reset_gpio;
+	struct panel_tpo_td043_data *pdata = get_panel_data(dssdev);
 	int ret = 0;
 
 	dev_dbg(&dssdev->dev, "probe\n");
@@ -416,6 +411,11 @@ static int tpo_td043_probe(struct omap_dss_device *dssdev)
 		dev_err(&dssdev->dev, "missing tpo_td043_device\n");
 		return -ENODEV;
 	}
+
+	if (!pdata)
+		return -EINVAL;
+
+	tpo_td043->nreset_gpio = pdata->nreset_gpio;
 
 	dssdev->panel.timings = tpo_td043_timings;
 	dssdev->ctrl.pixel_size = 24;
@@ -430,9 +430,10 @@ static int tpo_td043_probe(struct omap_dss_device *dssdev)
 		goto fail_regulator;
 	}
 
-	if (gpio_is_valid(nreset_gpio)) {
-		ret = gpio_request_one(nreset_gpio, GPIOF_OUT_INIT_LOW,
-					"lcd reset");
+	if (gpio_is_valid(tpo_td043->nreset_gpio)) {
+		ret = devm_gpio_request_one(&dssdev->dev,
+				tpo_td043->nreset_gpio, GPIOF_OUT_INIT_LOW,
+				"lcd reset");
 		if (ret < 0) {
 			dev_err(&dssdev->dev, "couldn't request reset GPIO\n");
 			goto fail_gpio_req;
@@ -457,14 +458,11 @@ fail_regulator:
 static void tpo_td043_remove(struct omap_dss_device *dssdev)
 {
 	struct tpo_td043_device *tpo_td043 = dev_get_drvdata(&dssdev->dev);
-	int nreset_gpio = dssdev->reset_gpio;
 
 	dev_dbg(&dssdev->dev, "remove\n");
 
 	sysfs_remove_group(&dssdev->dev.kobj, &tpo_td043_attr_group);
 	regulator_put(tpo_td043->vcc_reg);
-	if (gpio_is_valid(nreset_gpio))
-		gpio_free(nreset_gpio);
 }
 
 static void tpo_td043_set_timings(struct omap_dss_device *dssdev,
@@ -527,7 +525,6 @@ static int tpo_td043_spi_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	tpo_td043->spi = spi;
-	tpo_td043->nreset_gpio = dssdev->reset_gpio;
 	dev_set_drvdata(&spi->dev, tpo_td043);
 	g_tpo_td043 = tpo_td043;
 

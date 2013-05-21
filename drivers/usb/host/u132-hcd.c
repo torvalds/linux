@@ -3141,10 +3141,11 @@ static int u132_probe(struct platform_device *pdev)
 
 
 #ifdef CONFIG_PM
-/* for this device there's no useful distinction between the controller
-* and its root hub, except that the root hub only gets direct PM calls
-* when CONFIG_USB_SUSPEND is enabled.
-*/
+/*
+ * for this device there's no useful distinction between the controller
+ * and its root hub, except that the root hub only gets direct PM calls
+ * when CONFIG_PM_RUNTIME is enabled.
+ */
 static int u132_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);

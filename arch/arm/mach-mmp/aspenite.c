@@ -9,6 +9,7 @@
  *  publishhed by the Free Software Foundation.
  */
 #include <linux/gpio.h>
+#include <linux/gpio-pxa.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
@@ -108,6 +109,10 @@ static unsigned long common_pin_config[] __initdata = {
 	GPIO111_KP_MKOUT7,
 	GPIO112_KP_MKOUT6,
 	GPIO121_KP_MKIN4,
+};
+
+static struct pxa_gpio_platform_data pxa168_gpio_pdata = {
+	.irq_base	= MMP_GPIO_TO_IRQ(0),
 };
 
 static struct smc91x_platdata smc91x_info = {
@@ -223,13 +228,7 @@ static struct pxa27x_keypad_platform_data aspenite_keypad_info __initdata = {
 };
 
 #if defined(CONFIG_USB_EHCI_MV)
-static char *pxa168_sph_clock_name[] = {
-	[0] = "PXA168-USBCLK",
-};
-
 static struct mv_usb_platform_data pxa168_sph_pdata = {
-	.clknum         = 1,
-	.clkname        = pxa168_sph_clock_name,
 	.mode           = MV_USB_MODE_HOST,
 	.phy_init	= pxa_usb_phy_init,
 	.phy_deinit	= pxa_usb_phy_deinit,
@@ -248,6 +247,8 @@ static void __init common_init(void)
 	pxa168_add_nand(&aspenite_nand_info);
 	pxa168_add_fb(&aspenite_lcd_info);
 	pxa168_add_keypad(&aspenite_keypad_info);
+	platform_device_add_data(&pxa168_device_gpio, &pxa168_gpio_pdata,
+				 sizeof(struct pxa_gpio_platform_data));
 	platform_device_register(&pxa168_device_gpio);
 
 	/* off-chip devices */

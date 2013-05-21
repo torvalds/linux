@@ -347,7 +347,7 @@ il3945_rs_rate_init(struct il_priv *il, struct ieee80211_sta *sta, u8 sta_id)
 
 	psta = (struct il3945_sta_priv *)sta->drv_priv;
 	rs_sta = &psta->rs_sta;
-	sband = hw->wiphy->bands[conf->channel->band];
+	sband = hw->wiphy->bands[conf->chandef.chan->band];
 
 	rs_sta->il = il;
 

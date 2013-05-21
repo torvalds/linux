@@ -14,10 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <linux/module.h>
-#include <linux/netdevice.h>
 #include <linux/etherdevice.h>
-#include <linux/slab.h>
 
 #include "wil6210.h"
 

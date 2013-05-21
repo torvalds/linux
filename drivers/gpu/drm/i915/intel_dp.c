@@ -720,18 +720,9 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 
 	/* Walk through all bpp values. Luckily they're all nicely spaced with 2
 	 * bpc in between. */
-	bpp = pipe_config->pipe_bpp;
-
-	/*
-	 * eDP panels are really fickle, try to enfore the bpp the firmware
-	 * recomments. This means we'll up-dither 16bpp framebuffers on
-	 * high-depth panels.
-	 */
-	if (is_edp(intel_dp) && dev_priv->vbt.edp_bpp) {
-		DRM_DEBUG_KMS("forcing bpp for eDP panel to BIOS-provided %i\n",
-			      dev_priv->vbt.edp_bpp);
-		bpp = dev_priv->vbt.edp_bpp;
-	}
+	bpp = min_t(int, 8*3, pipe_config->pipe_bpp);
+	if (is_edp(intel_dp) && dev_priv->vbt.edp_bpp)
+		bpp = min_t(int, bpp, dev_priv->vbt.edp_bpp);
 
 	for (; bpp >= 6*3; bpp -= 2*3) {
 		mode_rate = intel_dp_link_required(target_clock, bpp);
@@ -770,6 +761,7 @@ found:
 	intel_dp->link_bw = bws[clock];
 	intel_dp->lane_count = lane_count;
 	adjusted_mode->clock = drm_dp_bw_code_to_link_rate(intel_dp->link_bw);
+	pipe_config->pipe_bpp = bpp;
 	pipe_config->pixel_target_clock = target_clock;
 
 	DRM_DEBUG_KMS("DP link bw %02x lane count %d clock %d bpp %d\n",
@@ -781,8 +773,6 @@ found:
 	intel_link_compute_m_n(bpp, lane_count,
 			       target_clock, adjusted_mode->clock,
 			       &pipe_config->dp_m_n);
-
-	pipe_config->pipe_bpp = bpp;
 
 	intel_dp_set_clock(encoder, pipe_config, intel_dp->link_bw);
 
@@ -1400,6 +1390,7 @@ static void intel_enable_dp(struct intel_encoder *encoder)
 	ironlake_edp_panel_on(intel_dp);
 	ironlake_edp_panel_vdd_off(intel_dp, true);
 	intel_dp_complete_link_train(intel_dp);
+	intel_dp_stop_link_train(intel_dp);
 	ironlake_edp_backlight_on(intel_dp);
 
 	if (IS_VALLEYVIEW(dev)) {
@@ -1898,10 +1889,9 @@ intel_dp_set_link_train(struct intel_dp *intel_dp,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum port port = intel_dig_port->port;
 	int ret;
-	uint32_t temp;
 
 	if (HAS_DDI(dev)) {
-		temp = I915_READ(DP_TP_CTL(port));
+		uint32_t temp = I915_READ(DP_TP_CTL(port));
 
 		if (dp_train_pat & DP_LINK_SCRAMBLING_DISABLE)
 			temp |= DP_TP_CTL_SCRAMBLE_DISABLE;
@@ -1911,18 +1901,6 @@ intel_dp_set_link_train(struct intel_dp *intel_dp,
 		temp &= ~DP_TP_CTL_LINK_TRAIN_MASK;
 		switch (dp_train_pat & DP_TRAINING_PATTERN_MASK) {
 		case DP_TRAINING_PATTERN_DISABLE:
-
-			if (port != PORT_A) {
-				temp |= DP_TP_CTL_LINK_TRAIN_IDLE;
-				I915_WRITE(DP_TP_CTL(port), temp);
-
-				if (wait_for((I915_READ(DP_TP_STATUS(port)) &
-					      DP_TP_STATUS_IDLE_DONE), 1))
-					DRM_ERROR("Timed out waiting for DP idle patterns\n");
-
-				temp &= ~DP_TP_CTL_LINK_TRAIN_MASK;
-			}
-
 			temp |= DP_TP_CTL_LINK_TRAIN_NORMAL;
 
 			break;
@@ -1996,6 +1974,37 @@ intel_dp_set_link_train(struct intel_dp *intel_dp,
 	}
 
 	return true;
+}
+
+static void intel_dp_set_idle_link_train(struct intel_dp *intel_dp)
+{
+	struct intel_digital_port *intel_dig_port = dp_to_dig_port(intel_dp);
+	struct drm_device *dev = intel_dig_port->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum port port = intel_dig_port->port;
+	uint32_t val;
+
+	if (!HAS_DDI(dev))
+		return;
+
+	val = I915_READ(DP_TP_CTL(port));
+	val &= ~DP_TP_CTL_LINK_TRAIN_MASK;
+	val |= DP_TP_CTL_LINK_TRAIN_IDLE;
+	I915_WRITE(DP_TP_CTL(port), val);
+
+	/*
+	 * On PORT_A we can have only eDP in SST mode. There the only reason
+	 * we need to set idle transmission mode is to work around a HW issue
+	 * where we enable the pipe while not in idle link-training mode.
+	 * In this case there is requirement to wait for a minimum number of
+	 * idle patterns to be sent.
+	 */
+	if (port == PORT_A)
+		return;
+
+	if (wait_for((I915_READ(DP_TP_STATUS(port)) & DP_TP_STATUS_IDLE_DONE),
+		     1))
+		DRM_ERROR("Timed out waiting for DP idle patterns\n");
 }
 
 /* Enable corresponding port and start training pattern 1 */
@@ -2140,10 +2149,19 @@ intel_dp_complete_link_train(struct intel_dp *intel_dp)
 		++tries;
 	}
 
-	if (channel_eq)
-		DRM_DEBUG_KMS("Channel EQ done. DP Training successfull\n");
+	intel_dp_set_idle_link_train(intel_dp);
 
-	intel_dp_set_link_train(intel_dp, DP, DP_TRAINING_PATTERN_DISABLE);
+	intel_dp->DP = DP;
+
+	if (channel_eq)
+		DRM_DEBUG_KMS("Channel EQ done. DP Training successful\n");
+
+}
+
+void intel_dp_stop_link_train(struct intel_dp *intel_dp)
+{
+	intel_dp_set_link_train(intel_dp, intel_dp->DP,
+				DP_TRAINING_PATTERN_DISABLE);
 }
 
 static void
@@ -2351,6 +2369,7 @@ intel_dp_check_link_status(struct intel_dp *intel_dp)
 			      drm_get_encoder_name(&intel_encoder->base));
 		intel_dp_start_link_train(intel_dp);
 		intel_dp_complete_link_train(intel_dp);
+		intel_dp_stop_link_train(intel_dp);
 	}
 }
 
@@ -2615,6 +2634,9 @@ intel_dp_set_property(struct drm_connector *connector,
 	}
 
 	if (property == dev_priv->broadcast_rgb_property) {
+		bool old_auto = intel_dp->color_range_auto;
+		uint32_t old_range = intel_dp->color_range;
+
 		switch (val) {
 		case INTEL_BROADCAST_RGB_AUTO:
 			intel_dp->color_range_auto = true;
@@ -2630,6 +2652,11 @@ intel_dp_set_property(struct drm_connector *connector,
 		default:
 			return -EINVAL;
 		}
+
+		if (old_auto == intel_dp->color_range_auto &&
+		    old_range == intel_dp->color_range)
+			return 0;
+
 		goto done;
 	}
 
@@ -2679,12 +2706,15 @@ void intel_dp_encoder_destroy(struct drm_encoder *encoder)
 {
 	struct intel_digital_port *intel_dig_port = enc_to_dig_port(encoder);
 	struct intel_dp *intel_dp = &intel_dig_port->dp;
+	struct drm_device *dev = intel_dp_to_dev(intel_dp);
 
 	i2c_del_adapter(&intel_dp->adapter);
 	drm_encoder_cleanup(encoder);
 	if (is_edp(intel_dp)) {
 		cancel_delayed_work_sync(&intel_dp->panel_vdd_work);
+		mutex_lock(&dev->mode_config.mutex);
 		ironlake_panel_vdd_off_sync(intel_dp);
+		mutex_unlock(&dev->mode_config.mutex);
 	}
 	kfree(intel_dig_port);
 }

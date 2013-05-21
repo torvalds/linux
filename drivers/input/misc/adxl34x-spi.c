@@ -89,16 +89,16 @@ static int adxl34x_spi_probe(struct spi_device *spi)
 
 static int adxl34x_spi_remove(struct spi_device *spi)
 {
-	struct adxl34x *ac = dev_get_drvdata(&spi->dev);
+	struct adxl34x *ac = spi_get_drvdata(spi);
 
 	return adxl34x_remove(ac);
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int adxl34x_spi_suspend(struct device *dev)
 {
 	struct spi_device *spi = to_spi_device(dev);
-	struct adxl34x *ac = dev_get_drvdata(&spi->dev);
+	struct adxl34x *ac = spi_get_drvdata(spi);
 
 	adxl34x_suspend(ac);
 
@@ -108,7 +108,7 @@ static int adxl34x_spi_suspend(struct device *dev)
 static int adxl34x_spi_resume(struct device *dev)
 {
 	struct spi_device *spi = to_spi_device(dev);
-	struct adxl34x *ac = dev_get_drvdata(&spi->dev);
+	struct adxl34x *ac = spi_get_drvdata(spi);
 
 	adxl34x_resume(ac);
 

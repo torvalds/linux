@@ -95,8 +95,8 @@ static int tegra30_ahub_runtime_resume(struct device *dev)
 }
 
 int tegra30_ahub_allocate_rx_fifo(enum tegra30_ahub_rxcif *rxcif,
-				  unsigned long *fiforeg,
-				  unsigned long *reqsel)
+				  dma_addr_t *fiforeg,
+				  unsigned int *reqsel)
 {
 	int channel;
 	u32 reg, val;
@@ -178,8 +178,8 @@ int tegra30_ahub_free_rx_fifo(enum tegra30_ahub_rxcif rxcif)
 EXPORT_SYMBOL_GPL(tegra30_ahub_free_rx_fifo);
 
 int tegra30_ahub_allocate_tx_fifo(enum tegra30_ahub_txcif *txcif,
-				  unsigned long *fiforeg,
-				  unsigned long *reqsel)
+				  dma_addr_t *fiforeg,
+				  unsigned int *reqsel)
 {
 	int channel;
 	u32 reg, val;
@@ -287,16 +287,27 @@ int tegra30_ahub_unset_rx_cif_source(enum tegra30_ahub_rxcif rxcif)
 }
 EXPORT_SYMBOL_GPL(tegra30_ahub_unset_rx_cif_source);
 
-static const char * const configlink_clocks[] = {
-	"i2s0",
-	"i2s1",
-	"i2s2",
-	"i2s3",
-	"i2s4",
-	"dam0",
-	"dam1",
-	"dam2",
-	"spdif_in",
+#define CLK_LIST_MASK_TEGRA30	BIT(0)
+#define CLK_LIST_MASK_TEGRA114	BIT(1)
+
+#define CLK_LIST_MASK_TEGRA30_OR_LATER \
+		(CLK_LIST_MASK_TEGRA30 | CLK_LIST_MASK_TEGRA114)
+
+static const struct {
+	const char *clk_name;
+	u32 clk_list_mask;
+} configlink_clocks[] = {
+	{ "i2s0", CLK_LIST_MASK_TEGRA30_OR_LATER },
+	{ "i2s1", CLK_LIST_MASK_TEGRA30_OR_LATER },
+	{ "i2s2", CLK_LIST_MASK_TEGRA30_OR_LATER },
+	{ "i2s3", CLK_LIST_MASK_TEGRA30_OR_LATER },
+	{ "i2s4", CLK_LIST_MASK_TEGRA30_OR_LATER },
+	{ "dam0", CLK_LIST_MASK_TEGRA30_OR_LATER },
+	{ "dam1", CLK_LIST_MASK_TEGRA30_OR_LATER },
+	{ "dam2", CLK_LIST_MASK_TEGRA30_OR_LATER },
+	{ "spdif_in", CLK_LIST_MASK_TEGRA30_OR_LATER },
+	{ "amx", CLK_LIST_MASK_TEGRA114 },
+	{ "adx", CLK_LIST_MASK_TEGRA114 },
 };
 
 #define LAST_REG(name) \
@@ -424,8 +435,24 @@ static const struct regmap_config tegra30_ahub_ahub_regmap_config = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
+static struct tegra30_ahub_soc_data soc_data_tegra30 = {
+	.clk_list_mask = CLK_LIST_MASK_TEGRA30,
+};
+
+static struct tegra30_ahub_soc_data soc_data_tegra114 = {
+	.clk_list_mask = CLK_LIST_MASK_TEGRA114,
+};
+
+static const struct of_device_id tegra30_ahub_of_match[] = {
+	{ .compatible = "nvidia,tegra114-ahub", .data = &soc_data_tegra114 },
+	{ .compatible = "nvidia,tegra30-ahub",  .data = &soc_data_tegra30 },
+	{},
+};
+
 static int tegra30_ahub_probe(struct platform_device *pdev)
 {
+	const struct of_device_id *match;
+	const struct tegra30_ahub_soc_data *soc_data;
 	struct clk *clk;
 	int i;
 	struct resource *res0, *res1, *region;
@@ -436,16 +463,24 @@ static int tegra30_ahub_probe(struct platform_device *pdev)
 	if (ahub)
 		return -ENODEV;
 
+	match = of_match_device(tegra30_ahub_of_match, &pdev->dev);
+	if (!match)
+		return -EINVAL;
+	soc_data = match->data;
+
 	/*
 	 * The AHUB hosts a register bus: the "configlink". For this to
 	 * operate correctly, all devices on this bus must be out of reset.
 	 * Ensure that here.
 	 */
 	for (i = 0; i < ARRAY_SIZE(configlink_clocks); i++) {
-		clk = clk_get(&pdev->dev, configlink_clocks[i]);
+		if (!(configlink_clocks[i].clk_list_mask &
+					soc_data->clk_list_mask))
+			continue;
+		clk = clk_get(&pdev->dev, configlink_clocks[i].clk_name);
 		if (IS_ERR(clk)) {
 			dev_err(&pdev->dev, "Can't get clock %s\n",
-				configlink_clocks[i]);
+				configlink_clocks[i].clk_name);
 			ret = PTR_ERR(clk);
 			goto err;
 		}
@@ -591,11 +626,6 @@ static int tegra30_ahub_remove(struct platform_device *pdev)
 
 	return 0;
 }
-
-static const struct of_device_id tegra30_ahub_of_match[] = {
-	{ .compatible = "nvidia,tegra30-ahub", },
-	{},
-};
 
 static const struct dev_pm_ops tegra30_ahub_pm_ops = {
 	SET_RUNTIME_PM_OPS(tegra30_ahub_runtime_suspend,

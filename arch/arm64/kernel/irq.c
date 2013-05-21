@@ -25,7 +25,7 @@
 #include <linux/irq.h>
 #include <linux/smp.h>
 #include <linux/init.h>
-#include <linux/of_irq.h>
+#include <linux/irqchip.h>
 #include <linux/seq_file.h>
 #include <linux/ratelimit.h>
 
@@ -67,18 +67,17 @@ void handle_IRQ(unsigned int irq, struct pt_regs *regs)
 	set_irq_regs(old_regs);
 }
 
-/*
- * Interrupt controllers supported by the kernel.
- */
-static const struct of_device_id intctrl_of_match[] __initconst = {
-	/* IRQ controllers { .compatible, .data } info to go here */
-	{}
-};
+void __init set_handle_irq(void (*handle_irq)(struct pt_regs *))
+{
+	if (handle_arch_irq)
+		return;
+
+	handle_arch_irq = handle_irq;
+}
 
 void __init init_IRQ(void)
 {
-	of_irq_init(intctrl_of_match);
-
+	irqchip_init();
 	if (!handle_arch_irq)
 		panic("No interrupt controller found.");
 }

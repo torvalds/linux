@@ -2270,11 +2270,8 @@ cfq_find_rq_fmerge(struct cfq_data *cfqd, struct bio *bio)
 		return NULL;
 
 	cfqq = cic_to_cfqq(cic, cfq_bio_sync(bio));
-	if (cfqq) {
-		sector_t sector = bio->bi_sector + bio_sectors(bio);
-
-		return elv_rb_find(&cfqq->sort_list, sector);
-	}
+	if (cfqq)
+		return elv_rb_find(&cfqq->sort_list, bio_end_sector(bio));
 
 	return NULL;
 }

@@ -463,7 +463,6 @@ struct se_cmd {
 #define CMD_T_ABORTED		(1 << 0)
 #define CMD_T_ACTIVE		(1 << 1)
 #define CMD_T_COMPLETE		(1 << 2)
-#define CMD_T_QUEUED		(1 << 3)
 #define CMD_T_SENT		(1 << 4)
 #define CMD_T_STOP		(1 << 5)
 #define CMD_T_FAILED		(1 << 6)
@@ -572,12 +571,8 @@ struct se_dev_entry {
 	bool			def_pr_registered;
 	/* See transport_lunflags_table */
 	u32			lun_flags;
-	u32			deve_cmds;
 	u32			mapped_lun;
-	u32			average_bytes;
-	u32			last_byte_count;
 	u32			total_cmds;
-	u32			total_bytes;
 	u64			pr_res_key;
 	u64			creation_time;
 	u32			attach_count;

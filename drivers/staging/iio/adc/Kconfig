@@ -73,7 +73,7 @@ config AD7780
 config AD7816
 	tristate "Analog Devices AD7816/7/8 temperature sensor and ADC driver"
 	depends on SPI
-	depends on GENERIC_GPIO
+	depends on GPIOLIB
 	help
 	  Say yes here to build support for Analog Devices AD7816/7/8
 	  temperature sensors and ADC.
@@ -89,13 +89,6 @@ config AD7192
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad7192.
-
-config ADT7410
-	tristate "Analog Devices ADT7310/ADT7410 temperature sensor driver"
-	depends on I2C || SPI_MASTER
-	help
-	  Say yes here to build support for Analog Devices ADT7310/ADT7410
-	  temperature sensors.
 
 config AD7280
 	tristate "Analog Devices AD7280A Lithium Ion Battery Monitoring System"

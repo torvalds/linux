@@ -583,6 +583,14 @@ struct l2cap_conn {
 
 	struct list_head	chan_l;
 	struct mutex		chan_lock;
+	struct kref		ref;
+	struct list_head	users;
+};
+
+struct l2cap_user {
+	struct list_head list;
+	int (*probe) (struct l2cap_conn *conn, struct l2cap_user *user);
+	void (*remove) (struct l2cap_conn *conn, struct l2cap_user *user);
 };
 
 #define L2CAP_INFO_CL_MTU_REQ_SENT	0x01
@@ -786,6 +794,7 @@ extern bool disable_ertm;
 
 int l2cap_init_sockets(void);
 void l2cap_cleanup_sockets(void);
+bool l2cap_is_socket(struct socket *sock);
 
 void __l2cap_connect_rsp_defer(struct l2cap_chan *chan);
 int __l2cap_wait_ack(struct sock *sk);
@@ -811,5 +820,11 @@ void l2cap_move_start(struct l2cap_chan *chan);
 void l2cap_logical_cfm(struct l2cap_chan *chan, struct hci_chan *hchan,
 		       u8 status);
 void __l2cap_physical_cfm(struct l2cap_chan *chan, int result);
+
+void l2cap_conn_get(struct l2cap_conn *conn);
+void l2cap_conn_put(struct l2cap_conn *conn);
+
+int l2cap_register_user(struct l2cap_conn *conn, struct l2cap_user *user);
+void l2cap_unregister_user(struct l2cap_conn *conn, struct l2cap_user *user);
 
 #endif /* __L2CAP_H */

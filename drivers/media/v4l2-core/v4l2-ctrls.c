@@ -234,6 +234,7 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 		"Average",
 		"Center Weighted",
 		"Spot",
+		"Matrix",
 		NULL
 	};
 	static const char * const camera_auto_focus_range[] = {
@@ -297,8 +298,8 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 		"Text",
 		NULL
 	};
-	static const char * const tune_preemphasis[] = {
-		"No Preemphasis",
+	static const char * const tune_emphasis[] = {
+		"None",
 		"50 Microseconds",
 		"75 Microseconds",
 		NULL,
@@ -508,7 +509,9 @@ const char * const *v4l2_ctrl_get_menu(u32 id)
 	case V4L2_CID_SCENE_MODE:
 		return scene_mode;
 	case V4L2_CID_TUNE_PREEMPHASIS:
-		return tune_preemphasis;
+		return tune_emphasis;
+	case V4L2_CID_TUNE_DEEMPHASIS:
+		return tune_emphasis;
 	case V4L2_CID_FLASH_LED_MODE:
 		return flash_led_mode;
 	case V4L2_CID_FLASH_STROBE_SOURCE:
@@ -695,6 +698,7 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_MPEG_VIDEO_DEC_PTS:			return "Video Decoder PTS";
 	case V4L2_CID_MPEG_VIDEO_DEC_FRAME:			return "Video Decoder Frame Count";
 	case V4L2_CID_MPEG_VIDEO_VBV_DELAY:			return "Initial Delay for VBV Control";
+	case V4L2_CID_MPEG_VIDEO_REPEAT_SEQ_HEADER:		return "Repeat Sequence Header";
 
 	/* CAMERA controls */
 	/* Keep the order of the 'case's the same as in videodev2.h! */
@@ -799,6 +803,9 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_DV_RX_POWER_PRESENT:	return "Power Present";
 	case V4L2_CID_DV_RX_RGB_RANGE:		return "Rx RGB Quantization Range";
 
+	case V4L2_CID_FM_RX_CLASS:		return "FM Radio Receiver Controls";
+	case V4L2_CID_TUNE_DEEMPHASIS:		return "De-Emphasis";
+	case V4L2_CID_RDS_RECEPTION:		return "RDS Reception";
 	default:
 		return NULL;
 	}
@@ -844,8 +851,10 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 	case V4L2_CID_MPEG_VIDEO_H264_8X8_TRANSFORM:
 	case V4L2_CID_MPEG_VIDEO_H264_VUI_SAR_ENABLE:
 	case V4L2_CID_MPEG_VIDEO_MPEG4_QPEL:
+	case V4L2_CID_MPEG_VIDEO_REPEAT_SEQ_HEADER:
 	case V4L2_CID_WIDE_DYNAMIC_RANGE:
 	case V4L2_CID_IMAGE_STABILIZATION:
+	case V4L2_CID_RDS_RECEPTION:
 		*type = V4L2_CTRL_TYPE_BOOLEAN;
 		*min = 0;
 		*max = *step = 1;
@@ -904,6 +913,7 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 	case V4L2_CID_DV_TX_RGB_RANGE:
 	case V4L2_CID_DV_RX_RGB_RANGE:
 	case V4L2_CID_TEST_PATTERN:
+	case V4L2_CID_TUNE_DEEMPHASIS:
 		*type = V4L2_CTRL_TYPE_MENU;
 		break;
 	case V4L2_CID_LINK_FREQ:
@@ -926,6 +936,7 @@ void v4l2_ctrl_fill(u32 id, const char **name, enum v4l2_ctrl_type *type,
 	case V4L2_CID_IMAGE_SOURCE_CLASS:
 	case V4L2_CID_IMAGE_PROC_CLASS:
 	case V4L2_CID_DV_CLASS:
+	case V4L2_CID_FM_RX_CLASS:
 		*type = V4L2_CTRL_TYPE_CTRL_CLASS;
 		/* You can neither read not write these */
 		*flags |= V4L2_CTRL_FLAG_READ_ONLY | V4L2_CTRL_FLAG_WRITE_ONLY;
@@ -1362,11 +1373,13 @@ static inline int handler_set_err(struct v4l2_ctrl_handler *hdl, int err)
 }
 
 /* Initialize the handler */
-int v4l2_ctrl_handler_init(struct v4l2_ctrl_handler *hdl,
-			   unsigned nr_of_controls_hint)
+int v4l2_ctrl_handler_init_class(struct v4l2_ctrl_handler *hdl,
+				 unsigned nr_of_controls_hint,
+				 struct lock_class_key *key, const char *name)
 {
 	hdl->lock = &hdl->_lock;
 	mutex_init(hdl->lock);
+	lockdep_set_class_and_name(hdl->lock, key, name);
 	INIT_LIST_HEAD(&hdl->ctrls);
 	INIT_LIST_HEAD(&hdl->ctrl_refs);
 	hdl->nr_of_buckets = 1 + nr_of_controls_hint / 8;
@@ -1375,7 +1388,7 @@ int v4l2_ctrl_handler_init(struct v4l2_ctrl_handler *hdl,
 	hdl->error = hdl->buckets ? 0 : -ENOMEM;
 	return hdl->error;
 }
-EXPORT_SYMBOL(v4l2_ctrl_handler_init);
+EXPORT_SYMBOL(v4l2_ctrl_handler_init_class);
 
 /* Free all controls and control refs */
 void v4l2_ctrl_handler_free(struct v4l2_ctrl_handler *hdl)

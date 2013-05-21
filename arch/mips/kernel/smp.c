@@ -83,6 +83,7 @@ static inline void set_cpu_sibling_map(int cpu)
 }
 
 struct plat_smp_ops *mp_ops;
+EXPORT_SYMBOL(mp_ops);
 
 __cpuinit void register_smp_ops(struct plat_smp_ops *ops)
 {
@@ -139,7 +140,7 @@ asmlinkage __cpuinit void start_secondary(void)
 	WARN_ON_ONCE(!irqs_disabled());
 	mp_ops->smp_finish();
 
-	cpu_idle();
+	cpu_startup_entry(CPUHP_ONLINE);
 }
 
 /*

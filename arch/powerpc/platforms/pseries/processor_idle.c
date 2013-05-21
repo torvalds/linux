@@ -23,8 +23,8 @@
 #include "pseries.h"
 
 struct cpuidle_driver pseries_idle_driver = {
-	.name =		"pseries_idle",
-	.owner =	THIS_MODULE,
+	.name             = "pseries_idle",
+	.owner            = THIS_MODULE,
 };
 
 #define MAX_IDLE_STATE_COUNT	2
@@ -33,10 +33,8 @@ static int max_idle_state = MAX_IDLE_STATE_COUNT - 1;
 static struct cpuidle_device __percpu *pseries_cpuidle_devices;
 static struct cpuidle_state *cpuidle_state_table;
 
-static inline void idle_loop_prolog(unsigned long *in_purr, ktime_t *kt_before)
+static inline void idle_loop_prolog(unsigned long *in_purr)
 {
-
-	*kt_before = ktime_get();
 	*in_purr = mfspr(SPRN_PURR);
 	/*
 	 * Indicate to the HV that we are idle. Now would be
@@ -45,12 +43,10 @@ static inline void idle_loop_prolog(unsigned long *in_purr, ktime_t *kt_before)
 	get_lppaca()->idle = 1;
 }
 
-static inline  s64 idle_loop_epilog(unsigned long in_purr, ktime_t kt_before)
+static inline void idle_loop_epilog(unsigned long in_purr)
 {
 	get_lppaca()->wait_state_cycles += mfspr(SPRN_PURR) - in_purr;
 	get_lppaca()->idle = 0;
-
-	return ktime_to_us(ktime_sub(ktime_get(), kt_before));
 }
 
 static int snooze_loop(struct cpuidle_device *dev,
@@ -58,10 +54,9 @@ static int snooze_loop(struct cpuidle_device *dev,
 			int index)
 {
 	unsigned long in_purr;
-	ktime_t kt_before;
 	int cpu = dev->cpu;
 
-	idle_loop_prolog(&in_purr, &kt_before);
+	idle_loop_prolog(&in_purr);
 	local_irq_enable();
 	set_thread_flag(TIF_POLLING_NRFLAG);
 
@@ -75,8 +70,8 @@ static int snooze_loop(struct cpuidle_device *dev,
 	clear_thread_flag(TIF_POLLING_NRFLAG);
 	smp_mb();
 
-	dev->last_residency =
-		(int)idle_loop_epilog(in_purr, kt_before);
+	idle_loop_epilog(in_purr);
+
 	return index;
 }
 
@@ -102,9 +97,8 @@ static int dedicated_cede_loop(struct cpuidle_device *dev,
 				int index)
 {
 	unsigned long in_purr;
-	ktime_t kt_before;
 
-	idle_loop_prolog(&in_purr, &kt_before);
+	idle_loop_prolog(&in_purr);
 	get_lppaca()->donate_dedicated_cpu = 1;
 
 	ppc64_runlatch_off();
@@ -112,8 +106,9 @@ static int dedicated_cede_loop(struct cpuidle_device *dev,
 	check_and_cede_processor();
 
 	get_lppaca()->donate_dedicated_cpu = 0;
-	dev->last_residency =
-		(int)idle_loop_epilog(in_purr, kt_before);
+
+	idle_loop_epilog(in_purr);
+
 	return index;
 }
 
@@ -122,9 +117,8 @@ static int shared_cede_loop(struct cpuidle_device *dev,
 			int index)
 {
 	unsigned long in_purr;
-	ktime_t kt_before;
 
-	idle_loop_prolog(&in_purr, &kt_before);
+	idle_loop_prolog(&in_purr);
 
 	/*
 	 * Yield the processor to the hypervisor.  We return if
@@ -135,8 +129,8 @@ static int shared_cede_loop(struct cpuidle_device *dev,
 	 */
 	check_and_cede_processor();
 
-	dev->last_residency =
-		(int)idle_loop_epilog(in_purr, kt_before);
+	idle_loop_epilog(in_purr);
+
 	return index;
 }
 

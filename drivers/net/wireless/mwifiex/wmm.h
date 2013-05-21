@@ -85,6 +85,9 @@ mwifiex_wmm_is_ra_list_empty(struct list_head *ra_list_hhead)
 void mwifiex_wmm_add_buf_txqueue(struct mwifiex_private *priv,
 					struct sk_buff *skb);
 void mwifiex_ralist_add(struct mwifiex_private *priv, u8 *ra);
+void mwifiex_rotate_priolists(struct mwifiex_private *priv,
+			      struct mwifiex_ra_list_tbl *ra,
+			      int tid);
 
 int mwifiex_wmm_lists_empty(struct mwifiex_adapter *adapter);
 void mwifiex_wmm_process_tx(struct mwifiex_adapter *adapter);

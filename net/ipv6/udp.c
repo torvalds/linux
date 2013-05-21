@@ -450,15 +450,16 @@ try_again:
 		sin6->sin6_family = AF_INET6;
 		sin6->sin6_port = udp_hdr(skb)->source;
 		sin6->sin6_flowinfo = 0;
-		sin6->sin6_scope_id = 0;
 
-		if (is_udp4)
+		if (is_udp4) {
 			ipv6_addr_set_v4mapped(ip_hdr(skb)->saddr,
 					       &sin6->sin6_addr);
-		else {
+			sin6->sin6_scope_id = 0;
+		} else {
 			sin6->sin6_addr = ipv6_hdr(skb)->saddr;
-			if (ipv6_addr_type(&sin6->sin6_addr) & IPV6_ADDR_LINKLOCAL)
-				sin6->sin6_scope_id = IP6CB(skb)->iif;
+			sin6->sin6_scope_id =
+				ipv6_iface_scope_id(&sin6->sin6_addr,
+						    IP6CB(skb)->iif);
 		}
 
 	}
@@ -482,12 +483,17 @@ out:
 csum_copy_err:
 	slow = lock_sock_fast(sk);
 	if (!skb_kill_datagram(sk, skb, flags)) {
-		if (is_udp4)
+		if (is_udp4) {
+			UDP_INC_STATS_USER(sock_net(sk),
+					UDP_MIB_CSUMERRORS, is_udplite);
 			UDP_INC_STATS_USER(sock_net(sk),
 					UDP_MIB_INERRORS, is_udplite);
-		else
+		} else {
+			UDP6_INC_STATS_USER(sock_net(sk),
+					UDP_MIB_CSUMERRORS, is_udplite);
 			UDP6_INC_STATS_USER(sock_net(sk),
 					UDP_MIB_INERRORS, is_udplite);
+		}
 	}
 	unlock_sock_fast(sk, slow);
 
@@ -636,7 +642,7 @@ int udpv6_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 
 	if (rcu_access_pointer(sk->sk_filter)) {
 		if (udp_lib_checksum_complete(skb))
-			goto drop;
+			goto csum_error;
 	}
 
 	if (sk_rcvqueues_full(sk, skb, sk->sk_rcvbuf))
@@ -655,6 +661,8 @@ int udpv6_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 	bh_unlock_sock(sk);
 
 	return rc;
+csum_error:
+	UDP6_INC_STATS_BH(sock_net(sk), UDP_MIB_CSUMERRORS, is_udplite);
 drop:
 	UDP6_INC_STATS_BH(sock_net(sk), UDP_MIB_INERRORS, is_udplite);
 	atomic_inc(&sk->sk_drops);
@@ -816,7 +824,7 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 	}
 
 	if (udp6_csum_init(skb, uh, proto))
-		goto discard;
+		goto csum_error;
 
 	/*
 	 *	Multicast receive code
@@ -849,7 +857,7 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 		goto discard;
 
 	if (udp_lib_checksum_complete(skb))
-		goto discard;
+		goto csum_error;
 
 	UDP6_INC_STATS_BH(net, UDP_MIB_NOPORTS, proto == IPPROTO_UDPLITE);
 	icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_PORT_UNREACH, 0);
@@ -866,7 +874,9 @@ short_packet:
 		       skb->len,
 		       daddr,
 		       ntohs(uh->dest));
-
+	goto discard;
+csum_error:
+	UDP6_INC_STATS_BH(net, UDP_MIB_CSUMERRORS, proto == IPPROTO_UDPLITE);
 discard:
 	UDP6_INC_STATS_BH(net, UDP_MIB_INERRORS, proto == IPPROTO_UDPLITE);
 	kfree_skb(skb);
@@ -1118,7 +1128,7 @@ do_udp_sendmsg:
 
 		if (addr_len >= sizeof(struct sockaddr_in6) &&
 		    sin6->sin6_scope_id &&
-		    ipv6_addr_type(daddr)&IPV6_ADDR_LINKLOCAL)
+		    __ipv6_addr_needs_scope_id(__ipv6_addr_type(daddr)))
 			fl6.flowi6_oif = sin6->sin6_scope_id;
 	} else {
 		if (sk->sk_state != TCP_ESTABLISHED)
@@ -1422,6 +1432,17 @@ void udp6_proc_exit(struct net *net) {
 }
 #endif /* CONFIG_PROC_FS */
 
+void udp_v6_clear_sk(struct sock *sk, int size)
+{
+	struct inet_sock *inet = inet_sk(sk);
+
+	/* we do not want to clear pinet6 field, because of RCU lookups */
+	sk_prot_clear_portaddr_nulls(sk, offsetof(struct inet_sock, pinet6));
+
+	size -= offsetof(struct inet_sock, pinet6) + sizeof(inet->pinet6);
+	memset(&inet->pinet6 + 1, 0, size);
+}
+
 /* ------------------------------------------------------------------------ */
 
 struct proto udpv6_prot = {
@@ -1452,7 +1473,7 @@ struct proto udpv6_prot = {
 	.compat_setsockopt = compat_udpv6_setsockopt,
 	.compat_getsockopt = compat_udpv6_getsockopt,
 #endif
-	.clear_sk	   = sk_prot_clear_portaddr_nulls,
+	.clear_sk	   = udp_v6_clear_sk,
 };
 
 static struct inet_protosw udpv6_protosw = {

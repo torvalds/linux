@@ -126,13 +126,12 @@
 #define DRBD_RESYNC_RATE_DEF 250
 #define DRBD_RESYNC_RATE_SCALE 'k'  /* kilobytes */
 
-  /* less than 7 would hit performance unnecessarily.
-   * 919 slots context information per transaction,
-   * 32k activity log, 4k transaction size,
-   * one transaction in flight:
-   * 919 * 7 = 6433 */
+  /* less than 7 would hit performance unnecessarily. */
 #define DRBD_AL_EXTENTS_MIN  7
-#define DRBD_AL_EXTENTS_MAX  6433
+  /* we use u16 as "slot number", (u16)~0 is "FREE".
+   * If you use >= 292 kB on-disk ring buffer,
+   * this is the maximum you can use: */
+#define DRBD_AL_EXTENTS_MAX  0xfffe
 #define DRBD_AL_EXTENTS_DEF  1237
 #define DRBD_AL_EXTENTS_SCALE '1'
 

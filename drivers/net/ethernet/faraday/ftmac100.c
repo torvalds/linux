@@ -732,12 +732,12 @@ static int ftmac100_alloc_buffers(struct ftmac100 *priv)
 {
 	int i;
 
-	priv->descs = dma_alloc_coherent(priv->dev, sizeof(struct ftmac100_descs),
-					 &priv->descs_dma_addr, GFP_KERNEL);
+	priv->descs = dma_alloc_coherent(priv->dev,
+					 sizeof(struct ftmac100_descs),
+					 &priv->descs_dma_addr,
+					 GFP_KERNEL | __GFP_ZERO);
 	if (!priv->descs)
 		return -ENOMEM;
-
-	memset(priv->descs, 0, sizeof(struct ftmac100_descs));
 
 	/* initialize RX ring */
 	ftmac100_rxdes_set_end_of_ring(&priv->descs->rxdes[RX_QUEUE_ENTRIES - 1]);

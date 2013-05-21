@@ -158,11 +158,10 @@ static int maple_cpufreq_target(struct cpufreq_policy *policy,
 
 	freqs.old = maple_cpu_freqs[maple_pmode_cur].frequency;
 	freqs.new = maple_cpu_freqs[newstate].frequency;
-	freqs.cpu = 0;
 
-	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 	rc = maple_scom_switch_freq(newstate);
-	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
 	mutex_unlock(&maple_switch_mutex);
 

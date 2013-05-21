@@ -731,7 +731,8 @@ static bool ar9285_hw_cl_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 		if (!ath9k_hw_wait(ah, AR_PHY_AGC_CONTROL,
 				  AR_PHY_AGC_CONTROL_CAL, 0, AH_WAIT_TIMEOUT)) {
 			ath_dbg(common, CALIBRATE,
-				"offset calibration failed to complete in 1ms; noisy environment?\n");
+				"offset calibration failed to complete in %d ms; noisy environment?\n",
+				AH_WAIT_TIMEOUT / 1000);
 			return false;
 		}
 		REG_CLR_BIT(ah, AR_PHY_TURBO, AR_PHY_FC_DYN2040_EN);
@@ -745,7 +746,8 @@ static bool ar9285_hw_cl_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 	if (!ath9k_hw_wait(ah, AR_PHY_AGC_CONTROL, AR_PHY_AGC_CONTROL_CAL,
 			  0, AH_WAIT_TIMEOUT)) {
 		ath_dbg(common, CALIBRATE,
-			"offset calibration failed to complete in 1ms; noisy environment?\n");
+			"offset calibration failed to complete in %d ms; noisy environment?\n",
+			AH_WAIT_TIMEOUT / 1000);
 		return false;
 	}
 
@@ -841,7 +843,8 @@ static bool ar9002_hw_init_cal(struct ath_hw *ah, struct ath9k_channel *chan)
 				   AR_PHY_AGC_CONTROL_CAL,
 				   0, AH_WAIT_TIMEOUT)) {
 			ath_dbg(common, CALIBRATE,
-				"offset calibration failed to complete in 1ms; noisy environment?\n");
+				"offset calibration failed to complete in %d ms; noisy environment?\n",
+				AH_WAIT_TIMEOUT / 1000);
 			return false;
 		}
 

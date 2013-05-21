@@ -31,6 +31,7 @@
 #include "xfs_vnodeops.h"
 #include "xfs_trace.h"
 #include "xfs_bmap.h"
+#include <linux/aio.h>
 #include <linux/gfp.h>
 #include <linux/mpage.h>
 #include <linux/pagevec.h>
@@ -953,13 +954,13 @@ xfs_vm_writepage(
 		unsigned offset_into_page = offset & (PAGE_CACHE_SIZE - 1);
 
 		/*
-		 * Just skip the page if it is fully outside i_size, e.g. due
-		 * to a truncate operation that is in progress.
+		 * Skip the page if it is fully outside i_size, e.g. due to a
+		 * truncate operation that is in progress. We must redirty the
+		 * page so that reclaim stops reclaiming it. Otherwise
+		 * xfs_vm_releasepage() is called on it and gets confused.
 		 */
-		if (page->index >= end_index + 1 || offset_into_page == 0) {
-			unlock_page(page);
-			return 0;
-		}
+		if (page->index >= end_index + 1 || offset_into_page == 0)
+			goto redirty;
 
 		/*
 		 * The page straddles i_size.  It must be zeroed out on each

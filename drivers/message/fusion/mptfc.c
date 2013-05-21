@@ -109,7 +109,7 @@ static int mptfc_host_reset(struct scsi_cmnd *SCpnt);
 static struct scsi_host_template mptfc_driver_template = {
 	.module				= THIS_MODULE,
 	.proc_name			= "mptfc",
-	.proc_info			= mptscsih_proc_info,
+	.show_info			= mptscsih_show_info,
 	.name				= "MPT FC Host",
 	.info				= mptscsih_info,
 	.queuecommand			= mptfc_qcmd,

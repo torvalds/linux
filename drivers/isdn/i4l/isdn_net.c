@@ -1385,7 +1385,7 @@ isdn_net_type_trans(struct sk_buff *skb, struct net_device *dev)
 		if (memcmp(eth->h_dest, dev->dev_addr, ETH_ALEN))
 			skb->pkt_type = PACKET_OTHERHOST;
 	}
-	if (ntohs(eth->h_proto) >= 1536)
+	if (ntohs(eth->h_proto) >= ETH_P_802_3_MIN)
 		return eth->h_proto;
 
 	rawp = skb->data;

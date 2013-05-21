@@ -38,6 +38,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
  * Author: James Morris <jmorris@intercode.com.au>
+ *
+ * Copyright (c) 2006-2010 Patrick McHardy <kaber@trash.net>
  */
 #include <linux/module.h>
 #include <linux/moduleparam.h>

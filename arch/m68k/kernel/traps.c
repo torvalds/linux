@@ -992,18 +992,6 @@ void show_stack(struct task_struct *task, unsigned long *stack)
 }
 
 /*
- * The architecture-independent backtrace generator
- */
-void dump_stack(void)
-{
-	unsigned long stack;
-
-	show_trace(&stack);
-}
-
-EXPORT_SYMBOL(dump_stack);
-
-/*
  * The vector number returned in the frame pointer may also contain
  * the "fs" (Fault Status) bits on ColdFire. These are in the bottom
  * 2 bits, and upper 2 bits. So we need to mask out the real vector

@@ -218,7 +218,7 @@ static u64 mmc1_dma_mask = DMA_BIT_MASK(32);
 
 static struct platform_device mmc_devices[2] = {
 	{
-		.name		= "davinci_mmc",
+		.name		= "dm6441-mmc",
 		.id		= 0,
 		.dev		= {
 			.dma_mask		= &mmc0_dma_mask,
@@ -228,7 +228,7 @@ static struct platform_device mmc_devices[2] = {
 		.resource	= mmc0_resources
 	},
 	{
-		.name		= "davinci_mmc",
+		.name		= "dm6441-mmc",
 		.id		= 1,
 		.dev		= {
 			.dma_mask		= &mmc1_dma_mask,

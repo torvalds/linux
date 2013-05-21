@@ -342,6 +342,7 @@ static void vio_remove(struct mdesc_handle *hp, u64 node)
 		printk(KERN_INFO "VIO: Removing device %s\n", dev_name(dev));
 
 		device_unregister(dev);
+		put_device(dev);
 	}
 }
 

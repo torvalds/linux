@@ -156,6 +156,37 @@ static int af9033_rd_reg_mask(struct af9033_state *state, u32 reg, u8 *val,
 	return 0;
 }
 
+/* write reg val table using reg addr auto increment */
+static int af9033_wr_reg_val_tab(struct af9033_state *state,
+		const struct reg_val *tab, int tab_len)
+{
+	int ret, i, j;
+	u8 buf[tab_len];
+
+	dev_dbg(&state->i2c->dev, "%s: tab_len=%d\n", __func__, tab_len);
+
+	for (i = 0, j = 0; i < tab_len; i++) {
+		buf[j] = tab[i].val;
+
+		if (i == tab_len - 1 || tab[i].reg != tab[i + 1].reg - 1) {
+			ret = af9033_wr_regs(state, tab[i].reg - j, buf, j + 1);
+			if (ret < 0)
+				goto err;
+
+			j = 0;
+		} else {
+			j++;
+		}
+	}
+
+	return 0;
+
+err:
+	dev_dbg(&state->i2c->dev, "%s: failed=%d\n", __func__, ret);
+
+	return ret;
+}
+
 static u32 af9033_div(struct af9033_state *state, u32 a, u32 b, u32 x)
 {
 	u32 r = 0, c = 0, i;
@@ -223,6 +254,7 @@ static int af9033_init(struct dvb_frontend *fe)
 		{ 0x80f986, state->ts_mode_parallel, 0x01 },
 		{ 0x00d827, 0x00, 0xff },
 		{ 0x00d829, 0x00, 0xff },
+		{ 0x800045, state->cfg.adc_multiplier, 0xff },
 	};
 
 	/* program clock control */
@@ -286,13 +318,28 @@ static int af9033_init(struct dvb_frontend *fe)
 
 	/* load OFSM settings */
 	dev_dbg(&state->i2c->dev, "%s: load ofsm settings\n", __func__);
-	len = ARRAY_SIZE(ofsm_init);
-	init = ofsm_init;
-	for (i = 0; i < len; i++) {
-		ret = af9033_wr_reg(state, init[i].reg, init[i].val);
-		if (ret < 0)
-			goto err;
+	switch (state->cfg.tuner) {
+	case AF9033_TUNER_IT9135_38:
+	case AF9033_TUNER_IT9135_51:
+	case AF9033_TUNER_IT9135_52:
+		len = ARRAY_SIZE(ofsm_init_it9135_v1);
+		init = ofsm_init_it9135_v1;
+		break;
+	case AF9033_TUNER_IT9135_60:
+	case AF9033_TUNER_IT9135_61:
+	case AF9033_TUNER_IT9135_62:
+		len = ARRAY_SIZE(ofsm_init_it9135_v2);
+		init = ofsm_init_it9135_v2;
+		break;
+	default:
+		len = ARRAY_SIZE(ofsm_init);
+		init = ofsm_init;
+		break;
 	}
+
+	ret = af9033_wr_reg_val_tab(state, init, len);
+	if (ret < 0)
+		goto err;
 
 	/* load tuner specific settings */
 	dev_dbg(&state->i2c->dev, "%s: load tuner specific settings\n",
@@ -322,6 +369,30 @@ static int af9033_init(struct dvb_frontend *fe)
 		len = ARRAY_SIZE(tuner_init_fc0012);
 		init = tuner_init_fc0012;
 		break;
+	case AF9033_TUNER_IT9135_38:
+		len = ARRAY_SIZE(tuner_init_it9135_38);
+		init = tuner_init_it9135_38;
+		break;
+	case AF9033_TUNER_IT9135_51:
+		len = ARRAY_SIZE(tuner_init_it9135_51);
+		init = tuner_init_it9135_51;
+		break;
+	case AF9033_TUNER_IT9135_52:
+		len = ARRAY_SIZE(tuner_init_it9135_52);
+		init = tuner_init_it9135_52;
+		break;
+	case AF9033_TUNER_IT9135_60:
+		len = ARRAY_SIZE(tuner_init_it9135_60);
+		init = tuner_init_it9135_60;
+		break;
+	case AF9033_TUNER_IT9135_61:
+		len = ARRAY_SIZE(tuner_init_it9135_61);
+		init = tuner_init_it9135_61;
+		break;
+	case AF9033_TUNER_IT9135_62:
+		len = ARRAY_SIZE(tuner_init_it9135_62);
+		init = tuner_init_it9135_62;
+		break;
 	default:
 		dev_dbg(&state->i2c->dev, "%s: unsupported tuner ID=%d\n",
 				__func__, state->cfg.tuner);
@@ -329,11 +400,9 @@ static int af9033_init(struct dvb_frontend *fe)
 		goto err;
 	}
 
-	for (i = 0; i < len; i++) {
-		ret = af9033_wr_reg(state, init[i].reg, init[i].val);
-		if (ret < 0)
-			goto err;
-	}
+	ret = af9033_wr_reg_val_tab(state, init, len);
+	if (ret < 0)
+		goto err;
 
 	if (state->cfg.ts_mode == AF9033_TS_MODE_SERIAL) {
 		ret = af9033_wr_reg_mask(state, 0x00d91c, 0x01, 0x01);
@@ -345,6 +414,15 @@ static int af9033_init(struct dvb_frontend *fe)
 			goto err;
 
 		ret = af9033_wr_reg_mask(state, 0x00d916, 0x00, 0x01);
+		if (ret < 0)
+			goto err;
+	}
+
+	switch (state->cfg.tuner) {
+	case AF9033_TUNER_IT9135_60:
+	case AF9033_TUNER_IT9135_61:
+	case AF9033_TUNER_IT9135_62:
+		ret = af9033_wr_reg(state, 0x800000, 0x01);
 		if (ret < 0)
 			goto err;
 	}
@@ -415,7 +493,8 @@ err:
 static int af9033_get_tune_settings(struct dvb_frontend *fe,
 		struct dvb_frontend_tune_settings *fesettings)
 {
-	fesettings->min_delay_ms = 800;
+	/* 800 => 2000 because IT9135 v2 is slow to gain lock */
+	fesettings->min_delay_ms = 2000;
 	fesettings->step_size = 0;
 	fesettings->max_drift = 0;
 
@@ -498,17 +577,17 @@ static int af9033_set_frontend(struct dvb_frontend *fe)
 		if (spec_inv == -1)
 			freq_cw = 0x800000 - freq_cw;
 
-		/* get adc multiplies */
-		ret = af9033_rd_reg(state, 0x800045, &tmp);
-		if (ret < 0)
-			goto err;
-
-		if (tmp == 1)
+		if (state->cfg.adc_multiplier == AF9033_ADC_MULTIPLIER_2X)
 			freq_cw /= 2;
 
 		buf[0] = (freq_cw >>  0) & 0xff;
 		buf[1] = (freq_cw >>  8) & 0xff;
 		buf[2] = (freq_cw >> 16) & 0x7f;
+
+		/* FIXME: there seems to be calculation error here... */
+		if (if_frequency == 0)
+			buf[2] = 0;
+
 		ret = af9033_wr_regs(state, 0x800029, buf, 3);
 		if (ret < 0)
 			goto err;
@@ -934,13 +1013,24 @@ struct dvb_frontend *af9033_attach(const struct af9033_config *config,
 			buf[2], buf[3], buf[4], buf[5], buf[6], buf[7]);
 
 	/* sleep */
-	ret = af9033_wr_reg(state, 0x80004c, 1);
-	if (ret < 0)
-		goto err;
+	switch (state->cfg.tuner) {
+	case AF9033_TUNER_IT9135_38:
+	case AF9033_TUNER_IT9135_51:
+	case AF9033_TUNER_IT9135_52:
+	case AF9033_TUNER_IT9135_60:
+	case AF9033_TUNER_IT9135_61:
+	case AF9033_TUNER_IT9135_62:
+		/* IT9135 did not like to sleep at that early */
+		break;
+	default:
+		ret = af9033_wr_reg(state, 0x80004c, 1);
+		if (ret < 0)
+			goto err;
 
-	ret = af9033_wr_reg(state, 0x800000, 0);
-	if (ret < 0)
-		goto err;
+		ret = af9033_wr_reg(state, 0x800000, 0);
+		if (ret < 0)
+			goto err;
+	}
 
 	/* configure internal TS mode */
 	switch (state->cfg.ts_mode) {

@@ -248,19 +248,7 @@ static struct platform_driver ab3100_otp_driver = {
 	.remove	 = __exit_p(ab3100_otp_remove),
 };
 
-static int __init ab3100_otp_init(void)
-{
-	return platform_driver_probe(&ab3100_otp_driver,
-				     ab3100_otp_probe);
-}
-
-static void __exit ab3100_otp_exit(void)
-{
-	platform_driver_unregister(&ab3100_otp_driver);
-}
-
-module_init(ab3100_otp_init);
-module_exit(ab3100_otp_exit);
+module_platform_driver_probe(ab3100_otp_driver, ab3100_otp_probe);
 
 MODULE_AUTHOR("Linus Walleij <linus.walleij@stericsson.com>");
 MODULE_DESCRIPTION("AB3100 OTP Readout Driver");

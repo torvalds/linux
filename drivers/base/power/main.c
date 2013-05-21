@@ -756,7 +756,7 @@ static void device_complete(struct device *dev, pm_message_t state)
 
 	device_unlock(dev);
 
-	pm_runtime_put_sync(dev);
+	pm_runtime_put(dev);
 }
 
 /**

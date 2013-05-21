@@ -37,7 +37,6 @@
 #include <mach/regs-clock.h>
 #include <plat/regs-serial.h>
 
-#include <plat/s3c2410.h>
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/clock.h>

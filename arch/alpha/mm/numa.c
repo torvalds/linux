@@ -17,6 +17,7 @@
 
 #include <asm/hwrpb.h>
 #include <asm/pgalloc.h>
+#include <asm/sections.h>
 
 pg_data_t node_data[MAX_NUMNODES];
 EXPORT_SYMBOL(node_data);
@@ -325,8 +326,6 @@ void __init mem_init(void)
 {
 	unsigned long codesize, reservedpages, datasize, initsize, pfn;
 	extern int page_is_ram(unsigned long) __init;
-	extern char _text, _etext, _data, _edata;
-	extern char __init_begin, __init_end;
 	unsigned long nid, i;
 	high_memory = (void *) __va(max_low_pfn << PAGE_SHIFT);
 

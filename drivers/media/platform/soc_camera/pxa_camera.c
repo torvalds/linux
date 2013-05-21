@@ -15,6 +15,7 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
+#include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/interrupt.h>
@@ -1710,9 +1711,10 @@ static int pxa_camera_probe(struct platform_device *pdev)
 	/*
 	 * Request the regions.
 	 */
-	base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!base)
-		return -ENOMEM;
+	base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
+
 	pcdev->irq = irq;
 	pcdev->base = base;
 
@@ -1794,13 +1796,13 @@ static int pxa_camera_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct dev_pm_ops pxa_camera_pm = {
+static const struct dev_pm_ops pxa_camera_pm = {
 	.suspend	= pxa_camera_suspend,
 	.resume		= pxa_camera_resume,
 };
 
 static struct platform_driver pxa_camera_driver = {
-	.driver 	= {
+	.driver		= {
 		.name	= PXA_CAM_DRV_NAME,
 		.pm	= &pxa_camera_pm,
 	},

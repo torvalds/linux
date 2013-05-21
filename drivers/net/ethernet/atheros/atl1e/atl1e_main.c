@@ -315,7 +315,7 @@ static void atl1e_set_multi(struct net_device *netdev)
 
 static void __atl1e_vlan_mode(netdev_features_t features, u32 *mac_ctrl_data)
 {
-	if (features & NETIF_F_HW_VLAN_RX) {
+	if (features & NETIF_F_HW_VLAN_CTAG_RX) {
 		/* enable VLAN tag insert/strip */
 		*mac_ctrl_data |= MAC_CTRL_RMV_VLAN;
 	} else {
@@ -378,10 +378,10 @@ static netdev_features_t atl1e_fix_features(struct net_device *netdev,
 	 * Since there is no support for separate rx/tx vlan accel
 	 * enable/disable make sure tx flag is always in same state as rx.
 	 */
-	if (features & NETIF_F_HW_VLAN_RX)
-		features |= NETIF_F_HW_VLAN_TX;
+	if (features & NETIF_F_HW_VLAN_CTAG_RX)
+		features |= NETIF_F_HW_VLAN_CTAG_TX;
 	else
-		features &= ~NETIF_F_HW_VLAN_TX;
+		features &= ~NETIF_F_HW_VLAN_CTAG_TX;
 
 	return features;
 }
@@ -391,7 +391,7 @@ static int atl1e_set_features(struct net_device *netdev,
 {
 	netdev_features_t changed = netdev->features ^ features;
 
-	if (changed & NETIF_F_HW_VLAN_RX)
+	if (changed & NETIF_F_HW_VLAN_CTAG_RX)
 		atl1e_vlan_mode(netdev, features);
 
 	return 0;
@@ -1420,11 +1420,9 @@ static void atl1e_clean_rx_irq(struct atl1e_adapter *adapter, u8 que,
 			packet_size = ((prrs->word1 >> RRS_PKT_SIZE_SHIFT) &
 					RRS_PKT_SIZE_MASK) - 4; /* CRC */
 			skb = netdev_alloc_skb_ip_align(netdev, packet_size);
-			if (skb == NULL) {
-				netdev_warn(netdev,
-					    "Memory squeeze, deferring packet\n");
+			if (skb == NULL)
 				goto skip_pkt;
-			}
+
 			memcpy(skb->data, (u8 *)(prrs + 1), packet_size);
 			skb_put(skb, packet_size);
 			skb->protocol = eth_type_trans(skb, netdev);
@@ -1437,7 +1435,7 @@ static void atl1e_clean_rx_irq(struct atl1e_adapter *adapter, u8 que,
 				netdev_dbg(netdev,
 					   "RXD VLAN TAG<RRD>=0x%04x\n",
 					   prrs->vtag);
-				__vlan_hwaccel_put_tag(skb, vlan_tag);
+				__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan_tag);
 			}
 			netif_receive_skb(skb);
 
@@ -1849,34 +1847,19 @@ static void atl1e_free_irq(struct atl1e_adapter *adapter)
 	struct net_device *netdev = adapter->netdev;
 
 	free_irq(adapter->pdev->irq, netdev);
-
-	if (adapter->have_msi)
-		pci_disable_msi(adapter->pdev);
 }
 
 static int atl1e_request_irq(struct atl1e_adapter *adapter)
 {
 	struct pci_dev    *pdev   = adapter->pdev;
 	struct net_device *netdev = adapter->netdev;
-	int flags = 0;
 	int err = 0;
 
-	adapter->have_msi = true;
-	err = pci_enable_msi(pdev);
-	if (err) {
-		netdev_dbg(netdev,
-			   "Unable to allocate MSI interrupt Error: %d\n", err);
-		adapter->have_msi = false;
-	}
-
-	if (!adapter->have_msi)
-		flags |= IRQF_SHARED;
-	err = request_irq(pdev->irq, atl1e_intr, flags, netdev->name, netdev);
+	err = request_irq(pdev->irq, atl1e_intr, IRQF_SHARED, netdev->name,
+			  netdev);
 	if (err) {
 		netdev_dbg(adapter->netdev,
 			   "Unable to allocate interrupt Error: %d\n", err);
-		if (adapter->have_msi)
-			pci_disable_msi(pdev);
 		return err;
 	}
 	netdev_dbg(netdev, "atl1e_request_irq OK\n");
@@ -2215,9 +2198,9 @@ static int atl1e_init_netdev(struct net_device *netdev, struct pci_dev *pdev)
 	atl1e_set_ethtool_ops(netdev);
 
 	netdev->hw_features = NETIF_F_SG | NETIF_F_HW_CSUM | NETIF_F_TSO |
-			      NETIF_F_HW_VLAN_RX;
+			      NETIF_F_HW_VLAN_CTAG_RX;
 	netdev->features = netdev->hw_features | NETIF_F_LLTX |
-			   NETIF_F_HW_VLAN_TX;
+			   NETIF_F_HW_VLAN_CTAG_TX;
 
 	return 0;
 }
@@ -2344,6 +2327,7 @@ static int atl1e_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	INIT_WORK(&adapter->reset_task, atl1e_reset_task);
 	INIT_WORK(&adapter->link_chg_task, atl1e_link_chg_task);
+	netif_set_gso_max_size(netdev, MAX_TSO_SEG_SIZE);
 	err = register_netdev(netdev);
 	if (err) {
 		netdev_err(netdev, "register netdevice failed\n");

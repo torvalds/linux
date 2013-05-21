@@ -19,7 +19,6 @@
 #include <asm/setup.h>
 #include <asm/page.h>
 #include <asm/hwtest.h>
-#include <linux/proc_fs.h>
 #include <asm/mac_via.h>
 #include <asm/mac_oss.h>
 
@@ -954,56 +953,6 @@ void __init nubus_probe_slot(int slot)
 	}
 }
 
-#if defined(CONFIG_PROC_FS)
-
-/* /proc/nubus stuff */
-
-static int sprint_nubus_board(struct nubus_board* board, char* ptr, int len)
-{
-	if(len < 100)
-		return -1;
-	
-	sprintf(ptr, "Slot %X: %s\n",
-		board->slot, board->name);
-	
-	return strlen(ptr);
-}
-
-static int nubus_read_proc(char *page, char **start, off_t off,
-				int count, int *eof, void *data)
-{
-	int nprinted, len, begin = 0;
-	int size = PAGE_SIZE;
-	struct nubus_board* board;
-	
-	len   = sprintf(page, "Nubus devices found:\n");
-	/* Walk the list of NuBus boards */
-	for (board = nubus_boards; board != NULL; board = board->next)
-	{
-		nprinted = sprint_nubus_board(board, page + len, size - len);
-		if (nprinted < 0)
-			break;
-		len += nprinted;
-		if (len+begin < off) {
-			begin += len;
-			len = 0;
-		}
-		if (len+begin >= off+count)
-			break;
-	}
-	if (len+begin < off)
-		*eof = 1;
-	off -= begin;
-	*start = page + off;
-	len -= off;
-	if (len>count)
-		len = count;
-	if (len<0)
-		len = 0;
-	return len;
-}
-#endif
-
 void __init nubus_scan_bus(void)
 {
 	int slot;
@@ -1041,11 +990,7 @@ static int __init nubus_init(void)
 	nubus_devices = NULL;
 	nubus_boards  = NULL;
 	nubus_scan_bus();
-
-#ifdef CONFIG_PROC_FS
-	create_proc_read_entry("nubus", 0, NULL, nubus_read_proc, NULL);
 	nubus_proc_init();
-#endif
 	return 0;
 }
 

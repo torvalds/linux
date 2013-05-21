@@ -16,8 +16,6 @@
 #include <linux/device.h>
 #include <linux/hid.h>
 #include <linux/module.h>
-#include <linux/usb.h>
-#include "usbhid/usbhid.h"
 
 #include "hid-ids.h"
 
@@ -361,7 +359,7 @@ static int kye_tablet_enable(struct hid_device *hdev)
 	value[4] = 0x00;
 	value[5] = 0x00;
 	value[6] = 0x00;
-	usbhid_submit_report(hdev, report, USB_DIR_OUT);
+	hid_hw_request(hdev, report, HID_REQ_SET_REPORT);
 
 	return 0;
 }

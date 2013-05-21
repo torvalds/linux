@@ -236,7 +236,7 @@ static int create_power_saving_task(void)
 	ps_tsks[ps_tsk_num] = kthread_run(power_saving_thread,
 		(void *)(unsigned long)ps_tsk_num,
 		"acpi_pad/%d", ps_tsk_num);
-	rc = IS_ERR(ps_tsks[ps_tsk_num]) ? PTR_ERR(ps_tsks[ps_tsk_num]) : 0;
+	rc = PTR_RET(ps_tsks[ps_tsk_num]);
 	if (!rc)
 		ps_tsk_num++;
 	else

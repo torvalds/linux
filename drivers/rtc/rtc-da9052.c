@@ -247,7 +247,7 @@ static int da9052_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	rtc->rtc = rtc_device_register(pdev->name, &pdev->dev,
+	rtc->rtc = devm_rtc_device_register(&pdev->dev, pdev->name,
 				       &da9052_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc->rtc))
 		return PTR_ERR(rtc->rtc);
@@ -257,9 +257,6 @@ static int da9052_rtc_probe(struct platform_device *pdev)
 
 static int da9052_rtc_remove(struct platform_device *pdev)
 {
-	struct da9052_rtc *rtc = pdev->dev.platform_data;
-
-	rtc_device_unregister(rtc->rtc);
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;

@@ -152,15 +152,6 @@ void acpi_penalize_isa_irq(int irq, int active);
 
 void acpi_pci_irq_disable (struct pci_dev *dev);
 
-struct acpi_pci_driver {
-	struct list_head node;
-	int (*add)(struct acpi_pci_root *root);
-	void (*remove)(struct acpi_pci_root *root);
-};
-
-int acpi_pci_register_driver(struct acpi_pci_driver *driver);
-void acpi_pci_unregister_driver(struct acpi_pci_driver *driver);
-
 extern int ec_read(u8 addr, u8 *val);
 extern int ec_write(u8 addr, u8 val);
 extern int ec_transaction(u8 command,
@@ -204,7 +195,7 @@ extern bool wmi_has_guid(const char *guid);
 #if defined(CONFIG_ACPI_VIDEO) || defined(CONFIG_ACPI_VIDEO_MODULE)
 
 extern long acpi_video_get_capabilities(acpi_handle graphics_dev_handle);
-extern long acpi_is_video_device(struct acpi_device *device);
+extern long acpi_is_video_device(acpi_handle handle);
 extern void acpi_video_dmi_promote_vendor(void);
 extern void acpi_video_dmi_demote_vendor(void);
 extern int acpi_video_backlight_support(void);
@@ -217,7 +208,7 @@ static inline long acpi_video_get_capabilities(acpi_handle graphics_dev_handle)
 	return 0;
 }
 
-static inline long acpi_is_video_device(struct acpi_device *device)
+static inline long acpi_is_video_device(acpi_handle handle)
 {
 	return 0;
 }

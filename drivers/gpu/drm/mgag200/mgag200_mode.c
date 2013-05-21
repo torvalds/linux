@@ -46,29 +46,26 @@ static void mga_crtc_load_lut(struct drm_crtc *crtc)
 
 static inline void mga_wait_vsync(struct mga_device *mdev)
 {
-	unsigned int count = 0;
+	unsigned long timeout = jiffies + HZ/10;
 	unsigned int status = 0;
 
 	do {
 		status = RREG32(MGAREG_Status);
-		count++;
-	} while ((status & 0x08) && (count < 250000));
-	count = 0;
+	} while ((status & 0x08) && time_before(jiffies, timeout));
+	timeout = jiffies + HZ/10;
 	status = 0;
 	do {
 		status = RREG32(MGAREG_Status);
-		count++;
-	} while (!(status & 0x08) && (count < 250000));
+	} while (!(status & 0x08) && time_before(jiffies, timeout));
 }
 
 static inline void mga_wait_busy(struct mga_device *mdev)
 {
-	unsigned int count = 0;
+	unsigned long timeout = jiffies + HZ;
 	unsigned int status = 0;
 	do {
 		status = RREG8(MGAREG_Status + 2);
-		count++;
-	} while ((status & 0x01) && (count < 500000));
+	} while ((status & 0x01) && time_before(jiffies, timeout));
 }
 
 /*
@@ -189,12 +186,12 @@ static int mga_g200wb_set_plls(struct mga_device *mdev, long clock)
 		WREG8(DAC_INDEX, MGA1064_PIX_CLK_CTL);
 		tmp = RREG8(DAC_DATA);
 		tmp |= MGA1064_PIX_CLK_CTL_CLK_DIS;
-		WREG_DAC(MGA1064_PIX_CLK_CTL_CLK_DIS, tmp);
+		WREG8(DAC_DATA, tmp);
 
 		WREG8(DAC_INDEX, MGA1064_REMHEADCTL);
 		tmp = RREG8(DAC_DATA);
 		tmp |= MGA1064_REMHEADCTL_CLKDIS;
-		WREG_DAC(MGA1064_REMHEADCTL, tmp);
+		WREG8(DAC_DATA, tmp);
 
 		/* select PLL Set C */
 		tmp = RREG8(MGAREG_MEM_MISC_READ);
@@ -204,7 +201,7 @@ static int mga_g200wb_set_plls(struct mga_device *mdev, long clock)
 		WREG8(DAC_INDEX, MGA1064_PIX_CLK_CTL);
 		tmp = RREG8(DAC_DATA);
 		tmp |= MGA1064_PIX_CLK_CTL_CLK_POW_DOWN | 0x80;
-		WREG_DAC(MGA1064_PIX_CLK_CTL, tmp);
+		WREG8(DAC_DATA, tmp);
 
 		udelay(500);
 
@@ -212,7 +209,7 @@ static int mga_g200wb_set_plls(struct mga_device *mdev, long clock)
 		WREG8(DAC_INDEX, MGA1064_VREF_CTL);
 		tmp = RREG8(DAC_DATA);
 		tmp &= ~0x04;
-		WREG_DAC(MGA1064_VREF_CTL, tmp);
+		WREG8(DAC_DATA, tmp);
 
 		udelay(50);
 
@@ -236,13 +233,13 @@ static int mga_g200wb_set_plls(struct mga_device *mdev, long clock)
 		tmp = RREG8(DAC_DATA);
 		tmp &= ~MGA1064_PIX_CLK_CTL_SEL_MSK;
 		tmp |= MGA1064_PIX_CLK_CTL_SEL_PLL;
-		WREG_DAC(MGA1064_PIX_CLK_CTL, tmp);
+		WREG8(DAC_DATA, tmp);
 
 		WREG8(DAC_INDEX, MGA1064_REMHEADCTL);
 		tmp = RREG8(DAC_DATA);
 		tmp &= ~MGA1064_REMHEADCTL_CLKSL_MSK;
 		tmp |= MGA1064_REMHEADCTL_CLKSL_PLL;
-		WREG_DAC(MGA1064_REMHEADCTL, tmp);
+		WREG8(DAC_DATA, tmp);
 
 		/* reset dotclock rate bit */
 		WREG8(MGAREG_SEQ_INDEX, 1);
@@ -253,7 +250,7 @@ static int mga_g200wb_set_plls(struct mga_device *mdev, long clock)
 		WREG8(DAC_INDEX, MGA1064_PIX_CLK_CTL);
 		tmp = RREG8(DAC_DATA);
 		tmp &= ~MGA1064_PIX_CLK_CTL_CLK_DIS;
-		WREG_DAC(MGA1064_PIX_CLK_CTL, tmp);
+		WREG8(DAC_DATA, tmp);
 
 		vcount = RREG8(MGAREG_VCOUNT);
 
@@ -318,7 +315,7 @@ static int mga_g200ev_set_plls(struct mga_device *mdev, long clock)
 	WREG8(DAC_INDEX, MGA1064_PIX_CLK_CTL);
 	tmp = RREG8(DAC_DATA);
 	tmp |= MGA1064_PIX_CLK_CTL_CLK_DIS;
-	WREG_DAC(MGA1064_PIX_CLK_CTL_CLK_DIS, tmp);
+	WREG8(DAC_DATA, tmp);
 
 	tmp = RREG8(MGAREG_MEM_MISC_READ);
 	tmp |= 0x3 << 2;
@@ -326,12 +323,12 @@ static int mga_g200ev_set_plls(struct mga_device *mdev, long clock)
 
 	WREG8(DAC_INDEX, MGA1064_PIX_PLL_STAT);
 	tmp = RREG8(DAC_DATA);
-	WREG_DAC(MGA1064_PIX_PLL_STAT, tmp & ~0x40);
+	WREG8(DAC_DATA, tmp & ~0x40);
 
 	WREG8(DAC_INDEX, MGA1064_PIX_CLK_CTL);
 	tmp = RREG8(DAC_DATA);
 	tmp |= MGA1064_PIX_CLK_CTL_CLK_POW_DOWN;
-	WREG_DAC(MGA1064_PIX_CLK_CTL, tmp);
+	WREG8(DAC_DATA, tmp);
 
 	WREG_DAC(MGA1064_EV_PIX_PLLC_M, m);
 	WREG_DAC(MGA1064_EV_PIX_PLLC_N, n);
@@ -342,7 +339,7 @@ static int mga_g200ev_set_plls(struct mga_device *mdev, long clock)
 	WREG8(DAC_INDEX, MGA1064_PIX_CLK_CTL);
 	tmp = RREG8(DAC_DATA);
 	tmp &= ~MGA1064_PIX_CLK_CTL_CLK_POW_DOWN;
-	WREG_DAC(MGA1064_PIX_CLK_CTL, tmp);
+	WREG8(DAC_DATA, tmp);
 
 	udelay(500);
 
@@ -350,11 +347,11 @@ static int mga_g200ev_set_plls(struct mga_device *mdev, long clock)
 	tmp = RREG8(DAC_DATA);
 	tmp &= ~MGA1064_PIX_CLK_CTL_SEL_MSK;
 	tmp |= MGA1064_PIX_CLK_CTL_SEL_PLL;
-	WREG_DAC(MGA1064_PIX_CLK_CTL, tmp);
+	WREG8(DAC_DATA, tmp);
 
 	WREG8(DAC_INDEX, MGA1064_PIX_PLL_STAT);
 	tmp = RREG8(DAC_DATA);
-	WREG_DAC(MGA1064_PIX_PLL_STAT, tmp | 0x40);
+	WREG8(DAC_DATA, tmp | 0x40);
 
 	tmp = RREG8(MGAREG_MEM_MISC_READ);
 	tmp |= (0x3 << 2);
@@ -363,7 +360,7 @@ static int mga_g200ev_set_plls(struct mga_device *mdev, long clock)
 	WREG8(DAC_INDEX, MGA1064_PIX_CLK_CTL);
 	tmp = RREG8(DAC_DATA);
 	tmp &= ~MGA1064_PIX_CLK_CTL_CLK_DIS;
-	WREG_DAC(MGA1064_PIX_CLK_CTL, tmp);
+	WREG8(DAC_DATA, tmp);
 
 	return 0;
 }
@@ -416,7 +413,7 @@ static int mga_g200eh_set_plls(struct mga_device *mdev, long clock)
 		WREG8(DAC_INDEX, MGA1064_PIX_CLK_CTL);
 		tmp = RREG8(DAC_DATA);
 		tmp |= MGA1064_PIX_CLK_CTL_CLK_DIS;
-		WREG_DAC(MGA1064_PIX_CLK_CTL_CLK_DIS, tmp);
+		WREG8(DAC_DATA, tmp);
 
 		tmp = RREG8(MGAREG_MEM_MISC_READ);
 		tmp |= 0x3 << 2;
@@ -425,7 +422,7 @@ static int mga_g200eh_set_plls(struct mga_device *mdev, long clock)
 		WREG8(DAC_INDEX, MGA1064_PIX_CLK_CTL);
 		tmp = RREG8(DAC_DATA);
 		tmp |= MGA1064_PIX_CLK_CTL_CLK_POW_DOWN;
-		WREG_DAC(MGA1064_PIX_CLK_CTL, tmp);
+		WREG8(DAC_DATA, tmp);
 
 		udelay(500);
 
@@ -439,13 +436,13 @@ static int mga_g200eh_set_plls(struct mga_device *mdev, long clock)
 		tmp = RREG8(DAC_DATA);
 		tmp &= ~MGA1064_PIX_CLK_CTL_SEL_MSK;
 		tmp |= MGA1064_PIX_CLK_CTL_SEL_PLL;
-		WREG_DAC(MGA1064_PIX_CLK_CTL, tmp);
+		WREG8(DAC_DATA, tmp);
 
 		WREG8(DAC_INDEX, MGA1064_PIX_CLK_CTL);
 		tmp = RREG8(DAC_DATA);
 		tmp &= ~MGA1064_PIX_CLK_CTL_CLK_DIS;
 		tmp &= ~MGA1064_PIX_CLK_CTL_CLK_POW_DOWN;
-		WREG_DAC(MGA1064_PIX_CLK_CTL, tmp);
+		WREG8(DAC_DATA, tmp);
 
 		vcount = RREG8(MGAREG_VCOUNT);
 
@@ -515,12 +512,12 @@ static int mga_g200er_set_plls(struct mga_device *mdev, long clock)
 	WREG8(DAC_INDEX, MGA1064_PIX_CLK_CTL);
 	tmp = RREG8(DAC_DATA);
 	tmp |= MGA1064_PIX_CLK_CTL_CLK_DIS;
-	WREG_DAC(MGA1064_PIX_CLK_CTL_CLK_DIS, tmp);
+	WREG8(DAC_DATA, tmp);
 
 	WREG8(DAC_INDEX, MGA1064_REMHEADCTL);
 	tmp = RREG8(DAC_DATA);
 	tmp |= MGA1064_REMHEADCTL_CLKDIS;
-	WREG_DAC(MGA1064_REMHEADCTL, tmp);
+	WREG8(DAC_DATA, tmp);
 
 	tmp = RREG8(MGAREG_MEM_MISC_READ);
 	tmp |= (0x3<<2) | 0xc0;
@@ -530,7 +527,7 @@ static int mga_g200er_set_plls(struct mga_device *mdev, long clock)
 	tmp = RREG8(DAC_DATA);
 	tmp &= ~MGA1064_PIX_CLK_CTL_CLK_DIS;
 	tmp |= MGA1064_PIX_CLK_CTL_CLK_POW_DOWN;
-	WREG_DAC(MGA1064_PIX_CLK_CTL, tmp);
+	WREG8(DAC_DATA, tmp);
 
 	udelay(500);
 
@@ -657,12 +654,26 @@ static void mga_g200wb_commit(struct drm_crtc *crtc)
 	WREG_DAC(MGA1064_GEN_IO_DATA, tmp);
 }
 
-
+/*
+   This is how the framebuffer base address is stored in g200 cards:
+   * Assume @offset is the gpu_addr variable of the framebuffer object
+   * Then addr is the number of _pixels_ (not bytes) from the start of
+     VRAM to the first pixel we want to display. (divided by 2 for 32bit
+     framebuffers)
+   * addr is stored in the CRTCEXT0, CRTCC and CRTCD registers
+   addr<20> -> CRTCEXT0<6>
+   addr<19-16> -> CRTCEXT0<3-0>
+   addr<15-8> -> CRTCC<7-0>
+   addr<7-0> -> CRTCD<7-0>
+   CRTCEXT0 has to be programmed last to trigger an update and make the
+   new addr variable take effect.
+ */
 void mga_set_start_address(struct drm_crtc *crtc, unsigned offset)
 {
 	struct mga_device *mdev = crtc->dev->dev_private;
 	u32 addr;
 	int count;
+	u8 crtcext0;
 
 	while (RREG8(0x1fda) & 0x08);
 	while (!(RREG8(0x1fda) & 0x08));
@@ -670,10 +681,17 @@ void mga_set_start_address(struct drm_crtc *crtc, unsigned offset)
 	count = RREG8(MGAREG_VCOUNT) + 2;
 	while (RREG8(MGAREG_VCOUNT) < count);
 
-	addr = offset >> 2;
+	WREG8(MGAREG_CRTCEXT_INDEX, 0);
+	crtcext0 = RREG8(MGAREG_CRTCEXT_DATA);
+	crtcext0 &= 0xB0;
+	addr = offset / 8;
+	/* Can't store addresses any higher than that...
+	   but we also don't have more than 16MB of memory, so it should be fine. */
+	WARN_ON(addr > 0x1fffff);
+	crtcext0 |= (!!(addr & (1<<20)))<<6;
 	WREG_CRT(0x0d, (u8)(addr & 0xff));
 	WREG_CRT(0x0c, (u8)(addr >> 8) & 0xff);
-	WREG_CRT(0xaf, (u8)(addr >> 16) & 0xf);
+	WREG_ECRT(0x0, ((u8)(addr >> 16) & 0xf) | crtcext0);
 }
 
 
@@ -751,8 +769,6 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 	int i;
 	unsigned char misc = 0;
 	unsigned char ext_vga[6];
-	unsigned char ext_vga_index24;
-	unsigned char dac_index90 = 0;
 	u8 bppshift;
 
 	static unsigned char dacvalue[] = {
@@ -803,7 +819,6 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 		option2 = 0x0000b000;
 		break;
 	case G200_ER:
-		dac_index90 = 0;
 		break;
 	}
 
@@ -832,11 +847,7 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 
 
 	for (i = 0; i < sizeof(dacvalue); i++) {
-		if ((i <= 0x03) ||
-		    (i == 0x07) ||
-		    (i == 0x0b) ||
-		    (i == 0x0f) ||
-		    ((i >= 0x13) && (i <= 0x17)) ||
+		if ((i <= 0x17) ||
 		    (i == 0x1b) ||
 		    (i == 0x1c) ||
 		    ((i >= 0x1f) && (i <= 0x29)) ||
@@ -852,10 +863,8 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 		WREG_DAC(i, dacvalue[i]);
 	}
 
-	if (mdev->type == G200_ER) {
-		WREG_DAC(0x90, dac_index90);
-	}
-
+	if (mdev->type == G200_ER)
+		WREG_DAC(0x90, 0);
 
 	if (option)
 		pci_write_config_dword(dev->pdev, PCI_MGA_OPTION, option);
@@ -952,8 +961,6 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 	if (mdev->type == G200_WB)
 		ext_vga[1] |= 0x88;
 
-	ext_vga_index24 = 0x05;
-
 	/* Set pixel clocks */
 	misc = 0x2d;
 	WREG8(MGA_MISC_OUT, misc);
@@ -965,7 +972,7 @@ static int mga_crtc_mode_set(struct drm_crtc *crtc,
 	}
 
 	if (mdev->type == G200_ER)
-		WREG_ECRT(24, ext_vga_index24);
+		WREG_ECRT(0x24, 0x5);
 
 	if (mdev->type == G200_EV) {
 		WREG_ECRT(6, 0);
@@ -1261,9 +1268,8 @@ static const struct drm_crtc_helper_funcs mga_helper_funcs = {
 };
 
 /* CRTC setup */
-static void mga_crtc_init(struct drm_device *dev)
+static void mga_crtc_init(struct mga_device *mdev)
 {
-	struct mga_device *mdev = dev->dev_private;
 	struct mga_crtc *mga_crtc;
 	int i;
 
@@ -1274,7 +1280,7 @@ static void mga_crtc_init(struct drm_device *dev)
 	if (mga_crtc == NULL)
 		return;
 
-	drm_crtc_init(dev, &mga_crtc->base, &mga_crtc_funcs);
+	drm_crtc_init(mdev->dev, &mga_crtc->base, &mga_crtc_funcs);
 
 	drm_mode_crtc_set_gamma_size(&mga_crtc->base, MGAG200_LUT_SIZE);
 	mdev->mode_info.crtc = mga_crtc;
@@ -1529,7 +1535,7 @@ int mgag200_modeset_init(struct mga_device *mdev)
 
 	mdev->dev->mode_config.fb_base = mdev->mc.vram_base;
 
-	mga_crtc_init(mdev->dev);
+	mga_crtc_init(mdev);
 
 	encoder = mga_encoder_init(mdev->dev);
 	if (!encoder) {

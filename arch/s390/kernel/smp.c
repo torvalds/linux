@@ -181,8 +181,10 @@ static int __cpuinit pcpu_alloc_lowcore(struct pcpu *pcpu, int cpu)
 	lc = pcpu->lowcore;
 	memcpy(lc, &S390_lowcore, 512);
 	memset((char *) lc + 512, 0, sizeof(*lc) - 512);
-	lc->async_stack = pcpu->async_stack + ASYNC_SIZE;
-	lc->panic_stack = pcpu->panic_stack + PAGE_SIZE;
+	lc->async_stack = pcpu->async_stack + ASYNC_SIZE
+		- STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
+	lc->panic_stack = pcpu->panic_stack + PAGE_SIZE
+		- STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
 	lc->cpu_nr = cpu;
 #ifndef CONFIG_64BIT
 	if (MACHINE_HAS_IEEE) {
@@ -253,7 +255,8 @@ static void pcpu_attach_task(struct pcpu *pcpu, struct task_struct *tsk)
 	struct _lowcore *lc = pcpu->lowcore;
 	struct thread_info *ti = task_thread_info(tsk);
 
-	lc->kernel_stack = (unsigned long) task_stack_page(tsk) + THREAD_SIZE;
+	lc->kernel_stack = (unsigned long) task_stack_page(tsk)
+		+ THREAD_SIZE - STACK_FRAME_OVERHEAD - sizeof(struct pt_regs);
 	lc->thread_info = (unsigned long) task_thread_info(tsk);
 	lc->current_task = (unsigned long) tsk;
 	lc->user_timer = ti->user_timer;
@@ -711,8 +714,7 @@ static void __cpuinit smp_start_secondary(void *cpuvoid)
 	set_cpu_online(smp_processor_id(), true);
 	inc_irq_stat(CPU_RST);
 	local_irq_enable();
-	/* cpu_idle will call schedule for us */
-	cpu_idle();
+	cpu_startup_entry(CPUHP_ONLINE);
 }
 
 /* Upping and downing of CPUs */
@@ -810,8 +812,10 @@ void __init smp_prepare_boot_cpu(void)
 	pcpu->state = CPU_STATE_CONFIGURED;
 	pcpu->address = boot_cpu_address;
 	pcpu->lowcore = (struct _lowcore *)(unsigned long) store_prefix();
-	pcpu->async_stack = S390_lowcore.async_stack - ASYNC_SIZE;
-	pcpu->panic_stack = S390_lowcore.panic_stack - PAGE_SIZE;
+	pcpu->async_stack = S390_lowcore.async_stack - ASYNC_SIZE
+		+ STACK_FRAME_OVERHEAD + sizeof(struct pt_regs);
+	pcpu->panic_stack = S390_lowcore.panic_stack - PAGE_SIZE
+		+ STACK_FRAME_OVERHEAD + sizeof(struct pt_regs);
 	S390_lowcore.percpu_offset = __per_cpu_offset[0];
 	smp_cpu_set_polarization(0, POLARIZATION_UNKNOWN);
 	set_cpu_present(0, true);

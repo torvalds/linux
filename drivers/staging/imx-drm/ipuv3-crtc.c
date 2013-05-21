@@ -60,6 +60,8 @@ struct ipu_crtc {
 	int			irq;
 	u32			interface_pix_fmt;
 	unsigned long		di_clkflags;
+	int			di_hsync_pin;
+	int			di_vsync_pin;
 };
 
 #define to_ipu_crtc(x) container_of(x, struct ipu_crtc, base)
@@ -255,6 +257,9 @@ static int ipu_crtc_mode_set(struct drm_crtc *crtc,
 
 	sig_cfg.v_to_h_sync = 0;
 
+	sig_cfg.hsync_pin = ipu_crtc->di_hsync_pin;
+	sig_cfg.vsync_pin = ipu_crtc->di_vsync_pin;
+
 	if (ipu_crtc->dp) {
 		ret = ipu_dp_setup_channel(ipu_crtc->dp, IPUV3_COLORSPACE_RGB,
 				IPUV3_COLORSPACE_RGB);
@@ -406,13 +411,17 @@ static void ipu_disable_vblank(struct drm_crtc *crtc)
 }
 
 static int ipu_set_interface_pix_fmt(struct drm_crtc *crtc, u32 encoder_type,
-		u32 pixfmt)
+		u32 pixfmt, int hsync_pin, int vsync_pin)
 {
 	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
 
 	ipu_crtc->interface_pix_fmt = pixfmt;
+	ipu_crtc->di_hsync_pin = hsync_pin;
+	ipu_crtc->di_vsync_pin = vsync_pin;
 
 	switch (encoder_type) {
+	case DRM_MODE_ENCODER_DAC:
+	case DRM_MODE_ENCODER_TVDAC:
 	case DRM_MODE_ENCODER_LVDS:
 		ipu_crtc->di_clkflags = IPU_DI_CLKMODE_SYNC |
 			IPU_DI_CLKMODE_EXT;

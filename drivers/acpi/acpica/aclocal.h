@@ -294,6 +294,8 @@ acpi_status(*acpi_internal_method) (struct acpi_walk_state * walk_state);
 #define ACPI_BTYPE_OBJECTS_AND_REFS     0x0001FFFF	/* ARG or LOCAL */
 #define ACPI_BTYPE_ALL_OBJECTS          0x0000FFFF
 
+#pragma pack(1)
+
 /*
  * Information structure for ACPI predefined names.
  * Each entry in the table contains the following items:
@@ -304,7 +306,7 @@ acpi_status(*acpi_internal_method) (struct acpi_walk_state * walk_state);
  */
 struct acpi_name_info {
 	char name[ACPI_NAME_SIZE];
-	u8 param_count;
+	u16 argument_list;
 	u8 expected_btypes;
 };
 
@@ -327,7 +329,7 @@ struct acpi_package_info {
 	u8 count1;
 	u8 object_type2;
 	u8 count2;
-	u8 reserved;
+	u16 reserved;
 };
 
 /* Used for ACPI_PTYPE2_FIXED */
@@ -336,6 +338,7 @@ struct acpi_package_info2 {
 	u8 type;
 	u8 count;
 	u8 object_type[4];
+	u8 reserved;
 };
 
 /* Used for ACPI_PTYPE1_OPTION */
@@ -345,7 +348,7 @@ struct acpi_package_info3 {
 	u8 count;
 	u8 object_type[2];
 	u8 tail_object_type;
-	u8 reserved;
+	u16 reserved;
 };
 
 union acpi_predefined_info {
@@ -355,6 +358,10 @@ union acpi_predefined_info {
 	struct acpi_package_info3 ret_info3;
 };
 
+/* Reset to default packing */
+
+#pragma pack()
+
 /* Data block used during object validation */
 
 struct acpi_predefined_data {
@@ -363,6 +370,7 @@ struct acpi_predefined_data {
 	union acpi_operand_object *parent_package;
 	struct acpi_namespace_node *node;
 	u32 flags;
+	u32 return_btype;
 	u8 node_flags;
 };
 
@@ -370,6 +378,20 @@ struct acpi_predefined_data {
 
 #define ACPI_OBJECT_REPAIRED    1
 #define ACPI_OBJECT_WRAPPED     2
+
+/* Return object auto-repair info */
+
+typedef acpi_status(*acpi_object_converter) (union acpi_operand_object
+					     *original_object,
+					     union acpi_operand_object
+					     **converted_object);
+
+struct acpi_simple_repair_info {
+	char name[ACPI_NAME_SIZE];
+	u32 unexpected_btypes;
+	u32 package_index;
+	acpi_object_converter object_converter;
+};
 
 /*
  * Bitmapped return value types
@@ -1037,6 +1059,7 @@ struct acpi_external_list {
 	u16 length;
 	u8 type;
 	u8 flags;
+	u8 resolved;
 };
 
 /* Values for Flags field above */

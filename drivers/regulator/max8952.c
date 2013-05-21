@@ -28,6 +28,9 @@
 #include <linux/regulator/max8952.h>
 #include <linux/gpio.h>
 #include <linux/io.h>
+#include <linux/of.h>
+#include <linux/of_gpio.h>
+#include <linux/regulator/of_regulator.h>
 #include <linux/slab.h>
 
 /* Registers */
@@ -126,6 +129,69 @@ static const struct regulator_desc regulator = {
 	.owner		= THIS_MODULE,
 };
 
+#ifdef CONFIG_OF
+static struct of_device_id max8952_dt_match[] = {
+	{ .compatible = "maxim,max8952" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, max8952_dt_match);
+
+static struct max8952_platform_data *max8952_parse_dt(struct device *dev)
+{
+	struct max8952_platform_data *pd;
+	struct device_node *np = dev->of_node;
+	int ret;
+	int i;
+
+	pd = devm_kzalloc(dev, sizeof(*pd), GFP_KERNEL);
+	if (!pd) {
+		dev_err(dev, "Failed to allocate platform data\n");
+		return NULL;
+	}
+
+	pd->gpio_vid0 = of_get_named_gpio(np, "max8952,vid-gpios", 0);
+	pd->gpio_vid1 = of_get_named_gpio(np, "max8952,vid-gpios", 1);
+	pd->gpio_en = of_get_named_gpio(np, "max8952,en-gpio", 0);
+
+	if (of_property_read_u32(np, "max8952,default-mode", &pd->default_mode))
+		dev_warn(dev, "Default mode not specified, assuming 0\n");
+
+	ret = of_property_read_u32_array(np, "max8952,dvs-mode-microvolt",
+					pd->dvs_mode, ARRAY_SIZE(pd->dvs_mode));
+	if (ret) {
+		dev_err(dev, "max8952,dvs-mode-microvolt property not specified");
+		return NULL;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(pd->dvs_mode); ++i) {
+		if (pd->dvs_mode[i] < 770000 || pd->dvs_mode[i] > 1400000) {
+			dev_err(dev, "DVS voltage %d out of range\n", i);
+			return NULL;
+		}
+		pd->dvs_mode[i] = (pd->dvs_mode[i] - 770000) / 10000;
+	}
+
+	if (of_property_read_u32(np, "max8952,sync-freq", &pd->sync_freq))
+		dev_warn(dev, "max8952,sync-freq property not specified, defaulting to 26MHz\n");
+
+	if (of_property_read_u32(np, "max8952,ramp-speed", &pd->ramp_speed))
+		dev_warn(dev, "max8952,ramp-speed property not specified, defaulting to 32mV/us\n");
+
+	pd->reg_data = of_get_regulator_init_data(dev, np);
+	if (!pd->reg_data) {
+		dev_err(dev, "Failed to parse regulator init data\n");
+		return NULL;
+	}
+
+	return pd;
+}
+#else
+static struct max8952_platform_data *max8952_parse_dt(struct device *dev)
+{
+	return NULL;
+}
+#endif
+
 static int max8952_pmic_probe(struct i2c_client *client,
 		const struct i2c_device_id *i2c_id)
 {
@@ -135,6 +201,9 @@ static int max8952_pmic_probe(struct i2c_client *client,
 	struct max8952_data *max8952;
 
 	int ret = 0, err = 0;
+
+	if (client->dev.of_node)
+		pdata = max8952_parse_dt(&client->dev);
 
 	if (!pdata) {
 		dev_err(&client->dev, "Require the platform data\n");
@@ -154,11 +223,12 @@ static int max8952_pmic_probe(struct i2c_client *client,
 	max8952->pdata = pdata;
 
 	config.dev = max8952->dev;
-	config.init_data = &pdata->reg_data;
+	config.init_data = pdata->reg_data;
 	config.driver_data = max8952;
+	config.of_node = client->dev.of_node;
 
 	config.ena_gpio = pdata->gpio_en;
-	if (pdata->reg_data.constraints.boot_on)
+	if (pdata->reg_data->constraints.boot_on)
 		config.ena_gpio_flags |= GPIOF_OUT_INIT_HIGH;
 
 	max8952->rdev = regulator_register(&regulator, &config);
@@ -271,6 +341,7 @@ static struct i2c_driver max8952_pmic_driver = {
 	.remove		= max8952_pmic_remove,
 	.driver		= {
 		.name	= "max8952",
+		.of_match_table = of_match_ptr(max8952_dt_match),
 	},
 	.id_table	= max8952_ids,
 };

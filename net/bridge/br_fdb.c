@@ -161,9 +161,7 @@ void br_fdb_change_mac_address(struct net_bridge *br, const u8 *newaddr)
 	if (!pv)
 		return;
 
-	for (vid = find_next_bit(pv->vlan_bitmap, BR_VLAN_BITMAP_LEN, vid);
-	     vid < BR_VLAN_BITMAP_LEN;
-	     vid = find_next_bit(pv->vlan_bitmap, BR_VLAN_BITMAP_LEN, vid+1)) {
+	for_each_set_bit_from(vid, pv->vlan_bitmap, BR_VLAN_BITMAP_LEN) {
 		f = __br_fdb_get(br, br->dev->dev_addr, vid);
 		if (f && f->is_local && !f->dst)
 			fdb_delete(br, f);
@@ -617,6 +615,7 @@ static int fdb_add_entry(struct net_bridge_port *source, const __u8 *addr,
 	struct net_bridge *br = source->br;
 	struct hlist_head *head = &br->hash[br_mac_hash(addr, vid)];
 	struct net_bridge_fdb_entry *fdb;
+	bool modified = false;
 
 	fdb = fdb_find(head, addr, vid);
 	if (fdb == NULL) {
@@ -626,10 +625,16 @@ static int fdb_add_entry(struct net_bridge_port *source, const __u8 *addr,
 		fdb = fdb_create(head, source, addr, vid);
 		if (!fdb)
 			return -ENOMEM;
-		fdb_notify(br, fdb, RTM_NEWNEIGH);
+
+		modified = true;
 	} else {
 		if (flags & NLM_F_EXCL)
 			return -EEXIST;
+
+		if (fdb->dst != source) {
+			fdb->dst = source;
+			modified = true;
+		}
 	}
 
 	if (fdb_to_nud(fdb) != state) {
@@ -641,7 +646,12 @@ static int fdb_add_entry(struct net_bridge_port *source, const __u8 *addr,
 		} else
 			fdb->is_local = fdb->is_static = 0;
 
-		fdb->updated = fdb->used = jiffies;
+		modified = true;
+	}
+
+	fdb->used = jiffies;
+	if (modified) {
+		fdb->updated = jiffies;
 		fdb_notify(br, fdb, RTM_NEWNEIGH);
 	}
 
@@ -724,13 +734,10 @@ int br_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 		 * specify a VLAN.  To be nice, add/update entry for every
 		 * vlan on this port.
 		 */
-		vid = find_first_bit(pv->vlan_bitmap, BR_VLAN_BITMAP_LEN);
-		while (vid < BR_VLAN_BITMAP_LEN) {
+		for_each_set_bit(vid, pv->vlan_bitmap, BR_VLAN_BITMAP_LEN) {
 			err = __br_fdb_add(ndm, p, addr, nlh_flags, vid);
 			if (err)
 				goto out;
-			vid = find_next_bit(pv->vlan_bitmap,
-					    BR_VLAN_BITMAP_LEN, vid+1);
 		}
 	}
 
@@ -815,11 +822,8 @@ int br_fdb_delete(struct ndmsg *ndm, struct nlattr *tb[],
 		 * vlan on this port.
 		 */
 		err = -ENOENT;
-		vid = find_first_bit(pv->vlan_bitmap, BR_VLAN_BITMAP_LEN);
-		while (vid < BR_VLAN_BITMAP_LEN) {
+		for_each_set_bit(vid, pv->vlan_bitmap, BR_VLAN_BITMAP_LEN) {
 			err &= __br_fdb_delete(p, addr, vid);
-			vid = find_next_bit(pv->vlan_bitmap,
-					    BR_VLAN_BITMAP_LEN, vid+1);
 		}
 	}
 out:

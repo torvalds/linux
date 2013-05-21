@@ -881,29 +881,29 @@ static u32 sh_vou_ntsc_mode(enum sh_vou_bus_fmt bus_fmt)
 	}
 }
 
-static int sh_vou_s_std(struct file *file, void *priv, v4l2_std_id *std_id)
+static int sh_vou_s_std(struct file *file, void *priv, v4l2_std_id std_id)
 {
 	struct sh_vou_device *vou_dev = video_drvdata(file);
 	int ret;
 
-	dev_dbg(vou_dev->v4l2_dev.dev, "%s(): 0x%llx\n", __func__, *std_id);
+	dev_dbg(vou_dev->v4l2_dev.dev, "%s(): 0x%llx\n", __func__, std_id);
 
-	if (*std_id & ~vou_dev->vdev->tvnorms)
+	if (std_id & ~vou_dev->vdev->tvnorms)
 		return -EINVAL;
 
 	ret = v4l2_device_call_until_err(&vou_dev->v4l2_dev, 0, video,
-					 s_std_output, *std_id);
+					 s_std_output, std_id);
 	/* Shall we continue, if the subdev doesn't support .s_std_output()? */
 	if (ret < 0 && ret != -ENOIOCTLCMD)
 		return ret;
 
-	if (*std_id & V4L2_STD_525_60)
+	if (std_id & V4L2_STD_525_60)
 		sh_vou_reg_ab_set(vou_dev, VOUCR,
 			sh_vou_ntsc_mode(vou_dev->pdata->bus_fmt) << 29, 7 << 29);
 	else
 		sh_vou_reg_ab_set(vou_dev, VOUCR, 5 << 29, 7 << 29);
 
-	vou_dev->std = *std_id;
+	vou_dev->std = std_id;
 
 	return 0;
 }
@@ -1266,7 +1266,7 @@ static int sh_vou_g_register(struct file *file, void *fh,
 }
 
 static int sh_vou_s_register(struct file *file, void *fh,
-				 struct v4l2_dbg_register *reg)
+				 const struct v4l2_dbg_register *reg)
 {
 	struct sh_vou_device *vou_dev = video_drvdata(file);
 
@@ -1485,18 +1485,7 @@ static struct platform_driver __refdata sh_vou = {
 	},
 };
 
-static int __init sh_vou_init(void)
-{
-	return platform_driver_probe(&sh_vou, sh_vou_probe);
-}
-
-static void __exit sh_vou_exit(void)
-{
-	platform_driver_unregister(&sh_vou);
-}
-
-module_init(sh_vou_init);
-module_exit(sh_vou_exit);
+module_platform_driver_probe(sh_vou, sh_vou_probe);
 
 MODULE_DESCRIPTION("SuperH VOU driver");
 MODULE_AUTHOR("Guennadi Liakhovetski <g.liakhovetski@gmx.de>");

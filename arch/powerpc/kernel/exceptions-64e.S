@@ -299,6 +299,8 @@ interrupt_base_book3e:					/* fake trap */
 	EXCEPTION_STUB(0x1a0, watchdog)			/* 0x09f0 */
 	EXCEPTION_STUB(0x1c0, data_tlb_miss)
 	EXCEPTION_STUB(0x1e0, instruction_tlb_miss)
+	EXCEPTION_STUB(0x200, altivec_unavailable)	/* 0x0f20 */
+	EXCEPTION_STUB(0x220, altivec_assist)		/* 0x1700 */
 	EXCEPTION_STUB(0x260, perfmon)
 	EXCEPTION_STUB(0x280, doorbell)
 	EXCEPTION_STUB(0x2a0, doorbell_crit)
@@ -395,6 +397,45 @@ interrupt_end_book3e:
 	bl	.kernel_fp_unavailable_exception
 	b	.ret_from_except
 
+/* Altivec Unavailable Interrupt */
+	START_EXCEPTION(altivec_unavailable);
+	NORMAL_EXCEPTION_PROLOG(0x200, BOOKE_INTERRUPT_ALTIVEC_UNAVAIL,
+				PROLOG_ADDITION_NONE)
+	/* we can probably do a shorter exception entry for that one... */
+	EXCEPTION_COMMON(0x200, PACA_EXGEN, INTS_KEEP)
+#ifdef CONFIG_ALTIVEC
+BEGIN_FTR_SECTION
+	ld	r12,_MSR(r1)
+	andi.	r0,r12,MSR_PR;
+	beq-	1f
+	bl	.load_up_altivec
+	b	fast_exception_return
+1:
+END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
+#endif
+	INTS_DISABLE
+	bl	.save_nvgprs
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	bl	.altivec_unavailable_exception
+	b	.ret_from_except
+
+/* AltiVec Assist */
+	START_EXCEPTION(altivec_assist);
+	NORMAL_EXCEPTION_PROLOG(0x220, BOOKE_INTERRUPT_ALTIVEC_ASSIST,
+				PROLOG_ADDITION_NONE)
+	EXCEPTION_COMMON(0x220, PACA_EXGEN, INTS_DISABLE)
+	bl	.save_nvgprs
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+#ifdef CONFIG_ALTIVEC
+BEGIN_FTR_SECTION
+	bl	.altivec_assist_exception
+END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
+#else
+	bl	.unknown_exception
+#endif
+	b	.ret_from_except
+
+
 /* Decrementer Interrupt */
 	MASKABLE_EXCEPTION(0x900, BOOKE_INTERRUPT_DECREMENTER,
 			   decrementer, .timer_interrupt, ACK_DEC)
@@ -448,7 +489,7 @@ interrupt_end_book3e:
 	 */
 
 	mfspr	r14,SPRN_DBSR		/* check single-step/branch taken */
-	andis.	r15,r14,DBSR_IC@h
+	andis.	r15,r14,(DBSR_IC|DBSR_BT)@h
 	beq+	1f
 
 	LOAD_REG_IMMEDIATE(r14,interrupt_base_book3e)
@@ -459,7 +500,7 @@ interrupt_end_book3e:
 	bge+	cr1,1f
 
 	/* here it looks like we got an inappropriate debug exception. */
-	lis	r14,DBSR_IC@h		/* clear the IC event */
+	lis	r14,(DBSR_IC|DBSR_BT)@h		/* clear the event */
 	rlwinm	r11,r11,0,~MSR_DE	/* clear DE in the CSRR1 value */
 	mtspr	SPRN_DBSR,r14
 	mtspr	SPRN_CSRR1,r11
@@ -514,7 +555,7 @@ kernel_dbg_exc:
 	 */
 
 	mfspr	r14,SPRN_DBSR		/* check single-step/branch taken */
-	andis.	r15,r14,DBSR_IC@h
+	andis.	r15,r14,(DBSR_IC|DBSR_BT)@h
 	beq+	1f
 
 	LOAD_REG_IMMEDIATE(r14,interrupt_base_book3e)
@@ -525,7 +566,7 @@ kernel_dbg_exc:
 	bge+	cr1,1f
 
 	/* here it looks like we got an inappropriate debug exception. */
-	lis	r14,DBSR_IC@h		/* clear the IC event */
+	lis	r14,(DBSR_IC|DBSR_BT)@h		/* clear the event */
 	rlwinm	r11,r11,0,~MSR_DE	/* clear DE in the DSRR1 value */
 	mtspr	SPRN_DBSR,r14
 	mtspr	SPRN_DSRR1,r11
@@ -807,6 +848,7 @@ fast_exception_return:
 BAD_STACK_TRAMPOLINE(0x000)
 BAD_STACK_TRAMPOLINE(0x100)
 BAD_STACK_TRAMPOLINE(0x200)
+BAD_STACK_TRAMPOLINE(0x220)
 BAD_STACK_TRAMPOLINE(0x260)
 BAD_STACK_TRAMPOLINE(0x280)
 BAD_STACK_TRAMPOLINE(0x2a0)
@@ -1348,6 +1390,11 @@ _GLOBAL(__setup_base_ivors)
 
 	sync
 
+	blr
+
+_GLOBAL(setup_altivec_ivors)
+	SET_IVOR(32, 0x200) /* AltiVec Unavailable */
+	SET_IVOR(33, 0x220) /* AltiVec Assist */
 	blr
 
 _GLOBAL(setup_perfmon_ivor)

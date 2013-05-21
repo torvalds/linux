@@ -16,6 +16,8 @@
 #include <asm/processor.h>
 #include <asm/cache.h>
 
+extern spinlock_t pa_dbit_lock;
+
 /*
  * kern_addr_valid(ADDR) tests if ADDR is pointing to valid kernel
  * memory.  For the return value to be meaningful, ADDR must be >=
@@ -44,8 +46,11 @@ extern void purge_tlb_entries(struct mm_struct *, unsigned long);
 
 #define set_pte_at(mm, addr, ptep, pteval)                      \
 	do {                                                    \
+		unsigned long flags;				\
+		spin_lock_irqsave(&pa_dbit_lock, flags);	\
 		set_pte(ptep, pteval);                          \
 		purge_tlb_entries(mm, addr);                    \
+		spin_unlock_irqrestore(&pa_dbit_lock, flags);	\
 	} while (0)
 
 #endif /* !__ASSEMBLY__ */
@@ -435,48 +440,46 @@ extern void update_mmu_cache(struct vm_area_struct *, unsigned long, pte_t *);
 
 static inline int ptep_test_and_clear_young(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep)
 {
-#ifdef CONFIG_SMP
+	pte_t pte;
+	unsigned long flags;
+
 	if (!pte_young(*ptep))
 		return 0;
-	return test_and_clear_bit(xlate_pabit(_PAGE_ACCESSED_BIT), &pte_val(*ptep));
-#else
-	pte_t pte = *ptep;
-	if (!pte_young(pte))
-		return 0;
-	set_pte_at(vma->vm_mm, addr, ptep, pte_mkold(pte));
-	return 1;
-#endif
-}
 
-extern spinlock_t pa_dbit_lock;
+	spin_lock_irqsave(&pa_dbit_lock, flags);
+	pte = *ptep;
+	if (!pte_young(pte)) {
+		spin_unlock_irqrestore(&pa_dbit_lock, flags);
+		return 0;
+	}
+	set_pte(ptep, pte_mkold(pte));
+	purge_tlb_entries(vma->vm_mm, addr);
+	spin_unlock_irqrestore(&pa_dbit_lock, flags);
+	return 1;
+}
 
 struct mm_struct;
 static inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
 	pte_t old_pte;
+	unsigned long flags;
 
-	spin_lock(&pa_dbit_lock);
+	spin_lock_irqsave(&pa_dbit_lock, flags);
 	old_pte = *ptep;
 	pte_clear(mm,addr,ptep);
-	spin_unlock(&pa_dbit_lock);
+	purge_tlb_entries(mm, addr);
+	spin_unlock_irqrestore(&pa_dbit_lock, flags);
 
 	return old_pte;
 }
 
 static inline void ptep_set_wrprotect(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
-#ifdef CONFIG_SMP
-	unsigned long new, old;
-
-	do {
-		old = pte_val(*ptep);
-		new = pte_val(pte_wrprotect(__pte (old)));
-	} while (cmpxchg((unsigned long *) ptep, old, new) != old);
+	unsigned long flags;
+	spin_lock_irqsave(&pa_dbit_lock, flags);
+	set_pte(ptep, pte_wrprotect(*ptep));
 	purge_tlb_entries(mm, addr);
-#else
-	pte_t old_pte = *ptep;
-	set_pte_at(mm, addr, ptep, pte_wrprotect(old_pte));
-#endif
+	spin_unlock_irqrestore(&pa_dbit_lock, flags);
 }
 
 #define pte_same(A,B)	(pte_val(A) == pte_val(B))

@@ -257,24 +257,18 @@ static void visor_close(struct usb_serial_port *port)
 {
 	unsigned char *transfer_buffer;
 
-	/* shutdown our urbs */
 	usb_serial_generic_close(port);
 	usb_kill_urb(port->interrupt_in_urb);
 
-	mutex_lock(&port->serial->disc_mutex);
-	if (!port->serial->disconnected) {
-		/* Try to send shutdown message, unless the device is gone */
-		transfer_buffer =  kmalloc(0x12, GFP_KERNEL);
-		if (transfer_buffer) {
-			usb_control_msg(port->serial->dev,
+	transfer_buffer = kmalloc(0x12, GFP_KERNEL);
+	if (!transfer_buffer)
+		return;
+	usb_control_msg(port->serial->dev,
 					 usb_rcvctrlpipe(port->serial->dev, 0),
 					 VISOR_CLOSE_NOTIFICATION, 0xc2,
 					 0x0000, 0x0000,
 					 transfer_buffer, 0x12, 300);
-			kfree(transfer_buffer);
-		}
-	}
-	mutex_unlock(&port->serial->disc_mutex);
+	kfree(transfer_buffer);
 }
 
 static void visor_read_int_callback(struct urb *urb)

@@ -13,7 +13,8 @@ static const char *ip_vs_dbg_callid(char *buf, size_t buf_len,
 				    const char *callid, size_t callid_len,
 				    int *idx)
 {
-	size_t len = min(min(callid_len, (size_t)64), buf_len - *idx - 1);
+	size_t max_len = 64;
+	size_t len = min3(max_len, callid_len, buf_len - *idx - 1);
 	memcpy(buf + *idx, callid, len);
 	buf[*idx+len] = '\0';
 	*idx += len + 1;
@@ -37,13 +38,9 @@ static int get_callid(const char *dptr, unsigned int dataoff,
 		if (ret > 0)
 			break;
 		if (!ret)
-			return 0;
+			return -EINVAL;
 		dataoff += *matchoff;
 	}
-
-	/* Empty callid is useless */
-	if (!*matchlen)
-		return -EINVAL;
 
 	/* Too large is useless */
 	if (*matchlen > IP_VS_PEDATA_MAXLEN)
@@ -172,6 +169,7 @@ static int __init ip_vs_sip_init(void)
 static void __exit ip_vs_sip_cleanup(void)
 {
 	unregister_ip_vs_pe(&ip_vs_sip_pe);
+	synchronize_rcu();
 }
 
 module_init(ip_vs_sip_init);

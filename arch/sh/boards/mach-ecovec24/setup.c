@@ -254,11 +254,13 @@ static int usbhs_get_id(struct platform_device *pdev)
 	return gpio_get_value(GPIO_PTB3);
 }
 
-static void usbhs_phy_reset(struct platform_device *pdev)
+static int usbhs_phy_reset(struct platform_device *pdev)
 {
 	/* enable vbus if HOST */
 	if (!gpio_get_value(GPIO_PTB3))
 		gpio_set_value(GPIO_PTB5, 1);
+
+	return 0;
 }
 
 static struct renesas_usbhs_platform_info usbhs_info = {

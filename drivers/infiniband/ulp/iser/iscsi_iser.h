@@ -42,6 +42,7 @@
 
 #include <linux/types.h>
 #include <linux/net.h>
+#include <linux/printk.h>
 #include <scsi/libiscsi.h>
 #include <scsi/scsi_transport_iscsi.h>
 
@@ -65,20 +66,26 @@
 
 #define DRV_NAME	"iser"
 #define PFX		DRV_NAME ": "
-#define DRV_VER		"0.1"
-#define DRV_DATE	"May 7th, 2006"
+#define DRV_VER		"1.1"
 
 #define iser_dbg(fmt, arg...)				\
 	do {						\
-		if (iser_debug_level > 1)		\
+		if (iser_debug_level > 2)		\
 			printk(KERN_DEBUG PFX "%s:" fmt,\
 				__func__ , ## arg);	\
 	} while (0)
 
 #define iser_warn(fmt, arg...)				\
 	do {						\
+		if (iser_debug_level > 1)		\
+			pr_warn(PFX "%s:" fmt,          \
+				__func__ , ## arg);	\
+	} while (0)
+
+#define iser_info(fmt, arg...)				\
+	do {						\
 		if (iser_debug_level > 0)		\
-			printk(KERN_DEBUG PFX "%s:" fmt,\
+			pr_info(PFX "%s:" fmt,          \
 				__func__ , ## arg);	\
 	} while (0)
 
@@ -132,6 +139,15 @@ struct iser_hdr {
 	__be32  read_stag;  /* read rkey */
 	__be64  read_va;
 } __attribute__((packed));
+
+
+#define ISER_ZBVA_NOT_SUPPORTED		0x80
+#define ISER_SEND_W_INV_NOT_SUPPORTED	0x40
+
+struct iser_cm_hdr {
+	u8      flags;
+	u8      rsvd[3];
+} __packed;
 
 /* Constant PDU lengths calculations */
 #define ISER_HEADERS_LEN  (sizeof(struct iser_hdr) + sizeof(struct iscsi_hdr))

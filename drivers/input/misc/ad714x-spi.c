@@ -16,7 +16,7 @@
 #define AD714x_SPI_CMD_PREFIX      0xE000   /* bits 15:11 */
 #define AD714x_SPI_READ            BIT(10)
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int ad714x_spi_suspend(struct device *dev)
 {
 	return ad714x_disable(spi_get_drvdata(to_spi_device(dev)));

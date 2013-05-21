@@ -106,8 +106,9 @@ static int create_lt3593_led(const struct gpio_led *template,
 	if (!template->retain_state_suspended)
 		led_dat->cdev.flags |= LED_CORE_SUSPENDRESUME;
 
-	ret = devm_gpio_request_one(parent, template->gpio,
-				    GPIOF_DIR_OUT | state, template->name);
+	ret = devm_gpio_request_one(parent, template->gpio, state ?
+				    GPIOF_OUT_INIT_HIGH : GPIOF_OUT_INIT_LOW,
+				    template->name);
 	if (ret < 0)
 		return ret;
 

@@ -27,12 +27,10 @@
 #include <linux/input.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/usb.h>
 
 #include "hid-ids.h"
 
 #ifdef CONFIG_HOLTEK_FF
-#include "usbhid/usbhid.h"
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Anssi Hannula <anssi.hannula@iki.fi>");
@@ -102,7 +100,7 @@ static void holtekff_send(struct holtekff_device *holtekff,
 
 	dbg_hid("sending %*ph\n", 7, data);
 
-	usbhid_submit_report(hid, holtekff->field->report, USB_DIR_OUT);
+	hid_hw_request(hid, holtekff->field->report, HID_REQ_SET_REPORT);
 }
 
 static int holtekff_play(struct input_dev *dev, void *data,

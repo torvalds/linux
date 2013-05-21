@@ -1144,8 +1144,8 @@ static int sbp2_probe(struct device *dev)
 		return -ENODEV;
 
 	if (dma_get_max_seg_size(device->card->device) > SBP2_MAX_SEG_SIZE)
-		BUG_ON(dma_set_max_seg_size(device->card->device,
-					    SBP2_MAX_SEG_SIZE));
+		WARN_ON(dma_set_max_seg_size(device->card->device,
+					     SBP2_MAX_SEG_SIZE));
 
 	shost = scsi_host_alloc(&scsi_driver_template, sizeof(*tgt));
 	if (shost == NULL)
@@ -1475,10 +1475,8 @@ static int sbp2_scsi_queuecommand(struct Scsi_Host *shost,
 	}
 
 	orb = kzalloc(sizeof(*orb), GFP_ATOMIC);
-	if (orb == NULL) {
-		dev_notice(lu_dev(lu), "failed to alloc ORB\n");
+	if (orb == NULL)
 		return SCSI_MLQUEUE_HOST_BUSY;
-	}
 
 	/* Initialize rcode to something not RCODE_COMPLETE. */
 	orb->base.rcode = -1;
@@ -1636,9 +1634,7 @@ MODULE_LICENSE("GPL");
 MODULE_DEVICE_TABLE(ieee1394, sbp2_id_table);
 
 /* Provide a module alias so root-on-sbp2 initrds don't break. */
-#ifndef CONFIG_IEEE1394_SBP2_MODULE
 MODULE_ALIAS("sbp2");
-#endif
 
 static int __init sbp2_init(void)
 {

@@ -1528,7 +1528,7 @@ static int falcon_probe_nic(struct efx_nic *efx)
 	return 0;
 
  fail6:
-	BUG_ON(i2c_del_adapter(&board->i2c_adap));
+	i2c_del_adapter(&board->i2c_adap);
 	memset(&board->i2c_adap, 0, sizeof(board->i2c_adap));
  fail5:
 	efx_nic_free_buffer(efx, &efx->irq_status);
@@ -1546,10 +1546,6 @@ static int falcon_probe_nic(struct efx_nic *efx)
 
 static void falcon_init_rx_cfg(struct efx_nic *efx)
 {
-	/* Prior to Siena the RX DMA engine will split each frame at
-	 * intervals of RX_USR_BUF_SIZE (32-byte units). We set it to
-	 * be so large that that never happens. */
-	const unsigned huge_buf_size = (3 * 4096) >> 5;
 	/* RX control FIFO thresholds (32 entries) */
 	const unsigned ctrl_xon_thr = 20;
 	const unsigned ctrl_xoff_thr = 25;
@@ -1557,10 +1553,15 @@ static void falcon_init_rx_cfg(struct efx_nic *efx)
 
 	efx_reado(efx, &reg, FR_AZ_RX_CFG);
 	if (efx_nic_rev(efx) <= EFX_REV_FALCON_A1) {
-		/* Data FIFO size is 5.5K */
+		/* Data FIFO size is 5.5K.  The RX DMA engine only
+		 * supports scattering for user-mode queues, but will
+		 * split DMA writes at intervals of RX_USR_BUF_SIZE
+		 * (32-byte units) even for kernel-mode queues.  We
+		 * set it to be so large that that never happens.
+		 */
 		EFX_SET_OWORD_FIELD(reg, FRF_AA_RX_DESC_PUSH_EN, 0);
 		EFX_SET_OWORD_FIELD(reg, FRF_AA_RX_USR_BUF_SIZE,
-				    huge_buf_size);
+				    (3 * 4096) >> 5);
 		EFX_SET_OWORD_FIELD(reg, FRF_AA_RX_XON_MAC_TH, 512 >> 8);
 		EFX_SET_OWORD_FIELD(reg, FRF_AA_RX_XOFF_MAC_TH, 2048 >> 8);
 		EFX_SET_OWORD_FIELD(reg, FRF_AA_RX_XON_TX_TH, ctrl_xon_thr);
@@ -1569,7 +1570,7 @@ static void falcon_init_rx_cfg(struct efx_nic *efx)
 		/* Data FIFO size is 80K; register fields moved */
 		EFX_SET_OWORD_FIELD(reg, FRF_BZ_RX_DESC_PUSH_EN, 0);
 		EFX_SET_OWORD_FIELD(reg, FRF_BZ_RX_USR_BUF_SIZE,
-				    huge_buf_size);
+				    EFX_RX_USR_BUF_SIZE >> 5);
 		/* Send XON and XOFF at ~3 * max MTU away from empty/full */
 		EFX_SET_OWORD_FIELD(reg, FRF_BZ_RX_XON_MAC_TH, 27648 >> 8);
 		EFX_SET_OWORD_FIELD(reg, FRF_BZ_RX_XOFF_MAC_TH, 54272 >> 8);
@@ -1665,13 +1666,11 @@ static void falcon_remove_nic(struct efx_nic *efx)
 {
 	struct falcon_nic_data *nic_data = efx->nic_data;
 	struct falcon_board *board = falcon_board(efx);
-	int rc;
 
 	board->type->fini(efx);
 
 	/* Remove I2C adapter and clear it in preparation for a retry */
-	rc = i2c_del_adapter(&board->i2c_adap);
-	BUG_ON(rc);
+	i2c_del_adapter(&board->i2c_adap);
 	memset(&board->i2c_adap, 0, sizeof(board->i2c_adap));
 
 	efx_nic_free_buffer(efx, &efx->irq_status);
@@ -1815,6 +1814,7 @@ const struct efx_nic_type falcon_a1_nic_type = {
 	.evq_rptr_tbl_base = FR_AA_EVQ_RPTR_KER,
 	.max_dma_mask = DMA_BIT_MASK(FSF_AZ_TX_KER_BUF_ADDR_WIDTH),
 	.rx_buffer_padding = 0x24,
+	.can_rx_scatter = false,
 	.max_interrupt_mode = EFX_INT_MODE_MSI,
 	.phys_addr_channels = 4,
 	.timer_period_max =  1 << FRF_AB_TC_TIMER_VAL_WIDTH,
@@ -1865,6 +1865,7 @@ const struct efx_nic_type falcon_b0_nic_type = {
 	.max_dma_mask = DMA_BIT_MASK(FSF_AZ_TX_KER_BUF_ADDR_WIDTH),
 	.rx_buffer_hash_size = 0x10,
 	.rx_buffer_padding = 0,
+	.can_rx_scatter = true,
 	.max_interrupt_mode = EFX_INT_MODE_MSIX,
 	.phys_addr_channels = 32, /* Hardware limit is 64, but the legacy
 				   * interrupt handler only supports 32

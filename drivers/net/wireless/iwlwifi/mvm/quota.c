@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -114,7 +114,8 @@ static void iwl_mvm_quota_iterator(void *_data, u8 *mac,
 			data->n_interfaces[id]++;
 		break;
 	case NL80211_IFTYPE_MONITOR:
-		data->n_interfaces[id]++;
+		if (mvmvif->monitor_active)
+			data->n_interfaces[id]++;
 		break;
 	case NL80211_IFTYPE_P2P_DEVICE:
 		break;

@@ -180,7 +180,8 @@ int radeon_ib_schedule(struct radeon_device *rdev, struct radeon_ib *ib,
 		radeon_semaphore_free(rdev, &ib->semaphore, NULL);
 	}
 	/* if we can't remember our last VM flush then flush now! */
-	if (ib->vm && !ib->vm->last_flush) {
+	/* XXX figure out why we have to flush for every IB */
+	if (ib->vm /*&& !ib->vm->last_flush*/) {
 		radeon_ring_vm_flush(rdev, ib->ring, ib->vm);
 	}
 	if (const_ib) {
@@ -368,7 +369,7 @@ void radeon_ring_free_size(struct radeon_device *rdev, struct radeon_ring *ring)
 {
 	u32 rptr;
 
-	if (rdev->wb.enabled)
+	if (rdev->wb.enabled && ring != &rdev->ring[R600_RING_TYPE_UVD_INDEX])
 		rptr = le32_to_cpu(rdev->wb.wb[ring->rptr_offs/4]);
 	else
 		rptr = RREG32(ring->rptr_reg);
@@ -821,18 +822,20 @@ static int radeon_debugfs_ring_info(struct seq_file *m, void *data)
 	return 0;
 }
 
-static int radeon_ring_type_gfx_index = RADEON_RING_TYPE_GFX_INDEX;
-static int cayman_ring_type_cp1_index = CAYMAN_RING_TYPE_CP1_INDEX;
-static int cayman_ring_type_cp2_index = CAYMAN_RING_TYPE_CP2_INDEX;
-static int radeon_ring_type_dma1_index = R600_RING_TYPE_DMA_INDEX;
-static int radeon_ring_type_dma2_index = CAYMAN_RING_TYPE_DMA1_INDEX;
+static int radeon_gfx_index = RADEON_RING_TYPE_GFX_INDEX;
+static int cayman_cp1_index = CAYMAN_RING_TYPE_CP1_INDEX;
+static int cayman_cp2_index = CAYMAN_RING_TYPE_CP2_INDEX;
+static int radeon_dma1_index = R600_RING_TYPE_DMA_INDEX;
+static int radeon_dma2_index = CAYMAN_RING_TYPE_DMA1_INDEX;
+static int r600_uvd_index = R600_RING_TYPE_UVD_INDEX;
 
 static struct drm_info_list radeon_debugfs_ring_info_list[] = {
-	{"radeon_ring_gfx", radeon_debugfs_ring_info, 0, &radeon_ring_type_gfx_index},
-	{"radeon_ring_cp1", radeon_debugfs_ring_info, 0, &cayman_ring_type_cp1_index},
-	{"radeon_ring_cp2", radeon_debugfs_ring_info, 0, &cayman_ring_type_cp2_index},
-	{"radeon_ring_dma1", radeon_debugfs_ring_info, 0, &radeon_ring_type_dma1_index},
-	{"radeon_ring_dma2", radeon_debugfs_ring_info, 0, &radeon_ring_type_dma2_index},
+	{"radeon_ring_gfx", radeon_debugfs_ring_info, 0, &radeon_gfx_index},
+	{"radeon_ring_cp1", radeon_debugfs_ring_info, 0, &cayman_cp1_index},
+	{"radeon_ring_cp2", radeon_debugfs_ring_info, 0, &cayman_cp2_index},
+	{"radeon_ring_dma1", radeon_debugfs_ring_info, 0, &radeon_dma1_index},
+	{"radeon_ring_dma2", radeon_debugfs_ring_info, 0, &radeon_dma2_index},
+	{"radeon_ring_uvd", radeon_debugfs_ring_info, 0, &r600_uvd_index},
 };
 
 static int radeon_debugfs_sa_info(struct seq_file *m, void *data)

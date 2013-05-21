@@ -1,7 +1,7 @@
 /*
  * CAIF USB handler
  * Copyright (C) ST-Ericsson AB 2011
- * Author:	Sjur Brendeland/sjur.brandeland@stericsson.com
+ * Author:	Sjur Brendeland
  * License terms: GNU General Public License (GPL) version 2
  *
  */
@@ -75,7 +75,7 @@ static int cfusbl_transmit(struct cflayer *layr, struct cfpkt *pkt)
 }
 
 static void cfusbl_ctrlcmd(struct cflayer *layr, enum caif_ctrlcmd ctrl,
-					int phyid)
+			   int phyid)
 {
 	if (layr->up && layr->up->ctrlcmd)
 		layr->up->ctrlcmd(layr->up, ctrl, layr->id);
@@ -121,7 +121,7 @@ static struct packet_type caif_usb_type __read_mostly = {
 };
 
 static int cfusbl_device_notify(struct notifier_block *me, unsigned long what,
-			      void *arg)
+				void *arg)
 {
 	struct net_device *dev = arg;
 	struct caif_dev_common common;

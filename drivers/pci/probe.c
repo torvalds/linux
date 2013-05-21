@@ -673,6 +673,8 @@ add_dev:
 	ret = device_register(&child->dev);
 	WARN_ON(ret < 0);
 
+	pcibios_add_bus(child);
+
 	/* Create legacy_io and legacy_mem files for this bus */
 	pci_create_legacy_files(child);
 
@@ -988,7 +990,6 @@ int pci_setup_device(struct pci_dev *dev)
 	dev->sysdata = dev->bus->sysdata;
 	dev->dev.parent = dev->bus->bridge;
 	dev->dev.bus = &pci_bus_type;
-	dev->dev.type = &pci_dev_type;
 	dev->hdr_type = hdr_type & 0x7f;
 	dev->multifunction = !!(hdr_type & 0x80);
 	dev->error_state = pci_channel_io_normal;
@@ -1208,6 +1209,7 @@ struct pci_dev *alloc_pci_dev(void)
 		return NULL;
 
 	INIT_LIST_HEAD(&dev->bus_list);
+	dev->dev.type = &pci_dev_type;
 
 	return dev;
 }
@@ -1339,7 +1341,6 @@ void pci_device_add(struct pci_dev *dev, struct pci_bus *bus)
 	list_add_tail(&dev->bus_list, &bus->devices);
 	up_write(&pci_bus_sem);
 
-	pci_fixup_device(pci_fixup_final, dev);
 	ret = pcibios_add_device(dev);
 	WARN_ON(ret < 0);
 
@@ -1627,8 +1628,7 @@ unsigned int pci_scan_child_bus(struct pci_bus *bus)
 	if (!bus->is_added) {
 		dev_dbg(&bus->dev, "fixups for bus\n");
 		pcibios_fixup_bus(bus);
-		if (pci_is_root_bus(bus))
-			bus->is_added = 1;
+		bus->is_added = 1;
 	}
 
 	for (pass=0; pass < 2; pass++)
@@ -1659,6 +1659,14 @@ unsigned int pci_scan_child_bus(struct pci_bus *bus)
 int __weak pcibios_root_bridge_prepare(struct pci_host_bridge *bridge)
 {
 	return 0;
+}
+
+void __weak pcibios_add_bus(struct pci_bus *bus)
+{
+}
+
+void __weak pcibios_remove_bus(struct pci_bus *bus)
+{
 }
 
 struct pci_bus *pci_create_root_bus(struct device *parent, int bus,
@@ -1714,6 +1722,8 @@ struct pci_bus *pci_create_root_bus(struct device *parent, int bus,
 	error = device_register(&b->dev);
 	if (error)
 		goto class_dev_reg_err;
+
+	pcibios_add_bus(b);
 
 	/* Create legacy_io and legacy_mem files for this bus */
 	pci_create_legacy_files(b);

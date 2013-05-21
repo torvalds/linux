@@ -55,6 +55,7 @@
  * @rate:	Frequency in hertz
  * @u_volt:	Nominal voltage in microvolts corresponding to this OPP
  * @dev_opp:	points back to the device_opp struct this opp belongs to
+ * @head:	RCU callback head used for deferred freeing
  *
  * This structure stores the OPP information for a given device.
  */

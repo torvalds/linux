@@ -1,10 +1,11 @@
 config STMMAC_ETH
 	tristate "STMicroelectronics 10/100/1000 Ethernet driver"
-	depends on HAS_IOMEM
+	depends on HAS_IOMEM && HAS_DMA
 	select NET_CORE
 	select MII
 	select PHYLIB
 	select CRC32
+	select PTP_1588_CLOCK
 	---help---
 	  This is the driver for the Ethernet IPs are built around a
 	  Synopsys IP Core and only tested on the STMicroelectronics
@@ -53,23 +54,5 @@ config STMMAC_DA
 	  Ethernet device).
 	  By default, the DMA arbitration scheme is based on Round-robin
 	  (rx:tx priority is 1:1).
-
-choice
-	prompt "Select the DMA TX/RX descriptor operating modes"
-	depends on STMMAC_ETH
-	---help---
-	  This driver supports DMA descriptor to operate both in dual buffer
-	  (RING) and linked-list(CHAINED) mode. In RING mode each descriptor
-	  points to two data buffer pointers whereas in CHAINED mode they
-	  points to only one data buffer pointer.
-
-config STMMAC_RING
-	bool "Enable Descriptor Ring Mode"
-
-config STMMAC_CHAINED
-	bool "Enable Descriptor Chained Mode"
-
-endchoice
-
 
 endif

@@ -650,13 +650,13 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 
 	result = sn9c2028_read1(gspca_dev);
 	if (result < 0)
-		PDEBUG(D_ERR, "Camera Stop read failed");
+		PERR("Camera Stop read failed");
 
 	memset(data, 0, 6);
 	data[0] = 0x14;
 	result = sn9c2028_command(gspca_dev, data);
 	if (result < 0)
-		PDEBUG(D_ERR, "Camera Stop command failed");
+		PERR("Camera Stop command failed");
 }
 
 /* Include sn9c2028 sof detection functions */

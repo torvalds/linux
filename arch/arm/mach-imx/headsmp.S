@@ -24,7 +24,7 @@ ENTRY(v7_secondary_startup)
 ENDPROC(v7_secondary_startup)
 #endif
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_ARM_CPU_SUSPEND
 /*
  * The following code must assume it is running from physical address
  * where absolute virtual addresses to the data section have to be

@@ -798,16 +798,14 @@ static inline int i596_rx(struct net_device *dev)
 #ifdef __mc68000__
 				cache_clear(virt_to_phys(newskb->data), PKT_BUF_SZ);
 #endif
-			}
-			else
+			} else {
 				skb = netdev_alloc_skb(dev, pkt_len + 2);
+			}
 memory_squeeze:
 			if (skb == NULL) {
 				/* XXX tulip.c can defer packets here!! */
-				printk(KERN_WARNING "%s: i596_rx Memory squeeze, dropping packet.\n", dev->name);
 				dev->stats.rx_dropped++;
-			}
-			else {
+			} else {
 				if (!rx_in_place) {
 					/* 16 byte align the data fields */
 					skb_reserve(skb, 2);

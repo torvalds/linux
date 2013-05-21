@@ -382,8 +382,7 @@ out_free_rq:
 	return err;
 }
 
-static void
-qlcnic_fw_cmd_destroy_rx_ctx(struct qlcnic_adapter *adapter)
+void qlcnic_82xx_fw_cmd_del_rx_ctx(struct qlcnic_adapter *adapter)
 {
 	int err;
 	struct qlcnic_cmd_args cmd;
@@ -422,22 +421,20 @@ int qlcnic_82xx_fw_cmd_create_tx_ctx(struct qlcnic_adapter *adapter,
 
 	rq_size = SIZEOF_HOSTRQ_TX(struct qlcnic_hostrq_tx_ctx);
 	rq_addr = dma_alloc_coherent(&adapter->pdev->dev, rq_size,
-			&rq_phys_addr, GFP_KERNEL);
+				     &rq_phys_addr, GFP_KERNEL | __GFP_ZERO);
 	if (!rq_addr)
 		return -ENOMEM;
 
 	rsp_size = SIZEOF_CARDRSP_TX(struct qlcnic_cardrsp_tx_ctx);
 	rsp_addr = dma_alloc_coherent(&adapter->pdev->dev, rsp_size,
-			&rsp_phys_addr, GFP_KERNEL);
+				      &rsp_phys_addr, GFP_KERNEL | __GFP_ZERO);
 	if (!rsp_addr) {
 		err = -ENOMEM;
 		goto out_free_rq;
 	}
 
-	memset(rq_addr, 0, rq_size);
 	prq = rq_addr;
 
-	memset(rsp_addr, 0, rsp_size);
 	prsp = rsp_addr;
 
 	prq->host_rsp_dma_addr = cpu_to_le64(rsp_phys_addr);
@@ -486,13 +483,13 @@ out_free_rq:
 	return err;
 }
 
-static void
-qlcnic_fw_cmd_destroy_tx_ctx(struct qlcnic_adapter *adapter,
-			     struct qlcnic_host_tx_ring *tx_ring)
+void qlcnic_82xx_fw_cmd_del_tx_ctx(struct qlcnic_adapter *adapter,
+				   struct qlcnic_host_tx_ring *tx_ring)
 {
 	struct qlcnic_cmd_args cmd;
 
 	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_DESTROY_TX_CTX);
+
 	cmd.req.arg[1] = tx_ring->ctx_id;
 	if (qlcnic_issue_cmd(adapter, &cmd))
 		dev_err(&adapter->pdev->dev,
@@ -532,20 +529,15 @@ int qlcnic_alloc_hw_resources(struct qlcnic_adapter *adapter)
 		ptr = (__le32 *)dma_alloc_coherent(&pdev->dev, sizeof(u32),
 						   &tx_ring->hw_cons_phys_addr,
 						   GFP_KERNEL);
-
-		if (ptr == NULL) {
-			dev_err(&pdev->dev, "failed to allocate tx consumer\n");
+		if (ptr == NULL)
 			return -ENOMEM;
-		}
+
 		tx_ring->hw_consumer = ptr;
 		/* cmd desc ring */
 		addr = dma_alloc_coherent(&pdev->dev, TX_DESC_RINGSIZE(tx_ring),
 					  &tx_ring->phys_addr,
 					  GFP_KERNEL);
-
 		if (addr == NULL) {
-			dev_err(&pdev->dev,
-				"failed to allocate tx desc ring\n");
 			err = -ENOMEM;
 			goto err_out_free;
 		}
@@ -556,11 +548,9 @@ int qlcnic_alloc_hw_resources(struct qlcnic_adapter *adapter)
 	for (ring = 0; ring < adapter->max_rds_rings; ring++) {
 		rds_ring = &recv_ctx->rds_rings[ring];
 		addr = dma_alloc_coherent(&adapter->pdev->dev,
-				RCV_DESC_RINGSIZE(rds_ring),
-				&rds_ring->phys_addr, GFP_KERNEL);
+					  RCV_DESC_RINGSIZE(rds_ring),
+					  &rds_ring->phys_addr, GFP_KERNEL);
 		if (addr == NULL) {
-			dev_err(&pdev->dev,
-				"failed to allocate rds ring [%d]\n", ring);
 			err = -ENOMEM;
 			goto err_out_free;
 		}
@@ -572,11 +562,9 @@ int qlcnic_alloc_hw_resources(struct qlcnic_adapter *adapter)
 		sds_ring = &recv_ctx->sds_rings[ring];
 
 		addr = dma_alloc_coherent(&adapter->pdev->dev,
-				STATUS_DESC_RINGSIZE(sds_ring),
-				&sds_ring->phys_addr, GFP_KERNEL);
+					  STATUS_DESC_RINGSIZE(sds_ring),
+					  &sds_ring->phys_addr, GFP_KERNEL);
 		if (addr == NULL) {
-			dev_err(&pdev->dev,
-				"failed to allocate sds ring [%d]\n", ring);
 			err = -ENOMEM;
 			goto err_out_free;
 		}
@@ -616,13 +604,12 @@ int qlcnic_fw_create_ctx(struct qlcnic_adapter *dev)
 						  &dev->tx_ring[ring],
 						  ring);
 		if (err) {
-			qlcnic_fw_cmd_destroy_rx_ctx(dev);
+			qlcnic_fw_cmd_del_rx_ctx(dev);
 			if (ring == 0)
 				goto err_out;
 
 			for (i = 0; i < ring; i++)
-				qlcnic_fw_cmd_destroy_tx_ctx(dev,
-							     &dev->tx_ring[i]);
+				qlcnic_fw_cmd_del_tx_ctx(dev, &dev->tx_ring[i]);
 
 			goto err_out;
 		}
@@ -644,10 +631,10 @@ void qlcnic_fw_destroy_ctx(struct qlcnic_adapter *adapter)
 	int ring;
 
 	if (test_and_clear_bit(__QLCNIC_FW_ATTACHED, &adapter->state)) {
-		qlcnic_fw_cmd_destroy_rx_ctx(adapter);
+		qlcnic_fw_cmd_del_rx_ctx(adapter);
 		for (ring = 0; ring < adapter->max_drv_tx_rings; ring++)
-			qlcnic_fw_cmd_destroy_tx_ctx(adapter,
-						     &adapter->tx_ring[ring]);
+			qlcnic_fw_cmd_del_tx_ctx(adapter,
+						 &adapter->tx_ring[ring]);
 
 		if (qlcnic_83xx_check(adapter) &&
 		    (adapter->flags & QLCNIC_MSIX_ENABLED)) {
@@ -655,7 +642,7 @@ void qlcnic_fw_destroy_ctx(struct qlcnic_adapter *adapter)
 				qlcnic_83xx_config_intrpt(adapter, 0);
 		}
 		/* Allow dma queues to drain after context reset */
-		mdelay(20);
+		msleep(20);
 	}
 }
 
@@ -753,10 +740,9 @@ int qlcnic_82xx_get_nic_info(struct qlcnic_adapter *adapter,
 	size_t  nic_size = sizeof(struct qlcnic_info_le);
 
 	nic_info_addr = dma_alloc_coherent(&adapter->pdev->dev, nic_size,
-				&nic_dma_t, GFP_KERNEL);
+					   &nic_dma_t, GFP_KERNEL | __GFP_ZERO);
 	if (!nic_info_addr)
 		return -ENOMEM;
-	memset(nic_info_addr, 0, nic_size);
 
 	nic_info = nic_info_addr;
 
@@ -804,11 +790,10 @@ int qlcnic_82xx_set_nic_info(struct qlcnic_adapter *adapter,
 		return err;
 
 	nic_info_addr = dma_alloc_coherent(&adapter->pdev->dev, nic_size,
-			&nic_dma_t, GFP_KERNEL);
+					   &nic_dma_t, GFP_KERNEL | __GFP_ZERO);
 	if (!nic_info_addr)
 		return -ENOMEM;
 
-	memset(nic_info_addr, 0, nic_size);
 	nic_info = nic_info_addr;
 
 	nic_info->pci_func = cpu_to_le16(nic->pci_func);
@@ -854,10 +839,10 @@ int qlcnic_82xx_get_pci_info(struct qlcnic_adapter *adapter,
 	size_t pci_size = npar_size * QLCNIC_MAX_PCI_FUNC;
 
 	pci_info_addr = dma_alloc_coherent(&adapter->pdev->dev, pci_size,
-			&pci_info_dma_t, GFP_KERNEL);
+					   &pci_info_dma_t,
+					   GFP_KERNEL | __GFP_ZERO);
 	if (!pci_info_addr)
 		return -ENOMEM;
-	memset(pci_info_addr, 0, pci_size);
 
 	npar = pci_info_addr;
 	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_GET_PCI_INFO);
@@ -949,12 +934,9 @@ int qlcnic_get_port_stats(struct qlcnic_adapter *adapter, const u8 func,
 	}
 
 	stats_addr = dma_alloc_coherent(&adapter->pdev->dev, stats_size,
-			&stats_dma_t, GFP_KERNEL);
-	if (!stats_addr) {
-		dev_err(&adapter->pdev->dev, "Unable to allocate memory\n");
+					&stats_dma_t, GFP_KERNEL | __GFP_ZERO);
+	if (!stats_addr)
 		return -ENOMEM;
-	}
-	memset(stats_addr, 0, stats_size);
 
 	arg1 = func | QLCNIC_STATS_VERSION << 8 | QLCNIC_STATS_PORT << 12;
 	arg1 |= rx_tx << 15 | stats_size << 16;
@@ -1003,13 +985,10 @@ int qlcnic_get_mac_stats(struct qlcnic_adapter *adapter,
 		return -ENOMEM;
 
 	stats_addr = dma_alloc_coherent(&adapter->pdev->dev, stats_size,
-			&stats_dma_t, GFP_KERNEL);
-	if (!stats_addr) {
-		dev_err(&adapter->pdev->dev,
-			"%s: Unable to allocate memory.\n", __func__);
+					&stats_dma_t, GFP_KERNEL | __GFP_ZERO);
+	if (!stats_addr)
 		return -ENOMEM;
-	}
-	memset(stats_addr, 0, stats_size);
+
 	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_GET_MAC_STATS);
 	cmd.req.arg[1] = stats_size << 16;
 	cmd.req.arg[2] = MSD(stats_dma_t);

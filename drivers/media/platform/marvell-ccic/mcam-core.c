@@ -1357,7 +1357,7 @@ static int mcam_vidioc_s_input(struct file *filp, void *priv, unsigned int i)
 }
 
 /* from vivi.c */
-static int mcam_vidioc_s_std(struct file *filp, void *priv, v4l2_std_id *a)
+static int mcam_vidioc_s_std(struct file *filp, void *priv, v4l2_std_id a)
 {
 	return 0;
 }
@@ -1445,7 +1445,7 @@ static int mcam_vidioc_g_register(struct file *file, void *priv,
 }
 
 static int mcam_vidioc_s_register(struct file *file, void *priv,
-		struct v4l2_dbg_register *reg)
+		const struct v4l2_dbg_register *reg)
 {
 	struct mcam_camera *cam = priv;
 

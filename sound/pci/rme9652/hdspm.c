@@ -969,6 +969,7 @@ static int snd_hdspm_create_pcm(struct snd_card *card,
 				struct hdspm *hdspm);
 
 static inline void snd_hdspm_initialize_midi_flush(struct hdspm *hdspm);
+static inline int hdspm_get_pll_freq(struct hdspm *hdspm);
 static int hdspm_update_simple_mixer_controls(struct hdspm *hdspm);
 static int hdspm_autosync_ref(struct hdspm *hdspm);
 static int snd_hdspm_set_defaults(struct hdspm *hdspm);
@@ -1074,6 +1075,20 @@ static int snd_hdspm_use_is_exclusive(struct hdspm *hdspm)
 	spin_unlock_irqrestore(&hdspm->lock, flags);
 	return ret;
 }
+
+/* round arbitary sample rates to commonly known rates */
+static int hdspm_round_frequency(int rate)
+{
+	if (rate < 38050)
+		return 32000;
+	if (rate < 46008)
+		return 44100;
+	else
+		return 48000;
+}
+
+static int hdspm_tco_sync_check(struct hdspm *hdspm);
+static int hdspm_sync_in_sync_check(struct hdspm *hdspm);
 
 /* check for external sample rate */
 static int hdspm_external_sample_rate(struct hdspm *hdspm)
@@ -1216,21 +1231,44 @@ static int hdspm_external_sample_rate(struct hdspm *hdspm)
 				break;
 			}
 
-			/* QS and DS rates normally can not be detected
-			 * automatically by the card. Only exception is MADI
-			 * in 96k frame mode.
-			 *
-			 * So if we read SS values (32 .. 48k), check for
-			 * user-provided DS/QS bits in the control register
-			 * and multiply the base frequency accordingly.
-			 */
-			if (rate <= 48000) {
-				if (hdspm->control_register & HDSPM_QuadSpeed)
-					rate *= 4;
-				else if (hdspm->control_register &
-						HDSPM_DoubleSpeed)
-					rate *= 2;
+		} /* endif HDSPM_madiLock */
+
+		/* check sample rate from TCO or SYNC_IN */
+		{
+			bool is_valid_input = 0;
+			bool has_sync = 0;
+
+			syncref = hdspm_autosync_ref(hdspm);
+			if (HDSPM_AUTOSYNC_FROM_TCO == syncref) {
+				is_valid_input = 1;
+				has_sync = (HDSPM_SYNC_CHECK_SYNC ==
+					hdspm_tco_sync_check(hdspm));
+			} else if (HDSPM_AUTOSYNC_FROM_SYNC_IN == syncref) {
+				is_valid_input = 1;
+				has_sync = (HDSPM_SYNC_CHECK_SYNC ==
+					hdspm_sync_in_sync_check(hdspm));
 			}
+
+			if (is_valid_input && has_sync) {
+				rate = hdspm_round_frequency(
+					hdspm_get_pll_freq(hdspm));
+			}
+		}
+
+		/* QS and DS rates normally can not be detected
+		 * automatically by the card. Only exception is MADI
+		 * in 96k frame mode.
+		 *
+		 * So if we read SS values (32 .. 48k), check for
+		 * user-provided DS/QS bits in the control register
+		 * and multiply the base frequency accordingly.
+		 */
+		if (rate <= 48000) {
+			if (hdspm->control_register & HDSPM_QuadSpeed)
+				rate *= 4;
+			else if (hdspm->control_register &
+					HDSPM_DoubleSpeed)
+				rate *= 2;
 		}
 		break;
 	}
@@ -1979,16 +2017,25 @@ static void hdspm_midi_tasklet(unsigned long arg)
 /* get the system sample rate which is set */
 
 
+static inline int hdspm_get_pll_freq(struct hdspm *hdspm)
+{
+	unsigned int period, rate;
+
+	period = hdspm_read(hdspm, HDSPM_RD_PLL_FREQ);
+	rate = hdspm_calc_dds_value(hdspm, period);
+
+	return rate;
+}
+
 /**
  * Calculate the real sample rate from the
  * current DDS value.
  **/
 static int hdspm_get_system_sample_rate(struct hdspm *hdspm)
 {
-	unsigned int period, rate;
+	unsigned int rate;
 
-	period = hdspm_read(hdspm, HDSPM_RD_PLL_FREQ);
-	rate = hdspm_calc_dds_value(hdspm, period);
+	rate = hdspm_get_pll_freq(hdspm);
 
 	if (rate > 207000) {
 		/* Unreasonable high sample rate as seen on PCI MADI cards. */
@@ -2128,6 +2175,16 @@ static int hdspm_get_s1_sample_rate(struct hdspm *hdspm, unsigned int idx)
 	return (status >> (idx*4)) & 0xF;
 }
 
+#define ENUMERATED_CTL_INFO(info, texts) \
+{ \
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED; \
+	uinfo->count = 1; \
+	uinfo->value.enumerated.items = ARRAY_SIZE(texts); \
+	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items) \
+		uinfo->value.enumerated.item =	uinfo->value.enumerated.items - 1; \
+	strcpy(uinfo->value.enumerated.name, texts[uinfo->value.enumerated.item]); \
+}
+
 
 
 #define HDSPM_AUTOSYNC_SAMPLE_RATE(xname, xindex) \
@@ -2143,14 +2200,7 @@ static int hdspm_get_s1_sample_rate(struct hdspm *hdspm, unsigned int idx)
 static int snd_hdspm_info_autosync_sample_rate(struct snd_kcontrol *kcontrol,
 					       struct snd_ctl_elem_info *uinfo)
 {
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 10;
-
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item = uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name,
-			texts_freq[uinfo->value.enumerated.item]);
+	ENUMERATED_CTL_INFO(uinfo, texts_freq);
 	return 0;
 }
 
@@ -2316,15 +2366,7 @@ static int snd_hdspm_info_system_clock_mode(struct snd_kcontrol *kcontrol,
 					    struct snd_ctl_elem_info *uinfo)
 {
 	static char *texts[] = { "Master", "AutoSync" };
-
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 2;
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item =
-		    uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name,
-	       texts[uinfo->value.enumerated.item]);
+	ENUMERATED_CTL_INFO(uinfo, texts);
 	return 0;
 }
 
@@ -2888,6 +2930,112 @@ static int snd_hdspm_get_autosync_ref(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+
+
+#define HDSPM_TCO_VIDEO_INPUT_FORMAT(xname, xindex) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
+	.name = xname, \
+	.access = SNDRV_CTL_ELEM_ACCESS_READ |\
+		SNDRV_CTL_ELEM_ACCESS_VOLATILE, \
+	.info = snd_hdspm_info_tco_video_input_format, \
+	.get = snd_hdspm_get_tco_video_input_format, \
+}
+
+static int snd_hdspm_info_tco_video_input_format(struct snd_kcontrol *kcontrol,
+				       struct snd_ctl_elem_info *uinfo)
+{
+	static char *texts[] = {"No video", "NTSC", "PAL"};
+	ENUMERATED_CTL_INFO(uinfo, texts);
+	return 0;
+}
+
+static int snd_hdspm_get_tco_video_input_format(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_value *ucontrol)
+{
+	u32 status;
+	int ret = 0;
+
+	struct hdspm *hdspm = snd_kcontrol_chip(kcontrol);
+	status = hdspm_read(hdspm, HDSPM_RD_TCO + 4);
+	switch (status & (HDSPM_TCO1_Video_Input_Format_NTSC |
+			HDSPM_TCO1_Video_Input_Format_PAL)) {
+	case HDSPM_TCO1_Video_Input_Format_NTSC:
+		/* ntsc */
+		ret = 1;
+		break;
+	case HDSPM_TCO1_Video_Input_Format_PAL:
+		/* pal */
+		ret = 2;
+		break;
+	default:
+		/* no video */
+		ret = 0;
+		break;
+	}
+	ucontrol->value.enumerated.item[0] = ret;
+	return 0;
+}
+
+
+
+#define HDSPM_TCO_LTC_FRAMES(xname, xindex) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
+	.name = xname, \
+	.access = SNDRV_CTL_ELEM_ACCESS_READ |\
+		SNDRV_CTL_ELEM_ACCESS_VOLATILE, \
+	.info = snd_hdspm_info_tco_ltc_frames, \
+	.get = snd_hdspm_get_tco_ltc_frames, \
+}
+
+static int snd_hdspm_info_tco_ltc_frames(struct snd_kcontrol *kcontrol,
+				       struct snd_ctl_elem_info *uinfo)
+{
+	static char *texts[] = {"No lock", "24 fps", "25 fps", "29.97 fps",
+				"30 fps"};
+	ENUMERATED_CTL_INFO(uinfo, texts);
+	return 0;
+}
+
+static int hdspm_tco_ltc_frames(struct hdspm *hdspm)
+{
+	u32 status;
+	int ret = 0;
+
+	status = hdspm_read(hdspm, HDSPM_RD_TCO + 4);
+	if (status & HDSPM_TCO1_LTC_Input_valid) {
+		switch (status & (HDSPM_TCO1_LTC_Format_LSB |
+					HDSPM_TCO1_LTC_Format_MSB)) {
+		case 0:
+			/* 24 fps */
+			ret = 1;
+			break;
+		case HDSPM_TCO1_LTC_Format_LSB:
+			/* 25 fps */
+			ret = 2;
+			break;
+		case HDSPM_TCO1_LTC_Format_MSB:
+			/* 25 fps */
+			ret = 3;
+			break;
+		default:
+			/* 30 fps */
+			ret = 4;
+			break;
+		}
+	}
+
+	return ret;
+}
+
+static int snd_hdspm_get_tco_ltc_frames(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_value *ucontrol)
+{
+	struct hdspm *hdspm = snd_kcontrol_chip(kcontrol);
+
+	ucontrol->value.enumerated.item[0] = hdspm_tco_ltc_frames(hdspm);
+	return 0;
+}
+
 #define HDSPM_TOGGLE_SETTING(xname, xindex) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
 	.name = xname, \
@@ -2974,17 +3122,7 @@ static int snd_hdspm_info_input_select(struct snd_kcontrol *kcontrol,
 				       struct snd_ctl_elem_info *uinfo)
 {
 	static char *texts[] = { "optical", "coaxial" };
-
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 2;
-
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item =
-		    uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name,
-	       texts[uinfo->value.enumerated.item]);
-
+	ENUMERATED_CTL_INFO(uinfo, texts);
 	return 0;
 }
 
@@ -3046,17 +3184,7 @@ static int snd_hdspm_info_ds_wire(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_info *uinfo)
 {
 	static char *texts[] = { "Single", "Double" };
-
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 2;
-
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item =
-		    uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name,
-	       texts[uinfo->value.enumerated.item]);
-
+	ENUMERATED_CTL_INFO(uinfo, texts);
 	return 0;
 }
 
@@ -3129,17 +3257,7 @@ static int snd_hdspm_info_qs_wire(struct snd_kcontrol *kcontrol,
 				       struct snd_ctl_elem_info *uinfo)
 {
 	static char *texts[] = { "Single", "Double", "Quad" };
-
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 3;
-
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item =
-		    uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name,
-	       texts[uinfo->value.enumerated.item]);
-
+	ENUMERATED_CTL_INFO(uinfo, texts);
 	return 0;
 }
 
@@ -3215,17 +3333,7 @@ static int snd_hdspm_info_madi_speedmode(struct snd_kcontrol *kcontrol,
 				       struct snd_ctl_elem_info *uinfo)
 {
 	static char *texts[] = { "Single", "Double", "Quad" };
-
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 3;
-
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item =
-		    uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name,
-	       texts[uinfo->value.enumerated.item]);
-
+	ENUMERATED_CTL_INFO(uinfo, texts);
 	return 0;
 }
 
@@ -3445,19 +3553,30 @@ static int snd_hdspm_put_playback_mixer(struct snd_kcontrol *kcontrol,
 	.get = snd_hdspm_get_sync_check \
 }
 
+#define HDSPM_TCO_LOCK_CHECK(xname, xindex) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
+	.name = xname, \
+	.private_value = xindex, \
+	.access = SNDRV_CTL_ELEM_ACCESS_READ | SNDRV_CTL_ELEM_ACCESS_VOLATILE, \
+	.info = snd_hdspm_tco_info_lock_check, \
+	.get = snd_hdspm_get_sync_check \
+}
+
+
 
 static int snd_hdspm_info_sync_check(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_info *uinfo)
 {
 	static char *texts[] = { "No Lock", "Lock", "Sync", "N/A" };
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 4;
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item =
-			uinfo->value.enumerated.items - 1;
-	strcpy(uinfo->value.enumerated.name,
-			texts[uinfo->value.enumerated.item]);
+	ENUMERATED_CTL_INFO(uinfo, texts);
+	return 0;
+}
+
+static int snd_hdspm_tco_info_lock_check(struct snd_kcontrol *kcontrol,
+				     struct snd_ctl_elem_info *uinfo)
+{
+	static char *texts[] = { "No Lock", "Lock" };
+	ENUMERATED_CTL_INFO(uinfo, texts);
 	return 0;
 }
 
@@ -3590,6 +3709,14 @@ static int hdspm_aes_sync_check(struct hdspm *hdspm, int idx)
 	return 0;
 }
 
+static int hdspm_tco_input_check(struct hdspm *hdspm, u32 mask)
+{
+	u32 status;
+	status = hdspm_read(hdspm, HDSPM_RD_TCO + 4);
+
+	return (status & mask) ? 1 : 0;
+}
+
 
 static int hdspm_tco_sync_check(struct hdspm *hdspm)
 {
@@ -3695,6 +3822,22 @@ static int snd_hdspm_get_sync_check(struct snd_kcontrol *kcontrol,
 		}
 		break;
 
+	}
+
+	if (hdspm->tco) {
+		switch (kcontrol->private_value) {
+		case 11:
+			/* Check TCO for lock state of its current input */
+			val = hdspm_tco_input_check(hdspm, HDSPM_TCO1_TCO_lock);
+			break;
+		case 12:
+			/* Check TCO for valid time code on LTC input. */
+			val = hdspm_tco_input_check(hdspm,
+				HDSPM_TCO1_LTC_Input_valid);
+			break;
+		default:
+			break;
+		}
 	}
 
 	if (-1 == val)
@@ -3813,17 +3956,7 @@ static int snd_hdspm_info_tco_sample_rate(struct snd_kcontrol *kcontrol,
 					  struct snd_ctl_elem_info *uinfo)
 {
 	static char *texts[] = { "44.1 kHz", "48 kHz" };
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 2;
-
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item =
-			uinfo->value.enumerated.items - 1;
-
-	strcpy(uinfo->value.enumerated.name,
-			texts[uinfo->value.enumerated.item]);
-
+	ENUMERATED_CTL_INFO(uinfo, texts);
 	return 0;
 }
 
@@ -3869,17 +4002,7 @@ static int snd_hdspm_info_tco_pull(struct snd_kcontrol *kcontrol,
 				   struct snd_ctl_elem_info *uinfo)
 {
 	static char *texts[] = { "0", "+ 0.1 %", "- 0.1 %", "+ 4 %", "- 4 %" };
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 5;
-
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item =
-			uinfo->value.enumerated.items - 1;
-
-	strcpy(uinfo->value.enumerated.name,
-			texts[uinfo->value.enumerated.item]);
-
+	ENUMERATED_CTL_INFO(uinfo, texts);
 	return 0;
 }
 
@@ -3924,17 +4047,7 @@ static int snd_hdspm_info_tco_wck_conversion(struct snd_kcontrol *kcontrol,
 					     struct snd_ctl_elem_info *uinfo)
 {
 	static char *texts[] = { "1:1", "44.1 -> 48", "48 -> 44.1" };
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 3;
-
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item =
-			uinfo->value.enumerated.items - 1;
-
-	strcpy(uinfo->value.enumerated.name,
-			texts[uinfo->value.enumerated.item]);
-
+	ENUMERATED_CTL_INFO(uinfo, texts);
 	return 0;
 }
 
@@ -3981,17 +4094,7 @@ static int snd_hdspm_info_tco_frame_rate(struct snd_kcontrol *kcontrol,
 {
 	static char *texts[] = { "24 fps", "25 fps", "29.97fps",
 		"29.97 dfps", "30 fps", "30 dfps" };
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 6;
-
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item =
-			uinfo->value.enumerated.items - 1;
-
-	strcpy(uinfo->value.enumerated.name,
-			texts[uinfo->value.enumerated.item]);
-
+	ENUMERATED_CTL_INFO(uinfo, texts);
 	return 0;
 }
 
@@ -4037,17 +4140,7 @@ static int snd_hdspm_info_tco_sync_source(struct snd_kcontrol *kcontrol,
 					  struct snd_ctl_elem_info *uinfo)
 {
 	static char *texts[] = { "LTC", "Video", "WCK" };
-	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
-	uinfo->count = 1;
-	uinfo->value.enumerated.items = 3;
-
-	if (uinfo->value.enumerated.item >= uinfo->value.enumerated.items)
-		uinfo->value.enumerated.item =
-			uinfo->value.enumerated.items - 1;
-
-	strcpy(uinfo->value.enumerated.name,
-			texts[uinfo->value.enumerated.item]);
-
+	ENUMERATED_CTL_INFO(uinfo, texts);
 	return 0;
 }
 
@@ -4145,6 +4238,7 @@ static struct snd_kcontrol_new snd_hdspm_controls_madi[] = {
 	HDSPM_SYNC_CHECK("SYNC IN SyncCheck", 3),
 	HDSPM_TOGGLE_SETTING("Line Out", HDSPM_LineOut),
 	HDSPM_TOGGLE_SETTING("TX 64 channels mode", HDSPM_TX_64ch),
+	HDSPM_TOGGLE_SETTING("Disable 96K frames", HDSPM_SMUX),
 	HDSPM_TOGGLE_SETTING("Clear Track Marker", HDSPM_clr_tms),
 	HDSPM_TOGGLE_SETTING("Safe Mode", HDSPM_AutoInp),
 	HDSPM_INPUT_SELECT("Input Select", 0),
@@ -4272,7 +4366,11 @@ static struct snd_kcontrol_new snd_hdspm_controls_tco[] = {
 	HDSPM_TCO_WCK_CONVERSION("TCO WCK Conversion", 0),
 	HDSPM_TCO_FRAME_RATE("TCO Frame Rate", 0),
 	HDSPM_TCO_SYNC_SOURCE("TCO Sync Source", 0),
-	HDSPM_TCO_WORD_TERM("TCO Word Term", 0)
+	HDSPM_TCO_WORD_TERM("TCO Word Term", 0),
+	HDSPM_TCO_LOCK_CHECK("TCO Input Check", 11),
+	HDSPM_TCO_LOCK_CHECK("TCO LTC Valid", 12),
+	HDSPM_TCO_LTC_FRAMES("TCO Detected Frame Rate", 0),
+	HDSPM_TCO_VIDEO_INPUT_FORMAT("Video Input Format", 0)
 };
 
 

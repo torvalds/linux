@@ -27,6 +27,7 @@
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/gpio.h>
+#include <linux/of.h>
 
 #include <linux/power/sbs-battery.h>
 
@@ -667,7 +668,6 @@ of_out:
 	return pdata;
 }
 #else
-#define sbs_dt_ids NULL
 static struct sbs_platform_data *sbs_of_populate_pdata(
 	struct i2c_client *client)
 {
@@ -820,10 +820,11 @@ static int sbs_remove(struct i2c_client *client)
 	return 0;
 }
 
-#if defined CONFIG_PM
-static int sbs_suspend(struct i2c_client *client,
-	pm_message_t state)
+#if defined CONFIG_PM_SLEEP
+
+static int sbs_suspend(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct sbs_info *chip = i2c_get_clientdata(client);
 	s32 ret;
 
@@ -838,11 +839,13 @@ static int sbs_suspend(struct i2c_client *client,
 
 	return 0;
 }
+
+static SIMPLE_DEV_PM_OPS(sbs_pm_ops, sbs_suspend, NULL);
+#define SBS_PM_OPS (&sbs_pm_ops)
+
 #else
-#define sbs_suspend		NULL
+#define SBS_PM_OPS NULL
 #endif
-/* any smbus transaction will wake up sbs */
-#define sbs_resume		NULL
 
 static const struct i2c_device_id sbs_id[] = {
 	{ "bq20z75", 0 },
@@ -854,12 +857,11 @@ MODULE_DEVICE_TABLE(i2c, sbs_id);
 static struct i2c_driver sbs_battery_driver = {
 	.probe		= sbs_probe,
 	.remove		= sbs_remove,
-	.suspend	= sbs_suspend,
-	.resume		= sbs_resume,
 	.id_table	= sbs_id,
 	.driver = {
 		.name	= "sbs-battery",
-		.of_match_table = sbs_dt_ids,
+		.of_match_table = of_match_ptr(sbs_dt_ids),
+		.pm	= SBS_PM_OPS,
 	},
 };
 module_i2c_driver(sbs_battery_driver);

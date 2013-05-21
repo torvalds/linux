@@ -1,6 +1,7 @@
 /*
  * Symbol USB barcode to serial driver
  *
+ * Copyright (C) 2013 Johan Hovold <jhovold@gmail.com>
  * Copyright (C) 2009 Greg Kroah-Hartman <gregkh@suse.de>
  * Copyright (C) 2009 Novell Inc.
  *
@@ -26,27 +27,17 @@ static const struct usb_device_id id_table[] = {
 };
 MODULE_DEVICE_TABLE(usb, id_table);
 
-/* This structure holds all of the individual device information */
 struct symbol_private {
-	struct usb_device *udev;
-	struct usb_serial *serial;
-	struct usb_serial_port *port;
-	unsigned char *int_buffer;
-	struct urb *int_urb;
-	int buffer_size;
-	u8 bInterval;
-	u8 int_address;
 	spinlock_t lock;	/* protects the following flags */
 	bool throttled;
 	bool actually_throttled;
-	bool rts;
 };
 
 static void symbol_int_callback(struct urb *urb)
 {
-	struct symbol_private *priv = urb->context;
+	struct usb_serial_port *port = urb->context;
+	struct symbol_private *priv = usb_get_serial_port_data(port);
 	unsigned char *data = urb->transfer_buffer;
-	struct usb_serial_port *port = priv->port;
 	int status = urb->status;
 	int result;
 	int data_length;
@@ -84,7 +75,7 @@ static void symbol_int_callback(struct urb *urb)
 		tty_insert_flip_string(&port->port, &data[1], data_length);
 		tty_flip_buffer_push(&port->port);
 	} else {
-		dev_dbg(&priv->udev->dev,
+		dev_dbg(&port->dev,
 			"Improper amount of data received from the device, "
 			"%d bytes", urb->actual_length);
 	}
@@ -94,12 +85,7 @@ exit:
 
 	/* Continue trying to always read if we should */
 	if (!priv->throttled) {
-		usb_fill_int_urb(priv->int_urb, priv->udev,
-				 usb_rcvintpipe(priv->udev,
-				 		priv->int_address),
-				 priv->int_buffer, priv->buffer_size,
-				 symbol_int_callback, priv, priv->bInterval);
-		result = usb_submit_urb(priv->int_urb, GFP_ATOMIC);
+		result = usb_submit_urb(port->interrupt_in_urb, GFP_ATOMIC);
 		if (result)
 			dev_err(&port->dev,
 			    "%s - failed resubmitting read urb, error %d\n",
@@ -118,15 +104,10 @@ static int symbol_open(struct tty_struct *tty, struct usb_serial_port *port)
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->throttled = false;
 	priv->actually_throttled = false;
-	priv->port = port;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	/* Start reading from the device */
-	usb_fill_int_urb(priv->int_urb, priv->udev,
-			 usb_rcvintpipe(priv->udev, priv->int_address),
-			 priv->int_buffer, priv->buffer_size,
-			 symbol_int_callback, priv, priv->bInterval);
-	result = usb_submit_urb(priv->int_urb, GFP_KERNEL);
+	result = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
 	if (result)
 		dev_err(&port->dev,
 			"%s - failed resubmitting read urb, error %d\n",
@@ -136,10 +117,7 @@ static int symbol_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 static void symbol_close(struct usb_serial_port *port)
 {
-	struct symbol_private *priv = usb_get_serial_data(port->serial);
-
-	/* shutdown our urbs */
-	usb_kill_urb(priv->int_urb);
+	usb_kill_urb(port->interrupt_in_urb);
 }
 
 static void symbol_throttle(struct tty_struct *tty)
@@ -166,7 +144,7 @@ static void symbol_unthrottle(struct tty_struct *tty)
 	spin_unlock_irq(&priv->lock);
 
 	if (was_throttled) {
-		result = usb_submit_urb(priv->int_urb, GFP_KERNEL);
+		result = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
 		if (result)
 			dev_err(&port->dev,
 				"%s - failed submitting read urb, error %d\n",
@@ -176,89 +154,36 @@ static void symbol_unthrottle(struct tty_struct *tty)
 
 static int symbol_startup(struct usb_serial *serial)
 {
-	struct symbol_private *priv;
-	struct usb_host_interface *intf;
-	int i;
-	int retval = -ENOMEM;
-	bool int_in_found = false;
-
-	/* create our private serial structure */
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if (priv == NULL) {
-		dev_err(&serial->dev->dev, "%s - Out of memory\n", __func__);
-		return -ENOMEM;
-	}
-	spin_lock_init(&priv->lock);
-	priv->serial = serial;
-	priv->port = serial->port[0];
-	priv->udev = serial->dev;
-
-	/* find our interrupt endpoint */
-	intf = serial->interface->altsetting;
-	for (i = 0; i < intf->desc.bNumEndpoints; ++i) {
-		struct usb_endpoint_descriptor *endpoint;
-
-		endpoint = &intf->endpoint[i].desc;
-		if (!usb_endpoint_is_int_in(endpoint))
-			continue;
-
-		priv->int_urb = usb_alloc_urb(0, GFP_KERNEL);
-		if (!priv->int_urb) {
-			dev_err(&priv->udev->dev, "out of memory\n");
-			goto error;
-		}
-
-		priv->buffer_size = usb_endpoint_maxp(endpoint) * 2;
-		priv->int_buffer = kmalloc(priv->buffer_size, GFP_KERNEL);
-		if (!priv->int_buffer) {
-			dev_err(&priv->udev->dev, "out of memory\n");
-			goto error;
-		}
-
-		priv->int_address = endpoint->bEndpointAddress;
-		priv->bInterval = endpoint->bInterval;
-
-		/* set up our int urb */
-		usb_fill_int_urb(priv->int_urb, priv->udev,
-				 usb_rcvintpipe(priv->udev,
-				 		endpoint->bEndpointAddress),
-				 priv->int_buffer, priv->buffer_size,
-				 symbol_int_callback, priv, priv->bInterval);
-
-		int_in_found = true;
-		break;
-		}
-
-	if (!int_in_found) {
-		dev_err(&priv->udev->dev,
-			"Error - the proper endpoints were not found!\n");
-		goto error;
+	if (!serial->num_interrupt_in) {
+		dev_err(&serial->dev->dev, "no interrupt-in endpoint\n");
+		return -ENODEV;
 	}
 
-	usb_set_serial_data(serial, priv);
 	return 0;
-
-error:
-	usb_free_urb(priv->int_urb);
-	kfree(priv->int_buffer);
-	kfree(priv);
-	return retval;
 }
 
-static void symbol_disconnect(struct usb_serial *serial)
+static int symbol_port_probe(struct usb_serial_port *port)
 {
-	struct symbol_private *priv = usb_get_serial_data(serial);
+	struct symbol_private *priv;
 
-	usb_kill_urb(priv->int_urb);
-	usb_free_urb(priv->int_urb);
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	spin_lock_init(&priv->lock);
+
+	usb_set_serial_port_data(port, priv);
+
+	return 0;
 }
 
-static void symbol_release(struct usb_serial *serial)
+static int symbol_port_remove(struct usb_serial_port *port)
 {
-	struct symbol_private *priv = usb_get_serial_data(serial);
+	struct symbol_private *priv = usb_get_serial_port_data(port);
 
-	kfree(priv->int_buffer);
 	kfree(priv);
+
+	return 0;
 }
 
 static struct usb_serial_driver symbol_device = {
@@ -269,12 +194,13 @@ static struct usb_serial_driver symbol_device = {
 	.id_table =		id_table,
 	.num_ports =		1,
 	.attach =		symbol_startup,
+	.port_probe =		symbol_port_probe,
+	.port_remove =		symbol_port_remove,
 	.open =			symbol_open,
 	.close =		symbol_close,
-	.disconnect =		symbol_disconnect,
-	.release =		symbol_release,
 	.throttle = 		symbol_throttle,
 	.unthrottle =		symbol_unthrottle,
+	.read_int_callback =	symbol_int_callback,
 };
 
 static struct usb_serial_driver * const serial_drivers[] = {

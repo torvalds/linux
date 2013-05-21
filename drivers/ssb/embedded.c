@@ -57,9 +57,8 @@ int ssb_watchdog_register(struct ssb_bus *bus)
 					     bus->busnumber, &wdt,
 					     sizeof(wdt));
 	if (IS_ERR(pdev)) {
-		ssb_dprintk(KERN_INFO PFX
-			    "can not register watchdog device, err: %li\n",
-			    PTR_ERR(pdev));
+		ssb_dbg("can not register watchdog device, err: %li\n",
+			PTR_ERR(pdev));
 		return PTR_ERR(pdev);
 	}
 

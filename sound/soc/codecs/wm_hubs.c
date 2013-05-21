@@ -199,11 +199,12 @@ static void wm_hubs_dcs_cache_set(struct snd_soc_codec *codec, u16 dcs_cfg)
 	list_add_tail(&cache->list, &hubs->dcs_cache);
 }
 
-static void wm_hubs_read_dc_servo(struct snd_soc_codec *codec,
+static int wm_hubs_read_dc_servo(struct snd_soc_codec *codec,
 				  u16 *reg_l, u16 *reg_r)
 {
 	struct wm_hubs_data *hubs = snd_soc_codec_get_drvdata(codec);
 	u16 dcs_reg, reg;
+	int ret = 0;
 
 	switch (hubs->dcs_readback_mode) {
 	case 2:
@@ -236,8 +237,9 @@ static void wm_hubs_read_dc_servo(struct snd_soc_codec *codec,
 		break;
 	default:
 		WARN(1, "Unknown DCS readback method\n");
-		return;
+		ret = -1;
 	}
+	return ret;
 }
 
 /*
@@ -286,7 +288,8 @@ static void enable_dc_servo(struct snd_soc_codec *codec)
 				  WM8993_DCS_TRIG_STARTUP_1);
 	}
 
-	wm_hubs_read_dc_servo(codec, &reg_l, &reg_r);
+	if (wm_hubs_read_dc_servo(codec, &reg_l, &reg_r) < 0)
+		return;
 
 	dev_dbg(codec->dev, "DCS input: %x %x\n", reg_l, reg_r);
 

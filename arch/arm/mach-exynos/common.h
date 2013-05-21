@@ -12,7 +12,11 @@
 #ifndef __ARCH_ARM_MACH_EXYNOS_COMMON_H
 #define __ARCH_ARM_MACH_EXYNOS_COMMON_H
 
-extern void exynos4_timer_init(void);
+#include <linux/of.h>
+
+void mct_init(void __iomem *base, int irq_g0, int irq_l0, int irq_l1);
+void exynos_init_time(void);
+extern unsigned long xxti_f, xusbxti_f;
 
 struct map_desc;
 void exynos_init_io(struct map_desc *mach_desc, int size);
@@ -21,6 +25,12 @@ void exynos5_init_irq(void);
 void exynos4_restart(char mode, const char *cmd);
 void exynos5_restart(char mode, const char *cmd);
 void exynos_init_late(void);
+
+/* ToDo: remove these after migrating legacy exynos4 platforms to dt */
+void exynos4_clk_init(struct device_node *np, int is_exynos4210, void __iomem *reg_base, unsigned long xom);
+void exynos4_clk_register_fixed_ext(unsigned long, unsigned long);
+
+void exynos_firmware_init(void);
 
 #ifdef CONFIG_PM_GENERIC_DOMAINS
 int exynos_pm_late_initcall(void);
@@ -61,7 +71,8 @@ void exynos4212_register_clocks(void);
 #endif
 
 struct device_node;
-void combiner_init(void __iomem *combiner_base, struct device_node *np);
+void combiner_init(void __iomem *combiner_base, struct device_node *np,
+			unsigned int max_nr, int irq_base);
 
 extern struct smp_operations exynos_smp_ops;
 

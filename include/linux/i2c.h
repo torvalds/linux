@@ -125,7 +125,6 @@ extern s32 i2c_smbus_write_i2c_block_data(const struct i2c_client *client,
  * struct i2c_driver - represent an I2C device driver
  * @class: What kind of i2c device we instantiate (for detect)
  * @attach_adapter: Callback for bus addition (deprecated)
- * @detach_adapter: Callback for bus removal (deprecated)
  * @probe: Callback for device binding
  * @remove: Callback for device unbinding
  * @shutdown: Callback for device shutdown
@@ -162,12 +161,10 @@ extern s32 i2c_smbus_write_i2c_block_data(const struct i2c_client *client,
 struct i2c_driver {
 	unsigned int class;
 
-	/* Notifies the driver that a new bus has appeared or is about to be
-	 * removed. You should avoid using this, it will be removed in a
-	 * near future.
+	/* Notifies the driver that a new bus has appeared. You should avoid
+	 * using this, it will be removed in a near future.
 	 */
 	int (*attach_adapter)(struct i2c_adapter *) __deprecated;
-	int (*detach_adapter)(struct i2c_adapter *) __deprecated;
 
 	/* Standard driver model interfaces */
 	int (*probe)(struct i2c_client *, const struct i2c_device_id *);
@@ -370,6 +367,45 @@ struct i2c_algorithm {
 	u32 (*functionality) (struct i2c_adapter *);
 };
 
+/**
+ * struct i2c_bus_recovery_info - I2C bus recovery information
+ * @recover_bus: Recover routine. Either pass driver's recover_bus() routine, or
+ *	i2c_generic_scl_recovery() or i2c_generic_gpio_recovery().
+ * @get_scl: This gets current value of SCL line. Mandatory for generic SCL
+ *      recovery. Used internally for generic GPIO recovery.
+ * @set_scl: This sets/clears SCL line. Mandatory for generic SCL recovery. Used
+ *      internally for generic GPIO recovery.
+ * @get_sda: This gets current value of SDA line. Optional for generic SCL
+ *      recovery. Used internally, if sda_gpio is a valid GPIO, for generic GPIO
+ *      recovery.
+ * @prepare_recovery: This will be called before starting recovery. Platform may
+ *	configure padmux here for SDA/SCL line or something else they want.
+ * @unprepare_recovery: This will be called after completing recovery. Platform
+ *	may configure padmux here for SDA/SCL line or something else they want.
+ * @scl_gpio: gpio number of the SCL line. Only required for GPIO recovery.
+ * @sda_gpio: gpio number of the SDA line. Only required for GPIO recovery.
+ */
+struct i2c_bus_recovery_info {
+	int (*recover_bus)(struct i2c_adapter *);
+
+	int (*get_scl)(struct i2c_adapter *);
+	void (*set_scl)(struct i2c_adapter *, int val);
+	int (*get_sda)(struct i2c_adapter *);
+
+	void (*prepare_recovery)(struct i2c_bus_recovery_info *bri);
+	void (*unprepare_recovery)(struct i2c_bus_recovery_info *bri);
+
+	/* gpio recovery */
+	int scl_gpio;
+	int sda_gpio;
+};
+
+int i2c_recover_bus(struct i2c_adapter *adap);
+
+/* Generic recovery routines */
+int i2c_generic_gpio_recovery(struct i2c_adapter *adap);
+int i2c_generic_scl_recovery(struct i2c_adapter *adap);
+
 /*
  * i2c_adapter is the structure used to identify a physical i2c bus along
  * with the access algorithms necessary to access it.
@@ -393,6 +429,8 @@ struct i2c_adapter {
 
 	struct mutex userspace_clients_lock;
 	struct list_head userspace_clients;
+
+	struct i2c_bus_recovery_info *bus_recovery_info;
 };
 #define to_i2c_adapter(d) container_of(d, struct i2c_adapter, dev)
 
@@ -450,7 +488,7 @@ void i2c_unlock_adapter(struct i2c_adapter *);
  */
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 extern int i2c_add_adapter(struct i2c_adapter *);
-extern int i2c_del_adapter(struct i2c_adapter *);
+extern void i2c_del_adapter(struct i2c_adapter *);
 extern int i2c_add_numbered_adapter(struct i2c_adapter *);
 
 extern int i2c_register_driver(struct module *, struct i2c_driver *);

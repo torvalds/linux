@@ -31,9 +31,9 @@
 #include <linux/seq_file.h>
 #include <linux/atomic.h>
 #include <linux/wait.h>
-#include <linux/list.h>
 #include <linux/kref.h>
 #include <linux/slab.h>
+#include <linux/firmware.h>
 #include <drm/drmP.h>
 #include "radeon_reg.h"
 #include "radeon.h"
@@ -768,7 +768,19 @@ int radeon_fence_driver_start_ring(struct radeon_device *rdev, int ring)
 	radeon_scratch_free(rdev, rdev->fence_drv[ring].scratch_reg);
 	if (rdev->wb.use_event || !radeon_ring_supports_scratch_reg(rdev, &rdev->ring[ring])) {
 		rdev->fence_drv[ring].scratch_reg = 0;
-		index = R600_WB_EVENT_OFFSET + ring * 4;
+		if (ring != R600_RING_TYPE_UVD_INDEX) {
+			index = R600_WB_EVENT_OFFSET + ring * 4;
+			rdev->fence_drv[ring].cpu_addr = &rdev->wb.wb[index/4];
+			rdev->fence_drv[ring].gpu_addr = rdev->wb.gpu_addr +
+							 index;
+
+		} else {
+			/* put fence directly behind firmware */
+			index = ALIGN(rdev->uvd_fw->size, 8);
+			rdev->fence_drv[ring].cpu_addr = rdev->uvd.cpu_addr + index;
+			rdev->fence_drv[ring].gpu_addr = rdev->uvd.gpu_addr + index;
+		}
+
 	} else {
 		r = radeon_scratch_get(rdev, &rdev->fence_drv[ring].scratch_reg);
 		if (r) {
@@ -778,9 +790,9 @@ int radeon_fence_driver_start_ring(struct radeon_device *rdev, int ring)
 		index = RADEON_WB_SCRATCH_OFFSET +
 			rdev->fence_drv[ring].scratch_reg -
 			rdev->scratch.reg_base;
+		rdev->fence_drv[ring].cpu_addr = &rdev->wb.wb[index/4];
+		rdev->fence_drv[ring].gpu_addr = rdev->wb.gpu_addr + index;
 	}
-	rdev->fence_drv[ring].cpu_addr = &rdev->wb.wb[index/4];
-	rdev->fence_drv[ring].gpu_addr = rdev->wb.gpu_addr + index;
 	radeon_fence_write(rdev, atomic64_read(&rdev->fence_drv[ring].last_seq), ring);
 	rdev->fence_drv[ring].initialized = true;
 	dev_info(rdev->dev, "fence driver on ring %d use gpu addr 0x%016llx and cpu addr 0x%p\n",

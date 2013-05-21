@@ -1126,7 +1126,8 @@ skip_tx_iqcal:
 			ar9003_hw_rtt_disable(ah);
 
 		ath_dbg(common, CALIBRATE,
-			"offset calibration failed to complete in 1ms; noisy environment?\n");
+			"offset calibration failed to complete in %d ms; noisy environment?\n",
+			AH_WAIT_TIMEOUT / 1000);
 		return false;
 	}
 

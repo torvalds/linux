@@ -28,6 +28,8 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/types.h>
+#include <linux/dmi.h>
+#include <linux/delay.h>
 #ifdef CONFIG_ACPI_PROCFS_POWER
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
@@ -73,6 +75,8 @@ MODULE_DEVICE_TABLE(acpi, ac_device_ids);
 static int acpi_ac_resume(struct device *dev);
 #endif
 static SIMPLE_DEV_PM_OPS(acpi_ac_pm, NULL, acpi_ac_resume);
+
+static int ac_sleep_before_get_state_ms;
 
 static struct acpi_driver acpi_ac_driver = {
 	.name = "ac",
@@ -194,7 +198,7 @@ static int acpi_ac_seq_show(struct seq_file *seq, void *offset)
 
 static int acpi_ac_open_fs(struct inode *inode, struct file *file)
 {
-	return single_open(file, acpi_ac_seq_show, PDE(inode)->data);
+	return single_open(file, acpi_ac_seq_show, PDE_DATA(inode));
 }
 
 static int acpi_ac_add_fs(struct acpi_device *device)
@@ -252,6 +256,16 @@ static void acpi_ac_notify(struct acpi_device *device, u32 event)
 	case ACPI_AC_NOTIFY_STATUS:
 	case ACPI_NOTIFY_BUS_CHECK:
 	case ACPI_NOTIFY_DEVICE_CHECK:
+		/*
+		 * A buggy BIOS may notify AC first and then sleep for
+		 * a specific time before doing actual operations in the
+		 * EC event handler (_Qxx). This will cause the AC state
+		 * reported by the ACPI event to be incorrect, so wait for a
+		 * specific time for the EC event handler to make progress.
+		 */
+		if (ac_sleep_before_get_state_ms > 0)
+			msleep(ac_sleep_before_get_state_ms);
+
 		acpi_ac_get_state(ac);
 		acpi_bus_generate_proc_event(device, event, (u32) ac->state);
 		acpi_bus_generate_netlink_event(device->pnp.device_class,
@@ -263,6 +277,24 @@ static void acpi_ac_notify(struct acpi_device *device, u32 event)
 
 	return;
 }
+
+static int thinkpad_e530_quirk(const struct dmi_system_id *d)
+{
+	ac_sleep_before_get_state_ms = 1000;
+	return 0;
+}
+
+static struct dmi_system_id ac_dmi_table[] = {
+	{
+	.callback = thinkpad_e530_quirk,
+	.ident = "thinkpad e530",
+	.matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "32597CG"),
+		},
+	},
+	{},
+};
 
 static int acpi_ac_add(struct acpi_device *device)
 {
@@ -312,6 +344,7 @@ static int acpi_ac_add(struct acpi_device *device)
 		kfree(ac);
 	}
 
+	dmi_check_system(ac_dmi_table);
 	return result;
 }
 

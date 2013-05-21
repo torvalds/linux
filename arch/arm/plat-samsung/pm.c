@@ -27,6 +27,7 @@
 #include <plat/regs-serial.h>
 #include <mach/regs-clock.h>
 #include <mach/regs-irq.h>
+#include <mach/irqs.h>
 #include <asm/irq.h>
 
 #include <plat/pm.h>

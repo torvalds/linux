@@ -279,7 +279,7 @@ static size_t gart_iommu_unmap(struct iommu_domain *domain, unsigned long iova,
 }
 
 static phys_addr_t gart_iommu_iova_to_phys(struct iommu_domain *domain,
-					   unsigned long iova)
+					   dma_addr_t iova)
 {
 	struct gart_device *gart = domain->priv;
 	unsigned long pte;
@@ -295,7 +295,8 @@ static phys_addr_t gart_iommu_iova_to_phys(struct iommu_domain *domain,
 
 	pa = (pte & GART_PAGE_MASK);
 	if (!pfn_valid(__phys_to_pfn(pa))) {
-		dev_err(gart->dev, "No entry for %08lx:%08x\n", iova, pa);
+		dev_err(gart->dev, "No entry for %08llx:%08x\n",
+			 (unsigned long long)iova, pa);
 		gart_dump_table(gart);
 		return -EINVAL;
 	}

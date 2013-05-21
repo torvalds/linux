@@ -273,7 +273,7 @@ static int ad7877_write(struct spi_device *spi, u16 reg, u16 val)
 
 static int ad7877_read_adc(struct spi_device *spi, unsigned command)
 {
-	struct ad7877 *ts = dev_get_drvdata(&spi->dev);
+	struct ad7877 *ts = spi_get_drvdata(spi);
 	struct ser_req *req;
 	int status;
 	int sample;
@@ -720,7 +720,7 @@ static int ad7877_probe(struct spi_device *spi)
 		goto err_free_mem;
 	}
 
-	dev_set_drvdata(&spi->dev, ts);
+	spi_set_drvdata(spi, ts);
 	ts->spi = spi;
 	ts->input = input_dev;
 
@@ -806,13 +806,13 @@ err_free_irq:
 err_free_mem:
 	input_free_device(input_dev);
 	kfree(ts);
-	dev_set_drvdata(&spi->dev, NULL);
+	spi_set_drvdata(spi, NULL);
 	return err;
 }
 
 static int ad7877_remove(struct spi_device *spi)
 {
-	struct ad7877 *ts = dev_get_drvdata(&spi->dev);
+	struct ad7877 *ts = spi_get_drvdata(spi);
 
 	sysfs_remove_group(&spi->dev.kobj, &ad7877_attr_group);
 
@@ -823,7 +823,7 @@ static int ad7877_remove(struct spi_device *spi)
 	kfree(ts);
 
 	dev_dbg(&spi->dev, "unregistered touchscreen\n");
-	dev_set_drvdata(&spi->dev, NULL);
+	spi_set_drvdata(spi, NULL);
 
 	return 0;
 }

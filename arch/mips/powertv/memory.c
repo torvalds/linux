@@ -29,7 +29,6 @@
 #include <asm/page.h>
 #include <asm/sections.h>
 
-#include <asm/mips-boards/prom.h>
 #include <asm/mach-powertv/asic.h>
 #include <asm/mach-powertv/ioremap.h>
 

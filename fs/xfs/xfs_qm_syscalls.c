@@ -472,15 +472,15 @@ xfs_qm_scall_getqstat(
  */
 int
 xfs_qm_scall_setqlim(
-	xfs_mount_t		*mp,
+	struct xfs_mount	*mp,
 	xfs_dqid_t		id,
 	uint			type,
 	fs_disk_quota_t		*newlim)
 {
 	struct xfs_quotainfo	*q = mp->m_quotainfo;
-	xfs_disk_dquot_t	*ddq;
-	xfs_dquot_t		*dqp;
-	xfs_trans_t		*tp;
+	struct xfs_disk_dquot	*ddq;
+	struct xfs_dquot	*dqp;
+	struct xfs_trans	*tp;
 	int			error;
 	xfs_qcnt_t		hard, soft;
 
@@ -529,6 +529,7 @@ xfs_qm_scall_setqlim(
 	if (hard == 0 || hard >= soft) {
 		ddq->d_blk_hardlimit = cpu_to_be64(hard);
 		ddq->d_blk_softlimit = cpu_to_be64(soft);
+		xfs_dquot_set_prealloc_limits(dqp);
 		if (id == 0) {
 			q->qi_bhardlimit = hard;
 			q->qi_bsoftlimit = soft;

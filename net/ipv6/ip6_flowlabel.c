@@ -144,7 +144,9 @@ static void ip6_fl_gc(unsigned long dummy)
 	spin_lock(&ip6_fl_lock);
 
 	for (i=0; i<=FL_HASH_MASK; i++) {
-		struct ip6_flowlabel *fl, **flp;
+		struct ip6_flowlabel *fl;
+		struct ip6_flowlabel __rcu **flp;
+
 		flp = &fl_ht[i];
 		while ((fl = rcu_dereference_protected(*flp,
 						       lockdep_is_held(&ip6_fl_lock))) != NULL) {
@@ -179,7 +181,9 @@ static void __net_exit ip6_fl_purge(struct net *net)
 
 	spin_lock(&ip6_fl_lock);
 	for (i = 0; i <= FL_HASH_MASK; i++) {
-		struct ip6_flowlabel *fl, **flp;
+		struct ip6_flowlabel *fl;
+		struct ip6_flowlabel __rcu **flp;
+
 		flp = &fl_ht[i];
 		while ((fl = rcu_dereference_protected(*flp,
 						       lockdep_is_held(&ip6_fl_lock))) != NULL) {
@@ -506,7 +510,8 @@ int ipv6_flowlabel_opt(struct sock *sk, char __user *optval, int optlen)
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct in6_flowlabel_req freq;
 	struct ipv6_fl_socklist *sfl1=NULL;
-	struct ipv6_fl_socklist *sfl, **sflp;
+	struct ipv6_fl_socklist *sfl;
+	struct ipv6_fl_socklist __rcu **sflp;
 	struct ip6_flowlabel *fl, *fl1 = NULL;
 
 

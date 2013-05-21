@@ -31,32 +31,26 @@ MODULE_AUTHOR("Jean-François Moine <http://moinejf.free.fr>");
 MODULE_DESCRIPTION("GSPCA/SONIX JPEG USB Camera Driver");
 MODULE_LICENSE("GPL");
 
-/* controls */
-enum e_ctrl {
-	BRIGHTNESS,
-	CONTRAST,
-	COLORS,
-	BLUE,
-	RED,
-	GAMMA,
-	EXPOSURE,
-	AUTOGAIN,
-	GAIN,
-	HFLIP,
-	VFLIP,
-	SHARPNESS,
-	ILLUM,
-	FREQ,
-	NCTRLS		/* number of controls */
-};
-
 /* specific webcam descriptor */
 struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
 
-	struct gspca_ctrl ctrls[NCTRLS];
-
 	atomic_t avg_lum;
+	struct v4l2_ctrl *brightness;
+	struct v4l2_ctrl *contrast;
+	struct v4l2_ctrl *saturation;
+	struct { /* red/blue balance control cluster */
+		struct v4l2_ctrl *red_bal;
+		struct v4l2_ctrl *blue_bal;
+	};
+	struct { /* hflip/vflip control cluster */
+		struct v4l2_ctrl *vflip;
+		struct v4l2_ctrl *hflip;
+	};
+	struct v4l2_ctrl *gamma;
+	struct v4l2_ctrl *illum;
+	struct v4l2_ctrl *sharpness;
+	struct v4l2_ctrl *freq;
 	u32 exposure;
 
 	struct work_struct work;
@@ -126,283 +120,6 @@ static void qual_upd(struct work_struct *work);
 #define MCK_SIZE_MASK	0x1f	/* sensor master clock */
 #define SEN_CLK_EN	0x20	/* enable sensor clock */
 #define DEF_EN		0x80	/* defect pixel by 0: soft, 1: hard */
-
-/* V4L2 controls supported by the driver */
-static void setbrightness(struct gspca_dev *gspca_dev);
-static void setcontrast(struct gspca_dev *gspca_dev);
-static void setcolors(struct gspca_dev *gspca_dev);
-static void setredblue(struct gspca_dev *gspca_dev);
-static void setgamma(struct gspca_dev *gspca_dev);
-static void setexposure(struct gspca_dev *gspca_dev);
-static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val);
-static void setgain(struct gspca_dev *gspca_dev);
-static void sethvflip(struct gspca_dev *gspca_dev);
-static void setsharpness(struct gspca_dev *gspca_dev);
-static void setillum(struct gspca_dev *gspca_dev);
-static void setfreq(struct gspca_dev *gspca_dev);
-
-static const struct ctrl sd_ctrls[NCTRLS] = {
-[BRIGHTNESS] = {
-	    {
-		.id      = V4L2_CID_BRIGHTNESS,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Brightness",
-		.minimum = 0,
-		.maximum = 0xff,
-		.step    = 1,
-		.default_value = 0x80,
-	    },
-	    .set_control = setbrightness
-	},
-[CONTRAST] = {
-	    {
-		.id      = V4L2_CID_CONTRAST,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Contrast",
-		.minimum = 0,
-#define CONTRAST_MAX 127
-		.maximum = CONTRAST_MAX,
-		.step    = 1,
-		.default_value = 20,
-	    },
-	    .set_control = setcontrast
-	},
-[COLORS] = {
-	    {
-		.id      = V4L2_CID_SATURATION,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Saturation",
-		.minimum = 0,
-		.maximum = 40,
-		.step    = 1,
-#define COLORS_DEF 25
-		.default_value = COLORS_DEF,
-	    },
-	    .set_control = setcolors
-	},
-[BLUE] = {
-	    {
-		.id      = V4L2_CID_BLUE_BALANCE,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Blue Balance",
-		.minimum = 24,
-		.maximum = 40,
-		.step    = 1,
-		.default_value = 32,
-	    },
-	    .set_control = setredblue
-	},
-[RED] = {
-	    {
-		.id      = V4L2_CID_RED_BALANCE,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Red Balance",
-		.minimum = 24,
-		.maximum = 40,
-		.step    = 1,
-		.default_value = 32,
-	    },
-	    .set_control = setredblue
-	},
-[GAMMA] = {
-	    {
-		.id      = V4L2_CID_GAMMA,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Gamma",
-		.minimum = 0,
-		.maximum = 40,
-		.step    = 1,
-#define GAMMA_DEF 20
-		.default_value = GAMMA_DEF,
-	    },
-	    .set_control = setgamma
-	},
-[EXPOSURE] = {
-	    {
-		.id      = V4L2_CID_EXPOSURE,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Exposure",
-		.minimum = 500,
-		.maximum = 1500,
-		.step    = 1,
-		.default_value = 1024
-	    },
-	    .set_control = setexposure
-	},
-[AUTOGAIN] = {
-	    {
-		.id      = V4L2_CID_AUTOGAIN,
-		.type    = V4L2_CTRL_TYPE_BOOLEAN,
-		.name    = "Auto Gain",
-		.minimum = 0,
-		.maximum = 1,
-		.step    = 1,
-		.default_value = 1
-	    },
-	    .set = sd_setautogain,
-	},
-[GAIN] = {
-	    {
-		.id      = V4L2_CID_GAIN,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Gain",
-		.minimum = 4,
-		.maximum = 49,
-		.step    = 1,
-		.default_value = 15
-	    },
-	    .set_control = setgain
-	},
-[HFLIP] = {
-	    {
-		.id      = V4L2_CID_HFLIP,
-		.type    = V4L2_CTRL_TYPE_BOOLEAN,
-		.name    = "Mirror",
-		.minimum = 0,
-		.maximum = 1,
-		.step    = 1,
-		.default_value = 0,
-	    },
-	    .set_control = sethvflip
-	},
-[VFLIP] = {
-	    {
-		.id      = V4L2_CID_VFLIP,
-		.type    = V4L2_CTRL_TYPE_BOOLEAN,
-		.name    = "Vflip",
-		.minimum = 0,
-		.maximum = 1,
-		.step    = 1,
-		.default_value = 0,
-	    },
-	    .set_control = sethvflip
-	},
-[SHARPNESS] = {
-	    {
-		.id	 = V4L2_CID_SHARPNESS,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Sharpness",
-		.minimum = 0,
-		.maximum = 255,
-		.step    = 1,
-		.default_value = 90,
-	    },
-	    .set_control = setsharpness
-	},
-[ILLUM] = {
-	    {
-		.id      = V4L2_CID_ILLUMINATORS_1,
-		.type    = V4L2_CTRL_TYPE_BOOLEAN,
-		.name    = "Illuminator / infrared",
-		.minimum = 0,
-		.maximum = 1,
-		.step    = 1,
-		.default_value = 0,
-	    },
-	    .set_control = setillum
-	},
-/* ov7630/ov7648/ov7660 only */
-[FREQ] = {
-	    {
-		.id	 = V4L2_CID_POWER_LINE_FREQUENCY,
-		.type    = V4L2_CTRL_TYPE_MENU,
-		.name    = "Light frequency filter",
-		.minimum = 0,
-		.maximum = 2,	/* 0: 0, 1: 50Hz, 2:60Hz */
-		.step    = 1,
-		.default_value = 1,
-	    },
-	    .set_control = setfreq
-	},
-};
-
-/* table of the disabled controls */
-static const __u32 ctrl_dis[] = {
-[SENSOR_ADCM1700] =	(1 << EXPOSURE) |
-			(1 << AUTOGAIN) |
-			(1 << GAIN) |
-			(1 << HFLIP) |
-			(1 << VFLIP) |
-			(1 << FREQ),
-
-[SENSOR_GC0307] =	(1 << EXPOSURE) |
-			(1 << GAIN) |
-			(1 << HFLIP) |
-			(1 << VFLIP) |
-			(1 << FREQ),
-
-[SENSOR_HV7131R] =	(1 << EXPOSURE) |
-			(1 << GAIN) |
-			(1 << HFLIP) |
-			(1 << FREQ),
-
-[SENSOR_MI0360] =	(1 << EXPOSURE) |
-			(1 << GAIN) |
-			(1 << HFLIP) |
-			(1 << VFLIP) |
-			(1 << FREQ),
-
-[SENSOR_MI0360B] =	(1 << EXPOSURE) |
-			(1 << GAIN) |
-			(1 << HFLIP) |
-			(1 << VFLIP) |
-			(1 << FREQ),
-
-[SENSOR_MO4000] =	(1 << EXPOSURE) |
-			(1 << GAIN) |
-			(1 << HFLIP) |
-			(1 << VFLIP) |
-			(1 << FREQ),
-
-[SENSOR_MT9V111] =	(1 << EXPOSURE) |
-			(1 << GAIN) |
-			(1 << HFLIP) |
-			(1 << VFLIP) |
-			(1 << FREQ),
-
-[SENSOR_OM6802] =	(1 << EXPOSURE) |
-			(1 << GAIN) |
-			(1 << HFLIP) |
-			(1 << VFLIP) |
-			(1 << FREQ),
-
-[SENSOR_OV7630] =	(1 << EXPOSURE) |
-			(1 << GAIN) |
-			(1 << HFLIP),
-
-[SENSOR_OV7648] =	(1 << EXPOSURE) |
-			(1 << GAIN) |
-			(1 << HFLIP),
-
-[SENSOR_OV7660] =	(1 << EXPOSURE) |
-			(1 << AUTOGAIN) |
-			(1 << GAIN) |
-			(1 << HFLIP) |
-			(1 << VFLIP),
-
-[SENSOR_PO1030] =	(1 << EXPOSURE) |
-			(1 << AUTOGAIN) |
-			(1 << GAIN) |
-			(1 << HFLIP) |
-			(1 << VFLIP) |
-			(1 << FREQ),
-
-[SENSOR_PO2030N] =	(1 << FREQ),
-
-[SENSOR_SOI768] =	(1 << EXPOSURE) |
-			(1 << AUTOGAIN) |
-			(1 << GAIN) |
-			(1 << HFLIP) |
-			(1 << VFLIP) |
-			(1 << FREQ),
-
-[SENSOR_SP80708] =	(1 << EXPOSURE) |
-			(1 << AUTOGAIN) |
-			(1 << GAIN) |
-			(1 << HFLIP) |
-			(1 << VFLIP) |
-			(1 << FREQ),
-};
 
 static const struct v4l2_pix_format cif_mode[] = {
 	{352, 288, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
@@ -1442,12 +1159,11 @@ static void reg_r(struct gspca_dev *gspca_dev,
 
 	if (gspca_dev->usb_err < 0)
 		return;
-#ifdef GSPCA_DEBUG
 	if (len > USB_BUF_SZ) {
-		pr_err("reg_r: buffer overflow\n");
+		PERR("reg_r: buffer overflow\n");
 		return;
 	}
-#endif
+
 	ret = usb_control_msg(gspca_dev->dev,
 			usb_rcvctrlpipe(gspca_dev->dev, 0),
 			0,
@@ -1496,12 +1212,12 @@ static void reg_w(struct gspca_dev *gspca_dev,
 		return;
 	PDEBUG(D_USBO, "reg_w [%04x] = %02x %02x ..",
 		value, buffer[0], buffer[1]);
-#ifdef GSPCA_DEBUG
+
 	if (len > USB_BUF_SZ) {
-		pr_err("reg_w: buffer overflow\n");
+		PERR("reg_w: buffer overflow\n");
 		return;
 	}
-#endif
+
 	memcpy(gspca_dev->usb_buf, buffer, len);
 	ret = usb_control_msg(gspca_dev->dev,
 			usb_sndctrlpipe(gspca_dev->dev, 0),
@@ -1822,7 +1538,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		cam->nmodes = ARRAY_SIZE(vga_mode);
 	}
 	cam->npkt = 24;			/* 24 packets per ISOC message */
-	cam->ctrls = sd->ctrls;
 
 	sd->ag_cnt = -1;
 	sd->quality = QUALITY_DEF;
@@ -1888,9 +1603,6 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		break;
 	}
 
-	if (sd->sensor == SENSOR_OM6802)
-		sd->ctrls[SHARPNESS].def = 0x10;
-
 	/* Note we do not disable the sensor clock here (power saving mode),
 	   as that also disables the button on the cam. */
 	reg_w1(gspca_dev, 0xf1, 0x00);
@@ -1899,11 +1611,90 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	sn9c1xx = sn_tb[sd->sensor];
 	sd->i2c_addr = sn9c1xx[9];
 
-	gspca_dev->ctrl_dis = ctrl_dis[sd->sensor];
-	if (!(sd->flags & F_ILLUM))
-		gspca_dev->ctrl_dis |= (1 << ILLUM);
-
 	return gspca_dev->usb_err;
+}
+
+static int sd_s_ctrl(struct v4l2_ctrl *ctrl);
+
+static const struct v4l2_ctrl_ops sd_ctrl_ops = {
+	.s_ctrl = sd_s_ctrl,
+};
+
+/* this function is called at probe time */
+static int sd_init_controls(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	struct v4l2_ctrl_handler *hdl = &gspca_dev->ctrl_handler;
+
+	gspca_dev->vdev.ctrl_handler = hdl;
+	v4l2_ctrl_handler_init(hdl, 14);
+
+	sd->brightness = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_BRIGHTNESS, 0, 255, 1, 128);
+#define CONTRAST_MAX 127
+	sd->contrast = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_CONTRAST, 0, CONTRAST_MAX, 1, 20);
+#define COLORS_DEF 25
+	sd->saturation = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_SATURATION, 0, 40, 1, COLORS_DEF);
+	sd->red_bal = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_RED_BALANCE, 24, 40, 1, 32);
+	sd->blue_bal = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_BLUE_BALANCE, 24, 40, 1, 32);
+#define GAMMA_DEF 20
+	sd->gamma = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_GAMMA, 0, 40, 1, GAMMA_DEF);
+
+	if (sd->sensor == SENSOR_OM6802)
+		sd->sharpness = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_SHARPNESS, 0, 255, 1, 16);
+	else
+		sd->sharpness = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_SHARPNESS, 0, 255, 1, 90);
+
+	if (sd->flags & F_ILLUM)
+		sd->illum = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_ILLUMINATORS_1, 0, 1, 1, 0);
+
+	if (sd->sensor == SENSOR_PO2030N) {
+		gspca_dev->exposure = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_EXPOSURE, 500, 1500, 1, 1024);
+		gspca_dev->gain = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_GAIN, 4, 49, 1, 15);
+		sd->hflip = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_HFLIP, 0, 1, 1, 0);
+	}
+
+	if (sd->sensor != SENSOR_ADCM1700 && sd->sensor != SENSOR_OV7660 &&
+	    sd->sensor != SENSOR_PO1030 && sd->sensor != SENSOR_SOI768 &&
+	    sd->sensor != SENSOR_SP80708)
+		gspca_dev->autogain = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_AUTOGAIN, 0, 1, 1, 1);
+
+	if (sd->sensor == SENSOR_HV7131R || sd->sensor == SENSOR_OV7630 ||
+	    sd->sensor == SENSOR_OV7648 || sd->sensor == SENSOR_PO2030N)
+		sd->vflip = v4l2_ctrl_new_std(hdl, &sd_ctrl_ops,
+			V4L2_CID_VFLIP, 0, 1, 1, 0);
+
+	if (sd->sensor == SENSOR_OV7630 || sd->sensor == SENSOR_OV7648 ||
+	    sd->sensor == SENSOR_OV7660)
+		sd->freq = v4l2_ctrl_new_std_menu(hdl, &sd_ctrl_ops,
+			V4L2_CID_POWER_LINE_FREQUENCY,
+			V4L2_CID_POWER_LINE_FREQUENCY_60HZ, 0,
+			V4L2_CID_POWER_LINE_FREQUENCY_50HZ);
+
+	if (hdl->error) {
+		pr_err("Could not initialize controls\n");
+		return hdl->error;
+	}
+
+	v4l2_ctrl_cluster(2, &sd->red_bal);
+	if (sd->sensor == SENSOR_PO2030N) {
+		v4l2_ctrl_cluster(2, &sd->vflip);
+		v4l2_ctrl_auto_cluster(3, &gspca_dev->autogain, 0, false);
+	}
+
+	return 0;
 }
 
 static u32 expo_adjust(struct gspca_dev *gspca_dev,
@@ -2014,10 +1805,9 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	unsigned int expo;
-	int brightness;
+	int brightness = sd->brightness->val;
 	u8 k2;
 
-	brightness = sd->ctrls[BRIGHTNESS].val;
 	k2 = (brightness - 0x80) >> 2;
 	switch (sd->sensor) {
 	case SENSOR_ADCM1700:
@@ -2064,7 +1854,7 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 	u8 k2;
 	u8 contrast[6];
 
-	k2 = sd->ctrls[CONTRAST].val * 37 / (CONTRAST_MAX + 1)
+	k2 = sd->contrast->val * 37 / (CONTRAST_MAX + 1)
 				+ 37;		/* 37..73 */
 	contrast[0] = (k2 + 1) / 2;		/* red */
 	contrast[1] = 0;
@@ -2090,7 +1880,7 @@ static void setcolors(struct gspca_dev *gspca_dev)
 		 60, -51, -9		/* VR VG VB */
 	};
 
-	colors = sd->ctrls[COLORS].val;
+	colors = sd->saturation->val;
 	if (sd->sensor == SENSOR_MI0360B)
 		uv = uv_mi0360b;
 	else
@@ -2112,14 +1902,14 @@ static void setredblue(struct gspca_dev *gspca_dev)
 			{0xc1, 0x6e, 0x16, 0x00, 0x40, 0x00, 0x00, 0x10};
 
 		/* 0x40 = normal value = gain x 1 */
-		rg1b[3] = sd->ctrls[RED].val * 2;
-		rg1b[5] = sd->ctrls[BLUE].val * 2;
+		rg1b[3] = sd->red_bal->val * 2;
+		rg1b[5] = sd->blue_bal->val * 2;
 		i2c_w8(gspca_dev, rg1b);
 		return;
 	}
-	reg_w1(gspca_dev, 0x05, sd->ctrls[RED].val);
+	reg_w1(gspca_dev, 0x05, sd->red_bal->val);
 /*	reg_w1(gspca_dev, 0x07, 32); */
-	reg_w1(gspca_dev, 0x06, sd->ctrls[BLUE].val);
+	reg_w1(gspca_dev, 0x06, sd->blue_bal->val);
 }
 
 static void setgamma(struct gspca_dev *gspca_dev)
@@ -2153,7 +1943,7 @@ static void setgamma(struct gspca_dev *gspca_dev)
 		break;
 	}
 
-	val = sd->ctrls[GAMMA].val;
+	val = sd->gamma->val;
 	for (i = 0; i < sizeof gamma; i++)
 		gamma[i] = gamma_base[i]
 			+ delta[i] * (val - GAMMA_DEF) / 32;
@@ -2168,11 +1958,11 @@ static void setexposure(struct gspca_dev *gspca_dev)
 		u8 rexpo[] =		/* 1a: expo H, 1b: expo M */
 			{0xa1, 0x6e, 0x1a, 0x00, 0x40, 0x00, 0x00, 0x10};
 
-		rexpo[3] = sd->ctrls[EXPOSURE].val >> 8;
+		rexpo[3] = gspca_dev->exposure->val >> 8;
 		i2c_w8(gspca_dev, rexpo);
 		msleep(6);
 		rexpo[2] = 0x1b;
-		rexpo[3] = sd->ctrls[EXPOSURE].val;
+		rexpo[3] = gspca_dev->exposure->val;
 		i2c_w8(gspca_dev, rexpo);
 	}
 }
@@ -2181,8 +1971,6 @@ static void setautogain(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	if (gspca_dev->ctrl_dis & (1 << AUTOGAIN))
-		return;
 	switch (sd->sensor) {
 	case SENSOR_OV7630:
 	case SENSOR_OV7648: {
@@ -2192,13 +1980,13 @@ static void setautogain(struct gspca_dev *gspca_dev)
 			comb = 0xc0;
 		else
 			comb = 0xa0;
-		if (sd->ctrls[AUTOGAIN].val)
+		if (gspca_dev->autogain->val)
 			comb |= 0x03;
 		i2c_w1(&sd->gspca_dev, 0x13, comb);
 		return;
 	    }
 	}
-	if (sd->ctrls[AUTOGAIN].val)
+	if (gspca_dev->autogain->val)
 		sd->ag_cnt = AG_CNT_START;
 	else
 		sd->ag_cnt = -1;
@@ -2212,7 +2000,7 @@ static void setgain(struct gspca_dev *gspca_dev)
 		u8 rgain[] =		/* 15: gain */
 			{0xa1, 0x6e, 0x15, 0x00, 0x40, 0x00, 0x00, 0x15};
 
-		rgain[3] = sd->ctrls[GAIN].val;
+		rgain[3] = gspca_dev->gain->val;
 		i2c_w8(gspca_dev, rgain);
 	}
 }
@@ -2225,19 +2013,19 @@ static void sethvflip(struct gspca_dev *gspca_dev)
 	switch (sd->sensor) {
 	case SENSOR_HV7131R:
 		comn = 0x18;			/* clkdiv = 1, ablcen = 1 */
-		if (sd->ctrls[VFLIP].val)
+		if (sd->vflip->val)
 			comn |= 0x01;
 		i2c_w1(gspca_dev, 0x01, comn);	/* sctra */
 		break;
 	case SENSOR_OV7630:
 		comn = 0x02;
-		if (!sd->ctrls[VFLIP].val)
+		if (!sd->vflip->val)
 			comn |= 0x80;
 		i2c_w1(gspca_dev, 0x75, comn);
 		break;
 	case SENSOR_OV7648:
 		comn = 0x06;
-		if (sd->ctrls[VFLIP].val)
+		if (sd->vflip->val)
 			comn |= 0x80;
 		i2c_w1(gspca_dev, 0x75, comn);
 		break;
@@ -2251,9 +2039,9 @@ static void sethvflip(struct gspca_dev *gspca_dev)
 		 * bit3-0: X
 		 */
 		comn = 0x0a;
-		if (sd->ctrls[HFLIP].val)
+		if (sd->hflip->val)
 			comn |= 0x80;
-		if (sd->ctrls[VFLIP].val)
+		if (sd->vflip->val)
 			comn |= 0x40;
 		i2c_w1(&sd->gspca_dev, 0x1e, comn);
 		break;
@@ -2264,23 +2052,21 @@ static void setsharpness(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	reg_w1(gspca_dev, 0x99, sd->ctrls[SHARPNESS].val);
+	reg_w1(gspca_dev, 0x99, sd->sharpness->val);
 }
 
 static void setillum(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	if (gspca_dev->ctrl_dis & (1 << ILLUM))
-		return;
 	switch (sd->sensor) {
 	case SENSOR_ADCM1700:
 		reg_w1(gspca_dev, 0x02,				/* gpio */
-			sd->ctrls[ILLUM].val ? 0x64 : 0x60);
+			sd->illum->val ? 0x64 : 0x60);
 		break;
 	case SENSOR_MT9V111:
 		reg_w1(gspca_dev, 0x02,
-			sd->ctrls[ILLUM].val ? 0x77 : 0x74);
+			sd->illum->val ? 0x77 : 0x74);
 /* should have been: */
 /*						0x55 : 0x54);	* 370i */
 /*						0x66 : 0x64);	* Clip */
@@ -2292,13 +2078,11 @@ static void setfreq(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	if (gspca_dev->ctrl_dis & (1 << FREQ))
-		return;
 	if (sd->sensor == SENSOR_OV7660) {
 		u8 com8;
 
 		com8 = 0xdf;		/* auto gain/wb/expo */
-		switch (sd->ctrls[FREQ].val) {
+		switch (sd->freq->val) {
 		case 0: /* Banding filter disabled */
 			i2c_w1(gspca_dev, 0x13, com8 | 0x20);
 			break;
@@ -2326,7 +2110,7 @@ static void setfreq(struct gspca_dev *gspca_dev)
 			break;
 		}
 
-		switch (sd->ctrls[FREQ].val) {
+		switch (sd->freq->val) {
 		case 0: /* Banding filter disabled */
 			break;
 		case 1: /* 50 hz (filter on and framerate adj) */
@@ -2698,17 +2482,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	sd->reg01 = reg01;
 	sd->reg17 = reg17;
 
-	sethvflip(gspca_dev);
-	setbrightness(gspca_dev);
-	setcontrast(gspca_dev);
-	setcolors(gspca_dev);
-	setautogain(gspca_dev);
-	if (!(gspca_dev->ctrl_inac & ((1 << EXPOSURE) | (1 << GAIN)))) {
-		setexposure(gspca_dev);
-		setgain(gspca_dev);
-	}
-	setfreq(gspca_dev);
-
 	sd->pktsz = sd->npkt = 0;
 	sd->nchg = sd->short_mark = 0;
 	sd->work_thread = create_singlethread_workqueue(MODULE_NAME);
@@ -2803,9 +2576,6 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 	}
 }
 
-#define WANT_REGULAR_AUTOGAIN
-#include "autogain_functions.h"
-
 static void do_autogain(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -2825,7 +2595,7 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 	PDEBUG(D_FRAM, "mean lum %d", delta);
 
 	if (sd->sensor == SENSOR_PO2030N) {
-		auto_gain_n_exposure(gspca_dev, delta, luma_mean, luma_delta,
+		gspca_expo_autogain(gspca_dev, delta, luma_mean, luma_delta,
 					15, 1024);
 		return;
 	}
@@ -3042,39 +2812,53 @@ marker_found:
 	}
 }
 
-static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val)
+static int sd_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
+	struct gspca_dev *gspca_dev =
+		container_of(ctrl->handler, struct gspca_dev, ctrl_handler);
 
-	sd->ctrls[AUTOGAIN].val = val;
-	if (val)
-		gspca_dev->ctrl_inac |= (1 << EXPOSURE) | (1 << GAIN);
-	else
-		gspca_dev->ctrl_inac &= ~(1 << EXPOSURE) & ~(1 << GAIN);
-	if (gspca_dev->streaming)
-		setautogain(gspca_dev);
-	return gspca_dev->usb_err;
-}
+	gspca_dev->usb_err = 0;
 
-static int sd_querymenu(struct gspca_dev *gspca_dev,
-			struct v4l2_querymenu *menu)
-{
-	switch (menu->id) {
-	case V4L2_CID_POWER_LINE_FREQUENCY:
-		switch (menu->index) {
-		case 0:		/* V4L2_CID_POWER_LINE_FREQUENCY_DISABLED */
-			strcpy((char *) menu->name, "NoFliker");
-			return 0;
-		case 1:		/* V4L2_CID_POWER_LINE_FREQUENCY_50HZ */
-			strcpy((char *) menu->name, "50 Hz");
-			return 0;
-		case 2:		/* V4L2_CID_POWER_LINE_FREQUENCY_60HZ */
-			strcpy((char *) menu->name, "60 Hz");
-			return 0;
-		}
+	if (!gspca_dev->streaming)
+		return 0;
+
+	switch (ctrl->id) {
+	case V4L2_CID_BRIGHTNESS:
+		setbrightness(gspca_dev);
 		break;
+	case V4L2_CID_CONTRAST:
+		setcontrast(gspca_dev);
+		break;
+	case V4L2_CID_SATURATION:
+		setcolors(gspca_dev);
+		break;
+	case V4L2_CID_RED_BALANCE:
+		setredblue(gspca_dev);
+		break;
+	case V4L2_CID_GAMMA:
+		setgamma(gspca_dev);
+		break;
+	case V4L2_CID_AUTOGAIN:
+		setautogain(gspca_dev);
+		setexposure(gspca_dev);
+		setgain(gspca_dev);
+		break;
+	case V4L2_CID_VFLIP:
+		sethvflip(gspca_dev);
+		break;
+	case V4L2_CID_SHARPNESS:
+		setsharpness(gspca_dev);
+		break;
+	case V4L2_CID_ILLUMINATORS_1:
+		setillum(gspca_dev);
+		break;
+	case V4L2_CID_POWER_LINE_FREQUENCY:
+		setfreq(gspca_dev);
+		break;
+	default:
+		return -EINVAL;
 	}
-	return -EINVAL;
+	return gspca_dev->usb_err;
 }
 
 #if IS_ENABLED(CONFIG_INPUT)
@@ -3099,16 +2883,14 @@ static int sd_int_pkt_scan(struct gspca_dev *gspca_dev,
 /* sub-driver description */
 static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
-	.ctrls = sd_ctrls,
-	.nctrls = NCTRLS,
 	.config = sd_config,
 	.init = sd_init,
+	.init_controls = sd_init_controls,
 	.start = sd_start,
 	.stopN = sd_stopN,
 	.stop0 = sd_stop0,
 	.pkt_scan = sd_pkt_scan,
 	.dq_callback = do_autogain,
-	.querymenu = sd_querymenu,
 #if IS_ENABLED(CONFIG_INPUT)
 	.int_pkt_scan = sd_int_pkt_scan,
 #endif

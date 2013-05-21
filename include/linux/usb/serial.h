@@ -15,6 +15,7 @@
 
 #include <linux/kref.h>
 #include <linux/mutex.h>
+#include <linux/serial.h>
 #include <linux/sysrq.h>
 #include <linux/kfifo.h>
 
@@ -61,12 +62,12 @@
  * @bulk_out_buffers: pointers to the bulk out buffers for this port
  * @write_urbs: pointers to the bulk out urbs for this port
  * @write_urbs_free: status bitmap the for bulk out urbs
+ * @icount: interrupt counters
  * @tx_bytes: number of bytes currently in host stack queues
  * @bulk_out_endpointAddress: endpoint address for the bulk out pipe for this
  *	port.
  * @flags: usb serial port flags
  * @write_wait: a wait_queue_head_t used by the port.
- * @delta_msr_wait: modem-status-change wait queue
  * @work: work queue entry for the line discipline waking up.
  * @throttled: nonzero if the read urb is inactive to throttle the device
  * @throttle_req: nonzero if the tty wants to throttle us
@@ -109,11 +110,11 @@ struct usb_serial_port {
 	unsigned long		write_urbs_free;
 	__u8			bulk_out_endpointAddress;
 
+	struct async_icount	icount;
 	int			tx_bytes;
 
 	unsigned long		flags;
 	wait_queue_head_t	write_wait;
-	wait_queue_head_t	delta_msr_wait;
 	struct work_struct	work;
 	char			throttled;
 	char			throttle_req;
@@ -272,6 +273,7 @@ struct usb_serial_driver {
 	int  (*tiocmget)(struct tty_struct *tty);
 	int  (*tiocmset)(struct tty_struct *tty,
 			 unsigned int set, unsigned int clear);
+	int  (*tiocmiwait)(struct tty_struct *tty, unsigned long arg);
 	int  (*get_icount)(struct tty_struct *tty,
 			struct serial_icounter_struct *icount);
 	/* Called by the tty layer for port level work. There may or may not
@@ -329,8 +331,10 @@ extern void usb_serial_generic_read_bulk_callback(struct urb *urb);
 extern void usb_serial_generic_write_bulk_callback(struct urb *urb);
 extern void usb_serial_generic_throttle(struct tty_struct *tty);
 extern void usb_serial_generic_unthrottle(struct tty_struct *tty);
-extern void usb_serial_generic_disconnect(struct usb_serial *serial);
-extern void usb_serial_generic_release(struct usb_serial *serial);
+extern int usb_serial_generic_tiocmiwait(struct tty_struct *tty,
+							unsigned long arg);
+extern int usb_serial_generic_get_icount(struct tty_struct *tty,
+					struct serial_icounter_struct *icount);
 extern int usb_serial_generic_register(void);
 extern void usb_serial_generic_deregister(void);
 extern int usb_serial_generic_submit_read_urbs(struct usb_serial_port *port,

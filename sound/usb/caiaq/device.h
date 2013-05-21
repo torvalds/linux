@@ -25,16 +25,7 @@
 #define CAIAQ_USB_STR_LEN 0xff
 #define MAX_STREAMS 32
 
-//#define	SND_USB_CAIAQ_DEBUG
-
 #define MODNAME "snd-usb-caiaq"
-#define log(x...) snd_printk(KERN_WARNING MODNAME" log: " x)
-
-#ifdef SND_USB_CAIAQ_DEBUG
-#define debug(x...) snd_printk(KERN_WARNING MODNAME " debug: " x)
-#else
-#define debug(x...) do { } while(0)
-#endif
 
 #define EP1_CMD_GET_DEVICE_INFO	0x1
 #define EP1_CMD_READ_ERP	0x2
@@ -124,15 +115,16 @@ struct snd_usb_caiaqdev {
 };
 
 struct snd_usb_caiaq_cb_info {
-	struct snd_usb_caiaqdev *dev;
+	struct snd_usb_caiaqdev *cdev;
 	int index;
 };
 
 #define caiaqdev(c) ((struct snd_usb_caiaqdev*)(c)->private_data)
+#define caiaqdev_to_dev(d)	(d->chip.card->dev)
 
-int snd_usb_caiaq_set_audio_params (struct snd_usb_caiaqdev *dev, int rate, int depth, int bbp);
-int snd_usb_caiaq_set_auto_msg (struct snd_usb_caiaqdev *dev, int digital, int analog, int erp);
-int snd_usb_caiaq_send_command(struct snd_usb_caiaqdev *dev,
+int snd_usb_caiaq_set_audio_params (struct snd_usb_caiaqdev *cdev, int rate, int depth, int bbp);
+int snd_usb_caiaq_set_auto_msg (struct snd_usb_caiaqdev *cdev, int digital, int analog, int erp);
+int snd_usb_caiaq_send_command(struct snd_usb_caiaqdev *cdev,
 			       unsigned char command,
 			       const unsigned char *buffer,
 			       int len);

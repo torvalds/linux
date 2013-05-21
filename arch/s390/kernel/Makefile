@@ -14,16 +14,25 @@ endif
 CFLAGS_smp.o	:= -Wno-nonnull
 
 #
+# Disable tailcall optimizations for stack / callchain walking functions
+# since this might generate broken code when accessing register 15 and
+# passing its content to other functions.
+#
+CFLAGS_stacktrace.o	+= -fno-optimize-sibling-calls
+CFLAGS_dumpstack.o	+= -fno-optimize-sibling-calls
+
+#
 # Pass UTS_MACHINE for user_regset definition
 #
 CFLAGS_ptrace.o		+= -DUTS_MACHINE='"$(UTS_MACHINE)"'
 
 CFLAGS_sysinfo.o += -Iinclude/math-emu -Iarch/s390/math-emu -w
 
-obj-y	:=  bitmap.o traps.o time.o process.o base.o early.o setup.o vtime.o \
-	    processor.o sys_s390.o ptrace.o signal.o cpcmd.o ebcdic.o nmi.o \
-	    debug.o irq.o ipl.o dis.o diag.o mem_detect.o sclp.o vdso.o \
-	    sysinfo.o jump_label.o lgr.o os_info.o machine_kexec.o pgm_check.o
+obj-y	:= bitmap.o traps.o time.o process.o base.o early.o setup.o vtime.o
+obj-y	+= processor.o sys_s390.o ptrace.o signal.o cpcmd.o ebcdic.o nmi.o
+obj-y	+= debug.o irq.o ipl.o dis.o diag.o sclp.o vdso.o
+obj-y	+= sysinfo.o jump_label.o lgr.o os_info.o machine_kexec.o pgm_check.o
+obj-y	+= dumpstack.o
 
 obj-y	+= $(if $(CONFIG_64BIT),entry64.o,entry.o)
 obj-y	+= $(if $(CONFIG_64BIT),reipl64.o,reipl.o)

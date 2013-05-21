@@ -158,11 +158,14 @@ static int filelayout_async_handle_error(struct rpc_task *task,
 	case -NFS4ERR_OPENMODE:
 		if (state == NULL)
 			break;
-		nfs4_schedule_stateid_recovery(mds_server, state);
+		if (nfs4_schedule_stateid_recovery(mds_server, state) < 0)
+			goto out_bad_stateid;
 		goto wait_on_recovery;
 	case -NFS4ERR_EXPIRED:
-		if (state != NULL)
-			nfs4_schedule_stateid_recovery(mds_server, state);
+		if (state != NULL) {
+			if (nfs4_schedule_stateid_recovery(mds_server, state) < 0)
+				goto out_bad_stateid;
+		}
 		nfs4_schedule_lease_recovery(mds_client);
 		goto wait_on_recovery;
 	/* DS session errors */
@@ -226,6 +229,9 @@ reset:
 out:
 	task->tk_status = 0;
 	return -EAGAIN;
+out_bad_stateid:
+	task->tk_status = -EIO;
+	return 0;
 wait_on_recovery:
 	rpc_sleep_on(&mds_client->cl_rpcwaitq, task, NULL);
 	if (test_bit(NFS4CLNT_MANAGER_RUNNING, &mds_client->cl_state) == 0)
@@ -299,6 +305,10 @@ static void filelayout_read_prepare(struct rpc_task *task, void *data)
 {
 	struct nfs_read_data *rdata = data;
 
+	if (unlikely(test_bit(NFS_CONTEXT_BAD, &rdata->args.context->flags))) {
+		rpc_exit(task, -EIO);
+		return;
+	}
 	if (filelayout_reset_to_mds(rdata->header->lseg)) {
 		dprintk("%s task %u reset io to MDS\n", __func__, task->tk_pid);
 		filelayout_reset_read(rdata);
@@ -307,10 +317,13 @@ static void filelayout_read_prepare(struct rpc_task *task, void *data)
 	}
 	rdata->read_done_cb = filelayout_read_done_cb;
 
-	nfs41_setup_sequence(rdata->ds_clp->cl_session,
+	if (nfs41_setup_sequence(rdata->ds_clp->cl_session,
 			&rdata->args.seq_args,
 			&rdata->res.seq_res,
-			task);
+			task))
+		return;
+	nfs4_set_rw_stateid(&rdata->args.stateid, rdata->args.context,
+			rdata->args.lock_context, FMODE_READ);
 }
 
 static void filelayout_read_call_done(struct rpc_task *task, void *data)
@@ -401,16 +414,23 @@ static void filelayout_write_prepare(struct rpc_task *task, void *data)
 {
 	struct nfs_write_data *wdata = data;
 
+	if (unlikely(test_bit(NFS_CONTEXT_BAD, &wdata->args.context->flags))) {
+		rpc_exit(task, -EIO);
+		return;
+	}
 	if (filelayout_reset_to_mds(wdata->header->lseg)) {
 		dprintk("%s task %u reset io to MDS\n", __func__, task->tk_pid);
 		filelayout_reset_write(wdata);
 		rpc_exit(task, 0);
 		return;
 	}
-	nfs41_setup_sequence(wdata->ds_clp->cl_session,
+	if (nfs41_setup_sequence(wdata->ds_clp->cl_session,
 			&wdata->args.seq_args,
 			&wdata->res.seq_res,
-			task);
+			task))
+		return;
+	nfs4_set_rw_stateid(&wdata->args.stateid, wdata->args.context,
+			wdata->args.lock_context, FMODE_WRITE);
 }
 
 static void filelayout_write_call_done(struct rpc_task *task, void *data)

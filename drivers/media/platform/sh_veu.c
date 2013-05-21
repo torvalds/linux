@@ -10,6 +10,7 @@
  * published by the Free Software Foundation
  */
 
+#include <linux/err.h>
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -1164,9 +1165,9 @@ static int sh_veu_probe(struct platform_device *pdev)
 
 	veu->is_2h = resource_size(reg_res) == 0x22c;
 
-	veu->base = devm_request_and_ioremap(&pdev->dev, reg_res);
-	if (!veu->base)
-		return -ENOMEM;
+	veu->base = devm_ioremap_resource(&pdev->dev, reg_res);
+	if (IS_ERR(veu->base))
+		return PTR_ERR(veu->base);
 
 	ret = devm_request_threaded_irq(&pdev->dev, irq, sh_veu_isr, sh_veu_bh,
 					0, "veu", veu);
@@ -1248,18 +1249,7 @@ static struct platform_driver __refdata sh_veu_pdrv = {
 	},
 };
 
-static int __init sh_veu_init(void)
-{
-	return platform_driver_probe(&sh_veu_pdrv, sh_veu_probe);
-}
-
-static void __exit sh_veu_exit(void)
-{
-	platform_driver_unregister(&sh_veu_pdrv);
-}
-
-module_init(sh_veu_init);
-module_exit(sh_veu_exit);
+module_platform_driver_probe(sh_veu_pdrv, sh_veu_probe);
 
 MODULE_DESCRIPTION("sh-mobile VEU mem2mem driver");
 MODULE_AUTHOR("Guennadi Liakhovetski, <g.liakhovetski@gmx.de>");

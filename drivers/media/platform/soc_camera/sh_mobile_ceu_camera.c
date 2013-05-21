@@ -20,6 +20,7 @@
 #include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
+#include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
 #include <linux/interrupt.h>
@@ -2026,6 +2027,7 @@ static int sh_mobile_ceu_init_videobuf(struct vb2_queue *q,
 	q->ops = &sh_mobile_ceu_videobuf_ops;
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->buf_struct_size = sizeof(struct sh_mobile_ceu_buffer);
+	q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 
 	return vb2_queue_init(q);
 }
@@ -2110,11 +2112,9 @@ static int sh_mobile_ceu_probe(struct platform_device *pdev)
 	pcdev->max_width = pcdev->pdata->max_width ? : 2560;
 	pcdev->max_height = pcdev->pdata->max_height ? : 1920;
 
-	base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!base) {
-		dev_err(&pdev->dev, "Unable to ioremap CEU registers.\n");
-		return -ENXIO;
-	}
+	base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
 
 	pcdev->irq = irq;
 	pcdev->base = base;
@@ -2288,7 +2288,7 @@ static const struct dev_pm_ops sh_mobile_ceu_dev_pm_ops = {
 };
 
 static struct platform_driver sh_mobile_ceu_driver = {
-	.driver 	= {
+	.driver		= {
 		.name	= "sh_mobile_ceu",
 		.pm	= &sh_mobile_ceu_dev_pm_ops,
 	},

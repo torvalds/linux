@@ -1,7 +1,7 @@
 /*
  * ELF definitions for the Hexagon architecture
  *
- * Copyright (c) 2010-2011, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2010-2012, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -104,6 +104,16 @@ typedef unsigned long elf_fpregset_t;
  * Bypass the whole "regsets" thing for now and use the define.
  */
 
+#if CONFIG_HEXAGON_ARCH_VERSION >= 4
+#define CS_COPYREGS(DEST,REGS) \
+do {\
+	DEST.cs0 = REGS->cs0;\
+	DEST.cs1 = REGS->cs1;\
+} while (0)
+#else
+#define CS_COPYREGS(DEST,REGS)
+#endif
+
 #define ELF_CORE_COPY_REGS(DEST, REGS)	\
 do {					\
 	DEST.r0 = REGS->r00;		\
@@ -148,12 +158,11 @@ do {					\
 	DEST.p3_0 = REGS->preds;	\
 	DEST.gp = REGS->gp;		\
 	DEST.ugp = REGS->ugp;		\
-	DEST.pc = pt_elr(REGS);	\
+	CS_COPYREGS(DEST,REGS);		\
+	DEST.pc = pt_elr(REGS);		\
 	DEST.cause = pt_cause(REGS);	\
 	DEST.badva = pt_badva(REGS);	\
 } while (0);
-
-
 
 /*
  * This is used to ensure we don't load something for the wrong architecture.
@@ -168,15 +177,15 @@ do {					\
 #define ELF_DATA	ELFDATA2LSB
 #define ELF_ARCH	EM_HEXAGON
 
-#ifdef CONFIG_HEXAGON_ARCH_V2
+#if CONFIG_HEXAGON_ARCH_VERSION == 2
 #define ELF_CORE_EFLAGS 0x1
 #endif
 
-#ifdef CONFIG_HEXAGON_ARCH_V3
+#if CONFIG_HEXAGON_ARCH_VERSION == 3
 #define ELF_CORE_EFLAGS 0x2
 #endif
 
-#ifdef CONFIG_HEXAGON_ARCH_V4
+#if CONFIG_HEXAGON_ARCH_VERSION == 4
 #define ELF_CORE_EFLAGS 0x3
 #endif
 

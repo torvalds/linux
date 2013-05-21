@@ -946,15 +946,11 @@ static int garmin_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 static void garmin_close(struct usb_serial_port *port)
 {
-	struct usb_serial *serial = port->serial;
 	struct garmin_data *garmin_data_p = usb_get_serial_port_data(port);
 
 	dev_dbg(&port->dev, "%s - port %d - mode=%d state=%d flags=0x%X\n",
 		__func__, port->number, garmin_data_p->mode,
 		garmin_data_p->state, garmin_data_p->flags);
-
-	if (!serial)
-		return;
 
 	garmin_clear(garmin_data_p);
 
@@ -1185,16 +1181,10 @@ static void garmin_read_bulk_callback(struct urb *urb)
 {
 	unsigned long flags;
 	struct usb_serial_port *port = urb->context;
-	struct usb_serial *serial =  port->serial;
 	struct garmin_data *garmin_data_p = usb_get_serial_port_data(port);
 	unsigned char *data = urb->transfer_buffer;
 	int status = urb->status;
 	int retval;
-
-	if (!serial) {
-		dev_dbg(&urb->dev->dev, "%s - bad serial pointer, exiting\n", __func__);
-		return;
-	}
 
 	if (status) {
 		dev_dbg(&urb->dev->dev, "%s - nonzero read bulk status received: %d\n",

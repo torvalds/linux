@@ -283,15 +283,21 @@ static int dev_uevent(struct kset *kset, struct kobject *kobj,
 		const char *tmp;
 		const char *name;
 		umode_t mode = 0;
+		kuid_t uid = GLOBAL_ROOT_UID;
+		kgid_t gid = GLOBAL_ROOT_GID;
 
 		add_uevent_var(env, "MAJOR=%u", MAJOR(dev->devt));
 		add_uevent_var(env, "MINOR=%u", MINOR(dev->devt));
-		name = device_get_devnode(dev, &mode, &tmp);
+		name = device_get_devnode(dev, &mode, &uid, &gid, &tmp);
 		if (name) {
 			add_uevent_var(env, "DEVNAME=%s", name);
-			kfree(tmp);
 			if (mode)
 				add_uevent_var(env, "DEVMODE=%#o", mode & 0777);
+			if (!uid_eq(uid, GLOBAL_ROOT_UID))
+				add_uevent_var(env, "DEVUID=%u", from_kuid(&init_user_ns, uid));
+			if (!gid_eq(gid, GLOBAL_ROOT_GID))
+				add_uevent_var(env, "DEVGID=%u", from_kgid(&init_user_ns, gid));
+			kfree(tmp);
 		}
 	}
 
@@ -563,8 +569,15 @@ int device_create_file(struct device *dev,
 		       const struct device_attribute *attr)
 {
 	int error = 0;
-	if (dev)
+
+	if (dev) {
+		WARN(((attr->attr.mode & S_IWUGO) && !attr->store),
+				"Write permission without 'store'\n");
+		WARN(((attr->attr.mode & S_IRUGO) && !attr->show),
+				"Read permission without 'show'\n");
 		error = sysfs_create_file(&dev->kobj, &attr->attr);
+	}
+
 	return error;
 }
 
@@ -690,7 +703,7 @@ void device_initialize(struct device *dev)
 	set_dev_node(dev, -1);
 }
 
-static struct kobject *virtual_device_parent(struct device *dev)
+struct kobject *virtual_device_parent(struct device *dev)
 {
 	static struct kobject *virtual_dir = NULL;
 
@@ -1274,6 +1287,8 @@ static struct device *next_device(struct klist_iter *i)
  * device_get_devnode - path of device node file
  * @dev: device
  * @mode: returned file access mode
+ * @uid: returned file owner
+ * @gid: returned file group
  * @tmp: possibly allocated string
  *
  * Return the relative path of a possible device node.
@@ -1282,7 +1297,8 @@ static struct device *next_device(struct klist_iter *i)
  * freed by the caller.
  */
 const char *device_get_devnode(struct device *dev,
-			       umode_t *mode, const char **tmp)
+			       umode_t *mode, kuid_t *uid, kgid_t *gid,
+			       const char **tmp)
 {
 	char *s;
 
@@ -1290,7 +1306,7 @@ const char *device_get_devnode(struct device *dev,
 
 	/* the device type may provide a specific name */
 	if (dev->type && dev->type->devnode)
-		*tmp = dev->type->devnode(dev, mode);
+		*tmp = dev->type->devnode(dev, mode, uid, gid);
 	if (*tmp)
 		return *tmp;
 

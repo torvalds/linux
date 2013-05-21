@@ -272,7 +272,7 @@ next_group:
 		if (start_blk >= last_blk)
 			goto next_group;
 		group_data[bb_index].block_bitmap = start_blk++;
-		ext4_get_group_no_and_offset(sb, start_blk - 1, &group, NULL);
+		group = ext4_get_group_number(sb, start_blk - 1);
 		group -= group_data[0].group;
 		group_data[group].free_blocks_count--;
 		if (flexbg_size > 1)
@@ -284,7 +284,7 @@ next_group:
 		if (start_blk >= last_blk)
 			goto next_group;
 		group_data[ib_index].inode_bitmap = start_blk++;
-		ext4_get_group_no_and_offset(sb, start_blk - 1, &group, NULL);
+		group = ext4_get_group_number(sb, start_blk - 1);
 		group -= group_data[0].group;
 		group_data[group].free_blocks_count--;
 		if (flexbg_size > 1)
@@ -296,7 +296,7 @@ next_group:
 		if (start_blk + EXT4_SB(sb)->s_itb_per_group > last_blk)
 			goto next_group;
 		group_data[it_index].inode_table = start_blk;
-		ext4_get_group_no_and_offset(sb, start_blk, &group, NULL);
+		group = ext4_get_group_number(sb, start_blk - 1);
 		group -= group_data[0].group;
 		group_data[group].free_blocks_count -=
 					EXT4_SB(sb)->s_itb_per_group;
@@ -392,7 +392,7 @@ static int set_flexbg_block_bitmap(struct super_block *sb, handle_t *handle,
 		ext4_group_t group;
 		int err;
 
-		ext4_get_group_no_and_offset(sb, block, &group, NULL);
+		group = ext4_get_group_number(sb, block);
 		start = ext4_group_first_block_no(sb, group);
 		group -= flex_gd->groups[0].group;
 
@@ -1341,6 +1341,8 @@ static void ext4_update_super(struct super_block *sb,
 
 	/* Update the global fs size fields */
 	sbi->s_groups_count += flex_gd->count;
+	sbi->s_blockfile_groups = min_t(ext4_group_t, sbi->s_groups_count,
+			(EXT4_MAX_BLOCK_FILE_PHYS / EXT4_BLOCKS_PER_GROUP(sb)));
 
 	/* Update the reserved block counts only once the new group is
 	 * active. */
@@ -1879,7 +1881,11 @@ retry:
 		/* Nothing need to do */
 		return 0;
 
-	ext4_get_group_no_and_offset(sb, n_blocks_count - 1, &n_group, &offset);
+	n_group = ext4_get_group_number(sb, n_blocks_count - 1);
+	if (n_group > (0xFFFFFFFFUL / EXT4_INODES_PER_GROUP(sb))) {
+		ext4_warning(sb, "resize would cause inodes_count overflow");
+		return -EINVAL;
+	}
 	ext4_get_group_no_and_offset(sb, o_blocks_count - 1, &o_group, &offset);
 
 	n_desc_blocks = num_desc_blocks(sb, n_group + 1);

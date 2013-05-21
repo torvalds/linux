@@ -20,13 +20,20 @@
 #endif
 
 #ifdef CONFIG_32BIT
-
+#ifdef CONFIG_KVM_GUEST
+#define CAC_BASE		_AC(0x40000000, UL)
+#else
 #define CAC_BASE		_AC(0x80000000, UL)
+#endif
 #define IO_BASE			_AC(0xa0000000, UL)
 #define UNCAC_BASE		_AC(0xa0000000, UL)
 
 #ifndef MAP_BASE
+#ifdef CONFIG_KVM_GUEST
+#define MAP_BASE		_AC(0x60000000, UL)
+#else
 #define MAP_BASE		_AC(0xc0000000, UL)
+#endif
 #endif
 
 /*

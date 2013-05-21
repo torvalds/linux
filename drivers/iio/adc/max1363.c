@@ -427,15 +427,15 @@ static const enum max1363_modes max1363_mode_list[] = {
 #define MAX1363_EV_M						\
 	(IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_RISING)	\
 	 | IIO_EV_BIT(IIO_EV_TYPE_THRESH, IIO_EV_DIR_FALLING))
-#define MAX1363_INFO_MASK (IIO_CHAN_INFO_RAW_SEPARATE_BIT |	\
-			   IIO_CHAN_INFO_SCALE_SHARED_BIT)
+
 #define MAX1363_CHAN_U(num, addr, si, bits, evmask)			\
 	{								\
 		.type = IIO_VOLTAGE,					\
 		.indexed = 1,						\
 		.channel = num,						\
 		.address = addr,					\
-		.info_mask = MAX1363_INFO_MASK,				\
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),		\
+		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),	\
 		.datasheet_name = "AIN"#num,				\
 		.scan_type = {						\
 			.sign = 'u',					\
@@ -456,7 +456,8 @@ static const enum max1363_modes max1363_mode_list[] = {
 		.channel = num,						\
 		.channel2 = num2,					\
 		.address = addr,					\
-		.info_mask = MAX1363_INFO_MASK,				\
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),		\
+		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),	\
 		.datasheet_name = "AIN"#num"-AIN"#num2,			\
 		.scan_type = {						\
 			.sign = 's',					\

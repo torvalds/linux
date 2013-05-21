@@ -790,6 +790,7 @@ static void sh_rtc_set_irq_wake(struct device *dev, int enabled)
 	}
 }
 
+#ifdef CONFIG_PM_SLEEP
 static int sh_rtc_suspend(struct device *dev)
 {
 	if (device_may_wakeup(dev))
@@ -805,33 +806,20 @@ static int sh_rtc_resume(struct device *dev)
 
 	return 0;
 }
+#endif
 
-static const struct dev_pm_ops sh_rtc_dev_pm_ops = {
-	.suspend = sh_rtc_suspend,
-	.resume = sh_rtc_resume,
-};
+static SIMPLE_DEV_PM_OPS(sh_rtc_pm_ops, sh_rtc_suspend, sh_rtc_resume);
 
 static struct platform_driver sh_rtc_platform_driver = {
 	.driver		= {
 		.name	= DRV_NAME,
 		.owner	= THIS_MODULE,
-		.pm	= &sh_rtc_dev_pm_ops,
+		.pm	= &sh_rtc_pm_ops,
 	},
 	.remove		= __exit_p(sh_rtc_remove),
 };
 
-static int __init sh_rtc_init(void)
-{
-	return platform_driver_probe(&sh_rtc_platform_driver, sh_rtc_probe);
-}
-
-static void __exit sh_rtc_exit(void)
-{
-	platform_driver_unregister(&sh_rtc_platform_driver);
-}
-
-module_init(sh_rtc_init);
-module_exit(sh_rtc_exit);
+module_platform_driver_probe(sh_rtc_platform_driver, sh_rtc_probe);
 
 MODULE_DESCRIPTION("SuperH on-chip RTC driver");
 MODULE_VERSION(DRV_VERSION);

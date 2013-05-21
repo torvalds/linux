@@ -65,7 +65,8 @@ struct nouveau_fifo_base {
 struct nouveau_fifo {
 	struct nouveau_engine base;
 
-	struct nouveau_event *uevent;
+	struct nouveau_event *cevent; /* channel creation event */
+	struct nouveau_event *uevent; /* async user trigger */
 
 	struct nouveau_object **channel;
 	spinlock_t lock;

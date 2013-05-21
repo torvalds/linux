@@ -51,7 +51,7 @@ static struct xhci_segment *xhci_segment_alloc(struct xhci_hcd *xhci,
 		return NULL;
 	}
 
-	memset(seg->trbs, 0, SEGMENT_SIZE);
+	memset(seg->trbs, 0, TRB_SEGMENT_SIZE);
 	/* If the cycle state is 0, set the cycle bit to 1 for all the TRBs */
 	if (cycle_state == 0) {
 		for (i = 0; i < TRBS_PER_SEGMENT; i++)
@@ -467,7 +467,7 @@ struct xhci_ring *xhci_dma_to_transfer_ring(
 {
 	if (ep->ep_state & EP_HAS_STREAMS)
 		return radix_tree_lookup(&ep->stream_info->trb_address_map,
-				address >> SEGMENT_SHIFT);
+				address >> TRB_SEGMENT_SHIFT);
 	return ep->ring;
 }
 
@@ -478,7 +478,7 @@ static struct xhci_ring *dma_to_stream_ring(
 		u64 address)
 {
 	return radix_tree_lookup(&stream_info->trb_address_map,
-			address >> SEGMENT_SHIFT);
+			address >> TRB_SEGMENT_SHIFT);
 }
 #endif	/* CONFIG_USB_XHCI_HCD_DEBUGGING */
 
@@ -514,7 +514,7 @@ static int xhci_test_radix_tree(struct xhci_hcd *xhci,
 
 		cur_ring = stream_info->stream_rings[cur_stream];
 		for (addr = cur_ring->first_seg->dma;
-				addr < cur_ring->first_seg->dma + SEGMENT_SIZE;
+				addr < cur_ring->first_seg->dma + TRB_SEGMENT_SIZE;
 				addr += trb_size) {
 			mapped_ring = dma_to_stream_ring(stream_info, addr);
 			if (cur_ring != mapped_ring) {
@@ -662,7 +662,7 @@ struct xhci_stream_info *xhci_alloc_stream_info(struct xhci_hcd *xhci,
 				cur_stream, (unsigned long long) addr);
 
 		key = (unsigned long)
-			(cur_ring->first_seg->dma >> SEGMENT_SHIFT);
+			(cur_ring->first_seg->dma >> TRB_SEGMENT_SHIFT);
 		ret = radix_tree_insert(&stream_info->trb_address_map,
 				key, cur_ring);
 		if (ret) {
@@ -693,7 +693,7 @@ cleanup_rings:
 		if (cur_ring) {
 			addr = cur_ring->first_seg->dma;
 			radix_tree_delete(&stream_info->trb_address_map,
-					addr >> SEGMENT_SHIFT);
+					addr >> TRB_SEGMENT_SHIFT);
 			xhci_ring_free(xhci, cur_ring);
 			stream_info->stream_rings[cur_stream] = NULL;
 		}
@@ -764,7 +764,7 @@ void xhci_free_stream_info(struct xhci_hcd *xhci,
 		if (cur_ring) {
 			addr = cur_ring->first_seg->dma;
 			radix_tree_delete(&stream_info->trb_address_map,
-					addr >> SEGMENT_SHIFT);
+					addr >> TRB_SEGMENT_SHIFT);
 			xhci_ring_free(xhci, cur_ring);
 			stream_info->stream_rings[cur_stream] = NULL;
 		}
@@ -2305,7 +2305,7 @@ int xhci_mem_init(struct xhci_hcd *xhci, gfp_t flags)
 	 * so we pick the greater alignment need.
 	 */
 	xhci->segment_pool = dma_pool_create("xHCI ring segments", dev,
-			SEGMENT_SIZE, 64, xhci->page_size);
+			TRB_SEGMENT_SIZE, 64, xhci->page_size);
 
 	/* See Table 46 and Note on Figure 55 */
 	xhci->device_pool = dma_pool_create("xHCI input/output contexts", dev,

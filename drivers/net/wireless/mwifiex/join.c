@@ -1295,6 +1295,14 @@ int mwifiex_associate(struct mwifiex_private *priv,
 	    (bss_desc->bss_mode != NL80211_IFTYPE_STATION))
 		return -1;
 
+	if (ISSUPP_11ACENABLED(priv->adapter->fw_cap_info) &&
+	    !bss_desc->disable_11n && !bss_desc->disable_11ac &&
+	    (priv->adapter->config_bands & BAND_GAC ||
+	     priv->adapter->config_bands & BAND_AAC))
+		mwifiex_set_11ac_ba_params(priv);
+	else
+		mwifiex_set_ba_params(priv);
+
 	memcpy(&current_bssid,
 	       &priv->curr_bss_params.bss_descriptor.mac_address,
 	       sizeof(current_bssid));
@@ -1322,6 +1330,13 @@ mwifiex_adhoc_start(struct mwifiex_private *priv,
 		priv->curr_bss_params.bss_descriptor.channel);
 	dev_dbg(priv->adapter->dev, "info: curr_bss_params.band = %d\n",
 		priv->curr_bss_params.band);
+
+	if (ISSUPP_11ACENABLED(priv->adapter->fw_cap_info) &&
+	    (priv->adapter->config_bands & BAND_GAC ||
+	     priv->adapter->config_bands & BAND_AAC))
+		mwifiex_set_11ac_ba_params(priv);
+	else
+		mwifiex_set_ba_params(priv);
 
 	return mwifiex_send_cmd_sync(priv, HostCmd_CMD_802_11_AD_HOC_START,
 				    HostCmd_ACT_GEN_SET, 0, adhoc_ssid);
@@ -1355,6 +1370,14 @@ int mwifiex_adhoc_join(struct mwifiex_private *priv,
 			" is the same as current; not attempting to re-join\n");
 		return -1;
 	}
+
+	if (ISSUPP_11ACENABLED(priv->adapter->fw_cap_info) &&
+	    !bss_desc->disable_11n && !bss_desc->disable_11ac &&
+	    (priv->adapter->config_bands & BAND_GAC ||
+	     priv->adapter->config_bands & BAND_AAC))
+		mwifiex_set_11ac_ba_params(priv);
+	else
+		mwifiex_set_ba_params(priv);
 
 	dev_dbg(priv->adapter->dev, "info: curr_bss_params.channel = %d\n",
 		priv->curr_bss_params.bss_descriptor.channel);

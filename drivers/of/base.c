@@ -382,6 +382,7 @@ struct device_node *of_get_next_parent(struct device_node *node)
 	raw_spin_unlock_irqrestore(&devtree_lock, flags);
 	return parent;
 }
+EXPORT_SYMBOL(of_get_next_parent);
 
 /**
  *	of_get_next_child - Iterate a node childs
@@ -746,6 +747,64 @@ struct device_node *of_find_node_by_phandle(phandle handle)
 EXPORT_SYMBOL(of_find_node_by_phandle);
 
 /**
+ * of_find_property_value_of_size
+ *
+ * @np:		device node from which the property value is to be read.
+ * @propname:	name of the property to be searched.
+ * @len:	requested length of property value
+ *
+ * Search for a property in a device node and valid the requested size.
+ * Returns the property value on success, -EINVAL if the property does not
+ *  exist, -ENODATA if property does not have a value, and -EOVERFLOW if the
+ * property data isn't large enough.
+ *
+ */
+static void *of_find_property_value_of_size(const struct device_node *np,
+			const char *propname, u32 len)
+{
+	struct property *prop = of_find_property(np, propname, NULL);
+
+	if (!prop)
+		return ERR_PTR(-EINVAL);
+	if (!prop->value)
+		return ERR_PTR(-ENODATA);
+	if (len > prop->length)
+		return ERR_PTR(-EOVERFLOW);
+
+	return prop->value;
+}
+
+/**
+ * of_property_read_u32_index - Find and read a u32 from a multi-value property.
+ *
+ * @np:		device node from which the property value is to be read.
+ * @propname:	name of the property to be searched.
+ * @index:	index of the u32 in the list of values
+ * @out_value:	pointer to return value, modified only if no error.
+ *
+ * Search for a property in a device node and read nth 32-bit value from
+ * it. Returns 0 on success, -EINVAL if the property does not exist,
+ * -ENODATA if property does not have a value, and -EOVERFLOW if the
+ * property data isn't large enough.
+ *
+ * The out_value is modified only if a valid u32 value can be decoded.
+ */
+int of_property_read_u32_index(const struct device_node *np,
+				       const char *propname,
+				       u32 index, u32 *out_value)
+{
+	const u32 *val = of_find_property_value_of_size(np, propname,
+					((index + 1) * sizeof(*out_value)));
+
+	if (IS_ERR(val))
+		return PTR_ERR(val);
+
+	*out_value = be32_to_cpup(((__be32 *)val) + index);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(of_property_read_u32_index);
+
+/**
  * of_property_read_u8_array - Find and read an array of u8 from a property.
  *
  * @np:		device node from which the property value is to be read.
@@ -766,17 +825,12 @@ EXPORT_SYMBOL(of_find_node_by_phandle);
 int of_property_read_u8_array(const struct device_node *np,
 			const char *propname, u8 *out_values, size_t sz)
 {
-	struct property *prop = of_find_property(np, propname, NULL);
-	const u8 *val;
+	const u8 *val = of_find_property_value_of_size(np, propname,
+						(sz * sizeof(*out_values)));
 
-	if (!prop)
-		return -EINVAL;
-	if (!prop->value)
-		return -ENODATA;
-	if ((sz * sizeof(*out_values)) > prop->length)
-		return -EOVERFLOW;
+	if (IS_ERR(val))
+		return PTR_ERR(val);
 
-	val = prop->value;
 	while (sz--)
 		*out_values++ = *val++;
 	return 0;
@@ -804,17 +858,12 @@ EXPORT_SYMBOL_GPL(of_property_read_u8_array);
 int of_property_read_u16_array(const struct device_node *np,
 			const char *propname, u16 *out_values, size_t sz)
 {
-	struct property *prop = of_find_property(np, propname, NULL);
-	const __be16 *val;
+	const __be16 *val = of_find_property_value_of_size(np, propname,
+						(sz * sizeof(*out_values)));
 
-	if (!prop)
-		return -EINVAL;
-	if (!prop->value)
-		return -ENODATA;
-	if ((sz * sizeof(*out_values)) > prop->length)
-		return -EOVERFLOW;
+	if (IS_ERR(val))
+		return PTR_ERR(val);
 
-	val = prop->value;
 	while (sz--)
 		*out_values++ = be16_to_cpup(val++);
 	return 0;
@@ -841,17 +890,12 @@ int of_property_read_u32_array(const struct device_node *np,
 			       const char *propname, u32 *out_values,
 			       size_t sz)
 {
-	struct property *prop = of_find_property(np, propname, NULL);
-	const __be32 *val;
+	const __be32 *val = of_find_property_value_of_size(np, propname,
+						(sz * sizeof(*out_values)));
 
-	if (!prop)
-		return -EINVAL;
-	if (!prop->value)
-		return -ENODATA;
-	if ((sz * sizeof(*out_values)) > prop->length)
-		return -EOVERFLOW;
+	if (IS_ERR(val))
+		return PTR_ERR(val);
 
-	val = prop->value;
 	while (sz--)
 		*out_values++ = be32_to_cpup(val++);
 	return 0;
@@ -874,15 +918,13 @@ EXPORT_SYMBOL_GPL(of_property_read_u32_array);
 int of_property_read_u64(const struct device_node *np, const char *propname,
 			 u64 *out_value)
 {
-	struct property *prop = of_find_property(np, propname, NULL);
+	const __be32 *val = of_find_property_value_of_size(np, propname,
+						sizeof(*out_value));
 
-	if (!prop)
-		return -EINVAL;
-	if (!prop->value)
-		return -ENODATA;
-	if (sizeof(*out_value) > prop->length)
-		return -EOVERFLOW;
-	*out_value = of_read_number(prop->value, 2);
+	if (IS_ERR(val))
+		return PTR_ERR(val);
+
+	*out_value = of_read_number(val, 2);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(of_property_read_u64);
@@ -1166,11 +1208,11 @@ static int __of_parse_phandle_with_args(const struct device_node *np,
 				out_args->args_count = count;
 				for (i = 0; i < count; i++)
 					out_args->args[i] = be32_to_cpup(list++);
+			} else {
+				of_node_put(node);
 			}
 
 			/* Found it! return success */
-			if (node)
-				of_node_put(node);
 			return 0;
 		}
 
@@ -1452,16 +1494,7 @@ int of_attach_node(struct device_node *np)
 #ifdef CONFIG_PROC_DEVICETREE
 static void of_remove_proc_dt_entry(struct device_node *dn)
 {
-	struct device_node *parent = dn->parent;
-	struct property *prop = dn->properties;
-
-	while (prop) {
-		remove_proc_entry(prop->name, dn->pde);
-		prop = prop->next;
-	}
-
-	if (dn->pde)
-		remove_proc_entry(dn->pde->name, parent->pde);
+	proc_remove(dn->pde);
 }
 #else
 static void of_remove_proc_dt_entry(struct device_node *dn)

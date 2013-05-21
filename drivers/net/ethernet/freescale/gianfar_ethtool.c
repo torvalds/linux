@@ -66,7 +66,6 @@ static void gfar_gdrvinfo(struct net_device *dev,
 			  struct ethtool_drvinfo *drvinfo);
 
 static const char stat_gstrings[][ETH_GSTRING_LEN] = {
-	"rx-dropped-by-kernel",
 	"rx-large-frame-errors",
 	"rx-short-frame-errors",
 	"rx-non-octet-errors",
@@ -390,14 +389,14 @@ static int gfar_scoalesce(struct net_device *dev,
 
 	/* Check the bounds of the values */
 	if (cvals->rx_coalesce_usecs > GFAR_MAX_COAL_USECS) {
-		pr_info("Coalescing is limited to %d microseconds\n",
-			GFAR_MAX_COAL_USECS);
+		netdev_info(dev, "Coalescing is limited to %d microseconds\n",
+			    GFAR_MAX_COAL_USECS);
 		return -EINVAL;
 	}
 
 	if (cvals->rx_max_coalesced_frames > GFAR_MAX_COAL_FRAMES) {
-		pr_info("Coalescing is limited to %d frames\n",
-			GFAR_MAX_COAL_FRAMES);
+		netdev_info(dev, "Coalescing is limited to %d frames\n",
+			    GFAR_MAX_COAL_FRAMES);
 		return -EINVAL;
 	}
 
@@ -419,14 +418,14 @@ static int gfar_scoalesce(struct net_device *dev,
 
 	/* Check the bounds of the values */
 	if (cvals->tx_coalesce_usecs > GFAR_MAX_COAL_USECS) {
-		pr_info("Coalescing is limited to %d microseconds\n",
-			GFAR_MAX_COAL_USECS);
+		netdev_info(dev, "Coalescing is limited to %d microseconds\n",
+			    GFAR_MAX_COAL_USECS);
 		return -EINVAL;
 	}
 
 	if (cvals->tx_max_coalesced_frames > GFAR_MAX_COAL_FRAMES) {
-		pr_info("Coalescing is limited to %d frames\n",
-			GFAR_MAX_COAL_FRAMES);
+		netdev_info(dev, "Coalescing is limited to %d frames\n",
+			    GFAR_MAX_COAL_FRAMES);
 		return -EINVAL;
 	}
 
@@ -436,7 +435,7 @@ static int gfar_scoalesce(struct net_device *dev,
 			gfar_usecs2ticks(priv, cvals->tx_coalesce_usecs));
 	}
 
-	gfar_configure_coalescing(priv, 0xFF, 0xFF);
+	gfar_configure_coalescing_all(priv);
 
 	return 0;
 }
@@ -543,7 +542,7 @@ int gfar_set_features(struct net_device *dev, netdev_features_t features)
 	int err = 0, i = 0;
 	netdev_features_t changed = dev->features ^ features;
 
-	if (changed & (NETIF_F_HW_VLAN_TX|NETIF_F_HW_VLAN_RX))
+	if (changed & (NETIF_F_HW_VLAN_CTAG_TX|NETIF_F_HW_VLAN_CTAG_RX))
 		gfar_vlan_mode(dev, features);
 
 	if (!(changed & NETIF_F_RXCSUM))
@@ -736,7 +735,8 @@ static int gfar_ethflow_to_filer_table(struct gfar_private *priv, u64 ethflow,
 		cmp_rqfpr = RQFPR_IPV6 |RQFPR_UDP;
 		break;
 	default:
-		pr_err("Right now this class is not supported\n");
+		netdev_err(priv->ndev,
+			   "Right now this class is not supported\n");
 		ret = 0;
 		goto err;
 	}
@@ -752,7 +752,8 @@ static int gfar_ethflow_to_filer_table(struct gfar_private *priv, u64 ethflow,
 	}
 
 	if (i == MAX_FILER_IDX + 1) {
-		pr_err("No parse rule found, can't create hash rules\n");
+		netdev_err(priv->ndev,
+			   "No parse rule found, can't create hash rules\n");
 		ret = 0;
 		goto err;
 	}
@@ -1569,7 +1570,7 @@ static int gfar_process_filer_changes(struct gfar_private *priv)
 	gfar_cluster_filer(tab);
 	gfar_optimize_filer_masks(tab);
 
-	pr_debug("\n\tSummary:\n"
+	pr_debug("\tSummary:\n"
 		 "\tData on hardware: %d\n"
 		 "\tCompression rate: %d%%\n",
 		 tab->index, 100 - (100 * tab->index) / i);

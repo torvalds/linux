@@ -324,6 +324,6 @@ void pm_generic_complete(struct device *dev)
 	 * Let runtime PM try to suspend devices that haven't been in use before
 	 * going into the system-wide sleep state we're resuming from.
 	 */
-	pm_runtime_idle(dev);
+	pm_request_idle(dev);
 }
 #endif /* CONFIG_PM_SLEEP */

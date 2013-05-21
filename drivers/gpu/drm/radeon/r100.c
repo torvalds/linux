@@ -69,6 +69,38 @@ MODULE_FIRMWARE(FIRMWARE_R520);
  * and others in some cases.
  */
 
+static bool r100_is_in_vblank(struct radeon_device *rdev, int crtc)
+{
+	if (crtc == 0) {
+		if (RREG32(RADEON_CRTC_STATUS) & RADEON_CRTC_VBLANK_CUR)
+			return true;
+		else
+			return false;
+	} else {
+		if (RREG32(RADEON_CRTC2_STATUS) & RADEON_CRTC2_VBLANK_CUR)
+			return true;
+		else
+			return false;
+	}
+}
+
+static bool r100_is_counter_moving(struct radeon_device *rdev, int crtc)
+{
+	u32 vline1, vline2;
+
+	if (crtc == 0) {
+		vline1 = (RREG32(RADEON_CRTC_VLINE_CRNT_VLINE) >> 16) & RADEON_CRTC_V_TOTAL;
+		vline2 = (RREG32(RADEON_CRTC_VLINE_CRNT_VLINE) >> 16) & RADEON_CRTC_V_TOTAL;
+	} else {
+		vline1 = (RREG32(RADEON_CRTC2_VLINE_CRNT_VLINE) >> 16) & RADEON_CRTC_V_TOTAL;
+		vline2 = (RREG32(RADEON_CRTC2_VLINE_CRNT_VLINE) >> 16) & RADEON_CRTC_V_TOTAL;
+	}
+	if (vline1 != vline2)
+		return true;
+	else
+		return false;
+}
+
 /**
  * r100_wait_for_vblank - vblank wait asic callback.
  *
@@ -79,36 +111,33 @@ MODULE_FIRMWARE(FIRMWARE_R520);
  */
 void r100_wait_for_vblank(struct radeon_device *rdev, int crtc)
 {
-	int i;
+	unsigned i = 0;
 
 	if (crtc >= rdev->num_crtc)
 		return;
 
 	if (crtc == 0) {
-		if (RREG32(RADEON_CRTC_GEN_CNTL) & RADEON_CRTC_EN) {
-			for (i = 0; i < rdev->usec_timeout; i++) {
-				if (!(RREG32(RADEON_CRTC_STATUS) & RADEON_CRTC_VBLANK_CUR))
-					break;
-				udelay(1);
-			}
-			for (i = 0; i < rdev->usec_timeout; i++) {
-				if (RREG32(RADEON_CRTC_STATUS) & RADEON_CRTC_VBLANK_CUR)
-					break;
-				udelay(1);
-			}
-		}
+		if (!(RREG32(RADEON_CRTC_GEN_CNTL) & RADEON_CRTC_EN))
+			return;
 	} else {
-		if (RREG32(RADEON_CRTC2_GEN_CNTL) & RADEON_CRTC2_EN) {
-			for (i = 0; i < rdev->usec_timeout; i++) {
-				if (!(RREG32(RADEON_CRTC2_STATUS) & RADEON_CRTC2_VBLANK_CUR))
-					break;
-				udelay(1);
-			}
-			for (i = 0; i < rdev->usec_timeout; i++) {
-				if (RREG32(RADEON_CRTC2_STATUS) & RADEON_CRTC2_VBLANK_CUR)
-					break;
-				udelay(1);
-			}
+		if (!(RREG32(RADEON_CRTC2_GEN_CNTL) & RADEON_CRTC2_EN))
+			return;
+	}
+
+	/* depending on when we hit vblank, we may be close to active; if so,
+	 * wait for another frame.
+	 */
+	while (r100_is_in_vblank(rdev, crtc)) {
+		if (i++ % 100 == 0) {
+			if (!r100_is_counter_moving(rdev, crtc))
+				break;
+		}
+	}
+
+	while (!r100_is_in_vblank(rdev, crtc)) {
+		if (i++ % 100 == 0) {
+			if (!r100_is_counter_moving(rdev, crtc))
+				break;
 		}
 	}
 }

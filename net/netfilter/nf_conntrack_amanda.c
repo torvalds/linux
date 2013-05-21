@@ -2,6 +2,7 @@
  *
  * (C) 2002 by Brian J. Murrell <netfilter@interlinx.bc.ca>
  * based on HW's ip_conntrack_irc.c as well as other modules
+ * (C) 2006 Patrick McHardy <kaber@trash.net>
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License

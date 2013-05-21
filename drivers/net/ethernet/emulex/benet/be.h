@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2011 Emulex
+ * Copyright (C) 2005 - 2013 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -214,6 +214,7 @@ struct be_tx_stats {
 };
 
 struct be_tx_obj {
+	u32 db_offset;
 	struct be_queue_info q;
 	struct be_queue_info cq;
 	/* Remember the skbs that were transmitted */
@@ -292,7 +293,7 @@ struct be_drv_stats {
 	u32 rx_in_range_errors;
 	u32 rx_out_range_errors;
 	u32 rx_frame_too_long;
-	u32 rx_address_mismatch_drops;
+	u32 rx_address_filtered;
 	u32 rx_dropped_too_small;
 	u32 rx_dropped_too_short;
 	u32 rx_dropped_header_too_small;
@@ -326,8 +327,10 @@ enum vf_state {
 
 #define BE_FLAGS_LINK_STATUS_INIT		1
 #define BE_FLAGS_WORKER_SCHEDULED		(1 << 3)
+#define BE_FLAGS_NAPI_ENABLED			(1 << 9)
 #define BE_UC_PMAC_COUNT		30
 #define BE_VF_UC_PMAC_COUNT		2
+#define BE_FLAGS_QNQ_ASYNC_EVT_RCVD		(1 << 11)
 
 struct phy_info {
 	u8 transceiver;
@@ -434,6 +437,8 @@ struct be_adapter {
 	u8 wol_cap;
 	bool wol;
 	u32 uc_macs;		/* Count of secondary UC MAC programmed */
+	u16 asic_rev;
+	u16 qnq_vid;
 	u32 msg_enable;
 	int be_get_temp_freq;
 	u16 max_mcast_mac;
@@ -445,6 +450,7 @@ struct be_adapter {
 	u16 max_event_queues;
 	u32 if_cap_flags;
 	u8 pf_number;
+	u64 rss_flags;
 };
 
 #define be_physfn(adapter)		(!adapter->virtfn)
@@ -646,6 +652,11 @@ static inline bool be_is_wol_excluded(struct be_adapter *adapter)
 	default:
 		return false;
 	}
+}
+
+static inline int qnq_async_evt_rcvd(struct be_adapter *adapter)
+{
+	return adapter->flags & BE_FLAGS_QNQ_ASYNC_EVT_RCVD;
 }
 
 extern void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm,

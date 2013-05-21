@@ -213,6 +213,14 @@ enum iommu_init_state {
 	IOMMU_INIT_ERROR,
 };
 
+/* Early ioapic and hpet maps from kernel command line */
+#define EARLY_MAP_SIZE		4
+static struct devid_map __initdata early_ioapic_map[EARLY_MAP_SIZE];
+static struct devid_map __initdata early_hpet_map[EARLY_MAP_SIZE];
+static int __initdata early_ioapic_map_size;
+static int __initdata early_hpet_map_size;
+static bool __initdata cmdline_maps;
+
 static enum iommu_init_state init_state = IOMMU_START_STATE;
 
 static int amd_iommu_enable_interrupts(void);
@@ -406,7 +414,7 @@ static int __init find_last_devid_on_pci(int bus, int dev, int fn, int cap_ptr)
 	u32 cap;
 
 	cap = read_pci_config(bus, dev, fn, cap_ptr+MMIO_RANGE_OFFSET);
-	update_last_devid(calc_devid(MMIO_GET_BUS(cap), MMIO_GET_LD(cap)));
+	update_last_devid(PCI_DEVID(MMIO_GET_BUS(cap), MMIO_GET_LD(cap)));
 
 	return 0;
 }
@@ -423,7 +431,7 @@ static int __init find_last_devid_from_ivhd(struct ivhd_header *h)
 	p += sizeof(*h);
 	end += h->length;
 
-	find_last_devid_on_pci(PCI_BUS(h->devid),
+	find_last_devid_on_pci(PCI_BUS_NUM(h->devid),
 			PCI_SLOT(h->devid),
 			PCI_FUNC(h->devid),
 			h->cap_ptr);
@@ -703,27 +711,62 @@ static void __init set_dev_entry_from_acpi(struct amd_iommu *iommu,
 	set_iommu_for_device(iommu, devid);
 }
 
-static int add_special_device(u8 type, u8 id, u16 devid)
+static int __init add_special_device(u8 type, u8 id, u16 devid, bool cmd_line)
 {
 	struct devid_map *entry;
 	struct list_head *list;
 
-	if (type != IVHD_SPECIAL_IOAPIC && type != IVHD_SPECIAL_HPET)
+	if (type == IVHD_SPECIAL_IOAPIC)
+		list = &ioapic_map;
+	else if (type == IVHD_SPECIAL_HPET)
+		list = &hpet_map;
+	else
 		return -EINVAL;
+
+	list_for_each_entry(entry, list, list) {
+		if (!(entry->id == id && entry->cmd_line))
+			continue;
+
+		pr_info("AMD-Vi: Command-line override present for %s id %d - ignoring\n",
+			type == IVHD_SPECIAL_IOAPIC ? "IOAPIC" : "HPET", id);
+
+		return 0;
+	}
 
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
 		return -ENOMEM;
 
-	entry->id    = id;
-	entry->devid = devid;
-
-	if (type == IVHD_SPECIAL_IOAPIC)
-		list = &ioapic_map;
-	else
-		list = &hpet_map;
+	entry->id	= id;
+	entry->devid	= devid;
+	entry->cmd_line	= cmd_line;
 
 	list_add_tail(&entry->list, list);
+
+	return 0;
+}
+
+static int __init add_early_maps(void)
+{
+	int i, ret;
+
+	for (i = 0; i < early_ioapic_map_size; ++i) {
+		ret = add_special_device(IVHD_SPECIAL_IOAPIC,
+					 early_ioapic_map[i].id,
+					 early_ioapic_map[i].devid,
+					 early_ioapic_map[i].cmd_line);
+		if (ret)
+			return ret;
+	}
+
+	for (i = 0; i < early_hpet_map_size; ++i) {
+		ret = add_special_device(IVHD_SPECIAL_HPET,
+					 early_hpet_map[i].id,
+					 early_hpet_map[i].devid,
+					 early_hpet_map[i].cmd_line);
+		if (ret)
+			return ret;
+	}
 
 	return 0;
 }
@@ -764,6 +807,12 @@ static int __init init_iommu_from_acpi(struct amd_iommu *iommu,
 	u32 dev_i, ext_flags = 0;
 	bool alias = false;
 	struct ivhd_entry *e;
+	int ret;
+
+
+	ret = add_early_maps();
+	if (ret)
+		return ret;
 
 	/*
 	 * First save the recommended feature enable bits from ACPI
@@ -784,10 +833,10 @@ static int __init init_iommu_from_acpi(struct amd_iommu *iommu,
 
 			DUMP_printk("  DEV_ALL\t\t\t first devid: %02x:%02x.%x"
 				    " last device %02x:%02x.%x flags: %02x\n",
-				    PCI_BUS(iommu->first_device),
+				    PCI_BUS_NUM(iommu->first_device),
 				    PCI_SLOT(iommu->first_device),
 				    PCI_FUNC(iommu->first_device),
-				    PCI_BUS(iommu->last_device),
+				    PCI_BUS_NUM(iommu->last_device),
 				    PCI_SLOT(iommu->last_device),
 				    PCI_FUNC(iommu->last_device),
 				    e->flags);
@@ -801,7 +850,7 @@ static int __init init_iommu_from_acpi(struct amd_iommu *iommu,
 
 			DUMP_printk("  DEV_SELECT\t\t\t devid: %02x:%02x.%x "
 				    "flags: %02x\n",
-				    PCI_BUS(e->devid),
+				    PCI_BUS_NUM(e->devid),
 				    PCI_SLOT(e->devid),
 				    PCI_FUNC(e->devid),
 				    e->flags);
@@ -813,7 +862,7 @@ static int __init init_iommu_from_acpi(struct amd_iommu *iommu,
 
 			DUMP_printk("  DEV_SELECT_RANGE_START\t "
 				    "devid: %02x:%02x.%x flags: %02x\n",
-				    PCI_BUS(e->devid),
+				    PCI_BUS_NUM(e->devid),
 				    PCI_SLOT(e->devid),
 				    PCI_FUNC(e->devid),
 				    e->flags);
@@ -827,11 +876,11 @@ static int __init init_iommu_from_acpi(struct amd_iommu *iommu,
 
 			DUMP_printk("  DEV_ALIAS\t\t\t devid: %02x:%02x.%x "
 				    "flags: %02x devid_to: %02x:%02x.%x\n",
-				    PCI_BUS(e->devid),
+				    PCI_BUS_NUM(e->devid),
 				    PCI_SLOT(e->devid),
 				    PCI_FUNC(e->devid),
 				    e->flags,
-				    PCI_BUS(e->ext >> 8),
+				    PCI_BUS_NUM(e->ext >> 8),
 				    PCI_SLOT(e->ext >> 8),
 				    PCI_FUNC(e->ext >> 8));
 
@@ -846,11 +895,11 @@ static int __init init_iommu_from_acpi(struct amd_iommu *iommu,
 			DUMP_printk("  DEV_ALIAS_RANGE\t\t "
 				    "devid: %02x:%02x.%x flags: %02x "
 				    "devid_to: %02x:%02x.%x\n",
-				    PCI_BUS(e->devid),
+				    PCI_BUS_NUM(e->devid),
 				    PCI_SLOT(e->devid),
 				    PCI_FUNC(e->devid),
 				    e->flags,
-				    PCI_BUS(e->ext >> 8),
+				    PCI_BUS_NUM(e->ext >> 8),
 				    PCI_SLOT(e->ext >> 8),
 				    PCI_FUNC(e->ext >> 8));
 
@@ -864,7 +913,7 @@ static int __init init_iommu_from_acpi(struct amd_iommu *iommu,
 
 			DUMP_printk("  DEV_EXT_SELECT\t\t devid: %02x:%02x.%x "
 				    "flags: %02x ext: %08x\n",
-				    PCI_BUS(e->devid),
+				    PCI_BUS_NUM(e->devid),
 				    PCI_SLOT(e->devid),
 				    PCI_FUNC(e->devid),
 				    e->flags, e->ext);
@@ -877,7 +926,7 @@ static int __init init_iommu_from_acpi(struct amd_iommu *iommu,
 
 			DUMP_printk("  DEV_EXT_SELECT_RANGE\t devid: "
 				    "%02x:%02x.%x flags: %02x ext: %08x\n",
-				    PCI_BUS(e->devid),
+				    PCI_BUS_NUM(e->devid),
 				    PCI_SLOT(e->devid),
 				    PCI_FUNC(e->devid),
 				    e->flags, e->ext);
@@ -890,7 +939,7 @@ static int __init init_iommu_from_acpi(struct amd_iommu *iommu,
 		case IVHD_DEV_RANGE_END:
 
 			DUMP_printk("  DEV_RANGE_END\t\t devid: %02x:%02x.%x\n",
-				    PCI_BUS(e->devid),
+				    PCI_BUS_NUM(e->devid),
 				    PCI_SLOT(e->devid),
 				    PCI_FUNC(e->devid));
 
@@ -924,12 +973,12 @@ static int __init init_iommu_from_acpi(struct amd_iommu *iommu,
 
 			DUMP_printk("  DEV_SPECIAL(%s[%d])\t\tdevid: %02x:%02x.%x\n",
 				    var, (int)handle,
-				    PCI_BUS(devid),
+				    PCI_BUS_NUM(devid),
 				    PCI_SLOT(devid),
 				    PCI_FUNC(devid));
 
 			set_dev_entry_from_acpi(iommu, devid, e->flags, 0);
-			ret = add_special_device(type, handle, devid);
+			ret = add_special_device(type, handle, devid, false);
 			if (ret)
 				return ret;
 			break;
@@ -1086,7 +1135,7 @@ static int __init init_iommu_all(struct acpi_table_header *table)
 
 			DUMP_printk("device: %02x:%02x.%01x cap: %04x "
 				    "seg: %d flags: %01x info %04x\n",
-				    PCI_BUS(h->devid), PCI_SLOT(h->devid),
+				    PCI_BUS_NUM(h->devid), PCI_SLOT(h->devid),
 				    PCI_FUNC(h->devid), h->cap_ptr,
 				    h->pci_seg, h->flags, h->info);
 			DUMP_printk("       mmio-addr: %016llx\n",
@@ -1116,7 +1165,7 @@ static int iommu_init_pci(struct amd_iommu *iommu)
 	int cap_ptr = iommu->cap_ptr;
 	u32 range, misc, low, high;
 
-	iommu->dev = pci_get_bus_and_slot(PCI_BUS(iommu->devid),
+	iommu->dev = pci_get_bus_and_slot(PCI_BUS_NUM(iommu->devid),
 					  iommu->devid & 0xff);
 	if (!iommu->dev)
 		return -ENODEV;
@@ -1128,9 +1177,9 @@ static int iommu_init_pci(struct amd_iommu *iommu)
 	pci_read_config_dword(iommu->dev, cap_ptr + MMIO_MISC_OFFSET,
 			      &misc);
 
-	iommu->first_device = calc_devid(MMIO_GET_BUS(range),
+	iommu->first_device = PCI_DEVID(MMIO_GET_BUS(range),
 					 MMIO_GET_FD(range));
-	iommu->last_device = calc_devid(MMIO_GET_BUS(range),
+	iommu->last_device = PCI_DEVID(MMIO_GET_BUS(range),
 					MMIO_GET_LD(range));
 
 	if (!(iommu->cap & (1 << IOMMU_CAP_IOTLB)))
@@ -1275,7 +1324,7 @@ static int iommu_setup_msi(struct amd_iommu *iommu)
 				 amd_iommu_int_handler,
 				 amd_iommu_int_thread,
 				 0, "AMD-Vi",
-				 iommu->dev);
+				 iommu);
 
 	if (r) {
 		pci_disable_msi(iommu->dev);
@@ -1388,8 +1437,8 @@ static int __init init_unity_map_range(struct ivmd_header *m)
 
 	DUMP_printk("%s devid_start: %02x:%02x.%x devid_end: %02x:%02x.%x"
 		    " range_start: %016llx range_end: %016llx flags: %x\n", s,
-		    PCI_BUS(e->devid_start), PCI_SLOT(e->devid_start),
-		    PCI_FUNC(e->devid_start), PCI_BUS(e->devid_end),
+		    PCI_BUS_NUM(e->devid_start), PCI_SLOT(e->devid_start),
+		    PCI_FUNC(e->devid_start), PCI_BUS_NUM(e->devid_end),
 		    PCI_SLOT(e->devid_end), PCI_FUNC(e->devid_end),
 		    e->address_start, e->address_end, m->flags);
 
@@ -1638,18 +1687,28 @@ static void __init free_on_init_error(void)
 
 static bool __init check_ioapic_information(void)
 {
+	const char *fw_bug = FW_BUG;
 	bool ret, has_sb_ioapic;
 	int idx;
 
 	has_sb_ioapic = false;
 	ret           = false;
 
+	/*
+	 * If we have map overrides on the kernel command line the
+	 * messages in this function might not describe firmware bugs
+	 * anymore - so be careful
+	 */
+	if (cmdline_maps)
+		fw_bug = "";
+
 	for (idx = 0; idx < nr_ioapics; idx++) {
 		int devid, id = mpc_ioapic_id(idx);
 
 		devid = get_ioapic_devid(id);
 		if (devid < 0) {
-			pr_err(FW_BUG "AMD-Vi: IOAPIC[%d] not in IVRS table\n", id);
+			pr_err("%sAMD-Vi: IOAPIC[%d] not in IVRS table\n",
+				fw_bug, id);
 			ret = false;
 		} else if (devid == IOAPIC_SB_DEVID) {
 			has_sb_ioapic = true;
@@ -1666,11 +1725,11 @@ static bool __init check_ioapic_information(void)
 		 * when the BIOS is buggy and provides us the wrong
 		 * device id for the IOAPIC in the system.
 		 */
-		pr_err(FW_BUG "AMD-Vi: No southbridge IOAPIC found in IVRS table\n");
+		pr_err("%sAMD-Vi: No southbridge IOAPIC found\n", fw_bug);
 	}
 
 	if (!ret)
-		pr_err("AMD-Vi: Disabling interrupt remapping due to BIOS Bug(s)\n");
+		pr_err("AMD-Vi: Disabling interrupt remapping\n");
 
 	return ret;
 }
@@ -1801,6 +1860,7 @@ static int __init early_amd_iommu_init(void)
 		 * Interrupt remapping enabled, create kmem_cache for the
 		 * remapping tables.
 		 */
+		ret = -ENOMEM;
 		amd_iommu_irq_cache = kmem_cache_create("irq_remap_cache",
 				MAX_IRQS_PER_TABLE * sizeof(u32),
 				IRQ_TABLE_ALIGNMENT,
@@ -2097,8 +2157,70 @@ static int __init parse_amd_iommu_options(char *str)
 	return 1;
 }
 
-__setup("amd_iommu_dump", parse_amd_iommu_dump);
-__setup("amd_iommu=", parse_amd_iommu_options);
+static int __init parse_ivrs_ioapic(char *str)
+{
+	unsigned int bus, dev, fn;
+	int ret, id, i;
+	u16 devid;
+
+	ret = sscanf(str, "[%d]=%x:%x.%x", &id, &bus, &dev, &fn);
+
+	if (ret != 4) {
+		pr_err("AMD-Vi: Invalid command line: ivrs_ioapic%s\n", str);
+		return 1;
+	}
+
+	if (early_ioapic_map_size == EARLY_MAP_SIZE) {
+		pr_err("AMD-Vi: Early IOAPIC map overflow - ignoring ivrs_ioapic%s\n",
+			str);
+		return 1;
+	}
+
+	devid = ((bus & 0xff) << 8) | ((dev & 0x1f) << 3) | (fn & 0x7);
+
+	cmdline_maps			= true;
+	i				= early_ioapic_map_size++;
+	early_ioapic_map[i].id		= id;
+	early_ioapic_map[i].devid	= devid;
+	early_ioapic_map[i].cmd_line	= true;
+
+	return 1;
+}
+
+static int __init parse_ivrs_hpet(char *str)
+{
+	unsigned int bus, dev, fn;
+	int ret, id, i;
+	u16 devid;
+
+	ret = sscanf(str, "[%d]=%x:%x.%x", &id, &bus, &dev, &fn);
+
+	if (ret != 4) {
+		pr_err("AMD-Vi: Invalid command line: ivrs_hpet%s\n", str);
+		return 1;
+	}
+
+	if (early_hpet_map_size == EARLY_MAP_SIZE) {
+		pr_err("AMD-Vi: Early HPET map overflow - ignoring ivrs_hpet%s\n",
+			str);
+		return 1;
+	}
+
+	devid = ((bus & 0xff) << 8) | ((dev & 0x1f) << 3) | (fn & 0x7);
+
+	cmdline_maps			= true;
+	i				= early_hpet_map_size++;
+	early_hpet_map[i].id		= id;
+	early_hpet_map[i].devid		= devid;
+	early_hpet_map[i].cmd_line	= true;
+
+	return 1;
+}
+
+__setup("amd_iommu_dump",	parse_amd_iommu_dump);
+__setup("amd_iommu=",		parse_amd_iommu_options);
+__setup("ivrs_ioapic",		parse_ivrs_ioapic);
+__setup("ivrs_hpet",		parse_ivrs_hpet);
 
 IOMMU_INIT_FINISH(amd_iommu_detect,
 		  gart_iommu_hole_init,

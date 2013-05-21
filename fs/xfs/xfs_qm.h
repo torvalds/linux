@@ -75,6 +75,8 @@ typedef struct xfs_quotainfo {
 	 &((qi)->qi_gquota_tree))
 
 
+extern int	xfs_qm_calc_dquots_per_chunk(struct xfs_mount *mp,
+					     unsigned int nbblks);
 extern void	xfs_trans_mod_dquot(xfs_trans_t *, xfs_dquot_t *, uint, long);
 extern int	xfs_trans_reserve_quota_bydquots(xfs_trans_t *, xfs_mount_t *,
 			xfs_dquot_t *, xfs_dquot_t *, long, long, uint);
@@ -116,7 +118,7 @@ extern void		xfs_qm_dqrele_all_inodes(xfs_mount_t *, uint);
 extern int		xfs_qm_scall_trunc_qfiles(xfs_mount_t *, uint);
 extern int		xfs_qm_scall_getquota(xfs_mount_t *, xfs_dqid_t, uint,
 					fs_disk_quota_t *);
-extern int		xfs_qm_scall_setqlim(xfs_mount_t *, xfs_dqid_t, uint,
+extern int		xfs_qm_scall_setqlim(struct xfs_mount *, xfs_dqid_t, uint,
 					fs_disk_quota_t *);
 extern int		xfs_qm_scall_getqstat(xfs_mount_t *, fs_quota_stat_t *);
 extern int		xfs_qm_scall_quotaon(xfs_mount_t *, uint);

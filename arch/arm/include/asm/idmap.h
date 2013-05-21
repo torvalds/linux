@@ -8,7 +8,6 @@
 #define __idmap __section(.idmap.text) noinline notrace
 
 extern pgd_t *idmap_pgd;
-extern pgd_t *hyp_pgd;
 
 void setup_mm_for_reboot(void);
 

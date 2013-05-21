@@ -262,7 +262,7 @@ static int imx_audmux_probe(struct platform_device *pdev)
 		return PTR_ERR(pinctrl);
 	}
 
-	audmux_clk = clk_get(&pdev->dev, "audmux");
+	audmux_clk = devm_clk_get(&pdev->dev, "audmux");
 	if (IS_ERR(audmux_clk)) {
 		dev_dbg(&pdev->dev, "cannot get clock: %ld\n",
 				PTR_ERR(audmux_clk));
@@ -282,7 +282,6 @@ static int imx_audmux_remove(struct platform_device *pdev)
 {
 	if (audmux_type == IMX31_AUDMUX)
 		audmux_debugfs_remove();
-	clk_put(audmux_clk);
 
 	return 0;
 }

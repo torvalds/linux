@@ -1,4 +1,9 @@
-/* IPv4 specific functions of netfilter core */
+/*
+ * IPv4 specific functions of netfilter core
+ *
+ * Rusty Russell (C) 2000 -- This code is GPL.
+ * Patrick McHardy (C) 2006-2012
+ */
 #include <linux/kernel.h>
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>
@@ -40,14 +45,14 @@ int ip_route_me_harder(struct sk_buff *skb, unsigned int addr_type)
 	fl4.flowi4_flags = flags;
 	rt = ip_route_output_key(net, &fl4);
 	if (IS_ERR(rt))
-		return -1;
+		return PTR_ERR(rt);
 
 	/* Drop old route. */
 	skb_dst_drop(skb);
 	skb_dst_set(skb, &rt->dst);
 
 	if (skb_dst(skb)->error)
-		return -1;
+		return skb_dst(skb)->error;
 
 #ifdef CONFIG_XFRM
 	if (!(IPCB(skb)->flags & IPSKB_XFRM_TRANSFORMED) &&
@@ -56,7 +61,7 @@ int ip_route_me_harder(struct sk_buff *skb, unsigned int addr_type)
 		skb_dst_set(skb, NULL);
 		dst = xfrm_lookup(net, dst, flowi4_to_flowi(&fl4), skb->sk, 0);
 		if (IS_ERR(dst))
-			return -1;
+			return PTR_ERR(dst);;
 		skb_dst_set(skb, dst);
 	}
 #endif
@@ -66,7 +71,7 @@ int ip_route_me_harder(struct sk_buff *skb, unsigned int addr_type)
 	if (skb_headroom(skb) < hh_len &&
 	    pskb_expand_head(skb, HH_DATA_ALIGN(hh_len - skb_headroom(skb)),
 				0, GFP_ATOMIC))
-		return -1;
+		return -ENOMEM;
 
 	return 0;
 }

@@ -89,25 +89,24 @@ extern u32 wl12xx_debug_level;
 	} while (0)
 #endif
 
-/* TODO: use pr_debug_hex_dump when it becomes available */
-#define wl1271_dump(level, prefix, buf, len)	\
-	do { \
-		if (level & wl12xx_debug_level) \
-			print_hex_dump(KERN_DEBUG, DRIVER_PREFIX prefix, \
-				       DUMP_PREFIX_OFFSET, 16, 1,	\
-				       buf,				\
-				       min_t(size_t, len, DEBUG_DUMP_LIMIT), \
-				       0);				\
+#define wl1271_dump(level, prefix, buf, len)				      \
+	do {								      \
+		if (level & wl12xx_debug_level)				      \
+			print_hex_dump_debug(DRIVER_PREFIX prefix,	      \
+					DUMP_PREFIX_OFFSET, 16, 1,	      \
+					buf,				      \
+					min_t(size_t, len, DEBUG_DUMP_LIMIT), \
+					0);				      \
 	} while (0)
 
-#define wl1271_dump_ascii(level, prefix, buf, len)	\
-	do { \
-		if (level & wl12xx_debug_level) \
-			print_hex_dump(KERN_DEBUG, DRIVER_PREFIX prefix, \
-				       DUMP_PREFIX_OFFSET, 16, 1,	\
-				       buf,				\
-				       min_t(size_t, len, DEBUG_DUMP_LIMIT), \
-				       true);				\
+#define wl1271_dump_ascii(level, prefix, buf, len)			      \
+	do {								      \
+		if (level & wl12xx_debug_level)				      \
+			print_hex_dump_debug(DRIVER_PREFIX prefix,	      \
+					DUMP_PREFIX_OFFSET, 16, 1,	      \
+					buf,				      \
+					min_t(size_t, len, DEBUG_DUMP_LIMIT), \
+					true);				      \
 	} while (0)
 
 #endif /* __DEBUG_H__ */

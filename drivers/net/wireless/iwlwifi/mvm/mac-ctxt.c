@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -196,7 +196,7 @@ u32 iwl_mvm_mac_get_queues_mask(struct iwl_mvm *mvm,
 	u32 qmask, ac;
 
 	if (vif->type == NL80211_IFTYPE_P2P_DEVICE)
-		return BIT(IWL_OFFCHANNEL_QUEUE);
+		return BIT(IWL_MVM_OFFCHANNEL_QUEUE);
 
 	qmask = (vif->cab_queue != IEEE80211_INVAL_HW_QUEUE) ?
 		BIT(vif->cab_queue) : 0;
@@ -553,9 +553,9 @@ static void iwl_mvm_mac_ctxt_cmd_common(struct iwl_mvm *mvm,
 	if (vif->bss_conf.qos)
 		cmd->qos_flags |= cpu_to_le32(MAC_QOS_FLG_UPDATE_EDCA);
 
+	/* Don't use cts to self as the fw doesn't support it currently. */
 	if (vif->bss_conf.use_cts_prot)
-		cmd->protection_flags |= cpu_to_le32(MAC_PROT_FLG_TGG_PROTECT |
-						     MAC_PROT_FLG_SELF_CTS_EN);
+		cmd->protection_flags |= cpu_to_le32(MAC_PROT_FLG_TGG_PROTECT);
 
 	/*
 	 * I think that we should enable these 2 flags regardless the HT PROT
@@ -651,6 +651,13 @@ static int iwl_mvm_mac_ctxt_cmd_station(struct iwl_mvm *mvm,
 	/* Fill the common data for all mac context types */
 	iwl_mvm_mac_ctxt_cmd_common(mvm, vif, &cmd, action);
 
+	/* Allow beacons to pass through as long as we are not associated,or we
+	 * do not have dtim period information */
+	if (!vif->bss_conf.assoc || !vif->bss_conf.dtim_period)
+		cmd.filter_flags |= cpu_to_le32(MAC_FILTER_IN_BEACON);
+	else
+		cmd.filter_flags &= ~cpu_to_le32(MAC_FILTER_IN_BEACON);
+
 	/* Fill the data specific for station mode */
 	iwl_mvm_mac_ctxt_cmd_fill_sta(mvm, vif, &cmd.sta);
 
@@ -662,6 +669,7 @@ static int iwl_mvm_mac_ctxt_cmd_p2p_client(struct iwl_mvm *mvm,
 					   u32 action)
 {
 	struct iwl_mac_ctx_cmd cmd = {};
+	struct ieee80211_p2p_noa_attr *noa = &vif->bss_conf.p2p_noa_attr;
 
 	WARN_ON(vif->type != NL80211_IFTYPE_STATION || !vif->p2p);
 
@@ -671,7 +679,8 @@ static int iwl_mvm_mac_ctxt_cmd_p2p_client(struct iwl_mvm *mvm,
 	/* Fill the data specific for station mode */
 	iwl_mvm_mac_ctxt_cmd_fill_sta(mvm, vif, &cmd.p2p_sta.sta);
 
-	cmd.p2p_sta.ctwin = cpu_to_le32(vif->bss_conf.p2p_ctwindow);
+	cmd.p2p_sta.ctwin = cpu_to_le32(noa->oppps_ctwindow &
+					IEEE80211_P2P_OPPPS_CTWINDOW_MASK);
 
 	return iwl_mvm_mac_ctxt_send_cmd(mvm, &cmd);
 }
@@ -685,7 +694,12 @@ static int iwl_mvm_mac_ctxt_cmd_listener(struct iwl_mvm *mvm,
 	WARN_ON(vif->type != NL80211_IFTYPE_MONITOR);
 
 	iwl_mvm_mac_ctxt_cmd_common(mvm, vif, &cmd, action);
-	/* No other data to be filled */
+
+	cmd.filter_flags = cpu_to_le32(MAC_FILTER_IN_PROMISC |
+				       MAC_FILTER_IN_CONTROL_AND_MGMT |
+				       MAC_FILTER_IN_BEACON |
+				       MAC_FILTER_IN_PROBE_REQUEST);
+
 	return iwl_mvm_mac_ctxt_send_cmd(mvm, &cmd);
 }
 
@@ -714,7 +728,9 @@ static int iwl_mvm_mac_ctxt_cmd_p2p_device(struct iwl_mvm *mvm,
 	iwl_mvm_mac_ctxt_cmd_common(mvm, vif, &cmd, action);
 
 	cmd.protection_flags |= cpu_to_le32(MAC_PROT_FLG_TGG_PROTECT);
-	cmd.filter_flags |= cpu_to_le32(MAC_FILTER_IN_PROMISC);
+
+	/* Override the filter flags to accept only probe requests */
+	cmd.filter_flags = cpu_to_le32(MAC_FILTER_IN_PROBE_REQUEST);
 
 	/*
 	 * This flag should be set to true when the P2P Device is
@@ -789,7 +805,7 @@ static int iwl_mvm_mac_ctxt_send_beacon(struct iwl_mvm *mvm,
 					     TX_CMD_FLG_TSF);
 
 	mvm->mgmt_last_antenna_idx =
-		iwl_mvm_next_antenna(mvm, mvm->nvm_data->valid_tx_ant,
+		iwl_mvm_next_antenna(mvm, iwl_fw_valid_tx_ant(mvm->fw),
 				     mvm->mgmt_last_antenna_idx);
 
 	beacon_cmd.tx.rate_n_flags =
@@ -846,10 +862,10 @@ int iwl_mvm_mac_ctxt_beacon_changed(struct iwl_mvm *mvm,
  */
 static void iwl_mvm_mac_ctxt_cmd_fill_ap(struct iwl_mvm *mvm,
 					 struct ieee80211_vif *vif,
-					 struct iwl_mac_data_ap *ctxt_ap)
+					 struct iwl_mac_data_ap *ctxt_ap,
+					 bool add)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	u32 curr_dev_time;
 
 	ctxt_ap->bi = cpu_to_le32(vif->bss_conf.beacon_int);
 	ctxt_ap->bi_reciprocal =
@@ -861,10 +877,19 @@ static void iwl_mvm_mac_ctxt_cmd_fill_ap(struct iwl_mvm *mvm,
 					       vif->bss_conf.dtim_period));
 
 	ctxt_ap->mcast_qid = cpu_to_le32(vif->cab_queue);
-	curr_dev_time = iwl_read_prph(mvm->trans, DEVICE_SYSTEM_TIME_REG);
-	ctxt_ap->beacon_time = cpu_to_le32(curr_dev_time);
 
-	ctxt_ap->beacon_tsf = cpu_to_le64(curr_dev_time);
+	/*
+	 * Only read the system time when the MAC is being added, when we
+	 * just modify the MAC then we should keep the time -- the firmware
+	 * can otherwise have a "jumping" TBTT.
+	 */
+	if (add)
+		mvmvif->ap_beacon_time =
+			iwl_read_prph(mvm->trans, DEVICE_SYSTEM_TIME_REG);
+
+	ctxt_ap->beacon_time = cpu_to_le32(mvmvif->ap_beacon_time);
+
+	ctxt_ap->beacon_tsf = 0; /* unused */
 
 	/* TODO: Assume that the beacon id == mac context id */
 	ctxt_ap->beacon_template = cpu_to_le32(mvmvif->id);
@@ -881,8 +906,12 @@ static int iwl_mvm_mac_ctxt_cmd_ap(struct iwl_mvm *mvm,
 	/* Fill the common data for all mac context types */
 	iwl_mvm_mac_ctxt_cmd_common(mvm, vif, &cmd, action);
 
+	/* Also enable probe requests to pass */
+	cmd.filter_flags |= cpu_to_le32(MAC_FILTER_IN_PROBE_REQUEST);
+
 	/* Fill the data specific for ap mode */
-	iwl_mvm_mac_ctxt_cmd_fill_ap(mvm, vif, &cmd.ap);
+	iwl_mvm_mac_ctxt_cmd_fill_ap(mvm, vif, &cmd.ap,
+				     action == FW_CTXT_ACTION_ADD);
 
 	return iwl_mvm_mac_ctxt_send_cmd(mvm, &cmd);
 }
@@ -892,6 +921,7 @@ static int iwl_mvm_mac_ctxt_cmd_go(struct iwl_mvm *mvm,
 				   u32 action)
 {
 	struct iwl_mac_ctx_cmd cmd = {};
+	struct ieee80211_p2p_noa_attr *noa = &vif->bss_conf.p2p_noa_attr;
 
 	WARN_ON(vif->type != NL80211_IFTYPE_AP || !vif->p2p);
 
@@ -899,10 +929,14 @@ static int iwl_mvm_mac_ctxt_cmd_go(struct iwl_mvm *mvm,
 	iwl_mvm_mac_ctxt_cmd_common(mvm, vif, &cmd, action);
 
 	/* Fill the data specific for GO mode */
-	iwl_mvm_mac_ctxt_cmd_fill_ap(mvm, vif, &cmd.go.ap);
+	iwl_mvm_mac_ctxt_cmd_fill_ap(mvm, vif, &cmd.go.ap,
+				     action == FW_CTXT_ACTION_ADD);
 
-	cmd.go.ctwin = cpu_to_le32(vif->bss_conf.p2p_ctwindow);
-	cmd.go.opp_ps_enabled = cpu_to_le32(!!vif->bss_conf.p2p_oppps);
+	cmd.go.ctwin = cpu_to_le32(noa->oppps_ctwindow &
+					IEEE80211_P2P_OPPPS_CTWINDOW_MASK);
+	cmd.go.opp_ps_enabled =
+			cpu_to_le32(!!(noa->oppps_ctwindow &
+					IEEE80211_P2P_OPPPS_ENABLE_BIT));
 
 	return iwl_mvm_mac_ctxt_send_cmd(mvm, &cmd);
 }
@@ -988,5 +1022,24 @@ int iwl_mvm_mac_ctxt_remove(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 	}
 
 	mvmvif->uploaded = false;
+	return 0;
+}
+
+int iwl_mvm_rx_beacon_notif(struct iwl_mvm *mvm,
+			    struct iwl_rx_cmd_buffer *rxb,
+			    struct iwl_device_cmd *cmd)
+{
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_beacon_notif *beacon = (void *)pkt->data;
+	u16 status __maybe_unused =
+		le16_to_cpu(beacon->beacon_notify_hdr.status.status);
+	u32 rate __maybe_unused =
+		le32_to_cpu(beacon->beacon_notify_hdr.initial_rate);
+
+	IWL_DEBUG_RX(mvm, "beacon status %#x retries:%d tsf:0x%16llX rate:%d\n",
+		     status & TX_STATUS_MSK,
+		     beacon->beacon_notify_hdr.failure_frame,
+		     le64_to_cpu(beacon->tsf),
+		     rate);
 	return 0;
 }

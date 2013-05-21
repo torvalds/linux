@@ -218,15 +218,13 @@ static const struct seq_operations bond_info_seq_ops = {
 static int bond_info_open(struct inode *inode, struct file *file)
 {
 	struct seq_file *seq;
-	struct proc_dir_entry *proc;
 	int res;
 
 	res = seq_open(file, &bond_info_seq_ops);
 	if (!res) {
 		/* recover the pointer buried in proc_dir_entry data */
 		seq = file->private_data;
-		proc = PDE(inode);
-		seq->private = proc->data;
+		seq->private = PDE_DATA(inode);
 	}
 
 	return res;

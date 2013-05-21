@@ -576,7 +576,7 @@ for (pos = chunk->subh.fwdtsn_hdr->skip;\
 #define WORD_ROUND(s) (((s)+3)&~3)
 
 /* Make a new instance of type.  */
-#define t_new(type, flags)	(type *)kzalloc(sizeof(type), flags)
+#define t_new(type, flags)	kzalloc(sizeof(type), flags)
 
 /* Compare two timevals.  */
 #define tv_lt(s, t) \

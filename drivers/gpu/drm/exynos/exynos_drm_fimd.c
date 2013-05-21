@@ -20,6 +20,7 @@
 #include <linux/of_device.h>
 #include <linux/pm_runtime.h>
 
+#include <video/of_display_timing.h>
 #include <video/samsung_fimd.h>
 #include <drm/exynos_drm.h>
 
@@ -800,18 +801,18 @@ static int fimd_clock(struct fimd_context *ctx, bool enable)
 	if (enable) {
 		int ret;
 
-		ret = clk_enable(ctx->bus_clk);
+		ret = clk_prepare_enable(ctx->bus_clk);
 		if (ret < 0)
 			return ret;
 
-		ret = clk_enable(ctx->lcd_clk);
+		ret = clk_prepare_enable(ctx->lcd_clk);
 		if  (ret < 0) {
-			clk_disable(ctx->bus_clk);
+			clk_disable_unprepare(ctx->bus_clk);
 			return ret;
 		}
 	} else {
-		clk_disable(ctx->lcd_clk);
-		clk_disable(ctx->bus_clk);
+		clk_disable_unprepare(ctx->lcd_clk);
+		clk_disable_unprepare(ctx->bus_clk);
 	}
 
 	return 0;
@@ -884,10 +885,25 @@ static int fimd_probe(struct platform_device *pdev)
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	pdata = pdev->dev.platform_data;
-	if (!pdata) {
-		dev_err(dev, "no platform data specified\n");
-		return -EINVAL;
+	if (pdev->dev.of_node) {
+		pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
+		if (!pdata) {
+			DRM_ERROR("memory allocation for pdata failed\n");
+			return -ENOMEM;
+		}
+
+		ret = of_get_fb_videomode(dev->of_node, &pdata->panel.timing,
+					OF_USE_NATIVE_MODE);
+		if (ret) {
+			DRM_ERROR("failed: of_get_fb_videomode() : %d\n", ret);
+			return ret;
+		}
+	} else {
+		pdata = pdev->dev.platform_data;
+		if (!pdata) {
+			DRM_ERROR("no platform data specified\n");
+			return -EINVAL;
+		}
 	}
 
 	panel = &pdata->panel;
@@ -918,7 +934,7 @@ static int fimd_probe(struct platform_device *pdev)
 	if (IS_ERR(ctx->regs))
 		return PTR_ERR(ctx->regs);
 
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+	res = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "vsync");
 	if (!res) {
 		dev_err(dev, "irq request failed.\n");
 		return -ENXIO;
@@ -979,9 +995,6 @@ static int fimd_remove(struct platform_device *pdev)
 
 	if (ctx->suspended)
 		goto out;
-
-	clk_disable(ctx->lcd_clk);
-	clk_disable(ctx->bus_clk);
 
 	pm_runtime_set_suspended(dev);
 	pm_runtime_put_sync(dev);

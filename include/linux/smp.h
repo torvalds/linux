@@ -20,7 +20,6 @@ struct call_single_data {
 	smp_call_func_t func;
 	void *info;
 	u16 flags;
-	u16 priv;
 };
 
 /* total number of cpus in this system (may exceed NR_CPUS) */

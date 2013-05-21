@@ -1733,14 +1733,14 @@ static const struct tsl2x7x_chip_info tsl2x7x_chip_info_tbl[] = {
 			.type = IIO_LIGHT,
 			.indexed = 1,
 			.channel = 0,
-			.info_mask = IIO_CHAN_INFO_PROCESSED_SEPARATE_BIT,
+			.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED),
 			}, {
 			.type = IIO_INTENSITY,
 			.indexed = 1,
 			.channel = 0,
-			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-				IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT |
-				IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT,
+			.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+				BIT(IIO_CHAN_INFO_CALIBSCALE) |
+				BIT(IIO_CHAN_INFO_CALIBBIAS),
 			.event_mask = TSL2X7X_EVENT_MASK
 			}, {
 			.type = IIO_INTENSITY,
@@ -1757,7 +1757,7 @@ static const struct tsl2x7x_chip_info tsl2x7x_chip_info_tbl[] = {
 			.type = IIO_PROXIMITY,
 			.indexed = 1,
 			.channel = 0,
-			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
+			.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
 			.event_mask = TSL2X7X_EVENT_MASK
 			},
 		},
@@ -1770,25 +1770,25 @@ static const struct tsl2x7x_chip_info tsl2x7x_chip_info_tbl[] = {
 			.type = IIO_LIGHT,
 			.indexed = 1,
 			.channel = 0,
-			.info_mask = IIO_CHAN_INFO_PROCESSED_SEPARATE_BIT
+			.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED)
 			}, {
 			.type = IIO_INTENSITY,
 			.indexed = 1,
 			.channel = 0,
-			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-				IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT |
-				IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT,
+			.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+				BIT(IIO_CHAN_INFO_CALIBSCALE) |
+				BIT(IIO_CHAN_INFO_CALIBBIAS),
 			.event_mask = TSL2X7X_EVENT_MASK
 			}, {
 			.type = IIO_INTENSITY,
 			.indexed = 1,
 			.channel = 1,
-			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
+			.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
 			}, {
 			.type = IIO_PROXIMITY,
 			.indexed = 1,
 			.channel = 0,
-			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
+			.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
 			.event_mask = TSL2X7X_EVENT_MASK
 			},
 		},
@@ -1801,8 +1801,8 @@ static const struct tsl2x7x_chip_info tsl2x7x_chip_info_tbl[] = {
 			.type = IIO_PROXIMITY,
 			.indexed = 1,
 			.channel = 0,
-			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-				IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT,
+			.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+				BIT(IIO_CHAN_INFO_CALIBSCALE),
 			.event_mask = TSL2X7X_EVENT_MASK
 			},
 		},
@@ -1815,26 +1815,26 @@ static const struct tsl2x7x_chip_info tsl2x7x_chip_info_tbl[] = {
 			.type = IIO_LIGHT,
 			.indexed = 1,
 			.channel = 0,
-			.info_mask = IIO_CHAN_INFO_PROCESSED_SEPARATE_BIT,
+			.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED),
 			}, {
 			.type = IIO_INTENSITY,
 			.indexed = 1,
 			.channel = 0,
-			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-				IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT |
-				IIO_CHAN_INFO_CALIBBIAS_SEPARATE_BIT,
+			.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+				BIT(IIO_CHAN_INFO_CALIBSCALE) |
+				BIT(IIO_CHAN_INFO_CALIBBIAS),
 			.event_mask = TSL2X7X_EVENT_MASK
 			}, {
 			.type = IIO_INTENSITY,
 			.indexed = 1,
 			.channel = 1,
-			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT,
+			.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
 			}, {
 			.type = IIO_PROXIMITY,
 			.indexed = 1,
 			.channel = 0,
-			.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT |
-				IIO_CHAN_INFO_CALIBSCALE_SEPARATE_BIT,
+			.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
+				BIT(IIO_CHAN_INFO_CALIBSCALE),
 			.event_mask = TSL2X7X_EVENT_MASK
 			},
 		},

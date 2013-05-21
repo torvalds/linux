@@ -1241,10 +1241,10 @@ static const u16 spca508_vista_init_data[][2] = {
 	{}
 };
 
-static int reg_write(struct usb_device *dev,
-			u16 index, u16 value)
+static int reg_write(struct gspca_dev *gspca_dev, u16 index, u16 value)
 {
 	int ret;
+	struct usb_device *dev = gspca_dev->dev;
 
 	ret = usb_control_msg(dev,
 			usb_sndctrlpipe(dev, 0),
@@ -1286,22 +1286,21 @@ static int reg_read(struct gspca_dev *gspca_dev,
 static int ssi_w(struct gspca_dev *gspca_dev,
 		u16 reg, u16 val)
 {
-	struct usb_device *dev = gspca_dev->dev;
 	int ret, retry;
 
-	ret = reg_write(dev, 0x8802, reg >> 8);
+	ret = reg_write(gspca_dev, 0x8802, reg >> 8);
 	if (ret < 0)
 		goto out;
-	ret = reg_write(dev, 0x8801, reg & 0x00ff);
+	ret = reg_write(gspca_dev, 0x8801, reg & 0x00ff);
 	if (ret < 0)
 		goto out;
 	if ((reg & 0xff00) == 0x1000) {		/* if 2 bytes */
-		ret = reg_write(dev, 0x8805, val & 0x00ff);
+		ret = reg_write(gspca_dev, 0x8805, val & 0x00ff);
 		if (ret < 0)
 			goto out;
 		val >>= 8;
 	}
-	ret = reg_write(dev, 0x8800, val);
+	ret = reg_write(gspca_dev, 0x8800, val);
 	if (ret < 0)
 		goto out;
 
@@ -1314,8 +1313,7 @@ static int ssi_w(struct gspca_dev *gspca_dev,
 		if (gspca_dev->usb_buf[0] == 0)
 			break;
 		if (--retry <= 0) {
-			PDEBUG(D_ERR, "ssi_w busy %02x",
-					gspca_dev->usb_buf[0]);
+			PERR("ssi_w busy %02x", gspca_dev->usb_buf[0]);
 			ret = -1;
 			break;
 		}
@@ -1329,7 +1327,6 @@ out:
 static int write_vector(struct gspca_dev *gspca_dev,
 			const u16 (*data)[2])
 {
-	struct usb_device *dev = gspca_dev->dev;
 	int ret = 0;
 
 	while ((*data)[1] != 0) {
@@ -1337,7 +1334,8 @@ static int write_vector(struct gspca_dev *gspca_dev,
 			if ((*data)[1] == 0xdd00)	/* delay */
 				msleep((*data)[0]);
 			else
-				ret = reg_write(dev, (*data)[1], (*data)[0]);
+				ret = reg_write(gspca_dev, (*data)[1],
+								(*data)[0]);
 		} else {
 			ret = ssi_w(gspca_dev, (*data)[1], (*data)[0]);
 		}
@@ -1363,8 +1361,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		spca508cs110_init_data,		/* MicroInnovationIC200 4 */
 		spca508_init_data,		/* ViewQuestVQ110 5 */
 	};
-
-#ifdef GSPCA_DEBUG
 	int data1, data2;
 
 	/* Read from global register the USB product and vendor IDs, just to
@@ -1381,7 +1377,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	data1 = reg_read(gspca_dev, 0x8621);
 	PDEBUG(D_PROBE, "Window 1 average luminance: %d", data1);
-#endif
 
 	cam = &gspca_dev->cam;
 	cam->cam_mode = sif_mode;
@@ -1404,26 +1399,26 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	int mode;
 
 	mode = gspca_dev->cam.cam_mode[gspca_dev->curr_mode].priv;
-	reg_write(gspca_dev->dev, 0x8500, mode);
+	reg_write(gspca_dev, 0x8500, mode);
 	switch (mode) {
 	case 0:
 	case 1:
-		reg_write(gspca_dev->dev, 0x8700, 0x28);	/* clock */
+		reg_write(gspca_dev, 0x8700, 0x28); /* clock */
 		break;
 	default:
 /*	case 2: */
 /*	case 3: */
-		reg_write(gspca_dev->dev, 0x8700, 0x23);	/* clock */
+		reg_write(gspca_dev, 0x8700, 0x23); /* clock */
 		break;
 	}
-	reg_write(gspca_dev->dev, 0x8112, 0x10 | 0x20);
+	reg_write(gspca_dev, 0x8112, 0x10 | 0x20);
 	return 0;
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
 {
 	/* Video ISO disable, Video Drop Packet enable: */
-	reg_write(gspca_dev->dev, 0x8112, 0x20);
+	reg_write(gspca_dev, 0x8112, 0x20);
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
@@ -1450,10 +1445,10 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 static void setbrightness(struct gspca_dev *gspca_dev, s32 brightness)
 {
 	/* MX seem contrast */
-	reg_write(gspca_dev->dev, 0x8651, brightness);
-	reg_write(gspca_dev->dev, 0x8652, brightness);
-	reg_write(gspca_dev->dev, 0x8653, brightness);
-	reg_write(gspca_dev->dev, 0x8654, brightness);
+	reg_write(gspca_dev, 0x8651, brightness);
+	reg_write(gspca_dev, 0x8652, brightness);
+	reg_write(gspca_dev, 0x8653, brightness);
+	reg_write(gspca_dev, 0x8654, brightness);
 }
 
 static int sd_s_ctrl(struct v4l2_ctrl *ctrl)
