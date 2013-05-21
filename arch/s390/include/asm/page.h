@@ -32,7 +32,7 @@
 
 void storage_key_init_range(unsigned long start, unsigned long end);
 
-static unsigned long pfmf(unsigned long function, unsigned long address)
+static inline unsigned long pfmf(unsigned long function, unsigned long address)
 {
 	asm volatile(
 		"	.insn	rre,0xb9af0000,%[function],%[address]"
@@ -44,17 +44,13 @@ static unsigned long pfmf(unsigned long function, unsigned long address)
 
 static inline void clear_page(void *page)
 {
-	if (MACHINE_HAS_PFMF) {
-		pfmf(0x10000, (unsigned long)page);
-	} else {
-		register unsigned long reg1 asm ("1") = 0;
-		register void *reg2 asm ("2") = page;
-		register unsigned long reg3 asm ("3") = 4096;
-		asm volatile(
-			"	mvcl	2,0"
-			: "+d" (reg2), "+d" (reg3) : "d" (reg1)
-			: "memory", "cc");
-	}
+	register unsigned long reg1 asm ("1") = 0;
+	register void *reg2 asm ("2") = page;
+	register unsigned long reg3 asm ("3") = 4096;
+	asm volatile(
+		"	mvcl	2,0"
+		: "+d" (reg2), "+d" (reg3) : "d" (reg1)
+		: "memory", "cc");
 }
 
 static inline void copy_page(void *to, void *from)
