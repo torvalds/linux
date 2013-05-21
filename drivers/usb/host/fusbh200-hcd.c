@@ -5864,7 +5864,7 @@ static int fusbh200_hcd_fusbh200_probe(struct platform_device *pdev)
 
 	retval = fusbh200_setup(hcd);
 	if (retval)
-		return retval;
+		goto fail_add_hcd;
 
 	fusbh200_init(fusbh200);
 
