@@ -427,7 +427,6 @@ static void qh_lines (
 {
 	u32			scratch;
 	u32			hw_curr;
-	struct list_head	*entry;
 	struct fusbh200_qtd		*td;
 	unsigned		temp;
 	unsigned		size = *sizep;
@@ -464,8 +463,7 @@ static void qh_lines (
 	next += temp;
 
 	/* hc may be modifying the list as we read it ... */
-	list_for_each (entry, &qh->qtd_list) {
-		td = list_entry (entry, struct fusbh200_qtd, qtd_list);
+	list_for_each_entry(td, &qh->qtd_list, qtd_list) {
 		scratch = hc32_to_cpup(fusbh200, &td->hw_token);
 		mark = ' ';
 		if (hw_curr == td->qtd_dma)
