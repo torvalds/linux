@@ -8764,18 +8764,4 @@ static struct pci_driver bnx2_pci_driver = {
 	.err_handler	= &bnx2_err_handler,
 };
 
-static int __init bnx2_init(void)
-{
-	return pci_register_driver(&bnx2_pci_driver);
-}
-
-static void __exit bnx2_cleanup(void)
-{
-	pci_unregister_driver(&bnx2_pci_driver);
-}
-
-module_init(bnx2_init);
-module_exit(bnx2_cleanup);
-
-
-
+module_pci_driver(bnx2_pci_driver);
