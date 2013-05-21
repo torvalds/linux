@@ -1173,15 +1173,16 @@ static int smscore_load_firmware_from_file(struct smscore_device_t *coredev,
 			 GFP_KERNEL | GFP_DMA);
 	if (!fw_buf) {
 		sms_err("failed to allocate firmware buffer");
-		return -ENOMEM;
-	}
-	memcpy(fw_buf, fw->data, fw->size);
-	fw_buf_size = fw->size;
+		rc = -ENOMEM;
+	} else {
+		memcpy(fw_buf, fw->data, fw->size);
+		fw_buf_size = fw->size;
 
-	rc = (coredev->device_flags & SMS_DEVICE_FAMILY2) ?
-		smscore_load_firmware_family2(coredev, fw_buf, fw_buf_size)
-		: loadfirmware_handler(coredev->context, fw_buf,
-		fw_buf_size);
+		rc = (coredev->device_flags & SMS_DEVICE_FAMILY2) ?
+			smscore_load_firmware_family2(coredev, fw_buf, fw_buf_size)
+			: loadfirmware_handler(coredev->context, fw_buf,
+			fw_buf_size);
+	}
 
 	kfree(fw_buf);
 	release_firmware(fw);
