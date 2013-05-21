@@ -195,7 +195,7 @@ static ssize_t wifi_pcba_read(struct class *cls, char *_buf)
 }
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 37))
-static ssize_t wifi_pcba_write(struct class *cls, struct class_attribute *attr, char *_buf, size_t _count)
+static ssize_t wifi_pcba_write(struct class *cls, struct class_attribute *attr, const char *_buf, size_t _count)
 #else
 static ssize_t wifi_pcba_write(struct class *cls, char *_buf, size_t _count)
 #endif 
