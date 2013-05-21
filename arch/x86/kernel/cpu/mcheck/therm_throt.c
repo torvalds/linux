@@ -210,6 +210,15 @@ static int thresh_event_valid(int event)
 	return 1;
 }
 
+static bool int_pln_enable;
+static int __init int_pln_enable_setup(char *s)
+{
+	int_pln_enable = true;
+
+	return 1;
+}
+__setup("int_pln_enable", int_pln_enable_setup);
+
 #ifdef CONFIG_SYSFS
 /* Add/Remove thermal_throttle interface for CPU device: */
 static __cpuinit int thermal_throttle_add_dev(struct device *dev,
@@ -222,7 +231,7 @@ static __cpuinit int thermal_throttle_add_dev(struct device *dev,
 	if (err)
 		return err;
 
-	if (cpu_has(c, X86_FEATURE_PLN))
+	if (cpu_has(c, X86_FEATURE_PLN) && int_pln_enable)
 		err = sysfs_add_file_to_group(&dev->kobj,
 					      &dev_attr_core_power_limit_count.attr,
 					      thermal_attr_group.name);
@@ -230,7 +239,7 @@ static __cpuinit int thermal_throttle_add_dev(struct device *dev,
 		err = sysfs_add_file_to_group(&dev->kobj,
 					      &dev_attr_package_throttle_count.attr,
 					      thermal_attr_group.name);
-		if (cpu_has(c, X86_FEATURE_PLN))
+		if (cpu_has(c, X86_FEATURE_PLN) && int_pln_enable)
 			err = sysfs_add_file_to_group(&dev->kobj,
 					&dev_attr_package_power_limit_count.attr,
 					thermal_attr_group.name);
@@ -343,7 +352,7 @@ static void intel_thermal_interrupt(void)
 				CORE_LEVEL) != 0)
 		mce_log_therm_throt_event(msr_val);
 
-	if (this_cpu_has(X86_FEATURE_PLN))
+	if (this_cpu_has(X86_FEATURE_PLN) && int_pln_enable)
 		therm_throt_process(msr_val & THERM_STATUS_POWER_LIMIT,
 					POWER_LIMIT_EVENT,
 					CORE_LEVEL);
@@ -353,7 +362,7 @@ static void intel_thermal_interrupt(void)
 		therm_throt_process(msr_val & PACKAGE_THERM_STATUS_PROCHOT,
 					THERMAL_THROTTLING_EVENT,
 					PACKAGE_LEVEL);
-		if (this_cpu_has(X86_FEATURE_PLN))
+		if (this_cpu_has(X86_FEATURE_PLN) && int_pln_enable)
 			therm_throt_process(msr_val &
 					PACKAGE_THERM_STATUS_POWER_LIMIT,
 					POWER_LIMIT_EVENT,
@@ -461,9 +470,13 @@ void intel_init_thermal(struct cpuinfo_x86 *c)
 	apic_write(APIC_LVTTHMR, h);
 
 	rdmsr(MSR_IA32_THERM_INTERRUPT, l, h);
-	if (cpu_has(c, X86_FEATURE_PLN))
+	if (cpu_has(c, X86_FEATURE_PLN) && !int_pln_enable)
 		wrmsr(MSR_IA32_THERM_INTERRUPT,
-		      l | (THERM_INT_LOW_ENABLE
+			(l | (THERM_INT_LOW_ENABLE
+			| THERM_INT_HIGH_ENABLE)) & ~THERM_INT_PLN_ENABLE, h);
+	else if (cpu_has(c, X86_FEATURE_PLN) && int_pln_enable)
+		wrmsr(MSR_IA32_THERM_INTERRUPT,
+			l | (THERM_INT_LOW_ENABLE
 			| THERM_INT_HIGH_ENABLE | THERM_INT_PLN_ENABLE), h);
 	else
 		wrmsr(MSR_IA32_THERM_INTERRUPT,
@@ -471,9 +484,14 @@ void intel_init_thermal(struct cpuinfo_x86 *c)
 
 	if (cpu_has(c, X86_FEATURE_PTS)) {
 		rdmsr(MSR_IA32_PACKAGE_THERM_INTERRUPT, l, h);
-		if (cpu_has(c, X86_FEATURE_PLN))
+		if (cpu_has(c, X86_FEATURE_PLN) && !int_pln_enable)
 			wrmsr(MSR_IA32_PACKAGE_THERM_INTERRUPT,
-			      l | (PACKAGE_THERM_INT_LOW_ENABLE
+				(l | (PACKAGE_THERM_INT_LOW_ENABLE
+				| PACKAGE_THERM_INT_HIGH_ENABLE))
+				& ~PACKAGE_THERM_INT_PLN_ENABLE, h);
+		else if (cpu_has(c, X86_FEATURE_PLN) && int_pln_enable)
+			wrmsr(MSR_IA32_PACKAGE_THERM_INTERRUPT,
+				l | (PACKAGE_THERM_INT_LOW_ENABLE
 				| PACKAGE_THERM_INT_HIGH_ENABLE
 				| PACKAGE_THERM_INT_PLN_ENABLE), h);
 		else
