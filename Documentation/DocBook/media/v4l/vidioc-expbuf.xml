@@ -73,7 +73,8 @@ range from zero to the maximal number of valid planes for the currently active
 format. For the single-planar API, applications must set <structfield> plane
 </structfield> to zero.  Additional flags may be posted in the <structfield>
 flags </structfield> field.  Refer to a manual for open() for details.
-Currently only O_CLOEXEC is supported.  All other fields must be set to zero.
+Currently only O_CLOEXEC, O_RDONLY, O_WRONLY, and O_RDWR are supported.  All
+other fields must be set to zero.
 In the case of multi-planar API, every plane is exported separately using
 multiple <constant> VIDIOC_EXPBUF </constant> calls. </para>
 
@@ -170,8 +171,9 @@ multi-planar API. Otherwise this value must be set to zero. </entry>
 	    <entry>__u32</entry>
 	    <entry><structfield>flags</structfield></entry>
 	    <entry>Flags for the newly created file, currently only <constant>
-O_CLOEXEC </constant> is supported, refer to the manual of open() for more
-details.</entry>
+O_CLOEXEC </constant>, <constant>O_RDONLY</constant>, <constant>O_WRONLY
+</constant>, and <constant>O_RDWR</constant> are supported, refer to the manual
+of open() for more details.</entry>
 	  </row>
 	  <row>
 	    <entry>__s32</entry>
