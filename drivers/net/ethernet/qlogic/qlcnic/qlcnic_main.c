@@ -2016,8 +2016,10 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pci_enable_pcie_error_reporting(pdev);
 
 	ahw = kzalloc(sizeof(struct qlcnic_hardware_context), GFP_KERNEL);
-	if (!ahw)
+	if (!ahw) {
+		err = -ENOMEM;
 		goto err_out_free_res;
+	}
 
 	switch (ent->device) {
 	case PCI_DEVICE_ID_QLOGIC_QLE824X:
@@ -2053,6 +2055,7 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	adapter->qlcnic_wq = create_singlethread_workqueue("qlcnic");
 	if (adapter->qlcnic_wq == NULL) {
+		err = -ENOMEM;
 		dev_err(&pdev->dev, "Failed to create workqueue\n");
 		goto err_out_free_netdev;
 	}
@@ -2133,6 +2136,10 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			goto err_out_disable_msi;
 	}
 
+	err = qlcnic_get_act_pci_func(adapter);
+	if (err)
+		goto err_out_disable_mbx_intr;
+
 	err = qlcnic_setup_netdev(adapter, netdev, pci_using_dac);
 	if (err)
 		goto err_out_disable_mbx_intr;
@@ -2161,9 +2168,6 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 				adapter->netdev->name);
 		break;
 	}
-
-	if (qlcnic_get_act_pci_func(adapter))
-		goto err_out_disable_mbx_intr;
 
 	if (adapter->drv_mac_learn)
 		qlcnic_alloc_lb_filters_mem(adapter);
