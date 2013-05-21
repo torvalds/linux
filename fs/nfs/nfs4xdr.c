@@ -7515,6 +7515,7 @@ struct rpc_procinfo	nfs4_procedures[] = {
 	PROC(DEALLOCATE,	enc_deallocate,		dec_deallocate),
 	PROC(LAYOUTSTATS,	enc_layoutstats,	dec_layoutstats),
 	PROC(CLONE,		enc_clone,		dec_clone),
+	PROC(COPY,		enc_copy,		dec_copy),
 #endif /* CONFIG_NFS_V4_2 */
 };
 
