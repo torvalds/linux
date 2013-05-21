@@ -19,8 +19,8 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-chip-ident.h>
 #include <media/soc_camera.h>
+//#include <mach/gpio.h>
 #include <plat/rk_camera.h>
-#include <mach/gpio.h>
 #include <linux/delay.h>
 #include "s5k5ca.h"
 
@@ -3434,10 +3434,12 @@ static struct reginfo sensor_720p[]=
 
 	{SEQUENCE_END, 0x00}
 };
+#if 0
 static struct reginfo sensor_1080p[]=
 {
 	{SEQUENCE_END, 0x00}
 };
+#endif
 /* 2592X1944 QSXGA */
 static struct reginfo sensor_qsxga[] =
 {
@@ -3950,7 +3952,7 @@ static struct reginfo sensor_Zoom3[] =
 };
 static struct reginfo *sensor_ZoomSeqe[] = {sensor_Zoom0, sensor_Zoom1, sensor_Zoom2, sensor_Zoom3, NULL,};
 #endif
-static const struct v4l2_querymenu sensor_menus[] =
+static  struct v4l2_querymenu sensor_menus[] =
 {
 	#if CONFIG_SENSOR_WhiteBalance
     { .id = V4L2_CID_DO_WHITE_BALANCE,  .index = 0,  .name = "auto",  .reserved = 0, }, 
@@ -4380,7 +4382,7 @@ static int sensor_write(struct i2c_client *client, u16 reg, u16 val)
 	}
     return err;
 }
-
+#if 0
 /* sensor register read */
 static int sensor_read(struct i2c_client *client, u16 reg, u16 *val)
 {
@@ -4417,7 +4419,7 @@ static int sensor_read(struct i2c_client *client, u16 reg, u16 *val)
 
 	return err;
 }
-
+#endif
 /* write a array of registers  */
 static int sensor_write_array(struct i2c_client *client, struct reginfo *regarray)
 {
@@ -4688,7 +4690,7 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
         sensor->info_priv.flash = qctrl->default_value;
     #endif
     SENSOR_DG("\n%s..%s.. icd->width = %d.. icd->height %d\n",SENSOR_NAME_STRING(),((val == 0)?__FUNCTION__:"sensor_reinit"),icd->user_width,icd->user_height);
-sensor_init_end:    
+//sensor_init_end:    
     sensor->info_priv.funmodule_state |= SENSOR_INIT_IS_OK;
     return 0;
 sensor_INIT_ERR:
@@ -4805,6 +4807,7 @@ static int sensor_g_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 
     return 0;
 }
+#if 0
 static bool sensor_fmt_capturechk(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 {
     bool ret = false;
@@ -4840,6 +4843,7 @@ static bool sensor_fmt_videochk(struct v4l2_subdev *sd, struct v4l2_mbus_framefm
 		SENSOR_DG("%s %dx%d is video format\n", __FUNCTION__, mf->width, mf->height);
 	return ret;
 }
+#endif
 static struct reginfo* sensor_fmt_catch(int set_w, int set_h, int *ret_w, int *ret_h)
 {
 	struct reginfo *winseqe_set_addr = NULL;
@@ -4993,7 +4997,7 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
             goto sensor_s_fmt_end;
         }
 
-        sensor->info_priv.winseqe_cur_addr  = (unsigned int)winseqe_set_addr;
+        sensor->info_priv.winseqe_cur_addr  = (struct reginfo *)winseqe_set_addr;
 
         SENSOR_DG("\n%s..%s.. icd->width = %d.. icd->height %d\n",SENSOR_NAME_STRING(),__FUNCTION__,set_w,set_h);
     } else {
@@ -6001,7 +6005,7 @@ static int sensor_probe(struct i2c_client *client,
     struct soc_camera_device *icd = client->dev.platform_data;
     struct i2c_adapter *adapter = to_i2c_adapter(client->dev.parent);
     struct soc_camera_link *icl;
-    struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
+    //struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
     int ret;
 
     SENSOR_DG("\n%s..%s..%d..\n",__FUNCTION__,__FILE__,__LINE__);

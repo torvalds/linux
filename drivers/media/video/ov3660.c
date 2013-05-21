@@ -1388,7 +1388,7 @@ static struct reginfo sensor_Zoom3[] =
 static struct reginfo *sensor_ZoomSeqe[] = {sensor_Zoom0, sensor_Zoom1, sensor_Zoom2, sensor_Zoom3, NULL,};
 #endif
 
-#if CONFIG_SENSOR_ISO
+#if 0
 static struct reginfo sensor_ISO100[] =
 {
 
@@ -1416,7 +1416,7 @@ static struct reginfo sensor_ISO800[] =
 static struct reginfo *sensor_ISOSeqe[] = {sensor_ISO100, sensor_ISO200, sensor_ISO400, sensor_ISO800, NULL,};
 #endif
 
-static const struct v4l2_querymenu sensor_menus[] =
+static struct v4l2_querymenu sensor_menus[] =
 {
 	#if CONFIG_SENSOR_WhiteBalance
     { .id = V4L2_CID_DO_WHITE_BALANCE,  .index = 0,  .name = "auto",  .reserved = 0, }, {  .id = V4L2_CID_DO_WHITE_BALANCE,  .index = 1, .name = "incandescent",  .reserved = 0,},
@@ -1946,7 +1946,7 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
 	const struct v4l2_queryctrl *qctrl;
 	const struct sensor_datafmt *fmt;
 unsigned char value;
-int ret,pid = 0;
+int ret=0,pid = 0;
 
     SENSOR_DG("\n%s..%s.. \n",SENSOR_NAME_STRING(),__FUNCTION__);
 

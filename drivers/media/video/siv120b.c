@@ -989,7 +989,7 @@ static struct reginfo sensor_Zoom3[] =
 };
 static struct reginfo *sensor_ZoomSeqe[] = {sensor_Zoom0, sensor_Zoom1, sensor_Zoom2, sensor_Zoom3, NULL,};
 #endif
-static const struct v4l2_querymenu sensor_menus[] =
+static struct v4l2_querymenu sensor_menus[] =
 {
 	#if CONFIG_SENSOR_WhiteBalance
     { .id = V4L2_CID_DO_WHITE_BALANCE,  .index = 0,  .name = "auto",  .reserved = 0, }, {  .id = V4L2_CID_DO_WHITE_BALANCE,  .index = 1, .name = "incandescent",  .reserved = 0,},
@@ -1687,6 +1687,7 @@ static int sensor_g_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 
     return 0;
 }
+#if 0
 static bool sensor_fmt_capturechk(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 {
     bool ret = false;
@@ -1722,6 +1723,7 @@ static bool sensor_fmt_videochk(struct v4l2_subdev *sd, struct v4l2_mbus_framefm
 		SENSOR_DG("%s %dx%d is video format\n", __FUNCTION__, mf->width, mf->height);
 	return ret;
 }
+#endif
 static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 {
     struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -2251,9 +2253,9 @@ static int sensor_g_control(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 
 static int sensor_s_control(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
-    struct i2c_client *client = v4l2_get_subdevdata(sd);
-    struct sensor *sensor = to_sensor(client);
-    struct soc_camera_device *icd = client->dev.platform_data;
+    //ruct i2c_client *client = v4l2_get_subdevdata(sd);
+    //ruct sensor *sensor = to_sensor(client);
+    //ruct soc_camera_device *icd = client->dev.platform_data;
     const struct v4l2_queryctrl *qctrl;
 
 

@@ -3063,7 +3063,7 @@ static struct reginfo sensor_Zoom3[] =
 };
 static struct reginfo *sensor_ZoomSeqe[] = {sensor_Zoom0, sensor_Zoom1, sensor_Zoom2, sensor_Zoom3, NULL};
 #endif
-static const struct v4l2_querymenu sensor_menus[] =
+static struct v4l2_querymenu sensor_menus[] =
 {
 	#if CONFIG_SENSOR_WhiteBalance
     { .id = V4L2_CID_DO_WHITE_BALANCE,  .index = 0,  .name = "auto",  .reserved = 0, }, {  .id = V4L2_CID_DO_WHITE_BALANCE,  .index = 1, .name = "incandescent",  .reserved = 0,},
@@ -3764,6 +3764,7 @@ static int sensor_af_const(struct i2c_client *client)
 sensor_af_const_end:
 	return ret;
 }
+#if 0
 static int sensor_af_pause2capture(struct i2c_client *client)
 {
 	int ret = 0;
@@ -3805,6 +3806,8 @@ static int sensor_af_pause2capture(struct i2c_client *client)
 sensor_af_pause_end:
 	return ret;
 }
+#endif
+
 static int sensor_af_zoneupdate(struct i2c_client *client)
 {
 	int ret = 0;
@@ -4022,7 +4025,7 @@ static void sensor_af_workqueue(struct work_struct *work)
             SENSOR_TR("Unknow command(%d) in %s af workqueue!",sensor_work->cmd,SENSOR_NAME_STRING());
             break;
     } 
-set_end:
+//set_end:
     if (sensor_work->wait == false) {
         kfree((void*)sensor_work);
     } else {
@@ -4308,6 +4311,7 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
     char value;
     int ret,pid = 0,i = 0,j=0;
     struct rk29camera_platform_data* tmp_plat_data =sensor->sensor_io_request;
+    int tmp_winseq_size;
     
     sensor_init_data_p = sensor_init_data;
 	sensor_init_winseq_p = sensor_svga;
@@ -4344,7 +4348,7 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
         	}
 	    }
 		//init winseq
-		int tmp_winseq_size = tmp_plat_data->sensor_init_data[i]->rk_sensor_winseq_size;
+		tmp_winseq_size = tmp_plat_data->sensor_init_data[i]->rk_sensor_winseq_size;
         if(tmp_winseq_size > 2){
             	if(sizeof(struct reginfo) != sizeof(struct reginfo_t)){
             		if(sensor_init_winseq_board) {

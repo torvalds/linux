@@ -950,7 +950,8 @@ static int sensor_focus_af_far_usr_cb(struct i2c_client *client){
 	return 0;
 }
 
-static int sensor_focus_af_specialpos_usr_cb(struct i2c_client *client){
+static int sensor_focus_af_specialpos_usr_cb(struct i2c_client *client,int pos)
+{
 	return 0;
 }
 
@@ -965,7 +966,8 @@ static int sensor_focus_af_close_usr_cb(struct i2c_client *client){
 	return 0;
 }
 
-static int sensor_focus_af_zoneupdate_usr_cb(struct i2c_client *client){
+static int sensor_focus_af_zoneupdate_usr_cb(struct i2c_client *client, int *zone_tm_pos)
+{
 	return 0;
 }
 

@@ -828,8 +828,8 @@ static struct soc_camera_ops sensor_ops;
 */
 static int sensor_parameter_record(struct i2c_client *client)
 {
-	u8 ret_l,ret_m,ret_h;
-	int tp_l,tp_m,tp_h;
+	u8 ret_l,ret_h;
+	int tp_l,tp_h;
 	
 	struct generic_sensor *sensor = to_generic_sensor(client);
 	struct specific_sensor *spsensor = to_specific_sensor(sensor);
@@ -910,7 +910,7 @@ static int sensor_parameter_record(struct i2c_client *client)
 
 static int sensor_ae_transfer(struct i2c_client *client)
 {
-	unsigned int prev_line_len,cap_line_len,shutter;
+	//unsigned int prev_line_len,cap_line_len,shutter;
 	struct generic_sensor *sensor = to_generic_sensor(client);
 	struct specific_sensor *spsensor = to_specific_sensor(sensor);
 	int preview_ae_integration, capture_ae_integration;
@@ -971,8 +971,6 @@ static int sensor_ae_transfer(struct i2c_client *client)
 */
 static int sensor_activate_cb(struct i2c_client *client)
 {
-    u8 reg_val;
-
     SENSOR_DG("%s",__FUNCTION__);
 	
 	
@@ -983,7 +981,6 @@ static int sensor_activate_cb(struct i2c_client *client)
 */
 static int sensor_deactivate_cb(struct i2c_client *client)
 {
-	u8 reg_val;
 	struct generic_sensor *sensor = to_generic_sensor(client);
 
     SENSOR_DG("%s",__FUNCTION__);
@@ -1015,8 +1012,6 @@ static int sensor_s_fmt_cb_th(struct i2c_client *client,struct v4l2_mbus_framefm
 */
 static int sensor_s_fmt_cb_bh (struct i2c_client *client,struct v4l2_mbus_framefmt *mf, bool capture)
 {
-	u8 val;
-
     if (capture) {
 		sensor_ae_transfer(client);
 		printk("set fmt set!!!!!!!!!!!!");  	
@@ -1169,7 +1164,8 @@ static int sensor_focus_af_close_usr_cb(struct i2c_client *client){
 	return 0;
 }
 
-static int sensor_focus_af_zoneupdate_usr_cb(struct i2c_client *client){
+static int sensor_focus_af_zoneupdate_usr_cb(struct i2c_client *client, int *zone_tm_pos)
+{
 	return 0;
 }
 

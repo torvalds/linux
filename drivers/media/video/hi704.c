@@ -106,8 +106,9 @@ struct  flash_timer{
     struct soc_camera_device *icd;
 	struct hrtimer timer;
 };
+#if CONFIG_SENSOR_Flash
 static enum hrtimer_restart flash_off_func(struct hrtimer *timer);
-
+#endif
 static struct  flash_timer flash_off_timer;
 //for user defined if user want to customize the series , zyc
 #ifdef CONFIG_HI704_USER_DEFINED_SERIES
@@ -1127,7 +1128,7 @@ static struct reginfo sensor_Zoom3[] =
 };
 static struct reginfo *sensor_ZoomSeqe[] = {sensor_Zoom0, sensor_Zoom1, sensor_Zoom2, sensor_Zoom3, NULL,};
 #endif
-static const struct v4l2_querymenu sensor_menus[] =
+static  struct v4l2_querymenu sensor_menus[] =
 {
 	#if CONFIG_SENSOR_WhiteBalance
     { .id = V4L2_CID_DO_WHITE_BALANCE,  .index = 0,  .name = "auto",  .reserved = 0, }, {  .id = V4L2_CID_DO_WHITE_BALANCE,  .index = 1, .name = "incandescent",  .reserved = 0,},
@@ -1650,7 +1651,7 @@ static int sensor_ioctrl(struct soc_camera_device *icd,enum rk29sensor_power_cmd
 sensor_power_end:
 	return ret;
 }
-
+#if CONFIG_SENSOR_Flash
 static enum hrtimer_restart flash_off_func(struct hrtimer *timer){
 	struct flash_timer *fps_timer = container_of(timer, struct flash_timer, timer);
     sensor_ioctrl(fps_timer->icd,Sensor_Flash,0);
@@ -1658,6 +1659,7 @@ static enum hrtimer_restart flash_off_func(struct hrtimer *timer){
     return 0;
     
 }
+#endif
 static int sensor_init(struct v4l2_subdev *sd, u32 val)
 {
     struct i2c_client *client = v4l2_get_subdevdata(sd);

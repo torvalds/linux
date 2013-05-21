@@ -2281,7 +2281,7 @@ static int sensor_focus_af_single_usr_cb(struct i2c_client *client){
 		SENSOR_DG("%s sensor auto focus trigger(0x%x) success! state: %d, cnt: %d\n",SENSOR_NAME_STRING(),
           sensor_af_trigger[0].val,reg.val,cnt);
 	}
-sensor_af_single_end:
+//sensor_af_single_end:
 	return ret;
 }
 
@@ -2327,7 +2327,7 @@ static int sensor_focus_af_zoneupdate_usr_cb(struct i2c_client *client,int *zone
 
     sensor_af_trigger[0].val = (zone_center_pos[0]<<8)|zone_center_pos[1];
   
-sensor_af_zone_end:
+//sensor_af_zone_end:
     return ret;
 }
 

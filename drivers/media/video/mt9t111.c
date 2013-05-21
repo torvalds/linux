@@ -5937,7 +5937,7 @@ static struct reginfo sensor_Zoom3[] =
 };
 static struct reginfo *sensor_ZoomSeqe[] = {sensor_Zoom0, sensor_Zoom1, sensor_Zoom2, sensor_Zoom3, NULL};
 #endif
-static const struct v4l2_querymenu sensor_menus[] =
+static struct v4l2_querymenu sensor_menus[] =
 {
 	#if CONFIG_SENSOR_WhiteBalance
     { .id = V4L2_CID_DO_WHITE_BALANCE,  .index = 0,  .name = "auto",  .reserved = 0, }, {  .id = V4L2_CID_DO_WHITE_BALANCE,  .index = 1, .name = "incandescent",  .reserved = 0,},
@@ -6639,14 +6639,14 @@ static int sensor_af_const(struct i2c_client *client)
 //sensor_af_const_end:
 	return ret;
 }
-
+#if 0
 static int sensor_af_zoneupdate(struct i2c_client *client)
 {
 	int ret = 0;
 
 	return ret;
 }
-
+#endif
 static int sensor_af_init(struct i2c_client *client)
 {
 	int ret = 0;
@@ -6961,6 +6961,7 @@ static int sensor_g_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 
     return 0;
 }
+#if 0
 static bool sensor_fmt_capturechk(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 {
     bool ret = false;
@@ -6996,6 +6997,7 @@ static bool sensor_fmt_videochk(struct v4l2_subdev *sd, struct v4l2_mbus_framefm
 		SENSOR_DG("%s %dx%d is video format\n", __FUNCTION__, mf->width, mf->height);
 	return ret;
 }
+#endif
 static struct reginfo* sensor_fmt_catch(int set_w, int set_h, int *ret_w, int *ret_h)
 {
 	struct reginfo *winseqe_set_addr = NULL;

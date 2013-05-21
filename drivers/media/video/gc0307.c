@@ -829,6 +829,7 @@ static	struct rk_sensor_reg sensor_Effect_Green[] =
 			{0x7c,0x00},
 	SensorEnd
 };
+#if 0
 static struct rk_sensor_reg sensor_Effect_Grayscale[]=
 {
 	{0x23,0x02},	
@@ -841,9 +842,10 @@ static struct rk_sensor_reg sensor_Effect_Grayscale[]=
 	{0xb4,0x80},
 	{0xba,0x00},
 	{0xbb,0x00},
-	{0x00,0x00}
+	{0x00,0x00},
+	SensorEnd
 };
-
+#endif
 static struct rk_sensor_reg *sensor_EffectSeqe[] = {sensor_Effect_Normal, sensor_Effect_WandB, sensor_Effect_Negative,sensor_Effect_Sepia,
 	sensor_Effect_Bluish, sensor_Effect_Green,NULL,
 };
@@ -1244,7 +1246,8 @@ static int sensor_focus_af_close_usr_cb(struct i2c_client *client){
 	return 0;
 }
 
-static int sensor_focus_af_zoneupdate_usr_cb(struct i2c_client *client){
+static int sensor_focus_af_zoneupdate_usr_cb(struct i2c_client *client, int *zone_tm_pos)
+{
 	return 0;
 }
 

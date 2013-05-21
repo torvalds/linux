@@ -311,6 +311,7 @@ static struct rk_sensor_reg sensor_fullres_lowfps_data[] ={
 
 
 /* Senor full resolution setting: recommand for capture */
+#if 0
 static struct rk_sensor_reg sensor_fullres_midfps_data[] ={
 	{0x32BF, 0x60},
 	{0x32C0, 0x74},
@@ -369,6 +370,7 @@ static struct rk_sensor_reg sensor_fullres_midfps_data[] ={
 	{0x3060, 0x01},
 	SensorEnd
 };
+#endif
 /* Senor full resolution setting: recommand for video */
 static struct rk_sensor_reg sensor_fullres_highfps_data[] ={
 	{0x32BF, 0x60},
@@ -1045,8 +1047,6 @@ static struct soc_camera_ops sensor_ops;
 */
 static int sensor_activate_cb(struct i2c_client *client)
 {
-    u8 reg_val;
-
     SENSOR_DG("%s\n",__FUNCTION__);
 
 	return 0;
@@ -1056,7 +1056,6 @@ static int sensor_activate_cb(struct i2c_client *client)
 */
 static int sensor_deactivate_cb(struct i2c_client *client)
 {
-	u8 reg_val;
 	struct generic_sensor *sensor = to_generic_sensor(client);
 
     SENSOR_DG("%s",__FUNCTION__);
@@ -1230,7 +1229,8 @@ static int sensor_focus_af_close_usr_cb(struct i2c_client *client){
 	return 0;
 }
 
-static int sensor_focus_af_zoneupdate_usr_cb(struct i2c_client *client){
+static int sensor_focus_af_zoneupdate_usr_cb(struct i2c_client *client, int *zone_tm_pos)
+{
 	return 0;
 }
 

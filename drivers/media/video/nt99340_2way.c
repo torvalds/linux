@@ -959,8 +959,7 @@ static struct soc_camera_ops sensor_ops;
 */
 static int sensor_activate_cb(struct i2c_client *client)
 {
-    u8 reg_val;
-	struct soc_camera_device *icd = client->dev.platform_data;
+	//struct soc_camera_device *icd = client->dev.platform_data;
 	//generic_sensor_ioctrl(icd, Sensor_PowerDown, 0);
 
     SENSOR_DG("%s",__FUNCTION__);
@@ -972,9 +971,8 @@ static int sensor_activate_cb(struct i2c_client *client)
 */
 static int sensor_deactivate_cb(struct i2c_client *client)
 {
-	u8 reg_val;
 	struct generic_sensor *sensor = to_generic_sensor(client);
-	struct soc_camera_device *icd = client->dev.platform_data;
+	//struct soc_camera_device *icd = client->dev.platform_data;
 
     SENSOR_DG("%s",__FUNCTION__);
     
@@ -1153,7 +1151,8 @@ static int sensor_focus_af_close_usr_cb(struct i2c_client *client){
 	return 0;
 }
 
-static int sensor_focus_af_zoneupdate_usr_cb(struct i2c_client *client){
+static int sensor_focus_af_zoneupdate_usr_cb(struct i2c_client *client, int *zone_tm_pos)
+{
 	return 0;
 }
 

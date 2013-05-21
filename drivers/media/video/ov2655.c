@@ -1224,7 +1224,7 @@ static struct reginfo sensor_Zoom3[] =
 };
 static struct reginfo *sensor_ZoomSeqe[] = {sensor_Zoom0, sensor_Zoom1, sensor_Zoom2, sensor_Zoom3, NULL,};
 #endif
-static const struct v4l2_querymenu sensor_menus[] =
+static struct v4l2_querymenu sensor_menus[] =
 {
 	#if CONFIG_SENSOR_WhiteBalance
     { .id = V4L2_CID_DO_WHITE_BALANCE,  .index = 0,  .name = "auto",  .reserved = 0, }, {  .id = V4L2_CID_DO_WHITE_BALANCE,  .index = 1, .name = "incandescent",  .reserved = 0,},
@@ -1753,7 +1753,7 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
 	const struct v4l2_queryctrl *qctrl;
     const struct sensor_datafmt *fmt;
     char value;
-    int ret,pid = 0,i = 0,j=0;
+    int ret,pid = 0,i = 0,j=0,tmp_winseq_size;
     struct rk29camera_platform_data* tmp_plat_data =sensor->sensor_io_request;
     
     sensor_init_data_p = sensor_init_data;
@@ -1793,7 +1793,7 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
         	}
 	    }
 		//init winseq
-		int tmp_winseq_size = tmp_plat_data->sensor_init_data[i]->rk_sensor_winseq_size;
+		tmp_winseq_size = tmp_plat_data->sensor_init_data[i]->rk_sensor_winseq_size;
         if(tmp_winseq_size > 2){
             	if(sizeof(struct reginfo) != sizeof(struct reginfo_t)){
             		if(sensor_init_winseq_board) {
@@ -1950,8 +1950,7 @@ sensor_INIT_ERR:
 
 static int sensor_deactivate(struct i2c_client *client)
 {
-	struct soc_camera_device *icd = client->dev.platform_data;
-	u8 reg_val;
+	struct soc_camera_device *icd = client->dev.platform_data;	
     struct sensor *sensor = to_sensor(client);
 	SENSOR_DG("\n%s..%s.. Enter\n",SENSOR_NAME_STRING(),__FUNCTION__);
     

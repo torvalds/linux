@@ -1897,7 +1897,7 @@ static struct reginfo sensor_Zoom3[] =
 };
 static struct reginfo *sensor_ZoomSeqe[] = {sensor_Zoom0, sensor_Zoom1, sensor_Zoom2, sensor_Zoom3, NULL,};
 #endif
-static const struct v4l2_querymenu sensor_menus[] =
+static  struct v4l2_querymenu sensor_menus[] =
 {
 	#if CONFIG_SENSOR_WhiteBalance
     { .id = V4L2_CID_DO_WHITE_BALANCE,  .index = 0,  .name = "auto",  .reserved = 0, }, {  .id = V4L2_CID_DO_WHITE_BALANCE,  .index = 1, .name = "incandescent",  .reserved = 0,},
@@ -2250,7 +2250,7 @@ static int sensor_write(struct i2c_client *client, u8 reg, u8 val)
 
     return err;
 }
-
+#if 0
 /* sensor register read */
 static int sensor_read(struct i2c_client *client, u8 reg, u8 *val)
 {
@@ -2291,7 +2291,7 @@ static int sensor_read(struct i2c_client *client, u8 reg, u8 *val)
 
     return err;
 }
-
+#endif
 /* write a array of registers  */
 static int sensor_write_array(struct i2c_client *client, struct reginfo *regarray)
 {

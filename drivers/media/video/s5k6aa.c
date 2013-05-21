@@ -115,8 +115,9 @@ struct  flash_timer{
     struct soc_camera_device *icd;
 	struct hrtimer timer;
 };
+#if CONFIG_SENSOR_Flash
 static enum hrtimer_restart flash_off_func(struct hrtimer *timer);
-
+#endif
 static struct  flash_timer flash_off_timer;
 //for user defined if user want to customize the series , zyc
 #ifdef CONFIG_S5K6AA_USER_DEFINED_SERIES
@@ -2292,10 +2293,13 @@ static struct reginfo sensor_720p[]=
 {
 	{SEQUENCE_END, 0x00}
 };
+#if 0
 static struct reginfo sensor_1080p[]=
 {
 	{SEQUENCE_END, 0x00}
 };
+#endif
+
 /* 2592X1944 QSXGA */
 static struct reginfo sensor_qsxga[] =
 {
@@ -2338,12 +2342,13 @@ static struct reginfo sensor_xga[] =
 {
 	{SEQUENCE_END, 0x00}
 };
+#if 0
 /* 800X600 SVGA*/
 static struct reginfo sensor_svga[] =
 {
     {SEQUENCE_END, 0x0},
 };
-
+#endif
 /* 640X480 VGA */
 static struct reginfo sensor_vga[] =
 {
@@ -2733,7 +2738,7 @@ static struct reginfo sensor_Zoom3[] =
 };
 static struct reginfo *sensor_ZoomSeqe[] = {sensor_Zoom0, sensor_Zoom1, sensor_Zoom2, sensor_Zoom3, NULL,};
 #endif
-static const struct v4l2_querymenu sensor_menus[] =
+static struct v4l2_querymenu sensor_menus[] =
 {
 	#if CONFIG_SENSOR_WhiteBalance
     { .id = V4L2_CID_DO_WHITE_BALANCE,  .index = 0,  .name = "auto",  .reserved = 0, }, {  .id = V4L2_CID_DO_WHITE_BALANCE,  .index = 1, .name = "incandescent",  .reserved = 0,},
@@ -2930,8 +2935,8 @@ static int sensor_suspend(struct soc_camera_device *icd, pm_message_t pm_msg);
 static int sensor_resume(struct soc_camera_device *icd);
 static int sensor_set_bus_param(struct soc_camera_device *icd,unsigned long flags);
 static unsigned long sensor_query_bus_param(struct soc_camera_device *icd);
-static int sensor_set_effect(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int value);
-static int sensor_set_whiteBalance(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int value);
+//static int sensor_set_effect(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int value);
+//static int sensor_set_whiteBalance(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int value);
 static int sensor_deactivate(struct i2c_client *client);
 
 static struct soc_camera_ops sensor_ops =
@@ -3138,7 +3143,7 @@ static int sensor_write(struct i2c_client *client, u16 reg, u16 val)
 	}
     return err;
 }
-
+#if 0
 /* sensor register read */
 static int sensor_read(struct i2c_client *client, u16 reg, u16 *val)
 {
@@ -3175,7 +3180,7 @@ static int sensor_read(struct i2c_client *client, u16 reg, u16 *val)
 
 	return err;
 }
-
+#endif
 /* write a array of registers  */
 static int sensor_write_array(struct i2c_client *client, struct reginfo *regarray)
 {
@@ -3329,7 +3334,7 @@ static int sensor_ioctrl(struct soc_camera_device *icd,enum rk29sensor_power_cmd
 sensor_power_end:
 	return ret;
 }
-
+#if CONFIG_SENSOR_Flash
 static enum hrtimer_restart flash_off_func(struct hrtimer *timer){
 	struct flash_timer *fps_timer = container_of(timer, struct flash_timer, timer);
     sensor_ioctrl(fps_timer->icd,Sensor_Flash,0);
@@ -3337,7 +3342,7 @@ static enum hrtimer_restart flash_off_func(struct hrtimer *timer){
     return 0;
     
 }
-
+#endif
 static int sensor_init(struct v4l2_subdev *sd, u32 val)
 {
     struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -3627,6 +3632,7 @@ static int sensor_g_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 
     return 0;
 }
+#if 0
 static bool sensor_fmt_capturechk(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
 {
     bool ret = false;
@@ -3662,6 +3668,7 @@ static bool sensor_fmt_videochk(struct v4l2_subdev *sd, struct v4l2_mbus_framefm
 		SENSOR_DG("%s %dx%d is video format\n", __FUNCTION__, mf->width, mf->height);
 	return ret;
 }
+#endif
 static struct reginfo* sensor_fmt_catch(int set_w, int set_h, int *ret_w, int *ret_h)
 {
 	struct reginfo *winseqe_set_addr = NULL;
@@ -3815,7 +3822,7 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
             goto sensor_s_fmt_end;
         }
 
-        sensor->info_priv.winseqe_cur_addr  = (int)winseqe_set_addr;
+        sensor->info_priv.winseqe_cur_addr  = (struct reginfo*)winseqe_set_addr;
 
 
         SENSOR_DG("\n%s..%s.. icd->width = %d.. icd->height %d\n",SENSOR_NAME_STRING(),__FUNCTION__,set_w,set_h);
@@ -4380,8 +4387,8 @@ static int sensor_g_ext_control(struct soc_camera_device *icd , struct v4l2_ext_
 static int sensor_s_ext_control(struct soc_camera_device *icd, struct v4l2_ext_control *ext_ctrl)
 {
     const struct v4l2_queryctrl *qctrl;
-    struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
-    struct sensor *sensor = to_sensor(client);
+    //struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
+    //struct sensor *sensor = to_sensor(client);
     int val_offset;
 
     qctrl = soc_camera_find_qctrl(&sensor_ops, ext_ctrl->id);

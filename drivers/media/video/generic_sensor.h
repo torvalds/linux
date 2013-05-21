@@ -948,6 +948,9 @@ static inline int sensor_face_detect_default_cb(struct soc_camera_device *icd, s
     sensor_ops.set_bus_param = generic_sensor_set_bus_param;  \
 	sensor_ops.query_bus_param = generic_sensor_query_bus_param;  \
  \
+    if (sizeof(sensor_ZoomSeqe)/sizeof(struct rk_sensor_reg *))\
+        sensor_ZoomSeqe[0] = NULL;\
+\
     if (CFG_FunChk(sensor_config,CFG_WhiteBalance)) { \
         sensor_v4l2ctrl_info_init(ctrls,V4L2_CID_DO_WHITE_BALANCE,V4L2_CTRL_TYPE_MENU,  \
                             "White Balance Control",0,4,1,0,sensor_v4l2ctrl_default_cb,sensor_WhiteBalanceSeqe);  \

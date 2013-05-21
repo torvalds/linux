@@ -902,54 +902,6 @@ static struct soc_camera_ops sensor_ops;
 * Please codeing your program here 
 **********************************************************
 */
-static int sensor_parameter_record(struct i2c_client *client)
-{
-	u8 ret_l,ret_m,ret_h;
-	int tp_l,tp_m,tp_h;
-	
-	struct generic_sensor *sensor = to_generic_sensor(client);
-	struct specific_sensor *spsensor = to_specific_sensor(sensor);
-
-	sensor_read(client,0x3a00, &ret_l);
-	sensor_write(client,0x3a00, ret_l&0xfb);
-
-	sensor_write(client,0x3503,0x07);	//stop AE/AG
-
-	sensor_read(client,0x3500,&ret_h);
-	sensor_read(client,0x3501, &ret_m);
-	sensor_read(client,0x3502, &ret_l);
-	tp_l = ret_l;
-	tp_m = ret_m;
-	tp_h = ret_h;
-	spsensor->parameter.preview_exposure = ((tp_h<<12) & 0xF000) | ((tp_m<<4) & 0x0FF0) | ((tp_l>>4) & 0x0F);
-	
-	//Read back AGC Gain for preview
-	sensor_read(client,0x350b, &ret_l);
-	spsensor->parameter.preview_gain = ret_l;
-
-	spsensor->parameter.CapturePclk = 24000;
-	spsensor->parameter.PreviewPclk = 24000;
-	spsensor->parameter.PreviewDummyPixels = 0;
-	spsensor->parameter.CaptureDummyPixels = 0;
-	SENSOR_DG("Read 0x350b=0x%02x  PreviewExposure:%d 0x3500=0x%02x  0x3501=0x%02x 0x3502=0x%02x",
-	          ret_l,spsensor->parameter.preview_exposure,tp_h, tp_m, tp_l);
-	return 0;
-}
-#define OV2659_FULL_PERIOD_PIXEL_NUMS  (1940)  // default pixel#(w/o dummy pixels) in UXGA mode
-#define OV2659_FULL_PERIOD_LINE_NUMS   (1238)  // default line#(w/o dummy lines) in UXGA mode
-#define OV2659_PV_PERIOD_PIXEL_NUMS   (970)  // default pixel#(w/o dummy pixels) in SVGA mode
-#define OV2659_PV_PERIOD_LINE_NUMS	  (618)   // default line#(w/o dummy lines) in SVGA mode
-
-/* SENSOR EXPOSURE LINE LIMITATION */
-#define OV2659_FULL_EXPOSURE_LIMITATION   (1236)
-#define OV2659_PV_EXPOSURE_LIMITATION	  (618)
-
-// SENSOR UXGA SIZE
-#define OV2659_IMAGE_SENSOR_FULL_WIDTH	  (1600)
-#define OV2659_IMAGE_SENSOR_FULL_HEIGHT   (1200)
-
-#define OV2659_FULL_GRAB_WIDTH				(OV2659_IMAGE_SENSOR_FULL_WIDTH - 16)
-#define OV2659_FULL_GRAB_HEIGHT 			(OV2659_IMAGE_SENSOR_FULL_HEIGHT - 12)
 
 /*
 **********************************************************
@@ -962,8 +914,6 @@ static int sensor_parameter_record(struct i2c_client *client)
 */
 static int sensor_activate_cb(struct i2c_client *client)
 {
-    u8 reg_val;
-
     SENSOR_DG("%s",__FUNCTION__);	
 	return 0;
 }
@@ -972,7 +922,6 @@ static int sensor_activate_cb(struct i2c_client *client)
 */
 static int sensor_deactivate_cb(struct i2c_client *client)
 {
-	u8 reg_val;
 	struct generic_sensor *sensor = to_generic_sensor(client);
 
     SENSOR_DG("%s",__FUNCTION__);
@@ -1147,7 +1096,8 @@ static int sensor_focus_af_close_usr_cb(struct i2c_client *client){
 	return 0;
 }
 
-static int sensor_focus_af_zoneupdate_usr_cb(struct i2c_client *client){
+static int sensor_focus_af_zoneupdate_usr_cb(struct i2c_client *client, int *zone_tm_pos)
+{
 	return 0;
 }
 

@@ -551,6 +551,7 @@ static  struct reginfo sensor_Effect_Negative[] =
     {0xB6, 0x20},
     {0xff,0xff} 
 };
+/*
 static  struct reginfo sensor_Effect_Bluish[] =
 {
     {0x00,0x04}, 
@@ -561,7 +562,7 @@ static  struct reginfo sensor_Effect_Bluish[] =
     {0xB8, 0x50},
     {0xff,0xff} 
 };
-
+*/
 static  struct reginfo sensor_Effect_Green[] =
 {
     //  Greenish
@@ -798,7 +799,7 @@ static struct reginfo sensor_Zoom3[] =
 };
 static struct reginfo *sensor_ZoomSeqe[] = {sensor_Zoom0, sensor_Zoom1, sensor_Zoom2, sensor_Zoom3, NULL,};
 #endif
-static const struct v4l2_querymenu sensor_menus[] =
+static  struct v4l2_querymenu sensor_menus[] =
 {
 	#if CONFIG_SENSOR_WhiteBalance
     { .id = V4L2_CID_DO_WHITE_BALANCE,  .index = 0,  .name = "auto",  .reserved = 0, }, {  .id = V4L2_CID_DO_WHITE_BALANCE,  .index = 1, .name = "incandescent",  .reserved = 0,},

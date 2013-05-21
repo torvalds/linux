@@ -175,8 +175,9 @@ struct  flash_timer{
     struct soc_camera_device *icd;
 	struct hrtimer timer;
 };
+#if CONFIG_SENSOR_Flash
 static enum hrtimer_restart flash_off_func(struct hrtimer *timer);
-
+#endif
 static struct  flash_timer flash_off_timer;
 //for user defined if user want to customize the series , zyc
 #ifdef CONFIG_OV5640_USER_DEFINED_SERIES
@@ -1685,7 +1686,7 @@ static struct reginfo sensor_Zoom3[] =
 };
 static struct reginfo *sensor_ZoomSeqe[] = {sensor_Zoom0, sensor_Zoom1, sensor_Zoom2, sensor_Zoom3, NULL,};
 #endif
-static const struct v4l2_querymenu sensor_menus[] =
+static struct v4l2_querymenu sensor_menus[] =
 {
 	#if CONFIG_SENSOR_WhiteBalance
     { .id = V4L2_CID_DO_WHITE_BALANCE,  .index = 0,  .name = "auto",  .reserved = 0, }, {  .id = V4L2_CID_DO_WHITE_BALANCE,  .index = 1, .name = "incandescent",  .reserved = 0,},
@@ -2610,7 +2611,7 @@ static void sensor_af_workqueue(struct work_struct *work)
             SENSOR_TR("Unknow command(%d) in %s af workqueue!",sensor_work->cmd,SENSOR_NAME_STRING());
             break;
     } 
-set_end:
+//set_end:
     if (sensor_work->wait == false) {
         kfree((void*)sensor_work);
     } else {
@@ -2915,7 +2916,7 @@ static int sensor_ioctrl(struct soc_camera_device *icd,enum rk29sensor_power_cmd
 sensor_power_end:
 	return ret;
 }
-
+#if CONFIG_SENSOR_Flash
 static enum hrtimer_restart flash_off_func(struct hrtimer *timer){
 	struct flash_timer *fps_timer = container_of(timer, struct flash_timer, timer);
     sensor_ioctrl(fps_timer->icd,Sensor_Flash,0);
@@ -2923,7 +2924,7 @@ static enum hrtimer_restart flash_off_func(struct hrtimer *timer){
     return 0;
     
 }
-
+#endif
 static int sensor_init(struct v4l2_subdev *sd, u32 val)
 {
     struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -2990,7 +2991,7 @@ static int sensor_init(struct v4l2_subdev *sd, u32 val)
     }
 	sensor_task_lock(client,0);
 
-    sensor->info_priv.winseqe_cur_addr  = SENSOR_INIT_WINSEQADR;
+    sensor->info_priv.winseqe_cur_addr  = (struct reginfo *)SENSOR_INIT_WINSEQADR;
 	fmt = sensor_find_datafmt(SENSOR_INIT_PIXFMT,sensor_colour_fmts, ARRAY_SIZE(sensor_colour_fmts));
     if (!fmt) {
         SENSOR_TR("error: %s initial array colour fmts is not support!!",SENSOR_NAME_STRING());
@@ -3293,7 +3294,7 @@ static int sensor_s_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *mf)
     }
     else
     {
-        winseqe_set_addr = SENSOR_INIT_WINSEQADR;               /* ddl@rock-chips.com : Sensor output smallest size if  isn't support app  */
+        winseqe_set_addr = (struct reginfo *)SENSOR_INIT_WINSEQADR;               /* ddl@rock-chips.com : Sensor output smallest size if  isn't support app  */
         set_w = SENSOR_INIT_WIDTH;
         set_h = SENSOR_INIT_HEIGHT;
 		SENSOR_TR("\n %s..%s Format is Invalidate. pix->width = %d.. pix->height = %d\n",SENSOR_NAME_STRING(),__FUNCTION__,mf->width,mf->height);
@@ -3768,6 +3769,7 @@ static int sensor_set_digitalzoom(struct soc_camera_device *icd, const struct v4
 #endif
 
 #if CONFIG_SENSOR_Focus
+#if 0
 static int sensor_set_focus_absolute(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int value)
 {
 	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
@@ -3795,6 +3797,7 @@ static int sensor_set_focus_absolute(struct soc_camera_device *icd, const struct
 
 	return ret;
 }
+#endif
 static int sensor_set_focus_relative(struct soc_camera_device *icd, const struct v4l2_queryctrl *qctrl, int value)
 {
 	struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
@@ -3840,8 +3843,8 @@ static int sensor_set_focus_mode(struct soc_camera_device *icd, const struct v4l
 				ret = sensor_af_workqueue_set(icd, WqCmd_af_single, 0, true);
 				break;
 			}
-
-			/*case SENSOR_AF_MODE_MACRO:
+            /*
+			case SENSOR_AF_MODE_MACRO:
 			{
 				ret = sensor_set_focus_absolute(icd, qctrl, 0xff);
 				break;
@@ -4126,7 +4129,7 @@ static int sensor_s_ext_control(struct soc_camera_device *icd, struct v4l2_ext_c
     const struct v4l2_queryctrl *qctrl;
     struct i2c_client *client = to_i2c_client(to_soc_camera_control(icd));
     struct sensor *sensor = to_sensor(client);
-    int val_offset,ret;
+    int val_offset;
 
     qctrl = soc_camera_find_qctrl(&sensor_ops, ext_ctrl->id);
 

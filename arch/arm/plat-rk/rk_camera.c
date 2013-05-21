@@ -308,7 +308,7 @@ static int rk_sensor_io_deinit(int sensor);
 static int rk_sensor_ioctrl(struct device *dev,enum rk29camera_ioctrl_cmd cmd, int on);
 static int rk_sensor_power(struct device *dev, int on);
 static int rk_sensor_register(void);
-static int rk_sensor_reset(struct device *dev);
+//static int rk_sensor_reset(struct device *dev);
 
 static int rk_sensor_powerdown(struct device *dev, int on);
 
@@ -1619,6 +1619,7 @@ static int rk_sensor_power(struct device *dev, int on)
     }
     return ret;
 }
+#if 0
 static int rk_sensor_reset(struct device *dev)
 {
 #if 0
@@ -1632,6 +1633,7 @@ static int rk_sensor_reset(struct device *dev)
 #endif
 	return 0;
 }
+#endif
 static int rk_sensor_powerdown(struct device *dev, int on)
 {
 	return rk_sensor_ioctrl(dev,Cam_PowerDown,on);

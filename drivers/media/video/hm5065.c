@@ -2562,7 +2562,7 @@ static int sensor_deactivate_cb(struct i2c_client *client)
 */
 static int sensor_s_fmt_cb_th(struct i2c_client *client,struct v4l2_mbus_framefmt *mf, bool capture)
 {
-	struct generic_sensor*sensor = to_generic_sensor(client);
+	//struct generic_sensor*sensor = to_generic_sensor(client);
 	
 	
 	return 0;
@@ -2678,19 +2678,15 @@ static int sensor_focus_af_single_usr_cb(struct i2c_client *client);
 
 static int sensor_focus_init_usr_cb(struct i2c_client *client)
 {
-    int ret = 0, cnt;
-    char state;
-    
-sensor_af_init_end:
-    SENSOR_DG("ret:0x%x ",__FUNCTION__,ret);
-    return ret;
+    return 0;
 }
 
 static int sensor_focus_af_single_usr_cb(struct i2c_client *client) 
 {
 	int ret = 0;
 	char state,cnt=0;
-    struct specific_sensor *ssensor = to_generic_sensor(client);
+    struct generic_sensor *sensor = to_generic_sensor(client);
+    struct specific_sensor *ssensor = to_specific_sensor(sensor);
     
 	ret |= sensor_write(client,AF_MODES_REG,0x03);
     ret |= sensor_write(client,AF_AUTOCMDS_REG,0x01);
@@ -2704,13 +2700,13 @@ static int sensor_focus_af_single_usr_cb(struct i2c_client *client)
     }while ((state != 1) && (cnt<100));
 
     if (state == 1) {
-        sensor_read(client, AF_LENSPOS_REG_H,&ssensor->parameter.af_pos[0]);
-        sensor_read(client, AF_LENSPOS_REG_L,&ssensor->parameter.af_pos[1]);
+        sensor_read(client, AF_LENSPOS_REG_H,(char*)&ssensor->parameter.af_pos[0]);
+        sensor_read(client, AF_LENSPOS_REG_L,(char*)&ssensor->parameter.af_pos[1]);
     }
 
     SENSOR_DG("single focus, state: %d cnt: %d",state,cnt);
     
-sensor_af_single_end:
+//sensor_af_single_end:
 	return ret;
 }
 
@@ -2727,7 +2723,8 @@ static int sensor_focus_af_far_usr_cb(struct i2c_client *client)
 
 static int sensor_focus_af_specialpos_usr_cb(struct i2c_client *client,int pos)
 {
-    struct specific_sensor *ssensor = to_generic_sensor(client);
+    struct generic_sensor *sensor = to_generic_sensor(client);
+    struct specific_sensor *ssensor = to_specific_sensor(sensor);
     
     sensor_write(client,0x070A, 0x00);
 	sensor_write(client,0x0734, ssensor->parameter.af_pos[0]& 0xFF);
@@ -2744,20 +2741,21 @@ static int sensor_focus_af_const_usr_cb(struct i2c_client *client)
     int ret;
     
     ret = sensor_write(client, AF_MODES_REG, 0x01);
-sensor_af_const_end:
+//sensor_af_const_end:
 	return ret;
 }
 static int sensor_focus_af_const_pause_usr_cb(struct i2c_client *client)
 {
     int ret = 0;
     char status = 0;
-    struct specific_sensor *ssensor = to_generic_sensor(client);
+    struct generic_sensor *sensor = to_generic_sensor(client);
+    struct specific_sensor *ssensor = to_specific_sensor(sensor);
     
     sensor_read(client, 0x07ae, &status);
 
     if (status == 1) {
-        sensor_read(client, AF_LENSPOS_REG_H,&ssensor->parameter.af_pos[0]);
-        sensor_read(client, AF_LENSPOS_REG_L,&ssensor->parameter.af_pos[1]);
+        sensor_read(client, AF_LENSPOS_REG_H,(char*)&ssensor->parameter.af_pos[0]);
+        sensor_read(client, AF_LENSPOS_REG_L,(char*)&ssensor->parameter.af_pos[1]);
     } else {
         sensor_focus_af_single_usr_cb(client);
     }
@@ -2820,7 +2818,7 @@ static int sensor_focus_af_zoneupdate_usr_cb(struct i2c_client *client, int *zon
 	ret |= sensor_write(client, FACE_SIZE_XL, 0x40);
 	ret |= sensor_write(client, FACE_SIZE_YH, 0x01);
 	ret |= sensor_write(client, FACE_SIZE_YL, 0x40);
-sensor_af_zone_end:
+//sensor_af_zone_end:
 	return ret;
 }
 

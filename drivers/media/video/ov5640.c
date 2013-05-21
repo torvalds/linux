@@ -1098,7 +1098,7 @@ static int sensor_deactivate_cb(struct i2c_client *client)
 */
 static int sensor_s_fmt_cb_th(struct i2c_client *client,struct v4l2_mbus_framefmt *mf, bool capture)
 {
-	struct generic_sensor*sensor = to_generic_sensor(client);
+	//struct generic_sensor*sensor = to_generic_sensor(client);
 	
 	if (capture) {
 		sensor_parameter_record(client);
@@ -1120,7 +1120,7 @@ static int sensor_check_id_usr_cb(struct i2c_client *client,struct rk_sensor_reg
 */
 static int sensor_s_fmt_cb_bh (struct i2c_client *client,struct v4l2_mbus_framefmt *mf, bool capture)
 {
-	struct generic_sensor*sensor = to_generic_sensor(client);
+	//struct generic_sensor*sensor = to_generic_sensor(client);
 	if (capture) {
 		sensor_ae_transfer(client);
 	}
@@ -1337,7 +1337,7 @@ static int sensor_focus_af_single_usr_cb(struct i2c_client *client)
 	int ret = 0;
 	char state,cnt;
 	struct af_cmdinfo cmdinfo;
-	char s_zone[5],i;
+	//char s_zone[5],i;
 	cmdinfo.cmd_tag = 0x01;
 	cmdinfo.validate_bit = 0x80;
 	ret = sensor_af_cmdset(client, SingleFocus_Cmd, &cmdinfo);
@@ -1436,7 +1436,7 @@ static int sensor_focus_af_zoneupdate_usr_cb(struct i2c_client *client, int *zon
 	struct af_cmdinfo cmdinfo;
 	//int zone_tm_pos[4];
 	int zone_center_pos[2];
-	struct generic_sensor*sensor = to_generic_sensor(client);    
+	//struct generic_sensor*sensor = to_generic_sensor(client);    
 	
 	if (zone_tm_pos) {
 		zone_tm_pos[0] += 1000;
