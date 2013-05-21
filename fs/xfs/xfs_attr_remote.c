@@ -468,19 +468,25 @@ xfs_attr_rmtval_remove(xfs_da_args_t *args)
 	mp = args->dp->i_mount;
 
 	/*
-	 * Roll through the "value", invalidating the attribute value's
-	 * blocks.
+	 * Roll through the "value", invalidating the attribute value's blocks.
+	 * Note that args->rmtblkcnt is the minimum number of data blocks we'll
+	 * see for a CRC enabled remote attribute. Each extent will have a
+	 * header, and so we may have more blocks than we realise here.  If we
+	 * fail to map the blocks correctly, we'll have problems with the buffer
+	 * lookups.
 	 */
 	lblkno = args->rmtblkno;
-	valuelen = args->rmtblkcnt;
+	valuelen = args->valuelen;
+	blkcnt = xfs_attr3_rmt_blocks(mp, valuelen);
 	while (valuelen > 0) {
+		int dblkcnt;
+
 		/*
 		 * Try to remember where we decided to put the value.
 		 */
 		nmap = 1;
 		error = xfs_bmapi_read(args->dp, (xfs_fileoff_t)lblkno,
-				       args->rmtblkcnt, &map, &nmap,
-				       XFS_BMAPI_ATTRFORK);
+				       blkcnt, &map, &nmap, XFS_BMAPI_ATTRFORK);
 		if (error)
 			return(error);
 		ASSERT(nmap == 1);
@@ -488,28 +494,31 @@ xfs_attr_rmtval_remove(xfs_da_args_t *args)
 		       (map.br_startblock != HOLESTARTBLOCK));
 
 		dblkno = XFS_FSB_TO_DADDR(mp, map.br_startblock),
-		blkcnt = XFS_FSB_TO_BB(mp, map.br_blockcount);
+		dblkcnt = XFS_FSB_TO_BB(mp, map.br_blockcount);
 
 		/*
 		 * If the "remote" value is in the cache, remove it.
 		 */
-		bp = xfs_incore(mp->m_ddev_targp, dblkno, blkcnt, XBF_TRYLOCK);
+		bp = xfs_incore(mp->m_ddev_targp, dblkno, dblkcnt, XBF_TRYLOCK);
 		if (bp) {
 			xfs_buf_stale(bp);
 			xfs_buf_relse(bp);
 			bp = NULL;
 		}
 
-		valuelen -= map.br_blockcount;
+		valuelen -= XFS_ATTR3_RMT_BUF_SPACE(mp,
+					XFS_FSB_TO_B(mp, map.br_blockcount));
 
 		lblkno += map.br_blockcount;
+		blkcnt -= map.br_blockcount;
+		blkcnt = max(blkcnt, xfs_attr3_rmt_blocks(mp, valuelen));
 	}
 
 	/*
 	 * Keep de-allocating extents until the remote-value region is gone.
 	 */
+	blkcnt = lblkno - args->rmtblkno;
 	lblkno = args->rmtblkno;
-	blkcnt = args->rmtblkcnt;
 	done = 0;
 	while (!done) {
 		xfs_bmap_init(args->flist, args->firstblock);
