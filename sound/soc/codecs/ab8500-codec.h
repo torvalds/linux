@@ -24,6 +24,13 @@
 #define AB8500_SUPPORTED_RATE			(SNDRV_PCM_RATE_48000)
 #define AB8500_SUPPORTED_FMT			(SNDRV_PCM_FMTBIT_S16_LE)
 
+/* AB8500 interface slot offset definitions */
+
+#define AB8500_AD_DATA0_OFFSET	0
+#define AB8500_DA_DATA0_OFFSET	8
+#define AB8500_AD_DATA1_OFFSET	16
+#define AB8500_DA_DATA1_OFFSET	24
+
 /* AB8500 audio bank (0x0d) register definitions */
 
 #define AB8500_POWERUP				0x00

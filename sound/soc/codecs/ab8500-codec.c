@@ -2236,7 +2236,7 @@ static int ab8500_codec_set_dai_tdm_slot(struct snd_soc_dai *dai,
 		int slots, int slot_width)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	unsigned int val, mask, slots_active;
+	unsigned int val, mask, slot, slots_active;
 
 	mask = BIT(AB8500_DIGIFCONF2_IF0WL0) |
 		BIT(AB8500_DIGIFCONF2_IF0WL1);
@@ -2292,27 +2292,34 @@ static int ab8500_codec_set_dai_tdm_slot(struct snd_soc_dai *dai,
 	snd_soc_update_bits(codec, AB8500_DIGIFCONF1, mask, val);
 
 	/* Setup TDM DA according to active tx slots */
+
+	if (tx_mask & ~0xff)
+		return -EINVAL;
+
 	mask = AB8500_DASLOTCONFX_SLTODAX_MASK;
+	tx_mask = tx_mask << AB8500_DA_DATA0_OFFSET;
 	slots_active = hweight32(tx_mask);
+
 	dev_dbg(dai->codec->dev, "%s: Slots, active, TX: %d\n", __func__,
 		slots_active);
+
 	switch (slots_active) {
 	case 0:
 		break;
 	case 1:
-		/* Slot 9 -> DA_IN1 & DA_IN3 */
-		snd_soc_update_bits(codec, AB8500_DASLOTCONF1, mask, 11);
-		snd_soc_update_bits(codec, AB8500_DASLOTCONF3, mask, 11);
-		snd_soc_update_bits(codec, AB8500_DASLOTCONF2, mask, 11);
-		snd_soc_update_bits(codec, AB8500_DASLOTCONF4, mask, 11);
+		slot = find_first_bit((unsigned long *)&tx_mask, 32);
+		snd_soc_update_bits(codec, AB8500_DASLOTCONF1, mask, slot);
+		snd_soc_update_bits(codec, AB8500_DASLOTCONF3, mask, slot);
+		snd_soc_update_bits(codec, AB8500_DASLOTCONF2, mask, slot);
+		snd_soc_update_bits(codec, AB8500_DASLOTCONF4, mask, slot);
 		break;
 	case 2:
-		/* Slot 9 -> DA_IN1 & DA_IN3, Slot 11 -> DA_IN2 & DA_IN4 */
-		snd_soc_update_bits(codec, AB8500_DASLOTCONF1, mask, 9);
-		snd_soc_update_bits(codec, AB8500_DASLOTCONF3, mask, 9);
-		snd_soc_update_bits(codec, AB8500_DASLOTCONF2, mask, 11);
-		snd_soc_update_bits(codec, AB8500_DASLOTCONF4, mask, 11);
-
+		slot = find_first_bit((unsigned long *)&tx_mask, 32);
+		snd_soc_update_bits(codec, AB8500_DASLOTCONF1, mask, slot);
+		snd_soc_update_bits(codec, AB8500_DASLOTCONF3, mask, slot);
+		slot = find_next_bit((unsigned long *)&tx_mask, 32, slot + 1);
+		snd_soc_update_bits(codec, AB8500_DASLOTCONF2, mask, slot);
+		snd_soc_update_bits(codec, AB8500_DASLOTCONF4, mask, slot);
 		break;
 	case 8:
 		dev_dbg(dai->codec->dev,
