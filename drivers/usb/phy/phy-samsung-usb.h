@@ -47,6 +47,16 @@
 #define RSTCON_HLINK_SWRST			(0x1 << 1)
 #define RSTCON_SWRST				(0x1 << 0)
 
+/* EXYNOS4X12 */
+#define EXYNOS4X12_PHY_HSIC_CTRL0		(0x04)
+#define EXYNOS4X12_PHY_HSIC_CTRL1		(0x08)
+
+#define PHYPWR_NORMAL_MASK_HSIC1		(0x7 << 12)
+#define PHYPWR_NORMAL_MASK_HSIC0		(0x7 << 9)
+#define PHYPWR_NORMAL_MASK_PHY1			(0x7 << 6)
+
+#define RSTCON_HOSTPHY_SWRST			(0xf << 3)
+
 /* EXYNOS5 */
 #define EXYNOS5_PHY_HOST_CTRL0			(0x00)
 

@@ -100,6 +100,11 @@ void samsung_usbphy_set_isolation_4210(struct samsung_usbphy *sphy, bool on)
 		reg_val |= en_mask;
 
 	writel(reg_val, reg);
+
+	if (sphy->drv_data->cpu_type == TYPE_EXYNOS4X12) {
+		writel(reg_val, sphy->pmuregs + EXYNOS4X12_PHY_HSIC_CTRL0);
+		writel(reg_val, sphy->pmuregs + EXYNOS4X12_PHY_HSIC_CTRL1);
+	}
 }
 EXPORT_SYMBOL_GPL(samsung_usbphy_set_isolation_4210);
 
