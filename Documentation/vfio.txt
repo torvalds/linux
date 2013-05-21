@@ -283,6 +283,69 @@ a direct pass through for VFIO_DEVICE_* ioctls.  The read/write/mmap
 interfaces implement the device region access defined by the device's
 own VFIO_DEVICE_GET_REGION_INFO ioctl.
 
+
+PPC64 sPAPR implementation note
+-------------------------------------------------------------------------------
+
+This implementation has some specifics:
+
+1) Only one IOMMU group per container is supported as an IOMMU group
+represents the minimal entity which isolation can be guaranteed for and
+groups are allocated statically, one per a Partitionable Endpoint (PE)
+(PE is often a PCI domain but not always).
+
+2) The hardware supports so called DMA windows - the PCI address range
+within which DMA transfer is allowed, any attempt to access address space
+out of the window leads to the whole PE isolation.
+
+3) PPC64 guests are paravirtualized but not fully emulated. There is an API
+to map/unmap pages for DMA, and it normally maps 1..32 pages per call and
+currently there is no way to reduce the number of calls. In order to make things
+faster, the map/unmap handling has been implemented in real mode which provides
+an excellent performance which has limitations such as inability to do
+locked pages accounting in real time.
+
+So 3 additional ioctls have been added:
+
+	VFIO_IOMMU_SPAPR_TCE_GET_INFO - returns the size and the start
+		of the DMA window on the PCI bus.
+
+	VFIO_IOMMU_ENABLE - enables the container. The locked pages accounting
+		is done at this point. This lets user first to know what
+		the DMA window is and adjust rlimit before doing any real job.
+
+	VFIO_IOMMU_DISABLE - disables the container.
+
+
+The code flow from the example above should be slightly changed:
+
+	.....
+	/* Add the group to the container */
+	ioctl(group, VFIO_GROUP_SET_CONTAINER, &container);
+
+	/* Enable the IOMMU model we want */
+	ioctl(container, VFIO_SET_IOMMU, VFIO_SPAPR_TCE_IOMMU)
+
+	/* Get addition sPAPR IOMMU info */
+	vfio_iommu_spapr_tce_info spapr_iommu_info;
+	ioctl(container, VFIO_IOMMU_SPAPR_TCE_GET_INFO, &spapr_iommu_info);
+
+	if (ioctl(container, VFIO_IOMMU_ENABLE))
+		/* Cannot enable container, may be low rlimit */
+
+	/* Allocate some space and setup a DMA mapping */
+	dma_map.vaddr = mmap(0, 1024 * 1024, PROT_READ | PROT_WRITE,
+			     MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
+
+	dma_map.size = 1024 * 1024;
+	dma_map.iova = 0; /* 1MB starting at 0x0 from device view */
+	dma_map.flags = VFIO_DMA_MAP_FLAG_READ | VFIO_DMA_MAP_FLAG_WRITE;
+
+	/* Check here is .iova/.size are within DMA window from spapr_iommu_info */
+
+	ioctl(container, VFIO_IOMMU_MAP_DMA, &dma_map);
+	.....
+
 -------------------------------------------------------------------------------
 
 [1] VFIO was originally an acronym for "Virtual Function I/O" in its
