@@ -16,14 +16,14 @@
 #ifndef __ASM_TIMEX_H
 #define __ASM_TIMEX_H
 
+#include <asm/arch_timer.h>
+
 /*
  * Use the current timer as a cycle counter since this is what we use for
  * the delay loop.
  */
-#define get_cycles()	({ cycles_t c; read_current_timer(&c); c; })
+#define get_cycles()	arch_counter_get_cntvct()
 
 #include <asm-generic/timex.h>
-
-#define ARCH_HAS_READ_CURRENT_TIMER
 
 #endif
