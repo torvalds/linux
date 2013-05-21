@@ -1075,7 +1075,7 @@ int usb_serial_probe(struct usb_interface *interface,
 	}
 #ifdef CONFIG_BP_AUTO
 		int bp_id = get_current_bp_id();
-		if (((le16_to_cpu(dev->descriptor.idVendor) == 0x1782 ) && (le16_to_cpu(dev->descriptor.idProduct) == 0x0002) && (bp_id == 2))
+		if (((le16_to_cpu(dev->descriptor.idVendor) == 0x1782 ) && (le16_to_cpu(dev->descriptor.idProduct) == 0x0002) && (bp_id == 12))
 			|| ((le16_to_cpu(dev->descriptor.idVendor) == 0x19f5) && (le16_to_cpu(dev->descriptor.idProduct) == 0x9013) && (bp_id == 4))			
 			|| ((le16_to_cpu(dev->descriptor.idVendor) == 0x0E8D) && (le16_to_cpu(dev->descriptor.idProduct) == 0x00A2) && (bp_id == 1))
 			|| ((le16_to_cpu(dev->descriptor.idVendor) == 0x21f5) && (le16_to_cpu(dev->descriptor.idProduct) == 0x2012) && (bp_id == 10))
