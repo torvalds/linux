@@ -3469,12 +3469,6 @@ static void ironlake_crtc_off(struct drm_crtc *crtc)
 
 static void haswell_crtc_off(struct drm_crtc *crtc)
 {
-	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
-
-	/* Stop saying we're using TRANSCODER_EDP because some other CRTC might
-	 * start using it. */
-	intel_crtc->config.cpu_transcoder = (enum transcoder) intel_crtc->pipe;
-
 	intel_ddi_put_crtc_pll(crtc);
 }
 
@@ -4925,6 +4919,8 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t tmp;
 
+	pipe_config->cpu_transcoder = crtc->pipe;
+
 	tmp = I915_READ(PIPECONF(crtc->pipe));
 	if (!(tmp & PIPECONF_ENABLE))
 		return false;
@@ -5647,8 +5643,6 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	WARN(!(HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev)),
 	     "Unexpected PCH type %d\n", INTEL_PCH_TYPE(dev));
 
-	intel_crtc->config.cpu_transcoder = pipe;
-
 	ok = ironlake_compute_clocks(crtc, adjusted_mode, &clock,
 				     &has_reduced_clock, &reduced_clock);
 	if (!ok) {
@@ -5784,6 +5778,8 @@ static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t tmp;
 
+	pipe_config->cpu_transcoder = crtc->pipe;
+
 	tmp = I915_READ(PIPECONF(crtc->pipe));
 	if (!(tmp & PIPECONF_ENABLE))
 		return false;
@@ -5860,11 +5856,6 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 		num_connectors++;
 	}
 
-	if (is_cpu_edp)
-		intel_crtc->config.cpu_transcoder = TRANSCODER_EDP;
-	else
-		intel_crtc->config.cpu_transcoder = pipe;
-
 	/* We are not sure yet this won't happen. */
 	WARN(!HAS_PCH_LPT(dev), "Unexpected PCH type %d\n",
 	     INTEL_PCH_TYPE(dev));
@@ -5918,15 +5909,37 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	enum transcoder cpu_transcoder = crtc->config.cpu_transcoder;
 	enum intel_display_power_domain pfit_domain;
 	uint32_t tmp;
 
+	pipe_config->cpu_transcoder = crtc->pipe;
+	tmp = I915_READ(TRANS_DDI_FUNC_CTL(TRANSCODER_EDP));
+	if (tmp & TRANS_DDI_FUNC_ENABLE) {
+		enum pipe trans_edp_pipe;
+		switch (tmp & TRANS_DDI_EDP_INPUT_MASK) {
+		default:
+			WARN(1, "unknown pipe linked to edp transcoder\n");
+		case TRANS_DDI_EDP_INPUT_A_ONOFF:
+		case TRANS_DDI_EDP_INPUT_A_ON:
+			trans_edp_pipe = PIPE_A;
+			break;
+		case TRANS_DDI_EDP_INPUT_B_ONOFF:
+			trans_edp_pipe = PIPE_B;
+			break;
+		case TRANS_DDI_EDP_INPUT_C_ONOFF:
+			trans_edp_pipe = PIPE_C;
+			break;
+		}
+
+		if (trans_edp_pipe == crtc->pipe)
+			pipe_config->cpu_transcoder = TRANSCODER_EDP;
+	}
+
 	if (!intel_display_power_enabled(dev,
-			POWER_DOMAIN_TRANSCODER(cpu_transcoder)))
+			POWER_DOMAIN_TRANSCODER(pipe_config->cpu_transcoder)))
 		return false;
 
-	tmp = I915_READ(PIPECONF(cpu_transcoder));
+	tmp = I915_READ(PIPECONF(pipe_config->cpu_transcoder));
 	if (!(tmp & PIPECONF_ENABLE))
 		return false;
 
@@ -5935,7 +5948,7 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 	 * DDI E. So just check whether this pipe is wired to DDI E and whether
 	 * the PCH transcoder is on.
 	 */
-	tmp = I915_READ(TRANS_DDI_FUNC_CTL(cpu_transcoder));
+	tmp = I915_READ(TRANS_DDI_FUNC_CTL(pipe_config->cpu_transcoder));
 	if ((tmp & TRANS_DDI_PORT_MASK) == TRANS_DDI_SELECT_PORT(PORT_E) &&
 	    I915_READ(LPT_TRANSCONF) & TRANS_ENABLE) {
 		pipe_config->has_pch_encoder = true;
@@ -7690,6 +7703,7 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 
 	drm_mode_copy(&pipe_config->adjusted_mode, mode);
 	drm_mode_copy(&pipe_config->requested_mode, mode);
+	pipe_config->cpu_transcoder = to_intel_crtc(crtc)->pipe;
 
 	plane_bpp = pipe_config_set_bpp(crtc, fb, pipe_config);
 	if (plane_bpp < 0)
@@ -7940,6 +7954,8 @@ intel_pipe_config_compare(struct drm_device *dev,
 		return false; \
 	}
 
+	PIPE_CONF_CHECK_I(cpu_transcoder);
+
 	PIPE_CONF_CHECK_I(has_pch_encoder);
 	PIPE_CONF_CHECK_I(fdi_lanes);
 	PIPE_CONF_CHECK_I(fdi_m_n.gmch_m);
@@ -8091,7 +8107,6 @@ intel_modeset_check_state(struct drm_device *dev)
 		     "crtc's computed enabled state doesn't match tracked enabled state "
 		     "(expected %i, found %i)\n", enabled, crtc->base.enabled);
 
-		pipe_config.cpu_transcoder = crtc->config.cpu_transcoder;
 		active = dev_priv->display.get_pipe_config(crtc,
 							   &pipe_config);
 		WARN(crtc->active != active,
@@ -8154,12 +8169,10 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 	 * to set it here already despite that we pass it down the callchain.
 	 */
 	if (modeset_pipes) {
-		enum transcoder tmp = to_intel_crtc(crtc)->config.cpu_transcoder;
 		crtc->mode = *mode;
 		/* mode_set/enable/disable functions rely on a correct pipe
 		 * config. */
 		to_intel_crtc(crtc)->config = *pipe_config;
-		to_intel_crtc(crtc)->config.cpu_transcoder = tmp;
 	}
 
 	/* Only after disabling all output pipelines that will be changed can we
@@ -8570,7 +8583,6 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	/* Swap pipes & planes for FBC on pre-965 */
 	intel_crtc->pipe = pipe;
 	intel_crtc->plane = pipe;
-	intel_crtc->config.cpu_transcoder = pipe;
 	if (IS_MOBILE(dev) && IS_GEN3(dev)) {
 		DRM_DEBUG_KMS("swapping pipes & planes for FBC\n");
 		intel_crtc->plane = !pipe;
@@ -9436,50 +9448,14 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	enum pipe pipe;
-	u32 tmp;
 	struct drm_plane *plane;
 	struct intel_crtc *crtc;
 	struct intel_encoder *encoder;
 	struct intel_connector *connector;
 
-	if (HAS_DDI(dev)) {
-		tmp = I915_READ(TRANS_DDI_FUNC_CTL(TRANSCODER_EDP));
-
-		if (tmp & TRANS_DDI_FUNC_ENABLE) {
-			switch (tmp & TRANS_DDI_EDP_INPUT_MASK) {
-			case TRANS_DDI_EDP_INPUT_A_ON:
-			case TRANS_DDI_EDP_INPUT_A_ONOFF:
-				pipe = PIPE_A;
-				break;
-			case TRANS_DDI_EDP_INPUT_B_ONOFF:
-				pipe = PIPE_B;
-				break;
-			case TRANS_DDI_EDP_INPUT_C_ONOFF:
-				pipe = PIPE_C;
-				break;
-			default:
-				/* A bogus value has been programmed, disable
-				 * the transcoder */
-				WARN(1, "Bogus eDP source %08x\n", tmp);
-				intel_ddi_disable_transcoder_func(dev_priv,
-						TRANSCODER_EDP);
-				goto setup_pipes;
-			}
-
-			crtc = to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
-			crtc->config.cpu_transcoder = TRANSCODER_EDP;
-
-			DRM_DEBUG_KMS("Pipe %c using transcoder EDP\n",
-				      pipe_name(pipe));
-		}
-	}
-
-setup_pipes:
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list,
 			    base.head) {
-		enum transcoder tmp = crtc->config.cpu_transcoder;
 		memset(&crtc->config, 0, sizeof(crtc->config));
-		crtc->config.cpu_transcoder = tmp;
 
 		crtc->active = dev_priv->display.get_pipe_config(crtc,
 								 &crtc->config);

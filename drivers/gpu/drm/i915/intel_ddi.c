@@ -1291,8 +1291,12 @@ static bool intel_ddi_compute_config(struct intel_encoder *encoder,
 				     struct intel_crtc_config *pipe_config)
 {
 	int type = encoder->type;
+	int port = intel_ddi_get_encoder_port(encoder);
 
 	WARN(type == INTEL_OUTPUT_UNKNOWN, "compute_config() on unknown output!\n");
+
+	if (port == PORT_A)
+		pipe_config->cpu_transcoder = TRANSCODER_EDP;
 
 	if (type == INTEL_OUTPUT_HDMI)
 		return intel_hdmi_compute_config(encoder, pipe_config);
