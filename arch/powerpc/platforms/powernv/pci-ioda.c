@@ -595,6 +595,7 @@ static void pnv_pci_ioda_setup_dma_pe(struct pnv_phb *phb,
 			       TCE_PCI_SWINV_PAIR;
 	}
 	iommu_init_table(tbl, phb->hose->node);
+	iommu_register_group(tbl, pci_domain_nr(pe->pbus), pe->pe_number);
 
 	return;
  fail:

@@ -36,6 +36,8 @@
 #include <linux/hash.h>
 #include <linux/fault-inject.h>
 #include <linux/pci.h>
+#include <linux/iommu.h>
+#include <linux/sched.h>
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/iommu.h>
@@ -44,6 +46,7 @@
 #include <asm/kdump.h>
 #include <asm/fadump.h>
 #include <asm/vio.h>
+#include <asm/tce.h>
 
 #define DBG(...)
 
@@ -724,6 +727,13 @@ void iommu_free_table(struct iommu_table *tbl, const char *node_name)
 	if (tbl->it_offset == 0)
 		clear_bit(0, tbl->it_map);
 
+#ifdef CONFIG_IOMMU_API
+	if (tbl->it_group) {
+		iommu_group_put(tbl->it_group);
+		BUG_ON(tbl->it_group);
+	}
+#endif
+
 	/* verify that table contains no entries */
 	if (!bitmap_empty(tbl->it_map, tbl->it_size))
 		pr_warn("%s: Unexpected TCEs for %s\n", __func__, node_name);
@@ -860,3 +870,316 @@ void iommu_free_coherent(struct iommu_table *tbl, size_t size,
 		free_pages((unsigned long)vaddr, get_order(size));
 	}
 }
+
+#ifdef CONFIG_IOMMU_API
+/*
+ * SPAPR TCE API
+ */
+static void group_release(void *iommu_data)
+{
+	struct iommu_table *tbl = iommu_data;
+	tbl->it_group = NULL;
+}
+
+void iommu_register_group(struct iommu_table *tbl,
+		int pci_domain_number, unsigned long pe_num)
+{
+	struct iommu_group *grp;
+	char *name;
+
+	grp = iommu_group_alloc();
+	if (IS_ERR(grp)) {
+		pr_warn("powerpc iommu api: cannot create new group, err=%ld\n",
+				PTR_ERR(grp));
+		return;
+	}
+	tbl->it_group = grp;
+	iommu_group_set_iommudata(grp, tbl, group_release);
+	name = kasprintf(GFP_KERNEL, "domain%d-pe%lx",
+			pci_domain_number, pe_num);
+	if (!name)
+		return;
+	iommu_group_set_name(grp, name);
+	kfree(name);
+}
+
+enum dma_data_direction iommu_tce_direction(unsigned long tce)
+{
+	if ((tce & TCE_PCI_READ) && (tce & TCE_PCI_WRITE))
+		return DMA_BIDIRECTIONAL;
+	else if (tce & TCE_PCI_READ)
+		return DMA_TO_DEVICE;
+	else if (tce & TCE_PCI_WRITE)
+		return DMA_FROM_DEVICE;
+	else
+		return DMA_NONE;
+}
+EXPORT_SYMBOL_GPL(iommu_tce_direction);
+
+void iommu_flush_tce(struct iommu_table *tbl)
+{
+	/* Flush/invalidate TLB caches if necessary */
+	if (ppc_md.tce_flush)
+		ppc_md.tce_flush(tbl);
+
+	/* Make sure updates are seen by hardware */
+	mb();
+}
+EXPORT_SYMBOL_GPL(iommu_flush_tce);
+
+int iommu_tce_clear_param_check(struct iommu_table *tbl,
+		unsigned long ioba, unsigned long tce_value,
+		unsigned long npages)
+{
+	/* ppc_md.tce_free() does not support any value but 0 */
+	if (tce_value)
+		return -EINVAL;
+
+	if (ioba & ~IOMMU_PAGE_MASK)
+		return -EINVAL;
+
+	ioba >>= IOMMU_PAGE_SHIFT;
+	if (ioba < tbl->it_offset)
+		return -EINVAL;
+
+	if ((ioba + npages) > (tbl->it_offset + tbl->it_size))
+		return -EINVAL;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(iommu_tce_clear_param_check);
+
+int iommu_tce_put_param_check(struct iommu_table *tbl,
+		unsigned long ioba, unsigned long tce)
+{
+	if (!(tce & (TCE_PCI_WRITE | TCE_PCI_READ)))
+		return -EINVAL;
+
+	if (tce & ~(IOMMU_PAGE_MASK | TCE_PCI_WRITE | TCE_PCI_READ))
+		return -EINVAL;
+
+	if (ioba & ~IOMMU_PAGE_MASK)
+		return -EINVAL;
+
+	ioba >>= IOMMU_PAGE_SHIFT;
+	if (ioba < tbl->it_offset)
+		return -EINVAL;
+
+	if ((ioba + 1) > (tbl->it_offset + tbl->it_size))
+		return -EINVAL;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(iommu_tce_put_param_check);
+
+unsigned long iommu_clear_tce(struct iommu_table *tbl, unsigned long entry)
+{
+	unsigned long oldtce;
+	struct iommu_pool *pool = get_pool(tbl, entry);
+
+	spin_lock(&(pool->lock));
+
+	oldtce = ppc_md.tce_get(tbl, entry);
+	if (oldtce & (TCE_PCI_WRITE | TCE_PCI_READ))
+		ppc_md.tce_free(tbl, entry, 1);
+	else
+		oldtce = 0;
+
+	spin_unlock(&(pool->lock));
+
+	return oldtce;
+}
+EXPORT_SYMBOL_GPL(iommu_clear_tce);
+
+int iommu_clear_tces_and_put_pages(struct iommu_table *tbl,
+		unsigned long entry, unsigned long pages)
+{
+	unsigned long oldtce;
+	struct page *page;
+
+	for ( ; pages; --pages, ++entry) {
+		oldtce = iommu_clear_tce(tbl, entry);
+		if (!oldtce)
+			continue;
+
+		page = pfn_to_page(oldtce >> PAGE_SHIFT);
+		WARN_ON(!page);
+		if (page) {
+			if (oldtce & TCE_PCI_WRITE)
+				SetPageDirty(page);
+			put_page(page);
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(iommu_clear_tces_and_put_pages);
+
+/*
+ * hwaddr is a kernel virtual address here (0xc... bazillion),
+ * tce_build converts it to a physical address.
+ */
+int iommu_tce_build(struct iommu_table *tbl, unsigned long entry,
+		unsigned long hwaddr, enum dma_data_direction direction)
+{
+	int ret = -EBUSY;
+	unsigned long oldtce;
+	struct iommu_pool *pool = get_pool(tbl, entry);
+
+	spin_lock(&(pool->lock));
+
+	oldtce = ppc_md.tce_get(tbl, entry);
+	/* Add new entry if it is not busy */
+	if (!(oldtce & (TCE_PCI_WRITE | TCE_PCI_READ)))
+		ret = ppc_md.tce_build(tbl, entry, 1, hwaddr, direction, NULL);
+
+	spin_unlock(&(pool->lock));
+
+	/* if (unlikely(ret))
+		pr_err("iommu_tce: %s failed on hwaddr=%lx ioba=%lx kva=%lx ret=%d\n",
+				__func__, hwaddr, entry << IOMMU_PAGE_SHIFT,
+				hwaddr, ret); */
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(iommu_tce_build);
+
+int iommu_put_tce_user_mode(struct iommu_table *tbl, unsigned long entry,
+		unsigned long tce)
+{
+	int ret;
+	struct page *page = NULL;
+	unsigned long hwaddr, offset = tce & IOMMU_PAGE_MASK & ~PAGE_MASK;
+	enum dma_data_direction direction = iommu_tce_direction(tce);
+
+	ret = get_user_pages_fast(tce & PAGE_MASK, 1,
+			direction != DMA_TO_DEVICE, &page);
+	if (unlikely(ret != 1)) {
+		/* pr_err("iommu_tce: get_user_pages_fast failed tce=%lx ioba=%lx ret=%d\n",
+				tce, entry << IOMMU_PAGE_SHIFT, ret); */
+		return -EFAULT;
+	}
+	hwaddr = (unsigned long) page_address(page) + offset;
+
+	ret = iommu_tce_build(tbl, entry, hwaddr, direction);
+	if (ret)
+		put_page(page);
+
+	if (ret < 0)
+		pr_err("iommu_tce: %s failed ioba=%lx, tce=%lx, ret=%d\n",
+				__func__, entry << IOMMU_PAGE_SHIFT, tce, ret);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(iommu_put_tce_user_mode);
+
+int iommu_take_ownership(struct iommu_table *tbl)
+{
+	unsigned long sz = (tbl->it_size + 7) >> 3;
+
+	if (tbl->it_offset == 0)
+		clear_bit(0, tbl->it_map);
+
+	if (!bitmap_empty(tbl->it_map, tbl->it_size)) {
+		pr_err("iommu_tce: it_map is not empty");
+		return -EBUSY;
+	}
+
+	memset(tbl->it_map, 0xff, sz);
+	iommu_clear_tces_and_put_pages(tbl, tbl->it_offset, tbl->it_size);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(iommu_take_ownership);
+
+void iommu_release_ownership(struct iommu_table *tbl)
+{
+	unsigned long sz = (tbl->it_size + 7) >> 3;
+
+	iommu_clear_tces_and_put_pages(tbl, tbl->it_offset, tbl->it_size);
+	memset(tbl->it_map, 0, sz);
+
+	/* Restore bit#0 set by iommu_init_table() */
+	if (tbl->it_offset == 0)
+		set_bit(0, tbl->it_map);
+}
+EXPORT_SYMBOL_GPL(iommu_release_ownership);
+
+static int iommu_add_device(struct device *dev)
+{
+	struct iommu_table *tbl;
+	int ret = 0;
+
+	if (WARN_ON(dev->iommu_group)) {
+		pr_warn("iommu_tce: device %s is already in iommu group %d, skipping\n",
+				dev_name(dev),
+				iommu_group_id(dev->iommu_group));
+		return -EBUSY;
+	}
+
+	tbl = get_iommu_table_base(dev);
+	if (!tbl || !tbl->it_group) {
+		pr_debug("iommu_tce: skipping device %s with no tbl\n",
+				dev_name(dev));
+		return 0;
+	}
+
+	pr_debug("iommu_tce: adding %s to iommu group %d\n",
+			dev_name(dev), iommu_group_id(tbl->it_group));
+
+	ret = iommu_group_add_device(tbl->it_group, dev);
+	if (ret < 0)
+		pr_err("iommu_tce: %s has not been added, ret=%d\n",
+				dev_name(dev), ret);
+
+	return ret;
+}
+
+static void iommu_del_device(struct device *dev)
+{
+	iommu_group_remove_device(dev);
+}
+
+static int iommu_bus_notifier(struct notifier_block *nb,
+			      unsigned long action, void *data)
+{
+	struct device *dev = data;
+
+	switch (action) {
+	case BUS_NOTIFY_ADD_DEVICE:
+		return iommu_add_device(dev);
+	case BUS_NOTIFY_DEL_DEVICE:
+		iommu_del_device(dev);
+		return 0;
+	default:
+		return 0;
+	}
+}
+
+static struct notifier_block tce_iommu_bus_nb = {
+	.notifier_call = iommu_bus_notifier,
+};
+
+static int __init tce_iommu_init(void)
+{
+	struct pci_dev *pdev = NULL;
+
+	BUILD_BUG_ON(PAGE_SIZE < IOMMU_PAGE_SIZE);
+
+	for_each_pci_dev(pdev)
+		iommu_add_device(&pdev->dev);
+
+	bus_register_notifier(&pci_bus_type, &tce_iommu_bus_nb);
+	return 0;
+}
+
+subsys_initcall_sync(tce_iommu_init);
+
+#else
+
+void iommu_register_group(struct iommu_table *tbl,
+		int pci_domain_number, unsigned long pe_num)
+{
+}
+
+#endif /* CONFIG_IOMMU_API */
