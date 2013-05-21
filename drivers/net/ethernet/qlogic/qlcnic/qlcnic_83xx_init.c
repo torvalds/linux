@@ -382,8 +382,6 @@ static int qlcnic_83xx_idc_tx_soft_reset(struct qlcnic_adapter *adapter)
 	clear_bit(__QLCNIC_RESETTING, &adapter->state);
 	dev_err(&adapter->pdev->dev, "%s:\n", __func__);
 
-	adapter->netdev->trans_start = jiffies;
-
 	return 0;
 }
 

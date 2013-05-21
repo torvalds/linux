@@ -3153,10 +3153,8 @@ qlcnic_check_health(struct qlcnic_adapter *adapter)
 		if (adapter->need_fw_reset)
 			goto detach;
 
-		if (adapter->ahw->reset_context && qlcnic_auto_fw_reset) {
+		if (adapter->ahw->reset_context && qlcnic_auto_fw_reset)
 			qlcnic_reset_hw_context(adapter);
-			adapter->netdev->trans_start = jiffies;
-		}
 
 		return 0;
 	}
