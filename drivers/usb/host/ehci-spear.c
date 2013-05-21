@@ -174,7 +174,7 @@ static struct platform_driver spear_ehci_hcd_driver = {
 		.name = "spear-ehci",
 		.bus = &platform_bus_type,
 		.pm = &ehci_spear_pm_ops,
-		.of_match_table = of_match_ptr(spear_ehci_id_table),
+		.of_match_table = spear_ehci_id_table,
 	}
 };
 
