@@ -301,10 +301,10 @@ static void setup_pci_atmu(struct pci_controller *hose)
 	if (early_find_capability(hose, 0, 0, PCI_CAP_ID_EXP)) {
 		/* Size window to exact size if power-of-two or one size up */
 		if ((1ull << mem_log) != mem) {
+			mem_log++;
 			if ((1ull << mem_log) > mem)
 				pr_info("%s: Setting PCI inbound window "
 					"greater than memory size\n", name);
-			mem_log++;
 		}
 
 		piwar |= ((mem_log - 1) & PIWAR_SZ_MASK);
