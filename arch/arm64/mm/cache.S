@@ -166,3 +166,81 @@ ENTRY(__flush_dcache_area)
 	dsb	sy
 	ret
 ENDPROC(__flush_dcache_area)
+
+/*
+ *	__dma_inv_range(start, end)
+ *	- start   - virtual start address of region
+ *	- end     - virtual end address of region
+ */
+__dma_inv_range:
+	dcache_line_size x2, x3
+	sub	x3, x2, #1
+	bic	x0, x0, x3
+	bic	x1, x1, x3
+1:	dc	ivac, x0			// invalidate D / U line
+	add	x0, x0, x2
+	cmp	x0, x1
+	b.lo	1b
+	dsb	sy
+	ret
+ENDPROC(__dma_inv_range)
+
+/*
+ *	__dma_clean_range(start, end)
+ *	- start   - virtual start address of region
+ *	- end     - virtual end address of region
+ */
+__dma_clean_range:
+	dcache_line_size x2, x3
+	sub	x3, x2, #1
+	bic	x0, x0, x3
+1:	dc	cvac, x0			// clean D / U line
+	add	x0, x0, x2
+	cmp	x0, x1
+	b.lo	1b
+	dsb	sy
+	ret
+ENDPROC(__dma_clean_range)
+
+/*
+ *	__dma_flush_range(start, end)
+ *	- start   - virtual start address of region
+ *	- end     - virtual end address of region
+ */
+ENTRY(__dma_flush_range)
+	dcache_line_size x2, x3
+	sub	x3, x2, #1
+	bic	x0, x0, x3
+1:	dc	civac, x0			// clean & invalidate D / U line
+	add	x0, x0, x2
+	cmp	x0, x1
+	b.lo	1b
+	dsb	sy
+	ret
+ENDPROC(__dma_flush_range)
+
+/*
+ *	__dma_map_area(start, size, dir)
+ *	- start	- kernel virtual start address
+ *	- size	- size of region
+ *	- dir	- DMA direction
+ */
+ENTRY(__dma_map_area)
+	add	x1, x1, x0
+	cmp	w2, #DMA_FROM_DEVICE
+	b.eq	__dma_inv_range
+	b	__dma_clean_range
+ENDPROC(__dma_map_area)
+
+/*
+ *	__dma_unmap_area(start, size, dir)
+ *	- start	- kernel virtual start address
+ *	- size	- size of region
+ *	- dir	- DMA direction
+ */
+ENTRY(__dma_unmap_area)
+	add	x1, x1, x0
+	cmp	w2, #DMA_TO_DEVICE
+	b.ne	__dma_inv_range
+	ret
+ENDPROC(__dma_unmap_area)
