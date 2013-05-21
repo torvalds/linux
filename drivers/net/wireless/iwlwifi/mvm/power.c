@@ -139,8 +139,8 @@ static void iwl_mvm_power_log(struct iwl_mvm *mvm,
 		IWL_DEBUG_POWER(mvm, "LP RX RSSI threshold = %u\n",
 				cmd->lprx_rssi_threshold);
 		if (cmd->flags & cpu_to_le16(POWER_FLAGS_SKIP_OVER_DTIM_MSK))
-			IWL_DEBUG_POWER(mvm, "DTIMs to skip = %u\n",
-					le32_to_cpu(cmd->num_skip_dtim));
+			IWL_DEBUG_POWER(mvm, "DTIM periods to skip = %u\n",
+					le32_to_cpu(cmd->skip_dtim_periods));
 	}
 }
 
@@ -188,7 +188,7 @@ void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	    (iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_LP ||
 	     mvm->cur_ucode == IWL_UCODE_WOWLAN)) {
 		cmd->flags |= cpu_to_le16(POWER_FLAGS_SKIP_OVER_DTIM_MSK);
-		cmd->num_skip_dtim = cpu_to_le32(2);
+		cmd->skip_dtim_periods = cpu_to_le32(3);
 	}
 
 	/* Check that keep alive period is at least 3 * DTIM */

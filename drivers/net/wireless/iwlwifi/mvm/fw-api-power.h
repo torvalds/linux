@@ -101,7 +101,9 @@ enum iwl_power_flags {
  * @tx_data_timeout:    Minimum time (usec) from last Tx packet for AM to
  *			PSM transition - legacy PM
  * @sleep_interval:	not in use
- * @num_skip_dtim:	Number of DTIMs to skip if Skip over DTIM flag is set
+ * @skip_dtim_periods:	Number of DTIM periods to skip if Skip over DTIM flag
+ *			is set. For example, if it is required to skip over
+ *			one DTIM, this value need to be set to 2 (DTIM periods).
  * @lprx_rssi_threshold: Signal strength up to which LP RX can be enabled.
  *			Default: 80dbm
  */
@@ -113,7 +115,7 @@ struct iwl_powertable_cmd {
 	__le32 rx_data_timeout;
 	__le32 tx_data_timeout;
 	__le32 sleep_interval[IWL_POWER_VEC_SIZE];
-	__le32 num_skip_dtim;
+	__le32 skip_dtim_periods;
 	__le32 lprx_rssi_threshold;
 } __packed;
 
