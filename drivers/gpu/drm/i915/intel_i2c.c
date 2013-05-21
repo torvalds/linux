@@ -228,7 +228,7 @@ gmbus_wait_hw_status(struct drm_i915_private *dev_priv,
 	 * need to wake up periodically and check that ourselves. */
 	I915_WRITE(GMBUS4 + reg_offset, gmbus4_irq_en);
 
-	for (i = 0; i < msecs_to_jiffies(50) + 1; i++) {
+	for (i = 0; i < msecs_to_jiffies_timeout(50); i++) {
 		prepare_to_wait(&dev_priv->gmbus_wait_queue, &wait,
 				TASK_UNINTERRUPTIBLE);
 
