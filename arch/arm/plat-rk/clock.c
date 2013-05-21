@@ -492,8 +492,10 @@ void clk_disable(struct clk *clk)
 {
 	if (clk == NULL || IS_ERR(clk))
 		return;
-	if (dvfs_support_clk_disable(clk->dvfs_info)==true)
-		return dvfs_vd_clk_disable(clk, 0);
+	if (dvfs_support_clk_disable(clk->dvfs_info) == true) {
+		dvfs_vd_clk_disable(clk, 0);
+		return;
+	}
 
 	LOCK();
 	clk_disable_nolock(clk);
