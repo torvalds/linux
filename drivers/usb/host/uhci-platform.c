@@ -160,6 +160,6 @@ static struct platform_driver uhci_platform_driver = {
 	.driver = {
 		.name = "platform-uhci",
 		.owner = THIS_MODULE,
-		.of_match_table = of_match_ptr(platform_uhci_ids),
+		.of_match_table = platform_uhci_ids,
 	},
 };
