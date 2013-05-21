@@ -680,6 +680,37 @@ static const struct device_attribute dev_attr_cache_type_rw =
 	__ATTR(cache_type, S_IRUGO|S_IWUSR,
 	       virtblk_cache_type_show, virtblk_cache_type_store);
 
+static void virtblk_scan(struct virtio_device *vdev)
+{
+	struct virtio_blk *vblk = vdev->priv;
+	int err;
+
+	add_disk(vblk->disk);
+	err = device_create_file(disk_to_dev(vblk->disk), &dev_attr_serial);
+	if (err)
+		goto out_del_disk;
+
+	if (virtio_has_feature(vdev, VIRTIO_BLK_F_CONFIG_WCE))
+		err = device_create_file(disk_to_dev(vblk->disk),
+					 &dev_attr_cache_type_rw);
+	else
+		err = device_create_file(disk_to_dev(vblk->disk),
+					 &dev_attr_cache_type_ro);
+	if (err)
+		goto out_del_disk;
+
+	return;
+
+out_del_disk:
+	del_gendisk(vblk->disk);
+	blk_cleanup_queue(vblk->disk->queue);
+	put_disk(vblk->disk);
+	mempool_destroy(vblk->pool);
+	vdev->config->del_vqs(vdev);
+	kfree(vblk);
+	ida_simple_remove(&vd_index_ida, vblk->index);
+}
+
 static int virtblk_probe(struct virtio_device *vdev)
 {
 	struct virtio_blk *vblk;
@@ -837,24 +868,8 @@ static int virtblk_probe(struct virtio_device *vdev)
 	if (!err && opt_io_size)
 		blk_queue_io_opt(q, blk_size * opt_io_size);
 
-	add_disk(vblk->disk);
-	err = device_create_file(disk_to_dev(vblk->disk), &dev_attr_serial);
-	if (err)
-		goto out_del_disk;
-
-	if (virtio_has_feature(vdev, VIRTIO_BLK_F_CONFIG_WCE))
-		err = device_create_file(disk_to_dev(vblk->disk),
-					 &dev_attr_cache_type_rw);
-	else
-		err = device_create_file(disk_to_dev(vblk->disk),
-					 &dev_attr_cache_type_ro);
-	if (err)
-		goto out_del_disk;
 	return 0;
 
-out_del_disk:
-	del_gendisk(vblk->disk);
-	blk_cleanup_queue(vblk->disk->queue);
 out_put_disk:
 	put_disk(vblk->disk);
 out_mempool:
@@ -957,6 +972,7 @@ static struct virtio_driver virtio_blk = {
 	.driver.owner		= THIS_MODULE,
 	.id_table		= id_table,
 	.probe			= virtblk_probe,
+	.scan			= virtblk_scan,
 	.remove			= virtblk_remove,
 	.config_changed		= virtblk_config_changed,
 #ifdef CONFIG_PM
