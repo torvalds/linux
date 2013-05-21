@@ -30,7 +30,7 @@
 #define DRIVER_NAME			"pinctrl-single"
 #define PCS_MUX_PINS_NAME		"pinctrl-single,pins"
 #define PCS_MUX_BITS_NAME		"pinctrl-single,bits"
-#define PCS_REG_NAME_LEN		((sizeof(unsigned long) * 2) + 1)
+#define PCS_REG_NAME_LEN		((sizeof(unsigned long) * 2) + 3)
 #define PCS_OFF_DISABLED		~0U
 
 /**
@@ -744,7 +744,8 @@ static const struct pinconf_ops pcs_pinconf_ops = {
  * @pcs: pcs driver instance
  * @offset: register offset from base
  */
-static int pcs_add_pin(struct pcs_device *pcs, unsigned offset)
+static int pcs_add_pin(struct pcs_device *pcs, unsigned offset,
+		unsigned pin_pos)
 {
 	struct pinctrl_pin_desc *pin;
 	struct pcs_name *pn;
@@ -759,8 +760,8 @@ static int pcs_add_pin(struct pcs_device *pcs, unsigned offset)
 
 	pin = &pcs->pins.pa[i];
 	pn = &pcs->names[i];
-	sprintf(pn->name, "%lx",
-		(unsigned long)pcs->res->start + offset);
+	sprintf(pn->name, "%lx.%d",
+		(unsigned long)pcs->res->start + offset, pin_pos);
 	pin->name = pn->name;
 	pin->number = i;
 	pcs->pins.cur++;
@@ -780,12 +781,14 @@ static int pcs_add_pin(struct pcs_device *pcs, unsigned offset)
 static int pcs_allocate_pin_table(struct pcs_device *pcs)
 {
 	int mux_bytes, nr_pins, i;
+	int num_pins_in_register = 0;
 
 	mux_bytes = pcs->width / BITS_PER_BYTE;
 
 	if (pcs->bits_per_mux) {
 		pcs->bits_per_pin = fls(pcs->fmask);
 		nr_pins = (pcs->size * BITS_PER_BYTE) / pcs->bits_per_pin;
+		num_pins_in_register = pcs->width / pcs->bits_per_pin;
 	} else {
 		nr_pins = pcs->size / mux_bytes;
 	}
@@ -810,14 +813,16 @@ static int pcs_allocate_pin_table(struct pcs_device *pcs)
 		unsigned offset;
 		int res;
 		int byte_num;
+		int pin_pos = 0;
 
 		if (pcs->bits_per_mux) {
 			byte_num = (pcs->bits_per_pin * i) / BITS_PER_BYTE;
 			offset = (byte_num / mux_bytes) * mux_bytes;
+			pin_pos = i % num_pins_in_register;
 		} else {
 			offset = i * mux_bytes;
 		}
-		res = pcs_add_pin(pcs, offset);
+		res = pcs_add_pin(pcs, offset, pin_pos);
 		if (res < 0) {
 			dev_err(pcs->dev, "error adding pins: %i\n", res);
 			return res;
