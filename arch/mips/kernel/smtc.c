@@ -914,8 +914,7 @@ void smtc_send_ipi(int cpu, int type, unsigned int action)
 			 */
 			if (cpu_wait == r4k_wait_irqoff) {
 				tcrestart = read_tc_c0_tcrestart();
-				if (tcrestart >= (unsigned long)r4k_wait_irqoff
-				    && tcrestart < (unsigned long)__pastwait) {
+				if (address_is_in_r4k_wait_irqoff(tcrestart)) {
 					write_tc_c0_tcrestart(__pastwait);
 					tcstatus &= ~TCSTATUS_IXMT;
 					write_tc_c0_tcstatus(tcstatus);
