@@ -188,7 +188,7 @@ static void destroy_fsync_dnodes(struct f2fs_sb_info *sbi,
 	}
 }
 
-static void check_index_in_prev_nodes(struct f2fs_sb_info *sbi,
+static int check_index_in_prev_nodes(struct f2fs_sb_info *sbi,
 			block_t blkaddr, struct dnode_of_data *dn)
 {
 	struct seg_entry *sentry;
@@ -205,7 +205,7 @@ static void check_index_in_prev_nodes(struct f2fs_sb_info *sbi,
 
 	sentry = get_seg_entry(sbi, segno);
 	if (!f2fs_test_bit(blkoff, sentry->cur_valid_map))
-		return;
+		return 0;
 
 	/* Get the previous summary */
 	for (i = CURSEG_WARM_DATA; i <= CURSEG_COLD_DATA; i++) {
@@ -232,16 +232,18 @@ static void check_index_in_prev_nodes(struct f2fs_sb_info *sbi,
 		tdn.node_page = dn->inode_page;
 		tdn.ofs_in_node = sum.ofs_in_node;
 		truncate_data_blocks_range(&tdn, 1);
-		return;
+		return 0;
 	} else if (dn->nid == nid) {
 		struct dnode_of_data tdn = *dn;
 		tdn.ofs_in_node = sum.ofs_in_node;
 		truncate_data_blocks_range(&tdn, 1);
-		return;
+		return 0;
 	}
 
 	/* Get the node page */
 	node_page = get_node_page(sbi, nid);
+	if (IS_ERR(node_page))
+		return PTR_ERR(node_page);
 	bidx = start_bidx_of_node(ofs_of_node(node_page)) +
 					le16_to_cpu(sum.ofs_in_node);
 	ino = ino_of_node(node_page);
@@ -250,10 +252,11 @@ static void check_index_in_prev_nodes(struct f2fs_sb_info *sbi,
 	/* Deallocate previous index in the node page */
 	inode = f2fs_iget(sbi->sb, ino);
 	if (IS_ERR(inode))
-		return;
+		return PTR_ERR(inode);
 
 	truncate_hole(inode, bidx, bidx + 1);
 	iput(inode);
+	return 0;
 }
 
 static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
@@ -301,7 +304,9 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 			}
 
 			/* Check the previous node page having this index */
-			check_index_in_prev_nodes(sbi, dest, &dn);
+			err = check_index_in_prev_nodes(sbi, dest, &dn);
+			if (err)
+				goto err;
 
 			set_summary(&sum, dn.nid, dn.ofs_in_node, ni.version);
 
@@ -324,13 +329,14 @@ static int do_recover_data(struct f2fs_sb_info *sbi, struct inode *inode,
 	set_page_dirty(dn.node_page);
 
 	recover_node_page(sbi, dn.node_page, &sum, &ni, blkaddr);
+err:
 	f2fs_put_dnode(&dn);
 	mutex_unlock_op(sbi, ilock);
 
 	f2fs_msg(sbi->sb, KERN_NOTICE, "recover_data: ino = %lx, "
-			"recovered_data = %d blocks",
-			inode->i_ino, recovered);
-	return 0;
+			"recovered_data = %d blocks, err = %d",
+			inode->i_ino, recovered, err);
+	return err;
 }
 
 static int recover_data(struct f2fs_sb_info *sbi,
