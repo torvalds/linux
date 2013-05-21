@@ -1981,15 +1981,4 @@ static struct pci_driver amd8111e_driver = {
 	.resume		= amd8111e_resume
 };
 
-static int __init amd8111e_init(void)
-{
-	return pci_register_driver(&amd8111e_driver);
-}
-
-static void __exit amd8111e_cleanup(void)
-{
-	pci_unregister_driver(&amd8111e_driver);
-}
-
-module_init(amd8111e_init);
-module_exit(amd8111e_cleanup);
+module_pci_driver(amd8111e_driver);
