@@ -825,9 +825,11 @@ static void __rpc_execute(struct rpc_task *task)
  */
 void rpc_execute(struct rpc_task *task)
 {
+	bool is_async = RPC_IS_ASYNC(task);
+
 	rpc_set_active(task);
 	rpc_make_runnable(task);
-	if (!RPC_IS_ASYNC(task))
+	if (!is_async)
 		__rpc_execute(task);
 }
 
