@@ -162,11 +162,19 @@ static void nfs_zap_caches_locked(struct inode *inode)
 
 	memset(NFS_I(inode)->cookieverf, 0, sizeof(NFS_I(inode)->cookieverf));
 	if (S_ISREG(mode) || S_ISDIR(mode) || S_ISLNK(mode)) {
-		nfsi->cache_validity |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_DATA|NFS_INO_INVALID_ACCESS|NFS_INO_INVALID_ACL|NFS_INO_REVAL_PAGECACHE;
 		nfs_fscache_invalidate(inode);
-	} else {
-		nfsi->cache_validity |= NFS_INO_INVALID_ATTR|NFS_INO_INVALID_ACCESS|NFS_INO_INVALID_ACL|NFS_INO_REVAL_PAGECACHE;
-	}
+		nfsi->cache_validity |= NFS_INO_INVALID_ATTR
+					| NFS_INO_INVALID_LABEL
+					| NFS_INO_INVALID_DATA
+					| NFS_INO_INVALID_ACCESS
+					| NFS_INO_INVALID_ACL
+					| NFS_INO_REVAL_PAGECACHE;
+	} else
+		nfsi->cache_validity |= NFS_INO_INVALID_ATTR
+					| NFS_INO_INVALID_LABEL
+					| NFS_INO_INVALID_ACCESS
+					| NFS_INO_INVALID_ACL
+					| NFS_INO_REVAL_PAGECACHE;
 }
 
 void nfs_zap_caches(struct inode *inode)
@@ -258,6 +266,32 @@ nfs_init_locked(struct inode *inode, void *opaque)
 }
 
 #ifdef CONFIG_NFS_V4_SECURITY_LABEL
+void nfs_setsecurity(struct inode *inode, struct nfs_fattr *fattr,
+					struct nfs4_label *label)
+{
+	int error;
+
+	if (label == NULL)
+		return;
+
+	if (nfs_server_capable(inode, NFS_CAP_SECURITY_LABEL) == 0)
+		return;
+
+	if (NFS_SERVER(inode)->nfs_client->cl_minorversion < 2)
+		return;
+
+	if ((fattr->valid & NFS_ATTR_FATTR_V4_SECURITY_LABEL) && inode->i_security) {
+		error = security_inode_notifysecctx(inode, label->label,
+				label->len);
+		if (error)
+			printk(KERN_ERR "%s() %s %d "
+					"security_inode_notifysecctx() %d\n",
+					__func__,
+					(char *)label->label,
+					label->len, error);
+	}
+}
+
 struct nfs4_label *nfs4_label_alloc(struct nfs_server *server, gfp_t flags)
 {
 	struct nfs4_label *label = NULL;
@@ -283,7 +317,13 @@ struct nfs4_label *nfs4_label_alloc(struct nfs_server *server, gfp_t flags)
 	return label;
 }
 EXPORT_SYMBOL_GPL(nfs4_label_alloc);
+#else
+void inline nfs_setsecurity(struct inode *inode, struct nfs_fattr *fattr,
+					struct nfs4_label *label)
+{
+}
 #endif
+EXPORT_SYMBOL_GPL(nfs_setsecurity);
 
 /*
  * This is our front-end to iget that looks up inodes by file handle
@@ -412,6 +452,9 @@ nfs_fhget(struct super_block *sb, struct nfs_fh *fh, struct nfs_fattr *fattr, st
 			 */
 			inode->i_blocks = nfs_calc_block_size(fattr->du.nfs3.used);
 		}
+
+		nfs_setsecurity(inode, fattr, label);
+
 		nfsi->attrtimeo = NFS_MINATTRTIMEO(inode);
 		nfsi->attrtimeo_timestamp = now;
 		nfsi->access_cache = RB_ROOT;
@@ -421,6 +464,7 @@ nfs_fhget(struct super_block *sb, struct nfs_fh *fh, struct nfs_fattr *fattr, st
 		unlock_new_inode(inode);
 	} else
 		nfs_refresh_inode(inode, fattr);
+		nfs_setsecurity(inode, fattr, label);
 	dprintk("NFS: nfs_fhget(%s/%Ld fh_crc=0x%08x ct=%d)\n",
 		inode->i_sb->s_id,
 		(long long)NFS_FILEID(inode),
@@ -477,7 +521,7 @@ nfs_setattr(struct dentry *dentry, struct iattr *attr)
 		NFS_PROTO(inode)->return_delegation(inode);
 	error = NFS_PROTO(inode)->setattr(dentry, fattr, attr);
 	if (error == 0)
-		nfs_refresh_inode(inode, fattr);
+		error = nfs_refresh_inode(inode, fattr);
 	nfs_free_fattr(fattr);
 out:
 	return error;
@@ -901,7 +945,8 @@ static int nfs_attribute_cache_expired(struct inode *inode)
  */
 int nfs_revalidate_inode(struct nfs_server *server, struct inode *inode)
 {
-	if (!(NFS_I(inode)->cache_validity & NFS_INO_INVALID_ATTR)
+	if (!(NFS_I(inode)->cache_validity &
+			(NFS_INO_INVALID_ATTR|NFS_INO_INVALID_LABEL))
 			&& !nfs_attribute_cache_expired(inode))
 		return NFS_STALE(inode) ? -ESTALE : 0;
 	return __nfs_revalidate_inode(server, inode);
@@ -1281,6 +1326,7 @@ int nfs_post_op_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 	spin_lock(&inode->i_lock);
 	status = nfs_post_op_update_inode_locked(inode, fattr);
 	spin_unlock(&inode->i_lock);
+
 	return status;
 }
 EXPORT_SYMBOL_GPL(nfs_post_op_update_inode);
@@ -1521,7 +1567,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 		inode->i_blocks = fattr->du.nfs2.blocks;
 
 	/* Update attrtimeo value if we're out of the unstable period */
-	if (invalid & NFS_INO_INVALID_ATTR) {
+	if (invalid & (NFS_INO_INVALID_ATTR|NFS_INO_INVALID_LABEL)) {
 		nfs_inc_stats(inode, NFSIOS_ATTRINVALIDATE);
 		nfsi->attrtimeo = NFS_MINATTRTIMEO(inode);
 		nfsi->attrtimeo_timestamp = now;
@@ -1534,6 +1580,7 @@ static int nfs_update_inode(struct inode *inode, struct nfs_fattr *fattr)
 		}
 	}
 	invalid &= ~NFS_INO_INVALID_ATTR;
+	invalid &= ~NFS_INO_INVALID_LABEL;
 	/* Don't invalidate the data if we were to blame */
 	if (!(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode)
 				|| S_ISLNK(inode->i_mode)))

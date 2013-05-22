@@ -435,6 +435,7 @@ void nfs_prime_dcache(struct dentry *parent, struct nfs_entry *entry)
 	struct dentry *alias;
 	struct inode *dir = parent->d_inode;
 	struct inode *inode;
+	int status;
 
 	if (filename.name[0] == '.') {
 		if (filename.len == 1)
@@ -447,7 +448,9 @@ void nfs_prime_dcache(struct dentry *parent, struct nfs_entry *entry)
 	dentry = d_lookup(parent, &filename);
 	if (dentry != NULL) {
 		if (nfs_same_file(dentry, entry)) {
-			nfs_refresh_inode(dentry->d_inode, entry->fattr);
+			status = nfs_refresh_inode(dentry->d_inode, entry->fattr);
+			if (!status)
+				nfs_setsecurity(dentry->d_inode, entry->fattr, entry->label);
 			goto out;
 		} else {
 			if (d_invalidate(dentry) != 0)
@@ -1102,6 +1105,8 @@ static int nfs_lookup_revalidate(struct dentry *dentry, unsigned int flags)
 		goto out_bad;
 	if ((error = nfs_refresh_inode(inode, fattr)) != 0)
 		goto out_bad;
+
+	nfs_setsecurity(inode, fattr, label);
 
 	nfs_free_fattr(fattr);
 	nfs_free_fhandle(fhandle);

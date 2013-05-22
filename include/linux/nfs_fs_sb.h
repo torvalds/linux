@@ -146,6 +146,11 @@ struct nfs_server {
 	u32			attr_bitmask[3];/* V4 bitmask representing the set
 						   of attributes supported on this
 						   filesystem */
+	u32			attr_bitmask_nl[3];
+						/* V4 bitmask representing the
+						   set of attributes supported
+						   on this filesystem excluding
+						   the label support bit. */
 	u32			cache_consistency_bitmask[3];
 						/* V4 bitmask representing the subset
 						   of change attribute, size, ctime
