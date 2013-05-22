@@ -1674,14 +1674,14 @@ static int mxser_ioctl(struct tty_struct *tty,
 		return mxser_ioctl_special(cmd, argp);
 
 	if (cmd == MOXA_SET_OP_MODE || cmd == MOXA_GET_OP_MODE) {
-		if (info->board->chip_flag != MOXA_MUST_MU860_HWID)
-			return -EFAULT;
-
 		int p;
 		unsigned long opmode;
 		static unsigned char ModeMask[] = { 0xfc, 0xf3, 0xcf, 0x3f };
 		int shiftbit;
 		unsigned char val, mask;
+
+		if (info->board->chip_flag != MOXA_MUST_MU860_HWID)
+			return -EFAULT;
 
 		p = tty->index % 4;
 		if (cmd == MOXA_SET_OP_MODE) {
