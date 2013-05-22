@@ -1490,7 +1490,16 @@ int main(void)
 		socklen_t addr_l = sizeof(addr);
 		pfd.events = POLLIN;
 		pfd.revents = 0;
-		poll(&pfd, 1, -1);
+
+		if (poll(&pfd, 1, -1) < 0) {
+			syslog(LOG_ERR, "poll failed; error: %d %s", errno, strerror(errno));
+			if (errno == EINVAL) {
+				close(fd);
+				exit(EXIT_FAILURE);
+			}
+			else
+				continue;
+		}
 
 		len = recvfrom(fd, kvp_recv_buffer, sizeof(kvp_recv_buffer), 0,
 				addr_p, &addr_l);
