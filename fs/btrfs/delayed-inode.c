@@ -1681,8 +1681,7 @@ int btrfs_should_delete_dir_index(struct list_head *del_list,
  * btrfs_readdir_delayed_dir_index - read dir info stored in the delayed tree
  *
  */
-int btrfs_readdir_delayed_dir_index(struct file *filp, void *dirent,
-				    filldir_t filldir,
+int btrfs_readdir_delayed_dir_index(struct dir_context *ctx,
 				    struct list_head *ins_list)
 {
 	struct btrfs_dir_item *di;
@@ -1704,13 +1703,13 @@ int btrfs_readdir_delayed_dir_index(struct file *filp, void *dirent,
 	list_for_each_entry_safe(curr, next, ins_list, readdir_list) {
 		list_del(&curr->readdir_list);
 
-		if (curr->key.offset < filp->f_pos) {
+		if (curr->key.offset < ctx->pos) {
 			if (atomic_dec_and_test(&curr->refs))
 				kfree(curr);
 			continue;
 		}
 
-		filp->f_pos = curr->key.offset;
+		ctx->pos = curr->key.offset;
 
 		di = (struct btrfs_dir_item *)curr->data;
 		name = (char *)(di + 1);
@@ -1719,7 +1718,7 @@ int btrfs_readdir_delayed_dir_index(struct file *filp, void *dirent,
 		d_type = btrfs_filetype_table[di->type];
 		btrfs_disk_key_to_cpu(&location, &di->location);
 
-		over = filldir(dirent, name, name_len, curr->key.offset,
+		over = !dir_emit(ctx, name, name_len,
 			       location.objectid, d_type);
 
 		if (atomic_dec_and_test(&curr->refs))
