@@ -166,7 +166,7 @@ static const char *synth_immediate(struct spk_synth *synth, const char *buf)
 		outb_p(ch, speakup_info.port_tts);
 		buf++;
 	}
-	return 0;
+	return NULL;
 }
 
 static void do_catch_up(struct spk_synth *synth)
