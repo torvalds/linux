@@ -4241,24 +4241,24 @@ static void vlv_pllb_recal_opamp(struct drm_i915_private *dev_priv)
 	 * PLLB opamp always calibrates to max value of 0x3f, force enable it
 	 * and set it to a reasonable value instead.
 	 */
-	reg_val = intel_dpio_read(dev_priv, DPIO_IREF(1));
+	reg_val = vlv_dpio_read(dev_priv, DPIO_IREF(1));
 	reg_val &= 0xffffff00;
 	reg_val |= 0x00000030;
-	intel_dpio_write(dev_priv, DPIO_IREF(1), reg_val);
+	vlv_dpio_write(dev_priv, DPIO_IREF(1), reg_val);
 
-	reg_val = intel_dpio_read(dev_priv, DPIO_CALIBRATION);
+	reg_val = vlv_dpio_read(dev_priv, DPIO_CALIBRATION);
 	reg_val &= 0x8cffffff;
 	reg_val = 0x8c000000;
-	intel_dpio_write(dev_priv, DPIO_CALIBRATION, reg_val);
+	vlv_dpio_write(dev_priv, DPIO_CALIBRATION, reg_val);
 
-	reg_val = intel_dpio_read(dev_priv, DPIO_IREF(1));
+	reg_val = vlv_dpio_read(dev_priv, DPIO_IREF(1));
 	reg_val &= 0xffffff00;
-	intel_dpio_write(dev_priv, DPIO_IREF(1), reg_val);
+	vlv_dpio_write(dev_priv, DPIO_IREF(1), reg_val);
 
-	reg_val = intel_dpio_read(dev_priv, DPIO_CALIBRATION);
+	reg_val = vlv_dpio_read(dev_priv, DPIO_CALIBRATION);
 	reg_val &= 0x00ffffff;
 	reg_val |= 0xb0000000;
-	intel_dpio_write(dev_priv, DPIO_CALIBRATION, reg_val);
+	vlv_dpio_write(dev_priv, DPIO_CALIBRATION, reg_val);
 }
 
 static void intel_pch_transcoder_set_m_n(struct intel_crtc *crtc,
@@ -4333,15 +4333,15 @@ static void vlv_update_pll(struct intel_crtc *crtc)
 		vlv_pllb_recal_opamp(dev_priv);
 
 	/* Set up Tx target for periodic Rcomp update */
-	intel_dpio_write(dev_priv, DPIO_IREF_BCAST, 0x0100000f);
+	vlv_dpio_write(dev_priv, DPIO_IREF_BCAST, 0x0100000f);
 
 	/* Disable target IRef on PLL */
-	reg_val = intel_dpio_read(dev_priv, DPIO_IREF_CTL(pipe));
+	reg_val = vlv_dpio_read(dev_priv, DPIO_IREF_CTL(pipe));
 	reg_val &= 0x00ffffff;
-	intel_dpio_write(dev_priv, DPIO_IREF_CTL(pipe), reg_val);
+	vlv_dpio_write(dev_priv, DPIO_IREF_CTL(pipe), reg_val);
 
 	/* Disable fast lock */
-	intel_dpio_write(dev_priv, DPIO_FASTCLK_DISABLE, 0x610);
+	vlv_dpio_write(dev_priv, DPIO_FASTCLK_DISABLE, 0x610);
 
 	/* Set idtafcrecal before PLL is enabled */
 	mdiv = ((bestm1 << DPIO_M1DIV_SHIFT) | (bestm2 & DPIO_M2DIV_MASK));
@@ -4355,47 +4355,47 @@ static void vlv_update_pll(struct intel_crtc *crtc)
 	 * Note: don't use the DAC post divider as it seems unstable.
 	 */
 	mdiv |= (DPIO_POST_DIV_HDMIDP << DPIO_POST_DIV_SHIFT);
-	intel_dpio_write(dev_priv, DPIO_DIV(pipe), mdiv);
+	vlv_dpio_write(dev_priv, DPIO_DIV(pipe), mdiv);
 
 	mdiv |= DPIO_ENABLE_CALIBRATION;
-	intel_dpio_write(dev_priv, DPIO_DIV(pipe), mdiv);
+	vlv_dpio_write(dev_priv, DPIO_DIV(pipe), mdiv);
 
 	/* Set HBR and RBR LPF coefficients */
 	if (adjusted_mode->clock == 162000 ||
 	    intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_HDMI))
-		intel_dpio_write(dev_priv, DPIO_LFP_COEFF(pipe),
+		vlv_dpio_write(dev_priv, DPIO_LFP_COEFF(pipe),
 				 0x005f0021);
 	else
-		intel_dpio_write(dev_priv, DPIO_LFP_COEFF(pipe),
+		vlv_dpio_write(dev_priv, DPIO_LFP_COEFF(pipe),
 				 0x00d0000f);
 
 	if (intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_EDP) ||
 	    intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_DISPLAYPORT)) {
 		/* Use SSC source */
 		if (!pipe)
-			intel_dpio_write(dev_priv, DPIO_REFSFR(pipe),
+			vlv_dpio_write(dev_priv, DPIO_REFSFR(pipe),
 					 0x0df40000);
 		else
-			intel_dpio_write(dev_priv, DPIO_REFSFR(pipe),
+			vlv_dpio_write(dev_priv, DPIO_REFSFR(pipe),
 					 0x0df70000);
 	} else { /* HDMI or VGA */
 		/* Use bend source */
 		if (!pipe)
-			intel_dpio_write(dev_priv, DPIO_REFSFR(pipe),
+			vlv_dpio_write(dev_priv, DPIO_REFSFR(pipe),
 					 0x0df70000);
 		else
-			intel_dpio_write(dev_priv, DPIO_REFSFR(pipe),
+			vlv_dpio_write(dev_priv, DPIO_REFSFR(pipe),
 					 0x0df40000);
 	}
 
-	coreclk = intel_dpio_read(dev_priv, DPIO_CORE_CLK(pipe));
+	coreclk = vlv_dpio_read(dev_priv, DPIO_CORE_CLK(pipe));
 	coreclk = (coreclk & 0x0000ff00) | 0x01c00000;
 	if (intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_DISPLAYPORT) ||
 	    intel_pipe_has_type(&crtc->base, INTEL_OUTPUT_EDP))
 		coreclk |= 0x01000000;
-	intel_dpio_write(dev_priv, DPIO_CORE_CLK(pipe), coreclk);
+	vlv_dpio_write(dev_priv, DPIO_CORE_CLK(pipe), coreclk);
 
-	intel_dpio_write(dev_priv, DPIO_PLL_CML(pipe), 0x87871000);
+	vlv_dpio_write(dev_priv, DPIO_PLL_CML(pipe), 0x87871000);
 
 	for_each_encoder_on_crtc(dev, &crtc->base, encoder)
 		if (encoder->pre_pll_enable)

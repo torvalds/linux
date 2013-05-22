@@ -63,7 +63,7 @@ static int vlv_sideband_rw(struct drm_i915_private *dev_priv, u32 devfn,
 	return 0;
 }
 
-int valleyview_punit_read(struct drm_i915_private *dev_priv, u8 addr, u32 *val)
+int vlv_punit_read(struct drm_i915_private *dev_priv, u8 addr, u32 *val)
 {
 	int ret;
 
@@ -77,7 +77,7 @@ int valleyview_punit_read(struct drm_i915_private *dev_priv, u8 addr, u32 *val)
 	return ret;
 }
 
-int valleyview_punit_write(struct drm_i915_private *dev_priv, u8 addr, u32 val)
+int vlv_punit_write(struct drm_i915_private *dev_priv, u8 addr, u32 val)
 {
 	int ret;
 
@@ -91,7 +91,7 @@ int valleyview_punit_write(struct drm_i915_private *dev_priv, u8 addr, u32 val)
 	return ret;
 }
 
-int valleyview_nc_read(struct drm_i915_private *dev_priv, u8 addr, u32 *val)
+int vlv_nc_read(struct drm_i915_private *dev_priv, u8 addr, u32 *val)
 {
 	int ret;
 
@@ -105,7 +105,7 @@ int valleyview_nc_read(struct drm_i915_private *dev_priv, u8 addr, u32 *val)
 	return ret;
 }
 
-u32 intel_dpio_read(struct drm_i915_private *dev_priv, int reg)
+u32 vlv_dpio_read(struct drm_i915_private *dev_priv, int reg)
 {
 	u32 val = 0;
 
@@ -115,7 +115,7 @@ u32 intel_dpio_read(struct drm_i915_private *dev_priv, int reg)
 	return val;
 }
 
-void intel_dpio_write(struct drm_i915_private *dev_priv, int reg, u32 val)
+void vlv_dpio_write(struct drm_i915_private *dev_priv, int reg, u32 val)
 {
 	vlv_sideband_rw(dev_priv, DPIO_DEVFN, IOSF_PORT_DPIO,
 			DPIO_OPCODE_REG_WRITE, reg, &val);
