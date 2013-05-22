@@ -9,6 +9,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/atomic.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -25,6 +26,7 @@
 #include <linux/notifier.h>
 #include <linux/mm.h>
 #include <linux/mutex.h>
+#include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/sysfs.h>
 #include <linux/irqchip/arm-gic.h>
@@ -266,10 +268,13 @@ static int bL_switch_to(unsigned int new_cluster_id)
 }
 
 struct bL_thread {
+	spinlock_t lock;
 	struct task_struct *task;
 	wait_queue_head_t wq;
 	int wanted_cluster;
 	struct completion started;
+	bL_switch_completion_handler completer;
+	void *completer_cookie;
 };
 
 static struct bL_thread bL_threads[NR_CPUS];
@@ -279,6 +284,8 @@ static int bL_switcher_thread(void *arg)
 	struct bL_thread *t = arg;
 	struct sched_param param = { .sched_priority = 1 };
 	int cluster;
+	bL_switch_completion_handler completer;
+	void *completer_cookie;
 
 	sched_setscheduler_nocheck(current, SCHED_FIFO, &param);
 	complete(&t->started);
@@ -289,9 +296,21 @@ static int bL_switcher_thread(void *arg)
 		wait_event_interruptible(t->wq,
 				t->wanted_cluster != -1 ||
 				kthread_should_stop());
-		cluster = xchg(&t->wanted_cluster, -1);
-		if (cluster != -1)
+
+		spin_lock(&t->lock);
+		cluster = t->wanted_cluster;
+		completer = t->completer;
+		completer_cookie = t->completer_cookie;
+		t->wanted_cluster = -1;
+		t->completer = NULL;
+		spin_unlock(&t->lock);
+
+		if (cluster != -1) {
 			bL_switch_to(cluster);
+
+			if (completer)
+				completer(completer_cookie);
+		}
 	} while (!kthread_should_stop());
 
 	return 0;
@@ -312,16 +331,30 @@ static struct task_struct * bL_switcher_thread_create(int cpu, void *arg)
 }
 
 /*
- * bL_switch_request - Switch to a specific cluster for the given CPU
+ * bL_switch_request_cb - Switch to a specific cluster for the given CPU,
+ *      with completion notification via a callback
  *
  * @cpu: the CPU to switch
  * @new_cluster_id: the ID of the cluster to switch to.
+ * @completer: switch completion callback.  if non-NULL,
+ *	@completer(@completer_cookie) will be called on completion of
+ *	the switch, in non-atomic context.
+ * @completer_cookie: opaque context argument for @completer.
  *
  * This function causes a cluster switch on the given CPU by waking up
  * the appropriate switcher thread.  This function may or may not return
  * before the switch has occurred.
+ *
+ * If a @completer callback function is supplied, it will be called when
+ * the switch is complete.  This can be used to determine asynchronously
+ * when the switch is complete, regardless of when bL_switch_request()
+ * returns.  When @completer is supplied, no new switch request is permitted
+ * for the affected CPU until after the switch is complete, and @completer
+ * has returned.
  */
-int bL_switch_request(unsigned int cpu, unsigned int new_cluster_id)
+int bL_switch_request_cb(unsigned int cpu, unsigned int new_cluster_id,
+			 bL_switch_completion_handler completer,
+			 void *completer_cookie)
 {
 	struct bL_thread *t;
 
@@ -331,17 +364,26 @@ int bL_switch_request(unsigned int cpu, unsigned int new_cluster_id)
 	}
 
 	t = &bL_threads[cpu];
+
 	if (IS_ERR(t->task))
 		return PTR_ERR(t->task);
 	if (!t->task)
 		return -ESRCH;
 
+	spin_lock(&t->lock);
+	if (t->completer) {
+		spin_unlock(&t->lock);
+		return -EBUSY;
+	}
+	t->completer = completer;
+	t->completer_cookie = completer_cookie;
 	t->wanted_cluster = new_cluster_id;
+	spin_unlock(&t->lock);
 	wake_up(&t->wq);
 	return 0;
 }
 
-EXPORT_SYMBOL_GPL(bL_switch_request);
+EXPORT_SYMBOL_GPL(bL_switch_request_cb);
 
 /*
  * Activation and configuration code.
@@ -503,6 +545,7 @@ static int bL_switcher_enable(void)
 
 	for_each_online_cpu(cpu) {
 		struct bL_thread *t = &bL_threads[cpu];
+		spin_lock_init(&t->lock);
 		init_waitqueue_head(&t->wq);
 		init_completion(&t->started);
 		t->wanted_cluster = -1;
