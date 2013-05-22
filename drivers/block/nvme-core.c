@@ -1439,7 +1439,7 @@ static int nvme_user_admin_cmd(struct nvme_dev *dev,
 		nvme_free_iod(dev, iod);
 	}
 
-	if (!status && copy_to_user(&ucmd->result, &cmd.result,
+	if ((status >= 0) && copy_to_user(&ucmd->result, &cmd.result,
 							sizeof(cmd.result)))
 		status = -EFAULT;
 
