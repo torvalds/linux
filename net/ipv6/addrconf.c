@@ -3846,7 +3846,7 @@ static int inet6_fill_ifaddr(struct sk_buff *skb, struct inet6_ifaddr *ifa,
 		valid = INFINITY_LIFE_TIME;
 	}
 
-	if (ipv6_addr_type(&ifa->peer_addr) != IPV6_ADDR_ANY) {
+	if (!ipv6_addr_any(&ifa->peer_addr)) {
 		if (nla_put(skb, IFA_LOCAL, 16, &ifa->addr) < 0 ||
 		    nla_put(skb, IFA_ADDRESS, 16, &ifa->peer_addr) < 0)
 			goto error;
@@ -4579,7 +4579,7 @@ static void __ipv6_ifa_notify(int event, struct inet6_ifaddr *ifp)
 			ip6_ins_rt(ifp->rt);
 		if (ifp->idev->cnf.forwarding)
 			addrconf_join_anycast(ifp);
-		if (ipv6_addr_type(&ifp->peer_addr) != IPV6_ADDR_ANY)
+		if (!ipv6_addr_any(&ifp->peer_addr))
 			addrconf_prefix_route(&ifp->peer_addr, 128,
 					      ifp->idev->dev, 0, 0);
 		break;
@@ -4587,7 +4587,7 @@ static void __ipv6_ifa_notify(int event, struct inet6_ifaddr *ifp)
 		if (ifp->idev->cnf.forwarding)
 			addrconf_leave_anycast(ifp);
 		addrconf_leave_solict(ifp->idev, &ifp->addr);
-		if (ipv6_addr_type(&ifp->peer_addr) != IPV6_ADDR_ANY) {
+		if (!ipv6_addr_any(&ifp->peer_addr)) {
 			struct rt6_info *rt;
 			struct net_device *dev = ifp->idev->dev;
 
