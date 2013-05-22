@@ -105,6 +105,8 @@ u32 sunxi_sramc_chip_id(void)
 		return SUNXI_MACH_SUN4I;
 	case 0x1625:
 		return SUNXI_MACH_SUN5I;
+	case 0x1633:
+		return SUNXI_MACH_SUN6I;
 	default:
 		pr_err("SRAMC: failed to identify chip-id 0x%04x (*0x%08x == 0x%08x)\n",
 		       chip_id, SRAMC_CHIP_ID_REG, reg_val);
@@ -138,6 +140,8 @@ int sunxi_pr_chip_id(void)
 		soc_family = "sun4i";
 	else if (sunxi_is_sun5i())
 		soc_family = "sun5i";
+	else if (sunxi_is_sun6i())
+		soc_family = "sun6i";
 	else
 		soc_family = "sunNi?";
 
@@ -165,6 +169,9 @@ int sunxi_pr_chip_id(void)
 		name = "A10S";
 		rev = ver - SUNXI_VER_A10SA;
 		break;
+	case SUNXI_VER_A31A:
+		name = "A31";
+		rev = ver - SUNXI_VER_A31A;
 	default:
 		break;
 	}
@@ -248,7 +255,8 @@ enum sw_ic_ver sw_get_ic_ver(void)
 
 			goto unknown;
 		}
-	}
+	} else if (sunxi_is_sun6i())
+		ver = SUNXI_VER_A31A;
 
 	goto done;
 

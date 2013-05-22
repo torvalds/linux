@@ -41,6 +41,7 @@ enum sunxi_mach_id {
 
 	SUNXI_MACH_SUN4I = 1623,
 	SUNXI_MACH_SUN5I = 1625,
+	SUNXI_MACH_SUN6I = 1633,
 };
 
 /* BROM access only possible after iomap()s */
@@ -67,12 +68,16 @@ enum sw_ic_ver {
 	SUNXI_VER_A12B,
 	SUNXI_VER_A10SA = 0xA10A,
 	SUNXI_VER_A10SB,
+
+	/* sun6i */
+	SUNXI_VER_A31A = 0xA31A,
 };
 
 enum sw_ic_ver sw_get_ic_ver(void) __pure;
 
 #define sunxi_is_sun4i()	(sunxi_chip_id() == SUNXI_MACH_SUN4I)
 #define sunxi_is_sun5i()	(sunxi_chip_id() == SUNXI_MACH_SUN5I)
+#define sunxi_is_sun6i()	(sunxi_chip_id() == SUNXI_MACH_SUN6I)
 
 static inline int sunxi_is_a10(void)
 {
@@ -111,6 +116,15 @@ static inline int sunxi_is_a10s(void)
 	switch (sw_get_ic_ver()) {
 	case SUNXI_VER_A10SA:
 	case SUNXI_VER_A10SB:
+		return 1;
+	default:
+		return 0;
+	}
+}
+static inline int sunxi_is_a31(void)
+{
+	switch (sw_get_ic_ver()) {
+	case SUNXI_VER_A31A:
 		return 1;
 	default:
 		return 0;
