@@ -4991,66 +4991,6 @@ int sandybridge_pcode_write(struct drm_i915_private *dev_priv, u8 mbox, u32 val)
 	return 0;
 }
 
-static int vlv_punit_rw(struct drm_i915_private *dev_priv, u32 port, u8 opcode,
-			u8 addr, u32 *val)
-{
-	u32 cmd, devfn, be, bar;
-
-	bar = 0;
-	be = 0xf;
-	devfn = PCI_DEVFN(2, 0);
-
-	cmd = (devfn << IOSF_DEVFN_SHIFT) | (opcode << IOSF_OPCODE_SHIFT) |
-		(port << IOSF_PORT_SHIFT) | (be << IOSF_BYTE_ENABLES_SHIFT) |
-		(bar << IOSF_BAR_SHIFT);
-
-	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
-
-	if (I915_READ(VLV_IOSF_DOORBELL_REQ) & IOSF_SB_BUSY) {
-		DRM_DEBUG_DRIVER("warning: pcode (%s) mailbox access failed\n",
-				 opcode == PUNIT_OPCODE_REG_READ ?
-				 "read" : "write");
-		return -EAGAIN;
-	}
-
-	I915_WRITE(VLV_IOSF_ADDR, addr);
-	if (opcode == PUNIT_OPCODE_REG_WRITE)
-		I915_WRITE(VLV_IOSF_DATA, *val);
-	I915_WRITE(VLV_IOSF_DOORBELL_REQ, cmd);
-
-	if (wait_for((I915_READ(VLV_IOSF_DOORBELL_REQ) & IOSF_SB_BUSY) == 0,
-		     5)) {
-		DRM_ERROR("timeout waiting for pcode %s (%d) to finish\n",
-			  opcode == PUNIT_OPCODE_REG_READ ? "read" : "write",
-			  addr);
-		return -ETIMEDOUT;
-	}
-
-	if (opcode == PUNIT_OPCODE_REG_READ)
-		*val = I915_READ(VLV_IOSF_DATA);
-	I915_WRITE(VLV_IOSF_DATA, 0);
-
-	return 0;
-}
-
-int valleyview_punit_read(struct drm_i915_private *dev_priv, u8 addr, u32 *val)
-{
-	return vlv_punit_rw(dev_priv, IOSF_PORT_PUNIT, PUNIT_OPCODE_REG_READ,
-			    addr, val);
-}
-
-int valleyview_punit_write(struct drm_i915_private *dev_priv, u8 addr, u32 val)
-{
-	return vlv_punit_rw(dev_priv, IOSF_PORT_PUNIT, PUNIT_OPCODE_REG_WRITE,
-			    addr, &val);
-}
-
-int valleyview_nc_read(struct drm_i915_private *dev_priv, u8 addr, u32 *val)
-{
-	return vlv_punit_rw(dev_priv, IOSF_PORT_NC, PUNIT_OPCODE_REG_READ,
-			    addr, val);
-}
-
 int vlv_gpu_freq(int ddr_freq, int val)
 {
 	int mult, base;
