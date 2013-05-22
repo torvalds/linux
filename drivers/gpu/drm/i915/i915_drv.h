@@ -1931,9 +1931,9 @@ int sandybridge_pcode_read(struct drm_i915_private *dev_priv, u8 mbox, u32 *val)
 int sandybridge_pcode_write(struct drm_i915_private *dev_priv, u8 mbox, u32 val);
 
 /* intel_sideband.c */
-int vlv_punit_read(struct drm_i915_private *dev_priv, u8 addr, u32 *val);
-int vlv_punit_write(struct drm_i915_private *dev_priv, u8 addr, u32 val);
-int vlv_nc_read(struct drm_i915_private *dev_priv, u8 addr, u32 *val);
+u32 vlv_punit_read(struct drm_i915_private *dev_priv, u8 addr);
+void vlv_punit_write(struct drm_i915_private *dev_priv, u8 addr, u32 val);
+u32 vlv_nc_read(struct drm_i915_private *dev_priv, u8 addr);
 u32 vlv_dpio_read(struct drm_i915_private *dev_priv, int reg);
 void vlv_dpio_write(struct drm_i915_private *dev_priv, int reg, u32 val);
 u32 intel_sbi_read(struct drm_i915_private *dev_priv, u16 reg,

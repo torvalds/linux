@@ -63,46 +63,42 @@ static int vlv_sideband_rw(struct drm_i915_private *dev_priv, u32 devfn,
 	return 0;
 }
 
-int vlv_punit_read(struct drm_i915_private *dev_priv, u8 addr, u32 *val)
+u32 vlv_punit_read(struct drm_i915_private *dev_priv, u8 addr)
 {
-	int ret;
+	u32 val = 0;
 
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
 
 	mutex_lock(&dev_priv->dpio_lock);
-	ret = vlv_sideband_rw(dev_priv, PCI_DEVFN(2, 0), IOSF_PORT_PUNIT,
-			      PUNIT_OPCODE_REG_READ, addr, val);
+	vlv_sideband_rw(dev_priv, PCI_DEVFN(2, 0), IOSF_PORT_PUNIT,
+			PUNIT_OPCODE_REG_READ, addr, &val);
 	mutex_unlock(&dev_priv->dpio_lock);
 
-	return ret;
+	return val;
 }
 
-int vlv_punit_write(struct drm_i915_private *dev_priv, u8 addr, u32 val)
+void vlv_punit_write(struct drm_i915_private *dev_priv, u8 addr, u32 val)
 {
-	int ret;
-
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
 
 	mutex_lock(&dev_priv->dpio_lock);
-	ret = vlv_sideband_rw(dev_priv, PCI_DEVFN(2, 0), IOSF_PORT_PUNIT,
-			      PUNIT_OPCODE_REG_WRITE, addr, &val);
+	vlv_sideband_rw(dev_priv, PCI_DEVFN(2, 0), IOSF_PORT_PUNIT,
+			PUNIT_OPCODE_REG_WRITE, addr, &val);
 	mutex_unlock(&dev_priv->dpio_lock);
-
-	return ret;
 }
 
-int vlv_nc_read(struct drm_i915_private *dev_priv, u8 addr, u32 *val)
+u32 vlv_nc_read(struct drm_i915_private *dev_priv, u8 addr)
 {
-	int ret;
+	u32 val = 0;
 
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
 
 	mutex_lock(&dev_priv->dpio_lock);
-	ret = vlv_sideband_rw(dev_priv, PCI_DEVFN(2, 0), IOSF_PORT_NC,
-			      PUNIT_OPCODE_REG_READ, addr, val);
+	vlv_sideband_rw(dev_priv, PCI_DEVFN(2, 0), IOSF_PORT_NC,
+			PUNIT_OPCODE_REG_READ, addr, &val);
 	mutex_unlock(&dev_priv->dpio_lock);
 
-	return ret;
+	return val;
 }
 
 u32 vlv_dpio_read(struct drm_i915_private *dev_priv, int reg)

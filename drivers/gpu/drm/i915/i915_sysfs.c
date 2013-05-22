@@ -214,7 +214,7 @@ static ssize_t gt_cur_freq_mhz_show(struct device *kdev,
 	mutex_lock(&dev_priv->rps.hw_lock);
 	if (IS_VALLEYVIEW(dev_priv->dev)) {
 		u32 freq;
-		vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS, &freq);
+		freq = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
 		ret = vlv_gpu_freq(dev_priv->mem_freq, (freq >> 8) & 0xff);
 	} else {
 		ret = dev_priv->rps.cur_delay * GT_FREQUENCY_MULTIPLIER;
