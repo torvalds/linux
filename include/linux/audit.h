@@ -73,6 +73,8 @@ struct audit_field {
 	void				*lsm_rule;
 };
 
+extern int is_audit_feature_set(int which);
+
 extern int __init audit_register_class(int class, unsigned *list);
 extern int audit_classify_syscall(int abi, unsigned syscall);
 extern int audit_classify_arch(int arch);

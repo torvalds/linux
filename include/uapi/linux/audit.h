@@ -68,6 +68,9 @@
 #define AUDIT_MAKE_EQUIV	1015	/* Append to watched tree */
 #define AUDIT_TTY_GET		1016	/* Get TTY auditing status */
 #define AUDIT_TTY_SET		1017	/* Set TTY auditing status */
+#define AUDIT_SET_FEATURE	1018	/* Turn an audit feature on or off */
+#define AUDIT_GET_FEATURE	1019	/* Get which features are enabled */
+#define AUDIT_FEATURE_CHANGE	1020	/* audit log listing feature changes */
 
 #define AUDIT_FIRST_USER_MSG	1100	/* Userspace messages mostly uninteresting to kernel */
 #define AUDIT_USER_AVC		1107	/* We filter this differently */
@@ -374,6 +377,19 @@ struct audit_status {
 	__u32		lost;		/* messages lost */
 	__u32		backlog;	/* messages waiting in queue */
 };
+
+struct audit_features {
+#define AUDIT_FEATURE_VERSION	1
+	__u32	vers;
+	__u32	mask;		/* which bits we are dealing with */
+	__u32	features;	/* which feature to enable/disable */
+	__u32	lock;		/* which features to lock */
+};
+
+#define AUDIT_LAST_FEATURE	-1
+
+#define audit_feature_valid(x)		((x) >= 0 && (x) <= AUDIT_LAST_FEATURE)
+#define AUDIT_FEATURE_TO_MASK(x)	(1 << ((x) & 31)) /* mask for __u32 */
 
 struct audit_tty_status {
 	__u32		enabled;	/* 1 = enabled, 0 = disabled */
