@@ -22,7 +22,7 @@
 static struct dentry *afs_lookup(struct inode *dir, struct dentry *dentry,
 				 unsigned int flags);
 static int afs_dir_open(struct inode *inode, struct file *file);
-static int afs_readdir(struct file *file, void *dirent, filldir_t filldir);
+static int afs_readdir(struct file *file, struct dir_context *ctx);
 static int afs_d_revalidate(struct dentry *dentry, unsigned int flags);
 static int afs_d_delete(const struct dentry *dentry);
 static void afs_d_release(struct dentry *dentry);
@@ -43,7 +43,7 @@ static int afs_rename(struct inode *old_dir, struct dentry *old_dentry,
 const struct file_operations afs_dir_file_operations = {
 	.open		= afs_dir_open,
 	.release	= afs_release,
-	.readdir	= afs_readdir,
+	.iterate	= afs_readdir,
 	.lock		= afs_lock,
 	.llseek		= generic_file_llseek,
 };
@@ -119,9 +119,9 @@ struct afs_dir_page {
 };
 
 struct afs_lookup_cookie {
+	struct dir_context ctx;
 	struct afs_fid	fid;
-	const char	*name;
-	size_t		nlen;
+	struct qstr name;
 	int		found;
 };
 
@@ -228,20 +228,18 @@ static int afs_dir_open(struct inode *inode, struct file *file)
 /*
  * deal with one block in an AFS directory
  */
-static int afs_dir_iterate_block(unsigned *fpos,
+static int afs_dir_iterate_block(struct dir_context *ctx,
 				 union afs_dir_block *block,
-				 unsigned blkoff,
-				 void *cookie,
-				 filldir_t filldir)
+				 unsigned blkoff)
 {
 	union afs_dirent *dire;
 	unsigned offset, next, curr;
 	size_t nlen;
-	int tmp, ret;
+	int tmp;
 
-	_enter("%u,%x,%p,,",*fpos,blkoff,block);
+	_enter("%u,%x,%p,,",(unsigned)ctx->pos,blkoff,block);
 
-	curr = (*fpos - blkoff) / sizeof(union afs_dirent);
+	curr = (ctx->pos - blkoff) / sizeof(union afs_dirent);
 
 	/* walk through the block, an entry at a time */
 	for (offset = AFS_DIRENT_PER_BLOCK - block->pagehdr.nentries;
@@ -256,7 +254,7 @@ static int afs_dir_iterate_block(unsigned *fpos,
 			_debug("ENT[%Zu.%u]: unused",
 			       blkoff / sizeof(union afs_dir_block), offset);
 			if (offset >= curr)
-				*fpos = blkoff +
+				ctx->pos = blkoff +
 					next * sizeof(union afs_dirent);
 			continue;
 		}
@@ -302,19 +300,15 @@ static int afs_dir_iterate_block(unsigned *fpos,
 			continue;
 
 		/* found the next entry */
-		ret = filldir(cookie,
-			      dire->u.name,
-			      nlen,
-			      blkoff + offset * sizeof(union afs_dirent),
+		if (!dir_emit(ctx, dire->u.name, nlen,
 			      ntohl(dire->u.vnode),
-			      filldir == afs_lookup_filldir ?
-			      ntohl(dire->u.unique) : DT_UNKNOWN);
-		if (ret < 0) {
+			      ctx->actor == afs_lookup_filldir ?
+			      ntohl(dire->u.unique) : DT_UNKNOWN)) {
 			_leave(" = 0 [full]");
 			return 0;
 		}
 
-		*fpos = blkoff + next * sizeof(union afs_dirent);
+		ctx->pos = blkoff + next * sizeof(union afs_dirent);
 	}
 
 	_leave(" = 1 [more]");
@@ -324,8 +318,8 @@ static int afs_dir_iterate_block(unsigned *fpos,
 /*
  * iterate through the data blob that lists the contents of an AFS directory
  */
-static int afs_dir_iterate(struct inode *dir, unsigned *fpos, void *cookie,
-			   filldir_t filldir, struct key *key)
+static int afs_dir_iterate(struct inode *dir, struct dir_context *ctx,
+			   struct key *key)
 {
 	union afs_dir_block *dblock;
 	struct afs_dir_page *dbuf;
@@ -333,7 +327,7 @@ static int afs_dir_iterate(struct inode *dir, unsigned *fpos, void *cookie,
 	unsigned blkoff, limit;
 	int ret;
 
-	_enter("{%lu},%u,,", dir->i_ino, *fpos);
+	_enter("{%lu},%u,,", dir->i_ino, (unsigned)ctx->pos);
 
 	if (test_bit(AFS_VNODE_DELETED, &AFS_FS_I(dir)->flags)) {
 		_leave(" = -ESTALE");
@@ -341,13 +335,13 @@ static int afs_dir_iterate(struct inode *dir, unsigned *fpos, void *cookie,
 	}
 
 	/* round the file position up to the next entry boundary */
-	*fpos += sizeof(union afs_dirent) - 1;
-	*fpos &= ~(sizeof(union afs_dirent) - 1);
+	ctx->pos += sizeof(union afs_dirent) - 1;
+	ctx->pos &= ~(sizeof(union afs_dirent) - 1);
 
 	/* walk through the blocks in sequence */
 	ret = 0;
-	while (*fpos < dir->i_size) {
-		blkoff = *fpos & ~(sizeof(union afs_dir_block) - 1);
+	while (ctx->pos < dir->i_size) {
+		blkoff = ctx->pos & ~(sizeof(union afs_dir_block) - 1);
 
 		/* fetch the appropriate page from the directory */
 		page = afs_dir_get_page(dir, blkoff / PAGE_SIZE, key);
@@ -364,8 +358,7 @@ static int afs_dir_iterate(struct inode *dir, unsigned *fpos, void *cookie,
 		do {
 			dblock = &dbuf->blocks[(blkoff % PAGE_SIZE) /
 					       sizeof(union afs_dir_block)];
-			ret = afs_dir_iterate_block(fpos, dblock, blkoff,
-						    cookie, filldir);
+			ret = afs_dir_iterate_block(ctx, dblock, blkoff);
 			if (ret != 1) {
 				afs_dir_put_page(page);
 				goto out;
@@ -373,7 +366,7 @@ static int afs_dir_iterate(struct inode *dir, unsigned *fpos, void *cookie,
 
 			blkoff += sizeof(union afs_dir_block);
 
-		} while (*fpos < dir->i_size && blkoff < limit);
+		} while (ctx->pos < dir->i_size && blkoff < limit);
 
 		afs_dir_put_page(page);
 		ret = 0;
@@ -387,23 +380,10 @@ out:
 /*
  * read an AFS directory
  */
-static int afs_readdir(struct file *file, void *cookie, filldir_t filldir)
+static int afs_readdir(struct file *file, struct dir_context *ctx)
 {
-	unsigned fpos;
-	int ret;
-
-	_enter("{%Ld,{%lu}}",
-	       file->f_pos, file_inode(file)->i_ino);
-
-	ASSERT(file->private_data != NULL);
-
-	fpos = file->f_pos;
-	ret = afs_dir_iterate(file_inode(file), &fpos,
-			      cookie, filldir, file->private_data);
-	file->f_pos = fpos;
-
-	_leave(" = %d", ret);
-	return ret;
+	return afs_dir_iterate(file_inode(file), 
+			      ctx, file->private_data);
 }
 
 /*
@@ -416,15 +396,16 @@ static int afs_lookup_filldir(void *_cookie, const char *name, int nlen,
 {
 	struct afs_lookup_cookie *cookie = _cookie;
 
-	_enter("{%s,%Zu},%s,%u,,%llu,%u",
-	       cookie->name, cookie->nlen, name, nlen,
+	_enter("{%s,%u},%s,%u,,%llu,%u",
+	       cookie->name.name, cookie->name.len, name, nlen,
 	       (unsigned long long) ino, dtype);
 
 	/* insanity checks first */
 	BUILD_BUG_ON(sizeof(union afs_dir_block) != 2048);
 	BUILD_BUG_ON(sizeof(union afs_dirent) != 32);
 
-	if (cookie->nlen != nlen || memcmp(cookie->name, name, nlen) != 0) {
+	if (cookie->name.len != nlen ||
+	    memcmp(cookie->name.name, name, nlen) != 0) {
 		_leave(" = 0 [no]");
 		return 0;
 	}
@@ -444,24 +425,18 @@ static int afs_lookup_filldir(void *_cookie, const char *name, int nlen,
 static int afs_do_lookup(struct inode *dir, struct dentry *dentry,
 			 struct afs_fid *fid, struct key *key)
 {
-	struct afs_lookup_cookie cookie;
-	struct afs_super_info *as;
-	unsigned fpos;
+	struct afs_super_info *as = dir->i_sb->s_fs_info;
+	struct afs_lookup_cookie cookie = {
+		.ctx.actor = afs_lookup_filldir,
+		.name = dentry->d_name,
+		.fid.vid = as->volume->vid
+	};
 	int ret;
 
 	_enter("{%lu},%p{%s},", dir->i_ino, dentry, dentry->d_name.name);
 
-	as = dir->i_sb->s_fs_info;
-
 	/* search the directory */
-	cookie.name	= dentry->d_name.name;
-	cookie.nlen	= dentry->d_name.len;
-	cookie.fid.vid	= as->volume->vid;
-	cookie.found	= 0;
-
-	fpos = 0;
-	ret = afs_dir_iterate(dir, &fpos, &cookie, afs_lookup_filldir,
-			      key);
+	ret = afs_dir_iterate(dir, &cookie.ctx, key);
 	if (ret < 0) {
 		_leave(" = %d [iter]", ret);
 		return ret;
