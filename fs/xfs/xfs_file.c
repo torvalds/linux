@@ -906,11 +906,10 @@ xfs_file_release(
 
 STATIC int
 xfs_file_readdir(
-	struct file	*filp,
-	void		*dirent,
-	filldir_t	filldir)
+	struct file	*file,
+	struct dir_context *ctx)
 {
-	struct inode	*inode = file_inode(filp);
+	struct inode	*inode = file_inode(file);
 	xfs_inode_t	*ip = XFS_I(inode);
 	int		error;
 	size_t		bufsize;
@@ -929,8 +928,7 @@ xfs_file_readdir(
 	 */
 	bufsize = (size_t)min_t(loff_t, 32768, ip->i_d.di_size);
 
-	error = xfs_readdir(ip, dirent, bufsize,
-				(xfs_off_t *)&filp->f_pos, filldir);
+	error = xfs_readdir(ip, ctx, bufsize);
 	if (error)
 		return -error;
 	return 0;
@@ -1432,7 +1430,7 @@ const struct file_operations xfs_file_operations = {
 const struct file_operations xfs_dir_file_operations = {
 	.open		= xfs_dir_open,
 	.read		= generic_read_dir,
-	.readdir	= xfs_file_readdir,
+	.iterate	= xfs_file_readdir,
 	.llseek		= generic_file_llseek,
 	.unlocked_ioctl	= xfs_file_ioctl,
 #ifdef CONFIG_COMPAT
