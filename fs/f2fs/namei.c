@@ -172,7 +172,7 @@ static int f2fs_link(struct dentry *old_dentry, struct inode *dir,
 	f2fs_balance_fs(sbi);
 
 	inode->i_ctime = CURRENT_TIME;
-	atomic_inc(&inode->i_count);
+	ihold(inode);
 
 	set_inode_flag(F2FS_I(inode), FI_INC_LINK);
 	ilock = mutex_lock_op(sbi);
