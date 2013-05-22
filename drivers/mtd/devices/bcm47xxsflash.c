@@ -116,6 +116,127 @@ static int bcm47xxsflash_read(struct mtd_info *mtd, loff_t from, size_t len,
 	return len;
 }
 
+static int bcm47xxsflash_write_st(struct mtd_info *mtd, u32 offset, size_t len,
+				  const u_char *buf)
+{
+	struct bcm47xxsflash *b47s = mtd->priv;
+	int written = 0;
+
+	/* Enable writes */
+	bcm47xxsflash_cmd(b47s, OPCODE_ST_WREN);
+
+	/* Write first byte */
+	b47s->cc_write(b47s, BCMA_CC_FLASHADDR, offset);
+	b47s->cc_write(b47s, BCMA_CC_FLASHDATA, *buf++);
+
+	/* Program page */
+	if (b47s->bcma_cc->core->id.rev < 20) {
+		bcm47xxsflash_cmd(b47s, OPCODE_ST_PP);
+		return 1; /* 1B written */
+	}
+
+	/* Program page and set CSA (on newer chips we can continue writing) */
+	bcm47xxsflash_cmd(b47s, OPCODE_ST_CSA | OPCODE_ST_PP);
+	offset++;
+	len--;
+	written++;
+
+	while (len > 0) {
+		/* Page boundary, another function call is needed */
+		if ((offset & 0xFF) == 0)
+			break;
+
+		bcm47xxsflash_cmd(b47s, OPCODE_ST_CSA | *buf++);
+		offset++;
+		len--;
+		written++;
+	}
+
+	/* All done, drop CSA & poll */
+	b47s->cc_write(b47s, BCMA_CC_FLASHCTL, 0);
+	udelay(1);
+	if (bcm47xxsflash_poll(b47s, HZ / 10))
+		pr_err("Flash rejected dropping CSA\n");
+
+	return written;
+}
+
+static int bcm47xxsflash_write_at(struct mtd_info *mtd, u32 offset, size_t len,
+				  const u_char *buf)
+{
+	struct bcm47xxsflash *b47s = mtd->priv;
+	u32 mask = b47s->blocksize - 1;
+	u32 page = (offset & ~mask) << 1;
+	u32 byte = offset & mask;
+	int written = 0;
+
+	/* If we don't overwrite whole page, read it to the buffer first */
+	if (byte || (len < b47s->blocksize)) {
+		int err;
+
+		b47s->cc_write(b47s, BCMA_CC_FLASHADDR, page);
+		bcm47xxsflash_cmd(b47s, OPCODE_AT_BUF1_LOAD);
+		/* 250 us for AT45DB321B */
+		err = bcm47xxsflash_poll(b47s, HZ / 1000);
+		if (err) {
+			pr_err("Timeout reading page 0x%X info buffer\n", page);
+			return err;
+		}
+	}
+
+	/* Change buffer content with our data */
+	while (len > 0) {
+		/* Page boundary, another function call is needed */
+		if (byte == b47s->blocksize)
+			break;
+
+		b47s->cc_write(b47s, BCMA_CC_FLASHADDR, byte++);
+		b47s->cc_write(b47s, BCMA_CC_FLASHDATA, *buf++);
+		bcm47xxsflash_cmd(b47s, OPCODE_AT_BUF1_WRITE);
+		len--;
+		written++;
+	}
+
+	/* Program page with the buffer content */
+	b47s->cc_write(b47s, BCMA_CC_FLASHADDR, page);
+	bcm47xxsflash_cmd(b47s, OPCODE_AT_BUF1_PROGRAM);
+
+	return written;
+}
+
+static int bcm47xxsflash_write(struct mtd_info *mtd, loff_t to, size_t len,
+			       size_t *retlen, const u_char *buf)
+{
+	struct bcm47xxsflash *b47s = mtd->priv;
+	int written;
+
+	/* Writing functions can return without writing all passed data, for
+	 * example when the hardware is too old or when we git page boundary.
+	 */
+	while (len > 0) {
+		switch (b47s->type) {
+		case BCM47XXSFLASH_TYPE_ST:
+			written = bcm47xxsflash_write_st(mtd, to, len, buf);
+			break;
+		case BCM47XXSFLASH_TYPE_ATMEL:
+			written = bcm47xxsflash_write_at(mtd, to, len, buf);
+			break;
+		default:
+			BUG_ON(1);
+		}
+		if (written < 0) {
+			pr_err("Error writing at offset 0x%llX\n", to);
+			return written;
+		}
+		to += (loff_t)written;
+		len -= written;
+		*retlen += written;
+		buf += written;
+	}
+
+	return 0;
+}
+
 static void bcm47xxsflash_fill_mtd(struct bcm47xxsflash *b47s)
 {
 	struct mtd_info *mtd = &b47s->mtd;
@@ -123,16 +244,17 @@ static void bcm47xxsflash_fill_mtd(struct bcm47xxsflash *b47s)
 	mtd->priv = b47s;
 	mtd->name = "bcm47xxsflash";
 	mtd->owner = THIS_MODULE;
-	mtd->type = MTD_ROM;
 
-	/* TODO: implement writing support and verify/change following code */
-	mtd->flags = MTD_CAP_ROM;
+	mtd->type = MTD_NORFLASH;
+	mtd->flags = MTD_CAP_NORFLASH;
 	mtd->size = b47s->size;
 	mtd->erasesize = b47s->blocksize;
-	mtd->writebufsize = mtd->writesize = 1;
+	mtd->writesize = 1;
+	mtd->writebufsize = 1;
 
 	mtd->_erase = bcm47xxsflash_erase;
 	mtd->_read = bcm47xxsflash_read;
+	mtd->_write = bcm47xxsflash_write;
 }
 
 /**************************************************
