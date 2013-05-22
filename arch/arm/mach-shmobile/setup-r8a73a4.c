@@ -184,6 +184,7 @@ void __init r8a73a4_add_standard_devices(void)
 #ifdef CONFIG_USE_OF
 void __init r8a73a4_add_standard_devices_dt(void)
 {
+	platform_device_register_simple("cpufreq-cpu0", -1, NULL, 0);
 	of_platform_populate(NULL, of_default_bus_match_table, NULL, NULL);
 }
 
