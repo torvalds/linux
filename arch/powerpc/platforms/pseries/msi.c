@@ -374,6 +374,23 @@ static int check_msix_entries(struct pci_dev *pdev)
 	return 0;
 }
 
+static void rtas_hack_32bit_msi_gen2(struct pci_dev *pdev)
+{
+	u32 addr_hi, addr_lo;
+
+	/*
+	 * We should only get in here for IODA1 configs. This is based on the
+	 * fact that we using RTAS for MSIs, we don't have the 32 bit MSI RTAS
+	 * support, and we are in a PCIe Gen2 slot.
+	 */
+	dev_info(&pdev->dev,
+		 "rtas_msi: No 32 bit MSI firmware support, forcing 32 bit MSI\n");
+	pci_read_config_dword(pdev, pdev->msi_cap + PCI_MSI_ADDRESS_HI, &addr_hi);
+	addr_lo = 0xffff0000 | ((addr_hi >> (48 - 32)) << 4);
+	pci_write_config_dword(pdev, pdev->msi_cap + PCI_MSI_ADDRESS_LO, addr_lo);
+	pci_write_config_dword(pdev, pdev->msi_cap + PCI_MSI_ADDRESS_HI, 0);
+}
+
 static int rtas_setup_msi_irqs(struct pci_dev *pdev, int nvec_in, int type)
 {
 	struct pci_dn *pdn;
@@ -381,6 +398,7 @@ static int rtas_setup_msi_irqs(struct pci_dev *pdev, int nvec_in, int type)
 	struct msi_desc *entry;
 	struct msi_msg msg;
 	int nvec = nvec_in;
+	int use_32bit_msi_hack = 0;
 
 	pdn = pci_get_pdn(pdev);
 	if (!pdn)
@@ -408,15 +426,31 @@ static int rtas_setup_msi_irqs(struct pci_dev *pdev, int nvec_in, int type)
 	 */
 again:
 	if (type == PCI_CAP_ID_MSI) {
-		if (pdn->force_32bit_msi)
+		if (pdn->force_32bit_msi) {
 			rc = rtas_change_msi(pdn, RTAS_CHANGE_32MSI_FN, nvec);
-		else
+			if (rc < 0) {
+				/*
+				 * We only want to run the 32 bit MSI hack below if
+				 * the max bus speed is Gen2 speed
+				 */
+				if (pdev->bus->max_bus_speed != PCIE_SPEED_5_0GT)
+					return rc;
+
+				use_32bit_msi_hack = 1;
+			}
+		} else
+			rc = -1;
+
+		if (rc < 0)
 			rc = rtas_change_msi(pdn, RTAS_CHANGE_MSI_FN, nvec);
 
-		if (rc < 0 && !pdn->force_32bit_msi) {
+		if (rc < 0) {
 			pr_debug("rtas_msi: trying the old firmware call.\n");
 			rc = rtas_change_msi(pdn, RTAS_CHANGE_FN, nvec);
 		}
+
+		if (use_32bit_msi_hack && rc > 0)
+			rtas_hack_32bit_msi_gen2(pdev);
 	} else
 		rc = rtas_change_msi(pdn, RTAS_CHANGE_MSIX_FN, nvec);
 
