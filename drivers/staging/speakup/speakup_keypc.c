@@ -168,7 +168,7 @@ static const char *synth_immediate(struct spk_synth *synth, const char *buf)
 		udelay(70);
 		buf++;
 	}
-	return 0;
+	return NULL;
 }
 
 static void do_catch_up(struct spk_synth *synth)
