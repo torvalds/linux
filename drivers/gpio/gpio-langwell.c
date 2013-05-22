@@ -321,55 +321,37 @@ static int lnw_gpio_probe(struct pci_dev *pdev,
 			  const struct pci_device_id *id)
 {
 	void __iomem *base;
-	resource_size_t start, len;
 	struct lnw_gpio *lnw;
 	u32 gpio_base;
 	u32 irq_base;
 	int retval;
 	int ngpio = id->driver_data;
 
-	retval = pci_enable_device(pdev);
+	retval = pcim_enable_device(pdev);
 	if (retval)
 		return retval;
 
-	retval = pci_request_regions(pdev, "langwell_gpio");
+	retval = pcim_iomap_regions(pdev, 1 << 0 | 1 << 1, pci_name(pdev));
 	if (retval) {
-		dev_err(&pdev->dev, "error requesting resources\n");
-		goto err_pci_req_region;
+		dev_err(&pdev->dev, "I/O memory mapping error\n");
+		return retval;
 	}
-	/* get the gpio_base from bar1 */
-	start = pci_resource_start(pdev, 1);
-	len = pci_resource_len(pdev, 1);
-	base = ioremap_nocache(start, len);
-	if (!base) {
-		dev_err(&pdev->dev, "error mapping bar1\n");
-		retval = -EFAULT;
-		goto err_ioremap;
-	}
+
+	base = pcim_iomap_table(pdev)[1];
 
 	irq_base = readl(base);
 	gpio_base = readl(sizeof(u32) + base);
 
 	/* release the IO mapping, since we already get the info from bar1 */
-	iounmap(base);
-	/* get the register base from bar0 */
-	start = pci_resource_start(pdev, 0);
-	len = pci_resource_len(pdev, 0);
-	base = devm_ioremap_nocache(&pdev->dev, start, len);
-	if (!base) {
-		dev_err(&pdev->dev, "error mapping bar0\n");
-		retval = -EFAULT;
-		goto err_ioremap;
-	}
+	pcim_iounmap_regions(pdev, 1 << 1);
 
 	lnw = devm_kzalloc(&pdev->dev, sizeof(*lnw), GFP_KERNEL);
 	if (!lnw) {
 		dev_err(&pdev->dev, "can't allocate langwell_gpio chip data\n");
-		retval = -ENOMEM;
-		goto err_ioremap;
+		return -ENOMEM;
 	}
 
-	lnw->reg_base = base;
+	lnw->reg_base = pcim_iomap_table(pdev)[0];
 	lnw->chip.label = dev_name(&pdev->dev);
 	lnw->chip.request = lnw_gpio_request;
 	lnw->chip.direction_input = lnw_gpio_direction_input;
@@ -386,16 +368,14 @@ static int lnw_gpio_probe(struct pci_dev *pdev,
 
 	lnw->domain = irq_domain_add_simple(pdev->dev.of_node, ngpio, irq_base,
 					    &lnw_gpio_irq_ops, lnw);
-	if (!lnw->domain) {
-		retval = -ENOMEM;
-		goto err_ioremap;
-	}
+	if (!lnw->domain)
+		return -ENOMEM;
 
 	pci_set_drvdata(pdev, lnw);
 	retval = gpiochip_add(&lnw->chip);
 	if (retval) {
 		dev_err(&pdev->dev, "langwell gpiochip_add error %d\n", retval);
-		goto err_ioremap;
+		return retval;
 	}
 
 	lnw_irq_init_hw(lnw);
@@ -407,12 +387,6 @@ static int lnw_gpio_probe(struct pci_dev *pdev,
 	pm_runtime_allow(&pdev->dev);
 
 	return 0;
-
-err_ioremap:
-	pci_release_regions(pdev);
-err_pci_req_region:
-	pci_disable_device(pdev);
-	return retval;
 }
 
 static struct pci_driver lnw_gpio_driver = {
@@ -430,23 +404,20 @@ static int wp_gpio_probe(struct platform_device *pdev)
 	struct lnw_gpio *lnw;
 	struct gpio_chip *gc;
 	struct resource *rc;
-	int retval = 0;
+	int retval;
 
-	rc = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!rc)
-		return -EINVAL;
-
-	lnw = kzalloc(sizeof(struct lnw_gpio), GFP_KERNEL);
+	lnw = devm_kzalloc(&pdev->dev, sizeof(struct lnw_gpio), GFP_KERNEL);
 	if (!lnw) {
 		dev_err(&pdev->dev,
 			"can't allocate whitneypoint_gpio chip data\n");
 		return -ENOMEM;
 	}
-	lnw->reg_base = ioremap_nocache(rc->start, resource_size(rc));
-	if (lnw->reg_base == NULL) {
-		retval = -EINVAL;
-		goto err_kmalloc;
-	}
+
+	rc = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	lnw->reg_base = devm_ioremap_resource(&pdev->dev, rc);
+	if (IS_ERR(lnw->reg_base))
+		return PTR_ERR(lnw->reg_base);
+
 	spin_lock_init(&lnw->lock);
 	gc = &lnw->chip;
 	gc->label = dev_name(&pdev->dev);
@@ -463,15 +434,10 @@ static int wp_gpio_probe(struct platform_device *pdev)
 	if (retval) {
 		dev_err(&pdev->dev, "whitneypoint gpiochip_add error %d\n",
 								retval);
-		goto err_ioremap;
+		return retval;
 	}
 	platform_set_drvdata(pdev, lnw);
 	return 0;
-err_ioremap:
-	iounmap(lnw->reg_base);
-err_kmalloc:
-	kfree(lnw);
-	return retval;
 }
 
 static int wp_gpio_remove(struct platform_device *pdev)
@@ -481,8 +447,6 @@ static int wp_gpio_remove(struct platform_device *pdev)
 	err = gpiochip_remove(&lnw->chip);
 	if (err)
 		dev_err(&pdev->dev, "failed to remove gpio_chip.\n");
-	iounmap(lnw->reg_base);
-	kfree(lnw);
 	return 0;
 }
 
