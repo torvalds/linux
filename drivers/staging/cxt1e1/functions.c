@@ -202,7 +202,7 @@ sd_line_is_ok (void *user)
 {
     struct net_device *ndev = (struct net_device *) user;
 
-    return (netif_carrier_ok (ndev));
+    return netif_carrier_ok (ndev);
 }
 
 void
@@ -246,7 +246,7 @@ sd_queue_stopped (void *user)
 {
     struct net_device *ndev = (struct net_device *) user;
 
-    return (netif_queue_stopped (ndev));
+    return netif_queue_stopped (ndev);
 }
 
 void sd_recv_consume(void *token, size_t len, void *user)

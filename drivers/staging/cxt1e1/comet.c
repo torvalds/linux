@@ -62,7 +62,7 @@ lbo_tbl_lkup(int t1, int lbo) {
 			lbo = CFG_LBO_E120;
 	}
 	/* make index ZERO relative */
-	return (lbo - 1);
+	return lbo - 1;
 }
 
 void init_comet(void *ci, comet_t *comet, u_int32_t port_mode, int clockmaster,

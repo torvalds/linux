@@ -123,7 +123,7 @@ c4_find_chan (int channum)
                 {
                     if ((ch->state != UNASSIGNED) &&
                         (ch->channum == channum))
-                        return (ch);
+                        return ch;
                 }
             }
     return 0;
@@ -942,7 +942,7 @@ c4_set_port (ci_t *ci, int portnum)
 
         if ((ret = c4_wq_port_init (pi)))       /* create/init
                                                  * workqueue_struct */
-            return (ret);
+            return ret;
     }
 
     init_comet (ci, pi->cometbase, pp->port_mode, 1 /* clockmaster == true */ , pp->portP);
@@ -1624,7 +1624,7 @@ wanpmcC4T1E1_getBaseAddress (int cardID, int deviceID)
         }
         ci = ci->next;              /* next board, if any */
     }
-    return (base);
+    return base;
 }
 
 #endif                          /*** CONFIG_SBE_PMCC4_NCOMM ***/
