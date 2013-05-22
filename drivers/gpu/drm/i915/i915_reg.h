@@ -342,27 +342,54 @@
 #define  DEBUG_RESET_DISPLAY		(1<<9)
 
 /*
- * DPIO - a special bus for various display related registers to hide behind:
- *  0x800c: m1, m2, n, p1, p2, k dividers
- *  0x8014: REF and SFR select
- *  0x8014: N divider, VCO select
- *  0x801c/3c: core clock bits
- *  0x8048/68: low pass filter coefficients
- *  0x8100: fast clock controls
+ * IOSF sideband
+ */
+#define VLV_IOSF_DOORBELL_REQ			(VLV_DISPLAY_BASE + 0x2100)
+#define   IOSF_DEVFN_SHIFT			24
+#define   IOSF_OPCODE_SHIFT			16
+#define   IOSF_PORT_SHIFT			8
+#define   IOSF_BYTE_ENABLES_SHIFT		4
+#define   IOSF_BAR_SHIFT			1
+#define   IOSF_SB_BUSY				(1<<0)
+#define   IOSF_PORT_PUNIT			0x4
+#define   IOSF_PORT_NC				0x11
+#define   IOSF_PORT_DPIO			0x12
+#define VLV_IOSF_DATA				(VLV_DISPLAY_BASE + 0x2104)
+#define VLV_IOSF_ADDR				(VLV_DISPLAY_BASE + 0x2108)
+
+#define PUNIT_OPCODE_REG_READ			6
+#define PUNIT_OPCODE_REG_WRITE			7
+
+#define PUNIT_REG_GPU_LFM			0xd3
+#define PUNIT_REG_GPU_FREQ_REQ			0xd4
+#define PUNIT_REG_GPU_FREQ_STS			0xd8
+#define PUNIT_REG_MEDIA_TURBO_FREQ_REQ		0xdc
+
+#define PUNIT_FUSE_BUS2				0xf6 /* bits 47:40 */
+#define PUNIT_FUSE_BUS1				0xf5 /* bits 55:48 */
+
+#define IOSF_NC_FB_GFX_FREQ_FUSE		0x1c
+#define   FB_GFX_MAX_FREQ_FUSE_SHIFT		3
+#define   FB_GFX_MAX_FREQ_FUSE_MASK		0x000007f8
+#define   FB_GFX_FGUARANTEED_FREQ_FUSE_SHIFT	11
+#define   FB_GFX_FGUARANTEED_FREQ_FUSE_MASK	0x0007f800
+#define IOSF_NC_FB_GFX_FMAX_FUSE_HI		0x34
+#define   FB_FMAX_VMIN_FREQ_HI_MASK		0x00000007
+#define IOSF_NC_FB_GFX_FMAX_FUSE_LO		0x30
+#define   FB_FMAX_VMIN_FREQ_LO_SHIFT		27
+#define   FB_FMAX_VMIN_FREQ_LO_MASK		0xf8000000
+
+/*
+ * DPIO - a special bus for various display related registers to hide behind
  *
  * DPIO is VLV only.
  *
  * Note: digital port B is DDI0, digital pot C is DDI1
  */
-#define DPIO_PKT			(VLV_DISPLAY_BASE + 0x2100)
-#define  DPIO_RID			(0<<24)
-#define  DPIO_OP_WRITE			(1<<16)
-#define  DPIO_OP_READ			(0<<16)
-#define  DPIO_PORTID			(0x12<<8)
-#define  DPIO_BYTE			(0xf<<4)
-#define  DPIO_BUSY			(1<<0) /* status only */
-#define DPIO_DATA			(VLV_DISPLAY_BASE + 0x2104)
-#define DPIO_REG			(VLV_DISPLAY_BASE + 0x2108)
+#define DPIO_DEVFN			0
+#define DPIO_OPCODE_REG_WRITE		1
+#define DPIO_OPCODE_REG_READ		0
+
 #define DPIO_CTL			(VLV_DISPLAY_BASE + 0x2110)
 #define  DPIO_MODSEL1			(1<<3) /* if ref clk b == 27 */
 #define  DPIO_MODSEL0			(1<<2) /* if ref clk a == 27 */
@@ -4540,40 +4567,6 @@
 #define GEN6_PCODE_DATA				0x138128
 #define   GEN6_PCODE_FREQ_IA_RATIO_SHIFT	8
 #define   GEN6_PCODE_FREQ_RING_RATIO_SHIFT	16
-
-#define VLV_IOSF_DOORBELL_REQ			0x182100
-#define   IOSF_DEVFN_SHIFT			24
-#define   IOSF_OPCODE_SHIFT			16
-#define   IOSF_PORT_SHIFT			8
-#define   IOSF_BYTE_ENABLES_SHIFT		4
-#define   IOSF_BAR_SHIFT			1
-#define   IOSF_SB_BUSY				(1<<0)
-#define   IOSF_PORT_PUNIT			0x4
-#define   IOSF_PORT_NC				0x11
-#define VLV_IOSF_DATA				0x182104
-#define VLV_IOSF_ADDR				0x182108
-
-#define PUNIT_OPCODE_REG_READ			6
-#define PUNIT_OPCODE_REG_WRITE			7
-
-#define PUNIT_REG_GPU_LFM			0xd3
-#define PUNIT_REG_GPU_FREQ_REQ			0xd4
-#define PUNIT_REG_GPU_FREQ_STS			0xd8
-#define PUNIT_REG_MEDIA_TURBO_FREQ_REQ		0xdc
-
-#define PUNIT_FUSE_BUS2				0xf6 /* bits 47:40 */
-#define PUNIT_FUSE_BUS1				0xf5 /* bits 55:48 */
-
-#define IOSF_NC_FB_GFX_FREQ_FUSE		0x1c
-#define   FB_GFX_MAX_FREQ_FUSE_SHIFT		3
-#define   FB_GFX_MAX_FREQ_FUSE_MASK		0x000007f8
-#define   FB_GFX_FGUARANTEED_FREQ_FUSE_SHIFT	11
-#define   FB_GFX_FGUARANTEED_FREQ_FUSE_MASK	0x0007f800
-#define IOSF_NC_FB_GFX_FMAX_FUSE_HI		0x34
-#define   FB_FMAX_VMIN_FREQ_HI_MASK		0x00000007
-#define IOSF_NC_FB_GFX_FMAX_FUSE_LO		0x30
-#define   FB_FMAX_VMIN_FREQ_LO_SHIFT		27
-#define   FB_FMAX_VMIN_FREQ_LO_MASK		0xf8000000
 
 #define GEN6_GT_CORE_STATUS		0x138060
 #define   GEN6_CORE_CPD_STATE_MASK	(7<<4)
