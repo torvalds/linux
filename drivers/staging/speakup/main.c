@@ -2033,7 +2033,7 @@ speakup_key(struct vc_data *vc, int shift_state, int keycode, u_short keysym,
 	if (keycode >= MAX_KEY)
 		goto no_map;
 	key_info = spk_our_keys[keycode];
-	if (key_info == 0)
+	if (!key_info)
 		goto no_map;
 	/* Check valid read all mode keys */
 	if ((cursor_track == read_all_mode) && (!up_flag)) {
@@ -2265,7 +2265,7 @@ static int __init speakup_init(void)
 	     (var->var_id >= 0) && (var->var_id < MAXVARS); var++)
 		speakup_register_var(var);
 	for (i = 1; spk_punc_info[i].mask != 0; i++)
-		spk_set_mask_bits(0, i, 2);
+		spk_set_mask_bits(NULL, i, 2);
 
 	spk_set_key_info(spk_key_defaults, spk_key_buf);
 
