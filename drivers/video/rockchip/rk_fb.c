@@ -250,13 +250,14 @@ static void hdmi_post_work(struct work_struct *work)
 
 static int rk_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 {
-	struct rk_fb_inf *inf = dev_get_drvdata(info->device);
-	struct fb_fix_screeninfo *fix = &info->fix;
 	struct rk_lcdc_device_driver * dev_drv = (struct rk_lcdc_device_driver * )info->par;
-	struct fb_info * info2 = NULL; 
-	struct rk_lcdc_device_driver * dev_drv1  = NULL; 
     	struct layer_par *par = NULL;
+#if defined(CONFIG_DUAL_LCDC_DUAL_DISP_IN_KERNEL)
+	struct rk_fb_inf *inf = dev_get_drvdata(info->device);
 	struct layer_par *par2 = NULL;
+	struct fb_info * info2 = NULL; 
+	struct rk_lcdc_device_driver * dev_drv1  = NULL;
+#endif
     	int layer_id = 0;
 	u32 xoffset = var->xoffset;		// offset from virtual to visible 
 	u32 yoffset = var->yoffset;				
@@ -334,28 +335,30 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,unsigned long arg)
 {
 	struct fb_fix_screeninfo *fix = &info->fix;
 	struct rk_lcdc_device_driver *dev_drv = (struct rk_lcdc_device_driver * )info->par;
+#if defined(CONFIG_DUAL_LCDC_DUAL_DISP_IN_KERNEL)
 	struct rk_fb_inf *inf = dev_get_drvdata(info->device);
 	struct fb_info * info2 = NULL;
 	struct rk_lcdc_device_driver * dev_drv1  = NULL;
+#endif
 	u32 yuv_phy[2];
 	int  layer_id = dev_drv->fb_get_layer(dev_drv,info->fix.id);
 	int enable; // enable fb:1 enable;0 disable 
 	int ovl;	//overlay:0 win1 on the top of win0;1,win0 on the top of win1
 	int num_buf; //buffer_number
+	int ret;
 	void __user *argp = (void __user *)arg;
 	
 	switch(cmd)
 	{
  		case FBIOPUT_FBPHYADD:
-			return info->fix.smem_start;
+			return fix->smem_start;
 			break;
 		case RK_FBIOSET_YUV_ADDR:   //when in video mode, buff alloc by android
-			//if((!strcmp(fix->id,"fb1"))||(!strcmp(fix->id,"fb3")))
 			{
 				if (copy_from_user(yuv_phy, argp, 8))
 					return -EFAULT;
-				info->fix.smem_start = yuv_phy[0];  //four y
-				info->fix.mmio_start = yuv_phy[1];  //four uv
+				fix->smem_start = yuv_phy[0];  //four y
+				fix->mmio_start = yuv_phy[1];  //four uv
 			}
 			break;
 		case RK_FBIOSET_ENABLE:
@@ -390,7 +393,7 @@ static int rk_fb_ioctl(struct fb_info *info, unsigned int cmd,unsigned long arg)
 			dev_drv->vsync_info.active = enable;
 			break;
 		case RK_FBIOSET_CONFIG_DONE:
-			copy_from_user(&(dev_drv->wait_fs),argp,sizeof(dev_drv->wait_fs));
+			ret = copy_from_user(&(dev_drv->wait_fs),argp,sizeof(dev_drv->wait_fs));
 			if(dev_drv->lcdc_reg_update)
 				dev_drv->lcdc_reg_update(dev_drv);
 	#if defined(CONFIG_RK_HDMI)
@@ -421,7 +424,7 @@ static int rk_fb_blank(int blank_mode, struct fb_info *info)
 	struct fb_fix_screeninfo *fix = &info->fix;
 	int layer_id;
 	
-	layer_id = dev_drv->fb_get_layer(dev_drv,info->fix.id);
+	layer_id = dev_drv->fb_get_layer(dev_drv,fix->id);
 	if(layer_id < 0)
 	{
 		return  -ENODEV;
@@ -468,7 +471,6 @@ static int rk_fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 
 static int rk_fb_set_par(struct fb_info *info)
 {
-	struct rk_fb_inf *inf = dev_get_drvdata(info->device);
     	struct fb_var_screeninfo *var = &info->var;
     	struct fb_fix_screeninfo *fix = &info->fix;
     	struct rk_lcdc_device_driver * dev_drv = (struct rk_lcdc_device_driver * )info->par;
@@ -610,6 +612,7 @@ static int rk_fb_set_par(struct fb_info *info)
 		#if defined(CONFIG_DUAL_LCDC_DUAL_DISP_IN_KERNEL)
 			if(hdmi_get_hotplug() == HDMI_HPD_ACTIVED)
 			{
+				struct rk_fb_inf *inf = dev_get_drvdata(info->device);
 				struct fb_info * info2 = inf->fb[inf->num_fb>>1];
 				struct rk_lcdc_device_driver * dev_drv1  = (struct rk_lcdc_device_driver * )info2->par;
 				struct layer_par *par2 = dev_drv1->layer_par[layer_id];
@@ -813,15 +816,17 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 {
 	struct rk_fb_inf *inf =  platform_get_drvdata(g_fb_pdev);
 	struct fb_info *info = NULL;
-	struct fb_info *pmy_info = NULL;
 	struct rk_lcdc_device_driver * dev_drv = NULL;
-	struct fb_var_screeninfo *pmy_var = NULL;      //var for primary screen
 	struct fb_var_screeninfo *hdmi_var    = NULL;
+#if defined(CONFIG_DUAL_LCDC_DUAL_DISP_IN_KERNEL)
+	struct fb_var_screeninfo *pmy_var = NULL;      //var for primary screen
+	struct fb_info *pmy_info = NULL;
 	struct fb_fix_screeninfo *pmy_fix = NULL;
+	int i;
+#endif
 	struct fb_fix_screeninfo *hdmi_fix    = NULL;
 	char name[6];
 	int ret;
-	int i;
 	int layer_id;
 
 #if defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF) || defined(CONFIG_NO_DUAL_DISP)
@@ -959,7 +964,7 @@ int rk_fb_switch_screen(rk_screen *screen ,int enable ,int lcdc_id)
 	#elif defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
 		info->fbops->fb_pan_display(hdmi_var,info);
 	#endif 
-	info->fbops->fb_ioctl(info,RK_FBIOSET_CONFIG_DONE,NULL);
+	info->fbops->fb_ioctl(info,RK_FBIOSET_CONFIG_DONE,0);
 #if defined(CONFIG_NO_DUAL_DISP)  //close backlight for device whic do not support dual display
 	if(!enable)
 		rk29_backlight_set(1);
@@ -990,9 +995,8 @@ int rk_fb_disp_scale(u8 scale_x, u8 scale_y,u8 lcdc_id)
 	u16 screen_x,screen_y;
 	u16 xpos,ypos;
 	u16 xsize,ysize;
-	
 	char name[6];
-	int i;
+	int i = 0;
 	sprintf(name, "lcdc%d",lcdc_id);
 	
 #if defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
@@ -1356,7 +1360,7 @@ int rk_fb_register(struct rk_lcdc_device_driver *dev_drv,
 			fb_inf->fb[0]->fbops->fb_pan_display(&(fb_inf->fb[0]->var), fb_inf->fb[0]);
 		}
 #endif
-	fb_inf->fb[0]->fbops->fb_ioctl(fb_inf->fb[0],RK_FBIOSET_CONFIG_DONE,NULL);
+	fb_inf->fb[0]->fbops->fb_ioctl(fb_inf->fb[0],RK_FBIOSET_CONFIG_DONE,0);
 		
     }
 #endif
