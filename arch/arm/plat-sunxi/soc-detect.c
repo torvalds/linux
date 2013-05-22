@@ -131,9 +131,7 @@ EXPORT_SYMBOL(sunxi_chip_id);
 int sunxi_pr_chip_id(void)
 {
 	u32 chip_id = sunxi_chip_id();
-	enum sw_ic_ver ver = sw_get_ic_ver();
-	const char *soc_family = NULL;
-	const char *name = NULL;
+	const char *soc_family, *name;
 	int rev;
 
 	if (sunxi_is_sun4i())
@@ -145,39 +143,26 @@ int sunxi_pr_chip_id(void)
 	else
 		soc_family = "sunNi?";
 
-	switch (ver) {
-	/* sun4i */
-	case SUNXI_VER_A10A:
-	case SUNXI_VER_A10B:
-	case SUNXI_VER_A10C:
+	if (sunxi_is_a10())
 		name = "A10";
-		rev = ver - SUNXI_VER_A10A;
-		break;
-	/* sun5i */
-	case SUNXI_VER_A13A:
-	case SUNXI_VER_A13B:
+	else if (sunxi_is_a13())
 		name = "A13";
-		rev = ver - SUNXI_VER_A13A;
-		break;
-	case SUNXI_VER_A12A:
-	case SUNXI_VER_A12B:
+	else if (sunxi_is_a12())
 		name = "A12";
-		rev = ver - SUNXI_VER_A12A;
-		break;
-	case SUNXI_VER_A10SA:
-	case SUNXI_VER_A10SB:
-		name = "A10S";
-		rev = ver - SUNXI_VER_A10SA;
-		break;
-	case SUNXI_VER_A31A:
+	else if (sunxi_is_a10s())
+		name = "A10s";
+	else if (sunxi_is_a31())
 		name = "A31";
-		rev = ver - SUNXI_VER_A31A;
-	default:
-		break;
-	}
+	else
+		name = NULL;
 
-	pr_info("Allwinner %s revision %c (AW%u, %s) detected.\n",
-		name?name:"A??", 'A' + rev, chip_id, soc_family);
+	rev = sunxi_soc_rev();
+	if (rev)
+		pr_info("Allwinner %s revision %c (AW%u/%s) detected.\n",
+			name?name:"A??", 'A' + rev - 1, chip_id, soc_family);
+	else
+		pr_info("Allwinner %s (AW%u/%s) detected.\n",
+			name?name:"A??", chip_id, soc_family);
 
 	return name?1:0;
 }
@@ -220,15 +205,15 @@ enum sw_ic_ver sw_get_ic_ver(void)
 		val = (val >> 16) & 0x07;
 
 		if (val == 0)
-			ver = SUNXI_VER_A13A;
+			ver = SUNXI_VER_A13;
 		else if (val == 1) {
 			val = readl(SW_VA_SID_IO_BASE+0x08);
 			val = (val >> 12) & 0xf;
 
 			if (val == 0 || val == 3)
-				ver = SUNXI_VER_A12A;
+				ver = SUNXI_VER_A12;
 			else if (val == 7)
-				ver = SUNXI_VER_A10SA;
+				ver = SUNXI_VER_A10S;
 		}
 
 		if (!ver)
@@ -238,14 +223,14 @@ enum sw_ic_ver sw_get_ic_ver(void)
 		val = (val >> 8) & 0xffffff;
 
 		if (val == 0 || val == 0x162541)
-			; /* rev A */
+			ver += SUNXI_REV_A;
 		else if (val == 0x162542)
-			ver++; /* rev B */
+			ver += SUNXI_REV_B;
 		else {
 			const char *name;
-			if (ver == SUNXI_VER_A13A)
+			if (ver == SUNXI_VER_A13)
 				name = "A13";
-			else if (ver == SUNXI_VER_A12A)
+			else if (ver == SUNXI_VER_A12)
 				name = "A12";
 			else
 				name = "A10S";
@@ -253,16 +238,15 @@ enum sw_ic_ver sw_get_ic_ver(void)
 			pr_err("unrecongnized %s revision (%x)\n",
 			       name, val);
 
-			goto unknown;
+			reg_dump("SID", SW_VA_SID_IO_BASE, 4);
 		}
 	} else if (sunxi_is_sun6i())
-		ver = SUNXI_VER_A31A;
+		ver = SUNXI_VER_A31;
 
 	goto done;
 
 unknown_chip:
 	pr_err("unrecognized IC (chip-id=%u)\n", sunxi_chip_id());
-unknown:
 	ver = SUNXI_VER_UNKNOWN;
 
 	if (sunxi_is_sun5i())
