@@ -1126,8 +1126,7 @@ retry:
 
 	ift = !max_addresses ||
 	      ipv6_count_addresses(idev) < max_addresses ?
-		ipv6_add_addr(idev, &addr, tmp_plen,
-			      ipv6_addr_type(&addr)&IPV6_ADDR_SCOPE_MASK,
+		ipv6_add_addr(idev, &addr, tmp_plen, ipv6_addr_scope(&addr),
 			      addr_flags) : NULL;
 	if (IS_ERR_OR_NULL(ift)) {
 		in6_ifa_put(ifp);
