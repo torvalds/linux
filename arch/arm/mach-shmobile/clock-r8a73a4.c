@@ -184,6 +184,21 @@ PLL_CLOCK(pll2h_clk, &main_div2_clk, pll_parent_main_extal, 3, 5, PLL2HCR, 5);
 
 SH_FIXED_RATIO_CLK(pll1_div2_clk,	pll1_clk,	div2);
 
+static int frqcr_kick_do(struct clk *clk)
+{
+	int i;
+
+	/* set KICK bit in FRQCRB to update hardware setting, check success */
+	iowrite32(ioread32(CPG_MAP(FRQCRB)) | BIT(31), CPG_MAP(FRQCRB));
+	for (i = 1000; i; i--)
+		if (ioread32(CPG_MAP(FRQCRB)) & BIT(31))
+			cpu_relax();
+		else
+			return 0;
+
+	return -ETIMEDOUT;
+}
+
 static struct clk *main_clks[] = {
 	&extalr_clk,
 	&extal1_clk,
@@ -205,12 +220,7 @@ static struct clk *main_clks[] = {
 /* DIV4 */
 static void div4_kick(struct clk *clk)
 {
-	unsigned long value;
-
-	/* set KICK bit in FRQCRB to update hardware setting */
-	value = ioread32(CPG_MAP(FRQCRB));
-	value |= (1 << 31);
-	iowrite32(value, CPG_MAP(FRQCRB));
+	frqcr_kick_do(clk);
 }
 
 static int divisors[] = { 2, 3, 4, 6, 8, 12, 16, 18, 24, 0, 36, 48, 10};
