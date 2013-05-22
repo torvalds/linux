@@ -643,21 +643,16 @@ static void bfin_spi_pump_transfers(unsigned long data)
 
 	/* Bits per word setup */
 	bits_per_word = transfer->bits_per_word;
-	if (bits_per_word % 16 == 0) {
+	if (bits_per_word == 16) {
 		drv_data->n_bytes = bits_per_word/8;
 		drv_data->len = (transfer->len) >> 1;
 		cr_width = BIT_CTL_WORDSIZE;
 		drv_data->ops = &bfin_bfin_spi_transfer_ops_u16;
-	} else if (bits_per_word % 8 == 0) {
+	} else if (bits_per_word == 8) {
 		drv_data->n_bytes = bits_per_word/8;
 		drv_data->len = transfer->len;
 		cr_width = 0;
 		drv_data->ops = &bfin_bfin_spi_transfer_ops_u8;
-	} else {
-		dev_err(&drv_data->pdev->dev, "transfer: unsupported bits_per_word\n");
-		message->status = -EINVAL;
-		bfin_spi_giveback(drv_data);
-		return;
 	}
 	cr = bfin_read(&drv_data->regs->ctl) & ~(BIT_CTL_TIMOD | BIT_CTL_WORDSIZE);
 	cr |= cr_width;
@@ -808,13 +803,13 @@ static void bfin_spi_pump_transfers(unsigned long data)
 			bfin_write(&drv_data->regs->tdbr, chip->idle_tx_val);
 		else {
 			int loop;
-			if (bits_per_word % 16 == 0) {
+			if (bits_per_word == 16) {
 				u16 *buf = (u16 *)drv_data->tx;
 				for (loop = 0; loop < bits_per_word / 16;
 						loop++) {
 					bfin_write(&drv_data->regs->tdbr, *buf++);
 				}
-			} else if (bits_per_word % 8 == 0) {
+			} else if (bits_per_word == 8) {
 				u8 *buf = (u8 *)drv_data->tx;
 				for (loop = 0; loop < bits_per_word / 8; loop++)
 					bfin_write(&drv_data->regs->tdbr, *buf++);
@@ -1031,12 +1026,6 @@ static int bfin_spi_setup(struct spi_device *spi)
 	} else {
 		/* force a default base state */
 		chip->ctl_reg &= bfin_ctl_reg;
-	}
-
-	if (spi->bits_per_word % 8) {
-		dev_err(&spi->dev, "%d bits_per_word is not supported\n",
-				spi->bits_per_word);
-		goto error;
 	}
 
 	/* translate common spi framework into our register */
@@ -1299,7 +1288,7 @@ static int bfin_spi_probe(struct platform_device *pdev)
 
 	/* the spi->mode bits supported by this driver: */
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_LSB_FIRST;
-
+	master->bits_per_word_mask = SPI_BPW_MASK(8) | SPI_BPW_MASK(16);
 	master->bus_num = pdev->id;
 	master->num_chipselect = platform_info->num_chipselect;
 	master->cleanup = bfin_spi_cleanup;

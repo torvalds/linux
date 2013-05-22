@@ -190,12 +190,6 @@ static int spi_ppc4xx_setupxfer(struct spi_device *spi, struct spi_transfer *t)
 			speed = min(t->speed_hz, spi->max_speed_hz);
 	}
 
-	if (bits_per_word != 8) {
-		dev_err(&spi->dev, "invalid bits-per-word (%d)\n",
-				bits_per_word);
-		return -EINVAL;
-	}
-
 	if (!speed || (speed > spi->max_speed_hz)) {
 		dev_err(&spi->dev, "invalid speed_hz (%d)\n", speed);
 		return -EINVAL;
@@ -228,12 +222,6 @@ static int spi_ppc4xx_setupxfer(struct spi_device *spi, struct spi_transfer *t)
 static int spi_ppc4xx_setup(struct spi_device *spi)
 {
 	struct spi_ppc4xx_cs *cs = spi->controller_state;
-
-	if (spi->bits_per_word != 8) {
-		dev_err(&spi->dev, "invalid bits-per-word (%d)\n",
-			spi->bits_per_word);
-		return -EINVAL;
-	}
 
 	if (!spi->max_speed_hz) {
 		dev_err(&spi->dev, "invalid max_speed_hz (must be non-zero)\n");
@@ -465,6 +453,7 @@ static int spi_ppc4xx_of_probe(struct platform_device *op)
 	bbp->use_dma = 0;
 	bbp->master->setup = spi_ppc4xx_setup;
 	bbp->master->cleanup = spi_ppc4xx_cleanup;
+	bbp->master->bits_per_word_mask = SPI_BPW_MASK(8);
 
 	/* the spi->mode bits understood by this driver: */
 	bbp->master->mode_bits =

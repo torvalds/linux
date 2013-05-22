@@ -881,21 +881,6 @@ static int setup(struct spi_device *spi)
 		rx_thres = RX_THRESH_DFLT;
 	}
 
-	if (!pxa25x_ssp_comp(drv_data)
-		&& (spi->bits_per_word < 4 || spi->bits_per_word > 32)) {
-		dev_err(&spi->dev, "failed setup: ssp_type=%d, bits/wrd=%d "
-				"b/w not 4-32 for type non-PXA25x_SSP\n",
-				drv_data->ssp_type, spi->bits_per_word);
-		return -EINVAL;
-	} else if (pxa25x_ssp_comp(drv_data)
-			&& (spi->bits_per_word < 4
-				|| spi->bits_per_word > 16)) {
-		dev_err(&spi->dev, "failed setup: ssp_type=%d, bits/wrd=%d "
-				"b/w not 4-16 for type PXA25x_SSP\n",
-				drv_data->ssp_type, spi->bits_per_word);
-		return -EINVAL;
-	}
-
 	/* Only alloc on first setup */
 	chip = spi_get_ctldata(spi);
 	if (!chip) {
@@ -1011,9 +996,6 @@ static int setup(struct spi_device *spi)
 		chip->n_bytes = 4;
 		chip->read = u32_reader;
 		chip->write = u32_writer;
-	} else {
-		dev_err(&spi->dev, "invalid wordsize\n");
-		return -ENODEV;
 	}
 	chip->bits_per_word = spi->bits_per_word;
 
@@ -1190,11 +1172,13 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	drv_data->ioaddr = ssp->mmio_base;
 	drv_data->ssdr_physical = ssp->phys_base + SSDR;
 	if (pxa25x_ssp_comp(drv_data)) {
+		master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 16);
 		drv_data->int_cr1 = SSCR1_TIE | SSCR1_RIE;
 		drv_data->dma_cr1 = 0;
 		drv_data->clear_sr = SSSR_ROR;
 		drv_data->mask_sr = SSSR_RFS | SSSR_TFS | SSSR_ROR;
 	} else {
+		master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 32);
 		drv_data->int_cr1 = SSCR1_TIE | SSCR1_RIE | SSCR1_TINTE;
 		drv_data->dma_cr1 = DEFAULT_DMA_CR1;
 		drv_data->clear_sr = SSSR_ROR | SSSR_TINT;

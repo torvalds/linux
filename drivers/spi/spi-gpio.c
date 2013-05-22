@@ -239,9 +239,6 @@ static int spi_gpio_setup(struct spi_device *spi)
 	struct spi_gpio		*spi_gpio = spi_to_spi_gpio(spi);
 	struct device_node	*np = spi->master->dev.of_node;
 
-	if (spi->bits_per_word > 32)
-		return -EINVAL;
-
 	if (np) {
 		/*
 		 * In DT environments, the CS GPIOs have already been
@@ -446,6 +443,7 @@ static int spi_gpio_probe(struct platform_device *pdev)
 	if (pdata)
 		spi_gpio->pdata = *pdata;
 
+	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(1, 32);
 	master->flags = master_flags;
 	master->bus_num = pdev->id;
 	master->num_chipselect = SPI_N_CHIPSEL;
