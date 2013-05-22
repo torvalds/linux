@@ -121,9 +121,9 @@ fail:
 	return ERR_PTR(err);
 }
 
-static int hfsplus_readdir(struct file *filp, void *dirent, filldir_t filldir)
+static int hfsplus_readdir(struct file *file, struct dir_context *ctx)
 {
-	struct inode *inode = file_inode(filp);
+	struct inode *inode = file_inode(file);
 	struct super_block *sb = inode->i_sb;
 	int len, err;
 	char strbuf[HFSPLUS_MAX_STRLEN + 1];
@@ -132,7 +132,7 @@ static int hfsplus_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	struct hfsplus_readdir_data *rd;
 	u16 type;
 
-	if (filp->f_pos >= inode->i_size)
+	if (file->f_pos >= inode->i_size)
 		return 0;
 
 	err = hfs_find_init(HFSPLUS_SB(sb)->cat_tree, &fd);
@@ -143,14 +143,13 @@ static int hfsplus_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	if (err)
 		goto out;
 
-	switch ((u32)filp->f_pos) {
-	case 0:
+	if (ctx->pos == 0) {
 		/* This is completely artificial... */
-		if (filldir(dirent, ".", 1, 0, inode->i_ino, DT_DIR))
+		if (!dir_emit_dot(file, ctx))
 			goto out;
-		filp->f_pos++;
-		/* fall through */
-	case 1:
+		ctx->pos = 1;
+	}
+	if (ctx->pos == 1) {
 		if (fd.entrylength > sizeof(entry) || fd.entrylength < 0) {
 			err = -EIO;
 			goto out;
@@ -168,19 +167,16 @@ static int hfsplus_readdir(struct file *filp, void *dirent, filldir_t filldir)
 			err = -EIO;
 			goto out;
 		}
-		if (filldir(dirent, "..", 2, 1,
+		if (!dir_emit(ctx, "..", 2,
 			    be32_to_cpu(entry.thread.parentID), DT_DIR))
 			goto out;
-		filp->f_pos++;
-		/* fall through */
-	default:
-		if (filp->f_pos >= inode->i_size)
-			goto out;
-		err = hfs_brec_goto(&fd, filp->f_pos - 1);
-		if (err)
-			goto out;
+		ctx->pos = 2;
 	}
-
+	if (ctx->pos >= inode->i_size)
+		goto out;
+	err = hfs_brec_goto(&fd, ctx->pos - 1);
+	if (err)
+		goto out;
 	for (;;) {
 		if (be32_to_cpu(fd.key->cat.parent) != inode->i_ino) {
 			pr_err("walked past end of dir\n");
@@ -211,7 +207,7 @@ static int hfsplus_readdir(struct file *filp, void *dirent, filldir_t filldir)
 			    HFSPLUS_SB(sb)->hidden_dir->i_ino ==
 					be32_to_cpu(entry.folder.id))
 				goto next;
-			if (filldir(dirent, strbuf, len, filp->f_pos,
+			if (!dir_emit(ctx, strbuf, len,
 				    be32_to_cpu(entry.folder.id), DT_DIR))
 				break;
 		} else if (type == HFSPLUS_FILE) {
@@ -220,7 +216,7 @@ static int hfsplus_readdir(struct file *filp, void *dirent, filldir_t filldir)
 				err = -EIO;
 				goto out;
 			}
-			if (filldir(dirent, strbuf, len, filp->f_pos,
+			if (!dir_emit(ctx, strbuf, len,
 				    be32_to_cpu(entry.file.id), DT_REG))
 				break;
 		} else {
@@ -229,22 +225,22 @@ static int hfsplus_readdir(struct file *filp, void *dirent, filldir_t filldir)
 			goto out;
 		}
 next:
-		filp->f_pos++;
-		if (filp->f_pos >= inode->i_size)
+		ctx->pos++;
+		if (ctx->pos >= inode->i_size)
 			goto out;
 		err = hfs_brec_goto(&fd, 1);
 		if (err)
 			goto out;
 	}
-	rd = filp->private_data;
+	rd = file->private_data;
 	if (!rd) {
 		rd = kmalloc(sizeof(struct hfsplus_readdir_data), GFP_KERNEL);
 		if (!rd) {
 			err = -ENOMEM;
 			goto out;
 		}
-		filp->private_data = rd;
-		rd->file = filp;
+		file->private_data = rd;
+		rd->file = file;
 		list_add(&rd->list, &HFSPLUS_I(inode)->open_dir_list);
 	}
 	memcpy(&rd->key, fd.key, sizeof(struct hfsplus_cat_key));
@@ -538,7 +534,7 @@ const struct inode_operations hfsplus_dir_inode_operations = {
 const struct file_operations hfsplus_dir_operations = {
 	.fsync		= hfsplus_file_fsync,
 	.read		= generic_read_dir,
-	.readdir	= hfsplus_readdir,
+	.iterate	= hfsplus_readdir,
 	.unlocked_ioctl = hfsplus_ioctl,
 	.llseek		= generic_file_llseek,
 	.release	= hfsplus_dir_release,
