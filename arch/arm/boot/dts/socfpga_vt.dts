@@ -45,13 +45,79 @@
 			num-slots = <1>;
 			supports-highspeed;
 			broken-cd;
-			altr,dw-mshc-ciu-div = <4>;
+			altr,dw-mshc-ciu-div = <3>;
 
 			slot@0 {
 				reg = <0>;
 				bus-width = <4>;
 			};
-		};		
+		};
+
+		ethernet@ff700000 {
+			phy-mode = "gmii";
+			status = "okay";
+		};
+
+		qspi: spi@ff705000 {
+			compatible = "cadence,qspi";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0xff705000 0x1000>,
+				<0xffa00000 0x1000>;
+			interrupts = <0 151 4>;
+			master-ref-clk = <400000000>;
+			ext-decoder = <0>;  /* external decoder */
+			num-chipselect = <4>;
+			fifo-depth = <128>;
+			bus-num = <2>;
+
+			flash0: n25q128@0 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				compatible = "n25q128";
+				reg = <0>;      /* chip select */
+				spi-max-frequency = <100000000>;
+				page-size = <256>;
+				block-size = <16>; /* 2^16, 64KB */
+				quad = <1>;        /* 1-support quad */
+				tshsl-ns = <200>;
+				tsd2d-ns = <255>;
+				tchsh-ns = <20>;
+				tslch-ns = <20>;
+
+				partition@0 {
+					/* 8MB for raw data. */
+					label = "Flash 0 Raw Data";
+					reg = <0x0 0x800000>;
+				};
+				partition@800000 {
+					/* 8MB for jffs2 data. */
+					label = "Flash 0 jffs2 Filesystem";
+					reg = <0x800000 0x800000>;
+				};
+			};
+
+			flash1: n25q128@1 {
+				#address-cells = <1>;
+				#size-cells = <1>;
+				compatible = "n25q128";
+				reg = <1>;      /* chip select */
+				spi-max-frequency = <100000000>;
+				page-size = <256>;
+				block-size = <16>; /* 2^16, 64KB */
+				quad = <1>;
+				tshsl-ns = <200>;
+				tsd2d-ns = <255>;
+				tchsh-ns = <20>;
+				tslch-ns = <20>;
+
+				partition@0 {
+					/* 16MB for user data. */
+					label = "Flash 1 User Data";
+					reg = <0x0 0x1000000>;
+				};
+			};
+		};
 
 		timer0@ffc08000 {
 			clock-frequency = <7000000>;
@@ -81,86 +147,9 @@
 			cpu1-start-addr = <0xffd08010>;
 		};
 
-		ethernet@ff700000 {
-			phy-mode = "gmii";
+		usb0: usb@ffb00000 {
+			ulpi-ddr = <0>;
 			status = "okay";
 		};
-
-		ethernet@ff702000 {
-			status = "disabled";
-		};
-
-		i2c1: i2c@ffc05000 {
-			status = "disabled";
-		};
-
-		i2c2: i2c@ffc06000 {
-			status = "disabled";
-		};
-
-		i2c3: i2c@ffc07000 {
-			status = "disabled";
-		};
-
-		qspi: spi@ff705000 {
-				compatible = "cadence,qspi";
-				#address-cells = <1>;
-				#size-cells = <0>;
-				reg = <0xff705000 0x1000>,
-					<0xffa00000 0x1000>;
-				interrupts = <0 151 4>;
-				master-ref-clk = <400000000>;
-				ext-decoder = <0>;  /* external decoder */
-				num-chipselect = <4>;
-				fifo-depth = <128>;
-				bus-num = <2>;
-
-				flash0: n25q128@0 {
-					#address-cells = <1>;
-					#size-cells = <1>;
-					compatible = "n25q128";
-					reg = <0>;	/* chip select */
-					spi-max-frequency = <100000000>;
-					page-size = <256>;
-					block-size = <16>; /* 2^16, 64KB */
-					quad = <1>;	   /* 1-support quad */
-					tshsl-ns = <200>;
-					tsd2d-ns = <255>;
-					tchsh-ns = <20>;
-					tslch-ns = <20>;
-
-					partition@0 {
-						/* 8MB for raw data. */
-						label = "Flash 0 Raw Data";
-						reg = <0x0 0x800000>;
-					};
-					partition@800000 {
-						/* 8MB for jffs2 data. */
-						label = "Flash 0 jffs2 Filesystem";
-						reg = <0x800000 0x800000>;
-					};
-				};
-
-				flash1: n25q128@1 {
-					#address-cells = <1>;
-					#size-cells = <1>;
-					compatible = "n25q128";
-					reg = <1>;	/* chip select */
-					spi-max-frequency = <100000000>;
-					page-size = <256>;
-					block-size = <16>; /* 2^16, 64KB */
-					quad = <1>;
-					tshsl-ns = <200>;
-					tsd2d-ns = <255>;
-					tchsh-ns = <20>;
-					tslch-ns = <20>;
-
-					partition@0 {
-						/* 16MB for user data. */
-						label = "Flash 1 User Data";
-						reg = <0x0 0x1000000>;
-					};
-				};
-			};
-		};
+	};
 };

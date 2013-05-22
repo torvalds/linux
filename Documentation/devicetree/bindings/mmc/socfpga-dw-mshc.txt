@@ -8,7 +8,8 @@ Required Properties:
 	  specific extentions.
 
 * altr,dw-mshc-ciu-div: Specifies the divider value for the card interface
-  unit (ciu) clock. For Altera's SOCFPGA, the divider value is fixed at 4.
+  unit (ciu) clock. The value should be (n-1). For Altera's SOCFPGA,
+  the divider value is fixed at 3, which means parent_clock/4.
 
 * altr,dw-mshc-sdr-timing: Specifies the value of CIU clock phase shift value
   in transmit mode and CIU clock phase shift value in receive mode for single

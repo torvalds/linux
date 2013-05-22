@@ -78,11 +78,6 @@ static const struct of_dev_auxdata socfpga_auxdata_lookup[] __initconst = {
 	{ /* sentinel */ }
 };
 
-const static struct of_device_id irq_match[] = {
-	{ .compatible = "arm,cortex-a9-gic", .data = gic_of_init, },
-	{}
-};
-
 static struct map_desc scu_io_desc __initdata = {
 	.virtual	= SOCFPGA_SCU_VIRT_BASE,
 	.pfn		= 0, /* run-time */
@@ -274,6 +269,13 @@ static int stmmac_plat_init(struct platform_device *pdev)
 	return 0;
 }
 
+static void __init socfpga_map_io(void)
+{
+	socfpga_scu_map_io();
+	debug_ll_io_init();
+	early_printk("Early printk initialized\n");
+}
+
 static void __init socfpga_sysmgr_init(void)
 {
 	struct device_node *np;
@@ -310,33 +312,7 @@ static void __init socfpga_sysmgr_init(void)
 	WARN_ON(!clk_mgr_base_addr);
 }
 
-static void __init socfpga_map_io(void)
-{
-	socfpga_scu_map_io();
-	debug_ll_io_init();
-	early_printk("Early printk initialized\n");
-}
-
-void __init socfpga_sysmgr_init(void)
-{
-	struct device_node *np;
-
-	np = of_find_compatible_node(NULL, NULL, "altr,sys-mgr");
-
-	if (of_property_read_u32(np, "cpu1-start-addr",
-			(u32 *) &cpu1start_addr))
-		pr_err("SMP: Need cpu1-start-addr in device tree.\n");
-
-	sys_manager_base_addr = of_iomap(np, 0);
-
-	np = of_find_compatible_node(NULL, NULL, "altr,rst-mgr");
-	rst_manager_base_addr = of_iomap(np, 0);
-
-	np = of_find_compatible_node(NULL, NULL, "altr,clk-mgr");
-	clk_mgr_base_addr = of_iomap(np, 0);
-}
-
-static void __init gic_init_irq(void)
+static void __init socfpga_init_irq(void)
 {
 	irqchip_init();
 	socfpga_sysmgr_init();

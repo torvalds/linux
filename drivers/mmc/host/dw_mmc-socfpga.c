@@ -9,14 +9,16 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * Taken from dw_mmc_exynos.c
+ * Taken from dw_mmc-exynos.c
  */
 #include <linux/clk.h>
+#include <linux/mfd/syscon.h>
 #include <linux/mmc/host.h>
 #include <linux/mmc/dw_mmc.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/regmap.h>
 
 #include "dw_mmc.h"
 #include "dw_mmc-pltfm.h"
@@ -26,12 +28,11 @@
 #define SYSMGR_SDMMC_CTRL_SET(smplsel, drvsel)		\
 	((((drvsel) << 0) & 0x7) | (((smplsel) << 3) & 0x38))
 
-extern void __iomem *sys_manager_base_addr;
-
 /* SOCFPGA implementation specific driver private data */
 struct dw_mci_socfpga_priv_data {
 	u8	ciu_div;
 	u32	hs_timing;
+	struct regmap   *sysreg;
 };
 
 static int dw_mci_socfpga_priv_init(struct dw_mci *host)
@@ -48,6 +49,12 @@ static int dw_mci_socfpga_priv_init(struct dw_mci *host)
 
 	host->priv = priv;
 
+	priv->sysreg = syscon_regmap_lookup_by_compatible("altr,sys-mgr");
+	if (IS_ERR(priv->sysreg)) {
+		dev_err(host->dev, "regmap for altr,sys-mgr lookup failed.\n");
+		return PTR_ERR(priv->sysreg);
+	}
+
 	if (of_property_read_u32(dev->of_node, "pwr-en", &pwr_en)) {
 		dev_info(dev, "couldn't determine pwr-en, assuming pwr-en = 0\n");
 		pwr_en = 0;
@@ -63,12 +70,11 @@ static int dw_mci_socfpga_setup_clock(struct dw_mci *host)
 {
 	struct dw_mci_socfpga_priv_data *priv = host->priv;
 
-	clk_disable(host->ciu_clk);
-	writel(priv->hs_timing, sys_manager_base_addr +
-		SYSMGR_SDMMCGRP_CTRL_OFFSET);
-	clk_enable(host->ciu_clk);
+	clk_disable_unprepare(host->ciu_clk);
+	regmap_write(priv->sysreg, SYSMGR_SDMMCGRP_CTRL_OFFSET, priv->hs_timing);
+	clk_prepare_enable(host->ciu_clk);
 
-	host->bus_hz /= priv->ciu_div;
+	host->bus_hz /= (priv->ciu_div + 1);
 	return 0;
 }
 
@@ -89,6 +95,8 @@ static int dw_mci_socfpga_parse_dt(struct dw_mci *host)
 	int ret;
 
 	of_property_read_u32(np, "altr,dw-mshc-ciu-div", &div);
+	if (ret)
+		dev_info(host->dev, "No dw-mshc-ciu-div specified, assuming 1");
 	priv->ciu_div = div;
 
 	ret = of_property_read_u32_array(np,
