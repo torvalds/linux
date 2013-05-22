@@ -797,12 +797,11 @@ EXPORT_SYMBOL(nci_unregister_device);
 /**
  * nci_recv_frame - receive frame from NCI drivers
  *
+ * @ndev: The nci device
  * @skb: The sk_buff to receive
  */
-int nci_recv_frame(struct sk_buff *skb)
+int nci_recv_frame(struct nci_dev *ndev, struct sk_buff *skb)
 {
-	struct nci_dev *ndev = (struct nci_dev *) skb->dev;
-
 	pr_debug("len %d\n", skb->len);
 
 	if (!ndev || (!test_bit(NCI_UP, &ndev->flags) &&
@@ -819,10 +818,8 @@ int nci_recv_frame(struct sk_buff *skb)
 }
 EXPORT_SYMBOL(nci_recv_frame);
 
-static int nci_send_frame(struct sk_buff *skb)
+static int nci_send_frame(struct nci_dev *ndev, struct sk_buff *skb)
 {
-	struct nci_dev *ndev = (struct nci_dev *) skb->dev;
-
 	pr_debug("len %d\n", skb->len);
 
 	if (!ndev) {
@@ -833,7 +830,7 @@ static int nci_send_frame(struct sk_buff *skb)
 	/* Get rid of skb owner, prior to sending to the driver. */
 	skb_orphan(skb);
 
-	return ndev->ops->send(skb);
+	return ndev->ops->send(ndev, skb);
 }
 
 /* Send NCI command */
@@ -860,8 +857,6 @@ int nci_send_cmd(struct nci_dev *ndev, __u16 opcode, __u8 plen, void *payload)
 
 	if (plen)
 		memcpy(skb_put(skb, plen), payload, plen);
-
-	skb->dev = (void *) ndev;
 
 	skb_queue_tail(&ndev->cmd_q, skb);
 	queue_work(ndev->cmd_wq, &ndev->cmd_work);
@@ -894,7 +889,7 @@ static void nci_tx_work(struct work_struct *work)
 			 nci_conn_id(skb->data),
 			 nci_plen(skb->data));
 
-		nci_send_frame(skb);
+		nci_send_frame(ndev, skb);
 
 		mod_timer(&ndev->data_timer,
 			  jiffies + msecs_to_jiffies(NCI_DATA_TIMEOUT));
@@ -963,7 +958,7 @@ static void nci_cmd_work(struct work_struct *work)
 			 nci_opcode_oid(nci_opcode(skb->data)),
 			 nci_plen(skb->data));
 
-		nci_send_frame(skb);
+		nci_send_frame(ndev, skb);
 
 		mod_timer(&ndev->cmd_timer,
 			  jiffies + msecs_to_jiffies(NCI_CMD_TIMEOUT));

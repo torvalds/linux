@@ -66,7 +66,7 @@ struct nci_dev;
 struct nci_ops {
 	int (*open)(struct nci_dev *ndev);
 	int (*close)(struct nci_dev *ndev);
-	int (*send)(struct sk_buff *skb);
+	int (*send)(struct nci_dev *ndev, struct sk_buff *skb);
 };
 
 #define NCI_MAX_SUPPORTED_RF_INTERFACES		4
@@ -153,7 +153,7 @@ struct nci_dev *nci_allocate_device(struct nci_ops *ops,
 void nci_free_device(struct nci_dev *ndev);
 int nci_register_device(struct nci_dev *ndev);
 void nci_unregister_device(struct nci_dev *ndev);
-int nci_recv_frame(struct sk_buff *skb);
+int nci_recv_frame(struct nci_dev *ndev, struct sk_buff *skb);
 
 static inline struct sk_buff *nci_skb_alloc(struct nci_dev *ndev,
 					    unsigned int len,

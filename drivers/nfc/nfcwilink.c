@@ -109,7 +109,7 @@ enum {
 	NFCWILINK_FW_DOWNLOAD,
 };
 
-static int nfcwilink_send(struct sk_buff *skb);
+static int nfcwilink_send(struct nci_dev *ndev, struct sk_buff *skb);
 
 static inline struct sk_buff *nfcwilink_skb_alloc(unsigned int len, gfp_t how)
 {
@@ -156,8 +156,6 @@ static int nfcwilink_get_bts_file_name(struct nfcwilink *drv, char *file_name)
 		return -ENOMEM;
 	}
 
-	skb->dev = (void *)drv->ndev;
-
 	cmd = (struct nci_vs_nfcc_info_cmd *)
 			skb_put(skb, sizeof(struct nci_vs_nfcc_info_cmd));
 	cmd->gid = NCI_VS_NFCC_INFO_CMD_GID;
@@ -166,7 +164,7 @@ static int nfcwilink_get_bts_file_name(struct nfcwilink *drv, char *file_name)
 
 	drv->nfcc_info.plen = 0;
 
-	rc = nfcwilink_send(skb);
+	rc = nfcwilink_send(drv->ndev, skb);
 	if (rc)
 		return rc;
 
@@ -232,11 +230,9 @@ static int nfcwilink_send_bts_cmd(struct nfcwilink *drv, __u8 *data, int len)
 		return -ENOMEM;
 	}
 
-	skb->dev = (void *)drv->ndev;
-
 	memcpy(skb_put(skb, len), data, len);
 
-	rc = nfcwilink_send(skb);
+	rc = nfcwilink_send(drv->ndev, skb);
 	if (rc)
 		return rc;
 
@@ -371,10 +367,8 @@ static long nfcwilink_receive(void *priv_data, struct sk_buff *skb)
 		return 0;
 	}
 
-	skb->dev = (void *) drv->ndev;
-
 	/* Forward skb to NCI core layer */
-	rc = nci_recv_frame(skb);
+	rc = nci_recv_frame(drv->ndev, skb);
 	if (rc < 0) {
 		nfc_dev_err(&drv->pdev->dev, "nci_recv_frame failed %d", rc);
 		return rc;
@@ -480,9 +474,8 @@ static int nfcwilink_close(struct nci_dev *ndev)
 	return rc;
 }
 
-static int nfcwilink_send(struct sk_buff *skb)
+static int nfcwilink_send(struct nci_dev *ndev, struct sk_buff *skb)
 {
-	struct nci_dev *ndev = (struct nci_dev *)skb->dev;
 	struct nfcwilink *drv = nci_get_drvdata(ndev);
 	struct nfcwilink_hdr hdr = {NFCWILINK_CHNL, NFCWILINK_OPCODE, 0x0000};
 	long len;
