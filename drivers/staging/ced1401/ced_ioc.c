@@ -37,7 +37,7 @@
 **
 ** Empties the Output buffer and sets int lines. Used from user level only
 ****************************************************************************/
-void FlushOutBuff(DEVICE_EXTENSION *pdx)
+static void FlushOutBuff(DEVICE_EXTENSION *pdx)
 {
 	dev_dbg(&pdx->interface->dev, "%s currentState=%d", __func__,
 		pdx->sCurrentState);
@@ -58,7 +58,7 @@ void FlushOutBuff(DEVICE_EXTENSION *pdx)
 **
 ** Empties the input buffer and sets int lines
 ****************************************************************************/
-void FlushInBuff(DEVICE_EXTENSION *pdx)
+static void FlushInBuff(DEVICE_EXTENSION *pdx)
 {
 	dev_dbg(&pdx->interface->dev, "%s currentState=%d", __func__,
 		pdx->sCurrentState);
