@@ -53,6 +53,20 @@ config CROSS_COMPILE
 	  need to set this unless you want the configured kernel build
 	  directory to select the cross-compiler automatically.
 
+config COMPILE_TEST
+	bool "Compile also drivers which will not load"
+	default n
+	help
+	  Some drivers can be compiled on a different platform than they are
+	  intended to be run on. Despite they cannot be loaded there (or even
+	  when they load they cannot be used due to missing HW support),
+	  developers still, opposing to distributors, might want to build such
+	  drivers to compile-test them.
+
+	  If you are a developer and want to build everything available, say Y
+	  here. If you are a user/distributor, say N here to exclude useless
+	  drivers to be distributed.
+
 config LOCALVERSION
 	string "Local version - append to kernel release"
 	help
