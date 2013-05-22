@@ -765,7 +765,9 @@ static void kvp_process_ipconfig_file(char *cmd,
 			break;
 
 		x = strchr(p, '\n');
-		*x = '\0';
+		if (x)
+			*x = '\0';
+
 		strcat(config_buf, p);
 		strcat(config_buf, ";");
 	}
