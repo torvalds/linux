@@ -27,6 +27,12 @@
 	s365 {
 		compatible = "stericsson,s365";
 		vana15-supply = <&ab3100_ldo_d_reg>;
+		syscon = <&syscon>;
+	};
+
+	syscon: syscon@c0011000 {
+		compatible = "stericsson,u300-syscon";
+		reg = <0xc0011000 0x1000>;
 	};
 
 	timer: timer@c0014000 {

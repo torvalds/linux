@@ -14,6 +14,7 @@
 #include <linux/platform_data/clk-u300.h>
 #include <linux/platform_data/pinctrl-coh901.h>
 #include <linux/irqchip.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/clocksource.h>
 #include <linux/clk.h>
@@ -47,6 +48,8 @@
 #define U300_SYSCON_BCR_APP_CPU_SUBSYS_VINITHI_IND		(0x0200)
 #define U300_SYSCON_BCR_EXTRA_BOOT_OPTION_MASK			(0x01FC)
 #define U300_SYSCON_BCR_APP_BOOT_SERV_MASK			(0x0003)
+
+static void __iomem *syscon_base;
 
 /*
  * Static I/O mappings that are needed for booting the U300 platforms. The
@@ -171,7 +174,7 @@ static void __init u300_init_check_chip(void)
 	const char unknown[] = "UNKNOWN";
 
 	/* Read out and print chip ID */
-	val = readw(U300_SYSCON_VBASE + U300_SYSCON_CIDR);
+	val = readw(syscon_base + U300_SYSCON_CIDR);
 	/* This is in funky bigendian order... */
 	val = (val & 0xFFU) << 8 | (val >> 8);
 	chip = db_chips;
@@ -244,10 +247,21 @@ static struct of_dev_auxdata u300_auxdata_lookup[] __initdata = {
 
 static void __init u300_init_irq_dt(void)
 {
+	struct device_node *syscon;
 	struct clk *clk;
 
+	syscon = of_find_node_by_path("/syscon@c0011000");
+	if (!syscon) {
+		pr_crit("could not find syscon node\n");
+		return;
+	}
+	syscon_base = of_iomap(syscon, 0);
+	if (!syscon_base) {
+		pr_crit("could not remap syscon\n");
+		return;
+	}
 	/* initialize clocking early, we want to clock the INTCON */
-	u300_clk_init(U300_SYSCON_VBASE);
+	u300_clk_init(syscon_base);
 
 	/* Bootstrap EMIF and SEMI clocks */
 	clk = clk_get_sys("pl172", NULL);
@@ -280,9 +294,9 @@ static void __init u300_init_machine_dt(void)
 			u300_auxdata_lookup, NULL);
 
 	/* Enable SEMI self refresh */
-	val = readw(U300_SYSCON_VBASE + U300_SYSCON_SMCR) |
+	val = readw(syscon_base + U300_SYSCON_SMCR) |
 		U300_SYSCON_SMCR_SEMI_SREFREQ_ENABLE;
-	writew(val, U300_SYSCON_VBASE + U300_SYSCON_SMCR);
+	writew(val, syscon_base + U300_SYSCON_SMCR);
 }
 
 static const char * u300_board_compat[] = {

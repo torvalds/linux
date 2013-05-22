@@ -16,8 +16,8 @@
 #include <linux/regulator/machine.h>
 #include <linux/regulator/consumer.h>
 /* Those are just for writing in syscon */
+#include <linux/of_address.h>
 #include <linux/io.h>
-#include "u300-regs.h"
 
 /* Power Management Control 16bit (R/W) */
 #define U300_SYSCON_PMCR					(0x50)
@@ -57,10 +57,25 @@ void u300_pm_poweroff(void)
  */
 static int __init __u300_init_boardpower(struct platform_device *pdev)
 {
+	struct device_node *np = pdev->dev.of_node;
+	struct device_node *syscon_np;
+	static void __iomem *syscon_base;
 	int err;
 	u32 val;
 
 	pr_info("U300: setting up board power\n");
+
+	syscon_np = of_parse_phandle(np, "syscon", 0);
+	if (!syscon_np) {
+		pr_crit("U300: no syscon node\n");
+		return -ENODEV;
+	}
+	syscon_base = of_iomap(syscon_np, 0);
+	if (!syscon_base) {
+		pr_crit("U300: could not remap syscon\n");
+		return -ENODEV;
+	}
+
 	main_power_15 = regulator_get(&pdev->dev, "vana15");
 
 	if (IS_ERR(main_power_15)) {
@@ -81,9 +96,9 @@ static int __init __u300_init_boardpower(struct platform_device *pdev)
 	 * the rest of the U300 power management is implemented.
 	 */
 	pr_info("U300: disable system controller pull-up\n");
-	val = readw(U300_SYSCON_VBASE + U300_SYSCON_PMCR);
+	val = readw(syscon_base + U300_SYSCON_PMCR);
 	val &= ~U300_SYSCON_PMCR_DCON_ENABLE;
-	writew(val, U300_SYSCON_VBASE + U300_SYSCON_PMCR);
+	writew(val, syscon_base + U300_SYSCON_PMCR);
 
 	/* Register globally exported PM poweroff hook */
 	pm_power_off = u300_pm_poweroff;
