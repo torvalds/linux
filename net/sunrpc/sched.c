@@ -790,7 +790,6 @@ static void __rpc_execute(struct rpc_task *task)
 			task->tk_flags |= RPC_TASK_KILLED;
 			rpc_exit(task, -ERESTARTSYS);
 		}
-		rpc_set_running(task);
 		dprintk("RPC: %5u sync task resuming\n", task->tk_pid);
 	}
 
