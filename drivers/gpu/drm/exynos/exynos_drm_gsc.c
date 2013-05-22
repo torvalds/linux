@@ -1704,7 +1704,7 @@ static int gsc_probe(struct platform_device *pdev)
 	}
 
 	ctx->irq = res->start;
-	ret = request_threaded_irq(ctx->irq, NULL, gsc_irq_handler,
+	ret = devm_request_threaded_irq(dev, ctx->irq, NULL, gsc_irq_handler,
 		IRQF_ONESHOT, "drm_gsc", ctx);
 	if (ret < 0) {
 		dev_err(dev, "failed to request irq.\n");
@@ -1725,7 +1725,7 @@ static int gsc_probe(struct platform_device *pdev)
 	ret = gsc_init_prop_list(ippdrv);
 	if (ret < 0) {
 		dev_err(dev, "failed to init property list.\n");
-		goto err_get_irq;
+		return ret;
 	}
 
 	DRM_DEBUG_KMS("%s:id[%d]ippdrv[0x%x]\n", __func__, ctx->id,
@@ -1749,8 +1749,6 @@ static int gsc_probe(struct platform_device *pdev)
 
 err_ippdrv_register:
 	pm_runtime_disable(dev);
-err_get_irq:
-	free_irq(ctx->irq, ctx);
 	return ret;
 }
 
@@ -1765,8 +1763,6 @@ static int gsc_remove(struct platform_device *pdev)
 
 	pm_runtime_set_suspended(dev);
 	pm_runtime_disable(dev);
-
-	free_irq(ctx->irq, ctx);
 
 	return 0;
 }

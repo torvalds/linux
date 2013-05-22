@@ -2046,7 +2046,7 @@ static int hdmi_probe(struct platform_device *pdev)
 
 	hdata->hpd = gpio_get_value(hdata->hpd_gpio);
 
-	ret = request_threaded_irq(hdata->irq, NULL,
+	ret = devm_request_threaded_irq(dev, hdata->irq, NULL,
 			hdmi_irq_thread, IRQF_TRIGGER_RISING |
 			IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
 			"hdmi", drm_hdmi_ctx);
@@ -2075,15 +2075,10 @@ err_ddc:
 static int hdmi_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct exynos_drm_hdmi_context *ctx = platform_get_drvdata(pdev);
-	struct hdmi_context *hdata = ctx->ctx;
 
 	DRM_DEBUG_KMS("[%d] %s\n", __LINE__, __func__);
 
 	pm_runtime_disable(dev);
-
-	free_irq(hdata->irq, ctx);
-
 
 	/* hdmiphy i2c driver */
 	i2c_del_driver(&hdmiphy_driver);
