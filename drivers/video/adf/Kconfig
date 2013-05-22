@@ -1,0 +1,4 @@
+menuconfig ADF
+	depends on SYNC
+	depends on DMA_SHARED_BUFFER
+	tristate "Atomic Display Framework"
