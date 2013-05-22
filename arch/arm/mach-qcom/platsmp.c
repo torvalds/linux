@@ -26,6 +26,16 @@
 #define SCSS_CPU1CORE_RESET		0x2d80
 #define SCSS_DBG_STATUS_CORE_PWRDUP	0x2e64
 
+#define APCS_CPU_PWR_CTL	0x04
+#define PLL_CLAMP		BIT(8)
+#define CORE_PWRD_UP		BIT(7)
+#define COREPOR_RST		BIT(5)
+#define CORE_RST		BIT(4)
+#define L2DT_SLP		BIT(3)
+#define CLAMP			BIT(0)
+
+#define APCS_SAW2_VCTL		0x14
+
 extern void secondary_startup(void);
 
 static DEFINE_SPINLOCK(boot_lock);
@@ -71,6 +81,85 @@ static int scss_release_secondary(unsigned int cpu)
 	return 0;
 }
 
+static int kpssv1_release_secondary(unsigned int cpu)
+{
+	int ret = 0;
+	void __iomem *reg, *saw_reg;
+	struct device_node *cpu_node, *acc_node, *saw_node;
+	u32 val;
+
+	cpu_node = of_get_cpu_node(cpu, NULL);
+	if (!cpu_node)
+		return -ENODEV;
+
+	acc_node = of_parse_phandle(cpu_node, "qcom,acc", 0);
+	if (!acc_node) {
+		ret = -ENODEV;
+		goto out_acc;
+	}
+
+	saw_node = of_parse_phandle(cpu_node, "qcom,saw", 0);
+	if (!saw_node) {
+		ret = -ENODEV;
+		goto out_saw;
+	}
+
+	reg = of_iomap(acc_node, 0);
+	if (!reg) {
+		ret = -ENOMEM;
+		goto out_acc_map;
+	}
+
+	saw_reg = of_iomap(saw_node, 0);
+	if (!saw_reg) {
+		ret = -ENOMEM;
+		goto out_saw_map;
+	}
+
+	/* Turn on CPU rail */
+	writel_relaxed(0xA4, saw_reg + APCS_SAW2_VCTL);
+	mb();
+	udelay(512);
+
+	/* Krait bring-up sequence */
+	val = PLL_CLAMP | L2DT_SLP | CLAMP;
+	writel_relaxed(val, reg + APCS_CPU_PWR_CTL);
+	val &= ~L2DT_SLP;
+	writel_relaxed(val, reg + APCS_CPU_PWR_CTL);
+	mb();
+	ndelay(300);
+
+	val |= COREPOR_RST;
+	writel_relaxed(val, reg + APCS_CPU_PWR_CTL);
+	mb();
+	udelay(2);
+
+	val &= ~CLAMP;
+	writel_relaxed(val, reg + APCS_CPU_PWR_CTL);
+	mb();
+	udelay(2);
+
+	val &= ~COREPOR_RST;
+	writel_relaxed(val, reg + APCS_CPU_PWR_CTL);
+	mb();
+	udelay(100);
+
+	val |= CORE_PWRD_UP;
+	writel_relaxed(val, reg + APCS_CPU_PWR_CTL);
+	mb();
+
+	iounmap(saw_reg);
+out_saw_map:
+	iounmap(reg);
+out_acc_map:
+	of_node_put(saw_node);
+out_saw:
+	of_node_put(acc_node);
+out_acc:
+	of_node_put(cpu_node);
+	return ret;
+}
+
 static DEFINE_PER_CPU(int, cold_boot_done);
 
 static int qcom_boot_secondary(unsigned int cpu, int (*func)(unsigned int))
@@ -110,6 +199,11 @@ static int msm8660_boot_secondary(unsigned int cpu, struct task_struct *idle)
 	return qcom_boot_secondary(cpu, scss_release_secondary);
 }
 
+static int kpssv1_boot_secondary(unsigned int cpu, struct task_struct *idle)
+{
+	return qcom_boot_secondary(cpu, kpssv1_release_secondary);
+}
+
 static void __init qcom_smp_prepare_cpus(unsigned int max_cpus)
 {
 	int cpu, map;
@@ -117,6 +211,8 @@ static void __init qcom_smp_prepare_cpus(unsigned int max_cpus)
 	static const int cold_boot_flags[] = {
 		0,
 		SCM_FLAG_COLDBOOT_CPU1,
+		SCM_FLAG_COLDBOOT_CPU2,
+		SCM_FLAG_COLDBOOT_CPU3,
 	};
 
 	for_each_present_cpu(cpu) {
@@ -147,3 +243,13 @@ static struct smp_operations smp_msm8660_ops __initdata = {
 #endif
 };
 CPU_METHOD_OF_DECLARE(qcom_smp, "qcom,gcc-msm8660", &smp_msm8660_ops);
+
+static struct smp_operations qcom_smp_kpssv1_ops __initdata = {
+	.smp_prepare_cpus	= qcom_smp_prepare_cpus,
+	.smp_secondary_init	= qcom_secondary_init,
+	.smp_boot_secondary	= kpssv1_boot_secondary,
+#ifdef CONFIG_HOTPLUG_CPU
+	.cpu_die		= qcom_cpu_die,
+#endif
+};
+CPU_METHOD_OF_DECLARE(qcom_smp_kpssv1, "qcom,kpss-acc-v1", &qcom_smp_kpssv1_ops);
