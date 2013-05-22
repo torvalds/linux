@@ -1457,7 +1457,13 @@ int main(void)
 		exit(EXIT_FAILURE);
 	}
 	nl_group = CN_KVP_IDX;
-	setsockopt(fd, SOL_NETLINK, NETLINK_ADD_MEMBERSHIP, &nl_group, sizeof(nl_group));
+
+	if (setsockopt(fd, SOL_NETLINK, NETLINK_ADD_MEMBERSHIP, &nl_group, sizeof(nl_group)) < 0) {
+		syslog(LOG_ERR, "setsockopt failed; error: %d %s", errno, strerror(errno));
+		close(fd);
+		exit(EXIT_FAILURE);
+	}
+
 	/*
 	 * Register ourselves with the kernel.
 	 */
