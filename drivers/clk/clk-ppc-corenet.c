@@ -260,7 +260,7 @@ static int __init ppc_corenet_clk_probe(struct platform_device *pdev)
 
 static const struct of_device_id ppc_clk_ids[] __initconst = {
 	{ .compatible = "fsl,qoriq-clockgen-1.0", },
-	{ .compatible = "fsl,qoriq-clockgen-2", },
+	{ .compatible = "fsl,qoriq-clockgen-2.0", },
 	{}
 };
 
