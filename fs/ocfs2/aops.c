@@ -608,7 +608,8 @@ static void ocfs2_invalidatepage(struct page *page, unsigned int offset,
 {
 	journal_t *journal = OCFS2_SB(page->mapping->host->i_sb)->journal->j_journal;
 
-	jbd2_journal_invalidatepage(journal, page, offset);
+	jbd2_journal_invalidatepage(journal, page, offset,
+				    PAGE_CACHE_SIZE - offset);
 }
 
 static int ocfs2_releasepage(struct page *page, gfp_t wait)

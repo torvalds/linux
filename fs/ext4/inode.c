@@ -3015,7 +3015,8 @@ static int __ext4_journalled_invalidatepage(struct page *page,
 	if (offset == 0)
 		ClearPageChecked(page);
 
-	return jbd2_journal_invalidatepage(journal, page, offset);
+	return jbd2_journal_invalidatepage(journal, page, offset,
+					   PAGE_CACHE_SIZE - offset);
 }
 
 /* Wrapper for aops... */
