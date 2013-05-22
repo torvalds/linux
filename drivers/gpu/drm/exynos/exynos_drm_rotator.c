@@ -709,7 +709,6 @@ static int rotator_probe(struct platform_device *pdev)
 	return 0;
 
 err_ippdrv_register:
-	devm_kfree(dev, ippdrv->prop_list);
 	pm_runtime_disable(dev);
 err_clk_get:
 	free_irq(rot->irq, rot);
@@ -722,7 +721,6 @@ static int rotator_remove(struct platform_device *pdev)
 	struct rot_context *rot = dev_get_drvdata(dev);
 	struct exynos_drm_ippdrv *ippdrv = &rot->ippdrv;
 
-	devm_kfree(dev, ippdrv->prop_list);
 	exynos_drm_ippdrv_unregister(ippdrv);
 
 	pm_runtime_disable(dev);
