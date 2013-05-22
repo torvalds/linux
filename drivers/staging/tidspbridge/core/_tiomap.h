@@ -311,7 +311,7 @@ static const struct bpwr_clk_t bpwr_clks[] = {
 
 #define SET_GROUP_BITS16(reg, position, width, value) \
 	do {\
-		reg &= ~((0xFFFF >> (16 - (width))) << (position)) ; \
+		reg &= ~((0xFFFF >> (16 - (width))) << (position)); \
 		reg |= ((value & (0xFFFF >> (16 - (width)))) << (position)); \
 	} while (0);
 
