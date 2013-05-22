@@ -269,7 +269,7 @@ static match_table_t nfs_local_lock_tokens = {
 
 enum {
 	Opt_vers_2, Opt_vers_3, Opt_vers_4, Opt_vers_4_0,
-	Opt_vers_4_1,
+	Opt_vers_4_1, Opt_vers_4_2,
 
 	Opt_vers_err
 };
@@ -280,6 +280,7 @@ static match_table_t nfs_vers_tokens = {
 	{ Opt_vers_4, "4" },
 	{ Opt_vers_4_0, "4.0" },
 	{ Opt_vers_4_1, "4.1" },
+	{ Opt_vers_4_2, "4.2" },
 
 	{ Opt_vers_err, NULL }
 };
@@ -1096,6 +1097,10 @@ static int nfs_parse_version_string(char *string,
 	case Opt_vers_4_1:
 		mnt->version = 4;
 		mnt->minorversion = 1;
+		break;
+	case Opt_vers_4_2:
+		mnt->version = 4;
+		mnt->minorversion = 2;
 		break;
 	default:
 		return 0;
