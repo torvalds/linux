@@ -23,17 +23,6 @@ config CAVIUM_OCTEON_2ND_KERNEL
 	  with this option to be run at the same time as one built without this
 	  option.
 
-config CAVIUM_OCTEON_HW_FIX_UNALIGNED
-	bool "Enable hardware fixups of unaligned loads and stores"
-	default "y"
-	help
-	  Configure the Octeon hardware to automatically fix unaligned loads
-	  and stores. Normally unaligned accesses are fixed using a kernel
-	  exception handler. This option enables the hardware automatic fixups,
-	  which requires only an extra 3 cycles. Disable this option if you
-	  are running code that relies on address exceptions on unaligned
-	  accesses.
-
 config CAVIUM_OCTEON_CVMSEG_SIZE
 	int "Number of L1 cache lines reserved for CVMSEG memory"
 	range 0 54
