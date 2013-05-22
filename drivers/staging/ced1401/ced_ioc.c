@@ -599,7 +599,7 @@ int ClearArea(DEVICE_EXTENSION *pdx, int nArea)
 		else {
 			/*  We must save the memory we return as we shouldn't mess with memory while */
 			/*  holding a spin lock. */
-			struct page **pPages = 0;	/*  save page address list */
+			struct page **pPages = NULL; /*save page address list*/
 			int nPages = 0;	/*  and number of pages */
 			int np;
 
@@ -671,7 +671,7 @@ static int SetArea(DEVICE_EXTENSION *pdx, int nArea, char __user *puBuf,
 	int len = (dwLength + ulOffset + PAGE_SIZE - 1) >> PAGE_SHIFT;
 
 	TRANSAREA *pTA = &pdx->rTransDef[nArea];	/*  to save typing */
-	struct page **pPages = 0;	/*  space for page tables */
+	struct page **pPages = NULL;	/*  space for page tables */
 	int nPages = 0;		/*  and number of pages */
 
 	int iReturn = ClearArea(pdx, nArea);	/*  see if OK to use this area */
@@ -693,8 +693,8 @@ static int SetArea(DEVICE_EXTENSION *pdx, int nArea, char __user *puBuf,
 
 	/*  To pin down user pages we must first acquire the mapping semaphore. */
 	down_read(&current->mm->mmap_sem);	/*  get memory map semaphore */
-	nPages =
-	    get_user_pages(current, current->mm, ulStart, len, 1, 0, pPages, 0);
+	nPages = get_user_pages(current, current->mm, ulStart, len, 1, 0,
+				pPages, NULL);
 	up_read(&current->mm->mmap_sem);	/*  release the semaphore */
 	dev_dbg(&pdx->interface->dev, "%s nPages = %d", __func__, nPages);
 
@@ -984,7 +984,9 @@ int StartSelfTest(DEVICE_EXTENSION *pdx)
 	/* ReadWrite_Cancel(pDeviceObject); */
 	pdx->dwDMAFlag = MODE_CHAR;	/* Clear DMA mode flags here */
 
-	nGot = usb_control_msg(pdx->udev, usb_rcvctrlpipe(pdx->udev, 0), DB_SELFTEST, (H_TO_D | VENDOR | DEVREQ), 0, 0, 0, 0, HZ);	/*  allow 1 second timeout */
+	nGot = usb_control_msg(pdx->udev, usb_rcvctrlpipe(pdx->udev, 0),
+			       DB_SELFTEST, (H_TO_D | VENDOR | DEVREQ),
+			       0, 0, NULL, 0, HZ); /* allow 1 second timeout */
 	pdx->ulSelfTestTime = jiffies + HZ * 30;	/*  30 seconds into the future */
 
 	mutex_unlock(&pdx->io_mutex);
@@ -1128,7 +1130,11 @@ static int DbgCmd1401(DEVICE_EXTENSION *pdx, unsigned char cmd,
 {
 	int iReturn;
 	dev_dbg(&pdx->interface->dev, "%s entry", __func__);
-	iReturn = usb_control_msg(pdx->udev, usb_sndctrlpipe(pdx->udev, 0), cmd, (H_TO_D | VENDOR | DEVREQ), (unsigned short)data, (unsigned short)(data >> 16), 0, 0, HZ);	/*  allow 1 second timeout */
+	iReturn = usb_control_msg(pdx->udev, usb_sndctrlpipe(pdx->udev, 0), cmd,
+				  (H_TO_D | VENDOR | DEVREQ),
+				  (unsigned short)data,
+				  (unsigned short)(data >> 16), NULL, 0, HZ);
+						/* allow 1 second timeout */
 	if (iReturn < 0)
 		dev_err(&pdx->interface->dev, "%s fail code=%d", __func__,
 			iReturn);
