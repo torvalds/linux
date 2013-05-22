@@ -1738,11 +1738,11 @@ static int dapm_power_widgets(struct snd_soc_dapm_context *dapm, int event)
 					&async_domain);
 	async_synchronize_full_domain(&async_domain);
 
-	list_for_each_entry(w, &down_list, list) {
+	list_for_each_entry(w, &down_list, power_list) {
 		dapm_seq_check_event(dapm, w, SND_SOC_DAPM_WILL_PMD);
 	}
 
-	list_for_each_entry(w, &up_list, list) {
+	list_for_each_entry(w, &up_list, power_list) {
 		dapm_seq_check_event(dapm, w, SND_SOC_DAPM_WILL_PMU);
 	}
 
