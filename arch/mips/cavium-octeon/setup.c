@@ -40,12 +40,6 @@
 #include <asm/octeon/pci-octeon.h>
 #include <asm/octeon/cvmx-mio-defs.h>
 
-#ifdef CONFIG_CAVIUM_DECODE_RSL
-extern void cvmx_interrupt_rsl_decode(void);
-extern int __cvmx_interrupt_ecc_report_single_bit_errors;
-extern void cvmx_interrupt_rsl_enable(void);
-#endif
-
 extern struct plat_smp_ops octeon_smp_ops;
 
 #ifdef CONFIG_PCI
@@ -461,18 +455,6 @@ static void octeon_halt(void)
 
 	octeon_kill_core(NULL);
 }
-
-/**
- * Handle all the error condition interrupts that might occur.
- *
- */
-#ifdef CONFIG_CAVIUM_DECODE_RSL
-static irqreturn_t octeon_rlm_interrupt(int cpl, void *dev_id)
-{
-	cvmx_interrupt_rsl_decode();
-	return IRQ_HANDLED;
-}
-#endif
 
 /**
  * Return a string representing the system type
@@ -1064,15 +1046,6 @@ void prom_free_prom_memory(void)
 			panic("Core-14449 WAR not in place (%04x).\n"
 			      "Please build kernel with proper options (CONFIG_CAVIUM_CN63XXP1).", insn);
 	}
-#ifdef CONFIG_CAVIUM_DECODE_RSL
-	cvmx_interrupt_rsl_enable();
-
-	/* Add an interrupt handler for general failures. */
-	if (request_irq(OCTEON_IRQ_RML, octeon_rlm_interrupt, IRQF_SHARED,
-			"RML/RSL", octeon_rlm_interrupt)) {
-		panic("Unable to request_irq(OCTEON_IRQ_RML)");
-	}
-#endif
 }
 
 int octeon_prune_device_tree(void);
