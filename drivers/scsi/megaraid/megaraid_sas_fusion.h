@@ -463,6 +463,7 @@ struct MPI2_IOC_INIT_REQUEST {
 /* mrpriv defines */
 #define MR_PD_INVALID 0xFFFF
 #define MAX_SPAN_DEPTH 8
+#define MAX_QUAD_DEPTH	MAX_SPAN_DEPTH
 #define MAX_RAIDMAP_SPAN_DEPTH (MAX_SPAN_DEPTH)
 #define MAX_ROW_SIZE 32
 #define MAX_RAIDMAP_ROW_SIZE (MAX_ROW_SIZE)
@@ -504,7 +505,9 @@ struct MR_LD_SPAN {
 	u64      startBlk;
 	u64      numBlks;
 	u16      arrayRef;
-	u8       reserved[6];
+	u8       spanRowSize;
+	u8       spanRowDataSize;
+	u8       reserved[4];
 };
 
 struct MR_SPAN_BLOCK_INFO {
@@ -590,6 +593,10 @@ struct IO_REQUEST_INFO {
 	u16 devHandle;
 	u64 pdBlock;
 	u8 fpOkForIo;
+	u8 IoforUnevenSpan;
+	u8 start_span;
+	u8 reserved;
+	u64 start_row;
 };
 
 struct MR_LD_TARGET_SYNC {
@@ -651,6 +658,26 @@ struct LD_LOAD_BALANCE_INFO {
 	u64     last_accessed_block[2];
 };
 
+/* SPAN_SET is info caclulated from span info from Raid map per LD */
+typedef struct _LD_SPAN_SET {
+	u64  log_start_lba;
+	u64  log_end_lba;
+	u64  span_row_start;
+	u64  span_row_end;
+	u64  data_strip_start;
+	u64  data_strip_end;
+	u64  data_row_start;
+	u64  data_row_end;
+	u8   strip_offset[MAX_SPAN_DEPTH];
+	u32    span_row_data_width;
+	u32    diff;
+	u32    reserved[2];
+} LD_SPAN_SET, *PLD_SPAN_SET;
+
+typedef struct LOG_BLOCK_SPAN_INFO {
+	LD_SPAN_SET  span_set[MAX_SPAN_DEPTH];
+} LD_SPAN_INFO, *PLD_SPAN_INFO;
+
 struct MR_FW_RAID_MAP_ALL {
 	struct MR_FW_RAID_MAP raidMap;
 	struct MR_LD_SPAN_MAP ldSpanMap[MAX_LOGICAL_DRIVES - 1];
@@ -695,6 +722,7 @@ struct fusion_context {
 	u32 map_sz;
 	u8 fast_path_io;
 	struct LD_LOAD_BALANCE_INFO load_balance_info[MAX_LOGICAL_DRIVES];
+	LD_SPAN_INFO log_to_span[MAX_LOGICAL_DRIVES];
 };
 
 union desc_value {

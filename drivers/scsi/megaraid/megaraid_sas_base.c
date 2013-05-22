@@ -171,8 +171,6 @@ megasas_sync_map_info(struct megasas_instance *instance);
 int
 wait_and_poll(struct megasas_instance *instance, struct megasas_cmd *cmd);
 void megasas_reset_reply_desc(struct megasas_instance *instance);
-u8 MR_ValidateMapInfo(struct MR_FW_RAID_MAP_ALL *map,
-		      struct LD_LOAD_BALANCE_INFO *lbInfo);
 int megasas_reset_fusion(struct Scsi_Host *shost);
 void megasas_fusion_ocr_wq(struct work_struct *work);
 
@@ -2295,6 +2293,7 @@ megasas_complete_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd,
 		/* Check for LD map update */
 		if ((cmd->frame->dcmd.opcode == MR_DCMD_LD_MAP_GET_INFO) &&
 		    (cmd->frame->dcmd.mbox.b[1] == 1)) {
+			fusion->fast_path_io = 0;
 			spin_lock_irqsave(instance->host->host_lock, flags);
 			if (cmd->frame->hdr.cmd_status != 0) {
 				if (cmd->frame->hdr.cmd_status !=
@@ -2312,9 +2311,13 @@ megasas_complete_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd,
 			} else
 				instance->map_id++;
 			megasas_return_cmd(instance, cmd);
-			if (MR_ValidateMapInfo(
-				    fusion->ld_map[(instance->map_id & 1)],
-				    fusion->load_balance_info))
+
+			/*
+			 * Set fast path IO to ZERO.
+			 * Validate Map will set proper value.
+			 * Meanwhile all IOs will go as LD IO.
+			 */
+			if (MR_ValidateMapInfo(instance))
 				fusion->fast_path_io = 1;
 			else
 				fusion->fast_path_io = 0;
@@ -3661,6 +3664,18 @@ static int megasas_init_fw(struct megasas_instance *instance)
 		tmp_sectors = min_t(u32, max_sectors_1 , max_sectors_2);
 		instance->disableOnlineCtrlReset =
 		ctrl_info->properties.OnOffProperties.disableOnlineCtrlReset;
+		instance->UnevenSpanSupport =
+			ctrl_info->adapterOperations2.supportUnevenSpans;
+		if (instance->UnevenSpanSupport) {
+			struct fusion_context *fusion = instance->ctrl_context;
+			dev_info(&instance->pdev->dev, "FW supports: "
+			"UnevenSpanSupport=%x\n", instance->UnevenSpanSupport);
+			if (MR_ValidateMapInfo(instance))
+				fusion->fast_path_io = 1;
+			else
+				fusion->fast_path_io = 0;
+
+		}
 	}
 
 	instance->max_sectors_per_req = instance->max_num_sge *
@@ -4202,6 +4217,7 @@ static int megasas_probe_one(struct pci_dev *pdev,
 	instance->unload = 1;
 	instance->last_time = 0;
 	instance->disableOnlineCtrlReset = 1;
+	instance->UnevenSpanSupport = 0;
 
 	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_FUSION) ||
 	    (instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER) ||

@@ -190,6 +190,12 @@
 #define MR_DCMD_PD_LIST_QUERY                   0x02010100
 
 /*
+ * Global functions
+ */
+extern u8 MR_ValidateMapInfo(struct megasas_instance *instance);
+
+
+/*
  * MFI command completion codes
  */
 enum MFI_STAT {
@@ -729,8 +735,126 @@ struct megasas_ctrl_info {
 	 */
 	char package_version[0x60];
 
-	u8 pad[0x800 - 0x6a0];
 
+	/*
+	* If adapterOperations.supportMoreThan8Phys is set,
+	* and deviceInterface.portCount is greater than 8,
+	* SAS Addrs for first 8 ports shall be populated in
+	* deviceInterface.portAddr, and the rest shall be
+	* populated in deviceInterfacePortAddr2.
+	*/
+	u64         deviceInterfacePortAddr2[8]; /*6a0h */
+	u8          reserved3[128];              /*6e0h */
+
+	struct {                                /*760h */
+		u16 minPdRaidLevel_0:4;
+		u16 maxPdRaidLevel_0:12;
+
+		u16 minPdRaidLevel_1:4;
+		u16 maxPdRaidLevel_1:12;
+
+		u16 minPdRaidLevel_5:4;
+		u16 maxPdRaidLevel_5:12;
+
+		u16 minPdRaidLevel_1E:4;
+		u16 maxPdRaidLevel_1E:12;
+
+		u16 minPdRaidLevel_6:4;
+		u16 maxPdRaidLevel_6:12;
+
+		u16 minPdRaidLevel_10:4;
+		u16 maxPdRaidLevel_10:12;
+
+		u16 minPdRaidLevel_50:4;
+		u16 maxPdRaidLevel_50:12;
+
+		u16 minPdRaidLevel_60:4;
+		u16 maxPdRaidLevel_60:12;
+
+		u16 minPdRaidLevel_1E_RLQ0:4;
+		u16 maxPdRaidLevel_1E_RLQ0:12;
+
+		u16 minPdRaidLevel_1E0_RLQ0:4;
+		u16 maxPdRaidLevel_1E0_RLQ0:12;
+
+		u16 reserved[6];
+	} pdsForRaidLevels;
+
+	u16 maxPds;                             /*780h */
+	u16 maxDedHSPs;                         /*782h */
+	u16 maxGlobalHSPs;                      /*784h */
+	u16 ddfSize;                            /*786h */
+	u8  maxLdsPerArray;                     /*788h */
+	u8  partitionsInDDF;                    /*789h */
+	u8  lockKeyBinding;                     /*78ah */
+	u8  maxPITsPerLd;                       /*78bh */
+	u8  maxViewsPerLd;                      /*78ch */
+	u8  maxTargetId;                        /*78dh */
+	u16 maxBvlVdSize;                       /*78eh */
+
+	u16 maxConfigurableSSCSize;             /*790h */
+	u16 currentSSCsize;                     /*792h */
+
+	char    expanderFwVersion[12];          /*794h */
+
+	u16 PFKTrialTimeRemaining;              /*7A0h */
+
+	u16 cacheMemorySize;                    /*7A2h */
+
+	struct {                                /*7A4h */
+		u32     supportPIcontroller:1;
+		u32     supportLdPIType1:1;
+		u32     supportLdPIType2:1;
+		u32     supportLdPIType3:1;
+		u32     supportLdBBMInfo:1;
+		u32     supportShieldState:1;
+		u32     blockSSDWriteCacheChange:1;
+		u32     supportSuspendResumeBGops:1;
+		u32     supportEmergencySpares:1;
+		u32     supportSetLinkSpeed:1;
+		u32     supportBootTimePFKChange:1;
+		u32     supportJBOD:1;
+		u32     disableOnlinePFKChange:1;
+		u32     supportPerfTuning:1;
+		u32     supportSSDPatrolRead:1;
+		u32     realTimeScheduler:1;
+
+		u32     supportResetNow:1;
+		u32     supportEmulatedDrives:1;
+		u32     headlessMode:1;
+		u32     dedicatedHotSparesLimited:1;
+
+
+		u32     supportUnevenSpans:1;
+		u32     reserved:11;
+	} adapterOperations2;
+
+	u8  driverVersion[32];                  /*7A8h */
+	u8  maxDAPdCountSpinup60;               /*7C8h */
+	u8  temperatureROC;                     /*7C9h */
+	u8  temperatureCtrl;                    /*7CAh */
+	u8  reserved4;                          /*7CBh */
+	u16 maxConfigurablePds;                 /*7CCh */
+
+
+	u8  reserved5[2];                       /*0x7CDh */
+
+	/*
+	* HA cluster information
+	*/
+	struct {
+		u32     peerIsPresent:1;
+		u32     peerIsIncompatible:1;
+		u32     hwIncompatible:1;
+		u32     fwVersionMismatch:1;
+		u32     ctrlPropIncompatible:1;
+		u32     premiumFeatureMismatch:1;
+		u32     reserved:26;
+	} cluster;
+
+	char clusterId[16];                     /*7D4h */
+
+	u8          pad[0x800-0x7E4];           /*7E4 */
 } __packed;
 
 /*
@@ -1389,6 +1513,7 @@ struct megasas_instance {
 	u8 flag_ieee;
 	u8 issuepend_done;
 	u8 disableOnlineCtrlReset;
+	u8 UnevenSpanSupport;
 	u8 adprecovery;
 	unsigned long last_time;
 	u32 mfiStatus;

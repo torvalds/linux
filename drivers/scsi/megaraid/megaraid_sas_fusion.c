@@ -86,8 +86,6 @@ u16 MR_GetLDTgtId(u32 ld, struct MR_FW_RAID_MAP_ALL *map);
 void
 megasas_check_and_restore_queue_depth(struct megasas_instance *instance);
 
-u8 MR_ValidateMapInfo(struct MR_FW_RAID_MAP_ALL *map,
-		      struct LD_LOAD_BALANCE_INFO *lbInfo);
 u16 get_updated_dev_handle(struct LD_LOAD_BALANCE_INFO *lbInfo,
 			   struct IO_REQUEST_INFO *in_info);
 int megasas_transition_to_ready(struct megasas_instance *instance, int ocr);
@@ -782,8 +780,7 @@ megasas_get_map_info(struct megasas_instance *instance)
 
 	fusion->fast_path_io = 0;
 	if (!megasas_get_ld_map_info(instance)) {
-		if (MR_ValidateMapInfo(fusion->ld_map[(instance->map_id & 1)],
-				       fusion->load_balance_info)) {
+		if (MR_ValidateMapInfo(instance)) {
 			fusion->fast_path_io = 1;
 			return 0;
 		}
