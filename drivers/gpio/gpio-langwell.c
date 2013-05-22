@@ -380,6 +380,8 @@ static int lnw_gpio_probe(struct pci_dev *pdev,
 	lnw->chip.can_sleep = 0;
 	lnw->pdev = pdev;
 
+	spin_lock_init(&lnw->lock);
+
 	lnw->domain = irq_domain_add_simple(pdev->dev.of_node, ngpio, irq_base,
 					    &lnw_gpio_irq_ops, lnw);
 	if (!lnw->domain) {
@@ -398,8 +400,6 @@ static int lnw_gpio_probe(struct pci_dev *pdev,
 
 	irq_set_handler_data(pdev->irq, lnw);
 	irq_set_chained_handler(pdev->irq, lnw_irq_handler);
-
-	spin_lock_init(&lnw->lock);
 
 	pm_runtime_put_noidle(&pdev->dev);
 	pm_runtime_allow(&pdev->dev);
