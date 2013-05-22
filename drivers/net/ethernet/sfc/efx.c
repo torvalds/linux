@@ -21,7 +21,6 @@
 #include <linux/ethtool.h>
 #include <linux/topology.h>
 #include <linux/gfp.h>
-#include <linux/cpu_rmap.h>
 #include <linux/aer.h>
 #include <linux/interrupt.h>
 #include "net_driver.h"
@@ -1284,29 +1283,6 @@ static unsigned int efx_wanted_parallelism(struct efx_nic *efx)
 	return count;
 }
 
-static int
-efx_init_rx_cpu_rmap(struct efx_nic *efx, struct msix_entry *xentries)
-{
-#ifdef CONFIG_RFS_ACCEL
-	unsigned int i;
-	int rc;
-
-	efx->net_dev->rx_cpu_rmap = alloc_irq_cpu_rmap(efx->n_rx_channels);
-	if (!efx->net_dev->rx_cpu_rmap)
-		return -ENOMEM;
-	for (i = 0; i < efx->n_rx_channels; i++) {
-		rc = irq_cpu_rmap_add(efx->net_dev->rx_cpu_rmap,
-				      xentries[i].vector);
-		if (rc) {
-			free_irq_cpu_rmap(efx->net_dev->rx_cpu_rmap);
-			efx->net_dev->rx_cpu_rmap = NULL;
-			return rc;
-		}
-	}
-#endif
-	return 0;
-}
-
 /* Probe the number and type of interrupts we are able to obtain, and
  * the resulting numbers of channels and RX queues.
  */
@@ -1359,11 +1335,6 @@ static int efx_probe_interrupts(struct efx_nic *efx)
 			} else {
 				efx->n_tx_channels = n_channels;
 				efx->n_rx_channels = n_channels;
-			}
-			rc = efx_init_rx_cpu_rmap(efx, xentries);
-			if (rc) {
-				pci_disable_msix(efx->pci_dev);
-				return rc;
 			}
 			for (i = 0; i < efx->n_channels; i++)
 				efx_get_channel(efx, i)->irq =
@@ -2608,10 +2579,6 @@ static void efx_pci_remove_main(struct efx_nic *efx)
 	BUG_ON(efx->state == STATE_READY);
 	cancel_work_sync(&efx->reset_work);
 
-#ifdef CONFIG_RFS_ACCEL
-	free_irq_cpu_rmap(efx->net_dev->rx_cpu_rmap);
-	efx->net_dev->rx_cpu_rmap = NULL;
-#endif
 	efx_stop_interrupts(efx, false);
 	efx_nic_fini_interrupt(efx);
 	efx_fini_port(efx);

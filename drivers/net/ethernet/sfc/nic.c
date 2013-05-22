@@ -14,6 +14,7 @@
 #include <linux/pci.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>
+#include <linux/cpu_rmap.h>
 #include "net_driver.h"
 #include "bitfield.h"
 #include "efx.h"
@@ -1706,6 +1707,7 @@ void efx_nic_push_rx_indir_table(struct efx_nic *efx)
 int efx_nic_init_interrupt(struct efx_nic *efx)
 {
 	struct efx_channel *channel;
+	unsigned int n_irqs;
 	int rc;
 
 	if (!EFX_INT_MODE_USE_MSI(efx)) {
@@ -1726,7 +1728,19 @@ int efx_nic_init_interrupt(struct efx_nic *efx)
 		return 0;
 	}
 
+#ifdef CONFIG_RFS_ACCEL
+	if (efx->interrupt_mode == EFX_INT_MODE_MSIX) {
+		efx->net_dev->rx_cpu_rmap =
+			alloc_irq_cpu_rmap(efx->n_rx_channels);
+		if (!efx->net_dev->rx_cpu_rmap) {
+			rc = -ENOMEM;
+			goto fail1;
+		}
+	}
+#endif
+
 	/* Hook MSI or MSI-X interrupt */
+	n_irqs = 0;
 	efx_for_each_channel(channel, efx) {
 		rc = request_irq(channel->irq, efx_msi_interrupt,
 				 IRQF_PROBE_SHARED, /* Not shared */
@@ -1737,13 +1751,31 @@ int efx_nic_init_interrupt(struct efx_nic *efx)
 				  "failed to hook IRQ %d\n", channel->irq);
 			goto fail2;
 		}
+		++n_irqs;
+
+#ifdef CONFIG_RFS_ACCEL
+		if (efx->interrupt_mode == EFX_INT_MODE_MSIX &&
+		    channel->channel < efx->n_rx_channels) {
+			rc = irq_cpu_rmap_add(efx->net_dev->rx_cpu_rmap,
+					      channel->irq);
+			if (rc)
+				goto fail2;
+		}
+#endif
 	}
 
 	return 0;
 
  fail2:
-	efx_for_each_channel(channel, efx)
+#ifdef CONFIG_RFS_ACCEL
+	free_irq_cpu_rmap(efx->net_dev->rx_cpu_rmap);
+	efx->net_dev->rx_cpu_rmap = NULL;
+#endif
+	efx_for_each_channel(channel, efx) {
+		if (n_irqs-- == 0)
+			break;
 		free_irq(channel->irq, &efx->channel[channel->channel]);
+	}
  fail1:
 	return rc;
 }
@@ -1753,11 +1785,14 @@ void efx_nic_fini_interrupt(struct efx_nic *efx)
 	struct efx_channel *channel;
 	efx_oword_t reg;
 
+#ifdef CONFIG_RFS_ACCEL
+	free_irq_cpu_rmap(efx->net_dev->rx_cpu_rmap);
+	efx->net_dev->rx_cpu_rmap = NULL;
+#endif
+
 	/* Disable MSI/MSI-X interrupts */
-	efx_for_each_channel(channel, efx) {
-		if (channel->irq)
-			free_irq(channel->irq, &efx->channel[channel->channel]);
-	}
+	efx_for_each_channel(channel, efx)
+		free_irq(channel->irq, &efx->channel[channel->channel]);
 
 	/* ACK legacy interrupt */
 	if (efx_nic_rev(efx) >= EFX_REV_FALCON_B0)
