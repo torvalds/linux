@@ -185,26 +185,6 @@ static ssize_t cable_state_show(struct device *dev,
 					       cable->cable_index));
 }
 
-static ssize_t cable_state_store(struct device *dev,
-				 struct device_attribute *attr, const char *buf,
-				 size_t count)
-{
-	struct extcon_cable *cable = container_of(attr, struct extcon_cable,
-						  attr_state);
-	int ret, state;
-
-	ret = sscanf(buf, "%d", &state);
-	if (ret == 0)
-		ret = -EINVAL;
-	else
-		ret = extcon_set_cable_state_(cable->edev, cable->cable_index,
-					      state);
-
-	if (ret < 0)
-		return ret;
-	return count;
-}
-
 /**
  * extcon_update_state() - Update the cable attach states of the extcon device
  *			only for the masked bits.
@@ -665,9 +645,8 @@ int extcon_dev_register(struct extcon_dev *edev, struct device *dev)
 
 			sysfs_attr_init(&cable->attr_state.attr);
 			cable->attr_state.attr.name = "state";
-			cable->attr_state.attr.mode = 0644;
+			cable->attr_state.attr.mode = 0444;
 			cable->attr_state.show = cable_state_show;
-			cable->attr_state.store = cable_state_store;
 		}
 	}
 
