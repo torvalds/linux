@@ -351,7 +351,6 @@ static int usb_hcd_nxp_remove(struct platform_device *pdev)
 
 	usb_remove_hcd(hcd);
 	nxp_stop_hc();
-	release_mem_region(hcd->rsrc_start, hcd->rsrc_len);
 	usb_put_hcd(hcd);
 	clk_disable(usb_pll_clk);
 	clk_put(usb_pll_clk);
