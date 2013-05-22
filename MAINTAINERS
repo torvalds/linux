@@ -4566,7 +4566,7 @@ F:	fs/jbd2/
 F:	include/linux/jbd2.h
 
 JSM Neo PCI based serial card
-M:	Lucas Tavares <lucaskt@linux.vnet.ibm.com>
+M:	Thadeu Lima de Souza Cascardo <cascardo@linux.vnet.ibm.com>
 L:	linux-serial@vger.kernel.org
 S:	Maintained
 F:	drivers/tty/serial/jsm/
