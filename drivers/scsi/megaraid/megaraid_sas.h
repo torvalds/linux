@@ -1533,6 +1533,7 @@ struct megasas_instance {
 	struct mutex reset_mutex;
 	int throttlequeuedepth;
 	u8 mask_interrupts;
+	u8 is_imr;
 };
 
 enum {
