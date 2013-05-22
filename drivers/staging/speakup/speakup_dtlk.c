@@ -254,7 +254,7 @@ static const char *synth_immediate(struct spk_synth *synth, const char *buf)
 		spk_out(ch);
 		buf++;
 	}
-	return 0;
+	return NULL;
 }
 
 static void synth_flush(struct spk_synth *synth)
