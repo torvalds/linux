@@ -74,7 +74,7 @@ void        musycc_update_timeslots(mpi_t *);
 
 #if 1
 STATIC int
-musycc_dump_rxbuffer_ring(mch_t * ch, int lockit)
+musycc_dump_rxbuffer_ring(mch_t *ch, int lockit)
 {
     struct mdesc *m;
     unsigned long flags = 0;
@@ -140,7 +140,7 @@ musycc_dump_rxbuffer_ring(mch_t * ch, int lockit)
 
 #if 1
 STATIC int
-musycc_dump_txbuffer_ring(mch_t * ch, int lockit)
+musycc_dump_txbuffer_ring(mch_t *ch, int lockit)
 {
     struct mdesc *m;
     unsigned long flags = 0;
@@ -205,7 +205,7 @@ musycc_dump_txbuffer_ring(mch_t * ch, int lockit)
  */
 
 status_t
-musycc_dump_ring(ci_t * ci, unsigned int chan)
+musycc_dump_ring(ci_t *ci, unsigned int chan)
 {
     mch_t      *ch;
 
@@ -248,7 +248,7 @@ musycc_dump_ring(ci_t * ci, unsigned int chan)
 
 
 status_t
-musycc_dump_rings(ci_t * ci, unsigned int start_chan)
+musycc_dump_rings(ci_t *ci, unsigned int start_chan)
 {
     unsigned int chan;
 
@@ -264,7 +264,7 @@ musycc_dump_rings(ci_t * ci, unsigned int start_chan)
  */
 
 void
-musycc_init_mdt(mpi_t * pi)
+musycc_init_mdt(mpi_t *pi)
 {
     u_int32_t  *addr, cfg;
     int         i;
@@ -288,7 +288,7 @@ musycc_init_mdt(mpi_t * pi)
 /* Set TX thp to the next unprocessed md */
 
 void
-musycc_update_tx_thp(mch_t * ch)
+musycc_update_tx_thp(mch_t *ch)
 {
     struct mdesc *md;
     unsigned long flags;
@@ -443,7 +443,7 @@ musycc_wq_chan_restart(void *arg)      /* channel private structure */
   */
 
 void
-musycc_chan_restart(mch_t * ch)
+musycc_chan_restart(mch_t *ch)
 {
 #ifdef RLD_RESTART_DEBUG
     pr_info("++ musycc_chan_restart[%d]: txd_irq_srv @ %p = sts %x\n",
@@ -461,7 +461,7 @@ musycc_chan_restart(mch_t * ch)
 
 
 void
-rld_put_led(mpi_t * pi, u_int32_t ledval)
+rld_put_led(mpi_t *pi, u_int32_t ledval)
 {
     static u_int32_t led = 0;
 
@@ -477,7 +477,7 @@ rld_put_led(mpi_t * pi, u_int32_t ledval)
 #define MUSYCC_SR_RETRY_CNT  9
 
 void
-musycc_serv_req(mpi_t * pi, u_int32_t req)
+musycc_serv_req(mpi_t *pi, u_int32_t req)
 {
     volatile u_int32_t r;
     int         rcnt;
@@ -578,7 +578,7 @@ rewrite:
 
 #ifdef  SBE_PMCC4_ENABLE
 void
-musycc_update_timeslots(mpi_t * pi)
+musycc_update_timeslots(mpi_t *pi)
 {
     int         i, ch;
     char        e1mode = IS_FRAME_ANY_E1(pi->p.port_mode);
@@ -640,7 +640,7 @@ musycc_update_timeslots(mpi_t * pi)
 
 #ifdef SBE_WAN256T3_ENABLE
 void
-musycc_update_timeslots(mpi_t * pi)
+musycc_update_timeslots(mpi_t *pi)
 {
     mch_t      *ch;
 
@@ -703,7 +703,7 @@ musycc_chan_proto(int proto)
 
 #ifdef SBE_WAN256T3_ENABLE
 STATIC void __init
-musycc_init_port(mpi_t * pi)
+musycc_init_port(mpi_t *pi)
 {
     pci_write_32((u_int32_t *) &pi->reg->gbp, OS_vtophys(pi->regram));
 
@@ -737,7 +737,7 @@ musycc_init_port(mpi_t * pi)
 
 
 status_t    __init
-musycc_init(ci_t * ci)
+musycc_init(ci_t *ci)
 {
     char       *regaddr;        /* temp for address boundary calculations */
     int         i, gchan;
@@ -832,7 +832,7 @@ musycc_init(ci_t * ci)
 
 
 void
-musycc_bh_tx_eom(mpi_t * pi, int gchan)
+musycc_bh_tx_eom(mpi_t *pi, int gchan)
 {
     mch_t      *ch;
     struct mdesc *md;
@@ -1010,7 +1010,7 @@ musycc_bh_tx_eom(mpi_t * pi, int gchan)
 
 
 STATIC void
-musycc_bh_rx_eom(mpi_t * pi, int gchan)
+musycc_bh_rx_eom(mpi_t *pi, int gchan)
 {
     mch_t      *ch;
     void       *m, *m2;
@@ -1229,7 +1229,7 @@ unsigned long
 #else
 void
 #endif
-musycc_intr_bh_tasklet(ci_t * ci)
+musycc_intr_bh_tasklet(ci_t *ci)
 {
     mpi_t      *pi;
     mch_t      *ch;
@@ -1517,7 +1517,7 @@ musycc_intr_bh_tasklet(ci_t * ci)
 
 #if 0
 int         __init
-musycc_new_chan(ci_t * ci, int channum, void *user)
+musycc_new_chan(ci_t *ci, int channum, void *user)
 {
     mch_t      *ch;
 
@@ -1546,7 +1546,7 @@ musycc_new_chan(ci_t * ci, int channum, void *user)
 
 #ifdef SBE_PMCC4_ENABLE
 status_t
-musycc_chan_down(ci_t * dummy, int channum)
+musycc_chan_down(ci_t *dummy, int channum)
 {
     mpi_t      *pi;
     mch_t      *ch;
@@ -1597,7 +1597,7 @@ musycc_chan_down(ci_t * dummy, int channum)
 
 
 int
-musycc_del_chan(ci_t * ci, int channum)
+musycc_del_chan(ci_t *ci, int channum)
 {
     mch_t      *ch;
 
@@ -1613,7 +1613,7 @@ musycc_del_chan(ci_t * ci, int channum)
 
 
 int
-musycc_del_chan_stats(ci_t * ci, int channum)
+musycc_del_chan_stats(ci_t *ci, int channum)
 {
     mch_t      *ch;
 
@@ -1628,7 +1628,7 @@ musycc_del_chan_stats(ci_t * ci, int channum)
 
 
 int
-musycc_start_xmit(ci_t * ci, int channum, void *mem_token)
+musycc_start_xmit(ci_t *ci, int channum, void *mem_token)
 {
     mch_t      *ch;
     struct mdesc *md;

@@ -35,9 +35,9 @@ extern int  cxt1e1_log_level;
 #define COMET_NUM_UNITS     5   /* Number of points per entry in table */
 
 /* forward references */
-STATIC void SetPwrLevel(comet_t * comet);
-STATIC void WrtRcvEqualizerTbl(ci_t * ci, comet_t * comet, u_int32_t *table);
-STATIC void WrtXmtWaveformTbl(ci_t * ci, comet_t * comet, u_int8_t table[COMET_NUM_SAMPLES][COMET_NUM_UNITS]);
+STATIC void SetPwrLevel(comet_t *comet);
+STATIC void WrtRcvEqualizerTbl(ci_t *ci, comet_t *comet, u_int32_t *table);
+STATIC void WrtXmtWaveformTbl(ci_t *ci, comet_t *comet, u_int8_t table[COMET_NUM_SAMPLES][COMET_NUM_UNITS]);
 
 
 void       *TWV_table[12] = {
@@ -65,7 +65,7 @@ lbo_tbl_lkup(int t1, int lbo) {
 	return (lbo - 1);
 }
 
-void init_comet(void *ci, comet_t * comet, u_int32_t port_mode, int clockmaster,
+void init_comet(void *ci, comet_t *comet, u_int32_t port_mode, int clockmaster,
 		u_int8_t moreParams)
 {
 	u_int8_t isT1mode;
@@ -408,9 +408,9 @@ void init_comet(void *ci, comet_t * comet, u_int32_t port_mode, int clockmaster,
 ** Returns:     Nothing
 */
 STATIC void
-WrtXmtWaveform(ci_t * ci, comet_t * comet, u_int32_t sample, u_int32_t unit, u_int8_t data)
+WrtXmtWaveform(ci_t *ci, comet_t *comet, u_int32_t sample, u_int32_t unit, u_int8_t data)
 {
-	WaveformAddr;
+	u_int8_t    WaveformAddr;
 
 	WaveformAddr = (sample << 3) + (unit & 7);
 	pci_write_32((u_int32_t *) &comet->xlpg_pwave_addr, WaveformAddr);
@@ -426,7 +426,7 @@ WrtXmtWaveform(ci_t * ci, comet_t * comet, u_int32_t sample, u_int32_t unit, u_i
 ** Returns:     Nothing
 */
 STATIC void
-WrtXmtWaveformTbl(ci_t * ci, comet_t * comet,
+WrtXmtWaveformTbl(ci_t *ci, comet_t *comet,
 		  u_int8_t table[COMET_NUM_SAMPLES][COMET_NUM_UNITS])
 {
 	u_int32_t sample, unit;
@@ -453,7 +453,7 @@ WrtXmtWaveformTbl(ci_t * ci, comet_t * comet,
 */
 
 STATIC void
-WrtRcvEqualizerTbl(ci_t * ci, comet_t * comet, u_int32_t *table)
+WrtRcvEqualizerTbl(ci_t *ci, comet_t *comet, u_int32_t *table)
 {
 	u_int32_t   ramaddr;
 	volatile u_int32_t value;
@@ -502,7 +502,7 @@ WrtRcvEqualizerTbl(ci_t * ci, comet_t * comet, u_int32_t *table)
 	* by T1/E1 clock
 	*/
 		/* 683ns * 3 = 1366 ns, approx 2us (but use 4us) */
-		OS_uwait(4, "wret")
+		OS_uwait(4, "wret");
 	}
 
 	/* Enable Equalizer & set it to use 256 periods */
@@ -517,7 +517,7 @@ WrtRcvEqualizerTbl(ci_t * ci, comet_t * comet, u_int32_t *table)
 */
 
 STATIC void
-SetPwrLevel(comet_t * comet)
+SetPwrLevel(comet_t *comet)
 {
 	volatile u_int32_t temp;
 
@@ -559,7 +559,7 @@ SetPwrLevel(comet_t * comet)
 */
 #if 0
 STATIC void
-SetCometOps(comet_t * comet)
+SetCometOps(comet_t *comet)
 {
 	volatile u_int8_t rd_value;
 

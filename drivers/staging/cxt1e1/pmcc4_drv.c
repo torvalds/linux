@@ -193,7 +193,7 @@ c4_new (void *hi)
 #define COMET_LBCMD_READ  0x80  /* read only (do not set, return read value) */
 
 void
-checkPorts (ci_t * ci)
+checkPorts (ci_t *ci)
 {
 #ifndef CONFIG_SBE_PMCC4_NCOMM
     /*
@@ -459,7 +459,7 @@ checkPorts (ci_t * ci)
 
 
 STATIC void
-c4_watchdog (ci_t * ci)
+c4_watchdog (ci_t *ci)
 {
     if (drvr_state != SBE_DRVR_AVAILABLE)
     {
@@ -512,7 +512,7 @@ c4_cleanup (void)
  */
 
 int
-c4_get_portcfg (ci_t * ci)
+c4_get_portcfg (ci_t *ci)
 {
     comet_t    *comet;
     int         portnum, mask;
@@ -536,7 +536,7 @@ c4_get_portcfg (ci_t * ci)
 /* nothing herein should generate interrupts */
 
 status_t    __init
-c4_init (ci_t * ci, u_char *func0, u_char *func1)
+c4_init (ci_t *ci, u_char *func0, u_char *func1)
 {
     mpi_t      *pi;
     mch_t      *ch;
@@ -670,7 +670,7 @@ c4_init (ci_t * ci, u_char *func0, u_char *func1)
 /* better be fully setup to handle interrupts when you call this */
 
 status_t    __init
-c4_init2 (ci_t * ci)
+c4_init2 (ci_t *ci)
 {
     status_t    ret;
 
@@ -698,7 +698,7 @@ c4_init2 (ci_t * ci)
 /* This function sets the loopback mode (or clears it, as the case may be). */
 
 int
-c4_loop_port (ci_t * ci, int portnum, u_int8_t cmd)
+c4_loop_port (ci_t *ci, int portnum, u_int8_t cmd)
 {
     comet_t    *comet;
     volatile u_int32_t loopValue;
@@ -757,7 +757,7 @@ c4_loop_port (ci_t * ci, int portnum, u_int8_t cmd)
  */
 
 status_t
-c4_frame_rw (ci_t * ci, struct sbecom_port_param * pp)
+c4_frame_rw (ci_t *ci, struct sbecom_port_param *pp)
 {
     comet_t    *comet;
     volatile u_int32_t data;
@@ -796,7 +796,7 @@ c4_frame_rw (ci_t * ci, struct sbecom_port_param * pp)
  */
 
 status_t
-c4_pld_rw (ci_t * ci, struct sbecom_port_param * pp)
+c4_pld_rw (ci_t *ci, struct sbecom_port_param *pp)
 {
     volatile u_int32_t *regaddr;
     volatile u_int32_t data;
@@ -834,7 +834,7 @@ c4_pld_rw (ci_t * ci, struct sbecom_port_param * pp)
  */
 
 status_t
-c4_musycc_rw (ci_t * ci, struct c4_musycc_param * mcp)
+c4_musycc_rw (ci_t *ci, struct c4_musycc_param *mcp)
 {
     mpi_t      *pi;
     volatile u_int32_t *dph;    /* hardware implemented register */
@@ -898,7 +898,7 @@ c4_musycc_rw (ci_t * ci, struct c4_musycc_param * mcp)
 }
 
 status_t
-c4_get_port (ci_t * ci, int portnum)
+c4_get_port (ci_t *ci, int portnum)
 {
     if (portnum >= ci->max_port)    /* sanity check */
         return ENXIO;
@@ -913,7 +913,7 @@ c4_get_port (ci_t * ci, int portnum)
 }
 
 status_t
-c4_set_port (ci_t * ci, int portnum)
+c4_set_port (ci_t *ci, int portnum)
 {
     mpi_t      *pi;
     struct sbecom_port_param *pp;
@@ -1018,7 +1018,7 @@ c4_set_port (ci_t * ci, int portnum)
 unsigned int max_int = 0;
 
 status_t
-c4_new_chan (ci_t * ci, int portnum, int channum, void *user)
+c4_new_chan (ci_t *ci, int portnum, int channum, void *user)
 {
     mpi_t      *pi;
     mch_t      *ch;
@@ -1111,7 +1111,7 @@ c4_del_chan_stats (int channum)
 
 
 status_t
-c4_set_chan (int channum, struct sbecom_chan_param * p)
+c4_set_chan (int channum, struct sbecom_chan_param *p)
 {
     mch_t      *ch;
     int         i, x = 0;
@@ -1162,7 +1162,7 @@ c4_set_chan (int channum, struct sbecom_chan_param * p)
 
 
 status_t
-c4_get_chan (int channum, struct sbecom_chan_param * p)
+c4_get_chan (int channum, struct sbecom_chan_param *p)
 {
     mch_t      *ch;
 
@@ -1173,7 +1173,7 @@ c4_get_chan (int channum, struct sbecom_chan_param * p)
 }
 
 status_t
-c4_get_chan_stats (int channum, struct sbecom_chan_stats * p)
+c4_get_chan_stats (int channum, struct sbecom_chan_stats *p)
 {
     mch_t      *ch;
 
@@ -1185,7 +1185,7 @@ c4_get_chan_stats (int channum, struct sbecom_chan_stats * p)
 }
 
 STATIC int
-c4_fifo_alloc (mpi_t * pi, int chan, int *len)
+c4_fifo_alloc (mpi_t *pi, int chan, int *len)
 {
     int         i, l = 0, start = 0, max = 0, maxstart = 0;
 
@@ -1222,7 +1222,7 @@ c4_fifo_alloc (mpi_t * pi, int chan, int *len)
 }
 
 void
-c4_fifo_free (mpi_t * pi, int chan)
+c4_fifo_free (mpi_t *pi, int chan)
 {
     int         i;
 
@@ -1236,7 +1236,7 @@ c4_fifo_free (mpi_t * pi, int chan)
 
 
 status_t
-c4_chan_up (ci_t * ci, int channum)
+c4_chan_up (ci_t *ci, int channum)
 {
     mpi_t      *pi;
     mch_t      *ch;
@@ -1467,7 +1467,7 @@ errfree:
 /* stop the hardware from servicing & interrupting */
 
 void
-c4_stopwd (ci_t * ci)
+c4_stopwd (ci_t *ci)
 {
     OS_stop_watchdog (&ci->wd);
     SD_SEM_TAKE (&ci->sem_wdbusy, "_stop_");    /* ensure WD not running */
@@ -1476,7 +1476,7 @@ c4_stopwd (ci_t * ci)
 
 
 void
-sbecom_get_brdinfo (ci_t * ci, struct sbe_brd_info * bip, u_int8_t *bsn)
+sbecom_get_brdinfo (ci_t *ci, struct sbe_brd_info *bip, u_int8_t *bsn)
 {
     char       *np;
     u_int32_t   sn = 0;
@@ -1485,7 +1485,7 @@ sbecom_get_brdinfo (ci_t * ci, struct sbe_brd_info * bip, u_int8_t *bsn)
     bip->brdno = ci->brdno;         /* our board number */
     bip->brd_id = ci->brd_id;
     bip->brd_hdw_id = ci->hdw_bid;
-    bip->brd_chan_cnt = MUSYCC_NCHANS * ci->max_port;   /* number of channels
+    bip->brd_chan_cnt = MUSYCC_NCHANS *ci->max_port;   /* number of channels
                                                          * being used */
     bip->brd_port_cnt = ci->max_port;   /* number of ports being used */
     bip->brd_pci_speed = BINFO_PCI_SPEED_unk;   /* PCI speed not yet
@@ -1535,7 +1535,7 @@ sbecom_get_brdinfo (ci_t * ci, struct sbe_brd_info * bip, u_int8_t *bsn)
 
 
 status_t
-c4_get_iidinfo (ci_t * ci, struct sbe_iid_info * iip)
+c4_get_iidinfo (ci_t *ci, struct sbe_iid_info *iip)
 {
     struct net_device *dev;
     char       *np;

@@ -97,7 +97,7 @@ pci_write_32 (u_int32_t *p, u_int32_t v)
 
 
 void
-pci_flush_write (ci_t * ci)
+pci_flush_write (ci_t *ci)
 {
     volatile u_int32_t v;
 
@@ -279,7 +279,7 @@ VMETRO_TRACE (void *x)
 
 
 void
-VMETRO_TRIGGER (ci_t * ci, int x)
+VMETRO_TRIGGER (ci_t *ci, int x)
 {
     comet_t    *comet;
     volatile u_int32_t data;
