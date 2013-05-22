@@ -711,7 +711,7 @@ megasas_clear_intr_gen2(struct megasas_register_set __iomem *regs)
 	 */
 	status = readl(&regs->outbound_intr_status);
 
-	if (status & MFI_GEN2_ENABLE_INTERRUPT_MASK) {
+	if (status & MFI_INTR_FLAG_REPLY_MESSAGE) {
 		mfiStatus = MFI_INTR_FLAG_REPLY_MESSAGE;
 	}
 	if (status & MFI_G2_OUTBOUND_DOORBELL_CHANGE_INTERRUPT) {
