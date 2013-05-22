@@ -177,7 +177,7 @@ static void mmu_fault_print_stack(struct bridge_dev_context *dev_context)
 	void *dummy_va_addr;
 
 	resources = dev_context->resources;
-	dummy_va_addr = (void*)__get_free_page(GFP_ATOMIC);
+	dummy_va_addr = (void *)__get_free_page(GFP_ATOMIC);
 
 	/*
 	 * Before acking the MMU fault, let's make sure MMU can only
