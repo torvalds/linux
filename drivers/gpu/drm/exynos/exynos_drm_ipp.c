@@ -1909,7 +1909,7 @@ static int ipp_probe(struct platform_device *pdev)
 	struct exynos_drm_subdrv *subdrv;
 	int ret;
 
-	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
+	ctx = devm_kzalloc(dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return -ENOMEM;
 
@@ -1963,7 +1963,7 @@ static int ipp_probe(struct platform_device *pdev)
 		goto err_cmd_workq;
 	}
 
-	dev_info(&pdev->dev, "drm ipp registered successfully.\n");
+	dev_info(dev, "drm ipp registered successfully.\n");
 
 	return 0;
 

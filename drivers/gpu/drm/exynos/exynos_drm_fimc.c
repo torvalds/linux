@@ -1884,7 +1884,7 @@ static int fimc_probe(struct platform_device *pdev)
 		goto err_pm_dis;
 	}
 
-	dev_info(&pdev->dev, "drm fimc registered successfully.\n");
+	dev_info(dev, "drm fimc registered successfully.\n");
 
 	return 0;
 

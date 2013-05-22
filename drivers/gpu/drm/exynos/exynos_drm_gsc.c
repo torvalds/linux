@@ -1743,7 +1743,7 @@ static int gsc_probe(struct platform_device *pdev)
 		goto err_ippdrv_register;
 	}
 
-	dev_info(&pdev->dev, "drm gsc registered successfully.\n");
+	dev_info(dev, "drm gsc registered successfully.\n");
 
 	return 0;
 
