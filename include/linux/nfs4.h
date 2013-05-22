@@ -32,6 +32,15 @@ struct nfs4_acl {
 	struct nfs4_ace	aces[0];
 };
 
+#define NFS4_MAXLABELLEN	2048
+
+struct nfs4_label {
+	uint32_t	lfs;
+	uint32_t	pi;
+	u32		len;
+	char	*label;
+};
+
 typedef struct { char data[NFS4_VERIFIER_SIZE]; } nfs4_verifier;
 
 struct nfs_stateid4 {
