@@ -143,7 +143,8 @@ static int ceph_set_page_dirty(struct page *page)
  * dirty page counters appropriately.  Only called if there is private
  * data on the page.
  */
-static void ceph_invalidatepage(struct page *page, unsigned long offset)
+static void ceph_invalidatepage(struct page *page, unsigned int offset,
+				unsigned int length)
 {
 	struct inode *inode;
 	struct ceph_inode_info *ci;
@@ -168,7 +169,7 @@ static void ceph_invalidatepage(struct page *page, unsigned long offset)
 
 	ci = ceph_inode(inode);
 	if (offset == 0) {
-		dout("%p invalidatepage %p idx %lu full dirty page %lu\n",
+		dout("%p invalidatepage %p idx %lu full dirty page %u\n",
 		     inode, page, page->index, offset);
 		ceph_put_wrbuffer_cap_refs(ci, 1, snapc);
 		ceph_put_snap_context(snapc);

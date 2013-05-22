@@ -1825,7 +1825,8 @@ ext3_readpages(struct file *file, struct address_space *mapping,
 	return mpage_readpages(mapping, pages, nr_pages, ext3_get_block);
 }
 
-static void ext3_invalidatepage(struct page *page, unsigned long offset)
+static void ext3_invalidatepage(struct page *page, unsigned int offset,
+				unsigned int length)
 {
 	journal_t *journal = EXT3_JOURNAL(page->mapping->host);
 

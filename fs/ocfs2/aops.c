@@ -603,7 +603,8 @@ static void ocfs2_dio_end_io(struct kiocb *iocb,
  * from ext3.  PageChecked() bits have been removed as OCFS2 does not
  * do journalled data.
  */
-static void ocfs2_invalidatepage(struct page *page, unsigned long offset)
+static void ocfs2_invalidatepage(struct page *page, unsigned int offset,
+				 unsigned int length)
 {
 	journal_t *journal = OCFS2_SB(page->mapping->host->i_sb)->journal->j_journal;
 

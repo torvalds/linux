@@ -189,7 +189,7 @@ prototypes:
 				loff_t pos, unsigned len, unsigned copied,
 				struct page *page, void *fsdata);
 	sector_t (*bmap)(struct address_space *, sector_t);
-	int (*invalidatepage) (struct page *, unsigned long);
+	void (*invalidatepage) (struct page *, unsigned int, unsigned int);
 	int (*releasepage) (struct page *, int);
 	void (*freepage)(struct page *);
 	int (*direct_IO)(int, struct kiocb *, const struct iovec *iov,
@@ -310,8 +310,8 @@ filesystems and by the swapper. The latter will eventually go away.  Please,
 keep it that way and don't breed new callers.
 
 	->invalidatepage() is called when the filesystem must attempt to drop
-some or all of the buffers from the page when it is being truncated.  It
-returns zero on success.  If ->invalidatepage is zero, the kernel uses
+some or all of the buffers from the page when it is being truncated. It
+returns zero on success. If ->invalidatepage is zero, the kernel uses
 block_invalidatepage() instead.
 
 	->releasepage() is called when the kernel is about to try to drop the

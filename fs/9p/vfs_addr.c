@@ -148,13 +148,14 @@ static int v9fs_release_page(struct page *page, gfp_t gfp)
  * @offset: offset in the page
  */
 
-static void v9fs_invalidate_page(struct page *page, unsigned long offset)
+static void v9fs_invalidate_page(struct page *page, unsigned int offset,
+				 unsigned int length)
 {
 	/*
 	 * If called with zero offset, we should release
 	 * the private state assocated with the page
 	 */
-	if (offset == 0)
+	if (offset == 0 && length == PAGE_CACHE_SIZE)
 		v9fs_fscache_invalidate_page(page);
 }
 

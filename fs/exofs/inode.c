@@ -953,9 +953,11 @@ static int exofs_releasepage(struct page *page, gfp_t gfp)
 	return 0;
 }
 
-static void exofs_invalidatepage(struct page *page, unsigned long offset)
+static void exofs_invalidatepage(struct page *page, unsigned int offset,
+				 unsigned int length)
 {
-	EXOFS_DBGMSG("page 0x%lx offset 0x%lx\n", page->index, offset);
+	EXOFS_DBGMSG("page 0x%lx offset 0x%x length 0x%x\n",
+		     page->index, offset, length);
 	WARN_ON(1);
 }
 

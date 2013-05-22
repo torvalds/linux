@@ -2957,7 +2957,7 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 	pg_offset = i_size & (PAGE_CACHE_SIZE - 1);
 	if (page->index > end_index ||
 	   (page->index == end_index && !pg_offset)) {
-		page->mapping->a_ops->invalidatepage(page, 0);
+		page->mapping->a_ops->invalidatepage(page, 0, PAGE_CACHE_SIZE);
 		unlock_page(page);
 		return 0;
 	}

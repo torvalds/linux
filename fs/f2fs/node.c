@@ -1205,7 +1205,8 @@ static int f2fs_set_node_page_dirty(struct page *page)
 	return 0;
 }
 
-static void f2fs_invalidate_node_page(struct page *page, unsigned long offset)
+static void f2fs_invalidate_node_page(struct page *page, unsigned int offset,
+				      unsigned int length)
 {
 	struct inode *inode = page->mapping->host;
 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);

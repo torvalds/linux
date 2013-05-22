@@ -824,10 +824,11 @@ xfs_cluster_write(
 STATIC void
 xfs_vm_invalidatepage(
 	struct page		*page,
-	unsigned long		offset)
+	unsigned int		offset,
+	unsigned int		length)
 {
 	trace_xfs_invalidatepage(page->mapping->host, page, offset);
-	block_invalidatepage(page, offset);
+	block_invalidatepage(page, offset, PAGE_CACHE_SIZE - offset);
 }
 
 /*
@@ -891,7 +892,7 @@ next_buffer:
 
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 out_invalidate:
-	xfs_vm_invalidatepage(page, 0);
+	xfs_vm_invalidatepage(page, 0, PAGE_CACHE_SIZE);
 	return;
 }
 

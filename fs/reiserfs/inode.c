@@ -2970,7 +2970,8 @@ static int invalidatepage_can_drop(struct inode *inode, struct buffer_head *bh)
 }
 
 /* clm -- taken from fs/buffer.c:block_invalidate_page */
-static void reiserfs_invalidatepage(struct page *page, unsigned long offset)
+static void reiserfs_invalidatepage(struct page *page, unsigned int offset,
+				    unsigned int length)
 {
 	struct buffer_head *head, *bh, *next;
 	struct inode *inode = page->mapping->host;
