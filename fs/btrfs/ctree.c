@@ -3143,7 +3143,7 @@ static int balance_node_right(struct btrfs_trans_handle *trans,
  */
 static noinline int insert_new_root(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root,
-			   struct btrfs_path *path, int level, int log_removal)
+			   struct btrfs_path *path, int level)
 {
 	u64 lower_gen;
 	struct extent_buffer *lower;
@@ -3194,7 +3194,7 @@ static noinline int insert_new_root(struct btrfs_trans_handle *trans,
 	btrfs_mark_buffer_dirty(c);
 
 	old = root->node;
-	tree_mod_log_set_root_pointer(root, c, log_removal);
+	tree_mod_log_set_root_pointer(root, c, 0);
 	rcu_assign_pointer(root->node, c);
 
 	/* the super has an extra ref to root->node */
@@ -3278,14 +3278,14 @@ static noinline int split_node(struct btrfs_trans_handle *trans,
 		/*
 		 * trying to split the root, lets make a new one
 		 *
-		 * tree mod log: We pass 0 as log_removal parameter to
+		 * tree mod log: We don't log_removal old root in
 		 * insert_new_root, because that root buffer will be kept as a
 		 * normal node. We are going to log removal of half of the
 		 * elements below with tree_mod_log_eb_copy. We're holding a
 		 * tree lock on the buffer, which is why we cannot race with
 		 * other tree_mod_log users.
 		 */
-		ret = insert_new_root(trans, root, path, level + 1, 0);
+		ret = insert_new_root(trans, root, path, level + 1);
 		if (ret)
 			return ret;
 	} else {
@@ -4005,7 +4005,7 @@ static noinline int split_leaf(struct btrfs_trans_handle *trans,
 	}
 
 	if (!path->nodes[1]) {
-		ret = insert_new_root(trans, root, path, 1, 1);
+		ret = insert_new_root(trans, root, path, 1);
 		if (ret)
 			return ret;
 	}
