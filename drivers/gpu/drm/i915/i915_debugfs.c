@@ -1137,16 +1137,15 @@ static int i915_cur_delayinfo(struct seq_file *m, void *unused)
 		u32 freq_sts, val;
 
 		mutex_lock(&dev_priv->rps.hw_lock);
-		vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS,
-				      &freq_sts);
+		freq_sts = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
 		seq_printf(m, "PUNIT_REG_GPU_FREQ_STS: 0x%08x\n", freq_sts);
 		seq_printf(m, "DDR freq: %d MHz\n", dev_priv->mem_freq);
 
-		vlv_punit_read(dev_priv, PUNIT_FUSE_BUS1, &val);
+		val = vlv_punit_read(dev_priv, PUNIT_FUSE_BUS1);
 		seq_printf(m, "max GPU freq: %d MHz\n",
 			   vlv_gpu_freq(dev_priv->mem_freq, val));
 
-		vlv_punit_read(dev_priv, PUNIT_REG_GPU_LFM, &val);
+		val = vlv_punit_read(dev_priv, PUNIT_REG_GPU_LFM);
 		seq_printf(m, "min GPU freq: %d MHz\n",
 			   vlv_gpu_freq(dev_priv->mem_freq, val));
 

@@ -2569,7 +2569,7 @@ void valleyview_set_rps(struct drm_device *dev, u8 val)
 	vlv_punit_write(dev_priv, PUNIT_REG_GPU_FREQ_REQ, val);
 
 	do {
-		vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS, &pval);
+		pval = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
 		if (time_after(jiffies, timeout)) {
 			DRM_DEBUG_DRIVER("timed out waiting for Punit\n");
 			break;
@@ -2577,7 +2577,7 @@ void valleyview_set_rps(struct drm_device *dev, u8 val)
 		udelay(10);
 	} while (pval & 1);
 
-	vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS, &pval);
+	pval = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
 	if ((pval >> 8) != val)
 		DRM_DEBUG_DRIVER("punit overrode freq: %d requested, but got %d\n",
 			  val, pval >> 8);
@@ -2882,7 +2882,7 @@ int valleyview_rps_max_freq(struct drm_i915_private *dev_priv)
 {
 	u32 val, rp0;
 
-	vlv_nc_read(dev_priv, IOSF_NC_FB_GFX_FREQ_FUSE, &val);
+	val = vlv_nc_read(dev_priv, IOSF_NC_FB_GFX_FREQ_FUSE);
 
 	rp0 = (val & FB_GFX_MAX_FREQ_FUSE_MASK) >> FB_GFX_MAX_FREQ_FUSE_SHIFT;
 	/* Clamp to max */
@@ -2895,9 +2895,9 @@ static int valleyview_rps_rpe_freq(struct drm_i915_private *dev_priv)
 {
 	u32 val, rpe;
 
-	vlv_nc_read(dev_priv, IOSF_NC_FB_GFX_FMAX_FUSE_LO, &val);
+	val = vlv_nc_read(dev_priv, IOSF_NC_FB_GFX_FMAX_FUSE_LO);
 	rpe = (val & FB_FMAX_VMIN_FREQ_LO_MASK) >> FB_FMAX_VMIN_FREQ_LO_SHIFT;
-	vlv_nc_read(dev_priv, IOSF_NC_FB_GFX_FMAX_FUSE_HI, &val);
+	val = vlv_nc_read(dev_priv, IOSF_NC_FB_GFX_FMAX_FUSE_HI);
 	rpe |= (val & FB_FMAX_VMIN_FREQ_HI_MASK) << 5;
 
 	return rpe;
@@ -2905,11 +2905,7 @@ static int valleyview_rps_rpe_freq(struct drm_i915_private *dev_priv)
 
 int valleyview_rps_min_freq(struct drm_i915_private *dev_priv)
 {
-	u32 val;
-
-	vlv_punit_read(dev_priv, PUNIT_REG_GPU_LFM, &val);
-
-	return val & 0xff;
+	return vlv_punit_read(dev_priv, PUNIT_REG_GPU_LFM) & 0xff;
 }
 
 static void vlv_rps_timer_work(struct work_struct *work)
@@ -3018,7 +3014,7 @@ static void valleyview_enable_rps(struct drm_device *dev)
 	I915_WRITE(GEN6_RC_CONTROL,
 		   GEN7_RC_CTL_TO_MODE);
 
-	vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS, &val);
+	val = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
 	switch ((val >> 6) & 3) {
 	case 0:
 	case 1:
