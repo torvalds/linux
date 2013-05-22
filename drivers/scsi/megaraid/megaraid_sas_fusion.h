@@ -43,7 +43,7 @@
 #define HOST_DIAG_WRITE_ENABLE			    0x80
 #define HOST_DIAG_RESET_ADAPTER			    0x4
 #define MEGASAS_FUSION_MAX_RESET_TRIES		    3
-#define MAX_MSIX_QUEUES_FUSION			    16
+#define MAX_MSIX_QUEUES_FUSION			    128
 
 /* Invader defines */
 #define MPI2_TYPE_CUDA				    0x2
@@ -61,6 +61,9 @@
 #define MEGASAS_SCSI_ADDL_CDB_LEN                   0x18
 #define MEGASAS_RD_WR_PROTECT_CHECK_ALL		    0x20
 #define MEGASAS_RD_WR_PROTECT_CHECK_NONE	    0x60
+
+#define MPI2_SUP_REPLY_POST_HOST_INDEX_OFFSET   (0x0000030C)
+#define MPI2_REPLY_POST_HOST_INDEX_OFFSET	(0x0000006C)
 
 /*
  * Raid context flags

@@ -786,7 +786,7 @@ struct megasas_ctrl_info {
 #define MEGASAS_INT_CMDS			32
 #define MEGASAS_SKINNY_INT_CMDS			5
 
-#define MEGASAS_MAX_MSIX_QUEUES			16
+#define MEGASAS_MAX_MSIX_QUEUES			128
 /*
  * FW can accept both 32 and 64 bit SGLs. We want to allocate 32/64 bit
  * SGLs based on the size of dma_addr_t
@@ -811,6 +811,11 @@ struct megasas_ctrl_info {
 #define MFI_1068_PCSR_OFFSET			0x84
 #define MFI_1068_FW_HANDSHAKE_OFFSET		0x64
 #define MFI_1068_FW_READY			0xDDDD0000
+
+#define MR_MAX_REPLY_QUEUES_OFFSET              0X0000001F
+#define MR_MAX_REPLY_QUEUES_EXT_OFFSET          0X003FC000
+#define MR_MAX_REPLY_QUEUES_EXT_OFFSET_SHIFT    14
+#define MR_MAX_MSIX_REG_ARRAY                   16
 /*
 * register set for both 1068 and 1078 controllers
 * structure extended for 1078 registers
@@ -920,6 +925,15 @@ union megasas_sgl_frame {
 
 } __attribute__ ((packed));
 
+typedef union _MFI_CAPABILITIES {
+	struct {
+		u32     support_fp_remote_lun:1;
+		u32     support_additional_msix:1;
+		u32     reserved:30;
+	} mfi_capabilities;
+	u32     reg;
+} MFI_CAPABILITIES;
+
 struct megasas_init_frame {
 
 	u8 cmd;			/*00h */
@@ -927,7 +941,7 @@ struct megasas_init_frame {
 	u8 cmd_status;		/*02h */
 
 	u8 reserved_1;		/*03h */
-	u32 reserved_2;		/*04h */
+	MFI_CAPABILITIES driver_operations; /*04h*/
 
 	u32 context;		/*08h */
 	u32 pad_0;		/*0Ch */
@@ -1324,7 +1338,7 @@ struct megasas_instance {
 
 	unsigned long base_addr;
 	struct megasas_register_set __iomem *reg_set;
-
+	u32 *reply_post_host_index_addr[MR_MAX_MSIX_REG_ARRAY];
 	struct megasas_pd_list          pd_list[MEGASAS_MAX_PD];
 	u8     ld_ids[MEGASAS_MAX_LD_IDS];
 	s8 init_id;
@@ -1393,6 +1407,7 @@ struct megasas_instance {
 	long reset_flags;
 	struct mutex reset_mutex;
 	int throttlequeuedepth;
+	u8 mask_interrupts;
 };
 
 enum {
@@ -1408,8 +1423,8 @@ struct megasas_instance_template {
 	void (*fire_cmd)(struct megasas_instance *, dma_addr_t, \
 		u32, struct megasas_register_set __iomem *);
 
-	void (*enable_intr)(struct megasas_register_set __iomem *) ;
-	void (*disable_intr)(struct megasas_register_set __iomem *);
+	void (*enable_intr)(struct megasas_instance *);
+	void (*disable_intr)(struct megasas_instance *);
 
 	int (*clear_intr)(struct megasas_register_set __iomem *);
 

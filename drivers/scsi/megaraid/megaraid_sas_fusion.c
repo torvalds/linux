@@ -101,8 +101,10 @@ extern int resetwaittime;
  * @regs:			MFI register set
  */
 void
-megasas_enable_intr_fusion(struct megasas_register_set __iomem *regs)
+megasas_enable_intr_fusion(struct megasas_instance *instance)
 {
+	struct megasas_register_set __iomem *regs;
+	regs = instance->reg_set;
 	/* For Thunderbolt/Invader also clear intr on enable */
 	writel(~0, &regs->outbound_intr_status);
 	readl(&regs->outbound_intr_status);
@@ -111,6 +113,7 @@ megasas_enable_intr_fusion(struct megasas_register_set __iomem *regs)
 
 	/* Dummy readl to force pci flush */
 	readl(&regs->outbound_intr_mask);
+	instance->mask_interrupts = 0;
 }
 
 /**
@@ -118,10 +121,13 @@ megasas_enable_intr_fusion(struct megasas_register_set __iomem *regs)
  * @regs:			 MFI register set
  */
 void
-megasas_disable_intr_fusion(struct megasas_register_set __iomem *regs)
+megasas_disable_intr_fusion(struct megasas_instance *instance)
 {
 	u32 mask = 0xFFFFFFFF;
 	u32 status;
+	struct megasas_register_set __iomem *regs;
+	regs = instance->reg_set;
+	instance->mask_interrupts = 1;
 
 	writel(mask, &regs->outbound_intr_mask);
 	/* Dummy readl to force pci flush */
@@ -643,6 +649,12 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 	init_frame->cmd	= MFI_CMD_INIT;
 	init_frame->cmd_status = 0xFF;
 
+	/* driver support Extended MSIX */
+	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER) ||
+		(instance->pdev->device == PCI_DEVICE_ID_LSI_FURY))
+		init_frame->driver_operations.
+			mfi_capabilities.support_additional_msix = 1;
+
 	init_frame->queue_info_new_phys_addr_lo = ioc_init_handle;
 	init_frame->data_xfer_len = sizeof(struct MPI2_IOC_INIT_REQUEST);
 
@@ -657,7 +669,7 @@ megasas_ioc_init_fusion(struct megasas_instance *instance)
 	/*
 	 * disable the intr before firing the init frame
 	 */
-	instance->instancet->disable_intr(instance->reg_set);
+	instance->instancet->disable_intr(instance);
 
 	for (i = 0; i < (10 * 1000); i += 20) {
 		if (readl(&instance->reg_set->doorbell) & 1)
@@ -1911,8 +1923,15 @@ complete_cmd_fusion(struct megasas_instance *instance, u32 MSIxIndex)
 		return IRQ_NONE;
 
 	wmb();
-	writel((MSIxIndex << 24) | fusion->last_reply_idx[MSIxIndex],
-	       &instance->reg_set->reply_post_host_index);
+	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER) ||
+		(instance->pdev->device == PCI_DEVICE_ID_LSI_FURY))
+		writel(((MSIxIndex & 0x7) << 24) |
+			fusion->last_reply_idx[MSIxIndex],
+			instance->reply_post_host_index_addr[MSIxIndex/8]);
+	else
+		writel((MSIxIndex << 24) |
+			fusion->last_reply_idx[MSIxIndex],
+			instance->reply_post_host_index_addr[0]);
 	megasas_check_and_restore_queue_depth(instance);
 	return IRQ_HANDLED;
 }
@@ -1953,6 +1972,9 @@ irqreturn_t megasas_isr_fusion(int irq, void *devp)
 	struct megasas_irq_context *irq_context = devp;
 	struct megasas_instance *instance = irq_context->instance;
 	u32 mfiStatus, fw_state;
+
+	if (instance->mask_interrupts)
+		return IRQ_NONE;
 
 	if (!instance->msix_vectors) {
 		mfiStatus = instance->instancet->clear_intr(instance->reg_set);
@@ -2219,7 +2241,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost)
 	mutex_lock(&instance->reset_mutex);
 	set_bit(MEGASAS_FUSION_IN_RESET, &instance->reset_flags);
 	instance->adprecovery = MEGASAS_ADPRESET_SM_INFAULT;
-	instance->instancet->disable_intr(instance->reg_set);
+	instance->instancet->disable_intr(instance);
 	msleep(1000);
 
 	/* First try waiting for commands to complete */
@@ -2343,7 +2365,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost)
 
 			clear_bit(MEGASAS_FUSION_IN_RESET,
 				  &instance->reset_flags);
-			instance->instancet->enable_intr(instance->reg_set);
+			instance->instancet->enable_intr(instance);
 			instance->adprecovery = MEGASAS_HBA_OPERATIONAL;
 
 			/* Re-fire management commands */
@@ -2405,7 +2427,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost)
 		retval = FAILED;
 	} else {
 		clear_bit(MEGASAS_FUSION_IN_RESET, &instance->reset_flags);
-		instance->instancet->enable_intr(instance->reg_set);
+		instance->instancet->enable_intr(instance);
 		instance->adprecovery = MEGASAS_HBA_OPERATIONAL;
 	}
 out:
