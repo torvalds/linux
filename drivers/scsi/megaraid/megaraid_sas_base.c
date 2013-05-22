@@ -122,6 +122,8 @@ static struct pci_device_id megasas_pci_table[] = {
 	/* Fusion */
 	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_INVADER)},
 	/* Invader */
+	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_FURY)},
+	/* Fury */
 	{}
 };
 
@@ -223,6 +225,7 @@ megasas_return_cmd(struct megasas_instance *instance, struct megasas_cmd *cmd)
 	cmd->frame_count = 0;
 	if ((instance->pdev->device != PCI_DEVICE_ID_LSI_FUSION) &&
 	    (instance->pdev->device != PCI_DEVICE_ID_LSI_INVADER) &&
+	    (instance->pdev->device != PCI_DEVICE_ID_LSI_FURY) &&
 	    (reset_devices))
 		cmd->frame->hdr.cmd = MFI_CMD_INVALID;
 	list_add_tail(&cmd->list, &instance->cmd_pool);
@@ -1599,7 +1602,8 @@ void megaraid_sas_kill_hba(struct megasas_instance *instance)
 	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0073SKINNY) ||
 	    (instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0071SKINNY) ||
 	    (instance->pdev->device == PCI_DEVICE_ID_LSI_FUSION) ||
-	    (instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER)) {
+	    (instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER) ||
+	    (instance->pdev->device == PCI_DEVICE_ID_LSI_FURY)) {
 		writel(MFI_STOP_ADP, &instance->reg_set->doorbell);
 	} else {
 		writel(MFI_STOP_ADP, &instance->reg_set->inbound_doorbell);
@@ -1974,7 +1978,8 @@ static int megasas_reset_bus_host(struct scsi_cmnd *scmd)
 	 * First wait for all commands to complete
 	 */
 	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_FUSION) ||
-	    (instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER))
+	    (instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER) ||
+	    (instance->pdev->device == PCI_DEVICE_ID_LSI_FURY))
 		ret = megasas_reset_fusion(scmd->device->host);
 	else
 		ret = megasas_generic_reset(scmd);
@@ -2680,9 +2685,11 @@ megasas_transition_to_ready(struct megasas_instance *instance, int ocr)
 				(instance->pdev->device ==
 				 PCI_DEVICE_ID_LSI_SAS0071SKINNY) ||
 				(instance->pdev->device ==
-				 PCI_DEVICE_ID_LSI_FUSION) ||
+				PCI_DEVICE_ID_LSI_FUSION) ||
 				(instance->pdev->device ==
-				PCI_DEVICE_ID_LSI_INVADER)) {
+				PCI_DEVICE_ID_LSI_INVADER) ||
+				(instance->pdev->device ==
+				PCI_DEVICE_ID_LSI_FURY)) {
 				writel(
 				  MFI_INIT_CLEAR_HANDSHAKE|MFI_INIT_HOTPLUG,
 				  &instance->reg_set->doorbell);
@@ -2704,7 +2711,9 @@ megasas_transition_to_ready(struct megasas_instance *instance, int ocr)
 			    (instance->pdev->device ==
 			     PCI_DEVICE_ID_LSI_FUSION) ||
 			    (instance->pdev->device ==
-			     PCI_DEVICE_ID_LSI_INVADER)) {
+			     PCI_DEVICE_ID_LSI_INVADER) ||
+			    (instance->pdev->device ==
+			     PCI_DEVICE_ID_LSI_FURY)) {
 				writel(MFI_INIT_HOTPLUG,
 				       &instance->reg_set->doorbell);
 			} else
@@ -2727,13 +2736,17 @@ megasas_transition_to_ready(struct megasas_instance *instance, int ocr)
 				(instance->pdev->device
 					== PCI_DEVICE_ID_LSI_FUSION) ||
 				(instance->pdev->device
-					== PCI_DEVICE_ID_LSI_INVADER)) {
+					== PCI_DEVICE_ID_LSI_INVADER) ||
+				(instance->pdev->device
+					== PCI_DEVICE_ID_LSI_FURY)) {
 				writel(MFI_RESET_FLAGS,
 					&instance->reg_set->doorbell);
 				if ((instance->pdev->device ==
-				    PCI_DEVICE_ID_LSI_FUSION) ||
-				    (instance->pdev->device ==
-				     PCI_DEVICE_ID_LSI_INVADER)) {
+					PCI_DEVICE_ID_LSI_FUSION) ||
+					(instance->pdev->device ==
+					PCI_DEVICE_ID_LSI_INVADER) ||
+					(instance->pdev->device ==
+					PCI_DEVICE_ID_LSI_FURY)) {
 					for (i = 0; i < (10 * 1000); i += 20) {
 						if (readl(
 							    &instance->
@@ -2958,6 +2971,7 @@ static int megasas_create_frame_pool(struct megasas_instance *instance)
 		cmd->frame->io.pad_0 = 0;
 		if ((instance->pdev->device != PCI_DEVICE_ID_LSI_FUSION) &&
 		    (instance->pdev->device != PCI_DEVICE_ID_LSI_INVADER) &&
+			(instance->pdev->device != PCI_DEVICE_ID_LSI_FURY) &&
 		    (reset_devices))
 			cmd->frame->hdr.cmd = MFI_CMD_INVALID;
 	}
@@ -3495,6 +3509,7 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	switch (instance->pdev->device) {
 	case PCI_DEVICE_ID_LSI_FUSION:
 	case PCI_DEVICE_ID_LSI_INVADER:
+	case PCI_DEVICE_ID_LSI_FURY:
 		instance->instancet = &megasas_instance_template_fusion;
 		break;
 	case PCI_DEVICE_ID_LSI_SAS1078R:
@@ -3528,7 +3543,8 @@ static int megasas_init_fw(struct megasas_instance *instance)
 	if (msix_enable && !msix_disable) {
 		/* Check max MSI-X vectors */
 		if ((instance->pdev->device == PCI_DEVICE_ID_LSI_FUSION) ||
-		    (instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER)) {
+			(instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER) ||
+			(instance->pdev->device == PCI_DEVICE_ID_LSI_FURY)) {
 			instance->msix_vectors = (readl(&instance->reg_set->
 							outbound_scratch_pad_2
 							  ) & 0x1F) + 1;
@@ -3933,7 +3949,8 @@ static int megasas_io_attach(struct megasas_instance *instance)
 
 	/* Fusion only supports host reset */
 	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_FUSION) ||
-	    (instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER)) {
+	    (instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER) ||
+	    (instance->pdev->device == PCI_DEVICE_ID_LSI_FURY)) {
 		host->hostt->eh_device_reset_handler = NULL;
 		host->hostt->eh_bus_reset_handler = NULL;
 	}
@@ -4044,6 +4061,7 @@ static int megasas_probe_one(struct pci_dev *pdev,
 	switch (instance->pdev->device) {
 	case PCI_DEVICE_ID_LSI_FUSION:
 	case PCI_DEVICE_ID_LSI_INVADER:
+	case PCI_DEVICE_ID_LSI_FURY:
 	{
 		struct fusion_context *fusion;
 
@@ -4136,7 +4154,8 @@ static int megasas_probe_one(struct pci_dev *pdev,
 	instance->disableOnlineCtrlReset = 1;
 
 	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_FUSION) ||
-	    (instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER))
+	    (instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER) ||
+	    (instance->pdev->device == PCI_DEVICE_ID_LSI_FURY))
 		INIT_WORK(&instance->work_init, megasas_fusion_ocr_wq);
 	else
 		INIT_WORK(&instance->work_init, process_fw_state_change_wq);
@@ -4227,7 +4246,8 @@ static int megasas_probe_one(struct pci_dev *pdev,
 		free_irq(instance->pdev->irq, &instance->irq_context[0]);
 fail_irq:
 	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_FUSION) ||
-	    (instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER))
+	    (instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER) ||
+	    (instance->pdev->device == PCI_DEVICE_ID_LSI_FURY))
 		megasas_release_fusion(instance);
 	else
 		megasas_release_mfi(instance);
@@ -4438,6 +4458,7 @@ megasas_resume(struct pci_dev *pdev)
 	switch (instance->pdev->device) {
 	case PCI_DEVICE_ID_LSI_FUSION:
 	case PCI_DEVICE_ID_LSI_INVADER:
+	case PCI_DEVICE_ID_LSI_FURY:
 	{
 		megasas_reset_reply_desc(instance);
 		if (megasas_ioc_init_fusion(instance)) {
@@ -4587,6 +4608,7 @@ static void megasas_detach_one(struct pci_dev *pdev)
 	switch (instance->pdev->device) {
 	case PCI_DEVICE_ID_LSI_FUSION:
 	case PCI_DEVICE_ID_LSI_INVADER:
+	case PCI_DEVICE_ID_LSI_FURY:
 		megasas_release_fusion(instance);
 		for (i = 0; i < 2 ; i++)
 			if (fusion->ld_map[i])

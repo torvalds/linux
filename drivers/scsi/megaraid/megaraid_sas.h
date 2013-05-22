@@ -49,6 +49,7 @@
 #define	PCI_DEVICE_ID_LSI_SAS0071SKINNY		0x0071
 #define	PCI_DEVICE_ID_LSI_FUSION		0x005b
 #define PCI_DEVICE_ID_LSI_INVADER		0x005d
+#define PCI_DEVICE_ID_LSI_FURY			0x005f
 
 /*
  * =====================================

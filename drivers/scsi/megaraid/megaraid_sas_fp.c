@@ -238,6 +238,11 @@ u8 MR_GetPhyParams(struct megasas_instance *instance, u32 ld, u64 stripRow,
 	u64         row;
 	u8	    retval = TRUE;
 	int	    error_code = 0;
+	u8          do_invader = 0;
+
+	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER ||
+		instance->pdev->device == PCI_DEVICE_ID_LSI_FURY))
+		do_invader = 1;
 
 	row =  mega_div64_32(stripRow, raid->rowDataSize);
 
@@ -282,9 +287,8 @@ u8 MR_GetPhyParams(struct megasas_instance *instance, u32 ld, u64 stripRow,
 	else {
 		*pDevHandle = MR_PD_INVALID; /* set dev handle as invalid. */
 		if ((raid->level >= 5) &&
-		    ((instance->pdev->device != PCI_DEVICE_ID_LSI_INVADER) ||
-		     (instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER &&
-		      raid->regTypeReqOnRead != REGION_TYPE_UNUSED)))
+			(!do_invader  || (do_invader &&
+			(raid->regTypeReqOnRead != REGION_TYPE_UNUSED))))
 			pRAID_Context->regLockFlags = REGION_TYPE_EXCLUSIVE;
 		else if (raid->level == 1) {
 			/* Get alternate Pd. */
@@ -405,7 +409,8 @@ MR_BuildRaidContext(struct megasas_instance *instance,
 	}
 
 	pRAID_Context->timeoutValue     = map->raidMap.fpPdIoTimeoutSec;
-	if (instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER)
+	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER) ||
+		(instance->pdev->device == PCI_DEVICE_ID_LSI_FURY))
 		pRAID_Context->regLockFlags = (isRead) ?
 			raid->regTypeReqOnRead : raid->regTypeReqOnWrite;
 	else
