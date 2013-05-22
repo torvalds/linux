@@ -257,12 +257,15 @@ static int kvp_file_init(void)
 
 
 		filep = fopen(fname, "re");
-		if (!filep)
+		if (!filep) {
+			close(fd);
 			return 1;
+		}
 
 		record = malloc(alloc_unit * num_blocks);
 		if (record == NULL) {
 			fclose(filep);
+			close(fd);
 			return 1;
 		}
 		for (;;) {
@@ -286,6 +289,7 @@ static int kvp_file_init(void)
 						num_blocks);
 				if (record == NULL) {
 					fclose(filep);
+					close(fd);
 					return 1;
 				}
 				continue;
