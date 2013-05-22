@@ -95,7 +95,8 @@ const struct st_bits_data spk_punc_info[] = {
 
 static char mark_cut_flag;
 #define MAX_KEY 160
-u_char *spk_our_keys[MAX_KEY], *spk_shift_table;
+static u_char *spk_shift_table;
+u_char *spk_our_keys[MAX_KEY];
 u_char spk_key_buf[600];
 const u_char spk_key_defaults[] = {
 #include "speakupmap.h"
@@ -1282,7 +1283,7 @@ static int edit_bits(struct vc_data *vc, u_char type, u_char ch, u_short key)
 }
 
 /* Allocation concurrency is protected by the console semaphore */
-int speakup_allocate(struct vc_data *vc)
+static int speakup_allocate(struct vc_data *vc)
 {
 	int vc_num;
 
@@ -1299,7 +1300,7 @@ int speakup_allocate(struct vc_data *vc)
 	return 0;
 }
 
-void speakup_deallocate(struct vc_data *vc)
+static void speakup_deallocate(struct vc_data *vc)
 {
 	int vc_num;
 
@@ -1705,7 +1706,7 @@ static void speakup_con_write(struct vc_data *vc, const char *str, int len)
 	spin_unlock_irqrestore(&speakup_info.spinlock, flags);
 }
 
-void speakup_con_update(struct vc_data *vc)
+static void speakup_con_update(struct vc_data *vc)
 {
 	unsigned long flags;
 	if (speakup_console[vc->vc_num] == NULL || spk_parked)
@@ -1964,7 +1965,7 @@ static void speakup_lock(struct vc_data *vc)
 }
 
 typedef void (*spkup_hand) (struct vc_data *);
-spkup_hand spkup_handler[] = {
+static spkup_hand spkup_handler[] = {
 	/* must be ordered same as defines in speakup.h */
 	do_nothing, speakup_goto, speech_kill, speakup_shut_up,
 	speakup_cut, speakup_paste, say_first_char, say_last_char,
@@ -2002,7 +2003,7 @@ static void do_spkup(struct vc_data *vc, u_char value)
 
 static const char *pad_chars = "0123456789+-*/\015,.?()";
 
-int
+static int
 speakup_key(struct vc_data *vc, int shift_state, int keycode, u_short keysym,
 	    int up_flag)
 {
