@@ -2104,7 +2104,7 @@ static struct pinctrl_desc nmk_pinctrl_desc = {
 
 static const struct of_device_id nmk_pinctrl_match[] = {
 	{
-		.compatible = "stericsson,nmk-pinctrl-stn8815",
+		.compatible = "stericsson,stn8815-pinctrl",
 		.data = (void *)PINCTRL_NMK_STN8815,
 	},
 	{
