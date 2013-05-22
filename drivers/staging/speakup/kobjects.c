@@ -521,7 +521,7 @@ static ssize_t punc_store(struct kobject *kobj, struct kobj_attribute *attr,
 	spin_lock_irqsave(&speakup_info.spinlock, flags);
 
 	if (*punc_buf == 'd' || *punc_buf == 'r')
-		x = spk_set_mask_bits(0, var->value, 3);
+		x = spk_set_mask_bits(NULL, var->value, 3);
 	else
 		x = spk_set_mask_bits(punc_buf, var->value, 3);
 
