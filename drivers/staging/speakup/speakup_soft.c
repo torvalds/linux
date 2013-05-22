@@ -201,11 +201,11 @@ static int softsynth_close(struct inode *inode, struct file *fp)
 	return 0;
 }
 
-static ssize_t softsynth_read(struct file *fp, char *buf, size_t count,
+static ssize_t softsynth_read(struct file *fp, char __user *buf, size_t count,
 			      loff_t *pos)
 {
 	int chars_sent = 0;
-	char *cp;
+	char __user *cp;
 	char *init;
 	char ch;
 	int empty;
@@ -263,8 +263,8 @@ static ssize_t softsynth_read(struct file *fp, char *buf, size_t count,
 
 static int last_index;
 
-static ssize_t softsynth_write(struct file *fp, const char *buf, size_t count,
-			       loff_t *pos)
+static ssize_t softsynth_write(struct file *fp, const char __user *buf,
+			       size_t count, loff_t *pos)
 {
 	unsigned long supplied_index = 0;
 	int converted;

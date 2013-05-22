@@ -13,11 +13,11 @@
 static int misc_registered;
 static int dev_opened;
 
-static ssize_t speakup_file_write(struct file *fp, const char *buffer,
-		   size_t nbytes, loff_t *ppos)
+static ssize_t speakup_file_write(struct file *fp, const char __user *buffer,
+				  size_t nbytes, loff_t *ppos)
 {
 	size_t count = nbytes;
-	const char *ptr = buffer;
+	const char __user *ptr = buffer;
 	size_t bytes;
 	unsigned long flags;
 	u_char buf[256];
@@ -37,8 +37,8 @@ static ssize_t speakup_file_write(struct file *fp, const char *buffer,
 	return (ssize_t) nbytes;
 }
 
-static ssize_t speakup_file_read(struct file *fp, char *buf, size_t nbytes,
-	loff_t *ppos)
+static ssize_t speakup_file_read(struct file *fp, char __user *buf,
+				 size_t nbytes, loff_t *ppos)
 {
 	return 0;
 }
