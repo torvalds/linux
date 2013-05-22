@@ -55,10 +55,14 @@ unsigned int (*nf_nat_ftp_hook)(struct sk_buff *skb,
 				struct nf_conntrack_expect *exp);
 EXPORT_SYMBOL_GPL(nf_nat_ftp_hook);
 
-static int try_rfc959(const char *, size_t, struct nf_conntrack_man *, char);
-static int try_eprt(const char *, size_t, struct nf_conntrack_man *, char);
+static int try_rfc959(const char *, size_t, struct nf_conntrack_man *,
+		      char, unsigned int *);
+static int try_rfc1123(const char *, size_t, struct nf_conntrack_man *,
+		       char, unsigned int *);
+static int try_eprt(const char *, size_t, struct nf_conntrack_man *,
+		    char, unsigned int *);
 static int try_epsv_response(const char *, size_t, struct nf_conntrack_man *,
-			     char);
+			     char, unsigned int *);
 
 static struct ftp_search {
 	const char *pattern;
@@ -66,7 +70,7 @@ static struct ftp_search {
 	char skip;
 	char term;
 	enum nf_ct_ftp_type ftptype;
-	int (*getnum)(const char *, size_t, struct nf_conntrack_man *, char);
+	int (*getnum)(const char *, size_t, struct nf_conntrack_man *, char, unsigned int *);
 } search[IP_CT_DIR_MAX][2] = {
 	[IP_CT_DIR_ORIGINAL] = {
 		{
@@ -90,10 +94,8 @@ static struct ftp_search {
 		{
 			.pattern	= "227 ",
 			.plen		= sizeof("227 ") - 1,
-			.skip		= '(',
-			.term		= ')',
 			.ftptype	= NF_CT_FTP_PASV,
-			.getnum		= try_rfc959,
+			.getnum		= try_rfc1123,
 		},
 		{
 			.pattern	= "229 ",
@@ -132,8 +134,9 @@ static int try_number(const char *data, size_t dlen, u_int32_t array[],
 			i++;
 		else {
 			/* Unexpected character; true if it's the
-			   terminator and we're finished. */
-			if (*data == term && i == array_size - 1)
+			   terminator (or we don't care about one)
+			   and we're finished. */
+			if ((*data == term || !term) && i == array_size - 1)
 				return len;
 
 			pr_debug("Char %u (got %u nums) `%u' unexpected\n",
@@ -148,7 +151,8 @@ static int try_number(const char *data, size_t dlen, u_int32_t array[],
 
 /* Returns 0, or length of numbers: 192,168,1,1,5,6 */
 static int try_rfc959(const char *data, size_t dlen,
-		      struct nf_conntrack_man *cmd, char term)
+		      struct nf_conntrack_man *cmd, char term,
+		      unsigned int *offset)
 {
 	int length;
 	u_int32_t array[6];
@@ -161,6 +165,33 @@ static int try_rfc959(const char *data, size_t dlen,
 				    (array[2] << 8) | array[3]);
 	cmd->u.tcp.port = htons((array[4] << 8) | array[5]);
 	return length;
+}
+
+/*
+ * From RFC 1123:
+ * The format of the 227 reply to a PASV command is not
+ * well standardized.  In particular, an FTP client cannot
+ * assume that the parentheses shown on page 40 of RFC-959
+ * will be present (and in fact, Figure 3 on page 43 omits
+ * them).  Therefore, a User-FTP program that interprets
+ * the PASV reply must scan the reply for the first digit
+ * of the host and port numbers.
+ */
+static int try_rfc1123(const char *data, size_t dlen,
+		       struct nf_conntrack_man *cmd, char term,
+		       unsigned int *offset)
+{
+	int i;
+	for (i = 0; i < dlen; i++)
+		if (isdigit(data[i]))
+			break;
+
+	if (i == dlen)
+		return 0;
+
+	*offset += i;
+
+	return try_rfc959(data + i, dlen - i, cmd, 0, offset);
 }
 
 /* Grab port: number up to delimiter */
@@ -191,7 +222,7 @@ static int get_port(const char *data, int start, size_t dlen, char delim,
 
 /* Returns 0, or length of numbers: |1|132.235.1.2|6275| or |2|3ffe::1|6275| */
 static int try_eprt(const char *data, size_t dlen, struct nf_conntrack_man *cmd,
-		    char term)
+		    char term, unsigned int *offset)
 {
 	char delim;
 	int length;
@@ -239,7 +270,8 @@ static int try_eprt(const char *data, size_t dlen, struct nf_conntrack_man *cmd,
 
 /* Returns 0, or length of numbers: |||6446| */
 static int try_epsv_response(const char *data, size_t dlen,
-			     struct nf_conntrack_man *cmd, char term)
+			     struct nf_conntrack_man *cmd, char term,
+			     unsigned int *offset)
 {
 	char delim;
 
@@ -261,9 +293,10 @@ static int find_pattern(const char *data, size_t dlen,
 			unsigned int *numlen,
 			struct nf_conntrack_man *cmd,
 			int (*getnum)(const char *, size_t,
-				      struct nf_conntrack_man *, char))
+				      struct nf_conntrack_man *, char,
+				      unsigned int *))
 {
-	size_t i;
+	size_t i = plen;
 
 	pr_debug("find_pattern `%s': dlen = %Zu\n", pattern, dlen);
 	if (dlen == 0)
@@ -293,16 +326,18 @@ static int find_pattern(const char *data, size_t dlen,
 	pr_debug("Pattern matches!\n");
 	/* Now we've found the constant string, try to skip
 	   to the 'skip' character */
-	for (i = plen; data[i] != skip; i++)
-		if (i == dlen - 1) return -1;
+	if (skip) {
+		for (i = plen; data[i] != skip; i++)
+			if (i == dlen - 1) return -1;
 
-	/* Skip over the last character */
-	i++;
+		/* Skip over the last character */
+		i++;
+	}
 
 	pr_debug("Skipped up to `%c'!\n", skip);
 
 	*numoff = i;
-	*numlen = getnum(data + i, dlen - i, cmd, term);
+	*numlen = getnum(data + i, dlen - i, cmd, term, numoff);
 	if (!*numlen)
 		return -1;
 
