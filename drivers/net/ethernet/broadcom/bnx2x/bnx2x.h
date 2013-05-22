@@ -2137,6 +2137,8 @@ void bnx2x_igu_clear_sb_gen(struct bnx2x *bp, u8 func, u8 idu_sb_id,
 #define ATTN_HARD_WIRED_MASK		0xff00
 #define ATTENTION_ID			4
 
+#define IS_MF_STORAGE_ONLY(bp) (IS_MF_STORAGE_SD(bp) || \
+				 IS_MF_FCOE_AFEX(bp))
 
 /* stuff added to make the code fit 80Col */
 
