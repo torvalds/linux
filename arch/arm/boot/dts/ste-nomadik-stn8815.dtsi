@@ -93,7 +93,7 @@
 	};
 
 	pinctrl {
-		compatible = "stericsson,nmk-pinctrl-stn8815";
+		compatible = "stericsson,stn8815-pinctrl";
 		/* Pin configurations */
 		uart0 {
 			uart0_default_mux: uart0_mux {
