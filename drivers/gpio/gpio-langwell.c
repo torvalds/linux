@@ -1,7 +1,7 @@
 /*
  * Moorestown platform Langwell chip GPIO driver
  *
- * Copyright (c) 2008 - 2009,  Intel Corporation.
+ * Copyright (c) 2008, 2009, 2013, Intel Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -74,15 +74,13 @@ struct lnw_gpio {
 #define to_lnw_priv(chip)	container_of(chip, struct lnw_gpio, chip)
 
 static void __iomem *gpio_reg(struct gpio_chip *chip, unsigned offset,
-			enum GPIO_REG reg_type)
+			      enum GPIO_REG reg_type)
 {
 	struct lnw_gpio *lnw = to_lnw_priv(chip);
 	unsigned nreg = chip->ngpio / 32;
 	u8 reg = offset / 32;
-	void __iomem *ptr;
 
-	ptr = (void __iomem *)(lnw->reg_base + reg_type * nreg * 4 + reg * 4);
-	return ptr;
+	return lnw->reg_base + reg_type * nreg * 4 + reg * 4;
 }
 
 static void __iomem *gpio_reg_2bit(struct gpio_chip *chip, unsigned offset,
@@ -91,10 +89,8 @@ static void __iomem *gpio_reg_2bit(struct gpio_chip *chip, unsigned offset,
 	struct lnw_gpio *lnw = to_lnw_priv(chip);
 	unsigned nreg = chip->ngpio / 32;
 	u8 reg = offset / 16;
-	void __iomem *ptr;
 
-	ptr = (void __iomem *)(lnw->reg_base + reg_type * nreg * 4 + reg * 4);
-	return ptr;
+	return lnw->reg_base + reg_type * nreg * 4 + reg * 4;
 }
 
 static int lnw_gpio_request(struct gpio_chip *chip, unsigned offset)
