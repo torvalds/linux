@@ -191,7 +191,6 @@ static int f2fs_link(struct dentry *old_dentry, struct inode *dir,
 	return 0;
 out:
 	clear_inode_flag(F2FS_I(inode), FI_INC_LINK);
-	make_bad_inode(inode);
 	iput(inode);
 	return err;
 }
