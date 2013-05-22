@@ -434,20 +434,6 @@ int dispc_wb_setup(const struct omap_dss_writeback_info *wi,
 /* VENC */
 int venc_init_platform_driver(void) __init;
 void venc_uninit_platform_driver(void) __exit;
-int omapdss_venc_display_enable(struct omap_dss_device *dssdev);
-void omapdss_venc_display_disable(struct omap_dss_device *dssdev);
-void omapdss_venc_set_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings);
-int omapdss_venc_check_timings(struct omap_dss_device *dssdev,
-		struct omap_video_timings *timings);
-u32 omapdss_venc_get_wss(struct omap_dss_device *dssdev);
-int omapdss_venc_set_wss(struct omap_dss_device *dssdev, u32 wss);
-void omapdss_venc_set_type(struct omap_dss_device *dssdev,
-		enum omap_dss_venc_type type);
-void omapdss_venc_invert_vid_out_polarity(struct omap_dss_device *dssdev,
-		bool invert_polarity);
-int venc_panel_init(void);
-void venc_panel_exit(void);
 
 /* HDMI */
 int hdmi_init_platform_driver(void) __init;
