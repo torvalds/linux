@@ -1402,7 +1402,7 @@ u8 DrvAggr_GetAggregatibleList(struct net_device *dev, struct sk_buff *skb,
 			break;
 		}
 
-	} while((skb = skb_dequeue(&ieee->skb_drv_aggQ[QueueID])));
+	} while ((skb = skb_dequeue(&ieee->skb_drv_aggQ[QueueID])));
 
 	RT_TRACE(COMP_AMSDU, "DrvAggr_GetAggregatibleList, nAggrTcbNum = %d \n", pSendList->nr_drv_agg_frames);
 	return pSendList->nr_drv_agg_frames;
@@ -3972,7 +3972,7 @@ void CAM_read_entry(
 
 	//Check polling bit is clear
 //	mdelay(1);
-		while((i--)>=0)
+		while ((i--)>=0)
 		{
 			ulStatus = read_nic_dword(dev, RWCAM);
 			if (ulStatus & BIT31){
