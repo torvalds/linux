@@ -277,7 +277,8 @@
 		clock-frequency = <80000>;
 		request-gpios = <&gpio TEGRA_GPIO(V, 2) GPIO_ACTIVE_HIGH>;
 		slave-addr = <138>;
-		clocks = <&tegra_car 67>, <&tegra_car 124>;
+		clocks = <&tegra_car TEGRA20_CLK_I2C3>,
+		       	 <&tegra_car TEGRA20_CLK_PLL_P_OUT3>;
 		clock-names = "div-clk", "fast-clk";
 	};
 
@@ -535,7 +536,9 @@
 		nvidia,hp-det-gpios = <&gpio TEGRA_GPIO(W, 2)
 			GPIO_ACTIVE_HIGH>;
 
-		clocks = <&tegra_car 112>, <&tegra_car 113>, <&tegra_car 94>;
+		clocks = <&tegra_car TEGRA20_CLK_PLL_A>,
+		       	 <&tegra_car TEGRA20_CLK_PLL_A_OUT0>,
+			 <&tegra_car TEGRA20_CLK_CDEV1>;
 		clock-names = "pll_a", "pll_a_out0", "mclk";
 	};
 };
