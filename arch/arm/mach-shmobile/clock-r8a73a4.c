@@ -34,6 +34,7 @@
 
 #define FRQCRA		0xE6150000
 #define FRQCRB		0xE6150004
+#define FRQCRC		0xE61500E0
 #define VCLKCR1		0xE6150008
 #define VCLKCR2		0xE615000C
 #define VCLKCR3		0xE615001C
@@ -52,6 +53,7 @@
 #define HSICKCR		0xE615026C
 #define M4CKCR		0xE6150098
 #define PLLECR		0xE61500D0
+#define PLL0CR		0xE61500D8
 #define PLL1CR		0xE6150028
 #define PLL2CR		0xE615002C
 #define PLL2SCR		0xE61501F4
@@ -177,12 +179,21 @@ static struct sh_clk_ops pll_clk_ops = {
 		.mapping	= &cpg_mapping,		\
 	}
 
+PLL_CLOCK(pll0_clk,  &main_clk,      pll_parent_main,      1, 20, PLL0CR,  0);
 PLL_CLOCK(pll1_clk,  &main_clk,      pll_parent_main,       1, 7, PLL1CR,  1);
 PLL_CLOCK(pll2_clk,  &main_div2_clk, pll_parent_main_extal, 3, 5, PLL2CR,  2);
 PLL_CLOCK(pll2s_clk, &main_div2_clk, pll_parent_main_extal, 3, 5, PLL2SCR, 4);
 PLL_CLOCK(pll2h_clk, &main_div2_clk, pll_parent_main_extal, 3, 5, PLL2HCR, 5);
 
 SH_FIXED_RATIO_CLK(pll1_div2_clk,	pll1_clk,	div2);
+
+static atomic_t frqcr_lock;
+
+/* Several clocks need to access FRQCRB, have to lock */
+static bool frqcr_kick_check(struct clk *clk)
+{
+	return !(ioread32(CPG_MAP(FRQCRB)) & BIT(31));
+}
 
 static int frqcr_kick_do(struct clk *clk)
 {
@@ -199,6 +210,107 @@ static int frqcr_kick_do(struct clk *clk)
 	return -ETIMEDOUT;
 }
 
+static int zclk_set_rate(struct clk *clk, unsigned long rate)
+{
+	void __iomem *frqcrc;
+	int ret;
+	unsigned long step, p_rate;
+	u32 val;
+
+	if (!clk->parent || !__clk_get(clk->parent))
+		return -ENODEV;
+
+	if (!atomic_inc_and_test(&frqcr_lock) || !frqcr_kick_check(clk)) {
+		ret = -EBUSY;
+		goto done;
+	}
+
+	frqcrc = clk->mapped_reg + (FRQCRC - (u32)clk->enable_reg);
+
+	p_rate = clk_get_rate(clk->parent);
+	if (rate == p_rate) {
+		val = 0;
+	} else {
+		step = DIV_ROUND_CLOSEST(p_rate, 32);
+		val = 32 - rate / step;
+	}
+
+	iowrite32((ioread32(frqcrc) & ~(clk->div_mask << clk->enable_bit)) |
+		  (val << clk->enable_bit), frqcrc);
+
+	ret = frqcr_kick_do(clk);
+
+done:
+	atomic_dec(&frqcr_lock);
+	__clk_put(clk->parent);
+	return ret;
+}
+
+static long zclk_round_rate(struct clk *clk, unsigned long rate)
+{
+	/*
+	 * theoretical rate = parent rate * multiplier / 32,
+	 * where 1 <= multiplier <= 32. Therefore we should do
+	 * multiplier = rate * 32 / parent rate
+	 * rounded rate = parent rate * multiplier / 32.
+	 * However, multiplication before division won't fit in 32 bits, so
+	 * we sacrifice some precision by first dividing and then multiplying.
+	 * To find the nearest divisor we calculate both and pick up the best
+	 * one. This avoids 64-bit arithmetics.
+	 */
+	unsigned long step, mul_min, mul_max, rate_min, rate_max;
+
+	rate_max = clk_get_rate(clk->parent);
+
+	/* output freq <= parent */
+	if (rate >= rate_max)
+		return rate_max;
+
+	step = DIV_ROUND_CLOSEST(rate_max, 32);
+	/* output freq >= parent / 32 */
+	if (step >= rate)
+		return step;
+
+	mul_min = rate / step;
+	mul_max = DIV_ROUND_UP(rate, step);
+	rate_min = step * mul_min;
+	if (mul_max == mul_min)
+		return rate_min;
+
+	rate_max = step * mul_max;
+
+	if (rate_max - rate <  rate - rate_min)
+		return rate_max;
+
+	return rate_min;
+}
+
+static unsigned long zclk_recalc(struct clk *clk)
+{
+	void __iomem *frqcrc = FRQCRC - (u32)clk->enable_reg + clk->mapped_reg;
+	unsigned int max = clk->div_mask + 1;
+	unsigned long val = ((ioread32(frqcrc) >> clk->enable_bit) &
+			     clk->div_mask);
+
+	return DIV_ROUND_CLOSEST(clk_get_rate(clk->parent), max) *
+		(max - val);
+}
+
+static struct sh_clk_ops zclk_ops = {
+	.recalc = zclk_recalc,
+	.set_rate = zclk_set_rate,
+	.round_rate = zclk_round_rate,
+};
+
+static struct clk z_clk = {
+	.parent = &pll0_clk,
+	.div_mask = 0x1f,
+	.enable_bit = 8,
+	/* We'll need to access FRQCRB and FRQCRC */
+	.enable_reg = (void __iomem *)FRQCRB,
+	.ops = &zclk_ops,
+};
+
 static struct clk *main_clks[] = {
 	&extalr_clk,
 	&extal1_clk,
@@ -210,17 +322,21 @@ static struct clk *main_clks[] = {
 	&main_div2_clk,
 	&fsiack_clk,
 	&fsibck_clk,
+	&pll0_clk,
 	&pll1_clk,
 	&pll1_div2_clk,
 	&pll2_clk,
 	&pll2s_clk,
 	&pll2h_clk,
+	&z_clk,
 };
 
 /* DIV4 */
 static void div4_kick(struct clk *clk)
 {
-	frqcr_kick_do(clk);
+	if (!WARN(!atomic_inc_and_test(&frqcr_lock), "FRQCR* lock broken!\n"))
+		frqcr_kick_do(clk);
+	atomic_dec(&frqcr_lock);
 }
 
 static int divisors[] = { 2, 3, 4, 6, 8, 12, 16, 18, 24, 0, 36, 48, 10};
@@ -396,6 +512,9 @@ static struct clk_lookup lookups[] = {
 	CLKDEV_CON_ID("pll2s",			&pll2s_clk),
 	CLKDEV_CON_ID("pll2h",			&pll2h_clk),
 
+	/* CPU clock */
+	CLKDEV_DEV_ID("cpufreq-cpu0",		&z_clk),
+
 	/* DIV6 */
 	CLKDEV_CON_ID("zb",			&div6_clks[DIV6_ZB]),
 	CLKDEV_CON_ID("vck1",			&div6_clks[DIV6_VCK1]),
@@ -438,6 +557,8 @@ void __init r8a73a4_clock_init(void)
 	void __iomem *reg;
 	int k, ret = 0;
 	u32 ckscr;
+
+	atomic_set(&frqcr_lock, -1);
 
 	reg = ioremap_nocache(CKSCR, PAGE_SIZE);
 	BUG_ON(!reg);
