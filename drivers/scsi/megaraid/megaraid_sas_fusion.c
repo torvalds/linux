@@ -1527,6 +1527,18 @@ megasas_build_dcdb_fusion(struct megasas_instance *instance,
 			 MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
 		cmd->request_desc->SCSIIO.DevHandle =
 			local_map_ptr->raidMap.devHndlInfo[device_id].curDevHdl;
+		/*
+		 * If the command is for the tape device, set the
+		 * FP timeout to the os layer timeout value.
+		 */
+		if (scmd->device->type == TYPE_TAPE) {
+			if ((scmd->request->timeout / HZ) > 0xFFFF)
+				io_request->RaidContext.timeoutValue =
+					0xFFFF;
+			else
+				io_request->RaidContext.timeoutValue =
+					scmd->request->timeout / HZ;
+		}
 	} else {
 		io_request->Function  = MEGASAS_MPI2_FUNCTION_LD_IO_REQUEST;
 		io_request->DevHandle = device_id;
