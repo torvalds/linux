@@ -225,7 +225,7 @@ static const char * const mic_bias_level_text[] = {
 };
 
 static const struct soc_enum mic_bias_level_enum =
-	SOC_ENUM_SINGLE(CS42L52_IFACE_CTL1, 0,
+	SOC_ENUM_SINGLE(CS42L52_IFACE_CTL2, 0,
 			ARRAY_SIZE(mic_bias_level_text), mic_bias_level_text);
 
 static const char * const cs42l52_mic_text[] = { "Single", "Differential" };
