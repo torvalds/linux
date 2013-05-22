@@ -864,6 +864,66 @@ megasas_sync_map_info(struct megasas_instance *instance)
 	return ret;
 }
 
+/*
+ * meagasas_display_intel_branding - Display branding string
+ * @instance: per adapter object
+ *
+ * Return nothing.
+ */
+static void
+megasas_display_intel_branding(struct megasas_instance *instance)
+{
+	if (instance->pdev->subsystem_vendor != PCI_VENDOR_ID_INTEL)
+		return;
+
+	switch (instance->pdev->device) {
+	case PCI_DEVICE_ID_LSI_INVADER:
+		switch (instance->pdev->subsystem_device) {
+		case MEGARAID_INTEL_RS3DC080_SSDID:
+			dev_info(&instance->pdev->dev, "scsi host %d: %s\n",
+				instance->host->host_no,
+				MEGARAID_INTEL_RS3DC080_BRANDING);
+			break;
+		case MEGARAID_INTEL_RS3DC040_SSDID:
+			dev_info(&instance->pdev->dev, "scsi host %d: %s\n",
+				instance->host->host_no,
+				MEGARAID_INTEL_RS3DC040_BRANDING);
+			break;
+		case MEGARAID_INTEL_RS3SC008_SSDID:
+			dev_info(&instance->pdev->dev, "scsi host %d: %s\n",
+				instance->host->host_no,
+				MEGARAID_INTEL_RS3SC008_BRANDING);
+			break;
+		case MEGARAID_INTEL_RS3MC044_SSDID:
+			dev_info(&instance->pdev->dev, "scsi host %d: %s\n",
+				instance->host->host_no,
+				MEGARAID_INTEL_RS3MC044_BRANDING);
+			break;
+		default:
+			break;
+		}
+		break;
+	case PCI_DEVICE_ID_LSI_FURY:
+		switch (instance->pdev->subsystem_device) {
+		case MEGARAID_INTEL_RS3WC080_SSDID:
+			dev_info(&instance->pdev->dev, "scsi host %d: %s\n",
+				instance->host->host_no,
+				MEGARAID_INTEL_RS3WC080_BRANDING);
+			break;
+		case MEGARAID_INTEL_RS3WC040_SSDID:
+			dev_info(&instance->pdev->dev, "scsi host %d: %s\n",
+				instance->host->host_no,
+				MEGARAID_INTEL_RS3WC040_BRANDING);
+			break;
+		default:
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+}
+
 /**
  * megasas_init_adapter_fusion -	Initializes the FW
  * @instance:		Adapter soft state
@@ -943,6 +1003,8 @@ megasas_init_adapter_fusion(struct megasas_instance *instance)
 
 	if (megasas_ioc_init_fusion(instance))
 		goto fail_ioc_init;
+
+	megasas_display_intel_branding(instance);
 
 	instance->flag_ieee = 1;
 

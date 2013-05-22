@@ -52,6 +52,32 @@
 #define PCI_DEVICE_ID_LSI_FURY			0x005f
 
 /*
+ * Intel HBA SSDIDs
+ */
+#define MEGARAID_INTEL_RS3DC080_SSDID		0x9360
+#define MEGARAID_INTEL_RS3DC040_SSDID		0x9362
+#define MEGARAID_INTEL_RS3SC008_SSDID		0x9380
+#define MEGARAID_INTEL_RS3MC044_SSDID		0x9381
+#define MEGARAID_INTEL_RS3WC080_SSDID		0x9341
+#define MEGARAID_INTEL_RS3WC040_SSDID		0x9343
+
+/*
+ * Intel HBA branding
+ */
+#define MEGARAID_INTEL_RS3DC080_BRANDING	\
+	"Intel(R) RAID Controller RS3DC080"
+#define MEGARAID_INTEL_RS3DC040_BRANDING	\
+	"Intel(R) RAID Controller RS3DC040"
+#define MEGARAID_INTEL_RS3SC008_BRANDING	\
+	"Intel(R) RAID Controller RS3SC008"
+#define MEGARAID_INTEL_RS3MC044_BRANDING	\
+	"Intel(R) RAID Controller RS3MC044"
+#define MEGARAID_INTEL_RS3WC080_BRANDING	\
+	"Intel(R) RAID Controller RS3WC080"
+#define MEGARAID_INTEL_RS3WC040_BRANDING	\
+	"Intel(R) RAID Controller RS3WC040"
+
+/*
  * =====================================
  * MegaRAID SAS MFI firmware definitions
  * =====================================
