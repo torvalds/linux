@@ -1948,7 +1948,8 @@ int32_t dwc_otg_hcd_handle_hc_n_intr (dwc_otg_hcd_t *_dwc_otg_hcd, uint32_t _num
 		retval |= handle_hc_nak_intr(_dwc_otg_hcd, hc, hc_regs, qtd);
 	}
 	if (hcint.b.ack) {
-		retval |= handle_hc_ack_intr(_dwc_otg_hcd, hc, hc_regs, qtd);
+		if(!hcint.b.chhltd)
+			retval |= handle_hc_ack_intr(_dwc_otg_hcd, hc, hc_regs, qtd);
 	}
 	if (hcint.b.nyet) {
 		retval |= handle_hc_nyet_intr(_dwc_otg_hcd, hc, hc_regs, qtd);
