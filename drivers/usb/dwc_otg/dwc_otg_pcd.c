@@ -568,11 +568,14 @@ static int dwc_otg_pcd_ep_queue(struct usb_ep *_ep,
 	/* 20091226,HSL@RK */
 	if ( !list_empty(&req->queue) ) 
 	{
-        while(!list_empty(&req->queue) ) {
-                ep = container_of(_ep, dwc_otg_pcd_ep_t, ep);
-                request_done(ep, req, -ECONNABORTED);
-        DWC_PRINT("%s::ep %s req not empty,done it error!\n" , __func__, _ep->name);
-        }
+		list_del_init(&req->queue);
+		ep = container_of(_ep, dwc_otg_pcd_ep_t, ep);
+		DWC_PRINT("%s::ep %s req not empty,done it error!\n" , __func__, _ep->name);
+		ep->pcd->vbus_status = 0;
+		if(ep->pcd->conn_status)
+		{
+			ep->pcd->conn_status = 0;
+		}
 		return -EINVAL;
 	}
 	
