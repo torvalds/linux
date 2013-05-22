@@ -979,15 +979,16 @@ static void encode_attrs(struct xdr_stream *xdr, const struct iattr *iap, const 
 	int len;
 	uint32_t bmval0 = 0;
 	uint32_t bmval1 = 0;
+	uint32_t bmval2 = 0;
 
 	/*
 	 * We reserve enough space to write the entire attribute buffer at once.
 	 * In the worst-case, this would be
-	 *   12(bitmap) + 4(attrlen) + 8(size) + 4(mode) + 4(atime) + 4(mtime)
-	 *          = 36 bytes, plus any contribution from variable-length fields
+	 * 16(bitmap) + 4(attrlen) + 8(size) + 4(mode) + 4(atime) + 4(mtime)
+	 * = 40 bytes, plus any contribution from variable-length fields
 	 *            such as owner/group.
 	 */
-	len = 16;
+	len = 20;
 
 	/* Sigh */
 	if (iap->ia_valid & ATTR_SIZE)
@@ -1031,9 +1032,9 @@ static void encode_attrs(struct xdr_stream *xdr, const struct iattr *iap, const 
 	 * We write the bitmap length now, but leave the bitmap and the attribute
 	 * buffer length to be backfilled at the end of this routine.
 	 */
-	*p++ = cpu_to_be32(2);
+	*p++ = cpu_to_be32(3);
 	q = p;
-	p += 3;
+	p += 4;
 
 	if (iap->ia_valid & ATTR_SIZE) {
 		bmval0 |= FATTR4_WORD0_SIZE;
@@ -1080,9 +1081,10 @@ static void encode_attrs(struct xdr_stream *xdr, const struct iattr *iap, const 
 				len, ((char *)p - (char *)q) + 4);
 		BUG();
 	}
-	len = (char *)p - (char *)q - 12;
+	len = (char *)p - (char *)q - 16;
 	*q++ = htonl(bmval0);
 	*q++ = htonl(bmval1);
+	*q++ = htonl(bmval2);
 	*q = htonl(len);
 
 /* out: */
@@ -1188,8 +1190,10 @@ encode_getattr_three(struct xdr_stream *xdr,
 
 static void encode_getfattr(struct xdr_stream *xdr, const u32* bitmask, struct compound_hdr *hdr)
 {
-	encode_getattr_two(xdr, bitmask[0] & nfs4_fattr_bitmap[0],
-			   bitmask[1] & nfs4_fattr_bitmap[1], hdr);
+	encode_getattr_three(xdr, bitmask[0] & nfs4_fattr_bitmap[0],
+			   bitmask[1] & nfs4_fattr_bitmap[1],
+			   bitmask[2] & nfs4_fattr_bitmap[2],
+			   hdr);
 }
 
 static void encode_getfattr_open(struct xdr_stream *xdr, const u32 *bitmask,
