@@ -3971,7 +3971,8 @@ S:	Maintained
 F:	arch/ia64/
 
 IBM Power in-Nest Crypto Acceleration
-M:	Kent Yoder <key@linux.vnet.ibm.com>
+M:	Marcelo Henrique Cerri <mhcerri@linux.vnet.ibm.com>
+M:	Fionnuala Gunter <fin@linux.vnet.ibm.com>
 L:	linux-crypto@vger.kernel.org
 S:	Supported
 F:	drivers/crypto/nx/
@@ -8198,7 +8199,8 @@ S:	Odd fixes
 F:	drivers/media/usb/tm6000/
 
 TPM DEVICE DRIVER
-M:	Kent Yoder <key@linux.vnet.ibm.com>
+M:	Leonidas Da Silva Barbosa <leosilva@linux.vnet.ibm.com>
+M:	Ashley Lai <ashley@ashleylai.com>
 M:	Rajiv Andrade <mail@srajiv.net>
 W:	http://tpmdd.sourceforge.net
 M:	Marcel Selhorst <tpmdd@selhorst.net>
