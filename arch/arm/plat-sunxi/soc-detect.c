@@ -175,6 +175,22 @@ int sunxi_pr_chip_id(void)
 	return name?1:0;
 }
 
+static inline void reg_dump(const char *name, u32 reg, unsigned len)
+{
+	unsigned i, j;
+
+	for (i=0; i<len; ) {
+		pr_info("soc-detect: %s (0x%08x):", name, reg);
+
+		for (j=0; i<len && j<4; i++, j++, reg += 0x04) {
+			u32 val = readl(reg);
+			printk(" %08x", val);
+		}
+
+		printk("\n");
+	}
+}
+
 enum sw_ic_ver sw_get_ic_ver(void)
 {
 	static enum sw_ic_ver ver;
@@ -240,24 +256,10 @@ unknown_chip:
 	pr_err("unrecognized IC (chip-id=%u)\n", sunxi_chip_id());
 unknown:
 	ver = SUNXI_VER_UNKNOWN;
-	{
-		unsigned i;
-		u32 reg, val;
 
-		/* SID */
-		reg = SW_VA_SID_IO_BASE;
-		pr_info(" secure-id reg (0x%08x):", reg);
-		for (i=0; i<4; i++, reg += 0x04) {
-			val = readl(reg);
-			printk(" 0x%08x", val);
-		}
-		printk("\n");
-
-		/* SSE */
-		reg = SW_VA_SSE_IO_BASE;
-		val = readl(reg);
-		pr_info(" sse reg (0x%08x): 0x%08x\n", reg, val);
-	}
+	if (sunxi_is_sun5i())
+		reg_dump("SSE", SW_VA_SSE_IO_BASE, 1);
+	reg_dump("SID", SW_VA_SID_IO_BASE, 4);
 done:
 	return ver;
 }
