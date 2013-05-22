@@ -2490,6 +2490,7 @@ source "drivers/video/omap2/Kconfig"
 source "drivers/video/exynos/Kconfig"
 source "drivers/video/mmp/Kconfig"
 source "drivers/video/backlight/Kconfig"
+source "drivers/video/adf/Kconfig"
 
 if VT
 	source "drivers/video/console/Kconfig"
