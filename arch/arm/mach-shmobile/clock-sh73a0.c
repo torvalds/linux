@@ -257,9 +257,8 @@ static struct clk twd_clk = {
 	.ops = &twd_clk_ops,
 };
 
-static int (*div4_set_rate)(struct clk *clk, unsigned long rate);
-static unsigned long (*div4_recalc)(struct clk *clk);
-static long (*div4_round_rate)(struct clk *clk, unsigned long rate);
+static struct sh_clk_ops zclk_ops;
+static const struct sh_clk_ops *div4_clk_ops;
 
 static int zclk_set_rate(struct clk *clk, unsigned long rate)
 {
@@ -275,7 +274,7 @@ static int zclk_set_rate(struct clk *clk, unsigned long rate)
 		/* 1:1 - switch off divider */
 		__raw_writel(__raw_readl(FRQCRB) & ~(1 << 28), FRQCRB);
 		/* nullify the divider to prepare for the next time */
-		ret = div4_set_rate(clk, rate / 2);
+		ret = div4_clk_ops->set_rate(clk, rate / 2);
 		if (!ret)
 			ret = frqcr_kick();
 		if (ret > 0)
@@ -290,7 +289,7 @@ static int zclk_set_rate(struct clk *clk, unsigned long rate)
 			 * set the divider - call the DIV4 method, it will kick
 			 * FRQCRB too
 			 */
-			ret = div4_set_rate(clk, rate);
+			ret = div4_clk_ops->set_rate(clk, rate);
 		if (ret < 0)
 			goto esetrate;
 	}
@@ -302,7 +301,7 @@ esetrate:
 
 static long zclk_round_rate(struct clk *clk, unsigned long rate)
 {
-	unsigned long div_freq = div4_round_rate(clk, rate),
+	unsigned long div_freq = div4_clk_ops->round_rate(clk, rate),
 		parent_freq = clk_get_rate(clk->parent);
 
 	if (rate > div_freq && abs(parent_freq - rate) < rate - div_freq)
@@ -317,7 +316,7 @@ static unsigned long zclk_recalc(struct clk *clk)
 	 * Must recalculate frequencies in case PLL0 has been changed, even if
 	 * the divisor is unused ATM!
 	 */
-	unsigned long div_freq = div4_recalc(clk);
+	unsigned long div_freq = div4_clk_ops->recalc(clk);
 
 	if (__raw_readl(FRQCRB) & (1 << 28))
 		return div_freq;
@@ -327,13 +326,16 @@ static unsigned long zclk_recalc(struct clk *clk)
 
 static void zclk_extend(void)
 {
+	div4_clk_ops = div4_clks[DIV4_Z].ops;
+
 	/* We extend the DIV4 clock with a 1:1 pass-through case */
-	div4_set_rate = div4_clks[DIV4_Z].ops->set_rate;
-	div4_round_rate = div4_clks[DIV4_Z].ops->round_rate;
-	div4_recalc = div4_clks[DIV4_Z].ops->recalc;
-	div4_clks[DIV4_Z].ops->set_rate = zclk_set_rate;
-	div4_clks[DIV4_Z].ops->round_rate = zclk_round_rate;
-	div4_clks[DIV4_Z].ops->recalc = zclk_recalc;
+	zclk_ops = *div4_clk_ops;
+
+	zclk_ops.set_rate = zclk_set_rate;
+	zclk_ops.round_rate = zclk_round_rate;
+	zclk_ops.recalc = zclk_recalc;
+
+	div4_clks[DIV4_Z].ops = &zclk_ops;
 }
 
 enum { DIV6_VCK1, DIV6_VCK2, DIV6_VCK3, DIV6_ZB1,
