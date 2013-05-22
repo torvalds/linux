@@ -266,7 +266,7 @@ config SPI_OC_TINY
 
 config SPI_OCTEON
 	tristate "Cavium OCTEON SPI controller"
-	depends on CPU_CAVIUM_OCTEON
+	depends on CAVIUM_OCTEON_SOC
 	help
 	  SPI host driver for the hardware found on some Cavium OCTEON
 	  SOCs.

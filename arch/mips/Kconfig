@@ -735,23 +735,8 @@ config WR_PPMC
 	  This enables support for the Wind River MIPS32 4KC PPMC evaluation
 	  board, which is based on GT64120 bridge chip.
 
-config CAVIUM_OCTEON_SIMULATOR
-	bool "Cavium Networks Octeon Simulator"
-	select CEVT_R4K
-	select 64BIT_PHYS_ADDR
-	select DMA_COHERENT
-	select SYS_SUPPORTS_64BIT_KERNEL
-	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_HOTPLUG_CPU
-	select SYS_HAS_CPU_CAVIUM_OCTEON
-	select HOLES_IN_ZONE
-	help
-	  The Octeon simulator is software performance model of the Cavium
-	  Octeon Processor. It supports simulating Octeon processors on x86
-	  hardware.
-
-config CAVIUM_OCTEON_REFERENCE_BOARD
-	bool "Cavium Networks Octeon reference board"
+config CAVIUM_OCTEON_SOC
+	bool "Cavium Networks Octeon SoC based boards"
 	select CEVT_R4K
 	select 64BIT_PHYS_ADDR
 	select DMA_COHERENT

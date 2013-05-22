@@ -167,7 +167,7 @@ config HW_RANDOM_OMAP
 
 config HW_RANDOM_OCTEON
 	tristate "Octeon Random Number Generator support"
-	depends on HW_RANDOM && CPU_CAVIUM_OCTEON
+	depends on HW_RANDOM && CAVIUM_OCTEON_SOC
 	default HW_RANDOM
 	---help---
 	  This driver provides kernel-side support for the Random Number

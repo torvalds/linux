@@ -1072,7 +1072,7 @@ config TXX9_WDT
 
 config OCTEON_WDT
 	tristate "Cavium OCTEON SOC family Watchdog Timer"
-	depends on CPU_CAVIUM_OCTEON
+	depends on CAVIUM_OCTEON_SOC
 	default y
 	select EXPORT_UASM if OCTEON_WDT = m
 	help

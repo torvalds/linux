@@ -10,6 +10,10 @@ config CAVIUM_CN63XXP1
 	  non-CN63XXP1 hardware, so it is recommended to select "n"
 	  unless it is known the workarounds are needed.
 
+endif # CPU_CAVIUM_OCTEON
+
+if CAVIUM_OCTEON_SOC
+
 config CAVIUM_OCTEON_2ND_KERNEL
 	bool "Build the kernel to be used as a 2nd kernel on the same chip"
 	default "n"
@@ -103,4 +107,4 @@ config OCTEON_ILM
 	  To compile this driver as a module, choose M here.  The module
 	  will be called octeon-ilm
 
-endif # CPU_CAVIUM_OCTEON
+endif # CAVIUM_OCTEON_SOC
