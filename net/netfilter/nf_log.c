@@ -368,10 +368,7 @@ static int __net_init nf_log_net_init(struct net *net)
 	return 0;
 
 out_sysctl:
-	/* For init_net: errors will trigger panic, don't unroll on error. */
-	if (!net_eq(net, &init_net))
-		remove_proc_entry("nf_log", net->nf.proc_netfilter);
-
+	remove_proc_entry("nf_log", net->nf.proc_netfilter);
 	return ret;
 }
 
