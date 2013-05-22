@@ -242,13 +242,21 @@ unknown:
 	ver = SUNXI_VER_UNKNOWN;
 	{
 		unsigned i;
-		u32 reg = SW_VA_SID_IO_BASE;
+		u32 reg, val;
 
-		pr_err("secure-id dump (0x%08x):\n", reg);
+		/* SID */
+		reg = SW_VA_SID_IO_BASE;
+		pr_info(" secure-id reg (0x%08x):", reg);
 		for (i=0; i<4; i++, reg += 0x04) {
-			u32 v = readl(reg);
-			pr_err("secure-id[%u]: 0x%08x\n", i, v);
+			val = readl(reg);
+			printk(" 0x%08x", val);
 		}
+		printk("\n");
+
+		/* SSE */
+		reg = SW_VA_SSE_IO_BASE;
+		val = readl(reg);
+		pr_info(" sse reg (0x%08x): 0x%08x\n", reg, val);
 	}
 done:
 	return ver;
