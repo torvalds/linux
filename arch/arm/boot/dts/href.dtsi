@@ -63,16 +63,42 @@
 		};
 
 		i2c@80128000 {
-			lp5521@0x33 {
-				compatible = "lp5521";
+			lp5521@33 {
+				compatible = "national,lp5521";
 				reg = <0x33>;
+				label = "lp5521_pri";
+				clock-mode = /bits/ 8 <2>;
+				chan0 {
+					led-cur = /bits/ 8 <0x2f>;
+					max-cur = /bits/ 8 <0x5f>;
+				};
+				chan1 {
+					led-cur = /bits/ 8 <0x2f>;
+					max-cur = /bits/ 8 <0x5f>;
+				};
+				chan2 {
+					led-cur = /bits/ 8 <0x2f>;
+					max-cur = /bits/ 8 <0x5f>;
+				};
 			};
-
-			lp5521@0x34 {
-				compatible = "lp5521";
+			lp5521@34 {
+				compatible = "national,lp5521";
 				reg = <0x34>;
+				label = "lp5521_sec";
+				clock-mode = /bits/ 8 <2>;
+				chan0 {
+					led-cur = /bits/ 8 <0x2f>;
+					max-cur = /bits/ 8 <0x5f>;
+				};
+				chan1 {
+					led-cur = /bits/ 8 <0x2f>;
+					max-cur = /bits/ 8 <0x5f>;
+				};
+				chan2 {
+					led-cur = /bits/ 8 <0x2f>;
+					max-cur = /bits/ 8 <0x5f>;
+				};
 			};
-
 			bh1780@0x29 {
 				compatible = "rohm,bh1780gli";
 				reg = <0x33>;
