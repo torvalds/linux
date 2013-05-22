@@ -2411,7 +2411,8 @@ static int nfs_bdi_register(struct nfs_server *server)
 int nfs_set_sb_security(struct super_block *s, struct dentry *mntroot,
 			struct nfs_mount_info *mount_info)
 {
-	return security_sb_set_mnt_opts(s, &mount_info->parsed->lsm_opts);
+	return security_sb_set_mnt_opts(s, &mount_info->parsed->lsm_opts,
+								0, NULL);
 }
 EXPORT_SYMBOL_GPL(nfs_set_sb_security);
 
