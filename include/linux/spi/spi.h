@@ -308,6 +308,8 @@ struct spi_master {
 
 	/* bitmask of supported bits_per_word for transfers */
 	u32			bits_per_word_mask;
+#define SPI_BPW_MASK(bits) BIT((bits) - 1)
+#define SPI_BPW_RANGE_MASK(min, max) ((BIT(max) - 1) - (BIT(min) - 1))
 
 	/* other constraints relevant to this driver */
 	u16			flags;
