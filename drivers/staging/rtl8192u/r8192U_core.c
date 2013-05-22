@@ -525,7 +525,7 @@ static int proc_get_registers(struct seq_file *m, void *v)
 		//printk( "\nD: %2x> ", n);
 		seq_printf(m, "\nD:  %2x > ",n);
 
-		for(i=0;i<16 && n<=max;i++,n++)
+		for (i=0;i<16 && n<=max;i++,n++)
 			seq_printf(m, "%2x ",read_nic_byte(dev,0x300|n));
 
 		//      printk("%2x ",read_nic_byte(dev,n));
@@ -708,12 +708,12 @@ void print_buffer(u32 *buffer, int len)
 
 	printk("ASCII BUFFER DUMP (len: %x):\n",len);
 
-	for(i=0;i<len;i++)
+	for (i=0;i<len;i++)
 		printk("%c",buf[i]);
 
 	printk("\nBINARY BUFFER DUMP (len: %x):\n",len);
 
-	for(i=0;i<len;i++)
+	for (i=0;i<len;i++)
 		printk("%x",buf[i]);
 
 	printk("\n");
@@ -742,7 +742,7 @@ void tx_timeout(struct net_device *dev)
 void dump_eprom(struct net_device *dev)
 {
 	int i;
-	for(i=0; i<63; i++)
+	for (i=0; i<63; i++)
 		RT_TRACE(COMP_EPROM, "EEPROM addr %x : %x", i, eprom_read(dev,i));
 }
 
@@ -755,10 +755,10 @@ void rtl8192_dump_reg(struct net_device *dev)
 
 	RT_TRACE(COMP_PHY, "Dumping NIC register map");
 
-	for(n=0;n<=max;)
+	for (n=0;n<=max;)
 	{
 		printk( "\nD: %2x> ", n);
-		for(i=0;i<16 && n<=max;i++,n++)
+		for (i=0;i<16 && n<=max;i++,n++)
 			printk("%2x ",read_nic_byte(dev,n));
 	}
 	printk("\n");
@@ -1239,7 +1239,7 @@ struct sk_buff *DrvAggr_Aggregation(struct net_device *dev, struct ieee80211_drv
 	/* Get the total aggregation length including the padding space and
 	 * sub frame header.
 	 */
-	for(i = 1; i < pSendList->nr_drv_agg_frames; i++) {
+	for (i = 1; i < pSendList->nr_drv_agg_frames; i++) {
 		TotalLength += DrvAggr_PaddingAdd(dev, skb);
 		skb = pSendList->tx_agg_frames[i];
 		TotalLength += (skb->len + TX_PACKET_DRVAGGR_SUBFRAME_SHIFT_BYTES);
@@ -1264,7 +1264,7 @@ struct sk_buff *DrvAggr_Aggregation(struct net_device *dev, struct ieee80211_drv
 	memcpy(agg_skb->cb, skb->cb, sizeof(skb->cb));
 	memcpy(skb_put(agg_skb,skb->len),skb->data,skb->len);
 
-	for(i = 1; i < pSendList->nr_drv_agg_frames; i++) {
+	for (i = 1; i < pSendList->nr_drv_agg_frames; i++) {
 		/* push the next sub frame to be 256 byte aline */
 		skb_put(agg_skb,DrvAggr_PaddingAdd(dev,skb));
 
@@ -1376,7 +1376,7 @@ struct sk_buff *DrvAggr_Aggregation(struct net_device *dev, struct ieee80211_drv
 		memcpy(skb_put(agg_skb,skb->len),skb->data,skb->len);
 	}
 
-	for(i = 0; i < pSendList->nr_drv_agg_frames; i++) {
+	for (i = 0; i < pSendList->nr_drv_agg_frames; i++) {
 		dev_kfree_skb_any(pSendList->tx_agg_frames[i]);
 	}
 
@@ -2148,7 +2148,7 @@ short rtl8192_usb_initendpoints(struct net_device *dev)
 		return -ENOMEM;
 
 #ifndef JACKSON_NEW_RX
-	for(i=0;i<(MAX_RX_URB+1);i++){
+	for (i=0;i<(MAX_RX_URB+1);i++){
 
 		priv->rx_urb[i] = usb_alloc_urb(0,GFP_KERNEL);
 
@@ -2202,7 +2202,7 @@ void rtl8192_usb_deleteendpoints(struct net_device *dev)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
 	if (priv->rx_urb){
-		for(i=0;i<(MAX_RX_URB+1);i++){
+		for (i=0;i<(MAX_RX_URB+1);i++){
 			usb_kill_urb(priv->rx_urb[i]);
 			usb_free_urb(priv->rx_urb[i]);
 		}
@@ -2225,7 +2225,7 @@ void rtl8192_usb_deleteendpoints(struct net_device *dev)
 #ifndef JACKSON_NEW_RX
 
 	if (priv->rx_urb){
-		for(i=0;i<(MAX_RX_URB+1);i++){
+		for (i=0;i<(MAX_RX_URB+1);i++){
 			usb_kill_urb(priv->rx_urb[i]);
 			kfree(priv->rx_urb[i]->transfer_buffer);
 			usb_free_urb(priv->rx_urb[i]);
@@ -2328,7 +2328,7 @@ void rtl8192_qos_activate(struct work_struct *work)
 	/* It better set slot time at first */
 	/* For we just support b/g mode at present, let the slot time at 9/20 selection */
 	/* update the ac parameter to related registers */
-	for(i = 0; i <  QOS_QUEUE_NUM; i++) {
+	for (i = 0; i <  QOS_QUEUE_NUM; i++) {
 		//Mode G/A: slotTimeTimer = 9; Mode B: 20
 		u1bAIFS = qos_parameters->aifs[i] * ((mode&(IEEE_G|IEEE_N_24G)) ?9:20) + aSifsTime;
 		u4bAcParam = ((((u32)(qos_parameters->tx_op_limit[i]))<< AC_PARAM_TXOP_LIMIT_OFFSET)|
@@ -2755,13 +2755,13 @@ static void rtl8192_init_priv_variable(struct net_device *dev)
 	skb_queue_head_init(&priv->skb_queue);
 
 	/* Tx related queue */
-	for(i = 0; i < MAX_QUEUE_SIZE; i++) {
+	for (i = 0; i < MAX_QUEUE_SIZE; i++) {
 		skb_queue_head_init(&priv->ieee80211->skb_waitQ [i]);
 	}
-	for(i = 0; i < MAX_QUEUE_SIZE; i++) {
+	for (i = 0; i < MAX_QUEUE_SIZE; i++) {
 		skb_queue_head_init(&priv->ieee80211->skb_aggQ [i]);
 	}
-	for(i = 0; i < MAX_QUEUE_SIZE; i++) {
+	for (i = 0; i < MAX_QUEUE_SIZE; i++) {
 		skb_queue_head_init(&priv->ieee80211->skb_drv_aggQ [i]);
 	}
 	priv->rf_set_chan = rtl8192_phy_SwChnl;
@@ -3376,7 +3376,7 @@ if (Adapter->ResetProgress == RESET_TYPE_NORESET)
 			RT_TRACE((COMP_INIT|COMP_RF), DBG_LOUD, ("InitializeAdapter819xUsb(): Turn off RF for RegRfOff ----------\n"));
 			MgntActSet_RF_State(Adapter, eRfOff, RF_CHANGE_BY_SW);
 			// Those actions will be discard in MgntActSet_RF_State because of the same state
-			for(eRFPath = 0; eRFPath <pHalData->NumTotalRFPath; eRFPath++)
+			for (eRFPath = 0; eRFPath <pHalData->NumTotalRFPath; eRFPath++)
 				PHY_SetRFReg(Adapter, (RF90_RADIO_PATH_E)eRFPath, 0x4, 0xC00, 0x0);
 		}
 		else if (pMgntInfo->RfOffReason > RF_CHANGE_BY_PS)
@@ -3397,7 +3397,7 @@ if (Adapter->ResetProgress == RESET_TYPE_NORESET)
 		{
 			MgntActSet_RF_State(Adapter, eRfOff, pMgntInfo->RfOffReason);
 			// Those actions will be discard in MgntActSet_RF_State because of the same state
-			for(eRFPath = 0; eRFPath <pHalData->NumTotalRFPath; eRFPath++)
+			for (eRFPath = 0; eRFPath <pHalData->NumTotalRFPath; eRFPath++)
 				PHY_SetRFReg(Adapter, (RF90_RADIO_PATH_E)eRFPath, 0x4, 0xC00, 0x0);
 		}
 	}
@@ -3442,7 +3442,7 @@ if (Adapter->ResetProgress == RESET_TYPE_NORESET)
 			u32 i, TempCCk;
 			u32 tmpRegA= rtl8192_QueryBBReg(dev,rOFDM0_XATxIQImbalance,bMaskDWord);
 		//	u32 tmpRegC= rtl8192_QueryBBReg(dev,rOFDM0_XCTxIQImbalance,bMaskDWord);
-			for(i = 0; i<TxBBGainTableLength; i++)
+			for (i = 0; i<TxBBGainTableLength; i++)
 			{
 				if (tmpRegA == priv->txbbgain_table[i].txbbgain_value)
 				{
@@ -3455,7 +3455,7 @@ if (Adapter->ResetProgress == RESET_TYPE_NORESET)
 
 			TempCCk = rtl8192_QueryBBReg(dev, rCCK0_TxFilter1, bMaskByte2);
 
-			for(i=0 ; i<CCKTxBBGainTableLength ; i++)
+			for (i=0 ; i<CCKTxBBGainTableLength ; i++)
 			{
 
 				if (TempCCk == priv->cck_txbbgain_table[i].ccktxbb_valuearray[0])
@@ -3725,7 +3725,7 @@ CamRestoreAllEntry(	struct net_device *dev)
 	    (priv->ieee80211->pairwise_key_type == KEY_TYPE_WEP104))
 	{
 
-		for(EntryId=0; EntryId<4; EntryId++)
+		for (EntryId=0; EntryId<4; EntryId++)
 		{
 			{
 				MacAddr = CAM_CONST_ADDR[EntryId];
@@ -3790,7 +3790,7 @@ CamRestoreAllEntry(	struct net_device *dev)
 	if (priv->ieee80211->group_key_type == KEY_TYPE_TKIP)
 	{
 		MacAddr = CAM_CONST_BROAD;
-		for(EntryId=1 ; EntryId<4 ; EntryId++)
+		for (EntryId=1 ; EntryId<4 ; EntryId++)
 		{
 			{
 				setKey(dev,
@@ -3814,7 +3814,7 @@ CamRestoreAllEntry(	struct net_device *dev)
 	else if (priv->ieee80211->group_key_type == KEY_TYPE_CCMP)
 	{
 		MacAddr = CAM_CONST_BROAD;
-		for(EntryId=1; EntryId<4 ; EntryId++)
+		for (EntryId=1; EntryId<4 ; EntryId++)
 		{
 			{
 				setKey(dev,
@@ -3964,7 +3964,7 @@ void CAM_read_entry(
 	 u32 ulStatus;
 	s32 i=100;
 //	printk("=======>start read CAM\n");
-	for(entry_i=0;entry_i<CAM_CONTENT_COUNT;entry_i++)
+	for (entry_i=0;entry_i<CAM_CONTENT_COUNT;entry_i++)
 	{
 	// polling bit, and No Write enable, and address
 		target_command= entry_i+CAM_CONTENT_COUNT*iIndex;
@@ -4007,7 +4007,7 @@ void rtl819x_update_rxcounts(
 	SlotIndex = (priv->ieee80211->LinkDetectInfo.SlotIndex++)%(priv->ieee80211->LinkDetectInfo.SlotNum);
 	priv->ieee80211->LinkDetectInfo.RxBcnNum[SlotIndex] = priv->ieee80211->LinkDetectInfo.NumRecvBcnInPeriod;
 	priv->ieee80211->LinkDetectInfo.RxDataNum[SlotIndex] = priv->ieee80211->LinkDetectInfo.NumRecvDataInPeriod;
-	for( i=0; i<priv->ieee80211->LinkDetectInfo.SlotNum; i++ ){
+	for ( i=0; i<priv->ieee80211->LinkDetectInfo.SlotNum; i++ ){
 		*TotalRxBcnNum += priv->ieee80211->LinkDetectInfo.RxBcnNum[i];
 		*TotalRxDataNum += priv->ieee80211->LinkDetectInfo.RxDataNum[i];
 	}
@@ -4183,14 +4183,14 @@ int rtl8192_down(struct net_device *dev)
 	//rtl8192_irq_disable(dev);
 
  /* Tx related queue release */
-	for(i = 0; i < MAX_QUEUE_SIZE; i++) {
+	for (i = 0; i < MAX_QUEUE_SIZE; i++) {
 		skb_queue_purge(&priv->ieee80211->skb_waitQ [i]);
 	}
-	for(i = 0; i < MAX_QUEUE_SIZE; i++) {
+	for (i = 0; i < MAX_QUEUE_SIZE; i++) {
 		skb_queue_purge(&priv->ieee80211->skb_aggQ [i]);
 	}
 
-	for(i = 0; i < MAX_QUEUE_SIZE; i++) {
+	for (i = 0; i < MAX_QUEUE_SIZE; i++) {
 		skb_queue_purge(&priv->ieee80211->skb_drv_aggQ [i]);
 	}
 
@@ -4377,7 +4377,7 @@ int rtl8192_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 #ifdef JOHN_HWSEC_DEBUG
 		//john's test 0711
 		printk("@@ wrq->u pointer = ");
-		for(i=0;i<wrq->u.data.length;i++){
+		for (i=0;i<wrq->u.data.length;i++){
 			if (i%10==0) printk("\n");
 			printk( "%8x|", ((u32 *)wrq->u.data.pointer)[i] );
 		}
@@ -4690,7 +4690,7 @@ void rtl8192_process_phyinfo(struct r8192_priv *priv,u8 *buffer, struct ieee8021
 		// <2> Showed on UI for engineering
 		if (pprevious_stats->bPacketToSelf || pprevious_stats->bPacketBeacon || pprevious_stats->bToSelfBA)
 		{
-			for(nspatial_stream = 0; nspatial_stream<2 ; nspatial_stream++) // 2 spatial stream
+			for (nspatial_stream = 0; nspatial_stream<2 ; nspatial_stream++) // 2 spatial stream
 			{
 				if (pprevious_stats->RxMIMOSignalQuality[nspatial_stream] != -1)
 				{
@@ -4966,7 +4966,7 @@ static void rtl8192_query_rxphystatus(
 		//
 		// (1)Get RSSI for HT rate
 		//
-		for(i=RF90_PATH_A; i<priv->NumTotalRFPath; i++)
+		for (i=RF90_PATH_A; i<priv->NumTotalRFPath; i++)
 		{
 			// 2008/01/30 MH we will judge RF RX path now.
 			if (priv->brfpath_rxenable[i])
@@ -5021,7 +5021,7 @@ static void rtl8192_query_rxphystatus(
 		else
 			max_spatial_stream = 1; //only spatial stream 1 makes sense
 
-		for(i=0; i<max_spatial_stream; i++)
+		for (i=0; i<max_spatial_stream; i++)
 		{
 			tmp_rxevm =	pofdm_buf->rxevm_X[i];
 			rx_evmX = (char)(tmp_rxevm);
@@ -5935,7 +5935,7 @@ void setKey(	struct net_device *dev,
 //	usConfig |= BIT15 | (KeyType<<2) | (DefaultKey<<5) | KeyIndex;
 
 
-	for(i=0 ; i<CAM_CONTENT_COUNT; i++){
+	for (i=0 ; i<CAM_CONTENT_COUNT; i++){
 		TargetCommand  = i+CAM_CONTENT_COUNT*EntryNo;
 		TargetCommand |= BIT31|BIT16;
 
