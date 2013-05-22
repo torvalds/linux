@@ -2693,18 +2693,33 @@ static inline int fence_number(struct drm_i915_private *dev_priv,
 	return fence - dev_priv->fence_regs;
 }
 
+struct write_fence {
+	struct drm_device *dev;
+	struct drm_i915_gem_object *obj;
+	int fence;
+};
+
 static void i915_gem_write_fence__ipi(void *data)
 {
+	struct write_fence *args = data;
+
+	/* Required for SNB+ with LLC */
 	wbinvd();
+
+	/* Required for VLV */
+	i915_gem_write_fence(args->dev, args->fence, args->obj);
 }
 
 static void i915_gem_object_update_fence(struct drm_i915_gem_object *obj,
 					 struct drm_i915_fence_reg *fence,
 					 bool enable)
 {
-	struct drm_device *dev = obj->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	int fence_reg = fence_number(dev_priv, fence);
+	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
+	struct write_fence args = {
+		.dev = obj->base.dev,
+		.fence = fence_number(dev_priv, fence),
+		.obj = enable ? obj : NULL,
+	};
 
 	/* In order to fully serialize access to the fenced region and
 	 * the update to the fence register we need to take extreme
@@ -2715,13 +2730,19 @@ static void i915_gem_object_update_fence(struct drm_i915_gem_object *obj,
 	 * SNB+ we need to take a step further and emit an explicit wbinvd()
 	 * on each processor in order to manually flush all memory
 	 * transactions before updating the fence register.
+	 *
+	 * However, Valleyview complicates matter. There the wbinvd is
+	 * insufficient and unlike SNB/IVB requires the serialising
+	 * register write. (Note that that register write by itself is
+	 * conversely not sufficient for SNB+.) To compromise, we do both.
 	 */
-	if (HAS_LLC(obj->base.dev))
-		on_each_cpu(i915_gem_write_fence__ipi, NULL, 1);
-	i915_gem_write_fence(dev, fence_reg, enable ? obj : NULL);
+	if (INTEL_INFO(args.dev)->gen >= 6)
+		on_each_cpu(i915_gem_write_fence__ipi, &args, 1);
+	else
+		i915_gem_write_fence(args.dev, args.fence, args.obj);
 
 	if (enable) {
-		obj->fence_reg = fence_reg;
+		obj->fence_reg = args.fence;
 		fence->obj = obj;
 		list_move_tail(&fence->lru_list, &dev_priv->mm.fence_list);
 	} else {
