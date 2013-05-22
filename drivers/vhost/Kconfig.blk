@@ -1,0 +1,10 @@
+config VHOST_BLK
+	tristate "Host kernel accelerator for virtio blk"
+	depends on BLOCK && EVENTFD && m
+	---help---
+	  This kernel module can be loaded in host kernel to accelerate
+	  guest block with virtio_blk. Not to be confused with virtio_blk
+	  module itself which needs to be loaded in guest kernel.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called vhost_blk.
