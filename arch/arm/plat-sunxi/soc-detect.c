@@ -113,8 +113,6 @@ enum sw_ic_ver sw_get_ic_ver(void)
 			ver = SUNXI_VER_A10B;
 		else
 			ver = SUNXI_VER_A10C;
-		goto done;
-
 	} else if (machine_is_sun5i()) {
 		u32 val = readl(SW_VA_SSE_IO_BASE);
 		val = (val >> 16) & 0x07;
@@ -156,6 +154,8 @@ enum sw_ic_ver sw_get_ic_ver(void)
 			goto unknown;
 		}
 	}
+
+	goto done;
 
 unknown_chip:
 	pr_err("sunxi: unrecognized IC\n");
