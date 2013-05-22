@@ -65,7 +65,7 @@ enum GPIO_REG {
 
 struct lnw_gpio {
 	struct gpio_chip		chip;
-	void				*reg_base;
+	void __iomem			*reg_base;
 	spinlock_t			lock;
 	struct pci_dev			*pdev;
 	struct irq_domain		*domain;
@@ -318,9 +318,9 @@ static const struct dev_pm_ops lnw_gpio_pm_ops = {
 };
 
 static int lnw_gpio_probe(struct pci_dev *pdev,
-			const struct pci_device_id *id)
+			  const struct pci_device_id *id)
 {
-	void *base;
+	void __iomem *base;
 	resource_size_t start, len;
 	struct lnw_gpio *lnw;
 	u32 gpio_base;
@@ -346,8 +346,10 @@ static int lnw_gpio_probe(struct pci_dev *pdev,
 		retval = -EFAULT;
 		goto err_ioremap;
 	}
-	irq_base = *(u32 *)base;
-	gpio_base = *((u32 *)base + 1);
+
+	irq_base = readl(base);
+	gpio_base = readl(sizeof(u32) + base);
+
 	/* release the IO mapping, since we already get the info from bar1 */
 	iounmap(base);
 	/* get the register base from bar0 */
