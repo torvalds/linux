@@ -3146,11 +3146,6 @@ static int bnx2x_set_phys_id(struct net_device *dev,
 		return -EAGAIN;
 	}
 
-	if (!bp->port.pmf) {
-		DP(BNX2X_MSG_ETHTOOL, "Interface is not pmf\n");
-		return -EOPNOTSUPP;
-	}
-
 	switch (state) {
 	case ETHTOOL_ID_ACTIVE:
 		return 1;	/* cycle on/off once per second */
