@@ -1023,7 +1023,7 @@ static struct snd_platform_data *davinci_mcasp_set_pdata_from_of(
 	struct device_node *np = pdev->dev.of_node;
 	struct snd_platform_data *pdata = NULL;
 	const struct of_device_id *match =
-			of_match_device(of_match_ptr(mcasp_dt_ids), &pdev->dev);
+			of_match_device(mcasp_dt_ids, &pdev->dev);
 
 	const u32 *of_serial_dir32;
 	u8 *of_serial_dir;
@@ -1256,7 +1256,7 @@ static struct platform_driver davinci_mcasp_driver = {
 	.driver		= {
 		.name	= "davinci-mcasp",
 		.owner	= THIS_MODULE,
-		.of_match_table = of_match_ptr(mcasp_dt_ids),
+		.of_match_table = mcasp_dt_ids,
 	},
 };
 
