@@ -800,9 +800,10 @@ static int rk3188_lcdc_pan_display(struct rk_lcdc_device_driver * dev_drv,int la
 				container_of(dev_drv,struct rk3188_lcdc_device,driver);
 	struct layer_par *par = NULL;
 	rk_screen *screen = dev_drv->cur_screen;
-	unsigned long flags;
+#if defined(WAIT_FOR_SYNC)
 	int timeout;
-	
+	unsigned long flags;
+#endif
 	if(!screen)
 	{
 		dev_err(dev_drv->dev,"screen is null!\n");
@@ -882,7 +883,6 @@ static int rk3188_lcdc_ioctl(struct rk_lcdc_device_driver *dev_drv, unsigned int
 		container_of(dev_drv,struct rk3188_lcdc_device,driver);
 	u32 panel_size[2];
 	void __user *argp = (void __user *)arg;
-	int enable;
 	struct color_key_cfg clr_key_cfg;
 	
 	switch(cmd)
@@ -1360,7 +1360,10 @@ static int __devinit rk3188_lcdc_probe(struct platform_device *pdev)
 	struct rk3188_lcdc_device *lcdc_dev = NULL;
 	struct device *dev = &pdev->dev;
 	rk_screen *screen;
+#if defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
 	rk_screen *screen1;
+#endif
+
 	struct rk29fb_info *screen_ctr_info;
 	struct resource *res = NULL;
 	struct resource *mem = NULL;
