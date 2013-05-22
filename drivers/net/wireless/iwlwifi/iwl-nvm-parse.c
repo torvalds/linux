@@ -292,7 +292,7 @@ static void iwl_init_vht_hw_capab(const struct iwl_cfg *cfg,
 
 static void iwl_init_sbands(struct device *dev, const struct iwl_cfg *cfg,
 			    struct iwl_nvm_data *data, const __le16 *nvm_sw,
-			    bool enable_vht)
+			    bool enable_vht, u8 tx_chains, u8 rx_chains)
 {
 	int n_channels = iwl_init_channel_map(dev, cfg, data,
 			&nvm_sw[NVM_CHANNELS]);
@@ -305,7 +305,8 @@ static void iwl_init_sbands(struct device *dev, const struct iwl_cfg *cfg,
 	sband->n_bitrates = N_RATES_24;
 	n_used += iwl_init_sband_channels(data, sband, n_channels,
 					  IEEE80211_BAND_2GHZ);
-	iwl_init_ht_hw_capab(cfg, data, &sband->ht_cap, IEEE80211_BAND_2GHZ);
+	iwl_init_ht_hw_capab(cfg, data, &sband->ht_cap, IEEE80211_BAND_2GHZ,
+			     tx_chains, rx_chains);
 
 	sband = &data->bands[IEEE80211_BAND_5GHZ];
 	sband->band = IEEE80211_BAND_5GHZ;
@@ -313,7 +314,8 @@ static void iwl_init_sbands(struct device *dev, const struct iwl_cfg *cfg,
 	sband->n_bitrates = N_RATES_52;
 	n_used += iwl_init_sband_channels(data, sband, n_channels,
 					  IEEE80211_BAND_5GHZ);
-	iwl_init_ht_hw_capab(cfg, data, &sband->ht_cap, IEEE80211_BAND_5GHZ);
+	iwl_init_ht_hw_capab(cfg, data, &sband->ht_cap, IEEE80211_BAND_5GHZ,
+			     tx_chains, rx_chains);
 	if (enable_vht)
 		iwl_init_vht_hw_capab(cfg, data, &sband->vht_cap);
 
@@ -325,7 +327,7 @@ static void iwl_init_sbands(struct device *dev, const struct iwl_cfg *cfg,
 struct iwl_nvm_data *
 iwl_parse_nvm_data(struct device *dev, const struct iwl_cfg *cfg,
 		   const __le16 *nvm_hw, const __le16 *nvm_sw,
-		   const __le16 *nvm_calib)
+		   const __le16 *nvm_calib, u8 tx_chains, u8 rx_chains)
 {
 	struct iwl_nvm_data *data;
 	u8 hw_addr[ETH_ALEN];
@@ -381,8 +383,8 @@ iwl_parse_nvm_data(struct device *dev, const struct iwl_cfg *cfg,
 	data->hw_addr[4] = hw_addr[5];
 	data->hw_addr[5] = hw_addr[4];
 
-	iwl_init_sbands(dev, cfg, data, nvm_sw,
-			sku & NVM_SKU_CAP_11AC_ENABLE);
+	iwl_init_sbands(dev, cfg, data, nvm_sw, sku & NVM_SKU_CAP_11AC_ENABLE,
+			tx_chains, rx_chains);
 
 	data->calib_version = 255;   /* TODO:
 					this value will prevent some checks from

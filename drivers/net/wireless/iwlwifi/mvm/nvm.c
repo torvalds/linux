@@ -251,7 +251,9 @@ iwl_parse_nvm_sections(struct iwl_mvm *mvm)
 	hw = (const __le16 *)sections[NVM_SECTION_TYPE_HW].data;
 	sw = (const __le16 *)sections[NVM_SECTION_TYPE_SW].data;
 	calib = (const __le16 *)sections[NVM_SECTION_TYPE_CALIBRATION].data;
-	return iwl_parse_nvm_data(mvm->trans->dev, mvm->cfg, hw, sw, calib);
+	return iwl_parse_nvm_data(mvm->trans->dev, mvm->cfg, hw, sw, calib,
+				  iwl_fw_valid_tx_ant(mvm->fw),
+				  iwl_fw_valid_rx_ant(mvm->fw));
 }
 
 #define MAX_NVM_FILE_LEN	16384
