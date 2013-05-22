@@ -30,7 +30,7 @@ unsigned int __fixunsdfsi (double d) { return d; }
 double __adddf3(double a, double b) { return a+b; }
 double __addsf3(float a, float b) { return a+b; }
 double __subdf3(double a, double b) { return a-b; }
-double __extendsfdf2(float a) {return a;}
+double __extendsfdf2(float a) {return a; }
 #endif
 
 #undef LOOP_TEST
@@ -100,7 +100,7 @@ u32 rt_global_debug_component = \
 	//			COMP_RESET	|
 		//		COMP_SEND	|
 			//	COMP_EVENTS	|
-				COMP_ERR ; //always open err flags on
+				COMP_ERR; //always open err flags on
 
 #define TOTAL_CAM_ENTRY 32
 #define CAM_CONTENT_COUNT 8
@@ -215,7 +215,7 @@ static void rtl819x_set_channel_map(u8 channel_plan, struct r8192_priv *priv)
 			// Clear old channel map
 			memset(GET_DOT11D_INFO(ieee)->channel_map, 0, sizeof(GET_DOT11D_INFO(ieee)->channel_map));
 			// Set new channel map
-			for (i = 0;i < ChannelPlan[channel_plan].Len;i++) {
+			for (i = 0; i < ChannelPlan[channel_plan].Len; i++) {
 				if (ChannelPlan[channel_plan].Channel[i] < min_chan || ChannelPlan[channel_plan].Channel[i] > max_chan)
 					break;
 				GET_DOT11D_INFO(ieee)->channel_map[ChannelPlan[channel_plan].Channel[i]] = 1;
@@ -499,33 +499,33 @@ static int proc_get_registers(struct seq_file *m, void *v)
 
 	seq_puts(m, "\n####################page 0##################\n ");
 
-	for (n = 0;n <= max;) {
+	for (n = 0; n <= max;) {
 		//printk( "\nD: %2x> ", n);
 		seq_printf(m, "\nD:  %2x > ",n);
 
-		for (i = 0;i < 16 && n <= max;i++,n++)
+		for (i = 0; i < 16 && n <= max; i++,n++)
 			seq_printf(m, "%2x ",read_nic_byte(dev,0x000|n));
 
 		//	printk("%2x ",read_nic_byte(dev,n));
 	}
 
 	seq_puts(m, "\n####################page 1##################\n ");
-	for (n = 0;n <= max;) {
+	for (n = 0; n <= max;) {
 		//printk( "\nD: %2x> ", n);
 		seq_printf(m, "\nD:  %2x > ",n);
 
-		for (i = 0;i < 16 && n <= max;i++,n++)
+		for (i = 0; i < 16 && n <= max; i++,n++)
 			seq_printf(m, "%2x ",read_nic_byte(dev,0x100|n));
 
 		//      printk("%2x ",read_nic_byte(dev,n));
 	}
 
 	seq_puts(m, "\n####################page 3##################\n ");
-	for (n = 0;n <= max;) {
+	for (n = 0; n <= max;) {
 		//printk( "\nD: %2x> ", n);
 		seq_printf(m, "\nD:  %2x > ",n);
 
-		for (i = 0;i < 16 && n <= max;i++,n++)
+		for (i = 0; i < 16 && n <= max; i++,n++)
 			seq_printf(m, "%2x ",read_nic_byte(dev,0x300|n));
 
 		//      printk("%2x ",read_nic_byte(dev,n));
@@ -708,12 +708,12 @@ void print_buffer(u32 *buffer, int len)
 
 	printk("ASCII BUFFER DUMP (len: %x):\n",len);
 
-	for (i = 0;i < len;i++)
+	for (i = 0; i < len; i++)
 		printk("%c",buf[i]);
 
 	printk("\nBINARY BUFFER DUMP (len: %x):\n",len);
 
-	for (i = 0;i < len;i++)
+	for (i = 0; i < len; i++)
 		printk("%x",buf[i]);
 
 	printk("\n");
@@ -755,10 +755,10 @@ void rtl8192_dump_reg(struct net_device *dev)
 
 	RT_TRACE(COMP_PHY, "Dumping NIC register map");
 
-	for (n = 0;n <= max;)
+	for (n = 0; n <= max;)
 	{
 		printk( "\nD: %2x> ", n);
-		for (i = 0;i < 16 && n <= max;i++,n++)
+		for (i = 0; i < 16 && n <= max; i++,n++)
 			printk("%2x ",read_nic_byte(dev,n));
 	}
 	printk("\n");
@@ -917,7 +917,7 @@ void rtl8192_set_rxconf(struct net_device *dev)
 	rxconf = rxconf | RCR_AM;
 	//rxconf = rxconf | RCR_ACF;
 
-	if (dev->flags & IFF_PROMISC) {DMESG ("NIC in promisc mode");}
+	if (dev->flags & IFF_PROMISC) {DMESG ("NIC in promisc mode"); }
 
 	if (priv->ieee80211->iw_mode == IW_MODE_MONITOR || \
 	   dev->flags & IFF_PROMISC){
@@ -2148,7 +2148,7 @@ short rtl8192_usb_initendpoints(struct net_device *dev)
 		return -ENOMEM;
 
 #ifndef JACKSON_NEW_RX
-	for (i = 0;i < (MAX_RX_URB+1);i++){
+	for (i = 0; i < (MAX_RX_URB+1); i++){
 
 		priv->rx_urb[i] = usb_alloc_urb(0,GFP_KERNEL);
 
@@ -2202,7 +2202,7 @@ void rtl8192_usb_deleteendpoints(struct net_device *dev)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 
 	if (priv->rx_urb){
-		for (i = 0;i < (MAX_RX_URB+1);i++){
+		for (i = 0; i < (MAX_RX_URB+1); i++){
 			usb_kill_urb(priv->rx_urb[i]);
 			usb_free_urb(priv->rx_urb[i]);
 		}
@@ -2225,7 +2225,7 @@ void rtl8192_usb_deleteendpoints(struct net_device *dev)
 #ifndef JACKSON_NEW_RX
 
 	if (priv->rx_urb){
-		for (i = 0;i < (MAX_RX_URB+1);i++){
+		for (i = 0; i < (MAX_RX_URB+1); i++){
 			usb_kill_urb(priv->rx_urb[i]);
 			kfree(priv->rx_urb[i]->transfer_buffer);
 			usb_free_urb(priv->rx_urb[i]);
@@ -3455,7 +3455,7 @@ if (Adapter->ResetProgress == RESET_TYPE_NORESET)
 
 			TempCCk = rtl8192_QueryBBReg(dev, rCCK0_TxFilter1, bMaskByte2);
 
-			for (i = 0 ; i < CCKTxBBGainTableLength ; i++)
+			for (i = 0; i < CCKTxBBGainTableLength; i++)
 			{
 
 				if (TempCCk == priv->cck_txbbgain_table[i].ccktxbb_valuearray[0])
@@ -3530,7 +3530,7 @@ TxCheckStuck(struct net_device *dev)
 //     RT_TRACE(COMP_RESET, " ==> TxCheckStuck()\n");
 //	     PlatformAcquireSpinLock(Adapter, RT_TX_SPINLOCK);
 //	     spin_lock_irqsave(&priv->ieee80211->lock,flags);
-	     for (QueueID = 0; QueueID <= BEACON_QUEUE;QueueID ++)
+	     for (QueueID = 0; QueueID <= BEACON_QUEUE; QueueID ++)
 	     {
 			if (QueueID == TXCMD_QUEUE)
 			 continue;
@@ -3790,7 +3790,7 @@ CamRestoreAllEntry(	struct net_device *dev)
 	if (priv->ieee80211->group_key_type == KEY_TYPE_TKIP)
 	{
 		MacAddr = CAM_CONST_BROAD;
-		for (EntryId = 1 ; EntryId < 4 ; EntryId++)
+		for (EntryId = 1; EntryId < 4; EntryId++)
 		{
 			{
 				setKey(dev,
@@ -3814,7 +3814,7 @@ CamRestoreAllEntry(	struct net_device *dev)
 	else if (priv->ieee80211->group_key_type == KEY_TYPE_CCMP)
 	{
 		MacAddr = CAM_CONST_BROAD;
-		for (EntryId = 1; EntryId < 4 ; EntryId++)
+		for (EntryId = 1; EntryId < 4; EntryId++)
 		{
 			{
 				setKey(dev,
@@ -3870,7 +3870,7 @@ RESET_START:
 		{
 			RT_TRACE(COMP_ERR,"%s():the driver is not up! return\n",__FUNCTION__);
 			up(&priv->wx_sem);
-			return ;
+			return;
 		}
 		priv->up = 0;
 		RT_TRACE(COMP_RESET,"%s():======>start to down the driver\n",__FUNCTION__);
@@ -3964,7 +3964,7 @@ void CAM_read_entry(
 	 u32 ulStatus;
 	s32 i = 100;
 //	printk("=======>start read CAM\n");
-	for (entry_i = 0;entry_i < CAM_CONTENT_COUNT;entry_i++)
+	for (entry_i = 0; entry_i < CAM_CONTENT_COUNT; entry_i++)
 	{
 	// polling bit, and No Write enable, and address
 		target_command = entry_i+CAM_CONTENT_COUNT*iIndex;
@@ -4214,7 +4214,7 @@ void rtl8192_commit(struct net_device *dev)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	int reset_status = 0;
 	//u8 reset_times = 0;
-	if (priv->up == 0) return ;
+	if (priv->up == 0) return;
 	priv->up = 0;
 
 	rtl8192_cancel_deferred_work(priv);
@@ -4377,7 +4377,7 @@ int rtl8192_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 #ifdef JOHN_HWSEC_DEBUG
 		//john's test 0711
 		printk("@@ wrq->u pointer = ");
-		for (i = 0;i < wrq->u.data.length;i++){
+		for (i = 0; i < wrq->u.data.length; i++){
 			if (i%10 == 0) printk("\n");
 			printk( "%8x|", ((u32 *)wrq->u.data.pointer)[i] );
 		}
@@ -4512,7 +4512,7 @@ void rtl8192_process_phyinfo(struct r8192_priv *priv,u8 *buffer, struct ieee8021
 	static u32 last_beacon_adc_pwdb;
 
 	struct ieee80211_hdr_3addr *hdr;
-	u16 sc ;
+	u16 sc;
 	unsigned int frag,seq;
 	hdr = (struct ieee80211_hdr_3addr *)buffer;
 	sc = le16_to_cpu(hdr->seq_ctl);
@@ -4690,7 +4690,7 @@ void rtl8192_process_phyinfo(struct r8192_priv *priv,u8 *buffer, struct ieee8021
 		// <2> Showed on UI for engineering
 		if (pprevious_stats->bPacketToSelf || pprevious_stats->bPacketBeacon || pprevious_stats->bToSelfBA)
 		{
-			for (nspatial_stream = 0; nspatial_stream < 2 ; nspatial_stream++) // 2 spatial stream
+			for (nspatial_stream = 0; nspatial_stream < 2; nspatial_stream++) // 2 spatial stream
 			{
 				if (pprevious_stats->RxMIMOSignalQuality[nspatial_stream] != -1)
 				{
@@ -4916,16 +4916,16 @@ static void rtl8192_query_rxphystatus(
 			switch (report)
 			{
 				case 0x3:
-					rx_pwr_all = -35 - ((pcck_buf->cck_agc_rpt & 0x1f)<<1) ;
+					rx_pwr_all = -35 - ((pcck_buf->cck_agc_rpt & 0x1f)<<1);
 					break;
 				case 0x2:
 					rx_pwr_all = -23 - ((pcck_buf->cck_agc_rpt & 0x1f)<<1);
 					break;
 				case 0x1:
-					rx_pwr_all = -11 - ((pcck_buf->cck_agc_rpt & 0x1f)<<1) ;
+					rx_pwr_all = -11 - ((pcck_buf->cck_agc_rpt & 0x1f)<<1);
 					break;
 				case 0x0:
-					rx_pwr_all = 6 - ((pcck_buf->cck_agc_rpt & 0x1f)<<1) ;
+					rx_pwr_all = 6 - ((pcck_buf->cck_agc_rpt & 0x1f)<<1);
 					break;
 			}
 		}
@@ -5242,7 +5242,7 @@ void query_rxdesc_status(struct sk_buff *skb, struct ieee80211_rx_stats *stats, 
 	if (bIsRxAggrSubframe)
 	{
 		rx_desc_819x_usb_aggr_subframe *desc = (rx_desc_819x_usb_aggr_subframe *)skb->data;
-		stats->Length = desc->Length ;
+		stats->Length = desc->Length;
 		stats->RxDrvInfoSize = desc->RxDrvInfoSize;
 		stats->RxBufShift = 0; //RxBufShift = 2 in RxDesc, but usb didn't shift bytes in fact.
 		stats->bICV = desc->ICV;
@@ -5935,7 +5935,7 @@ void setKey(	struct net_device *dev,
 //	usConfig |= BIT15 | (KeyType<<2) | (DefaultKey<<5) | KeyIndex;
 
 
-	for (i = 0 ; i < CAM_CONTENT_COUNT; i++){
+	for (i = 0; i < CAM_CONTENT_COUNT; i++){
 		TargetCommand  = i+CAM_CONTENT_COUNT*EntryNo;
 		TargetCommand |= BIT31|BIT16;
 
