@@ -1442,18 +1442,18 @@ static void intel_pre_enable_dp(struct intel_encoder *encoder)
 		int pipe = intel_crtc->pipe;
 		u32 val;
 
-		val = intel_dpio_read(dev_priv, DPIO_DATA_LANE_A(port));
+		val = vlv_dpio_read(dev_priv, DPIO_DATA_LANE_A(port));
 		val = 0;
 		if (pipe)
 			val |= (1<<21);
 		else
 			val &= ~(1<<21);
 		val |= 0x001000c4;
-		intel_dpio_write(dev_priv, DPIO_DATA_CHANNEL(port), val);
+		vlv_dpio_write(dev_priv, DPIO_DATA_CHANNEL(port), val);
 
-		intel_dpio_write(dev_priv, DPIO_PCS_CLOCKBUF0(port),
+		vlv_dpio_write(dev_priv, DPIO_PCS_CLOCKBUF0(port),
 				 0x00760018);
-		intel_dpio_write(dev_priv, DPIO_PCS_CLOCKBUF8(port),
+		vlv_dpio_write(dev_priv, DPIO_PCS_CLOCKBUF8(port),
 				 0x00400888);
 	}
 }
@@ -1469,19 +1469,19 @@ static void intel_dp_pre_pll_enable(struct intel_encoder *encoder)
 		return;
 
 	/* Program Tx lane resets to default */
-	intel_dpio_write(dev_priv, DPIO_PCS_TX(port),
+	vlv_dpio_write(dev_priv, DPIO_PCS_TX(port),
 			 DPIO_PCS_TX_LANE2_RESET |
 			 DPIO_PCS_TX_LANE1_RESET);
-	intel_dpio_write(dev_priv, DPIO_PCS_CLK(port),
+	vlv_dpio_write(dev_priv, DPIO_PCS_CLK(port),
 			 DPIO_PCS_CLK_CRI_RXEB_EIOS_EN |
 			 DPIO_PCS_CLK_CRI_RXDIGFILTSG_EN |
 			 (1<<DPIO_PCS_CLK_DATAWIDTH_SHIFT) |
 				 DPIO_PCS_CLK_SOFT_RESET);
 
 	/* Fix up inter-pair skew failure */
-	intel_dpio_write(dev_priv, DPIO_PCS_STAGGER1(port), 0x00750f00);
-	intel_dpio_write(dev_priv, DPIO_TX_CTL(port), 0x00001500);
-	intel_dpio_write(dev_priv, DPIO_TX_LANE(port), 0x40400000);
+	vlv_dpio_write(dev_priv, DPIO_PCS_STAGGER1(port), 0x00750f00);
+	vlv_dpio_write(dev_priv, DPIO_TX_CTL(port), 0x00001500);
+	vlv_dpio_write(dev_priv, DPIO_TX_LANE(port), 0x40400000);
 }
 
 /*
@@ -1691,14 +1691,14 @@ static uint32_t intel_vlv_signal_levels(struct intel_dp *intel_dp)
 		return 0;
 	}
 
-	intel_dpio_write(dev_priv, DPIO_TX_OCALINIT(port), 0x00000000);
-	intel_dpio_write(dev_priv, DPIO_TX_SWING_CTL4(port), demph_reg_value);
-	intel_dpio_write(dev_priv, DPIO_TX_SWING_CTL2(port),
+	vlv_dpio_write(dev_priv, DPIO_TX_OCALINIT(port), 0x00000000);
+	vlv_dpio_write(dev_priv, DPIO_TX_SWING_CTL4(port), demph_reg_value);
+	vlv_dpio_write(dev_priv, DPIO_TX_SWING_CTL2(port),
 			 uniqtranscale_reg_value);
-	intel_dpio_write(dev_priv, DPIO_TX_SWING_CTL3(port), 0x0C782040);
-	intel_dpio_write(dev_priv, DPIO_PCS_STAGGER0(port), 0x00030000);
-	intel_dpio_write(dev_priv, DPIO_PCS_CTL_OVER1(port), preemph_reg_value);
-	intel_dpio_write(dev_priv, DPIO_TX_OCALINIT(port), 0x80000000);
+	vlv_dpio_write(dev_priv, DPIO_TX_SWING_CTL3(port), 0x0C782040);
+	vlv_dpio_write(dev_priv, DPIO_PCS_STAGGER0(port), 0x00030000);
+	vlv_dpio_write(dev_priv, DPIO_PCS_CTL_OVER1(port), preemph_reg_value);
+	vlv_dpio_write(dev_priv, DPIO_TX_OCALINIT(port), 0x80000000);
 
 	return 0;
 }

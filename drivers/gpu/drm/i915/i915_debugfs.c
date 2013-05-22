@@ -1137,16 +1137,16 @@ static int i915_cur_delayinfo(struct seq_file *m, void *unused)
 		u32 freq_sts, val;
 
 		mutex_lock(&dev_priv->rps.hw_lock);
-		valleyview_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS,
+		vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS,
 				      &freq_sts);
 		seq_printf(m, "PUNIT_REG_GPU_FREQ_STS: 0x%08x\n", freq_sts);
 		seq_printf(m, "DDR freq: %d MHz\n", dev_priv->mem_freq);
 
-		valleyview_punit_read(dev_priv, PUNIT_FUSE_BUS1, &val);
+		vlv_punit_read(dev_priv, PUNIT_FUSE_BUS1, &val);
 		seq_printf(m, "max GPU freq: %d MHz\n",
 			   vlv_gpu_freq(dev_priv->mem_freq, val));
 
-		valleyview_punit_read(dev_priv, PUNIT_REG_GPU_LFM, &val);
+		vlv_punit_read(dev_priv, PUNIT_REG_GPU_LFM, &val);
 		seq_printf(m, "min GPU freq: %d MHz\n",
 			   vlv_gpu_freq(dev_priv->mem_freq, val));
 
@@ -1787,27 +1787,27 @@ static int i915_dpio_info(struct seq_file *m, void *data)
 	seq_printf(m, "DPIO_CTL: 0x%08x\n", I915_READ(DPIO_CTL));
 
 	seq_printf(m, "DPIO_DIV_A: 0x%08x\n",
-		   intel_dpio_read(dev_priv, _DPIO_DIV_A));
+		   vlv_dpio_read(dev_priv, _DPIO_DIV_A));
 	seq_printf(m, "DPIO_DIV_B: 0x%08x\n",
-		   intel_dpio_read(dev_priv, _DPIO_DIV_B));
+		   vlv_dpio_read(dev_priv, _DPIO_DIV_B));
 
 	seq_printf(m, "DPIO_REFSFR_A: 0x%08x\n",
-		   intel_dpio_read(dev_priv, _DPIO_REFSFR_A));
+		   vlv_dpio_read(dev_priv, _DPIO_REFSFR_A));
 	seq_printf(m, "DPIO_REFSFR_B: 0x%08x\n",
-		   intel_dpio_read(dev_priv, _DPIO_REFSFR_B));
+		   vlv_dpio_read(dev_priv, _DPIO_REFSFR_B));
 
 	seq_printf(m, "DPIO_CORE_CLK_A: 0x%08x\n",
-		   intel_dpio_read(dev_priv, _DPIO_CORE_CLK_A));
+		   vlv_dpio_read(dev_priv, _DPIO_CORE_CLK_A));
 	seq_printf(m, "DPIO_CORE_CLK_B: 0x%08x\n",
-		   intel_dpio_read(dev_priv, _DPIO_CORE_CLK_B));
+		   vlv_dpio_read(dev_priv, _DPIO_CORE_CLK_B));
 
 	seq_printf(m, "DPIO_LFP_COEFF_A: 0x%08x\n",
-		   intel_dpio_read(dev_priv, _DPIO_LFP_COEFF_A));
+		   vlv_dpio_read(dev_priv, _DPIO_LFP_COEFF_A));
 	seq_printf(m, "DPIO_LFP_COEFF_B: 0x%08x\n",
-		   intel_dpio_read(dev_priv, _DPIO_LFP_COEFF_B));
+		   vlv_dpio_read(dev_priv, _DPIO_LFP_COEFF_B));
 
 	seq_printf(m, "DPIO_FASTCLK_DISABLE: 0x%08x\n",
-		   intel_dpio_read(dev_priv, DPIO_FASTCLK_DISABLE));
+		   vlv_dpio_read(dev_priv, DPIO_FASTCLK_DISABLE));
 
 	mutex_unlock(&dev_priv->dpio_lock);
 
