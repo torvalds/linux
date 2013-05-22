@@ -168,10 +168,10 @@ struct thread_struct {
 	 * The following help to manage the use of Debug Control Registers
 	 * om the BookE platforms.
 	 */
-	unsigned long	dbcr0;
-	unsigned long	dbcr1;
+	uint32_t	dbcr0;
+	uint32_t	dbcr1;
 #ifdef CONFIG_BOOKE
-	unsigned long	dbcr2;
+	uint32_t	dbcr2;
 #endif
 	/*
 	 * The stored value of the DBSR register will be the value at the
@@ -179,7 +179,7 @@ struct thread_struct {
 	 * user (will never be written to) and has value while helping to
 	 * describe the reason for the last debug trap.  Torez
 	 */
-	unsigned long	dbsr;
+	uint32_t	dbsr;
 	/*
 	 * The following will contain addresses used by debug applications
 	 * to help trace and trap on particular address locations.
