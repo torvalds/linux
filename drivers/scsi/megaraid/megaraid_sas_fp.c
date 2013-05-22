@@ -503,8 +503,9 @@ u8 megasas_get_best_arm(struct LD_LOAD_BALANCE_INFO *lbInfo, u8 arm, u64 block,
 	diff1 = ABS_DIFF(block, lbInfo->last_accessed_block[1]);
 	bestArm = (diff0 <= diff1 ? 0 : 1);
 
-	if ((bestArm == arm && pend0 > pend1 + 16)  ||
-	    (bestArm != arm && pend1 > pend0 + 16))
+	/*Make balance count from 16 to 4 to keep driver in sync with Firmware*/
+	if ((bestArm == arm && pend0 > pend1 + 4)  ||
+	    (bestArm != arm && pend1 > pend0 + 4))
 		bestArm ^= 1;
 
 	/* Update the last accessed block on the correct pd */
