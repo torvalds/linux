@@ -1442,8 +1442,6 @@ static void intel_pre_enable_dp(struct intel_encoder *encoder)
 		int pipe = intel_crtc->pipe;
 		u32 val;
 
-		WARN_ON(!mutex_is_locked(&dev_priv->dpio_lock));
-
 		val = intel_dpio_read(dev_priv, DPIO_DATA_LANE_A(port));
 		val = 0;
 		if (pipe)
@@ -1469,8 +1467,6 @@ static void intel_dp_pre_pll_enable(struct intel_encoder *encoder)
 
 	if (!IS_VALLEYVIEW(dev))
 		return;
-
-	WARN_ON(!mutex_is_locked(&dev_priv->dpio_lock));
 
 	/* Program Tx lane resets to default */
 	intel_dpio_write(dev_priv, DPIO_PCS_TX(port),
@@ -1621,8 +1617,6 @@ static uint32_t intel_vlv_signal_levels(struct intel_dp *intel_dp)
 		uniqtranscale_reg_value;
 	uint8_t train_set = intel_dp->train_set[0];
 	int port = vlv_dport_to_channel(dport);
-
-	WARN_ON(!mutex_is_locked(&dev_priv->dpio_lock));
 
 	switch (train_set & DP_TRAIN_PRE_EMPHASIS_MASK) {
 	case DP_TRAIN_PRE_EMPHASIS_0:
