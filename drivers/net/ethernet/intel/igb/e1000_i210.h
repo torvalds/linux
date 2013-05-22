@@ -82,11 +82,11 @@ enum E1000_INVM_STRUCTURE_TYPE {
 #define E1000_INVM_MAJOR_SHIFT		4
 
 #define ID_LED_DEFAULT_I210		((ID_LED_OFF1_ON2  << 8) | \
-					 (ID_LED_OFF1_OFF2 <<  4) | \
-					 (ID_LED_DEF1_DEF2))
+					 (ID_LED_DEF1_DEF2 <<  4) | \
+					 (ID_LED_OFF1_OFF2))
 #define ID_LED_DEFAULT_I210_SERDES	((ID_LED_DEF1_DEF2 << 8) | \
 					 (ID_LED_DEF1_DEF2 <<  4) | \
-					 (ID_LED_DEF1_DEF2))
+					 (ID_LED_OFF1_ON2))
 
 /* NVM offset defaults for i211 device */
 #define NVM_INIT_CTRL_2_DEFAULT_I211	0X7243

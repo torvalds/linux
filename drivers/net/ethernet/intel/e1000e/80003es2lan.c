@@ -66,17 +66,17 @@ static s32 e1000_init_phy_params_80003es2lan(struct e1000_hw *hw)
 	s32 ret_val;
 
 	if (hw->phy.media_type != e1000_media_type_copper) {
-		phy->type	= e1000_phy_none;
+		phy->type = e1000_phy_none;
 		return 0;
 	} else {
 		phy->ops.power_up = e1000_power_up_phy_copper;
 		phy->ops.power_down = e1000_power_down_phy_copper_80003es2lan;
 	}
 
-	phy->addr		= 1;
-	phy->autoneg_mask	= AUTONEG_ADVERTISE_SPEED_DEFAULT;
-	phy->reset_delay_us      = 100;
-	phy->type		= e1000_phy_gg82563;
+	phy->addr = 1;
+	phy->autoneg_mask = AUTONEG_ADVERTISE_SPEED_DEFAULT;
+	phy->reset_delay_us = 100;
+	phy->type = e1000_phy_gg82563;
 
 	/* This can only be done after all function pointers are setup. */
 	ret_val = e1000e_get_phy_id(hw);
@@ -98,19 +98,19 @@ static s32 e1000_init_nvm_params_80003es2lan(struct e1000_hw *hw)
 	u32 eecd = er32(EECD);
 	u16 size;
 
-	nvm->opcode_bits	= 8;
-	nvm->delay_usec	 = 1;
+	nvm->opcode_bits = 8;
+	nvm->delay_usec = 1;
 	switch (nvm->override) {
 	case e1000_nvm_override_spi_large:
-		nvm->page_size    = 32;
+		nvm->page_size = 32;
 		nvm->address_bits = 16;
 		break;
 	case e1000_nvm_override_spi_small:
-		nvm->page_size    = 8;
+		nvm->page_size = 8;
 		nvm->address_bits = 8;
 		break;
 	default:
-		nvm->page_size    = eecd & E1000_EECD_ADDR_BITS ? 32 : 8;
+		nvm->page_size = eecd & E1000_EECD_ADDR_BITS ? 32 : 8;
 		nvm->address_bits = eecd & E1000_EECD_ADDR_BITS ? 16 : 8;
 		break;
 	}
@@ -128,7 +128,7 @@ static s32 e1000_init_nvm_params_80003es2lan(struct e1000_hw *hw)
 	/* EEPROM access above 16k is unsupported */
 	if (size > 14)
 		size = 14;
-	nvm->word_size	= 1 << size;
+	nvm->word_size = 1 << size;
 
 	return 0;
 }
@@ -859,7 +859,7 @@ static void e1000_initialize_hw_bits_80003es2lan(struct e1000_hw *hw)
 
 	/* Transmit Arbitration Control 0 */
 	reg = er32(TARC(0));
-	reg &= ~(0xF << 27); /* 30:27 */
+	reg &= ~(0xF << 27);	/* 30:27 */
 	if (hw->phy.media_type != e1000_media_type_copper)
 		reg &= ~(1 << 20);
 	ew32(TARC(0), reg);

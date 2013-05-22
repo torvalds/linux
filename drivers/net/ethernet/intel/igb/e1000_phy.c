@@ -341,6 +341,130 @@ s32 igb_write_phy_reg_i2c(struct e1000_hw *hw, u32 offset, u16 data)
 }
 
 /**
+ *  igb_read_sfp_data_byte - Reads SFP module data.
+ *  @hw: pointer to the HW structure
+ *  @offset: byte location offset to be read
+ *  @data: read data buffer pointer
+ *
+ *  Reads one byte from SFP module data stored
+ *  in SFP resided EEPROM memory or SFP diagnostic area.
+ *  Function should be called with
+ *  E1000_I2CCMD_SFP_DATA_ADDR(<byte offset>) for SFP module database access
+ *  E1000_I2CCMD_SFP_DIAG_ADDR(<byte offset>) for SFP diagnostics parameters
+ *  access
+ **/
+s32 igb_read_sfp_data_byte(struct e1000_hw *hw, u16 offset, u8 *data)
+{
+	u32 i = 0;
+	u32 i2ccmd = 0;
+	u32 data_local = 0;
+
+	if (offset > E1000_I2CCMD_SFP_DIAG_ADDR(255)) {
+		hw_dbg("I2CCMD command address exceeds upper limit\n");
+		return -E1000_ERR_PHY;
+	}
+
+	/* Set up Op-code, EEPROM Address,in the I2CCMD
+	 * register. The MAC will take care of interfacing with the
+	 * EEPROM to retrieve the desired data.
+	 */
+	i2ccmd = ((offset << E1000_I2CCMD_REG_ADDR_SHIFT) |
+		  E1000_I2CCMD_OPCODE_READ);
+
+	wr32(E1000_I2CCMD, i2ccmd);
+
+	/* Poll the ready bit to see if the I2C read completed */
+	for (i = 0; i < E1000_I2CCMD_PHY_TIMEOUT; i++) {
+		udelay(50);
+		data_local = rd32(E1000_I2CCMD);
+		if (data_local & E1000_I2CCMD_READY)
+			break;
+	}
+	if (!(data_local & E1000_I2CCMD_READY)) {
+		hw_dbg("I2CCMD Read did not complete\n");
+		return -E1000_ERR_PHY;
+	}
+	if (data_local & E1000_I2CCMD_ERROR) {
+		hw_dbg("I2CCMD Error bit set\n");
+		return -E1000_ERR_PHY;
+	}
+	*data = (u8) data_local & 0xFF;
+
+	return 0;
+}
+
+/**
+ *  e1000_write_sfp_data_byte - Writes SFP module data.
+ *  @hw: pointer to the HW structure
+ *  @offset: byte location offset to write to
+ *  @data: data to write
+ *
+ *  Writes one byte to SFP module data stored
+ *  in SFP resided EEPROM memory or SFP diagnostic area.
+ *  Function should be called with
+ *  E1000_I2CCMD_SFP_DATA_ADDR(<byte offset>) for SFP module database access
+ *  E1000_I2CCMD_SFP_DIAG_ADDR(<byte offset>) for SFP diagnostics parameters
+ *  access
+ **/
+s32 e1000_write_sfp_data_byte(struct e1000_hw *hw, u16 offset, u8 data)
+{
+	u32 i = 0;
+	u32 i2ccmd = 0;
+	u32 data_local = 0;
+
+	if (offset > E1000_I2CCMD_SFP_DIAG_ADDR(255)) {
+		hw_dbg("I2CCMD command address exceeds upper limit\n");
+		return -E1000_ERR_PHY;
+	}
+	/* The programming interface is 16 bits wide
+	 * so we need to read the whole word first
+	 * then update appropriate byte lane and write
+	 * the updated word back.
+	 */
+	/* Set up Op-code, EEPROM Address,in the I2CCMD
+	 * register. The MAC will take care of interfacing
+	 * with an EEPROM to write the data given.
+	 */
+	i2ccmd = ((offset << E1000_I2CCMD_REG_ADDR_SHIFT) |
+		  E1000_I2CCMD_OPCODE_READ);
+	/* Set a command to read single word */
+	wr32(E1000_I2CCMD, i2ccmd);
+	for (i = 0; i < E1000_I2CCMD_PHY_TIMEOUT; i++) {
+		udelay(50);
+		/* Poll the ready bit to see if lastly
+		 * launched I2C operation completed
+		 */
+		i2ccmd = rd32(E1000_I2CCMD);
+		if (i2ccmd & E1000_I2CCMD_READY) {
+			/* Check if this is READ or WRITE phase */
+			if ((i2ccmd & E1000_I2CCMD_OPCODE_READ) ==
+			    E1000_I2CCMD_OPCODE_READ) {
+				/* Write the selected byte
+				 * lane and update whole word
+				 */
+				data_local = i2ccmd & 0xFF00;
+				data_local |= data;
+				i2ccmd = ((offset <<
+					E1000_I2CCMD_REG_ADDR_SHIFT) |
+					E1000_I2CCMD_OPCODE_WRITE | data_local);
+				wr32(E1000_I2CCMD, i2ccmd);
+			} else {
+				break;
+			}
+		}
+	}
+	if (!(i2ccmd & E1000_I2CCMD_READY)) {
+		hw_dbg("I2CCMD Write did not complete\n");
+		return -E1000_ERR_PHY;
+	}
+	if (i2ccmd & E1000_I2CCMD_ERROR) {
+		hw_dbg("I2CCMD Error bit set\n");
+		return -E1000_ERR_PHY;
+	}
+	return 0;
+}
+
+/**
  *  igb_read_phy_reg_igp - Read igp PHY register
  *  @hw: pointer to the HW structure
  *  @offset: register offset to be read
