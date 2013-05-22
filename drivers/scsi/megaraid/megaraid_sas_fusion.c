@@ -1592,6 +1592,10 @@ megasas_build_dcdb_fusion(struct megasas_instance *instance,
 		io_request->RaidContext.RAIDFlags =
 			MR_RAID_FLAGS_IO_SUB_TYPE_SYSTEM_PD <<
 			MR_RAID_CTX_RAID_FLAGS_IO_SUB_TYPE_SHIFT;
+		if ((instance->pdev->device == PCI_DEVICE_ID_LSI_INVADER) ||
+			(instance->pdev->device == PCI_DEVICE_ID_LSI_FURY))
+			io_request->IoFlags |=
+				MPI25_SAS_DEVICE0_FLAGS_ENABLED_FAST_PATH;
 		cmd->request_desc->SCSIIO.RequestFlags =
 			(MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY <<
 			 MEGASAS_REQ_DESCRIPT_FLAGS_TYPE_SHIFT);
