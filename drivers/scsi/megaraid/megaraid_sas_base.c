@@ -4599,10 +4599,6 @@ static void megasas_detach_one(struct pci_dev *pdev)
 		break;
 	default:
 		megasas_release_mfi(instance);
-		pci_free_consistent(pdev,
-				    sizeof(struct megasas_evt_detail),
-				    instance->evt_detail,
-				    instance->evt_detail_h);
 		pci_free_consistent(pdev, sizeof(u32),
 				    instance->producer,
 				    instance->producer_h);
@@ -4612,6 +4608,9 @@ static void megasas_detach_one(struct pci_dev *pdev)
 		break;
 	}
 
+	if (instance->evt_detail)
+		pci_free_consistent(pdev, sizeof(struct megasas_evt_detail),
+				instance->evt_detail, instance->evt_detail_h);
 	scsi_host_put(host);
 
 	pci_set_drvdata(pdev, NULL);
