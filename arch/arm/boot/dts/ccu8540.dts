@@ -14,7 +14,7 @@
 
 / {
 	model = "ST-Ericsson U8540 platform with Device Tree";
-	compatible = "st-ericsson,u8540";
+	compatible = "st-ericsson,ccu8540", "st-ericsson,u8540";
 
 	memory {
 		reg = <0x00000000 0x20000000>;
