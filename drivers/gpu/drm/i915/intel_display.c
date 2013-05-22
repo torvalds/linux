@@ -381,43 +381,6 @@ static const intel_limit_t intel_limits_vlv_dp = {
 	.find_pll = intel_vlv_find_best_pll,
 };
 
-u32 intel_dpio_read(struct drm_i915_private *dev_priv, int reg)
-{
-	WARN_ON(!mutex_is_locked(&dev_priv->dpio_lock));
-
-	if (wait_for_atomic_us((I915_READ(DPIO_PKT) & DPIO_BUSY) == 0, 100)) {
-		DRM_ERROR("DPIO idle wait timed out\n");
-		return 0;
-	}
-
-	I915_WRITE(DPIO_REG, reg);
-	I915_WRITE(DPIO_PKT, DPIO_RID | DPIO_OP_READ | DPIO_PORTID |
-		   DPIO_BYTE);
-	if (wait_for_atomic_us((I915_READ(DPIO_PKT) & DPIO_BUSY) == 0, 100)) {
-		DRM_ERROR("DPIO read wait timed out\n");
-		return 0;
-	}
-
-	return I915_READ(DPIO_DATA);
-}
-
-void intel_dpio_write(struct drm_i915_private *dev_priv, int reg, u32 val)
-{
-	WARN_ON(!mutex_is_locked(&dev_priv->dpio_lock));
-
-	if (wait_for_atomic_us((I915_READ(DPIO_PKT) & DPIO_BUSY) == 0, 100)) {
-		DRM_ERROR("DPIO idle wait timed out\n");
-		return;
-	}
-
-	I915_WRITE(DPIO_DATA, val);
-	I915_WRITE(DPIO_REG, reg);
-	I915_WRITE(DPIO_PKT, DPIO_RID | DPIO_OP_WRITE | DPIO_PORTID |
-		   DPIO_BYTE);
-	if (wait_for_atomic_us((I915_READ(DPIO_PKT) & DPIO_BUSY) == 0, 100))
-		DRM_ERROR("DPIO write wait timed out\n");
-}
-
 static const intel_limit_t *intel_ironlake_limit(struct drm_crtc *crtc,
 						int refclk)
 {
@@ -1402,67 +1365,6 @@ static void intel_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 	val &= ~DPLL_VCO_ENABLE;
 	I915_WRITE(reg, val);
 	POSTING_READ(reg);
-}
-
-/* SBI access */
-static void
-intel_sbi_write(struct drm_i915_private *dev_priv, u16 reg, u32 value,
-		enum intel_sbi_destination destination)
-{
-	u32 tmp;
-
-	WARN_ON(!mutex_is_locked(&dev_priv->dpio_lock));
-
-	if (wait_for((I915_READ(SBI_CTL_STAT) & SBI_BUSY) == 0,
-				100)) {
-		DRM_ERROR("timeout waiting for SBI to become ready\n");
-		return;
-	}
-
-	I915_WRITE(SBI_ADDR, (reg << 16));
-	I915_WRITE(SBI_DATA, value);
-
-	if (destination == SBI_ICLK)
-		tmp = SBI_CTL_DEST_ICLK | SBI_CTL_OP_CRWR;
-	else
-		tmp = SBI_CTL_DEST_MPHY | SBI_CTL_OP_IOWR;
-	I915_WRITE(SBI_CTL_STAT, SBI_BUSY | tmp);
-
-	if (wait_for((I915_READ(SBI_CTL_STAT) & (SBI_BUSY | SBI_RESPONSE_FAIL)) == 0,
-				100)) {
-		DRM_ERROR("timeout waiting for SBI to complete write transaction\n");
-		return;
-	}
-}
-
-static u32
-intel_sbi_read(struct drm_i915_private *dev_priv, u16 reg,
-	       enum intel_sbi_destination destination)
-{
-	u32 value = 0;
-	WARN_ON(!mutex_is_locked(&dev_priv->dpio_lock));
-
-	if (wait_for((I915_READ(SBI_CTL_STAT) & SBI_BUSY) == 0,
-				100)) {
-		DRM_ERROR("timeout waiting for SBI to become ready\n");
-		return 0;
-	}
-
-	I915_WRITE(SBI_ADDR, (reg << 16));
-
-	if (destination == SBI_ICLK)
-		value = SBI_CTL_DEST_ICLK | SBI_CTL_OP_CRRD;
-	else
-		value = SBI_CTL_DEST_MPHY | SBI_CTL_OP_IORD;
-	I915_WRITE(SBI_CTL_STAT, value | SBI_BUSY);
-
-	if (wait_for((I915_READ(SBI_CTL_STAT) & (SBI_BUSY | SBI_RESPONSE_FAIL)) == 0,
-				100)) {
-		DRM_ERROR("timeout waiting for SBI to complete read transaction\n");
-		return 0;
-	}
-
-	return I915_READ(SBI_DATA);
 }
 
 void vlv_wait_port_ready(struct drm_i915_private *dev_priv, int port)

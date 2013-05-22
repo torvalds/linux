@@ -743,10 +743,6 @@ extern int intel_sprite_set_colorkey(struct drm_device *dev, void *data,
 extern int intel_sprite_get_colorkey(struct drm_device *dev, void *data,
 				     struct drm_file *file_priv);
 
-extern u32 intel_dpio_read(struct drm_i915_private *dev_priv, int reg);
-extern void intel_dpio_write(struct drm_i915_private *dev_priv, int reg,
-			     u32 val);
-
 /* Power-related functions, located in intel_pm.c */
 extern void intel_init_pm(struct drm_device *dev);
 /* FBC */
