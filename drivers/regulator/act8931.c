@@ -653,7 +653,7 @@ static int __devinit act8931_i2c_probe(struct i2c_client *i2c, const struct i2c_
 	ret = act8931_reg_read(act8931,0x01);
 	if (ret < 0)		
 			goto err;
-	ret = act8931_set_bits(act8931, 0x01,(0x1<<0),(0x1<<0));
+	ret = act8931_set_bits(act8931, 0x01,(0x1<<5) | (0x1<<0),(0x1<<0));
 	if (ret < 0) {
 		printk("act8931 set 0x01 error!\n");
 		goto err;
