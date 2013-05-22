@@ -471,6 +471,9 @@ bool radeon_card_posted(struct radeon_device *rdev)
 	    rdev->pdev->subsystem_vendor == PCI_VENDOR_ID_APPLE)
 		return false;
 
+	if (ASIC_IS_NODCE(rdev))
+		goto check_memsize;
+
 	/* first check CRTCs */
 	if (ASIC_IS_DCE4(rdev)) {
 		reg = RREG32(EVERGREEN_CRTC_CONTROL + EVERGREEN_CRTC0_REGISTER_OFFSET) |
@@ -499,6 +502,7 @@ bool radeon_card_posted(struct radeon_device *rdev)
 		}
 	}
 
+check_memsize:
 	/* then check MEM_SIZE, in case the crtcs are off */
 	if (rdev->family >= CHIP_R600)
 		reg = RREG32(R600_CONFIG_MEMSIZE);
