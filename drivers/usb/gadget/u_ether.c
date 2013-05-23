@@ -78,6 +78,7 @@ struct eth_dev {
 
 	bool			zlp;
 	u8			host_mac[ETH_ALEN];
+	u8			dev_mac[ETH_ALEN];
 };
 
 /*-------------------------------------------------------------------------*/
@@ -716,6 +717,17 @@ static int get_ether_addr(const char *str, u8 *dev_addr)
 	return 1;
 }
 
+static int get_ether_addr_str(u8 dev_addr[ETH_ALEN], char *str, int len)
+{
+	if (len < 18)
+		return -EINVAL;
+
+	snprintf(str, len, "%02x:%02x:%02x:%02x:%02x:%02x",
+		 dev_addr[0], dev_addr[1], dev_addr[2],
+		 dev_addr[3], dev_addr[4], dev_addr[5]);
+	return 18;
+}
+
 static const struct net_device_ops eth_netdev_ops = {
 	.ndo_open		= eth_open,
 	.ndo_stop		= eth_stop,
@@ -796,7 +808,8 @@ struct eth_dev *gether_setup_name(struct usb_gadget *g,
 		INFO(dev, "MAC %pM\n", net->dev_addr);
 		INFO(dev, "HOST MAC %pM\n", dev->host_mac);
 
-		/* two kinds of host-initiated state changes:
+		/*
+		 * two kinds of host-initiated state changes:
 		 *  - iff DATA transfer is active, carrier is "on"
 		 *  - tx queueing enabled if open *and* carrier is "on"
 		 */
@@ -806,6 +819,176 @@ struct eth_dev *gether_setup_name(struct usb_gadget *g,
 	return dev;
 }
 EXPORT_SYMBOL(gether_setup_name);
+
+struct net_device *gether_setup_name_default(const char *netname)
+{
+	struct net_device	*net;
+	struct eth_dev		*dev;
+
+	net = alloc_etherdev(sizeof(*dev));
+	if (!net)
+		return ERR_PTR(-ENOMEM);
+
+	dev = netdev_priv(net);
+	spin_lock_init(&dev->lock);
+	spin_lock_init(&dev->req_lock);
+	INIT_WORK(&dev->work, eth_work);
+	INIT_LIST_HEAD(&dev->tx_reqs);
+	INIT_LIST_HEAD(&dev->rx_reqs);
+
+	skb_queue_head_init(&dev->rx_frames);
+
+	/* network device setup */
+	dev->net = net;
+	dev->qmult = QMULT_DEFAULT;
+	snprintf(net->name, sizeof(net->name), "%s%%d", netname);
+
+	eth_random_addr(dev->dev_mac);
+	pr_warn("using random %s ethernet address\n", "self");
+	eth_random_addr(dev->host_mac);
+	pr_warn("using random %s ethernet address\n", "host");
+
+	net->netdev_ops = &eth_netdev_ops;
+
+	SET_ETHTOOL_OPS(net, &ops);
+	SET_NETDEV_DEVTYPE(net, &gadget_type);
+
+	return net;
+}
+EXPORT_SYMBOL(gether_setup_name_default);
+
+int gether_register_netdev(struct net_device *net)
+{
+	struct eth_dev *dev;
+	struct usb_gadget *g;
+	struct sockaddr sa;
+	int status;
+
+	if (!net->dev.parent)
+		return -EINVAL;
+	dev = netdev_priv(net);
+	g = dev->gadget;
+	status = register_netdev(net);
+	if (status < 0) {
+		dev_dbg(&g->dev, "register_netdev failed, %d\n", status);
+		return status;
+	} else {
+		INFO(dev, "HOST MAC %pM\n", dev->host_mac);
+
+		/* two kinds of host-initiated state changes:
+		 *  - iff DATA transfer is active, carrier is "on"
+		 *  - tx queueing enabled if open *and* carrier is "on"
+		 */
+		netif_carrier_off(net);
+	}
+	sa.sa_family = net->type;
+	memcpy(sa.sa_data, dev->dev_mac, ETH_ALEN);
+	rtnl_lock();
+	status = dev_set_mac_address(net, &sa);
+	rtnl_unlock();
+	if (status)
+		pr_warn("cannot set self ethernet address: %d\n", status);
+	else
+		INFO(dev, "MAC %pM\n", dev->dev_mac);
+
+	return status;
+}
+EXPORT_SYMBOL(gether_register_netdev);
+
+void gether_set_gadget(struct net_device *net, struct usb_gadget *g)
+{
+	struct eth_dev *dev;
+
+	dev = netdev_priv(net);
+	dev->gadget = g;
+	SET_NETDEV_DEV(net, &g->dev);
+}
+EXPORT_SYMBOL(gether_set_gadget);
+
+int gether_set_dev_addr(struct net_device *net, const char *dev_addr)
+{
+	struct eth_dev *dev;
+	u8 new_addr[ETH_ALEN];
+
+	dev = netdev_priv(net);
+	if (get_ether_addr(dev_addr, new_addr))
+		return -EINVAL;
+	memcpy(dev->dev_mac, new_addr, ETH_ALEN);
+	return 0;
+}
+EXPORT_SYMBOL(gether_set_dev_addr);
+
+int gether_get_dev_addr(struct net_device *net, char *dev_addr, int len)
+{
+	struct eth_dev *dev;
+
+	dev = netdev_priv(net);
+	return get_ether_addr_str(dev->dev_mac, dev_addr, len);
+}
+EXPORT_SYMBOL(gether_get_dev_addr);
+
+int gether_set_host_addr(struct net_device *net, const char *host_addr)
+{
+	struct eth_dev *dev;
+	u8 new_addr[ETH_ALEN];
+
+	dev = netdev_priv(net);
+	if (get_ether_addr(host_addr, new_addr))
+		return -EINVAL;
+	memcpy(dev->host_mac, new_addr, ETH_ALEN);
+	return 0;
+}
+EXPORT_SYMBOL(gether_set_host_addr);
+
+int gether_get_host_addr(struct net_device *net, char *host_addr, int len)
+{
+	struct eth_dev *dev;
+
+	dev = netdev_priv(net);
+	return get_ether_addr_str(dev->host_mac, host_addr, len);
+}
+EXPORT_SYMBOL(gether_get_host_addr);
+
+int gether_get_host_addr_cdc(struct net_device *net, char *host_addr, int len)
+{
+	struct eth_dev *dev;
+
+	if (len < 13)
+		return -EINVAL;
+
+	dev = netdev_priv(net);
+	snprintf(host_addr, len, "%pm", dev->host_mac);
+
+	return strlen(host_addr);
+}
+EXPORT_SYMBOL(gether_get_host_addr_cdc);
+
+void gether_set_qmult(struct net_device *net, unsigned qmult)
+{
+	struct eth_dev *dev;
+
+	dev = netdev_priv(net);
+	dev->qmult = qmult;
+}
+EXPORT_SYMBOL(gether_set_qmult);
+
+unsigned gether_get_qmult(struct net_device *net)
+{
+	struct eth_dev *dev;
+
+	dev = netdev_priv(net);
+	return dev->qmult;
+}
+EXPORT_SYMBOL(gether_get_qmult);
+
+int gether_get_ifname(struct net_device *net, char *name, int len)
+{
+	rtnl_lock();
+	strlcpy(name, netdev_name(net), len);
+	rtnl_unlock();
+	return strlen(name);
+}
+EXPORT_SYMBOL(gether_get_ifname);
 
 /**
  * gether_cleanup - remove Ethernet-over-USB device
