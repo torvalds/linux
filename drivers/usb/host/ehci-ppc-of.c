@@ -180,13 +180,11 @@ err_irq:
 
 static int ehci_hcd_ppc_of_remove(struct platform_device *op)
 {
-	struct usb_hcd *hcd = dev_get_drvdata(&op->dev);
+	struct usb_hcd *hcd = platform_get_drvdata(op);
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 
 	struct device_node *np;
 	struct resource res;
-
-	dev_set_drvdata(&op->dev, NULL);
 
 	dev_dbg(&op->dev, "stopping PPC-OF USB Controller\n");
 
@@ -219,7 +217,7 @@ static int ehci_hcd_ppc_of_remove(struct platform_device *op)
 
 static void ehci_hcd_ppc_of_shutdown(struct platform_device *op)
 {
-	struct usb_hcd *hcd = dev_get_drvdata(&op->dev);
+	struct usb_hcd *hcd = platform_get_drvdata(op);
 
 	if (hcd->driver->shutdown)
 		hcd->driver->shutdown(hcd);

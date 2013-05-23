@@ -143,7 +143,7 @@ static int uhci_hcd_platform_remove(struct platform_device *pdev)
  */
 static void uhci_hcd_platform_shutdown(struct platform_device *op)
 {
-	struct usb_hcd *hcd = dev_get_drvdata(&op->dev);
+	struct usb_hcd *hcd = platform_get_drvdata(op);
 
 	uhci_hc_died(hcd_to_uhci(hcd));
 }
