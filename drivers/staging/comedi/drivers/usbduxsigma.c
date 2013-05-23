@@ -1590,16 +1590,12 @@ static int usbdux_dio_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static void usbduxsub_unlink_PwmURBs(struct usbduxsub *devpriv)
-{
-	if (devpriv->urbPwm)
-		usb_kill_urb(devpriv->urbPwm);
-}
-
 static void usbdux_pwm_stop(struct usbduxsub *devpriv, int do_unlink)
 {
-	if (do_unlink)
-		usbduxsub_unlink_PwmURBs(devpriv);
+	if (do_unlink) {
+		if (devpriv->urbPwm)
+			usb_kill_urb(devpriv->urbPwm);
+	}
 
 	devpriv->pwm_cmd_running = 0;
 }
