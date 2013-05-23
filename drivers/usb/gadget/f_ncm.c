@@ -1160,8 +1160,6 @@ static int ncm_bind(struct usb_configuration *c, struct usb_function *f)
 	struct f_ncm		*ncm = func_to_ncm(f);
 	int			status;
 	struct usb_ep		*ep;
-
-#ifndef USB_FNCM_INCLUDED
 	struct f_ncm_opts	*ncm_opts;
 
 	if (!can_support_ecm(cdev->gadget))
@@ -1182,7 +1180,6 @@ static int ncm_bind(struct usb_configuration *c, struct usb_function *f)
 			return status;
 		ncm_opts->bound = true;
 	}
-#endif
 	if (ncm_string_defs[0].id == 0) {
 		status = usb_string_ids_tab(c->cdev, ncm_string_defs);
 		if (status < 0)
@@ -1297,80 +1294,6 @@ fail:
 	return status;
 }
 
-#ifdef USB_FNCM_INCLUDED
-
-static void
-ncm_old_unbind(struct usb_configuration *c, struct usb_function *f)
-{
-	struct f_ncm		*ncm = func_to_ncm(f);
-
-	DBG(c->cdev, "ncm unbind\n");
-
-	ncm_string_defs[0].id = 0;
-	usb_free_all_descriptors(f);
-
-	kfree(ncm->notify_req->buf);
-	usb_ep_free_request(ncm->notify, ncm->notify_req);
-
-	kfree(ncm);
-}
-
-/**
- * ncm_bind_config - add CDC Network link to a configuration
- * @c: the configuration to support the network link
- * @ethaddr: a buffer in which the ethernet address of the host side
- *	side of the link was recorded
- * Context: single threaded during gadget setup
- *
- * Returns zero on success, else negative errno.
- *
- * Caller must have called @gether_setup().  Caller is also responsible
- * for calling @gether_cleanup() before module unload.
- */
-int __init ncm_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
-		struct eth_dev *dev)
-{
-	struct f_ncm	*ncm;
-	int		status;
-
-	if (!can_support_ecm(c->cdev->gadget) || !ethaddr)
-		return -EINVAL;
-
-	/* allocate and initialize one new instance */
-	ncm = kzalloc(sizeof *ncm, GFP_KERNEL);
-	if (!ncm)
-		return -ENOMEM;
-
-	/* export host's Ethernet address in CDC format */
-	snprintf(ncm->ethaddr, sizeof ncm->ethaddr, "%pm", ethaddr);
-	ncm_string_defs[STRING_MAC_IDX].s = ncm->ethaddr;
-
-	spin_lock_init(&ncm->lock);
-	ncm_reset_values(ncm);
-	ncm->port.ioport = dev;
-	ncm->port.is_fixed = true;
-
-	ncm->port.func.name = "cdc_network";
-	ncm->port.func.strings = ncm_strings;
-	/* descriptors are per-instance copies */
-	ncm->port.func.bind = ncm_bind;
-	ncm->port.func.unbind = ncm_old_unbind;
-	ncm->port.func.set_alt = ncm_set_alt;
-	ncm->port.func.get_alt = ncm_get_alt;
-	ncm->port.func.setup = ncm_setup;
-	ncm->port.func.disable = ncm_disable;
-
-	ncm->port.wrap = ncm_wrap_ntb;
-	ncm->port.unwrap = ncm_unwrap_ntb;
-
-	status = usb_add_function(c, &ncm->port.func);
-	if (status)
-		kfree(ncm);
-	return status;
-}
-
-#else
-
 static void ncm_free_inst(struct usb_function_instance *f)
 {
 	struct f_ncm_opts *opts;
@@ -1466,6 +1389,3 @@ struct usb_function *ncm_alloc(struct usb_function_instance *fi)
 DECLARE_USB_FUNCTION_INIT(ncm, ncm_alloc_inst, ncm_alloc);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Yauheni Kaliuta");
-
-#endif
-
