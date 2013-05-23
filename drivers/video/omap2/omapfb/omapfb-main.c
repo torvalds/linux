@@ -2503,7 +2503,7 @@ static int omapfb_probe(struct platform_device *pdev)
 
 	if (def_display == NULL) {
 		dev_err(fbdev->dev, "failed to find default display\n");
-		r = -EINVAL;
+		r = -EPROBE_DEFER;
 		goto cleanup;
 	}
 
