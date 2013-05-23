@@ -422,8 +422,9 @@ static int vidioc_try_fmt(struct coda_dev *dev, struct v4l2_format *f)
 		v4l_bound_align_image(&f->fmt.pix.width, MIN_W, MAX_W,
 				      W_ALIGN, &f->fmt.pix.height,
 				      MIN_H, MAX_H, H_ALIGN, S_ALIGN);
-		f->fmt.pix.bytesperline = round_up(f->fmt.pix.width, 2);
-		f->fmt.pix.sizeimage = f->fmt.pix.width *
+		/* Frame stride must be multiple of 8 */
+		f->fmt.pix.bytesperline = round_up(f->fmt.pix.width, 8);
+		f->fmt.pix.sizeimage = f->fmt.pix.bytesperline *
 					f->fmt.pix.height * 3 / 2;
 	} else { /*encoded formats h.264/mpeg4 */
 		f->fmt.pix.bytesperline = 0;
