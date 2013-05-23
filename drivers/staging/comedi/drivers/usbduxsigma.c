@@ -98,6 +98,8 @@ Status: testing
 /* Number of channels (16 AD and offset)*/
 #define NUMCHANNELS 16
 
+#define USBDUXSIGMA_NUM_AO_CHAN		4
+
 /* Size of one A/D value */
 #define SIZEADIN          ((sizeof(int32_t)))
 
@@ -174,8 +176,8 @@ struct usbduxsigma_private {
 	int32_t *inBuffer;
 	/* input buffer for single insn */
 	int8_t *insnBuffer;
-	/* output buffer for single DA outputs */
-	int16_t *outBuffer;
+
+	unsigned int ao_readback[USBDUXSIGMA_NUM_AO_CHAN];
 
 	unsigned high_speed:1;
 	unsigned ai_cmd_running:1;
@@ -435,10 +437,8 @@ static void usbduxsub_ao_IsocIrq(struct urb *urb)
 		len = s->async->cmd.chanlist_len;
 		*datap++ = len;
 		for (i = 0; i < len; i++) {
+			unsigned int chan = devpriv->dac_commands[i];
 			short val;
-
-			if (i >= NUMOUTCHANNELS)
-				break;
 
 			ret = comedi_buf_get(s->async, &val);
 			if (ret < 0) {
@@ -447,7 +447,8 @@ static void usbduxsub_ao_IsocIrq(struct urb *urb)
 						     COMEDI_CB_OVERFLOW);
 			}
 			*datap++ = val;
-			*datap++ = devpriv->dac_commands[i];
+			*datap++ = chan;
+			devpriv->ao_readback[chan] = val;
 
 			s->async->events |= COMEDI_CB_BLOCK;
 			comedi_event(dev, s);
@@ -864,7 +865,7 @@ static int usbduxsigma_ao_insn_read(struct comedi_device *dev,
 
 	down(&devpriv->sem);
 	for (i = 0; i < insn->n; i++)
-		data[i] = devpriv->outBuffer[chan];
+		data[i] = devpriv->ao_readback[chan];
 	up(&devpriv->sem);
 
 	return insn->n;
@@ -895,7 +896,7 @@ static int usbduxsigma_ao_insn_write(struct comedi_device *dev,
 			up(&devpriv->sem);
 			return ret;
 		}
-		devpriv->outBuffer[chan] = data[i];
+		devpriv->ao_readback[chan] = data[i];
 	}
 	up(&devpriv->sem);
 
@@ -1462,8 +1463,8 @@ static int usbduxsigma_attach_common(struct comedi_device *dev)
 	dev->write_subdev = s;
 	s->type		= COMEDI_SUBD_AO;
 	s->subdev_flags	= SDF_WRITABLE | SDF_GROUND | SDF_CMD_WRITE;
-	s->n_chan	= 4;
-	s->len_chanlist	= 4;
+	s->n_chan	= USBDUXSIGMA_NUM_AO_CHAN;
+	s->len_chanlist	= s->n_chan;
 	s->maxdata	= 0x00ff;
 	s->range_table	= &range_unipolar2_5;
 	s->insn_write	= usbduxsigma_ao_insn_write;
@@ -1589,14 +1590,13 @@ static int usbduxsigma_alloc_usb_buffers(struct comedi_device *dev)
 	devpriv->dux_commands = kzalloc(SIZEOFDUXBUFFER, GFP_KERNEL);
 	devpriv->inBuffer = kzalloc(SIZEINBUF, GFP_KERNEL);
 	devpriv->insnBuffer = kzalloc(SIZEINSNBUF, GFP_KERNEL);
-	devpriv->outBuffer = kzalloc(SIZEOUTBUF, GFP_KERNEL);
 	devpriv->urbIn = kcalloc(devpriv->numOfInBuffers, sizeof(*urb),
 				 GFP_KERNEL);
 	devpriv->urbOut = kcalloc(devpriv->numOfOutBuffers, sizeof(*urb),
 				  GFP_KERNEL);
 	if (!devpriv->dac_commands || !devpriv->dux_commands ||
 	    !devpriv->inBuffer || !devpriv->insnBuffer ||
-	    !devpriv->outBuffer || !devpriv->urbIn || !devpriv->urbOut)
+	    !devpriv->urbIn || !devpriv->urbOut)
 		return -ENOMEM;
 
 	for (i = 0; i < devpriv->numOfInBuffers; i++) {
@@ -1701,7 +1701,6 @@ static void usbduxsigma_free_usb_buffers(struct comedi_device *dev)
 		}
 		kfree(devpriv->urbIn);
 	}
-	kfree(devpriv->outBuffer);
 	kfree(devpriv->insnBuffer);
 	kfree(devpriv->inBuffer);
 	kfree(devpriv->dux_commands);
