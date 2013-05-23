@@ -180,9 +180,9 @@ static unsigned int adau1701_read(struct snd_soc_codec *codec, unsigned int reg)
 	return value;
 }
 
-static int adau1701_load_firmware(struct snd_soc_codec *codec)
+static int adau1701_load_firmware(struct i2c_client *client)
 {
-	return process_sigma_firmware(codec->control_data, ADAU1701_FIRMWARE);
+	return process_sigma_firmware(client, ADAU1701_FIRMWARE);
 }
 
 static int adau1701_set_capture_pcm_format(struct snd_soc_codec *codec,
@@ -455,10 +455,11 @@ static struct snd_soc_dai_driver adau1701_dai = {
 static int adau1701_probe(struct snd_soc_codec *codec)
 {
 	int ret;
+	struct i2c_client *client = to_i2c_client(codec->dev);
 
-	codec->control_data = to_i2c_client(codec->dev);
+	codec->control_data = client;
 
-	ret = adau1701_load_firmware(codec);
+	ret = adau1701_load_firmware(client);
 	if (ret)
 		dev_warn(codec->dev, "Failed to load firmware\n");
 
