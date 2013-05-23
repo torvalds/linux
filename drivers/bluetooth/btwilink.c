@@ -30,6 +30,7 @@
 
 #include <linux/ti_wilink_st.h>
 #include <linux/module.h>
+#include <linux/of.h>
 
 /* Bluetooth Driver Version */
 #define VERSION               "1.0"
@@ -275,6 +276,14 @@ static int ti_st_send_frame(struct hci_dev *hdev, struct sk_buff *skb)
 	return 0;
 }
 
+static const struct of_device_id btwilink_of_match[] = {
+{
+    .compatible = "btwilink",
+  },
+  {}
+};
+MODULE_DEVICE_TABLE(of, btwilink_of_match);
+
 static int bt_ti_probe(struct platform_device *pdev)
 {
 	static struct ti_st *hst;
@@ -338,6 +347,8 @@ static struct platform_driver btwilink_driver = {
 	.remove = bt_ti_remove,
 	.driver = {
 		.name = "btwilink",
+		.owner = THIS_MODULE,
+		.of_match_table = of_match_ptr(btwilink_of_match),
 	},
 };
 
