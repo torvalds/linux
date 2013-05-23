@@ -1,25 +1,27 @@
 /*
-   comedi/drivers/usbdux.c
-   Copyright (C) 2011 Bernd Porr, Bernd.Porr@f2s.com
-
-   This program is free software; you can redistribute it and/or modify
-   it under the terms of the GNU General Public License as published by
-   the Free Software Foundation; either version 2 of the License, or
-   (at your option) any later version.
-
-   This program is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-   GNU General Public License for more details.
+ * usbduxsigma.c
+ * Copyright (C) 2011 Bernd Porr, Bernd.Porr@f2s.com
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  */
+
 /*
-Driver: usbduxsigma
-Description: University of Stirling USB DAQ & INCITE Technology Limited
-Devices: [ITL] USB-DUX (usbduxsigma.o)
-Author: Bernd Porr <BerndPorr@f2s.com>
-Updated: 8 Nov 2011
-Status: testing
-*/
+ * Driver: usbduxsigma
+ * Description: University of Stirling USB DAQ & INCITE Technology Limited
+ * Devices: (ITL) USB-DUX [usbduxsigma]
+ * Author: Bernd Porr <BerndPorr@f2s.com>
+ * Updated: 8 Nov 2011
+ * Status: testing
+ */
+
 /*
  * I must give credit here to Chris Baugher who
  * wrote the driver for AT-MIO-16d. I used some parts of this
