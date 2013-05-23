@@ -183,12 +183,6 @@ config MACH_AFEB9260
 	  <svn://194.85.238.22/home/users/george/svn/arm9eb>
 	  <http://groups.google.com/group/arm9fpga-evolution-board>
 
-config MACH_USB_A9260
-	bool "CALAO USB-A9260"
-	help
-	  Select this if you are using a Calao Systems USB-A9260.
-	  <http://www.calao-systems.com>
-
 config MACH_QIL_A9260
 	bool "CALAO QIL-A9260 board"
 	help
@@ -264,13 +258,6 @@ config MACH_GSIA18S
 	  produced by GeoSIG Ltd company. This is an internet accelerograph.
 	  <http://www.geosig.com>
 
-config MACH_USB_A9G20
-	bool "CALAO USB-A9G20"
-	depends on ARCH_AT91SAM9G20
-	help
-	  Select this if you are using a Calao Systems USB-A9G20.
-	  <http://www.calao-systems.com>
-
 config MACH_SNAPPER_9260
 	bool "Bluewater Systems Snapper 9260/9G20 module"
 	help
@@ -315,12 +302,6 @@ config MACH_AT91SAM9263EK
 	help
 	  Select this if you are using Atmel's AT91SAM9263-EK Evaluation Kit.
 	  <http://www.atmel.com/dyn/products/tools_card.asp?tool_id=4057>
-
-config MACH_USB_A9263
-	bool "CALAO USB-A9263"
-	help
-	  Select this if you are using a Calao Systems USB-A9263.
-	  <http://www.calao-systems.com>
 
 endif
 
