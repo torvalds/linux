@@ -1016,6 +1016,7 @@ static void bmac_set_multicast(struct net_device *dev)
 static void bmac_set_multicast(struct net_device *dev)
 {
 	struct netdev_hw_addr *ha;
+	int i;
 	unsigned short rx_cfg;
 	u32 crc;
 

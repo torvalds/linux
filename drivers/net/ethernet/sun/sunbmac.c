@@ -995,6 +995,7 @@ static void bigmac_set_multicast(struct net_device *dev)
 	struct bigmac *bp = netdev_priv(dev);
 	void __iomem *bregs = bp->bregs;
 	struct netdev_hw_addr *ha;
+	int i;
 	u32 tmp, crc;
 
 	/* Disable the receiver.  The bit self-clears when
