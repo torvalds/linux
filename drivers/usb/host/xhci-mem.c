@@ -1860,6 +1860,7 @@ no_bw:
 	kfree(xhci->usb3_ports);
 	kfree(xhci->port_array);
 	kfree(xhci->rh_bw);
+	kfree(xhci->ext_caps);
 
 	xhci->page_size = 0;
 	xhci->page_shift = 0;
@@ -2047,7 +2048,7 @@ static void xhci_set_hc_event_deq(struct xhci_hcd *xhci)
 }
 
 static void xhci_add_in_port(struct xhci_hcd *xhci, unsigned int num_ports,
-		__le32 __iomem *addr, u8 major_revision)
+		__le32 __iomem *addr, u8 major_revision, int max_caps)
 {
 	u32 temp, port_offset, port_count;
 	int i;
@@ -2071,6 +2072,10 @@ static void xhci_add_in_port(struct xhci_hcd *xhci, unsigned int num_ports,
 	if (port_offset == 0 || (port_offset + port_count - 1) > num_ports)
 		/* WTF? "Valid values are ‘1’ to MaxPorts" */
 		return;
+
+	/* cache usb2 port capabilities */
+	if (major_revision < 0x03 && xhci->num_ext_caps < max_caps)
+		xhci->ext_caps[xhci->num_ext_caps++] = temp;
 
 	/* Check the host's USB2 LPM capability */
 	if ((xhci->hci_version == 0x96) && (major_revision != 0x03) &&
@@ -2129,10 +2134,11 @@ static void xhci_add_in_port(struct xhci_hcd *xhci, unsigned int num_ports,
  */
 static int xhci_setup_port_arrays(struct xhci_hcd *xhci, gfp_t flags)
 {
-	__le32 __iomem *addr;
-	u32 offset;
+	__le32 __iomem *addr, *tmp_addr;
+	u32 offset, tmp_offset;
 	unsigned int num_ports;
 	int i, j, port_index;
+	int cap_count = 0;
 
 	addr = &xhci->cap_regs->hcc_params;
 	offset = XHCI_HCC_EXT_CAPS(xhci_readl(xhci, addr));
@@ -2165,13 +2171,32 @@ static int xhci_setup_port_arrays(struct xhci_hcd *xhci, gfp_t flags)
 	 * See section 5.3.6 for offset calculation.
 	 */
 	addr = &xhci->cap_regs->hc_capbase + offset;
+
+	tmp_addr = addr;
+	tmp_offset = offset;
+
+	/* count extended protocol capability entries for later caching */
+	do {
+		u32 cap_id;
+		cap_id = xhci_readl(xhci, tmp_addr);
+		if (XHCI_EXT_CAPS_ID(cap_id) == XHCI_EXT_CAPS_PROTOCOL)
+			cap_count++;
+		tmp_offset = XHCI_EXT_CAPS_NEXT(cap_id);
+		tmp_addr += tmp_offset;
+	} while (tmp_offset);
+
+	xhci->ext_caps = kzalloc(sizeof(*xhci->ext_caps) * cap_count, flags);
+	if (!xhci->ext_caps)
+		return -ENOMEM;
+
 	while (1) {
 		u32 cap_id;
 
 		cap_id = xhci_readl(xhci, addr);
 		if (XHCI_EXT_CAPS_ID(cap_id) == XHCI_EXT_CAPS_PROTOCOL)
 			xhci_add_in_port(xhci, num_ports, addr,
-					(u8) XHCI_EXT_PORT_MAJOR(cap_id));
+					(u8) XHCI_EXT_PORT_MAJOR(cap_id),
+					cap_count);
 		offset = XHCI_EXT_CAPS_NEXT(cap_id);
 		if (!offset || (xhci->num_usb2_ports + xhci->num_usb3_ports)
 				== num_ports)
