@@ -1036,7 +1036,6 @@ int acpi_device_add(struct acpi_device *device,
 		printk(KERN_ERR PREFIX "Error creating sysfs interface for device %s\n",
 		       dev_name(&device->dev));
 
-	device->removal_type = ACPI_BUS_REMOVAL_NORMAL;
 	return 0;
 
  err:
@@ -2025,7 +2024,6 @@ static acpi_status acpi_bus_device_detach(acpi_handle handle, u32 lvl_not_used,
 	if (!acpi_bus_get_device(handle, &device)) {
 		struct acpi_scan_handler *dev_handler = device->handler;
 
-		device->removal_type = ACPI_BUS_REMOVAL_EJECT;
 		if (dev_handler) {
 			if (dev_handler->detach)
 				dev_handler->detach(device);

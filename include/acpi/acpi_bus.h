@@ -63,13 +63,6 @@ acpi_get_physical_device_location(acpi_handle handle, struct acpi_pld_info **pld
 #define ACPI_BUS_FILE_ROOT	"acpi"
 extern struct proc_dir_entry *acpi_root_dir;
 
-enum acpi_bus_removal_type {
-	ACPI_BUS_REMOVAL_NORMAL = 0,
-	ACPI_BUS_REMOVAL_EJECT,
-	ACPI_BUS_REMOVAL_SUPRISE,
-	ACPI_BUS_REMOVAL_TYPE_COUNT
-};
-
 enum acpi_bus_device_type {
 	ACPI_BUS_TYPE_DEVICE = 0,
 	ACPI_BUS_TYPE_POWER,
@@ -311,7 +304,6 @@ struct acpi_device {
 	struct acpi_driver *driver;
 	void *driver_data;
 	struct device dev;
-	enum acpi_bus_removal_type removal_type;	/* indicate for different removal type */
 	u8 physical_node_count;
 	struct list_head physical_node_list;
 	struct mutex physical_node_lock;
