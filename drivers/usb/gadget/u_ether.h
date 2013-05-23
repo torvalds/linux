@@ -21,6 +21,26 @@
 
 #include "gadget_chips.h"
 
+#define QMULT_DEFAULT 5
+
+/*
+ * dev_addr: initial value
+ * changed by "ifconfig usb0 hw ether xx:xx:xx:xx:xx:xx"
+ * host_addr: this address is invisible to ifconfig
+ */
+#define USB_ETHERNET_MODULE_PARAMETERS() \
+	static unsigned qmult = QMULT_DEFAULT;				\
+	module_param(qmult, uint, S_IRUGO|S_IWUSR);			\
+	MODULE_PARM_DESC(qmult, "queue length multiplier at high/super speed");\
+									\
+	static char *dev_addr;						\
+	module_param(dev_addr, charp, S_IRUGO);				\
+	MODULE_PARM_DESC(dev_addr, "Device Ethernet Address");		\
+									\
+	static char *host_addr;						\
+	module_param(host_addr, charp, S_IRUGO);			\
+	MODULE_PARM_DESC(host_addr, "Host Ethernet Address")
+
 struct eth_dev;
 
 /*
@@ -71,8 +91,9 @@ struct gether {
 			|USB_CDC_PACKET_TYPE_DIRECTED)
 
 /* variant of gether_setup that allows customizing network device name */
-struct eth_dev *gether_setup_name(struct usb_gadget *g, u8 ethaddr[ETH_ALEN],
-		const char *netname);
+struct eth_dev *gether_setup_name(struct usb_gadget *g,
+		const char *dev_addr, const char *host_addr,
+		u8 ethaddr[ETH_ALEN], unsigned qmult, const char *netname);
 
 /* netdev setup/teardown as directed by the gadget driver */
 /* gether_setup - initialize one ethernet-over-usb link
@@ -88,9 +109,10 @@ struct eth_dev *gether_setup_name(struct usb_gadget *g, u8 ethaddr[ETH_ALEN],
  * Returns negative errno, or zero on success
  */
 static inline struct eth_dev *gether_setup(struct usb_gadget *g,
-		u8 ethaddr[ETH_ALEN])
+		const char *dev_addr, const char *host_addr,
+		u8 ethaddr[ETH_ALEN], unsigned qmult)
 {
-	return gether_setup_name(g, ethaddr, "usb");
+	return gether_setup_name(g, dev_addr, host_addr, ethaddr, qmult, "usb");
 }
 
 void gether_cleanup(struct eth_dev *dev);

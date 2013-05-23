@@ -35,6 +35,8 @@
 /*-------------------------------------------------------------------------*/
 USB_GADGET_COMPOSITE_OPTIONS();
 
+USB_ETHERNET_MODULE_PARAMETERS();
+
 /*
  * Kbuild is not very cooperative with respect to linking separately
  * compiled library objects into one module.  So for now we won't use
@@ -43,7 +45,6 @@ USB_GADGET_COMPOSITE_OPTIONS();
  * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
  */
 #include "f_ecm.c"
-#include "u_ether.c"
 
 /*-------------------------------------------------------------------------*/
 
@@ -102,7 +103,7 @@ static struct usb_gadget_strings *dev_strings[] = {
 	NULL,
 };
 
-static u8 hostaddr[ETH_ALEN];
+static u8 host_mac[ETH_ALEN];
 static struct eth_dev *the_dev;
 /*-------------------------------------------------------------------------*/
 static struct usb_function *f_acm;
@@ -120,7 +121,7 @@ static int __init cdc_do_config(struct usb_configuration *c)
 		c->bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
 
-	status = ecm_bind_config(c, hostaddr, the_dev);
+	status = ecm_bind_config(c, host_mac, the_dev);
 	if (status < 0)
 		return status;
 
@@ -166,7 +167,8 @@ static int __init cdc_bind(struct usb_composite_dev *cdev)
 	}
 
 	/* set up network link layer */
-	the_dev = gether_setup(cdev->gadget, hostaddr);
+	the_dev = gether_setup(cdev->gadget, dev_addr, host_addr, host_mac,
+			       qmult);
 	if (IS_ERR(the_dev))
 		return PTR_ERR(the_dev);
 

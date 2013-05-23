@@ -41,10 +41,12 @@
 #include "f_ecm.c"
 #include "f_obex.c"
 #include "f_phonet.c"
-#include "u_ether.c"
+#include "u_ether.h"
 
 /*-------------------------------------------------------------------------*/
 USB_GADGET_COMPOSITE_OPTIONS();
+
+USB_ETHERNET_MODULE_PARAMETERS();
 
 #define NOKIA_VENDOR_ID			0x0421	/* Nokia */
 #define NOKIA_PRODUCT_ID		0x01c8	/* Nokia Gadget */
@@ -98,7 +100,7 @@ MODULE_LICENSE("GPL");
 /*-------------------------------------------------------------------------*/
 static struct usb_function *f_acm_cfg1;
 static struct usb_function *f_acm_cfg2;
-static u8 hostaddr[ETH_ALEN];
+static u8 host_mac[ETH_ALEN];
 static struct eth_dev *the_dev;
 
 enum {
@@ -152,7 +154,7 @@ static int __init nokia_bind_config(struct usb_configuration *c)
 	if (status)
 		goto err_conf;
 
-	status = ecm_bind_config(c, hostaddr, the_dev);
+	status = ecm_bind_config(c, host_mac, the_dev);
 	if (status) {
 		pr_debug("could not bind ecm config %d\n", status);
 		goto err_ecm;
@@ -186,7 +188,8 @@ static int __init nokia_bind(struct usb_composite_dev *cdev)
 			goto err_ether;
 	}
 
-	the_dev = gether_setup(cdev->gadget, hostaddr);
+	the_dev = gether_setup(cdev->gadget, dev_addr, host_addr, host_mac,
+			       qmult);
 	if (IS_ERR(the_dev)) {
 		status = PTR_ERR(the_dev);
 		goto err_ether;

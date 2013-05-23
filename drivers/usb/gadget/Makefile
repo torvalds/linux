@@ -45,6 +45,7 @@ usb_f_serial-y			:= f_serial.o
 obj-$(CONFIG_USB_F_SERIAL)	+= usb_f_serial.o
 usb_f_obex-y			:= f_obex.o
 obj-$(CONFIG_USB_F_OBEX)	+= usb_f_obex.o
+obj-$(CONFIG_USB_U_ETHER)	+= u_ether.o
 
 #
 # USB gadget drivers

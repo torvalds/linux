@@ -49,9 +49,11 @@ MODULE_LICENSE("GPL");
 #  include "f_rndis.c"
 #  include "rndis.c"
 #endif
-#include "u_ether.c"
+#include "u_ether.h"
 
 USB_GADGET_COMPOSITE_OPTIONS();
+
+USB_ETHERNET_MODULE_PARAMETERS();
 
 /***************************** Device Descriptor ****************************/
 
@@ -133,7 +135,7 @@ FSG_MODULE_PARAMETERS(/* no prefix */, fsg_mod_data);
 
 static struct fsg_common fsg_common;
 
-static u8 hostaddr[ETH_ALEN];
+static u8 host_mac[ETH_ALEN];
 
 static struct usb_function_instance *fi_acm;
 static struct eth_dev *the_dev;
@@ -152,7 +154,7 @@ static __init int rndis_do_config(struct usb_configuration *c)
 		c->bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
 
-	ret = rndis_bind_config(c, hostaddr, the_dev);
+	ret = rndis_bind_config(c, host_mac, the_dev);
 	if (ret < 0)
 		return ret;
 
@@ -216,7 +218,7 @@ static __init int cdc_do_config(struct usb_configuration *c)
 		c->bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
 
-	ret = ecm_bind_config(c, hostaddr, the_dev);
+	ret = ecm_bind_config(c, host_mac, the_dev);
 	if (ret < 0)
 		return ret;
 
@@ -280,7 +282,8 @@ static int __ref multi_bind(struct usb_composite_dev *cdev)
 	}
 
 	/* set up network link layer */
-	the_dev = gether_setup(cdev->gadget, hostaddr);
+	the_dev = gether_setup(cdev->gadget, dev_addr, host_addr, host_mac,
+			       qmult);
 	if (IS_ERR(the_dev))
 		return PTR_ERR(the_dev);
 

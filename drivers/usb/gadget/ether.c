@@ -107,10 +107,11 @@ static inline bool has_rndis(void)
 #include "rndis.c"
 #endif
 #include "f_eem.c"
-#include "u_ether.c"
 
 /*-------------------------------------------------------------------------*/
 USB_GADGET_COMPOSITE_OPTIONS();
+
+USB_ETHERNET_MODULE_PARAMETERS();
 
 /* DO NOT REUSE THESE IDs with a protocol-incompatible driver!!  Ever!!
  * Instead:  allocate your own, using normal USB-IF procedures.
@@ -206,7 +207,7 @@ static struct usb_gadget_strings *dev_strings[] = {
 	NULL,
 };
 
-static u8 hostaddr[ETH_ALEN];
+static u8 host_mac[ETH_ALEN];
 static struct eth_dev *the_dev;
 /*-------------------------------------------------------------------------*/
 
@@ -224,7 +225,7 @@ static int __init rndis_do_config(struct usb_configuration *c)
 		c->bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
 
-	return rndis_bind_config(c, hostaddr, the_dev);
+	return rndis_bind_config(c, host_mac, the_dev);
 }
 
 static struct usb_configuration rndis_config_driver = {
@@ -259,9 +260,9 @@ static int __init eth_do_config(struct usb_configuration *c)
 	if (use_eem)
 		return eem_bind_config(c, the_dev);
 	else if (can_support_ecm(c->cdev->gadget))
-		return ecm_bind_config(c, hostaddr, the_dev);
+		return ecm_bind_config(c, host_mac, the_dev);
 	else
-		return geth_bind_config(c, hostaddr, the_dev);
+		return geth_bind_config(c, host_mac, the_dev);
 }
 
 static struct usb_configuration eth_config_driver = {
@@ -279,7 +280,8 @@ static int __init eth_bind(struct usb_composite_dev *cdev)
 	int			status;
 
 	/* set up network link layer */
-	the_dev = gether_setup(cdev->gadget, hostaddr);
+	the_dev = gether_setup(cdev->gadget, dev_addr, host_addr, host_mac,
+			       qmult);
 	if (IS_ERR(the_dev))
 		return PTR_ERR(the_dev);
 
