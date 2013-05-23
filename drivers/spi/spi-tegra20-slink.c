@@ -1089,7 +1089,7 @@ static int tegra_slink_probe(struct platform_device *pdev)
 	master->num_chipselect = MAX_CHIP_SELECT;
 	master->bus_num = -1;
 
-	dev_set_drvdata(&pdev->dev, master);
+	platform_set_drvdata(pdev, master);
 	tspi = spi_master_get_devdata(master);
 	tspi->master = master;
 	tspi->dev = &pdev->dev;
@@ -1193,7 +1193,7 @@ exit_free_master:
 
 static int tegra_slink_remove(struct platform_device *pdev)
 {
-	struct spi_master *master = dev_get_drvdata(&pdev->dev);
+	struct spi_master *master = platform_get_drvdata(pdev);
 	struct tegra_slink_data	*tspi = spi_master_get_devdata(master);
 
 	free_irq(tspi->irq, tspi);

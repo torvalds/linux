@@ -1204,7 +1204,7 @@ static int omap2_mcspi_probe(struct platform_device *pdev)
 	master->cleanup = omap2_mcspi_cleanup;
 	master->dev.of_node = node;
 
-	dev_set_drvdata(&pdev->dev, master);
+	platform_set_drvdata(pdev, master);
 
 	mcspi = spi_master_get_devdata(master);
 	mcspi->master = master;
@@ -1318,7 +1318,7 @@ static int omap2_mcspi_remove(struct platform_device *pdev)
 	struct omap2_mcspi	*mcspi;
 	struct omap2_mcspi_dma	*dma_channels;
 
-	master = dev_get_drvdata(&pdev->dev);
+	master = platform_get_drvdata(pdev);
 	mcspi = spi_master_get_devdata(master);
 	dma_channels = mcspi->dma_channels;
 
