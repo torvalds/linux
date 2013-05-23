@@ -16,6 +16,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/device.h>
 
 #include "u_serial.h"
@@ -39,8 +40,6 @@
  */
 #define USBF_ECM_INCLUDED
 #include "f_ecm.c"
-#define USBF_OBEX_INCLUDED
-#include "f_obex.c"
 #include "f_phonet.c"
 #include "u_ether.h"
 
@@ -102,15 +101,11 @@ MODULE_LICENSE("GPL");
 static struct usb_function *f_acm_cfg1;
 static struct usb_function *f_acm_cfg2;
 static u8 host_mac[ETH_ALEN];
+static struct usb_function *f_obex1_cfg1;
+static struct usb_function *f_obex2_cfg1;
+static struct usb_function *f_obex1_cfg2;
+static struct usb_function *f_obex2_cfg2;
 static struct eth_dev *the_dev;
-
-enum {
-	TTY_PORT_OBEX0,
-	TTY_PORT_OBEX1,
-	TTY_PORTS_MAX,
-};
-
-static unsigned char tty_lines[TTY_PORTS_MAX];
 
 static struct usb_configuration nokia_config_500ma_driver = {
 	.label		= "Bus Powered",
@@ -129,27 +124,51 @@ static struct usb_configuration nokia_config_100ma_driver = {
 };
 
 static struct usb_function_instance *fi_acm;
+static struct usb_function_instance *fi_obex1;
+static struct usb_function_instance *fi_obex2;
 
 static int __init nokia_bind_config(struct usb_configuration *c)
 {
 	struct usb_function *f_acm;
+	struct usb_function *f_obex1 = NULL;
+	struct usb_function *f_obex2 = NULL;
 	int status = 0;
+	int obex1_stat = 0;
+	int obex2_stat = 0;
 
 	status = phonet_bind_config(c);
 	if (status)
-		printk(KERN_DEBUG "could not bind phonet config\n");
+		pr_debug("could not bind phonet config\n");
 
-	status = obex_bind_config(c, tty_lines[TTY_PORT_OBEX0]);
-	if (status)
-		printk(KERN_DEBUG "could not bind obex config %d\n", 0);
+	if (!IS_ERR(fi_obex1)) {
+		f_obex1 = usb_get_function(fi_obex1);
+		if (IS_ERR(f_obex1))
+			pr_debug("could not get obex function 0\n");
+	}
 
-	status = obex_bind_config(c, tty_lines[TTY_PORT_OBEX1]);
-	if (status)
-		printk(KERN_DEBUG "could not bind obex config %d\n", 0);
+	if (!IS_ERR(fi_obex2)) {
+		f_obex2 = usb_get_function(fi_obex2);
+		if (IS_ERR(f_obex2))
+			pr_debug("could not get obex function 1\n");
+	}
 
 	f_acm = usb_get_function(fi_acm);
-	if (IS_ERR(f_acm))
-		return PTR_ERR(f_acm);
+	if (IS_ERR(f_acm)) {
+		status = PTR_ERR(f_acm);
+		goto err_get_acm;
+	}
+
+	if (!IS_ERR_OR_NULL(f_obex1)) {
+		obex1_stat = usb_add_function(c, f_obex1);
+		if (obex1_stat)
+			pr_debug("could not add obex function 0\n");
+	}
+
+	if (!IS_ERR_OR_NULL(f_obex2)) {
+		obex2_stat = usb_add_function(c, f_obex2);
+		if (obex2_stat)
+			pr_debug("could not add obex function 1\n");
+	}
 
 	status = usb_add_function(c, f_acm);
 	if (status)
@@ -160,16 +179,30 @@ static int __init nokia_bind_config(struct usb_configuration *c)
 		pr_debug("could not bind ecm config %d\n", status);
 		goto err_ecm;
 	}
-	if (c == &nokia_config_500ma_driver)
+	if (c == &nokia_config_500ma_driver) {
 		f_acm_cfg1 = f_acm;
-	else
+		f_obex1_cfg1 = f_obex1;
+		f_obex2_cfg1 = f_obex2;
+	} else {
 		f_acm_cfg2 = f_acm;
+		f_obex1_cfg2 = f_obex1;
+		f_obex2_cfg2 = f_obex2;
+	}
 
 	return status;
 err_ecm:
 	usb_remove_function(c, f_acm);
 err_conf:
+	if (!obex2_stat)
+		usb_remove_function(c, f_obex2);
+	if (!obex1_stat)
+		usb_remove_function(c, f_obex1);
 	usb_put_function(f_acm);
+err_get_acm:
+	if (!IS_ERR_OR_NULL(f_obex2))
+		usb_put_function(f_obex2);
+	if (!IS_ERR_OR_NULL(f_obex1))
+		usb_put_function(f_obex1);
 	return status;
 }
 
@@ -177,17 +210,10 @@ static int __init nokia_bind(struct usb_composite_dev *cdev)
 {
 	struct usb_gadget	*gadget = cdev->gadget;
 	int			status;
-	int			cur_line;
 
 	status = gphonet_setup(cdev->gadget);
 	if (status < 0)
 		goto err_phonet;
-
-	for (cur_line = 0; cur_line < TTY_PORTS_MAX; cur_line++) {
-		status = gserial_alloc_line(&tty_lines[cur_line]);
-		if (status)
-			goto err_ether;
-	}
 
 	the_dev = gether_setup(cdev->gadget, dev_addr, host_addr, host_mac,
 			       qmult);
@@ -208,9 +234,17 @@ static int __init nokia_bind(struct usb_composite_dev *cdev)
 	if (!gadget_supports_altsettings(gadget))
 		goto err_usb;
 
+	fi_obex1 = usb_get_function_instance("obex");
+	if (IS_ERR(fi_obex1))
+		pr_debug("could not find obex function 1\n");
+
+	fi_obex2 = usb_get_function_instance("obex");
+	if (IS_ERR(fi_obex2))
+		pr_debug("could not find obex function 2\n");
+
 	fi_acm = usb_get_function_instance("acm");
 	if (IS_ERR(fi_acm))
-		goto err_usb;
+		goto err_obex2_inst;
 
 	/* finally register the configuration */
 	status = usb_add_config(cdev, &nokia_config_500ma_driver,
@@ -230,15 +264,20 @@ static int __init nokia_bind(struct usb_composite_dev *cdev)
 
 err_put_cfg1:
 	usb_put_function(f_acm_cfg1);
+	if (!IS_ERR_OR_NULL(f_obex1_cfg1))
+		usb_put_function(f_obex1_cfg1);
+	if (!IS_ERR_OR_NULL(f_obex2_cfg1))
+		usb_put_function(f_obex2_cfg1);
 err_acm_inst:
 	usb_put_function_instance(fi_acm);
+err_obex2_inst:
+	if (!IS_ERR(fi_obex2))
+		usb_put_function_instance(fi_obex2);
+	if (!IS_ERR(fi_obex1))
+		usb_put_function_instance(fi_obex1);
 err_usb:
 	gether_cleanup(the_dev);
 err_ether:
-	cur_line--;
-	while (cur_line >= 0)
-		gserial_free_line(tty_lines[cur_line--]);
-
 	gphonet_cleanup();
 err_phonet:
 	return status;
@@ -246,15 +285,22 @@ err_phonet:
 
 static int __exit nokia_unbind(struct usb_composite_dev *cdev)
 {
-	int i;
-
+	if (!IS_ERR_OR_NULL(f_obex1_cfg2))
+		usb_put_function(f_obex1_cfg2);
+	if (!IS_ERR_OR_NULL(f_obex2_cfg2))
+		usb_put_function(f_obex2_cfg2);
+	if (!IS_ERR_OR_NULL(f_obex1_cfg1))
+		usb_put_function(f_obex1_cfg1);
+	if (!IS_ERR_OR_NULL(f_obex2_cfg1))
+		usb_put_function(f_obex2_cfg1);
 	usb_put_function(f_acm_cfg1);
 	usb_put_function(f_acm_cfg2);
+	if (!IS_ERR(fi_obex1))
+		usb_put_function_instance(fi_obex1);
+	if (!IS_ERR(fi_obex2))
+		usb_put_function_instance(fi_obex2);
 	usb_put_function_instance(fi_acm);
 	gphonet_cleanup();
-
-	for (i = 0; i < TTY_PORTS_MAX; i++)
-		gserial_free_line(tty_lines[i]);
 
 	gether_cleanup(the_dev);
 
