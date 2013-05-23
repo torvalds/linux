@@ -2023,15 +2023,23 @@ static int usbduxsigma_auto_attach(struct comedi_device *dev,
 
 static void usbduxsigma_detach(struct comedi_device *dev)
 {
-	struct usbduxsigma_private *usb = dev->private;
+	struct usbduxsigma_private *devpriv = dev->private;
 
-	if (usb) {
-		down(&usb->sem);
-		dev->private = NULL;
-		usb->attached = 0;
-		usb->comedidev = NULL;
-		up(&usb->sem);
-	}
+	if (!devpriv)
+		return;
+
+	/* stop any running commands */
+	usbdux_ai_stop(devpriv, devpriv->ai_cmd_running);
+	usbdux_ao_stop(devpriv, devpriv->ao_cmd_running);
+
+	down(&start_stop_sem);
+	down(&devpriv->sem);
+	dev->private = NULL;
+	devpriv->attached = 0;
+	devpriv->comedidev = NULL;
+	tidy_up(devpriv);
+	up(&devpriv->sem);
+	up(&start_stop_sem);
 }
 
 static struct comedi_driver usbduxsigma_driver = {
@@ -2107,34 +2115,6 @@ static int usbduxsigma_usb_probe(struct usb_interface *intf,
 	return comedi_usb_auto_config(intf, &usbduxsigma_driver, 0);;
 }
 
-static void usbduxsigma_usb_disconnect(struct usb_interface *intf)
-{
-	struct usbduxsigma_private *usbduxsub_tmp = usb_get_intfdata(intf);
-	struct usb_device *udev = interface_to_usbdev(intf);
-
-	if (!usbduxsub_tmp) {
-		dev_err(&intf->dev,
-			"comedi_: disconnect called with null pointer.\n");
-		return;
-	}
-	if (usbduxsub_tmp->usbdev != udev) {
-		dev_err(&intf->dev, "comedi_: BUG! wrong ptr!\n");
-		return;
-	}
-	if (usbduxsub_tmp->ai_cmd_running)
-		/* we are still running a command */
-		usbdux_ai_stop(usbduxsub_tmp, 1);
-	if (usbduxsub_tmp->ao_cmd_running)
-		/* we are still running a command */
-		usbdux_ao_stop(usbduxsub_tmp, 1);
-	comedi_usb_auto_unconfig(intf);
-	down(&start_stop_sem);
-	down(&usbduxsub_tmp->sem);
-	tidy_up(usbduxsub_tmp);
-	up(&usbduxsub_tmp->sem);
-	up(&start_stop_sem);
-}
-
 static const struct usb_device_id usbduxsigma_usb_table[] = {
 	{ USB_DEVICE(0x13d8, 0x0020) },
 	{ USB_DEVICE(0x13d8, 0x0021) },
@@ -2146,7 +2126,7 @@ MODULE_DEVICE_TABLE(usb, usbduxsigma_usb_table);
 static struct usb_driver usbduxsigma_usb_driver = {
 	.name		= "usbduxsigma",
 	.probe		= usbduxsigma_usb_probe,
-	.disconnect	= usbduxsigma_usb_disconnect,
+	.disconnect	= comedi_usb_auto_unconfig,
 	.id_table	= usbduxsigma_usb_table,
 };
 module_comedi_usb_driver(usbduxsigma_driver, usbduxsigma_usb_driver);
