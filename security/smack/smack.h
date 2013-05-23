@@ -94,6 +94,17 @@ struct smk_netlbladdr {
 };
 
 /*
+ * An entry in the table identifying ports.
+ */
+struct smk_port_label {
+	struct list_head	list;
+	struct sock		*smk_sock;	/* socket initialized on */
+	unsigned short		smk_port;	/* the port number */
+	char			*smk_in;	/* incoming label */
+	char			*smk_out;	/* outgoing label */
+};
+
+/*
  * This is the repository for labels seen so that it is
  * not necessary to keep allocating tiny chuncks of memory
  * and so that they can be shared.

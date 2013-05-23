@@ -27,10 +27,13 @@
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/udp.h>
+#include <linux/dccp.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/pipe_fs_i.h>
 #include <net/cipso_ipv4.h>
+#include <net/ip.h>
+#include <net/ipv6.h>
 #include <linux/audit.h>
 #include <linux/magic.h>
 #include <linux/dcache.h>
@@ -44,6 +47,12 @@
 
 #define TRANS_TRUE	"TRUE"
 #define TRANS_TRUE_SIZE	4
+
+#define SMK_CONNECTING	0
+#define SMK_RECEIVING	1
+#define SMK_SENDING	2
+
+LIST_HEAD(smk_ipv6_port_list);
 
 /**
  * smk_fetch - Fetch the smack label from a file.
@@ -1878,6 +1887,155 @@ static int smack_netlabel_send(struct sock *sk, struct sockaddr_in *sap)
 }
 
 /**
+ * smk_ipv6_port_label - Smack port access table management
+ * @sock: socket
+ * @address: address
+ *
+ * Create or update the port list entry
+ */
+static void smk_ipv6_port_label(struct socket *sock, struct sockaddr *address)
+{
+	struct sock *sk = sock->sk;
+	struct sockaddr_in6 *addr6;
+	struct socket_smack *ssp = sock->sk->sk_security;
+	struct smk_port_label *spp;
+	unsigned short port = 0;
+
+	if (address == NULL) {
+		/*
+		 * This operation is changing the Smack information
+		 * on the bound socket. Take the changes to the port
+		 * as well.
+		 */
+		list_for_each_entry(spp, &smk_ipv6_port_list, list) {
+			if (sk != spp->smk_sock)
+				continue;
+			spp->smk_in = ssp->smk_in;
+			spp->smk_out = ssp->smk_out;
+			return;
+		}
+		/*
+		 * A NULL address is only used for updating existing
+		 * bound entries. If there isn't one, it's OK.
+		 */
+		return;
+	}
+
+	addr6 = (struct sockaddr_in6 *)address;
+	port = ntohs(addr6->sin6_port);
+	/*
+	 * This is a special case that is safely ignored.
+	 */
+	if (port == 0)
+		return;
+
+	/*
+	 * Look for an existing port list entry.
+	 * This is an indication that a port is getting reused.
+	 */
+	list_for_each_entry(spp, &smk_ipv6_port_list, list) {
+		if (spp->smk_port != port)
+			continue;
+		spp->smk_port = port;
+		spp->smk_sock = sk;
+		spp->smk_in = ssp->smk_in;
+		spp->smk_out = ssp->smk_out;
+		return;
+	}
+
+	/*
+	 * A new port entry is required.
+	 */
+	spp = kzalloc(sizeof(*spp), GFP_KERNEL);
+	if (spp == NULL)
+		return;
+
+	spp->smk_port = port;
+	spp->smk_sock = sk;
+	spp->smk_in = ssp->smk_in;
+	spp->smk_out = ssp->smk_out;
+
+	list_add(&spp->list, &smk_ipv6_port_list);
+	return;
+}
+
+/**
+ * smk_ipv6_port_check - check Smack port access
+ * @sock: socket
+ * @address: address
+ *
+ * Create or update the port list entry
+ */
+static int smk_ipv6_port_check(struct sock *sk, struct sockaddr *address,
+				int act)
+{
+	__be16 *bep;
+	__be32 *be32p;
+	struct sockaddr_in6 *addr6;
+	struct smk_port_label *spp;
+	struct socket_smack *ssp = sk->sk_security;
+	unsigned short port = 0;
+	char *subject;
+	char *object;
+	struct smk_audit_info ad;
+#ifdef CONFIG_AUDIT
+	struct lsm_network_audit net;
+#endif
+
+	if (act == SMK_RECEIVING) {
+		subject = smack_net_ambient;
+		object = ssp->smk_in;
+	} else {
+		subject = ssp->smk_out;
+		object = smack_net_ambient;
+	}
+
+	/*
+	 * Get the IP address and port from the address.
+	 */
+	addr6 = (struct sockaddr_in6 *)address;
+	port = ntohs(addr6->sin6_port);
+	bep = (__be16 *)(&addr6->sin6_addr);
+	be32p = (__be32 *)(&addr6->sin6_addr);
+
+	/*
+	 * It's remote, so port lookup does no good.
+	 */
+	if (be32p[0] || be32p[1] || be32p[2] || bep[6] || ntohs(bep[7]) != 1)
+		goto auditout;
+
+	/*
+	 * It's local so the send check has to have passed.
+	 */
+	if (act == SMK_RECEIVING) {
+		subject = smack_known_web.smk_known;
+		goto auditout;
+	}
+
+	list_for_each_entry(spp, &smk_ipv6_port_list, list) {
+		if (spp->smk_port != port)
+			continue;
+		object = spp->smk_in;
+		if (act == SMK_CONNECTING)
+			ssp->smk_packet = spp->smk_out;
+		break;
+	}
+
+auditout:
+
+#ifdef CONFIG_AUDIT
+	smk_ad_init_net(&ad, __func__, LSM_AUDIT_DATA_NET, &net);
+	ad.a.u.net->family = sk->sk_family;
+	ad.a.u.net->dport = port;
+	if (act == SMK_RECEIVING)
+		ad.a.u.net->v6info.saddr = addr6->sin6_addr;
+	else
+		ad.a.u.net->v6info.daddr = addr6->sin6_addr;
+#endif
+	return smk_access(subject, object, MAY_WRITE, &ad);
+}
+
+/**
  * smack_inode_setsecurity - set smack xattrs
  * @inode: the object
  * @name: attribute name
@@ -1926,7 +2084,7 @@ static int smack_inode_setsecurity(struct inode *inode, const char *name,
 		ssp->smk_in = sp;
 	else if (strcmp(name, XATTR_SMACK_IPOUT) == 0) {
 		ssp->smk_out = sp;
-		if (sock->sk->sk_family != PF_UNIX) {
+		if (sock->sk->sk_family == PF_INET) {
 			rc = smack_netlabel(sock->sk, SMACK_CIPSO_SOCKET);
 			if (rc != 0)
 				printk(KERN_WARNING
@@ -1935,6 +2093,9 @@ static int smack_inode_setsecurity(struct inode *inode, const char *name,
 		}
 	} else
 		return -EOPNOTSUPP;
+
+	if (sock->sk->sk_family == PF_INET6)
+		smk_ipv6_port_label(sock, NULL);
 
 	return 0;
 }
@@ -1963,6 +2124,25 @@ static int smack_socket_post_create(struct socket *sock, int family,
 }
 
 /**
+ * smack_socket_bind - record port binding information.
+ * @sock: the socket
+ * @address: the port address
+ * @addrlen: size of the address
+ *
+ * Records the label bound to a port.
+ *
+ * Returns 0
+ */
+static int smack_socket_bind(struct socket *sock, struct sockaddr *address,
+				int addrlen)
+{
+	if (sock->sk != NULL && sock->sk->sk_family == PF_INET6)
+		smk_ipv6_port_label(sock, address);
+
+	return 0;
+}
+
+/**
  * smack_socket_connect - connect access check
  * @sock: the socket
  * @sap: the other end
@@ -1975,12 +2155,24 @@ static int smack_socket_post_create(struct socket *sock, int family,
 static int smack_socket_connect(struct socket *sock, struct sockaddr *sap,
 				int addrlen)
 {
-	if (sock->sk == NULL || sock->sk->sk_family != PF_INET)
-		return 0;
-	if (addrlen < sizeof(struct sockaddr_in))
-		return -EINVAL;
+	int rc = 0;
 
-	return smack_netlabel_send(sock->sk, (struct sockaddr_in *)sap);
+	if (sock->sk == NULL)
+		return 0;
+
+	switch (sock->sk->sk_family) {
+	case PF_INET:
+		if (addrlen < sizeof(struct sockaddr_in))
+			return -EINVAL;
+		rc = smack_netlabel_send(sock->sk, (struct sockaddr_in *)sap);
+		break;
+	case PF_INET6:
+		if (addrlen < sizeof(struct sockaddr_in6))
+			return -EINVAL;
+		rc = smk_ipv6_port_check(sock->sk, sap, SMK_CONNECTING);
+		break;
+	}
+	return rc;
 }
 
 /**
@@ -2792,22 +2984,32 @@ static int smack_unix_may_send(struct socket *sock, struct socket *other)
  * @msg: the message
  * @size: the size of the message
  *
- * Return 0 if the current subject can write to the destination
- * host. This is only a question if the destination is a single
- * label host.
+ * Return 0 if the current subject can write to the destination host.
+ * For IPv4 this is only a question if the destination is a single label host.
+ * For IPv6 this is a check against the label of the port.
  */
 static int smack_socket_sendmsg(struct socket *sock, struct msghdr *msg,
 				int size)
 {
 	struct sockaddr_in *sip = (struct sockaddr_in *) msg->msg_name;
+	struct sockaddr *sap = (struct sockaddr *) msg->msg_name;
+	int rc = 0;
 
 	/*
 	 * Perfectly reasonable for this to be NULL
 	 */
-	if (sip == NULL || sip->sin_family != AF_INET)
+	if (sip == NULL)
 		return 0;
 
-	return smack_netlabel_send(sock->sk, sip);
+	switch (sip->sin_family) {
+	case AF_INET:
+		rc = smack_netlabel_send(sock->sk, sip);
+		break;
+	case AF_INET6:
+		rc = smk_ipv6_port_check(sock->sk, sap, SMK_SENDING);
+		break;
+	}
+	return rc;
 }
 
 /**
@@ -2878,6 +3080,54 @@ static char *smack_from_secattr(struct netlbl_lsm_secattr *sap,
 	return smack_net_ambient;
 }
 
+static int smk_skb_to_addr_ipv6(struct sk_buff *skb, struct sockaddr *sap)
+{
+	struct sockaddr_in6 *sip = (struct sockaddr_in6 *)sap;
+	u8 nexthdr;
+	int offset;
+	int proto = -EINVAL;
+	struct ipv6hdr _ipv6h;
+	struct ipv6hdr *ip6;
+	__be16 frag_off;
+	struct tcphdr _tcph, *th;
+	struct udphdr _udph, *uh;
+	struct dccp_hdr _dccph, *dh;
+
+	sip->sin6_port = 0;
+
+	offset = skb_network_offset(skb);
+	ip6 = skb_header_pointer(skb, offset, sizeof(_ipv6h), &_ipv6h);
+	if (ip6 == NULL)
+		return -EINVAL;
+	sip->sin6_addr = ip6->saddr;
+
+	nexthdr = ip6->nexthdr;
+	offset += sizeof(_ipv6h);
+	offset = ipv6_skip_exthdr(skb, offset, &nexthdr, &frag_off);
+	if (offset < 0)
+		return -EINVAL;
+
+	proto = nexthdr;
+	switch (proto) {
+	case IPPROTO_TCP:
+		th = skb_header_pointer(skb, offset, sizeof(_tcph), &_tcph);
+		if (th != NULL)
+			sip->sin6_port = th->source;
+		break;
+	case IPPROTO_UDP:
+		uh = skb_header_pointer(skb, offset, sizeof(_udph), &_udph);
+		if (uh != NULL)
+			sip->sin6_port = uh->source;
+		break;
+	case IPPROTO_DCCP:
+		dh = skb_header_pointer(skb, offset, sizeof(_dccph), &_dccph);
+		if (dh != NULL)
+			sip->sin6_port = dh->dccph_sport;
+		break;
+	}
+	return proto;
+}
+
 /**
  * smack_socket_sock_rcv_skb - Smack packet delivery access check
  * @sk: socket
@@ -2889,43 +3139,52 @@ static int smack_socket_sock_rcv_skb(struct sock *sk, struct sk_buff *skb)
 {
 	struct netlbl_lsm_secattr secattr;
 	struct socket_smack *ssp = sk->sk_security;
+	struct sockaddr sadd;
 	char *csp;
-	int rc;
+	int rc = 0;
 	struct smk_audit_info ad;
 #ifdef CONFIG_AUDIT
 	struct lsm_network_audit net;
 #endif
-	if (sk->sk_family != PF_INET && sk->sk_family != PF_INET6)
-		return 0;
+	switch (sk->sk_family) {
+	case PF_INET:
+		/*
+		 * Translate what netlabel gave us.
+		 */
+		netlbl_secattr_init(&secattr);
 
-	/*
-	 * Translate what netlabel gave us.
-	 */
-	netlbl_secattr_init(&secattr);
+		rc = netlbl_skbuff_getattr(skb, sk->sk_family, &secattr);
+		if (rc == 0)
+			csp = smack_from_secattr(&secattr, ssp);
+		else
+			csp = smack_net_ambient;
 
-	rc = netlbl_skbuff_getattr(skb, sk->sk_family, &secattr);
-	if (rc == 0)
-		csp = smack_from_secattr(&secattr, ssp);
-	else
-		csp = smack_net_ambient;
-
-	netlbl_secattr_destroy(&secattr);
+		netlbl_secattr_destroy(&secattr);
 
 #ifdef CONFIG_AUDIT
-	smk_ad_init_net(&ad, __func__, LSM_AUDIT_DATA_NET, &net);
-	ad.a.u.net->family = sk->sk_family;
-	ad.a.u.net->netif = skb->skb_iif;
-	ipv4_skb_to_auditdata(skb, &ad.a, NULL);
+		smk_ad_init_net(&ad, __func__, LSM_AUDIT_DATA_NET, &net);
+		ad.a.u.net->family = sk->sk_family;
+		ad.a.u.net->netif = skb->skb_iif;
+		ipv4_skb_to_auditdata(skb, &ad.a, NULL);
 #endif
-	/*
-	 * Receiving a packet requires that the other end
-	 * be able to write here. Read access is not required.
-	 * This is the simplist possible security model
-	 * for networking.
-	 */
-	rc = smk_access(csp, ssp->smk_in, MAY_WRITE, &ad);
-	if (rc != 0)
-		netlbl_skbuff_err(skb, rc, 0);
+		/*
+		 * Receiving a packet requires that the other end
+		 * be able to write here. Read access is not required.
+		 * This is the simplist possible security model
+		 * for networking.
+		 */
+		rc = smk_access(csp, ssp->smk_in, MAY_WRITE, &ad);
+		if (rc != 0)
+			netlbl_skbuff_err(skb, rc, 0);
+		break;
+	case PF_INET6:
+		rc = smk_skb_to_addr_ipv6(skb, &sadd);
+		if (rc == IPPROTO_UDP || rc == IPPROTO_TCP)
+			rc = smk_ipv6_port_check(sk, &sadd, SMK_RECEIVING);
+		else
+			rc = 0;
+		break;
+	}
 	return rc;
 }
 
@@ -3063,9 +3322,17 @@ static int smack_inet_conn_request(struct sock *sk, struct sk_buff *skb,
 	struct lsm_network_audit net;
 #endif
 
-	/* handle mapped IPv4 packets arriving via IPv6 sockets */
-	if (family == PF_INET6 && skb->protocol == htons(ETH_P_IP))
-		family = PF_INET;
+	if (family == PF_INET6) {
+		/*
+		 * Handle mapped IPv4 packets arriving
+		 * via IPv6 sockets. Don't set up netlabel
+		 * processing on IPv6.
+		 */
+		if (skb->protocol == htons(ETH_P_IP))
+			family = PF_INET;
+		else
+			return 0;
+	}
 
 	netlbl_secattr_init(&secattr);
 	rc = netlbl_skbuff_getattr(skb, family, &secattr);
@@ -3498,6 +3765,7 @@ struct security_operations smack_ops = {
 	.unix_may_send = 		smack_unix_may_send,
 
 	.socket_post_create = 		smack_socket_post_create,
+	.socket_bind =			smack_socket_bind,
 	.socket_connect =		smack_socket_connect,
 	.socket_sendmsg =		smack_socket_sendmsg,
 	.socket_sock_rcv_skb = 		smack_socket_sock_rcv_skb,
