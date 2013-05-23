@@ -227,8 +227,8 @@ static void usbdux_ai_stop(struct usbduxsigma_private *devpriv, int do_unlink)
 	devpriv->ai_cmd_running = 0;
 }
 
-static int usbdux_ai_cancel(struct comedi_device *dev,
-			    struct comedi_subdevice *s)
+static int usbduxsigma_ai_cancel(struct comedi_device *dev,
+				 struct comedi_subdevice *s)
 {
 	struct usbduxsigma_private *devpriv = dev->private;
 
@@ -368,8 +368,8 @@ static void usbdux_ao_stop(struct usbduxsigma_private *devpriv, int do_unlink)
 	devpriv->ao_cmd_running = 0;
 }
 
-static int usbdux_ao_cancel(struct comedi_device *dev,
-			    struct comedi_subdevice *s)
+static int usbduxsigma_ao_cancel(struct comedi_device *dev,
+				 struct comedi_subdevice *s)
 {
 	struct usbduxsigma_private *devpriv = dev->private;
 
@@ -1433,7 +1433,7 @@ static int usbduxsigma_attach_common(struct comedi_device *dev)
 	s->insn_read	= usbduxsigma_ai_insn_read;
 	s->do_cmdtest	= usbduxsigma_ai_cmdtest;
 	s->do_cmd	= usbduxsigma_ai_cmd;
-	s->cancel	= usbdux_ai_cancel;
+	s->cancel	= usbduxsigma_ai_cancel;
 
 	/* Analog Output subdevice */
 	s = &dev->subdevices[1];
@@ -1448,7 +1448,7 @@ static int usbduxsigma_attach_common(struct comedi_device *dev)
 	s->insn_read	= usbduxsigma_ao_insn_read;
 	s->do_cmdtest	= usbduxsigma_ao_cmdtest;
 	s->do_cmd	= usbduxsigma_ao_cmd;
-	s->cancel	= usbdux_ao_cancel;
+	s->cancel	= usbduxsigma_ao_cancel;
 
 	/* Digital I/O subdevice */
 	s = &dev->subdevices[2];
