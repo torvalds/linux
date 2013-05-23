@@ -448,3 +448,6 @@ in your dentry operations instead.
 --
 [mandatory]
 	vfs_readdir() is gone; switch to iterate_dir() instead
+--
+[mandatory]
+	->readdir() is gone now; switch to ->iterate()
