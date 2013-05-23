@@ -502,7 +502,6 @@ static int usbduxsigma_firmware_upload(struct comedi_device *dev,
 				       unsigned long context)
 {
 	struct usb_device *usb = comedi_to_usb_dev(dev);
-	struct usbduxsigma_private *usbduxsub = dev->private;
 	uint8_t *buf;
 	uint8_t *tmp;
 	int ret;
@@ -511,18 +510,14 @@ static int usbduxsigma_firmware_upload(struct comedi_device *dev,
 		return 0;
 
 	if (size > FIRMWARE_MAX_LEN) {
-		dev_err(&usbduxsub->interface->dev,
-			"usbduxsigma firmware binary it too large for FX2.\n");
+		dev_err(dev->class_dev, "firmware binary too large for FX2\n");
 		return -ENOMEM;
 	}
 
 	/* we generate a local buffer for the firmware */
 	buf = kmemdup(data, size, GFP_KERNEL);
-	if (!buf) {
-		dev_err(&usbduxsub->interface->dev,
-			"comedi_: mem alloc for firmware failed\n");
+	if (!buf)
 		return -ENOMEM;
-	}
 
 	/* we need a malloc'ed buffer for usb_control_msg() */
 	tmp = kmalloc(1, GFP_KERNEL);
@@ -540,8 +535,7 @@ static int usbduxsigma_firmware_upload(struct comedi_device *dev,
 			      tmp, 1,
 			      BULK_TIMEOUT);
 	if (ret < 0) {
-		dev_err(&usbduxsub->interface->dev,
-			"comedi_: can not stop firmware\n");
+		dev_err(dev->class_dev, "can not stop firmware\n");
 		goto done;
 	}
 
@@ -553,8 +547,7 @@ static int usbduxsigma_firmware_upload(struct comedi_device *dev,
 			      buf, size,
 			      BULK_TIMEOUT);
 	if (ret < 0) {
-		dev_err(&usbduxsub->interface->dev,
-			"comedi_: firmware upload failed\n");
+		dev_err(dev->class_dev, "firmware upload failed\n");
 		goto done;
 	}
 
@@ -567,8 +560,7 @@ static int usbduxsigma_firmware_upload(struct comedi_device *dev,
 			      tmp, 1,
 			      BULK_TIMEOUT);
 	if (ret < 0)
-		dev_err(&usbduxsub->interface->dev,
-			"comedi_: can not start firmware\n");
+		dev_err(dev->class_dev, "can not start firmware\n");
 
 done:
 	kfree(tmp);
