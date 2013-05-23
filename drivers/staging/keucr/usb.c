@@ -442,12 +442,9 @@ static void dissociate_dev(struct us_data *us)
 	kfree(us->sensebuf);
 
 	/* Free the device-related DMA-mapped buffers */
-	if (us->cr)
-		usb_free_coherent(us->pusb_dev, sizeof(*us->cr), us->cr,
-								us->cr_dma);
-	if (us->iobuf)
-		usb_free_coherent(us->pusb_dev, US_IOBUF_SIZE, us->iobuf,
-								us->iobuf_dma);
+	usb_free_coherent(us->pusb_dev, sizeof(*us->cr), us->cr, us->cr_dma);
+	usb_free_coherent(us->pusb_dev, US_IOBUF_SIZE, us->iobuf,
+			  us->iobuf_dma);
 
 	/* Remove our private data from the interface */
 	usb_set_intfdata(us->pusb_intf, NULL);
