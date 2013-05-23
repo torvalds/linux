@@ -26,6 +26,7 @@
 #include <linux/usb/composite.h>
 
 #include "u_phonet.h"
+#include "u_ether.h"
 
 #define PN_MEDIA_USB	0x1B
 #define MAXPACKET	512
@@ -581,6 +582,58 @@ err:
 	return status;
 }
 
+static inline struct f_phonet_opts *to_f_phonet_opts(struct config_item *item)
+{
+	return container_of(to_config_group(item), struct f_phonet_opts,
+			func_inst.group);
+}
+
+CONFIGFS_ATTR_STRUCT(f_phonet_opts);
+static ssize_t f_phonet_attr_show(struct config_item *item,
+				struct configfs_attribute *attr,
+				char *page)
+{
+	struct f_phonet_opts *opts = to_f_phonet_opts(item);
+	struct f_phonet_opts_attribute *f_phonet_opts_attr =
+		container_of(attr, struct f_phonet_opts_attribute, attr);
+	ssize_t ret = 0;
+
+	if (f_phonet_opts_attr->show)
+		ret = f_phonet_opts_attr->show(opts, page);
+	return ret;
+}
+
+static void phonet_attr_release(struct config_item *item)
+{
+	struct f_phonet_opts *opts = to_f_phonet_opts(item);
+
+	usb_put_function_instance(&opts->func_inst);
+}
+
+static struct configfs_item_operations phonet_item_ops = {
+	.release		= phonet_attr_release,
+	.show_attribute		= f_phonet_attr_show,
+};
+
+static ssize_t f_phonet_ifname_show(struct f_phonet_opts *opts, char *page)
+{
+	return gether_get_ifname(opts->net, page, PAGE_SIZE);
+}
+
+static struct f_phonet_opts_attribute f_phonet_ifname =
+	__CONFIGFS_ATTR_RO(ifname, f_phonet_ifname_show);
+
+static struct configfs_attribute *phonet_attrs[] = {
+	&f_phonet_ifname.attr,
+	NULL,
+};
+
+static struct config_item_type phonet_func_type = {
+	.ct_item_ops	= &phonet_item_ops,
+	.ct_attrs	= phonet_attrs,
+	.ct_owner	= THIS_MODULE,
+};
+
 static void phonet_free_inst(struct usb_function_instance *f)
 {
 	struct f_phonet_opts *opts;
@@ -605,6 +658,9 @@ static struct usb_function_instance *phonet_alloc_inst(void)
 	opts->net = gphonet_setup_default();
 	if (IS_ERR(opts->net))
 		return ERR_PTR(PTR_ERR(opts->net));
+
+	config_group_init_type_name(&opts->func_inst.group, "",
+			&phonet_func_type);
 
 	return &opts->func_inst;
 }

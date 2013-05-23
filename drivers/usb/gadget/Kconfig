@@ -541,6 +541,16 @@ choice
 
 # this first set of drivers all depend on bulk-capable hardware.
 
+config USB_CONFIGFS_PHONET
+	boolean "Phonet protocol"
+	depends on USB_CONFIGFS
+	depends on NET
+	depends on PHONET
+	select USB_U_ETHER
+	select USB_F_PHONET
+	help
+	  The Phonet protocol implementation for USB device.
+
 config USB_ZERO
 	tristate "Gadget Zero (DEVELOPMENT)"
 	select USB_LIBCOMPOSITE
