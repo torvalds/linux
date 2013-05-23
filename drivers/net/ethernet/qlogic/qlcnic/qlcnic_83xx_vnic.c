@@ -187,20 +187,24 @@ int qlcnic_83xx_config_vnic_opmode(struct qlcnic_adapter *adapter)
 	else
 		priv_level = QLC_83XX_GET_FUNC_PRIVILEGE(op_mode,
 							 ahw->pci_func);
-
-	if (priv_level == QLCNIC_NON_PRIV_FUNC) {
+	switch (priv_level) {
+	case QLCNIC_NON_PRIV_FUNC:
 		ahw->op_mode = QLCNIC_NON_PRIV_FUNC;
 		ahw->idc.state_entry = qlcnic_83xx_idc_ready_state_entry;
 		nic_ops->init_driver = qlcnic_83xx_init_non_privileged_vnic;
-	} else if (priv_level == QLCNIC_PRIV_FUNC) {
+		break;
+	case QLCNIC_PRIV_FUNC:
 		ahw->op_mode = QLCNIC_PRIV_FUNC;
 		ahw->idc.state_entry = qlcnic_83xx_idc_vnic_pf_entry;
 		nic_ops->init_driver = qlcnic_83xx_init_privileged_vnic;
-	} else if (priv_level == QLCNIC_MGMT_FUNC) {
+		break;
+	case QLCNIC_MGMT_FUNC:
 		ahw->op_mode = QLCNIC_MGMT_FUNC;
 		ahw->idc.state_entry = qlcnic_83xx_idc_ready_state_entry;
 		nic_ops->init_driver = qlcnic_83xx_init_mgmt_vnic;
-	} else {
+		break;
+	default:
+		dev_err(&adapter->pdev->dev, "Invalid Virtual NIC opmode\n");
 		return -EIO;
 	}
 
@@ -209,8 +213,8 @@ int qlcnic_83xx_config_vnic_opmode(struct qlcnic_adapter *adapter)
 	else
 		adapter->flags &= ~QLCNIC_ESWITCH_ENABLED;
 
-	adapter->ahw->idc.vnic_state = QLCNIC_DEV_NPAR_NON_OPER;
-	adapter->ahw->idc.vnic_wait_limit = QLCNIC_DEV_NPAR_OPER_TIMEO;
+	ahw->idc.vnic_state = QLCNIC_DEV_NPAR_NON_OPER;
+	ahw->idc.vnic_wait_limit = QLCNIC_DEV_NPAR_OPER_TIMEO;
 
 	return 0;
 }
