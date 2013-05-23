@@ -86,6 +86,34 @@ struct batadv_hard_iface {
 };
 
 /**
+ * struct batadv_frag_table_entry - head in the fragment buffer table
+ * @head: head of list with fragments
+ * @lock: lock to protect the list of fragments
+ * @timestamp: time (jiffie) of last received fragment
+ * @seqno: sequence number of the fragments in the list
+ * @size: accumulated size of packets in list
+ */
+struct batadv_frag_table_entry {
+	struct hlist_head head;
+	spinlock_t lock; /* protects head */
+	unsigned long timestamp;
+	uint16_t seqno;
+	uint16_t size;
+};
+
+/**
+ * struct batadv_frag_list_entry - entry in a list of fragments
+ * @list: list node information
+ * @skb: fragment
+ * @no: fragment number in the set
+ */
+struct batadv_frag_list_entry {
+	struct hlist_node list;
+	struct sk_buff *skb;
+	uint8_t no;
+};
+
+/**
  * struct batadv_orig_node - structure for orig_list maintaining nodes of mesh
  * @orig: originator ethernet address
  * @primary_addr: hosts primary interface address
@@ -128,6 +156,7 @@ struct batadv_hard_iface {
  * @out_coding_list: list of nodes that can hear this orig
  * @in_coding_list_lock: protects in_coding_list
  * @out_coding_list_lock: protects out_coding_list
+ * @fragments: array with heads for fragment chains
  */
 struct batadv_orig_node {
 	uint8_t orig[ETH_ALEN];
@@ -174,6 +203,7 @@ struct batadv_orig_node {
 	spinlock_t in_coding_list_lock; /* Protects in_coding_list */
 	spinlock_t out_coding_list_lock; /* Protects out_coding_list */
 #endif
+	struct batadv_frag_table_entry fragments[BATADV_FRAG_BUFFER_COUNT];
 };
 
 /**
@@ -270,6 +300,10 @@ struct batadv_bcast_duplist_entry {
  * @BATADV_CNT_MGMT_TX_BYTES: transmitted routing protocol traffic bytes counter
  * @BATADV_CNT_MGMT_RX: received routing protocol traffic packet counter
  * @BATADV_CNT_MGMT_RX_BYTES: received routing protocol traffic bytes counter
+ * @BATADV_CNT_FRAG_RX: received fragment traffic packet counter
+ * @BATADV_CNT_FRAG_RX_BYTES: received fragment traffic bytes counter
+ * @BATADV_CNT_FRAG_FWD: forwarded fragment traffic packet counter
+ * @BATADV_CNT_FRAG_FWD_BYTES: forwarded fragment traffic bytes counter
  * @BATADV_CNT_TT_REQUEST_TX: transmitted tt req traffic packet counter
  * @BATADV_CNT_TT_REQUEST_RX: received tt req traffic packet counter
  * @BATADV_CNT_TT_RESPONSE_TX: transmitted tt resp traffic packet counter
@@ -307,6 +341,10 @@ enum batadv_counters {
 	BATADV_CNT_MGMT_TX_BYTES,
 	BATADV_CNT_MGMT_RX,
 	BATADV_CNT_MGMT_RX_BYTES,
+	BATADV_CNT_FRAG_RX,
+	BATADV_CNT_FRAG_RX_BYTES,
+	BATADV_CNT_FRAG_FWD,
+	BATADV_CNT_FRAG_FWD_BYTES,
 	BATADV_CNT_TT_REQUEST_TX,
 	BATADV_CNT_TT_REQUEST_RX,
 	BATADV_CNT_TT_RESPONSE_TX,

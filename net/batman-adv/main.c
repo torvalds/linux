@@ -40,6 +40,7 @@
 #include "hash.h"
 #include "bat_algo.h"
 #include "network-coding.h"
+#include "fragmentation.h"
 
 
 /* List manipulations on hardif_list have to be rtnl_lock()'ed,
@@ -399,6 +400,7 @@ static void batadv_recv_handler_init(void)
 	BUILD_BUG_ON(offsetof(struct batadv_unicast_4addr_packet, src) != 10);
 	BUILD_BUG_ON(offsetof(struct batadv_unicast_packet, dest) != 4);
 	BUILD_BUG_ON(offsetof(struct batadv_unicast_tvlv_packet, dst) != 4);
+	BUILD_BUG_ON(offsetof(struct batadv_frag_packet, dest) != 4);
 	BUILD_BUG_ON(offsetof(struct batadv_icmp_packet, dst) != 4);
 	BUILD_BUG_ON(offsetof(struct batadv_icmp_packet_rr, dst) != 4);
 
@@ -414,6 +416,8 @@ static void batadv_recv_handler_init(void)
 	batadv_rx_handler[BATADV_UNICAST_TVLV] = batadv_recv_unicast_tvlv;
 	/* batman icmp packet */
 	batadv_rx_handler[BATADV_ICMP] = batadv_recv_icmp_packet;
+	/* Fragmented packets */
+	batadv_rx_handler[BATADV_UNICAST_FRAG] = batadv_recv_frag_packet;
 }
 
 int

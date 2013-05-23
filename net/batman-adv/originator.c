@@ -28,6 +28,7 @@
 #include "soft-interface.h"
 #include "bridge_loop_avoidance.h"
 #include "network-coding.h"
+#include "fragmentation.h"
 
 /* hash class keys */
 static struct lock_class_key batadv_orig_hash_lock_class_key;
@@ -145,6 +146,8 @@ static void batadv_orig_node_free_rcu(struct rcu_head *rcu)
 	/* Free nc_nodes */
 	batadv_nc_purge_orig(orig_node->bat_priv, orig_node, NULL);
 
+	batadv_frag_purge_orig(orig_node, NULL);
+
 	batadv_tt_global_del_orig(orig_node->bat_priv, orig_node,
 				  "originator timed out");
 
@@ -215,7 +218,7 @@ struct batadv_orig_node *batadv_get_orig_node(struct batadv_priv *bat_priv,
 					      const uint8_t *addr)
 {
 	struct batadv_orig_node *orig_node;
-	int size;
+	int size, i;
 	int hash_added;
 	unsigned long reset_time;
 
@@ -266,6 +269,12 @@ struct batadv_orig_node *batadv_get_orig_node(struct batadv_priv *bat_priv,
 
 	size = bat_priv->num_ifaces * sizeof(uint8_t);
 	orig_node->bcast_own_sum = kzalloc(size, GFP_ATOMIC);
+
+	for (i = 0; i < BATADV_FRAG_BUFFER_COUNT; i++) {
+		INIT_HLIST_HEAD(&orig_node->fragments[i].head);
+		spin_lock_init(&orig_node->fragments[i].lock);
+		orig_node->fragments[i].size = 0;
+	}
 
 	if (!orig_node->bcast_own_sum)
 		goto free_bcast_own;
@@ -388,6 +397,9 @@ static void _batadv_purge_orig(struct batadv_priv *bat_priv)
 				batadv_orig_node_free_ref(orig_node);
 				continue;
 			}
+
+			batadv_frag_purge_orig(orig_node,
+					       batadv_frag_check_entry);
 		}
 		spin_unlock_bh(list_lock);
 	}

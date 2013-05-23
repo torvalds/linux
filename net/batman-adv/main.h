@@ -131,6 +131,15 @@ enum batadv_uev_type {
 
 #define BATADV_GW_THRESHOLD	50
 
+/* Number of fragment chains for each orig_node */
+#define BATADV_FRAG_BUFFER_COUNT 8
+/* Maximum number of fragments for one packet */
+#define BATADV_FRAG_MAX_FRAGMENTS 16
+/* Maxumim size of each fragment */
+#define BATADV_FRAG_MAX_FRAG_SIZE 1400
+/* Time to keep fragments while waiting for rest of the fragments */
+#define BATADV_FRAG_TIMEOUT 10000
+
 #define BATADV_DAT_CANDIDATE_NOT_FOUND	0
 #define BATADV_DAT_CANDIDATE_ORIG	1
 
