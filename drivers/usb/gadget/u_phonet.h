@@ -14,8 +14,8 @@
 #include <linux/usb/composite.h>
 #include <linux/usb/cdc.h>
 
-int gphonet_setup(struct usb_gadget *gadget);
-int phonet_bind_config(struct usb_configuration *c);
-void gphonet_cleanup(void);
+struct net_device *gphonet_setup(struct usb_gadget *gadget);
+int phonet_bind_config(struct usb_configuration *c, struct net_device *dev);
+void gphonet_cleanup(struct net_device *dev);
 
 #endif /* __U_PHONET_H */

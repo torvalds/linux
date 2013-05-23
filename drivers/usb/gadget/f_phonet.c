@@ -579,9 +579,8 @@ pn_unbind(struct usb_configuration *c, struct usb_function *f)
 
 /*-------------------------------------------------------------------------*/
 
-static struct net_device *dev;
-
-int __init phonet_bind_config(struct usb_configuration *c)
+int __init phonet_bind_config(struct usb_configuration *c,
+			      struct net_device *dev)
 {
 	struct f_phonet *fp;
 	int err, size;
@@ -606,16 +605,16 @@ int __init phonet_bind_config(struct usb_configuration *c)
 	return err;
 }
 
-int __init gphonet_setup(struct usb_gadget *gadget)
+struct net_device __init *gphonet_setup(struct usb_gadget *gadget)
 {
+	struct net_device *dev;
 	struct phonet_port *port;
 	int err;
 
 	/* Create net device */
-	BUG_ON(dev);
 	dev = alloc_netdev(sizeof(*port), "upnlink%d", pn_net_setup);
 	if (!dev)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
 	port = netdev_priv(dev);
 	spin_lock_init(&port->lock);
@@ -623,12 +622,15 @@ int __init gphonet_setup(struct usb_gadget *gadget)
 	SET_NETDEV_DEV(dev, &gadget->dev);
 
 	err = register_netdev(dev);
-	if (err)
+	if (err) {
 		free_netdev(dev);
-	return err;
+
+		return ERR_PTR(err);
+	}
+	return dev;
 }
 
-void gphonet_cleanup(void)
+void gphonet_cleanup(struct net_device *dev)
 {
 	unregister_netdev(dev);
 }
