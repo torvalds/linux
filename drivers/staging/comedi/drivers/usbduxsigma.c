@@ -191,8 +191,6 @@ struct usbduxsigma_private {
 	int16_t *outBuffer;
 	/* interface structure in 2.6 */
 	struct usb_interface *interface;
-	/* comedi device for the interrupt context */
-	struct comedi_device *comedidev;
 	/* is it USB_SPEED_HIGH or not? */
 	short int high_speed;
 	/* asynchronous command is running */
@@ -412,7 +410,7 @@ static void usbduxsub_ao_IsocIrq(struct urb *urb)
 		if (devpriv->ao_cmd_running) {
 			usbdux_ao_stop(devpriv, 0);	/* w/o unlink */
 			s->async->events |= COMEDI_CB_EOA;
-			comedi_event(devpriv->comedidev, s);
+			comedi_event(dev, s);
 		}
 		return;
 
@@ -424,7 +422,7 @@ static void usbduxsub_ao_IsocIrq(struct urb *urb)
 				__func__, urb->status);
 			usbdux_ao_stop(devpriv, 0);	/* w/o unlink */
 			s->async->events |= (COMEDI_CB_ERROR | COMEDI_CB_EOA);
-			comedi_event(devpriv->comedidev, s);
+			comedi_event(dev, s);
 		}
 		return;
 	}
@@ -444,7 +442,7 @@ static void usbduxsub_ao_IsocIrq(struct urb *urb)
 				usbdux_ao_stop(devpriv, 0);	/* w/o unlink */
 				/* acquistion is over, tell comedi */
 				s->async->events |= COMEDI_CB_EOA;
-				comedi_event(devpriv->comedidev, s);
+				comedi_event(dev, s);
 				return;
 			}
 		}
@@ -1745,8 +1743,6 @@ static int usbduxsigma_attach_common(struct comedi_device *dev)
 	int offset;
 
 	down(&uds->sem);
-	/* pointer back to the corresponding comedi device */
-	uds->comedidev = dev;
 
 	/* set number of subdevices */
 	if (uds->high_speed)
@@ -1993,7 +1989,6 @@ static void usbduxsigma_detach(struct comedi_device *dev)
 	usbdux_ao_stop(devpriv, devpriv->ao_cmd_running);
 
 	down(&devpriv->sem);
-	devpriv->comedidev = NULL;
 	tidy_up(devpriv);
 	up(&devpriv->sem);
 }
