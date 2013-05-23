@@ -580,6 +580,7 @@ static int qlcnic_sriov_set_vf_acl(struct qlcnic_adapter *adapter, u8 func)
 	struct qlcnic_cmd_args cmd;
 	struct qlcnic_vport *vp;
 	int err, id;
+	u8 *mac;
 
 	id = qlcnic_sriov_func_to_index(adapter, func);
 	if (id < 0)
@@ -591,6 +592,14 @@ static int qlcnic_sriov_set_vf_acl(struct qlcnic_adapter *adapter, u8 func)
 		return err;
 
 	cmd.req.arg[1] = 0x3 | func << 16;
+	if (vp->spoofchk == true) {
+		mac = vp->mac;
+		cmd.req.arg[2] |= BIT_1 | BIT_3 | BIT_8;
+		cmd.req.arg[4] = mac[5] | mac[4] << 8 | mac[3] << 16 |
+				 mac[2] << 24;
+		cmd.req.arg[5] = mac[1] | mac[0] << 8;
+	}
+
 	if (vp->vlan_mode == QLC_PVID_MODE) {
 		cmd.req.arg[2] |= BIT_6;
 		cmd.req.arg[3] |= vp->vlan << 8;
@@ -1767,11 +1776,38 @@ int qlcnic_sriov_get_vf_config(struct net_device *netdev,
 	memcpy(&ivi->mac, vp->mac, ETH_ALEN);
 	ivi->vlan = vp->vlan;
 	ivi->qos = vp->qos;
+	ivi->spoofchk = vp->spoofchk;
 	if (vp->max_tx_bw == MAX_BW)
 		ivi->tx_rate = 0;
 	else
 		ivi->tx_rate = vp->max_tx_bw * 100;
 
 	ivi->vf = vf;
+	return 0;
+}
+
+int qlcnic_sriov_set_vf_spoofchk(struct net_device *netdev, int vf, bool chk)
+{
+	struct qlcnic_adapter *adapter = netdev_priv(netdev);
+	struct qlcnic_sriov *sriov = adapter->ahw->sriov;
+	struct qlcnic_vf_info *vf_info;
+	struct qlcnic_vport *vp;
+
+	if (!qlcnic_sriov_pf_check(adapter))
+		return -EOPNOTSUPP;
+
+	if (vf >= sriov->num_vfs)
+		return -EINVAL;
+
+	vf_info = &sriov->vf_info[vf];
+	vp = vf_info->vp;
+	if (test_bit(QLC_BC_VF_STATE, &vf_info->state)) {
+		netdev_err(netdev,
+			   "Spoof check change failed for VF %d, as VF driver is loaded. Please unload VF driver and retry the operation\n",
+			   vf);
+		return -EOPNOTSUPP;
+	}
+
+	vp->spoofchk = chk;
 	return 0;
 }
