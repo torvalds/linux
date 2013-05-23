@@ -312,6 +312,11 @@ inline void qlcnic_83xx_clear_legacy_intr_mask(struct qlcnic_adapter *adapter)
 	writel(0, adapter->tgt_mask_reg);
 }
 
+inline void qlcnic_83xx_set_legacy_intr_mask(struct qlcnic_adapter *adapter)
+{
+	writel(1, adapter->tgt_mask_reg);
+}
+
 /* Enable MSI-x and INT-x interrupts */
 void qlcnic_83xx_enable_intr(struct qlcnic_adapter *adapter,
 			     struct qlcnic_host_sds_ring *sds_ring)
@@ -457,6 +462,9 @@ done:
 void qlcnic_83xx_free_mbx_intr(struct qlcnic_adapter *adapter)
 {
 	u32 num_msix;
+
+	if (!(adapter->flags & QLCNIC_MSIX_ENABLED))
+		qlcnic_83xx_set_legacy_intr_mask(adapter);
 
 	qlcnic_83xx_disable_mbx_intr(adapter);
 
