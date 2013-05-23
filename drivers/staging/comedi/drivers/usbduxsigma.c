@@ -615,9 +615,6 @@ static int usbduxsub_submit_InURBs(struct usbduxsub *usbduxsub)
 {
 	int i, errFlag;
 
-	if (!usbduxsub)
-		return -EFAULT;
-
 	/* Submit all URBs and start the transfer on the bus */
 	for (i = 0; i < usbduxsub->numOfInBuffers; i++) {
 		/* in case of a resubmission after an unlink... */
@@ -626,19 +623,9 @@ static int usbduxsub_submit_InURBs(struct usbduxsub *usbduxsub)
 		usbduxsub->urbIn[i]->dev = usbduxsub->usbdev;
 		usbduxsub->urbIn[i]->status = 0;
 		usbduxsub->urbIn[i]->transfer_flags = URB_ISO_ASAP;
-		dev_dbg(&usbduxsub->interface->dev,
-			"comedi%d: submitting in-urb[%d]: %p,%p intv=%d\n",
-			usbduxsub->comedidev->minor, i,
-			(usbduxsub->urbIn[i]->context),
-			(usbduxsub->urbIn[i]->dev),
-			(usbduxsub->urbIn[i]->interval));
 		errFlag = usb_submit_urb(usbduxsub->urbIn[i], GFP_ATOMIC);
-		if (errFlag) {
-			dev_err(&usbduxsub->interface->dev,
-				"comedi_: ai: usb_submit_urb(%d) error %d\n",
-				i, errFlag);
+		if (errFlag)
 			return errFlag;
-		}
 	}
 	return 0;
 }
@@ -647,24 +634,15 @@ static int usbduxsub_submit_OutURBs(struct usbduxsub *usbduxsub)
 {
 	int i, errFlag;
 
-	if (!usbduxsub)
-		return -EFAULT;
-
 	for (i = 0; i < usbduxsub->numOfOutBuffers; i++) {
-		dev_dbg(&usbduxsub->interface->dev,
-			"comedi_: submitting out-urb[%d]\n", i);
 		/* in case of a resubmission after an unlink... */
 		usbduxsub->urbOut[i]->context = usbduxsub->comedidev;
 		usbduxsub->urbOut[i]->dev = usbduxsub->usbdev;
 		usbduxsub->urbOut[i]->status = 0;
 		usbduxsub->urbOut[i]->transfer_flags = URB_ISO_ASAP;
 		errFlag = usb_submit_urb(usbduxsub->urbOut[i], GFP_ATOMIC);
-		if (errFlag) {
-			dev_err(&usbduxsub->interface->dev,
-				"comedi_: ao: usb_submit_urb(%d) error %d\n",
-				i, errFlag);
+		if (errFlag)
 			return errFlag;
-		}
 	}
 	return 0;
 }
