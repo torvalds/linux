@@ -55,10 +55,11 @@ Status: testing
 #define BULK_TIMEOUT 1000
 
 /* constants for "firmware" upload and download */
-#define FIRMWARE "usbduxsigma_firmware.bin"
-#define USBDUXSUB_FIRMWARE 0xA0
-#define VENDOR_DIR_IN  0xC0
-#define VENDOR_DIR_OUT 0x40
+#define FIRMWARE		"usbduxsigma_firmware.bin"
+#define FIRMWARE_MAX_LEN	0x4000
+#define USBDUXSUB_FIRMWARE	0xa0
+#define VENDOR_DIR_IN		0xc0
+#define VENDOR_DIR_OUT		0x40
 
 /* internal addresses of the 8051 processor */
 #define USBDUXSUB_CPUCS 0xE600
@@ -480,80 +481,6 @@ static void usbduxsub_ao_IsocIrq(struct urb *urb)
 		s->async->events |= (COMEDI_CB_EOA | COMEDI_CB_ERROR);
 		comedi_event(dev, s);
 	}
-}
-
-/* the FX2LP has twice as much as the standard FX2 */
-#define FIRMWARE_MAX_LEN 0x4000
-
-static int usbduxsigma_firmware_upload(struct comedi_device *dev,
-				       const u8 *data, size_t size,
-				       unsigned long context)
-{
-	struct usb_device *usb = comedi_to_usb_dev(dev);
-	uint8_t *buf;
-	uint8_t *tmp;
-	int ret;
-
-	if (!data)
-		return 0;
-
-	if (size > FIRMWARE_MAX_LEN) {
-		dev_err(dev->class_dev, "firmware binary too large for FX2\n");
-		return -ENOMEM;
-	}
-
-	/* we generate a local buffer for the firmware */
-	buf = kmemdup(data, size, GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-
-	/* we need a malloc'ed buffer for usb_control_msg() */
-	tmp = kmalloc(1, GFP_KERNEL);
-	if (!tmp) {
-		kfree(buf);
-		return -ENOMEM;
-	}
-
-	/* stop the current firmware on the device */
-	*tmp = 1;	/* 7f92 to one */
-	ret = usb_control_msg(usb, usb_sndctrlpipe(usb, 0),
-			      USBDUXSUB_FIRMWARE,
-			      VENDOR_DIR_OUT,
-			      USBDUXSUB_CPUCS, 0x0000,
-			      tmp, 1,
-			      BULK_TIMEOUT);
-	if (ret < 0) {
-		dev_err(dev->class_dev, "can not stop firmware\n");
-		goto done;
-	}
-
-	/* upload the new firmware to the device */
-	ret = usb_control_msg(usb, usb_sndctrlpipe(usb, 0),
-			      USBDUXSUB_FIRMWARE,
-			      VENDOR_DIR_OUT,
-			      0, 0x0000,
-			      buf, size,
-			      BULK_TIMEOUT);
-	if (ret < 0) {
-		dev_err(dev->class_dev, "firmware upload failed\n");
-		goto done;
-	}
-
-	/* start the new firmware on the device */
-	*tmp = 0;	/* 7f92 to zero */
-	ret = usb_control_msg(usb, usb_sndctrlpipe(usb, 0),
-			      USBDUXSUB_FIRMWARE,
-			      VENDOR_DIR_OUT,
-			      USBDUXSUB_CPUCS, 0x0000,
-			      tmp, 1,
-			      BULK_TIMEOUT);
-	if (ret < 0)
-		dev_err(dev->class_dev, "can not start firmware\n");
-
-done:
-	kfree(tmp);
-	kfree(buf);
-	return ret;
 }
 
 static int usbduxsigma_submit_urbs(struct comedi_device *dev,
@@ -1648,6 +1575,77 @@ static int usbduxsigma_attach_common(struct comedi_device *dev)
 	dev_info(dev->class_dev, "attached, ADC_zero = %x\n", offset);
 
 	return 0;
+}
+
+static int usbduxsigma_firmware_upload(struct comedi_device *dev,
+				       const u8 *data, size_t size,
+				       unsigned long context)
+{
+	struct usb_device *usb = comedi_to_usb_dev(dev);
+	uint8_t *buf;
+	uint8_t *tmp;
+	int ret;
+
+	if (!data)
+		return 0;
+
+	if (size > FIRMWARE_MAX_LEN) {
+		dev_err(dev->class_dev, "firmware binary too large for FX2\n");
+		return -ENOMEM;
+	}
+
+	/* we generate a local buffer for the firmware */
+	buf = kmemdup(data, size, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	/* we need a malloc'ed buffer for usb_control_msg() */
+	tmp = kmalloc(1, GFP_KERNEL);
+	if (!tmp) {
+		kfree(buf);
+		return -ENOMEM;
+	}
+
+	/* stop the current firmware on the device */
+	*tmp = 1;	/* 7f92 to one */
+	ret = usb_control_msg(usb, usb_sndctrlpipe(usb, 0),
+			      USBDUXSUB_FIRMWARE,
+			      VENDOR_DIR_OUT,
+			      USBDUXSUB_CPUCS, 0x0000,
+			      tmp, 1,
+			      BULK_TIMEOUT);
+	if (ret < 0) {
+		dev_err(dev->class_dev, "can not stop firmware\n");
+		goto done;
+	}
+
+	/* upload the new firmware to the device */
+	ret = usb_control_msg(usb, usb_sndctrlpipe(usb, 0),
+			      USBDUXSUB_FIRMWARE,
+			      VENDOR_DIR_OUT,
+			      0, 0x0000,
+			      buf, size,
+			      BULK_TIMEOUT);
+	if (ret < 0) {
+		dev_err(dev->class_dev, "firmware upload failed\n");
+		goto done;
+	}
+
+	/* start the new firmware on the device */
+	*tmp = 0;	/* 7f92 to zero */
+	ret = usb_control_msg(usb, usb_sndctrlpipe(usb, 0),
+			      USBDUXSUB_FIRMWARE,
+			      VENDOR_DIR_OUT,
+			      USBDUXSUB_CPUCS, 0x0000,
+			      tmp, 1,
+			      BULK_TIMEOUT);
+	if (ret < 0)
+		dev_err(dev->class_dev, "can not start firmware\n");
+
+done:
+	kfree(tmp);
+	kfree(buf);
+	return ret;
 }
 
 static int usbduxsigma_alloc_usb_buffers(struct comedi_device *dev)
