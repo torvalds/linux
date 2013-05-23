@@ -9858,48 +9858,50 @@ intel_display_capture_error_state(struct drm_device *dev)
 	return error;
 }
 
+#define err_printf(e, ...) i915_error_printf(e, __VA_ARGS__)
+
 void
-intel_display_print_error_state(struct seq_file *m,
+intel_display_print_error_state(struct drm_i915_error_state_buf *m,
 				struct drm_device *dev,
 				struct intel_display_error_state *error)
 {
 	int i;
 
-	seq_printf(m, "Num Pipes: %d\n", INTEL_INFO(dev)->num_pipes);
+	err_printf(m, "Num Pipes: %d\n", INTEL_INFO(dev)->num_pipes);
 	if (HAS_POWER_WELL(dev))
-		seq_printf(m, "PWR_WELL_CTL2: %08x\n",
+		err_printf(m, "PWR_WELL_CTL2: %08x\n",
 			   error->power_well_driver);
 	for_each_pipe(i) {
-		seq_printf(m, "Pipe [%d]:\n", i);
-		seq_printf(m, "  CPU transcoder: %c\n",
+		err_printf(m, "Pipe [%d]:\n", i);
+		err_printf(m, "  CPU transcoder: %c\n",
 			   transcoder_name(error->pipe[i].cpu_transcoder));
-		seq_printf(m, "  CONF: %08x\n", error->pipe[i].conf);
-		seq_printf(m, "  SRC: %08x\n", error->pipe[i].source);
-		seq_printf(m, "  HTOTAL: %08x\n", error->pipe[i].htotal);
-		seq_printf(m, "  HBLANK: %08x\n", error->pipe[i].hblank);
-		seq_printf(m, "  HSYNC: %08x\n", error->pipe[i].hsync);
-		seq_printf(m, "  VTOTAL: %08x\n", error->pipe[i].vtotal);
-		seq_printf(m, "  VBLANK: %08x\n", error->pipe[i].vblank);
-		seq_printf(m, "  VSYNC: %08x\n", error->pipe[i].vsync);
+		err_printf(m, "  CONF: %08x\n", error->pipe[i].conf);
+		err_printf(m, "  SRC: %08x\n", error->pipe[i].source);
+		err_printf(m, "  HTOTAL: %08x\n", error->pipe[i].htotal);
+		err_printf(m, "  HBLANK: %08x\n", error->pipe[i].hblank);
+		err_printf(m, "  HSYNC: %08x\n", error->pipe[i].hsync);
+		err_printf(m, "  VTOTAL: %08x\n", error->pipe[i].vtotal);
+		err_printf(m, "  VBLANK: %08x\n", error->pipe[i].vblank);
+		err_printf(m, "  VSYNC: %08x\n", error->pipe[i].vsync);
 
-		seq_printf(m, "Plane [%d]:\n", i);
-		seq_printf(m, "  CNTR: %08x\n", error->plane[i].control);
-		seq_printf(m, "  STRIDE: %08x\n", error->plane[i].stride);
+		err_printf(m, "Plane [%d]:\n", i);
+		err_printf(m, "  CNTR: %08x\n", error->plane[i].control);
+		err_printf(m, "  STRIDE: %08x\n", error->plane[i].stride);
 		if (INTEL_INFO(dev)->gen <= 3) {
-			seq_printf(m, "  SIZE: %08x\n", error->plane[i].size);
-			seq_printf(m, "  POS: %08x\n", error->plane[i].pos);
+			err_printf(m, "  SIZE: %08x\n", error->plane[i].size);
+			err_printf(m, "  POS: %08x\n", error->plane[i].pos);
 		}
 		if (INTEL_INFO(dev)->gen <= 7 && !IS_HASWELL(dev))
-			seq_printf(m, "  ADDR: %08x\n", error->plane[i].addr);
+			err_printf(m, "  ADDR: %08x\n", error->plane[i].addr);
 		if (INTEL_INFO(dev)->gen >= 4) {
-			seq_printf(m, "  SURF: %08x\n", error->plane[i].surface);
-			seq_printf(m, "  TILEOFF: %08x\n", error->plane[i].tile_offset);
+			err_printf(m, "  SURF: %08x\n", error->plane[i].surface);
+			err_printf(m, "  TILEOFF: %08x\n", error->plane[i].tile_offset);
 		}
 
-		seq_printf(m, "Cursor [%d]:\n", i);
-		seq_printf(m, "  CNTR: %08x\n", error->cursor[i].control);
-		seq_printf(m, "  POS: %08x\n", error->cursor[i].position);
-		seq_printf(m, "  BASE: %08x\n", error->cursor[i].base);
+		err_printf(m, "Cursor [%d]:\n", i);
+		err_printf(m, "  CNTR: %08x\n", error->cursor[i].control);
+		err_printf(m, "  POS: %08x\n", error->cursor[i].position);
+		err_printf(m, "  BASE: %08x\n", error->cursor[i].base);
 	}
 }
 #endif
