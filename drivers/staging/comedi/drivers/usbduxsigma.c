@@ -659,9 +659,6 @@ static int usbdux_ai_cmdtest(struct comedi_device *dev,
 	int err = 0, i;
 	unsigned int tmpTimer;
 
-	if (!(this_usbduxsub->probed))
-		return -ENODEV;
-
 	/* Step 1 : check if triggers are trivially valid */
 
 	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_INT);
@@ -823,10 +820,6 @@ static int usbdux_ai_inttrig(struct comedi_device *dev,
 		return -EFAULT;
 
 	down(&this_usbduxsub->sem);
-	if (!(this_usbduxsub->probed)) {
-		up(&this_usbduxsub->sem);
-		return -ENODEV;
-	}
 	if (trignum != 0) {
 		dev_err(&this_usbduxsub->interface->dev,
 			"comedi%d: usbdux_ai_inttrig: invalid trignum\n",
@@ -869,11 +862,6 @@ static int usbdux_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/* block other CPUs from starting an ai_cmd */
 	down(&this_usbduxsub->sem);
-
-	if (!(this_usbduxsub->probed)) {
-		up(&this_usbduxsub->sem);
-		return -ENODEV;
-	}
 	if (this_usbduxsub->ai_cmd_running) {
 		dev_err(&this_usbduxsub->interface->dev, "comedi%d: "
 			"ai_cmd not possible. Another ai_cmd is running.\n",
@@ -991,10 +979,6 @@ static int usbdux_ai_insn_read(struct comedi_device *dev,
 		return 0;
 
 	down(&this_usbduxsub->sem);
-	if (!(this_usbduxsub->probed)) {
-		up(&this_usbduxsub->sem);
-		return -ENODEV;
-	}
 	if (this_usbduxsub->ai_cmd_running) {
 		dev_err(&this_usbduxsub->interface->dev,
 			"comedi%d: ai_insn_read not possible. "
@@ -1134,10 +1118,6 @@ static int usbdux_ao_insn_read(struct comedi_device *dev,
 		return -EFAULT;
 
 	down(&this_usbduxsub->sem);
-	if (!(this_usbduxsub->probed)) {
-		up(&this_usbduxsub->sem);
-		return -ENODEV;
-	}
 	for (i = 0; i < insn->n; i++)
 		data[i] = this_usbduxsub->outBuffer[chan];
 
@@ -1157,10 +1137,6 @@ static int usbdux_ao_insn_write(struct comedi_device *dev,
 		return -EFAULT;
 
 	down(&this_usbduxsub->sem);
-	if (!(this_usbduxsub->probed)) {
-		up(&this_usbduxsub->sem);
-		return -ENODEV;
-	}
 	if (this_usbduxsub->ao_cmd_running) {
 		dev_err(&this_usbduxsub->interface->dev,
 			"comedi%d: ao_insn_write: "
@@ -1201,11 +1177,6 @@ static int usbdux_ao_inttrig(struct comedi_device *dev,
 		return -EFAULT;
 
 	down(&this_usbduxsub->sem);
-
-	if (!(this_usbduxsub->probed)) {
-		ret = -ENODEV;
-		goto out;
-	}
 	if (trignum != 0) {
 		dev_err(&this_usbduxsub->interface->dev,
 			"comedi%d: usbdux_ao_inttrig: invalid trignum\n",
@@ -1242,9 +1213,6 @@ static int usbdux_ao_cmdtest(struct comedi_device *dev,
 
 	if (!this_usbduxsub)
 		return -EFAULT;
-
-	if (!(this_usbduxsub->probed))
-		return -ENODEV;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -1320,11 +1288,6 @@ static int usbdux_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		return -EFAULT;
 
 	down(&this_usbduxsub->sem);
-	if (!(this_usbduxsub->probed)) {
-		up(&this_usbduxsub->sem);
-		return -ENODEV;
-	}
-
 	/* set current channel of the running acquisition to zero */
 	s->async->cur_chan = 0;
 	for (i = 0; i < cmd->chanlist_len; ++i) {
@@ -1459,11 +1422,6 @@ static int usbdux_dio_insn_bits(struct comedi_device *dev,
 		return -EFAULT;
 
 	down(&this_usbduxsub->sem);
-
-	if (!(this_usbduxsub->probed)) {
-		up(&this_usbduxsub->sem);
-		return -ENODEV;
-	}
 
 	/* The insn data is a mask in data[0] and the new data
 	 * in data[1], each channel cooresponding to a bit. */
@@ -1991,7 +1949,7 @@ static int usbduxsigma_auto_attach(struct comedi_device *dev,
 	dev->private = NULL;
 
 	down(&start_stop_sem);
-	if (!uds || !uds->probed) {
+	if (!uds) {
 		dev_err(dev->class_dev,
 			"usbduxsigma: error: auto_attach failed, not connected\n");
 		ret = -ENODEV;
