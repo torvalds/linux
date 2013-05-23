@@ -270,25 +270,15 @@ static void usbdux_ai_stop(struct usbduxsub *devpriv, int do_unlink)
 	devpriv->ai_cmd_running = 0;
 }
 
-/*
- * This will cancel a running acquisition operation.
- * This is called by comedi but never from inside the driver.
- */
 static int usbdux_ai_cancel(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
-	struct usbduxsub *this_usbduxsub;
+	struct usbduxsub *devpriv = dev->private;
 
-	/* force unlink of all urbs */
-	this_usbduxsub = dev->private;
-	if (!this_usbduxsub)
-		return -EFAULT;
-
-	/* prevent other CPUs from submitting new commands just now */
-	down(&this_usbduxsub->sem);
-	/* unlink only if the urb really has been submitted */
-	usbdux_ai_stop(this_usbduxsub, this_usbduxsub->ai_cmd_running);
-	up(&this_usbduxsub->sem);
+	down(&devpriv->sem);
+	/* unlink only if it is really running */
+	usbdux_ai_stop(devpriv, devpriv->ai_cmd_running);
+	up(&devpriv->sem);
 
 	return 0;
 }
@@ -456,20 +446,15 @@ static void usbdux_ao_stop(struct usbduxsub *devpriv, int do_unlink)
 	devpriv->ao_cmd_running = 0;
 }
 
-/* force unlink, is called by comedi */
 static int usbdux_ao_cancel(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
-	struct usbduxsub *this_usbduxsub = dev->private;
+	struct usbduxsub *devpriv = dev->private;
 
-	if (!this_usbduxsub)
-		return -EFAULT;
-
-	/* prevent other CPUs from submitting a command just now */
-	down(&this_usbduxsub->sem);
+	down(&devpriv->sem);
 	/* unlink only if it is really running */
-	usbdux_ao_stop(this_usbduxsub, this_usbduxsub->ao_cmd_running);
-	up(&this_usbduxsub->sem);
+	usbdux_ao_stop(devpriv, devpriv->ao_cmd_running);
+	up(&devpriv->sem);
 
 	return 0;
 }
@@ -1627,19 +1612,15 @@ static void usbdux_pwm_stop(struct usbduxsub *devpriv, int do_unlink)
 	devpriv->pwm_cmd_running = 0;
 }
 
-/* force unlink - is called by comedi */
 static int usbdux_pwm_cancel(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
-	struct usbduxsub *this_usbduxsub = dev->private;
-
-	if (!this_usbduxsub)
-		return -EFAULT;
+	struct usbduxsub *devpriv = dev->private;
 
 	/* unlink only if it is really running */
-	usbdux_pwm_stop(this_usbduxsub, this_usbduxsub->pwm_cmd_running);
+	usbdux_pwm_stop(devpriv, devpriv->pwm_cmd_running);
 
-	return send_dux_commands(this_usbduxsub, SENDPWMOFF);
+	return send_dux_commands(devpriv, SENDPWMOFF);
 }
 
 static void usbduxsub_pwm_irq(struct urb *urb)
