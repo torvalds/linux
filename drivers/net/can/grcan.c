@@ -1646,7 +1646,7 @@ static int grcan_setup_netdev(struct platform_device *ofdev,
 	if (err)
 		goto exit_free_candev;
 
-	dev_set_drvdata(&ofdev->dev, dev);
+	platform_set_drvdata(ofdev, dev);
 
 	/* Reset device to allow bit-timing to be set. No need to call
 	 * grcan_reset at this stage. That is done in grcan_open.
@@ -1715,13 +1715,12 @@ exit_error:
 
 static int grcan_remove(struct platform_device *ofdev)
 {
-	struct net_device *dev = dev_get_drvdata(&ofdev->dev);
+	struct net_device *dev = platform_get_drvdata(ofdev);
 	struct grcan_priv *priv = netdev_priv(dev);
 
 	unregister_candev(dev); /* Will in turn call grcan_close */
 
 	irq_dispose_mapping(dev->irq);
-	dev_set_drvdata(&ofdev->dev, NULL);
 	netif_napi_del(&priv->napi);
 	free_candev(dev);
 
