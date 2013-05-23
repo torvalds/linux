@@ -2134,26 +2134,25 @@ out:
 int qlcnic_83xx_get_pci_info(struct qlcnic_adapter *adapter,
 			     struct qlcnic_pci_info *pci_info)
 {
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	struct device *dev = &adapter->pdev->dev;
+	struct qlcnic_cmd_args cmd;
 	int i, err = 0, j = 0;
 	u32 temp;
-	struct qlcnic_cmd_args cmd;
 
 	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_GET_PCI_INFO);
 	err = qlcnic_issue_cmd(adapter, &cmd);
 
-	adapter->ahw->act_pci_func = 0;
+	ahw->act_pci_func = 0;
 	if (err == QLCNIC_RCODE_SUCCESS) {
-		pci_info->func_count = cmd.rsp.arg[1] & 0xFF;
-		dev_info(&adapter->pdev->dev,
-			 "%s: total functions = %d\n",
-			 __func__, pci_info->func_count);
+		ahw->max_pci_func = cmd.rsp.arg[1] & 0xFF;
 		for (i = 2, j = 0; j < QLCNIC_MAX_PCI_FUNC; j++, pci_info++) {
 			pci_info->id = cmd.rsp.arg[i] & 0xFFFF;
 			pci_info->active = (cmd.rsp.arg[i] & 0xFFFF0000) >> 16;
 			i++;
 			pci_info->type = cmd.rsp.arg[i] & 0xFFFF;
 			if (pci_info->type == QLCNIC_TYPE_NIC)
-				adapter->ahw->act_pci_func++;
+				ahw->act_pci_func++;
 			temp = (cmd.rsp.arg[i] & 0xFFFF0000) >> 16;
 			pci_info->default_port = temp;
 			i++;
@@ -2165,18 +2164,21 @@ int qlcnic_83xx_get_pci_info(struct qlcnic_adapter *adapter,
 			i++;
 			memcpy(pci_info->mac + sizeof(u32), &cmd.rsp.arg[i], 2);
 			i = i + 3;
-
-			dev_info(&adapter->pdev->dev, "%s:\n"
-				 "\tid = %d active = %d type = %d\n"
-				 "\tport = %d min bw = %d max bw = %d\n"
-				 "\tmac_addr =  %pM\n", __func__,
-				 pci_info->id, pci_info->active, pci_info->type,
-				 pci_info->default_port, pci_info->tx_min_bw,
-				 pci_info->tx_max_bw, pci_info->mac);
+			if (ahw->op_mode == QLCNIC_MGMT_FUNC)
+				dev_info(dev, "id = %d active = %d type = %d\n"
+					 "\tport = %d min bw = %d max bw = %d\n"
+					 "\tmac_addr =  %pM\n", pci_info->id,
+					 pci_info->active, pci_info->type,
+					 pci_info->default_port,
+					 pci_info->tx_min_bw,
+					 pci_info->tx_max_bw, pci_info->mac);
 		}
+		if (ahw->op_mode == QLCNIC_MGMT_FUNC)
+			dev_info(dev, "Max vNIC functions = %d, active vNIC functions = %d\n",
+				 ahw->max_pci_func, ahw->act_pci_func);
+
 	} else {
-		dev_err(&adapter->pdev->dev, "Failed to get PCI Info%d\n",
-			err);
+		dev_err(dev, "Failed to get PCI Info, error = %d\n", err);
 		err = -EIO;
 	}
 

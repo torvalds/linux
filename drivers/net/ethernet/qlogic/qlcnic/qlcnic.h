@@ -442,6 +442,7 @@ struct qlcnic_hardware_context {
 	u16 max_mtu;
 	u32 msg_enable;
 	u16 act_pci_func;
+	u16 max_pci_func;
 
 	u32 capabilities;
 	u32 capabilities2;

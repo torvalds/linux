@@ -883,11 +883,12 @@ int qlcnic_82xx_get_pci_info(struct qlcnic_adapter *adapter,
 
 /* Configure eSwitch for port mirroring */
 int qlcnic_config_port_mirroring(struct qlcnic_adapter *adapter, u8 id,
-				u8 enable_mirroring, u8 pci_func)
+				 u8 enable_mirroring, u8 pci_func)
 {
+	struct device *dev = &adapter->pdev->dev;
+	struct qlcnic_cmd_args cmd;
 	int err = -EIO;
 	u32 arg1;
-	struct qlcnic_cmd_args cmd;
 
 	if (adapter->ahw->op_mode != QLCNIC_MGMT_FUNC ||
 	    !(adapter->eswitch[id].flags & QLCNIC_SWITCH_ENABLE))
@@ -901,13 +902,11 @@ int qlcnic_config_port_mirroring(struct qlcnic_adapter *adapter, u8 id,
 	err = qlcnic_issue_cmd(adapter, &cmd);
 
 	if (err != QLCNIC_RCODE_SUCCESS)
-		dev_err(&adapter->pdev->dev,
-			"Failed to configure port mirroring%d on eswitch:%d\n",
+		dev_err(dev, "Failed to configure port mirroring for vNIC function %d on eSwitch %d\n",
 			pci_func, id);
 	else
-		dev_info(&adapter->pdev->dev,
-			"Configured eSwitch %d for port mirroring:%d\n",
-			id, pci_func);
+		dev_info(dev, "Configured port mirroring for vNIC function %d on eSwitch %d\n",
+			 pci_func, id);
 	qlcnic_free_mbx_args(&cmd);
 
 	return err;
@@ -1122,14 +1121,13 @@ err_ret:
 	return -EIO;
 }
 
-static int
-__qlcnic_get_eswitch_port_config(struct qlcnic_adapter *adapter,
-					u32 *arg1, u32 *arg2)
+static int __qlcnic_get_eswitch_port_config(struct qlcnic_adapter *adapter,
+					    u32 *arg1, u32 *arg2)
 {
-	int err = -EIO;
+	struct device *dev = &adapter->pdev->dev;
 	struct qlcnic_cmd_args cmd;
-	u8 pci_func;
-	pci_func = (*arg1 >> 8);
+	u8 pci_func = *arg1 >> 8;
+	int err = -EIO;
 
 	qlcnic_alloc_mbx_args(&cmd, adapter,
 			      QLCNIC_CMD_GET_ESWITCH_PORT_CONFIG);
@@ -1140,12 +1138,11 @@ __qlcnic_get_eswitch_port_config(struct qlcnic_adapter *adapter,
 	qlcnic_free_mbx_args(&cmd);
 
 	if (err == QLCNIC_RCODE_SUCCESS)
-		dev_info(&adapter->pdev->dev,
-			 "eSwitch port config for pci func %d\n", pci_func);
+		dev_info(dev, "Get eSwitch port config for vNIC function %d\n",
+			 pci_func);
 	else
-		dev_err(&adapter->pdev->dev,
-			"Failed to get eswitch port config for pci func %d\n",
-								pci_func);
+		dev_err(dev, "Failed to get eswitch port config for vNIC function %d\n",
+			pci_func);
 	return err;
 }
 /* Configure eSwitch port
@@ -1158,9 +1155,10 @@ op_type = 1 for port vlan_id
 int qlcnic_config_switch_port(struct qlcnic_adapter *adapter,
 		struct qlcnic_esw_func_cfg *esw_cfg)
 {
+	struct device *dev = &adapter->pdev->dev;
+	struct qlcnic_cmd_args cmd;
 	int err = -EIO, index;
 	u32 arg1, arg2 = 0;
-	struct qlcnic_cmd_args cmd;
 	u8 pci_func;
 
 	if (adapter->ahw->op_mode != QLCNIC_MGMT_FUNC)
@@ -1217,11 +1215,11 @@ int qlcnic_config_switch_port(struct qlcnic_adapter *adapter,
 	qlcnic_free_mbx_args(&cmd);
 
 	if (err != QLCNIC_RCODE_SUCCESS)
-		dev_err(&adapter->pdev->dev,
-			"Failed to configure eswitch pci func %d\n", pci_func);
+		dev_err(dev, "Failed to configure eswitch for vNIC function %d\n",
+			pci_func);
 	else
-		dev_info(&adapter->pdev->dev,
-			 "Configured eSwitch for pci func %d\n", pci_func);
+		dev_info(dev, "Configured eSwitch for vNIC function %d\n",
+			 pci_func);
 
 	return err;
 }
