@@ -818,12 +818,6 @@ static int usbdux_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	for (i = 0; i < cmd->chanlist_len; i++) {
 		chan = CR_CHAN(cmd->chanlist[i]);
 		create_adc_command(chan, &muxsg0, &muxsg1);
-		if (i >= NUMCHANNELS) {
-			dev_err(&this_usbduxsub->interface->dev,
-				"comedi%d: channel list too long\n",
-				dev->minor);
-			break;
-		}
 	}
 	this_usbduxsub->dux_commands[5] = muxsg0;
 	this_usbduxsub->dux_commands[6] = muxsg1;
