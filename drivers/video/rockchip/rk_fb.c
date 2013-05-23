@@ -143,8 +143,8 @@ static int rk_fb_close(struct fb_info *info,int user)
 		par = dev_drv->layer_par[layer_id];
 		info->fix.smem_start = par->reserved;
 
-		info->var.xres = dev_drv->cur_screen->x_res;
-		info->var.yres = dev_drv->cur_screen->y_res;
+		info->var.xres = dev_drv->screen0->x_res;
+		info->var.yres = dev_drv->screen0->y_res;
 		info->var.grayscale |= (info->var.xres<<8) + (info->var.yres<<20);
 #ifdef  CONFIG_LOGO_LINUX_BMP
 		info->var.bits_per_pixel = 32;
@@ -154,15 +154,15 @@ static int rk_fb_close(struct fb_info *info,int user)
 		info->fix.line_length  = (info->var.xres)*(info->var.bits_per_pixel>>3);
 		info->var.xres_virtual = info->var.xres;
 		info->var.yres_virtual = info->var.yres;
-		info->var.width =  dev_drv->cur_screen->width;
-		info->var.height = dev_drv->cur_screen->height;
+		info->var.width =  dev_drv->screen0->width;
+		info->var.height = dev_drv->screen0->height;
 		info->var.pixclock = dev_drv->pixclock;
-		info->var.left_margin = dev_drv->cur_screen->left_margin;
-		info->var.right_margin = dev_drv->cur_screen->right_margin;
-		info->var.upper_margin = dev_drv->cur_screen->upper_margin;
-		info->var.lower_margin = dev_drv->cur_screen->lower_margin;
-		info->var.vsync_len = dev_drv->cur_screen->vsync_len;
-		info->var.hsync_len = dev_drv->cur_screen->hsync_len;
+		info->var.left_margin = dev_drv->screen0->left_margin;
+		info->var.right_margin = dev_drv->screen0->right_margin;
+		info->var.upper_margin = dev_drv->screen0->upper_margin;
+		info->var.lower_margin = dev_drv->screen0->lower_margin;
+		info->var.vsync_len = dev_drv->screen0->vsync_len;
+		info->var.hsync_len = dev_drv->screen0->hsync_len;
     }
 	/*struct rk_lcdc_device_driver * dev_drv = (struct rk_lcdc_device_driver * )info->par;
     	int layer_id;
