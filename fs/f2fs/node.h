@@ -275,25 +275,20 @@ static inline nid_t get_nid(struct page *p, int off, bool i)
  *  - Mark cold node blocks in their node footer
  *  - Mark cold data pages in page cache
  */
-static inline int is_cold_file(struct inode *inode)
+static inline int is_file(struct inode *inode, int type)
 {
-	return F2FS_I(inode)->i_advise & FADVISE_COLD_BIT;
+	return F2FS_I(inode)->i_advise & type;
 }
 
-static inline void set_cold_file(struct inode *inode)
+static inline void set_file(struct inode *inode, int type)
 {
-	F2FS_I(inode)->i_advise |= FADVISE_COLD_BIT;
+	F2FS_I(inode)->i_advise |= type;
 }
 
-static inline int is_cp_file(struct inode *inode)
-{
-	return F2FS_I(inode)->i_advise & FADVISE_CP_BIT;
-}
-
-static inline void set_cp_file(struct inode *inode)
-{
-	F2FS_I(inode)->i_advise |= FADVISE_CP_BIT;
-}
+#define is_cold_file(inode)	is_file(inode, FADVISE_COLD_BIT)
+#define is_cp_file(inode)	is_file(inode, FADVISE_CP_BIT)
+#define set_cold_file(inode)	set_file(inode, FADVISE_COLD_BIT)
+#define set_cp_file(inode)	set_file(inode, FADVISE_CP_BIT)
 
 static inline int is_cold_data(struct page *page)
 {
@@ -310,29 +305,16 @@ static inline void clear_cold_data(struct page *page)
 	ClearPageChecked(page);
 }
 
-static inline int is_cold_node(struct page *page)
+static inline int is_node(struct page *page, int type)
 {
 	void *kaddr = page_address(page);
 	struct f2fs_node *rn = (struct f2fs_node *)kaddr;
-	unsigned int flag = le32_to_cpu(rn->footer.flag);
-	return flag & (0x1 << COLD_BIT_SHIFT);
+	return le32_to_cpu(rn->footer.flag) & (1 << type);
 }
 
-static inline unsigned char is_fsync_dnode(struct page *page)
-{
-	void *kaddr = page_address(page);
-	struct f2fs_node *rn = (struct f2fs_node *)kaddr;
-	unsigned int flag = le32_to_cpu(rn->footer.flag);
-	return flag & (0x1 << FSYNC_BIT_SHIFT);
-}
-
-static inline unsigned char is_dent_dnode(struct page *page)
-{
-	void *kaddr = page_address(page);
-	struct f2fs_node *rn = (struct f2fs_node *)kaddr;
-	unsigned int flag = le32_to_cpu(rn->footer.flag);
-	return flag & (0x1 << DENT_BIT_SHIFT);
-}
+#define is_cold_node(page)	is_node(page, COLD_BIT_SHIFT)
+#define is_fsync_dnode(page)	is_node(page, FSYNC_BIT_SHIFT)
+#define is_dent_dnode(page)	is_node(page, DENT_BIT_SHIFT)
 
 static inline void set_cold_node(struct inode *inode, struct page *page)
 {
@@ -346,26 +328,15 @@ static inline void set_cold_node(struct inode *inode, struct page *page)
 	rn->footer.flag = cpu_to_le32(flag);
 }
 
-static inline void set_fsync_mark(struct page *page, int mark)
+static inline void set_mark(struct page *page, int mark, int type)
 {
-	void *kaddr = page_address(page);
-	struct f2fs_node *rn = (struct f2fs_node *)kaddr;
+	struct f2fs_node *rn = (struct f2fs_node *)page_address(page);
 	unsigned int flag = le32_to_cpu(rn->footer.flag);
 	if (mark)
-		flag |= (0x1 << FSYNC_BIT_SHIFT);
+		flag |= (0x1 << type);
 	else
-		flag &= ~(0x1 << FSYNC_BIT_SHIFT);
+		flag &= ~(0x1 << type);
 	rn->footer.flag = cpu_to_le32(flag);
 }
-
-static inline void set_dentry_mark(struct page *page, int mark)
-{
-	void *kaddr = page_address(page);
-	struct f2fs_node *rn = (struct f2fs_node *)kaddr;
-	unsigned int flag = le32_to_cpu(rn->footer.flag);
-	if (mark)
-		flag |= (0x1 << DENT_BIT_SHIFT);
-	else
-		flag &= ~(0x1 << DENT_BIT_SHIFT);
-	rn->footer.flag = cpu_to_le32(flag);
-}
+#define set_dentry_mark(page, mark)	set_mark(page, mark, DENT_BIT_SHIFT)
+#define set_fsync_mark(page, mark)	set_mark(page, mark, FSYNC_BIT_SHIFT)
