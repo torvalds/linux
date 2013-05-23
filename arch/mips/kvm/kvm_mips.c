@@ -485,15 +485,253 @@ kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 	return -EINVAL;
 }
 
+#define KVM_REG_MIPS_CP0_INDEX (0x10000 + 8 * 0 + 0)
+#define KVM_REG_MIPS_CP0_ENTRYLO0 (0x10000 + 8 * 2 + 0)
+#define KVM_REG_MIPS_CP0_ENTRYLO1 (0x10000 + 8 * 3 + 0)
+#define KVM_REG_MIPS_CP0_CONTEXT (0x10000 + 8 * 4 + 0)
+#define KVM_REG_MIPS_CP0_USERLOCAL (0x10000 + 8 * 4 + 2)
+#define KVM_REG_MIPS_CP0_PAGEMASK (0x10000 + 8 * 5 + 0)
+#define KVM_REG_MIPS_CP0_PAGEGRAIN (0x10000 + 8 * 5 + 1)
+#define KVM_REG_MIPS_CP0_WIRED (0x10000 + 8 * 6 + 0)
+#define KVM_REG_MIPS_CP0_HWRENA (0x10000 + 8 * 7 + 0)
+#define KVM_REG_MIPS_CP0_BADVADDR (0x10000 + 8 * 8 + 0)
+#define KVM_REG_MIPS_CP0_COUNT (0x10000 + 8 * 9 + 0)
+#define KVM_REG_MIPS_CP0_ENTRYHI (0x10000 + 8 * 10 + 0)
+#define KVM_REG_MIPS_CP0_COMPARE (0x10000 + 8 * 11 + 0)
+#define KVM_REG_MIPS_CP0_STATUS (0x10000 + 8 * 12 + 0)
+#define KVM_REG_MIPS_CP0_CAUSE (0x10000 + 8 * 13 + 0)
+#define KVM_REG_MIPS_CP0_EBASE (0x10000 + 8 * 15 + 1)
+#define KVM_REG_MIPS_CP0_CONFIG (0x10000 + 8 * 16 + 0)
+#define KVM_REG_MIPS_CP0_CONFIG1 (0x10000 + 8 * 16 + 1)
+#define KVM_REG_MIPS_CP0_CONFIG2 (0x10000 + 8 * 16 + 2)
+#define KVM_REG_MIPS_CP0_CONFIG3 (0x10000 + 8 * 16 + 3)
+#define KVM_REG_MIPS_CP0_CONFIG7 (0x10000 + 8 * 16 + 7)
+#define KVM_REG_MIPS_CP0_XCONTEXT (0x10000 + 8 * 20 + 0)
+#define KVM_REG_MIPS_CP0_ERROREPC (0x10000 + 8 * 30 + 0)
+
+static u64 kvm_mips_get_one_regs[] = {
+	KVM_REG_MIPS_R0,
+	KVM_REG_MIPS_R1,
+	KVM_REG_MIPS_R2,
+	KVM_REG_MIPS_R3,
+	KVM_REG_MIPS_R4,
+	KVM_REG_MIPS_R5,
+	KVM_REG_MIPS_R6,
+	KVM_REG_MIPS_R7,
+	KVM_REG_MIPS_R8,
+	KVM_REG_MIPS_R9,
+	KVM_REG_MIPS_R10,
+	KVM_REG_MIPS_R11,
+	KVM_REG_MIPS_R12,
+	KVM_REG_MIPS_R13,
+	KVM_REG_MIPS_R14,
+	KVM_REG_MIPS_R15,
+	KVM_REG_MIPS_R16,
+	KVM_REG_MIPS_R17,
+	KVM_REG_MIPS_R18,
+	KVM_REG_MIPS_R19,
+	KVM_REG_MIPS_R20,
+	KVM_REG_MIPS_R21,
+	KVM_REG_MIPS_R22,
+	KVM_REG_MIPS_R23,
+	KVM_REG_MIPS_R24,
+	KVM_REG_MIPS_R25,
+	KVM_REG_MIPS_R26,
+	KVM_REG_MIPS_R27,
+	KVM_REG_MIPS_R28,
+	KVM_REG_MIPS_R29,
+	KVM_REG_MIPS_R30,
+	KVM_REG_MIPS_R31,
+
+	KVM_REG_MIPS_HI,
+	KVM_REG_MIPS_LO,
+	KVM_REG_MIPS_PC,
+
+	KVM_REG_MIPS_CP0_INDEX,
+	KVM_REG_MIPS_CP0_CONTEXT,
+	KVM_REG_MIPS_CP0_PAGEMASK,
+	KVM_REG_MIPS_CP0_WIRED,
+	KVM_REG_MIPS_CP0_BADVADDR,
+	KVM_REG_MIPS_CP0_ENTRYHI,
+	KVM_REG_MIPS_CP0_STATUS,
+	KVM_REG_MIPS_CP0_CAUSE,
+	/* EPC set via kvm_regs, et al. */
+	KVM_REG_MIPS_CP0_CONFIG,
+	KVM_REG_MIPS_CP0_CONFIG1,
+	KVM_REG_MIPS_CP0_CONFIG2,
+	KVM_REG_MIPS_CP0_CONFIG3,
+	KVM_REG_MIPS_CP0_CONFIG7,
+	KVM_REG_MIPS_CP0_ERROREPC
+};
+
+static int kvm_mips_get_reg(struct kvm_vcpu *vcpu,
+			    const struct kvm_one_reg *reg)
+{
+	u64 __user *uaddr = (u64 __user *)(long)reg->addr;
+
+	struct mips_coproc *cop0 = vcpu->arch.cop0;
+	s64 v;
+
+	switch (reg->id) {
+	case KVM_REG_MIPS_R0 ... KVM_REG_MIPS_R31:
+		v = (long)vcpu->arch.gprs[reg->id - KVM_REG_MIPS_R0];
+		break;
+	case KVM_REG_MIPS_HI:
+		v = (long)vcpu->arch.hi;
+		break;
+	case KVM_REG_MIPS_LO:
+		v = (long)vcpu->arch.lo;
+		break;
+	case KVM_REG_MIPS_PC:
+		v = (long)vcpu->arch.pc;
+		break;
+
+	case KVM_REG_MIPS_CP0_INDEX:
+		v = (long)kvm_read_c0_guest_index(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_CONTEXT:
+		v = (long)kvm_read_c0_guest_context(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_PAGEMASK:
+		v = (long)kvm_read_c0_guest_pagemask(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_WIRED:
+		v = (long)kvm_read_c0_guest_wired(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_BADVADDR:
+		v = (long)kvm_read_c0_guest_badvaddr(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_ENTRYHI:
+		v = (long)kvm_read_c0_guest_entryhi(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_STATUS:
+		v = (long)kvm_read_c0_guest_status(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_CAUSE:
+		v = (long)kvm_read_c0_guest_cause(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_ERROREPC:
+		v = (long)kvm_read_c0_guest_errorepc(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_CONFIG:
+		v = (long)kvm_read_c0_guest_config(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_CONFIG1:
+		v = (long)kvm_read_c0_guest_config1(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_CONFIG2:
+		v = (long)kvm_read_c0_guest_config2(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_CONFIG3:
+		v = (long)kvm_read_c0_guest_config3(cop0);
+		break;
+	case KVM_REG_MIPS_CP0_CONFIG7:
+		v = (long)kvm_read_c0_guest_config7(cop0);
+		break;
+	default:
+		return -EINVAL;
+	}
+	return put_user(v, uaddr);
+}
+
+static int kvm_mips_set_reg(struct kvm_vcpu *vcpu,
+			    const struct kvm_one_reg *reg)
+{
+	u64 __user *uaddr = (u64 __user *)(long)reg->addr;
+	struct mips_coproc *cop0 = vcpu->arch.cop0;
+	u64 v;
+
+	if (get_user(v, uaddr) != 0)
+		return -EFAULT;
+
+	switch (reg->id) {
+	case KVM_REG_MIPS_R0:
+		/* Silently ignore requests to set $0 */
+		break;
+	case KVM_REG_MIPS_R1 ... KVM_REG_MIPS_R31:
+		vcpu->arch.gprs[reg->id - KVM_REG_MIPS_R0] = v;
+		break;
+	case KVM_REG_MIPS_HI:
+		vcpu->arch.hi = v;
+		break;
+	case KVM_REG_MIPS_LO:
+		vcpu->arch.lo = v;
+		break;
+	case KVM_REG_MIPS_PC:
+		vcpu->arch.pc = v;
+		break;
+
+	case KVM_REG_MIPS_CP0_INDEX:
+		kvm_write_c0_guest_index(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_CONTEXT:
+		kvm_write_c0_guest_context(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_PAGEMASK:
+		kvm_write_c0_guest_pagemask(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_WIRED:
+		kvm_write_c0_guest_wired(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_BADVADDR:
+		kvm_write_c0_guest_badvaddr(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_ENTRYHI:
+		kvm_write_c0_guest_entryhi(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_STATUS:
+		kvm_write_c0_guest_status(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_CAUSE:
+		kvm_write_c0_guest_cause(cop0, v);
+		break;
+	case KVM_REG_MIPS_CP0_ERROREPC:
+		kvm_write_c0_guest_errorepc(cop0, v);
+		break;
+	default:
+		return -EINVAL;
+	}
+	return 0;
+}
+
 long
 kvm_arch_vcpu_ioctl(struct file *filp, unsigned int ioctl, unsigned long arg)
 {
 	struct kvm_vcpu *vcpu = filp->private_data;
 	void __user *argp = (void __user *)arg;
 	long r;
-	int intr;
 
 	switch (ioctl) {
+	case KVM_SET_ONE_REG:
+	case KVM_GET_ONE_REG: {
+		struct kvm_one_reg reg;
+		if (copy_from_user(&reg, argp, sizeof(reg)))
+			return -EFAULT;
+		if (ioctl == KVM_SET_ONE_REG)
+			return kvm_mips_set_reg(vcpu, &reg);
+		else
+			return kvm_mips_get_reg(vcpu, &reg);
+	}
+	case KVM_GET_REG_LIST: {
+		struct kvm_reg_list __user *user_list = argp;
+		u64 __user *reg_dest;
+		struct kvm_reg_list reg_list;
+		unsigned n;
+
+		if (copy_from_user(&reg_list, user_list, sizeof(reg_list)))
+			return -EFAULT;
+		n = reg_list.n;
+		reg_list.n = ARRAY_SIZE(kvm_mips_get_one_regs);
+		if (copy_to_user(user_list, &reg_list, sizeof(reg_list)))
+			return -EFAULT;
+		if (n < reg_list.n)
+			return -E2BIG;
+		reg_dest = user_list->reg;
+		if (copy_to_user(reg_dest, kvm_mips_get_one_regs,
+				 sizeof(kvm_mips_get_one_regs)))
+			return -EFAULT;
+		return 0;
+	}
 	case KVM_NMI:
 		/* Treat the NMI as a CPU reset */
 		r = kvm_mips_reset_vcpu(vcpu);
@@ -505,8 +743,6 @@ kvm_arch_vcpu_ioctl(struct file *filp, unsigned int ioctl, unsigned long arg)
 			if (copy_from_user(&irq, argp, sizeof(irq)))
 				goto out;
 
-			intr = (int)irq.irq;
-
 			kvm_debug("[%d] %s: irq: %d\n", vcpu->vcpu_id, __func__,
 				  irq.irq);
 
@@ -514,7 +750,7 @@ kvm_arch_vcpu_ioctl(struct file *filp, unsigned int ioctl, unsigned long arg)
 			break;
 		}
 	default:
-		r = -EINVAL;
+		r = -ENOIOCTLCMD;
 	}
 
 out:
@@ -627,6 +863,9 @@ int kvm_dev_ioctl_check_extension(long ext)
 	int r;
 
 	switch (ext) {
+	case KVM_CAP_ONE_REG:
+		r = 1;
+		break;
 	case KVM_CAP_COALESCED_MMIO:
 		r = KVM_COALESCED_MMIO_PAGE_OFFSET;
 		break;
@@ -635,7 +874,6 @@ int kvm_dev_ioctl_check_extension(long ext)
 		break;
 	}
 	return r;
-
 }
 
 int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
@@ -684,7 +922,7 @@ int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	vcpu->arch.lo = regs->lo;
 	vcpu->arch.pc = regs->pc;
 
-	return kvm_mips_callbacks->vcpu_ioctl_set_regs(vcpu, regs);
+	return 0;
 }
 
 int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
@@ -698,7 +936,7 @@ int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	regs->lo = vcpu->arch.lo;
 	regs->pc = vcpu->arch.pc;
 
-	return kvm_mips_callbacks->vcpu_ioctl_get_regs(vcpu, regs);
+	return 0;
 }
 
 void kvm_mips_comparecount_func(unsigned long data)
