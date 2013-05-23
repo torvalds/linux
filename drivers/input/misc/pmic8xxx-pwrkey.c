@@ -175,7 +175,7 @@ static int pmic8xxx_pwrkey_probe(struct platform_device *pdev)
 	return 0;
 
 free_press_irq:
-	free_irq(key_press_irq, NULL);
+	free_irq(key_press_irq, pwrkey);
 unreg_input_dev:
 	input_unregister_device(pwr);
 	pwr = NULL;
