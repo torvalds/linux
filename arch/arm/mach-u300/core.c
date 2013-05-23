@@ -12,7 +12,6 @@
 #include <linux/pinctrl/machine.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/platform_data/clk-u300.h>
-#include <linux/platform_data/pinctrl-coh901.h>
 #include <linux/irqchip.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
@@ -194,15 +193,6 @@ static void __init u300_map_io(void)
 	iotable_init(u300_io_desc, ARRAY_SIZE(u300_io_desc));
 }
 
-/*
- * The different variants have a few different versions of the
- * GPIO block, with different number of ports.
- */
-static struct u300_gpio_platform u300_gpio_plat = {
-	.ports = 7,
-	.gpio_base = 0,
-};
-
 static unsigned long pin_pullup_conf[] = {
 	PIN_CONF_PACKED(PIN_CONFIG_BIAS_PULL_UP, 1),
 };
@@ -332,7 +322,7 @@ static struct of_dev_auxdata u300_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("stericsson,pinctrl-u300", U300_SYSCON_BASE,
 		"pinctrl-u300", NULL),
 	OF_DEV_AUXDATA("stericsson,gpio-coh901", U300_GPIO_BASE,
-		"u300-gpio", &u300_gpio_plat),
+		"u300-gpio", NULL),
 	OF_DEV_AUXDATA("stericsson,coh901327", U300_WDOG_BASE,
 		"coh901327_wdog", NULL),
 	OF_DEV_AUXDATA("stericsson,coh901331", U300_RTC_BASE,
