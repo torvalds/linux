@@ -1394,15 +1394,15 @@ static int usbdux_pwm_read(struct comedi_device *x1,
 	return -EINVAL;
 };
 
-/* switches on/off PWM */
-static int usbdux_pwm_config(struct comedi_device *dev,
-			     struct comedi_subdevice *s,
-			     struct comedi_insn *insn, unsigned int *data)
+static int usbduxsigma_pwm_config(struct comedi_device *dev,
+				  struct comedi_subdevice *s,
+				  struct comedi_insn *insn,
+				  unsigned int *data)
 {
-	struct usbduxsigma_private *this_usbduxsub = dev->private;
+	struct usbduxsigma_private *devpriv = dev->private;
+
 	switch (data[0]) {
 	case INSN_CONFIG_ARM:
-		/* switch it on */
 		/*
 		 * if not zero the PWM is limited to a certain time which is
 		 * not supported here
@@ -1413,27 +1413,20 @@ static int usbdux_pwm_config(struct comedi_device *dev,
 	case INSN_CONFIG_DISARM:
 		return usbdux_pwm_cancel(dev, s);
 	case INSN_CONFIG_GET_PWM_STATUS:
-		/*
-		 * to check if the USB transmission has failed or in case PWM
-		 * was limited to n cycles to check if it has terminated
-		 */
-		data[1] = this_usbduxsub->pwm_cmd_running;
+		data[1] = devpriv->pwm_cmd_running;
 		return 0;
 	case INSN_CONFIG_PWM_SET_PERIOD:
 		return usbdux_pwm_period(dev, s, data[1]);
 	case INSN_CONFIG_PWM_GET_PERIOD:
-		data[1] = this_usbduxsub->pwmPeriod;
+		data[1] = devpriv->pwmPeriod;
 		return 0;
 	case INSN_CONFIG_PWM_SET_H_BRIDGE:
-		/* value in the first byte and the sign in the second for a
-		   relay */
-		return usbdux_pwm_pattern(dev, s,
-					  /* the channel number */
-					  CR_CHAN(insn->chanspec),
-					  /* actual PWM data */
-					  data[1],
-					  /* just a sign */
-					  (data[2] != 0));
+		/*
+		 * data[1] = value
+		 * data[2] = sign (for a relay)
+		 */
+		return usbdux_pwm_pattern(dev, s, CR_CHAN(insn->chanspec),
+					  data[1], (data[2] != 0));
 	case INSN_CONFIG_PWM_GET_H_BRIDGE:
 		/* values are not kept in this driver, nothing to return */
 		return -EINVAL;
@@ -1560,7 +1553,7 @@ static int usbduxsigma_attach_common(struct comedi_device *dev)
 		s->maxdata	= devpriv->sizePwmBuf;
 		s->insn_write	= usbdux_pwm_write;
 		s->insn_read	= usbdux_pwm_read;
-		s->insn_config	= usbdux_pwm_config;
+		s->insn_config	= usbduxsigma_pwm_config;
 
 		usbdux_pwm_period(dev, s, PWM_DEFAULT_PERIOD);
 	}
