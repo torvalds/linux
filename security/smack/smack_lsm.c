@@ -261,8 +261,9 @@ static int smack_sb_alloc_security(struct super_block *sb)
 	sbsp->smk_default = smack_known_floor.smk_known;
 	sbsp->smk_floor = smack_known_floor.smk_known;
 	sbsp->smk_hat = smack_known_hat.smk_known;
-	sbsp->smk_initialized = 0;
-
+	/*
+	 * smk_initialized will be zero from kzalloc.
+	 */
 	sb->s_security = sbsp;
 
 	return 0;
@@ -306,6 +307,8 @@ static int smack_sb_copy_data(char *orig, char *smackopts)
 			dp = smackopts;
 		else if (strstr(cp, SMK_FSROOT) == cp)
 			dp = smackopts;
+		else if (strstr(cp, SMK_FSTRANS) == cp)
+			dp = smackopts;
 		else
 			dp = otheropts;
 
@@ -341,8 +344,9 @@ static int smack_sb_kern_mount(struct super_block *sb, int flags, void *data)
 	char *op;
 	char *commap;
 	char *nsp;
+	int transmute = 0;
 
-	if (sp->smk_initialized != 0)
+	if (sp->smk_initialized)
 		return 0;
 
 	sp->smk_initialized = 1;
@@ -373,6 +377,13 @@ static int smack_sb_kern_mount(struct super_block *sb, int flags, void *data)
 			nsp = smk_import(op, 0);
 			if (nsp != NULL)
 				sp->smk_root = nsp;
+		} else if (strncmp(op, SMK_FSTRANS, strlen(SMK_FSTRANS)) == 0) {
+			op += strlen(SMK_FSTRANS);
+			nsp = smk_import(op, 0);
+			if (nsp != NULL) {
+				sp->smk_root = nsp;
+				transmute = 1;
+			}
 		}
 	}
 
@@ -380,10 +391,14 @@ static int smack_sb_kern_mount(struct super_block *sb, int flags, void *data)
 	 * Initialize the root inode.
 	 */
 	isp = inode->i_security;
-	if (isp == NULL)
+	if (inode->i_security == NULL) {
 		inode->i_security = new_inode_smack(sp->smk_root);
-	else
+		isp = inode->i_security;
+	} else
 		isp->smk_inode = sp->smk_root;
+
+	if (transmute)
+		isp->smk_flags |= SMK_INODE_TRANSMUTE;
 
 	return 0;
 }
