@@ -148,10 +148,6 @@ static int spear_ehci_hcd_drv_remove(struct platform_device *pdev)
 	struct usb_hcd *hcd = platform_get_drvdata(pdev);
 	struct spear_ehci *sehci = to_spear_ehci(hcd);
 
-	if (!hcd)
-		return 0;
-	if (in_interrupt())
-		BUG();
 	usb_remove_hcd(hcd);
 
 	if (sehci->clk)
