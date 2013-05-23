@@ -213,8 +213,10 @@ struct usbduxsigma_private {
 	struct semaphore sem;
 };
 
-static void usbdux_ai_stop(struct usbduxsigma_private *devpriv, int do_unlink)
+static void usbduxsigma_ai_stop(struct comedi_device *dev, int do_unlink)
 {
+	struct usbduxsigma_private *devpriv = dev->private;
+
 	if (do_unlink) {
 		int i;
 
@@ -234,7 +236,7 @@ static int usbduxsigma_ai_cancel(struct comedi_device *dev,
 
 	down(&devpriv->sem);
 	/* unlink only if it is really running */
-	usbdux_ai_stop(devpriv, devpriv->ai_cmd_running);
+	usbduxsigma_ai_stop(dev, devpriv->ai_cmd_running);
 	up(&devpriv->sem);
 
 	return 0;
@@ -272,7 +274,7 @@ static void usbduxsigma_ai_urb_complete(struct urb *urb)
 	case -ECONNABORTED:
 		/* happens after an unlink command */
 		if (devpriv->ai_cmd_running) {
-			usbdux_ai_stop(devpriv, 0);	/* w/o unlink */
+			usbduxsigma_ai_stop(dev, 0);	/* w/o unlink */
 			/* we are still running a command, tell comedi */
 			s->async->events |= (COMEDI_CB_EOA | COMEDI_CB_ERROR);
 			comedi_event(dev, s);
@@ -288,7 +290,7 @@ static void usbduxsigma_ai_urb_complete(struct urb *urb)
 			dev_err(dev->class_dev,
 				"%s: non-zero urb status (%d)\n",
 				__func__, urb->status);
-			usbdux_ai_stop(devpriv, 0);	/* w/o unlink */
+			usbduxsigma_ai_stop(dev, 0);	/* w/o unlink */
 			s->async->events |= (COMEDI_CB_EOA | COMEDI_CB_ERROR);
 			comedi_event(dev, s);
 		}
@@ -307,7 +309,7 @@ static void usbduxsigma_ai_urb_complete(struct urb *urb)
 		if (ret == -EL2NSYNC)
 			dev_err(dev->class_dev,
 				"buggy USB host controller or bug in IRQ handler\n");
-		usbdux_ai_stop(devpriv, 0);	/* w/o unlink */
+		usbduxsigma_ai_stop(dev, 0);	/* w/o unlink */
 		s->async->events |= (COMEDI_CB_EOA | COMEDI_CB_ERROR);
 		comedi_event(dev, s);
 		return;
@@ -327,7 +329,7 @@ static void usbduxsigma_ai_urb_complete(struct urb *urb)
 		/* not continuous, fixed number of samples */
 		devpriv->ai_sample_count--;
 		if (devpriv->ai_sample_count < 0) {
-			usbdux_ai_stop(devpriv, 0);	/* w/o unlink */
+			usbduxsigma_ai_stop(dev, 0);	/* w/o unlink */
 			/* acquistion is over, tell comedi */
 			s->async->events |= COMEDI_CB_EOA;
 			comedi_event(dev, s);
@@ -345,7 +347,7 @@ static void usbduxsigma_ai_urb_complete(struct urb *urb)
 		ret = cfc_write_array_to_buffer(s, &val, sizeof(uint32_t));
 		if (unlikely(ret == 0)) {
 			/* buffer overflow */
-			usbdux_ai_stop(devpriv, 0);	/* w/o unlink */
+			usbduxsigma_ai_stop(dev, 0);	/* w/o unlink */
 			return;
 		}
 	}
@@ -354,8 +356,10 @@ static void usbduxsigma_ai_urb_complete(struct urb *urb)
 	comedi_event(dev, s);
 }
 
-static void usbdux_ao_stop(struct usbduxsigma_private *devpriv, int do_unlink)
+static void usbduxsigma_ao_stop(struct comedi_device *dev, int do_unlink)
 {
+	struct usbduxsigma_private *devpriv = dev->private;
+
 	if (do_unlink) {
 		int i;
 
@@ -375,7 +379,7 @@ static int usbduxsigma_ao_cancel(struct comedi_device *dev,
 
 	down(&devpriv->sem);
 	/* unlink only if it is really running */
-	usbdux_ao_stop(devpriv, devpriv->ao_cmd_running);
+	usbduxsigma_ao_stop(dev, devpriv->ao_cmd_running);
 	up(&devpriv->sem);
 
 	return 0;
@@ -402,7 +406,7 @@ static void usbduxsigma_ao_urb_complete(struct urb *urb)
 	case -ECONNABORTED:
 		/* happens after an unlink command */
 		if (devpriv->ao_cmd_running) {
-			usbdux_ao_stop(devpriv, 0);	/* w/o unlink */
+			usbduxsigma_ao_stop(dev, 0);	/* w/o unlink */
 			s->async->events |= COMEDI_CB_EOA;
 			comedi_event(dev, s);
 		}
@@ -414,7 +418,7 @@ static void usbduxsigma_ao_urb_complete(struct urb *urb)
 			dev_err(dev->class_dev,
 				"%s: non-zero urb status (%d)\n",
 				__func__, urb->status);
-			usbdux_ao_stop(devpriv, 0);	/* w/o unlink */
+			usbduxsigma_ao_stop(dev, 0);	/* w/o unlink */
 			s->async->events |= (COMEDI_CB_ERROR | COMEDI_CB_EOA);
 			comedi_event(dev, s);
 		}
@@ -433,7 +437,7 @@ static void usbduxsigma_ao_urb_complete(struct urb *urb)
 			/* not continuous, fixed number of samples */
 			devpriv->ao_sample_count--;
 			if (devpriv->ao_sample_count < 0) {
-				usbdux_ao_stop(devpriv, 0);	/* w/o unlink */
+				usbduxsigma_ao_stop(dev, 0);	/* w/o unlink */
 				/* acquistion is over, tell comedi */
 				s->async->events |= COMEDI_CB_EOA;
 				comedi_event(dev, s);
@@ -483,7 +487,7 @@ static void usbduxsigma_ao_urb_complete(struct urb *urb)
 		if (ret == EL2NSYNC)
 			dev_err(dev->class_dev,
 				"buggy USB host controller or bug in IRQ handler\n");
-		usbdux_ao_stop(devpriv, 0);	/* w/o unlink */
+		usbduxsigma_ao_stop(dev, 0);	/* w/o unlink */
 		s->async->events |= (COMEDI_CB_EOA | COMEDI_CB_ERROR);
 		comedi_event(dev, s);
 	}
@@ -1649,8 +1653,8 @@ static void usbduxsigma_free_usb_buffers(struct comedi_device *dev)
 	int i;
 
 	/* force unlink all urbs */
-	usbdux_ai_stop(devpriv, 1);
-	usbdux_ao_stop(devpriv, 1);
+	usbduxsigma_ai_stop(dev, 1);
+	usbduxsigma_ao_stop(dev, 1);
 	usbduxsigma_pwm_stop(dev, 1);
 
 	urb = devpriv->urbPwm;
