@@ -582,7 +582,7 @@ static int pxa27x_keypad_probe(struct platform_device *pdev)
 	return 0;
 
 failed_free_irq:
-	free_irq(irq, pdev);
+	free_irq(irq, keypad);
 failed_put_clk:
 	clk_put(keypad->clk);
 failed_free_io:
@@ -600,7 +600,7 @@ static int pxa27x_keypad_remove(struct platform_device *pdev)
 	struct pxa27x_keypad *keypad = platform_get_drvdata(pdev);
 	struct resource *res;
 
-	free_irq(keypad->irq, pdev);
+	free_irq(keypad->irq, keypad);
 	clk_put(keypad->clk);
 
 	input_unregister_device(keypad->input_dev);
