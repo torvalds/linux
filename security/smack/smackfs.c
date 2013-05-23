@@ -66,7 +66,7 @@ static DEFINE_MUTEX(smk_netlbladdr_lock);
  * If it isn't somehow marked, use this.
  * It can be reset via smackfs/ambient
  */
-char *smack_net_ambient;
+struct smack_known *smack_net_ambient;
 
 /*
  * This is the level in a CIPSO header that indicates a
@@ -112,7 +112,7 @@ struct smack_master_list {
 LIST_HEAD(smack_rule_list);
 
 struct smack_parsed_rule {
-	char			*smk_subject;
+	struct smack_known	*smk_subject;
 	char			*smk_object;
 	int			smk_access1;
 	int			smk_access2;
@@ -163,9 +163,11 @@ static inline void smack_catset_bit(unsigned int cat, char *catsetp)
  */
 static void smk_netlabel_audit_set(struct netlbl_audit *nap)
 {
+	struct smack_known *skp = smk_of_current();
+
 	nap->loginuid = audit_get_loginuid(current);
 	nap->sessionid = audit_get_sessionid(current);
-	nap->secid = smack_to_secid(smk_of_current());
+	nap->secid = skp->smk_secid;
 }
 
 /*
@@ -306,7 +308,7 @@ static int smk_fill_rule(const char *subject, const char *object,
 	struct smack_known *skp;
 
 	if (import) {
-		rule->smk_subject = smk_import(subject, len);
+		rule->smk_subject = smk_import_entry(subject, len);
 		if (rule->smk_subject == NULL)
 			return -1;
 
@@ -321,7 +323,7 @@ static int smk_fill_rule(const char *subject, const char *object,
 		kfree(cp);
 		if (skp == NULL)
 			return -1;
-		rule->smk_subject = skp->smk_known;
+		rule->smk_subject = skp;
 
 		cp = smk_parse_smack(object, len);
 		if (cp == NULL)
@@ -445,7 +447,6 @@ static ssize_t smk_write_rules_list(struct file *file, const char __user *buf,
 					struct list_head *rule_list,
 					struct mutex *rule_lock, int format)
 {
-	struct smack_known *skp;
 	struct smack_parsed_rule *rule;
 	char *data;
 	int datalen;
@@ -505,12 +506,10 @@ static ssize_t smk_write_rules_list(struct file *file, const char __user *buf,
 			goto out_free_rule;
 	}
 
-
 	if (rule_list == NULL) {
 		load = 1;
-		skp = smk_find_entry(rule->smk_subject);
-		rule_list = &skp->smk_rules;
-		rule_lock = &skp->smk_rules_lock;
+		rule_list = &rule->smk_subject->smk_rules;
+		rule_lock = &rule->smk_subject->smk_rules_lock;
 	}
 
 	rc = smk_set_access(rule, rule_list, rule_lock, load);
@@ -579,13 +578,14 @@ static void smk_rule_show(struct seq_file *s, struct smack_rule *srp, int max)
 	 * because you should expect to be able to write
 	 * anything you read back.
 	 */
-	if (strlen(srp->smk_subject) >= max || strlen(srp->smk_object) >= max)
+	if (strlen(srp->smk_subject->smk_known) >= max ||
+	    strlen(srp->smk_object) >= max)
 		return;
 
 	if (srp->smk_access == 0)
 		return;
 
-	seq_printf(s, "%s %s", srp->smk_subject, srp->smk_object);
+	seq_printf(s, "%s %s", srp->smk_subject->smk_known, srp->smk_object);
 
 	seq_putc(s, ' ');
 
@@ -738,9 +738,9 @@ static void smk_unlbl_ambient(char *oldambient)
 			       __func__, __LINE__, rc);
 	}
 	if (smack_net_ambient == NULL)
-		smack_net_ambient = smack_known_floor.smk_known;
+		smack_net_ambient = &smack_known_floor;
 
-	rc = netlbl_cfg_unlbl_map_add(smack_net_ambient, PF_INET,
+	rc = netlbl_cfg_unlbl_map_add(smack_net_ambient->smk_known, PF_INET,
 				      NULL, NULL, &nai);
 	if (rc != 0)
 		printk(KERN_WARNING "%s:%d add rc = %d\n",
@@ -1535,11 +1535,12 @@ static ssize_t smk_read_ambient(struct file *filp, char __user *buf,
 	 */
 	mutex_lock(&smack_ambient_lock);
 
-	asize = strlen(smack_net_ambient) + 1;
+	asize = strlen(smack_net_ambient->smk_known) + 1;
 
 	if (cn >= asize)
 		rc = simple_read_from_buffer(buf, cn, ppos,
-					     smack_net_ambient, asize);
+					     smack_net_ambient->smk_known,
+					     asize);
 	else
 		rc = -EINVAL;
 
@@ -1560,8 +1561,8 @@ static ssize_t smk_read_ambient(struct file *filp, char __user *buf,
 static ssize_t smk_write_ambient(struct file *file, const char __user *buf,
 				 size_t count, loff_t *ppos)
 {
+	struct smack_known *skp;
 	char *oldambient;
-	char *smack = NULL;
 	char *data;
 	int rc = count;
 
@@ -1577,16 +1578,16 @@ static ssize_t smk_write_ambient(struct file *file, const char __user *buf,
 		goto out;
 	}
 
-	smack = smk_import(data, count);
-	if (smack == NULL) {
+	skp = smk_import_entry(data, count);
+	if (skp == NULL) {
 		rc = -EINVAL;
 		goto out;
 	}
 
 	mutex_lock(&smack_ambient_lock);
 
-	oldambient = smack_net_ambient;
-	smack_net_ambient = smack;
+	oldambient = smack_net_ambient->smk_known;
+	smack_net_ambient = skp;
 	smk_unlbl_ambient(oldambient);
 
 	mutex_unlock(&smack_ambient_lock);
@@ -1645,7 +1646,7 @@ static ssize_t smk_write_onlycap(struct file *file, const char __user *buf,
 				 size_t count, loff_t *ppos)
 {
 	char *data;
-	char *sp = smk_of_task(current->cred->security);
+	struct smack_known *skp = smk_of_task(current->cred->security);
 	int rc = count;
 
 	if (!smack_privileged(CAP_MAC_ADMIN))
@@ -1656,7 +1657,7 @@ static ssize_t smk_write_onlycap(struct file *file, const char __user *buf,
 	 * explicitly for clarity. The smk_access() implementation
 	 * would use smk_access(smack_onlycap, MAY_WRITE)
 	 */
-	if (smack_onlycap != NULL && smack_onlycap != sp)
+	if (smack_onlycap != NULL && smack_onlycap != skp->smk_known)
 		return -EPERM;
 
 	data = kzalloc(count, GFP_KERNEL);
@@ -1866,8 +1867,8 @@ static ssize_t smk_user_access(struct file *file, const char __user *buf,
 	if (res)
 		return -EINVAL;
 
-	res = smk_access(rule.smk_subject, rule.smk_object, rule.smk_access1,
-			  NULL);
+	res = smk_access(rule.smk_subject, rule.smk_object,
+				rule.smk_access1, NULL);
 	data[0] = res == 0 ? '1' : '0';
 	data[1] = '\0';
 
