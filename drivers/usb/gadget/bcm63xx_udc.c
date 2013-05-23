@@ -2410,7 +2410,6 @@ static int bcm63xx_udc_remove(struct platform_device *pdev)
 	usb_del_gadget_udc(&udc->gadget);
 	BUG_ON(udc->driver);
 
-	platform_set_drvdata(pdev, NULL);
 	bcm63xx_uninit_udc_hw(udc);
 
 	return 0;

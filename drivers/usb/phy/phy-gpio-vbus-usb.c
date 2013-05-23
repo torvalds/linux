@@ -266,6 +266,7 @@ static int __init gpio_vbus_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, gpio_vbus);
 	gpio_vbus->dev = &pdev->dev;
 	gpio_vbus->phy.label = "gpio-vbus";
+	gpio_vbus->phy.dev = gpio_vbus->dev;
 	gpio_vbus->phy.set_power = gpio_vbus_set_power;
 	gpio_vbus->phy.set_suspend = gpio_vbus_set_suspend;
 	gpio_vbus->phy.state = OTG_STATE_UNDEFINED;
@@ -343,7 +344,6 @@ err_irq:
 		gpio_free(pdata->gpio_pullup);
 	gpio_free(pdata->gpio_vbus);
 err_gpio:
-	platform_set_drvdata(pdev, NULL);
 	kfree(gpio_vbus->phy.otg);
 	kfree(gpio_vbus);
 	return err;
@@ -365,7 +365,6 @@ static int __exit gpio_vbus_remove(struct platform_device *pdev)
 	if (gpio_is_valid(pdata->gpio_pullup))
 		gpio_free(pdata->gpio_pullup);
 	gpio_free(gpio);
-	platform_set_drvdata(pdev, NULL);
 	kfree(gpio_vbus->phy.otg);
 	kfree(gpio_vbus);
 
