@@ -709,9 +709,6 @@ static int usbdux_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/* block other CPUs from starting an ai_cmd */
 	down(&this_usbduxsub->sem);
 	if (this_usbduxsub->ai_cmd_running) {
-		dev_err(&this_usbduxsub->interface->dev, "comedi%d: "
-			"ai_cmd not possible. Another ai_cmd is running.\n",
-			dev->minor);
 		up(&this_usbduxsub->sem);
 		return -EBUSY;
 	}
@@ -761,10 +758,6 @@ static int usbdux_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		this_usbduxsub->ai_timer = cmd->scan_begin_arg / 1000000;
 	}
 	if (this_usbduxsub->ai_timer < 1) {
-		dev_err(&this_usbduxsub->interface->dev, "comedi%d: ai_cmd: "
-			"timer=%d, scan_begin_arg=%d. "
-			"Not properly tested by cmdtest?\n", dev->minor,
-			this_usbduxsub->ai_timer, cmd->scan_begin_arg);
 		up(&this_usbduxsub->sem);
 		return -EINVAL;
 	}
@@ -817,9 +810,6 @@ static int usbdux_ai_insn_read(struct comedi_device *dev,
 
 	down(&this_usbduxsub->sem);
 	if (this_usbduxsub->ai_cmd_running) {
-		dev_err(&this_usbduxsub->interface->dev,
-			"comedi%d: ai_insn_read not possible. "
-			"Async Command is running.\n", dev->minor);
 		up(&this_usbduxsub->sem);
 		return 0;
 	}
@@ -896,18 +886,11 @@ static int usbdux_ao_insn_write(struct comedi_device *dev,
 
 	down(&this_usbduxsub->sem);
 	if (this_usbduxsub->ao_cmd_running) {
-		dev_err(&this_usbduxsub->interface->dev,
-			"comedi%d: ao_insn_write: "
-			"ERROR: asynchronous ao_cmd is running\n", dev->minor);
 		up(&this_usbduxsub->sem);
 		return 0;
 	}
 
 	for (i = 0; i < insn->n; i++) {
-		dev_dbg(&this_usbduxsub->interface->dev,
-			"comedi%d: ao_insn_write: data[chan=%d,i=%d]=%d\n",
-			dev->minor, chan, i, data[i]);
-
 		/* number of channels: 1 */
 		this_usbduxsub->dux_commands[1] = 1;
 		/* channel number */
@@ -1035,9 +1018,6 @@ static int usbdux_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		chan = CR_CHAN(cmd->chanlist[i]);
 		gain = CR_RANGE(cmd->chanlist[i]);
 		this_usbduxsub->dac_commands[i] = chan;
-		dev_dbg(&this_usbduxsub->interface->dev,
-			"comedi%d: dac command for ch %d is %x\n",
-			dev->minor, i, this_usbduxsub->dac_commands[i]);
 	}
 
 	/* we count in steps of 1ms (125us) */
@@ -1050,21 +1030,7 @@ static int usbdux_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		/* 1ms */
 		/* timing of the scan: we get all channels at once */
 		this_usbduxsub->ao_timer = cmd->scan_begin_arg / 1000000;
-		dev_dbg(&this_usbduxsub->interface->dev,
-			"comedi%d: scan_begin_src=%d, scan_begin_arg=%d, "
-			"convert_src=%d, convert_arg=%d\n", dev->minor,
-			cmd->scan_begin_src, cmd->scan_begin_arg,
-			cmd->convert_src, cmd->convert_arg);
-		dev_dbg(&this_usbduxsub->interface->dev,
-			"comedi%d: ao_timer=%d (ms)\n",
-			dev->minor, this_usbduxsub->ao_timer);
 		if (this_usbduxsub->ao_timer < 1) {
-			dev_err(&this_usbduxsub->interface->dev,
-				"comedi%d: usbdux: ao_timer=%d, "
-				"scan_begin_arg=%d. "
-				"Not properly tested by cmdtest?\n",
-				dev->minor, this_usbduxsub->ao_timer,
-				cmd->scan_begin_arg);
 			up(&this_usbduxsub->sem);
 			return -EINVAL;
 		}
@@ -1275,18 +1241,11 @@ static int usbdux_pwm_period(struct comedi_device *dev,
 	int fx2delay = 255;
 
 	if (period < MIN_PWM_PERIOD) {
-		dev_err(&this_usbduxsub->interface->dev,
-			"comedi%d: illegal period setting for pwm.\n",
-			dev->minor);
 		return -EAGAIN;
 	} else {
 		fx2delay = period / ((int)(6 * 512 * (1.0 / 0.033))) - 6;
-		if (fx2delay > 255) {
-			dev_err(&this_usbduxsub->interface->dev,
-				"comedi%d: period %d for pwm is too low.\n",
-				dev->minor, period);
+		if (fx2delay > 255)
 			return -EAGAIN;
-		}
 	}
 	this_usbduxsub->pwmDelay = fx2delay;
 	this_usbduxsub->pwmPeriod = period;
