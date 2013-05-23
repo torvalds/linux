@@ -1297,31 +1297,26 @@ static int usbdux_pwm_period(struct comedi_device *dev,
 	return 0;
 }
 
-/* is called from insn so there's no need to do all the sanity checks */
-static int usbdux_pwm_start(struct comedi_device *dev,
-			    struct comedi_subdevice *s)
+static int usbduxsigma_pwm_start(struct comedi_device *dev,
+				 struct comedi_subdevice *s)
 {
-	struct usbduxsigma_private *this_usbduxsub = dev->private;
-	int ret, i;
+	struct usbduxsigma_private *devpriv = dev->private;
+	int ret;
 
-	if (this_usbduxsub->pwm_cmd_running) {
-		/* already running */
+	if (devpriv->pwm_cmd_running)
 		return 0;
-	}
 
-	this_usbduxsub->dux_commands[1] = ((uint8_t) this_usbduxsub->pwmDelay);
+	devpriv->dux_commands[1] = devpriv->pwmDelay;
 	ret = send_dux_commands(dev, SENDPWMON);
 	if (ret < 0)
 		return ret;
 
-	/* initialise the buffer */
-	for (i = 0; i < this_usbduxsub->sizePwmBuf; i++)
-		((char *)(this_usbduxsub->urbPwm->transfer_buffer))[i] = 0;
+	memset(devpriv->urbPwm->transfer_buffer, 0, devpriv->sizePwmBuf);
 
 	ret = usbduxsigma_submit_pwm_urb(dev);
 	if (ret < 0)
 		return ret;
-	this_usbduxsub->pwm_cmd_running = 1;
+	devpriv->pwm_cmd_running = 1;
 
 	return 0;
 }
@@ -1391,7 +1386,7 @@ static int usbduxsigma_pwm_config(struct comedi_device *dev,
 		 */
 		if (data[1] != 0)
 			return -EINVAL;
-		return usbdux_pwm_start(dev, s);
+		return usbduxsigma_pwm_start(dev, s);
 	case INSN_CONFIG_DISARM:
 		return usbdux_pwm_cancel(dev, s);
 	case INSN_CONFIG_GET_PWM_STATUS:
