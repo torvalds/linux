@@ -43,6 +43,49 @@
 			compatible = "fixed-clock";
 			clock-frequency = <13000000>;
 		};
+		/* Slow bridge clocks under PLL13 */
+		slow_clk: slow_clk@13M {
+			#clock-cells = <0>;
+			compatible = "stericsson,u300-syscon-clk";
+			clock-type = <0>; /* Slow */
+			clock-id = <0>;
+			clocks = <&pll13>;
+		};
+		uart0_clk: uart0_clk@13M {
+			#clock-cells = <0>;
+			compatible = "stericsson,u300-syscon-clk";
+			clock-type = <0>; /* Slow */
+			clock-id = <1>;
+			clocks = <&slow_clk>;
+		};
+		gpio_clk: gpio_clk@13M {
+			#clock-cells = <0>;
+			compatible = "stericsson,u300-syscon-clk";
+			clock-type = <0>; /* Slow */
+			clock-id = <4>;
+			clocks = <&slow_clk>;
+		};
+		rtc_clk: rtc_clk@13M {
+			#clock-cells = <0>;
+			compatible = "stericsson,u300-syscon-clk";
+			clock-type = <0>; /* Slow */
+			clock-id = <6>;
+			clocks = <&slow_clk>;
+		};
+		apptimer_clk: app_tmr_clk@13M {
+			#clock-cells = <0>;
+			compatible = "stericsson,u300-syscon-clk";
+			clock-type = <0>; /* Slow */
+			clock-id = <7>;
+			clocks = <&slow_clk>;
+		};
+		acc_tmr_clk@13M {
+			#clock-cells = <0>;
+			compatible = "stericsson,u300-syscon-clk";
+			clock-type = <0>; /* Slow */
+			clock-id = <8>;
+			clocks = <&slow_clk>;
+		};
 		pll208: pll208@208M {
 			#clock-cells = <0>;
 			compatible = "fixed-clock";
@@ -55,12 +98,26 @@
 			clock-mult = <1>;
 			clocks = <&pll208>;
 		};
+		cpu_clk@208M {
+			#clock-cells = <0>;
+			compatible = "stericsson,u300-syscon-clk";
+			clock-type = <2>; /* Rest */
+			clock-id = <3>;
+			clocks = <&app208>;
+		};
 		app104: app_104_clk@104M {
 			#clock-cells = <0>;
 			compatible = "fixed-factor-clock";
 			clock-div = <2>;
 			clock-mult = <1>;
 			clocks = <&pll208>;
+		};
+		semi_clk@104M {
+			#clock-cells = <0>;
+			compatible = "stericsson,u300-syscon-clk";
+			clock-type = <2>; /* Rest */
+			clock-id = <9>;
+			clocks = <&app104>;
 		};
 		app52: app_52_clk@52M {
 			#clock-cells = <0>;
@@ -69,12 +126,91 @@
 			clock-mult = <1>;
 			clocks = <&pll208>;
 		};
+		/* AHB subsystem clocks */
+		ahb_clk: ahb_subsys_clk@52M {
+			#clock-cells = <0>;
+			compatible = "stericsson,u300-syscon-clk";
+			clock-type = <2>; /* Rest */
+			clock-id = <10>;
+			clocks = <&app52>;
+		};
+		intcon_clk@52M {
+			#clock-cells = <0>;
+			compatible = "stericsson,u300-syscon-clk";
+			clock-type = <2>; /* Rest */
+			clock-id = <12>;
+			clocks = <&ahb_clk>;
+		};
+		emif_clk@52M {
+			#clock-cells = <0>;
+			compatible = "stericsson,u300-syscon-clk";
+			clock-type = <2>; /* Rest */
+			clock-id = <5>;
+			clocks = <&ahb_clk>;
+		};
+		dmac_clk: dmac_clk@52M {
+			#clock-cells = <0>;
+			compatible = "stericsson,u300-syscon-clk";
+			clock-type = <2>; /* Rest */
+			clock-id = <4>;
+			clocks = <&app52>;
+		};
+		fsmc_clk: fsmc_clk@52M {
+			#clock-cells = <0>;
+			compatible = "stericsson,u300-syscon-clk";
+			clock-type = <2>; /* Rest */
+			clock-id = <6>;
+			clocks = <&app52>;
+		};
+		xgam_clk: xgam_clk@52M {
+			#clock-cells = <0>;
+			compatible = "stericsson,u300-syscon-clk";
+			clock-type = <2>; /* Rest */
+			clock-id = <8>;
+			clocks = <&app52>;
+		};
 		app26: app_26_clk@26M {
 			#clock-cells = <0>;
 			compatible = "fixed-factor-clock";
 			clock-div = <2>;
 			clock-mult = <1>;
 			clocks = <&app52>;
+		};
+		/* Fast bridge  clocks */
+		fast_clk: fast_clk@26M {
+			#clock-cells = <0>;
+			compatible = "stericsson,u300-syscon-clk";
+			clock-type = <1>; /* Fast */
+			clock-id = <0>;
+			clocks = <&app26>;
+		};
+		i2c0_clk: i2c0_clk@26M {
+			#clock-cells = <0>;
+			compatible = "stericsson,u300-syscon-clk";
+			clock-type = <1>; /* Fast */
+			clock-id = <1>;
+			clocks = <&fast_clk>;
+		};
+		i2c1_clk: i2c1_clk@26M {
+			#clock-cells = <0>;
+			compatible = "stericsson,u300-syscon-clk";
+			clock-type = <1>; /* Fast */
+			clock-id = <2>;
+			clocks = <&fast_clk>;
+		};
+		mmc_pclk: mmc_p_clk@26M {
+			#clock-cells = <0>;
+			compatible = "stericsson,u300-syscon-clk";
+			clock-type = <1>; /* Fast */
+			clock-id = <5>;
+			clocks = <&fast_clk>;
+		};
+		spi_clk: spi_p_clk@26M {
+			#clock-cells = <0>;
+			compatible = "stericsson,u300-syscon-clk";
+			clock-type = <1>; /* Fast */
+			clock-id = <6>;
+			clocks = <&fast_clk>;
 		};
 	};
 
@@ -83,6 +219,7 @@
 		reg = <0xc0014000 0x1000>;
 		interrupt-parent = <&vica>;
 		interrupts = <24 25 26 27>;
+		clocks = <&apptimer_clk>;
 	};
 
 	gpio: gpio@c0016000 {
@@ -90,6 +227,7 @@
 		reg = <0xc0016000 0x1000>;
 		interrupt-parent = <&vicb>;
 		interrupts = <0 1 2 18 21 22 23>;
+		clocks = <&gpio_clk>;
 		interrupt-names = "gpio0", "gpio1", "gpio2", "gpio3",
 				"gpio4", "gpio5", "gpio6";
 		interrupt-controller;
@@ -116,6 +254,7 @@
 		reg = <0xc0017000 0x1000>;
 		interrupt-parent = <&vicb>;
 		interrupts = <10>;
+		clocks = <&rtc_clk>;
 	};
 
 	dmac: dma-controller@c00020000 {
@@ -125,6 +264,7 @@
 		interrupts = <2>;
 		#dma-cells = <1>;
 		dma-channels = <40>;
+		clocks = <&dmac_clk>;
 	};
 
 	/* A NAND flash of 128 MiB */
@@ -138,6 +278,7 @@
 			<0x80010000 0x4000>;	/* NAND Base CMD */
 		reg-names = "fsmc_regs", "nand_data", "nand_addr", "nand_cmd";
 		nand-skip-bbtscan;
+		clocks = <&fsmc_clk>;
 
 		partition@0 {
 		label = "boot records";
@@ -158,6 +299,7 @@
 		reg = <0xc0004000 0x1000>;
 		interrupt-parent = <&vicb>;
 		interrupts = <8>;
+		clocks = <&i2c0_clk>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		ab3100: ab3100@0x48 {
@@ -235,6 +377,7 @@
 		reg = <0xc0005000 0x1000>;
 		interrupt-parent = <&vicb>;
 		interrupts = <9>;
+		clocks = <&i2c1_clk>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 		fwcam0: fwcam@0x10 {
@@ -270,6 +413,8 @@
 			reg = <0xc0013000 0x1000>;
 			interrupt-parent = <&vica>;
 			interrupts = <22>;
+			clocks = <&uart0_clk>, <&uart0_clk>;
+			clock-names = "apb_pclk", "uart0_clk";
 			dmas = <&dmac 17 &dmac 18>;
 			dma-names = "tx", "rx";
 		};
@@ -288,6 +433,8 @@
 			reg = <0xc0001000 0x1000>;
 			interrupt-parent = <&vicb>;
 			interrupts = <6 7>;
+			clocks = <&mmc_pclk>;
+			clock-names = "apb_pclk";
 			max-frequency = <24000000>;
 			bus-width = <4>; // SD-card slot
 			mmc-cap-mmc-highspeed;
@@ -304,6 +451,8 @@
 			reg = <0xc0006000 0x1000>;
 			interrupt-parent = <&vica>;
 			interrupts = <23>;
+			clocks = <&spi_clk>, <&spi_clk>;
+			clock-names = "apb_pclk", "spi_clk";
 			dmas = <&dmac 27 &dmac 28>;
 			dma-names = "tx", "rx";
 			num-cs = <3>;

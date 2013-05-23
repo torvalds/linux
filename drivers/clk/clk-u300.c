@@ -728,6 +728,213 @@ syscon_clk_register(struct device *dev, const char *name,
 	return clk;
 }
 
+#define U300_CLK_TYPE_SLOW 0
+#define U300_CLK_TYPE_FAST 1
+#define U300_CLK_TYPE_REST 2
+
+/**
+ * struct u300_clock - defines the bits and pieces for a certain clock
+ * @type: the clock type, slow fast or rest
+ * @id: the bit in the slow/fast/rest register for this clock
+ * @hw_ctrld: whether the clock is hardware controlled
+ * @clk_val: a value to poke in the one-write enable/disable registers
+ */
+struct u300_clock {
+	u8 type;
+	u8 id;
+	bool hw_ctrld;
+	u16 clk_val;
+};
+
+struct u300_clock const __initconst u300_clk_lookup[] = {
+	{
+		.type = U300_CLK_TYPE_REST,
+		.id = 3,
+		.hw_ctrld = true,
+		.clk_val = U300_SYSCON_SBCER_CPU_CLK_EN,
+	},
+	{
+		.type = U300_CLK_TYPE_REST,
+		.id = 4,
+		.hw_ctrld = true,
+		.clk_val = U300_SYSCON_SBCER_DMAC_CLK_EN,
+	},
+	{
+		.type = U300_CLK_TYPE_REST,
+		.id = 5,
+		.hw_ctrld = false,
+		.clk_val = U300_SYSCON_SBCER_EMIF_CLK_EN,
+	},
+	{
+		.type = U300_CLK_TYPE_REST,
+		.id = 6,
+		.hw_ctrld = false,
+		.clk_val = U300_SYSCON_SBCER_NANDIF_CLK_EN,
+	},
+	{
+		.type = U300_CLK_TYPE_REST,
+		.id = 8,
+		.hw_ctrld = true,
+		.clk_val = U300_SYSCON_SBCER_XGAM_CLK_EN,
+	},
+	{
+		.type = U300_CLK_TYPE_REST,
+		.id = 9,
+		.hw_ctrld = false,
+		.clk_val = U300_SYSCON_SBCER_SEMI_CLK_EN,
+	},
+	{
+		.type = U300_CLK_TYPE_REST,
+		.id = 10,
+		.hw_ctrld = true,
+		.clk_val = U300_SYSCON_SBCER_AHB_SUBSYS_BRIDGE_CLK_EN,
+	},
+	{
+		.type = U300_CLK_TYPE_REST,
+		.id = 12,
+		.hw_ctrld = false,
+		/* INTCON: cannot be enabled, just taken out of reset */
+		.clk_val = 0xFFFFU,
+	},
+	{
+		.type = U300_CLK_TYPE_FAST,
+		.id = 0,
+		.hw_ctrld = true,
+		.clk_val = U300_SYSCON_SBCER_FAST_BRIDGE_CLK_EN,
+	},
+	{
+		.type = U300_CLK_TYPE_FAST,
+		.id = 1,
+		.hw_ctrld = false,
+		.clk_val = U300_SYSCON_SBCER_I2C0_CLK_EN,
+	},
+	{
+		.type = U300_CLK_TYPE_FAST,
+		.id = 2,
+		.hw_ctrld = false,
+		.clk_val = U300_SYSCON_SBCER_I2C1_CLK_EN,
+	},
+	{
+		.type = U300_CLK_TYPE_FAST,
+		.id = 5,
+		.hw_ctrld = false,
+		.clk_val = U300_SYSCON_SBCER_MMC_CLK_EN,
+	},
+	{
+		.type = U300_CLK_TYPE_FAST,
+		.id = 6,
+		.hw_ctrld = false,
+		.clk_val = U300_SYSCON_SBCER_SPI_CLK_EN,
+	},
+	{
+		.type = U300_CLK_TYPE_SLOW,
+		.id = 0,
+		.hw_ctrld = true,
+		.clk_val = U300_SYSCON_SBCER_SLOW_BRIDGE_CLK_EN,
+	},
+	{
+		.type = U300_CLK_TYPE_SLOW,
+		.id = 1,
+		.hw_ctrld = false,
+		.clk_val = U300_SYSCON_SBCER_UART_CLK_EN,
+	},
+	{
+		.type = U300_CLK_TYPE_SLOW,
+		.id = 4,
+		.hw_ctrld = false,
+		.clk_val = U300_SYSCON_SBCER_GPIO_CLK_EN,
+	},
+	{
+		.type = U300_CLK_TYPE_SLOW,
+		.id = 6,
+		.hw_ctrld = true,
+		/* No clock enable register bit */
+		.clk_val = 0xFFFFU,
+	},
+	{
+		.type = U300_CLK_TYPE_SLOW,
+		.id = 7,
+		.hw_ctrld = false,
+		.clk_val = U300_SYSCON_SBCER_APP_TMR_CLK_EN,
+	},
+	{
+		.type = U300_CLK_TYPE_SLOW,
+		.id = 8,
+		.hw_ctrld = false,
+		.clk_val = U300_SYSCON_SBCER_ACC_TMR_CLK_EN,
+	},
+};
+
+static void __init of_u300_syscon_clk_init(struct device_node *np)
+{
+	struct clk *clk = ERR_PTR(-EINVAL);
+	const char *clk_name = np->name;
+	const char *parent_name;
+	void __iomem *res_reg;
+	void __iomem *en_reg;
+	u32 clk_type;
+	u32 clk_id;
+	int i;
+
+	if (of_property_read_u32(np, "clock-type", &clk_type)) {
+		pr_err("%s: syscon clock \"%s\" missing clock-type property\n",
+		       __func__, clk_name);
+		return;
+	}
+	if (of_property_read_u32(np, "clock-id", &clk_id)) {
+		pr_err("%s: syscon clock \"%s\" missing clock-id property\n",
+		       __func__, clk_name);
+		return;
+	}
+	parent_name = of_clk_get_parent_name(np, 0);
+
+	switch (clk_type) {
+	case U300_CLK_TYPE_SLOW:
+		res_reg = syscon_vbase + U300_SYSCON_RSR;
+		en_reg = syscon_vbase + U300_SYSCON_CESR;
+		break;
+	case U300_CLK_TYPE_FAST:
+		res_reg = syscon_vbase + U300_SYSCON_RFR;
+		en_reg = syscon_vbase + U300_SYSCON_CEFR;
+		break;
+	case U300_CLK_TYPE_REST:
+		res_reg = syscon_vbase + U300_SYSCON_RRR;
+		en_reg = syscon_vbase + U300_SYSCON_CERR;
+		break;
+	default:
+		pr_err("unknown clock type %x specified\n", clk_type);
+		return;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(u300_clk_lookup); i++) {
+		const struct u300_clock *u3clk = &u300_clk_lookup[i];
+
+		if (u3clk->type == clk_type && u3clk->id == clk_id)
+			clk = syscon_clk_register(NULL,
+						  clk_name, parent_name,
+						  0, u3clk->hw_ctrld,
+						  res_reg, u3clk->id,
+						  en_reg, u3clk->id,
+						  u3clk->clk_val);
+	}
+
+	if (!IS_ERR(clk)) {
+		of_clk_add_provider(np, of_clk_src_simple_get, clk);
+
+		/*
+		 * Some few system clocks - device tree does not
+		 * represent clocks without a corresponding device node.
+		 * for now we add these three clocks here.
+		 */
+		if (clk_type == U300_CLK_TYPE_REST && clk_id == 5)
+			clk_register_clkdev(clk, NULL, "pl172");
+		if (clk_type == U300_CLK_TYPE_REST && clk_id == 9)
+			clk_register_clkdev(clk, NULL, "semi");
+		if (clk_type == U300_CLK_TYPE_REST && clk_id == 12)
+			clk_register_clkdev(clk, NULL, "intcon");
+	}
+}
+
 /**
  * struct clk_mclk - U300 MCLK clock (MMC/SD clock)
  * @hw: corresponding clock hardware entry
@@ -941,6 +1148,10 @@ static const __initconst struct of_device_id u300_clk_match[] = {
 		.compatible = "fixed-factor-clock",
 		.data = of_fixed_factor_clk_setup,
 	},
+	{
+		.compatible = "stericsson,u300-syscon-clk",
+		.data = of_u300_syscon_clk_init,
+	},
 };
 
 void __init u300_clk_init(void __iomem *base)
@@ -964,115 +1175,6 @@ void __init u300_clk_init(void __iomem *base)
 	writew(val, syscon_vbase + U300_SYSCON_PMCR);
 
 	of_clk_init(u300_clk_match);
-
-	/* Directly on the AMBA interconnect */
-	clk = syscon_clk_register(NULL, "cpu_clk", "app_208_clk", 0, true,
-				  syscon_vbase + U300_SYSCON_RRR, 3,
-				  syscon_vbase + U300_SYSCON_CERR, 3,
-				  U300_SYSCON_SBCER_CPU_CLK_EN);
-	clk = syscon_clk_register(NULL, "dmac_clk", "app_52_clk", 0, true,
-				  syscon_vbase + U300_SYSCON_RRR, 4,
-				  syscon_vbase + U300_SYSCON_CERR, 4,
-				  U300_SYSCON_SBCER_DMAC_CLK_EN);
-	clk_register_clkdev(clk, NULL, "dma");
-	clk = syscon_clk_register(NULL, "fsmc_clk", "app_52_clk", 0, false,
-				  syscon_vbase + U300_SYSCON_RRR, 6,
-				  syscon_vbase + U300_SYSCON_CERR, 6,
-				  U300_SYSCON_SBCER_NANDIF_CLK_EN);
-	clk_register_clkdev(clk, NULL, "fsmc-nand");
-	clk = syscon_clk_register(NULL, "xgam_clk", "app_52_clk", 0, true,
-				  syscon_vbase + U300_SYSCON_RRR, 8,
-				  syscon_vbase + U300_SYSCON_CERR, 8,
-				  U300_SYSCON_SBCER_XGAM_CLK_EN);
-	clk_register_clkdev(clk, NULL, "xgam");
-	clk = syscon_clk_register(NULL, "semi_clk", "app_104_clk", 0, false,
-				  syscon_vbase + U300_SYSCON_RRR, 9,
-				  syscon_vbase + U300_SYSCON_CERR, 9,
-				  U300_SYSCON_SBCER_SEMI_CLK_EN);
-	clk_register_clkdev(clk, NULL, "semi");
-
-	/* AHB bridge clocks */
-	clk = syscon_clk_register(NULL, "ahb_subsys_clk", "app_52_clk", 0, true,
-				  syscon_vbase + U300_SYSCON_RRR, 10,
-				  syscon_vbase + U300_SYSCON_CERR, 10,
-				  U300_SYSCON_SBCER_AHB_SUBSYS_BRIDGE_CLK_EN);
-	clk = syscon_clk_register(NULL, "intcon_clk", "ahb_subsys_clk", 0, false,
-				  syscon_vbase + U300_SYSCON_RRR, 12,
-				  syscon_vbase + U300_SYSCON_CERR, 12,
-				  /* Cannot be enabled, just taken out of reset */
-				  0xFFFFU);
-	clk_register_clkdev(clk, NULL, "intcon");
-	clk = syscon_clk_register(NULL, "emif_clk", "ahb_subsys_clk", 0, false,
-				  syscon_vbase + U300_SYSCON_RRR, 5,
-				  syscon_vbase + U300_SYSCON_CERR, 5,
-				  U300_SYSCON_SBCER_EMIF_CLK_EN);
-	clk_register_clkdev(clk, NULL, "pl172");
-
-	/* FAST bridge clocks */
-	clk = syscon_clk_register(NULL, "fast_clk", "app_26_clk", 0, true,
-				  syscon_vbase + U300_SYSCON_RFR, 0,
-				  syscon_vbase + U300_SYSCON_CEFR, 0,
-				  U300_SYSCON_SBCER_FAST_BRIDGE_CLK_EN);
-	clk = syscon_clk_register(NULL, "i2c0_p_clk", "fast_clk", 0, false,
-				  syscon_vbase + U300_SYSCON_RFR, 1,
-				  syscon_vbase + U300_SYSCON_CEFR, 1,
-				  U300_SYSCON_SBCER_I2C0_CLK_EN);
-	clk_register_clkdev(clk, NULL, "stu300.0");
-	clk = syscon_clk_register(NULL, "i2c1_p_clk", "fast_clk", 0, false,
-				  syscon_vbase + U300_SYSCON_RFR, 2,
-				  syscon_vbase + U300_SYSCON_CEFR, 2,
-				  U300_SYSCON_SBCER_I2C1_CLK_EN);
-	clk_register_clkdev(clk, NULL, "stu300.1");
-	clk = syscon_clk_register(NULL, "mmc_p_clk", "fast_clk", 0, false,
-				  syscon_vbase + U300_SYSCON_RFR, 5,
-				  syscon_vbase + U300_SYSCON_CEFR, 5,
-				  U300_SYSCON_SBCER_MMC_CLK_EN);
-	clk_register_clkdev(clk, "apb_pclk", "mmci");
-	clk = syscon_clk_register(NULL, "spi_p_clk", "fast_clk", 0, false,
-				  syscon_vbase + U300_SYSCON_RFR, 6,
-				  syscon_vbase + U300_SYSCON_CEFR, 6,
-				  U300_SYSCON_SBCER_SPI_CLK_EN);
-	/* The SPI has no external clock for the outward bus, uses the pclk */
-	clk_register_clkdev(clk, NULL, "pl022");
-	clk_register_clkdev(clk, "apb_pclk", "pl022");
-
-	/* SLOW bridge clocks */
-	clk = syscon_clk_register(NULL, "slow_clk", "pll13", 0, true,
-				  syscon_vbase + U300_SYSCON_RSR, 0,
-				  syscon_vbase + U300_SYSCON_CESR, 0,
-				  U300_SYSCON_SBCER_SLOW_BRIDGE_CLK_EN);
-	clk = syscon_clk_register(NULL, "uart0_clk", "slow_clk", 0, false,
-				  syscon_vbase + U300_SYSCON_RSR, 1,
-				  syscon_vbase + U300_SYSCON_CESR, 1,
-				  U300_SYSCON_SBCER_UART_CLK_EN);
-	/* Same clock is used for APB and outward bus */
-	clk_register_clkdev(clk, NULL, "uart0");
-	clk_register_clkdev(clk, "apb_pclk", "uart0");
-	clk = syscon_clk_register(NULL, "gpio_clk", "slow_clk", 0, false,
-				  syscon_vbase + U300_SYSCON_RSR, 4,
-				  syscon_vbase + U300_SYSCON_CESR, 4,
-				  U300_SYSCON_SBCER_GPIO_CLK_EN);
-	clk_register_clkdev(clk, NULL, "u300-gpio");
-	clk = syscon_clk_register(NULL, "keypad_clk", "slow_clk", 0, false,
-				  syscon_vbase + U300_SYSCON_RSR, 5,
-				  syscon_vbase + U300_SYSCON_CESR, 6,
-				  U300_SYSCON_SBCER_KEYPAD_CLK_EN);
-	clk_register_clkdev(clk, NULL, "coh901461-keypad");
-	clk = syscon_clk_register(NULL, "rtc_clk", "slow_clk", 0, true,
-				  syscon_vbase + U300_SYSCON_RSR, 6,
-				  /* No clock enable register bit */
-				  NULL, 0, 0xFFFFU);
-	clk_register_clkdev(clk, NULL, "rtc-coh901331");
-	clk = syscon_clk_register(NULL, "app_tmr_clk", "slow_clk", 0, false,
-				  syscon_vbase + U300_SYSCON_RSR, 7,
-				  syscon_vbase + U300_SYSCON_CESR, 7,
-				  U300_SYSCON_SBCER_APP_TMR_CLK_EN);
-	clk_register_clkdev(clk, NULL, "apptimer");
-	clk = syscon_clk_register(NULL, "acc_tmr_clk", "slow_clk", 0, false,
-				  syscon_vbase + U300_SYSCON_RSR, 8,
-				  syscon_vbase + U300_SYSCON_CESR, 8,
-				  U300_SYSCON_SBCER_ACC_TMR_CLK_EN);
-	clk_register_clkdev(clk, NULL, "timer");
 
 	/* Then this special MMC/SD clock */
 	clk = mclk_clk_register(NULL, "mmc_clk", "mmc_p_clk", false);

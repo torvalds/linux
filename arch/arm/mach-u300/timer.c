@@ -375,7 +375,7 @@ static void __init u300_timer_init_of(struct device_node *np)
 	pr_info("U300 GP1 timer @ base: %p, IRQ: %d\n", u300_timer_base, irq);
 
 	/* Clock the interrupt controller */
-	clk = clk_get_sys("apptimer", NULL);
+	clk = of_clk_get(np, 0);
 	BUG_ON(IS_ERR(clk));
 	clk_prepare_enable(clk);
 	rate = clk_get_rate(clk);
