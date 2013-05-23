@@ -869,8 +869,6 @@ static int coda_buf_prepare(struct vb2_buffer *vb)
 		return -EINVAL;
 	}
 
-	vb2_set_plane_payload(vb, 0, q_data->sizeimage);
-
 	return 0;
 }
 
