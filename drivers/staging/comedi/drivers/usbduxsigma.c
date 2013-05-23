@@ -1168,7 +1168,7 @@ static int usbdux_pwm_cancel(struct comedi_device *dev,
 	return send_dux_commands(dev, SENDPWMOFF);
 }
 
-static void usbduxsub_pwm_irq(struct urb *urb)
+static void usbduxsigma_pwm_irq(struct urb *urb)
 {
 	struct comedi_device *dev = urb->context;
 	struct usbduxsigma_private *devpriv = dev->private;
@@ -1225,7 +1225,7 @@ static int usbduxsigma_submit_pwm_urb(struct comedi_device *dev)
 	/* in case of a resubmission after an unlink... */
 	usb_fill_bulk_urb(urb, usb, usb_sndbulkpipe(usb, PWM_EP),
 			  urb->transfer_buffer, devpriv->sizePwmBuf,
-			  usbduxsub_pwm_irq, dev);
+			  usbduxsigma_pwm_irq, dev);
 
 	return usb_submit_urb(urb, GFP_ATOMIC);
 }
