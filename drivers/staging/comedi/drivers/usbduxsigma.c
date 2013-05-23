@@ -262,17 +262,15 @@ static void usbduxsub_unlink_InURBs(struct usbduxsub *devpriv)
 	}
 }
 
-static int usbdux_ai_stop(struct usbduxsub *this_usbduxsub, int do_unlink)
+static int usbdux_ai_stop(struct usbduxsub *devpriv, int do_unlink)
 {
-	if (!this_usbduxsub) {
-		pr_err("comedi?: usbdux_ai_stop: this_usbduxsub=NULL!\n");
+	if (!devpriv)
 		return -EFAULT;
-	}
 
 	if (do_unlink)
-		usbduxsub_unlink_InURBs(this_usbduxsub);
+		usbduxsub_unlink_InURBs(devpriv);
 
-	this_usbduxsub->ai_cmd_running = 0;
+	devpriv->ai_cmd_running = 0;
 
 	return 0;
 }
@@ -459,15 +457,15 @@ static void usbduxsub_unlink_OutURBs(struct usbduxsub *devpriv)
 	}
 }
 
-static int usbdux_ao_stop(struct usbduxsub *this_usbduxsub, int do_unlink)
+static int usbdux_ao_stop(struct usbduxsub *devpriv, int do_unlink)
 {
-	if (!this_usbduxsub)
+	if (!devpriv)
 		return -EFAULT;
 
 	if (do_unlink)
-		usbduxsub_unlink_OutURBs(this_usbduxsub);
+		usbduxsub_unlink_OutURBs(devpriv);
 
-	this_usbduxsub->ao_cmd_running = 0;
+	devpriv->ao_cmd_running = 0;
 
 	return 0;
 }
@@ -1639,15 +1637,15 @@ static void usbduxsub_unlink_PwmURBs(struct usbduxsub *devpriv)
 		usb_kill_urb(devpriv->urbPwm);
 }
 
-static int usbdux_pwm_stop(struct usbduxsub *this_usbduxsub, int do_unlink)
+static int usbdux_pwm_stop(struct usbduxsub *devpriv, int do_unlink)
 {
-	if (!this_usbduxsub)
+	if (!devpriv)
 		return -EFAULT;
 
 	if (do_unlink)
-		usbduxsub_unlink_PwmURBs(this_usbduxsub);
+		usbduxsub_unlink_PwmURBs(devpriv);
 
-	this_usbduxsub->pwm_cmd_running = 0;
+	devpriv->pwm_cmd_running = 0;
 
 	return 0;
 }
