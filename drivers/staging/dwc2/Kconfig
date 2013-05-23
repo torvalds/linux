@@ -38,6 +38,7 @@ config USB_DWC2_TRACK_MISSED_SOFS
 	bool "Enable Missed SOF Tracking"
 	help
 	  Say Y here to enable logging of missed SOF events to the dmesg log.
+	  WARNING: This feature is still experimental.
 	  If in doubt, say N.
 
 config USB_DWC2_DEBUG_PERIODIC
