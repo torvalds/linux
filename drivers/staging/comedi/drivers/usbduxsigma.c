@@ -853,55 +853,53 @@ static int usbdux_ai_insn_read(struct comedi_device *dev,
 	return i;
 }
 
-/************************************/
-/* analog out */
-
-static int usbdux_ao_insn_read(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+static int usbduxsigma_ao_insn_read(struct comedi_device *dev,
+				    struct comedi_subdevice *s,
+				    struct comedi_insn *insn,
+				    unsigned int *data)
 {
-	struct usbduxsigma_private *this_usbduxsub = dev->private;
+	struct usbduxsigma_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
 	int i;
-	int chan = CR_CHAN(insn->chanspec);
 
-	down(&this_usbduxsub->sem);
+	down(&devpriv->sem);
 	for (i = 0; i < insn->n; i++)
-		data[i] = this_usbduxsub->outBuffer[chan];
+		data[i] = devpriv->outBuffer[chan];
+	up(&devpriv->sem);
 
-	up(&this_usbduxsub->sem);
-	return i;
+	return insn->n;
 }
 
-static int usbdux_ao_insn_write(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				struct comedi_insn *insn, unsigned int *data)
+static int usbduxsigma_ao_insn_write(struct comedi_device *dev,
+				     struct comedi_subdevice *s,
+				     struct comedi_insn *insn,
+				     unsigned int *data)
 {
-	struct usbduxsigma_private *this_usbduxsub = dev->private;
-	int i, err;
-	int chan = CR_CHAN(insn->chanspec);
+	struct usbduxsigma_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	int ret;
+	int i;
 
-	down(&this_usbduxsub->sem);
-	if (this_usbduxsub->ao_cmd_running) {
-		up(&this_usbduxsub->sem);
-		return 0;
+	down(&devpriv->sem);
+	if (devpriv->ao_cmd_running) {
+		up(&devpriv->sem);
+		return -EBUSY;
 	}
 
 	for (i = 0; i < insn->n; i++) {
-		/* number of channels: 1 */
-		this_usbduxsub->dux_commands[1] = 1;
-		/* channel number */
-		this_usbduxsub->dux_commands[2] = data[i];
-		this_usbduxsub->outBuffer[chan] = data[i];
-		this_usbduxsub->dux_commands[3] = chan;
-		err = send_dux_commands(dev, SENDDACOMMANDS);
-		if (err < 0) {
-			up(&this_usbduxsub->sem);
-			return err;
+		devpriv->dux_commands[1] = 1;		/* num channels */
+		devpriv->dux_commands[2] = data[i];	/* value */
+		devpriv->dux_commands[3] = chan;	/* channel number */
+		ret = send_dux_commands(dev, SENDDACOMMANDS);
+		if (ret < 0) {
+			up(&devpriv->sem);
+			return ret;
 		}
+		devpriv->outBuffer[chan] = data[i];
 	}
-	up(&this_usbduxsub->sem);
+	up(&devpriv->sem);
 
-	return i;
+	return insn->n;
 }
 
 static int usbduxsigma_ao_inttrig(struct comedi_device *dev,
@@ -1468,8 +1466,8 @@ static int usbduxsigma_attach_common(struct comedi_device *dev)
 	s->len_chanlist	= 4;
 	s->maxdata	= 0x00ff;
 	s->range_table	= &range_unipolar2_5;
-	s->insn_write	= usbdux_ao_insn_write;
-	s->insn_read	= usbdux_ao_insn_read;
+	s->insn_write	= usbduxsigma_ao_insn_write;
+	s->insn_read	= usbduxsigma_ao_insn_read;
 	s->do_cmdtest	= usbduxsigma_ao_cmdtest;
 	s->do_cmd	= usbduxsigma_ao_cmd;
 	s->cancel	= usbdux_ao_cancel;
