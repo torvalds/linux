@@ -1126,6 +1126,7 @@ static void zero_bio_chain(struct bio *chain, int start_ofs)
 				buf = bvec_kmap_irq(bv, &flags);
 				memset(buf + remainder, 0,
 				       bv->bv_len - remainder);
+				flush_dcache_page(bv->bv_page);
 				bvec_kunmap_irq(buf, &flags);
 			}
 			pos += bv->bv_len;
@@ -1158,6 +1159,7 @@ static void zero_pages(struct page **pages, u64 offset, u64 end)
 		local_irq_save(flags);
 		kaddr = kmap_atomic(*page);
 		memset(kaddr + page_offset, 0, length);
+		flush_dcache_page(*page);
 		kunmap_atomic(kaddr);
 		local_irq_restore(flags);
 
