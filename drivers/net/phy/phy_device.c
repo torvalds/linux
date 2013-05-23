@@ -1017,6 +1017,9 @@ static int phy_probe(struct device *dev)
 			phy_interrupt_is_valid(phydev))
 		phydev->irq = PHY_POLL;
 
+	if (phydrv->flags & PHY_IS_INTERNAL)
+		phydev->is_internal = true;
+
 	mutex_lock(&phydev->lock);
 
 	/* Start out supporting everything. Eventually,

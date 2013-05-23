@@ -49,6 +49,7 @@
 
 #define PHY_HAS_INTERRUPT	0x00000001
 #define PHY_HAS_MAGICANEG	0x00000002
+#define PHY_IS_INTERNAL		0x00000004
 
 /* Interface Mode definitions */
 typedef enum {
@@ -261,6 +262,7 @@ struct phy_c45_device_ids {
  * phy_id: UID for this device found during discovery
  * c45_ids: 802.3-c45 Device Identifers if is_c45.
  * is_c45:  Set to true if this phy uses clause 45 addressing.
+ * is_internal: Set to true if this phy is internal to a MAC.
  * state: state of the PHY for management purposes
  * dev_flags: Device-specific flags used by the PHY driver.
  * addr: Bus address of PHY
@@ -298,6 +300,7 @@ struct phy_device {
 
 	struct phy_c45_device_ids c45_ids;
 	bool is_c45;
+	bool is_internal;
 
 	enum phy_state state;
 
@@ -518,6 +521,15 @@ static inline int phy_write(struct phy_device *phydev, u32 regnum, u16 val)
 static inline bool phy_interrupt_is_valid(struct phy_device *phydev)
 {
 	return phydev->irq != PHY_POLL && phydev->irq != PHY_IGNORE_INTERRUPT;
+}
+
+/**
+ * phy_is_internal - Convenience function for testing if a PHY is internal
+ * @phydev: the phy_device struct
+ */
+static inline bool phy_is_internal(struct phy_device *phydev)
+{
+	return phydev->is_internal;
 }
 
 struct phy_device *phy_device_create(struct mii_bus *bus, int addr, int phy_id,
