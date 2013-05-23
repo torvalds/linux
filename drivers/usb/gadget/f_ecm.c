@@ -686,6 +686,7 @@ ecm_bind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct usb_composite_dev *cdev = c->cdev;
 	struct f_ecm		*ecm = func_to_ecm(f);
+	struct usb_string	*us;
 	int			status;
 	struct usb_ep		*ep;
 
@@ -712,16 +713,14 @@ ecm_bind(struct usb_configuration *c, struct usb_function *f)
 		ecm_opts->bound = true;
 	}
 #endif
-	if (ecm_string_defs[0].id == 0) {
-		status = usb_string_ids_tab(c->cdev, ecm_string_defs);
-		if (status)
-			return status;
-
-		ecm_control_intf.iInterface = ecm_string_defs[0].id;
-		ecm_data_intf.iInterface = ecm_string_defs[2].id;
-		ecm_desc.iMACAddress = ecm_string_defs[1].id;
-		ecm_iad_descriptor.iFunction = ecm_string_defs[3].id;
-	}
+	us = usb_gstrings_attach(cdev, ecm_strings,
+				 ARRAY_SIZE(ecm_string_defs));
+	if (IS_ERR(us))
+		return PTR_ERR(us);
+	ecm_control_intf.iInterface = us[0].id;
+	ecm_data_intf.iInterface = us[2].id;
+	ecm_desc.iMACAddress = us[1].id;
+	ecm_iad_descriptor.iFunction = us[3].id;
 
 	/* allocate instance-specific interface IDs */
 	status = usb_interface_id(c, f);
@@ -841,7 +840,6 @@ ecm_old_unbind(struct usb_configuration *c, struct usb_function *f)
 
 	DBG(c->cdev, "ecm unbind\n");
 
-	ecm_string_defs[0].id = 0;
 	usb_free_all_descriptors(f);
 
 	kfree(ecm->notify_req->buf);
@@ -885,7 +883,6 @@ ecm_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
 	ecm->port.cdc_filter = DEFAULT_FILTER;
 
 	ecm->port.func.name = "cdc_ethernet";
-	ecm->port.func.strings = ecm_strings;
 	/* descriptors are per-instance copies */
 	ecm->port.func.bind = ecm_bind;
 	ecm->port.func.unbind = ecm_old_unbind;
@@ -944,7 +941,6 @@ static void ecm_unbind(struct usb_configuration *c, struct usb_function *f)
 
 	DBG(c->cdev, "ecm unbind\n");
 
-	ecm_string_defs[0].id = 0;
 	usb_free_all_descriptors(f);
 
 	kfree(ecm->notify_req->buf);
@@ -977,7 +973,6 @@ struct usb_function *ecm_alloc(struct usb_function_instance *fi)
 	ecm->port.cdc_filter = DEFAULT_FILTER;
 
 	ecm->port.func.name = "cdc_ethernet";
-	ecm->port.func.strings = ecm_strings;
 	/* descriptors are per-instance copies */
 	ecm->port.func.bind = ecm_bind;
 	ecm->port.func.unbind = ecm_unbind;
