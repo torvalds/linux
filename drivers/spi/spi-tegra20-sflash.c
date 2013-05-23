@@ -480,7 +480,7 @@ static int tegra_sflash_probe(struct platform_device *pdev)
 	master->num_chipselect = MAX_CHIP_SELECT;
 	master->bus_num = -1;
 
-	dev_set_drvdata(&pdev->dev, master);
+	platform_set_drvdata(pdev, master);
 	tsd = spi_master_get_devdata(master);
 	tsd->master = master;
 	tsd->dev = &pdev->dev;
@@ -555,7 +555,7 @@ exit_free_master:
 
 static int tegra_sflash_remove(struct platform_device *pdev)
 {
-	struct spi_master *master = dev_get_drvdata(&pdev->dev);
+	struct spi_master *master = platform_get_drvdata(pdev);
 	struct tegra_sflash_data	*tsd = spi_master_get_devdata(master);
 
 	free_irq(tsd->irq, tsd);

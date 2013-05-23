@@ -428,7 +428,7 @@ static int orion_spi_probe(struct platform_device *pdev)
 	master->transfer_one_message = orion_spi_transfer_one_message;
 	master->num_chipselect = ORION_NUM_CHIPSELECTS;
 
-	dev_set_drvdata(&pdev->dev, master);
+	platform_set_drvdata(pdev, master);
 
 	spi = spi_master_get_devdata(master);
 	spi->master = master;
@@ -485,7 +485,7 @@ static int orion_spi_remove(struct platform_device *pdev)
 	struct resource *r;
 	struct orion_spi *spi;
 
-	master = dev_get_drvdata(&pdev->dev);
+	master = platform_get_drvdata(pdev);
 	spi = spi_master_get_devdata(master);
 
 	clk_disable_unprepare(spi->clk);

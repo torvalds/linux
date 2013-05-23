@@ -510,7 +510,7 @@ static int omap1_spi100k_probe(struct platform_device *pdev)
 	master->num_chipselect = 2;
 	master->mode_bits = MODEBITS;
 
-	dev_set_drvdata(&pdev->dev, master);
+	platform_set_drvdata(pdev, master);
 
 	spi100k = spi_master_get_devdata(master);
 	spi100k->master = master;
@@ -569,7 +569,7 @@ static int omap1_spi100k_remove(struct platform_device *pdev)
 	unsigned long		flags;
 	int			status = 0;
 
-	master = dev_get_drvdata(&pdev->dev);
+	master = platform_get_drvdata(pdev);
 	spi100k = spi_master_get_devdata(master);
 
 	spin_lock_irqsave(&spi100k->lock, flags);
