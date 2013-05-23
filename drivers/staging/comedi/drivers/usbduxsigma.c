@@ -1366,24 +1366,25 @@ static int usbdux_pwm_pattern(struct comedi_device *dev,
 	return 1;
 }
 
-static int usbdux_pwm_write(struct comedi_device *dev,
-			    struct comedi_subdevice *s,
-			    struct comedi_insn *insn, unsigned int *data)
+static int usbduxsigma_pwm_write(struct comedi_device *dev,
+				 struct comedi_subdevice *s,
+				 struct comedi_insn *insn,
+				 unsigned int *data)
 {
-	if ((insn->n) != 1) {
-		/*
-		 * doesn't make sense to have more than one value here because
-		 * it would just overwrite the PWM buffer a couple of times
-		 */
-		return -EINVAL;
-	}
+	unsigned int chan = CR_CHAN(insn->chanspec);
 
 	/*
-	 * the sign is set via a special INSN only, this gives us 8 bits for
-	 * normal operation
-	 * relay sign 0 by default
+	 * It doesn't make sense to support more than one value here
+	 * because it would just overwrite the PWM buffer.
 	 */
-	return usbdux_pwm_pattern(dev, s, CR_CHAN(insn->chanspec), data[0], 0);
+	if (insn->n != 1)
+		return -EINVAL;
+
+	/*
+	 * The sign is set via a special INSN only, this gives us 8 bits
+	 * for normal operation, sign is 0 by default.
+	 */
+	return usbdux_pwm_pattern(dev, s, chan, data[0], 0);
 }
 
 static int usbduxsigma_pwm_config(struct comedi_device *dev,
@@ -1543,7 +1544,7 @@ static int usbduxsigma_attach_common(struct comedi_device *dev)
 		s->subdev_flags	= SDF_WRITABLE | SDF_PWM_HBRIDGE;
 		s->n_chan	= 8;
 		s->maxdata	= devpriv->sizePwmBuf;
-		s->insn_write	= usbdux_pwm_write;
+		s->insn_write	= usbduxsigma_pwm_write;
 		s->insn_config	= usbduxsigma_pwm_config;
 
 		usbdux_pwm_period(dev, s, PWM_DEFAULT_PERIOD);
