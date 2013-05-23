@@ -1113,34 +1113,33 @@ static int usbdux_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
-static int usbdux_dio_insn_config(struct comedi_device *dev,
-				  struct comedi_subdevice *s,
-				  struct comedi_insn *insn, unsigned int *data)
+static int usbduxsigma_dio_insn_config(struct comedi_device *dev,
+				       struct comedi_subdevice *s,
+				       struct comedi_insn *insn,
+				       unsigned int *data)
 {
-	int chan = CR_CHAN(insn->chanspec);
-
-	/* The input or output configuration of each digital line is
-	 * configured by a special insn_config instruction.  chanspec
-	 * contains the channel to be changed, and data[0] contains the
-	 * value COMEDI_INPUT or COMEDI_OUTPUT. */
+	unsigned int chan = CR_CHAN(insn->chanspec);
+	unsigned int mask = 1 << chan;
 
 	switch (data[0]) {
 	case INSN_CONFIG_DIO_OUTPUT:
-		s->io_bits |= 1 << chan;	/* 1 means Out */
+		s->io_bits |= mask;
 		break;
 	case INSN_CONFIG_DIO_INPUT:
-		s->io_bits &= ~(1 << chan);
+		s->io_bits &= ~mask;
 		break;
 	case INSN_CONFIG_DIO_QUERY:
-		data[1] =
-		    (s->io_bits & (1 << chan)) ? COMEDI_OUTPUT : COMEDI_INPUT;
+		data[1] = (s->io_bits & mask) ? COMEDI_OUTPUT : COMEDI_INPUT;
 		break;
 	default:
 		return -EINVAL;
 		break;
 	}
-	/* we don't tell the firmware here as it would take 8 frames */
-	/* to submit the information. We do it in the insn_bits. */
+
+	/*
+	 * We don't tell the firmware here as it would take 8 frames
+	 * to submit the information. We do it in the (*insn_bits).
+	 */
 	return insn->n;
 }
 
@@ -1516,7 +1515,7 @@ static int usbduxsigma_attach_common(struct comedi_device *dev)
 	s->maxdata	= 1;
 	s->range_table	= &range_digital;
 	s->insn_bits	= usbduxsigma_dio_insn_bits;
-	s->insn_config	= usbdux_dio_insn_config;
+	s->insn_config	= usbduxsigma_dio_insn_config;
 
 	if (devpriv->high_speed) {
 		/* Timer / pwm subdevice */
