@@ -1230,21 +1230,22 @@ static int usbduxsigma_submit_pwm_urb(struct comedi_device *dev)
 	return usb_submit_urb(urb, GFP_ATOMIC);
 }
 
-static int usbdux_pwm_period(struct comedi_device *dev,
-			     struct comedi_subdevice *s, unsigned int period)
+static int usbduxsigma_pwm_period(struct comedi_device *dev,
+				  struct comedi_subdevice *s,
+				  unsigned int period)
 {
-	struct usbduxsigma_private *this_usbduxsub = dev->private;
+	struct usbduxsigma_private *devpriv = dev->private;
 	int fx2delay = 255;
 
 	if (period < MIN_PWM_PERIOD) {
 		return -EAGAIN;
 	} else {
-		fx2delay = period / ((int)(6 * 512 * (1.0 / 0.033))) - 6;
+		fx2delay = (period / (6 * 512 * 1000 / 33)) - 6;
 		if (fx2delay > 255)
 			return -EAGAIN;
 	}
-	this_usbduxsub->pwmDelay = fx2delay;
-	this_usbduxsub->pwmPeriod = period;
+	devpriv->pwmDelay = fx2delay;
+	devpriv->pwmPeriod = period;
 	return 0;
 }
 
@@ -1344,7 +1345,7 @@ static int usbduxsigma_pwm_config(struct comedi_device *dev,
 		data[1] = devpriv->pwm_cmd_running;
 		return 0;
 	case INSN_CONFIG_PWM_SET_PERIOD:
-		return usbdux_pwm_period(dev, s, data[1]);
+		return usbduxsigma_pwm_period(dev, s, data[1]);
 	case INSN_CONFIG_PWM_GET_PERIOD:
 		data[1] = devpriv->pwmPeriod;
 		return 0;
@@ -1482,7 +1483,7 @@ static int usbduxsigma_attach_common(struct comedi_device *dev)
 		s->insn_write	= usbduxsigma_pwm_write;
 		s->insn_config	= usbduxsigma_pwm_config;
 
-		usbdux_pwm_period(dev, s, PWM_DEFAULT_PERIOD);
+		usbduxsigma_pwm_period(dev, s, PWM_DEFAULT_PERIOD);
 	}
 
 	up(&devpriv->sem);
