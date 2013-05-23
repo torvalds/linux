@@ -1362,15 +1362,14 @@ static int mpc52xx_uart_of_probe(struct platform_device *op)
 	if (ret)
 		return ret;
 
-	dev_set_drvdata(&op->dev, (void *)port);
+	platform_set_drvdata(op, (void *)port);
 	return 0;
 }
 
 static int
 mpc52xx_uart_of_remove(struct platform_device *op)
 {
-	struct uart_port *port = dev_get_drvdata(&op->dev);
-	dev_set_drvdata(&op->dev, NULL);
+	struct uart_port *port = platform_get_drvdata(op);
 
 	if (port)
 		uart_remove_one_port(&mpc52xx_uart_driver, port);
@@ -1382,7 +1381,7 @@ mpc52xx_uart_of_remove(struct platform_device *op)
 static int
 mpc52xx_uart_of_suspend(struct platform_device *op, pm_message_t state)
 {
-	struct uart_port *port = (struct uart_port *) dev_get_drvdata(&op->dev);
+	struct uart_port *port = (struct uart_port *) platform_get_drvdata(op);
 
 	if (port)
 		uart_suspend_port(&mpc52xx_uart_driver, port);
@@ -1393,7 +1392,7 @@ mpc52xx_uart_of_suspend(struct platform_device *op, pm_message_t state)
 static int
 mpc52xx_uart_of_resume(struct platform_device *op)
 {
-	struct uart_port *port = (struct uart_port *) dev_get_drvdata(&op->dev);
+	struct uart_port *port = (struct uart_port *) platform_get_drvdata(op);
 
 	if (port)
 		uart_resume_port(&mpc52xx_uart_driver, port);

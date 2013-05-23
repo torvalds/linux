@@ -974,12 +974,11 @@ static int xuartps_probe(struct platform_device *pdev)
 		port->dev = &pdev->dev;
 		port->uartclk = clk_get_rate(clk);
 		port->private_data = clk;
-		dev_set_drvdata(&pdev->dev, port);
+		platform_set_drvdata(pdev, port);
 		rc = uart_add_one_port(&xuartps_uart_driver, port);
 		if (rc) {
 			dev_err(&pdev->dev,
 				"uart_add_one_port() failed; err=%i\n", rc);
-			dev_set_drvdata(&pdev->dev, NULL);
 			return rc;
 		}
 		return 0;
@@ -994,13 +993,12 @@ static int xuartps_probe(struct platform_device *pdev)
  **/
 static int xuartps_remove(struct platform_device *pdev)
 {
-	struct uart_port *port = dev_get_drvdata(&pdev->dev);
+	struct uart_port *port = platform_get_drvdata(pdev);
 	struct clk *clk = port->private_data;
 	int rc;
 
 	/* Remove the xuartps port from the serial core */
 	rc = uart_remove_one_port(&xuartps_uart_driver, port);
-	dev_set_drvdata(&pdev->dev, NULL);
 	port->mapbase = 0;
 	clk_disable_unprepare(clk);
 	return rc;
