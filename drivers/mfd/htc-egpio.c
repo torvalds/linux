@@ -270,7 +270,7 @@ static int __init egpio_probe(struct platform_device *pdev)
 	int               ret;
 
 	/* Initialize ei data structure. */
-	ei = kzalloc(sizeof(*ei), GFP_KERNEL);
+	ei = devm_kzalloc(&pdev->dev, sizeof(*ei), GFP_KERNEL);
 	if (!ei)
 		return -ENOMEM;
 
@@ -306,7 +306,9 @@ static int __init egpio_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ei);
 
 	ei->nchips = pdata->num_chips;
-	ei->chip = kzalloc(sizeof(struct egpio_chip) * ei->nchips, GFP_KERNEL);
+	ei->chip = devm_kzalloc(&pdev->dev,
+				sizeof(struct egpio_chip) * ei->nchips,
+				GFP_KERNEL);
 	if (!ei->chip) {
 		ret = -ENOMEM;
 		goto fail;
@@ -361,7 +363,6 @@ static int __init egpio_probe(struct platform_device *pdev)
 
 fail:
 	printk(KERN_ERR "EGPIO failed to setup\n");
-	kfree(ei);
 	return ret;
 }
 
@@ -380,8 +381,6 @@ static int __exit egpio_remove(struct platform_device *pdev)
 		device_init_wakeup(&pdev->dev, 0);
 	}
 	iounmap(ei->base_addr);
-	kfree(ei->chip);
-	kfree(ei);
 
 	return 0;
 }
