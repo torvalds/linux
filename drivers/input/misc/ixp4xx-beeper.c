@@ -125,7 +125,7 @@ static int ixp4xx_spkr_probe(struct platform_device *dev)
 	return 0;
 
  err_free_irq:
-	free_irq(IRQ_IXP4XX_TIMER2, dev);
+	free_irq(IRQ_IXP4XX_TIMER2, (void *)dev->id);
  err_free_device:
 	input_free_device(input_dev);
 
@@ -144,7 +144,7 @@ static int ixp4xx_spkr_remove(struct platform_device *dev)
 	disable_irq(IRQ_IXP4XX_TIMER2);
 	ixp4xx_spkr_control(pin, 0);
 
-	free_irq(IRQ_IXP4XX_TIMER2, dev);
+	free_irq(IRQ_IXP4XX_TIMER2, (void *)dev->id);
 
 	return 0;
 }
