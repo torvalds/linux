@@ -71,7 +71,8 @@ static int recover_dentry(struct page *ipage, struct inode *inode)
 out:
 	f2fs_msg(inode->i_sb, KERN_NOTICE, "recover_inode and its dentry: "
 			"ino = %x, name = %s, dir = %lx, err = %d",
-			ino_of_node(ipage), raw_inode->i_name, dir->i_ino, err);
+			ino_of_node(ipage), raw_inode->i_name,
+			IS_ERR(dir) ? 0 : dir->i_ino, err);
 	return err;
 }
 
