@@ -48,6 +48,8 @@ obj-$(CONFIG_USB_F_OBEX)	+= usb_f_obex.o
 obj-$(CONFIG_USB_U_ETHER)	+= u_ether.o
 u_rndis-y			:= rndis.o
 obj-$(CONFIG_USB_U_RNDIS)	+= u_rndis.o
+usb_f_ncm-y			:= f_ncm.o
+obj-$(CONFIG_USB_F_NCM)		+= usb_f_ncm.o
 
 #
 # USB gadget drivers

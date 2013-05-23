@@ -511,6 +511,9 @@ config USB_F_SERIAL
 config USB_F_OBEX
 	tristate
 
+config USB_F_NCM
+	tristate
+
 choice
 	tristate "USB Gadget Drivers"
 	default USB_ETH
