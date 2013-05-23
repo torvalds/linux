@@ -286,10 +286,6 @@ static int usbdux_ai_cancel(struct comedi_device *dev,
 
 	/* prevent other CPUs from submitting new commands just now */
 	down(&this_usbduxsub->sem);
-	if (!(this_usbduxsub->probed)) {
-		up(&this_usbduxsub->sem);
-		return -ENODEV;
-	}
 	/* unlink only if the urb really has been submitted */
 	usbdux_ai_stop(this_usbduxsub, this_usbduxsub->ai_cmd_running);
 	up(&this_usbduxsub->sem);
@@ -471,10 +467,6 @@ static int usbdux_ao_cancel(struct comedi_device *dev,
 
 	/* prevent other CPUs from submitting a command just now */
 	down(&this_usbduxsub->sem);
-	if (!(this_usbduxsub->probed)) {
-		up(&this_usbduxsub->sem);
-		return -ENODEV;
-	}
 	/* unlink only if it is really running */
 	usbdux_ao_stop(this_usbduxsub, this_usbduxsub->ao_cmd_running);
 	up(&this_usbduxsub->sem);
