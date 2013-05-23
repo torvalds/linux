@@ -69,7 +69,6 @@ struct mvebu_sw_pci_bridge {
 	u16 vendor;
 	u16 device;
 	u16 command;
-	u16 status;
 	u16 class;
 	u8 interface;
 	u8 revision;
@@ -359,7 +358,6 @@ static void mvebu_sw_pci_bridge_init(struct mvebu_pcie_port *port)
 
 	memset(bridge, 0, sizeof(struct mvebu_sw_pci_bridge));
 
-	bridge->status = PCI_STATUS_CAP_LIST;
 	bridge->class = PCI_CLASS_BRIDGE_PCI;
 	bridge->vendor = PCI_VENDOR_ID_MARVELL;
 	bridge->device = MARVELL_EMULATED_PCI_PCI_BRIDGE_ID;
@@ -386,7 +384,7 @@ static int mvebu_sw_pci_bridge_read(struct mvebu_pcie_port *port,
 		break;
 
 	case PCI_COMMAND:
-		*value = bridge->status << 16 | bridge->command;
+		*value = bridge->command;
 		break;
 
 	case PCI_CLASS_REVISION:
@@ -479,7 +477,6 @@ static int mvebu_sw_pci_bridge_write(struct mvebu_pcie_port *port,
 	switch (where & ~3) {
 	case PCI_COMMAND:
 		bridge->command = value & 0xffff;
-		bridge->status = value >> 16;
 		break;
 
 	case PCI_BASE_ADDRESS_0 ... PCI_BASE_ADDRESS_1:
