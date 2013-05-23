@@ -55,7 +55,8 @@ struct mmci_platform_data mop500_sdi0_data = {
 	.f_max		= 100000000,
 	.capabilities	= MMC_CAP_4_BIT_DATA |
 				MMC_CAP_SD_HIGHSPEED |
-				MMC_CAP_MMC_HIGHSPEED,
+				MMC_CAP_MMC_HIGHSPEED |
+				MMC_CAP_ERASE,
 	.gpio_wp	= -1,
 	.sigdir		= MCI_ST_FBCLKEN |
 				MCI_ST_CMDDIREN |
@@ -146,6 +147,7 @@ struct mmci_platform_data mop500_sdi2_data = {
 	.capabilities	= MMC_CAP_4_BIT_DATA |
 				MMC_CAP_8_BIT_DATA |
 				MMC_CAP_MMC_HIGHSPEED |
+				MMC_CAP_ERASE |
 				MMC_CAP_CMD23,
 	.gpio_cd	= -1,
 	.gpio_wp	= -1,
@@ -185,6 +187,7 @@ struct mmci_platform_data mop500_sdi4_data = {
 	.capabilities	= MMC_CAP_4_BIT_DATA |
 				MMC_CAP_8_BIT_DATA |
 				MMC_CAP_MMC_HIGHSPEED |
+				MMC_CAP_ERASE |
 				MMC_CAP_CMD23,
 	.gpio_cd	= -1,
 	.gpio_wp	= -1,
