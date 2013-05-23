@@ -305,10 +305,16 @@ static struct prod_rev_map_t prod_rev_map[] = {
 	{MPU_SILICON_REV_B4, 115},	/* 20 V  */
 	{MPU_SILICON_REV_B6, 131},	/* 21 B6 (B6/A9)  */
 	{MPU_SILICON_REV_B4, 115},	/* 22 B4 (B7/A10) */
-	{MPU_SILICON_REV_B6, 0},	/* 23 B6 */
-	{MPU_SILICON_REV_B6, 0},	/* 24 |  */
-	{MPU_SILICON_REV_B6, 0},	/* 25 |  */
-	{MPU_SILICON_REV_B6, 131},	/* 26 V  (B6/A11) */
+	{MPU_SILICON_REV_B6, 131},	/* 23 B6 (npp)    */
+	{MPU_SILICON_REV_B6, 131},	/* 24 |  (npp)    */
+	{MPU_SILICON_REV_B6, 131},	/* 25 V  (npp)    */	
+	{MPU_SILICON_REV_B6, 131},	/* 26    (B6/A11) */	
+	{MPU_SILICON_REV_B6, 131},	/* 27    (B6/A11) */
+	{MPU_SILICON_REV_B6, 131},	/* 28    (B6/A11) */
+	{MPU_SILICON_REV_B6, 131},	/* 29    (B6/A11) */
+	{MPU_SILICON_REV_B6, 131},	/* 30    (B6/A11) */
+	{MPU_SILICON_REV_B6, 131},	/* 31    (B6/A11) */
+	{MPU_SILICON_REV_B6, 131},	/* 32    (B6/A11) */
 };
 
 /**
@@ -362,16 +368,17 @@ static int inv_get_silicon_rev_mpu3050(
 		return result;
 	}
 
-	if (index < OLDEST_PROD_REV_SUPPORTED || index >= NUM_OF_PROD_REVS) {
-		mpu_chip_info->silicon_revision = 0;
-		mpu_chip_info->gyro_sens_trim = 0;
-		MPL_LOGE("Unsupported Product Revision Detected : %d\n", index);
-		return INV_ERROR_INVALID_MODULE;
+	if (OLDEST_PROD_REV_SUPPORTED <= index && NUM_OF_PROD_REVS >= index) {
+		mpu_chip_info->silicon_revision = prod_rev_map[index].silicon_rev;
+		mpu_chip_info->gyro_sens_trim = prod_rev_map[index].gyro_trim;
+	}
+	else
+	{
+		mpu_chip_info->silicon_revision = MPU_SILICON_REV_B6;
+		mpu_chip_info->gyro_sens_trim = 131;
 	}
 
 	mpu_chip_info->product_revision = index;
-	mpu_chip_info->silicon_revision = prod_rev_map[index].silicon_rev;
-	mpu_chip_info->gyro_sens_trim = prod_rev_map[index].gyro_trim;
 	if (mpu_chip_info->gyro_sens_trim == 0) {
 		MPL_LOGE("gyro sensitivity trim is 0"
 			 " - unsupported non production part.\n");
