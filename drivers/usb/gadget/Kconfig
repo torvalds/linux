@@ -517,6 +517,9 @@ config USB_F_NCM
 config USB_F_ECM
 	tristate
 
+config USB_F_PHONET
+	tristate
+
 choice
 	tristate "USB Gadget Drivers"
 	default USB_ETH

@@ -40,6 +40,7 @@
  */
 #define USBF_ECM_INCLUDED
 #include "f_ecm.c"
+#define USBF_PHONET_INCLUDED
 #include "f_phonet.c"
 #include "u_ether.h"
 
