@@ -1144,49 +1144,46 @@ static int usbdux_dio_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-static int usbdux_dio_insn_bits(struct comedi_device *dev,
-				struct comedi_subdevice *s,
-				struct comedi_insn *insn,
-				unsigned int *data)
+static int usbduxsigma_dio_insn_bits(struct comedi_device *dev,
+				     struct comedi_subdevice *s,
+				     struct comedi_insn *insn,
+				     unsigned int *data)
 {
-	struct usbduxsigma_private *this_usbduxsub = dev->private;
-	int err;
+	struct usbduxsigma_private *devpriv = dev->private;
+	unsigned int mask = data[0];
+	unsigned int bits = data[1];
+	int ret;
 
-	down(&this_usbduxsub->sem);
+	down(&devpriv->sem);
 
-	/* The insn data is a mask in data[0] and the new data
-	 * in data[1], each channel cooresponding to a bit. */
-	s->state &= ~data[0];
-	s->state |= data[0] & data[1];
-	/* The commands are 8 bits wide */
-	this_usbduxsub->dux_commands[1] = (s->io_bits) & 0x000000FF;
-	this_usbduxsub->dux_commands[4] = (s->state) & 0x000000FF;
-	this_usbduxsub->dux_commands[2] = ((s->io_bits) & 0x0000FF00) >> 8;
-	this_usbduxsub->dux_commands[5] = ((s->state) & 0x0000FF00) >> 8;
-	this_usbduxsub->dux_commands[3] = ((s->io_bits) & 0x00FF0000) >> 16;
-	this_usbduxsub->dux_commands[6] = ((s->state) & 0x00FF0000) >> 16;
+	s->state &= ~mask;
+	s->state |= (bits & mask);
 
-	/* This command also tells the firmware to return */
-	/* the digital input lines */
-	err = send_dux_commands(dev, SENDDIOBITSCOMMAND);
-	if (err < 0) {
-		up(&this_usbduxsub->sem);
-		return err;
-	}
-	err = receive_dux_commands(dev, SENDDIOBITSCOMMAND);
-	if (err < 0) {
-		up(&this_usbduxsub->sem);
-		return err;
-	}
+	devpriv->dux_commands[1] = s->io_bits & 0xff;
+	devpriv->dux_commands[4] = s->state & 0xff;
+	devpriv->dux_commands[2] = (s->io_bits >> 8) & 0xff;
+	devpriv->dux_commands[5] = (s->state >> 8) & 0xff;
+	devpriv->dux_commands[3] = (s->io_bits >> 16) & 0xff;
+	devpriv->dux_commands[6] = (s->state >> 16) & 0xff;
 
-	data[1] = (((unsigned int)(this_usbduxsub->insnBuffer[1]))&0xff) |
-		((((unsigned int)(this_usbduxsub->insnBuffer[2]))&0xff) << 8) |
-		((((unsigned int)(this_usbduxsub->insnBuffer[3]))&0xff) << 16);
+	ret = send_dux_commands(dev, SENDDIOBITSCOMMAND);
+	if (ret < 0)
+		goto done;
+	ret = receive_dux_commands(dev, SENDDIOBITSCOMMAND);
+	if (ret < 0)
+		goto done;
 
-	s->state = data[1];
+	s->state = devpriv->insnBuffer[1] |
+		   (devpriv->insnBuffer[2] << 8) |
+		   (devpriv->insnBuffer[3] << 16);
 
-	up(&this_usbduxsub->sem);
-	return insn->n;
+	data[1] = s->state;
+	ret = insn->n;
+
+done:
+	up(&devpriv->sem);
+
+	return ret;
 }
 
 static void usbdux_pwm_stop(struct usbduxsigma_private *devpriv, int do_unlink)
@@ -1518,7 +1515,7 @@ static int usbduxsigma_attach_common(struct comedi_device *dev)
 	s->n_chan	= 24;
 	s->maxdata	= 1;
 	s->range_table	= &range_digital;
-	s->insn_bits	= usbdux_dio_insn_bits;
+	s->insn_bits	= usbduxsigma_dio_insn_bits;
 	s->insn_config	= usbdux_dio_insn_config;
 
 	if (devpriv->high_speed) {
