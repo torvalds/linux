@@ -461,14 +461,6 @@ format. Crash is available on Dave Anderson's site at the following URL:
    http://people.redhat.com/~anderson/
 
 
-To Do
-=====
-
-1) Provide relocatable kernels for all architectures to help in maintaining
-   multiple kernels for crash_dump, and the same kernel as the system kernel
-   can be used to capture the dump.
-
-
 Contact
 =======
 
