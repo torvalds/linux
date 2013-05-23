@@ -1912,14 +1912,11 @@ static void tidy_up(struct usbduxsub *usbduxsub_tmp)
 	usbduxsub_tmp->probed = 0;
 
 	if (usbduxsub_tmp->urbIn) {
-		if (usbduxsub_tmp->ai_cmd_running) {
-			usbduxsub_tmp->ai_cmd_running = 0;
-			usbduxsub_unlink_InURBs(usbduxsub_tmp);
-		}
+		/* force unlink all urbs */
+		usbdux_ai_stop(usbduxsub_tmp, 1);
 		for (i = 0; i < usbduxsub_tmp->numOfInBuffers; i++) {
 			kfree(usbduxsub_tmp->urbIn[i]->transfer_buffer);
 			usbduxsub_tmp->urbIn[i]->transfer_buffer = NULL;
-			usb_kill_urb(usbduxsub_tmp->urbIn[i]);
 			usb_free_urb(usbduxsub_tmp->urbIn[i]);
 			usbduxsub_tmp->urbIn[i] = NULL;
 		}
@@ -1968,7 +1965,6 @@ static void tidy_up(struct usbduxsub *usbduxsub_tmp)
 	usbduxsub_tmp->dac_commands = NULL;
 	kfree(usbduxsub_tmp->dux_commands);
 	usbduxsub_tmp->dux_commands = NULL;
-	usbduxsub_tmp->ai_cmd_running = 0;
 	usbduxsub_tmp->ao_cmd_running = 0;
 	usbduxsub_tmp->pwm_cmd_running = 0;
 }
