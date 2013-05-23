@@ -244,7 +244,7 @@ static void usbduxsigma_ai_urb_complete(struct urb *urb)
 		 * we don't copy the data into the transfer buffer
 		 * and recycle the last data byte
 		 */
-		dev_dbg(dev->class_dev,"CRC error in ISO IN stream\n");
+		dev_dbg(dev->class_dev, "CRC error in ISO IN stream\n");
 
 		break;
 
@@ -679,7 +679,7 @@ static int usbduxsigma_ai_inttrig(struct comedi_device *dev,
 				  struct comedi_subdevice *s,
 				  unsigned int trignum)
 {
-	struct usbduxsigma_private *devpriv= dev->private;
+	struct usbduxsigma_private *devpriv = dev->private;
 	int ret;
 
 	if (trignum != 0)
