@@ -131,6 +131,7 @@ static acpi_status acpi_bus_offline_companions(acpi_handle handle, u32 lvl,
 {
 	struct acpi_device *device = NULL;
 	struct acpi_device_physical_node *pn;
+	bool second_pass = (bool)data;
 	acpi_status status = AE_OK;
 
 	if (acpi_bus_get_device(handle, &device))
@@ -141,15 +142,26 @@ static acpi_status acpi_bus_offline_companions(acpi_handle handle, u32 lvl,
 	list_for_each_entry(pn, &device->physical_node_list, node) {
 		int ret;
 
+		if (second_pass) {
+			/* Skip devices offlined by the first pass. */
+			if (pn->put_online)
+				continue;
+		} else {
+			pn->put_online = false;
+		}
 		ret = device_offline(pn->dev);
 		if (acpi_force_hot_remove)
 			continue;
 
-		if (ret < 0) {
-			status = AE_ERROR;
-			break;
+		if (ret >= 0) {
+			pn->put_online = !ret;
+		} else {
+			*ret_p = pn->dev;
+			if (second_pass) {
+				status = AE_ERROR;
+				break;
+			}
 		}
-		pn->put_online = !ret;
 	}
 
 	mutex_unlock(&device->physical_node_lock);
@@ -185,6 +197,7 @@ static int acpi_scan_hot_remove(struct acpi_device *device)
 	acpi_handle not_used;
 	struct acpi_object_list arg_list;
 	union acpi_object arg;
+	struct device *errdev;
 	acpi_status status;
 	unsigned long long sta;
 
@@ -197,22 +210,42 @@ static int acpi_scan_hot_remove(struct acpi_device *device)
 
 	lock_device_hotplug();
 
-	status = acpi_walk_namespace(ACPI_TYPE_ANY, handle, ACPI_UINT32_MAX,
-				     NULL, acpi_bus_offline_companions, NULL,
-				     NULL);
-	if (ACPI_SUCCESS(status) || acpi_force_hot_remove)
-		status = acpi_bus_offline_companions(handle, 0, NULL, NULL);
-
-	if (ACPI_FAILURE(status) && !acpi_force_hot_remove) {
-		acpi_bus_online_companions(handle, 0, NULL, NULL);
+	/*
+	 * Carry out two passes here and ignore errors in the first pass,
+	 * because if the devices in question are memory blocks and
+	 * CONFIG_MEMCG is set, one of the blocks may hold data structures
+	 * that the other blocks depend on, but it is not known in advance which
+	 * block holds them.
+	 *
+	 * If the first pass is successful, the second one isn't needed, though.
+	 */
+	errdev = NULL;
+	acpi_walk_namespace(ACPI_TYPE_ANY, handle, ACPI_UINT32_MAX,
+			    NULL, acpi_bus_offline_companions,
+			    (void *)false, (void **)&errdev);
+	acpi_bus_offline_companions(handle, 0, (void *)false, (void **)&errdev);
+	if (errdev) {
+		errdev = NULL;
 		acpi_walk_namespace(ACPI_TYPE_ANY, handle, ACPI_UINT32_MAX,
-				    acpi_bus_online_companions, NULL, NULL,
-				    NULL);
+				    NULL, acpi_bus_offline_companions,
+				    (void *)true , (void **)&errdev);
+		if (!errdev || acpi_force_hot_remove)
+			acpi_bus_offline_companions(handle, 0, (void *)true,
+						    (void **)&errdev);
 
-		unlock_device_hotplug();
+		if (errdev && !acpi_force_hot_remove) {
+			dev_warn(errdev, "Offline failed.\n");
+			acpi_bus_online_companions(handle, 0, NULL, NULL);
+			acpi_walk_namespace(ACPI_TYPE_ANY, handle,
+					    ACPI_UINT32_MAX,
+					    acpi_bus_online_companions, NULL,
+					    NULL, NULL);
 
-		put_device(&device->dev);
-		return -EBUSY;
+			unlock_device_hotplug();
+
+			put_device(&device->dev);
+			return -EBUSY;
+		}
 	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
