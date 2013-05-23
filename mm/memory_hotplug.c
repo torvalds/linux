@@ -1680,7 +1680,7 @@ int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
 static int offline_memory_block_cb(struct memory_block *mem, void *arg)
 {
 	int *ret = arg;
-	int error = offline_memory_block(mem);
+	int error = device_offline(&mem->dev);
 
 	if (error != 0 && *ret == 0)
 		*ret = error;

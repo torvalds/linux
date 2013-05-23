@@ -728,27 +728,6 @@ int unregister_memory_section(struct mem_section *section)
 }
 #endif /* CONFIG_MEMORY_HOTREMOVE */
 
-/*
- * offline one memory block. If the memory block has been offlined, do nothing.
- *
- * Call under device_hotplug_lock.
- */
-int offline_memory_block(struct memory_block *mem)
-{
-	int ret = 0;
-
-	mutex_lock(&mem->state_mutex);
-	if (mem->state != MEM_OFFLINE) {
-		ret = __memory_block_change_state_uevent(mem, MEM_OFFLINE,
-							 MEM_ONLINE, -1);
-		if (!ret)
-			mem->dev.offline = true;
-	}
-	mutex_unlock(&mem->state_mutex);
-
-	return ret;
-}
-
 /* return true if the memory block is offlined, otherwise, return false */
 bool is_memblock_offlined(struct memory_block *mem)
 {
