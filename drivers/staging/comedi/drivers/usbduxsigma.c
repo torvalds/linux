@@ -64,16 +64,6 @@ Status: testing
 /* internal addresses of the 8051 processor */
 #define USBDUXSUB_CPUCS 0xE600
 
-/*
- * the minor device number, major is 180 only for debugging purposes and to
- * upload special firmware (programming the eeprom etc) which is not
- * compatible with the comedi framwork
- */
-#define USBDUXSUB_MINOR 32
-
-/* max lenghth of the transfer-buffer for software upload */
-#define TB_LEN 0x2000
-
 /* USB endpoints */
 #define USBDUXSIGMA_CMD_OUT_EP		1	/* command output */
 #define USBDUXSIGMA_ISO_OUT_EP		2	/* analog output ISO/IRQ */
