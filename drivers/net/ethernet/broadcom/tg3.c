@@ -11244,7 +11244,7 @@ static int tg3_start(struct tg3 *tp, bool reset_phy, bool test_irq,
 	 */
 	err = tg3_alloc_consistent(tp);
 	if (err)
-		goto err_out1;
+		goto out_ints_fini;
 
 	tg3_napi_init(tp);
 
@@ -11258,7 +11258,7 @@ static int tg3_start(struct tg3 *tp, bool reset_phy, bool test_irq,
 				tnapi = &tp->napi[i];
 				free_irq(tnapi->irq_vec, tnapi);
 			}
-			goto err_out2;
+			goto out_napi_fini;
 		}
 	}
 
@@ -11276,7 +11276,7 @@ static int tg3_start(struct tg3 *tp, bool reset_phy, bool test_irq,
 	tg3_full_unlock(tp);
 
 	if (err)
-		goto err_out3;
+		goto out_free_irq;
 
 	if (test_irq && tg3_flag(tp, USING_MSI)) {
 		err = tg3_test_msi(tp);
@@ -11287,7 +11287,7 @@ static int tg3_start(struct tg3 *tp, bool reset_phy, bool test_irq,
 			tg3_free_rings(tp);
 			tg3_full_unlock(tp);
 
-			goto err_out2;
+			goto out_napi_fini;
 		}
 
 		if (!tg3_flag(tp, 57765_PLUS) && tg3_flag(tp, USING_MSI)) {
@@ -11327,18 +11327,18 @@ static int tg3_start(struct tg3 *tp, bool reset_phy, bool test_irq,
 
 	return 0;
 
-err_out3:
+out_free_irq:
 	for (i = tp->irq_cnt - 1; i >= 0; i--) {
 		struct tg3_napi *tnapi = &tp->napi[i];
 		free_irq(tnapi->irq_vec, tnapi);
 	}
 
-err_out2:
+out_napi_fini:
 	tg3_napi_disable(tp);
 	tg3_napi_fini(tp);
 	tg3_free_consistent(tp);
 
-err_out1:
+out_ints_fini:
 	tg3_ints_fini(tp);
 
 	return err;
