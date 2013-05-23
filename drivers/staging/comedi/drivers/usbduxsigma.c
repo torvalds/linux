@@ -157,12 +157,10 @@ Status: testing
 #define USBDUXSIGMA_PWM_ON_CMD		7
 #define USBDUXSIGMA_PWM_OFF_CMD		8
 
-/**************************************************/
-/* comedi constants */
-static const struct comedi_lrange range_usbdux_ai_range = { 1, {
-								BIP_RANGE
-								(2.65/2.0)
-								}
+static const struct comedi_lrange usbduxsigma_ai_range = {
+	1, {
+		BIP_RANGE(2.65 / 2.0)
+	}
 };
 
 struct usbduxsigma_private {
@@ -1433,7 +1431,7 @@ static int usbduxsigma_attach_common(struct comedi_device *dev)
 	s->n_chan	= NUMCHANNELS;
 	s->len_chanlist	= NUMCHANNELS;
 	s->maxdata	= 0x00ffffff;
-	s->range_table	= &range_usbdux_ai_range;
+	s->range_table	= &usbduxsigma_ai_range;
 	s->insn_read	= usbduxsigma_ai_insn_read;
 	s->do_cmdtest	= usbduxsigma_ai_cmdtest;
 	s->do_cmd	= usbduxsigma_ai_cmd;
