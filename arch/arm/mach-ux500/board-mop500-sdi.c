@@ -143,8 +143,10 @@ static struct stedma40_chan_cfg mop500_sdi2_dma_cfg_tx = {
 struct mmci_platform_data mop500_sdi2_data = {
 	.ocr_mask	= MMC_VDD_165_195,
 	.f_max		= 100000000,
-	.capabilities	= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA |
-			  MMC_CAP_MMC_HIGHSPEED,
+	.capabilities	= MMC_CAP_4_BIT_DATA |
+				MMC_CAP_8_BIT_DATA |
+				MMC_CAP_MMC_HIGHSPEED |
+				MMC_CAP_CMD23,
 	.gpio_cd	= -1,
 	.gpio_wp	= -1,
 #ifdef CONFIG_STE_DMA40
@@ -180,8 +182,10 @@ static struct stedma40_chan_cfg mop500_sdi4_dma_cfg_tx = {
 
 struct mmci_platform_data mop500_sdi4_data = {
 	.f_max		= 100000000,
-	.capabilities	= MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA |
-			  MMC_CAP_MMC_HIGHSPEED,
+	.capabilities	= MMC_CAP_4_BIT_DATA |
+				MMC_CAP_8_BIT_DATA |
+				MMC_CAP_MMC_HIGHSPEED |
+				MMC_CAP_CMD23,
 	.gpio_cd	= -1,
 	.gpio_wp	= -1,
 #ifdef CONFIG_STE_DMA40
