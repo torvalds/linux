@@ -1296,7 +1296,7 @@ static int data_of_probe(struct platform_device *op)
 		goto out_return;
 	}
 
-	dev_set_drvdata(&op->dev, priv);
+	platform_set_drvdata(op, priv);
 	priv->dev = &op->dev;
 	kref_init(&priv->ref);
 	mutex_init(&priv->mutex);
@@ -1400,7 +1400,7 @@ out_return:
 
 static int data_of_remove(struct platform_device *op)
 {
-	struct fpga_device *priv = dev_get_drvdata(&op->dev);
+	struct fpga_device *priv = platform_get_drvdata(op);
 	struct device *this_device = priv->miscdev.this_device;
 
 	/* remove all sysfs files, now the device cannot be re-enabled */

@@ -919,7 +919,7 @@ static bool dma_filter(struct dma_chan *chan, void *data)
 
 static int fpga_of_remove(struct platform_device *op)
 {
-	struct fpga_dev *priv = dev_get_drvdata(&op->dev);
+	struct fpga_dev *priv = platform_get_drvdata(op);
 	struct device *this_device = priv->miscdev.this_device;
 
 	sysfs_remove_group(&this_device->kobj, &fpga_attr_group);
@@ -969,7 +969,7 @@ static int fpga_of_probe(struct platform_device *op)
 
 	kref_init(&priv->ref);
 
-	dev_set_drvdata(&op->dev, priv);
+	platform_set_drvdata(op, priv);
 	priv->dev = &op->dev;
 	mutex_init(&priv->lock);
 	init_completion(&priv->completion);

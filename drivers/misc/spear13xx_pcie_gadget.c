@@ -776,7 +776,7 @@ static int spear_pcie_gadget_probe(struct platform_device *pdev)
 		goto err_iounmap_app;
 	}
 
-	dev_set_drvdata(&pdev->dev, target);
+	platform_set_drvdata(pdev, target);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
@@ -863,7 +863,7 @@ static int spear_pcie_gadget_remove(struct platform_device *pdev)
 	res0 = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	res1 = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	irq = platform_get_irq(pdev, 0);
-	target = dev_get_drvdata(&pdev->dev);
+	target = platform_get_drvdata(pdev);
 	config = &target->config;
 
 	free_irq(irq, NULL);

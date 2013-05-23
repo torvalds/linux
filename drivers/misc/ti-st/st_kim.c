@@ -680,7 +680,7 @@ void st_kim_ref(struct st_data_s **core_data, int id)
 		*core_data = NULL;
 		return;
 	}
-	kim_gdata = dev_get_drvdata(&pdev->dev);
+	kim_gdata = platform_get_drvdata(pdev);
 	*core_data = kim_gdata->core_data;
 }
 
@@ -735,7 +735,7 @@ static int kim_probe(struct platform_device *pdev)
 		pr_err("no mem to allocate");
 		return -ENOMEM;
 	}
-	dev_set_drvdata(&pdev->dev, kim_gdata);
+	platform_set_drvdata(pdev, kim_gdata);
 
 	err = st_core_init(&kim_gdata->core_data);
 	if (err != 0) {
@@ -810,7 +810,7 @@ static int kim_remove(struct platform_device *pdev)
 	struct ti_st_plat_data	*pdata = pdev->dev.platform_data;
 	struct kim_data_s	*kim_gdata;
 
-	kim_gdata = dev_get_drvdata(&pdev->dev);
+	kim_gdata = platform_get_drvdata(pdev);
 
 	/* Free the Bluetooth/FM/GPIO
 	 * nShutdown gpio from the system
