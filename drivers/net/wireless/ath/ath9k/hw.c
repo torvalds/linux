@@ -1306,9 +1306,13 @@ static bool ath9k_hw_set_reset(struct ath_hw *ah, int type)
 			AR_RTC_RC_COLD_RESET | AR_RTC_RC_WARM_RESET;
 	} else {
 		tmpReg = REG_READ(ah, AR_INTR_SYNC_CAUSE);
-		if (tmpReg &
-		    (AR_INTR_SYNC_LOCAL_TIMEOUT |
-		     AR_INTR_SYNC_RADM_CPL_TIMEOUT)) {
+		if (AR_SREV_9340(ah))
+			tmpReg &= AR9340_INTR_SYNC_LOCAL_TIMEOUT;
+		else
+			tmpReg &= AR_INTR_SYNC_LOCAL_TIMEOUT |
+				  AR_INTR_SYNC_RADM_CPL_TIMEOUT;
+
+		if (tmpReg) {
 			u32 val;
 			REG_WRITE(ah, AR_INTR_SYNC_ENABLE, 0);
 
