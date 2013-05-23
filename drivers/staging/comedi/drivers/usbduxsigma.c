@@ -502,16 +502,13 @@ static int usbduxsigma_submit_urbs(struct comedi_device *dev,
 	return 0;
 }
 
-static int chanToInterval(int nChannels)
+static int usbduxsigma_chans_to_interval(int num_chan)
 {
-	if (nChannels <= 2)
-		/* 4kHz */
-		return 2;
-	if (nChannels <= 8)
-		/* 2kHz */
-		return 4;
-	/* 1kHz */
-	return 8;
+	if (num_chan <= 2)
+		return 2;	/* 4kHz */
+	if (num_chan <= 8)
+		return 4;	/* 2kHz */
+	return 8;		/* 1kHz */
 }
 
 static int usbduxsigma_ai_cmdtest(struct comedi_device *dev,
@@ -520,7 +517,7 @@ static int usbduxsigma_ai_cmdtest(struct comedi_device *dev,
 {
 	struct usbduxsigma_private *devpriv = dev->private;
 	int high_speed = devpriv->high_speed;
-	int interval = chanToInterval(cmd->chanlist_len);
+	int interval = usbduxsigma_chans_to_interval(cmd->chanlist_len);
 	int err = 0;
 
 	/* Step 1 : check if triggers are trivially valid */
