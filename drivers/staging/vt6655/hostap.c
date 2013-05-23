@@ -104,6 +104,8 @@ static int hostap_enable_hostapd(PSDevice pDevice, int rtnl_locked)
 	if (ret) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%s: register_netdevice(AP) failed!\n",
 			dev->name);
+		free_netdev(pDevice->apdev);
+		pDevice->apdev = NULL;
 		return -1;
 	}
 
