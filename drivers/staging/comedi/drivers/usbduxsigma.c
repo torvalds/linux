@@ -145,9 +145,6 @@ Status: testing
 /* must have more buffers due to buggy USB ctr */
 #define NUMOFOUTBUFFERSHIGH    10
 
-/* Total number of usbdux devices */
-#define NUMUSBDUX             16
-
 /* Analogue in subdevice */
 #define SUBDEV_AD             0
 
@@ -172,10 +169,6 @@ static const struct comedi_lrange range_usbdux_ai_range = { 1, {
 };
 
 struct usbduxsigma_private {
-	/* attached? */
-	int attached;
-	/* is it associated with a subdevice? */
-	int probed;
 	/* pointer to the usb-device */
 	struct usb_device *usbdev;
 	/* actual number of in-buffers */
@@ -199,8 +192,6 @@ struct usbduxsigma_private {
 	int8_t *insnBuffer;
 	/* output buffer for single DA outputs */
 	int16_t *outBuffer;
-	/* interface number */
-	int ifnum;
 	/* interface structure in 2.6 */
 	struct usb_interface *interface;
 	/* comedi device for the interrupt context */
@@ -232,17 +223,6 @@ struct usbduxsigma_private {
 	uint8_t *dux_commands;
 	struct semaphore sem;
 };
-
-/*
- * The pointer to the private usb-data of the driver is also the private data
- * for the comedi-device.  This has to be global as the usb subsystem needs
- * global variables. The other reason is that this structure must be there
- * _before_ any comedi command is issued. The usb subsystem must be initialised
- * before comedi can access it.
- */
-static struct usbduxsigma_private usbduxsub[NUMUSBDUX];
-
-static DEFINE_SEMAPHORE(start_stop_sem);
 
 static void usbdux_ai_stop(struct usbduxsigma_private *devpriv, int do_unlink)
 {
@@ -1737,8 +1717,6 @@ static void tidy_up(struct usbduxsigma_private *usbduxsub_tmp)
 	if (usbduxsub_tmp->interface)
 		usb_set_intfdata(usbduxsub_tmp->interface, NULL);
 
-	usbduxsub_tmp->probed = 0;
-
 	if (usbduxsub_tmp->urbIn) {
 		/* force unlink all urbs */
 		usbdux_ai_stop(usbduxsub_tmp, 1);
@@ -1789,9 +1767,9 @@ static void tidy_up(struct usbduxsigma_private *usbduxsub_tmp)
 	usbduxsub_tmp->dux_commands = NULL;
 }
 
-static int usbduxsigma_attach_common(struct comedi_device *dev,
-				     struct usbduxsigma_private *uds)
+static int usbduxsigma_attach_common(struct comedi_device *dev)
 {
+	struct usbduxsigma_private *uds = dev->private;
 	int ret;
 	struct comedi_subdevice *s;
 	int n_subdevs;
@@ -1811,8 +1789,6 @@ static int usbduxsigma_attach_common(struct comedi_device *dev,
 		up(&uds->sem);
 		return ret;
 	}
-	/* private structure is also simply the usb-structure */
-	dev->private = uds;
 	/* the first subdevice is the A/D converter */
 	s = &dev->subdevices[SUBDEV_AD];
 	/* the URBs get the comedi subdevice */
@@ -1890,8 +1866,6 @@ static int usbduxsigma_attach_common(struct comedi_device *dev,
 		s->insn_config = usbdux_pwm_config;
 		usbdux_pwm_period(dev, s, PWM_DEFAULT_PERIOD);
 	}
-	/* finally decide that it's attached */
-	uds->attached = 1;
 	up(&uds->sem);
 	offset = usbdux_getstatusinfo(dev, 0);
 	if (offset < 0)
@@ -1991,99 +1965,26 @@ static int usbduxsigma_alloc_usb_buffers(struct usbduxsigma_private *devpriv)
 static int usbduxsigma_auto_attach(struct comedi_device *dev,
 				   unsigned long context_unused)
 {
-	struct usb_interface *uinterf = comedi_to_usb_interface(dev);
-	struct usbduxsigma_private *uds = usb_get_intfdata(uinterf);
-	struct usb_device *usb = uds->usbdev;
+	struct usb_interface *intf = comedi_to_usb_interface(dev);
+	struct usb_device *usb = comedi_to_usb_dev(dev);
+	struct usbduxsigma_private *devpriv;
 	int ret;
 
-	dev->private = uds;	/* This is temporary... */
-	ret = comedi_load_firmware(dev, &usb->dev, FIRMWARE,
-				   usbduxsigma_firmware_upload, 0);
-	if (ret < 0) {
-		dev->private = NULL;
-		return ret;
-	}
-
-	dev->private = NULL;
-
-	down(&start_stop_sem);
-	if (!uds) {
-		dev_err(dev->class_dev,
-			"usbduxsigma: error: auto_attach failed, not connected\n");
-		ret = -ENODEV;
-	} else if (uds->attached) {
-		dev_err(dev->class_dev,
-		       "usbduxsigma: error: auto_attach failed, already attached\n");
-		ret = -ENODEV;
-	} else
-		ret = usbduxsigma_attach_common(dev, uds);
-	up(&start_stop_sem);
-	return ret;
-}
-
-static void usbduxsigma_detach(struct comedi_device *dev)
-{
-	struct usbduxsigma_private *devpriv = dev->private;
-
+	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
-		return;
-
-	/* stop any running commands */
-	usbdux_ai_stop(devpriv, devpriv->ai_cmd_running);
-	usbdux_ao_stop(devpriv, devpriv->ao_cmd_running);
-
-	down(&start_stop_sem);
-	down(&devpriv->sem);
-	dev->private = NULL;
-	devpriv->attached = 0;
-	devpriv->comedidev = NULL;
-	tidy_up(devpriv);
-	up(&devpriv->sem);
-	up(&start_stop_sem);
-}
-
-static struct comedi_driver usbduxsigma_driver = {
-	.driver_name	= "usbduxsigma",
-	.module		= THIS_MODULE,
-	.auto_attach	= usbduxsigma_auto_attach,
-	.detach		= usbduxsigma_detach,
-};
-
-static int usbduxsigma_usb_probe(struct usb_interface *intf,
-				 const struct usb_device_id *id)
-{
-	struct usb_device *usb = interface_to_usbdev(intf);
-	struct device *dev = &intf->dev;
-	struct usbduxsigma_private *devpriv = NULL;
-	int ret;
-	int i;
-
-	down(&start_stop_sem);
-	for (i = 0; i < NUMUSBDUX; i++) {
-		if (!usbduxsub[i].probed) {
-			devpriv = &usbduxsub[i];
-			break;
-		}
-	}
-
-	if (!devpriv) {
-		dev_err(dev, "Too many usbduxsigma-devices connected.\n");
-		up(&start_stop_sem);
-		return -EMFILE;
-	}
+		return -ENOMEM;
+	dev->private = devpriv;
 
 	sema_init(&devpriv->sem, 1);
 	devpriv->usbdev = usb;
 	devpriv->interface = intf;
-	devpriv->ifnum = intf->altsetting->desc.bInterfaceNumber;
 	usb_set_intfdata(intf, devpriv);
 
-	ret = usb_set_interface(usb, devpriv->ifnum, 3);
+	ret = usb_set_interface(usb,
+				intf->altsetting->desc.bInterfaceNumber, 3);
 	if (ret < 0) {
-		dev_err(dev,
+		dev_err(dev->class_dev,
 			"could not set alternate setting 3 in high speed\n");
-		tidy_up(devpriv);
-		up(&start_stop_sem);
 		return -ENODEV;
 	}
 
@@ -2100,18 +2001,44 @@ static int usbduxsigma_usb_probe(struct usb_interface *intf,
 	ret = usbduxsigma_alloc_usb_buffers(devpriv);
 	if (ret) {
 		tidy_up(devpriv);
-		up(&start_stop_sem);
 		return ret;
 	}
 
-	devpriv->ai_cmd_running = 0;
-	devpriv->ao_cmd_running = 0;
-	devpriv->pwm_cmd_running = 0;
+	ret = comedi_load_firmware(dev, &usb->dev, FIRMWARE,
+				   usbduxsigma_firmware_upload, 0);
+	if (ret)
+		return ret;
 
-	/* we've reached the bottom of the function */
-	devpriv->probed = 1;
-	up(&start_stop_sem);
+	return usbduxsigma_attach_common(dev);
+}
 
+static void usbduxsigma_detach(struct comedi_device *dev)
+{
+	struct usbduxsigma_private *devpriv = dev->private;
+
+	if (!devpriv)
+		return;
+
+	/* stop any running commands */
+	usbdux_ai_stop(devpriv, devpriv->ai_cmd_running);
+	usbdux_ao_stop(devpriv, devpriv->ao_cmd_running);
+
+	down(&devpriv->sem);
+	devpriv->comedidev = NULL;
+	tidy_up(devpriv);
+	up(&devpriv->sem);
+}
+
+static struct comedi_driver usbduxsigma_driver = {
+	.driver_name	= "usbduxsigma",
+	.module		= THIS_MODULE,
+	.auto_attach	= usbduxsigma_auto_attach,
+	.detach		= usbduxsigma_detach,
+};
+
+static int usbduxsigma_usb_probe(struct usb_interface *intf,
+				 const struct usb_device_id *id)
+{
 	return comedi_usb_auto_config(intf, &usbduxsigma_driver, 0);;
 }
 
