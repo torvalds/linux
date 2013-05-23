@@ -252,49 +252,29 @@ static struct usbduxsub usbduxsub[NUMUSBDUX];
 
 static DEFINE_SEMAPHORE(start_stop_sem);
 
-/*
- * Stops the data acquision
- * It should be safe to call this function from any context
- */
-static int usbduxsub_unlink_InURBs(struct usbduxsub *usbduxsub_tmp)
+static void usbduxsub_unlink_InURBs(struct usbduxsub *devpriv)
 {
-	int i = 0;
-	int err = 0;
+	int i;
 
-	if (usbduxsub_tmp && usbduxsub_tmp->urbIn) {
-		for (i = 0; i < usbduxsub_tmp->numOfInBuffers; i++) {
-			if (usbduxsub_tmp->urbIn[i]) {
-				/* We wait here until all transfers have been
-				 * cancelled. */
-				usb_kill_urb(usbduxsub_tmp->urbIn[i]);
-			}
-		}
+	for (i = 0; i < devpriv->numOfInBuffers; i++) {
+		if (devpriv->urbIn[i])
+			usb_kill_urb(devpriv->urbIn[i]);
 	}
-	return err;
 }
 
-/*
- * This will stop a running acquisition operation
- * Is called from within this driver from both the
- * interrupt context and from comedi
- */
 static int usbdux_ai_stop(struct usbduxsub *this_usbduxsub, int do_unlink)
 {
-	int ret = 0;
-
 	if (!this_usbduxsub) {
 		pr_err("comedi?: usbdux_ai_stop: this_usbduxsub=NULL!\n");
 		return -EFAULT;
 	}
 
-	if (do_unlink) {
-		/* stop aquistion */
-		ret = usbduxsub_unlink_InURBs(this_usbduxsub);
-	}
+	if (do_unlink)
+		usbduxsub_unlink_InURBs(this_usbduxsub);
 
 	this_usbduxsub->ai_cmd_running = 0;
 
-	return ret;
+	return 0;
 }
 
 /*
@@ -469,36 +449,27 @@ static void usbduxsub_ai_IsocIrq(struct urb *urb)
 	comedi_event(this_usbduxsub->comedidev, s);
 }
 
-static int usbduxsub_unlink_OutURBs(struct usbduxsub *usbduxsub_tmp)
+static void usbduxsub_unlink_OutURBs(struct usbduxsub *devpriv)
 {
-	int i = 0;
-	int err = 0;
+	int i;
 
-	if (usbduxsub_tmp && usbduxsub_tmp->urbOut) {
-		for (i = 0; i < usbduxsub_tmp->numOfOutBuffers; i++) {
-			if (usbduxsub_tmp->urbOut[i])
-				usb_kill_urb(usbduxsub_tmp->urbOut[i]);
-		}
+	for (i = 0; i < devpriv->numOfOutBuffers; i++) {
+		if (devpriv->urbOut[i])
+			usb_kill_urb(devpriv->urbOut[i]);
 	}
-	return err;
 }
 
-/* This will cancel a running acquisition operation
- * in any context.
- */
 static int usbdux_ao_stop(struct usbduxsub *this_usbduxsub, int do_unlink)
 {
-	int ret = 0;
-
 	if (!this_usbduxsub)
 		return -EFAULT;
 
 	if (do_unlink)
-		ret = usbduxsub_unlink_OutURBs(this_usbduxsub);
+		usbduxsub_unlink_OutURBs(this_usbduxsub);
 
 	this_usbduxsub->ao_cmd_running = 0;
 
-	return ret;
+	return 0;
 }
 
 /* force unlink, is called by comedi */
@@ -1662,36 +1633,23 @@ static int usbdux_dio_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-/***********************************/
-/* PWM */
-
-static int usbduxsub_unlink_PwmURBs(struct usbduxsub *usbduxsub_tmp)
+static void usbduxsub_unlink_PwmURBs(struct usbduxsub *devpriv)
 {
-	int err = 0;
-
-	if (usbduxsub_tmp && usbduxsub_tmp->urbPwm) {
-		if (usbduxsub_tmp->urbPwm)
-			usb_kill_urb(usbduxsub_tmp->urbPwm);
-	}
-	return err;
+	if (devpriv->urbPwm)
+		usb_kill_urb(devpriv->urbPwm);
 }
 
-/* This cancels a running acquisition operation
- * in any context.
- */
 static int usbdux_pwm_stop(struct usbduxsub *this_usbduxsub, int do_unlink)
 {
-	int ret = 0;
-
 	if (!this_usbduxsub)
 		return -EFAULT;
 
 	if (do_unlink)
-		ret = usbduxsub_unlink_PwmURBs(this_usbduxsub);
+		usbduxsub_unlink_PwmURBs(this_usbduxsub);
 
 	this_usbduxsub->pwm_cmd_running = 0;
 
-	return ret;
+	return 0;
 }
 
 /* force unlink - is called by comedi */
