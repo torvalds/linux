@@ -1139,6 +1139,18 @@ mclk_clk_register(struct device *dev, const char *name,
 	return clk;
 }
 
+static void __init of_u300_syscon_mclk_init(struct device_node *np)
+{
+	struct clk *clk = ERR_PTR(-EINVAL);
+	const char *clk_name = np->name;
+	const char *parent_name;
+
+	parent_name = of_clk_get_parent_name(np, 0);
+	clk = mclk_clk_register(NULL, clk_name, parent_name, false);
+	if (!IS_ERR(clk))
+		of_clk_add_provider(np, of_clk_src_simple_get, clk);
+}
+
 static const __initconst struct of_device_id u300_clk_match[] = {
 	{
 		.compatible = "fixed-clock",
@@ -1152,12 +1164,16 @@ static const __initconst struct of_device_id u300_clk_match[] = {
 		.compatible = "stericsson,u300-syscon-clk",
 		.data = of_u300_syscon_clk_init,
 	},
+	{
+		.compatible = "stericsson,u300-syscon-mclk",
+		.data = of_u300_syscon_mclk_init,
+	},
 };
+
 
 void __init u300_clk_init(void __iomem *base)
 {
 	u16 val;
-	struct clk *clk;
 
 	syscon_vbase = base;
 
@@ -1175,8 +1191,4 @@ void __init u300_clk_init(void __iomem *base)
 	writew(val, syscon_vbase + U300_SYSCON_PMCR);
 
 	of_clk_init(u300_clk_match);
-
-	/* Then this special MMC/SD clock */
-	clk = mclk_clk_register(NULL, "mmc_clk", "mmc_p_clk", false);
-	clk_register_clkdev(clk, NULL, "mmci");
 }

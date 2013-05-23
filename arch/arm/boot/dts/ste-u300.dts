@@ -205,6 +205,11 @@
 			clock-id = <5>;
 			clocks = <&fast_clk>;
 		};
+		mmc_mclk: mmc_mclk {
+			#clock-cells = <0>;
+			compatible = "stericsson,u300-syscon-mclk";
+			clocks = <&mmc_pclk>;
+		};
 		spi_clk: spi_p_clk@26M {
 			#clock-cells = <0>;
 			compatible = "stericsson,u300-syscon-clk";
@@ -433,8 +438,8 @@
 			reg = <0xc0001000 0x1000>;
 			interrupt-parent = <&vicb>;
 			interrupts = <6 7>;
-			clocks = <&mmc_pclk>;
-			clock-names = "apb_pclk";
+			clocks = <&mmc_pclk>, <&mmc_mclk>;
+			clock-names = "apb_pclk", "mclk";
 			max-frequency = <24000000>;
 			bus-width = <4>; // SD-card slot
 			mmc-cap-mmc-highspeed;

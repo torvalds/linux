@@ -55,3 +55,26 @@ gpio: gpio@c0016000 {
 	(...)
 	clocks = <&gpio_clk>;
 };
+
+
+Bindings for the MMC/SD card clock:
+
+Required properties:
+- compatible: must be "stericsson,u300-syscon-mclk"
+- #clock-cells: must be <0>
+
+Optional properties:
+- clocks: parent clock(s)
+
+mmc_mclk: mmc_mclk {
+	#clock-cells = <0>;
+	compatible = "stericsson,u300-syscon-mclk";
+	clocks = <&mmc_pclk>;
+};
+
+mmcsd: mmcsd@c0001000 {
+	compatible = "arm,pl18x", "arm,primecell";
+	clocks = <&mmc_pclk>, <&mmc_mclk>;
+	clock-names = "apb_pclk", "mclk";
+	(...)
+};
