@@ -177,7 +177,7 @@ err:
 
 static int pata_imx_remove(struct platform_device *pdev)
 {
-	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	struct ata_host *host = platform_get_drvdata(pdev);
 	struct pata_imx_priv *priv = host->private_data;
 
 	ata_host_detach(host);
