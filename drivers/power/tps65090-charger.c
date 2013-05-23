@@ -218,7 +218,7 @@ static int tps65090_charger_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	dev_set_drvdata(&pdev->dev, cdata);
+	platform_set_drvdata(pdev, cdata);
 
 	cdata->dev			= &pdev->dev;
 	cdata->pdata			= pdata;
@@ -291,7 +291,7 @@ fail_unregister_supply:
 
 static int tps65090_charger_remove(struct platform_device *pdev)
 {
-	struct tps65090_charger *cdata = dev_get_drvdata(&pdev->dev);
+	struct tps65090_charger *cdata = platform_get_drvdata(pdev);
 
 	devm_free_irq(cdata->dev, cdata->irq, cdata);
 	power_supply_unregister(&cdata->ac);
