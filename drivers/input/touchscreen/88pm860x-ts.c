@@ -237,7 +237,7 @@ static int pm860x_touch_probe(struct platform_device *pdev)
 	touch = kzalloc(sizeof(struct pm860x_touch), GFP_KERNEL);
 	if (touch == NULL)
 		return -ENOMEM;
-	dev_set_drvdata(&pdev->dev, touch);
+	platform_set_drvdata(pdev, touch);
 
 	touch->idev = input_allocate_device();
 	if (touch->idev == NULL) {

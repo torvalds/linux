@@ -325,7 +325,7 @@ err_free_mem:
 
 static int atmel_tsadcc_remove(struct platform_device *pdev)
 {
-	struct atmel_tsadcc *ts_dev = dev_get_drvdata(&pdev->dev);
+	struct atmel_tsadcc *ts_dev = platform_get_drvdata(pdev);
 	struct resource *res;
 
 	free_irq(ts_dev->irq, ts_dev);
