@@ -33,6 +33,49 @@
 	syscon: syscon@c0011000 {
 		compatible = "stericsson,u300-syscon";
 		reg = <0xc0011000 0x1000>;
+		clk32: app_32_clk@32k {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <32768>;
+		};
+		pll13: pll13@13M {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <13000000>;
+		};
+		pll208: pll208@208M {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <208000000>;
+		};
+		app208: app_208_clk@208M {
+			#clock-cells = <0>;
+			compatible = "fixed-factor-clock";
+			clock-div = <1>;
+			clock-mult = <1>;
+			clocks = <&pll208>;
+		};
+		app104: app_104_clk@104M {
+			#clock-cells = <0>;
+			compatible = "fixed-factor-clock";
+			clock-div = <2>;
+			clock-mult = <1>;
+			clocks = <&pll208>;
+		};
+		app52: app_52_clk@52M {
+			#clock-cells = <0>;
+			compatible = "fixed-factor-clock";
+			clock-div = <4>;
+			clock-mult = <1>;
+			clocks = <&pll208>;
+		};
+		app26: app_26_clk@26M {
+			#clock-cells = <0>;
+			compatible = "fixed-factor-clock";
+			clock-div = <2>;
+			clock-mult = <1>;
+			clocks = <&app52>;
+		};
 	};
 
 	timer: timer@c0014000 {
@@ -65,6 +108,7 @@
 		reg = <0xc0012000 0x1000>;
 		interrupt-parent = <&vicb>;
 		interrupts = <3>;
+		clocks = <&clk32>;
 	};
 
 	rtc: rtc@c0017000 {

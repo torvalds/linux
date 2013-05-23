@@ -11,6 +11,7 @@
 #include <linux/io.h>
 #include <linux/clk-provider.h>
 #include <linux/spinlock.h>
+#include <linux/of.h>
 
 /* APP side SYSCON registers */
 /* CLK Control Register 16bit (R/W) */
@@ -931,6 +932,17 @@ mclk_clk_register(struct device *dev, const char *name,
 	return clk;
 }
 
+static const __initconst struct of_device_id u300_clk_match[] = {
+	{
+		.compatible = "fixed-clock",
+		.data = of_fixed_clk_setup,
+	},
+	{
+		.compatible = "fixed-factor-clock",
+		.data = of_fixed_factor_clk_setup,
+	},
+};
+
 void __init u300_clk_init(void __iomem *base)
 {
 	u16 val;
@@ -951,26 +963,7 @@ void __init u300_clk_init(void __iomem *base)
 	val |= U300_SYSCON_PMCR_PWR_MGNT_ENABLE;
 	writew(val, syscon_vbase + U300_SYSCON_PMCR);
 
-	/* These are always available (RTC and PLL13) */
-	clk = clk_register_fixed_rate(NULL, "app_32_clk", NULL,
-				      CLK_IS_ROOT, 32768);
-	/* The watchdog sits directly on the 32 kHz clock */
-	clk_register_clkdev(clk, NULL, "coh901327_wdog");
-	clk = clk_register_fixed_rate(NULL, "pll13", NULL,
-				      CLK_IS_ROOT, 13000000);
-
-	/* These derive from PLL208 */
-	clk = clk_register_fixed_rate(NULL, "pll208", NULL,
-				      CLK_IS_ROOT, 208000000);
-	clk = clk_register_fixed_factor(NULL, "app_208_clk", "pll208",
-					0, 1, 1);
-	clk = clk_register_fixed_factor(NULL, "app_104_clk", "pll208",
-					0, 1, 2);
-	clk = clk_register_fixed_factor(NULL, "app_52_clk", "pll208",
-					0, 1, 4);
-	/* The 52 MHz is divided down to 26 MHz */
-	clk = clk_register_fixed_factor(NULL, "app_26_clk", "app_52_clk",
-					0, 1, 2);
+	of_clk_init(u300_clk_match);
 
 	/* Directly on the AMBA interconnect */
 	clk = syscon_clk_register(NULL, "cpu_clk", "app_208_clk", 0, true,
