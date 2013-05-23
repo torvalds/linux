@@ -521,13 +521,14 @@ static int chanToInterval(int nChannels)
 	return 8;
 }
 
-static int usbdux_ai_cmdtest(struct comedi_device *dev,
-			     struct comedi_subdevice *s,
-			     struct comedi_cmd *cmd)
+static int usbduxsigma_ai_cmdtest(struct comedi_device *dev,
+				  struct comedi_subdevice *s,
+				  struct comedi_cmd *cmd)
 {
-	struct usbduxsigma_private *this_usbduxsub = dev->private;
-	int err = 0, i;
-	unsigned int tmpTimer;
+	struct usbduxsigma_private *devpriv = dev->private;
+	int high_speed = devpriv->high_speed;
+	int interval = chanToInterval(cmd->chanlist_len);
+	int err = 0;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -558,34 +559,28 @@ static int usbdux_ai_cmdtest(struct comedi_device *dev,
 		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, 0);
 
 	if (cmd->scan_begin_src == TRIG_TIMER) {
-		if (this_usbduxsub->high_speed) {
+		unsigned int tmp;
+
+		if (high_speed) {
 			/*
 			 * In high speed mode microframes are possible.
 			 * However, during one microframe we can roughly
 			 * sample two channels. Thus, the more channels
 			 * are in the channel list the more time we need.
 			 */
-			i = chanToInterval(cmd->chanlist_len);
 			err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
-							 (1000000 / 8 * i));
-			/* now calc the real sampling rate with all the
-			 * rounding errors */
-			tmpTimer =
-			    ((unsigned int)(cmd->scan_begin_arg / 125000)) *
-			    125000;
+						(1000000 / 8 * interval));
+
+			tmp = (cmd->scan_begin_arg / 125000) * 125000;
 		} else {
 			/* full speed */
 			/* 1kHz scans every USB frame */
 			err |= cfc_check_trigger_arg_min(&cmd->scan_begin_arg,
 							 1000000);
-			/*
-			 * calc the real sampling rate with the rounding errors
-			 */
-			tmpTimer = ((unsigned int)(cmd->scan_begin_arg /
-						   1000000)) * 1000000;
+
+			tmp = (cmd->scan_begin_arg / 1000000) * 1000000;
 		}
-		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg,
-						tmpTimer);
+		err |= cfc_check_trigger_arg_is(&cmd->scan_begin_arg, tmp);
 	}
 
 	err |= cfc_check_trigger_arg_is(&cmd->scan_end_arg, cmd->chanlist_len);
@@ -599,6 +594,37 @@ static int usbdux_ai_cmdtest(struct comedi_device *dev,
 
 	if (err)
 		return 3;
+
+	/* Step 4: fix up any arguments */
+
+	if (high_speed) {
+		/*
+		 * every 2 channels get a time window of 125us. Thus, if we
+		 * sample all 16 channels we need 1ms. If we sample only one
+		 * channel we need only 125us
+		 */
+		devpriv->ai_interval = interval;
+		devpriv->ai_timer = cmd->scan_begin_arg / (125000 * interval);
+	} else {
+		/* interval always 1ms */
+		devpriv->ai_interval = 1;
+		devpriv->ai_timer = cmd->scan_begin_arg / 1000000;
+	}
+	if (devpriv->ai_timer < 1)
+		err |= -EINVAL;
+
+	if (cmd->stop_src == TRIG_COUNT) {
+		/* data arrives as one packet */
+		devpriv->ai_sample_count = cmd->stop_arg;
+		devpriv->ai_continuous = 0;
+	} else {
+		/* continuous acquisition */
+		devpriv->ai_continuous = 1;
+		devpriv->ai_sample_count = 0;
+	}
+
+	if (err)
+		return 4;
 
 	return 0;
 }
@@ -692,102 +718,61 @@ static int usbduxsigma_ai_inttrig(struct comedi_device *dev,
 	return 1;
 }
 
-static int usbdux_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
+static int usbduxsigma_ai_cmd(struct comedi_device *dev,
+			      struct comedi_subdevice *s)
 {
-	struct usbduxsigma_private *this_usbduxsub = dev->private;
+	struct usbduxsigma_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	unsigned int chan;
-	int i, ret;
-	int result;
+	unsigned int len = cmd->chanlist_len;
 	uint8_t muxsg0 = 0;
 	uint8_t muxsg1 = 0;
 	uint8_t sysred = 0;
+	int ret;
+	int i;
 
-	/* block other CPUs from starting an ai_cmd */
-	down(&this_usbduxsub->sem);
-	if (this_usbduxsub->ai_cmd_running) {
-		up(&this_usbduxsub->sem);
-		return -EBUSY;
-	}
+	down(&devpriv->sem);
+
 	/* set current channel of the running acquisition to zero */
 	s->async->cur_chan = 0;
+	for (i = 0; i < len; i++) {
+		unsigned int chan  = CR_CHAN(cmd->chanlist[i]);
 
-	/* first the number of channels per time step */
-	this_usbduxsub->dux_commands[1] = cmd->chanlist_len;
-
-	/* CONFIG0 */
-	this_usbduxsub->dux_commands[2] = 0x12;
-
-	/* CONFIG1: 23kHz sampling rate, delay = 0us,  */
-	this_usbduxsub->dux_commands[3] = 0x03;
-
-	/* CONFIG3: differential channels off */
-	this_usbduxsub->dux_commands[4] = 0x00;
-
-	for (i = 0; i < cmd->chanlist_len; i++) {
-		chan = CR_CHAN(cmd->chanlist[i]);
 		create_adc_command(chan, &muxsg0, &muxsg1);
 	}
-	this_usbduxsub->dux_commands[5] = muxsg0;
-	this_usbduxsub->dux_commands[6] = muxsg1;
-	this_usbduxsub->dux_commands[7] = sysred;
 
-	result = send_dux_commands(dev, SENDADCOMMANDS);
-	if (result < 0) {
-		up(&this_usbduxsub->sem);
-		return result;
+	devpriv->dux_commands[1] = len;  /* num channels per time step */
+	devpriv->dux_commands[2] = 0x12; /* CONFIG0 */
+	devpriv->dux_commands[3] = 0x03; /* CONFIG1: 23kHz sample, delay 0us */
+	devpriv->dux_commands[4] = 0x00; /* CONFIG3: diff. channels off */
+	devpriv->dux_commands[5] = muxsg0;
+	devpriv->dux_commands[6] = muxsg1;
+	devpriv->dux_commands[7] = sysred;
+
+	ret = send_dux_commands(dev, SENDADCOMMANDS);
+	if (ret < 0) {
+		up(&devpriv->sem);
+		return ret;
 	}
 
-	if (this_usbduxsub->high_speed) {
-		/*
-		 * every 2 channels get a time window of 125us. Thus, if we
-		 * sample all 16 channels we need 1ms. If we sample only one
-		 * channel we need only 125us
-		 */
-		this_usbduxsub->ai_interval =
-			chanToInterval(cmd->chanlist_len);
-		this_usbduxsub->ai_timer = cmd->scan_begin_arg / (125000 *
-							  (this_usbduxsub->
-							   ai_interval));
-	} else {
-		/* interval always 1ms */
-		this_usbduxsub->ai_interval = 1;
-		this_usbduxsub->ai_timer = cmd->scan_begin_arg / 1000000;
-	}
-	if (this_usbduxsub->ai_timer < 1) {
-		up(&this_usbduxsub->sem);
-		return -EINVAL;
-	}
-	this_usbduxsub->ai_counter = this_usbduxsub->ai_timer;
-
-	if (cmd->stop_src == TRIG_COUNT) {
-		/* data arrives as one packet */
-		this_usbduxsub->ai_sample_count = cmd->stop_arg;
-		this_usbduxsub->ai_continuous = 0;
-	} else {
-		/* continuous acquisition */
-		this_usbduxsub->ai_continuous = 1;
-		this_usbduxsub->ai_sample_count = 0;
-	}
+	devpriv->ai_counter = devpriv->ai_timer;
 
 	if (cmd->start_src == TRIG_NOW) {
 		/* enable this acquisition operation */
-		ret = usbduxsigma_submit_urbs(dev, this_usbduxsub->urbIn,
-					      this_usbduxsub->numOfInBuffers,
-					      1);
+		ret = usbduxsigma_submit_urbs(dev, devpriv->urbIn,
+					      devpriv->numOfInBuffers, 1);
 		if (ret < 0) {
-			up(&this_usbduxsub->sem);
+			up(&devpriv->sem);
 			return ret;
 		}
-		this_usbduxsub->ai_cmd_running = 1;
 		s->async->inttrig = NULL;
-	} else {
-		/* TRIG_INT */
-		/* don't enable the acquision operation */
-		/* wait for an internal signal */
+		devpriv->ai_cmd_running = 1;
+	} else {	/* TRIG_INT */
+		/* wait for an internal signal and submit the urbs later */
 		s->async->inttrig = usbduxsigma_ai_inttrig;
 	}
-	up(&this_usbduxsub->sem);
+
+	up(&devpriv->sem);
+
 	return 0;
 }
 
@@ -1448,8 +1433,8 @@ static int usbduxsigma_attach_common(struct comedi_device *dev)
 	s->maxdata	= 0x00ffffff;
 	s->range_table	= &range_usbdux_ai_range;
 	s->insn_read	= usbduxsigma_ai_insn_read;
-	s->do_cmdtest	= usbdux_ai_cmdtest;
-	s->do_cmd	= usbdux_ai_cmd;
+	s->do_cmdtest	= usbduxsigma_ai_cmdtest;
+	s->do_cmd	= usbduxsigma_ai_cmd;
 	s->cancel	= usbdux_ai_cancel;
 
 	/* Analog Output subdevice */
