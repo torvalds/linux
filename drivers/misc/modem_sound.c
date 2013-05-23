@@ -26,6 +26,28 @@ static struct modem_sound_data *modem_sound;
 #if defined(CONFIG_SND_RK_SOC_RK2928)|| defined(CONFIG_SND_RK29_SOC_RK610)
 extern void call_set_spk(int on);
 #endif
+#define HP_MIC 0
+#define MAIN_MIC 1
+#if defined(CONFIG_MODEM_MIC_SWITCH)
+extern void Modem_Mic_switch(int value);
+extern void Modem_Mic_release(void);
+void Modem_Sound_Mic_switch(int value)
+{
+	Modem_Mic_switch(value);
+}
+void Modem_Sound_Mic_release()
+{
+	Modem_Mic_release();
+}
+#else
+void Modem_Sound_Mic_switch(int value)
+{
+}
+void Modem_Sound_Mic_release()
+{
+}
+#endif
+
 int modem_sound_spkctl(int status)
 {
 	if(status == ENABLE)
@@ -78,16 +100,19 @@ static long modem_sound_ioctl(struct file *filp, unsigned int cmd, unsigned long
 	switch (cmd){
 		case IOCTL_MODEM_EAR_PHOEN:
 			DBG("modem_sound_ioctl: MODEM_EAR_PHONE\n");
+			Modem_Sound_Mic_switch(MAIN_MIC);
 			call_set_spk(3);
 			modem_sound_spkctl(DISABLE);
 			break;
 		case IOCTL_MODEM_SPK_PHONE:
 			DBG("modem_sound_ioctl: MODEM_SPK_PHONE\n");
+			Modem_Sound_Mic_switch(MAIN_MIC);
 			call_set_spk(1);
 			modem_sound_spkctl(ENABLE);
 			break;
-	  	case IOCTL_MODEM_HP_PHONE:
-	  		DBG("modem_sound_ioctl: MODEM_HP_PHONE\n");
+	  	case IOCTL_MODEM_HP_WITHMIC_PHONE:
+	  		DBG("modem_sound_ioctl: MODEM_HP_WITHMIC_PHONE\n");
+			Modem_Sound_Mic_switch(HP_MIC);
 	  		call_set_spk(2);
 			modem_sound_spkctl(DISABLE);
 			break;
@@ -99,8 +124,17 @@ static long modem_sound_ioctl(struct file *filp, unsigned int cmd, unsigned long
 			break;
 		case IOCTL_MODEM_STOP_PHONE:
 		  	DBG("modem_sound_ioctl: MODEM_STOP_PHONE\n");
+			Modem_Sound_Mic_release();
 			call_set_spk(0);
+			modem_sound_spkctl(ENABLE);
 			break;
+	        case IOCTL_MODEM_HP_NOMIC_PHONE:
+                        DBG("modem_sound_ioctl: MODEM_HP_NOMIC_PHONE\n");
+			Modem_Sound_Mic_switch(MAIN_MIC);
+                        call_set_spk(2);
+                        modem_sound_spkctl(DISABLE);
+                        break;
+
 
 		default:
 			printk("unknown ioctl cmd!\n");

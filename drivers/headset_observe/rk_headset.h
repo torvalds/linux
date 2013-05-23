@@ -15,6 +15,9 @@ struct io_info{
 
 struct rk_headset_pdata{
 	unsigned int Hook_gpio;//Detection Headset--Must be set
+	unsigned int Sw_mic_gpio;
+	unsigned int Hp_mic_io_value;
+	unsigned int Main_mic_io_value;
 	unsigned int Hook_adc_chn; //adc channel
 	unsigned int Hook_down_type; //Hook key down status   
 	int	hook_key_code;

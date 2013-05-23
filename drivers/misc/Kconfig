@@ -552,6 +552,10 @@ config TDSC8800
 config MODEM_SOUND
 	bool "modem sound control driver"
 	default n
+config MODEM_MIC_SWITCH
+	bool "3g modem mic switch control"
+	depends on MODEM_SOUND
+	default n
 	
 config TCC_BT_DEV
 	tristate "TCC Bluetooth dev Control power"
