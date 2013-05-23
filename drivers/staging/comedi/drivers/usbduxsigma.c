@@ -740,32 +740,29 @@ static int send_dux_commands(struct usbduxsigma_private *devpriv,
 			    &nsent, BULK_TIMEOUT);
 }
 
-static int receive_dux_commands(struct usbduxsigma_private *this_usbduxsub,
+static int receive_dux_commands(struct usbduxsigma_private *devpriv,
 				int command)
 {
-	int result = (-EFAULT);
 	int nrec;
+	int ret;
 	int i;
 
 	for (i = 0; i < RETRIES; i++) {
-		result = usb_bulk_msg(this_usbduxsub->usbdev,
-				      usb_rcvbulkpipe(this_usbduxsub->usbdev,
-						      COMMAND_IN_EP),
-				      this_usbduxsub->insnBuffer, SIZEINSNBUF,
-				      &nrec, BULK_TIMEOUT);
-		if (result < 0) {
-			dev_err(&this_usbduxsub->interface->dev, "comedi%d: "
-				"insn: USB error %d "
-				"while receiving DUX command"
-				"\n", this_usbduxsub->comedidev->minor,
-				result);
-			return result;
-		}
-		if (this_usbduxsub->insnBuffer[0] == command)
-			return result;
+		ret = usb_bulk_msg(devpriv->usbdev,
+				   usb_rcvbulkpipe(devpriv->usbdev,
+						   COMMAND_IN_EP),
+				   devpriv->insnBuffer, SIZEINSNBUF,
+				   &nrec, BULK_TIMEOUT);
+		if (ret < 0)
+			return ret;
+
+		if (devpriv->insnBuffer[0] == command)
+			return 0;
 	}
-	/* this is only reached if the data has been requested a couple of
-	 * times */
+	/*
+	 * This is only reached if the data has been requested a
+	 * couple of times and the command was not received.
+	 */
 	return -EFAULT;
 }
 
