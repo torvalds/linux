@@ -1503,6 +1503,21 @@ int qlcnic_82xx_config_led(struct qlcnic_adapter *adapter, u32 state, u32 rate)
 	return rv;
 }
 
+int qlcnic_get_beacon_state(struct qlcnic_adapter *adapter, u8 *h_state)
+{
+	struct qlcnic_cmd_args cmd;
+	int err;
+
+	err = qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_GET_LED_STATUS);
+	if (!err) {
+		err = qlcnic_issue_cmd(adapter, &cmd);
+		if (!err)
+			*h_state = cmd.rsp.arg[1];
+	}
+	qlcnic_free_mbx_args(&cmd);
+	return err;
+}
+
 void qlcnic_82xx_get_func_no(struct qlcnic_adapter *adapter)
 {
 	void __iomem *msix_base_addr;

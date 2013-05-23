@@ -37,6 +37,7 @@ static const struct qlcnic_mailbox_metadata qlcnic_mbx_tbl[] = {
 	{QLCNIC_CMD_TEMP_SIZE, 4, 4},
 	{QLCNIC_CMD_GET_TEMP_HDR, 4, 1},
 	{QLCNIC_CMD_SET_DRV_VER, 4, 1},
+	{QLCNIC_CMD_GET_LED_STATUS, 4, 2},
 };
 
 static inline u32 qlcnic_get_cmd_signature(struct qlcnic_hardware_context *ahw)

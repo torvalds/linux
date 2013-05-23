@@ -815,6 +815,7 @@ struct qlcnic_mac_list_s {
 #define QLCNIC_FW_CAPABILITY_2_LRO_MAX_TCP_SEG	BIT_2
 #define QLCNIC_FW_CAP2_HW_LRO_IPV6		BIT_3
 #define QLCNIC_FW_CAPABILITY_2_OCBB		BIT_5
+#define QLCNIC_FW_CAPABILITY_2_BEACON		BIT_7
 
 /* module types */
 #define LINKEVENT_MODULE_NOT_PRESENT			1
@@ -911,6 +912,9 @@ struct qlcnic_ipaddr {
 	((adapter)->flags & (QLCNIC_MSI_ENABLED | QLCNIC_MSIX_ENABLED))
 #define QLCNIC_IS_TSO_CAPABLE(adapter)  \
 	((adapter)->ahw->capabilities & QLCNIC_FW_CAPABILITY_TSO)
+
+#define QLCNIC_BEACON_EANBLE		0xC
+#define QLCNIC_BEACON_DISABLE		0xD
 
 #define QLCNIC_DEF_NUM_STS_DESC_RINGS	4
 #define QLCNIC_MSIX_TBL_SPACE		8192
@@ -1543,6 +1547,7 @@ int qlcnic_set_default_offload_settings(struct qlcnic_adapter *);
 int qlcnic_reset_npar_config(struct qlcnic_adapter *);
 int qlcnic_set_eswitch_port_config(struct qlcnic_adapter *);
 void qlcnic_add_lb_filter(struct qlcnic_adapter *, struct sk_buff *, int, u16);
+int qlcnic_get_beacon_state(struct qlcnic_adapter *, u8 *);
 int qlcnic_83xx_configure_opmode(struct qlcnic_adapter *adapter);
 int qlcnic_read_mac_addr(struct qlcnic_adapter *);
 int qlcnic_setup_netdev(struct qlcnic_adapter *, struct net_device *, int);
