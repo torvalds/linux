@@ -147,24 +147,24 @@ static const struct comedi_lrange usbduxsigma_ai_range = {
 
 struct usbduxsigma_private {
 	/* actual number of in-buffers */
-	int numOfInBuffers;
+	int n_ai_urbs;
 	/* actual number of out-buffers */
-	int numOfOutBuffers;
+	int n_ao_urbs;
 	/* ISO-transfer handling: buffers */
-	struct urb **urbIn;
-	struct urb **urbOut;
+	struct urb **ai_urbs;
+	struct urb **ao_urbs;
 	/* pwm-transfer handling */
-	struct urb *urbPwm;
+	struct urb *pwm_urb;
 	/* PWM period */
-	unsigned int pwmPeriod;
+	unsigned int pwm_period;
 	/* PWM internal delay for the GPIF in the FX2 */
-	uint8_t pwmDelay;
+	uint8_t pwm_delay;
 	/* size of the PWM buffer which holds the bit pattern */
-	int sizePwmBuf;
+	int pwm_buf_sz;
 	/* input buffer for the ISO-transfer */
-	int32_t *inBuffer;
+	int32_t *in_buf;
 	/* input buffer for single insn */
-	int8_t *insnBuffer;
+	int8_t *insn_buf;
 
 	unsigned int ao_readback[USBDUXSIGMA_NUM_AO_CHAN];
 
@@ -200,9 +200,9 @@ static void usbduxsigma_ai_stop(struct comedi_device *dev, int do_unlink)
 	if (do_unlink) {
 		int i;
 
-		for (i = 0; i < devpriv->numOfInBuffers; i++) {
-			if (devpriv->urbIn[i])
-				usb_kill_urb(devpriv->urbIn[i]);
+		for (i = 0; i < devpriv->n_ai_urbs; i++) {
+			if (devpriv->ai_urbs[i])
+				usb_kill_urb(devpriv->ai_urbs[i]);
 		}
 	}
 
@@ -236,7 +236,7 @@ static void usbduxsigma_ai_urb_complete(struct urb *urb)
 	switch (urb->status) {
 	case 0:
 		/* copy the result in the transfer buffer */
-		memcpy(devpriv->inBuffer, urb->transfer_buffer, SIZEINBUF);
+		memcpy(devpriv->in_buf, urb->transfer_buffer, SIZEINBUF);
 		break;
 	case -EILSEQ:
 		/*
@@ -296,7 +296,7 @@ static void usbduxsigma_ai_urb_complete(struct urb *urb)
 	}
 
 	/* get the state of the dio pins to allow external trigger */
-	dio_state = be32_to_cpu(devpriv->inBuffer[0]);
+	dio_state = be32_to_cpu(devpriv->in_buf[0]);
 
 	devpriv->ai_counter--;
 	if (likely(devpriv->ai_counter > 0))
@@ -320,7 +320,7 @@ static void usbduxsigma_ai_urb_complete(struct urb *urb)
 	/* get the data from the USB bus and hand it over to comedi */
 	for (i = 0; i < s->async->cmd.chanlist_len; i++) {
 		/* transfer data, note first byte is the DIO state */
-		val = be32_to_cpu(devpriv->inBuffer[i+1]);
+		val = be32_to_cpu(devpriv->in_buf[i+1]);
 		val &= 0x00ffffff;	/* strip status byte */
 		val ^= 0x00800000;	/* convert to unsigned */
 
@@ -343,9 +343,9 @@ static void usbduxsigma_ao_stop(struct comedi_device *dev, int do_unlink)
 	if (do_unlink) {
 		int i;
 
-		for (i = 0; i < devpriv->numOfOutBuffers; i++) {
-			if (devpriv->urbOut[i])
-				usb_kill_urb(devpriv->urbOut[i]);
+		for (i = 0; i < devpriv->n_ao_urbs; i++) {
+			if (devpriv->ao_urbs[i])
+				usb_kill_urb(devpriv->ao_urbs[i]);
 		}
 	}
 
@@ -660,12 +660,12 @@ static int usbduxsigma_receive_cmd(struct comedi_device *dev, int command)
 	for (i = 0; i < RETRIES; i++) {
 		ret = usb_bulk_msg(usb,
 				   usb_rcvbulkpipe(usb, USBDUXSIGMA_CMD_IN_EP),
-				   devpriv->insnBuffer, SIZEINSNBUF,
+				   devpriv->insn_buf, SIZEINSNBUF,
 				   &nrec, BULK_TIMEOUT);
 		if (ret < 0)
 			return ret;
 
-		if (devpriv->insnBuffer[0] == command)
+		if (devpriv->insn_buf[0] == command)
 			return 0;
 	}
 	/*
@@ -687,8 +687,8 @@ static int usbduxsigma_ai_inttrig(struct comedi_device *dev,
 
 	down(&devpriv->sem);
 	if (!devpriv->ai_cmd_running) {
-		ret = usbduxsigma_submit_urbs(dev, devpriv->urbIn,
-					      devpriv->numOfInBuffers, 1);
+		ret = usbduxsigma_submit_urbs(dev, devpriv->ai_urbs,
+					      devpriv->n_ai_urbs, 1);
 		if (ret < 0) {
 			up(&devpriv->sem);
 			return ret;
@@ -741,8 +741,8 @@ static int usbduxsigma_ai_cmd(struct comedi_device *dev,
 
 	if (cmd->start_src == TRIG_NOW) {
 		/* enable this acquisition operation */
-		ret = usbduxsigma_submit_urbs(dev, devpriv->urbIn,
-					      devpriv->numOfInBuffers, 1);
+		ret = usbduxsigma_submit_urbs(dev, devpriv->ai_urbs,
+					      devpriv->n_ai_urbs, 1);
 		if (ret < 0) {
 			up(&devpriv->sem);
 			return ret;
@@ -805,7 +805,7 @@ static int usbduxsigma_ai_insn_read(struct comedi_device *dev,
 		}
 
 		/* 32 bits big endian from the A/D converter */
-		val = be32_to_cpu(*((int32_t *)((devpriv->insnBuffer) + 1)));
+		val = be32_to_cpu(*((int32_t *)((devpriv->insn_buf) + 1)));
 		val &= 0x00ffffff;	/* strip status byte */
 		val ^= 0x00800000;	/* convert to unsigned */
 
@@ -877,8 +877,8 @@ static int usbduxsigma_ao_inttrig(struct comedi_device *dev,
 
 	down(&devpriv->sem);
 	if (!devpriv->ao_cmd_running) {
-		ret = usbduxsigma_submit_urbs(dev, devpriv->urbOut,
-					      devpriv->numOfOutBuffers, 0);
+		ret = usbduxsigma_submit_urbs(dev, devpriv->ao_urbs,
+					      devpriv->n_ao_urbs, 0);
 		if (ret < 0) {
 			up(&devpriv->sem);
 			return ret;
@@ -1027,8 +1027,8 @@ static int usbduxsigma_ao_cmd(struct comedi_device *dev,
 
 	if (cmd->start_src == TRIG_NOW) {
 		/* enable this acquisition operation */
-		ret = usbduxsigma_submit_urbs(dev, devpriv->urbOut,
-					      devpriv->numOfOutBuffers, 0);
+		ret = usbduxsigma_submit_urbs(dev, devpriv->ao_urbs,
+					      devpriv->n_ao_urbs, 0);
 		if (ret < 0) {
 			up(&devpriv->sem);
 			return ret;
@@ -1104,9 +1104,9 @@ static int usbduxsigma_dio_insn_bits(struct comedi_device *dev,
 	if (ret < 0)
 		goto done;
 
-	s->state = devpriv->insnBuffer[1] |
-		   (devpriv->insnBuffer[2] << 8) |
-		   (devpriv->insnBuffer[3] << 16);
+	s->state = devpriv->insn_buf[1] |
+		   (devpriv->insn_buf[2] << 8) |
+		   (devpriv->insn_buf[3] << 16);
 
 	data[1] = s->state;
 	ret = insn->n;
@@ -1122,8 +1122,8 @@ static void usbduxsigma_pwm_stop(struct comedi_device *dev, int do_unlink)
 	struct usbduxsigma_private *devpriv = dev->private;
 
 	if (do_unlink) {
-		if (devpriv->urbPwm)
-			usb_kill_urb(devpriv->urbPwm);
+		if (devpriv->pwm_urb)
+			usb_kill_urb(devpriv->pwm_urb);
 	}
 
 	devpriv->pwm_cmd_running = 0;
@@ -1174,7 +1174,7 @@ static void usbduxsigma_pwm_urb_complete(struct urb *urb)
 	if (!devpriv->pwm_cmd_running)
 		return;
 
-	urb->transfer_buffer_length = devpriv->sizePwmBuf;
+	urb->transfer_buffer_length = devpriv->pwm_buf_sz;
 	urb->dev = comedi_to_usb_dev(dev);
 	urb->status = 0;
 	ret = usb_submit_urb(urb, GFP_ATOMIC);
@@ -1192,12 +1192,12 @@ static int usbduxsigma_submit_pwm_urb(struct comedi_device *dev)
 {
 	struct usb_device *usb = comedi_to_usb_dev(dev);
 	struct usbduxsigma_private *devpriv = dev->private;
-	struct urb *urb = devpriv->urbPwm;
+	struct urb *urb = devpriv->pwm_urb;
 
 	/* in case of a resubmission after an unlink... */
 	usb_fill_bulk_urb(urb,
 			  usb, usb_sndbulkpipe(usb, USBDUXSIGMA_PWM_OUT_EP),
-			  urb->transfer_buffer, devpriv->sizePwmBuf,
+			  urb->transfer_buffer, devpriv->pwm_buf_sz,
 			  usbduxsigma_pwm_urb_complete, dev);
 
 	return usb_submit_urb(urb, GFP_ATOMIC);
@@ -1217,8 +1217,8 @@ static int usbduxsigma_pwm_period(struct comedi_device *dev,
 		if (fx2delay > 255)
 			return -EAGAIN;
 	}
-	devpriv->pwmDelay = fx2delay;
-	devpriv->pwmPeriod = period;
+	devpriv->pwm_delay = fx2delay;
+	devpriv->pwm_period = period;
 	return 0;
 }
 
@@ -1231,12 +1231,12 @@ static int usbduxsigma_pwm_start(struct comedi_device *dev,
 	if (devpriv->pwm_cmd_running)
 		return 0;
 
-	devpriv->dux_commands[1] = devpriv->pwmDelay;
+	devpriv->dux_commands[1] = devpriv->pwm_delay;
 	ret = usbbuxsigma_send_cmd(dev, USBDUXSIGMA_PWM_ON_CMD);
 	if (ret < 0)
 		return ret;
 
-	memset(devpriv->urbPwm->transfer_buffer, 0, devpriv->sizePwmBuf);
+	memset(devpriv->pwm_urb->transfer_buffer, 0, devpriv->pwm_buf_sz);
 
 	ret = usbduxsigma_submit_pwm_urb(dev);
 	if (ret < 0)
@@ -1255,8 +1255,8 @@ static int usbduxsigma_pwm_pattern(struct comedi_device *dev,
 	struct usbduxsigma_private *devpriv = dev->private;
 	char pwm_mask = (1 << chan);	/* DIO bit for the PWM data */
 	char sgn_mask = (16 << chan);	/* DIO bit for the sign */
-	char *buf = (char *)(devpriv->urbPwm->transfer_buffer);
-	int szbuf = devpriv->sizePwmBuf;
+	char *buf = (char *)(devpriv->pwm_urb->transfer_buffer);
+	int szbuf = devpriv->pwm_buf_sz;
 	int i;
 
 	for (i = 0; i < szbuf; i++) {
@@ -1320,7 +1320,7 @@ static int usbduxsigma_pwm_config(struct comedi_device *dev,
 	case INSN_CONFIG_PWM_SET_PERIOD:
 		return usbduxsigma_pwm_period(dev, s, data[1]);
 	case INSN_CONFIG_PWM_GET_PERIOD:
-		data[1] = devpriv->pwmPeriod;
+		data[1] = devpriv->pwm_period;
 		return 0;
 	case INSN_CONFIG_PWM_SET_H_BRIDGE:
 		/*
@@ -1380,7 +1380,7 @@ static int usbduxsigma_getstatusinfo(struct comedi_device *dev, int chan)
 		return ret;
 
 	/* 32 bits big endian from the A/D converter */
-	val = be32_to_cpu(*((int32_t *)((devpriv->insnBuffer)+1)));
+	val = be32_to_cpu(*((int32_t *)((devpriv->insn_buf)+1)));
 	val &= 0x00ffffff;	/* strip status byte */
 	val ^= 0x00800000;	/* convert to unsigned */
 
@@ -1452,7 +1452,7 @@ static int usbduxsigma_attach_common(struct comedi_device *dev)
 		s->type		= COMEDI_SUBD_PWM;
 		s->subdev_flags	= SDF_WRITABLE | SDF_PWM_HBRIDGE;
 		s->n_chan	= 8;
-		s->maxdata	= devpriv->sizePwmBuf;
+		s->maxdata	= devpriv->pwm_buf_sz;
 		s->insn_write	= usbduxsigma_pwm_write;
 		s->insn_config	= usbduxsigma_pwm_config;
 
@@ -1551,23 +1551,23 @@ static int usbduxsigma_alloc_usb_buffers(struct comedi_device *dev)
 
 	devpriv->dac_commands = kzalloc(NUMOUTCHANNELS, GFP_KERNEL);
 	devpriv->dux_commands = kzalloc(SIZEOFDUXBUFFER, GFP_KERNEL);
-	devpriv->inBuffer = kzalloc(SIZEINBUF, GFP_KERNEL);
-	devpriv->insnBuffer = kzalloc(SIZEINSNBUF, GFP_KERNEL);
-	devpriv->urbIn = kcalloc(devpriv->numOfInBuffers, sizeof(*urb),
-				 GFP_KERNEL);
-	devpriv->urbOut = kcalloc(devpriv->numOfOutBuffers, sizeof(*urb),
-				  GFP_KERNEL);
+	devpriv->in_buf = kzalloc(SIZEINBUF, GFP_KERNEL);
+	devpriv->insn_buf = kzalloc(SIZEINSNBUF, GFP_KERNEL);
+	devpriv->ai_urbs = kcalloc(devpriv->n_ai_urbs, sizeof(*urb),
+				   GFP_KERNEL);
+	devpriv->ao_urbs = kcalloc(devpriv->n_ao_urbs, sizeof(*urb),
+				   GFP_KERNEL);
 	if (!devpriv->dac_commands || !devpriv->dux_commands ||
-	    !devpriv->inBuffer || !devpriv->insnBuffer ||
-	    !devpriv->urbIn || !devpriv->urbOut)
+	    !devpriv->in_buf || !devpriv->insn_buf ||
+	    !devpriv->ai_urbs || !devpriv->ao_urbs)
 		return -ENOMEM;
 
-	for (i = 0; i < devpriv->numOfInBuffers; i++) {
+	for (i = 0; i < devpriv->n_ai_urbs; i++) {
 		/* one frame: 1ms */
 		urb = usb_alloc_urb(1, GFP_KERNEL);
 		if (!urb)
 			return -ENOMEM;
-		devpriv->urbIn[i] = urb;
+		devpriv->ai_urbs[i] = urb;
 		urb->dev = usb;
 		/* will be filled later with a pointer to the comedi-device */
 		/* and ONLY then the urb should be submitted */
@@ -1584,12 +1584,12 @@ static int usbduxsigma_alloc_usb_buffers(struct comedi_device *dev)
 		urb->iso_frame_desc[0].length = SIZEINBUF;
 	}
 
-	for (i = 0; i < devpriv->numOfOutBuffers; i++) {
+	for (i = 0; i < devpriv->n_ao_urbs; i++) {
 		/* one frame: 1ms */
 		urb = usb_alloc_urb(1, GFP_KERNEL);
 		if (!urb)
 			return -ENOMEM;
-		devpriv->urbOut[i] = urb;
+		devpriv->ao_urbs[i] = urb;
 		urb->dev = usb;
 		/* will be filled later with a pointer to the comedi-device */
 		/* and ONLY then the urb should be submitted */
@@ -1612,17 +1612,17 @@ static int usbduxsigma_alloc_usb_buffers(struct comedi_device *dev)
 
 	if (devpriv->high_speed) {
 		/* max bulk ep size in high speed */
-		devpriv->sizePwmBuf = 512;
+		devpriv->pwm_buf_sz = 512;
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!urb)
 			return -ENOMEM;
-		devpriv->urbPwm = urb;
-		urb->transfer_buffer = kzalloc(devpriv->sizePwmBuf, GFP_KERNEL);
+		devpriv->pwm_urb = urb;
+		urb->transfer_buffer = kzalloc(devpriv->pwm_buf_sz, GFP_KERNEL);
 		if (!urb->transfer_buffer)
 			return -ENOMEM;
 	} else {
-		devpriv->urbPwm = NULL;
-		devpriv->sizePwmBuf = 0;
+		devpriv->pwm_urb = NULL;
+		devpriv->pwm_buf_sz = 0;
 	}
 
 	return 0;
@@ -1639,33 +1639,33 @@ static void usbduxsigma_free_usb_buffers(struct comedi_device *dev)
 	usbduxsigma_ao_stop(dev, 1);
 	usbduxsigma_pwm_stop(dev, 1);
 
-	urb = devpriv->urbPwm;
+	urb = devpriv->pwm_urb;
 	if (urb) {
 		kfree(urb->transfer_buffer);
 		usb_free_urb(urb);
 	}
-	if (devpriv->urbOut) {
-		for (i = 0; i < devpriv->numOfOutBuffers; i++) {
-			urb = devpriv->urbOut[i];
+	if (devpriv->ao_urbs) {
+		for (i = 0; i < devpriv->n_ao_urbs; i++) {
+			urb = devpriv->ao_urbs[i];
 			if (urb) {
 				kfree(urb->transfer_buffer);
 				usb_free_urb(urb);
 			}
 		}
-		kfree(devpriv->urbOut);
+		kfree(devpriv->ao_urbs);
 	}
-	if (devpriv->urbIn) {
-		for (i = 0; i < devpriv->numOfInBuffers; i++) {
-			urb = devpriv->urbIn[i];
+	if (devpriv->ai_urbs) {
+		for (i = 0; i < devpriv->n_ai_urbs; i++) {
+			urb = devpriv->ai_urbs[i];
 			if (urb) {
 				kfree(urb->transfer_buffer);
 				usb_free_urb(urb);
 			}
 		}
-		kfree(devpriv->urbIn);
+		kfree(devpriv->ai_urbs);
 	}
-	kfree(devpriv->insnBuffer);
-	kfree(devpriv->inBuffer);
+	kfree(devpriv->insn_buf);
+	kfree(devpriv->in_buf);
 	kfree(devpriv->dux_commands);
 	kfree(devpriv->dac_commands);
 }
@@ -1697,11 +1697,11 @@ static int usbduxsigma_auto_attach(struct comedi_device *dev,
 	/* test if it is high speed (USB 2.0) */
 	devpriv->high_speed = (usb->speed == USB_SPEED_HIGH);
 	if (devpriv->high_speed) {
-		devpriv->numOfInBuffers = NUMOFINBUFFERSHIGH;
-		devpriv->numOfOutBuffers = NUMOFOUTBUFFERSHIGH;
+		devpriv->n_ai_urbs = NUMOFINBUFFERSHIGH;
+		devpriv->n_ao_urbs = NUMOFOUTBUFFERSHIGH;
 	} else {
-		devpriv->numOfInBuffers = NUMOFINBUFFERSFULL;
-		devpriv->numOfOutBuffers = NUMOFOUTBUFFERSFULL;
+		devpriv->n_ai_urbs = NUMOFINBUFFERSFULL;
+		devpriv->n_ao_urbs = NUMOFOUTBUFFERSFULL;
 	}
 
 	ret = usbduxsigma_alloc_usb_buffers(dev);
