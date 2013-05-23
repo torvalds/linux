@@ -4,24 +4,22 @@ Kernel driver ds1621
 Supported chips:
   * Dallas Semiconductor / Maxim Integrated DS1621
     Prefix: 'ds1621'
-    Addresses scanned: I2C 0x48 - 0x4f
+    Addresses scanned: none
     Datasheet: Publicly available from www.maximintegrated.com
 
   * Dallas Semiconductor DS1625
-    Prefix:
-     'ds1621' - if binding via _detect function
-     'ds1625' - explicit instantiation
-    Addresses scanned: I2C 0x48 - 0x4f
+    Prefix: 'ds1625'
+    Addresses scanned: none
     Datasheet: Publicly available from www.datasheetarchive.com
 
   * Maxim Integrated DS1631
     Prefix: 'ds1631'
-    Addresses scanned: I2C 0x48 - 0x4f
+    Addresses scanned: none
     Datasheet: Publicly available from www.maximintegrated.com
 
   * Maxim Integrated DS1721
     Prefix: 'ds1721'
-    Addresses scanned: I2C 0x48 - 0x4f
+    Addresses scanned: none
     Datasheet: Publicly available from www.maximintegrated.com
 
 Authors:
@@ -77,12 +75,13 @@ The DS1625 is pin compatible and functionally equivalent with the DS1621,
 but the DS1621 is meant to replace it. The DS1631 and DS1721 are also
 pin compatible with the DS1621, but provide multi-resolution support.
 
-Since there is no version register, there is no unique identification
-for these devices. In addition, the DS1631 and DS1721 will emulate a
-DS1621 device, if not explicitly instantiated (why? because the detect
-function compares the temperature register values bits and checks for a
-9-bit resolution). Therefore, for correct device identification and
-functionality, explicit device instantiation is required.
+Since there is no version or vendor identification register, there is
+no unique identification for these devices. Therefore, explicit device
+instantiation is required for correct device identification and functionality.
+
+And, for correct identification and operation, each device must be
+explicitly instantiated, one device per address, in this address
+range: 0x48..0x4f.
 
 The DS1721 is pin compatible with the DS1621, has an accuracy of +/- 1.0
 degree Celsius over a -10 to +85 degree range, a minimum/maximum alarm

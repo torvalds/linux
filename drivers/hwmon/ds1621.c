@@ -46,10 +46,6 @@
 #include <linux/sysfs.h>
 #include <linux/kernel.h>
 
-/* Addresses to scan */
-static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b, 0x4c,
-					0x4d, 0x4e, 0x4f, I2C_CLIENT_END };
-
 /* Supported devices */
 enum chips { ds1621, ds1625, ds1631, ds1721 };
 
@@ -358,48 +354,6 @@ static const struct attribute_group ds1621_group = {
 	.is_visible = ds1621_attribute_visible
 };
 
-
-/* Return 0 if detection is successful, -ENODEV otherwise */
-static int ds1621_detect(struct i2c_client *client,
-			 struct i2c_board_info *info)
-{
-	struct i2c_adapter *adapter = client->adapter;
-	int conf, temp;
-	int i;
-
-	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA
-				     | I2C_FUNC_SMBUS_WORD_DATA
-				     | I2C_FUNC_SMBUS_WRITE_BYTE))
-		return -ENODEV;
-
-	/*
-	 * Now, we do the remaining detection. It is lousy.
-	 *
-	 * The NVB bit should be low if no EEPROM write has been requested
-	 * during the latest 10ms, which is highly improbable in our case.
-	 */
-	conf = i2c_smbus_read_byte_data(client, DS1621_REG_CONF);
-	if (conf < 0 || conf & DS1621_REG_CONFIG_NVB)
-		return -ENODEV;
-	/*
-	 * The ds1621 & ds1625 use 9-bit resolution, so the 7 lowest bits
-	 * of the temperature should always be 0 (NOTE: The other chips
-	 * have multi-resolution support, so if they have 9-bit resolution
-	 * configured and the min/max temperature values set accordingly,
-	 * then if not explicitly instantiated, they *will* appear as and
-	 * emulate a ds1621 device).
-	 */
-	for (i = 0; i < ARRAY_SIZE(DS1621_REG_TEMP); i++) {
-		temp = i2c_smbus_read_word_data(client, DS1621_REG_TEMP[i]);
-		if (temp < 0 || (temp & 0x7f00))
-			return -ENODEV;
-	}
-
-	strlcpy(info->type, "ds1621", I2C_NAME_SIZE);
-
-	return 0;
-}
-
 static int ds1621_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
@@ -465,8 +419,6 @@ static struct i2c_driver ds1621_driver = {
 	.probe		= ds1621_probe,
 	.remove		= ds1621_remove,
 	.id_table	= ds1621_id,
-	.detect		= ds1621_detect,
-	.address_list	= normal_i2c,
 };
 
 module_i2c_driver(ds1621_driver);
