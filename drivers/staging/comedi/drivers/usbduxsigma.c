@@ -940,76 +940,6 @@ static int usbdux_ai_insn_read(struct comedi_device *dev,
 	return i;
 }
 
-
-
-
-static int usbdux_getstatusinfo(struct comedi_device *dev, int chan)
-{
-	struct usbduxsigma_private *this_usbduxsub = dev->private;
-	uint8_t sysred = 0;
-	uint32_t one;
-	int err;
-
-	if (this_usbduxsub->ai_cmd_running) {
-		dev_err(&this_usbduxsub->interface->dev,
-			"comedi%d: status read not possible. "
-			"Async Command is running.\n", dev->minor);
-		return 0;
-	}
-
-	/* CONFIG0 */
-	this_usbduxsub->dux_commands[1] = 0x12;
-
-	/* CONFIG1: 2kHz sampling rate */
-	this_usbduxsub->dux_commands[2] = 0x80;
-
-	/* CONFIG3: differential channels off */
-	this_usbduxsub->dux_commands[3] = 0x00;
-
-	if (chan == 1) {
-		/* ADC offset */
-		sysred = sysred | 1;
-	} else if (chan == 2) {
-		/* VCC */
-		sysred = sysred | 4;
-	} else if (chan == 3) {
-		/* temperature */
-		sysred = sysred | 8;
-	} else if (chan == 4) {
-		/* gain */
-		sysred = sysred | 16;
-	} else if (chan == 5) {
-		/* ref */
-		sysred = sysred | 32;
-	}
-
-	this_usbduxsub->dux_commands[4] = 0;
-	this_usbduxsub->dux_commands[5] = 0;
-	this_usbduxsub->dux_commands[6] = sysred;
-
-	/* adc commands */
-	err = send_dux_commands(dev, SENDSINGLEAD);
-	if (err < 0)
-		return err;
-
-	err = receive_dux_commands(dev, SENDSINGLEAD);
-	if (err < 0)
-		return err;
-
-	/* 32 bits big endian from the A/D converter */
-	one = be32_to_cpu(*((int32_t *)((this_usbduxsub->insnBuffer)+1)));
-	/* mask out the status byte */
-	one = one & 0x00ffffff;
-	one = one ^ 0x00800000;
-
-	return (int)one;
-}
-
-
-
-
-
-
 /************************************/
 /* analog out */
 
@@ -1645,6 +1575,57 @@ static void tidy_up(struct usbduxsigma_private *usbduxsub_tmp)
 	usbduxsub_tmp->dux_commands = NULL;
 }
 
+static int usbduxsigma_getstatusinfo(struct comedi_device *dev, int chan)
+{
+	struct usbduxsigma_private *devpriv = dev->private;
+	uint8_t sysred;
+	uint32_t val;
+	int ret;
+
+	switch (chan) {
+	default:
+	case 0:
+		sysred = 0;		/* ADC zero */
+		break;
+	case 1:
+		sysred = 1;		/* ADC offset */
+		break;
+	case 2:
+		sysred = 4;		/* VCC */
+		break;
+	case 3:
+		sysred = 8;		/* temperature */
+		break;
+	case 4:
+		sysred = 16;		/* gain */
+		break;
+	case 5:
+		sysred =  32;		/* ref */
+		break;
+	}
+
+	devpriv->dux_commands[1] = 0x12; /* CONFIG0 */
+	devpriv->dux_commands[2] = 0x80; /* CONFIG1: 2kHz sampling rate */
+	devpriv->dux_commands[3] = 0x00; /* CONFIG3: diff. channels off */
+	devpriv->dux_commands[4] = 0;
+	devpriv->dux_commands[5] = 0;
+	devpriv->dux_commands[6] = sysred;
+	ret = send_dux_commands(dev, SENDSINGLEAD);
+	if (ret < 0)
+		return ret;
+
+	ret = receive_dux_commands(dev, SENDSINGLEAD);
+	if (ret < 0)
+		return ret;
+
+	/* 32 bits big endian from the A/D converter */
+	val = be32_to_cpu(*((int32_t *)((devpriv->insnBuffer)+1)));
+	val &= 0x00ffffff;	/* strip status byte */
+	val ^= 0x00800000;	/* convert to unsigned */
+
+	return (int)val;
+}
+
 static int usbduxsigma_attach_common(struct comedi_device *dev)
 {
 	struct usbduxsigma_private *devpriv = dev->private;
@@ -1720,7 +1701,7 @@ static int usbduxsigma_attach_common(struct comedi_device *dev)
 
 	up(&devpriv->sem);
 
-	offset = usbdux_getstatusinfo(dev, 0);
+	offset = usbduxsigma_getstatusinfo(dev, 0);
 	if (offset < 0)
 		dev_err(dev->class_dev,
 			"Communication to USBDUXSIGMA failed! Check firmware and cabling\n");
