@@ -176,8 +176,6 @@ struct usbduxsigma_private {
 	int8_t *insnBuffer;
 	/* output buffer for single DA outputs */
 	int16_t *outBuffer;
-	/* interface structure in 2.6 */
-	struct usb_interface *interface;
 	/* is it USB_SPEED_HIGH or not? */
 	short int high_speed;
 	/* asynchronous command is running */
@@ -1716,7 +1714,6 @@ static int usbduxsigma_auto_attach(struct comedi_device *dev,
 	dev->private = devpriv;
 
 	sema_init(&devpriv->sem, 1);
-	devpriv->interface = intf;
 	usb_set_intfdata(intf, devpriv);
 
 	ret = usb_set_interface(usb,
