@@ -25,8 +25,8 @@
  */
 
 #ifndef CONFIG_FORCE_HARD_FLOAT
-double __floatsidf (int i) { return i; }
-unsigned int __fixunsdfsi (double d) { return d; }
+double __floatsidf(int i) { return i; }
+unsigned int __fixunsdfsi(double d) { return d; }
 double __adddf3(double a, double b) { return a+b; }
 double __addsf3(float a, float b) { return a+b; }
 double __subdf3(double a, double b) { return a-b; }
@@ -917,7 +917,7 @@ void rtl8192_set_rxconf(struct net_device *dev)
 	rxconf = rxconf | RCR_AM;
 	//rxconf = rxconf | RCR_ACF;
 
-	if (dev->flags & IFF_PROMISC) {DMESG ("NIC in promisc mode"); }
+	if (dev->flags & IFF_PROMISC) {DMESG("NIC in promisc mode"); }
 
 	if (priv->ieee80211->iw_mode == IW_MODE_MONITOR || \
 	   dev->flags & IFF_PROMISC){
@@ -2369,7 +2369,7 @@ static int rtl8192_qos_handle_probe_response(struct r8192_priv *priv,
 			network->qos_data.old_param_count =
 				network->qos_data.param_count;
 			queue_work(priv->priv_wq, &priv->qos_activate);
-			RT_TRACE (COMP_QOS, "QoS parameters change call "
+			RT_TRACE(COMP_QOS, "QoS parameters change call "
 					"qos_activate\n");
 		}
 	} else {
@@ -4467,7 +4467,7 @@ u8 HwRateToMRate90(bool bIsHT, u8 rate)
  * Return:
  *               None
  */
-void UpdateRxPktTimeStamp8190 (struct net_device *dev, struct ieee80211_rx_stats *stats)
+void UpdateRxPktTimeStamp8190(struct net_device *dev, struct ieee80211_rx_stats *stats)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 
