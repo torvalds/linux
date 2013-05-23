@@ -1129,8 +1129,14 @@ static int coda_start_streaming(struct vb2_queue *q, unsigned int count)
 	value = (CODA_DEFAULT_GAMMA & CODA_GAMMA_MASK) << CODA_GAMMA_OFFSET;
 	coda_write(dev, value, CODA_CMD_ENC_SEQ_RC_GAMMA);
 
-	value  = (CODA_DEFAULT_GAMMA > 0) << CODA_OPTION_GAMMA_OFFSET;
-	value |= (0 & CODA_OPTION_SLICEREPORT_MASK) << CODA_OPTION_SLICEREPORT_OFFSET;
+	if (CODA_DEFAULT_GAMMA > 0) {
+		if (dev->devtype->product == CODA_DX6)
+			value  = 1 << CODADX6_OPTION_GAMMA_OFFSET;
+		else
+			value  = 1 << CODA7_OPTION_GAMMA_OFFSET;
+	} else {
+		value = 0;
+	}
 	coda_write(dev, value, CODA_CMD_ENC_SEQ_OPTION);
 
 	if (dst_fourcc == V4L2_PIX_FMT_H264) {
