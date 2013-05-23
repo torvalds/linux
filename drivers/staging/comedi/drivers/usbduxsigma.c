@@ -727,23 +727,17 @@ static void create_adc_command(unsigned int chan,
 #define SENDPWMON                 7
 #define SENDPWMOFF                8
 
-static int send_dux_commands(struct usbduxsigma_private *this_usbduxsub,
+static int send_dux_commands(struct usbduxsigma_private *devpriv,
 			     int cmd_type)
 {
-	int result, nsent;
+	int nsent;
 
-	this_usbduxsub->dux_commands[0] = cmd_type;
-	result = usb_bulk_msg(this_usbduxsub->usbdev,
-			      usb_sndbulkpipe(this_usbduxsub->usbdev,
-					      COMMAND_OUT_EP),
-			      this_usbduxsub->dux_commands, SIZEOFDUXBUFFER,
-			      &nsent, BULK_TIMEOUT);
-	if (result < 0)
-		dev_err(&this_usbduxsub->interface->dev, "comedi%d: "
-			"could not transmit dux_command to the usb-device, "
-			"err=%d\n", this_usbduxsub->comedidev->minor, result);
+	devpriv->dux_commands[0] = cmd_type;
 
-	return result;
+	return usb_bulk_msg(devpriv->usbdev,
+			    usb_sndbulkpipe(devpriv->usbdev, COMMAND_OUT_EP),
+			    devpriv->dux_commands, SIZEOFDUXBUFFER,
+			    &nsent, BULK_TIMEOUT);
 }
 
 static int receive_dux_commands(struct usbduxsigma_private *this_usbduxsub,
