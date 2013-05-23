@@ -1521,10 +1521,6 @@ static void tidy_up(struct usbduxsigma_private *usbduxsub_tmp)
 {
 	int i;
 
-	/* shows the usb subsystem that the driver is down */
-	if (usbduxsub_tmp->interface)
-		usb_set_intfdata(usbduxsub_tmp->interface, NULL);
-
 	if (usbduxsub_tmp->urbIn) {
 		/* force unlink all urbs */
 		usbdux_ai_stop(usbduxsub_tmp, 1);
@@ -1847,6 +1843,7 @@ static int usbduxsigma_auto_attach(struct comedi_device *dev,
 
 static void usbduxsigma_detach(struct comedi_device *dev)
 {
+	struct usb_interface *intf = comedi_to_usb_interface(dev);
 	struct usbduxsigma_private *devpriv = dev->private;
 
 	if (!devpriv)
@@ -1855,6 +1852,8 @@ static void usbduxsigma_detach(struct comedi_device *dev)
 	/* stop any running commands */
 	usbdux_ai_stop(devpriv, devpriv->ai_cmd_running);
 	usbdux_ao_stop(devpriv, devpriv->ao_cmd_running);
+
+	usb_set_intfdata(intf, NULL);
 
 	down(&devpriv->sem);
 	tidy_up(devpriv);
