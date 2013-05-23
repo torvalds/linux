@@ -262,17 +262,12 @@ static void usbduxsub_unlink_InURBs(struct usbduxsub *devpriv)
 	}
 }
 
-static int usbdux_ai_stop(struct usbduxsub *devpriv, int do_unlink)
+static void usbdux_ai_stop(struct usbduxsub *devpriv, int do_unlink)
 {
-	if (!devpriv)
-		return -EFAULT;
-
 	if (do_unlink)
 		usbduxsub_unlink_InURBs(devpriv);
 
 	devpriv->ai_cmd_running = 0;
-
-	return 0;
 }
 
 /*
@@ -283,7 +278,6 @@ static int usbdux_ai_cancel(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
 	struct usbduxsub *this_usbduxsub;
-	int res = 0;
 
 	/* force unlink of all urbs */
 	this_usbduxsub = dev->private;
@@ -297,9 +291,10 @@ static int usbdux_ai_cancel(struct comedi_device *dev,
 		return -ENODEV;
 	}
 	/* unlink only if the urb really has been submitted */
-	res = usbdux_ai_stop(this_usbduxsub, this_usbduxsub->ai_cmd_running);
+	usbdux_ai_stop(this_usbduxsub, this_usbduxsub->ai_cmd_running);
 	up(&this_usbduxsub->sem);
-	return res;
+
+	return 0;
 }
 
 /* analogue IN - interrupt service routine */
@@ -457,17 +452,12 @@ static void usbduxsub_unlink_OutURBs(struct usbduxsub *devpriv)
 	}
 }
 
-static int usbdux_ao_stop(struct usbduxsub *devpriv, int do_unlink)
+static void usbdux_ao_stop(struct usbduxsub *devpriv, int do_unlink)
 {
-	if (!devpriv)
-		return -EFAULT;
-
 	if (do_unlink)
 		usbduxsub_unlink_OutURBs(devpriv);
 
 	devpriv->ao_cmd_running = 0;
-
-	return 0;
 }
 
 /* force unlink, is called by comedi */
@@ -475,7 +465,6 @@ static int usbdux_ao_cancel(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
 	struct usbduxsub *this_usbduxsub = dev->private;
-	int res = 0;
 
 	if (!this_usbduxsub)
 		return -EFAULT;
@@ -487,9 +476,10 @@ static int usbdux_ao_cancel(struct comedi_device *dev,
 		return -ENODEV;
 	}
 	/* unlink only if it is really running */
-	res = usbdux_ao_stop(this_usbduxsub, this_usbduxsub->ao_cmd_running);
+	usbdux_ao_stop(this_usbduxsub, this_usbduxsub->ao_cmd_running);
 	up(&this_usbduxsub->sem);
-	return res;
+
+	return 0;
 }
 
 static void usbduxsub_ao_IsocIrq(struct urb *urb)
@@ -1637,17 +1627,12 @@ static void usbduxsub_unlink_PwmURBs(struct usbduxsub *devpriv)
 		usb_kill_urb(devpriv->urbPwm);
 }
 
-static int usbdux_pwm_stop(struct usbduxsub *devpriv, int do_unlink)
+static void usbdux_pwm_stop(struct usbduxsub *devpriv, int do_unlink)
 {
-	if (!devpriv)
-		return -EFAULT;
-
 	if (do_unlink)
 		usbduxsub_unlink_PwmURBs(devpriv);
 
 	devpriv->pwm_cmd_running = 0;
-
-	return 0;
 }
 
 /* force unlink - is called by comedi */
@@ -1655,16 +1640,14 @@ static int usbdux_pwm_cancel(struct comedi_device *dev,
 			     struct comedi_subdevice *s)
 {
 	struct usbduxsub *this_usbduxsub = dev->private;
-	int res = 0;
+
+	if (!this_usbduxsub)
+		return -EFAULT;
 
 	/* unlink only if it is really running */
-	res = usbdux_pwm_stop(this_usbduxsub, this_usbduxsub->pwm_cmd_running);
+	usbdux_pwm_stop(this_usbduxsub, this_usbduxsub->pwm_cmd_running);
 
-	res = send_dux_commands(this_usbduxsub, SENDPWMOFF);
-	if (res < 0)
-		return res;
-
-	return res;
+	return send_dux_commands(this_usbduxsub, SENDPWMOFF);
 }
 
 static void usbduxsub_pwm_irq(struct urb *urb)
