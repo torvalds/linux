@@ -56,11 +56,6 @@ extern const uuid_le mei_amthif_guid;
 extern const uuid_le mei_wd_guid;
 
 /*
- * Watchdog independence state message
- */
-extern const u8 mei_wd_state_independence_msg[3][4];
-
-/*
  * Number of Maximum MEI Clients
  */
 #define MEI_CLIENTS_MAX 256
@@ -201,7 +196,6 @@ struct mei_cl {
 	u8 timer_count;
 	enum mei_file_transaction_states reading_state;
 	enum mei_file_transaction_states writing_state;
-	int sm_state;
 	struct mei_cl_cb *read_cb;
 
 	/* MEI CL bus data */
