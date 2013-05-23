@@ -742,6 +742,7 @@ void copy_user_highpage(struct page *to, struct page *from,
 	 */
 	if (clean_src_k_mappings) {
 		__flush_dcache_page(kfrom, kfrom);
+		clear_bit(PG_arch_1, &from->flags);
 	} else {
 		set_bit(PG_arch_1, &from->flags);
 	}
