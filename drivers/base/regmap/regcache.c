@@ -270,7 +270,7 @@ int regcache_sync(struct regmap *map)
 
 	BUG_ON(!map->cache_ops || !map->cache_ops->sync);
 
-	map->lock(map);
+	map->lock(map->lock_arg);
 	/* Remember the initial bypass state */
 	bypass = map->cache_bypass;
 	dev_dbg(map->dev, "Syncing %s cache\n",
@@ -306,7 +306,7 @@ out:
 	trace_regcache_sync(map->dev, name, "stop");
 	/* Restore the bypass state */
 	map->cache_bypass = bypass;
-	map->unlock(map);
+	map->unlock(map->lock_arg);
 
 	return ret;
 }
@@ -333,7 +333,7 @@ int regcache_sync_region(struct regmap *map, unsigned int min,
 
 	BUG_ON(!map->cache_ops || !map->cache_ops->sync);
 
-	map->lock(map);
+	map->lock(map->lock_arg);
 
 	/* Remember the initial bypass state */
 	bypass = map->cache_bypass;
@@ -352,7 +352,7 @@ out:
 	trace_regcache_sync(map->dev, name, "stop region");
 	/* Restore the bypass state */
 	map->cache_bypass = bypass;
-	map->unlock(map);
+	map->unlock(map->lock_arg);
 
 	return ret;
 }
@@ -378,7 +378,7 @@ int regcache_drop_region(struct regmap *map, unsigned int min,
 	if (!map->cache_present && !(map->cache_ops && map->cache_ops->drop))
 		return -EINVAL;
 
-	map->lock(map);
+	map->lock(map->lock_arg);
 
 	trace_regcache_drop_region(map->dev, min, max);
 
@@ -389,7 +389,7 @@ int regcache_drop_region(struct regmap *map, unsigned int min,
 	if (map->cache_ops && map->cache_ops->drop)
 		ret = map->cache_ops->drop(map, min, max);
 
-	map->unlock(map);
+	map->unlock(map->lock_arg);
 
 	return ret;
 }
@@ -409,11 +409,11 @@ EXPORT_SYMBOL_GPL(regcache_drop_region);
  */
 void regcache_cache_only(struct regmap *map, bool enable)
 {
-	map->lock(map);
+	map->lock(map->lock_arg);
 	WARN_ON(map->cache_bypass && enable);
 	map->cache_only = enable;
 	trace_regmap_cache_only(map->dev, enable);
-	map->unlock(map);
+	map->unlock(map->lock_arg);
 }
 EXPORT_SYMBOL_GPL(regcache_cache_only);
 
@@ -428,9 +428,9 @@ EXPORT_SYMBOL_GPL(regcache_cache_only);
  */
 void regcache_mark_dirty(struct regmap *map)
 {
-	map->lock(map);
+	map->lock(map->lock_arg);
 	map->cache_dirty = true;
-	map->unlock(map);
+	map->unlock(map->lock_arg);
 }
 EXPORT_SYMBOL_GPL(regcache_mark_dirty);
 
@@ -447,11 +447,11 @@ EXPORT_SYMBOL_GPL(regcache_mark_dirty);
  */
 void regcache_cache_bypass(struct regmap *map, bool enable)
 {
-	map->lock(map);
+	map->lock(map->lock_arg);
 	WARN_ON(map->cache_only && enable);
 	map->cache_bypass = enable;
 	trace_regmap_cache_bypass(map->dev, enable);
-	map->unlock(map);
+	map->unlock(map->lock_arg);
 }
 EXPORT_SYMBOL_GPL(regcache_cache_bypass);
 
