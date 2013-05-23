@@ -57,20 +57,22 @@
 #define	DBG(x...)
 #endif
 
-//it can change rk610 output volume 
-//0x0000 ~ 0xFFFF
+//rk610 output volume,DAC Digital Gain
+//0x0000 ~ 0xF42					
 #define Volume_Output 0xF42
-//it can change rk610 input volume
-//0x00 ~ 0x0E
+//0x0 ~ 0x3f(bit0-bit5)	 max=0x0(+6DB) min=0x3f(-60DB)	//Analog Gain
+#define Volume_Codec_PA 0x0
+
+//rk610 input volume,rk610 can not adjust the recording volume 
 #define Volume_Input 0x07
+
+
 
 #define OUT_CAPLESS  (1)   //是否为无电容输出，1:无电容输出，0:有电容输出
 
-static u32 gVolReg = 0x00;  ///0x0f; //用于记录音量寄存器
-//static u32 gCodecVol = 0x0f;
 static u8 gR0AReg = 0;  //用于记录R0A寄存器的值，用于改变采样率前通过R0A停止clk
 static u8 gR0BReg = 0;  //用于记录R0B寄存器的值，用于改变采样率前通过R0B停止interplate和decimation
-//static u8 gR1314Reg = 0;  //用于记录R13,R14寄存器的值，用于FM音量为0时
+
 
 /*
  * rk610 register cache
@@ -661,8 +663,8 @@ static int rk610_codec_mute(struct snd_soc_dai *dai, int mute)
 	{
 	//	rk610_codec_write(codec,ACCELCODEC_R1D, 0x2a);  //setup Vmid and Vref, other module power down
 	//	rk610_codec_write(codec,ACCELCODEC_R1E, 0x40);  ///|ASC_PDASDML_ENABLE);
-		rk610_codec_write(codec,ACCELCODEC_R17, gVolReg|ASC_OUTPUT_ACTIVE|ASC_CROSSZERO_EN);  //AOL gVolReg|ASC_OUTPUT_ACTIVE|ASC_CROSSZERO_EN);  //AOL
-		rk610_codec_write(codec,ACCELCODEC_R18, gVolReg|ASC_OUTPUT_ACTIVE|ASC_CROSSZERO_EN); //gVolReg|ASC_OUTPUT_ACTIVE|ASC_CROSSZERO_EN);  //AOR
+		rk610_codec_write(codec,ACCELCODEC_R17, Volume_Codec_PA|ASC_OUTPUT_ACTIVE|ASC_CROSSZERO_EN);  //AOL Volume_Codec_PA|ASC_OUTPUT_ACTIVE|ASC_CROSSZERO_EN);  //AOL
+		rk610_codec_write(codec,ACCELCODEC_R18, Volume_Codec_PA|ASC_OUTPUT_ACTIVE|ASC_CROSSZERO_EN); //Volume_Codec_PA|ASC_OUTPUT_ACTIVE|ASC_CROSSZERO_EN);  //AOR
         rk610_codec_write(codec,ACCELCODEC_R04, ASC_INT_ACTIVE_L|ASC_INT_ACTIVE_R|ASC_SIDETONE_L_OFF|ASC_SIDETONE_R_OFF);
 		rk610_codec_write(codec,ACCELCODEC_R19, 0x7F);  //AOM
 		msleep(300);
