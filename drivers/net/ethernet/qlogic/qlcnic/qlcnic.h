@@ -931,6 +931,7 @@ struct qlcnic_ipaddr {
 #define __QLCNIC_SRIOV_ENABLE		10
 #define __QLCNIC_SRIOV_CAPABLE		11
 #define __QLCNIC_MBX_POLL_ENABLE	12
+#define __QLCNIC_DIAG_MODE		13
 
 #define QLCNIC_INTERRUPT_TEST		1
 #define QLCNIC_LOOPBACK_TEST		2
@@ -1476,6 +1477,7 @@ int qlcnic_send_lro_cleanup(struct qlcnic_adapter *adapter);
 void qlcnic_update_cmd_producer(struct qlcnic_host_tx_ring *);
 
 /* Functions from qlcnic_ethtool.c */
+
 int qlcnic_check_loopback_buff(unsigned char *, u8 []);
 int qlcnic_do_lb_test(struct qlcnic_adapter *, u8);
 int qlcnic_loopback_test(struct net_device *, u8);
@@ -1883,6 +1885,16 @@ static inline void qlcnic_enable_int(struct qlcnic_host_sds_ring *sds_ring)
 
 	if (!QLCNIC_IS_MSI_FAMILY(adapter))
 		writel(0xfbff, adapter->tgt_mask_reg);
+}
+
+static inline int qlcnic_get_diag_lock(struct qlcnic_adapter *adapter)
+{
+	return test_and_set_bit(__QLCNIC_DIAG_MODE, &adapter->state);
+}
+
+static inline void qlcnic_release_diag_lock(struct qlcnic_adapter *adapter)
+{
+	clear_bit(__QLCNIC_DIAG_MODE, &adapter->state);
 }
 
 extern const struct ethtool_ops qlcnic_sriov_vf_ethtool_ops;

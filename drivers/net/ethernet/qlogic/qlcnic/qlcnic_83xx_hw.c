@@ -1593,16 +1593,24 @@ int qlcnic_83xx_loopback_test(struct net_device *netdev, u8 mode)
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	int ret = 0, loop = 0, max_sds_rings = adapter->max_sds_rings;
 
-	QLCDB(adapter, DRV, "%s loopback test in progress\n",
-	      mode == QLCNIC_ILB_MODE ? "internal" : "external");
 	if (ahw->op_mode == QLCNIC_NON_PRIV_FUNC) {
-		dev_warn(&adapter->pdev->dev,
-			 "Loopback test not supported for non privilege function\n");
+		netdev_warn(netdev,
+			    "Loopback test not supported in non privileged mode\n");
 		return ret;
 	}
 
-	if (test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
+	if (test_bit(__QLCNIC_RESETTING, &adapter->state)) {
+		netdev_info(netdev, "Device is resetting\n");
 		return -EBUSY;
+	}
+
+	if (qlcnic_get_diag_lock(adapter)) {
+		netdev_info(netdev, "Device is in diagnostics mode\n");
+		return -EBUSY;
+	}
+
+	netdev_info(netdev, "%s loopback test in progress\n",
+		    mode == QLCNIC_ILB_MODE ? "internal" : "external");
 
 	ret = qlcnic_83xx_diag_alloc_res(netdev, QLCNIC_LOOPBACK_TEST,
 					 max_sds_rings);
@@ -1643,7 +1651,7 @@ free_diag_res:
 
 fail_diag_alloc:
 	adapter->max_sds_rings = max_sds_rings;
-	clear_bit(__QLCNIC_RESETTING, &adapter->state);
+	qlcnic_release_diag_lock(adapter);
 	return ret;
 }
 
@@ -3118,8 +3126,10 @@ int qlcnic_83xx_interrupt_test(struct net_device *netdev)
 	u8 val;
 	int ret, max_sds_rings = adapter->max_sds_rings;
 
-	if (test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
-		return -EIO;
+	if (qlcnic_get_diag_lock(adapter)) {
+		netdev_info(netdev, "Device in diagnostics mode\n");
+		return -EBUSY;
+	}
 
 	ret = qlcnic_83xx_diag_alloc_res(netdev, QLCNIC_INTERRUPT_TEST,
 					 max_sds_rings);
@@ -3161,7 +3171,7 @@ done:
 
 fail_diag_irq:
 	adapter->max_sds_rings = max_sds_rings;
-	clear_bit(__QLCNIC_RESETTING, &adapter->state);
+	qlcnic_release_diag_lock(adapter);
 	return ret;
 }
 
