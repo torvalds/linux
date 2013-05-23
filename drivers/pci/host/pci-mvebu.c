@@ -51,6 +51,7 @@
 #define  PCIE_CTRL_X1_MODE		0x0001
 #define PCIE_STAT_OFF		0x1a04
 #define  PCIE_STAT_BUS                  0xff00
+#define  PCIE_STAT_DEV                  0x1f0000
 #define  PCIE_STAT_LINK_DOWN		BIT(0)
 #define PCIE_DEBUG_CTRL         0x1a60
 #define  PCIE_DEBUG_SOFT_RESET		BIT(20)
@@ -145,6 +146,16 @@ static void mvebu_pcie_set_local_bus_nr(struct mvebu_pcie_port *port, int nr)
 	stat = readl(port->base + PCIE_STAT_OFF);
 	stat &= ~PCIE_STAT_BUS;
 	stat |= nr << 8;
+	writel(stat, port->base + PCIE_STAT_OFF);
+}
+
+static void mvebu_pcie_set_local_dev_nr(struct mvebu_pcie_port *port, int nr)
+{
+	u32 stat;
+
+	stat = readl(port->base + PCIE_STAT_OFF);
+	stat &= ~PCIE_STAT_DEV;
+	stat |= nr << 16;
 	writel(stat, port->base + PCIE_STAT_OFF);
 }
 
@@ -572,8 +583,7 @@ static int mvebu_pcie_wr_conf(struct pci_bus *bus, u32 devfn,
 
 	/* Access the real PCIe interface */
 	spin_lock_irqsave(&port->conf_lock, flags);
-	ret = mvebu_pcie_hw_wr_conf(port, bus,
-				    PCI_DEVFN(1, PCI_FUNC(devfn)),
+	ret = mvebu_pcie_hw_wr_conf(port, bus, devfn,
 				    where, size, val);
 	spin_unlock_irqrestore(&port->conf_lock, flags);
 
@@ -606,8 +616,7 @@ static int mvebu_pcie_rd_conf(struct pci_bus *bus, u32 devfn, int where,
 
 	/* Access the real PCIe interface */
 	spin_lock_irqsave(&port->conf_lock, flags);
-	ret = mvebu_pcie_hw_rd_conf(port, bus,
-				    PCI_DEVFN(1, PCI_FUNC(devfn)),
+	ret = mvebu_pcie_hw_rd_conf(port, bus, devfn,
 				    where, size, val);
 	spin_unlock_irqrestore(&port->conf_lock, flags);
 
@@ -816,6 +825,8 @@ static int __init mvebu_pcie_probe(struct platform_device *pdev)
 				port->port, port->lane);
 			continue;
 		}
+
+		mvebu_pcie_set_local_dev_nr(port, 1);
 
 		if (mvebu_pcie_link_up(port)) {
 			port->haslink = 1;
