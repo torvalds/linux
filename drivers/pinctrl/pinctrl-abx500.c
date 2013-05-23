@@ -99,7 +99,6 @@ struct abx500_pinctrl {
 	struct abx500_pinctrl_soc_data *soc;
 	struct gpio_chip chip;
 	struct ab8500 *parent;
-	struct mutex lock;
 	struct abx500_gpio_irq_cluster *irq_cluster;
 	int irq_cluster_size;
 };
@@ -881,9 +880,6 @@ static int abx500_gpio_probe(struct platform_device *pdev)
 			id = (unsigned long)match->data;
 	}
 
-	/* initialize the lock */
-	mutex_init(&pct->lock);
-
 	/* Poke in other ASIC variants here */
 	switch (id) {
 	case PINCTRL_AB8500:
@@ -900,13 +896,11 @@ static int abx500_gpio_probe(struct platform_device *pdev)
 		break;
 	default:
 		dev_err(&pdev->dev, "Unsupported pinctrl sub driver (%d)\n", id);
-		mutex_destroy(&pct->lock);
 		return -EINVAL;
 	}
 
 	if (!pct->soc) {
 		dev_err(&pdev->dev, "Invalid SOC data\n");
-		mutex_destroy(&pct->lock);
 		return -EINVAL;
 	}
 
@@ -917,7 +911,6 @@ static int abx500_gpio_probe(struct platform_device *pdev)
 	ret = gpiochip_add(&pct->chip);
 	if (ret) {
 		dev_err(&pdev->dev, "unable to add gpiochip: %d\n", ret);
-		mutex_destroy(&pct->lock);
 		return ret;
 	}
 	dev_info(&pdev->dev, "added gpiochip\n");
@@ -954,7 +947,6 @@ out_rem_chip:
 	if (err)
 		dev_info(&pdev->dev, "failed to remove gpiochip\n");
 
-	mutex_destroy(&pct->lock);
 	return ret;
 }
 
@@ -973,8 +965,6 @@ static int abx500_gpio_remove(struct platform_device *pdev)
 			ret);
 		return ret;
 	}
-
-	mutex_destroy(&pct->lock);
 
 	return 0;
 }
