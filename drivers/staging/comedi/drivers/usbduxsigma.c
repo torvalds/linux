@@ -148,6 +148,15 @@ Status: testing
 /* number of retries to get the right dux command */
 #define RETRIES 10
 
+/* bulk transfer commands to usbduxsigma */
+#define USBBUXSIGMA_AD_CMD		0
+#define USBDUXSIGMA_DA_CMD		1
+#define USBDUXSIGMA_DIO_CFG_CMD		2
+#define USBDUXSIGMA_DIO_BITS_CMD	3
+#define USBDUXSIGMA_SINGLE_AD_CMD	4
+#define USBDUXSIGMA_PWM_ON_CMD		7
+#define USBDUXSIGMA_PWM_OFF_CMD		8
+
 /**************************************************/
 /* comedi constants */
 static const struct comedi_lrange range_usbdux_ai_range = { 1, {
@@ -643,18 +652,7 @@ static void create_adc_command(unsigned int chan,
 		(*muxsg1) = (*muxsg1) | (1 << (chan-8));
 }
 
-
-/* bulk transfers to usbdux */
-
-#define SENDADCOMMANDS            0
-#define SENDDACOMMANDS            1
-#define SENDDIOCONFIGCOMMAND      2
-#define SENDDIOBITSCOMMAND        3
-#define SENDSINGLEAD              4
-#define SENDPWMON                 7
-#define SENDPWMOFF                8
-
-static int send_dux_commands(struct comedi_device *dev, int cmd_type)
+static int usbbuxsigma_send_cmd(struct comedi_device *dev, int cmd_type)
 {
 	struct usb_device *usb = comedi_to_usb_dev(dev);
 	struct usbduxsigma_private *devpriv = dev->private;
@@ -667,7 +665,7 @@ static int send_dux_commands(struct comedi_device *dev, int cmd_type)
 			    &nsent, BULK_TIMEOUT);
 }
 
-static int receive_dux_commands(struct comedi_device *dev, int command)
+static int usbduxsigma_receive_cmd(struct comedi_device *dev, int command)
 {
 	struct usb_device *usb = comedi_to_usb_dev(dev);
 	struct usbduxsigma_private *devpriv = dev->private;
@@ -748,7 +746,7 @@ static int usbduxsigma_ai_cmd(struct comedi_device *dev,
 	devpriv->dux_commands[6] = muxsg1;
 	devpriv->dux_commands[7] = sysred;
 
-	ret = send_dux_commands(dev, SENDADCOMMANDS);
+	ret = usbbuxsigma_send_cmd(dev, USBBUXSIGMA_AD_CMD);
 	if (ret < 0) {
 		up(&devpriv->sem);
 		return ret;
@@ -806,7 +804,7 @@ static int usbduxsigma_ai_insn_read(struct comedi_device *dev,
 	devpriv->dux_commands[6] = sysred;
 
 	/* adc commands */
-	ret = send_dux_commands(dev, SENDSINGLEAD);
+	ret = usbbuxsigma_send_cmd(dev, USBDUXSIGMA_SINGLE_AD_CMD);
 	if (ret < 0) {
 		up(&devpriv->sem);
 		return ret;
@@ -815,7 +813,7 @@ static int usbduxsigma_ai_insn_read(struct comedi_device *dev,
 	for (i = 0; i < insn->n; i++) {
 		int32_t val;
 
-		ret = receive_dux_commands(dev, SENDSINGLEAD);
+		ret = usbduxsigma_receive_cmd(dev, USBDUXSIGMA_SINGLE_AD_CMD);
 		if (ret < 0) {
 			up(&devpriv->sem);
 			return ret;
@@ -870,7 +868,7 @@ static int usbduxsigma_ao_insn_write(struct comedi_device *dev,
 		devpriv->dux_commands[1] = 1;		/* num channels */
 		devpriv->dux_commands[2] = data[i];	/* value */
 		devpriv->dux_commands[3] = chan;	/* channel number */
-		ret = send_dux_commands(dev, SENDDACOMMANDS);
+		ret = usbbuxsigma_send_cmd(dev, USBDUXSIGMA_DA_CMD);
 		if (ret < 0) {
 			up(&devpriv->sem);
 			return ret;
@@ -1114,10 +1112,10 @@ static int usbduxsigma_dio_insn_bits(struct comedi_device *dev,
 	devpriv->dux_commands[3] = (s->io_bits >> 16) & 0xff;
 	devpriv->dux_commands[6] = (s->state >> 16) & 0xff;
 
-	ret = send_dux_commands(dev, SENDDIOBITSCOMMAND);
+	ret = usbbuxsigma_send_cmd(dev, USBDUXSIGMA_DIO_BITS_CMD);
 	if (ret < 0)
 		goto done;
-	ret = receive_dux_commands(dev, SENDDIOBITSCOMMAND);
+	ret = usbduxsigma_receive_cmd(dev, USBDUXSIGMA_DIO_BITS_CMD);
 	if (ret < 0)
 		goto done;
 
@@ -1154,7 +1152,7 @@ static int usbduxsigma_pwm_cancel(struct comedi_device *dev,
 	/* unlink only if it is really running */
 	usbduxsigma_pwm_stop(dev, devpriv->pwm_cmd_running);
 
-	return send_dux_commands(dev, SENDPWMOFF);
+	return usbbuxsigma_send_cmd(dev, USBDUXSIGMA_PWM_OFF_CMD);
 }
 
 static void usbduxsigma_pwm_irq(struct urb *urb)
@@ -1248,7 +1246,7 @@ static int usbduxsigma_pwm_start(struct comedi_device *dev,
 		return 0;
 
 	devpriv->dux_commands[1] = devpriv->pwmDelay;
-	ret = send_dux_commands(dev, SENDPWMON);
+	ret = usbbuxsigma_send_cmd(dev, USBDUXSIGMA_PWM_ON_CMD);
 	if (ret < 0)
 		return ret;
 
@@ -1387,11 +1385,11 @@ static int usbduxsigma_getstatusinfo(struct comedi_device *dev, int chan)
 	devpriv->dux_commands[4] = 0;
 	devpriv->dux_commands[5] = 0;
 	devpriv->dux_commands[6] = sysred;
-	ret = send_dux_commands(dev, SENDSINGLEAD);
+	ret = usbbuxsigma_send_cmd(dev, USBDUXSIGMA_SINGLE_AD_CMD);
 	if (ret < 0)
 		return ret;
 
-	ret = receive_dux_commands(dev, SENDSINGLEAD);
+	ret = usbduxsigma_receive_cmd(dev, USBDUXSIGMA_SINGLE_AD_CMD);
 	if (ret < 0)
 		return ret;
 
