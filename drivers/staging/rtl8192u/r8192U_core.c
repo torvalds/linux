@@ -169,7 +169,7 @@ static struct usb_driver rtl8192_usb_driver = {
 typedef struct _CHANNEL_LIST {
 	u8	Channel[32];
 	u8	Len;
-}CHANNEL_LIST, *PCHANNEL_LIST;
+} CHANNEL_LIST, *PCHANNEL_LIST;
 
 static CHANNEL_LIST ChannelPlan[] = {
 	{{1,2,3,4,5,6,7,8,9,10,11,36,40,44,48,52,56,60,64,149,153,157,161,165},24},		//FCC
@@ -803,7 +803,7 @@ void rtl8192_update_msr(struct net_device *dev)
 		else if (priv->ieee80211->iw_mode == IW_MODE_MASTER)
 			msr |= (MSR_LINK_MASTER<<MSR_LINK_SHIFT);
 
-	}else
+	} else
 		msr |= (MSR_LINK_NONE<<MSR_LINK_SHIFT);
 
 	write_nic_byte(dev, MSR, msr);
@@ -1806,7 +1806,7 @@ short rtl819xU_tx_cmd(struct net_device *dev, struct sk_buff *skb)
 
 	if (!status){
 		return 0;
-	}else{
+	} else{
 		DMESGE("Error TX CMD URB, error %d",
 				status);
 		return -1;
@@ -2507,7 +2507,7 @@ void rtl8192_update_ratr_table(struct net_device *dev)
 	ratr_value &= 0x0FFFFFFF;
 	if (ieee->pHTInfo->bCurTxBW40MHz && ieee->pHTInfo->bCurShortGI40MHz){
 		ratr_value |= 0x80000000;
-	}else if (!ieee->pHTInfo->bCurTxBW40MHz && ieee->pHTInfo->bCurShortGI20MHz){
+	} else if (!ieee->pHTInfo->bCurTxBW40MHz && ieee->pHTInfo->bCurShortGI20MHz){
 		ratr_value |= 0x80000000;
 	}
 	write_nic_dword(dev, RATR0+rate_index*4, ratr_value);
@@ -3714,7 +3714,7 @@ CamRestoreAllEntry(struct net_device *dev)
 		{0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 		{0x00, 0x00, 0x00, 0x00, 0x00, 0x01},
 		{0x00, 0x00, 0x00, 0x00, 0x00, 0x02},
-		{0x00, 0x00, 0x00, 0x00, 0x00, 0x03}};
+		{0x00, 0x00, 0x00, 0x00, 0x00, 0x03} };
 	static u8	CAM_CONST_BROAD[] =
 		{0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 
@@ -4944,7 +4944,7 @@ static void rtl8192_query_rxphystatus(
 			if (pstats->RxPWDBAll > 40)
 			{
 				sq = 100;
-			}else
+			} else
 			{
 				sq = pcck_buf->sq_rpt;
 
@@ -5295,7 +5295,7 @@ void query_rxdesc_status(struct sk_buff *skb, struct ieee80211_rx_stats *stats, 
 
 				stats->bHwError = 1;
 				stats->rate = MGN_1M;	//Set 1M rate by default
-			}else
+			} else
 			{
 				stats->rate = ret_rate;
 			}
@@ -5423,9 +5423,9 @@ void rtl8192_rx_nomal(struct sk_buff *skb)
 		unicast_packet = false;
 		if (is_broadcast_ether_addr(ieee80211_hdr->addr1)) {
 			//TODO
-		}else if (is_multicast_ether_addr(ieee80211_hdr->addr1)){
+		} else if (is_multicast_ether_addr(ieee80211_hdr->addr1)){
 			//TODO
-		}else {
+		} else {
 			/* unicast packet */
 			unicast_packet = true;
 		}
@@ -5483,9 +5483,9 @@ void rtl8192_rx_nomal(struct sk_buff *skb)
 				unicast_packet = false;
 				if (is_broadcast_ether_addr(ieee80211_hdr->addr1)) {
 					//TODO
-				}else if (is_multicast_ether_addr(ieee80211_hdr->addr1)){
+				} else if (is_multicast_ether_addr(ieee80211_hdr->addr1)){
 					//TODO
-				}else {
+				} else {
 					/* unicast packet */
 					unicast_packet = true;
 				}
