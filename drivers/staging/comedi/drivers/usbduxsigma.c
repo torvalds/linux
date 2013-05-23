@@ -759,8 +759,6 @@ static int usbdux_ai_inttrig(struct comedi_device *dev,
 {
 	struct usbduxsigma_private *this_usbduxsub = dev->private;
 	int ret;
-	if (!this_usbduxsub)
-		return -EFAULT;
 
 	down(&this_usbduxsub->sem);
 	if (trignum != 0) {
@@ -799,9 +797,6 @@ static int usbdux_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	uint8_t muxsg0 = 0;
 	uint8_t muxsg1 = 0;
 	uint8_t sysred = 0;
-
-	if (!this_usbduxsub)
-		return -EFAULT;
 
 	/* block other CPUs from starting an ai_cmd */
 	down(&this_usbduxsub->sem);
@@ -918,9 +913,6 @@ static int usbdux_ai_insn_read(struct comedi_device *dev,
 	uint8_t muxsg1 = 0;
 	uint8_t sysred = 0;
 
-	if (!this_usbduxsub)
-		return 0;
-
 	down(&this_usbduxsub->sem);
 	if (this_usbduxsub->ai_cmd_running) {
 		dev_err(&this_usbduxsub->interface->dev,
@@ -982,9 +974,6 @@ static int usbdux_getstatusinfo(struct comedi_device *dev, int chan)
 	uint8_t sysred = 0;
 	uint32_t one;
 	int err;
-
-	if (!this_usbduxsub)
-		return 0;
 
 	if (this_usbduxsub->ai_cmd_running) {
 		dev_err(&this_usbduxsub->interface->dev,
@@ -1057,9 +1046,6 @@ static int usbdux_ao_insn_read(struct comedi_device *dev,
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 
-	if (!this_usbduxsub)
-		return -EFAULT;
-
 	down(&this_usbduxsub->sem);
 	for (i = 0; i < insn->n; i++)
 		data[i] = this_usbduxsub->outBuffer[chan];
@@ -1075,9 +1061,6 @@ static int usbdux_ao_insn_write(struct comedi_device *dev,
 	struct usbduxsigma_private *this_usbduxsub = dev->private;
 	int i, err;
 	int chan = CR_CHAN(insn->chanspec);
-
-	if (!this_usbduxsub)
-		return -EFAULT;
 
 	down(&this_usbduxsub->sem);
 	if (this_usbduxsub->ao_cmd_running) {
@@ -1116,9 +1099,6 @@ static int usbdux_ao_inttrig(struct comedi_device *dev,
 	struct usbduxsigma_private *this_usbduxsub = dev->private;
 	int ret;
 
-	if (!this_usbduxsub)
-		return -EFAULT;
-
 	down(&this_usbduxsub->sem);
 	if (trignum != 0) {
 		dev_err(&this_usbduxsub->interface->dev,
@@ -1150,12 +1130,8 @@ static int usbdux_ao_cmdtest(struct comedi_device *dev,
 			     struct comedi_subdevice *s,
 			     struct comedi_cmd *cmd)
 {
-	struct usbduxsigma_private *this_usbduxsub = dev->private;
 	int err = 0;
 	unsigned int flags;
-
-	if (!this_usbduxsub)
-		return -EFAULT;
 
 	/* Step 1 : check if triggers are trivially valid */
 
@@ -1226,9 +1202,6 @@ static int usbdux_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	struct comedi_cmd *cmd = &s->async->cmd;
 	unsigned int chan, gain;
 	int i, ret;
-
-	if (!this_usbduxsub)
-		return -EFAULT;
 
 	down(&this_usbduxsub->sem);
 	/* set current channel of the running acquisition to zero */
@@ -1359,9 +1332,6 @@ static int usbdux_dio_insn_bits(struct comedi_device *dev,
 {
 	struct usbduxsigma_private *this_usbduxsub = dev->private;
 	int err;
-
-	if (!this_usbduxsub)
-		return -EFAULT;
 
 	down(&this_usbduxsub->sem);
 
@@ -1549,9 +1519,6 @@ static int usbdux_pwm_pattern(struct comedi_device *dev,
 	char sgn_mask;
 	char c;
 
-	if (!this_usbduxsub)
-		return -EFAULT;
-
 	/* this is the DIO bit which carries the PWM data */
 	pwm_mask = (1 << channel);
 	/* this is the DIO bit which carries the optional direction bit */
@@ -1584,11 +1551,6 @@ static int usbdux_pwm_write(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data)
 {
-	struct usbduxsigma_private *this_usbduxsub = dev->private;
-
-	if (!this_usbduxsub)
-		return -EFAULT;
-
 	if ((insn->n) != 1) {
 		/*
 		 * doesn't make sense to have more than one value here because
@@ -1666,9 +1628,6 @@ static int usbdux_pwm_config(struct comedi_device *dev,
 static void tidy_up(struct usbduxsigma_private *usbduxsub_tmp)
 {
 	int i;
-
-	if (!usbduxsub_tmp)
-		return;
 
 	/* shows the usb subsystem that the driver is down */
 	if (usbduxsub_tmp->interface)
