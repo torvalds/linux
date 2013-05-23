@@ -825,7 +825,7 @@ mpc52xx_ata_remove(struct platform_device *op)
 static int
 mpc52xx_ata_suspend(struct platform_device *op, pm_message_t state)
 {
-	struct ata_host *host = dev_get_drvdata(&op->dev);
+	struct ata_host *host = platform_get_drvdata(op);
 
 	return ata_host_suspend(host, state);
 }
@@ -833,7 +833,7 @@ mpc52xx_ata_suspend(struct platform_device *op, pm_message_t state)
 static int
 mpc52xx_ata_resume(struct platform_device *op)
 {
-	struct ata_host *host = dev_get_drvdata(&op->dev);
+	struct ata_host *host = platform_get_drvdata(op);
 	struct mpc52xx_ata_priv *priv = host->private_data;
 	int rv;
 

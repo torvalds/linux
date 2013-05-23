@@ -908,7 +908,7 @@ free_clk:
 
 static int arasan_cf_remove(struct platform_device *pdev)
 {
-	struct ata_host *host = dev_get_drvdata(&pdev->dev);
+	struct ata_host *host = platform_get_drvdata(pdev);
 	struct arasan_cf_dev *acdev = host->ports[0]->private_data;
 
 	ata_host_detach(host);
