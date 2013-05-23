@@ -47,6 +47,16 @@
 				status = "okay";
 			};
 
+			spi0: spi@fffa4000 {
+				cs-gpios = <&pioB 15 GPIO_ACTIVE_HIGH>;
+				status = "okay";
+				mtd_dataflash@0 {
+					compatible = "atmel,at45", "atmel,dataflash";
+					reg = <0>;
+					spi-max-frequency = <15000000>;
+				};
+			};
+
 			shdwc@fffffd10 {
 				atmel,wakeup-counter = <10>;
 				atmel,wakeup-rtt-timer;
