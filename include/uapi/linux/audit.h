@@ -387,7 +387,8 @@ struct audit_features {
 };
 
 #define AUDIT_FEATURE_ONLY_UNSET_LOGINUID	0
-#define AUDIT_LAST_FEATURE			AUDIT_FEATURE_ONLY_UNSET_LOGINUID
+#define AUDIT_FEATURE_LOGINUID_IMMUTABLE	1
+#define AUDIT_LAST_FEATURE			AUDIT_FEATURE_LOGINUID_IMMUTABLE
 
 #define audit_feature_valid(x)		((x) >= 0 && (x) <= AUDIT_LAST_FEATURE)
 #define AUDIT_FEATURE_TO_MASK(x)	(1 << ((x) & 31)) /* mask for __u32 */
