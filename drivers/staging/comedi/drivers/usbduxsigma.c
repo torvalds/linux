@@ -176,16 +176,14 @@ struct usbduxsigma_private {
 	int8_t *insnBuffer;
 	/* output buffer for single DA outputs */
 	int16_t *outBuffer;
-	/* is it USB_SPEED_HIGH or not? */
-	short int high_speed;
-	/* asynchronous command is running */
-	short int ai_cmd_running;
-	short int ao_cmd_running;
-	/* pwm is running */
-	short int pwm_cmd_running;
-	/* continuous acquisition */
-	short int ai_continuous;
-	short int ao_continuous;
+
+	unsigned high_speed:1;
+	unsigned ai_cmd_running:1;
+	unsigned ai_continuous:1;
+	unsigned ao_cmd_running:1;
+	unsigned ao_continuous:1;
+	unsigned pwm_cmd_running:1;
+
 	/* number of samples to acquire */
 	int ai_sample_count;
 	int ao_sample_count;
