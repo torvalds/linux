@@ -47,6 +47,10 @@
 				status = "okay";
 			};
 
+			shdwc@fffffd10 {
+				atmel,wakeup-counter = <10>;
+				atmel,wakeup-rtt-timer;
+			};
 		};
 
 		nand0: nand@40000000 {
