@@ -42,27 +42,18 @@ int qlcnic_83xx_disable_vnic_mode(struct qlcnic_adapter *adapter, int lock)
 static int qlcnic_83xx_set_vnic_opmode(struct qlcnic_adapter *adapter)
 {
 	u8 id;
-	int i, ret = -EBUSY;
+	int ret = -EBUSY;
 	u32 data = QLCNIC_MGMT_FUNC;
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 
 	if (qlcnic_83xx_lock_driver(adapter))
 		return ret;
 
-	if (qlcnic_config_npars) {
-		for (i = 0; i < ahw->act_pci_func; i++) {
-			id = adapter->npars[i].pci_func;
-			if (id == ahw->pci_func)
-				continue;
-			data |= qlcnic_config_npars &
-				QLC_83XX_SET_FUNC_OPMODE(0x3, id);
-		}
-	} else {
-		data = QLCRDX(adapter->ahw, QLC_83XX_DRV_OP_MODE);
-		data = (data & ~QLC_83XX_SET_FUNC_OPMODE(0x3, ahw->pci_func)) |
-		       QLC_83XX_SET_FUNC_OPMODE(QLCNIC_MGMT_FUNC,
-						ahw->pci_func);
-	}
+	id = ahw->pci_func;
+	data = QLCRDX(adapter->ahw, QLC_83XX_DRV_OP_MODE);
+	data = (data & ~QLC_83XX_SET_FUNC_OPMODE(0x3, id)) |
+	       QLC_83XX_SET_FUNC_OPMODE(QLCNIC_MGMT_FUNC, id);
+
 	QLCWRX(adapter->ahw, QLC_83XX_DRV_OP_MODE, data);
 
 	qlcnic_83xx_unlock_driver(adapter);

@@ -303,7 +303,6 @@ extern int qlcnic_use_msi;
 extern int qlcnic_use_msi_x;
 extern int qlcnic_auto_fw_reset;
 extern int qlcnic_load_fw_file;
-extern int qlcnic_config_npars;
 
 /* Number of status descriptors to handle per interrupt */
 #define MAX_STATUS_HANDLE	(64)
