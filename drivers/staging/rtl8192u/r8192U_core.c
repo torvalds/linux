@@ -209,7 +209,7 @@ static void rtl819x_set_channel_map(u8 channel_plan, struct r8192_priv *priv)
 			max_chan = 14;
 		}
 		else {
-			RT_TRACE(COMP_ERR, "unknown rf chip, can't set channel map in function:%s()\n", __FUNCTION__);
+			RT_TRACE(COMP_ERR, "unknown rf chip, can't set channel map in function:%s()\n", __func__);
 		}
 		if (ChannelPlan[channel_plan].Len != 0) {
 			// Clear old channel map
@@ -813,7 +813,7 @@ void rtl8192_set_chan(struct net_device *dev, short ch)
 {
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
 //	u32 tx;
-	RT_TRACE(COMP_CH, "=====>%s()====ch:%d\n", __FUNCTION__, ch);
+	RT_TRACE(COMP_CH, "=====>%s()====ch:%d\n", __func__, ch);
 	priv->chan = ch;
 
 	/* this hack should avoid frame TX during channel setting*/
@@ -1080,7 +1080,7 @@ static void rtl8192_rx_isr(struct urb *urb)
 	skb = dev_alloc_skb(RX_URB_SIZE);
 	if (unlikely(!skb)) {
 		usb_free_urb(urb);
-		printk("%s():can,t alloc skb\n", __FUNCTION__);
+		printk("%s():can,t alloc skb\n", __func__);
 		/* TODO check rx queue length and refill *somewhere* */
 		return;
 	}
@@ -1748,7 +1748,7 @@ unsigned int txqueue2outpipe(struct r8192_priv *priv, unsigned int tx_queue) {
 
 	if (tx_queue >= 9)
 	{
-		RT_TRACE(COMP_ERR, "%s():Unknown queue ID!!!\n", __FUNCTION__);
+		RT_TRACE(COMP_ERR, "%s():Unknown queue ID!!!\n", __func__);
 		return 0x04;
 	}
 	return priv->txqueue_to_outpipemap[tx_queue];
@@ -2446,7 +2446,7 @@ static int rtl8192_qos_association_resp(struct r8192_priv *priv,
 
 	spin_unlock_irqrestore(&priv->ieee80211->lock, flags);
 
-	RT_TRACE(COMP_QOS, "%s: network->flags = %d,%d\n", __FUNCTION__, network->flags, priv->ieee80211->current_network.qos_data.active);
+	RT_TRACE(COMP_QOS, "%s: network->flags = %d,%d\n", __func__, network->flags, priv->ieee80211->current_network.qos_data.active);
 	if (set_qos_param == 1)
 		queue_work(priv->priv_wq, &priv->qos_activate);
 
@@ -2625,7 +2625,7 @@ void rtl8192_SetWirelessMode(struct net_device *dev, u8 wireless_mode)
 			wireless_mode = WIRELESS_MODE_B;
 		}
 		else{
-			RT_TRACE(COMP_ERR, "%s(), No valid wireless mode supported, SupportedWirelessMode(%x)!!!\n", __FUNCTION__, bSupportMode);
+			RT_TRACE(COMP_ERR, "%s(), No valid wireless mode supported, SupportedWirelessMode(%x)!!!\n", __func__, bSupportMode);
 			wireless_mode = WIRELESS_MODE_B;
 		}
 	}
@@ -2811,12 +2811,12 @@ static void rtl8192_get_eeprom_size(struct net_device *dev)
 {
 	u16 curCR = 0;
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	RT_TRACE(COMP_EPROM, "===========>%s()\n", __FUNCTION__);
+	RT_TRACE(COMP_EPROM, "===========>%s()\n", __func__);
 	curCR = read_nic_word_E(dev, EPROM_CMD);
 	RT_TRACE(COMP_EPROM, "read from Reg EPROM_CMD(%x):%x\n", EPROM_CMD, curCR);
 	//whether need I consider BIT5?
 	priv->epromtype = (curCR & Cmd9346CR_9356SEL) ? EPROM_93c56 : EPROM_93c46;
-	RT_TRACE(COMP_EPROM, "<===========%s(), epromtype:%d\n", __FUNCTION__, priv->epromtype);
+	RT_TRACE(COMP_EPROM, "<===========%s(), epromtype:%d\n", __func__, priv->epromtype);
 }
 
 //used to swap endian. as ntohl & htonl are not necessary to swap endian, so use this instead.
@@ -2833,7 +2833,7 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 	u8 bLoad_From_EEPOM = false;
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u16 tmpValue = 0;
-	RT_TRACE(COMP_EPROM, "===========>%s()\n", __FUNCTION__);
+	RT_TRACE(COMP_EPROM, "===========>%s()\n", __func__);
 	wEPROM_ID = eprom_read(dev, 0); //first read EEPROM ID out;
 	RT_TRACE(COMP_EPROM, "EEPROM ID is 0x%x\n", wEPROM_ID);
 
@@ -3066,7 +3066,7 @@ static void rtl8192_read_eeprom_info(struct net_device *dev)
 	init_rate_adaptive(dev);
 	//we need init DIG RATR table here again.
 
-	RT_TRACE(COMP_EPROM, "<===========%s()\n", __FUNCTION__);
+	RT_TRACE(COMP_EPROM, "<===========%s()\n", __func__);
 	return;
 }
 
@@ -3232,7 +3232,7 @@ bool rtl8192_adapter_start(struct net_device *dev)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u32 dwRegRead = 0;
 	bool init_status = true;
-	RT_TRACE(COMP_INIT, "====>%s()\n", __FUNCTION__);
+	RT_TRACE(COMP_INIT, "====>%s()\n", __func__);
 	priv->Rf_Mode = RF_OP_By_SW_3wire;
 	//for ASIC power on sequence
 	write_nic_byte_E(dev, 0x5f, 0x80);
@@ -3252,7 +3252,7 @@ bool rtl8192_adapter_start(struct net_device *dev)
 	else if (priv->pFirmware->firmware_status == FW_STATUS_5_READY)
 		dwRegRead |= CPU_GEN_FIRMWARE_RESET;
 	else
-		RT_TRACE(COMP_ERR, "ERROR in %s(): undefined firmware state(%d)\n", __FUNCTION__,   priv->pFirmware->firmware_status);
+		RT_TRACE(COMP_ERR, "ERROR in %s(): undefined firmware state(%d)\n", __func__,   priv->pFirmware->firmware_status);
 
 	write_nic_dword(dev, CPU_GEN, dwRegRead);
 	//mdelay(30);
@@ -3269,7 +3269,7 @@ bool rtl8192_adapter_start(struct net_device *dev)
 	else if (priv->LoopbackMode == RTL819xU_MAC_LOOPBACK)
 		dwRegRead |= CPU_CCK_LOOPBACK;
 	else
-		RT_TRACE(COMP_ERR, "Serious error in %s(): wrong loopback mode setting(%d)\n", __FUNCTION__,  priv->LoopbackMode);
+		RT_TRACE(COMP_ERR, "Serious error in %s(): wrong loopback mode setting(%d)\n", __func__,  priv->LoopbackMode);
 
 	write_nic_dword(dev, CPU_GEN, dwRegRead);
 
@@ -3363,10 +3363,10 @@ bool rtl8192_adapter_start(struct net_device *dev)
 	init_status = init_firmware(dev);
 	if (!init_status)
 	{
-		RT_TRACE(COMP_ERR, "ERR!!! %s(): Firmware download is failed\n", __FUNCTION__);
+		RT_TRACE(COMP_ERR, "ERR!!! %s(): Firmware download is failed\n", __func__);
 		return init_status;
 	}
-	RT_TRACE(COMP_INIT, "%s():after firmware download\n", __FUNCTION__);
+	RT_TRACE(COMP_INIT, "%s():after firmware download\n", __func__);
 	//
 #ifdef TO_DO_LIST
 if (Adapter->ResetProgress == RESET_TYPE_NORESET)
@@ -3405,7 +3405,7 @@ if (Adapter->ResetProgress == RESET_TYPE_NORESET)
 	//config RF.
 	if (priv->ResetProgress == RESET_TYPE_NORESET){
 	rtl8192_phy_RFConfig(dev);
-	RT_TRACE(COMP_INIT, "%s():after phy RF config\n", __FUNCTION__);
+	RT_TRACE(COMP_INIT, "%s():after phy RF config\n", __func__);
 	}
 
 
@@ -3500,7 +3500,7 @@ HalTxCheckStuck819xUsb(
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	u16		RegTxCounter = read_nic_word(dev, 0x128);
 	bool		bStuck = FALSE;
-	RT_TRACE(COMP_RESET, "%s():RegTxCounter is %d,TxCounter is %d\n", __FUNCTION__, RegTxCounter, priv->TxCounter);
+	RT_TRACE(COMP_RESET, "%s():RegTxCounter is %d,TxCounter is %d\n", __func__, RegTxCounter, priv->TxCounter);
 	if (priv->TxCounter == RegTxCounter)
 		bStuck = TRUE;
 
@@ -3564,7 +3564,7 @@ HalRxCheckStuck819xUsb(struct net_device *dev)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	bool bStuck = FALSE;
 	static u8	rx_chk_cnt;
-	RT_TRACE(COMP_RESET, "%s(): RegRxCounter is %d,RxCounter is %d\n", __FUNCTION__, RegRxCounter, priv->RxCounter);
+	RT_TRACE(COMP_RESET, "%s(): RegRxCounter is %d,RxCounter is %d\n", __func__, RegRxCounter, priv->RxCounter);
 	// If rssi is small, we should check rx for long time because of bad rx.
 	// or maybe it will continuous silent reset every 2 seconds.
 	rx_chk_cnt++;
@@ -3689,7 +3689,7 @@ rtl819x_ifcheck_resetornot(struct net_device *dev)
 	if (TxResetType == RESET_TYPE_NORMAL || RxResetType == RESET_TYPE_NORMAL)
 		return RESET_TYPE_NORMAL;
 	else if (TxResetType == RESET_TYPE_SILENT || RxResetType == RESET_TYPE_SILENT){
-		RT_TRACE(COMP_RESET, "%s():silent reset\n", __FUNCTION__);
+		RT_TRACE(COMP_RESET, "%s():silent reset\n", __func__);
 		return RESET_TYPE_SILENT;
 	}
 	else
@@ -3868,12 +3868,12 @@ RESET_START:
 		down(&priv->wx_sem);
 		if (priv->up == 0)
 		{
-			RT_TRACE(COMP_ERR, "%s():the driver is not up! return\n", __FUNCTION__);
+			RT_TRACE(COMP_ERR, "%s():the driver is not up! return\n", __func__);
 			up(&priv->wx_sem);
 			return;
 		}
 		priv->up = 0;
-		RT_TRACE(COMP_RESET, "%s():======>start to down the driver\n", __FUNCTION__);
+		RT_TRACE(COMP_RESET, "%s():======>start to down the driver\n", __func__);
 //		if(!netif_queue_stopped(dev))
 //			netif_stop_queue(dev);
 
@@ -3898,12 +3898,12 @@ RESET_START:
 			printk("ieee->state is NOT LINKED\n");
 			ieee80211_softmac_stop_protocol(priv->ieee80211);			}
 		up(&priv->wx_sem);
-		RT_TRACE(COMP_RESET, "%s():<==========down process is finished\n", __FUNCTION__);
+		RT_TRACE(COMP_RESET, "%s():<==========down process is finished\n", __func__);
 	//rtl8192_irq_disable(dev);
-		RT_TRACE(COMP_RESET, "%s():===========>start up the driver\n", __FUNCTION__);
+		RT_TRACE(COMP_RESET, "%s():===========>start up the driver\n", __func__);
 		reset_status = _rtl8192_up(dev);
 
-		RT_TRACE(COMP_RESET, "%s():<===========up process is finished\n", __FUNCTION__);
+		RT_TRACE(COMP_RESET, "%s():<===========up process is finished\n", __func__);
 		if (reset_status == -EAGAIN)
 		{
 			if (reset_times < 3)
@@ -3913,7 +3913,7 @@ RESET_START:
 			}
 			else
 			{
-				RT_TRACE(COMP_ERR, " ERR!!! %s():  Reset Failed!!\n", __FUNCTION__);
+				RT_TRACE(COMP_ERR, " ERR!!! %s():  Reset Failed!!\n", __func__);
 			}
 		}
 		ieee->is_silent_reset = 1;
@@ -4052,9 +4052,9 @@ extern	void	rtl819x_watchdog_wqcallback(struct work_struct *work)
 			{
 				#ifdef TODO
 				if (rfState == eRfOff)
-					RT_TRACE(COMP_ERR, "========>%s()\n", __FUNCTION__);
+					RT_TRACE(COMP_ERR, "========>%s()\n", __func__);
 				#endif
-				printk("===>%s(): AP is power off,connect another one\n", __FUNCTION__);
+				printk("===>%s(): AP is power off,connect another one\n", __func__);
 			//	Dot11d_Reset(dev);
 				priv->ieee80211->state = IEEE80211_ASSOCIATING;
 				notify_wx_assoc_event(priv->ieee80211);
@@ -4080,7 +4080,7 @@ extern	void	rtl819x_watchdog_wqcallback(struct work_struct *work)
 		(priv->bForcedSilentReset ||
 		(!priv->bDisableNormalResetCheck && ResetType == RESET_TYPE_SILENT)))) // This is control by OID set in Pomelo
 	{
-		RT_TRACE(COMP_RESET, "%s():priv->force_reset is %d,priv->ResetProgress is %d, priv->bForcedSilentReset is %d,priv->bDisableNormalResetCheck is %d,ResetType is %d\n", __FUNCTION__, priv->force_reset, priv->ResetProgress, priv->bForcedSilentReset, priv->bDisableNormalResetCheck, ResetType);
+		RT_TRACE(COMP_RESET, "%s():priv->force_reset is %d,priv->ResetProgress is %d, priv->bForcedSilentReset is %d,priv->bDisableNormalResetCheck is %d,ResetType is %d\n", __func__, priv->force_reset, priv->ResetProgress, priv->bForcedSilentReset, priv->bDisableNormalResetCheck, ResetType);
 		rtl819x_ifsilentreset(dev);
 	}
 	priv->force_reset = false;
@@ -4108,7 +4108,7 @@ int _rtl8192_up(struct net_device *dev)
 	init_status = rtl8192_adapter_start(dev);
 	if (!init_status)
 	{
-		RT_TRACE(COMP_ERR, "ERR!!! %s(): initialization failed!\n", __FUNCTION__);
+		RT_TRACE(COMP_ERR, "ERR!!! %s(): initialization failed!\n", __func__);
 		priv->up = priv->ieee80211->ieee_up = 0;
 		return -EAGAIN;
 	}
@@ -4174,7 +4174,7 @@ int rtl8192_down(struct net_device *dev)
 
 	priv->up = 0;
 	priv->ieee80211->ieee_up = 0;
-	RT_TRACE(COMP_DOWN, "==========>%s()\n", __FUNCTION__);
+	RT_TRACE(COMP_DOWN, "==========>%s()\n", __func__);
 /* FIXME */
 	if (!netif_queue_stopped(dev))
 		netif_stop_queue(dev);
@@ -4203,7 +4203,7 @@ int rtl8192_down(struct net_device *dev)
 
 	ieee80211_softmac_stop_protocol(priv->ieee80211);
 	memset(&priv->ieee80211->current_network, 0, offsetof(struct ieee80211_network, list));
-	RT_TRACE(COMP_DOWN, "<==========%s()\n", __FUNCTION__);
+	RT_TRACE(COMP_DOWN, "<==========%s()\n", __func__);
 
 		return 0;
 }
@@ -5903,7 +5903,7 @@ void EnableHWSecurityConfig8192(struct net_device *dev)
 		ieee->hwsec_active = 0;
 		SECR_value &= ~SCR_RxDecEnable;
 	}
-	RT_TRACE(COMP_SEC, "%s:, hwsec:%d, pairwise_key:%d, SECR_value:%x\n", __FUNCTION__, \
+	RT_TRACE(COMP_SEC, "%s:, hwsec:%d, pairwise_key:%d, SECR_value:%x\n", __func__, \
 			ieee->hwsec_active, ieee->pairwise_key_type, SECR_value);
 	{
 		write_nic_byte(dev, SECR,  SECR_value);//SECR_value |  SCR_UseDK );
