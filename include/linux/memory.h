@@ -26,7 +26,6 @@ struct memory_block {
 	unsigned long start_section_nr;
 	unsigned long end_section_nr;
 	unsigned long state;
-	int last_online;
 	int section_count;
 
 	/*

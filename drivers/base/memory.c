@@ -291,13 +291,7 @@ static int __memory_block_change_state(struct memory_block *mem,
 		mem->state = MEM_GOING_OFFLINE;
 
 	ret = memory_block_action(mem->start_section_nr, to_state, online_type);
-	if (ret) {
-		mem->state = from_state_req;
-	} else {
-		mem->state = to_state;
-		if (to_state == MEM_ONLINE)
-			mem->last_online = online_type;
-	}
+	mem->state = ret ? from_state_req : to_state;
 	return ret;
 }
 
@@ -310,7 +304,7 @@ static int memory_subsys_online(struct device *dev)
 
 	ret = mem->state == MEM_ONLINE ? 0 :
 		__memory_block_change_state(mem, MEM_ONLINE, MEM_OFFLINE,
-					    mem->last_online);
+					    ONLINE_KEEP);
 
 	mutex_unlock(&mem->state_mutex);
 	return ret;
@@ -618,7 +612,6 @@ static int init_memory_block(struct memory_block **memory,
 			base_memory_block_id(scn_nr) * sections_per_block;
 	mem->end_section_nr = mem->start_section_nr + sections_per_block - 1;
 	mem->state = state;
-	mem->last_online = ONLINE_KEEP;
 	mem->section_count++;
 	mutex_init(&mem->state_mutex);
 	start_pfn = section_nr_to_pfn(mem->start_section_nr);
