@@ -268,9 +268,6 @@ static int usbduxsub_unlink_InURBs(struct usbduxsub *usbduxsub_tmp)
 				 * cancelled. */
 				usb_kill_urb(usbduxsub_tmp->urbIn[i]);
 			}
-			dev_dbg(&usbduxsub_tmp->interface->dev,
-				"comedi: usbdux: unlinked InURB %d, err=%d\n",
-				i, err);
 		}
 	}
 	return err;
@@ -481,10 +478,6 @@ static int usbduxsub_unlink_OutURBs(struct usbduxsub *usbduxsub_tmp)
 		for (i = 0; i < usbduxsub_tmp->numOfOutBuffers; i++) {
 			if (usbduxsub_tmp->urbOut[i])
 				usb_kill_urb(usbduxsub_tmp->urbOut[i]);
-
-			dev_dbg(&usbduxsub_tmp->interface->dev,
-				"comedi: usbdux: unlinked OutURB %d: res=%d\n",
-				i, err);
 		}
 	}
 	return err;
@@ -1679,8 +1672,6 @@ static int usbduxsub_unlink_PwmURBs(struct usbduxsub *usbduxsub_tmp)
 	if (usbduxsub_tmp && usbduxsub_tmp->urbPwm) {
 		if (usbduxsub_tmp->urbPwm)
 			usb_kill_urb(usbduxsub_tmp->urbPwm);
-		dev_dbg(&usbduxsub_tmp->interface->dev,
-			"comedi: unlinked PwmURB: res=%d\n", err);
 	}
 	return err;
 }
