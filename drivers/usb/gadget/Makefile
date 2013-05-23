@@ -50,6 +50,8 @@ u_rndis-y			:= rndis.o
 obj-$(CONFIG_USB_U_RNDIS)	+= u_rndis.o
 usb_f_ncm-y			:= f_ncm.o
 obj-$(CONFIG_USB_F_NCM)		+= usb_f_ncm.o
+usb_f_ecm-y			:= f_ecm.o
+obj-$(CONFIG_USB_F_ECM)		+= usb_f_ecm.o
 
 #
 # USB gadget drivers

@@ -37,8 +37,9 @@
  * the runtime footprint, and giving us at least some parts of what
  * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
  */
-#define USBF_OBEX_INCLUDED
+#define USBF_ECM_INCLUDED
 #include "f_ecm.c"
+#define USBF_OBEX_INCLUDED
 #include "f_obex.c"
 #include "f_phonet.c"
 #include "u_ether.h"
