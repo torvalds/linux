@@ -1326,42 +1326,30 @@ static int usbdux_pwm_start(struct comedi_device *dev,
 	return 0;
 }
 
-/* generates the bit pattern for PWM with the optional sign bit */
-static int usbdux_pwm_pattern(struct comedi_device *dev,
-			      struct comedi_subdevice *s, int channel,
-			      unsigned int value, unsigned int sign)
+static int usbduxsigma_pwm_pattern(struct comedi_device *dev,
+				   struct comedi_subdevice *s,
+				   unsigned int chan,
+				   unsigned int value,
+				   unsigned int sign)
 {
-	struct usbduxsigma_private *this_usbduxsub = dev->private;
-	int i, szbuf;
-	char *pBuf;
-	char pwm_mask;
-	char sgn_mask;
-	char c;
+	struct usbduxsigma_private *devpriv = dev->private;
+	char pwm_mask = (1 << chan);	/* DIO bit for the PWM data */
+	char sgn_mask = (16 << chan);	/* DIO bit for the sign */
+	char *buf = (char *)(devpriv->urbPwm->transfer_buffer);
+	int szbuf = devpriv->sizePwmBuf;
+	int i;
 
-	/* this is the DIO bit which carries the PWM data */
-	pwm_mask = (1 << channel);
-	/* this is the DIO bit which carries the optional direction bit */
-	sgn_mask = (16 << channel);
-	/* this is the buffer which will be filled with the with bit */
-	/* pattern for one period */
-	szbuf = this_usbduxsub->sizePwmBuf;
-	pBuf = (char *)(this_usbduxsub->urbPwm->transfer_buffer);
 	for (i = 0; i < szbuf; i++) {
-		c = *pBuf;
-		/* reset bits */
-		c = c & (~pwm_mask);
-		/* set the bit as long as the index is lower than the value */
+		char c = *buf;
+
+		c &= ~pwm_mask;
 		if (i < value)
-			c = c | pwm_mask;
-		/* set the optional sign bit for a relay */
-		if (!sign) {
-			/* positive value */
-			c = c & (~sgn_mask);
-		} else {
-			/* negative value */
-			c = c | sgn_mask;
-		}
-		*(pBuf++) = c;
+			c |= pwm_mask;
+		if (!sign)
+			c &= ~sgn_mask;
+		else
+			c |= sgn_mask;
+		*buf++ = c;
 	}
 	return 1;
 }
@@ -1384,7 +1372,7 @@ static int usbduxsigma_pwm_write(struct comedi_device *dev,
 	 * The sign is set via a special INSN only, this gives us 8 bits
 	 * for normal operation, sign is 0 by default.
 	 */
-	return usbdux_pwm_pattern(dev, s, chan, data[0], 0);
+	return usbduxsigma_pwm_pattern(dev, s, chan, data[0], 0);
 }
 
 static int usbduxsigma_pwm_config(struct comedi_device *dev,
@@ -1393,6 +1381,7 @@ static int usbduxsigma_pwm_config(struct comedi_device *dev,
 				  unsigned int *data)
 {
 	struct usbduxsigma_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
 
 	switch (data[0]) {
 	case INSN_CONFIG_ARM:
@@ -1418,8 +1407,8 @@ static int usbduxsigma_pwm_config(struct comedi_device *dev,
 		 * data[1] = value
 		 * data[2] = sign (for a relay)
 		 */
-		return usbdux_pwm_pattern(dev, s, CR_CHAN(insn->chanspec),
-					  data[1], (data[2] != 0));
+		return usbduxsigma_pwm_pattern(dev, s, chan,
+					       data[1], (data[2] != 0));
 	case INSN_CONFIG_PWM_GET_H_BRIDGE:
 		/* values are not kept in this driver, nothing to return */
 		return -EINVAL;
