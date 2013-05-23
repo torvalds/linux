@@ -279,37 +279,29 @@ static int usbdux_ai_cancel(struct comedi_device *dev,
 	return 0;
 }
 
-/* analogue IN - interrupt service routine */
 static void usbduxsub_ai_IsocIrq(struct urb *urb)
 {
-	int i, err, n;
-	struct usbduxsub *this_usbduxsub;
-	struct comedi_device *this_comedidev;
-	struct comedi_subdevice *s;
-	int32_t v;
+	struct comedi_device *dev = urb->context;
+	struct usbduxsub *devpriv = dev->private;
+	struct comedi_subdevice *s = dev->read_subdev;
 	unsigned int dio_state;
-
-	/* the context variable points to the comedi device */
-	this_comedidev = urb->context;
-	/* the private structure of the subdevice is struct usbduxsub */
-	this_usbduxsub = this_comedidev->private;
-	/* subdevice which is the AD converter */
-	s = &this_comedidev->subdevices[SUBDEV_AD];
+	int32_t val;
+	int ret;
+	int i;
 
 	/* first we test if something unusual has just happened */
 	switch (urb->status) {
 	case 0:
 		/* copy the result in the transfer buffer */
-		memcpy(this_usbduxsub->inBuffer,
-		       urb->transfer_buffer, SIZEINBUF);
+		memcpy(devpriv->inBuffer, urb->transfer_buffer, SIZEINBUF);
 		break;
 	case -EILSEQ:
-		/* error in the ISOchronous data */
-		/* we don't copy the data into the transfer buffer */
-		/* and recycle the last data byte */
-		dev_dbg(&urb->dev->dev,
-			"comedi%d: usbdux: CRC error in ISO IN stream.\n",
-			this_usbduxsub->comedidev->minor);
+		/*
+		 * error in the ISOchronous data
+		 * we don't copy the data into the transfer buffer
+		 * and recycle the last data byte
+		 */
+		dev_dbg(dev->class_dev,"CRC error in ISO IN stream\n");
 
 		break;
 
@@ -318,110 +310,87 @@ static void usbduxsub_ai_IsocIrq(struct urb *urb)
 	case -ESHUTDOWN:
 	case -ECONNABORTED:
 		/* happens after an unlink command */
-		if (this_usbduxsub->ai_cmd_running) {
-			/* we are still running a command */
-			/* tell this comedi */
-			s->async->events |= COMEDI_CB_EOA;
-			s->async->events |= COMEDI_CB_ERROR;
-			comedi_event(this_usbduxsub->comedidev, s);
-			/* stop the transfer w/o unlink */
-			usbdux_ai_stop(this_usbduxsub, 0);
+		if (devpriv->ai_cmd_running) {
+			usbdux_ai_stop(devpriv, 0);	/* w/o unlink */
+			/* we are still running a command, tell comedi */
+			s->async->events |= (COMEDI_CB_EOA | COMEDI_CB_ERROR);
+			comedi_event(dev, s);
 		}
 		return;
 
 	default:
-		/* a real error on the bus */
-		/* pass error to comedi if we are really running a command */
-		if (this_usbduxsub->ai_cmd_running) {
-			dev_err(&urb->dev->dev,
-				"Non-zero urb status received in ai intr "
-				"context: %d\n", urb->status);
-			s->async->events |= COMEDI_CB_EOA;
-			s->async->events |= COMEDI_CB_ERROR;
-			comedi_event(this_usbduxsub->comedidev, s);
-			/* don't do an unlink here */
-			usbdux_ai_stop(this_usbduxsub, 0);
+		/*
+		 * a real error on the bus
+		 * pass error to comedi if we are really running a command
+		 */
+		if (devpriv->ai_cmd_running) {
+			dev_err(dev->class_dev,
+				"%s: non-zero urb status (%d)\n",
+				__func__, urb->status);
+			usbdux_ai_stop(devpriv, 0);	/* w/o unlink */
+			s->async->events |= (COMEDI_CB_EOA | COMEDI_CB_ERROR);
+			comedi_event(dev, s);
 		}
 		return;
 	}
 
-	/*
-	 * at this point we are reasonably sure that nothing dodgy has happened
-	 * are we running a command?
-	 */
-	if (unlikely((!(this_usbduxsub->ai_cmd_running)))) {
-		/*
-		 * not running a command, do not continue execution if no
-		 * asynchronous command is running in particular not resubmit
-		 */
+	if (unlikely(!devpriv->ai_cmd_running))
 		return;
-	}
 
-	urb->dev = this_usbduxsub->usbdev;
+	urb->dev = devpriv->usbdev;
 
-	/* resubmit the urb */
-	err = usb_submit_urb(urb, GFP_ATOMIC);
-	if (unlikely(err < 0)) {
-		dev_err(&urb->dev->dev,
-			"comedi_: urb resubmit failed in int-context!"
-			"err=%d\n",
-			err);
-		if (err == -EL2NSYNC)
-			dev_err(&urb->dev->dev,
-				"buggy USB host controller or bug in IRQ "
-				"handler!\n");
-		s->async->events |= COMEDI_CB_EOA;
-		s->async->events |= COMEDI_CB_ERROR;
-		comedi_event(this_usbduxsub->comedidev, s);
-		/* don't do an unlink here */
-		usbdux_ai_stop(this_usbduxsub, 0);
+	ret = usb_submit_urb(urb, GFP_ATOMIC);
+	if (unlikely(ret < 0)) {
+		dev_err(dev->class_dev, "%s: urb resubmit failed (%d)\n",
+			__func__, ret);
+		if (ret == -EL2NSYNC)
+			dev_err(dev->class_dev,
+				"buggy USB host controller or bug in IRQ handler\n");
+		usbdux_ai_stop(devpriv, 0);	/* w/o unlink */
+		s->async->events |= (COMEDI_CB_EOA | COMEDI_CB_ERROR);
+		comedi_event(dev, s);
 		return;
 	}
 
 	/* get the state of the dio pins to allow external trigger */
-	dio_state = be32_to_cpu(this_usbduxsub->inBuffer[0]);
+	dio_state = be32_to_cpu(devpriv->inBuffer[0]);
 
-	this_usbduxsub->ai_counter--;
-	if (likely(this_usbduxsub->ai_counter > 0))
+	devpriv->ai_counter--;
+	if (likely(devpriv->ai_counter > 0))
 		return;
 
 	/* timer zero, transfer measurements to comedi */
-	this_usbduxsub->ai_counter = this_usbduxsub->ai_timer;
+	devpriv->ai_counter = devpriv->ai_timer;
 
-	/* test, if we transmit only a fixed number of samples */
-	if (!(this_usbduxsub->ai_continuous)) {
+	if (!devpriv->ai_continuous) {
 		/* not continuous, fixed number of samples */
-		this_usbduxsub->ai_sample_count--;
-		/* all samples received? */
-		if (this_usbduxsub->ai_sample_count < 0) {
-			/* prevent a resubmit next time */
-			usbdux_ai_stop(this_usbduxsub, 0);
-			/* say comedi that the acquistion is over */
+		devpriv->ai_sample_count--;
+		if (devpriv->ai_sample_count < 0) {
+			usbdux_ai_stop(devpriv, 0);	/* w/o unlink */
+			/* acquistion is over, tell comedi */
 			s->async->events |= COMEDI_CB_EOA;
-			comedi_event(this_usbduxsub->comedidev, s);
+			comedi_event(dev, s);
 			return;
 		}
 	}
+
 	/* get the data from the USB bus and hand it over to comedi */
-	n = s->async->cmd.chanlist_len;
-	for (i = 0; i < n; i++) {
+	for (i = 0; i < s->async->cmd.chanlist_len; i++) {
 		/* transfer data, note first byte is the DIO state */
-		v = be32_to_cpu(this_usbduxsub->inBuffer[i+1]);
-		/* strip status byte */
-		v = v & 0x00ffffff;
-		/* convert to unsigned */
-		v = v ^ 0x00800000;
-		/* write the byte to the buffer */
-		err = cfc_write_array_to_buffer(s, &v, sizeof(uint32_t));
-		if (unlikely(err == 0)) {
+		val = be32_to_cpu(devpriv->inBuffer[i+1]);
+		val &= 0x00ffffff;	/* strip status byte */
+		val ^= 0x00800000;	/* convert to unsigned */
+
+		ret = cfc_write_array_to_buffer(s, &val, sizeof(uint32_t));
+		if (unlikely(ret == 0)) {
 			/* buffer overflow */
-			usbdux_ai_stop(this_usbduxsub, 0);
+			usbdux_ai_stop(devpriv, 0);	/* w/o unlink */
 			return;
 		}
 	}
 	/* tell comedi that data is there */
-	s->async->events |= COMEDI_CB_BLOCK | COMEDI_CB_EOS;
-	comedi_event(this_usbduxsub->comedidev, s);
+	s->async->events |= (COMEDI_CB_BLOCK | COMEDI_CB_EOS);
+	comedi_event(dev, s);
 }
 
 static void usbdux_ao_stop(struct usbduxsub *devpriv, int do_unlink)
