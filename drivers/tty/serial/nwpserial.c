@@ -199,7 +199,7 @@ static void nwpserial_shutdown(struct uart_port *port)
 	dcr_write(up->dcr_host, UART_IER, up->ier);
 
 	/* free irq */
-	free_irq(up->port.irq, port);
+	free_irq(up->port.irq, up);
 }
 
 static int nwpserial_verify_port(struct uart_port *port,
