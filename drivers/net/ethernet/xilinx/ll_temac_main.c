@@ -1007,7 +1007,7 @@ static int temac_of_probe(struct platform_device *op)
 		return -ENOMEM;
 
 	ether_setup(ndev);
-	dev_set_drvdata(&op->dev, ndev);
+	platform_set_drvdata(op, ndev);
 	SET_NETDEV_DEV(ndev, &op->dev);
 	ndev->flags &= ~IFF_MULTICAST;  /* clear multicast */
 	ndev->features = NETIF_F_SG | NETIF_F_FRAGLIST;
@@ -1136,7 +1136,7 @@ static int temac_of_probe(struct platform_device *op)
 
 static int temac_of_remove(struct platform_device *op)
 {
-	struct net_device *ndev = dev_get_drvdata(&op->dev);
+	struct net_device *ndev = platform_get_drvdata(op);
 	struct temac_local *lp = netdev_priv(ndev);
 
 	temac_mdio_teardown(lp);
@@ -1145,7 +1145,6 @@ static int temac_of_remove(struct platform_device *op)
 	if (lp->phy_node)
 		of_node_put(lp->phy_node);
 	lp->phy_node = NULL;
-	dev_set_drvdata(&op->dev, NULL);
 	iounmap(lp->regs);
 	if (lp->sdma_regs)
 		iounmap(lp->sdma_regs);

@@ -430,10 +430,8 @@ exit:
 
 static int netx_eth_drv_remove(struct platform_device *pdev)
 {
-	struct net_device *ndev = dev_get_drvdata(&pdev->dev);
+	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct netx_eth_priv *priv = netdev_priv(ndev);
-
-	platform_set_drvdata(pdev, NULL);
 
 	unregister_netdev(ndev);
 	xc_stop(priv->xc);
