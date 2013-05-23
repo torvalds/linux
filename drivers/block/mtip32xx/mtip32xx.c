@@ -2809,33 +2809,50 @@ static ssize_t show_device_status(struct device_driver *drv, char *buf)
 static ssize_t mtip_hw_read_device_status(struct file *f, char __user *ubuf,
 						size_t len, loff_t *offset)
 {
+	struct driver_data *dd =  (struct driver_data *)f->private_data;
 	int size = *offset;
-	char buf[MTIP_DFS_MAX_BUF_SIZE];
+	char *buf;
+	int rv = 0;
 
 	if (!len || *offset)
 		return 0;
+
+	buf = kzalloc(MTIP_DFS_MAX_BUF_SIZE, GFP_KERNEL);
+	if (!buf) {
+		dev_err(&dd->pdev->dev,
+			"Memory allocation: status buffer\n");
+		return -ENOMEM;
+	}
 
 	size += show_device_status(NULL, buf);
 
 	*offset = size <= len ? size : len;
 	size = copy_to_user(ubuf, buf, *offset);
 	if (size)
-		return -EFAULT;
+		rv = -EFAULT;
 
-	return *offset;
+	kfree(buf);
+	return rv ? rv : *offset;
 }
 
 static ssize_t mtip_hw_read_registers(struct file *f, char __user *ubuf,
 				  size_t len, loff_t *offset)
 {
 	struct driver_data *dd =  (struct driver_data *)f->private_data;
-	char buf[MTIP_DFS_MAX_BUF_SIZE];
+	char *buf;
 	u32 group_allocated;
 	int size = *offset;
-	int n;
+	int n, rv = 0;
 
 	if (!len || size)
 		return 0;
+
+	buf = kzalloc(MTIP_DFS_MAX_BUF_SIZE, GFP_KERNEL);
+	if (!buf) {
+		dev_err(&dd->pdev->dev,
+			"Memory allocation: register buffer\n");
+		return -ENOMEM;
+	}
 
 	size += sprintf(&buf[size], "H/ S ACTive      : [ 0x");
 
@@ -2891,20 +2908,29 @@ static ssize_t mtip_hw_read_registers(struct file *f, char __user *ubuf,
 	*offset = size <= len ? size : len;
 	size = copy_to_user(ubuf, buf, *offset);
 	if (size)
-		return -EFAULT;
+		rv = -EFAULT;
 
-	return *offset;
+	kfree(buf);
+	return rv ? rv : *offset;
 }
 
 static ssize_t mtip_hw_read_flags(struct file *f, char __user *ubuf,
 				  size_t len, loff_t *offset)
 {
 	struct driver_data *dd =  (struct driver_data *)f->private_data;
-	char buf[MTIP_DFS_MAX_BUF_SIZE];
+	char *buf;
 	int size = *offset;
+	int rv = 0;
 
 	if (!len || size)
 		return 0;
+
+	buf = kzalloc(MTIP_DFS_MAX_BUF_SIZE, GFP_KERNEL);
+	if (!buf) {
+		dev_err(&dd->pdev->dev,
+			"Memory allocation: flag buffer\n");
+		return -ENOMEM;
+	}
 
 	size += sprintf(&buf[size], "Flag-port : [ %08lX ]\n",
 							dd->port->flags);
@@ -2914,9 +2940,10 @@ static ssize_t mtip_hw_read_flags(struct file *f, char __user *ubuf,
 	*offset = size <= len ? size : len;
 	size = copy_to_user(ubuf, buf, *offset);
 	if (size)
-		return -EFAULT;
+		rv = -EFAULT;
 
-	return *offset;
+	kfree(buf);
+	return rv ? rv : *offset;
 }
 
 static const struct file_operations mtip_device_status_fops = {
