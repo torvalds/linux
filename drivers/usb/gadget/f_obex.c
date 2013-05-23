@@ -403,55 +403,6 @@ fail:
 	return status;
 }
 
-#ifdef USBF_OBEX_INCLUDED
-
-static void
-obex_old_unbind(struct usb_configuration *c, struct usb_function *f)
-{
-	usb_free_all_descriptors(f);
-	kfree(func_to_obex(f));
-}
-
-/**
- * obex_bind_config - add a CDC OBEX function to a configuration
- * @c: the configuration to support the CDC OBEX instance
- * @port_num: /dev/ttyGS* port this interface will use
- * Context: single threaded during gadget setup
- *
- * Returns zero on success, else negative errno.
- */
-int __init obex_bind_config(struct usb_configuration *c, u8 port_num)
-{
-	struct f_obex	*obex;
-	int		status;
-
-	/* allocate and initialize one new instance */
-	obex = kzalloc(sizeof *obex, GFP_KERNEL);
-	if (!obex)
-		return -ENOMEM;
-
-	obex->port_num = port_num;
-
-	obex->port.connect = obex_connect;
-	obex->port.disconnect = obex_disconnect;
-
-	obex->port.func.name = "obex";
-	/* descriptors are per-instance copies */
-	obex->port.func.bind = obex_bind;
-	obex->port.func.unbind = obex_old_unbind;
-	obex->port.func.set_alt = obex_set_alt;
-	obex->port.func.get_alt = obex_get_alt;
-	obex->port.func.disable = obex_disable;
-
-	status = usb_add_function(c, &obex->port.func);
-	if (status)
-		kfree(obex);
-
-	return status;
-}
-
-#else
-
 static inline struct f_serial_opts *to_f_serial_opts(struct config_item *item)
 {
 	return container_of(to_config_group(item), struct f_serial_opts,
@@ -578,8 +529,5 @@ struct usb_function *obex_alloc(struct usb_function_instance *fi)
 }
 
 DECLARE_USB_FUNCTION_INIT(obex, obex_alloc_inst, obex_alloc);
-
-#endif
-
 MODULE_AUTHOR("Felipe Balbi");
 MODULE_LICENSE("GPL");
