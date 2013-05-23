@@ -215,9 +215,9 @@ struct f2fs_dir_entry *f2fs_find_entry(struct inode *dir,
 
 struct f2fs_dir_entry *f2fs_parent_dir(struct inode *dir, struct page **p)
 {
-	struct page *page = NULL;
-	struct f2fs_dir_entry *de = NULL;
-	struct f2fs_dentry_block *dentry_blk = NULL;
+	struct page *page;
+	struct f2fs_dir_entry *de;
+	struct f2fs_dentry_block *dentry_blk;
 
 	page = get_lock_data_page(dir, 0);
 	if (IS_ERR(page))
