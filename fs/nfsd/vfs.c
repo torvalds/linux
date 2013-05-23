@@ -1944,14 +1944,15 @@ static int nfsd_buffered_filldir(void *__buf, const char *name, int namlen,
 static __be32 nfsd_buffered_readdir(struct file *file, filldir_t func,
 				    struct readdir_cd *cdp, loff_t *offsetp)
 {
-	struct readdir_data buf;
 	struct buffered_dirent *de;
 	int host_err;
 	int size;
 	loff_t offset;
+	struct readdir_data buf = {
+		.ctx.actor = nfsd_buffered_filldir,
+		.dirent = (void *)__get_free_page(GFP_KERNEL)
+	};
 
-	buf.ctx.actor = nfsd_buffered_filldir;
-	buf.dirent = (void *)__get_free_page(GFP_KERNEL);
 	if (!buf.dirent)
 		return nfserrno(-ENOMEM);
 

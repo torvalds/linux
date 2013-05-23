@@ -109,14 +109,13 @@ SYSCALL_DEFINE3(old_readdir, unsigned int, fd,
 {
 	int error;
 	struct fd f = fdget(fd);
-	struct readdir_callback buf;
+	struct readdir_callback buf = {
+		.ctx.actor = fillonedir,
+		.dirent = dirent
+	};
 
 	if (!f.file)
 		return -EBADF;
-
-	buf.ctx.actor = fillonedir;
-	buf.result = 0;
-	buf.dirent = dirent;
 
 	error = iterate_dir(f.file, &buf.ctx);
 	if (buf.result)
@@ -195,7 +194,11 @@ SYSCALL_DEFINE3(getdents, unsigned int, fd,
 {
 	struct fd f;
 	struct linux_dirent __user * lastdirent;
-	struct getdents_callback buf;
+	struct getdents_callback buf = {
+		.ctx.actor = filldir,
+		.count = count,
+		.current_dir = dirent
+	};
 	int error;
 
 	if (!access_ok(VERIFY_WRITE, dirent, count))
@@ -204,12 +207,6 @@ SYSCALL_DEFINE3(getdents, unsigned int, fd,
 	f = fdget(fd);
 	if (!f.file)
 		return -EBADF;
-
-	buf.current_dir = dirent;
-	buf.previous = NULL;
-	buf.count = count;
-	buf.error = 0;
-	buf.ctx.actor = filldir;
 
 	error = iterate_dir(f.file, &buf.ctx);
 	if (error >= 0)
@@ -277,7 +274,11 @@ SYSCALL_DEFINE3(getdents64, unsigned int, fd,
 {
 	struct fd f;
 	struct linux_dirent64 __user * lastdirent;
-	struct getdents_callback64 buf;
+	struct getdents_callback64 buf = {
+		.ctx.actor = filldir64,
+		.count = count,
+		.current_dir = dirent
+	};
 	int error;
 
 	if (!access_ok(VERIFY_WRITE, dirent, count))
@@ -286,12 +287,6 @@ SYSCALL_DEFINE3(getdents64, unsigned int, fd,
 	f = fdget(fd);
 	if (!f.file)
 		return -EBADF;
-
-	buf.current_dir = dirent;
-	buf.previous = NULL;
-	buf.count = count;
-	buf.error = 0;
-	buf.ctx.actor = filldir64;
 
 	error = iterate_dir(f.file, &buf.ctx);
 	if (error >= 0)

@@ -89,7 +89,10 @@ static int gfs2_get_name(struct dentry *parent, char *name,
 	struct inode *dir = parent->d_inode;
 	struct inode *inode = child->d_inode;
 	struct gfs2_inode *dip, *ip;
-	struct get_name_filldir gnfd;
+	struct get_name_filldir gnfd = {
+		.ctx.actor = get_name_filldir,
+		.name = name
+	};
 	struct gfs2_holder gh;
 	int error;
 	struct file_ra_state f_ra = { .start = 0 };
@@ -106,9 +109,6 @@ static int gfs2_get_name(struct dentry *parent, char *name,
 	*name = 0;
 	gnfd.inum.no_addr = ip->i_no_addr;
 	gnfd.inum.no_formal_ino = ip->i_no_formal_ino;
-	gnfd.name = name;
-	gnfd.ctx.actor = get_name_filldir;
-	gnfd.ctx.pos = 0;
 
 	error = gfs2_glock_nq_init(dip->i_gl, LM_ST_SHARED, 0, &gh);
 	if (error)
