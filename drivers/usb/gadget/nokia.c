@@ -40,8 +40,6 @@
  */
 #define USBF_ECM_INCLUDED
 #include "f_ecm.c"
-#define USBF_PHONET_INCLUDED
-#include "f_phonet.c"
 #include "u_ether.h"
 
 /*-------------------------------------------------------------------------*/
@@ -106,8 +104,9 @@ static struct usb_function *f_obex1_cfg1;
 static struct usb_function *f_obex2_cfg1;
 static struct usb_function *f_obex1_cfg2;
 static struct usb_function *f_obex2_cfg2;
+static struct usb_function *f_phonet_cfg1;
+static struct usb_function *f_phonet_cfg2;
 static struct eth_dev *the_dev;
-static struct net_device *phonet_dev;
 
 
 static struct usb_configuration nokia_config_500ma_driver = {
@@ -129,19 +128,24 @@ static struct usb_configuration nokia_config_100ma_driver = {
 static struct usb_function_instance *fi_acm;
 static struct usb_function_instance *fi_obex1;
 static struct usb_function_instance *fi_obex2;
+static struct usb_function_instance *fi_phonet;
 
 static int __init nokia_bind_config(struct usb_configuration *c)
 {
 	struct usb_function *f_acm;
+	struct usb_function *f_phonet = NULL;
 	struct usb_function *f_obex1 = NULL;
 	struct usb_function *f_obex2 = NULL;
 	int status = 0;
 	int obex1_stat = 0;
 	int obex2_stat = 0;
+	int phonet_stat = 0;
 
-	status = phonet_bind_config(c, phonet_dev);
-	if (status)
-		pr_debug("could not bind phonet config\n");
+	if (!IS_ERR(fi_phonet)) {
+		f_phonet = usb_get_function(fi_phonet);
+		if (IS_ERR(f_phonet))
+			pr_debug("could not get phonet function\n");
+	}
 
 	if (!IS_ERR(fi_obex1)) {
 		f_obex1 = usb_get_function(fi_obex1);
@@ -159,6 +163,12 @@ static int __init nokia_bind_config(struct usb_configuration *c)
 	if (IS_ERR(f_acm)) {
 		status = PTR_ERR(f_acm);
 		goto err_get_acm;
+	}
+
+	if (!IS_ERR_OR_NULL(f_phonet)) {
+		phonet_stat = usb_add_function(c, f_phonet);
+		if (phonet_stat)
+			pr_debug("could not add phonet function\n");
 	}
 
 	if (!IS_ERR_OR_NULL(f_obex1)) {
@@ -184,10 +194,12 @@ static int __init nokia_bind_config(struct usb_configuration *c)
 	}
 	if (c == &nokia_config_500ma_driver) {
 		f_acm_cfg1 = f_acm;
+		f_phonet_cfg1 = f_phonet;
 		f_obex1_cfg1 = f_obex1;
 		f_obex2_cfg1 = f_obex2;
 	} else {
 		f_acm_cfg2 = f_acm;
+		f_phonet_cfg2 = f_phonet;
 		f_obex1_cfg2 = f_obex1;
 		f_obex2_cfg2 = f_obex2;
 	}
@@ -200,12 +212,16 @@ err_conf:
 		usb_remove_function(c, f_obex2);
 	if (!obex1_stat)
 		usb_remove_function(c, f_obex1);
+	if (!phonet_stat)
+		usb_remove_function(c, f_phonet);
 	usb_put_function(f_acm);
 err_get_acm:
 	if (!IS_ERR_OR_NULL(f_obex2))
 		usb_put_function(f_obex2);
 	if (!IS_ERR_OR_NULL(f_obex1))
 		usb_put_function(f_obex1);
+	if (!IS_ERR_OR_NULL(f_phonet))
+		usb_put_function(f_phonet);
 	return status;
 }
 
@@ -213,12 +229,6 @@ static int __init nokia_bind(struct usb_composite_dev *cdev)
 {
 	struct usb_gadget	*gadget = cdev->gadget;
 	int			status;
-
-	phonet_dev = gphonet_setup(cdev->gadget);
-	if (IS_ERR(phonet_dev)) {
-		status = PTR_ERR(phonet_dev);
-		goto err_phonet;
-	}
 
 	the_dev = gether_setup(cdev->gadget, dev_addr, host_addr, host_mac,
 			       qmult);
@@ -238,6 +248,10 @@ static int __init nokia_bind(struct usb_composite_dev *cdev)
 
 	if (!gadget_supports_altsettings(gadget))
 		goto err_usb;
+
+	fi_phonet = usb_get_function_instance("phonet");
+	if (IS_ERR(fi_phonet))
+		pr_debug("could not find phonet function\n");
 
 	fi_obex1 = usb_get_function_instance("obex");
 	if (IS_ERR(fi_obex1))
@@ -273,6 +287,8 @@ err_put_cfg1:
 		usb_put_function(f_obex1_cfg1);
 	if (!IS_ERR_OR_NULL(f_obex2_cfg1))
 		usb_put_function(f_obex2_cfg1);
+	if (!IS_ERR_OR_NULL(f_phonet_cfg1))
+		usb_put_function(f_phonet_cfg1);
 err_acm_inst:
 	usb_put_function_instance(fi_acm);
 err_obex2_inst:
@@ -280,11 +296,11 @@ err_obex2_inst:
 		usb_put_function_instance(fi_obex2);
 	if (!IS_ERR(fi_obex1))
 		usb_put_function_instance(fi_obex1);
+	if (!IS_ERR(fi_phonet))
+		usb_put_function_instance(fi_phonet);
 err_usb:
 	gether_cleanup(the_dev);
 err_ether:
-	gphonet_cleanup(phonet_dev);
-err_phonet:
 	return status;
 }
 
@@ -298,14 +314,20 @@ static int __exit nokia_unbind(struct usb_composite_dev *cdev)
 		usb_put_function(f_obex1_cfg1);
 	if (!IS_ERR_OR_NULL(f_obex2_cfg1))
 		usb_put_function(f_obex2_cfg1);
+	if (!IS_ERR_OR_NULL(f_phonet_cfg1))
+		usb_put_function(f_phonet_cfg1);
+	if (!IS_ERR_OR_NULL(f_phonet_cfg2))
+		usb_put_function(f_phonet_cfg2);
 	usb_put_function(f_acm_cfg1);
 	usb_put_function(f_acm_cfg2);
-	if (!IS_ERR(fi_obex1))
-		usb_put_function_instance(fi_obex1);
+
 	if (!IS_ERR(fi_obex2))
 		usb_put_function_instance(fi_obex2);
+	if (!IS_ERR(fi_obex1))
+		usb_put_function_instance(fi_obex1);
+	if (!IS_ERR(fi_phonet))
+		usb_put_function_instance(fi_phonet);
 	usb_put_function_instance(fi_acm);
-	gphonet_cleanup(phonet_dev);
 
 	gether_cleanup(the_dev);
 

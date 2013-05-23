@@ -861,6 +861,7 @@ config USB_G_NOKIA
 	select USB_U_ETHER
 	select USB_F_ACM
 	select USB_F_OBEX
+	select USB_F_PHONET
 	help
 	  The Nokia composite gadget provides support for acm, obex
 	  and phonet in only one composite gadget driver.
