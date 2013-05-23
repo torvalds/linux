@@ -50,7 +50,8 @@ static int __init davinci_vc_probe(struct platform_device *pdev)
 	struct mfd_cell *cell = NULL;
 	int ret;
 
-	davinci_vc = kzalloc(sizeof(struct davinci_vc), GFP_KERNEL);
+	davinci_vc = devm_kzalloc(&pdev->dev,
+				  sizeof(struct davinci_vc), GFP_KERNEL);
 	if (!davinci_vc) {
 		dev_dbg(&pdev->dev,
 			    "could not allocate memory for private data\n");
@@ -61,8 +62,7 @@ static int __init davinci_vc_probe(struct platform_device *pdev)
 	if (IS_ERR(davinci_vc->clk)) {
 		dev_dbg(&pdev->dev,
 			    "could not get the clock for voice codec\n");
-		ret = -ENODEV;
-		goto fail1;
+		return -ENODEV;
 	}
 	clk_enable(davinci_vc->clk);
 
@@ -145,8 +145,6 @@ fail2:
 	clk_disable(davinci_vc->clk);
 	clk_put(davinci_vc->clk);
 	davinci_vc->clk = NULL;
-fail1:
-	kfree(davinci_vc);
 
 	return ret;
 }
@@ -163,8 +161,6 @@ static int davinci_vc_remove(struct platform_device *pdev)
 	clk_disable(davinci_vc->clk);
 	clk_put(davinci_vc->clk);
 	davinci_vc->clk = NULL;
-
-	kfree(davinci_vc);
 
 	return 0;
 }
