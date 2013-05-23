@@ -24,9 +24,9 @@
 #define INTEL_PEG4BPFII_PID 0x10a1
 
 #define PEGII_IF_SERIES(vid, pid) \
-        ((vid==0x8086)&& \
-        ((pid==INTEL_PEG4BPII_PID)||   \
-          (pid==INTEL_PEG4BPFII_PID)))
+	((vid==0x8086)&& \
+	 ((pid==INTEL_PEG4BPII_PID)||   \
+	  (pid==INTEL_PEG4BPFII_PID)))
 
 #define EXPORT_SYMBOL_NOVERS EXPORT_SYMBOL
 
