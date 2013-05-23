@@ -527,6 +527,10 @@ static inline void __flush_tlb_kernel_page(unsigned long kaddr)
 	}
 }
 
+/*
+ * Branch predictor maintenance is paired with full TLB invalidation, so
+ * there is no need for any barriers here.
+ */
 static inline void local_flush_bp_all(void)
 {
 	const int zero = 0;
@@ -536,9 +540,6 @@ static inline void local_flush_bp_all(void)
 		asm("mcr p15, 0, %0, c7, c1, 6" : : "r" (zero));
 	else if (tlb_flag(TLB_V6_BP))
 		asm("mcr p15, 0, %0, c7, c5, 6" : : "r" (zero));
-
-	if (tlb_flag(TLB_BARRIER))
-		isb();
 }
 
 #include <asm/cputype.h>
