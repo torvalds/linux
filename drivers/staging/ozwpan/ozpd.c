@@ -463,7 +463,7 @@ static struct sk_buff *oz_build_frame(struct oz_pd *pd, struct oz_tx_frame *f)
 	/* Allocate skb with enough space for the lower layers as well
 	 * as the space we need.
 	 */
-	skb = alloc_skb(f->total_size + OZ_ALLOCATED_SPACE(dev), GFP_ATOMIC);
+	skb = dev_alloc_skb(f->total_size + OZ_ALLOCATED_SPACE(dev));
 	if (skb == NULL)
 		return NULL;
 	/* Reserve the head room for lower layers.
@@ -633,7 +633,7 @@ static int oz_send_isoc_frame(struct oz_pd *pd)
 		pd->max_tx_size, &list);
 	if (list.next == &list)
 		return 0;
-	skb = alloc_skb(total_size + OZ_ALLOCATED_SPACE(dev), GFP_ATOMIC);
+	skb = dev_alloc_skb(total_size + OZ_ALLOCATED_SPACE(dev));
 	if (skb == NULL) {
 		oz_trace("Cannot alloc skb\n");
 		oz_elt_info_free_chain(&pd->elt_buff, &list);
@@ -797,8 +797,7 @@ int oz_send_isoc_unit(struct oz_pd *pd, u8 ep_num, const u8 *data, int len)
 		return 0;
 	if (!skb) {
 		/* Allocate enough space for max size frame. */
-		skb = alloc_skb(pd->max_tx_size + OZ_ALLOCATED_SPACE(dev),
-				GFP_ATOMIC);
+		skb = dev_alloc_skb(pd->max_tx_size + OZ_ALLOCATED_SPACE(dev));
 		if (skb == NULL)
 			return 0;
 		/* Reserve the head room for lower layers. */
