@@ -898,7 +898,7 @@ static int usbduxsigma_ao_cmdtest(struct comedi_device *dev,
 	unsigned int flags;
 
 	/* high speed conversions are not used yet */
-	high_speed = 0; 	/* (devpriv->high_speed) */
+	high_speed = 0;		/* (devpriv->high_speed) */
 
 	/* Step 1 : check if triggers are trivially valid */
 
