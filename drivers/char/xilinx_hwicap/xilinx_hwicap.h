@@ -37,7 +37,7 @@
 #include <linux/cdev.h>
 #include <linux/platform_device.h>
 
-#include <asm/io.h>
+#include <linux/io.h>
 
 struct hwicap_drvdata {
 	u32 write_buffer_in_use;  /* Always in [0,3] */
