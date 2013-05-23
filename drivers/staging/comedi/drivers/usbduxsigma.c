@@ -791,67 +791,61 @@ static int usbdux_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	return 0;
 }
 
-/* Mode 0 is used to get a single conversion on demand */
-static int usbdux_ai_insn_read(struct comedi_device *dev,
-			       struct comedi_subdevice *s,
-			       struct comedi_insn *insn, unsigned int *data)
+static int usbduxsigma_ai_insn_read(struct comedi_device *dev,
+				    struct comedi_subdevice *s,
+				    struct comedi_insn *insn,
+				    unsigned int *data)
 {
-	struct usbduxsigma_private *this_usbduxsub = dev->private;
-	int i;
-	int32_t one = 0;
-	int chan;
-	int err;
+	struct usbduxsigma_private *devpriv = dev->private;
+	unsigned int chan = CR_CHAN(insn->chanspec);
 	uint8_t muxsg0 = 0;
 	uint8_t muxsg1 = 0;
 	uint8_t sysred = 0;
+	int ret;
+	int i;
 
-	down(&this_usbduxsub->sem);
-	if (this_usbduxsub->ai_cmd_running) {
-		up(&this_usbduxsub->sem);
-		return 0;
+	down(&devpriv->sem);
+	if (devpriv->ai_cmd_running) {
+		up(&devpriv->sem);
+		return -EBUSY;
 	}
 
-	/* sample one channel */
-	/* CONFIG0: chopper on */
-	this_usbduxsub->dux_commands[1] = 0x16;
-
-	/* CONFIG1: 2kHz sampling rate */
-	this_usbduxsub->dux_commands[2] = 0x80;
-
-	/* CONFIG3: differential channels off */
-	this_usbduxsub->dux_commands[3] = 0x00;
-
-	chan = CR_CHAN(insn->chanspec);
 	create_adc_command(chan, &muxsg0, &muxsg1);
 
-	this_usbduxsub->dux_commands[4] = muxsg0;
-	this_usbduxsub->dux_commands[5] = muxsg1;
-	this_usbduxsub->dux_commands[6] = sysred;
+	/* Mode 0 is used to get a single conversion on demand */
+	devpriv->dux_commands[1] = 0x16; /* CONFIG0: chopper on */
+	devpriv->dux_commands[2] = 0x80; /* CONFIG1: 2kHz sampling rate */
+	devpriv->dux_commands[3] = 0x00; /* CONFIG3: diff. channels off */
+	devpriv->dux_commands[4] = muxsg0;
+	devpriv->dux_commands[5] = muxsg1;
+	devpriv->dux_commands[6] = sysred;
 
 	/* adc commands */
-	err = send_dux_commands(dev, SENDSINGLEAD);
-	if (err < 0) {
-		up(&this_usbduxsub->sem);
-		return err;
+	ret = send_dux_commands(dev, SENDSINGLEAD);
+	if (ret < 0) {
+		up(&devpriv->sem);
+		return ret;
 	}
 
 	for (i = 0; i < insn->n; i++) {
-		err = receive_dux_commands(dev, SENDSINGLEAD);
-		if (err < 0) {
-			up(&this_usbduxsub->sem);
-			return 0;
+		int32_t val;
+
+		ret = receive_dux_commands(dev, SENDSINGLEAD);
+		if (ret < 0) {
+			up(&devpriv->sem);
+			return ret;
 		}
+
 		/* 32 bits big endian from the A/D converter */
-		one = be32_to_cpu(*((int32_t *)
-				    ((this_usbduxsub->insnBuffer)+1)));
-		/* mask out the status byte */
-		one = one & 0x00ffffff;
-		/* turn it into an unsigned integer */
-		one = one ^ 0x00800000;
-		data[i] = one;
+		val = be32_to_cpu(*((int32_t *)((devpriv->insnBuffer) + 1)));
+		val &= 0x00ffffff;	/* strip status byte */
+		val ^= 0x00800000;	/* convert to unsigned */
+
+		data[i] = val;
 	}
-	up(&this_usbduxsub->sem);
-	return i;
+	up(&devpriv->sem);
+
+	return insn->n;
 }
 
 static int usbduxsigma_ao_insn_read(struct comedi_device *dev,
@@ -1453,7 +1447,7 @@ static int usbduxsigma_attach_common(struct comedi_device *dev)
 	s->len_chanlist	= NUMCHANNELS;
 	s->maxdata	= 0x00ffffff;
 	s->range_table	= &range_usbdux_ai_range;
-	s->insn_read	= usbdux_ai_insn_read;
+	s->insn_read	= usbduxsigma_ai_insn_read;
 	s->do_cmdtest	= usbdux_ai_cmdtest;
 	s->do_cmd	= usbdux_ai_cmd;
 	s->cancel	= usbdux_ai_cancel;
