@@ -509,12 +509,12 @@ struct sk_buff {
 		__u32		reserved_tailroom;
 	};
 
-	sk_buff_data_t		inner_transport_header;
-	sk_buff_data_t		inner_network_header;
-	sk_buff_data_t		inner_mac_header;
-	sk_buff_data_t		transport_header;
-	sk_buff_data_t		network_header;
-	sk_buff_data_t		mac_header;
+	__u16			inner_transport_header;
+	__u16			inner_network_header;
+	__u16			inner_mac_header;
+	__u16			transport_header;
+	__u16			network_header;
+	__u16			mac_header;
 	/* These elements must be at the end, see alloc_skb() for details.  */
 	sk_buff_data_t		tail;
 	sk_buff_data_t		end;
@@ -1527,7 +1527,6 @@ static inline void skb_reset_mac_len(struct sk_buff *skb)
 	skb->mac_len = skb->network_header - skb->mac_header;
 }
 
-#ifdef NET_SKBUFF_DATA_USES_OFFSET
 static inline unsigned char *skb_inner_transport_header(const struct sk_buff
 							*skb)
 {
@@ -1637,112 +1636,6 @@ static inline void skb_set_mac_header(struct sk_buff *skb, const int offset)
 	skb_reset_mac_header(skb);
 	skb->mac_header += offset;
 }
-
-#else /* NET_SKBUFF_DATA_USES_OFFSET */
-static inline unsigned char *skb_inner_transport_header(const struct sk_buff
-							*skb)
-{
-	return skb->inner_transport_header;
-}
-
-static inline void skb_reset_inner_transport_header(struct sk_buff *skb)
-{
-	skb->inner_transport_header = skb->data;
-}
-
-static inline void skb_set_inner_transport_header(struct sk_buff *skb,
-						   const int offset)
-{
-	skb->inner_transport_header = skb->data + offset;
-}
-
-static inline unsigned char *skb_inner_network_header(const struct sk_buff *skb)
-{
-	return skb->inner_network_header;
-}
-
-static inline void skb_reset_inner_network_header(struct sk_buff *skb)
-{
-	skb->inner_network_header = skb->data;
-}
-
-static inline void skb_set_inner_network_header(struct sk_buff *skb,
-						const int offset)
-{
-	skb->inner_network_header = skb->data + offset;
-}
-
-static inline unsigned char *skb_inner_mac_header(const struct sk_buff *skb)
-{
-	return skb->inner_mac_header;
-}
-
-static inline void skb_reset_inner_mac_header(struct sk_buff *skb)
-{
-	skb->inner_mac_header = skb->data;
-}
-
-static inline void skb_set_inner_mac_header(struct sk_buff *skb,
-						const int offset)
-{
-	skb->inner_mac_header = skb->data + offset;
-}
-static inline bool skb_transport_header_was_set(const struct sk_buff *skb)
-{
-	return skb->transport_header != NULL;
-}
-
-static inline unsigned char *skb_transport_header(const struct sk_buff *skb)
-{
-	return skb->transport_header;
-}
-
-static inline void skb_reset_transport_header(struct sk_buff *skb)
-{
-	skb->transport_header = skb->data;
-}
-
-static inline void skb_set_transport_header(struct sk_buff *skb,
-					    const int offset)
-{
-	skb->transport_header = skb->data + offset;
-}
-
-static inline unsigned char *skb_network_header(const struct sk_buff *skb)
-{
-	return skb->network_header;
-}
-
-static inline void skb_reset_network_header(struct sk_buff *skb)
-{
-	skb->network_header = skb->data;
-}
-
-static inline void skb_set_network_header(struct sk_buff *skb, const int offset)
-{
-	skb->network_header = skb->data + offset;
-}
-
-static inline unsigned char *skb_mac_header(const struct sk_buff *skb)
-{
-	return skb->mac_header;
-}
-
-static inline int skb_mac_header_was_set(const struct sk_buff *skb)
-{
-	return skb->mac_header != NULL;
-}
-
-static inline void skb_reset_mac_header(struct sk_buff *skb)
-{
-	skb->mac_header = skb->data;
-}
-
-static inline void skb_set_mac_header(struct sk_buff *skb, const int offset)
-{
-	skb->mac_header = skb->data + offset;
-}
-#endif /* NET_SKBUFF_DATA_USES_OFFSET */
 
 static inline void skb_probe_transport_header(struct sk_buff *skb,
 					      const int offset_hint)
