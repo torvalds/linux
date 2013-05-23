@@ -19,6 +19,7 @@
 #include <linux/etherdevice.h>
 
 #include "u_ether.h"
+#include "u_ether_configfs.h"
 #include "u_ecm.h"
 
 
@@ -706,8 +707,10 @@ ecm_bind(struct usb_configuration *c, struct usb_function *f)
 	 * with regard to ecm_opts->bound access
 	 */
 	if (!ecm_opts->bound) {
+		mutex_lock(&ecm_opts->lock);
 		gether_set_gadget(ecm_opts->net, cdev->gadget);
 		status = gether_register_netdev(ecm_opts->net);
+		mutex_unlock(&ecm_opts->lock);
 		if (status)
 			return status;
 		ecm_opts->bound = true;
@@ -899,6 +902,41 @@ ecm_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
 
 #else
 
+static inline struct f_ecm_opts *to_f_ecm_opts(struct config_item *item)
+{
+	return container_of(to_config_group(item), struct f_ecm_opts,
+			    func_inst.group);
+}
+
+/* f_ecm_item_ops */
+USB_ETHERNET_CONFIGFS_ITEM(ecm);
+
+/* f_ecm_opts_dev_addr */
+USB_ETHERNET_CONFIGFS_ITEM_ATTR_DEV_ADDR(ecm);
+
+/* f_ecm_opts_host_addr */
+USB_ETHERNET_CONFIGFS_ITEM_ATTR_HOST_ADDR(ecm);
+
+/* f_ecm_opts_qmult */
+USB_ETHERNET_CONFIGFS_ITEM_ATTR_QMULT(ecm);
+
+/* f_ecm_opts_ifname */
+USB_ETHERNET_CONFIGFS_ITEM_ATTR_IFNAME(ecm);
+
+static struct configfs_attribute *ecm_attrs[] = {
+	&f_ecm_opts_dev_addr.attr,
+	&f_ecm_opts_host_addr.attr,
+	&f_ecm_opts_qmult.attr,
+	&f_ecm_opts_ifname.attr,
+	NULL,
+};
+
+static struct config_item_type ecm_func_type = {
+	.ct_item_ops	= &ecm_item_ops,
+	.ct_attrs	= ecm_attrs,
+	.ct_owner	= THIS_MODULE,
+};
+
 static void ecm_free_inst(struct usb_function_instance *f)
 {
 	struct f_ecm_opts *opts;
@@ -918,11 +956,13 @@ static struct usb_function_instance *ecm_alloc_inst(void)
 	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
 	if (!opts)
 		return ERR_PTR(-ENOMEM);
-
+	mutex_init(&opts->lock);
 	opts->func_inst.free_func_inst = ecm_free_inst;
 	opts->net = gether_setup_default();
 	if (IS_ERR(opts->net))
 		return ERR_PTR(PTR_ERR(opts->net));
+
+	config_group_init_type_name(&opts->func_inst.group, "", &ecm_func_type);
 
 	return &opts->func_inst;
 }
@@ -930,9 +970,14 @@ static struct usb_function_instance *ecm_alloc_inst(void)
 static void ecm_free(struct usb_function *f)
 {
 	struct f_ecm *ecm;
+	struct f_ecm_opts *opts;
 
 	ecm = func_to_ecm(f);
+	opts = container_of(f->fi, struct f_ecm_opts, func_inst);
 	kfree(ecm);
+	mutex_lock(&opts->lock);
+	opts->refcnt--;
+	mutex_unlock(&opts->lock);
 }
 
 static void ecm_unbind(struct usb_configuration *c, struct usb_function *f)
@@ -959,6 +1004,8 @@ struct usb_function *ecm_alloc(struct usb_function_instance *fi)
 		return ERR_PTR(-ENOMEM);
 
 	opts = container_of(fi, struct f_ecm_opts, func_inst);
+	mutex_lock(&opts->lock);
+	opts->refcnt++;
 
 	/* export host's Ethernet address in CDC format */
 	status = gether_get_host_addr_cdc(opts->net, ecm->ethaddr,
@@ -970,6 +1017,7 @@ struct usb_function *ecm_alloc(struct usb_function_instance *fi)
 	ecm_string_defs[1].s = ecm->ethaddr;
 
 	ecm->port.ioport = netdev_priv(opts->net);
+	mutex_unlock(&opts->lock);
 	ecm->port.cdc_filter = DEFAULT_FILTER;
 
 	ecm->port.func.name = "cdc_ethernet";
