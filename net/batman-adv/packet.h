@@ -91,12 +91,6 @@ enum batadv_icmp_packettype {
 	BATADV_PARAMETER_PROBLEM       = 12,
 };
 
-/* fragmentation defines */
-enum batadv_unicast_frag_flags {
-	BATADV_UNI_FRAG_HEAD	  = BIT(0),
-	BATADV_UNI_FRAG_LARGETAIL = BIT(1),
-};
-
 /* tt data subtypes */
 #define BATADV_TT_DATA_TYPE_MASK 0x0F
 
@@ -254,16 +248,6 @@ struct batadv_unicast_4addr_packet {
 	 * following ethernet header again 4 bytes boundary aligned
 	 */
 };
-
-struct batadv_unicast_frag_packet {
-	struct batadv_header header;
-	uint8_t  ttvn; /* destination translation table version number */
-	uint8_t  dest[ETH_ALEN];
-	uint8_t  flags;
-	uint8_t  align;
-	uint8_t  orig[ETH_ALEN];
-	__be16   seqno;
-} __packed;
 
 struct batadv_bcast_packet {
 	struct batadv_header header;

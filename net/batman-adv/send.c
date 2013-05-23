@@ -25,6 +25,7 @@
 #include "soft-interface.h"
 #include "hard-interface.h"
 #include "gateway_common.h"
+#include "gateway_client.h"
 #include "originator.h"
 #include "network-coding.h"
 
@@ -124,6 +125,179 @@ int batadv_send_skb_to_orig(struct sk_buff *skb,
 
 	batadv_neigh_node_free_ref(neigh_node);
 
+	return ret;
+}
+
+/**
+ * batadv_send_skb_push_fill_unicast - extend the buffer and initialize the
+ *  common fields for unicast packets
+ * @skb: the skb carrying the unicast header to initialize
+ * @hdr_size: amount of bytes to push at the beginning of the skb
+ * @orig_node: the destination node
+ *
+ * Returns false if the buffer extension was not possible or true otherwise.
+ */
+static bool
+batadv_send_skb_push_fill_unicast(struct sk_buff *skb, int hdr_size,
+				  struct batadv_orig_node *orig_node)
+{
+	struct batadv_unicast_packet *unicast_packet;
+	uint8_t ttvn = (uint8_t)atomic_read(&orig_node->last_ttvn);
+
+	if (batadv_skb_head_push(skb, hdr_size) < 0)
+		return false;
+
+	unicast_packet = (struct batadv_unicast_packet *)skb->data;
+	unicast_packet->header.version = BATADV_COMPAT_VERSION;
+	/* batman packet type: unicast */
+	unicast_packet->header.packet_type = BATADV_UNICAST;
+	/* set unicast ttl */
+	unicast_packet->header.ttl = BATADV_TTL;
+	/* copy the destination for faster routing */
+	memcpy(unicast_packet->dest, orig_node->orig, ETH_ALEN);
+	/* set the destination tt version number */
+	unicast_packet->ttvn = ttvn;
+
+	return true;
+}
+
+/**
+ * batadv_send_skb_prepare_unicast - encapsulate an skb with a unicast header
+ * @skb: the skb containing the payload to encapsulate
+ * @orig_node: the destination node
+ *
+ * Returns false if the payload could not be encapsulated or true otherwise.
+ */
+static bool batadv_send_skb_prepare_unicast(struct sk_buff *skb,
+					    struct batadv_orig_node *orig_node)
+{
+	size_t uni_size = sizeof(struct batadv_unicast_packet);
+
+	return batadv_send_skb_push_fill_unicast(skb, uni_size, orig_node);
+}
+
+/**
+ * batadv_send_skb_prepare_unicast_4addr - encapsulate an skb with a
+ *  unicast 4addr header
+ * @bat_priv: the bat priv with all the soft interface information
+ * @skb: the skb containing the payload to encapsulate
+ * @orig_node: the destination node
+ * @packet_subtype: the unicast 4addr packet subtype to use
+ *
+ * Returns false if the payload could not be encapsulated or true otherwise.
+ */
+bool batadv_send_skb_prepare_unicast_4addr(struct batadv_priv *bat_priv,
+					   struct sk_buff *skb,
+					   struct batadv_orig_node *orig,
+					   int packet_subtype)
+{
+	struct batadv_hard_iface *primary_if;
+	struct batadv_unicast_4addr_packet *uc_4addr_packet;
+	bool ret = false;
+
+	primary_if = batadv_primary_if_get_selected(bat_priv);
+	if (!primary_if)
+		goto out;
+
+	/* Pull the header space and fill the unicast_packet substructure.
+	 * We can do that because the first member of the uc_4addr_packet
+	 * is of type struct unicast_packet
+	 */
+	if (!batadv_send_skb_push_fill_unicast(skb, sizeof(*uc_4addr_packet),
+					       orig))
+		goto out;
+
+	uc_4addr_packet = (struct batadv_unicast_4addr_packet *)skb->data;
+	uc_4addr_packet->u.header.packet_type = BATADV_UNICAST_4ADDR;
+	memcpy(uc_4addr_packet->src, primary_if->net_dev->dev_addr, ETH_ALEN);
+	uc_4addr_packet->subtype = packet_subtype;
+	uc_4addr_packet->reserved = 0;
+
+	ret = true;
+out:
+	if (primary_if)
+		batadv_hardif_free_ref(primary_if);
+	return ret;
+}
+
+/**
+ * batadv_send_generic_unicast_skb - send an skb as unicast
+ * @bat_priv: the bat priv with all the soft interface information
+ * @skb: payload to send
+ * @packet_type: the batman unicast packet type to use
+ * @packet_subtype: the unicast 4addr packet subtype (only relevant for unicast
+ *  4addr packets)
+ *
+ * Returns 1 in case of error or 0 otherwise.
+ */
+int batadv_send_skb_generic_unicast(struct batadv_priv *bat_priv,
+				    struct sk_buff *skb, int packet_type,
+				    int packet_subtype)
+{
+	struct ethhdr *ethhdr = (struct ethhdr *)skb->data;
+	struct batadv_unicast_packet *unicast_packet;
+	struct batadv_orig_node *orig_node;
+	struct batadv_neigh_node *neigh_node;
+	int ret = NET_RX_DROP;
+
+	/* get routing information */
+	if (is_multicast_ether_addr(ethhdr->h_dest)) {
+		orig_node = batadv_gw_get_selected_orig(bat_priv);
+		if (orig_node)
+			goto find_router;
+	}
+
+	/* check for tt host - increases orig_node refcount.
+	 * returns NULL in case of AP isolation
+	 */
+	orig_node = batadv_transtable_search(bat_priv, ethhdr->h_source,
+					     ethhdr->h_dest);
+
+find_router:
+	/* find_router():
+	 *  - if orig_node is NULL it returns NULL
+	 *  - increases neigh_nodes refcount if found.
+	 */
+	neigh_node = batadv_find_router(bat_priv, orig_node, NULL);
+
+	if (!neigh_node)
+		goto out;
+
+	switch (packet_type) {
+	case BATADV_UNICAST:
+		batadv_send_skb_prepare_unicast(skb, orig_node);
+		break;
+	case BATADV_UNICAST_4ADDR:
+		batadv_send_skb_prepare_unicast_4addr(bat_priv, skb, orig_node,
+						      packet_subtype);
+		break;
+	default:
+		/* this function supports UNICAST and UNICAST_4ADDR only. It
+		 * should never be invoked with any other packet type
+		 */
+		goto out;
+	}
+
+	unicast_packet = (struct batadv_unicast_packet *)skb->data;
+
+	/* inform the destination node that we are still missing a correct route
+	 * for this client. The destination will receive this packet and will
+	 * try to reroute it because the ttvn contained in the header is less
+	 * than the current one
+	 */
+	if (batadv_tt_global_client_is_roaming(bat_priv, ethhdr->h_dest))
+		unicast_packet->ttvn = unicast_packet->ttvn - 1;
+
+	if (batadv_send_skb_to_orig(skb, orig_node, NULL) != NET_XMIT_DROP)
+		ret = 0;
+
+out:
+	if (neigh_node)
+		batadv_neigh_node_free_ref(neigh_node);
+	if (orig_node)
+		batadv_orig_node_free_ref(orig_node);
+	if (ret == NET_RX_DROP)
+		kfree_skb(skb);
 	return ret;
 }
 

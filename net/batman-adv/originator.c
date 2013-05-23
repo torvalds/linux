@@ -25,7 +25,6 @@
 #include "routing.h"
 #include "gateway_client.h"
 #include "hard-interface.h"
-#include "unicast.h"
 #include "soft-interface.h"
 #include "bridge_loop_avoidance.h"
 #include "network-coding.h"
@@ -146,7 +145,6 @@ static void batadv_orig_node_free_rcu(struct rcu_head *rcu)
 	/* Free nc_nodes */
 	batadv_nc_purge_orig(orig_node->bat_priv, orig_node, NULL);
 
-	batadv_frag_list_free(&orig_node->frag_list);
 	batadv_tt_global_del_orig(orig_node->bat_priv, orig_node,
 				  "originator timed out");
 
@@ -269,9 +267,6 @@ struct batadv_orig_node *batadv_get_orig_node(struct batadv_priv *bat_priv,
 	size = bat_priv->num_ifaces * sizeof(uint8_t);
 	orig_node->bcast_own_sum = kzalloc(size, GFP_ATOMIC);
 
-	INIT_LIST_HEAD(&orig_node->frag_list);
-	orig_node->last_frag_packet = 0;
-
 	if (!orig_node->bcast_own_sum)
 		goto free_bcast_own;
 
@@ -393,10 +388,6 @@ static void _batadv_purge_orig(struct batadv_priv *bat_priv)
 				batadv_orig_node_free_ref(orig_node);
 				continue;
 			}
-
-			if (batadv_has_timed_out(orig_node->last_frag_packet,
-						 BATADV_FRAG_TIMEOUT))
-				batadv_frag_list_free(&orig_node->frag_list);
 		}
 		spin_unlock_bh(list_lock);
 	}

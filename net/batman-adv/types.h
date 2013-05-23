@@ -60,7 +60,6 @@ struct batadv_hard_iface_bat_iv {
  * @if_num: identificator of the interface
  * @if_status: status of the interface for batman-adv
  * @net_dev: pointer to the net_device
- * @frag_seqno: last fragment sequence number sent by this interface
  * @num_bcasts: number of payload re-broadcasts on this interface (ARQ)
  * @hardif_obj: kobject of the per interface sysfs "mesh" directory
  * @refcount: number of contexts the object is used
@@ -76,7 +75,6 @@ struct batadv_hard_iface {
 	int16_t if_num;
 	char if_status;
 	struct net_device *net_dev;
-	atomic_t frag_seqno;
 	uint8_t num_bcasts;
 	struct kobject *hardif_obj;
 	atomic_t refcount;
@@ -116,9 +114,6 @@ struct batadv_hard_iface {
  *  last_bcast_seqno)
  * @last_bcast_seqno: last broadcast sequence number received by this host
  * @neigh_list: list of potential next hop neighbor towards this orig node
- * @frag_list: fragmentation buffer list for fragment re-assembly
- * @last_frag_packet: time when last fragmented packet from this node was
- *  received
  * @neigh_list_lock: lock protecting neigh_list, router and bonding_list
  * @hash_entry: hlist node for batadv_priv::orig_hash
  * @bat_priv: pointer to soft_iface this orig node belongs to
@@ -159,8 +154,6 @@ struct batadv_orig_node {
 	DECLARE_BITMAP(bcast_bits, BATADV_TQ_LOCAL_WINDOW_SIZE);
 	uint32_t last_bcast_seqno;
 	struct hlist_head neigh_list;
-	struct list_head frag_list;
-	unsigned long last_frag_packet;
 	/* neigh_list_lock protects: neigh_list, router & bonding_list */
 	spinlock_t neigh_list_lock;
 	struct hlist_node hash_entry;
@@ -871,18 +864,6 @@ struct batadv_forw_packet {
 	uint8_t num_packets;
 	struct delayed_work delayed_work;
 	struct batadv_hard_iface *if_incoming;
-};
-
-/**
- * struct batadv_frag_packet_list_entry - storage for fragment packet
- * @list: list node for orig_node::frag_list
- * @seqno: sequence number of the fragment
- * @skb: fragment's skb buffer
- */
-struct batadv_frag_packet_list_entry {
-	struct list_head list;
-	uint16_t seqno;
-	struct sk_buff *skb;
 };
 
 /**

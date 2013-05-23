@@ -34,8 +34,6 @@
 #include <linux/ethtool.h>
 #include <linux/etherdevice.h>
 #include <linux/if_vlan.h>
-#include <linux/if_ether.h>
-#include "unicast.h"
 #include "bridge_loop_avoidance.h"
 #include "network-coding.h"
 
@@ -286,7 +284,7 @@ static int batadv_interface_tx(struct sk_buff *skb,
 
 		batadv_dat_snoop_outgoing_arp_reply(bat_priv, skb);
 
-		ret = batadv_unicast_send_skb(bat_priv, skb);
+		ret = batadv_send_skb_unicast(bat_priv, skb);
 		if (ret != 0)
 			goto dropped_freed;
 	}
