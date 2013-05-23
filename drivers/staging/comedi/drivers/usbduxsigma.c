@@ -1093,37 +1093,30 @@ static int usbdux_ao_insn_write(struct comedi_device *dev,
 	return i;
 }
 
-static int usbdux_ao_inttrig(struct comedi_device *dev,
-			     struct comedi_subdevice *s, unsigned int trignum)
+static int usbduxsigma_ao_inttrig(struct comedi_device *dev,
+				  struct comedi_subdevice *s,
+				  unsigned int trignum)
 {
-	struct usbduxsigma_private *this_usbduxsub = dev->private;
+	struct usbduxsigma_private *devpriv = dev->private;
 	int ret;
 
-	down(&this_usbduxsub->sem);
-	if (trignum != 0) {
-		dev_err(&this_usbduxsub->interface->dev,
-			"comedi%d: usbdux_ao_inttrig: invalid trignum\n",
-			dev->minor);
-		ret = -EINVAL;
-		goto out;
-	}
-	if (!(this_usbduxsub->ao_cmd_running)) {
-		ret = usbduxsigma_submit_urbs(dev, this_usbduxsub->urbOut,
-					      this_usbduxsub->numOfOutBuffers,
-					      0);
-		if (ret < 0)
-			goto out;
-		this_usbduxsub->ao_cmd_running = 1;
+	if (trignum != 0)
+		return -EINVAL;
+
+	down(&devpriv->sem);
+	if (!devpriv->ao_cmd_running) {
+		ret = usbduxsigma_submit_urbs(dev, devpriv->urbOut,
+					      devpriv->numOfOutBuffers, 0);
+		if (ret < 0) {
+			up(&devpriv->sem);
+			return ret;
+		}
+		devpriv->ao_cmd_running = 1;
 		s->async->inttrig = NULL;
-	} else {
-		dev_err(&this_usbduxsub->interface->dev,
-			"comedi%d: ao_inttrig but acqu is already running.\n",
-			dev->minor);
 	}
-	ret = 1;
-out:
-	up(&this_usbduxsub->sem);
-	return ret;
+	up(&devpriv->sem);
+
+	return 1;
 }
 
 static int usbdux_ao_cmdtest(struct comedi_device *dev,
@@ -1287,7 +1280,7 @@ static int usbdux_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 		/* TRIG_INT */
 		/* submit the urbs later */
 		/* wait for an internal signal */
-		s->async->inttrig = usbdux_ao_inttrig;
+		s->async->inttrig = usbduxsigma_ao_inttrig;
 	}
 
 	up(&this_usbduxsub->sem);
