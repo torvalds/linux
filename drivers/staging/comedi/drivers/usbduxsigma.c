@@ -252,20 +252,16 @@ static struct usbduxsub usbduxsub[NUMUSBDUX];
 
 static DEFINE_SEMAPHORE(start_stop_sem);
 
-static void usbduxsub_unlink_InURBs(struct usbduxsub *devpriv)
-{
-	int i;
-
-	for (i = 0; i < devpriv->numOfInBuffers; i++) {
-		if (devpriv->urbIn[i])
-			usb_kill_urb(devpriv->urbIn[i]);
-	}
-}
-
 static void usbdux_ai_stop(struct usbduxsub *devpriv, int do_unlink)
 {
-	if (do_unlink)
-		usbduxsub_unlink_InURBs(devpriv);
+	if (do_unlink) {
+		int i;
+
+		for (i = 0; i < devpriv->numOfInBuffers; i++) {
+			if (devpriv->urbIn[i])
+				usb_kill_urb(devpriv->urbIn[i]);
+		}
+	}
 
 	devpriv->ai_cmd_running = 0;
 }
