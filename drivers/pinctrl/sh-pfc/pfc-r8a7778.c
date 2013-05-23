@@ -1434,6 +1434,32 @@ I2C_PFC_MUX(i2c3_b,	SDA3_B,			SCL3_B);
 I2C_PFC_PIN(i2c3_c,	RCAR_GP_PIN(1, 22),	RCAR_GP_PIN(1, 23));
 I2C_PFC_MUX(i2c3_c,	SDA3_C,			SCL3_C);
 
+/* - MMC macro -------------------------------------------------------------- */
+#define MMC_PFC_PINS(name, args...)		SH_PFC_PINS(name, args)
+#define MMC_PFC_CTRL(name, clk, cmd)		SH_PFC_MUX2(name, clk, cmd)
+#define MMC_PFC_DAT1(name, d0)			SH_PFC_MUX1(name, d0)
+#define MMC_PFC_DAT4(name, d0, d1, d2, d3)	SH_PFC_MUX4(name, d0, d1, d2, d3)
+#define MMC_PFC_DAT8(name, d0, d1, d2, d3, d4, d5, d6, d7)	\
+			SH_PFC_MUX8(name, d0, d1, d2, d3, d4, d5, d6, d7)
+
+/* - MMC -------------------------------------------------------------------- */
+MMC_PFC_PINS(mmc_ctrl,		RCAR_GP_PIN(1, 5),	RCAR_GP_PIN(1, 6));
+MMC_PFC_CTRL(mmc_ctrl,		MMC_CLK,		MMC_CMD);
+MMC_PFC_PINS(mmc_data1,		RCAR_GP_PIN(1, 7));
+MMC_PFC_DAT1(mmc_data1,		MMC_D0);
+MMC_PFC_PINS(mmc_data4,		RCAR_GP_PIN(1, 7),	RCAR_GP_PIN(2, 8),
+				RCAR_GP_PIN(0, 5),	RCAR_GP_PIN(0, 6));
+MMC_PFC_DAT4(mmc_data4,		MMC_D0,			MMC_D1,
+				MMC_D2,			MMC_D3);
+MMC_PFC_PINS(mmc_data8,		RCAR_GP_PIN(1, 7),	RCAR_GP_PIN(2, 8),
+				RCAR_GP_PIN(0, 5),	RCAR_GP_PIN(0, 6),
+				RCAR_GP_PIN(1, 4),	RCAR_GP_PIN(1, 0),
+				RCAR_GP_PIN(0, 30),	RCAR_GP_PIN(0, 31));
+MMC_PFC_DAT8(mmc_data8,		MMC_D0,			MMC_D1,
+				MMC_D2,			MMC_D3,
+				MMC_D4,			MMC_D5,
+				MMC_D6,			MMC_D7);
+
 /* - SCIF CLOCK ------------------------------------------------------------- */
 SCIF_PFC_PIN(scif_clk,		RCAR_GP_PIN(1, 16));
 SCIF_PFC_CLK(scif_clk,		SCIF_CLK);
@@ -1661,6 +1687,10 @@ static const struct sh_pfc_pin_group pinmux_groups[] = {
 	SH_PFC_PIN_GROUP(i2c3_a),
 	SH_PFC_PIN_GROUP(i2c3_b),
 	SH_PFC_PIN_GROUP(i2c3_c),
+	SH_PFC_PIN_GROUP(mmc_ctrl),
+	SH_PFC_PIN_GROUP(mmc_data1),
+	SH_PFC_PIN_GROUP(mmc_data4),
+	SH_PFC_PIN_GROUP(mmc_data8),
 	SH_PFC_PIN_GROUP(scif_clk),
 	SH_PFC_PIN_GROUP(scif0_data_a),
 	SH_PFC_PIN_GROUP(scif0_data_b),
@@ -1785,6 +1815,13 @@ static const char * const i2c3_groups[] = {
 	"i2c3_c",
 };
 
+static const char * const mmc_groups[] = {
+	"mmc_ctrl",
+	"mmc_data1",
+	"mmc_data4",
+	"mmc_data8",
+};
+
 static const char * const scif_clk_groups[] = {
 	"scif_clk",
 };
@@ -1905,6 +1942,7 @@ static const struct sh_pfc_function pinmux_functions[] = {
 	SH_PFC_FUNCTION(i2c1),
 	SH_PFC_FUNCTION(i2c2),
 	SH_PFC_FUNCTION(i2c3),
+	SH_PFC_FUNCTION(mmc),
 	SH_PFC_FUNCTION(scif_clk),
 	SH_PFC_FUNCTION(scif0),
 	SH_PFC_FUNCTION(scif1),
