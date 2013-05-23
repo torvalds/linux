@@ -1158,6 +1158,7 @@ static int ncm_bind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct usb_composite_dev *cdev = c->cdev;
 	struct f_ncm		*ncm = func_to_ncm(f);
+	struct usb_string	*us;
 	int			status;
 	struct usb_ep		*ep;
 	struct f_ncm_opts	*ncm_opts;
@@ -1180,20 +1181,15 @@ static int ncm_bind(struct usb_configuration *c, struct usb_function *f)
 			return status;
 		ncm_opts->bound = true;
 	}
-	if (ncm_string_defs[0].id == 0) {
-		status = usb_string_ids_tab(c->cdev, ncm_string_defs);
-		if (status < 0)
-			return status;
-		ncm_control_intf.iInterface =
-			ncm_string_defs[STRING_CTRL_IDX].id;
-
-		status = ncm_string_defs[STRING_DATA_IDX].id;
-		ncm_data_nop_intf.iInterface = status;
-		ncm_data_intf.iInterface = status;
-
-		ecm_desc.iMACAddress = ncm_string_defs[STRING_MAC_IDX].id;
-		ncm_iad_desc.iFunction = ncm_string_defs[STRING_IAD_IDX].id;
-	}
+	us = usb_gstrings_attach(cdev, ncm_strings,
+				 ARRAY_SIZE(ncm_string_defs));
+	if (IS_ERR(us))
+		return PTR_ERR(us);
+	ncm_control_intf.iInterface = us[STRING_CTRL_IDX].id;
+	ncm_data_nop_intf.iInterface = us[STRING_DATA_IDX].id;
+	ncm_data_intf.iInterface = us[STRING_DATA_IDX].id;
+	ecm_desc.iMACAddress = us[STRING_MAC_IDX].id;
+	ncm_iad_desc.iFunction = us[STRING_IAD_IDX].id;
 
 	/* allocate instance-specific interface IDs */
 	status = usb_interface_id(c, f);
@@ -1335,7 +1331,6 @@ static void ncm_unbind(struct usb_configuration *c, struct usb_function *f)
 
 	DBG(c->cdev, "ncm unbind\n");
 
-	ncm_string_defs[0].id = 0;
 	usb_free_all_descriptors(f);
 
 	kfree(ncm->notify_req->buf);
@@ -1370,7 +1365,6 @@ struct usb_function *ncm_alloc(struct usb_function_instance *fi)
 	ncm->port.is_fixed = true;
 
 	ncm->port.func.name = "cdc_network";
-	ncm->port.func.strings = ncm_strings;
 	/* descriptors are per-instance copies */
 	ncm->port.func.bind = ncm_bind;
 	ncm->port.func.unbind = ncm_unbind;
