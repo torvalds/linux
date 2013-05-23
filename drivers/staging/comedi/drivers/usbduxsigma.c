@@ -1902,6 +1902,92 @@ static int usbduxsigma_attach_common(struct comedi_device *dev,
 	return 0;
 }
 
+static int usbduxsigma_alloc_usb_buffers(struct usbduxsigma_private *devpriv)
+{
+	struct usb_device *usb = devpriv->usbdev;
+	struct urb *urb;
+	int i;
+
+	devpriv->dac_commands = kzalloc(NUMOUTCHANNELS, GFP_KERNEL);
+	devpriv->dux_commands = kzalloc(SIZEOFDUXBUFFER, GFP_KERNEL);
+	devpriv->inBuffer = kzalloc(SIZEINBUF, GFP_KERNEL);
+	devpriv->insnBuffer = kzalloc(SIZEINSNBUF, GFP_KERNEL);
+	devpriv->outBuffer = kzalloc(SIZEOUTBUF, GFP_KERNEL);
+	devpriv->urbIn = kcalloc(devpriv->numOfInBuffers, sizeof(*urb),
+				 GFP_KERNEL);
+	devpriv->urbOut = kcalloc(devpriv->numOfOutBuffers, sizeof(*urb),
+				  GFP_KERNEL);
+	if (!devpriv->dac_commands || !devpriv->dux_commands ||
+	    !devpriv->inBuffer || !devpriv->insnBuffer ||
+	    !devpriv->outBuffer || !devpriv->urbIn || !devpriv->urbOut)
+		return -ENOMEM;
+
+	for (i = 0; i < devpriv->numOfInBuffers; i++) {
+		/* one frame: 1ms */
+		urb = usb_alloc_urb(1, GFP_KERNEL);
+		if (!urb)
+			return -ENOMEM;
+		devpriv->urbIn[i] = urb;
+		urb->dev = usb;
+		/* will be filled later with a pointer to the comedi-device */
+		/* and ONLY then the urb should be submitted */
+		urb->context = NULL;
+		urb->pipe = usb_rcvisocpipe(usb, ISOINEP);
+		urb->transfer_flags = URB_ISO_ASAP;
+		urb->transfer_buffer = kzalloc(SIZEINBUF, GFP_KERNEL);
+		if (!urb->transfer_buffer)
+			return -ENOMEM;
+		urb->complete = usbduxsub_ai_IsocIrq;
+		urb->number_of_packets = 1;
+		urb->transfer_buffer_length = SIZEINBUF;
+		urb->iso_frame_desc[0].offset = 0;
+		urb->iso_frame_desc[0].length = SIZEINBUF;
+	}
+
+	for (i = 0; i < devpriv->numOfOutBuffers; i++) {
+		/* one frame: 1ms */
+		urb = usb_alloc_urb(1, GFP_KERNEL);
+		if (!urb)
+			return -ENOMEM;
+		devpriv->urbOut[i] = urb;
+		urb->dev = usb;
+		/* will be filled later with a pointer to the comedi-device */
+		/* and ONLY then the urb should be submitted */
+		urb->context = NULL;
+		urb->pipe = usb_sndisocpipe(usb, ISOOUTEP);
+		urb->transfer_flags = URB_ISO_ASAP;
+		urb->transfer_buffer = kzalloc(SIZEOUTBUF, GFP_KERNEL);
+		if (!urb->transfer_buffer)
+			return -ENOMEM;
+		urb->complete = usbduxsub_ao_IsocIrq;
+		urb->number_of_packets = 1;
+		urb->transfer_buffer_length = SIZEOUTBUF;
+		urb->iso_frame_desc[0].offset = 0;
+		urb->iso_frame_desc[0].length = SIZEOUTBUF;
+		if (devpriv->high_speed)
+			urb->interval = 8;	/* uframes */
+		else
+			urb->interval = 1;	/* frames */
+	}
+
+	if (devpriv->high_speed) {
+		/* max bulk ep size in high speed */
+		devpriv->sizePwmBuf = 512;
+		urb = usb_alloc_urb(0, GFP_KERNEL);
+		if (!urb)
+			return -ENOMEM;
+		devpriv->urbPwm = urb;
+		urb->transfer_buffer = kzalloc(devpriv->sizePwmBuf, GFP_KERNEL);
+		if (!urb->transfer_buffer)
+			return -ENOMEM;
+	} else {
+		devpriv->urbPwm = NULL;
+		devpriv->sizePwmBuf = 0;
+	}
+
+	return 0;
+}
+
 static int usbduxsigma_auto_attach(struct comedi_device *dev,
 				   unsigned long context_unused)
 {
@@ -1961,7 +2047,7 @@ static int usbduxsigma_usb_probe(struct usb_interface *intf,
 	struct usb_device *usb = interface_to_usbdev(intf);
 	struct device *dev = &intf->dev;
 	struct usbduxsigma_private *devpriv = NULL;
-	struct urb *urb;
+	int ret;
 	int i;
 
 	down(&start_stop_sem);
@@ -1984,158 +2070,30 @@ static int usbduxsigma_usb_probe(struct usb_interface *intf,
 	devpriv->ifnum = intf->altsetting->desc.bInterfaceNumber;
 	usb_set_intfdata(intf, devpriv);
 
-	/* test if it is high speed (USB 2.0) */
-	devpriv->high_speed = (usb->speed == USB_SPEED_HIGH);
-
-	/* create space for the commands of the DA converter */
-	devpriv->dac_commands = kzalloc(NUMOUTCHANNELS, GFP_KERNEL);
-	if (!devpriv->dac_commands) {
-		tidy_up(devpriv);
-		up(&start_stop_sem);
-		return -ENOMEM;
-	}
-	/* create space for the commands going to the usb device */
-	devpriv->dux_commands = kzalloc(SIZEOFDUXBUFFER, GFP_KERNEL);
-	if (!devpriv->dux_commands) {
-		tidy_up(devpriv);
-		up(&start_stop_sem);
-		return -ENOMEM;
-	}
-	/* create space for the in buffer and set it to zero */
-	devpriv->inBuffer = kzalloc(SIZEINBUF, GFP_KERNEL);
-	if (!devpriv->inBuffer) {
-		tidy_up(devpriv);
-		up(&start_stop_sem);
-		return -ENOMEM;
-	}
-	/* create space of the instruction buffer */
-	devpriv->insnBuffer = kzalloc(SIZEINSNBUF, GFP_KERNEL);
-	if (!devpriv->insnBuffer) {
-		tidy_up(devpriv);
-		up(&start_stop_sem);
-		return -ENOMEM;
-	}
-	/* create space for the outbuffer */
-	devpriv->outBuffer = kzalloc(SIZEOUTBUF, GFP_KERNEL);
-	if (!devpriv->outBuffer) {
-		tidy_up(devpriv);
-		up(&start_stop_sem);
-		return -ENOMEM;
-	}
-	/* setting to alternate setting 3: enabling iso ep and bulk ep. */
-	i = usb_set_interface(usb, devpriv->ifnum, 3);
-	if (i < 0) {
+	ret = usb_set_interface(usb, devpriv->ifnum, 3);
+	if (ret < 0) {
 		dev_err(dev,
 			"could not set alternate setting 3 in high speed\n");
 		tidy_up(devpriv);
 		up(&start_stop_sem);
 		return -ENODEV;
 	}
-	if (devpriv->high_speed)
-		devpriv->numOfInBuffers = NUMOFINBUFFERSHIGH;
-	else
-		devpriv->numOfInBuffers = NUMOFINBUFFERSFULL;
 
-	devpriv->urbIn = kcalloc(devpriv->numOfInBuffers, sizeof(*urb),
-				 GFP_KERNEL);
-	if (!devpriv->urbIn) {
-		tidy_up(devpriv);
-		up(&start_stop_sem);
-		return -ENOMEM;
-	}
-	for (i = 0; i < devpriv->numOfInBuffers; i++) {
-		/* one frame: 1ms */
-		urb = usb_alloc_urb(1, GFP_KERNEL);
-		if (!urb) {
-			tidy_up(devpriv);
-			up(&start_stop_sem);
-			return -ENOMEM;
-		}
-		devpriv->urbIn[i] = urb;
-		urb->dev = usb;
-		/* will be filled later with a pointer to the comedi-device */
-		/* and ONLY then the urb should be submitted */
-		urb->context = NULL;
-		urb->pipe = usb_rcvisocpipe(usb, ISOINEP);
-		urb->transfer_flags = URB_ISO_ASAP;
-		urb->transfer_buffer = kzalloc(SIZEINBUF, GFP_KERNEL);
-		if (!urb->transfer_buffer) {
-			tidy_up(devpriv);
-			up(&start_stop_sem);
-			return -ENOMEM;
-		}
-		urb->complete = usbduxsub_ai_IsocIrq;
-		urb->number_of_packets = 1;
-		urb->transfer_buffer_length = SIZEINBUF;
-		urb->iso_frame_desc[0].offset = 0;
-		urb->iso_frame_desc[0].length = SIZEINBUF;
-	}
-
-	/* out */
-	if (devpriv->high_speed)
-		devpriv->numOfOutBuffers = NUMOFOUTBUFFERSHIGH;
-	else
-		devpriv->numOfOutBuffers = NUMOFOUTBUFFERSFULL;
-
-	devpriv->urbOut = kcalloc(devpriv->numOfOutBuffers, sizeof(*urb),
-				  GFP_KERNEL);
-	if (!devpriv->urbOut) {
-		tidy_up(devpriv);
-		up(&start_stop_sem);
-		return -ENOMEM;
-	}
-	for (i = 0; i < devpriv->numOfOutBuffers; i++) {
-		/* one frame: 1ms */
-		urb = usb_alloc_urb(1, GFP_KERNEL);
-		if (!urb) {
-			tidy_up(devpriv);
-			up(&start_stop_sem);
-			return -ENOMEM;
-		}
-		devpriv->urbOut[i] = urb;
-		urb->dev = usb;
-		/* will be filled later with a pointer to the comedi-device */
-		/* and ONLY then the urb should be submitted */
-		urb->context = NULL;
-		urb->pipe = usb_sndisocpipe(usb, ISOOUTEP);
-		urb->transfer_flags = URB_ISO_ASAP;
-		urb->transfer_buffer = kzalloc(SIZEOUTBUF, GFP_KERNEL);
-		if (!urb->transfer_buffer) {
-			tidy_up(devpriv);
-			up(&start_stop_sem);
-			return -ENOMEM;
-		}
-		urb->complete = usbduxsub_ao_IsocIrq;
-		urb->number_of_packets = 1;
-		urb->transfer_buffer_length = SIZEOUTBUF;
-		urb->iso_frame_desc[0].offset = 0;
-		urb->iso_frame_desc[0].length = SIZEOUTBUF;
-		if (devpriv->high_speed)
-			urb->interval = 8;	/* uframes */
-		else
-			urb->interval = 1;	/* frames */
-	}
-
-	/* pwm */
+	/* test if it is high speed (USB 2.0) */
+	devpriv->high_speed = (usb->speed == USB_SPEED_HIGH);
 	if (devpriv->high_speed) {
-		/* max bulk ep size in high speed */
-		devpriv->sizePwmBuf = 512;
-		urb = usb_alloc_urb(0, GFP_KERNEL);
-		if (!urb) {
-			tidy_up(devpriv);
-			up(&start_stop_sem);
-			return -ENOMEM;
-		}
-		devpriv->urbPwm = urb;
-		urb->transfer_buffer = kzalloc(devpriv->sizePwmBuf, GFP_KERNEL);
-		if (!urb->transfer_buffer) {
-			tidy_up(devpriv);
-			up(&start_stop_sem);
-			return -ENOMEM;
-		}
+		devpriv->numOfInBuffers = NUMOFINBUFFERSHIGH;
+		devpriv->numOfOutBuffers = NUMOFOUTBUFFERSHIGH;
 	} else {
-		devpriv->urbPwm = NULL;
-		devpriv->sizePwmBuf = 0;
+		devpriv->numOfInBuffers = NUMOFINBUFFERSFULL;
+		devpriv->numOfOutBuffers = NUMOFOUTBUFFERSFULL;
+	}
+
+	ret = usbduxsigma_alloc_usb_buffers(devpriv);
+	if (ret) {
+		tidy_up(devpriv);
+		up(&start_stop_sem);
+		return ret;
 	}
 
 	devpriv->ai_cmd_running = 0;
