@@ -1147,8 +1147,10 @@ done:
 	return ret;
 }
 
-static void usbdux_pwm_stop(struct usbduxsigma_private *devpriv, int do_unlink)
+static void usbduxsigma_pwm_stop(struct comedi_device *dev, int do_unlink)
 {
+	struct usbduxsigma_private *devpriv = dev->private;
+
 	if (do_unlink) {
 		if (devpriv->urbPwm)
 			usb_kill_urb(devpriv->urbPwm);
@@ -1163,7 +1165,7 @@ static int usbduxsigma_pwm_cancel(struct comedi_device *dev,
 	struct usbduxsigma_private *devpriv = dev->private;
 
 	/* unlink only if it is really running */
-	usbdux_pwm_stop(devpriv, devpriv->pwm_cmd_running);
+	usbduxsigma_pwm_stop(dev, devpriv->pwm_cmd_running);
 
 	return send_dux_commands(dev, SENDPWMOFF);
 }
@@ -1185,7 +1187,7 @@ static void usbduxsigma_pwm_irq(struct urb *urb)
 	case -ECONNABORTED:
 		/* happens after an unlink command */
 		if (devpriv->pwm_cmd_running)
-			usbdux_pwm_stop(devpriv, 0);	/* w/o unlink */
+			usbduxsigma_pwm_stop(dev, 0);	/* w/o unlink */
 		return;
 
 	default:
@@ -1194,7 +1196,7 @@ static void usbduxsigma_pwm_irq(struct urb *urb)
 			dev_err(dev->class_dev,
 				"%s: non-zero urb status (%d)\n",
 				__func__, urb->status);
-			usbdux_pwm_stop(devpriv, 0);	/* w/o unlink */
+			usbduxsigma_pwm_stop(dev, 0);	/* w/o unlink */
 		}
 		return;
 	}
@@ -1212,7 +1214,7 @@ static void usbduxsigma_pwm_irq(struct urb *urb)
 		if (ret == EL2NSYNC)
 			dev_err(dev->class_dev,
 				"buggy USB host controller or bug in IRQ handler\n");
-		usbdux_pwm_stop(devpriv, 0);	/* w/o unlink */
+		usbduxsigma_pwm_stop(dev, 0);	/* w/o unlink */
 	}
 }
 
@@ -1665,7 +1667,7 @@ static void usbduxsigma_free_usb_buffers(struct comedi_device *dev)
 	/* force unlink all urbs */
 	usbdux_ai_stop(devpriv, 1);
 	usbdux_ao_stop(devpriv, 1);
-	usbdux_pwm_stop(devpriv, 1);
+	usbduxsigma_pwm_stop(dev, 1);
 
 	urb = devpriv->urbPwm;
 	if (urb) {
