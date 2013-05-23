@@ -369,7 +369,7 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 
 	if (dmalen > sz) {
 		wil_err(wil, "Rx size too large: %d bytes!\n", dmalen);
-		kfree(skb);
+		kfree_skb(skb);
 		return NULL;
 	}
 	skb_trim(skb, dmalen);
