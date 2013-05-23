@@ -1481,19 +1481,9 @@ static int usbdux_pwm_cancel(struct comedi_device *dev,
 
 static void usbduxsub_pwm_irq(struct urb *urb)
 {
+	struct comedi_device *dev = urb->context;
+	struct usbduxsub *devpriv = dev->private;
 	int ret;
-	struct usbduxsub *this_usbduxsub;
-	struct comedi_device *this_comedidev;
-	struct comedi_subdevice *s;
-
-	/* printk(KERN_DEBUG "PWM: IRQ\n"); */
-
-	/* the context variable points to the subdevice */
-	this_comedidev = urb->context;
-	/* the private structure of the subdevice is struct usbduxsub */
-	this_usbduxsub = this_comedidev->private;
-
-	s = &this_comedidev->subdevices[SUBDEV_DA];
 
 	switch (urb->status) {
 	case 0:
@@ -1504,47 +1494,36 @@ static void usbduxsub_pwm_irq(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 	case -ECONNABORTED:
-		/*
-		 * after an unlink command, unplug, ... etc
-		 * no unlink needed here. Already shutting down.
-		 */
-		if (this_usbduxsub->pwm_cmd_running)
-			usbdux_pwm_stop(this_usbduxsub, 0);
-
+		/* happens after an unlink command */
+		if (devpriv->pwm_cmd_running)
+			usbdux_pwm_stop(devpriv, 0);	/* w/o unlink */
 		return;
 
 	default:
 		/* a real error */
-		if (this_usbduxsub->pwm_cmd_running) {
-			dev_err(&this_usbduxsub->interface->dev,
-				"comedi_: Non-zero urb status received in "
-				"pwm intr context: %d\n", urb->status);
-			usbdux_pwm_stop(this_usbduxsub, 0);
+		if (devpriv->pwm_cmd_running) {
+			dev_err(dev->class_dev,
+				"%s: non-zero urb status (%d)\n",
+				__func__, urb->status);
+			usbdux_pwm_stop(devpriv, 0);	/* w/o unlink */
 		}
 		return;
 	}
 
-	/* are we actually running? */
-	if (!(this_usbduxsub->pwm_cmd_running))
+	if (!devpriv->pwm_cmd_running)
 		return;
 
-	urb->transfer_buffer_length = this_usbduxsub->sizePwmBuf;
-	urb->dev = this_usbduxsub->usbdev;
+	urb->transfer_buffer_length = devpriv->sizePwmBuf;
+	urb->dev = devpriv->usbdev;
 	urb->status = 0;
-	if (this_usbduxsub->pwm_cmd_running) {
-		ret = usb_submit_urb(urb, GFP_ATOMIC);
-		if (ret < 0) {
-			dev_err(&this_usbduxsub->interface->dev,
-				"comedi_: pwm urb resubm failed in int-cont. "
-				"ret=%d", ret);
-			if (ret == EL2NSYNC)
-				dev_err(&this_usbduxsub->interface->dev,
-					"buggy USB host controller or bug in "
-					"IRQ handling!\n");
-
-			/* don't do an unlink here */
-			usbdux_pwm_stop(this_usbduxsub, 0);
-		}
+	ret = usb_submit_urb(urb, GFP_ATOMIC);
+	if (ret < 0) {
+		dev_err(dev->class_dev, "%s: urb resubmit failed (%d)\n",
+			__func__, ret);
+		if (ret == EL2NSYNC)
+			dev_err(dev->class_dev,
+				"buggy USB host controller or bug in IRQ handler\n");
+		usbdux_pwm_stop(devpriv, 0);	/* w/o unlink */
 	}
 }
 
