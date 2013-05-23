@@ -1392,6 +1392,8 @@ static void intel_dp_get_config(struct intel_encoder *encoder,
 static void intel_disable_dp(struct intel_encoder *encoder)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	enum port port = dp_to_dig_port(intel_dp)->port;
+	struct drm_device *dev = encoder->base.dev;
 
 	/* Make sure the panel is off before trying to change the mode. But also
 	 * ensure that we have vdd while we switch off the panel. */
@@ -1401,16 +1403,17 @@ static void intel_disable_dp(struct intel_encoder *encoder)
 	ironlake_edp_panel_off(intel_dp);
 
 	/* cpu edp my only be disable _after_ the cpu pipe/plane is disabled. */
-	if (!is_cpu_edp(intel_dp))
+	if (!(port == PORT_A || IS_VALLEYVIEW(dev)))
 		intel_dp_link_down(intel_dp);
 }
 
 static void intel_post_disable_dp(struct intel_encoder *encoder)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&encoder->base);
+	enum port port = dp_to_dig_port(intel_dp)->port;
 	struct drm_device *dev = encoder->base.dev;
 
-	if (is_cpu_edp(intel_dp)) {
+	if (port == PORT_A || IS_VALLEYVIEW(dev)) {
 		intel_dp_link_down(intel_dp);
 		if (!IS_VALLEYVIEW(dev))
 			ironlake_edp_pll_off(intel_dp);
