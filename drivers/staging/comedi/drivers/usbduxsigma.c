@@ -240,7 +240,7 @@ static int usbdux_ai_cancel(struct comedi_device *dev,
 	return 0;
 }
 
-static void usbduxsub_ai_IsocIrq(struct urb *urb)
+static void usbduxsigma_ai_urb_complete(struct urb *urb)
 {
 	struct comedi_device *dev = urb->context;
 	struct usbduxsigma_private *devpriv = dev->private;
@@ -381,7 +381,7 @@ static int usbdux_ao_cancel(struct comedi_device *dev,
 	return 0;
 }
 
-static void usbduxsub_ao_IsocIrq(struct urb *urb)
+static void usbduxsigma_ao_urb_complete(struct urb *urb)
 {
 	struct comedi_device *dev = urb->context;
 	struct usbduxsigma_private *devpriv = dev->private;
@@ -1155,7 +1155,7 @@ static int usbduxsigma_pwm_cancel(struct comedi_device *dev,
 	return usbbuxsigma_send_cmd(dev, USBDUXSIGMA_PWM_OFF_CMD);
 }
 
-static void usbduxsigma_pwm_irq(struct urb *urb)
+static void usbduxsigma_pwm_urb_complete(struct urb *urb)
 {
 	struct comedi_device *dev = urb->context;
 	struct usbduxsigma_private *devpriv = dev->private;
@@ -1212,7 +1212,7 @@ static int usbduxsigma_submit_pwm_urb(struct comedi_device *dev)
 	/* in case of a resubmission after an unlink... */
 	usb_fill_bulk_urb(urb, usb, usb_sndbulkpipe(usb, PWM_EP),
 			  urb->transfer_buffer, devpriv->sizePwmBuf,
-			  usbduxsigma_pwm_irq, dev);
+			  usbduxsigma_pwm_urb_complete, dev);
 
 	return usb_submit_urb(urb, GFP_ATOMIC);
 }
@@ -1591,7 +1591,7 @@ static int usbduxsigma_alloc_usb_buffers(struct comedi_device *dev)
 		urb->transfer_buffer = kzalloc(SIZEINBUF, GFP_KERNEL);
 		if (!urb->transfer_buffer)
 			return -ENOMEM;
-		urb->complete = usbduxsub_ai_IsocIrq;
+		urb->complete = usbduxsigma_ai_urb_complete;
 		urb->number_of_packets = 1;
 		urb->transfer_buffer_length = SIZEINBUF;
 		urb->iso_frame_desc[0].offset = 0;
@@ -1613,7 +1613,7 @@ static int usbduxsigma_alloc_usb_buffers(struct comedi_device *dev)
 		urb->transfer_buffer = kzalloc(SIZEOUTBUF, GFP_KERNEL);
 		if (!urb->transfer_buffer)
 			return -ENOMEM;
-		urb->complete = usbduxsub_ao_IsocIrq;
+		urb->complete = usbduxsigma_ao_urb_complete;
 		urb->number_of_packets = 1;
 		urb->transfer_buffer_length = SIZEOUTBUF;
 		urb->iso_frame_desc[0].offset = 0;
