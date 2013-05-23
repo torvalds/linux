@@ -424,20 +424,16 @@ static void usbduxsub_ai_IsocIrq(struct urb *urb)
 	comedi_event(this_usbduxsub->comedidev, s);
 }
 
-static void usbduxsub_unlink_OutURBs(struct usbduxsub *devpriv)
-{
-	int i;
-
-	for (i = 0; i < devpriv->numOfOutBuffers; i++) {
-		if (devpriv->urbOut[i])
-			usb_kill_urb(devpriv->urbOut[i]);
-	}
-}
-
 static void usbdux_ao_stop(struct usbduxsub *devpriv, int do_unlink)
 {
-	if (do_unlink)
-		usbduxsub_unlink_OutURBs(devpriv);
+	if (do_unlink) {
+		int i;
+
+		for (i = 0; i < devpriv->numOfOutBuffers; i++) {
+			if (devpriv->urbOut[i])
+				usb_kill_urb(devpriv->urbOut[i]);
+		}
+	}
 
 	devpriv->ao_cmd_running = 0;
 }
