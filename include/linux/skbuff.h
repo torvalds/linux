@@ -319,6 +319,8 @@ enum {
 	SKB_GSO_GRE = 1 << 6,
 
 	SKB_GSO_UDP_TUNNEL = 1 << 7,
+
+	SKB_GSO_MPLS = 1 << 8,
 };
 
 #if BITS_PER_LONG > 32
@@ -389,6 +391,7 @@ typedef unsigned char *sk_buff_data_t;
  *	@dropcount: total number of sk_receive_queue overflows
  *	@vlan_proto: vlan encapsulation protocol
  *	@vlan_tci: vlan tag control information
+ *	@inner_protocol: Protocol (encapsulation)
  *	@inner_transport_header: Inner transport layer header (encapsulation)
  *	@inner_network_header: Network layer header (encapsulation)
  *	@inner_mac_header: Link layer header (encapsulation)
@@ -509,6 +512,7 @@ struct sk_buff {
 		__u32		reserved_tailroom;
 	};
 
+	__be16			inner_protocol;
 	__u16			inner_transport_header;
 	__u16			inner_network_header;
 	__u16			inner_mac_header;

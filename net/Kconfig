@@ -218,6 +218,7 @@ source "net/batman-adv/Kconfig"
 source "net/openvswitch/Kconfig"
 source "net/vmw_vsock/Kconfig"
 source "net/netlink/Kconfig"
+source "net/mpls/Kconfig"
 
 config RPS
 	boolean

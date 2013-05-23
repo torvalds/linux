@@ -5277,6 +5277,10 @@ int register_netdevice(struct net_device *dev)
 	 */
 	dev->hw_enc_features |= NETIF_F_SG;
 
+	/* Make NETIF_F_SG inheritable to MPLS.
+	 */
+	dev->mpls_features |= NETIF_F_SG;
+
 	ret = call_netdevice_notifiers(NETDEV_POST_INIT, dev);
 	ret = notifier_to_errno(ret);
 	if (ret)
