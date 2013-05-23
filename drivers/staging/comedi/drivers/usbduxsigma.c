@@ -994,9 +994,9 @@ static int usbduxsigma_ao_cmdtest(struct comedi_device *dev,
 		 * we get all channels at once
 		 */
 		devpriv->ao_timer = cmd->scan_begin_arg / 1000000;
-		if (devpriv->ao_timer < 1)
-			err |= -EINVAL;
 	}
+	if (devpriv->ao_timer < 1)
+		err |= -EINVAL;
 
 	if (cmd->stop_src == TRIG_COUNT) {
 		/* not continuous, use counter */
