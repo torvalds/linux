@@ -28,8 +28,7 @@
 #include "gateway_client.h"
 #include "originator.h"
 #include "network-coding.h"
-
-#include <linux/if_ether.h>
+#include "fragmentation.h"
 
 static void batadv_send_outstanding_bcast_packet(struct work_struct *work);
 
@@ -109,7 +108,19 @@ int batadv_send_skb_to_orig(struct sk_buff *skb,
 	/* batadv_find_router() increases neigh_nodes refcount if found. */
 	neigh_node = batadv_find_router(bat_priv, orig_node, recv_if);
 	if (!neigh_node)
-		return ret;
+		goto out;
+
+	/* Check if the skb is too large to send in one piece and fragment
+	 * it if needed.
+	 */
+	if (atomic_read(&bat_priv->fragmentation) &&
+	    skb->len > neigh_node->if_incoming->net_dev->mtu) {
+		/* Fragment and send packet. */
+		if (batadv_frag_send_packet(skb, orig_node, neigh_node))
+			ret = NET_XMIT_SUCCESS;
+
+		goto out;
+	}
 
 	/* try to network code the packet, if it is received on an interface
 	 * (i.e. being forwarded). If the packet originates from this node or if
@@ -123,7 +134,9 @@ int batadv_send_skb_to_orig(struct sk_buff *skb,
 		ret = NET_XMIT_SUCCESS;
 	}
 
-	batadv_neigh_node_free_ref(neigh_node);
+out:
+	if (neigh_node)
+		batadv_neigh_node_free_ref(neigh_node);
 
 	return ret;
 }

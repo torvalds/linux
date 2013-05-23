@@ -368,3 +368,124 @@ out:
 		batadv_neigh_node_free_ref(neigh_node);
 	return ret;
 }
+
+/**
+ * batadv_frag_create - create a fragment from skb
+ * @skb: skb to create fragment from
+ * @frag_head: header to use in new fragment
+ * @mtu: size of new fragment
+ *
+ * Split the passed skb into two fragments: A new one with size matching the
+ * passed mtu and the old one with the rest. The new skb contains data from the
+ * tail of the old skb.
+ *
+ * Returns the new fragment, NULL on error.
+ */
+static struct sk_buff *batadv_frag_create(struct sk_buff *skb,
+					  struct batadv_frag_packet *frag_head,
+					  unsigned int mtu)
+{
+	struct sk_buff *skb_fragment;
+	unsigned header_size = sizeof(*frag_head);
+	unsigned fragment_size = mtu - header_size;
+
+	skb_fragment = netdev_alloc_skb(NULL, mtu + ETH_HLEN);
+	if (!skb_fragment)
+		goto err;
+
+	skb->priority = TC_PRIO_CONTROL;
+
+	/* Eat the last mtu-bytes of the skb */
+	skb_reserve(skb_fragment, header_size + ETH_HLEN);
+	skb_split(skb, skb_fragment, skb->len - fragment_size);
+
+	/* Add the header */
+	skb_push(skb_fragment, header_size);
+	memcpy(skb_fragment->data, frag_head, header_size);
+
+err:
+	return skb_fragment;
+}
+
+/**
+ * batadv_frag_send_packet - create up to 16 fragments from the passed skb
+ * @skb: skb to create fragments from
+ * @orig_node: final destination of the created fragments
+ * @neigh_node: next-hop of the created fragments
+ *
+ * Returns true on success, false otherwise.
+ */
+bool batadv_frag_send_packet(struct sk_buff *skb,
+			     struct batadv_orig_node *orig_node,
+			     struct batadv_neigh_node *neigh_node)
+{
+	struct batadv_priv *bat_priv;
+	struct batadv_hard_iface *primary_if;
+	struct batadv_frag_packet frag_header;
+	struct sk_buff *skb_fragment;
+	unsigned mtu = neigh_node->if_incoming->net_dev->mtu;
+	unsigned header_size = sizeof(frag_header);
+	unsigned max_fragment_size, max_packet_size;
+
+	/* To avoid merge and refragmentation at next-hops we never send
+	 * fragments larger than BATADV_FRAG_MAX_FRAG_SIZE
+	 */
+	mtu = min_t(unsigned, mtu, BATADV_FRAG_MAX_FRAG_SIZE);
+	max_fragment_size = (mtu - header_size - ETH_HLEN);
+	max_packet_size = max_fragment_size * BATADV_FRAG_MAX_FRAGMENTS;
+
+	/* Don't even try to fragment, if we need more than 16 fragments */
+	if (skb->len > max_packet_size)
+		goto out_err;
+
+	bat_priv = orig_node->bat_priv;
+	primary_if = batadv_primary_if_get_selected(bat_priv);
+	if (!primary_if)
+		goto out_err;
+
+	/* Create one header to be copied to all fragments */
+	frag_header.header.packet_type = BATADV_UNICAST_FRAG;
+	frag_header.header.version = BATADV_COMPAT_VERSION;
+	frag_header.header.ttl = BATADV_TTL;
+	frag_header.seqno = htons(atomic_inc_return(&bat_priv->frag_seqno));
+	frag_header.reserved = 0;
+	frag_header.no = 0;
+	frag_header.total_size = htons(skb->len);
+	memcpy(frag_header.orig, primary_if->net_dev->dev_addr, ETH_ALEN);
+	memcpy(frag_header.dest, orig_node->orig, ETH_ALEN);
+
+	/* Eat and send fragments from the tail of skb */
+	while (skb->len > max_fragment_size) {
+		skb_fragment = batadv_frag_create(skb, &frag_header, mtu);
+		if (!skb_fragment)
+			goto out_err;
+
+		batadv_inc_counter(bat_priv, BATADV_CNT_FRAG_TX);
+		batadv_add_counter(bat_priv, BATADV_CNT_FRAG_TX_BYTES,
+				   skb_fragment->len + ETH_HLEN);
+		batadv_send_skb_packet(skb_fragment, neigh_node->if_incoming,
+				       neigh_node->addr);
+		frag_header.no++;
+
+		/* The initial check in this function should cover this case */
+		if (frag_header.no == BATADV_FRAG_MAX_FRAGMENTS - 1)
+			goto out_err;
+	}
+
+	/* Make room for the fragment header. */
+	if (batadv_skb_head_push(skb, header_size) < 0 ||
+	    pskb_expand_head(skb, header_size + ETH_HLEN, 0, GFP_ATOMIC) < 0)
+		goto out_err;
+
+	memcpy(skb->data, &frag_header, header_size);
+
+	/* Send the last fragment */
+	batadv_inc_counter(bat_priv, BATADV_CNT_FRAG_TX);
+	batadv_add_counter(bat_priv, BATADV_CNT_FRAG_TX_BYTES,
+			   skb->len + ETH_HLEN);
+	batadv_send_skb_packet(skb, neigh_node->if_incoming, neigh_node->addr);
+
+	return true;
+out_err:
+	return false;
+}
