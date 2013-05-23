@@ -1822,7 +1822,7 @@ static const struct usb_gadget_ops r8a66597_gadget_ops = {
 
 static int __exit r8a66597_remove(struct platform_device *pdev)
 {
-	struct r8a66597		*r8a66597 = dev_get_drvdata(&pdev->dev);
+	struct r8a66597		*r8a66597 = platform_get_drvdata(pdev);
 
 	usb_del_gadget_udc(&r8a66597->gadget);
 	del_timer_sync(&r8a66597->timer);
@@ -1909,7 +1909,7 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 	}
 
 	spin_lock_init(&r8a66597->lock);
-	dev_set_drvdata(&pdev->dev, r8a66597);
+	platform_set_drvdata(pdev, r8a66597);
 	r8a66597->pdata = pdev->dev.platform_data;
 	r8a66597->irq_sense_low = irq_trigger == IRQF_TRIGGER_LOW;
 

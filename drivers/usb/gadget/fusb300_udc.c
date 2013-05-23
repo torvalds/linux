@@ -1347,7 +1347,7 @@ static const struct usb_gadget_ops fusb300_gadget_ops = {
 
 static int __exit fusb300_remove(struct platform_device *pdev)
 {
-	struct fusb300 *fusb300 = dev_get_drvdata(&pdev->dev);
+	struct fusb300 *fusb300 = platform_get_drvdata(pdev);
 
 	usb_del_gadget_udc(&fusb300->gadget);
 	iounmap(fusb300->reg);
@@ -1416,7 +1416,7 @@ static int __init fusb300_probe(struct platform_device *pdev)
 
 	spin_lock_init(&fusb300->lock);
 
-	dev_set_drvdata(&pdev->dev, fusb300);
+	platform_set_drvdata(pdev, fusb300);
 
 	fusb300->gadget.ops = &fusb300_gadget_ops;
 
