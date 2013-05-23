@@ -827,6 +827,15 @@ struct i915_gem_mm {
 	u32 object_count;
 };
 
+struct drm_i915_error_state_buf {
+	unsigned bytes;
+	unsigned size;
+	int err;
+	u8 *buf;
+	loff_t start;
+	loff_t pos;
+};
+
 struct i915_gpu_error {
 	/* For hangcheck timer */
 #define DRM_I915_HANGCHECK_PERIOD 1500 /* in ms */
@@ -1822,6 +1831,8 @@ void i915_gem_dump_object(struct drm_i915_gem_object *obj, int len,
 /* i915_debugfs.c */
 int i915_debugfs_init(struct drm_minor *minor);
 void i915_debugfs_cleanup(struct drm_minor *minor);
+__printf(2, 3)
+void i915_error_printf(struct drm_i915_error_state_buf *e, const char *f, ...);
 
 /* i915_suspend.c */
 extern int i915_save_state(struct drm_device *dev);
@@ -1903,10 +1914,11 @@ int i915_reg_read_ioctl(struct drm_device *dev, void *data,
 /* overlay */
 #ifdef CONFIG_DEBUG_FS
 extern struct intel_overlay_error_state *intel_overlay_capture_error_state(struct drm_device *dev);
-extern void intel_overlay_print_error_state(struct seq_file *m, struct intel_overlay_error_state *error);
+extern void intel_overlay_print_error_state(struct drm_i915_error_state_buf *e,
+					    struct intel_overlay_error_state *error);
 
 extern struct intel_display_error_state *intel_display_capture_error_state(struct drm_device *dev);
-extern void intel_display_print_error_state(struct seq_file *m,
+extern void intel_display_print_error_state(struct drm_i915_error_state_buf *e,
 					    struct drm_device *dev,
 					    struct intel_display_error_state *error);
 #endif
