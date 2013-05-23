@@ -3932,7 +3932,7 @@ static int xhci_calculate_usb2_hw_lpm_params(struct usb_device *udev)
 	field = le32_to_cpu(udev->bos->ext_cap->bmAttributes);
 
 	/* xHCI l1 is set in steps of 256us, xHCI 1.0 section 5.4.11.2 */
-	l1 = XHCI_L1_TIMEOUT / 256;
+	l1 = udev->l1_params.timeout / 256;
 
 	/* device has preferred BESLD */
 	if (field & USB_BESL_DEEP_VALID) {
@@ -4116,7 +4116,7 @@ int xhci_set_usb2_hardware_lpm(struct usb_hcd *hcd,
 			    (field & USB_BESL_BASELINE_VALID))
 				hird = USB_GET_BESL_BASELINE(field);
 			else
-				hird = XHCI_DEFAULT_BESL;
+				hird = udev->l1_params.besl;
 
 			exit_latency = xhci_besl_encoding[hird];
 			spin_unlock_irqrestore(&xhci->lock, flags);
@@ -4206,6 +4206,8 @@ int xhci_update_device(struct usb_hcd *hcd, struct usb_device *udev)
 		if (xhci->hw_lpm_support == 1 &&
 		    xhci_check_usb2_port_capability(xhci, portnum, XHCI_HLC)) {
 			udev->usb2_hw_lpm_capable = 1;
+			udev->l1_params.timeout = XHCI_L1_TIMEOUT;
+			udev->l1_params.besl = XHCI_DEFAULT_BESL;
 			if (xhci_check_usb2_port_capability(xhci, portnum,
 							    XHCI_BLC))
 				udev->usb2_hw_lpm_besl_capable = 1;
