@@ -1175,8 +1175,10 @@ static int ncm_bind(struct usb_configuration *c, struct usb_function *f)
 	 * with regard to ncm_opts->bound access
 	 */
 	if (!ncm_opts->bound) {
+		mutex_lock(&ncm_opts->lock);
 		gether_set_gadget(ncm_opts->net, cdev->gadget);
 		status = gether_register_netdev(ncm_opts->net);
+		mutex_unlock(&ncm_opts->lock);
 		if (status)
 			return status;
 		ncm_opts->bound = true;
@@ -1290,6 +1292,159 @@ fail:
 	return status;
 }
 
+static inline struct f_ncm_opts *to_f_ncm_opts(struct config_item *item)
+{
+	return container_of(to_config_group(item), struct f_ncm_opts,
+			    func_inst.group);
+}
+
+CONFIGFS_ATTR_STRUCT(f_ncm_opts);
+CONFIGFS_ATTR_OPS(f_ncm_opts);
+
+static void ncm_attr_release(struct config_item *item)
+{
+	struct f_ncm_opts *opts = to_f_ncm_opts(item);
+
+	usb_put_function_instance(&opts->func_inst);
+}
+
+static struct configfs_item_operations ncm_item_ops = {
+	.release	= ncm_attr_release,
+	.show_attribute = f_ncm_opts_attr_show,
+	.store_attribute = f_ncm_opts_attr_store,
+};
+
+static ssize_t ncm_opts_dev_addr_show(struct f_ncm_opts *opts, char *page)
+{
+	int result;
+
+	mutex_lock(&opts->lock);
+	result = gether_get_dev_addr(opts->net, page, PAGE_SIZE);
+	mutex_unlock(&opts->lock);
+
+	return result;
+}
+
+static ssize_t ncm_opts_dev_addr_store(struct f_ncm_opts *opts,
+		const char *page, size_t len)
+{
+	int ret;
+
+	mutex_lock(&opts->lock);
+	if (opts->refcnt) {
+		mutex_unlock(&opts->lock);
+		return -EBUSY;
+	}
+
+	ret = gether_set_dev_addr(opts->net, page);
+	mutex_unlock(&opts->lock);
+	if (!ret)
+		ret = len;
+	return ret;
+}
+
+static struct f_ncm_opts_attribute f_ncm_opts_dev_addr =
+	__CONFIGFS_ATTR(dev_addr, S_IRUGO | S_IWUSR, ncm_opts_dev_addr_show,
+			ncm_opts_dev_addr_store);
+
+static ssize_t ncm_opts_host_addr_show(struct f_ncm_opts *opts, char *page)
+{
+	int result;
+
+	mutex_lock(&opts->lock);
+	result = gether_get_host_addr(opts->net, page, PAGE_SIZE);
+	mutex_unlock(&opts->lock);
+
+	return result;
+}
+
+static ssize_t ncm_opts_host_addr_store(struct f_ncm_opts *opts,
+		const char *page, size_t len)
+{
+	int ret;
+
+	mutex_lock(&opts->lock);
+	if (opts->refcnt) {
+		mutex_unlock(&opts->lock);
+		return -EBUSY;
+	}
+
+	ret = gether_set_host_addr(opts->net, page);
+	mutex_unlock(&opts->lock);
+	if (!ret)
+		ret = len;
+	return ret;
+}
+
+static struct f_ncm_opts_attribute f_ncm_opts_host_addr =
+	__CONFIGFS_ATTR(host_addr, S_IRUGO | S_IWUSR, ncm_opts_host_addr_show,
+			ncm_opts_host_addr_store);
+
+static ssize_t ncm_opts_qmult_show(struct f_ncm_opts *opts, char *page)
+{
+	unsigned qmult;
+
+	mutex_lock(&opts->lock);
+	qmult = gether_get_qmult(opts->net);
+	mutex_unlock(&opts->lock);
+	return sprintf(page, "%d", qmult);
+}
+
+static ssize_t ncm_opts_qmult_store(struct f_ncm_opts *opts,
+		const char *page, size_t len)
+{
+	u8 val;
+	int ret;
+
+	mutex_lock(&opts->lock);
+	if (opts->refcnt) {
+		ret = -EBUSY;
+		goto out;
+	}
+
+	ret = kstrtou8(page, 0, &val);
+	if (ret)
+		goto out;
+
+	gether_set_qmult(opts->net, val);
+	ret = len;
+out:
+	mutex_unlock(&opts->lock);
+	return ret;
+}
+
+static struct f_ncm_opts_attribute f_ncm_opts_qmult =
+	__CONFIGFS_ATTR(qmult, S_IRUGO | S_IWUSR, ncm_opts_qmult_show,
+			ncm_opts_qmult_store);
+
+static ssize_t ncm_opts_ifname_show(struct f_ncm_opts *opts, char *page)
+{
+	int ret;
+
+	mutex_lock(&opts->lock);
+	ret = gether_get_ifname(opts->net, page, PAGE_SIZE);
+	mutex_unlock(&opts->lock);
+
+	return ret;
+}
+
+static struct f_ncm_opts_attribute f_ncm_opts_ifname =
+	__CONFIGFS_ATTR_RO(ifname, ncm_opts_ifname_show);
+
+static struct configfs_attribute *ncm_attrs[] = {
+	&f_ncm_opts_dev_addr.attr,
+	&f_ncm_opts_host_addr.attr,
+	&f_ncm_opts_qmult.attr,
+	&f_ncm_opts_ifname.attr,
+	NULL,
+};
+
+static struct config_item_type ncm_func_type = {
+	.ct_item_ops	= &ncm_item_ops,
+	.ct_attrs	= ncm_attrs,
+	.ct_owner	= THIS_MODULE,
+};
+
 static void ncm_free_inst(struct usb_function_instance *f)
 {
 	struct f_ncm_opts *opts;
@@ -1309,10 +1464,13 @@ static struct usb_function_instance *ncm_alloc_inst(void)
 	opts = kzalloc(sizeof(*opts), GFP_KERNEL);
 	if (!opts)
 		return ERR_PTR(-ENOMEM);
+	mutex_init(&opts->lock);
 	opts->func_inst.free_func_inst = ncm_free_inst;
 	opts->net = gether_setup_default();
 	if (IS_ERR(opts->net))
 		return ERR_PTR(PTR_ERR(opts->net));
+
+	config_group_init_type_name(&opts->func_inst.group, "", &ncm_func_type);
 
 	return &opts->func_inst;
 }
@@ -1320,9 +1478,14 @@ static struct usb_function_instance *ncm_alloc_inst(void)
 static void ncm_free(struct usb_function *f)
 {
 	struct f_ncm *ncm;
+	struct f_ncm_opts *opts;
 
 	ncm = func_to_ncm(f);
+	opts = container_of(f->fi, struct f_ncm_opts, func_inst);
 	kfree(ncm);
+	mutex_lock(&opts->lock);
+	opts->refcnt--;
+	mutex_unlock(&opts->lock);
 }
 
 static void ncm_unbind(struct usb_configuration *c, struct usb_function *f)
@@ -1349,6 +1512,8 @@ struct usb_function *ncm_alloc(struct usb_function_instance *fi)
 		return ERR_PTR(-ENOMEM);
 
 	opts = container_of(fi, struct f_ncm_opts, func_inst);
+	mutex_lock(&opts->lock);
+	opts->refcnt++;
 
 	/* export host's Ethernet address in CDC format */
 	status = gether_get_host_addr_cdc(opts->net, ncm->ethaddr,
@@ -1362,6 +1527,7 @@ struct usb_function *ncm_alloc(struct usb_function_instance *fi)
 	spin_lock_init(&ncm->lock);
 	ncm_reset_values(ncm);
 	ncm->port.ioport = netdev_priv(opts->net);
+	mutex_unlock(&opts->lock);
 	ncm->port.is_fixed = true;
 
 	ncm->port.func.name = "cdc_network";
