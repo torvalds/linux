@@ -1834,10 +1834,8 @@ static int usbduxsigma_auto_attach(struct comedi_device *dev,
 	}
 
 	ret = usbduxsigma_alloc_usb_buffers(dev);
-	if (ret) {
-		tidy_up(devpriv);
+	if (ret)
 		return ret;
-	}
 
 	ret = comedi_load_firmware(dev, &usb->dev, FIRMWARE,
 				   usbduxsigma_firmware_upload, 0);
