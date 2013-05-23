@@ -548,6 +548,9 @@ static void pdev_shutdown(struct platform_device *device)
 
 static int pdev_probe(struct platform_device *device)
 {
+	if (omapdss_is_initialized() == false)
+		return -EPROBE_DEFER;
+
 	DBG("%s", device->name);
 	return drm_platform_init(&omap_drm_driver, device);
 }
