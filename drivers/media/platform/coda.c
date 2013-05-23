@@ -1753,6 +1753,10 @@ static int coda_hw_init(struct coda_dev *dev)
 		}
 	}
 
+	/* Clear registers */
+	for (i = 0; i < 64; i++)
+		coda_write(dev, 0, CODA_REG_BIT_CODE_BUF_ADDR + i * 4);
+
 	/* Tell the BIT where to find everything it needs */
 	coda_write(dev, dev->workbuf.paddr,
 		      CODA_REG_BIT_WORK_BUF_ADDR);
