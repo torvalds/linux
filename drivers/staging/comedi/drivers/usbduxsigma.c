@@ -1157,8 +1157,8 @@ static void usbdux_pwm_stop(struct usbduxsigma_private *devpriv, int do_unlink)
 	devpriv->pwm_cmd_running = 0;
 }
 
-static int usbdux_pwm_cancel(struct comedi_device *dev,
-			     struct comedi_subdevice *s)
+static int usbduxsigma_pwm_cancel(struct comedi_device *dev,
+				  struct comedi_subdevice *s)
 {
 	struct usbduxsigma_private *devpriv = dev->private;
 
@@ -1340,7 +1340,7 @@ static int usbduxsigma_pwm_config(struct comedi_device *dev,
 			return -EINVAL;
 		return usbduxsigma_pwm_start(dev, s);
 	case INSN_CONFIG_DISARM:
-		return usbdux_pwm_cancel(dev, s);
+		return usbduxsigma_pwm_cancel(dev, s);
 	case INSN_CONFIG_GET_PWM_STATUS:
 		data[1] = devpriv->pwm_cmd_running;
 		return 0;
