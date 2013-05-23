@@ -611,38 +611,30 @@ done:
 	return ret;
 }
 
-static int usbduxsub_submit_InURBs(struct usbduxsub *usbduxsub)
+static int usbduxsigma_submit_urbs(struct comedi_device *dev,
+				   struct urb **urbs, int num_urbs,
+				   int input_urb)
 {
-	int i, errFlag;
+	struct usbduxsub *devpriv = dev->private;
+	struct urb *urb;
+	int ret;
+	int i;
 
 	/* Submit all URBs and start the transfer on the bus */
-	for (i = 0; i < usbduxsub->numOfInBuffers; i++) {
-		/* in case of a resubmission after an unlink... */
-		usbduxsub->urbIn[i]->interval = usbduxsub->ai_interval;
-		usbduxsub->urbIn[i]->context = usbduxsub->comedidev;
-		usbduxsub->urbIn[i]->dev = usbduxsub->usbdev;
-		usbduxsub->urbIn[i]->status = 0;
-		usbduxsub->urbIn[i]->transfer_flags = URB_ISO_ASAP;
-		errFlag = usb_submit_urb(usbduxsub->urbIn[i], GFP_ATOMIC);
-		if (errFlag)
-			return errFlag;
-	}
-	return 0;
-}
+	for (i = 0; i < num_urbs; i++) {
+		urb = urbs[i];
 
-static int usbduxsub_submit_OutURBs(struct usbduxsub *usbduxsub)
-{
-	int i, errFlag;
-
-	for (i = 0; i < usbduxsub->numOfOutBuffers; i++) {
 		/* in case of a resubmission after an unlink... */
-		usbduxsub->urbOut[i]->context = usbduxsub->comedidev;
-		usbduxsub->urbOut[i]->dev = usbduxsub->usbdev;
-		usbduxsub->urbOut[i]->status = 0;
-		usbduxsub->urbOut[i]->transfer_flags = URB_ISO_ASAP;
-		errFlag = usb_submit_urb(usbduxsub->urbOut[i], GFP_ATOMIC);
-		if (errFlag)
-			return errFlag;
+		if (input_urb)
+			urb->interval = devpriv->ai_interval;
+		urb->context = dev;
+		urb->dev = devpriv->usbdev;
+		urb->status = 0;
+		urb->transfer_flags = URB_ISO_ASAP;
+
+		ret = usb_submit_urb(urb, GFP_ATOMIC);
+		if (ret)
+			return ret;
 	}
 	return 0;
 }
@@ -842,17 +834,15 @@ static int usbdux_ai_inttrig(struct comedi_device *dev,
 		up(&this_usbduxsub->sem);
 		return -EINVAL;
 	}
-	if (!(this_usbduxsub->ai_cmd_running)) {
-		this_usbduxsub->ai_cmd_running = 1;
-		ret = usbduxsub_submit_InURBs(this_usbduxsub);
+	if (!this_usbduxsub->ai_cmd_running) {
+		ret = usbduxsigma_submit_urbs(dev, this_usbduxsub->urbIn,
+					      this_usbduxsub->numOfInBuffers,
+					      1);
 		if (ret < 0) {
-			dev_err(&this_usbduxsub->interface->dev,
-				"comedi%d: usbdux_ai_inttrig: "
-				"urbSubmit: err=%d\n", dev->minor, ret);
-			this_usbduxsub->ai_cmd_running = 0;
 			up(&this_usbduxsub->sem);
 			return ret;
 		}
+		this_usbduxsub->ai_cmd_running = 1;
 		s->async->inttrig = NULL;
 	} else {
 		dev_err(&this_usbduxsub->interface->dev,
@@ -964,14 +954,14 @@ static int usbdux_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	if (cmd->start_src == TRIG_NOW) {
 		/* enable this acquisition operation */
-		this_usbduxsub->ai_cmd_running = 1;
-		ret = usbduxsub_submit_InURBs(this_usbduxsub);
+		ret = usbduxsigma_submit_urbs(dev, this_usbduxsub->urbIn,
+					      this_usbduxsub->numOfInBuffers,
+					      1);
 		if (ret < 0) {
-			this_usbduxsub->ai_cmd_running = 0;
-			/* fixme: unlink here?? */
 			up(&this_usbduxsub->sem);
 			return ret;
 		}
+		this_usbduxsub->ai_cmd_running = 1;
 		s->async->inttrig = NULL;
 	} else {
 		/* TRIG_INT */
@@ -1224,15 +1214,12 @@ static int usbdux_ao_inttrig(struct comedi_device *dev,
 		goto out;
 	}
 	if (!(this_usbduxsub->ao_cmd_running)) {
-		this_usbduxsub->ao_cmd_running = 1;
-		ret = usbduxsub_submit_OutURBs(this_usbduxsub);
-		if (ret < 0) {
-			dev_err(&this_usbduxsub->interface->dev,
-				"comedi%d: usbdux_ao_inttrig: submitURB: "
-				"err=%d\n", dev->minor, ret);
-			this_usbduxsub->ao_cmd_running = 0;
+		ret = usbduxsigma_submit_urbs(dev, this_usbduxsub->urbOut,
+					      this_usbduxsub->numOfOutBuffers,
+					      0);
+		if (ret < 0)
 			goto out;
-		}
+		this_usbduxsub->ao_cmd_running = 1;
 		s->async->inttrig = NULL;
 	} else {
 		dev_err(&this_usbduxsub->interface->dev,
@@ -1408,14 +1395,14 @@ static int usbdux_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	if (cmd->start_src == TRIG_NOW) {
 		/* enable this acquisition operation */
-		this_usbduxsub->ao_cmd_running = 1;
-		ret = usbduxsub_submit_OutURBs(this_usbduxsub);
+		ret = usbduxsigma_submit_urbs(dev, this_usbduxsub->urbOut,
+					      this_usbduxsub->numOfOutBuffers,
+					      0);
 		if (ret < 0) {
-			this_usbduxsub->ao_cmd_running = 0;
-			/* fixme: unlink here?? */
 			up(&this_usbduxsub->sem);
 			return ret;
 		}
+		this_usbduxsub->ao_cmd_running = 1;
 		s->async->inttrig = NULL;
 	} else {
 		/* TRIG_INT */
