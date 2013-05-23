@@ -142,18 +142,6 @@ Status: testing
 /* must have more buffers due to buggy USB ctr */
 #define NUMOFOUTBUFFERSHIGH    10
 
-/* Analogue in subdevice */
-#define SUBDEV_AD             0
-
-/* Analogue out subdevice */
-#define SUBDEV_DA             1
-
-/* Digital I/O */
-#define SUBDEV_DIO            2
-
-/* timer aka pwm output */
-#define SUBDEV_PWM            3
-
 /* number of retries to get the right dux command */
 #define RETRIES 10
 
@@ -1678,7 +1666,7 @@ static int usbduxsigma_attach_common(struct comedi_device *dev)
 		return ret;
 	}
 	/* the first subdevice is the A/D converter */
-	s = &dev->subdevices[SUBDEV_AD];
+	s = &dev->subdevices[0];
 	/* the URBs get the comedi subdevice */
 	/* which is responsible for reading */
 	/* this is the subdevice which reads data */
@@ -1705,7 +1693,7 @@ static int usbduxsigma_attach_common(struct comedi_device *dev)
 	/* range table to convert to physical units */
 	s->range_table = (&range_usbdux_ai_range);
 	/* analog output subdevice */
-	s = &dev->subdevices[SUBDEV_DA];
+	s = &dev->subdevices[1];
 	/* analog out */
 	s->type = COMEDI_SUBD_AO;
 	/* backward pointer */
@@ -1730,7 +1718,7 @@ static int usbduxsigma_attach_common(struct comedi_device *dev)
 	s->insn_read = usbdux_ao_insn_read;
 	s->insn_write = usbdux_ao_insn_write;
 	/* digital I/O subdevice */
-	s = &dev->subdevices[SUBDEV_DIO];
+	s = &dev->subdevices[2];
 	s->type = COMEDI_SUBD_DIO;
 	s->subdev_flags = SDF_READABLE | SDF_WRITABLE;
 	/* 8 external and 16 internal channels */
@@ -1743,7 +1731,7 @@ static int usbduxsigma_attach_common(struct comedi_device *dev)
 	s->private = NULL;
 	if (uds->high_speed) {
 		/* timer / pwm subdevice */
-		s = &dev->subdevices[SUBDEV_PWM];
+		s = &dev->subdevices[3];
 		s->type = COMEDI_SUBD_PWM;
 		s->subdev_flags = SDF_WRITABLE | SDF_PWM_HBRIDGE;
 		s->n_chan = 8;
