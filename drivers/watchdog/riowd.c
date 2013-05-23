@@ -206,7 +206,7 @@ static int riowd_probe(struct platform_device *op)
 	pr_info("Hardware watchdog [%i minutes], regs at %p\n",
 		riowd_timeout, p->regs);
 
-	dev_set_drvdata(&op->dev, p);
+	platform_set_drvdata(op, p);
 	return 0;
 
 out_iounmap:
@@ -219,7 +219,7 @@ out:
 
 static int riowd_remove(struct platform_device *op)
 {
-	struct riowd *p = dev_get_drvdata(&op->dev);
+	struct riowd *p = platform_get_drvdata(op);
 
 	misc_deregister(&riowd_miscdev);
 	of_iounmap(&op->resource[0], p->regs, 2);
