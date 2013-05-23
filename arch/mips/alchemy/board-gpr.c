@@ -31,6 +31,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-gpio.h>
 #include <asm/bootinfo.h>
+#include <asm/idle.h>
 #include <asm/reboot.h>
 #include <asm/mach-au1x00/au1000.h>
 #include <prom.h>
