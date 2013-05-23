@@ -20,4 +20,13 @@
 	memory {
 		reg = <0x20000000 0x4000000>;
 	};
+
+	ahb {
+		apb {
+			shdwc@fffffd10 {
+				atmel,wakeup-counter = <10>;
+				atmel,wakeup-rtt-timer;
+			};
+		};
+	};
 };
