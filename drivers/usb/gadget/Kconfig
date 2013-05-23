@@ -838,6 +838,7 @@ config USB_CDC_COMPOSITE
 	select USB_U_SERIAL
 	select USB_U_ETHER
 	select USB_F_ACM
+	select USB_F_ECM
 	help
 	  This driver provides two functions in one configuration:
 	  a CDC Ethernet (ECM) link, and a CDC ACM (serial port) link.
