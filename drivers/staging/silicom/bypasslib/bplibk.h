@@ -31,8 +31,8 @@
 #define EXPORT_SYMBOL_NOVERS EXPORT_SYMBOL
 
 #ifdef BP_VENDOR_SUPPORT
-char *bp_desc_array[] =
-{ "e1000bp", "e1000bpe", "slcm5700", "bnx2xbp", "ixgbp", "ixgbpe", NULL };
+char *bp_desc_array[] = { "e1000bp", "e1000bpe", "slcm5700",
+			"bnx2xbp", "ixgbp", "ixgbpe", NULL };
 #endif
 
 #endif
