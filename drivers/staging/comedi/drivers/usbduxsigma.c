@@ -1934,13 +1934,10 @@ static void tidy_up(struct usbduxsub *usbduxsub_tmp)
 		usbduxsub_tmp->urbOut = NULL;
 	}
 	if (usbduxsub_tmp->urbPwm) {
-		if (usbduxsub_tmp->pwm_cmd_running) {
-			usbduxsub_tmp->pwm_cmd_running = 0;
-			usbduxsub_unlink_PwmURBs(usbduxsub_tmp);
-		}
+		/* force unlink urb */
+		usbdux_pwm_stop(usbduxsub_tmp, 1);
 		kfree(usbduxsub_tmp->urbPwm->transfer_buffer);
 		usbduxsub_tmp->urbPwm->transfer_buffer = NULL;
-		usb_kill_urb(usbduxsub_tmp->urbPwm);
 		usb_free_urb(usbduxsub_tmp->urbPwm);
 		usbduxsub_tmp->urbPwm = NULL;
 	}
@@ -1954,7 +1951,6 @@ static void tidy_up(struct usbduxsub *usbduxsub_tmp)
 	usbduxsub_tmp->dac_commands = NULL;
 	kfree(usbduxsub_tmp->dux_commands);
 	usbduxsub_tmp->dux_commands = NULL;
-	usbduxsub_tmp->pwm_cmd_running = 0;
 }
 
 static int usbduxsigma_attach_common(struct comedi_device *dev,
