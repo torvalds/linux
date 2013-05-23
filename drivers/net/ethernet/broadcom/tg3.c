@@ -9240,6 +9240,28 @@ static void __tg3_set_coalesce(struct tg3 *tp, struct ethtool_coalesce *ec)
 }
 
 /* tp->lock is held. */
+static void tg3_tx_rcbs_disable(struct tg3 *tp)
+{
+	u32 txrcb, limit;
+
+	/* Disable all transmit rings but the first. */
+	if (!tg3_flag(tp, 5705_PLUS))
+		limit = NIC_SRAM_SEND_RCB + TG3_BDINFO_SIZE * 16;
+	else if (tg3_flag(tp, 5717_PLUS))
+		limit = NIC_SRAM_SEND_RCB + TG3_BDINFO_SIZE * 4;
+	else if (tg3_flag(tp, 57765_CLASS) ||
+		 tg3_asic_rev(tp) == ASIC_REV_5762)
+		limit = NIC_SRAM_SEND_RCB + TG3_BDINFO_SIZE * 2;
+	else
+		limit = NIC_SRAM_SEND_RCB + TG3_BDINFO_SIZE;
+
+	for (txrcb = NIC_SRAM_SEND_RCB + TG3_BDINFO_SIZE;
+	     txrcb < limit; txrcb += TG3_BDINFO_SIZE)
+		tg3_write_mem(tp, txrcb + TG3_BDINFO_MAXLEN_FLAGS,
+			      BDINFO_FLAGS_DISABLED);
+}
+
+/* tp->lock is held. */
 static void tg3_tx_rcbs_init(struct tg3 *tp)
 {
 	int i = 0;
@@ -9258,6 +9280,29 @@ static void tg3_tx_rcbs_init(struct tg3 *tp)
 			       (TG3_TX_RING_SIZE << BDINFO_FLAGS_MAXLEN_SHIFT),
 			       NIC_SRAM_TX_BUFFER_DESC);
 	}
+}
+
+/* tp->lock is held. */
+static void tg3_rx_ret_rcbs_disable(struct tg3 *tp)
+{
+	u32 rxrcb, limit;
+
+	/* Disable all receive return rings but the first. */
+	if (tg3_flag(tp, 5717_PLUS))
+		limit = NIC_SRAM_RCV_RET_RCB + TG3_BDINFO_SIZE * 17;
+	else if (!tg3_flag(tp, 5705_PLUS))
+		limit = NIC_SRAM_RCV_RET_RCB + TG3_BDINFO_SIZE * 16;
+	else if (tg3_asic_rev(tp) == ASIC_REV_5755 ||
+		 tg3_asic_rev(tp) == ASIC_REV_5762 ||
+		 tg3_flag(tp, 57765_CLASS))
+		limit = NIC_SRAM_RCV_RET_RCB + TG3_BDINFO_SIZE * 4;
+	else
+		limit = NIC_SRAM_RCV_RET_RCB + TG3_BDINFO_SIZE;
+
+	for (rxrcb = NIC_SRAM_RCV_RET_RCB + TG3_BDINFO_SIZE;
+	     rxrcb < limit; rxrcb += TG3_BDINFO_SIZE)
+		tg3_write_mem(tp, rxrcb + TG3_BDINFO_MAXLEN_FLAGS,
+			      BDINFO_FLAGS_DISABLED);
 }
 
 /* tp->lock is held. */
@@ -9285,42 +9330,12 @@ static void tg3_rx_ret_rcbs_init(struct tg3 *tp)
 static void tg3_rings_reset(struct tg3 *tp)
 {
 	int i;
-	u32 stblk, txrcb, rxrcb, limit;
+	u32 stblk;
 	struct tg3_napi *tnapi = &tp->napi[0];
 
-	/* Disable all transmit rings but the first. */
-	if (!tg3_flag(tp, 5705_PLUS))
-		limit = NIC_SRAM_SEND_RCB + TG3_BDINFO_SIZE * 16;
-	else if (tg3_flag(tp, 5717_PLUS))
-		limit = NIC_SRAM_SEND_RCB + TG3_BDINFO_SIZE * 4;
-	else if (tg3_flag(tp, 57765_CLASS) ||
-		 tg3_asic_rev(tp) == ASIC_REV_5762)
-		limit = NIC_SRAM_SEND_RCB + TG3_BDINFO_SIZE * 2;
-	else
-		limit = NIC_SRAM_SEND_RCB + TG3_BDINFO_SIZE;
+	tg3_tx_rcbs_disable(tp);
 
-	for (txrcb = NIC_SRAM_SEND_RCB + TG3_BDINFO_SIZE;
-	     txrcb < limit; txrcb += TG3_BDINFO_SIZE)
-		tg3_write_mem(tp, txrcb + TG3_BDINFO_MAXLEN_FLAGS,
-			      BDINFO_FLAGS_DISABLED);
-
-
-	/* Disable all receive return rings but the first. */
-	if (tg3_flag(tp, 5717_PLUS))
-		limit = NIC_SRAM_RCV_RET_RCB + TG3_BDINFO_SIZE * 17;
-	else if (!tg3_flag(tp, 5705_PLUS))
-		limit = NIC_SRAM_RCV_RET_RCB + TG3_BDINFO_SIZE * 16;
-	else if (tg3_asic_rev(tp) == ASIC_REV_5755 ||
-		 tg3_asic_rev(tp) == ASIC_REV_5762 ||
-		 tg3_flag(tp, 57765_CLASS))
-		limit = NIC_SRAM_RCV_RET_RCB + TG3_BDINFO_SIZE * 4;
-	else
-		limit = NIC_SRAM_RCV_RET_RCB + TG3_BDINFO_SIZE;
-
-	for (rxrcb = NIC_SRAM_RCV_RET_RCB + TG3_BDINFO_SIZE;
-	     rxrcb < limit; rxrcb += TG3_BDINFO_SIZE)
-		tg3_write_mem(tp, rxrcb + TG3_BDINFO_MAXLEN_FLAGS,
-			      BDINFO_FLAGS_DISABLED);
+	tg3_rx_ret_rcbs_disable(tp);
 
 	/* Disable interrupts */
 	tw32_mailbox_f(tp->napi[0].int_mbox, 1);
