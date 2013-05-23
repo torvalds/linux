@@ -930,18 +930,23 @@ static int usbduxsigma_ao_inttrig(struct comedi_device *dev,
 	return 1;
 }
 
-static int usbdux_ao_cmdtest(struct comedi_device *dev,
-			     struct comedi_subdevice *s,
-			     struct comedi_cmd *cmd)
+static int usbduxsigma_ao_cmdtest(struct comedi_device *dev,
+				  struct comedi_subdevice *s,
+				  struct comedi_cmd *cmd)
 {
+	struct usbduxsigma_private *devpriv = dev->private;
 	int err = 0;
+	int high_speed;
 	unsigned int flags;
+
+	/* high speed conversions are not used yet */
+	high_speed = 0; 	/* (devpriv->high_speed) */
 
 	/* Step 1 : check if triggers are trivially valid */
 
 	err |= cfc_check_trigger_src(&cmd->start_src, TRIG_NOW | TRIG_INT);
 
-	if (0) {		/* (this_usbduxsub->high_speed) */
+	if (high_speed) {
 		/*
 		 * start immediately a new scan
 		 * the sampling rate is set by the coversion rate
@@ -957,8 +962,10 @@ static int usbdux_ao_cmdtest(struct comedi_device *dev,
 	err |= cfc_check_trigger_src(&cmd->scan_end_src, TRIG_COUNT);
 	err |= cfc_check_trigger_src(&cmd->stop_src, TRIG_COUNT | TRIG_NONE);
 
-	if (err)
+	if (err) {
+		up(&devpriv->sem);
 		return 1;
+	}
 
 	/* Step 2a : make sure trigger sources are unique */
 
@@ -997,81 +1004,83 @@ static int usbdux_ao_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 3;
 
+	/* Step 4: fix up any arguments */
+
+	/* we count in timer steps */
+	if (high_speed) {
+		/* timing of the conversion itself: every 125 us */
+		devpriv->ao_timer = cmd->convert_arg / 125000;
+	} else {
+		/*
+		 * timing of the scan: every 1ms
+		 * we get all channels at once
+		 */
+		devpriv->ao_timer = cmd->scan_begin_arg / 1000000;
+		if (devpriv->ao_timer < 1)
+			err |= -EINVAL;
+	}
+
+	if (cmd->stop_src == TRIG_COUNT) {
+		/* not continuous, use counter */
+		if (high_speed) {
+			/* high speed also scans everything at once */
+			devpriv->ao_sample_count = cmd->stop_arg *
+						   cmd->scan_end_arg;
+		} else {
+			/*
+			 * There's no scan as the scan has been
+			 * handled inside the FX2. Data arrives as
+			 * one packet.
+			 */
+			devpriv->ao_sample_count = cmd->stop_arg;
+		}
+		devpriv->ao_continuous = 0;
+	} else {
+		/* continuous acquisition */
+		devpriv->ao_continuous = 1;
+		devpriv->ao_sample_count = 0;
+	}
+
+	if (err)
+		return 4;
+
 	return 0;
 }
 
-static int usbdux_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
+static int usbduxsigma_ao_cmd(struct comedi_device *dev,
+			      struct comedi_subdevice *s)
 {
-	struct usbduxsigma_private *this_usbduxsub = dev->private;
+	struct usbduxsigma_private *devpriv = dev->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	unsigned int chan, gain;
-	int i, ret;
+	int ret;
+	int i;
 
-	down(&this_usbduxsub->sem);
+	down(&devpriv->sem);
+
 	/* set current channel of the running acquisition to zero */
 	s->async->cur_chan = 0;
-	for (i = 0; i < cmd->chanlist_len; ++i) {
-		chan = CR_CHAN(cmd->chanlist[i]);
-		gain = CR_RANGE(cmd->chanlist[i]);
-		this_usbduxsub->dac_commands[i] = chan;
-	}
+	for (i = 0; i < cmd->chanlist_len; ++i)
+		devpriv->dac_commands[i] = CR_CHAN(cmd->chanlist[i]);
 
-	/* we count in steps of 1ms (125us) */
-	/* 125us mode not used yet */
-	if (0) {		/* (this_usbduxsub->high_speed) */
-		/* 125us */
-		/* timing of the conversion itself: every 125 us */
-		this_usbduxsub->ao_timer = cmd->convert_arg / 125000;
-	} else {
-		/* 1ms */
-		/* timing of the scan: we get all channels at once */
-		this_usbduxsub->ao_timer = cmd->scan_begin_arg / 1000000;
-		if (this_usbduxsub->ao_timer < 1) {
-			up(&this_usbduxsub->sem);
-			return -EINVAL;
-		}
-	}
-	this_usbduxsub->ao_counter = this_usbduxsub->ao_timer;
-
-	if (cmd->stop_src == TRIG_COUNT) {
-		/* not continuous */
-		/* counter */
-		/* high speed also scans everything at once */
-		if (0) {	/* (this_usbduxsub->high_speed) */
-			this_usbduxsub->ao_sample_count =
-			    (cmd->stop_arg) * (cmd->scan_end_arg);
-		} else {
-			/* there's no scan as the scan has been */
-			/* perf inside the FX2 */
-			/* data arrives as one packet */
-			this_usbduxsub->ao_sample_count = cmd->stop_arg;
-		}
-		this_usbduxsub->ao_continuous = 0;
-	} else {
-		/* continuous acquisition */
-		this_usbduxsub->ao_continuous = 1;
-		this_usbduxsub->ao_sample_count = 0;
-	}
+	devpriv->ao_counter = devpriv->ao_timer;
 
 	if (cmd->start_src == TRIG_NOW) {
 		/* enable this acquisition operation */
-		ret = usbduxsigma_submit_urbs(dev, this_usbduxsub->urbOut,
-					      this_usbduxsub->numOfOutBuffers,
-					      0);
+		ret = usbduxsigma_submit_urbs(dev, devpriv->urbOut,
+					      devpriv->numOfOutBuffers, 0);
 		if (ret < 0) {
-			up(&this_usbduxsub->sem);
+			up(&devpriv->sem);
 			return ret;
 		}
-		this_usbduxsub->ao_cmd_running = 1;
 		s->async->inttrig = NULL;
-	} else {
-		/* TRIG_INT */
-		/* submit the urbs later */
-		/* wait for an internal signal */
+		devpriv->ao_cmd_running = 1;
+	} else {	/* TRIG_INT */
+		/* wait for an internal signal and submit the urbs later */
 		s->async->inttrig = usbduxsigma_ao_inttrig;
 	}
 
-	up(&this_usbduxsub->sem);
+	up(&devpriv->sem);
+
 	return 0;
 }
 
@@ -1461,8 +1470,8 @@ static int usbduxsigma_attach_common(struct comedi_device *dev)
 	s->range_table	= &range_unipolar2_5;
 	s->insn_write	= usbdux_ao_insn_write;
 	s->insn_read	= usbdux_ao_insn_read;
-	s->do_cmdtest	= usbdux_ao_cmdtest;
-	s->do_cmd	= usbdux_ao_cmd;
+	s->do_cmdtest	= usbduxsigma_ao_cmdtest;
+	s->do_cmd	= usbduxsigma_ao_cmd;
 	s->cancel	= usbdux_ao_cancel;
 
 	/* Digital I/O subdevice */
