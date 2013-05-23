@@ -422,18 +422,13 @@ static int usbdux_ao_cancel(struct comedi_device *dev,
 
 static void usbduxsub_ao_IsocIrq(struct urb *urb)
 {
-	int i, ret;
+	struct comedi_device *dev = urb->context;
+	struct usbduxsub *devpriv = dev->private;
+	struct comedi_subdevice *s = dev->write_subdev;
 	uint8_t *datap;
-	struct usbduxsub *this_usbduxsub;
-	struct comedi_device *this_comedidev;
-	struct comedi_subdevice *s;
-
-	/* the context variable points to the subdevice */
-	this_comedidev = urb->context;
-	/* the private structure of the subdevice is struct usbduxsub */
-	this_usbduxsub = this_comedidev->private;
-
-	s = &this_comedidev->subdevices[SUBDEV_DA];
+	int len;
+	int ret;
+	int i;
 
 	switch (urb->status) {
 	case 0:
@@ -444,112 +439,93 @@ static void usbduxsub_ao_IsocIrq(struct urb *urb)
 	case -ENOENT:
 	case -ESHUTDOWN:
 	case -ECONNABORTED:
-		/* after an unlink command, unplug, ... etc */
-		/* no unlink needed here. Already shutting down. */
-		if (this_usbduxsub->ao_cmd_running) {
+		/* happens after an unlink command */
+		if (devpriv->ao_cmd_running) {
+			usbdux_ao_stop(devpriv, 0);	/* w/o unlink */
 			s->async->events |= COMEDI_CB_EOA;
-			comedi_event(this_usbduxsub->comedidev, s);
-			usbdux_ao_stop(this_usbduxsub, 0);
+			comedi_event(devpriv->comedidev, s);
 		}
 		return;
 
 	default:
 		/* a real error */
-		if (this_usbduxsub->ao_cmd_running) {
-			dev_err(&urb->dev->dev,
-				"comedi_: Non-zero urb status received in ao "
-				"intr context: %d\n", urb->status);
-			s->async->events |= COMEDI_CB_ERROR;
-			s->async->events |= COMEDI_CB_EOA;
-			comedi_event(this_usbduxsub->comedidev, s);
-			/* we do an unlink if we are in the high speed mode */
-			usbdux_ao_stop(this_usbduxsub, 0);
+		if (devpriv->ao_cmd_running) {
+			dev_err(dev->class_dev,
+				"%s: non-zero urb status (%d)\n",
+				__func__, urb->status);
+			usbdux_ao_stop(devpriv, 0);	/* w/o unlink */
+			s->async->events |= (COMEDI_CB_ERROR | COMEDI_CB_EOA);
+			comedi_event(devpriv->comedidev, s);
 		}
 		return;
 	}
 
-	/* are we actually running? */
-	if (!(this_usbduxsub->ao_cmd_running))
+	if (!devpriv->ao_cmd_running)
 		return;
 
-	/* normal operation: executing a command in this subdevice */
-	this_usbduxsub->ao_counter--;
-	if ((int)this_usbduxsub->ao_counter <= 0) {
-		/* timer zero */
-		this_usbduxsub->ao_counter = this_usbduxsub->ao_timer;
+	devpriv->ao_counter--;
+	if ((int)devpriv->ao_counter <= 0) {
+		/* timer zero, transfer from comedi */
+		devpriv->ao_counter = devpriv->ao_timer;
 
-		/* handle non continuous acquisition */
-		if (!(this_usbduxsub->ao_continuous)) {
-			/* fixed number of samples */
-			this_usbduxsub->ao_sample_count--;
-			if (this_usbduxsub->ao_sample_count < 0) {
-				/* all samples transmitted */
-				usbdux_ao_stop(this_usbduxsub, 0);
+		if (!devpriv->ao_continuous) {
+			/* not continuous, fixed number of samples */
+			devpriv->ao_sample_count--;
+			if (devpriv->ao_sample_count < 0) {
+				usbdux_ao_stop(devpriv, 0);	/* w/o unlink */
+				/* acquistion is over, tell comedi */
 				s->async->events |= COMEDI_CB_EOA;
-				comedi_event(this_usbduxsub->comedidev, s);
-				/* no resubmit of the urb */
+				comedi_event(devpriv->comedidev, s);
 				return;
 			}
 		}
+
 		/* transmit data to the USB bus */
-		((uint8_t *) (urb->transfer_buffer))[0] =
-		    s->async->cmd.chanlist_len;
-		for (i = 0; i < s->async->cmd.chanlist_len; i++) {
-			short temp;
+		datap = urb->transfer_buffer;
+		len = s->async->cmd.chanlist_len;
+		*datap++ = len;
+		for (i = 0; i < len; i++) {
+			short val;
+
 			if (i >= NUMOUTCHANNELS)
 				break;
 
-			/* pointer to the DA */
-			datap =
-			    (&(((uint8_t *) urb->transfer_buffer)[i * 2 + 1]));
-			/* get the data from comedi */
-			ret = comedi_buf_get(s->async, &temp);
-			datap[0] = temp;
-			datap[1] = this_usbduxsub->dac_commands[i];
-			/* printk("data[0]=%x, data[1]=%x, data[2]=%x\n", */
-			/* datap[0],datap[1],datap[2]); */
+			ret = comedi_buf_get(s->async, &val);
 			if (ret < 0) {
-				dev_err(&urb->dev->dev,
-					"comedi: buffer underflow\n");
-				s->async->events |= COMEDI_CB_EOA;
-				s->async->events |= COMEDI_CB_OVERFLOW;
+				dev_err(dev->class_dev, "buffer underflow\n");
+				s->async->events |= (COMEDI_CB_EOA |
+						     COMEDI_CB_OVERFLOW);
 			}
-			/* transmit data to comedi */
+			*datap++ = val;
+			*datap++ = devpriv->dac_commands[i];
+
 			s->async->events |= COMEDI_CB_BLOCK;
-			comedi_event(this_usbduxsub->comedidev, s);
+			comedi_event(dev, s);
 		}
 	}
-	urb->transfer_buffer_length = SIZEOUTBUF;
-	urb->dev = this_usbduxsub->usbdev;
-	urb->status = 0;
-	if (this_usbduxsub->ao_cmd_running) {
-		if (this_usbduxsub->high_speed) {
-			/* uframes */
-			urb->interval = 8;
-		} else {
-			/* frames */
-			urb->interval = 1;
-		}
-		urb->number_of_packets = 1;
-		urb->iso_frame_desc[0].offset = 0;
-		urb->iso_frame_desc[0].length = SIZEOUTBUF;
-		urb->iso_frame_desc[0].status = 0;
-		ret = usb_submit_urb(urb, GFP_ATOMIC);
-		if (ret < 0) {
-			dev_err(&urb->dev->dev,
-				"comedi_: ao urb resubm failed in int-cont. "
-				"ret=%d", ret);
-			if (ret == EL2NSYNC)
-				dev_err(&urb->dev->dev,
-					"buggy USB host controller or bug in "
-					"IRQ handling!\n");
 
-			s->async->events |= COMEDI_CB_EOA;
-			s->async->events |= COMEDI_CB_ERROR;
-			comedi_event(this_usbduxsub->comedidev, s);
-			/* don't do an unlink here */
-			usbdux_ao_stop(this_usbduxsub, 0);
-		}
+	urb->transfer_buffer_length = SIZEOUTBUF;
+	urb->dev = devpriv->usbdev;
+	urb->status = 0;
+	if (devpriv->high_speed)
+		urb->interval = 8;	/* uframes */
+	else
+		urb->interval = 1;	/* frames */
+	urb->number_of_packets = 1;
+	urb->iso_frame_desc[0].offset = 0;
+	urb->iso_frame_desc[0].length = SIZEOUTBUF;
+	urb->iso_frame_desc[0].status = 0;
+	ret = usb_submit_urb(urb, GFP_ATOMIC);
+	if (ret < 0) {
+		dev_err(dev->class_dev,
+			"%s: urb resubmit failed (%d)\n",
+			__func__, ret);
+		if (ret == EL2NSYNC)
+			dev_err(dev->class_dev,
+				"buggy USB host controller or bug in IRQ handler\n");
+		usbdux_ao_stop(devpriv, 0);	/* w/o unlink */
+		s->async->events |= (COMEDI_CB_EOA | COMEDI_CB_ERROR);
+		comedi_event(dev, s);
 	}
 }
 
