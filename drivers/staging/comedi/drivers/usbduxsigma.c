@@ -1852,7 +1852,7 @@ static struct comedi_driver usbduxsigma_driver = {
 static int usbduxsigma_usb_probe(struct usb_interface *intf,
 				 const struct usb_device_id *id)
 {
-	return comedi_usb_auto_config(intf, &usbduxsigma_driver, 0);;
+	return comedi_usb_auto_config(intf, &usbduxsigma_driver, 0);
 }
 
 static const struct usb_device_id usbduxsigma_usb_table[] = {
