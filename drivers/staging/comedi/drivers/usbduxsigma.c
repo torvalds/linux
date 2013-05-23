@@ -1514,62 +1514,6 @@ static int usbdux_pwm_config(struct comedi_device *dev,
 	return -EINVAL;
 }
 
-/* end of PWM */
-/*****************************************************************/
-
-static void tidy_up(struct usbduxsigma_private *usbduxsub_tmp)
-{
-	int i;
-
-	/* force unlink all urbs */
-	usbdux_ai_stop(usbduxsub_tmp, 1);
-	usbdux_ao_stop(usbduxsub_tmp, 1);
-	usbdux_pwm_stop(usbduxsub_tmp, 1);
-
-	if (usbduxsub_tmp->urbIn) {
-		for (i = 0; i < usbduxsub_tmp->numOfInBuffers; i++) {
-			kfree(usbduxsub_tmp->urbIn[i]->transfer_buffer);
-			usbduxsub_tmp->urbIn[i]->transfer_buffer = NULL;
-			usb_free_urb(usbduxsub_tmp->urbIn[i]);
-			usbduxsub_tmp->urbIn[i] = NULL;
-		}
-		kfree(usbduxsub_tmp->urbIn);
-		usbduxsub_tmp->urbIn = NULL;
-	}
-	if (usbduxsub_tmp->urbOut) {
-		for (i = 0; i < usbduxsub_tmp->numOfOutBuffers; i++) {
-			if (usbduxsub_tmp->urbOut[i]->transfer_buffer) {
-				kfree(usbduxsub_tmp->
-				      urbOut[i]->transfer_buffer);
-				usbduxsub_tmp->urbOut[i]->transfer_buffer =
-				    NULL;
-			}
-			if (usbduxsub_tmp->urbOut[i]) {
-				usb_free_urb(usbduxsub_tmp->urbOut[i]);
-				usbduxsub_tmp->urbOut[i] = NULL;
-			}
-		}
-		kfree(usbduxsub_tmp->urbOut);
-		usbduxsub_tmp->urbOut = NULL;
-	}
-	if (usbduxsub_tmp->urbPwm) {
-		kfree(usbduxsub_tmp->urbPwm->transfer_buffer);
-		usbduxsub_tmp->urbPwm->transfer_buffer = NULL;
-		usb_free_urb(usbduxsub_tmp->urbPwm);
-		usbduxsub_tmp->urbPwm = NULL;
-	}
-	kfree(usbduxsub_tmp->inBuffer);
-	usbduxsub_tmp->inBuffer = NULL;
-	kfree(usbduxsub_tmp->insnBuffer);
-	usbduxsub_tmp->insnBuffer = NULL;
-	kfree(usbduxsub_tmp->outBuffer);
-	usbduxsub_tmp->outBuffer = NULL;
-	kfree(usbduxsub_tmp->dac_commands);
-	usbduxsub_tmp->dac_commands = NULL;
-	kfree(usbduxsub_tmp->dux_commands);
-	usbduxsub_tmp->dux_commands = NULL;
-}
-
 static int usbduxsigma_getstatusinfo(struct comedi_device *dev, int chan)
 {
 	struct usbduxsigma_private *devpriv = dev->private;
@@ -1793,6 +1737,49 @@ static int usbduxsigma_alloc_usb_buffers(struct comedi_device *dev)
 	return 0;
 }
 
+static void usbduxsigma_free_usb_buffers(struct comedi_device *dev)
+{
+	struct usbduxsigma_private *devpriv = dev->private;
+	struct urb *urb;
+	int i;
+
+	/* force unlink all urbs */
+	usbdux_ai_stop(devpriv, 1);
+	usbdux_ao_stop(devpriv, 1);
+	usbdux_pwm_stop(devpriv, 1);
+
+	urb = devpriv->urbPwm;
+	if (urb) {
+		kfree(urb->transfer_buffer);
+		usb_free_urb(urb);
+	}
+	if (devpriv->urbOut) {
+		for (i = 0; i < devpriv->numOfOutBuffers; i++) {
+			urb = devpriv->urbOut[i];
+			if (urb) {
+				kfree(urb->transfer_buffer);
+				usb_free_urb(urb);
+			}
+		}
+		kfree(devpriv->urbOut);
+	}
+	if (devpriv->urbIn) {
+		for (i = 0; i < devpriv->numOfInBuffers; i++) {
+			urb = devpriv->urbIn[i];
+			if (urb) {
+				kfree(urb->transfer_buffer);
+				usb_free_urb(urb);
+			}
+		}
+		kfree(devpriv->urbIn);
+	}
+	kfree(devpriv->outBuffer);
+	kfree(devpriv->insnBuffer);
+	kfree(devpriv->inBuffer);
+	kfree(devpriv->dux_commands);
+	kfree(devpriv->dac_commands);
+}
+
 static int usbduxsigma_auto_attach(struct comedi_device *dev,
 				   unsigned long context_unused)
 {
@@ -1851,7 +1838,7 @@ static void usbduxsigma_detach(struct comedi_device *dev)
 	usb_set_intfdata(intf, NULL);
 
 	down(&devpriv->sem);
-	tidy_up(devpriv);
+	usbduxsigma_free_usb_buffers(dev);
 	up(&devpriv->sem);
 }
 
