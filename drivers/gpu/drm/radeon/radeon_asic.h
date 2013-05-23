@@ -863,4 +863,17 @@ bool uvd_v3_1_semaphore_emit(struct radeon_device *rdev,
 /* uvd v4.2 */
 int uvd_v4_2_resume(struct radeon_device *rdev);
 
+/* vce v1.0 */
+uint32_t vce_v1_0_get_rptr(struct radeon_device *rdev,
+			   struct radeon_ring *ring);
+uint32_t vce_v1_0_get_wptr(struct radeon_device *rdev,
+			   struct radeon_ring *ring);
+void vce_v1_0_set_wptr(struct radeon_device *rdev,
+		       struct radeon_ring *ring);
+int vce_v1_0_init(struct radeon_device *rdev);
+int vce_v1_0_start(struct radeon_device *rdev);
+
+/* vce v2.0 */
+int vce_v2_0_resume(struct radeon_device *rdev);
+
 #endif

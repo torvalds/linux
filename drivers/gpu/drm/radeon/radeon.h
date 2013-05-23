@@ -113,19 +113,16 @@ extern int radeon_hard_reset;
 #define RADEONFB_CONN_LIMIT			4
 #define RADEON_BIOS_NUM_SCRATCH			8
 
-/* max number of rings */
-#define RADEON_NUM_RINGS			6
-
 /* fence seq are set to this number when signaled */
 #define RADEON_FENCE_SIGNALED_SEQ		0LL
 
 /* internal ring indices */
 /* r1xx+ has gfx CP ring */
-#define RADEON_RING_TYPE_GFX_INDEX	0
+#define RADEON_RING_TYPE_GFX_INDEX		0
 
 /* cayman has 2 compute CP rings */
-#define CAYMAN_RING_TYPE_CP1_INDEX	1
-#define CAYMAN_RING_TYPE_CP2_INDEX	2
+#define CAYMAN_RING_TYPE_CP1_INDEX		1
+#define CAYMAN_RING_TYPE_CP2_INDEX		2
 
 /* R600+ has an async dma ring */
 #define R600_RING_TYPE_DMA_INDEX		3
@@ -133,7 +130,14 @@ extern int radeon_hard_reset;
 #define CAYMAN_RING_TYPE_DMA1_INDEX		4
 
 /* R600+ */
-#define R600_RING_TYPE_UVD_INDEX	5
+#define R600_RING_TYPE_UVD_INDEX		5
+
+/* TN+ */
+#define TN_RING_TYPE_VCE1_INDEX			6
+#define TN_RING_TYPE_VCE2_INDEX			7
+
+/* max number of rings */
+#define RADEON_NUM_RINGS			8
 
 /* number of hw syncs before falling back on blocking */
 #define RADEON_NUM_SYNCS			4
@@ -1591,6 +1595,42 @@ int radeon_uvd_calc_upll_dividers(struct radeon_device *rdev,
 int radeon_uvd_send_upll_ctlreq(struct radeon_device *rdev,
                                 unsigned cg_upll_func_cntl);
 
+/*
+ * VCE
+ */
+#define RADEON_MAX_VCE_HANDLES	16
+#define RADEON_VCE_STACK_SIZE	(1024*1024)
+#define RADEON_VCE_HEAP_SIZE	(4*1024*1024)
+
+struct radeon_vce {
+	struct radeon_bo	*vcpu_bo;
+	void			*cpu_addr;
+	uint64_t		gpu_addr;
+	atomic_t		handles[RADEON_MAX_VCE_HANDLES];
+	struct drm_file		*filp[RADEON_MAX_VCE_HANDLES];
+};
+
+int radeon_vce_init(struct radeon_device *rdev);
+void radeon_vce_fini(struct radeon_device *rdev);
+int radeon_vce_suspend(struct radeon_device *rdev);
+int radeon_vce_resume(struct radeon_device *rdev);
+int radeon_vce_get_create_msg(struct radeon_device *rdev, int ring,
+			      uint32_t handle, struct radeon_fence **fence);
+int radeon_vce_get_destroy_msg(struct radeon_device *rdev, int ring,
+			       uint32_t handle, struct radeon_fence **fence);
+void radeon_vce_free_handles(struct radeon_device *rdev, struct drm_file *filp);
+int radeon_vce_cs_reloc(struct radeon_cs_parser *p, int lo, int hi);
+int radeon_vce_cs_parse(struct radeon_cs_parser *p);
+bool radeon_vce_semaphore_emit(struct radeon_device *rdev,
+			       struct radeon_ring *ring,
+			       struct radeon_semaphore *semaphore,
+			       bool emit_wait);
+void radeon_vce_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib);
+void radeon_vce_fence_emit(struct radeon_device *rdev,
+			   struct radeon_fence *fence);
+int radeon_vce_ring_test(struct radeon_device *rdev, struct radeon_ring *ring);
+int radeon_vce_ib_test(struct radeon_device *rdev, struct radeon_ring *ring);
+
 struct r600_audio_pin {
 	int			channels;
 	int			rate;
@@ -2186,6 +2226,7 @@ struct radeon_device {
 	struct radeon_gem		gem;
 	struct radeon_pm		pm;
 	struct radeon_uvd		uvd;
+	struct radeon_vce		vce;
 	uint32_t			bios_scratch[RADEON_BIOS_NUM_SCRATCH];
 	struct radeon_wb		wb;
 	struct radeon_dummy_page	dummy_page;
@@ -2205,6 +2246,7 @@ struct radeon_device {
 	const struct firmware *sdma_fw;	/* CIK SDMA firmware */
 	const struct firmware *smc_fw;	/* SMC firmware */
 	const struct firmware *uvd_fw;	/* UVD firmware */
+	const struct firmware *vce_fw;	/* VCE firmware */
 	struct r600_vram_scratch vram_scratch;
 	int msi_enabled; /* msi enabled */
 	struct r600_ih ih; /* r6/700 interrupt ring */

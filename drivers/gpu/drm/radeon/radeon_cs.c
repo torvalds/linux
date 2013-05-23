@@ -147,6 +147,10 @@ static int radeon_cs_get_ring(struct radeon_cs_parser *p, u32 ring, s32 priority
 	case RADEON_CS_RING_UVD:
 		p->ring = R600_RING_TYPE_UVD_INDEX;
 		break;
+	case RADEON_CS_RING_VCE:
+		/* TODO: only use the low priority ring for now */
+		p->ring = TN_RING_TYPE_VCE1_INDEX;
+		break;
 	}
 	return 0;
 }

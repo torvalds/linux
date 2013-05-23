@@ -919,6 +919,7 @@ struct drm_radeon_gem_va {
 #define RADEON_CS_RING_COMPUTE      1
 #define RADEON_CS_RING_DMA          2
 #define RADEON_CS_RING_UVD          3
+#define RADEON_CS_RING_VCE          4
 /* The third dword of RADEON_CHUNK_ID_FLAGS is a sint32 that sets the priority */
 /* 0 = normal, + = higher priority, - = lower priority */
 
