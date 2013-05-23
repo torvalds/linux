@@ -29,8 +29,6 @@
 #include <linux/mm.h>
 #include <linux/mm_types.h>
 #include <linux/rbtree.h>
-#include <linux/rtmutex.h>
-#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
@@ -143,7 +141,6 @@ static void ion_buffer_add(struct ion_device *dev,
 
 static int ion_buffer_alloc_dirty(struct ion_buffer *buffer);
 
-static bool ion_heap_drain_freelist(struct ion_heap *heap);
 /* this function should only be called while dev->lock is held */
 static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 				     struct ion_device *dev,
@@ -170,7 +167,7 @@ static struct ion_buffer *ion_buffer_create(struct ion_heap *heap,
 		if (!(heap->flags & ION_HEAP_FLAG_DEFER_FREE))
 			goto err2;
 
-		ion_heap_drain_freelist(heap);
+		ion_heap_freelist_drain(heap, 0);
 		ret = heap->ops->allocate(heap, buffer, len, align,
 					  flags);
 		if (ret)
@@ -230,7 +227,7 @@ err2:
 	return ERR_PTR(ret);
 }
 
-static void _ion_buffer_destroy(struct ion_buffer *buffer)
+void ion_buffer_destroy(struct ion_buffer *buffer)
 {
 	if (WARN_ON(buffer->kmap_cnt > 0))
 		buffer->heap->ops->unmap_kernel(buffer->heap, buffer);
@@ -241,7 +238,7 @@ static void _ion_buffer_destroy(struct ion_buffer *buffer)
 	kfree(buffer);
 }
 
-static void ion_buffer_destroy(struct kref *kref)
+static void _ion_buffer_destroy(struct kref *kref)
 {
 	struct ion_buffer *buffer = container_of(kref, struct ion_buffer, ref);
 	struct ion_heap *heap = buffer->heap;
@@ -251,14 +248,10 @@ static void ion_buffer_destroy(struct kref *kref)
 	rb_erase(&buffer->node, &dev->buffers);
 	mutex_unlock(&dev->buffer_lock);
 
-	if (heap->flags & ION_HEAP_FLAG_DEFER_FREE) {
-		rt_mutex_lock(&heap->lock);
-		list_add(&buffer->list, &heap->free_list);
-		rt_mutex_unlock(&heap->lock);
-		wake_up(&heap->waitqueue);
-		return;
-	}
-	_ion_buffer_destroy(buffer);
+	if (heap->flags & ION_HEAP_FLAG_DEFER_FREE)
+		ion_heap_freelist_add(heap, buffer);
+	else
+		ion_buffer_destroy(buffer);
 }
 
 static void ion_buffer_get(struct ion_buffer *buffer)
@@ -268,7 +261,7 @@ static void ion_buffer_get(struct ion_buffer *buffer)
 
 static int ion_buffer_put(struct ion_buffer *buffer)
 {
-	return kref_put(&buffer->ref, ion_buffer_destroy);
+	return kref_put(&buffer->ref, _ion_buffer_destroy);
 }
 
 static void ion_buffer_add_to_handle(struct ion_buffer *buffer)
@@ -1298,80 +1291,53 @@ static const struct file_operations debug_heap_fops = {
 	.release = single_release,
 };
 
-static size_t ion_heap_free_list_is_empty(struct ion_heap *heap)
+#ifdef DEBUG_HEAP_SHRINKER
+static int debug_shrink_set(void *data, u64 val)
 {
-	bool is_empty;
+        struct ion_heap *heap = data;
+        struct shrink_control sc;
+        int objs;
 
-	rt_mutex_lock(&heap->lock);
-	is_empty = list_empty(&heap->free_list);
-	rt_mutex_unlock(&heap->lock);
+        sc.gfp_mask = -1;
+        sc.nr_to_scan = 0;
 
-	return is_empty;
+        if (!val)
+                return 0;
+
+        objs = heap->shrinker.shrink(&heap->shrinker, &sc);
+        sc.nr_to_scan = objs;
+
+        heap->shrinker.shrink(&heap->shrinker, &sc);
+        return 0;
 }
 
-static int ion_heap_deferred_free(void *data)
+static int debug_shrink_get(void *data, u64 *val)
 {
-	struct ion_heap *heap = data;
+        struct ion_heap *heap = data;
+        struct shrink_control sc;
+        int objs;
 
-	while (true) {
-		struct ion_buffer *buffer;
+        sc.gfp_mask = -1;
+        sc.nr_to_scan = 0;
 
-		wait_event_freezable(heap->waitqueue,
-				     !ion_heap_free_list_is_empty(heap));
-
-		rt_mutex_lock(&heap->lock);
-		if (list_empty(&heap->free_list)) {
-			rt_mutex_unlock(&heap->lock);
-			continue;
-		}
-		buffer = list_first_entry(&heap->free_list, struct ion_buffer,
-					  list);
-		list_del(&buffer->list);
-		rt_mutex_unlock(&heap->lock);
-		_ion_buffer_destroy(buffer);
-	}
-
-	return 0;
+        objs = heap->shrinker.shrink(&heap->shrinker, &sc);
+        *val = objs;
+        return 0;
 }
 
-static bool ion_heap_drain_freelist(struct ion_heap *heap)
-{
-	struct ion_buffer *buffer, *tmp;
-
-	if (ion_heap_free_list_is_empty(heap))
-		return false;
-	rt_mutex_lock(&heap->lock);
-	list_for_each_entry_safe(buffer, tmp, &heap->free_list, list) {
-		list_del(&buffer->list);
-		_ion_buffer_destroy(buffer);
-	}
-	BUG_ON(!list_empty(&heap->free_list));
-	rt_mutex_unlock(&heap->lock);
-
-
-	return true;
-}
+DEFINE_SIMPLE_ATTRIBUTE(debug_shrink_fops, debug_shrink_get,
+                        debug_shrink_set, "%llu\n");
+#endif
 
 void ion_device_add_heap(struct ion_device *dev, struct ion_heap *heap)
 {
-	struct sched_param param = { .sched_priority = 0 };
-
 	if (!heap->ops->allocate || !heap->ops->free || !heap->ops->map_dma ||
 	    !heap->ops->unmap_dma)
 		pr_err("%s: can not add heap with invalid ops struct.\n",
 		       __func__);
 
-	if (heap->flags & ION_HEAP_FLAG_DEFER_FREE) {
-		INIT_LIST_HEAD(&heap->free_list);
-		rt_mutex_init(&heap->lock);
-		init_waitqueue_head(&heap->waitqueue);
-		heap->task = kthread_run(ion_heap_deferred_free, heap,
-					 "%s", heap->name);
-		sched_setscheduler(heap->task, SCHED_IDLE, &param);
-		if (IS_ERR(heap->task))
-			pr_err("%s: creating thread for deferred free failed\n",
-			       __func__);
-	}
+	if (heap->flags & ION_HEAP_FLAG_DEFER_FREE)
+		ion_heap_init_deferred_free(heap);
 
 	heap->dev = dev;
 	down_write(&dev->lock);
@@ -1381,6 +1347,15 @@ void ion_device_add_heap(struct ion_device *dev, struct ion_heap *heap)
 	plist_add(&heap->node, &dev->heaps);
 	debugfs_create_file(heap->name, 0664, dev->debug_root, heap,
 			    &debug_heap_fops);
+#ifdef DEBUG_HEAP_SHRINKER
+	if (heap->shrinker.shrink) {
+		char debug_name[64];
+
+		snprintf(debug_name, 64, "%s_shrink", heap->name);
+		debugfs_create_file(debug_name, 0644, dev->debug_root, heap,
+				    &debug_shrink_fops);
+	}
+#endif
 	up_write(&dev->lock);
 }
 
