@@ -188,6 +188,36 @@ static int bp_resume(struct bp_private_data *bp)
 
 
 struct bp_operate bp_U7501_ops = {
+#if defined(CONFIG_ARCH_RK2928)
+	.name			= "U7501",
+	.bp_id			= BP_ID_U7501,
+	.bp_bus			= BP_BUS_TYPE_USB_UART,		
+	.bp_pid			= 0,	
+	.bp_vid			= 0,	
+	.bp_power		= RK2928_PIN3_PC2, 	// 3g_power
+	.bp_en			= BP_UNKNOW_DATA,	// 3g_en
+	.bp_reset			= RK2928_PIN1_PA3,
+	.ap_ready		= BP_UNKNOW_DATA,	//
+	.bp_ready		= BP_UNKNOW_DATA,
+	.ap_wakeup_bp		= RK2928_PIN3_PC4,
+	.bp_wakeup_ap		= RK2928_PIN3_PC3,	//
+	.bp_uart_en		= BP_UNKNOW_DATA, 	//EINT9
+	.bp_usb_en		= BP_UNKNOW_DATA, 	//W_disable
+	.trig			= IRQF_TRIGGER_FALLING,
+
+	.active			= bp_active,
+	.init			= bp_init,
+	.reset			= bp_reset,
+	.ap_wake_bp		= ap_wake_bp,
+	.bp_wake_ap		= bp_wake_ap,
+	.shutdown		= bp_shutdown,
+	.read_status		= NULL,
+	.write_status		= NULL,
+	.suspend 		= bp_suspend,
+	.resume			= bp_resume,
+	.misc_name		= NULL,
+	.private_miscdev	= NULL,
+#elif defined(CONFIG_ARCH_RK30)
 	.name			= "U7501",
 	.bp_id			= BP_ID_U7501,
 	.bp_bus			= BP_BUS_TYPE_USB_UART,		
@@ -216,6 +246,36 @@ struct bp_operate bp_U7501_ops = {
 	.resume			= bp_resume,
 	.misc_name		= NULL,
 	.private_miscdev	= NULL,
+#else
+	.name			= "U7501",
+	.bp_id			= BP_ID_U7501,
+	.bp_bus			= BP_BUS_TYPE_USB_UART,		
+	.bp_pid			= 0,	
+	.bp_vid			= 0,	
+	.bp_power		= BP_UNKNOW_DATA,//RK2928_PIN3_PC2, 	// 3g_power
+	.bp_en			= BP_UNKNOW_DATA,	// 3g_en
+	.bp_reset			= BP_UNKNOW_DATA,//RK2928_PIN1_PA3,
+	.ap_ready		= BP_UNKNOW_DATA,	//
+	.bp_ready		= BP_UNKNOW_DATA,
+	.ap_wakeup_bp		= BP_UNKNOW_DATA,//RK2928_PIN3_PC4,
+	.bp_wakeup_ap		= BP_UNKNOW_DATA,//RK2928_PIN3_PC3,	//
+	.bp_uart_en		= BP_UNKNOW_DATA, 	//EINT9
+	.bp_usb_en		= BP_UNKNOW_DATA, 	//W_disable
+	.trig			= IRQF_TRIGGER_FALLING,
+
+	.active			= bp_active,
+	.init			= bp_init,
+	.reset			= bp_reset,
+	.ap_wake_bp		= ap_wake_bp,
+	.bp_wake_ap		= bp_wake_ap,
+	.shutdown		= bp_shutdown,
+	.read_status		= NULL,
+	.write_status		= NULL,
+	.suspend 		= bp_suspend,
+	.resume			= bp_resume,
+	.misc_name		= NULL,
+	.private_miscdev	= NULL,
+#endif
 };
 
 /****************operate according to bp chip:end************/
