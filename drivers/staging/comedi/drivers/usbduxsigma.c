@@ -1189,12 +1189,6 @@ static int usbdux_ao_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	for (i = 0; i < cmd->chanlist_len; ++i) {
 		chan = CR_CHAN(cmd->chanlist[i]);
 		gain = CR_RANGE(cmd->chanlist[i]);
-		if (i >= NUMOUTCHANNELS) {
-			dev_err(&this_usbduxsub->interface->dev,
-				"comedi%d: %s: channel list too long\n",
-				dev->minor, __func__);
-			break;
-		}
 		this_usbduxsub->dac_commands[i] = chan;
 		dev_dbg(&this_usbduxsub->interface->dev,
 			"comedi%d: dac command for ch %d is %x\n",
