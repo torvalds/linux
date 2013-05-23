@@ -812,6 +812,12 @@ static int coda_job_ready(void *m2m_priv)
 		return 0;
 	}
 
+	if (ctx->aborting) {
+		v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev,
+			 "not ready: aborting\n");
+		return 0;
+	}
+
 	v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev,
 			"job ready\n");
 	return 1;
@@ -820,14 +826,11 @@ static int coda_job_ready(void *m2m_priv)
 static void coda_job_abort(void *priv)
 {
 	struct coda_ctx *ctx = priv;
-	struct coda_dev *dev = ctx->dev;
 
 	ctx->aborting = 1;
 
 	v4l2_dbg(1, coda_debug, &ctx->dev->v4l2_dev,
 		 "Aborting task\n");
-
-	v4l2_m2m_job_finish(dev->m2m_dev, ctx->m2m_ctx);
 }
 
 static void coda_lock(void *m2m_priv)
