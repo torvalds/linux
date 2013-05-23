@@ -76,7 +76,9 @@ static int gc_thread_func(void *data)
 		else
 			wait_ms = increase_sleep_time(wait_ms);
 
+#ifdef CONFIG_F2FS_STAT_FS
 		sbi->bg_gc++;
+#endif
 
 		/* if return value is not zero, no victim was selected */
 		if (f2fs_gc(sbi))

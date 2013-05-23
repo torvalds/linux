@@ -610,7 +610,10 @@ static void allocate_segment_by_default(struct f2fs_sb_info *sbi,
 	else
 		new_curseg(sbi, type, false);
 out:
+#ifdef CONFIG_F2FS_STAT_FS
 	sbi->segment_count[curseg->alloc_type]++;
+#endif
+	return;
 }
 
 void allocate_new_segments(struct f2fs_sb_info *sbi)
@@ -846,7 +849,9 @@ static void do_write_page(struct f2fs_sb_info *sbi, struct page *page,
 
 	mutex_lock(&sit_i->sentry_lock);
 	__refresh_next_blkoff(sbi, curseg);
+#ifdef CONFIG_F2FS_STAT_FS
 	sbi->block_count[curseg->alloc_type]++;
+#endif
 
 	/*
 	 * SIT information should be updated before segment allocation,

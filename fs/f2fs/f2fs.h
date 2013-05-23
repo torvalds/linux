@@ -372,7 +372,6 @@ struct f2fs_sb_info {
 	/* for directory inode management */
 	struct list_head dir_inode_list;	/* dir inode list */
 	spinlock_t dir_inode_lock;		/* for dir inode list lock */
-	unsigned int n_dirty_dirs;		/* # of dir inodes */
 
 	/* basic file system units */
 	unsigned int log_sectors_per_block;	/* log2 sectors per block */
@@ -409,12 +408,15 @@ struct f2fs_sb_info {
 	 * for stat information.
 	 * one is for the LFS mode, and the other is for the SSR mode.
 	 */
+#ifdef CONFIG_F2FS_STAT_FS
 	struct f2fs_stat_info *stat_info;	/* FS status information */
 	unsigned int segment_count[2];		/* # of allocated segments */
 	unsigned int block_count[2];		/* # of allocated blocks */
-	unsigned int last_victim[2];		/* last victim segment # */
 	int total_hit_ext, read_hit_ext;	/* extent cache hit ratio */
 	int bg_gc;				/* background gc calls */
+	unsigned int n_dirty_dirs;		/* # of dir inodes */
+#endif
+	unsigned int last_victim[2];		/* last victim segment # */
 	spinlock_t stat_lock;			/* lock for stat operations */
 };
 
