@@ -215,7 +215,7 @@ static const struct attribute_group ep93xx_pwm_sysfs_files = {
 	.attrs	= ep93xx_pwm_attrs,
 };
 
-static int __init ep93xx_pwm_probe(struct platform_device *pdev)
+static int ep93xx_pwm_probe(struct platform_device *pdev)
 {
 	struct ep93xx_pwm *pwm;
 	struct resource *res;
@@ -257,7 +257,7 @@ static int __init ep93xx_pwm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int __exit ep93xx_pwm_remove(struct platform_device *pdev)
+static int ep93xx_pwm_remove(struct platform_device *pdev)
 {
 	struct ep93xx_pwm *pwm = platform_get_drvdata(pdev);
 
@@ -274,10 +274,10 @@ static struct platform_driver ep93xx_pwm_driver = {
 		.name	= "ep93xx-pwm",
 		.owner	= THIS_MODULE,
 	},
-	.remove		= __exit_p(ep93xx_pwm_remove),
+	.probe		= ep93xx_pwm_probe,
+	.remove		= ep93xx_pwm_remove,
 };
-
-module_platform_driver_probe(ep93xx_pwm_driver, ep93xx_pwm_probe);
+module_platform_driver(ep93xx_pwm_driver);
 
 MODULE_AUTHOR("Matthieu Crapet <mcrapet@gmail.com>, "
 	      "H Hartley Sweeten <hsweeten@visionengravers.com>");
