@@ -709,7 +709,7 @@ struct cgroup *cgroup_rightmost_descendant(struct cgroup *pos);
  *
  * If a subsystem synchronizes against the parent in its ->css_online() and
  * before starting iterating, and synchronizes against @pos on each
- * iteration, any descendant cgroup which finished ->css_offline() is
+ * iteration, any descendant cgroup which finished ->css_online() is
  * guaranteed to be visible in the future iterations.
  *
  * In other words, the following guarantees that a descendant can't escape

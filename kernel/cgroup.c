@@ -2736,13 +2736,14 @@ static int cgroup_add_file(struct cgroup *cgrp, struct cgroup_subsys *subsys,
 		goto out;
 	}
 
+	cfe->type = (void *)cft;
+	cfe->dentry = dentry;
+	dentry->d_fsdata = cfe;
+	simple_xattrs_init(&cfe->xattrs);
+
 	mode = cgroup_file_mode(cft);
 	error = cgroup_create_file(dentry, mode | S_IFREG, cgrp->root->sb);
 	if (!error) {
-		cfe->type = (void *)cft;
-		cfe->dentry = dentry;
-		dentry->d_fsdata = cfe;
-		simple_xattrs_init(&cfe->xattrs);
 		list_add_tail(&cfe->node, &parent->files);
 		cfe = NULL;
 	}
@@ -2990,11 +2991,8 @@ struct cgroup *cgroup_next_descendant_pre(struct cgroup *pos,
 	WARN_ON_ONCE(!rcu_read_lock_held());
 
 	/* if first iteration, pretend we just visited @cgroup */
-	if (!pos) {
-		if (list_empty(&cgroup->children))
-			return NULL;
+	if (!pos)
 		pos = cgroup;
-	}
 
 	/* visit the first child if exists */
 	next = list_first_or_null_rcu(&pos->children, struct cgroup, sibling);
@@ -3002,14 +3000,14 @@ struct cgroup *cgroup_next_descendant_pre(struct cgroup *pos,
 		return next;
 
 	/* no child, visit my or the closest ancestor's next sibling */
-	do {
+	while (pos != cgroup) {
 		next = list_entry_rcu(pos->sibling.next, struct cgroup,
 				      sibling);
 		if (&next->sibling != &pos->parent->children)
 			return next;
 
 		pos = pos->parent;
-	} while (pos != cgroup);
+	}
 
 	return NULL;
 }
