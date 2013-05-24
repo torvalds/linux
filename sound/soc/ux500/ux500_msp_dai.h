@@ -58,8 +58,6 @@ struct ux500_msp_i2s_drvdata {
 	unsigned int rx_mask;
 	int slots;
 	int slot_width;
-	u8 configured;
-	int data_delay;
 
 	/* Clocks */
 	unsigned int master_clk;

@@ -341,11 +341,6 @@ enum msp_compress_mode {
 	MSP_COMPRESS_MODE_A_LAW = 3
 };
 
-enum msp_spi_burst_mode {
-	MSP_SPI_BURST_MODE_DISABLE = 0,
-	MSP_SPI_BURST_MODE_ENABLE = 1
-};
-
 enum msp_expand_mode {
 	MSP_EXPAND_MODE_LINEAR = 0,
 	MSP_EXPAND_MODE_LINEAR_SIGNED = 1,
@@ -454,21 +449,6 @@ struct msp_protdesc {
 	u32 clocks_per_frame;
 };
 
-struct i2s_message {
-	enum i2s_direction_t i2s_direction;
-	void *txdata;
-	void *rxdata;
-	size_t txbytes;
-	size_t rxbytes;
-	int dma_flag;
-	int tx_offset;
-	int rx_offset;
-	bool cyclic_dma;
-	dma_addr_t buf_addr;
-	size_t buf_len;
-	size_t period_len;
-};
-
 struct ux500_msp_config {
 	unsigned int f_inputclk;
 	unsigned int rx_clk_sel;
@@ -480,8 +460,6 @@ struct ux500_msp_config {
 	unsigned int tx_fsync_sel;
 	unsigned int rx_fifo_config;
 	unsigned int tx_fifo_config;
-	unsigned int spi_clk_mode;
-	unsigned int spi_burst_mode;
 	unsigned int loopback_enable;
 	unsigned int tx_data_enable;
 	unsigned int default_protdesc;
@@ -491,13 +469,9 @@ struct ux500_msp_config {
 	unsigned int direction;
 	unsigned int protocol;
 	unsigned int frame_freq;
-	unsigned int frame_size;
 	enum msp_data_size data_size;
 	unsigned int def_elem_len;
 	unsigned int iodelay;
-	void (*handler) (void *data);
-	void *tx_callback_data;
-	void *rx_callback_data;
 };
 
 struct ux500_msp {
@@ -506,15 +480,10 @@ struct ux500_msp {
 	struct device *dev;
 	struct stedma40_chan_cfg *dma_cfg_rx;
 	struct stedma40_chan_cfg *dma_cfg_tx;
-	struct dma_chan *tx_pipeid;
-	struct dma_chan *rx_pipeid;
 	enum msp_state msp_state;
-	int (*transfer) (struct ux500_msp *msp, struct i2s_message *message);
-	struct timer_list notify_timer;
 	int def_elem_len;
 	unsigned int dir_busy;
 	int loopback_enable;
-	u32 backup_regs[MAX_MSP_BACKUP_REGS];
 	unsigned int f_bitclk;
 };
 
