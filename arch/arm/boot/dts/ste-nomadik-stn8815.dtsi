@@ -94,6 +94,75 @@
 
 	pinctrl {
 		compatible = "stericsson,nmk-pinctrl-stn8815";
+		/* Pin configurations */
+		uart0 {
+			uart0_default_mux: uart0_mux {
+				u0_default_mux {
+					ste,function = "u0";
+					ste,pins = "u0_a_1";
+				};
+			};
+		};
+		uart1 {
+			uart1_default_mux: uart1_mux {
+				u1_default_mux {
+					ste,function = "u1";
+					ste,pins = "u1_a_1";
+				};
+			};
+		};
+		mmcsd {
+			mmcsd_default_mux: mmcsd_mux {
+				mmcsd_default_mux {
+					ste,function = "mmcsd";
+					ste,pins = "mmcsd_a_1";
+				};
+			};
+			mmcsd_default_mode: mmcsd_default {
+				mmcsd_default_cfg1 {
+					/* MCCLK */
+					ste,pins = "GPIO8_B10";
+					ste,output = <0>;
+				};
+				mmcsd_default_cfg2 {
+					/* MCCMDDIR, MCDAT0DIR, MCDAT31DIR */
+					ste,pins = "GPIO10_C11", "GPIO15_A12",
+					"GPIO16_C13";
+					ste,output = <1>;
+				};
+				mmcsd_default_cfg3 {
+					/* MCCMD, MCDAT3-0, MCMSFBCLK */
+					ste,pins = "GPIO9_A10", "GPIO11_B11",
+					"GPIO12_A11", "GPIO13_C12",
+					"GPIO14_B12", "GPIO24_C15";
+					ste,input = <1>;
+				};
+			};
+		};
+		i2c0 {
+			i2c0_default_mode: i2c0_default {
+				i2c0_default_cfg {
+					ste,pins = "GPIO62_D3", "GPIO63_D2";
+					ste,input = <1>;
+				};
+			};
+		};
+		i2c1 {
+			i2c1_default_mode: i2c1_default {
+				i2c1_default_cfg {
+					ste,pins = "GPIO53_L4", "GPIO54_L3";
+					ste,input = <1>;
+				};
+			};
+		};
+		i2c2 {
+			i2c2_default_mode: i2c2_default {
+				i2c2_default_cfg {
+					ste,pins = "GPIO73_C21", "GPIO74_C20";
+					ste,input = <1>;
+				};
+			};
+		};
 	};
 
 	src: src@101e0000 {
@@ -191,6 +260,8 @@
 			<&gpio1 30 0>; /* scl */
 		#address-cells = <1>;
 		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c0_default_mode>;
 
 		stw4811@2d {
 			   compatible = "st,stw4811";
@@ -205,6 +276,8 @@
 			<&gpio1 21 0>; /* scl */
 		#address-cells = <1>;
 		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c1_default_mode>;
 
 		camera@2d {
 			   compatible = "st,camera";
@@ -227,6 +300,9 @@
 			<&gpio2 9 0>; /* scl */
 		#address-cells = <1>;
 		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c2_default_mode>;
+
 		stw4811@2d {
 			   compatible = "st,stw4811-usb";
 			   reg = <0x2d>;
@@ -260,6 +336,8 @@
 			interrupts = <12>;
 			clocks = <&clk48>, <&pclk>;
 			clock-names = "uartclk", "apb_pclk";
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart0_default_mux>;
 		};
 
 		uart1: uart@101fb000 {
@@ -269,6 +347,8 @@
 			interrupts = <17>;
 			clocks = <&clk48>, <&pclk>;
 			clock-names = "uartclk", "apb_pclk";
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart1_default_mux>;
 		};
 
 		uart2: uart@101f2000 {
@@ -310,6 +390,8 @@
 			mmc-cap-sd-highspeed;
 			cd-gpios = <&gpio3 15 0x1>;
 			cd-inverted;
+			pinctrl-names = "default";
+			pinctrl-0 = <&mmcsd_default_mux>, <&mmcsd_default_mode>;
 		};
 	};
 };

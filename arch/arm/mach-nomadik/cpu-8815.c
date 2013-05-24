@@ -27,8 +27,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/irqchip.h>
 #include <linux/platform_data/clk-nomadik.h>
-#include <linux/platform_data/pinctrl-nomadik.h>
-#include <linux/pinctrl/machine.h>
 #include <linux/clocksource.h>
 #include <linux/of_irq.h>
 #include <linux/of_gpio.h>
@@ -90,52 +88,6 @@
 #define NOMADIK_SGA_BASE	0x101FE000	/* SGA interface */
 #define NOMADIK_L2CC_BASE	0x10210000	/* L2 Cache controller */
 #define NOMADIK_UART1_VBASE	0xF01FB000
-
-static unsigned long out_low[] = { PIN_OUTPUT_LOW };
-static unsigned long out_high[] = { PIN_OUTPUT_HIGH };
-static unsigned long in_nopull[] = { PIN_INPUT_NOPULL };
-static unsigned long in_pullup[] = { PIN_INPUT_PULLUP };
-
-static struct pinctrl_map __initdata nhk8815_pinmap[] = {
-	PIN_MAP_MUX_GROUP_DEFAULT("uart0", "pinctrl-stn8815", "u0_a_1", "u0"),
-	PIN_MAP_MUX_GROUP_DEFAULT("uart1", "pinctrl-stn8815", "u1_a_1", "u1"),
-	/* User LED on S8815 */
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO2_C5", out_high),
-	/* User button on S8815 */
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO3_A4", in_nopull),
-	/* Hog in MMC/SD card mux */
-	PIN_MAP_MUX_GROUP_HOG_DEFAULT("pinctrl-stn8815", "mmcsd_a_1", "mmcsd"),
-	/* MCCLK */
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO8_B10", out_low),
-	/* MCCMD */
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO9_A10", in_pullup),
-	/* MCCMDDIR */
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO10_C11", out_high),
-	/* MCDAT3-0 */
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO11_B11", in_pullup),
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO12_A11", in_pullup),
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO13_C12", in_pullup),
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO14_B12", in_pullup),
-	/* MCDAT0DIR */
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO15_A12", out_high),
-	/* MCDAT31DIR */
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO16_C13", out_high),
-	/* MCMSFBCLK */
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO24_C15", in_pullup),
-	/* CD input GPIO */
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO111_H21", in_nopull),
-	/* CD bias drive */
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO112_J21", out_low),
-	/* I2C0 */
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO62_D3", in_pullup),
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO63_D2", in_pullup),
-	/* I2C1 */
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO53_L4", in_pullup),
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO54_L3", in_pullup),
-	/* I2C2 */
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO73_C21", in_pullup),
-	PIN_MAP_CONFIGS_PIN_HOG_DEFAULT("pinctrl-stn8815", "GPIO74_C20", in_pullup),
-};
 
 /* This is needed for LL-debug/earlyprintk/debug-macro.S */
 static struct map_desc cpu8815_io_desc[] __initdata = {
@@ -284,8 +236,6 @@ device_initcall(cpu8815_mmcsd_init);
 
 /* These are mostly to get the right device names for the clock lookups */
 static struct of_dev_auxdata cpu8815_auxdata_lookup[] __initdata = {
-	OF_DEV_AUXDATA("stericsson,nmk-pinctrl-stn8815", 0,
-		"pinctrl-stn8815", NULL),
 	OF_DEV_AUXDATA("stericsson,fsmc-nand", NOMADIK_FSMC_BASE,
 		NULL, &cpu8815_nand_data),
 	OF_DEV_AUXDATA("arm,primecell", NOMADIK_SDI_BASE,
@@ -299,7 +249,6 @@ static void __init cpu8815_init_of(void)
 	/* At full speed latency must be >=2, so 0x249 in low bits */
 	l2x0_of_init(0x00730249, 0xfe000fff);
 #endif
-	pinctrl_register_mappings(nhk8815_pinmap, ARRAY_SIZE(nhk8815_pinmap));
 	of_platform_populate(NULL, of_default_bus_match_table,
 			cpu8815_auxdata_lookup, NULL);
 }
