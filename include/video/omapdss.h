@@ -172,6 +172,11 @@ enum omap_dss_audio_state {
 	OMAP_DSS_AUDIO_PLAYING,
 };
 
+struct omap_dss_audio {
+	struct snd_aes_iec958 *iec;
+	struct snd_cea_861_aud_if *cea;
+};
+
 enum omap_dss_rotation_type {
 	OMAP_DSS_ROT_DMA	= 1 << 0,
 	OMAP_DSS_ROT_VRFB	= 1 << 1,
@@ -653,6 +658,39 @@ struct omapdss_atv_ops {
 	u32 (*get_wss)(struct omap_dss_device *dssdev);
 };
 
+struct omapdss_hdmi_ops {
+	int (*connect)(struct omap_dss_device *dssdev,
+			struct omap_dss_device *dst);
+	void (*disconnect)(struct omap_dss_device *dssdev,
+			struct omap_dss_device *dst);
+
+	int (*enable)(struct omap_dss_device *dssdev);
+	void (*disable)(struct omap_dss_device *dssdev);
+
+	int (*check_timings)(struct omap_dss_device *dssdev,
+			struct omap_video_timings *timings);
+	void (*set_timings)(struct omap_dss_device *dssdev,
+			struct omap_video_timings *timings);
+	void (*get_timings)(struct omap_dss_device *dssdev,
+			struct omap_video_timings *timings);
+
+	int (*read_edid)(struct omap_dss_device *dssdev, u8 *buf, int len);
+	bool (*detect)(struct omap_dss_device *dssdev);
+
+	/*
+	 * Note: These functions might sleep. Do not call while
+	 * holding a spinlock/readlock.
+	 */
+	int (*audio_enable)(struct omap_dss_device *dssdev);
+	void (*audio_disable)(struct omap_dss_device *dssdev);
+	bool (*audio_supported)(struct omap_dss_device *dssdev);
+	int (*audio_config)(struct omap_dss_device *dssdev,
+		struct omap_dss_audio *audio);
+	/* Note: These functions may not sleep */
+	int (*audio_start)(struct omap_dss_device *dssdev);
+	void (*audio_stop)(struct omap_dss_device *dssdev);
+};
+
 struct omap_dss_device {
 	/* old device, to be removed */
 	struct device old_dev;
@@ -722,6 +760,7 @@ struct omap_dss_device {
 		const struct omapdss_dpi_ops *dpi;
 		const struct omapdss_sdi_ops *sdi;
 		const struct omapdss_dvi_ops *dvi;
+		const struct omapdss_hdmi_ops *hdmi;
 		const struct omapdss_atv_ops *atv;
 	} ops;
 
@@ -757,11 +796,6 @@ struct omap_dss_hdmi_data
 	int ct_cp_hpd_gpio;
 	int ls_oe_gpio;
 	int hpd_gpio;
-};
-
-struct omap_dss_audio {
-	struct snd_aes_iec958 *iec;
-	struct snd_cea_861_aud_if *cea;
 };
 
 struct omap_dss_driver {
