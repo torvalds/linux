@@ -2976,6 +2976,55 @@ static void cgroup_enable_task_cg_lists(void)
 }
 
 /**
+ * cgroup_next_sibling - find the next sibling of a given cgroup
+ * @pos: the current cgroup
+ *
+ * This function returns the next sibling of @pos and should be called
+ * under RCU read lock.  The only requirement is that @pos is accessible.
+ * The next sibling is guaranteed to be returned regardless of @pos's
+ * state.
+ */
+struct cgroup *cgroup_next_sibling(struct cgroup *pos)
+{
+	struct cgroup *next;
+
+	WARN_ON_ONCE(!rcu_read_lock_held());
+
+	/*
+	 * @pos could already have been removed.  Once a cgroup is removed,
+	 * its ->sibling.next is no longer updated when its next sibling
+	 * changes.  As CGRP_REMOVED is set on removal which is fully
+	 * serialized, if we see it unasserted, it's guaranteed that the
+	 * next sibling hasn't finished its grace period even if it's
+	 * already removed, and thus safe to dereference from this RCU
+	 * critical section.  If ->sibling.next is inaccessible,
+	 * cgroup_is_removed() is guaranteed to be visible as %true here.
+	 */
+	if (likely(!cgroup_is_removed(pos))) {
+		next = list_entry_rcu(pos->sibling.next, struct cgroup, sibling);
+		if (&next->sibling != &pos->parent->children)
+			return next;
+		return NULL;
+	}
+
+	/*
+	 * Can't dereference the next pointer.  Each cgroup is given a
+	 * monotonically increasing unique serial number and always
+	 * appended to the sibling list, so the next one can be found by
+	 * walking the parent's children until we see a cgroup with higher
+	 * serial number than @pos's.
+	 *
+	 * While this path can be slow, it's taken only when either the
+	 * current cgroup is removed or iteration and removal race.
+	 */
+	list_for_each_entry_rcu(next, &pos->parent->children, sibling)
+		if (next->serial_nr > pos->serial_nr)
+			return next;
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(cgroup_next_sibling);
+
+/**
  * cgroup_next_descendant_pre - find the next descendant for pre-order walk
  * @pos: the current position (%NULL to initiate traversal)
  * @cgroup: cgroup whose descendants to walk
@@ -4137,6 +4186,7 @@ static void offline_css(struct cgroup_subsys *ss, struct cgroup *cgrp)
 static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 			     umode_t mode)
 {
+	static atomic64_t serial_nr_cursor = ATOMIC64_INIT(0);
 	struct cgroup *cgrp;
 	struct cgroup_name *name;
 	struct cgroupfs_root *root = parent->root;
@@ -4216,6 +4266,14 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 	if (err < 0)
 		goto err_free_all;
 	lockdep_assert_held(&dentry->d_inode->i_mutex);
+
+	/*
+	 * Assign a monotonically increasing serial number.  With the list
+	 * appending below, it guarantees that sibling cgroups are always
+	 * sorted in the ascending serial number order on the parent's
+	 * ->children.
+	 */
+	cgrp->serial_nr = atomic64_inc_return(&serial_nr_cursor);
 
 	/* allocation complete, commit to creation */
 	list_add_tail(&cgrp->allcg_node, &root->allcg_list);
@@ -4304,6 +4362,10 @@ static int cgroup_destroy_locked(struct cgroup *cgrp)
 	 * removed.  This makes future css_tryget() and child creation
 	 * attempts fail thus maintaining the removal conditions verified
 	 * above.
+	 *
+	 * Note that CGRP_REMVOED clearing is depended upon by
+	 * cgroup_next_sibling() to resume iteration after dropping RCU
+	 * read lock.  See cgroup_next_sibling() for details.
 	 */
 	for_each_subsys(cgrp->root, ss) {
 		struct cgroup_subsys_state *css = cgrp->subsys[ss->subsys_id];

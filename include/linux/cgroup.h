@@ -189,6 +189,14 @@ struct cgroup {
 	struct dentry *dentry;		/* cgroup fs entry, RCU protected */
 
 	/*
+	 * Monotonically increasing unique serial number which defines a
+	 * uniform order among all cgroups.  It's guaranteed that all
+	 * ->children lists are in the ascending order of ->serial_nr.
+	 * It's used to allow interrupting and resuming iterations.
+	 */
+	u64 serial_nr;
+
+	/*
 	 * This is a copy of dentry->d_name, and it's needed because
 	 * we can't use dentry->d_name in cgroup_path().
 	 *
@@ -674,6 +682,8 @@ static inline struct cgroup* task_cgroup(struct task_struct *task,
 {
 	return task_subsys_state(task, subsys_id)->cgroup;
 }
+
+struct cgroup *cgroup_next_sibling(struct cgroup *pos);
 
 /**
  * cgroup_for_each_child - iterate through children of a cgroup
