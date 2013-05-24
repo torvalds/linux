@@ -16,6 +16,7 @@
 #define UX500_MSP_I2S_H
 
 #include <linux/platform_device.h>
+#include <linux/platform_data/asoc-ux500-msp.h>
 
 #define MSP_INPUT_FREQ_APB 48000000
 
@@ -365,13 +366,6 @@ enum msp_protocol {
  */
 #define MAX_MSP_BACKUP_REGS 36
 
-enum enum_i2s_controller {
-	MSP_0_I2S_CONTROLLER = 0,
-	MSP_1_I2S_CONTROLLER,
-	MSP_2_I2S_CONTROLLER,
-	MSP_3_I2S_CONTROLLER,
-};
-
 enum i2s_direction_t {
 	MSP_DIR_TX = 0x01,
 	MSP_DIR_RX = 0x02,
@@ -475,7 +469,7 @@ struct ux500_msp_config {
 };
 
 struct ux500_msp {
-	enum enum_i2s_controller id;
+	enum msp_i2s_id id;
 	void __iomem *registers;
 	struct device *dev;
 	struct stedma40_chan_cfg *dma_cfg_rx;
