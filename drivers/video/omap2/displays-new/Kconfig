@@ -33,4 +33,9 @@ config DISPLAY_PANEL_DPI
 	help
 	  Driver for generic DPI panels.
 
+config DISPLAY_PANEL_DSI_CM
+	tristate "Generic DSI Command Mode Panel"
+	help
+	  Driver for generic DSI command mode panels.
+
 endmenu
