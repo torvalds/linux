@@ -2118,6 +2118,26 @@ static void haswell_update_wm(struct drm_device *dev)
 	sandybridge_update_wm(dev);
 }
 
+static void haswell_update_sprite_wm(struct drm_device *dev, int pipe,
+				     uint32_t sprite_width, int pixel_size,
+				     bool enable)
+{
+	struct drm_plane *plane;
+
+	list_for_each_entry(plane, &dev->mode_config.plane_list, head) {
+		struct intel_plane *intel_plane = to_intel_plane(plane);
+
+		if (intel_plane->pipe == pipe) {
+			intel_plane->wm.enable = enable;
+			intel_plane->wm.horiz_pixels = sprite_width + 1;
+			intel_plane->wm.bytes_per_pixel = pixel_size;
+			break;
+		}
+	}
+
+	haswell_update_wm(dev);
+}
+
 static bool
 sandybridge_compute_sprite_wm(struct drm_device *dev, int plane,
 			      uint32_t sprite_width, int pixel_size,
@@ -4631,7 +4651,8 @@ void intel_init_pm(struct drm_device *dev)
 		} else if (IS_HASWELL(dev)) {
 			if (I915_READ64(MCH_SSKPD)) {
 				dev_priv->display.update_wm = haswell_update_wm;
-				dev_priv->display.update_sprite_wm = sandybridge_update_sprite_wm;
+				dev_priv->display.update_sprite_wm =
+					haswell_update_sprite_wm;
 			} else {
 				DRM_DEBUG_KMS("Failed to read display plane latency. "
 					      "Disable CxSR\n");
