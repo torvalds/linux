@@ -925,11 +925,6 @@ static int tw9910_probe(struct i2c_client *client,
 	return tw9910_video_probe(client);
 }
 
-static int tw9910_remove(struct i2c_client *client)
-{
-	return 0;
-}
-
 static const struct i2c_device_id tw9910_id[] = {
 	{ "tw9910", 0 },
 	{ }
@@ -941,7 +936,6 @@ static struct i2c_driver tw9910_i2c_driver = {
 		.name = "tw9910",
 	},
 	.probe    = tw9910_probe,
-	.remove   = tw9910_remove,
 	.id_table = tw9910_id,
 };
 
