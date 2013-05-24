@@ -3031,6 +3031,11 @@ EXPORT_SYMBOL_GPL(cgroup_next_sibling);
  *
  * To be used by cgroup_for_each_descendant_pre().  Find the next
  * descendant to visit for pre-order traversal of @cgroup's descendants.
+ *
+ * While this function requires RCU read locking, it doesn't require the
+ * whole traversal to be contained in a single RCU critical section.  This
+ * function will return the correct next descendant as long as both @pos
+ * and @cgroup are accessible and @pos is a descendant of @cgroup.
  */
 struct cgroup *cgroup_next_descendant_pre(struct cgroup *pos,
 					  struct cgroup *cgroup)
@@ -3050,11 +3055,9 @@ struct cgroup *cgroup_next_descendant_pre(struct cgroup *pos,
 
 	/* no child, visit my or the closest ancestor's next sibling */
 	while (pos != cgroup) {
-		next = list_entry_rcu(pos->sibling.next, struct cgroup,
-				      sibling);
-		if (&next->sibling != &pos->parent->children)
+		next = cgroup_next_sibling(pos);
+		if (next)
 			return next;
-
 		pos = pos->parent;
 	}
 
@@ -3069,6 +3072,11 @@ EXPORT_SYMBOL_GPL(cgroup_next_descendant_pre);
  * Return the rightmost descendant of @pos.  If there's no descendant,
  * @pos is returned.  This can be used during pre-order traversal to skip
  * subtree of @pos.
+ *
+ * While this function requires RCU read locking, it doesn't require the
+ * whole traversal to be contained in a single RCU critical section.  This
+ * function will return the correct rightmost descendant as long as @pos is
+ * accessible.
  */
 struct cgroup *cgroup_rightmost_descendant(struct cgroup *pos)
 {
@@ -3108,6 +3116,11 @@ static struct cgroup *cgroup_leftmost_descendant(struct cgroup *pos)
  *
  * To be used by cgroup_for_each_descendant_post().  Find the next
  * descendant to visit for post-order traversal of @cgroup's descendants.
+ *
+ * While this function requires RCU read locking, it doesn't require the
+ * whole traversal to be contained in a single RCU critical section.  This
+ * function will return the correct next descendant as long as both @pos
+ * and @cgroup are accessible and @pos is a descendant of @cgroup.
  */
 struct cgroup *cgroup_next_descendant_post(struct cgroup *pos,
 					   struct cgroup *cgroup)
@@ -3123,8 +3136,8 @@ struct cgroup *cgroup_next_descendant_post(struct cgroup *pos,
 	}
 
 	/* if there's an unvisited sibling, visit its leftmost descendant */
-	next = list_entry_rcu(pos->sibling.next, struct cgroup, sibling);
-	if (&next->sibling != &pos->parent->children)
+	next = cgroup_next_sibling(pos);
+	if (next)
 		return cgroup_leftmost_descendant(next);
 
 	/* no sibling left, visit parent */
