@@ -3319,6 +3319,7 @@ static void bnx2x_set_pbd_gso_e2(struct sk_buff *skb, u32 *parsing_data,
  */
 static void bnx2x_set_pbd_gso(struct sk_buff *skb,
 			      struct eth_tx_parse_bd_e1x *pbd,
+			      struct eth_tx_start_bd *tx_start_bd,
 			      u32 xmit_type)
 {
 	pbd->lso_mss = cpu_to_le16(skb_shinfo(skb)->gso_size);
@@ -3332,11 +3333,14 @@ static void bnx2x_set_pbd_gso(struct sk_buff *skb,
 						   ip_hdr(skb)->daddr,
 						   0, IPPROTO_TCP, 0));
 
-	} else
+		/* GSO on 57710/57711 needs FW to calculate IP checksum */
+		tx_start_bd->bd_flags.as_bitfield |= ETH_TX_BD_FLAGS_IP_CSUM;
+	} else {
 		pbd->tcp_pseudo_csum =
 			bswab16(~csum_ipv6_magic(&ipv6_hdr(skb)->saddr,
 						 &ipv6_hdr(skb)->daddr,
 						 0, IPPROTO_TCP, 0));
+	}
 
 	pbd->global_data |=
 		cpu_to_le16(ETH_TX_PARSE_BD_E1X_PSEUDO_CS_WITHOUT_LEN);
@@ -3820,7 +3824,8 @@ netdev_tx_t bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			bnx2x_set_pbd_gso_e2(skb, &pbd_e2_parsing_data,
 					     xmit_type);
 		else
-			bnx2x_set_pbd_gso(skb, pbd_e1x, xmit_type);
+			bnx2x_set_pbd_gso(skb, pbd_e1x, tx_start_bd,
+					  xmit_type);
 	}
 
 	/* Set the PBD's parsing_data field if not zero

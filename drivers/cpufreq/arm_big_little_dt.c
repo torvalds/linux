@@ -66,8 +66,8 @@ static int dt_get_transition_latency(struct device *cpu_dev)
 
 	parent = of_find_node_by_path("/cpus");
 	if (!parent) {
-		pr_err("failed to find OF /cpus\n");
-		return -ENOENT;
+		pr_info("Failed to find OF /cpus. Use CPUFREQ_ETERNAL transition latency\n");
+		return CPUFREQ_ETERNAL;
 	}
 
 	for_each_child_of_node(parent, np) {
@@ -78,10 +78,11 @@ static int dt_get_transition_latency(struct device *cpu_dev)
 		of_node_put(np);
 		of_node_put(parent);
 
-		return 0;
+		return transition_latency;
 	}
 
-	return -ENODEV;
+	pr_info("clock-latency isn't found, use CPUFREQ_ETERNAL transition latency\n");
+	return CPUFREQ_ETERNAL;
 }
 
 static struct cpufreq_arm_bL_ops dt_bL_ops = {

@@ -243,7 +243,8 @@ enum OpalMCE_TlbErrorType {
 
 enum OpalThreadStatus {
 	OPAL_THREAD_INACTIVE = 0x0,
-	OPAL_THREAD_STARTED = 0x1
+	OPAL_THREAD_STARTED = 0x1,
+	OPAL_THREAD_UNAVAILABLE = 0x2 /* opal-v3 */
 };
 
 enum OpalPciBusCompare {
@@ -562,6 +563,8 @@ extern unsigned long opal_get_boot_time(void);
 extern void opal_nvram_init(void);
 
 extern int opal_machine_check(struct pt_regs *regs);
+
+extern void opal_shutdown(void);
 
 #endif /* __ASSEMBLY__ */
 

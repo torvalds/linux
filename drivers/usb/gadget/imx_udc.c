@@ -1511,8 +1511,6 @@ static int __exit imx_udc_remove(struct platform_device *pdev)
 	if (pdata->exit)
 		pdata->exit(&pdev->dev);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 

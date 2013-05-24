@@ -2887,6 +2887,7 @@ struct sk_buff *tcp_tso_segment(struct sk_buff *skb,
 	unsigned int mss;
 	struct sk_buff *gso_skb = skb;
 	__sum16 newcheck;
+	bool ooo_okay, copy_destructor;
 
 	if (!pskb_may_pull(skb, sizeof(*th)))
 		goto out;
@@ -2927,9 +2928,17 @@ struct sk_buff *tcp_tso_segment(struct sk_buff *skb,
 		goto out;
 	}
 
+	copy_destructor = gso_skb->destructor == tcp_wfree;
+	ooo_okay = gso_skb->ooo_okay;
+	/* All segments but the first should have ooo_okay cleared */
+	skb->ooo_okay = 0;
+
 	segs = skb_segment(skb, features);
 	if (IS_ERR(segs))
 		goto out;
+
+	/* Only first segment might have ooo_okay set */
+	segs->ooo_okay = ooo_okay;
 
 	delta = htonl(oldlen + (thlen + mss));
 
@@ -2950,6 +2959,17 @@ struct sk_buff *tcp_tso_segment(struct sk_buff *skb,
 						    thlen, skb->csum));
 
 		seq += mss;
+		if (copy_destructor) {
+			skb->destructor = gso_skb->destructor;
+			skb->sk = gso_skb->sk;
+			/* {tcp|sock}_wfree() use exact truesize accounting :
+			 * sum(skb->truesize) MUST be exactly be gso_skb->truesize
+			 * So we account mss bytes of 'true size' for each segment.
+			 * The last segment will contain the remaining.
+			 */
+			skb->truesize = mss;
+			gso_skb->truesize -= mss;
+		}
 		skb = skb->next;
 		th = tcp_hdr(skb);
 
@@ -2962,7 +2982,7 @@ struct sk_buff *tcp_tso_segment(struct sk_buff *skb,
 	 * is freed at TX completion, and not right now when gso_skb
 	 * is freed by GSO engine
 	 */
-	if (gso_skb->destructor == tcp_wfree) {
+	if (copy_destructor) {
 		swap(gso_skb->sk, skb->sk);
 		swap(gso_skb->destructor, skb->destructor);
 		swap(gso_skb->truesize, skb->truesize);
@@ -3213,8 +3233,11 @@ int tcp_md5_hash_skb_data(struct tcp_md5sig_pool *hp,
 
 	for (i = 0; i < shi->nr_frags; ++i) {
 		const struct skb_frag_struct *f = &shi->frags[i];
-		struct page *page = skb_frag_page(f);
-		sg_set_page(&sg, page, skb_frag_size(f), f->page_offset);
+		unsigned int offset = f->page_offset;
+		struct page *page = skb_frag_page(f) + (offset >> PAGE_SHIFT);
+
+		sg_set_page(&sg, page, skb_frag_size(f),
+			    offset_in_page(offset));
 		if (crypto_hash_update(desc, &sg, skb_frag_size(f)))
 			return 1;
 	}

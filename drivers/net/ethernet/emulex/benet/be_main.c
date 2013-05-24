@@ -780,26 +780,18 @@ static struct sk_buff *be_insert_vlan_in_pkt(struct be_adapter *adapter,
 	if (unlikely(!skb))
 		return skb;
 
-	if (vlan_tx_tag_present(skb)) {
+	if (vlan_tx_tag_present(skb))
 		vlan_tag = be_get_tx_vlan_tag(adapter, skb);
-		skb = __vlan_put_tag(skb, htons(ETH_P_8021Q), vlan_tag);
-		if (skb)
-			skb->vlan_tci = 0;
-	}
-
-	if (qnq_async_evt_rcvd(adapter) && adapter->pvid) {
-		if (!vlan_tag)
-			vlan_tag = adapter->pvid;
-		if (skip_hw_vlan)
-			*skip_hw_vlan = true;
-	}
+	else if (qnq_async_evt_rcvd(adapter) && adapter->pvid)
+		vlan_tag = adapter->pvid;
 
 	if (vlan_tag) {
 		skb = __vlan_put_tag(skb, htons(ETH_P_8021Q), vlan_tag);
 		if (unlikely(!skb))
 			return skb;
-
 		skb->vlan_tci = 0;
+		if (skip_hw_vlan)
+			*skip_hw_vlan = true;
 	}
 
 	/* Insert the outer VLAN, if any */

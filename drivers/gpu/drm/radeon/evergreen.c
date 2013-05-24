@@ -2343,11 +2343,13 @@ void evergreen_mc_stop(struct radeon_device *rdev, struct evergreen_mc_save *sav
 	u32 crtc_enabled, tmp, frame_count, blackout;
 	int i, j;
 
-	save->vga_render_control = RREG32(VGA_RENDER_CONTROL);
-	save->vga_hdp_control = RREG32(VGA_HDP_CONTROL);
+	if (!ASIC_IS_NODCE(rdev)) {
+		save->vga_render_control = RREG32(VGA_RENDER_CONTROL);
+		save->vga_hdp_control = RREG32(VGA_HDP_CONTROL);
 
-	/* disable VGA render */
-	WREG32(VGA_RENDER_CONTROL, 0);
+		/* disable VGA render */
+		WREG32(VGA_RENDER_CONTROL, 0);
+	}
 	/* blank the display controllers */
 	for (i = 0; i < rdev->num_crtc; i++) {
 		crtc_enabled = RREG32(EVERGREEN_CRTC_CONTROL + crtc_offsets[i]) & EVERGREEN_CRTC_MASTER_EN;
@@ -2438,8 +2440,11 @@ void evergreen_mc_resume(struct radeon_device *rdev, struct evergreen_mc_save *s
 		WREG32(EVERGREEN_GRPH_SECONDARY_SURFACE_ADDRESS + crtc_offsets[i],
 		       (u32)rdev->mc.vram_start);
 	}
-	WREG32(EVERGREEN_VGA_MEMORY_BASE_ADDRESS_HIGH, upper_32_bits(rdev->mc.vram_start));
-	WREG32(EVERGREEN_VGA_MEMORY_BASE_ADDRESS, (u32)rdev->mc.vram_start);
+
+	if (!ASIC_IS_NODCE(rdev)) {
+		WREG32(EVERGREEN_VGA_MEMORY_BASE_ADDRESS_HIGH, upper_32_bits(rdev->mc.vram_start));
+		WREG32(EVERGREEN_VGA_MEMORY_BASE_ADDRESS, (u32)rdev->mc.vram_start);
+	}
 
 	/* unlock regs and wait for update */
 	for (i = 0; i < rdev->num_crtc; i++) {
@@ -2499,10 +2504,12 @@ void evergreen_mc_resume(struct radeon_device *rdev, struct evergreen_mc_save *s
 			}
 		}
 	}
-	/* Unlock vga access */
-	WREG32(VGA_HDP_CONTROL, save->vga_hdp_control);
-	mdelay(1);
-	WREG32(VGA_RENDER_CONTROL, save->vga_render_control);
+	if (!ASIC_IS_NODCE(rdev)) {
+		/* Unlock vga access */
+		WREG32(VGA_HDP_CONTROL, save->vga_hdp_control);
+		mdelay(1);
+		WREG32(VGA_RENDER_CONTROL, save->vga_render_control);
+	}
 }
 
 void evergreen_mc_program(struct radeon_device *rdev)
@@ -3405,8 +3412,8 @@ int evergreen_mc_init(struct radeon_device *rdev)
 		rdev->mc.real_vram_size = RREG32(CONFIG_MEMSIZE);
 	} else {
 		/* size in MB on evergreen/cayman/tn */
-		rdev->mc.mc_vram_size = RREG32(CONFIG_MEMSIZE) * 1024 * 1024;
-		rdev->mc.real_vram_size = RREG32(CONFIG_MEMSIZE) * 1024 * 1024;
+		rdev->mc.mc_vram_size = RREG32(CONFIG_MEMSIZE) * 1024ULL * 1024ULL;
+		rdev->mc.real_vram_size = RREG32(CONFIG_MEMSIZE) * 1024ULL * 1024ULL;
 	}
 	rdev->mc.visible_vram_size = rdev->mc.aper_size;
 	r700_vram_gtt_location(rdev, &rdev->mc);
