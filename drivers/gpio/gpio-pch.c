@@ -424,8 +424,7 @@ end:
 err_request_irq:
 	irq_free_descs(irq_base, gpio_pins[chip->ioh]);
 
-	ret = gpiochip_remove(&chip->gpio);
-	if (ret)
+	if (gpiochip_remove(&chip->gpio))
 		dev_err(&pdev->dev, "%s gpiochip_remove failed\n", __func__);
 
 err_gpiochip_add:
