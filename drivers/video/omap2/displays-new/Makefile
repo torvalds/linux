@@ -1,0 +1,1 @@
+obj-$(CONFIG_DISPLAY_ENCODER_TFP410) += encoder-tfp410.o

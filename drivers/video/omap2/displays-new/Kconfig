@@ -1,0 +1,9 @@
+menu "OMAP Display Device Drivers"
+        depends on OMAP2_DSS
+
+config DISPLAY_ENCODER_TFP410
+        tristate "TFP410 DPI to DVI Encoder"
+	help
+	  Driver for TFP410 DPI to DVI encoder.
+
+endmenu

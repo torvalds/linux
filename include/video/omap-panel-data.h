@@ -147,4 +147,17 @@ struct panel_tpo_td043_data {
 	int nreset_gpio;
 };
 
+/**
+ * encoder_tfp410 platform data
+ * @name: name for this display entity
+ * @power_down_gpio: gpio number for PD pin (or -1 if not available)
+ * @data_lines: number of DPI datalines
+ */
+struct encoder_tfp410_platform_data {
+	const char *name;
+	const char *source;
+	int power_down_gpio;
+	int data_lines;
+};
+
 #endif /* __OMAP_PANEL_DATA_H */
