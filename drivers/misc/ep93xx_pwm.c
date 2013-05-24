@@ -44,11 +44,6 @@ static inline u16 ep93xx_pwm_read_tc(struct ep93xx_pwm *pwm)
 	return readl(pwm->mmio_base + EP93XX_PWMx_TERM_COUNT);
 }
 
-static inline void ep93xx_pwm_enable(struct ep93xx_pwm *pwm)
-{
-	writel(0x1, pwm->mmio_base + EP93XX_PWMx_ENABLE);
-}
-
 static inline void ep93xx_pwm_disable(struct ep93xx_pwm *pwm)
 {
 	writel(0x0, pwm->mmio_base + EP93XX_PWMx_ENABLE);
@@ -155,7 +150,7 @@ static ssize_t ep93xx_pwm_set_freq(struct device *dev,
 		}
 
 		if (!ep93xx_pwm_is_enabled(pwm))
-			ep93xx_pwm_enable(pwm);
+			writel(0x1, pwm->mmio_base + EP93XX_PWMx_ENABLE);
 	} else {
 		return -EINVAL;
 	}
