@@ -710,12 +710,14 @@ cnu_out:
 }
 EXPORT_SYMBOL(clk_notifier_unregister);
 
+#ifdef CONFIG_PROC_FS
 static struct clk_dump_ops *dump_def_ops;
 
 void clk_register_dump_ops(struct clk_dump_ops *ops)
 {
 	dump_def_ops=ops;
 }
+#endif
 
 #ifdef CONFIG_RK_CLOCK_PROC
 static int proc_clk_show(struct seq_file *s, void *v)

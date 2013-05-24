@@ -98,7 +98,7 @@ struct clk_dump_ops {
 
 void clk_register_dump_ops(struct clk_dump_ops *ops);
 #else
-static inline void clk_register_dump_ops(struct clk_dump_ops *ops) {}
+#define clk_register_dump_ops(ops) do {} while (0)
 #endif
 
 /**
