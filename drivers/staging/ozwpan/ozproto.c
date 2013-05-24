@@ -97,7 +97,7 @@ static void oz_send_conn_rsp(struct oz_pd *pd, u8 status)
 	struct oz_elt_connect_rsp *body;
 	int sz = sizeof(struct oz_hdr) + sizeof(struct oz_elt) +
 			sizeof(struct oz_elt_connect_rsp);
-	skb = dev_alloc_skb(sz + OZ_ALLOCATED_SPACE(dev));
+	skb = alloc_skb(sz + OZ_ALLOCATED_SPACE(dev), GFP_ATOMIC);
 	if (skb == NULL)
 		return;
 	skb_reserve(skb, LL_RESERVED_SPACE(dev));
@@ -110,7 +110,7 @@ static void oz_send_conn_rsp(struct oz_pd *pd, u8 status)
 	/* Fill in device header */
 	if (dev_hard_header(skb, dev, OZ_ETHERTYPE, pd->mac_addr,
 			dev->dev_addr, skb->len) < 0) {
-		dev_kfree_skb(skb);
+		kfree_skb(skb);
 		return;
 	}
 	oz_hdr->control = (OZ_PROTOCOL_VERSION<<OZ_VERSION_SHIFT);

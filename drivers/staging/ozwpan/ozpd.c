@@ -207,7 +207,7 @@ void oz_pd_destroy(struct oz_pd *pd)
 		f = container_of(e, struct oz_tx_frame, link);
 		e = e->next;
 		if (f->skb != NULL)
-			dev_kfree_skb(f->skb);
+			kfree_skb(f->skb);
 		oz_retire_frame(pd, f);
 	}
 	oz_elt_buf_term(&pd->elt_buff);
@@ -463,7 +463,7 @@ static struct sk_buff *oz_build_frame(struct oz_pd *pd, struct oz_tx_frame *f)
 	/* Allocate skb with enough space for the lower layers as well
 	 * as the space we need.
 	 */
-	skb = dev_alloc_skb(f->total_size + OZ_ALLOCATED_SPACE(dev));
+	skb = alloc_skb(f->total_size + OZ_ALLOCATED_SPACE(dev), GFP_ATOMIC);
 	if (skb == NULL)
 		return NULL;
 	/* Reserve the head room for lower layers.
@@ -491,7 +491,7 @@ static struct sk_buff *oz_build_frame(struct oz_pd *pd, struct oz_tx_frame *f)
 	}
 	return skb;
 fail:
-	dev_kfree_skb(skb);
+	kfree_skb(skb);
 	return NULL;
 }
 /*------------------------------------------------------------------------------
@@ -553,7 +553,7 @@ static int oz_send_next_queued_frame(struct oz_pd *pd, int more_data)
 						pd->nb_queued_isoc_frames);
 			return 0;
 		} else {
-			dev_kfree_skb(skb);
+			kfree_skb(skb);
 			oz_trace2(OZ_TRACE_TX_FRAMES, "Dropping ISOC Frame>\n");
 			oz_event_log(OZ_EVT_TX_ISOC_DROP, 0, 0, NULL, 0);
 			return -1;
@@ -633,7 +633,7 @@ static int oz_send_isoc_frame(struct oz_pd *pd)
 		pd->max_tx_size, &list);
 	if (list.next == &list)
 		return 0;
-	skb = dev_alloc_skb(total_size + OZ_ALLOCATED_SPACE(dev));
+	skb = alloc_skb(total_size + OZ_ALLOCATED_SPACE(dev), GFP_ATOMIC);
 	if (skb == NULL) {
 		oz_trace("Cannot alloc skb\n");
 		oz_elt_info_free_chain(&pd->elt_buff, &list);
@@ -645,7 +645,7 @@ static int oz_send_isoc_frame(struct oz_pd *pd)
 	skb->protocol = htons(OZ_ETHERTYPE);
 	if (dev_hard_header(skb, dev, OZ_ETHERTYPE, pd->mac_addr,
 		dev->dev_addr, skb->len) < 0) {
-		dev_kfree_skb(skb);
+		kfree_skb(skb);
 		return -1;
 	}
 	oz_hdr = (struct oz_hdr *)skb_put(skb, total_size);
@@ -744,7 +744,7 @@ int oz_isoc_stream_create(struct oz_pd *pd, u8 ep_num)
  */
 static void oz_isoc_stream_free(struct oz_isoc_stream *st)
 {
-	dev_kfree_skb(st->skb);
+	kfree_skb(st->skb);
 	kfree(st);
 }
 /*------------------------------------------------------------------------------
@@ -797,7 +797,8 @@ int oz_send_isoc_unit(struct oz_pd *pd, u8 ep_num, const u8 *data, int len)
 		return 0;
 	if (!skb) {
 		/* Allocate enough space for max size frame. */
-		skb = dev_alloc_skb(pd->max_tx_size + OZ_ALLOCATED_SPACE(dev));
+		skb = alloc_skb(pd->max_tx_size + OZ_ALLOCATED_SPACE(dev),
+				GFP_ATOMIC);
 		if (skb == NULL)
 			return 0;
 		/* Reserve the head room for lower layers. */
@@ -880,7 +881,7 @@ int oz_send_isoc_unit(struct oz_pd *pd, u8 ep_num, const u8 *data, int len)
 		}
 
 out:	oz_event_log(OZ_EVT_TX_ISOC_DROP, 0, 0, NULL, 0);
-	dev_kfree_skb(skb);
+	kfree_skb(skb);
 	return -1;
 
 	}
