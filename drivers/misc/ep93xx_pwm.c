@@ -39,11 +39,6 @@ struct ep93xx_pwm {
 	u32		duty_percent;
 };
 
-static inline int ep93xx_pwm_is_enabled(struct ep93xx_pwm *pwm)
-{
-	return readl(pwm->mmio_base + EP93XX_PWMx_ENABLE) & 0x1;
-}
-
 static inline int ep93xx_pwm_is_inverted(struct ep93xx_pwm *pwm)
 {
 	return readl(pwm->mmio_base + EP93XX_PWMx_INVERT) & 0x1;
@@ -84,7 +79,7 @@ static ssize_t ep93xx_pwm_get_freq(struct device *dev,
 	struct platform_device *pdev = to_platform_device(dev);
 	struct ep93xx_pwm *pwm = platform_get_drvdata(pdev);
 
-	if (ep93xx_pwm_is_enabled(pwm)) {
+	if (readl(pwm->mmio_base + EP93XX_PWMx_ENABLE) & 0x1) {
 		unsigned long rate = clk_get_rate(pwm->clk);
 		u16 term = readl(pwm->mmio_base + EP93XX_PWMx_TERM_COUNT);
 
@@ -129,7 +124,7 @@ static ssize_t ep93xx_pwm_set_freq(struct device *dev,
 			writel(val, pwm->mmio_base + EP93XX_PWMx_TERM_COUNT);
 		}
 
-		if (!ep93xx_pwm_is_enabled(pwm))
+		if (!readl(pwm->mmio_base + EP93XX_PWMx_ENABLE) & 0x1)
 			writel(0x1, pwm->mmio_base + EP93XX_PWMx_ENABLE);
 	} else {
 		return -EINVAL;
