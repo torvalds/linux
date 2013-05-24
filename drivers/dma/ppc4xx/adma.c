@@ -4481,7 +4481,7 @@ static int ppc440spe_adma_probe(struct platform_device *ofdev)
 	adev->dev = &ofdev->dev;
 	adev->common.dev = &ofdev->dev;
 	INIT_LIST_HEAD(&adev->common.channels);
-	dev_set_drvdata(&ofdev->dev, adev);
+	platform_set_drvdata(ofdev, adev);
 
 	/* create a channel */
 	chan = kzalloc(sizeof(*chan), GFP_KERNEL);
@@ -4594,14 +4594,13 @@ out:
  */
 static int ppc440spe_adma_remove(struct platform_device *ofdev)
 {
-	struct ppc440spe_adma_device *adev = dev_get_drvdata(&ofdev->dev);
+	struct ppc440spe_adma_device *adev = platform_get_drvdata(ofdev);
 	struct device_node *np = ofdev->dev.of_node;
 	struct resource res;
 	struct dma_chan *chan, *_chan;
 	struct ppc_dma_chan_ref *ref, *_ref;
 	struct ppc440spe_adma_chan *ppc440spe_chan;
 
-	dev_set_drvdata(&ofdev->dev, NULL);
 	if (adev->id < PPC440SPE_ADMA_ENGINES_NUM)
 		ppc440spe_adma_devices[adev->id] = -1;
 
