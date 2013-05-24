@@ -19,15 +19,21 @@
 	ocp@f1000000 {
 		serial@12000 {
 			status = "ok";
+			pinctrl-0 = <&pmx_uart0>;
+			pinctrl-names = "default";
 		};
 
 		serial@12100 {
 			status = "ok";
+			pinctrl-0 = <&pmx_uart1>;
+			pinctrl-names = "default";
 		};
 
 		nand@3000000 {
 			chip-delay = <25>;
 			status = "okay";
+			pinctrl-0 = <&pmx_nand>;
+			pinctrl-names = "default";
 
 			partition@0 {
 				label = "uboot";
@@ -67,6 +73,8 @@
 
 		i2c@11100 {
 			status = "okay";
+			pinctrl-0 = <&pmx_twsi1>;
+			pinctrl-names = "default";
 
 			s35390a: s35390a@30 {
 				compatible = "s35390a";
@@ -75,16 +83,12 @@
 		};
 
 		pinctrl: pinctrl@10000 {
-			pinctrl-0 = < &pmx_nand &pmx_uart0
-				&pmx_uart1 &pmx_twsi1
-				&pmx_dip_sw0 &pmx_dip_sw1
-				&pmx_dip_sw2 &pmx_dip_sw3
-				&pmx_gpio_0 &pmx_gpio_1
-				&pmx_gpio_2 &pmx_gpio_3
-				&pmx_gpio_4 &pmx_gpio_5
-				&pmx_gpio_6 &pmx_gpio_7
-				&pmx_led_red &pmx_led_green
-				&pmx_led_yellow >;
+			pinctrl-0 = <&pmx_dip_sw0 &pmx_dip_sw1
+				     &pmx_dip_sw2 &pmx_dip_sw3
+				     &pmx_gpio_0 &pmx_gpio_1
+				     &pmx_gpio_2 &pmx_gpio_3
+				     &pmx_gpio_4 &pmx_gpio_5
+				     &pmx_gpio_6 &pmx_gpio_7>;
 			pinctrl-names = "default";
 
 			pmx_uart0: pmx-uart0 {
@@ -193,6 +197,8 @@
 
 	gpio-leds {
 		compatible = "gpio-leds";
+		pinctrl-0 = <&pmx_led_red &pmx_led_green &pmx_led_yellow>;
+		pinctrl-names = "default";
 
 		led-red {
 			label = "obsa6:red:stat";
