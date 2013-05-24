@@ -1966,6 +1966,39 @@ int auditsc_get_stamp(struct audit_context *ctx,
 /* global counter which is incremented every time something logs in */
 static atomic_t session_id = ATOMIC_INIT(0);
 
+static int audit_set_loginuid_perm(kuid_t loginuid)
+{
+#ifdef CONFIG_AUDIT_LOGINUID_IMMUTABLE
+	/* if we are unset, we don't need privs */
+	if (!audit_loginuid_set(current))
+		return 0;
+#else	/* CONFIG_AUDIT_LOGINUID_IMMUTABLE */
+	if (capable(CAP_AUDIT_CONTROL))
+		return 0;
+#endif /* CONFIG_AUDIT_LOGINUID_IMMUTABLE */
+	return -EPERM;
+}
+
+static void audit_log_set_loginuid(kuid_t koldloginuid, kuid_t kloginuid,
+				   unsigned int oldsessionid, unsigned int sessionid,
+				   int rc)
+{
+	struct audit_buffer *ab;
+	uid_t uid, ologinuid, nloginuid;
+
+	uid = from_kuid(&init_user_ns, task_uid(current));
+	ologinuid = from_kuid(&init_user_ns, koldloginuid);
+	nloginuid = from_kuid(&init_user_ns, kloginuid),
+
+	ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_LOGIN);
+	if (!ab)
+		return;
+	audit_log_format(ab, "pid=%d uid=%u old auid=%u new auid=%u old "
+			 "ses=%u new ses=%u res=%d", current->pid, uid, ologinuid,
+			 nloginuid, oldsessionid, sessionid, !rc);
+	audit_log_end(ab);
+}
+
 /**
  * audit_set_loginuid - set current task's audit_context loginuid
  * @loginuid: loginuid value
@@ -1977,37 +2010,24 @@ static atomic_t session_id = ATOMIC_INIT(0);
 int audit_set_loginuid(kuid_t loginuid)
 {
 	struct task_struct *task = current;
-	struct audit_context *context = task->audit_context;
-	unsigned int sessionid;
+	unsigned int sessionid = -1;
+	kuid_t oldloginuid, oldsessionid;
+	int rc;
 
-#ifdef CONFIG_AUDIT_LOGINUID_IMMUTABLE
-	if (audit_loginuid_set(task))
-		return -EPERM;
-#else /* CONFIG_AUDIT_LOGINUID_IMMUTABLE */
-	if (!capable(CAP_AUDIT_CONTROL))
-		return -EPERM;
-#endif  /* CONFIG_AUDIT_LOGINUID_IMMUTABLE */
+	oldloginuid = audit_get_loginuid(current);
+	oldsessionid = audit_get_sessionid(current);
+
+	rc = audit_set_loginuid_perm(loginuid);
+	if (rc)
+		goto out;
 
 	sessionid = atomic_inc_return(&session_id);
-	if (context && context->in_syscall) {
-		struct audit_buffer *ab;
 
-		ab = audit_log_start(NULL, GFP_KERNEL, AUDIT_LOGIN);
-		if (ab) {
-			audit_log_format(ab, "login pid=%d uid=%u "
-				"old auid=%u new auid=%u"
-				" old ses=%u new ses=%u",
-				task->pid,
-				from_kuid(&init_user_ns, task_uid(task)),
-				from_kuid(&init_user_ns, task->loginuid),
-				from_kuid(&init_user_ns, loginuid),
-				task->sessionid, sessionid);
-			audit_log_end(ab);
-		}
-	}
 	task->sessionid = sessionid;
 	task->loginuid = loginuid;
-	return 0;
+out:
+	audit_log_set_loginuid(oldloginuid, loginuid, oldsessionid, sessionid, rc);
+	return rc;
 }
 
 /**
