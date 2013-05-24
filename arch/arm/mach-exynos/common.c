@@ -10,12 +10,14 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/bitops.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/irqchip.h>
 #include <linux/io.h>
 #include <linux/device.h>
 #include <linux/gpio.h>
+#include <clocksource/samsung_pwm.h>
 #include <linux/sched.h>
 #include <linux/serial_core.h>
 #include <linux/of.h>
@@ -302,6 +304,13 @@ static struct map_desc exynos5440_iodesc0[] __initdata = {
 	},
 };
 
+static struct samsung_pwm_variant exynos4_pwm_variant = {
+	.bits		= 32,
+	.div_base	= 0,
+	.has_tint_cstat	= true,
+	.tclk_mask	= 0,
+};
+
 void exynos4_restart(char mode, const char *cmd)
 {
 	__raw_writel(0x1, S5P_SWRESET);
@@ -442,8 +451,20 @@ static void __init exynos5440_map_io(void)
 	iotable_init(exynos5440_iodesc0, ARRAY_SIZE(exynos5440_iodesc0));
 }
 
+void __init exynos_set_timer_source(u8 channels)
+{
+	exynos4_pwm_variant.output_mask = BIT(SAMSUNG_PWM_NUM) - 1;
+	exynos4_pwm_variant.output_mask &= ~channels;
+}
+
 void __init exynos_init_time(void)
 {
+	unsigned int timer_irqs[SAMSUNG_PWM_NUM] = {
+		EXYNOS4_IRQ_TIMER0_VIC, EXYNOS4_IRQ_TIMER1_VIC,
+		EXYNOS4_IRQ_TIMER2_VIC, EXYNOS4_IRQ_TIMER3_VIC,
+		EXYNOS4_IRQ_TIMER4_VIC,
+	};
+
 	if (of_have_populated_dt()) {
 #ifdef CONFIG_OF
 		of_clk_init(NULL);
@@ -455,7 +476,14 @@ void __init exynos_init_time(void)
 		exynos4_clk_init(NULL, !soc_is_exynos4210(), S5P_VA_CMU, readl(S5P_VA_CHIPID + 8) & 1);
 		exynos4_clk_register_fixed_ext(xxti_f, xusbxti_f);
 #endif
-		mct_init(S5P_VA_SYSTIMER, EXYNOS4_IRQ_MCT_G0, EXYNOS4_IRQ_MCT_L0, EXYNOS4_IRQ_MCT_L1);
+#ifdef CONFIG_CLKSRC_SAMSUNG_PWM
+		if (soc_is_exynos4210() && samsung_rev() == EXYNOS4210_REV_0)
+			samsung_pwm_clocksource_init(S3C_VA_TIMER,
+					timer_irqs, &exynos4_pwm_variant);
+		else
+#endif
+			mct_init(S5P_VA_SYSTIMER, EXYNOS4_IRQ_MCT_G0,
+					EXYNOS4_IRQ_MCT_L0, EXYNOS4_IRQ_MCT_L1);
 	}
 }
 
