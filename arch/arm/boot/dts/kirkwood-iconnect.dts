@@ -20,14 +20,6 @@
 
 	ocp@f1000000 {
 		pinctrl: pinctrl@10000 {
-
-			pinctrl-0 = < &pmx_button_reset &pmx_button_otb
-				      &pmx_led_level &pmx_led_power_blue
-				      &pmx_led_power_red &pmx_led_usb1
-				      &pmx_led_usb2 &pmx_led_usb3
-				      &pmx_led_usb4 &pmx_led_otb >;
-			pinctrl-names = "default";
-
 			pmx_button_reset: pmx-button-reset {
 				marvell,pins = "mpp12";
 				marvell,function = "gpio";
@@ -113,6 +105,11 @@
 
 	gpio-leds {
 		compatible = "gpio-leds";
+		pinctrl-0 = < &pmx_led_level &pmx_led_power_blue
+			      &pmx_led_power_red &pmx_led_usb1
+			      &pmx_led_usb2 &pmx_led_usb3
+			      &pmx_led_usb4 &pmx_led_otb >;
+		pinctrl-names = "default";
 
 		led-level {
 			label = "led_level";
@@ -154,6 +151,9 @@
 		compatible = "gpio-keys";
 		#address-cells = <1>;
 		#size-cells = <0>;
+		pinctrl-0 = < &pmx_button_reset &pmx_button_otb >;
+		pinctrl-names = "default";
+
 		button@1 {
 			label = "OTB Button";
 			linux,code = <133>;
