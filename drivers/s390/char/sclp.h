@@ -15,7 +15,7 @@
 
 /* maximum number of pages concerning our own memory management */
 #define MAX_KMEM_PAGES (sizeof(unsigned long) << 3)
-#define MAX_CONSOLE_PAGES	6
+#define SCLP_CONSOLE_PAGES	6
 
 #define EVTYP_OPCMD		0x01
 #define EVTYP_MSG		0x02
@@ -174,6 +174,10 @@ int sclp_service_call(sclp_cmdw_t command, void *sccb);
 
 int sclp_sdias_init(void);
 void sclp_sdias_exit(void);
+
+extern int sclp_console_pages;
+extern int sclp_console_drop;
+extern unsigned long sclp_console_full;
 
 /* useful inlines */
 
