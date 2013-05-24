@@ -1115,10 +1115,7 @@ static long do_splice_from(struct pipe_inode_info *pipe, struct file *out,
 	else
 		splice_write = default_file_splice_write;
 
-	file_start_write(out);
-	ret = splice_write(pipe, out, ppos, len, flags);
-	file_end_write(out);
-	return ret;
+	return splice_write(pipe, out, ppos, len, flags);
 }
 
 /*
@@ -1306,9 +1303,11 @@ long do_splice_direct(struct file *in, loff_t *ppos, struct file *out,
 	};
 	long ret;
 
+	file_start_write(out);
 	ret = splice_direct_to_actor(in, &sd, direct_splice_actor);
 	if (ret > 0)
 		*ppos = sd.pos;
+	file_end_write(out);
 
 	return ret;
 }
@@ -1361,7 +1360,9 @@ static long do_splice(struct file *in, loff_t __user *off_in,
 			offset = out->f_pos;
 		}
 
+		file_start_write(out);
 		ret = do_splice_from(ipipe, out, &offset, len, flags);
+		file_end_write(out);
 
 		if (!off_out)
 			out->f_pos = offset;
