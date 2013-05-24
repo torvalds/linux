@@ -628,6 +628,31 @@ struct omapdss_dvi_ops {
 			struct omap_video_timings *timings);
 };
 
+struct omapdss_atv_ops {
+	int (*connect)(struct omap_dss_device *dssdev,
+			struct omap_dss_device *dst);
+	void (*disconnect)(struct omap_dss_device *dssdev,
+			struct omap_dss_device *dst);
+
+	int (*enable)(struct omap_dss_device *dssdev);
+	void (*disable)(struct omap_dss_device *dssdev);
+
+	int (*check_timings)(struct omap_dss_device *dssdev,
+			struct omap_video_timings *timings);
+	void (*set_timings)(struct omap_dss_device *dssdev,
+			struct omap_video_timings *timings);
+	void (*get_timings)(struct omap_dss_device *dssdev,
+			struct omap_video_timings *timings);
+
+	void (*set_type)(struct omap_dss_device *dssdev,
+		enum omap_dss_venc_type type);
+	void (*invert_vid_out_polarity)(struct omap_dss_device *dssdev,
+		bool invert_polarity);
+
+	int (*set_wss)(struct omap_dss_device *dssdev, u32 wss);
+	u32 (*get_wss)(struct omap_dss_device *dssdev);
+};
+
 struct omap_dss_device {
 	/* old device, to be removed */
 	struct device old_dev;
@@ -697,6 +722,7 @@ struct omap_dss_device {
 		const struct omapdss_dpi_ops *dpi;
 		const struct omapdss_sdi_ops *sdi;
 		const struct omapdss_dvi_ops *dvi;
+		const struct omapdss_atv_ops *atv;
 	} ops;
 
 	/* helper variable for driver suspend/resume */
