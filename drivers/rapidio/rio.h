@@ -45,9 +45,11 @@ extern int rio_enable_rx_tx_port(struct rio_mport *port, int local, u16 destid,
 extern int rio_register_scan(int mport_id, struct rio_scan *scan_ops);
 extern int rio_unregister_scan(int mport_id);
 extern void rio_attach_device(struct rio_dev *rdev);
+extern struct rio_mport *rio_find_mport(int mport_id);
 
 /* Structures internal to the RIO core code */
 extern struct device_attribute rio_dev_attrs[];
+extern struct bus_attribute rio_bus_attrs[];
 
 extern struct rio_switch_ops __start_rio_switch_ops[];
 extern struct rio_switch_ops __end_rio_switch_ops[];
