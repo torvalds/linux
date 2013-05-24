@@ -466,7 +466,11 @@ static struct freq_attr *rk3188_cpufreq_attr[] = {
 	NULL,
 };
 
+#ifdef CONFIG_POWER_SUPPLY
 extern int rk_get_system_battery_capacity(void);
+#else
+static int rk_get_system_battery_capacity(void) { return 100; }
+#endif
 
 static unsigned int cpufreq_scale_limit(unsigned int target_freq, struct cpufreq_policy *policy, bool is_private)
 {
