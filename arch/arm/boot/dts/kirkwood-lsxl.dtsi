@@ -8,16 +8,6 @@
 
 	ocp@f1000000 {
 		pinctrl: pinctrl@10000 {
-
-			pinctrl-0 = < &pmx_power_hdd &pmx_usb_vbus
-				      &pmx_fan_low &pmx_fan_high
-				      &pmx_led_function_red &pmx_led_alarm
-				      &pmx_led_info &pmx_led_power
-				      &pmx_fan_lock &pmx_button_function
-				      &pmx_power_switch &pmx_power_auto_switch
-				      &pmx_led_function_blue >;
-			pinctrl-names = "default";
-
 			pmx_power_hdd: pmx-power-hdd {
 				marvell,pins = "mpp10";
 				marvell,function = "gpo";
@@ -112,6 +102,10 @@
 		compatible = "gpio-keys";
 		#address-cells = <1>;
 		#size-cells = <0>;
+		pinctrl-0 = <&pmx_button_function &pmx_power_switch
+			     &pmx_power_auto_switch>;
+		pinctrl-names = "default";
+
 		button@1 {
 			label = "Function Button";
 			linux,code = <357>;
@@ -133,6 +127,10 @@
 
 	gpio_leds {
 		compatible = "gpio-leds";
+		pinctrl-0 = <&pmx_led_function_red &pmx_led_alarm
+			     &pmx_led_info &pmx_led_power
+			     &pmx_led_function_blue>;
+		pinctrl-names = "default";
 
 		led@1 {
 			label = "lsxl:blue:func";
@@ -163,6 +161,8 @@
 
 	gpio_fan {
 		compatible = "gpio-fan";
+		pinctrl-0 = <&pmx_fan_low &pmx_fan_high &pmx_fan_lock>;
+		pinctrl-names = "default";
 		gpios = <&gpio0 19 1
 		         &gpio0 18 1>;
 		gpio-fan,speed-map = <0    3
@@ -176,6 +176,8 @@
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <0>;
+		pinctrl-0 = <&pmx_power_hdd &pmx_usb_vbus>;
+		pinctrl-names = "default";
 
 		usb_power: regulator@1 {
 			compatible = "regulator-fixed";
