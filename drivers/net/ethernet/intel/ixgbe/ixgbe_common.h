@@ -143,8 +143,12 @@ s32 ixgbe_init_thermal_sensor_thresh_generic(struct ixgbe_hw *hw);
 
 #define IXGBE_WRITE_FLUSH(a) IXGBE_READ_REG(a, IXGBE_STATUS)
 
+#define ixgbe_hw_to_netdev(hw) (((struct ixgbe_adapter *)(hw)->back)->netdev)
+
 #define hw_dbg(hw, format, arg...) \
-	netdev_dbg(((struct ixgbe_adapter *)(hw->back))->netdev, format, ##arg)
+	netdev_dbg(ixgbe_hw_to_netdev(hw), format, ## arg)
+#define hw_err(hw, format, arg...) \
+	netdev_err(ixgbe_hw_to_netdev(hw), format, ## arg)
 #define e_dev_info(format, arg...) \
 	dev_info(&adapter->pdev->dev, format, ## arg)
 #define e_dev_warn(format, arg...) \
