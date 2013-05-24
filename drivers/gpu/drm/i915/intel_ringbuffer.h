@@ -37,6 +37,10 @@ struct  intel_hw_status_page {
 #define I915_READ_SYNC_0(ring) I915_READ(RING_SYNC_0((ring)->mmio_base))
 #define I915_READ_SYNC_1(ring) I915_READ(RING_SYNC_1((ring)->mmio_base))
 
+struct intel_ring_hangcheck {
+	u32 seqno;
+};
+
 struct  intel_ring_buffer {
 	const char	*name;
 	enum intel_ring_id {
@@ -136,6 +140,8 @@ struct  intel_ring_buffer {
 	bool itlb_before_ctx_switch;
 	struct i915_hw_context *default_context;
 	struct i915_hw_context *last_context;
+
+	struct intel_ring_hangcheck hangcheck;
 
 	void *private;
 };

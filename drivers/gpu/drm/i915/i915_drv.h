@@ -843,8 +843,6 @@ struct i915_gpu_error {
 #define DRM_I915_HANGCHECK_JIFFIES msecs_to_jiffies(DRM_I915_HANGCHECK_PERIOD)
 	struct timer_list hangcheck_timer;
 	int hangcheck_count;
-	uint32_t last_acthd[I915_NUM_RINGS];
-	uint32_t prev_instdone[I915_NUM_INSTDONE_REG];
 
 	/* For reset and error_state handling. */
 	spinlock_t lock;
