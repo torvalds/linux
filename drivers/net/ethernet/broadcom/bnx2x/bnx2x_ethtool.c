@@ -1921,6 +1921,19 @@ static const char bnx2x_tests_str_arr[BNX2X_NUM_TESTS_SF][ETH_GSTRING_LEN] = {
 	"link_test (online)         "
 };
 
+enum {
+	BNX2X_PRI_FLAG_ISCSI,
+	BNX2X_PRI_FLAG_FCOE,
+	BNX2X_PRI_FLAG_STORAGE,
+	BNX2X_PRI_FLAG_LEN,
+};
+
+static const char bnx2x_private_arr[BNX2X_PRI_FLAG_LEN][ETH_GSTRING_LEN] = {
+	"iSCSI offload support",
+	"FCoE offload support",
+	"Storage only interface"
+};
+
 static u32 bnx2x_eee_to_adv(u32 eee_adv)
 {
 	u32 modes = 0;
@@ -2978,30 +2991,45 @@ static int bnx2x_num_stat_queues(struct bnx2x *bp)
 static int bnx2x_get_sset_count(struct net_device *dev, int stringset)
 {
 	struct bnx2x *bp = netdev_priv(dev);
-	int i, num_stats;
+	int i, num_strings = 0;
 
 	switch (stringset) {
 	case ETH_SS_STATS:
 		if (is_multi(bp)) {
-			num_stats = bnx2x_num_stat_queues(bp) *
-						BNX2X_NUM_Q_STATS;
+			num_strings = bnx2x_num_stat_queues(bp) *
+				      BNX2X_NUM_Q_STATS;
 		} else
-			num_stats = 0;
+			num_strings = 0;
 		if (IS_MF_MODE_STAT(bp)) {
 			for (i = 0; i < BNX2X_NUM_STATS; i++)
 				if (IS_FUNC_STAT(i))
-					num_stats++;
+					num_strings++;
 		} else
-			num_stats += BNX2X_NUM_STATS;
+			num_strings += BNX2X_NUM_STATS;
 
-		return num_stats;
+		return num_strings;
 
 	case ETH_SS_TEST:
 		return BNX2X_NUM_TESTS(bp);
 
+	case ETH_SS_PRIV_FLAGS:
+		return BNX2X_PRI_FLAG_LEN;
+
 	default:
 		return -EINVAL;
 	}
+}
+
+static u32 bnx2x_get_private_flags(struct net_device *dev)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+	u32 flags = 0;
+
+	flags |= (!(bp->flags & NO_ISCSI_FLAG) ? 1 : 0) << BNX2X_PRI_FLAG_ISCSI;
+	flags |= (!(bp->flags & NO_FCOE_FLAG)  ? 1 : 0) << BNX2X_PRI_FLAG_FCOE;
+	flags |= (!!IS_MF_STORAGE_ONLY(bp)) << BNX2X_PRI_FLAG_STORAGE;
+
+	return flags;
 }
 
 static void bnx2x_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
@@ -3045,6 +3073,12 @@ static void bnx2x_get_strings(struct net_device *dev, u32 stringset, u8 *buf)
 			start = 4;
 		memcpy(buf, bnx2x_tests_str_arr + start,
 		       ETH_GSTRING_LEN * BNX2X_NUM_TESTS(bp));
+		break;
+
+	case ETH_SS_PRIV_FLAGS:
+		memcpy(buf, bnx2x_private_arr,
+		       ETH_GSTRING_LEN * BNX2X_PRI_FLAG_LEN);
+		break;
 	}
 }
 
@@ -3110,11 +3144,6 @@ static int bnx2x_set_phys_id(struct net_device *dev,
 		DP(BNX2X_MSG_ETHTOOL | BNX2X_MSG_NVM,
 		   "cannot access eeprom when the interface is down\n");
 		return -EAGAIN;
-	}
-
-	if (!bp->port.pmf) {
-		DP(BNX2X_MSG_ETHTOOL, "Interface is not pmf\n");
-		return -EOPNOTSUPP;
 	}
 
 	switch (state) {
@@ -3445,6 +3474,7 @@ static const struct ethtool_ops bnx2x_ethtool_ops = {
 	.set_pauseparam		= bnx2x_set_pauseparam,
 	.self_test		= bnx2x_self_test,
 	.get_sset_count		= bnx2x_get_sset_count,
+	.get_priv_flags		= bnx2x_get_private_flags,
 	.get_strings		= bnx2x_get_strings,
 	.set_phys_id		= bnx2x_set_phys_id,
 	.get_ethtool_stats	= bnx2x_get_ethtool_stats,

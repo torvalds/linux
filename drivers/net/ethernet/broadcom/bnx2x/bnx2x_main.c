@@ -9780,6 +9780,21 @@ static bool bnx2x_prev_is_path_marked(struct bnx2x *bp)
 	return rc;
 }
 
+bool bnx2x_port_after_undi(struct bnx2x *bp)
+{
+	struct bnx2x_prev_path_list *entry;
+	bool val;
+
+	down(&bnx2x_prev_sem);
+
+	entry = bnx2x_prev_path_get_entry(bp);
+	val = !!(entry && (entry->undi & (1 << BP_PORT(bp))));
+
+	up(&bnx2x_prev_sem);
+
+	return val;
+}
+
 static int bnx2x_prev_mark_path(struct bnx2x *bp, bool after_undi)
 {
 	struct bnx2x_prev_path_list *tmp_list;
@@ -10036,7 +10051,6 @@ static int bnx2x_prev_unload(struct bnx2x *bp)
 {
 	int time_counter = 10;
 	u32 rc, fw, hw_lock_reg, hw_lock_val;
-	struct bnx2x_prev_path_list *prev_list;
 	BNX2X_DEV_INFO("Entering Previous Unload Flow\n");
 
 	/* clear hw from errors which may have resulted from an interrupted
@@ -10107,8 +10121,7 @@ static int bnx2x_prev_unload(struct bnx2x *bp)
 	}
 
 	/* Mark function if its port was used to boot from SAN */
-	prev_list = bnx2x_prev_path_get_entry(bp);
-	if (prev_list && (prev_list->undi & (1 << BP_PORT(bp))))
+	if (bnx2x_port_after_undi(bp))
 		bp->link_params.feature_config_flags |=
 			FEATURE_CONFIG_BOOT_FROM_SAN;
 
@@ -12747,19 +12760,6 @@ static int bnx2x_eeh_nic_unload(struct bnx2x *bp)
 	return 0;
 }
 
-static void bnx2x_eeh_recover(struct bnx2x *bp)
-{
-	u32 val;
-
-	mutex_init(&bp->port.phy_mutex);
-
-
-	val = SHMEM_RD(bp, validity_map[BP_PORT(bp)]);
-	if ((val & (SHR_MEM_VALIDITY_DEV_INFO | SHR_MEM_VALIDITY_MB))
-		!= (SHR_MEM_VALIDITY_DEV_INFO | SHR_MEM_VALIDITY_MB))
-		BNX2X_ERR("BAD MCP validity signature\n");
-}
-
 /**
  * bnx2x_io_error_detected - called when PCI error is detected
  * @pdev: Pointer to PCI device
@@ -12828,6 +12828,10 @@ static pci_ers_result_t bnx2x_io_slot_reset(struct pci_dev *pdev)
 
 	if (netif_running(dev)) {
 		BNX2X_ERR("IO slot reset --> driver unload\n");
+
+		/* MCP should have been reset; Need to wait for validity */
+		bnx2x_init_shmem(bp);
+
 		if (IS_PF(bp) && SHMEM2_HAS(bp, drv_capabilities_flag)) {
 			u32 v;
 
@@ -12885,8 +12889,6 @@ static void bnx2x_io_resume(struct pci_dev *pdev)
 	}
 
 	rtnl_lock();
-
-	bnx2x_eeh_recover(bp);
 
 	bp->fw_seq = SHMEM_RD(bp, func_mb[BP_FW_MB_IDX(bp)].drv_mb_header) &
 							DRV_MSG_SEQ_NUMBER_MASK;

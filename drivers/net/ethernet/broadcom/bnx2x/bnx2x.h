@@ -1937,6 +1937,8 @@ int bnx2x_sp_post(struct bnx2x *bp, int command, int cid,
 void bnx2x_update_coalesce(struct bnx2x *bp);
 int bnx2x_get_cur_phy_idx(struct bnx2x *bp);
 
+bool bnx2x_port_after_undi(struct bnx2x *bp);
+
 static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 			   int wait)
 {
@@ -2137,6 +2139,8 @@ void bnx2x_igu_clear_sb_gen(struct bnx2x *bp, u8 func, u8 idu_sb_id,
 #define ATTN_HARD_WIRED_MASK		0xff00
 #define ATTENTION_ID			4
 
+#define IS_MF_STORAGE_ONLY(bp) (IS_MF_STORAGE_SD(bp) || \
+				 IS_MF_FCOE_AFEX(bp))
 
 /* stuff added to make the code fit 80Col */
 
