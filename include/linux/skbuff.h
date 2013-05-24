@@ -2135,6 +2135,14 @@ static inline void nf_reset(struct sk_buff *skb)
 #endif
 }
 
+static inline void nf_reset_trace(struct sk_buff *skb)
+{
+#if defined(CONFIG_NETFILTER_XT_TARGET_TRACE) || \
+	defined(CONFIG_NETFILTER_XT_TARGET_TRACE_MODULE)
+	skb->nf_trace = 0;
+#endif
+}
+
 /* Note: This doesn't put any conntrack and bridge info in dst. */
 static inline void __nf_copy(struct sk_buff *dst, const struct sk_buff *src)
 {

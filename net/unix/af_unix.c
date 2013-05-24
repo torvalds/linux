@@ -1940,7 +1940,7 @@ static int unix_stream_recvmsg(struct kiocb *iocb, struct socket *sock,
 				skb_queue_head(&sk->sk_receive_queue, skb);
 				break;
 			}
-		} else {
+		} else if (test_bit(SOCK_PASSCRED, &sock->flags)) {
 			/* Copy credentials */
 			scm_set_cred(siocb->scm, UNIXCB(skb).pid, UNIXCB(skb).cred);
 			check_creds = 1;
