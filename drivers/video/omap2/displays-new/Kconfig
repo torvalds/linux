@@ -38,4 +38,10 @@ config DISPLAY_PANEL_DSI_CM
 	help
 	  Driver for generic DSI command mode panels.
 
+config DISPLAY_PANEL_SONY_ACX565AKM
+	tristate "ACX565AKM Panel"
+	depends on SPI && BACKLIGHT_CLASS_DEVICE
+	help
+	  This is the LCD panel used on Nokia N900
+
 endmenu

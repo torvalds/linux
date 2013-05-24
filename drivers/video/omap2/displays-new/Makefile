@@ -5,3 +5,4 @@ obj-$(CONFIG_DISPLAY_CONNECTOR_HDMI) += connector-hdmi.o
 obj-$(CONFIG_DISPLAY_CONNECTOR_ANALOG_TV) += connector-analog-tv.o
 obj-$(CONFIG_DISPLAY_PANEL_DPI) += panel-dpi.o
 obj-$(CONFIG_DISPLAY_PANEL_DSI_CM) += panel-dsi-cm.o
+obj-$(CONFIG_DISPLAY_PANEL_SONY_ACX565AKM) += panel-sony-acx565akm.o
