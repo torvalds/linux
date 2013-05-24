@@ -203,7 +203,7 @@ static int abx500_config_pull_updown(struct abx500_pinctrl *pct,
 		goto out;
 	}
 
-	pos = offset << 1;
+	pos = (offset - pullud->first_pin) << 1;
 
 	ret = abx500_mask_and_set_register_interruptible(pct->dev,
 			AB8500_MISC, AB8540_GPIO_PULL_UPDOWN_REG,
