@@ -528,12 +528,6 @@ struct ux500_msp {
 	int loopback_enable;
 	u32 backup_regs[MAX_MSP_BACKUP_REGS];
 	unsigned int f_bitclk;
-	/* Pin modes */
-	struct pinctrl *pinctrl_p;
-	struct pinctrl_state *pinctrl_def;
-	struct pinctrl_state *pinctrl_sleep;
-	/* Reference Count */
-	int pinctrl_rxtx_ref;
 };
 
 struct ux500_msp_dma_params {
