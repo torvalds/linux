@@ -731,7 +731,7 @@ extern void intel_ddi_init(struct drm_device *dev, enum port port);
 extern void intel_update_watermarks(struct drm_device *dev);
 extern void intel_update_sprite_watermarks(struct drm_device *dev, int pipe,
 					   uint32_t sprite_width,
-					   int pixel_size);
+					   int pixel_size, bool enable);
 
 extern unsigned long intel_gen4_compute_page_offset(int *x, int *y,
 						    unsigned int tiling_mode,
