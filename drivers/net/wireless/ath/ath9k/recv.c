@@ -868,10 +868,7 @@ static int ath9k_process_rate(struct ath_common *common,
 	if (rx_stats->rs_rate & 0x80) {
 		/* HT rate */
 		rxs->flag |= RX_FLAG_HT;
-		if (rx_stats->rs_flags & ATH9K_RX_2040)
-			rxs->flag |= RX_FLAG_40MHZ;
-		if (rx_stats->rs_flags & ATH9K_RX_GI)
-			rxs->flag |= RX_FLAG_SHORT_GI;
+		rxs->flag |= rx_stats->flag;
 		rxs->rate_idx = rx_stats->rs_rate & 0x7f;
 		return 0;
 	}

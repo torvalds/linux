@@ -547,6 +547,7 @@ int ath9k_hw_rxprocdesc(struct ath_hw *ah, struct ath_desc *ds,
 
 	rs->rs_status = 0;
 	rs->rs_flags = 0;
+	rs->flag = 0;
 
 	rs->rs_datalen = ads.ds_rxstatus1 & AR_DataLen;
 	rs->rs_tstamp = ads.AR_RcvTimestamp;
@@ -586,10 +587,12 @@ int ath9k_hw_rxprocdesc(struct ath_hw *ah, struct ath_desc *ds,
 	rs->rs_moreaggr =
 		(ads.ds_rxstatus8 & AR_RxMoreAggr) ? 1 : 0;
 	rs->rs_antenna = MS(ads.ds_rxstatus3, AR_RxAntenna);
-	rs->rs_flags =
-		(ads.ds_rxstatus3 & AR_GI) ? ATH9K_RX_GI : 0;
-	rs->rs_flags |=
-		(ads.ds_rxstatus3 & AR_2040) ? ATH9K_RX_2040 : 0;
+
+	/* directly mapped flags for ieee80211_rx_status */
+	rs->flag |=
+		(ads.ds_rxstatus3 & AR_GI) ? RX_FLAG_SHORT_GI : 0;
+	rs->flag |=
+		(ads.ds_rxstatus3 & AR_2040) ? RX_FLAG_40MHZ : 0;
 
 	if (ads.ds_rxstatus8 & AR_PreDelimCRCErr)
 		rs->rs_flags |= ATH9K_RX_DELIM_CRC_PRE;
