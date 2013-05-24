@@ -762,7 +762,6 @@
 			interrupts = <0 15 0x4>;
 
 			v-ape-supply = <&db8500_vape_reg>;
-			status = "disabled";
 		};
 
 		hash@a03c2000 {
@@ -770,7 +769,6 @@
 			reg = <0xa03c2000 0x1000>;
 
 			v-ape-supply = <&db8500_vape_reg>;
-			status = "disabled";
 		};
 	};
 };

@@ -356,13 +356,5 @@
 				};
 			};
 		};
-
-		cryp@a03cb000 {
-			status = "okay";
-		};
-
-		hash@a03c2000 {
-			status = "okay";
-		};
 	};
 };
