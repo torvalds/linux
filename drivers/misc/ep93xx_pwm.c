@@ -39,11 +39,6 @@ struct ep93xx_pwm {
 	u32		duty_percent;
 };
 
-static inline u16 ep93xx_pwm_read_tc(struct ep93xx_pwm *pwm)
-{
-	return readl(pwm->mmio_base + EP93XX_PWMx_TERM_COUNT);
-}
-
 static inline int ep93xx_pwm_is_enabled(struct ep93xx_pwm *pwm)
 {
 	return readl(pwm->mmio_base + EP93XX_PWMx_ENABLE) & 0x1;
@@ -91,7 +86,7 @@ static ssize_t ep93xx_pwm_get_freq(struct device *dev,
 
 	if (ep93xx_pwm_is_enabled(pwm)) {
 		unsigned long rate = clk_get_rate(pwm->clk);
-		u16 term = ep93xx_pwm_read_tc(pwm);
+		u16 term = readl(pwm->mmio_base + EP93XX_PWMx_TERM_COUNT);
 
 		return sprintf(buf, "%ld\n", rate / (term + 1));
 	} else {
@@ -122,7 +117,7 @@ static ssize_t ep93xx_pwm_set_freq(struct device *dev,
 		if (val < 1)
 			val = 1;
 
-		term = ep93xx_pwm_read_tc(pwm);
+		term = readl(pwm->mmio_base + EP93XX_PWMx_TERM_COUNT);
 		duty = ((val + 1) * pwm->duty_percent / 100) - 1;
 
 		/* If pwm is running, order is important */
@@ -165,7 +160,7 @@ static ssize_t ep93xx_pwm_set_duty_percent(struct device *dev,
 		return -EINVAL;
 
 	if (val > 0 && val < 100) {
-		u32 term = ep93xx_pwm_read_tc(pwm);
+		u32 term = readl(pwm->mmio_base + EP93XX_PWMx_TERM_COUNT);
 		u32 duty = ((term + 1) * val / 100) - 1;
 
 		writel(duty, pwm->mmio_base + EP93XX_PWMx_DUTY_CYCLE);
