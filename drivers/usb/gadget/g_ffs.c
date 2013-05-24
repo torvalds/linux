@@ -32,7 +32,7 @@
 #  include "f_subset.c"
 #  ifdef USB_ETH_RNDIS
 #    include "f_rndis.c"
-#    include "rndis.c"
+#    include "rndis.h"
 #  endif
 #  include "u_ether.h"
 

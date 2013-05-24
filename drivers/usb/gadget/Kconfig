@@ -502,6 +502,9 @@ config USB_U_SERIAL
 config USB_U_ETHER
 	tristate
 
+config USB_U_RNDIS
+	tristate
+
 config USB_F_SERIAL
 	tristate
 
@@ -599,6 +602,7 @@ config USB_ETH
 	depends on NET
 	select USB_LIBCOMPOSITE
 	select USB_U_ETHER
+	select USB_U_RNDIS
 	select CRC32
 	help
 	  This driver implements Ethernet style communication, in one of
@@ -724,6 +728,7 @@ config USB_FUNCTIONFS_RNDIS
 	bool "Include configuration with RNDIS (Ethernet)"
 	depends on USB_FUNCTIONFS && NET
 	select USB_U_ETHER
+	select USB_U_RNDIS
 	help
 	  Include a configuration with RNDIS function (Ethernet) and the Filesystem.
 
@@ -871,6 +876,7 @@ config USB_G_MULTI
 	select USB_LIBCOMPOSITE
 	select USB_U_SERIAL
 	select USB_U_ETHER
+	select USB_U_RNDIS
 	select USB_F_ACM
 	help
 	  The Multifunction Composite Gadget provides Ethernet (RNDIS
