@@ -39,61 +39,49 @@ struct ep93xx_pwm {
 	u32		duty_percent;
 };
 
-static inline void ep93xx_pwm_writel(struct ep93xx_pwm *pwm,
-		unsigned int val, unsigned int off)
-{
-	writel(val, pwm->mmio_base + off);
-}
-
-static inline unsigned int ep93xx_pwm_readl(struct ep93xx_pwm *pwm,
-		unsigned int off)
-{
-	return readl(pwm->mmio_base + off);
-}
-
 static inline void ep93xx_pwm_write_tc(struct ep93xx_pwm *pwm, u16 value)
 {
-	ep93xx_pwm_writel(pwm, value, EP93XX_PWMx_TERM_COUNT);
+	writel(value, pwm->mmio_base + EP93XX_PWMx_TERM_COUNT);
 }
 
 static inline u16 ep93xx_pwm_read_tc(struct ep93xx_pwm *pwm)
 {
-	return ep93xx_pwm_readl(pwm, EP93XX_PWMx_TERM_COUNT);
+	return readl(pwm->mmio_base + EP93XX_PWMx_TERM_COUNT);
 }
 
 static inline void ep93xx_pwm_write_dc(struct ep93xx_pwm *pwm, u16 value)
 {
-	ep93xx_pwm_writel(pwm, value, EP93XX_PWMx_DUTY_CYCLE);
+	writel(value, pwm->mmio_base + EP93XX_PWMx_DUTY_CYCLE);
 }
 
 static inline void ep93xx_pwm_enable(struct ep93xx_pwm *pwm)
 {
-	ep93xx_pwm_writel(pwm, 0x1, EP93XX_PWMx_ENABLE);
+	writel(0x1, pwm->mmio_base + EP93XX_PWMx_ENABLE);
 }
 
 static inline void ep93xx_pwm_disable(struct ep93xx_pwm *pwm)
 {
-	ep93xx_pwm_writel(pwm, 0x0, EP93XX_PWMx_ENABLE);
+	writel(0x0, pwm->mmio_base + EP93XX_PWMx_ENABLE);
 }
 
 static inline int ep93xx_pwm_is_enabled(struct ep93xx_pwm *pwm)
 {
-	return ep93xx_pwm_readl(pwm, EP93XX_PWMx_ENABLE) & 0x1;
+	return readl(pwm->mmio_base + EP93XX_PWMx_ENABLE) & 0x1;
 }
 
 static inline void ep93xx_pwm_invert(struct ep93xx_pwm *pwm)
 {
-	ep93xx_pwm_writel(pwm, 0x1, EP93XX_PWMx_INVERT);
+	writel(0x1, pwm->mmio_base + EP93XX_PWMx_INVERT);
 }
 
 static inline void ep93xx_pwm_normal(struct ep93xx_pwm *pwm)
 {
-	ep93xx_pwm_writel(pwm, 0x0, EP93XX_PWMx_INVERT);
+	writel(0x0, pwm->mmio_base + EP93XX_PWMx_INVERT);
 }
 
 static inline int ep93xx_pwm_is_inverted(struct ep93xx_pwm *pwm)
 {
-	return ep93xx_pwm_readl(pwm, EP93XX_PWMx_INVERT) & 0x1;
+	return readl(pwm->mmio_base + EP93XX_PWMx_INVERT) & 0x1;
 }
 
 /*
