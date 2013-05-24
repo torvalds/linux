@@ -183,7 +183,7 @@ tcp_early_retrans - INTEGER
 	for triggering fast retransmit when the amount of outstanding data is
 	small and when no previously unsent data can be transmitted (such
 	that limited transmit could be used). Also controls the use of
-	Tail loss probe (TLP) that converts RTOs occuring due to tail
+	Tail loss probe (TLP) that converts RTOs occurring due to tail
 	losses into fast recovery (draft-dukkipati-tcpm-tcp-loss-probe-01).
 	Possible values:
 		0 disables ER

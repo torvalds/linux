@@ -501,7 +501,7 @@ out:
 
 static short mif_flags;
 
-/* Get the inteface configuration from the kernel. */
+/* Get the interface configuration from the kernel. */
 static int if_getconfig(char *ifname)
 {
 	struct ifreq ifr;
