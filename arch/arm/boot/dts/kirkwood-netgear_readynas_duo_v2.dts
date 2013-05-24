@@ -18,18 +18,6 @@
 
 	ocp@f1000000 {
 		pinctrl: pinctrl@10000 {
-
-			pinctrl-0 = < &pmx_uart0
-				      &pmx_button_power
-				      &pmx_button_backup
-				      &pmx_button_reset
-				      &pmx_led_blue_power
-				      &pmx_led_blue_activity
-				      &pmx_led_blue_disk1
-				      &pmx_led_blue_disk2
-				      &pmx_led_blue_backup >;
-			pinctrl-names = "default";
-
 			pmx_button_power: pmx-button-power {
 				marvell,pins = "mpp47";
 				marvell,function = "gpio";
@@ -74,6 +62,8 @@
 		};
 
 		serial@12000 {
+			pinctrl-0 = <&pmx_uart0>;
+			pinctrl-names = "default";
 			status = "okay";
 		};
 
@@ -115,6 +105,10 @@
 
 	gpio-leds {
 		compatible = "gpio-leds";
+		pinctrl-0 = < &pmx_led_blue_power &pmx_led_blue_activity
+			      &pmx_led_blue_disk1 &pmx_led_blue_disk2
+			      &pmx_led_blue_backup >;
+		pinctrl-names = "default";
 
 		power_led {
 			label = "status:blue:power_led";
@@ -143,6 +137,10 @@
 		compatible = "gpio-keys";
 		#address-cells = <1>;
 		#size-cells = <0>;
+		pinctrl-0 = <&pmx_button_power &pmx_button_backup
+			     &pmx_button_reset>;
+		pinctrl-names = "default";
+
 		button@1 {
 			label = "Power Button";
 			linux,code = <116>;     /* KEY_POWER */
