@@ -3325,10 +3325,6 @@ static int ieee80211_probe_auth(struct ieee80211_sub_if_data *sdata)
 	if (WARN_ON_ONCE(!auth_data))
 		return -EINVAL;
 
-	if (local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS)
-		tx_flags = IEEE80211_TX_CTL_REQ_TX_STATUS |
-			   IEEE80211_TX_INTFL_MLME_CONN_TX;
-
 	auth_data->tries++;
 
 	if (auth_data->tries > IEEE80211_AUTH_MAX_TRIES) {
@@ -3362,6 +3358,10 @@ static int ieee80211_probe_auth(struct ieee80211_sub_if_data *sdata)
 			auth_data->expected_transaction = trans;
 		}
 
+		if (local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS)
+			tx_flags = IEEE80211_TX_CTL_REQ_TX_STATUS |
+				   IEEE80211_TX_INTFL_MLME_CONN_TX;
+
 		ieee80211_send_auth(sdata, trans, auth_data->algorithm, status,
 				    auth_data->data, auth_data->data_len,
 				    auth_data->bss->bssid,
@@ -3385,12 +3385,12 @@ static int ieee80211_probe_auth(struct ieee80211_sub_if_data *sdata)
 		 * will not answer to direct packet in unassociated state.
 		 */
 		ieee80211_send_probe_req(sdata, NULL, ssidie + 2, ssidie[1],
-					 NULL, 0, (u32) -1, true, tx_flags,
+					 NULL, 0, (u32) -1, true, 0,
 					 auth_data->bss->channel, false);
 		rcu_read_unlock();
 	}
 
-	if (!(local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS)) {
+	if (tx_flags == 0) {
 		auth_data->timeout = jiffies + IEEE80211_AUTH_TIMEOUT;
 		ifmgd->auth_data->timeout_started = true;
 		run_again(ifmgd, auth_data->timeout);
@@ -3642,6 +3642,31 @@ static void ieee80211_restart_sta_timer(struct ieee80211_sub_if_data *sdata)
 		ieee80211_queue_work(&sdata->local->hw, &sdata->work);
 	}
 }
+
+#ifdef CONFIG_PM
+void ieee80211_sta_restart(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+
+	mutex_lock(&ifmgd->mtx);
+	if (!ifmgd->associated) {
+		mutex_unlock(&ifmgd->mtx);
+		return;
+	}
+
+	if (sdata->flags & IEEE80211_SDATA_DISCONNECT_RESUME) {
+		sdata->flags &= ~IEEE80211_SDATA_DISCONNECT_RESUME;
+		mlme_dbg(sdata, "driver requested disconnect after resume\n");
+		ieee80211_sta_connection_lost(sdata,
+					      ifmgd->associated->bssid,
+					      WLAN_REASON_UNSPECIFIED,
+					      true);
+		mutex_unlock(&ifmgd->mtx);
+		return;
+	}
+	mutex_unlock(&ifmgd->mtx);
+}
+#endif
 
 /* interface setup */
 void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata)
@@ -4349,7 +4374,7 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	u8 frame_buf[IEEE80211_DEAUTH_FRAME_LEN];
 	bool tx = !req->local_state_change;
-	bool sent_frame = false;
+	bool report_frame = false;
 
 	mutex_lock(&ifmgd->mtx);
 
@@ -4366,7 +4391,7 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 		ieee80211_destroy_auth_data(sdata, false);
 		mutex_unlock(&ifmgd->mtx);
 
-		sent_frame = tx;
+		report_frame = true;
 		goto out;
 	}
 
@@ -4374,12 +4399,12 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 	    ether_addr_equal(ifmgd->associated->bssid, req->bssid)) {
 		ieee80211_set_disassoc(sdata, IEEE80211_STYPE_DEAUTH,
 				       req->reason_code, tx, frame_buf);
-		sent_frame = tx;
+		report_frame = true;
 	}
 	mutex_unlock(&ifmgd->mtx);
 
  out:
-	if (sent_frame)
+	if (report_frame)
 		__cfg80211_send_deauth(sdata->dev, frame_buf,
 				       IEEE80211_DEAUTH_FRAME_LEN);
 

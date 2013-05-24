@@ -639,17 +639,21 @@ int wiphy_register(struct wiphy *wiphy)
 	 * cfg80211_mutex lock
 	 */
 	res = rfkill_register(rdev->rfkill);
-	if (res)
-		goto out_rm_dev;
+	if (res) {
+		device_del(&rdev->wiphy.dev);
+
+		mutex_lock(&cfg80211_mutex);
+		debugfs_remove_recursive(rdev->wiphy.debugfsdir);
+		list_del_rcu(&rdev->list);
+		wiphy_regulatory_deregister(wiphy);
+		mutex_unlock(&cfg80211_mutex);
+		return res;
+	}
 
 	rtnl_lock();
 	rdev->wiphy.registered = true;
 	rtnl_unlock();
 	return 0;
-
-out_rm_dev:
-	device_del(&rdev->wiphy.dev);
-	return res;
 }
 EXPORT_SYMBOL(wiphy_register);
 
@@ -867,7 +871,6 @@ void cfg80211_leave(struct cfg80211_registered_device *rdev,
 #endif
 		__cfg80211_disconnect(rdev, dev,
 				      WLAN_REASON_DEAUTH_LEAVING, true);
-		cfg80211_mlme_down(rdev, dev);
 		wdev_unlock(wdev);
 		break;
 	case NL80211_IFTYPE_MESH_POINT:

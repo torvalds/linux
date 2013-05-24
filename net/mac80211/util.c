@@ -1714,6 +1714,13 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	mb();
 	local->resuming = false;
 
+	list_for_each_entry(sdata, &local->interfaces, list) {
+		if (!ieee80211_sdata_running(sdata))
+			continue;
+		if (sdata->vif.type == NL80211_IFTYPE_STATION)
+			ieee80211_sta_restart(sdata);
+	}
+
 	mod_timer(&local->sta_cleanup, jiffies + 1);
 #else
 	WARN_ON(1);
