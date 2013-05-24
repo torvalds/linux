@@ -39,11 +39,6 @@ struct ep93xx_pwm {
 	u32		duty_percent;
 };
 
-static inline int ep93xx_pwm_is_inverted(struct ep93xx_pwm *pwm)
-{
-	return readl(pwm->mmio_base + EP93XX_PWMx_INVERT) & 0x1;
-}
-
 /*
  * /sys/devices/platform/ep93xx-pwm.N
  *   /min_freq      read-only   minimum pwm output frequency
@@ -171,8 +166,9 @@ static ssize_t ep93xx_pwm_get_invert(struct device *dev,
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct ep93xx_pwm *pwm = platform_get_drvdata(pdev);
+	int inverted = readl(pwm->mmio_base + EP93XX_PWMx_INVERT) & 0x1;
 
-	return sprintf(buf, "%d\n", ep93xx_pwm_is_inverted(pwm));
+	return sprintf(buf, "%d\n", inverted);
 }
 
 static ssize_t ep93xx_pwm_set_invert(struct device *dev,
