@@ -649,7 +649,6 @@ int ux500_msp_i2s_init_msp(struct platform_device *pdev,
 			struct msp_i2s_platform_data *platform_data)
 {
 	struct resource *res = NULL;
-	struct i2s_controller *i2s_cont;
 	struct device_node *np = pdev->dev.of_node;
 	struct ux500_msp *msp;
 
@@ -694,22 +693,6 @@ int ux500_msp_i2s_init_msp(struct platform_device *pdev,
 	msp->msp_state = MSP_STATE_IDLE;
 	msp->loopback_enable = 0;
 
-	/* I2S-controller is allocated and added in I2S controller class. */
-	i2s_cont = devm_kzalloc(&pdev->dev, sizeof(*i2s_cont), GFP_KERNEL);
-	if (!i2s_cont) {
-		dev_err(&pdev->dev,
-			"%s: ERROR: Failed to allocate I2S-controller!\n",
-			__func__);
-		return -ENOMEM;
-	}
-	i2s_cont->dev.parent = &pdev->dev;
-	i2s_cont->data = (void *)msp;
-	i2s_cont->id = (s16)msp->id;
-	snprintf(i2s_cont->name, sizeof(i2s_cont->name), "ux500-msp-i2s.%04x",
-		msp->id);
-	dev_dbg(&pdev->dev, "I2S device-name: '%s'\n", i2s_cont->name);
-	msp->i2s_cont = i2s_cont;
-
 	return 0;
 }
 
@@ -717,8 +700,6 @@ void ux500_msp_i2s_cleanup_msp(struct platform_device *pdev,
 			struct ux500_msp *msp)
 {
 	dev_dbg(msp->dev, "%s: Enter (id = %d).\n", __func__, msp->id);
-
-	device_unregister(&msp->i2s_cont->dev);
 }
 
 MODULE_LICENSE("GPL v2");

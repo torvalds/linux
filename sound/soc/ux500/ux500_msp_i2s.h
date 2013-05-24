@@ -469,17 +469,6 @@ struct i2s_message {
 	size_t period_len;
 };
 
-struct i2s_controller {
-	struct module *owner;
-	unsigned int id;
-	unsigned int class;
-	const struct i2s_algorithm *algo; /* the algorithm to access the bus */
-	void *data;
-	struct mutex bus_lock;
-	struct device dev; /* the controller device */
-	char name[48];
-};
-
 struct ux500_msp_config {
 	unsigned int f_inputclk;
 	unsigned int rx_clk_sel;
@@ -515,7 +504,6 @@ struct ux500_msp {
 	enum enum_i2s_controller id;
 	void __iomem *registers;
 	struct device *dev;
-	struct i2s_controller *i2s_cont;
 	struct stedma40_chan_cfg *dma_cfg_rx;
 	struct stedma40_chan_cfg *dma_cfg_tx;
 	struct dma_chan *tx_pipeid;
