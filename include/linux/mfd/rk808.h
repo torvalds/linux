@@ -15,9 +15,7 @@
 
 #include <linux/regulator/machine.h>
 #include <linux/wakelock.h>
-#ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
-#endif
 
 //#define RK808_START 30
 
