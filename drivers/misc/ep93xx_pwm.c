@@ -92,7 +92,7 @@ static ssize_t ep93xx_pwm_set_freq(struct device *dev,
 	long val;
 	int err;
 
-	err = strict_strtol(buf, 10, &val);
+	err = kstrtol(buf, 10, &val);
 	if (err)
 		return -EINVAL;
 
@@ -145,7 +145,7 @@ static ssize_t ep93xx_pwm_set_duty_percent(struct device *dev,
 	long val;
 	int err;
 
-	err = strict_strtol(buf, 10, &val);
+	err = kstrtol(buf, 10, &val);
 	if (err)
 		return -EINVAL;
 
@@ -179,7 +179,7 @@ static ssize_t ep93xx_pwm_set_invert(struct device *dev,
 	long val;
 	int err;
 
-	err = strict_strtol(buf, 10, &val);
+	err = kstrtol(buf, 10, &val);
 	if (err)
 		return -EINVAL;
 
