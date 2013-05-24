@@ -24,6 +24,7 @@
 
 #include "ux500_pcm.h"
 #include "ux500_msp_dai.h"
+#include "mop500_ab8500.h"
 #include "../codecs/ab8500-codec.h"
 
 #define TX_SLOT_MONO	0x0008
