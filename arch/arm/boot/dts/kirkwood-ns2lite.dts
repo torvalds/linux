@@ -13,6 +13,8 @@
 
 	ocp@f1000000 {
 		sata@80000 {
+			pinctrl-0 = <&pmx_ns2_sata0>;
+			pinctrl-names = "default";
 			status = "okay";
 			nr-ports = <1>;
 		};
