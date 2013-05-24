@@ -5612,70 +5612,62 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 
 	switch (sk->sk_state) {
 	case TCP_SYN_RECV:
-		if (acceptable) {
-			/* Once we leave TCP_SYN_RECV, we no longer
-			 * need req so release it.
-			 */
-			if (req) {
-				tcp_synack_rtt_meas(sk, req);
-				tp->total_retrans = req->num_retrans;
-
-				reqsk_fastopen_remove(sk, req, false);
-			} else {
-				/* Make sure socket is routed, for
-				 * correct metrics.
-				 */
-				icsk->icsk_af_ops->rebuild_header(sk);
-				tcp_init_congestion_control(sk);
-
-				tcp_mtup_init(sk);
-				tcp_init_buffer_space(sk);
-				tp->copied_seq = tp->rcv_nxt;
-			}
-			smp_mb();
-			tcp_set_state(sk, TCP_ESTABLISHED);
-			sk->sk_state_change(sk);
-
-			/* Note, that this wakeup is only for marginal
-			 * crossed SYN case. Passively open sockets
-			 * are not waked up, because sk->sk_sleep ==
-			 * NULL and sk->sk_socket == NULL.
-			 */
-			if (sk->sk_socket)
-				sk_wake_async(sk, SOCK_WAKE_IO, POLL_OUT);
-
-			tp->snd_una = TCP_SKB_CB(skb)->ack_seq;
-			tp->snd_wnd = ntohs(th->window) <<
-					tp->rx_opt.snd_wscale;
-			tcp_init_wl(tp, TCP_SKB_CB(skb)->seq);
-
-			if (tp->rx_opt.tstamp_ok)
-				tp->advmss -= TCPOLEN_TSTAMP_ALIGNED;
-
-			if (req) {
-				/* Re-arm the timer because data may
-				 * have been sent out. This is similar
-				 * to the regular data transmission case
-				 * when new data has just been ack'ed.
-				 *
-				 * (TFO) - we could try to be more aggressive
-				 * and retransmitting any data sooner based
-				 * on when they are sent out.
-				 */
-				tcp_rearm_rto(sk);
-			} else
-				tcp_init_metrics(sk);
-
-			/* Prevent spurious tcp_cwnd_restart() on
-			 * first data packet.
-			 */
-			tp->lsndtime = tcp_time_stamp;
-
-			tcp_initialize_rcv_mss(sk);
-			tcp_fast_path_on(tp);
-		} else {
+		if (!acceptable)
 			return 1;
+
+		/* Once we leave TCP_SYN_RECV, we no longer need req
+		 * so release it.
+		 */
+		if (req) {
+			tcp_synack_rtt_meas(sk, req);
+			tp->total_retrans = req->num_retrans;
+
+			reqsk_fastopen_remove(sk, req, false);
+		} else {
+			/* Make sure socket is routed, for correct metrics. */
+			icsk->icsk_af_ops->rebuild_header(sk);
+			tcp_init_congestion_control(sk);
+
+			tcp_mtup_init(sk);
+			tcp_init_buffer_space(sk);
+			tp->copied_seq = tp->rcv_nxt;
 		}
+		smp_mb();
+		tcp_set_state(sk, TCP_ESTABLISHED);
+		sk->sk_state_change(sk);
+
+		/* Note, that this wakeup is only for marginal crossed SYN case.
+		 * Passively open sockets are not waked up, because
+		 * sk->sk_sleep == NULL and sk->sk_socket == NULL.
+		 */
+		if (sk->sk_socket)
+			sk_wake_async(sk, SOCK_WAKE_IO, POLL_OUT);
+
+		tp->snd_una = TCP_SKB_CB(skb)->ack_seq;
+		tp->snd_wnd = ntohs(th->window) << tp->rx_opt.snd_wscale;
+		tcp_init_wl(tp, TCP_SKB_CB(skb)->seq);
+
+		if (tp->rx_opt.tstamp_ok)
+			tp->advmss -= TCPOLEN_TSTAMP_ALIGNED;
+
+		if (req) {
+			/* Re-arm the timer because data may have been sent out.
+			 * This is similar to the regular data transmission case
+			 * when new data has just been ack'ed.
+			 *
+			 * (TFO) - we could try to be more aggressive and
+			 * retransmitting any data sooner based on when they
+			 * are sent out.
+			 */
+			tcp_rearm_rto(sk);
+		} else
+			tcp_init_metrics(sk);
+
+		/* Prevent spurious tcp_cwnd_restart() on first data packet */
+		tp->lsndtime = tcp_time_stamp;
+
+		tcp_initialize_rcv_mss(sk);
+		tcp_fast_path_on(tp);
 		break;
 
 	case TCP_FIN_WAIT1:
