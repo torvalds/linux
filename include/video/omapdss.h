@@ -611,6 +611,23 @@ struct omapdss_sdi_ops {
 	void (*set_datapairs)(struct omap_dss_device *dssdev, int datapairs);
 };
 
+struct omapdss_dvi_ops {
+	int (*connect)(struct omap_dss_device *dssdev,
+			struct omap_dss_device *dst);
+	void (*disconnect)(struct omap_dss_device *dssdev,
+			struct omap_dss_device *dst);
+
+	int (*enable)(struct omap_dss_device *dssdev);
+	void (*disable)(struct omap_dss_device *dssdev);
+
+	int (*check_timings)(struct omap_dss_device *dssdev,
+			struct omap_video_timings *timings);
+	void (*set_timings)(struct omap_dss_device *dssdev,
+			struct omap_video_timings *timings);
+	void (*get_timings)(struct omap_dss_device *dssdev,
+			struct omap_video_timings *timings);
+};
+
 struct omap_dss_device {
 	/* old device, to be removed */
 	struct device old_dev;
@@ -679,6 +696,7 @@ struct omap_dss_device {
 	union {
 		const struct omapdss_dpi_ops *dpi;
 		const struct omapdss_sdi_ops *sdi;
+		const struct omapdss_dvi_ops *dvi;
 	} ops;
 
 	/* helper variable for driver suspend/resume */
