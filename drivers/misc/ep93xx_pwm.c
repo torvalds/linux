@@ -273,49 +273,32 @@ static int __init ep93xx_pwm_probe(struct platform_device *pdev)
 {
 	struct ep93xx_pwm *pwm;
 	struct resource *res;
-	int err;
+	int ret;
 
-	err = ep93xx_pwm_acquire_gpio(pdev);
-	if (err)
-		return err;
+	pwm = devm_kzalloc(&pdev->dev, sizeof(*pwm), GFP_KERNEL);
+	if (!pwm)
+		return -ENOMEM;
 
-	pwm = kzalloc(sizeof(struct ep93xx_pwm), GFP_KERNEL);
-	if (!pwm) {
-		err = -ENOMEM;
-		goto fail_no_mem;
-	}
+	pwm->clk = devm_clk_get(&pdev->dev, "pwm_clk");
+	if (IS_ERR(pwm->clk))
+		return PTR_ERR(pwm->clk);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL) {
-		err = -ENXIO;
-		goto fail_no_mem_resource;
-	}
+	pwm->mmio_base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(pwm->mmio_base))
+		return PTR_ERR(pwm->mmio_base);
 
-	res = request_mem_region(res->start, resource_size(res), pdev->name);
-	if (res == NULL) {
-		err = -EBUSY;
-		goto fail_no_mem_resource;
-	}
+	ret = ep93xx_pwm_acquire_gpio(pdev);
+	if (ret)
+		return ret;
 
-	pwm->mmio_base = ioremap(res->start, resource_size(res));
-	if (pwm->mmio_base == NULL) {
-		err = -ENXIO;
-		goto fail_no_ioremap;
-	}
-
-	err = sysfs_create_group(&pdev->dev.kobj, &ep93xx_pwm_sysfs_files);
-	if (err)
-		goto fail_no_sysfs;
-
-	pwm->clk = clk_get(&pdev->dev, "pwm_clk");
-	if (IS_ERR(pwm->clk)) {
-		err = PTR_ERR(pwm->clk);
-		goto fail_no_clk;
+	ret = sysfs_create_group(&pdev->dev.kobj, &ep93xx_pwm_sysfs_files);
+	if (ret) {
+		ep93xx_pwm_release_gpio(pdev);
+		return ret;
 	}
 
 	pwm->duty_percent = 50;
-
-	platform_set_drvdata(pdev, pwm);
 
 	/* disable pwm at startup. Avoids zero value. */
 	ep93xx_pwm_disable(pwm);
@@ -324,33 +307,17 @@ static int __init ep93xx_pwm_probe(struct platform_device *pdev)
 
 	clk_enable(pwm->clk);
 
+	platform_set_drvdata(pdev, pwm);
 	return 0;
-
-fail_no_clk:
-	sysfs_remove_group(&pdev->dev.kobj, &ep93xx_pwm_sysfs_files);
-fail_no_sysfs:
-	iounmap(pwm->mmio_base);
-fail_no_ioremap:
-	release_mem_region(res->start, resource_size(res));
-fail_no_mem_resource:
-	kfree(pwm);
-fail_no_mem:
-	ep93xx_pwm_release_gpio(pdev);
-	return err;
 }
 
 static int __exit ep93xx_pwm_remove(struct platform_device *pdev)
 {
 	struct ep93xx_pwm *pwm = platform_get_drvdata(pdev);
-	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 
 	ep93xx_pwm_disable(pwm);
 	clk_disable(pwm->clk);
-	clk_put(pwm->clk);
 	sysfs_remove_group(&pdev->dev.kobj, &ep93xx_pwm_sysfs_files);
-	iounmap(pwm->mmio_base);
-	release_mem_region(res->start, resource_size(res));
-	kfree(pwm);
 	ep93xx_pwm_release_gpio(pdev);
 
 	return 0;
