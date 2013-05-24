@@ -302,13 +302,16 @@ static void regmap_unlock_mutex(void *__map)
 static void regmap_lock_spinlock(void *__map)
 {
 	struct regmap *map = __map;
-	spin_lock(&map->spinlock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&map->spinlock, flags);
+	map->spinlock_flags = flags;
 }
 
 static void regmap_unlock_spinlock(void *__map)
 {
 	struct regmap *map = __map;
-	spin_unlock(&map->spinlock);
+	spin_unlock_irqrestore(&map->spinlock, map->spinlock_flags);
 }
 
 static void dev_get_regmap_release(struct device *dev, void *res)
