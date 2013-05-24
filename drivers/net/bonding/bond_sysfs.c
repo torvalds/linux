@@ -383,20 +383,12 @@ static ssize_t bonding_store_xmit_hash(struct device *d,
 	int new_value, ret = count;
 	struct bonding *bond = to_bond(d);
 
-	if (bond->dev->flags & IFF_UP) {
-		pr_err("%s: Interface is up. Unable to update xmit policy.\n",
-		       bond->dev->name);
-		ret = -EPERM;
-		goto out;
-	}
-
 	new_value = bond_parse_parm(buf, xmit_hashtype_tbl);
 	if (new_value < 0)  {
 		pr_err("%s: Ignoring invalid xmit hash policy value %.*s.\n",
 		       bond->dev->name,
 		       (int)strlen(buf) - 1, buf);
 		ret = -EINVAL;
-		goto out;
 	} else {
 		bond->params.xmit_policy = new_value;
 		bond_set_mode_ops(bond, bond->params.mode);
@@ -404,7 +396,7 @@ static ssize_t bonding_store_xmit_hash(struct device *d,
 			bond->dev->name,
 			xmit_hashtype_tbl[new_value].modename, new_value);
 	}
-out:
+
 	return ret;
 }
 static DEVICE_ATTR(xmit_hash_policy, S_IRUGO | S_IWUSR,
