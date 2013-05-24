@@ -1563,9 +1563,9 @@ static int dwc2_hcd_hub_control(struct dwc2_hsotg *hsotg, u16 typereq,
 		break;
 
 	case GetPortStatus:
-		dev_dbg(hsotg->dev,
-			"GetPortStatus wIndex=0x%04x flags=0x%08x\n", windex,
-			hsotg->flags.d32);
+		dev_vdbg(hsotg->dev,
+			 "GetPortStatus wIndex=0x%04x flags=0x%08x\n", windex,
+			 hsotg->flags.d32);
 		if (!windex || windex > 1)
 			goto error;
 
@@ -1598,7 +1598,7 @@ static int dwc2_hcd_hub_control(struct dwc2_hsotg *hsotg, u16 typereq,
 		}
 
 		hprt0 = readl(hsotg->regs + HPRT0);
-		dev_dbg(hsotg->dev, "  HPRT0: 0x%08x\n", hprt0);
+		dev_vdbg(hsotg->dev, "  HPRT0: 0x%08x\n", hprt0);
 
 		if (hprt0 & HPRT0_CONNSTS)
 			port_status |= USB_PORT_STAT_CONNECTION;
@@ -1623,7 +1623,7 @@ static int dwc2_hcd_hub_control(struct dwc2_hsotg *hsotg, u16 typereq,
 			port_status |= USB_PORT_STAT_TEST;
 		/* USB_PORT_FEAT_INDICATOR unsupported always 0 */
 
-		dev_dbg(hsotg->dev, "port_status=%08x\n", port_status);
+		dev_vdbg(hsotg->dev, "port_status=%08x\n", port_status);
 		*(__le32 *)buf = cpu_to_le32(port_status);
 		break;
 
