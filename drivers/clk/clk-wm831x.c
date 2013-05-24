@@ -384,7 +384,7 @@ static int wm831x_clk_probe(struct platform_device *pdev)
 	if (IS_ERR(clkdata->clkout))
 		return PTR_ERR(clkdata->clkout);
 
-	dev_set_drvdata(&pdev->dev, clkdata);
+	platform_set_drvdata(pdev, clkdata);
 
 	return 0;
 }
