@@ -27,6 +27,8 @@
 #ifndef __OMAP_PANEL_DATA_H
 #define __OMAP_PANEL_DATA_H
 
+#include <video/display_timing.h>
+
 struct omap_dss_device;
 
 /**
@@ -211,6 +213,27 @@ struct connector_atv_platform_data {
 
 	enum omap_dss_venc_type connector_type;
 	bool invert_polarity;
+};
+
+/**
+ * panel_dpi platform data
+ * @name: name for this display entity
+ * @source: name of the display entity used as a video source
+ * @data_lines: number of DPI datalines
+ * @display_timing: timings for this panel
+ * @backlight_gpio: gpio to enable/disable the backlight (or -1)
+ * @enable_gpio: gpio to enable/disable the panel (or -1)
+ */
+struct panel_dpi_platform_data {
+	const char *name;
+	const char *source;
+
+	int data_lines;
+
+	const struct display_timing *display_timing;
+
+	int backlight_gpio;
+	int enable_gpio;
 };
 
 #endif /* __OMAP_PANEL_DATA_H */

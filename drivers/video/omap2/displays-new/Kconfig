@@ -28,4 +28,9 @@ config DISPLAY_CONNECTOR_ANALOG_TV
 	help
 	  Driver for a generic analog TV connector.
 
+config DISPLAY_PANEL_DPI
+	tristate "Generic DPI panel"
+	help
+	  Driver for generic DPI panels.
+
 endmenu
