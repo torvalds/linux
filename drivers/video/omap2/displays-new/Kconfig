@@ -23,4 +23,9 @@ config DISPLAY_CONNECTOR_HDMI
 	help
 	  Driver for a generic HDMI connector.
 
+config DISPLAY_CONNECTOR_ANALOG_TV
+        tristate "Analog TV Connector"
+	help
+	  Driver for a generic analog TV connector.
+
 endmenu

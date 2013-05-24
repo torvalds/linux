@@ -198,4 +198,19 @@ struct connector_hdmi_platform_data {
 	const char *source;
 };
 
+/**
+ * connector_atv platform data
+ * @name: name for this display entity
+ * @source: name of the display entity used as a video source
+ * @connector_type: composite/svideo
+ * @invert_polarity: invert signal polarity
+ */
+struct connector_atv_platform_data {
+	const char *name;
+	const char *source;
+
+	enum omap_dss_venc_type connector_type;
+	bool invert_polarity;
+};
+
 #endif /* __OMAP_PANEL_DATA_H */
