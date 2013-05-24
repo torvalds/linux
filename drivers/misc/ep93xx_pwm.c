@@ -42,13 +42,13 @@ struct ep93xx_pwm {
 static inline void ep93xx_pwm_writel(struct ep93xx_pwm *pwm,
 		unsigned int val, unsigned int off)
 {
-	__raw_writel(val, pwm->mmio_base + off);
+	writel(val, pwm->mmio_base + off);
 }
 
 static inline unsigned int ep93xx_pwm_readl(struct ep93xx_pwm *pwm,
 		unsigned int off)
 {
-	return __raw_readl(pwm->mmio_base + off);
+	return readl(pwm->mmio_base + off);
 }
 
 static inline void ep93xx_pwm_write_tc(struct ep93xx_pwm *pwm, u16 value)
