@@ -5536,6 +5536,7 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct request_sock *req;
 	int queued = 0;
+	bool acceptable;
 
 	tp->rx_opt.saw_tstamp = 0;
 
@@ -5606,157 +5607,153 @@ int tcp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		return 0;
 
 	/* step 5: check the ACK field */
-	if (true) {
-		int acceptable = tcp_ack(sk, skb, FLAG_SLOWPATH |
-						  FLAG_UPDATE_TS_RECENT) > 0;
+	acceptable = tcp_ack(sk, skb, FLAG_SLOWPATH |
+				      FLAG_UPDATE_TS_RECENT) > 0;
 
-		switch (sk->sk_state) {
-		case TCP_SYN_RECV:
-			if (acceptable) {
-				/* Once we leave TCP_SYN_RECV, we no longer
-				 * need req so release it.
-				 */
-				if (req) {
-					tcp_synack_rtt_meas(sk, req);
-					tp->total_retrans = req->num_retrans;
-
-					reqsk_fastopen_remove(sk, req, false);
-				} else {
-					/* Make sure socket is routed, for
-					 * correct metrics.
-					 */
-					icsk->icsk_af_ops->rebuild_header(sk);
-					tcp_init_congestion_control(sk);
-
-					tcp_mtup_init(sk);
-					tcp_init_buffer_space(sk);
-					tp->copied_seq = tp->rcv_nxt;
-				}
-				smp_mb();
-				tcp_set_state(sk, TCP_ESTABLISHED);
-				sk->sk_state_change(sk);
-
-				/* Note, that this wakeup is only for marginal
-				 * crossed SYN case. Passively open sockets
-				 * are not waked up, because sk->sk_sleep ==
-				 * NULL and sk->sk_socket == NULL.
-				 */
-				if (sk->sk_socket)
-					sk_wake_async(sk,
-						      SOCK_WAKE_IO, POLL_OUT);
-
-				tp->snd_una = TCP_SKB_CB(skb)->ack_seq;
-				tp->snd_wnd = ntohs(th->window) <<
-					      tp->rx_opt.snd_wscale;
-				tcp_init_wl(tp, TCP_SKB_CB(skb)->seq);
-
-				if (tp->rx_opt.tstamp_ok)
-					tp->advmss -= TCPOLEN_TSTAMP_ALIGNED;
-
-				if (req) {
-					/* Re-arm the timer because data may
-					 * have been sent out. This is similar
-					 * to the regular data transmission case
-					 * when new data has just been ack'ed.
-					 *
-					 * (TFO) - we could try to be more
-					 * aggressive and retranmitting any data
-					 * sooner based on when they were sent
-					 * out.
-					 */
-					tcp_rearm_rto(sk);
-				} else
-					tcp_init_metrics(sk);
-
-				/* Prevent spurious tcp_cwnd_restart() on
-				 * first data packet.
-				 */
-				tp->lsndtime = tcp_time_stamp;
-
-				tcp_initialize_rcv_mss(sk);
-				tcp_fast_path_on(tp);
-			} else {
-				return 1;
-			}
-			break;
-
-		case TCP_FIN_WAIT1:
-			/* If we enter the TCP_FIN_WAIT1 state and we are a
-			 * Fast Open socket and this is the first acceptable
-			 * ACK we have received, this would have acknowledged
-			 * our SYNACK so stop the SYNACK timer.
+	switch (sk->sk_state) {
+	case TCP_SYN_RECV:
+		if (acceptable) {
+			/* Once we leave TCP_SYN_RECV, we no longer
+			 * need req so release it.
 			 */
-			if (req != NULL) {
-				/* Return RST if ack_seq is invalid.
-				 * Note that RFC793 only says to generate a
-				 * DUPACK for it but for TCP Fast Open it seems
-				 * better to treat this case like TCP_SYN_RECV
-				 * above.
-				 */
-				if (!acceptable)
-					return 1;
-				/* We no longer need the request sock. */
+			if (req) {
+				tcp_synack_rtt_meas(sk, req);
+				tp->total_retrans = req->num_retrans;
+
 				reqsk_fastopen_remove(sk, req, false);
-				tcp_rearm_rto(sk);
+			} else {
+				/* Make sure socket is routed, for
+				 * correct metrics.
+				 */
+				icsk->icsk_af_ops->rebuild_header(sk);
+				tcp_init_congestion_control(sk);
+
+				tcp_mtup_init(sk);
+				tcp_init_buffer_space(sk);
+				tp->copied_seq = tp->rcv_nxt;
 			}
-			if (tp->snd_una == tp->write_seq) {
-				struct dst_entry *dst;
+			smp_mb();
+			tcp_set_state(sk, TCP_ESTABLISHED);
+			sk->sk_state_change(sk);
 
-				tcp_set_state(sk, TCP_FIN_WAIT2);
-				sk->sk_shutdown |= SEND_SHUTDOWN;
+			/* Note, that this wakeup is only for marginal
+			 * crossed SYN case. Passively open sockets
+			 * are not waked up, because sk->sk_sleep ==
+			 * NULL and sk->sk_socket == NULL.
+			 */
+			if (sk->sk_socket)
+				sk_wake_async(sk, SOCK_WAKE_IO, POLL_OUT);
 
-				dst = __sk_dst_get(sk);
-				if (dst)
-					dst_confirm(dst);
+			tp->snd_una = TCP_SKB_CB(skb)->ack_seq;
+			tp->snd_wnd = ntohs(th->window) <<
+					tp->rx_opt.snd_wscale;
+			tcp_init_wl(tp, TCP_SKB_CB(skb)->seq);
 
-				if (!sock_flag(sk, SOCK_DEAD))
-					/* Wake up lingering close() */
-					sk->sk_state_change(sk);
-				else {
-					int tmo;
+			if (tp->rx_opt.tstamp_ok)
+				tp->advmss -= TCPOLEN_TSTAMP_ALIGNED;
 
-					if (tp->linger2 < 0 ||
-					    (TCP_SKB_CB(skb)->end_seq != TCP_SKB_CB(skb)->seq &&
-					     after(TCP_SKB_CB(skb)->end_seq - th->fin, tp->rcv_nxt))) {
-						tcp_done(sk);
-						NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPABORTONDATA);
-						return 1;
-					}
+			if (req) {
+				/* Re-arm the timer because data may
+				 * have been sent out. This is similar
+				 * to the regular data transmission case
+				 * when new data has just been ack'ed.
+				 *
+				 * (TFO) - we could try to be more aggressive
+				 * and retransmitting any data sooner based
+				 * on when they are sent out.
+				 */
+				tcp_rearm_rto(sk);
+			} else
+				tcp_init_metrics(sk);
 
-					tmo = tcp_fin_time(sk);
-					if (tmo > TCP_TIMEWAIT_LEN) {
-						inet_csk_reset_keepalive_timer(sk, tmo - TCP_TIMEWAIT_LEN);
-					} else if (th->fin || sock_owned_by_user(sk)) {
-						/* Bad case. We could lose such FIN otherwise.
-						 * It is not a big problem, but it looks confusing
-						 * and not so rare event. We still can lose it now,
-						 * if it spins in bh_lock_sock(), but it is really
-						 * marginal case.
-						 */
-						inet_csk_reset_keepalive_timer(sk, tmo);
-					} else {
-						tcp_time_wait(sk, TCP_FIN_WAIT2, tmo);
-						goto discard;
-					}
+			/* Prevent spurious tcp_cwnd_restart() on
+			 * first data packet.
+			 */
+			tp->lsndtime = tcp_time_stamp;
+
+			tcp_initialize_rcv_mss(sk);
+			tcp_fast_path_on(tp);
+		} else {
+			return 1;
+		}
+		break;
+
+	case TCP_FIN_WAIT1:
+		/* If we enter the TCP_FIN_WAIT1 state and we are a
+		 * Fast Open socket and this is the first acceptable
+		 * ACK we have received, this would have acknowledged
+		 * our SYNACK so stop the SYNACK timer.
+		 */
+		if (req != NULL) {
+			/* Return RST if ack_seq is invalid.
+			 * Note that RFC793 only says to generate a
+			 * DUPACK for it but for TCP Fast Open it seems
+			 * better to treat this case like TCP_SYN_RECV
+			 * above.
+			 */
+			if (!acceptable)
+				return 1;
+			/* We no longer need the request sock. */
+			reqsk_fastopen_remove(sk, req, false);
+			tcp_rearm_rto(sk);
+		}
+		if (tp->snd_una == tp->write_seq) {
+			struct dst_entry *dst;
+
+			tcp_set_state(sk, TCP_FIN_WAIT2);
+			sk->sk_shutdown |= SEND_SHUTDOWN;
+
+			dst = __sk_dst_get(sk);
+			if (dst)
+				dst_confirm(dst);
+
+			if (!sock_flag(sk, SOCK_DEAD)) {
+				/* Wake up lingering close() */
+				sk->sk_state_change(sk);
+			} else {
+				int tmo;
+
+				if (tp->linger2 < 0 ||
+				    (TCP_SKB_CB(skb)->end_seq != TCP_SKB_CB(skb)->seq &&
+				     after(TCP_SKB_CB(skb)->end_seq - th->fin, tp->rcv_nxt))) {
+					tcp_done(sk);
+					NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPABORTONDATA);
+					return 1;
+				}
+
+				tmo = tcp_fin_time(sk);
+				if (tmo > TCP_TIMEWAIT_LEN) {
+					inet_csk_reset_keepalive_timer(sk, tmo - TCP_TIMEWAIT_LEN);
+				} else if (th->fin || sock_owned_by_user(sk)) {
+					/* Bad case. We could lose such FIN otherwise.
+					 * It is not a big problem, but it looks confusing
+					 * and not so rare event. We still can lose it now,
+					 * if it spins in bh_lock_sock(), but it is really
+					 * marginal case.
+					 */
+					inet_csk_reset_keepalive_timer(sk, tmo);
+				} else {
+					tcp_time_wait(sk, TCP_FIN_WAIT2, tmo);
+					goto discard;
 				}
 			}
-			break;
-
-		case TCP_CLOSING:
-			if (tp->snd_una == tp->write_seq) {
-				tcp_time_wait(sk, TCP_TIME_WAIT, 0);
-				goto discard;
-			}
-			break;
-
-		case TCP_LAST_ACK:
-			if (tp->snd_una == tp->write_seq) {
-				tcp_update_metrics(sk);
-				tcp_done(sk);
-				goto discard;
-			}
-			break;
 		}
+		break;
+
+	case TCP_CLOSING:
+		if (tp->snd_una == tp->write_seq) {
+			tcp_time_wait(sk, TCP_TIME_WAIT, 0);
+			goto discard;
+		}
+		break;
+
+	case TCP_LAST_ACK:
+		if (tp->snd_una == tp->write_seq) {
+			tcp_update_metrics(sk);
+			tcp_done(sk);
+			goto discard;
+		}
+		break;
 	}
 
 	/* step 6: check the URG bit */
