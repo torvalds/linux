@@ -573,6 +573,25 @@ struct omap_dss_writeback_info {
 	u8 pre_mult_alpha;
 };
 
+struct omapdss_dpi_ops {
+	int (*connect)(struct omap_dss_device *dssdev,
+			struct omap_dss_device *dst);
+	void (*disconnect)(struct omap_dss_device *dssdev,
+			struct omap_dss_device *dst);
+
+	int (*enable)(struct omap_dss_device *dssdev);
+	void (*disable)(struct omap_dss_device *dssdev);
+
+	int (*check_timings)(struct omap_dss_device *dssdev,
+			struct omap_video_timings *timings);
+	void (*set_timings)(struct omap_dss_device *dssdev,
+			struct omap_video_timings *timings);
+	void (*get_timings)(struct omap_dss_device *dssdev,
+			struct omap_video_timings *timings);
+
+	void (*set_data_lines)(struct omap_dss_device *dssdev, int data_lines);
+};
+
 struct omap_dss_device {
 	/* old device, to be removed */
 	struct device old_dev;
@@ -637,6 +656,10 @@ struct omap_dss_device {
 	void *data;
 
 	struct omap_dss_driver *driver;
+
+	union {
+		const struct omapdss_dpi_ops *dpi;
+	} ops;
 
 	/* helper variable for driver suspend/resume */
 	bool activate_after_resume;
