@@ -18,16 +18,6 @@
 
 	ocp@f1000000 {
 		pinctrl: pinctrl@10000 {
-
-			pinctrl-0 = < &pmx_nand &pmx_uart0
-				      &pmx_led_health
-				      &pmx_sata0 &pmx_sata1
-				      &pmx_led_user1o
-				      &pmx_led_user1g &pmx_led_user0o
-				      &pmx_led_user0g &pmx_led_misc
-				    >;
-			pinctrl-names = "default";
-
 			pmx_led_health: pmx-led-health {
 				marvell,pins = "mpp7";
 				marvell,function = "gpo";
@@ -91,9 +81,13 @@
 
                 serial@12000 {
                         status = "ok";
+                        pinctrl-0 = <&pmx_uart0>;
+                        pinctrl-names = "default";
                 };
 
                 nand@3000000 {
+                        pinctrl-0 = <&pmx_nand>;
+                        pinctrl-names = "default";
                         status = "okay";
 
                         partition@0 {
@@ -127,9 +121,10 @@
 		};
 
 		sata@80000 {
+			pinctrl-0 = <&pmx_sata0 &pmx_sata1>;
+			pinctrl-names = "default";
 			nr-ports = <2>;
 			status = "okay";
-
 		};
 
 		mvsdio@90000 {
@@ -143,6 +138,12 @@
 
 	gpio-leds {
 		compatible = "gpio-leds";
+		pinctrl-0 = < &pmx_led_health
+			      &pmx_led_user1o
+			      &pmx_led_user1g &pmx_led_user0o
+			      &pmx_led_user0g &pmx_led_misc
+			    >;
+		pinctrl-names = "default";
 
 		health {
 			label = "status:green:health";
