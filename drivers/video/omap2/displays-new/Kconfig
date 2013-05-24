@@ -12,4 +12,10 @@ config DISPLAY_ENCODER_TPD12S015
 	  Driver for TPD12S015, which offers HDMI ESD protection and level
 	  shifting.
 
+config DISPLAY_CONNECTOR_DVI
+        tristate "DVI Connector"
+	depends on I2C
+	help
+	  Driver for a generic DVI connector.
+
 endmenu
