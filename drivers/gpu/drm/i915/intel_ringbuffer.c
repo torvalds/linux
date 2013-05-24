@@ -1502,6 +1502,7 @@ void intel_ring_init_seqno(struct intel_ring_buffer *ring, u32 seqno)
 	}
 
 	ring->set_seqno(ring, seqno);
+	ring->hangcheck.seqno = seqno;
 }
 
 void intel_ring_advance(struct intel_ring_buffer *ring)

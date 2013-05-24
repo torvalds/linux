@@ -2384,22 +2384,19 @@ void i915_hangcheck_elapsed(unsigned long data)
 {
 	struct drm_device *dev = (struct drm_device *)data;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	uint32_t acthd[I915_NUM_RINGS], instdone[I915_NUM_INSTDONE_REG];
 	struct intel_ring_buffer *ring;
 	bool err = false, idle;
 	int i;
+	u32 seqno[I915_NUM_RINGS];
+	bool work_done;
 
 	if (!i915_enable_hangcheck)
 		return;
 
-	memset(acthd, 0, sizeof(acthd));
 	idle = true;
 	for_each_ring(ring, dev_priv, i) {
-		u32 seqno;
-
-		seqno = ring->get_seqno(ring, false);
-		idle &= i915_hangcheck_ring_idle(ring, seqno, &err);
-	    acthd[i] = intel_ring_get_active_head(ring);
+		seqno[i] = ring->get_seqno(ring, false);
+		idle &= i915_hangcheck_ring_idle(ring, seqno[i], &err);
 	}
 
 	/* If all work is done then ACTHD clearly hasn't advanced. */
@@ -2415,20 +2412,19 @@ void i915_hangcheck_elapsed(unsigned long data)
 		return;
 	}
 
-	i915_get_extra_instdone(dev, instdone);
-	if (memcmp(dev_priv->gpu_error.last_acthd, acthd,
-		   sizeof(acthd)) == 0 &&
-	    memcmp(dev_priv->gpu_error.prev_instdone, instdone,
-		   sizeof(instdone)) == 0) {
+	work_done = false;
+	for_each_ring(ring, dev_priv, i) {
+		if (ring->hangcheck.seqno != seqno[i]) {
+			work_done = true;
+			ring->hangcheck.seqno = seqno[i];
+		}
+	}
+
+	if (!work_done) {
 		if (i915_hangcheck_hung(dev))
 			return;
 	} else {
 		dev_priv->gpu_error.hangcheck_count = 0;
-
-		memcpy(dev_priv->gpu_error.last_acthd, acthd,
-		       sizeof(acthd));
-		memcpy(dev_priv->gpu_error.prev_instdone, instdone,
-		       sizeof(instdone));
 	}
 
 repeat:
