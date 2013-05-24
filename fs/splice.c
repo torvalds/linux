@@ -1303,11 +1303,9 @@ long do_splice_direct(struct file *in, loff_t *ppos, struct file *out,
 	};
 	long ret;
 
-	file_start_write(out);
 	ret = splice_direct_to_actor(in, &sd, direct_splice_actor);
 	if (ret > 0)
 		*ppos = sd.pos;
-	file_end_write(out);
 
 	return ret;
 }
