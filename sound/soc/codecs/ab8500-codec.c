@@ -2380,6 +2380,11 @@ static int ab8500_codec_set_dai_tdm_slot(struct snd_soc_dai *dai,
 	return 0;
 }
 
+static const struct snd_soc_dai_ops ab8500_codec_ops = {
+	.set_fmt = ab8500_codec_set_dai_fmt,
+	.set_tdm_slot = ab8500_codec_set_dai_tdm_slot,
+};
+
 static struct snd_soc_dai_driver ab8500_codec_dai[] = {
 	{
 		.name = "ab8500-codec-dai.0",
@@ -2391,12 +2396,7 @@ static struct snd_soc_dai_driver ab8500_codec_dai[] = {
 			.rates = AB8500_SUPPORTED_RATE,
 			.formats = AB8500_SUPPORTED_FMT,
 		},
-		.ops = (struct snd_soc_dai_ops[]) {
-			{
-				.set_tdm_slot = ab8500_codec_set_dai_tdm_slot,
-				.set_fmt = ab8500_codec_set_dai_fmt,
-			}
-		},
+		.ops = &ab8500_codec_ops,
 		.symmetric_rates = 1
 	},
 	{
@@ -2409,12 +2409,7 @@ static struct snd_soc_dai_driver ab8500_codec_dai[] = {
 			.rates = AB8500_SUPPORTED_RATE,
 			.formats = AB8500_SUPPORTED_FMT,
 		},
-		.ops = (struct snd_soc_dai_ops[]) {
-			{
-				.set_tdm_slot = ab8500_codec_set_dai_tdm_slot,
-				.set_fmt = ab8500_codec_set_dai_fmt,
-			}
-		},
+		.ops = &ab8500_codec_ops,
 		.symmetric_rates = 1
 	}
 };
