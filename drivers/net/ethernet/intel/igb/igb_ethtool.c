@@ -2672,7 +2672,9 @@ static int igb_set_eee(struct net_device *netdev,
 		igb_set_eee_i350(hw);
 
 		/* reset link */
-		if (!netif_running(netdev))
+		if (netif_running(netdev))
+			igb_reinit_locked(adapter);
+		else
 			igb_reset(adapter);
 	}
 
