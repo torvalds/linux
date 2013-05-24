@@ -28,12 +28,12 @@
 #include <sound/soc.h>
 
 #include <mach/clock.h>
+#include <plat/system.h>
 #include <plat/sys_config.h>
 
 #include <mach/hardware.h>
 #include <asm/dma.h>
 #include <plat/dma.h>
-#include <asm/mach-types.h>
 
 #include "sun4i-i2sdma.h"
 #include "sun4i-i2s.h"
@@ -78,7 +78,7 @@ void sun4i_snd_txctrl_i2s(struct snd_pcm_substream *substream, int on)
 
 	reg_val = readl(sun4i_iis.regs + SUN4I_TXCHMAP);
 	reg_val = 0;
-	if (machine_is_sun4i()) {
+	if (sunxi_is_sun4i()) {
 		if(substream->runtime->channels == 1) {
 			reg_val = 0x76543200;
 		} else {
@@ -94,7 +94,7 @@ void sun4i_snd_txctrl_i2s(struct snd_pcm_substream *substream, int on)
 	writel(reg_val, sun4i_iis.regs + SUN4I_TXCHMAP);
 
 	reg_val = readl(sun4i_iis.regs + SUN4I_IISCTL);
-	if (machine_is_sun4i()) {
+	if (sunxi_is_sun4i()) {
 		reg_val &= ~SUN4I_IISCTL_SDO3EN;
 		reg_val &= ~SUN4I_IISCTL_SDO2EN;
 		reg_val &= ~SUN4I_IISCTL_SDO1EN;
@@ -230,7 +230,7 @@ static int sun4i_i2s_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 
 	//SDO ON
 	reg_val = readl(sun4i_iis.regs + SUN4I_IISCTL);
-	if (machine_is_sun4i()) {
+	if (sunxi_is_sun4i()) {
 		reg_val |= (SUN4I_IISCTL_SDO0EN | SUN4I_IISCTL_SDO1EN |
 			    SUN4I_IISCTL_SDO2EN | SUN4I_IISCTL_SDO3EN);
 	} else {

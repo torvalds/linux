@@ -19,14 +19,14 @@
  ******************************************************************************/
 #define _HCI_INTF_C_
 
-#include <asm/mach-types.h>
-
 #include <drv_conf.h>
 #include <osdep_service.h>
 #include <drv_types.h>
 #include <recv_osdep.h>
 #include <xmit_osdep.h>
 #include <rtw_version.h>
+
+#include <plat/system.h>
 
 #ifndef CONFIG_SDIO_HCI
 #error "CONFIG_SDIO_HCI shall be on!\n"
@@ -49,7 +49,7 @@
 
 #ifdef CONFIG_PLATFORM_ARM_SUN4I
 #if defined(CONFIG_MMC_SUNXI_POWER_CONTROL)
-#define SDIOID (machine_is_sun4i() ? 3 : 1)
+#define SDIOID (sunxi_is_sun4i() ? 3 : 1)
 #define SUNXI_SDIO_WIFI_NUM_RTL8189ES  10
 extern void sunximmc_rescan_card(unsigned id, unsigned insert);
 extern int mmc_pm_get_mod_type(void);
