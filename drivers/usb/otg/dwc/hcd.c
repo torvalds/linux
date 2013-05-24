@@ -2106,7 +2106,8 @@ static void dwc_otg_hc_start_transfer(struct dwc_hcd *hcd,
 		u32 hcsplt;
 
 		hcsplt = dwc_reg_read(hc_regs, DWC_HCSPLT);
-		hcsplt = DWC_HCSPLT_COMP_SPLT_RW(hcsplt, 1);
+		hcsplt = DWC_HCSPLT_COMP_SPLT_RW(hcsplt, hc->complete_split);
+		hcsplt = DWC_HCSPLT_ENA_RW(hcsplt, 1);
 		dwc_reg_write(hc_regs, DWC_HCSPLT, hcsplt);
 	}
 
