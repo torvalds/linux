@@ -1061,6 +1061,7 @@ static int cifs_parse_security_flavors(char *value,
 #endif
 	case Opt_sec_none:
 		vol->nullauth = 1;
+		vol->secFlg |= CIFSSEC_MAY_NTLM;
 		break;
 	default:
 		cifs_dbg(VFS, "bad security option: %s\n", value);
