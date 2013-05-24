@@ -49,6 +49,7 @@ struct gpio_rcar_priv {
 #define POSNEG 0x20
 #define EDGLEVEL 0x24
 #define FILONOFF 0x28
+#define BOTHEDGE 0x4c
 
 static inline u32 gpio_rcar_read(struct gpio_rcar_priv *p, int offs)
 {
@@ -91,7 +92,8 @@ static void gpio_rcar_irq_enable(struct irq_data *d)
 static void gpio_rcar_config_interrupt_input_mode(struct gpio_rcar_priv *p,
 						  unsigned int hwirq,
 						  bool active_high_rising_edge,
-						  bool level_trigger)
+						  bool level_trigger,
+						  bool both)
 {
 	unsigned long flags;
 
@@ -107,6 +109,10 @@ static void gpio_rcar_config_interrupt_input_mode(struct gpio_rcar_priv *p,
 
 	/* Configure edge or level trigger in EDGLEVEL */
 	gpio_rcar_modify_bit(p, EDGLEVEL, hwirq, !level_trigger);
+
+	/* Select one edge or both edges in BOTHEDGE */
+	if (p->config.has_both_edge_trigger)
+		gpio_rcar_modify_bit(p, BOTHEDGE, hwirq, both);
 
 	/* Select "Interrupt Input Mode" in IOINTSEL */
 	gpio_rcar_modify_bit(p, IOINTSEL, hwirq, true);
@@ -127,16 +133,26 @@ static int gpio_rcar_irq_set_type(struct irq_data *d, unsigned int type)
 
 	switch (type & IRQ_TYPE_SENSE_MASK) {
 	case IRQ_TYPE_LEVEL_HIGH:
-		gpio_rcar_config_interrupt_input_mode(p, hwirq, true, true);
+		gpio_rcar_config_interrupt_input_mode(p, hwirq, true, true,
+						      false);
 		break;
 	case IRQ_TYPE_LEVEL_LOW:
-		gpio_rcar_config_interrupt_input_mode(p, hwirq, false, true);
+		gpio_rcar_config_interrupt_input_mode(p, hwirq, false, true,
+						      false);
 		break;
 	case IRQ_TYPE_EDGE_RISING:
-		gpio_rcar_config_interrupt_input_mode(p, hwirq, true, false);
+		gpio_rcar_config_interrupt_input_mode(p, hwirq, true, false,
+						      false);
 		break;
 	case IRQ_TYPE_EDGE_FALLING:
-		gpio_rcar_config_interrupt_input_mode(p, hwirq, false, false);
+		gpio_rcar_config_interrupt_input_mode(p, hwirq, false, false,
+						      false);
+		break;
+	case IRQ_TYPE_EDGE_BOTH:
+		if (!p->config.has_both_edge_trigger)
+			return -EINVAL;
+		gpio_rcar_config_interrupt_input_mode(p, hwirq, true, false,
+						      true);
 		break;
 	default:
 		return -EINVAL;
