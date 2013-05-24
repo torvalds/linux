@@ -9,7 +9,7 @@ DEFINE_SPINLOCK(imx_ccm_lock);
 
 static struct clk * __init imx_obtain_fixed_clock_from_dt(const char *name)
 {
-	struct of_phandle_args phandle = {0};
+	struct of_phandle_args phandle;
 	struct clk *clk = ERR_PTR(-ENODEV);
 	char *path;
 
