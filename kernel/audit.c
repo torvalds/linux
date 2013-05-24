@@ -144,7 +144,8 @@ static struct audit_features af = {.vers = AUDIT_FEATURE_VERSION,
 				   .features = 0,
 				   .lock = 0,};
 
-static char *audit_feature_names[0] = {
+static char *audit_feature_names[1] = {
+	"only_unset_loginuid",
 };
 
 
