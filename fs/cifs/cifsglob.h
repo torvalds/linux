@@ -109,12 +109,6 @@ enum securityEnum {
 	Kerberos,		/* Kerberos via SPNEGO */
 };
 
-enum protocolEnum {
-	TCP = 0,
-	SCTP
-	/* Netbios frames protocol not supported at this time */
-};
-
 struct session_key {
 	unsigned int len;
 	char *response;
