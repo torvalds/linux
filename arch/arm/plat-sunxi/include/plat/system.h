@@ -104,18 +104,40 @@ enum sw_ic_ver {
 
 enum sw_ic_ver sw_get_ic_ver(void) __pure;
 
+#define _sunxi_is(M)		((sw_get_ic_ver()&M) == M)
+
+#if defined(CONFIG_SUNXI_MULTIPLATFORM)
 /* sunxi_is_sunNi() could also be implemented ORing the ic_ver */
 #define sunxi_is_sun4i()	(sunxi_chip_id() == SUNXI_MACH_SUN4I)
 #define sunxi_is_sun5i()	(sunxi_chip_id() == SUNXI_MACH_SUN5I)
 #define sunxi_is_sun6i()	(sunxi_chip_id() == SUNXI_MACH_SUN6I)
-
-#define _sunxi_is(M)		((sw_get_ic_ver()&M) == M)
-
 #define sunxi_is_a10()		_sunxi_is(SUNXI_SOC_A10)
 #define sunxi_is_a13()		_sunxi_is(SUNXI_SOC_A13)
 #define sunxi_is_a12()		_sunxi_is(SUNXI_SOC_A12)
 #define sunxi_is_a10s()		_sunxi_is(SUNXI_SOC_A10S)
 #define sunxi_is_a31()		_sunxi_is(SUNXI_SOC_A31)
+
+#elif defined(CONFIG_ARCH_SUN4I)
+#define sunxi_is_sun4i()	(sunxi_chip_id() == SUNXI_MACH_SUN4I)
+#define sunxi_is_sun5i()	(0)
+#define sunxi_is_sun6i()	(0)
+#define sunxi_is_a10()		_sunxi_is(SUNXI_SOC_A10)
+#define sunxi_is_a13()		(0)
+#define sunxi_is_a12()		(0)
+#define sunxi_is_a10s()		(0)
+#define sunxi_is_a31()		(0)
+
+#elif defined(CONFIG_ARCH_SUN5I)
+#define sunxi_is_sun4i()	(0)
+#define sunxi_is_sun5i()	(sunxi_chip_id() == SUNXI_MACH_SUN5I)
+#define sunxi_is_sun6i()	(0)
+#define sunxi_is_a10()		(0)
+#define sunxi_is_a13()		_sunxi_is(SUNXI_SOC_A13)
+#define sunxi_is_a12()		_sunxi_is(SUNXI_SOC_A12)
+#define sunxi_is_a10s()		_sunxi_is(SUNXI_SOC_A10S)
+#define sunxi_is_a31()		(0)
+
+#endif
 
 #define sunxi_soc_rev()		(sw_get_ic_ver() & 0xf)
 
