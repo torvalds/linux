@@ -1102,11 +1102,6 @@ static int mt9t112_probe(struct i2c_client *client,
 	return ret;
 }
 
-static int mt9t112_remove(struct i2c_client *client)
-{
-	return 0;
-}
-
 static const struct i2c_device_id mt9t112_id[] = {
 	{ "mt9t112", 0 },
 	{ }
@@ -1118,7 +1113,6 @@ static struct i2c_driver mt9t112_i2c_driver = {
 		.name = "mt9t112",
 	},
 	.probe    = mt9t112_probe,
-	.remove   = mt9t112_remove,
 	.id_table = mt9t112_id,
 };
 
