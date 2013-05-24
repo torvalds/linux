@@ -576,8 +576,10 @@ CIFS_SessSetup(const unsigned int xid, struct cifs_ses *ses,
 	u16 blob_len;
 	char *ntlmsspblob = NULL;
 
-	if (ses == NULL)
+	if (ses == NULL) {
+		WARN(1, "%s: ses == NULL!", __func__);
 		return -EINVAL;
+	}
 
 	type = ses->server->secType;
 	cifs_dbg(FYI, "sess setup type %d\n", type);

@@ -375,16 +375,15 @@ CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses)
 	int rc = 0;
 	int bytes_returned;
 	int i;
-	struct TCP_Server_Info *server;
+	struct TCP_Server_Info *server = ses->server;
 	u16 count;
 	unsigned int secFlags;
 
-	if (ses->server)
-		server = ses->server;
-	else {
-		rc = -EIO;
-		return rc;
+	if (!server) {
+		WARN(1, "%s: server is NULL!\n", __func__);
+		return -EIO;
 	}
+
 	rc = smb_init(SMB_COM_NEGOTIATE, 0, NULL /* no tcon yet */ ,
 		      (void **) &pSMB, (void **) &pSMBr);
 	if (rc)

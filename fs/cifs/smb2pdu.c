@@ -328,7 +328,7 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 	struct kvec iov[1];
 	int rc = 0;
 	int resp_buftype;
-	struct TCP_Server_Info *server;
+	struct TCP_Server_Info *server = ses->server;
 	unsigned int sec_flags;
 	u16 temp = 0;
 	int blob_offset, blob_length;
@@ -337,11 +337,9 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 
 	cifs_dbg(FYI, "Negotiate protocol\n");
 
-	if (ses->server)
-		server = ses->server;
-	else {
-		rc = -EIO;
-		return rc;
+	if (!server) {
+		WARN(1, "%s: server is NULL!\n", __func__);
+		return -EIO;
 	}
 
 	rc = small_smb2_init(SMB2_NEGOTIATE, NULL, (void **) &req);
@@ -480,7 +478,7 @@ SMB2_sess_setup(const unsigned int xid, struct cifs_ses *ses,
 	int rc = 0;
 	int resp_buftype;
 	__le32 phase = NtLmNegotiate; /* NTLMSSP, if needed, is multistage */
-	struct TCP_Server_Info *server;
+	struct TCP_Server_Info *server = ses->server;
 	unsigned int sec_flags;
 	u8 temp = 0;
 	u16 blob_length = 0;
@@ -490,11 +488,9 @@ SMB2_sess_setup(const unsigned int xid, struct cifs_ses *ses,
 
 	cifs_dbg(FYI, "Session Setup\n");
 
-	if (ses->server)
-		server = ses->server;
-	else {
-		rc = -EIO;
-		return rc;
+	if (!server) {
+		WARN(1, "%s: server is NULL!\n", __func__);
+		return -EIO;
 	}
 
 	/*
