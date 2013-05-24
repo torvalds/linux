@@ -49,11 +49,6 @@ static inline int ep93xx_pwm_is_enabled(struct ep93xx_pwm *pwm)
 	return readl(pwm->mmio_base + EP93XX_PWMx_ENABLE) & 0x1;
 }
 
-static inline void ep93xx_pwm_invert(struct ep93xx_pwm *pwm)
-{
-	writel(0x1, pwm->mmio_base + EP93XX_PWMx_INVERT);
-}
-
 static inline void ep93xx_pwm_normal(struct ep93xx_pwm *pwm)
 {
 	writel(0x0, pwm->mmio_base + EP93XX_PWMx_INVERT);
@@ -210,7 +205,7 @@ static ssize_t ep93xx_pwm_set_invert(struct device *dev,
 	if (val == 0)
 		ep93xx_pwm_normal(pwm);
 	else if (val == 1)
-		ep93xx_pwm_invert(pwm);
+		writel(0x1, pwm->mmio_base + EP93XX_PWMx_INVERT);
 	else
 		return -EINVAL;
 
