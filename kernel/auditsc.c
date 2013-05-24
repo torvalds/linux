@@ -1968,15 +1968,13 @@ static atomic_t session_id = ATOMIC_INIT(0);
 
 static int audit_set_loginuid_perm(kuid_t loginuid)
 {
-#ifdef CONFIG_AUDIT_LOGINUID_IMMUTABLE
 	/* if we are unset, we don't need privs */
 	if (!audit_loginuid_set(current))
 		return 0;
-#else	/* CONFIG_AUDIT_LOGINUID_IMMUTABLE */
-	if (capable(CAP_AUDIT_CONTROL))
-		return 0;
-#endif /* CONFIG_AUDIT_LOGINUID_IMMUTABLE */
-	return -EPERM;
+	/* it is set, you need permission */
+	if (!capable(CAP_AUDIT_CONTROL))
+		return -EPERM;
+	return 0;
 }
 
 static void audit_log_set_loginuid(kuid_t koldloginuid, kuid_t kloginuid,
