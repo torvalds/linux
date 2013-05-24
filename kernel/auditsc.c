@@ -2019,7 +2019,9 @@ int audit_set_loginuid(kuid_t loginuid)
 	if (rc)
 		goto out;
 
-	sessionid = atomic_inc_return(&session_id);
+	/* are we setting or clearing? */
+	if (uid_valid(loginuid))
+		sessionid = atomic_inc_return(&session_id);
 
 	task->sessionid = sessionid;
 	task->loginuid = loginuid;
