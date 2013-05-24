@@ -691,6 +691,63 @@ struct omapdss_hdmi_ops {
 	void (*audio_stop)(struct omap_dss_device *dssdev);
 };
 
+struct omapdss_dsi_ops {
+	int (*connect)(struct omap_dss_device *dssdev,
+			struct omap_dss_device *dst);
+	void (*disconnect)(struct omap_dss_device *dssdev,
+			struct omap_dss_device *dst);
+
+	int (*enable)(struct omap_dss_device *dssdev);
+	void (*disable)(struct omap_dss_device *dssdev, bool disconnect_lanes,
+			bool enter_ulps);
+
+	/* bus configuration */
+	int (*set_config)(struct omap_dss_device *dssdev,
+			const struct omap_dss_dsi_config *cfg);
+	int (*configure_pins)(struct omap_dss_device *dssdev,
+			const struct omap_dsi_pin_config *pin_cfg);
+
+	void (*enable_hs)(struct omap_dss_device *dssdev, int channel,
+			bool enable);
+	int (*enable_te)(struct omap_dss_device *dssdev, bool enable);
+
+	int (*update)(struct omap_dss_device *dssdev, int channel,
+			void (*callback)(int, void *), void *data);
+
+	void (*bus_lock)(struct omap_dss_device *dssdev);
+	void (*bus_unlock)(struct omap_dss_device *dssdev);
+
+	int (*enable_video_output)(struct omap_dss_device *dssdev, int channel);
+	void (*disable_video_output)(struct omap_dss_device *dssdev,
+			int channel);
+
+	int (*request_vc)(struct omap_dss_device *dssdev, int *channel);
+	int (*set_vc_id)(struct omap_dss_device *dssdev, int channel,
+			int vc_id);
+	void (*release_vc)(struct omap_dss_device *dssdev, int channel);
+
+	/* data transfer */
+	int (*dcs_write)(struct omap_dss_device *dssdev, int channel,
+			u8 *data, int len);
+	int (*dcs_write_nosync)(struct omap_dss_device *dssdev, int channel,
+			u8 *data, int len);
+	int (*dcs_read)(struct omap_dss_device *dssdev, int channel, u8 dcs_cmd,
+			u8 *data, int len);
+
+	int (*gen_write)(struct omap_dss_device *dssdev, int channel,
+			u8 *data, int len);
+	int (*gen_write_nosync)(struct omap_dss_device *dssdev, int channel,
+			u8 *data, int len);
+	int (*gen_read)(struct omap_dss_device *dssdev, int channel,
+			u8 *reqdata, int reqlen,
+			u8 *data, int len);
+
+	int (*bta_sync)(struct omap_dss_device *dssdev, int channel);
+
+	int (*set_max_rx_packet_size)(struct omap_dss_device *dssdev,
+			int channel, u16 plen);
+};
+
 struct omap_dss_device {
 	/* old device, to be removed */
 	struct device old_dev;
@@ -762,6 +819,7 @@ struct omap_dss_device {
 		const struct omapdss_dvi_ops *dvi;
 		const struct omapdss_hdmi_ops *hdmi;
 		const struct omapdss_atv_ops *atv;
+		const struct omapdss_dsi_ops *dsi;
 	} ops;
 
 	/* helper variable for driver suspend/resume */
