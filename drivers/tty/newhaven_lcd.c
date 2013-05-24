@@ -72,6 +72,7 @@ struct lcd {
 	struct tty_port port;
 	unsigned int width;
 	unsigned int height;
+	unsigned int brightness;
 	char *buffer;
 	unsigned int top_line;
 	unsigned int cursor_line;
@@ -395,6 +396,47 @@ static int lcd_write(struct tty_struct *tty, const unsigned char *buf,
 	return count;
 }
 
+static ssize_t brightness_show(struct device *dev, struct device_attribute *attr,
+			       char *buf)
+{
+	struct lcd *lcd_data = dev_get_drvdata(dev);
+
+	return sprintf(buf, "%d\n", lcd_data->brightness);
+}
+
+static ssize_t brightness_store(struct device *dev, struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct lcd *lcd_data = dev_get_drvdata(dev);
+	int ret, brightness;
+
+	ret = sscanf(buf, "%d", &brightness);
+	if (ret != 1)
+		return -EINVAL;
+
+	if ((brightness < LCD_BRIGHTNESS_MIN) ||
+	    (brightness > LCD_BRIGHTNESS_MAX)) {
+		dev_err(lcd_data->dev, "out of range (%d to %d)\n",
+			LCD_BRIGHTNESS_MIN, LCD_BRIGHTNESS_MAX);
+		return -EINVAL;
+	}
+
+	lcd_data->brightness = brightness;
+	lcd_cmd_backlight_brightness(lcd_data, brightness);
+
+	return count;
+}
+static DEVICE_ATTR(brightness, S_IRUGO | S_IWUSR, brightness_show, brightness_store);
+
+static struct attribute *lcd_attrs[] = {
+	&dev_attr_brightness.attr,
+	NULL,
+};
+
+static struct attribute_group lcd_attr_group = {
+	.attrs = lcd_attrs,
+};
+
 static int lcd_install(struct tty_driver *driver, struct tty_struct *tty)
 {
 	struct lcd *lcd_data;
@@ -501,6 +543,7 @@ static int lcd_probe(struct i2c_client *client,
 	lcd_data->height  = height;
 	lcd_data->width   = width;
 	lcd_data->buffer  = buffer;
+	lcd_data->brightness = brightness;
 
 	dev_set_drvdata(&client->dev, lcd_data);
 	tty_port_init(&lcd_data->port);
@@ -527,6 +570,12 @@ static int lcd_probe(struct i2c_client *client,
 	lcd_cmd_backlight_brightness(lcd_data, brightness);
 	lcd_cmd_clear_screen(lcd_data);
 
+	ret = sysfs_create_group(&lcd_data->dev->kobj, &lcd_attr_group);
+	if (ret) {
+		dev_err(lcd_data->dev, "Can't create sysfs attrs for lcd\n");
+		return ret;
+	}
+
 	dev_info(&client->dev, "LCD driver initialized\n");
 
 	return 0;
@@ -545,6 +594,7 @@ static int __exit lcd_remove(struct i2c_client *client)
 
 	lcd_cmd_display_off(lcd_data);
 
+	sysfs_remove_group(&lcd_data->dev->kobj, &lcd_attr_group);
 	tty_unregister_driver(lcd_data->lcd_tty_driver);
 	put_tty_driver(lcd_data->lcd_tty_driver);
 	kfree(lcd_data->buffer);
