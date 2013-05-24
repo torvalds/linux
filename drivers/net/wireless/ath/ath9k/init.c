@@ -21,6 +21,7 @@
 #include <linux/ath9k_platform.h>
 #include <linux/module.h>
 #include <linux/relay.h>
+#include <net/ieee80211_radiotap.h>
 
 #include "ath9k.h"
 
@@ -766,8 +767,13 @@ void ath9k_set_hw_capab(struct ath_softc *sc, struct ieee80211_hw *hw)
 		IEEE80211_HW_REPORTS_TX_ACK_STATUS |
 		IEEE80211_HW_SUPPORTS_RC_TABLE;
 
-	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT)
-		 hw->flags |= IEEE80211_HW_AMPDU_AGGREGATION;
+	if (sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_HT) {
+		hw->flags |= IEEE80211_HW_AMPDU_AGGREGATION;
+
+		if (AR_SREV_9280_20_OR_LATER(ah))
+			hw->radiotap_mcs_details |=
+				IEEE80211_RADIOTAP_MCS_HAVE_STBC;
+	}
 
 	if (AR_SREV_9160_10_OR_LATER(sc->sc_ah) || ath9k_modparam_nohwcrypt)
 		hw->flags |= IEEE80211_HW_MFP_CAPABLE;
