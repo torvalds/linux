@@ -18,4 +18,9 @@ config DISPLAY_CONNECTOR_DVI
 	help
 	  Driver for a generic DVI connector.
 
+config DISPLAY_CONNECTOR_HDMI
+        tristate "HDMI Connector"
+	help
+	  Driver for a generic HDMI connector.
+
 endmenu

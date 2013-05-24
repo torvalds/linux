@@ -188,4 +188,14 @@ struct connector_dvi_platform_data {
 	int i2c_bus_num;
 };
 
+/**
+ * connector_hdmi platform data
+ * @name: name for this display entity
+ * @source: name of the display entity used as a video source
+ */
+struct connector_hdmi_platform_data {
+	const char *name;
+	const char *source;
+};
+
 #endif /* __OMAP_PANEL_DATA_H */
