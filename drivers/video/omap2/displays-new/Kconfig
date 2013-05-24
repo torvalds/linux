@@ -6,4 +6,10 @@ config DISPLAY_ENCODER_TFP410
 	help
 	  Driver for TFP410 DPI to DVI encoder.
 
+config DISPLAY_ENCODER_TPD12S015
+        tristate "TPD12S015 HDMI ESD protection and level shifter"
+	help
+	  Driver for TPD12S015, which offers HDMI ESD protection and level
+	  shifting.
+
 endmenu
