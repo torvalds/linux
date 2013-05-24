@@ -725,7 +725,7 @@ static int abx500_pin_config_set(struct pinctrl_dev *pctldev,
 	struct pullud *pullud = pct->soc->pullud;
 	struct gpio_chip *chip = &pct->chip;
 	unsigned offset;
-	int ret;
+	int ret = 0;
 	enum pin_config_param param = pinconf_to_config_param(config);
 	enum pin_config_param argument = pinconf_to_config_argument(config);
 
@@ -761,6 +761,28 @@ static int abx500_pin_config_set(struct pinctrl_dev *pctldev,
 			/* Chip only supports pull down */
 			ret = abx500_gpio_set_bits(chip, AB8500_GPIO_PUD1_REG,
 				offset, argument ? 0 : 1);
+		break;
+
+	case PIN_CONFIG_BIAS_PULL_UP:
+		/*
+		 * if argument = 1 set the pull up
+		 * else clear the pull up
+		 */
+		ret = abx500_gpio_direction_input(chip, offset);
+		/*
+		 * Some chips only support pull down, while some actually
+		 * support both pull up and pull down. Such chips have
+		 * a "pullud" range specified for the pins that support
+		 * both features. If the pin is not within that range, do
+		 * nothing
+		 */
+		if (pullud &&
+		    pin >= pullud->first_pin &&
+		    pin <= pullud->last_pin) {
+			ret = abx500_config_pull_updown(pct,
+				pin,
+				argument ? ABX500_GPIO_PULL_UP : ABX500_GPIO_PULL_NONE);
+		}
 		break;
 
 	case PIN_CONFIG_OUTPUT:
