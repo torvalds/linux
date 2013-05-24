@@ -1317,10 +1317,12 @@ static inline bool gssp_ready(struct sunrpc_net *sn)
 	return false;
 }
 
-static int wait_for_gss_proxy(struct net *net)
+static int wait_for_gss_proxy(struct net *net, struct file *file)
 {
 	struct sunrpc_net *sn = net_generic(net, sunrpc_net_id);
 
+	if (file->f_flags & O_NONBLOCK && !gssp_ready(sn))
+		return -EAGAIN;
 	return wait_event_interruptible(sn->gssp_wq, gssp_ready(sn));
 }
 
@@ -1362,7 +1364,7 @@ static ssize_t read_gssp(struct file *file, char __user *buf,
 	size_t len;
 	int ret;
 
-	ret = wait_for_gss_proxy(net);
+	ret = wait_for_gss_proxy(net, file);
 	if (ret)
 		return ret;
 
