@@ -570,21 +570,21 @@ static int hci_dep_link_up(struct nfc_dev *nfc_dev, struct nfc_target *target,
 {
 	struct nfc_hci_dev *hdev = nfc_get_drvdata(nfc_dev);
 
-	if (hdev->ops->dep_link_up)
-		return hdev->ops->dep_link_up(hdev, target, comm_mode,
-						gb, gb_len);
+	if (!hdev->ops->dep_link_up)
+		return 0;
 
-	return 0;
+	return hdev->ops->dep_link_up(hdev, target, comm_mode,
+				      gb, gb_len);
 }
 
 static int hci_dep_link_down(struct nfc_dev *nfc_dev)
 {
 	struct nfc_hci_dev *hdev = nfc_get_drvdata(nfc_dev);
 
-	if (hdev->ops->dep_link_down)
-		return hdev->ops->dep_link_down(hdev);
+	if (!hdev->ops->dep_link_down)
+		return 0;
 
-	return 0;
+	return hdev->ops->dep_link_down(hdev);
 }
 
 static int hci_activate_target(struct nfc_dev *nfc_dev,
@@ -673,12 +673,12 @@ static int hci_tm_send(struct nfc_dev *nfc_dev, struct sk_buff *skb)
 {
 	struct nfc_hci_dev *hdev = nfc_get_drvdata(nfc_dev);
 
-	if (hdev->ops->tm_send)
-		return hdev->ops->tm_send(hdev, skb);
+	if (!hdev->ops->tm_send) {
+		kfree_skb(skb);
+		return -ENOTSUPP;
+	}
 
-	kfree_skb(skb);
-
-	return -ENOTSUPP;
+	return hdev->ops->tm_send(hdev, skb);
 }
 
 static int hci_check_presence(struct nfc_dev *nfc_dev,
@@ -686,10 +686,10 @@ static int hci_check_presence(struct nfc_dev *nfc_dev,
 {
 	struct nfc_hci_dev *hdev = nfc_get_drvdata(nfc_dev);
 
-	if (hdev->ops->check_presence)
-		return hdev->ops->check_presence(hdev, target);
+	if (!hdev->ops->check_presence)
+		return 0;
 
-	return 0;
+	return hdev->ops->check_presence(hdev, target);
 }
 
 static void nfc_hci_failure(struct nfc_hci_dev *hdev, int err)
@@ -783,10 +783,10 @@ static int hci_fw_upload(struct nfc_dev *nfc_dev, const char *firmware_name)
 {
 	struct nfc_hci_dev *hdev = nfc_get_drvdata(nfc_dev);
 
-	if (hdev->ops->fw_upload)
-		return hdev->ops->fw_upload(hdev, firmware_name);
+	if (!hdev->ops->fw_upload)
+		return -ENOTSUPP;
 
-	return -ENOTSUPP;
+	return hdev->ops->fw_upload(hdev, firmware_name);
 }
 
 static struct nfc_ops hci_nfc_ops = {
