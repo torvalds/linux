@@ -74,7 +74,7 @@ enum {
 u32 sunxi_brom_chip_id(void);
 int sunxi_pr_brom(void);
 
-u32 sunxi_sramc_chip_id(void);
+u32 sunxi_sc_chip_id(void);
 
 u32 sunxi_chip_id(void) __pure;
 int sunxi_pr_chip_id(void);

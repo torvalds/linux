@@ -25,15 +25,15 @@
 #include <plat/platform.h>
 #include <plat/system.h>
 
-#define SRAMC_CHIP_ID_REG	(SW_VA_SRAM_IO_BASE + 0x24)
+#define SC_CHIP_ID_REG	(SW_VA_SRAM_IO_BASE + 0x24)
 
-#define SRAMC_CHIP_ID_EN_MASK	0x1
-#define SRAMC_CHIP_ID_EN_OFF	15
-#define SRAMC_CHIP_ID_EN	(SRAMC_CHIP_ID_EN_MASK<<SRAMC_CHIP_ID_EN_OFF)
+#define SC_CHIP_ID_EN_MASK	0x1
+#define SC_CHIP_ID_EN_OFF	15
+#define SC_CHIP_ID_EN	(SC_CHIP_ID_EN_MASK<<SC_CHIP_ID_EN_OFF)
 
-#define SRAMC_CHIP_ID_MASK	0xffff
-#define SRAMC_CHIP_ID_OFF	16
-#define SRAMC_CHIP_ID		(SRAMC_CHIP_ID_MASK<<SRAMC_CHIP_ID_OFF)
+#define SC_CHIP_ID_MASK	0xffff
+#define SC_CHIP_ID_OFF	16
+#define SC_CHIP_ID		(SC_CHIP_ID_MASK<<SC_CHIP_ID_OFF)
 
 /*
  * BROM
@@ -87,18 +87,18 @@ u32 sunxi_brom_chip_id(void)
 EXPORT_SYMBOL(sunxi_brom_chip_id);
 
 /*
- * SRAMC
+ * SC
  */
-u32 sunxi_sramc_chip_id(void)
+u32 sunxi_sc_chip_id(void)
 {
 	u32 chip_id, reg_val;
 
 	/* enable chip_id reading */
-	reg_val = readl(SRAMC_CHIP_ID_REG);
-	writel(reg_val | SRAMC_CHIP_ID_EN, SRAMC_CHIP_ID_REG);
+	reg_val = readl(SC_CHIP_ID_REG);
+	writel(reg_val | SC_CHIP_ID_EN, SC_CHIP_ID_REG);
 
-	reg_val = readl(SRAMC_CHIP_ID_REG);
-	chip_id = ((reg_val&SRAMC_CHIP_ID)>>SRAMC_CHIP_ID_OFF) & SRAMC_CHIP_ID_MASK;
+	reg_val = readl(SC_CHIP_ID_REG);
+	chip_id = ((reg_val&SC_CHIP_ID)>>SC_CHIP_ID_OFF) & SC_CHIP_ID_MASK;
 
 	switch (chip_id) {
 	case 0x1623:
@@ -108,12 +108,12 @@ u32 sunxi_sramc_chip_id(void)
 	case 0x1633:
 		return SUNXI_MACH_SUN6I;
 	default:
-		pr_err("SRAMC: failed to identify chip-id 0x%04x (*0x%08x == 0x%08x)\n",
-		       chip_id, SRAMC_CHIP_ID_REG, reg_val);
+		pr_err("SC: failed to identify chip-id 0x%04x (*0x%08x == 0x%08x)\n",
+		       chip_id, SC_CHIP_ID_REG, reg_val);
 		return SUNXI_UNKNOWN_MACH;
 	}
 }
-EXPORT_SYMBOL(sunxi_sramc_chip_id);
+EXPORT_SYMBOL(sunxi_sc_chip_id);
 
 /*
  */
@@ -122,7 +122,7 @@ u32 sunxi_chip_id(void)
 	static u32 chip_id;
 
 	if (unlikely(chip_id == 0))
-		chip_id = sunxi_sramc_chip_id();
+		chip_id = sunxi_sc_chip_id();
 
 	return chip_id;
 }
