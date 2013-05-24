@@ -234,6 +234,26 @@ void omapdss_sdi_set_timings(struct omap_dss_device *dssdev,
 }
 EXPORT_SYMBOL(omapdss_sdi_set_timings);
 
+static void sdi_get_timings(struct omap_dss_device *dssdev,
+		struct omap_video_timings *timings)
+{
+	*timings = sdi.timings;
+}
+
+static int sdi_check_timings(struct omap_dss_device *dssdev,
+			struct omap_video_timings *timings)
+{
+	struct omap_overlay_manager *mgr = sdi.output.manager;
+
+	if (mgr && !dispc_mgr_timings_ok(mgr->id, timings))
+		return -EINVAL;
+
+	if (timings->pixel_clock == 0)
+		return -EINVAL;
+
+	return 0;
+}
+
 void omapdss_sdi_set_datapairs(struct omap_dss_device *dssdev, int datapairs)
 {
 	sdi.datapairs = datapairs;
@@ -333,6 +353,63 @@ static int sdi_probe_pdata(struct platform_device *sdidev)
 	return 0;
 }
 
+static int sdi_connect(struct omap_dss_device *dssdev,
+		struct omap_dss_device *dst)
+{
+	struct omap_overlay_manager *mgr;
+	int r;
+
+	r = sdi_init_regulator();
+	if (r)
+		return r;
+
+	mgr = omap_dss_get_overlay_manager(dssdev->dispc_channel);
+	if (!mgr)
+		return -ENODEV;
+
+	r = dss_mgr_connect(mgr, dssdev);
+	if (r)
+		return r;
+
+	r = omapdss_output_set_device(dssdev, dst);
+	if (r) {
+		DSSERR("failed to connect output to new device: %s\n",
+				dst->name);
+		dss_mgr_disconnect(mgr, dssdev);
+		return r;
+	}
+
+	return 0;
+}
+
+static void sdi_disconnect(struct omap_dss_device *dssdev,
+		struct omap_dss_device *dst)
+{
+	WARN_ON(dst != dssdev->device);
+
+	if (dst != dssdev->device)
+		return;
+
+	omapdss_output_unset_device(dssdev);
+
+	if (dssdev->manager)
+		dss_mgr_disconnect(dssdev->manager, dssdev);
+}
+
+static const struct omapdss_sdi_ops sdi_ops = {
+	.connect = sdi_connect,
+	.disconnect = sdi_disconnect,
+
+	.enable = omapdss_sdi_display_enable,
+	.disable = omapdss_sdi_display_disable,
+
+	.check_timings = sdi_check_timings,
+	.set_timings = omapdss_sdi_set_timings,
+	.get_timings = sdi_get_timings,
+
+	.set_datapairs = omapdss_sdi_set_datapairs,
+};
+
 static void sdi_init_output(struct platform_device *pdev)
 {
 	struct omap_dss_device *out = &sdi.output;
@@ -342,6 +419,7 @@ static void sdi_init_output(struct platform_device *pdev)
 	out->output_type = OMAP_DISPLAY_TYPE_SDI;
 	out->name = "sdi.0";
 	out->dispc_channel = OMAP_DSS_CHANNEL_LCD;
+	out->ops.sdi = &sdi_ops;
 	out->owner = THIS_MODULE;
 
 	omapdss_register_output(out);
