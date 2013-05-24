@@ -650,6 +650,21 @@ static struct resource ab8500_rtc_resources[] = {
 	},
 };
 
+static struct resource ab8540_rtc_resources[] = {
+	{
+		.name	= "1S",
+		.start	= AB8540_INT_RTC_1S,
+		.end	= AB8540_INT_RTC_1S,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.name	= "ALARM",
+		.start	= AB8500_INT_RTC_ALARM,
+		.end	= AB8500_INT_RTC_ALARM,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
 static struct resource ab8500_poweronkey_db_resources[] = {
 	{
 		.name	= "ONKEY_DBF",
@@ -1277,11 +1292,6 @@ static struct mfd_cell ab8540_devs[] = {
 		.resources = ab8505_gpadc_resources,
 	},
 	{
-		.name = "ab8500-rtc",
-		.num_resources = ARRAY_SIZE(ab8500_rtc_resources),
-		.resources = ab8500_rtc_resources,
-	},
-	{
 		.name = "ab8500-acc-det",
 		.num_resources = ARRAY_SIZE(ab8500_av_acc_detect_resources),
 		.resources = ab8500_av_acc_detect_resources,
@@ -1315,6 +1325,24 @@ static struct mfd_cell ab8540_devs[] = {
 		.name = "ab-iddet",
 		.num_resources = ARRAY_SIZE(ab8505_iddet_resources),
 		.resources = ab8505_iddet_resources,
+	},
+};
+
+static struct mfd_cell ab8540_cut1_devs[] = {
+	{
+		.name = "ab8500-rtc",
+		.of_compatible = "stericsson,ab8500-rtc",
+		.num_resources = ARRAY_SIZE(ab8500_rtc_resources),
+		.resources = ab8500_rtc_resources,
+	},
+};
+
+static struct mfd_cell ab8540_cut2_devs[] = {
+	{
+		.name = "ab8540-rtc",
+		.of_compatible = "stericsson,ab8540-rtc",
+		.num_resources = ARRAY_SIZE(ab8540_rtc_resources),
+		.resources = ab8540_rtc_resources,
 	},
 };
 
@@ -1721,11 +1749,22 @@ static int ab8500_probe(struct platform_device *pdev)
 		ret = mfd_add_devices(ab8500->dev, 0, ab9540_devs,
 				ARRAY_SIZE(ab9540_devs), NULL,
 				ab8500->irq_base, ab8500->domain);
-	else if (is_ab8540(ab8500))
+	else if (is_ab8540(ab8500)) {
 		ret = mfd_add_devices(ab8500->dev, 0, ab8540_devs,
 			      ARRAY_SIZE(ab8540_devs), NULL,
-			      ab8500->irq_base, ab8500->domain);
-	else if (is_ab8505(ab8500))
+			      ab8500->irq_base, NULL);
+		if (ret)
+			return ret;
+
+		if (is_ab8540_1p2_or_earlier(ab8500))
+			ret = mfd_add_devices(ab8500->dev, 0, ab8540_cut1_devs,
+			      ARRAY_SIZE(ab8540_cut1_devs), NULL,
+			      ab8500->irq_base, NULL);
+		else /* ab8540 >= cut2 */
+			ret = mfd_add_devices(ab8500->dev, 0, ab8540_cut2_devs,
+			      ARRAY_SIZE(ab8540_cut2_devs), NULL,
+			      ab8500->irq_base, NULL);
+	} else if (is_ab8505(ab8500))
 		ret = mfd_add_devices(ab8500->dev, 0, ab8505_devs,
 			      ARRAY_SIZE(ab8505_devs), NULL,
 			      ab8500->irq_base, ab8500->domain);
