@@ -44,11 +44,6 @@ static inline u16 ep93xx_pwm_read_tc(struct ep93xx_pwm *pwm)
 	return readl(pwm->mmio_base + EP93XX_PWMx_TERM_COUNT);
 }
 
-static inline void ep93xx_pwm_disable(struct ep93xx_pwm *pwm)
-{
-	writel(0x0, pwm->mmio_base + EP93XX_PWMx_ENABLE);
-}
-
 static inline int ep93xx_pwm_is_enabled(struct ep93xx_pwm *pwm)
 {
 	return readl(pwm->mmio_base + EP93XX_PWMx_ENABLE) & 0x1;
@@ -127,7 +122,7 @@ static ssize_t ep93xx_pwm_set_freq(struct device *dev,
 		return -EINVAL;
 
 	if (val == 0) {
-		ep93xx_pwm_disable(pwm);
+		writel(0x0, pwm->mmio_base + EP93XX_PWMx_ENABLE);
 	} else if (val <= (clk_get_rate(pwm->clk) / 2)) {
 		u32 term, duty;
 
@@ -276,7 +271,7 @@ static int __init ep93xx_pwm_probe(struct platform_device *pdev)
 	pwm->duty_percent = 50;
 
 	/* disable pwm at startup. Avoids zero value. */
-	ep93xx_pwm_disable(pwm);
+	writel(0x0, pwm->mmio_base + EP93XX_PWMx_ENABLE);
 	writel(EP93XX_PWM_MAX_COUNT, pwm->mmio_base + EP93XX_PWMx_TERM_COUNT);
 	writel(EP93XX_PWM_MAX_COUNT/2, pwm->mmio_base + EP93XX_PWMx_DUTY_CYCLE);
 
@@ -290,7 +285,7 @@ static int __exit ep93xx_pwm_remove(struct platform_device *pdev)
 {
 	struct ep93xx_pwm *pwm = platform_get_drvdata(pdev);
 
-	ep93xx_pwm_disable(pwm);
+	writel(0x0, pwm->mmio_base + EP93XX_PWMx_ENABLE);
 	clk_disable(pwm->clk);
 	sysfs_remove_group(&pdev->dev.kobj, &ep93xx_pwm_sysfs_files);
 	ep93xx_pwm_release_gpio(pdev);
