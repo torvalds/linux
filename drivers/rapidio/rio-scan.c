@@ -37,11 +37,7 @@
 
 #include "rio.h"
 
-LIST_HEAD(rio_devices);
-
 static void rio_init_em(struct rio_dev *rdev);
-
-DEFINE_SPINLOCK(rio_global_list_lock);
 
 static int next_destid = 0;
 static int next_comptag = 1;
@@ -327,127 +323,6 @@ static int rio_is_switch(struct rio_dev *rdev)
 }
 
 /**
- * rio_switch_init - Sets switch operations for a particular vendor switch
- * @rdev: RIO device
- * @do_enum: Enumeration/Discovery mode flag
- *
- * Searches the RIO switch ops table for known switch types. If the vid
- * and did match a switch table entry, then call switch initialization
- * routine to setup switch-specific routines.
- */
-static void rio_switch_init(struct rio_dev *rdev, int do_enum)
-{
-	struct rio_switch_ops *cur = __start_rio_switch_ops;
-	struct rio_switch_ops *end = __end_rio_switch_ops;
-
-	while (cur < end) {
-		if ((cur->vid == rdev->vid) && (cur->did == rdev->did)) {
-			pr_debug("RIO: calling init routine for %s\n",
-				 rio_name(rdev));
-			cur->init_hook(rdev, do_enum);
-			break;
-		}
-		cur++;
-	}
-
-	if ((cur >= end) && (rdev->pef & RIO_PEF_STD_RT)) {
-		pr_debug("RIO: adding STD routing ops for %s\n",
-			rio_name(rdev));
-		rdev->rswitch->add_entry = rio_std_route_add_entry;
-		rdev->rswitch->get_entry = rio_std_route_get_entry;
-		rdev->rswitch->clr_table = rio_std_route_clr_table;
-	}
-
-	if (!rdev->rswitch->add_entry || !rdev->rswitch->get_entry)
-		printk(KERN_ERR "RIO: missing routing ops for %s\n",
-		       rio_name(rdev));
-}
-
-/**
- * rio_add_device- Adds a RIO device to the device model
- * @rdev: RIO device
- *
- * Adds the RIO device to the global device list and adds the RIO
- * device to the RIO device list.  Creates the generic sysfs nodes
- * for an RIO device.
- */
-static int rio_add_device(struct rio_dev *rdev)
-{
-	int err;
-
-	err = device_add(&rdev->dev);
-	if (err)
-		return err;
-
-	spin_lock(&rio_global_list_lock);
-	list_add_tail(&rdev->global_list, &rio_devices);
-	spin_unlock(&rio_global_list_lock);
-
-	rio_create_sysfs_dev_files(rdev);
-
-	return 0;
-}
-
-/**
- * rio_enable_rx_tx_port - enable input receiver and output transmitter of
- * given port
- * @port: Master port associated with the RIO network
- * @local: local=1 select local port otherwise a far device is reached
- * @destid: Destination ID of the device to check host bit
- * @hopcount: Number of hops to reach the target
- * @port_num: Port (-number on switch) to enable on a far end device
- *
- * Returns 0 or 1 from on General Control Command and Status Register
- * (EXT_PTR+0x3C)
- */
-inline int rio_enable_rx_tx_port(struct rio_mport *port,
-				 int local, u16 destid,
-				 u8 hopcount, u8 port_num) {
-#ifdef CONFIG_RAPIDIO_ENABLE_RX_TX_PORTS
-	u32 regval;
-	u32 ext_ftr_ptr;
-
-	/*
-	* enable rx input tx output port
-	*/
-	pr_debug("rio_enable_rx_tx_port(local = %d, destid = %d, hopcount = "
-		 "%d, port_num = %d)\n", local, destid, hopcount, port_num);
-
-	ext_ftr_ptr = rio_mport_get_physefb(port, local, destid, hopcount);
-
-	if (local) {
-		rio_local_read_config_32(port, ext_ftr_ptr +
-				RIO_PORT_N_CTL_CSR(0),
-				&regval);
-	} else {
-		if (rio_mport_read_config_32(port, destid, hopcount,
-		ext_ftr_ptr + RIO_PORT_N_CTL_CSR(port_num), &regval) < 0)
-			return -EIO;
-	}
-
-	if (regval & RIO_PORT_N_CTL_P_TYP_SER) {
-		/* serial */
-		regval = regval | RIO_PORT_N_CTL_EN_RX_SER
-				| RIO_PORT_N_CTL_EN_TX_SER;
-	} else {
-		/* parallel */
-		regval = regval | RIO_PORT_N_CTL_EN_RX_PAR
-				| RIO_PORT_N_CTL_EN_TX_PAR;
-	}
-
-	if (local) {
-		rio_local_write_config_32(port, ext_ftr_ptr +
-					  RIO_PORT_N_CTL_CSR(0), regval);
-	} else {
-		if (rio_mport_write_config_32(port, destid, hopcount,
-		    ext_ftr_ptr + RIO_PORT_N_CTL_CSR(port_num), regval) < 0)
-			return -EIO;
-	}
-#endif
-	return 0;
-}
-
-/**
  * rio_setup_device- Allocates and sets up a RIO device
  * @net: RIO network
  * @port: Master port to send transactions
@@ -587,8 +462,7 @@ static struct rio_dev *rio_setup_device(struct rio_net *net,
 			     rdev->destid);
 	}
 
-	rdev->dev.bus = &rio_bus_type;
-	rdev->dev.parent = &rio_bus;
+	rio_attach_device(rdev);
 
 	device_initialize(&rdev->dev);
 	rdev->dev.release = rio_release_dev;
@@ -1421,3 +1295,41 @@ enum_done:
 bail:
 	return -EBUSY;
 }
+
+static struct rio_scan rio_scan_ops = {
+	.enumerate = rio_enum_mport,
+	.discover = rio_disc_mport,
+};
+
+static bool scan;
+module_param(scan, bool, 0);
+MODULE_PARM_DESC(scan, "Start RapidIO network enumeration/discovery "
+			"(default = 0)");
+
+/**
+ * rio_basic_attach:
+ *
+ * When this enumeration/discovery method is loaded as a module this function
+ * registers its specific enumeration and discover routines for all available
+ * RapidIO mport devices. The "scan" command line parameter controls ability of
+ * the module to start RapidIO enumeration/discovery automatically.
+ *
+ * Returns 0 for success or -EIO if unable to register itself.
+ *
+ * This enumeration/discovery method cannot be unloaded and therefore does not
+ * provide a matching cleanup_module routine.
+ */
+
+static int __init rio_basic_attach(void)
+{
+	if (rio_register_scan(RIO_MPORT_ANY, &rio_scan_ops))
+		return -EIO;
+	if (scan)
+		rio_init_mports();
+	return 0;
+}
+
+late_initcall(rio_basic_attach);
+
+MODULE_DESCRIPTION("Basic RapidIO enumeration/discovery");
+MODULE_LICENSE("GPL");
