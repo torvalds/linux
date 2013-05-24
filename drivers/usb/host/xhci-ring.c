@@ -2799,7 +2799,7 @@ hw_died:
 	return IRQ_HANDLED;
 }
 
-irqreturn_t xhci_msi_irq(int irq, struct usb_hcd *hcd)
+irqreturn_t xhci_msi_irq(int irq, void *hcd)
 {
 	return xhci_irq(hcd);
 }
