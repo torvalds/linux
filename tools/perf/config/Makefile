@@ -34,7 +34,23 @@ ifeq ($(NO_PERF_REGS),0)
         CFLAGS += -DHAVE_PERF_REGS
 endif
 
--include config/feature-tests.mak
+ifeq ($(src-perf),)
+src-perf := $(srctree)/tools/perf
+endif
+
+ifeq ($(obj-perf),)
+obj-perf := $(objtree)
+endif
+
+ifneq ($(obj-perf),)
+obj-perf := $(abspath $(obj-perf))/
+endif
+
+# include ARCH specific config
+-include $(src-perf)/arch/$(ARCH)/Makefile
+
+include $(src-perf)/config/feature-tests.mak
+include $(src-perf)/config/utilities.mak
 
 ifeq ($(call get-executable,$(FLEX)),)
 	dummy := $(error Error: $(FLEX) is missing on this system, please install it)
@@ -91,19 +107,28 @@ ifndef PERF_DEBUG
 endif
 
 CFLAGS += \
-	-Iutil/include \
-	-Iarch/$(ARCH)/include \
-	$(if $(objtree),-I$(objtree)/arch/$(ARCH)/include/generated/uapi) \
+	-I$(src-perf)/util/include \
+	-I$(src-perf)/arch/$(ARCH)/include \
 	-I$(srctree)/arch/$(ARCH)/include/uapi \
 	-I$(srctree)/arch/$(ARCH)/include \
-	$(if $(objtree),-I$(objtree)/include/generated/uapi) \
 	-I$(srctree)/include/uapi \
-	-I$(srctree)/include \
-	-I$(OUTPUT)util \
-	-Iutil \
-	-I. \
+	-I$(srctree)/include
+
+# $(obj-perf)      for generated common-cmds.h
+# $(obj-perf)/util for generated bison/flex headers
+ifneq ($(OUTPUT),)
+CFLAGS += \
+	-I$(obj-perf)/util \
+	-I$(obj-perf)
+endif
+
+CFLAGS += \
+	-I$(src-perf)/util \
+	-I$(src-perf) \
 	-I$(TRACE_EVENT_DIR) \
-	-I../lib/ \
+	-I$(srctree)/tools/lib/
+
+CFLAGS += \
 	-D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE
 
 ifeq ($(call try-cc,$(SOURCE_BIONIC),$(CFLAGS),bionic),y)
@@ -159,7 +184,7 @@ ifeq ($(call try-cc,$(SOURCE_ELF_MMAP),$(FLAGS_LIBELF),-DLIBELF_MMAP),y)
 endif
 
 # include ARCH specific config
--include arch/$(ARCH)/Makefile
+-include $(src-perf)/arch/$(ARCH)/Makefile
 
 ifndef NO_DWARF
 ifeq ($(origin PERF_HAVE_DWARF_REGS), undefined)
@@ -329,7 +354,7 @@ else
         else
           LDFLAGS += $(PYTHON_EMBED_LDFLAGS)
           EXTLIBS += $(PYTHON_EMBED_LIBADD)
-          LANG_BINDINGS += $(OUTPUT)python/perf.so
+          LANG_BINDINGS += $(obj-perf)python/perf.so
         endif
       endif
     endif
