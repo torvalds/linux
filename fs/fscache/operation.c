@@ -260,14 +260,13 @@ void fscache_abort_object(struct fscache_object *object)
 }
 
 /*
- * jump start the operation processing on an object
+ * Jump start the operation processing on an object.  The caller must hold
+ * object->lock.
  */
 void fscache_start_operations(struct fscache_object *object)
 {
 	struct fscache_operation *op;
 	bool stop = false;
-
-	ASSERT(spin_is_locked(&object->lock));
 
 	while (!list_empty(&object->pending_ops) && !stop) {
 		op = list_entry(object->pending_ops.next,
