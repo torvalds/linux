@@ -227,6 +227,9 @@ union e1000_rx_desc_extended {
 };
 
 #define MAX_PS_BUFFERS 4
+
+/* Number of packet split data buffers (not including the header buffer) */
+#define PS_PAGE_BUFFERS			(MAX_PS_BUFFERS - 1)
 /* Receive Descriptor - Packet Split */
 union e1000_rx_desc_packet_split {
 	struct {
@@ -251,7 +254,8 @@ union e1000_rx_desc_packet_split {
 		} middle;
 		struct {
 			__le16 header_status;
-			__le16 length[3];	/* length of buffers 1-3 */
+			/* length of buffers 1-3 */
+			__le16 length[PS_PAGE_BUFFERS];
 		} upper;
 		__le64 reserved;
 	} wb; /* writeback */
