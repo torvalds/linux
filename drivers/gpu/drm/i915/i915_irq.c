@@ -1564,11 +1564,13 @@ i915_error_state_free(struct kref *error_ref)
 	for (i = 0; i < ARRAY_SIZE(error->ring); i++) {
 		i915_error_object_free(error->ring[i].batchbuffer);
 		i915_error_object_free(error->ring[i].ringbuffer);
+		i915_error_object_free(error->ring[i].ctx);
 		kfree(error->ring[i].requests);
 	}
 
 	kfree(error->active_bo);
 	kfree(error->overlay);
+	kfree(error->display);
 	kfree(error);
 }
 static void capture_bo(struct drm_i915_error_buffer *err,
