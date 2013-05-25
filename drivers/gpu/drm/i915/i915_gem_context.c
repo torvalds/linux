@@ -156,7 +156,8 @@ create_hw_context(struct drm_device *dev,
 	if (INTEL_INFO(dev)->gen >= 7) {
 		ret = i915_gem_object_set_cache_level(ctx->obj,
 						      I915_CACHE_LLC_MLC);
-		if (ret)
+		/* Failure shouldn't ever happen this early */
+		if (WARN_ON(ret))
 			goto err_out;
 	}
 
@@ -214,12 +215,16 @@ static int create_default_context(struct drm_i915_private *dev_priv)
 	 */
 	dev_priv->ring[RCS].default_context = ctx;
 	ret = i915_gem_object_pin(ctx->obj, CONTEXT_ALIGN, false, false);
-	if (ret)
+	if (ret) {
+		DRM_DEBUG_DRIVER("Couldn't pin %d\n", ret);
 		goto err_destroy;
+	}
 
 	ret = do_switch(ctx);
-	if (ret)
+	if (ret) {
+		DRM_DEBUG_DRIVER("Switch failed %d\n", ret);
 		goto err_unpin;
+	}
 
 	DRM_DEBUG_DRIVER("Default HW context loaded\n");
 	return 0;
@@ -237,6 +242,7 @@ void i915_gem_context_init(struct drm_device *dev)
 
 	if (!HAS_HW_CONTEXTS(dev)) {
 		dev_priv->hw_contexts_disabled = true;
+		DRM_DEBUG_DRIVER("Disabling HW Contexts; old hardware\n");
 		return;
 	}
 
@@ -249,11 +255,13 @@ void i915_gem_context_init(struct drm_device *dev)
 
 	if (dev_priv->hw_context_size > (1<<20)) {
 		dev_priv->hw_contexts_disabled = true;
+		DRM_DEBUG_DRIVER("Disabling HW Contexts; invalid size\n");
 		return;
 	}
 
 	if (create_default_context(dev_priv)) {
 		dev_priv->hw_contexts_disabled = true;
+		DRM_DEBUG_DRIVER("Disabling HW Contexts; create failed\n");
 		return;
 	}
 
