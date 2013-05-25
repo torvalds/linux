@@ -62,12 +62,6 @@ static void s5p_mfc_release_dec_desc_buffer_v6(struct s5p_mfc_ctx *ctx)
 	/* NOP */
 }
 
-static int s5p_mfc_get_dec_status_v6(struct s5p_mfc_dev *dev)
-{
-	/* NOP */
-	return -1;
-}
-
 /* Allocate codec buffers */
 static int s5p_mfc_alloc_codec_buffers_v6(struct s5p_mfc_ctx *ctx)
 {
@@ -1713,7 +1707,7 @@ static int s5p_mfc_get_dspl_status_v6(struct s5p_mfc_dev *dev)
 	return mfc_read(dev, S5P_FIMV_D_DISPLAY_STATUS_V6);
 }
 
-static int s5p_mfc_get_decoded_status_v6(struct s5p_mfc_dev *dev)
+static int s5p_mfc_get_dec_status_v6(struct s5p_mfc_dev *dev)
 {
 	return mfc_read(dev, S5P_FIMV_D_DECODED_STATUS_V6);
 }
