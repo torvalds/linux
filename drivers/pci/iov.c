@@ -47,7 +47,6 @@ static struct pci_bus *virtfn_add_bus(struct pci_bus *bus, int busnr)
 		return NULL;
 
 	pci_bus_insert_busn_res(child, busnr, busnr);
-	bus->is_added = 1;
 
 	return child;
 }
