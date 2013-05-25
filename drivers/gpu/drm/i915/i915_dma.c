@@ -1368,6 +1368,7 @@ cleanup_gem:
 	i915_gem_cleanup_ringbuffer(dev);
 	mutex_unlock(&dev->struct_mutex);
 	i915_gem_cleanup_aliasing_ppgtt(dev);
+	drm_mm_takedown(&dev_priv->mm.gtt_space);
 cleanup_irq:
 	drm_irq_uninstall(dev);
 cleanup_gem_stolen:
@@ -1755,6 +1756,7 @@ int i915_driver_unload(struct drm_device *dev)
 			i915_free_hws(dev);
 	}
 
+	drm_mm_takedown(&dev_priv->mm.gtt_space);
 	if (dev_priv->regs != NULL)
 		pci_iounmap(dev->pdev, dev_priv->regs);
 
