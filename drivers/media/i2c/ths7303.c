@@ -35,7 +35,7 @@
 
 struct ths7303_state {
 	struct v4l2_subdev		sd;
-	struct ths7303_platform_data	pdata;
+	const struct ths7303_platform_data *pdata;
 	struct v4l2_bt_timings		bt;
 	int std_id;
 	int stream_on;
@@ -89,7 +89,7 @@ int ths7303_setval(struct v4l2_subdev *sd, enum ths7303_filter_mode mode)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct ths7303_state *state = to_state(sd);
-	struct ths7303_platform_data *pdata = &state->pdata;
+	const struct ths7303_platform_data *pdata = state->pdata;
 	u8 val, sel = 0;
 	int err, disable = 0;
 
@@ -356,6 +356,11 @@ static int ths7303_probe(struct i2c_client *client,
 	struct ths7303_state *state;
 	struct v4l2_subdev *sd;
 
+	if (pdata == NULL) {
+		dev_err(&client->dev, "No platform data\n");
+		return -EINVAL;
+	}
+
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -ENODEV;
 
@@ -367,11 +372,7 @@ static int ths7303_probe(struct i2c_client *client,
 	if (!state)
 		return -ENOMEM;
 
-	if (!pdata)
-		v4l_warn(client, "No platform data, using default data!\n");
-	else
-		state->pdata = *pdata;
-
+	state->pdata = pdata;
 	sd = &state->sd;
 	v4l2_i2c_subdev_init(sd, client, &ths7303_ops);
 
