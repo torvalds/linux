@@ -35,6 +35,7 @@ static void qlcnic_sriov_vf_cancel_fw_work(struct qlcnic_adapter *);
 static void qlcnic_sriov_cleanup_transaction(struct qlcnic_bc_trans *);
 static int qlcnic_sriov_vf_mbx_op(struct qlcnic_adapter *,
 				  struct qlcnic_cmd_args *);
+static void qlcnic_sriov_process_bc_cmd(struct work_struct *);
 
 static struct qlcnic_hardware_ops qlcnic_sriov_vf_hw_ops = {
 	.read_crb			= qlcnic_83xx_read_crb,
@@ -179,6 +180,8 @@ int qlcnic_sriov_init(struct qlcnic_adapter *adapter, int num_vfs)
 		spin_lock_init(&vf->rcv_pend.lock);
 		init_completion(&vf->ch_free_cmpl);
 
+		INIT_WORK(&vf->trans_work, qlcnic_sriov_process_bc_cmd);
+
 		if (qlcnic_sriov_pf_check(adapter)) {
 			vp = kzalloc(sizeof(struct qlcnic_vport), GFP_KERNEL);
 			if (!vp) {
@@ -187,6 +190,7 @@ int qlcnic_sriov_init(struct qlcnic_adapter *adapter, int num_vfs)
 			}
 			sriov->vf_info[i].vp = vp;
 			vp->max_tx_bw = MAX_BW;
+			vp->spoofchk = true;
 			random_ether_addr(vp->mac);
 			dev_info(&adapter->pdev->dev,
 				 "MAC Address %pM is configured for VF %d\n",
@@ -652,6 +656,8 @@ int qlcnic_sriov_vf_init(struct qlcnic_adapter *adapter, int pci_using_dac)
 	if (qlcnic_read_mac_addr(adapter))
 		dev_warn(&adapter->pdev->dev, "failed to read mac addr\n");
 
+	INIT_DELAYED_WORK(&adapter->idc_aen_work, qlcnic_83xx_idc_aen_work);
+
 	clear_bit(__QLCNIC_RESETTING, &adapter->state);
 	return 0;
 }
@@ -864,7 +870,6 @@ static void qlcnic_sriov_schedule_bc_cmd(struct qlcnic_sriov *sriov,
 	    vf->adapter->need_fw_reset)
 		return;
 
-	INIT_WORK(&vf->trans_work, func);
 	queue_work(sriov->bc.bc_trans_wq, &vf->trans_work);
 }
 

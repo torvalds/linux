@@ -38,8 +38,8 @@
 
 #define _QLCNIC_LINUX_MAJOR 5
 #define _QLCNIC_LINUX_MINOR 2
-#define _QLCNIC_LINUX_SUBVERSION 42
-#define QLCNIC_LINUX_VERSIONID  "5.2.42"
+#define _QLCNIC_LINUX_SUBVERSION 43
+#define QLCNIC_LINUX_VERSIONID  "5.2.43"
 #define QLCNIC_DRV_IDC_VER  0x01
 #define QLCNIC_DRIVER_VERSION  ((_QLCNIC_LINUX_MAJOR << 16) |\
 		 (_QLCNIC_LINUX_MINOR << 8) | (_QLCNIC_LINUX_SUBVERSION))
@@ -303,7 +303,6 @@ extern int qlcnic_use_msi;
 extern int qlcnic_use_msi_x;
 extern int qlcnic_auto_fw_reset;
 extern int qlcnic_load_fw_file;
-extern int qlcnic_config_npars;
 
 /* Number of status descriptors to handle per interrupt */
 #define MAX_STATUS_HANDLE	(64)
@@ -443,6 +442,7 @@ struct qlcnic_hardware_context {
 	u16 max_mtu;
 	u32 msg_enable;
 	u16 act_pci_func;
+	u16 max_pci_func;
 
 	u32 capabilities;
 	u32 capabilities2;
@@ -816,6 +816,7 @@ struct qlcnic_mac_list_s {
 #define QLCNIC_FW_CAPABILITY_2_LRO_MAX_TCP_SEG	BIT_2
 #define QLCNIC_FW_CAP2_HW_LRO_IPV6		BIT_3
 #define QLCNIC_FW_CAPABILITY_2_OCBB		BIT_5
+#define QLCNIC_FW_CAPABILITY_2_BEACON		BIT_7
 
 /* module types */
 #define LINKEVENT_MODULE_NOT_PRESENT			1
@@ -913,6 +914,9 @@ struct qlcnic_ipaddr {
 #define QLCNIC_IS_TSO_CAPABLE(adapter)  \
 	((adapter)->ahw->capabilities & QLCNIC_FW_CAPABILITY_TSO)
 
+#define QLCNIC_BEACON_EANBLE		0xC
+#define QLCNIC_BEACON_DISABLE		0xD
+
 #define QLCNIC_DEF_NUM_STS_DESC_RINGS	4
 #define QLCNIC_MSIX_TBL_SPACE		8192
 #define QLCNIC_PCI_REG_MSIX_TBL 	0x44
@@ -932,6 +936,7 @@ struct qlcnic_ipaddr {
 #define __QLCNIC_SRIOV_ENABLE		10
 #define __QLCNIC_SRIOV_CAPABLE		11
 #define __QLCNIC_MBX_POLL_ENABLE	12
+#define __QLCNIC_DIAG_MODE		13
 
 #define QLCNIC_INTERRUPT_TEST		1
 #define QLCNIC_LOOPBACK_TEST		2
@@ -1543,6 +1548,7 @@ int qlcnic_set_default_offload_settings(struct qlcnic_adapter *);
 int qlcnic_reset_npar_config(struct qlcnic_adapter *);
 int qlcnic_set_eswitch_port_config(struct qlcnic_adapter *);
 void qlcnic_add_lb_filter(struct qlcnic_adapter *, struct sk_buff *, int, u16);
+int qlcnic_get_beacon_state(struct qlcnic_adapter *, u8 *);
 int qlcnic_83xx_configure_opmode(struct qlcnic_adapter *adapter);
 int qlcnic_read_mac_addr(struct qlcnic_adapter *);
 int qlcnic_setup_netdev(struct qlcnic_adapter *, struct net_device *, int);
@@ -1884,6 +1890,21 @@ static inline void qlcnic_enable_int(struct qlcnic_host_sds_ring *sds_ring)
 
 	if (!QLCNIC_IS_MSI_FAMILY(adapter))
 		writel(0xfbff, adapter->tgt_mask_reg);
+}
+
+static inline int qlcnic_get_diag_lock(struct qlcnic_adapter *adapter)
+{
+	return test_and_set_bit(__QLCNIC_DIAG_MODE, &adapter->state);
+}
+
+static inline void qlcnic_release_diag_lock(struct qlcnic_adapter *adapter)
+{
+	clear_bit(__QLCNIC_DIAG_MODE, &adapter->state);
+}
+
+static inline int qlcnic_check_diag_status(struct qlcnic_adapter *adapter)
+{
+	return test_bit(__QLCNIC_DIAG_MODE, &adapter->state);
 }
 
 extern const struct ethtool_ops qlcnic_sriov_vf_ethtool_ops;

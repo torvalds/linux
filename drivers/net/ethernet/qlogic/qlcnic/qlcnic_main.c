@@ -52,10 +52,6 @@ int qlcnic_load_fw_file;
 MODULE_PARM_DESC(load_fw_file, "Load firmware from (0=flash, 1=file)");
 module_param_named(load_fw_file, qlcnic_load_fw_file, int, 0444);
 
-int qlcnic_config_npars;
-module_param(qlcnic_config_npars, int, 0444);
-MODULE_PARM_DESC(qlcnic_config_npars, "Configure NPARs (0=disabled, 1=enabled)");
-
 static int qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
 static void qlcnic_remove(struct pci_dev *pdev);
 static int qlcnic_open(struct net_device *netdev);
@@ -449,6 +445,7 @@ static const struct net_device_ops qlcnic_netdev_ops = {
 	.ndo_set_vf_tx_rate	= qlcnic_sriov_set_vf_tx_rate,
 	.ndo_get_vf_config	= qlcnic_sriov_get_vf_config,
 	.ndo_set_vf_vlan	= qlcnic_sriov_set_vf_vlan,
+	.ndo_set_vf_spoofchk	= qlcnic_sriov_set_vf_spoofchk,
 #endif
 };
 
@@ -768,7 +765,7 @@ static int
 qlcnic_set_function_modes(struct qlcnic_adapter *adapter)
 {
 	u8 id;
-	int i, ret = 1;
+	int ret;
 	u32 data = QLCNIC_MGMT_FUNC;
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 
@@ -776,20 +773,10 @@ qlcnic_set_function_modes(struct qlcnic_adapter *adapter)
 	if (ret)
 		goto err_lock;
 
-	if (qlcnic_config_npars) {
-		for (i = 0; i < ahw->act_pci_func; i++) {
-			id = adapter->npars[i].pci_func;
-			if (id == ahw->pci_func)
-				continue;
-			data |= (qlcnic_config_npars &
-					QLC_DEV_SET_DRV(0xf, id));
-		}
-	} else {
-		data = QLC_SHARED_REG_RD32(adapter, QLCNIC_DRV_OP_MODE);
-		data = (data & ~QLC_DEV_SET_DRV(0xf, ahw->pci_func)) |
-			(QLC_DEV_SET_DRV(QLCNIC_MGMT_FUNC,
-					 ahw->pci_func));
-	}
+	id = ahw->pci_func;
+	data = QLC_SHARED_REG_RD32(adapter, QLCNIC_DRV_OP_MODE);
+	data = (data & ~QLC_DEV_SET_DRV(0xf, id)) |
+	       QLC_DEV_SET_DRV(QLCNIC_MGMT_FUNC, id);
 	QLC_SHARED_REG_WR32(adapter, QLCNIC_DRV_OP_MODE, data);
 	qlcnic_api_unlock(adapter);
 err_lock:
@@ -875,6 +862,27 @@ static int qlcnic_setup_pci_map(struct pci_dev *pdev,
 	return 0;
 }
 
+static inline bool qlcnic_validate_subsystem_id(struct qlcnic_adapter *adapter,
+						int index)
+{
+	struct pci_dev *pdev = adapter->pdev;
+	unsigned short subsystem_vendor;
+	bool ret = true;
+
+	subsystem_vendor = pdev->subsystem_vendor;
+
+	if (pdev->device == PCI_DEVICE_ID_QLOGIC_QLE824X ||
+	    pdev->device == PCI_DEVICE_ID_QLOGIC_QLE834X) {
+		if (qlcnic_boards[index].sub_vendor == subsystem_vendor &&
+		    qlcnic_boards[index].sub_device == pdev->subsystem_device)
+			ret = true;
+		else
+			ret = false;
+	}
+
+	return ret;
+}
+
 static void qlcnic_get_board_name(struct qlcnic_adapter *adapter, char *name)
 {
 	struct pci_dev *pdev = adapter->pdev;
@@ -882,20 +890,18 @@ static void qlcnic_get_board_name(struct qlcnic_adapter *adapter, char *name)
 
 	for (i = 0; i < NUM_SUPPORTED_BOARDS; ++i) {
 		if (qlcnic_boards[i].vendor == pdev->vendor &&
-			qlcnic_boards[i].device == pdev->device &&
-			qlcnic_boards[i].sub_vendor == pdev->subsystem_vendor &&
-			qlcnic_boards[i].sub_device == pdev->subsystem_device) {
-				sprintf(name, "%pM: %s" ,
-					adapter->mac_addr,
-					qlcnic_boards[i].short_name);
-				found = 1;
-				break;
+		    qlcnic_boards[i].device == pdev->device &&
+		    qlcnic_validate_subsystem_id(adapter, i)) {
+			found = 1;
+			break;
 		}
-
 	}
 
 	if (!found)
 		sprintf(name, "%pM Gigabit Ethernet", adapter->mac_addr);
+	else
+		sprintf(name, "%pM: %s" , adapter->mac_addr,
+			qlcnic_boards[i].short_name);
 }
 
 static void
@@ -1395,16 +1401,23 @@ qlcnic_request_irq(struct qlcnic_adapter *adapter)
 			for (ring = 0; ring < num_sds_rings; ring++) {
 				sds_ring = &recv_ctx->sds_rings[ring];
 				if (qlcnic_82xx_check(adapter) &&
-				    (ring == (num_sds_rings - 1)))
+				    (ring == (num_sds_rings - 1))) {
+					if (!(adapter->flags &
+					      QLCNIC_MSIX_ENABLED))
+						snprintf(sds_ring->name,
+							 sizeof(sds_ring->name),
+							 "qlcnic");
+					else
+						snprintf(sds_ring->name,
+							 sizeof(sds_ring->name),
+							 "%s-tx-0-rx-%d",
+							 netdev->name, ring);
+				} else {
 					snprintf(sds_ring->name,
 						 sizeof(sds_ring->name),
-						 "qlcnic-%s[Tx0+Rx%d]",
+						 "%s-rx-%d",
 						 netdev->name, ring);
-				else
-					snprintf(sds_ring->name,
-						 sizeof(sds_ring->name),
-						 "qlcnic-%s[Rx%d]",
-						 netdev->name, ring);
+				}
 				err = request_irq(sds_ring->irq, handler, flags,
 						  sds_ring->name, sds_ring);
 				if (err)
@@ -1419,7 +1432,7 @@ qlcnic_request_irq(struct qlcnic_adapter *adapter)
 			     ring++) {
 				tx_ring = &adapter->tx_ring[ring];
 				snprintf(tx_ring->name, sizeof(tx_ring->name),
-					 "qlcnic-%s[Tx%d]", netdev->name, ring);
+					 "%s-tx-%d", netdev->name, ring);
 				err = request_irq(tx_ring->irq, handler, flags,
 						  tx_ring->name, tx_ring);
 				if (err)

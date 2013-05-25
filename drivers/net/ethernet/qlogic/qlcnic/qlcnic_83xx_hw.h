@@ -314,6 +314,7 @@ struct qlc_83xx_idc {
 	u8		vnic_state;
 	u8		vnic_wait_limit;
 	u8		quiesce_req;
+	u8		delay_reset;
 	char		**name;
 };
 

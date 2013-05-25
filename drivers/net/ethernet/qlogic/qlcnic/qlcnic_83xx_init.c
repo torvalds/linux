@@ -649,6 +649,7 @@ static void qlcnic_83xx_idc_update_idc_params(struct qlcnic_adapter *adapter)
 	ahw->idc.collect_dump = 0;
 	ahw->reset_context = 0;
 	adapter->tx_timeo_cnt = 0;
+	ahw->idc.delay_reset = 0;
 
 	clear_bit(__QLCNIC_RESETTING, &adapter->state);
 }
@@ -883,21 +884,41 @@ static int qlcnic_83xx_idc_need_reset_state(struct qlcnic_adapter *adapter)
 	int ret = 0;
 
 	if (adapter->ahw->idc.prev_state != QLC_83XX_IDC_DEV_NEED_RESET) {
-		qlcnic_83xx_idc_update_drv_ack_reg(adapter, 1, 1);
 		qlcnic_83xx_idc_update_audit_reg(adapter, 0, 1);
 		set_bit(__QLCNIC_RESETTING, &adapter->state);
 		clear_bit(QLC_83XX_MBX_READY, &adapter->ahw->idc.status);
 		if (adapter->ahw->nic_mode == QLC_83XX_VIRTUAL_NIC_MODE)
 			qlcnic_83xx_disable_vnic_mode(adapter, 1);
-		qlcnic_83xx_idc_detach_driver(adapter);
+
+		if (qlcnic_check_diag_status(adapter)) {
+			dev_info(&adapter->pdev->dev,
+				 "%s: Wait for diag completion\n", __func__);
+			adapter->ahw->idc.delay_reset = 1;
+			return 0;
+		} else {
+			qlcnic_83xx_idc_update_drv_ack_reg(adapter, 1, 1);
+			qlcnic_83xx_idc_detach_driver(adapter);
+		}
 	}
 
-	/* Check ACK from other functions */
-	ret = qlcnic_83xx_idc_check_reset_ack_reg(adapter);
-	if (ret) {
+	if (qlcnic_check_diag_status(adapter)) {
 		dev_info(&adapter->pdev->dev,
-			 "%s: Waiting for reset ACK\n", __func__);
-		return 0;
+			 "%s: Wait for diag completion\n", __func__);
+		return  -1;
+	} else {
+		if (adapter->ahw->idc.delay_reset) {
+			qlcnic_83xx_idc_update_drv_ack_reg(adapter, 1, 1);
+			qlcnic_83xx_idc_detach_driver(adapter);
+			adapter->ahw->idc.delay_reset = 0;
+		}
+
+		/* Check for ACK from other functions */
+		ret = qlcnic_83xx_idc_check_reset_ack_reg(adapter);
+		if (ret) {
+			dev_info(&adapter->pdev->dev,
+				 "%s: Waiting for reset ACK\n", __func__);
+			return -1;
+		}
 	}
 
 	/* Transit to INIT state and restart the HW */

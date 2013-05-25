@@ -312,6 +312,11 @@ inline void qlcnic_83xx_clear_legacy_intr_mask(struct qlcnic_adapter *adapter)
 	writel(0, adapter->tgt_mask_reg);
 }
 
+inline void qlcnic_83xx_set_legacy_intr_mask(struct qlcnic_adapter *adapter)
+{
+	writel(1, adapter->tgt_mask_reg);
+}
+
 /* Enable MSI-x and INT-x interrupts */
 void qlcnic_83xx_enable_intr(struct qlcnic_adapter *adapter,
 			     struct qlcnic_host_sds_ring *sds_ring)
@@ -458,6 +463,9 @@ void qlcnic_83xx_free_mbx_intr(struct qlcnic_adapter *adapter)
 {
 	u32 num_msix;
 
+	if (!(adapter->flags & QLCNIC_MSIX_ENABLED))
+		qlcnic_83xx_set_legacy_intr_mask(adapter);
+
 	qlcnic_83xx_disable_mbx_intr(adapter);
 
 	if (adapter->flags & QLCNIC_MSIX_ENABLED)
@@ -474,7 +482,6 @@ int qlcnic_83xx_setup_mbx_intr(struct qlcnic_adapter *adapter)
 {
 	irq_handler_t handler;
 	u32 val;
-	char name[32];
 	int err = 0;
 	unsigned long flags = 0;
 
@@ -485,9 +492,7 @@ int qlcnic_83xx_setup_mbx_intr(struct qlcnic_adapter *adapter)
 	if (adapter->flags & QLCNIC_MSIX_ENABLED) {
 		handler = qlcnic_83xx_handle_aen;
 		val = adapter->msix_entries[adapter->ahw->num_msix - 1].vector;
-		snprintf(name, (IFNAMSIZ + 4),
-			 "%s[%s]", "qlcnic", "aen");
-		err = request_irq(val, handler, flags, name, adapter);
+		err = request_irq(val, handler, flags, "qlcnic-MB", adapter);
 		if (err) {
 			dev_err(&adapter->pdev->dev,
 				"failed to register MBX interrupt\n");
@@ -1588,16 +1593,24 @@ int qlcnic_83xx_loopback_test(struct net_device *netdev, u8 mode)
 	struct qlcnic_hardware_context *ahw = adapter->ahw;
 	int ret = 0, loop = 0, max_sds_rings = adapter->max_sds_rings;
 
-	QLCDB(adapter, DRV, "%s loopback test in progress\n",
-	      mode == QLCNIC_ILB_MODE ? "internal" : "external");
 	if (ahw->op_mode == QLCNIC_NON_PRIV_FUNC) {
-		dev_warn(&adapter->pdev->dev,
-			 "Loopback test not supported for non privilege function\n");
+		netdev_warn(netdev,
+			    "Loopback test not supported in non privileged mode\n");
 		return ret;
 	}
 
-	if (test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
+	if (test_bit(__QLCNIC_RESETTING, &adapter->state)) {
+		netdev_info(netdev, "Device is resetting\n");
 		return -EBUSY;
+	}
+
+	if (qlcnic_get_diag_lock(adapter)) {
+		netdev_info(netdev, "Device is in diagnostics mode\n");
+		return -EBUSY;
+	}
+
+	netdev_info(netdev, "%s loopback test in progress\n",
+		    mode == QLCNIC_ILB_MODE ? "internal" : "external");
 
 	ret = qlcnic_83xx_diag_alloc_res(netdev, QLCNIC_LOOPBACK_TEST,
 					 max_sds_rings);
@@ -1638,7 +1651,7 @@ free_diag_res:
 
 fail_diag_alloc:
 	adapter->max_sds_rings = max_sds_rings;
-	clear_bit(__QLCNIC_RESETTING, &adapter->state);
+	qlcnic_release_diag_lock(adapter);
 	return ret;
 }
 
@@ -2121,26 +2134,25 @@ out:
 int qlcnic_83xx_get_pci_info(struct qlcnic_adapter *adapter,
 			     struct qlcnic_pci_info *pci_info)
 {
+	struct qlcnic_hardware_context *ahw = adapter->ahw;
+	struct device *dev = &adapter->pdev->dev;
+	struct qlcnic_cmd_args cmd;
 	int i, err = 0, j = 0;
 	u32 temp;
-	struct qlcnic_cmd_args cmd;
 
 	qlcnic_alloc_mbx_args(&cmd, adapter, QLCNIC_CMD_GET_PCI_INFO);
 	err = qlcnic_issue_cmd(adapter, &cmd);
 
-	adapter->ahw->act_pci_func = 0;
+	ahw->act_pci_func = 0;
 	if (err == QLCNIC_RCODE_SUCCESS) {
-		pci_info->func_count = cmd.rsp.arg[1] & 0xFF;
-		dev_info(&adapter->pdev->dev,
-			 "%s: total functions = %d\n",
-			 __func__, pci_info->func_count);
+		ahw->max_pci_func = cmd.rsp.arg[1] & 0xFF;
 		for (i = 2, j = 0; j < QLCNIC_MAX_PCI_FUNC; j++, pci_info++) {
 			pci_info->id = cmd.rsp.arg[i] & 0xFFFF;
 			pci_info->active = (cmd.rsp.arg[i] & 0xFFFF0000) >> 16;
 			i++;
 			pci_info->type = cmd.rsp.arg[i] & 0xFFFF;
 			if (pci_info->type == QLCNIC_TYPE_NIC)
-				adapter->ahw->act_pci_func++;
+				ahw->act_pci_func++;
 			temp = (cmd.rsp.arg[i] & 0xFFFF0000) >> 16;
 			pci_info->default_port = temp;
 			i++;
@@ -2152,18 +2164,21 @@ int qlcnic_83xx_get_pci_info(struct qlcnic_adapter *adapter,
 			i++;
 			memcpy(pci_info->mac + sizeof(u32), &cmd.rsp.arg[i], 2);
 			i = i + 3;
-
-			dev_info(&adapter->pdev->dev, "%s:\n"
-				 "\tid = %d active = %d type = %d\n"
-				 "\tport = %d min bw = %d max bw = %d\n"
-				 "\tmac_addr =  %pM\n", __func__,
-				 pci_info->id, pci_info->active, pci_info->type,
-				 pci_info->default_port, pci_info->tx_min_bw,
-				 pci_info->tx_max_bw, pci_info->mac);
+			if (ahw->op_mode == QLCNIC_MGMT_FUNC)
+				dev_info(dev, "id = %d active = %d type = %d\n"
+					 "\tport = %d min bw = %d max bw = %d\n"
+					 "\tmac_addr =  %pM\n", pci_info->id,
+					 pci_info->active, pci_info->type,
+					 pci_info->default_port,
+					 pci_info->tx_min_bw,
+					 pci_info->tx_max_bw, pci_info->mac);
 		}
+		if (ahw->op_mode == QLCNIC_MGMT_FUNC)
+			dev_info(dev, "Max vNIC functions = %d, active vNIC functions = %d\n",
+				 ahw->max_pci_func, ahw->act_pci_func);
+
 	} else {
-		dev_err(&adapter->pdev->dev, "Failed to get PCI Info%d\n",
-			err);
+		dev_err(dev, "Failed to get PCI Info, error = %d\n", err);
 		err = -EIO;
 	}
 
@@ -3113,8 +3128,10 @@ int qlcnic_83xx_interrupt_test(struct net_device *netdev)
 	u8 val;
 	int ret, max_sds_rings = adapter->max_sds_rings;
 
-	if (test_and_set_bit(__QLCNIC_RESETTING, &adapter->state))
-		return -EIO;
+	if (qlcnic_get_diag_lock(adapter)) {
+		netdev_info(netdev, "Device in diagnostics mode\n");
+		return -EBUSY;
+	}
 
 	ret = qlcnic_83xx_diag_alloc_res(netdev, QLCNIC_INTERRUPT_TEST,
 					 max_sds_rings);
@@ -3156,7 +3173,7 @@ done:
 
 fail_diag_irq:
 	adapter->max_sds_rings = max_sds_rings;
-	clear_bit(__QLCNIC_RESETTING, &adapter->state);
+	qlcnic_release_diag_lock(adapter);
 	return ret;
 }
 
