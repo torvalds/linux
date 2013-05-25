@@ -523,11 +523,13 @@ static void platform_drv_shutdown(struct device *_dev)
 }
 
 /**
- * platform_driver_register - register a driver for platform-level devices
+ * __platform_driver_register - register a driver for platform-level devices
  * @drv: platform driver structure
  */
-int platform_driver_register(struct platform_driver *drv)
+int __platform_driver_register(struct platform_driver *drv,
+				struct module *owner)
 {
+	drv->driver.owner = owner;
 	drv->driver.bus = &platform_bus_type;
 	if (drv->probe)
 		drv->driver.probe = platform_drv_probe;
@@ -538,7 +540,7 @@ int platform_driver_register(struct platform_driver *drv)
 
 	return driver_register(&drv->driver);
 }
-EXPORT_SYMBOL_GPL(platform_driver_register);
+EXPORT_SYMBOL_GPL(__platform_driver_register);
 
 /**
  * platform_driver_unregister - unregister a driver for platform-level devices
