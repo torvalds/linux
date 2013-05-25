@@ -356,9 +356,7 @@ static int ths7303_setup(struct v4l2_subdev *sd)
 	int ret;
 	u8 mask;
 
-	state->stream_on = pdata->init_enable;
-
-	mask = state->stream_on ? 0xff : 0xf8;
+	mask = 0xf8;
 
 	ret = ths7303_write(sd, THS7303_CHANNEL_1, pdata->ch_1 & mask);
 	if (ret)
