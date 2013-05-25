@@ -1366,6 +1366,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 cleanup_gem:
 	mutex_lock(&dev->struct_mutex);
 	i915_gem_cleanup_ringbuffer(dev);
+	i915_gem_context_fini(dev);
 	mutex_unlock(&dev->struct_mutex);
 	i915_gem_cleanup_aliasing_ppgtt(dev);
 	drm_mm_takedown(&dev_priv->mm.gtt_space);
