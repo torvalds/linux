@@ -9,7 +9,7 @@
 UTS_MACHINE := arc
 
 ifeq ($(CROSS_COMPILE),)
-CROSS_COMPILE := arc-elf32-
+CROSS_COMPILE := arc-linux-uclibc-
 endif
 
 KBUILD_DEFCONFIG := fpga_defconfig
@@ -25,13 +25,22 @@ ifdef CONFIG_ARC_CURR_IN_REG
 LINUXINCLUDE	+=  -include ${src}/arch/arc/include/asm/current.h
 endif
 
-atleast_gcc44 :=  $(call cc-ifversion, -gt, 0402, y)
+upto_gcc42    :=  $(call cc-ifversion, -le, 0402, y)
+upto_gcc44    :=  $(call cc-ifversion, -le, 0404, y)
+atleast_gcc44 :=  $(call cc-ifversion, -ge, 0404, y)
+atleast_gcc48 :=  $(call cc-ifversion, -ge, 0408, y)
+
 cflags-$(atleast_gcc44)			+= -fsection-anchors
 
 cflags-$(CONFIG_ARC_HAS_LLSC)		+= -mlock
 cflags-$(CONFIG_ARC_HAS_SWAPE)		+= -mswape
 cflags-$(CONFIG_ARC_HAS_RTSC)		+= -mrtsc
 cflags-$(CONFIG_ARC_DW2_UNWIND)		+= -fasynchronous-unwind-tables
+
+# By default gcc 4.8 generates dwarf4 which kernel unwinder can't grok
+ifeq ($(atleast_gcc48),y)
+cflags-$(CONFIG_ARC_DW2_UNWIND)		+= -gdwarf-2
+endif
 
 ifndef CONFIG_CC_OPTIMIZE_FOR_SIZE
 # Generic build system uses -O2, we want -O3
@@ -46,11 +55,10 @@ cflags-$(disable_small_data)		+= -mno-sdata -fcall-used-gp
 cflags-$(CONFIG_CPU_BIG_ENDIAN)		+= -mbig-endian
 ldflags-$(CONFIG_CPU_BIG_ENDIAN)	+= -EB
 
-# STAR 9000518362:
+# STAR 9000518362: (fixed with binutils shipping with gcc 4.8)
 # arc-linux-uclibc-ld (buildroot) or arceb-elf32-ld (EZChip) don't accept
-# --build-id w/o "-marclinux".
-# Default arc-elf32-ld is OK
-ldflags-y				+= -marclinux
+# --build-id w/o "-marclinux". Default arc-elf32-ld is OK
+ldflags-$(upto_gcc44)			+= -marclinux
 
 ARC_LIBGCC				:= -mA7
 cflags-$(CONFIG_ARC_HAS_HW_MPY)		+= -multcost=16
@@ -64,8 +72,8 @@ ifndef CONFIG_ARC_HAS_HW_MPY
 # With gcc 4.4.7, -mno-mpy is enough to make any other related adjustments,
 # e.g. increased cost of MPY. With gcc 4.2.1 this had to be explicitly hinted
 
-	ARC_LIBGCC		:= -marc600
-	ifneq ($(atleast_gcc44),y)
+	ifeq ($(upto_gcc42),y)
+		ARC_LIBGCC	:= -marc600
 		cflags-y	+= -multcost=30
 	endif
 endif
