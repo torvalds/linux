@@ -349,30 +349,6 @@ static const struct v4l2_subdev_ops ths7303_ops = {
 	.video 	= &ths7303_video_ops,
 };
 
-static int ths7303_setup(struct v4l2_subdev *sd)
-{
-	struct ths7303_state *state = to_state(sd);
-	struct ths7303_platform_data *pdata = &state->pdata;
-	int ret;
-	u8 mask;
-
-	mask = 0xf8;
-
-	ret = ths7303_write(sd, THS7303_CHANNEL_1, pdata->ch_1 & mask);
-	if (ret)
-		return ret;
-
-	ret = ths7303_write(sd, THS7303_CHANNEL_2, pdata->ch_2 & mask);
-	if (ret)
-		return ret;
-
-	ret = ths7303_write(sd, THS7303_CHANNEL_3, pdata->ch_3 & mask);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
 static int ths7303_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
@@ -402,9 +378,10 @@ static int ths7303_probe(struct i2c_client *client,
 	/* store the driver data to differntiate the chip */
 	state->driver_data = (int)id->driver_data;
 
-	if (ths7303_setup(sd) < 0) {
-		v4l_err(client, "init failed\n");
-		return -EIO;
+	/* set to default 480I_576I filter mode */
+	if (ths7303_setval(sd, THS7303_FILTER_MODE_480I_576I) < 0) {
+		v4l_err(client, "Setting to 480I_576I filter mode failed!\n");
+		return -EINVAL;
 	}
 
 	return 0;
