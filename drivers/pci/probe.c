@@ -278,9 +278,9 @@ out:
 		pci_write_config_word(dev, PCI_COMMAND, orig_cmd);
 
 	if (bar_too_big)
-		dev_err(&dev->dev, "reg %x: can't handle 64-bit BAR\n", pos);
+		dev_err(&dev->dev, "reg 0x%x: can't handle 64-bit BAR\n", pos);
 	if (res->flags && !bar_disabled)
-		dev_printk(KERN_DEBUG, &dev->dev, "reg %x: %pR\n", pos, res);
+		dev_printk(KERN_DEBUG, &dev->dev, "reg 0x%x: %pR\n", pos, res);
 
 	return (res->flags & IORESOURCE_MEM_64) ? 1 : 0;
 }
