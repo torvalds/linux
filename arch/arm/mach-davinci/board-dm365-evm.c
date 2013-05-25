@@ -509,7 +509,6 @@ struct ths7303_platform_data ths7303_pdata = {
 	.ch_1 = 3,
 	.ch_2 = 3,
 	.ch_3 = 3,
-	.init_enable = 1,
 };
 
 static struct amp_config_info vpbe_amp = {
