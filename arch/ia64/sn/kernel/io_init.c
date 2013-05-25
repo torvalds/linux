@@ -326,16 +326,7 @@ sn_pci_controller_fixup(int segment, int busnum, struct pci_bus *bus)
 	bus = pci_scan_root_bus(NULL, busnum, &pci_root_ops, controller,
 				&resources);
  	if (bus == NULL)
- 		goto error_return; /* error, or bus already scanned */
-
-	bus->sysdata = controller;
-
-	return;
-
-error_return:
-
-	kfree(controller);
-	return;
+		kfree(controller);
 }
 
 /*
