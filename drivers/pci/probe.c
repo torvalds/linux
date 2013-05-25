@@ -1132,6 +1132,7 @@ static void pci_release_dev(struct device *dev)
 	pci_dev = to_pci_dev(dev);
 	pci_release_capabilities(pci_dev);
 	pci_release_of_node(pci_dev);
+	pci_bus_put(pci_dev->bus);
 	kfree(pci_dev);
 }
 
@@ -1270,11 +1271,10 @@ static struct pci_dev *pci_scan_device(struct pci_bus *bus, int devfn)
 	if (!pci_bus_read_dev_vendor_id(bus, devfn, &l, 60*1000))
 		return NULL;
 
-	dev = alloc_pci_dev();
+	dev = pci_alloc_dev(bus);
 	if (!dev)
 		return NULL;
 
-	dev->bus = bus;
 	dev->devfn = devfn;
 	dev->vendor = l & 0xffff;
 	dev->device = (l >> 16) & 0xffff;
@@ -1282,6 +1282,7 @@ static struct pci_dev *pci_scan_device(struct pci_bus *bus, int devfn)
 	pci_set_of_node(dev);
 
 	if (pci_setup_device(dev)) {
+		pci_bus_put(dev->bus);
 		kfree(dev);
 		return NULL;
 	}

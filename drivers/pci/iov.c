@@ -75,18 +75,20 @@ static int virtfn_add(struct pci_dev *dev, int id, int reset)
 	struct pci_dev *virtfn;
 	struct resource *res;
 	struct pci_sriov *iov = dev->sriov;
+	struct pci_bus *bus;
 
-	virtfn = alloc_pci_dev();
+	virtfn = pci_alloc_dev(NULL);
 	if (!virtfn)
 		return -ENOMEM;
 
 	mutex_lock(&iov->dev->sriov->lock);
-	virtfn->bus = virtfn_add_bus(dev->bus, virtfn_bus(dev, id));
-	if (!virtfn->bus) {
+	bus = virtfn_add_bus(dev->bus, virtfn_bus(dev, id));
+	if (!bus) {
 		kfree(virtfn);
 		mutex_unlock(&iov->dev->sriov->lock);
 		return -ENOMEM;
 	}
+	virtfn->bus = pci_bus_get(bus);
 	virtfn->devfn = virtfn_devfn(dev, id);
 	virtfn->vendor = dev->vendor;
 	pci_read_config_word(dev, iov->pos + PCI_SRIOV_VF_DID, &virtfn->device);
