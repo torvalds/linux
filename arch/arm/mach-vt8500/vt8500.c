@@ -173,6 +173,7 @@ static const char * const vt8500_dt_compat[] = {
 	"wm,wm8505",
 	"wm,wm8750",
 	"wm,wm8850",
+	NULL
 };
 
 DT_MACHINE_START(WMT_DT, "VIA/Wondermedia SoC (Device Tree Support)")

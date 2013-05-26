@@ -859,6 +859,7 @@ error:
  */
 static void __exit ehv_bc_exit(void)
 {
+	platform_driver_unregister(&ehv_bc_tty_driver);
 	tty_unregister_driver(ehv_bc_driver);
 	put_tty_driver(ehv_bc_driver);
 	kfree(bcs);

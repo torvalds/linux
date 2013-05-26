@@ -799,6 +799,7 @@ static int fsl_otg_conf(struct platform_device *pdev)
 
 	/* initialize the otg structure */
 	fsl_otg_tc->phy.label = DRIVER_DESC;
+	fsl_otg_tc->phy.dev = &pdev->dev;
 	fsl_otg_tc->phy.set_power = fsl_otg_set_power;
 
 	fsl_otg_tc->phy.otg->phy = &fsl_otg_tc->phy;

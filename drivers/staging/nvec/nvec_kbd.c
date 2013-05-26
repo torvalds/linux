@@ -169,8 +169,15 @@ fail:
 
 static int nvec_kbd_remove(struct platform_device *pdev)
 {
+	struct nvec_chip *nvec = dev_get_drvdata(pdev->dev.parent);
+	char disable_kbd[] = { NVEC_KBD, DISABLE_KBD },
+	     uncnfg_wake_key_reporting[] = { NVEC_KBD, CNFG_WAKE_KEY_REPORTING,
+						false };
+	nvec_write_async(nvec, uncnfg_wake_key_reporting, 3);
+	nvec_write_async(nvec, disable_kbd, 2);
+	nvec_unregister_notifier(nvec, &keys_dev.notifier);
+
 	input_unregister_device(keys_dev.input);
-	input_free_device(keys_dev.input);
 
 	return 0;
 }
@@ -188,4 +195,5 @@ module_platform_driver(nvec_kbd_driver);
 
 MODULE_AUTHOR("Marc Dietrich <marvin24@gmx.de>");
 MODULE_DESCRIPTION("NVEC keyboard driver");
+MODULE_ALIAS("platform:nvec-kbd");
 MODULE_LICENSE("GPL");

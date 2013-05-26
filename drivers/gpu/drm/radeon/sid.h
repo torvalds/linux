@@ -28,6 +28,7 @@
 
 #define TAHITI_GB_ADDR_CONFIG_GOLDEN        0x12011003
 #define VERDE_GB_ADDR_CONFIG_GOLDEN         0x12010002
+#define HAINAN_GB_ADDR_CONFIG_GOLDEN        0x02010001
 
 /* discrete uvd clocks */
 #define	CG_UPLL_FUNC_CNTL				0x634

@@ -16,12 +16,6 @@
 #include <trace/syscall.h>
 #include <asm/asm-offsets.h>
 
-#ifdef CONFIG_64BIT
-#define MCOUNT_OFFSET_RET 12
-#else
-#define MCOUNT_OFFSET_RET 22
-#endif
-
 #ifdef CONFIG_DYNAMIC_FTRACE
 
 void ftrace_disable_code(void);
@@ -155,9 +149,10 @@ unsigned long __kprobes prepare_ftrace_return(unsigned long parent,
 
 	if (unlikely(atomic_read(&current->tracing_graph_pause)))
 		goto out;
+	ip = (ip & PSW_ADDR_INSN) - MCOUNT_INSN_SIZE;
 	if (ftrace_push_return_trace(parent, ip, &trace.depth, 0) == -EBUSY)
 		goto out;
-	trace.func = (ip & PSW_ADDR_INSN) - MCOUNT_OFFSET_RET;
+	trace.func = ip;
 	/* Only trace if the calling function expects to. */
 	if (!ftrace_graph_entry(&trace)) {
 		current->curr_ret_stack--;

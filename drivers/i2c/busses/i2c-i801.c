@@ -231,7 +231,11 @@ static const char *i801_feature_names[] = {
 
 static unsigned int disable_features;
 module_param(disable_features, uint, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(disable_features, "Disable selected driver features");
+MODULE_PARM_DESC(disable_features, "Disable selected driver features:\n"
+	"\t\t  0x01  disable SMBus PEC\n"
+	"\t\t  0x02  disable the block buffer\n"
+	"\t\t  0x08  disable the I2C block read functionality\n"
+	"\t\t  0x10  don't use interrupts ");
 
 /* Make sure the SMBus host is ready to start transmitting.
    Return 0 if it is, -EBUSY if it is not. */

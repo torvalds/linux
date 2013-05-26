@@ -43,8 +43,6 @@ struct omap_uart_port_info {
 	int			DTR_present;
 
 	int (*get_context_loss_count)(struct device *);
-	void (*set_forceidle)(struct device *);
-	void (*set_noidle)(struct device *);
 	void (*enable_wakeup)(struct device *, bool);
 };
 

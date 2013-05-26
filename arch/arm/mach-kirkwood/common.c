@@ -528,12 +528,6 @@ void __init kirkwood_init_early(void)
 {
 	orion_time_set_base(TIMER_VIRT_BASE);
 
-	/*
-	 * Some Kirkwood devices allocate their coherent buffers from atomic
-	 * context. Increase size of atomic coherent pool to make sure such
-	 * the allocations won't fail.
-	 */
-	init_dma_coherent_pool_size(SZ_1M);
 	mvebu_mbus_init("marvell,kirkwood-mbus",
 			BRIDGE_WINS_BASE, BRIDGE_WINS_SZ,
 			DDR_WINDOW_CPU_BASE, DDR_WINDOW_CPU_SZ);

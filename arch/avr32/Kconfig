@@ -205,6 +205,11 @@ config ARCH_DISCONTIGMEM_ENABLE
 config ARCH_SPARSEMEM_ENABLE
 	def_bool n
 
+config NODES_SHIFT
+	int
+	default "2"
+	depends on NEED_MULTIPLE_NODES
+
 source "mm/Kconfig"
 
 config OWNERSHIP_TRACE

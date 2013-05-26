@@ -645,7 +645,7 @@ static int __cpuinit __smp_rescan_cpus(struct sclp_cpu_info *info,
 			continue;
 		pcpu = pcpu_devices + cpu;
 		pcpu->address = info->cpu[i].address;
-		pcpu->state = (cpu >= info->configured) ?
+		pcpu->state = (i >= info->configured) ?
 			CPU_STATE_STANDBY : CPU_STATE_CONFIGURED;
 		smp_cpu_set_polarization(cpu, POLARIZATION_UNKNOWN);
 		set_cpu_present(cpu, true);

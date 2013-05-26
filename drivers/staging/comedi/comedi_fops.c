@@ -246,9 +246,6 @@ static int resize_async_buffer(struct comedi_device *dev,
 		return -EBUSY;
 	}
 
-	if (!async->prealloc_buf)
-		return -EINVAL;
-
 	/* make sure buffer is an integral number of pages
 	 * (we round up) */
 	new_size = (new_size + PAGE_SIZE - 1) & PAGE_MASK;

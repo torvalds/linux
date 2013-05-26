@@ -94,11 +94,13 @@ nve0_fifo_playlist_update(struct nve0_fifo_priv *priv, u32 engine)
 	u32 match = (engine << 16) | 0x00000001;
 	int i, p;
 
+	mutex_lock(&nv_subdev(priv)->mutex);
 	cur = engn->playlist[engn->cur_playlist];
 	if (unlikely(cur == NULL)) {
 		int ret = nouveau_gpuobj_new(nv_object(priv), NULL,
 					     0x8000, 0x1000, 0, &cur);
 		if (ret) {
+			mutex_unlock(&nv_subdev(priv)->mutex);
 			nv_error(priv, "playlist alloc failed\n");
 			return;
 		}
@@ -122,6 +124,7 @@ nve0_fifo_playlist_update(struct nve0_fifo_priv *priv, u32 engine)
 	nv_wr32(priv, 0x002274, (engine << 20) | (p >> 3));
 	if (!nv_wait(priv, 0x002284 + (engine * 4), 0x00100000, 0x00000000))
 		nv_error(priv, "playlist %d update timeout\n", engine);
+	mutex_unlock(&nv_subdev(priv)->mutex);
 }
 
 static int
