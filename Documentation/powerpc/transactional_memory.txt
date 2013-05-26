@@ -147,6 +147,25 @@ Example signal handler:
       fix_the_problem(ucp->dar);
     }
 
+When in an active transaction that takes a signal, we need to be careful with
+the stack.  It's possible that the stack has moved back up after the tbegin.
+The obvious case here is when the tbegin is called inside a function that
+returns before a tend.  In this case, the stack is part of the checkpointed
+transactional memory state.  If we write over this non transactionally or in
+suspend, we are in trouble because if we get a tm abort, the program counter and
+stack pointer will be back at the tbegin but our in memory stack won't be valid
+anymore.
+
+To avoid this, when taking a signal in an active transaction, we need to use
+the stack pointer from the checkpointed state, rather than the speculated
+state.  This ensures that the signal context (written tm suspended) will be
+written below the stack required for the rollback.  The transaction is aborted
+becuase of the treclaim, so any memory written between the tbegin and the
+signal will be rolled back anyway.
+
+For signals taken in non-TM or suspended mode, we use the
+normal/non-checkpointed stack pointer.
+
 
 Failure cause codes used by kernel
 ==================================
