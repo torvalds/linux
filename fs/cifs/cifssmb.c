@@ -417,6 +417,38 @@ decode_ext_sec_blob(struct TCP_Server_Info *server, NEGOTIATE_RSP *pSMBr)
 	return 0;
 }
 
+int
+cifs_enable_signing(struct TCP_Server_Info *server, unsigned int secFlags)
+{
+	if ((secFlags & CIFSSEC_MAY_SIGN) == 0) {
+		/* MUST_SIGN already includes the MAY_SIGN FLAG
+		   so if this is zero it means that signing is disabled */
+		cifs_dbg(FYI, "Signing disabled\n");
+		if (server->sec_mode & SECMODE_SIGN_REQUIRED) {
+			cifs_dbg(VFS, "Server requires packet signing to be enabled in /proc/fs/cifs/SecurityFlags\n");
+			return -EOPNOTSUPP;
+		}
+		server->sec_mode &=
+			~(SECMODE_SIGN_ENABLED | SECMODE_SIGN_REQUIRED);
+	} else if ((secFlags & CIFSSEC_MUST_SIGN) == CIFSSEC_MUST_SIGN) {
+		/* signing required */
+		cifs_dbg(FYI, "Must sign - secFlags 0x%x\n", secFlags);
+		if ((server->sec_mode &
+			(SECMODE_SIGN_ENABLED | SECMODE_SIGN_REQUIRED)) == 0) {
+			cifs_dbg(VFS, "signing required but server lacks support\n");
+			return -EOPNOTSUPP;
+		} else
+			server->sec_mode |= SECMODE_SIGN_REQUIRED;
+	} else {
+		/* signing optional ie CIFSSEC_MAY_SIGN */
+		if ((server->sec_mode & SECMODE_SIGN_REQUIRED) == 0)
+			server->sec_mode &=
+				~(SECMODE_SIGN_ENABLED | SECMODE_SIGN_REQUIRED);
+	}
+
+	return 0;
+}
+
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
 static int
 decode_lanman_negprot_rsp(struct TCP_Server_Info *server, NEGOTIATE_RSP *pSMBr,
@@ -577,10 +609,7 @@ CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses)
 		goto neg_err_exit;
 	} else if (pSMBr->hdr.WordCount == 13) {
 		rc = decode_lanman_negprot_rsp(server, pSMBr, secFlags);
-		if (!rc)
-			goto signing_check;
-		else
-			goto neg_err_exit;
+		goto signing_check;
 	} else if (pSMBr->hdr.WordCount != 17) {
 		/* unknown wct */
 		rc = -EOPNOTSUPP;
@@ -642,36 +671,9 @@ CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses)
 	else
 		server->capabilities &= ~CAP_EXTENDED_SECURITY;
 
-	if (rc)
-		goto neg_err_exit;
-
 signing_check:
-	if ((secFlags & CIFSSEC_MAY_SIGN) == 0) {
-		/* MUST_SIGN already includes the MAY_SIGN FLAG
-		   so if this is zero it means that signing is disabled */
-		cifs_dbg(FYI, "Signing disabled\n");
-		if (server->sec_mode & SECMODE_SIGN_REQUIRED) {
-			cifs_dbg(VFS, "Server requires packet signing to be enabled in /proc/fs/cifs/SecurityFlags\n");
-			rc = -EOPNOTSUPP;
-		}
-		server->sec_mode &=
-			~(SECMODE_SIGN_ENABLED | SECMODE_SIGN_REQUIRED);
-	} else if ((secFlags & CIFSSEC_MUST_SIGN) == CIFSSEC_MUST_SIGN) {
-		/* signing required */
-		cifs_dbg(FYI, "Must sign - secFlags 0x%x\n", secFlags);
-		if ((server->sec_mode &
-			(SECMODE_SIGN_ENABLED | SECMODE_SIGN_REQUIRED)) == 0) {
-			cifs_dbg(VFS, "signing required but server lacks support\n");
-			rc = -EOPNOTSUPP;
-		} else
-			server->sec_mode |= SECMODE_SIGN_REQUIRED;
-	} else {
-		/* signing optional ie CIFSSEC_MAY_SIGN */
-		if ((server->sec_mode & SECMODE_SIGN_REQUIRED) == 0)
-			server->sec_mode &=
-				~(SECMODE_SIGN_ENABLED | SECMODE_SIGN_REQUIRED);
-	}
-
+	if (!rc)
+		rc = cifs_enable_signing(server, secFlags);
 neg_err_exit:
 	cifs_buf_release(pSMB);
 

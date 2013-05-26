@@ -423,36 +423,11 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 	}
 
 	cifs_dbg(FYI, "sec_flags 0x%x\n", sec_flags);
-	if ((sec_flags & CIFSSEC_MUST_SIGN) == CIFSSEC_MUST_SIGN) {
-		cifs_dbg(FYI, "Signing required\n");
-		if (!(server->sec_mode & (SMB2_NEGOTIATE_SIGNING_REQUIRED |
-		      SMB2_NEGOTIATE_SIGNING_ENABLED))) {
-			cifs_dbg(VFS, "signing required but server lacks support\n");
-			rc = -EOPNOTSUPP;
-			goto neg_exit;
-		}
-		server->sec_mode |= SECMODE_SIGN_REQUIRED;
-	} else if (sec_flags & CIFSSEC_MAY_SIGN) {
-		cifs_dbg(FYI, "Signing optional\n");
-		if (server->sec_mode & SMB2_NEGOTIATE_SIGNING_REQUIRED) {
-			cifs_dbg(FYI, "Server requires signing\n");
-			server->sec_mode |= SECMODE_SIGN_REQUIRED;
-		} else {
-			server->sec_mode &=
-				~(SECMODE_SIGN_ENABLED | SECMODE_SIGN_REQUIRED);
-		}
-	} else {
-		cifs_dbg(FYI, "Signing disabled\n");
-		if (server->sec_mode & SMB2_NEGOTIATE_SIGNING_REQUIRED) {
-			cifs_dbg(VFS, "Server requires packet signing to be enabled in /proc/fs/cifs/SecurityFlags\n");
-			rc = -EOPNOTSUPP;
-			goto neg_exit;
-		}
-		server->sec_mode &=
-			~(SECMODE_SIGN_ENABLED | SECMODE_SIGN_REQUIRED);
-	}
-
+	rc = cifs_enable_signing(server, sec_flags);
 #ifdef CONFIG_SMB2_ASN1  /* BB REMOVEME when updated asn1.c ready */
+	if (rc)
+		goto neg_exit;
+
 	rc = decode_neg_token_init(security_blob, blob_length,
 				   &server->sec_type);
 	if (rc == 1)
