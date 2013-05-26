@@ -539,6 +539,20 @@ decode_lanman_negprot_rsp(struct TCP_Server_Info *server, NEGOTIATE_RSP *pSMBr,
 }
 #endif
 
+static bool
+should_set_ext_sec_flag(unsigned int secFlags)
+{
+	if ((secFlags & CIFSSEC_MUST_KRB5) == CIFSSEC_MUST_KRB5)
+		return true;
+	else if ((secFlags & CIFSSEC_AUTH_MASK) == CIFSSEC_MAY_KRB5)
+		return true;
+	else if ((secFlags & CIFSSEC_MUST_NTLMSSP) == CIFSSEC_MUST_NTLMSSP)
+		return true;
+	else if ((secFlags & CIFSSEC_AUTH_MASK) == CIFSSEC_MAY_NTLMSSP)
+		return true;
+	return false;
+}
+
 int
 CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses)
 {
@@ -572,15 +586,8 @@ CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses)
 	pSMB->hdr.Mid = get_next_mid(server);
 	pSMB->hdr.Flags2 |= (SMBFLG2_UNICODE | SMBFLG2_ERR_STATUS);
 
-	if ((secFlags & CIFSSEC_MUST_KRB5) == CIFSSEC_MUST_KRB5)
-		pSMB->hdr.Flags2 |= SMBFLG2_EXT_SEC;
-	else if ((secFlags & CIFSSEC_AUTH_MASK) == CIFSSEC_MAY_KRB5) {
-		cifs_dbg(FYI, "Kerberos only mechanism, enable extended security\n");
-		pSMB->hdr.Flags2 |= SMBFLG2_EXT_SEC;
-	} else if ((secFlags & CIFSSEC_MUST_NTLMSSP) == CIFSSEC_MUST_NTLMSSP)
-		pSMB->hdr.Flags2 |= SMBFLG2_EXT_SEC;
-	else if ((secFlags & CIFSSEC_AUTH_MASK) == CIFSSEC_MAY_NTLMSSP) {
-		cifs_dbg(FYI, "NTLMSSP only mechanism, enable extended security\n");
+	if (should_set_ext_sec_flag(secFlags)) {
+		cifs_dbg(FYI, "Requesting extended security.");
 		pSMB->hdr.Flags2 |= SMBFLG2_EXT_SEC;
 	}
 
