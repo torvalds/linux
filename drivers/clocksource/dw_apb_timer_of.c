@@ -21,7 +21,6 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 
-#include <asm/mach/time.h>
 #include <asm/sched_clock.h>
 
 static void timer_get_base_and_rate(struct device_node *np,
