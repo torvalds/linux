@@ -113,14 +113,15 @@
 
 /* Reason codes describing kernel causes for transaction aborts.  By
    convention, bit0 is copied to TEXASR[56] (IBM bit 7) which is set if
-   the failure is persistent.
+   the failure is persistent.  PAPR saves 0xff-0xe0 for the hypervisor.
 */
-#define TM_CAUSE_RESCHED	0xfe
-#define TM_CAUSE_TLBI		0xfc
-#define TM_CAUSE_FAC_UNAV	0xfa
-#define TM_CAUSE_SYSCALL	0xf9 /* Persistent */
-#define TM_CAUSE_MISC		0xf6
-#define TM_CAUSE_SIGNAL		0xf4
+#define TM_CAUSE_PERSISTENT	0x01
+#define TM_CAUSE_RESCHED	0xde
+#define TM_CAUSE_TLBI		0xdc
+#define TM_CAUSE_FAC_UNAV	0xda
+#define TM_CAUSE_SYSCALL	0xd8  /* future use */
+#define TM_CAUSE_MISC		0xd6  /* future use */
+#define TM_CAUSE_SIGNAL		0xd4
 
 #if defined(CONFIG_PPC_BOOK3S_64)
 #define MSR_64BIT	MSR_SF
