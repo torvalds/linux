@@ -161,9 +161,12 @@ kernel aborted a transaction:
                         transactions for consistency will use this.
  TM_CAUSE_SIGNAL        Signal delivered.
  TM_CAUSE_MISC          Currently unused.
+ TM_CAUSE_ALIGNMENT     Alignment fault.
+ TM_CAUSE_EMULATE       Emulation that touched memory.
 
-These can be checked by the user program's abort handler as TEXASR[0:7].
-
+These can be checked by the user program's abort handler as TEXASR[0:7].  If
+bit 7 is set, it indicates that the error is consider persistent.  For example
+a TM_CAUSE_ALIGNMENT will be persistent while a TM_CAUSE_RESCHED will not.q
 
 GDB
 ===
