@@ -138,8 +138,7 @@ static __u32 cifs_ssetup_hdr(struct cifs_ses *ses, SESSION_SETUP_ANDX *pSMB)
 	capabilities = CAP_LARGE_FILES | CAP_NT_SMBS | CAP_LEVEL_II_OPLOCKS |
 			CAP_LARGE_WRITE_X | CAP_LARGE_READ_X;
 
-	if (ses->server->sec_mode &
-	    (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED))
+	if (ses->server->sign)
 		pSMB->req.hdr.Flags2 |= SMBFLG2_SECURITY_SIGNATURE;
 
 	if (ses->capabilities & CAP_UNICODE) {
@@ -427,8 +426,7 @@ void build_ntlmssp_negotiate_blob(unsigned char *pbuffer,
 	flags = NTLMSSP_NEGOTIATE_56 |	NTLMSSP_REQUEST_TARGET |
 		NTLMSSP_NEGOTIATE_128 | NTLMSSP_NEGOTIATE_UNICODE |
 		NTLMSSP_NEGOTIATE_NTLM | NTLMSSP_NEGOTIATE_EXTENDED_SEC;
-	if (ses->server->sec_mode &
-			(SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED)) {
+	if (ses->server->sign) {
 		flags |= NTLMSSP_NEGOTIATE_SIGN;
 		if (!ses->server->session_estab)
 			flags |= NTLMSSP_NEGOTIATE_KEY_XCH;
@@ -466,8 +464,7 @@ int build_ntlmssp_auth_blob(unsigned char *pbuffer,
 		NTLMSSP_REQUEST_TARGET | NTLMSSP_NEGOTIATE_TARGET_INFO |
 		NTLMSSP_NEGOTIATE_128 | NTLMSSP_NEGOTIATE_UNICODE |
 		NTLMSSP_NEGOTIATE_NTLM | NTLMSSP_NEGOTIATE_EXTENDED_SEC;
-	if (ses->server->sec_mode &
-	   (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED)) {
+	if (ses->server->sign) {
 		flags |= NTLMSSP_NEGOTIATE_SIGN;
 		if (!ses->server->session_estab)
 			flags |= NTLMSSP_NEGOTIATE_KEY_XCH;

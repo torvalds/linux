@@ -511,6 +511,7 @@ struct TCP_Server_Info {
 	struct task_struct *tsk;
 	char server_GUID[16];
 	__u16 sec_mode;
+	bool sign; /* is signing enabled on this connection? */
 	bool session_estab; /* mark when very first sess is established */
 #ifdef CONFIG_CIFS_SMB2
 	int echo_credits;  /* echo reserved slots */

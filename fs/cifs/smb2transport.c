@@ -275,8 +275,7 @@ smb2_check_receive(struct mid_q_entry *mid, struct TCP_Server_Info *server,
 
 	dump_smb(mid->resp_buf, min_t(u32, 80, len));
 	/* convert the length into a more usable form */
-	if ((len > 24) &&
-	    (server->sec_mode & (SECMODE_SIGN_REQUIRED|SECMODE_SIGN_ENABLED))) {
+	if (len > 24 && server->sign) {
 		int rc;
 
 		rc = smb2_verify_signature(&rqst, server);

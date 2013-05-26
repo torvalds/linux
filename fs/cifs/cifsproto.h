@@ -212,7 +212,7 @@ extern int cifs_negotiate_protocol(const unsigned int xid,
 				   struct cifs_ses *ses);
 extern int cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,
 			      struct nls_table *nls_info);
-extern int cifs_enable_signing(struct TCP_Server_Info *server, unsigned int secFlags);
+extern int cifs_enable_signing(struct TCP_Server_Info *server, bool mnt_sign_required);
 extern int CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses);
 
 extern int CIFSTCon(const unsigned int xid, struct cifs_ses *ses,

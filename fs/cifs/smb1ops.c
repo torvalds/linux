@@ -449,8 +449,7 @@ cifs_negotiate_wsize(struct cifs_tcon *tcon, struct smb_vol *volume_info)
 	 * WRITEX header, not including the 4 byte RFC1001 length.
 	 */
 	if (!(server->capabilities & CAP_LARGE_WRITE_X) ||
-	    (!(server->capabilities & CAP_UNIX) &&
-	     (server->sec_mode & (SECMODE_SIGN_ENABLED|SECMODE_SIGN_REQUIRED))))
+	    (!(server->capabilities & CAP_UNIX) && server->sign))
 		wsize = min_t(unsigned int, wsize,
 				server->maxBuf - sizeof(WRITE_REQ) + 4);
 

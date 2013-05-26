@@ -418,32 +418,43 @@ decode_ext_sec_blob(struct TCP_Server_Info *server, NEGOTIATE_RSP *pSMBr)
 }
 
 int
-cifs_enable_signing(struct TCP_Server_Info *server, unsigned int secFlags)
+cifs_enable_signing(struct TCP_Server_Info *server, bool mnt_sign_required)
 {
-	if ((secFlags & CIFSSEC_MAY_SIGN) == 0) {
-		/* MUST_SIGN already includes the MAY_SIGN FLAG
-		   so if this is zero it means that signing is disabled */
-		cifs_dbg(FYI, "Signing disabled\n");
-		if (server->sec_mode & SECMODE_SIGN_REQUIRED) {
-			cifs_dbg(VFS, "Server requires packet signing to be enabled in /proc/fs/cifs/SecurityFlags\n");
-			return -EOPNOTSUPP;
+	bool srv_sign_required = server->sec_mode & SECMODE_SIGN_REQUIRED;
+	bool srv_sign_enabled = server->sec_mode & SECMODE_SIGN_ENABLED;
+	bool mnt_sign_enabled = global_secflags & CIFSSEC_MAY_SIGN;
+
+	/*
+	 * Is signing required by mnt options? If not then check
+	 * global_secflags to see if it is there.
+	 */
+	if (!mnt_sign_required)
+		mnt_sign_required = ((global_secflags & CIFSSEC_MUST_SIGN) ==
+						CIFSSEC_MUST_SIGN);
+
+	/*
+	 * If signing is required then it's automatically enabled too,
+	 * otherwise, check to see if the secflags allow it.
+	 */
+	mnt_sign_enabled = mnt_sign_required ? mnt_sign_required :
+				(global_secflags & CIFSSEC_MAY_SIGN);
+
+	/* If server requires signing, does client allow it? */
+	if (srv_sign_required) {
+		if (!mnt_sign_enabled) {
+			cifs_dbg(VFS, "Server requires signing, but it's disabled in SecurityFlags!");
+			return -ENOTSUPP;
 		}
-		server->sec_mode &=
-			~(SECMODE_SIGN_ENABLED | SECMODE_SIGN_REQUIRED);
-	} else if ((secFlags & CIFSSEC_MUST_SIGN) == CIFSSEC_MUST_SIGN) {
-		/* signing required */
-		cifs_dbg(FYI, "Must sign - secFlags 0x%x\n", secFlags);
-		if ((server->sec_mode &
-			(SECMODE_SIGN_ENABLED | SECMODE_SIGN_REQUIRED)) == 0) {
-			cifs_dbg(VFS, "signing required but server lacks support\n");
-			return -EOPNOTSUPP;
-		} else
-			server->sec_mode |= SECMODE_SIGN_REQUIRED;
-	} else {
-		/* signing optional ie CIFSSEC_MAY_SIGN */
-		if ((server->sec_mode & SECMODE_SIGN_REQUIRED) == 0)
-			server->sec_mode &=
-				~(SECMODE_SIGN_ENABLED | SECMODE_SIGN_REQUIRED);
+		server->sign = true;
+	}
+
+	/* If client requires signing, does server allow it? */
+	if (mnt_sign_required) {
+		if (!srv_sign_enabled) {
+			cifs_dbg(VFS, "Server does not support signing!");
+			return -ENOTSUPP;
+		}
+		server->sign = true;
 	}
 
 	return 0;
@@ -685,7 +696,7 @@ CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses)
 
 signing_check:
 	if (!rc)
-		rc = cifs_enable_signing(server, secFlags);
+		rc = cifs_enable_signing(server, ses->sign);
 neg_err_exit:
 	cifs_buf_release(pSMB);
 
@@ -810,9 +821,8 @@ CIFSSMBLogoff(const unsigned int xid, struct cifs_ses *ses)
 
 	pSMB->hdr.Mid = get_next_mid(ses->server);
 
-	if (ses->server->sec_mode &
-		   (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED))
-			pSMB->hdr.Flags2 |= SMBFLG2_SECURITY_SIGNATURE;
+	if (ses->server->sign)
+		pSMB->hdr.Flags2 |= SMBFLG2_SECURITY_SIGNATURE;
 
 	pSMB->hdr.Uid = ses->Suid;
 
@@ -1573,8 +1583,7 @@ cifs_readv_callback(struct mid_q_entry *mid)
 	switch (mid->mid_state) {
 	case MID_RESPONSE_RECEIVED:
 		/* result already set, check signature */
-		if (server->sec_mode &
-		    (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED)) {
+		if (server->sign) {
 			int rc = 0;
 
 			rc = cifs_verify_signature(&rqst, server,
@@ -4827,11 +4836,8 @@ getDFSRetry:
 		strncpy(pSMB->RequestFileName, search_name, name_len);
 	}
 
-	if (ses->server) {
-		if (ses->server->sec_mode &
-		   (SECMODE_SIGN_REQUIRED | SECMODE_SIGN_ENABLED))
-			pSMB->hdr.Flags2 |= SMBFLG2_SECURITY_SIGNATURE;
-	}
+	if (ses->server && ses->server->sign)
+		pSMB->hdr.Flags2 |= SMBFLG2_SECURITY_SIGNATURE;
 
 	pSMB->hdr.Uid = ses->Suid;
 
