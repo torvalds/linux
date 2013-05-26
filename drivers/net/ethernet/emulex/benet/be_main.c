@@ -848,6 +848,16 @@ static struct sk_buff *be_xmit_workarounds(struct be_adapter *adapter,
 	unsigned int eth_hdr_len;
 	struct iphdr *ip;
 
+	/* Lancer ASIC has a bug wherein packets that are 32 bytes or less
+	 * may cause a transmit stall on that port. So the work-around is to
+	 * pad such packets to a 36-byte length.
+	 */
+	if (unlikely(lancer_chip(adapter) && skb->len <= 32)) {
+		if (skb_padto(skb, 36))
+			goto tx_drop;
+		skb->len = 36;
+	}
+
 	/* For padded packets, BE HW modifies tot_len field in IP header
 	 * incorrecly when VLAN tag is inserted by HW.
 	 */
