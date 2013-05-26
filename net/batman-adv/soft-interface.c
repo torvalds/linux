@@ -137,6 +137,18 @@ static int batadv_interface_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
+/**
+ * batadv_interface_set_rx_mode - set the rx mode of a device
+ * @dev: registered network device to modify
+ *
+ * We do not actually need to set any rx filters for the virtual batman
+ * soft interface. However a dummy handler enables a user to set static
+ * multicast listeners for instance.
+ */
+static void batadv_interface_set_rx_mode(struct net_device *dev)
+{
+}
+
 static int batadv_interface_tx(struct sk_buff *skb,
 			       struct net_device *soft_iface)
 {
@@ -583,6 +595,7 @@ static const struct net_device_ops batadv_netdev_ops = {
 	.ndo_get_stats = batadv_interface_stats,
 	.ndo_set_mac_address = batadv_interface_set_mac_addr,
 	.ndo_change_mtu = batadv_interface_change_mtu,
+	.ndo_set_rx_mode = batadv_interface_set_rx_mode,
 	.ndo_start_xmit = batadv_interface_tx,
 	.ndo_validate_addr = eth_validate_addr,
 	.ndo_add_slave = batadv_softif_slave_add,
