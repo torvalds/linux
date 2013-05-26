@@ -1188,7 +1188,7 @@ static void wiimote_init_worker(struct work_struct *work)
 		changed = true;
 	}
 
-	if (!wiimote_init_check(wdata))
+	if (changed || !wiimote_init_check(wdata))
 		wiimote_init_hotplug(wdata);
 
 	if (changed)
