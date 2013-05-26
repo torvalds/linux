@@ -405,6 +405,8 @@ SMB2_negotiate(const unsigned int xid, struct cifs_ses *ses)
 	}
 	server->dialect = le16_to_cpu(rsp->DialectRevision);
 
+	/* SMB2 only has an extended negflavor */
+	server->negflavor = CIFS_NEGFLAVOR_EXTENDED;
 	server->maxBuf = le32_to_cpu(rsp->MaxTransactSize);
 	server->max_read = le32_to_cpu(rsp->MaxReadSize);
 	server->max_write = le32_to_cpu(rsp->MaxWriteSize);

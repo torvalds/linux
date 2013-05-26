@@ -541,6 +541,10 @@ struct TCP_Server_Info {
 	struct session_key session_key;
 	unsigned long lstrp; /* when we got last response from this server */
 	struct cifs_secmech secmech; /* crypto sec mech functs, descriptors */
+#define	CIFS_NEGFLAVOR_LANMAN	0	/* wct == 13, LANMAN */
+#define	CIFS_NEGFLAVOR_UNENCAP	1	/* wct == 17, but no ext_sec */
+#define	CIFS_NEGFLAVOR_EXTENDED	2	/* wct == 17, ext_sec bit set */
+	char	negflavor;	/* NEGOTIATE response flavor */
 	/* extended security flavors that server supports */
 	bool	sec_ntlmssp;		/* supports NTLMSSP */
 	bool	sec_kerberosu2u;	/* supports U2U Kerberos */

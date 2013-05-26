@@ -615,6 +615,7 @@ CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses)
 		rc = -EOPNOTSUPP;
 		goto neg_err_exit;
 	} else if (pSMBr->hdr.WordCount == 13) {
+		server->negflavor = CIFS_NEGFLAVOR_LANMAN;
 		rc = decode_lanman_negprot_rsp(server, pSMBr, secFlags);
 		goto signing_check;
 	} else if (pSMBr->hdr.WordCount != 17) {
@@ -666,17 +667,21 @@ CIFSSMBNegotiate(const unsigned int xid, struct cifs_ses *ses)
 	server->timeAdj = (int)(__s16)le16_to_cpu(pSMBr->ServerTimeZone);
 	server->timeAdj *= 60;
 
-	if (pSMBr->EncryptionKeyLength == CIFS_CRYPTO_KEY_SIZE)
+	if (pSMBr->EncryptionKeyLength == CIFS_CRYPTO_KEY_SIZE) {
+		server->negflavor = CIFS_NEGFLAVOR_UNENCAP;
 		memcpy(ses->server->cryptkey, pSMBr->u.EncryptionKey,
 		       CIFS_CRYPTO_KEY_SIZE);
-	else if ((pSMBr->hdr.Flags2 & SMBFLG2_EXT_SEC ||
+	} else if ((pSMBr->hdr.Flags2 & SMBFLG2_EXT_SEC ||
 			server->capabilities & CAP_EXTENDED_SECURITY) &&
-				(pSMBr->EncryptionKeyLength == 0))
+				(pSMBr->EncryptionKeyLength == 0)) {
+		server->negflavor = CIFS_NEGFLAVOR_EXTENDED;
 		rc = decode_ext_sec_blob(server, pSMBr);
-	else if (server->sec_mode & SECMODE_PW_ENCRYPT)
+	} else if (server->sec_mode & SECMODE_PW_ENCRYPT) {
 		rc = -EIO; /* no crypt key only if plain text pwd */
-	else
+	} else {
+		server->negflavor = CIFS_NEGFLAVOR_UNENCAP;
 		server->capabilities &= ~CAP_EXTENDED_SECURITY;
+	}
 
 signing_check:
 	if (!rc)
