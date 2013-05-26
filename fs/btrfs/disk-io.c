@@ -3512,9 +3512,9 @@ int close_ctree(struct btrfs_root *root)
 		       percpu_counter_sum(&fs_info->delalloc_bytes));
 	}
 
-	free_root_pointers(fs_info, 1);
-
 	btrfs_free_block_groups(fs_info);
+
+	free_root_pointers(fs_info, 1);
 
 	del_fs_roots(fs_info);
 
