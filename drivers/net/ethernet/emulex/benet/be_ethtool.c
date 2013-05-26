@@ -177,19 +177,15 @@ static void be_get_drvinfo(struct net_device *netdev,
 				struct ethtool_drvinfo *drvinfo)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
-	char fw_on_flash[FW_VER_LEN];
-
-	memset(fw_on_flash, 0 , sizeof(fw_on_flash));
-	be_cmd_get_fw_ver(adapter, adapter->fw_ver, fw_on_flash);
 
 	strlcpy(drvinfo->driver, DRV_NAME, sizeof(drvinfo->driver));
 	strlcpy(drvinfo->version, DRV_VER, sizeof(drvinfo->version));
-	if (!memcmp(adapter->fw_ver, fw_on_flash, FW_VER_LEN))
+	if (!memcmp(adapter->fw_ver, adapter->fw_on_flash, FW_VER_LEN))
 		strlcpy(drvinfo->fw_version, adapter->fw_ver,
 			sizeof(drvinfo->fw_version));
 	else
 		snprintf(drvinfo->fw_version, sizeof(drvinfo->fw_version),
-			 "%s [%s]", adapter->fw_ver, fw_on_flash);
+			 "%s [%s]", adapter->fw_ver, adapter->fw_on_flash);
 
 	strlcpy(drvinfo->bus_info, pci_name(adapter->pdev),
 		sizeof(drvinfo->bus_info));

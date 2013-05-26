@@ -397,6 +397,7 @@ struct be_adapter {
 	u32 cmd_privileges;
 	/* Ethtool knobs and info */
 	char fw_ver[FW_VER_LEN];
+	char fw_on_flash[FW_VER_LEN];
 	int if_handle;		/* Used to configure filtering */
 	u32 *pmac_id;		/* MAC addr handle used by BE card */
 	u32 beacon_state;	/* for set_phys_id */

@@ -3193,7 +3193,7 @@ static int be_setup(struct be_adapter *adapter)
 	if (status)
 		goto err;
 
-	be_cmd_get_fw_ver(adapter, adapter->fw_ver, NULL);
+	be_cmd_get_fw_ver(adapter, adapter->fw_ver, adapter->fw_on_flash);
 
 	if (adapter->vlans_added)
 		be_vid_config(adapter);
@@ -3784,6 +3784,10 @@ int be_load_fw(struct be_adapter *adapter, u8 *fw_file)
 		status = lancer_fw_download(adapter, fw);
 	else
 		status = be_fw_download(adapter, fw);
+
+	if (!status)
+		be_cmd_get_fw_ver(adapter, adapter->fw_ver,
+				  adapter->fw_on_flash);
 
 fw_exit:
 	release_firmware(fw);
