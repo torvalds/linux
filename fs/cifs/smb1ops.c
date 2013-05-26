@@ -765,20 +765,14 @@ smb_set_file_info(struct inode *inode, const char *full_path,
 	}
 	tcon = tlink_tcon(tlink);
 
-	/*
-	 * NT4 apparently returns success on this call, but it doesn't really
-	 * work.
-	 */
-	if (!(tcon->ses->flags & CIFS_SES_NT4)) {
-		rc = CIFSSMBSetPathInfo(xid, tcon, full_path, buf,
-					cifs_sb->local_nls,
+	rc = CIFSSMBSetPathInfo(xid, tcon, full_path, buf, cifs_sb->local_nls,
 					cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
-		if (rc == 0) {
-			cinode->cifsAttrs = le32_to_cpu(buf->Attributes);
-			goto out;
-		} else if (rc != -EOPNOTSUPP && rc != -EINVAL)
-			goto out;
+	if (rc == 0) {
+		cinode->cifsAttrs = le32_to_cpu(buf->Attributes);
+		goto out;
+	} else if (rc != -EOPNOTSUPP && rc != -EINVAL) {
+		goto out;
 	}
 
 	cifs_dbg(FYI, "calling SetFileInfo since SetPathInfo for times not supported by this server\n");

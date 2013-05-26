@@ -692,7 +692,6 @@ struct cifs_ses {
 	enum statusEnum status;
 	unsigned overrideSecFlg;  /* if non-zero override global sec flags */
 	__u16 ipc_tid;		/* special tid for connection to IPC share */
-	__u16 flags;
 	__u16 vcnum;
 	char *serverOS;		/* name of operating system underlying server */
 	char *serverNOS;	/* name of network operating system of server */
@@ -714,15 +713,6 @@ struct cifs_ses {
 	__u16 session_flags;
 #endif /* CONFIG_CIFS_SMB2 */
 };
-
-/* no more than one of the following three session flags may be set */
-#define CIFS_SES_NT4 1
-#define CIFS_SES_OS2 2
-#define CIFS_SES_W9X 4
-/* following flag is set for old servers such as OS2 (and Win95?)
-   which do not negotiate NTLM or POSIX dialects, but instead
-   negotiate one of the older LANMAN dialects */
-#define CIFS_SES_LANMAN 8
 
 static inline bool
 cap_unix(struct cifs_ses *ses)

@@ -328,10 +328,8 @@ static void decode_ascii_ssetup(char **pbcc_area, __u16 bleft,
 	ses->serverOS = kzalloc(len + 1, GFP_KERNEL);
 	if (ses->serverOS)
 		strncpy(ses->serverOS, bcc_ptr, len);
-	if (strncmp(ses->serverOS, "OS/2", 4) == 0) {
+	if (strncmp(ses->serverOS, "OS/2", 4) == 0)
 		cifs_dbg(FYI, "OS/2 server\n");
-			ses->flags |= CIFS_SES_OS2;
-	}
 
 	bcc_ptr += len + 1;
 	bleft -= len + 1;
@@ -642,8 +640,6 @@ ssetup_ntlmssp_authenticate:
 	}
 	bcc_ptr = str_area;
 
-	ses->flags &= ~CIFS_SES_LANMAN;
-
 	iov[1].iov_base = NULL;
 	iov[1].iov_len = 0;
 
@@ -667,7 +663,6 @@ ssetup_ntlmssp_authenticate:
 				 ses->server->sec_mode & SECMODE_PW_ENCRYPT ?
 					true : false, lnm_session_key);
 
-		ses->flags |= CIFS_SES_LANMAN;
 		memcpy(bcc_ptr, (char *)lnm_session_key, CIFS_AUTH_RESP_SIZE);
 		bcc_ptr += CIFS_AUTH_RESP_SIZE;
 

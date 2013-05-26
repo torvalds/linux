@@ -3834,7 +3834,6 @@ cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,
 	int rc = -ENOSYS;
 	struct TCP_Server_Info *server = ses->server;
 
-	ses->flags = 0;
 	ses->capabilities = server->capabilities;
 	if (linuxExtEnabled == 0)
 		ses->capabilities &= (~server->vals->cap_unix);
