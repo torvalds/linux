@@ -131,14 +131,16 @@ static struct sk_buff *ulog_alloc_skb(unsigned int size)
 	return skb;
 }
 
-static void ebt_ulog_packet(unsigned int hooknr, const struct sk_buff *skb,
-   const struct net_device *in, const struct net_device *out,
-   const struct ebt_ulog_info *uloginfo, const char *prefix)
+static void ebt_ulog_packet(struct net *net, unsigned int hooknr,
+			    const struct sk_buff *skb,
+			    const struct net_device *in,
+			    const struct net_device *out,
+			    const struct ebt_ulog_info *uloginfo,
+			    const char *prefix)
 {
 	ebt_ulog_packet_msg_t *pm;
 	size_t size, copy_len;
 	struct nlmsghdr *nlh;
-	struct net *net = dev_net(in ? in : out);
 	struct ebt_ulog_net *ebt = ebt_ulog_pernet(net);
 	unsigned int group = uloginfo->nlgroup;
 	ebt_ulog_buff_t *ub = &ebt->ulog_buffers[group];
@@ -233,7 +235,7 @@ unlock:
 }
 
 /* this function is registered with the netfilter core */
-static void ebt_log_packet(u_int8_t pf, unsigned int hooknum,
+static void ebt_log_packet(struct net *net, u_int8_t pf, unsigned int hooknum,
    const struct sk_buff *skb, const struct net_device *in,
    const struct net_device *out, const struct nf_loginfo *li,
    const char *prefix)
@@ -252,13 +254,15 @@ static void ebt_log_packet(u_int8_t pf, unsigned int hooknum,
 		strlcpy(loginfo.prefix, prefix, sizeof(loginfo.prefix));
 	}
 
-	ebt_ulog_packet(hooknum, skb, in, out, &loginfo, prefix);
+	ebt_ulog_packet(net, hooknum, skb, in, out, &loginfo, prefix);
 }
 
 static unsigned int
 ebt_ulog_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
-	ebt_ulog_packet(par->hooknum, skb, par->in, par->out,
+	struct net *net = dev_net(par->in ? par->in : par->out);
+
+	ebt_ulog_packet(net, par->hooknum, skb, par->in, par->out,
 	                par->targinfo, NULL);
 	return EBT_CONTINUE;
 }

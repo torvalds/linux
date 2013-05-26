@@ -6,6 +6,7 @@ config PPC_POWERNV
 	select PPC_ICP_NATIVE
 	select PPC_P7_NAP
 	select PPC_PCI_CHOICE if EMBEDDED
+	select EPAPR_BOOT
 	default y
 
 config POWERNV_MSI

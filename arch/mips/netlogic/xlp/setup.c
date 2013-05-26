@@ -37,6 +37,7 @@
 #include <linux/pm.h>
 #include <linux/bootmem.h>
 
+#include <asm/idle.h>
 #include <asm/reboot.h>
 #include <asm/time.h>
 #include <asm/bootinfo.h>
