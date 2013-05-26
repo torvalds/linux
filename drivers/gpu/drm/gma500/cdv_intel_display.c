@@ -1462,7 +1462,7 @@ static int cdv_intel_crtc_cursor_set(struct drm_crtc *crtc,
 	size_t addr = 0;
 	struct gtt_range *gt;
 	struct drm_gem_object *obj;
-	int ret;
+	int ret = 0;
 
 	/* if we want to turn of the cursor ignore width and height */
 	if (!handle) {
@@ -1499,7 +1499,8 @@ static int cdv_intel_crtc_cursor_set(struct drm_crtc *crtc,
 
 	if (obj->size < width * height * 4) {
 		dev_dbg(dev->dev, "buffer is to small\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto unref_cursor;
 	}
 
 	gt = container_of(obj, struct gtt_range, gem);
@@ -1508,7 +1509,7 @@ static int cdv_intel_crtc_cursor_set(struct drm_crtc *crtc,
 	ret = psb_gtt_pin(gt);
 	if (ret) {
 		dev_err(dev->dev, "Can not pin down handle 0x%x\n", handle);
-		return ret;
+		goto unref_cursor;
 	}
 
 	addr = gt->offset;	/* Or resource.start ??? */
@@ -1532,9 +1533,14 @@ static int cdv_intel_crtc_cursor_set(struct drm_crtc *crtc,
 							struct gtt_range, gem);
 		psb_gtt_unpin(gt);
 		drm_gem_object_unreference(psb_intel_crtc->cursor_obj);
-		psb_intel_crtc->cursor_obj = obj;
 	}
-	return 0;
+
+	psb_intel_crtc->cursor_obj = obj;
+	return ret;
+
+unref_cursor:
+	drm_gem_object_unreference(obj);
+	return ret;
 }
 
 static int cdv_intel_crtc_cursor_move(struct drm_crtc *crtc, int x, int y)
