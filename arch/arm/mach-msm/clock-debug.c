@@ -104,7 +104,7 @@ int __init clock_debug_add(struct clk *clock)
 	if (!debugfs_base)
 		return -ENOMEM;
 
-	strncpy(temp, clock->dbg_name, ARRAY_SIZE(temp)-1);
+	strlcpy(temp, clock->dbg_name, ARRAY_SIZE(temp));
 	for (ptr = temp; *ptr; ptr++)
 		*ptr = tolower(*ptr);
 
