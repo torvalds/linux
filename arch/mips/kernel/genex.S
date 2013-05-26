@@ -122,7 +122,7 @@ handle_vcei:
 	__FINIT
 
 	.align	5	/* 32 byte rollback region */
-LEAF(r4k_wait)
+LEAF(__r4k_wait)
 	.set	push
 	.set	noreorder
 	/* start of rollback region */
@@ -146,14 +146,14 @@ LEAF(r4k_wait)
 	jr	ra
 	nop
 	.set	pop
-	END(r4k_wait)
+	END(__r4k_wait)
 
 	.macro	BUILD_ROLLBACK_PROLOGUE handler
 	FEXPORT(rollback_\handler)
 	.set	push
 	.set	noat
 	MFC0	k0, CP0_EPC
-	PTR_LA	k1, r4k_wait
+	PTR_LA	k1, __r4k_wait
 	ori	k0, 0x1f	/* 32 byte rollback region */
 	xori	k0, 0x1f
 	bne	k0, k1, 9f

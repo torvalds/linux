@@ -88,8 +88,7 @@
 		};
 
 		uart@FF100000 {
-			compatible = "snps,dw-apb-uart",
-					"abilis,simple-pinctrl";
+			compatible = "snps,dw-apb-uart";
 			reg = <0xFF100000 0x100>;
 			clock-frequency = <166666666>;
 			interrupts = <25 1>;
@@ -184,8 +183,7 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			cell-index = <1>;
-			compatible = "abilis,tb100-spi",
-					"abilis,simple-pinctrl";
+			compatible = "abilis,tb100-spi";
 			num-cs = <2>;
 			reg = <0xFE011000 0x20>;
 			interrupt-parent = <&tb10x_ictl>;
