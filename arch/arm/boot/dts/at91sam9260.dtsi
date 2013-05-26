@@ -347,6 +347,14 @@
 					};
 				};
 
+				i2c_gpio0 {
+					pinctrl_i2c_gpio0: i2c_gpio0-0 {
+						atmel,pins =
+							<AT91_PIOA 23 AT91_PERIPH_GPIO AT91_PINCTRL_MULTI_DRIVE
+							 AT91_PIOA 24 AT91_PERIPH_GPIO AT91_PINCTRL_MULTI_DRIVE>;
+					};
+				};
+
 				pioA: gpio@fffff400 {
 					compatible = "atmel,at91rm9200-gpio";
 					reg = <0xfffff400 0x200>;
@@ -599,6 +607,8 @@
 		i2c-gpio,delay-us = <2>;	/* ~100 kHz */
 		#address-cells = <1>;
 		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_i2c_gpio0>;
 		status = "disabled";
 	};
 };
