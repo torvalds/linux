@@ -105,15 +105,6 @@ present with the &VIDIOC-DBG-G-CHIP-INFO; ioctl.</para>
 <constant>V4L2_CHIP_MATCH_SUBDEV</constant>,
 <structfield>match.addr</structfield> selects the nth sub-device.</para>
 
-    <note>
-      <title>Success not guaranteed</title>
-
-      <para>Due to a flaw in the Linux &i2c; bus driver these ioctls may
-return successfully without actually reading or writing a register. To
-catch the most likely failure we recommend a &VIDIOC-DBG-G-CHIP-INFO;
-call confirming the presence of the selected &i2c; chip.</para>
-    </note>
-
     <para>These ioctls are optional, not all drivers may support them.
 However when a driver supports these ioctls it must also support
 &VIDIOC-DBG-G-CHIP-INFO;. Conversely it may support
