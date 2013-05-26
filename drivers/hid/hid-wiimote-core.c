@@ -1276,11 +1276,19 @@ static bool valid_ext_handler(const struct wiimod_ops *ops, size_t len)
 static void handler_ext(struct wiimote_data *wdata, const __u8 *payload,
 			size_t len)
 {
+	static const __u8 invalid[21] = { 0xff, 0xff, 0xff, 0xff,
+					  0xff, 0xff, 0xff, 0xff,
+					  0xff, 0xff, 0xff, 0xff,
+					  0xff, 0xff, 0xff, 0xff,
+					  0xff, 0xff, 0xff, 0xff,
+					  0xff };
 	const __u8 *iter, *mods;
 	const struct wiimod_ops *ops;
 	bool is_mp;
 
-	if (len < 6)
+	if (len > 21)
+		len = 21;
+	if (len < 6 || !memcmp(payload, invalid, len))
 		return;
 
 	/* if MP is active, track MP slot hotplugging */
