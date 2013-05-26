@@ -106,7 +106,6 @@ struct i2c_client; /* forward reference */
 int v4l2_chip_match_i2c_client(struct i2c_client *c, const struct v4l2_dbg_match *match);
 int v4l2_chip_ident_i2c_client(struct i2c_client *c, struct v4l2_dbg_chip_ident *chip,
 		u32 ident, u32 revision);
-int v4l2_chip_match_host(const struct v4l2_dbg_match *match);
 
 /* ------------------------------------------------------------------------- */
 

@@ -227,17 +227,6 @@ u32 v4l2_ctrl_next(const u32 * const * ctrl_classes, u32 id)
 }
 EXPORT_SYMBOL(v4l2_ctrl_next);
 
-int v4l2_chip_match_host(const struct v4l2_dbg_match *match)
-{
-	switch (match->type) {
-	case V4L2_CHIP_MATCH_BRIDGE:
-		return match->addr == 0;
-	default:
-		return 0;
-	}
-}
-EXPORT_SYMBOL(v4l2_chip_match_host);
-
 #if IS_ENABLED(CONFIG_I2C)
 int v4l2_chip_match_i2c_client(struct i2c_client *c, const struct v4l2_dbg_match *match)
 {
