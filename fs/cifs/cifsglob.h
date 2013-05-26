@@ -712,6 +712,8 @@ struct cifs_ses {
 	char *password;
 	struct session_key auth_key;
 	struct ntlmssp_auth *ntlmssp; /* ciphertext, flags, server challenge */
+	enum securityEnum sectype; /* what security flavor was specified? */
+	bool sign;		/* is signing required? */
 	bool need_reconnect:1; /* connection reset, uid now invalid */
 #ifdef CONFIG_CIFS_SMB2
 	__u16 session_flags;
