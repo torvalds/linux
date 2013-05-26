@@ -2016,13 +2016,8 @@ static int replay_one_buffer(struct btrfs_root *log, struct extent_buffer *eb,
 					     eb, i, &key);
 			if (ret)
 				break;
-		} else if (key.type == BTRFS_INODE_REF_KEY) {
-			ret = add_inode_ref(wc->trans, root, log, path,
-					    eb, i, &key);
-			if (ret && ret != -ENOENT)
-				break;
-			ret = 0;
-		} else if (key.type == BTRFS_INODE_EXTREF_KEY) {
+		} else if (key.type == BTRFS_INODE_REF_KEY ||
+			   key.type == BTRFS_INODE_EXTREF_KEY) {
 			ret = add_inode_ref(wc->trans, root, log, path,
 					    eb, i, &key);
 			if (ret && ret != -ENOENT)
