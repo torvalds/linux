@@ -3566,6 +3566,7 @@ GPIO SUBSYSTEM
 M:	Grant Likely <grant.likely@linaro.org>
 M:	Linus Walleij <linus.walleij@linaro.org>
 S:	Maintained
+L:	linux-gpio@vger.kernel.org
 T:	git git://git.secretlab.ca/git/linux-2.6.git
 F:	Documentation/gpio.txt
 F:	drivers/gpio/
