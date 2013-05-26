@@ -198,7 +198,7 @@ void might_fault(void);
 #else
 static inline void might_fault(void)
 {
-	might_sleep();
+	__might_sleep(__FILE__, __LINE__, 0);
 }
 #endif
 
