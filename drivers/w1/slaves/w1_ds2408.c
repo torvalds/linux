@@ -22,6 +22,7 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jean-Francois Dagenais <dagenaisj@sonatest.com>");
 MODULE_DESCRIPTION("w1 family 29 driver for DS2408 8 Pin IO");
+MODULE_ALIAS("w1-family-" __stringify(W1_FAMILY_DS2408));
 
 
 #define W1_F29_RETRIES		3
