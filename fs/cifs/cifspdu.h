@@ -531,7 +531,7 @@ typedef struct lanman_neg_rsp {
 #define READ_RAW_ENABLE 1
 #define WRITE_RAW_ENABLE 2
 #define RAW_ENABLE (READ_RAW_ENABLE | WRITE_RAW_ENABLE)
-
+#define SMB1_CLIENT_GUID_SIZE (16)
 typedef struct negotiate_rsp {
 	struct smb_hdr hdr;	/* wct = 17 */
 	__le16 DialectIndex; /* 0xFFFF = no dialect acceptable */
@@ -553,7 +553,7 @@ typedef struct negotiate_rsp {
 		/* followed by 16 bytes of server GUID */
 		/* then security blob if cap_extended_security negotiated */
 		struct {
-			unsigned char GUID[16];
+			unsigned char GUID[SMB1_CLIENT_GUID_SIZE];
 			unsigned char SecurityBlob[1];
 		} __attribute__((packed)) extended_response;
 	} __attribute__((packed)) u;
