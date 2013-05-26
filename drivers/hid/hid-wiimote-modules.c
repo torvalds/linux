@@ -1062,12 +1062,12 @@ static void wiimod_classic_in_ext(struct wiimote_data *wdata, const __u8 *ext)
 	 * With motionp enabled it changes slightly to this:
 	 *   Byte |  8  |  7  |  6  |  5  |  4  |  3  |  2  |  1  |
 	 *   -----+-----+-----+-----+-----+-----+-----+-----+-----+
-	 *    1   | RX <4:3>  |          LX <5:1>           | BDU |
-	 *    2   | RX <2:1>  |          LY <5:1>           | BDL |
+	 *    1   | RX <5:4>  |          LX <5:1>           | BDU |
+	 *    2   | RX <3:2>  |          LY <5:1>           | BDL |
 	 *   -----+-----+-----+-----+-----------------------+-----+
-	 *    3   |RX<0>| LT <4:3>  |         RY <4:0>            |
+	 *    3   |RX<1>| LT <5:4>  |         RY <5:1>            |
 	 *   -----+-----+-----------+-----------------------------+
-	 *    4   |     LT <2:0>    |         RT <4:0>            |
+	 *    4   |     LT <3:1>    |         RT <5:1>            |
 	 *   -----+-----+-----+-----+-----+-----+-----+-----+-----+
 	 *    5   | BDR | BDD | BLT | B-  | BH  | B+  | BRT | EXT |
 	 *   -----+-----+-----+-----+-----+-----+-----+-----+-----+
@@ -1079,13 +1079,13 @@ static void wiimod_classic_in_ext(struct wiimote_data *wdata, const __u8 *ext)
 
 	if (wdata->state.flags & WIIPROTO_FLAG_MP_ACTIVE) {
 		lx = ext[0] & 0x3e;
-		ly = ext[0] & 0x3e;
+		ly = ext[1] & 0x3e;
 	} else {
 		lx = ext[0] & 0x3f;
-		ly = ext[0] & 0x3f;
+		ly = ext[1] & 0x3f;
 	}
 
-	rx = (ext[0] >> 3) & 0x14;
+	rx = (ext[0] >> 3) & 0x18;
 	rx |= (ext[1] >> 5) & 0x06;
 	rx |= (ext[2] >> 7) & 0x01;
 	ry = ext[2] & 0x1f;
@@ -1103,8 +1103,8 @@ static void wiimod_classic_in_ext(struct wiimote_data *wdata, const __u8 *ext)
 	input_report_abs(wdata->extension.input, ABS_HAT1Y, ly - 0x20);
 	input_report_abs(wdata->extension.input, ABS_HAT2X, rx - 0x20);
 	input_report_abs(wdata->extension.input, ABS_HAT2Y, ry - 0x20);
-	input_report_abs(wdata->extension.input, ABS_HAT3X, rt - 0x20);
-	input_report_abs(wdata->extension.input, ABS_HAT3Y, lt - 0x20);
+	input_report_abs(wdata->extension.input, ABS_HAT3X, rt);
+	input_report_abs(wdata->extension.input, ABS_HAT3Y, lt);
 
 	input_report_key(wdata->extension.input,
 			 wiimod_classic_map[WIIMOD_CLASSIC_KEY_RIGHT],
