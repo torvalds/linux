@@ -1597,6 +1597,11 @@ static int btmtk_usb_probe(struct usb_interface *intf,
 	}
 
 	data->io_buf = kmalloc(256, GFP_ATOMIC);
+	if (!data->io_buf) {
+		hci_free_dev(hdev);
+		kfree(data);
+		return -ENOMEM;
+	}
 
 	btmtk_usb_switch_iobase(data, WLAN);
 
