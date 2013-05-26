@@ -155,6 +155,7 @@ These are defined in <asm/reg.h>, and distinguish different reasons why the
 kernel aborted a transaction:
 
  TM_CAUSE_RESCHED       Thread was rescheduled.
+ TM_CAUSE_TLBI          Software TLB invalide.
  TM_CAUSE_FAC_UNAV      FP/VEC/VSX unavailable trap.
  TM_CAUSE_SYSCALL       Currently unused; future syscalls that must abort
                         transactions for consistency will use this.
