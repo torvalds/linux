@@ -304,8 +304,6 @@ int btrfs_del_root(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 {
 	struct btrfs_path *path;
 	int ret;
-	struct btrfs_root_item *ri;
-	struct extent_buffer *leaf;
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -315,8 +313,6 @@ int btrfs_del_root(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 		goto out;
 
 	BUG_ON(ret != 0);
-	leaf = path->nodes[0];
-	ri = btrfs_item_ptr(leaf, path->slots[0], struct btrfs_root_item);
 
 	ret = btrfs_del_item(trans, root, path);
 out:
