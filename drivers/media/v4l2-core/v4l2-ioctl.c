@@ -26,7 +26,6 @@
 #include <media/v4l2-fh.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-device.h>
-#include <media/v4l2-chip-ident.h>
 #include <media/videobuf2-core.h>
 
 /* Zero out the end of the struct pointed to by p.  Everything after, but
@@ -617,20 +616,6 @@ static void v4l_print_decoder_cmd(const void *arg, bool write_only)
 				p->start.speed, p->start.format);
 	else if (p->cmd == V4L2_DEC_CMD_STOP)
 		pr_info("pts=%llu\n", p->stop.pts);
-}
-
-static void v4l_print_dbg_chip_ident(const void *arg, bool write_only)
-{
-	const struct v4l2_dbg_chip_ident *p = arg;
-
-	pr_cont("type=%u, ", p->match.type);
-	if (p->match.type == V4L2_CHIP_MATCH_I2C_DRIVER)
-		pr_cont("name=%.*s, ",
-				(int)sizeof(p->match.name), p->match.name);
-	else
-		pr_cont("addr=%u, ", p->match.addr);
-	pr_cont("chip_ident=%u, revision=0x%x\n",
-			p->ident, p->revision);
 }
 
 static void v4l_print_dbg_chip_info(const void *arg, bool write_only)
@@ -1813,18 +1798,6 @@ static int v4l_dbg_s_register(const struct v4l2_ioctl_ops *ops,
 #endif
 }
 
-static int v4l_dbg_g_chip_ident(const struct v4l2_ioctl_ops *ops,
-				struct file *file, void *fh, void *arg)
-{
-	struct v4l2_dbg_chip_ident *p = arg;
-
-	p->ident = V4L2_IDENT_NONE;
-	p->revision = 0;
-	if (p->match.type == V4L2_CHIP_MATCH_SUBDEV)
-		return -EINVAL;
-	return ops->vidioc_g_chip_ident(file, fh, p);
-}
-
 static int v4l_dbg_g_chip_info(const struct v4l2_ioctl_ops *ops,
 				struct file *file, void *fh, void *arg)
 {
@@ -2074,7 +2047,6 @@ static struct v4l2_ioctl_info v4l2_ioctls[] = {
 	IOCTL_INFO_STD(VIDIOC_TRY_DECODER_CMD, vidioc_try_decoder_cmd, v4l_print_decoder_cmd, 0),
 	IOCTL_INFO_FNC(VIDIOC_DBG_S_REGISTER, v4l_dbg_s_register, v4l_print_dbg_register, 0),
 	IOCTL_INFO_FNC(VIDIOC_DBG_G_REGISTER, v4l_dbg_g_register, v4l_print_dbg_register, 0),
-	IOCTL_INFO_FNC(VIDIOC_DBG_G_CHIP_IDENT, v4l_dbg_g_chip_ident, v4l_print_dbg_chip_ident, 0),
 	IOCTL_INFO_FNC(VIDIOC_S_HW_FREQ_SEEK, v4l_s_hw_freq_seek, v4l_print_hw_freq_seek, INFO_FL_PRIO),
 	IOCTL_INFO_STD(VIDIOC_S_DV_TIMINGS, vidioc_s_dv_timings, v4l_print_dv_timings, INFO_FL_PRIO),
 	IOCTL_INFO_STD(VIDIOC_G_DV_TIMINGS, vidioc_g_dv_timings, v4l_print_dv_timings, 0),

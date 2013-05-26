@@ -1787,11 +1787,13 @@ struct v4l2_event_subscription {
 /* VIDIOC_DBG_G_REGISTER and VIDIOC_DBG_S_REGISTER */
 
 #define V4L2_CHIP_MATCH_BRIDGE      0  /* Match against chip ID on the bridge (0 for the bridge) */
+#define V4L2_CHIP_MATCH_SUBDEV      4  /* Match against subdev index */
+
+/* The following four defines are no longer in use */
 #define V4L2_CHIP_MATCH_HOST V4L2_CHIP_MATCH_BRIDGE
 #define V4L2_CHIP_MATCH_I2C_DRIVER  1  /* Match against I2C driver name */
 #define V4L2_CHIP_MATCH_I2C_ADDR    2  /* Match against I2C 7-bit address */
 #define V4L2_CHIP_MATCH_AC97        3  /* Match against ancillary AC97 chip */
-#define V4L2_CHIP_MATCH_SUBDEV      4  /* Match against subdev index */
 
 struct v4l2_dbg_match {
 	__u32 type; /* Match type */
@@ -1806,13 +1808,6 @@ struct v4l2_dbg_register {
 	__u32 size;	/* register size in bytes */
 	__u64 reg;
 	__u64 val;
-} __attribute__ ((packed));
-
-/* VIDIOC_DBG_G_CHIP_IDENT */
-struct v4l2_dbg_chip_ident {
-	struct v4l2_dbg_match match;
-	__u32 ident;       /* chip identifier as specified in <media/v4l2-chip-ident.h> */
-	__u32 revision;    /* chip revision, chip specific */
 } __attribute__ ((packed));
 
 #define V4L2_CHIP_FL_READABLE (1 << 0)
@@ -1914,12 +1909,6 @@ struct v4l2_create_buffers {
    You must be root to use these ioctls. Never use these in applications! */
 #define	VIDIOC_DBG_S_REGISTER 	 _IOW('V', 79, struct v4l2_dbg_register)
 #define	VIDIOC_DBG_G_REGISTER 	_IOWR('V', 80, struct v4l2_dbg_register)
-
-/* Experimental, meant for debugging, testing and internal use.
-   Never use this ioctl in applications!
-   Note: this ioctl is deprecated in favor of VIDIOC_DBG_G_CHIP_INFO and
-   will go away in the future. */
-#define VIDIOC_DBG_G_CHIP_IDENT _IOWR('V', 81, struct v4l2_dbg_chip_ident)
 
 #define VIDIOC_S_HW_FREQ_SEEK	 _IOW('V', 82, struct v4l2_hw_freq_seek)
 

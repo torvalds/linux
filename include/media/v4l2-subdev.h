@@ -88,7 +88,6 @@ struct v4l2_decode_vbi_line {
 
 /* Core ops: it is highly recommended to implement at least these ops:
 
-   g_chip_ident
    log_status
    g_register
    s_register
@@ -145,7 +144,6 @@ struct v4l2_subdev_io_pin_config {
 	performed later.  It must not sleep.  *Called from an IRQ context*.
  */
 struct v4l2_subdev_core_ops {
-	int (*g_chip_ident)(struct v4l2_subdev *sd, struct v4l2_dbg_chip_ident *chip);
 	int (*log_status)(struct v4l2_subdev *sd);
 	int (*s_io_pin_config)(struct v4l2_subdev *sd, size_t n,
 				      struct v4l2_subdev_io_pin_config *pincfg);
@@ -660,7 +658,7 @@ void v4l2_subdev_init(struct v4l2_subdev *sd,
 /* Call an ops of a v4l2_subdev, doing the right checks against
    NULL pointers.
 
-   Example: err = v4l2_subdev_call(sd, core, g_chip_ident, &chip);
+   Example: err = v4l2_subdev_call(sd, core, s_std, norm);
  */
 #define v4l2_subdev_call(sd, o, f, args...)				\
 	(!(sd) ? -ENODEV : (((sd)->ops->o && (sd)->ops->o->f) ?	\
