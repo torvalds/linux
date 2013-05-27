@@ -421,6 +421,16 @@
 					};
 				};
 
+				ecspi2 {
+					pinctrl_ecspi2_1: ecspi2grp-1 {
+						fsl,pins = <
+							MX53_PAD_EIM_OE__ECSPI2_MISO  0x80000000
+							MX53_PAD_EIM_CS1__ECSPI2_MOSI 0x80000000
+							MX53_PAD_EIM_CS0__ECSPI2_SCLK 0x80000000
+						>;
+					};
+				};
+
 				esdhc1 {
 					pinctrl_esdhc1_1: esdhc1grp-1 {
 						fsl,pins = <
