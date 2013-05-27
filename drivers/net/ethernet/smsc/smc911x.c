@@ -2087,7 +2087,6 @@ static int smc911x_drv_probe(struct platform_device *pdev)
 	ndev->base_addr = res->start;
 	ret = smc911x_probe(ndev);
 	if (ret != 0) {
-		platform_set_drvdata(pdev, NULL);
 		iounmap(addr);
 release_both:
 		free_netdev(ndev);
@@ -2113,7 +2112,6 @@ static int smc911x_drv_remove(struct platform_device *pdev)
 	struct resource *res;
 
 	DBG(SMC_DEBUG_FUNC, "--> %s\n", __func__);
-	platform_set_drvdata(pdev, NULL);
 
 	unregister_netdev(ndev);
 

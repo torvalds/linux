@@ -2813,8 +2813,6 @@ static int mv643xx_eth_remove(struct platform_device *pdev)
 
 	free_netdev(mp->dev);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 

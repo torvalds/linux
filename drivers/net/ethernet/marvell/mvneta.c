@@ -2804,8 +2804,6 @@ static int mvneta_remove(struct platform_device *pdev)
 	irq_dispose_mapping(dev->irq);
 	free_netdev(dev);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 

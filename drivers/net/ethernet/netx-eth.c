@@ -422,7 +422,6 @@ exit_free_pfifo:
 exit_free_xc:
 	free_xc(priv->xc);
 exit_free_netdev:
-	platform_set_drvdata(pdev, NULL);
 	free_netdev(ndev);
 exit:
 	return ret;

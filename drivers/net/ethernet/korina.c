@@ -1211,7 +1211,6 @@ static int korina_remove(struct platform_device *pdev)
 	iounmap(lp->rx_dma_regs);
 	iounmap(lp->tx_dma_regs);
 
-	platform_set_drvdata(pdev, NULL);
 	unregister_netdev(bif->dev);
 	free_netdev(bif->dev);
 

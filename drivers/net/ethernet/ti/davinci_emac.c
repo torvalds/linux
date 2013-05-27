@@ -2037,8 +2037,6 @@ static int davinci_emac_remove(struct platform_device *pdev)
 
 	dev_notice(&ndev->dev, "DaVinci EMAC: davinci_emac_remove()\n");
 
-	platform_set_drvdata(pdev, NULL);
-
 	if (priv->txchan)
 		cpdma_chan_destroy(priv->txchan);
 	if (priv->rxchan)

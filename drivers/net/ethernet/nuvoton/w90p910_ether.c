@@ -1051,7 +1051,6 @@ failed_put_clk:
 	clk_put(ether->clk);
 failed_free_rxirq:
 	free_irq(ether->rxirq, pdev);
-	platform_set_drvdata(pdev, NULL);
 failed_free_txirq:
 	free_irq(ether->txirq, pdev);
 failed_free_io:
@@ -1080,7 +1079,6 @@ static int w90p910_ether_remove(struct platform_device *pdev)
 	free_irq(ether->rxirq, dev);
 
 	del_timer_sync(&ether->check_timer);
-	platform_set_drvdata(pdev, NULL);
 
 	free_netdev(dev);
 	return 0;

@@ -1301,8 +1301,6 @@ static int au1000_remove(struct platform_device *pdev)
 	int i;
 	struct resource *base, *macen;
 
-	platform_set_drvdata(pdev, NULL);
-
 	unregister_netdev(dev);
 	mdiobus_unregister(aup->mii_bus);
 	mdiobus_free(aup->mii_bus);

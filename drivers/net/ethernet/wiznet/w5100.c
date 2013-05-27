@@ -734,7 +734,6 @@ err_hw_probe:
 	unregister_netdev(ndev);
 err_register:
 	free_netdev(ndev);
-	platform_set_drvdata(pdev, NULL);
 	return err;
 }
 
@@ -750,7 +749,6 @@ static int w5100_remove(struct platform_device *pdev)
 
 	unregister_netdev(ndev);
 	free_netdev(ndev);
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 

@@ -1602,7 +1602,6 @@ static int pxa168_eth_remove(struct platform_device *pdev)
 	unregister_netdev(dev);
 	cancel_work_sync(&pep->tx_timeout_task);
 	free_netdev(dev);
-	platform_set_drvdata(pdev, NULL);
 	return 0;
 }
 

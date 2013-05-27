@@ -1940,7 +1940,6 @@ static int cpsw_remove(struct platform_device *pdev)
 	struct cpsw_priv *priv = netdev_priv(ndev);
 	int i;
 
-	platform_set_drvdata(pdev, NULL);
 	if (priv->data.dual_emac)
 		unregister_netdev(cpsw_get_slave_ndev(priv, 1));
 	unregister_netdev(ndev);

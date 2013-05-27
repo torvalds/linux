@@ -2803,7 +2803,6 @@ static int sh_eth_drv_remove(struct platform_device *pdev)
 	unregister_netdev(ndev);
 	pm_runtime_disable(&pdev->dev);
 	free_netdev(ndev);
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

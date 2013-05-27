@@ -1649,7 +1649,6 @@ err_out_put_pclk:
 err_out_free_dev:
 	free_netdev(dev);
 err_out:
-	platform_set_drvdata(pdev, NULL);
 	return err;
 }
 
@@ -1675,7 +1674,6 @@ static int __exit macb_remove(struct platform_device *pdev)
 		clk_disable_unprepare(bp->pclk);
 		clk_put(bp->pclk);
 		free_netdev(dev);
-		platform_set_drvdata(pdev, NULL);
 	}
 
 	return 0;
