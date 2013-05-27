@@ -638,14 +638,16 @@ static void efx_start_datapath(struct efx_nic *efx)
 			   EFX_MAX_FRAME_LEN(efx->net_dev->mtu) +
 			   efx->type->rx_buffer_padding);
 	rx_buf_len = (sizeof(struct efx_rx_page_state) +
-		      EFX_PAGE_IP_ALIGN + efx->rx_dma_len);
+		      NET_IP_ALIGN + efx->rx_dma_len);
 	if (rx_buf_len <= PAGE_SIZE) {
 		efx->rx_scatter = false;
 		efx->rx_buffer_order = 0;
 	} else if (efx->type->can_rx_scatter) {
+		BUILD_BUG_ON(EFX_RX_USR_BUF_SIZE % L1_CACHE_BYTES);
 		BUILD_BUG_ON(sizeof(struct efx_rx_page_state) +
-			     EFX_PAGE_IP_ALIGN + EFX_RX_USR_BUF_SIZE >
-			     PAGE_SIZE / 2);
+			     2 * ALIGN(NET_IP_ALIGN + EFX_RX_USR_BUF_SIZE,
+				       EFX_RX_BUF_ALIGNMENT) >
+			     PAGE_SIZE);
 		efx->rx_scatter = true;
 		efx->rx_dma_len = EFX_RX_USR_BUF_SIZE;
 		efx->rx_buffer_order = 0;

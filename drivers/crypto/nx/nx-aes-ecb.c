@@ -123,6 +123,7 @@ struct crypto_alg nx_ecb_aes_alg = {
 	.cra_priority    = 300,
 	.cra_flags       = CRYPTO_ALG_TYPE_BLKCIPHER,
 	.cra_blocksize   = AES_BLOCK_SIZE,
+	.cra_alignmask   = 0xf,
 	.cra_ctxsize     = sizeof(struct nx_crypto_ctx),
 	.cra_type        = &crypto_blkcipher_type,
 	.cra_module      = THIS_MODULE,

@@ -126,6 +126,7 @@ struct crypto_alg nx_cbc_aes_alg = {
 	.cra_blocksize   = AES_BLOCK_SIZE,
 	.cra_ctxsize     = sizeof(struct nx_crypto_ctx),
 	.cra_type        = &crypto_blkcipher_type,
+	.cra_alignmask   = 0xf,
 	.cra_module      = THIS_MODULE,
 	.cra_init        = nx_crypto_ctx_aes_cbc_init,
 	.cra_exit        = nx_crypto_ctx_exit,

@@ -390,8 +390,8 @@ static int exynos_adc_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM_SLEEP
 static int exynos_adc_suspend(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct exynos_adc *info = platform_get_drvdata(pdev);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct exynos_adc *info = iio_priv(indio_dev);
 	u32 con;
 
 	if (info->version == ADC_V2) {
@@ -413,8 +413,8 @@ static int exynos_adc_suspend(struct device *dev)
 
 static int exynos_adc_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct exynos_adc *info = platform_get_drvdata(pdev);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct exynos_adc *info = iio_priv(indio_dev);
 	int ret;
 
 	ret = regulator_enable(info->vdd);

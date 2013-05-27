@@ -134,7 +134,7 @@ struct qlcnic_mailbox_metadata {
 
 #define QLCNIC_SET_OWNER        1
 #define QLCNIC_CLR_OWNER        0
-#define QLCNIC_MBX_TIMEOUT      10000
+#define QLCNIC_MBX_TIMEOUT      5000
 
 #define QLCNIC_MBX_RSP_OK	1
 #define QLCNIC_MBX_PORT_RSP_OK	0x1a

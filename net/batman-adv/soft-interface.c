@@ -505,6 +505,7 @@ unreg_debugfs:
 	batadv_debugfs_del_meshif(dev);
 free_bat_counters:
 	free_percpu(bat_priv->bat_counters);
+	bat_priv->bat_counters = NULL;
 
 	return ret;
 }

@@ -605,14 +605,14 @@ ENTRY(copy_user_page_asm)
 	convert_phys_for_tlb_insert20 %r26	/* convert phys addr to tlb insert format */
 	convert_phys_for_tlb_insert20 %r23	/* convert phys addr to tlb insert format */
 	depd		%r24,63,22, %r28	/* Form aliased virtual address 'to' */
-	depdi		0, 63,PAGE_SHIFT, %r28  /* Clear any offset bits */
+	depdi		0, 63,PAGE_SHIFT, %r28	/* Clear any offset bits */
 	copy		%r28, %r29
 	depdi		1, 41,1, %r29		/* Form aliased virtual address 'from' */
 #else
 	extrw,u		%r26, 24,25, %r26	/* convert phys addr to tlb insert format */
 	extrw,u		%r23, 24,25, %r23	/* convert phys addr to tlb insert format */
 	depw		%r24, 31,22, %r28	/* Form aliased virtual address 'to' */
-	depwi		0, 31,12, %r28		/* Clear any offset bits */
+	depwi		0, 31,PAGE_SHIFT, %r28	/* Clear any offset bits */
 	copy		%r28, %r29
 	depwi		1, 9,1, %r29		/* Form aliased virtual address 'from' */
 #endif
@@ -762,7 +762,7 @@ ENTRY(clear_user_page_asm)
 #else
 	extrw,u		%r26, 24,25, %r26	/* convert phys addr to tlb insert format */
 	depw		%r25, 31,22, %r28	/* Form aliased virtual address 'to' */
-	depwi		0, 31,12, %r28		/* Clear any offset bits */
+	depwi		0, 31,PAGE_SHIFT, %r28	/* Clear any offset bits */
 #endif
 
 	/* Purge any old translation */
@@ -846,7 +846,7 @@ ENTRY(flush_dcache_page_asm)
 #else
 	extrw,u		%r26, 24,25, %r26	/* convert phys addr to tlb insert format */
 	depw		%r25, 31,22, %r28	/* Form aliased virtual address 'to' */
-	depwi		0, 31,12, %r28		/* Clear any offset bits */
+	depwi		0, 31,PAGE_SHIFT, %r28	/* Clear any offset bits */
 #endif
 
 	/* Purge any old translation */
@@ -918,11 +918,11 @@ ENTRY(flush_icache_page_asm)
 #endif
 	convert_phys_for_tlb_insert20 %r26	/* convert phys addr to tlb insert format */
 	depd		%r25, 63,22, %r28	/* Form aliased virtual address 'to' */
-	depdi		0, 63,PAGE_SHIFT, %r28  /* Clear any offset bits */
+	depdi		0, 63,PAGE_SHIFT, %r28	/* Clear any offset bits */
 #else
 	extrw,u		%r26, 24,25, %r26	/* convert phys addr to tlb insert format */
 	depw		%r25, 31,22, %r28	/* Form aliased virtual address 'to' */
-	depwi		0, 31,12, %r28		/* Clear any offset bits */
+	depwi		0, 31,PAGE_SHIFT, %r28	/* Clear any offset bits */
 #endif
 
 	/* Purge any old translation */

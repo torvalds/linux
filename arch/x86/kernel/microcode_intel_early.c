@@ -487,6 +487,7 @@ static inline void show_saved_mc(void)
 #endif
 
 #if defined(CONFIG_MICROCODE_INTEL_EARLY) && defined(CONFIG_HOTPLUG_CPU)
+static DEFINE_MUTEX(x86_cpu_microcode_mutex);
 /*
  * Save this mc into mc_saved_data. So it will be loaded early when a CPU is
  * hot added or resumes.
@@ -507,7 +508,7 @@ int save_mc_for_early(u8 *mc)
 	 * Hold hotplug lock so mc_saved_data is not accessed by a CPU in
 	 * hotplug.
 	 */
-	cpu_hotplug_driver_lock();
+	mutex_lock(&x86_cpu_microcode_mutex);
 
 	mc_saved_count_init = mc_saved_data.mc_saved_count;
 	mc_saved_count = mc_saved_data.mc_saved_count;
@@ -544,7 +545,7 @@ int save_mc_for_early(u8 *mc)
 	}
 
 out:
-	cpu_hotplug_driver_unlock();
+	mutex_unlock(&x86_cpu_microcode_mutex);
 
 	return ret;
 }
