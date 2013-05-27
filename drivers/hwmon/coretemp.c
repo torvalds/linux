@@ -36,6 +36,7 @@
 #include <linux/cpu.h>
 #include <linux/smp.h>
 #include <linux/moduleparam.h>
+#include <linux/pci.h>
 #include <asm/msr.h>
 #include <asm/processor.h>
 #include <asm/cpu_device_id.h>
@@ -190,6 +191,17 @@ static ssize_t show_temp(struct device *dev,
 	return tdata->valid ? sprintf(buf, "%d\n", tdata->temp) : -EAGAIN;
 }
 
+struct tjmax_pci {
+	unsigned int device;
+	int tjmax;
+};
+
+static const struct tjmax_pci tjmax_pci_table[] = {
+	{ 0x0c72, 102000 },	/* Atom S1240 (Centerton) */
+	{ 0x0c73, 95000 },	/* Atom S1220 (Centerton) */
+	{ 0x0c75, 95000 },	/* Atom S1260 (Centerton) */
+};
+
 struct tjmax {
 	char const *id;
 	int tjmax;
@@ -222,8 +234,11 @@ static const struct tjmax_model tjmax_model_table[] = {
 				 * is undetectable by software
 				 */
 	{ 0x27, ANY, 90000 },	/* Atom Medfield (Z2460) */
-	{ 0x35, ANY, 90000 },	/* Atom Clover Trail/Cloverview (Z2760) */
-	{ 0x36, ANY, 100000 },	/* Atom Cedar Trail/Cedarview (N2xxx, D2xxx) */
+	{ 0x35, ANY, 90000 },	/* Atom Clover Trail/Cloverview (Z27x0) */
+	{ 0x36, ANY, 100000 },	/* Atom Cedar Trail/Cedarview (N2xxx, D2xxx)
+				 * Also matches S12x0 (stepping 9), covered by
+				 * PCI table
+				 */
 };
 
 static int adjust_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
@@ -236,8 +251,20 @@ static int adjust_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *dev)
 	int err;
 	u32 eax, edx;
 	int i;
+	struct pci_dev *host_bridge = pci_get_bus_and_slot(0, PCI_DEVFN(0, 0));
 
-	/* explicit tjmax table entries override heuristics */
+	/*
+	 * Explicit tjmax table entries override heuristics.
+	 * First try PCI host bridge IDs, followed by model ID strings
+	 * and model/stepping information.
+	 */
+	if (host_bridge && host_bridge->vendor == PCI_VENDOR_ID_INTEL) {
+		for (i = 0; i < ARRAY_SIZE(tjmax_pci_table); i++) {
+			if (host_bridge->device == tjmax_pci_table[i].device)
+				return tjmax_pci_table[i].tjmax;
+		}
+	}
+
 	for (i = 0; i < ARRAY_SIZE(tjmax_table); i++) {
 		if (strstr(c->x86_model_id, tjmax_table[i].id))
 			return tjmax_table[i].tjmax;
