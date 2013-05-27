@@ -32,6 +32,14 @@
 #include <asm/ppc-pci.h>
 #include <asm/firmware.h>
 
+struct pci_dn *pci_get_pdn(struct pci_dev *pdev)
+{
+	struct device_node *dn = pci_device_to_OF_node(pdev);
+	if (!dn)
+		return NULL;
+	return PCI_DN(dn);
+}
+
 /*
  * Traverse_func that inits the PCI fields of the device node.
  * NOTE: this *must* be done before read/write config to the device.

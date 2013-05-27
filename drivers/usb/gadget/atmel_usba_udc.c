@@ -1992,8 +1992,6 @@ err_map_regs:
 err_get_hclk:
 	clk_put(pclk);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return ret;
 }
 

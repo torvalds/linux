@@ -284,6 +284,12 @@ struct thread_struct {
 	unsigned long	ebbrr;
 	unsigned long	ebbhr;
 	unsigned long	bescr;
+	unsigned long	siar;
+	unsigned long	sdar;
+	unsigned long	sier;
+	unsigned long	mmcr0;
+	unsigned long	mmcr2;
+	unsigned long	mmcra;
 #endif
 };
 

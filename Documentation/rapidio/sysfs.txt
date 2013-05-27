@@ -88,3 +88,20 @@ that exports additional attributes.
 
 IDT_GEN2:
  errlog - reads contents of device error log until it is empty.
+
+
+5. RapidIO Bus Attributes
+-------------------------
+
+RapidIO bus subdirectory /sys/bus/rapidio implements the following bus-specific
+attribute:
+
+  scan - allows to trigger enumeration discovery process from user space. This
+	 is a write-only attribute. To initiate an enumeration or discovery
+	 process on specific mport device, a user needs to write mport_ID (not
+	 RapidIO destination ID) into this file. The mport_ID is a sequential
+	 number (0 ... RIO_MAX_MPORTS) assigned to the mport device.
+	 For example, for a machine with a single RapidIO controller, mport_ID
+	 for that controller always will be 0.
+	 To initiate RapidIO enumeration/discovery on all available mports
+	 a user must write '-1' (or RIO_MPORT_ANY) into this attribute file.

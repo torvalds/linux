@@ -14,13 +14,19 @@
 		bootargs = "root=/dev/ram0 console=ttyAMA1,115200n8 earlyprintk";
 	};
 
+	/* This is where the interrupt is routed on the S8815 board */
+	external-bus@34000000 {
+		ethernet@300 {
+			interrupt-parent = <&gpio3>;
+			interrupts = <8 0x1>;
+		};
+	};
+
 	/* Custom board node with GPIO pins to active etc */
 	usb-s8815 {
 		/* The S8815 is using this very GPIO pin for the SMSC91x IRQs */
 		ethernet-gpio {
-			gpios = <&gpio3 19 0x1>;
-			interrupts = <19 0x1>;
-			interrupt-parent = <&gpio3>;
+			gpios = <&gpio3 8 0x1>;
 		};
 		/* This will bias the MMC/SD card detect line */
 		mmcsd-gpio {

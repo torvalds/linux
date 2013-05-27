@@ -30,7 +30,8 @@ struct nf_loginfo {
 	} u;
 };
 
-typedef void nf_logfn(u_int8_t pf,
+typedef void nf_logfn(struct net *net,
+		      u_int8_t pf,
 		      unsigned int hooknum,
 		      const struct sk_buff *skb,
 		      const struct net_device *in,
