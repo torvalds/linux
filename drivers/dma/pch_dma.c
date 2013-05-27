@@ -564,14 +564,7 @@ static void pd_free_chan_resources(struct dma_chan *chan)
 static enum dma_status pd_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 				    struct dma_tx_state *txstate)
 {
-	struct pch_dma_chan *pd_chan = to_pd_chan(chan);
-	enum dma_status ret;
-
-	spin_lock_irq(&pd_chan->lock);
-	ret = dma_cookie_status(chan, cookie, txstate);
-	spin_unlock_irq(&pd_chan->lock);
-
-	return ret;
+	return dma_cookie_status(chan, cookie, txstate);
 }
 
 static void pd_issue_pending(struct dma_chan *chan)
