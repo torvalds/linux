@@ -248,8 +248,7 @@ static int efx_process_channel(struct efx_channel *channel, int budget)
 			efx_channel_get_rx_queue(channel);
 
 		efx_rx_flush_packet(channel);
-		if (rx_queue->enabled)
-			efx_fast_push_rx_descriptors(rx_queue);
+		efx_fast_push_rx_descriptors(rx_queue);
 	}
 
 	return spent;
@@ -646,6 +645,12 @@ static void efx_stop_datapath(struct efx_nic *efx)
 
 	EFX_ASSERT_RESET_SERIALISED(efx);
 	BUG_ON(efx->port_enabled);
+
+	/* Stop RX refill */
+	efx_for_each_channel(channel, efx) {
+		efx_for_each_channel_rx_queue(rx_queue, channel)
+			rx_queue->refill_enabled = false;
+	}
 
 	/* Only perform flush if dma is enabled */
 	if (dev->is_busmaster && efx->state != STATE_RECOVERY) {

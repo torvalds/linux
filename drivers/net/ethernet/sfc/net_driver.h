@@ -286,7 +286,7 @@ struct efx_rx_page_state {
  * @buffer: The software buffer ring
  * @rxd: The hardware descriptor ring
  * @ptr_mask: The size of the ring minus 1.
- * @enabled: Receive queue enabled indicator.
+ * @refill_enabled: Enable refill whenever fill level is low
  * @flush_pending: Set when a RX flush is pending. Has the same lifetime as
  *	@rxq_flush_pending.
  * @added_count: Number of buffers added to the receive queue.
@@ -317,7 +317,7 @@ struct efx_rx_queue {
 	struct efx_rx_buffer *buffer;
 	struct efx_special_buffer rxd;
 	unsigned int ptr_mask;
-	bool enabled;
+	bool refill_enabled;
 	bool flush_pending;
 
 	unsigned int added_count;

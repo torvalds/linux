@@ -1204,7 +1204,6 @@ efx_handle_generated_event(struct efx_channel *channel, efx_qword_t *event)
 		 * queue. Refill it here */
 		efx_fast_push_rx_descriptors(rx_queue);
 	} else if (rx_queue && magic == EFX_CHANNEL_MAGIC_RX_DRAIN(rx_queue)) {
-		rx_queue->enabled = false;
 		efx_handle_drain_event(channel);
 	} else if (code == _EFX_CHANNEL_MAGIC_TX_DRAIN) {
 		efx_handle_drain_event(channel);
