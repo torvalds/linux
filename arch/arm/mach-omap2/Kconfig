@@ -149,6 +149,16 @@ config SOC_AM33XX
 	select MULTI_IRQ_HANDLER
 	select COMMON_CLK
 
+config SOC_AM43XX
+	bool "TI AM43x"
+	depends on ARCH_OMAP2PLUS
+	default y
+	select CPU_V7
+	select MULTI_IRQ_HANDLER
+	select ARM_GIC
+	select COMMON_CLK
+	select MACH_OMAP_GENERIC
+
 config OMAP_PACKAGE_ZAF
        bool
 
