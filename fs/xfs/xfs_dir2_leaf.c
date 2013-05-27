@@ -1336,7 +1336,7 @@ xfs_dir2_leaf_getdents(
 				     mp->m_sb.sb_blocksize);
 	map_info = kmem_zalloc(offsetof(struct xfs_dir2_leaf_map_info, map) +
 				(length * sizeof(struct xfs_bmbt_irec)),
-			       KM_SLEEP);
+			       KM_SLEEP | KM_NOFS);
 	map_info->map_size = length;
 
 	/*
