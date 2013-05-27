@@ -10,7 +10,7 @@
  */
 
 /dts-v1/;
-/include/ "dbx5x0.dtsi"
+#include "dbx5x0.dtsi"
 
 / {
 	model = "Calao Systems Snowball platform with device tree";

@@ -10,9 +10,9 @@
  */
 
 /dts-v1/;
-/include/ "dbx5x0.dtsi"
-/include/ "href.dtsi"
-/include/ "stuib.dtsi"
+#include "dbx5x0.dtsi"
+#include "href.dtsi"
+#include "stuib.dtsi"
 
 / {
 	model = "ST-Ericsson HREF (v60+) platform with Device Tree";

@@ -9,7 +9,7 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
-/include/ "dbx5x0.dtsi"
+#include "dbx5x0.dtsi"
 
 / {
 	memory {
