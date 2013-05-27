@@ -237,8 +237,10 @@ static int rk616_scaler_disable(struct mfd_rk616 *rk616)
 	val &= (~SCL_EN);	//disable scaler
 	val |= (SCL_EN<<16);
 	ret = rk616->write_dev(rk616,SCL_REG0,&val);
+	dev_info(rk616->dev,"rk616 scaler disable\n");
 	return 0;
 }
+
 int rk616_scaler_cfg(struct mfd_rk616 *rk616,rk_screen *screen)
 {
 	u32 scl_hor_mode,scl_ver_mode;
@@ -294,6 +296,8 @@ int rk616_scaler_cfg(struct mfd_rk616 *rk616,rk_screen *screen)
 		pll_id = 0;
 	else
 		pll_id = 1;
+
+	rk616_scaler_disable(rk616);
 	rk616_pll_set_rate(rk616,pll_id,dst->pll_cfg_val,dst->frac);
 	dst_frame_vst = dst->scl_vst;
 	dst_frame_hst = dst->scl_hst;
@@ -402,9 +406,7 @@ int rk616_scaler_cfg(struct mfd_rk616 *rk616,rk_screen *screen)
 	scl_reg7_value = dsp_hbor_end<<16 | dsp_hbor_st ;
 	//vbor      register8
 	scl_reg8_value = dsp_vbor_end<<16 | dsp_vbor_st ;
-
-    
-	rk616->write_dev(rk616,SCL_REG0,&scl_reg0_value);  
+ 
 	rk616->write_dev(rk616,SCL_REG1,&scl_reg1_value);  
 	rk616->write_dev(rk616,SCL_REG2,&scl_reg2_value);  
 	rk616->write_dev(rk616,SCL_REG3,&scl_reg3_value);  
@@ -412,7 +414,10 @@ int rk616_scaler_cfg(struct mfd_rk616 *rk616,rk_screen *screen)
 	rk616->write_dev(rk616,SCL_REG5,&scl_reg5_value);  
 	rk616->write_dev(rk616,SCL_REG6,&scl_reg6_value);  
 	rk616->write_dev(rk616,SCL_REG7,&scl_reg7_value);  
-	rk616->write_dev(rk616,SCL_REG8,&scl_reg8_value);  
+	rk616->write_dev(rk616,SCL_REG8,&scl_reg8_value);
+	rk616->write_dev(rk616,SCL_REG0,&scl_reg0_value); 
+
+	dev_info(rk616->dev,"rk616 scaler enable\n");
 #endif
 	return 0;
 	
