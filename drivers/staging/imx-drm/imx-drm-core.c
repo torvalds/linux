@@ -144,7 +144,7 @@ int imx_drm_crtc_panel_format(struct drm_crtc *crtc, u32 encoder_type,
 		u32 interface_pix_fmt)
 {
 	return imx_drm_crtc_panel_format_pins(crtc, encoder_type,
-					      interface_pix_fmt, 0, 0);
+					      interface_pix_fmt, 2, 3);
 }
 EXPORT_SYMBOL_GPL(imx_drm_crtc_panel_format);
 
