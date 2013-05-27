@@ -612,6 +612,8 @@ struct batadv_softif_vlan {
  * @aggregated_ogms: bool indicating whether OGM aggregation is enabled
  * @bonding: bool indicating whether traffic bonding is enabled
  * @fragmentation: bool indicating whether traffic fragmentation is enabled
+ * @packet_size_max: max packet size that can be transmitted via
+ *  multiple fragmented skbs or a single frame if fragmentation is disabled
  * @frag_seqno: incremental counter to identify chains of egress fragments
  * @bridge_loop_avoidance: bool indicating whether bridge loop avoidance is
  *  enabled
@@ -658,6 +660,7 @@ struct batadv_priv {
 	atomic_t aggregated_ogms;
 	atomic_t bonding;
 	atomic_t fragmentation;
+	atomic_t packet_size_max;
 	atomic_t frag_seqno;
 #ifdef CONFIG_BATMAN_ADV_BLA
 	atomic_t bridge_loop_avoidance;

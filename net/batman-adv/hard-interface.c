@@ -266,16 +266,9 @@ static void batadv_check_known_mac_addr(const struct net_device *net_dev)
 
 int batadv_hardif_min_mtu(struct net_device *soft_iface)
 {
-	const struct batadv_priv *bat_priv = netdev_priv(soft_iface);
+	struct batadv_priv *bat_priv = netdev_priv(soft_iface);
 	const struct batadv_hard_iface *hard_iface;
-	/* allow big frames if all devices are capable to do so
-	 * (have MTU > 1500 + batadv_max_header_len())
-	 */
 	int min_mtu = ETH_DATA_LEN;
-	int max_header_len = batadv_max_header_len();
-
-	if (atomic_read(&bat_priv->fragmentation))
-		goto out;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(hard_iface, &batadv_hardif_list, list) {
@@ -286,22 +279,40 @@ int batadv_hardif_min_mtu(struct net_device *soft_iface)
 		if (hard_iface->soft_iface != soft_iface)
 			continue;
 
-		min_mtu = min_t(int, hard_iface->net_dev->mtu - max_header_len,
-				min_mtu);
+		min_mtu = min_t(int, hard_iface->net_dev->mtu, min_mtu);
 	}
 	rcu_read_unlock();
+
+	atomic_set(&bat_priv->packet_size_max, min_mtu);
+
+	if (atomic_read(&bat_priv->fragmentation) == 0)
+		goto out;
+
+	/* with fragmentation enabled the maximum size of internally generated
+	 * packets such as translation table exchanges or tvlv containers, etc
+	 * has to be calculated
+	 */
+	min_mtu = min_t(int, min_mtu, BATADV_FRAG_MAX_FRAG_SIZE);
+	min_mtu -= sizeof(struct batadv_frag_packet);
+	min_mtu *= BATADV_FRAG_MAX_FRAGMENTS;
+	atomic_set(&bat_priv->packet_size_max, min_mtu);
+
+	/* with fragmentation enabled we can fragment external packets easily */
+	min_mtu = min_t(int, min_mtu, ETH_DATA_LEN);
+
 out:
-	return min_mtu;
+	return min_mtu - batadv_max_header_len();
 }
 
 /* adjusts the MTU if a new interface with a smaller MTU appeared. */
 void batadv_update_min_mtu(struct net_device *soft_iface)
 {
-	int min_mtu;
+	soft_iface->mtu = batadv_hardif_min_mtu(soft_iface);
 
-	min_mtu = batadv_hardif_min_mtu(soft_iface);
-	if (soft_iface->mtu != min_mtu)
-		soft_iface->mtu = min_mtu;
+	/* Check if the local translate table should be cleaned up to match a
+	 * new (and smaller) MTU.
+	 */
+	batadv_tt_local_resize_to_mtu(soft_iface);
 }
 
 static void

@@ -166,7 +166,7 @@ static int batadv_interface_tx(struct sk_buff *skb,
 	unsigned int header_len = 0;
 	int data_len = skb->len, ret;
 	unsigned long brd_delay = 1;
-	bool do_bcast = false;
+	bool do_bcast = false, client_added;
 	unsigned short vid;
 	uint32_t seqno;
 
@@ -196,9 +196,12 @@ static int batadv_interface_tx(struct sk_buff *skb,
 	ethhdr = (struct ethhdr *)skb->data;
 
 	/* Register the client MAC in the transtable */
-	if (!is_multicast_ether_addr(ethhdr->h_source))
-		batadv_tt_local_add(soft_iface, ethhdr->h_source, vid,
-				    skb->skb_iif);
+	if (!is_multicast_ether_addr(ethhdr->h_source)) {
+		client_added = batadv_tt_local_add(soft_iface, ethhdr->h_source,
+						   vid, skb->skb_iif);
+		if (!client_added)
+			goto dropped;
+	}
 
 	/* don't accept stp packets. STP does not help in meshes.
 	 * better use the bridge loop avoidance ...
@@ -674,6 +677,7 @@ static int batadv_softif_init_late(struct net_device *dev)
 	atomic_set(&bat_priv->log_level, 0);
 #endif
 	atomic_set(&bat_priv->fragmentation, 1);
+	atomic_set(&bat_priv->packet_size_max, ETH_DATA_LEN);
 	atomic_set(&bat_priv->bcast_queue_left, BATADV_BCAST_QUEUE_LEN);
 	atomic_set(&bat_priv->batman_queue_left, BATADV_BATMAN_QUEUE_LEN);
 

@@ -401,6 +401,35 @@ static uint16_t batadv_tt_entries(uint16_t tt_len)
 	return tt_len / batadv_tt_len(1);
 }
 
+/**
+ * batadv_tt_local_table_transmit_size - calculates the local translation table
+ *  size when transmitted over the air
+ * @bat_priv: the bat priv with all the soft interface information
+ *
+ * Returns local translation table size in bytes.
+ */
+static int batadv_tt_local_table_transmit_size(struct batadv_priv *bat_priv)
+{
+	uint16_t num_vlan = 0, tt_local_entries = 0;
+	struct batadv_softif_vlan *vlan;
+	int hdr_size;
+
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(vlan, &bat_priv->softif_vlan_list, list) {
+		num_vlan++;
+		tt_local_entries += atomic_read(&vlan->tt.num_entries);
+	}
+	rcu_read_unlock();
+
+	/* header size of tvlv encapsulated tt response payload */
+	hdr_size = sizeof(struct batadv_unicast_tvlv_packet);
+	hdr_size += sizeof(struct batadv_tvlv_hdr);
+	hdr_size += sizeof(struct batadv_tvlv_tt_data);
+	hdr_size += num_vlan * sizeof(struct batadv_tvlv_tt_vlan_data);
+
+	return hdr_size + batadv_tt_len(tt_local_entries);
+}
+
 static int batadv_tt_local_init(struct batadv_priv *bat_priv)
 {
 	if (bat_priv->tt.local_hash)
@@ -439,8 +468,10 @@ static void batadv_tt_global_free(struct batadv_priv *bat_priv,
  * @vid: VLAN identifier
  * @ifindex: index of the interface where the client is connected to (useful to
  *  identify wireless clients)
+ *
+ * Returns true if the client was successfully added, false otherwise.
  */
-void batadv_tt_local_add(struct net_device *soft_iface, const uint8_t *addr,
+bool batadv_tt_local_add(struct net_device *soft_iface, const uint8_t *addr,
 			 unsigned short vid, int ifindex)
 {
 	struct batadv_priv *bat_priv = netdev_priv(soft_iface);
@@ -448,8 +479,8 @@ void batadv_tt_local_add(struct net_device *soft_iface, const uint8_t *addr,
 	struct batadv_tt_global_entry *tt_global;
 	struct hlist_head *head;
 	struct batadv_tt_orig_list_entry *orig_entry;
-	int hash_added;
-	bool roamed_back = false;
+	int hash_added, table_size, packet_size_max;
+	bool ret = false, roamed_back = false;
 
 	tt_local = batadv_tt_local_hash_find(bat_priv, addr, vid);
 	tt_global = batadv_tt_global_hash_find(bat_priv, addr, vid);
@@ -482,6 +513,17 @@ void batadv_tt_local_add(struct net_device *soft_iface, const uint8_t *addr,
 			roamed_back = true;
 		}
 		goto check_roaming;
+	}
+
+	/* Ignore the client if we cannot send it in a full table response. */
+	table_size = batadv_tt_local_table_transmit_size(bat_priv);
+	table_size += batadv_tt_len(1);
+	packet_size_max = atomic_read(&bat_priv->packet_size_max);
+	if (table_size > packet_size_max) {
+		net_ratelimited_function(batadv_info, soft_iface,
+					 "Local translation table size (%i) exceeds maximum packet size (%i); Ignoring new local tt entry: %pM\n",
+					 table_size, packet_size_max, addr);
+		goto out;
 	}
 
 	tt_local = kmalloc(sizeof(*tt_local), GFP_ATOMIC);
@@ -550,11 +592,14 @@ check_roaming:
 		}
 	}
 
+	ret = true;
+
 out:
 	if (tt_local)
 		batadv_tt_local_entry_free_ref(tt_local);
 	if (tt_global)
 		batadv_tt_global_entry_free_ref(tt_global);
+	return ret;
 }
 
 /**
@@ -926,8 +971,16 @@ out:
 	return curr_flags;
 }
 
+/**
+ * batadv_tt_local_purge_list - purge inactive tt local entries
+ * @bat_priv: the bat priv with all the soft interface information
+ * @head: pointer to the list containing the local tt entries
+ * @timeout: parameter deciding whether a given tt local entry is considered
+ *  inactive or not
+ */
 static void batadv_tt_local_purge_list(struct batadv_priv *bat_priv,
-				       struct hlist_head *head)
+				       struct hlist_head *head,
+				       int timeout)
 {
 	struct batadv_tt_local_entry *tt_local_entry;
 	struct batadv_tt_common_entry *tt_common_entry;
@@ -945,8 +998,7 @@ static void batadv_tt_local_purge_list(struct batadv_priv *bat_priv,
 		if (tt_local_entry->common.flags & BATADV_TT_CLIENT_PENDING)
 			continue;
 
-		if (!batadv_has_timed_out(tt_local_entry->last_seen,
-					  BATADV_TT_LOCAL_TIMEOUT))
+		if (!batadv_has_timed_out(tt_local_entry->last_seen, timeout))
 			continue;
 
 		batadv_tt_local_set_pending(bat_priv, tt_local_entry,
@@ -954,7 +1006,14 @@ static void batadv_tt_local_purge_list(struct batadv_priv *bat_priv,
 	}
 }
 
-static void batadv_tt_local_purge(struct batadv_priv *bat_priv)
+/**
+ * batadv_tt_local_purge - purge inactive tt local entries
+ * @bat_priv: the bat priv with all the soft interface information
+ * @timeout: parameter deciding whether a given tt local entry is considered
+ *  inactive or not
+ */
+static void batadv_tt_local_purge(struct batadv_priv *bat_priv,
+				  int timeout)
 {
 	struct batadv_hashtable *hash = bat_priv->tt.local_hash;
 	struct hlist_head *head;
@@ -966,7 +1025,7 @@ static void batadv_tt_local_purge(struct batadv_priv *bat_priv)
 		list_lock = &hash->list_locks[i];
 
 		spin_lock_bh(list_lock);
-		batadv_tt_local_purge_list(bat_priv, head);
+		batadv_tt_local_purge_list(bat_priv, head, timeout);
 		spin_unlock_bh(list_lock);
 	}
 }
@@ -2383,6 +2442,15 @@ static bool batadv_send_other_tt_response(struct batadv_priv *bat_priv,
 					req_dst_orig_node);
 	}
 
+	/* Don't send the response, if larger than fragmented packet. */
+	tt_len = sizeof(struct batadv_unicast_tvlv_packet) + tvlv_len;
+	if (tt_len > atomic_read(&bat_priv->packet_size_max)) {
+		net_ratelimited_function(batadv_info, bat_priv->soft_iface,
+					 "Ignoring TT_REQUEST from %pM; Response size exceeds max packet size.\n",
+					 res_dst_orig_node->orig);
+		goto out;
+	}
+
 	tvlv_tt_data->flags = BATADV_TT_RESPONSE;
 	tvlv_tt_data->ttvn = req_ttvn;
 
@@ -2859,7 +2927,7 @@ static void batadv_tt_purge(struct work_struct *work)
 	priv_tt = container_of(delayed_work, struct batadv_priv_tt, work);
 	bat_priv = container_of(priv_tt, struct batadv_priv, tt);
 
-	batadv_tt_local_purge(bat_priv);
+	batadv_tt_local_purge(bat_priv, BATADV_TT_LOCAL_TIMEOUT);
 	batadv_tt_global_purge(bat_priv);
 	batadv_tt_req_purge(bat_priv);
 	batadv_tt_roam_purge(bat_priv);
@@ -2972,18 +3040,18 @@ static void batadv_tt_local_purge_pending_clients(struct batadv_priv *bat_priv)
 }
 
 /**
- * batadv_tt_local_commit_changes - commit all pending local tt changes which
- *  have been queued in the time since the last commit
+ * batadv_tt_local_commit_changes_nolock - commit all pending local tt changes
+ *  which have been queued in the time since the last commit
  * @bat_priv: the bat priv with all the soft interface information
+ *
+ * Caller must hold tt->commit_lock.
  */
-void batadv_tt_local_commit_changes(struct batadv_priv *bat_priv)
+static void batadv_tt_local_commit_changes_nolock(struct batadv_priv *bat_priv)
 {
-	spin_lock_bh(&bat_priv->tt.commit_lock);
-
 	if (atomic_read(&bat_priv->tt.local_changes) < 1) {
 		if (!batadv_atomic_dec_not_zero(&bat_priv->tt.ogm_append_cnt))
 			batadv_tt_tvlv_container_update(bat_priv);
-		goto out;
+		return;
 	}
 
 	batadv_tt_local_set_flags(bat_priv, BATADV_TT_CLIENT_NEW, false, true);
@@ -3000,8 +3068,17 @@ void batadv_tt_local_commit_changes(struct batadv_priv *bat_priv)
 	/* reset the sending counter */
 	atomic_set(&bat_priv->tt.ogm_append_cnt, BATADV_TT_OGM_APPEND_MAX);
 	batadv_tt_tvlv_container_update(bat_priv);
+}
 
-out:
+/**
+ * batadv_tt_local_commit_changes - commit all pending local tt changes which
+ *  have been queued in the time since the last commit
+ * @bat_priv: the bat priv with all the soft interface information
+ */
+void batadv_tt_local_commit_changes(struct batadv_priv *bat_priv)
+{
+	spin_lock_bh(&bat_priv->tt.commit_lock);
+	batadv_tt_local_commit_changes_nolock(bat_priv);
 	spin_unlock_bh(&bat_priv->tt.commit_lock);
 }
 
@@ -3194,6 +3271,47 @@ bool batadv_tt_add_temporary_global_entry(struct batadv_priv *bat_priv,
 	ret = true;
 out:
 	return ret;
+}
+
+/**
+ * batadv_tt_local_resize_to_mtu - resize the local translation table fit the
+ *  maximum packet size that can be transported through the mesh
+ * @soft_iface: netdev struct of the mesh interface
+ *
+ * Remove entries older than 'timeout' and half timeout if more entries need
+ * to be removed.
+ */
+void batadv_tt_local_resize_to_mtu(struct net_device *soft_iface)
+{
+	struct batadv_priv *bat_priv = netdev_priv(soft_iface);
+	int packet_size_max = atomic_read(&bat_priv->packet_size_max);
+	int table_size, timeout = BATADV_TT_LOCAL_TIMEOUT / 2;
+	bool reduced = false;
+
+	spin_lock_bh(&bat_priv->tt.commit_lock);
+
+	while (true) {
+		table_size = batadv_tt_local_table_transmit_size(bat_priv);
+		if (packet_size_max >= table_size)
+			break;
+
+		batadv_tt_local_purge(bat_priv, timeout);
+		batadv_tt_local_purge_pending_clients(bat_priv);
+
+		timeout /= 2;
+		reduced = true;
+		net_ratelimited_function(batadv_info, soft_iface,
+					 "Forced to purge local tt entries to fit new maximum fragment MTU (%i)\n",
+					 packet_size_max);
+	}
+
+	/* commit these changes immediately, to avoid synchronization problem
+	 * with the TTVN
+	 */
+	if (reduced)
+		batadv_tt_local_commit_changes_nolock(bat_priv);
+
+	spin_unlock_bh(&bat_priv->tt.commit_lock);
 }
 
 /**
