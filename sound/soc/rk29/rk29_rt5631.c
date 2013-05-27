@@ -32,7 +32,7 @@
 static int rk29_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
-        struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
         unsigned int pll_out = 0; 
@@ -83,11 +83,15 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
         case 24000:
         case 32000:
         case 48000:
+        case 96000:
+        case 192000:
                 pll_out = 12288000;
                 break;
         case 11025:
         case 22050:
         case 44100:
+        case 88100:
+        case 176400:
                 pll_out = 11289600;
                 break;
         default:
@@ -95,9 +99,24 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
                 return -EINVAL;
                 break;
         }
-        DBG("Enter:%s, %d, rate=%d\n",__FUNCTION__,__LINE__,params_rate(params));
-
-		#if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE)
+        DBG("Enter:%s, %d, LRCK=%d rate=%d\n",__FUNCTION__,__LINE__,(pll_out/4)/params_rate(params),params_rate(params));
+#if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE)
+	snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
+	snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_BCLK, (pll_out/4)/params_rate(params)-1);
+	switch(params_rate(params)) {
+		case 96000:
+        case 88100:		
+			snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_MCLK, 1);	
+			break;
+        case 176400:		
+		case 192000:
+			snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_MCLK, 0);	
+			break;
+		default:
+			snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_MCLK, 3);	
+			break;
+	}	
+		
 #if 0		//use pll from blck
           /*Set the pll of rt5631,the Pll source from BITCLK on CPU is master mode*/
          //bitclk is 64fs           
@@ -108,33 +127,20 @@ static int rk29_hw_params(struct snd_pcm_substream *substream,
 		  	   return ret;
 		    }
 #endif	    
-		   /*Set the system clk for codec*/
-		    ret=snd_soc_dai_set_sysclk(codec_dai, 0,pll_out,SND_SOC_CLOCK_IN);
-		    if (ret < 0)
-		    {
-		       DBG("rk29_hw_params_rt5631:failed to set the sysclk for codec side\n"); 
-		   	   return ret;
-		   	}	    
-		#endif
-  
+	/*Set the system clk for codec*/
+	ret=snd_soc_dai_set_sysclk(codec_dai, 0,pll_out,SND_SOC_CLOCK_IN);
+	if (ret < 0)
+	{
+		DBG("rk29_hw_params_rt5631:failed to set the sysclk for codec side\n"); 
+		return ret;
+	}	    
+#endif
 
-        #if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER) 
-		
-			//	snd_soc_dai_set_pll(codec_dai,0,pll_out, 22579200);
-				snd_soc_dai_set_sysclk(codec_dai,0,pll_out, SND_SOC_CLOCK_IN);						
-      
-        #endif
-
-
-        #if defined (CONFIG_SND_RK29_CODEC_SOC_SLAVE)
-        snd_soc_dai_set_sysclk(cpu_dai, 0, pll_out, 0);
-        snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_BCLK, (pll_out/4)/params_rate(params)-1);
-        snd_soc_dai_set_clkdiv(cpu_dai, ROCKCHIP_DIV_MCLK, 3);
-        #endif
-
-        DBG("Enter:%s, %d, LRCK=%d\n",__FUNCTION__,__LINE__,(pll_out/4)/params_rate(params));
-        
-        return 0;
+#if defined (CONFIG_SND_RK29_CODEC_SOC_MASTER) 
+	//snd_soc_dai_set_pll(codec_dai,0,pll_out, 22579200);
+	snd_soc_dai_set_sysclk(codec_dai,0,pll_out, SND_SOC_CLOCK_IN);						      
+#endif       
+	return 0;
 }
 
 static const struct snd_soc_dapm_widget rt5631_dapm_widgets[] = {
