@@ -31,7 +31,7 @@ static int sr_class3_enable(struct omap_sr *sr)
 
 static int sr_class3_disable(struct omap_sr *sr, int is_volt_reset)
 {
-	sr_disable_errgen(sr->voltdm);
+	sr_disable_errgen(sr);
 	omap_vp_disable(sr->voltdm);
 	sr_disable(sr->voltdm);
 	if (is_volt_reset)
@@ -42,7 +42,7 @@ static int sr_class3_disable(struct omap_sr *sr, int is_volt_reset)
 
 static int sr_class3_configure(struct omap_sr *sr)
 {
-	return sr_configure_errgen(sr->voltdm);
+	return sr_configure_errgen(sr);
 }
 
 /* SR class3 structure */
