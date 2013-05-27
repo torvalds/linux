@@ -154,11 +154,6 @@ static int ssc_probe(struct platform_device *pdev)
 	ssc->pdata = (struct atmel_ssc_platform_data *)plat_dat;
 
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!regs) {
-		dev_dbg(&pdev->dev, "no mmio resource defined\n");
-		return -ENXIO;
-	}
-
 	ssc->regs = devm_ioremap_resource(&pdev->dev, regs);
 	if (IS_ERR(ssc->regs))
 		return PTR_ERR(ssc->regs);

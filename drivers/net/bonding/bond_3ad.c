@@ -2360,14 +2360,15 @@ int bond_3ad_set_carrier(struct bonding *bond)
 }
 
 /**
- * bond_3ad_get_active_agg_info - get information of the active aggregator
+ * __bond_3ad_get_active_agg_info - get information of the active aggregator
  * @bond: bonding struct to work on
  * @ad_info: ad_info struct to fill with the bond's info
  *
  * Returns:   0 on success
  *          < 0 on error
  */
-int bond_3ad_get_active_agg_info(struct bonding *bond, struct ad_info *ad_info)
+int __bond_3ad_get_active_agg_info(struct bonding *bond,
+				   struct ad_info *ad_info)
 {
 	struct aggregator *aggregator = NULL;
 	struct port *port;
@@ -2391,6 +2392,18 @@ int bond_3ad_get_active_agg_info(struct bonding *bond, struct ad_info *ad_info)
 	return -1;
 }
 
+/* Wrapper used to hold bond->lock so no slave manipulation can occur */
+int bond_3ad_get_active_agg_info(struct bonding *bond, struct ad_info *ad_info)
+{
+	int ret;
+
+	read_lock(&bond->lock);
+	ret = __bond_3ad_get_active_agg_info(bond, ad_info);
+	read_unlock(&bond->lock);
+
+	return ret;
+}
+
 int bond_3ad_xmit_xor(struct sk_buff *skb, struct net_device *dev)
 {
 	struct slave *slave, *start_at;
@@ -2402,8 +2415,8 @@ int bond_3ad_xmit_xor(struct sk_buff *skb, struct net_device *dev)
 	struct ad_info ad_info;
 	int res = 1;
 
-	if (bond_3ad_get_active_agg_info(bond, &ad_info)) {
-		pr_debug("%s: Error: bond_3ad_get_active_agg_info failed\n",
+	if (__bond_3ad_get_active_agg_info(bond, &ad_info)) {
+		pr_debug("%s: Error: __bond_3ad_get_active_agg_info failed\n",
 			 dev->name);
 		goto out;
 	}

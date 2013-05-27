@@ -1785,7 +1785,7 @@ static void acpi_scan_init_hotplug(acpi_handle handle, int type)
 	acpi_set_pnp_ids(handle, &pnp, type);
 
 	if (!pnp.type.hardware_id)
-		return;
+		goto out;
 
 	/*
 	 * This relies on the fact that acpi_install_notify_handler() will not
@@ -1800,6 +1800,7 @@ static void acpi_scan_init_hotplug(acpi_handle handle, int type)
 		}
 	}
 
+out:
 	acpi_free_pnp_ids(&pnp);
 }
 
@@ -2042,7 +2043,6 @@ int __init acpi_scan_init(void)
 	acpi_pci_link_init();
 	acpi_platform_init();
 	acpi_lpss_init();
-	acpi_csrt_init();
 	acpi_container_init();
 	acpi_memory_hotplug_init();
 

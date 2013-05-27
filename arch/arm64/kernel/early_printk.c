@@ -95,7 +95,7 @@ static void early_write(struct console *con, const char *s, unsigned n)
 	}
 }
 
-static struct console early_console = {
+static struct console early_console_dev = {
 	.name =		"earlycon",
 	.write =	early_write,
 	.flags =	CON_PRINTBUFFER | CON_BOOT,
@@ -145,7 +145,8 @@ static int __init setup_early_printk(char *buf)
 		early_base = early_io_map(paddr, EARLYCON_IOBASE);
 
 	printch = match->printch;
-	register_console(&early_console);
+	early_console = &early_console_dev;
+	register_console(&early_console_dev);
 
 	return 0;
 }

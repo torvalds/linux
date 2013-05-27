@@ -69,7 +69,7 @@ static int nx_sha256_update(struct shash_desc *desc, const u8 *data,
 	 *  1: <= SHA256_BLOCK_SIZE: copy into state, return 0
 	 *  2: > SHA256_BLOCK_SIZE: process X blocks, copy in leftover
 	 */
-	if (len + sctx->count <= SHA256_BLOCK_SIZE) {
+	if (len + sctx->count < SHA256_BLOCK_SIZE) {
 		memcpy(sctx->buf + sctx->count, data, len);
 		sctx->count += len;
 		goto out;
@@ -110,7 +110,8 @@ static int nx_sha256_update(struct shash_desc *desc, const u8 *data,
 	atomic_inc(&(nx_ctx->stats->sha256_ops));
 
 	/* copy the leftover back into the state struct */
-	memcpy(sctx->buf, data + len - leftover, leftover);
+	if (leftover)
+		memcpy(sctx->buf, data + len - leftover, leftover);
 	sctx->count = leftover;
 
 	csbcpb->cpb.sha256.message_bit_length += (u64)
@@ -129,6 +130,7 @@ static int nx_sha256_final(struct shash_desc *desc, u8 *out)
 	struct nx_csbcpb *csbcpb = (struct nx_csbcpb *)nx_ctx->csbcpb;
 	struct nx_sg *in_sg, *out_sg;
 	int rc;
+
 
 	if (NX_CPB_FDM(csbcpb) & NX_FDM_CONTINUATION) {
 		/* we've hit the nx chip previously, now we're finalizing,
@@ -162,7 +164,7 @@ static int nx_sha256_final(struct shash_desc *desc, u8 *out)
 
 	atomic_inc(&(nx_ctx->stats->sha256_ops));
 
-	atomic64_add(csbcpb->cpb.sha256.message_bit_length,
+	atomic64_add(csbcpb->cpb.sha256.message_bit_length / 8,
 		     &(nx_ctx->stats->sha256_bytes));
 	memcpy(out, csbcpb->cpb.sha256.message_digest, SHA256_DIGEST_SIZE);
 out:

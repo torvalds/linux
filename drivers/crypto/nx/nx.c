@@ -211,44 +211,20 @@ int nx_build_sg_lists(struct nx_crypto_ctx  *nx_ctx,
 {
 	struct nx_sg *nx_insg = nx_ctx->in_sg;
 	struct nx_sg *nx_outsg = nx_ctx->out_sg;
-	struct blkcipher_walk walk;
-	int rc;
-
-	blkcipher_walk_init(&walk, dst, src, nbytes);
-	rc = blkcipher_walk_virt_block(desc, &walk, AES_BLOCK_SIZE);
-	if (rc)
-		goto out;
 
 	if (iv)
-		memcpy(iv, walk.iv, AES_BLOCK_SIZE);
+		memcpy(iv, desc->info, AES_BLOCK_SIZE);
 
-	while (walk.nbytes) {
-		nx_insg = nx_build_sg_list(nx_insg, walk.src.virt.addr,
-					   walk.nbytes, nx_ctx->ap->sglen);
-		nx_outsg = nx_build_sg_list(nx_outsg, walk.dst.virt.addr,
-					    walk.nbytes, nx_ctx->ap->sglen);
-
-		rc = blkcipher_walk_done(desc, &walk, 0);
-		if (rc)
-			break;
-	}
-
-	if (walk.nbytes) {
-		nx_insg = nx_build_sg_list(nx_insg, walk.src.virt.addr,
-					   walk.nbytes, nx_ctx->ap->sglen);
-		nx_outsg = nx_build_sg_list(nx_outsg, walk.dst.virt.addr,
-					    walk.nbytes, nx_ctx->ap->sglen);
-
-		rc = 0;
-	}
+	nx_insg = nx_walk_and_build(nx_insg, nx_ctx->ap->sglen, src, 0, nbytes);
+	nx_outsg = nx_walk_and_build(nx_outsg, nx_ctx->ap->sglen, dst, 0, nbytes);
 
 	/* these lengths should be negative, which will indicate to phyp that
 	 * the input and output parameters are scatterlists, not linear
 	 * buffers */
 	nx_ctx->op.inlen = (nx_ctx->in_sg - nx_insg) * sizeof(struct nx_sg);
 	nx_ctx->op.outlen = (nx_ctx->out_sg - nx_outsg) * sizeof(struct nx_sg);
-out:
-	return rc;
+
+	return 0;
 }
 
 /**
@@ -454,6 +430,8 @@ static int nx_register_algs(void)
 	if (rc)
 		goto out;
 
+	nx_driver.of.status = NX_OKAY;
+
 	rc = crypto_register_alg(&nx_ecb_aes_alg);
 	if (rc)
 		goto out;
@@ -497,8 +475,6 @@ static int nx_register_algs(void)
 	rc = crypto_register_shash(&nx_shash_aes_xcbc_alg);
 	if (rc)
 		goto out_unreg_s512;
-
-	nx_driver.of.status = NX_OKAY;
 
 	goto out;
 

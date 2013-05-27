@@ -67,6 +67,7 @@ struct labpc_private {
 	unsigned int divisor_b1;
 	unsigned int dma_chan;	/*  dma channel to use */
 	u16 *dma_buffer;	/*  buffer ai will dma into */
+	phys_addr_t dma_addr;
 	/* transfer size in bytes for current transfer */
 	unsigned int dma_transfer_size;
 	/* we are using dma/fifo-half-full/etc. */

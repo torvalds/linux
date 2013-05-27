@@ -489,7 +489,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	 */
 
 	mfspr	r14,SPRN_DBSR		/* check single-step/branch taken */
-	andis.	r15,r14,DBSR_IC@h
+	andis.	r15,r14,(DBSR_IC|DBSR_BT)@h
 	beq+	1f
 
 	LOAD_REG_IMMEDIATE(r14,interrupt_base_book3e)
@@ -500,7 +500,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	bge+	cr1,1f
 
 	/* here it looks like we got an inappropriate debug exception. */
-	lis	r14,DBSR_IC@h		/* clear the IC event */
+	lis	r14,(DBSR_IC|DBSR_BT)@h		/* clear the event */
 	rlwinm	r11,r11,0,~MSR_DE	/* clear DE in the CSRR1 value */
 	mtspr	SPRN_DBSR,r14
 	mtspr	SPRN_CSRR1,r11
@@ -555,7 +555,7 @@ kernel_dbg_exc:
 	 */
 
 	mfspr	r14,SPRN_DBSR		/* check single-step/branch taken */
-	andis.	r15,r14,DBSR_IC@h
+	andis.	r15,r14,(DBSR_IC|DBSR_BT)@h
 	beq+	1f
 
 	LOAD_REG_IMMEDIATE(r14,interrupt_base_book3e)
@@ -566,7 +566,7 @@ kernel_dbg_exc:
 	bge+	cr1,1f
 
 	/* here it looks like we got an inappropriate debug exception. */
-	lis	r14,DBSR_IC@h		/* clear the IC event */
+	lis	r14,(DBSR_IC|DBSR_BT)@h		/* clear the event */
 	rlwinm	r11,r11,0,~MSR_DE	/* clear DE in the DSRR1 value */
 	mtspr	SPRN_DBSR,r14
 	mtspr	SPRN_DSRR1,r11

@@ -563,9 +563,8 @@ static inline int gadget_is_dualspeed(struct usb_gadget *g)
 }
 
 /**
- * gadget_is_superspeed() - return true if the hardware handles
- * supperspeed
- * @g: controller that might support supper speed
+ * gadget_is_superspeed() - return true if the hardware handles superspeed
+ * @g: controller that might support superspeed
  */
 static inline int gadget_is_superspeed(struct usb_gadget *g)
 {

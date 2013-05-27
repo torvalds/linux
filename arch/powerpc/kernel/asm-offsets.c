@@ -127,6 +127,12 @@ int main(void)
 	DEFINE(THREAD_BESCR, offsetof(struct thread_struct, bescr));
 	DEFINE(THREAD_EBBHR, offsetof(struct thread_struct, ebbhr));
 	DEFINE(THREAD_EBBRR, offsetof(struct thread_struct, ebbrr));
+	DEFINE(THREAD_SIAR, offsetof(struct thread_struct, siar));
+	DEFINE(THREAD_SDAR, offsetof(struct thread_struct, sdar));
+	DEFINE(THREAD_SIER, offsetof(struct thread_struct, sier));
+	DEFINE(THREAD_MMCR0, offsetof(struct thread_struct, mmcr0));
+	DEFINE(THREAD_MMCR2, offsetof(struct thread_struct, mmcr2));
+	DEFINE(THREAD_MMCRA, offsetof(struct thread_struct, mmcra));
 #endif
 #ifdef CONFIG_PPC_TRANSACTIONAL_MEM
 	DEFINE(PACATMSCRATCH, offsetof(struct paca_struct, tm_scratch));

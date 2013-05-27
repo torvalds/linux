@@ -2005,11 +2005,6 @@ static int hdmi_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		DRM_ERROR("failed to find registers\n");
-		return -ENOENT;
-	}
-
 	hdata->regs = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(hdata->regs))
 		return PTR_ERR(hdata->regs);

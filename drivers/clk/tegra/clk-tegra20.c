@@ -872,6 +872,14 @@ static void __init tegra20_periph_clk_init(void)
 	struct clk *clk;
 	int i;
 
+	/* ac97 */
+	clk = tegra_clk_register_periph_gate("ac97", "pll_a_out0",
+				    TEGRA_PERIPH_ON_APB,
+				    clk_base, 0, 3, &periph_l_regs,
+				    periph_clk_enb_refcnt);
+	clk_register_clkdev(clk, NULL, "tegra20-ac97");
+	clks[ac97] = clk;
+
 	/* apbdma */
 	clk = tegra_clk_register_periph_gate("apbdma", "pclk", 0, clk_base,
 				    0, 34, &periph_h_regs,
@@ -1234,9 +1242,6 @@ static __initdata struct tegra_clk_init_table init_table[] = {
 	{uartc, pll_p, 0, 0},
 	{uartd, pll_p, 0, 0},
 	{uarte, pll_p, 0, 0},
-	{usbd, clk_max, 12000000, 0},
-	{usb2, clk_max, 12000000, 0},
-	{usb3, clk_max, 12000000, 0},
 	{pll_a, clk_max, 56448000, 1},
 	{pll_a_out0, clk_max, 11289600, 1},
 	{cdev1, clk_max, 0, 1},

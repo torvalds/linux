@@ -300,6 +300,8 @@
 #define MACB_REV_SIZE				16
 
 /* Bitfields in DCFG1. */
+#define GEM_IRQCOR_OFFSET			23
+#define GEM_IRQCOR_SIZE				1
 #define GEM_DBWDEF_OFFSET			25
 #define GEM_DBWDEF_SIZE				3
 
@@ -322,6 +324,9 @@
 #define MACB_MAN_WRITE				1
 #define MACB_MAN_READ				2
 #define MACB_MAN_CODE				2
+
+/* Capability mask bits */
+#define MACB_CAPS_ISR_CLEAR_ON_WRITE		0x1
 
 /* Bit manipulation macros */
 #define MACB_BIT(name)					\
@@ -573,6 +578,8 @@ struct macb {
 	unsigned int 		link;
 	unsigned int 		speed;
 	unsigned int 		duplex;
+
+	u32			caps;
 
 	phy_interface_t		phy_interface;
 
