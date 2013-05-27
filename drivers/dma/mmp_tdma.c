@@ -460,7 +460,8 @@ static enum dma_status mmp_tdma_tx_status(struct dma_chan *chan,
 {
 	struct mmp_tdma_chan *tdmac = to_mmp_tdma_chan(chan);
 
-	dma_set_residue(txstate, tdmac->buf_len - tdmac->pos);
+	dma_set_tx_state(txstate, chan->completed_cookie, chan->cookie,
+			 tdmac->buf_len - tdmac->pos);
 
 	return tdmac->status;
 }
