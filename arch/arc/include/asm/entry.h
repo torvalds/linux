@@ -290,9 +290,8 @@
 	 * safe-keeping not really needed, but it keeps the epilogue code
 	 * (SP restore) simpler/uniform.
 	 */
-	b.d	77f
-
-	st.a	sp, [sp, -12]	; Make room for orig_r0 and orig_r8
+	b.d	66f
+	mov	r9, sp
 
 88: /*------Intr/Ecxp happened in user mode, "switch" stack ------ */
 
@@ -311,6 +310,7 @@
 	/* With current tsk in r9, get it's kernel mode stack base */
 	GET_TSK_STACK_BASE  r9, r9
 
+66:
 	/* Save Pre Intr/Exception User SP on kernel stack */
 	st.a    sp, [r9, -12]	; Make room for orig_r0 and orig_r8
 
@@ -323,7 +323,7 @@
 	/* set SP to point to kernel mode stack */
 	mov sp, r9
 
-77: /* ----- Stack Switched to kernel Mode, Now save REG FILE ----- */
+	/* ----- Stack Switched to kernel Mode, Now save REG FILE ----- */
 
 .endm
 
