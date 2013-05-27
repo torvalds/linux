@@ -656,7 +656,9 @@ int brcmf_net_attach(struct brcmf_if *ifp, bool rtnl_locked)
 	return 0;
 
 fail:
+	drvr->iflist[ifp->bssidx] = NULL;
 	ndev->netdev_ops = NULL;
+	free_netdev(ndev);
 	return -EBADE;
 }
 
@@ -720,6 +722,9 @@ static int brcmf_net_p2p_attach(struct brcmf_if *ifp)
 	return 0;
 
 fail:
+	ifp->drvr->iflist[ifp->bssidx] = NULL;
+	ndev->netdev_ops = NULL;
+	free_netdev(ndev);
 	return -EBADE;
 }
 
@@ -925,8 +930,6 @@ fail:
 			brcmf_fws_del_interface(ifp);
 			brcmf_fws_deinit(drvr);
 		}
-		free_netdev(ifp->ndev);
-		drvr->iflist[0] = NULL;
 		if (p2p_ifp) {
 			free_netdev(p2p_ifp->ndev);
 			drvr->iflist[1] = NULL;
@@ -934,7 +937,8 @@ fail:
 		return ret;
 	}
 	if ((brcmf_p2p_enable) && (p2p_ifp))
-		brcmf_net_p2p_attach(p2p_ifp);
+		if (brcmf_net_p2p_attach(p2p_ifp) < 0)
+			brcmf_p2p_enable = 0;
 
 	return 0;
 }
