@@ -60,5 +60,6 @@ int main(void)
 	DEFINE(PT_r6, offsetof(struct pt_regs, r6));
 	DEFINE(PT_r7, offsetof(struct pt_regs, r7));
 
+	DEFINE(SZ_CALLEE_REGS, sizeof(struct callee_regs));
 	return 0;
 }

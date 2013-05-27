@@ -79,7 +79,7 @@ static void seed_unwind_frame_info(struct task_struct *tsk,
 		 * assembly code
 		 */
 		frame_info->regs.r27 = 0;
-		frame_info->regs.r28 += 64;
+		frame_info->regs.r28 += 60;
 		frame_info->call_frame = 0;
 
 	} else {

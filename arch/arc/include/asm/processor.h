@@ -19,6 +19,7 @@
 #ifndef __ASSEMBLY__
 
 #include <asm/arcregs.h>	/* for STATUS_E1_MASK et all */
+#include <asm/ptrace.h>
 
 /* Arch specific stuff which needs to be saved per task.
  * However these items are not so important so as to earn a place in
@@ -75,11 +76,15 @@ unsigned long thread_saved_pc(struct task_struct *t);
 
 /*
  * Where abouts of Task's sp, fp, blink when it was last seen in kernel mode.
- * These can't be derived from pt_regs as that would give correp user-mode val
+ * Look in process.c for details of kernel stack layout
  */
 #define KSTK_ESP(tsk)   (tsk->thread.ksp)
-#define KSTK_BLINK(tsk) (*((unsigned int *)((KSTK_ESP(tsk)) + (13+1+1)*4)))
-#define KSTK_FP(tsk)    (*((unsigned int *)((KSTK_ESP(tsk)) + (13+1)*4)))
+
+#define KSTK_REG(tsk, off)	(*((unsigned int *)(KSTK_ESP(tsk) + \
+					sizeof(struct callee_regs) + off)))
+
+#define KSTK_BLINK(tsk) KSTK_REG(tsk, 4)
+#define KSTK_FP(tsk)    KSTK_REG(tsk, 0)
 
 /*
  * Do necessary setup to start up a newly executed thread.

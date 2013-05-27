@@ -55,10 +55,8 @@ asmlinkage void ret_from_fork(void);
  * |     ...        |
  * |    unused      |
  * |                |
- * ------------------  <==== top of Stack (thread.ksp)
- * |   UNUSED 1 word|
  * ------------------
- * |     r25        |
+ * |     r25        |   <==== top of Stack (thread.ksp)
  * ~                ~
  * |    --to--      |   (CALLEE Regs of user mode)
  * |     r13        |

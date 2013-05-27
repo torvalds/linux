@@ -59,7 +59,6 @@ struct pt_regs {
 /* Callee saved registers - need to be saved only when you are scheduled out */
 
 struct callee_regs {
-	long res;	/* Again this is not needed */
 	long r25;
 	long r24;
 	long r23;

@@ -124,8 +124,6 @@
 	st.a    r25, [sp, -4]
 #endif
 
-	/* move up by 1 word to "create" callee_regs->"stack_place_holder" */
-	sub sp, sp, 4
 .endm
 
 /*--------------------------------------------------------------
@@ -148,10 +146,9 @@
 	st.a    r23, [sp, -4]
 	st.a    r24, [sp, -4]
 #ifdef CONFIG_ARC_CURR_IN_REG
-	sub     sp, sp, 8
+	sub     sp, sp, 4
 #else
 	st.a    r25, [sp, -4]
-	sub     sp, sp, 4
 #endif
 .endm
 
@@ -168,14 +165,11 @@
  *-------------------------------------------------------------*/
 .macro RESTORE_CALLEE_SAVED_KERNEL
 
-
 #ifdef CONFIG_ARC_CURR_IN_REG
-	add     sp, sp, 8  /* skip callee_reg gutter and user r25 placeholder */
+	add     sp, sp, 4  /* skip usual r25 placeholder */
 #else
-	add     sp, sp, 4   /* skip "callee_regs->stack_place_holder" */
 	ld.ab   r25, [sp, 4]
 #endif
-
 	ld.ab   r24, [sp, 4]
 	ld.ab   r23, [sp, 4]
 	ld.ab   r22, [sp, 4]
@@ -203,8 +197,6 @@
  *-------------------------------------------------------------*/
 .macro RESTORE_CALLEE_SAVED_USER
 
-	add     sp, sp, 4   /* skip "callee_regs->stack_place_holder" */
-
 #ifdef CONFIG_ARC_CURR_IN_REG
 	ld.ab   r12, [sp, 4]
 	st      r12, [r25, TASK_THREAD + THREAD_USER_R25]
@@ -230,7 +222,7 @@
  * Super FAST Restore callee saved regs by simply re-adjusting SP
  *-------------------------------------------------------------*/
 .macro DISCARD_CALLEE_SAVED_USER
-	add     sp, sp, 14 * 4
+	add     sp, sp, SZ_CALLEE_REGS
 .endm
 
 /*--------------------------------------------------------------
