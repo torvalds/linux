@@ -993,7 +993,8 @@ _request_firmware_prepare(struct firmware **firmware_p, const char *name,
 	return 1; /* need to load */
 }
 
-static int assign_firmware_buf(struct firmware *fw, struct device *device)
+static int assign_firmware_buf(struct firmware *fw, struct device *device,
+				bool skip_cache)
 {
 	struct firmware_buf *buf = fw->priv;
 
@@ -1010,7 +1011,7 @@ static int assign_firmware_buf(struct firmware *fw, struct device *device)
 	 * device may has been deleted already, but the problem
 	 * should be fixed in devres or driver core.
 	 */
-	if (device)
+	if (device && !skip_cache)
 		fw_add_devm_name(device, buf->fw_id);
 
 	/*
@@ -1066,8 +1067,10 @@ _request_firmware(const struct firmware **firmware_p, const char *name,
 	if (!fw_get_filesystem_firmware(device, fw->priv))
 		ret = fw_load_from_user_helper(fw, name, device,
 					       uevent, nowait, timeout);
+
+	/* don't cache firmware handled without uevent */
 	if (!ret)
-		ret = assign_firmware_buf(fw, device);
+		ret = assign_firmware_buf(fw, device, !uevent);
 
 	usermodehelper_read_unlock();
 
