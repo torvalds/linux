@@ -262,12 +262,7 @@ xfs_buf_item_format_segment(
 			vecp->i_addr = xfs_buf_offset(bp, buffer_offset);
 			vecp->i_len = nbits * XFS_BLF_CHUNK;
 			vecp->i_type = XLOG_REG_TYPE_BCHUNK;
-/*
- * You would think we need to bump the nvecs here too, but we do not
- * this number is used by recovery, and it gets confused by the boundary
- * split here
- *			nvecs++;
- */
+			nvecs++;
 			vecp++;
 			first_bit = next_bit;
 			last_bit = next_bit;
