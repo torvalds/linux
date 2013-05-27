@@ -344,7 +344,7 @@ static void drm_mixer_commit(struct device *subdrv_dev, int zpos)
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	if (win < 0 || win > MIXER_WIN_NR) {
+	if (win < 0 || win >= MIXER_WIN_NR) {
 		DRM_ERROR("mixer window[%d] is wrong\n", win);
 		return;
 	}
@@ -362,7 +362,7 @@ static void drm_mixer_disable(struct device *subdrv_dev, int zpos)
 
 	DRM_DEBUG_KMS("%s\n", __FILE__);
 
-	if (win < 0 || win > MIXER_WIN_NR) {
+	if (win < 0 || win >= MIXER_WIN_NR) {
 		DRM_ERROR("mixer window[%d] is wrong\n", win);
 		return;
 	}

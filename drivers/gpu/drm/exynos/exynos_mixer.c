@@ -742,7 +742,7 @@ static void mixer_win_mode_set(void *ctx,
 	if (win == DEFAULT_ZPOS)
 		win = MIXER_DEFAULT_WIN;
 
-	if (win < 0 || win > MIXER_WIN_NR) {
+	if (win < 0 || win >= MIXER_WIN_NR) {
 		DRM_ERROR("mixer window[%d] is wrong\n", win);
 		return;
 	}
