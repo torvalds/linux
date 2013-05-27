@@ -98,6 +98,8 @@ static struct display_timing *of_get_display_timing(const struct device_node
 		dt->flags |= DISPLAY_FLAGS_INTERLACED;
 	if (of_property_read_bool(np, "doublescan"))
 		dt->flags |= DISPLAY_FLAGS_DOUBLESCAN;
+	if (of_property_read_bool(np, "doubleclk"))
+		dt->flags |= DISPLAY_FLAGS_DOUBLECLK;
 
 	if (ret) {
 		pr_err("%s: error reading timing properties\n",
