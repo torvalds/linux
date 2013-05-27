@@ -1926,6 +1926,8 @@ fec_probe(struct platform_device *pdev)
 				"Failed to enable phy regulator: %d\n", ret);
 			goto failed_regulator;
 		}
+	} else {
+		fep->reg_phy = NULL;
 	}
 
 	fec_reset_phy(pdev);
@@ -1982,6 +1984,8 @@ failed_irq:
 			free_irq(irq, ndev);
 	}
 failed_init:
+	if (fep->reg_phy)
+		regulator_disable(fep->reg_phy);
 failed_regulator:
 	clk_disable_unprepare(fep->clk_ahb);
 	clk_disable_unprepare(fep->clk_ipg);
@@ -2005,6 +2009,8 @@ fec_drv_remove(struct platform_device *pdev)
 	unregister_netdev(ndev);
 	fec_enet_mii_remove(fep);
 	del_timer_sync(&fep->time_keep);
+	if (fep->reg_phy)
+		regulator_disable(fep->reg_phy);
 	clk_disable_unprepare(fep->clk_ptp);
 	if (fep->ptp_clock)
 		ptp_clock_unregister(fep->ptp_clock);
