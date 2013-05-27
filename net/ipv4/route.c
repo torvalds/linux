@@ -658,6 +658,7 @@ static void update_or_create_fnhe(struct fib_nh *nh, __be32 daddr, __be32 gw,
 			fnhe->fnhe_next = hash->chain;
 			rcu_assign_pointer(hash->chain, fnhe);
 		}
+		fnhe->fnhe_genid = fnhe_genid(dev_net(nh->nh_dev));
 		fnhe->fnhe_daddr = daddr;
 		fnhe->fnhe_gw = gw;
 		fnhe->fnhe_pmtu = pmtu;
@@ -1236,8 +1237,11 @@ static bool rt_bind_exception(struct rtable *rt, struct fib_nh_exception *fnhe,
 	spin_lock_bh(&fnhe_lock);
 
 	if (daddr == fnhe->fnhe_daddr) {
+		int genid = fnhe_genid(dev_net(rt->dst.dev));
 		struct rtable *orig = rcu_dereference(fnhe->fnhe_rth);
-		if (orig && rt_is_expired(orig)) {
+
+		if (fnhe->fnhe_genid != genid) {
+			fnhe->fnhe_genid = genid;
 			fnhe->fnhe_gw = 0;
 			fnhe->fnhe_pmtu = 0;
 			fnhe->fnhe_expires = 0;
@@ -2443,8 +2447,11 @@ static int ipv4_sysctl_rtcache_flush(ctl_table *__ctl, int write,
 					void __user *buffer,
 					size_t *lenp, loff_t *ppos)
 {
+	struct net *net = (struct net *)__ctl->extra1;
+
 	if (write) {
-		rt_cache_flush((struct net *)__ctl->extra1);
+		rt_cache_flush(net);
+		fnhe_genid_bump(net);
 		return 0;
 	}
 
@@ -2619,6 +2626,7 @@ static __net_initdata struct pernet_operations sysctl_route_ops = {
 static __net_init int rt_genid_init(struct net *net)
 {
 	atomic_set(&net->rt_genid, 0);
+	atomic_set(&net->fnhe_genid, 0);
 	get_random_bytes(&net->ipv4.dev_addr_genid,
 			 sizeof(net->ipv4.dev_addr_genid));
 	return 0;

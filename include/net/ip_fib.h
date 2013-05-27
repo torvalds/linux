@@ -51,6 +51,7 @@ struct rtable;
 
 struct fib_nh_exception {
 	struct fib_nh_exception __rcu	*fnhe_next;
+	int				fnhe_genid;
 	__be32				fnhe_daddr;
 	u32				fnhe_pmtu;
 	__be32				fnhe_gw;
