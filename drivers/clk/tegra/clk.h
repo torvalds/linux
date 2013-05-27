@@ -571,24 +571,6 @@ void tegra_init_from_table(struct tegra_clk_init_table *tbl,
 void tegra_init_dup_clks(struct tegra_clk_duplicate *dup_list,
 		struct clk *clks[], int clk_max);
 
-#ifdef CONFIG_ARCH_TEGRA_2x_SOC
-void tegra20_clock_init(struct device_node *np);
-#else
-static inline void tegra20_clock_init(struct device_node *np) {}
-#endif /* CONFIG_ARCH_TEGRA_2x_SOC */
-
-#ifdef CONFIG_ARCH_TEGRA_3x_SOC
-void tegra30_clock_init(struct device_node *np);
-#else
-static inline void tegra30_clock_init(struct device_node *np) {}
-#endif /* CONFIG_ARCH_TEGRA_3x_SOC */
-
-#ifdef CONFIG_ARCH_TEGRA_114_SOC
-void tegra114_clock_init(struct device_node *np);
-#else
-static inline void tegra114_clock_init(struct device_node *np) {}
-#endif /* CONFIG_ARCH_TEGRA114_SOC */
-
 typedef void (*tegra_clk_apply_init_table_func)(void);
 extern tegra_clk_apply_init_table_func tegra_clk_apply_init_table;
 

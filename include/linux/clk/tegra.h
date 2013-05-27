@@ -122,7 +122,6 @@ static inline void tegra_cpu_clock_resume(void)
 
 void tegra_periph_reset_deassert(struct clk *c);
 void tegra_periph_reset_assert(struct clk *c);
-void tegra_clocks_init(void);
 void tegra_clocks_apply_init_table(void);
 
 #endif /* __LINUX_CLK_TEGRA_H_ */

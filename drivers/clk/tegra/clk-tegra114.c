@@ -2033,7 +2033,7 @@ static void __init tegra114_clock_apply_init_table(void)
 	tegra_init_from_table(init_table, clks, clk_max);
 }
 
-void __init tegra114_clock_init(struct device_node *np)
+static void __init tegra114_clock_init(struct device_node *np)
 {
 	struct device_node *node;
 	int i;
@@ -2086,3 +2086,4 @@ void __init tegra114_clock_init(struct device_node *np)
 
 	tegra_cpu_car_ops = &tegra114_cpu_car_ops;
 }
+CLK_OF_DECLARE(tegra114, "nvidia,tegra114-car", tegra114_clock_init);
