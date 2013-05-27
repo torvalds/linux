@@ -97,7 +97,6 @@ struct vxlan_net {
 };
 
 struct vxlan_rdst {
-	struct rcu_head		 rcu;
 	__be32			 remote_ip;
 	__be16			 remote_port;
 	u32			 remote_vni;
