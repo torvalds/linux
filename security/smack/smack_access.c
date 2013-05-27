@@ -403,6 +403,8 @@ int smk_netlbl_mls(int level, char *catset, struct netlbl_lsm_secattr *sap,
 	sap->flags |= NETLBL_SECATTR_MLS_CAT;
 	sap->attr.mls.lvl = level;
 	sap->attr.mls.cat = netlbl_secattr_catmap_alloc(GFP_ATOMIC);
+	if (!sap->attr.mls.cat)
+		return -ENOMEM;
 	sap->attr.mls.cat->startbit = 0;
 
 	for (cat = 1, cp = catset, byte = 0; byte < len; cp++, byte++)
