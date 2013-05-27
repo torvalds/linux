@@ -501,8 +501,10 @@ void remove_dirty_dir_inode(struct inode *inode)
 		return;
 
 	spin_lock(&sbi->dir_inode_lock);
-	if (atomic_read(&F2FS_I(inode)->dirty_dents))
-		goto out;
+	if (atomic_read(&F2FS_I(inode)->dirty_dents)) {
+		spin_unlock(&sbi->dir_inode_lock);
+		return;
+	}
 
 	list_for_each(this, head) {
 		struct dir_inode_entry *entry;
@@ -516,7 +518,6 @@ void remove_dirty_dir_inode(struct inode *inode)
 			break;
 		}
 	}
-out:
 	spin_unlock(&sbi->dir_inode_lock);
 
 	/* Only from the recovery routine */
