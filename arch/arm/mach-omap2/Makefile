@@ -58,6 +58,8 @@ obj-$(CONFIG_SOC_OMAP2420)		+= omap2-restart.o
 obj-$(CONFIG_SOC_OMAP2430)		+= omap2-restart.o
 obj-$(CONFIG_SOC_AM33XX)		+= am33xx-restart.o
 obj-$(CONFIG_ARCH_OMAP3)		+= omap3-restart.o
+obj-$(CONFIG_ARCH_OMAP4)		+= omap4-restart.o
+obj-$(CONFIG_SOC_OMAP5)			+= omap4-restart.o
 
 # Pin multiplexing
 obj-$(CONFIG_SOC_OMAP2420)		+= mux2420.o
