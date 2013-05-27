@@ -520,10 +520,6 @@ static int qxl_fbdev_destroy(struct drm_device *dev, struct qxl_fbdev *qfbdev)
 }
 
 static struct drm_fb_helper_funcs qxl_fb_helper_funcs = {
-	/* TODO
-	.gamma_set = qxl_crtc_fb_gamma_set,
-	.gamma_get = qxl_crtc_fb_gamma_get,
-	*/
 	.fb_probe = qxl_fb_find_or_create_single,
 };
 

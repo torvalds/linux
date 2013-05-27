@@ -253,10 +253,6 @@ static int omap_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 			NULL, NULL);
 }
 
-static void omap_crtc_load_lut(struct drm_crtc *crtc)
-{
-}
-
 static void vblank_cb(void *arg)
 {
 	struct drm_crtc *crtc = arg;
@@ -366,7 +362,6 @@ static const struct drm_crtc_helper_funcs omap_crtc_helper_funcs = {
 	.prepare = omap_crtc_prepare,
 	.commit = omap_crtc_commit,
 	.mode_set_base = omap_crtc_mode_set_base,
-	.load_lut = omap_crtc_load_lut,
 };
 
 const struct omap_video_timings *omap_crtc_timings(struct drm_crtc *crtc)

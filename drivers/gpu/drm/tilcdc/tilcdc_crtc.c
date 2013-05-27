@@ -384,10 +384,6 @@ static int tilcdc_crtc_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	return 0;
 }
 
-static void tilcdc_crtc_load_lut(struct drm_crtc *crtc)
-{
-}
-
 static const struct drm_crtc_funcs tilcdc_crtc_funcs = {
 		.destroy        = tilcdc_crtc_destroy,
 		.set_config     = drm_crtc_helper_set_config,
@@ -401,7 +397,6 @@ static const struct drm_crtc_helper_funcs tilcdc_crtc_helper_funcs = {
 		.commit         = tilcdc_crtc_commit,
 		.mode_set       = tilcdc_crtc_mode_set,
 		.mode_set_base  = tilcdc_crtc_mode_set_base,
-		.load_lut       = tilcdc_crtc_load_lut,
 };
 
 int tilcdc_crtc_max_width(struct drm_crtc *crtc)
