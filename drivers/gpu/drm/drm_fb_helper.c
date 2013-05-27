@@ -168,6 +168,9 @@ static void drm_fb_helper_save_lut_atomic(struct drm_crtc *crtc, struct drm_fb_h
 	uint16_t *r_base, *g_base, *b_base;
 	int i;
 
+	if (helper->funcs->gamma_get == NULL)
+		return;
+
 	r_base = crtc->gamma_store;
 	g_base = r_base + crtc->gamma_size;
 	b_base = g_base + crtc->gamma_size;
@@ -597,6 +600,14 @@ static int setcolreg(struct drm_crtc *crtc, u16 red, u16 green,
 		return 0;
 	}
 
+	/*
+	 * The driver really shouldn't advertise pseudo/directcolor
+	 * visuals if it can't deal with the palette.
+	 */
+	if (WARN_ON(!fb_helper->funcs->gamma_set ||
+		    !fb_helper->funcs->gamma_get))
+		return -EINVAL;
+
 	pindex = regno;
 
 	if (fb->bits_per_pixel == 16) {
@@ -677,7 +688,8 @@ int drm_fb_helper_setcmap(struct fb_cmap *cmap, struct fb_info *info)
 			if (rc)
 				goto out;
 		}
-		crtc_funcs->load_lut(crtc);
+		if (crtc_funcs->load_lut)
+			crtc_funcs->load_lut(crtc);
 	}
  out:
 	drm_modeset_unlock_all(dev);
