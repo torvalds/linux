@@ -502,8 +502,6 @@ static enum dma_status edma_tx_status(struct dma_chan *chan,
 	} else if (echan->edesc && echan->edesc->vdesc.tx.cookie == cookie) {
 		struct edma_desc *edesc = echan->edesc;
 		txstate->residue = edma_desc_size(edesc);
-	} else {
-		txstate->residue = 0;
 	}
 	spin_unlock_irqrestore(&echan->vchan.lock, flags);
 
