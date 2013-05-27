@@ -31,6 +31,7 @@
  * Revision History:
  *	RF_VT3226: RobertYu:20051111, VT3226C0 and before
  *	RF_VT3226D0: RobertYu:20051228
+ *	RF_VT3342A0: RobertYu:20060609
  *
  */
 
@@ -942,27 +943,27 @@ int RFbRawSetPower(struct vnt_private *priv, u8 power, u32 rate)
  * Return Value: none
  *
 -*/
-void RFvRSSITodBm(struct vnt_private *pDevice, u8 byCurrRSSI, long *pldBm)
+void RFvRSSITodBm(struct vnt_private *priv, u8 rssi, long *dbm)
 {
-	u8 byIdx = (((byCurrRSSI & 0xC0) >> 6) & 0x03);
-	signed long b = (byCurrRSSI & 0x3F);
-	signed long a = 0;
-	u8 abyAIROHARF[4] = {0, 18, 0, 40};
+	u8 idx = (((rssi & 0xc0) >> 6) & 0x03);
+	long b = (rssi & 0x3f);
+	long a = 0;
+	u8 airoharf[4] = {0, 18, 0, 40};
 
-    switch (pDevice->byRFType) {
-        case RF_AL2230:
-        case RF_AL2230S:
-        case RF_AIROHA7230:
-        case RF_VT3226: //RobertYu:20051111
-        case RF_VT3226D0:
-        case RF_VT3342A0:   //RobertYu:20060609
-            a = abyAIROHARF[byIdx];
-            break;
-        default:
-            break;
-    }
+	switch (priv->byRFType) {
+	case RF_AL2230:
+	case RF_AL2230S:
+	case RF_AIROHA7230:
+	case RF_VT3226:
+	case RF_VT3226D0:
+	case RF_VT3342A0:
+		a = airoharf[idx];
+		break;
+	default:
+		break;
+	}
 
-    *pldBm = -1 * (a + b * 2);
+	*dbm = -1 * (a + b * 2);
 }
 
 void RFbRFTableDownload(struct vnt_private *pDevice)
