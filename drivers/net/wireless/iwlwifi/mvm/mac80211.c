@@ -763,6 +763,9 @@ static void iwl_mvm_bss_info_changed_station(struct iwl_mvm *mvm,
 			if (ret)
 				IWL_ERR(mvm, "failed to update quotas\n");
 		}
+		ret = iwl_mvm_power_update_mode(mvm, vif);
+		if (ret)
+			IWL_ERR(mvm, "failed to update power mode\n");
 	} else if (changes & BSS_CHANGED_DTIM_PERIOD) {
 		/*
 		 * We received a beacon _after_ association so
