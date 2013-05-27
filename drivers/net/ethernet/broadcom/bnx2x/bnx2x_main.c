@@ -11406,7 +11406,7 @@ static int bnx2x_init_bp(struct bnx2x *bp)
 		if (rc)
 			return rc;
 	} else {
-		random_ether_addr(bp->dev->dev_addr);
+		eth_zero_addr(bp->dev->dev_addr);
 	}
 
 	bnx2x_set_modes_bitmap(bp);
@@ -11864,6 +11864,10 @@ static void poll_bnx2x(struct net_device *dev)
 static int bnx2x_validate_addr(struct net_device *dev)
 {
 	struct bnx2x *bp = netdev_priv(dev);
+
+	/* query the bulletin board for mac address configured by the PF */
+	if (IS_VF(bp))
+		bnx2x_sample_bulletin(bp);
 
 	if (!bnx2x_is_valid_ether_addr(bp, dev->dev_addr)) {
 		BNX2X_ERR("Non-valid Ethernet address\n");
