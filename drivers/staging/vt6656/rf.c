@@ -732,42 +732,41 @@ int IFRFbWriteEmbedded(struct vnt_private *pDevice, u32 dwData)
  * Return Value: true if succeeded; false if failed.
  *
  */
-int RFbSetPower(struct vnt_private *pDevice, u32 uRATE, u32 uCH)
+int RFbSetPower(struct vnt_private *priv, u32 rate, u32 channel)
 {
-	int bResult = true;
-	u8 byPwr = pDevice->byCCKPwr;
+	int ret = true;
+	u8 power = priv->byCCKPwr;
 
-	if (pDevice->dwDiagRefCount)
+	if (priv->dwDiagRefCount)
 		return true;
 
-	if (uCH == 0)
+	if (channel == 0)
 		return -EINVAL;
 
-    switch (uRATE) {
-    case RATE_1M:
-    case RATE_2M:
-    case RATE_5M:
-    case RATE_11M:
-        byPwr = pDevice->abyCCKPwrTbl[uCH-1];
-        break;
-    case RATE_6M:
-    case RATE_9M:
-    case RATE_18M:
-    case RATE_24M:
-    case RATE_36M:
-    case RATE_48M:
-    case RATE_54M:
-        if (uCH > CB_MAX_CHANNEL_24G) {
-            byPwr = pDevice->abyOFDMAPwrTbl[uCH-15];
-        } else {
-            byPwr = pDevice->abyOFDMPwrTbl[uCH-1];
-        }
-        break;
-    }
+	switch (rate) {
+	case RATE_1M:
+	case RATE_2M:
+	case RATE_5M:
+	case RATE_11M:
+		power = priv->abyCCKPwrTbl[channel-1];
+		break;
+	case RATE_6M:
+	case RATE_9M:
+	case RATE_18M:
+	case RATE_24M:
+	case RATE_36M:
+	case RATE_48M:
+	case RATE_54M:
+		if (channel > CB_MAX_CHANNEL_24G)
+			power = priv->abyOFDMAPwrTbl[channel-15];
+		else
+			power = priv->abyOFDMPwrTbl[channel-1];
+		break;
+	}
 
-    bResult = RFbRawSetPower(pDevice, byPwr, uRATE);
+	ret = RFbRawSetPower(priv, power, rate);
 
-    return bResult;
+	return ret;
 }
 
 /*
