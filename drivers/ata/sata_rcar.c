@@ -121,6 +121,8 @@
 /* Descriptor table word 0 bit (when DTA32M = 1) */
 #define SATA_RCAR_DTEND			BIT(0)
 
+#define SATA_RCAR_DMA_BOUNDARY		0x1FFFFFFEUL
+
 struct sata_rcar_priv {
 	void __iomem *base;
 	struct clk *clk;
@@ -576,7 +578,14 @@ static u8 sata_rcar_bmdma_status(struct ata_port *ap)
 }
 
 static struct scsi_host_template sata_rcar_sht = {
-	ATA_BMDMA_SHT(DRV_NAME),
+	ATA_BASE_SHT(DRV_NAME),
+	/*
+	 * This controller allows transfer chunks up to 512MB which cross 64KB
+	 * boundaries, therefore the DMA limits are more relaxed than standard
+	 * ATA SFF.
+	 */
+	.sg_tablesize		= ATA_MAX_PRD,
+	.dma_boundary		= SATA_RCAR_DMA_BOUNDARY,
 };
 
 static struct ata_port_operations sata_rcar_port_ops = {
