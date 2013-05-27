@@ -101,7 +101,7 @@ int __net_init ip_tunnel_init_net(struct net *net, int ip_tnl_net_id,
 void __net_exit ip_tunnel_delete_net(struct ip_tunnel_net *itn);
 
 void ip_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
-		    const struct iphdr *tnl_params);
+		    const struct iphdr *tnl_params, const u8 protocol);
 int ip_tunnel_ioctl(struct net_device *dev, struct ip_tunnel_parm *p, int cmd);
 int ip_tunnel_change_mtu(struct net_device *dev, int new_mtu);
 

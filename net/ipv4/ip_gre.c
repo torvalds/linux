@@ -429,7 +429,7 @@ static void __gre_xmit(struct sk_buff *skb, struct net_device *dev,
 		return;
 	}
 
-	ip_tunnel_xmit(skb, dev, tnl_params);
+	ip_tunnel_xmit(skb, dev, tnl_params, tnl_params->protocol);
 }
 
 static netdev_tx_t ipgre_xmit(struct sk_buff *skb,
