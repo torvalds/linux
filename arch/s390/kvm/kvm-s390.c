@@ -1138,3 +1138,12 @@ static void __exit kvm_s390_exit(void)
 
 module_init(kvm_s390_init);
 module_exit(kvm_s390_exit);
+
+/*
+ * Enable autoloading of the kvm module.
+ * Note that we add the module alias here instead of virt/kvm/kvm_main.c
+ * since x86 takes a different approach.
+ */
+#include <linux/miscdevice.h>
+MODULE_ALIAS_MISCDEV(KVM_MINOR);
+MODULE_ALIAS("devname:kvm");
