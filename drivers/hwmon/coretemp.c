@@ -197,6 +197,7 @@ struct tjmax_pci {
 };
 
 static const struct tjmax_pci tjmax_pci_table[] = {
+	{ 0x0708, 110000 },	/* CE41x0 (Sodaville ) */
 	{ 0x0c72, 102000 },	/* Atom S1240 (Centerton) */
 	{ 0x0c73, 95000 },	/* Atom S1220 (Centerton) */
 	{ 0x0c75, 95000 },	/* Atom S1260 (Centerton) */
@@ -210,9 +211,6 @@ struct tjmax {
 static const struct tjmax tjmax_table[] = {
 	{ "CPU  230", 100000 },		/* Model 0x1c, stepping 2	*/
 	{ "CPU  330", 125000 },		/* Model 0x1c, stepping 2	*/
-	{ "CPU CE4110", 110000 },	/* Model 0x1c, stepping 10 Sodaville */
-	{ "CPU CE4150", 110000 },	/* Model 0x1c, stepping 10	*/
-	{ "CPU CE4170", 110000 },	/* Model 0x1c, stepping 10	*/
 };
 
 struct tjmax_model {
