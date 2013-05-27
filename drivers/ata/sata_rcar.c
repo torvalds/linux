@@ -474,11 +474,10 @@ static void sata_rcar_bmdma_fill_sg(struct ata_queued_cmd *qc)
 	struct ata_port *ap = qc->ap;
 	struct ata_bmdma_prd *prd = ap->bmdma_prd;
 	struct scatterlist *sg;
-	unsigned int si, pi;
+	unsigned int si;
 
-	pi = 0;
 	for_each_sg(qc->sg, sg, qc->n_elem, si) {
-		u32 addr, sg_len, len;
+		u32 addr, sg_len;
 
 		/*
 		 * Note: h/w doesn't support 64-bit, so we unconditionally
@@ -487,24 +486,13 @@ static void sata_rcar_bmdma_fill_sg(struct ata_queued_cmd *qc)
 		addr = (u32)sg_dma_address(sg);
 		sg_len = sg_dma_len(sg);
 
-		/* H/w transfer count is only 29 bits long, let's be careful */
-		while (sg_len) {
-			len = sg_len;
-			if (len > 0x1ffffffe)
-				len = 0x1ffffffe;
-
-			prd[pi].addr = cpu_to_le32(addr);
-			prd[pi].flags_len = cpu_to_le32(len);
-			VPRINTK("PRD[%u] = (0x%X, 0x%X)\n", pi, addr, len);
-
-			pi++;
-			sg_len -= len;
-			addr += len;
-		}
+		prd[si].addr = cpu_to_le32(addr);
+		prd[si].flags_len = cpu_to_le32(sg_len);
+		VPRINTK("PRD[%u] = (0x%X, 0x%X)\n", si, addr, sg_len);
 	}
 
 	/* end-of-table flag */
-	prd[pi - 1].addr |= cpu_to_le32(SATA_RCAR_DTEND);
+	prd[si - 1].addr |= cpu_to_le32(SATA_RCAR_DTEND);
 }
 
 static void sata_rcar_qc_prep(struct ata_queued_cmd *qc)
