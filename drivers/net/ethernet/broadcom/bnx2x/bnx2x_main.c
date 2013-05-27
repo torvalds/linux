@@ -11643,9 +11643,6 @@ static int bnx2x_close(struct net_device *dev)
 	/* Unload the driver, release IRQs */
 	bnx2x_nic_unload(bp, UNLOAD_CLOSE, false);
 
-	/* Power off */
-	bnx2x_set_power_state(bp, PCI_D3hot);
-
 	return 0;
 }
 

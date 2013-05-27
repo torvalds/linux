@@ -1381,12 +1381,28 @@ static int bnx2x_nvram_read32(struct bnx2x *bp, u32 offset, u32 *buf,
 	return rc;
 }
 
+static bool bnx2x_is_nvm_accessible(struct bnx2x *bp)
+{
+	int rc = 1;
+	u16 pm = 0;
+	struct net_device *dev = pci_get_drvdata(bp->pdev);
+
+	if (bp->pm_cap)
+		rc = pci_read_config_word(bp->pdev,
+					  bp->pm_cap + PCI_PM_CTRL, &pm);
+
+	if ((rc && !netif_running(dev)) || (!rc && ((pm & PCI_D0) != PCI_D0)))
+		return false;
+
+	return true;
+}
+
 static int bnx2x_get_eeprom(struct net_device *dev,
 			    struct ethtool_eeprom *eeprom, u8 *eebuf)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 
-	if (!netif_running(dev)) {
+	if (!bnx2x_is_nvm_accessible(bp)) {
 		DP(BNX2X_MSG_ETHTOOL  | BNX2X_MSG_NVM,
 		   "cannot access eeprom when the interface is down\n");
 		return -EAGAIN;
@@ -1411,7 +1427,7 @@ static int bnx2x_get_module_eeprom(struct net_device *dev,
 	u8 *user_data = data;
 	unsigned int start_addr = ee->offset, xfer_size = 0;
 
-	if (!netif_running(dev)) {
+	if (!bnx2x_is_nvm_accessible(bp)) {
 		DP(BNX2X_MSG_ETHTOOL | BNX2X_MSG_NVM,
 		   "cannot access eeprom when the interface is down\n");
 		return -EAGAIN;
@@ -1474,7 +1490,7 @@ static int bnx2x_get_module_info(struct net_device *dev,
 	int phy_idx, rc;
 	u8 sff8472_comp, diag_type;
 
-	if (!netif_running(dev)) {
+	if (!bnx2x_is_nvm_accessible(bp)) {
 		DP(BNX2X_MSG_ETHTOOL | BNX2X_MSG_NVM,
 		   "cannot access eeprom when the interface is down\n");
 		return -EAGAIN;
@@ -1676,7 +1692,8 @@ static int bnx2x_set_eeprom(struct net_device *dev,
 	int port = BP_PORT(bp);
 	int rc = 0;
 	u32 ext_phy_config;
-	if (!netif_running(dev)) {
+
+	if (!bnx2x_is_nvm_accessible(bp)) {
 		DP(BNX2X_MSG_ETHTOOL | BNX2X_MSG_NVM,
 		   "cannot access eeprom when the interface is down\n");
 		return -EAGAIN;
@@ -2173,7 +2190,7 @@ static int bnx2x_test_registers(struct bnx2x *bp)
 		{ BNX2X_CHIP_MASK_ALL, 0xffffffff, 0, 0x00000000 }
 	};
 
-	if (!netif_running(bp->dev)) {
+	if (!bnx2x_is_nvm_accessible(bp)) {
 		DP(BNX2X_MSG_ETHTOOL | BNX2X_MSG_NVM,
 		   "cannot access eeprom when the interface is down\n");
 		return rc;
@@ -2277,7 +2294,7 @@ static int bnx2x_test_memory(struct bnx2x *bp)
 		{ NULL, 0xffffffff, {0, 0, 0, 0} }
 	};
 
-	if (!netif_running(bp->dev)) {
+	if (!bnx2x_is_nvm_accessible(bp)) {
 		DP(BNX2X_MSG_ETHTOOL | BNX2X_MSG_NVM,
 		   "cannot access eeprom when the interface is down\n");
 		return rc;
@@ -3140,7 +3157,7 @@ static int bnx2x_set_phys_id(struct net_device *dev,
 {
 	struct bnx2x *bp = netdev_priv(dev);
 
-	if (!netif_running(dev)) {
+	if (!bnx2x_is_nvm_accessible(bp)) {
 		DP(BNX2X_MSG_ETHTOOL | BNX2X_MSG_NVM,
 		   "cannot access eeprom when the interface is down\n");
 		return -EAGAIN;
