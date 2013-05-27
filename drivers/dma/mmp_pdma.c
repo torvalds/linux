@@ -632,15 +632,7 @@ static int mmp_pdma_control(struct dma_chan *dchan, enum dma_ctrl_cmd cmd,
 static enum dma_status mmp_pdma_tx_status(struct dma_chan *dchan,
 			dma_cookie_t cookie, struct dma_tx_state *txstate)
 {
-	struct mmp_pdma_chan *chan = to_mmp_pdma_chan(dchan);
-	enum dma_status ret;
-	unsigned long flags;
-
-	spin_lock_irqsave(&chan->desc_lock, flags);
-	ret = dma_cookie_status(dchan, cookie, txstate);
-	spin_unlock_irqrestore(&chan->desc_lock, flags);
-
-	return ret;
+	return dma_cookie_status(dchan, cookie, txstate);
 }
 
 /**
