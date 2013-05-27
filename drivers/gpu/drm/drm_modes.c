@@ -535,6 +535,8 @@ int drm_display_mode_from_videomode(const struct videomode *vm,
 		dmode->flags |= DRM_MODE_FLAG_INTERLACE;
 	if (vm->flags & DISPLAY_FLAGS_DOUBLESCAN)
 		dmode->flags |= DRM_MODE_FLAG_DBLSCAN;
+	if (vm->flags & DISPLAY_FLAGS_DOUBLECLK)
+		dmode->flags |= DRM_MODE_FLAG_DBLCLK;
 	drm_mode_set_name(dmode);
 
 	return 0;
