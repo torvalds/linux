@@ -1235,7 +1235,7 @@ static int pn533_target_found_type_a(struct nfc_target *nfc_tgt, u8 *tgt_data,
 struct pn533_target_felica {
 	u8 pol_res;
 	u8 opcode;
-	u8 nfcid2[8];
+	u8 nfcid2[NFC_NFCID2_MAXSIZE];
 	u8 pad[8];
 	/* optional */
 	u8 syst_code[];
@@ -1274,6 +1274,9 @@ static int pn533_target_found_felica(struct nfc_target *nfc_tgt, u8 *tgt_data,
 
 	memcpy(nfc_tgt->sensf_res, &tgt_felica->opcode, 9);
 	nfc_tgt->sensf_res_len = 9;
+
+	memcpy(nfc_tgt->nfcid2, tgt_felica->nfcid2, NFC_NFCID2_MAXSIZE);
+	nfc_tgt->nfcid2_len = NFC_NFCID2_MAXSIZE;
 
 	return 0;
 }
@@ -2084,6 +2087,9 @@ static int pn533_dep_link_up(struct nfc_dev *nfc_dev, struct nfc_target *target,
 	if (comm_mode == NFC_COMM_PASSIVE)
 		skb_len += PASSIVE_DATA_LEN;
 
+	if (target && target->nfcid2_len)
+		skb_len += NFC_NFCID3_MAXSIZE;
+
 	skb = pn533_alloc_skb(dev, skb_len);
 	if (!skb)
 		return -ENOMEM;
@@ -2098,6 +2104,12 @@ static int pn533_dep_link_up(struct nfc_dev *nfc_dev, struct nfc_target *target,
 		memcpy(skb_put(skb, PASSIVE_DATA_LEN), passive_data,
 		       PASSIVE_DATA_LEN);
 		*next |= 1;
+	}
+
+	if (target && target->nfcid2_len) {
+		memcpy(skb_put(skb, NFC_NFCID3_MAXSIZE), target->nfcid2,
+		       target->nfcid2_len);
+		*next |= 2;
 	}
 
 	if (gb != NULL && gb_len > 0) {

@@ -84,6 +84,8 @@ struct nfc_target {
 	u8 sel_res;
 	u8 nfcid1_len;
 	u8 nfcid1[NFC_NFCID1_MAXSIZE];
+	u8 nfcid2_len;
+	u8 nfcid2[NFC_NFCID2_MAXSIZE];
 	u8 sensb_res_len;
 	u8 sensb_res[NFC_SENSB_RES_MAXSIZE];
 	u8 sensf_res_len;
