@@ -271,13 +271,11 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
 	return 0;
 }
 
-static int acpi_memory_remove_memory(struct acpi_memory_device *mem_device)
+static void acpi_memory_remove_memory(struct acpi_memory_device *mem_device)
 {
 	acpi_handle handle = mem_device->device->handle;
-	int result = 0, nid;
 	struct acpi_memory_info *info, *n;
-
-	nid = acpi_get_node(handle);
+	int nid = acpi_get_node(handle);
 
 	list_for_each_entry_safe(info, n, &mem_device->res_list, list) {
 		if (!info->enabled)
@@ -287,15 +285,10 @@ static int acpi_memory_remove_memory(struct acpi_memory_device *mem_device)
 			nid = memory_add_physaddr_to_nid(info->start_addr);
 
 		acpi_unbind_memory_blocks(info, handle);
-		result = remove_memory(nid, info->start_addr, info->length);
-		if (result)
-			return result;
-
+		remove_memory(nid, info->start_addr, info->length);
 		list_del(&info->list);
 		kfree(info);
 	}
-
-	return result;
 }
 
 static void acpi_memory_device_free(struct acpi_memory_device *mem_device)

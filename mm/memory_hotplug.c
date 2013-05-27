@@ -1670,24 +1670,6 @@ int walk_memory_range(unsigned long start_pfn, unsigned long end_pfn,
 }
 
 #ifdef CONFIG_MEMORY_HOTREMOVE
-/**
- * offline_memory_block_cb - callback function for offlining memory block
- * @mem: the memory block to be offlined
- * @arg: buffer to hold error msg
- *
- * Always return 0, and put the error msg in arg if any.
- */
-static int offline_memory_block_cb(struct memory_block *mem, void *arg)
-{
-	int *ret = arg;
-	int error = device_offline(&mem->dev);
-
-	if (error != 0 && *ret == 0)
-		*ret = error;
-
-	return 0;
-}
-
 static int is_memblock_offlined_cb(struct memory_block *mem, void *arg)
 {
 	int ret = !is_memblock_offlined(mem);
@@ -1813,54 +1795,22 @@ void try_offline_node(int nid)
 }
 EXPORT_SYMBOL(try_offline_node);
 
-int __ref remove_memory(int nid, u64 start, u64 size)
+void __ref remove_memory(int nid, u64 start, u64 size)
 {
-	unsigned long start_pfn, end_pfn;
-	int ret = 0;
-	int retry = 1;
-
-	start_pfn = PFN_DOWN(start);
-	end_pfn = PFN_UP(start + size - 1);
-
-	/*
-	 * When CONFIG_MEMCG is on, one memory block may be used by other
-	 * blocks to store page cgroup when onlining pages. But we don't know
-	 * in what order pages are onlined. So we iterate twice to offline
-	 * memory:
-	 * 1st iterate: offline every non primary memory block.
-	 * 2nd iterate: offline primary (i.e. first added) memory block.
-	 */
-repeat:
-	walk_memory_range(start_pfn, end_pfn, &ret,
-			  offline_memory_block_cb);
-	if (ret) {
-		if (!retry)
-			return ret;
-
-		retry = 0;
-		ret = 0;
-		goto repeat;
-	}
+	int ret;
 
 	lock_memory_hotplug();
 
 	/*
-	 * we have offlined all memory blocks like this:
-	 *   1. lock memory hotplug
-	 *   2. offline a memory block
-	 *   3. unlock memory hotplug
-	 *
-	 * repeat step1-3 to offline the memory block. All memory blocks
-	 * must be offlined before removing memory. But we don't hold the
-	 * lock in the whole operation. So we should check whether all
-	 * memory blocks are offlined.
+	 * All memory blocks must be offlined before removing memory.  Check
+	 * whether all memory blocks in question are offline and trigger a BUG()
+	 * if this is not the case.
 	 */
-
-	ret = walk_memory_range(start_pfn, end_pfn, NULL,
+	ret = walk_memory_range(PFN_DOWN(start), PFN_UP(start + size - 1), NULL,
 				is_memblock_offlined_cb);
 	if (ret) {
 		unlock_memory_hotplug();
-		return ret;
+		BUG();
 	}
 
 	/* remove memmap entry */
@@ -1871,17 +1821,12 @@ repeat:
 	try_offline_node(nid);
 
 	unlock_memory_hotplug();
-
-	return 0;
 }
 #else
 int offline_pages(unsigned long start_pfn, unsigned long nr_pages)
 {
 	return -EINVAL;
 }
-int remove_memory(int nid, u64 start, u64 size)
-{
-	return -EINVAL;
-}
+void remove_memory(int nid, u64 start, u64 size) {}
 #endif /* CONFIG_MEMORY_HOTREMOVE */
 EXPORT_SYMBOL_GPL(remove_memory);
