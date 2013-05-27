@@ -3672,10 +3672,28 @@ brcmf_config_ap_mgmt_ie(struct brcmf_cfg80211_vif *vif,
 }
 
 static s32
+brcmf_cfg80211_set_channel(struct brcmf_cfg80211_info *cfg,
+			   struct brcmf_if *ifp,
+			   struct ieee80211_channel *channel)
+{
+	u16 chanspec;
+	s32 err;
+
+	brcmf_dbg(TRACE, "band=%d, center_freq=%d\n", channel->band,
+		  channel->center_freq);
+
+	chanspec = channel_to_chanspec(&cfg->d11inf, channel);
+	err = brcmf_fil_iovar_int_set(ifp, "chanspec", chanspec);
+
+	return err;
+}
+
+static s32
 brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 			struct cfg80211_ap_settings *settings)
 {
 	s32 ie_offset;
+	struct brcmf_cfg80211_info *cfg = wiphy_to_cfg(wiphy);
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct brcmf_tlv *ssid_ie;
 	struct brcmf_ssid_le ssid_le;
@@ -3745,6 +3763,12 @@ brcmf_cfg80211_start_ap(struct wiphy *wiphy, struct net_device *ndev,
 	}
 
 	brcmf_config_ap_mgmt_ie(ifp->vif, &settings->beacon);
+
+	err = brcmf_cfg80211_set_channel(cfg, ifp, settings->chandef.chan);
+	if (err < 0) {
+		brcmf_err("Set Channel failed, %d\n", err);
+		goto exit;
+	}
 
 	if (settings->beacon_interval) {
 		err = brcmf_fil_cmd_int_set(ifp, BRCMF_C_SET_BCNPRD,
@@ -4184,7 +4208,7 @@ static const struct ieee80211_iface_limit brcmf_iface_limits[] = {
 static const struct ieee80211_iface_combination brcmf_iface_combos[] = {
 	{
 		 .max_interfaces = BRCMF_IFACE_MAX_CNT,
-		 .num_different_channels = 1, /* no multi-channel for now */
+		 .num_different_channels = 2,
 		 .n_limits = ARRAY_SIZE(brcmf_iface_limits),
 		 .limits = brcmf_iface_limits
 	}
