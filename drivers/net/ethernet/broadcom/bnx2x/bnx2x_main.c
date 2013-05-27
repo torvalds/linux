@@ -12721,17 +12721,11 @@ init_one_exit:
 	return rc;
 }
 
-static void bnx2x_remove_one(struct pci_dev *pdev)
+static void __bnx2x_remove(struct pci_dev *pdev,
+			   struct net_device *dev,
+			   struct bnx2x *bp,
+			   bool remove_netdev)
 {
-	struct net_device *dev = pci_get_drvdata(pdev);
-	struct bnx2x *bp;
-
-	if (!dev) {
-		dev_err(&pdev->dev, "BAD net device from bnx2x_init_one\n");
-		return;
-	}
-	bp = netdev_priv(dev);
-
 	/* Delete storage MAC address */
 	if (!NO_FCOE(bp)) {
 		rtnl_lock();
@@ -12744,7 +12738,15 @@ static void bnx2x_remove_one(struct pci_dev *pdev)
 	bnx2x_dcbnl_update_applist(bp, true);
 #endif
 
-	unregister_netdev(dev);
+	/* Close the interface - either directly or implicitly */
+	if (remove_netdev) {
+		unregister_netdev(dev);
+	} else {
+		rtnl_lock();
+		if (netif_running(dev))
+			bnx2x_close(dev);
+		rtnl_unlock();
+	}
 
 	/* Power on: we can't let PCI layer write to us while we are in D3 */
 	if (IS_PF(bp))
@@ -12766,6 +12768,12 @@ static void bnx2x_remove_one(struct pci_dev *pdev)
 	if (IS_VF(bp))
 		bnx2x_vfpf_release(bp);
 
+	/* Assumes no further PCIe PM changes will occur */
+	if (system_state == SYSTEM_POWER_OFF) {
+		pci_wake_from_d3(pdev, bp->wol);
+		pci_set_power_state(pdev, PCI_D3hot);
+	}
+
 	if (bp->regview)
 		iounmap(bp->regview);
 
@@ -12780,13 +12788,28 @@ static void bnx2x_remove_one(struct pci_dev *pdev)
 	}
 	bnx2x_free_mem_bp(bp);
 
-	free_netdev(dev);
+	if (remove_netdev)
+		free_netdev(dev);
 
 	if (atomic_read(&pdev->enable_cnt) == 1)
 		pci_release_regions(pdev);
 
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
+}
+
+static void bnx2x_remove_one(struct pci_dev *pdev)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+	struct bnx2x *bp;
+
+	if (!dev) {
+		dev_err(&pdev->dev, "BAD net device from bnx2x_init_one\n");
+		return;
+	}
+	bp = netdev_priv(dev);
+
+	__bnx2x_remove(pdev, dev, bp, true);
 }
 
 static int bnx2x_eeh_nic_unload(struct bnx2x *bp)
@@ -12968,6 +12991,29 @@ static const struct pci_error_handlers bnx2x_err_handler = {
 	.resume         = bnx2x_io_resume,
 };
 
+static void bnx2x_shutdown(struct pci_dev *pdev)
+{
+	struct net_device *dev = pci_get_drvdata(pdev);
+	struct bnx2x *bp;
+
+	if (!dev)
+		return;
+
+	bp = netdev_priv(dev);
+	if (!bp)
+		return;
+
+	rtnl_lock();
+	netif_device_detach(dev);
+	rtnl_unlock();
+
+	/* Don't remove the netdevice, as there are scenarios which will cause
+	 * the kernel to hang, e.g., when trying to remove bnx2i while the
+	 * rootfs is mounted from SAN.
+	 */
+	__bnx2x_remove(pdev, dev, bp, false);
+}
+
 static struct pci_driver bnx2x_pci_driver = {
 	.name        = DRV_MODULE_NAME,
 	.id_table    = bnx2x_pci_tbl,
@@ -12979,6 +13025,7 @@ static struct pci_driver bnx2x_pci_driver = {
 #ifdef CONFIG_BNX2X_SRIOV
 	.sriov_configure = bnx2x_sriov_configure,
 #endif
+	.shutdown    = bnx2x_shutdown,
 };
 
 static int __init bnx2x_init(void)
