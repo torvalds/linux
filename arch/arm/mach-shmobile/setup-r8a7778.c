@@ -53,7 +53,7 @@
 	.irqs		= SCIx_IRQ_MUXED(irq),			\
 }
 
-static struct plat_sci_port scif_platform_data[] = {
+static struct plat_sci_port scif_platform_data[] __initdata = {
 	SCIF_INFO(0xffe40000, gic_iid(0x66)),
 	SCIF_INFO(0xffe41000, gic_iid(0x67)),
 	SCIF_INFO(0xffe42000, gic_iid(0x68)),
@@ -63,24 +63,24 @@ static struct plat_sci_port scif_platform_data[] = {
 };
 
 /* TMU */
-static struct resource sh_tmu0_resources[] = {
+static struct resource sh_tmu0_resources[] __initdata = {
 	DEFINE_RES_MEM(0xffd80008, 12),
 	DEFINE_RES_IRQ(gic_iid(0x40)),
 };
 
-static struct sh_timer_config sh_tmu0_platform_data = {
+static struct sh_timer_config sh_tmu0_platform_data __initdata = {
 	.name			= "TMU00",
 	.channel_offset		= 0x4,
 	.timer_bit		= 0,
 	.clockevent_rating	= 200,
 };
 
-static struct resource sh_tmu1_resources[] = {
+static struct resource sh_tmu1_resources[] __initdata = {
 	DEFINE_RES_MEM(0xffd80014, 12),
 	DEFINE_RES_IRQ(gic_iid(0x41)),
 };
 
-static struct sh_timer_config sh_tmu1_platform_data = {
+static struct sh_timer_config sh_tmu1_platform_data __initdata = {
 	.name			= "TMU01",
 	.channel_offset		= 0x10,
 	.timer_bit		= 1,
@@ -189,7 +189,7 @@ USB_PLATFORM_INFO(ehci);
 USB_PLATFORM_INFO(ohci);
 
 /* Ether */
-static struct resource ether_resources[] = {
+static struct resource ether_resources[] __initdata = {
 	DEFINE_RES_MEM(0xfde00000, 0x400),
 	DEFINE_RES_IRQ(gic_iid(0x89)),
 };
@@ -203,17 +203,17 @@ void __init r8a7778_add_ether_device(struct sh_eth_plat_data *pdata)
 }
 
 /* PFC/GPIO */
-static struct resource pfc_resources[] = {
+static struct resource pfc_resources[] __initdata = {
 	DEFINE_RES_MEM(0xfffc0000, 0x118),
 };
 
 #define R8A7778_GPIO(idx)						\
-static struct resource r8a7778_gpio##idx##_resources[] = {		\
+static struct resource r8a7778_gpio##idx##_resources[] __initdata = {	\
 	DEFINE_RES_MEM(0xffc40000 + 0x1000 * (idx), 0x30),		\
 	DEFINE_RES_IRQ(gic_iid(0x87)),					\
 };									\
 									\
-static struct gpio_rcar_config r8a7778_gpio##idx##_platform_data = {	\
+static struct gpio_rcar_config r8a7778_gpio##idx##_platform_data __initdata = { \
 	.gpio_base	= 32 * (idx),					\
 	.irq_base	= GPIO_IRQ_BASE(idx),				\
 	.number_of_pins	= 32,						\
@@ -249,7 +249,7 @@ void __init r8a7778_pinmux_init(void)
 };
 
 /* SDHI */
-static struct resource sdhi_resources[] = {
+static struct resource sdhi_resources[] __initdata = {
 	/* SDHI0 */
 	DEFINE_RES_MEM(0xFFE4C000, 0x100),
 	DEFINE_RES_IRQ(gic_iid(0x77)),
@@ -365,12 +365,12 @@ void __init r8a7778_init_late(void)
 	platform_device_register_full(&ohci_info);
 }
 
-static struct renesas_intc_irqpin_config irqpin_platform_data = {
+static struct renesas_intc_irqpin_config irqpin_platform_data __initdata = {
 	.irq_base = irq_pin(0), /* IRQ0 -> IRQ3 */
 	.sense_bitfield_width = 2,
 };
 
-static struct resource irqpin_resources[] = {
+static struct resource irqpin_resources[] __initdata = {
 	DEFINE_RES_MEM(0xfe78001c, 4), /* ICR1 */
 	DEFINE_RES_MEM(0xfe780010, 4), /* INTPRI */
 	DEFINE_RES_MEM(0xfe780024, 4), /* INTREQ */
