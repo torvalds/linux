@@ -32,6 +32,7 @@
 #include "soc.h"
 #include "omap4-sar-layout.h"
 #include "common.h"
+#include "pm.h"
 
 #define AM43XX_NR_REG_BANKS	7
 #define AM43XX_IRQS		224
@@ -381,7 +382,7 @@ static struct notifier_block irq_notifier_block = {
 static void __init irq_pm_init(void)
 {
 	/* FIXME: Remove this when MPU OSWR support is added */
-	if (!soc_is_omap54xx())
+	if (!IS_PM44XX_ERRATUM(PM_OMAP4_CPU_OSWR_DISABLE))
 		cpu_pm_register_notifier(&irq_notifier_block);
 }
 #else

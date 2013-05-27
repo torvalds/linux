@@ -36,6 +36,8 @@ struct power_state {
 	struct list_head node;
 };
 
+static u32 cpu_suspend_state = PWRDM_POWER_OFF;
+
 static LIST_HEAD(pwrst_list);
 
 #ifdef CONFIG_SUSPEND
@@ -66,7 +68,7 @@ static int omap4_pm_suspend(void)
 	 * domain CSWR is not supported by hardware.
 	 * More details can be found in OMAP4430 TRM section 4.3.4.2.
 	 */
-	omap4_enter_lowpower(cpu_id, PWRDM_POWER_OFF);
+	omap4_enter_lowpower(cpu_id, cpu_suspend_state);
 
 	/* Restore next powerdomain state */
 	list_for_each_entry(pwrst, &pwrst_list, node) {
@@ -112,8 +114,11 @@ static int __init pwrdms_setup(struct powerdomain *pwrdm, void *unused)
 	 * through hotplug path and CPU0 explicitly programmed
 	 * further down in the code path
 	 */
-	if (!strncmp(pwrdm->name, "cpu", 3))
+	if (!strncmp(pwrdm->name, "cpu", 3)) {
+		if (IS_PM44XX_ERRATUM(PM_OMAP4_CPU_OSWR_DISABLE))
+			cpu_suspend_state = PWRDM_POWER_RET;
 		return 0;
+	}
 
 	pwrst = kmalloc(sizeof(struct power_state), GFP_ATOMIC);
 	if (!pwrst)
@@ -237,6 +242,9 @@ int __init omap4_pm_init_early(void)
 {
 	if (cpu_is_omap446x())
 		pm44xx_errata |= PM_OMAP4_ROM_SMP_BOOT_ERRATUM_GICD;
+
+	if (soc_is_omap54xx() || soc_is_dra7xx())
+		pm44xx_errata |= PM_OMAP4_CPU_OSWR_DISABLE;
 
 	return 0;
 }
