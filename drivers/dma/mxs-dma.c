@@ -622,10 +622,8 @@ static enum dma_status mxs_dma_tx_status(struct dma_chan *chan,
 			dma_cookie_t cookie, struct dma_tx_state *txstate)
 {
 	struct mxs_dma_chan *mxs_chan = to_mxs_dma_chan(chan);
-	dma_cookie_t last_used;
 
-	last_used = chan->cookie;
-	dma_set_tx_state(txstate, chan->completed_cookie, last_used, 0);
+	dma_set_tx_state(txstate, chan->completed_cookie, chan->cookie, 0);
 
 	return mxs_chan->status;
 }
