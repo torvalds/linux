@@ -53,7 +53,7 @@ static int zte_ev_usb_serial_open(struct tty_struct *tty,
 	result = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				 0x22, 0x21,
 				 0x0001, 0x0000, NULL, len,
-				 HZ * USB_CTRL_GET_TIMEOUT);
+				 USB_CTRL_GET_TIMEOUT);
 	dev_dbg(dev, "result = %d\n", result);
 
 	/* send  2st cmd and recieve data */
@@ -65,7 +65,7 @@ static int zte_ev_usb_serial_open(struct tty_struct *tty,
 	result = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 				 0x21, 0xa1,
 				 0x0000, 0x0000, buf, len,
-				 HZ * USB_CTRL_GET_TIMEOUT);
+				 USB_CTRL_GET_TIMEOUT);
 	debug_data(dev, __func__, len, buf, result);
 
 	/* send 3 cmd */
@@ -84,7 +84,7 @@ static int zte_ev_usb_serial_open(struct tty_struct *tty,
 	result = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				 0x20, 0x21,
 				 0x0000, 0x0000, buf, len,
-				 HZ * USB_CTRL_GET_TIMEOUT);
+				 USB_CTRL_GET_TIMEOUT);
 	debug_data(dev, __func__, len, buf, result);
 
 	/* send 4 cmd */
@@ -95,7 +95,7 @@ static int zte_ev_usb_serial_open(struct tty_struct *tty,
 	result = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				 0x22, 0x21,
 				 0x0003, 0x0000, NULL, len,
-				 HZ * USB_CTRL_GET_TIMEOUT);
+				 USB_CTRL_GET_TIMEOUT);
 	dev_dbg(dev, "result = %d\n", result);
 
 	/* send 5 cmd */
@@ -107,7 +107,7 @@ static int zte_ev_usb_serial_open(struct tty_struct *tty,
 	result = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 				 0x21, 0xa1,
 				 0x0000, 0x0000, buf, len,
-				 HZ * USB_CTRL_GET_TIMEOUT);
+				 USB_CTRL_GET_TIMEOUT);
 	debug_data(dev, __func__, len, buf, result);
 
 	/* send 6 cmd */
@@ -126,7 +126,7 @@ static int zte_ev_usb_serial_open(struct tty_struct *tty,
 	result = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				 0x20, 0x21,
 				 0x0000, 0x0000, buf, len,
-				 HZ * USB_CTRL_GET_TIMEOUT);
+				 USB_CTRL_GET_TIMEOUT);
 	debug_data(dev, __func__, len, buf, result);
 	kfree(buf);
 
@@ -178,7 +178,7 @@ static void zte_ev_usb_serial_close(struct usb_serial_port *port)
 	result = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				 0x22, 0x21,
 				 0x0002, 0x0000, NULL, len,
-				 HZ * USB_CTRL_GET_TIMEOUT);
+				 USB_CTRL_GET_TIMEOUT);
 	dev_dbg(dev, "result = %d\n", result);
 
 	/* send 2st ctl cmd(CTL    21 22 03 00  00 00 00 00 ) */
@@ -186,7 +186,7 @@ static void zte_ev_usb_serial_close(struct usb_serial_port *port)
 	result = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				 0x22, 0x21,
 				 0x0003, 0x0000, NULL, len,
-				 HZ * USB_CTRL_GET_TIMEOUT);
+				 USB_CTRL_GET_TIMEOUT);
 	dev_dbg(dev, "result = %d\n", result);
 
 	/* send  3st cmd and recieve data */
@@ -198,7 +198,7 @@ static void zte_ev_usb_serial_close(struct usb_serial_port *port)
 	result = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 				 0x21, 0xa1,
 				 0x0000, 0x0000, buf, len,
-				 HZ * USB_CTRL_GET_TIMEOUT);
+				 USB_CTRL_GET_TIMEOUT);
 	debug_data(dev, __func__, len, buf, result);
 
 	/* send 4 cmd */
@@ -217,7 +217,7 @@ static void zte_ev_usb_serial_close(struct usb_serial_port *port)
 	result = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				 0x20, 0x21,
 				 0x0000, 0x0000, buf, len,
-				 HZ * USB_CTRL_GET_TIMEOUT);
+				 USB_CTRL_GET_TIMEOUT);
 	debug_data(dev, __func__, len, buf, result);
 
 	/* send 5 cmd */
@@ -228,7 +228,7 @@ static void zte_ev_usb_serial_close(struct usb_serial_port *port)
 	result = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				 0x22, 0x21,
 				 0x0003, 0x0000, NULL, len,
-				 HZ * USB_CTRL_GET_TIMEOUT);
+				 USB_CTRL_GET_TIMEOUT);
 	dev_dbg(dev, "result = %d\n", result);
 
 	/* send 6 cmd */
@@ -240,7 +240,7 @@ static void zte_ev_usb_serial_close(struct usb_serial_port *port)
 	result = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 				 0x21, 0xa1,
 				 0x0000, 0x0000, buf, len,
-				 HZ * USB_CTRL_GET_TIMEOUT);
+				 USB_CTRL_GET_TIMEOUT);
 	debug_data(dev, __func__, len, buf, result);
 
 	/* send 7 cmd */
@@ -259,7 +259,7 @@ static void zte_ev_usb_serial_close(struct usb_serial_port *port)
 	result = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				 0x20, 0x21,
 				 0x0000, 0x0000, buf, len,
-				 HZ * USB_CTRL_GET_TIMEOUT);
+				 USB_CTRL_GET_TIMEOUT);
 	debug_data(dev, __func__, len, buf, result);
 
 	/* send 8 cmd */
@@ -270,7 +270,7 @@ static void zte_ev_usb_serial_close(struct usb_serial_port *port)
 	result = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				 0x22, 0x21,
 				 0x0003, 0x0000, NULL, len,
-				 HZ * USB_CTRL_GET_TIMEOUT);
+				 USB_CTRL_GET_TIMEOUT);
 	dev_dbg(dev, "result = %d\n", result);
 
 	kfree(buf);
