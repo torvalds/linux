@@ -962,15 +962,14 @@ txx9dmac_tx_status(struct dma_chan *chan, dma_cookie_t cookie,
 	enum dma_status ret;
 
 	ret = dma_cookie_status(chan, cookie, txstate);
-	if (ret != DMA_SUCCESS) {
-		spin_lock_bh(&dc->lock);
-		txx9dmac_scan_descriptors(dc);
-		spin_unlock_bh(&dc->lock);
+	if (ret == DMA_SUCCESS)
+		return DMA_SUCCESS;
 
-		ret = dma_cookie_status(chan, cookie, txstate);
-	}
+	spin_lock_bh(&dc->lock);
+	txx9dmac_scan_descriptors(dc);
+	spin_unlock_bh(&dc->lock);
 
-	return ret;
+	return dma_cookie_status(chan, cookie, txstate);
 }
 
 static void txx9dmac_chain_dynamic(struct txx9dmac_chan *dc,
