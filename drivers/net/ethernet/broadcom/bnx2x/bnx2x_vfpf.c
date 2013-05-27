@@ -1605,8 +1605,11 @@ static void bnx2x_vf_mbx_request(struct bnx2x *bp, struct bnx2x_virtf *vf,
 			bnx2x_vf_mbx_resp(bp, vf);
 		} else {
 			/* can't send a response since this VF is unknown to us
-			 * just unlock the channel and be done with.
+			 * just ack the FW to release the mailbox and unlock
+			 * the channel.
 			 */
+			storm_memset_vf_mbx_ack(bp, vf->abs_vfid);
+			mmiowb();
 			bnx2x_unlock_vf_pf_channel(bp, vf,
 						   mbx->first_tlv.tl.type);
 		}
