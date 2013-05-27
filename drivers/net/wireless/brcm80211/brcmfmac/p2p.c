@@ -2240,6 +2240,25 @@ static void brcmf_p2p_delete_p2pdev(struct brcmf_cfg80211_info *cfg,
 }
 
 /**
+ * brcmf_p2p_free_p2p_if() - free up net device related data.
+ *
+ * @ndev: net device that needs to be freed.
+ */
+static void brcmf_p2p_free_p2p_if(struct net_device *ndev)
+{
+	struct brcmf_cfg80211_info *cfg;
+	struct brcmf_cfg80211_vif *vif;
+	struct brcmf_if *ifp;
+
+	ifp = netdev_priv(ndev);
+	cfg = ifp->drvr->config;
+	vif = ifp->vif;
+
+	brcmf_free_vif(cfg, vif);
+	free_netdev(ifp->ndev);
+}
+
+/**
  * brcmf_p2p_add_vif() - create a new P2P virtual interface.
  *
  * @wiphy: wiphy device of new interface.
@@ -2316,6 +2335,9 @@ struct wireless_dev *brcmf_p2p_add_vif(struct wiphy *wiphy, const char *name,
 		brcmf_err("Registering netdevice failed\n");
 		goto fail;
 	}
+	/* override destructor */
+	ifp->ndev->destructor = brcmf_p2p_free_p2p_if;
+
 	cfg->p2p.bss_idx[P2PAPI_BSSCFG_CONNECTION].vif = vif;
 	/* Disable firmware roaming for P2P interface  */
 	brcmf_fil_iovar_int_set(ifp, "roam_off", 1);
@@ -2391,7 +2413,6 @@ int brcmf_p2p_del_vif(struct wiphy *wiphy, struct wireless_dev *wdev)
 			err = 0;
 	}
 	brcmf_cfg80211_arm_vif_event(cfg, NULL);
-	brcmf_free_vif(cfg, vif);
 	p2p->bss_idx[P2PAPI_BSSCFG_CONNECTION].vif = NULL;
 
 	return err;

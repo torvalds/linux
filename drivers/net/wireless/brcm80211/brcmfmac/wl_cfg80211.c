@@ -4678,7 +4678,6 @@ static s32 brcmf_notify_vif_event(struct brcmf_if *ifp,
 		return 0;
 
 	case BRCMF_E_IF_DEL:
-		ifp->vif = NULL;
 		mutex_unlock(&event->vif_event_lock);
 		/* event may not be upon user request */
 		if (brcmf_cfg80211_vif_event_armed(cfg))
