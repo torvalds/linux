@@ -314,7 +314,8 @@ STATIC int
 xfs_mount_validate_sb(
 	xfs_mount_t	*mp,
 	xfs_sb_t	*sbp,
-	bool		check_inprogress)
+	bool		check_inprogress,
+	bool		check_version)
 {
 
 	/*
@@ -337,9 +338,10 @@ xfs_mount_validate_sb(
 
 	/*
 	 * Version 5 superblock feature mask validation. Reject combinations the
-	 * kernel cannot support up front before checking anything else.
+	 * kernel cannot support up front before checking anything else. For
+	 * write validation, we don't need to check feature masks.
 	 */
-	if (XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5) {
+	if (check_version && XFS_SB_VERSION_NUM(sbp) == XFS_SB_VERSION_5) {
 		xfs_alert(mp,
 "Version 5 superblock detected. This kernel has EXPERIMENTAL support enabled!\n"
 "Use of these features in this kernel is at your own risk!");
@@ -675,7 +677,8 @@ xfs_sb_to_disk(
 
 static int
 xfs_sb_verify(
-	struct xfs_buf	*bp)
+	struct xfs_buf	*bp,
+	bool		check_version)
 {
 	struct xfs_mount *mp = bp->b_target->bt_mount;
 	struct xfs_sb	sb;
@@ -686,7 +689,8 @@ xfs_sb_verify(
 	 * Only check the in progress field for the primary superblock as
 	 * mkfs.xfs doesn't clear it from secondary superblocks.
 	 */
-	return xfs_mount_validate_sb(mp, &sb, bp->b_bn == XFS_SB_DADDR);
+	return xfs_mount_validate_sb(mp, &sb, bp->b_bn == XFS_SB_DADDR,
+				     check_version);
 }
 
 /*
@@ -719,7 +723,7 @@ xfs_sb_read_verify(
 			goto out_error;
 		}
 	}
-	error = xfs_sb_verify(bp);
+	error = xfs_sb_verify(bp, true);
 
 out_error:
 	if (error) {
@@ -758,7 +762,7 @@ xfs_sb_write_verify(
 	struct xfs_buf_log_item	*bip = bp->b_fspriv;
 	int			error;
 
-	error = xfs_sb_verify(bp);
+	error = xfs_sb_verify(bp, false);
 	if (error) {
 		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, bp->b_addr);
 		xfs_buf_ioerror(bp, error);
