@@ -128,6 +128,7 @@ struct firmware_buf {
 	size_t size;
 #ifdef CONFIG_FW_LOADER_USER_HELPER
 	bool is_paged_buf;
+	bool need_uevent;
 	struct page **pages;
 	int nr_pages;
 	int page_array_size;
@@ -873,6 +874,7 @@ static int _request_firmware_load(struct firmware_priv *fw_priv, bool uevent,
 	}
 
 	if (uevent) {
+		buf->need_uevent = true;
 		dev_set_uevent_suppress(f_dev, false);
 		dev_dbg(f_dev, "firmware: requesting %s\n", buf->fw_id);
 		if (timeout != MAX_SCHEDULE_TIMEOUT)
@@ -1412,6 +1414,20 @@ static void __device_uncache_fw_images(void)
 	spin_unlock(&fwc->name_lock);
 }
 
+/* kill pending requests without uevent to avoid blocking suspend */
+static void kill_requests_without_uevent(void)
+{
+	struct firmware_buf *buf;
+	struct firmware_buf *next;
+
+	mutex_lock(&fw_lock);
+	list_for_each_entry_safe(buf, next, &pending_fw_head, pending_list) {
+		if (!buf->need_uevent)
+			 fw_load_abort(buf);
+	}
+	mutex_unlock(&fw_lock);
+}
+
 /**
  * device_cache_fw_images - cache devices' firmware
  *
@@ -1491,6 +1507,7 @@ static int fw_pm_notify(struct notifier_block *notify_block,
 	switch (mode) {
 	case PM_HIBERNATION_PREPARE:
 	case PM_SUSPEND_PREPARE:
+		kill_requests_without_uevent();
 		device_cache_fw_images();
 		break;
 
