@@ -465,9 +465,9 @@ int sr_disable_errgen(struct omap_sr *sr)
 }
 
 /**
- * sr_configure_minmax() - Configures the smrtreflex to perform AVS using the
+ * sr_configure_minmax() - Configures the SmartReflex to perform AVS using the
  *			 minmaxavg module.
- * @voltdm:	VDD pointer to which the SR module to be configured belongs to.
+ * @sr:			SR module to be configured.
  *
  * This API is to be called from the smartreflex class driver to
  * configure the minmaxavg module inside the smartreflex module.
@@ -476,16 +476,16 @@ int sr_disable_errgen(struct omap_sr *sr)
  * SR CLASS 2 can choose between ERROR module and MINMAXAVG
  * module. Returns 0 on success and error value in case of failure.
  */
-int sr_configure_minmax(struct voltagedomain *voltdm)
+int sr_configure_minmax(struct omap_sr *sr)
 {
 	u32 sr_config, sr_avgwt;
 	u32 senp_en = 0, senn_en = 0;
 	u8 senp_shift, senn_shift;
-	struct omap_sr *sr = _sr_lookup(voltdm);
 
-	if (IS_ERR(sr)) {
-		pr_warning("%s: omap_sr struct for voltdm not found\n",	__func__);
-		return PTR_ERR(sr);
+	if (!sr) {
+		pr_warn("%s: NULL omap_sr from %pF\n", __func__,
+			(void *)_RET_IP_);
+		return -EINVAL;
 	}
 
 	if (!sr->clk_length)

@@ -303,7 +303,7 @@ int sr_enable(struct voltagedomain *voltdm, unsigned long volt);
 void sr_disable(struct voltagedomain *voltdm);
 int sr_configure_errgen(struct omap_sr *sr);
 int sr_disable_errgen(struct omap_sr *sr);
-int sr_configure_minmax(struct voltagedomain *voltdm);
+int sr_configure_minmax(struct omap_sr *sr);
 
 /* API to register the smartreflex class driver with the smartreflex driver */
 int sr_register_class(struct omap_sr_class_data *class_data);
