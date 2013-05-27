@@ -594,10 +594,15 @@ config HID_SAMSUNG
 	Support for Samsung InfraRed remote control or keyboards.
 
 config HID_SONY
-	tristate "Sony PS3 controller"
+	tristate "Sony PS2/3 accessories"
 	depends on USB_HID
+	select NEW_LEDS
+	select LEDS_CLASS
 	---help---
-	Support for Sony PS3 6-axis controllers.
+	Support for
+	  
+	  * Sony PS3 6-axis controllers
+	  * Buzz controllers
 
 	Support for the Sony PS3 BD Remote is provided by HID_PS3REMOTE.
 
