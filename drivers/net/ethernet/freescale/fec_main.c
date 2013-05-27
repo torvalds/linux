@@ -2009,6 +2009,11 @@ fec_drv_remove(struct platform_device *pdev)
 	unregister_netdev(ndev);
 	fec_enet_mii_remove(fep);
 	del_timer_sync(&fep->time_keep);
+	for (i = 0; i < FEC_IRQ_NUM; i++) {
+		int irq = platform_get_irq(pdev, i);
+		if (irq > 0)
+			free_irq(irq, ndev);
+	}
 	if (fep->reg_phy)
 		regulator_disable(fep->reg_phy);
 	clk_disable_unprepare(fep->clk_ptp);
@@ -2017,11 +2022,6 @@ fec_drv_remove(struct platform_device *pdev)
 	clk_disable_unprepare(fep->clk_enet_out);
 	clk_disable_unprepare(fep->clk_ahb);
 	clk_disable_unprepare(fep->clk_ipg);
-	for (i = 0; i < FEC_IRQ_NUM; i++) {
-		int irq = platform_get_irq(pdev, i);
-		if (irq > 0)
-			free_irq(irq, ndev);
-	}
 	free_netdev(ndev);
 
 	platform_set_drvdata(pdev, NULL);
