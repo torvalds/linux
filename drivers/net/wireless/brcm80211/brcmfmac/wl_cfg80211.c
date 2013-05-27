@@ -4292,20 +4292,16 @@ struct brcmf_cfg80211_vif *brcmf_alloc_vif(struct brcmf_cfg80211_info *cfg,
 	return vif;
 }
 
-void brcmf_free_vif(struct brcmf_cfg80211_vif *vif)
+void brcmf_free_vif(struct brcmf_cfg80211_info *cfg,
+		    struct brcmf_cfg80211_vif *vif)
 {
-	struct brcmf_cfg80211_info *cfg;
-	struct wiphy *wiphy;
-
-	wiphy = vif->wdev.wiphy;
-	cfg = wiphy_priv(wiphy);
 	list_del(&vif->list);
 	cfg->vif_cnt--;
 
 	kfree(vif);
 	if (!cfg->vif_cnt) {
-		wiphy_unregister(wiphy);
-		wiphy_free(wiphy);
+		wiphy_unregister(cfg->wiphy);
+		wiphy_free(cfg->wiphy);
 	}
 }
 
@@ -4888,8 +4884,7 @@ cfg80211_p2p_attach_out:
 	wl_deinit_priv(cfg);
 
 cfg80211_attach_out:
-	brcmf_free_vif(vif);
-	wiphy_free(wiphy);
+	brcmf_free_vif(cfg, vif);
 	return NULL;
 }
 
@@ -4901,7 +4896,7 @@ void brcmf_cfg80211_detach(struct brcmf_cfg80211_info *cfg)
 	wl_deinit_priv(cfg);
 	brcmf_btcoex_detach(cfg);
 	list_for_each_entry_safe(vif, tmp, &cfg->vif_list, list) {
-		brcmf_free_vif(vif);
+		brcmf_free_vif(cfg, vif);
 	}
 }
 
