@@ -277,11 +277,6 @@ static int __init pci_common_init(void)
 		pci_bus_assign_resources(puv3_bus);
 	}
 
-	/*
-	 * Tell drivers about devices found.
-	 */
-	pci_bus_add_devices(puv3_bus);
-
 	return 0;
 }
 subsys_initcall(pci_common_init);
