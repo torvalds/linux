@@ -2334,21 +2334,11 @@ static int bcm63xx_udc_probe(struct platform_device *pdev)
 	}
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(dev, "error finding USBD resource\n");
-		return -ENXIO;
-	}
-
 	udc->usbd_regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(udc->usbd_regs))
 		return PTR_ERR(udc->usbd_regs);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	if (!res) {
-		dev_err(dev, "error finding IUDMA resource\n");
-		return -ENXIO;
-	}
-
 	udc->iudma_regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(udc->iudma_regs))
 		return PTR_ERR(udc->iudma_regs);
@@ -2420,7 +2410,6 @@ static int bcm63xx_udc_remove(struct platform_device *pdev)
 	usb_del_gadget_udc(&udc->gadget);
 	BUG_ON(udc->driver);
 
-	platform_set_drvdata(pdev, NULL);
 	bcm63xx_uninit_udc_hw(udc);
 
 	return 0;

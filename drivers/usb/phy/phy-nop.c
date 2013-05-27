@@ -254,8 +254,6 @@ static int nop_usb_xceiv_remove(struct platform_device *pdev)
 
 	usb_remove_phy(&nop->phy);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 

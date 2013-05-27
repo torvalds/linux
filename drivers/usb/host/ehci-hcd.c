@@ -1286,23 +1286,6 @@ MODULE_LICENSE ("GPL");
 #define	PLATFORM_DRIVER		ehci_hcd_sead3_driver
 #endif
 
-#if !IS_ENABLED(CONFIG_USB_EHCI_PCI) && \
-	!IS_ENABLED(CONFIG_USB_EHCI_HCD_PLATFORM) && \
-	!IS_ENABLED(CONFIG_USB_CHIPIDEA_HOST) && \
-	!IS_ENABLED(CONFIG_USB_EHCI_MXC) && \
-	!IS_ENABLED(CONFIG_USB_EHCI_HCD_OMAP) && \
-	!IS_ENABLED(CONFIG_USB_EHCI_HCD_ORION) && \
-	!IS_ENABLED(CONFIG_USB_EHCI_HCD_SPEAR) && \
-	!IS_ENABLED(CONFIG_USB_EHCI_S5P) && \
-	!IS_ENABLED(CONFIG_USB_EHCI_HCD_AT91) && \
-	!IS_ENABLED(CONFIG_USB_EHCI_MSM) && \
-	!defined(PLATFORM_DRIVER) && \
-	!defined(PS3_SYSTEM_BUS_DRIVER) && \
-	!defined(OF_PLATFORM_DRIVER) && \
-	!defined(XILINX_OF_PLATFORM_DRIVER)
-#error "missing bus glue for ehci-hcd"
-#endif
-
 static int __init ehci_hcd_init(void)
 {
 	int retval = 0;

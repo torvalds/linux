@@ -619,11 +619,6 @@ static int mvebu_gpio_probe(struct platform_device *pdev)
 	 * per-CPU registers */
 	if (soc_variant == MVEBU_GPIO_SOC_VARIANT_ARMADAXP) {
 		res = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-		if (!res) {
-			dev_err(&pdev->dev, "Cannot get memory resource\n");
-			return -ENODEV;
-		}
-
 		mvchip->percpu_membase = devm_ioremap_resource(&pdev->dev,
 							       res);
 		if (IS_ERR(mvchip->percpu_membase))

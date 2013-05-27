@@ -60,8 +60,6 @@ static const struct hc_driver uhci_platform_hc_driver = {
 	.hub_control =		uhci_hub_control,
 };
 
-static u64 platform_uhci_dma_mask = DMA_BIT_MASK(32);
-
 static int uhci_hcd_platform_probe(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd;
@@ -78,7 +76,9 @@ static int uhci_hcd_platform_probe(struct platform_device *pdev)
 	 * Once we have dma capability bindings this can go away.
 	 */
 	if (!pdev->dev.dma_mask)
-		pdev->dev.dma_mask = &platform_uhci_dma_mask;
+		pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+	if (!pdev->dev.coherent_dma_mask)
+		pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 
 	hcd = usb_create_hcd(&uhci_platform_hc_driver, &pdev->dev,
 			pdev->name);

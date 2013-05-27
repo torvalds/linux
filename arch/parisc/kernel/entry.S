@@ -65,15 +65,11 @@
 	rsm	PSW_SM_I, %r0	/* barrier for "Relied upon Translation */
 	mtsp	%r0, %sr4
 	mtsp	%r0, %sr5
-	mfsp	%sr7, %r1
-	or,=    %r0,%r1,%r0	/* Only save sr7 in sr3 if sr7 != 0 */
-	mtsp	%r1, %sr3
+	mtsp	%r0, %sr6
 	tovirt_r1 %r29
 	load32	KERNEL_PSW, %r1
 
 	rsm     PSW_SM_QUIET,%r0	/* second "heavy weight" ctl op */
-	mtsp	%r0, %sr6
-	mtsp	%r0, %sr7
 	mtctl	%r0, %cr17	/* Clear IIASQ tail */
 	mtctl	%r0, %cr17	/* Clear IIASQ head */
 	mtctl	%r1, %ipsw
@@ -119,17 +115,20 @@
 
 	/* we save the registers in the task struct */
 
+	copy	%r30, %r17
 	mfctl   %cr30, %r1
+	ldo	THREAD_SZ_ALGN(%r1), %r30
+	mtsp	%r0,%sr7
+	mtsp	%r16,%sr3
 	tophys  %r1,%r9
 	LDREG	TI_TASK(%r9), %r1	/* thread_info -> task_struct */
 	tophys  %r1,%r9
 	ldo     TASK_REGS(%r9),%r9
-	STREG   %r30, PT_GR30(%r9)
+	STREG   %r17,PT_GR30(%r9)
 	STREG   %r29,PT_GR29(%r9)
 	STREG   %r26,PT_GR26(%r9)
+	STREG	%r16,PT_SR7(%r9)
 	copy    %r9,%r29
-	mfctl   %cr30, %r1
-	ldo	THREAD_SZ_ALGN(%r1), %r30
 	.endm
 
 	.macro  get_stack_use_r30
@@ -137,10 +136,12 @@
 	/* we put a struct pt_regs on the stack and save the registers there */
 
 	tophys  %r30,%r9
-	STREG   %r30,PT_GR30(%r9)
+	copy	%r30,%r1
 	ldo	PT_SZ_ALGN(%r30),%r30
+	STREG   %r1,PT_GR30(%r9)
 	STREG   %r29,PT_GR29(%r9)
 	STREG   %r26,PT_GR26(%r9)
+	STREG	%r16,PT_SR7(%r9)
 	copy    %r9,%r29
 	.endm
 
@@ -452,9 +453,41 @@
 	L2_ptep		\pgd,\pte,\index,\va,\fault
 	.endm
 
+	/* Acquire pa_dbit_lock lock. */
+	.macro		dbit_lock	spc,tmp,tmp1
+#ifdef CONFIG_SMP
+	cmpib,COND(=),n	0,\spc,2f
+	load32		PA(pa_dbit_lock),\tmp
+1:	LDCW		0(\tmp),\tmp1
+	cmpib,COND(=)	0,\tmp1,1b
+	nop
+2:
+#endif
+	.endm
+
+	/* Release pa_dbit_lock lock without reloading lock address. */
+	.macro		dbit_unlock0	spc,tmp
+#ifdef CONFIG_SMP
+	or,COND(=)	%r0,\spc,%r0
+	stw             \spc,0(\tmp)
+#endif
+	.endm
+
+	/* Release pa_dbit_lock lock. */
+	.macro		dbit_unlock1	spc,tmp
+#ifdef CONFIG_SMP
+	load32		PA(pa_dbit_lock),\tmp
+	dbit_unlock0	\spc,\tmp
+#endif
+	.endm
+
 	/* Set the _PAGE_ACCESSED bit of the PTE.  Be clever and
 	 * don't needlessly dirty the cache line if it was already set */
-	.macro		update_ptep	ptep,pte,tmp,tmp1
+	.macro		update_ptep	spc,ptep,pte,tmp,tmp1
+#ifdef CONFIG_SMP
+	or,COND(=)	%r0,\spc,%r0
+	LDREG		0(\ptep),\pte
+#endif
 	ldi		_PAGE_ACCESSED,\tmp1
 	or		\tmp1,\pte,\tmp
 	and,COND(<>)	\tmp1,\pte,%r0
@@ -463,7 +496,11 @@
 
 	/* Set the dirty bit (and accessed bit).  No need to be
 	 * clever, this is only used from the dirty fault */
-	.macro		update_dirty	ptep,pte,tmp
+	.macro		update_dirty	spc,ptep,pte,tmp
+#ifdef CONFIG_SMP
+	or,COND(=)	%r0,\spc,%r0
+	LDREG		0(\ptep),\pte
+#endif
 	ldi		_PAGE_ACCESSED|_PAGE_DIRTY,\tmp
 	or		\tmp,\pte,\pte
 	STREG		\pte,0(\ptep)
@@ -1111,11 +1148,13 @@ dtlb_miss_20w:
 
 	L3_ptep		ptp,pte,t0,va,dtlb_check_alias_20w
 
-	update_ptep	ptp,pte,t0,t1
+	dbit_lock	spc,t0,t1
+	update_ptep	spc,ptp,pte,t0,t1
 
 	make_insert_tlb	spc,pte,prot
 	
 	idtlbt          pte,prot
+	dbit_unlock1	spc,t0
 
 	rfir
 	nop
@@ -1135,11 +1174,13 @@ nadtlb_miss_20w:
 
 	L3_ptep		ptp,pte,t0,va,nadtlb_check_alias_20w
 
-	update_ptep	ptp,pte,t0,t1
+	dbit_lock	spc,t0,t1
+	update_ptep	spc,ptp,pte,t0,t1
 
 	make_insert_tlb	spc,pte,prot
 
 	idtlbt          pte,prot
+	dbit_unlock1	spc,t0
 
 	rfir
 	nop
@@ -1161,7 +1202,8 @@ dtlb_miss_11:
 
 	L2_ptep		ptp,pte,t0,va,dtlb_check_alias_11
 
-	update_ptep	ptp,pte,t0,t1
+	dbit_lock	spc,t0,t1
+	update_ptep	spc,ptp,pte,t0,t1
 
 	make_insert_tlb_11	spc,pte,prot
 
@@ -1172,6 +1214,7 @@ dtlb_miss_11:
 	idtlbp		prot,(%sr1,va)
 
 	mtsp		t0, %sr1	/* Restore sr1 */
+	dbit_unlock1	spc,t0
 
 	rfir
 	nop
@@ -1192,7 +1235,8 @@ nadtlb_miss_11:
 
 	L2_ptep		ptp,pte,t0,va,nadtlb_check_alias_11
 
-	update_ptep	ptp,pte,t0,t1
+	dbit_lock	spc,t0,t1
+	update_ptep	spc,ptp,pte,t0,t1
 
 	make_insert_tlb_11	spc,pte,prot
 
@@ -1204,6 +1248,7 @@ nadtlb_miss_11:
 	idtlbp		prot,(%sr1,va)
 
 	mtsp		t0, %sr1	/* Restore sr1 */
+	dbit_unlock1	spc,t0
 
 	rfir
 	nop
@@ -1224,13 +1269,15 @@ dtlb_miss_20:
 
 	L2_ptep		ptp,pte,t0,va,dtlb_check_alias_20
 
-	update_ptep	ptp,pte,t0,t1
+	dbit_lock	spc,t0,t1
+	update_ptep	spc,ptp,pte,t0,t1
 
 	make_insert_tlb	spc,pte,prot
 
 	f_extend	pte,t0
 
 	idtlbt          pte,prot
+	dbit_unlock1	spc,t0
 
 	rfir
 	nop
@@ -1250,13 +1297,15 @@ nadtlb_miss_20:
 
 	L2_ptep		ptp,pte,t0,va,nadtlb_check_alias_20
 
-	update_ptep	ptp,pte,t0,t1
+	dbit_lock	spc,t0,t1
+	update_ptep	spc,ptp,pte,t0,t1
 
 	make_insert_tlb	spc,pte,prot
 
 	f_extend	pte,t0
 	
         idtlbt          pte,prot
+	dbit_unlock1	spc,t0
 
 	rfir
 	nop
@@ -1357,11 +1406,13 @@ itlb_miss_20w:
 
 	L3_ptep		ptp,pte,t0,va,itlb_fault
 
-	update_ptep	ptp,pte,t0,t1
+	dbit_lock	spc,t0,t1
+	update_ptep	spc,ptp,pte,t0,t1
 
 	make_insert_tlb	spc,pte,prot
 	
 	iitlbt          pte,prot
+	dbit_unlock1	spc,t0
 
 	rfir
 	nop
@@ -1379,11 +1430,13 @@ naitlb_miss_20w:
 
 	L3_ptep		ptp,pte,t0,va,naitlb_check_alias_20w
 
-	update_ptep	ptp,pte,t0,t1
+	dbit_lock	spc,t0,t1
+	update_ptep	spc,ptp,pte,t0,t1
 
 	make_insert_tlb	spc,pte,prot
 
 	iitlbt          pte,prot
+	dbit_unlock1	spc,t0
 
 	rfir
 	nop
@@ -1405,7 +1458,8 @@ itlb_miss_11:
 
 	L2_ptep		ptp,pte,t0,va,itlb_fault
 
-	update_ptep	ptp,pte,t0,t1
+	dbit_lock	spc,t0,t1
+	update_ptep	spc,ptp,pte,t0,t1
 
 	make_insert_tlb_11	spc,pte,prot
 
@@ -1416,6 +1470,7 @@ itlb_miss_11:
 	iitlbp		prot,(%sr1,va)
 
 	mtsp		t0, %sr1	/* Restore sr1 */
+	dbit_unlock1	spc,t0
 
 	rfir
 	nop
@@ -1427,7 +1482,8 @@ naitlb_miss_11:
 
 	L2_ptep		ptp,pte,t0,va,naitlb_check_alias_11
 
-	update_ptep	ptp,pte,t0,t1
+	dbit_lock	spc,t0,t1
+	update_ptep	spc,ptp,pte,t0,t1
 
 	make_insert_tlb_11	spc,pte,prot
 
@@ -1438,6 +1494,7 @@ naitlb_miss_11:
 	iitlbp		prot,(%sr1,va)
 
 	mtsp		t0, %sr1	/* Restore sr1 */
+	dbit_unlock1	spc,t0
 
 	rfir
 	nop
@@ -1459,13 +1516,15 @@ itlb_miss_20:
 
 	L2_ptep		ptp,pte,t0,va,itlb_fault
 
-	update_ptep	ptp,pte,t0,t1
+	dbit_lock	spc,t0,t1
+	update_ptep	spc,ptp,pte,t0,t1
 
 	make_insert_tlb	spc,pte,prot
 
 	f_extend	pte,t0	
 
 	iitlbt          pte,prot
+	dbit_unlock1	spc,t0
 
 	rfir
 	nop
@@ -1477,13 +1536,15 @@ naitlb_miss_20:
 
 	L2_ptep		ptp,pte,t0,va,naitlb_check_alias_20
 
-	update_ptep	ptp,pte,t0,t1
+	dbit_lock	spc,t0,t1
+	update_ptep	spc,ptp,pte,t0,t1
 
 	make_insert_tlb	spc,pte,prot
 
 	f_extend	pte,t0
 
 	iitlbt          pte,prot
+	dbit_unlock1	spc,t0
 
 	rfir
 	nop
@@ -1507,29 +1568,13 @@ dbit_trap_20w:
 
 	L3_ptep		ptp,pte,t0,va,dbit_fault
 
-#ifdef CONFIG_SMP
-	cmpib,COND(=),n        0,spc,dbit_nolock_20w
-	load32		PA(pa_dbit_lock),t0
-
-dbit_spin_20w:
-	LDCW		0(t0),t1
-	cmpib,COND(=)         0,t1,dbit_spin_20w
-	nop
-
-dbit_nolock_20w:
-#endif
-	update_dirty	ptp,pte,t1
+	dbit_lock	spc,t0,t1
+	update_dirty	spc,ptp,pte,t1
 
 	make_insert_tlb	spc,pte,prot
 		
 	idtlbt          pte,prot
-#ifdef CONFIG_SMP
-	cmpib,COND(=),n        0,spc,dbit_nounlock_20w
-	ldi             1,t1
-	stw             t1,0(t0)
-
-dbit_nounlock_20w:
-#endif
+	dbit_unlock0	spc,t0
 
 	rfir
 	nop
@@ -1543,18 +1588,8 @@ dbit_trap_11:
 
 	L2_ptep		ptp,pte,t0,va,dbit_fault
 
-#ifdef CONFIG_SMP
-	cmpib,COND(=),n        0,spc,dbit_nolock_11
-	load32		PA(pa_dbit_lock),t0
-
-dbit_spin_11:
-	LDCW		0(t0),t1
-	cmpib,=         0,t1,dbit_spin_11
-	nop
-
-dbit_nolock_11:
-#endif
-	update_dirty	ptp,pte,t1
+	dbit_lock	spc,t0,t1
+	update_dirty	spc,ptp,pte,t1
 
 	make_insert_tlb_11	spc,pte,prot
 
@@ -1565,13 +1600,7 @@ dbit_nolock_11:
 	idtlbp		prot,(%sr1,va)
 
 	mtsp            t1, %sr1     /* Restore sr1 */
-#ifdef CONFIG_SMP
-	cmpib,COND(=),n        0,spc,dbit_nounlock_11
-	ldi             1,t1
-	stw             t1,0(t0)
-
-dbit_nounlock_11:
-#endif
+	dbit_unlock0	spc,t0
 
 	rfir
 	nop
@@ -1583,32 +1612,15 @@ dbit_trap_20:
 
 	L2_ptep		ptp,pte,t0,va,dbit_fault
 
-#ifdef CONFIG_SMP
-	cmpib,COND(=),n        0,spc,dbit_nolock_20
-	load32		PA(pa_dbit_lock),t0
-
-dbit_spin_20:
-	LDCW		0(t0),t1
-	cmpib,=         0,t1,dbit_spin_20
-	nop
-
-dbit_nolock_20:
-#endif
-	update_dirty	ptp,pte,t1
+	dbit_lock	spc,t0,t1
+	update_dirty	spc,ptp,pte,t1
 
 	make_insert_tlb	spc,pte,prot
 
 	f_extend	pte,t1
 	
         idtlbt          pte,prot
-
-#ifdef CONFIG_SMP
-	cmpib,COND(=),n        0,spc,dbit_nounlock_20
-	ldi             1,t1
-	stw             t1,0(t0)
-
-dbit_nounlock_20:
-#endif
+	dbit_unlock0	spc,t0
 
 	rfir
 	nop

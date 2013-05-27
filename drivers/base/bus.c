@@ -1295,6 +1295,7 @@ int subsys_virtual_register(struct bus_type *subsys,
 
 	return subsys_register(subsys, groups, virtual_dir);
 }
+EXPORT_SYMBOL_GPL(subsys_virtual_register);
 
 int __init buses_init(void)
 {

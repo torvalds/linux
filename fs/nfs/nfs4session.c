@@ -73,7 +73,7 @@ void nfs4_free_slot(struct nfs4_slot_table *tbl, struct nfs4_slot *slot)
 			tbl->highest_used_slotid = new_max;
 		else {
 			tbl->highest_used_slotid = NFS4_NO_SLOT;
-			nfs4_session_drain_complete(tbl->session, tbl);
+			nfs4_slot_tbl_drain_complete(tbl);
 		}
 	}
 	dprintk("%s: slotid %u highest_used_slotid %d\n", __func__,
@@ -226,7 +226,7 @@ static bool nfs41_assign_slot(struct rpc_task *task, void *pslot)
 	struct nfs4_slot *slot = pslot;
 	struct nfs4_slot_table *tbl = slot->table;
 
-	if (nfs4_session_draining(tbl->session) && !args->sa_privileged)
+	if (nfs4_slot_tbl_draining(tbl) && !args->sa_privileged)
 		return false;
 	slot->generation = tbl->generation;
 	args->sa_slot = slot;

@@ -208,10 +208,10 @@ void ieee80211_get_tkip_p2k(struct ieee80211_key_conf *keyconf,
 	u32 iv32 = get_unaligned_le32(&data[4]);
 	u16 iv16 = data[2] | (data[0] << 8);
 
-	spin_lock_bh(&key->u.tkip.txlock);
+	spin_lock(&key->u.tkip.txlock);
 	ieee80211_compute_tkip_p1k(key, iv32);
 	tkip_mixing_phase2(tk, ctx, iv16, p2k);
-	spin_unlock_bh(&key->u.tkip.txlock);
+	spin_unlock(&key->u.tkip.txlock);
 }
 EXPORT_SYMBOL(ieee80211_get_tkip_p2k);
 

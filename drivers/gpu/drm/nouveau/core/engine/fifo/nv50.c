@@ -47,6 +47,7 @@ nv50_fifo_playlist_update(struct nv50_fifo_priv *priv)
 	struct nouveau_gpuobj *cur;
 	int i, p;
 
+	mutex_lock(&nv_subdev(priv)->mutex);
 	cur = priv->playlist[priv->cur_playlist];
 	priv->cur_playlist = !priv->cur_playlist;
 
@@ -60,6 +61,7 @@ nv50_fifo_playlist_update(struct nv50_fifo_priv *priv)
 	nv_wr32(priv, 0x0032f4, cur->addr >> 12);
 	nv_wr32(priv, 0x0032ec, p);
 	nv_wr32(priv, 0x002500, 0x00000101);
+	mutex_unlock(&nv_subdev(priv)->mutex);
 }
 
 static int

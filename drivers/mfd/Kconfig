@@ -579,7 +579,7 @@ config AB8500_CORE
 
 config AB8500_DEBUG
        bool "Enable debug info via debugfs"
-       depends on AB8500_CORE && DEBUG_FS
+       depends on AB8500_GPADC && DEBUG_FS
        default y if DEBUG_FS
        help
          Select this option if you want debug information using the debug
@@ -818,6 +818,7 @@ config MFD_TPS65910
 config MFD_TPS65912
 	bool "TI TPS65912 Power Management chip"
 	depends on GPIOLIB
+	select MFD_CORE
 	help
 	  If you say yes here you get support for the TPS65912 series of
 	  PM chips.

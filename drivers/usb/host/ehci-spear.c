@@ -58,8 +58,6 @@ static int ehci_spear_drv_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(ehci_spear_pm_ops, ehci_spear_drv_suspend,
 		ehci_spear_drv_resume);
 
-static u64 spear_ehci_dma_mask = DMA_BIT_MASK(32);
-
 static int spear_ehci_hcd_drv_probe(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd ;
@@ -84,7 +82,9 @@ static int spear_ehci_hcd_drv_probe(struct platform_device *pdev)
 	 * Once we have dma capability bindings this can go away.
 	 */
 	if (!pdev->dev.dma_mask)
-		pdev->dev.dma_mask = &spear_ehci_dma_mask;
+		pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+	if (!pdev->dev.coherent_dma_mask)
+		pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 
 	usbh_clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(usbh_clk)) {

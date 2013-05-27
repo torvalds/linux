@@ -18,7 +18,7 @@
 void __init ux500_map_io(void);
 extern void __init u8500_map_io(void);
 
-extern struct device * __init u8500_init_devices(struct ab8500_platform_data *ab8500);
+extern struct device * __init u8500_init_devices(void);
 
 extern void __init ux500_init_irq(void);
 extern void __init ux500_init_late(void);

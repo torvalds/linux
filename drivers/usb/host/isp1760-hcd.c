@@ -1739,7 +1739,7 @@ static int isp1760_hub_status_data(struct usb_hcd *hcd, char *buf)
 	int retval = 1;
 	unsigned long flags;
 
-	/* if !USB_SUSPEND, root hub timers won't get shut down ... */
+	/* if !PM_RUNTIME, root hub timers won't get shut down ... */
 	if (!HC_IS_RUNNING(hcd->state))
 		return 0;
 

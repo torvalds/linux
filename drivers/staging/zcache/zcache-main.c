@@ -1922,15 +1922,15 @@ out:
 
 #ifdef CONFIG_ZCACHE_MODULE
 #ifdef CONFIG_RAMSTER
-module_param(ramster_enabled, int, S_IRUGO);
+module_param(ramster_enabled, bool, S_IRUGO);
 module_param(disable_frontswap_selfshrink, int, S_IRUGO);
 #endif
-module_param(disable_cleancache, int, S_IRUGO);
-module_param(disable_frontswap, int, S_IRUGO);
+module_param(disable_cleancache, bool, S_IRUGO);
+module_param(disable_frontswap, bool, S_IRUGO);
 #ifdef FRONTSWAP_HAS_EXCLUSIVE_GETS
 module_param(frontswap_has_exclusive_gets, bool, S_IRUGO);
 #endif
-module_param(disable_frontswap_ignore_nonactive, int, S_IRUGO);
+module_param(disable_frontswap_ignore_nonactive, bool, S_IRUGO);
 module_param(zcache_comp_name, charp, S_IRUGO);
 module_init(zcache_init);
 MODULE_LICENSE("GPL");
