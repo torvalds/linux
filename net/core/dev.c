@@ -1198,9 +1198,7 @@ static int __dev_open(struct net_device *dev)
 	 * If we don't do this there is a chance ndo_poll_controller
 	 * or ndo_poll may be running while we open the device
 	 */
-	ret = netpoll_rx_disable(dev);
-	if (ret)
-		return ret;
+	netpoll_rx_disable(dev);
 
 	ret = call_netdevice_notifiers(NETDEV_PRE_UP, dev);
 	ret = notifier_to_errno(ret);
@@ -1309,9 +1307,7 @@ static int __dev_close(struct net_device *dev)
 	LIST_HEAD(single);
 
 	/* Temporarily disable netpoll until the interface is down */
-	retval = netpoll_rx_disable(dev);
-	if (retval)
-		return retval;
+	netpoll_rx_disable(dev);
 
 	list_add(&dev->unreg_list, &single);
 	retval = __dev_close_many(&single);
@@ -1353,14 +1349,11 @@ static int dev_close_many(struct list_head *head)
  */
 int dev_close(struct net_device *dev)
 {
-	int ret = 0;
 	if (dev->flags & IFF_UP) {
 		LIST_HEAD(single);
 
 		/* Block netpoll rx while the interface is going down */
-		ret = netpoll_rx_disable(dev);
-		if (ret)
-			return ret;
+		netpoll_rx_disable(dev);
 
 		list_add(&dev->unreg_list, &single);
 		dev_close_many(&single);
@@ -1368,7 +1361,7 @@ int dev_close(struct net_device *dev)
 
 		netpoll_rx_enable(dev);
 	}
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(dev_close);
 

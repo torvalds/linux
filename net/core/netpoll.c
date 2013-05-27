@@ -247,7 +247,7 @@ static void netpoll_poll_dev(struct net_device *dev)
 	zap_completion_queue();
 }
 
-int netpoll_rx_disable(struct net_device *dev)
+void netpoll_rx_disable(struct net_device *dev)
 {
 	struct netpoll_info *ni;
 	int idx;
@@ -257,7 +257,6 @@ int netpoll_rx_disable(struct net_device *dev)
 	if (ni)
 		down(&ni->dev_lock);
 	srcu_read_unlock(&netpoll_srcu, idx);
-	return 0;
 }
 EXPORT_SYMBOL(netpoll_rx_disable);
 
