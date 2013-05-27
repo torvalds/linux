@@ -828,7 +828,7 @@ static int __init mvebu_pcie_probe(struct platform_device *pdev)
 		}
 
 		port->clk = of_clk_get_by_name(child, NULL);
-		if (!port->clk) {
+		if (IS_ERR(port->clk)) {
 			dev_err(&pdev->dev, "PCIe%d.%d: cannot get clock\n",
 			       port->port, port->lane);
 			iounmap(port->base);
