@@ -1056,7 +1056,7 @@ static int alb_set_slave_mac_addr(struct slave *slave, u8 addr[])
  *
  */
 
-static void alb_swap_mac_addr(struct bonding *bond, struct slave *slave1, struct slave *slave2)
+static void alb_swap_mac_addr(struct slave *slave1, struct slave *slave2)
 {
 	u8 tmp_mac_addr[ETH_ALEN];
 
@@ -1149,7 +1149,7 @@ static void alb_change_hw_addr_on_detach(struct bonding *bond, struct slave *sla
 
 		if (found) {
 			/* locking: needs RTNL and nothing else */
-			alb_swap_mac_addr(bond, slave, tmp_slave);
+			alb_swap_mac_addr(slave, tmp_slave);
 			alb_fasten_mac_swap(bond, slave, tmp_slave);
 		}
 	}
@@ -1750,7 +1750,7 @@ void bond_alb_handle_active_change(struct bonding *bond, struct slave *new_slave
 	/* curr_active_slave must be set before calling alb_swap_mac_addr */
 	if (swap_slave) {
 		/* swap mac address */
-		alb_swap_mac_addr(bond, swap_slave, new_slave);
+		alb_swap_mac_addr(swap_slave, new_slave);
 	} else {
 		/* set the new_slave to the bond mac address */
 		alb_set_slave_mac_addr(new_slave, bond->dev->dev_addr);
@@ -1810,7 +1810,7 @@ int bond_alb_set_mac_address(struct net_device *bond_dev, void *addr)
 	}
 
 	if (swap_slave) {
-		alb_swap_mac_addr(bond, swap_slave, bond->curr_active_slave);
+		alb_swap_mac_addr(swap_slave, bond->curr_active_slave);
 		alb_fasten_mac_swap(bond, swap_slave, bond->curr_active_slave);
 	} else {
 		alb_set_slave_mac_addr(bond->curr_active_slave, bond_dev->dev_addr);
