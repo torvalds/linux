@@ -694,16 +694,17 @@
 #define __NR_process_vm_writev		(__NR_Linux + 305)
 #define __NR_kcmp			(__NR_Linux + 306)
 #define __NR_finit_module		(__NR_Linux + 307)
+#define __NR_getdents64			(__NR_Linux + 308)
 
 /*
  * Offset of the last Linux 64-bit flavoured syscall
  */
-#define __NR_Linux_syscalls		307
+#define __NR_Linux_syscalls		308
 
 #endif /* _MIPS_SIM == _MIPS_SIM_ABI64 */
 
 #define __NR_64_Linux			5000
-#define __NR_64_Linux_syscalls		307
+#define __NR_64_Linux_syscalls		308
 
 #if _MIPS_SIM == _MIPS_SIM_NABI32
 

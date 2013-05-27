@@ -120,7 +120,7 @@ static int cros_ec_spi_receive_response(struct cros_ec_device *ec_dev,
 
 		for (end = ptr + EC_MSG_PREAMBLE_COUNT; ptr != end; ptr++) {
 			if (*ptr == EC_MSG_HEADER) {
-				dev_dbg(ec_dev->dev, "msg found at %ld\n",
+				dev_dbg(ec_dev->dev, "msg found at %zd\n",
 					ptr - ec_dev->din);
 				break;
 			}
@@ -154,7 +154,7 @@ static int cros_ec_spi_receive_response(struct cros_ec_device *ec_dev,
 		 * maximum-supported transfer size.
 		 */
 		todo = min(need_len, 256);
-		dev_dbg(ec_dev->dev, "loop, todo=%d, need_len=%d, ptr=%ld\n",
+		dev_dbg(ec_dev->dev, "loop, todo=%d, need_len=%d, ptr=%zd\n",
 			todo, need_len, ptr - ec_dev->din);
 
 		memset(&trans, '\0', sizeof(trans));
@@ -178,7 +178,7 @@ static int cros_ec_spi_receive_response(struct cros_ec_device *ec_dev,
 		need_len -= todo;
 	}
 
-	dev_dbg(ec_dev->dev, "loop done, ptr=%ld\n", ptr - ec_dev->din);
+	dev_dbg(ec_dev->dev, "loop done, ptr=%zd\n", ptr - ec_dev->din);
 
 	return 0;
 }

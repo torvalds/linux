@@ -2188,7 +2188,7 @@ static int maybe_resize_metadata_dev(struct dm_target *ti, bool *need_commit)
 
 	*need_commit = false;
 
-	metadata_dev_size = get_metadata_dev_size(pool->md_dev);
+	metadata_dev_size = get_metadata_dev_size_in_blocks(pool->md_dev);
 
 	r = dm_pool_get_metadata_dev_size(pool->pmd, &sb_metadata_dev_size);
 	if (r) {
@@ -2197,7 +2197,7 @@ static int maybe_resize_metadata_dev(struct dm_target *ti, bool *need_commit)
 	}
 
 	if (metadata_dev_size < sb_metadata_dev_size) {
-		DMERR("metadata device (%llu sectors) too small: expected %llu",
+		DMERR("metadata device (%llu blocks) too small: expected %llu",
 		      metadata_dev_size, sb_metadata_dev_size);
 		return -EINVAL;
 

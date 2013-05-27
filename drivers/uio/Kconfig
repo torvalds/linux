@@ -45,6 +45,7 @@ config UIO_PDRV_GENIRQ
 
 config UIO_DMEM_GENIRQ
 	tristate "Userspace platform driver with generic irq and dynamic memory"
+	depends on HAS_DMA
 	help
 	  Platform driver for Userspace I/O devices, including generic
 	  interrupt handling code. Shared interrupts are not supported.

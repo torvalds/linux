@@ -623,7 +623,7 @@ static void __init mop500_init_machine(void)
 	sdi0_reg_info.gpios[0].gpio = GPIO_SDMMC_1V8_3V_SEL;
 
 	mop500_pinmaps_init();
-	parent = u8500_init_devices(&ab8500_platdata);
+	parent = u8500_init_devices();
 
 	for (i = 0; i < ARRAY_SIZE(mop500_platform_devs); i++)
 		mop500_platform_devs[i]->dev.parent = parent;
@@ -660,7 +660,7 @@ static void __init snowball_init_machine(void)
 	sdi0_reg_info.gpios[0].gpio = SNOWBALL_SDMMC_1V8_3V_GPIO;
 
 	snowball_pinmaps_init();
-	parent = u8500_init_devices(&ab8500_platdata);
+	parent = u8500_init_devices();
 
 	for (i = 0; i < ARRAY_SIZE(snowball_platform_devs); i++)
 		snowball_platform_devs[i]->dev.parent = parent;
@@ -698,7 +698,7 @@ static void __init hrefv60_init_machine(void)
 	sdi0_reg_info.gpios[0].gpio = HREFV60_SDMMC_1V8_3V_GPIO;
 
 	hrefv60_pinmaps_init();
-	parent = u8500_init_devices(&ab8500_platdata);
+	parent = u8500_init_devices();
 
 	for (i = 0; i < ARRAY_SIZE(mop500_platform_devs); i++)
 		mop500_platform_devs[i]->dev.parent = parent;

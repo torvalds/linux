@@ -19,7 +19,7 @@
 #include <linux/irq.h>
 #include <linux/interrupt.h>
 
-static int irq;
+static int irq = -1;
 
 static irqreturn_t dummy_interrupt(int irq, void *dev_id)
 {
@@ -36,6 +36,10 @@ static irqreturn_t dummy_interrupt(int irq, void *dev_id)
 
 static int __init dummy_irq_init(void)
 {
+	if (irq < 0) {
+		printk(KERN_ERR "dummy-irq: no IRQ given.  Use irq=N\n");
+		return -EIO;
+	}
 	if (request_irq(irq, &dummy_interrupt, IRQF_SHARED, "dummy_irq", &irq)) {
 		printk(KERN_ERR "dummy-irq: cannot register IRQ %d\n", irq);
 		return -EIO;

@@ -312,6 +312,8 @@ void arch_cpu_idle(void)
 {
 	if (cpuidle_idle_call())
 		x86_idle();
+	else
+		local_irq_enable();
 }
 
 /*
@@ -368,9 +370,6 @@ void amd_e400_remove_cpu(int cpu)
  */
 static void amd_e400_idle(void)
 {
-	if (need_resched())
-		return;
-
 	if (!amd_e400_c1e_detected) {
 		u32 lo, hi;
 

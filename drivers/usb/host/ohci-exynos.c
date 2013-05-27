@@ -98,8 +98,6 @@ static const struct hc_driver exynos_ohci_hc_driver = {
 	.start_port_reset	= ohci_start_port_reset,
 };
 
-static u64 ohci_exynos_dma_mask = DMA_BIT_MASK(32);
-
 static int exynos_ohci_probe(struct platform_device *pdev)
 {
 	struct exynos4_ohci_platdata *pdata = pdev->dev.platform_data;
@@ -117,7 +115,7 @@ static int exynos_ohci_probe(struct platform_device *pdev)
 	 * Once we move to full device tree support this will vanish off.
 	 */
 	if (!pdev->dev.dma_mask)
-		pdev->dev.dma_mask = &ohci_exynos_dma_mask;
+		pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
 	if (!pdev->dev.coherent_dma_mask)
 		pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 
