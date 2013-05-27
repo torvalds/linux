@@ -983,18 +983,7 @@ static struct pci_driver lpc_ich_driver = {
 	.remove		= lpc_ich_remove,
 };
 
-static int __init lpc_ich_init(void)
-{
-	return pci_register_driver(&lpc_ich_driver);
-}
-
-static void __exit lpc_ich_exit(void)
-{
-	pci_unregister_driver(&lpc_ich_driver);
-}
-
-module_init(lpc_ich_init);
-module_exit(lpc_ich_exit);
+module_pci_driver(lpc_ich_driver);
 
 MODULE_AUTHOR("Aaron Sierra <asierra@xes-inc.com>");
 MODULE_DESCRIPTION("LPC interface for Intel ICH");
