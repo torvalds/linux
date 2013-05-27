@@ -721,15 +721,13 @@ static bool efx_check_tx_flush_complete(struct efx_nic *efx)
 /* Flush all the transmit queues, and continue flushing receive queues until
  * they're all flushed. Wait for the DRAIN events to be recieved so that there
  * are no more RX and TX events left on any channel. */
-int efx_nic_flush_queues(struct efx_nic *efx)
+static int efx_farch_do_flush(struct efx_nic *efx)
 {
 	unsigned timeout = msecs_to_jiffies(5000); /* 5s for all flushes and drains */
 	struct efx_channel *channel;
 	struct efx_rx_queue *rx_queue;
 	struct efx_tx_queue *tx_queue;
 	int rc = 0;
-
-	efx->type->prepare_flush(efx);
 
 	efx_for_each_channel(channel, efx) {
 		efx_for_each_channel_tx_queue(tx_queue, channel) {
@@ -791,7 +789,32 @@ int efx_nic_flush_queues(struct efx_nic *efx)
 		atomic_set(&efx->rxq_flush_outstanding, 0);
 	}
 
-	efx->type->finish_flush(efx);
+	return rc;
+}
+
+int efx_farch_fini_dmaq(struct efx_nic *efx)
+{
+	struct efx_channel *channel;
+	struct efx_tx_queue *tx_queue;
+	struct efx_rx_queue *rx_queue;
+	int rc = 0;
+
+	/* Do not attempt to write to the NIC during EEH recovery */
+	if (efx->state != STATE_RECOVERY) {
+		/* Only perform flush if DMA is enabled */
+		if (efx->pci_dev->is_busmaster) {
+			efx->type->prepare_flush(efx);
+			rc = efx_farch_do_flush(efx);
+			efx->type->finish_flush(efx);
+		}
+
+		efx_for_each_channel(channel, efx) {
+			efx_for_each_channel_rx_queue(rx_queue, channel)
+				efx_nic_fini_rx(rx_queue);
+			efx_for_each_channel_tx_queue(tx_queue, channel)
+				efx_nic_fini_tx(tx_queue);
+		}
+	}
 
 	return rc;
 }

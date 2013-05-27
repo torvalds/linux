@@ -685,6 +685,7 @@ const struct efx_nic_type siena_a0_nic_type = {
 	.reset = efx_mcdi_reset,
 	.probe_port = efx_mcdi_port_probe,
 	.remove_port = efx_mcdi_port_remove,
+	.fini_dmaq = efx_farch_fini_dmaq,
 	.prepare_flush = siena_prepare_flush,
 	.finish_flush = siena_finish_flush,
 	.update_stats = siena_update_nic_stats,

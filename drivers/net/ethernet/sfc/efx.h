@@ -23,7 +23,6 @@ extern void efx_remove_tx_queue(struct efx_tx_queue *tx_queue);
 extern void efx_init_tx_queue(struct efx_tx_queue *tx_queue);
 extern void efx_init_tx_queue_core_txq(struct efx_tx_queue *tx_queue);
 extern void efx_fini_tx_queue(struct efx_tx_queue *tx_queue);
-extern void efx_release_tx_buffers(struct efx_tx_queue *tx_queue);
 extern netdev_tx_t
 efx_hard_start_xmit(struct sk_buff *skb, struct net_device *net_dev);
 extern netdev_tx_t

@@ -260,14 +260,12 @@ extern int falcon_probe_board(struct efx_nic *efx, u16 revision_info);
 /* TX data path */
 extern int efx_nic_probe_tx(struct efx_tx_queue *tx_queue);
 extern void efx_nic_init_tx(struct efx_tx_queue *tx_queue);
-extern void efx_nic_fini_tx(struct efx_tx_queue *tx_queue);
 extern void efx_nic_remove_tx(struct efx_tx_queue *tx_queue);
 extern void efx_nic_push_buffers(struct efx_tx_queue *tx_queue);
 
 /* RX data path */
 extern int efx_nic_probe_rx(struct efx_rx_queue *rx_queue);
 extern void efx_nic_init_rx(struct efx_rx_queue *rx_queue);
-extern void efx_nic_fini_rx(struct efx_rx_queue *rx_queue);
 extern void efx_nic_remove_rx(struct efx_rx_queue *rx_queue);
 extern void efx_nic_notify_rx_desc(struct efx_rx_queue *rx_queue);
 extern void efx_nic_generate_fill_event(struct efx_rx_queue *rx_queue);
@@ -319,7 +317,7 @@ static inline int efx_nic_irq_test_irq_cpu(struct efx_nic *efx)
 }
 
 /* Global Resources */
-extern int efx_nic_flush_queues(struct efx_nic *efx);
+extern int efx_farch_fini_dmaq(struct efx_nic *efx);
 extern void siena_prepare_flush(struct efx_nic *efx);
 extern void siena_finish_flush(struct efx_nic *efx);
 extern void falcon_start_nic_stats(struct efx_nic *efx);

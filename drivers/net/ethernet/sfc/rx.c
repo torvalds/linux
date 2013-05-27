@@ -757,7 +757,6 @@ void efx_fini_rx_queue(struct efx_rx_queue *rx_queue)
 		  "shutting down RX queue %d\n", efx_rx_queue_index(rx_queue));
 
 	del_timer_sync(&rx_queue->slow_fill);
-	efx_nic_fini_rx(rx_queue);
 
 	/* Release RX buffers from the current read ptr to the write ptr */
 	if (rx_queue->buffer) {
