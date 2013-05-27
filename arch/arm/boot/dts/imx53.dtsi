@@ -390,6 +390,14 @@
 							MX53_PAD_SD1_CLK__CSPI_SCLK   0x1d5
 						>;
 					};
+
+					pinctrl_cspi_2: cspigrp-2 {
+						fsl,pins = <
+							MX53_PAD_EIM_D22__CSPI_MISO 0x1d5
+							MX53_PAD_EIM_D28__CSPI_MOSI 0x1d5
+							MX53_PAD_EIM_D21__CSPI_SCLK 0x1d5
+						>;
+					};
 				};
 
 				ecspi1 {
