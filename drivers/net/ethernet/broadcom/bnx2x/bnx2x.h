@@ -2342,4 +2342,9 @@ enum {
 
 #define NUM_MACS	8
 
+enum bnx2x_pci_bus_speed {
+	BNX2X_PCI_LINK_SPEED_2500 = 2500,
+	BNX2X_PCI_LINK_SPEED_5000 = 5000,
+	BNX2X_PCI_LINK_SPEED_8000 = 8000
+};
 #endif /* bnx2x.h */

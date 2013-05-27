@@ -12111,15 +12111,26 @@ err_out:
 	return rc;
 }
 
-static void bnx2x_get_pcie_width_speed(struct bnx2x *bp, int *width, int *speed)
+static void bnx2x_get_pcie_width_speed(struct bnx2x *bp, int *width,
+				       enum bnx2x_pci_bus_speed *speed)
 {
-	u32 val = 0;
+	u32 link_speed, val = 0;
 
 	pci_read_config_dword(bp->pdev, PCICFG_LINK_CONTROL, &val);
 	*width = (val & PCICFG_LINK_WIDTH) >> PCICFG_LINK_WIDTH_SHIFT;
 
-	/* return value of 1=2.5GHz 2=5GHz */
-	*speed = (val & PCICFG_LINK_SPEED) >> PCICFG_LINK_SPEED_SHIFT;
+	link_speed = (val & PCICFG_LINK_SPEED) >> PCICFG_LINK_SPEED_SHIFT;
+
+	switch (link_speed) {
+	case 3:
+		*speed = BNX2X_PCI_LINK_SPEED_8000;
+		break;
+	case 2:
+		*speed = BNX2X_PCI_LINK_SPEED_5000;
+		break;
+	default:
+		*speed = BNX2X_PCI_LINK_SPEED_2500;
+	}
 }
 
 static int bnx2x_check_firmware(struct bnx2x *bp)
@@ -12482,7 +12493,8 @@ static int bnx2x_init_one(struct pci_dev *pdev,
 {
 	struct net_device *dev = NULL;
 	struct bnx2x *bp;
-	int pcie_width, pcie_speed;
+	int pcie_width;
+	enum bnx2x_pci_bus_speed pcie_speed;
 	int rc, max_non_def_sbs;
 	int rx_count, tx_count, rss_count, doorbell_size;
 	int max_cos_est;
@@ -12634,15 +12646,15 @@ static int bnx2x_init_one(struct pci_dev *pdev,
 	BNX2X_DEV_INFO("got pcie width %d and speed %d\n",
 		       pcie_width, pcie_speed);
 
-	BNX2X_DEV_INFO(
-		"%s (%c%d) PCI-E x%d %s found at mem %lx, IRQ %d, node addr %pM\n",
-		    board_info[ent->driver_data].name,
-		    (CHIP_REV(bp) >> 12) + 'A', (CHIP_METAL(bp) >> 4),
-		    pcie_width,
-		    ((!CHIP_IS_E2(bp) && pcie_speed == 2) ||
-		     (CHIP_IS_E2(bp) && pcie_speed == 1)) ?
-		    "5GHz (Gen2)" : "2.5GHz",
-		    dev->base_addr, bp->pdev->irq, dev->dev_addr);
+	BNX2X_DEV_INFO("%s (%c%d) PCI-E x%d %s found at mem %lx, IRQ %d, node addr %pM\n",
+		       board_info[ent->driver_data].name,
+		       (CHIP_REV(bp) >> 12) + 'A', (CHIP_METAL(bp) >> 4),
+		       pcie_width,
+		       pcie_speed == BNX2X_PCI_LINK_SPEED_2500 ? "2.5GHz" :
+		       pcie_speed == BNX2X_PCI_LINK_SPEED_5000 ? "5.0GHz" :
+		       pcie_speed == BNX2X_PCI_LINK_SPEED_8000 ? "8.0GHz" :
+		       "Unknown",
+		       dev->base_addr, bp->pdev->irq, dev->dev_addr);
 
 	return 0;
 
