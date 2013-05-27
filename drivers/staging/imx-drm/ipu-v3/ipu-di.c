@@ -614,11 +614,11 @@ int ipu_di_init_sync_panel(struct ipu_di *di, struct ipu_di_signal_cfg *sig)
 				di_gen |= DI_GEN_POLARITY_7;
 		}
 		if (sig->Vsync_pol) {
-			if (sig->hsync_pin == 3)
+			if (sig->vsync_pin == 3)
 				di_gen |= DI_GEN_POLARITY_3;
-			else if (sig->hsync_pin == 6)
+			else if (sig->vsync_pin == 6)
 				di_gen |= DI_GEN_POLARITY_6;
-			else if (sig->hsync_pin == 8)
+			else if (sig->vsync_pin == 8)
 				di_gen |= DI_GEN_POLARITY_8;
 		}
 	}
