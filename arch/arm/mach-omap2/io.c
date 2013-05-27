@@ -586,6 +586,19 @@ void __init am33xx_init_early(void)
 }
 #endif
 
+#ifdef CONFIG_SOC_AM43XX
+void __init am43xx_init_early(void)
+{
+	omap2_set_globals_tap(AM335X_CLASS,
+			      AM33XX_L4_WK_IO_ADDRESS(AM33XX_TAP_BASE));
+	omap2_set_globals_control(AM33XX_L4_WK_IO_ADDRESS(AM33XX_CTRL_BASE),
+				  NULL);
+	omap2_set_globals_prm(AM33XX_L4_WK_IO_ADDRESS(AM43XX_PRCM_BASE));
+	omap2_set_globals_cm(AM33XX_L4_WK_IO_ADDRESS(AM43XX_PRCM_BASE), NULL);
+	omap3xxx_check_revision();
+}
+#endif
+
 #ifdef CONFIG_ARCH_OMAP4
 void __init omap4430_init_early(void)
 {
