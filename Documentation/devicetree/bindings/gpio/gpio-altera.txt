@@ -17,6 +17,8 @@ Altera GPIO specific properties:
 - width: Width of the GPIO bank, range from 1-32
 - level_trigger: Specifies whether the GPIO interrupt is level trigger.
   This field is required if the Altera GPIO controller used has IRQ enabled.
+- edge_type: Specifies the GPIO edge trigger type. This field will only exist
+  if IRQ is enabled in the core and level_trigger is 0
 
 Note: If the Altera GPIO is set to be built as a module, peripherals that uses
 Altera GPIO as interrupt-parent should be a module so that the peripheral

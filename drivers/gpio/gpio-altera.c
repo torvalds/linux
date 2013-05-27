@@ -34,12 +34,16 @@
 #define ALTERA_GPIO_EDGE_CAP		0xc
 #define ALTERA_GPIO_OUTSET		0x10
 #define ALTERA_GPIO_OUTCLEAR		0x14
+#define ALTERA_IRQ_RISING		0
+#define ALTERA_IRQ_FALLING		1
+#define ALTERA_IRQ_BOTH			2
 
 struct altera_gpio_chip {
 	struct of_mm_gpio_chip mmchip;
 	struct irq_domain *irq;	/* GPIO controller IRQ number */
 	spinlock_t gpio_lock;	/* Lock used for synchronization */
 	int level_trigger;
+	int edge_type;
 	int hwirq;
 };
 
@@ -76,8 +80,26 @@ static void altera_gpio_irq_mask(struct irq_data *d)
 static int altera_gpio_irq_set_type(struct irq_data *d,
 				unsigned int type)
 {
+	struct altera_gpio_chip *altera_gc = irq_data_get_irq_chip_data(d);
+
 	if (type == IRQ_TYPE_NONE)
 		return 0;
+
+	if (altera_gc->level_trigger) {
+		if (type == IRQ_TYPE_LEVEL_HIGH)
+			return 0;
+	} else {
+		if (type == IRQ_TYPE_EDGE_RISING &&
+			altera_gc->edge_type == ALTERA_IRQ_RISING)
+			return 0;
+		else if (type == IRQ_TYPE_EDGE_FALLING &&
+			altera_gc->edge_type == ALTERA_IRQ_FALLING)
+			return 0;
+		else if (type == IRQ_TYPE_EDGE_BOTH &&
+			altera_gc->edge_type == ALTERA_IRQ_BOTH)
+			return 0;
+	}
+
 	return -EINVAL;
 }
 
@@ -275,6 +297,18 @@ int altera_gpio_probe(struct platform_device *pdev)
 		goto teardown;
 	}
 	altera_gc->level_trigger = reg;
+
+	/* If it is not level triggered PIO
+	   Check what edge type it is */
+	if (!altera_gc->level_trigger) {
+		if (of_property_read_u32(node, "edge_type", &reg)) {
+			ret = -EINVAL;
+			pr_err("%s: edge_type value not set in device tree\n"
+				, node->full_name);
+			goto teardown;
+		}
+	}
+	altera_gc->edge_type = reg;
 
 	irq_set_handler_data(altera_gc->hwirq, altera_gc);
 	irq_set_chained_handler(altera_gc->hwirq, altera_gpio_irq_handler);
