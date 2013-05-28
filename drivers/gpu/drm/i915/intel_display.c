@@ -3523,18 +3523,12 @@ static void i9xx_pfit_enable(struct intel_crtc *crtc)
 	if (!crtc->config.gmch_pfit.control)
 		return;
 
+	/*
+	 * The panel fitter should only be adjusted whilst the pipe is disabled,
+	 * according to register description and PRM.
+	 */
 	WARN_ON(I915_READ(PFIT_CONTROL) & PFIT_ENABLE);
 	assert_pipe_disabled(dev_priv, crtc->pipe);
-
-	/*
-	 * Enable automatic panel scaling so that non-native modes
-	 * fill the screen.  The panel fitter should only be
-	 * adjusted whilst the pipe is disabled, according to
-	 * register description and PRM.
-	 */
-	DRM_DEBUG_KMS("applying panel-fitter: %x, %x\n",
-		      pipe_config->gmch_pfit.control,
-		      pipe_config->gmch_pfit.pgm_ratios);
 
 	I915_WRITE(PFIT_PGM_RATIOS, pipe_config->gmch_pfit.pgm_ratios);
 	I915_WRITE(PFIT_CONTROL, pipe_config->gmch_pfit.control);
@@ -4857,9 +4851,6 @@ static int i9xx_crtc_mode_set(struct drm_crtc *crtc,
 			dspcntr |= DISPPLANE_SEL_PIPE_B;
 	}
 
-	DRM_DEBUG_KMS("Mode for pipe %c:\n", pipe_name(pipe));
-	drm_mode_debug_printmodeline(mode);
-
 	intel_set_pipe_timings(intel_crtc, mode, adjusted_mode);
 
 	/* pipesrc and dspsize control the size that is scaled from,
@@ -5661,9 +5652,6 @@ static int ironlake_crtc_mode_set(struct drm_crtc *crtc,
 	/* Ensure that the cursor is valid for the new mode before changing... */
 	intel_crtc_update_cursor(crtc, true);
 
-	DRM_DEBUG_KMS("Mode for pipe %c:\n", pipe_name(pipe));
-	drm_mode_debug_printmodeline(mode);
-
 	/* CPU eDP is the only output that doesn't need a PCH PLL of its own. */
 	if (intel_crtc->config.has_pch_encoder) {
 		struct intel_pch_pll *pll;
@@ -5873,9 +5861,6 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 
 	/* Ensure that the cursor is valid for the new mode before changing... */
 	intel_crtc_update_cursor(crtc, true);
-
-	DRM_DEBUG_KMS("Mode for pipe %c:\n", pipe_name(pipe));
-	drm_mode_debug_printmodeline(mode);
 
 	if (intel_crtc->config.has_dp_encoder)
 		intel_dp_set_m_n(intel_crtc);
@@ -7685,6 +7670,35 @@ pipe_config_set_bpp(struct drm_crtc *crtc,
 	return bpp;
 }
 
+static void intel_dump_pipe_config(struct intel_crtc *crtc,
+				   struct intel_crtc_config *pipe_config,
+				   const char *context)
+{
+	DRM_DEBUG_KMS("[CRTC:%d]%s config for pipe %c\n", crtc->base.base.id,
+		      context, pipe_name(crtc->pipe));
+
+	DRM_DEBUG_KMS("cpu_transcoder: %c\n", transcoder_name(pipe_config->cpu_transcoder));
+	DRM_DEBUG_KMS("pipe bpp: %i, dithering: %i\n",
+		      pipe_config->pipe_bpp, pipe_config->dither);
+	DRM_DEBUG_KMS("fdi/pch: %i, lanes: %i, gmch_m: %u, gmch_n: %u, link_m: %u, link_n: %u, tu: %u\n",
+		      pipe_config->has_pch_encoder,
+		      pipe_config->fdi_lanes,
+		      pipe_config->fdi_m_n.gmch_m, pipe_config->fdi_m_n.gmch_n,
+		      pipe_config->fdi_m_n.link_m, pipe_config->fdi_m_n.link_n,
+		      pipe_config->fdi_m_n.tu);
+	DRM_DEBUG_KMS("requested mode:\n");
+	drm_mode_debug_printmodeline(&pipe_config->requested_mode);
+	DRM_DEBUG_KMS("adjusted mode:\n");
+	drm_mode_debug_printmodeline(&pipe_config->adjusted_mode);
+	DRM_DEBUG_KMS("gmch pfit: control: 0x%08x, ratios: 0x%08x, lvds border: 0x%08x\n",
+		      pipe_config->gmch_pfit.control,
+		      pipe_config->gmch_pfit.pgm_ratios,
+		      pipe_config->gmch_pfit.lvds_border_bits);
+	DRM_DEBUG_KMS("pch pfit: pos: 0x%08x, size: 0x%08x\n",
+		      pipe_config->pch_pfit.pos,
+		      pipe_config->pch_pfit.size);
+}
+
 static struct intel_crtc_config *
 intel_modeset_pipe_config(struct drm_crtc *crtc,
 			  struct drm_framebuffer *fb,
@@ -7754,8 +7768,6 @@ encoder_retry:
 		retry = false;
 		goto encoder_retry;
 	}
-
-	DRM_DEBUG_KMS("[CRTC:%d]\n", crtc->base.id);
 
 	pipe_config->dither = pipe_config->pipe_bpp != plane_bpp;
 	DRM_DEBUG_KMS("plane bpp: %i, pipe bpp: %i, dithering: %i\n",
@@ -8113,9 +8125,14 @@ intel_modeset_check_state(struct drm_device *dev)
 		     "crtc active state doesn't match with hw state "
 		     "(expected %i, found %i)\n", crtc->active, active);
 
-		WARN(active &&
-		     !intel_pipe_config_compare(dev, &crtc->config, &pipe_config),
-		     "pipe state doesn't match!\n");
+		if (active &&
+		    !intel_pipe_config_compare(dev, &crtc->config, &pipe_config)) {
+			WARN(1, "pipe state doesn't match!\n");
+			intel_dump_pipe_config(crtc, &pipe_config,
+					       "[hw state]");
+			intel_dump_pipe_config(crtc, &crtc->config,
+					       "[sw state]");
+		}
 	}
 }
 
@@ -8155,6 +8172,8 @@ static int __intel_set_mode(struct drm_crtc *crtc,
 
 			goto out;
 		}
+		intel_dump_pipe_config(to_intel_crtc(crtc), pipe_config,
+				       "[modeset]");
 	}
 
 	for_each_intel_crtc_masked(dev, disable_pipes, intel_crtc)
@@ -8491,12 +8510,6 @@ static int intel_crtc_set_config(struct drm_mode_set *set)
 		goto fail;
 
 	if (config->mode_changed) {
-		if (set->mode) {
-			DRM_DEBUG_KMS("attempting to set mode from"
-					" userspace\n");
-			drm_mode_debug_printmodeline(set->mode);
-		}
-
 		ret = intel_set_mode(set->crtc, set->mode,
 				     set->x, set->y, set->fb);
 		if (ret) {
@@ -9516,6 +9529,7 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 	for_each_pipe(pipe) {
 		crtc = to_intel_crtc(dev_priv->pipe_to_crtc_mapping[pipe]);
 		intel_sanitize_crtc(crtc);
+		intel_dump_pipe_config(crtc, &crtc->config, "[setup_hw_state]");
 	}
 
 	if (force_restore) {
