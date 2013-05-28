@@ -6,8 +6,8 @@
  * Licensed under GPLv2 or later.
  */
 /dts-v1/;
-/include/ "at91sam9260.dtsi"
-/include/ "usb_a9260_common.dtsi"
+#include "at91sam9260.dtsi"
+#include "usb_a9260_common.dtsi"
 
 / {
 	model = "Calao USB A9260";
