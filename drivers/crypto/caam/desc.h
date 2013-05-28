@@ -1294,10 +1294,10 @@ struct sec4_sg_entry {
 #define SQOUT_SGF	0x01000000
 
 /* Appends to a previous pointer */
-#define SQOUT_PRE	0x00800000
+#define SQOUT_PRE	SQIN_PRE
 
 /* Restore sequence with pointer/length */
-#define SQOUT_RTO	0x00200000
+#define SQOUT_RTO	 SQIN_RTO
 
 /* Use extended length following pointer */
 #define SQOUT_EXT	0x00400000

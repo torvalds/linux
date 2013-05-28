@@ -122,7 +122,8 @@ static inline void append_cmd_ptr_extlen(u32 *desc, dma_addr_t ptr,
 					 unsigned int len, u32 command)
 {
 	append_cmd(desc, command);
-	append_ptr(desc, ptr);
+	if (!(command & (SQIN_RTO | SQIN_PRE)))
+		append_ptr(desc, ptr);
 	append_cmd(desc, len);
 }
 
@@ -186,7 +187,10 @@ static inline void append_seq_##cmd##_ptr_intlen(u32 *desc, dma_addr_t ptr, \
 						 u32 options) \
 { \
 	PRINT_POS; \
-	append_cmd_ptr(desc, ptr, len, CMD_SEQ_##op##_PTR | options); \
+	if (options & (SQIN_RTO | SQIN_PRE)) \
+		append_cmd(desc, CMD_SEQ_##op##_PTR | len | options); \
+	else \
+		append_cmd_ptr(desc, ptr, len, CMD_SEQ_##op##_PTR | options); \
 }
 APPEND_SEQ_PTR_INTLEN(in, IN)
 APPEND_SEQ_PTR_INTLEN(out, OUT)
