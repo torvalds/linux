@@ -1,4 +1,5 @@
 /*
+ * Copyright (C) 2013 Altera Corporation
  * Copyright (C) 2011-2012 Tobias Klauser <tklauser@distanz.ch>
  * Copyright (C) 2004 Microtronix Datacom Ltd
  * Copyright (C) 1991, 1992 Linus Torvalds
@@ -24,100 +25,6 @@
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
 static int do_signal(struct pt_regs *regs, sigset_t *oldset, int in_syscall);
-
-/*
- * Atomically swap in the new signal mask, and wait for a signal.
- */
-asmlinkage int do_sigsuspend(struct pt_regs *regs)
-{
-	old_sigset_t mask = regs->r4;  /* Verify correct syscall reg */
-	sigset_t saveset;
-
-	mask &= _BLOCKABLE;
-	spin_lock_irq(&current->sighand->siglock);
-	saveset = current->blocked;
-	siginitset(&current->blocked, mask);
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-
-#ifdef CONFIG_MMU
-	regs->r2 = EINTR;
-	regs->r7 = 1;
-#else
-	regs->r2 = -EINTR;
-#endif
-	while (1) {
-		current->state = TASK_INTERRUPTIBLE;
-		schedule();
-		if (do_signal(regs, &saveset, 0))
-			return -EINTR;
-	}
-}
-
-asmlinkage int do_rt_sigsuspend(struct pt_regs *regs)
-{
-	sigset_t *unewset = (sigset_t *)regs->r4;
-	size_t sigsetsize = (size_t)regs->r5;
-	sigset_t saveset, newset;
-
-	/* XXX: Don't preclude handling different sized sigset_t's.  */
-	if (sigsetsize != sizeof(sigset_t))
-		return -EINVAL;
-
-	if (copy_from_user(&newset, unewset, sizeof(newset)))
-		return -EFAULT;
-	sigdelsetmask(&newset, ~_BLOCKABLE);
-
-	spin_lock_irq(&current->sighand->siglock);
-	saveset = current->blocked;
-	current->blocked = newset;
-	recalc_sigpending();
-	spin_unlock_irq(&current->sighand->siglock);
-
-#ifdef CONFIG_MMU
-	regs->r2 = EINTR;
-	regs->r7 = 1;
-#else
-	regs->r2 = -EINTR;
-#endif
-	while (1) {
-		current->state = TASK_INTERRUPTIBLE;
-		schedule();
-		if (do_signal(regs, &saveset, 0))
-			return -EINTR;
-	}
-}
-
-asmlinkage int sys_sigaction(int sig, const struct old_sigaction *act,
-			     struct old_sigaction *oact)
-{
-	struct k_sigaction new_ka, old_ka;
-	int ret;
-
-	if (act) {
-		old_sigset_t mask;
-		if (!access_ok(VERIFY_READ, act, sizeof(*act)) ||
-			__get_user(new_ka.sa.sa_handler, &act->sa_handler) ||
-			__get_user(new_ka.sa.sa_restorer, &act->sa_restorer))
-			return -EFAULT;
-		__get_user(new_ka.sa.sa_flags, &act->sa_flags);
-		__get_user(mask, &act->sa_mask);
-		siginitset(&new_ka.sa.sa_mask, mask);
-	}
-
-	ret = do_sigaction(sig, act ? &new_ka : NULL, oact ? &old_ka : NULL);
-
-	if (!ret && oact) {
-		if (!access_ok(VERIFY_WRITE, oact, sizeof(*oact)) ||
-			__put_user(old_ka.sa.sa_handler, &oact->sa_handler) ||
-			__put_user(old_ka.sa.sa_restorer, &oact->sa_restorer))
-			return -EFAULT;
-		__put_user(old_ka.sa.sa_flags, &oact->sa_flags);
-		__put_user(old_ka.sa.sa_mask.sig[0], &oact->sa_mask);
-	}
-
-	return ret;
-}
 
 /*
  * Do a signal return; undo the signal stack.
@@ -227,7 +134,8 @@ static inline int rt_restore_ucontext(struct pt_regs *regs,
 	regs->estatus = (regs->estatus & 0xffffffff);
 	regs->orig_r2 = -1;		/* disable syscall checks */
 
-	if (do_sigaltstack(&uc->uc_stack, NULL, regs->sp) == -EFAULT)
+	err |= restore_altstack(&uc->uc_stack);
+	if (err)
 		goto badframe;
 
 	*pr2 = regs->r2;
@@ -447,11 +355,7 @@ static void setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	/* Create the ucontext.  */
 	err |= __put_user(0, &frame->uc.uc_flags);
 	err |= __put_user(0, &frame->uc.uc_link);
-	err |= __put_user((void *)current->sas_ss_sp,
-			&frame->uc.uc_stack.ss_sp);
-	err |= __put_user(sas_ss_flags(regs->sp),
-			&frame->uc.uc_stack.ss_flags);
-	err |= __put_user(current->sas_ss_size, &frame->uc.uc_stack.ss_size);
+	err |= __save_altstack(&frame->uc.uc_stack, regs->sp);
 	err |= rt_setup_ucontext(&frame->uc, regs);
 	err |= copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
 

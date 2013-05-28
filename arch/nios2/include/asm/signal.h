@@ -41,23 +41,7 @@ typedef struct {
 
 #include <asm-generic/signal-defs.h>
 
-struct old_sigaction {
-	__sighandler_t sa_handler;
-	old_sigset_t sa_mask;
-	unsigned long sa_flags;
-	void (*sa_restorer)(void);
-};
-
-struct sigaction {
-	__sighandler_t sa_handler;
-	unsigned long sa_flags;
-	void (*sa_restorer)(void);
-	sigset_t sa_mask;		/* mask last for extensibility */
-};
-
-struct k_sigaction {
-	struct sigaction sa;
-};
+#define __ARCH_HAS_SA_RESTORER
 
 #include <asm/sigcontext.h>
 #undef __HAVE_ARCH_SIG_BITOPS

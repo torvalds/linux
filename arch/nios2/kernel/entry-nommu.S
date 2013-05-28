@@ -277,33 +277,10 @@ ENTRY(__sys_clone)
 	RESTORE_SWITCH_STACK
 	ret
 
-ENTRY(sys_sigsuspend)
-	mov	r4, sp
-	SAVE_SWITCH_STACK
-	call	do_sigsuspend
-	RESTORE_SWITCH_STACK
-	ret
-
-ENTRY(sys_rt_sigsuspend)
-	mov	r4, sp
-	SAVE_SWITCH_STACK
-	call	do_rt_sigsuspend
-	RESTORE_SWITCH_STACK
-	ret
-
 ENTRY(sys_sigreturn)
 	mov	r4, sp
 	SAVE_SWITCH_STACK
 	call	do_sigreturn
-	RESTORE_SWITCH_STACK
-	ret
-
-ENTRY(sys_sigaltstack)
-	ldw	r4, PT_R4(sp)
-	ldw	r5, PT_R5(sp)
-	ldw	r6, PT_SP(sp)
-	SAVE_SWITCH_STACK
-	call	do_sigaltstack
 	RESTORE_SWITCH_STACK
 	ret
 

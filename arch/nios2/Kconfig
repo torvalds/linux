@@ -14,6 +14,8 @@ config NIOS2
 	select MODULES_USE_ELF_RELA
 	select IRQ_DOMAIN
 	select SOC_BUS
+	select OLD_SIGACTION
+	select OLD_SIGSUSPEND
 
 config GENERIC_CSUM
 	def_bool y

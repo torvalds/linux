@@ -132,7 +132,4 @@
 
 #define ELF_PLATFORM  (NULL)
 
-#define SET_PERSONALITY(ex) \
-	set_personality(PER_LINUX_32BIT | (current->personality & (~PER_MASK)))
-
 #endif /* _ASM_NIOS2_ELF_H */

@@ -20,7 +20,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
-
+#include <linux/ptrace.h>
 #include <linux/kgdb.h>
 #include <linux/kdebug.h>
 #include <linux/io.h>
