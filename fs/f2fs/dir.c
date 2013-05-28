@@ -346,8 +346,14 @@ static struct page *init_inode_metadata(struct inode *inode,
 
 	init_dent_inode(name, page);
 
-	if (is_inode_flag_set(F2FS_I(inode), FI_INC_LINK))
+	/*
+	 * This file should be checkpointed during fsync.
+	 * We lost i_pino from now on.
+	 */
+	if (is_inode_flag_set(F2FS_I(inode), FI_INC_LINK)) {
+		set_cp_file(inode);
 		inc_nlink(inode);
+	}
 	return page;
 
 error:

@@ -181,12 +181,6 @@ static int f2fs_link(struct dentry *old_dentry, struct inode *dir,
 	if (err)
 		goto out;
 
-	/*
-	 * This file should be checkpointed during fsync.
-	 * We lost i_pino from now on.
-	 */
-	set_cp_file(inode);
-
 	d_instantiate(dentry, inode);
 	return 0;
 out:
