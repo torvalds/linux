@@ -6216,9 +6216,14 @@ __init static int tracer_alloc_buffers(void)
 
 	trace_init_cmdlines();
 
-	register_tracer(&nop_trace);
-
+	/*
+	 * register_tracer() might reference current_trace, so it
+	 * needs to be set before we register anything. This is
+	 * just a bootstrap of current_trace anyway.
+	 */
 	global_trace.current_trace = &nop_trace;
+
+	register_tracer(&nop_trace);
 
 	/* All seems OK, enable tracing */
 	tracing_disabled = 0;
