@@ -521,8 +521,10 @@ void remove_dirty_dir_inode(struct inode *inode)
 	spin_unlock(&sbi->dir_inode_lock);
 
 	/* Only from the recovery routine */
-	if (is_inode_flag_set(F2FS_I(inode), FI_DELAY_IPUT))
+	if (is_inode_flag_set(F2FS_I(inode), FI_DELAY_IPUT)) {
+		clear_inode_flag(F2FS_I(inode), FI_DELAY_IPUT);
 		iput(inode);
+	}
 }
 
 struct inode *check_dirty_dir_inode(struct f2fs_sb_info *sbi, nid_t ino)
