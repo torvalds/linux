@@ -89,16 +89,6 @@ config SND_BFIN_AD73311_SE
 	  Enter the GPIO used to control AD73311's SE pin. Acceptable
 	  values are 0 to 7
 
-config SND_BF5XX_TDM
-	tristate "SoC I2S(TDM mode) Audio for the ADI BF5xx chip"
-	depends on (BLACKFIN && SND_SOC)
-	select SND_BF5XX_SOC_SPORT
-	help
-	  Say Y or M if you want to add support for codecs attached to
-	  the Blackfin SPORT (synchronous serial ports) interface in TDM
-	  mode.
-	  You will also need to select the audio interfaces to support below.
-
 config SND_BF5XX_AC97
 	tristate "SoC AC97 Audio for the ADI BF5xx chip"
 	depends on BLACKFIN
@@ -172,9 +162,6 @@ config SND_BF5XX_SOC_I2S
 	tristate
 
 config SND_BF6XX_SOC_I2S
-	tristate
-
-config SND_BF5XX_SOC_TDM
 	tristate
 
 config SND_BF5XX_SOC_AC97
