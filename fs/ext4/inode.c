@@ -3938,7 +3938,6 @@ void ext4_truncate(struct inode *inode)
 	unsigned int credits;
 	handle_t *handle;
 	struct address_space *mapping = inode->i_mapping;
-	loff_t page_len;
 
 	/*
 	 * There is a possibility that we're either freeing the inode
@@ -3982,14 +3981,8 @@ void ext4_truncate(struct inode *inode)
 		return;
 	}
 
-	if (inode->i_size % PAGE_CACHE_SIZE != 0) {
-		page_len = PAGE_CACHE_SIZE -
-			(inode->i_size & (PAGE_CACHE_SIZE - 1));
-
-		if (ext4_discard_partial_page_buffers(handle,
-				mapping, inode->i_size, page_len, 0))
-			goto out_stop;
-	}
+	if (inode->i_size & (inode->i_sb->s_blocksize - 1))
+		ext4_block_truncate_page(handle, mapping, inode->i_size);
 
 	/*
 	 * We add the inode to the orphan list, so that if this
