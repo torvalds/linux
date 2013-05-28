@@ -357,7 +357,7 @@ config USB_FUSBH200_HCD
 	module will be called fusbh200-hcd.
 
 config USB_OHCI_HCD
-	tristate "OHCI HCD support"
+	tristate "OHCI HCD (USB 1.1) support"
 	depends on USB_ARCH_HAS_OHCI
 	select ISP1301_OMAP if MACH_OMAP_H2 || MACH_OMAP_H3
 	depends on USB_ISP1301 || !ARCH_LPC32XX
@@ -426,8 +426,8 @@ config USB_OHCI_HCD_PPC_OF
 	default USB_OHCI_HCD_PPC_OF_BE || USB_OHCI_HCD_PPC_OF_LE
 
 config USB_OHCI_HCD_PCI
-	bool "OHCI support for PCI-bus USB controllers"
-	depends on PCI && (STB03xxx || PPC_MPC52xx || USB_OHCI_HCD_PPC_OF)
+	tristate "OHCI support for PCI-bus USB controllers"
+	depends on PCI
 	default y
 	select USB_OHCI_LITTLE_ENDIAN
 	---help---
