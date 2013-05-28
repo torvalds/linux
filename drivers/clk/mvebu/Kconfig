@@ -1,13 +1,7 @@
-config MVEBU_CLK_CORE
-       bool
+config MVEBU_CLK_COMMON
+	bool
 
 config MVEBU_CLK_CPU
-       bool
-
-config MVEBU_CLK_GATING
-       bool
-
-config MVEBU_CLK_COMMON
 	bool
 
 config ARMADA_370_CLK
