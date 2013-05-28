@@ -242,7 +242,7 @@ struct wm_coeff_ctl {
 	struct list_head list;
 	void *cache;
 	size_t len;
-	unsigned int dirty:1;
+	unsigned int set:1;
 	struct snd_kcontrol *kcontrol;
 };
 
@@ -424,7 +424,7 @@ static int wm_coeff_put(struct snd_kcontrol *kcontrol,
 	memcpy(ctl->cache, p, ctl->len);
 
 	if (!ctl->enabled) {
-		ctl->dirty = 1;
+		ctl->set = 1;
 		return 0;
 	}
 
@@ -760,7 +760,7 @@ static int wm_coeff_init_control_caches(struct wm_coeff *wm_coeff)
 
 	list_for_each_entry(ctl, &wm_coeff->ctl_list,
 			    list) {
-		if (!ctl->enabled || ctl->dirty)
+		if (!ctl->enabled || ctl->set)
 			continue;
 		ret = wm_coeff_read_control(ctl->kcontrol,
 					    ctl->cache,
@@ -781,13 +781,12 @@ static int wm_coeff_sync_controls(struct wm_coeff *wm_coeff)
 			    list) {
 		if (!ctl->enabled)
 			continue;
-		if (ctl->dirty) {
+		if (ctl->set) {
 			ret = wm_coeff_write_control(ctl->kcontrol,
 						     ctl->cache,
 						     ctl->len);
 			if (ret < 0)
 				return ret;
-			ctl->dirty = 0;
 		}
 	}
 
@@ -864,7 +863,7 @@ static int wm_adsp_create_control(struct snd_soc_codec *codec,
 		goto err_ctl;
 	}
 	ctl->enabled = 1;
-	ctl->dirty = 0;
+	ctl->set = 0;
 	ctl->ops.xget = wm_coeff_get;
 	ctl->ops.xput = wm_coeff_put;
 	ctl->card = codec->card->snd_card;
@@ -1434,12 +1433,12 @@ int wm_adsp1_event(struct snd_soc_dapm_widget *w,
 		if (ret != 0)
 			goto err;
 
-		/* Initialize caches for enabled and non-dirty controls */
+		/* Initialize caches for enabled and unset controls */
 		ret = wm_coeff_init_control_caches(dsp->wm_coeff);
 		if (ret != 0)
 			goto err;
 
-		/* Sync dirty controls */
+		/* Sync set controls */
 		ret = wm_coeff_sync_controls(dsp->wm_coeff);
 		if (ret != 0)
 			goto err;
@@ -1591,12 +1590,12 @@ int wm_adsp2_event(struct snd_soc_dapm_widget *w,
 		if (ret != 0)
 			goto err;
 
-		/* Initialize caches for enabled and non-dirty controls */
+		/* Initialize caches for enabled and unset controls */
 		ret = wm_coeff_init_control_caches(dsp->wm_coeff);
 		if (ret != 0)
 			goto err;
 
-		/* Sync dirty controls */
+		/* Sync set controls */
 		ret = wm_coeff_sync_controls(dsp->wm_coeff);
 		if (ret != 0)
 			goto err;
