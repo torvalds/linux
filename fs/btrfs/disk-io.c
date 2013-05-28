@@ -2879,6 +2879,8 @@ retry_root_backup:
 		return ret;
 	}
 
+	btrfs_qgroup_rescan_resume(fs_info);
+
 	return 0;
 
 fail_qgroup:
