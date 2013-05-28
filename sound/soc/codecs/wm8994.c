@@ -3833,6 +3833,11 @@ static irqreturn_t wm8958_mic_irq(int irq, void *data)
 			dev_dbg(codec->dev, "Ignoring removed jack\n");
 			return IRQ_HANDLED;
 		}
+	} else if (!(reg & WM8958_MICD_STS)) {
+		snd_soc_jack_report(wm8994->micdet[0].jack, 0,
+				    SND_JACK_MECHANICAL | SND_JACK_HEADSET |
+				    wm8994->btn_mask);
+		goto out;
 	}
 
 	if (wm8994->mic_detecting)
