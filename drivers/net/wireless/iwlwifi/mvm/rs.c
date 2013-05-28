@@ -2782,6 +2782,13 @@ static void rs_fill_link_cmd(struct iwl_mvm *mvm,
 
 	lq_cmd->agg_time_limit =
 		cpu_to_le16(LINK_QUAL_AGG_TIME_LIMIT_DEF);
+
+	/*
+	 * overwrite if needed, pass aggregation time limit
+	 * to uCode in uSec - This is racy - but heh, at least it helps...
+	 */
+	if (mvm && BT_MBOX_MSG(&mvm->last_bt_notif, 3, TRAFFIC_LOAD) >= 2)
+		lq_cmd->agg_time_limit = cpu_to_le16(1200);
 }
 
 static void *rs_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
