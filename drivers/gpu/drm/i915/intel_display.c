@@ -5844,17 +5844,8 @@ static int haswell_crtc_mode_set(struct drm_crtc *crtc,
 		num_connectors++;
 	}
 
-	/* We are not sure yet this won't happen. */
-	WARN(!HAS_PCH_LPT(dev), "Unexpected PCH type %d\n",
-	     INTEL_PCH_TYPE(dev));
-
 	WARN(num_connectors != 1, "%d connectors attached to pipe %c\n",
 	     num_connectors, pipe_name(pipe));
-
-	WARN_ON(I915_READ(PIPECONF(intel_crtc->config.cpu_transcoder)) &
-		(PIPECONF_ENABLE | I965_PIPECONF_ACTIVE));
-
-	WARN_ON(I915_READ(DSPCNTR(plane)) & DISPLAY_PLANE_ENABLE);
 
 	if (!intel_ddi_pll_mode_set(crtc, adjusted_mode->clock))
 		return -EINVAL;
