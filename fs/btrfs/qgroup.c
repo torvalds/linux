@@ -430,8 +430,10 @@ out:
 	}
 	btrfs_free_path(path);
 
-	if (ret < 0)
+	if (ret < 0) {
 		ulist_free(fs_info->qgroup_ulist);
+		fs_info->qgroup_ulist = NULL;
+	}
 
 	return ret < 0 ? ret : 0;
 }
@@ -932,8 +934,10 @@ out_free_root:
 		kfree(quota_root);
 	}
 out:
-	if (ret)
+	if (ret) {
 		ulist_free(fs_info->qgroup_ulist);
+		fs_info->qgroup_ulist = NULL;
+	}
 	mutex_unlock(&fs_info->qgroup_ioctl_lock);
 	return ret;
 }
