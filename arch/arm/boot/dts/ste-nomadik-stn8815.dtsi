@@ -21,18 +21,23 @@
 		cache-level = <2>;
 	};
 
-	mtu0 {
+	mtu0: mtu@101e2000 {
 		/* Nomadik system timer */
+		compatible = "st,nomadik-mtu";
 		reg = <0x101e2000 0x1000>;
 		interrupt-parent = <&vica>;
 		interrupts = <4>;
+		clocks = <&timclk>, <&pclk>;
+		clock-names = "timclk", "apb_pclk";
 	};
 
-	mtu1 {
+	mtu1: mtu@101e3000 {
 		/* Secondary timer */
 		reg = <0x101e3000 0x1000>;
 		interrupt-parent = <&vica>;
 		interrupts = <5>;
+		clocks = <&timclk>, <&pclk>;
+		clock-names = "timclk", "apb_pclk";
 	};
 
 	gpio0: gpio@101e4000 {
@@ -45,6 +50,7 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 		gpio-bank = <0>;
+		clocks = <&pclk>;
 	};
 
 	gpio1: gpio@101e5000 {
@@ -57,6 +63,7 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 		gpio-bank = <1>;
+		clocks = <&pclk>;
 	};
 
 	gpio2: gpio@101e6000 {
@@ -69,6 +76,7 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 		gpio-bank = <2>;
+		clocks = <&pclk>;
 	};
 
 	gpio3: gpio@101e7000 {
@@ -81,10 +89,117 @@
 		gpio-controller;
 		#gpio-cells = <2>;
 		gpio-bank = <3>;
+		clocks = <&pclk>;
 	};
 
 	pinctrl {
 		compatible = "stericsson,nmk-pinctrl-stn8815";
+		/* Pin configurations */
+		uart0 {
+			uart0_default_mux: uart0_mux {
+				u0_default_mux {
+					ste,function = "u0";
+					ste,pins = "u0_a_1";
+				};
+			};
+		};
+		uart1 {
+			uart1_default_mux: uart1_mux {
+				u1_default_mux {
+					ste,function = "u1";
+					ste,pins = "u1_a_1";
+				};
+			};
+		};
+		mmcsd {
+			mmcsd_default_mux: mmcsd_mux {
+				mmcsd_default_mux {
+					ste,function = "mmcsd";
+					ste,pins = "mmcsd_a_1";
+				};
+			};
+			mmcsd_default_mode: mmcsd_default {
+				mmcsd_default_cfg1 {
+					/* MCCLK */
+					ste,pins = "GPIO8_B10";
+					ste,output = <0>;
+				};
+				mmcsd_default_cfg2 {
+					/* MCCMDDIR, MCDAT0DIR, MCDAT31DIR */
+					ste,pins = "GPIO10_C11", "GPIO15_A12",
+					"GPIO16_C13";
+					ste,output = <1>;
+				};
+				mmcsd_default_cfg3 {
+					/* MCCMD, MCDAT3-0, MCMSFBCLK */
+					ste,pins = "GPIO9_A10", "GPIO11_B11",
+					"GPIO12_A11", "GPIO13_C12",
+					"GPIO14_B12", "GPIO24_C15";
+					ste,input = <1>;
+				};
+			};
+		};
+		i2c0 {
+			i2c0_default_mode: i2c0_default {
+				i2c0_default_cfg {
+					ste,pins = "GPIO62_D3", "GPIO63_D2";
+					ste,input = <1>;
+				};
+			};
+		};
+		i2c1 {
+			i2c1_default_mode: i2c1_default {
+				i2c1_default_cfg {
+					ste,pins = "GPIO53_L4", "GPIO54_L3";
+					ste,input = <1>;
+				};
+			};
+		};
+		i2c2 {
+			i2c2_default_mode: i2c2_default {
+				i2c2_default_cfg {
+					ste,pins = "GPIO73_C21", "GPIO74_C20";
+					ste,input = <1>;
+				};
+			};
+		};
+	};
+
+	src: src@101e0000 {
+		compatible = "stericsson,nomadik-src";
+		reg = <0x101e0000 0x1000>;
+		clocks {
+			/*
+			 * Dummy clock for primecells
+			 */
+			pclk: pclk@0 {
+				#clock-cells = <0>;
+				compatible = "fixed-clock";
+				clock-frequency = <0>;
+			};
+			/*
+			 * The 2.4 MHz TIMCLK reference clock is active at
+			 * boot time, this is actually the MXTALCLK @19.2 MHz
+			 * divided by 8. This clock is used by the timers and
+			 * watchdog. See page 105 ff.
+			 */
+			timclk: timclk@2.4M {
+				#clock-cells = <0>;
+				compatible = "fixed-clock";
+				clock-frequency = <2400000>;
+			};
+			/*
+			 * At boot time, PLL2 is set to generate a set of
+			 * fixed clocks, one of them is CLK48, the 48 MHz
+			 * clock, routed to the UART, MMC/SD, I2C, IrDA,
+			 * USB and SSP blocks.
+			 */
+			clk48: clk48@48M {
+				#clock-cells = <0>;
+				compatible = "fixed-clock";
+				clock-frequency = <48000000>;
+			};
+		};
 	};
 
 	/* A NAND flash of 128 MiB */
@@ -97,6 +212,7 @@
 			<0x41000000 0x2000>,	/* NAND Base ADDR */
 			<0x40800000 0x2000>;	/* NAND Base CMD */
 		reg-names = "fsmc_regs", "nand_data", "nand_addr", "nand_cmd";
+		clocks = <&pclk>;
 		status = "okay";
 
 		partition@0 {
@@ -144,6 +260,8 @@
 			<&gpio1 30 0>; /* scl */
 		#address-cells = <1>;
 		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c0_default_mode>;
 
 		stw4811@2d {
 			   compatible = "st,stw4811";
@@ -158,6 +276,8 @@
 			<&gpio1 21 0>; /* scl */
 		#address-cells = <1>;
 		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c1_default_mode>;
 
 		camera@2d {
 			   compatible = "st,camera";
@@ -180,6 +300,9 @@
 			<&gpio2 9 0>; /* scl */
 		#address-cells = <1>;
 		#size-cells = <0>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2c2_default_mode>;
+
 		stw4811@2d {
 			   compatible = "st,stw4811-usb";
 			   reg = <0x2d>;
@@ -211,6 +334,10 @@
 			reg = <0x101fd000 0x1000>;
 			interrupt-parent = <&vica>;
 			interrupts = <12>;
+			clocks = <&clk48>, <&pclk>;
+			clock-names = "uartclk", "apb_pclk";
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart0_default_mux>;
 		};
 
 		uart1: uart@101fb000 {
@@ -218,6 +345,10 @@
 			reg = <0x101fb000 0x1000>;
 			interrupt-parent = <&vica>;
 			interrupts = <17>;
+			clocks = <&clk48>, <&pclk>;
+			clock-names = "uartclk", "apb_pclk";
+			pinctrl-names = "default";
+			pinctrl-0 = <&uart1_default_mux>;
 		};
 
 		uart2: uart@101f2000 {
@@ -225,17 +356,23 @@
 			reg = <0x101f2000 0x1000>;
 			interrupt-parent = <&vica>;
 			interrupts = <28>;
+			clocks = <&clk48>, <&pclk>;
+			clock-names = "uartclk", "apb_pclk";
 			status = "disabled";
 		};
 
 		rng: rng@101b0000 {
 			compatible = "arm,primecell";
 			reg = <0x101b0000 0x1000>;
+			clocks = <&clk48>, <&pclk>;
+			clock-names = "rng", "apb_pclk";
 		};
 
 		rtc: rtc@101e8000 {
 			compatible = "arm,pl031", "arm,primecell";
 			reg = <0x101e8000 0x1000>;
+			clocks = <&pclk>;
+			clock-names = "apb_pclk";
 			interrupt-parent = <&vica>;
 			interrupts = <10>;
 		};
@@ -243,6 +380,8 @@
 		mmcsd: sdi@101f6000 {
 			compatible = "arm,pl18x", "arm,primecell";
 			reg = <0x101f6000 0x1000>;
+			clocks = <&clk48>, <&pclk>;
+			clock-names = "mclk", "apb_pclk";
 			interrupt-parent = <&vica>;
 			interrupts = <22>;
 			max-frequency = <48000000>;
@@ -251,6 +390,8 @@
 			mmc-cap-sd-highspeed;
 			cd-gpios = <&gpio3 15 0x1>;
 			cd-inverted;
+			pinctrl-names = "default";
+			pinctrl-0 = <&mmcsd_default_mux>, <&mmcsd_default_mode>;
 		};
 	};
 };

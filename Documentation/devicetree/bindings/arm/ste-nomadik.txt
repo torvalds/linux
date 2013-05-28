@@ -3,6 +3,11 @@ ST-Ericsson Nomadik Device Tree Bindings
 For various board the "board" node may contain specific properties
 that pertain to this particular board, such as board-specific GPIOs.
 
+Required root node property: src
+- Nomadik System and reset controller used for basic chip control, clock
+  and reset line control.
+- compatible: must be "stericsson,nomadik,src"
+
 Boards with the Nomadik SoC include:
 
 S8815 "MiniKit" manufactured by Calao Systems:
