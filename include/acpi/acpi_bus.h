@@ -472,7 +472,6 @@ int register_acpi_bus_type(struct acpi_bus_type *);
 int unregister_acpi_bus_type(struct acpi_bus_type *);
 
 struct acpi_pci_root {
-	struct list_head node;
 	struct acpi_device * device;
 	struct pci_bus *bus;
 	u16 segment;

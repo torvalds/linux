@@ -65,10 +65,6 @@ static struct acpi_scan_handler pci_root_handler = {
 	.detach = acpi_pci_root_remove,
 };
 
-/* Lock to protect both acpi_pci_roots lists */
-static DEFINE_MUTEX(acpi_pci_root_lock);
-static LIST_HEAD(acpi_pci_roots);
-
 static DEFINE_MUTEX(osc_lock);
 
 /**
@@ -423,7 +419,6 @@ static int acpi_pci_root_add(struct acpi_device *device,
 		}
 	}
 
-	INIT_LIST_HEAD(&root->node);
 	root->device = device;
 	root->segment = segment & 0xFFFF;
 	strcpy(acpi_device_name(device), ACPI_PCI_ROOT_DEVICE_NAME);
@@ -447,10 +442,6 @@ static int acpi_pci_root_add(struct acpi_device *device,
 	 * TBD: Need PCI interface for enumeration/configuration of roots.
 	 */
 
-	mutex_lock(&acpi_pci_root_lock);
-	list_add_tail(&root->node, &acpi_pci_roots);
-	mutex_unlock(&acpi_pci_root_lock);
-
 	/*
 	 * Scan the Root Bridge
 	 * --------------------
@@ -464,7 +455,7 @@ static int acpi_pci_root_add(struct acpi_device *device,
 			    "Bus %04x:%02x not present in PCI namespace\n",
 			    root->segment, (unsigned int)root->secondary.start);
 		result = -ENODEV;
-		goto out_del_root;
+		goto end;
 	}
 
 	/* Indicate support for various _OSC capabilities. */
@@ -545,11 +536,6 @@ static int acpi_pci_root_add(struct acpi_device *device,
 	pci_bus_add_devices(root->bus);
 	return 1;
 
-out_del_root:
-	mutex_lock(&acpi_pci_root_lock);
-	list_del(&root->node);
-	mutex_unlock(&acpi_pci_root_lock);
-
 end:
 	kfree(root);
 	return result;
@@ -566,9 +552,6 @@ static void acpi_pci_root_remove(struct acpi_device *device)
 
 	pci_remove_root_bus(root->bus);
 
-	mutex_lock(&acpi_pci_root_lock);
-	list_del(&root->node);
-	mutex_unlock(&acpi_pci_root_lock);
 	kfree(root);
 }
 
