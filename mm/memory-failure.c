@@ -785,10 +785,10 @@ static struct page_state {
 	{ sc|dirty,	sc,		"clean swapcache",	me_swapcache_clean },
 
 	{ mlock|dirty,	mlock|dirty,	"dirty mlocked LRU",	me_pagecache_dirty },
-	{ mlock,	mlock,		"clean mlocked LRU",	me_pagecache_clean },
+	{ mlock|dirty,	mlock,		"clean mlocked LRU",	me_pagecache_clean },
 
 	{ unevict|dirty, unevict|dirty,	"dirty unevictable LRU", me_pagecache_dirty },
-	{ unevict,	unevict,	"clean unevictable LRU", me_pagecache_clean },
+	{ unevict|dirty, unevict,	"clean unevictable LRU", me_pagecache_clean },
 
 	{ lru|dirty,	lru|dirty,	"dirty LRU",	me_pagecache_dirty },
 	{ lru|dirty,	lru,		"clean LRU",	me_pagecache_clean },

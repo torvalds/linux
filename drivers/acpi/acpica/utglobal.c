@@ -359,6 +359,8 @@ acpi_status acpi_ut_init_globals(void)
 
 #ifdef ACPI_DISASSEMBLER
 	acpi_gbl_external_list = NULL;
+	acpi_gbl_num_external_methods = 0;
+	acpi_gbl_resolved_external_methods = 0;
 #endif
 
 #ifdef ACPI_DEBUG_OUTPUT

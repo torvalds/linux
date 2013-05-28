@@ -418,6 +418,7 @@ static int audio_get_intf_req(struct usb_function *f,
 
 	req->context = audio;
 	req->complete = f_audio_complete;
+	len = min_t(size_t, sizeof(value), len);
 	memcpy(req->buf, &value, len);
 
 	return len;

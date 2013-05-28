@@ -215,15 +215,15 @@ static int vidioc_s_modulator(struct file *file, void *priv,
 }
 
 static int vidioc_s_frequency(struct file *file, void *priv,
-				struct v4l2_frequency *f)
+				const struct v4l2_frequency *f)
 {
 	struct keene_device *radio = video_drvdata(file);
+	unsigned freq = f->frequency;
 
 	if (f->tuner != 0 || f->type != V4L2_TUNER_RADIO)
 		return -EINVAL;
-	f->frequency = clamp(f->frequency,
-			FREQ_MIN * FREQ_MUL, FREQ_MAX * FREQ_MUL);
-	return keene_cmd_main(radio, f->frequency, true);
+	freq = clamp(freq, FREQ_MIN * FREQ_MUL, FREQ_MAX * FREQ_MUL);
+	return keene_cmd_main(radio, freq, true);
 }
 
 static int vidioc_g_frequency(struct file *file, void *priv,

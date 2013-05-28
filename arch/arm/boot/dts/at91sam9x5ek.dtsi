@@ -13,7 +13,7 @@
 	compatible = "atmel,at91sam9x5ek", "atmel,at91sam9x5", "atmel,at91sam9";
 
 	chosen {
-		bootargs = "128M console=ttyS0,115200 root=/dev/mtdblock1 rw rootfstype=ubifs ubi.mtd=1 root=ubi0:rootfs";
+		bootargs = "console=ttyS0,115200 root=/dev/mtdblock1 rw rootfstype=ubifs ubi.mtd=1 root=ubi0:rootfs";
 	};
 
 	ahb {
@@ -52,20 +52,7 @@
 				status = "okay";
 			};
 
-			macb0: ethernet@f802c000 {
-				phy-mode = "rmii";
-				status = "okay";
-			};
-
 			i2c0: i2c@f8010000 {
-				status = "okay";
-			};
-
-			i2c1: i2c@f8014000 {
-				status = "okay";
-			};
-
-			i2c2: i2c@f8018000 {
 				status = "okay";
 			};
 
@@ -82,6 +69,16 @@
 						atmel,pins =
 							<3 14 0x0 0x5>;	/* PD14 gpio CD pin pull up and deglitch */
 					};
+				};
+			};
+
+			spi0: spi@f0000000 {
+				status = "okay";
+				cs-gpios = <&pioA 14 0>, <0>, <0>, <0>;
+				m25p80@0 {
+					compatible = "atmel,at25df321a";
+					spi-max-frequency = <50000000>;
+					reg = <0>;
 				};
 			};
 		};

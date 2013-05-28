@@ -291,7 +291,9 @@ extern const char gfar_driver_version[];
 #define RCTRL_PADDING(x)	((x << 16) & RCTRL_PAL_MASK)
 
 
-#define RSTAT_CLEAR_RHALT       0x00800000
+#define RSTAT_CLEAR_RHALT	0x00800000
+#define RSTAT_CLEAR_RXF0	0x00000080
+#define RSTAT_RXF_MASK		0x000000ff
 
 #define TCTRL_IPCSEN		0x00004000
 #define TCTRL_TUCSEN		0x00002000
@@ -627,7 +629,6 @@ struct rmon_mib
 };
 
 struct gfar_extra_stats {
-	atomic64_t kernel_dropped;
 	atomic64_t rx_large;
 	atomic64_t rx_short;
 	atomic64_t rx_nonoctet;
@@ -1180,8 +1181,7 @@ extern void stop_gfar(struct net_device *dev);
 extern void gfar_halt(struct net_device *dev);
 extern void gfar_phy_test(struct mii_bus *bus, struct phy_device *phydev,
 		int enable, u32 regnum, u32 read);
-extern void gfar_configure_coalescing(struct gfar_private *priv,
-		unsigned long tx_mask, unsigned long rx_mask);
+extern void gfar_configure_coalescing_all(struct gfar_private *priv);
 void gfar_init_sysfs(struct net_device *dev);
 int gfar_set_features(struct net_device *dev, netdev_features_t features);
 extern void gfar_check_rx_parser_mode(struct gfar_private *priv);

@@ -95,7 +95,9 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 
 		CHECK_FULL_REGS(child->thread.regs);
 		if (index < PT_FPR0) {
-			tmp = ptrace_get_reg(child, index);
+			ret = ptrace_get_reg(child, index, &tmp);
+			if (ret)
+				break;
 		} else {
 			flush_fp_to_thread(child);
 			/*
@@ -148,7 +150,11 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 			tmp = ((u64 *)child->thread.fpr)
 				[FPRINDEX_3264(numReg)];
 		} else { /* register within PT_REGS struct */
-			tmp = ptrace_get_reg(child, numReg);
+			unsigned long tmp2;
+			ret = ptrace_get_reg(child, numReg, &tmp2);
+			if (ret)
+				break;
+			tmp = tmp2;
 		} 
 		reg32bits = ((u32*)&tmp)[part];
 		ret = put_user(reg32bits, (u32 __user *)data);
@@ -232,7 +238,10 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 			break;
 		CHECK_FULL_REGS(child->thread.regs);
 		if (numReg < PT_FPR0) {
-			unsigned long freg = ptrace_get_reg(child, numReg);
+			unsigned long freg;
+			ret = ptrace_get_reg(child, numReg, &freg);
+			if (ret)
+				break;
 			if (index % 2)
 				freg = (freg & ~0xfffffffful) | (data & 0xfffffffful);
 			else

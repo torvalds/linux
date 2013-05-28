@@ -36,11 +36,18 @@
 #include <media/davinci/vpbe_osd.h>
 
 #define DAVINCI_SYSTEM_MODULE_BASE	0x01c40000
+#define SYSMOD_VDAC_CONFIG		0x2c
 #define SYSMOD_VIDCLKCTL		0x38
 #define SYSMOD_VPSS_CLKCTL		0x44
 #define SYSMOD_VDD3P3VPWDN		0x48
 #define SYSMOD_VSCLKDIS			0x6c
 #define SYSMOD_PUPDCTL1			0x7c
+
+/* VPSS CLKCTL bit definitions */
+#define VPSS_MUXSEL_EXTCLK_ENABLE	BIT(1)
+#define VPSS_VENCCLKEN_ENABLE		BIT(3)
+#define VPSS_DACCLKEN_ENABLE		BIT(4)
+#define VPSS_PLLC2SYSCLK5_ENABLE	BIT(5)
 
 extern void __iomem *davinci_sysmod_base;
 #define DAVINCI_SYSMOD_VIRT(x)	(davinci_sysmod_base + (x))
@@ -74,7 +81,7 @@ void __init dm355_init(void);
 void dm355_init_spi0(unsigned chipselect_mask,
 		const struct spi_board_info *info, unsigned len);
 void __init dm355_init_asp1(u32 evt_enable, struct snd_platform_data *pdata);
-void dm355_set_vpfe_config(struct vpfe_config *cfg);
+int dm355_init_video(struct vpfe_config *, struct vpbe_config *);
 
 /* DM365 function declarations */
 void __init dm365_init(void);
@@ -84,7 +91,7 @@ void __init dm365_init_ks(struct davinci_ks_platform_data *pdata);
 void __init dm365_init_rtc(void);
 void dm365_init_spi0(unsigned chipselect_mask,
 			const struct spi_board_info *info, unsigned len);
-void dm365_set_vpfe_config(struct vpfe_config *cfg);
+int dm365_init_video(struct vpfe_config *, struct vpbe_config *);
 
 /* DM644x function declarations */
 void __init dm644x_init(void);

@@ -575,7 +575,6 @@ static void usb6fire_pcm_init_urb(struct pcm_urb *urb,
 	urb->instance.pipe = in ? usb_rcvisocpipe(chip->dev, ep)
 			: usb_sndisocpipe(chip->dev, ep);
 	urb->instance.interval = 1;
-	urb->instance.transfer_flags = URB_ISO_ASAP;
 	urb->instance.complete = handler;
 	urb->instance.context = urb;
 	urb->instance.number_of_packets = PCM_N_PACKETS_PER_URB;

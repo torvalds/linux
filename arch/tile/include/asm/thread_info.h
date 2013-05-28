@@ -124,6 +124,7 @@ extern void _cpu_idle(void);
 #define TIF_SECCOMP		6	/* secure computing */
 #define TIF_MEMDIE		7	/* OOM killer at work */
 #define TIF_NOTIFY_RESUME	8	/* callback before returning to user */
+#define TIF_SYSCALL_TRACEPOINT	9	/* syscall tracepoint instrumentation */
 
 #define _TIF_SIGPENDING		(1<<TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED	(1<<TIF_NEED_RESCHED)
@@ -134,11 +135,18 @@ extern void _cpu_idle(void);
 #define _TIF_SECCOMP		(1<<TIF_SECCOMP)
 #define _TIF_MEMDIE		(1<<TIF_MEMDIE)
 #define _TIF_NOTIFY_RESUME	(1<<TIF_NOTIFY_RESUME)
+#define _TIF_SYSCALL_TRACEPOINT	(1<<TIF_SYSCALL_TRACEPOINT)
 
 /* Work to do on any return to user space. */
 #define _TIF_ALLWORK_MASK \
   (_TIF_SIGPENDING|_TIF_NEED_RESCHED|_TIF_SINGLESTEP|\
    _TIF_ASYNC_TLB|_TIF_NOTIFY_RESUME)
+
+/* Work to do at syscall entry. */
+#define _TIF_SYSCALL_ENTRY_WORK (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_TRACEPOINT)
+
+/* Work to do at syscall exit. */
+#define _TIF_SYSCALL_EXIT_WORK (_TIF_SYSCALL_TRACE | _TIF_SYSCALL_TRACEPOINT)
 
 /*
  * Thread-synchronous status.
@@ -152,8 +160,6 @@ extern void _cpu_idle(void);
 #endif
 #define TS_POLLING		0x0004	/* in idle loop but not sleeping */
 #define TS_RESTORE_SIGMASK	0x0008	/* restore signal mask in do_signal */
-
-#define tsk_is_polling(t) (task_thread_info(t)->status & TS_POLLING)
 
 #ifndef __ASSEMBLY__
 #define HAVE_SET_RESTORE_SIGMASK	1

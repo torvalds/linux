@@ -173,7 +173,7 @@ const char *snd_hda_get_jack_type(u32 cfg)
 		"Line Out", "Speaker", "HP Out", "CD",
 		"SPDIF Out", "Digital Out", "Modem Line", "Modem Hand",
 		"Line In", "Aux", "Mic", "Telephony",
-		"SPDIF In", "Digitial In", "Reserved", "Other"
+		"SPDIF In", "Digital In", "Reserved", "Other"
 	};
 
 	return jack_types[(cfg & AC_DEFCFG_DEVICE)
@@ -494,7 +494,7 @@ static unsigned int get_num_conns(struct hda_codec *codec, hda_nid_t nid)
 
 int snd_hda_get_num_raw_conns(struct hda_codec *codec, hda_nid_t nid)
 {
-	return get_num_conns(codec, nid) & AC_CLIST_LENGTH;
+	return snd_hda_get_raw_connections(codec, nid, NULL, 0);
 }
 
 /**
@@ -516,9 +516,6 @@ int snd_hda_get_raw_connections(struct hda_codec *codec, hda_nid_t nid,
 	unsigned int shift, num_elems, mask;
 	hda_nid_t prev_nid;
 	int null_count = 0;
-
-	if (snd_BUG_ON(!conn_list || max_conns <= 0))
-		return -EINVAL;
 
 	parm = get_num_conns(codec, nid);
 	if (!parm)
@@ -545,7 +542,8 @@ int snd_hda_get_raw_connections(struct hda_codec *codec, hda_nid_t nid,
 					  AC_VERB_GET_CONNECT_LIST, 0);
 		if (parm == -1 && codec->bus->rirb_error)
 			return -EIO;
-		conn_list[0] = parm & mask;
+		if (conn_list)
+			conn_list[0] = parm & mask;
 		return 1;
 	}
 
@@ -580,14 +578,20 @@ int snd_hda_get_raw_connections(struct hda_codec *codec, hda_nid_t nid,
 				continue;
 			}
 			for (n = prev_nid + 1; n <= val; n++) {
-				if (conns >= max_conns)
-					return -ENOSPC;
-				conn_list[conns++] = n;
+				if (conn_list) {
+					if (conns >= max_conns)
+						return -ENOSPC;
+					conn_list[conns] = n;
+				}
+				conns++;
 			}
 		} else {
-			if (conns >= max_conns)
-				return -ENOSPC;
-			conn_list[conns++] = val;
+			if (conn_list) {
+				if (conns >= max_conns)
+					return -ENOSPC;
+				conn_list[conns] = val;
+			}
+			conns++;
 		}
 		prev_nid = val;
 	}
@@ -676,6 +680,9 @@ int snd_hda_queue_unsol_event(struct hda_bus *bus, u32 res, u32 res_ex)
 {
 	struct hda_bus_unsolicited *unsol;
 	unsigned int wp;
+
+	if (!bus || !bus->workq)
+		return 0;
 
 	trace_hda_unsol_event(bus, res, res_ex);
 	unsol = bus->unsol;
@@ -1061,8 +1068,14 @@ int snd_hda_add_pincfg(struct hda_codec *codec, struct snd_array *list,
 {
 	struct hda_pincfg *pin;
 
+	/* the check below may be invalid when pins are added by a fixup
+	 * dynamically (e.g. via snd_hda_codec_update_widgets()), so disabled
+	 * for now
+	 */
+	/*
 	if (get_wcaps_type(get_wcaps(codec, nid)) != AC_WID_PIN)
 		return -EINVAL;
+	*/
 
 	pin = look_up_pincfg(codec, list, nid);
 	if (!pin) {
@@ -1296,8 +1309,6 @@ static bool snd_hda_codec_get_supported_ps(struct hda_codec *codec,
 
 static unsigned int hda_set_power_state(struct hda_codec *codec,
 				unsigned int power_state);
-static unsigned int default_power_filter(struct hda_codec *codec, hda_nid_t nid,
-					 unsigned int power_state);
 
 /**
  * snd_hda_codec_new - create a HDA codec
@@ -1418,7 +1429,6 @@ int snd_hda_codec_new(struct hda_bus *bus,
 #endif
 	codec->epss = snd_hda_codec_get_supported_ps(codec, fg,
 					AC_PWRST_EPSS);
-	codec->power_filter = default_power_filter;
 
 	/* power-up all before initialization */
 	hda_set_power_state(codec, AC_PWRST_D0);
@@ -1573,7 +1583,7 @@ void snd_hda_codec_setup_stream(struct hda_codec *codec, hda_nid_t nid,
 		    "NID=0x%x, stream=0x%x, channel=%d, format=0x%x\n",
 		    nid, stream_tag, channel_id, format);
 	p = get_hda_cvt_setup(codec, nid);
-	if (!p || p->active)
+	if (!p)
 		return;
 
 	if (codec->pcm_format_first)
@@ -1620,7 +1630,7 @@ void __snd_hda_codec_cleanup_stream(struct hda_codec *codec, hda_nid_t nid,
 
 	snd_printdd("hda_codec_cleanup_stream: NID=0x%x\n", nid);
 	p = get_hda_cvt_setup(codec, nid);
-	if (p && p->active) {
+	if (p) {
 		/* here we just clear the active flag when do_now isn't set;
 		 * actual clean-ups will be done later in
 		 * purify_inactive_streams() called from snd_hda_codec_prpapre()
@@ -2783,6 +2793,11 @@ void snd_hda_sync_vmaster_hook(struct hda_vmaster_mute_hook *hook)
 {
 	if (!hook->hook || !hook->codec)
 		return;
+	/* don't call vmaster hook in the destructor since it might have
+	 * been already destroyed
+	 */
+	if (hook->codec->bus->shutdown)
+		return;
 	switch (hook->mute_mode) {
 	case HDA_VMUTE_FOLLOW_MASTER:
 		snd_ctl_sync_vmaster_hook(hook->sw_kctl);
@@ -3140,7 +3155,7 @@ static unsigned int convert_to_spdif_status(unsigned short val)
 	if (val & AC_DIG1_PROFESSIONAL)
 		sbits |= IEC958_AES0_PROFESSIONAL;
 	if (sbits & IEC958_AES0_PROFESSIONAL) {
-		if (sbits & AC_DIG1_EMPHASIS)
+		if (val & AC_DIG1_EMPHASIS)
 			sbits |= IEC958_AES0_PRO_EMPHASIS_5015;
 	} else {
 		if (val & AC_DIG1_EMPHASIS)
@@ -3766,8 +3781,9 @@ static unsigned int hda_sync_power_state(struct hda_codec *codec,
 }
 
 /* don't power down the widget if it controls eapd and EAPD_BTLENABLE is set */
-static unsigned int default_power_filter(struct hda_codec *codec, hda_nid_t nid,
-					 unsigned int power_state)
+unsigned int snd_hda_codec_eapd_power_filter(struct hda_codec *codec,
+					     hda_nid_t nid,
+					     unsigned int power_state)
 {
 	if (power_state == AC_PWRST_D3 &&
 	    get_wcaps_type(get_wcaps(codec, nid)) == AC_WID_PIN &&
@@ -3779,6 +3795,7 @@ static unsigned int default_power_filter(struct hda_codec *codec, hda_nid_t nid,
 	}
 	return power_state;
 }
+EXPORT_SYMBOL_HDA(snd_hda_codec_eapd_power_filter);
 
 /*
  * set power state of the codec, and return the power state
@@ -3823,8 +3840,8 @@ static void sync_power_up_states(struct hda_codec *codec)
 	hda_nid_t nid = codec->start_nid;
 	int i;
 
-	/* don't care if no or standard filter is used */
-	if (!codec->power_filter || codec->power_filter == default_power_filter)
+	/* don't care if no filter is used */
+	if (!codec->power_filter)
 		return;
 
 	for (i = 0; i < codec->num_nodes; i++, nid++) {
@@ -5542,14 +5559,12 @@ void *snd_array_new(struct snd_array *array)
 	if (array->used >= array->alloced) {
 		int num = array->alloced + array->alloc_align;
 		int size = (num + 1) * array->elem_size;
-		int oldsize = array->alloced * array->elem_size;
 		void *nlist;
 		if (snd_BUG_ON(num >= 4096))
 			return NULL;
-		nlist = krealloc(array->list, size, GFP_KERNEL);
+		nlist = krealloc(array->list, size, GFP_KERNEL | __GFP_ZERO);
 		if (!nlist)
 			return NULL;
-		memset(nlist + oldsize, 0, size - oldsize);
 		array->list = nlist;
 		array->alloced = num;
 	}

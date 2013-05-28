@@ -2,6 +2,94 @@
 # ARM CPU Frequency scaling drivers
 #
 
+config ARM_BIG_LITTLE_CPUFREQ
+	tristate "Generic ARM big LITTLE CPUfreq driver"
+	depends on ARM_CPU_TOPOLOGY && PM_OPP && HAVE_CLK
+	help
+	  This enables the Generic CPUfreq driver for ARM big.LITTLE platforms.
+
+config ARM_DT_BL_CPUFREQ
+	tristate "Generic probing via DT for ARM big LITTLE CPUfreq driver"
+	depends on ARM_BIG_LITTLE_CPUFREQ && OF
+	help
+	  This enables probing via DT for Generic CPUfreq driver for ARM
+	  big.LITTLE platform. This gets frequency tables from DT.
+
+config ARM_EXYNOS_CPUFREQ
+	bool "SAMSUNG EXYNOS SoCs"
+	depends on ARCH_EXYNOS
+	default y
+	help
+	  This adds the CPUFreq driver common part for Samsung
+	  EXYNOS SoCs.
+
+	  If in doubt, say N.
+
+config ARM_EXYNOS4210_CPUFREQ
+	def_bool CPU_EXYNOS4210
+	help
+	  This adds the CPUFreq driver for Samsung EXYNOS4210
+	  SoC (S5PV310 or S5PC210).
+
+config ARM_EXYNOS4X12_CPUFREQ
+	def_bool (SOC_EXYNOS4212 || SOC_EXYNOS4412)
+	help
+	  This adds the CPUFreq driver for Samsung EXYNOS4X12
+	  SoC (EXYNOS4212 or EXYNOS4412).
+
+config ARM_EXYNOS5250_CPUFREQ
+	def_bool SOC_EXYNOS5250
+	help
+	  This adds the CPUFreq driver for Samsung EXYNOS5250
+	  SoC.
+
+config ARM_EXYNOS5440_CPUFREQ
+	def_bool SOC_EXYNOS5440
+	depends on HAVE_CLK && PM_OPP && OF
+	help
+	  This adds the CPUFreq driver for Samsung EXYNOS5440
+	  SoC. The nature of exynos5440 clock controller is
+	  different than previous exynos controllers so not using
+	  the common exynos framework.
+
+config ARM_HIGHBANK_CPUFREQ
+	tristate "Calxeda Highbank-based"
+	depends on ARCH_HIGHBANK
+	select CPU_FREQ_TABLE
+	select GENERIC_CPUFREQ_CPU0
+	select PM_OPP
+	select REGULATOR
+
+	default m
+	help
+	  This adds the CPUFreq driver for Calxeda Highbank SoC
+	  based boards.
+
+	  If in doubt, say N.
+
+config ARM_IMX6Q_CPUFREQ
+	tristate "Freescale i.MX6Q cpufreq support"
+	depends on SOC_IMX6Q
+	depends on REGULATOR_ANATOP
+	help
+	  This adds cpufreq driver support for Freescale i.MX6Q SOC.
+
+	  If in doubt, say N.
+
+config ARM_INTEGRATOR
+	tristate "CPUfreq driver for ARM Integrator CPUs"
+	depends on ARCH_INTEGRATOR
+	default y
+	help
+	  This enables the CPUfreq driver for ARM Integrator CPUs.
+	  If in doubt, say Y.
+
+config ARM_KIRKWOOD_CPUFREQ
+	def_bool ARCH_KIRKWOOD && OF
+	help
+	  This adds the CPUFreq driver for Marvell Kirkwood
+	  SoCs.
+
 config ARM_OMAP2PLUS_CPUFREQ
 	bool "TI OMAP2+"
 	depends on ARCH_OMAP2PLUS
@@ -42,6 +130,7 @@ config ARM_S3C64XX_CPUFREQ
 config ARM_S5PV210_CPUFREQ
 	bool "Samsung S5PV210 and S5PC110"
 	depends on CPU_S5PV210
+	select CPU_FREQ_TABLE
 	default y
 	help
 	  This adds the CPUFreq driver for Samsung S5PV210 and
@@ -49,48 +138,11 @@ config ARM_S5PV210_CPUFREQ
 
 	  If in doubt, say N.
 
-config ARM_EXYNOS_CPUFREQ
-	bool "SAMSUNG EXYNOS SoCs"
-	depends on ARCH_EXYNOS
-	default y
-	help
-	  This adds the CPUFreq driver common part for Samsung
-	  EXYNOS SoCs.
+config ARM_SA1100_CPUFREQ
+	bool
 
-	  If in doubt, say N.
-
-config ARM_EXYNOS4210_CPUFREQ
-	def_bool CPU_EXYNOS4210
-	help
-	  This adds the CPUFreq driver for Samsung EXYNOS4210
-	  SoC (S5PV310 or S5PC210).
-
-config ARM_EXYNOS4X12_CPUFREQ
-	def_bool (SOC_EXYNOS4212 || SOC_EXYNOS4412)
-	help
-	  This adds the CPUFreq driver for Samsung EXYNOS4X12
-	  SoC (EXYNOS4212 or EXYNOS4412).
-
-config ARM_EXYNOS5250_CPUFREQ
-	def_bool SOC_EXYNOS5250
-	help
-	  This adds the CPUFreq driver for Samsung EXYNOS5250
-	  SoC.
-
-config ARM_KIRKWOOD_CPUFREQ
-	def_bool ARCH_KIRKWOOD && OF
-	help
-	  This adds the CPUFreq driver for Marvell Kirkwood
-	  SoCs.
-
-config ARM_IMX6Q_CPUFREQ
-	tristate "Freescale i.MX6Q cpufreq support"
-	depends on SOC_IMX6Q
-	depends on REGULATOR_ANATOP
-	help
-	  This adds cpufreq driver support for Freescale i.MX6Q SOC.
-
-	  If in doubt, say N.
+config ARM_SA1110_CPUFREQ
+	bool
 
 config ARM_SPEAR_CPUFREQ
 	bool "SPEAr CPUFreq support"
@@ -98,18 +150,3 @@ config ARM_SPEAR_CPUFREQ
 	default y
 	help
 	  This adds the CPUFreq driver support for SPEAr SOCs.
-
-config ARM_HIGHBANK_CPUFREQ
-	tristate "Calxeda Highbank-based"
-	depends on ARCH_HIGHBANK
-	select CPU_FREQ_TABLE
-	select GENERIC_CPUFREQ_CPU0
-	select PM_OPP
-	select REGULATOR
-
-	default m
-	help
-	  This adds the CPUFreq driver for Calxeda Highbank SoC
-	  based boards.
-
-	  If in doubt, say N.

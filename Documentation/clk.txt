@@ -174,9 +174,9 @@ int clk_foo_enable(struct clk_hw *hw)
 };
 
 Below is a matrix detailing which clk_ops are mandatory based upon the
-hardware capbilities of that clock.  A cell marked as "y" means
+hardware capabilities of that clock.  A cell marked as "y" means
 mandatory, a cell marked as "n" implies that either including that
-callback is invalid or otherwise uneccesary.  Empty cells are either
+callback is invalid or otherwise unnecessary.  Empty cells are either
 optional or must be evaluated on a case-by-case basis.
 
                            clock hardware characteristics
@@ -231,3 +231,14 @@ To better enforce this policy, always follow this simple rule: any
 statically initialized clock data MUST be defined in a separate file
 from the logic that implements its ops.  Basically separate the logic
 from the data and all is well.
+
+	Part 6 - Disabling clock gating of unused clocks
+
+Sometimes during development it can be useful to be able to bypass the
+default disabling of unused clocks. For example, if drivers aren't enabling
+clocks properly but rely on them being on from the bootloader, bypassing
+the disabling means that the driver will remain functional while the issues
+are sorted out.
+
+To bypass this disabling, include "clk_ignore_unused" in the bootargs to the
+kernel.

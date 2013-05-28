@@ -16,7 +16,7 @@
 #include "sdhci.h"
 
 struct sdhci_pltfm_data {
-	struct sdhci_ops *ops;
+	const struct sdhci_ops *ops;
 	unsigned int quirks;
 };
 
@@ -91,11 +91,11 @@ static inline void sdhci_be32bs_writeb(struct sdhci_host *host, u8 val, int reg)
 extern void sdhci_get_of_property(struct platform_device *pdev);
 
 extern struct sdhci_host *sdhci_pltfm_init(struct platform_device *pdev,
-					   struct sdhci_pltfm_data *pdata);
+					  const struct sdhci_pltfm_data *pdata);
 extern void sdhci_pltfm_free(struct platform_device *pdev);
 
 extern int sdhci_pltfm_register(struct platform_device *pdev,
-				struct sdhci_pltfm_data *pdata);
+				const struct sdhci_pltfm_data *pdata);
 extern int sdhci_pltfm_unregister(struct platform_device *pdev);
 
 extern unsigned int sdhci_pltfm_clk_get_max_clock(struct sdhci_host *host);

@@ -58,13 +58,13 @@ static int pvc_line_proc_show(struct seq_file *m, void *v)
 
 static int pvc_line_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, pvc_line_proc_show, PDE(inode)->data);
+	return single_open(file, pvc_line_proc_show, PDE_DATA(inode));
 }
 
 static ssize_t pvc_line_proc_write(struct file *file, const char __user *buf,
 				   size_t count, loff_t *pos)
 {
-	int lineno = *(int *)PDE(file_inode(file))->data;
+	int lineno = *(int *)PDE_DATA(file_inode(file));
 	char kbuf[PVC_LINELEN];
 	size_t len;
 

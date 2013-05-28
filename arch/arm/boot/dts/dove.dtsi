@@ -50,6 +50,11 @@
 			#clock-cells = <1>;
 		};
 
+		thermal: thermal@d001c {
+			compatible = "marvell,dove-thermal";
+			reg = <0xd001c 0x0c>, <0xd005c 0x08>;
+		};
+
 		uart0: serial@12000 {
 			compatible = "ns16550a";
 			reg = <0x12000 0x100>;
@@ -195,6 +200,11 @@
 			clocks = <&gate_clk 3>;
 			nr-ports = <1>;
 			status = "disabled";
+		};
+
+		rtc@d8500 {
+			compatible = "marvell,orion-rtc";
+			reg = <0xd8500 0x20>;
 		};
 
 		crypto: crypto@30000 {

@@ -236,7 +236,12 @@ static void __ads7846_disable(struct ads7846 *ts)
 /* Must be called with ts->lock held */
 static void __ads7846_enable(struct ads7846 *ts)
 {
-	regulator_enable(ts->reg);
+	int error;
+
+	error = regulator_enable(ts->reg);
+	if (error != 0)
+		dev_err(&ts->spi->dev, "Failed to enable supply: %d\n", error);
+
 	ads7846_restart(ts);
 }
 
@@ -1240,7 +1245,7 @@ static int ads7846_probe(struct spi_device *spi)
 		goto err_free_mem;
 	}
 
-	dev_set_drvdata(&spi->dev, ts);
+	spi_set_drvdata(spi, ts);
 
 	ts->packet = packet;
 	ts->spi = spi;
@@ -1392,7 +1397,7 @@ static int ads7846_probe(struct spi_device *spi)
 
 static int ads7846_remove(struct spi_device *spi)
 {
-	struct ads7846 *ts = dev_get_drvdata(&spi->dev);
+	struct ads7846 *ts = spi_get_drvdata(spi);
 
 	device_init_wakeup(&spi->dev, false);
 

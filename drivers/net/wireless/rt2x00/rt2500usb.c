@@ -134,8 +134,8 @@ static int rt2500usb_regbusy_read(struct rt2x00_dev *rt2x00dev,
 		udelay(REGISTER_BUSY_DELAY);
 	}
 
-	ERROR(rt2x00dev, "Indirect register access failed: "
-	      "offset=0x%.08x, value=0x%.08x\n", offset, *reg);
+	rt2x00_err(rt2x00dev, "Indirect register access failed: offset=0x%.08x, value=0x%.08x\n",
+		   offset, *reg);
 	*reg = ~0;
 
 	return 0;
@@ -916,7 +916,7 @@ static int rt2500usb_wait_bbp_ready(struct rt2x00_dev *rt2x00dev)
 		udelay(REGISTER_BUSY_DELAY);
 	}
 
-	ERROR(rt2x00dev, "BBP register access failed, aborting.\n");
+	rt2x00_err(rt2x00dev, "BBP register access failed, aborting\n");
 	return -EACCES;
 }
 
@@ -1069,8 +1069,8 @@ static int rt2500usb_set_device_state(struct rt2x00_dev *rt2x00dev,
 	}
 
 	if (unlikely(retval))
-		ERROR(rt2x00dev, "Device failed to enter state %d (%d).\n",
-		      state, retval);
+		rt2x00_err(rt2x00dev, "Device failed to enter state %d (%d)\n",
+			   state, retval);
 
 	return retval;
 }
@@ -1353,7 +1353,7 @@ static int rt2500usb_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 	mac = rt2x00_eeprom_addr(rt2x00dev, EEPROM_MAC_ADDR_0);
 	if (!is_valid_ether_addr(mac)) {
 		eth_random_addr(mac);
-		EEPROM(rt2x00dev, "MAC: %pM\n", mac);
+		rt2x00_eeprom_dbg(rt2x00dev, "MAC: %pM\n", mac);
 	}
 
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_ANTENNA, &word);
@@ -1369,7 +1369,7 @@ static int rt2500usb_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 		rt2x00_set_field16(&word, EEPROM_ANTENNA_HARDWARE_RADIO, 0);
 		rt2x00_set_field16(&word, EEPROM_ANTENNA_RF_TYPE, RF2522);
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_ANTENNA, word);
-		EEPROM(rt2x00dev, "Antenna: 0x%04x\n", word);
+		rt2x00_eeprom_dbg(rt2x00dev, "Antenna: 0x%04x\n", word);
 	}
 
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_NIC, &word);
@@ -1378,7 +1378,7 @@ static int rt2500usb_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 		rt2x00_set_field16(&word, EEPROM_NIC_DYN_BBP_TUNE, 0);
 		rt2x00_set_field16(&word, EEPROM_NIC_CCK_TX_POWER, 0);
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_NIC, word);
-		EEPROM(rt2x00dev, "NIC: 0x%04x\n", word);
+		rt2x00_eeprom_dbg(rt2x00dev, "NIC: 0x%04x\n", word);
 	}
 
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_CALIBRATE_OFFSET, &word);
@@ -1386,14 +1386,15 @@ static int rt2500usb_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 		rt2x00_set_field16(&word, EEPROM_CALIBRATE_OFFSET_RSSI,
 				   DEFAULT_RSSI_OFFSET);
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_CALIBRATE_OFFSET, word);
-		EEPROM(rt2x00dev, "Calibrate offset: 0x%04x\n", word);
+		rt2x00_eeprom_dbg(rt2x00dev, "Calibrate offset: 0x%04x\n",
+				  word);
 	}
 
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_BBPTUNE, &word);
 	if (word == 0xffff) {
 		rt2x00_set_field16(&word, EEPROM_BBPTUNE_THRESHOLD, 45);
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_BBPTUNE, word);
-		EEPROM(rt2x00dev, "BBPtune: 0x%04x\n", word);
+		rt2x00_eeprom_dbg(rt2x00dev, "BBPtune: 0x%04x\n", word);
 	}
 
 	/*
@@ -1408,7 +1409,7 @@ static int rt2500usb_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 		rt2x00_set_field16(&word, EEPROM_BBPTUNE_VGCUPPER, 0x40);
 		rt2x00_set_field16(&word, EEPROM_BBPTUNE_VGCLOWER, bbp);
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_BBPTUNE_VGC, word);
-		EEPROM(rt2x00dev, "BBPtune vgc: 0x%04x\n", word);
+		rt2x00_eeprom_dbg(rt2x00dev, "BBPtune vgc: 0x%04x\n", word);
 	} else {
 		rt2x00_set_field16(&word, EEPROM_BBPTUNE_VGCLOWER, bbp);
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_BBPTUNE_VGC, word);
@@ -1419,7 +1420,7 @@ static int rt2500usb_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 		rt2x00_set_field16(&word, EEPROM_BBPTUNE_R17_LOW, 0x48);
 		rt2x00_set_field16(&word, EEPROM_BBPTUNE_R17_HIGH, 0x41);
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_BBPTUNE_R17, word);
-		EEPROM(rt2x00dev, "BBPtune r17: 0x%04x\n", word);
+		rt2x00_eeprom_dbg(rt2x00dev, "BBPtune r17: 0x%04x\n", word);
 	}
 
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_BBPTUNE_R24, &word);
@@ -1427,7 +1428,7 @@ static int rt2500usb_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 		rt2x00_set_field16(&word, EEPROM_BBPTUNE_R24_LOW, 0x40);
 		rt2x00_set_field16(&word, EEPROM_BBPTUNE_R24_HIGH, 0x80);
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_BBPTUNE_R24, word);
-		EEPROM(rt2x00dev, "BBPtune r24: 0x%04x\n", word);
+		rt2x00_eeprom_dbg(rt2x00dev, "BBPtune r24: 0x%04x\n", word);
 	}
 
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_BBPTUNE_R25, &word);
@@ -1435,7 +1436,7 @@ static int rt2500usb_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 		rt2x00_set_field16(&word, EEPROM_BBPTUNE_R25_LOW, 0x40);
 		rt2x00_set_field16(&word, EEPROM_BBPTUNE_R25_HIGH, 0x50);
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_BBPTUNE_R25, word);
-		EEPROM(rt2x00dev, "BBPtune r25: 0x%04x\n", word);
+		rt2x00_eeprom_dbg(rt2x00dev, "BBPtune r25: 0x%04x\n", word);
 	}
 
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_BBPTUNE_R61, &word);
@@ -1443,7 +1444,7 @@ static int rt2500usb_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 		rt2x00_set_field16(&word, EEPROM_BBPTUNE_R61_LOW, 0x60);
 		rt2x00_set_field16(&word, EEPROM_BBPTUNE_R61_HIGH, 0x6d);
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_BBPTUNE_R61, word);
-		EEPROM(rt2x00dev, "BBPtune r61: 0x%04x\n", word);
+		rt2x00_eeprom_dbg(rt2x00dev, "BBPtune r61: 0x%04x\n", word);
 	}
 
 	return 0;
@@ -1468,7 +1469,7 @@ static int rt2500usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_chip(rt2x00dev, RT2570, value, reg);
 
 	if (((reg & 0xfff0) != 0) || ((reg & 0x0000000f) == 0)) {
-		ERROR(rt2x00dev, "Invalid RT chipset detected.\n");
+		rt2x00_err(rt2x00dev, "Invalid RT chipset detected\n");
 		return -ENODEV;
 	}
 
@@ -1478,7 +1479,7 @@ static int rt2500usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	    !rt2x00_rf(rt2x00dev, RF2525) &&
 	    !rt2x00_rf(rt2x00dev, RF2525E) &&
 	    !rt2x00_rf(rt2x00dev, RF5222)) {
-		ERROR(rt2x00dev, "Invalid RF chipset detected.\n");
+		rt2x00_err(rt2x00dev, "Invalid RF chipset detected\n");
 		return -ENODEV;
 	}
 

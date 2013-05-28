@@ -39,13 +39,23 @@ static void snd_hda_generate_beep(struct work_struct *work)
 	struct hda_beep *beep =
 		container_of(work, struct hda_beep, beep_work);
 	struct hda_codec *codec = beep->codec;
+	int tone;
 
 	if (!beep->enabled)
 		return;
 
+	tone = beep->tone;
+	if (tone && !beep->playing) {
+		snd_hda_power_up(codec);
+		beep->playing = 1;
+	}
 	/* generate tone */
 	snd_hda_codec_write(codec, beep->nid, 0,
-			AC_VERB_SET_BEEP_CONTROL, beep->tone);
+			    AC_VERB_SET_BEEP_CONTROL, tone);
+	if (!tone && beep->playing) {
+		beep->playing = 0;
+		snd_hda_power_down(codec);
+	}
 }
 
 /* (non-standard) Linear beep tone calculation for IDT/STAC codecs 
@@ -115,14 +125,23 @@ static int snd_hda_beep_event(struct input_dev *dev, unsigned int type,
 	return 0;
 }
 
+static void turn_off_beep(struct hda_beep *beep)
+{
+	cancel_work_sync(&beep->beep_work);
+	if (beep->playing) {
+		/* turn off beep */
+		snd_hda_codec_write(beep->codec, beep->nid, 0,
+				    AC_VERB_SET_BEEP_CONTROL, 0);
+		beep->playing = 0;
+		snd_hda_power_down(beep->codec);
+	}
+}
+
 static void snd_hda_do_detach(struct hda_beep *beep)
 {
 	input_unregister_device(beep->dev);
 	beep->dev = NULL;
-	cancel_work_sync(&beep->beep_work);
-	/* turn off beep for sure */
-	snd_hda_codec_write(beep->codec, beep->nid, 0,
-				  AC_VERB_SET_BEEP_CONTROL, 0);
+	turn_off_beep(beep);
 }
 
 static int snd_hda_do_attach(struct hda_beep *beep)
@@ -170,12 +189,8 @@ int snd_hda_enable_beep_device(struct hda_codec *codec, int enable)
 	enable = !!enable;
 	if (beep->enabled != enable) {
 		beep->enabled = enable;
-		if (!enable) {
-			cancel_work_sync(&beep->beep_work);
-			/* turn off beep */
-			snd_hda_codec_write(beep->codec, beep->nid, 0,
-						  AC_VERB_SET_BEEP_CONTROL, 0);
-		}
+		if (!enable)
+			turn_off_beep(beep);
 		return 1;
 	}
 	return 0;
@@ -198,7 +213,7 @@ int snd_hda_attach_beep_device(struct hda_codec *codec, int nid)
 	snprintf(beep->phys, sizeof(beep->phys),
 		"card%d/codec#%d/beep0", codec->bus->card->number, codec->addr);
 	/* enable linear scale */
-	snd_hda_codec_write(codec, nid, 0,
+	snd_hda_codec_write_cache(codec, nid, 0,
 		AC_VERB_SET_DIGI_CONVERT_2, 0x01);
 
 	beep->nid = nid;

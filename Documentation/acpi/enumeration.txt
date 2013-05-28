@@ -66,6 +66,83 @@ the ACPI device explicitly to acpi_platform_device_ids list defined in
 drivers/acpi/acpi_platform.c. This limitation is only for the platform
 devices, SPI and I2C devices are created automatically as described below.
 
+DMA support
+~~~~~~~~~~~
+DMA controllers enumerated via ACPI should be registered in the system to
+provide generic access to their resources. For example, a driver that would
+like to be accessible to slave devices via generic API call
+dma_request_slave_channel() must register itself at the end of the probe
+function like this:
+
+	err = devm_acpi_dma_controller_register(dev, xlate_func, dw);
+	/* Handle the error if it's not a case of !CONFIG_ACPI */
+
+and implement custom xlate function if needed (usually acpi_dma_simple_xlate()
+is enough) which converts the FixedDMA resource provided by struct
+acpi_dma_spec into the corresponding DMA channel. A piece of code for that case
+could look like:
+
+	#ifdef CONFIG_ACPI
+	struct filter_args {
+		/* Provide necessary information for the filter_func */
+		...
+	};
+
+	static bool filter_func(struct dma_chan *chan, void *param)
+	{
+		/* Choose the proper channel */
+		...
+	}
+
+	static struct dma_chan *xlate_func(struct acpi_dma_spec *dma_spec,
+			struct acpi_dma *adma)
+	{
+		dma_cap_mask_t cap;
+		struct filter_args args;
+
+		/* Prepare arguments for filter_func */
+		...
+		return dma_request_channel(cap, filter_func, &args);
+	}
+	#else
+	static struct dma_chan *xlate_func(struct acpi_dma_spec *dma_spec,
+			struct acpi_dma *adma)
+	{
+		return NULL;
+	}
+	#endif
+
+dma_request_slave_channel() will call xlate_func() for each registered DMA
+controller. In the xlate function the proper channel must be chosen based on
+information in struct acpi_dma_spec and the properties of the controller
+provided by struct acpi_dma.
+
+Clients must call dma_request_slave_channel() with the string parameter that
+corresponds to a specific FixedDMA resource. By default "tx" means the first
+entry of the FixedDMA resource array, "rx" means the second entry. The table
+below shows a layout:
+
+	Device (I2C0)
+	{
+		...
+		Method (_CRS, 0, NotSerialized)
+		{
+			Name (DBUF, ResourceTemplate ()
+			{
+				FixedDMA (0x0018, 0x0004, Width32bit, _Y48)
+				FixedDMA (0x0019, 0x0005, Width32bit, )
+			})
+		...
+		}
+	}
+
+So, the FixedDMA with request line 0x0018 is "tx" and next one is "rx" in
+this example.
+
+In robust cases the client unfortunately needs to call
+acpi_dma_request_slave_chan_by_index() directly and therefore choose the
+specific FixedDMA resource by its index.
+
 SPI serial bus support
 ~~~~~~~~~~~~~~~~~~~~~~
 Slave devices behind SPI bus have SpiSerialBus resource attached to them.
@@ -199,6 +276,8 @@ the device to the driver. For example:
 	{
 		Name (SBUF, ResourceTemplate()
 		{
+			...
+			// Used to power on/off the device
 			GpioIo (Exclusive, PullDefault, 0x0000, 0x0000,
 				IoRestrictionOutputOnly, "\\_SB.PCI0.GPI0",
 				0x00, ResourceConsumer,,)
@@ -206,10 +285,20 @@ the device to the driver. For example:
 				// Pin List
 				0x0055
 			}
+
+			// Interrupt for the device
+			GpioInt (Edge, ActiveHigh, ExclusiveAndWake, PullNone,
+				 0x0000, "\\_SB.PCI0.GPI0", 0x00, ResourceConsumer,,)
+			{
+				// Pin list
+				0x0058
+			}
+
 			...
 
-			Return (SBUF)
 		}
+
+		Return (SBUF)
 	}
 
 These GPIO numbers are controller relative and path "\\_SB.PCI0.GPI0"
@@ -219,6 +308,24 @@ we need to translate them to the Linux GPIO numbers.
 The driver can do this by including <linux/acpi_gpio.h> and then calling
 acpi_get_gpio(path, gpio). This will return the Linux GPIO number or
 negative errno if there was no translation found.
+
+In a simple case of just getting the Linux GPIO number from device
+resources one can use acpi_get_gpio_by_index() helper function. It takes
+pointer to the device and index of the GpioIo/GpioInt descriptor in the
+device resources list. For example:
+
+	int gpio_irq, gpio_power;
+	int ret;
+
+	gpio_irq = acpi_get_gpio_by_index(dev, 1, NULL);
+	if (gpio_irq < 0)
+		/* handle error */
+
+	gpio_power = acpi_get_gpio_by_index(dev, 0, NULL);
+	if (gpio_power < 0)
+		/* handle error */
+
+	/* Now we can use the GPIO numbers */
 
 Other GpioIo parameters must be converted first by the driver to be
 suitable to the gpiolib before passing them.

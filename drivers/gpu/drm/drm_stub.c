@@ -352,7 +352,7 @@ int drm_get_minor(struct drm_device *dev, struct drm_minor **minor, int type)
 	idr_replace(&drm_minors_idr, new_minor, minor_id);
 
 	if (type == DRM_MINOR_LEGACY) {
-		ret = drm_proc_init(new_minor, minor_id, drm_proc_root);
+		ret = drm_proc_init(new_minor, drm_proc_root);
 		if (ret) {
 			DRM_ERROR("DRM: Failed to initialize /proc/dri.\n");
 			goto err_mem;

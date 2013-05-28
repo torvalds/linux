@@ -25,11 +25,13 @@
 			#interrupt-cells = <1>;
 		};
 
-		gpio: gpio-controller@d8110000 {
-			compatible = "via,vt8500-gpio";
-			gpio-controller;
+		pinctrl: pinctrl@d8110000 {
+			compatible = "via,vt8500-pinctrl";
 			reg = <0xd8110000 0x10000>;
-			#gpio-cells = <3>;
+			interrupt-controller;
+			#interrupt-cells = <2>;
+			gpio-controller;
+			#gpio-cells = <2>;
 		};
 
 		pmc@d8130000 {
@@ -98,12 +100,10 @@
 			interrupts = <43>;
 		};
 
-		fb@d800e400 {
+		fb: fb@d8050800 {
 			compatible = "via,vt8500-fb";
 			reg = <0xd800e400 0x400>;
 			interrupts = <12>;
-			display = <&display>;
-			default-mode = <&mode0>;
 		};
 
 		ge_rops@d8050400 {

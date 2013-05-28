@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -143,21 +143,12 @@ static void iwl_mvm_nic_config(struct iwl_op_mode *op_mode)
 	u8 radio_cfg_type, radio_cfg_step, radio_cfg_dash;
 	u32 reg_val = 0;
 
-	/*
-	 * We can't upload the correct value to the INIT image
-	 * as we don't have nvm_data by that time.
-	 *
-	 * TODO: Figure out what we should do here
-	 */
-	if (mvm->nvm_data) {
-		radio_cfg_type = mvm->nvm_data->radio_cfg_type;
-		radio_cfg_step = mvm->nvm_data->radio_cfg_step;
-		radio_cfg_dash = mvm->nvm_data->radio_cfg_dash;
-	} else {
-		radio_cfg_type = 0;
-		radio_cfg_step = 0;
-		radio_cfg_dash = 0;
-	}
+	radio_cfg_type = (mvm->fw->phy_config & FW_PHY_CFG_RADIO_TYPE) >>
+			  FW_PHY_CFG_RADIO_TYPE_POS;
+	radio_cfg_step = (mvm->fw->phy_config & FW_PHY_CFG_RADIO_STEP) >>
+			  FW_PHY_CFG_RADIO_STEP_POS;
+	radio_cfg_dash = (mvm->fw->phy_config & FW_PHY_CFG_RADIO_DASH) >>
+			  FW_PHY_CFG_RADIO_DASH_POS;
 
 	/* SKU control */
 	reg_val |= CSR_HW_REV_STEP(mvm->trans->hw_rev) <<
@@ -175,7 +166,6 @@ static void iwl_mvm_nic_config(struct iwl_op_mode *op_mode)
 
 	/* silicon bits */
 	reg_val |= CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI;
-	reg_val |= CSR_HW_IF_CONFIG_REG_BIT_MAC_SI;
 
 	iwl_trans_set_bits_mask(mvm->trans, CSR_HW_IF_CONFIG_REG,
 				CSR_HW_IF_CONFIG_REG_MSK_MAC_DASH |
@@ -230,6 +220,9 @@ static const struct iwl_rx_handlers iwl_mvm_rx_handlers[] = {
 	RX_HANDLER(SCAN_REQUEST_CMD, iwl_mvm_rx_scan_response, false),
 	RX_HANDLER(SCAN_COMPLETE_NOTIFICATION, iwl_mvm_rx_scan_complete, false),
 
+	RX_HANDLER(BT_PROFILE_NOTIFICATION, iwl_mvm_rx_bt_coex_notif, true),
+	RX_HANDLER(BEACON_NOTIFICATION, iwl_mvm_rx_beacon_notif, false),
+
 	RX_HANDLER(RADIO_VERSION_NOTIFICATION, iwl_mvm_rx_radio_ver, false),
 	RX_HANDLER(CARD_STATE_NOTIFICATION, iwl_mvm_rx_card_state_notif, false),
 
@@ -274,6 +267,7 @@ static const char *iwl_mvm_cmd_strings[REPLY_MAX] = {
 	CMD(WEP_KEY),
 	CMD(REPLY_RX_PHY_CMD),
 	CMD(REPLY_RX_MPDU_CMD),
+	CMD(BEACON_NOTIFICATION),
 	CMD(BEACON_TEMPLATE_CMD),
 	CMD(STATISTICS_NOTIFICATION),
 	CMD(TX_ANT_CONFIGURATION_CMD),
@@ -293,6 +287,12 @@ static const char *iwl_mvm_cmd_strings[REPLY_MAX] = {
 	CMD(NET_DETECT_PROFILES_CMD),
 	CMD(NET_DETECT_HOTSPOTS_CMD),
 	CMD(NET_DETECT_HOTSPOTS_QUERY_CMD),
+	CMD(CARD_STATE_NOTIFICATION),
+	CMD(BT_COEX_PRIO_TABLE),
+	CMD(BT_COEX_PROT_ENV),
+	CMD(BT_PROFILE_NOTIFICATION),
+	CMD(BT_CONFIG),
+	CMD(MCAST_FILTER_CMD),
 };
 #undef CMD
 
@@ -311,16 +311,6 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 		TX_CMD,
 	};
 	int err, scan_size;
-
-	switch (cfg->device_family) {
-	case IWL_DEVICE_FAMILY_6030:
-	case IWL_DEVICE_FAMILY_6005:
-	case IWL_DEVICE_FAMILY_7000:
-		break;
-	default:
-		IWL_ERR(trans, "Trying to load mvm on an unsupported device\n");
-		return NULL;
-	}
 
 	/********************************
 	 * 1. Allocating and configuring HW data
@@ -363,8 +353,7 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
 	trans_cfg.n_no_reclaim_cmds = ARRAY_SIZE(no_reclaim_cmds);
 	trans_cfg.rx_buf_size_8k = iwlwifi_mod_params.amsdu_size_8K;
 
-	/* TODO: this should really be a TLV */
-	if (cfg->device_family == IWL_DEVICE_FAMILY_7000)
+	if (mvm->fw->ucode_capa.flags & IWL_UCODE_TLV_FLAGS_DW_BC_TABLE)
 		trans_cfg.bc_table_dword = true;
 
 	if (!iwlwifi_mod_params.wd_disable)
@@ -438,7 +427,6 @@ iwl_op_mode_mvm_start(struct iwl_trans *trans, const struct iwl_cfg *cfg,
  out_free:
 	iwl_phy_db_free(mvm->phy_db);
 	kfree(mvm->scan_cmd);
-	kfree(mvm->eeprom_blob);
 	iwl_trans_stop_hw(trans, true);
 	ieee80211_free_hw(mvm->hw);
 	return NULL;
@@ -460,7 +448,6 @@ static void iwl_op_mode_mvm_stop(struct iwl_op_mode *op_mode)
 	iwl_phy_db_free(mvm->phy_db);
 	mvm->phy_db = NULL;
 
-	kfree(mvm->eeprom_blob);
 	iwl_free_nvm_data(mvm->nvm_data);
 	for (i = 0; i < NVM_NUM_OF_SECTIONS; i++)
 		kfree(mvm->nvm_sections[i].data);
@@ -624,12 +611,8 @@ static void iwl_mvm_free_skb(struct iwl_op_mode *op_mode, struct sk_buff *skb)
 	ieee80211_free_txskb(mvm->hw, skb);
 }
 
-static void iwl_mvm_nic_error(struct iwl_op_mode *op_mode)
+static void iwl_mvm_nic_restart(struct iwl_mvm *mvm)
 {
-	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
-
-	iwl_mvm_dump_nic_error_log(mvm);
-
 	iwl_abort_notification_waits(&mvm->notif_wait);
 
 	/*
@@ -663,9 +646,21 @@ static void iwl_mvm_nic_error(struct iwl_op_mode *op_mode)
 	}
 }
 
+static void iwl_mvm_nic_error(struct iwl_op_mode *op_mode)
+{
+	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
+
+	iwl_mvm_dump_nic_error_log(mvm);
+
+	iwl_mvm_nic_restart(mvm);
+}
+
 static void iwl_mvm_cmd_queue_full(struct iwl_op_mode *op_mode)
 {
+	struct iwl_mvm *mvm = IWL_OP_MODE_GET_MVM(op_mode);
+
 	WARN_ON(1);
+	iwl_mvm_nic_restart(mvm);
 }
 
 static const struct iwl_op_mode_ops iwl_mvm_ops = {

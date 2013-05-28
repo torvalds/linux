@@ -19,7 +19,10 @@ extern void request_event_sources_irqs(struct device_node *np,
 
 #include <linux/of.h>
 
-extern void __init fw_feature_init(const char *hypertas, unsigned long len);
+extern void __init fw_hypertas_feature_init(const char *hypertas,
+					    unsigned long len);
+extern void __init fw_vec5_feature_init(const char *hypertas,
+					unsigned long len);
 
 struct pt_regs;
 
@@ -59,5 +62,9 @@ extern int dlpar_detach_node(struct device_node *);
 
 /* Snooze Delay, pseries_idle */
 DECLARE_PER_CPU(long, smt_snooze_delay);
+
+/* PCI root bridge prepare function override for pseries */
+struct pci_host_bridge;
+int pseries_root_bridge_prepare(struct pci_host_bridge *bridge);
 
 #endif /* _PSERIES_PSERIES_H */

@@ -496,6 +496,14 @@
 
 	pmc {
 		nvidia,invert-interrupt;
+		nvidia,suspend-mode = <2>;
+		nvidia,cpu-pwr-good-time = <2000>;
+		nvidia,cpu-pwr-off-time = <1000>;
+		nvidia,core-pwr-good-time = <0 3845>;
+		nvidia,core-pwr-off-time = <93727>;
+		nvidia,core-power-req-active-high;
+		nvidia,sys-clock-req-active-high;
+		nvidia,combined-power-req;
 	};
 
 	usb@c5000000 {
@@ -510,6 +518,7 @@
 
 	sdhci@c8000400 {
 		status = "okay";
+		cd-gpios = <&gpio 69 1>; /* gpio PI5 */
 		wp-gpios = <&gpio 173 0>; /* gpio PV5 */
 		bus-width = <8>;
 	};
@@ -517,6 +526,20 @@
 	sdhci@c8000600 {
 		status = "okay";
 		bus-width = <8>;
+		non-removable;
+	};
+
+	clocks {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		clk32k_in: clock {
+			compatible = "fixed-clock";
+			reg=<0>;
+			#clock-cells = <0>;
+			clock-frequency = <32768>;
+		};
 	};
 
 	kbc {
@@ -525,6 +548,7 @@
 		nvidia,repeat-delay-ms = <160>;
 		nvidia,kbc-row-pins = <0 1 2>;
 		nvidia,kbc-col-pins = <16 17>;
+		nvidia,wakeup-source;
 		linux,keymap = <0x00000074	/* KEY_POWER */
 				0x01000066	/* KEY_HOME */
 				0x0101009E	/* KEY_BACK */
@@ -559,5 +583,8 @@
 
 		nvidia,i2s-controller = <&tegra_i2s1>;
 		nvidia,audio-codec = <&codec>;
+
+		clocks = <&tegra_car 112>, <&tegra_car 113>, <&tegra_car 94>;
+		clock-names = "pll_a", "pll_a_out0", "mclk";
 	};
 };

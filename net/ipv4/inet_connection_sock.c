@@ -559,7 +559,7 @@ static inline void syn_ack_recalc(struct request_sock *req, const int thresh,
 
 int inet_rtx_syn_ack(struct sock *parent, struct request_sock *req)
 {
-	int err = req->rsk_ops->rtx_syn_ack(parent, req, NULL);
+	int err = req->rsk_ops->rtx_syn_ack(parent, req);
 
 	if (!err)
 		req->num_retrans++;
@@ -735,6 +735,7 @@ EXPORT_SYMBOL(inet_csk_destroy_sock);
  * tcp/dccp_create_openreq_child().
  */
 void inet_csk_prepare_forced_close(struct sock *sk)
+	__releases(&sk->sk_lock.slock)
 {
 	/* sk_clone_lock locked the socket and set refcnt to 2 */
 	bh_unlock_sock(sk);

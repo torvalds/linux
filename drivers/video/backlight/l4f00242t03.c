@@ -51,14 +51,33 @@ static void l4f00242t03_lcd_init(struct spi_device *spi)
 	struct l4f00242t03_pdata *pdata = spi->dev.platform_data;
 	struct l4f00242t03_priv *priv = spi_get_drvdata(spi);
 	const u16 cmd[] = { 0x36, param(0), 0x3A, param(0x60) };
+	int ret;
 
 	dev_dbg(&spi->dev, "initializing LCD\n");
 
-	regulator_set_voltage(priv->io_reg, 1800000, 1800000);
-	regulator_enable(priv->io_reg);
+	ret = regulator_set_voltage(priv->io_reg, 1800000, 1800000);
+	if (ret) {
+		dev_err(&spi->dev, "failed to set the IO regulator voltage.\n");
+		return;
+	}
+	ret = regulator_enable(priv->io_reg);
+	if (ret) {
+		dev_err(&spi->dev, "failed to enable the IO regulator.\n");
+		return;
+	}
 
-	regulator_set_voltage(priv->core_reg, 2800000, 2800000);
-	regulator_enable(priv->core_reg);
+	ret = regulator_set_voltage(priv->core_reg, 2800000, 2800000);
+	if (ret) {
+		dev_err(&spi->dev, "failed to set the core regulator voltage.\n");
+		regulator_disable(priv->io_reg);
+		return;
+	}
+	ret = regulator_enable(priv->core_reg);
+	if (ret) {
+		dev_err(&spi->dev, "failed to enable the core regulator.\n");
+		regulator_disable(priv->io_reg);
+		return;
+	}
 
 	l4f00242t03_reset(pdata->reset_gpio);
 

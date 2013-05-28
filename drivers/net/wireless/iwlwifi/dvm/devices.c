@@ -379,7 +379,7 @@ static int iwl5000_hw_channel_switch(struct iwl_priv *priv,
 	};
 
 	cmd.band = priv->band == IEEE80211_BAND_2GHZ;
-	ch = ch_switch->channel->hw_value;
+	ch = ch_switch->chandef.chan->hw_value;
 	IWL_DEBUG_11H(priv, "channel switch from %d to %d\n",
 		      ctx->active.channel, ch);
 	cmd.channel = cpu_to_le16(ch);
@@ -414,7 +414,8 @@ static int iwl5000_hw_channel_switch(struct iwl_priv *priv,
 	}
 	IWL_DEBUG_11H(priv, "uCode time for the switch is 0x%x\n",
 		      cmd.switch_time);
-	cmd.expect_beacon = ch_switch->channel->flags & IEEE80211_CHAN_RADAR;
+	cmd.expect_beacon =
+		ch_switch->chandef.chan->flags & IEEE80211_CHAN_RADAR;
 
 	return iwl_dvm_send_cmd(priv, &hcmd);
 }
@@ -540,7 +541,7 @@ static int iwl6000_hw_channel_switch(struct iwl_priv *priv,
 	hcmd.data[0] = cmd;
 
 	cmd->band = priv->band == IEEE80211_BAND_2GHZ;
-	ch = ch_switch->channel->hw_value;
+	ch = ch_switch->chandef.chan->hw_value;
 	IWL_DEBUG_11H(priv, "channel switch from %u to %u\n",
 		      ctx->active.channel, ch);
 	cmd->channel = cpu_to_le16(ch);
@@ -575,7 +576,8 @@ static int iwl6000_hw_channel_switch(struct iwl_priv *priv,
 	}
 	IWL_DEBUG_11H(priv, "uCode time for the switch is 0x%x\n",
 		      cmd->switch_time);
-	cmd->expect_beacon = ch_switch->channel->flags & IEEE80211_CHAN_RADAR;
+	cmd->expect_beacon =
+		ch_switch->chandef.chan->flags & IEEE80211_CHAN_RADAR;
 
 	err = iwl_dvm_send_cmd(priv, &hcmd);
 	kfree(cmd);

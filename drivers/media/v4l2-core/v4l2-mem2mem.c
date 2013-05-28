@@ -230,12 +230,15 @@ static void v4l2_m2m_try_schedule(struct v4l2_m2m_ctx *m2m_ctx)
 		dprintk("No input buffers available\n");
 		return;
 	}
+	spin_lock_irqsave(&m2m_ctx->cap_q_ctx.rdy_spinlock, flags);
 	if (list_empty(&m2m_ctx->cap_q_ctx.rdy_queue)) {
+		spin_unlock_irqrestore(&m2m_ctx->cap_q_ctx.rdy_spinlock, flags);
 		spin_unlock_irqrestore(&m2m_ctx->out_q_ctx.rdy_spinlock, flags);
 		spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags_job);
 		dprintk("No output buffers available\n");
 		return;
 	}
+	spin_unlock_irqrestore(&m2m_ctx->cap_q_ctx.rdy_spinlock, flags);
 	spin_unlock_irqrestore(&m2m_ctx->out_q_ctx.rdy_spinlock, flags);
 
 	if (m2m_dev->m2m_ops->job_ready
@@ -405,10 +408,35 @@ EXPORT_SYMBOL_GPL(v4l2_m2m_streamon);
 int v4l2_m2m_streamoff(struct file *file, struct v4l2_m2m_ctx *m2m_ctx,
 		       enum v4l2_buf_type type)
 {
-	struct vb2_queue *vq;
+	struct v4l2_m2m_dev *m2m_dev;
+	struct v4l2_m2m_queue_ctx *q_ctx;
+	unsigned long flags_job, flags;
+	int ret;
 
-	vq = v4l2_m2m_get_vq(m2m_ctx, type);
-	return vb2_streamoff(vq, type);
+	q_ctx = get_queue_ctx(m2m_ctx, type);
+	ret = vb2_streamoff(&q_ctx->q, type);
+	if (ret)
+		return ret;
+
+	m2m_dev = m2m_ctx->m2m_dev;
+	spin_lock_irqsave(&m2m_dev->job_spinlock, flags_job);
+	/* We should not be scheduled anymore, since we're dropping a queue. */
+	INIT_LIST_HEAD(&m2m_ctx->queue);
+	m2m_ctx->job_flags = 0;
+
+	spin_lock_irqsave(&q_ctx->rdy_spinlock, flags);
+	/* Drop queue, since streamoff returns device to the same state as after
+	 * calling reqbufs. */
+	INIT_LIST_HEAD(&q_ctx->rdy_queue);
+	spin_unlock_irqrestore(&q_ctx->rdy_spinlock, flags);
+
+	if (m2m_dev->curr_ctx == m2m_ctx) {
+		m2m_dev->curr_ctx = NULL;
+		wake_up(&m2m_ctx->finished);
+	}
+	spin_unlock_irqrestore(&m2m_dev->job_spinlock, flags_job);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(v4l2_m2m_streamoff);
 

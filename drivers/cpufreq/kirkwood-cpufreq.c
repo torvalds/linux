@@ -55,7 +55,8 @@ static unsigned int kirkwood_cpufreq_get_cpu_frequency(unsigned int cpu)
 	return kirkwood_freq_table[0].frequency;
 }
 
-static void kirkwood_cpufreq_set_cpu_state(unsigned int index)
+static void kirkwood_cpufreq_set_cpu_state(struct cpufreq_policy *policy,
+		unsigned int index)
 {
 	struct cpufreq_freqs freqs;
 	unsigned int state = kirkwood_freq_table[index].index;
@@ -63,9 +64,8 @@ static void kirkwood_cpufreq_set_cpu_state(unsigned int index)
 
 	freqs.old = kirkwood_cpufreq_get_cpu_frequency(0);
 	freqs.new = kirkwood_freq_table[index].frequency;
-	freqs.cpu = 0; /* Kirkwood is UP */
 
-	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 
 	dev_dbg(priv.dev, "Attempting to set frequency to %i KHz\n",
 		kirkwood_freq_table[index].frequency);
@@ -99,7 +99,7 @@ static void kirkwood_cpufreq_set_cpu_state(unsigned int index)
 
 		local_irq_enable();
 	}
-	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 };
 
 static int kirkwood_cpufreq_verify(struct cpufreq_policy *policy)
@@ -117,7 +117,7 @@ static int kirkwood_cpufreq_target(struct cpufreq_policy *policy,
 				target_freq, relation, &index))
 		return -EINVAL;
 
-	kirkwood_cpufreq_set_cpu_state(index);
+	kirkwood_cpufreq_set_cpu_state(policy, index);
 
 	return 0;
 }
@@ -171,15 +171,9 @@ static int kirkwood_cpufreq_probe(struct platform_device *pdev)
 	priv.dev = &pdev->dev;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "Cannot get memory resource\n");
-		return -ENODEV;
-	}
-	priv.base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!priv.base) {
-		dev_err(&pdev->dev, "Cannot ioremap\n");
-		return -EADDRNOTAVAIL;
-	}
+	priv.base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(priv.base))
+		return PTR_ERR(priv.base);
 
 	np = of_find_node_by_path("/cpus/cpu@0");
 	if (!np)

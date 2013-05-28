@@ -131,5 +131,4 @@ enum {
 
 #ifdef __KERNEL__
 long btrfs_ioctl_send(struct file *mnt_file, void __user *arg);
-int write_buf(struct file *filp, const void *buf, u32 len, loff_t *off);
 #endif

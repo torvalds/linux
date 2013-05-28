@@ -1189,10 +1189,15 @@ static void b43_bcma_phy_reset(struct b43_wldev *dev)
 
 static void b43_bcma_wireless_core_reset(struct b43_wldev *dev, bool gmode)
 {
+	u32 req = B43_BCMA_CLKCTLST_80211_PLL_REQ |
+		  B43_BCMA_CLKCTLST_PHY_PLL_REQ;
+	u32 status = B43_BCMA_CLKCTLST_80211_PLL_ST |
+		     B43_BCMA_CLKCTLST_PHY_PLL_ST;
+
 	b43_device_enable(dev, B43_BCMA_IOCTL_PHY_CLKEN);
 	bcma_core_set_clockmode(dev->dev->bdev, BCMA_CLKMODE_FAST);
 	b43_bcma_phy_reset(dev);
-	bcma_core_pll_ctl(dev->dev->bdev, 0x300, 0x3000000, true);
+	bcma_core_pll_ctl(dev->dev->bdev, req, status, true);
 }
 #endif
 
@@ -1305,17 +1310,19 @@ static u32 b43_jssi_read(struct b43_wldev *dev)
 {
 	u32 val = 0;
 
-	val = b43_shm_read16(dev, B43_SHM_SHARED, 0x08A);
+	val = b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_JSSI1);
 	val <<= 16;
-	val |= b43_shm_read16(dev, B43_SHM_SHARED, 0x088);
+	val |= b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_JSSI0);
 
 	return val;
 }
 
 static void b43_jssi_write(struct b43_wldev *dev, u32 jssi)
 {
-	b43_shm_write16(dev, B43_SHM_SHARED, 0x088, (jssi & 0x0000FFFF));
-	b43_shm_write16(dev, B43_SHM_SHARED, 0x08A, (jssi & 0xFFFF0000) >> 16);
+	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_JSSI0,
+			(jssi & 0x0000FFFF));
+	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_JSSI1,
+			(jssi & 0xFFFF0000) >> 16);
 }
 
 static void b43_generate_noise_sample(struct b43_wldev *dev)
@@ -1618,7 +1625,7 @@ static void b43_upload_beacon0(struct b43_wldev *dev)
 
 	if (wl->beacon0_uploaded)
 		return;
-	b43_write_beacon_template(dev, 0x68, 0x18);
+	b43_write_beacon_template(dev, B43_SHM_SH_BT_BASE0, B43_SHM_SH_BTL0);
 	wl->beacon0_uploaded = true;
 }
 
@@ -1628,7 +1635,7 @@ static void b43_upload_beacon1(struct b43_wldev *dev)
 
 	if (wl->beacon1_uploaded)
 		return;
-	b43_write_beacon_template(dev, 0x468, 0x1A);
+	b43_write_beacon_template(dev, B43_SHM_SH_BT_BASE1, B43_SHM_SH_BTL1);
 	wl->beacon1_uploaded = true;
 }
 
@@ -1895,30 +1902,18 @@ static void b43_do_interrupt_thread(struct b43_wldev *dev)
 		}
 	}
 
-	if (unlikely(merged_dma_reason & (B43_DMAIRQ_FATALMASK |
-					  B43_DMAIRQ_NONFATALMASK))) {
-		if (merged_dma_reason & B43_DMAIRQ_FATALMASK) {
-			b43err(dev->wl, "Fatal DMA error: "
-			       "0x%08X, 0x%08X, 0x%08X, "
-			       "0x%08X, 0x%08X, 0x%08X\n",
-			       dma_reason[0], dma_reason[1],
-			       dma_reason[2], dma_reason[3],
-			       dma_reason[4], dma_reason[5]);
-			b43err(dev->wl, "This device does not support DMA "
+	if (unlikely(merged_dma_reason & (B43_DMAIRQ_FATALMASK))) {
+		b43err(dev->wl,
+			"Fatal DMA error: 0x%08X, 0x%08X, 0x%08X, 0x%08X, 0x%08X, 0x%08X\n",
+			dma_reason[0], dma_reason[1],
+			dma_reason[2], dma_reason[3],
+			dma_reason[4], dma_reason[5]);
+		b43err(dev->wl, "This device does not support DMA "
 			       "on your system. It will now be switched to PIO.\n");
-			/* Fall back to PIO transfers if we get fatal DMA errors! */
-			dev->use_pio = true;
-			b43_controller_restart(dev, "DMA error");
-			return;
-		}
-		if (merged_dma_reason & B43_DMAIRQ_NONFATALMASK) {
-			b43err(dev->wl, "DMA error: "
-			       "0x%08X, 0x%08X, 0x%08X, "
-			       "0x%08X, 0x%08X, 0x%08X\n",
-			       dma_reason[0], dma_reason[1],
-			       dma_reason[2], dma_reason[3],
-			       dma_reason[4], dma_reason[5]);
-		}
+		/* Fall back to PIO transfers if we get fatal DMA errors! */
+		dev->use_pio = true;
+		b43_controller_restart(dev, "DMA error");
+		return;
 	}
 
 	if (unlikely(reason & B43_IRQ_UCODE_DEBUG))
@@ -1937,6 +1932,11 @@ static void b43_do_interrupt_thread(struct b43_wldev *dev)
 		handle_irq_noise(dev);
 
 	/* Check the DMA reason registers for received data. */
+	if (dma_reason[0] & B43_DMAIRQ_RDESC_UFLOW) {
+		if (B43_DEBUG)
+			b43warn(dev->wl, "RX descriptor underrun\n");
+		b43_dma_handle_rx_overflow(dev->dma.rx_ring);
+	}
 	if (dma_reason[0] & B43_DMAIRQ_RX_DONE) {
 		if (b43_using_pio_transfers(dev))
 			b43_pio_rx(dev->pio.rx_queue);
@@ -1994,7 +1994,7 @@ static irqreturn_t b43_do_interrupt(struct b43_wldev *dev)
 		return IRQ_NONE;
 
 	dev->dma_reason[0] = b43_read32(dev, B43_MMIO_DMA0_REASON)
-	    & 0x0001DC00;
+	    & 0x0001FC00;
 	dev->dma_reason[1] = b43_read32(dev, B43_MMIO_DMA1_REASON)
 	    & 0x0000DC00;
 	dev->dma_reason[2] = b43_read32(dev, B43_MMIO_DMA2_REASON)
@@ -2775,9 +2775,7 @@ static int b43_gpio_init(struct b43_wldev *dev)
 	switch (dev->dev->bus_type) {
 #ifdef CONFIG_B43_BCMA
 	case B43_BUS_BCMA:
-		bcma_cc_write32(&dev->dev->bdev->bus->drv_cc, BCMA_CC_GPIOCTL,
-				(bcma_cc_read32(&dev->dev->bdev->bus->drv_cc,
-					BCMA_CC_GPIOCTL) & ~mask) | set);
+		bcma_chipco_gpio_control(&dev->dev->bdev->bus->drv_cc, mask, set);
 		break;
 #endif
 #ifdef CONFIG_B43_SSB
@@ -2802,8 +2800,7 @@ static void b43_gpio_cleanup(struct b43_wldev *dev)
 	switch (dev->dev->bus_type) {
 #ifdef CONFIG_B43_BCMA
 	case B43_BUS_BCMA:
-		bcma_cc_write32(&dev->dev->bdev->bus->drv_cc, BCMA_CC_GPIOCTL,
-				0);
+		bcma_chipco_gpio_control(&dev->dev->bdev->bus->drv_cc, ~0, 0);
 		break;
 #endif
 #ifdef CONFIG_B43_SSB
@@ -3111,7 +3108,7 @@ static int b43_chip_init(struct b43_wldev *dev)
 
 	/* Probe Response Timeout value */
 	/* FIXME: Default to 0, has to be set by ioctl probably... :-/ */
-	b43_shm_write16(dev, B43_SHM_SHARED, 0x0074, 0x0000);
+	b43_shm_write16(dev, B43_SHM_SHARED, B43_SHM_SH_PRMAXTIME, 0);
 
 	/* Initially set the wireless operation mode. */
 	b43_adjust_opmode(dev);
@@ -3126,7 +3123,7 @@ static int b43_chip_init(struct b43_wldev *dev)
 		b43_write32(dev, 0x018C, 0x02000000);
 	}
 	b43_write32(dev, B43_MMIO_GEN_IRQ_REASON, 0x00004000);
-	b43_write32(dev, B43_MMIO_DMA0_IRQ_MASK, 0x0001DC00);
+	b43_write32(dev, B43_MMIO_DMA0_IRQ_MASK, 0x0001FC00);
 	b43_write32(dev, B43_MMIO_DMA1_IRQ_MASK, 0x0000DC00);
 	b43_write32(dev, B43_MMIO_DMA2_IRQ_MASK, 0x0000DC00);
 	b43_write32(dev, B43_MMIO_DMA3_IRQ_MASK, 0x0001DC00);
@@ -3848,7 +3845,7 @@ static int b43_op_config(struct ieee80211_hw *hw, u32 changed)
 	dev = wl->current_dev;
 
 	/* Switch the band (if necessary). This might change the active core. */
-	err = b43_switch_band(wl, conf->channel);
+	err = b43_switch_band(wl, conf->chandef.chan);
 	if (err)
 		goto out_unlock_mutex;
 
@@ -3878,8 +3875,8 @@ static int b43_op_config(struct ieee80211_hw *hw, u32 changed)
 
 	/* Switch to the requested channel.
 	 * The firmware takes care of races with the TX handler. */
-	if (conf->channel->hw_value != phy->channel)
-		b43_switch_channel(dev, conf->channel->hw_value);
+	if (conf->chandef.chan->hw_value != phy->channel)
+		b43_switch_channel(dev, conf->chandef.chan->hw_value);
 
 	dev->wl->radiotap_enabled = !!(conf->flags & IEEE80211_CONF_MONITOR);
 
@@ -5002,7 +4999,7 @@ static int b43_op_get_survey(struct ieee80211_hw *hw, int idx,
 	if (idx != 0)
 		return -ENOENT;
 
-	survey->channel = conf->channel;
+	survey->channel = conf->chandef.chan;
 	survey->filled = SURVEY_INFO_NOISE_DBM;
 	survey->noise = dev->stats.link_noise;
 

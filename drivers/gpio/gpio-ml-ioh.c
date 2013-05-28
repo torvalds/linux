@@ -496,8 +496,7 @@ err_irq_alloc_descs:
 err_gpiochip_add:
 	while (--i >= 0) {
 		chip--;
-		ret = gpiochip_remove(&chip->gpio);
-		if (ret)
+		if (gpiochip_remove(&chip->gpio))
 			dev_err(&pdev->dev, "Failed gpiochip_remove(%d)\n", i);
 	}
 	kfree(chip_save);

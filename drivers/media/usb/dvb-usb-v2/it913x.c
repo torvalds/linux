@@ -218,6 +218,7 @@ static int it913x_pid_filter_ctrl(struct dvb_usb_adapter *adap, int onoff)
 
 	deb_info(1, "PID_C  (%02x)", onoff);
 
+	st->pid_filter_onoff = adap->pid_filtering;
 	ret = it913x_wr_reg(d, pro, PID_EN, st->pid_filter_onoff);
 
 	mutex_unlock(&d->i2c_mutex);

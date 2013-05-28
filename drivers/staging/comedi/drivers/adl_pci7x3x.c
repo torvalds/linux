@@ -53,60 +53,57 @@ Configuration Options: not applicable, uses comedi PCI auto config
 #include "../comedidev.h"
 
 /*
- * PCI Device ID's supported by this driver
- */
-#define PCI_DEVICE_ID_PCI7230	0x7230
-#define PCI_DEVICE_ID_PCI7233	0x7233
-#define PCI_DEVICE_ID_PCI7234	0x7234
-#define PCI_DEVICE_ID_PCI7432	0x7432
-#define PCI_DEVICE_ID_PCI7433	0x7433
-#define PCI_DEVICE_ID_PCI7434	0x7434
-
-/*
  * Register I/O map (32-bit access only)
  */
 #define PCI7X3X_DIO_REG		0x00
 #define PCI743X_DIO_REG		0x04
 
+enum apci1516_boardid {
+	BOARD_PCI7230,
+	BOARD_PCI7233,
+	BOARD_PCI7234,
+	BOARD_PCI7432,
+	BOARD_PCI7433,
+	BOARD_PCI7434,
+};
+
 struct adl_pci7x3x_boardinfo {
 	const char *name;
-	unsigned short device;
 	int nsubdevs;
 	int di_nchan;
 	int do_nchan;
 };
 
 static const struct adl_pci7x3x_boardinfo adl_pci7x3x_boards[] = {
-	{
+	[BOARD_PCI7230] = {
 		.name		= "adl_pci7230",
-		.device		= PCI_DEVICE_ID_PCI7230,
 		.nsubdevs	= 2,
 		.di_nchan	= 16,
 		.do_nchan	= 16,
-	}, {
+	},
+	[BOARD_PCI7233] = {
 		.name		= "adl_pci7233",
-		.device		= PCI_DEVICE_ID_PCI7233,
 		.nsubdevs	= 1,
 		.di_nchan	= 32,
-	}, {
+	},
+	[BOARD_PCI7234] = {
 		.name		= "adl_pci7234",
-		.device		= PCI_DEVICE_ID_PCI7234,
 		.nsubdevs	= 1,
 		.do_nchan	= 32,
-	}, {
+	},
+	[BOARD_PCI7432] = {
 		.name		= "adl_pci7432",
-		.device		= PCI_DEVICE_ID_PCI7432,
 		.nsubdevs	= 2,
 		.di_nchan	= 32,
 		.do_nchan	= 32,
-	}, {
+	},
+	[BOARD_PCI7433] = {
 		.name		= "adl_pci7433",
-		.device		= PCI_DEVICE_ID_PCI7433,
 		.nsubdevs	= 2,
 		.di_nchan	= 64,
-	}, {
+	},
+	[BOARD_PCI7434] = {
 		.name		= "adl_pci7434",
-		.device		= PCI_DEVICE_ID_PCI7434,
 		.nsubdevs	= 2,
 		.do_nchan	= 64,
 	}
@@ -150,37 +147,24 @@ static int adl_pci7x3x_di_insn_bits(struct comedi_device *dev,
 	return insn->n;
 }
 
-static const void *adl_pci7x3x_find_boardinfo(struct comedi_device *dev,
-					      struct pci_dev *pcidev)
-{
-	const struct adl_pci7x3x_boardinfo *board;
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(adl_pci7x3x_boards); i++) {
-		board = &adl_pci7x3x_boards[i];
-		if (pcidev->device == board->device)
-			return board;
-	}
-	return NULL;
-}
-
 static int adl_pci7x3x_auto_attach(struct comedi_device *dev,
-					     unsigned long context_unused)
+				   unsigned long context)
 {
 	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-	const struct adl_pci7x3x_boardinfo *board;
+	const struct adl_pci7x3x_boardinfo *board = NULL;
 	struct comedi_subdevice *s;
 	int subdev;
 	int nchan;
 	int ret;
 
-	board = adl_pci7x3x_find_boardinfo(dev, pcidev);
+	if (context < ARRAY_SIZE(adl_pci7x3x_boards))
+		board = &adl_pci7x3x_boards[context];
 	if (!board)
 		return -ENODEV;
 	dev->board_ptr = board;
 	dev->board_name = board->name;
 
-	ret = comedi_pci_enable(pcidev, dev->board_name);
+	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
 	dev->iobase = pci_resource_start(pcidev, 2);
@@ -275,36 +259,27 @@ static int adl_pci7x3x_auto_attach(struct comedi_device *dev,
 	return 0;
 }
 
-static void adl_pci7x3x_detach(struct comedi_device *dev)
-{
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-	}
-}
-
 static struct comedi_driver adl_pci7x3x_driver = {
 	.driver_name	= "adl_pci7x3x",
 	.module		= THIS_MODULE,
 	.auto_attach	= adl_pci7x3x_auto_attach,
-	.detach		= adl_pci7x3x_detach,
+	.detach		= comedi_pci_disable,
 };
 
 static int adl_pci7x3x_pci_probe(struct pci_dev *dev,
-					   const struct pci_device_id *ent)
+				 const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &adl_pci7x3x_driver);
+	return comedi_pci_auto_config(dev, &adl_pci7x3x_driver,
+				      id->driver_data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(adl_pci7x3x_pci_table) = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI7230) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI7233) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI7234) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI7432) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI7433) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ADLINK, PCI_DEVICE_ID_PCI7434) },
+	{ PCI_VDEVICE(ADLINK, 0x7230), BOARD_PCI7230 },
+	{ PCI_VDEVICE(ADLINK, 0x7233), BOARD_PCI7233 },
+	{ PCI_VDEVICE(ADLINK, 0x7234), BOARD_PCI7234 },
+	{ PCI_VDEVICE(ADLINK, 0x7432), BOARD_PCI7432 },
+	{ PCI_VDEVICE(ADLINK, 0x7433), BOARD_PCI7433 },
+	{ PCI_VDEVICE(ADLINK, 0x7434), BOARD_PCI7434 },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, adl_pci7x3x_pci_table);

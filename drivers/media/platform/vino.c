@@ -3042,7 +3042,7 @@ static int vino_g_std(struct file *file, void *__fh,
 }
 
 static int vino_s_std(struct file *file, void *__fh,
-			   v4l2_std_id *std)
+			   v4l2_std_id std)
 {
 	struct vino_channel_settings *vcs = video_drvdata(file);
 	unsigned long flags;
@@ -3056,7 +3056,7 @@ static int vino_s_std(struct file *file, void *__fh,
 	}
 
 	/* check if the standard is valid for the current input */
-	if ((*std) & vino_inputs[vcs->input].std) {
+	if (std & vino_inputs[vcs->input].std) {
 		dprintk("standard accepted\n");
 
 		/* change the video norm for SAA7191
@@ -3065,13 +3065,13 @@ static int vino_s_std(struct file *file, void *__fh,
 		if (vcs->input == VINO_INPUT_D1)
 			goto out;
 
-		if ((*std) & V4L2_STD_PAL) {
+		if (std & V4L2_STD_PAL) {
 			ret = vino_set_data_norm(vcs, VINO_DATA_NORM_PAL,
 						 &flags);
-		} else if ((*std) & V4L2_STD_NTSC) {
+		} else if (std & V4L2_STD_NTSC) {
 			ret = vino_set_data_norm(vcs, VINO_DATA_NORM_NTSC,
 						 &flags);
-		} else if ((*std) & V4L2_STD_SECAM) {
+		} else if (std & V4L2_STD_SECAM) {
 			ret = vino_set_data_norm(vcs, VINO_DATA_NORM_SECAM,
 						 &flags);
 		} else {

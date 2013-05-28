@@ -134,6 +134,9 @@ struct psb_intel_sdvo {
 
 	/* Input timings for adjusted_mode */
 	struct psb_intel_sdvo_dtd input_dtd;
+
+	/* Saved SDVO output states */
+	uint32_t saveSDVO; /* Can be SDVOB or SDVOC depending on sdvo_reg */
 };
 
 struct psb_intel_sdvo_connector {
@@ -1830,6 +1833,34 @@ done:
 #undef CHECK_PROPERTY
 }
 
+static void psb_intel_sdvo_save(struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+	struct psb_intel_encoder *psb_intel_encoder =
+					psb_intel_attached_encoder(connector);
+	struct psb_intel_sdvo *sdvo =
+				to_psb_intel_sdvo(&psb_intel_encoder->base);
+
+	sdvo->saveSDVO = REG_READ(sdvo->sdvo_reg);
+}
+
+static void psb_intel_sdvo_restore(struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+	struct drm_encoder *encoder =
+				&psb_intel_attached_encoder(connector)->base;
+	struct psb_intel_sdvo *sdvo = to_psb_intel_sdvo(encoder);
+	struct drm_crtc *crtc = encoder->crtc;
+
+	REG_WRITE(sdvo->sdvo_reg, sdvo->saveSDVO);
+
+	/* Force a full mode set on the crtc. We're supposed to have the
+	   mode_config lock already. */
+	if (connector->status == connector_status_connected)
+		drm_crtc_helper_set_mode(crtc, &crtc->mode, crtc->x, crtc->y,
+					 NULL);
+}
+
 static const struct drm_encoder_helper_funcs psb_intel_sdvo_helper_funcs = {
 	.dpms = psb_intel_sdvo_dpms,
 	.mode_fixup = psb_intel_sdvo_mode_fixup,
@@ -1840,6 +1871,8 @@ static const struct drm_encoder_helper_funcs psb_intel_sdvo_helper_funcs = {
 
 static const struct drm_connector_funcs psb_intel_sdvo_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
+	.save = psb_intel_sdvo_save,
+	.restore = psb_intel_sdvo_restore,
 	.detect = psb_intel_sdvo_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.set_property = psb_intel_sdvo_set_property,

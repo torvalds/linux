@@ -11,14 +11,12 @@
 #include <linux/delay.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/irqchip/arm-gic.h>
 #include <asm/page.h>
 #include <asm/mach/map.h>
 #include <asm/smp_plat.h>
 #include <asm/smp_scu.h>
 #include <asm/cacheflush.h>
 #include <asm/cputype.h>
-#include <mach/map.h>
 
 #include "common.h"
 
@@ -48,13 +46,6 @@ void __init sirfsoc_map_scu(void)
 
 static void __cpuinit sirfsoc_secondary_init(unsigned int cpu)
 {
-	/*
-	 * if any interrupts are already enabled for the primary
-	 * core (e.g. timer irq), then they will not have been enabled
-	 * for us: do so
-	 */
-	gic_secondary_init(0);
-
 	/*
 	 * let the primary processor know we're out of the
 	 * pen, then head off into the C entry point

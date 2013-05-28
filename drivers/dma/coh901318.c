@@ -2748,7 +2748,7 @@ static int __init coh901318_probe(struct platform_device *pdev)
 	return err;
 }
 
-static int __exit coh901318_remove(struct platform_device *pdev)
+static int coh901318_remove(struct platform_device *pdev)
 {
 	struct coh901318_base *base = platform_get_drvdata(pdev);
 
@@ -2760,7 +2760,7 @@ static int __exit coh901318_remove(struct platform_device *pdev)
 
 
 static struct platform_driver coh901318_driver = {
-	.remove = __exit_p(coh901318_remove),
+	.remove = coh901318_remove,
 	.driver = {
 		.name	= "coh901318",
 	},

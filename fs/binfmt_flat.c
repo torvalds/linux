@@ -207,11 +207,12 @@ static int decompress_exec(
 
 	/* Read in first chunk of data and parse gzip header. */
 	fpos = offset;
-	ret = bprm->file->f_op->read(bprm->file, buf, LBUFSIZE, &fpos);
+	ret = kernel_read(bprm->file, offset, buf, LBUFSIZE);
 
 	strm.next_in = buf;
 	strm.avail_in = ret;
 	strm.total_in = 0;
+	fpos += ret;
 
 	retval = -ENOEXEC;
 
@@ -277,7 +278,7 @@ static int decompress_exec(
 	}
 
 	while ((ret = zlib_inflate(&strm, Z_NO_FLUSH)) == Z_OK) {
-		ret = bprm->file->f_op->read(bprm->file, buf, LBUFSIZE, &fpos);
+		ret = kernel_read(bprm->file, fpos, buf, LBUFSIZE);
 		if (ret <= 0)
 			break;
 		len -= ret;
@@ -285,6 +286,7 @@ static int decompress_exec(
 		strm.next_in = buf;
 		strm.avail_in = ret;
 		strm.total_in = 0;
+		fpos += ret;
 	}
 
 	if (ret < 0) {
@@ -428,6 +430,7 @@ static int load_flat_file(struct linux_binprm * bprm,
 	unsigned long textpos = 0, datapos = 0, result;
 	unsigned long realdatastart = 0;
 	unsigned long text_len, data_len, bss_len, stack_len, flags;
+	unsigned long full_data;
 	unsigned long len, memp = 0;
 	unsigned long memp_size, extra, rlim;
 	unsigned long *reloc = 0, *rp;
@@ -451,6 +454,7 @@ static int load_flat_file(struct linux_binprm * bprm,
 	relocs    = ntohl(hdr->reloc_count);
 	flags     = ntohl(hdr->flags);
 	rev       = ntohl(hdr->rev);
+	full_data = data_len + relocs * sizeof(unsigned long);
 
 	if (strncmp(hdr->magic, "bFLT", 4)) {
 		/*
@@ -577,12 +581,12 @@ static int load_flat_file(struct linux_binprm * bprm,
 #ifdef CONFIG_BINFMT_ZFLAT
 		if (flags & FLAT_FLAG_GZDATA) {
 			result = decompress_exec(bprm, fpos, (char *) datapos, 
-						 data_len + (relocs * sizeof(unsigned long)), 0);
+						 full_data, 0);
 		} else
 #endif
 		{
-			result = bprm->file->f_op->read(bprm->file, (char *) datapos,
-					data_len + (relocs * sizeof(unsigned long)), &fpos);
+			result = read_code(bprm->file, datapos, fpos,
+					full_data);
 		}
 		if (IS_ERR_VALUE(result)) {
 			printk("Unable to read data+bss, errno %d\n", (int)-result);
@@ -627,30 +631,25 @@ static int load_flat_file(struct linux_binprm * bprm,
 		if (flags & FLAT_FLAG_GZIP) {
 			result = decompress_exec(bprm, sizeof (struct flat_hdr),
 					 (((char *) textpos) + sizeof (struct flat_hdr)),
-					 (text_len + data_len + (relocs * sizeof(unsigned long))
+					 (text_len + full_data
 						  - sizeof (struct flat_hdr)),
 					 0);
 			memmove((void *) datapos, (void *) realdatastart,
-					data_len + (relocs * sizeof(unsigned long)));
+					full_data);
 		} else if (flags & FLAT_FLAG_GZDATA) {
-			fpos = 0;
-			result = bprm->file->f_op->read(bprm->file,
-					(char *) textpos, text_len, &fpos);
+			result = read_code(bprm->file, textpos, 0, text_len);
 			if (!IS_ERR_VALUE(result))
 				result = decompress_exec(bprm, text_len, (char *) datapos,
-						 data_len + (relocs * sizeof(unsigned long)), 0);
+						 full_data, 0);
 		}
 		else
 #endif
 		{
-			fpos = 0;
-			result = bprm->file->f_op->read(bprm->file,
-					(char *) textpos, text_len, &fpos);
-			if (!IS_ERR_VALUE(result)) {
-				fpos = ntohl(hdr->data_start);
-				result = bprm->file->f_op->read(bprm->file, (char *) datapos,
-					data_len + (relocs * sizeof(unsigned long)), &fpos);
-			}
+			result = read_code(bprm->file, textpos, 0, text_len);
+			if (!IS_ERR_VALUE(result))
+				result = read_code(bprm->file, datapos,
+						   ntohl(hdr->data_start),
+						   full_data);
 		}
 		if (IS_ERR_VALUE(result)) {
 			printk("Unable to read code+data+bss, errno %d\n",(int)-result);

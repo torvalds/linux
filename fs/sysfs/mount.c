@@ -19,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/magic.h>
 #include <linux/slab.h>
+#include <linux/user_namespace.h>
 
 #include "sysfs.h"
 
@@ -110,6 +111,9 @@ static struct dentry *sysfs_mount(struct file_system_type *fs_type,
 	enum kobj_ns_type type;
 	struct super_block *sb;
 	int error;
+
+	if (!(flags & MS_KERNMOUNT) && !current_user_ns()->may_mount_sysfs)
+		return ERR_PTR(-EPERM);
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)

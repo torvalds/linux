@@ -1027,8 +1027,11 @@ int t4vf_alloc_mac_filt(struct adapter *adapter, unsigned int viid, bool free,
 	unsigned nfilters = 0;
 	unsigned int rem = naddr;
 	struct fw_vi_mac_cmd cmd, rpl;
+	unsigned int max_naddr = is_t4(adapter->chip) ?
+				 NUM_MPS_CLS_SRAM_L_INSTANCES :
+				 NUM_MPS_T5_CLS_SRAM_L_INSTANCES;
 
-	if (naddr > FW_CLS_TCAM_NUM_ENTRIES)
+	if (naddr > max_naddr)
 		return -EINVAL;
 
 	for (offset = 0; offset < naddr; /**/) {
@@ -1069,10 +1072,10 @@ int t4vf_alloc_mac_filt(struct adapter *adapter, unsigned int viid, bool free,
 
 			if (idx)
 				idx[offset+i] =
-					(index >= FW_CLS_TCAM_NUM_ENTRIES
+					(index >= max_naddr
 					 ? 0xffff
 					 : index);
-			if (index < FW_CLS_TCAM_NUM_ENTRIES)
+			if (index < max_naddr)
 				nfilters++;
 			else if (hash)
 				*hash |= (1ULL << hash_mac_addr(addr[offset+i]));
@@ -1118,6 +1121,9 @@ int t4vf_change_mac(struct adapter *adapter, unsigned int viid,
 	struct fw_vi_mac_exact *p = &cmd.u.exact[0];
 	size_t len16 = DIV_ROUND_UP(offsetof(struct fw_vi_mac_cmd,
 					     u.exact[1]), 16);
+	unsigned int max_naddr = is_t4(adapter->chip) ?
+				 NUM_MPS_CLS_SRAM_L_INSTANCES :
+				 NUM_MPS_T5_CLS_SRAM_L_INSTANCES;
 
 	/*
 	 * If this is a new allocation, determine whether it should be
@@ -1140,7 +1146,7 @@ int t4vf_change_mac(struct adapter *adapter, unsigned int viid,
 	if (ret == 0) {
 		p = &rpl.u.exact[0];
 		ret = FW_VI_MAC_CMD_IDX_GET(be16_to_cpu(p->valid_to_idx));
-		if (ret >= FW_CLS_TCAM_NUM_ENTRIES)
+		if (ret >= max_naddr)
 			ret = -ENOMEM;
 	}
 	return ret;

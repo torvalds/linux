@@ -64,7 +64,7 @@ static void __init dove_dt_init(void)
 #ifdef CONFIG_CACHE_TAUROS2
 	tauros2_init(0);
 #endif
-	dove_setup_cpu_mbus();
+	dove_setup_cpu_wins();
 
 	/* Setup root of clk tree */
 	dove_of_clk_init();

@@ -2585,25 +2585,6 @@ static void qlt_do_ctio_completion(struct scsi_qla_host *vha, uint32_t handle,
 	ha->tgt.tgt_ops->free_cmd(cmd);
 }
 
-/* ha->hardware_lock supposed to be held on entry */
-/* called via callback from qla2xxx */
-void qlt_ctio_completion(struct scsi_qla_host *vha, uint32_t handle)
-{
-	struct qla_hw_data *ha = vha->hw;
-	struct qla_tgt *tgt = ha->tgt.qla_tgt;
-
-	if (likely(tgt == NULL)) {
-		ql_dbg(ql_dbg_tgt, vha, 0xe021,
-		    "CTIO, but target mode not enabled"
-		    " (ha %d %p handle %#x)", vha->vp_idx, ha, handle);
-		return;
-	}
-
-	tgt->irq_cmd_count++;
-	qlt_do_ctio_completion(vha, handle, CTIO_SUCCESS, NULL);
-	tgt->irq_cmd_count--;
-}
-
 static inline int qlt_get_fcp_task_attr(struct scsi_qla_host *vha,
 	uint8_t task_codes)
 {

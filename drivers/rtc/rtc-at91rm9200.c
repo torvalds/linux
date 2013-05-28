@@ -28,6 +28,8 @@
 #include <linux/ioctl.h>
 #include <linux/completion.h>
 #include <linux/io.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 #include <asm/uaccess.h>
 
@@ -297,7 +299,7 @@ static int __init at91_rtc_probe(struct platform_device *pdev)
 				"at91_rtc", pdev);
 	if (ret) {
 		dev_err(&pdev->dev, "IRQ %d already in use.\n", irq);
-		return ret;
+		goto err_unmap;
 	}
 
 	/* cpu init code should really have flagged this device as
@@ -309,13 +311,20 @@ static int __init at91_rtc_probe(struct platform_device *pdev)
 	rtc = rtc_device_register(pdev->name, &pdev->dev,
 				&at91_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc)) {
-		free_irq(irq, pdev);
-		return PTR_ERR(rtc);
+		ret = PTR_ERR(rtc);
+		goto err_free_irq;
 	}
 	platform_set_drvdata(pdev, rtc);
 
 	dev_info(&pdev->dev, "AT91 Real Time Clock driver.\n");
 	return 0;
+
+err_free_irq:
+	free_irq(irq, pdev);
+err_unmap:
+	iounmap(at91_rtc_regs);
+
+	return ret;
 }
 
 /*
@@ -332,12 +341,13 @@ static int __exit at91_rtc_remove(struct platform_device *pdev)
 	free_irq(irq, pdev);
 
 	rtc_device_unregister(rtc);
+	iounmap(at91_rtc_regs);
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 
 /* AT91RM9200 RTC Power management control */
 
@@ -369,39 +379,27 @@ static int at91_rtc_resume(struct device *dev)
 	}
 	return 0;
 }
-
-static const struct dev_pm_ops at91_rtc_pm = {
-	.suspend =	at91_rtc_suspend,
-	.resume =	at91_rtc_resume,
-};
-
-#define at91_rtc_pm_ptr	&at91_rtc_pm
-
-#else
-#define at91_rtc_pm_ptr	NULL
 #endif
+
+static SIMPLE_DEV_PM_OPS(at91_rtc_pm_ops, at91_rtc_suspend, at91_rtc_resume);
+
+static const struct of_device_id at91_rtc_dt_ids[] = {
+	{ .compatible = "atmel,at91rm9200-rtc" },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(of, at91_rtc_dt_ids);
 
 static struct platform_driver at91_rtc_driver = {
 	.remove		= __exit_p(at91_rtc_remove),
 	.driver		= {
 		.name	= "at91_rtc",
 		.owner	= THIS_MODULE,
-		.pm	= at91_rtc_pm_ptr,
+		.pm	= &at91_rtc_pm_ops,
+		.of_match_table = of_match_ptr(at91_rtc_dt_ids),
 	},
 };
 
-static int __init at91_rtc_init(void)
-{
-	return platform_driver_probe(&at91_rtc_driver, at91_rtc_probe);
-}
-
-static void __exit at91_rtc_exit(void)
-{
-	platform_driver_unregister(&at91_rtc_driver);
-}
-
-module_init(at91_rtc_init);
-module_exit(at91_rtc_exit);
+module_platform_driver_probe(at91_rtc_driver, at91_rtc_probe);
 
 MODULE_AUTHOR("Rick Bronson");
 MODULE_DESCRIPTION("RTC driver for Atmel AT91RM9200");

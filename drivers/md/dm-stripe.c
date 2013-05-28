@@ -94,7 +94,7 @@ static int get_stripe(struct dm_target *ti, struct stripe_c *sc,
 static int stripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 {
 	struct stripe_c *sc;
-	sector_t width;
+	sector_t width, tmp_len;
 	uint32_t stripes;
 	uint32_t chunk_size;
 	int r;
@@ -116,15 +116,16 @@ static int stripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 
 	width = ti->len;
-	if (sector_div(width, chunk_size)) {
-		ti->error = "Target length not divisible by "
-		    "chunk size";
-		return -EINVAL;
-	}
-
 	if (sector_div(width, stripes)) {
 		ti->error = "Target length not divisible by "
 		    "number of stripes";
+		return -EINVAL;
+	}
+
+	tmp_len = width;
+	if (sector_div(tmp_len, chunk_size)) {
+		ti->error = "Target length not divisible by "
+		    "chunk size";
 		return -EINVAL;
 	}
 
@@ -258,7 +259,7 @@ static int stripe_map_range(struct stripe_c *sc, struct bio *bio,
 	sector_t begin, end;
 
 	stripe_map_range_sector(sc, bio->bi_sector, target_stripe, &begin);
-	stripe_map_range_sector(sc, bio->bi_sector + bio_sectors(bio),
+	stripe_map_range_sector(sc, bio_end_sector(bio),
 				target_stripe, &end);
 	if (begin < end) {
 		bio->bi_bdev = sc->stripe[target_stripe].dev->bdev;

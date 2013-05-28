@@ -387,8 +387,7 @@ static void carl9170_tx_status_process_ampdu(struct ar9170 *ar,
 	u8 tid;
 
 	if (!(txinfo->flags & IEEE80211_TX_CTL_AMPDU) ||
-	    txinfo->flags & IEEE80211_TX_CTL_INJECTED ||
-	   (!(super->f.mac_control & cpu_to_le16(AR9170_TX_MAC_AGGR))))
+	    txinfo->flags & IEEE80211_TX_CTL_INJECTED)
 		return;
 
 	rcu_read_lock();
@@ -981,30 +980,6 @@ static int carl9170_tx_prepare(struct ar9170 *ar,
 
 		SET_VAL(CARL9170_TX_SUPER_AMPDU_FACTOR,
 			txc->s.ampdu_settings, factor);
-
-		for (i = 0; i < CARL9170_TX_MAX_RATES; i++) {
-			txrate = &info->control.rates[i];
-			if (txrate->idx >= 0) {
-				txc->s.ri[i] =
-					CARL9170_TX_SUPER_RI_AMPDU;
-
-				if (WARN_ON(!(txrate->flags &
-					      IEEE80211_TX_RC_MCS))) {
-					/*
-					 * Not sure if it's even possible
-					 * to aggregate non-ht rates with
-					 * this HW.
-					 */
-					goto err_out;
-				}
-				continue;
-			}
-
-			txrate->idx = 0;
-			txrate->count = ar->hw->max_rate_tries;
-		}
-
-		mac_tmp |= cpu_to_le16(AR9170_TX_MAC_AGGR);
 	}
 
 	/*
@@ -1012,10 +987,30 @@ static int carl9170_tx_prepare(struct ar9170 *ar,
 	 * taken from mac_control. For all fallback rate, the firmware
 	 * updates the mac_control flags from the rate info field.
 	 */
-	for (i = 1; i < CARL9170_TX_MAX_RATES; i++) {
+	for (i = 0; i < CARL9170_TX_MAX_RATES; i++) {
+		__le32 phy_set;
 		txrate = &info->control.rates[i];
 		if (txrate->idx < 0)
 			break;
+
+		phy_set = carl9170_tx_physet(ar, info, txrate);
+		if (i == 0) {
+			/* first rate - part of the hw's frame header */
+			txc->f.phy_control = phy_set;
+
+			if (ampdu && txrate->flags & IEEE80211_TX_RC_MCS)
+				mac_tmp |= cpu_to_le16(AR9170_TX_MAC_AGGR);
+			if (carl9170_tx_rts_check(ar, txrate, ampdu, no_ack))
+				mac_tmp |= cpu_to_le16(AR9170_TX_MAC_PROT_RTS);
+			else if (carl9170_tx_cts_check(ar, txrate))
+				mac_tmp |= cpu_to_le16(AR9170_TX_MAC_PROT_CTS);
+
+		} else {
+			/* fallback rates are stored in the firmware's
+			 * retry rate set array.
+			 */
+			txc->s.rr[i - 1] = phy_set;
+		}
 
 		SET_VAL(CARL9170_TX_SUPER_RI_TRIES, txc->s.ri[i],
 			txrate->count);
@@ -1027,21 +1022,13 @@ static int carl9170_tx_prepare(struct ar9170 *ar,
 			txc->s.ri[i] |= (AR9170_TX_MAC_PROT_CTS <<
 				CARL9170_TX_SUPER_RI_ERP_PROT_S);
 
-		txc->s.rr[i - 1] = carl9170_tx_physet(ar, info, txrate);
+		if (ampdu && (txrate->flags & IEEE80211_TX_RC_MCS))
+			txc->s.ri[i] |= CARL9170_TX_SUPER_RI_AMPDU;
 	}
-
-	txrate = &info->control.rates[0];
-	SET_VAL(CARL9170_TX_SUPER_RI_TRIES, txc->s.ri[0], txrate->count);
-
-	if (carl9170_tx_rts_check(ar, txrate, ampdu, no_ack))
-		mac_tmp |= cpu_to_le16(AR9170_TX_MAC_PROT_RTS);
-	else if (carl9170_tx_cts_check(ar, txrate))
-		mac_tmp |= cpu_to_le16(AR9170_TX_MAC_PROT_CTS);
 
 	txc->s.len = cpu_to_le16(skb->len);
 	txc->f.length = cpu_to_le16(len + FCS_LEN);
 	txc->f.mac_control = mac_tmp;
-	txc->f.phy_control = carl9170_tx_physet(ar, info, txrate);
 
 	arinfo = (void *)info->rate_driver_data;
 	arinfo->timeout = jiffies;
@@ -1381,9 +1368,9 @@ static void carl9170_tx(struct ar9170 *ar)
 }
 
 static bool carl9170_tx_ampdu_queue(struct ar9170 *ar,
-	struct ieee80211_sta *sta, struct sk_buff *skb)
+	struct ieee80211_sta *sta, struct sk_buff *skb,
+	struct ieee80211_tx_info *txinfo)
 {
-	struct _carl9170_tx_superframe *super = (void *) skb->data;
 	struct carl9170_sta_info *sta_info;
 	struct carl9170_sta_tid *agg;
 	struct sk_buff *iter;
@@ -1450,7 +1437,7 @@ err_unlock:
 
 err_unlock_rcu:
 	rcu_read_unlock();
-	super->f.mac_control &= ~cpu_to_le16(AR9170_TX_MAC_AGGR);
+	txinfo->flags &= ~IEEE80211_TX_CTL_AMPDU;
 	carl9170_tx_status(ar, skb, false);
 	ar->tx_dropped++;
 	return false;
@@ -1492,7 +1479,7 @@ void carl9170_op_tx(struct ieee80211_hw *hw,
 		 * sta == NULL checks are redundant in this
 		 * special case.
 		 */
-		run = carl9170_tx_ampdu_queue(ar, sta, skb);
+		run = carl9170_tx_ampdu_queue(ar, sta, skb, info);
 		if (run)
 			carl9170_tx_ampdu(ar);
 

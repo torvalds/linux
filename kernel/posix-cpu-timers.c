@@ -10,6 +10,8 @@
 #include <linux/kernel_stat.h>
 #include <trace/events/timer.h>
 #include <linux/random.h>
+#include <linux/tick.h>
+#include <linux/workqueue.h>
 
 /*
  * Called after updating RLIMIT_CPU to run cpu timer and update
@@ -151,6 +153,21 @@ static void bump_cpu_timer(struct k_itimer *timer,
 			delta -= incr;
 		}
 	}
+}
+
+/**
+ * task_cputime_zero - Check a task_cputime struct for all zero fields.
+ *
+ * @cputime:	The struct to compare.
+ *
+ * Checks @cputime to see if all fields are zero.  Returns true if all fields
+ * are zero, false if any field is nonzero.
+ */
+static inline int task_cputime_zero(const struct task_cputime *cputime)
+{
+	if (!cputime->utime && !cputime->stime && !cputime->sum_exec_runtime)
+		return 1;
+	return 0;
 }
 
 static inline cputime_t prof_ticks(struct task_struct *p)
@@ -636,6 +653,37 @@ static int cpu_timer_sample_group(const clockid_t which_clock,
 	return 0;
 }
 
+#ifdef CONFIG_NO_HZ_FULL
+static void nohz_kick_work_fn(struct work_struct *work)
+{
+	tick_nohz_full_kick_all();
+}
+
+static DECLARE_WORK(nohz_kick_work, nohz_kick_work_fn);
+
+/*
+ * We need the IPIs to be sent from sane process context.
+ * The posix cpu timers are always set with irqs disabled.
+ */
+static void posix_cpu_timer_kick_nohz(void)
+{
+	schedule_work(&nohz_kick_work);
+}
+
+bool posix_cpu_timers_can_stop_tick(struct task_struct *tsk)
+{
+	if (!task_cputime_zero(&tsk->cputime_expires))
+		return false;
+
+	if (tsk->signal->cputimer.running)
+		return false;
+
+	return true;
+}
+#else
+static inline void posix_cpu_timer_kick_nohz(void) { }
+#endif
+
 /*
  * Guts of sys_timer_settime for CPU timers.
  * This is called with the timer locked and interrupts disabled.
@@ -794,6 +842,8 @@ static int posix_cpu_timer_set(struct k_itimer *timer, int flags,
 		sample_to_timespec(timer->it_clock,
 				   old_incr, &old->it_interval);
 	}
+	if (!ret)
+		posix_cpu_timer_kick_nohz();
 	return ret;
 }
 
@@ -1006,21 +1056,6 @@ static void check_cpu_itimer(struct task_struct *tsk, struct cpu_itimer *it,
 	if (it->expires && (!*expires || it->expires < *expires)) {
 		*expires = it->expires;
 	}
-}
-
-/**
- * task_cputime_zero - Check a task_cputime struct for all zero fields.
- *
- * @cputime:	The struct to compare.
- *
- * Checks @cputime to see if all fields are zero.  Returns true if all fields
- * are zero, false if any field is nonzero.
- */
-static inline int task_cputime_zero(const struct task_cputime *cputime)
-{
-	if (!cputime->utime && !cputime->stime && !cputime->sum_exec_runtime)
-		return 1;
-	return 0;
 }
 
 /*
@@ -1336,6 +1371,13 @@ void run_posix_cpu_timers(struct task_struct *tsk)
 			cpu_timer_fire(timer);
 		spin_unlock(&timer->it_lock);
 	}
+
+	/*
+	 * In case some timers were rescheduled after the queue got emptied,
+	 * wake up full dynticks CPUs.
+	 */
+	if (tsk->signal->cputimer.running)
+		posix_cpu_timer_kick_nohz();
 }
 
 /*
@@ -1366,7 +1408,7 @@ void set_process_cpu_timer(struct task_struct *tsk, unsigned int clock_idx,
 		}
 
 		if (!*newval)
-			return;
+			goto out;
 		*newval += now.cpu;
 	}
 
@@ -1384,6 +1426,8 @@ void set_process_cpu_timer(struct task_struct *tsk, unsigned int clock_idx,
 			tsk->signal->cputime_expires.virt_exp = *newval;
 		break;
 	}
+out:
+	posix_cpu_timer_kick_nohz();
 }
 
 static int do_cpu_nanosleep(const clockid_t which_clock, int flags,

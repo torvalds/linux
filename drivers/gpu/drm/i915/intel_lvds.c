@@ -261,8 +261,6 @@ centre_horizontally(struct drm_display_mode *mode,
 
 	mode->crtc_hsync_start = mode->crtc_hblank_start + sync_pos;
 	mode->crtc_hsync_end = mode->crtc_hsync_start + sync_width;
-
-	mode->private_flags |= INTEL_MODE_CRTC_TIMINGS_SET;
 }
 
 static void
@@ -284,8 +282,6 @@ centre_vertically(struct drm_display_mode *mode,
 
 	mode->crtc_vsync_start = mode->crtc_vblank_start + sync_pos;
 	mode->crtc_vsync_end = mode->crtc_vsync_start + sync_width;
-
-	mode->private_flags |= INTEL_MODE_CRTC_TIMINGS_SET;
 }
 
 static inline u32 panel_fitter_scaling(u32 source, u32 target)
@@ -301,17 +297,20 @@ static inline u32 panel_fitter_scaling(u32 source, u32 target)
 	return (FACTOR * ratio + FACTOR/2) / FACTOR;
 }
 
-static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
-				  const struct drm_display_mode *mode,
-				  struct drm_display_mode *adjusted_mode)
+static bool intel_lvds_compute_config(struct intel_encoder *intel_encoder,
+				      struct intel_crtc_config *pipe_config)
 {
-	struct drm_device *dev = encoder->dev;
+	struct drm_device *dev = intel_encoder->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_lvds_encoder *lvds_encoder = to_lvds_encoder(encoder);
+	struct intel_lvds_encoder *lvds_encoder =
+		to_lvds_encoder(&intel_encoder->base);
 	struct intel_connector *intel_connector =
 		&lvds_encoder->attached_connector->base;
+	struct drm_display_mode *adjusted_mode = &pipe_config->adjusted_mode;
+	struct drm_display_mode *mode = &pipe_config->requested_mode;
 	struct intel_crtc *intel_crtc = lvds_encoder->base.new_crtc;
 	u32 pfit_control = 0, pfit_pgm_ratios = 0, border = 0;
+	unsigned int lvds_bpp;
 	int pipe;
 
 	/* Should never happen!! */
@@ -323,6 +322,17 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 	if (intel_encoder_check_is_cloned(&lvds_encoder->base))
 		return false;
 
+	if ((I915_READ(lvds_encoder->reg) & LVDS_A3_POWER_MASK) ==
+	    LVDS_A3_POWER_UP)
+		lvds_bpp = 8*3;
+	else
+		lvds_bpp = 6*3;
+
+	if (lvds_bpp != pipe_config->pipe_bpp) {
+		DRM_DEBUG_KMS("forcing display bpp (was %d) to LVDS (%d)\n",
+			      pipe_config->pipe_bpp, lvds_bpp);
+		pipe_config->pipe_bpp = lvds_bpp;
+	}
 	/*
 	 * We have timings from the BIOS for the panel, put them in
 	 * to the adjusted mode.  The CRTC will be set up for this mode,
@@ -333,6 +343,8 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 			       adjusted_mode);
 
 	if (HAS_PCH_SPLIT(dev)) {
+		pipe_config->has_pch_encoder = true;
+
 		intel_pch_panel_fitting(dev,
 					intel_connector->panel.fitting_mode,
 					mode, adjusted_mode);
@@ -359,6 +371,7 @@ static bool intel_lvds_mode_fixup(struct drm_encoder *encoder,
 		I915_WRITE(BCLRPAT(pipe), 0);
 
 	drm_mode_set_crtcinfo(adjusted_mode, 0);
+	pipe_config->timings_set = true;
 
 	switch (intel_connector->panel.fitting_mode) {
 	case DRM_MODE_SCALE_CENTER:
@@ -618,7 +631,6 @@ static void intel_lvds_destroy(struct drm_connector *connector)
 	if (!IS_ERR_OR_NULL(lvds_connector->base.edid))
 		kfree(lvds_connector->base.edid);
 
-	intel_panel_destroy_backlight(connector->dev);
 	intel_panel_fini(&lvds_connector->base.panel);
 
 	drm_sysfs_connector_remove(connector);
@@ -661,7 +673,6 @@ static int intel_lvds_set_property(struct drm_connector *connector,
 }
 
 static const struct drm_encoder_helper_funcs intel_lvds_helper_funcs = {
-	.mode_fixup = intel_lvds_mode_fixup,
 	.mode_set = intel_lvds_mode_set,
 };
 
@@ -850,6 +861,14 @@ static const struct dmi_system_id intel_no_lvds[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "X7SPA-H"),
 		},
 	},
+	{
+		.callback = intel_no_lvds_dmi_callback,
+		.ident = "Fujitsu Esprimo Q900",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "ESPRIMO Q900"),
+		},
+	},
 
 	{ }	/* terminating entry */
 };
@@ -1019,12 +1038,15 @@ static bool intel_lvds_supported(struct drm_device *dev)
 {
 	/* With the introduction of the PCH we gained a dedicated
 	 * LVDS presence pin, use it. */
-	if (HAS_PCH_SPLIT(dev))
+	if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev))
 		return true;
 
 	/* Otherwise LVDS was only attached to mobile products,
 	 * except for the inglorious 830gm */
-	return IS_MOBILE(dev) && !IS_I830(dev);
+	if (INTEL_INFO(dev)->gen <= 4 && IS_MOBILE(dev) && !IS_I830(dev))
+		return true;
+
+	return false;
 }
 
 /**
@@ -1102,6 +1124,7 @@ bool intel_lvds_init(struct drm_device *dev)
 	intel_encoder->enable = intel_enable_lvds;
 	intel_encoder->pre_enable = intel_pre_enable_lvds;
 	intel_encoder->pre_pll_enable = intel_pre_pll_enable_lvds;
+	intel_encoder->compute_config = intel_lvds_compute_config;
 	intel_encoder->disable = intel_disable_lvds;
 	intel_encoder->get_hw_state = intel_lvds_get_hw_state;
 	intel_connector->get_hw_state = intel_connector_get_hw_state;

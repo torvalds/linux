@@ -77,11 +77,18 @@ struct blkif_x86_32_request_discard {
 	uint64_t       nr_sectors;
 } __attribute__((__packed__));
 
+struct blkif_x86_32_request_other {
+	uint8_t        _pad1;
+	blkif_vdev_t   _pad2;
+	uint64_t       id;           /* private guest value, echoed in resp  */
+} __attribute__((__packed__));
+
 struct blkif_x86_32_request {
 	uint8_t        operation;    /* BLKIF_OP_???                         */
 	union {
 		struct blkif_x86_32_request_rw rw;
 		struct blkif_x86_32_request_discard discard;
+		struct blkif_x86_32_request_other other;
 	} u;
 } __attribute__((__packed__));
 
@@ -113,11 +120,19 @@ struct blkif_x86_64_request_discard {
 	uint64_t       nr_sectors;
 } __attribute__((__packed__));
 
+struct blkif_x86_64_request_other {
+	uint8_t        _pad1;
+	blkif_vdev_t   _pad2;
+	uint32_t       _pad3;        /* offsetof(blkif_..,u.discard.id)==8   */
+	uint64_t       id;           /* private guest value, echoed in resp  */
+} __attribute__((__packed__));
+
 struct blkif_x86_64_request {
 	uint8_t        operation;    /* BLKIF_OP_???                         */
 	union {
 		struct blkif_x86_64_request_rw rw;
 		struct blkif_x86_64_request_discard discard;
+		struct blkif_x86_64_request_other other;
 	} u;
 } __attribute__((__packed__));
 
@@ -172,7 +187,6 @@ struct persistent_gnt {
 	struct page *page;
 	grant_ref_t gnt;
 	grant_handle_t handle;
-	uint64_t dev_bus_addr;
 	struct rb_node node;
 };
 
@@ -208,13 +222,13 @@ struct xen_blkif {
 
 	/* statistics */
 	unsigned long		st_print;
-	int			st_rd_req;
-	int			st_wr_req;
-	int			st_oo_req;
-	int			st_f_req;
-	int			st_ds_req;
-	int			st_rd_sect;
-	int			st_wr_sect;
+	unsigned long long			st_rd_req;
+	unsigned long long			st_wr_req;
+	unsigned long long			st_oo_req;
+	unsigned long long			st_f_req;
+	unsigned long long			st_ds_req;
+	unsigned long long			st_rd_sect;
+	unsigned long long			st_wr_sect;
 
 	wait_queue_head_t	waiting_to_free;
 };
@@ -278,6 +292,11 @@ static inline void blkif_get_x86_32_req(struct blkif_request *dst,
 		dst->u.discard.nr_sectors = src->u.discard.nr_sectors;
 		break;
 	default:
+		/*
+		 * Don't know how to translate this op. Only get the
+		 * ID so failure can be reported to the frontend.
+		 */
+		dst->u.other.id = src->u.other.id;
 		break;
 	}
 }
@@ -309,6 +328,11 @@ static inline void blkif_get_x86_64_req(struct blkif_request *dst,
 		dst->u.discard.nr_sectors = src->u.discard.nr_sectors;
 		break;
 	default:
+		/*
+		 * Don't know how to translate this op. Only get the
+		 * ID so failure can be reported to the frontend.
+		 */
+		dst->u.other.id = src->u.other.id;
 		break;
 	}
 }

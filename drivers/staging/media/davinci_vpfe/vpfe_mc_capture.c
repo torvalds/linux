@@ -243,7 +243,7 @@ static int vpfe_enable_clock(struct vpfe_device *vpfe_dev)
 
 		vpfe_dev->clks[i] =
 				clk_get(vpfe_dev->pdev, vpfe_cfg->clocks[i]);
-		if (vpfe_dev->clks[i] == NULL) {
+		if (IS_ERR(vpfe_dev->clks[i])) {
 			v4l2_err(vpfe_dev->pdev->driver,
 				"Failed to get clock %s\n",
 				vpfe_cfg->clocks[i]);
@@ -264,7 +264,7 @@ static int vpfe_enable_clock(struct vpfe_device *vpfe_dev)
 	return 0;
 out:
 	for (i = 0; i < vpfe_cfg->num_clocks; i++)
-		if (vpfe_dev->clks[i]) {
+		if (!IS_ERR(vpfe_dev->clks[i])) {
 			clk_disable_unprepare(vpfe_dev->clks[i]);
 			clk_put(vpfe_dev->clks[i]);
 		}
@@ -719,22 +719,4 @@ static struct platform_driver vpfe_driver = {
 	.remove = vpfe_remove,
 };
 
-/**
- * vpfe_init : This function registers device driver
- */
-static __init int vpfe_init(void)
-{
-	/* Register driver to the kernel */
-	return platform_driver_register(&vpfe_driver);
-}
-
-/**
- * vpfe_cleanup : This function un-registers device driver
- */
-static void vpfe_cleanup(void)
-{
-	platform_driver_unregister(&vpfe_driver);
-}
-
-module_init(vpfe_init);
-module_exit(vpfe_cleanup);
+module_platform_driver(vpfe_driver);

@@ -12,8 +12,8 @@
 #include <linux/types.h>
 #include <linux/kprobes.h>
 #include <linux/slab.h>
+#include <linux/uaccess.h>
 #include <asm/disasm.h>
-#include <asm/uaccess.h>
 
 #if defined(CONFIG_KGDB) || defined(CONFIG_ARC_MISALIGN_ACCESS) || \
 	defined(CONFIG_KPROBES)

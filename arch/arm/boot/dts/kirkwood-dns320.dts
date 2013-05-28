@@ -42,12 +42,10 @@
 
 	ocp@f1000000 {
 		serial@12000 {
-			clock-frequency = <166666667>;
 			status = "okay";
 		};
 
 		serial@12100 {
-			clock-frequency = <166666667>;
 			status = "okay";
 		};
 	};

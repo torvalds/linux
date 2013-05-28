@@ -123,7 +123,7 @@ static inline long regs_return_value(struct pt_regs *regs)
 #define orig_r8_IS_SCALL		0x0001
 #define orig_r8_IS_SCALL_RESTARTED	0x0002
 #define orig_r8_IS_BRKPT		0x0004
-#define orig_r8_IS_EXCPN		0x0004
+#define orig_r8_IS_EXCPN		0x0008
 #define orig_r8_IS_IRQ1			0x0010
 #define orig_r8_IS_IRQ2			0x0020
 

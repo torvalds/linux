@@ -87,6 +87,11 @@ chipsets:
 .b16 #nvd9_gpc_mmio_tail
 .b16 #nvd9_tpc_mmio_head
 .b16 #nvd9_tpc_mmio_tail
+.b8  0xd7 0 0 0
+.b16 #nvd9_gpc_mmio_head
+.b16 #nvd9_gpc_mmio_tail
+.b16 #nvd9_tpc_mmio_head
+.b16 #nvd9_tpc_mmio_tail
 .b8  0 0 0 0
 
 // GPC mmio lists

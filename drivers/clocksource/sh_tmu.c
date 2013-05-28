@@ -549,7 +549,7 @@ static void __exit sh_tmu_exit(void)
 }
 
 early_platform_init("earlytimer", &sh_tmu_device_driver);
-module_init(sh_tmu_init);
+subsys_initcall(sh_tmu_init);
 module_exit(sh_tmu_exit);
 
 MODULE_AUTHOR("Magnus Damm");

@@ -122,10 +122,10 @@ static int open_chan(struct list_head *chans)
 	return err;
 }
 
-void chan_enable_winch(struct chan *chan, struct tty_struct *tty)
+void chan_enable_winch(struct chan *chan, struct tty_port *port)
 {
 	if (chan && chan->primary && chan->ops->winch)
-		register_winch(chan->fd, tty);
+		register_winch(chan->fd, port);
 }
 
 static void line_timer_cb(struct work_struct *work)
@@ -568,11 +568,7 @@ void chan_interrupt(struct line *line, int irq)
 		reactivate_fd(chan->fd, irq);
 	if (err == -EIO) {
 		if (chan->primary) {
-			struct tty_struct *tty = tty_port_tty_get(&line->port);
-			if (tty != NULL) {
-				tty_hangup(tty);
-				tty_kref_put(tty);
-			}
+			tty_port_tty_hangup(&line->port, false);
 			if (line->chan_out != chan)
 				close_one_chan(line->chan_out, 1);
 		}

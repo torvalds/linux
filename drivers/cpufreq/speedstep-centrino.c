@@ -457,7 +457,7 @@ static int centrino_target (struct cpufreq_policy *policy,
 	unsigned int	msr, oldmsr = 0, h = 0, cpu = policy->cpu;
 	struct cpufreq_freqs	freqs;
 	int			retval = 0;
-	unsigned int		j, k, first_cpu, tmp;
+	unsigned int		j, first_cpu, tmp;
 	cpumask_var_t covered_cpus;
 
 	if (unlikely(!zalloc_cpumask_var(&covered_cpus, GFP_KERNEL)))
@@ -480,10 +480,6 @@ static int centrino_target (struct cpufreq_policy *policy,
 	first_cpu = 1;
 	for_each_cpu(j, policy->cpus) {
 		int good_cpu;
-
-		/* cpufreq holds the hotplug lock, so we are safe here */
-		if (!cpu_online(j))
-			continue;
 
 		/*
 		 * Support for SMP systems.
@@ -522,13 +518,8 @@ static int centrino_target (struct cpufreq_policy *policy,
 			pr_debug("target=%dkHz old=%d new=%d msr=%04x\n",
 				target_freq, freqs.old, freqs.new, msr);
 
-			for_each_cpu(k, policy->cpus) {
-				if (!cpu_online(k))
-					continue;
-				freqs.cpu = k;
-				cpufreq_notify_transition(&freqs,
+			cpufreq_notify_transition(policy, &freqs,
 					CPUFREQ_PRECHANGE);
-			}
 
 			first_cpu = 0;
 			/* all but 16 LSB are reserved, treat them with care */
@@ -544,12 +535,7 @@ static int centrino_target (struct cpufreq_policy *policy,
 		cpumask_set_cpu(j, covered_cpus);
 	}
 
-	for_each_cpu(k, policy->cpus) {
-		if (!cpu_online(k))
-			continue;
-		freqs.cpu = k;
-		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
-	}
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 
 	if (unlikely(retval)) {
 		/*
@@ -565,12 +551,8 @@ static int centrino_target (struct cpufreq_policy *policy,
 		tmp = freqs.new;
 		freqs.new = freqs.old;
 		freqs.old = tmp;
-		for_each_cpu(j, policy->cpus) {
-			if (!cpu_online(j))
-				continue;
-			cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
-			cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
-		}
+		cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
+		cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 	}
 	retval = 0;
 

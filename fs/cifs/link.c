@@ -56,14 +56,14 @@ symlink_hash(unsigned int link_len, const char *link_str, u8 *md5_hash)
 	md5 = crypto_alloc_shash("md5", 0, 0);
 	if (IS_ERR(md5)) {
 		rc = PTR_ERR(md5);
-		cERROR(1, "%s: Crypto md5 allocation error %d", __func__, rc);
+		cifs_dbg(VFS, "%s: Crypto md5 allocation error %d\n",
+			 __func__, rc);
 		return rc;
 	}
 	size = sizeof(struct shash_desc) + crypto_shash_descsize(md5);
 	sdescmd5 = kmalloc(size, GFP_KERNEL);
 	if (!sdescmd5) {
 		rc = -ENOMEM;
-		cERROR(1, "%s: Memory allocation failure", __func__);
 		goto symlink_hash_err;
 	}
 	sdescmd5->shash.tfm = md5;
@@ -71,17 +71,17 @@ symlink_hash(unsigned int link_len, const char *link_str, u8 *md5_hash)
 
 	rc = crypto_shash_init(&sdescmd5->shash);
 	if (rc) {
-		cERROR(1, "%s: Could not init md5 shash", __func__);
+		cifs_dbg(VFS, "%s: Could not init md5 shash\n", __func__);
 		goto symlink_hash_err;
 	}
 	rc = crypto_shash_update(&sdescmd5->shash, link_str, link_len);
 	if (rc) {
-		cERROR(1, "%s: Could not update with link_str", __func__);
+		cifs_dbg(VFS, "%s: Could not update with link_str\n", __func__);
 		goto symlink_hash_err;
 	}
 	rc = crypto_shash_final(&sdescmd5->shash, md5_hash);
 	if (rc)
-		cERROR(1, "%s: Could not generate md5 hash", __func__);
+		cifs_dbg(VFS, "%s: Could not generate md5 hash\n", __func__);
 
 symlink_hash_err:
 	crypto_free_shash(md5);
@@ -115,7 +115,7 @@ CIFSParseMFSymlink(const u8 *buf,
 
 	rc = symlink_hash(link_len, link_str, md5_hash);
 	if (rc) {
-		cFYI(1, "%s: MD5 hash failure: %d", __func__, rc);
+		cifs_dbg(FYI, "%s: MD5 hash failure: %d\n", __func__, rc);
 		return rc;
 	}
 
@@ -154,7 +154,7 @@ CIFSFormatMFSymlink(u8 *buf, unsigned int buf_len, const char *link_str)
 
 	rc = symlink_hash(link_len, link_str, md5_hash);
 	if (rc) {
-		cFYI(1, "%s: MD5 hash failure: %d", __func__, rc);
+		cifs_dbg(FYI, "%s: MD5 hash failure: %d\n", __func__, rc);
 		return rc;
 	}
 
@@ -521,7 +521,7 @@ cifs_follow_link(struct dentry *direntry, struct nameidata *nd)
 	if (!full_path)
 		goto out;
 
-	cFYI(1, "Full path: %s inode = 0x%p", full_path, inode);
+	cifs_dbg(FYI, "Full path: %s inode = 0x%p\n", full_path, inode);
 
 	rc = -EACCES;
 	/*
@@ -578,8 +578,8 @@ cifs_symlink(struct inode *inode, struct dentry *direntry, const char *symname)
 		goto symlink_exit;
 	}
 
-	cFYI(1, "Full path: %s", full_path);
-	cFYI(1, "symname is %s", symname);
+	cifs_dbg(FYI, "Full path: %s\n", full_path);
+	cifs_dbg(FYI, "symname is %s\n", symname);
 
 	/* BB what if DFS and this volume is on different share? BB */
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MF_SYMLINKS)
@@ -601,8 +601,8 @@ cifs_symlink(struct inode *inode, struct dentry *direntry, const char *symname)
 						 inode->i_sb, xid, NULL);
 
 		if (rc != 0) {
-			cFYI(1, "Create symlink ok, getinodeinfo fail rc = %d",
-			      rc);
+			cifs_dbg(FYI, "Create symlink ok, getinodeinfo fail rc = %d\n",
+				 rc);
 		} else {
 			d_instantiate(direntry, newinode);
 		}

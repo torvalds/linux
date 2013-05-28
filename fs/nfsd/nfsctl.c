@@ -35,6 +35,7 @@ enum {
 	NFSD_Threads,
 	NFSD_Pool_Threads,
 	NFSD_Pool_Stats,
+	NFSD_Reply_Cache_Stats,
 	NFSD_Versions,
 	NFSD_Ports,
 	NFSD_MaxBlkSize,
@@ -177,7 +178,7 @@ static int export_features_open(struct inode *inode, struct file *file)
 	return single_open(file, export_features_show, NULL);
 }
 
-static struct file_operations export_features_operations = {
+static const struct file_operations export_features_operations = {
 	.open		= export_features_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -196,7 +197,7 @@ static int supported_enctypes_open(struct inode *inode, struct file *file)
 	return single_open(file, supported_enctypes_show, NULL);
 }
 
-static struct file_operations supported_enctypes_ops = {
+static const struct file_operations supported_enctypes_ops = {
 	.open		= supported_enctypes_open,
 	.read		= seq_read,
 	.llseek		= seq_lseek,
@@ -210,6 +211,13 @@ static const struct file_operations pool_stats_operations = {
 	.llseek		= seq_lseek,
 	.release	= nfsd_pool_stats_release,
 	.owner		= THIS_MODULE,
+};
+
+static struct file_operations reply_cache_stats_operations = {
+	.open		= nfsd_reply_cache_stats_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
 };
 
 /*----------------------------------------------------------------------------*/
@@ -1047,6 +1055,7 @@ static int nfsd_fill_super(struct super_block * sb, void * data, int silent)
 		[NFSD_Threads] = {"threads", &transaction_ops, S_IWUSR|S_IRUSR},
 		[NFSD_Pool_Threads] = {"pool_threads", &transaction_ops, S_IWUSR|S_IRUSR},
 		[NFSD_Pool_Stats] = {"pool_stats", &pool_stats_operations, S_IRUGO},
+		[NFSD_Reply_Cache_Stats] = {"reply_cache_stats", &reply_cache_stats_operations, S_IRUGO},
 		[NFSD_Versions] = {"versions", &transaction_ops, S_IWUSR|S_IRUSR},
 		[NFSD_Ports] = {"portlist", &transaction_ops, S_IWUSR|S_IRUGO},
 		[NFSD_MaxBlkSize] = {"max_block_size", &transaction_ops, S_IWUSR|S_IRUGO},
@@ -1102,8 +1111,10 @@ static int create_proc_exports_entry(void)
 		return -ENOMEM;
 	entry = proc_create("exports", 0, entry,
 				 &exports_proc_operations);
-	if (!entry)
+	if (!entry) {
+		remove_proc_entry("fs/nfs", NULL);
 		return -ENOMEM;
+	}
 	return 0;
 }
 #else /* CONFIG_PROC_FS */

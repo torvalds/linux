@@ -29,7 +29,7 @@ route/max_size - INTEGER
 neigh/default/gc_thresh1 - INTEGER
 	Minimum number of entries to keep.  Garbage collector will not
 	purge entries if there are fewer than this number.
-	Default: 256
+	Default: 128
 
 neigh/default/gc_thresh3 - INTEGER
 	Maximum number of neighbor entries allowed.  Increase this
@@ -175,14 +175,6 @@ tcp_congestion_control - STRING
 	is inherited.
 	[see setsockopt(listenfd, SOL_TCP, TCP_CONGESTION, "name" ...) ]
 
-tcp_cookie_size - INTEGER
-	Default size of TCP Cookie Transactions (TCPCT) option, that may be
-	overridden on a per socket basis by the TCPCT socket option.
-	Values greater than the maximum (16) are interpreted as the maximum.
-	Values greater than zero and less than the minimum (8) are interpreted
-	as the minimum.  Odd values are interpreted as the next even value.
-	Default: 0 (off).
-
 tcp_dsack - BOOLEAN
 	Allows TCP to send "duplicate" SACKs.
 
@@ -190,7 +182,9 @@ tcp_early_retrans - INTEGER
 	Enable Early Retransmit (ER), per RFC 5827. ER lowers the threshold
 	for triggering fast retransmit when the amount of outstanding data is
 	small and when no previously unsent data can be transmitted (such
-	that limited transmit could be used).
+	that limited transmit could be used). Also controls the use of
+	Tail loss probe (TLP) that converts RTOs occuring due to tail
+	losses into fast recovery (draft-dukkipati-tcpm-tcp-loss-probe-01).
 	Possible values:
 		0 disables ER
 		1 enables ER
@@ -198,7 +192,9 @@ tcp_early_retrans - INTEGER
 		  by a fourth of RTT. This mitigates connection falsely
 		  recovers when network has a small degree of reordering
 		  (less than 3 packets).
-	Default: 2
+		3 enables delayed ER and TLP.
+		4 enables TLP only.
+	Default: 3
 
 tcp_ecn - INTEGER
 	Control use of Explicit Congestion Notification (ECN) by TCP.
@@ -229,36 +225,13 @@ tcp_fin_timeout - INTEGER
 	Default: 60 seconds
 
 tcp_frto - INTEGER
-	Enables Forward RTO-Recovery (F-RTO) defined in RFC4138.
+	Enables Forward RTO-Recovery (F-RTO) defined in RFC5682.
 	F-RTO is an enhanced recovery algorithm for TCP retransmission
-	timeouts.  It is particularly beneficial in wireless environments
-	where packet loss is typically due to random radio interference
-	rather than intermediate router congestion.  F-RTO is sender-side
-	only modification. Therefore it does not require any support from
-	the peer.
+	timeouts.  It is particularly beneficial in networks where the
+	RTT fluctuates (e.g., wireless). F-RTO is sender-side only
+	modification. It does not require any support from the peer.
 
-	If set to 1, basic version is enabled.  2 enables SACK enhanced
-	F-RTO if flow uses SACK.  The basic version can be used also when
-	SACK is in use though scenario(s) with it exists where F-RTO
-	interacts badly with the packet counting of the SACK enabled TCP
-	flow.
-
-tcp_frto_response - INTEGER
-	When F-RTO has detected that a TCP retransmission timeout was
-	spurious (i.e, the timeout would have been avoided had TCP set a
-	longer retransmission timeout), TCP has several options what to do
-	next. Possible values are:
-		0 Rate halving based; a smooth and conservative response,
-		  results in halved cwnd and ssthresh after one RTT
-		1 Very conservative response; not recommended because even
-		  though being valid, it interacts poorly with the rest of
-		  Linux TCP, halves cwnd and ssthresh immediately
-		2 Aggressive response; undoes congestion control measures
-		  that are now known to be unnecessary (ignoring the
-		  possibility of a lost retransmission that would require
-		  TCP to be more cautious), cwnd and ssthresh are restored
-		  to the values prior timeout
-	Default: 0 (rate halving based)
+	By default it's enabled with a non-zero value. 0 disables F-RTO.
 
 tcp_keepalive_time - INTEGER
 	How often TCP sends out keepalive messages when keepalive is enabled.

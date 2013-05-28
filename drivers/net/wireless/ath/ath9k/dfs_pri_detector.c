@@ -23,28 +23,6 @@
 #include "dfs_debug.h"
 
 /**
- * struct pri_sequence - sequence of pulses matching one PRI
- * @head: list_head
- * @pri: pulse repetition interval (PRI) in usecs
- * @dur: duration of sequence in usecs
- * @count: number of pulses in this sequence
- * @count_falses: number of not matching pulses in this sequence
- * @first_ts: time stamp of first pulse in usecs
- * @last_ts: time stamp of last pulse in usecs
- * @deadline_ts: deadline when this sequence becomes invalid (first_ts + dur)
- */
-struct pri_sequence {
-	struct list_head head;
-	u32 pri;
-	u32 dur;
-	u32 count;
-	u32 count_falses;
-	u64 first_ts;
-	u64 last_ts;
-	u64 deadline_ts;
-};
-
-/**
  * struct pulse_elem - elements in pulse queue
  * @ts: time stamp in usecs
  */
@@ -218,7 +196,7 @@ static bool pulse_queue_enqueue(struct pri_detector *pde, u64 ts)
 {
 	struct pulse_elem *p = pool_get_pulse_elem();
 	if (p == NULL) {
-		p = kmalloc(sizeof(*p), GFP_KERNEL);
+		p = kmalloc(sizeof(*p), GFP_ATOMIC);
 		if (p == NULL) {
 			DFS_POOL_STAT_INC(pulse_alloc_error);
 			return false;
@@ -299,7 +277,7 @@ static bool pseq_handler_create_sequences(struct pri_detector *pde,
 		ps.deadline_ts = ps.first_ts + ps.dur;
 		new_ps = pool_get_pseq_elem();
 		if (new_ps == NULL) {
-			new_ps = kmalloc(sizeof(*new_ps), GFP_KERNEL);
+			new_ps = kmalloc(sizeof(*new_ps), GFP_ATOMIC);
 			if (new_ps == NULL) {
 				DFS_POOL_STAT_INC(pseq_alloc_error);
 				return false;
@@ -393,8 +371,8 @@ static void pri_detector_exit(struct pri_detector *de)
 	kfree(de);
 }
 
-static bool pri_detector_add_pulse(struct pri_detector *de,
-				   struct pulse_event *event)
+static struct pri_sequence *pri_detector_add_pulse(struct pri_detector *de,
+						   struct pulse_event *event)
 {
 	u32 max_updated_seq;
 	struct pri_sequence *ps;
@@ -403,38 +381,33 @@ static bool pri_detector_add_pulse(struct pri_detector *de,
 
 	/* ignore pulses not within width range */
 	if ((rs->width_min > event->width) || (rs->width_max < event->width))
-		return false;
+		return NULL;
 
 	if ((ts - de->last_ts) < rs->max_pri_tolerance)
 		/* if delta to last pulse is too short, don't use this pulse */
-		return false;
+		return NULL;
 	de->last_ts = ts;
 
 	max_updated_seq = pseq_handler_add_to_existing_seqs(de, ts);
 
 	if (!pseq_handler_create_sequences(de, ts, max_updated_seq)) {
-		pr_err("failed to create pulse sequences\n");
 		pri_detector_reset(de, ts);
 		return false;
 	}
 
 	ps = pseq_handler_check_detection(de);
 
-	if (ps != NULL) {
-		pr_info("DFS: radar found: pri=%d, count=%d, count_false=%d\n",
-			 ps->pri, ps->count, ps->count_falses);
-		pri_detector_reset(de, ts);
-		return true;
-	}
-	pulse_queue_enqueue(de, ts);
-	return false;
+	if (ps == NULL)
+		pulse_queue_enqueue(de, ts);
+
+	return ps;
 }
 
-struct pri_detector *
-pri_detector_init(const struct radar_detector_specs *rs)
+struct pri_detector *pri_detector_init(const struct radar_detector_specs *rs)
 {
 	struct pri_detector *de;
-	de = kzalloc(sizeof(*de), GFP_KERNEL);
+
+	de = kzalloc(sizeof(*de), GFP_ATOMIC);
 	if (de == NULL)
 		return NULL;
 	de->exit = pri_detector_exit;

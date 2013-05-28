@@ -81,14 +81,18 @@ void soft_restart(unsigned long addr)
 void (*pm_power_off)(void);
 EXPORT_SYMBOL_GPL(pm_power_off);
 
-void (*pm_restart)(const char *cmd);
-EXPORT_SYMBOL_GPL(pm_restart);
+void (*arm_pm_restart)(char str, const char *cmd);
+EXPORT_SYMBOL_GPL(arm_pm_restart);
 
+void arch_cpu_idle_prepare(void)
+{
+	local_fiq_enable();
+}
 
 /*
  * This is our default idle handler.
  */
-static void default_idle(void)
+void arch_cpu_idle(void)
 {
 	/*
 	 * This should do all the clock switching and wait for interrupt
@@ -96,43 +100,6 @@ static void default_idle(void)
 	 */
 	cpu_do_idle();
 	local_irq_enable();
-}
-
-/*
- * The idle thread.
- * We always respect 'hlt_counter' to prevent low power idle.
- */
-void cpu_idle(void)
-{
-	local_fiq_enable();
-
-	/* endless idle loop with no priority at all */
-	while (1) {
-		tick_nohz_idle_enter();
-		rcu_idle_enter();
-		while (!need_resched()) {
-			/*
-			 * We need to disable interrupts here to ensure
-			 * we don't miss a wakeup call.
-			 */
-			local_irq_disable();
-			if (!need_resched()) {
-				stop_critical_timings();
-				default_idle();
-				start_critical_timings();
-				/*
-				 * default_idle functions should always return
-				 * with IRQs enabled.
-				 */
-				WARN_ON(irqs_disabled());
-			} else {
-				local_irq_enable();
-			}
-		}
-		rcu_idle_exit();
-		tick_nohz_idle_exit();
-		schedule_preempt_disabled();
-	}
 }
 
 void machine_shutdown(void)
@@ -164,8 +131,8 @@ void machine_restart(char *cmd)
 	local_fiq_disable();
 
 	/* Now call the architecture specific reboot code. */
-	if (pm_restart)
-		pm_restart(cmd);
+	if (arm_pm_restart)
+		arm_pm_restart('h', cmd);
 
 	/*
 	 * Whoops - the architecture was unable to reboot.
@@ -178,11 +145,7 @@ void __show_regs(struct pt_regs *regs)
 {
 	int i;
 
-	printk("CPU: %d    %s  (%s %.*s)\n",
-		raw_smp_processor_id(), print_tainted(),
-		init_utsname()->release,
-		(int)strcspn(init_utsname()->version, " "),
-		init_utsname()->version);
+	show_regs_print_info(KERN_DEFAULT);
 	print_symbol("PC is at %s\n", instruction_pointer(regs));
 	print_symbol("LR is at %s\n", regs->regs[30]);
 	printk("pc : [<%016llx>] lr : [<%016llx>] pstate: %08llx\n",
@@ -199,7 +162,6 @@ void __show_regs(struct pt_regs *regs)
 void show_regs(struct pt_regs * regs)
 {
 	printk("\n");
-	printk("Pid: %d, comm: %20s\n", task_pid_nr(current), current->comm);
 	__show_regs(regs);
 }
 
@@ -311,11 +273,17 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	fpsimd_thread_switch(next);
 	tls_thread_switch(next);
 	hw_breakpoint_thread_switch(next);
+	contextidr_thread_switch(next);
+
+	/*
+	 * Complete any pending TLB or cache maintenance on this CPU in case
+	 * the thread migrates to a different CPU.
+	 */
+	dsb();
 
 	/* the actual thread switch */
 	last = cpu_switch_to(prev, next);
 
-	contextidr_thread_switch(next);
 	return last;
 }
 

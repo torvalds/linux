@@ -8,6 +8,8 @@
  *
  * see Documentation/dvb/README.dvb-usb for more information
  */
+
+#include <linux/kconfig.h>
 #include "dibusb.h"
 
 static int debug;
@@ -232,8 +234,7 @@ static struct dibx000_agc_config dib3000p_panasonic_agc_config = {
 	.agc2_slope2 = 0x1e,
 };
 
-#if defined(CONFIG_DVB_DIB3000MC) || 					\
-	(defined(CONFIG_DVB_DIB3000MC_MODULE) && defined(MODULE))
+#if IS_ENABLED(CONFIG_DVB_DIB3000MC)
 
 static struct dib3000mc_config mod3000p_dib3000p_config = {
 	&dib3000p_panasonic_agc_config,

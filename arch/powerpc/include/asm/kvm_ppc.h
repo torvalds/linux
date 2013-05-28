@@ -44,7 +44,7 @@ enum emulation_result {
 	EMULATE_DO_DCR,       /* kvm_run filled with DCR request */
 	EMULATE_FAIL,         /* can't emulate this instruction */
 	EMULATE_AGAIN,        /* something went wrong. go again */
-	EMULATE_DO_PAPR,      /* kvm_run filled with PAPR request */
+	EMULATE_EXIT_USER,    /* emulation requires exit to user-space */
 };
 
 extern int kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu);
@@ -104,8 +104,7 @@ extern void kvmppc_core_queue_dec(struct kvm_vcpu *vcpu);
 extern void kvmppc_core_dequeue_dec(struct kvm_vcpu *vcpu);
 extern void kvmppc_core_queue_external(struct kvm_vcpu *vcpu,
                                        struct kvm_interrupt *irq);
-extern void kvmppc_core_dequeue_external(struct kvm_vcpu *vcpu,
-                                         struct kvm_interrupt *irq);
+extern void kvmppc_core_dequeue_external(struct kvm_vcpu *vcpu);
 extern void kvmppc_core_flush_tlb(struct kvm_vcpu *vcpu);
 
 extern int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
@@ -131,6 +130,7 @@ extern long kvmppc_prepare_vrma(struct kvm *kvm,
 extern void kvmppc_map_vrma(struct kvm_vcpu *vcpu,
 			struct kvm_memory_slot *memslot, unsigned long porder);
 extern int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu);
+
 extern long kvm_vm_ioctl_create_spapr_tce(struct kvm *kvm,
 				struct kvm_create_spapr_tce *args);
 extern long kvmppc_h_put_tce(struct kvm_vcpu *vcpu, unsigned long liobn,
@@ -152,7 +152,7 @@ extern int kvmppc_core_prepare_memory_region(struct kvm *kvm,
 				struct kvm_userspace_memory_region *mem);
 extern void kvmppc_core_commit_memory_region(struct kvm *kvm,
 				struct kvm_userspace_memory_region *mem,
-				struct kvm_memory_slot old);
+				const struct kvm_memory_slot *old);
 extern int kvm_vm_ioctl_get_smmu_info(struct kvm *kvm,
 				      struct kvm_ppc_smmu_info *info);
 extern void kvmppc_core_flush_memslot(struct kvm *kvm,
@@ -164,6 +164,18 @@ extern void kvmppc_bookehv_exit(void);
 extern int kvmppc_prepare_to_enter(struct kvm_vcpu *vcpu);
 
 extern int kvm_vm_ioctl_get_htab_fd(struct kvm *kvm, struct kvm_get_htab_fd *);
+
+int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu, struct kvm_interrupt *irq);
+
+extern int kvm_vm_ioctl_rtas_define_token(struct kvm *kvm, void __user *argp);
+extern int kvmppc_rtas_hcall(struct kvm_vcpu *vcpu);
+extern void kvmppc_rtas_tokens_free(struct kvm *kvm);
+extern int kvmppc_xics_set_xive(struct kvm *kvm, u32 irq, u32 server,
+				u32 priority);
+extern int kvmppc_xics_get_xive(struct kvm *kvm, u32 irq, u32 *server,
+				u32 *priority);
+extern int kvmppc_xics_int_on(struct kvm *kvm, u32 irq);
+extern int kvmppc_xics_int_off(struct kvm *kvm, u32 irq);
 
 /*
  * Cuts out inst bits with ordering according to spec.
@@ -246,12 +258,29 @@ int kvmppc_set_one_reg(struct kvm_vcpu *vcpu, u64 id, union kvmppc_one_reg *);
 
 void kvmppc_set_pid(struct kvm_vcpu *vcpu, u32 pid);
 
+struct openpic;
+
 #ifdef CONFIG_KVM_BOOK3S_64_HV
 static inline void kvmppc_set_xics_phys(int cpu, unsigned long addr)
 {
 	paca[cpu].kvm_hstate.xics_phys = addr;
 }
 
+static inline u32 kvmppc_get_xics_latch(void)
+{
+	u32 xirr = get_paca()->kvm_hstate.saved_xirr;
+
+	get_paca()->kvm_hstate.saved_xirr = 0;
+
+	return xirr;
+}
+
+static inline void kvmppc_set_host_ipi(int cpu, u8 host_ipi)
+{
+	paca[cpu].kvm_hstate.host_ipi = host_ipi;
+}
+
+extern void kvmppc_fast_vcpu_kick(struct kvm_vcpu *vcpu);
 extern void kvm_linear_init(void);
 
 #else
@@ -260,6 +289,46 @@ static inline void kvmppc_set_xics_phys(int cpu, unsigned long addr)
 
 static inline void kvm_linear_init(void)
 {}
+
+static inline u32 kvmppc_get_xics_latch(void)
+{
+	return 0;
+}
+
+static inline void kvmppc_set_host_ipi(int cpu, u8 host_ipi)
+{}
+
+static inline void kvmppc_fast_vcpu_kick(struct kvm_vcpu *vcpu)
+{
+	kvm_vcpu_kick(vcpu);
+}
+#endif
+
+#ifdef CONFIG_KVM_XICS
+static inline int kvmppc_xics_enabled(struct kvm_vcpu *vcpu)
+{
+	return vcpu->arch.irq_type == KVMPPC_IRQ_XICS;
+}
+extern void kvmppc_xics_free_icp(struct kvm_vcpu *vcpu);
+extern int kvmppc_xics_create_icp(struct kvm_vcpu *vcpu, unsigned long server);
+extern int kvm_vm_ioctl_xics_irq(struct kvm *kvm, struct kvm_irq_level *args);
+extern int kvmppc_xics_hcall(struct kvm_vcpu *vcpu, u32 cmd);
+extern u64 kvmppc_xics_get_icp(struct kvm_vcpu *vcpu);
+extern int kvmppc_xics_set_icp(struct kvm_vcpu *vcpu, u64 icpval);
+extern int kvmppc_xics_connect_vcpu(struct kvm_device *dev,
+			struct kvm_vcpu *vcpu, u32 cpu);
+#else
+static inline int kvmppc_xics_enabled(struct kvm_vcpu *vcpu)
+	{ return 0; }
+static inline void kvmppc_xics_free_icp(struct kvm_vcpu *vcpu) { }
+static inline int kvmppc_xics_create_icp(struct kvm_vcpu *vcpu,
+					 unsigned long server)
+	{ return -EINVAL; }
+static inline int kvm_vm_ioctl_xics_irq(struct kvm *kvm,
+					struct kvm_irq_level *args)
+	{ return -ENOTTY; }
+static inline int kvmppc_xics_hcall(struct kvm_vcpu *vcpu, u32 cmd)
+	{ return 0; }
 #endif
 
 static inline void kvmppc_set_epr(struct kvm_vcpu *vcpu, u32 epr)
@@ -270,6 +339,32 @@ static inline void kvmppc_set_epr(struct kvm_vcpu *vcpu, u32 epr)
 	vcpu->arch.epr = epr;
 #endif
 }
+
+#ifdef CONFIG_KVM_MPIC
+
+void kvmppc_mpic_set_epr(struct kvm_vcpu *vcpu);
+int kvmppc_mpic_connect_vcpu(struct kvm_device *dev, struct kvm_vcpu *vcpu,
+			     u32 cpu);
+void kvmppc_mpic_disconnect_vcpu(struct openpic *opp, struct kvm_vcpu *vcpu);
+
+#else
+
+static inline void kvmppc_mpic_set_epr(struct kvm_vcpu *vcpu)
+{
+}
+
+static inline int kvmppc_mpic_connect_vcpu(struct kvm_device *dev,
+		struct kvm_vcpu *vcpu, u32 cpu)
+{
+	return -EINVAL;
+}
+
+static inline void kvmppc_mpic_disconnect_vcpu(struct openpic *opp,
+		struct kvm_vcpu *vcpu)
+{
+}
+
+#endif /* CONFIG_KVM_MPIC */
 
 int kvm_vcpu_ioctl_config_tlb(struct kvm_vcpu *vcpu,
 			      struct kvm_config_tlb *cfg);
@@ -283,8 +378,15 @@ void kvmppc_init_lpid(unsigned long nr_lpids);
 
 static inline void kvmppc_mmu_flush_icache(pfn_t pfn)
 {
-	/* Clear i-cache for new pages */
 	struct page *page;
+	/*
+	 * We can only access pages that the kernel maps
+	 * as memory. Bail out for unmapped ones.
+	 */
+	if (!pfn_valid(pfn))
+		return;
+
+	/* Clear i-cache for new pages */
 	page = pfn_to_page(pfn);
 	if (!test_bit(PG_arch_1, &page->flags)) {
 		flush_dcache_icache_page(page);
@@ -323,5 +425,7 @@ static inline ulong kvmppc_get_ea_indexed(struct kvm_vcpu *vcpu, int ra, int rb)
 
 	return ea;
 }
+
+extern void xics_wake_cpu(int cpu);
 
 #endif /* __POWERPC_KVM_PPC_H__ */

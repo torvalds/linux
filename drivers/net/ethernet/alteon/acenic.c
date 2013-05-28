@@ -472,7 +472,7 @@ static int acenic_probe_one(struct pci_dev *pdev,
 	ap->name = pci_name(pdev);
 
 	dev->features |= NETIF_F_SG | NETIF_F_IP_CSUM;
-	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
+	dev->features |= NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX;
 
 	dev->watchdog_timeo = 5*HZ;
 
@@ -2019,7 +2019,7 @@ static void ace_rx_int(struct net_device *dev, u32 rxretprd, u32 rxretcsm)
 
 		/* send it up */
 		if ((bd_flags & BD_FLG_VLAN_TAG))
-			__vlan_hwaccel_put_tag(skb, retdesc->vlan);
+			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), retdesc->vlan);
 		netif_rx(skb);
 
 		dev->stats.rx_packets++;

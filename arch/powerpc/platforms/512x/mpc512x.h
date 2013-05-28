@@ -15,6 +15,7 @@ extern void __init mpc512x_init_IRQ(void);
 extern void __init mpc512x_init(void);
 extern int __init mpc5121_clk_init(void);
 void __init mpc512x_declare_of_platform_devices(void);
+extern const char *mpc512x_select_psc_compat(void);
 extern void mpc512x_restart(char *cmd);
 
 #if defined(CONFIG_FB_FSL_DIU) || defined(CONFIG_FB_FSL_DIU_MODULE)

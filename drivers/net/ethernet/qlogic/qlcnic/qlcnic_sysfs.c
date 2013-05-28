@@ -21,8 +21,6 @@
 #include <linux/aer.h>
 #include <linux/log2.h>
 
-#include <linux/sysfs.h>
-
 #define QLC_STATUS_UNSUPPORTED_CMD	-2
 
 int qlcnicvf_config_bridged_mode(struct qlcnic_adapter *adapter, u32 enable)
@@ -200,10 +198,10 @@ beacon_err:
 	}
 
 	err = qlcnic_config_led(adapter, b_state, b_rate);
-	if (!err)
+	if (!err) {
 		err = len;
-	else
 		ahw->beacon_state = b_state;
+	}
 
 	if (test_and_clear_bit(__QLCNIC_DIAG_RES_ALLOC, &adapter->state))
 		qlcnic_diag_free_res(adapter->netdev, max_sds_rings);
@@ -546,6 +544,9 @@ static ssize_t qlcnic_sysfs_write_esw_config(struct file *file,
 		switch (esw_cfg[i].op_mode) {
 		case QLCNIC_PORT_DEFAULTS:
 			qlcnic_set_eswitch_port_features(adapter, &esw_cfg[i]);
+			rtnl_lock();
+			qlcnic_set_netdev_features(adapter, &esw_cfg[i]);
+			rtnl_unlock();
 			break;
 		case QLCNIC_ADD_VLAN:
 			qlcnic_set_vlan_config(adapter, &esw_cfg[i]);
@@ -886,6 +887,244 @@ static ssize_t qlcnic_sysfs_read_pci_config(struct file *file,
 	return size;
 }
 
+static ssize_t qlcnic_83xx_sysfs_flash_read_handler(struct file *filp,
+						    struct kobject *kobj,
+						    struct bin_attribute *attr,
+						    char *buf, loff_t offset,
+						    size_t size)
+{
+	unsigned char *p_read_buf;
+	int  ret, count;
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
+
+	if (!size)
+		return QL_STATUS_INVALID_PARAM;
+	if (!buf)
+		return QL_STATUS_INVALID_PARAM;
+
+	count = size / sizeof(u32);
+
+	if (size % sizeof(u32))
+		count++;
+
+	p_read_buf = kcalloc(size, sizeof(unsigned char), GFP_KERNEL);
+	if (!p_read_buf)
+		return -ENOMEM;
+	if (qlcnic_83xx_lock_flash(adapter) != 0) {
+		kfree(p_read_buf);
+		return -EIO;
+	}
+
+	ret = qlcnic_83xx_lockless_flash_read32(adapter, offset, p_read_buf,
+						count);
+
+	if (ret) {
+		qlcnic_83xx_unlock_flash(adapter);
+		kfree(p_read_buf);
+		return ret;
+	}
+
+	qlcnic_83xx_unlock_flash(adapter);
+	memcpy(buf, p_read_buf, size);
+	kfree(p_read_buf);
+
+	return size;
+}
+
+static int qlcnic_83xx_sysfs_flash_bulk_write(struct qlcnic_adapter *adapter,
+					      char *buf, loff_t offset,
+					      size_t size)
+{
+	int  i, ret, count;
+	unsigned char *p_cache, *p_src;
+
+	p_cache = kcalloc(size, sizeof(unsigned char), GFP_KERNEL);
+	if (!p_cache)
+		return -ENOMEM;
+
+	memcpy(p_cache, buf, size);
+	p_src = p_cache;
+	count = size / sizeof(u32);
+
+	if (qlcnic_83xx_lock_flash(adapter) != 0) {
+		kfree(p_cache);
+		return -EIO;
+	}
+
+	if (adapter->ahw->fdt.mfg_id == adapter->flash_mfg_id) {
+		ret = qlcnic_83xx_enable_flash_write(adapter);
+		if (ret) {
+			kfree(p_cache);
+			qlcnic_83xx_unlock_flash(adapter);
+			return -EIO;
+		}
+	}
+
+	for (i = 0; i < count / QLC_83XX_FLASH_WRITE_MAX; i++) {
+		ret = qlcnic_83xx_flash_bulk_write(adapter, offset,
+						   (u32 *)p_src,
+						   QLC_83XX_FLASH_WRITE_MAX);
+
+		if (ret) {
+			if (adapter->ahw->fdt.mfg_id == adapter->flash_mfg_id) {
+				ret = qlcnic_83xx_disable_flash_write(adapter);
+				if (ret) {
+					kfree(p_cache);
+					qlcnic_83xx_unlock_flash(adapter);
+					return -EIO;
+				}
+			}
+
+			kfree(p_cache);
+			qlcnic_83xx_unlock_flash(adapter);
+			return -EIO;
+		}
+
+		p_src = p_src + sizeof(u32)*QLC_83XX_FLASH_WRITE_MAX;
+		offset = offset + sizeof(u32)*QLC_83XX_FLASH_WRITE_MAX;
+	}
+
+	if (adapter->ahw->fdt.mfg_id == adapter->flash_mfg_id) {
+		ret = qlcnic_83xx_disable_flash_write(adapter);
+		if (ret) {
+			kfree(p_cache);
+			qlcnic_83xx_unlock_flash(adapter);
+			return -EIO;
+		}
+	}
+
+	kfree(p_cache);
+	qlcnic_83xx_unlock_flash(adapter);
+
+	return 0;
+}
+
+static int qlcnic_83xx_sysfs_flash_write(struct qlcnic_adapter *adapter,
+					 char *buf, loff_t offset, size_t size)
+{
+	int  i, ret, count;
+	unsigned char *p_cache, *p_src;
+
+	p_cache = kcalloc(size, sizeof(unsigned char), GFP_KERNEL);
+	if (!p_cache)
+		return -ENOMEM;
+
+	memcpy(p_cache, buf, size);
+	p_src = p_cache;
+	count = size / sizeof(u32);
+
+	if (qlcnic_83xx_lock_flash(adapter) != 0) {
+		kfree(p_cache);
+		return -EIO;
+	}
+
+	if (adapter->ahw->fdt.mfg_id == adapter->flash_mfg_id) {
+		ret = qlcnic_83xx_enable_flash_write(adapter);
+		if (ret) {
+			kfree(p_cache);
+			qlcnic_83xx_unlock_flash(adapter);
+			return -EIO;
+		}
+	}
+
+	for (i = 0; i < count; i++) {
+		ret = qlcnic_83xx_flash_write32(adapter, offset, (u32 *)p_src);
+		if (ret) {
+			if (adapter->ahw->fdt.mfg_id == adapter->flash_mfg_id) {
+				ret = qlcnic_83xx_disable_flash_write(adapter);
+				if (ret) {
+					kfree(p_cache);
+					qlcnic_83xx_unlock_flash(adapter);
+					return -EIO;
+				}
+			}
+			kfree(p_cache);
+			qlcnic_83xx_unlock_flash(adapter);
+			return -EIO;
+		}
+
+		p_src = p_src + sizeof(u32);
+		offset = offset + sizeof(u32);
+	}
+
+	if (adapter->ahw->fdt.mfg_id == adapter->flash_mfg_id) {
+		ret = qlcnic_83xx_disable_flash_write(adapter);
+		if (ret) {
+			kfree(p_cache);
+			qlcnic_83xx_unlock_flash(adapter);
+			return -EIO;
+		}
+	}
+
+	kfree(p_cache);
+	qlcnic_83xx_unlock_flash(adapter);
+
+	return 0;
+}
+
+static ssize_t qlcnic_83xx_sysfs_flash_write_handler(struct file *filp,
+						     struct kobject *kobj,
+						     struct bin_attribute *attr,
+						     char *buf, loff_t offset,
+						     size_t size)
+{
+	int  ret;
+	static int flash_mode;
+	unsigned long data;
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct qlcnic_adapter *adapter = dev_get_drvdata(dev);
+
+	if (!buf)
+		return QL_STATUS_INVALID_PARAM;
+
+	ret = kstrtoul(buf, 16, &data);
+
+	switch (data) {
+	case QLC_83XX_FLASH_SECTOR_ERASE_CMD:
+		flash_mode = QLC_83XX_ERASE_MODE;
+		ret = qlcnic_83xx_erase_flash_sector(adapter, offset);
+		if (ret) {
+			dev_err(&adapter->pdev->dev,
+				"%s failed at %d\n", __func__, __LINE__);
+			return -EIO;
+		}
+		break;
+
+	case QLC_83XX_FLASH_BULK_WRITE_CMD:
+		flash_mode = QLC_83XX_BULK_WRITE_MODE;
+		break;
+
+	case QLC_83XX_FLASH_WRITE_CMD:
+		flash_mode = QLC_83XX_WRITE_MODE;
+		break;
+	default:
+		if (flash_mode == QLC_83XX_BULK_WRITE_MODE) {
+			ret = qlcnic_83xx_sysfs_flash_bulk_write(adapter, buf,
+								 offset, size);
+			if (ret) {
+				dev_err(&adapter->pdev->dev,
+					"%s failed at %d\n",
+					__func__, __LINE__);
+				return -EIO;
+			}
+		}
+
+		if (flash_mode == QLC_83XX_WRITE_MODE) {
+			ret = qlcnic_83xx_sysfs_flash_write(adapter, buf,
+							    offset, size);
+			if (ret) {
+				dev_err(&adapter->pdev->dev,
+					"%s failed at %d\n", __func__,
+					__LINE__);
+				return -EIO;
+			}
+		}
+	}
+
+	return size;
+}
+
 static struct device_attribute dev_attr_bridged_mode = {
        .attr = {.name = "bridged_mode", .mode = (S_IRUGO | S_IWUSR)},
        .show = qlcnic_show_bridged_mode,
@@ -958,6 +1197,13 @@ static struct bin_attribute bin_attr_pm_config = {
 	.size = 0,
 	.read = qlcnic_sysfs_read_pm_config,
 	.write = qlcnic_sysfs_write_pm_config,
+};
+
+static struct bin_attribute bin_attr_flash = {
+	.attr = {.name = "flash", .mode = (S_IRUGO | S_IWUSR)},
+	.size = 0,
+	.read = qlcnic_83xx_sysfs_flash_read_handler,
+	.write = qlcnic_83xx_sysfs_flash_write_handler,
 };
 
 void qlcnic_create_sysfs_entries(struct qlcnic_adapter *adapter)
@@ -1048,10 +1294,18 @@ void qlcnic_82xx_remove_sysfs(struct qlcnic_adapter *adapter)
 
 void qlcnic_83xx_add_sysfs(struct qlcnic_adapter *adapter)
 {
+	struct device *dev = &adapter->pdev->dev;
+
 	qlcnic_create_diag_entries(adapter);
+
+	if (sysfs_create_bin_file(&dev->kobj, &bin_attr_flash))
+		dev_info(dev, "failed to create flash sysfs entry\n");
 }
 
 void qlcnic_83xx_remove_sysfs(struct qlcnic_adapter *adapter)
 {
+	struct device *dev = &adapter->pdev->dev;
+
 	qlcnic_remove_diag_entries(adapter);
+	sysfs_remove_bin_file(&dev->kobj, &bin_attr_flash);
 }

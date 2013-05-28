@@ -2,7 +2,7 @@ config SND_SOC_TEGRA
 	tristate "SoC Audio for the Tegra System-on-Chip"
 	depends on ARCH_TEGRA && TEGRA20_APB_DMA
 	select REGMAP_MMIO
-	select SND_SOC_DMAENGINE_PCM if TEGRA20_APB_DMA
+	select SND_SOC_GENERIC_DMAENGINE_PCM if TEGRA20_APB_DMA
 	help
 	  Say Y or M here if you want support for SoC audio on Tegra.
 

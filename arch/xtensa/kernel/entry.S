@@ -354,16 +354,16 @@ common_exception:
 	 * so we can allow exceptions and interrupts (*) again.
 	 * Set PS(EXCM = 0, UM = 0, RING = 0, OWB = 0, WOE = 1, INTLEVEL = X)
 	 *
-	 * (*) We only allow interrupts of higher priority than current IRQ
+	 * (*) We only allow interrupts if they were previously enabled and
+	 *     we're not handling an IRQ
 	 */
 
 	rsr	a3, ps
-	addi	a0, a0, -4
-	movi	a2, 1
+	addi	a0, a0, -EXCCAUSE_LEVEL1_INTERRUPT
+	movi	a2, LOCKLEVEL
 	extui	a3, a3, PS_INTLEVEL_SHIFT, PS_INTLEVEL_WIDTH
 					# a3 = PS.INTLEVEL
-	movnez	a2, a3, a3		# a2 = 1: level-1, > 1: high priority
-	moveqz	a3, a2, a0		# a3 = IRQ level iff interrupt
+	moveqz	a3, a2, a0		# a3 = LOCKLEVEL iff interrupt
 	movi	a2, 1 << PS_WOE_BIT
 	or	a3, a3, a2
 	rsr	a0, exccause
@@ -389,6 +389,22 @@ common_exception:
 
 	save_xtregs_opt a1 a2 a4 a5 a6 a7 PT_XTREGS_OPT
 	
+#ifdef CONFIG_TRACE_IRQFLAGS
+	l32i	a4, a1, PT_DEPC
+	/* Double exception means we came here with an exception
+	 * while PS.EXCM was set, i.e. interrupts disabled.
+	 */
+	bgeui	a4, VALID_DOUBLE_EXCEPTION_ADDRESS, 1f
+	l32i	a4, a1, PT_EXCCAUSE
+	bnei	a4, EXCCAUSE_LEVEL1_INTERRUPT, 1f
+	/* We came here with an interrupt means interrupts were enabled
+	 * and we've just disabled them.
+	 */
+	movi	a4, trace_hardirqs_off
+	callx4	a4
+1:
+#endif
+
 	/* Go to second-level dispatcher. Set up parameters to pass to the
 	 * exception handler and call the exception handler.
 	 */
@@ -407,10 +423,28 @@ common_exception:
 	.global common_exception_return
 common_exception_return:
 
+#ifdef CONFIG_TRACE_IRQFLAGS
+	l32i	a4, a1, PT_DEPC
+	/* Double exception means we came here with an exception
+	 * while PS.EXCM was set, i.e. interrupts disabled.
+	 */
+	bgeui	a4, VALID_DOUBLE_EXCEPTION_ADDRESS, 1f
+	l32i	a4, a1, PT_EXCCAUSE
+	bnei	a4, EXCCAUSE_LEVEL1_INTERRUPT, 1f
+	/* We came here with an interrupt means interrupts were enabled
+	 * and we'll reenable them on return.
+	 */
+	movi	a4, trace_hardirqs_on
+	callx4	a4
+1:
+#endif
+
 	/* Jump if we are returning from kernel exceptions. */
 
 1:	l32i	a3, a1, PT_PS
 	_bbci.l	a3, PS_UM_BIT, 4f
+
+	rsil	a2, 0
 
 	/* Specific to a user exception exit:
 	 * We need to check some flags for signal handling and rescheduling,
@@ -652,51 +686,19 @@ common_exception_exit:
 
 	l32i	a0, a1, PT_DEPC
 	l32i	a3, a1, PT_AREG3
-	_bltui	a0, VALID_DOUBLE_EXCEPTION_ADDRESS, 1f
-
-	wsr	a0, depc
 	l32i	a2, a1, PT_AREG2
-	l32i	a0, a1, PT_AREG0
-	l32i	a1, a1, PT_AREG1
-	rfde
+	_bgeui	a0, VALID_DOUBLE_EXCEPTION_ADDRESS, 1f
 
-1:
 	/* Restore a0...a3 and return */
 
-	rsr	a0, ps
-	extui	a2, a0, PS_INTLEVEL_SHIFT, PS_INTLEVEL_WIDTH
-	movi	a0, 2f
-	slli	a2, a2, 4
-	add	a0, a2, a0
-	l32i	a2, a1, PT_AREG2
-	jx	a0
-
-	.macro	irq_exit_level level
-	.align	16
-	.if	XCHAL_EXCM_LEVEL >= \level
-	l32i	a0, a1, PT_PC
-	wsr	a0, epc\level
-	l32i	a0, a1, PT_AREG0
-	l32i	a1, a1, PT_AREG1
-	rfi	\level
-	.endif
-	.endm
-
-	.align	16
-2:
 	l32i	a0, a1, PT_AREG0
 	l32i	a1, a1, PT_AREG1
 	rfe
 
-	.align	16
-	/* no rfi for level-1 irq, handled by rfe above*/
-	nop
-
-	irq_exit_level 2
-	irq_exit_level 3
-	irq_exit_level 4
-	irq_exit_level 5
-	irq_exit_level 6
+1: 	wsr	a0, depc
+	l32i	a0, a1, PT_AREG0
+	l32i	a1, a1, PT_AREG1
+	rfde
 
 ENDPROC(kernel_exception)
 

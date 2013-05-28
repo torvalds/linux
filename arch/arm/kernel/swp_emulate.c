@@ -21,6 +21,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include <linux/sched.h>
 #include <linux/syscalls.h>
 #include <linux/perf_event.h>
@@ -79,27 +80,27 @@ static unsigned long abtcounter;
 static pid_t         previous_pid;
 
 #ifdef CONFIG_PROC_FS
-static int proc_read_status(char *page, char **start, off_t off, int count,
-			    int *eof, void *data)
+static int proc_status_show(struct seq_file *m, void *v)
 {
-	char *p = page;
-	int len;
-
-	p += sprintf(p, "Emulated SWP:\t\t%lu\n", swpcounter);
-	p += sprintf(p, "Emulated SWPB:\t\t%lu\n", swpbcounter);
-	p += sprintf(p, "Aborted SWP{B}:\t\t%lu\n", abtcounter);
+	seq_printf(m, "Emulated SWP:\t\t%lu\n", swpcounter);
+	seq_printf(m, "Emulated SWPB:\t\t%lu\n", swpbcounter);
+	seq_printf(m, "Aborted SWP{B}:\t\t%lu\n", abtcounter);
 	if (previous_pid != 0)
-		p += sprintf(p, "Last process:\t\t%d\n", previous_pid);
-
-	len = (p - page) - off;
-	if (len < 0)
-		len = 0;
-
-	*eof = (len <= count) ? 1 : 0;
-	*start = page + off;
-
-	return len;
+		seq_printf(m, "Last process:\t\t%d\n", previous_pid);
+	return 0;
 }
+
+static int proc_status_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, proc_status_show, PDE_DATA(inode));
+}
+
+static const struct file_operations proc_status_fops = {
+	.open		= proc_status_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 #endif
 
 /*
@@ -266,14 +267,8 @@ static struct undef_hook swp_hook = {
 static int __init swp_emulation_init(void)
 {
 #ifdef CONFIG_PROC_FS
-	struct proc_dir_entry *res;
-
-	res = create_proc_entry("cpu/swp_emulation", S_IRUGO, NULL);
-
-	if (!res)
+	if (!proc_create("cpu/swp_emulation", S_IRUGO, NULL, &proc_status_fops))
 		return -ENOMEM;
-
-	res->read_proc = proc_read_status;
 #endif /* CONFIG_PROC_FS */
 
 	printk(KERN_NOTICE "Registering SWP/SWPB emulation handler\n");

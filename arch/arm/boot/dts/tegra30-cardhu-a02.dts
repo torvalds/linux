@@ -88,6 +88,7 @@
 		status = "okay";
 		power-gpios = <&gpio 28 0>; /* gpio PD4 */
 		bus-width = <4>;
+		keep-power-in-suspend;
 	};
 };
 

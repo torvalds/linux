@@ -328,7 +328,7 @@ static void hdmi_runtime_put(void)
 	WARN_ON(r < 0 && r != -ENOSYS);
 }
 
-static int __init hdmi_init_display(struct omap_dss_device *dssdev)
+static int hdmi_init_display(struct omap_dss_device *dssdev)
 {
 	int r;
 
@@ -472,17 +472,12 @@ static void hdmi_compute_pll(struct omap_dss_device *dssdev, int phy,
 	 * Input clock is predivided by N + 1
 	 * out put of which is reference clk
 	 */
-	if (dssdev->clocks.hdmi.regn == 0)
-		pi->regn = HDMI_DEFAULT_REGN;
-	else
-		pi->regn = dssdev->clocks.hdmi.regn;
+
+	pi->regn = HDMI_DEFAULT_REGN;
 
 	refclk = clkin / pi->regn;
 
-	if (dssdev->clocks.hdmi.regm2 == 0)
-		pi->regm2 = HDMI_DEFAULT_REGM2;
-	else
-		pi->regm2 = dssdev->clocks.hdmi.regm2;
+	pi->regm2 = HDMI_DEFAULT_REGM2;
 
 	/*
 	 * multiplier is pixel_clk/ref_clk
@@ -804,7 +799,7 @@ static int hdmi_get_clocks(struct platform_device *pdev)
 {
 	struct clk *clk;
 
-	clk = clk_get(&pdev->dev, "sys_clk");
+	clk = devm_clk_get(&pdev->dev, "sys_clk");
 	if (IS_ERR(clk)) {
 		DSSERR("can't get sys_clk\n");
 		return PTR_ERR(clk);
@@ -813,12 +808,6 @@ static int hdmi_get_clocks(struct platform_device *pdev)
 	hdmi.sys_clk = clk;
 
 	return 0;
-}
-
-static void hdmi_put_clocks(void)
-{
-	if (hdmi.sys_clk)
-		clk_put(hdmi.sys_clk);
 }
 
 #if defined(CONFIG_OMAP4_DSS_HDMI_AUDIO)
@@ -965,7 +954,7 @@ int hdmi_audio_config(struct omap_dss_audio *audio)
 
 #endif
 
-static struct omap_dss_device * __init hdmi_find_dssdev(struct platform_device *pdev)
+static struct omap_dss_device *hdmi_find_dssdev(struct platform_device *pdev)
 {
 	struct omap_dss_board_info *pdata = pdev->dev.platform_data;
 	const char *def_disp_name = omapdss_get_default_display_name();
@@ -993,7 +982,7 @@ static struct omap_dss_device * __init hdmi_find_dssdev(struct platform_device *
 	return def_dssdev;
 }
 
-static void __init hdmi_probe_pdata(struct platform_device *pdev)
+static int hdmi_probe_pdata(struct platform_device *pdev)
 {
 	struct omap_dss_device *plat_dssdev;
 	struct omap_dss_device *dssdev;
@@ -1003,11 +992,11 @@ static void __init hdmi_probe_pdata(struct platform_device *pdev)
 	plat_dssdev = hdmi_find_dssdev(pdev);
 
 	if (!plat_dssdev)
-		return;
+		return 0;
 
 	dssdev = dss_alloc_and_init_device(&pdev->dev);
 	if (!dssdev)
-		return;
+		return -ENOMEM;
 
 	dss_copy_device_pdata(dssdev, plat_dssdev);
 
@@ -1017,13 +1006,11 @@ static void __init hdmi_probe_pdata(struct platform_device *pdev)
 	hdmi.ls_oe_gpio = priv->ls_oe_gpio;
 	hdmi.hpd_gpio = priv->hpd_gpio;
 
-	dssdev->channel = OMAP_DSS_CHANNEL_DIGIT;
-
 	r = hdmi_init_display(dssdev);
 	if (r) {
 		DSSERR("device %s init failed: %d\n", dssdev->name, r);
 		dss_put_device(dssdev);
-		return;
+		return r;
 	}
 
 	r = omapdss_output_set_device(&hdmi.output, dssdev);
@@ -1031,7 +1018,7 @@ static void __init hdmi_probe_pdata(struct platform_device *pdev)
 		DSSERR("failed to connect output to new device: %s\n",
 				dssdev->name);
 		dss_put_device(dssdev);
-		return;
+		return r;
 	}
 
 	r = dss_add_device(dssdev);
@@ -1040,17 +1027,21 @@ static void __init hdmi_probe_pdata(struct platform_device *pdev)
 		omapdss_output_unset_device(&hdmi.output);
 		hdmi_uninit_display(dssdev);
 		dss_put_device(dssdev);
-		return;
+		return r;
 	}
+
+	return 0;
 }
 
-static void __init hdmi_init_output(struct platform_device *pdev)
+static void hdmi_init_output(struct platform_device *pdev)
 {
 	struct omap_dss_output *out = &hdmi.output;
 
 	out->pdev = pdev;
 	out->id = OMAP_DSS_OUTPUT_HDMI;
 	out->type = OMAP_DISPLAY_TYPE_HDMI;
+	out->name = "hdmi.0";
+	out->dispc_channel = OMAP_DSS_CHANNEL_DIGIT;
 
 	dss_register_output(out);
 }
@@ -1063,7 +1054,7 @@ static void __exit hdmi_uninit_output(struct platform_device *pdev)
 }
 
 /* HDMI HW IP initialisation */
-static int __init omapdss_hdmihw_probe(struct platform_device *pdev)
+static int omapdss_hdmihw_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	int r;
@@ -1074,10 +1065,6 @@ static int __init omapdss_hdmihw_probe(struct platform_device *pdev)
 	mutex_init(&hdmi.ip_data.lock);
 
 	res = platform_get_resource(hdmi.pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		DSSERR("can't get IORESOURCE_MEM HDMI\n");
-		return -EINVAL;
-	}
 
 	/* Base address taken from platform */
 	hdmi.ip_data.base_wp = devm_ioremap_resource(&pdev->dev, res);
@@ -1097,23 +1084,25 @@ static int __init omapdss_hdmihw_probe(struct platform_device *pdev)
 	hdmi.ip_data.pll_offset = HDMI_PLLCTRL;
 	hdmi.ip_data.phy_offset = HDMI_PHY;
 
+	hdmi_init_output(pdev);
+
 	r = hdmi_panel_init();
 	if (r) {
 		DSSERR("can't init panel\n");
-		goto err_panel_init;
+		return r;
 	}
 
 	dss_debugfs_create_file("hdmi", hdmi_dump_regs);
 
-	hdmi_init_output(pdev);
-
-	hdmi_probe_pdata(pdev);
+	r = hdmi_probe_pdata(pdev);
+	if (r) {
+		hdmi_panel_exit();
+		hdmi_uninit_output(pdev);
+		pm_runtime_disable(&pdev->dev);
+		return r;
+	}
 
 	return 0;
-
-err_panel_init:
-	hdmi_put_clocks();
-	return r;
 }
 
 static int __exit hdmi_remove_child(struct device *dev, void *data)
@@ -1134,8 +1123,6 @@ static int __exit omapdss_hdmihw_remove(struct platform_device *pdev)
 	hdmi_uninit_output(pdev);
 
 	pm_runtime_disable(&pdev->dev);
-
-	hdmi_put_clocks();
 
 	return 0;
 }
@@ -1168,6 +1155,7 @@ static const struct dev_pm_ops hdmi_pm_ops = {
 };
 
 static struct platform_driver omapdss_hdmihw_driver = {
+	.probe		= omapdss_hdmihw_probe,
 	.remove         = __exit_p(omapdss_hdmihw_remove),
 	.driver         = {
 		.name   = "omapdss_hdmi",
@@ -1178,7 +1166,7 @@ static struct platform_driver omapdss_hdmihw_driver = {
 
 int __init hdmi_init_platform_driver(void)
 {
-	return platform_driver_probe(&omapdss_hdmihw_driver, omapdss_hdmihw_probe);
+	return platform_driver_register(&omapdss_hdmihw_driver);
 }
 
 void __exit hdmi_uninit_platform_driver(void)

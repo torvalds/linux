@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2011 Emulex
+ * Copyright (C) 2005 - 2013 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -32,8 +32,8 @@
 #define MPU_EP_CONTROL 		0
 
 /********** MPU semphore: used for SH & BE  *************/
-#define SLIPORT_SEMAPHORE_OFFSET_BE		0x7c
-#define SLIPORT_SEMAPHORE_OFFSET_SH		0x94
+#define SLIPORT_SEMAPHORE_OFFSET_BEx		0xac  /* CSR BAR offset */
+#define SLIPORT_SEMAPHORE_OFFSET_SH		0x94  /* PCI-CFG offset */
 #define POST_STAGE_MASK				0x0000FFFF
 #define POST_ERR_MASK				0x1
 #define POST_ERR_SHIFT				31
@@ -71,6 +71,10 @@
  * with the OS.
  */
 #define MEMBAR_CTRL_INT_CTRL_HOSTINTR_MASK	(1 << 29) /* bit 29 */
+
+/********* PCI Function Capability *********/
+#define BE_FUNCTION_CAPS_RSS			0x2
+#define BE_FUNCTION_CAPS_SUPER_NIC		0x40
 
 /********* Power management (WOL) **********/
 #define PCICFG_PM_CONTROL_OFFSET		0x44
@@ -495,7 +499,8 @@ struct flash_file_hdr_g3 {
 	u32 antidote;
 	u32 num_imgs;
 	u8 build[24];
-	u8 rsvd[32];
+	u8 asic_type_rev;
+	u8 rsvd[31];
 };
 
 struct flash_section_hdr {

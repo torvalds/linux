@@ -8,6 +8,7 @@
 
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-dev.h>
+#include <media/v4l2-ctrls.h>
 
 #include "pd-common.h"
 #include "vendorcmds.h"
@@ -82,31 +83,6 @@ static const struct pd_input pd_inputs[] = {
 };
 static const unsigned int POSEIDON_INPUTS = ARRAY_SIZE(pd_inputs);
 
-struct poseidon_control {
-	struct v4l2_queryctrl v4l2_ctrl;
-	enum cmd_custom_param_id vc_id;
-};
-
-static struct poseidon_control controls[] = {
-	{
-		{ V4L2_CID_BRIGHTNESS, V4L2_CTRL_TYPE_INTEGER,
-			"brightness", 0, 10000, 1, 100, 0, },
-		CUST_PARM_ID_BRIGHTNESS_CTRL
-	}, {
-		{ V4L2_CID_CONTRAST, V4L2_CTRL_TYPE_INTEGER,
-			"contrast", 0, 10000, 1, 100, 0, },
-		CUST_PARM_ID_CONTRAST_CTRL,
-	}, {
-		{ V4L2_CID_HUE, V4L2_CTRL_TYPE_INTEGER,
-			"hue", 0, 10000, 1, 100, 0, },
-		CUST_PARM_ID_HUE_CTRL,
-	}, {
-		{ V4L2_CID_SATURATION, V4L2_CTRL_TYPE_INTEGER,
-			"saturation", 0, 10000, 1, 100, 0, },
-		CUST_PARM_ID_SATURATION_CTRL,
-	},
-};
-
 struct video_std_to_audio_std {
 	v4l2_std_id	video_std;
 	int 		audio_std;
@@ -142,17 +118,20 @@ static int get_audio_std(v4l2_std_id v4l2_std)
 static int vidioc_querycap(struct file *file, void *fh,
 			struct v4l2_capability *cap)
 {
-	struct front_face *front = fh;
-	struct poseidon *p = front->pd;
-
-	logs(front);
+	struct video_device *vdev = video_devdata(file);
+	struct poseidon *p = video_get_drvdata(vdev);
 
 	strcpy(cap->driver, "tele-video");
 	strcpy(cap->card, "Telegent Poseidon");
 	usb_make_path(p->udev, cap->bus_info, sizeof(cap->bus_info));
-	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_TUNER |
-				V4L2_CAP_AUDIO | V4L2_CAP_STREAMING |
-				V4L2_CAP_READWRITE | V4L2_CAP_VBI_CAPTURE;
+	cap->device_caps = V4L2_CAP_TUNER | V4L2_CAP_AUDIO |
+			V4L2_CAP_STREAMING | V4L2_CAP_READWRITE;
+	if (vdev->vfl_type == VFL_TYPE_VBI)
+		cap->device_caps |= V4L2_CAP_VBI_CAPTURE;
+	else
+		cap->device_caps |= V4L2_CAP_VIDEO_CAPTURE;
+	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS |
+		V4L2_CAP_RADIO | V4L2_CAP_VBI_CAPTURE | V4L2_CAP_VIDEO_CAPTURE;
 	return 0;
 }
 
@@ -223,7 +202,6 @@ static void submit_frame(struct front_face *front)
  */
 static void end_field(struct video_data *video)
 {
-	/* logs(video->front); */
 	if (1 == video->field_count)
 		submit_frame(video->front);
 	else
@@ -718,14 +696,7 @@ static int vidioc_g_fmt(struct file *file, void *fh, struct v4l2_format *f)
 	struct front_face *front = fh;
 	struct poseidon *pd = front->pd;
 
-	logs(front);
 	f->fmt.pix = pd->video_data.context.pix;
-	return 0;
-}
-
-static int vidioc_try_fmt(struct file *file, void *fh,
-		struct v4l2_format *f)
-{
 	return 0;
 }
 
@@ -787,7 +758,6 @@ static int vidioc_s_fmt(struct file *file, void *fh, struct v4l2_format *f)
 	struct front_face *front	= fh;
 	struct poseidon *pd		= front->pd;
 
-	logs(front);
 	/* stop VBI here */
 	if (V4L2_BUF_TYPE_VIDEO_CAPTURE != f->type)
 		return -EINVAL;
@@ -828,11 +798,10 @@ static int vidioc_g_fmt_vbi(struct file *file, void *fh,
 		vbi_fmt->count[1] = V4L_PAL_VBI_LINES;
 	}
 	vbi_fmt->flags = V4L2_VBI_UNSYNC;
-	logs(front);
 	return 0;
 }
 
-static int set_std(struct poseidon *pd, v4l2_std_id *norm)
+static int set_std(struct poseidon *pd, v4l2_std_id norm)
 {
 	struct video_data *video = &pd->video_data;
 	struct vbi_data *vbi	= &pd->vbi_data;
@@ -842,7 +811,7 @@ static int set_std(struct poseidon *pd, v4l2_std_id *norm)
 	int height;
 
 	for (i = 0; i < POSEIDON_TVNORMS; i++) {
-		if (*norm & poseidon_tvnorms[i].v4l2_id) {
+		if (norm & poseidon_tvnorms[i].v4l2_id) {
 			param = poseidon_tvnorms[i].tlg_tvnorm;
 			log("name : %s", poseidon_tvnorms[i].name);
 			goto found;
@@ -877,17 +846,23 @@ out:
 	return ret;
 }
 
-static int vidioc_s_std(struct file *file, void *fh, v4l2_std_id *norm)
+static int vidioc_s_std(struct file *file, void *fh, v4l2_std_id norm)
 {
 	struct front_face *front = fh;
-	logs(front);
+
 	return set_std(front->pd, norm);
+}
+
+static int vidioc_g_std(struct file *file, void *fh, v4l2_std_id *norm)
+{
+	struct front_face *front = fh;
+
+	*norm = front->pd->video_data.context.tvnormid;
+	return 0;
 }
 
 static int vidioc_enum_input(struct file *file, void *fh, struct v4l2_input *in)
 {
-	struct front_face *front = fh;
-
 	if (in->index >= POSEIDON_INPUTS)
 		return -EINVAL;
 	strcpy(in->name, pd_inputs[in->index].name);
@@ -897,11 +872,10 @@ static int vidioc_enum_input(struct file *file, void *fh, struct v4l2_input *in)
 	 * the audio input index mixed with this video input,
 	 * Poseidon only have one audio/video, set to "0"
 	 */
-	in->audioset	= 0;
+	in->audioset	= 1;
 	in->tuner	= 0;
 	in->std		= V4L2_STD_ALL;
 	in->status	= 0;
-	logs(front);
 	return 0;
 }
 
@@ -911,7 +885,6 @@ static int vidioc_g_input(struct file *file, void *fh, unsigned int *i)
 	struct poseidon *pd = front->pd;
 	struct running_context *context = &pd->video_data.context;
 
-	logs(front);
 	*i = context->sig_index;
 	return 0;
 }
@@ -934,68 +907,28 @@ static int vidioc_s_input(struct file *file, void *fh, unsigned int i)
 	return 0;
 }
 
-static struct poseidon_control *check_control_id(__u32 id)
+static int tlg_s_ctrl(struct v4l2_ctrl *c)
 {
-	struct poseidon_control *control = &controls[0];
-	int array_size = ARRAY_SIZE(controls);
-
-	for (; control < &controls[array_size]; control++)
-		if (control->v4l2_ctrl.id  == id)
-			return control;
-	return NULL;
-}
-
-static int vidioc_queryctrl(struct file *file, void *fh,
-			struct v4l2_queryctrl *a)
-{
-	struct poseidon_control *control = NULL;
-
-	control = check_control_id(a->id);
-	if (!control)
-		return -EINVAL;
-
-	*a = control->v4l2_ctrl;
-	return 0;
-}
-
-static int vidioc_g_ctrl(struct file *file, void *fh, struct v4l2_control *ctrl)
-{
-	struct front_face *front = fh;
-	struct poseidon *pd = front->pd;
-	struct poseidon_control *control = NULL;
-	struct tuner_custom_parameter_s tuner_param;
-	s32 ret = 0, cmd_status;
-
-	control = check_control_id(ctrl->id);
-	if (!control)
-		return -EINVAL;
-
-	mutex_lock(&pd->lock);
-	ret = send_get_req(pd, TUNER_CUSTOM_PARAMETER, control->vc_id,
-			&tuner_param, &cmd_status, sizeof(tuner_param));
-	mutex_unlock(&pd->lock);
-
-	if (ret || cmd_status)
-		return -1;
-
-	ctrl->value = tuner_param.param_value;
-	return 0;
-}
-
-static int vidioc_s_ctrl(struct file *file, void *fh, struct v4l2_control *a)
-{
+	struct poseidon *pd = container_of(c->handler, struct poseidon,
+						video_data.ctrl_handler);
 	struct tuner_custom_parameter_s param = {0};
-	struct poseidon_control *control = NULL;
-	struct front_face *front	= fh;
-	struct poseidon *pd		= front->pd;
 	s32 ret = 0, cmd_status, params;
 
-	control = check_control_id(a->id);
-	if (!control)
-		return -EINVAL;
-
-	param.param_value = a->value;
-	param.param_id	= control->vc_id;
+	switch (c->id) {
+	case V4L2_CID_BRIGHTNESS:
+		param.param_id = CUST_PARM_ID_BRIGHTNESS_CTRL;
+		break;
+	case V4L2_CID_CONTRAST:
+		param.param_id = CUST_PARM_ID_CONTRAST_CTRL;
+		break;
+	case V4L2_CID_HUE:
+		param.param_id = CUST_PARM_ID_HUE_CTRL;
+		break;
+	case V4L2_CID_SATURATION:
+		param.param_id = CUST_PARM_ID_SATURATION_CTRL;
+		break;
+	}
+	param.param_value = c->val;
 	params = *(s32 *)&param; /* temp code */
 
 	mutex_lock(&pd->lock);
@@ -1079,7 +1012,6 @@ static int vidioc_g_tuner(struct file *file, void *fh, struct v4l2_tuner *tuner)
 	tuner->rxsubchans = pd_audio_modes[index].v4l2_audio_sub;
 	tuner->audmode = pd_audio_modes[index].v4l2_audio_mode;
 	tuner->afc = 0;
-	logs(front);
 	return 0;
 }
 
@@ -1099,7 +1031,7 @@ static int pd_vidioc_s_tuner(struct poseidon *pd, int index)
 	return ret;
 }
 
-static int vidioc_s_tuner(struct file *file, void *fh, struct v4l2_tuner *a)
+static int vidioc_s_tuner(struct file *file, void *fh, const struct v4l2_tuner *a)
 {
 	struct front_face *front	= fh;
 	struct poseidon *pd		= front->pd;
@@ -1107,7 +1039,6 @@ static int vidioc_s_tuner(struct file *file, void *fh, struct v4l2_tuner *a)
 
 	if (0 != a->index)
 		return -EINVAL;
-	logs(front);
 	for (index = 0; index < POSEIDON_AUDIOMODS; index++)
 		if (a->audmode == pd_audio_modes[index].v4l2_audio_mode)
 			return pd_vidioc_s_tuner(pd, index);
@@ -1128,51 +1059,51 @@ static int vidioc_g_frequency(struct file *file, void *fh,
 	return 0;
 }
 
-static int set_frequency(struct poseidon *pd, __u32 frequency)
+static int set_frequency(struct poseidon *pd, u32 *frequency)
 {
 	s32 ret = 0, param, cmd_status;
 	struct running_context *context = &pd->video_data.context;
 
-	param = frequency * 62500 / 1000;
-	if (param < TUNER_FREQ_MIN/1000 || param > TUNER_FREQ_MAX / 1000)
-		return -EINVAL;
+	*frequency = clamp(*frequency,
+			TUNER_FREQ_MIN / 62500, TUNER_FREQ_MAX / 62500);
+	param = (*frequency) * 62500 / 1000;
 
 	mutex_lock(&pd->lock);
 	ret = send_set_req(pd, TUNE_FREQ_SELECT, param, &cmd_status);
 	ret = send_set_req(pd, TAKE_REQUEST, 0, &cmd_status);
 
 	msleep(250); /* wait for a while until the hardware is ready. */
-	context->freq = frequency;
+	context->freq = *frequency;
 	mutex_unlock(&pd->lock);
 	return ret;
 }
 
 static int vidioc_s_frequency(struct file *file, void *fh,
-				struct v4l2_frequency *freq)
+				const struct v4l2_frequency *freq)
 {
 	struct front_face *front = fh;
 	struct poseidon *pd = front->pd;
+	u32 frequency = freq->frequency;
 
-	logs(front);
+	if (freq->tuner)
+		return -EINVAL;
 #ifdef CONFIG_PM
 	pd->pm_suspend = pm_video_suspend;
 	pd->pm_resume = pm_video_resume;
 #endif
-	return set_frequency(pd, freq->frequency);
+	return set_frequency(pd, &frequency);
 }
 
 static int vidioc_reqbufs(struct file *file, void *fh,
 				struct v4l2_requestbuffers *b)
 {
 	struct front_face *front = file->private_data;
-	logs(front);
 	return videobuf_reqbufs(&front->q, b);
 }
 
 static int vidioc_querybuf(struct file *file, void *fh, struct v4l2_buffer *b)
 {
 	struct front_face *front = file->private_data;
-	logs(front);
 	return videobuf_querybuf(&front->q, b);
 }
 
@@ -1261,7 +1192,6 @@ static int vidioc_streamon(struct file *file, void *fh,
 {
 	struct front_face *front = fh;
 
-	logs(front);
 	if (unlikely(type != front->type))
 		return -EINVAL;
 	return videobuf_streamon(&front->q);
@@ -1272,7 +1202,6 @@ static int vidioc_streamoff(struct file *file, void *fh,
 {
 	struct front_face *front = file->private_data;
 
-	logs(front);
 	if (unlikely(type != front->type))
 		return -EINVAL;
 	return videobuf_streamoff(&front->q);
@@ -1341,11 +1270,11 @@ static int restore_v4l2_context(struct poseidon *pd,
 
 	pd_video_checkmode(pd);
 
-	set_std(pd, &context->tvnormid);
+	set_std(pd, context->tvnormid);
 	vidioc_s_input(NULL, front, context->sig_index);
 	pd_vidioc_s_tuner(pd, context->audio_idx);
 	pd_vidioc_s_fmt(pd, &context->pix);
-	set_frequency(pd, context->freq);
+	set_frequency(pd, &context->freq);
 	return 0;
 }
 
@@ -1406,12 +1335,14 @@ static int pd_video_open(struct file *file)
 	mutex_lock(&pd->lock);
 	usb_autopm_get_interface(pd->interface);
 
-	if (vfd->vfl_type == VFL_TYPE_GRABBER
-		&& !(pd->state & POSEIDON_STATE_ANALOG)) {
-		front = kzalloc(sizeof(struct front_face), GFP_KERNEL);
-		if (!front)
-			goto out;
-
+	if (pd->state && !(pd->state & POSEIDON_STATE_ANALOG)) {
+		ret = -EBUSY;
+		goto out;
+	}
+	front = kzalloc(sizeof(struct front_face), GFP_KERNEL);
+	if (!front)
+		goto out;
+	if (vfd->vfl_type == VFL_TYPE_GRABBER) {
 		pd->cur_transfer_mode	= usb_transfer_mode;/* bulk or iso */
 		init_video_context(&pd->video_data.context);
 
@@ -1422,7 +1353,6 @@ static int pd_video_open(struct file *file)
 			goto out;
 		}
 
-		pd->state		|= POSEIDON_STATE_ANALOG;
 		front->type		= V4L2_BUF_TYPE_VIDEO_CAPTURE;
 		pd->video_data.users++;
 		set_debug_mode(vfd, debug_mode);
@@ -1433,13 +1363,7 @@ static int pd_video_open(struct file *file)
 				V4L2_FIELD_INTERLACED,/* video is interlacd */
 				sizeof(struct videobuf_buffer),/*it's enough*/
 				front, NULL);
-	} else if (vfd->vfl_type == VFL_TYPE_VBI
-		&& !(pd->state & POSEIDON_STATE_VBI)) {
-		front = kzalloc(sizeof(struct front_face), GFP_KERNEL);
-		if (!front)
-			goto out;
-
-		pd->state	|= POSEIDON_STATE_VBI;
+	} else {
 		front->type	= V4L2_BUF_TYPE_VBI_CAPTURE;
 		pd->vbi_data.front = front;
 		pd->vbi_data.users++;
@@ -1450,19 +1374,15 @@ static int pd_video_open(struct file *file)
 				V4L2_FIELD_NONE, /* vbi is NONE mode */
 				sizeof(struct videobuf_buffer),
 				front, NULL);
-	} else {
-		/* maybe add FM support here */
-		log("other ");
-		ret = -EINVAL;
-		goto out;
 	}
 
-	front->pd		= pd;
-	front->curr_frame	= NULL;
+	pd->state |= POSEIDON_STATE_ANALOG;
+	front->pd = pd;
+	front->curr_frame = NULL;
 	INIT_LIST_HEAD(&front->active);
 	spin_lock_init(&front->queue_lock);
 
-	file->private_data	= front;
+	file->private_data = front;
 	kref_get(&pd->kref);
 
 	mutex_unlock(&pd->lock);
@@ -1479,12 +1399,9 @@ static int pd_video_release(struct file *file)
 	struct poseidon *pd = front->pd;
 	s32 cmd_status = 0;
 
-	logs(front);
 	mutex_lock(&pd->lock);
 
 	if (front->type	== V4L2_BUF_TYPE_VIDEO_CAPTURE) {
-		pd->state &= ~POSEIDON_STATE_ANALOG;
-
 		/* stop the device, and free the URBs */
 		usb_transfer_stop(&pd->video_data);
 		free_all_urb(&pd->video_data);
@@ -1496,10 +1413,11 @@ static int pd_video_release(struct file *file)
 		pd->file_for_stream = NULL;
 		pd->video_data.users--;
 	} else if (front->type	== V4L2_BUF_TYPE_VBI_CAPTURE) {
-		pd->state &= ~POSEIDON_STATE_VBI;
 		pd->vbi_data.front = NULL;
 		pd->vbi_data.users--;
 	}
+	if (!pd->vbi_data.users && !pd->video_data.users)
+		pd->state &= ~POSEIDON_STATE_ANALOG;
 	videobuf_stop(&front->q);
 	videobuf_mmap_free(&front->q);
 
@@ -1551,7 +1469,6 @@ static const struct v4l2_ioctl_ops pd_video_ioctl_ops = {
 	.vidioc_enum_fmt_vid_cap	= vidioc_enum_fmt,
 	.vidioc_s_fmt_vid_cap	= vidioc_s_fmt,
 	.vidioc_g_fmt_vbi_cap	= vidioc_g_fmt_vbi, /* VBI */
-	.vidioc_try_fmt_vid_cap = vidioc_try_fmt,
 
 	/* Input */
 	.vidioc_g_input		= vidioc_g_input,
@@ -1566,6 +1483,7 @@ static const struct v4l2_ioctl_ops pd_video_ioctl_ops = {
 	/* Tuner ioctls */
 	.vidioc_g_tuner		= vidioc_g_tuner,
 	.vidioc_s_tuner		= vidioc_s_tuner,
+	.vidioc_g_std		= vidioc_g_std,
 	.vidioc_s_std		= vidioc_s_std,
 	.vidioc_g_frequency	= vidioc_g_frequency,
 	.vidioc_s_frequency	= vidioc_s_frequency,
@@ -1579,59 +1497,29 @@ static const struct v4l2_ioctl_ops pd_video_ioctl_ops = {
 	/* Stream on/off */
 	.vidioc_streamon	= vidioc_streamon,
 	.vidioc_streamoff	= vidioc_streamoff,
-
-	/* Control handling */
-	.vidioc_queryctrl	= vidioc_queryctrl,
-	.vidioc_g_ctrl		= vidioc_g_ctrl,
-	.vidioc_s_ctrl		= vidioc_s_ctrl,
 };
 
 static struct video_device pd_video_template = {
 	.name = "Telegent-Video",
 	.fops = &pd_video_fops,
 	.minor = -1,
-	.release = video_device_release,
+	.release = video_device_release_empty,
 	.tvnorms = V4L2_STD_ALL,
 	.ioctl_ops = &pd_video_ioctl_ops,
 };
 
-struct video_device *vdev_init(struct poseidon *pd, struct video_device *tmp)
-{
-	struct video_device *vfd;
-
-	vfd = video_device_alloc();
-	if (vfd == NULL)
-		return NULL;
-	*vfd		= *tmp;
-	vfd->minor	= -1;
-	vfd->v4l2_dev	= &pd->v4l2_dev;
-	/*vfd->parent	= &(pd->udev->dev); */
-	vfd->release	= video_device_release;
-	video_set_drvdata(vfd, pd);
-	return vfd;
-}
-
-void destroy_video_device(struct video_device **v_dev)
-{
-	struct video_device *dev = *v_dev;
-
-	if (dev == NULL)
-		return;
-
-	if (video_is_registered(dev))
-		video_unregister_device(dev);
-	else
-		video_device_release(dev);
-	*v_dev = NULL;
-}
+static const struct v4l2_ctrl_ops tlg_ctrl_ops = {
+	.s_ctrl = tlg_s_ctrl,
+};
 
 void pd_video_exit(struct poseidon *pd)
 {
 	struct video_data *video = &pd->video_data;
 	struct vbi_data *vbi = &pd->vbi_data;
 
-	destroy_video_device(&video->v_dev);
-	destroy_video_device(&vbi->v_dev);
+	video_unregister_device(&video->v_dev);
+	video_unregister_device(&vbi->v_dev);
+	v4l2_ctrl_handler_free(&video->ctrl_handler);
 	log();
 }
 
@@ -1639,23 +1527,39 @@ int pd_video_init(struct poseidon *pd)
 {
 	struct video_data *video = &pd->video_data;
 	struct vbi_data *vbi	= &pd->vbi_data;
+	struct v4l2_ctrl_handler *hdl = &video->ctrl_handler;
+	u32 freq = TUNER_FREQ_MIN / 62500;
 	int ret = -ENOMEM;
 
-	video->v_dev = vdev_init(pd, &pd_video_template);
-	if (video->v_dev == NULL)
-		goto out;
+	v4l2_ctrl_handler_init(hdl, 4);
+	v4l2_ctrl_new_std(hdl, &tlg_ctrl_ops, V4L2_CID_BRIGHTNESS,
+			0, 10000, 1, 100);
+	v4l2_ctrl_new_std(hdl, &tlg_ctrl_ops, V4L2_CID_CONTRAST,
+			0, 10000, 1, 100);
+	v4l2_ctrl_new_std(hdl, &tlg_ctrl_ops, V4L2_CID_HUE,
+			0, 10000, 1, 100);
+	v4l2_ctrl_new_std(hdl, &tlg_ctrl_ops, V4L2_CID_SATURATION,
+			0, 10000, 1, 100);
+	if (hdl->error) {
+		v4l2_ctrl_handler_free(hdl);
+		return hdl->error;
+	}
+	set_frequency(pd, &freq);
+	video->v_dev = pd_video_template;
+	video->v_dev.v4l2_dev = &pd->v4l2_dev;
+	video->v_dev.ctrl_handler = hdl;
+	video_set_drvdata(&video->v_dev, pd);
 
-	ret = video_register_device(video->v_dev, VFL_TYPE_GRABBER, -1);
+	ret = video_register_device(&video->v_dev, VFL_TYPE_GRABBER, -1);
 	if (ret != 0)
 		goto out;
 
 	/* VBI uses the same template as video */
-	vbi->v_dev = vdev_init(pd, &pd_video_template);
-	if (vbi->v_dev == NULL) {
-		ret = -ENOMEM;
-		goto out;
-	}
-	ret = video_register_device(vbi->v_dev, VFL_TYPE_VBI, -1);
+	vbi->v_dev = pd_video_template;
+	vbi->v_dev.v4l2_dev = &pd->v4l2_dev;
+	vbi->v_dev.ctrl_handler = hdl;
+	video_set_drvdata(&vbi->v_dev, pd);
+	ret = video_register_device(&vbi->v_dev, VFL_TYPE_VBI, -1);
 	if (ret != 0)
 		goto out;
 	log("register VIDEO/VBI devices");
@@ -1665,4 +1569,3 @@ out:
 	pd_video_exit(pd);
 	return ret;
 }
-

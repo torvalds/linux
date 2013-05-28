@@ -64,18 +64,26 @@ lpfc_mem_alloc(struct lpfc_hba *phba, int align)
 	struct lpfc_dma_pool *pool = &phba->lpfc_mbuf_safety_pool;
 	int i;
 
-	if (phba->sli_rev == LPFC_SLI_REV4)
+	if (phba->sli_rev == LPFC_SLI_REV4) {
+		/* Calculate alignment */
+		if (phba->cfg_sg_dma_buf_size < SLI4_PAGE_SIZE)
+			i = phba->cfg_sg_dma_buf_size;
+		else
+			i = SLI4_PAGE_SIZE;
+
 		phba->lpfc_scsi_dma_buf_pool =
 			pci_pool_create("lpfc_scsi_dma_buf_pool",
 				phba->pcidev,
 				phba->cfg_sg_dma_buf_size,
-				phba->cfg_sg_dma_buf_size,
+				i,
 				0);
-	else
+	} else {
 		phba->lpfc_scsi_dma_buf_pool =
 			pci_pool_create("lpfc_scsi_dma_buf_pool",
 				phba->pcidev, phba->cfg_sg_dma_buf_size,
 				align, 0);
+	}
+
 	if (!phba->lpfc_scsi_dma_buf_pool)
 		goto fail;
 

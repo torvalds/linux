@@ -10,7 +10,7 @@
  */
 
 /dts-v1/;
-/include/ "imx27.dtsi"
+#include "imx27.dtsi"
 
 / {
 	model = "Phytec pcm038";
@@ -70,4 +70,10 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 	};
+};
+
+&nfc {
+	nand-bus-width = <8>;
+	nand-ecc-mode = "hw";
+	status = "okay";
 };

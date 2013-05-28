@@ -79,6 +79,8 @@ int input_mt_init_slots(struct input_dev *dev, unsigned int num_slots,
 	}
 	if (flags & INPUT_MT_DIRECT)
 		__set_bit(INPUT_PROP_DIRECT, dev->propbit);
+	if (flags & INPUT_MT_SEMI_MT)
+		__set_bit(INPUT_PROP_SEMI_MT, dev->propbit);
 	if (flags & INPUT_MT_TRACK) {
 		unsigned int n2 = num_slots * num_slots;
 		mt->red = kcalloc(n2, sizeof(*mt->red), GFP_KERNEL);
@@ -246,6 +248,7 @@ void input_mt_sync_frame(struct input_dev *dev)
 {
 	struct input_mt *mt = dev->mt;
 	struct input_mt_slot *s;
+	bool use_count = false;
 
 	if (!mt)
 		return;
@@ -259,7 +262,10 @@ void input_mt_sync_frame(struct input_dev *dev)
 		}
 	}
 
-	input_mt_report_pointer_emulation(dev, (mt->flags & INPUT_MT_POINTER));
+	if ((mt->flags & INPUT_MT_POINTER) && !(mt->flags & INPUT_MT_SEMI_MT))
+		use_count = true;
+
+	input_mt_report_pointer_emulation(dev, use_count);
 
 	mt->frame++;
 }

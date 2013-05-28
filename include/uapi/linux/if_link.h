@@ -201,6 +201,7 @@ enum {
 	IFLA_INET6_MCAST,	/* MC things. What of them?	*/
 	IFLA_INET6_CACHEINFO,	/* time values and max reasm size */
 	IFLA_INET6_ICMP6STATS,	/* statistics (icmpv6)		*/
+	IFLA_INET6_TOKEN,	/* device token			*/
 	__IFLA_INET6_MAX
 };
 
@@ -249,6 +250,7 @@ enum {
 	IFLA_VLAN_FLAGS,
 	IFLA_VLAN_EGRESS_QOS,
 	IFLA_VLAN_INGRESS_QOS,
+	IFLA_VLAN_PROTOCOL,
 	__IFLA_VLAN_MAX,
 };
 
@@ -295,7 +297,7 @@ enum macvlan_mode {
 enum {
 	IFLA_VXLAN_UNSPEC,
 	IFLA_VXLAN_ID,
-	IFLA_VXLAN_GROUP,
+	IFLA_VXLAN_GROUP,	/* group or remote address */
 	IFLA_VXLAN_LINK,
 	IFLA_VXLAN_LOCAL,
 	IFLA_VXLAN_TTL,
@@ -303,11 +305,12 @@ enum {
 	IFLA_VXLAN_LEARNING,
 	IFLA_VXLAN_AGEING,
 	IFLA_VXLAN_LIMIT,
-	IFLA_VXLAN_PORT_RANGE,
+	IFLA_VXLAN_PORT_RANGE,	/* source port */
 	IFLA_VXLAN_PROXY,
 	IFLA_VXLAN_RSC,
 	IFLA_VXLAN_L2MISS,
 	IFLA_VXLAN_L3MISS,
+	IFLA_VXLAN_PORT,	/* destination port */
 	__IFLA_VXLAN_MAX
 };
 #define IFLA_VXLAN_MAX	(__IFLA_VXLAN_MAX - 1)

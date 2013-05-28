@@ -208,18 +208,7 @@ static struct platform_driver pasic3_driver = {
 	.remove		= pasic3_remove,
 };
 
-static int __init pasic3_base_init(void)
-{
-	return platform_driver_probe(&pasic3_driver, pasic3_probe);
-}
-
-static void __exit pasic3_base_exit(void)
-{
-	platform_driver_unregister(&pasic3_driver);
-}
-
-module_init(pasic3_base_init);
-module_exit(pasic3_base_exit);
+module_platform_driver_probe(pasic3_driver, pasic3_probe);
 
 MODULE_AUTHOR("Philipp Zabel <philipp.zabel@gmail.com>");
 MODULE_DESCRIPTION("Core driver for HTC PASIC3");

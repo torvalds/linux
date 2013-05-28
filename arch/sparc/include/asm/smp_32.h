@@ -36,7 +36,6 @@ typedef void (*smpfunc_t)(unsigned long, unsigned long, unsigned long,
 		       unsigned long, unsigned long);
 
 void cpu_panic(void);
-extern void smp4m_irq_rotate(int cpu);
 
 /*
  *	General functions that each host system must provide.
@@ -46,7 +45,6 @@ void sun4m_init_smp(void);
 void sun4d_init_smp(void);
 
 void smp_callin(void);
-void smp_boot_cpus(void);
 void smp_store_cpu_info(int);
 
 void smp_resched_interrupt(void);
@@ -106,9 +104,6 @@ static inline int cpu_logical_map(int cpu)
 extern int hard_smp_processor_id(void);
 
 #define raw_smp_processor_id()		(current_thread_info()->cpu)
-
-#define prof_multiplier(__cpu)		cpu_data(__cpu).multiplier
-#define prof_counter(__cpu)		cpu_data(__cpu).counter
 
 void smp_setup_cpu_possible_map(void);
 

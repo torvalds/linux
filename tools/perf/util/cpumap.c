@@ -4,6 +4,7 @@
 #include "cpumap.h"
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 static struct cpu_map *cpu_map__default_new(void)
 {
@@ -219,7 +220,7 @@ int cpu_map__get_socket(struct cpu_map *map, int idx)
 	if (!mnt)
 		return -1;
 
-	sprintf(path,
+	snprintf(path, PATH_MAX,
 		"%s/devices/system/cpu/cpu%d/topology/physical_package_id",
 		mnt, cpu);
 
@@ -231,27 +232,88 @@ int cpu_map__get_socket(struct cpu_map *map, int idx)
 	return ret == 1 ? cpu : -1;
 }
 
-int cpu_map__build_socket_map(struct cpu_map *cpus, struct cpu_map **sockp)
+static int cmp_ids(const void *a, const void *b)
 {
-	struct cpu_map *sock;
+	return *(int *)a - *(int *)b;
+}
+
+static int cpu_map__build_map(struct cpu_map *cpus, struct cpu_map **res,
+			      int (*f)(struct cpu_map *map, int cpu))
+{
+	struct cpu_map *c;
 	int nr = cpus->nr;
 	int cpu, s1, s2;
 
-	sock = calloc(1, sizeof(*sock) + nr * sizeof(int));
-	if (!sock)
+	/* allocate as much as possible */
+	c = calloc(1, sizeof(*c) + nr * sizeof(int));
+	if (!c)
 		return -1;
 
 	for (cpu = 0; cpu < nr; cpu++) {
-		s1 = cpu_map__get_socket(cpus, cpu);
-		for (s2 = 0; s2 < sock->nr; s2++) {
-			if (s1 == sock->map[s2])
+		s1 = f(cpus, cpu);
+		for (s2 = 0; s2 < c->nr; s2++) {
+			if (s1 == c->map[s2])
 				break;
 		}
-		if (s2 == sock->nr) {
-			sock->map[sock->nr] = s1;
-			sock->nr++;
+		if (s2 == c->nr) {
+			c->map[c->nr] = s1;
+			c->nr++;
 		}
 	}
-	*sockp = sock;
+	/* ensure we process id in increasing order */
+	qsort(c->map, c->nr, sizeof(int), cmp_ids);
+
+	*res = c;
 	return 0;
+}
+
+int cpu_map__get_core(struct cpu_map *map, int idx)
+{
+	FILE *fp;
+	const char *mnt;
+	char path[PATH_MAX];
+	int cpu, ret, s;
+
+	if (idx > map->nr)
+		return -1;
+
+	cpu = map->map[idx];
+
+	mnt = sysfs_find_mountpoint();
+	if (!mnt)
+		return -1;
+
+	snprintf(path, PATH_MAX,
+		"%s/devices/system/cpu/cpu%d/topology/core_id",
+		mnt, cpu);
+
+	fp = fopen(path, "r");
+	if (!fp)
+		return -1;
+	ret = fscanf(fp, "%d", &cpu);
+	fclose(fp);
+	if (ret != 1)
+		return -1;
+
+	s = cpu_map__get_socket(map, idx);
+	if (s == -1)
+		return -1;
+
+	/*
+	 * encode socket in upper 16 bits
+	 * core_id is relative to socket, and
+	 * we need a global id. So we combine
+	 * socket+ core id
+	 */
+	return (s << 16) | (cpu & 0xffff);
+}
+
+int cpu_map__build_socket_map(struct cpu_map *cpus, struct cpu_map **sockp)
+{
+	return cpu_map__build_map(cpus, sockp, cpu_map__get_socket);
+}
+
+int cpu_map__build_core_map(struct cpu_map *cpus, struct cpu_map **corep)
+{
+	return cpu_map__build_map(cpus, corep, cpu_map__get_core);
 }

@@ -571,8 +571,9 @@ static ssize_t set_fan(struct device *dev, struct device_attribute *attr,
 			break;
 		default:
 			count = -EINVAL;
-			dev_warn(dev, "fan div value %ld not supported. "
-				 "Choose one of 1, 2, 4, or 8.\n", val);
+			dev_warn(dev,
+				 "fan div value %ld not supported. Choose one of 1, 2, 4, or 8.\n",
+				 val);
 			goto EXIT;
 		}
 		vt1211_write8(data, VT1211_REG_FAN_DIV,
@@ -674,8 +675,9 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 			break;
 		default:
 			count = -EINVAL;
-			dev_warn(dev, "pwm mode %ld not supported. "
-				 "Choose one of 0 or 2.\n", val);
+			dev_warn(dev,
+				 "pwm mode %ld not supported. Choose one of 0 or 2.\n",
+				 val);
 			goto EXIT;
 		}
 		vt1211_write8(data, VT1211_REG_PWM_CTL,
@@ -700,8 +702,9 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 	case SHOW_SET_PWM_AUTO_CHANNELS_TEMP:
 		if (val < 1 || val > 7) {
 			count = -EINVAL;
-			dev_warn(dev, "temp channel %ld not supported. "
-				 "Choose a value between 1 and 7.\n", val);
+			dev_warn(dev,
+				 "temp channel %ld not supported. Choose a value between 1 and 7.\n",
+				 val);
 			goto EXIT;
 		}
 		if (!ISTEMP(val - 1, data->uch_config)) {
@@ -1325,15 +1328,15 @@ static int __init vt1211_init(void)
 
 	if ((uch_config < -1) || (uch_config > 31)) {
 		err = -EINVAL;
-		pr_warn("Invalid UCH configuration %d. "
-			"Choose a value between 0 and 31.\n", uch_config);
+		pr_warn("Invalid UCH configuration %d. Choose a value between 0 and 31.\n",
+			uch_config);
 		goto EXIT;
 	}
 
 	if ((int_mode < -1) || (int_mode > 0)) {
 		err = -EINVAL;
-		pr_warn("Invalid interrupt mode %d. "
-			"Only mode 0 is supported.\n", int_mode);
+		pr_warn("Invalid interrupt mode %d. Only mode 0 is supported.\n",
+			int_mode);
 		goto EXIT;
 	}
 

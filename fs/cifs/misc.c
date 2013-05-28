@@ -54,7 +54,7 @@ _get_xid(void)
 	if (GlobalTotalActiveXid > GlobalMaxActiveXid)
 		GlobalMaxActiveXid = GlobalTotalActiveXid;
 	if (GlobalTotalActiveXid > 65000)
-		cFYI(1, "warning: more than 65000 requests active");
+		cifs_dbg(FYI, "warning: more than 65000 requests active\n");
 	xid = GlobalCurrentXid++;
 	spin_unlock(&GlobalMid_Lock);
 	return xid;
@@ -91,7 +91,7 @@ void
 sesInfoFree(struct cifs_ses *buf_to_free)
 {
 	if (buf_to_free == NULL) {
-		cFYI(1, "Null buffer passed to sesInfoFree");
+		cifs_dbg(FYI, "Null buffer passed to sesInfoFree\n");
 		return;
 	}
 
@@ -130,7 +130,7 @@ void
 tconInfoFree(struct cifs_tcon *buf_to_free)
 {
 	if (buf_to_free == NULL) {
-		cFYI(1, "Null buffer passed to tconInfoFree");
+		cifs_dbg(FYI, "Null buffer passed to tconInfoFree\n");
 		return;
 	}
 	atomic_dec(&tconInfoAllocCount);
@@ -180,7 +180,7 @@ void
 cifs_buf_release(void *buf_to_free)
 {
 	if (buf_to_free == NULL) {
-		/* cFYI(1, "Null buffer passed to cifs_buf_release");*/
+		/* cifs_dbg(FYI, "Null buffer passed to cifs_buf_release\n");*/
 		return;
 	}
 	mempool_free(buf_to_free, cifs_req_poolp);
@@ -216,7 +216,7 @@ cifs_small_buf_release(void *buf_to_free)
 {
 
 	if (buf_to_free == NULL) {
-		cFYI(1, "Null buffer passed to cifs_small_buf_release");
+		cifs_dbg(FYI, "Null buffer passed to cifs_small_buf_release\n");
 		return;
 	}
 	mempool_free(buf_to_free, cifs_sm_req_poolp);
@@ -282,15 +282,15 @@ check_smb_hdr(struct smb_hdr *smb, __u16 mid)
 {
 	/* does it have the right SMB "signature" ? */
 	if (*(__le32 *) smb->Protocol != cpu_to_le32(0x424d53ff)) {
-		cERROR(1, "Bad protocol string signature header 0x%x",
-			*(unsigned int *)smb->Protocol);
+		cifs_dbg(VFS, "Bad protocol string signature header 0x%x\n",
+			 *(unsigned int *)smb->Protocol);
 		return 1;
 	}
 
 	/* Make sure that message ids match */
 	if (mid != smb->Mid) {
-		cERROR(1, "Mids do not match. received=%u expected=%u",
-			smb->Mid, mid);
+		cifs_dbg(VFS, "Mids do not match. received=%u expected=%u\n",
+			 smb->Mid, mid);
 		return 1;
 	}
 
@@ -302,7 +302,7 @@ check_smb_hdr(struct smb_hdr *smb, __u16 mid)
 	if (smb->Command == SMB_COM_LOCKING_ANDX)
 		return 0;
 
-	cERROR(1, "Server sent request, not response. mid=%u", smb->Mid);
+	cifs_dbg(VFS, "Server sent request, not response. mid=%u\n", smb->Mid);
 	return 1;
 }
 
@@ -313,8 +313,8 @@ checkSMB(char *buf, unsigned int total_read)
 	__u16 mid = smb->Mid;
 	__u32 rfclen = be32_to_cpu(smb->smb_buf_length);
 	__u32 clc_len;  /* calculated length */
-	cFYI(0, "checkSMB Length: 0x%x, smb_buf_length: 0x%x",
-		total_read, rfclen);
+	cifs_dbg(FYI, "checkSMB Length: 0x%x, smb_buf_length: 0x%x\n",
+		 total_read, rfclen);
 
 	/* is this frame too small to even get to a BCC? */
 	if (total_read < 2 + sizeof(struct smb_hdr)) {
@@ -340,9 +340,9 @@ checkSMB(char *buf, unsigned int total_read)
 				tmp[sizeof(struct smb_hdr)+1] = 0;
 				return 0;
 			}
-			cERROR(1, "rcvd invalid byte count (bcc)");
+			cifs_dbg(VFS, "rcvd invalid byte count (bcc)\n");
 		} else {
-			cERROR(1, "Length less than smb header size");
+			cifs_dbg(VFS, "Length less than smb header size\n");
 		}
 		return -EIO;
 	}
@@ -353,8 +353,8 @@ checkSMB(char *buf, unsigned int total_read)
 	clc_len = smbCalcSize(smb);
 
 	if (4 + rfclen != total_read) {
-		cERROR(1, "Length read does not match RFC1001 length %d",
-				rfclen);
+		cifs_dbg(VFS, "Length read does not match RFC1001 length %d\n",
+			 rfclen);
 		return -EIO;
 	}
 
@@ -365,12 +365,12 @@ checkSMB(char *buf, unsigned int total_read)
 			if (((4 + rfclen) & 0xFFFF) == (clc_len & 0xFFFF))
 				return 0; /* bcc wrapped */
 		}
-		cFYI(1, "Calculated size %u vs length %u mismatch for mid=%u",
-				clc_len, 4 + rfclen, smb->Mid);
+		cifs_dbg(FYI, "Calculated size %u vs length %u mismatch for mid=%u\n",
+			 clc_len, 4 + rfclen, smb->Mid);
 
 		if (4 + rfclen < clc_len) {
-			cERROR(1, "RFC1001 size %u smaller than SMB for mid=%u",
-					rfclen, smb->Mid);
+			cifs_dbg(VFS, "RFC1001 size %u smaller than SMB for mid=%u\n",
+				 rfclen, smb->Mid);
 			return -EIO;
 		} else if (rfclen > clc_len + 512) {
 			/*
@@ -382,8 +382,8 @@ checkSMB(char *buf, unsigned int total_read)
 			 * trailing data, we choose limit the amount of extra
 			 * data to 512 bytes.
 			 */
-			cERROR(1, "RFC1001 size %u more than 512 bytes larger "
-				  "than SMB for mid=%u", rfclen, smb->Mid);
+			cifs_dbg(VFS, "RFC1001 size %u more than 512 bytes larger than SMB for mid=%u\n",
+				 rfclen, smb->Mid);
 			return -EIO;
 		}
 	}
@@ -401,7 +401,7 @@ is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 	struct cifsInodeInfo *pCifsInode;
 	struct cifsFileInfo *netfile;
 
-	cFYI(1, "Checking for oplock break or dnotify response");
+	cifs_dbg(FYI, "Checking for oplock break or dnotify response\n");
 	if ((pSMB->hdr.Command == SMB_COM_NT_TRANSACT) &&
 	   (pSMB->hdr.Flags & SMBFLG_RESPONSE)) {
 		struct smb_com_transaction_change_notify_rsp *pSMBr =
@@ -413,15 +413,15 @@ is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 
 			pnotify = (struct file_notify_information *)
 				((char *)&pSMBr->hdr.Protocol + data_offset);
-			cFYI(1, "dnotify on %s Action: 0x%x",
+			cifs_dbg(FYI, "dnotify on %s Action: 0x%x\n",
 				 pnotify->FileName, pnotify->Action);
 			/*   cifs_dump_mem("Rcvd notify Data: ",buf,
 				sizeof(struct smb_hdr)+60); */
 			return true;
 		}
 		if (pSMBr->hdr.Status.CifsError) {
-			cFYI(1, "notify err 0x%d",
-				pSMBr->hdr.Status.CifsError);
+			cifs_dbg(FYI, "notify err 0x%d\n",
+				 pSMBr->hdr.Status.CifsError);
 			return true;
 		}
 		return false;
@@ -435,7 +435,7 @@ is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 		   large dirty files cached on the client */
 		if ((NT_STATUS_INVALID_HANDLE) ==
 		   le32_to_cpu(pSMB->hdr.Status.CifsError)) {
-			cFYI(1, "invalid handle on oplock break");
+			cifs_dbg(FYI, "invalid handle on oplock break\n");
 			return true;
 		} else if (ERRbadfid ==
 		   le16_to_cpu(pSMB->hdr.Status.DosError.Error)) {
@@ -447,7 +447,7 @@ is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 	if (pSMB->hdr.WordCount != 8)
 		return false;
 
-	cFYI(1, "oplock type 0x%d level 0x%d",
+	cifs_dbg(FYI, "oplock type 0x%d level 0x%d\n",
 		 pSMB->LockType, pSMB->OplockLevel);
 	if (!(pSMB->LockType & LOCKING_ANDX_OPLOCK_RELEASE))
 		return false;
@@ -469,7 +469,7 @@ is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 				if (pSMB->Fid != netfile->fid.netfid)
 					continue;
 
-				cFYI(1, "file id match, oplock break");
+				cifs_dbg(FYI, "file id match, oplock break\n");
 				pCifsInode = CIFS_I(netfile->dentry->d_inode);
 
 				cifs_set_oplock_level(pCifsInode,
@@ -484,12 +484,12 @@ is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 			}
 			spin_unlock(&cifs_file_list_lock);
 			spin_unlock(&cifs_tcp_ses_lock);
-			cFYI(1, "No matching file for oplock break");
+			cifs_dbg(FYI, "No matching file for oplock break\n");
 			return true;
 		}
 	}
 	spin_unlock(&cifs_tcp_ses_lock);
-	cFYI(1, "Can not process oplock break for non-existent connection");
+	cifs_dbg(FYI, "Can not process oplock break for non-existent connection\n");
 	return true;
 }
 
@@ -536,12 +536,8 @@ cifs_autodisable_serverino(struct cifs_sb_info *cifs_sb)
 {
 	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM) {
 		cifs_sb->mnt_cifs_flags &= ~CIFS_MOUNT_SERVER_INUM;
-		cERROR(1, "Autodisabling the use of server inode numbers on "
-			   "%s. This server doesn't seem to support them "
-			   "properly. Hardlinks will not be recognized on this "
-			   "mount. Consider mounting with the \"noserverino\" "
-			   "option to silence this message.",
-			   cifs_sb_master_tcon(cifs_sb)->treeName);
+		cifs_dbg(VFS, "Autodisabling the use of server inode numbers on %s. This server doesn't seem to support them properly. Hardlinks will not be recognized on this mount. Consider mounting with the \"noserverino\" option to silence this message.\n",
+			 cifs_sb_master_tcon(cifs_sb)->treeName);
 	}
 }
 
@@ -552,13 +548,13 @@ void cifs_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock)
 	if (oplock == OPLOCK_EXCLUSIVE) {
 		cinode->clientCanCacheAll = true;
 		cinode->clientCanCacheRead = true;
-		cFYI(1, "Exclusive Oplock granted on inode %p",
-		     &cinode->vfs_inode);
+		cifs_dbg(FYI, "Exclusive Oplock granted on inode %p\n",
+			 &cinode->vfs_inode);
 	} else if (oplock == OPLOCK_READ) {
 		cinode->clientCanCacheAll = false;
 		cinode->clientCanCacheRead = true;
-		cFYI(1, "Level II Oplock granted on inode %p",
-		    &cinode->vfs_inode);
+		cifs_dbg(FYI, "Level II Oplock granted on inode %p\n",
+			 &cinode->vfs_inode);
 	} else {
 		cinode->clientCanCacheAll = false;
 		cinode->clientCanCacheRead = false;

@@ -1,4 +1,4 @@
-/* internal.h: internal procfs definitions
+/* Internal procfs definitions
  *
  * Copyright (C) 2004 Red Hat, Inc. All Rights Reserved.
  * Written by David Howells (dhowells@redhat.com)
@@ -9,80 +9,83 @@
  * 2 of the License, or (at your option) any later version.
  */
 
-#include <linux/sched.h>
 #include <linux/proc_fs.h>
+#include <linux/proc_ns.h>
+#include <linux/spinlock.h>
+#include <linux/atomic.h>
 #include <linux/binfmts.h>
-struct  ctl_table_header;
-struct  mempolicy;
 
-extern struct proc_dir_entry proc_root;
-extern void proc_self_init(void);
-#ifdef CONFIG_PROC_SYSCTL
-extern int proc_sys_init(void);
-extern void sysctl_head_put(struct ctl_table_header *head);
-#else
-static inline void proc_sys_init(void) { }
-static inline void sysctl_head_put(struct ctl_table_header *head) { }
-#endif
-#ifdef CONFIG_NET
-extern int proc_net_init(void);
-#else
-static inline int proc_net_init(void) { return 0; }
-#endif
+struct ctl_table_header;
+struct mempolicy;
 
-struct vmalloc_info {
-	unsigned long	used;
-	unsigned long	largest_chunk;
+/*
+ * This is not completely implemented yet. The idea is to
+ * create an in-memory tree (like the actual /proc filesystem
+ * tree) of these proc_dir_entries, so that we can dynamically
+ * add new files to /proc.
+ *
+ * The "next" pointer creates a linked list of one /proc directory,
+ * while parent/subdir create the directory structure (every
+ * /proc file has a parent, but "subdir" is NULL for all
+ * non-directory entries).
+ */
+struct proc_dir_entry {
+	unsigned int low_ino;
+	umode_t mode;
+	nlink_t nlink;
+	kuid_t uid;
+	kgid_t gid;
+	loff_t size;
+	const struct inode_operations *proc_iops;
+	const struct file_operations *proc_fops;
+	struct proc_dir_entry *next, *parent, *subdir;
+	void *data;
+	atomic_t count;		/* use count */
+	atomic_t in_use;	/* number of callers into module in progress; */
+			/* negative -> it's going away RSN */
+	struct completion *pde_unload_completion;
+	struct list_head pde_openers;	/* who did ->open, but not ->release */
+	spinlock_t pde_unload_lock; /* proc_fops checks and pde_users bumps */
+	u8 namelen;
+	char name[];
 };
 
-#ifdef CONFIG_MMU
-#define VMALLOC_TOTAL (VMALLOC_END - VMALLOC_START)
-extern void get_vmalloc_info(struct vmalloc_info *vmi);
-#else
+union proc_op {
+	int (*proc_get_link)(struct dentry *, struct path *);
+	int (*proc_read)(struct task_struct *task, char *page);
+	int (*proc_show)(struct seq_file *m,
+		struct pid_namespace *ns, struct pid *pid,
+		struct task_struct *task);
+};
 
-#define VMALLOC_TOTAL 0UL
-#define get_vmalloc_info(vmi)			\
-do {						\
-	(vmi)->used = 0;			\
-	(vmi)->largest_chunk = 0;		\
-} while(0)
-#endif
-
-extern int proc_tid_stat(struct seq_file *m, struct pid_namespace *ns,
-				struct pid *pid, struct task_struct *task);
-extern int proc_tgid_stat(struct seq_file *m, struct pid_namespace *ns,
-				struct pid *pid, struct task_struct *task);
-extern int proc_pid_status(struct seq_file *m, struct pid_namespace *ns,
-				struct pid *pid, struct task_struct *task);
-extern int proc_pid_statm(struct seq_file *m, struct pid_namespace *ns,
-				struct pid *pid, struct task_struct *task);
-extern loff_t mem_lseek(struct file *file, loff_t offset, int orig);
-
-extern const struct file_operations proc_tid_children_operations;
-extern const struct file_operations proc_pid_maps_operations;
-extern const struct file_operations proc_tid_maps_operations;
-extern const struct file_operations proc_pid_numa_maps_operations;
-extern const struct file_operations proc_tid_numa_maps_operations;
-extern const struct file_operations proc_pid_smaps_operations;
-extern const struct file_operations proc_tid_smaps_operations;
-extern const struct file_operations proc_clear_refs_operations;
-extern const struct file_operations proc_pagemap_operations;
-extern const struct file_operations proc_net_operations;
-extern const struct inode_operations proc_net_inode_operations;
-extern const struct inode_operations proc_pid_link_inode_operations;
-
-struct proc_maps_private {
+struct proc_inode {
 	struct pid *pid;
-	struct task_struct *task;
-#ifdef CONFIG_MMU
-	struct vm_area_struct *tail_vma;
-#endif
-#ifdef CONFIG_NUMA
-	struct mempolicy *task_mempolicy;
-#endif
+	int fd;
+	union proc_op op;
+	struct proc_dir_entry *pde;
+	struct ctl_table_header *sysctl;
+	struct ctl_table *sysctl_entry;
+	struct proc_ns ns;
+	struct inode vfs_inode;
 };
 
-void proc_init_inodecache(void);
+/*
+ * General functions
+ */
+static inline struct proc_inode *PROC_I(const struct inode *inode)
+{
+	return container_of(inode, struct proc_inode, vfs_inode);
+}
+
+static inline struct proc_dir_entry *PDE(const struct inode *inode)
+{
+	return PROC_I(inode)->pde;
+}
+
+static inline void *__PDE_DATA(const struct inode *inode)
+{
+	return PDE(inode)->data;
+}
 
 static inline struct pid *proc_pid(struct inode *inode)
 {
@@ -92,11 +95,6 @@ static inline struct pid *proc_pid(struct inode *inode)
 static inline struct task_struct *get_proc_task(struct inode *inode)
 {
 	return get_pid_task(proc_pid(inode), PIDTYPE_PID);
-}
-
-static inline int proc_fd(struct inode *inode)
-{
-	return PROC_I(inode)->fd;
 }
 
 static inline int task_dumpable(struct task_struct *task)
@@ -112,15 +110,6 @@ static inline int task_dumpable(struct task_struct *task)
 	if (dumpable == SUID_DUMP_USER)
 		return 1;
 	return 0;
-}
-
-static inline int pid_delete_dentry(const struct dentry * dentry)
-{
-	/* Is the task we represent dead?
-	 * If so, then don't put the dentry on the lru list,
-	 * kill it immediately.
-	 */
-	return !proc_pid(dentry->d_inode)->tasks[PIDTYPE_PID].first;
 }
 
 static inline unsigned name_to_int(struct dentry *dentry)
@@ -145,63 +134,165 @@ out:
 	return ~0U;
 }
 
-struct dentry *proc_lookup_de(struct proc_dir_entry *de, struct inode *ino,
-		struct dentry *dentry);
-int proc_readdir_de(struct proc_dir_entry *de, struct file *filp, void *dirent,
-		filldir_t filldir);
+/*
+ * Offset of the first process in the /proc root directory..
+ */
+#define FIRST_PROCESS_ENTRY 256
 
-struct pde_opener {
-	struct inode *inode;
-	struct file *file;
-	int (*release)(struct inode *, struct file *);
-	struct list_head lh;
-};
-void pde_users_dec(struct proc_dir_entry *pde);
+/* Worst case buffer size needed for holding an integer. */
+#define PROC_NUMBUF 13
 
+/*
+ * array.c
+ */
+extern const struct file_operations proc_tid_children_operations;
+
+extern int proc_tid_stat(struct seq_file *, struct pid_namespace *,
+			 struct pid *, struct task_struct *);
+extern int proc_tgid_stat(struct seq_file *, struct pid_namespace *,
+			  struct pid *, struct task_struct *);
+extern int proc_pid_status(struct seq_file *, struct pid_namespace *,
+			   struct pid *, struct task_struct *);
+extern int proc_pid_statm(struct seq_file *, struct pid_namespace *,
+			  struct pid *, struct task_struct *);
+
+/*
+ * base.c
+ */
+extern const struct dentry_operations pid_dentry_operations;
+extern int pid_getattr(struct vfsmount *, struct dentry *, struct kstat *);
+extern int proc_setattr(struct dentry *, struct iattr *);
+extern struct inode *proc_pid_make_inode(struct super_block *, struct task_struct *);
+extern int pid_revalidate(struct dentry *, unsigned int);
+extern int pid_delete_dentry(const struct dentry *);
+extern int proc_pid_readdir(struct file *, void *, filldir_t);
+extern struct dentry *proc_pid_lookup(struct inode *, struct dentry *, unsigned int);
+extern loff_t mem_lseek(struct file *, loff_t, int);
+
+/* Lookups */
+typedef struct dentry *instantiate_t(struct inode *, struct dentry *,
+				     struct task_struct *, const void *);
+extern int proc_fill_cache(struct file *, void *, filldir_t, const char *, int,
+			   instantiate_t, struct task_struct *, const void *);
+
+/*
+ * generic.c
+ */
 extern spinlock_t proc_subdir_lock;
 
-struct dentry *proc_pid_lookup(struct inode *dir, struct dentry * dentry, unsigned int);
-int proc_pid_readdir(struct file * filp, void * dirent, filldir_t filldir);
-unsigned long task_vsize(struct mm_struct *);
-unsigned long task_statm(struct mm_struct *,
-	unsigned long *, unsigned long *, unsigned long *, unsigned long *);
-void task_mem(struct seq_file *, struct mm_struct *);
+extern struct dentry *proc_lookup(struct inode *, struct dentry *, unsigned int);
+extern struct dentry *proc_lookup_de(struct proc_dir_entry *, struct inode *,
+				     struct dentry *);
+extern int proc_readdir(struct file *, void *, filldir_t);
+extern int proc_readdir_de(struct proc_dir_entry *, struct file *, void *, filldir_t);
 
 static inline struct proc_dir_entry *pde_get(struct proc_dir_entry *pde)
 {
 	atomic_inc(&pde->count);
 	return pde;
 }
-void pde_put(struct proc_dir_entry *pde);
-
-int proc_fill_super(struct super_block *);
-struct inode *proc_get_inode(struct super_block *, struct proc_dir_entry *);
-int proc_remount(struct super_block *sb, int *flags, char *data);
+extern void pde_put(struct proc_dir_entry *);
 
 /*
- * These are generic /proc routines that use the internal
- * "struct proc_dir_entry" tree to traverse the filesystem.
- *
- * The /proc root directory has extended versions to take care
- * of the /proc/<pid> subdirectories.
+ * inode.c
  */
-int proc_readdir(struct file *, void *, filldir_t);
-struct dentry *proc_lookup(struct inode *, struct dentry *, unsigned int);
+struct pde_opener {
+	struct file *file;
+	struct list_head lh;
+	int closing;
+	struct completion *c;
+};
 
+extern const struct inode_operations proc_pid_link_inode_operations;
 
+extern void proc_init_inodecache(void);
+extern struct inode *proc_get_inode(struct super_block *, struct proc_dir_entry *);
+extern int proc_fill_super(struct super_block *);
+extern void proc_entry_rundown(struct proc_dir_entry *);
 
-/* Lookups */
-typedef struct dentry *instantiate_t(struct inode *, struct dentry *,
-				struct task_struct *, const void *);
-int proc_fill_cache(struct file *filp, void *dirent, filldir_t filldir,
-	const char *name, int len,
-	instantiate_t instantiate, struct task_struct *task, const void *ptr);
-int pid_revalidate(struct dentry *dentry, unsigned int flags);
-struct inode *proc_pid_make_inode(struct super_block * sb, struct task_struct *task);
-extern const struct dentry_operations pid_dentry_operations;
-int pid_getattr(struct vfsmount *mnt, struct dentry *dentry, struct kstat *stat);
-int proc_setattr(struct dentry *dentry, struct iattr *attr);
+/*
+ * proc_devtree.c
+ */
+#ifdef CONFIG_PROC_DEVICETREE
+extern void proc_device_tree_init(void);
+#endif
 
+/*
+ * proc_namespaces.c
+ */
 extern const struct inode_operations proc_ns_dir_inode_operations;
 extern const struct file_operations proc_ns_dir_operations;
 
+/*
+ * proc_net.c
+ */
+extern const struct file_operations proc_net_operations;
+extern const struct inode_operations proc_net_inode_operations;
+
+#ifdef CONFIG_NET
+extern int proc_net_init(void);
+#else
+static inline int proc_net_init(void) { return 0; }
+#endif
+
+/*
+ * proc_self.c
+ */
+extern int proc_setup_self(struct super_block *);
+
+/*
+ * proc_sysctl.c
+ */
+#ifdef CONFIG_PROC_SYSCTL
+extern int proc_sys_init(void);
+extern void sysctl_head_put(struct ctl_table_header *);
+#else
+static inline void proc_sys_init(void) { }
+static inline void sysctl_head_put(struct ctl_table_header *head) { }
+#endif
+
+/*
+ * proc_tty.c
+ */
+#ifdef CONFIG_TTY
+extern void proc_tty_init(void);
+#else
+static inline void proc_tty_init(void) {}
+#endif
+
+/*
+ * root.c
+ */
+extern struct proc_dir_entry proc_root;
+
+extern void proc_self_init(void);
+extern int proc_remount(struct super_block *, int *, char *);
+
+/*
+ * task_[no]mmu.c
+ */
+struct proc_maps_private {
+	struct pid *pid;
+	struct task_struct *task;
+#ifdef CONFIG_MMU
+	struct vm_area_struct *tail_vma;
+#endif
+#ifdef CONFIG_NUMA
+	struct mempolicy *task_mempolicy;
+#endif
+};
+
+extern const struct file_operations proc_pid_maps_operations;
+extern const struct file_operations proc_tid_maps_operations;
+extern const struct file_operations proc_pid_numa_maps_operations;
+extern const struct file_operations proc_tid_numa_maps_operations;
+extern const struct file_operations proc_pid_smaps_operations;
+extern const struct file_operations proc_tid_smaps_operations;
+extern const struct file_operations proc_clear_refs_operations;
+extern const struct file_operations proc_pagemap_operations;
+
+extern unsigned long task_vsize(struct mm_struct *);
+extern unsigned long task_statm(struct mm_struct *,
+				unsigned long *, unsigned long *,
+				unsigned long *, unsigned long *);
+extern void task_mem(struct seq_file *, struct mm_struct *);

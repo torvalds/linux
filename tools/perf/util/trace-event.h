@@ -30,12 +30,8 @@ enum {
 int bigendian(void);
 
 struct pevent *read_trace_init(int file_bigendian, int host_bigendian);
-void print_trace_event(struct pevent *pevent, int cpu, void *data, int size);
 void event_format__print(struct event_format *event,
 			 int cpu, void *data, int size);
-
-void print_event(struct pevent *pevent, int cpu, void *data, int size,
-		 unsigned long long nsecs, char *comm);
 
 int parse_ftrace_file(struct pevent *pevent, char *buf, unsigned long size);
 int parse_event_file(struct pevent *pevent,
@@ -72,7 +68,7 @@ struct tracing_data {
 
 struct tracing_data *tracing_data_get(struct list_head *pattrs,
 				      int fd, bool temp);
-void tracing_data_put(struct tracing_data *tdata);
+int tracing_data_put(struct tracing_data *tdata);
 
 
 struct addr_location;

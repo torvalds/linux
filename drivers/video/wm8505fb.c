@@ -14,25 +14,25 @@
  * GNU General Public License for more details.
  */
 
-#include <linux/module.h>
-#include <linux/kernel.h>
-#include <linux/errno.h>
-#include <linux/string.h>
-#include <linux/mm.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
+#include <linux/dma-mapping.h>
 #include <linux/fb.h>
+#include <linux/errno.h>
+#include <linux/err.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/dma-mapping.h>
-#include <linux/platform_device.h>
-#include <linux/wait.h>
+#include <linux/kernel.h>
+#include <linux/memblock.h>
+#include <linux/mm.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_fdt.h>
-#include <linux/memblock.h>
-
-#include <linux/platform_data/video-vt8500lcdfb.h>
+#include <linux/platform_device.h>
+#include <linux/slab.h>
+#include <linux/string.h>
+#include <linux/wait.h>
+#include <video/of_display_timing.h>
 
 #include "wm8505fb_regs.h"
 #include "wmt_ge_rops.h"
@@ -263,26 +263,22 @@ static struct fb_ops wm8505fb_ops = {
 static int wm8505fb_probe(struct platform_device *pdev)
 {
 	struct wm8505fb_info	*fbi;
-	struct resource		*res;
+	struct resource	*res;
+	struct display_timings *disp_timing;
 	void			*addr;
 	int ret;
 
-	struct fb_videomode	of_mode;
-	struct device_node	*np;
+	struct fb_videomode	mode;
 	u32			bpp;
 	dma_addr_t fb_mem_phys;
 	unsigned long fb_mem_len;
 	void *fb_mem_virt;
 
-	ret = -ENOMEM;
-	fbi = NULL;
-
 	fbi = devm_kzalloc(&pdev->dev, sizeof(struct wm8505fb_info) +
 			sizeof(u32) * 16, GFP_KERNEL);
 	if (!fbi) {
 		dev_err(&pdev->dev, "Failed to initialize framebuffer device\n");
-		ret = -ENOMEM;
-		goto failed;
+		return -ENOMEM;
 	}
 
 	strcpy(fbi->fb.fix.id, DRIVER_NAME);
@@ -308,54 +304,23 @@ static int wm8505fb_probe(struct platform_device *pdev)
 	fbi->fb.pseudo_palette	= addr;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL) {
-		dev_err(&pdev->dev, "no I/O memory resource defined\n");
-		ret = -ENODEV;
-		goto failed_fbi;
-	}
+	fbi->regbase = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(fbi->regbase))
+		return PTR_ERR(fbi->regbase);
 
-	res = request_mem_region(res->start, resource_size(res), DRIVER_NAME);
-	if (res == NULL) {
-		dev_err(&pdev->dev, "failed to request I/O memory\n");
-		ret = -EBUSY;
-		goto failed_fbi;
-	}
+	disp_timing = of_get_display_timings(pdev->dev.of_node);
+	if (!disp_timing)
+		return -EINVAL;
 
-	fbi->regbase = ioremap(res->start, resource_size(res));
-	if (fbi->regbase == NULL) {
-		dev_err(&pdev->dev, "failed to map I/O memory\n");
-		ret = -EBUSY;
-		goto failed_free_res;
-	}
+	ret = of_get_fb_videomode(pdev->dev.of_node, &mode, OF_USE_NATIVE_MODE);
+	if (ret)
+		return ret;
 
-	np = of_parse_phandle(pdev->dev.of_node, "default-mode", 0);
-	if (!np) {
-		pr_err("%s: No display description in Device Tree\n", __func__);
-		ret = -EINVAL;
-		goto failed_free_res;
-	}
+	ret = of_property_read_u32(pdev->dev.of_node, "bits-per-pixel", &bpp);
+	if (ret)
+		return ret;
 
-	/*
-	 * This code is copied from Sascha Hauer's of_videomode helper
-	 * and can be replaced with a call to the helper once mainlined
-	 */
-	ret = 0;
-	ret |= of_property_read_u32(np, "hactive", &of_mode.xres);
-	ret |= of_property_read_u32(np, "vactive", &of_mode.yres);
-	ret |= of_property_read_u32(np, "hback-porch", &of_mode.left_margin);
-	ret |= of_property_read_u32(np, "hfront-porch", &of_mode.right_margin);
-	ret |= of_property_read_u32(np, "hsync-len", &of_mode.hsync_len);
-	ret |= of_property_read_u32(np, "vback-porch", &of_mode.upper_margin);
-	ret |= of_property_read_u32(np, "vfront-porch", &of_mode.lower_margin);
-	ret |= of_property_read_u32(np, "vsync-len", &of_mode.vsync_len);
-	ret |= of_property_read_u32(np, "bpp", &bpp);
-	if (ret) {
-		pr_err("%s: Unable to read display properties\n", __func__);
-		goto failed_free_res;
-	}
-
-	of_mode.vmode = FB_VMODE_NONINTERLACED;
-	fb_videomode_to_var(&fbi->fb.var, &of_mode);
+	fb_videomode_to_var(&fbi->fb.var, &mode);
 
 	fbi->fb.var.nonstd		= 0;
 	fbi->fb.var.activate		= FB_ACTIVATE_NOW;
@@ -364,16 +329,16 @@ static int wm8505fb_probe(struct platform_device *pdev)
 	fbi->fb.var.width		= -1;
 
 	/* try allocating the framebuffer */
-	fb_mem_len = of_mode.xres * of_mode.yres * 2 * (bpp / 8);
-	fb_mem_virt = dma_alloc_coherent(&pdev->dev, fb_mem_len, &fb_mem_phys,
+	fb_mem_len = mode.xres * mode.yres * 2 * (bpp / 8);
+	fb_mem_virt = dmam_alloc_coherent(&pdev->dev, fb_mem_len, &fb_mem_phys,
 				GFP_KERNEL);
 	if (!fb_mem_virt) {
 		pr_err("%s: Failed to allocate framebuffer\n", __func__);
 		return -ENOMEM;
-	};
+	}
 
-	fbi->fb.var.xres_virtual	= of_mode.xres;
-	fbi->fb.var.yres_virtual	= of_mode.yres * 2;
+	fbi->fb.var.xres_virtual	= mode.xres;
+	fbi->fb.var.yres_virtual	= mode.yres * 2;
 	fbi->fb.var.bits_per_pixel	= bpp;
 
 	fbi->fb.fix.smem_start		= fb_mem_phys;
@@ -381,20 +346,19 @@ static int wm8505fb_probe(struct platform_device *pdev)
 	fbi->fb.screen_base		= fb_mem_virt;
 	fbi->fb.screen_size		= fb_mem_len;
 
-	if (fb_alloc_cmap(&fbi->fb.cmap, 256, 0) < 0) {
-		dev_err(&pdev->dev, "Failed to allocate color map\n");
-		ret = -ENOMEM;
-		goto failed_free_io;
-	}
-
-	wm8505fb_init_hw(&fbi->fb);
-
-	fbi->contrast = 0x80;
+	fbi->contrast = 0x10;
 	ret = wm8505fb_set_par(&fbi->fb);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to set parameters\n");
-		goto failed_free_cmap;
+		return ret;
 	}
+
+	if (fb_alloc_cmap(&fbi->fb.cmap, 256, 0) < 0) {
+		dev_err(&pdev->dev, "Failed to allocate color map\n");
+		return -ENOMEM;
+	}
+
+	wm8505fb_init_hw(&fbi->fb);
 
 	platform_set_drvdata(pdev, fbi);
 
@@ -402,7 +366,9 @@ static int wm8505fb_probe(struct platform_device *pdev)
 	if (ret < 0) {
 		dev_err(&pdev->dev,
 			"Failed to register framebuffer device: %d\n", ret);
-		goto failed_free_cmap;
+		if (fbi->fb.cmap.len)
+			fb_dealloc_cmap(&fbi->fb.cmap);
+		return ret;
 	}
 
 	ret = device_create_file(&pdev->dev, &dev_attr_contrast);
@@ -416,25 +382,11 @@ static int wm8505fb_probe(struct platform_device *pdev)
 	       fbi->fb.fix.smem_start + fbi->fb.fix.smem_len - 1);
 
 	return 0;
-
-failed_free_cmap:
-	if (fbi->fb.cmap.len)
-		fb_dealloc_cmap(&fbi->fb.cmap);
-failed_free_io:
-	iounmap(fbi->regbase);
-failed_free_res:
-	release_mem_region(res->start, resource_size(res));
-failed_fbi:
-	platform_set_drvdata(pdev, NULL);
-	kfree(fbi);
-failed:
-	return ret;
 }
 
 static int wm8505fb_remove(struct platform_device *pdev)
 {
 	struct wm8505fb_info *fbi = platform_get_drvdata(pdev);
-	struct resource *res;
 
 	device_remove_file(&pdev->dev, &dev_attr_contrast);
 
@@ -444,13 +396,6 @@ static int wm8505fb_remove(struct platform_device *pdev)
 
 	if (fbi->fb.cmap.len)
 		fb_dealloc_cmap(&fbi->fb.cmap);
-
-	iounmap(fbi->regbase);
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(res->start, resource_size(res));
-
-	kfree(fbi);
 
 	return 0;
 }

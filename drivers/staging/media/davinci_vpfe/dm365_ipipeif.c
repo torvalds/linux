@@ -1065,7 +1065,6 @@ vpfe_ipipeif_cleanup(struct vpfe_ipipeif_device *ipipeif,
 	iounmap(ipipeif->ipipeif_base_addr);
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 3);
 	if (res)
-		release_mem_region(res->start,
-					res->end - res->start + 1);
+		release_mem_region(res->start, resource_size(res));
 
 }

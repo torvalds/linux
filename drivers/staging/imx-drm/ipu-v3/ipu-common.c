@@ -16,6 +16,7 @@
 #include <linux/export.h>
 #include <linux/types.h>
 #include <linux/init.h>
+#include <linux/reset.h>
 #include <linux/platform_device.h>
 #include <linux/err.h>
 #include <linux/spinlock.h>
@@ -25,8 +26,8 @@
 #include <linux/clk.h>
 #include <linux/list.h>
 #include <linux/irq.h>
+#include <linux/irqchip/chained_irq.h>
 #include <linux/of_device.h>
-#include <asm/mach/irq.h>
 
 #include "imx-ipu-v3.h"
 #include "ipu-prv.h"
@@ -225,7 +226,8 @@ int ipu_cpmem_set_format_passthrough(struct ipu_ch_param __iomem *p,
 }
 EXPORT_SYMBOL_GPL(ipu_cpmem_set_format_passthrough);
 
-void ipu_cpmem_set_yuv_interleaved(struct ipu_ch_param *p, u32 pixel_format)
+void ipu_cpmem_set_yuv_interleaved(struct ipu_ch_param __iomem *p,
+				   u32 pixel_format)
 {
 	switch (pixel_format) {
 	case V4L2_PIX_FMT_UYVY:
@@ -660,7 +662,7 @@ int ipu_idmac_disable_channel(struct ipuv3_channel *channel)
 }
 EXPORT_SYMBOL_GPL(ipu_idmac_disable_channel);
 
-static int ipu_reset(struct ipu_soc *ipu)
+static int ipu_memory_reset(struct ipu_soc *ipu)
 {
 	unsigned long timeout;
 
@@ -1104,7 +1106,12 @@ static int ipu_probe(struct platform_device *pdev)
 	if (ret)
 		goto out_failed_irq;
 
-	ret = ipu_reset(ipu);
+	ret = device_reset(&pdev->dev);
+	if (ret) {
+		dev_err(&pdev->dev, "failed to reset: %d\n", ret);
+		goto out_failed_reset;
+	}
+	ret = ipu_memory_reset(ipu);
 	if (ret)
 		goto out_failed_reset;
 
@@ -1130,8 +1137,8 @@ static int ipu_probe(struct platform_device *pdev)
 failed_add_clients:
 	ipu_submodules_exit(ipu);
 failed_submodules_init:
-	ipu_irq_exit(ipu);
 out_failed_reset:
+	ipu_irq_exit(ipu);
 out_failed_irq:
 	clk_disable_unprepare(ipu->clk);
 failed_clk_get:

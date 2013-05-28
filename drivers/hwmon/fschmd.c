@@ -463,8 +463,9 @@ static ssize_t store_fan_div(struct device *dev, struct device_attribute
 		v = 3;
 		break;
 	default:
-		dev_err(dev, "fan_div value %lu not supported. "
-			"Choose one of 2, 4 or 8!\n", v);
+		dev_err(dev,
+			"fan_div value %lu not supported. Choose one of 2, 4 or 8!\n",
+			v);
 		return -EINVAL;
 	}
 
@@ -1249,8 +1250,8 @@ static int fschmd_probe(struct i2c_client *client,
 	}
 	if (i == ARRAY_SIZE(watchdog_minors)) {
 		data->watchdog_miscdev.minor = 0;
-		dev_warn(&client->dev, "Couldn't register watchdog chardev "
-			"(due to no free minor)\n");
+		dev_warn(&client->dev,
+			 "Couldn't register watchdog chardev (due to no free minor)\n");
 	}
 	mutex_unlock(&watchdog_data_mutex);
 

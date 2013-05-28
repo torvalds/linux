@@ -268,14 +268,21 @@ void dss_set_dac_pwrdn_bgz(bool enable);
 unsigned long dss_get_dpll4_rate(void);
 int dss_calc_clock_rates(struct dss_clock_info *cinfo);
 int dss_set_clock_div(struct dss_clock_info *cinfo);
-int dss_calc_clock_div(unsigned long req_pck, struct dss_clock_info *dss_cinfo,
-		struct dispc_clock_info *dispc_cinfo);
+
+typedef bool (*dss_div_calc_func)(int fckd, unsigned long fck, void *data);
+bool dss_div_calc(unsigned long fck_min, dss_div_calc_func func, void *data);
 
 /* SDI */
 int sdi_init_platform_driver(void) __init;
 void sdi_uninit_platform_driver(void) __exit;
 
 /* DSI */
+
+typedef bool (*dsi_pll_calc_func)(int regn, int regm, unsigned long fint,
+		unsigned long pll, void *data);
+typedef bool (*dsi_hsdiv_calc_func)(int regm_dispc, unsigned long dispc,
+		void *data);
+
 #ifdef CONFIG_OMAP2_DSS_DSI
 
 struct dentry;
@@ -292,12 +299,17 @@ void dsi_dump_clocks(struct seq_file *s);
 void dsi_irq_handler(void);
 u8 dsi_get_pixel_size(enum omap_dss_dsi_pixel_format fmt);
 
+unsigned long dsi_get_pll_clkin(struct platform_device *dsidev);
+
+bool dsi_hsdiv_calc(struct platform_device *dsidev, unsigned long pll,
+		unsigned long out_min, dsi_hsdiv_calc_func func, void *data);
+bool dsi_pll_calc(struct platform_device *dsidev, unsigned long clkin,
+		unsigned long pll_min, unsigned long pll_max,
+		dsi_pll_calc_func func, void *data);
+
 unsigned long dsi_get_pll_hsdiv_dispc_rate(struct platform_device *dsidev);
 int dsi_pll_set_clock_div(struct platform_device *dsidev,
 		struct dsi_clock_info *cinfo);
-int dsi_pll_calc_clock_div_pck(struct platform_device *dsidev,
-		unsigned long req_pck, struct dsi_clock_info *cinfo,
-		struct dispc_clock_info *dispc_cinfo);
 int dsi_pll_init(struct platform_device *dsidev, bool enable_hsclk,
 		bool enable_hsdiv);
 void dsi_pll_uninit(struct platform_device *dsidev, bool disconnect_lanes);
@@ -328,14 +340,6 @@ static inline int dsi_pll_set_clock_div(struct platform_device *dsidev,
 	WARN("%s: DSI not compiled in\n", __func__);
 	return -ENODEV;
 }
-static inline int dsi_pll_calc_clock_div_pck(struct platform_device *dsidev,
-		unsigned long req_pck,
-		struct dsi_clock_info *dsi_cinfo,
-		struct dispc_clock_info *dispc_cinfo)
-{
-	WARN("%s: DSI not compiled in\n", __func__);
-	return -ENODEV;
-}
 static inline int dsi_pll_init(struct platform_device *dsidev,
 		bool enable_hsclk, bool enable_hsdiv)
 {
@@ -356,6 +360,27 @@ static inline struct platform_device *dsi_get_dsidev_from_id(int module)
 {
 	return NULL;
 }
+
+static inline unsigned long dsi_get_pll_clkin(struct platform_device *dsidev)
+{
+	return 0;
+}
+
+static inline bool dsi_hsdiv_calc(struct platform_device *dsidev,
+		unsigned long pll, unsigned long out_min,
+		dsi_hsdiv_calc_func func, void *data)
+{
+	return false;
+}
+
+static inline bool dsi_pll_calc(struct platform_device *dsidev,
+		unsigned long clkin,
+		unsigned long pll_min, unsigned long pll_max,
+		dsi_pll_calc_func func, void *data)
+{
+	return false;
+}
+
 #endif
 
 /* DPI */
@@ -376,11 +401,15 @@ void dispc_enable_fifomerge(bool enable);
 void dispc_enable_gamma_table(bool enable);
 void dispc_set_loadmode(enum omap_dss_load_mode mode);
 
+typedef bool (*dispc_div_calc_func)(int lckd, int pckd, unsigned long lck,
+		unsigned long pck, void *data);
+bool dispc_div_calc(unsigned long dispc,
+		unsigned long pck_min, unsigned long pck_max,
+		dispc_div_calc_func func, void *data);
+
 bool dispc_mgr_timings_ok(enum omap_channel channel,
 		const struct omap_video_timings *timings);
 unsigned long dispc_fclk_rate(void);
-void dispc_find_clk_divs(unsigned long req_pck, unsigned long fck,
-		struct dispc_clock_info *cinfo);
 int dispc_calc_clock_rates(unsigned long dispc_fclk_rate,
 		struct dispc_clock_info *cinfo);
 

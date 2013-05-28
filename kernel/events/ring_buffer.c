@@ -18,12 +18,24 @@
 static bool perf_output_space(struct ring_buffer *rb, unsigned long tail,
 			      unsigned long offset, unsigned long head)
 {
-	unsigned long mask;
+	unsigned long sz = perf_data_size(rb);
+	unsigned long mask = sz - 1;
 
-	if (!rb->writable)
+	/*
+	 * check if user-writable
+	 * overwrite : over-write its own tail
+	 * !overwrite: buffer possibly drops events.
+	 */
+	if (rb->overwrite)
 		return true;
 
-	mask = perf_data_size(rb) - 1;
+	/*
+	 * verify that payload is not bigger than buffer
+	 * otherwise masking logic may fail to detect
+	 * the "not enough space" condition
+	 */
+	if ((head - offset) > sz)
+		return false;
 
 	offset = (offset - tail) & mask;
 	head   = (head   - tail) & mask;
@@ -212,7 +224,9 @@ ring_buffer_init(struct ring_buffer *rb, long watermark, int flags)
 		rb->watermark = max_size / 2;
 
 	if (flags & RING_BUFFER_WRITABLE)
-		rb->writable = 1;
+		rb->overwrite = 0;
+	else
+		rb->overwrite = 1;
 
 	atomic_set(&rb->refcount, 1);
 
@@ -312,11 +326,16 @@ void rb_free(struct ring_buffer *rb)
 }
 
 #else
+static int data_page_nr(struct ring_buffer *rb)
+{
+	return rb->nr_pages << page_order(rb);
+}
 
 struct page *
 perf_mmap_to_page(struct ring_buffer *rb, unsigned long pgoff)
 {
-	if (pgoff > (1UL << page_order(rb)))
+	/* The '>' counts in the user page. */
+	if (pgoff > data_page_nr(rb))
 		return NULL;
 
 	return vmalloc_to_page((void *)rb->user_page + pgoff * PAGE_SIZE);
@@ -336,10 +355,11 @@ static void rb_free_work(struct work_struct *work)
 	int i, nr;
 
 	rb = container_of(work, struct ring_buffer, work);
-	nr = 1 << page_order(rb);
+	nr = data_page_nr(rb);
 
 	base = rb->user_page;
-	for (i = 0; i < nr + 1; i++)
+	/* The '<=' counts in the user page. */
+	for (i = 0; i <= nr; i++)
 		perf_mmap_unmark_page(base + (i * PAGE_SIZE));
 
 	vfree(base);
@@ -373,7 +393,7 @@ struct ring_buffer *rb_alloc(int nr_pages, long watermark, int cpu, int flags)
 	rb->user_page = all_buf;
 	rb->data_pages[0] = all_buf + PAGE_SIZE;
 	rb->page_order = ilog2(nr_pages);
-	rb->nr_pages = 1;
+	rb->nr_pages = !!nr_pages;
 
 	ring_buffer_init(rb, watermark, flags);
 

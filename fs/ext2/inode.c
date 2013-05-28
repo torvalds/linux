@@ -31,9 +31,11 @@
 #include <linux/mpage.h>
 #include <linux/fiemap.h>
 #include <linux/namei.h>
+#include <linux/aio.h>
 #include "ext2.h"
 #include "acl.h"
 #include "xip.h"
+#include "xattr.h"
 
 static int __ext2_write_inode(struct inode *inode, int do_sync);
 
@@ -88,6 +90,7 @@ void ext2_evict_inode(struct inode * inode)
 		inode->i_size = 0;
 		if (inode->i_blocks)
 			ext2_truncate_blocks(inode, 0);
+		ext2_xattr_delete_inode(inode);
 	}
 
 	invalidate_inode_buffers(inode);

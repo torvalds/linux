@@ -16,7 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/export.h>
 #include <linux/user_namespace.h>
-#include <linux/proc_fs.h>
+#include <linux/proc_ns.h>
 
 /*
  * userns count is 1 for root user, 1 for init_uts_ns,
@@ -51,6 +51,8 @@ struct user_namespace init_user_ns = {
 	.owner = GLOBAL_ROOT_UID,
 	.group = GLOBAL_ROOT_GID,
 	.proc_inum = PROC_USER_INIT_INO,
+	.may_mount_sysfs = true,
+	.may_mount_proc = true,
 };
 EXPORT_SYMBOL_GPL(init_user_ns);
 

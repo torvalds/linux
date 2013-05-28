@@ -132,7 +132,7 @@ static int gfar_poll(struct napi_struct *napi, int budget);
 static void gfar_netpoll(struct net_device *dev);
 #endif
 int gfar_clean_rx_ring(struct gfar_priv_rx_q *rx_queue, int rx_work_limit);
-static int gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue);
+static void gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue);
 static void gfar_process_frame(struct net_device *dev, struct sk_buff *skb,
 			       int amount_pull, struct napi_struct *napi);
 void gfar_halt(struct net_device *dev);
@@ -245,14 +245,13 @@ static int gfar_alloc_skb_resources(struct net_device *ndev)
 
 	/* Allocate memory for the buffer descriptors */
 	vaddr = dma_alloc_coherent(dev,
-			sizeof(struct txbd8) * priv->total_tx_ring_size +
-			sizeof(struct rxbd8) * priv->total_rx_ring_size,
-			&addr, GFP_KERNEL);
-	if (!vaddr) {
-		netif_err(priv, ifup, ndev,
-			  "Could not allocate buffer descriptors!\n");
+				   (priv->total_tx_ring_size *
+				    sizeof(struct txbd8)) +
+				   (priv->total_rx_ring_size *
+				    sizeof(struct rxbd8)),
+				   &addr, GFP_KERNEL);
+	if (!vaddr)
 		return -ENOMEM;
-	}
 
 	for (i = 0; i < priv->num_tx_queues; i++) {
 		tx_queue = priv->tx_queue[i];
@@ -342,7 +341,7 @@ static void gfar_init_mac(struct net_device *ndev)
 	gfar_init_tx_rx_base(priv);
 
 	/* Configure the coalescing support */
-	gfar_configure_coalescing(priv, 0xFF, 0xFF);
+	gfar_configure_coalescing_all(priv);
 
 	/* set this when rx hw offload (TOE) functions are being used */
 	priv->uses_rxfcb = 0;
@@ -387,7 +386,7 @@ static void gfar_init_mac(struct net_device *ndev)
 		priv->uses_rxfcb = 1;
 	}
 
-	if (ndev->features & NETIF_F_HW_VLAN_RX) {
+	if (ndev->features & NETIF_F_HW_VLAN_CTAG_RX) {
 		rctrl |= RCTRL_VLEX | RCTRL_PRSDEP_INIT;
 		priv->uses_rxfcb = 1;
 	}
@@ -691,7 +690,7 @@ static int gfar_of_init(struct platform_device *ofdev, struct net_device **pdev)
 	}
 
 	for (i = 0; i < priv->num_tx_queues; i++)
-	       priv->tx_queue[i] = NULL;
+		priv->tx_queue[i] = NULL;
 	for (i = 0; i < priv->num_rx_queues; i++)
 		priv->rx_queue[i] = NULL;
 
@@ -1051,8 +1050,9 @@ static int gfar_probe(struct platform_device *ofdev)
 	}
 
 	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_VLAN) {
-		dev->hw_features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
-		dev->features |= NETIF_F_HW_VLAN_RX;
+		dev->hw_features |= NETIF_F_HW_VLAN_CTAG_TX |
+				    NETIF_F_HW_VLAN_CTAG_RX;
+		dev->features |= NETIF_F_HW_VLAN_CTAG_RX;
 	}
 
 	if (priv->device_flags & FSL_GIANFAR_DEV_HAS_EXTENDED_HASH) {
@@ -1817,25 +1817,15 @@ void gfar_start(struct net_device *dev)
 	dev->trans_start = jiffies; /* prevent tx timeout */
 }
 
-void gfar_configure_coalescing(struct gfar_private *priv,
+static void gfar_configure_coalescing(struct gfar_private *priv,
 			       unsigned long tx_mask, unsigned long rx_mask)
 {
 	struct gfar __iomem *regs = priv->gfargrp[0].regs;
 	u32 __iomem *baddr;
-	int i = 0;
-
-	/* Backward compatible case ---- even if we enable
-	 * multiple queues, there's only single reg to program
-	 */
-	gfar_write(&regs->txic, 0);
-	if (likely(priv->tx_queue[0]->txcoalescing))
-		gfar_write(&regs->txic, priv->tx_queue[0]->txic);
-
-	gfar_write(&regs->rxic, 0);
-	if (unlikely(priv->rx_queue[0]->rxcoalescing))
-		gfar_write(&regs->rxic, priv->rx_queue[0]->rxic);
 
 	if (priv->mode == MQ_MG_MODE) {
+		int i = 0;
+
 		baddr = &regs->txic0;
 		for_each_set_bit(i, &tx_mask, priv->num_tx_queues) {
 			gfar_write(baddr + i, 0);
@@ -1849,7 +1839,23 @@ void gfar_configure_coalescing(struct gfar_private *priv,
 			if (likely(priv->rx_queue[i]->rxcoalescing))
 				gfar_write(baddr + i, priv->rx_queue[i]->rxic);
 		}
+	} else {
+		/* Backward compatible case -- even if we enable
+		 * multiple queues, there's only single reg to program
+		 */
+		gfar_write(&regs->txic, 0);
+		if (likely(priv->tx_queue[0]->txcoalescing))
+			gfar_write(&regs->txic, priv->tx_queue[0]->txic);
+
+		gfar_write(&regs->rxic, 0);
+		if (unlikely(priv->rx_queue[0]->rxcoalescing))
+			gfar_write(&regs->rxic, priv->rx_queue[0]->rxic);
 	}
+}
+
+void gfar_configure_coalescing_all(struct gfar_private *priv)
+{
+	gfar_configure_coalescing(priv, 0xFF, 0xFF);
 }
 
 static int register_grp_irqs(struct gfar_priv_grp *grp)
@@ -1941,7 +1947,7 @@ int startup_gfar(struct net_device *ndev)
 
 	phy_start(priv->phydev);
 
-	gfar_configure_coalescing(priv, 0xFF, 0xFF);
+	gfar_configure_coalescing_all(priv);
 
 	return 0;
 
@@ -2343,7 +2349,7 @@ void gfar_vlan_mode(struct net_device *dev, netdev_features_t features)
 	local_irq_save(flags);
 	lock_rx_qs(priv);
 
-	if (features & NETIF_F_HW_VLAN_TX) {
+	if (features & NETIF_F_HW_VLAN_CTAG_TX) {
 		/* Enable VLAN tag insertion */
 		tempval = gfar_read(&regs->tctrl);
 		tempval |= TCTRL_VLINS;
@@ -2355,7 +2361,7 @@ void gfar_vlan_mode(struct net_device *dev, netdev_features_t features)
 		gfar_write(&regs->tctrl, tempval);
 	}
 
-	if (features & NETIF_F_HW_VLAN_RX) {
+	if (features & NETIF_F_HW_VLAN_CTAG_RX) {
 		/* Enable VLAN tag extraction */
 		tempval = gfar_read(&regs->rctrl);
 		tempval |= (RCTRL_VLEX | RCTRL_PRSDEP_INIT);
@@ -2469,12 +2475,11 @@ static void gfar_align_skb(struct sk_buff *skb)
 }
 
 /* Interrupt Handler for Transmit complete */
-static int gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
+static void gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 {
 	struct net_device *dev = tx_queue->dev;
 	struct netdev_queue *txq;
 	struct gfar_private *priv = netdev_priv(dev);
-	struct gfar_priv_rx_q *rx_queue = NULL;
 	struct txbd8 *bdp, *next = NULL;
 	struct txbd8 *lbdp = NULL;
 	struct txbd8 *base = tx_queue->tx_bd_base;
@@ -2489,7 +2494,6 @@ static int gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 	u32 lstatus;
 	size_t buflen;
 
-	rx_queue = priv->rx_queue[tqi];
 	txq = netdev_get_tx_queue(dev, tqi);
 	bdp = tx_queue->dirty_tx;
 	skb_dirtytx = tx_queue->skb_dirtytx;
@@ -2571,8 +2575,6 @@ static int gfar_clean_tx_ring(struct gfar_priv_tx_q *tx_queue)
 	tx_queue->dirty_tx = bdp;
 
 	netdev_tx_completed_queue(txq, howmany, bytes_sent);
-
-	return howmany;
 }
 
 static void gfar_schedule_cleanup(struct gfar_priv_grp *gfargrp)
@@ -2694,8 +2696,6 @@ static void gfar_process_frame(struct net_device *dev, struct sk_buff *skb,
 	struct gfar_private *priv = netdev_priv(dev);
 	struct rxfcb *fcb = NULL;
 
-	gro_result_t ret;
-
 	/* fcb is at the beginning if exists */
 	fcb = (struct rxfcb *)skb->data;
 
@@ -2725,19 +2725,17 @@ static void gfar_process_frame(struct net_device *dev, struct sk_buff *skb,
 	/* Tell the skb what kind of packet this is */
 	skb->protocol = eth_type_trans(skb, dev);
 
-	/* There's need to check for NETIF_F_HW_VLAN_RX here.
+	/* There's need to check for NETIF_F_HW_VLAN_CTAG_RX here.
 	 * Even if vlan rx accel is disabled, on some chips
 	 * RXFCB_VLN is pseudo randomly set.
 	 */
-	if (dev->features & NETIF_F_HW_VLAN_RX &&
+	if (dev->features & NETIF_F_HW_VLAN_CTAG_RX &&
 	    fcb->flags & RXFCB_VLN)
-		__vlan_hwaccel_put_tag(skb, fcb->vlctl);
+		__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), fcb->vlctl);
 
 	/* Send the packet up the stack */
-	ret = napi_gro_receive(napi, skb);
+	napi_gro_receive(napi, skb);
 
-	if (unlikely(GRO_DROP == ret))
-		atomic64_inc(&priv->extra_stats.kernel_dropped);
 }
 
 /* gfar_clean_rx_ring() -- Processes each frame in the rx ring
@@ -2835,62 +2833,82 @@ static int gfar_poll(struct napi_struct *napi, int budget)
 	struct gfar __iomem *regs = gfargrp->regs;
 	struct gfar_priv_tx_q *tx_queue = NULL;
 	struct gfar_priv_rx_q *rx_queue = NULL;
-	int rx_cleaned = 0, budget_per_queue = 0, rx_cleaned_per_queue = 0;
-	int tx_cleaned = 0, i, left_over_budget = budget;
-	unsigned long serviced_queues = 0;
-	int num_queues = 0;
-
-	num_queues = gfargrp->num_rx_queues;
-	budget_per_queue = budget/num_queues;
+	int work_done = 0, work_done_per_q = 0;
+	int i, budget_per_q = 0;
+	int has_tx_work;
+	unsigned long rstat_rxf;
+	int num_act_queues;
 
 	/* Clear IEVENT, so interrupts aren't called again
 	 * because of the packets that have already arrived
 	 */
 	gfar_write(&regs->ievent, IEVENT_RTX_MASK);
 
-	while (num_queues && left_over_budget) {
-		budget_per_queue = left_over_budget/num_queues;
-		left_over_budget = 0;
+	rstat_rxf = gfar_read(&regs->rstat) & RSTAT_RXF_MASK;
+
+	num_act_queues = bitmap_weight(&rstat_rxf, MAX_RX_QS);
+	if (num_act_queues)
+		budget_per_q = budget/num_act_queues;
+
+	while (1) {
+		has_tx_work = 0;
+		for_each_set_bit(i, &gfargrp->tx_bit_map, priv->num_tx_queues) {
+			tx_queue = priv->tx_queue[i];
+			/* run Tx cleanup to completion */
+			if (tx_queue->tx_skbuff[tx_queue->skb_dirtytx]) {
+				gfar_clean_tx_ring(tx_queue);
+				has_tx_work = 1;
+			}
+		}
 
 		for_each_set_bit(i, &gfargrp->rx_bit_map, priv->num_rx_queues) {
-			if (test_bit(i, &serviced_queues))
+			/* skip queue if not active */
+			if (!(rstat_rxf & (RSTAT_CLEAR_RXF0 >> i)))
 				continue;
-			rx_queue = priv->rx_queue[i];
-			tx_queue = priv->tx_queue[rx_queue->qindex];
 
-			tx_cleaned += gfar_clean_tx_ring(tx_queue);
-			rx_cleaned_per_queue =
-				gfar_clean_rx_ring(rx_queue, budget_per_queue);
-			rx_cleaned += rx_cleaned_per_queue;
-			if (rx_cleaned_per_queue < budget_per_queue) {
-				left_over_budget = left_over_budget +
-					(budget_per_queue -
-					 rx_cleaned_per_queue);
-				set_bit(i, &serviced_queues);
-				num_queues--;
+			rx_queue = priv->rx_queue[i];
+			work_done_per_q =
+				gfar_clean_rx_ring(rx_queue, budget_per_q);
+			work_done += work_done_per_q;
+
+			/* finished processing this queue */
+			if (work_done_per_q < budget_per_q) {
+				/* clear active queue hw indication */
+				gfar_write(&regs->rstat,
+					   RSTAT_CLEAR_RXF0 >> i);
+				rstat_rxf &= ~(RSTAT_CLEAR_RXF0 >> i);
+				num_act_queues--;
+
+				if (!num_act_queues)
+					break;
+				/* recompute budget per Rx queue */
+				budget_per_q =
+					(budget - work_done) / num_act_queues;
 			}
+		}
+
+		if (work_done >= budget)
+			break;
+
+		if (!num_act_queues && !has_tx_work) {
+
+			napi_complete(napi);
+
+			/* Clear the halt bit in RSTAT */
+			gfar_write(&regs->rstat, gfargrp->rstat);
+
+			gfar_write(&regs->imask, IMASK_DEFAULT);
+
+			/* If we are coalescing interrupts, update the timer
+			 * Otherwise, clear it
+			 */
+			gfar_configure_coalescing(priv, gfargrp->rx_bit_map,
+						  gfargrp->tx_bit_map);
+			break;
 		}
 	}
 
-	if (tx_cleaned)
-		return budget;
-
-	if (rx_cleaned < budget) {
-		napi_complete(napi);
-
-		/* Clear the halt bit in RSTAT */
-		gfar_write(&regs->rstat, gfargrp->rstat);
-
-		gfar_write(&regs->imask, IMASK_DEFAULT);
-
-		/* If we are coalescing interrupts, update the timer
-		 * Otherwise, clear it
-		 */
-		gfar_configure_coalescing(priv, gfargrp->rx_bit_map,
-					  gfargrp->tx_bit_map);
-	}
-
-	return rx_cleaned;
+	return work_done;
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER

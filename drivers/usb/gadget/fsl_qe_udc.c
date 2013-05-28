@@ -2296,7 +2296,6 @@ static int fsl_qe_start(struct usb_gadget *gadget,
 	driver->driver.bus = NULL;
 	/* hook up the driver */
 	udc->driver = driver;
-	udc->gadget.dev.driver = &driver->driver;
 	udc->gadget.speed = driver->max_speed;
 
 	/* Enable IRQ reg and Set usbcmd reg EN bit */
@@ -2338,7 +2337,6 @@ static int fsl_qe_stop(struct usb_gadget *gadget,
 		nuke(loop_ep, -ESHUTDOWN);
 	spin_unlock_irqrestore(&udc->lock, flags);
 
-	udc->gadget.dev.driver = NULL;
 	udc->driver = NULL;
 
 	dev_info(udc->dev, "unregistered gadget driver '%s'\r\n",
@@ -2523,12 +2521,6 @@ static int qe_udc_probe(struct platform_device *ofdev)
 
 	/* name: Identifies the controller hardware type. */
 	udc->gadget.name = driver_name;
-
-	device_initialize(&udc->gadget.dev);
-
-	dev_set_name(&udc->gadget.dev, "gadget");
-
-	udc->gadget.dev.release = qe_udc_release;
 	udc->gadget.dev.parent = &ofdev->dev;
 
 	/* initialize qe_ep struct */
@@ -2592,13 +2584,10 @@ static int qe_udc_probe(struct platform_device *ofdev)
 		goto err5;
 	}
 
-	ret = device_add(&udc->gadget.dev);
+	ret = usb_add_gadget_udc_release(&ofdev->dev, &udc->gadget,
+			qe_udc_release);
 	if (ret)
 		goto err6;
-
-	ret = usb_add_gadget_udc(&ofdev->dev, &udc->gadget);
-	if (ret)
-		goto err7;
 
 	dev_set_drvdata(&ofdev->dev, udc);
 	dev_info(udc->dev,
@@ -2606,8 +2595,6 @@ static int qe_udc_probe(struct platform_device *ofdev)
 			(udc->soc_type == PORT_QE) ? "QE" : "CPM");
 	return 0;
 
-err7:
-	device_unregister(&udc->gadget.dev);
 err6:
 	free_irq(udc->usb_irq, udc);
 err5:
@@ -2702,7 +2689,6 @@ static int qe_udc_remove(struct platform_device *ofdev)
 
 	iounmap(udc->usb_regs);
 
-	device_unregister(&udc->gadget.dev);
 	/* wait for release() of gadget.dev to free udc */
 	wait_for_completion(&done);
 

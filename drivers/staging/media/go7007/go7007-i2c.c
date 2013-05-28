@@ -28,7 +28,6 @@
 #include <linux/uaccess.h>
 
 #include "go7007-priv.h"
-#include "wis-i2c.h"
 
 /********************* Driver for on-board I2C adapter *********************/
 
@@ -52,11 +51,11 @@ static DEFINE_MUTEX(adlink_mpg24_i2c_lock);
 static int go7007_i2c_xfer(struct go7007 *go, u16 addr, int read,
 		u16 command, int flags, u8 *data)
 {
-	int i, ret = -1;
+	int i, ret = -EIO;
 	u16 val;
 
 	if (go->status == STATUS_SHUTDOWN)
-		return -1;
+		return -ENODEV;
 
 #ifdef GO7007_I2C_DEBUG
 	if (read)
@@ -146,7 +145,7 @@ static int go7007_smbus_xfer(struct i2c_adapter *adapter, u16 addr,
 	struct go7007 *go = i2c_get_adapdata(adapter);
 
 	if (size != I2C_SMBUS_BYTE_DATA)
-		return -1;
+		return -EIO;
 	return go7007_i2c_xfer(go, addr, read_write == I2C_SMBUS_READ, command,
 			flags & I2C_CLIENT_SCCB ? 0x10 : 0x00, &data->byte);
 }
@@ -170,26 +169,26 @@ static int go7007_i2c_master_xfer(struct i2c_adapter *adapter,
 					(msgs[i].flags & I2C_M_RD) ||
 					!(msgs[i + 1].flags & I2C_M_RD) ||
 					msgs[i + 1].len != 1)
-				return -1;
+				return -EIO;
 			if (go7007_i2c_xfer(go, msgs[i].addr, 1,
 					(msgs[i].buf[0] << 8) | msgs[i].buf[1],
 					0x01, &msgs[i + 1].buf[0]) < 0)
-				return -1;
+				return -EIO;
 			++i;
 		} else if (msgs[i].len == 3) {
 			if (msgs[i].flags & I2C_M_RD)
-				return -1;
+				return -EIO;
 			if (msgs[i].len != 3)
-				return -1;
+				return -EIO;
 			if (go7007_i2c_xfer(go, msgs[i].addr, 0,
 					(msgs[i].buf[0] << 8) | msgs[i].buf[1],
 					0x01, &msgs[i].buf[2]) < 0)
-				return -1;
+				return -EIO;
 		} else
-			return -1;
+			return -EIO;
 	}
 
-	return 0;
+	return num;
 }
 
 static u32 go7007_functionality(struct i2c_adapter *adapter)

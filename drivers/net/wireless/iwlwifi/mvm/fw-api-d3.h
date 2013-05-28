@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -258,7 +258,7 @@ enum iwl_wowlan_wakeup_reason {
 	IWL_WOWLAN_WAKEUP_BY_FOUR_WAY_HANDSHAKE			= BIT(8),
 	IWL_WOWLAN_WAKEUP_BY_REM_WAKE_LINK_LOSS			= BIT(9),
 	IWL_WOWLAN_WAKEUP_BY_REM_WAKE_SIGNATURE_TABLE		= BIT(10),
-	IWL_WOWLAN_WAKEUP_BY_REM_WAKE_TCP_EXTERNAL		= BIT(11),
+	/* BIT(11) reserved */
 	IWL_WOWLAN_WAKEUP_BY_REM_WAKE_WAKEUP_PACKET		= BIT(12),
 }; /* WOWLAN_WAKE_UP_REASON_API_E_VER_2 */
 
@@ -276,6 +276,55 @@ struct iwl_wowlan_status {
 	__le32 wake_packet_bufsize;
 	u8 wake_packet[]; /* can be truncated from _length to _bufsize */
 } __packed; /* WOWLAN_STATUSES_API_S_VER_4 */
+
+#define IWL_WOWLAN_TCP_MAX_PACKET_LEN		64
+#define IWL_WOWLAN_REMOTE_WAKE_MAX_PACKET_LEN	128
+#define IWL_WOWLAN_REMOTE_WAKE_MAX_TOKENS	2048
+
+struct iwl_tcp_packet_info {
+	__le16 tcp_pseudo_header_checksum;
+	__le16 tcp_payload_length;
+} __packed; /* TCP_PACKET_INFO_API_S_VER_2 */
+
+struct iwl_tcp_packet {
+	struct iwl_tcp_packet_info info;
+	u8 rx_mask[IWL_WOWLAN_MAX_PATTERN_LEN / 8];
+	u8 data[IWL_WOWLAN_TCP_MAX_PACKET_LEN];
+} __packed; /* TCP_PROTOCOL_PACKET_API_S_VER_1 */
+
+struct iwl_remote_wake_packet {
+	struct iwl_tcp_packet_info info;
+	u8 rx_mask[IWL_WOWLAN_MAX_PATTERN_LEN / 8];
+	u8 data[IWL_WOWLAN_REMOTE_WAKE_MAX_PACKET_LEN];
+} __packed; /* TCP_PROTOCOL_PACKET_API_S_VER_1 */
+
+struct iwl_wowlan_remote_wake_config {
+	__le32 connection_max_time; /* unused */
+	/* TCP_PROTOCOL_CONFIG_API_S_VER_1 */
+	u8 max_syn_retries;
+	u8 max_data_retries;
+	u8 tcp_syn_ack_timeout;
+	u8 tcp_ack_timeout;
+
+	struct iwl_tcp_packet syn_tx;
+	struct iwl_tcp_packet synack_rx;
+	struct iwl_tcp_packet keepalive_ack_rx;
+	struct iwl_tcp_packet fin_tx;
+
+	struct iwl_remote_wake_packet keepalive_tx;
+	struct iwl_remote_wake_packet wake_rx;
+
+	/* REMOTE_WAKE_OFFSET_INFO_API_S_VER_1 */
+	u8 sequence_number_offset;
+	u8 sequence_number_length;
+	u8 token_offset;
+	u8 token_length;
+	/* REMOTE_WAKE_PROTOCOL_PARAMS_API_S_VER_1 */
+	__le32 initial_sequence_number;
+	__le16 keepalive_interval;
+	__le16 num_tokens;
+	u8 tokens[IWL_WOWLAN_REMOTE_WAKE_MAX_TOKENS];
+} __packed; /* REMOTE_WAKE_CONFIG_API_S_VER_2 */
 
 /* TODO: NetDetect API */
 

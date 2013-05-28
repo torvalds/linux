@@ -118,5 +118,6 @@ extern int prepare_bprm_creds(struct linux_binprm *bprm);
 extern void install_exec_creds(struct linux_binprm *bprm);
 extern void set_binfmt(struct linux_binfmt *new);
 extern void free_bprm(struct linux_binprm *);
+extern ssize_t read_code(struct file *, unsigned long, loff_t, size_t);
 
 #endif /* _LINUX_BINFMTS_H */

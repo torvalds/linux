@@ -129,6 +129,23 @@ config X86_POWERNOW_K8
 
 	  For details, take a look at <file:Documentation/cpu-freq/>.
 
+config X86_AMD_FREQ_SENSITIVITY
+	tristate "AMD frequency sensitivity feedback powersave bias"
+	depends on CPU_FREQ_GOV_ONDEMAND && X86_ACPI_CPUFREQ && CPU_SUP_AMD
+	help
+	  This adds AMD-specific powersave bias function to the ondemand
+	  governor, which allows it to make more power-conscious frequency
+	  change decisions based on feedback from hardware (availble on AMD
+	  Family 16h and above).
+
+	  Hardware feedback tells software how "sensitive" to frequency changes
+	  the CPUs' workloads are. CPU-bound workloads will be more sensitive
+	  -- they will perform better as frequency increases. Memory/IO-bound
+	  workloads will be less sensitive -- they will not necessarily perform
+	  better as frequency increases.
+
+	  If in doubt, say N.
+
 config X86_GX_SUSPMOD
 	tristate "Cyrix MediaGX/NatSemi Geode Suspend Modulation"
 	depends on X86_32 && PCI
@@ -255,7 +272,7 @@ config X86_LONGHAUL
 config X86_E_POWERSAVER
 	tristate "VIA C7 Enhanced PowerSaver (DANGEROUS)"
 	select CPU_FREQ_TABLE
-	depends on X86_32
+	depends on X86_32 && ACPI_PROCESSOR
 	help
 	  This adds the CPUFreq driver for VIA C7 processors.  However, this driver
 	  does not have any safeguards to prevent operating the CPU out of spec

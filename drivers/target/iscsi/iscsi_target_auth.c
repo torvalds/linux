@@ -49,32 +49,6 @@ static void chap_binaryhex_to_asciihex(char *dst, char *src, int src_len)
 	}
 }
 
-static void chap_set_random(char *data, int length)
-{
-	long r;
-	unsigned n;
-
-	while (length > 0) {
-		get_random_bytes(&r, sizeof(long));
-		r = r ^ (r >> 8);
-		r = r ^ (r >> 4);
-		n = r & 0x7;
-
-		get_random_bytes(&r, sizeof(long));
-		r = r ^ (r >> 8);
-		r = r ^ (r >> 5);
-		n = (n << 3) | (r & 0x7);
-
-		get_random_bytes(&r, sizeof(long));
-		r = r ^ (r >> 8);
-		r = r ^ (r >> 5);
-		n = (n << 2) | (r & 0x3);
-
-		*data++ = n;
-		length--;
-	}
-}
-
 static void chap_gen_challenge(
 	struct iscsi_conn *conn,
 	int caller,
@@ -86,7 +60,7 @@ static void chap_gen_challenge(
 
 	memset(challenge_asciihex, 0, CHAP_CHALLENGE_LENGTH * 2 + 1);
 
-	chap_set_random(chap->challenge, CHAP_CHALLENGE_LENGTH);
+	get_random_bytes(chap->challenge, CHAP_CHALLENGE_LENGTH);
 	chap_binaryhex_to_asciihex(challenge_asciihex, chap->challenge,
 				CHAP_CHALLENGE_LENGTH);
 	/*
@@ -166,6 +140,7 @@ static int chap_server_compute_md5(
 {
 	char *endptr;
 	unsigned long id;
+	unsigned char id_as_uchar;
 	unsigned char digest[MD5_SIGNATURE_SIZE];
 	unsigned char type, response[MD5_SIGNATURE_SIZE * 2 + 2];
 	unsigned char identifier[10], *challenge = NULL;
@@ -355,7 +330,9 @@ static int chap_server_compute_md5(
 		goto out;
 	}
 
-	sg_init_one(&sg, &id, 1);
+	/* To handle both endiannesses */
+	id_as_uchar = id;
+	sg_init_one(&sg, &id_as_uchar, 1);
 	ret = crypto_hash_update(&desc, &sg, 1);
 	if (ret < 0) {
 		pr_err("crypto_hash_update() failed for id\n");

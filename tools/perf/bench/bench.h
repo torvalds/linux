@@ -1,6 +1,30 @@
 #ifndef BENCH_H
 #define BENCH_H
 
+/*
+ * The madvise transparent hugepage constants were added in glibc
+ * 2.13. For compatibility with older versions of glibc, define these
+ * tokens if they are not already defined.
+ *
+ * PA-RISC uses different madvise values from other architectures and
+ * needs to be special-cased.
+ */
+#ifdef __hppa__
+# ifndef MADV_HUGEPAGE
+#  define MADV_HUGEPAGE		67
+# endif
+# ifndef MADV_NOHUGEPAGE
+#  define MADV_NOHUGEPAGE	68
+# endif
+#else
+# ifndef MADV_HUGEPAGE
+#  define MADV_HUGEPAGE		14
+# endif
+# ifndef MADV_NOHUGEPAGE
+#  define MADV_NOHUGEPAGE	15
+# endif
+#endif
+
 extern int bench_numa(int argc, const char **argv, const char *prefix);
 extern int bench_sched_messaging(int argc, const char **argv, const char *prefix);
 extern int bench_sched_pipe(int argc, const char **argv, const char *prefix);

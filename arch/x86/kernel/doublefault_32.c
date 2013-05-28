@@ -20,7 +20,7 @@ static void doublefault_fn(void)
 	struct desc_ptr gdt_desc = {0, 0};
 	unsigned long gdt, tss;
 
-	store_gdt(&gdt_desc);
+	native_store_gdt(&gdt_desc);
 	gdt = gdt_desc.address;
 
 	printk(KERN_EMERG "PANIC: double fault, gdt at %08lx [%d bytes]\n", gdt, gdt_desc.size);

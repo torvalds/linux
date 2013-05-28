@@ -215,6 +215,7 @@ void mei_cl_init(struct mei_cl *cl, struct mei_device *dev)
 	init_waitqueue_head(&cl->rx_wait);
 	init_waitqueue_head(&cl->tx_wait);
 	INIT_LIST_HEAD(&cl->link);
+	INIT_LIST_HEAD(&cl->device_link);
 	cl->reading_state = MEI_IDLE;
 	cl->writing_state = MEI_IDLE;
 	cl->dev = dev;
@@ -358,6 +359,9 @@ void mei_host_client_init(struct work_struct *work)
 			mei_amthif_host_init(dev);
 		else if (!uuid_le_cmp(client_props->protocol_name, mei_wd_guid))
 			mei_wd_host_init(dev);
+		else if (!uuid_le_cmp(client_props->protocol_name, mei_nfc_guid))
+			mei_nfc_host_init(dev);
+
 	}
 
 	dev->dev_state = MEI_DEV_ENABLED;
@@ -620,7 +624,7 @@ int mei_cl_flow_ctrl_reduce(struct mei_cl *cl)
  *
  * returns 0 on success, <0 on failure.
  */
-int mei_cl_read_start(struct mei_cl *cl)
+int mei_cl_read_start(struct mei_cl *cl, size_t length)
 {
 	struct mei_device *dev;
 	struct mei_cl_cb *cb;
@@ -653,8 +657,9 @@ int mei_cl_read_start(struct mei_cl *cl)
 	if (!cb)
 		return -ENOMEM;
 
-	rets = mei_io_cb_alloc_resp_buf(cb,
-			dev->me_clients[i].props.max_msg_length);
+	/* always allocate at least client max message */
+	length = max_t(size_t, length, dev->me_clients[i].props.max_msg_length);
+	rets = mei_io_cb_alloc_resp_buf(cb, length);
 	if (rets)
 		goto err;
 
@@ -675,6 +680,111 @@ err:
 	mei_io_cb_free(cb);
 	return rets;
 }
+
+/**
+ * mei_cl_write - submit a write cb to mei device
+	assumes device_lock is locked
+ *
+ * @cl: host client
+ * @cl: write callback with filled data
+ *
+ * returns numbe of bytes sent on success, <0 on failure.
+ */
+int mei_cl_write(struct mei_cl *cl, struct mei_cl_cb *cb, bool blocking)
+{
+	struct mei_device *dev;
+	struct mei_msg_data *buf;
+	struct mei_msg_hdr mei_hdr;
+	int rets;
+
+
+	if (WARN_ON(!cl || !cl->dev))
+		return -ENODEV;
+
+	if (WARN_ON(!cb))
+		return -EINVAL;
+
+	dev = cl->dev;
+
+
+	buf = &cb->request_buffer;
+
+	dev_dbg(&dev->pdev->dev, "mei_cl_write %d\n", buf->size);
+
+
+	cb->fop_type = MEI_FOP_WRITE;
+
+	rets = mei_cl_flow_ctrl_creds(cl);
+	if (rets < 0)
+		goto err;
+
+	/* Host buffer is not ready, we queue the request */
+	if (rets == 0 || !dev->hbuf_is_ready) {
+		cb->buf_idx = 0;
+		/* unseting complete will enqueue the cb for write */
+		mei_hdr.msg_complete = 0;
+		cl->writing_state = MEI_WRITING;
+		rets = buf->size;
+		goto out;
+	}
+
+	dev->hbuf_is_ready = false;
+
+	/* Check for a maximum length */
+	if (buf->size > mei_hbuf_max_len(dev)) {
+		mei_hdr.length = mei_hbuf_max_len(dev);
+		mei_hdr.msg_complete = 0;
+	} else {
+		mei_hdr.length = buf->size;
+		mei_hdr.msg_complete = 1;
+	}
+
+	mei_hdr.host_addr = cl->host_client_id;
+	mei_hdr.me_addr = cl->me_client_id;
+	mei_hdr.reserved = 0;
+
+	dev_dbg(&dev->pdev->dev, "write " MEI_HDR_FMT "\n",
+		MEI_HDR_PRM(&mei_hdr));
+
+
+	if (mei_write_message(dev, &mei_hdr, buf->data)) {
+		rets = -EIO;
+		goto err;
+	}
+
+	cl->writing_state = MEI_WRITING;
+	cb->buf_idx = mei_hdr.length;
+
+	rets = buf->size;
+out:
+	if (mei_hdr.msg_complete) {
+		if (mei_cl_flow_ctrl_reduce(cl)) {
+			rets = -ENODEV;
+			goto err;
+		}
+		list_add_tail(&cb->list, &dev->write_waiting_list.list);
+	} else {
+		list_add_tail(&cb->list, &dev->write_list.list);
+	}
+
+
+	if (blocking && cl->writing_state != MEI_WRITE_COMPLETE) {
+
+		mutex_unlock(&dev->device_lock);
+		if (wait_event_interruptible(cl->tx_wait,
+			cl->writing_state == MEI_WRITE_COMPLETE)) {
+				if (signal_pending(current))
+					rets = -EINTR;
+				else
+					rets = -ERESTARTSYS;
+		}
+		mutex_lock(&dev->device_lock);
+	}
+err:
+	return rets;
+}
+
+
 
 /**
  * mei_cl_all_disconnect - disconnect forcefully all connected clients

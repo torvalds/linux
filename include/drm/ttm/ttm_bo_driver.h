@@ -902,6 +902,10 @@ extern void ttm_bo_unreserve_locked(struct ttm_buffer_object *bo);
  * ttm_bo_util.c
  */
 
+int ttm_mem_io_reserve(struct ttm_bo_device *bdev,
+		       struct ttm_mem_reg *mem);
+void ttm_mem_io_free(struct ttm_bo_device *bdev,
+		     struct ttm_mem_reg *mem);
 /**
  * ttm_bo_move_ttm
  *

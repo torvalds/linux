@@ -39,7 +39,7 @@ extern int zcache_flush_page(int, int, struct tmem_oid *, uint32_t);
 extern int zcache_flush_object(int, int, struct tmem_oid *);
 extern void zcache_decompress_to_page(char *, unsigned int, struct page *);
 
-#ifdef CONFIG_RAMSTER
+#if defined(CONFIG_RAMSTER) || defined(CONFIG_RAMSTER_MODULE)
 extern void *zcache_pampd_create(char *, unsigned int, bool, int,
 				struct tmem_handle *);
 int zcache_autocreate_pool(unsigned int cli_id, unsigned int pool_id, bool eph);

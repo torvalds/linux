@@ -7,7 +7,7 @@
  */
 /dts-v1/;
 
-/include/ "omap4.dtsi"
+/include/ "omap443x.dtsi"
 
 / {
 	model = "Variscite OMAP4 SOM";
@@ -68,7 +68,7 @@
 		spi-max-frequency = <24000000>;
 		reg = <0>;
 		interrupt-parent = <&gpio6>;
-		interrupts = <11>; /* gpio line 171 */
+		interrupts = <11 8>; /* gpio line 171, low triggered */
 		vdd-supply = <&vdd_eth>;
 	};
 };

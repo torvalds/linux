@@ -239,7 +239,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 
 /* vidioc_s_tuner - set tuner attributes */
 static int vidioc_s_tuner(struct file *file, void *priv,
-				struct v4l2_tuner *v)
+				const struct v4l2_tuner *v)
 {
 	struct ma901radio_device *radio = video_drvdata(file);
 
@@ -257,7 +257,7 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 
 /* vidioc_s_frequency - set tuner radio frequency */
 static int vidioc_s_frequency(struct file *file, void *priv,
-				struct v4l2_frequency *f)
+				const struct v4l2_frequency *f)
 {
 	struct ma901radio_device *radio = video_drvdata(file);
 
@@ -347,8 +347,19 @@ static void usb_ma901radio_release(struct v4l2_device *v4l2_dev)
 static int usb_ma901radio_probe(struct usb_interface *intf,
 				const struct usb_device_id *id)
 {
+	struct usb_device *dev = interface_to_usbdev(intf);
 	struct ma901radio_device *radio;
 	int retval = 0;
+
+	/* Masterkit MA901 usb radio has the same USB ID as many others
+	 * Atmel V-USB devices. Let's make additional checks to be sure
+	 * that this is our device.
+	 */
+
+	if (dev->product && dev->manufacturer &&
+		(strncmp(dev->product, "MA901", 5) != 0
+		|| strncmp(dev->manufacturer, "www.masterkit.ru", 16) != 0))
+		return -ENODEV;
 
 	radio = kzalloc(sizeof(struct ma901radio_device), GFP_KERNEL);
 	if (!radio) {

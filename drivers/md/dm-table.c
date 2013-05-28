@@ -1442,7 +1442,7 @@ static bool dm_table_supports_write_same(struct dm_table *t)
 			return false;
 
 		if (!ti->type->iterate_devices ||
-		    !ti->type->iterate_devices(ti, device_not_write_same_capable, NULL))
+		    ti->type->iterate_devices(ti, device_not_write_same_capable, NULL))
 			return false;
 	}
 

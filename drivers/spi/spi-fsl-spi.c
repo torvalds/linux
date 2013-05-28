@@ -10,6 +10,10 @@
  * Copyright (c) 2009  MontaVista Software, Inc.
  * Author: Anton Vorontsov <avorontsov@ru.mvista.com>
  *
+ * GRLIB support:
+ * Copyright (c) 2012 Aeroflex Gaisler AB.
+ * Author: Andreas Larsson <andreas@gaisler.com>
+ *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
  * Free Software Foundation;  either version 2 of the  License, or (at your
@@ -30,75 +34,54 @@
 #include <linux/mutex.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
 
-#include <sysdev/fsl_soc.h>
-#include <asm/cpm.h>
-#include <asm/qe.h>
-
 #include "spi-fsl-lib.h"
+#include "spi-fsl-cpm.h"
+#include "spi-fsl-spi.h"
 
-/* CPM1 and CPM2 are mutually exclusive. */
-#ifdef CONFIG_CPM1
-#include <asm/cpm1.h>
-#define CPM_SPI_CMD mk_cr_cmd(CPM_CR_CH_SPI, 0)
-#else
-#include <asm/cpm2.h>
-#define CPM_SPI_CMD mk_cr_cmd(CPM_CR_SPI_PAGE, CPM_CR_SPI_SBLOCK, 0, 0)
-#endif
+#define TYPE_FSL	0
+#define TYPE_GRLIB	1
 
-/* SPI Controller registers */
-struct fsl_spi_reg {
-	u8 res1[0x20];
-	__be32 mode;
-	__be32 event;
-	__be32 mask;
-	__be32 command;
-	__be32 transmit;
-	__be32 receive;
+struct fsl_spi_match_data {
+	int type;
 };
 
-/* SPI Controller mode register definitions */
-#define	SPMODE_LOOP		(1 << 30)
-#define	SPMODE_CI_INACTIVEHIGH	(1 << 29)
-#define	SPMODE_CP_BEGIN_EDGECLK	(1 << 28)
-#define	SPMODE_DIV16		(1 << 27)
-#define	SPMODE_REV		(1 << 26)
-#define	SPMODE_MS		(1 << 25)
-#define	SPMODE_ENABLE		(1 << 24)
-#define	SPMODE_LEN(x)		((x) << 20)
-#define	SPMODE_PM(x)		((x) << 16)
-#define	SPMODE_OP		(1 << 14)
-#define	SPMODE_CG(x)		((x) << 7)
+static struct fsl_spi_match_data of_fsl_spi_fsl_config = {
+	.type = TYPE_FSL,
+};
 
-/*
- * Default for SPI Mode:
- *	SPI MODE 0 (inactive low, phase middle, MSB, 8-bit length, slow clk
- */
-#define	SPMODE_INIT_VAL (SPMODE_CI_INACTIVEHIGH | SPMODE_DIV16 | SPMODE_REV | \
-			 SPMODE_MS | SPMODE_LEN(7) | SPMODE_PM(0xf))
+static struct fsl_spi_match_data of_fsl_spi_grlib_config = {
+	.type = TYPE_GRLIB,
+};
 
-/* SPIE register values */
-#define	SPIE_NE		0x00000200	/* Not empty */
-#define	SPIE_NF		0x00000100	/* Not full */
+static struct of_device_id of_fsl_spi_match[] = {
+	{
+		.compatible = "fsl,spi",
+		.data = &of_fsl_spi_fsl_config,
+	},
+	{
+		.compatible = "aeroflexgaisler,spictrl",
+		.data = &of_fsl_spi_grlib_config,
+	},
+	{}
+};
+MODULE_DEVICE_TABLE(of, of_fsl_spi_match);
 
-/* SPIM register values */
-#define	SPIM_NE		0x00000200	/* Not empty */
-#define	SPIM_NF		0x00000100	/* Not full */
+static int fsl_spi_get_type(struct device *dev)
+{
+	const struct of_device_id *match;
 
-#define	SPIE_TXB	0x00000200	/* Last char is written to tx fifo */
-#define	SPIE_RXB	0x00000100	/* Last char is written to rx buf */
-
-/* SPCOM register values */
-#define	SPCOM_STR	(1 << 23)	/* Start transmit */
-
-#define	SPI_PRAM_SIZE	0x100
-#define	SPI_MRBLR	((unsigned int)PAGE_SIZE)
-
-static void *fsl_dummy_rx;
-static DEFINE_MUTEX(fsl_dummy_rx_lock);
-static int fsl_dummy_rx_refcnt;
+	if (dev->of_node) {
+		match = of_match_node(of_fsl_spi_match, dev->of_node);
+		if (match && match->data)
+			return ((struct fsl_spi_match_data *)match->data)->type;
+	}
+	return TYPE_FSL;
+}
 
 static void fsl_spi_change_mode(struct spi_device *spi)
 {
@@ -119,18 +102,7 @@ static void fsl_spi_change_mode(struct spi_device *spi)
 
 	/* When in CPM mode, we need to reinit tx and rx. */
 	if (mspi->flags & SPI_CPM_MODE) {
-		if (mspi->flags & SPI_QE) {
-			qe_issue_cmd(QE_INIT_TX_RX, mspi->subblock,
-				     QE_CR_PROTOCOL_UNSPECIFIED, 0);
-		} else {
-			cpm_command(CPM_SPI_CMD, CPM_CR_INIT_TRX);
-			if (mspi->flags & SPI_CPM1) {
-				out_be16(&mspi->pram->rbptr,
-					 in_be16(&mspi->pram->rbase));
-				out_be16(&mspi->pram->tbptr,
-					 in_be16(&mspi->pram->tbase));
-			}
-		}
+		fsl_spi_cpm_reinit_txrx(mspi);
 	}
 	mpc8xxx_spi_write_reg(mode, cs->hw_mode);
 	local_irq_restore(flags);
@@ -163,6 +135,40 @@ static void fsl_spi_chipselect(struct spi_device *spi, int value)
 	}
 }
 
+static void fsl_spi_qe_cpu_set_shifts(u32 *rx_shift, u32 *tx_shift,
+				      int bits_per_word, int msb_first)
+{
+	*rx_shift = 0;
+	*tx_shift = 0;
+	if (msb_first) {
+		if (bits_per_word <= 8) {
+			*rx_shift = 16;
+			*tx_shift = 24;
+		} else if (bits_per_word <= 16) {
+			*rx_shift = 16;
+			*tx_shift = 16;
+		}
+	} else {
+		if (bits_per_word <= 8)
+			*rx_shift = 8;
+	}
+}
+
+static void fsl_spi_grlib_set_shifts(u32 *rx_shift, u32 *tx_shift,
+				     int bits_per_word, int msb_first)
+{
+	*rx_shift = 0;
+	*tx_shift = 0;
+	if (bits_per_word <= 16) {
+		if (msb_first) {
+			*rx_shift = 16; /* LSB in bit 16 */
+			*tx_shift = 32 - bits_per_word; /* MSB in bit 31 */
+		} else {
+			*rx_shift = 16 - bits_per_word; /* MSB in bit 15 */
+		}
+	}
+}
+
 static int mspi_apply_cpu_mode_quirks(struct spi_mpc8xxx_cs *cs,
 				struct spi_device *spi,
 				struct mpc8xxx_spi *mpc8xxx_spi,
@@ -173,31 +179,20 @@ static int mspi_apply_cpu_mode_quirks(struct spi_mpc8xxx_cs *cs,
 	if (bits_per_word <= 8) {
 		cs->get_rx = mpc8xxx_spi_rx_buf_u8;
 		cs->get_tx = mpc8xxx_spi_tx_buf_u8;
-		if (mpc8xxx_spi->flags & SPI_QE_CPU_MODE) {
-			cs->rx_shift = 16;
-			cs->tx_shift = 24;
-		}
 	} else if (bits_per_word <= 16) {
 		cs->get_rx = mpc8xxx_spi_rx_buf_u16;
 		cs->get_tx = mpc8xxx_spi_tx_buf_u16;
-		if (mpc8xxx_spi->flags & SPI_QE_CPU_MODE) {
-			cs->rx_shift = 16;
-			cs->tx_shift = 16;
-		}
 	} else if (bits_per_word <= 32) {
 		cs->get_rx = mpc8xxx_spi_rx_buf_u32;
 		cs->get_tx = mpc8xxx_spi_tx_buf_u32;
 	} else
 		return -EINVAL;
 
-	if (mpc8xxx_spi->flags & SPI_QE_CPU_MODE &&
-	    spi->mode & SPI_LSB_FIRST) {
-		cs->tx_shift = 0;
-		if (bits_per_word <= 8)
-			cs->rx_shift = 8;
-		else
-			cs->rx_shift = 0;
-	}
+	if (mpc8xxx_spi->set_shifts)
+		mpc8xxx_spi->set_shifts(&cs->rx_shift, &cs->tx_shift,
+					bits_per_word,
+					!(spi->mode & SPI_LSB_FIRST));
+
 	mpc8xxx_spi->rx_shift = cs->rx_shift;
 	mpc8xxx_spi->tx_shift = cs->tx_shift;
 	mpc8xxx_spi->get_rx = cs->get_rx;
@@ -246,7 +241,8 @@ static int fsl_spi_setup_transfer(struct spi_device *spi,
 
 	/* Make sure its a bit width we support [4..16, 32] */
 	if ((bits_per_word < 4)
-	    || ((bits_per_word > 16) && (bits_per_word != 32)))
+	    || ((bits_per_word > 16) && (bits_per_word != 32))
+	    || (bits_per_word > mpc8xxx_spi->max_bits_per_word))
 		return -EINVAL;
 
 	if (!hz)
@@ -293,112 +289,6 @@ static int fsl_spi_setup_transfer(struct spi_device *spi,
 
 	fsl_spi_change_mode(spi);
 	return 0;
-}
-
-static void fsl_spi_cpm_bufs_start(struct mpc8xxx_spi *mspi)
-{
-	struct cpm_buf_desc __iomem *tx_bd = mspi->tx_bd;
-	struct cpm_buf_desc __iomem *rx_bd = mspi->rx_bd;
-	unsigned int xfer_len = min(mspi->count, SPI_MRBLR);
-	unsigned int xfer_ofs;
-	struct fsl_spi_reg *reg_base = mspi->reg_base;
-
-	xfer_ofs = mspi->xfer_in_progress->len - mspi->count;
-
-	if (mspi->rx_dma == mspi->dma_dummy_rx)
-		out_be32(&rx_bd->cbd_bufaddr, mspi->rx_dma);
-	else
-		out_be32(&rx_bd->cbd_bufaddr, mspi->rx_dma + xfer_ofs);
-	out_be16(&rx_bd->cbd_datlen, 0);
-	out_be16(&rx_bd->cbd_sc, BD_SC_EMPTY | BD_SC_INTRPT | BD_SC_WRAP);
-
-	if (mspi->tx_dma == mspi->dma_dummy_tx)
-		out_be32(&tx_bd->cbd_bufaddr, mspi->tx_dma);
-	else
-		out_be32(&tx_bd->cbd_bufaddr, mspi->tx_dma + xfer_ofs);
-	out_be16(&tx_bd->cbd_datlen, xfer_len);
-	out_be16(&tx_bd->cbd_sc, BD_SC_READY | BD_SC_INTRPT | BD_SC_WRAP |
-				 BD_SC_LAST);
-
-	/* start transfer */
-	mpc8xxx_spi_write_reg(&reg_base->command, SPCOM_STR);
-}
-
-static int fsl_spi_cpm_bufs(struct mpc8xxx_spi *mspi,
-				struct spi_transfer *t, bool is_dma_mapped)
-{
-	struct device *dev = mspi->dev;
-	struct fsl_spi_reg *reg_base = mspi->reg_base;
-
-	if (is_dma_mapped) {
-		mspi->map_tx_dma = 0;
-		mspi->map_rx_dma = 0;
-	} else {
-		mspi->map_tx_dma = 1;
-		mspi->map_rx_dma = 1;
-	}
-
-	if (!t->tx_buf) {
-		mspi->tx_dma = mspi->dma_dummy_tx;
-		mspi->map_tx_dma = 0;
-	}
-
-	if (!t->rx_buf) {
-		mspi->rx_dma = mspi->dma_dummy_rx;
-		mspi->map_rx_dma = 0;
-	}
-
-	if (mspi->map_tx_dma) {
-		void *nonconst_tx = (void *)mspi->tx; /* shut up gcc */
-
-		mspi->tx_dma = dma_map_single(dev, nonconst_tx, t->len,
-					      DMA_TO_DEVICE);
-		if (dma_mapping_error(dev, mspi->tx_dma)) {
-			dev_err(dev, "unable to map tx dma\n");
-			return -ENOMEM;
-		}
-	} else if (t->tx_buf) {
-		mspi->tx_dma = t->tx_dma;
-	}
-
-	if (mspi->map_rx_dma) {
-		mspi->rx_dma = dma_map_single(dev, mspi->rx, t->len,
-					      DMA_FROM_DEVICE);
-		if (dma_mapping_error(dev, mspi->rx_dma)) {
-			dev_err(dev, "unable to map rx dma\n");
-			goto err_rx_dma;
-		}
-	} else if (t->rx_buf) {
-		mspi->rx_dma = t->rx_dma;
-	}
-
-	/* enable rx ints */
-	mpc8xxx_spi_write_reg(&reg_base->mask, SPIE_RXB);
-
-	mspi->xfer_in_progress = t;
-	mspi->count = t->len;
-
-	/* start CPM transfers */
-	fsl_spi_cpm_bufs_start(mspi);
-
-	return 0;
-
-err_rx_dma:
-	if (mspi->map_tx_dma)
-		dma_unmap_single(dev, mspi->tx_dma, t->len, DMA_TO_DEVICE);
-	return -ENOMEM;
-}
-
-static void fsl_spi_cpm_bufs_complete(struct mpc8xxx_spi *mspi)
-{
-	struct device *dev = mspi->dev;
-	struct spi_transfer *t = mspi->xfer_in_progress;
-
-	if (mspi->map_tx_dma)
-		dma_unmap_single(dev, mspi->tx_dma, t->len, DMA_TO_DEVICE);
-	if (mspi->map_rx_dma)
-		dma_unmap_single(dev, mspi->rx_dma, t->len, DMA_FROM_DEVICE);
-	mspi->xfer_in_progress = NULL;
 }
 
 static int fsl_spi_cpu_bufs(struct mpc8xxx_spi *mspi,
@@ -565,31 +455,45 @@ static int fsl_spi_setup(struct spi_device *spi)
 		cs->hw_mode = hw_mode; /* Restore settings */
 		return retval;
 	}
+
+	if (mpc8xxx_spi->type == TYPE_GRLIB) {
+		if (gpio_is_valid(spi->cs_gpio)) {
+			int desel;
+
+			retval = gpio_request(spi->cs_gpio,
+					      dev_name(&spi->dev));
+			if (retval)
+				return retval;
+
+			desel = !(spi->mode & SPI_CS_HIGH);
+			retval = gpio_direction_output(spi->cs_gpio, desel);
+			if (retval) {
+				gpio_free(spi->cs_gpio);
+				return retval;
+			}
+		} else if (spi->cs_gpio != -ENOENT) {
+			if (spi->cs_gpio < 0)
+				return spi->cs_gpio;
+			return -EINVAL;
+		}
+		/* When spi->cs_gpio == -ENOENT, a hole in the phandle list
+		 * indicates to use native chipselect if present, or allow for
+		 * an always selected chip
+		 */
+	}
+
+	/* Initialize chipselect - might be active for SPI_CS_HIGH mode */
+	fsl_spi_chipselect(spi, BITBANG_CS_INACTIVE);
+
 	return 0;
 }
 
-static void fsl_spi_cpm_irq(struct mpc8xxx_spi *mspi, u32 events)
+static void fsl_spi_cleanup(struct spi_device *spi)
 {
-	u16 len;
-	struct fsl_spi_reg *reg_base = mspi->reg_base;
+	struct mpc8xxx_spi *mpc8xxx_spi = spi_master_get_devdata(spi->master);
 
-	dev_dbg(mspi->dev, "%s: bd datlen %d, count %d\n", __func__,
-		in_be16(&mspi->rx_bd->cbd_datlen), mspi->count);
-
-	len = in_be16(&mspi->rx_bd->cbd_datlen);
-	if (len > mspi->count) {
-		WARN_ON(1);
-		len = mspi->count;
-	}
-
-	/* Clear the events */
-	mpc8xxx_spi_write_reg(&reg_base->event, events);
-
-	mspi->count -= len;
-	if (mspi->count)
-		fsl_spi_cpm_bufs_start(mspi);
-	else
-		complete(&mspi->done);
+	if (mpc8xxx_spi->type == TYPE_GRLIB && gpio_is_valid(spi->cs_gpio))
+		gpio_free(spi->cs_gpio);
 }
 
 static void fsl_spi_cpu_irq(struct mpc8xxx_spi *mspi, u32 events)
@@ -646,201 +550,51 @@ static irqreturn_t fsl_spi_irq(s32 irq, void *context_data)
 	return ret;
 }
 
-static void *fsl_spi_alloc_dummy_rx(void)
-{
-	mutex_lock(&fsl_dummy_rx_lock);
-
-	if (!fsl_dummy_rx)
-		fsl_dummy_rx = kmalloc(SPI_MRBLR, GFP_KERNEL);
-	if (fsl_dummy_rx)
-		fsl_dummy_rx_refcnt++;
-
-	mutex_unlock(&fsl_dummy_rx_lock);
-
-	return fsl_dummy_rx;
-}
-
-static void fsl_spi_free_dummy_rx(void)
-{
-	mutex_lock(&fsl_dummy_rx_lock);
-
-	switch (fsl_dummy_rx_refcnt) {
-	case 0:
-		WARN_ON(1);
-		break;
-	case 1:
-		kfree(fsl_dummy_rx);
-		fsl_dummy_rx = NULL;
-		/* fall through */
-	default:
-		fsl_dummy_rx_refcnt--;
-		break;
-	}
-
-	mutex_unlock(&fsl_dummy_rx_lock);
-}
-
-static unsigned long fsl_spi_cpm_get_pram(struct mpc8xxx_spi *mspi)
-{
-	struct device *dev = mspi->dev;
-	struct device_node *np = dev->of_node;
-	const u32 *iprop;
-	int size;
-	void __iomem *spi_base;
-	unsigned long pram_ofs = -ENOMEM;
-
-	/* Can't use of_address_to_resource(), QE muram isn't at 0. */
-	iprop = of_get_property(np, "reg", &size);
-
-	/* QE with a fixed pram location? */
-	if (mspi->flags & SPI_QE && iprop && size == sizeof(*iprop) * 4)
-		return cpm_muram_alloc_fixed(iprop[2], SPI_PRAM_SIZE);
-
-	/* QE but with a dynamic pram location? */
-	if (mspi->flags & SPI_QE) {
-		pram_ofs = cpm_muram_alloc(SPI_PRAM_SIZE, 64);
-		qe_issue_cmd(QE_ASSIGN_PAGE_TO_DEVICE, mspi->subblock,
-				QE_CR_PROTOCOL_UNSPECIFIED, pram_ofs);
-		return pram_ofs;
-	}
-
-	spi_base = of_iomap(np, 1);
-	if (spi_base == NULL)
-		return -EINVAL;
-
-	if (mspi->flags & SPI_CPM2) {
-		pram_ofs = cpm_muram_alloc(SPI_PRAM_SIZE, 64);
-		out_be16(spi_base, pram_ofs);
-	} else {
-		struct spi_pram __iomem *pram = spi_base;
-		u16 rpbase = in_be16(&pram->rpbase);
-
-		/* Microcode relocation patch applied? */
-		if (rpbase)
-			pram_ofs = rpbase;
-		else {
-			pram_ofs = cpm_muram_alloc(SPI_PRAM_SIZE, 64);
-			out_be16(spi_base, pram_ofs);
-		}
-	}
-
-	iounmap(spi_base);
-	return pram_ofs;
-}
-
-static int fsl_spi_cpm_init(struct mpc8xxx_spi *mspi)
-{
-	struct device *dev = mspi->dev;
-	struct device_node *np = dev->of_node;
-	const u32 *iprop;
-	int size;
-	unsigned long pram_ofs;
-	unsigned long bds_ofs;
-
-	if (!(mspi->flags & SPI_CPM_MODE))
-		return 0;
-
-	if (!fsl_spi_alloc_dummy_rx())
-		return -ENOMEM;
-
-	if (mspi->flags & SPI_QE) {
-		iprop = of_get_property(np, "cell-index", &size);
-		if (iprop && size == sizeof(*iprop))
-			mspi->subblock = *iprop;
-
-		switch (mspi->subblock) {
-		default:
-			dev_warn(dev, "cell-index unspecified, assuming SPI1");
-			/* fall through */
-		case 0:
-			mspi->subblock = QE_CR_SUBBLOCK_SPI1;
-			break;
-		case 1:
-			mspi->subblock = QE_CR_SUBBLOCK_SPI2;
-			break;
-		}
-	}
-
-	pram_ofs = fsl_spi_cpm_get_pram(mspi);
-	if (IS_ERR_VALUE(pram_ofs)) {
-		dev_err(dev, "can't allocate spi parameter ram\n");
-		goto err_pram;
-	}
-
-	bds_ofs = cpm_muram_alloc(sizeof(*mspi->tx_bd) +
-				  sizeof(*mspi->rx_bd), 8);
-	if (IS_ERR_VALUE(bds_ofs)) {
-		dev_err(dev, "can't allocate bds\n");
-		goto err_bds;
-	}
-
-	mspi->dma_dummy_tx = dma_map_single(dev, empty_zero_page, PAGE_SIZE,
-					    DMA_TO_DEVICE);
-	if (dma_mapping_error(dev, mspi->dma_dummy_tx)) {
-		dev_err(dev, "unable to map dummy tx buffer\n");
-		goto err_dummy_tx;
-	}
-
-	mspi->dma_dummy_rx = dma_map_single(dev, fsl_dummy_rx, SPI_MRBLR,
-					    DMA_FROM_DEVICE);
-	if (dma_mapping_error(dev, mspi->dma_dummy_rx)) {
-		dev_err(dev, "unable to map dummy rx buffer\n");
-		goto err_dummy_rx;
-	}
-
-	mspi->pram = cpm_muram_addr(pram_ofs);
-
-	mspi->tx_bd = cpm_muram_addr(bds_ofs);
-	mspi->rx_bd = cpm_muram_addr(bds_ofs + sizeof(*mspi->tx_bd));
-
-	/* Initialize parameter ram. */
-	out_be16(&mspi->pram->tbase, cpm_muram_offset(mspi->tx_bd));
-	out_be16(&mspi->pram->rbase, cpm_muram_offset(mspi->rx_bd));
-	out_8(&mspi->pram->tfcr, CPMFCR_EB | CPMFCR_GBL);
-	out_8(&mspi->pram->rfcr, CPMFCR_EB | CPMFCR_GBL);
-	out_be16(&mspi->pram->mrblr, SPI_MRBLR);
-	out_be32(&mspi->pram->rstate, 0);
-	out_be32(&mspi->pram->rdp, 0);
-	out_be16(&mspi->pram->rbptr, 0);
-	out_be16(&mspi->pram->rbc, 0);
-	out_be32(&mspi->pram->rxtmp, 0);
-	out_be32(&mspi->pram->tstate, 0);
-	out_be32(&mspi->pram->tdp, 0);
-	out_be16(&mspi->pram->tbptr, 0);
-	out_be16(&mspi->pram->tbc, 0);
-	out_be32(&mspi->pram->txtmp, 0);
-
-	return 0;
-
-err_dummy_rx:
-	dma_unmap_single(dev, mspi->dma_dummy_tx, PAGE_SIZE, DMA_TO_DEVICE);
-err_dummy_tx:
-	cpm_muram_free(bds_ofs);
-err_bds:
-	cpm_muram_free(pram_ofs);
-err_pram:
-	fsl_spi_free_dummy_rx();
-	return -ENOMEM;
-}
-
-static void fsl_spi_cpm_free(struct mpc8xxx_spi *mspi)
-{
-	struct device *dev = mspi->dev;
-
-	if (!(mspi->flags & SPI_CPM_MODE))
-		return;
-
-	dma_unmap_single(dev, mspi->dma_dummy_rx, SPI_MRBLR, DMA_FROM_DEVICE);
-	dma_unmap_single(dev, mspi->dma_dummy_tx, PAGE_SIZE, DMA_TO_DEVICE);
-	cpm_muram_free(cpm_muram_offset(mspi->tx_bd));
-	cpm_muram_free(cpm_muram_offset(mspi->pram));
-	fsl_spi_free_dummy_rx();
-}
-
 static void fsl_spi_remove(struct mpc8xxx_spi *mspi)
 {
 	iounmap(mspi->reg_base);
 	fsl_spi_cpm_free(mspi);
+}
+
+static void fsl_spi_grlib_cs_control(struct spi_device *spi, bool on)
+{
+	struct mpc8xxx_spi *mpc8xxx_spi = spi_master_get_devdata(spi->master);
+	struct fsl_spi_reg *reg_base = mpc8xxx_spi->reg_base;
+	u32 slvsel;
+	u16 cs = spi->chip_select;
+
+	if (gpio_is_valid(spi->cs_gpio)) {
+		gpio_set_value(spi->cs_gpio, on);
+	} else if (cs < mpc8xxx_spi->native_chipselects) {
+		slvsel = mpc8xxx_spi_read_reg(&reg_base->slvsel);
+		slvsel = on ? (slvsel | (1 << cs)) : (slvsel & ~(1 << cs));
+		mpc8xxx_spi_write_reg(&reg_base->slvsel, slvsel);
+	}
+}
+
+static void fsl_spi_grlib_probe(struct device *dev)
+{
+	struct fsl_spi_platform_data *pdata = dev->platform_data;
+	struct spi_master *master = dev_get_drvdata(dev);
+	struct mpc8xxx_spi *mpc8xxx_spi = spi_master_get_devdata(master);
+	struct fsl_spi_reg *reg_base = mpc8xxx_spi->reg_base;
+	int mbits;
+	u32 capabilities;
+
+	capabilities = mpc8xxx_spi_read_reg(&reg_base->cap);
+
+	mpc8xxx_spi->set_shifts = fsl_spi_grlib_set_shifts;
+	mbits = SPCAP_MAXWLEN(capabilities);
+	if (mbits)
+		mpc8xxx_spi->max_bits_per_word = mbits + 1;
+
+	mpc8xxx_spi->native_chipselects = 0;
+	if (SPCAP_SSEN(capabilities)) {
+		mpc8xxx_spi->native_chipselects = SPCAP_SSSZ(capabilities);
+		mpc8xxx_spi_write_reg(&reg_base->slvsel, 0xffffffff);
+	}
+	master->num_chipselect = mpc8xxx_spi->native_chipselects;
+	pdata->cs_control = fsl_spi_grlib_cs_control;
 }
 
 static struct spi_master * fsl_spi_probe(struct device *dev,
@@ -866,26 +620,34 @@ static struct spi_master * fsl_spi_probe(struct device *dev,
 		goto err_probe;
 
 	master->setup = fsl_spi_setup;
+	master->cleanup = fsl_spi_cleanup;
 
 	mpc8xxx_spi = spi_master_get_devdata(master);
 	mpc8xxx_spi->spi_do_one_msg = fsl_spi_do_one_msg;
 	mpc8xxx_spi->spi_remove = fsl_spi_remove;
-
+	mpc8xxx_spi->max_bits_per_word = 32;
+	mpc8xxx_spi->type = fsl_spi_get_type(dev);
 
 	ret = fsl_spi_cpm_init(mpc8xxx_spi);
 	if (ret)
 		goto err_cpm_init;
-
-	if (mpc8xxx_spi->flags & SPI_QE_CPU_MODE) {
-		mpc8xxx_spi->rx_shift = 16;
-		mpc8xxx_spi->tx_shift = 24;
-	}
 
 	mpc8xxx_spi->reg_base = ioremap(mem->start, resource_size(mem));
 	if (mpc8xxx_spi->reg_base == NULL) {
 		ret = -ENOMEM;
 		goto err_ioremap;
 	}
+
+	if (mpc8xxx_spi->type == TYPE_GRLIB)
+		fsl_spi_grlib_probe(dev);
+
+	if (mpc8xxx_spi->flags & SPI_QE_CPU_MODE)
+		mpc8xxx_spi->set_shifts = fsl_spi_qe_cpu_set_shifts;
+
+	if (mpc8xxx_spi->set_shifts)
+		/* 8 bits per word and MSB first */
+		mpc8xxx_spi->set_shifts(&mpc8xxx_spi->rx_shift,
+					&mpc8xxx_spi->tx_shift, 8, 1);
 
 	/* Register for SPI Interrupt */
 	ret = request_irq(mpc8xxx_spi->irq, fsl_spi_irq,
@@ -904,6 +666,10 @@ static struct spi_master * fsl_spi_probe(struct device *dev,
 
 	/* Enable SPI interface */
 	regval = pdata->initial_spmode | SPMODE_INIT_VAL | SPMODE_ENABLE;
+	if (mpc8xxx_spi->max_bits_per_word < 8) {
+		regval &= ~SPMODE_LEN(0xF);
+		regval |= SPMODE_LEN(mpc8xxx_spi->max_bits_per_word - 1);
+	}
 	if (mpc8xxx_spi->flags & SPI_QE_CPU_MODE)
 		regval |= SPMODE_OP;
 
@@ -1047,28 +813,31 @@ static int of_fsl_spi_probe(struct platform_device *ofdev)
 	struct device_node *np = ofdev->dev.of_node;
 	struct spi_master *master;
 	struct resource mem;
-	struct resource irq;
+	int irq, type;
 	int ret = -ENOMEM;
 
 	ret = of_mpc8xxx_spi_probe(ofdev);
 	if (ret)
 		return ret;
 
-	ret = of_fsl_spi_get_chipselects(dev);
-	if (ret)
-		goto err;
+	type = fsl_spi_get_type(&ofdev->dev);
+	if (type == TYPE_FSL) {
+		ret = of_fsl_spi_get_chipselects(dev);
+		if (ret)
+			goto err;
+	}
 
 	ret = of_address_to_resource(np, 0, &mem);
 	if (ret)
 		goto err;
 
-	ret = of_irq_to_resource(np, 0, &irq);
-	if (!ret) {
+	irq = irq_of_parse_and_map(np, 0);
+	if (!irq) {
 		ret = -EINVAL;
 		goto err;
 	}
 
-	master = fsl_spi_probe(dev, &mem, irq.start);
+	master = fsl_spi_probe(dev, &mem, irq);
 	if (IS_ERR(master)) {
 		ret = PTR_ERR(master);
 		goto err;
@@ -1077,26 +846,24 @@ static int of_fsl_spi_probe(struct platform_device *ofdev)
 	return 0;
 
 err:
-	of_fsl_spi_free_chipselects(dev);
+	if (type == TYPE_FSL)
+		of_fsl_spi_free_chipselects(dev);
 	return ret;
 }
 
 static int of_fsl_spi_remove(struct platform_device *ofdev)
 {
+	struct spi_master *master = dev_get_drvdata(&ofdev->dev);
+	struct mpc8xxx_spi *mpc8xxx_spi = spi_master_get_devdata(master);
 	int ret;
 
 	ret = mpc8xxx_spi_remove(&ofdev->dev);
 	if (ret)
 		return ret;
-	of_fsl_spi_free_chipselects(&ofdev->dev);
+	if (mpc8xxx_spi->type == TYPE_FSL)
+		of_fsl_spi_free_chipselects(&ofdev->dev);
 	return 0;
 }
-
-static const struct of_device_id of_fsl_spi_match[] = {
-	{ .compatible = "fsl,spi" },
-	{}
-};
-MODULE_DEVICE_TABLE(of, of_fsl_spi_match);
 
 static struct platform_driver of_fsl_spi_driver = {
 	.driver = {
@@ -1134,9 +901,7 @@ static int plat_mpc8xxx_spi_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	master = fsl_spi_probe(&pdev->dev, mem, irq);
-	if (IS_ERR(master))
-		return PTR_ERR(master);
-	return 0;
+	return PTR_RET(master);
 }
 
 static int plat_mpc8xxx_spi_remove(struct platform_device *pdev)

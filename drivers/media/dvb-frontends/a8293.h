@@ -21,12 +21,13 @@
 #ifndef A8293_H
 #define A8293_H
 
+#include <linux/kconfig.h>
+
 struct a8293_config {
 	u8 i2c_addr;
 };
 
-#if defined(CONFIG_DVB_A8293) || \
-	(defined(CONFIG_DVB_A8293_MODULE) && defined(MODULE))
+#if IS_ENABLED(CONFIG_DVB_A8293)
 extern struct dvb_frontend *a8293_attach(struct dvb_frontend *fe,
 	struct i2c_adapter *i2c, const struct a8293_config *cfg);
 #else

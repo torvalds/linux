@@ -18,8 +18,9 @@
 
 /* mapping of irq numbers to msi_desc */
 static struct hlist_head *msi_hash;
-static unsigned int msihash_shift = 6;
-#define msi_hashfn(nr)	hash_long(nr, msihash_shift)
+static const unsigned int msi_hash_bits = 8;
+#define MSI_HASH_BUCKETS (1U << msi_hash_bits)
+#define msi_hashfn(nr)	hash_long(nr, msi_hash_bits)
 
 static DEFINE_SPINLOCK(msi_map_lock);
 
@@ -74,6 +75,7 @@ int zpci_setup_msi_irq(struct zpci_dev *zdev, struct msi_desc *msi,
 	map->irq = nr;
 	map->msi = msi;
 	zdev->msi_map[nr & ZPCI_MSI_MASK] = map;
+	INIT_HLIST_NODE(&map->msi_chain);
 
 	pr_debug("%s hashing irq: %u  to bucket nr: %llu\n",
 		__func__, nr, msi_hashfn(nr));
@@ -125,11 +127,11 @@ int __init zpci_msihash_init(void)
 {
 	unsigned int i;
 
-	msi_hash = kmalloc(256 * sizeof(*msi_hash), GFP_KERNEL);
+	msi_hash = kmalloc(MSI_HASH_BUCKETS * sizeof(*msi_hash), GFP_KERNEL);
 	if (!msi_hash)
 		return -ENOMEM;
 
-	for (i = 0; i < (1U << msihash_shift); i++)
+	for (i = 0; i < MSI_HASH_BUCKETS; i++)
 		INIT_HLIST_HEAD(&msi_hash[i]);
 	return 0;
 }

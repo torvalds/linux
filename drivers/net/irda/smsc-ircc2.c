@@ -563,24 +563,15 @@ static int smsc_ircc_open(unsigned int fir_base, unsigned int sir_base, u8 dma, 
 
 	self->rx_buff.head =
 		dma_alloc_coherent(NULL, self->rx_buff.truesize,
-				   &self->rx_buff_dma, GFP_KERNEL);
-	if (self->rx_buff.head == NULL) {
-		IRDA_ERROR("%s, Can't allocate memory for receive buffer!\n",
-			   driver_name);
+				   &self->rx_buff_dma, GFP_KERNEL | __GFP_ZERO);
+	if (self->rx_buff.head == NULL)
 		goto err_out2;
-	}
 
 	self->tx_buff.head =
 		dma_alloc_coherent(NULL, self->tx_buff.truesize,
-				   &self->tx_buff_dma, GFP_KERNEL);
-	if (self->tx_buff.head == NULL) {
-		IRDA_ERROR("%s, Can't allocate memory for transmit buffer!\n",
-			   driver_name);
+				   &self->tx_buff_dma, GFP_KERNEL | __GFP_ZERO);
+	if (self->tx_buff.head == NULL)
 		goto err_out3;
-	}
-
-	memset(self->rx_buff.head, 0, self->rx_buff.truesize);
-	memset(self->tx_buff.head, 0, self->tx_buff.truesize);
 
 	self->rx_buff.in_frame = FALSE;
 	self->rx_buff.state = OUTSIDE_FRAME;

@@ -1512,7 +1512,7 @@ out_truncate:
 out_unlock:
 	/* Error path for case 1 */
 	if (gfs2_rs_active(ip->i_res))
-		gfs2_rs_deltree(ip, ip->i_res);
+		gfs2_rs_deltree(ip->i_res);
 
 	if (test_bit(HIF_HOLDER, &ip->i_iopen_gh.gh_iflags))
 		gfs2_glock_dq(&ip->i_iopen_gh);

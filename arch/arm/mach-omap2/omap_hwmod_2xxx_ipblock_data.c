@@ -512,6 +512,7 @@ struct omap_hwmod omap2xxx_uart1_hwmod = {
 	.mpu_irqs	= omap2_uart1_mpu_irqs,
 	.sdma_reqs	= omap2_uart1_sdma_reqs,
 	.main_clk	= "uart1_fck",
+	.flags		= HWMOD_SWSUP_SIDLE_ACT,
 	.prcm		= {
 		.omap2 = {
 			.module_offs = CORE_MOD,
@@ -531,6 +532,7 @@ struct omap_hwmod omap2xxx_uart2_hwmod = {
 	.mpu_irqs	= omap2_uart2_mpu_irqs,
 	.sdma_reqs	= omap2_uart2_sdma_reqs,
 	.main_clk	= "uart2_fck",
+	.flags		= HWMOD_SWSUP_SIDLE_ACT,
 	.prcm		= {
 		.omap2 = {
 			.module_offs = CORE_MOD,
@@ -550,6 +552,7 @@ struct omap_hwmod omap2xxx_uart3_hwmod = {
 	.mpu_irqs	= omap2_uart3_mpu_irqs,
 	.sdma_reqs	= omap2_uart3_sdma_reqs,
 	.main_clk	= "uart3_fck",
+	.flags		= HWMOD_SWSUP_SIDLE_ACT,
 	.prcm		= {
 		.omap2 = {
 			.module_offs = CORE_MOD,
@@ -863,4 +866,85 @@ struct omap_hwmod omap2xxx_rng_hwmod = {
 	 */
 	.flags		= HWMOD_INIT_NO_RESET,
 	.class		= &omap2_rng_hwmod_class,
+};
+
+/* SHAM */
+
+static struct omap_hwmod_class_sysconfig omap2_sham_sysc = {
+	.rev_offs	= 0x5c,
+	.sysc_offs	= 0x60,
+	.syss_offs	= 0x64,
+	.sysc_flags	= (SYSC_HAS_SOFTRESET | SYSC_HAS_AUTOIDLE |
+			   SYSS_HAS_RESET_STATUS),
+	.sysc_fields	= &omap_hwmod_sysc_type1,
+};
+
+static struct omap_hwmod_class omap2xxx_sham_class = {
+	.name	= "sham",
+	.sysc	= &omap2_sham_sysc,
+};
+
+static struct omap_hwmod_irq_info omap2_sham_mpu_irqs[] = {
+	{ .irq = 51 + OMAP_INTC_START, },
+	{ .irq = -1 }
+};
+
+static struct omap_hwmod_dma_info omap2_sham_sdma_chs[] = {
+	{ .name = "rx", .dma_req = 13 },
+	{ .dma_req = -1 }
+};
+
+struct omap_hwmod omap2xxx_sham_hwmod = {
+	.name		= "sham",
+	.mpu_irqs	= omap2_sham_mpu_irqs,
+	.sdma_reqs	= omap2_sham_sdma_chs,
+	.main_clk	= "l4_ck",
+	.prcm		= {
+		.omap2 = {
+			.module_offs = CORE_MOD,
+			.prcm_reg_id = 4,
+			.module_bit = OMAP24XX_EN_SHA_SHIFT,
+			.idlest_reg_id = 4,
+			.idlest_idle_bit = OMAP24XX_ST_SHA_SHIFT,
+		},
+	},
+	.class		= &omap2xxx_sham_class,
+};
+
+/* AES */
+
+static struct omap_hwmod_class_sysconfig omap2_aes_sysc = {
+	.rev_offs	= 0x44,
+	.sysc_offs	= 0x48,
+	.syss_offs	= 0x4c,
+	.sysc_flags	= (SYSC_HAS_SOFTRESET | SYSC_HAS_AUTOIDLE |
+			   SYSS_HAS_RESET_STATUS),
+	.sysc_fields	= &omap_hwmod_sysc_type1,
+};
+
+static struct omap_hwmod_class omap2xxx_aes_class = {
+	.name	= "aes",
+	.sysc	= &omap2_aes_sysc,
+};
+
+static struct omap_hwmod_dma_info omap2_aes_sdma_chs[] = {
+	{ .name = "tx", .dma_req = 9 },
+	{ .name = "rx", .dma_req = 10 },
+	{ .dma_req = -1 }
+};
+
+struct omap_hwmod omap2xxx_aes_hwmod = {
+	.name		= "aes",
+	.sdma_reqs	= omap2_aes_sdma_chs,
+	.main_clk	= "l4_ck",
+	.prcm		= {
+		.omap2 = {
+			.module_offs = CORE_MOD,
+			.prcm_reg_id = 4,
+			.module_bit = OMAP24XX_EN_AES_SHIFT,
+			.idlest_reg_id = 4,
+			.idlest_idle_bit = OMAP24XX_ST_AES_SHIFT,
+		},
+	},
+	.class		= &omap2xxx_aes_class,
 };

@@ -914,7 +914,7 @@ static int hardwall_proc_show(struct seq_file *sf, void *v)
 static int hardwall_proc_open(struct inode *inode,
 			      struct file *file)
 {
-	return single_open(file, hardwall_proc_show, PDE(inode)->data);
+	return single_open(file, hardwall_proc_show, PDE_DATA(inode));
 }
 
 static const struct file_operations hardwall_proc_fops = {

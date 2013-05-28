@@ -40,7 +40,7 @@ bits for humidity, or 12 bits for temperature and 8 bits for humidity.
 The humidity calibration coefficients are programmed into an OTP memory on the
 chip. These coefficients are used to internally calibrate the signals from the
 sensors. Disabling the reload of those coefficients allows saving 10ms for each
-measurement and decrease power consumption, while loosing on precision.
+measurement and decrease power consumption, while losing on precision.
 
 Some options may be set directly in the sht15_platform_data structure
 or via sysfs attributes.

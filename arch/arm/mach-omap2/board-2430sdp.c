@@ -38,7 +38,7 @@
 #include "gpmc-smc91x.h"
 
 #include <video/omapdss.h>
-#include <video/omap-panel-generic-dpi.h>
+#include <video/omap-panel-data.h>
 
 #include "mux.h"
 #include "hsmmc.h"
@@ -108,24 +108,13 @@ static struct platform_device *sdp2430_devices[] __initdata = {
 #define SDP2430_LCD_PANEL_BACKLIGHT_GPIO	91
 #define SDP2430_LCD_PANEL_ENABLE_GPIO		154
 
-static int sdp2430_panel_enable_lcd(struct omap_dss_device *dssdev)
-{
-	gpio_direction_output(SDP2430_LCD_PANEL_ENABLE_GPIO, 1);
-	gpio_direction_output(SDP2430_LCD_PANEL_BACKLIGHT_GPIO, 1);
-
-	return 0;
-}
-
-static void sdp2430_panel_disable_lcd(struct omap_dss_device *dssdev)
-{
-	gpio_direction_output(SDP2430_LCD_PANEL_ENABLE_GPIO, 0);
-	gpio_direction_output(SDP2430_LCD_PANEL_BACKLIGHT_GPIO, 0);
-}
-
 static struct panel_generic_dpi_data sdp2430_panel_data = {
 	.name			= "nec_nl2432dr22-11b",
-	.platform_enable	= sdp2430_panel_enable_lcd,
-	.platform_disable	= sdp2430_panel_disable_lcd,
+	.num_gpios		= 2,
+	.gpios			= {
+		SDP2430_LCD_PANEL_ENABLE_GPIO,
+		SDP2430_LCD_PANEL_BACKLIGHT_GPIO,
+	},
 };
 
 static struct omap_dss_device sdp2430_lcd_device = {
@@ -146,27 +135,7 @@ static struct omap_dss_board_info sdp2430_dss_data = {
 	.default_device	= &sdp2430_lcd_device,
 };
 
-static void __init sdp2430_display_init(void)
-{
-	int r;
-
-	static struct gpio gpios[] __initdata = {
-		{ SDP2430_LCD_PANEL_ENABLE_GPIO, GPIOF_OUT_INIT_LOW,
-			"LCD reset" },
-		{ SDP2430_LCD_PANEL_BACKLIGHT_GPIO, GPIOF_OUT_INIT_LOW,
-			"LCD Backlight" },
-	};
-
-	r = gpio_request_array(gpios, ARRAY_SIZE(gpios));
-	if (r) {
-		pr_err("Cannot request LCD GPIOs, error %d\n", r);
-		return;
-	}
-
-	omap_display_init(&sdp2430_dss_data);
-}
-
-#if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91x_MODULE)
+#if IS_ENABLED(CONFIG_SMC91X)
 
 static struct omap_smc91x_platform_data board_smc91x_data = {
 	.cs		= 5,
@@ -273,7 +242,7 @@ static void __init omap_2430sdp_init(void)
 	gpio_request_one(SECONDARY_LCD_GPIO, GPIOF_OUT_INIT_LOW,
 			 "Secondary LCD backlight");
 
-	sdp2430_display_init();
+	omap_display_init(&sdp2430_dss_data);
 }
 
 MACHINE_START(OMAP_2430SDP, "OMAP2430 sdp2430 board")

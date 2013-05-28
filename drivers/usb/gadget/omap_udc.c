@@ -62,6 +62,7 @@
 #define	DRIVER_VERSION	"4 October 2004"
 
 #define OMAP_DMA_USB_W2FC_TX0		29
+#define OMAP_DMA_USB_W2FC_RX0		26
 
 /*
  * The OMAP UDC needs _very_ early endpoint setup:  before enabling the
@@ -1310,7 +1311,7 @@ static int omap_pullup(struct usb_gadget *gadget, int is_on)
 }
 
 static int omap_udc_start(struct usb_gadget *g,
-		struct usb_gadget_driver *driver)
+		struct usb_gadget_driver *driver);
 static int omap_udc_stop(struct usb_gadget *g,
 		struct usb_gadget_driver *driver);
 
@@ -2066,7 +2067,6 @@ static int omap_udc_start(struct usb_gadget *g,
 	/* hook up the driver */
 	driver->driver.bus = NULL;
 	udc->driver = driver;
-	udc->gadget.dev.driver = &driver->driver;
 	spin_unlock_irqrestore(&udc->lock, flags);
 
 	if (udc->dc_clk != NULL)
@@ -2082,7 +2082,6 @@ static int omap_udc_start(struct usb_gadget *g,
 			ERR("can't bind to transceiver\n");
 			if (driver->unbind) {
 				driver->unbind(&udc->gadget);
-				udc->gadget.dev.driver = NULL;
 				udc->driver = NULL;
 			}
 			goto done;
@@ -2128,7 +2127,6 @@ static int omap_udc_stop(struct usb_gadget *g,
 	udc_quiesce(udc);
 	spin_unlock_irqrestore(&udc->lock, flags);
 
-	udc->gadget.dev.driver = NULL;
 	udc->driver = NULL;
 
 	if (udc->dc_clk != NULL)
@@ -2630,14 +2628,6 @@ omap_udc_setup(struct platform_device *odev, struct usb_phy *xceiv)
 	udc->gadget.speed = USB_SPEED_UNKNOWN;
 	udc->gadget.max_speed = USB_SPEED_FULL;
 	udc->gadget.name = driver_name;
-
-	device_initialize(&udc->gadget.dev);
-	dev_set_name(&udc->gadget.dev, "gadget");
-	udc->gadget.dev.release = omap_udc_release;
-	udc->gadget.dev.parent = &odev->dev;
-	if (use_dma)
-		udc->gadget.dev.dma_mask = odev->dev.dma_mask;
-
 	udc->transceiver = xceiv;
 
 	/* ep0 is special; put it right after the SETUP buffer */
@@ -2911,14 +2901,13 @@ bad_on_1710:
 	}
 
 	create_proc_file();
-	status = device_add(&udc->gadget.dev);
+	status = usb_add_gadget_udc_release(&pdev->dev, &udc->gadget,
+			omap_udc_release);
 	if (status)
 		goto cleanup4;
 
-	status = usb_add_gadget_udc(&pdev->dev, &udc->gadget);
-	if (!status)
-		return status;
-	/* If fail, fall through */
+	return 0;
+
 cleanup4:
 	remove_proc_file();
 
@@ -2989,7 +2978,6 @@ static int omap_udc_remove(struct platform_device *pdev)
 	release_mem_region(pdev->resource[0].start,
 			pdev->resource[0].end - pdev->resource[0].start + 1);
 
-	device_unregister(&udc->gadget.dev);
 	wait_for_completion(&done);
 
 	return 0;

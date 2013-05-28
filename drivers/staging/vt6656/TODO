@@ -7,7 +7,7 @@ TODO:
   - split rf.c
   - abstract VT3184 chipset specific code
 - add common vt665x infrastructure
-- kill ttype.h
+- kill ttype.h -- done
 - switch to use LIB80211
 - switch to use MAC80211
 - use kernel coding style

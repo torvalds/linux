@@ -156,6 +156,7 @@ struct net_bridge_port
 #define BR_BPDU_GUARD           0x00000002
 #define BR_ROOT_BLOCK		0x00000004
 #define BR_MULTICAST_FAST_LEAVE	0x00000008
+#define BR_ADMIN_COST		0x00000010
 
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 	u32				multicast_startup_queries_sent;
@@ -442,7 +443,7 @@ extern int br_multicast_rcv(struct net_bridge *br,
 			    struct net_bridge_port *port,
 			    struct sk_buff *skb);
 extern struct net_bridge_mdb_entry *br_mdb_get(struct net_bridge *br,
-					       struct sk_buff *skb);
+					       struct sk_buff *skb, u16 vid);
 extern void br_multicast_add_port(struct net_bridge_port *port);
 extern void br_multicast_del_port(struct net_bridge_port *port);
 extern void br_multicast_enable_port(struct net_bridge_port *port);
@@ -504,7 +505,7 @@ static inline int br_multicast_rcv(struct net_bridge *br,
 }
 
 static inline struct net_bridge_mdb_entry *br_mdb_get(struct net_bridge *br,
-						      struct sk_buff *skb)
+						      struct sk_buff *skb, u16 vid)
 {
 	return NULL;
 }

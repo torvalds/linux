@@ -18,6 +18,7 @@
 #include "hw-ops.h"
 #include "../regd.h"
 #include "ar9002_phy.h"
+#include "ar5008_initvals.h"
 
 /* All code below is for AR5008, AR9001, AR9002 */
 
@@ -43,23 +44,16 @@ static const int m2ThreshLowExt_off = 127;
 static const int m1ThreshExt_off = 127;
 static const int m2ThreshExt_off = 127;
 
+static const struct ar5416IniArray bank0 = STATIC_INI_ARRAY(ar5416Bank0);
+static const struct ar5416IniArray bank1 = STATIC_INI_ARRAY(ar5416Bank1);
+static const struct ar5416IniArray bank2 = STATIC_INI_ARRAY(ar5416Bank2);
+static const struct ar5416IniArray bank3 = STATIC_INI_ARRAY(ar5416Bank3);
+static const struct ar5416IniArray bank7 = STATIC_INI_ARRAY(ar5416Bank7);
 
-static void ar5008_rf_bank_setup(u32 *bank, struct ar5416IniArray *array,
-				 int col)
+static void ar5008_write_bank6(struct ath_hw *ah, unsigned int *writecnt)
 {
-	int i;
-
-	for (i = 0; i < array->ia_rows; i++)
-		bank[i] = INI_RA(array, i, col);
-}
-
-
-#define REG_WRITE_RF_ARRAY(iniarray, regData, regWr) \
-	ar5008_write_rf_array(ah, iniarray, regData, &(regWr))
-
-static void ar5008_write_rf_array(struct ath_hw *ah, struct ar5416IniArray *array,
-				  u32 *data, unsigned int *writecnt)
-{
+	struct ar5416IniArray *array = &ah->iniBank6;
+	u32 *data = ah->analogBank6Data;
 	int r;
 
 	ENABLE_REGWRITE_BUFFER(ah);
@@ -165,7 +159,7 @@ static void ar5008_hw_force_bias(struct ath_hw *ah, u16 synth_freq)
 	ar5008_hw_phy_modify_rx_buffer(ah->analogBank6Data, tmp_reg, 3, 181, 3);
 
 	/* write Bank 6 with new params */
-	REG_WRITE_RF_ARRAY(&ah->iniBank6, ah->analogBank6Data, reg_writes);
+	ar5008_write_bank6(ah, &reg_writes);
 }
 
 /**
@@ -469,31 +463,16 @@ static void ar5008_hw_spur_mitigate(struct ath_hw *ah,
  */
 static int ar5008_hw_rf_alloc_ext_banks(struct ath_hw *ah)
 {
-#define ATH_ALLOC_BANK(bank, size) do { \
-		bank = devm_kzalloc(ah->dev, sizeof(u32) * size, GFP_KERNEL); \
-		if (!bank) \
-			goto error; \
-	} while (0);
-
-	struct ath_common *common = ath9k_hw_common(ah);
+	int size = ah->iniBank6.ia_rows * sizeof(u32);
 
 	if (AR_SREV_9280_20_OR_LATER(ah))
 	    return 0;
 
-	ATH_ALLOC_BANK(ah->analogBank0Data, ah->iniBank0.ia_rows);
-	ATH_ALLOC_BANK(ah->analogBank1Data, ah->iniBank1.ia_rows);
-	ATH_ALLOC_BANK(ah->analogBank2Data, ah->iniBank2.ia_rows);
-	ATH_ALLOC_BANK(ah->analogBank3Data, ah->iniBank3.ia_rows);
-	ATH_ALLOC_BANK(ah->analogBank6Data, ah->iniBank6.ia_rows);
-	ATH_ALLOC_BANK(ah->analogBank6TPCData, ah->iniBank6TPC.ia_rows);
-	ATH_ALLOC_BANK(ah->analogBank7Data, ah->iniBank7.ia_rows);
-	ATH_ALLOC_BANK(ah->bank6Temp, ah->iniBank6.ia_rows);
+	ah->analogBank6Data = devm_kzalloc(ah->dev, size, GFP_KERNEL);
+	if (!ah->analogBank6Data)
+		return -ENOMEM;
 
 	return 0;
-#undef ATH_ALLOC_BANK
-error:
-	ath_err(common, "Cannot allocate RF banks\n");
-	return -ENOMEM;
 }
 
 
@@ -517,6 +496,7 @@ static bool ar5008_hw_set_rf_regs(struct ath_hw *ah,
 	u32 ob5GHz = 0, db5GHz = 0;
 	u32 ob2GHz = 0, db2GHz = 0;
 	int regWrites = 0;
+	int i;
 
 	/*
 	 * Software does not need to program bank data
@@ -529,25 +509,8 @@ static bool ar5008_hw_set_rf_regs(struct ath_hw *ah,
 	/* Setup rf parameters */
 	eepMinorRev = ah->eep_ops->get_eeprom(ah, EEP_MINOR_REV);
 
-	/* Setup Bank 0 Write */
-	ar5008_rf_bank_setup(ah->analogBank0Data, &ah->iniBank0, 1);
-
-	/* Setup Bank 1 Write */
-	ar5008_rf_bank_setup(ah->analogBank1Data, &ah->iniBank1, 1);
-
-	/* Setup Bank 2 Write */
-	ar5008_rf_bank_setup(ah->analogBank2Data, &ah->iniBank2, 1);
-
-	/* Setup Bank 6 Write */
-	ar5008_rf_bank_setup(ah->analogBank3Data, &ah->iniBank3,
-		      modesIndex);
-	{
-		int i;
-		for (i = 0; i < ah->iniBank6TPC.ia_rows; i++) {
-			ah->analogBank6Data[i] =
-			    INI_RA(&ah->iniBank6TPC, i, modesIndex);
-		}
-	}
+	for (i = 0; i < ah->iniBank6.ia_rows; i++)
+		ah->analogBank6Data[i] = INI_RA(&ah->iniBank6, i, modesIndex);
 
 	/* Only the 5 or 2 GHz OB/DB need to be set for a mode */
 	if (eepMinorRev >= 2) {
@@ -568,22 +531,13 @@ static bool ar5008_hw_set_rf_regs(struct ath_hw *ah,
 		}
 	}
 
-	/* Setup Bank 7 Setup */
-	ar5008_rf_bank_setup(ah->analogBank7Data, &ah->iniBank7, 1);
-
 	/* Write Analog registers */
-	REG_WRITE_RF_ARRAY(&ah->iniBank0, ah->analogBank0Data,
-			   regWrites);
-	REG_WRITE_RF_ARRAY(&ah->iniBank1, ah->analogBank1Data,
-			   regWrites);
-	REG_WRITE_RF_ARRAY(&ah->iniBank2, ah->analogBank2Data,
-			   regWrites);
-	REG_WRITE_RF_ARRAY(&ah->iniBank3, ah->analogBank3Data,
-			   regWrites);
-	REG_WRITE_RF_ARRAY(&ah->iniBank6TPC, ah->analogBank6Data,
-			   regWrites);
-	REG_WRITE_RF_ARRAY(&ah->iniBank7, ah->analogBank7Data,
-			   regWrites);
+	REG_WRITE_ARRAY(&bank0, 1, regWrites);
+	REG_WRITE_ARRAY(&bank1, 1, regWrites);
+	REG_WRITE_ARRAY(&bank2, 1, regWrites);
+	REG_WRITE_ARRAY(&bank3, modesIndex, regWrites);
+	ar5008_write_bank6(ah, &regWrites);
+	REG_WRITE_ARRAY(&bank7, 1, regWrites);
 
 	return true;
 }

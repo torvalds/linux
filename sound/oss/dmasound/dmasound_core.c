@@ -835,7 +835,7 @@ static void sq_reset(void)
 	shared_resources_initialised = 0 ;
 }
 
-static int sq_fsync(struct file *filp, struct dentry *dentry)
+static int sq_fsync(void)
 {
 	int rc = 0;
 	int timeout = 5;
@@ -874,7 +874,7 @@ static int sq_release(struct inode *inode, struct file *file)
 
 	if (file->f_mode & FMODE_WRITE) {
 		if (write_sq.busy)
-			rc = sq_fsync(file, file->f_path.dentry);
+			rc = sq_fsync();
 
 		sq_reset_output() ; /* make sure dma is stopped and all is quiet */
 		write_sq_release_buffers();
@@ -1025,7 +1025,7 @@ static int sq_ioctl(struct file *file, u_int cmd, u_long arg)
 		*/
 		result = 0 ;
 		if (file->f_mode & FMODE_WRITE) {
-			result = sq_fsync(file, file->f_path.dentry);
+			result = sq_fsync();
 			sq_reset_output() ;
 		}
 		/* if we are the shared resource owner then release them */

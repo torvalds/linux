@@ -86,6 +86,7 @@ static ssize_t store_sockfd(struct device *dev, struct device_attribute *attr,
 	struct stub_device *sdev = dev_get_drvdata(dev);
 	int sockfd = 0;
 	struct socket *socket;
+	ssize_t err = -EINVAL;
 
 	if (!sdev) {
 		dev_err(dev, "sdev is null\n");
@@ -101,21 +102,21 @@ static ssize_t store_sockfd(struct device *dev, struct device_attribute *attr,
 
 		if (sdev->ud.status != SDEV_ST_AVAILABLE) {
 			dev_err(dev, "not ready\n");
-			spin_unlock_irq(&sdev->ud.lock);
-			return -EINVAL;
+			goto err;
 		}
 
 		socket = sockfd_to_socket(sockfd);
-		if (!socket) {
-			spin_unlock_irq(&sdev->ud.lock);
-			return -EINVAL;
-		}
+		if (!socket)
+			goto err;
+
 		sdev->ud.tcp_socket = socket;
 
 		spin_unlock_irq(&sdev->ud.lock);
 
-		sdev->ud.tcp_rx = kthread_get_run(stub_rx_loop, &sdev->ud, "stub_rx");
-		sdev->ud.tcp_tx = kthread_get_run(stub_tx_loop, &sdev->ud, "stub_tx");
+		sdev->ud.tcp_rx = kthread_get_run(stub_rx_loop, &sdev->ud,
+						  "stub_rx");
+		sdev->ud.tcp_tx = kthread_get_run(stub_tx_loop, &sdev->ud,
+						  "stub_tx");
 
 		spin_lock_irq(&sdev->ud.lock);
 		sdev->ud.status = SDEV_ST_USED;
@@ -125,16 +126,19 @@ static ssize_t store_sockfd(struct device *dev, struct device_attribute *attr,
 		dev_info(dev, "stub down\n");
 
 		spin_lock_irq(&sdev->ud.lock);
-		if (sdev->ud.status != SDEV_ST_USED) {
-			spin_unlock_irq(&sdev->ud.lock);
-			return -EINVAL;
-		}
+		if (sdev->ud.status != SDEV_ST_USED)
+			goto err;
+
 		spin_unlock_irq(&sdev->ud.lock);
 
 		usbip_event_add(&sdev->ud, SDEV_EVENT_DOWN);
 	}
 
 	return count;
+
+err:
+	spin_unlock_irq(&sdev->ud.lock);
+	return err;
 }
 static DEVICE_ATTR(usbip_sockfd, S_IWUSR, NULL, store_sockfd);
 
@@ -323,15 +327,9 @@ static struct stub_device *stub_device_alloc(struct usb_device *udev,
 	return sdev;
 }
 
-static int stub_device_free(struct stub_device *sdev)
+static void stub_device_free(struct stub_device *sdev)
 {
-	if (!sdev)
-		return -EINVAL;
-
 	kfree(sdev);
-	pr_debug("kfree udev ok\n");
-
-	return 0;
 }
 
 /*
@@ -450,7 +448,7 @@ static void shutdown_busid(struct bus_id_priv *busid_priv)
 		busid_priv->shutdown_busid = 1;
 		usbip_event_add(&busid_priv->sdev->ud, SDEV_EVENT_REMOVED);
 
-		/* 2. wait for the stop of the event handler */
+		/* wait for the stop of the event handler */
 		usbip_stop_eh(&busid_priv->sdev->ud);
 	}
 }

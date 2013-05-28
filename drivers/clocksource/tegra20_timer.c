@@ -154,28 +154,11 @@ static struct irqaction tegra_timer_irq = {
 	.dev_id		= &tegra_clockevent,
 };
 
-static const struct of_device_id timer_match[] __initconst = {
-	{ .compatible = "nvidia,tegra20-timer" },
-	{}
-};
-
-static const struct of_device_id rtc_match[] __initconst = {
-	{ .compatible = "nvidia,tegra20-rtc" },
-	{}
-};
-
-static void __init tegra20_init_timer(void)
+static void __init tegra20_init_timer(struct device_node *np)
 {
-	struct device_node *np;
 	struct clk *clk;
 	unsigned long rate;
 	int ret;
-
-	np = of_find_matching_node(NULL, timer_match);
-	if (!np) {
-		pr_err("Failed to find timer DT node\n");
-		BUG();
-	}
 
 	timer_reg_base = of_iomap(np, 0);
 	if (!timer_reg_base) {
@@ -189,7 +172,7 @@ static void __init tegra20_init_timer(void)
 		BUG();
 	}
 
-	clk = clk_get_sys("timer", NULL);
+	clk = of_clk_get(np, 0);
 	if (IS_ERR(clk)) {
 		pr_warn("Unable to get timer clock. Assuming 12Mhz input clock.\n");
 		rate = 12000000;
@@ -197,30 +180,6 @@ static void __init tegra20_init_timer(void)
 		clk_prepare_enable(clk);
 		rate = clk_get_rate(clk);
 	}
-
-	of_node_put(np);
-
-	np = of_find_matching_node(NULL, rtc_match);
-	if (!np) {
-		pr_err("Failed to find RTC DT node\n");
-		BUG();
-	}
-
-	rtc_base = of_iomap(np, 0);
-	if (!rtc_base) {
-		pr_err("Can't map RTC registers");
-		BUG();
-	}
-
-	/*
-	 * rtc registers are used by read_persistent_clock, keep the rtc clock
-	 * enabled
-	 */
-	clk = clk_get_sys("rtc-tegra", NULL);
-	if (IS_ERR(clk))
-		pr_warn("Unable to get rtc-tegra clock\n");
-	else
-		clk_prepare_enable(clk);
 
 	of_node_put(np);
 
@@ -259,12 +218,34 @@ static void __init tegra20_init_timer(void)
 	tegra_clockevent.irq = tegra_timer_irq.irq;
 	clockevents_config_and_register(&tegra_clockevent, 1000000,
 					0x1, 0x1fffffff);
-#ifdef CONFIG_HAVE_ARM_TWD
-	twd_local_timer_of_register();
-#endif
+}
+CLOCKSOURCE_OF_DECLARE(tegra20_timer, "nvidia,tegra20-timer", tegra20_init_timer);
+
+static void __init tegra20_init_rtc(struct device_node *np)
+{
+	struct clk *clk;
+
+	rtc_base = of_iomap(np, 0);
+	if (!rtc_base) {
+		pr_err("Can't map RTC registers");
+		BUG();
+	}
+
+	/*
+	 * rtc registers are used by read_persistent_clock, keep the rtc clock
+	 * enabled
+	 */
+	clk = of_clk_get(np, 0);
+	if (IS_ERR(clk))
+		pr_warn("Unable to get rtc-tegra clock\n");
+	else
+		clk_prepare_enable(clk);
+
+	of_node_put(np);
+
 	register_persistent_clock(NULL, tegra_read_persistent_clock);
 }
-CLOCKSOURCE_OF_DECLARE(tegra20, "nvidia,tegra20-timer", tegra20_init_timer);
+CLOCKSOURCE_OF_DECLARE(tegra20_rtc, "nvidia,tegra20-rtc", tegra20_init_rtc);
 
 #ifdef CONFIG_PM
 static u32 usec_config;

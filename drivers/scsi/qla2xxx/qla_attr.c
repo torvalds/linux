@@ -888,7 +888,10 @@ qla2x00_serial_num_show(struct device *dev, struct device_attribute *attr,
 	struct qla_hw_data *ha = vha->hw;
 	uint32_t sn;
 
-	if (IS_FWI2_CAPABLE(ha)) {
+	if (IS_QLAFX00(vha->hw)) {
+		return snprintf(buf, PAGE_SIZE, "%s\n",
+		    vha->hw->mr.serial_num);
+	} else if (IS_FWI2_CAPABLE(ha)) {
 		qla2xxx_get_vpd_field(vha, "SN", buf, PAGE_SIZE);
 		return snprintf(buf, PAGE_SIZE, "%s\n", buf);
 	}
@@ -912,6 +915,11 @@ qla2x00_isp_id_show(struct device *dev, struct device_attribute *attr,
 {
 	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
 	struct qla_hw_data *ha = vha->hw;
+
+	if (IS_QLAFX00(vha->hw))
+		return snprintf(buf, PAGE_SIZE, "%s\n",
+		    vha->hw->mr.hw_version);
+
 	return snprintf(buf, PAGE_SIZE, "%04x %04x %04x %04x\n",
 	    ha->product_id[0], ha->product_id[1], ha->product_id[2],
 	    ha->product_id[3]);
@@ -922,6 +930,11 @@ qla2x00_model_name_show(struct device *dev, struct device_attribute *attr,
 			char *buf)
 {
 	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
+
+	if (IS_QLAFX00(vha->hw))
+		return snprintf(buf, PAGE_SIZE, "%s\n",
+		    vha->hw->mr.product_name);
+
 	return snprintf(buf, PAGE_SIZE, "%s\n", vha->hw->model_number);
 }
 
@@ -1304,6 +1317,12 @@ qla2x00_fw_state_show(struct device *dev, struct device_attribute *attr,
 	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
 	int rval = QLA_FUNCTION_FAILED;
 	uint16_t state[5];
+	uint32_t pstate;
+
+	if (IS_QLAFX00(vha->hw)) {
+		pstate = qlafx00_fw_state_show(dev, attr, buf);
+		return snprintf(buf, PAGE_SIZE, "0x%x\n", pstate);
+	}
 
 	if (qla2x00_reset_active(vha))
 		ql_log(ql_log_warn, vha, 0x707c,
@@ -1453,6 +1472,11 @@ qla2x00_get_host_speed(struct Scsi_Host *shost)
 	struct qla_hw_data *ha = ((struct scsi_qla_host *)
 					(shost_priv(shost)))->hw;
 	u32 speed = FC_PORTSPEED_UNKNOWN;
+
+	if (IS_QLAFX00(ha)) {
+		qlafx00_get_host_speed(shost);
+		return;
+	}
 
 	switch (ha->link_data_rate) {
 	case PORT_SPEED_1GB:
@@ -1637,6 +1661,9 @@ qla2x00_issue_lip(struct Scsi_Host *shost)
 {
 	scsi_qla_host_t *vha = shost_priv(shost);
 
+	if (IS_QLAFX00(vha->hw))
+		return 0;
+
 	qla2x00_loop_reset(vha);
 	return 0;
 }
@@ -1654,6 +1681,9 @@ qla2x00_get_fc_host_stats(struct Scsi_Host *shost)
 
 	pfc_host_stat = &vha->fc_host_stat;
 	memset(pfc_host_stat, -1, sizeof(struct fc_host_statistics));
+
+	if (IS_QLAFX00(vha->hw))
+		goto done;
 
 	if (test_bit(UNLOADING, &vha->dpc_flags))
 		goto done;
@@ -1938,11 +1968,6 @@ qla24xx_vport_delete(struct fc_vport *fc_vport)
 		    "Timer for the VP[%d] has stopped\n", vha->vp_idx);
 	}
 
-	/* No pending activities shall be there on the vha now */
-	if (ql2xextended_error_logging & ql_dbg_user)
-		msleep(random32()%10);  /* Just to see if something falls on
-					* the net we have placed below */
-
 	BUG_ON(atomic_read(&vha->vref_count));
 
 	qla2x00_free_fcports(vha);
@@ -2092,6 +2117,9 @@ qla2x00_init_host_attr(scsi_qla_host_t *vha)
 		    FC_PORTSPEED_1GBIT;
 	else if (IS_QLA23XX(ha))
 		speed = FC_PORTSPEED_2GBIT | FC_PORTSPEED_1GBIT;
+	else if (IS_QLAFX00(ha))
+		speed = FC_PORTSPEED_8GBIT | FC_PORTSPEED_4GBIT |
+		    FC_PORTSPEED_2GBIT | FC_PORTSPEED_1GBIT;
 	else
 		speed = FC_PORTSPEED_1GBIT;
 	fc_host_supported_speeds(vha->host) = speed;

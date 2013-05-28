@@ -421,11 +421,10 @@ error:
 static int vprbrd_i2c_remove(struct platform_device *pdev)
 {
 	struct vprbrd_i2c *vb_i2c = platform_get_drvdata(pdev);
-	int ret;
 
-	ret = i2c_del_adapter(&vb_i2c->i2c);
+	i2c_del_adapter(&vb_i2c->i2c);
 
-	return ret;
+	return 0;
 }
 
 static struct platform_driver vprbrd_i2c_driver = {

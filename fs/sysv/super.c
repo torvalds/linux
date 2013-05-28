@@ -555,6 +555,7 @@ static struct file_system_type v7_fs_type = {
 	.fs_flags	= FS_REQUIRES_DEV,
 };
 MODULE_ALIAS_FS("v7");
+MODULE_ALIAS("v7");
 
 static int __init init_sysv_fs(void)
 {

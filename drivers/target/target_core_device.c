@@ -68,7 +68,6 @@ transport_lookup_cmd_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 		struct se_dev_entry *deve = se_cmd->se_deve;
 
 		deve->total_cmds++;
-		deve->total_bytes += se_cmd->data_length;
 
 		if ((se_cmd->data_direction == DMA_TO_DEVICE) &&
 		    (deve->lun_flags & TRANSPORT_LUNFLAGS_READ_ONLY)) {
@@ -84,8 +83,6 @@ transport_lookup_cmd_lun(struct se_cmd *se_cmd, u32 unpacked_lun)
 			deve->write_bytes += se_cmd->data_length;
 		else if (se_cmd->data_direction == DMA_FROM_DEVICE)
 			deve->read_bytes += se_cmd->data_length;
-
-		deve->deve_cmds++;
 
 		se_lun = deve->se_lun;
 		se_cmd->se_lun = deve->se_lun;
@@ -273,17 +270,6 @@ int core_free_device_list_for_node(
 	nacl->device_list = NULL;
 
 	return 0;
-}
-
-void core_dec_lacl_count(struct se_node_acl *se_nacl, struct se_cmd *se_cmd)
-{
-	struct se_dev_entry *deve;
-	unsigned long flags;
-
-	spin_lock_irqsave(&se_nacl->device_list_lock, flags);
-	deve = se_nacl->device_list[se_cmd->orig_fe_lun];
-	deve->deve_cmds--;
-	spin_unlock_irqrestore(&se_nacl->device_list_lock, flags);
 }
 
 void core_update_device_list_access(

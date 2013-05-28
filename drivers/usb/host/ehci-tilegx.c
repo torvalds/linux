@@ -118,8 +118,10 @@ static int ehci_hcd_tilegx_drv_probe(struct platform_device *pdev)
 
 	hcd = usb_create_hcd(&ehci_tilegx_hc_driver, &pdev->dev,
 			     dev_name(&pdev->dev));
-	if (!hcd)
-		return -ENOMEM;
+	if (!hcd) {
+          ret = -ENOMEM;
+          goto err_hcd;
+        }
 
 	/*
 	 * We don't use rsrc_start to map in our registers, but seems like
@@ -176,6 +178,7 @@ err_have_irq:
 err_no_irq:
 	tilegx_stop_ehc();
 	usb_put_hcd(hcd);
+err_hcd:
 	gxio_usb_host_destroy(&pdata->usb_ctx);
 	return ret;
 }

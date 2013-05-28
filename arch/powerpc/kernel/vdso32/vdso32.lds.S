@@ -150,6 +150,7 @@ VERSION
 #ifdef CONFIG_PPC64
 		__kernel_getcpu;
 #endif
+		__kernel_time;
 
 	local: *;
 	};

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2011 Emulex
+ * Copyright (C) 2005 - 2013 Emulex
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -84,6 +84,9 @@ struct be_mcc_compl {
 #define ASYNC_EVENT_QOS_SPEED		0x1
 #define ASYNC_EVENT_COS_PRIORITY	0x2
 #define ASYNC_EVENT_PVID_STATE		0x3
+#define ASYNC_EVENT_CODE_QNQ		0x6
+#define ASYNC_DEBUG_EVENT_TYPE_QNQ	1
+
 struct be_async_event_trailer {
 	u32 code;
 };
@@ -144,6 +147,16 @@ struct be_async_event_grp5_pvid_state {
 	struct be_async_event_trailer trailer;
 } __packed;
 
+/* async event indicating outer VLAN tag in QnQ */
+struct be_async_event_qnq {
+	u8 valid;	/* Indicates if outer VLAN is valid */
+	u8 rsvd0;
+	u16 vlan_tag;
+	u32 event_tag;
+	u8 rsvd1[4];
+	struct be_async_event_trailer trailer;
+} __packed;
+
 struct be_mcc_mailbox {
 	struct be_mcc_wrb wrb;
 	struct be_mcc_compl compl;
@@ -188,6 +201,7 @@ struct be_mcc_mailbox {
 #define OPCODE_COMMON_GET_BEACON_STATE			70
 #define OPCODE_COMMON_READ_TRANSRECV_DATA		73
 #define OPCODE_COMMON_GET_PORT_NAME			77
+#define OPCODE_COMMON_SET_INTERRUPT_ENABLE		89
 #define OPCODE_COMMON_GET_PHY_DETAILS			102
 #define OPCODE_COMMON_SET_DRIVER_FUNCTION_CAP		103
 #define OPCODE_COMMON_GET_CNTL_ADDITIONAL_ATTRIBUTES	121
@@ -367,7 +381,7 @@ struct amap_cq_context_be {
 	u8 rsvd5[32];		/* dword 3*/
 } __packed;
 
-struct amap_cq_context_lancer {
+struct amap_cq_context_v2 {
 	u8 rsvd0[12];		/* dword 0*/
 	u8 coalescwm[2];	/* dword 0*/
 	u8 nodelay;		/* dword 0*/
@@ -473,46 +487,27 @@ struct be_cmd_resp_mcc_create {
 #define BE_ETH_TX_RING_TYPE_STANDARD    	2
 #define BE_ULP1_NUM				1
 
-/* Pseudo amap definition in which each bit of the actual structure is defined
- * as a byte: used to calculate offset/shift/mask of each field */
-struct amap_tx_context {
-	u8 if_id[16];		/* dword 0 */
-	u8 tx_ring_size[4];	/* dword 0 */
-	u8 rsvd1[26];		/* dword 0 */
-	u8 pci_func_id[8];	/* dword 1 */
-	u8 rsvd2[9];		/* dword 1 */
-	u8 ctx_valid;		/* dword 1 */
-	u8 cq_id_send[16];	/* dword 2 */
-	u8 rsvd3[16];		/* dword 2 */
-	u8 rsvd4[32];		/* dword 3 */
-	u8 rsvd5[32];		/* dword 4 */
-	u8 rsvd6[32];		/* dword 5 */
-	u8 rsvd7[32];		/* dword 6 */
-	u8 rsvd8[32];		/* dword 7 */
-	u8 rsvd9[32];		/* dword 8 */
-	u8 rsvd10[32];		/* dword 9 */
-	u8 rsvd11[32];		/* dword 10 */
-	u8 rsvd12[32];		/* dword 11 */
-	u8 rsvd13[32];		/* dword 12 */
-	u8 rsvd14[32];		/* dword 13 */
-	u8 rsvd15[32];		/* dword 14 */
-	u8 rsvd16[32];		/* dword 15 */
-} __packed;
-
 struct be_cmd_req_eth_tx_create {
 	struct be_cmd_req_hdr hdr;
 	u8 num_pages;
 	u8 ulp_num;
-	u8 type;
-	u8 bound_port;
-	u8 context[sizeof(struct amap_tx_context) / 8];
+	u16 type;
+	u16 if_id;
+	u8 queue_size;
+	u8 rsvd0;
+	u32 rsvd1;
+	u16 cq_id;
+	u16 rsvd2;
+	u32 rsvd3[13];
 	struct phys_addr pages[8];
 } __packed;
 
 struct be_cmd_resp_eth_tx_create {
 	struct be_cmd_resp_hdr hdr;
 	u16 cid;
-	u16 rsvd0;
+	u16 rid;
+	u32 db_offset;
+	u32 rsvd0[4];
 } __packed;
 
 /******************** Create RxQ ***************************/
@@ -608,8 +603,8 @@ struct be_port_rxf_stats_v0 {
 	u32 rx_in_range_errors;	/* dword 10*/
 	u32 rx_out_range_errors;	/* dword 11*/
 	u32 rx_frame_too_long;	/* dword 12*/
-	u32 rx_address_mismatch_drops;	/* dword 13*/
-	u32 rx_vlan_mismatch_drops;	/* dword 14*/
+	u32 rx_address_filtered;	/* dword 13*/
+	u32 rx_vlan_filtered;	/* dword 14*/
 	u32 rx_dropped_too_small;	/* dword 15*/
 	u32 rx_dropped_too_short;	/* dword 16*/
 	u32 rx_dropped_header_too_small;	/* dword 17*/
@@ -815,8 +810,8 @@ struct lancer_pport_stats {
 	u32 rx_control_frames_unknown_opcode_hi;
 	u32 rx_in_range_errors;
 	u32 rx_out_of_range_errors;
-	u32 rx_address_mismatch_drops;
-	u32 rx_vlan_mismatch_drops;
+	u32 rx_address_filtered;
+	u32 rx_vlan_filtered;
 	u32 rx_dropped_too_small;
 	u32 rx_dropped_too_short;
 	u32 rx_dropped_header_too_small;
@@ -1066,7 +1061,6 @@ struct be_cmd_resp_modify_eq_delay {
 } __packed;
 
 /******************** Get FW Config *******************/
-#define BE_FUNCTION_CAPS_RSS			0x2
 /* The HW can come up in either of the following multi-channel modes
  * based on the skew/IPL.
  */
@@ -1108,6 +1102,9 @@ struct be_cmd_resp_query_fw_cfg {
 #define RSS_ENABLE_TCP_IPV6			0x8
 #define RSS_ENABLE_UDP_IPV4			0x10
 #define RSS_ENABLE_UDP_IPV6			0x20
+
+#define L3_RSS_FLAGS				(RXH_IP_DST | RXH_IP_SRC)
+#define L4_RSS_FLAGS				(RXH_L4_B_0_1 | RXH_L4_B_2_3)
 
 struct be_cmd_req_rss_config {
 	struct be_cmd_req_hdr hdr;
@@ -1592,7 +1589,7 @@ struct be_port_rxf_stats_v1 {
 	u32 rx_in_range_errors;
 	u32 rx_out_range_errors;
 	u32 rx_frame_too_long;
-	u32 rx_address_mismatch_drops;
+	u32 rx_address_filtered;
 	u32 rx_dropped_too_small;
 	u32 rx_dropped_too_short;
 	u32 rx_dropped_header_too_small;
@@ -1706,9 +1703,11 @@ struct be_cmd_req_set_ext_fat_caps {
 	struct be_fat_conf_params set_params;
 };
 
-#define RESOURCE_DESC_SIZE			72
-#define NIC_RESOURCE_DESC_TYPE_ID		0x41
+#define RESOURCE_DESC_SIZE			88
+#define NIC_RESOURCE_DESC_TYPE_V0		0x41
+#define NIC_RESOURCE_DESC_TYPE_V1		0x51
 #define MAX_RESOURCE_DESC			4
+#define MAX_RESOURCE_DESC_V1			32
 
 /* QOS unit number */
 #define QUN					4
@@ -1755,7 +1754,7 @@ struct be_cmd_req_get_func_config {
 };
 
 struct be_cmd_resp_get_func_config {
-	struct be_cmd_req_hdr hdr;
+	struct be_cmd_resp_hdr hdr;
 	u32 desc_count;
 	u8 func_param[MAX_RESOURCE_DESC * RESOURCE_DESC_SIZE];
 };
@@ -1774,6 +1773,12 @@ struct be_cmd_resp_get_profile_config {
 	u8 func_param[MAX_RESOURCE_DESC * RESOURCE_DESC_SIZE];
 };
 
+struct be_cmd_resp_get_profile_config_v1 {
+	struct be_cmd_req_hdr hdr;
+	u32 desc_count;
+	u8 func_param[MAX_RESOURCE_DESC_V1 * RESOURCE_DESC_SIZE];
+};
+
 struct be_cmd_req_set_profile_config {
 	struct be_cmd_req_hdr hdr;
 	u32 rsvd;
@@ -1788,6 +1793,12 @@ struct be_cmd_resp_set_profile_config {
 struct be_cmd_enable_disable_vf {
 	struct be_cmd_req_hdr hdr;
 	u8 enable;
+	u8 rsvd[3];
+};
+
+struct be_cmd_req_intr_set {
+	struct be_cmd_req_hdr hdr;
+	u8 intr_enabled;
 	u8 rsvd[3];
 };
 
@@ -1834,8 +1845,7 @@ extern int be_cmd_mccq_create(struct be_adapter *adapter,
 			struct be_queue_info *mccq,
 			struct be_queue_info *cq);
 extern int be_cmd_txq_create(struct be_adapter *adapter,
-			struct be_queue_info *txq,
-			struct be_queue_info *cq);
+			struct be_tx_obj *txo);
 extern int be_cmd_rxq_create(struct be_adapter *adapter,
 			struct be_queue_info *rxq, u16 cq_id,
 			u16 frag_size, u32 if_id, u32 rss, u8 *rss_id);
@@ -1862,11 +1872,11 @@ extern int be_cmd_set_flow_control(struct be_adapter *adapter,
 			u32 tx_fc, u32 rx_fc);
 extern int be_cmd_get_flow_control(struct be_adapter *adapter,
 			u32 *tx_fc, u32 *rx_fc);
-extern int be_cmd_query_fw_cfg(struct be_adapter *adapter,
-			u32 *port_num, u32 *function_mode, u32 *function_caps);
+extern int be_cmd_query_fw_cfg(struct be_adapter *adapter, u32 *port_num,
+			u32 *function_mode, u32 *function_caps, u16 *asic_rev);
 extern int be_cmd_reset_function(struct be_adapter *adapter);
 extern int be_cmd_rss_config(struct be_adapter *adapter, u8 *rsstable,
-			u16 table_size);
+			     u32 rss_hash_opts, u16 table_size);
 extern int be_process_mcc(struct be_adapter *adapter);
 extern int be_cmd_set_beacon_state(struct be_adapter *adapter,
 			u8 port_num, u8 beacon, u8 status, u8 state);
@@ -1931,10 +1941,11 @@ extern int lancer_test_and_set_rdy_state(struct be_adapter *adapter);
 extern int be_cmd_query_port_name(struct be_adapter *adapter, u8 *port_name);
 extern int be_cmd_get_func_config(struct be_adapter *adapter);
 extern int be_cmd_get_profile_config(struct be_adapter *adapter, u32 *cap_flags,
-				     u8 domain);
+				     u16 *txq_count, u8 domain);
 
 extern int be_cmd_set_profile_config(struct be_adapter *adapter, u32 bps,
 				     u8 domain);
 extern int be_cmd_get_if_id(struct be_adapter *adapter,
 			    struct be_vf_cfg *vf_cfg, int vf_num);
 extern int be_cmd_enable_vf(struct be_adapter *adapter, u8 domain);
+extern int be_cmd_intr_set(struct be_adapter *adapter, bool intr_enable);

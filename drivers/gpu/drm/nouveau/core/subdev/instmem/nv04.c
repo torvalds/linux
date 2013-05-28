@@ -93,21 +93,12 @@ nv04_instmem_alloc(struct nouveau_instmem *imem, struct nouveau_object *parent,
 		   u32 size, u32 align, struct nouveau_object **pobject)
 {
 	struct nouveau_object *engine = nv_object(imem);
-	struct nv04_instmem_priv *priv = (void *)(imem);
 	int ret;
 
 	ret = nouveau_object_ctor(parent, engine, &nv04_instobj_oclass,
 				  (void *)(unsigned long)align, size, pobject);
 	if (ret)
 		return ret;
-
-	/* INSTMEM itself creates objects to reserve (and preserve across
-	 * suspend/resume) various fixed data locations, each one of these
-	 * takes a reference on INSTMEM itself, causing it to never be
-	 * freed.  We drop all the self-references here to avoid this.
-	 */
-	if (unlikely(!priv->created))
-		atomic_dec(&engine->refcount);
 
 	return 0;
 }
@@ -134,27 +125,28 @@ nv04_instmem_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		return ret;
 
 	/* 0x00000-0x10000: reserve for probable vbios image */
-	ret = nouveau_gpuobj_new(parent, NULL, 0x10000, 0, 0, &priv->vbios);
+	ret = nouveau_gpuobj_new(nv_object(priv), NULL, 0x10000, 0, 0,
+				&priv->vbios);
 	if (ret)
 		return ret;
 
 	/* 0x10000-0x18000: reserve for RAMHT */
-	ret = nouveau_ramht_new(parent, NULL, 0x08000, 0, &priv->ramht);
+	ret = nouveau_ramht_new(nv_object(priv), NULL, 0x08000, 0, &priv->ramht);
 	if (ret)
 		return ret;
 
 	/* 0x18000-0x18800: reserve for RAMFC (enough for 32 nv30 channels) */
-	ret = nouveau_gpuobj_new(parent, NULL, 0x00800, 0,
+	ret = nouveau_gpuobj_new(nv_object(priv), NULL, 0x00800, 0,
 				 NVOBJ_FLAG_ZERO_ALLOC, &priv->ramfc);
 	if (ret)
 		return ret;
 
 	/* 0x18800-0x18a00: reserve for RAMRO */
-	ret = nouveau_gpuobj_new(parent, NULL, 0x00200, 0, 0, &priv->ramro);
+	ret = nouveau_gpuobj_new(nv_object(priv), NULL, 0x00200, 0, 0,
+				&priv->ramro);
 	if (ret)
 		return ret;
 
-	priv->created = true;
 	return 0;
 }
 

@@ -1263,15 +1263,7 @@ static int pxa25x_udc_start(struct usb_gadget *g,
 
 	/* first hook up the driver ... */
 	dev->driver = driver;
-	dev->gadget.dev.driver = &driver->driver;
 	dev->pullup = 1;
-
-	retval = device_add (&dev->gadget.dev);
-	if (retval) {
-		dev->driver = NULL;
-		dev->gadget.dev.driver = NULL;
-		return retval;
-	}
 
 	/* ... then enable host detection and ep0; and we're ready
 	 * for set_configuration as well as eventual disconnect.
@@ -1310,6 +1302,10 @@ stop_activity(struct pxa25x_udc *dev, struct usb_gadget_driver *driver)
 	}
 	del_timer_sync(&dev->timer);
 
+	/* report disconnect; the driver is already quiesced */
+	if (driver)
+		driver->disconnect(&dev->gadget);
+
 	/* re-init driver-visible data structures */
 	udc_reinit(dev);
 }
@@ -1328,10 +1324,8 @@ static int pxa25x_udc_stop(struct usb_gadget*g,
 	if (!IS_ERR_OR_NULL(dev->transceiver))
 		(void) otg_set_peripheral(dev->transceiver->otg, NULL);
 
-	dev->gadget.dev.driver = NULL;
 	dev->driver = NULL;
 
-	device_del (&dev->gadget.dev);
 	dump_state(dev);
 
 	return 0;
@@ -2142,10 +2136,6 @@ static int __init pxa25x_udc_probe(struct platform_device *pdev)
 	dev->timer.function = udc_watchdog;
 	dev->timer.data = (unsigned long) dev;
 
-	device_initialize(&dev->gadget.dev);
-	dev->gadget.dev.parent = &pdev->dev;
-	dev->gadget.dev.dma_mask = pdev->dev.dma_mask;
-
 	the_controller = dev;
 	platform_set_drvdata(pdev, dev);
 
@@ -2217,10 +2207,10 @@ static int __exit pxa25x_udc_remove(struct platform_device *pdev)
 {
 	struct pxa25x_udc *dev = platform_get_drvdata(pdev);
 
-	usb_del_gadget_udc(&dev->gadget);
 	if (dev->driver)
 		return -EBUSY;
 
+	usb_del_gadget_udc(&dev->gadget);
 	dev->pullup = 0;
 	pullup(dev);
 
@@ -2246,7 +2236,6 @@ static int __exit pxa25x_udc_remove(struct platform_device *pdev)
 		dev->transceiver = NULL;
 	}
 
-	platform_set_drvdata(pdev, NULL);
 	the_controller = NULL;
 	return 0;
 }

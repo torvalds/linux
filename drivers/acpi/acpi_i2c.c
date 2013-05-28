@@ -90,7 +90,7 @@ void acpi_i2c_register_devices(struct i2c_adapter *adapter)
 	acpi_handle handle;
 	acpi_status status;
 
-	handle = ACPI_HANDLE(&adapter->dev);
+	handle = ACPI_HANDLE(adapter->dev.parent);
 	if (!handle)
 		return;
 

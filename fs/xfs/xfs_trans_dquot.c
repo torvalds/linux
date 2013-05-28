@@ -326,12 +326,12 @@ xfs_trans_dqlockedjoin(
  */
 void
 xfs_trans_apply_dquot_deltas(
-	xfs_trans_t		*tp)
+	struct xfs_trans	*tp)
 {
 	int			i, j;
-	xfs_dquot_t		*dqp;
-	xfs_dqtrx_t		*qtrx, *qa;
-	xfs_disk_dquot_t	*d;
+	struct xfs_dquot	*dqp;
+	struct xfs_dqtrx	*qtrx, *qa;
+	struct xfs_disk_dquot	*d;
 	long			totalbdelta;
 	long			totalrtbdelta;
 
@@ -412,7 +412,7 @@ xfs_trans_apply_dquot_deltas(
 			 * Start/reset the timer(s) if needed.
 			 */
 			if (d->d_id) {
-				xfs_qm_adjust_dqlimits(tp->t_mountp, d);
+				xfs_qm_adjust_dqlimits(tp->t_mountp, dqp);
 				xfs_qm_adjust_dqtimers(tp->t_mountp, d);
 			}
 

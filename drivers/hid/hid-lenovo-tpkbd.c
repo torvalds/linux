@@ -68,7 +68,7 @@ static int tpkbd_features_set(struct hid_device *hdev)
 	report->field[2]->value[0] = data_pointer->sensitivity;
 	report->field[3]->value[0] = data_pointer->press_speed;
 
-	usbhid_submit_report(hdev, report, USB_DIR_OUT);
+	hid_hw_request(hdev, report, HID_REQ_SET_REPORT);
 	return 0;
 }
 
@@ -228,8 +228,6 @@ static ssize_t pointer_press_speed_show(struct device *dev,
 	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
 	struct tpkbd_data_pointer *data_pointer = hid_get_drvdata(hdev);
 
-	data_pointer = hid_get_drvdata(hdev);
-
 	return snprintf(buf, PAGE_SIZE, "%u\n",
 		data_pointer->press_speed);
 }
@@ -332,7 +330,7 @@ static void tpkbd_led_brightness_set(struct led_classdev *led_cdev,
 	report = hdev->report_enum[HID_OUTPUT_REPORT].report_id_hash[3];
 	report->field[0]->value[0] = (data_pointer->led_state >> 0) & 1;
 	report->field[0]->value[1] = (data_pointer->led_state >> 1) & 1;
-	usbhid_submit_report(hdev, report, USB_DIR_OUT);
+	hid_hw_request(hdev, report, HID_REQ_SET_REPORT);
 }
 
 static int tpkbd_probe_tp(struct hid_device *hdev)

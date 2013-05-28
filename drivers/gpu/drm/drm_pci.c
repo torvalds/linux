@@ -152,7 +152,7 @@ static const char *drm_pci_get_name(struct drm_device *dev)
 	return pdriver->name;
 }
 
-int drm_pci_set_busid(struct drm_device *dev, struct drm_master *master)
+static int drm_pci_set_busid(struct drm_device *dev, struct drm_master *master)
 {
 	int len, ret;
 	struct pci_driver *pdriver = dev->driver->kdriver.pci;
@@ -194,9 +194,9 @@ err:
 	return ret;
 }
 
-int drm_pci_set_unique(struct drm_device *dev,
-		       struct drm_master *master,
-		       struct drm_unique *u)
+static int drm_pci_set_unique(struct drm_device *dev,
+			      struct drm_master *master,
+			      struct drm_unique *u)
 {
 	int domain, bus, slot, func, ret;
 	const char *bus_name;
@@ -266,7 +266,7 @@ static int drm_pci_irq_by_busid(struct drm_device *dev, struct drm_irq_busid *p)
 	return 0;
 }
 
-int drm_pci_agp_init(struct drm_device *dev)
+static int drm_pci_agp_init(struct drm_device *dev)
 {
 	if (drm_core_has_AGP(dev)) {
 		if (drm_pci_device_is_agp(dev))

@@ -28,6 +28,7 @@
 #include "unicast.h"
 #include "soft-interface.h"
 #include "bridge_loop_avoidance.h"
+#include "network-coding.h"
 
 /* hash class keys */
 static struct lock_class_key batadv_orig_hash_lock_class_key;
@@ -142,6 +143,9 @@ static void batadv_orig_node_free_rcu(struct rcu_head *rcu)
 
 	spin_unlock_bh(&orig_node->neigh_list_lock);
 
+	/* Free nc_nodes */
+	batadv_nc_purge_orig(orig_node->bat_priv, orig_node, NULL);
+
 	batadv_frag_list_free(&orig_node->frag_list);
 	batadv_tt_global_del_orig(orig_node->bat_priv, orig_node,
 				  "originator timed out");
@@ -152,10 +156,26 @@ static void batadv_orig_node_free_rcu(struct rcu_head *rcu)
 	kfree(orig_node);
 }
 
+/**
+ * batadv_orig_node_free_ref - decrement the orig node refcounter and possibly
+ * schedule an rcu callback for freeing it
+ * @orig_node: the orig node to free
+ */
 void batadv_orig_node_free_ref(struct batadv_orig_node *orig_node)
 {
 	if (atomic_dec_and_test(&orig_node->refcount))
 		call_rcu(&orig_node->rcu, batadv_orig_node_free_rcu);
+}
+
+/**
+ * batadv_orig_node_free_ref_now - decrement the orig node refcounter and
+ * possibly free it (without rcu callback)
+ * @orig_node: the orig node to free
+ */
+void batadv_orig_node_free_ref_now(struct batadv_orig_node *orig_node)
+{
+	if (atomic_dec_and_test(&orig_node->refcount))
+		batadv_orig_node_free_rcu(&orig_node->rcu);
 }
 
 void batadv_originator_free(struct batadv_priv *bat_priv)
@@ -218,6 +238,8 @@ struct batadv_orig_node *batadv_get_orig_node(struct batadv_priv *bat_priv,
 	spin_lock_init(&orig_node->bcast_seqno_lock);
 	spin_lock_init(&orig_node->neigh_list_lock);
 	spin_lock_init(&orig_node->tt_buff_lock);
+
+	batadv_nc_init_orig(orig_node);
 
 	/* extra reference for return */
 	atomic_set(&orig_node->refcount, 2);
@@ -459,7 +481,7 @@ int batadv_orig_seq_print_text(struct seq_file *seq, void *offset)
 					   neigh_node_tmp->tq_avg);
 			}
 
-			seq_printf(seq, "\n");
+			seq_puts(seq, "\n");
 			batman_count++;
 
 next:
@@ -469,7 +491,7 @@ next:
 	}
 
 	if (batman_count == 0)
-		seq_printf(seq, "No batman nodes in range ...\n");
+		seq_puts(seq, "No batman nodes in range ...\n");
 
 out:
 	if (primary_if)

@@ -5,8 +5,12 @@ on platforms which have strong conventions about which portions of a flash are
 used for what purposes, but which don't use an on-flash partition table such
 as RedBoot.
 
-#address-cells & #size-cells must both be present in the mtd device and be
-equal to 1.
+#address-cells & #size-cells must both be present in the mtd device. There are
+two valid values for both:
+<1>: for partitions that require a single 32-bit cell to represent their
+     size/address (aka the value is below 4 GiB)
+<2>: for partitions that require two 32-bit cells to represent their
+     size/address (aka the value is 4 GiB or greater).
 
 Required properties:
 - reg : The partition's offset and size within the mtd bank.
@@ -34,5 +38,33 @@ flash@0 {
 
 	uimage@100000 {
 		reg = <0x0100000 0x200000>;
+	};
+};
+
+flash@1 {
+	#address-cells = <1>;
+	#size-cells = <2>;
+
+	/* a 4 GiB partition */
+	partition@0 {
+		label = "filesystem";
+		reg = <0x00000000 0x1 0x00000000>;
+	};
+};
+
+flash@2 {
+	#address-cells = <2>;
+	#size-cells = <2>;
+
+	/* an 8 GiB partition */
+	partition@0 {
+		label = "filesystem #1";
+		reg = <0x0 0x00000000 0x2 0x00000000>;
+	};
+
+	/* a 4 GiB partition */
+	partition@200000000 {
+		label = "filesystem #2";
+		reg = <0x2 0x00000000 0x1 0x00000000>;
 	};
 };

@@ -73,11 +73,24 @@ static int team_port_set_orig_dev_addr(struct team_port *port)
 	return __set_port_dev_addr(port->dev, port->orig.dev_addr);
 }
 
-int team_port_set_team_dev_addr(struct team_port *port)
+static int team_port_set_team_dev_addr(struct team *team,
+				       struct team_port *port)
 {
-	return __set_port_dev_addr(port->dev, port->team->dev->dev_addr);
+	return __set_port_dev_addr(port->dev, team->dev->dev_addr);
 }
-EXPORT_SYMBOL(team_port_set_team_dev_addr);
+
+int team_modeop_port_enter(struct team *team, struct team_port *port)
+{
+	return team_port_set_team_dev_addr(team, port);
+}
+EXPORT_SYMBOL(team_modeop_port_enter);
+
+void team_modeop_port_change_dev_addr(struct team *team,
+				      struct team_port *port)
+{
+	team_port_set_team_dev_addr(team, port);
+}
+EXPORT_SYMBOL(team_modeop_port_change_dev_addr);
 
 static void team_refresh_port_linkup(struct team_port *port)
 {
@@ -490,9 +503,9 @@ static bool team_dummy_transmit(struct team *team, struct sk_buff *skb)
 	return false;
 }
 
-rx_handler_result_t team_dummy_receive(struct team *team,
-				       struct team_port *port,
-				       struct sk_buff *skb)
+static rx_handler_result_t team_dummy_receive(struct team *team,
+					      struct team_port *port,
+					      struct sk_buff *skb)
 {
 	return RX_HANDLER_ANOTHER;
 }
@@ -1138,6 +1151,8 @@ static int team_port_del(struct team *team, struct net_device *port_dev)
 	netdev_upper_dev_unlink(port_dev, dev);
 	team_port_disable_netpoll(port);
 	vlan_vids_del_by_dev(port_dev, dev);
+	dev_uc_unsync(port_dev, dev);
+	dev_mc_unsync(port_dev, dev);
 	dev_close(port_dev);
 	team_port_leave(team, port);
 
@@ -1489,8 +1504,8 @@ static void team_set_rx_mode(struct net_device *dev)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(port, &team->port_list, list) {
-		dev_uc_sync(port->dev, dev);
-		dev_mc_sync(port->dev, dev);
+		dev_uc_sync_multiple(port->dev, dev);
+		dev_mc_sync_multiple(port->dev, dev);
 	}
 	rcu_read_unlock();
 }
@@ -1583,7 +1598,7 @@ team_get_stats64(struct net_device *dev, struct rtnl_link_stats64 *stats)
 	return stats;
 }
 
-static int team_vlan_rx_add_vid(struct net_device *dev, uint16_t vid)
+static int team_vlan_rx_add_vid(struct net_device *dev, __be16 proto, u16 vid)
 {
 	struct team *team = netdev_priv(dev);
 	struct team_port *port;
@@ -1595,7 +1610,7 @@ static int team_vlan_rx_add_vid(struct net_device *dev, uint16_t vid)
 	 */
 	mutex_lock(&team->lock);
 	list_for_each_entry(port, &team->port_list, list) {
-		err = vlan_vid_add(port->dev, vid);
+		err = vlan_vid_add(port->dev, proto, vid);
 		if (err)
 			goto unwind;
 	}
@@ -1605,20 +1620,20 @@ static int team_vlan_rx_add_vid(struct net_device *dev, uint16_t vid)
 
 unwind:
 	list_for_each_entry_continue_reverse(port, &team->port_list, list)
-		vlan_vid_del(port->dev, vid);
+		vlan_vid_del(port->dev, proto, vid);
 	mutex_unlock(&team->lock);
 
 	return err;
 }
 
-static int team_vlan_rx_kill_vid(struct net_device *dev, uint16_t vid)
+static int team_vlan_rx_kill_vid(struct net_device *dev, __be16 proto, u16 vid)
 {
 	struct team *team = netdev_priv(dev);
 	struct team_port *port;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(port, &team->port_list, list)
-		vlan_vid_del(port->dev, vid);
+		vlan_vid_del(port->dev, proto, vid);
 	rcu_read_unlock();
 
 	return 0;
@@ -1826,9 +1841,9 @@ static void team_setup(struct net_device *dev)
 	dev->features |= NETIF_F_LLTX;
 	dev->features |= NETIF_F_GRO;
 	dev->hw_features = TEAM_VLAN_FEATURES |
-			   NETIF_F_HW_VLAN_TX |
-			   NETIF_F_HW_VLAN_RX |
-			   NETIF_F_HW_VLAN_FILTER;
+			   NETIF_F_HW_VLAN_CTAG_TX |
+			   NETIF_F_HW_VLAN_CTAG_RX |
+			   NETIF_F_HW_VLAN_CTAG_FILTER;
 
 	dev->hw_features &= ~(NETIF_F_ALL_CSUM & ~NETIF_F_HW_CSUM);
 	dev->features |= dev->hw_features;

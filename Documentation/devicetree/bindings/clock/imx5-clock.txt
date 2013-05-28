@@ -38,7 +38,6 @@ clocks and IDs.
 	usb_phy_podf		23
 	cpu_podf		24
 	di_pred			25
-	tve_di			26
 	tve_s			27
 	uart1_ipg_gate		28
 	uart1_per_gate		29
@@ -172,6 +171,19 @@ clocks and IDs.
 	can1_serial_gate	157
 	can1_ipg_gate		158
 	owire_gate		159
+	gpu3d_s			160
+	gpu2d_s			161
+	gpu3d_gate		162
+	gpu2d_gate		163
+	garb_gate		164
+	cko1_sel		165
+	cko1_podf		166
+	cko1			167
+	cko2_sel		168
+	cko2_podf		169
+	cko2			170
+	srtc_gate		171
+	pata_gate		172
 
 Examples (for mx53):
 

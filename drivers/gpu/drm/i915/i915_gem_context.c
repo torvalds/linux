@@ -152,6 +152,13 @@ create_hw_context(struct drm_device *dev,
 		return ERR_PTR(-ENOMEM);
 	}
 
+	if (INTEL_INFO(dev)->gen >= 7) {
+		ret = i915_gem_object_set_cache_level(ctx->obj,
+						      I915_CACHE_LLC_MLC);
+		if (ret)
+			goto err_out;
+	}
+
 	/* The ring associated with the context object is handled by the normal
 	 * object tracking code. We give an initial ring value simple to pass an
 	 * assertion in the context switch code.

@@ -33,6 +33,7 @@
 #include <linux/mtd/nand.h>
 #include <linux/mmc/host.h>
 #include <linux/usb/phy.h>
+#include <linux/usb/nop-usb-xceiv.h>
 
 #include <linux/regulator/machine.h>
 #include <linux/i2c/twl.h>
@@ -43,7 +44,7 @@
 #include <asm/mach/flash.h>
 
 #include <video/omapdss.h>
-#include <video/omap-panel-tfp410.h>
+#include <video/omap-panel-data.h>
 #include <linux/platform_data/mtd-nand-omap2.h>
 
 #include "common.h"
@@ -111,13 +112,13 @@ static u8 omap3_beagle_version;
  */
 static struct {
 	int mmc1_gpio_wp;
-	int usb_pwr_level;
+	bool usb_pwr_level;	/* 0 - Active Low, 1 - Active High */
 	int dvi_pd_gpio;
 	int usr_button_gpio;
 	int mmc_caps;
 } beagle_config = {
 	.mmc1_gpio_wp = -EINVAL,
-	.usb_pwr_level = GPIOF_OUT_INIT_LOW,
+	.usb_pwr_level = 0,
 	.dvi_pd_gpio = -EINVAL,
 	.usr_button_gpio = 4,
 	.mmc_caps = MMC_CAP_4_BIT_DATA | MMC_CAP_8_BIT_DATA,
@@ -177,7 +178,7 @@ static void __init omap3_beagle_init_rev(void)
 	case 0:
 		printk(KERN_INFO "OMAP3 Beagle Rev: xM Ax/Bx\n");
 		omap3_beagle_version = OMAP3BEAGLE_BOARD_XM;
-		beagle_config.usb_pwr_level = GPIOF_OUT_INIT_HIGH;
+		beagle_config.usb_pwr_level = 1;
 		beagle_config.mmc_caps &= ~MMC_CAP_8_BIT_DATA;
 		break;
 	case 2:
@@ -277,6 +278,21 @@ static struct regulator_consumer_supply beagle_vsim_supply[] = {
 
 static struct gpio_led gpio_leds[];
 
+/* PHY's VCC regulator might be added later, so flag that we need it */
+static struct nop_usb_xceiv_platform_data hsusb2_phy_data = {
+	.needs_vcc = true,
+};
+
+static struct usbhs_phy_data phy_data[] = {
+	{
+		.port = 2,
+		.reset_gpio = 147,
+		.vcc_gpio = -1,		/* updated in beagle_twl_gpio_setup */
+		.vcc_polarity = 1,	/* updated in beagle_twl_gpio_setup */
+		.platform_data = &hsusb2_phy_data,
+	},
+};
+
 static int beagle_twl_gpio_setup(struct device *dev,
 		unsigned gpio, unsigned ngpio)
 {
@@ -318,9 +334,11 @@ static int beagle_twl_gpio_setup(struct device *dev,
 	}
 	dvi_panel.power_down_gpio = beagle_config.dvi_pd_gpio;
 
-	gpio_request_one(gpio + TWL4030_GPIO_MAX, beagle_config.usb_pwr_level,
-			"nEN_USB_PWR");
+	/* TWL4030_GPIO_MAX i.e. LED_GPO controls HS USB Port 2 power */
+	phy_data[0].vcc_gpio = gpio + TWL4030_GPIO_MAX;
+	phy_data[0].vcc_polarity = beagle_config.usb_pwr_level;
 
+	usbhs_init_phys(phy_data, ARRAY_SIZE(phy_data));
 	return 0;
 }
 
@@ -453,15 +471,7 @@ static struct platform_device *omap3_beagle_devices[] __initdata = {
 };
 
 static struct usbhs_omap_platform_data usbhs_bdata __initdata = {
-
-	.port_mode[0] = OMAP_USBHS_PORT_MODE_UNUSED,
 	.port_mode[1] = OMAP_EHCI_PORT_MODE_PHY,
-	.port_mode[2] = OMAP_USBHS_PORT_MODE_UNUSED,
-
-	.phy_reset  = true,
-	.reset_gpio_port[0]  = -EINVAL,
-	.reset_gpio_port[1]  = 147,
-	.reset_gpio_port[2]  = -EINVAL
 };
 
 #ifdef CONFIG_OMAP_MUX
@@ -479,7 +489,7 @@ static int __init beagle_opp_init(void)
 
 	/* Initialize the omap3 opp table if not already created. */
 	r = omap3_opp_init();
-	if (IS_ERR_VALUE(r) && (r != -EEXIST)) {
+	if (r < 0 && (r != -EEXIST)) {
 		pr_err("%s: opp default init failed\n", __func__);
 		return r;
 	}
@@ -543,7 +553,9 @@ static void __init omap3_beagle_init(void)
 
 	usb_bind_phy("musb-hdrc.0.auto", 0, "twl4030_usb");
 	usb_musb_init(NULL);
+
 	usbhs_init(&usbhs_bdata);
+
 	board_nand_init(omap3beagle_nand_partitions,
 			ARRAY_SIZE(omap3beagle_nand_partitions), NAND_CS,
 			NAND_BUSWIDTH_16, NULL);

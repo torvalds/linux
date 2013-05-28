@@ -627,16 +627,11 @@ static void __init early_cmdline_parse(void)
 
 #if defined(CONFIG_PPC_PSERIES) || defined(CONFIG_PPC_POWERNV)
 /*
- * There are two methods for telling firmware what our capabilities are.
- * Newer machines have an "ibm,client-architecture-support" method on the
- * root node.  For older machines, we have to call the "process-elf-header"
- * method in the /packages/elf-loader node, passing it a fake 32-bit
- * ELF header containing a couple of PT_NOTE sections that contain
- * structures that contain various information.
- */
-
-/*
- * New method - extensible architecture description vector.
+ * The architecture vector has an array of PVR mask/value pairs,
+ * followed by # option vectors - 1, followed by the option vectors.
+ *
+ * See prom.h for the definition of the bits specified in the
+ * architecture vector.
  *
  * Because the description vector contains a mix of byte and word
  * values, we declare it as an unsigned char array, and use this
@@ -645,65 +640,7 @@ static void __init early_cmdline_parse(void)
 #define W(x)	((x) >> 24) & 0xff, ((x) >> 16) & 0xff, \
 		((x) >> 8) & 0xff, (x) & 0xff
 
-/* Option vector bits - generic bits in byte 1 */
-#define OV_IGNORE		0x80	/* ignore this vector */
-#define OV_CESSATION_POLICY	0x40	/* halt if unsupported option present*/
-
-/* Option vector 1: processor architectures supported */
-#define OV1_PPC_2_00		0x80	/* set if we support PowerPC 2.00 */
-#define OV1_PPC_2_01		0x40	/* set if we support PowerPC 2.01 */
-#define OV1_PPC_2_02		0x20	/* set if we support PowerPC 2.02 */
-#define OV1_PPC_2_03		0x10	/* set if we support PowerPC 2.03 */
-#define OV1_PPC_2_04		0x08	/* set if we support PowerPC 2.04 */
-#define OV1_PPC_2_05		0x04	/* set if we support PowerPC 2.05 */
-#define OV1_PPC_2_06		0x02	/* set if we support PowerPC 2.06 */
-#define OV1_PPC_2_07		0x01	/* set if we support PowerPC 2.07 */
-
-/* Option vector 2: Open Firmware options supported */
-#define OV2_REAL_MODE		0x20	/* set if we want OF in real mode */
-
-/* Option vector 3: processor options supported */
-#define OV3_FP			0x80	/* floating point */
-#define OV3_VMX			0x40	/* VMX/Altivec */
-#define OV3_DFP			0x20	/* decimal FP */
-
-/* Option vector 4: IBM PAPR implementation */
-#define OV4_MIN_ENT_CAP		0x01	/* minimum VP entitled capacity */
-
-/* Option vector 5: PAPR/OF options supported */
-#define OV5_LPAR		0x80	/* logical partitioning supported */
-#define OV5_SPLPAR		0x40	/* shared-processor LPAR supported */
-/* ibm,dynamic-reconfiguration-memory property supported */
-#define OV5_DRCONF_MEMORY	0x20
-#define OV5_LARGE_PAGES		0x10	/* large pages supported */
-#define OV5_DONATE_DEDICATE_CPU 0x02	/* donate dedicated CPU support */
-/* PCIe/MSI support.  Without MSI full PCIe is not supported */
-#ifdef CONFIG_PCI_MSI
-#define OV5_MSI			0x01	/* PCIe/MSI support */
-#else
-#define OV5_MSI			0x00
-#endif /* CONFIG_PCI_MSI */
-#ifdef CONFIG_PPC_SMLPAR
-#define OV5_CMO			0x80	/* Cooperative Memory Overcommitment */
-#define OV5_XCMO			0x40	/* Page Coalescing */
-#else
-#define OV5_CMO			0x00
-#define OV5_XCMO			0x00
-#endif
-#define OV5_TYPE1_AFFINITY	0x80	/* Type 1 NUMA affinity */
-#define OV5_PFO_HW_RNG		0x80	/* PFO Random Number Generator */
-#define OV5_PFO_HW_842		0x40	/* PFO Compression Accelerator */
-#define OV5_PFO_HW_ENCR		0x20	/* PFO Encryption Accelerator */
-#define OV5_SUB_PROCESSORS	0x01    /* 1,2,or 4 Sub-Processors supported */
-
-/* Option Vector 6: IBM PAPR hints */
-#define OV6_LINUX		0x02	/* Linux is our OS */
-
-/*
- * The architecture vector has an array of PVR mask/value pairs,
- * followed by # option vectors - 1, followed by the option vectors.
- */
-static unsigned char ibm_architecture_vec[] = {
+unsigned char ibm_architecture_vec[] = {
 	W(0xfffe0000), W(0x003a0000),	/* POWER5/POWER5+ */
 	W(0xffff0000), W(0x003e0000),	/* POWER6 */
 	W(0xffff0000), W(0x003f0000),	/* POWER7 */
@@ -747,11 +684,21 @@ static unsigned char ibm_architecture_vec[] = {
 	/* option vector 5: PAPR/OF options */
 	19 - 2,				/* length */
 	0,				/* don't ignore, don't halt */
-	OV5_LPAR | OV5_SPLPAR | OV5_LARGE_PAGES | OV5_DRCONF_MEMORY |
-	OV5_DONATE_DEDICATE_CPU | OV5_MSI,
+	OV5_FEAT(OV5_LPAR) | OV5_FEAT(OV5_SPLPAR) | OV5_FEAT(OV5_LARGE_PAGES) |
+	OV5_FEAT(OV5_DRCONF_MEMORY) | OV5_FEAT(OV5_DONATE_DEDICATE_CPU) |
+#ifdef CONFIG_PCI_MSI
+	/* PCIe/MSI support.  Without MSI full PCIe is not supported */
+	OV5_FEAT(OV5_MSI),
+#else
 	0,
-	OV5_CMO | OV5_XCMO,
-	OV5_TYPE1_AFFINITY,
+#endif
+	0,
+#ifdef CONFIG_PPC_SMLPAR
+	OV5_FEAT(OV5_CMO) | OV5_FEAT(OV5_XCMO),
+#else
+	0,
+#endif
+	OV5_FEAT(OV5_TYPE1_AFFINITY) | OV5_FEAT(OV5_PRRN),
 	0,
 	0,
 	0,
@@ -765,8 +712,9 @@ static unsigned char ibm_architecture_vec[] = {
 	0,
 	0,
 	0,
-	OV5_PFO_HW_RNG | OV5_PFO_HW_ENCR | OV5_PFO_HW_842,
-	OV5_SUB_PROCESSORS,
+	OV5_FEAT(OV5_PFO_HW_RNG) | OV5_FEAT(OV5_PFO_HW_ENCR) |
+	OV5_FEAT(OV5_PFO_HW_842),
+	OV5_FEAT(OV5_SUB_PROCESSORS),
 	/* option vector 6: IBM PAPR hints */
 	4 - 2,				/* length */
 	0,
@@ -2832,11 +2780,13 @@ static void unreloc_toc(void)
 {
 }
 #else
-static void __reloc_toc(void *tocstart, unsigned long offset,
-			unsigned long nr_entries)
+static void __reloc_toc(unsigned long offset, unsigned long nr_entries)
 {
 	unsigned long i;
-	unsigned long *toc_entry = (unsigned long *)tocstart;
+	unsigned long *toc_entry;
+
+	/* Get the start of the TOC by using r2 directly. */
+	asm volatile("addi %0,2,-0x8000" : "=b" (toc_entry));
 
 	for (i = 0; i < nr_entries; i++) {
 		*toc_entry = *toc_entry + offset;
@@ -2850,8 +2800,7 @@ static void reloc_toc(void)
 	unsigned long nr_entries =
 		(__prom_init_toc_end - __prom_init_toc_start) / sizeof(long);
 
-	/* Need to add offset to get at __prom_init_toc_start */
-	__reloc_toc(__prom_init_toc_start + offset, offset, nr_entries);
+	__reloc_toc(offset, nr_entries);
 
 	mb();
 }
@@ -2864,8 +2813,7 @@ static void unreloc_toc(void)
 
 	mb();
 
-	/* __prom_init_toc_start has been relocated, no need to add offset */
-	__reloc_toc(__prom_init_toc_start, -offset, nr_entries);
+	__reloc_toc(-offset, nr_entries);
 }
 #endif
 #endif

@@ -83,9 +83,10 @@ struct saa711x_state {
 	u32 ident;
 	u32 audclk_freq;
 	u32 crystal_freq;
-	u8 ucgc;
+	bool ucgc;
 	u8 cgcdiv;
-	u8 apll;
+	bool apll;
+	bool double_asclk;
 };
 
 static inline struct saa711x_state *to_state(struct v4l2_subdev *sd)
@@ -732,8 +733,12 @@ static int saa711x_s_clock_freq(struct v4l2_subdev *sd, u32 freq)
 	if (state->apll)
 		acc |= 0x08;
 
+	if (state->double_asclk) {
+		acpf <<= 1;
+		acni <<= 1;
+	}
 	saa711x_write(sd, R_38_CLK_RATIO_AMXCLK_TO_ASCLK, 0x03);
-	saa711x_write(sd, R_39_CLK_RATIO_ASCLK_TO_ALRCLK, 0x10);
+	saa711x_write(sd, R_39_CLK_RATIO_ASCLK_TO_ALRCLK, 0x10 << state->double_asclk);
 	saa711x_write(sd, R_3A_AUD_CLK_GEN_BASIC_SETUP, acc);
 
 	saa711x_write(sd, R_30_AUD_MAST_CLK_CYCLES_PER_FIELD, acpf & 0xff);
@@ -1259,6 +1264,12 @@ static int saa711x_s_routing(struct v4l2_subdev *sd,
 				(saa711x_read(sd, R_83_X_PORT_I_O_ENA_AND_OUT_CLK) & 0xfe) |
 				(state->output & 0x01));
 	}
+	if (state->ident > V4L2_IDENT_SAA7111A) {
+		if (config & SAA7115_IDQ_IS_DEFAULT)
+			saa711x_write(sd, R_85_I_PORT_SIGNAL_POLAR, 0x20);
+		else
+			saa711x_write(sd, R_85_I_PORT_SIGNAL_POLAR, 0x21);
+	}
 	return 0;
 }
 
@@ -1296,9 +1307,10 @@ static int saa711x_s_crystal_freq(struct v4l2_subdev *sd, u32 freq, u32 flags)
 	if (freq != SAA7115_FREQ_32_11_MHZ && freq != SAA7115_FREQ_24_576_MHZ)
 		return -EINVAL;
 	state->crystal_freq = freq;
+	state->double_asclk = flags & SAA7115_FREQ_FL_DOUBLE_ASCLK;
 	state->cgcdiv = (flags & SAA7115_FREQ_FL_CGCDIV) ? 3 : 4;
-	state->ucgc = (flags & SAA7115_FREQ_FL_UCGC) ? 1 : 0;
-	state->apll = (flags & SAA7115_FREQ_FL_APLL) ? 1 : 0;
+	state->ucgc = flags & SAA7115_FREQ_FL_UCGC;
+	state->apll = flags & SAA7115_FREQ_FL_APLL;
 	saa711x_s_clock_freq(sd, state->audclk_freq);
 	return 0;
 }
@@ -1354,6 +1366,34 @@ static int saa711x_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 	 */
 
 	reg1f = saa711x_read(sd, R_1F_STATUS_BYTE_2_VD_DEC);
+
+	if (state->ident == V4L2_IDENT_SAA7115) {
+		reg1e = saa711x_read(sd, R_1E_STATUS_BYTE_1_VD_DEC);
+
+		v4l2_dbg(1, debug, sd, "Status byte 1 (0x1e)=0x%02x\n", reg1e);
+
+		switch (reg1e & 0x03) {
+		case 1:
+			*std &= V4L2_STD_NTSC;
+			break;
+		case 2:
+			/*
+			 * V4L2_STD_PAL just cover the european PAL standards.
+			 * This is wrong, as the device could also be using an
+			 * other PAL standard.
+			 */
+			*std &= V4L2_STD_PAL   | V4L2_STD_PAL_N  | V4L2_STD_PAL_Nc |
+				V4L2_STD_PAL_M | V4L2_STD_PAL_60;
+			break;
+		case 3:
+			*std &= V4L2_STD_SECAM;
+			break;
+		default:
+			/* Can't detect anything */
+			break;
+		}
+	}
+
 	v4l2_dbg(1, debug, sd, "Status byte 2 (0x1f)=0x%02x\n", reg1f);
 
 	/* horizontal/vertical not locked */
@@ -1364,34 +1404,6 @@ static int saa711x_querystd(struct v4l2_subdev *sd, v4l2_std_id *std)
 		*std &= V4L2_STD_525_60;
 	else
 		*std &= V4L2_STD_625_50;
-
-	if (state->ident != V4L2_IDENT_SAA7115)
-		goto ret;
-
-	reg1e = saa711x_read(sd, R_1E_STATUS_BYTE_1_VD_DEC);
-
-	switch (reg1e & 0x03) {
-	case 1:
-		*std &= V4L2_STD_NTSC;
-		break;
-	case 2:
-		/*
-		 * V4L2_STD_PAL just cover the european PAL standards.
-		 * This is wrong, as the device could also be using an
-		 * other PAL standard.
-		 */
-		*std &= V4L2_STD_PAL   | V4L2_STD_PAL_N  | V4L2_STD_PAL_Nc |
-			V4L2_STD_PAL_M | V4L2_STD_PAL_60;
-		break;
-	case 3:
-		*std &= V4L2_STD_SECAM;
-		break;
-	default:
-		/* Can't detect anything */
-		break;
-	}
-
-	v4l2_dbg(1, debug, sd, "Status byte 1 (0x1e)=0x%02x\n", reg1e);
 
 ret:
 	v4l2_dbg(1, debug, sd, "detected std mask = %08Lx\n", *std);
@@ -1428,7 +1440,7 @@ static int saa711x_g_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *
 	return 0;
 }
 
-static int saa711x_s_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *reg)
+static int saa711x_s_register(struct v4l2_subdev *sd, const struct v4l2_dbg_register *reg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 

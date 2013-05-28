@@ -32,6 +32,8 @@
 
 #include <linux/omap-dma.h>
 
+#include <mach/hardware.h>
+
 #include "omapfb.h"
 #include "lcdc.h"
 

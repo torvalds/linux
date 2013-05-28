@@ -31,6 +31,7 @@
 #include "xfs_vnodeops.h"
 #include "xfs_trace.h"
 #include "xfs_bmap.h"
+#include <linux/aio.h>
 #include <linux/gfp.h>
 #include <linux/mpage.h>
 #include <linux/pagevec.h>
@@ -724,6 +725,25 @@ xfs_convert_page(
 			(xfs_off_t)(page->index + 1) << PAGE_CACHE_SHIFT,
 			i_size_read(inode));
 
+	/*
+	 * If the current map does not span the entire page we are about to try
+	 * to write, then give up. The only way we can write a page that spans
+	 * multiple mappings in a single writeback iteration is via the
+	 * xfs_vm_writepage() function. Data integrity writeback requires the
+	 * entire page to be written in a single attempt, otherwise the part of
+	 * the page we don't write here doesn't get written as part of the data
+	 * integrity sync.
+	 *
+	 * For normal writeback, we also don't attempt to write partial pages
+	 * here as it simply means that write_cache_pages() will see it under
+	 * writeback and ignore the page until some point in the future, at
+	 * which time this will be the only page in the file that needs
+	 * writeback.  Hence for more optimal IO patterns, we should always
+	 * avoid partial page writeback due to multiple mappings on a page here.
+	 */
+	if (!xfs_imap_valid(inode, imap, end_offset))
+		goto fail_unlock_page;
+
 	len = 1 << inode->i_blkbits;
 	p_offset = min_t(unsigned long, end_offset & (PAGE_CACHE_SIZE - 1),
 					PAGE_CACHE_SIZE);
@@ -953,13 +973,13 @@ xfs_vm_writepage(
 		unsigned offset_into_page = offset & (PAGE_CACHE_SIZE - 1);
 
 		/*
-		 * Just skip the page if it is fully outside i_size, e.g. due
-		 * to a truncate operation that is in progress.
+		 * Skip the page if it is fully outside i_size, e.g. due to a
+		 * truncate operation that is in progress. We must redirty the
+		 * page so that reclaim stops reclaiming it. Otherwise
+		 * xfs_vm_releasepage() is called on it and gets confused.
 		 */
-		if (page->index >= end_index + 1 || offset_into_page == 0) {
-			unlock_page(page);
-			return 0;
-		}
+		if (page->index >= end_index + 1 || offset_into_page == 0)
+			goto redirty;
 
 		/*
 		 * The page straddles i_size.  It must be zeroed out on each

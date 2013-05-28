@@ -345,7 +345,8 @@ void wd33c93_init (struct Scsi_Host *instance, const wd33c93_regs regs,
 int wd33c93_abort (struct scsi_cmnd *cmd);
 int wd33c93_queuecommand (struct Scsi_Host *h, struct scsi_cmnd *cmd);
 void wd33c93_intr (struct Scsi_Host *instance);
-int wd33c93_proc_info(struct Scsi_Host *, char *, char **, off_t, int, int);
+int wd33c93_show_info(struct seq_file *, struct Scsi_Host *);
+int wd33c93_write_info(struct Scsi_Host *, char *, int);
 int wd33c93_host_reset (struct scsi_cmnd *);
 
 #endif /* WD33C93_H */

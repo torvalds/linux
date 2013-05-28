@@ -332,32 +332,32 @@ static int ds278x_battery_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 
-static int ds278x_suspend(struct i2c_client *client,
-		pm_message_t state)
+static int ds278x_suspend(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct ds278x_info *info = i2c_get_clientdata(client);
 
 	cancel_delayed_work(&info->bat_work);
 	return 0;
 }
 
-static int ds278x_resume(struct i2c_client *client)
+static int ds278x_resume(struct device *dev)
 {
+	struct i2c_client *client = to_i2c_client(dev);
 	struct ds278x_info *info = i2c_get_clientdata(client);
 
 	schedule_delayed_work(&info->bat_work, DS278x_DELAY);
 	return 0;
 }
 
+static SIMPLE_DEV_PM_OPS(ds278x_battery_pm_ops, ds278x_suspend, ds278x_resume);
+#define DS278X_BATTERY_PM_OPS (&ds278x_battery_pm_ops)
+
 #else
-
-#define ds278x_suspend NULL
-#define ds278x_resume NULL
-
-#endif /* CONFIG_PM */
-
+#define DS278X_BATTERY_PM_OPS NULL
+#endif /* CONFIG_PM_SLEEP */
 
 enum ds278x_num_id {
 	DS2782 = 0,
@@ -460,11 +460,10 @@ MODULE_DEVICE_TABLE(i2c, ds278x_id);
 static struct i2c_driver ds278x_battery_driver = {
 	.driver 	= {
 		.name	= "ds2782-battery",
+		.pm	= DS278X_BATTERY_PM_OPS,
 	},
 	.probe		= ds278x_battery_probe,
 	.remove		= ds278x_battery_remove,
-	.suspend	= ds278x_suspend,
-	.resume		= ds278x_resume,
 	.id_table	= ds278x_id,
 };
 module_i2c_driver(ds278x_battery_driver);

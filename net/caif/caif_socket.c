@@ -1,6 +1,6 @@
 /*
  * Copyright (C) ST-Ericsson AB 2010
- * Author:	Sjur Brendeland sjur.brandeland@stericsson.com
+ * Author:	Sjur Brendeland
  * License terms: GNU General Public License (GPL) version 2
  */
 
@@ -197,8 +197,8 @@ static void cfsk_put(struct cflayer *layr)
 
 /* Packet Control Callback function called from CAIF */
 static void caif_ctrl_cb(struct cflayer *layr,
-				enum caif_ctrlcmd flow,
-				int phyid)
+			 enum caif_ctrlcmd flow,
+			 int phyid)
 {
 	struct caifsock *cf_sk = container_of(layr, struct caifsock, layer);
 	switch (flow) {
@@ -274,7 +274,7 @@ static void caif_check_flow_release(struct sock *sk)
  * changed locking, address handling and added MSG_TRUNC.
  */
 static int caif_seqpkt_recvmsg(struct kiocb *iocb, struct socket *sock,
-				struct msghdr *m, size_t len, int flags)
+			       struct msghdr *m, size_t len, int flags)
 
 {
 	struct sock *sk = sock->sk;
@@ -285,6 +285,8 @@ static int caif_seqpkt_recvmsg(struct kiocb *iocb, struct socket *sock,
 	ret = -EOPNOTSUPP;
 	if (m->msg_flags&MSG_OOB)
 		goto read_error;
+
+	m->msg_namelen = 0;
 
 	skb = skb_recv_datagram(sk, flags, 0 , &ret);
 	if (!skb)
@@ -346,8 +348,8 @@ static long caif_stream_data_wait(struct sock *sk, long timeo)
  * changed locking calls, changed address handling.
  */
 static int caif_stream_recvmsg(struct kiocb *iocb, struct socket *sock,
-				struct msghdr *msg, size_t size,
-				int flags)
+			       struct msghdr *msg, size_t size,
+			       int flags)
 {
 	struct sock *sk = sock->sk;
 	int copied = 0;
@@ -462,7 +464,7 @@ out:
  * CAIF flow-on and sock_writable.
  */
 static long caif_wait_for_flow_on(struct caifsock *cf_sk,
-				int wait_writeable, long timeo, int *err)
+				  int wait_writeable, long timeo, int *err)
 {
 	struct sock *sk = &cf_sk->sk;
 	DEFINE_WAIT(wait);
@@ -516,7 +518,7 @@ static int transmit_skb(struct sk_buff *skb, struct caifsock *cf_sk,
 
 /* Copied from af_unix:unix_dgram_sendmsg, and adapted to CAIF */
 static int caif_seqpkt_sendmsg(struct kiocb *kiocb, struct socket *sock,
-			struct msghdr *msg, size_t len)
+			       struct msghdr *msg, size_t len)
 {
 	struct sock *sk = sock->sk;
 	struct caifsock *cf_sk = container_of(sk, struct caifsock, sk);
@@ -591,7 +593,7 @@ err:
  * and other minor adaptations.
  */
 static int caif_stream_sendmsg(struct kiocb *kiocb, struct socket *sock,
-				struct msghdr *msg, size_t len)
+			       struct msghdr *msg, size_t len)
 {
 	struct sock *sk = sock->sk;
 	struct caifsock *cf_sk = container_of(sk, struct caifsock, sk);
@@ -670,7 +672,7 @@ out_err:
 }
 
 static int setsockopt(struct socket *sock,
-			int lvl, int opt, char __user *ov, unsigned int ol)
+		      int lvl, int opt, char __user *ov, unsigned int ol)
 {
 	struct sock *sk = sock->sk;
 	struct caifsock *cf_sk = container_of(sk, struct caifsock, sk);
@@ -932,7 +934,7 @@ static int caif_release(struct socket *sock)
 
 /* Copied from af_unix.c:unix_poll(), added CAIF tx_flow handling */
 static unsigned int caif_poll(struct file *file,
-				struct socket *sock, poll_table *wait)
+			      struct socket *sock, poll_table *wait)
 {
 	struct sock *sk = sock->sk;
 	unsigned int mask;
@@ -1022,7 +1024,7 @@ static void caif_sock_destructor(struct sock *sk)
 }
 
 static int caif_create(struct net *net, struct socket *sock, int protocol,
-			int kern)
+		       int kern)
 {
 	struct sock *sk = NULL;
 	struct caifsock *cf_sk = NULL;

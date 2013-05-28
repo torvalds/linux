@@ -158,9 +158,3 @@ void show_stack(struct task_struct *tsk, unsigned long *sp)
 		 (unsigned long)task_stack_page(tsk));
 	show_trace(tsk, sp, NULL);
 }
-
-void dump_stack(void)
-{
-	show_stack(NULL, NULL);
-}
-EXPORT_SYMBOL(dump_stack);

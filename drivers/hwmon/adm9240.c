@@ -351,8 +351,9 @@ static void adm9240_write_fan_div(struct i2c_client *client, int nr,
 	reg &= ~(3 << shift);
 	reg |= (fan_div << shift);
 	i2c_smbus_write_byte_data(client, ADM9240_REG_VID_FAN_DIV, reg);
-	dev_dbg(&client->dev, "fan%d clock divider changed from %u "
-			"to %u\n", nr + 1, 1 << old, 1 << fan_div);
+	dev_dbg(&client->dev,
+		"fan%d clock divider changed from %u to %u\n",
+		nr + 1, 1 << old, 1 << fan_div);
 }
 
 /*
@@ -699,8 +700,8 @@ static void adm9240_init_client(struct i2c_client *client)
 		/* start measurement cycle */
 		i2c_smbus_write_byte_data(client, ADM9240_REG_CONFIG, 1);
 
-		dev_info(&client->dev, "cold start: config was 0x%02x "
-				"mode %u\n", conf, mode);
+		dev_info(&client->dev,
+			 "cold start: config was 0x%02x mode %u\n", conf, mode);
 	}
 }
 

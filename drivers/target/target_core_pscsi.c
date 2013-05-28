@@ -883,7 +883,14 @@ pscsi_map_sg(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 		pr_debug("PSCSI: i: %d page: %p len: %d off: %d\n", i,
 			page, len, off);
 
-		while (len > 0 && data_len > 0) {
+		/*
+		 * We only have one page of data in each sg element,
+		 * we can not cross a page boundary.
+		 */
+		if (off + len > PAGE_SIZE)
+			goto fail;
+
+		if (len > 0 && data_len > 0) {
 			bytes = min_t(unsigned int, len, PAGE_SIZE - off);
 			bytes = min(bytes, data_len);
 
@@ -940,9 +947,7 @@ pscsi_map_sg(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 				bio = NULL;
 			}
 
-			len -= bytes;
 			data_len -= bytes;
-			off = 0;
 		}
 	}
 

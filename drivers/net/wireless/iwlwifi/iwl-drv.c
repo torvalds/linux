@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -912,8 +912,6 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 		}
 	}
 
-	IWL_INFO(drv, "loaded firmware version %s", drv->fw.fw_version);
-
 	/*
 	 * In mvm uCode there is no difference between data and instructions
 	 * sections.
@@ -970,6 +968,9 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	else
 		op = &iwlwifi_opmode_table[DVM_OP_MODE];
 
+	IWL_INFO(drv, "loaded firmware version %s op_mode %s\n",
+		 drv->fw.fw_version, op->name);
+
 	/* add this device to the list of devices using this op_mode */
 	list_add_tail(&drv->list, &op->drv);
 
@@ -997,8 +998,13 @@ static void iwl_req_fw_callback(const struct firmware *ucode_raw, void *context)
 	 * else from proceeding if the module fails to load
 	 * or hangs loading.
 	 */
-	if (load_module)
-		request_module("%s", op->name);
+	if (load_module) {
+		err = request_module("%s", op->name);
+		if (err)
+			IWL_ERR(drv,
+				"failed to load module %s (error %d), is dynamic loading enabled?\n",
+				op->name, err);
+	}
 	return;
 
  try_again:
@@ -1102,8 +1108,7 @@ void iwl_drv_stop(struct iwl_drv *drv)
 
 /* shared module parameters */
 struct iwl_mod_params iwlwifi_mod_params = {
-	.amsdu_size_8K = 1,
-	.restart_fw = 1,
+	.restart_fw = true,
 	.plcp_check = true,
 	.bt_coex_active = true,
 	.power_level = IWL_POWER_INDEX_1,
@@ -1112,7 +1117,7 @@ struct iwl_mod_params iwlwifi_mod_params = {
 	.wd_disable = true,
 	/* the rest are 0 by default */
 };
-EXPORT_SYMBOL_GPL(iwlwifi_mod_params);
+IWL_EXPORT_SYMBOL(iwlwifi_mod_params);
 
 int iwl_opmode_register(const char *name, const struct iwl_op_mode_ops *ops)
 {
@@ -1136,7 +1141,7 @@ int iwl_opmode_register(const char *name, const struct iwl_op_mode_ops *ops)
 	mutex_unlock(&iwlwifi_opmode_table_mtx);
 	return -EIO;
 }
-EXPORT_SYMBOL_GPL(iwl_opmode_register);
+IWL_EXPORT_SYMBOL(iwl_opmode_register);
 
 void iwl_opmode_deregister(const char *name)
 {
@@ -1158,7 +1163,7 @@ void iwl_opmode_deregister(const char *name)
 	}
 	mutex_unlock(&iwlwifi_opmode_table_mtx);
 }
-EXPORT_SYMBOL_GPL(iwl_opmode_deregister);
+IWL_EXPORT_SYMBOL(iwl_opmode_deregister);
 
 static int __init iwl_drv_init(void)
 {
@@ -1207,9 +1212,9 @@ MODULE_PARM_DESC(11n_disable,
 	"disable 11n functionality, bitmap: 1: full, 2: agg TX, 4: agg RX");
 module_param_named(amsdu_size_8K, iwlwifi_mod_params.amsdu_size_8K,
 		   int, S_IRUGO);
-MODULE_PARM_DESC(amsdu_size_8K, "enable 8K amsdu size");
-module_param_named(fw_restart, iwlwifi_mod_params.restart_fw, int, S_IRUGO);
-MODULE_PARM_DESC(fw_restart, "restart firmware in case of error");
+MODULE_PARM_DESC(amsdu_size_8K, "enable 8K amsdu size (default 0)");
+module_param_named(fw_restart, iwlwifi_mod_params.restart_fw, bool, S_IRUGO);
+MODULE_PARM_DESC(fw_restart, "restart firmware in case of error (default true)");
 
 module_param_named(antenna_coupling, iwlwifi_mod_params.ant_coupling,
 		   int, S_IRUGO);
@@ -1267,7 +1272,3 @@ module_param_named(auto_agg, iwlwifi_mod_params.auto_agg,
 		bool, S_IRUGO);
 MODULE_PARM_DESC(auto_agg,
 		 "enable agg w/o check traffic load (default: enable)");
-
-module_param_named(5ghz_disable, iwlwifi_mod_params.disable_5ghz,
-		bool, S_IRUGO);
-MODULE_PARM_DESC(5ghz_disable, "disable 5GHz band (default: 0 [enabled])");

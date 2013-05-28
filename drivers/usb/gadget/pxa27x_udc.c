@@ -24,14 +24,12 @@
 #include <linux/gpio.h>
 #include <linux/slab.h>
 #include <linux/prefetch.h>
-
-#include <asm/byteorder.h>
-#include <mach/hardware.h>
+#include <linux/byteorder/generic.h>
+#include <linux/platform_data/pxa2xx_udc.h>
 
 #include <linux/usb.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
-#include <mach/udc.h>
 
 #include "pxa27x_udc.h"
 
@@ -611,7 +609,7 @@ static void inc_ep_stats_bytes(struct pxa_ep *ep, int count, int is_in)
  *
  * Find the physical pxa27x ep, and setup its UDCCR
  */
-static __init void pxa_ep_setup(struct pxa_ep *ep)
+static void pxa_ep_setup(struct pxa_ep *ep)
 {
 	u32 new_udccr;
 
@@ -633,7 +631,7 @@ static __init void pxa_ep_setup(struct pxa_ep *ep)
  *
  * Setup all pxa physical endpoints, except ep0
  */
-static __init void pxa_eps_setup(struct pxa_udc *dev)
+static void pxa_eps_setup(struct pxa_udc *dev)
 {
 	unsigned int i;
 
@@ -1718,7 +1716,7 @@ static void udc_disable(struct pxa_udc *udc)
  * Initializes gadget endpoint list, endpoints locks. No action is taken
  * on the hardware.
  */
-static __init void udc_init_data(struct pxa_udc *dev)
+static void udc_init_data(struct pxa_udc *dev)
 {
 	int i;
 	struct pxa_ep *ep;
@@ -1811,14 +1809,8 @@ static int pxa27x_udc_start(struct usb_gadget *g,
 
 	/* first hook up the driver ... */
 	udc->driver = driver;
-	udc->gadget.dev.driver = &driver->driver;
 	dplus_pullup(udc, 1);
 
-	retval = device_add(&udc->gadget.dev);
-	if (retval) {
-		dev_err(udc->dev, "device_add error %d\n", retval);
-		goto fail;
-	}
 	if (!IS_ERR_OR_NULL(udc->transceiver)) {
 		retval = otg_set_peripheral(udc->transceiver->otg,
 						&udc->gadget);
@@ -1834,7 +1826,6 @@ static int pxa27x_udc_start(struct usb_gadget *g,
 
 fail:
 	udc->driver = NULL;
-	udc->gadget.dev.driver = NULL;
 	return retval;
 }
 
@@ -1875,8 +1866,6 @@ static int pxa27x_udc_stop(struct usb_gadget *g,
 	dplus_pullup(udc, 0);
 
 	udc->driver = NULL;
-
-	device_del(&udc->gadget.dev);
 
 	if (!IS_ERR_OR_NULL(udc->transceiver))
 		return otg_set_peripheral(udc->transceiver->otg, NULL);
@@ -2419,7 +2408,7 @@ static struct pxa_udc memory = {
  * Perform basic init : allocates udc clock, creates sysfs files, requests
  * irq.
  */
-static int __init pxa_udc_probe(struct platform_device *pdev)
+static int pxa_udc_probe(struct platform_device *pdev)
 {
 	struct resource *regs;
 	struct pxa_udc *udc = &memory;
@@ -2462,9 +2451,6 @@ static int __init pxa_udc_probe(struct platform_device *pdev)
 		goto err_map;
 	}
 
-	device_initialize(&udc->gadget.dev);
-	udc->gadget.dev.parent = &pdev->dev;
-	udc->gadget.dev.dma_mask = NULL;
 	udc->vbus_sensed = 0;
 
 	the_controller = udc;
@@ -2480,12 +2466,15 @@ static int __init pxa_udc_probe(struct platform_device *pdev)
 			driver_name, udc->irq, retval);
 		goto err_irq;
 	}
+
 	retval = usb_add_gadget_udc(&pdev->dev, &udc->gadget);
 	if (retval)
 		goto err_add_udc;
 
 	pxa_init_debugfs(udc);
+
 	return 0;
+
 err_add_udc:
 	free_irq(udc->irq, udc);
 err_irq:
@@ -2501,7 +2490,7 @@ err_clk:
  * pxa_udc_remove - removes the udc device driver
  * @_dev: platform device
  */
-static int __exit pxa_udc_remove(struct platform_device *_dev)
+static int pxa_udc_remove(struct platform_device *_dev)
 {
 	struct pxa_udc *udc = platform_get_drvdata(_dev);
 	int gpio = udc->mach->gpio_pullup;
@@ -2619,7 +2608,8 @@ static struct platform_driver udc_driver = {
 		.name	= "pxa27x-udc",
 		.owner	= THIS_MODULE,
 	},
-	.remove		= __exit_p(pxa_udc_remove),
+	.probe		= pxa_udc_probe,
+	.remove		= pxa_udc_remove,
 	.shutdown	= pxa_udc_shutdown,
 #ifdef CONFIG_PM
 	.suspend	= pxa_udc_suspend,
@@ -2627,22 +2617,7 @@ static struct platform_driver udc_driver = {
 #endif
 };
 
-static int __init udc_init(void)
-{
-	if (!cpu_is_pxa27x() && !cpu_is_pxa3xx())
-		return -ENODEV;
-
-	printk(KERN_INFO "%s: version %s\n", driver_name, DRIVER_VERSION);
-	return platform_driver_probe(&udc_driver, pxa_udc_probe);
-}
-module_init(udc_init);
-
-
-static void __exit udc_exit(void)
-{
-	platform_driver_unregister(&udc_driver);
-}
-module_exit(udc_exit);
+module_platform_driver(udc_driver);
 
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_AUTHOR("Robert Jarzmik");

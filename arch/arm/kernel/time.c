@@ -22,6 +22,7 @@
 #include <linux/errno.h>
 #include <linux/profile.h>
 #include <linux/timer.h>
+#include <linux/clocksource.h>
 #include <linux/irq.h>
 
 #include <asm/thread_info.h>
@@ -115,6 +116,10 @@ int __init register_persistent_clock(clock_access_fn read_boot,
 
 void __init time_init(void)
 {
-	machine_desc->init_time();
+	if (machine_desc->init_time)
+		machine_desc->init_time();
+	else
+		clocksource_of_init();
+
 	sched_clock_postinit();
 }

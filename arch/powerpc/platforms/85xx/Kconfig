@@ -203,7 +203,6 @@ config GE_IMP3A
 	select DEFAULT_UIMAGE
 	select SWIOTLB
 	select MMIO_NVRAM
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	select GE_FPGA
 	help
@@ -305,6 +304,40 @@ config PPC_QEMU_E500
 	  unset based on the emulated CPU (or actual host CPU in the case
 	  of KVM).
 
+if PPC64
+
+config T4240_QDS
+	bool "Freescale T4240 QDS"
+	select DEFAULT_UIMAGE
+	select E500
+	select PPC_E500MC
+	select PHYS_64BIT
+	select SWIOTLB
+	select ARCH_REQUIRE_GPIOLIB
+	select GPIO_MPC8XXX
+	select HAS_RAPIDIO
+	select PPC_EPAPR_HV_PIC
+	help
+	  This option enables support for the T4240 QDS board
+
+config B4_QDS
+	bool "Freescale B4 QDS"
+	select DEFAULT_UIMAGE
+	select E500
+	select PPC_E500MC
+	select PHYS_64BIT
+	select SWIOTLB
+	select GPIOLIB
+	select ARCH_REQUIRE_GPIOLIB
+	select HAS_RAPIDIO
+	select PPC_EPAPR_HV_PIC
+	help
+	  This option enables support for the B4 QDS board
+	  The B4 application development system B4 QDS is a complete
+	  debugging environment intended for engineers developing
+	  applications for the B4.
+
+endif
 endif # FSL_SOC_BOOKE
 
 config TQM85xx

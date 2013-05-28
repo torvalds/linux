@@ -41,6 +41,9 @@
 #define SPEED_AUTO_NEG		0
 #define SPEED_20000		20000
 
+#define I2C_DEV_ADDR_A0			0xa0
+#define I2C_DEV_ADDR_A2			0xa2
+
 #define SFP_EEPROM_PAGE_SIZE			16
 #define SFP_EEPROM_VENDOR_NAME_ADDR		0x14
 #define SFP_EEPROM_VENDOR_NAME_SIZE		16
@@ -54,6 +57,15 @@
 #define SFP_EEPROM_SERIAL_SIZE			16
 #define SFP_EEPROM_DATE_ADDR			0x54 /* ASCII YYMMDD */
 #define SFP_EEPROM_DATE_SIZE			6
+#define SFP_EEPROM_DIAG_TYPE_ADDR		0x5c
+#define SFP_EEPROM_DIAG_TYPE_SIZE		1
+#define SFP_EEPROM_DIAG_ADDR_CHANGE_REQ		(1<<2)
+#define SFP_EEPROM_SFF_8472_COMP_ADDR		0x5e
+#define SFP_EEPROM_SFF_8472_COMP_SIZE		1
+
+#define SFP_EEPROM_A2_CHECKSUM_RANGE		0x5e
+#define SFP_EEPROM_A2_CC_DMI_ADDR		0x5f
+
 #define PWR_FLT_ERR_MSG_LEN			250
 
 #define XGXS_EXT_PHY_TYPE(ext_phy_config) \
@@ -309,6 +321,7 @@ struct link_params {
 				req_flow_ctrl is set to AUTO */
 	u16 link_flags;
 #define LINK_FLAGS_INT_DISABLED		(1<<0)
+#define PHY_INITIALIZED		(1<<1)
 	u32 lfa_base;
 };
 
@@ -342,7 +355,8 @@ struct link_vars {
 	u32 link_status;
 	u32 eee_status;
 	u8 fault_detected;
-	u8 rsrv1;
+	u8 check_kr2_recovery_cnt;
+#define CHECK_KR2_RECOVERY_CNT	5
 	u16 periodic_flags;
 #define PERIODIC_FLAGS_LINK_EVENT	0x0001
 
@@ -418,8 +432,8 @@ void bnx2x_sfx7101_sp_sw_reset(struct bnx2x *bp, struct bnx2x_phy *phy);
 
 /* Read "byte_cnt" bytes from address "addr" from the SFP+ EEPROM */
 int bnx2x_read_sfp_module_eeprom(struct bnx2x_phy *phy,
-				 struct link_params *params, u16 addr,
-				 u8 byte_cnt, u8 *o_buf);
+				 struct link_params *params, u8 dev_addr,
+				 u16 addr, u16 byte_cnt, u8 *o_buf);
 
 void bnx2x_hw_reset_phy(struct link_params *params);
 

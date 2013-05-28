@@ -3154,6 +3154,10 @@ qla4_8xxx_get_flt_info(struct scsi_qla_host *ha, uint32_t flt_addr)
 			hw->flt_region_chap =  start;
 			hw->flt_chap_size =  le32_to_cpu(region->size);
 			break;
+		case FLT_REG_ISCSI_DDB:
+			hw->flt_region_ddb =  start;
+			hw->flt_ddb_size =  le32_to_cpu(region->size);
+			break;
 		}
 	}
 	goto done;
@@ -3166,14 +3170,19 @@ no_flash_data:
 	hw->flt_region_boot     = FA_BOOT_CODE_ADDR_82;
 	hw->flt_region_bootload = FA_BOOT_LOAD_ADDR_82;
 	hw->flt_region_fw       = FA_RISC_CODE_ADDR_82;
-	hw->flt_region_chap	= FA_FLASH_ISCSI_CHAP;
+	hw->flt_region_chap	= FA_FLASH_ISCSI_CHAP >> 2;
 	hw->flt_chap_size	= FA_FLASH_CHAP_SIZE;
+	hw->flt_region_ddb	= FA_FLASH_ISCSI_DDB >> 2;
+	hw->flt_ddb_size	= FA_FLASH_DDB_SIZE;
 
 done:
-	DEBUG2(ql4_printk(KERN_INFO, ha, "FLT[%s]: flt=0x%x fdt=0x%x "
-	    "boot=0x%x bootload=0x%x fw=0x%x\n", loc, hw->flt_region_flt,
-	    hw->flt_region_fdt,	hw->flt_region_boot, hw->flt_region_bootload,
-	    hw->flt_region_fw));
+	DEBUG2(ql4_printk(KERN_INFO, ha,
+			  "FLT[%s]: flt=0x%x fdt=0x%x boot=0x%x bootload=0x%x fw=0x%x chap=0x%x chap_size=0x%x ddb=0x%x  ddb_size=0x%x\n",
+			  loc, hw->flt_region_flt, hw->flt_region_fdt,
+			  hw->flt_region_boot, hw->flt_region_bootload,
+			  hw->flt_region_fw, hw->flt_region_chap,
+			  hw->flt_chap_size, hw->flt_region_ddb,
+			  hw->flt_ddb_size));
 }
 
 static void

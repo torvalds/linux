@@ -38,6 +38,8 @@
 
 #include <asm/uaccess.h>
 
+#include "mtdcore.h"
+
 static DEFINE_MUTEX(mtd_mutex);
 
 /*
@@ -365,37 +367,35 @@ static void mtdchar_erase_callback (struct erase_info *instr)
 	wake_up((wait_queue_head_t *)instr->priv);
 }
 
-#ifdef CONFIG_HAVE_MTD_OTP
 static int otp_select_filemode(struct mtd_file_info *mfi, int mode)
 {
 	struct mtd_info *mtd = mfi->mtd;
 	size_t retlen;
-	int ret = 0;
-
-	/*
-	 * Make a fake call to mtd_read_fact_prot_reg() to check if OTP
-	 * operations are supported.
-	 */
-	if (mtd_read_fact_prot_reg(mtd, -1, 0, &retlen, NULL) == -EOPNOTSUPP)
-		return -EOPNOTSUPP;
 
 	switch (mode) {
 	case MTD_OTP_FACTORY:
+		if (mtd_read_fact_prot_reg(mtd, -1, 0, &retlen, NULL) ==
+				-EOPNOTSUPP)
+			return -EOPNOTSUPP;
+
 		mfi->mode = MTD_FILE_MODE_OTP_FACTORY;
 		break;
 	case MTD_OTP_USER:
+		if (mtd_read_user_prot_reg(mtd, -1, 0, &retlen, NULL) ==
+				-EOPNOTSUPP)
+			return -EOPNOTSUPP;
+
 		mfi->mode = MTD_FILE_MODE_OTP_USER;
 		break;
-	default:
-		ret = -EINVAL;
 	case MTD_OTP_OFF:
+		mfi->mode = MTD_FILE_MODE_NORMAL;
 		break;
+	default:
+		return -EINVAL;
 	}
-	return ret;
+
+	return 0;
 }
-#else
-# define otp_select_filemode(f,m)	-EOPNOTSUPP
-#endif
 
 static int mtdchar_writeoob(struct file *file, struct mtd_info *mtd,
 	uint64_t start, uint32_t length, void __user *ptr,
@@ -888,7 +888,6 @@ static int mtdchar_ioctl(struct file *file, u_int cmd, u_long arg)
 		break;
 	}
 
-#ifdef CONFIG_HAVE_MTD_OTP
 	case OTPSELECT:
 	{
 		int mode;
@@ -944,7 +943,6 @@ static int mtdchar_ioctl(struct file *file, u_int cmd, u_long arg)
 		ret = mtd_lock_user_prot_reg(mtd, oinfo.start, oinfo.length);
 		break;
 	}
-#endif
 
 	/* This ioctl is being deprecated - it truncates the ECC layout */
 	case ECCGETLAYOUT:
@@ -1123,33 +1121,6 @@ static unsigned long mtdchar_get_unmapped_area(struct file *file,
 }
 #endif
 
-static inline unsigned long get_vm_size(struct vm_area_struct *vma)
-{
-	return vma->vm_end - vma->vm_start;
-}
-
-static inline resource_size_t get_vm_offset(struct vm_area_struct *vma)
-{
-	return (resource_size_t) vma->vm_pgoff << PAGE_SHIFT;
-}
-
-/*
- * Set a new vm offset.
- *
- * Verify that the incoming offset really works as a page offset,
- * and that the offset and size fit in a resource_size_t.
- */
-static inline int set_vm_offset(struct vm_area_struct *vma, resource_size_t off)
-{
-	pgoff_t pgoff = off >> PAGE_SHIFT;
-	if (off != (resource_size_t) pgoff << PAGE_SHIFT)
-		return -EINVAL;
-	if (off + get_vm_size(vma) - 1 < off)
-		return -EINVAL;
-	vma->vm_pgoff = pgoff;
-	return 0;
-}
-
 /*
  * set up a mapping for shared memory segments
  */
@@ -1159,45 +1130,17 @@ static int mtdchar_mmap(struct file *file, struct vm_area_struct *vma)
 	struct mtd_file_info *mfi = file->private_data;
 	struct mtd_info *mtd = mfi->mtd;
 	struct map_info *map = mtd->priv;
-	resource_size_t start, off;
-	unsigned long len, vma_len;
 
         /* This is broken because it assumes the MTD device is map-based
 	   and that mtd->priv is a valid struct map_info.  It should be
 	   replaced with something that uses the mtd_get_unmapped_area()
 	   operation properly. */
 	if (0 /*mtd->type == MTD_RAM || mtd->type == MTD_ROM*/) {
-		off = get_vm_offset(vma);
-		start = map->phys;
-		len = PAGE_ALIGN((start & ~PAGE_MASK) + map->size);
-		start &= PAGE_MASK;
-		vma_len = get_vm_size(vma);
-
-		/* Overflow in off+len? */
-		if (vma_len + off < off)
-			return -EINVAL;
-		/* Does it fit in the mapping? */
-		if (vma_len + off > len)
-			return -EINVAL;
-
-		off += start;
-		/* Did that overflow? */
-		if (off < start)
-			return -EINVAL;
-		if (set_vm_offset(vma, off) < 0)
-			return -EINVAL;
-		vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
-
 #ifdef pgprot_noncached
-		if (file->f_flags & O_DSYNC || off >= __pa(high_memory))
+		if (file->f_flags & O_DSYNC || map->phys >= __pa(high_memory))
 			vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
 #endif
-		if (io_remap_pfn_range(vma, vma->vm_start, off >> PAGE_SHIFT,
-				       vma->vm_end - vma->vm_start,
-				       vma->vm_page_prot))
-			return -EAGAIN;
-
-		return 0;
+		return vm_iomap_memory(vma, map->phys, map->size);
 	}
 	return -ENOSYS;
 #else
@@ -1240,23 +1183,25 @@ static struct file_system_type mtd_inodefs_type = {
 };
 MODULE_ALIAS_FS("mtd_inodefs");
 
-static int __init init_mtdchar(void)
+int __init init_mtdchar(void)
 {
 	int ret;
 
 	ret = __register_chrdev(MTD_CHAR_MAJOR, 0, 1 << MINORBITS,
 				   "mtd", &mtd_fops);
 	if (ret < 0) {
-		pr_notice("Can't allocate major number %d for "
-				"Memory Technology Devices.\n", MTD_CHAR_MAJOR);
+		pr_err("Can't allocate major number %d for MTD\n",
+		       MTD_CHAR_MAJOR);
 		return ret;
 	}
 
 	ret = register_filesystem(&mtd_inodefs_type);
 	if (ret) {
-		pr_notice("Can't register mtd_inodefs filesystem: %d\n", ret);
+		pr_err("Can't register mtd_inodefs filesystem, error %d\n",
+		       ret);
 		goto err_unregister_chdev;
 	}
+
 	return ret;
 
 err_unregister_chdev:
@@ -1264,18 +1209,10 @@ err_unregister_chdev:
 	return ret;
 }
 
-static void __exit cleanup_mtdchar(void)
+void __exit cleanup_mtdchar(void)
 {
 	unregister_filesystem(&mtd_inodefs_type);
 	__unregister_chrdev(MTD_CHAR_MAJOR, 0, 1 << MINORBITS, "mtd");
 }
 
-module_init(init_mtdchar);
-module_exit(cleanup_mtdchar);
-
-MODULE_ALIAS_CHARDEV_MAJOR(MTD_CHAR_MAJOR);
-
-MODULE_LICENSE("GPL");
-MODULE_AUTHOR("David Woodhouse <dwmw2@infradead.org>");
-MODULE_DESCRIPTION("Direct character-device access to MTD devices");
 MODULE_ALIAS_CHARDEV_MAJOR(MTD_CHAR_MAJOR);

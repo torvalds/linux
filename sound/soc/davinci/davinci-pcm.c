@@ -200,7 +200,7 @@ static void davinci_pcm_enqueue_dma(struct snd_pcm_substream *substream)
 		src = dma_pos;
 		dst = prtd->params->dma_addr;
 		src_bidx = data_type;
-		dst_bidx = 0;
+		dst_bidx = 4;
 		src_cidx = data_type * fifo_level;
 		dst_cidx = 0;
 	} else {
@@ -223,9 +223,10 @@ static void davinci_pcm_enqueue_dma(struct snd_pcm_substream *substream)
 		edma_set_transfer_params(prtd->asp_link[0], acnt, count, 1, 0,
 							ASYNC);
 	else
-		edma_set_transfer_params(prtd->asp_link[0], acnt, fifo_level,
-							count, fifo_level,
-							ABSYNC);
+		edma_set_transfer_params(prtd->asp_link[0], acnt,
+						fifo_level,
+						count, fifo_level,
+						ABSYNC);
 }
 
 static void davinci_pcm_dma_irq(unsigned link, u16 ch_status, void *data)

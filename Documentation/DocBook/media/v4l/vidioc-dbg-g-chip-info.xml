@@ -1,0 +1,223 @@
+<refentry id="vidioc-dbg-g-chip-info">
+  <refmeta>
+    <refentrytitle>ioctl VIDIOC_DBG_G_CHIP_INFO</refentrytitle>
+    &manvol;
+  </refmeta>
+
+  <refnamediv>
+    <refname>VIDIOC_DBG_G_CHIP_INFO</refname>
+    <refpurpose>Identify the chips on a TV card</refpurpose>
+  </refnamediv>
+
+  <refsynopsisdiv>
+    <funcsynopsis>
+      <funcprototype>
+	<funcdef>int <function>ioctl</function></funcdef>
+	<paramdef>int <parameter>fd</parameter></paramdef>
+	<paramdef>int <parameter>request</parameter></paramdef>
+	<paramdef>struct v4l2_dbg_chip_info
+*<parameter>argp</parameter></paramdef>
+      </funcprototype>
+    </funcsynopsis>
+  </refsynopsisdiv>
+
+  <refsect1>
+    <title>Arguments</title>
+
+    <variablelist>
+      <varlistentry>
+	<term><parameter>fd</parameter></term>
+	<listitem>
+	  <para>&fd;</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>request</parameter></term>
+	<listitem>
+	  <para>VIDIOC_DBG_G_CHIP_INFO</para>
+	</listitem>
+      </varlistentry>
+      <varlistentry>
+	<term><parameter>argp</parameter></term>
+	<listitem>
+	  <para></para>
+	</listitem>
+      </varlistentry>
+    </variablelist>
+  </refsect1>
+
+  <refsect1>
+    <title>Description</title>
+
+    <note>
+      <title>Experimental</title>
+
+      <para>This is an <link
+linkend="experimental">experimental</link> interface and may change in
+the future.</para>
+    </note>
+
+    <para>For driver debugging purposes this ioctl allows test
+applications to query the driver about the chips present on the TV
+card. Regular applications must not use it. When you found a chip
+specific bug, please contact the linux-media mailing list (&v4l-ml;)
+so it can be fixed.</para>
+
+    <para>Additionally the Linux kernel must be compiled with the
+<constant>CONFIG_VIDEO_ADV_DEBUG</constant> option to enable this ioctl.</para>
+
+    <para>To query the driver applications must initialize the
+<structfield>match.type</structfield> and
+<structfield>match.addr</structfield> or <structfield>match.name</structfield>
+fields of a &v4l2-dbg-chip-info;
+and call <constant>VIDIOC_DBG_G_CHIP_INFO</constant> with a pointer to
+this structure. On success the driver stores information about the
+selected chip in the <structfield>name</structfield> and
+<structfield>flags</structfield> fields. On failure the structure
+remains unchanged.</para>
+
+    <para>When <structfield>match.type</structfield> is
+<constant>V4L2_CHIP_MATCH_BRIDGE</constant>,
+<structfield>match.addr</structfield> selects the nth bridge 'chip'
+on the TV card. You can enumerate all chips by starting at zero and
+incrementing <structfield>match.addr</structfield> by one until
+<constant>VIDIOC_DBG_G_CHIP_INFO</constant> fails with an &EINVAL;.
+The number zero always selects the bridge chip itself, &eg; the chip
+connected to the PCI or USB bus. Non-zero numbers identify specific
+parts of the bridge chip such as an AC97 register block.</para>
+
+    <para>When <structfield>match.type</structfield> is
+<constant>V4L2_CHIP_MATCH_SUBDEV</constant>,
+<structfield>match.addr</structfield> selects the nth sub-device. This
+allows you to enumerate over all sub-devices.</para>
+
+    <para>On success, the <structfield>name</structfield> field will
+contain a chip name and the <structfield>flags</structfield> field will
+contain <constant>V4L2_CHIP_FL_READABLE</constant> if the driver supports
+reading registers from the device or <constant>V4L2_CHIP_FL_WRITABLE</constant>
+if the driver supports writing registers to the device.</para>
+
+    <para>We recommended the <application>v4l2-dbg</application>
+utility over calling this ioctl directly. It is available from the
+LinuxTV v4l-dvb repository; see <ulink
+url="http://linuxtv.org/repo/">http://linuxtv.org/repo/</ulink> for
+access instructions.</para>
+
+    <!-- Note for convenience vidioc-dbg-g-register.sgml
+	 contains a duplicate of this table. -->
+    <table pgwide="1" frame="none" id="name-v4l2-dbg-match">
+      <title>struct <structname>v4l2_dbg_match</structname></title>
+      <tgroup cols="4">
+	&cs-ustr;
+	<tbody valign="top">
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>type</structfield></entry>
+	    <entry>See <xref linkend="name-chip-match-types" /> for a list of
+possible types.</entry>
+	  </row>
+	  <row>
+	    <entry>union</entry>
+	    <entry>(anonymous)</entry>
+	  </row>
+	  <row>
+	    <entry></entry>
+	    <entry>__u32</entry>
+	    <entry><structfield>addr</structfield></entry>
+	    <entry>Match a chip by this number, interpreted according
+to the <structfield>type</structfield> field.</entry>
+	  </row>
+	  <row>
+	    <entry></entry>
+	    <entry>char</entry>
+	    <entry><structfield>name[32]</structfield></entry>
+	    <entry>Match a chip by this name, interpreted according
+to the <structfield>type</structfield> field.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <table pgwide="1" frame="none" id="v4l2-dbg-chip-info">
+      <title>struct <structname>v4l2_dbg_chip_info</structname></title>
+      <tgroup cols="3">
+	&cs-str;
+	<tbody valign="top">
+	  <row>
+	    <entry>struct v4l2_dbg_match</entry>
+	    <entry><structfield>match</structfield></entry>
+	    <entry>How to match the chip, see <xref linkend="name-v4l2-dbg-match" />.</entry>
+	  </row>
+	  <row>
+	    <entry>char</entry>
+	    <entry><structfield>name[32]</structfield></entry>
+	    <entry>The name of the chip.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>flags</structfield></entry>
+	    <entry>Set by the driver. If <constant>V4L2_CHIP_FL_READABLE</constant>
+is set, then the driver supports reading registers from the device. If
+<constant>V4L2_CHIP_FL_WRITABLE</constant> is set, then it supports writing registers.</entry>
+	  </row>
+	  <row>
+	    <entry>__u32</entry>
+	    <entry><structfield>reserved[8]</structfield></entry>
+	    <entry>Reserved fields, both application and driver must set these to 0.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+
+    <!-- Note for convenience vidioc-dbg-g-register.sgml
+	 contains a duplicate of this table. -->
+    <table pgwide="1" frame="none" id="name-chip-match-types">
+      <title>Chip Match Types</title>
+      <tgroup cols="3">
+	&cs-def;
+	<tbody valign="top">
+	  <row>
+	    <entry><constant>V4L2_CHIP_MATCH_BRIDGE</constant></entry>
+	    <entry>0</entry>
+	    <entry>Match the nth chip on the card, zero for the
+	    bridge chip. Does not match sub-devices.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CHIP_MATCH_I2C_DRIVER</constant></entry>
+	    <entry>1</entry>
+	    <entry>Match an &i2c; chip by its driver name. Can't be used with this ioctl.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CHIP_MATCH_I2C_ADDR</constant></entry>
+	    <entry>2</entry>
+	    <entry>Match a chip by its 7 bit &i2c; bus address. Can't be used with this ioctl.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CHIP_MATCH_AC97</constant></entry>
+	    <entry>3</entry>
+	    <entry>Match the nth anciliary AC97 chip. Can't be used with this ioctl.</entry>
+	  </row>
+	  <row>
+	    <entry><constant>V4L2_CHIP_MATCH_SUBDEV</constant></entry>
+	    <entry>4</entry>
+	    <entry>Match the nth sub-device.</entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </table>
+  </refsect1>
+
+  <refsect1>
+    &return-value;
+
+    <variablelist>
+      <varlistentry>
+	<term><errorcode>EINVAL</errorcode></term>
+	<listitem>
+	  <para>The <structfield>match_type</structfield> is invalid or
+no device could be matched.</para>
+	</listitem>
+      </varlistentry>
+     </variablelist>
+  </refsect1>
+</refentry>

@@ -45,9 +45,7 @@ struct pxa2xx_flash_info {
 	struct map_info		map;
 };
 
-
-static const char *probes[] = { "RedBoot", "cmdlinepart", NULL };
-
+static const char * const probes[] = { "RedBoot", "cmdlinepart", NULL };
 
 static int pxa2xx_flash_probe(struct platform_device *pdev)
 {

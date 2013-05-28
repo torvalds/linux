@@ -593,7 +593,6 @@ static int lis3lv02d_misc_release(struct inode *inode, struct file *file)
 	struct lis3lv02d *lis3 = container_of(file->private_data,
 					      struct lis3lv02d, miscdev);
 
-	fasync_helper(-1, file, 0, &lis3->async_queue);
 	clear_bit(0, &lis3->misc_opened); /* release the device */
 	if (lis3->pm_dev)
 		pm_runtime_put(lis3->pm_dev);

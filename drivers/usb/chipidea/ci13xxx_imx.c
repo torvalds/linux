@@ -79,6 +79,9 @@ int usbmisc_get_init_data(struct device *dev, struct usbmisc_usb_device *usbdev)
 	if (of_find_property(np, "disable-over-current", NULL))
 		usbdev->disable_oc = 1;
 
+	if (of_find_property(np, "external-vbus-divider", NULL))
+		usbdev->evdo = 1;
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(usbmisc_get_init_data);
@@ -170,17 +173,10 @@ static int ci13xxx_imx_probe(struct platform_device *pdev)
 
 	ci13xxx_imx_platdata.phy = data->phy;
 
-	if (!pdev->dev.dma_mask) {
-		pdev->dev.dma_mask = devm_kzalloc(&pdev->dev,
-				      sizeof(*pdev->dev.dma_mask), GFP_KERNEL);
-		if (!pdev->dev.dma_mask) {
-			ret = -ENOMEM;
-			dev_err(&pdev->dev, "Failed to alloc dma_mask!\n");
-			goto err;
-		}
-		*pdev->dev.dma_mask = DMA_BIT_MASK(32);
-		dma_set_coherent_mask(&pdev->dev, *pdev->dev.dma_mask);
-	}
+	if (!pdev->dev.dma_mask)
+		pdev->dev.dma_mask = &pdev->dev.coherent_dma_mask;
+	if (!pdev->dev.coherent_dma_mask)
+		pdev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 
 	if (usbmisc_ops && usbmisc_ops->init) {
 		ret = usbmisc_ops->init(&pdev->dev);
@@ -200,6 +196,15 @@ static int ci13xxx_imx_probe(struct platform_device *pdev)
 			"Can't register ci_hdrc platform device, err=%d\n",
 			ret);
 		goto err;
+	}
+
+	if (usbmisc_ops && usbmisc_ops->post) {
+		ret = usbmisc_ops->post(&pdev->dev);
+		if (ret) {
+			dev_err(&pdev->dev,
+				"usbmisc post failed, ret=%d\n", ret);
+			goto put_np;
+		}
 	}
 
 	data->ci_pdev = plat_ci;

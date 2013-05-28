@@ -117,7 +117,7 @@ TRACE_EVENT(kvm_s390_intercept_instruction,
 			   __entry->instruction,
 			   insn_to_mnemonic((unsigned char *)
 					    &__entry->instruction,
-					 __entry->insn) ?
+					 __entry->insn, sizeof(__entry->insn)) ?
 			   "unknown" : __entry->insn)
 	);
 

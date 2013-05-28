@@ -1,10 +1,13 @@
 dm-raid
--------
+=======
 
 The device-mapper RAID (dm-raid) target provides a bridge from DM to MD.
 It allows the MD RAID drivers to be accessed using a device-mapper
 interface.
 
+
+Mapping Table Interface
+-----------------------
 The target is named "raid" and it accepts the following parameters:
 
   <raid_type> <#raid_params> <raid_params> \
@@ -47,7 +50,7 @@ The target is named "raid" and it accepts the following parameters:
     followed by optional parameters (in any order):
 	[sync|nosync]   Force or prevent RAID initialization.
 
-	[rebuild <idx>]	Rebuild drive number idx (first drive is 0).
+	[rebuild <idx>]	Rebuild drive number 'idx' (first drive is 0).
 
 	[daemon_sleep <ms>]
 		Interval between runs of the bitmap daemon that
@@ -56,9 +59,9 @@ The target is named "raid" and it accepts the following parameters:
 
 	[min_recovery_rate <kB/sec/disk>]  Throttle RAID initialization
 	[max_recovery_rate <kB/sec/disk>]  Throttle RAID initialization
-	[write_mostly <idx>]		   Drive index is write-mostly
-	[max_write_behind <sectors>]       See '-write-behind=' (man mdadm)
-	[stripe_cache <sectors>]           Stripe cache size (higher RAIDs only)
+	[write_mostly <idx>]		   Mark drive index 'idx' write-mostly.
+	[max_write_behind <sectors>]       See '--write-behind=' (man mdadm)
+	[stripe_cache <sectors>]           Stripe cache size (RAID 4/5/6 only)
 	[region_size <sectors>]
 		The region_size multiplied by the number of regions is the
 		logical size of the array.  The bitmap records the device
@@ -122,7 +125,7 @@ The target is named "raid" and it accepts the following parameters:
 	given for both the metadata and data drives for a given position.
 
 
-Example tables
+Example Tables
 --------------
 # RAID4 - 4 data drives, 1 parity (no metadata devices)
 # No metadata devices specified to hold superblock/bitmap info
@@ -141,26 +144,70 @@ Example tables
         raid4 4 2048 sync min_recovery_rate 20 \
         5 8:17 8:18 8:33 8:34 8:49 8:50 8:65 8:66 8:81 8:82
 
+
+Status Output
+-------------
 'dmsetup table' displays the table used to construct the mapping.
 The optional parameters are always printed in the order listed
 above with "sync" or "nosync" always output ahead of the other
 arguments, regardless of the order used when originally loading the table.
 Arguments that can be repeated are ordered by value.
 
-'dmsetup status' yields information on the state and health of the
-array.
-The output is as follows:
+
+'dmsetup status' yields information on the state and health of the array.
+The output is as follows (normally a single line, but expanded here for
+clarity):
 1: <s> <l> raid \
-2:      <raid_type> <#devices> <1 health char for each dev> <resync_ratio>
+2:      <raid_type> <#devices> <health_chars> \
+3:      <sync_ratio> <sync_action> <mismatch_cnt>
 
 Line 1 is the standard output produced by device-mapper.
-Line 2 is produced by the raid target, and best explained by example:
-        0 1960893648 raid raid4 5 AAAAA 2/490221568
+Line 2 & 3 are produced by the raid target and are best explained by example:
+        0 1960893648 raid raid4 5 AAAAA 2/490221568 init 0
 Here we can see the RAID type is raid4, there are 5 devices - all of
-which are 'A'live, and the array is 2/490221568 complete with recovery.
-Faulty or missing devices are marked 'D'.  Devices that are out-of-sync
-are marked 'a'.
+which are 'A'live, and the array is 2/490221568 complete with its initial
+recovery.  Here is a fuller description of the individual fields:
+	<raid_type>     Same as the <raid_type> used to create the array.
+	<health_chars>  One char for each device, indicating: 'A' = alive and
+			in-sync, 'a' = alive but not in-sync, 'D' = dead/failed.
+	<sync_ratio>    The ratio indicating how much of the array has undergone
+			the process described by 'sync_action'.  If the
+			'sync_action' is "check" or "repair", then the process
+			of "resync" or "recover" can be considered complete.
+	<sync_action>   One of the following possible states:
+			idle    - No synchronization action is being performed.
+			frozen  - The current action has been halted.
+			resync  - Array is undergoing its initial synchronization
+				  or is resynchronizing after an unclean shutdown
+				  (possibly aided by a bitmap).
+			recover - A device in the array is being rebuilt or
+				  replaced.
+			check   - A user-initiated full check of the array is
+				  being performed.  All blocks are read and
+				  checked for consistency.  The number of
+				  discrepancies found are recorded in
+				  <mismatch_cnt>.  No changes are made to the
+				  array by this action.
+			repair  - The same as "check", but discrepancies are
+				  corrected.
+			reshape - The array is undergoing a reshape.
+	<mismatch_cnt>  The number of discrepancies found between mirror copies
+			in RAID1/10 or wrong parity values found in RAID4/5/6.
+			This value is valid only after a "check" of the array
+			is performed.  A healthy array has a 'mismatch_cnt' of 0.
 
+Message Interface
+-----------------
+The dm-raid target will accept certain actions through the 'message' interface.
+('man dmsetup' for more information on the message interface.)  These actions
+include:
+	"idle"   - Halt the current sync action.
+	"frozen" - Freeze the current sync action.
+	"resync" - Initiate/continue a resync.
+	"recover"- Initiate/continue a recover process.
+	"check"  - Initiate a check (i.e. a "scrub") of the array.
+	"repair" - Initiate a repair of the array.
+	"reshape"- Currently unsupported (-EINVAL).
 
 Version History
 ---------------
@@ -171,4 +218,7 @@ Version History
 1.3.1	Allow device replacement/rebuild for RAID 10
 1.3.2   Fix/improve redundancy checking for RAID10
 1.4.0	Non-functional change.  Removes arg from mapping function.
-1.4.1   Add RAID10 "far" and "offset" algorithm support.
+1.4.1   RAID10 fix redundancy validation checks (commit 55ebbb5).
+1.4.2   Add RAID10 "far" and "offset" algorithm support.
+1.5.0   Add message interface to allow manipulation of the sync_action.
+	New status (STATUSTYPE_INFO) fields: sync_action and mismatch_cnt.

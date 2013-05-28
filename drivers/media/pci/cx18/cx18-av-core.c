@@ -576,7 +576,7 @@ static void input_change(struct cx18 *cx)
 }
 
 static int cx18_av_s_frequency(struct v4l2_subdev *sd,
-			       struct v4l2_frequency *freq)
+			       const struct v4l2_frequency *freq)
 {
 	struct cx18 *cx = v4l2_get_subdevdata(sd);
 	input_change(cx);
@@ -809,7 +809,7 @@ static int cx18_av_g_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
 	return 0;
 }
 
-static int cx18_av_s_tuner(struct v4l2_subdev *sd, struct v4l2_tuner *vt)
+static int cx18_av_s_tuner(struct v4l2_subdev *sd, const struct v4l2_tuner *vt)
 {
 	struct cx18_av_state *state = to_cx18_av_state(sd);
 	struct cx18 *cx = v4l2_get_subdevdata(sd);
@@ -1266,7 +1266,7 @@ static int cx18_av_g_register(struct v4l2_subdev *sd,
 }
 
 static int cx18_av_s_register(struct v4l2_subdev *sd,
-			      struct v4l2_dbg_register *reg)
+			      const struct v4l2_dbg_register *reg)
 {
 	struct cx18 *cx = v4l2_get_subdevdata(sd);
 

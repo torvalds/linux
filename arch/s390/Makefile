@@ -55,22 +55,12 @@ cflags-$(CONFIG_FRAME_POINTER) += -fno-optimize-sibling-calls
 ifeq ($(call cc-option-yn,-mkernel-backchain),y)
 cflags-$(CONFIG_PACK_STACK)  += -mkernel-backchain -D__PACK_STACK
 aflags-$(CONFIG_PACK_STACK)  += -D__PACK_STACK
-cflags-$(CONFIG_SMALL_STACK) += -D__SMALL_STACK
-aflags-$(CONFIG_SMALL_STACK) += -D__SMALL_STACK
-ifdef CONFIG_SMALL_STACK
-STACK_SIZE := $(shell echo $$(($(STACK_SIZE)/2)) )
-endif
 endif
 
 # new style option for packed stacks
 ifeq ($(call cc-option-yn,-mpacked-stack),y)
 cflags-$(CONFIG_PACK_STACK)  += -mpacked-stack -D__PACK_STACK
 aflags-$(CONFIG_PACK_STACK)  += -D__PACK_STACK
-cflags-$(CONFIG_SMALL_STACK) += -D__SMALL_STACK
-aflags-$(CONFIG_SMALL_STACK) += -D__SMALL_STACK
-ifdef CONFIG_SMALL_STACK
-STACK_SIZE := $(shell echo $$(($(STACK_SIZE)/2)) )
-endif
 endif
 
 ifeq ($(call cc-option-yn,-mstack-size=8192 -mstack-guard=128),y)

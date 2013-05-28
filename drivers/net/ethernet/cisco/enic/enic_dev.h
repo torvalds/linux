@@ -46,8 +46,8 @@ int enic_dev_packet_filter(struct enic *enic, int directed, int multicast,
 	int broadcast, int promisc, int allmulti);
 int enic_dev_add_addr(struct enic *enic, u8 *addr);
 int enic_dev_del_addr(struct enic *enic, u8 *addr);
-int enic_vlan_rx_add_vid(struct net_device *netdev, u16 vid);
-int enic_vlan_rx_kill_vid(struct net_device *netdev, u16 vid);
+int enic_vlan_rx_add_vid(struct net_device *netdev, __be16 proto, u16 vid);
+int enic_vlan_rx_kill_vid(struct net_device *netdev, __be16 proto, u16 vid);
 int enic_dev_notify_unset(struct enic *enic);
 int enic_dev_hang_notify(struct enic *enic);
 int enic_dev_set_ig_vlan_rewrite_mode(struct enic *enic);

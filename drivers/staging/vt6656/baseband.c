@@ -29,8 +29,6 @@
  *      BBuGetFrameTime        - Calculate data frame transmitting time
  *      BBvCalculateParameter   - Calculate PhyLength, PhyService and Phy Signal parameter for baseband Tx
  *      BBbVT3184Init          - VIA VT3184 baseband chip init code
- *      BBvLoopbackOn          - Turn on BaseBand Loopback mode
- *      BBvLoopbackOff         - Turn off BaseBand Loopback mode
  *
  * Revision History:
  *
@@ -47,26 +45,10 @@
 #include "datarate.h"
 #include "rndis.h"
 
-/*---------------------  Static Definitions -------------------------*/
 static int          msglevel                =MSG_LEVEL_INFO;
 //static int          msglevel                =MSG_LEVEL_DEBUG;
 
-/*---------------------  Static Classes  ----------------------------*/
-
-/*---------------------  Static Variables  --------------------------*/
-
-/*---------------------  Static Functions  --------------------------*/
-
-/*---------------------  Export Variables  --------------------------*/
-
-/*---------------------  Static Definitions -------------------------*/
-
-/*---------------------  Static Classes  ----------------------------*/
-
-/*---------------------  Static Variables  --------------------------*/
-
-
-BYTE abyVT3184_AGC[] = {
+u8 abyVT3184_AGC[] = {
     0x00,   //0
     0x00,   //1
     0x02,   //2
@@ -133,8 +115,7 @@ BYTE abyVT3184_AGC[] = {
     0x3E    //3F
 };
 
-
-BYTE abyVT3184_AL2230[] = {
+u8 abyVT3184_AL2230[] = {
         0x31,//00
         0x00,
         0x00,
@@ -393,10 +374,8 @@ BYTE abyVT3184_AL2230[] = {
         0x00
 };
 
-
-
 //{{RobertYu:20060515, new BB setting for VT3226D0
-BYTE abyVT3184_VT3226D0[] = {
+u8 abyVT3184_VT3226D0[] = {
         0x31,//00
         0x00,
         0x00,
@@ -655,10 +634,8 @@ BYTE abyVT3184_VT3226D0[] = {
         0x00,
 };
 
-const WORD awcFrameTime[MAX_RATE] =
+const u16 awcFrameTime[MAX_RATE] =
 {10, 20, 55, 110, 24, 36, 48, 72, 96, 144, 192, 216};
-
-/*---------------------  Static Functions  --------------------------*/
 
 /*
 static
@@ -674,7 +651,6 @@ void
 s_vClearSQ3Value(PSDevice pDevice);
 */
 
-/*---------------------  Export Variables  --------------------------*/
 /*
  * Description: Calculate data frame transmitting time
  *
@@ -691,10 +667,10 @@ s_vClearSQ3Value(PSDevice pDevice);
  */
 unsigned int
 BBuGetFrameTime(
-     BYTE byPreambleType,
-     BYTE byPktType,
+     u8 byPreambleType,
+     u8 byPktType,
      unsigned int cbFrameLength,
-     WORD wRate
+     u16 wRate
     )
 {
     unsigned int uFrameTime;
@@ -702,7 +678,6 @@ BBuGetFrameTime(
     unsigned int uTmp;
     unsigned int uRateIdx = (unsigned int)wRate;
     unsigned int uRate = 0;
-
 
     if (uRateIdx > RATE_54M) {
         ASSERT(0);
@@ -900,14 +875,13 @@ void BBvCalculateParameter(struct vnt_private *pDevice, u32 cbFrameLength,
         *pbyPhySrv = 0x00;
         if (bExtBit)
             *pbyPhySrv = *pbyPhySrv | 0x80;
-        *pwPhyLen = (WORD) cbUsCount;
+        *pwPhyLen = (u16) cbUsCount;
     }
     else {
         *pbyPhySrv = 0x00;
-        *pwPhyLen = (WORD)cbFrameLength;
+        *pwPhyLen = (u16)cbFrameLength;
     }
 }
-
 
 /*
  * Description: Set Antenna mode
@@ -937,10 +911,9 @@ void BBvSetAntennaMode(struct vnt_private *pDevice, u8 byAntennaMode)
             break;
     }
 
-
     CONTROLnsRequestOut(pDevice,
                     MESSAGE_TYPE_SET_ANTMD,
-                    (WORD) byAntennaMode,
+                    (u16) byAntennaMode,
                     0,
                     0,
                     NULL);
@@ -963,11 +936,11 @@ void BBvSetAntennaMode(struct vnt_private *pDevice, u8 byAntennaMode)
 int BBbVT3184Init(struct vnt_private *pDevice)
 {
 	int ntStatus;
-    WORD                    wLength;
-    PBYTE                   pbyAddr;
-    PBYTE                   pbyAgc;
-    WORD                    wLengthAgc;
-    BYTE                    abyArray[256];
+    u16                    wLength;
+    u8 *                   pbyAddr;
+    u8 *                   pbyAgc;
+    u16                    wLengthAgc;
+    u8                    abyArray[256];
 
     ntStatus = CONTROLnsRequestIn(pDevice,
                                   MESSAGE_TYPE_READ,
@@ -978,7 +951,6 @@ int BBbVT3184Init(struct vnt_private *pDevice)
     if (ntStatus != STATUS_SUCCESS) {
         return false;
     }
-
 
 //    if ((pDevice->abyEEPROM[EEP_OFS_RADIOCTL]&0x06)==0x04)
 //        return false;
@@ -1118,7 +1090,6 @@ else {
                     abyArray
                     );
 
-
     if ((pDevice->byRFType == RF_VT3226) || //RobertYu:20051116, 20060111 remove VT3226D0
          (pDevice->byRFType == RF_VT3342A0)  //RobertYu:20060609
          ) {
@@ -1131,103 +1102,12 @@ else {
         MACvRegBitsOn(pDevice,MAC_REG_PAPEDELAY,0x01);
     }
 
-
     ControlvWriteByte(pDevice,MESSAGE_REQUEST_BBREG,0x04,0x7F);
     ControlvWriteByte(pDevice,MESSAGE_REQUEST_BBREG,0x0D,0x01);
 
     RFbRFTableDownload(pDevice);
     return true;//ntStatus;
 }
-
-
-/*
- * Description: Turn on BaseBand Loopback mode
- *
- * Parameters:
- *  In:
- *      pDevice         - Device Structure
- *
- *  Out:
- *      none
- *
- * Return Value: none
- *
- */
-void BBvLoopbackOn(struct vnt_private *pDevice)
-{
-    BYTE      byData;
-
-    //CR C9 = 0x00
-    ControlvReadByte (pDevice, MESSAGE_REQUEST_BBREG, 0xC9, &pDevice->byBBCRc9);//CR201
-    ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0xC9, 0);
-    ControlvReadByte (pDevice, MESSAGE_REQUEST_BBREG, 0x4D, &pDevice->byBBCR4d);//CR77
-    ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x4D, 0x90);
-
-    //CR 88 = 0x02(CCK), 0x03(OFDM)
-    ControlvReadByte (pDevice, MESSAGE_REQUEST_BBREG, 0x88, &pDevice->byBBCR88);//CR136
-
-    if (pDevice->wCurrentRate <= RATE_11M) { //CCK
-        // Enable internal digital loopback: CR33 |= 0000 0001
-        ControlvReadByte (pDevice, MESSAGE_REQUEST_BBREG, 0x21, &byData);//CR33
-        ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x21, (BYTE)(byData | 0x01));//CR33
-        // CR154 = 0x00
-        ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x9A, 0);   //CR154
-
-        ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x88, 0x02);//CR239
-    }
-    else { //OFDM
-        // Enable internal digital loopback:CR154 |= 0000 0001
-        ControlvReadByte (pDevice, MESSAGE_REQUEST_BBREG, 0x9A, &byData);//CR154
-        ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x9A, (BYTE)(byData | 0x01));//CR154
-        // CR33 = 0x00
-        ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x21, 0);   //CR33
-
-        ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x88, 0x03);//CR239
-    }
-
-    //CR14 = 0x00
-    ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x0E, 0);//CR14
-
-    // Disable TX_IQUN
-    ControlvReadByte (pDevice, MESSAGE_REQUEST_BBREG, 0x09, &pDevice->byBBCR09);
-    ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x09, (BYTE)(pDevice->byBBCR09 & 0xDE));
-}
-
-/*
- * Description: Turn off BaseBand Loopback mode
- *
- * Parameters:
- *  In:
- *      pDevice         - Device Structure
- *
- *  Out:
- *      none
- *
- * Return Value: none
- *
- */
-void BBvLoopbackOff(struct vnt_private *pDevice)
-{
-	u8 byData;
-
-    ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0xC9, pDevice->byBBCRc9);//CR201
-    ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x88, pDevice->byBBCR88);//CR136
-    ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x09, pDevice->byBBCR09);//CR136
-    ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x4D, pDevice->byBBCR4d);//CR77
-
-    if (pDevice->wCurrentRate <= RATE_11M) { // CCK
-        // Set the CR33 Bit2 to disable internal Loopback.
-        ControlvReadByte (pDevice, MESSAGE_REQUEST_BBREG, 0x21, &byData);//CR33
-        ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x21, (BYTE)(byData & 0xFE));//CR33
-	} else { /* OFDM */
-        ControlvReadByte (pDevice, MESSAGE_REQUEST_BBREG, 0x9A, &byData);//CR154
-        ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x9A, (BYTE)(byData & 0xFE));//CR154
-    }
-    ControlvReadByte (pDevice, MESSAGE_REQUEST_BBREG, 0x0E, &byData);//CR14
-    ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x0E, (BYTE)(byData | 0x80));//CR14
-
-}
-
 
 /*
  * Description: Set ShortSlotTime mode
@@ -1243,7 +1123,7 @@ void BBvLoopbackOff(struct vnt_private *pDevice)
  */
 void BBvSetShortSlotTime(struct vnt_private *pDevice)
 {
-    BYTE byBBVGA=0;
+    u8 byBBVGA=0;
 
 	if (pDevice->bShortSlotTime)
         pDevice->byBBRxConf &= 0xDF;//1101 1111
@@ -1257,8 +1137,7 @@ void BBvSetShortSlotTime(struct vnt_private *pDevice)
     ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x0A, pDevice->byBBRxConf);
 }
 
-
-void BBvSetVGAGainOffset(struct vnt_private *pDevice, BYTE byData)
+void BBvSetVGAGainOffset(struct vnt_private *pDevice, u8 byData)
 {
 
     ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0xE7, byData);
@@ -1270,27 +1149,6 @@ void BBvSetVGAGainOffset(struct vnt_private *pDevice, BYTE byData)
 		pDevice->byBBRxConf |= 0x20; /* 0010 0000 */
 
     ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x0A, pDevice->byBBRxConf);//CR10
-}
-
-
-/*
- * Description: Baseband SoftwareReset
- *
- * Parameters:
- *  In:
- *      dwIoBase    - I/O base address
- *  Out:
- *      none
- *
- * Return Value: none
- *
- */
-void BBvSoftwareReset(struct vnt_private *pDevice)
-{
-    ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x50, 0x40);
-    ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x50, 0);
-    ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x9C, 0x01);
-    ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x9C, 0);
 }
 
 /*
@@ -1316,7 +1174,6 @@ void BBvExitDeepSleep(struct vnt_private *pDevice)
     ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x0C, 0x00);//CR12
     ControlvWriteByte(pDevice, MESSAGE_REQUEST_BBREG, 0x0D, 0x01);//CR13
 }
-
 
 static unsigned long s_ulGetLowSQ3(struct vnt_private *pDevice)
 {
@@ -1364,7 +1221,6 @@ static unsigned long s_ulGetRatio(struct vnt_private *pDevice)
     return ulRatio;
 }
 
-
 static void s_vClearSQ3Value(struct vnt_private *pDevice)
 {
     int ii;
@@ -1375,7 +1231,6 @@ static void s_vClearSQ3Value(struct vnt_private *pDevice)
         pDevice->aulSQ3Val[ii] = 0;
     }
 }
-
 
 /*
  * Description: Antenna Diversity
@@ -1508,7 +1363,6 @@ void BBvAntennaDiversity(struct vnt_private *pDevice,
     } //byAntennaState
 }
 
-
 /*+
  *
  * Description:
@@ -1541,10 +1395,8 @@ void TimerSQ3CallBack(struct vnt_private *pDevice)
     add_timer(&pDevice->TimerSQ3Tmax3);
     add_timer(&pDevice->TimerSQ3Tmax2);
 
-
     spin_unlock_irq(&pDevice->lock);
 }
-
 
 /*+
  *
@@ -1593,7 +1445,6 @@ void TimerSQ3Tmax3CallBack(struct vnt_private *pDevice)
 
 void BBvUpdatePreEDThreshold(struct vnt_private *pDevice, int bScanning)
 {
-
 
     switch(pDevice->byRFType)
     {

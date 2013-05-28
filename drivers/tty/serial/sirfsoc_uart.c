@@ -758,7 +758,7 @@ static struct of_device_id sirfsoc_uart_ids[] = {
 	{ .compatible = "sirf,marco-uart", },
 	{}
 };
-MODULE_DEVICE_TABLE(of, sirfsoc_serial_of_match);
+MODULE_DEVICE_TABLE(of, sirfsoc_uart_ids);
 
 static struct platform_driver sirfsoc_uart_driver = {
 	.probe		= sirfsoc_uart_probe,

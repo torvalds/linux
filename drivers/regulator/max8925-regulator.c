@@ -246,7 +246,6 @@ static struct max8925_regulator_info max8925_regulator_info[] = {
 
 #ifdef CONFIG_OF
 static int max8925_regulator_dt_init(struct platform_device *pdev,
-				    struct max8925_regulator_info *info,
 				    struct regulator_config *config,
 				    int ridx)
 {
@@ -272,7 +271,7 @@ static int max8925_regulator_dt_init(struct platform_device *pdev,
 	return 0;
 }
 #else
-#define max8925_regulator_dt_init(w, x, y, z)	(-1)
+#define max8925_regulator_dt_init(x, y, z)	(-1)
 #endif
 
 static int max8925_regulator_probe(struct platform_device *pdev)
@@ -309,7 +308,7 @@ static int max8925_regulator_probe(struct platform_device *pdev)
 	config.dev = &pdev->dev;
 	config.driver_data = ri;
 
-	if (max8925_regulator_dt_init(pdev, ri, &config, regulator_idx))
+	if (max8925_regulator_dt_init(pdev, &config, regulator_idx))
 		if (pdata)
 			config.init_data = pdata;
 

@@ -196,7 +196,7 @@ static int bh1780_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int bh1780_suspend(struct device *dev)
 {
 	struct bh1780_data *ddata;
@@ -235,11 +235,9 @@ static int bh1780_resume(struct device *dev)
 
 	return 0;
 }
+#endif /* CONFIG_PM_SLEEP */
+
 static SIMPLE_DEV_PM_OPS(bh1780_pm, bh1780_suspend, bh1780_resume);
-#define BH1780_PMOPS (&bh1780_pm)
-#else
-#define BH1780_PMOPS NULL
-#endif /* CONFIG_PM */
 
 static const struct i2c_device_id bh1780_id[] = {
 	{ "bh1780", 0 },
@@ -252,7 +250,7 @@ static struct i2c_driver bh1780_driver = {
 	.id_table	= bh1780_id,
 	.driver = {
 		.name = "bh1780",
-		.pm	= BH1780_PMOPS,
+		.pm	= &bh1780_pm,
 	},
 };
 

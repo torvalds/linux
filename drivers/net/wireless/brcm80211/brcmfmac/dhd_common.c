@@ -24,6 +24,7 @@
 #include "dhd_proto.h"
 #include "dhd_dbg.h"
 #include "fwil.h"
+#include "tracepoint.h"
 
 #define PKTFILTER_BUF_SIZE		128
 #define BRCMF_ARPOL_MODE		0xb	/* agent|snoop|peer_autoreply */
@@ -373,3 +374,35 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 done:
 	return err;
 }
+
+#ifdef CONFIG_BRCM_TRACING
+void __brcmf_err(const char *func, const char *fmt, ...)
+{
+	struct va_format vaf = {
+		.fmt = fmt,
+	};
+	va_list args;
+
+	va_start(args, fmt);
+	vaf.va = &args;
+	pr_err("%s: %pV", func, &vaf);
+	trace_brcmf_err(func, &vaf);
+	va_end(args);
+}
+#endif
+#if defined(CONFIG_BRCM_TRACING) || defined(CONFIG_BRCMDBG)
+void __brcmf_dbg(u32 level, const char *func, const char *fmt, ...)
+{
+	struct va_format vaf = {
+		.fmt = fmt,
+	};
+	va_list args;
+
+	va_start(args, fmt);
+	vaf.va = &args;
+	if (brcmf_msg_level & level)
+		pr_debug("%s %pV", func, &vaf);
+	trace_brcmf_dbg(level, func, &vaf);
+	va_end(args);
+}
+#endif

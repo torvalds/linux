@@ -596,6 +596,7 @@
 #define MIPS_CONF3_RXI		(_ULCAST_(1) << 12)
 #define MIPS_CONF3_ULRI		(_ULCAST_(1) << 13)
 #define MIPS_CONF3_ISA		(_ULCAST_(3) << 14)
+#define MIPS_CONF3_ISA_OE	(_ULCAST_(3) << 16)
 #define MIPS_CONF3_VZ		(_ULCAST_(1) << 23)
 
 #define MIPS_CONF4_MMUSIZEEXT	(_ULCAST_(255) << 0)
@@ -621,6 +622,24 @@
 #define MIPS_FPIR_F64		(_ULCAST_(1) << 22)
 
 #ifndef __ASSEMBLY__
+
+/*
+ * Macros for handling the ISA mode bit for microMIPS.
+ */
+#define get_isa16_mode(x)		((x) & 0x1)
+#define msk_isa16_mode(x)		((x) & ~0x1)
+#define set_isa16_mode(x)		do { (x) |= 0x1; } while(0)
+
+/*
+ * microMIPS instructions can be 16-bit or 32-bit in length. This
+ * returns a 1 if the instruction is 16-bit and a 0 if 32-bit.
+ */
+static inline int mm_insn_16bit(u16 insn)
+{
+	u16 opcode = (insn >> 10) & 0x7;
+
+	return (opcode >= 1 && opcode <= 3) ? 1 : 0;
+}
 
 /*
  * Functions to access the R10000 performance counters.	 These are basically
@@ -1166,7 +1185,10 @@ do {									\
 	unsigned int __dspctl;						\
 									\
 	__asm__ __volatile__(						\
+	"	.set push					\n"	\
+	"	.set dsp					\n"	\
 	"	rddsp	%0, %x1					\n"	\
+	"	.set pop					\n"	\
 	: "=r" (__dspctl)						\
 	: "i" (mask));							\
 	__dspctl;							\
@@ -1175,30 +1197,198 @@ do {									\
 #define wrdsp(val, mask)						\
 do {									\
 	__asm__ __volatile__(						\
+	"	.set push					\n"	\
+	"	.set dsp					\n"	\
 	"	wrdsp	%0, %x1					\n"	\
+	"	.set pop					\n"	\
 	:								\
 	: "r" (val), "i" (mask));					\
 } while (0)
 
-#define mflo0() ({ long mflo0; __asm__("mflo %0, $ac0" : "=r" (mflo0)); mflo0;})
-#define mflo1() ({ long mflo1; __asm__("mflo %0, $ac1" : "=r" (mflo1)); mflo1;})
-#define mflo2() ({ long mflo2; __asm__("mflo %0, $ac2" : "=r" (mflo2)); mflo2;})
-#define mflo3() ({ long mflo3; __asm__("mflo %0, $ac3" : "=r" (mflo3)); mflo3;})
+#define mflo0()								\
+({									\
+	long mflo0;							\
+	__asm__(							\
+	"	.set push					\n"	\
+	"	.set dsp					\n"	\
+	"	mflo %0, $ac0					\n"	\
+	"	.set pop					\n" 	\
+	: "=r" (mflo0)); 						\
+	mflo0;								\
+})
 
-#define mfhi0() ({ long mfhi0; __asm__("mfhi %0, $ac0" : "=r" (mfhi0)); mfhi0;})
-#define mfhi1() ({ long mfhi1; __asm__("mfhi %0, $ac1" : "=r" (mfhi1)); mfhi1;})
-#define mfhi2() ({ long mfhi2; __asm__("mfhi %0, $ac2" : "=r" (mfhi2)); mfhi2;})
-#define mfhi3() ({ long mfhi3; __asm__("mfhi %0, $ac3" : "=r" (mfhi3)); mfhi3;})
+#define mflo1()								\
+({									\
+	long mflo1;							\
+	__asm__(							\
+	"	.set push					\n"	\
+	"	.set dsp					\n"	\
+	"	mflo %0, $ac1					\n"	\
+	"	.set pop					\n" 	\
+	: "=r" (mflo1)); 						\
+	mflo1;								\
+})
 
-#define mtlo0(x) __asm__("mtlo %0, $ac0" ::"r" (x))
-#define mtlo1(x) __asm__("mtlo %0, $ac1" ::"r" (x))
-#define mtlo2(x) __asm__("mtlo %0, $ac2" ::"r" (x))
-#define mtlo3(x) __asm__("mtlo %0, $ac3" ::"r" (x))
+#define mflo2()								\
+({									\
+	long mflo2;							\
+	__asm__(							\
+	"	.set push					\n"	\
+	"	.set dsp					\n"	\
+	"	mflo %0, $ac2					\n"	\
+	"	.set pop					\n" 	\
+	: "=r" (mflo2)); 						\
+	mflo2;								\
+})
 
-#define mthi0(x) __asm__("mthi %0, $ac0" ::"r" (x))
-#define mthi1(x) __asm__("mthi %0, $ac1" ::"r" (x))
-#define mthi2(x) __asm__("mthi %0, $ac2" ::"r" (x))
-#define mthi3(x) __asm__("mthi %0, $ac3" ::"r" (x))
+#define mflo3()								\
+({									\
+	long mflo3;							\
+	__asm__(							\
+	"	.set push					\n"	\
+	"	.set dsp					\n"	\
+	"	mflo %0, $ac3					\n"	\
+	"	.set pop					\n" 	\
+	: "=r" (mflo3)); 						\
+	mflo3;								\
+})
+
+#define mfhi0()								\
+({									\
+	long mfhi0;							\
+	__asm__(							\
+	"	.set push					\n"	\
+	"	.set dsp					\n"	\
+	"	mfhi %0, $ac0					\n"	\
+	"	.set pop					\n" 	\
+	: "=r" (mfhi0)); 						\
+	mfhi0;								\
+})
+
+#define mfhi1()								\
+({									\
+	long mfhi1;							\
+	__asm__(							\
+	"	.set push					\n"	\
+	"	.set dsp					\n"	\
+	"	mfhi %0, $ac1					\n"	\
+	"	.set pop					\n" 	\
+	: "=r" (mfhi1)); 						\
+	mfhi1;								\
+})
+
+#define mfhi2()								\
+({									\
+	long mfhi2;							\
+	__asm__(							\
+	"	.set push					\n"	\
+	"	.set dsp					\n"	\
+	"	mfhi %0, $ac2					\n"	\
+	"	.set pop					\n" 	\
+	: "=r" (mfhi2)); 						\
+	mfhi2;								\
+})
+
+#define mfhi3()								\
+({									\
+	long mfhi3;							\
+	__asm__(							\
+	"	.set push					\n"	\
+	"	.set dsp					\n"	\
+	"	mfhi %0, $ac3					\n"	\
+	"	.set pop					\n" 	\
+	: "=r" (mfhi3)); 						\
+	mfhi3;								\
+})
+
+
+#define mtlo0(x)							\
+({									\
+	__asm__(							\
+	"	.set push					\n"	\
+	"	.set dsp					\n"	\
+	"	mtlo %0, $ac0					\n"	\
+	"	.set pop					\n"	\
+	:								\
+	: "r" (x));							\
+})
+
+#define mtlo1(x)							\
+({									\
+	__asm__(							\
+	"	.set push					\n"	\
+	"	.set dsp					\n"	\
+	"	mtlo %0, $ac1					\n"	\
+	"	.set pop					\n"	\
+	:								\
+	: "r" (x));							\
+})
+
+#define mtlo2(x)							\
+({									\
+	__asm__(							\
+	"	.set push					\n"	\
+	"	.set dsp					\n"	\
+	"	mtlo %0, $ac2					\n"	\
+	"	.set pop					\n"	\
+	:								\
+	: "r" (x));							\
+})
+
+#define mtlo3(x)							\
+({									\
+	__asm__(							\
+	"	.set push					\n"	\
+	"	.set dsp					\n"	\
+	"	mtlo %0, $ac3					\n"	\
+	"	.set pop					\n"	\
+	:								\
+	: "r" (x));							\
+})
+
+#define mthi0(x)							\
+({									\
+	__asm__(							\
+	"	.set push					\n"	\
+	"	.set dsp					\n"	\
+	"	mthi %0, $ac0					\n"	\
+	"	.set pop					\n"	\
+	:								\
+	: "r" (x));							\
+})
+
+#define mthi1(x)							\
+({									\
+	__asm__(							\
+	"	.set push					\n"	\
+	"	.set dsp					\n"	\
+	"	mthi %0, $ac1					\n"	\
+	"	.set pop					\n"	\
+	:								\
+	: "r" (x));							\
+})
+
+#define mthi2(x)							\
+({									\
+	__asm__(							\
+	"	.set push					\n"	\
+	"	.set dsp					\n"	\
+	"	mthi %0, $ac2					\n"	\
+	"	.set pop					\n"	\
+	:								\
+	: "r" (x));							\
+})
+
+#define mthi3(x)							\
+({									\
+	__asm__(							\
+	"	.set push					\n"	\
+	"	.set dsp					\n"	\
+	"	mthi %0, $ac3					\n"	\
+	"	.set pop					\n"	\
+	:								\
+	: "r" (x));							\
+})
 
 #else
 

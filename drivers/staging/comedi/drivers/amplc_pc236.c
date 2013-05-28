@@ -75,23 +75,19 @@ unused.
 #define PC236_IO_SIZE		4
 #define PC236_LCR_IO_SIZE	128
 
-/*
- * INTCSR values for PCI236.
- */
-/* Disable interrupt, also clear any interrupt there */
-#define PCI236_INTR_DISABLE (PLX9052_INTCSR_LI1ENAB_DISABLED \
-	| PLX9052_INTCSR_LI1POL_HIGH \
-	| PLX9052_INTCSR_LI2POL_HIGH \
-	| PLX9052_INTCSR_PCIENAB_DISABLED \
-	| PLX9052_INTCSR_LI1SEL_EDGE \
-	| PLX9052_INTCSR_LI1CLRINT_ASSERTED)
-/* Enable interrupt, also clear any interrupt there. */
-#define PCI236_INTR_ENABLE (PLX9052_INTCSR_LI1ENAB_ENABLED \
-	| PLX9052_INTCSR_LI1POL_HIGH \
-	| PLX9052_INTCSR_LI2POL_HIGH \
-	| PLX9052_INTCSR_PCIENAB_ENABLED \
-	| PLX9052_INTCSR_LI1SEL_EDGE \
-	| PLX9052_INTCSR_LI1CLRINT_ASSERTED)
+/* Disable, and clear, interrupts */
+#define PCI236_INTR_DISABLE	(PLX9052_INTCSR_LI1POL |	\
+				 PLX9052_INTCSR_LI2POL |	\
+				 PLX9052_INTCSR_LI1SEL |	\
+				 PLX9052_INTCSR_LI1CLRINT)
+
+/* Enable, and clear, interrupts */
+#define PCI236_INTR_ENABLE	(PLX9052_INTCSR_LI1ENAB |	\
+				 PLX9052_INTCSR_LI1POL |	\
+				 PLX9052_INTCSR_LI2POL |	\
+				 PLX9052_INTCSR_PCIENAB |	\
+				 PLX9052_INTCSR_LI1SEL |	\
+				 PLX9052_INTCSR_LI1CLRINT)
 
 /*
  * Board descriptions for Amplicon PC36AT and PCI236.
@@ -209,21 +205,6 @@ static struct pci_dev *pc236_find_pci_dev(struct comedi_device *dev,
 }
 
 /*
- * This function checks and requests an I/O region, reporting an error
- * if there is a conflict.
- */
-static int pc236_request_region(struct comedi_device *dev, unsigned long from,
-				unsigned long extent)
-{
-	if (!from || !request_region(from, extent, PC236_DRIVER_NAME)) {
-		dev_err(dev->class_dev, "I/O port conflict (%#lx,%lu)!\n",
-		       from, extent);
-		return -EIO;
-	}
-	return 0;
-}
-
-/*
  * This function is called to mark the interrupt as disabled (no command
  * configured on subdevice 1) and to physically disable the interrupt
  * (not possible on the PC36AT, except by removing the IRQ jumper!).
@@ -272,14 +253,14 @@ static int pc236_intr_check(struct comedi_device *dev)
 	struct pc236_private *devpriv = dev->private;
 	int retval = 0;
 	unsigned long flags;
+	unsigned int intcsr;
 
 	spin_lock_irqsave(&dev->spinlock, flags);
 	if (devpriv->enable_irq) {
 		retval = 1;
 		if (is_pci_board(thisboard)) {
-			if ((inl(devpriv->lcr_iobase + PLX9052_INTCSR)
-			     & PLX9052_INTCSR_LI1STAT_MASK)
-			    == PLX9052_INTCSR_LI1STAT_INACTIVE) {
+			intcsr = inl(devpriv->lcr_iobase + PLX9052_INTCSR);
+			if (!(intcsr & PLX9052_INTCSR_LI1STAT)) {
 				retval = 0;
 			} else {
 				/* Clear interrupt and keep it enabled. */
@@ -470,12 +451,10 @@ static int pc236_pci_common_attach(struct comedi_device *dev,
 
 	comedi_set_hw_dev(dev, &pci_dev->dev);
 
-	ret = comedi_pci_enable(pci_dev, PC236_DRIVER_NAME);
-	if (ret < 0) {
-		dev_err(dev->class_dev,
-			"error! cannot enable PCI device and request regions!\n");
+	ret = comedi_pci_enable(dev);
+	if (ret)
 		return ret;
-	}
+
 	devpriv->lcr_iobase = pci_resource_start(pci_dev, 1);
 	iobase = pci_resource_start(pci_dev, 2);
 	return pc236_common_attach(dev, iobase, pci_dev->irq, IRQF_SHARED);
@@ -493,8 +472,6 @@ static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct pc236_private *devpriv;
 	int ret;
 
-	dev_info(dev->class_dev, PC236_DRIVER_NAME ": attach\n");
-
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
 		return -ENOMEM;
@@ -502,12 +479,11 @@ static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	/* Process options according to bus type. */
 	if (is_isa_board(thisboard)) {
-		unsigned long iobase = it->options[0];
-		unsigned int irq = it->options[1];
-		ret = pc236_request_region(dev, iobase, PC236_IO_SIZE);
-		if (ret < 0)
+		ret = comedi_request_region(dev, it->options[0], PC236_IO_SIZE);
+		if (ret)
 			return ret;
-		return pc236_common_attach(dev, iobase, irq, 0);
+
+		return pc236_common_attach(dev, dev->iobase, it->options[1], 0);
 	} else if (is_pci_board(thisboard)) {
 		struct pci_dev *pci_dev;
 
@@ -567,20 +543,16 @@ static void pc236_detach(struct comedi_device *dev)
 		return;
 	if (dev->iobase)
 		pc236_intr_disable(dev);
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	if (dev->subdevices)
-		subdev_8255_cleanup(dev, &dev->subdevices[0]);
+	comedi_spriv_free(dev, 0);
 	if (is_isa_board(thisboard)) {
-		if (dev->iobase)
-			release_region(dev->iobase, PC236_IO_SIZE);
+		comedi_legacy_detach(dev);
 	} else if (is_pci_board(thisboard)) {
 		struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-		if (pcidev) {
-			if (dev->iobase)
-				comedi_pci_disable(pcidev);
+		if (dev->irq)
+			free_irq(dev->irq, dev);
+		comedi_pci_disable(dev);
+		if (pcidev)
 			pci_dev_put(pcidev);
-		}
 	}
 }
 
@@ -610,9 +582,10 @@ static DEFINE_PCI_DEVICE_TABLE(pc236_pci_table) = {
 MODULE_DEVICE_TABLE(pci, pc236_pci_table);
 
 static int amplc_pc236_pci_probe(struct pci_dev *dev,
-					   const struct pci_device_id *ent)
+				 const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &amplc_pc236_driver);
+	return comedi_pci_auto_config(dev, &amplc_pc236_driver,
+				      id->driver_data);
 }
 
 static struct pci_driver amplc_pc236_pci_driver = {

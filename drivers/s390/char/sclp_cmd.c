@@ -345,7 +345,6 @@ struct memory_increment {
 	struct list_head list;
 	u16 rn;
 	int standby;
-	int usecount;
 };
 
 struct assign_storage_sccb {
@@ -463,21 +462,10 @@ static int sclp_mem_change_state(unsigned long start, unsigned long size,
 			break;
 		if (start > istart + rzm - 1)
 			continue;
-		if (online) {
-			if (incr->usecount++)
-				continue;
-			/*
-			 * Don't break the loop if one assign fails. Loop may
-			 * be walked again on CANCEL and we can't save
-			 * information if state changed before or not.
-			 * So continue and increase usecount for all increments.
-			 */
+		if (online)
 			rc |= sclp_assign_storage(incr->rn);
-		} else {
-			if (--incr->usecount)
-				continue;
+		else
 			sclp_unassign_storage(incr->rn);
-		}
 	}
 	return rc ? -EIO : 0;
 }
@@ -572,8 +560,6 @@ static void __init insert_increment(u16 rn, int standby, int assigned)
 		return;
 	new_incr->rn = rn;
 	new_incr->standby = standby;
-	if (!standby)
-		new_incr->usecount = 1;
 	last_rn = 0;
 	prev = &sclp_mem_list;
 	list_for_each_entry(incr, &sclp_mem_list, list) {
@@ -627,6 +613,8 @@ static int __init sclp_detect_standby_memory(void)
 	struct read_storage_sccb *sccb;
 	int i, id, assigned, rc;
 
+	if (OLDMEM_BASE) /* No standby memory in kdump mode */
+		return 0;
 	if (!early_read_info_sccb_valid)
 		return 0;
 	if ((sclp_facilities & 0xe00000000000ULL) != 0xe00000000000ULL)

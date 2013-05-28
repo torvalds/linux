@@ -1,5 +1,5 @@
 config ZCACHE
-	bool "Dynamic compression of swap pages and clean pagecache pages"
+	tristate "Dynamic compression of swap pages and clean pagecache pages"
 	depends on CRYPTO=y && SWAP=y && CLEANCACHE && FRONTSWAP
 	select CRYPTO_LZO
 	default n
@@ -10,12 +10,20 @@ config ZCACHE
 	  memory to store clean page cache pages and swap in RAM,
 	  providing a noticeable reduction in disk I/O.
 
+config ZCACHE_DEBUG
+	bool "Enable debug statistics"
+	depends on DEBUG_FS && ZCACHE
+	default n
+	help
+	  This is used to provide an debugfs directory with counters of
+	  how zcache is doing. You probably want to set this to 'N'.
+
 config RAMSTER
-	bool "Cross-machine RAM capacity sharing, aka peer-to-peer tmem"
-	depends on CONFIGFS_FS=y && SYSFS=y && !HIGHMEM && ZCACHE=y
+	tristate "Cross-machine RAM capacity sharing, aka peer-to-peer tmem"
+	depends on CONFIGFS_FS=y && SYSFS=y && !HIGHMEM && ZCACHE
 	depends on NET
 	# must ensure struct page is 8-byte aligned
-	select HAVE_ALIGNED_STRUCT_PAGE if !64_BIT
+	select HAVE_ALIGNED_STRUCT_PAGE if !64BIT
 	default n
 	help
 	  RAMster allows RAM on other machines in a cluster to be utilized
@@ -24,6 +32,14 @@ config RAMSTER
 	  while minimizing total RAM across the cluster.  RAMster, like
 	  zcache2, compresses swap pages into local RAM, but then remotifies
 	  the compressed pages to another node in the RAMster cluster.
+
+config RAMSTER_DEBUG
+        bool "Enable ramster debug statistics"
+        depends on DEBUG_FS && RAMSTER
+        default n
+        help
+          This is used to provide an debugfs directory with counters of
+          how ramster is doing. You probably want to set this to 'N'.
 
 # Depends on not-yet-upstreamed mm patches to export end_swap_bio_write and
 # __add_to_swap_cache, and implement __swap_writepage (which is swap_writepage

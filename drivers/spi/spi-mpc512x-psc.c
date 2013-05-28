@@ -28,6 +28,7 @@
 #include <linux/clk.h>
 #include <linux/spi/spi.h>
 #include <linux/fsl_devices.h>
+#include <linux/gpio.h>
 #include <asm/mpc52xx_psc.h>
 
 struct mpc512x_psc_spi {
@@ -113,7 +114,7 @@ static void mpc512x_psc_spi_activate_cs(struct spi_device *spi)
 	out_be32(&psc->ccr, ccr);
 	mps->bits_per_word = cs->bits_per_word;
 
-	if (mps->cs_control)
+	if (mps->cs_control && gpio_is_valid(spi->cs_gpio))
 		mps->cs_control(spi, (spi->mode & SPI_CS_HIGH) ? 1 : 0);
 }
 
@@ -121,7 +122,7 @@ static void mpc512x_psc_spi_deactivate_cs(struct spi_device *spi)
 {
 	struct mpc512x_psc_spi *mps = spi_master_get_devdata(spi->master);
 
-	if (mps->cs_control)
+	if (mps->cs_control && gpio_is_valid(spi->cs_gpio))
 		mps->cs_control(spi, (spi->mode & SPI_CS_HIGH) ? 0 : 1);
 
 }
@@ -148,6 +149,9 @@ static int mpc512x_psc_spi_transfer_rxtx(struct spi_device *spi,
 	in_8(&psc->mode);
 	out_8(&psc->mode, 0x0);
 
+	/* enable transmiter/receiver */
+	out_8(&psc->command, MPC52xx_PSC_TX_ENABLE | MPC52xx_PSC_RX_ENABLE);
+
 	while (len) {
 		int count;
 		int i;
@@ -164,7 +168,7 @@ static int mpc512x_psc_spi_transfer_rxtx(struct spi_device *spi,
 
 		for (i = count; i > 0; i--) {
 			data = tx_buf ? *tx_buf++ : 0;
-			if (len == EOFBYTE)
+			if (len == EOFBYTE && t->cs_change)
 				setbits32(&fifo->txcmd, MPC512x_PSC_FIFO_EOF);
 			out_8(&fifo->txdata_8, data);
 			len--;
@@ -175,10 +179,6 @@ static int mpc512x_psc_spi_transfer_rxtx(struct spi_device *spi,
 		/* interrupt on tx fifo empty */
 		out_be32(&fifo->txisr, MPC512x_PSC_FIFO_EMPTY);
 		out_be32(&fifo->tximr, MPC512x_PSC_FIFO_EMPTY);
-
-		/* enable transmiter/receiver */
-		out_8(&psc->command,
-		      MPC52xx_PSC_TX_ENABLE | MPC52xx_PSC_RX_ENABLE);
 
 		wait_for_completion(&mps->done);
 
@@ -204,9 +204,6 @@ static int mpc512x_psc_spi_transfer_rxtx(struct spi_device *spi,
 		while (in_be32(&fifo->rxcnt)) {
 			in_8(&fifo->rxdata_8);
 		}
-
-		out_8(&psc->command,
-		      MPC52xx_PSC_TX_DISABLE | MPC52xx_PSC_RX_DISABLE);
 	}
 	/* disable transmiter/receiver and fifo interrupt */
 	out_8(&psc->command, MPC52xx_PSC_TX_DISABLE | MPC52xx_PSC_RX_DISABLE);
@@ -278,6 +275,7 @@ static int mpc512x_psc_spi_setup(struct spi_device *spi)
 	struct mpc512x_psc_spi *mps = spi_master_get_devdata(spi->master);
 	struct mpc512x_psc_spi_cs *cs = spi->controller_state;
 	unsigned long flags;
+	int ret;
 
 	if (spi->bits_per_word % 8)
 		return -EINVAL;
@@ -286,6 +284,19 @@ static int mpc512x_psc_spi_setup(struct spi_device *spi)
 		cs = kzalloc(sizeof *cs, GFP_KERNEL);
 		if (!cs)
 			return -ENOMEM;
+
+		if (gpio_is_valid(spi->cs_gpio)) {
+			ret = gpio_request(spi->cs_gpio, dev_name(&spi->dev));
+			if (ret) {
+				dev_err(&spi->dev, "can't get CS gpio: %d\n",
+					ret);
+				kfree(cs);
+				return ret;
+			}
+			gpio_direction_output(spi->cs_gpio,
+					spi->mode & SPI_CS_HIGH ? 0 : 1);
+		}
+
 		spi->controller_state = cs;
 	}
 
@@ -319,6 +330,8 @@ static int mpc512x_psc_spi_transfer(struct spi_device *spi,
 
 static void mpc512x_psc_spi_cleanup(struct spi_device *spi)
 {
+	if (gpio_is_valid(spi->cs_gpio))
+		gpio_free(spi->cs_gpio);
 	kfree(spi->controller_state);
 }
 
@@ -405,6 +418,11 @@ static irqreturn_t mpc512x_psc_spi_isr(int irq, void *dev_id)
 	return IRQ_NONE;
 }
 
+static void mpc512x_spi_cs_control(struct spi_device *spi, bool onoff)
+{
+	gpio_set_value(spi->cs_gpio, onoff);
+}
+
 /* bus_num is used only for the case dev->platform_data == NULL */
 static int mpc512x_psc_spi_do_probe(struct device *dev, u32 regaddr,
 					      u32 size, unsigned int irq,
@@ -425,12 +443,9 @@ static int mpc512x_psc_spi_do_probe(struct device *dev, u32 regaddr,
 	mps->irq = irq;
 
 	if (pdata == NULL) {
-		dev_err(dev, "probe called without platform data, no "
-			"cs_control function will be called\n");
-		mps->cs_control = NULL;
+		mps->cs_control = mpc512x_spi_cs_control;
 		mps->sysclk = 0;
 		master->bus_num = bus_num;
-		master->num_chipselect = 255;
 	} else {
 		mps->cs_control = pdata->cs_control;
 		mps->sysclk = pdata->sysclk;

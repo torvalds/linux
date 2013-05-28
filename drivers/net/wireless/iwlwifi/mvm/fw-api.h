@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -70,6 +70,7 @@
 #include "fw-api-mac.h"
 #include "fw-api-power.h"
 #include "fw-api-d3.h"
+#include "fw-api-bt-coex.h"
 
 /* queue and FIFO numbers by usage */
 enum {
@@ -150,8 +151,10 @@ enum {
 
 	SET_CALIB_DEFAULT_CMD = 0x8e,
 
+	BEACON_NOTIFICATION = 0x90,
 	BEACON_TEMPLATE_CMD = 0x91,
 	TX_ANT_CONFIGURATION_CMD = 0x98,
+	BT_CONFIG = 0x9b,
 	STATISTICS_NOTIFICATION = 0x9d,
 
 	/* RF-KILL commands and notifications */
@@ -162,8 +165,15 @@ enum {
 	REPLY_RX_MPDU_CMD = 0xc1,
 	BA_NOTIF = 0xc5,
 
+	/* BT Coex */
+	BT_COEX_PRIO_TABLE = 0xcc,
+	BT_COEX_PROT_ENV = 0xcd,
+	BT_PROFILE_NOTIFICATION = 0xce,
+
 	REPLY_DEBUG_CMD = 0xf0,
 	DEBUG_LOG_MSG = 0xf7,
+
+	MCAST_FILTER_CMD = 0xd0,
 
 	/* D3 commands/notifications */
 	D3_CONFIG_CMD = 0xd3,
@@ -271,38 +281,7 @@ enum {
 	NVM_ACCESS_TARGET_EEPROM = 2,
 };
 
-/**
- * struct iwl_nvm_access_cmd_ver1 - Request the device to send the NVM.
- * @op_code: 0 - read, 1 - write.
- * @target: NVM_ACCESS_TARGET_*. should be 0 for read.
- * @cache_refresh: 0 - None, 1- NVM.
- * @offset: offset in the nvm data.
- * @length: of the chunk.
- * @data: empty on read, the NVM chunk on write
- */
-struct iwl_nvm_access_cmd_ver1 {
-	u8 op_code;
-	u8 target;
-	u8 cache_refresh;
-	u8 reserved;
-	__le16 offset;
-	__le16 length;
-	u8 data[];
-} __packed; /* NVM_ACCESS_CMD_API_S_VER_1 */
-
-/**
- * struct iwl_nvm_access_resp_ver1 - response to NVM_ACCESS_CMD
- * @offset: the offset in the nvm data
- * @length: of the chunk
- * @data: the nvm chunk on when NVM_ACCESS_CMD was read, nothing on write
- */
-struct iwl_nvm_access_resp_ver1 {
-	__le16 offset;
-	__le16 length;
-	u8 data[];
-} __packed; /* NVM_ACCESS_CMD_RESP_API_S_VER_1 */
-
-/* Section types for NVM_ACCESS_CMD version 2 */
+/* Section types for NVM_ACCESS_CMD */
 enum {
 	NVM_SECTION_TYPE_HW = 0,
 	NVM_SECTION_TYPE_SW,
@@ -323,7 +302,7 @@ enum {
  * @length: in bytes, to read/write
  * @data: if write operation, the data to write. On read its empty
  */
-struct iwl_nvm_access_cmd_ver2 {
+struct iwl_nvm_access_cmd {
 	u8 op_code;
 	u8 target;
 	__le16 type;
@@ -340,7 +319,7 @@ struct iwl_nvm_access_cmd_ver2 {
  * @status: 0 for success, fail otherwise
  * @data: if read operation, the data returned. Empty on write.
  */
-struct iwl_nvm_access_resp_ver2 {
+struct iwl_nvm_access_resp {
 	__le16 offset;
 	__le16 length;
 	__le16 type;
@@ -503,15 +482,34 @@ enum {
 	TE_DEP_TSF		= 2,
 	TE_EVENT_SOCIOPATHIC	= 4,
 }; /* MAC_EVENT_DEPENDENCY_POLICY_API_E_VER_2 */
-
-/* When to send Time Event notifications and to whom (internal = FW) */
+/*
+ * Supported Time event notifications configuration.
+ * A notification (both event and fragment) includes a status indicating weather
+ * the FW was able to schedule the event or not. For fragment start/end
+ * notification the status is always success. There is no start/end fragment
+ * notification for monolithic events.
+ *
+ * @TE_NOTIF_NONE: no notifications
+ * @TE_NOTIF_HOST_EVENT_START: request/receive notification on event start
+ * @TE_NOTIF_HOST_EVENT_END:request/receive notification on event end
+ * @TE_NOTIF_INTERNAL_EVENT_START: internal FW use
+ * @TE_NOTIF_INTERNAL_EVENT_END: internal FW use.
+ * @TE_NOTIF_HOST_FRAG_START: request/receive notification on frag start
+ * @TE_NOTIF_HOST_FRAG_END:request/receive notification on frag end
+ * @TE_NOTIF_INTERNAL_FRAG_START: internal FW use.
+ * @TE_NOTIF_INTERNAL_FRAG_END: internal FW use.
+ */
 enum {
 	TE_NOTIF_NONE = 0,
-	TE_NOTIF_HOST_START = 0x1,
-	TE_NOTIF_HOST_END = 0x2,
-	TE_NOTIF_INTERNAL_START = 0x4,
-	TE_NOTIF_INTERNAL_END = 0x8
-}; /* MAC_EVENT_ACTION_API_E_VER_1 */
+	TE_NOTIF_HOST_EVENT_START = 0x1,
+	TE_NOTIF_HOST_EVENT_END = 0x2,
+	TE_NOTIF_INTERNAL_EVENT_START = 0x4,
+	TE_NOTIF_INTERNAL_EVENT_END = 0x8,
+	TE_NOTIF_HOST_FRAG_START = 0x10,
+	TE_NOTIF_HOST_FRAG_END = 0x20,
+	TE_NOTIF_INTERNAL_FRAG_START = 0x40,
+	TE_NOTIF_INTERNAL_FRAG_END = 0x80
+}; /* MAC_EVENT_ACTION_API_E_VER_2 */
 
 /*
  * @TE_FRAG_NONE: fragmentation of the time event is NOT allowed.
@@ -762,18 +760,20 @@ struct iwl_phy_context_cmd {
 #define IWL_RX_INFO_PHY_CNT 8
 #define IWL_RX_INFO_AGC_IDX 1
 #define IWL_RX_INFO_RSSI_AB_IDX 2
-#define IWL_RX_INFO_RSSI_C_IDX 3
-#define IWL_OFDM_AGC_DB_MSK 0xfe00
-#define IWL_OFDM_AGC_DB_POS 9
+#define IWL_OFDM_AGC_A_MSK 0x0000007f
+#define IWL_OFDM_AGC_A_POS 0
+#define IWL_OFDM_AGC_B_MSK 0x00003f80
+#define IWL_OFDM_AGC_B_POS 7
+#define IWL_OFDM_AGC_CODE_MSK 0x3fe00000
+#define IWL_OFDM_AGC_CODE_POS 20
 #define IWL_OFDM_RSSI_INBAND_A_MSK 0x00ff
-#define IWL_OFDM_RSSI_ALLBAND_A_MSK 0xff00
 #define IWL_OFDM_RSSI_A_POS 0
+#define IWL_OFDM_RSSI_ALLBAND_A_MSK 0xff00
+#define IWL_OFDM_RSSI_ALLBAND_A_POS 8
 #define IWL_OFDM_RSSI_INBAND_B_MSK 0xff0000
-#define IWL_OFDM_RSSI_ALLBAND_B_MSK 0xff000000
 #define IWL_OFDM_RSSI_B_POS 16
-#define IWL_OFDM_RSSI_INBAND_C_MSK 0x00ff
-#define IWL_OFDM_RSSI_ALLBAND_C_MSK 0xff00
-#define IWL_OFDM_RSSI_C_POS 0
+#define IWL_OFDM_RSSI_ALLBAND_B_MSK 0xff000000
+#define IWL_OFDM_RSSI_ALLBAND_B_POS 24
 
 /**
  * struct iwl_rx_phy_info - phy info
@@ -792,6 +792,7 @@ struct iwl_phy_context_cmd {
  * @byte_count: frame's byte-count
  * @frame_time: frame's time on the air, based on byte count and frame rate
  *	calculation
+ * @mac_active_msk: what MACs were active when the frame was received
  *
  * Before each Rx, the device sends this data. It contains PHY information
  * about the reception of the packet.
@@ -809,7 +810,7 @@ struct iwl_rx_phy_info {
 	__le32 non_cfg_phy[IWL_RX_INFO_PHY_CNT];
 	__le32 rate_n_flags;
 	__le32 byte_count;
-	__le16 reserved2;
+	__le16 mac_active_msk;
 	__le16 frame_time;
 } __packed;
 
@@ -948,5 +949,30 @@ struct iwl_set_calib_default_cmd {
 	__le16 length;
 	u8 data[0];
 } __packed; /* PHY_CALIB_OVERRIDE_VALUES_S */
+
+#define MAX_PORT_ID_NUM	2
+
+/**
+ * struct iwl_mcast_filter_cmd - configure multicast filter.
+ * @filter_own: Set 1 to filter out multicast packets sent by station itself
+ * @port_id:	Multicast MAC addresses array specifier. This is a strange way
+ *		to identify network interface adopted in host-device IF.
+ *		It is used by FW as index in array of addresses. This array has
+ *		MAX_PORT_ID_NUM members.
+ * @count:	Number of MAC addresses in the array
+ * @pass_all:	Set 1 to pass all multicast packets.
+ * @bssid:	current association BSSID.
+ * @addr_list:	Place holder for array of MAC addresses.
+ *		IMPORTANT: add padding if necessary to ensure DWORD alignment.
+ */
+struct iwl_mcast_filter_cmd {
+	u8 filter_own;
+	u8 port_id;
+	u8 count;
+	u8 pass_all;
+	u8 bssid[6];
+	u8 reserved[2];
+	u8 addr_list[0];
+} __packed; /* MCAST_FILTERING_CMD_API_S_VER_1 */
 
 #endif /* __fw_api_h__ */

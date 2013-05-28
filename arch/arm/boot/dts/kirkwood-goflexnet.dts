@@ -73,11 +73,11 @@
 			};
 		};
 		serial@12000 {
-			clock-frequency = <200000000>;
 			status = "ok";
 		};
 
 		nand@3000000 {
+			chip-delay = <40>;
 			status = "okay";
 
 			partition@0 {

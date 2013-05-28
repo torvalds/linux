@@ -1241,10 +1241,13 @@ static int lme2510_get_stream_config(struct dvb_frontend *fe, u8 *ts_type,
 		struct usb_data_stream_properties *stream)
 {
 	struct dvb_usb_adapter *adap = fe_to_adap(fe);
-	struct dvb_usb_device *d = adap_to_d(adap);
+	struct dvb_usb_device *d;
 
 	if (adap == NULL)
 		return 0;
+
+	d = adap_to_d(adap);
+
 	/* Turn PID filter on the fly by module option */
 	if (pid_filter == 2) {
 		adap->pid_filtering  = 1;
@@ -1299,8 +1302,7 @@ static void lme2510_exit(struct dvb_usb_device *d)
 
 	if (d != NULL) {
 		usb_buffer = lme2510_exit_int(d);
-		if (usb_buffer != NULL)
-			kfree(usb_buffer);
+		kfree(usb_buffer);
 	}
 }
 

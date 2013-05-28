@@ -412,7 +412,7 @@ static int at25_probe(struct spi_device *spi)
 	mutex_init(&at25->lock);
 	at25->chip = chip;
 	at25->spi = spi_dev_get(spi);
-	dev_set_drvdata(&spi->dev, at25);
+	spi_set_drvdata(spi, at25);
 	at25->addrlen = addrlen;
 
 	/* Export the EEPROM bytes through sysfs, since that's convenient.
@@ -463,7 +463,7 @@ static int at25_remove(struct spi_device *spi)
 {
 	struct at25_data	*at25;
 
-	at25 = dev_get_drvdata(&spi->dev);
+	at25 = spi_get_drvdata(spi);
 	sysfs_remove_bin_file(&spi->dev.kobj, &at25->bin);
 	kfree(at25);
 	return 0;

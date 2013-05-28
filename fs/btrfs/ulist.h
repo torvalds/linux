@@ -8,6 +8,9 @@
 #ifndef __ULIST__
 #define __ULIST__
 
+#include <linux/list.h>
+#include <linux/rbtree.h>
+
 /*
  * ulist is a generic data structure to hold a collection of unique u64
  * values. The only operations it supports is adding to the list and
@@ -34,6 +37,7 @@ struct ulist_iterator {
 struct ulist_node {
 	u64 val;		/* value to store */
 	u64 aux;		/* auxiliary value saved along with the val */
+	struct rb_node rb_node;	/* used to speed up search */
 };
 
 struct ulist {
@@ -53,6 +57,8 @@ struct ulist {
 	 * After exceeding ULIST_SIZE, dynamic memory is allocated.
 	 */
 	struct ulist_node *nodes;
+
+	struct rb_root root;
 
 	/*
 	 * inline storage space for the first ULIST_SIZE entries

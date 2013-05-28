@@ -30,14 +30,31 @@ qla2x00_bsg_sp_free(void *data, void *ptr)
 	struct scsi_qla_host *vha = sp->fcport->vha;
 	struct fc_bsg_job *bsg_job = sp->u.bsg_job;
 	struct qla_hw_data *ha = vha->hw;
+	struct qla_mt_iocb_rqst_fx00 *piocb_rqst;
 
-	dma_unmap_sg(&ha->pdev->dev, bsg_job->request_payload.sg_list,
-	    bsg_job->request_payload.sg_cnt, DMA_TO_DEVICE);
+	if (sp->type == SRB_FXIOCB_BCMD) {
+		piocb_rqst = (struct qla_mt_iocb_rqst_fx00 *)
+		    &bsg_job->request->rqst_data.h_vendor.vendor_cmd[1];
 
-	dma_unmap_sg(&ha->pdev->dev, bsg_job->reply_payload.sg_list,
-	    bsg_job->reply_payload.sg_cnt, DMA_FROM_DEVICE);
+		if (piocb_rqst->flags & SRB_FXDISC_REQ_DMA_VALID)
+			dma_unmap_sg(&ha->pdev->dev,
+			    bsg_job->request_payload.sg_list,
+			    bsg_job->request_payload.sg_cnt, DMA_TO_DEVICE);
+
+		if (piocb_rqst->flags & SRB_FXDISC_RESP_DMA_VALID)
+			dma_unmap_sg(&ha->pdev->dev,
+			    bsg_job->reply_payload.sg_list,
+			    bsg_job->reply_payload.sg_cnt, DMA_FROM_DEVICE);
+	} else {
+		dma_unmap_sg(&ha->pdev->dev, bsg_job->request_payload.sg_list,
+		    bsg_job->request_payload.sg_cnt, DMA_TO_DEVICE);
+
+		dma_unmap_sg(&ha->pdev->dev, bsg_job->reply_payload.sg_list,
+		    bsg_job->reply_payload.sg_cnt, DMA_FROM_DEVICE);
+	}
 
 	if (sp->type == SRB_CT_CMD ||
+	    sp->type == SRB_FXIOCB_BCMD ||
 	    sp->type == SRB_ELS_CMD_HST)
 		kfree(sp->fcport);
 	qla2x00_rel_sp(vha, sp);
@@ -751,6 +768,8 @@ qla2x00_process_loopback(struct fc_bsg_job *bsg_job)
 	elreq.transfer_size = req_data_len;
 
 	elreq.options = bsg_job->request->rqst_data.h_vendor.vendor_cmd[1];
+	elreq.iteration_count =
+	    bsg_job->request->rqst_data.h_vendor.vendor_cmd[2];
 
 	if (atomic_read(&vha->loop_state) == LOOP_READY &&
 	    (ha->current_topology == ISP_CFG_F ||
@@ -1883,6 +1902,128 @@ done:
 }
 
 static int
+qlafx00_mgmt_cmd(struct fc_bsg_job *bsg_job)
+{
+	struct Scsi_Host *host = bsg_job->shost;
+	scsi_qla_host_t *vha = shost_priv(host);
+	struct qla_hw_data *ha = vha->hw;
+	int rval = (DRIVER_ERROR << 16);
+	struct qla_mt_iocb_rqst_fx00 *piocb_rqst;
+	srb_t *sp;
+	int req_sg_cnt = 0, rsp_sg_cnt = 0;
+	struct fc_port *fcport;
+	char  *type = "FC_BSG_HST_FX_MGMT";
+
+	/* Copy the IOCB specific information */
+	piocb_rqst = (struct qla_mt_iocb_rqst_fx00 *)
+	    &bsg_job->request->rqst_data.h_vendor.vendor_cmd[1];
+
+	/* Dump the vendor information */
+	ql_dump_buffer(ql_dbg_user + ql_dbg_verbose , vha, 0x70cf,
+	    (uint8_t *)piocb_rqst, sizeof(struct qla_mt_iocb_rqst_fx00));
+
+	if (!vha->flags.online) {
+		ql_log(ql_log_warn, vha, 0x70d0,
+		    "Host is not online.\n");
+		rval = -EIO;
+		goto done;
+	}
+
+	if (piocb_rqst->flags & SRB_FXDISC_REQ_DMA_VALID) {
+		req_sg_cnt = dma_map_sg(&ha->pdev->dev,
+		    bsg_job->request_payload.sg_list,
+		    bsg_job->request_payload.sg_cnt, DMA_TO_DEVICE);
+		if (!req_sg_cnt) {
+			ql_log(ql_log_warn, vha, 0x70c7,
+			    "dma_map_sg return %d for request\n", req_sg_cnt);
+			rval = -ENOMEM;
+			goto done;
+		}
+	}
+
+	if (piocb_rqst->flags & SRB_FXDISC_RESP_DMA_VALID) {
+		rsp_sg_cnt = dma_map_sg(&ha->pdev->dev,
+		    bsg_job->reply_payload.sg_list,
+		    bsg_job->reply_payload.sg_cnt, DMA_FROM_DEVICE);
+		if (!rsp_sg_cnt) {
+			ql_log(ql_log_warn, vha, 0x70c8,
+			    "dma_map_sg return %d for reply\n", rsp_sg_cnt);
+			rval = -ENOMEM;
+			goto done_unmap_req_sg;
+		}
+	}
+
+	ql_dbg(ql_dbg_user, vha, 0x70c9,
+	    "request_sg_cnt: %x dma_request_sg_cnt: %x reply_sg_cnt:%x "
+	    "dma_reply_sg_cnt: %x\n", bsg_job->request_payload.sg_cnt,
+	    req_sg_cnt, bsg_job->reply_payload.sg_cnt, rsp_sg_cnt);
+
+	/* Allocate a dummy fcport structure, since functions preparing the
+	 * IOCB and mailbox command retrieves port specific information
+	 * from fcport structure. For Host based ELS commands there will be
+	 * no fcport structure allocated
+	 */
+	fcport = qla2x00_alloc_fcport(vha, GFP_KERNEL);
+	if (!fcport) {
+		ql_log(ql_log_warn, vha, 0x70ca,
+		    "Failed to allocate fcport.\n");
+		rval = -ENOMEM;
+		goto done_unmap_rsp_sg;
+	}
+
+	/* Alloc SRB structure */
+	sp = qla2x00_get_sp(vha, fcport, GFP_KERNEL);
+	if (!sp) {
+		ql_log(ql_log_warn, vha, 0x70cb,
+		    "qla2x00_get_sp failed.\n");
+		rval = -ENOMEM;
+		goto done_free_fcport;
+	}
+
+	/* Initialize all required  fields of fcport */
+	fcport->vha = vha;
+	fcport->loop_id = piocb_rqst->dataword;
+
+	sp->type = SRB_FXIOCB_BCMD;
+	sp->name = "bsg_fx_mgmt";
+	sp->iocbs = qla24xx_calc_ct_iocbs(req_sg_cnt + rsp_sg_cnt);
+	sp->u.bsg_job = bsg_job;
+	sp->free = qla2x00_bsg_sp_free;
+	sp->done = qla2x00_bsg_job_done;
+
+	ql_dbg(ql_dbg_user, vha, 0x70cc,
+	    "bsg rqst type: %s fx_mgmt_type: %x id=%x\n",
+	    type, piocb_rqst->func_type, fcport->loop_id);
+
+	rval = qla2x00_start_sp(sp);
+	if (rval != QLA_SUCCESS) {
+		ql_log(ql_log_warn, vha, 0x70cd,
+		    "qla2x00_start_sp failed=%d.\n", rval);
+		mempool_free(sp, ha->srb_mempool);
+		rval = -EIO;
+		goto done_free_fcport;
+	}
+	return rval;
+
+done_free_fcport:
+	kfree(fcport);
+
+done_unmap_rsp_sg:
+	if (piocb_rqst->flags & SRB_FXDISC_RESP_DMA_VALID)
+		dma_unmap_sg(&ha->pdev->dev,
+		    bsg_job->reply_payload.sg_list,
+		    bsg_job->reply_payload.sg_cnt, DMA_FROM_DEVICE);
+done_unmap_req_sg:
+	if (piocb_rqst->flags & SRB_FXDISC_REQ_DMA_VALID)
+		dma_unmap_sg(&ha->pdev->dev,
+		    bsg_job->request_payload.sg_list,
+		    bsg_job->request_payload.sg_cnt, DMA_TO_DEVICE);
+
+done:
+	return rval;
+}
+
+static int
 qla2x00_process_vendor_specific(struct fc_bsg_job *bsg_job)
 {
 	switch (bsg_job->request->rqst_data.h_vendor.vendor_cmd[0]) {
@@ -1928,6 +2069,8 @@ qla2x00_process_vendor_specific(struct fc_bsg_job *bsg_job)
 	case QL_VND_DIAG_IO_CMD:
 		return qla24xx_process_bidir_cmd(bsg_job);
 
+	case QL_VND_FX00_MGMT_CMD:
+		return qlafx00_mgmt_cmd(bsg_job);
 	default:
 		return -ENOSYS;
 	}
@@ -2007,7 +2150,8 @@ qla24xx_bsg_timeout(struct fc_bsg_job *bsg_job)
 			sp = req->outstanding_cmds[cnt];
 			if (sp) {
 				if (((sp->type == SRB_CT_CMD) ||
-					(sp->type == SRB_ELS_CMD_HST))
+					(sp->type == SRB_ELS_CMD_HST) ||
+					(sp->type == SRB_FXIOCB_BCMD))
 					&& (sp->u.bsg_job == bsg_job)) {
 					spin_unlock_irqrestore(&ha->hardware_lock, flags);
 					if (ha->isp_ops->abort_command(sp)) {

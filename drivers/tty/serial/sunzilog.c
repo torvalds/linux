@@ -388,7 +388,7 @@ sunzilog_receive_chars(struct uart_sunzilog_port *up,
 			else if (r1 & CRC_ERR)
 				flag = TTY_FRAME;
 		}
-		if (uart_handle_sysrq_char(&up->port, ch))
+		if (uart_handle_sysrq_char(&up->port, ch) || !port)
 			continue;
 
 		if (up->port.ignore_status_mask == 0xff ||

@@ -2126,33 +2126,44 @@ void
 lpfc_reg_vfi(struct lpfcMboxq *mbox, struct lpfc_vport *vport, dma_addr_t phys)
 {
 	struct lpfc_mbx_reg_vfi *reg_vfi;
+	struct lpfc_hba *phba = vport->phba;
 
 	memset(mbox, 0, sizeof(*mbox));
 	reg_vfi = &mbox->u.mqe.un.reg_vfi;
 	bf_set(lpfc_mqe_command, &mbox->u.mqe, MBX_REG_VFI);
 	bf_set(lpfc_reg_vfi_vp, reg_vfi, 1);
 	bf_set(lpfc_reg_vfi_vfi, reg_vfi,
-	       vport->phba->sli4_hba.vfi_ids[vport->vfi]);
-	bf_set(lpfc_reg_vfi_fcfi, reg_vfi, vport->phba->fcf.fcfi);
-	bf_set(lpfc_reg_vfi_vpi, reg_vfi, vport->phba->vpi_ids[vport->vpi]);
+	       phba->sli4_hba.vfi_ids[vport->vfi]);
+	bf_set(lpfc_reg_vfi_fcfi, reg_vfi, phba->fcf.fcfi);
+	bf_set(lpfc_reg_vfi_vpi, reg_vfi, phba->vpi_ids[vport->vpi]);
 	memcpy(reg_vfi->wwn, &vport->fc_portname, sizeof(struct lpfc_name));
 	reg_vfi->wwn[0] = cpu_to_le32(reg_vfi->wwn[0]);
 	reg_vfi->wwn[1] = cpu_to_le32(reg_vfi->wwn[1]);
-	reg_vfi->e_d_tov = vport->phba->fc_edtov;
-	reg_vfi->r_a_tov = vport->phba->fc_ratov;
+	reg_vfi->e_d_tov = phba->fc_edtov;
+	reg_vfi->r_a_tov = phba->fc_ratov;
 	reg_vfi->bde.addrHigh = putPaddrHigh(phys);
 	reg_vfi->bde.addrLow = putPaddrLow(phys);
 	reg_vfi->bde.tus.f.bdeSize = sizeof(vport->fc_sparam);
 	reg_vfi->bde.tus.f.bdeFlags = BUFF_TYPE_BDE_64;
 	bf_set(lpfc_reg_vfi_nport_id, reg_vfi, vport->fc_myDID);
+
+	/* Only FC supports upd bit */
+	if ((phba->sli4_hba.lnk_info.lnk_tp == LPFC_LNK_TYPE_FC) &&
+	    (vport->fc_flag & FC_VFI_REGISTERED) &&
+	    (!phba->fc_topology_changed)) {
+		bf_set(lpfc_reg_vfi_vp, reg_vfi, 0);
+		bf_set(lpfc_reg_vfi_upd, reg_vfi, 1);
+	}
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_MBOX,
 			"3134 Register VFI, mydid:x%x, fcfi:%d, "
-			" vfi:%d, vpi:%d, fc_pname:%x%x\n",
+			" vfi:%d, vpi:%d, fc_pname:%x%x fc_flag:x%x"
+			" port_state:x%x topology chg:%d\n",
 			vport->fc_myDID,
-			vport->phba->fcf.fcfi,
-			vport->phba->sli4_hba.vfi_ids[vport->vfi],
-			vport->phba->vpi_ids[vport->vpi],
-			reg_vfi->wwn[0], reg_vfi->wwn[1]);
+			phba->fcf.fcfi,
+			phba->sli4_hba.vfi_ids[vport->vfi],
+			phba->vpi_ids[vport->vpi],
+			reg_vfi->wwn[0], reg_vfi->wwn[1], vport->fc_flag,
+			vport->port_state, phba->fc_topology_changed);
 }
 
 /**

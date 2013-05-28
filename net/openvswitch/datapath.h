@@ -57,10 +57,9 @@ struct dp_stats_percpu {
  * struct datapath - datapath for flow-based packet switching
  * @rcu: RCU callback head for deferred destruction.
  * @list_node: Element in global 'dps' list.
- * @n_flows: Number of flows currently in flow table.
- * @table: Current flow table.  Protected by genl_lock and RCU.
+ * @table: Current flow table.  Protected by ovs_mutex and RCU.
  * @ports: Hash table for ports.  %OVSP_LOCAL port always exists.  Protected by
- * RTNL and RCU.
+ * ovs_mutex and RCU.
  * @stats_percpu: Per-CPU datapath statistics.
  * @net: Reference to net namespace.
  *
@@ -86,26 +85,6 @@ struct datapath {
 #endif
 };
 
-struct vport *ovs_lookup_vport(const struct datapath *dp, u16 port_no);
-
-static inline struct vport *ovs_vport_rcu(const struct datapath *dp, int port_no)
-{
-	WARN_ON_ONCE(!rcu_read_lock_held());
-	return ovs_lookup_vport(dp, port_no);
-}
-
-static inline struct vport *ovs_vport_rtnl_rcu(const struct datapath *dp, int port_no)
-{
-	WARN_ON_ONCE(!rcu_read_lock_held() && !rtnl_is_locked());
-	return ovs_lookup_vport(dp, port_no);
-}
-
-static inline struct vport *ovs_vport_rtnl(const struct datapath *dp, int port_no)
-{
-	ASSERT_RTNL();
-	return ovs_lookup_vport(dp, port_no);
-}
-
 /**
  * struct ovs_skb_cb - OVS data in skb CB
  * @flow: The flow associated with this packet.  May be %NULL if no flow.
@@ -119,7 +98,7 @@ struct ovs_skb_cb {
  * struct dp_upcall - metadata to include with a packet to send to userspace
  * @cmd: One of %OVS_PACKET_CMD_*.
  * @key: Becomes %OVS_PACKET_ATTR_KEY.  Must be nonnull.
- * @userdata: If nonnull, its u64 value is extracted and passed to userspace as
+ * @userdata: If nonnull, its variable-length value is passed to userspace as
  * %OVS_PACKET_ATTR_USERDATA.
  * @pid: Netlink PID to which packet should be sent.  If @pid is 0 then no
  * packet is sent and the packet is accounted in the datapath's @n_lost
@@ -132,6 +111,30 @@ struct dp_upcall_info {
 	u32 portid;
 };
 
+/**
+ * struct ovs_net - Per net-namespace data for ovs.
+ * @dps: List of datapaths to enable dumping them all out.
+ * Protected by genl_mutex.
+ */
+struct ovs_net {
+	struct list_head dps;
+	struct work_struct dp_notify_work;
+};
+
+extern int ovs_net_id;
+void ovs_lock(void);
+void ovs_unlock(void);
+
+#ifdef CONFIG_LOCKDEP
+int lockdep_ovsl_is_held(void);
+#else
+#define lockdep_ovsl_is_held()	1
+#endif
+
+#define ASSERT_OVSL()		WARN_ON(unlikely(!lockdep_ovsl_is_held()))
+#define ovsl_dereference(p)					\
+	rcu_dereference_protected(p, lockdep_ovsl_is_held())
+
 static inline struct net *ovs_dp_get_net(struct datapath *dp)
 {
 	return read_pnet(&dp->net);
@@ -140,6 +143,26 @@ static inline struct net *ovs_dp_get_net(struct datapath *dp)
 static inline void ovs_dp_set_net(struct datapath *dp, struct net *net)
 {
 	write_pnet(&dp->net, net);
+}
+
+struct vport *ovs_lookup_vport(const struct datapath *dp, u16 port_no);
+
+static inline struct vport *ovs_vport_rcu(const struct datapath *dp, int port_no)
+{
+	WARN_ON_ONCE(!rcu_read_lock_held());
+	return ovs_lookup_vport(dp, port_no);
+}
+
+static inline struct vport *ovs_vport_ovsl_rcu(const struct datapath *dp, int port_no)
+{
+	WARN_ON_ONCE(!rcu_read_lock_held() && !lockdep_ovsl_is_held());
+	return ovs_lookup_vport(dp, port_no);
+}
+
+static inline struct vport *ovs_vport_ovsl(const struct datapath *dp, int port_no)
+{
+	ASSERT_OVSL();
+	return ovs_lookup_vport(dp, port_no);
 }
 
 extern struct notifier_block ovs_dp_device_notifier;
@@ -155,4 +178,5 @@ struct sk_buff *ovs_vport_cmd_build_info(struct vport *, u32 pid, u32 seq,
 					 u8 cmd);
 
 int ovs_execute_actions(struct datapath *dp, struct sk_buff *skb);
+void ovs_dp_notify_wq(struct work_struct *work);
 #endif /* datapath.h */

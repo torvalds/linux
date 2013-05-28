@@ -870,7 +870,7 @@ err_unlock:
 }
 
 static int e100_exec_cb(struct nic *nic, struct sk_buff *skb,
-	void (*cb_prepare)(struct nic *, struct cb *, struct sk_buff *))
+	int (*cb_prepare)(struct nic *, struct cb *, struct sk_buff *))
 {
 	struct cb *cb;
 	unsigned long flags;
@@ -888,10 +888,13 @@ static int e100_exec_cb(struct nic *nic, struct sk_buff *skb,
 	nic->cbs_avail--;
 	cb->skb = skb;
 
+	err = cb_prepare(nic, cb, skb);
+	if (err)
+		goto err_unlock;
+
 	if (unlikely(!nic->cbs_avail))
 		err = -ENOSPC;
 
-	cb_prepare(nic, cb, skb);
 
 	/* Order is important otherwise we'll be in a race with h/w:
 	 * set S-bit in current first, then clear S-bit in previous. */
@@ -1091,7 +1094,7 @@ static void e100_get_defaults(struct nic *nic)
 	nic->mii.mdio_write = mdio_write;
 }
 
-static void e100_configure(struct nic *nic, struct cb *cb, struct sk_buff *skb)
+static int e100_configure(struct nic *nic, struct cb *cb, struct sk_buff *skb)
 {
 	struct config *config = &cb->u.config;
 	u8 *c = (u8 *)config;
@@ -1181,6 +1184,7 @@ static void e100_configure(struct nic *nic, struct cb *cb, struct sk_buff *skb)
 	netif_printk(nic, hw, KERN_DEBUG, nic->netdev,
 		     "[16-23]=%02X:%02X:%02X:%02X:%02X:%02X:%02X:%02X\n",
 		     c[16], c[17], c[18], c[19], c[20], c[21], c[22], c[23]);
+	return 0;
 }
 
 /*************************************************************************
@@ -1331,7 +1335,7 @@ static const struct firmware *e100_request_firmware(struct nic *nic)
 	return fw;
 }
 
-static void e100_setup_ucode(struct nic *nic, struct cb *cb,
+static int e100_setup_ucode(struct nic *nic, struct cb *cb,
 			     struct sk_buff *skb)
 {
 	const struct firmware *fw = (void *)skb;
@@ -1358,6 +1362,7 @@ static void e100_setup_ucode(struct nic *nic, struct cb *cb,
 	cb->u.ucode[min_size] |= cpu_to_le32((BUNDLESMALL) ? 0xFFFF : 0xFF80);
 
 	cb->command = cpu_to_le16(cb_ucode | cb_el);
+	return 0;
 }
 
 static inline int e100_load_ucode_wait(struct nic *nic)
@@ -1400,18 +1405,20 @@ static inline int e100_load_ucode_wait(struct nic *nic)
 	return err;
 }
 
-static void e100_setup_iaaddr(struct nic *nic, struct cb *cb,
+static int e100_setup_iaaddr(struct nic *nic, struct cb *cb,
 	struct sk_buff *skb)
 {
 	cb->command = cpu_to_le16(cb_iaaddr);
 	memcpy(cb->u.iaaddr, nic->netdev->dev_addr, ETH_ALEN);
+	return 0;
 }
 
-static void e100_dump(struct nic *nic, struct cb *cb, struct sk_buff *skb)
+static int e100_dump(struct nic *nic, struct cb *cb, struct sk_buff *skb)
 {
 	cb->command = cpu_to_le16(cb_dump);
 	cb->u.dump_buffer_addr = cpu_to_le32(nic->dma_addr +
 		offsetof(struct mem, dump_buf));
+	return 0;
 }
 
 static int e100_phy_check_without_mii(struct nic *nic)
@@ -1581,7 +1588,7 @@ static int e100_hw_init(struct nic *nic)
 	return 0;
 }
 
-static void e100_multi(struct nic *nic, struct cb *cb, struct sk_buff *skb)
+static int e100_multi(struct nic *nic, struct cb *cb, struct sk_buff *skb)
 {
 	struct net_device *netdev = nic->netdev;
 	struct netdev_hw_addr *ha;
@@ -1596,6 +1603,7 @@ static void e100_multi(struct nic *nic, struct cb *cb, struct sk_buff *skb)
 		memcpy(&cb->u.multi.addr[i++ * ETH_ALEN], &ha->addr,
 			ETH_ALEN);
 	}
+	return 0;
 }
 
 static void e100_set_multicast_list(struct net_device *netdev)
@@ -1756,10 +1764,17 @@ static void e100_watchdog(unsigned long data)
 		  round_jiffies(jiffies + E100_WATCHDOG_PERIOD));
 }
 
-static void e100_xmit_prepare(struct nic *nic, struct cb *cb,
+static int e100_xmit_prepare(struct nic *nic, struct cb *cb,
 	struct sk_buff *skb)
 {
+	dma_addr_t dma_addr;
 	cb->command = nic->tx_command;
+
+	dma_addr = pci_map_single(nic->pdev,
+				  skb->data, skb->len, PCI_DMA_TODEVICE);
+	/* If we can't map the skb, have the upper layer try later */
+	if (pci_dma_mapping_error(nic->pdev, dma_addr))
+		return -ENOMEM;
 
 	/*
 	 * Use the last 4 bytes of the SKB payload packet as the CRC, used for
@@ -1777,11 +1792,10 @@ static void e100_xmit_prepare(struct nic *nic, struct cb *cb,
 	cb->u.tcb.tcb_byte_count = 0;
 	cb->u.tcb.threshold = nic->tx_threshold;
 	cb->u.tcb.tbd_count = 1;
-	cb->u.tcb.tbd.buf_addr = cpu_to_le32(pci_map_single(nic->pdev,
-		skb->data, skb->len, PCI_DMA_TODEVICE));
-	/* check for mapping failure? */
+	cb->u.tcb.tbd.buf_addr = cpu_to_le32(dma_addr);
 	cb->u.tcb.tbd.size = cpu_to_le16(skb->len);
 	skb_tx_timestamp(skb);
+	return 0;
 }
 
 static netdev_tx_t e100_xmit_frame(struct sk_buff *skb,

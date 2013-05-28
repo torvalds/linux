@@ -329,17 +329,7 @@ static struct platform_driver davinci_ks_driver = {
 	.remove	= davinci_ks_remove,
 };
 
-static int __init davinci_ks_init(void)
-{
-	return platform_driver_probe(&davinci_ks_driver, davinci_ks_probe);
-}
-module_init(davinci_ks_init);
-
-static void __exit davinci_ks_exit(void)
-{
-	platform_driver_unregister(&davinci_ks_driver);
-}
-module_exit(davinci_ks_exit);
+module_platform_driver_probe(davinci_ks_driver, davinci_ks_probe);
 
 MODULE_AUTHOR("Miguel Aguilar");
 MODULE_DESCRIPTION("Texas Instruments DaVinci Key Scan Driver");

@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -91,7 +91,7 @@ enum iwl_power_level {
  * @sw_crypto: using hardware encryption, default = 0
  * @disable_11n: disable 11n capabilities, default = 0,
  *	use IWL_DISABLE_HT_* constants
- * @amsdu_size_8K: enable 8K amsdu size, default = 1
+ * @amsdu_size_8K: enable 8K amsdu size, default = 0
  * @restart_fw: restart firmware, default = 1
  * @plcp_check: enable plcp health check, default = true
  * @wd_disable: enable stuck queue check, default = 0
@@ -103,13 +103,12 @@ enum iwl_power_level {
  * @ant_coupling: antenna coupling in dB, default = 0
  * @bt_ch_announce: BT channel inhibition, default = enable
  * @auto_agg: enable agg. without check, default = true
- * @disable_5ghz: disable 5GHz capability, default = false
  */
 struct iwl_mod_params {
 	int sw_crypto;
 	unsigned int disable_11n;
 	int amsdu_size_8K;
-	int restart_fw;
+	bool restart_fw;
 	bool plcp_check;
 	int  wd_disable;
 	bool bt_coex_active;
@@ -120,7 +119,6 @@ struct iwl_mod_params {
 	int ant_coupling;
 	bool bt_ch_announce;
 	bool auto_agg;
-	bool disable_5ghz;
 };
 
 #endif /* #__iwl_modparams_h__ */

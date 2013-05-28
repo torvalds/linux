@@ -16,6 +16,7 @@
  * Foundation, 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  */
 
+#include <linux/cpu.h>
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/kvm_host.h>
@@ -30,11 +31,9 @@
 #define CREATE_TRACE_POINTS
 #include "trace.h"
 
-#include <asm/unified.h>
 #include <asm/uaccess.h>
 #include <asm/ptrace.h>
 #include <asm/mman.h>
-#include <asm/cputype.h>
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>
 #include <asm/virt.h>
@@ -44,14 +43,13 @@
 #include <asm/kvm_emulate.h>
 #include <asm/kvm_coproc.h>
 #include <asm/kvm_psci.h>
-#include <asm/opcodes.h>
 
 #ifdef REQUIRES_VIRT
 __asm__(".arch_extension	virt");
 #endif
 
 static DEFINE_PER_CPU(unsigned long, kvm_arm_hyp_stack_page);
-static struct vfp_hard_struct __percpu *kvm_host_vfp_state;
+static kvm_cpu_context_t __percpu *kvm_host_cpu_state;
 static unsigned long hyp_default_vectors;
 
 /* Per-CPU variable containing the currently running vcpu. */
@@ -201,6 +199,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 		break;
 	case KVM_CAP_ARM_SET_DEVICE_ADDR:
 		r = 1;
+		break;
 	case KVM_CAP_NR_VCPUS:
 		r = num_online_cpus();
 		break;
@@ -208,7 +207,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 		r = KVM_MAX_VCPUS;
 		break;
 	default:
-		r = 0;
+		r = kvm_arch_dev_ioctl_check_extension(ext);
 		break;
 	}
 	return r;
@@ -220,27 +219,18 @@ long kvm_arch_dev_ioctl(struct file *filp,
 	return -EINVAL;
 }
 
-int kvm_arch_set_memory_region(struct kvm *kvm,
-			       struct kvm_userspace_memory_region *mem,
-			       struct kvm_memory_slot old,
-			       int user_alloc)
-{
-	return 0;
-}
-
 int kvm_arch_prepare_memory_region(struct kvm *kvm,
 				   struct kvm_memory_slot *memslot,
-				   struct kvm_memory_slot old,
 				   struct kvm_userspace_memory_region *mem,
-				   bool user_alloc)
+				   enum kvm_mr_change change)
 {
 	return 0;
 }
 
 void kvm_arch_commit_memory_region(struct kvm *kvm,
 				   struct kvm_userspace_memory_region *mem,
-				   struct kvm_memory_slot old,
-				   bool user_alloc)
+				   const struct kvm_memory_slot *old,
+				   enum kvm_mr_change change)
 {
 }
 
@@ -303,22 +293,6 @@ int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-int __attribute_const__ kvm_target_cpu(void)
-{
-	unsigned long implementor = read_cpuid_implementor();
-	unsigned long part_number = read_cpuid_part_number();
-
-	if (implementor != ARM_CPU_IMP_ARM)
-		return -EINVAL;
-
-	switch (part_number) {
-	case ARM_CPU_PART_CORTEX_A15:
-		return KVM_ARM_TARGET_CORTEX_A15;
-	default:
-		return -EINVAL;
-	}
-}
-
 int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 {
 	int ret;
@@ -344,7 +318,7 @@ void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu)
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 {
 	vcpu->cpu = cpu;
-	vcpu->arch.vfp_host = this_cpu_ptr(kvm_host_vfp_state);
+	vcpu->arch.host_cpu_context = this_cpu_ptr(kvm_host_cpu_state);
 
 	/*
 	 * Check whether this vcpu requires the cache to be flushed on
@@ -479,163 +453,6 @@ static void update_vttbr(struct kvm *kvm)
 	kvm->arch.vttbr |= vmid;
 
 	spin_unlock(&kvm_vmid_lock);
-}
-
-static int handle_svc_hyp(struct kvm_vcpu *vcpu, struct kvm_run *run)
-{
-	/* SVC called from Hyp mode should never get here */
-	kvm_debug("SVC called from Hyp mode shouldn't go here\n");
-	BUG();
-	return -EINVAL; /* Squash warning */
-}
-
-static int handle_hvc(struct kvm_vcpu *vcpu, struct kvm_run *run)
-{
-	trace_kvm_hvc(*vcpu_pc(vcpu), *vcpu_reg(vcpu, 0),
-		      vcpu->arch.hsr & HSR_HVC_IMM_MASK);
-
-	if (kvm_psci_call(vcpu))
-		return 1;
-
-	kvm_inject_undefined(vcpu);
-	return 1;
-}
-
-static int handle_smc(struct kvm_vcpu *vcpu, struct kvm_run *run)
-{
-	if (kvm_psci_call(vcpu))
-		return 1;
-
-	kvm_inject_undefined(vcpu);
-	return 1;
-}
-
-static int handle_pabt_hyp(struct kvm_vcpu *vcpu, struct kvm_run *run)
-{
-	/* The hypervisor should never cause aborts */
-	kvm_err("Prefetch Abort taken from Hyp mode at %#08x (HSR: %#08x)\n",
-		vcpu->arch.hxfar, vcpu->arch.hsr);
-	return -EFAULT;
-}
-
-static int handle_dabt_hyp(struct kvm_vcpu *vcpu, struct kvm_run *run)
-{
-	/* This is either an error in the ws. code or an external abort */
-	kvm_err("Data Abort taken from Hyp mode at %#08x (HSR: %#08x)\n",
-		vcpu->arch.hxfar, vcpu->arch.hsr);
-	return -EFAULT;
-}
-
-typedef int (*exit_handle_fn)(struct kvm_vcpu *, struct kvm_run *);
-static exit_handle_fn arm_exit_handlers[] = {
-	[HSR_EC_WFI]		= kvm_handle_wfi,
-	[HSR_EC_CP15_32]	= kvm_handle_cp15_32,
-	[HSR_EC_CP15_64]	= kvm_handle_cp15_64,
-	[HSR_EC_CP14_MR]	= kvm_handle_cp14_access,
-	[HSR_EC_CP14_LS]	= kvm_handle_cp14_load_store,
-	[HSR_EC_CP14_64]	= kvm_handle_cp14_access,
-	[HSR_EC_CP_0_13]	= kvm_handle_cp_0_13_access,
-	[HSR_EC_CP10_ID]	= kvm_handle_cp10_id,
-	[HSR_EC_SVC_HYP]	= handle_svc_hyp,
-	[HSR_EC_HVC]		= handle_hvc,
-	[HSR_EC_SMC]		= handle_smc,
-	[HSR_EC_IABT]		= kvm_handle_guest_abort,
-	[HSR_EC_IABT_HYP]	= handle_pabt_hyp,
-	[HSR_EC_DABT]		= kvm_handle_guest_abort,
-	[HSR_EC_DABT_HYP]	= handle_dabt_hyp,
-};
-
-/*
- * A conditional instruction is allowed to trap, even though it
- * wouldn't be executed.  So let's re-implement the hardware, in
- * software!
- */
-static bool kvm_condition_valid(struct kvm_vcpu *vcpu)
-{
-	unsigned long cpsr, cond, insn;
-
-	/*
-	 * Exception Code 0 can only happen if we set HCR.TGE to 1, to
-	 * catch undefined instructions, and then we won't get past
-	 * the arm_exit_handlers test anyway.
-	 */
-	BUG_ON(((vcpu->arch.hsr & HSR_EC) >> HSR_EC_SHIFT) == 0);
-
-	/* Top two bits non-zero?  Unconditional. */
-	if (vcpu->arch.hsr >> 30)
-		return true;
-
-	cpsr = *vcpu_cpsr(vcpu);
-
-	/* Is condition field valid? */
-	if ((vcpu->arch.hsr & HSR_CV) >> HSR_CV_SHIFT)
-		cond = (vcpu->arch.hsr & HSR_COND) >> HSR_COND_SHIFT;
-	else {
-		/* This can happen in Thumb mode: examine IT state. */
-		unsigned long it;
-
-		it = ((cpsr >> 8) & 0xFC) | ((cpsr >> 25) & 0x3);
-
-		/* it == 0 => unconditional. */
-		if (it == 0)
-			return true;
-
-		/* The cond for this insn works out as the top 4 bits. */
-		cond = (it >> 4);
-	}
-
-	/* Shift makes it look like an ARM-mode instruction */
-	insn = cond << 28;
-	return arm_check_condition(insn, cpsr) != ARM_OPCODE_CONDTEST_FAIL;
-}
-
-/*
- * Return > 0 to return to guest, < 0 on error, 0 (and set exit_reason) on
- * proper exit to QEMU.
- */
-static int handle_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
-		       int exception_index)
-{
-	unsigned long hsr_ec;
-
-	switch (exception_index) {
-	case ARM_EXCEPTION_IRQ:
-		return 1;
-	case ARM_EXCEPTION_UNDEFINED:
-		kvm_err("Undefined exception in Hyp mode at: %#08x\n",
-			vcpu->arch.hyp_pc);
-		BUG();
-		panic("KVM: Hypervisor undefined exception!\n");
-	case ARM_EXCEPTION_DATA_ABORT:
-	case ARM_EXCEPTION_PREF_ABORT:
-	case ARM_EXCEPTION_HVC:
-		hsr_ec = (vcpu->arch.hsr & HSR_EC) >> HSR_EC_SHIFT;
-
-		if (hsr_ec >= ARRAY_SIZE(arm_exit_handlers)
-		    || !arm_exit_handlers[hsr_ec]) {
-			kvm_err("Unknown exception class: %#08lx, "
-				"hsr: %#08x\n", hsr_ec,
-				(unsigned int)vcpu->arch.hsr);
-			BUG();
-		}
-
-		/*
-		 * See ARM ARM B1.14.1: "Hyp traps on instructions
-		 * that fail their condition code check"
-		 */
-		if (!kvm_condition_valid(vcpu)) {
-			bool is_wide = vcpu->arch.hsr & HSR_IL;
-			kvm_skip_instr(vcpu, is_wide);
-			return 1;
-		}
-
-		return arm_exit_handlers[hsr_ec](vcpu, run);
-	default:
-		kvm_pr_unimpl("Unsupported exception type: %d",
-			      exception_index);
-		run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
-		return 0;
-	}
 }
 
 static int kvm_vcpu_first_run_init(struct kvm_vcpu *vcpu)
@@ -814,7 +631,8 @@ static int vcpu_interrupt_line(struct kvm_vcpu *vcpu, int number, bool level)
 	return 0;
 }
 
-int kvm_vm_ioctl_irq_line(struct kvm *kvm, struct kvm_irq_level *irq_level)
+int kvm_vm_ioctl_irq_line(struct kvm *kvm, struct kvm_irq_level *irq_level,
+			  bool line_status)
 {
 	u32 irq = irq_level->irq;
 	unsigned int irq_type, vcpu_idx, irq_num;
@@ -969,40 +787,48 @@ long kvm_arch_vm_ioctl(struct file *filp,
 	}
 }
 
-static void cpu_init_hyp_mode(void *vector)
+static void cpu_init_hyp_mode(void *dummy)
 {
+	unsigned long long boot_pgd_ptr;
 	unsigned long long pgd_ptr;
-	unsigned long pgd_low, pgd_high;
 	unsigned long hyp_stack_ptr;
 	unsigned long stack_page;
 	unsigned long vector_ptr;
 
 	/* Switch from the HYP stub to our own HYP init vector */
-	__hyp_set_vectors((unsigned long)vector);
+	__hyp_set_vectors(kvm_get_idmap_vector());
 
+	boot_pgd_ptr = (unsigned long long)kvm_mmu_get_boot_httbr();
 	pgd_ptr = (unsigned long long)kvm_mmu_get_httbr();
-	pgd_low = (pgd_ptr & ((1ULL << 32) - 1));
-	pgd_high = (pgd_ptr >> 32ULL);
 	stack_page = __get_cpu_var(kvm_arm_hyp_stack_page);
 	hyp_stack_ptr = stack_page + PAGE_SIZE;
 	vector_ptr = (unsigned long)__kvm_hyp_vector;
 
-	/*
-	 * Call initialization code, and switch to the full blown
-	 * HYP code. The init code doesn't need to preserve these registers as
-	 * r1-r3 and r12 are already callee save according to the AAPCS.
-	 * Note that we slightly misuse the prototype by casing the pgd_low to
-	 * a void *.
-	 */
-	kvm_call_hyp((void *)pgd_low, pgd_high, hyp_stack_ptr, vector_ptr);
+	__cpu_init_hyp_mode(boot_pgd_ptr, pgd_ptr, hyp_stack_ptr, vector_ptr);
 }
+
+static int hyp_init_cpu_notify(struct notifier_block *self,
+			       unsigned long action, void *cpu)
+{
+	switch (action) {
+	case CPU_STARTING:
+	case CPU_STARTING_FROZEN:
+		cpu_init_hyp_mode(NULL);
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block hyp_init_cpu_nb = {
+	.notifier_call = hyp_init_cpu_notify,
+};
 
 /**
  * Inits Hyp-mode on all online CPUs
  */
 static int init_hyp_mode(void)
 {
-	phys_addr_t init_phys_addr;
 	int cpu;
 	int err = 0;
 
@@ -1035,24 +861,6 @@ static int init_hyp_mode(void)
 	}
 
 	/*
-	 * Execute the init code on each CPU.
-	 *
-	 * Note: The stack is not mapped yet, so don't do anything else than
-	 * initializing the hypervisor mode on each CPU using a local stack
-	 * space for temporary storage.
-	 */
-	init_phys_addr = virt_to_phys(__kvm_hyp_init);
-	for_each_online_cpu(cpu) {
-		smp_call_function_single(cpu, cpu_init_hyp_mode,
-					 (void *)(long)init_phys_addr, 1);
-	}
-
-	/*
-	 * Unmap the identity mapping
-	 */
-	kvm_clear_hyp_idmap();
-
-	/*
 	 * Map the Hyp-code called directly from the host
 	 */
 	err = create_hyp_mappings(__kvm_hyp_code_start, __kvm_hyp_code_end);
@@ -1075,33 +883,38 @@ static int init_hyp_mode(void)
 	}
 
 	/*
-	 * Map the host VFP structures
+	 * Map the host CPU structures
 	 */
-	kvm_host_vfp_state = alloc_percpu(struct vfp_hard_struct);
-	if (!kvm_host_vfp_state) {
+	kvm_host_cpu_state = alloc_percpu(kvm_cpu_context_t);
+	if (!kvm_host_cpu_state) {
 		err = -ENOMEM;
-		kvm_err("Cannot allocate host VFP state\n");
+		kvm_err("Cannot allocate host CPU state\n");
 		goto out_free_mappings;
 	}
 
 	for_each_possible_cpu(cpu) {
-		struct vfp_hard_struct *vfp;
+		kvm_cpu_context_t *cpu_ctxt;
 
-		vfp = per_cpu_ptr(kvm_host_vfp_state, cpu);
-		err = create_hyp_mappings(vfp, vfp + 1);
+		cpu_ctxt = per_cpu_ptr(kvm_host_cpu_state, cpu);
+		err = create_hyp_mappings(cpu_ctxt, cpu_ctxt + 1);
 
 		if (err) {
-			kvm_err("Cannot map host VFP state: %d\n", err);
-			goto out_free_vfp;
+			kvm_err("Cannot map host CPU state: %d\n", err);
+			goto out_free_context;
 		}
 	}
+
+	/*
+	 * Execute the init code on each CPU.
+	 */
+	on_each_cpu(cpu_init_hyp_mode, NULL, 1);
 
 	/*
 	 * Init HYP view of VGIC
 	 */
 	err = kvm_vgic_hyp_init();
 	if (err)
-		goto out_free_vfp;
+		goto out_free_context;
 
 #ifdef CONFIG_KVM_ARM_VGIC
 		vgic_present = true;
@@ -1114,12 +927,19 @@ static int init_hyp_mode(void)
 	if (err)
 		goto out_free_mappings;
 
+#ifndef CONFIG_HOTPLUG_CPU
+	free_boot_hyp_pgd();
+#endif
+
+	kvm_perf_init();
+
 	kvm_info("Hyp mode initialized successfully\n");
+
 	return 0;
-out_free_vfp:
-	free_percpu(kvm_host_vfp_state);
+out_free_context:
+	free_percpu(kvm_host_cpu_state);
 out_free_mappings:
-	free_hyp_pmds();
+	free_hyp_pgds();
 out_free_stack_pages:
 	for_each_possible_cpu(cpu)
 		free_page(per_cpu(kvm_arm_hyp_stack_page, cpu));
@@ -1128,26 +948,41 @@ out_err:
 	return err;
 }
 
+static void check_kvm_target_cpu(void *ret)
+{
+	*(int *)ret = kvm_target_cpu();
+}
+
 /**
  * Initialize Hyp-mode and memory mappings on all CPUs.
  */
 int kvm_arch_init(void *opaque)
 {
 	int err;
+	int ret, cpu;
 
 	if (!is_hyp_mode_available()) {
 		kvm_err("HYP mode not available\n");
 		return -ENODEV;
 	}
 
-	if (kvm_target_cpu() < 0) {
-		kvm_err("Target CPU not supported!\n");
-		return -ENODEV;
+	for_each_online_cpu(cpu) {
+		smp_call_function_single(cpu, check_kvm_target_cpu, &ret, 1);
+		if (ret < 0) {
+			kvm_err("Error, CPU %d not supported!\n", cpu);
+			return -ENODEV;
+		}
 	}
 
 	err = init_hyp_mode();
 	if (err)
 		goto out_err;
+
+	err = register_cpu_notifier(&hyp_init_cpu_nb);
+	if (err) {
+		kvm_err("Cannot register HYP init CPU notifier (%d)\n", err);
+		goto out_err;
+	}
 
 	kvm_coproc_table_init();
 	return 0;
@@ -1158,6 +993,7 @@ out_err:
 /* NOP: Compiling as a module not supported */
 void kvm_arch_exit(void)
 {
+	kvm_perf_teardown();
 }
 
 static int arm_init(void)

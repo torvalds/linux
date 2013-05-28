@@ -184,12 +184,12 @@ static int m41t93_probe(struct spi_device *spi)
 		return -ENODEV;
 	}
 
-	rtc = rtc_device_register(m41t93_driver.driver.name,
-		&spi->dev, &m41t93_rtc_ops, THIS_MODULE);
+	rtc = devm_rtc_device_register(&spi->dev, m41t93_driver.driver.name,
+					&m41t93_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc))
 		return PTR_ERR(rtc);
 
-	dev_set_drvdata(&spi->dev, rtc);
+	spi_set_drvdata(spi, rtc);
 
 	return 0;
 }
@@ -197,11 +197,6 @@ static int m41t93_probe(struct spi_device *spi)
 
 static int m41t93_remove(struct spi_device *spi)
 {
-	struct rtc_device *rtc = spi_get_drvdata(spi);
-
-	if (rtc)
-		rtc_device_unregister(rtc);
-
 	return 0;
 }
 

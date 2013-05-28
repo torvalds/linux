@@ -1041,28 +1041,6 @@ static void start_pacer(struct comedi_device *dev, int mode,
 /*
 ==============================================================================
 */
-static void free_resources(struct comedi_device *dev)
-{
-	const struct pcl812_board *board = comedi_board(dev);
-	struct pcl812_private *devpriv = dev->private;
-
-	if (devpriv) {
-		if (devpriv->dmabuf[0])
-			free_pages(devpriv->dmabuf[0], devpriv->dmapages[0]);
-		if (devpriv->dmabuf[1])
-			free_pages(devpriv->dmabuf[1], devpriv->dmapages[1]);
-		if (devpriv->dma)
-			free_dma(devpriv->dma);
-	}
-	if (dev->irq)
-		free_irq(dev->irq, dev);
-	if (dev->iobase)
-		release_region(dev->iobase, board->io_range);
-}
-
-/*
-==============================================================================
-*/
 static int pcl812_ai_cancel(struct comedi_device *dev,
 			    struct comedi_subdevice *s)
 {
@@ -1122,31 +1100,20 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	const struct pcl812_board *board = comedi_board(dev);
 	struct pcl812_private *devpriv;
 	int ret, subdev;
-	unsigned long iobase;
 	unsigned int irq;
 	unsigned int dma;
 	unsigned long pages;
 	struct comedi_subdevice *s;
 	int n_subdevices;
 
-	iobase = it->options[0];
-	printk(KERN_INFO "comedi%d: pcl812:  board=%s, ioport=0x%03lx",
-	       dev->minor, board->name, iobase);
-
-	if (!request_region(iobase, board->io_range, "pcl812")) {
-		printk("I/O port conflict\n");
-		return -EIO;
-	}
-	dev->iobase = iobase;
+	ret = comedi_request_region(dev, it->options[0], board->io_range);
+	if (ret)
+		return ret;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
-	if (!devpriv) {
-		free_resources(dev);
+	if (!devpriv)
 		return -ENOMEM;
-	}
 	dev->private = devpriv;
-
-	dev->board_name = board->name;
 
 	irq = 0;
 	if (board->IRQbits != 0) {	/* board support IRQ */
@@ -1158,8 +1125,8 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 				     "DISABLING IT", irq);
 				irq = 0;	/* Bad IRQ */
 			} else {
-				if (request_irq
-				    (irq, interrupt_pcl812, 0, "pcl812", dev)) {
+				if (request_irq(irq, interrupt_pcl812, 0,
+						dev->board_name, dev)) {
 					printk
 					    (", unable to allocate IRQ %u, "
 					     "DISABLING IT", irq);
@@ -1183,7 +1150,7 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			printk(", DMA is out of allowed range, FAIL!\n");
 			return -EINVAL;	/* Bad DMA */
 		}
-		ret = request_dma(dma, "pcl812");
+		ret = request_dma(dma, dev->board_name);
 		if (ret) {
 			printk(KERN_ERR ", unable to allocate DMA %u, FAIL!\n",
 			       dma);
@@ -1199,7 +1166,6 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			 * maybe experiment with try_to_free_pages()
 			 * will help ....
 			 */
-			free_resources(dev);
 			return -EBUSY;	/* no buffer :-( */
 		}
 		devpriv->dmapages[0] = pages;
@@ -1208,7 +1174,6 @@ static int pcl812_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		devpriv->dmabuf[1] = __get_dma_pages(GFP_KERNEL, pages);
 		if (!devpriv->dmabuf[1]) {
 			printk(KERN_ERR ", unable to allocate DMA buffer, FAIL!\n");
-			free_resources(dev);
 			return -EBUSY;
 		}
 		devpriv->dmapages[1] = pages;
@@ -1228,10 +1193,8 @@ no_dma:
 		n_subdevices++;
 
 	ret = comedi_alloc_subdevices(dev, n_subdevices);
-	if (ret) {
-		free_resources(dev);
+	if (ret)
 		return ret;
-	}
 
 	subdev = 0;
 
@@ -1465,7 +1428,17 @@ no_dma:
 
 static void pcl812_detach(struct comedi_device *dev)
 {
-	free_resources(dev);
+	struct pcl812_private *devpriv = dev->private;
+
+	if (devpriv) {
+		if (devpriv->dmabuf[0])
+			free_pages(devpriv->dmabuf[0], devpriv->dmapages[0]);
+		if (devpriv->dmabuf[1])
+			free_pages(devpriv->dmabuf[1], devpriv->dmapages[1]);
+		if (devpriv->dma)
+			free_dma(devpriv->dma);
+	}
+	comedi_legacy_detach(dev);
 }
 
 static const struct pcl812_board boardtypes[] = {

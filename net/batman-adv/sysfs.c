@@ -442,6 +442,9 @@ static BATADV_ATTR(gw_bandwidth, S_IRUGO | S_IWUSR, batadv_show_gw_bwidth,
 #ifdef CONFIG_BATMAN_ADV_DEBUG
 BATADV_ATTR_SIF_UINT(log_level, S_IRUGO | S_IWUSR, 0, BATADV_DBG_ALL, NULL);
 #endif
+#ifdef CONFIG_BATMAN_ADV_NC
+BATADV_ATTR_SIF_BOOL(network_coding, S_IRUGO | S_IWUSR, NULL);
+#endif
 
 static struct batadv_attribute *batadv_mesh_attrs[] = {
 	&batadv_attr_aggregated_ogms,
@@ -463,6 +466,9 @@ static struct batadv_attribute *batadv_mesh_attrs[] = {
 	&batadv_attr_gw_bandwidth,
 #ifdef CONFIG_BATMAN_ADV_DEBUG
 	&batadv_attr_log_level,
+#endif
+#ifdef CONFIG_BATMAN_ADV_NC
+	&batadv_attr_network_coding,
 #endif
 	NULL,
 };
@@ -582,13 +588,15 @@ static ssize_t batadv_store_mesh_iface(struct kobject *kobj,
 	}
 
 	if (status_tmp == BATADV_IF_NOT_IN_USE) {
-		batadv_hardif_disable_interface(hard_iface);
+		batadv_hardif_disable_interface(hard_iface,
+						BATADV_IF_CLEANUP_AUTO);
 		goto unlock;
 	}
 
 	/* if the interface already is in use */
 	if (hard_iface->if_status != BATADV_IF_NOT_IN_USE)
-		batadv_hardif_disable_interface(hard_iface);
+		batadv_hardif_disable_interface(hard_iface,
+						BATADV_IF_CLEANUP_AUTO);
 
 	ret = batadv_hardif_enable_interface(hard_iface, buff);
 
@@ -688,15 +696,10 @@ int batadv_throw_uevent(struct batadv_priv *bat_priv, enum batadv_uev_type type,
 			enum batadv_uev_action action, const char *data)
 {
 	int ret = -ENOMEM;
-	struct batadv_hard_iface *primary_if;
 	struct kobject *bat_kobj;
 	char *uevent_env[4] = { NULL, NULL, NULL, NULL };
 
-	primary_if = batadv_primary_if_get_selected(bat_priv);
-	if (!primary_if)
-		goto out;
-
-	bat_kobj = &primary_if->soft_iface->dev.kobj;
+	bat_kobj = &bat_priv->soft_iface->dev.kobj;
 
 	uevent_env[0] = kmalloc(strlen(BATADV_UEV_TYPE_VAR) +
 				strlen(batadv_uev_type_str[type]) + 1,
@@ -731,9 +734,6 @@ out:
 	kfree(uevent_env[0]);
 	kfree(uevent_env[1]);
 	kfree(uevent_env[2]);
-
-	if (primary_if)
-		batadv_hardif_free_ref(primary_if);
 
 	if (ret)
 		batadv_dbg(BATADV_DBG_BATMAN, bat_priv,

@@ -490,6 +490,10 @@ static struct snd_soc_dai_driver s3c_pcm_dai[] = {
 	},
 };
 
+static const struct snd_soc_component_driver s3c_pcm_component = {
+	.name		= "s3c-pcm",
+};
+
 static int s3c_pcm_dev_probe(struct platform_device *pdev)
 {
 	struct s3c_pcm_info *pcm;
@@ -583,7 +587,8 @@ static int s3c_pcm_dev_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 
-	ret = snd_soc_register_dai(&pdev->dev, &s3c_pcm_dai[pdev->id]);
+	ret = snd_soc_register_component(&pdev->dev, &s3c_pcm_component,
+					 &s3c_pcm_dai[pdev->id], 1);
 	if (ret != 0) {
 		dev_err(&pdev->dev, "failed to get register DAI: %d\n", ret);
 		goto err5;
@@ -598,7 +603,7 @@ static int s3c_pcm_dev_probe(struct platform_device *pdev)
 	return 0;
 
 err6:
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 err5:
 	clk_disable_unprepare(pcm->pclk);
 	clk_put(pcm->pclk);
@@ -619,7 +624,7 @@ static int s3c_pcm_dev_remove(struct platform_device *pdev)
 	struct resource *mem_res;
 
 	asoc_dma_platform_unregister(&pdev->dev);
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 
 	pm_runtime_disable(&pdev->dev);
 

@@ -9,6 +9,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/io.h>
 #include <linux/platform_device.h>
@@ -324,11 +325,9 @@ static int sh_csi2_probe(struct platform_device *pdev)
 
 	priv->irq = irq;
 
-	priv->base = devm_request_and_ioremap(&pdev->dev, res);
-	if (!priv->base) {
-		dev_err(&pdev->dev, "Unable to ioremap CSI2 registers.\n");
-		return -ENXIO;
-	}
+	priv->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(priv->base))
+		return PTR_ERR(priv->base);
 
 	priv->pdev = pdev;
 	platform_set_drvdata(pdev, priv);

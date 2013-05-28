@@ -2,35 +2,23 @@ if ARCH_KIRKWOOD
 
 menu "Marvell Kirkwood Implementations"
 
+config MACH_D2NET_V2
+	bool "LaCie d2 Network v2 NAS Board"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  LaCie d2 Network v2 NAS.
+
 config MACH_DB88F6281_BP
 	bool "Marvell DB-88F6281-BP Development Board"
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  Marvell DB-88F6281-BP Development Board.
 
-config MACH_RD88F6192_NAS
-	bool "Marvell RD-88F6192-NAS Reference Board"
+config MACH_DOCKSTAR
+	bool "Seagate FreeAgent DockStar"
 	help
 	  Say 'Y' here if you want your kernel to support the
-	  Marvell RD-88F6192-NAS Reference Board.
-
-config MACH_RD88F6281
-	bool "Marvell RD-88F6281 Reference Board"
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  Marvell RD-88F6281 Reference Board.
-
-config MACH_MV88F6281GTW_GE
-	bool "Marvell 88F6281 GTW GE Board"
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  Marvell 88F6281 GTW GE Board.
-
-config MACH_SHEEVAPLUG
-	bool "Marvell SheevaPlug Reference Board"
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  Marvell SheevaPlug Reference Board.
+	  Seagate FreeAgent DockStar.
 
 config MACH_ESATA_SHEEVAPLUG
 	bool "Marvell eSATA SheevaPlug Reference Board"
@@ -44,182 +32,41 @@ config MACH_GURUPLUG
 	  Say 'Y' here if you want your kernel to support the
 	  Marvell GuruPlug Reference Board.
 
-config ARCH_KIRKWOOD_DT
-	bool "Marvell Kirkwood Flattened Device Tree"
-	select POWER_SUPPLY
-	select POWER_RESET
-	select POWER_RESET_GPIO
-	select REGULATOR
-	select REGULATOR_FIXED_VOLTAGE
-	select MVEBU_CLK_CORE
-	select MVEBU_CLK_GATING
-	select USE_OF
+config MACH_INETSPACE_V2
+	bool "LaCie Internet Space v2 NAS Board"
 	help
 	  Say 'Y' here if you want your kernel to support the
-	  Marvell Kirkwood using flattened device tree.
+	  LaCie Internet Space v2 NAS.
 
-config MACH_GURUPLUG_DT
-	bool "Marvell GuruPlug Reference Board (Flattened Device Tree)"
-	select ARCH_KIRKWOOD_DT
+config MACH_MV88F6281GTW_GE
+	bool "Marvell 88F6281 GTW GE Board"
 	help
 	  Say 'Y' here if you want your kernel to support the
-	  Marvell GuruPlug Reference Board (Flattened Device Tree).
+	  Marvell 88F6281 GTW GE Board.
 
-config MACH_DREAMPLUG_DT
-	bool "Marvell DreamPlug (Flattened Device Tree)"
-	select ARCH_KIRKWOOD_DT
+config MACH_NET2BIG_V2
+	bool "LaCie 2Big Network v2 NAS Board"
 	help
 	  Say 'Y' here if you want your kernel to support the
-	  Marvell DreamPlug (Flattened Device Tree).
+	  LaCie 2Big Network v2 NAS.
 
-config MACH_ICONNECT_DT
-	bool "Iomega Iconnect (Flattened Device Tree)"
-	select ARCH_KIRKWOOD_DT
-	help
-	  Say 'Y' here to enable Iomega Iconnect support.
-
-config MACH_DLINK_KIRKWOOD_DT
-	bool "D-Link Kirkwood-based NAS (Flattened Device Tree)"
-	select ARCH_KIRKWOOD_DT
+config MACH_NET5BIG_V2
+	bool "LaCie 5Big Network v2 NAS Board"
 	help
 	  Say 'Y' here if you want your kernel to support the
-	  Kirkwood-based D-Link NASes such as DNS-320 & DNS-325,
-	  using Flattened Device Tree.
+	  LaCie 5Big Network v2 NAS.
 
-config MACH_IB62X0_DT
-	bool "RaidSonic IB-NAS6210, IB-NAS6220 (Flattened Device Tree)"
-	select ARCH_KIRKWOOD_DT
+config MACH_NETSPACE_MAX_V2
+	bool "LaCie Network Space Max v2 NAS Board"
 	help
 	  Say 'Y' here if you want your kernel to support the
-	  RaidSonic IB-NAS6210 & IB-NAS6220 devices, using
-	  Flattened Device Tree.
+	  LaCie Network Space Max v2 NAS.
 
-config MACH_TS219_DT
-	bool "Device Tree for QNAP TS-11X, TS-21X NAS"
-	select ARCH_KIRKWOOD_DT
-	select ARM_APPENDED_DTB
-	select ARM_ATAG_DTB_COMPAT
-	help
-	  Say 'Y' here if you want your kernel to support the QNAP
-	  TS-110, TS-119, TS-119P+, TS-210, TS-219, TS-219P and
-	  TS-219P+ Turbo NAS devices using Fattened Device Tree.
-	  There are two different Device Tree descriptions, depending
-	  on if the device is based on an if the board uses the MV6281
-	  or MV6282. If you have the wrong one, the buttons will not
-	  work.
-
-config MACH_DOCKSTAR_DT
-	bool "Seagate FreeAgent Dockstar (Flattened Device Tree)"
-	select ARCH_KIRKWOOD_DT
+config MACH_NETSPACE_V2
+	bool "LaCie Network Space v2 NAS Board"
 	help
 	  Say 'Y' here if you want your kernel to support the
-	  Seagate FreeAgent Dockstar (Flattened Device Tree).
-
-config MACH_GOFLEXNET_DT
-	bool "Seagate GoFlex Net (Flattened Device Tree)"
-	select ARCH_KIRKWOOD_DT
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  Seagate GoFlex Net (Flattened Device Tree).
-
-config MACH_LSXL_DT
-	bool "Buffalo Linkstation LS-XHL, LS-CHLv2 (Flattened Device Tree)"
-	select ARCH_KIRKWOOD_DT
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  Buffalo Linkstation LS-XHL & LS-CHLv2 devices, using
-	  Flattened Device Tree.
-
-config MACH_IOMEGA_IX2_200_DT
-	bool "Iomega StorCenter ix2-200 (Flattened Device Tree)"
-	select ARCH_KIRKWOOD_DT
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  Iomega StorCenter ix2-200 (Flattened Device Tree).
-
-config MACH_KM_KIRKWOOD_DT
-	bool "Keymile Kirkwood Reference Design (Flattened Device Tree)"
-	select ARCH_KIRKWOOD_DT
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  Keymile Kirkwood Reference Desgin, using Flattened Device Tree.
-
-config MACH_INETSPACE_V2_DT
-	bool "LaCie Internet Space v2 NAS (Flattened Device Tree)"
-	select ARCH_KIRKWOOD_DT
-	help
-	  Say 'Y' here if you want your kernel to support the LaCie
-	  Internet Space v2 NAS, using Flattened Device Tree.
-
-config MACH_MPLCEC4_DT
-	bool "MPL CEC4 (Flattened Device Tree)"
-	select ARCH_KIRKWOOD_DT
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  MPL CEC4 (Flattened Device Tree).
-
-config MACH_NETSPACE_V2_DT
-	bool "LaCie Network Space v2 NAS (Flattened Device Tree)"
-	select ARCH_KIRKWOOD_DT
-	help
-	  Say 'Y' here if you want your kernel to support the LaCie
-	  Network Space v2 NAS, using Flattened Device Tree.
-
-config MACH_NETSPACE_MAX_V2_DT
-	bool "LaCie Network Space Max v2 NAS (Flattened Device Tree)"
-	select ARCH_KIRKWOOD_DT
-	help
-	  Say 'Y' here if you want your kernel to support the LaCie
-	  Network Space Max v2 NAS, using Flattened Device Tree.
-
-config MACH_NETSPACE_LITE_V2_DT
-	bool "LaCie Network Space Lite v2 NAS (Flattened Device Tree)"
-	select ARCH_KIRKWOOD_DT
-	help
-	  Say 'Y' here if you want your kernel to support the LaCie
-	  Network Space Lite v2 NAS, using Flattened Device Tree.
-
-config MACH_NETSPACE_MINI_V2_DT
-	bool "LaCie Network Space Mini v2 NAS (Flattened Device Tree)"
-	select ARCH_KIRKWOOD_DT
-	help
-	  Say 'Y' here if you want your kernel to support the LaCie
-	  Network Space Mini v2 NAS (aka SafeBox), using Flattened
-	  Device Tree.
-
-config MACH_OPENBLOCKS_A6_DT
-	bool "Plat'Home OpenBlocks A6 (Flattened Device Tree)"
-	select ARCH_KIRKWOOD_DT
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  Plat'Home OpenBlocks A6 (Flattened Device Tree).
-
-config MACH_TOPKICK_DT
-	bool "USI Topkick (Flattened Device Tree)"
-	select ARCH_KIRKWOOD_DT
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  USI Topkick, using Flattened Device Tree
-
-config MACH_TS219
-	bool "QNAP TS-110, TS-119, TS-119P+, TS-210, TS-219, TS-219P and TS-219P+ Turbo NAS"
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  QNAP TS-110, TS-119, TS-119P+, TS-210, TS-219, TS-219P and
-	  TS-219P+ Turbo NAS devices.
-
-config MACH_TS41X
-	bool "QNAP TS-410, TS-410U, TS-419P, TS-419P+ and TS-419U Turbo NAS"
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  QNAP TS-410, TS-410U, TS-419P, TS-419P+ and TS-419U Turbo
-	  NAS devices.
-
-config MACH_DOCKSTAR
-	bool "Seagate FreeAgent DockStar"
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  Seagate FreeAgent DockStar.
+	  LaCie Network Space v2 NAS.
 
 config MACH_OPENRD
         bool
@@ -245,47 +92,185 @@ config MACH_OPENRD_ULTIMATE
 	  Say 'Y' here if you want your kernel to support the
 	  Marvell OpenRD Ultimate Board.
 
-config MACH_NETSPACE_V2
-	bool "LaCie Network Space v2 NAS Board"
+config MACH_RD88F6192_NAS
+	bool "Marvell RD-88F6192-NAS Reference Board"
 	help
 	  Say 'Y' here if you want your kernel to support the
-	  LaCie Network Space v2 NAS.
+	  Marvell RD-88F6192-NAS Reference Board.
 
-config MACH_INETSPACE_V2
-	bool "LaCie Internet Space v2 NAS Board"
+config MACH_RD88F6281
+	bool "Marvell RD-88F6281 Reference Board"
 	help
 	  Say 'Y' here if you want your kernel to support the
-	  LaCie Internet Space v2 NAS.
+	  Marvell RD-88F6281 Reference Board.
 
-config MACH_NETSPACE_MAX_V2
-	bool "LaCie Network Space Max v2 NAS Board"
+config MACH_SHEEVAPLUG
+	bool "Marvell SheevaPlug Reference Board"
 	help
 	  Say 'Y' here if you want your kernel to support the
-	  LaCie Network Space Max v2 NAS.
-
-config MACH_D2NET_V2
-	bool "LaCie d2 Network v2 NAS Board"
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  LaCie d2 Network v2 NAS.
-
-config MACH_NET2BIG_V2
-	bool "LaCie 2Big Network v2 NAS Board"
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  LaCie 2Big Network v2 NAS.
-
-config MACH_NET5BIG_V2
-	bool "LaCie 5Big Network v2 NAS Board"
-	help
-	  Say 'Y' here if you want your kernel to support the
-	  LaCie 5Big Network v2 NAS.
+	  Marvell SheevaPlug Reference Board.
 
 config MACH_T5325
 	bool "HP t5325 Thin Client"
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  HP t5325 Thin Client.
+
+config MACH_TS219
+	bool "QNAP TS-110, TS-119, TS-119P+, TS-210, TS-219, TS-219P and TS-219P+ Turbo NAS"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  QNAP TS-110, TS-119, TS-119P+, TS-210, TS-219, TS-219P and
+	  TS-219P+ Turbo NAS devices.
+
+config MACH_TS41X
+	bool "QNAP TS-410, TS-410U, TS-419P, TS-419P+ and TS-419U Turbo NAS"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  QNAP TS-410, TS-410U, TS-419P, TS-419P+ and TS-419U Turbo
+	  NAS devices.
+
+comment "Device tree entries"
+
+config ARCH_KIRKWOOD_DT
+	bool "Marvell Kirkwood Flattened Device Tree"
+	select POWER_SUPPLY
+	select POWER_RESET
+	select POWER_RESET_GPIO
+	select REGULATOR
+	select REGULATOR_FIXED_VOLTAGE
+	select MVEBU_CLK_CORE
+	select MVEBU_CLK_GATING
+	select USE_OF
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell Kirkwood using flattened device tree.
+
+config MACH_CLOUDBOX_DT
+	bool "LaCie CloudBox NAS (Flattened Device Tree)"
+	select ARCH_KIRKWOOD_DT
+	help
+	  Say 'Y' here if you want your kernel to support the LaCie
+	  CloudBox NAS, using Flattened Device Tree.
+
+config MACH_DLINK_KIRKWOOD_DT
+	bool "D-Link Kirkwood-based NAS (Flattened Device Tree)"
+	select ARCH_KIRKWOOD_DT
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Kirkwood-based D-Link NASes such as DNS-320 & DNS-325,
+	  using Flattened Device Tree.
+
+config MACH_DOCKSTAR_DT
+	bool "Seagate FreeAgent Dockstar (Flattened Device Tree)"
+	select ARCH_KIRKWOOD_DT
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Seagate FreeAgent Dockstar (Flattened Device Tree).
+
+config MACH_DREAMPLUG_DT
+	bool "Marvell DreamPlug (Flattened Device Tree)"
+	select ARCH_KIRKWOOD_DT
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell DreamPlug (Flattened Device Tree).
+
+config MACH_GOFLEXNET_DT
+	bool "Seagate GoFlex Net (Flattened Device Tree)"
+	select ARCH_KIRKWOOD_DT
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Seagate GoFlex Net (Flattened Device Tree).
+
+config MACH_GURUPLUG_DT
+	bool "Marvell GuruPlug Reference Board (Flattened Device Tree)"
+	select ARCH_KIRKWOOD_DT
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell GuruPlug Reference Board (Flattened Device Tree).
+
+config MACH_IB62X0_DT
+	bool "RaidSonic IB-NAS6210, IB-NAS6220 (Flattened Device Tree)"
+	select ARCH_KIRKWOOD_DT
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  RaidSonic IB-NAS6210 & IB-NAS6220 devices, using
+	  Flattened Device Tree.
+
+config MACH_ICONNECT_DT
+	bool "Iomega Iconnect (Flattened Device Tree)"
+	select ARCH_KIRKWOOD_DT
+	help
+	  Say 'Y' here to enable Iomega Iconnect support.
+
+config MACH_INETSPACE_V2_DT
+	bool "LaCie Internet Space v2 NAS (Flattened Device Tree)"
+	select ARCH_KIRKWOOD_DT
+	help
+	  Say 'Y' here if you want your kernel to support the LaCie
+	  Internet Space v2 NAS, using Flattened Device Tree.
+
+config MACH_IOMEGA_IX2_200_DT
+	bool "Iomega StorCenter ix2-200 (Flattened Device Tree)"
+	select ARCH_KIRKWOOD_DT
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Iomega StorCenter ix2-200 (Flattened Device Tree).
+
+config MACH_KM_KIRKWOOD_DT
+	bool "Keymile Kirkwood Reference Design (Flattened Device Tree)"
+	select ARCH_KIRKWOOD_DT
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Keymile Kirkwood Reference Desgin, using Flattened Device Tree.
+
+config MACH_LSXL_DT
+	bool "Buffalo Linkstation LS-XHL, LS-CHLv2 (Flattened Device Tree)"
+	select ARCH_KIRKWOOD_DT
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Buffalo Linkstation LS-XHL & LS-CHLv2 devices, using
+	  Flattened Device Tree.
+
+config MACH_MPLCEC4_DT
+	bool "MPL CEC4 (Flattened Device Tree)"
+	select ARCH_KIRKWOOD_DT
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  MPL CEC4 (Flattened Device Tree).
+
+config MACH_NETSPACE_LITE_V2_DT
+	bool "LaCie Network Space Lite v2 NAS (Flattened Device Tree)"
+	select ARCH_KIRKWOOD_DT
+	help
+	  Say 'Y' here if you want your kernel to support the LaCie
+	  Network Space Lite v2 NAS, using Flattened Device Tree.
+
+config MACH_NETSPACE_MAX_V2_DT
+	bool "LaCie Network Space Max v2 NAS (Flattened Device Tree)"
+	select ARCH_KIRKWOOD_DT
+	help
+	  Say 'Y' here if you want your kernel to support the LaCie
+	  Network Space Max v2 NAS, using Flattened Device Tree.
+
+config MACH_NETSPACE_MINI_V2_DT
+	bool "LaCie Network Space Mini v2 NAS (Flattened Device Tree)"
+	select ARCH_KIRKWOOD_DT
+	help
+	  Say 'Y' here if you want your kernel to support the LaCie
+	  Network Space Mini v2 NAS using Flattened Device Tree.
+
+	  This board is embedded in a product named CloudBox, which
+	  provides automatic backup on a 100GB cloud storage. This
+	  should not confused with a more recent LaCie NAS also named
+	  CloudBox. For this last, the disk capacity is 1TB or above.
+
+config MACH_NETSPACE_V2_DT
+	bool "LaCie Network Space v2 NAS (Flattened Device Tree)"
+	select ARCH_KIRKWOOD_DT
+	help
+	  Say 'Y' here if you want your kernel to support the LaCie
+	  Network Space v2 NAS, using Flattened Device Tree.
 
 config MACH_NSA310_DT
 	bool "ZyXEL NSA-310 (Flattened Device Tree)"
@@ -294,6 +279,43 @@ config MACH_NSA310_DT
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  ZyXEL NSA-310 board (Flattened Device Tree).
+
+config MACH_OPENBLOCKS_A6_DT
+	bool "Plat'Home OpenBlocks A6 (Flattened Device Tree)"
+	select ARCH_KIRKWOOD_DT
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Plat'Home OpenBlocks A6 (Flattened Device Tree).
+
+config MACH_READYNAS_DT
+	bool "NETGEAR ReadyNAS Duo v2 (Flattened Device Tree)"
+	select ARCH_KIRKWOOD_DT
+	select ARM_APPENDED_DTB
+	select ARM_ATAG_DTB_COMPAT
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  NETGEAR ReadyNAS Duo v2 using Fattened Device Tree.
+
+config MACH_TOPKICK_DT
+	bool "USI Topkick (Flattened Device Tree)"
+	select ARCH_KIRKWOOD_DT
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  USI Topkick, using Flattened Device Tree
+
+config MACH_TS219_DT
+	bool "Device Tree for QNAP TS-11X, TS-21X NAS"
+	select ARCH_KIRKWOOD_DT
+	select ARM_APPENDED_DTB
+	select ARM_ATAG_DTB_COMPAT
+	help
+	  Say 'Y' here if you want your kernel to support the QNAP
+	  TS-110, TS-119, TS-119P+, TS-210, TS-219, TS-219P and
+	  TS-219P+ Turbo NAS devices using Fattened Device Tree.
+	  There are two different Device Tree descriptions, depending
+	  on if the device is based on an if the board uses the MV6281
+	  or MV6282. If you have the wrong one, the buttons will not
+	  work.
 
 endmenu
 

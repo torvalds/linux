@@ -13,12 +13,23 @@
 #include <asm/eadm.h>
 #include "scm_blk.h"
 
-static void notify(struct scm_device *scmdev)
+static void scm_notify(struct scm_device *scmdev, enum scm_event event)
 {
-	pr_info("%lu: The capabilities of the SCM increment changed\n",
-		(unsigned long) scmdev->address);
-	SCM_LOG(2, "State changed");
-	SCM_LOG_STATE(2, scmdev);
+	struct scm_blk_dev *bdev = dev_get_drvdata(&scmdev->dev);
+
+	switch (event) {
+	case SCM_CHANGE:
+		pr_info("%lx: The capabilities of the SCM increment changed\n",
+			(unsigned long) scmdev->address);
+		SCM_LOG(2, "State changed");
+		SCM_LOG_STATE(2, scmdev);
+		break;
+	case SCM_AVAIL:
+		SCM_LOG(2, "Increment available");
+		SCM_LOG_STATE(2, scmdev);
+		scm_blk_set_available(bdev);
+		break;
+	}
 }
 
 static int scm_probe(struct scm_device *scmdev)
@@ -64,7 +75,7 @@ static struct scm_driver scm_drv = {
 		.name = "scm_block",
 		.owner = THIS_MODULE,
 	},
-	.notify = notify,
+	.notify = scm_notify,
 	.probe = scm_probe,
 	.remove = scm_remove,
 	.handler = scm_blk_irq,

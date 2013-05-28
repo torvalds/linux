@@ -934,11 +934,18 @@ static int s3c_camif_reqbufs(struct file *file, void *priv,
 		vp->owner = NULL;
 
 	ret = vb2_reqbufs(&vp->vb_queue, rb);
-	if (!ret) {
-		vp->reqbufs_count = rb->count;
-		if (vp->owner == NULL && rb->count > 0)
-			vp->owner = priv;
+	if (ret < 0)
+		return ret;
+
+	if (rb->count && rb->count < CAMIF_REQ_BUFS_MIN) {
+		rb->count = 0;
+		vb2_reqbufs(&vp->vb_queue, rb);
+		ret = -ENOMEM;
 	}
+
+	vp->reqbufs_count = rb->count;
+	if (vp->owner == NULL && rb->count > 0)
+		vp->owner = priv;
 
 	return ret;
 }
@@ -1153,6 +1160,7 @@ int s3c_camif_register_video_node(struct camif_dev *camif, int idx)
 	q->mem_ops = &vb2_dma_contig_memops;
 	q->buf_struct_size = sizeof(struct camif_buffer);
 	q->drv_priv = vp;
+	q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 
 	ret = vb2_queue_init(q);
 	if (ret)

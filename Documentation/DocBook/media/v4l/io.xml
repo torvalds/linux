@@ -1145,6 +1145,12 @@ in which case caches have not been used.</entry>
 	    same clock outside V4L2, use
 	    <function>clock_gettime(2)</function> .</entry>
 	  </row>
+	  <row>
+	    <entry><constant>V4L2_BUF_FLAG_TIMESTAMP_COPY</constant></entry>
+	    <entry>0x4000</entry>
+	    <entry>The CAPTURE buffer timestamp has been taken from the
+	    corresponding OUTPUT buffer. This flag applies only to mem2mem devices.</entry>
+	  </row>
 	</tbody>
       </tgroup>
     </table>

@@ -86,10 +86,6 @@ struct sccnxp_pdata {
 	const u32		mctrl_cfg[SCCNXP_MAX_UARTS];
 	/* Timer value for polling mode (usecs) */
 	const unsigned int	poll_time_us;
-	/* Called during startup */
-	void (*init)(void);
-	/* Called before finish */
-	void (*exit)(void);
 };
 
 #endif

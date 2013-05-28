@@ -1650,11 +1650,7 @@ struct caam_alg_template {
 };
 
 static struct caam_alg_template driver_algs[] = {
-	/*
-	 * single-pass ipsec_esp descriptor
-	 * authencesn(*,*) is also registered, although not present
-	 * explicitly here.
-	 */
+	/* single-pass ipsec_esp descriptor */
 	{
 		.name = "authenc(hmac(md5),cbc(aes))",
 		.driver_name = "authenc-hmac-md5-cbc-aes-caam",
@@ -1697,6 +1693,7 @@ static struct caam_alg_template driver_algs[] = {
 		.name = "authenc(hmac(sha224),cbc(aes))",
 		.driver_name = "authenc-hmac-sha224-cbc-aes-caam",
 		.blocksize = AES_BLOCK_SIZE,
+		.type = CRYPTO_ALG_TYPE_AEAD,
 		.template_aead = {
 			.setkey = aead_setkey,
 			.setauthsize = aead_setauthsize,
@@ -1736,6 +1733,7 @@ static struct caam_alg_template driver_algs[] = {
 		.name = "authenc(hmac(sha384),cbc(aes))",
 		.driver_name = "authenc-hmac-sha384-cbc-aes-caam",
 		.blocksize = AES_BLOCK_SIZE,
+		.type = CRYPTO_ALG_TYPE_AEAD,
 		.template_aead = {
 			.setkey = aead_setkey,
 			.setauthsize = aead_setauthsize,
@@ -1814,6 +1812,7 @@ static struct caam_alg_template driver_algs[] = {
 		.name = "authenc(hmac(sha224),cbc(des3_ede))",
 		.driver_name = "authenc-hmac-sha224-cbc-des3_ede-caam",
 		.blocksize = DES3_EDE_BLOCK_SIZE,
+		.type = CRYPTO_ALG_TYPE_AEAD,
 		.template_aead = {
 			.setkey = aead_setkey,
 			.setauthsize = aead_setauthsize,
@@ -1853,6 +1852,7 @@ static struct caam_alg_template driver_algs[] = {
 		.name = "authenc(hmac(sha384),cbc(des3_ede))",
 		.driver_name = "authenc-hmac-sha384-cbc-des3_ede-caam",
 		.blocksize = DES3_EDE_BLOCK_SIZE,
+		.type = CRYPTO_ALG_TYPE_AEAD,
 		.template_aead = {
 			.setkey = aead_setkey,
 			.setauthsize = aead_setauthsize,
@@ -1930,6 +1930,7 @@ static struct caam_alg_template driver_algs[] = {
 		.name = "authenc(hmac(sha224),cbc(des))",
 		.driver_name = "authenc-hmac-sha224-cbc-des-caam",
 		.blocksize = DES_BLOCK_SIZE,
+		.type = CRYPTO_ALG_TYPE_AEAD,
 		.template_aead = {
 			.setkey = aead_setkey,
 			.setauthsize = aead_setauthsize,
@@ -1969,6 +1970,7 @@ static struct caam_alg_template driver_algs[] = {
 		.name = "authenc(hmac(sha384),cbc(des))",
 		.driver_name = "authenc-hmac-sha384-cbc-des-caam",
 		.blocksize = DES_BLOCK_SIZE,
+		.type = CRYPTO_ALG_TYPE_AEAD,
 		.template_aead = {
 			.setkey = aead_setkey,
 			.setauthsize = aead_setauthsize,
@@ -2217,9 +2219,7 @@ static int __init caam_algapi_init(void)
 	for (i = 0; i < ARRAY_SIZE(driver_algs); i++) {
 		/* TODO: check if h/w supports alg */
 		struct caam_crypto_alg *t_alg;
-		bool done = false;
 
-authencesn:
 		t_alg = caam_alg_alloc(ctrldev, &driver_algs[i]);
 		if (IS_ERR(t_alg)) {
 			err = PTR_ERR(t_alg);
@@ -2233,25 +2233,8 @@ authencesn:
 			dev_warn(ctrldev, "%s alg registration failed\n",
 				t_alg->crypto_alg.cra_driver_name);
 			kfree(t_alg);
-		} else {
+		} else
 			list_add_tail(&t_alg->entry, &priv->alg_list);
-			if (driver_algs[i].type == CRYPTO_ALG_TYPE_AEAD &&
-			    !memcmp(driver_algs[i].name, "authenc", 7) &&
-			    !done) {
-				char *name;
-
-				name = driver_algs[i].name;
-				memmove(name + 10, name + 7, strlen(name) - 7);
-				memcpy(name + 7, "esn", 3);
-
-				name = driver_algs[i].driver_name;
-				memmove(name + 10, name + 7, strlen(name) - 7);
-				memcpy(name + 7, "esn", 3);
-
-				done = true;
-				goto authencesn;
-			}
-		}
 	}
 	if (!list_empty(&priv->alg_list))
 		dev_info(ctrldev, "%s algorithms registered in /proc/crypto\n",

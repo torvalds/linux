@@ -234,6 +234,17 @@ _GLOBAL(__flush_dcache_icache)
 	isync
 	blr
 
+_GLOBAL(__bswapdi2)
+	srdi	r8,r3,32
+	rlwinm	r7,r3,8,0xffffffff
+	rlwimi	r7,r3,24,0,7
+	rlwinm	r9,r8,8,0xffffffff
+	rlwimi	r7,r3,24,16,23
+	rlwimi	r9,r8,24,0,7
+	rlwimi	r9,r8,24,16,23
+	sldi	r7,r7,32
+	or	r3,r7,r9
+	blr
 
 #if defined(CONFIG_PPC_PMAC) || defined(CONFIG_PPC_MAPLE)
 /*

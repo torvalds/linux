@@ -312,8 +312,7 @@ static int adm1021_detect(struct i2c_client *client,
 	int conv_rate, status, config, man_id, dev_id;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
-		pr_debug("adm1021: detect failed, "
-			 "smbus byte data not supported!\n");
+		pr_debug("detect failed, smbus byte data not supported!\n");
 		return -ENODEV;
 	}
 
@@ -324,7 +323,7 @@ static int adm1021_detect(struct i2c_client *client,
 
 	/* Check unused bits */
 	if ((status & 0x03) || (config & 0x3F) || (conv_rate & 0xF8)) {
-		pr_debug("adm1021: detect failed, chip not detected!\n");
+		pr_debug("detect failed, chip not detected!\n");
 		return -ENODEV;
 	}
 
@@ -353,7 +352,7 @@ static int adm1021_detect(struct i2c_client *client,
 	else
 		type_name = "max1617";
 
-	pr_debug("adm1021: Detected chip %s at adapter %d, address 0x%02x.\n",
+	pr_debug("Detected chip %s at adapter %d, address 0x%02x.\n",
 		 type_name, i2c_adapter_id(adapter), client->addr);
 	strlcpy(info->type, type_name, I2C_NAME_SIZE);
 
@@ -368,10 +367,8 @@ static int adm1021_probe(struct i2c_client *client,
 
 	data = devm_kzalloc(&client->dev, sizeof(struct adm1021_data),
 			    GFP_KERNEL);
-	if (!data) {
-		pr_debug("adm1021: detect failed, devm_kzalloc failed!\n");
+	if (!data)
 		return -ENOMEM;
-	}
 
 	i2c_set_clientdata(client, data);
 	data->type = id->driver_data;

@@ -225,8 +225,6 @@ static const struct dt2801_board boardtypes[] = {
 	 .dabits = 12},
 };
 
-#define boardtype (*(const struct dt2801_board *)dev->board_ptr)
-
 struct dt2801_private {
 
 	const struct comedi_lrange *dac_range_types[2];
@@ -592,19 +590,16 @@ static int dt2801_dio_insn_config(struct comedi_device *dev,
 */
 static int dt2801_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
+	const struct dt2801_board *board = comedi_board(dev);
 	struct dt2801_private *devpriv;
 	struct comedi_subdevice *s;
-	unsigned long iobase;
 	int board_code, type;
 	int ret = 0;
 	int n_ai_chans;
 
-	iobase = it->options[0];
-	if (!request_region(iobase, DT2801_IOSIZE, "dt2801")) {
-		comedi_error(dev, "I/O port conflict");
-		return -EIO;
-	}
-	dev->iobase = iobase;
+	ret = comedi_request_region(dev, it->options[0], DT2801_IOSIZE);
+	if (ret)
+		return ret;
 
 	/* do some checking */
 
@@ -624,10 +619,9 @@ static int dt2801_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 havetype:
 	dev->board_ptr = boardtypes + type;
-	printk("dt2801: %s at port 0x%lx", boardtype.name, iobase);
+	board = comedi_board(dev);
 
 	n_ai_chans = probe_number_of_ai_chans(dev);
-	printk(" (ai channels = %d)\n", n_ai_chans);
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)
@@ -638,7 +632,7 @@ havetype:
 		return -ENOMEM;
 	dev->private = devpriv;
 
-	dev->board_name = boardtype.name;
+	dev->board_name = board->name;
 
 	s = &dev->subdevices[0];
 	/* ai subdevice */
@@ -648,12 +642,12 @@ havetype:
 	s->n_chan = n_ai_chans;
 #else
 	if (it->options[2])
-		s->n_chan = boardtype.ad_chan;
+		s->n_chan = board->ad_chan;
 	else
-		s->n_chan = boardtype.ad_chan / 2;
+		s->n_chan = board->ad_chan / 2;
 #endif
-	s->maxdata = (1 << boardtype.adbits) - 1;
-	s->range_table = ai_range_lkup(boardtype.adrangetype, it->options[3]);
+	s->maxdata = (1 << board->adbits) - 1;
+	s->range_table = ai_range_lkup(board->adrangetype, it->options[3]);
 	s->insn_read = dt2801_ai_insn_read;
 
 	s = &dev->subdevices[1];
@@ -661,7 +655,7 @@ havetype:
 	s->type = COMEDI_SUBD_AO;
 	s->subdev_flags = SDF_WRITABLE;
 	s->n_chan = 2;
-	s->maxdata = (1 << boardtype.dabits) - 1;
+	s->maxdata = (1 << board->dabits) - 1;
 	s->range_table_list = devpriv->dac_range_types;
 	devpriv->dac_range_types[0] = dac_range_lkup(it->options[4]);
 	devpriv->dac_range_types[1] = dac_range_lkup(it->options[5]);
@@ -693,17 +687,11 @@ out:
 	return ret;
 }
 
-static void dt2801_detach(struct comedi_device *dev)
-{
-	if (dev->iobase)
-		release_region(dev->iobase, DT2801_IOSIZE);
-}
-
 static struct comedi_driver dt2801_driver = {
 	.driver_name	= "dt2801",
 	.module		= THIS_MODULE,
 	.attach		= dt2801_attach,
-	.detach		= dt2801_detach,
+	.detach		= comedi_legacy_detach,
 };
 module_comedi_driver(dt2801_driver);
 

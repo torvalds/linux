@@ -58,40 +58,39 @@ static inline long extended_cede_processor(unsigned long latency_hint)
 static inline long vpa_call(unsigned long flags, unsigned long cpu,
 		unsigned long vpa)
 {
-	/* flags are in bits 16-18 (counting from most significant bit) */
-	flags = flags << (63 - 18);
+	flags = flags << H_VPA_FUNC_SHIFT;
 
 	return plpar_hcall_norets(H_REGISTER_VPA, flags, cpu, vpa);
 }
 
 static inline long unregister_vpa(unsigned long cpu)
 {
-	return vpa_call(0x5, cpu, 0);
+	return vpa_call(H_VPA_DEREG_VPA, cpu, 0);
 }
 
 static inline long register_vpa(unsigned long cpu, unsigned long vpa)
 {
-	return vpa_call(0x1, cpu, vpa);
+	return vpa_call(H_VPA_REG_VPA, cpu, vpa);
 }
 
 static inline long unregister_slb_shadow(unsigned long cpu)
 {
-	return vpa_call(0x7, cpu, 0);
+	return vpa_call(H_VPA_DEREG_SLB, cpu, 0);
 }
 
 static inline long register_slb_shadow(unsigned long cpu, unsigned long vpa)
 {
-	return vpa_call(0x3, cpu, vpa);
+	return vpa_call(H_VPA_REG_SLB, cpu, vpa);
 }
 
 static inline long unregister_dtl(unsigned long cpu)
 {
-	return vpa_call(0x6, cpu, 0);
+	return vpa_call(H_VPA_DEREG_DTL, cpu, 0);
 }
 
 static inline long register_dtl(unsigned long cpu, unsigned long vpa)
 {
-	return vpa_call(0x2, cpu, vpa);
+	return vpa_call(H_VPA_REG_DTL, cpu, vpa);
 }
 
 static inline long plpar_page_set_loaned(unsigned long vpa)

@@ -103,16 +103,18 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 }
 
 static int vidioc_s_tuner(struct file *file, void *priv,
-				struct v4l2_tuner *v)
+				const struct v4l2_tuner *v)
 {
 	struct pcm20 *dev = video_drvdata(file);
 
 	if (v->index)
 		return -EINVAL;
 	if (v->audmode > V4L2_TUNER_MODE_STEREO)
-		v->audmode = V4L2_TUNER_MODE_STEREO;
+		dev->audmode = V4L2_TUNER_MODE_STEREO;
+	else
+		dev->audmode = v->audmode;
 	snd_aci_cmd(dev->aci, ACI_SET_TUNERMONO,
-			v->audmode == V4L2_TUNER_MODE_MONO, -1);
+			dev->audmode == V4L2_TUNER_MODE_MONO, -1);
 	return 0;
 }
 
@@ -131,14 +133,14 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 
 
 static int vidioc_s_frequency(struct file *file, void *priv,
-				struct v4l2_frequency *f)
+				const struct v4l2_frequency *f)
 {
 	struct pcm20 *dev = video_drvdata(file);
 
 	if (f->tuner != 0 || f->type != V4L2_TUNER_RADIO)
 		return -EINVAL;
 
-	dev->freq = clamp(f->frequency, 87 * 16000U, 108 * 16000U);
+	dev->freq = clamp_t(u32, f->frequency, 87 * 16000U, 108 * 16000U);
 	pcm20_setfreq(dev, dev->freq);
 	return 0;
 }

@@ -95,7 +95,7 @@ static const struct file_operations rcubarrier_fops = {
 	.open = rcubarrier_open,
 	.read = seq_read,
 	.llseek = no_llseek,
-	.release = seq_release,
+	.release = single_release,
 };
 
 #ifdef CONFIG_RCU_BOOST
@@ -206,7 +206,7 @@ static const struct file_operations rcuexp_fops = {
 	.open = rcuexp_open,
 	.read = seq_read,
 	.llseek = no_llseek,
-	.release = seq_release,
+	.release = single_release,
 };
 
 #ifdef CONFIG_RCU_BOOST
@@ -306,7 +306,7 @@ static const struct file_operations rcuhier_fops = {
 	.open = rcuhier_open,
 	.read = seq_read,
 	.llseek = no_llseek,
-	.release = seq_release,
+	.release = single_release,
 };
 
 static void show_one_rcugp(struct seq_file *m, struct rcu_state *rsp)
@@ -348,7 +348,7 @@ static const struct file_operations rcugp_fops = {
 	.open = rcugp_open,
 	.read = seq_read,
 	.llseek = no_llseek,
-	.release = seq_release,
+	.release = single_release,
 };
 
 static void print_one_rcu_pending(struct seq_file *m, struct rcu_data *rdp)

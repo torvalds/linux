@@ -2150,13 +2150,10 @@ radeon_atom_encoder_mode_set(struct drm_encoder *encoder,
 	atombios_apply_encoder_quirks(encoder, adjusted_mode);
 
 	if (atombios_get_encoder_mode(encoder) == ATOM_ENCODER_MODE_HDMI) {
-		r600_hdmi_enable(encoder);
-		if (ASIC_IS_DCE6(rdev))
-			; /* TODO (use pointers instead of if-s?) */
-		else if (ASIC_IS_DCE4(rdev))
-			evergreen_hdmi_setmode(encoder, adjusted_mode);
-		else
-			r600_hdmi_setmode(encoder, adjusted_mode);
+		if (rdev->asic->display.hdmi_enable)
+			radeon_hdmi_enable(rdev, encoder, true);
+		if (rdev->asic->display.hdmi_setmode)
+			radeon_hdmi_setmode(rdev, encoder, adjusted_mode);
 	}
 }
 
@@ -2413,8 +2410,10 @@ static void radeon_atom_encoder_disable(struct drm_encoder *encoder)
 
 disable_done:
 	if (radeon_encoder_is_digital(encoder)) {
-		if (atombios_get_encoder_mode(encoder) == ATOM_ENCODER_MODE_HDMI)
-			r600_hdmi_disable(encoder);
+		if (atombios_get_encoder_mode(encoder) == ATOM_ENCODER_MODE_HDMI) {
+			if (rdev->asic->display.hdmi_enable)
+				radeon_hdmi_enable(rdev, encoder, false);
+		}
 		dig = radeon_encoder->enc_priv;
 		dig->dig_encoder = -1;
 	}

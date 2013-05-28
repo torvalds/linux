@@ -11,6 +11,8 @@
 #include <linux/mutex.h>
 #include <linux/module.h>
 #include <linux/cpuidle.h>
+#include <linux/cpumask.h>
+#include <linux/clockchips.h>
 
 #include "cpuidle.h"
 
@@ -19,9 +21,28 @@ DEFINE_SPINLOCK(cpuidle_driver_lock);
 static void __cpuidle_set_cpu_driver(struct cpuidle_driver *drv, int cpu);
 static struct cpuidle_driver * __cpuidle_get_cpu_driver(int cpu);
 
-static void __cpuidle_driver_init(struct cpuidle_driver *drv)
+static void cpuidle_setup_broadcast_timer(void *arg)
 {
+	int cpu = smp_processor_id();
+	clockevents_notify((long)(arg), &cpu);
+}
+
+static void __cpuidle_driver_init(struct cpuidle_driver *drv, int cpu)
+{
+	int i;
+
 	drv->refcnt = 0;
+
+	for (i = drv->state_count - 1; i >= 0 ; i--) {
+
+		if (!(drv->states[i].flags & CPUIDLE_FLAG_TIMER_STOP))
+			continue;
+
+		drv->bctimer = 1;
+		on_each_cpu_mask(get_cpu_mask(cpu), cpuidle_setup_broadcast_timer,
+				 (void *)CLOCK_EVT_NOTIFY_BROADCAST_ON, 1);
+		break;
+	}
 }
 
 static int __cpuidle_register_driver(struct cpuidle_driver *drv, int cpu)
@@ -35,7 +56,7 @@ static int __cpuidle_register_driver(struct cpuidle_driver *drv, int cpu)
 	if (__cpuidle_get_cpu_driver(cpu))
 		return -EBUSY;
 
-	__cpuidle_driver_init(drv);
+	__cpuidle_driver_init(drv, cpu);
 
 	__cpuidle_set_cpu_driver(drv, cpu);
 
@@ -49,6 +70,12 @@ static void __cpuidle_unregister_driver(struct cpuidle_driver *drv, int cpu)
 
 	if (!WARN_ON(drv->refcnt > 0))
 		__cpuidle_set_cpu_driver(NULL, cpu);
+
+	if (drv->bctimer) {
+		drv->bctimer = 0;
+		on_each_cpu_mask(get_cpu_mask(cpu), cpuidle_setup_broadcast_timer,
+				 (void *)CLOCK_EVT_NOTIFY_BROADCAST_OFF, 1);
+	}
 }
 
 #ifdef CONFIG_CPU_IDLE_MULTIPLE_DRIVERS

@@ -94,8 +94,45 @@ static const char radeon_family_name[][16] = {
 	"PITCAIRN",
 	"VERDE",
 	"OLAND",
+	"HAINAN",
 	"LAST",
 };
+
+/**
+ * radeon_program_register_sequence - program an array of registers.
+ *
+ * @rdev: radeon_device pointer
+ * @registers: pointer to the register array
+ * @array_size: size of the register array
+ *
+ * Programs an array or registers with and and or masks.
+ * This is a helper for setting golden registers.
+ */
+void radeon_program_register_sequence(struct radeon_device *rdev,
+				      const u32 *registers,
+				      const u32 array_size)
+{
+	u32 tmp, reg, and_mask, or_mask;
+	int i;
+
+	if (array_size % 3)
+		return;
+
+	for (i = 0; i < array_size; i +=3) {
+		reg = registers[i + 0];
+		and_mask = registers[i + 1];
+		or_mask = registers[i + 2];
+
+		if (and_mask == 0xffffffff) {
+			tmp = or_mask;
+		} else {
+			tmp = RREG32(reg);
+			tmp &= ~and_mask;
+			tmp |= or_mask;
+		}
+		WREG32(reg, tmp);
+	}
+}
 
 /**
  * radeon_surface_init - Clear GPU surface registers.
@@ -359,7 +396,7 @@ void radeon_vram_location(struct radeon_device *rdev, struct radeon_mc *mc, u64 
 	uint64_t limit = (uint64_t)radeon_vram_limit << 20;
 
 	mc->vram_start = base;
-	if (mc->mc_vram_size > (0xFFFFFFFF - base + 1)) {
+	if (mc->mc_vram_size > (rdev->mc.mc_mask - base + 1)) {
 		dev_warn(rdev->dev, "limiting VRAM to PCI aperture size\n");
 		mc->real_vram_size = mc->aper_size;
 		mc->mc_vram_size = mc->aper_size;
@@ -394,7 +431,7 @@ void radeon_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc)
 {
 	u64 size_af, size_bf;
 
-	size_af = ((0xFFFFFFFF - mc->vram_end) + mc->gtt_base_align) & ~mc->gtt_base_align;
+	size_af = ((rdev->mc.mc_mask - mc->vram_end) + mc->gtt_base_align) & ~mc->gtt_base_align;
 	size_bf = mc->vram_start & ~mc->gtt_base_align;
 	if (size_bf > size_af) {
 		if (mc->gtt_size > size_bf) {
@@ -1068,6 +1105,17 @@ int radeon_device_init(struct radeon_device *rdev,
 		radeon_agp_disable(rdev);
 	}
 
+	/* Set the internal MC address mask
+	 * This is the max address of the GPU's
+	 * internal address space.
+	 */
+	if (rdev->family >= CHIP_CAYMAN)
+		rdev->mc.mc_mask = 0xffffffffffULL; /* 40 bit MC */
+	else if (rdev->family >= CHIP_CEDAR)
+		rdev->mc.mc_mask = 0xfffffffffULL; /* 36 bit MC */
+	else
+		rdev->mc.mc_mask = 0xffffffffULL; /* 32 bit MC */
+
 	/* set DMA mask + need_dma32 flags.
 	 * PCIE - can handle 40-bits.
 	 * IGP - can handle 40-bits
@@ -1130,6 +1178,11 @@ int radeon_device_init(struct radeon_device *rdev,
 	r = radeon_ib_ring_tests(rdev);
 	if (r)
 		DRM_ERROR("ib ring test failed (%d).\n", r);
+
+	r = radeon_gem_debugfs_init(rdev);
+	if (r) {
+		DRM_ERROR("registering gem debugfs failed (%d).\n", r);
+	}
 
 	if (rdev->flags & RADEON_IS_AGP && !rdev->accel_working) {
 		/* Acceleration not working on AGP card try again

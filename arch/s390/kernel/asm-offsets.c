@@ -35,6 +35,7 @@ int main(void)
 	DEFINE(__TI_task, offsetof(struct thread_info, task));
 	DEFINE(__TI_domain, offsetof(struct thread_info, exec_domain));
 	DEFINE(__TI_flags, offsetof(struct thread_info, flags));
+	DEFINE(__TI_sysc_table, offsetof(struct thread_info, sys_call_table));
 	DEFINE(__TI_cpu, offsetof(struct thread_info, cpu));
 	DEFINE(__TI_precount, offsetof(struct thread_info, preempt_count));
 	DEFINE(__TI_user_timer, offsetof(struct thread_info, user_timer));

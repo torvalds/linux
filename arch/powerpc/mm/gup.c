@@ -68,7 +68,11 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
 		next = pmd_addr_end(addr, end);
 		if (pmd_none(pmd))
 			return 0;
-		if (is_hugepd(pmdp)) {
+		if (pmd_huge(pmd)) {
+			if (!gup_hugepte((pte_t *)pmdp, PMD_SIZE, addr, next,
+					 write, pages, nr))
+				return 0;
+		} else if (is_hugepd(pmdp)) {
 			if (!gup_hugepd((hugepd_t *)pmdp, PMD_SHIFT,
 					addr, next, write, pages, nr))
 				return 0;
@@ -92,7 +96,11 @@ static int gup_pud_range(pgd_t pgd, unsigned long addr, unsigned long end,
 		next = pud_addr_end(addr, end);
 		if (pud_none(pud))
 			return 0;
-		if (is_hugepd(pudp)) {
+		if (pud_huge(pud)) {
+			if (!gup_hugepte((pte_t *)pudp, PUD_SIZE, addr, next,
+					 write, pages, nr))
+				return 0;
+		} else if (is_hugepd(pudp)) {
 			if (!gup_hugepd((hugepd_t *)pudp, PUD_SHIFT,
 					addr, next, write, pages, nr))
 				return 0;
@@ -153,7 +161,11 @@ int get_user_pages_fast(unsigned long start, int nr_pages, int write,
 		next = pgd_addr_end(addr, end);
 		if (pgd_none(pgd))
 			goto slow;
-		if (is_hugepd(pgdp)) {
+		if (pgd_huge(pgd)) {
+			if (!gup_hugepte((pte_t *)pgdp, PGDIR_SIZE, addr, next,
+					 write, pages, &nr))
+				goto slow;
+		} else if (is_hugepd(pgdp)) {
 			if (!gup_hugepd((hugepd_t *)pgdp, PGDIR_SHIFT,
 					addr, next, write, pages, &nr))
 				goto slow;

@@ -47,27 +47,13 @@
 /* File operation declarations */
 static int dgrp_ports_open(struct inode *, struct file *);
 
-static const struct file_operations ports_ops = {
+const struct file_operations dgrp_ports_ops = {
 	.owner   = THIS_MODULE,
 	.open    = dgrp_ports_open,
 	.read    = seq_read,
 	.llseek	 = seq_lseek,
 	.release = seq_release
 };
-
-static struct inode_operations ports_inode_ops = {
-	.permission = dgrp_inode_permission
-};
-
-
-void dgrp_register_ports_hook(struct proc_dir_entry *de)
-{
-	struct nd_struct *node = de->data;
-
-	de->proc_iops = &ports_inode_ops;
-	de->proc_fops = &ports_ops;
-	node->nd_ports_de = de;
-}
 
 static void *dgrp_ports_seq_start(struct seq_file *seq, loff_t *pos)
 {
@@ -163,7 +149,7 @@ static int dgrp_ports_open(struct inode *inode, struct file *file)
 	rtn = seq_open(file, &ports_seq_ops);
 	if (!rtn) {
 		seq = file->private_data;
-		seq->private = PDE(inode)->data;
+		seq->private = PDE_DATA(inode);
 	}
 
 	return rtn;

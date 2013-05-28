@@ -36,14 +36,14 @@ config LCD_CORGI
 
 config LCD_L4F00242T03
 	tristate "Epson L4F00242T03 LCD"
-	depends on SPI_MASTER && GENERIC_GPIO
+	depends on SPI_MASTER && GPIOLIB
 	help
 	  SPI driver for Epson L4F00242T03. This provides basic support
 	  for init and powering the LCD up/down through a sysfs interface.
 
 config LCD_LMS283GF05
 	tristate "Samsung LMS283GF05 LCD"
-	depends on SPI_MASTER && GENERIC_GPIO
+	depends on SPI_MASTER && GPIOLIB
 	help
 	  SPI driver for Samsung LMS283GF05. This provides basic support
 	  for powering the LCD up/down through a sysfs interface.
@@ -58,6 +58,13 @@ config LCD_LTV350QV
 	  output.
 
 	  The LTV350QV panel is present on all ATSTK1000 boards.
+
+config LCD_ILI922X
+	tristate "ILI Technology ILI9221/ILI9222 support"
+	depends on SPI
+	help
+	  If you have a panel based on the ILI9221/9222 controller
+	  chip then say y to include a driver for it.
 
 config LCD_ILI9320
 	tristate "ILI Technology ILI9320 controller support"
@@ -161,7 +168,7 @@ if BACKLIGHT_CLASS_DEVICE
 config BACKLIGHT_ATMEL_LCDC
 	bool "Atmel LCDC Contrast-as-Backlight control"
 	depends on FB_ATMEL
-	default y if MACH_SAM9261EK || MACH_SAM9G10EK || MACH_SAM9263EK
+	default y if MACH_AT91SAM9261EK || MACH_AT91SAM9G10EK || MACH_AT91SAM9263EK
 	help
 	  This provides a backlight control internal to the Atmel LCDC
 	  driver.  If the LCD "contrast control" on your board is wired

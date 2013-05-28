@@ -113,7 +113,7 @@ static int rt2x00leds_register_led(struct rt2x00_dev *rt2x00dev,
 
 	retval = led_classdev_register(device, &led->led_dev);
 	if (retval) {
-		ERROR(rt2x00dev, "Failed to register led handler.\n");
+		rt2x00_err(rt2x00dev, "Failed to register led handler\n");
 		return retval;
 	}
 

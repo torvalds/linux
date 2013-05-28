@@ -162,8 +162,14 @@ static int c4iw_mmap(struct ib_ucontext *context, struct vm_area_struct *vma)
 		 */
 		if (addr >= rdev->oc_mw_pa)
 			vma->vm_page_prot = t4_pgprot_wc(vma->vm_page_prot);
-		else
-			vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
+		else {
+			if (is_t5(rdev->lldi.adapter_type))
+				vma->vm_page_prot =
+					t4_pgprot_wc(vma->vm_page_prot);
+			else
+				vma->vm_page_prot =
+					pgprot_noncached(vma->vm_page_prot);
+		}
 		ret = io_remap_pfn_range(vma, vma->vm_start,
 					 addr >> PAGE_SHIFT,
 					 len, vma->vm_page_prot);
@@ -263,7 +269,7 @@ static int c4iw_query_device(struct ib_device *ibdev,
 	dev = to_c4iw_dev(ibdev);
 	memset(props, 0, sizeof *props);
 	memcpy(&props->sys_image_guid, dev->rdev.lldi.ports[0]->dev_addr, 6);
-	props->hw_ver = dev->rdev.lldi.adapter_type;
+	props->hw_ver = CHELSIO_CHIP_RELEASE(dev->rdev.lldi.adapter_type);
 	props->fw_ver = dev->rdev.lldi.fw_vers;
 	props->device_cap_flags = dev->device_cap_flags;
 	props->page_size_cap = T4_PAGESIZE_MASK;
@@ -346,7 +352,8 @@ static ssize_t show_rev(struct device *dev, struct device_attribute *attr,
 	struct c4iw_dev *c4iw_dev = container_of(dev, struct c4iw_dev,
 						 ibdev.dev);
 	PDBG("%s dev 0x%p\n", __func__, dev);
-	return sprintf(buf, "%d\n", c4iw_dev->rdev.lldi.adapter_type);
+	return sprintf(buf, "%d\n",
+		       CHELSIO_CHIP_RELEASE(c4iw_dev->rdev.lldi.adapter_type));
 }
 
 static ssize_t show_fw_ver(struct device *dev, struct device_attribute *attr,

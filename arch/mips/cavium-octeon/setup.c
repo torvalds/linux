@@ -174,7 +174,10 @@ static int octeon_kexec_prepare(struct kimage *image)
 
 static void octeon_generic_shutdown(void)
 {
-	int cpu, i;
+	int i;
+#ifdef CONFIG_SMP
+	int cpu;
+#endif
 	struct cvmx_bootmem_desc *bootmem_desc;
 	void *named_block_array_ptr;
 

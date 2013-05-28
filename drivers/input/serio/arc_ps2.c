@@ -14,6 +14,7 @@
 #include <linux/input.h>
 #include <linux/serio.h>
 #include <linux/platform_device.h>
+#include <linux/of.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -259,10 +260,19 @@ static int arc_ps2_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_OF
+static const struct of_device_id arc_ps2_match[] = {
+	{ .compatible = "snps,arc_ps2" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, arc_ps2_match);
+#endif
+
 static struct platform_driver arc_ps2_driver = {
 	.driver	= {
-		.name	= "arc_ps2",
-		.owner	= THIS_MODULE,
+		.name		= "arc_ps2",
+		.owner		= THIS_MODULE,
+		.of_match_table	= of_match_ptr(arc_ps2_match),
 	},
 	.probe	= arc_ps2_probe,
 	.remove	= arc_ps2_remove,

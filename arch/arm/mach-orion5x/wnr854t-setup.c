@@ -127,8 +127,8 @@ static void __init wnr854t_init(void)
 	orion5x_eth_switch_init(&wnr854t_switch_plat_data, NO_IRQ);
 	orion5x_uart0_init();
 
-	orion5x_setup_dev_boot_win(WNR854T_NOR_BOOT_BASE,
-				   WNR854T_NOR_BOOT_SIZE);
+	mvebu_mbus_add_window("devbus-boot", WNR854T_NOR_BOOT_BASE,
+			      WNR854T_NOR_BOOT_SIZE);
 	platform_device_register(&wnr854t_nor_flash);
 }
 

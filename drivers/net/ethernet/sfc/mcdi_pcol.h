@@ -553,6 +553,7 @@
 #define          MC_CMD_PTP_MODE_V1_VLAN 0x1 /* enum */
 #define          MC_CMD_PTP_MODE_V2 0x2 /* enum */
 #define          MC_CMD_PTP_MODE_V2_VLAN 0x3 /* enum */
+#define          MC_CMD_PTP_MODE_V2_ENHANCED 0x4 /* enum */
 
 /* MC_CMD_PTP_IN_DISABLE msgrequest */
 #define    MC_CMD_PTP_IN_DISABLE_LEN 8

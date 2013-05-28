@@ -33,11 +33,11 @@
 #include <sound/pcm_params.h>
 #include <sound/initval.h>
 #include <sound/soc.h>
+#include <sound/dmaengine_pcm.h>
 
 #include <linux/platform_data/asoc-ti-mcbsp.h>
 #include "mcbsp.h"
 #include "omap-mcbsp.h"
-#include "omap-pcm.h"
 
 #define OMAP_MCBSP_RATES	(SNDRV_PCM_RATE_8000_96000)
 
@@ -62,15 +62,13 @@ enum {
  * Stream DMA parameters. DMA request line and port address are set runtime
  * since they are different between OMAP1 and later OMAPs
  */
-static void omap_mcbsp_set_threshold(struct snd_pcm_substream *substream)
+static void omap_mcbsp_set_threshold(struct snd_pcm_substream *substream,
+		unsigned int packet_size)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct omap_mcbsp *mcbsp = snd_soc_dai_get_drvdata(cpu_dai);
-	struct omap_pcm_dma_data *dma_data;
 	int words;
-
-	dma_data = snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
 	/*
 	 * Configure McBSP threshold based on either:
@@ -78,8 +76,8 @@ static void omap_mcbsp_set_threshold(struct snd_pcm_substream *substream)
 	 * period size in THRESHOLD mode, otherwise use McBSP threshold = 1
 	 * for mono streams.
 	 */
-	if (dma_data->packet_size)
-		words = dma_data->packet_size;
+	if (packet_size)
+		words = packet_size;
 	else
 		words = 1;
 
@@ -226,7 +224,7 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 {
 	struct omap_mcbsp *mcbsp = snd_soc_dai_get_drvdata(cpu_dai);
 	struct omap_mcbsp_reg_cfg *regs = &mcbsp->cfg_regs;
-	struct omap_pcm_dma_data *dma_data;
+	struct snd_dmaengine_dai_dma_data *dma_data;
 	int wlen, channels, wpf;
 	int pkt_size = 0;
 	unsigned int format, div, framesize, master;
@@ -245,7 +243,6 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 	if (mcbsp->pdata->buffer_size) {
-		dma_data->set_threshold = omap_mcbsp_set_threshold;
 		if (mcbsp->dma_op_mode == MCBSP_DMA_MODE_THRESHOLD) {
 			int period_words, max_thrsh;
 			int divider = 0;
@@ -276,9 +273,10 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 			/* Use packet mode for non mono streams */
 			pkt_size = channels;
 		}
+		omap_mcbsp_set_threshold(substream, pkt_size);
 	}
 
-	dma_data->packet_size = pkt_size;
+	dma_data->maxburst = pkt_size;
 
 	if (mcbsp->configured) {
 		/* McBSP already configured by another stream */
@@ -586,6 +584,10 @@ static struct snd_soc_dai_driver omap_mcbsp_dai = {
 	.ops = &mcbsp_dai_ops,
 };
 
+static const struct snd_soc_component_driver omap_mcbsp_component = {
+	.name		= "omap-mcbsp",
+};
+
 static int omap_mcbsp_st_info_volsw(struct snd_kcontrol *kcontrol,
 			struct snd_ctl_elem_info *uinfo)
 {
@@ -793,7 +795,8 @@ static int asoc_mcbsp_probe(struct platform_device *pdev)
 
 	ret = omap_mcbsp_init(pdev);
 	if (!ret)
-		return snd_soc_register_dai(&pdev->dev, &omap_mcbsp_dai);
+		return snd_soc_register_component(&pdev->dev, &omap_mcbsp_component,
+						  &omap_mcbsp_dai, 1);
 
 	return ret;
 }
@@ -802,7 +805,7 @@ static int asoc_mcbsp_remove(struct platform_device *pdev)
 {
 	struct omap_mcbsp *mcbsp = platform_get_drvdata(pdev);
 
-	snd_soc_unregister_dai(&pdev->dev);
+	snd_soc_unregister_component(&pdev->dev);
 
 	if (mcbsp->pdata->ops && mcbsp->pdata->ops->free)
 		mcbsp->pdata->ops->free(mcbsp->id);

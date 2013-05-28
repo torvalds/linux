@@ -38,13 +38,13 @@ change_conf(struct TCP_Server_Info *server)
 	case 1:
 		server->echoes = false;
 		server->oplocks = false;
-		cERROR(1, "disabling echoes and oplocks");
+		cifs_dbg(VFS, "disabling echoes and oplocks\n");
 		break;
 	case 2:
 		server->echoes = true;
 		server->oplocks = false;
 		server->echo_credits = 1;
-		cFYI(1, "disabling oplocks");
+		cifs_dbg(FYI, "disabling oplocks\n");
 		break;
 	default:
 		server->echoes = true;
@@ -147,10 +147,10 @@ smb2_dump_detail(void *buf)
 #ifdef CONFIG_CIFS_DEBUG2
 	struct smb2_hdr *smb = (struct smb2_hdr *)buf;
 
-	cERROR(1, "Cmd: %d Err: 0x%x Flags: 0x%x Mid: %llu Pid: %d",
-		  smb->Command, smb->Status, smb->Flags, smb->MessageId,
-		  smb->ProcessId);
-	cERROR(1, "smb buf %p len %u", smb, smb2_calc_size(smb));
+	cifs_dbg(VFS, "Cmd: %d Err: 0x%x Flags: 0x%x Mid: %llu Pid: %d\n",
+		 smb->Command, smb->Status, smb->Flags, smb->MessageId,
+		 smb->ProcessId);
+	cifs_dbg(VFS, "smb buf %p len %u\n", smb, smb2_calc_size(smb));
 #endif
 }
 
@@ -436,7 +436,7 @@ smb2_query_dir_first(const unsigned int xid, struct cifs_tcon *tcon,
 		       &oplock, NULL);
 	kfree(utf16_path);
 	if (rc) {
-		cERROR(1, "open dir failed");
+		cifs_dbg(VFS, "open dir failed\n");
 		return rc;
 	}
 
@@ -448,7 +448,7 @@ smb2_query_dir_first(const unsigned int xid, struct cifs_tcon *tcon,
 	rc = SMB2_query_directory(xid, tcon, persistent_fid, volatile_fid, 0,
 				  srch_inf);
 	if (rc) {
-		cERROR(1, "query directory failed");
+		cifs_dbg(VFS, "query directory failed\n");
 		SMB2_close(xid, tcon, persistent_fid, volatile_fid);
 	}
 	return rc;

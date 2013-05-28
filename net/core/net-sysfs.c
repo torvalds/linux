@@ -606,21 +606,11 @@ static ssize_t show_rps_dev_flow_table_cnt(struct netdev_rx_queue *queue,
 	return sprintf(buf, "%lu\n", val);
 }
 
-static void rps_dev_flow_table_release_work(struct work_struct *work)
-{
-	struct rps_dev_flow_table *table = container_of(work,
-	    struct rps_dev_flow_table, free_work);
-
-	vfree(table);
-}
-
 static void rps_dev_flow_table_release(struct rcu_head *rcu)
 {
 	struct rps_dev_flow_table *table = container_of(rcu,
 	    struct rps_dev_flow_table, rcu);
-
-	INIT_WORK(&table->free_work, rps_dev_flow_table_release_work);
-	schedule_work(&table->free_work);
+	vfree(table);
 }
 
 static ssize_t store_rps_dev_flow_table_cnt(struct netdev_rx_queue *queue,

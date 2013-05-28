@@ -48,8 +48,14 @@
 
 /* registers for base address */
 #define G2D_SRC_BASE_ADDR		0x0304
+#define G2D_SRC_COLOR_MODE		0x030C
+#define G2D_SRC_LEFT_TOP		0x0310
+#define G2D_SRC_RIGHT_BOTTOM		0x0314
 #define G2D_SRC_PLANE2_BASE_ADDR	0x0318
 #define G2D_DST_BASE_ADDR		0x0404
+#define G2D_DST_COLOR_MODE		0x040C
+#define G2D_DST_LEFT_TOP		0x0410
+#define G2D_DST_RIGHT_BOTTOM		0x0414
 #define G2D_DST_PLANE2_BASE_ADDR	0x0418
 #define G2D_PAT_BASE_ADDR		0x0500
 #define G2D_MSK_BASE_ADDR		0x0520
@@ -82,7 +88,7 @@
 #define G2D_DMA_LIST_DONE_COUNT_OFFSET	17
 
 /* G2D_DMA_HOLD_CMD */
-#define G2D_USET_HOLD			(1 << 2)
+#define G2D_USER_HOLD			(1 << 2)
 #define G2D_LIST_HOLD			(1 << 1)
 #define G2D_BITBLT_HOLD			(1 << 0)
 
@@ -91,12 +97,26 @@
 #define G2D_START_NHOLT			(1 << 1)
 #define G2D_START_BITBLT		(1 << 0)
 
+/* buffer color format */
+#define G2D_FMT_XRGB8888		0
+#define G2D_FMT_ARGB8888		1
+#define G2D_FMT_RGB565			2
+#define G2D_FMT_XRGB1555		3
+#define G2D_FMT_ARGB1555		4
+#define G2D_FMT_XRGB4444		5
+#define G2D_FMT_ARGB4444		6
+#define G2D_FMT_PACKED_RGB888		7
+#define G2D_FMT_A8			11
+#define G2D_FMT_L8			12
+
+/* buffer valid length */
+#define G2D_LEN_MIN			1
+#define G2D_LEN_MAX			8000
+
 #define G2D_CMDLIST_SIZE		(PAGE_SIZE / 4)
 #define G2D_CMDLIST_NUM			64
 #define G2D_CMDLIST_POOL_SIZE		(G2D_CMDLIST_SIZE * G2D_CMDLIST_NUM)
 #define G2D_CMDLIST_DATA_NUM		(G2D_CMDLIST_SIZE / sizeof(u32) - 2)
-
-#define MAX_BUF_ADDR_NR			6
 
 /* maximum buffer pool size of userptr is 64MB as default */
 #define MAX_POOL		(64 * 1024 * 1024)
@@ -106,11 +126,58 @@ enum {
 	BUF_TYPE_USERPTR,
 };
 
+enum g2d_reg_type {
+	REG_TYPE_NONE = -1,
+	REG_TYPE_SRC,
+	REG_TYPE_SRC_PLANE2,
+	REG_TYPE_DST,
+	REG_TYPE_DST_PLANE2,
+	REG_TYPE_PAT,
+	REG_TYPE_MSK,
+	MAX_REG_TYPE_NR
+};
+
 /* cmdlist data structure */
 struct g2d_cmdlist {
 	u32		head;
 	unsigned long	data[G2D_CMDLIST_DATA_NUM];
 	u32		last;	/* last data offset */
+};
+
+/*
+ * A structure of buffer description
+ *
+ * @format: color format
+ * @left_x: the x coordinates of left top corner
+ * @top_y: the y coordinates of left top corner
+ * @right_x: the x coordinates of right bottom corner
+ * @bottom_y: the y coordinates of right bottom corner
+ *
+ */
+struct g2d_buf_desc {
+	unsigned int	format;
+	unsigned int	left_x;
+	unsigned int	top_y;
+	unsigned int	right_x;
+	unsigned int	bottom_y;
+};
+
+/*
+ * A structure of buffer information
+ *
+ * @map_nr: manages the number of mapped buffers
+ * @reg_types: stores regitster type in the order of requested command
+ * @handles: stores buffer handle in its reg_type position
+ * @types: stores buffer type in its reg_type position
+ * @descs: stores buffer description in its reg_type position
+ *
+ */
+struct g2d_buf_info {
+	unsigned int		map_nr;
+	enum g2d_reg_type	reg_types[MAX_REG_TYPE_NR];
+	unsigned long		handles[MAX_REG_TYPE_NR];
+	unsigned int		types[MAX_REG_TYPE_NR];
+	struct g2d_buf_desc	descs[MAX_REG_TYPE_NR];
 };
 
 struct drm_exynos_pending_g2d_event {
@@ -131,14 +198,11 @@ struct g2d_cmdlist_userptr {
 	bool			in_pool;
 	bool			out_of_list;
 };
-
 struct g2d_cmdlist_node {
 	struct list_head	list;
 	struct g2d_cmdlist	*cmdlist;
-	unsigned int		map_nr;
-	unsigned long		handles[MAX_BUF_ADDR_NR];
-	unsigned int		obj_type[MAX_BUF_ADDR_NR];
 	dma_addr_t		dma_addr;
+	struct g2d_buf_info	buf_info;
 
 	struct drm_exynos_pending_g2d_event	*event;
 };
@@ -188,6 +252,7 @@ static int g2d_init_cmdlist(struct g2d_data *g2d)
 	struct exynos_drm_subdrv *subdrv = &g2d->subdrv;
 	int nr;
 	int ret;
+	struct g2d_buf_info *buf_info;
 
 	init_dma_attrs(&g2d->cmdlist_dma_attrs);
 	dma_set_attr(DMA_ATTR_WRITE_COMBINE, &g2d->cmdlist_dma_attrs);
@@ -209,10 +274,16 @@ static int g2d_init_cmdlist(struct g2d_data *g2d)
 	}
 
 	for (nr = 0; nr < G2D_CMDLIST_NUM; nr++) {
+		unsigned int i;
+
 		node[nr].cmdlist =
 			g2d->cmdlist_pool_virt + nr * G2D_CMDLIST_SIZE;
 		node[nr].dma_addr =
 			g2d->cmdlist_pool + nr * G2D_CMDLIST_SIZE;
+
+		buf_info = &node[nr].buf_info;
+		for (i = 0; i < MAX_REG_TYPE_NR; i++)
+			buf_info->reg_types[i] = REG_TYPE_NONE;
 
 		list_add_tail(&node[nr].list, &g2d->free_cmdlist);
 	}
@@ -450,7 +521,7 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
 						DMA_BIDIRECTIONAL);
 	if (ret < 0) {
 		DRM_ERROR("failed to map sgt with dma region.\n");
-		goto err_free_sgt;
+		goto err_sg_free_table;
 	}
 
 	g2d_userptr->dma_addr = sgt->sgl[0].dma_address;
@@ -467,8 +538,10 @@ static dma_addr_t *g2d_userptr_get_dma_addr(struct drm_device *drm_dev,
 
 	return &g2d_userptr->dma_addr;
 
-err_free_sgt:
+err_sg_free_table:
 	sg_free_table(sgt);
+
+err_free_sgt:
 	kfree(sgt);
 	sgt = NULL;
 
@@ -506,36 +579,172 @@ static void g2d_userptr_free_all(struct drm_device *drm_dev,
 	g2d->current_pool = 0;
 }
 
+static enum g2d_reg_type g2d_get_reg_type(int reg_offset)
+{
+	enum g2d_reg_type reg_type;
+
+	switch (reg_offset) {
+	case G2D_SRC_BASE_ADDR:
+	case G2D_SRC_COLOR_MODE:
+	case G2D_SRC_LEFT_TOP:
+	case G2D_SRC_RIGHT_BOTTOM:
+		reg_type = REG_TYPE_SRC;
+		break;
+	case G2D_SRC_PLANE2_BASE_ADDR:
+		reg_type = REG_TYPE_SRC_PLANE2;
+		break;
+	case G2D_DST_BASE_ADDR:
+	case G2D_DST_COLOR_MODE:
+	case G2D_DST_LEFT_TOP:
+	case G2D_DST_RIGHT_BOTTOM:
+		reg_type = REG_TYPE_DST;
+		break;
+	case G2D_DST_PLANE2_BASE_ADDR:
+		reg_type = REG_TYPE_DST_PLANE2;
+		break;
+	case G2D_PAT_BASE_ADDR:
+		reg_type = REG_TYPE_PAT;
+		break;
+	case G2D_MSK_BASE_ADDR:
+		reg_type = REG_TYPE_MSK;
+		break;
+	default:
+		reg_type = REG_TYPE_NONE;
+		DRM_ERROR("Unknown register offset![%d]\n", reg_offset);
+		break;
+	};
+
+	return reg_type;
+}
+
+static unsigned long g2d_get_buf_bpp(unsigned int format)
+{
+	unsigned long bpp;
+
+	switch (format) {
+	case G2D_FMT_XRGB8888:
+	case G2D_FMT_ARGB8888:
+		bpp = 4;
+		break;
+	case G2D_FMT_RGB565:
+	case G2D_FMT_XRGB1555:
+	case G2D_FMT_ARGB1555:
+	case G2D_FMT_XRGB4444:
+	case G2D_FMT_ARGB4444:
+		bpp = 2;
+		break;
+	case G2D_FMT_PACKED_RGB888:
+		bpp = 3;
+		break;
+	default:
+		bpp = 1;
+		break;
+	}
+
+	return bpp;
+}
+
+static bool g2d_check_buf_desc_is_valid(struct g2d_buf_desc *buf_desc,
+						enum g2d_reg_type reg_type,
+						unsigned long size)
+{
+	unsigned int width, height;
+	unsigned long area;
+
+	/*
+	 * check source and destination buffers only.
+	 * so the others are always valid.
+	 */
+	if (reg_type != REG_TYPE_SRC && reg_type != REG_TYPE_DST)
+		return true;
+
+	width = buf_desc->right_x - buf_desc->left_x;
+	if (width < G2D_LEN_MIN || width > G2D_LEN_MAX) {
+		DRM_ERROR("width[%u] is out of range!\n", width);
+		return false;
+	}
+
+	height = buf_desc->bottom_y - buf_desc->top_y;
+	if (height < G2D_LEN_MIN || height > G2D_LEN_MAX) {
+		DRM_ERROR("height[%u] is out of range!\n", height);
+		return false;
+	}
+
+	area = (unsigned long)width * (unsigned long)height *
+					g2d_get_buf_bpp(buf_desc->format);
+	if (area > size) {
+		DRM_ERROR("area[%lu] is out of range[%lu]!\n", area, size);
+		return false;
+	}
+
+	return true;
+}
+
 static int g2d_map_cmdlist_gem(struct g2d_data *g2d,
 				struct g2d_cmdlist_node *node,
 				struct drm_device *drm_dev,
 				struct drm_file *file)
 {
 	struct g2d_cmdlist *cmdlist = node->cmdlist;
+	struct g2d_buf_info *buf_info = &node->buf_info;
 	int offset;
+	int ret;
 	int i;
 
-	for (i = 0; i < node->map_nr; i++) {
+	for (i = 0; i < buf_info->map_nr; i++) {
+		struct g2d_buf_desc *buf_desc;
+		enum g2d_reg_type reg_type;
+		int reg_pos;
 		unsigned long handle;
 		dma_addr_t *addr;
 
-		offset = cmdlist->last - (i * 2 + 1);
-		handle = cmdlist->data[offset];
+		reg_pos = cmdlist->last - 2 * (i + 1);
 
-		if (node->obj_type[i] == BUF_TYPE_GEM) {
+		offset = cmdlist->data[reg_pos];
+		handle = cmdlist->data[reg_pos + 1];
+
+		reg_type = g2d_get_reg_type(offset);
+		if (reg_type == REG_TYPE_NONE) {
+			ret = -EFAULT;
+			goto err;
+		}
+
+		buf_desc = &buf_info->descs[reg_type];
+
+		if (buf_info->types[reg_type] == BUF_TYPE_GEM) {
+			unsigned long size;
+
+			size = exynos_drm_gem_get_size(drm_dev, handle, file);
+			if (!size) {
+				ret = -EFAULT;
+				goto err;
+			}
+
+			if (!g2d_check_buf_desc_is_valid(buf_desc, reg_type,
+									size)) {
+				ret = -EFAULT;
+				goto err;
+			}
+
 			addr = exynos_drm_gem_get_dma_addr(drm_dev, handle,
 								file);
 			if (IS_ERR(addr)) {
-				node->map_nr = i;
-				return -EFAULT;
+				ret = -EFAULT;
+				goto err;
 			}
 		} else {
 			struct drm_exynos_g2d_userptr g2d_userptr;
 
 			if (copy_from_user(&g2d_userptr, (void __user *)handle,
 				sizeof(struct drm_exynos_g2d_userptr))) {
-				node->map_nr = i;
-				return -EFAULT;
+				ret = -EFAULT;
+				goto err;
+			}
+
+			if (!g2d_check_buf_desc_is_valid(buf_desc, reg_type,
+							g2d_userptr.size)) {
+				ret = -EFAULT;
+				goto err;
 			}
 
 			addr = g2d_userptr_get_dma_addr(drm_dev,
@@ -544,16 +753,21 @@ static int g2d_map_cmdlist_gem(struct g2d_data *g2d,
 							file,
 							&handle);
 			if (IS_ERR(addr)) {
-				node->map_nr = i;
-				return -EFAULT;
+				ret = -EFAULT;
+				goto err;
 			}
 		}
 
-		cmdlist->data[offset] = *addr;
-		node->handles[i] = handle;
+		cmdlist->data[reg_pos + 1] = *addr;
+		buf_info->reg_types[i] = reg_type;
+		buf_info->handles[reg_type] = handle;
 	}
 
 	return 0;
+
+err:
+	buf_info->map_nr = i;
+	return ret;
 }
 
 static void g2d_unmap_cmdlist_gem(struct g2d_data *g2d,
@@ -561,22 +775,33 @@ static void g2d_unmap_cmdlist_gem(struct g2d_data *g2d,
 				  struct drm_file *filp)
 {
 	struct exynos_drm_subdrv *subdrv = &g2d->subdrv;
+	struct g2d_buf_info *buf_info = &node->buf_info;
 	int i;
 
-	for (i = 0; i < node->map_nr; i++) {
-		unsigned long handle = node->handles[i];
+	for (i = 0; i < buf_info->map_nr; i++) {
+		struct g2d_buf_desc *buf_desc;
+		enum g2d_reg_type reg_type;
+		unsigned long handle;
 
-		if (node->obj_type[i] == BUF_TYPE_GEM)
+		reg_type = buf_info->reg_types[i];
+
+		buf_desc = &buf_info->descs[reg_type];
+		handle = buf_info->handles[reg_type];
+
+		if (buf_info->types[reg_type] == BUF_TYPE_GEM)
 			exynos_drm_gem_put_dma_addr(subdrv->drm_dev, handle,
 							filp);
 		else
 			g2d_userptr_put_dma_addr(subdrv->drm_dev, handle,
 							false);
 
-		node->handles[i] = 0;
+		buf_info->reg_types[i] = REG_TYPE_NONE;
+		buf_info->handles[reg_type] = 0;
+		buf_info->types[reg_type] = 0;
+		memset(buf_desc, 0x00, sizeof(*buf_desc));
 	}
 
-	node->map_nr = 0;
+	buf_info->map_nr = 0;
 }
 
 static void g2d_dma_start(struct g2d_data *g2d,
@@ -588,10 +813,6 @@ static void g2d_dma_start(struct g2d_data *g2d,
 
 	pm_runtime_get_sync(g2d->dev);
 	clk_enable(g2d->gate_clk);
-
-	/* interrupt enable */
-	writel_relaxed(G2D_INTEN_ACF | G2D_INTEN_UCF | G2D_INTEN_GCF,
-			g2d->regs + G2D_INTEN);
 
 	writel_relaxed(node->dma_addr, g2d->regs + G2D_DMA_SFR_BASE_ADDR);
 	writel_relaxed(G2D_DMA_START, g2d->regs + G2D_DMA_COMMAND);
@@ -642,7 +863,6 @@ static void g2d_runqueue_worker(struct work_struct *work)
 {
 	struct g2d_data *g2d = container_of(work, struct g2d_data,
 					    runqueue_work);
-
 
 	mutex_lock(&g2d->runqueue_mutex);
 	clk_disable(g2d->gate_clk);
@@ -724,20 +944,14 @@ static int g2d_check_reg_offset(struct device *dev,
 	int i;
 
 	for (i = 0; i < nr; i++) {
+		struct g2d_buf_info *buf_info = &node->buf_info;
+		struct g2d_buf_desc *buf_desc;
+		enum g2d_reg_type reg_type;
+		unsigned long value;
+
 		index = cmdlist->last - 2 * (i + 1);
 
-		if (for_addr) {
-			/* check userptr buffer type. */
-			reg_offset = (cmdlist->data[index] &
-					~0x7fffffff) >> 31;
-			if (reg_offset) {
-				node->obj_type[i] = BUF_TYPE_USERPTR;
-				cmdlist->data[index] &= ~G2D_BUF_USERPTR;
-			}
-		}
-
 		reg_offset = cmdlist->data[index] & ~0xfffff000;
-
 		if (reg_offset < G2D_VALID_START || reg_offset > G2D_VALID_END)
 			goto err;
 		if (reg_offset % 4)
@@ -753,8 +967,60 @@ static int g2d_check_reg_offset(struct device *dev,
 			if (!for_addr)
 				goto err;
 
-			if (node->obj_type[i] != BUF_TYPE_USERPTR)
-				node->obj_type[i] = BUF_TYPE_GEM;
+			reg_type = g2d_get_reg_type(reg_offset);
+			if (reg_type == REG_TYPE_NONE)
+				goto err;
+
+			/* check userptr buffer type. */
+			if ((cmdlist->data[index] & ~0x7fffffff) >> 31) {
+				buf_info->types[reg_type] = BUF_TYPE_USERPTR;
+				cmdlist->data[index] &= ~G2D_BUF_USERPTR;
+			} else
+				buf_info->types[reg_type] = BUF_TYPE_GEM;
+			break;
+		case G2D_SRC_COLOR_MODE:
+		case G2D_DST_COLOR_MODE:
+			if (for_addr)
+				goto err;
+
+			reg_type = g2d_get_reg_type(reg_offset);
+			if (reg_type == REG_TYPE_NONE)
+				goto err;
+
+			buf_desc = &buf_info->descs[reg_type];
+			value = cmdlist->data[index + 1];
+
+			buf_desc->format = value & 0xf;
+			break;
+		case G2D_SRC_LEFT_TOP:
+		case G2D_DST_LEFT_TOP:
+			if (for_addr)
+				goto err;
+
+			reg_type = g2d_get_reg_type(reg_offset);
+			if (reg_type == REG_TYPE_NONE)
+				goto err;
+
+			buf_desc = &buf_info->descs[reg_type];
+			value = cmdlist->data[index + 1];
+
+			buf_desc->left_x = value & 0x1fff;
+			buf_desc->top_y = (value & 0x1fff0000) >> 16;
+			break;
+		case G2D_SRC_RIGHT_BOTTOM:
+		case G2D_DST_RIGHT_BOTTOM:
+			if (for_addr)
+				goto err;
+
+			reg_type = g2d_get_reg_type(reg_offset);
+			if (reg_type == REG_TYPE_NONE)
+				goto err;
+
+			buf_desc = &buf_info->descs[reg_type];
+			value = cmdlist->data[index + 1];
+
+			buf_desc->right_x = value & 0x1fff;
+			buf_desc->bottom_y = (value & 0x1fff0000) >> 16;
 			break;
 		default:
 			if (for_addr)
@@ -860,9 +1126,23 @@ int exynos_g2d_set_cmdlist_ioctl(struct drm_device *drm_dev, void *data,
 	cmdlist->data[cmdlist->last++] = G2D_SRC_BASE_ADDR;
 	cmdlist->data[cmdlist->last++] = 0;
 
+	/*
+	 * 'LIST_HOLD' command should be set to the DMA_HOLD_CMD_REG
+	 * and GCF bit should be set to INTEN register if user wants
+	 * G2D interrupt event once current command list execution is
+	 * finished.
+	 * Otherwise only ACF bit should be set to INTEN register so
+	 * that one interrupt is occured after all command lists
+	 * have been completed.
+	 */
 	if (node->event) {
+		cmdlist->data[cmdlist->last++] = G2D_INTEN;
+		cmdlist->data[cmdlist->last++] = G2D_INTEN_ACF | G2D_INTEN_GCF;
 		cmdlist->data[cmdlist->last++] = G2D_DMA_HOLD_CMD;
 		cmdlist->data[cmdlist->last++] = G2D_LIST_HOLD;
+	} else {
+		cmdlist->data[cmdlist->last++] = G2D_INTEN;
+		cmdlist->data[cmdlist->last++] = G2D_INTEN_ACF;
 	}
 
 	/* Check size of cmdlist: last 2 is about G2D_BITBLT_START */
@@ -887,7 +1167,7 @@ int exynos_g2d_set_cmdlist_ioctl(struct drm_device *drm_dev, void *data,
 	if (ret < 0)
 		goto err_free_event;
 
-	node->map_nr = req->cmd_buf_nr;
+	node->buf_info.map_nr = req->cmd_buf_nr;
 	if (req->cmd_buf_nr) {
 		struct drm_exynos_g2d_cmd *cmd_buf;
 

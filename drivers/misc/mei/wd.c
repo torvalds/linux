@@ -318,7 +318,8 @@ end:
  *
  * returns 0 if success, negative errno code for failure
  */
-static int mei_wd_ops_set_timeout(struct watchdog_device *wd_dev, unsigned int timeout)
+static int mei_wd_ops_set_timeout(struct watchdog_device *wd_dev,
+		unsigned int timeout)
 {
 	struct mei_device *dev;
 

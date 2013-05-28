@@ -38,7 +38,8 @@ struct regmap_format {
 			     unsigned int reg, unsigned int val);
 	void (*format_reg)(void *buf, unsigned int reg, unsigned int shift);
 	void (*format_val)(void *buf, unsigned int val, unsigned int shift);
-	unsigned int (*parse_val)(void *buf);
+	unsigned int (*parse_val)(const void *buf);
+	void (*parse_inplace)(void *buf);
 };
 
 struct regmap_async {
@@ -76,6 +77,7 @@ struct regmap {
 	unsigned int debugfs_tot_len;
 
 	struct list_head debugfs_off_cache;
+	struct mutex cache_lock;
 #endif
 
 	unsigned int max_register;
@@ -124,6 +126,9 @@ struct regmap {
 	const void *reg_defaults_raw;
 	void *cache;
 	u32 cache_dirty;
+
+	unsigned long *cache_present;
+	unsigned int cache_present_nbits;
 
 	struct reg_default *patch;
 	int patch_regs;
@@ -187,12 +192,35 @@ int regcache_read(struct regmap *map,
 int regcache_write(struct regmap *map,
 			unsigned int reg, unsigned int value);
 int regcache_sync(struct regmap *map);
+int regcache_sync_block(struct regmap *map, void *block,
+			unsigned int block_base, unsigned int start,
+			unsigned int end);
 
-unsigned int regcache_get_val(const void *base, unsigned int idx,
-			      unsigned int word_size);
-bool regcache_set_val(void *base, unsigned int idx,
-		      unsigned int val, unsigned int word_size);
+static inline const void *regcache_get_val_addr(struct regmap *map,
+						const void *base,
+						unsigned int idx)
+{
+	return base + (map->cache_word_size * idx);
+}
+
+unsigned int regcache_get_val(struct regmap *map, const void *base,
+			      unsigned int idx);
+bool regcache_set_val(struct regmap *map, void *base, unsigned int idx,
+		      unsigned int val);
 int regcache_lookup_reg(struct regmap *map, unsigned int reg);
+int regcache_set_reg_present(struct regmap *map, unsigned int reg);
+
+static inline bool regcache_reg_present(struct regmap *map, unsigned int reg)
+{
+	if (!map->cache_present)
+		return true;
+	if (reg > map->cache_present_nbits)
+		return false;
+	return map->cache_present[BIT_WORD(reg)] & BIT_MASK(reg);
+}
+
+int _regmap_raw_write(struct regmap *map, unsigned int reg,
+		      const void *val, size_t val_len, bool async);
 
 void regmap_async_complete_cb(struct regmap_async *async, int ret);
 

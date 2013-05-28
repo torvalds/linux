@@ -159,9 +159,9 @@ TRACE_EVENT(gfs2_glock_put,
 /* Callback (local or remote) requesting lock demotion */
 TRACE_EVENT(gfs2_demote_rq,
 
-	TP_PROTO(const struct gfs2_glock *gl),
+	TP_PROTO(const struct gfs2_glock *gl, bool remote),
 
-	TP_ARGS(gl),
+	TP_ARGS(gl, remote),
 
 	TP_STRUCT__entry(
 		__field(        dev_t,  dev                     )
@@ -170,6 +170,7 @@ TRACE_EVENT(gfs2_demote_rq,
 		__field(	u8,	cur_state		)
 		__field(	u8,	dmt_state		)
 		__field(	unsigned long,	flags		)
+		__field(	bool,	remote			)
 	),
 
 	TP_fast_assign(
@@ -179,14 +180,16 @@ TRACE_EVENT(gfs2_demote_rq,
 		__entry->cur_state	= glock_trace_state(gl->gl_state);
 		__entry->dmt_state	= glock_trace_state(gl->gl_demote_state);
 		__entry->flags		= gl->gl_flags  | (gl->gl_object ? (1UL<<GLF_OBJECT) : 0);
+		__entry->remote		= remote;
 	),
 
-	TP_printk("%u,%u glock %d:%lld demote %s to %s flags:%s",
+	TP_printk("%u,%u glock %d:%lld demote %s to %s flags:%s %s",
 		  MAJOR(__entry->dev), MINOR(__entry->dev), __entry->gltype,
 		  (unsigned long long)__entry->glnum,
                   glock_trace_name(__entry->cur_state),
                   glock_trace_name(__entry->dmt_state),
-		  show_glock_flags(__entry->flags))
+		  show_glock_flags(__entry->flags),
+		  __entry->remote ? "remote" : "local")
 
 );
 

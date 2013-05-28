@@ -615,6 +615,14 @@ int ath9k_hw_rxprocdesc(struct ath_hw *ah, struct ath_desc *ds,
 			rs->rs_status |= ATH9K_RXERR_DECRYPT;
 		else if (ads.ds_rxstatus8 & AR_MichaelErr)
 			rs->rs_status |= ATH9K_RXERR_MIC;
+	} else {
+		if (ads.ds_rxstatus8 &
+		    (AR_CRCErr | AR_PHYErr | AR_DecryptCRCErr | AR_MichaelErr))
+			rs->rs_status |= ATH9K_RXERR_CORRUPT_DESC;
+
+		/* Only up to MCS16 supported, everything above is invalid */
+		if (rs->rs_rate >= 0x90)
+			rs->rs_status |= ATH9K_RXERR_CORRUPT_DESC;
 	}
 
 	if (ads.ds_rxstatus8 & AR_KeyMiss)

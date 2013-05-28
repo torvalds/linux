@@ -40,13 +40,11 @@
 #include <arch/abi.h>
 #include <arch/sim_def.h>
 
-
 /*
  * Use the (x86) "idle=poll" option to prefer low latency when leaving the
  * idle loop over low power while in the idle loop, e.g. if we have
  * one thread per core and we want to get threads out of futex waits fast.
  */
-static int no_idle_nap;
 static int __init idle_setup(char *str)
 {
 	if (!str)
@@ -54,64 +52,19 @@ static int __init idle_setup(char *str)
 
 	if (!strcmp(str, "poll")) {
 		pr_info("using polling idle threads.\n");
-		no_idle_nap = 1;
-	} else if (!strcmp(str, "halt"))
-		no_idle_nap = 0;
-	else
-		return -1;
-
-	return 0;
+		cpu_idle_poll_ctrl(true);
+		return 0;
+	} else if (!strcmp(str, "halt")) {
+		return 0;
+	}
+	return -1;
 }
 early_param("idle", idle_setup);
 
-/*
- * The idle thread. There's no useful work to be
- * done, so just try to conserve power and have a
- * low exit latency (ie sit in a loop waiting for
- * somebody to say that they'd like to reschedule)
- */
-void cpu_idle(void)
+void arch_cpu_idle(void)
 {
-	int cpu = smp_processor_id();
-
-
-	current_thread_info()->status |= TS_POLLING;
-
-	if (no_idle_nap) {
-		while (1) {
-			while (!need_resched())
-				cpu_relax();
-			schedule();
-		}
-	}
-
-	/* endless idle loop with no priority at all */
-	while (1) {
-		tick_nohz_idle_enter();
-		rcu_idle_enter();
-		while (!need_resched()) {
-			if (cpu_is_offline(cpu))
-				BUG();  /* no HOTPLUG_CPU */
-
-			local_irq_disable();
-			__get_cpu_var(irq_stat).idle_timestamp = jiffies;
-			current_thread_info()->status &= ~TS_POLLING;
-			/*
-			 * TS_POLLING-cleared state must be visible before we
-			 * test NEED_RESCHED:
-			 */
-			smp_mb();
-
-			if (!need_resched())
-				_cpu_idle();
-			else
-				local_irq_enable();
-			current_thread_info()->status |= TS_POLLING;
-		}
-		rcu_idle_exit();
-		tick_nohz_idle_exit();
-		schedule_preempt_disabled();
-	}
+	__get_cpu_var(irq_stat).idle_timestamp = jiffies;
+	_cpu_idle();
 }
 
 /*
@@ -620,8 +573,7 @@ void show_regs(struct pt_regs *regs)
 	int i;
 
 	pr_err("\n");
-	pr_err(" Pid: %d, comm: %20s, CPU: %d\n",
-	       tsk->pid, tsk->comm, smp_processor_id());
+	show_regs_print_info(KERN_ERR);
 #ifdef __tilegx__
 	for (i = 0; i < 51; i += 3)
 		pr_err(" r%-2d: "REGFMT" r%-2d: "REGFMT" r%-2d: "REGFMT"\n",

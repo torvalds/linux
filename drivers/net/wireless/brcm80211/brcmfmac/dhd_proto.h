@@ -33,7 +33,7 @@ extern void brcmf_proto_stop(struct brcmf_pub *drvr);
 /* Add any protocol-specific data header.
  * Caller must reserve prot_hdrlen prepend space.
  */
-extern void brcmf_proto_hdrpush(struct brcmf_pub *, int ifidx,
+extern void brcmf_proto_hdrpush(struct brcmf_pub *, int ifidx, u8 offset,
 				struct sk_buff *txp);
 
 /* Sets dongle media info (drv_version, mac address). */

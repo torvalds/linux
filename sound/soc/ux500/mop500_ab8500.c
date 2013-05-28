@@ -17,8 +17,6 @@
 #include <linux/io.h>
 #include <linux/clk.h>
 
-#include <mach/hardware.h>
-
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include <sound/pcm.h>

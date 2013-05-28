@@ -725,17 +725,12 @@ cond_branch:			f_offset = addrs[i + filter[i].jf] - addrs[i];
 		}
 		oldproglen = proglen;
 	}
+
 	if (bpf_jit_enable > 1)
-		pr_err("flen=%d proglen=%u pass=%d image=%p\n",
-		       flen, proglen, pass, image);
+		bpf_jit_dump(flen, proglen, pass, image);
 
 	if (image) {
-		if (bpf_jit_enable > 1)
-			print_hex_dump(KERN_ERR, "JIT code: ", DUMP_PREFIX_ADDRESS,
-				       16, 1, image, proglen, false);
-
 		bpf_flush_icache(image, image + proglen);
-
 		fp->bpf_func = (void *)image;
 	}
 out:

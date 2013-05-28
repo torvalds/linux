@@ -3,6 +3,7 @@
 /* (C) 1999-2001 Paul `Rusty' Russell
  * (C) 2002-2006 Netfilter Core Team <coreteam@netfilter.org>
  * (C) 2003,2004 USAGI/WIDE Project <http://www.linux-ipv6.org>
+ * (c) 2005-2012 Patrick McHardy <kaber@trash.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -40,7 +41,7 @@ static struct kmem_cache *nf_ct_expect_cachep __read_mostly;
 
 /* nf_conntrack_expect helper functions */
 void nf_ct_unlink_expect_report(struct nf_conntrack_expect *exp,
-				u32 pid, int report)
+				u32 portid, int report)
 {
 	struct nf_conn_help *master_help = nfct_help(exp->master);
 	struct net *net = nf_ct_exp_net(exp);
@@ -54,7 +55,7 @@ void nf_ct_unlink_expect_report(struct nf_conntrack_expect *exp,
 	hlist_del(&exp->lnode);
 	master_help->expecting[exp->class]--;
 
-	nf_ct_expect_event_report(IPEXP_DESTROY, exp, pid, report);
+	nf_ct_expect_event_report(IPEXP_DESTROY, exp, portid, report);
 	nf_ct_expect_put(exp);
 
 	NF_CT_STAT_INC(net, expect_delete);
@@ -412,7 +413,7 @@ out:
 }
 
 int nf_ct_expect_related_report(struct nf_conntrack_expect *expect, 
-				u32 pid, int report)
+				u32 portid, int report)
 {
 	int ret;
 
@@ -425,7 +426,7 @@ int nf_ct_expect_related_report(struct nf_conntrack_expect *expect,
 	if (ret < 0)
 		goto out;
 	spin_unlock_bh(&nf_conntrack_lock);
-	nf_ct_expect_event_report(IPEXP_NEW, expect, pid, report);
+	nf_ct_expect_event_report(IPEXP_NEW, expect, portid, report);
 	return ret;
 out:
 	spin_unlock_bh(&nf_conntrack_lock);

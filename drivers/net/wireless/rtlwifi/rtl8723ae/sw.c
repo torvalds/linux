@@ -305,7 +305,7 @@ static struct rtl_hal_cfg rtl8723ae_hal_cfg = {
 
 	.maps[RTL_IMR_TXFOVW] = PHIMR_TXFOVW,
 	.maps[RTL_IMR_PSTIMEOUT] = PHIMR_PSTIMEOUT,
-	.maps[RTL_IMR_BcnInt] = PHIMR_BCNDMAINT0,
+	.maps[RTL_IMR_BCNINT] = PHIMR_BCNDMAINT0,
 	.maps[RTL_IMR_RXFOVW] = PHIMR_RXFOVW,
 	.maps[RTL_IMR_RDU] = PHIMR_RDU,
 	.maps[RTL_IMR_ATIMEND] = PHIMR_ATIMEND_E,

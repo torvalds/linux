@@ -23,7 +23,7 @@ extern void __iomem *at91_rstc_base;
 	__raw_readl(at91_rstc_base + field)
 
 #define at91_rstc_write(field, value) \
-	__raw_writel(value, at91_rstc_base + field);
+	__raw_writel(value, at91_rstc_base + field)
 #else
 .extern at91_rstc_base
 #endif

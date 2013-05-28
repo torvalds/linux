@@ -114,7 +114,7 @@ void __init replicate_kernel_text()
  * data structures on the first couple of pages of the first slot of each
  * node. If this is the case, getfirstfree(node) > getslotstart(node, 0).
  */
-pfn_t node_getfirstfree(cnodeid_t cnode)
+unsigned long node_getfirstfree(cnodeid_t cnode)
 {
 	unsigned long loadbase = REP_BASE;
 	nasid_t nasid = COMPACT_TO_NASID_NODEID(cnode);

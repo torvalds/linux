@@ -152,7 +152,7 @@ struct clk {
 		},						\
 		.reg = _reg,					\
 		.shift = _shift,				\
-		.width = _width,				\
+		.mask = BIT(_width) - 1,			\
 		.flags = _mux_flags,				\
 		.lock = _lock,					\
 	};							\

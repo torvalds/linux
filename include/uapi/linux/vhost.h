@@ -127,4 +127,32 @@ struct vhost_memory {
 /* vhost-net should add virtio_net_hdr for RX, and strip for TX packets. */
 #define VHOST_NET_F_VIRTIO_NET_HDR 27
 
+/* VHOST_SCSI specific definitions */
+
+/*
+ * Used by QEMU userspace to ensure a consistent vhost-scsi ABI.
+ *
+ * ABI Rev 0: July 2012 version starting point for v3.6-rc merge candidate +
+ *            RFC-v2 vhost-scsi userspace.  Add GET_ABI_VERSION ioctl usage
+ * ABI Rev 1: January 2013. Ignore vhost_tpgt filed in struct vhost_scsi_target.
+ *            All the targets under vhost_wwpn can be seen and used by guset.
+ */
+
+#define VHOST_SCSI_ABI_VERSION	1
+
+struct vhost_scsi_target {
+	int abi_version;
+	char vhost_wwpn[224]; /* TRANSPORT_IQN_LEN */
+	unsigned short vhost_tpgt;
+	unsigned short reserved;
+};
+
+#define VHOST_SCSI_SET_ENDPOINT _IOW(VHOST_VIRTIO, 0x40, struct vhost_scsi_target)
+#define VHOST_SCSI_CLEAR_ENDPOINT _IOW(VHOST_VIRTIO, 0x41, struct vhost_scsi_target)
+/* Changing this breaks userspace. */
+#define VHOST_SCSI_GET_ABI_VERSION _IOW(VHOST_VIRTIO, 0x42, int)
+/* Set and get the events missed flag */
+#define VHOST_SCSI_SET_EVENTS_MISSED _IOW(VHOST_VIRTIO, 0x43, __u32)
+#define VHOST_SCSI_GET_EVENTS_MISSED _IOW(VHOST_VIRTIO, 0x44, __u32)
+
 #endif

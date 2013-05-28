@@ -52,14 +52,11 @@ config HOTPLUG_PCI_IBM
 	  When in doubt, say N.
 
 config HOTPLUG_PCI_ACPI
-	tristate "ACPI PCI Hotplug driver"
-	depends on (!ACPI_DOCK && ACPI) || (ACPI_DOCK)
+	bool "ACPI PCI Hotplug driver"
+	depends on HOTPLUG_PCI=y && ((!ACPI_DOCK && ACPI) || (ACPI_DOCK))
 	help
 	  Say Y here if you have a system that supports PCI Hotplug using
 	  ACPI.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called acpiphp.
 
 	  When in doubt, say N.
 

@@ -1599,98 +1599,98 @@ static int i2o_seq_show_sensors(struct seq_file *seq, void *v)
 
 static int i2o_seq_open_hrt(struct inode *inode, struct file *file)
 {
-	return single_open(file, i2o_seq_show_hrt, PDE(inode)->data);
+	return single_open(file, i2o_seq_show_hrt, PDE_DATA(inode));
 };
 
 static int i2o_seq_open_lct(struct inode *inode, struct file *file)
 {
-	return single_open(file, i2o_seq_show_lct, PDE(inode)->data);
+	return single_open(file, i2o_seq_show_lct, PDE_DATA(inode));
 };
 
 static int i2o_seq_open_status(struct inode *inode, struct file *file)
 {
-	return single_open(file, i2o_seq_show_status, PDE(inode)->data);
+	return single_open(file, i2o_seq_show_status, PDE_DATA(inode));
 };
 
 static int i2o_seq_open_hw(struct inode *inode, struct file *file)
 {
-	return single_open(file, i2o_seq_show_hw, PDE(inode)->data);
+	return single_open(file, i2o_seq_show_hw, PDE_DATA(inode));
 };
 
 static int i2o_seq_open_ddm_table(struct inode *inode, struct file *file)
 {
-	return single_open(file, i2o_seq_show_ddm_table, PDE(inode)->data);
+	return single_open(file, i2o_seq_show_ddm_table, PDE_DATA(inode));
 };
 
 static int i2o_seq_open_driver_store(struct inode *inode, struct file *file)
 {
-	return single_open(file, i2o_seq_show_driver_store, PDE(inode)->data);
+	return single_open(file, i2o_seq_show_driver_store, PDE_DATA(inode));
 };
 
 static int i2o_seq_open_drivers_stored(struct inode *inode, struct file *file)
 {
-	return single_open(file, i2o_seq_show_drivers_stored, PDE(inode)->data);
+	return single_open(file, i2o_seq_show_drivers_stored, PDE_DATA(inode));
 };
 
 static int i2o_seq_open_groups(struct inode *inode, struct file *file)
 {
-	return single_open(file, i2o_seq_show_groups, PDE(inode)->data);
+	return single_open(file, i2o_seq_show_groups, PDE_DATA(inode));
 };
 
 static int i2o_seq_open_phys_device(struct inode *inode, struct file *file)
 {
-	return single_open(file, i2o_seq_show_phys_device, PDE(inode)->data);
+	return single_open(file, i2o_seq_show_phys_device, PDE_DATA(inode));
 };
 
 static int i2o_seq_open_claimed(struct inode *inode, struct file *file)
 {
-	return single_open(file, i2o_seq_show_claimed, PDE(inode)->data);
+	return single_open(file, i2o_seq_show_claimed, PDE_DATA(inode));
 };
 
 static int i2o_seq_open_users(struct inode *inode, struct file *file)
 {
-	return single_open(file, i2o_seq_show_users, PDE(inode)->data);
+	return single_open(file, i2o_seq_show_users, PDE_DATA(inode));
 };
 
 static int i2o_seq_open_priv_msgs(struct inode *inode, struct file *file)
 {
-	return single_open(file, i2o_seq_show_priv_msgs, PDE(inode)->data);
+	return single_open(file, i2o_seq_show_priv_msgs, PDE_DATA(inode));
 };
 
 static int i2o_seq_open_authorized_users(struct inode *inode, struct file *file)
 {
 	return single_open(file, i2o_seq_show_authorized_users,
-			   PDE(inode)->data);
+			   PDE_DATA(inode));
 };
 
 static int i2o_seq_open_dev_identity(struct inode *inode, struct file *file)
 {
-	return single_open(file, i2o_seq_show_dev_identity, PDE(inode)->data);
+	return single_open(file, i2o_seq_show_dev_identity, PDE_DATA(inode));
 };
 
 static int i2o_seq_open_ddm_identity(struct inode *inode, struct file *file)
 {
-	return single_open(file, i2o_seq_show_ddm_identity, PDE(inode)->data);
+	return single_open(file, i2o_seq_show_ddm_identity, PDE_DATA(inode));
 };
 
 static int i2o_seq_open_uinfo(struct inode *inode, struct file *file)
 {
-	return single_open(file, i2o_seq_show_uinfo, PDE(inode)->data);
+	return single_open(file, i2o_seq_show_uinfo, PDE_DATA(inode));
 };
 
 static int i2o_seq_open_sgl_limits(struct inode *inode, struct file *file)
 {
-	return single_open(file, i2o_seq_show_sgl_limits, PDE(inode)->data);
+	return single_open(file, i2o_seq_show_sgl_limits, PDE_DATA(inode));
 };
 
 static int i2o_seq_open_sensors(struct inode *inode, struct file *file)
 {
-	return single_open(file, i2o_seq_show_sensors, PDE(inode)->data);
+	return single_open(file, i2o_seq_show_sensors, PDE_DATA(inode));
 };
 
 static int i2o_seq_open_dev_name(struct inode *inode, struct file *file)
 {
-	return single_open(file, i2o_seq_show_dev_name, PDE(inode)->data);
+	return single_open(file, i2o_seq_show_dev_name, PDE_DATA(inode));
 };
 
 static const struct file_operations i2o_seq_fops_lct = {
@@ -1895,25 +1895,6 @@ static int i2o_proc_create_entries(struct proc_dir_entry *dir,
 }
 
 /**
- *	i2o_proc_subdir_remove - Remove child entries from a proc entry
- *	@dir: proc dir entry from which the childs should be removed
- *
- *	Iterate over each i2o proc entry under dir and remove it. If the child
- *	also has entries, remove them too.
- */
-static void i2o_proc_subdir_remove(struct proc_dir_entry *dir)
-{
-	struct proc_dir_entry *pe, *tmp;
-	pe = dir->subdir;
-	while (pe) {
-		tmp = pe->next;
-		i2o_proc_subdir_remove(pe);
-		remove_proc_entry(pe->name, dir);
-		pe = tmp;
-	}
-};
-
-/**
  *	i2o_proc_device_add - Add an I2O device to the proc dir
  *	@dir: proc dir entry to which the device should be added
  *	@dev: I2O device which should be added
@@ -1932,13 +1913,11 @@ static void i2o_proc_device_add(struct proc_dir_entry *dir,
 
 	osm_debug("adding device /proc/i2o/%s/%s\n", dev->iop->name, buff);
 
-	devdir = proc_mkdir(buff, dir);
+	devdir = proc_mkdir_data(buff, 0, dir, dev);
 	if (!devdir) {
 		osm_warn("Could not allocate procdir!\n");
 		return;
 	}
-
-	devdir->data = dev;
 
 	i2o_proc_create_entries(devdir, generic_dev_entries, dev);
 
@@ -1973,11 +1952,9 @@ static int i2o_proc_iop_add(struct proc_dir_entry *dir,
 
 	osm_debug("adding IOP /proc/i2o/%s\n", c->name);
 
-	iopdir = proc_mkdir(c->name, dir);
+	iopdir = proc_mkdir_data(c->name, 0, dir, c);
 	if (!iopdir)
 		return -1;
-
-	iopdir->data = c;
 
 	i2o_proc_create_entries(iopdir, i2o_proc_generic_iop_entries, c);
 
@@ -1985,31 +1962,6 @@ static int i2o_proc_iop_add(struct proc_dir_entry *dir,
 	    i2o_proc_device_add(iopdir, dev);
 
 	return 0;
-}
-
-/**
- *	i2o_proc_iop_remove - Removes an I2O controller from the i2o proc tree
- *	@dir: parent proc dir entry
- *	@c: I2O controller which should be removed
- *
- *	Iterate over each i2o proc entry and search controller c. If it is found
- *	remove it from the tree.
- */
-static void i2o_proc_iop_remove(struct proc_dir_entry *dir,
-				struct i2o_controller *c)
-{
-	struct proc_dir_entry *pe, *tmp;
-
-	pe = dir->subdir;
-	while (pe) {
-		tmp = pe->next;
-		if (pe->data == c) {
-			i2o_proc_subdir_remove(pe);
-			remove_proc_entry(pe->name, dir);
-		}
-		osm_debug("removing IOP /proc/i2o/%s\n", c->name);
-		pe = tmp;
-	}
 }
 
 /**
@@ -2042,12 +1994,7 @@ static int __init i2o_proc_fs_create(void)
  */
 static int __exit i2o_proc_fs_destroy(void)
 {
-	struct i2o_controller *c;
-
-	list_for_each_entry(c, &i2o_controllers, list)
-	    i2o_proc_iop_remove(i2o_proc_dir_root, c);
-
-	remove_proc_entry("i2o", NULL);
+	remove_proc_subtree("i2o", NULL);
 
 	return 0;
 };

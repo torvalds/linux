@@ -169,7 +169,7 @@ static int generic_probe(struct usb_device *udev)
 		c = usb_choose_configuration(udev);
 		if (c >= 0) {
 			err = usb_set_configuration(udev, c);
-			if (err) {
+			if (err && err != -ENODEV) {
 				dev_err(&udev->dev, "can't set config #%d, error %d\n",
 					c, err);
 				/* This need not be fatal.  The user can try to

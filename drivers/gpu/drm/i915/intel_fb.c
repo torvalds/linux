@@ -150,7 +150,8 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	}
 	info->screen_size = size;
 
-//	memset(info->screen_base, 0, size);
+	/* This driver doesn't need a VT switch to restore the mode on resume */
+	info->skip_vt_switch = true;
 
 	drm_fb_helper_fill_fix(info, fb->pitches[0], fb->depth);
 	drm_fb_helper_fill_var(info, &ifbdev->helper, sizes->fb_width, sizes->fb_height);
@@ -227,7 +228,7 @@ int intel_fbdev_init(struct drm_device *dev)
 	ifbdev->helper.funcs = &intel_fb_helper_funcs;
 
 	ret = drm_fb_helper_init(dev, &ifbdev->helper,
-				 dev_priv->num_pipe,
+				 INTEL_INFO(dev)->num_pipes,
 				 INTELFB_CONN_LIMIT);
 	if (ret) {
 		kfree(ifbdev);
@@ -261,10 +262,22 @@ void intel_fbdev_fini(struct drm_device *dev)
 void intel_fbdev_set_suspend(struct drm_device *dev, int state)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	if (!dev_priv->fbdev)
+	struct intel_fbdev *ifbdev = dev_priv->fbdev;
+	struct fb_info *info;
+
+	if (!ifbdev)
 		return;
 
-	fb_set_suspend(dev_priv->fbdev->helper.fbdev, state);
+	info = ifbdev->helper.fbdev;
+
+	/* On resume from hibernation: If the object is shmemfs backed, it has
+	 * been restored from swap. If the object is stolen however, it will be
+	 * full of whatever garbage was left in there.
+	 */
+	if (!state && ifbdev->ifb.obj->stolen)
+		memset_io(info->screen_base, 0, info->screen_size);
+
+	fb_set_suspend(info, state);
 }
 
 MODULE_LICENSE("GPL and additional rights");
@@ -281,6 +294,9 @@ void intel_fb_restore_mode(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_mode_config *config = &dev->mode_config;
 	struct drm_plane *plane;
+
+	if (INTEL_INFO(dev)->num_pipes == 0)
+		return;
 
 	drm_modeset_lock_all(dev);
 

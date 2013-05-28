@@ -1084,6 +1084,10 @@ static void mxser_close(struct tty_struct *tty, struct file *filp)
 	mutex_lock(&port->mutex);
 	mxser_close_port(port);
 	mxser_flush_buffer(tty);
+	if (test_bit(ASYNCB_INITIALIZED, &port->flags)) {
+		if (C_HUPCL(tty))
+			tty_port_lower_dtr_rts(port);
+	}
 	mxser_shutdown_port(port);
 	clear_bit(ASYNCB_INITIALIZED, &port->flags);
 	mutex_unlock(&port->mutex);
@@ -1614,8 +1618,12 @@ static int mxser_ioctl_special(unsigned int cmd, void __user *argp)
 				if (ip->type == PORT_16550A)
 					me->fifo[p] = 1;
 
-				opmode = inb(ip->opmode_ioaddr)>>((p % 4) * 2);
-				opmode &= OP_MODE_MASK;
+				if (ip->board->chip_flag == MOXA_MUST_MU860_HWID) {
+					opmode = inb(ip->opmode_ioaddr)>>((p % 4) * 2);
+					opmode &= OP_MODE_MASK;
+				} else {
+					opmode = RS232_MODE;
+				}
 				me->iftype[p] = opmode;
 				mutex_unlock(&port->mutex);
 			}
@@ -1671,6 +1679,9 @@ static int mxser_ioctl(struct tty_struct *tty,
 		static unsigned char ModeMask[] = { 0xfc, 0xf3, 0xcf, 0x3f };
 		int shiftbit;
 		unsigned char val, mask;
+
+		if (info->board->chip_flag != MOXA_MUST_MU860_HWID)
+			return -EFAULT;
 
 		p = tty->index % 4;
 		if (cmd == MOXA_SET_OP_MODE) {
@@ -2643,9 +2654,9 @@ static int mxser_probe(struct pci_dev *pdev,
 				mxvar_sdriver, brd->idx + i, &pdev->dev);
 		if (IS_ERR(tty_dev)) {
 			retval = PTR_ERR(tty_dev);
-			for (i--; i >= 0; i--)
+			for (; i > 0; i--)
 				tty_unregister_device(mxvar_sdriver,
-					brd->idx + i);
+					brd->idx + i - 1);
 			goto err_relbrd;
 		}
 	}
@@ -2751,9 +2762,9 @@ static int __init mxser_module_init(void)
 			tty_dev = tty_port_register_device(&brd->ports[i].port,
 					mxvar_sdriver, brd->idx + i, NULL);
 			if (IS_ERR(tty_dev)) {
-				for (i--; i >= 0; i--)
+				for (; i > 0; i--)
 					tty_unregister_device(mxvar_sdriver,
-						brd->idx + i);
+						brd->idx + i - 1);
 				for (i = 0; i < brd->info->nports; i++)
 					tty_port_destroy(&brd->ports[i].port);
 				free_irq(brd->irq, brd);

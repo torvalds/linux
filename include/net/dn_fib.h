@@ -1,24 +1,9 @@
 #ifndef _NET_DN_FIB_H
 #define _NET_DN_FIB_H
 
-/* WARNING: The ordering of these elements must match ordering
- *          of RTA_* rtnetlink attribute numbers.
- */
-struct dn_kern_rta {
-        void            *rta_dst;
-        void            *rta_src;
-        int             *rta_iif;
-        int             *rta_oif;
-        void            *rta_gw;
-        u32             *rta_priority;
-        void            *rta_prefsrc;
-        struct rtattr   *rta_mx;
-        struct rtattr   *rta_mp;
-        unsigned char   *rta_protoinfo;
-        u32             *rta_flow;
-        struct rta_cacheinfo *rta_ci;
-	struct rta_session *rta_sess;
-};
+#include <linux/netlink.h>
+
+extern const struct nla_policy rtm_dn_policy[];
 
 struct dn_fib_res {
 	struct fib_rule *r;
@@ -93,10 +78,10 @@ struct dn_fib_table {
 	u32 n;
 
 	int (*insert)(struct dn_fib_table *t, struct rtmsg *r, 
-			struct dn_kern_rta *rta, struct nlmsghdr *n, 
+			struct nlattr *attrs[], struct nlmsghdr *n,
 			struct netlink_skb_parms *req);
 	int (*delete)(struct dn_fib_table *t, struct rtmsg *r,
-			struct dn_kern_rta *rta, struct nlmsghdr *n,
+			struct nlattr *attrs[], struct nlmsghdr *n,
 			struct netlink_skb_parms *req);
 	int (*lookup)(struct dn_fib_table *t, const struct flowidn *fld,
 			struct dn_fib_res *res);
@@ -116,13 +101,12 @@ extern void dn_fib_cleanup(void);
 extern int dn_fib_ioctl(struct socket *sock, unsigned int cmd, 
 			unsigned long arg);
 extern struct dn_fib_info *dn_fib_create_info(const struct rtmsg *r, 
-				struct dn_kern_rta *rta, 
+				struct nlattr *attrs[],
 				const struct nlmsghdr *nlh, int *errp);
 extern int dn_fib_semantic_match(int type, struct dn_fib_info *fi, 
 			const struct flowidn *fld,
 			struct dn_fib_res *res);
 extern void dn_fib_release_info(struct dn_fib_info *fi);
-extern __le16 dn_fib_get_attr16(struct rtattr *attr, int attrlen, int type);
 extern void dn_fib_flush(void);
 extern void dn_fib_select_multipath(const struct flowidn *fld,
 					struct dn_fib_res *res);

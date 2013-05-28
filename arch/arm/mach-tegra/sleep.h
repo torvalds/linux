@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2012, NVIDIA Corporation. All rights reserved.
+ * Copyright (c) 2010-2013, NVIDIA Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -92,7 +92,7 @@
 
 #ifdef CONFIG_CACHE_L2X0
 .macro l2_cache_resume, tmp1, tmp2, tmp3, phys_l2x0_saved_regs
-	adr	\tmp1, \phys_l2x0_saved_regs
+	W(adr)	\tmp1, \phys_l2x0_saved_regs
 	ldr	\tmp1, [\tmp1]
 	ldr	\tmp2, [\tmp1, #L2X0_R_PHY_BASE]
 	ldr	\tmp3, [\tmp2, #L2X0_CTRL]
@@ -124,11 +124,11 @@ int tegra_sleep_cpu_finish(unsigned long);
 void tegra_disable_clean_inv_dcache(void);
 
 #ifdef CONFIG_HOTPLUG_CPU
-void tegra20_hotplug_init(void);
-void tegra30_hotplug_init(void);
+void tegra20_hotplug_shutdown(void);
+void tegra30_hotplug_shutdown(void);
+void tegra_hotplug_init(void);
 #else
-static inline void tegra20_hotplug_init(void) {}
-static inline void tegra30_hotplug_init(void) {}
+static inline void tegra_hotplug_init(void) {}
 #endif
 
 void tegra20_cpu_shutdown(int cpu);

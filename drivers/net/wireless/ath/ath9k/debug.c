@@ -537,6 +537,7 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 	PR("AMPDUs Completed:", a_completed);
 	PR("AMPDUs Retried:  ", a_retries);
 	PR("AMPDUs XRetried: ", a_xretries);
+	PR("TXERR Filtered:  ", txerr_filtered);
 	PR("FIFO Underrun:   ", fifo_underrun);
 	PR("TXOP Exceeded:   ", xtxop);
 	PR("TXTIMER Expiry:  ", timer_exp);
@@ -756,6 +757,8 @@ void ath_debug_stat_tx(struct ath_softc *sc, struct ath_buf *bf,
 			TX_STAT_INC(qnum, completed);
 	}
 
+	if (ts->ts_status & ATH9K_TXERR_FILT)
+		TX_STAT_INC(qnum, txerr_filtered);
 	if (ts->ts_status & ATH9K_TXERR_FIFO)
 		TX_STAT_INC(qnum, fifo_underrun);
 	if (ts->ts_status & ATH9K_TXERR_XTXOP)
@@ -1909,6 +1912,7 @@ static const char ath9k_gstrings_stats[][ETH_GSTRING_LEN] = {
 	AMKSTR(d_tx_desc_cfg_err),
 	AMKSTR(d_tx_data_underrun),
 	AMKSTR(d_tx_delim_underrun),
+	"d_rx_crc_err",
 	"d_rx_decrypt_crc_err",
 	"d_rx_phy_err",
 	"d_rx_mic_err",
@@ -1989,6 +1993,7 @@ void ath9k_get_et_stats(struct ieee80211_hw *hw,
 	AWDATA(data_underrun);
 	AWDATA(delim_underrun);
 
+	AWDATA_RX(crc_err);
 	AWDATA_RX(decrypt_crc_err);
 	AWDATA_RX(phy_err);
 	AWDATA_RX(mic_err);
@@ -2001,6 +2006,14 @@ void ath9k_get_et_stats(struct ieee80211_hw *hw,
 	AWDATA_RX(phy_err_stats[ATH9K_PHYERR_CCK_TIMING]);
 
 	WARN_ON(i != ATH9K_SSTATS_LEN);
+}
+
+void ath9k_deinit_debug(struct ath_softc *sc)
+{
+	if (config_enabled(CONFIG_ATH9K_DEBUGFS) && sc->rfs_chan_spec_scan) {
+		relay_close(sc->rfs_chan_spec_scan);
+		sc->rfs_chan_spec_scan = NULL;
+	}
 }
 
 int ath9k_init_debug(struct ath_hw *ah)
@@ -2067,7 +2080,7 @@ int ath9k_init_debug(struct ath_hw *ah)
 			    &fops_modal_eeprom);
 	sc->rfs_chan_spec_scan = relay_open("spectral_scan",
 					    sc->debug.debugfs_phy,
-					    262144, 4, &rfs_spec_scan_cb,
+					    1024, 256, &rfs_spec_scan_cb,
 					    NULL);
 	debugfs_create_file("spectral_scan_ctl", S_IRUSR | S_IWUSR,
 			    sc->debug.debugfs_phy, sc,

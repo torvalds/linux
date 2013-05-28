@@ -13,10 +13,6 @@ config DVB_USB_V2
 
 	  Say Y if you own a USB DVB device.
 
-config DVB_USB_CYPRESS_FIRMWARE
-	tristate "Cypress firmware helper routines"
-	depends on DVB_USB_V2
-
 config DVB_USB_AF9015
 	tristate "Afatech AF9015 DVB-T USB2.0 support"
 	depends on DVB_USB_V2
@@ -41,6 +37,7 @@ config DVB_USB_AF9035
 	select MEDIA_TUNER_MXL5007T if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_TDA18218 if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_FC2580 if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_IT913X if MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Say Y here to support the Afatech AF9035 based DVB USB receiver.
 
@@ -72,7 +69,7 @@ config DVB_USB_AU6610
 config DVB_USB_AZ6007
 	tristate "AzureWave 6007 and clones DVB-T/C USB2.0 support"
 	depends on DVB_USB_V2
-	select DVB_USB_CYPRESS_FIRMWARE
+	select CYPRESS_FIRMWARE
 	select DVB_DRXK if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_MT2063 if MEDIA_SUBDRV_AUTOSELECT
 	help
@@ -146,6 +143,7 @@ config DVB_USB_RTL28XXU
 	select MEDIA_TUNER_FC0013 if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_E4000 if MEDIA_SUBDRV_AUTOSELECT
 	select MEDIA_TUNER_FC2580 if MEDIA_SUBDRV_AUTOSELECT
+	select MEDIA_TUNER_R820T if MEDIA_SUBDRV_AUTOSELECT
 	help
 	  Say Y here to support the Realtek RTL28xxU DVB USB receiver.
 

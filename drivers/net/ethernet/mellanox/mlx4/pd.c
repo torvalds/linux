@@ -101,7 +101,7 @@ void __mlx4_xrcd_free(struct mlx4_dev *dev, u32 xrcdn)
 
 void mlx4_xrcd_free(struct mlx4_dev *dev, u32 xrcdn)
 {
-	u64 in_param;
+	u64 in_param = 0;
 	int err;
 
 	if (mlx4_is_mfunc(dev)) {

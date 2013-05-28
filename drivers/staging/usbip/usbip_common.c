@@ -389,7 +389,7 @@ int usbip_recv(struct socket *sock, void *buf, int size)
 		pr_debug("receiving....\n");
 		usbip_dump_buffer(bp, osize);
 		pr_debug("received, osize %d ret %d size %d total %d\n",
-			osize, result, size, total);
+			 osize, result, size, total);
 	}
 
 	return total;

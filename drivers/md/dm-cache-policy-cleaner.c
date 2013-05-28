@@ -17,7 +17,6 @@
 /*----------------------------------------------------------------*/
 
 #define DM_MSG_PREFIX "cache cleaner"
-#define CLEANER_VERSION "1.0.0"
 
 /* Cache entry struct. */
 struct wb_cache_entry {
@@ -434,6 +433,7 @@ static struct dm_cache_policy *wb_create(dm_cblock_t cache_size,
 
 static struct dm_cache_policy_type wb_policy_type = {
 	.name = "cleaner",
+	.version = {1, 0, 0},
 	.hint_size = 0,
 	.owner = THIS_MODULE,
 	.create = wb_create
@@ -446,7 +446,10 @@ static int __init wb_init(void)
 	if (r < 0)
 		DMERR("register failed %d", r);
 	else
-		DMINFO("version " CLEANER_VERSION " loaded");
+		DMINFO("version %u.%u.%u loaded",
+		       wb_policy_type.version[0],
+		       wb_policy_type.version[1],
+		       wb_policy_type.version[2]);
 
 	return r;
 }

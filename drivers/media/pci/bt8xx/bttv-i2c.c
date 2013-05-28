@@ -394,3 +394,11 @@ int init_bttv_i2c(struct bttv *btv)
 
 	return btv->i2c_rc;
 }
+
+int fini_bttv_i2c(struct bttv *btv)
+{
+	if (btv->i2c_rc == 0)
+		i2c_del_adapter(&btv->c.i2c_adap);
+
+	return 0;
+}

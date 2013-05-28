@@ -553,7 +553,7 @@ int xway_pinconf_group_set(struct pinctrl_dev *pctldev,
 	return ret;
 }
 
-static struct pinconf_ops xway_pinconf_ops = {
+static const struct pinconf_ops xway_pinconf_ops = {
 	.pin_config_get	= xway_pinconf_get,
 	.pin_config_set	= xway_pinconf_set,
 	.pin_config_group_set = xway_pinconf_group_set,
@@ -716,10 +716,6 @@ static int pinmux_xway_probe(struct platform_device *pdev)
 
 	/* get and remap our register range */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "Failed to get resource\n");
-		return -ENOENT;
-	}
 	xway_info.membase[0] = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(xway_info.membase[0]))
 		return PTR_ERR(xway_info.membase[0]);

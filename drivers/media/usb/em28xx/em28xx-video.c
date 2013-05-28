@@ -52,7 +52,7 @@
 
 #define DRIVER_DESC         "Empia em28xx based USB video device driver"
 
-#define EM28XX_VERSION "0.1.3"
+#define EM28XX_VERSION "0.2.0"
 
 #define em28xx_videodbg(fmt, arg...) do {\
 	if (video_debug) \
@@ -75,6 +75,16 @@ MODULE_AUTHOR(DRIVER_AUTHOR);
 MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_LICENSE("GPL");
 MODULE_VERSION(EM28XX_VERSION);
+
+
+#define EM25XX_FRMDATAHDR_BYTE1			0x02
+#define EM25XX_FRMDATAHDR_BYTE2_STILL_IMAGE	0x20
+#define EM25XX_FRMDATAHDR_BYTE2_FRAME_END	0x02
+#define EM25XX_FRMDATAHDR_BYTE2_FRAME_ID	0x01
+#define EM25XX_FRMDATAHDR_BYTE2_MASK	(EM25XX_FRMDATAHDR_BYTE2_STILL_IMAGE | \
+					 EM25XX_FRMDATAHDR_BYTE2_FRAME_END |   \
+					 EM25XX_FRMDATAHDR_BYTE2_FRAME_ID)
+
 
 static unsigned int video_nr[] = {[0 ... (EM28XX_MAXBOARDS - 1)] = -1U };
 static unsigned int vbi_nr[]   = {[0 ... (EM28XX_MAXBOARDS - 1)] = -1U };
@@ -408,6 +418,62 @@ static inline void process_frame_data_em28xx(struct em28xx *dev,
 		em28xx_copy_video(dev, buf, data_pkt, data_len);
 }
 
+/*
+ * Process data packet according to the em25xx/em276x/7x/8x frame data format
+ */
+static inline void process_frame_data_em25xx(struct em28xx *dev,
+					     unsigned char *data_pkt,
+					     unsigned int  data_len)
+{
+	struct em28xx_buffer    *buf = dev->usb_ctl.vid_buf;
+	struct em28xx_dmaqueue  *dmaq = &dev->vidq;
+	bool frame_end = 0;
+
+	/* Check for header */
+	/* NOTE: at least with bulk transfers, only the first packet
+	 * has a header and has always set the FRAME_END bit         */
+	if (data_len >= 2) {	/* em25xx header is only 2 bytes long */
+		if ((data_pkt[0] == EM25XX_FRMDATAHDR_BYTE1) &&
+		    ((data_pkt[1] & ~EM25XX_FRMDATAHDR_BYTE2_MASK) == 0x00)) {
+			dev->top_field = !(data_pkt[1] &
+					   EM25XX_FRMDATAHDR_BYTE2_FRAME_ID);
+			frame_end = data_pkt[1] &
+				    EM25XX_FRMDATAHDR_BYTE2_FRAME_END;
+			data_pkt += 2;
+			data_len -= 2;
+		}
+
+		/* Finish field and prepare next (BULK only) */
+		if (dev->analog_xfer_bulk && frame_end) {
+			buf = finish_field_prepare_next(dev, buf, dmaq);
+			dev->usb_ctl.vid_buf = buf;
+		}
+		/* NOTE: in ISOC mode when a new frame starts and buf==NULL,
+		 * we COULD already prepare a buffer here to avoid skipping the
+		 * first frame.
+		 */
+	}
+
+	/* Copy data */
+	if (buf != NULL && data_len > 0)
+		em28xx_copy_video(dev, buf, data_pkt, data_len);
+
+	/* Finish frame (ISOC only) => avoids lag of 1 frame */
+	if (!dev->analog_xfer_bulk && frame_end) {
+		buf = finish_field_prepare_next(dev, buf, dmaq);
+		dev->usb_ctl.vid_buf = buf;
+	}
+
+	/* NOTE: Tested with USB bulk transfers only !
+	 * The wording in the datasheet suggests that isoc might work different.
+	 * The current code assumes that with isoc transfers each packet has a
+	 * header like with the other em28xx devices.
+	 */
+	/* NOTE: Support for interlaced mode is pure theory. It has not been
+	 * tested and it is unknown if these devices actually support it. */
+	/* NOTE: No VBI support yet (these chips likely do not support VBI). */
+}
+
 /* Processes and copies the URB data content (video and VBI data) */
 static inline int em28xx_urb_data_copy(struct em28xx *dev, struct urb *urb)
 {
@@ -460,7 +526,13 @@ static inline int em28xx_urb_data_copy(struct em28xx *dev, struct urb *urb)
 			continue;
 		}
 
-		process_frame_data_em28xx(dev, usb_data_pkt, usb_data_len);
+		if (dev->is_em25xx)
+			process_frame_data_em25xx(dev,
+						  usb_data_pkt, usb_data_len);
+		else
+			process_frame_data_em28xx(dev,
+						  usb_data_pkt, usb_data_len);
+
 	}
 	return 1;
 }
@@ -700,6 +772,7 @@ int em28xx_vb2_setup(struct em28xx *dev)
 	q = &dev->vb_vidq;
 	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
 	q->io_modes = VB2_READ | VB2_MMAP | VB2_USERPTR | VB2_DMABUF;
+	q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->drv_priv = dev;
 	q->buf_struct_size = sizeof(struct em28xx_buffer);
 	q->ops = &em28xx_video_qops;
@@ -713,6 +786,7 @@ int em28xx_vb2_setup(struct em28xx *dev)
 	q = &dev->vb_vbiq;
 	q->type = V4L2_BUF_TYPE_VBI_CAPTURE;
 	q->io_modes = VB2_READ | VB2_MMAP | VB2_USERPTR;
+	q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	q->drv_priv = dev;
 	q->buf_struct_size = sizeof(struct em28xx_buffer);
 	q->ops = &em28xx_vbi_qops;
@@ -782,33 +856,45 @@ void em28xx_ctrl_notify(struct v4l2_ctrl *ctrl, void *priv)
 static int em28xx_s_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct em28xx *dev = container_of(ctrl->handler, struct em28xx, ctrl_handler);
+	int ret = -EINVAL;
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
 		dev->mute = ctrl->val;
+		ret = em28xx_audio_analog_set(dev);
 		break;
 	case V4L2_CID_AUDIO_VOLUME:
 		dev->volume = ctrl->val;
+		ret = em28xx_audio_analog_set(dev);
+		break;
+	case V4L2_CID_CONTRAST:
+		ret = em28xx_write_reg(dev, EM28XX_R20_YGAIN, ctrl->val);
+		break;
+	case V4L2_CID_BRIGHTNESS:
+		ret = em28xx_write_reg(dev, EM28XX_R21_YOFFSET, ctrl->val);
+		break;
+	case V4L2_CID_SATURATION:
+		ret = em28xx_write_reg(dev, EM28XX_R22_UVGAIN, ctrl->val);
+		break;
+	case V4L2_CID_BLUE_BALANCE:
+		ret = em28xx_write_reg(dev, EM28XX_R23_UOFFSET, ctrl->val);
+		break;
+	case V4L2_CID_RED_BALANCE:
+		ret = em28xx_write_reg(dev, EM28XX_R24_VOFFSET, ctrl->val);
+		break;
+	case V4L2_CID_SHARPNESS:
+		ret = em28xx_write_reg(dev, EM28XX_R25_SHARPNESS, ctrl->val);
 		break;
 	}
 
-	return em28xx_audio_analog_set(dev);
+	return (ret < 0) ? ret : 0;
 }
 
 const struct v4l2_ctrl_ops em28xx_ctrl_ops = {
 	.s_ctrl = em28xx_s_ctrl,
 };
 
-static int check_dev(struct em28xx *dev)
-{
-	if (dev->disconnected) {
-		em28xx_errdev("v4l2 ioctl: device not present\n");
-		return -ENODEV;
-	}
-	return 0;
-}
-
-static void get_scale(struct em28xx *dev,
+static void size_to_scale(struct em28xx *dev,
 			unsigned int width, unsigned int height,
 			unsigned int *hscale, unsigned int *vscale)
 {
@@ -816,12 +902,23 @@ static void get_scale(struct em28xx *dev,
 	unsigned int          maxh = norm_maxh(dev);
 
 	*hscale = (((unsigned long)maxw) << 12) / width - 4096L;
-	if (*hscale >= 0x4000)
-		*hscale = 0x3fff;
+	if (*hscale > EM28XX_HVSCALE_MAX)
+		*hscale = EM28XX_HVSCALE_MAX;
 
 	*vscale = (((unsigned long)maxh) << 12) / height - 4096L;
-	if (*vscale >= 0x4000)
-		*vscale = 0x3fff;
+	if (*vscale > EM28XX_HVSCALE_MAX)
+		*vscale = EM28XX_HVSCALE_MAX;
+}
+
+static void scale_to_size(struct em28xx *dev,
+			  unsigned int hscale, unsigned int vscale,
+			  unsigned int *width, unsigned int *height)
+{
+	unsigned int          maxw = norm_maxw(dev);
+	unsigned int          maxh = norm_maxh(dev);
+
+	*width = (((unsigned long)maxw) << 12) / (hscale + 4096L);
+	*height = (((unsigned long)maxh) << 12) / (vscale + 4096L);
 }
 
 /* ------------------------------------------------------------------
@@ -898,10 +995,8 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 				      1, 0);
 	}
 
-	get_scale(dev, width, height, &hscale, &vscale);
-
-	width = (((unsigned long)maxw) << 12) / (hscale + 4096L);
-	height = (((unsigned long)maxh) << 12) / (vscale + 4096L);
+	size_to_scale(dev, width, height, &hscale, &vscale);
+	scale_to_size(dev, hscale, vscale, &width, &height);
 
 	f->fmt.pix.width = width;
 	f->fmt.pix.height = height;
@@ -932,7 +1027,7 @@ static int em28xx_set_video_format(struct em28xx *dev, unsigned int fourcc,
 	dev->height = height;
 
 	/* set new image size */
-	get_scale(dev, dev->width, dev->height, &dev->hscale, &dev->vscale);
+	size_to_scale(dev, dev->width, dev->height, &dev->hscale, &dev->vscale);
 
 	em28xx_resolution_set(dev);
 
@@ -957,13 +1052,6 @@ static int vidioc_g_std(struct file *file, void *priv, v4l2_std_id *norm)
 {
 	struct em28xx_fh   *fh  = priv;
 	struct em28xx      *dev = fh->dev;
-	int                rc;
-
-	if (dev->board.is_webcam)
-		return -ENOTTY;
-	rc = check_dev(dev);
-	if (rc < 0)
-		return rc;
 
 	*norm = dev->norm;
 
@@ -974,48 +1062,35 @@ static int vidioc_querystd(struct file *file, void *priv, v4l2_std_id *norm)
 {
 	struct em28xx_fh   *fh  = priv;
 	struct em28xx      *dev = fh->dev;
-	int                rc;
-
-	if (dev->board.is_webcam)
-		return -ENOTTY;
-	rc = check_dev(dev);
-	if (rc < 0)
-		return rc;
 
 	v4l2_device_call_all(&dev->v4l2_dev, 0, video, querystd, norm);
 
 	return 0;
 }
 
-static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *norm)
+static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id norm)
 {
 	struct em28xx_fh   *fh  = priv;
 	struct em28xx      *dev = fh->dev;
 	struct v4l2_format f;
-	int                rc;
 
-	if (dev->board.is_webcam)
-		return -ENOTTY;
-	if (*norm == dev->norm)
+	if (norm == dev->norm)
 		return 0;
-	rc = check_dev(dev);
-	if (rc < 0)
-		return rc;
 
 	if (dev->streaming_users > 0)
 		return -EBUSY;
 
-	dev->norm = *norm;
+	dev->norm = norm;
 
 	/* Adjusts width/height, if needed */
 	f.fmt.pix.width = 720;
-	f.fmt.pix.height = (*norm & V4L2_STD_525_60) ? 480 : 576;
+	f.fmt.pix.height = (norm & V4L2_STD_525_60) ? 480 : 576;
 	vidioc_try_fmt_vid_cap(file, priv, &f);
 
 	/* set new image size */
 	dev->width = f.fmt.pix.width;
 	dev->height = f.fmt.pix.height;
-	get_scale(dev, dev->width, dev->height, &dev->hscale, &dev->vscale);
+	size_to_scale(dev, dev->width, dev->height, &dev->hscale, &dev->vscale);
 
 	em28xx_resolution_set(dev);
 	v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_std, dev->norm);
@@ -1029,9 +1104,6 @@ static int vidioc_g_parm(struct file *file, void *priv,
 	struct em28xx_fh   *fh  = priv;
 	struct em28xx      *dev = fh->dev;
 	int rc = 0;
-
-	if (p->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
 
 	p->parm.capture.readbuffers = EM28XX_MIN_BUF;
 	if (dev->board.is_webcam)
@@ -1049,12 +1121,6 @@ static int vidioc_s_parm(struct file *file, void *priv,
 {
 	struct em28xx_fh   *fh  = priv;
 	struct em28xx      *dev = fh->dev;
-
-	if (!dev->board.is_webcam)
-		return -ENOTTY;
-
-	if (p->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
 
 	p->parm.capture.readbuffers = EM28XX_MIN_BUF;
 	return v4l2_device_call_until_err(&dev->v4l2_dev, 0, video, s_parm, p);
@@ -1116,11 +1182,6 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 {
 	struct em28xx_fh   *fh  = priv;
 	struct em28xx      *dev = fh->dev;
-	int                rc;
-
-	rc = check_dev(dev);
-	if (rc < 0)
-		return rc;
 
 	if (i >= MAX_EM28XX_INPUT)
 		return -EINVAL;
@@ -1135,9 +1196,6 @@ static int vidioc_g_audio(struct file *file, void *priv, struct v4l2_audio *a)
 {
 	struct em28xx_fh   *fh    = priv;
 	struct em28xx      *dev   = fh->dev;
-
-	if (!dev->audio_mode.has_audio)
-		return -EINVAL;
 
 	switch (a->index) {
 	case EM28XX_AMUX_VIDEO:
@@ -1179,10 +1237,6 @@ static int vidioc_s_audio(struct file *file, void *priv, const struct v4l2_audio
 	struct em28xx_fh   *fh  = priv;
 	struct em28xx      *dev = fh->dev;
 
-
-	if (!dev->audio_mode.has_audio)
-		return -EINVAL;
-
 	if (a->index >= MAX_EM28XX_INPUT)
 		return -EINVAL;
 	if (0 == INPUT(a->index)->type)
@@ -1202,11 +1256,6 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 {
 	struct em28xx_fh      *fh  = priv;
 	struct em28xx         *dev = fh->dev;
-	int                   rc;
-
-	rc = check_dev(dev);
-	if (rc < 0)
-		return rc;
 
 	if (0 != t->index)
 		return -EINVAL;
@@ -1218,15 +1267,10 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 }
 
 static int vidioc_s_tuner(struct file *file, void *priv,
-				struct v4l2_tuner *t)
+				const struct v4l2_tuner *t)
 {
 	struct em28xx_fh      *fh  = priv;
 	struct em28xx         *dev = fh->dev;
-	int                   rc;
-
-	rc = check_dev(dev);
-	if (rc < 0)
-		return rc;
 
 	if (0 != t->index)
 		return -EINVAL;
@@ -1249,27 +1293,60 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 }
 
 static int vidioc_s_frequency(struct file *file, void *priv,
-				struct v4l2_frequency *f)
+				const struct v4l2_frequency *f)
 {
+	struct v4l2_frequency new_freq = *f;
 	struct em28xx_fh      *fh  = priv;
 	struct em28xx         *dev = fh->dev;
-	int                   rc;
-
-	rc = check_dev(dev);
-	if (rc < 0)
-		return rc;
 
 	if (0 != f->tuner)
 		return -EINVAL;
 
 	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, s_frequency, f);
-	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, g_frequency, f);
-	dev->ctl_freq = f->frequency;
+	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, g_frequency, &new_freq);
+	dev->ctl_freq = new_freq.frequency;
+
+	return 0;
+}
+
+static int vidioc_g_chip_ident(struct file *file, void *priv,
+	       struct v4l2_dbg_chip_ident *chip)
+{
+	struct em28xx_fh      *fh  = priv;
+	struct em28xx         *dev = fh->dev;
+
+	chip->ident = V4L2_IDENT_NONE;
+	chip->revision = 0;
+	if (chip->match.type == V4L2_CHIP_MATCH_BRIDGE) {
+		if (chip->match.addr > 1)
+			return -EINVAL;
+		return 0;
+	}
+	if (chip->match.type != V4L2_CHIP_MATCH_I2C_DRIVER &&
+	    chip->match.type != V4L2_CHIP_MATCH_I2C_ADDR)
+		return -EINVAL;
+
+	v4l2_device_call_all(&dev->v4l2_dev, 0, core, g_chip_ident, chip);
 
 	return 0;
 }
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
+static int vidioc_g_chip_info(struct file *file, void *priv,
+	       struct v4l2_dbg_chip_info *chip)
+{
+	struct em28xx_fh      *fh  = priv;
+	struct em28xx         *dev = fh->dev;
+
+	if (chip->match.addr > 1)
+		return -EINVAL;
+	if (chip->match.addr == 1)
+		strlcpy(chip->name, "ac97", sizeof(chip->name));
+	else
+		strlcpy(chip->name, dev->v4l2_dev.name, sizeof(chip->name));
+	return 0;
+}
+
 static int em28xx_reg_len(int reg)
 {
 	switch (reg) {
@@ -1282,29 +1359,6 @@ static int em28xx_reg_len(int reg)
 	}
 }
 
-static int vidioc_g_chip_ident(struct file *file, void *priv,
-	       struct v4l2_dbg_chip_ident *chip)
-{
-	struct em28xx_fh      *fh  = priv;
-	struct em28xx         *dev = fh->dev;
-
-	chip->ident = V4L2_IDENT_NONE;
-	chip->revision = 0;
-	if (chip->match.type == V4L2_CHIP_MATCH_HOST) {
-		if (v4l2_chip_match_host(&chip->match))
-			chip->ident = V4L2_IDENT_NONE;
-		return 0;
-	}
-	if (chip->match.type != V4L2_CHIP_MATCH_I2C_DRIVER &&
-	    chip->match.type != V4L2_CHIP_MATCH_I2C_ADDR)
-		return -EINVAL;
-
-	v4l2_device_call_all(&dev->v4l2_dev, 0, core, g_chip_ident, chip);
-
-	return 0;
-}
-
-
 static int vidioc_g_register(struct file *file, void *priv,
 			     struct v4l2_dbg_register *reg)
 {
@@ -1313,6 +1367,12 @@ static int vidioc_g_register(struct file *file, void *priv,
 	int ret;
 
 	switch (reg->match.type) {
+	case V4L2_CHIP_MATCH_BRIDGE:
+		if (reg->match.addr > 1)
+			return -EINVAL;
+		if (!reg->match.addr)
+			break;
+		/* fall-through */
 	case V4L2_CHIP_MATCH_AC97:
 		ret = em28xx_read_ac97(dev, reg->reg);
 		if (ret < 0)
@@ -1329,8 +1389,7 @@ static int vidioc_g_register(struct file *file, void *priv,
 		v4l2_device_call_all(&dev->v4l2_dev, 0, core, g_register, reg);
 		return 0;
 	default:
-		if (!v4l2_chip_match_host(&reg->match))
-			return -EINVAL;
+		return -EINVAL;
 	}
 
 	/* Match host */
@@ -1356,13 +1415,19 @@ static int vidioc_g_register(struct file *file, void *priv,
 }
 
 static int vidioc_s_register(struct file *file, void *priv,
-			     struct v4l2_dbg_register *reg)
+			     const struct v4l2_dbg_register *reg)
 {
 	struct em28xx_fh      *fh  = priv;
 	struct em28xx         *dev = fh->dev;
 	__le16 buf;
 
 	switch (reg->match.type) {
+	case V4L2_CHIP_MATCH_BRIDGE:
+		if (reg->match.addr > 1)
+			return -EINVAL;
+		if (!reg->match.addr)
+			break;
+		/* fall-through */
 	case V4L2_CHIP_MATCH_AC97:
 		return em28xx_write_ac97(dev, reg->reg, reg->val);
 	case V4L2_CHIP_MATCH_I2C_DRIVER:
@@ -1373,8 +1438,7 @@ static int vidioc_s_register(struct file *file, void *priv,
 		v4l2_device_call_all(&dev->v4l2_dev, 0, core, s_register, reg);
 		return 0;
 	default:
-		if (!v4l2_chip_match_host(&reg->match))
-			return -EINVAL;
+		return -EINVAL;
 	}
 
 	/* Match host */
@@ -1385,26 +1449,6 @@ static int vidioc_s_register(struct file *file, void *priv,
 }
 #endif
 
-
-static int vidioc_cropcap(struct file *file, void *priv,
-					struct v4l2_cropcap *cc)
-{
-	struct em28xx_fh      *fh  = priv;
-	struct em28xx         *dev = fh->dev;
-
-	if (cc->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-		return -EINVAL;
-
-	cc->bounds.left = 0;
-	cc->bounds.top = 0;
-	cc->bounds.width = dev->width;
-	cc->bounds.height = dev->height;
-	cc->defrect = cc->bounds;
-	cc->pixelaspect.numerator = 54;	/* 4:3 FIXME: remove magic numbers */
-	cc->pixelaspect.denominator = 59;
-
-	return 0;
-}
 
 static int vidioc_querycap(struct file *file, void  *priv,
 					struct v4l2_capability *cap)
@@ -1482,8 +1526,12 @@ static int vidioc_enum_framesizes(struct file *file, void *priv,
 
 	/* Report a continuous range */
 	fsize->type = V4L2_FRMSIZE_TYPE_STEPWISE;
-	fsize->stepwise.min_width = 48;
-	fsize->stepwise.min_height = 32;
+	scale_to_size(dev, EM28XX_HVSCALE_MAX, EM28XX_HVSCALE_MAX,
+		      &fsize->stepwise.min_width, &fsize->stepwise.min_height);
+	if (fsize->stepwise.min_width < 48)
+		fsize->stepwise.min_width = 48;
+	if (fsize->stepwise.min_height < 38)
+		fsize->stepwise.min_height = 38;
 	fsize->stepwise.max_width = maxw;
 	fsize->stepwise.max_height = maxh;
 	fsize->stepwise.step_width = 1;
@@ -1494,35 +1542,6 @@ static int vidioc_enum_framesizes(struct file *file, void *priv,
 /* RAW VBI ioctls */
 
 static int vidioc_g_fmt_vbi_cap(struct file *file, void *priv,
-				struct v4l2_format *format)
-{
-	struct em28xx_fh      *fh  = priv;
-	struct em28xx         *dev = fh->dev;
-
-	format->fmt.vbi.samples_per_line = dev->vbi_width;
-	format->fmt.vbi.sample_format = V4L2_PIX_FMT_GREY;
-	format->fmt.vbi.offset = 0;
-	format->fmt.vbi.flags = 0;
-	format->fmt.vbi.sampling_rate = 6750000 * 4 / 2;
-	format->fmt.vbi.count[0] = dev->vbi_height;
-	format->fmt.vbi.count[1] = dev->vbi_height;
-	memset(format->fmt.vbi.reserved, 0, sizeof(format->fmt.vbi.reserved));
-
-	/* Varies by video standard (NTSC, PAL, etc.) */
-	if (dev->norm & V4L2_STD_525_60) {
-		/* NTSC */
-		format->fmt.vbi.start[0] = 10;
-		format->fmt.vbi.start[1] = 273;
-	} else if (dev->norm & V4L2_STD_625_50) {
-		/* PAL */
-		format->fmt.vbi.start[0] = 6;
-		format->fmt.vbi.start[1] = 318;
-	}
-
-	return 0;
-}
-
-static int vidioc_s_fmt_vbi_cap(struct file *file, void *priv,
 				struct v4l2_format *format)
 {
 	struct em28xx_fh      *fh  = priv;
@@ -1564,7 +1583,6 @@ static int radio_g_tuner(struct file *file, void *priv,
 		return -EINVAL;
 
 	strcpy(t->name, "Radio");
-	t->type = V4L2_TUNER_RADIO;
 
 	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, g_tuner, t);
 
@@ -1572,7 +1590,7 @@ static int radio_g_tuner(struct file *file, void *priv,
 }
 
 static int radio_s_tuner(struct file *file, void *priv,
-			 struct v4l2_tuner *t)
+			 const struct v4l2_tuner *t)
 {
 	struct em28xx *dev = ((struct em28xx_fh *)priv)->dev;
 
@@ -1749,11 +1767,10 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_s_fmt_vid_cap       = vidioc_s_fmt_vid_cap,
 	.vidioc_g_fmt_vbi_cap       = vidioc_g_fmt_vbi_cap,
 	.vidioc_try_fmt_vbi_cap     = vidioc_g_fmt_vbi_cap,
-	.vidioc_s_fmt_vbi_cap       = vidioc_s_fmt_vbi_cap,
+	.vidioc_s_fmt_vbi_cap       = vidioc_g_fmt_vbi_cap,
 	.vidioc_enum_framesizes     = vidioc_enum_framesizes,
 	.vidioc_g_audio             = vidioc_g_audio,
 	.vidioc_s_audio             = vidioc_s_audio,
-	.vidioc_cropcap             = vidioc_cropcap,
 
 	.vidioc_reqbufs             = vb2_ioctl_reqbufs,
 	.vidioc_create_bufs         = vb2_ioctl_create_bufs,
@@ -1778,10 +1795,11 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_s_frequency         = vidioc_s_frequency,
 	.vidioc_subscribe_event = v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
+	.vidioc_g_chip_ident        = vidioc_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
+	.vidioc_g_chip_info         = vidioc_g_chip_info,
 	.vidioc_g_register          = vidioc_g_register,
 	.vidioc_s_register          = vidioc_s_register,
-	.vidioc_g_chip_ident        = vidioc_g_chip_ident,
 #endif
 };
 
@@ -1808,7 +1826,9 @@ static const struct v4l2_ioctl_ops radio_ioctl_ops = {
 	.vidioc_s_frequency   = vidioc_s_frequency,
 	.vidioc_subscribe_event = v4l2_ctrl_subscribe_event,
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
+	.vidioc_g_chip_ident  = vidioc_g_chip_ident,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
+	.vidioc_g_chip_info   = vidioc_g_chip_info,
 	.vidioc_g_register    = vidioc_g_register,
 	.vidioc_s_register    = vidioc_s_register,
 #endif
@@ -1887,8 +1907,41 @@ int em28xx_register_analog_devices(struct em28xx *dev)
 			 (EM28XX_XCLK_AUDIO_UNMUTE | val));
 
 	em28xx_set_outfmt(dev);
-	em28xx_colorlevels_set_default(dev);
 	em28xx_compression_disable(dev);
+
+	/* Add image controls */
+	/* NOTE: at this point, the subdevices are already registered, so bridge
+	 * controls are only added/enabled when no subdevice provides them */
+	if (NULL == v4l2_ctrl_find(&dev->ctrl_handler, V4L2_CID_CONTRAST))
+		v4l2_ctrl_new_std(&dev->ctrl_handler, &em28xx_ctrl_ops,
+				  V4L2_CID_CONTRAST,
+				  0, 0x1f, 1, CONTRAST_DEFAULT);
+	if (NULL == v4l2_ctrl_find(&dev->ctrl_handler, V4L2_CID_BRIGHTNESS))
+		v4l2_ctrl_new_std(&dev->ctrl_handler, &em28xx_ctrl_ops,
+				  V4L2_CID_BRIGHTNESS,
+				  -0x80, 0x7f, 1, BRIGHTNESS_DEFAULT);
+	if (NULL == v4l2_ctrl_find(&dev->ctrl_handler, V4L2_CID_SATURATION))
+		v4l2_ctrl_new_std(&dev->ctrl_handler, &em28xx_ctrl_ops,
+				  V4L2_CID_SATURATION,
+				  0, 0x1f, 1, SATURATION_DEFAULT);
+	if (NULL == v4l2_ctrl_find(&dev->ctrl_handler, V4L2_CID_BLUE_BALANCE))
+		v4l2_ctrl_new_std(&dev->ctrl_handler, &em28xx_ctrl_ops,
+				  V4L2_CID_BLUE_BALANCE,
+				  -0x30, 0x30, 1, BLUE_BALANCE_DEFAULT);
+	if (NULL == v4l2_ctrl_find(&dev->ctrl_handler, V4L2_CID_RED_BALANCE))
+		v4l2_ctrl_new_std(&dev->ctrl_handler, &em28xx_ctrl_ops,
+				  V4L2_CID_RED_BALANCE,
+				  -0x30, 0x30, 1, RED_BALANCE_DEFAULT);
+	if (NULL == v4l2_ctrl_find(&dev->ctrl_handler, V4L2_CID_SHARPNESS))
+		v4l2_ctrl_new_std(&dev->ctrl_handler, &em28xx_ctrl_ops,
+				  V4L2_CID_SHARPNESS,
+				  0, 0x0f, 1, SHARPNESS_DEFAULT);
+
+	/* Reset image controls */
+	em28xx_colorlevels_set_default(dev);
+	v4l2_ctrl_handler_setup(&dev->ctrl_handler);
+	if (dev->ctrl_handler.error)
+		return dev->ctrl_handler.error;
 
 	/* allocate and fill video video_device struct */
 	dev->vdev = em28xx_vdev_init(dev, &em28xx_video_template, "video");
@@ -1898,6 +1951,25 @@ int em28xx_register_analog_devices(struct em28xx *dev)
 	}
 	dev->vdev->queue = &dev->vb_vidq;
 	dev->vdev->queue->lock = &dev->vb_queue_lock;
+
+	/* disable inapplicable ioctls */
+	if (dev->board.is_webcam) {
+		v4l2_disable_ioctl(dev->vdev, VIDIOC_QUERYSTD);
+		v4l2_disable_ioctl(dev->vdev, VIDIOC_G_STD);
+		v4l2_disable_ioctl(dev->vdev, VIDIOC_S_STD);
+	} else {
+		v4l2_disable_ioctl(dev->vdev, VIDIOC_S_PARM);
+	}
+	if (dev->tuner_type == TUNER_ABSENT) {
+		v4l2_disable_ioctl(dev->vdev, VIDIOC_G_TUNER);
+		v4l2_disable_ioctl(dev->vdev, VIDIOC_S_TUNER);
+		v4l2_disable_ioctl(dev->vdev, VIDIOC_G_FREQUENCY);
+		v4l2_disable_ioctl(dev->vdev, VIDIOC_S_FREQUENCY);
+	}
+	if (!dev->audio_mode.has_audio) {
+		v4l2_disable_ioctl(dev->vdev, VIDIOC_G_AUDIO);
+		v4l2_disable_ioctl(dev->vdev, VIDIOC_S_AUDIO);
+	}
 
 	/* register v4l2 video video_device */
 	ret = video_register_device(dev->vdev, VFL_TYPE_GRABBER,
@@ -1915,6 +1987,19 @@ int em28xx_register_analog_devices(struct em28xx *dev)
 
 		dev->vbi_dev->queue = &dev->vb_vbiq;
 		dev->vbi_dev->queue->lock = &dev->vb_vbi_queue_lock;
+
+		/* disable inapplicable ioctls */
+		v4l2_disable_ioctl(dev->vdev, VIDIOC_S_PARM);
+		if (dev->tuner_type == TUNER_ABSENT) {
+			v4l2_disable_ioctl(dev->vbi_dev, VIDIOC_G_TUNER);
+			v4l2_disable_ioctl(dev->vbi_dev, VIDIOC_S_TUNER);
+			v4l2_disable_ioctl(dev->vbi_dev, VIDIOC_G_FREQUENCY);
+			v4l2_disable_ioctl(dev->vbi_dev, VIDIOC_S_FREQUENCY);
+		}
+		if (!dev->audio_mode.has_audio) {
+			v4l2_disable_ioctl(dev->vbi_dev, VIDIOC_G_AUDIO);
+			v4l2_disable_ioctl(dev->vbi_dev, VIDIOC_S_AUDIO);
+		}
 
 		/* register v4l2 vbi video_device */
 		ret = video_register_device(dev->vbi_dev, VFL_TYPE_VBI,

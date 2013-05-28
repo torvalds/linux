@@ -2,11 +2,9 @@
 # USB Miscellaneous driver configuration
 #
 comment "USB Miscellaneous drivers"
-	depends on USB
 
 config USB_EMI62
 	tristate "EMI 6|2m USB Audio interface support"
-	depends on USB
 	---help---
 	  This driver loads firmware to Emagic EMI 6|2m low latency USB
 	  Audio and Midi interface.
@@ -21,7 +19,6 @@ config USB_EMI62
 
 config USB_EMI26
 	tristate "EMI 2|6 USB Audio interface support"
-	depends on USB
 	---help---
 	  This driver loads firmware to Emagic EMI 2|6 low latency USB
 	  Audio interface.
@@ -34,7 +31,6 @@ config USB_EMI26
 
 config USB_ADUTUX
 	tristate "ADU devices from Ontrak Control Systems"
-	depends on USB
 	help
 	  Say Y if you want to use an ADU device from Ontrak Control
 	  Systems.
@@ -44,7 +40,6 @@ config USB_ADUTUX
 
 config USB_SEVSEG
 	tristate "USB 7-Segment LED Display"
-	depends on USB
 	help
 	  Say Y here if you have a USB 7-Segment Display by Delcom
 
@@ -53,7 +48,6 @@ config USB_SEVSEG
 
 config USB_RIO500
 	tristate "USB Diamond Rio500 support"
-	depends on USB
 	help
 	  Say Y here if you want to connect a USB Rio500 mp3 player to your
 	  computer's USB port. Please read <file:Documentation/usb/rio.txt>
@@ -64,7 +58,6 @@ config USB_RIO500
 
 config USB_LEGOTOWER
 	tristate "USB Lego Infrared Tower support"
-	depends on USB
 	help
 	  Say Y here if you want to connect a USB Lego Infrared Tower to your
 	  computer's USB port.
@@ -77,7 +70,6 @@ config USB_LEGOTOWER
 
 config USB_LCD
 	tristate "USB LCD driver support"
-	depends on USB
 	help
 	  Say Y here if you want to connect an USBLCD to your computer's
 	  USB port. The USBLCD is a small USB interface board for
@@ -89,7 +81,6 @@ config USB_LCD
 
 config USB_LED
 	tristate "USB LED driver support"
-	depends on USB
 	help
 	  Say Y here if you want to connect an USBLED device to your 
 	  computer's USB port.
@@ -99,7 +90,6 @@ config USB_LED
 
 config USB_CYPRESS_CY7C63
 	tristate "Cypress CY7C63xxx USB driver support"
-	depends on USB
 	help
 	  Say Y here if you want to connect a Cypress CY7C63xxx
 	  micro controller to your computer's USB port. Currently this
@@ -113,7 +103,6 @@ config USB_CYPRESS_CY7C63
 
 config USB_CYTHERM
 	tristate "Cypress USB thermometer driver support"
-	depends on USB
 	help
 	  Say Y here if you want to connect a Cypress USB thermometer
 	  device to your computer's USB port. This device is also known
@@ -126,7 +115,6 @@ config USB_CYTHERM
 
 config USB_IDMOUSE
 	tristate "Siemens ID USB Mouse Fingerprint sensor support"
-	depends on USB
 	help
 	  Say Y here if you want to use the fingerprint sensor on
 	  the Siemens ID Mouse. There is also a Siemens ID Mouse
@@ -140,7 +128,6 @@ config USB_IDMOUSE
 
 config USB_FTDI_ELAN
 	tristate "Elan PCMCIA CardBus Adapter USB Client"
-	depends on USB
 	default M
 	help
 	  ELAN's Uxxx series of adapters are USB to PCMCIA CardBus adapters.
@@ -164,7 +151,6 @@ config USB_FTDI_ELAN
 
 config USB_APPLEDISPLAY
 	tristate "Apple Cinema Display support"
-	depends on USB
 	select BACKLIGHT_LCD_SUPPORT
 	select BACKLIGHT_CLASS_DEVICE
 	help
@@ -175,7 +161,6 @@ source "drivers/usb/misc/sisusbvga/Kconfig"
 
 config USB_LD
 	tristate "USB LD driver"
-	depends on USB
 	help
 	  This driver is for generic USB devices that use interrupt transfers,
 	  like LD Didactic's USB devices.
@@ -185,7 +170,6 @@ config USB_LD
 
 config USB_TRANCEVIBRATOR
 	tristate "PlayStation 2 Trance Vibrator driver support"
-	depends on USB
 	help
 	  Say Y here if you want to connect a PlayStation 2 Trance Vibrator
 	  device to your computer's USB port.
@@ -195,7 +179,6 @@ config USB_TRANCEVIBRATOR
 
 config USB_IOWARRIOR
 	tristate "IO Warrior driver support"
-	depends on USB
 	help
 	  Say Y here if you want to support the IO Warrior devices from Code
 	  Mercenaries.  This includes support for the following devices:
@@ -209,7 +192,6 @@ config USB_IOWARRIOR
 
 config USB_TEST
 	tristate "USB testing driver"
-	depends on USB
 	help
 	  This driver is for testing host controller software.  It is used
 	  with specialized device firmware for regression and stress testing,
@@ -220,7 +202,6 @@ config USB_TEST
 
 config USB_ISIGHTFW
 	tristate "iSight firmware loading support"
-	depends on USB
 	select FW_LOADER
 	help
 	  This driver loads firmware for USB Apple iSight cameras, allowing
@@ -233,7 +214,6 @@ config USB_ISIGHTFW
 
 config USB_YUREX
 	tristate "USB YUREX driver support"
-	depends on USB
 	help
 	  Say Y here if you want to connect a YUREX to your computer's
 	  USB port. The YUREX is a leg-shakes sensor. See
@@ -246,7 +226,6 @@ config USB_YUREX
 
 config USB_EZUSB_FX2
 	tristate "Functions for loading firmware on EZUSB chips"
-	depends on USB
 	help
 	  Say Y here if you need EZUSB device support.
 	  (Cypress FX/FX2/FX2LP microcontrollers)

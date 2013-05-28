@@ -479,7 +479,7 @@ nv50_display_flip_wait(void *data)
 {
 	struct nv50_display_flip *flip = data;
 	if (nouveau_bo_rd32(flip->disp->sync, flip->chan->addr / 4) ==
-					      flip->chan->data);
+					      flip->chan->data)
 		return true;
 	usleep_range(1, 2);
 	return false;
@@ -524,6 +524,8 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 	swap_interval <<= 4;
 	if (swap_interval == 0)
 		swap_interval |= 0x100;
+	if (chan == NULL)
+		evo_sync(crtc->dev);
 
 	push = evo_wait(sync, 128);
 	if (unlikely(push == NULL))
@@ -586,8 +588,6 @@ nv50_display_flip_next(struct drm_crtc *crtc, struct drm_framebuffer *fb,
 		sync->addr ^= 0x10;
 		sync->data++;
 		FIRE_RING (chan);
-	} else {
-		evo_sync(crtc->dev);
 	}
 
 	/* queue the flip */
@@ -2174,6 +2174,7 @@ int
 nv50_display_create(struct drm_device *dev)
 {
 	static const u16 oclass[] = {
+		NVF0_DISP_CLASS,
 		NVE0_DISP_CLASS,
 		NVD0_DISP_CLASS,
 		NVA3_DISP_CLASS,
@@ -2276,6 +2277,7 @@ nv50_display_create(struct drm_device *dev)
 			NV_WARN(drm, "failed to create encoder %d/%d/%d: %d\n",
 				     dcbe->location, dcbe->type,
 				     ffs(dcbe->or) - 1, ret);
+			ret = 0;
 		}
 	}
 

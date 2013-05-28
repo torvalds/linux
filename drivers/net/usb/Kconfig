@@ -93,6 +93,17 @@ config USB_RTL8150
 	  To compile this driver as a module, choose M here: the
 	  module will be called rtl8150.
 
+config USB_RTL8152
+	tristate "Realtek RTL8152 Based USB 2.0 Ethernet Adapters"
+	select NET_CORE
+	select MII
+	help
+	  This option adds support for Realtek RTL8152 based USB 2.0
+	  10/100 Ethernet adapters.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called r8152.
+
 config USB_USBNET
 	tristate "Multi-purpose USB Networking Framework"
 	select NET_CORE
@@ -268,7 +279,7 @@ config USB_NET_SMSC75XX
 	select CRC16
 	select CRC32
 	help
-	  This option adds support for SMSC LAN95XX based USB 2.0
+	  This option adds support for SMSC LAN75XX based USB 2.0
 	  Gigabit Ethernet adapters.
 
 config USB_NET_SMSC95XX

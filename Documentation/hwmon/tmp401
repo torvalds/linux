@@ -8,8 +8,16 @@ Supported chips:
     Datasheet: http://focus.ti.com/docs/prod/folders/print/tmp401.html
   * Texas Instruments TMP411
     Prefix: 'tmp411'
-    Addresses scanned: I2C 0x4c
+    Addresses scanned: I2C 0x4c, 0x4d, 0x4e
     Datasheet: http://focus.ti.com/docs/prod/folders/print/tmp411.html
+  * Texas Instruments TMP431
+    Prefix: 'tmp431'
+    Addresses scanned: I2C 0x4c, 0x4d
+    Datasheet: http://focus.ti.com/docs/prod/folders/print/tmp431.html
+  * Texas Instruments TMP432
+    Prefix: 'tmp432'
+    Addresses scanned: I2C 0x4c, 0x4d
+    Datasheet: http://focus.ti.com/docs/prod/folders/print/tmp432.html
 
 Authors:
          Hans de Goede <hdegoede@redhat.com>
@@ -18,19 +26,19 @@ Authors:
 Description
 -----------
 
-This driver implements support for Texas Instruments TMP401 and
-TMP411 chips. These chips implements one remote and one local
-temperature sensor. Temperature is measured in degrees
+This driver implements support for Texas Instruments TMP401, TMP411,
+TMP431, and TMP432 chips. These chips implement one or two remote and
+one local temperature sensors. Temperature is measured in degrees
 Celsius. Resolution of the remote sensor is 0.0625 degree. Local
 sensor resolution can be set to 0.5, 0.25, 0.125 or 0.0625 degree (not
 supported by the driver so far, so using the default resolution of 0.5
 degree).
 
 The driver provides the common sysfs-interface for temperatures (see
-/Documentation/hwmon/sysfs-interface under Temperatures).
+Documentation/hwmon/sysfs-interface under Temperatures).
 
-The TMP411 chip is compatible with TMP401. It provides some additional
-features.
+The TMP411 and TMP431 chips are compatible with TMP401. TMP411 provides
+some additional features.
 
 * Minimum and Maximum temperature measured since power-on, chip-reset
 
@@ -40,3 +48,6 @@ features.
 
   Exported via sysfs attribute temp_reset_history. Writing 1 to this
   file triggers a reset.
+
+TMP432 is compatible with TMP401 and TMP431. It supports two external
+temperature sensors.

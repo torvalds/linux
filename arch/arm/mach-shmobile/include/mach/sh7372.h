@@ -294,21 +294,6 @@ enum {
 	GPIO_FN_D12_NAF12,	GPIO_FN_D13_NAF13,	GPIO_FN_D14_NAF14,
 	GPIO_FN_D15_NAF15,
 
-	/*
-	 * MMCIF(1)		(PORT 84, 85, 86, 87, 88, 89,
-	 *			      90, 91, 92, 99)
-	 */
-	GPIO_FN_MMCD0_0,	GPIO_FN_MMCD0_1,	GPIO_FN_MMCD0_2,
-	GPIO_FN_MMCD0_3,	GPIO_FN_MMCD0_4,	GPIO_FN_MMCD0_5,
-	GPIO_FN_MMCD0_6,	GPIO_FN_MMCD0_7,
-	GPIO_FN_MMCCMD0,	GPIO_FN_MMCCLK0,
-
-	/* MMCIF(2)		(PORT 54, 55, 56, 57, 58, 59, 60, 61, 66, 67) */
-	GPIO_FN_MMCD1_0,	GPIO_FN_MMCD1_1,	GPIO_FN_MMCD1_2,
-	GPIO_FN_MMCD1_3,	GPIO_FN_MMCD1_4,	GPIO_FN_MMCD1_5,
-	GPIO_FN_MMCD1_6,	GPIO_FN_MMCD1_7,
-	GPIO_FN_MMCCLK1,	GPIO_FN_MMCCMD1,
-
 	/* SPU2		(PORT 65) */
 	GPIO_FN_VINT_I,
 
@@ -416,20 +401,6 @@ enum {
 	/* HDMI		(PORT 169, 170) */
 	GPIO_FN_HDMI_HPD,	GPIO_FN_HDMI_CEC,
 
-	/* SDHI0	(PORT 171, 172, 173, 174, 175, 176, 177, 178) */
-	GPIO_FN_SDHICLK0,	GPIO_FN_SDHICD0,
-	GPIO_FN_SDHICMD0,	GPIO_FN_SDHIWP0,
-	GPIO_FN_SDHID0_0,	GPIO_FN_SDHID0_1,
-	GPIO_FN_SDHID0_2,	GPIO_FN_SDHID0_3,
-
-	/* SDHI1	(PORT 179, 180, 181, 182, 183, 184) */
-	GPIO_FN_SDHICLK1,	GPIO_FN_SDHICMD1,	GPIO_FN_SDHID1_0,
-	GPIO_FN_SDHID1_1,	GPIO_FN_SDHID1_2,	GPIO_FN_SDHID1_3,
-
-	/* SDHI2	(PORT 185, 186, 187, 188, 189, 190) */
-	GPIO_FN_SDHICLK2,	GPIO_FN_SDHICMD2,	GPIO_FN_SDHID2_0,
-	GPIO_FN_SDHID2_1,	GPIO_FN_SDHID2_2,	GPIO_FN_SDHID2_3,
-
 	/* SDENC	see MSEL4CR 19 */
 	GPIO_FN_SDENC_CPG,
 	GPIO_FN_SDENC_DV_CLKI,
@@ -478,6 +449,18 @@ extern struct clk sh7372_dv_clki_clk;
 extern struct clk sh7372_dv_clki_div2_clk;
 extern struct clk sh7372_pllc2_clk;
 
+extern void sh7372_init_irq(void);
+extern void sh7372_map_io(void);
+extern void sh7372_earlytimer_init(void);
+extern void sh7372_add_early_devices(void);
+extern void sh7372_add_standard_devices(void);
+extern void sh7372_add_early_devices_dt(void);
+extern void sh7372_add_standard_devices_dt(void);
+extern void sh7372_clock_init(void);
+extern void sh7372_pinmux_init(void);
+extern void sh7372_pm_init(void);
+extern void sh7372_resume_core_standby_sysc(void);
+extern int  sh7372_do_idle_sysc(unsigned long sleep_mode);
 extern void sh7372_intcs_suspend(void);
 extern void sh7372_intcs_resume(void);
 extern void sh7372_intca_suspend(void);

@@ -52,6 +52,9 @@ static struct platform_device_id vpbe_osd_devtype[] = {
 		.name = DM355_VPBE_OSD_SUBDEV_NAME,
 		.driver_data = VPBE_VERSION_3,
 	},
+	{
+		/* sentinel */
+	}
 };
 
 MODULE_DEVICE_TABLE(platform, vpbe_osd_devtype);

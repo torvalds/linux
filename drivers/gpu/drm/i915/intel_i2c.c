@@ -203,7 +203,13 @@ intel_gpio_setup(struct intel_gmbus *bus, u32 pin)
 	algo->data = bus;
 }
 
-#define HAS_GMBUS_IRQ(dev) (INTEL_INFO(dev)->gen >= 4)
+/*
+ * gmbus on gen4 seems to be able to generate legacy interrupts even when in MSI
+ * mode. This results in spurious interrupt warnings if the legacy irq no. is
+ * shared with another device. The kernel then disables that interrupt source
+ * and so prevents the other device from working properly.
+ */
+#define HAS_GMBUS_IRQ(dev) (INTEL_INFO(dev)->gen >= 5)
 static int
 gmbus_wait_hw_status(struct drm_i915_private *dev_priv,
 		     u32 gmbus2_status,
@@ -213,6 +219,9 @@ gmbus_wait_hw_status(struct drm_i915_private *dev_priv,
 	int reg_offset = dev_priv->gpio_mmio_base;
 	u32 gmbus2 = 0;
 	DEFINE_WAIT(wait);
+
+	if (!HAS_GMBUS_IRQ(dev_priv->dev))
+		gmbus4_irq_en = 0;
 
 	/* Important: The hw handles only the first bit, so set only one! Since
 	 * we also need to check for NAKs besides the hw ready/idle signal, we
@@ -513,7 +522,9 @@ int intel_setup_gmbus(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret, i;
 
-	if (HAS_PCH_SPLIT(dev))
+	if (HAS_PCH_NOP(dev))
+		return 0;
+	else if (HAS_PCH_SPLIT(dev))
 		dev_priv->gpio_mmio_base = PCH_GPIOA - GPIOA;
 	else if (IS_VALLEYVIEW(dev))
 		dev_priv->gpio_mmio_base = VLV_DISPLAY_BASE;

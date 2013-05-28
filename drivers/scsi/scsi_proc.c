@@ -45,57 +45,49 @@ static struct proc_dir_entry *proc_scsi;
 /* Protect sht->present and sht->proc_dir */
 static DEFINE_MUTEX(global_host_template_mutex);
 
-/**
- * proc_scsi_read - handle read from /proc by calling host's proc_info() command
- * @buffer: passed to proc_info
- * @start: passed to proc_info
- * @offset: passed to proc_info
- * @length: passed to proc_info
- * @eof: returns whether length read was less than requested
- * @data: pointer to a &struct Scsi_Host
- */
-
-static int proc_scsi_read(char *buffer, char **start, off_t offset,
-			  int length, int *eof, void *data)
+static ssize_t proc_scsi_host_write(struct file *file, const char __user *buf,
+                           size_t count, loff_t *ppos)
 {
-	struct Scsi_Host *shost = data;
-	int n;
-
-	n = shost->hostt->proc_info(shost, buffer, start, offset, length, 0);
-	*eof = (n < length);
-
-	return n;
-}
-
-/**
- * proc_scsi_write_proc - Handle write to /proc by calling host's proc_info()
- * @file: not used
- * @buf: source of data to write.
- * @count: number of bytes (at most PROC_BLOCK_SIZE) to write.
- * @data: pointer to &struct Scsi_Host
- */
-static int proc_scsi_write_proc(struct file *file, const char __user *buf,
-                           unsigned long count, void *data)
-{
-	struct Scsi_Host *shost = data;
+	struct Scsi_Host *shost = PDE_DATA(file_inode(file));
 	ssize_t ret = -ENOMEM;
 	char *page;
-	char *start;
     
 	if (count > PROC_BLOCK_SIZE)
 		return -EOVERFLOW;
+
+	if (!shost->hostt->write_info)
+		return -EINVAL;
 
 	page = (char *)__get_free_page(GFP_KERNEL);
 	if (page) {
 		ret = -EFAULT;
 		if (copy_from_user(page, buf, count))
 			goto out;
-		ret = shost->hostt->proc_info(shost, page, &start, 0, count, 1);
+		ret = shost->hostt->write_info(shost, page, count);
 	}
 out:
 	free_page((unsigned long)page);
 	return ret;
 }
+
+static int proc_scsi_show(struct seq_file *m, void *v)
+{
+	struct Scsi_Host *shost = m->private;
+	return shost->hostt->show_info(m, shost);
+}
+
+static int proc_scsi_host_open(struct inode *inode, struct file *file)
+{
+	return single_open_size(file, proc_scsi_show, PDE_DATA(inode),
+				4 * PAGE_SIZE);
+}
+
+static const struct file_operations proc_scsi_fops = {
+	.open = proc_scsi_host_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.write = proc_scsi_host_write
+};
 
 /**
  * scsi_proc_hostdir_add - Create directory in /proc for a scsi host
@@ -106,7 +98,7 @@ out:
 
 void scsi_proc_hostdir_add(struct scsi_host_template *sht)
 {
-	if (!sht->proc_info)
+	if (!sht->show_info)
 		return;
 
 	mutex_lock(&global_host_template_mutex);
@@ -125,7 +117,7 @@ void scsi_proc_hostdir_add(struct scsi_host_template *sht)
  */
 void scsi_proc_hostdir_rm(struct scsi_host_template *sht)
 {
-	if (!sht->proc_info)
+	if (!sht->show_info)
 		return;
 
 	mutex_lock(&global_host_template_mutex);
@@ -151,16 +143,12 @@ void scsi_proc_host_add(struct Scsi_Host *shost)
 		return;
 
 	sprintf(name,"%d", shost->host_no);
-	p = create_proc_read_entry(name, S_IFREG | S_IRUGO | S_IWUSR,
-			sht->proc_dir, proc_scsi_read, shost);
-	if (!p) {
+	p = proc_create_data(name, S_IRUGO | S_IWUSR,
+		sht->proc_dir, &proc_scsi_fops, shost);
+	if (!p)
 		printk(KERN_ERR "%s: Failed to register host %d in"
 		       "%s\n", __func__, shost->host_no,
 		       sht->proc_name);
-		return;
-	} 
-
-	p->write_proc = proc_scsi_write_proc;
 }
 
 /**

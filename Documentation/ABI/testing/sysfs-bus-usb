@@ -32,7 +32,7 @@ Date:		January 2008
 KernelVersion:	2.6.25
 Contact:	Sarah Sharp <sarah.a.sharp@intel.com>
 Description:
-		If CONFIG_PM and CONFIG_USB_SUSPEND are enabled, then this file
+		If CONFIG_PM_RUNTIME is enabled then this file
 		is present.  When read, it returns the total time (in msec)
 		that the USB device has been connected to the machine.  This
 		file is read-only.
@@ -45,7 +45,7 @@ Date:		January 2008
 KernelVersion:	2.6.25
 Contact:	Sarah Sharp <sarah.a.sharp@intel.com>
 Description:
-		If CONFIG_PM and CONFIG_USB_SUSPEND are enabled, then this file
+		If CONFIG_PM_RUNTIME is enabled then this file
 		is present.  When read, it returns the total time (in msec)
 		that the USB device has been active, i.e. not in a suspended
 		state.  This file is read-only.
@@ -187,7 +187,7 @@ What:		/sys/bus/usb/devices/.../power/usb2_hardware_lpm
 Date:		September 2011
 Contact:	Andiry Xu <andiry.xu@amd.com>
 Description:
-		If CONFIG_USB_SUSPEND is set and a USB 2.0 lpm-capable device
+		If CONFIG_PM_RUNTIME is set and a USB 2.0 lpm-capable device
 		is plugged in to a xHCI host which support link PM, it will
 		perform a LPM test; if the test is passed and host supports
 		USB2 hardware LPM (xHCI 1.0 feature), USB2 hardware LPM will

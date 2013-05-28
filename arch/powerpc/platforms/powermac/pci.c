@@ -824,6 +824,7 @@ static void __init parse_region_decode(struct pci_controller *hose,
 			hose->mem_resources[cur].name = hose->dn->full_name;
 			hose->mem_resources[cur].start = base;
 			hose->mem_resources[cur].end = end;
+			hose->mem_offset[cur] = 0;
 			DBG("  %d: 0x%08lx-0x%08lx\n", cur, base, end);
 		} else {
 			DBG("   :           -0x%08lx\n", end);
@@ -866,7 +867,6 @@ static void __init setup_u3_ht(struct pci_controller* hose)
 	hose->io_resource.start = 0;
 	hose->io_resource.end = 0x003fffff;
 	hose->io_resource.flags = IORESOURCE_IO;
-	hose->pci_mem_offset = 0;
 	hose->first_busno = 0;
 	hose->last_busno = 0xef;
 

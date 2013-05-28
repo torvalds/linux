@@ -34,6 +34,8 @@
 #define MXC_CPU_MX35		35
 #define MXC_CPU_MX51		51
 #define MXC_CPU_MX53		53
+#define MXC_CPU_IMX6DL		0x61
+#define MXC_CPU_IMX6Q		0x63
 
 #define IMX_CHIP_REVISION_1_0		0x10
 #define IMX_CHIP_REVISION_1_1		0x11
@@ -150,6 +152,15 @@ extern unsigned int __mxc_cpu_type;
 #endif
 
 #ifndef __ASSEMBLY__
+static inline bool cpu_is_imx6dl(void)
+{
+	return __mxc_cpu_type == MXC_CPU_IMX6DL;
+}
+
+static inline bool cpu_is_imx6q(void)
+{
+	return __mxc_cpu_type == MXC_CPU_IMX6Q;
+}
 
 struct cpu_op {
 	u32 cpu_rate;

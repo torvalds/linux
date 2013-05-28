@@ -1093,6 +1093,15 @@ static int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 		return 0;
 
 	dev->input = i;
+	/*
+	 * Modify the brightness range depending on the input.
+	 * This makes it easy to use vivi to test if applications can
+	 * handle control range modifications and is also how this is
+	 * typically used in practice as different inputs may be hooked
+	 * up to different receivers with different control ranges.
+	 */
+	v4l2_ctrl_modify_range(dev->brightness,
+			128 * i, 255 + 128 * i, 1, 127 + 128 * i);
 	precalculate_bars(dev);
 	precalculate_line(dev);
 	return 0;
@@ -1429,6 +1438,7 @@ static int __init vivi_create_instance(int inst)
 	q->buf_struct_size = sizeof(struct vivi_buffer);
 	q->ops = &vivi_video_qops;
 	q->mem_ops = &vb2_vmalloc_memops;
+	q->timestamp_type = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 
 	ret = vb2_queue_init(q);
 	if (ret)

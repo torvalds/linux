@@ -890,9 +890,8 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     enable_msi	- Enable Message Signaled Interrupt (MSI) (default = off)
     power_save	- Automatic power-saving timeout (in second, 0 =
 		disable)
-    power_save_controller - Support runtime D3 of HD-audio controller
-		(-1 = on for supported chip (default), false = off,
-		 true = force to on even for unsupported hardware)
+    power_save_controller - Reset HD-audio controller in power-saving mode
+		(default = on)
     align_buffer_size - Force rounding of buffer/period sizes to multiples
     		      of 128 bytes. This is more efficient in terms of memory
 		      access but isn't required by the HDA spec and prevents
@@ -912,7 +911,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     models depending on the codec chip.  The list of available models
     is found in HD-Audio-Models.txt
 
-    The model name "genric" is treated as a special case.  When this
+    The model name "generic" is treated as a special case.  When this
     model is given, the driver uses the generic codec parser without
     "codec-patch".  It's sometimes good for testing and debugging.
 

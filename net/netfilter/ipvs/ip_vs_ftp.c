@@ -267,10 +267,12 @@ static int ip_vs_ftp_out(struct ip_vs_app *app, struct ip_vs_conn *cp,
 			 * hopefully it will succeed on the retransmitted
 			 * packet.
 			 */
+			rcu_read_lock();
 			ret = nf_nat_mangle_tcp_packet(skb, ct, ctinfo,
 						       iph->ihl * 4,
 						       start-data, end-start,
 						       buf, buf_len);
+			rcu_read_unlock();
 			if (ret) {
 				ip_vs_nfct_expect_related(skb, ct, n_cp,
 							  IPPROTO_TCP, 0, 0);
@@ -480,6 +482,7 @@ static int __init ip_vs_ftp_init(void)
 	int rv;
 
 	rv = register_pernet_subsys(&ip_vs_ftp_ops);
+	/* rcu_barrier() is called by netns on error */
 	return rv;
 }
 
@@ -489,6 +492,7 @@ static int __init ip_vs_ftp_init(void)
 static void __exit ip_vs_ftp_exit(void)
 {
 	unregister_pernet_subsys(&ip_vs_ftp_ops);
+	/* rcu_barrier() is called by netns */
 }
 
 

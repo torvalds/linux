@@ -180,16 +180,7 @@ static struct pcmcia_driver airo_driver = {
 	.suspend	= airo_suspend,
 	.resume		= airo_resume,
 };
-
-static int __init airo_cs_init(void)
-{
-	return pcmcia_register_driver(&airo_driver);
-}
-
-static void __exit airo_cs_cleanup(void)
-{
-	pcmcia_unregister_driver(&airo_driver);
-}
+module_pcmcia_driver(airo_driver);
 
 /*
     This program is free software; you can redistribute it and/or
@@ -229,6 +220,3 @@ static void __exit airo_cs_cleanup(void)
     IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
     POSSIBILITY OF SUCH DAMAGE.
 */
-
-module_init(airo_cs_init);
-module_exit(airo_cs_cleanup);

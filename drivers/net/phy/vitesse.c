@@ -61,7 +61,7 @@ MODULE_DESCRIPTION("Vitesse PHY driver");
 MODULE_AUTHOR("Kriston Carson");
 MODULE_LICENSE("GPL");
 
-int vsc824x_add_skew(struct phy_device *phydev)
+static int vsc824x_add_skew(struct phy_device *phydev)
 {
 	int err;
 	int extcon;
@@ -81,7 +81,6 @@ int vsc824x_add_skew(struct phy_device *phydev)
 
 	return err;
 }
-EXPORT_SYMBOL(vsc824x_add_skew);
 
 static int vsc824x_config_init(struct phy_device *phydev)
 {

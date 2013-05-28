@@ -554,7 +554,7 @@ static int twl6040_probe(struct i2c_client *client,
 
 	twl6040->supplies[0].supply = "vio";
 	twl6040->supplies[1].supply = "v2v1";
-	ret = regulator_bulk_get(&client->dev, TWL6040_NUM_SUPPLIES,
+	ret = devm_regulator_bulk_get(&client->dev, TWL6040_NUM_SUPPLIES,
 				 twl6040->supplies);
 	if (ret != 0) {
 		dev_err(&client->dev, "Failed to get supplies: %d\n", ret);
@@ -564,7 +564,7 @@ static int twl6040_probe(struct i2c_client *client,
 	ret = regulator_bulk_enable(TWL6040_NUM_SUPPLIES, twl6040->supplies);
 	if (ret != 0) {
 		dev_err(&client->dev, "Failed to enable supplies: %d\n", ret);
-		goto power_err;
+		goto regulator_get_err;
 	}
 
 	twl6040->dev = &client->dev;
@@ -586,8 +586,8 @@ static int twl6040_probe(struct i2c_client *client,
 		twl6040->audpwron = -EINVAL;
 
 	if (gpio_is_valid(twl6040->audpwron)) {
-		ret = gpio_request_one(twl6040->audpwron, GPIOF_OUT_INIT_LOW,
-				       "audpwron");
+		ret = devm_gpio_request_one(&client->dev, twl6040->audpwron,
+					GPIOF_OUT_INIT_LOW, "audpwron");
 		if (ret)
 			goto gpio_err;
 	}
@@ -596,14 +596,14 @@ static int twl6040_probe(struct i2c_client *client,
 			IRQF_ONESHOT, 0, &twl6040_irq_chip,
 			&twl6040->irq_data);
 	if (ret < 0)
-		goto irq_init_err;
+		goto gpio_err;
 
 	twl6040->irq_ready = regmap_irq_get_virq(twl6040->irq_data,
 					       TWL6040_IRQ_READY);
 	twl6040->irq_th = regmap_irq_get_virq(twl6040->irq_data,
 					       TWL6040_IRQ_TH);
 
-	ret = request_threaded_irq(twl6040->irq_ready, NULL,
+	ret = devm_request_threaded_irq(twl6040->dev, twl6040->irq_ready, NULL,
 				   twl6040_readyint_handler, IRQF_ONESHOT,
 				   "twl6040_irq_ready", twl6040);
 	if (ret) {
@@ -611,7 +611,7 @@ static int twl6040_probe(struct i2c_client *client,
 		goto readyirq_err;
 	}
 
-	ret = request_threaded_irq(twl6040->irq_th, NULL,
+	ret = devm_request_threaded_irq(twl6040->dev, twl6040->irq_th, NULL,
 				   twl6040_thint_handler, IRQF_ONESHOT,
 				   "twl6040_irq_th", twl6040);
 	if (ret) {
@@ -681,18 +681,13 @@ static int twl6040_probe(struct i2c_client *client,
 	return 0;
 
 mfd_err:
-	free_irq(twl6040->irq_th, twl6040);
+	devm_free_irq(&client->dev, twl6040->irq_th, twl6040);
 thirq_err:
-	free_irq(twl6040->irq_ready, twl6040);
+	devm_free_irq(&client->dev, twl6040->irq_ready, twl6040);
 readyirq_err:
 	regmap_del_irq_chip(twl6040->irq, twl6040->irq_data);
-irq_init_err:
-	if (gpio_is_valid(twl6040->audpwron))
-		gpio_free(twl6040->audpwron);
 gpio_err:
 	regulator_bulk_disable(TWL6040_NUM_SUPPLIES, twl6040->supplies);
-power_err:
-	regulator_bulk_free(TWL6040_NUM_SUPPLIES, twl6040->supplies);
 regulator_get_err:
 	i2c_set_clientdata(client, NULL);
 err:
@@ -706,18 +701,14 @@ static int twl6040_remove(struct i2c_client *client)
 	if (twl6040->power_count)
 		twl6040_power(twl6040, 0);
 
-	if (gpio_is_valid(twl6040->audpwron))
-		gpio_free(twl6040->audpwron);
-
-	free_irq(twl6040->irq_ready, twl6040);
-	free_irq(twl6040->irq_th, twl6040);
+	devm_free_irq(&client->dev, twl6040->irq_ready, twl6040);
+	devm_free_irq(&client->dev, twl6040->irq_th, twl6040);
 	regmap_del_irq_chip(twl6040->irq, twl6040->irq_data);
 
 	mfd_remove_devices(&client->dev);
 	i2c_set_clientdata(client, NULL);
 
 	regulator_bulk_disable(TWL6040_NUM_SUPPLIES, twl6040->supplies);
-	regulator_bulk_free(TWL6040_NUM_SUPPLIES, twl6040->supplies);
 
 	return 0;
 }

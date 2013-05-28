@@ -154,6 +154,8 @@ struct cirrus_fbdev {
 	struct list_head fbdev_list;
 	void *sysram;
 	int size;
+	int x1, y1, x2, y2; /* dirty rect */
+	spinlock_t dirty_lock;
 };
 
 struct cirrus_bo {

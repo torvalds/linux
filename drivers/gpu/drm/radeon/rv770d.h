@@ -38,6 +38,30 @@
 #define R7XX_MAX_PIPES             8
 #define R7XX_MAX_PIPES_MASK        0xff
 
+/* discrete uvd clocks */
+#define CG_UPLL_FUNC_CNTL				0x718
+#	define UPLL_RESET_MASK				0x00000001
+#	define UPLL_SLEEP_MASK				0x00000002
+#	define UPLL_BYPASS_EN_MASK			0x00000004
+#	define UPLL_CTLREQ_MASK				0x00000008
+#	define UPLL_REF_DIV(x)				((x) << 16)
+#	define UPLL_REF_DIV_MASK			0x003F0000
+#	define UPLL_CTLACK_MASK				0x40000000
+#	define UPLL_CTLACK2_MASK			0x80000000
+#define CG_UPLL_FUNC_CNTL_2				0x71c
+#	define UPLL_SW_HILEN(x)				((x) << 0)
+#	define UPLL_SW_LOLEN(x)				((x) << 4)
+#	define UPLL_SW_HILEN2(x)			((x) << 8)
+#	define UPLL_SW_LOLEN2(x)			((x) << 12)
+#	define UPLL_SW_MASK				0x0000FFFF
+#	define VCLK_SRC_SEL(x)				((x) << 20)
+#	define VCLK_SRC_SEL_MASK			0x01F00000
+#	define DCLK_SRC_SEL(x)				((x) << 25)
+#	define DCLK_SRC_SEL_MASK			0x3E000000
+#define CG_UPLL_FUNC_CNTL_3				0x720
+#	define UPLL_FB_DIV(x)				((x) << 0)
+#	define UPLL_FB_DIV_MASK				0x01FFFFFF
+
 /* Registers */
 #define	CB_COLOR0_BASE					0x28040
 #define	CB_COLOR1_BASE					0x28044
@@ -111,6 +135,11 @@
 
 #define DMA_TILING_CONFIG                               0x3ec8
 #define DMA_TILING_CONFIG2                              0xd0b8
+
+/* RV730 only */
+#define UVD_UDEC_TILING_CONFIG                          0xef40
+#define UVD_UDEC_DB_TILING_CONFIG                       0xef44
+#define UVD_UDEC_DBW_TILING_CONFIG                      0xef48
 
 #define	GC_USER_SHADER_PIPE_CONFIG			0x8954
 #define		INACTIVE_QD_PIPES(x)				((x) << 8)
@@ -670,5 +699,19 @@
 #define LINK_CNTL2                                        0x88 /* F0 */
 #       define TARGET_LINK_SPEED_MASK                     (0xf << 0)
 #       define SELECTABLE_DEEMPHASIS                      (1 << 6)
+
+/* UVD */
+#define UVD_LMI_EXT40_ADDR				0xf498
+#define UVD_VCPU_CHIP_ID				0xf4d4
+#define UVD_VCPU_CACHE_OFFSET0				0xf4d8
+#define UVD_VCPU_CACHE_SIZE0				0xf4dc
+#define UVD_VCPU_CACHE_OFFSET1				0xf4e0
+#define UVD_VCPU_CACHE_SIZE1				0xf4e4
+#define UVD_VCPU_CACHE_OFFSET2				0xf4e8
+#define UVD_VCPU_CACHE_SIZE2				0xf4ec
+#define UVD_LMI_ADDR_EXT				0xf594
+
+#define UVD_RBC_RB_RPTR					0xf690
+#define UVD_RBC_RB_WPTR					0xf694
 
 #endif

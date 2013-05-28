@@ -147,8 +147,8 @@ static void rtl8180_handle_rx(struct ieee80211_hw *dev)
 				signal = priv->rf->calc_rssi(agc, sq);
 			}
 			rx_status.signal = signal;
-			rx_status.freq = dev->conf.channel->center_freq;
-			rx_status.band = dev->conf.channel->band;
+			rx_status.freq = dev->conf.chandef.chan->center_freq;
+			rx_status.band = dev->conf.chandef.chan->band;
 			rx_status.mactime = le64_to_cpu(entry->tsft);
 			rx_status.flag |= RX_FLAG_MACTIME_START;
 			if (flags & RTL818X_RX_DESC_FLAG_CRC32_ERR)

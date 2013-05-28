@@ -449,7 +449,7 @@ int mei_amthif_irq_write_complete(struct mei_device *dev, s32 *slots,
 	struct mei_msg_hdr mei_hdr;
 	struct mei_cl *cl = cb->cl;
 	size_t len = dev->iamthif_msg_buf_size - dev->iamthif_msg_buf_index;
-	size_t msg_slots = mei_data2slots(len);
+	u32 msg_slots = mei_data2slots(len);
 
 	mei_hdr.host_addr = cl->host_client_id;
 	mei_hdr.me_addr = cl->me_client_id;
@@ -505,14 +505,15 @@ int mei_amthif_irq_write_complete(struct mei_device *dev, s32 *slots,
  * mei_amthif_irq_read_message - read routine after ISR to
  *			handle the read amthif message
  *
- * @complete_list: An instance of our list structure
  * @dev: the device structure
  * @mei_hdr: header of amthif message
+ * @complete_list: An instance of our list structure
  *
  * returns 0 on success, <0 on failure.
  */
-int mei_amthif_irq_read_message(struct mei_cl_cb *complete_list,
-		struct mei_device *dev, struct mei_msg_hdr *mei_hdr)
+int mei_amthif_irq_read_msg(struct mei_device *dev,
+			    struct mei_msg_hdr *mei_hdr,
+			    struct mei_cl_cb *complete_list)
 {
 	struct mei_cl_cb *cb;
 	unsigned char *buffer;
@@ -530,8 +531,7 @@ int mei_amthif_irq_read_message(struct mei_cl_cb *complete_list,
 	if (!mei_hdr->msg_complete)
 		return 0;
 
-	dev_dbg(&dev->pdev->dev,
-			"amthif_message_buffer_index =%d\n",
+	dev_dbg(&dev->pdev->dev, "amthif_message_buffer_index =%d\n",
 			mei_hdr->length);
 
 	dev_dbg(&dev->pdev->dev, "completed amthif read.\n ");
@@ -566,12 +566,13 @@ int mei_amthif_irq_read_message(struct mei_cl_cb *complete_list,
  */
 int mei_amthif_irq_read(struct mei_device *dev, s32 *slots)
 {
+	u32 msg_slots = mei_data2slots(sizeof(struct hbm_flow_control));
 
-	if (((*slots) * sizeof(u32)) < (sizeof(struct mei_msg_hdr)
-			+ sizeof(struct hbm_flow_control))) {
+	if (*slots < msg_slots)
 		return -EMSGSIZE;
-	}
-	*slots -= mei_data2slots(sizeof(struct hbm_flow_control));
+
+	*slots -= msg_slots;
+
 	if (mei_hbm_cl_flow_control_req(dev, &dev->iamthif_cl)) {
 		dev_dbg(&dev->pdev->dev, "iamthif flow control failed\n");
 		return -EIO;

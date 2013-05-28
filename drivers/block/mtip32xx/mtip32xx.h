@@ -52,6 +52,9 @@
 #define MTIP_FTL_REBUILD_MAGIC		0xED51
 #define MTIP_FTL_REBUILD_TIMEOUT_MS	2400000
 
+/* unaligned IO handling */
+#define MTIP_MAX_UNALIGNED_SLOTS	8
+
 /* Macro to extract the tag bit number from a tag value. */
 #define MTIP_TAG_BIT(tag)	(tag & 0x1F)
 
@@ -129,9 +132,9 @@ enum {
 	MTIP_PF_EH_ACTIVE_BIT       = 1, /* error handling */
 	MTIP_PF_SE_ACTIVE_BIT       = 2, /* secure erase */
 	MTIP_PF_DM_ACTIVE_BIT       = 3, /* download microcde */
-	MTIP_PF_PAUSE_IO      =	((1 << MTIP_PF_IC_ACTIVE_BIT) | \
-				(1 << MTIP_PF_EH_ACTIVE_BIT) | \
-				(1 << MTIP_PF_SE_ACTIVE_BIT) | \
+	MTIP_PF_PAUSE_IO      =	((1 << MTIP_PF_IC_ACTIVE_BIT) |
+				(1 << MTIP_PF_EH_ACTIVE_BIT) |
+				(1 << MTIP_PF_SE_ACTIVE_BIT) |
 				(1 << MTIP_PF_DM_ACTIVE_BIT)),
 
 	MTIP_PF_SVC_THD_ACTIVE_BIT  = 4,
@@ -144,9 +147,9 @@ enum {
 	MTIP_DDF_REMOVE_PENDING_BIT = 1,
 	MTIP_DDF_OVER_TEMP_BIT      = 2,
 	MTIP_DDF_WRITE_PROTECT_BIT  = 3,
-	MTIP_DDF_STOP_IO      = ((1 << MTIP_DDF_REMOVE_PENDING_BIT) | \
-				(1 << MTIP_DDF_SEC_LOCK_BIT) | \
-				(1 << MTIP_DDF_OVER_TEMP_BIT) | \
+	MTIP_DDF_STOP_IO      = ((1 << MTIP_DDF_REMOVE_PENDING_BIT) |
+				(1 << MTIP_DDF_SEC_LOCK_BIT) |
+				(1 << MTIP_DDF_OVER_TEMP_BIT) |
 				(1 << MTIP_DDF_WRITE_PROTECT_BIT)),
 
 	MTIP_DDF_CLEANUP_BIT        = 5,
@@ -180,7 +183,7 @@ struct mtip_work {
 
 #define MTIP_TRIM_TIMEOUT_MS		240000
 #define MTIP_MAX_TRIM_ENTRIES		8
-#define MTIP_MAX_TRIM_ENTRY_LEN 	0xfff8
+#define MTIP_MAX_TRIM_ENTRY_LEN		0xfff8
 
 struct mtip_trim_entry {
 	u32 lba;   /* starting lba of region */
@@ -333,6 +336,8 @@ struct mtip_cmd {
 
 	int scatter_ents; /* Number of scatter list entries used */
 
+	int unaligned; /* command is unaligned on 4k boundary */
+
 	struct scatterlist sg[MTIP_MAX_SG]; /* Scatter list entries */
 
 	int retries; /* The number of retries left for this command. */
@@ -452,6 +457,10 @@ struct mtip_port {
 	 * command slots available.
 	 */
 	struct semaphore cmd_slot;
+
+	/* Semaphore to control queue depth of unaligned IOs */
+	struct semaphore cmd_slot_unal;
+
 	/* Spinlock for working around command-issue bug. */
 	spinlock_t cmd_issue_lock[MTIP_MAX_SLOT_GROUPS];
 };
@@ -501,6 +510,12 @@ struct driver_data {
 	atomic_t irq_workers_active;
 
 	int isr_binding;
+
+	int unal_qdepth; /* qdepth of unaligned IO queue */
+
+	struct list_head online_list; /* linkage for online list */
+
+	struct list_head remove_list; /* linkage for removing list */
 };
 
 #endif

@@ -220,7 +220,8 @@ extern void ccw_device_get_id(struct ccw_device *, struct ccw_dev_id *);
 #define to_ccwdrv(n) container_of(n, struct ccw_driver, driver)
 
 extern struct ccw_device *ccw_device_probe_console(void);
-extern int ccw_device_force_console(void);
+extern void ccw_device_wait_idle(struct ccw_device *);
+extern int ccw_device_force_console(struct ccw_device *);
 
 int ccw_device_siosl(struct ccw_device *);
 

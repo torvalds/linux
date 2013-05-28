@@ -280,8 +280,8 @@ struct ip_vs_daemon_user {
 #define IPVS_GENL_VERSION	0x1
 
 struct ip_vs_flags {
-	__be32 flags;
-	__be32 mask;
+	__u32 flags;
+	__u32 mask;
 };
 
 /* Generic Netlink command attributes */

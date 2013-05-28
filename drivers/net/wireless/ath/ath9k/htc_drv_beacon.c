@@ -308,7 +308,7 @@ static void ath9k_htc_send_buffered(struct ath9k_htc_priv *priv,
 	while(skb) {
 		hdr = (struct ieee80211_hdr *) skb->data;
 
-		padpos = ath9k_cmn_padpos(hdr->frame_control);
+		padpos = ieee80211_hdrlen(hdr->frame_control);
 		padsize = padpos & 3;
 		if (padsize && skb->len > padpos) {
 			if (skb_headroom(skb) < padsize) {

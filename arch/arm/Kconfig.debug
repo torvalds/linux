@@ -89,6 +89,10 @@ choice
 		bool "Kernel low-level debugging on 9263 and 9g45"
 		depends on HAVE_AT91_DBGU1
 
+	config DEBUG_BCM2835
+		bool "Kernel low-level debugging on BCM2835 PL011 UART"
+		depends on ARCH_BCM2835
+
 	config DEBUG_CLPS711X_UART1
 		bool "Kernel low-level debugging messages via UART1"
 		depends on ARCH_CLPS711X
@@ -102,6 +106,13 @@ choice
 		help
 		  Say Y here if you want the debug print routines to direct
 		  their output to the second serial port on these devices.
+
+	config DEBUG_CNS3XXX
+		bool "Kernel Kernel low-level debugging on Cavium Networks CNS3xxx"
+		depends on ARCH_CNS3XXX
+		help
+		  Say Y here if you want the debug print routines to direct
+                  their output to the CNS3xxx UART0.
 
 	config DEBUG_DAVINCI_DA8XX_UART1
 		bool "Kernel low-level debugging on DaVinci DA8XX using UART1"
@@ -234,11 +245,11 @@ choice
 		  on i.MX53.
 
 	config DEBUG_IMX6Q_UART
-		bool "i.MX6Q Debug UART"
+		bool "i.MX6Q/DL Debug UART"
 		depends on SOC_IMX6Q
 		help
 		  Say Y here if you want kernel low-level debugging support
-		  on i.MX6Q.
+		  on i.MX6Q/DL.
 
 	config DEBUG_MMP_UART2
 		bool "Kernel low-level debugging message via MMP UART2"
@@ -298,6 +309,13 @@ choice
 		  Say Y here if you want kernel low-level debugging support
 		  on MVEBU based platforms.
 
+	config DEBUG_NOMADIK_UART
+		bool "Kernel low-level debugging messages via NOMADIK UART"
+		depends on ARCH_NOMADIK
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on NOMADIK based platforms.
+
 	config DEBUG_OMAP2PLUS_UART
 		bool "Kernel low-level debugging messages via OMAP2PLUS UART"
 		depends on ARCH_OMAP2PLUS
@@ -311,6 +329,13 @@ choice
 		help
 		  Say Y here if you want kernel low-level debugging support
 		  on PicoXcell based platforms.
+
+	config DEBUG_PXA_UART1
+		depends on ARCH_PXA
+		bool "Use PXA UART1 for low-level debug"
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on PXA UART1.
 
 	config DEBUG_REALVIEW_STD_PORT
 		bool "RealView Default UART"
@@ -330,6 +355,7 @@ choice
 
 	config DEBUG_S3C_UART0
 		depends on PLAT_SAMSUNG
+		select DEBUG_EXYNOS_UART if ARCH_EXYNOS
 		bool "Use S3C UART 0 for low-level debug"
 		help
 		  Say Y here if you want the debug print routines to direct
@@ -341,6 +367,7 @@ choice
 
 	config DEBUG_S3C_UART1
 		depends on PLAT_SAMSUNG
+		select DEBUG_EXYNOS_UART if ARCH_EXYNOS
 		bool "Use S3C UART 1 for low-level debug"
 		help
 		  Say Y here if you want the debug print routines to direct
@@ -352,6 +379,7 @@ choice
 
 	config DEBUG_S3C_UART2
 		depends on PLAT_SAMSUNG
+		select DEBUG_EXYNOS_UART if ARCH_EXYNOS
 		bool "Use S3C UART 2 for low-level debug"
 		help
 		  Say Y here if you want the debug print routines to direct
@@ -363,6 +391,7 @@ choice
 
 	config DEBUG_S3C_UART3
 		depends on PLAT_SAMSUNG && ARCH_EXYNOS
+		select DEBUG_EXYNOS_UART
 		bool "Use S3C UART 3 for low-level debug"
 		help
 		  Say Y here if you want the debug print routines to direct
@@ -413,6 +442,13 @@ choice
 		help
 		  Say Y here if you want the debug print routines to direct
 		  their output to the uart1 port on SiRFmarco devices.
+
+	config DEBUG_UX500_UART
+		depends on ARCH_U8500
+		bool "Use Ux500 UART for low-level debug"
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on Ux500 based platforms.
 
 	config DEBUG_VEXPRESS_UART0_DETECT
 		bool "Autodetect UART0 on Versatile Express Cortex-A core tiles"
@@ -485,6 +521,9 @@ choice
 
 endchoice
 
+config DEBUG_EXYNOS_UART
+	bool
+
 config DEBUG_IMX_UART_PORT
 	int "i.MX Debug UART Port Selection" if DEBUG_IMX1_UART || \
 						DEBUG_IMX25_UART || \
@@ -492,9 +531,10 @@ config DEBUG_IMX_UART_PORT
 						DEBUG_IMX31_UART || \
 						DEBUG_IMX35_UART || \
 						DEBUG_IMX51_UART || \
-						DEBUG_IMX50_IMX53_UART || \
+						DEBUG_IMX53_UART || \
 						DEBUG_IMX6Q_UART
 	default 1
+	depends on ARCH_MXC
 	help
 	  Choose UART port on which kernel low-level debug messages
 	  should be output.
@@ -579,6 +619,10 @@ endchoice
 
 config DEBUG_LL_INCLUDE
 	string
+	default "debug/bcm2835.S" if DEBUG_BCM2835
+	default "debug/cns3xxx.S" if DEBUG_CNS3XXX
+	default "debug/exynos.S" if DEBUG_EXYNOS_UART
+	default "debug/highbank.S" if DEBUG_HIGHBANK_UART
 	default "debug/icedcc.S" if DEBUG_ICEDCC
 	default "debug/imx.S" if DEBUG_IMX1_UART || \
 				 DEBUG_IMX25_UART || \
@@ -588,18 +632,34 @@ config DEBUG_LL_INCLUDE
 				 DEBUG_IMX51_UART || \
 				 DEBUG_IMX53_UART ||\
 				 DEBUG_IMX6Q_UART
-	default "debug/highbank.S" if DEBUG_HIGHBANK_UART
 	default "debug/mvebu.S" if DEBUG_MVEBU_UART
+	default "debug/mxs.S" if DEBUG_IMX23_UART || DEBUG_IMX28_UART
+	default "debug/nomadik.S" if DEBUG_NOMADIK_UART
 	default "debug/omap2plus.S" if DEBUG_OMAP2PLUS_UART
 	default "debug/picoxcell.S" if DEBUG_PICOXCELL_UART
+	default "debug/pxa.S" if DEBUG_PXA_UART1 || DEBUG_MMP_UART2 || \
+				 DEBUG_MMP_UART3
+	default "debug/sirf.S" if DEBUG_SIRFPRIMA2_UART1 || DEBUG_SIRFMARCO_UART1
 	default "debug/socfpga.S" if DEBUG_SOCFPGA_UART
 	default "debug/sunxi.S" if DEBUG_SUNXI_UART0 || DEBUG_SUNXI_UART1
+	default "debug/tegra.S" if DEBUG_TEGRA_UART
+	default "debug/ux500.S" if DEBUG_UX500_UART
 	default "debug/vexpress.S" if DEBUG_VEXPRESS_UART0_DETECT || \
 		DEBUG_VEXPRESS_UART0_CA9 || DEBUG_VEXPRESS_UART0_RS1
 	default "debug/vt8500.S" if DEBUG_VT8500_UART0
-	default "debug/tegra.S" if DEBUG_TEGRA_UART
 	default "debug/zynq.S" if DEBUG_ZYNQ_UART0 || DEBUG_ZYNQ_UART1
 	default "mach/debug-macro.S"
+
+config DEBUG_UNCOMPRESS
+	bool
+	default y if ARCH_MULTIPLATFORM && DEBUG_LL && \
+		     !DEBUG_OMAP2PLUS_UART && \
+		     !DEBUG_TEGRA_UART
+
+config UNCOMPRESS_INCLUDE
+	string
+	default "debug/uncompress.h" if ARCH_MULTIPLATFORM
+	default "mach/uncompress.h"
 
 config EARLY_PRINTK
 	bool "Early printk"

@@ -1073,6 +1073,10 @@ static struct mt312_config zl10313_compro_s350_config = {
 	.demod_address = 0x0e,
 };
 
+static struct mt312_config zl10313_avermedia_a706_config = {
+	.demod_address = 0x0e,
+};
+
 static struct lgdt3305_config hcw_lgdt3305_config = {
 	.i2c_addr           = 0x0e,
 	.mpeg_mode          = LGDT3305_MPEG_SERIAL,
@@ -1391,8 +1395,9 @@ static int dvb_init(struct saa7134_dev *dev)
 					wprintk("%s: Lifeview Trio, No tda826x found!\n", __func__);
 					goto detach_frontend;
 				}
-				if (dvb_attach(isl6421_attach, fe0->dvb.frontend, &dev->i2c_adap,
-										0x08, 0, 0) == NULL) {
+				if (dvb_attach(isl6421_attach, fe0->dvb.frontend,
+					       &dev->i2c_adap,
+					       0x08, 0, 0, false) == NULL) {
 					wprintk("%s: Lifeview Trio, No ISL6421 found!\n", __func__);
 					goto detach_frontend;
 				}
@@ -1509,7 +1514,8 @@ static int dvb_init(struct saa7134_dev *dev)
 				goto detach_frontend;
 			}
 			if (dvb_attach(isl6421_attach, fe0->dvb.frontend,
-				       &dev->i2c_adap, 0x08, 0, 0) == NULL) {
+				       &dev->i2c_adap,
+				       0x08, 0, 0, false) == NULL) {
 				wprintk("%s: No ISL6421 found!\n", __func__);
 				goto detach_frontend;
 			}
@@ -1818,6 +1824,25 @@ static int dvb_init(struct saa7134_dev *dev)
 			dvb_attach(tda18271_attach, fe0->dvb.frontend,
 				   0x60, &dev->i2c_adap,
 				   &prohdtv_pro2_tda18271_config);
+		}
+		break;
+	case SAA7134_BOARD_AVERMEDIA_A706:
+		/* Enable all DVB-S devices now */
+		/* CE5039 DVB-S tuner SLEEP pin low */
+		saa7134_set_gpio(dev, 23, 0);
+		/* CE6313 DVB-S demod SLEEP pin low */
+		saa7134_set_gpio(dev, 9, 0);
+		/* CE6313 DVB-S demod RESET# pin high */
+		saa7134_set_gpio(dev, 25, 1);
+		msleep(1);
+		fe0->dvb.frontend = dvb_attach(mt312_attach,
+				&zl10313_avermedia_a706_config, &dev->i2c_adap);
+		if (fe0->dvb.frontend) {
+			fe0->dvb.frontend->ops.i2c_gate_ctrl = NULL;
+			if (dvb_attach(zl10039_attach, fe0->dvb.frontend,
+					0x60, &dev->i2c_adap) == NULL)
+				wprintk("%s: No zl10039 found!\n",
+					__func__);
 		}
 		break;
 	default:

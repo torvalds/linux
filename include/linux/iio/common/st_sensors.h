@@ -15,6 +15,7 @@
 #include <linux/spi/spi.h>
 #include <linux/irqreturn.h>
 #include <linux/iio/trigger.h>
+#include <linux/bitops.h>
 
 #define ST_SENSORS_TX_MAX_LENGTH		2
 #define ST_SENSORS_RX_MAX_LENGTH		6
@@ -45,8 +46,8 @@
 { \
 	.type = device_type, \
 	.modified = 1, \
-	.info_mask = IIO_CHAN_INFO_RAW_SEPARATE_BIT | \
-			IIO_CHAN_INFO_SCALE_SEPARATE_BIT, \
+	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | \
+			BIT(IIO_CHAN_INFO_SCALE), \
 	.scan_index = index, \
 	.channel2 = mod, \
 	.address = addr, \
@@ -227,14 +228,17 @@ struct st_sensor_data {
 };
 
 #ifdef CONFIG_IIO_BUFFER
+irqreturn_t st_sensors_trigger_handler(int irq, void *p);
+
+int st_sensors_get_buffer_element(struct iio_dev *indio_dev, u8 *buf);
+#endif
+
+#ifdef CONFIG_IIO_TRIGGER
 int st_sensors_allocate_trigger(struct iio_dev *indio_dev,
 				const struct iio_trigger_ops *trigger_ops);
 
 void st_sensors_deallocate_trigger(struct iio_dev *indio_dev);
 
-irqreturn_t st_sensors_trigger_handler(int irq, void *p);
-
-int st_sensors_get_buffer_element(struct iio_dev *indio_dev, u8 *buf);
 #else
 static inline int st_sensors_allocate_trigger(struct iio_dev *indio_dev,
 				const struct iio_trigger_ops *trigger_ops)

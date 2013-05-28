@@ -41,15 +41,11 @@ static void __init kirkwood_legacy_clk_init(void)
 
 	struct device_node *np = of_find_compatible_node(
 		NULL, NULL, "marvell,kirkwood-gating-clock");
-
 	struct of_phandle_args clkspec;
+	struct clk *clk;
 
 	clkspec.np = np;
 	clkspec.args_count = 1;
-
-	clkspec.args[0] = CGC_BIT_GE0;
-	orion_clkdev_add(NULL, "mv643xx_eth_port.0",
-			 of_clk_get_from_provider(&clkspec));
 
 	clkspec.args[0] = CGC_BIT_PEX0;
 	orion_clkdev_add("0", "pcie",
@@ -59,9 +55,24 @@ static void __init kirkwood_legacy_clk_init(void)
 	orion_clkdev_add("1", "pcie",
 			 of_clk_get_from_provider(&clkspec));
 
-	clkspec.args[0] = CGC_BIT_GE1;
-	orion_clkdev_add(NULL, "mv643xx_eth_port.1",
+	clkspec.args[0] = CGC_BIT_SDIO;
+	orion_clkdev_add(NULL, "mvsdio",
 			 of_clk_get_from_provider(&clkspec));
+
+	/*
+	 * The ethernet interfaces forget the MAC address assigned by
+	 * u-boot if the clocks are turned off. Until proper DT support
+	 * is available we always enable them for now.
+	 */
+	clkspec.args[0] = CGC_BIT_GE0;
+	clk = of_clk_get_from_provider(&clkspec);
+	orion_clkdev_add(NULL, "mv643xx_eth_port.0", clk);
+	clk_prepare_enable(clk);
+
+	clkspec.args[0] = CGC_BIT_GE1;
+	clk = of_clk_get_from_provider(&clkspec);
+	orion_clkdev_add(NULL, "mv643xx_eth_port.1", clk);
+	clk_prepare_enable(clk);
 }
 
 static void __init kirkwood_of_clk_init(void)
@@ -82,7 +93,7 @@ static void __init kirkwood_dt_init(void)
 	 */
 	writel(readl(CPU_CONFIG) & ~CPU_CONFIG_ERROR_PROP, CPU_CONFIG);
 
-	kirkwood_setup_cpu_mbus();
+	kirkwood_setup_wins();
 
 	kirkwood_l2_init();
 
@@ -128,15 +139,19 @@ static void __init kirkwood_dt_init(void)
 	if (of_machine_is_compatible("keymile,km_kirkwood"))
 		km_kirkwood_init();
 
-	if (of_machine_is_compatible("lacie,inetspace_v2") ||
-	    of_machine_is_compatible("lacie,netspace_v2") ||
-	    of_machine_is_compatible("lacie,netspace_max_v2") ||
+	if (of_machine_is_compatible("lacie,cloudbox") ||
+	    of_machine_is_compatible("lacie,inetspace_v2") ||
 	    of_machine_is_compatible("lacie,netspace_lite_v2") ||
-	    of_machine_is_compatible("lacie,netspace_mini_v2"))
+	    of_machine_is_compatible("lacie,netspace_max_v2") ||
+	    of_machine_is_compatible("lacie,netspace_mini_v2") ||
+	    of_machine_is_compatible("lacie,netspace_v2"))
 		ns2_init();
 
 	if (of_machine_is_compatible("mpl,cec4"))
 		mplcec4_init();
+
+	if (of_machine_is_compatible("netgear,readynas-duo-v2"))
+		netgear_readynas_init();
 
 	if (of_machine_is_compatible("plathome,openblocks-a6"))
 		openblocks_a6_init();
@@ -160,12 +175,14 @@ static const char * const kirkwood_dt_board_compat[] = {
 	"buffalo,lsxl",
 	"iom,ix2-200",
 	"keymile,km_kirkwood",
+	"lacie,cloudbox",
 	"lacie,inetspace_v2",
-	"lacie,netspace_max_v2",
-	"lacie,netspace_v2",
 	"lacie,netspace_lite_v2",
+	"lacie,netspace_max_v2",
 	"lacie,netspace_mini_v2",
+	"lacie,netspace_v2",
 	"mpl,cec4",
+	"netgear,readynas-duo-v2",
 	"plathome,openblocks-a6",
 	"usi,topkick",
 	"zyxel,nsa310",

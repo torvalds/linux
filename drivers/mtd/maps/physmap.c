@@ -87,21 +87,18 @@ static void physmap_set_vpp(struct map_info *map, int state)
 	spin_unlock_irqrestore(&info->vpp_lock, flags);
 }
 
-static const char *rom_probe_types[] = {
-					"cfi_probe",
-					"jedec_probe",
-					"qinfo_probe",
-					"map_rom",
-					NULL };
-static const char *part_probe_types[] = { "cmdlinepart", "RedBoot", "afs",
-					  NULL };
+static const char * const rom_probe_types[] = {
+	"cfi_probe", "jedec_probe", "qinfo_probe", "map_rom", NULL };
+
+static const char * const part_probe_types[] = {
+	"cmdlinepart", "RedBoot", "afs", NULL };
 
 static int physmap_flash_probe(struct platform_device *dev)
 {
 	struct physmap_flash_data *physmap_data;
 	struct physmap_flash_info *info;
-	const char **probe_type;
-	const char **part_types;
+	const char * const *probe_type;
+	const char * const *part_types;
 	int err = 0;
 	int i;
 	int devices_found = 0;

@@ -213,6 +213,7 @@ unsigned int leon_build_device_irq(unsigned int real_irq,
 {
 	unsigned int irq;
 	unsigned long mask;
+	struct irq_desc *desc;
 
 	irq = 0;
 	mask = leon_get_irqmask(real_irq);
@@ -226,9 +227,12 @@ unsigned int leon_build_device_irq(unsigned int real_irq,
 	if (do_ack)
 		mask |= LEON_DO_ACK_HW;
 
-	irq_set_chip_and_handler_name(irq, &leon_irq,
-				      flow_handler, name);
-	irq_set_chip_data(irq, (void *)mask);
+	desc = irq_to_desc(irq);
+	if (!desc || !desc->handle_irq || desc->handle_irq == handle_bad_irq) {
+		irq_set_chip_and_handler_name(irq, &leon_irq,
+					      flow_handler, name);
+		irq_set_chip_data(irq, (void *)mask);
+	}
 
 out:
 	return irq;

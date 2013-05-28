@@ -257,32 +257,49 @@ static struct regmap_irq_chip palmas_irq_chip = {
 			PALMAS_INT1_MASK),
 };
 
-static void palmas_dt_to_pdata(struct device_node *node,
+static int palmas_set_pdata_irq_flag(struct i2c_client *i2c,
 		struct palmas_platform_data *pdata)
 {
+	struct irq_data *irq_data = irq_get_irq_data(i2c->irq);
+	if (!irq_data) {
+		dev_err(&i2c->dev, "Invalid IRQ: %d\n", i2c->irq);
+		return -EINVAL;
+	}
+
+	pdata->irq_flags = irqd_get_trigger_type(irq_data);
+	dev_info(&i2c->dev, "Irq flag is 0x%08x\n", pdata->irq_flags);
+	return 0;
+}
+
+static void palmas_dt_to_pdata(struct i2c_client *i2c,
+		struct palmas_platform_data *pdata)
+{
+	struct device_node *node = i2c->dev.of_node;
 	int ret;
 	u32 prop;
 
-	ret = of_property_read_u32(node, "ti,mux_pad1", &prop);
+	ret = of_property_read_u32(node, "ti,mux-pad1", &prop);
 	if (!ret) {
 		pdata->mux_from_pdata = 1;
 		pdata->pad1 = prop;
 	}
 
-	ret = of_property_read_u32(node, "ti,mux_pad2", &prop);
+	ret = of_property_read_u32(node, "ti,mux-pad2", &prop);
 	if (!ret) {
 		pdata->mux_from_pdata = 1;
 		pdata->pad2 = prop;
 	}
 
 	/* The default for this register is all masked */
-	ret = of_property_read_u32(node, "ti,power_ctrl", &prop);
+	ret = of_property_read_u32(node, "ti,power-ctrl", &prop);
 	if (!ret)
 		pdata->power_ctrl = prop;
 	else
 		pdata->power_ctrl = PALMAS_POWER_CTRL_NSLEEP_MASK |
 					PALMAS_POWER_CTRL_ENABLE1_MASK |
 					PALMAS_POWER_CTRL_ENABLE2_MASK;
+	if (i2c->irq)
+		palmas_set_pdata_irq_flag(i2c, pdata);
 }
 
 static int palmas_i2c_probe(struct i2c_client *i2c,
@@ -304,7 +321,7 @@ static int palmas_i2c_probe(struct i2c_client *i2c,
 		if (!pdata)
 			return -ENOMEM;
 
-		palmas_dt_to_pdata(node, pdata);
+		palmas_dt_to_pdata(i2c, pdata);
 	}
 
 	if (!pdata)
@@ -332,6 +349,7 @@ static int palmas_i2c_probe(struct i2c_client *i2c,
 				ret = -ENOMEM;
 				goto err;
 			}
+			palmas->i2c_clients[i]->dev.of_node = of_node_get(node);
 		}
 		palmas->regmap[i] = devm_regmap_init_i2c(palmas->i2c_clients[i],
 				&palmas_regmap_config[i]);
@@ -344,6 +362,19 @@ static int palmas_i2c_probe(struct i2c_client *i2c,
 		}
 	}
 
+	/* Change interrupt line output polarity */
+	if (pdata->irq_flags & IRQ_TYPE_LEVEL_HIGH)
+		reg = PALMAS_POLARITY_CTRL_INT_POLARITY;
+	else
+		reg = 0;
+	ret = palmas_update_bits(palmas, PALMAS_PU_PD_OD_BASE,
+			PALMAS_POLARITY_CTRL, PALMAS_POLARITY_CTRL_INT_POLARITY,
+			reg);
+	if (ret < 0) {
+		dev_err(palmas->dev, "POLARITY_CTRL updat failed: %d\n", ret);
+		goto err;
+	}
+
 	/* Change IRQ into clear on read mode for efficiency */
 	slave = PALMAS_BASE_TO_SLAVE(PALMAS_INTERRUPT_BASE);
 	addr = PALMAS_BASE_TO_REG(PALMAS_INTERRUPT_BASE, PALMAS_INT_CTRL);
@@ -352,7 +383,7 @@ static int palmas_i2c_probe(struct i2c_client *i2c,
 	regmap_write(palmas->regmap[slave], addr, reg);
 
 	ret = regmap_add_irq_chip(palmas->regmap[slave], palmas->irq,
-			IRQF_ONESHOT | IRQF_TRIGGER_LOW, 0, &palmas_irq_chip,
+			IRQF_ONESHOT | pdata->irq_flags, 0, &palmas_irq_chip,
 			&palmas->irq_data);
 	if (ret < 0)
 		goto err;

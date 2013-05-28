@@ -80,7 +80,6 @@ MODULE_DEVICE_TABLE(usb, id_table);
 
 struct ch341_private {
 	spinlock_t lock; /* access lock */
-	wait_queue_head_t delta_msr_wait; /* wait queue for modem status */
 	unsigned baud_rate; /* set baud rate */
 	u8 line_control; /* set line control value RTS/DTR */
 	u8 line_status; /* active status of modem control inputs */
@@ -252,7 +251,6 @@ static int ch341_port_probe(struct usb_serial_port *port)
 		return -ENOMEM;
 
 	spin_lock_init(&priv->lock);
-	init_waitqueue_head(&priv->delta_msr_wait);
 	priv->baud_rate = DEFAULT_BAUD_RATE;
 	priv->line_control = CH341_BIT_RTS | CH341_BIT_DTR;
 
@@ -298,7 +296,6 @@ static void ch341_dtr_rts(struct usb_serial_port *port, int on)
 		priv->line_control &= ~(CH341_BIT_RTS | CH341_BIT_DTR);
 	spin_unlock_irqrestore(&priv->lock, flags);
 	ch341_set_handshake(port->serial->dev, priv->line_control);
-	wake_up_interruptible(&priv->delta_msr_wait);
 }
 
 static void ch341_close(struct usb_serial_port *port)
@@ -491,7 +488,7 @@ static void ch341_read_int_callback(struct urb *urb)
 			tty_kref_put(tty);
 		}
 
-		wake_up_interruptible(&priv->delta_msr_wait);
+		wake_up_interruptible(&port->port.delta_msr_wait);
 	}
 
 exit:
@@ -502,8 +499,9 @@ exit:
 			__func__, status);
 }
 
-static int wait_modem_info(struct usb_serial_port *port, unsigned int arg)
+static int ch341_tiocmiwait(struct tty_struct *tty, unsigned long arg)
 {
+	struct usb_serial_port *port = tty->driver_data;
 	struct ch341_private *priv = usb_get_serial_port_data(port);
 	unsigned long flags;
 	u8 prevstatus;
@@ -517,10 +515,13 @@ static int wait_modem_info(struct usb_serial_port *port, unsigned int arg)
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	while (!multi_change) {
-		interruptible_sleep_on(&priv->delta_msr_wait);
+		interruptible_sleep_on(&port->port.delta_msr_wait);
 		/* see if a signal did it */
 		if (signal_pending(current))
 			return -ERESTARTSYS;
+
+		if (port->serial->disconnected)
+			return -EIO;
 
 		spin_lock_irqsave(&priv->lock, flags);
 		status = priv->line_status;
@@ -539,26 +540,6 @@ static int wait_modem_info(struct usb_serial_port *port, unsigned int arg)
 	}
 
 	return 0;
-}
-
-static int ch341_ioctl(struct tty_struct *tty,
-			unsigned int cmd, unsigned long arg)
-{
-	struct usb_serial_port *port = tty->driver_data;
-
-	dev_dbg(&port->dev, "%s (%d) cmd = 0x%04x\n", __func__, port->number, cmd);
-
-	switch (cmd) {
-	case TIOCMIWAIT:
-		dev_dbg(&port->dev, "%s (%d) TIOCMIWAIT\n", __func__,  port->number);
-		return wait_modem_info(port, arg);
-
-	default:
-		dev_dbg(&port->dev, "%s not supported = 0x%04x\n", __func__, cmd);
-		break;
-	}
-
-	return -ENOIOCTLCMD;
 }
 
 static int ch341_tiocmget(struct tty_struct *tty)
@@ -610,11 +591,11 @@ static struct usb_serial_driver ch341_device = {
 	.dtr_rts	   = ch341_dtr_rts,
 	.carrier_raised	   = ch341_carrier_raised,
 	.close             = ch341_close,
-	.ioctl             = ch341_ioctl,
 	.set_termios       = ch341_set_termios,
 	.break_ctl         = ch341_break_ctl,
 	.tiocmget          = ch341_tiocmget,
 	.tiocmset          = ch341_tiocmset,
+	.tiocmiwait        = ch341_tiocmiwait,
 	.read_int_callback = ch341_read_int_callback,
 	.port_probe        = ch341_port_probe,
 	.port_remove       = ch341_port_remove,

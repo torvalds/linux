@@ -195,6 +195,7 @@ struct cnic_eth_dev {
 	u32		max_fcoe_conn;
 	u32		max_rdma_conn;
 	u32		fcoe_init_cid;
+	u32		max_fcoe_exchanges;
 	u32		fcoe_wwn_port_name_hi;
 	u32		fcoe_wwn_port_name_lo;
 	u32		fcoe_wwn_node_name_hi;
@@ -312,6 +313,8 @@ struct cnic_dev {
 	int		max_iscsi_conn;
 	int		max_fcoe_conn;
 	int		max_rdma_conn;
+
+	int		max_fcoe_exchanges;
 
 	union drv_info_to_mcp	*stats_addr;
 	struct fcoe_capabilities	*fcoe_cap;

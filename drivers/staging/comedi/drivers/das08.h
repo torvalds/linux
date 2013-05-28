@@ -32,7 +32,6 @@ enum das08_lrange { das08_pg_none, das08_bipolar5, das08_pgh, das08_pgl,
 
 struct das08_board_struct {
 	const char *name;
-	unsigned int id;	/*  id for pci/pcmcia boards */
 	bool is_jr;		/* true for 'JR' boards */
 	unsigned int ai_nbits;
 	enum das08_lrange ai_pg;

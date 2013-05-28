@@ -35,7 +35,6 @@
 #include <media/v4l2-common.h>
 
 #include "go7007-priv.h"
-#include "wis-i2c.h"
 
 /*
  * Wait for an interrupt to be delivered from the GO7007SB and return
@@ -91,43 +90,43 @@ EXPORT_SYMBOL(go7007_read_addr);
 static int go7007_load_encoder(struct go7007 *go)
 {
 	const struct firmware *fw_entry;
-	char fw_name[] = "go7007fw.bin";
+	char fw_name[] = "go7007/go7007fw.bin";
 	void *bounce;
 	int fw_len, rv = 0;
 	u16 intr_val, intr_data;
 
-	if (request_firmware(&fw_entry, fw_name, go->dev)) {
-		v4l2_err(go, "unable to load firmware from file "
-			"\"%s\"\n", fw_name);
-		return -1;
-	}
-	if (fw_entry->size < 16 || memcmp(fw_entry->data, "WISGO7007FW", 11)) {
-		v4l2_err(go, "file \"%s\" does not appear to be "
-				"go7007 firmware\n", fw_name);
+	if (go->boot_fw == NULL) {
+		if (request_firmware(&fw_entry, fw_name, go->dev)) {
+			v4l2_err(go, "unable to load firmware from file \"%s\"\n", fw_name);
+			return -1;
+		}
+		if (fw_entry->size < 16 || memcmp(fw_entry->data, "WISGO7007FW", 11)) {
+			v4l2_err(go, "file \"%s\" does not appear to be go7007 firmware\n", fw_name);
+			release_firmware(fw_entry);
+			return -1;
+		}
+		fw_len = fw_entry->size - 16;
+		bounce = kmemdup(fw_entry->data + 16, fw_len, GFP_KERNEL);
+		if (bounce == NULL) {
+			v4l2_err(go, "unable to allocate %d bytes for firmware transfer\n", fw_len);
+			release_firmware(fw_entry);
+			return -1;
+		}
 		release_firmware(fw_entry);
-		return -1;
+		go->boot_fw_len = fw_len;
+		go->boot_fw = bounce;
 	}
-	fw_len = fw_entry->size - 16;
-	bounce = kmemdup(fw_entry->data + 16, fw_len, GFP_KERNEL);
-	if (bounce == NULL) {
-		v4l2_err(go, "unable to allocate %d bytes for "
-				"firmware transfer\n", fw_len);
-		release_firmware(fw_entry);
-		return -1;
-	}
-	release_firmware(fw_entry);
 	if (go7007_interface_reset(go) < 0 ||
-			go7007_send_firmware(go, bounce, fw_len) < 0 ||
-			go7007_read_interrupt(go, &intr_val, &intr_data) < 0 ||
+	    go7007_send_firmware(go, go->boot_fw, go->boot_fw_len) < 0 ||
+	    go7007_read_interrupt(go, &intr_val, &intr_data) < 0 ||
 			(intr_val & ~0x1) != 0x5a5a) {
 		v4l2_err(go, "error transferring firmware\n");
 		rv = -1;
 	}
-	kfree(bounce);
 	return rv;
 }
 
-MODULE_FIRMWARE("go7007fw.bin");
+MODULE_FIRMWARE("go7007/go7007fw.bin");
 
 /*
  * Boot the encoder and register the I2C adapter if requested.  Do the
@@ -167,15 +166,24 @@ static int go7007_init_encoder(struct go7007 *go)
 		go7007_write_addr(go, 0x1000, 0x0811);
 		go7007_write_addr(go, 0x1000, 0x0c11);
 	}
-	if (go->board_id == GO7007_BOARDID_MATRIX_REV) {
+	switch (go->board_id) {
+	case GO7007_BOARDID_MATRIX_REV:
 		/* Set GPIO pin 0 to be an output (audio clock control) */
 		go7007_write_addr(go, 0x3c82, 0x0001);
 		go7007_write_addr(go, 0x3c80, 0x00fe);
-	}
-	if (go->board_id == GO7007_BOARDID_ADLINK_MPG24) {
+		break;
+	case GO7007_BOARDID_ADLINK_MPG24:
 		/* set GPIO5 to be an output, currently low */
 		go7007_write_addr(go, 0x3c82, 0x0000);
 		go7007_write_addr(go, 0x3c80, 0x00df);
+		break;
+	case GO7007_BOARDID_ADS_USBAV_709:
+		/* GPIO pin 0: audio clock control */
+		/*      pin 2: TW9906 reset */
+		/*      pin 3: capture LED */
+		go7007_write_addr(go, 0x3c82, 0x000d);
+		go7007_write_addr(go, 0x3c80, 0x00f2);
+		break;
 	}
 	return 0;
 }
@@ -196,18 +204,51 @@ int go7007_reset_encoder(struct go7007 *go)
 /*
  * Attempt to instantiate an I2C client by ID, probably loading a module.
  */
-static int init_i2c_module(struct i2c_adapter *adapter, const char *type,
-			   int addr)
+static int init_i2c_module(struct i2c_adapter *adapter, const struct go_i2c *const i2c)
 {
 	struct go7007 *go = i2c_get_adapdata(adapter);
 	struct v4l2_device *v4l2_dev = &go->v4l2_dev;
+	struct v4l2_subdev *sd;
+	struct i2c_board_info info;
 
-	if (v4l2_i2c_new_subdev(v4l2_dev, adapter, type, addr, NULL))
+	memset(&info, 0, sizeof(info));
+	strlcpy(info.type, i2c->type, sizeof(info.type));
+	info.addr = i2c->addr;
+	info.flags = i2c->flags;
+
+	sd = v4l2_i2c_new_subdev_board(v4l2_dev, adapter, &info, NULL);
+	if (sd) {
+		if (i2c->is_video)
+			go->sd_video = sd;
+		if (i2c->is_audio)
+			go->sd_audio = sd;
 		return 0;
+	}
 
-	dev_info(&adapter->dev,
-		 "go7007: probing for module i2c:%s failed\n", type);
-	return -1;
+	printk(KERN_INFO "go7007: probing for module i2c:%s failed\n", i2c->type);
+	return -EINVAL;
+}
+
+/*
+ * Detach and unregister the encoder.  The go7007 struct won't be freed
+ * until v4l2 finishes releasing its resources and all associated fds are
+ * closed by applications.
+ */
+static void go7007_remove(struct v4l2_device *v4l2_dev)
+{
+	struct go7007 *go = container_of(v4l2_dev, struct go7007, v4l2_dev);
+
+	v4l2_device_unregister(v4l2_dev);
+	if (go->hpi_ops->release)
+		go->hpi_ops->release(go);
+	if (go->i2c_adapter_online) {
+		i2c_del_adapter(&go->i2c_adapter);
+		go->i2c_adapter_online = 0;
+	}
+
+	kfree(go->boot_fw);
+	go7007_v4l2_remove(go);
+	kfree(go);
 }
 
 /*
@@ -218,38 +259,63 @@ static int init_i2c_module(struct i2c_adapter *adapter, const char *type,
  *
  * Must NOT be called with the hw_lock held.
  */
-int go7007_register_encoder(struct go7007 *go)
+int go7007_register_encoder(struct go7007 *go, unsigned num_i2c_devs)
 {
 	int i, ret;
 
 	dev_info(go->dev, "go7007: registering new %s\n", go->name);
 
+	go->v4l2_dev.release = go7007_remove;
+	ret = v4l2_device_register(go->dev, &go->v4l2_dev);
+	if (ret < 0)
+		return ret;
+
 	mutex_lock(&go->hw_lock);
 	ret = go7007_init_encoder(go);
 	mutex_unlock(&go->hw_lock);
 	if (ret < 0)
-		return -1;
+		return ret;
 
-	/* v4l2 init must happen before i2c subdevs */
-	ret = go7007_v4l2_init(go);
+	ret = go7007_v4l2_ctrl_init(go);
 	if (ret < 0)
 		return ret;
 
 	if (!go->i2c_adapter_online &&
 			go->board_info->flags & GO7007_BOARD_USE_ONBOARD_I2C) {
-		if (go7007_i2c_init(go) < 0)
-			return -1;
+		ret = go7007_i2c_init(go);
+		if (ret < 0)
+			return ret;
 		go->i2c_adapter_online = 1;
 	}
 	if (go->i2c_adapter_online) {
-		for (i = 0; i < go->board_info->num_i2c_devs; ++i)
-			init_i2c_module(&go->i2c_adapter,
-					go->board_info->i2c_devs[i].type,
-					go->board_info->i2c_devs[i].addr);
+		if (go->board_id == GO7007_BOARDID_ADS_USBAV_709) {
+			/* Reset the TW9906 */
+			go7007_write_addr(go, 0x3c82, 0x0009);
+			msleep(50);
+			go7007_write_addr(go, 0x3c82, 0x000d);
+		}
+		for (i = 0; i < num_i2c_devs; ++i)
+			init_i2c_module(&go->i2c_adapter, &go->board_info->i2c_devs[i]);
+
+		if (go->tuner_type >= 0) {
+			struct tuner_setup setup = {
+				.addr = ADDR_UNSET,
+				.type = go->tuner_type,
+				.mode_mask = T_ANALOG_TV,
+			};
+
+			v4l2_device_call_all(&go->v4l2_dev, 0, tuner,
+				s_type_addr, &setup);
+		}
 		if (go->board_id == GO7007_BOARDID_ADLINK_MPG24)
-			i2c_clients_command(&go->i2c_adapter,
-				DECODER_SET_CHANNEL, &go->channel_number);
+			v4l2_subdev_call(go->sd_video, video, s_routing,
+					0, 0, go->channel_number + 1);
 	}
+
+	ret = go7007_v4l2_init(go);
+	if (ret < 0)
+		return ret;
+
 	if (go->board_info->flags & GO7007_BOARD_HAS_AUDIO) {
 		go->audio_enabled = 1;
 		go7007_snd_init(go);
@@ -309,48 +375,54 @@ start_error:
 /*
  * Store a byte in the current video buffer, if there is one.
  */
-static inline void store_byte(struct go7007_buffer *gobuf, u8 byte)
+static inline void store_byte(struct go7007_buffer *vb, u8 byte)
 {
-	if (gobuf != NULL && gobuf->bytesused < GO7007_BUF_SIZE) {
-		unsigned int pgidx = gobuf->offset >> PAGE_SHIFT;
-		unsigned int pgoff = gobuf->offset & ~PAGE_MASK;
+	if (vb && vb->vb.v4l2_planes[0].bytesused < GO7007_BUF_SIZE) {
+		u8 *ptr = vb2_plane_vaddr(&vb->vb, 0);
 
-		*((u8 *)page_address(gobuf->pages[pgidx]) + pgoff) = byte;
-		++gobuf->offset;
-		++gobuf->bytesused;
+		ptr[vb->vb.v4l2_planes[0].bytesused++] = byte;
 	}
 }
 
 /*
  * Deliver the last video buffer and get a new one to start writing to.
  */
-static void frame_boundary(struct go7007 *go)
+static struct go7007_buffer *frame_boundary(struct go7007 *go, struct go7007_buffer *vb)
 {
-	struct go7007_buffer *gobuf;
+	struct go7007_buffer *vb_tmp = NULL;
+	u32 *bytesused = &vb->vb.v4l2_planes[0].bytesused;
 	int i;
 
-	if (go->active_buf) {
-		if (go->active_buf->modet_active) {
-			if (go->active_buf->bytesused + 216 < GO7007_BUF_SIZE) {
+	if (vb) {
+		if (vb->modet_active) {
+			if (*bytesused + 216 < GO7007_BUF_SIZE) {
 				for (i = 0; i < 216; ++i)
-					store_byte(go->active_buf,
-							go->active_map[i]);
-				go->active_buf->bytesused -= 216;
+					store_byte(vb, go->active_map[i]);
+				*bytesused -= 216;
 			} else
-				go->active_buf->modet_active = 0;
+				vb->modet_active = 0;
 		}
-		go->active_buf->state = BUF_STATE_DONE;
-		wake_up_interruptible(&go->frame_waitq);
-		go->active_buf = NULL;
+		vb->vb.v4l2_buf.sequence = go->next_seq++;
+		v4l2_get_timestamp(&vb->vb.v4l2_buf.timestamp);
+		vb_tmp = vb;
+		spin_lock(&go->spinlock);
+		list_del(&vb->list);
+		if (list_empty(&go->vidq_active))
+			vb = NULL;
+		else
+			vb = list_first_entry(&go->vidq_active, struct go7007_buffer, list);
+		go->active_buf = vb;
+		spin_unlock(&go->spinlock);
+		vb2_buffer_done(&vb_tmp->vb, VB2_BUF_STATE_DONE);
+		return vb;
 	}
-	list_for_each_entry(gobuf, &go->stream, stream)
-		if (gobuf->state == BUF_STATE_QUEUED) {
-			gobuf->seq = go->next_seq;
-			do_gettimeofday(&gobuf->timestamp);
-			go->active_buf = gobuf;
-			break;
-		}
-	++go->next_seq;
+	spin_lock(&go->spinlock);
+	if (!list_empty(&go->vidq_active))
+		vb = go->active_buf =
+			list_first_entry(&go->vidq_active, struct go7007_buffer, list);
+	spin_unlock(&go->spinlock);
+	go->next_seq++;
+	return vb;
 }
 
 static void write_bitmap_word(struct go7007 *go)
@@ -374,30 +446,30 @@ static void write_bitmap_word(struct go7007 *go)
  */
 void go7007_parse_video_stream(struct go7007 *go, u8 *buf, int length)
 {
-	int i, seq_start_code = -1, frame_start_code = -1;
-
-	spin_lock(&go->spinlock);
+	struct go7007_buffer *vb = go->active_buf;
+	int i, seq_start_code = -1, gop_start_code = -1, frame_start_code = -1;
 
 	switch (go->format) {
-	case GO7007_FORMAT_MPEG4:
+	case V4L2_PIX_FMT_MPEG4:
 		seq_start_code = 0xB0;
+		gop_start_code = 0xB3;
 		frame_start_code = 0xB6;
 		break;
-	case GO7007_FORMAT_MPEG1:
-	case GO7007_FORMAT_MPEG2:
+	case V4L2_PIX_FMT_MPEG1:
+	case V4L2_PIX_FMT_MPEG2:
 		seq_start_code = 0xB3;
+		gop_start_code = 0xB8;
 		frame_start_code = 0x00;
 		break;
 	}
 
 	for (i = 0; i < length; ++i) {
-		if (go->active_buf != NULL &&
-			    go->active_buf->bytesused >= GO7007_BUF_SIZE - 3) {
+		if (vb && vb->vb.v4l2_planes[0].bytesused >= GO7007_BUF_SIZE - 3) {
 			v4l2_info(&go->v4l2_dev, "dropping oversized frame\n");
-			go->active_buf->offset -= go->active_buf->bytesused;
-			go->active_buf->bytesused = 0;
-			go->active_buf->modet_active = 0;
-			go->active_buf = NULL;
+			vb->vb.v4l2_planes[0].bytesused = 0;
+			vb->frame_offset = 0;
+			vb->modet_active = 0;
+			vb = go->active_buf = NULL;
 		}
 
 		switch (go->state) {
@@ -410,7 +482,7 @@ void go7007_parse_video_stream(struct go7007 *go, u8 *buf, int length)
 				go->state = STATE_FF;
 				break;
 			default:
-				store_byte(go->active_buf, buf[i]);
+				store_byte(vb, buf[i]);
 				break;
 			}
 			break;
@@ -420,12 +492,12 @@ void go7007_parse_video_stream(struct go7007 *go, u8 *buf, int length)
 				go->state = STATE_00_00;
 				break;
 			case 0xFF:
-				store_byte(go->active_buf, 0x00);
+				store_byte(vb, 0x00);
 				go->state = STATE_FF;
 				break;
 			default:
-				store_byte(go->active_buf, 0x00);
-				store_byte(go->active_buf, buf[i]);
+				store_byte(vb, 0x00);
+				store_byte(vb, buf[i]);
 				go->state = STATE_DATA;
 				break;
 			}
@@ -433,21 +505,21 @@ void go7007_parse_video_stream(struct go7007 *go, u8 *buf, int length)
 		case STATE_00_00:
 			switch (buf[i]) {
 			case 0x00:
-				store_byte(go->active_buf, 0x00);
+				store_byte(vb, 0x00);
 				/* go->state remains STATE_00_00 */
 				break;
 			case 0x01:
 				go->state = STATE_00_00_01;
 				break;
 			case 0xFF:
-				store_byte(go->active_buf, 0x00);
-				store_byte(go->active_buf, 0x00);
+				store_byte(vb, 0x00);
+				store_byte(vb, 0x00);
 				go->state = STATE_FF;
 				break;
 			default:
-				store_byte(go->active_buf, 0x00);
-				store_byte(go->active_buf, 0x00);
-				store_byte(go->active_buf, buf[i]);
+				store_byte(vb, 0x00);
+				store_byte(vb, 0x00);
+				store_byte(vb, buf[i]);
 				go->state = STATE_DATA;
 				break;
 			}
@@ -455,31 +527,26 @@ void go7007_parse_video_stream(struct go7007 *go, u8 *buf, int length)
 		case STATE_00_00_01:
 			if (buf[i] == 0xF8 && go->modet_enable == 0) {
 				/* MODET start code, but MODET not enabled */
-				store_byte(go->active_buf, 0x00);
-				store_byte(go->active_buf, 0x00);
-				store_byte(go->active_buf, 0x01);
-				store_byte(go->active_buf, 0xF8);
+				store_byte(vb, 0x00);
+				store_byte(vb, 0x00);
+				store_byte(vb, 0x01);
+				store_byte(vb, 0xF8);
 				go->state = STATE_DATA;
 				break;
 			}
 			/* If this is the start of a new MPEG frame,
 			 * get a new buffer */
-			if ((go->format == GO7007_FORMAT_MPEG1 ||
-					go->format == GO7007_FORMAT_MPEG2 ||
-					go->format == GO7007_FORMAT_MPEG4) &&
-					(buf[i] == seq_start_code ||
-						buf[i] == 0xB8 || /* GOP code */
-						buf[i] == frame_start_code)) {
-				if (go->active_buf == NULL || go->seen_frame)
-					frame_boundary(go);
-				if (buf[i] == frame_start_code) {
-					if (go->active_buf != NULL)
-						go->active_buf->frame_offset =
-							go->active_buf->offset;
-					go->seen_frame = 1;
-				} else {
-					go->seen_frame = 0;
-				}
+			if ((go->format == V4L2_PIX_FMT_MPEG1 ||
+			     go->format == V4L2_PIX_FMT_MPEG2 ||
+			     go->format == V4L2_PIX_FMT_MPEG4) &&
+			    (buf[i] == seq_start_code ||
+			     buf[i] == gop_start_code ||
+			     buf[i] == frame_start_code)) {
+				if (vb == NULL || go->seen_frame)
+					vb = frame_boundary(go, vb);
+				go->seen_frame = buf[i] == frame_start_code;
+				if (vb && go->seen_frame)
+					vb->frame_offset = vb->vb.v4l2_planes[0].bytesused;
 			}
 			/* Handle any special chunk types, or just write the
 			 * start code to the (potentially new) buffer */
@@ -498,16 +565,16 @@ void go7007_parse_video_stream(struct go7007 *go, u8 *buf, int length)
 				go->state = STATE_MODET_MAP;
 				break;
 			case 0xFF: /* Potential JPEG start code */
-				store_byte(go->active_buf, 0x00);
-				store_byte(go->active_buf, 0x00);
-				store_byte(go->active_buf, 0x01);
+				store_byte(vb, 0x00);
+				store_byte(vb, 0x00);
+				store_byte(vb, 0x01);
 				go->state = STATE_FF;
 				break;
 			default:
-				store_byte(go->active_buf, 0x00);
-				store_byte(go->active_buf, 0x00);
-				store_byte(go->active_buf, 0x01);
-				store_byte(go->active_buf, buf[i]);
+				store_byte(vb, 0x00);
+				store_byte(vb, 0x00);
+				store_byte(vb, 0x01);
+				store_byte(vb, buf[i]);
 				go->state = STATE_DATA;
 				break;
 			}
@@ -515,20 +582,20 @@ void go7007_parse_video_stream(struct go7007 *go, u8 *buf, int length)
 		case STATE_FF:
 			switch (buf[i]) {
 			case 0x00:
-				store_byte(go->active_buf, 0xFF);
+				store_byte(vb, 0xFF);
 				go->state = STATE_00;
 				break;
 			case 0xFF:
-				store_byte(go->active_buf, 0xFF);
+				store_byte(vb, 0xFF);
 				/* go->state remains STATE_FF */
 				break;
 			case 0xD8:
-				if (go->format == GO7007_FORMAT_MJPEG)
-					frame_boundary(go);
+				if (go->format == V4L2_PIX_FMT_MJPEG)
+					vb = frame_boundary(go, vb);
 				/* fall through */
 			default:
-				store_byte(go->active_buf, 0xFF);
-				store_byte(go->active_buf, buf[i]);
+				store_byte(vb, 0xFF);
+				store_byte(vb, buf[i]);
 				go->state = STATE_DATA;
 				break;
 			}
@@ -551,8 +618,8 @@ void go7007_parse_video_stream(struct go7007 *go, u8 *buf, int length)
 					write_bitmap_word(go);
 				} else
 					go->modet_word = buf[i] << 8;
-			} else if (go->parse_length == 207 && go->active_buf) {
-				go->active_buf->modet_active = buf[i];
+			} else if (go->parse_length == 207 && vb) {
+				vb->modet_active = buf[i];
 			}
 			if (++go->parse_length == 208)
 				go->state = STATE_DATA;
@@ -563,15 +630,14 @@ void go7007_parse_video_stream(struct go7007 *go, u8 *buf, int length)
 			break;
 		}
 	}
-
-	spin_unlock(&go->spinlock);
 }
 EXPORT_SYMBOL(go7007_parse_video_stream);
 
 /*
  * Allocate a new go7007 struct.  Used by the hardware-specific probe.
  */
-struct go7007 *go7007_alloc(struct go7007_board_info *board, struct device *dev)
+struct go7007 *go7007_alloc(const struct go7007_board_info *board,
+						struct device *dev)
 {
 	struct go7007 *go;
 	int i;
@@ -588,33 +654,17 @@ struct go7007 *go7007_alloc(struct go7007_board_info *board, struct device *dev)
 	mutex_init(&go->hw_lock);
 	init_waitqueue_head(&go->frame_waitq);
 	spin_lock_init(&go->spinlock);
-	go->video_dev = NULL;
-	go->ref_count = 0;
 	go->status = STATUS_INIT;
 	memset(&go->i2c_adapter, 0, sizeof(go->i2c_adapter));
 	go->i2c_adapter_online = 0;
 	go->interrupt_available = 0;
 	init_waitqueue_head(&go->interrupt_waitq);
-	go->in_use = 0;
 	go->input = 0;
-	if (board->sensor_flags & GO7007_SENSOR_TV) {
-		go->standard = GO7007_STD_NTSC;
-		go->width = 720;
-		go->height = 480;
-		go->sensor_framerate = 30000;
-	} else {
-		go->standard = GO7007_STD_OTHER;
-		go->width = board->sensor_width;
-		go->height = board->sensor_height;
-		go->sensor_framerate = board->sensor_framerate;
-	}
-	go->encoder_v_offset = board->sensor_v_offset;
-	go->encoder_h_offset = board->sensor_h_offset;
+	go7007_update_board(go);
 	go->encoder_h_halve = 0;
 	go->encoder_v_halve = 0;
 	go->encoder_subsample = 0;
-	go->streaming = 0;
-	go->format = GO7007_FORMAT_MJPEG;
+	go->format = V4L2_PIX_FMT_MJPEG;
 	go->bitrate = 1500000;
 	go->fps_scale = 1;
 	go->pali = 0;
@@ -633,31 +683,30 @@ struct go7007 *go7007_alloc(struct go7007_board_info *board, struct device *dev)
 		go->modet_map[i] = 0;
 	go->audio_deliver = NULL;
 	go->audio_enabled = 0;
-	INIT_LIST_HEAD(&go->stream);
 
 	return go;
 }
 EXPORT_SYMBOL(go7007_alloc);
 
-/*
- * Detach and unregister the encoder.  The go7007 struct won't be freed
- * until v4l2 finishes releasing its resources and all associated fds are
- * closed by applications.
- */
-void go7007_remove(struct go7007 *go)
+void go7007_update_board(struct go7007 *go)
 {
-	if (go->i2c_adapter_online) {
-		if (i2c_del_adapter(&go->i2c_adapter) == 0)
-			go->i2c_adapter_online = 0;
-		else
-			v4l2_err(&go->v4l2_dev,
-				"error removing I2C adapter!\n");
-	}
+	const struct go7007_board_info *board = go->board_info;
 
-	if (go->audio_enabled)
-		go7007_snd_remove(go);
-	go7007_v4l2_remove(go);
+	if (board->sensor_flags & GO7007_SENSOR_TV) {
+		go->standard = GO7007_STD_NTSC;
+		go->std = V4L2_STD_NTSC_M;
+		go->width = 720;
+		go->height = 480;
+		go->sensor_framerate = 30000;
+	} else {
+		go->standard = GO7007_STD_OTHER;
+		go->width = board->sensor_width;
+		go->height = board->sensor_height;
+		go->sensor_framerate = board->sensor_framerate;
+	}
+	go->encoder_v_offset = board->sensor_v_offset;
+	go->encoder_h_offset = board->sensor_h_offset;
 }
-EXPORT_SYMBOL(go7007_remove);
+EXPORT_SYMBOL(go7007_update_board);
 
 MODULE_LICENSE("GPL v2");

@@ -703,6 +703,28 @@ int aac_srcv_init(struct aac_dev *dev)
 		!aac_src_restart_adapter(dev, 0))
 		++restart;
 	/*
+	 *	Check to see if flash update is running.
+	 *	Wait for the adapter to be up and running. Wait up to 5 minutes
+	 */
+	status = src_readl(dev, MUnit.OMR);
+	if (status & FLASH_UPD_PENDING) {
+		start = jiffies;
+		do {
+			status = src_readl(dev, MUnit.OMR);
+			if (time_after(jiffies, start+HZ*FWUPD_TIMEOUT)) {
+				printk(KERN_ERR "%s%d: adapter flash update failed.\n",
+					dev->name, instance);
+				goto error_iounmap;
+			}
+		} while (!(status & FLASH_UPD_SUCCESS) &&
+			 !(status & FLASH_UPD_FAILED));
+		/* Delay 10 seconds.
+		 * Because right now FW is doing a soft reset,
+		 * do not read scratch pad register at this time
+		 */
+		ssleep(10);
+	}
+	/*
 	 *	Check to see if the board panic'd while booting.
 	 */
 	status = src_readl(dev, MUnit.OMR);
@@ -730,7 +752,9 @@ int aac_srcv_init(struct aac_dev *dev)
 	/*
 	 *	Wait for the adapter to be up and running. Wait up to 3 minutes
 	 */
-	while (!((status = src_readl(dev, MUnit.OMR)) & KERNEL_UP_AND_RUNNING)) {
+	while (!((status = src_readl(dev, MUnit.OMR)) &
+		KERNEL_UP_AND_RUNNING) ||
+		status == 0xffffffff) {
 		if ((restart &&
 		  (status & (KERNEL_PANIC|SELF_TEST_FAILED|MONITOR_PANIC))) ||
 		  time_after(jiffies, start+HZ*startup_timeout)) {

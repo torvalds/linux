@@ -776,7 +776,7 @@ static int __init mx1_camera_probe(struct platform_device *pdev)
 	/* request irq */
 	err = claim_fiq(&fh);
 	if (err) {
-		dev_err(&pdev->dev, "Camera interrupt register failed \n");
+		dev_err(&pdev->dev, "Camera interrupt register failed\n");
 		goto exit_free_dma;
 	}
 
@@ -853,24 +853,13 @@ static int __exit mx1_camera_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver mx1_camera_driver = {
-	.driver 	= {
+	.driver		= {
 		.name	= DRIVER_NAME,
 	},
 	.remove		= __exit_p(mx1_camera_remove),
 };
 
-static int __init mx1_camera_init(void)
-{
-	return platform_driver_probe(&mx1_camera_driver, mx1_camera_probe);
-}
-
-static void __exit mx1_camera_exit(void)
-{
-	return platform_driver_unregister(&mx1_camera_driver);
-}
-
-module_init(mx1_camera_init);
-module_exit(mx1_camera_exit);
+module_platform_driver_probe(mx1_camera_driver, mx1_camera_probe);
 
 MODULE_DESCRIPTION("i.MX1/i.MXL SoC Camera Host driver");
 MODULE_AUTHOR("Paulius Zaleckas <paulius.zaleckas@teltonika.lt>");

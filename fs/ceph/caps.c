@@ -490,15 +490,17 @@ static void __check_cap_issue(struct ceph_inode_info *ci, struct ceph_cap *cap,
 		ci->i_rdcache_gen++;
 
 	/*
-	 * if we are newly issued FILE_SHARED, clear D_COMPLETE; we
+	 * if we are newly issued FILE_SHARED, mark dir not complete; we
 	 * don't know what happened to this directory while we didn't
 	 * have the cap.
 	 */
 	if ((issued & CEPH_CAP_FILE_SHARED) &&
 	    (had & CEPH_CAP_FILE_SHARED) == 0) {
 		ci->i_shared_gen++;
-		if (S_ISDIR(ci->vfs_inode.i_mode))
-			ceph_dir_clear_complete(&ci->vfs_inode);
+		if (S_ISDIR(ci->vfs_inode.i_mode)) {
+			dout(" marking %p NOT complete\n", &ci->vfs_inode);
+			__ceph_dir_clear_complete(ci);
+		}
 	}
 }
 
@@ -553,6 +555,7 @@ retry:
 		cap->implemented = 0;
 		cap->mds = mds;
 		cap->mds_wanted = 0;
+		cap->mseq = 0;
 
 		cap->ci = ci;
 		__insert_cap_node(ci, cap);
@@ -628,7 +631,10 @@ retry:
 	cap->cap_id = cap_id;
 	cap->issued = issued;
 	cap->implemented |= issued;
-	cap->mds_wanted |= wanted;
+	if (mseq > cap->mseq)
+		cap->mds_wanted = wanted;
+	else
+		cap->mds_wanted |= wanted;
 	cap->seq = seq;
 	cap->issue_seq = seq;
 	cap->mseq = mseq;
@@ -997,9 +1003,9 @@ static int send_cap_msg(struct ceph_mds_session *session,
 	return 0;
 }
 
-static void __queue_cap_release(struct ceph_mds_session *session,
-				u64 ino, u64 cap_id, u32 migrate_seq,
-				u32 issue_seq)
+void __queue_cap_release(struct ceph_mds_session *session,
+			 u64 ino, u64 cap_id, u32 migrate_seq,
+			 u32 issue_seq)
 {
 	struct ceph_msg *msg;
 	struct ceph_mds_cap_release *head;
@@ -2046,6 +2052,13 @@ static int try_get_cap_refs(struct ceph_inode_info *ci, int need, int want,
 		goto out;
 	}
 
+	/* finish pending truncate */
+	while (ci->i_truncate_pending) {
+		spin_unlock(&ci->i_ceph_lock);
+		__ceph_do_pending_vmtruncate(inode, !(need & CEPH_CAP_FILE_WR));
+		spin_lock(&ci->i_ceph_lock);
+	}
+
 	if (need & CEPH_CAP_FILE_WR) {
 		if (endoff >= 0 && endoff > (loff_t)ci->i_max_size) {
 			dout("get_cap_refs %p endoff %llu > maxsize %llu\n",
@@ -2066,12 +2079,6 @@ static int try_get_cap_refs(struct ceph_inode_info *ci, int need, int want,
 		}
 	}
 	have = __ceph_caps_issued(ci, &implemented);
-
-	/*
-	 * disallow writes while a truncate is pending
-	 */
-	if (ci->i_truncate_pending)
-		have &= ~CEPH_CAP_FILE_WR;
 
 	if ((have & need) == need) {
 		/*

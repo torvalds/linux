@@ -51,7 +51,7 @@ static int ns_delete_dentry(const struct dentry *dentry)
 static char *ns_dname(struct dentry *dentry, char *buffer, int buflen)
 {
 	struct inode *inode = dentry->d_inode;
-	const struct proc_ns_operations *ns_ops = PROC_I(inode)->ns_ops;
+	const struct proc_ns_operations *ns_ops = PROC_I(inode)->ns.ns_ops;
 
 	return dynamic_dname(dentry, buffer, buflen, "%s:[%lu]",
 		ns_ops->name, inode->i_ino);
@@ -95,8 +95,8 @@ static struct dentry *proc_ns_get_dentry(struct super_block *sb,
 		inode->i_op = &ns_inode_operations;
 		inode->i_mode = S_IFREG | S_IRUGO;
 		inode->i_fop = &ns_file_operations;
-		ei->ns_ops = ns_ops;
-		ei->ns = ns;
+		ei->ns.ns_ops = ns_ops;
+		ei->ns.ns = ns;
 		unlock_new_inode(inode);
 	} else {
 		ns_ops->put(ns);
@@ -128,7 +128,7 @@ static void *proc_ns_follow_link(struct dentry *dentry, struct nameidata *nd)
 	if (!ptrace_may_access(task, PTRACE_MODE_READ))
 		goto out_put_task;
 
-	ns_path.dentry = proc_ns_get_dentry(sb, task, ei->ns_ops);
+	ns_path.dentry = proc_ns_get_dentry(sb, task, ei->ns.ns_ops);
 	if (IS_ERR(ns_path.dentry)) {
 		error = ERR_CAST(ns_path.dentry);
 		goto out_put_task;
@@ -148,7 +148,7 @@ static int proc_ns_readlink(struct dentry *dentry, char __user *buffer, int bufl
 {
 	struct inode *inode = dentry->d_inode;
 	struct proc_inode *ei = PROC_I(inode);
-	const struct proc_ns_operations *ns_ops = ei->ns_ops;
+	const struct proc_ns_operations *ns_ops = ei->ns.ns_ops;
 	struct task_struct *task;
 	void *ns;
 	char name[50];
@@ -202,7 +202,7 @@ static struct dentry *proc_ns_instantiate(struct inode *dir,
 	ei = PROC_I(inode);
 	inode->i_mode = S_IFLNK|S_IRWXUGO;
 	inode->i_op = &proc_ns_link_inode_operations;
-	ei->ns_ops = ns_ops;
+	ei->ns.ns_ops = ns_ops;
 
 	d_set_d_op(dentry, &pid_dentry_operations);
 	d_add(dentry, inode);
@@ -335,6 +335,11 @@ struct file *proc_ns_fget(int fd)
 out_invalid:
 	fput(file);
 	return ERR_PTR(-EINVAL);
+}
+
+struct proc_ns *get_proc_ns(struct inode *inode)
+{
+	return &PROC_I(inode)->ns;
 }
 
 bool proc_ns_inode(struct inode *inode)

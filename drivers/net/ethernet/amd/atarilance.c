@@ -996,8 +996,6 @@ static int lance_rx( struct net_device *dev )
 			else {
 				skb = netdev_alloc_skb(dev, pkt_len + 2);
 				if (skb == NULL) {
-					DPRINTK( 1, ( "%s: Memory squeeze, deferring packet.\n",
-								  dev->name ));
 					for( i = 0; i < RX_RING_SIZE; i++ )
 						if (MEM->rx_head[(entry+i) & RX_RING_MOD_MASK].flag &
 							RMD1_OWN_CHIP)
@@ -1149,9 +1147,7 @@ static struct net_device *atarilance_dev;
 static int __init atarilance_module_init(void)
 {
 	atarilance_dev = atarilance_probe(-1);
-	if (IS_ERR(atarilance_dev))
-		return PTR_ERR(atarilance_dev);
-	return 0;
+	return PTR_RET(atarilance_dev);
 }
 
 static void __exit atarilance_module_exit(void)

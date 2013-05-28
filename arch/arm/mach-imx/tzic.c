@@ -49,7 +49,7 @@
 #define TZIC_SWINT	0x0F00	/* Software Interrupt Rigger Register */
 #define TZIC_ID0	0x0FD0	/* Indentification Register 0 */
 
-void __iomem *tzic_base; /* Used as irq controller base in entry-macro.S */
+static void __iomem *tzic_base;
 static struct irq_domain *domain;
 
 #define TZIC_NUM_IRQS 128

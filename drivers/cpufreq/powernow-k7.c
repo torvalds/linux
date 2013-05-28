@@ -248,7 +248,7 @@ static void change_VID(int vid)
 }
 
 
-static void change_speed(unsigned int index)
+static void change_speed(struct cpufreq_policy *policy, unsigned int index)
 {
 	u8 fid, vid;
 	struct cpufreq_freqs freqs;
@@ -263,15 +263,13 @@ static void change_speed(unsigned int index)
 	fid = powernow_table[index].index & 0xFF;
 	vid = (powernow_table[index].index & 0xFF00) >> 8;
 
-	freqs.cpu = 0;
-
 	rdmsrl(MSR_K7_FID_VID_STATUS, fidvidstatus.val);
 	cfid = fidvidstatus.bits.CFID;
 	freqs.old = fsb * fid_codes[cfid] / 10;
 
 	freqs.new = powernow_table[index].frequency;
 
-	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_PRECHANGE);
 
 	/* Now do the magic poking into the MSRs.  */
 
@@ -292,7 +290,7 @@ static void change_speed(unsigned int index)
 	if (have_a0 == 1)
 		local_irq_enable();
 
-	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
+	cpufreq_notify_transition(policy, &freqs, CPUFREQ_POSTCHANGE);
 }
 
 
@@ -546,7 +544,7 @@ static int powernow_target(struct cpufreq_policy *policy,
 				relation, &newstate))
 		return -EINVAL;
 
-	change_speed(newstate);
+	change_speed(policy, newstate);
 
 	return 0;
 }

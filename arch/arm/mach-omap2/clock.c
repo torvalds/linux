@@ -23,7 +23,7 @@
 #include <linux/clk-provider.h>
 #include <linux/io.h>
 #include <linux/bitops.h>
-
+#include <linux/clk-private.h>
 #include <asm/cpu.h>
 
 
@@ -569,6 +569,21 @@ const struct clk_hw_omap_ops clkhwops_wait = {
 };
 
 /**
+ * omap_clocks_register - register an array of omap_clk
+ * @ocs: pointer to an array of omap_clk to register
+ */
+void __init omap_clocks_register(struct omap_clk oclks[], int cnt)
+{
+	struct omap_clk *c;
+
+	for (c = oclks; c < oclks + cnt; c++) {
+		clkdev_add(&c->lk);
+		if (!__clk_init(NULL, c->lk.clk))
+			omap2_init_clk_hw_omap_clocks(c->lk.clk);
+	}
+}
+
+/**
  * omap2_clk_switch_mpurate_at_boot - switch ARM MPU rate by boot-time argument
  * @mpurate_ck_name: clk name of the clock to change rate
  *
@@ -596,7 +611,7 @@ int __init omap2_clk_switch_mpurate_at_boot(const char *mpurate_ck_name)
 		return -ENOENT;
 
 	r = clk_set_rate(mpurate_ck, mpurate);
-	if (IS_ERR_VALUE(r)) {
+	if (r < 0) {
 		WARN(1, "clock: %s: unable to set MPU rate to %d: %d\n",
 		     mpurate_ck_name, mpurate, r);
 		clk_put(mpurate_ck);

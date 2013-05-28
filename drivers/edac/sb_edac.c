@@ -331,30 +331,31 @@ struct sbridge_pvt {
 	u64			tolm, tohm;
 };
 
-#define PCI_DESCR(device, function, device_id)	\
-	.dev = (device),			\
-	.func = (function),			\
-	.dev_id = (device_id)
+#define PCI_DESCR(device, function, device_id, opt)	\
+	.dev = (device),				\
+	.func = (function),				\
+	.dev_id = (device_id),				\
+	.optional = opt
 
 static const struct pci_id_descr pci_dev_descr_sbridge[] = {
 		/* Processor Home Agent */
-	{ PCI_DESCR(14, 0, PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_HA0)		},
+	{ PCI_DESCR(14, 0, PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_HA0, 0)	},
 
 		/* Memory controller */
-	{ PCI_DESCR(15, 0, PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TA)		},
-	{ PCI_DESCR(15, 1, PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_RAS)		},
-	{ PCI_DESCR(15, 2, PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TAD0)	},
-	{ PCI_DESCR(15, 3, PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TAD1)	},
-	{ PCI_DESCR(15, 4, PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TAD2)	},
-	{ PCI_DESCR(15, 5, PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TAD3)	},
-	{ PCI_DESCR(17, 0, PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_DDRIO)	},
+	{ PCI_DESCR(15, 0, PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TA, 0)	},
+	{ PCI_DESCR(15, 1, PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_RAS, 0)	},
+	{ PCI_DESCR(15, 2, PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TAD0, 0)	},
+	{ PCI_DESCR(15, 3, PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TAD1, 0)	},
+	{ PCI_DESCR(15, 4, PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TAD2, 0)	},
+	{ PCI_DESCR(15, 5, PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_TAD3, 0)	},
+	{ PCI_DESCR(17, 0, PCI_DEVICE_ID_INTEL_SBRIDGE_IMC_DDRIO, 1)	},
 
 		/* System Address Decoder */
-	{ PCI_DESCR(12, 6, PCI_DEVICE_ID_INTEL_SBRIDGE_SAD0)		},
-	{ PCI_DESCR(12, 7, PCI_DEVICE_ID_INTEL_SBRIDGE_SAD1)		},
+	{ PCI_DESCR(12, 6, PCI_DEVICE_ID_INTEL_SBRIDGE_SAD0, 0)		},
+	{ PCI_DESCR(12, 7, PCI_DEVICE_ID_INTEL_SBRIDGE_SAD1, 0)		},
 
 		/* Broadcast Registers */
-	{ PCI_DESCR(13, 6, PCI_DEVICE_ID_INTEL_SBRIDGE_BR)		},
+	{ PCI_DESCR(13, 6, PCI_DEVICE_ID_INTEL_SBRIDGE_BR, 0)		},
 };
 
 #define PCI_ID_TABLE_ENTRY(A) { .descr=A, .n_devs = ARRAY_SIZE(A) }
@@ -556,14 +557,19 @@ static int get_dimm_config(struct mem_ctl_info *mci)
 		pvt->is_close_pg = false;
 	}
 
-	pci_read_config_dword(pvt->pci_ddrio, RANK_CFG_A, &reg);
-	if (IS_RDIMM_ENABLED(reg)) {
-		/* FIXME: Can also be LRDIMM */
-		edac_dbg(0, "Memory is registered\n");
-		mtype = MEM_RDDR3;
+	if (pvt->pci_ddrio) {
+		pci_read_config_dword(pvt->pci_ddrio, RANK_CFG_A, &reg);
+		if (IS_RDIMM_ENABLED(reg)) {
+			/* FIXME: Can also be LRDIMM */
+			edac_dbg(0, "Memory is registered\n");
+			mtype = MEM_RDDR3;
+		} else {
+			edac_dbg(0, "Memory is unregistered\n");
+			mtype = MEM_DDR3;
+		}
 	} else {
-		edac_dbg(0, "Memory is unregistered\n");
-		mtype = MEM_DDR3;
+		edac_dbg(0, "Cannot determine memory type\n");
+		mtype = MEM_UNKNOWN;
 	}
 
 	/* On all supported DDR3 DIMM types, there are 8 banks available */
@@ -1303,8 +1309,7 @@ static int mci_bind_devs(struct mem_ctl_info *mci,
 
 	/* Check if everything were registered */
 	if (!pvt->pci_sad0 || !pvt->pci_sad1 || !pvt->pci_ha0 ||
-	    !pvt-> pci_tad || !pvt->pci_ras  || !pvt->pci_ta ||
-	    !pvt->pci_ddrio)
+	    !pvt-> pci_tad || !pvt->pci_ras  || !pvt->pci_ta)
 		goto enodev;
 
 	for (i = 0; i < NUM_CHANNELS; i++) {

@@ -1737,20 +1737,7 @@ static struct platform_driver atmel_nand_driver = {
 	},
 };
 
-static int __init atmel_nand_init(void)
-{
-	return platform_driver_probe(&atmel_nand_driver, atmel_nand_probe);
-}
-
-
-static void __exit atmel_nand_exit(void)
-{
-	platform_driver_unregister(&atmel_nand_driver);
-}
-
-
-module_init(atmel_nand_init);
-module_exit(atmel_nand_exit);
+module_platform_driver_probe(atmel_nand_driver, atmel_nand_probe);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Rick Bronson");

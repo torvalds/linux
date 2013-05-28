@@ -10,7 +10,7 @@
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Serial flash driver for BCMA bus");
 
-static const char *probes[] = { "bcm47xxpart", NULL };
+static const char * const probes[] = { "bcm47xxpart", NULL };
 
 static int bcm47xxsflash_read(struct mtd_info *mtd, loff_t from, size_t len,
 			      size_t *retlen, u_char *buf)
@@ -60,6 +60,17 @@ static int bcm47xxsflash_bcma_probe(struct platform_device *pdev)
 		goto out;
 	}
 	sflash->priv = b47s;
+
+	b47s->bcma_cc = container_of(sflash, struct bcma_drv_cc, sflash);
+
+	switch (b47s->bcma_cc->capabilities & BCMA_CC_CAP_FLASHT) {
+	case BCMA_CC_FLASHT_STSER:
+		b47s->type = BCM47XXSFLASH_TYPE_ST;
+		break;
+	case BCMA_CC_FLASHT_ATSER:
+		b47s->type = BCM47XXSFLASH_TYPE_ATMEL;
+		break;
+	}
 
 	b47s->window = sflash->window;
 	b47s->blocksize = sflash->blocksize;

@@ -82,7 +82,7 @@ extern int tick_program_event(ktime_t expires, int force);
 extern void tick_setup_sched_timer(void);
 # endif
 
-# if defined CONFIG_NO_HZ || defined CONFIG_HIGH_RES_TIMERS
+# if defined CONFIG_NO_HZ_COMMON || defined CONFIG_HIGH_RES_TIMERS
 extern void tick_cancel_sched_timer(int cpu);
 # else
 static inline void tick_cancel_sched_timer(int cpu) { }
@@ -123,7 +123,7 @@ static inline void tick_check_idle(int cpu) { }
 static inline int tick_oneshot_mode_active(void) { return 0; }
 #endif /* !CONFIG_GENERIC_CLOCKEVENTS */
 
-# ifdef CONFIG_NO_HZ
+# ifdef CONFIG_NO_HZ_COMMON
 DECLARE_PER_CPU(struct tick_sched, tick_cpu_sched);
 
 static inline int tick_nohz_tick_stopped(void)
@@ -138,7 +138,7 @@ extern ktime_t tick_nohz_get_sleep_length(void);
 extern u64 get_cpu_idle_time_us(int cpu, u64 *last_update_time);
 extern u64 get_cpu_iowait_time_us(int cpu, u64 *last_update_time);
 
-# else /* !CONFIG_NO_HZ */
+# else /* !CONFIG_NO_HZ_COMMON */
 static inline int tick_nohz_tick_stopped(void)
 {
 	return 0;
@@ -155,7 +155,24 @@ static inline ktime_t tick_nohz_get_sleep_length(void)
 }
 static inline u64 get_cpu_idle_time_us(int cpu, u64 *unused) { return -1; }
 static inline u64 get_cpu_iowait_time_us(int cpu, u64 *unused) { return -1; }
-# endif /* !NO_HZ */
+# endif /* !CONFIG_NO_HZ_COMMON */
+
+#ifdef CONFIG_NO_HZ_FULL
+extern void tick_nohz_init(void);
+extern int tick_nohz_full_cpu(int cpu);
+extern void tick_nohz_full_check(void);
+extern void tick_nohz_full_kick(void);
+extern void tick_nohz_full_kick_all(void);
+extern void tick_nohz_task_switch(struct task_struct *tsk);
+#else
+static inline void tick_nohz_init(void) { }
+static inline int tick_nohz_full_cpu(int cpu) { return 0; }
+static inline void tick_nohz_full_check(void) { }
+static inline void tick_nohz_full_kick(void) { }
+static inline void tick_nohz_full_kick_all(void) { }
+static inline void tick_nohz_task_switch(struct task_struct *tsk) { }
+#endif
+
 
 # ifdef CONFIG_CPU_IDLE_GOV_MENU
 extern void menu_hrtimer_cancel(void);

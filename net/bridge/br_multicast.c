@@ -132,7 +132,7 @@ static struct net_bridge_mdb_entry *br_mdb_ip6_get(
 #endif
 
 struct net_bridge_mdb_entry *br_mdb_get(struct net_bridge *br,
-					struct sk_buff *skb)
+					struct sk_buff *skb, u16 vid)
 {
 	struct net_bridge_mdb_htable *mdb = rcu_dereference(br->mdb);
 	struct br_ip ip;
@@ -144,6 +144,7 @@ struct net_bridge_mdb_entry *br_mdb_get(struct net_bridge *br,
 		return NULL;
 
 	ip.proto = skb->protocol;
+	ip.vid = vid;
 
 	switch (skb->protocol) {
 	case htons(ETH_P_IP):
@@ -1368,7 +1369,7 @@ static int br_multicast_ipv4_rcv(struct net_bridge *br,
 		return -EINVAL;
 
 	if (iph->protocol != IPPROTO_IGMP) {
-		if ((iph->daddr & IGMP_LOCAL_GROUP_MASK) != IGMP_LOCAL_GROUP)
+		if (!ipv4_is_local_multicast(iph->daddr))
 			BR_INPUT_SKB_CB(skb)->mrouters_only = 1;
 		return 0;
 	}

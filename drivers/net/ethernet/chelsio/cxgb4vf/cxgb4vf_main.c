@@ -54,8 +54,8 @@
 /*
  * Generic information about the driver.
  */
-#define DRV_VERSION "1.0.0"
-#define DRV_DESC "Chelsio T4 Virtual Function (VF) Network Driver"
+#define DRV_VERSION "2.0.0-ko"
+#define DRV_DESC "Chelsio T4/T5 Virtual Function (VF) Network Driver"
 
 /*
  * Module Parameters.
@@ -407,6 +407,20 @@ static int fwevtq_handler(struct sge_rspq *rspq, const __be64 *rsp,
 		if (fw_msg->type == FW6_TYPE_CMD_RPL)
 			t4vf_handle_fw_rpl(adapter, fw_msg->data);
 		break;
+	}
+
+	case CPL_FW4_MSG: {
+		/* FW can send EGR_UPDATEs encapsulated in a CPL_FW4_MSG.
+		 */
+		const struct cpl_sge_egr_update *p = (void *)(rsp + 3);
+		opcode = G_CPL_OPCODE(ntohl(p->opcode_qid));
+		if (opcode != CPL_SGE_EGR_UPDATE) {
+			dev_err(adapter->pdev_dev, "unexpected FW4/CPL %#x on FW event queue\n"
+				, opcode);
+			break;
+		}
+		cpl = (void *)p;
+		/*FALLTHROUGH*/
 	}
 
 	case CPL_SGE_EGR_UPDATE: {
@@ -1050,7 +1064,7 @@ static inline unsigned int mk_adap_vers(const struct adapter *adapter)
 	/*
 	 * Chip version 4, revision 0x3f (cxgb4vf).
 	 */
-	return 4 | (0x3f << 10);
+	return CHELSIO_CHIP_VERSION(adapter->chip) | (0x3f << 10);
 }
 
 /*
@@ -1100,10 +1114,10 @@ static netdev_features_t cxgb4vf_fix_features(struct net_device *dev,
 	 * Since there is no support for separate rx/tx vlan accel
 	 * enable/disable make sure tx flag is always in same state as rx.
 	 */
-	if (features & NETIF_F_HW_VLAN_RX)
-		features |= NETIF_F_HW_VLAN_TX;
+	if (features & NETIF_F_HW_VLAN_CTAG_RX)
+		features |= NETIF_F_HW_VLAN_CTAG_TX;
 	else
-		features &= ~NETIF_F_HW_VLAN_TX;
+		features &= ~NETIF_F_HW_VLAN_CTAG_TX;
 
 	return features;
 }
@@ -1114,9 +1128,9 @@ static int cxgb4vf_set_features(struct net_device *dev,
 	struct port_info *pi = netdev_priv(dev);
 	netdev_features_t changed = dev->features ^ features;
 
-	if (changed & NETIF_F_HW_VLAN_RX)
+	if (changed & NETIF_F_HW_VLAN_CTAG_RX)
 		t4vf_set_rxmode(pi->adapter, pi->viid, -1, -1, -1, -1,
-				features & NETIF_F_HW_VLAN_TX, 0);
+				features & NETIF_F_HW_VLAN_CTAG_TX, 0);
 
 	return 0;
 }
@@ -2072,6 +2086,7 @@ static int adap_init0(struct adapter *adapter)
 	struct sge *s = &adapter->sge;
 	unsigned int ethqsets;
 	int err;
+	u32 param, val = 0;
 
 	/*
 	 * Wait for the device to become ready before proceeding ...
@@ -2097,6 +2112,15 @@ static int adap_init0(struct adapter *adapter)
 	if (err < 0) {
 		dev_err(adapter->pdev_dev, "FW reset failed: err=%d\n", err);
 		return err;
+	}
+
+	switch (adapter->pdev->device >> 12) {
+	case CHELSIO_T4:
+		adapter->chip = CHELSIO_CHIP_CODE(CHELSIO_T4, 0);
+		break;
+	case CHELSIO_T5:
+		adapter->chip = CHELSIO_CHIP_CODE(CHELSIO_T5, 0);
+		break;
 	}
 
 	/*
@@ -2143,6 +2167,16 @@ static int adap_init0(struct adapter *adapter)
 			" err=%d\n", err);
 		return err;
 	}
+
+	/* If we're running on newer firmware, let it know that we're
+	 * prepared to deal with encapsulated CPL messages.  Older
+	 * firmware won't understand this and we'll just get
+	 * unencapsulated messages ...
+	 */
+	param = FW_PARAMS_MNEM(FW_PARAMS_MNEM_PFVF) |
+		FW_PARAMS_PARAM_X(FW_PARAMS_PARAM_PFVF_CPLFW4MSG_ENCAP);
+	val = 1;
+	(void) t4vf_set_params(adapter, 1, &param, &val);
 
 	/*
 	 * Retrieve our RX interrupt holdoff timer values and counter
@@ -2614,11 +2648,12 @@ static int cxgb4vf_pci_probe(struct pci_dev *pdev,
 
 		netdev->hw_features = NETIF_F_SG | TSO_FLAGS |
 			NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
-			NETIF_F_HW_VLAN_RX | NETIF_F_RXCSUM;
+			NETIF_F_HW_VLAN_CTAG_RX | NETIF_F_RXCSUM;
 		netdev->vlan_features = NETIF_F_SG | TSO_FLAGS |
 			NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM |
 			NETIF_F_HIGHDMA;
-		netdev->features = netdev->hw_features | NETIF_F_HW_VLAN_TX;
+		netdev->features = netdev->hw_features |
+				   NETIF_F_HW_VLAN_CTAG_TX;
 		if (pci_using_dac)
 			netdev->features |= NETIF_F_HIGHDMA;
 
@@ -2888,6 +2923,26 @@ static struct pci_device_id cxgb4vf_pci_tbl[] = {
 	CH_DEVICE(0x480a, 0),   /* T404-bt */
 	CH_DEVICE(0x480d, 0),   /* T480-cr */
 	CH_DEVICE(0x480e, 0),   /* T440-lp-cr */
+	CH_DEVICE(0x5800, 0),	/* T580-dbg */
+	CH_DEVICE(0x5801, 0),	/* T520-cr */
+	CH_DEVICE(0x5802, 0),	/* T522-cr */
+	CH_DEVICE(0x5803, 0),	/* T540-cr */
+	CH_DEVICE(0x5804, 0),	/* T520-bch */
+	CH_DEVICE(0x5805, 0),   /* T540-bch */
+	CH_DEVICE(0x5806, 0),	/* T540-ch */
+	CH_DEVICE(0x5807, 0),	/* T520-so */
+	CH_DEVICE(0x5808, 0),	/* T520-cx */
+	CH_DEVICE(0x5809, 0),	/* T520-bt */
+	CH_DEVICE(0x580a, 0),   /* T504-bt */
+	CH_DEVICE(0x580b, 0),   /* T520-sr */
+	CH_DEVICE(0x580c, 0),   /* T504-bt */
+	CH_DEVICE(0x580d, 0),   /* T580-cr */
+	CH_DEVICE(0x580e, 0),   /* T540-lp-cr */
+	CH_DEVICE(0x580f, 0),   /* Amsterdam */
+	CH_DEVICE(0x5810, 0),   /* T580-lp-cr */
+	CH_DEVICE(0x5811, 0),   /* T520-lp-cr */
+	CH_DEVICE(0x5812, 0),   /* T560-cr */
+	CH_DEVICE(0x5813, 0),   /* T580-cr */
 	{ 0, }
 };
 

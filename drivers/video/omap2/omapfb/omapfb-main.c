@@ -1101,41 +1101,25 @@ static int omapfb_mmap(struct fb_info *fbi, struct vm_area_struct *vma)
 	struct omapfb_info *ofbi = FB2OFB(fbi);
 	struct fb_fix_screeninfo *fix = &fbi->fix;
 	struct omapfb2_mem_region *rg;
-	unsigned long off;
 	unsigned long start;
 	u32 len;
-	int r = -EINVAL;
-
-	if (vma->vm_end - vma->vm_start == 0)
-		return 0;
-	if (vma->vm_pgoff > (~0UL >> PAGE_SHIFT))
-		return -EINVAL;
-	off = vma->vm_pgoff << PAGE_SHIFT;
+	int r;
 
 	rg = omapfb_get_mem_region(ofbi->region);
 
 	start = omapfb_get_region_paddr(ofbi);
 	len = fix->smem_len;
-	if (off >= len)
-		goto error;
-	if ((vma->vm_end - vma->vm_start + off) > len)
-		goto error;
 
-	off += start;
+	DBG("user mmap region start %lx, len %d, off %lx\n", start, len,
+			vma->vm_pgoff << PAGE_SHIFT);
 
-	DBG("user mmap region start %lx, len %d, off %lx\n", start, len, off);
-
-	vma->vm_pgoff = off >> PAGE_SHIFT;
-	/* VM_IO | VM_DONTEXPAND | VM_DONTDUMP are set by remap_pfn_range() */
 	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 	vma->vm_ops = &mmap_user_ops;
 	vma->vm_private_data = rg;
-	if (io_remap_pfn_range(vma, vma->vm_start, off >> PAGE_SHIFT,
-			       vma->vm_end - vma->vm_start,
-			       vma->vm_page_prot)) {
-		r = -EAGAIN;
+
+	r = vm_iomap_memory(vma, start, len);
+	if (r)
 		goto error;
-	}
 
 	/* vm_ops.open won't be called for mmap itself. */
 	atomic_inc(&rg->map_count);
@@ -1144,7 +1128,7 @@ static int omapfb_mmap(struct fb_info *fbi, struct vm_area_struct *vma)
 
 	return 0;
 
- error:
+error:
 	omapfb_put_mem_region(ofbi->region);
 
 	return r;
@@ -2388,7 +2372,7 @@ static int omapfb_init_connections(struct omapfb2_device *fbdev,
 		struct omap_dss_device *dssdev = fbdev->displays[i].dssdev;
 		struct omap_dss_output *out = dssdev->output;
 
-		mgr = omap_dss_get_overlay_manager(dssdev->channel);
+		mgr = omap_dss_get_overlay_manager(out->dispc_channel);
 
 		if (!mgr || !out)
 			continue;
@@ -2422,7 +2406,7 @@ static int omapfb_init_connections(struct omapfb2_device *fbdev,
 	return 0;
 }
 
-static int __init omapfb_probe(struct platform_device *pdev)
+static int omapfb_probe(struct platform_device *pdev)
 {
 	struct omapfb2_device *fbdev = NULL;
 	int r = 0;
@@ -2484,7 +2468,7 @@ static int __init omapfb_probe(struct platform_device *pdev)
 
 	if (fbdev->num_displays == 0) {
 		dev_err(&pdev->dev, "no displays\n");
-		r = -EINVAL;
+		r = -EPROBE_DEFER;
 		goto cleanup;
 	}
 
@@ -2595,6 +2579,7 @@ static int __exit omapfb_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver omapfb_driver = {
+	.probe		= omapfb_probe,
 	.remove         = __exit_p(omapfb_remove),
 	.driver         = {
 		.name   = "omapfb",
@@ -2602,36 +2587,13 @@ static struct platform_driver omapfb_driver = {
 	},
 };
 
-static int __init omapfb_init(void)
-{
-	DBG("omapfb_init\n");
-
-	if (platform_driver_probe(&omapfb_driver, omapfb_probe)) {
-		printk(KERN_ERR "failed to register omapfb driver\n");
-		return -ENODEV;
-	}
-
-	return 0;
-}
-
-static void __exit omapfb_exit(void)
-{
-	DBG("omapfb_exit\n");
-	platform_driver_unregister(&omapfb_driver);
-}
-
 module_param_named(mode, def_mode, charp, 0);
 module_param_named(vram, def_vram, charp, 0);
 module_param_named(rotate, def_rotate, int, 0);
 module_param_named(vrfb, def_vrfb, bool, 0);
 module_param_named(mirror, def_mirror, bool, 0);
 
-/* late_initcall to let panel/ctrl drivers loaded first.
- * I guess better option would be a more dynamic approach,
- * so that omapfb reacts to new panels when they are loaded */
-late_initcall(omapfb_init);
-/*module_init(omapfb_init);*/
-module_exit(omapfb_exit);
+module_platform_driver(omapfb_driver);
 
 MODULE_AUTHOR("Tomi Valkeinen <tomi.valkeinen@nokia.com>");
 MODULE_DESCRIPTION("OMAP2/3 Framebuffer");

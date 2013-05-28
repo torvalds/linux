@@ -19,13 +19,14 @@ config MICROBLAZE
 	select HAVE_DEBUG_KMEMLEAK
 	select IRQ_DOMAIN
 	select HAVE_GENERIC_HARDIRQS
-	select HAVE_VIRT_TO_BUS
+	select VIRT_TO_BUS
 	select GENERIC_IRQ_PROBE
 	select GENERIC_IRQ_SHOW
 	select GENERIC_PCI_IOMAP
 	select GENERIC_CPU_DEVICES
 	select GENERIC_ATOMIC64
 	select GENERIC_CLOCKEVENTS
+	select GENERIC_IDLE_POLL_SETUP
 	select MODULES_USE_ELF_RELA
 	select CLONE_BACKWARDS
 
@@ -36,9 +37,6 @@ config RWSEM_GENERIC_SPINLOCK
 	def_bool y
 
 config ZONE_DMA
-	def_bool y
-
-config ARCH_POPULATES_NODE_MAP
 	def_bool y
 
 config RWSEM_XCHGADD_ALGORITHM
@@ -55,9 +53,6 @@ config GENERIC_HWEIGHT
 
 config GENERIC_CALIBRATE_DELAY
 	def_bool y
-
-config GENERIC_GPIO
-	bool
 
 config GENERIC_CSUM
 	def_bool y

@@ -69,6 +69,7 @@ extern bool dump_sensor;
 
 int s5k4aa_probe(struct sd *sd);
 int s5k4aa_init(struct sd *sd);
+int s5k4aa_init_controls(struct sd *sd);
 int s5k4aa_start(struct sd *sd);
 void s5k4aa_disconnect(struct sd *sd);
 
@@ -79,6 +80,7 @@ static const struct m5602_sensor s5k4aa = {
 
 	.probe = s5k4aa_probe,
 	.init = s5k4aa_init,
+	.init_controls = s5k4aa_init_controls,
 	.start = s5k4aa_start,
 	.disconnect = s5k4aa_disconnect,
 };

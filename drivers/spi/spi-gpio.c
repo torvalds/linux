@@ -265,9 +265,9 @@ static int spi_gpio_setup(struct spi_device *spi)
 		}
 	}
 	if (!status) {
-		status = spi_bitbang_setup(spi);
 		/* in case it was initialized from static board data */
 		spi_gpio->cs_gpios[spi->chip_select] = cs;
+		status = spi_bitbang_setup(spi);
 	}
 
 	if (status) {

@@ -750,15 +750,6 @@ header can be used to get the timings of the formats in the <xref linkend="cea86
 <xref linkend="vesadmt" /> standards.
 	</para>
 	</listitem>
-	<listitem>
-	<para>DV Presets: Digital Video (DV) presets (<emphasis role="bold">deprecated</emphasis>).
-	These are IDs representing a
-video timing at the input/output. Presets are pre-defined timings implemented
-by the hardware according to video standards. A __u32 data type is used to represent
-a preset unlike the bit mask that is used in &v4l2-std-id; allowing future extensions
-to support as many different presets as needed. This API is deprecated in favor of the DV Timings
-API.</para>
-	</listitem>
 	</itemizedlist>
 	<para>To enumerate and query the attributes of the DV timings supported by a device,
 	applications use the &VIDIOC-ENUM-DV-TIMINGS; and &VIDIOC-DV-TIMINGS-CAP; ioctls.
@@ -766,11 +757,6 @@ API.</para>
 &VIDIOC-S-DV-TIMINGS; ioctl and to get current DV timings they use the
 &VIDIOC-G-DV-TIMINGS; ioctl. To detect the DV timings as seen by the video receiver applications
 use the &VIDIOC-QUERY-DV-TIMINGS; ioctl.</para>
-	<para>To enumerate and query the attributes of DV presets supported by a device,
-applications use the &VIDIOC-ENUM-DV-PRESETS; ioctl. To get the current DV preset,
-applications use the &VIDIOC-G-DV-PRESET; ioctl and to set a preset they use the
-&VIDIOC-S-DV-PRESET; ioctl. To detect the preset as seen by the video receiver applications
-use the &VIDIOC-QUERY-DV-PRESET; ioctl.</para>
 	<para>Applications can make use of the <xref linkend="input-capabilities" /> and
 <xref linkend="output-capabilities"/> flags to decide what ioctls are available to set the
 video timings for the device.</para>

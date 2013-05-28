@@ -108,7 +108,7 @@ acpi_ps_get_next_package_length(struct acpi_parse_state *parser_state)
 	/* Byte 0 is a special case, either bits [0:3] or [0:5] are used */
 
 	package_length |= (aml[0] & byte_zero_mask);
-	return_VALUE(package_length);
+	return_UINT32(package_length);
 }
 
 /*******************************************************************************

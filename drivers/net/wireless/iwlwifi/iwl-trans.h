@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -114,9 +114,6 @@
  * completely agnostic to these differences.
  * The transport does provide helper functionnality (i.e. SYNC / ASYNC mode),
  */
-#define SEQ_TO_SN(seq) (((seq) & IEEE80211_SCTL_SEQ) >> 4)
-#define SN_TO_SEQ(ssn) (((ssn) << 4) & IEEE80211_SCTL_SEQ)
-#define MAX_SN ((IEEE80211_SCTL_SEQ) >> 4)
 #define SEQ_TO_QUEUE(s)	(((s) >> 8) & 0x1f)
 #define QUEUE_TO_SEQ(q)	(((q) & 0x1f) << 8)
 #define SEQ_TO_INDEX(s)	((s) & 0xff)
@@ -186,19 +183,13 @@ struct iwl_rx_packet {
  * @CMD_ASYNC: Return right away and don't want for the response
  * @CMD_WANT_SKB: valid only with CMD_SYNC. The caller needs the buffer of the
  *	response. The caller needs to call iwl_free_resp when done.
- * @CMD_WANT_HCMD: The caller needs to get the HCMD that was sent in the
- *	response handler. Chunks flagged by %IWL_HCMD_DFL_NOCOPY won't be
- *	copied. The pointer passed to the response handler is in the transport
- *	ownership and don't need to be freed by the op_mode. This also means
- *	that the pointer is invalidated after the op_mode's handler returns.
  * @CMD_ON_DEMAND: This command is sent by the test mode pipe.
  */
 enum CMD_MODE {
 	CMD_SYNC		= 0,
 	CMD_ASYNC		= BIT(0),
 	CMD_WANT_SKB		= BIT(1),
-	CMD_WANT_HCMD		= BIT(2),
-	CMD_ON_DEMAND		= BIT(3),
+	CMD_ON_DEMAND		= BIT(2),
 };
 
 #define DEF_CMD_PAYLOAD_SIZE 320
@@ -217,7 +208,11 @@ struct iwl_device_cmd {
 
 #define TFD_MAX_PAYLOAD_SIZE (sizeof(struct iwl_device_cmd))
 
-#define IWL_MAX_CMD_TFDS	2
+/*
+ * number of transfer buffers (fragments) per transmit frame descriptor;
+ * this is just the driver's idea, the hardware supports 20
+ */
+#define IWL_MAX_CMD_TBS_PER_TFD	2
 
 /**
  * struct iwl_hcmd_dataflag - flag for each one of the chunks of the command
@@ -254,15 +249,15 @@ enum iwl_hcmd_dataflag {
  * @id: id of the host command
  */
 struct iwl_host_cmd {
-	const void *data[IWL_MAX_CMD_TFDS];
+	const void *data[IWL_MAX_CMD_TBS_PER_TFD];
 	struct iwl_rx_packet *resp_pkt;
 	unsigned long _rx_page_addr;
 	u32 _rx_page_order;
 	int handler_status;
 
 	u32 flags;
-	u16 len[IWL_MAX_CMD_TFDS];
-	u8 dataflags[IWL_MAX_CMD_TFDS];
+	u16 len[IWL_MAX_CMD_TBS_PER_TFD];
+	u8 dataflags[IWL_MAX_CMD_TBS_PER_TFD];
 	u8 id;
 };
 
@@ -310,7 +305,6 @@ static inline void iwl_free_rxb(struct iwl_rx_cmd_buffer *r)
  * currently supports
  */
 #define IWL_MAX_HW_QUEUES		32
-#define IWL_INVALID_STATION	255
 #define IWL_MAX_TID_COUNT	8
 #define IWL_FRAME_LIMIT	64
 
@@ -687,7 +681,7 @@ static inline void iwl_trans_txq_enable(struct iwl_trans *trans, int queue,
 static inline void iwl_trans_ac_txq_enable(struct iwl_trans *trans, int queue,
 					   int fifo)
 {
-	iwl_trans_txq_enable(trans, queue, fifo, IWL_INVALID_STATION,
+	iwl_trans_txq_enable(trans, queue, fifo, -1,
 			     IWL_MAX_TID_COUNT, IWL_FRAME_LIMIT, 0);
 }
 

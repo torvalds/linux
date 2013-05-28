@@ -641,7 +641,7 @@ void __init acpi_initrd_override(void *data, size_t size)
 	 * Both memblock_reserve and e820_add_region (via arch_reserve_mem_area)
 	 * works fine.
 	 */
-	memblock_reserve(acpi_tables_addr, acpi_tables_addr + all_tables_size);
+	memblock_reserve(acpi_tables_addr, all_tables_size);
 	arch_reserve_mem_area(acpi_tables_addr, all_tables_size);
 
 	p = early_ioremap(acpi_tables_addr, all_tables_size);
@@ -1555,7 +1555,7 @@ int acpi_check_resource_conflict(const struct resource *res)
 	else
 		space_id = ACPI_ADR_SPACE_SYSTEM_MEMORY;
 
-	length = res->end - res->start + 1;
+	length = resource_size(res);
 	if (acpi_enforce_resources != ENFORCE_RESOURCES_NO)
 		warn = 1;
 	clash = acpi_check_address_range(space_id, res->start, length, warn);

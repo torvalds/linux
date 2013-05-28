@@ -56,6 +56,8 @@ struct usbnet {
 	struct sk_buff_head	done;
 	struct sk_buff_head	rxq_pause;
 	struct urb		*interrupt;
+	unsigned		interrupt_count;
+	struct mutex		interrupt_mutex;
 	struct usb_anchor	deferred;
 	struct tasklet_struct	bh;
 
@@ -72,6 +74,7 @@ struct usbnet {
 #		define EVENT_DEVICE_REPORT_IDLE	8
 #		define EVENT_NO_RUNTIME_PM	9
 #		define EVENT_RX_KILL	10
+#		define EVENT_LINK_CHANGE	11
 };
 
 static inline struct usb_driver *driver_of(struct usb_interface *intf)
@@ -245,5 +248,9 @@ extern void usbnet_get_drvinfo(struct net_device *, struct ethtool_drvinfo *);
 extern int usbnet_nway_reset(struct net_device *net);
 
 extern int usbnet_manage_power(struct usbnet *, int);
+extern void usbnet_link_change(struct usbnet *, bool, bool);
+
+extern int usbnet_status_start(struct usbnet *dev, gfp_t mem_flags);
+extern void usbnet_status_stop(struct usbnet *dev);
 
 #endif /* __LINUX_USB_USBNET_H */

@@ -617,6 +617,20 @@ xfs_qm_dqdetach(
 	}
 }
 
+int
+xfs_qm_calc_dquots_per_chunk(
+	struct xfs_mount	*mp,
+	unsigned int		nbblks)	/* basic block units */
+{
+	unsigned int	ndquots;
+
+	ASSERT(nbblks > 0);
+	ndquots = BBTOB(nbblks);
+	do_div(ndquots, sizeof(xfs_dqblk_t));
+
+	return ndquots;
+}
+
 /*
  * This initializes all the quota information that's kept in the
  * mount structure
@@ -656,9 +670,8 @@ xfs_qm_init_quotainfo(
 
 	/* Precalc some constants */
 	qinf->qi_dqchunklen = XFS_FSB_TO_BB(mp, XFS_DQUOT_CLUSTER_SIZE_FSB);
-	ASSERT(qinf->qi_dqchunklen);
-	qinf->qi_dqperchunk = BBTOB(qinf->qi_dqchunklen);
-	do_div(qinf->qi_dqperchunk, sizeof(xfs_dqblk_t));
+	qinf->qi_dqperchunk = xfs_qm_calc_dquots_per_chunk(mp,
+							qinf->qi_dqchunklen);
 
 	mp->m_qflags |= (mp->m_sb.sb_qflags & XFS_ALL_QUOTA_CHKD);
 
@@ -897,6 +910,10 @@ xfs_qm_dqiter_bufs(
 		if (error)
 			break;
 
+		/*
+		 * XXX(hch): need to figure out if it makes sense to validate
+		 *	     the CRC here.
+		 */
 		xfs_qm_reset_dqcounts(mp, bp, firstid, type);
 		xfs_buf_delwri_queue(bp, buffer_list);
 		xfs_buf_relse(bp);
@@ -1057,7 +1074,7 @@ xfs_qm_quotacheck_dqadjust(
 	 * There are no timers for the default values set in the root dquot.
 	 */
 	if (dqp->q_core.d_id) {
-		xfs_qm_adjust_dqlimits(mp, &dqp->q_core);
+		xfs_qm_adjust_dqlimits(mp, dqp);
 		xfs_qm_adjust_dqtimers(mp, &dqp->q_core);
 	}
 

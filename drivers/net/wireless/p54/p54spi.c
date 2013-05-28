@@ -396,7 +396,7 @@ static int p54spi_rx(struct p54s_priv *priv)
 static irqreturn_t p54spi_interrupt(int irq, void *config)
 {
 	struct spi_device *spi = config;
-	struct p54s_priv *priv = dev_get_drvdata(&spi->dev);
+	struct p54s_priv *priv = spi_get_drvdata(spi);
 
 	ieee80211_queue_work(priv->hw, &priv->work);
 
@@ -609,7 +609,7 @@ static int p54spi_probe(struct spi_device *spi)
 
 	priv = hw->priv;
 	priv->hw = hw;
-	dev_set_drvdata(&spi->dev, priv);
+	spi_set_drvdata(spi, priv);
 	priv->spi = spi;
 
 	spi->bits_per_word = 16;
@@ -685,7 +685,7 @@ err_free:
 
 static int p54spi_remove(struct spi_device *spi)
 {
-	struct p54s_priv *priv = dev_get_drvdata(&spi->dev);
+	struct p54s_priv *priv = spi_get_drvdata(spi);
 
 	p54_unregister_common(priv->hw);
 

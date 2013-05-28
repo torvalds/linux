@@ -60,6 +60,8 @@ struct ipu_crtc {
 	int			irq;
 	u32			interface_pix_fmt;
 	unsigned long		di_clkflags;
+	int			di_hsync_pin;
+	int			di_vsync_pin;
 };
 
 #define to_ipu_crtc(x) container_of(x, struct ipu_crtc, base)
@@ -255,6 +257,9 @@ static int ipu_crtc_mode_set(struct drm_crtc *crtc,
 
 	sig_cfg.v_to_h_sync = 0;
 
+	sig_cfg.hsync_pin = ipu_crtc->di_hsync_pin;
+	sig_cfg.vsync_pin = ipu_crtc->di_vsync_pin;
+
 	if (ipu_crtc->dp) {
 		ret = ipu_dp_setup_channel(ipu_crtc->dp, IPUV3_COLORSPACE_RGB,
 				IPUV3_COLORSPACE_RGB);
@@ -406,13 +411,17 @@ static void ipu_disable_vblank(struct drm_crtc *crtc)
 }
 
 static int ipu_set_interface_pix_fmt(struct drm_crtc *crtc, u32 encoder_type,
-		u32 pixfmt)
+		u32 pixfmt, int hsync_pin, int vsync_pin)
 {
 	struct ipu_crtc *ipu_crtc = to_ipu_crtc(crtc);
 
 	ipu_crtc->interface_pix_fmt = pixfmt;
+	ipu_crtc->di_hsync_pin = hsync_pin;
+	ipu_crtc->di_vsync_pin = vsync_pin;
 
 	switch (encoder_type) {
+	case DRM_MODE_ENCODER_DAC:
+	case DRM_MODE_ENCODER_TVDAC:
 	case DRM_MODE_ENCODER_LVDS:
 		ipu_crtc->di_clkflags = IPU_DI_CLKMODE_SYNC |
 			IPU_DI_CLKMODE_EXT;
@@ -483,17 +492,6 @@ static int ipu_get_resources(struct ipu_crtc *ipu_crtc,
 		goto err_out;
 	}
 
-	ipu_crtc->irq = ipu_idmac_channel_irq(ipu, ipu_crtc->ipu_ch,
-			IPU_IRQ_EOF);
-	ret = devm_request_irq(ipu_crtc->dev, ipu_crtc->irq, ipu_irq_handler, 0,
-			"imx_drm", ipu_crtc);
-	if (ret < 0) {
-		dev_err(ipu_crtc->dev, "irq request failed with %d.\n", ret);
-		goto err_out;
-	}
-
-	disable_irq(ipu_crtc->irq);
-
 	return 0;
 err_out:
 	ipu_put_resources(ipu_crtc);
@@ -504,6 +502,7 @@ err_out:
 static int ipu_crtc_init(struct ipu_crtc *ipu_crtc,
 		struct ipu_client_platformdata *pdata)
 {
+	struct ipu_soc *ipu = dev_get_drvdata(ipu_crtc->dev->parent);
 	int ret;
 
 	ret = ipu_get_resources(ipu_crtc, pdata);
@@ -521,6 +520,17 @@ static int ipu_crtc_init(struct ipu_crtc *ipu_crtc,
 		dev_err(ipu_crtc->dev, "adding crtc failed with %d.\n", ret);
 		goto err_put_resources;
 	}
+
+	ipu_crtc->irq = ipu_idmac_channel_irq(ipu, ipu_crtc->ipu_ch,
+			IPU_IRQ_EOF);
+	ret = devm_request_irq(ipu_crtc->dev, ipu_crtc->irq, ipu_irq_handler, 0,
+			"imx_drm", ipu_crtc);
+	if (ret < 0) {
+		dev_err(ipu_crtc->dev, "irq request failed with %d.\n", ret);
+		goto err_put_resources;
+	}
+
+	disable_irq(ipu_crtc->irq);
 
 	return 0;
 

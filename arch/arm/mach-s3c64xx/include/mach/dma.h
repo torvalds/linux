@@ -21,7 +21,6 @@
  */
 enum dma_ch {
 	/* DMA0/SDMA0 */
-	DMACH_DT_PROP = -1, /* not yet supported, do not use */
 	DMACH_UART0 = 0,
 	DMACH_UART0_SRC2,
 	DMACH_UART1,

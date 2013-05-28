@@ -14,13 +14,14 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/serial_core.h>
-#include <linux/serial_8250.h>
 #include <linux/serial_reg.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/nwpserial.h>
 #include <linux/clk.h>
+
+#include "8250/8250.h"
 
 struct of_serial_info {
 	struct clk *clk;
@@ -97,6 +98,10 @@ static int of_platform_serial_setup(struct platform_device *ofdev,
 	if (of_property_read_u32(np, "reg-shift", &prop) == 0)
 		port->regshift = prop;
 
+	/* Check for fifo size */
+	if (of_property_read_u32(np, "fifo-size", &prop) == 0)
+		port->fifosize = prop;
+
 	port->irq = irq_of_parse_and_map(np, 0);
 	port->iotype = UPIO_MEM;
 	if (of_property_read_u32(np, "reg-io-width", &prop) == 0) {
@@ -167,11 +172,17 @@ static int of_platform_serial_probe(struct platform_device *ofdev)
 #ifdef CONFIG_SERIAL_8250
 	case PORT_8250 ... PORT_MAX_8250:
 	{
-		/* For now the of bindings don't support the extra
-		   8250 specific bits */
 		struct uart_8250_port port8250;
 		memset(&port8250, 0, sizeof(port8250));
 		port8250.port = port;
+
+		if (port.fifosize)
+			port8250.capabilities = UART_CAP_FIFO;
+
+		if (of_property_read_bool(ofdev->dev.of_node,
+					  "auto-flow-control"))
+			port8250.capabilities |= UART_CAP_AFE;
+
 		ret = serial8250_register_8250_port(&port8250);
 		break;
 	}
@@ -241,6 +252,12 @@ static struct of_device_id of_platform_serial_table[] = {
 	{ .compatible = "ns16850",  .data = (void *)PORT_16850, },
 	{ .compatible = "nvidia,tegra20-uart", .data = (void *)PORT_TEGRA, },
 	{ .compatible = "nxp,lpc3220-uart", .data = (void *)PORT_LPC3220, },
+	{ .compatible = "altr,16550-FIFO32",
+		.data = (void *)PORT_ALTR_16550_F32, },
+	{ .compatible = "altr,16550-FIFO64",
+		.data = (void *)PORT_ALTR_16550_F64, },
+	{ .compatible = "altr,16550-FIFO128",
+		.data = (void *)PORT_ALTR_16550_F128, },
 #ifdef CONFIG_SERIAL_OF_PLATFORM_NWPSERIAL
 	{ .compatible = "ibm,qpace-nwp-serial",
 		.data = (void *)PORT_NWPSERIAL, },

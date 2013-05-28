@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -74,7 +74,7 @@
 static inline __le16 iwl_mvm_scan_rx_chain(struct iwl_mvm *mvm)
 {
 	u16 rx_chain;
-	u8 rx_ant = mvm->nvm_data->valid_rx_ant;
+	u8 rx_ant = iwl_fw_valid_rx_ant(mvm->fw);
 
 	rx_chain = rx_ant << PHY_RX_CHAIN_VALID_POS;
 	rx_chain |= rx_ant << PHY_RX_CHAIN_FORCE_MIMO_SEL_POS;
@@ -115,7 +115,7 @@ iwl_mvm_scan_rate_n_flags(struct iwl_mvm *mvm, enum ieee80211_band band,
 	u32 tx_ant;
 
 	mvm->scan_last_antenna_idx =
-		iwl_mvm_next_antenna(mvm, mvm->nvm_data->valid_tx_ant,
+		iwl_mvm_next_antenna(mvm, iwl_fw_valid_tx_ant(mvm->fw),
 				     mvm->scan_last_antenna_idx);
 	tx_ant = BIT(mvm->scan_last_antenna_idx) << RATE_MCS_ANT_POS;
 
@@ -297,6 +297,12 @@ int iwl_mvm_scan_request(struct iwl_mvm *mvm,
 		cmd->type = cpu_to_le32(SCAN_TYPE_DISCOVERY_FORCED);
 	else
 		cmd->type = cpu_to_le32(SCAN_TYPE_FORCED);
+
+	/*
+	 * TODO: This is a WA due to a bug in the FW AUX framework that does not
+	 * properly handle time events that fail to be scheduled
+	 */
+	cmd->type = cpu_to_le32(SCAN_TYPE_FORCED);
 
 	cmd->repeats = cpu_to_le32(1);
 

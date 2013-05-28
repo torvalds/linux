@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/acpi.h>
 #include <linux/pci.h>
+#include <linux/usb/hcd.h>
 #include <acpi/acpi_bus.h>
 
 #include "usb.h"
@@ -188,8 +189,13 @@ static int usb_acpi_find_device(struct device *dev, acpi_handle *handle)
 		 * connected to.
 		 */
 		if (!udev->parent) {
-			*handle = acpi_get_child(DEVICE_ACPI_HANDLE(&udev->dev),
+			struct usb_hcd *hcd = bus_to_hcd(udev->bus);
+			int raw_port_num;
+
+			raw_port_num = usb_hcd_find_raw_port_number(hcd,
 				port_num);
+			*handle = acpi_get_child(DEVICE_ACPI_HANDLE(&udev->dev),
+				raw_port_num);
 			if (!*handle)
 				return -ENODEV;
 		} else {

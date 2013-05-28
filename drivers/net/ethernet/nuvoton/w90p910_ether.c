@@ -287,23 +287,16 @@ static int w90p910_init_desc(struct net_device *dev)
 	ether = netdev_priv(dev);
 	pdev = ether->pdev;
 
-	ether->tdesc = (struct tran_pdesc *)
-		dma_alloc_coherent(&pdev->dev, sizeof(struct tran_pdesc),
-					&ether->tdesc_phys, GFP_KERNEL);
-
-	if (!ether->tdesc) {
-		dev_err(&pdev->dev, "Failed to allocate memory for tx desc\n");
+	ether->tdesc = dma_alloc_coherent(&pdev->dev, sizeof(struct tran_pdesc),
+					  &ether->tdesc_phys, GFP_KERNEL);
+	if (!ether->tdesc)
 		return -ENOMEM;
-	}
 
-	ether->rdesc = (struct recv_pdesc *)
-		dma_alloc_coherent(&pdev->dev, sizeof(struct recv_pdesc),
-					&ether->rdesc_phys, GFP_KERNEL);
-
+	ether->rdesc = dma_alloc_coherent(&pdev->dev, sizeof(struct recv_pdesc),
+					  &ether->rdesc_phys, GFP_KERNEL);
 	if (!ether->rdesc) {
-		dev_err(&pdev->dev, "Failed to allocate memory for rx desc\n");
 		dma_free_coherent(&pdev->dev, sizeof(struct tran_pdesc),
-					ether->tdesc, ether->tdesc_phys);
+				  ether->tdesc, ether->tdesc_phys);
 		return -ENOMEM;
 	}
 
@@ -737,7 +730,6 @@ static void netdev_rx(struct net_device *dev)
 			data = ether->rdesc->recv_buf[ether->cur_rx];
 			skb = netdev_alloc_skb(dev, length + 2);
 			if (!skb) {
-				dev_err(&pdev->dev, "get skb buffer error\n");
 				ether->stats.rx_dropped++;
 				return;
 			}

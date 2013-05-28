@@ -9,7 +9,7 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
-/include/ "skeleton.dtsi"
+#include "skeleton.dtsi"
 
 / {
 	aliases {
@@ -60,14 +60,41 @@
 
 			wdog: wdog@10002000 {
 				compatible = "fsl,imx27-wdt", "fsl,imx21-wdt";
-				reg = <0x10002000 0x4000>;
+				reg = <0x10002000 0x1000>;
 				interrupts = <27>;
+				clocks = <&clks 0>;
+			};
+
+			gpt1: timer@10003000 {
+				compatible = "fsl,imx27-gpt", "fsl,imx1-gpt";
+				reg = <0x10003000 0x1000>;
+				interrupts = <26>;
+				clocks = <&clks 46>, <&clks 61>;
+				clock-names = "ipg", "per";
+			};
+
+			gpt2: timer@10004000 {
+				compatible = "fsl,imx27-gpt", "fsl,imx1-gpt";
+				reg = <0x10004000 0x1000>;
+				interrupts = <25>;
+				clocks = <&clks 45>, <&clks 61>;
+				clock-names = "ipg", "per";
+			};
+
+			gpt3: timer@10005000 {
+				compatible = "fsl,imx27-gpt", "fsl,imx1-gpt";
+				reg = <0x10005000 0x1000>;
+				interrupts = <24>;
+				clocks = <&clks 44>, <&clks 61>;
+				clock-names = "ipg", "per";
 			};
 
 			uart1: serial@1000a000 {
 				compatible = "fsl,imx27-uart", "fsl,imx21-uart";
 				reg = <0x1000a000 0x1000>;
 				interrupts = <20>;
+				clocks = <&clks 81>, <&clks 61>;
+				clock-names = "ipg", "per";
 				status = "disabled";
 			};
 
@@ -75,6 +102,8 @@
 				compatible = "fsl,imx27-uart", "fsl,imx21-uart";
 				reg = <0x1000b000 0x1000>;
 				interrupts = <19>;
+				clocks = <&clks 80>, <&clks 61>;
+				clock-names = "ipg", "per";
 				status = "disabled";
 			};
 
@@ -82,6 +111,8 @@
 				compatible = "fsl,imx27-uart", "fsl,imx21-uart";
 				reg = <0x1000c000 0x1000>;
 				interrupts = <18>;
+				clocks = <&clks 79>, <&clks 61>;
+				clock-names = "ipg", "per";
 				status = "disabled";
 			};
 
@@ -89,6 +120,8 @@
 				compatible = "fsl,imx27-uart", "fsl,imx21-uart";
 				reg = <0x1000d000 0x1000>;
 				interrupts = <17>;
+				clocks = <&clks 78>, <&clks 61>;
+				clock-names = "ipg", "per";
 				status = "disabled";
 			};
 
@@ -98,6 +131,8 @@
 				compatible = "fsl,imx27-cspi";
 				reg = <0x1000e000 0x1000>;
 				interrupts = <16>;
+				clocks = <&clks 53>, <&clks 0>;
+				clock-names = "ipg", "per";
 				status = "disabled";
 			};
 
@@ -107,6 +142,8 @@
 				compatible = "fsl,imx27-cspi";
 				reg = <0x1000f000 0x1000>;
 				interrupts = <15>;
+				clocks = <&clks 52>, <&clks 0>;
+				clock-names = "ipg", "per";
 				status = "disabled";
 			};
 
@@ -116,6 +153,7 @@
 				compatible = "fsl,imx27-i2c", "fsl,imx21-i2c";
 				reg = <0x10012000 0x1000>;
 				interrupts = <12>;
+				clocks = <&clks 40>;
 				status = "disabled";
 			};
 
@@ -185,13 +223,33 @@
 				compatible = "fsl,imx27-cspi";
 				reg = <0x10017000 0x1000>;
 				interrupts = <6>;
+				clocks = <&clks 51>, <&clks 0>;
+				clock-names = "ipg", "per";
 				status = "disabled";
+			};
+
+			gpt4: timer@10019000 {
+				compatible = "fsl,imx27-gpt", "fsl,imx1-gpt";
+				reg = <0x10019000 0x1000>;
+				interrupts = <4>;
+				clocks = <&clks 43>, <&clks 61>;
+				clock-names = "ipg", "per";
+			};
+
+			gpt5: timer@1001a000 {
+				compatible = "fsl,imx27-gpt", "fsl,imx1-gpt";
+				reg = <0x1001a000 0x1000>;
+				interrupts = <3>;
+				clocks = <&clks 42>, <&clks 61>;
+				clock-names = "ipg", "per";
 			};
 
 			uart5: serial@1001b000 {
 				compatible = "fsl,imx27-uart", "fsl,imx21-uart";
 				reg = <0x1001b000 0x1000>;
 				interrupts = <49>;
+				clocks = <&clks 77>, <&clks 61>;
+				clock-names = "ipg", "per";
 				status = "disabled";
 			};
 
@@ -199,6 +257,8 @@
 				compatible = "fsl,imx27-uart", "fsl,imx21-uart";
 				reg = <0x1001c000 0x1000>;
 				interrupts = <48>;
+				clocks = <&clks 78>, <&clks 61>;
+				clock-names = "ipg", "per";
 				status = "disabled";
 			};
 
@@ -208,9 +268,17 @@
 				compatible = "fsl,imx27-i2c", "fsl,imx21-i2c";
 				reg = <0x1001d000 0x1000>;
 				interrupts = <1>;
+				clocks = <&clks 39>;
 				status = "disabled";
 			};
 
+			gpt6: timer@1001f000 {
+				compatible = "fsl,imx27-gpt", "fsl,imx1-gpt";
+				reg = <0x1001f000 0x1000>;
+				interrupts = <2>;
+				clocks = <&clks 41>, <&clks 61>;
+				clock-names = "ipg", "per";
+			};
 		};
 
 		aipi@10020000 { /* AIPI2 */
@@ -224,9 +292,18 @@
 				compatible = "fsl,imx27-fec";
 				reg = <0x1002b000 0x4000>;
 				interrupts = <50>;
+				clocks = <&clks 48>, <&clks 67>, <&clks 0>;
+				clock-names = "ipg", "ahb", "ptp";
 				status = "disabled";
 			};
+
+			clks: ccm@10027000{
+				compatible = "fsl,imx27-ccm";
+				reg = <0x10027000 0x1000>;
+				#clock-cells = <1>;
+			};
 		};
+
 
 		nfc: nand@d8000000 {
 			#address-cells = <1>;
@@ -235,6 +312,7 @@
 			compatible = "fsl,imx27-nand";
 			reg = <0xd8000000 0x1000>;
 			interrupts = <29>;
+			clocks = <&clks 54>;
 			status = "disabled";
 		};
 	};

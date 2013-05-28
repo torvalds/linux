@@ -47,7 +47,7 @@
 static struct pci_dev *mei_pdev;
 
 /* mei_pci_tbl - PCI Device ID Table */
-static DEFINE_PCI_DEVICE_TABLE(mei_pci_tbl) = {
+static DEFINE_PCI_DEVICE_TABLE(mei_me_pci_tbl) = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_82946GZ)},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_82G35)},
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, MEI_DEV_ID_82Q965)},
@@ -86,7 +86,7 @@ static DEFINE_PCI_DEVICE_TABLE(mei_pci_tbl) = {
 	{0, }
 };
 
-MODULE_DEVICE_TABLE(pci, mei_pci_tbl);
+MODULE_DEVICE_TABLE(pci, mei_me_pci_tbl);
 
 static DEFINE_MUTEX(mei_mutex);
 
@@ -98,7 +98,7 @@ static DEFINE_MUTEX(mei_mutex);
  *
  * returns true if ME Interface is valid, false otherwise
  */
-static bool mei_quirk_probe(struct pci_dev *pdev,
+static bool mei_me_quirk_probe(struct pci_dev *pdev,
 				const struct pci_device_id *ent)
 {
 	u32 reg;
@@ -120,7 +120,7 @@ static bool mei_quirk_probe(struct pci_dev *pdev,
  *
  * returns 0 on success, <0 on failure.
  */
-static int mei_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
+static int mei_me_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct mei_device *dev;
 	struct mei_me_hw *hw;
@@ -128,7 +128,7 @@ static int mei_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	mutex_lock(&mei_mutex);
 
-	if (!mei_quirk_probe(pdev, ent)) {
+	if (!mei_me_quirk_probe(pdev, ent)) {
 		err = -ENODEV;
 		goto end;
 	}
@@ -185,19 +185,18 @@ static int mei_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto disable_msi;
 	}
 
-	if (mei_hw_init(dev)) {
+	if (mei_start(dev)) {
 		dev_err(&pdev->dev, "init hw failure.\n");
 		err = -ENODEV;
 		goto release_irq;
 	}
 
-	err = mei_register(&pdev->dev);
+	err = mei_register(dev);
 	if (err)
 		goto release_irq;
 
 	mei_pdev = pdev;
 	pci_set_drvdata(pdev, dev);
-
 
 	schedule_delayed_work(&dev->timer_work, HZ);
 
@@ -234,7 +233,7 @@ end:
  * mei_remove is called by the PCI subsystem to alert the driver
  * that it should release a PCI device.
  */
-static void mei_remove(struct pci_dev *pdev)
+static void mei_me_remove(struct pci_dev *pdev)
 {
 	struct mei_device *dev;
 	struct mei_me_hw *hw;
@@ -248,43 +247,11 @@ static void mei_remove(struct pci_dev *pdev)
 
 	hw = to_me_hw(dev);
 
-	mutex_lock(&dev->device_lock);
 
-	cancel_delayed_work(&dev->timer_work);
-
-	mei_wd_stop(dev);
+	dev_err(&pdev->dev, "stop\n");
+	mei_stop(dev);
 
 	mei_pdev = NULL;
-
-	if (dev->iamthif_cl.state == MEI_FILE_CONNECTED) {
-		dev->iamthif_cl.state = MEI_FILE_DISCONNECTING;
-		mei_cl_disconnect(&dev->iamthif_cl);
-	}
-	if (dev->wd_cl.state == MEI_FILE_CONNECTED) {
-		dev->wd_cl.state = MEI_FILE_DISCONNECTING;
-		mei_cl_disconnect(&dev->wd_cl);
-	}
-
-	/* Unregistering watchdog device */
-	mei_watchdog_unregister(dev);
-
-	/* remove entry if already in list */
-	dev_dbg(&pdev->dev, "list del iamthif and wd file list.\n");
-
-	if (dev->open_handle_count > 0)
-		dev->open_handle_count--;
-	mei_cl_unlink(&dev->wd_cl);
-
-	if (dev->open_handle_count > 0)
-		dev->open_handle_count--;
-	mei_cl_unlink(&dev->iamthif_cl);
-
-	dev->iamthif_current_cb = NULL;
-	dev->me_clients_num = 0;
-
-	mutex_unlock(&dev->device_lock);
-
-	flush_scheduled_work();
 
 	/* disable interrupts */
 	mei_disable_interrupts(dev);
@@ -296,44 +263,37 @@ static void mei_remove(struct pci_dev *pdev)
 	if (hw->mem_addr)
 		pci_iounmap(pdev, hw->mem_addr);
 
+	mei_deregister(dev);
+
 	kfree(dev);
 
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 
-	mei_deregister();
 
 }
 #ifdef CONFIG_PM
-static int mei_pci_suspend(struct device *device)
+static int mei_me_pci_suspend(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct mei_device *dev = pci_get_drvdata(pdev);
-	int err;
 
 	if (!dev)
 		return -ENODEV;
-	mutex_lock(&dev->device_lock);
 
-	cancel_delayed_work(&dev->timer_work);
+	dev_err(&pdev->dev, "suspend\n");
 
-	/* Stop watchdog if exists */
-	err = mei_wd_stop(dev);
-	/* Set new mei state */
-	if (dev->dev_state == MEI_DEV_ENABLED ||
-	    dev->dev_state == MEI_DEV_RECOVERING_FROM_RESET) {
-		dev->dev_state = MEI_DEV_POWER_DOWN;
-		mei_reset(dev, 0);
-	}
-	mutex_unlock(&dev->device_lock);
+	mei_stop(dev);
+
+	mei_disable_interrupts(dev);
 
 	free_irq(pdev->irq, dev);
 	pci_disable_msi(pdev);
 
-	return err;
+	return 0;
 }
 
-static int mei_pci_resume(struct device *device)
+static int mei_me_pci_resume(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct mei_device *dev;
@@ -373,24 +333,24 @@ static int mei_pci_resume(struct device *device)
 
 	return err;
 }
-static SIMPLE_DEV_PM_OPS(mei_pm_ops, mei_pci_suspend, mei_pci_resume);
-#define MEI_PM_OPS	(&mei_pm_ops)
+static SIMPLE_DEV_PM_OPS(mei_me_pm_ops, mei_me_pci_suspend, mei_me_pci_resume);
+#define MEI_ME_PM_OPS	(&mei_me_pm_ops)
 #else
-#define MEI_PM_OPS	NULL
+#define MEI_ME_PM_OPS	NULL
 #endif /* CONFIG_PM */
 /*
  *  PCI driver structure
  */
-static struct pci_driver mei_driver = {
+static struct pci_driver mei_me_driver = {
 	.name = KBUILD_MODNAME,
-	.id_table = mei_pci_tbl,
-	.probe = mei_probe,
-	.remove = mei_remove,
-	.shutdown = mei_remove,
-	.driver.pm = MEI_PM_OPS,
+	.id_table = mei_me_pci_tbl,
+	.probe = mei_me_probe,
+	.remove = mei_me_remove,
+	.shutdown = mei_me_remove,
+	.driver.pm = MEI_ME_PM_OPS,
 };
 
-module_pci_driver(mei_driver);
+module_pci_driver(mei_me_driver);
 
 MODULE_AUTHOR("Intel Corporation");
 MODULE_DESCRIPTION("Intel(R) Management Engine Interface");

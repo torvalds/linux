@@ -195,6 +195,7 @@ static int onetouch_connect_input(struct us_data *ss)
 
 	pipe = usb_rcvintpipe(udev, endpoint->bEndpointAddress);
 	maxp = usb_maxpacket(udev, pipe, usb_pipeout(pipe));
+	maxp = min(maxp, ONETOUCH_PKT_LEN);
 
 	onetouch = kzalloc(sizeof(struct usb_onetouch), GFP_KERNEL);
 	input_dev = input_allocate_device();
@@ -245,8 +246,7 @@ static int onetouch_connect_input(struct us_data *ss)
 	input_dev->open = usb_onetouch_open;
 	input_dev->close = usb_onetouch_close;
 
-	usb_fill_int_urb(onetouch->irq, udev, pipe, onetouch->data,
-			 (maxp > 8 ? 8 : maxp),
+	usb_fill_int_urb(onetouch->irq, udev, pipe, onetouch->data, maxp,
 			 usb_onetouch_irq, onetouch, endpoint->bInterval);
 	onetouch->irq->transfer_dma = onetouch->data_dma;
 	onetouch->irq->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;

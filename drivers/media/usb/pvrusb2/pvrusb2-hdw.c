@@ -5165,7 +5165,7 @@ static int pvr2_hdw_get_eeprom_addr(struct pvr2_hdw *hdw)
 
 
 int pvr2_hdw_register_access(struct pvr2_hdw *hdw,
-			     struct v4l2_dbg_match *match, u64 reg_id,
+			     const struct v4l2_dbg_match *match, u64 reg_id,
 			     int setFl, u64 *val_ptr)
 {
 #ifdef CONFIG_VIDEO_ADV_DEBUG

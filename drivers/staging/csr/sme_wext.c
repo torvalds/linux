@@ -1273,7 +1273,6 @@ unifi_siwscan(struct net_device *dev, struct iw_request_info *info,
 {
     netInterface_priv_t *interfacePriv = (netInterface_priv_t *)netdev_priv(dev);
     unifi_priv_t *priv = interfacePriv->privPtr;
-    int scantype;
     int r;
     CsrWifiSsid scan_ssid;
     unsigned char *channel_list = NULL;
@@ -1292,8 +1291,6 @@ unifi_siwscan(struct net_device *dev, struct iw_request_info *info,
        return -EPERM;
     }
 
-
-    scantype = UNIFI_SCAN_ACTIVE;
 
 #if WIRELESS_EXT > 17
     /* Providing a valid channel list will force an active scan */

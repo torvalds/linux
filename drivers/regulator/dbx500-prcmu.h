@@ -21,7 +21,6 @@
  * @is_enabled: status of the regulator
  * @epod_id: id for EPOD (power domain)
  * @is_ramret: RAM retention switch for EPOD (power domain)
- * @operating_point: operating point (only for vape, to be removed)
  *
  */
 struct dbx500_regulator_info {
@@ -32,7 +31,6 @@ struct dbx500_regulator_info {
 	u16 epod_id;
 	bool is_ramret;
 	bool exclude_from_power_state;
-	unsigned int operating_point;
 };
 
 void power_state_active_enable(void);

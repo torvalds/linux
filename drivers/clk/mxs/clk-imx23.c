@@ -15,12 +15,15 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/of.h>
-#include <mach/common.h>
-#include <mach/mx23.h>
+#include <linux/of_address.h>
 #include "clk.h"
 
-#define DIGCTRL			MX23_IO_ADDRESS(MX23_DIGCTL_BASE_ADDR)
-#define CLKCTRL			MX23_IO_ADDRESS(MX23_CLKCTRL_BASE_ADDR)
+static void __iomem *clkctrl;
+static void __iomem *digctrl;
+
+#define CLKCTRL clkctrl
+#define DIGCTRL digctrl
+
 #define PLLCTRL0		(CLKCTRL + 0x0000)
 #define CPU			(CLKCTRL + 0x0020)
 #define HBUS			(CLKCTRL + 0x0030)
@@ -48,10 +51,10 @@ static void __init clk_misc_init(void)
 	u32 val;
 
 	/* Gate off cpu clock in WFI for power saving */
-	__mxs_setl(1 << BP_CPU_INTERRUPT_WAIT, CPU);
+	writel_relaxed(1 << BP_CPU_INTERRUPT_WAIT, CPU + SET);
 
 	/* Clear BYPASS for SAIF */
-	__mxs_clrl(1 << BP_CLKSEQ_BYPASS_SAIF, CLKSEQ);
+	writel_relaxed(1 << BP_CLKSEQ_BYPASS_SAIF, CLKSEQ + CLR);
 
 	/* SAIF has to use frac div for functional operation */
 	val = readl_relaxed(SAIF);
@@ -62,14 +65,14 @@ static void __init clk_misc_init(void)
 	 * Source ssp clock from ref_io than ref_xtal,
 	 * as ref_xtal only provides 24 MHz as maximum.
 	 */
-	__mxs_clrl(1 << BP_CLKSEQ_BYPASS_SSP, CLKSEQ);
+	writel_relaxed(1 << BP_CLKSEQ_BYPASS_SSP, CLKSEQ + CLR);
 
 	/*
 	 * 480 MHz seems too high to be ssp clock source directly,
 	 * so set frac to get a 288 MHz ref_io.
 	 */
-	__mxs_clrl(0x3f << BP_FRAC_IOFRAC, FRAC);
-	__mxs_setl(30 << BP_FRAC_IOFRAC, FRAC);
+	writel_relaxed(0x3f << BP_FRAC_IOFRAC, FRAC + CLR);
+	writel_relaxed(30 << BP_FRAC_IOFRAC, FRAC + SET);
 }
 
 static const char *sel_pll[]  __initconst = { "pll", "ref_xtal", };
@@ -100,6 +103,14 @@ int __init mx23_clocks_init(void)
 {
 	struct device_node *np;
 	u32 i;
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx23-digctl");
+	digctrl = of_iomap(np, 0);
+	WARN_ON(!digctrl);
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,imx23-clkctrl");
+	clkctrl = of_iomap(np, 0);
+	WARN_ON(!clkctrl);
 
 	clk_misc_init();
 
@@ -153,19 +164,12 @@ int __init mx23_clocks_init(void)
 			return PTR_ERR(clks[i]);
 		}
 
-	np = of_find_compatible_node(NULL, NULL, "fsl,imx23-clkctrl");
-	if (np) {
-		clk_data.clks = clks;
-		clk_data.clk_num = ARRAY_SIZE(clks);
-		of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
-	}
-
-	clk_register_clkdev(clks[clk32k], NULL, "timrot");
+	clk_data.clks = clks;
+	clk_data.clk_num = ARRAY_SIZE(clks);
+	of_clk_add_provider(np, of_clk_src_onecell_get, &clk_data);
 
 	for (i = 0; i < ARRAY_SIZE(clks_init_on); i++)
 		clk_prepare_enable(clks[clks_init_on[i]]);
-
-	mxs_timer_init();
 
 	return 0;
 }

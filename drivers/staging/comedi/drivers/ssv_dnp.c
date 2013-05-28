@@ -167,8 +167,6 @@ static int dnp_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	struct comedi_subdevice *s;
 	int ret;
 
-	dev->board_name = dev->driver->driver_name;
-
 	ret = comedi_alloc_subdevices(dev, 1);
 	if (ret)
 		return ret;

@@ -404,7 +404,7 @@ void __init emev2_add_standard_devices(void)
 			     ARRAY_SIZE(emev2_late_devices));
 }
 
-void __init emev2_init_delay(void)
+static void __init emev2_init_delay(void)
 {
 	shmobile_setup_delay(533, 1, 3); /* Cortex-A9 @ 533MHz */
 }
@@ -439,7 +439,7 @@ static const struct of_dev_auxdata emev2_auxdata_lookup[] __initconst = {
 	{ }
 };
 
-void __init emev2_add_standard_devices_dt(void)
+static void __init emev2_add_standard_devices_dt(void)
 {
 	of_platform_populate(NULL, of_default_bus_match_table,
 			     emev2_auxdata_lookup, NULL);
@@ -456,7 +456,6 @@ DT_MACHINE_START(EMEV2_DT, "Generic Emma Mobile EV2 (Flattened Device Tree)")
 	.nr_irqs	= NR_IRQS_LEGACY,
 	.init_irq	= irqchip_init,
 	.init_machine	= emev2_add_standard_devices_dt,
-	.init_time	= shmobile_timer_init,
 	.dt_compat	= emev2_boards_compat_dt,
 MACHINE_END
 

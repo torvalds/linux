@@ -90,7 +90,7 @@ qh_update (struct ehci_hcd *ehci, struct ehci_qh *qh, struct ehci_qtd *qtd)
 	struct ehci_qh_hw *hw = qh->hw;
 
 	/* writes to an active overlay are unsafe */
-	BUG_ON(qh->qh_state != QH_STATE_IDLE);
+	WARN_ON(qh->qh_state != QH_STATE_IDLE);
 
 	hw->hw_qtd_next = QTD_NEXT(ehci, qtd->qtd_dma);
 	hw->hw_alt_next = EHCI_LIST_END(ehci);
@@ -123,26 +123,19 @@ qh_refresh (struct ehci_hcd *ehci, struct ehci_qh *qh)
 {
 	struct ehci_qtd *qtd;
 
-	if (list_empty (&qh->qtd_list))
-		qtd = qh->dummy;
-	else {
-		qtd = list_entry (qh->qtd_list.next,
-				struct ehci_qtd, qtd_list);
-		/*
-		 * first qtd may already be partially processed.
-		 * If we come here during unlink, the QH overlay region
-		 * might have reference to the just unlinked qtd. The
-		 * qtd is updated in qh_completions(). Update the QH
-		 * overlay here.
-		 */
-		if (cpu_to_hc32(ehci, qtd->qtd_dma) == qh->hw->hw_current) {
-			qh->hw->hw_qtd_next = qtd->hw_next;
-			qtd = NULL;
-		}
-	}
+	qtd = list_entry(qh->qtd_list.next, struct ehci_qtd, qtd_list);
 
-	if (qtd)
-		qh_update (ehci, qh, qtd);
+	/*
+	 * first qtd may already be partially processed.
+	 * If we come here during unlink, the QH overlay region
+	 * might have reference to the just unlinked qtd. The
+	 * qtd is updated in qh_completions(). Update the QH
+	 * overlay here.
+	 */
+	if (qh->hw->hw_token & ACTIVE_BIT(ehci))
+		qh->hw->hw_qtd_next = qtd->hw_next;
+	else
+		qh_update(ehci, qh, qtd);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -299,8 +292,8 @@ static int qh_schedule (struct ehci_hcd *ehci, struct ehci_qh *qh);
 
 /*
  * Process and free completed qtds for a qh, returning URBs to drivers.
- * Chases up to qh->hw_current.  Returns number of completions called,
- * indicating how much "real" work we did.
+ * Chases up to qh->hw_current.  Returns nonzero if the caller should
+ * unlink qh.
  */
 static unsigned
 qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
@@ -309,12 +302,8 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	struct list_head	*entry, *tmp;
 	int			last_status;
 	int			stopped;
-	unsigned		count = 0;
 	u8			state;
 	struct ehci_qh_hw	*hw = qh->hw;
-
-	if (unlikely (list_empty (&qh->qtd_list)))
-		return count;
 
 	/* completions (or tasks on other cpus) must never clobber HALT
 	 * till we've gone through and cleaned everything up, even when
@@ -333,7 +322,7 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
  rescan:
 	last = NULL;
 	last_status = -EINPROGRESS;
-	qh->needs_rescan = 0;
+	qh->dequeue_during_giveback = 0;
 
 	/* remove de-activated QTDs from front of queue.
 	 * after faults (including short reads), cleanup this urb
@@ -352,7 +341,6 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 		if (last) {
 			if (likely (last->urb != urb)) {
 				ehci_urb_done(ehci, last->urb, last_status);
-				count++;
 				last_status = -EINPROGRESS;
 			}
 			ehci_qtd_free (ehci, last);
@@ -449,11 +437,19 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 			else if (last_status == -EINPROGRESS && !urb->unlinked)
 				continue;
 
-			/* qh unlinked; token in overlay may be most current */
-			if (state == QH_STATE_IDLE
-					&& cpu_to_hc32(ehci, qtd->qtd_dma)
-						== hw->hw_current) {
+			/*
+			 * If this was the active qtd when the qh was unlinked
+			 * and the overlay's token is active, then the overlay
+			 * hasn't been written back to the qtd yet so use its
+			 * token instead of the qtd's.  After the qtd is
+			 * processed and removed, the overlay won't be valid
+			 * any more.
+			 */
+			if (state == QH_STATE_IDLE &&
+					qh->qtd_list.next == &qtd->qtd_list &&
+					(hw->hw_token & ACTIVE_BIT(ehci))) {
 				token = hc32_to_cpu(ehci, hw->hw_token);
+				hw->hw_token &= ~ACTIVE_BIT(ehci);
 
 				/* An unlink may leave an incomplete
 				 * async transaction in the TT buffer.
@@ -518,23 +514,16 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	/* last urb's completion might still need calling */
 	if (likely (last != NULL)) {
 		ehci_urb_done(ehci, last->urb, last_status);
-		count++;
 		ehci_qtd_free (ehci, last);
 	}
 
 	/* Do we need to rescan for URBs dequeued during a giveback? */
-	if (unlikely(qh->needs_rescan)) {
+	if (unlikely(qh->dequeue_during_giveback)) {
 		/* If the QH is already unlinked, do the rescan now. */
 		if (state == QH_STATE_IDLE)
 			goto rescan;
 
-		/* Otherwise we have to wait until the QH is fully unlinked.
-		 * Our caller will start an unlink if qh->needs_rescan is
-		 * set.  But if an unlink has already started, nothing needs
-		 * to be done.
-		 */
-		if (state != QH_STATE_LINKED)
-			qh->needs_rescan = 0;
+		/* Otherwise the caller must unlink the QH. */
 	}
 
 	/* restore original state; caller must unlink or relink */
@@ -543,33 +532,23 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	/* be sure the hardware's done with the qh before refreshing
 	 * it after fault cleanup, or recovering from silicon wrongly
 	 * overlaying the dummy qtd (which reduces DMA chatter).
+	 *
+	 * We won't refresh a QH that's linked (after the HC
+	 * stopped the queue).  That avoids a race:
+	 *  - HC reads first part of QH;
+	 *  - CPU updates that first part and the token;
+	 *  - HC reads rest of that QH, including token
+	 * Result:  HC gets an inconsistent image, and then
+	 * DMAs to/from the wrong memory (corrupting it).
+	 *
+	 * That should be rare for interrupt transfers,
+	 * except maybe high bandwidth ...
 	 */
-	if (stopped != 0 || hw->hw_qtd_next == EHCI_LIST_END(ehci)) {
-		switch (state) {
-		case QH_STATE_IDLE:
-			qh_refresh(ehci, qh);
-			break;
-		case QH_STATE_LINKED:
-			/* We won't refresh a QH that's linked (after the HC
-			 * stopped the queue).  That avoids a race:
-			 *  - HC reads first part of QH;
-			 *  - CPU updates that first part and the token;
-			 *  - HC reads rest of that QH, including token
-			 * Result:  HC gets an inconsistent image, and then
-			 * DMAs to/from the wrong memory (corrupting it).
-			 *
-			 * That should be rare for interrupt transfers,
-			 * except maybe high bandwidth ...
-			 */
+	if (stopped != 0 || hw->hw_qtd_next == EHCI_LIST_END(ehci))
+		qh->exception = 1;
 
-			/* Tell the caller to start an unlink */
-			qh->needs_rescan = 1;
-			break;
-		/* otherwise, unlink already started */
-		}
-	}
-
-	return count;
+	/* Let the caller know if the QH needs to be unlinked. */
+	return qh->exception;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -949,14 +928,13 @@ done:
 
 	/* NOTE:  if (PIPE_INTERRUPT) { scheduler sets s-mask } */
 
-	/* init as live, toggle clear, advance to dummy */
+	/* init as live, toggle clear */
 	qh->qh_state = QH_STATE_IDLE;
 	hw = qh->hw;
 	hw->hw_info1 = cpu_to_hc32(ehci, info1);
 	hw->hw_info2 = cpu_to_hc32(ehci, info2);
 	qh->is_out = !is_input;
 	usb_settoggle (urb->dev, usb_pipeendpoint (urb->pipe), !is_input, 1);
-	qh_refresh (ehci, qh);
 	return qh;
 }
 
@@ -980,8 +958,9 @@ static void disable_async(struct ehci_hcd *ehci)
 	if (--ehci->async_count)
 		return;
 
-	/* The async schedule and async_unlink list are supposed to be empty */
-	WARN_ON(ehci->async->qh_next.qh || ehci->async_unlink);
+	/* The async schedule and unlink lists are supposed to be empty */
+	WARN_ON(ehci->async->qh_next.qh || !list_empty(&ehci->async_unlink) ||
+			!list_empty(&ehci->async_idle));
 
 	/* Don't turn off the schedule until ASS is 1 */
 	ehci_poll_ASS(ehci);
@@ -1012,8 +991,9 @@ static void qh_link_async (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	head->qh_next.qh = qh;
 	head->hw->hw_next = dma;
 
-	qh->xacterrs = 0;
 	qh->qh_state = QH_STATE_LINKED;
+	qh->xacterrs = 0;
+	qh->exception = 0;
 	/* qtd completions reported later by interrupt */
 
 	enable_async(ehci);
@@ -1170,12 +1150,8 @@ static void single_unlink_async(struct ehci_hcd *ehci, struct ehci_qh *qh)
 	struct ehci_qh		*prev;
 
 	/* Add to the end of the list of QHs waiting for the next IAAD */
-	qh->qh_state = QH_STATE_UNLINK;
-	if (ehci->async_unlink)
-		ehci->async_unlink_last->unlink_next = qh;
-	else
-		ehci->async_unlink = qh;
-	ehci->async_unlink_last = qh;
+	qh->qh_state = QH_STATE_UNLINK_WAIT;
+	list_add_tail(&qh->unlink_node, &ehci->async_unlink);
 
 	/* Unlink it from the schedule */
 	prev = ehci->async;
@@ -1188,34 +1164,19 @@ static void single_unlink_async(struct ehci_hcd *ehci, struct ehci_qh *qh)
 		ehci->qh_scan_next = qh->qh_next.qh;
 }
 
-static void start_iaa_cycle(struct ehci_hcd *ehci, bool nested)
+static void start_iaa_cycle(struct ehci_hcd *ehci)
 {
-	/*
-	 * Do nothing if an IAA cycle is already running or
-	 * if one will be started shortly.
-	 */
-	if (ehci->async_iaa || ehci->async_unlinking)
+	/* Do nothing if an IAA cycle is already running */
+	if (ehci->iaa_in_progress)
 		return;
+	ehci->iaa_in_progress = true;
 
 	/* If the controller isn't running, we don't have to wait for it */
 	if (unlikely(ehci->rh_state < EHCI_RH_RUNNING)) {
-
-		/* Do all the waiting QHs */
-		ehci->async_iaa = ehci->async_unlink;
-		ehci->async_unlink = NULL;
-
-		if (!nested)		/* Avoid recursion */
-			end_unlink_async(ehci);
+		end_unlink_async(ehci);
 
 	/* Otherwise start a new IAA cycle */
 	} else if (likely(ehci->rh_state == EHCI_RH_RUNNING)) {
-		struct ehci_qh		*qh;
-
-		/* Do only the first waiting QH (nVidia bug?) */
-		qh = ehci->async_unlink;
-		ehci->async_iaa = qh;
-		ehci->async_unlink = qh->unlink_next;
-		qh->unlink_next = NULL;
 
 		/* Make sure the unlinks are all visible to the hardware */
 		wmb();
@@ -1232,36 +1193,73 @@ static void start_iaa_cycle(struct ehci_hcd *ehci, bool nested)
 static void end_unlink_async(struct ehci_hcd *ehci)
 {
 	struct ehci_qh		*qh;
+	bool			early_exit;
 
 	if (ehci->has_synopsys_hc_bug)
 		ehci_writel(ehci, (u32) ehci->async->qh_dma,
 			    &ehci->regs->async_next);
 
+	/* The current IAA cycle has ended */
+	ehci->iaa_in_progress = false;
+
+	if (list_empty(&ehci->async_unlink))
+		return;
+	qh = list_first_entry(&ehci->async_unlink, struct ehci_qh,
+			unlink_node);	/* QH whose IAA cycle just ended */
+
+	/*
+	 * If async_unlinking is set then this routine is already running,
+	 * either on the stack or on another CPU.
+	 */
+	early_exit = ehci->async_unlinking;
+
+	/* If the controller isn't running, process all the waiting QHs */
+	if (ehci->rh_state < EHCI_RH_RUNNING)
+		list_splice_tail_init(&ehci->async_unlink, &ehci->async_idle);
+
+	/*
+	 * Intel (?) bug: The HC can write back the overlay region even
+	 * after the IAA interrupt occurs.  In self-defense, always go
+	 * through two IAA cycles for each QH.
+	 */
+	else if (qh->qh_state == QH_STATE_UNLINK_WAIT) {
+		qh->qh_state = QH_STATE_UNLINK;
+		early_exit = true;
+	}
+
+	/* Otherwise process only the first waiting QH (NVIDIA bug?) */
+	else
+		list_move_tail(&qh->unlink_node, &ehci->async_idle);
+
+	/* Start a new IAA cycle if any QHs are waiting for it */
+	if (!list_empty(&ehci->async_unlink))
+		start_iaa_cycle(ehci);
+
+	/*
+	 * Don't allow nesting or concurrent calls,
+	 * or wait for the second IAA cycle for the next QH.
+	 */
+	if (early_exit)
+		return;
+
 	/* Process the idle QHs */
- restart:
 	ehci->async_unlinking = true;
-	while (ehci->async_iaa) {
-		qh = ehci->async_iaa;
-		ehci->async_iaa = qh->unlink_next;
-		qh->unlink_next = NULL;
+	while (!list_empty(&ehci->async_idle)) {
+		qh = list_first_entry(&ehci->async_idle, struct ehci_qh,
+				unlink_node);
+		list_del(&qh->unlink_node);
 
 		qh->qh_state = QH_STATE_IDLE;
 		qh->qh_next.qh = NULL;
 
-		qh_completions(ehci, qh);
+		if (!list_empty(&qh->qtd_list))
+			qh_completions(ehci, qh);
 		if (!list_empty(&qh->qtd_list) &&
 				ehci->rh_state == EHCI_RH_RUNNING)
 			qh_link_async(ehci, qh);
 		disable_async(ehci);
 	}
 	ehci->async_unlinking = false;
-
-	/* Start a new IAA cycle if any QHs are waiting for it */
-	if (ehci->async_unlink) {
-		start_iaa_cycle(ehci, true);
-		if (unlikely(ehci->rh_state < EHCI_RH_RUNNING))
-			goto restart;
-	}
 }
 
 static void start_unlink_async(struct ehci_hcd *ehci, struct ehci_qh *qh);
@@ -1270,7 +1268,6 @@ static void unlink_empty_async(struct ehci_hcd *ehci)
 {
 	struct ehci_qh		*qh;
 	struct ehci_qh		*qh_to_unlink = NULL;
-	bool			check_unlinks_later = false;
 	int			count = 0;
 
 	/* Find the last async QH which has been empty for a timer cycle */
@@ -1278,15 +1275,13 @@ static void unlink_empty_async(struct ehci_hcd *ehci)
 		if (list_empty(&qh->qtd_list) &&
 				qh->qh_state == QH_STATE_LINKED) {
 			++count;
-			if (qh->unlink_cycle == ehci->async_unlink_cycle)
-				check_unlinks_later = true;
-			else
+			if (qh->unlink_cycle != ehci->async_unlink_cycle)
 				qh_to_unlink = qh;
 		}
 	}
 
 	/* If nothing else is being unlinked, unlink the last empty QH */
-	if (!ehci->async_iaa && !ehci->async_unlink && qh_to_unlink) {
+	if (list_empty(&ehci->async_unlink) && qh_to_unlink) {
 		start_unlink_async(ehci, qh_to_unlink);
 		--count;
 	}
@@ -1298,24 +1293,30 @@ static void unlink_empty_async(struct ehci_hcd *ehci)
 	}
 }
 
+/* The root hub is suspended; unlink all the async QHs */
+static void __maybe_unused unlink_empty_async_suspended(struct ehci_hcd *ehci)
+{
+	struct ehci_qh		*qh;
+
+	while (ehci->async->qh_next.qh) {
+		qh = ehci->async->qh_next.qh;
+		WARN_ON(!list_empty(&qh->qtd_list));
+		single_unlink_async(ehci, qh);
+	}
+	start_iaa_cycle(ehci);
+}
+
 /* makes sure the async qh will become idle */
 /* caller must own ehci->lock */
 
 static void start_unlink_async(struct ehci_hcd *ehci, struct ehci_qh *qh)
 {
-	/*
-	 * If the QH isn't linked then there's nothing we can do
-	 * unless we were called during a giveback, in which case
-	 * qh_completions() has to deal with it.
-	 */
-	if (qh->qh_state != QH_STATE_LINKED) {
-		if (qh->qh_state == QH_STATE_COMPLETING)
-			qh->needs_rescan = 1;
+	/* If the QH isn't linked then there's nothing we can do. */
+	if (qh->qh_state != QH_STATE_LINKED)
 		return;
-	}
 
 	single_unlink_async(ehci, qh);
-	start_iaa_cycle(ehci, false);
+	start_iaa_cycle(ehci);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -1329,7 +1330,7 @@ static void scan_async (struct ehci_hcd *ehci)
 	while (ehci->qh_scan_next) {
 		qh = ehci->qh_scan_next;
 		ehci->qh_scan_next = qh->qh_next.qh;
- rescan:
+
 		/* clean any finished work for this qh */
 		if (!list_empty(&qh->qtd_list)) {
 			int temp;
@@ -1342,14 +1343,13 @@ static void scan_async (struct ehci_hcd *ehci)
 			 * in single_unlink_async().
 			 */
 			temp = qh_completions(ehci, qh);
-			if (qh->needs_rescan) {
+			if (unlikely(temp)) {
 				start_unlink_async(ehci, qh);
 			} else if (list_empty(&qh->qtd_list)
 					&& qh->qh_state == QH_STATE_LINKED) {
 				qh->unlink_cycle = ehci->async_unlink_cycle;
 				check_unlinks_later = true;
-			} else if (temp != 0)
-				goto rescan;
+			}
 		}
 	}
 

@@ -54,18 +54,6 @@ struct vhost_log {
 
 struct vhost_virtqueue;
 
-struct vhost_ubuf_ref {
-	struct kref kref;
-	wait_queue_head_t wait;
-	struct vhost_virtqueue *vq;
-};
-
-struct vhost_ubuf_ref *vhost_ubuf_alloc(struct vhost_virtqueue *, bool zcopy);
-void vhost_ubuf_put(struct vhost_ubuf_ref *);
-void vhost_ubuf_put_and_wait(struct vhost_ubuf_ref *);
-
-struct ubuf_info;
-
 /* The virtqueue structure describes a queue attached to a device. */
 struct vhost_virtqueue {
 	struct vhost_dev *dev;
@@ -111,13 +99,7 @@ struct vhost_virtqueue {
 	u64 log_addr;
 
 	struct iovec iov[UIO_MAXIOV];
-	/* hdr is used to store the virtio header.
-	 * Since each iovec has >= 1 byte length, we never need more than
-	 * header length entries to store the header. */
-	struct iovec hdr[sizeof(struct virtio_net_hdr_mrg_rxbuf)];
 	struct iovec *indirect;
-	size_t vhost_hlen;
-	size_t sock_hlen;
 	struct vring_used_elem *heads;
 	/* We use a kind of RCU to access private pointer.
 	 * All readers access it from worker, which makes it possible to
@@ -130,16 +112,6 @@ struct vhost_virtqueue {
 	/* Log write descriptors */
 	void __user *log_base;
 	struct vhost_log *log;
-	/* vhost zerocopy support fields below: */
-	/* last used idx for outstanding DMA zerocopy buffers */
-	int upend_idx;
-	/* first used idx for DMA done zerocopy buffers */
-	int done_idx;
-	/* an array of userspace buffers info */
-	struct ubuf_info *ubuf_info;
-	/* Reference counting for outstanding ubufs.
-	 * Protected by vq mutex. Writers must also take device mutex. */
-	struct vhost_ubuf_ref *ubufs;
 };
 
 struct vhost_dev {
@@ -150,7 +122,7 @@ struct vhost_dev {
 	struct mm_struct *mm;
 	struct mutex mutex;
 	unsigned acked_features;
-	struct vhost_virtqueue *vqs;
+	struct vhost_virtqueue **vqs;
 	int nvqs;
 	struct file *log_file;
 	struct eventfd_ctx *log_ctx;
@@ -159,9 +131,11 @@ struct vhost_dev {
 	struct task_struct *worker;
 };
 
-long vhost_dev_init(struct vhost_dev *, struct vhost_virtqueue *vqs, int nvqs);
+long vhost_dev_init(struct vhost_dev *, struct vhost_virtqueue **vqs, int nvqs);
+long vhost_dev_set_owner(struct vhost_dev *dev);
 long vhost_dev_check_owner(struct vhost_dev *);
-long vhost_dev_reset_owner(struct vhost_dev *);
+struct vhost_memory *vhost_dev_reset_owner_prepare(void);
+void vhost_dev_reset_owner(struct vhost_dev *, struct vhost_memory *);
 void vhost_dev_cleanup(struct vhost_dev *, bool locked);
 void vhost_dev_stop(struct vhost_dev *);
 long vhost_dev_ioctl(struct vhost_dev *, unsigned int ioctl, void __user *argp);
@@ -201,9 +175,6 @@ enum {
 			 (1ULL << VIRTIO_RING_F_INDIRECT_DESC) |
 			 (1ULL << VIRTIO_RING_F_EVENT_IDX) |
 			 (1ULL << VHOST_F_LOG_ALL),
-	VHOST_NET_FEATURES = VHOST_FEATURES |
-			 (1ULL << VHOST_NET_F_VIRTIO_NET_HDR) |
-			 (1ULL << VIRTIO_NET_F_MRG_RXBUF),
 };
 
 static inline int vhost_has_feature(struct vhost_dev *dev, int bit)
@@ -215,7 +186,4 @@ static inline int vhost_has_feature(struct vhost_dev *dev, int bit)
 	acked_features = rcu_dereference_index_check(dev->acked_features, 1);
 	return acked_features & (1 << bit);
 }
-
-void vhost_enable_zcopy(int vq);
-
 #endif

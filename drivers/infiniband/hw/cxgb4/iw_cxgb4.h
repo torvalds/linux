@@ -162,7 +162,7 @@ static inline int c4iw_num_stags(struct c4iw_rdev *rdev)
 	return min((int)T4_MAX_NUM_STAG, (int)(rdev->lldi.vr->stag.size >> 5));
 }
 
-#define C4IW_WR_TO (10*HZ)
+#define C4IW_WR_TO (30*HZ)
 
 struct c4iw_wr_wait {
 	struct completion completion;
@@ -369,7 +369,6 @@ struct c4iw_fr_page_list {
 	DEFINE_DMA_UNMAP_ADDR(mapping);
 	dma_addr_t dma_addr;
 	struct c4iw_dev *dev;
-	int size;
 };
 
 static inline struct c4iw_fr_page_list *to_c4iw_fr_page_list(
@@ -817,6 +816,15 @@ static inline int compute_wscale(int win)
 	return wscale;
 }
 
+static inline int ocqp_supported(const struct cxgb4_lld_info *infop)
+{
+#if defined(__i386__) || defined(__x86_64__) || defined(CONFIG_PPC64)
+	return infop->vr->ocq.size > 0;
+#else
+	return 0;
+#endif
+}
+
 u32 c4iw_id_alloc(struct c4iw_id_table *alloc);
 void c4iw_id_free(struct c4iw_id_table *alloc, u32 obj);
 int c4iw_id_table_alloc(struct c4iw_id_table *alloc, u32 start, u32 num,
@@ -930,6 +938,8 @@ extern struct cxgb4_client t4c_client;
 extern c4iw_handler_func c4iw_handlers[NUM_CPL_CMDS];
 extern int c4iw_max_read_depth;
 extern int db_fc_threshold;
+extern int db_coalescing_threshold;
+extern int use_dsgl;
 
 
 #endif

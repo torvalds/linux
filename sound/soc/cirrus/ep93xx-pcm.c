@@ -29,8 +29,6 @@
 #include <mach/hardware.h>
 #include <mach/ep93xx-regs.h>
 
-#include "ep93xx-pcm.h"
-
 static const struct snd_pcm_hardware ep93xx_pcm_hardware = {
 	.info			= (SNDRV_PCM_INFO_MMAP		|
 				   SNDRV_PCM_INFO_MMAP_VALID	|
@@ -68,40 +66,12 @@ static bool ep93xx_pcm_dma_filter(struct dma_chan *chan, void *filter_param)
 static int ep93xx_pcm_open(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	struct ep93xx_pcm_dma_params *dma_params;
-	struct ep93xx_dma_data *dma_data;
-	int ret;
 
 	snd_soc_set_runtime_hwparams(substream, &ep93xx_pcm_hardware);
 
-	dma_data = kmalloc(sizeof(*dma_data), GFP_KERNEL);
-	if (!dma_data)
-		return -ENOMEM;
-
-	dma_params = snd_soc_dai_get_dma_data(cpu_dai, substream);
-	dma_data->port = dma_params->dma_port;
-	dma_data->name = dma_params->name;
-	dma_data->direction = snd_pcm_substream_to_dma_direction(substream);
-
-	ret = snd_dmaengine_pcm_open(substream, ep93xx_pcm_dma_filter, dma_data);
-	if (ret) {
-		kfree(dma_data);
-		return ret;
-	}
-
-	snd_dmaengine_pcm_set_data(substream, dma_data);
-
-	return 0;
-}
-
-static int ep93xx_pcm_close(struct snd_pcm_substream *substream)
-{
-	struct dma_data *dma_data = snd_dmaengine_pcm_get_data(substream);
-
-	snd_dmaengine_pcm_close(substream);
-	kfree(dma_data);
-	return 0;
+	return snd_dmaengine_pcm_open_request_chan(substream,
+			ep93xx_pcm_dma_filter,
+			snd_soc_dai_get_dma_data(rtd->cpu_dai, substream));
 }
 
 static int ep93xx_pcm_hw_params(struct snd_pcm_substream *substream,
@@ -131,7 +101,7 @@ static int ep93xx_pcm_mmap(struct snd_pcm_substream *substream,
 
 static struct snd_pcm_ops ep93xx_pcm_ops = {
 	.open		= ep93xx_pcm_open,
-	.close		= ep93xx_pcm_close,
+	.close		= snd_dmaengine_pcm_close_release_chan,
 	.ioctl		= snd_pcm_lib_ioctl,
 	.hw_params	= ep93xx_pcm_hw_params,
 	.hw_free	= ep93xx_pcm_hw_free,

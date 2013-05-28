@@ -36,4 +36,6 @@
 /* host name, group name, cluster name all 64 bytes */
 #define R2NM_MAX_NAME_LEN        64    /* __NEW_UTS_LEN */
 
+extern int r2nm_init(void);
+
 #endif /* _RAMSTER_NODEMANAGER_H */

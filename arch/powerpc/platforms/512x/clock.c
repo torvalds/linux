@@ -29,6 +29,8 @@
 #include <asm/mpc5121.h>
 #include <asm/clk_interface.h>
 
+#include "mpc512x.h"
+
 #undef CLK_DEBUG
 
 static int clocks_initialized;
@@ -683,8 +685,13 @@ static void psc_clks_init(void)
 	struct device_node *np;
 	struct platform_device *ofdev;
 	u32 reg;
+	const char *psc_compat;
 
-	for_each_compatible_node(np, NULL, "fsl,mpc5121-psc") {
+	psc_compat = mpc512x_select_psc_compat();
+	if (!psc_compat)
+		return;
+
+	for_each_compatible_node(np, NULL, psc_compat) {
 		if (!of_property_read_u32(np, "reg", &reg)) {
 			int pscnum = (reg & 0xf00) >> 8;
 			struct clk *clk = psc_dev_clk(pscnum);

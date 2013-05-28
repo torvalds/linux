@@ -62,7 +62,7 @@ st_sensors_match_odr_error:
 int st_sensors_set_odr(struct iio_dev *indio_dev, unsigned int odr)
 {
 	int err;
-	struct st_sensor_odr_avl odr_out;
+	struct st_sensor_odr_avl odr_out = {0, 0};
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 
 	err = st_sensors_match_odr(sdata->sensor, odr, &odr_out);
@@ -114,7 +114,7 @@ st_sensors_match_odr_error:
 
 static int st_sensors_set_fullscale(struct iio_dev *indio_dev, unsigned int fs)
 {
-	int err, i;
+	int err, i = 0;
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 
 	err = st_sensors_match_fs(sdata->sensor, fs, &i);
@@ -139,14 +139,13 @@ st_accel_set_fullscale_error:
 
 int st_sensors_set_enable(struct iio_dev *indio_dev, bool enable)
 {
-	bool found;
 	u8 tmp_value;
 	int err = -EINVAL;
-	struct st_sensor_odr_avl odr_out;
+	bool found = false;
+	struct st_sensor_odr_avl odr_out = {0, 0};
 	struct st_sensor_data *sdata = iio_priv(indio_dev);
 
 	if (enable) {
-		found = false;
 		tmp_value = sdata->sensor->pw.value_on;
 		if ((sdata->sensor->odr.addr == sdata->sensor->pw.addr) &&
 			(sdata->sensor->odr.mask == sdata->sensor->pw.mask)) {
@@ -313,6 +312,8 @@ int st_sensors_read_info_raw(struct iio_dev *indio_dev,
 			goto read_error;
 
 		*val = *val >> ch->scan_type.shift;
+
+		err = st_sensors_set_enable(indio_dev, false);
 	}
 	mutex_unlock(&indio_dev->mlock);
 

@@ -267,36 +267,17 @@
 #define LP_DACPOL		0x0082	/*   Write DAC polarity. */
 #define LP_GSEL			0x0084	/*   Write ADC gain. */
 #define LP_ISEL			0x0086	/*   Write ADC channel select. */
-/*  Digital I/O (write only): */
-#define LP_WRINTSELA		0x0042	/*   Write A interrupt enable. */
-#define LP_WREDGSELA		0x0044	/*   Write A edge selection. */
-#define LP_WRCAPSELA		0x0046	/*   Write A capture enable. */
-#define LP_WRDOUTA		0x0048	/*   Write A digital output. */
-#define LP_WRINTSELB		0x0052	/*   Write B interrupt enable. */
-#define LP_WREDGSELB		0x0054	/*   Write B edge selection. */
-#define LP_WRCAPSELB		0x0056	/*   Write B capture enable. */
-#define LP_WRDOUTB		0x0058	/*   Write B digital output. */
-#define LP_WRINTSELC		0x0062	/*   Write C interrupt enable. */
-#define LP_WREDGSELC		0x0064	/*   Write C edge selection. */
-#define LP_WRCAPSELC		0x0066	/*   Write C capture enable. */
-#define LP_WRDOUTC		0x0068	/*   Write C digital output. */
 
-/*  Digital I/O (read only): */
-#define LP_RDDINA		0x0040	/*   Read digital input. */
-#define LP_RDCAPFLGA		0x0048	/*   Read edges captured. */
-#define LP_RDINTSELA		0x004A	/*   Read interrupt enable register. */
-#define LP_RDEDGSELA		0x004C	/*   Read edge selection register. */
-#define LP_RDCAPSELA		0x004E	/*   Read capture enable register. */
-#define LP_RDDINB		0x0050	/*   Read digital input. */
-#define LP_RDCAPFLGB		0x0058	/*   Read edges captured. */
-#define LP_RDINTSELB		0x005A	/*   Read interrupt enable register. */
-#define LP_RDEDGSELB		0x005C	/*   Read edge selection register. */
-#define LP_RDCAPSELB		0x005E	/*   Read capture enable register. */
-#define LP_RDDINC		0x0060	/*   Read digital input. */
-#define LP_RDCAPFLGC		0x0068	/*   Read edges captured. */
-#define LP_RDINTSELC		0x006A	/*   Read interrupt enable register. */
-#define LP_RDEDGSELC		0x006C	/*   Read edge selection register. */
-#define LP_RDCAPSELC		0x006E	/*   Read capture enable register. */
+/* Digital I/O registers */
+#define LP_RDDIN(x)		(0x0040 + (x) * 0x10)	/* R: digital input */
+#define LP_WRINTSEL(x)		(0x0042 + (x) * 0x10)	/* W: int enable */
+#define LP_WREDGSEL(x)		(0x0044 + (x) * 0x10)	/* W: edge selection */
+#define LP_WRCAPSEL(x)		(0x0046 + (x) * 0x10)	/* W: capture enable */
+#define LP_RDCAPFLG(x)		(0x0048 + (x) * 0x10)	/* R: edges captured */
+#define LP_WRDOUT(x)		(0x0048 + (x) * 0x10)	/* W: digital output */
+#define LP_RDINTSEL(x)		(0x004a + (x) * 0x10)	/* R: int enable */
+#define LP_RDEDGSEL(x)		(0x004c + (x) * 0x10)	/* R: edge selection */
+#define LP_RDCAPSEL(x)		(0x004e + (x) * 0x10)	/* R: capture enable */
 
 /*  Counter Registers (read/write): */
 #define LP_CR0A			0x0000	/*   0A setup register. */
@@ -661,27 +642,27 @@
 
 /*  Bit field masks for CRA and CRB. */
 
-#define CRAMSK_INDXSRC_B	((uint16_t)(3 << CRABIT_INDXSRC_B))
-#define CRAMSK_CLKSRC_B		((uint16_t)(3 << CRABIT_CLKSRC_B))
-#define CRAMSK_INDXPOL_A	((uint16_t)(1 << CRABIT_INDXPOL_A))
-#define CRAMSK_LOADSRC_A	((uint16_t)(3 << CRABIT_LOADSRC_A))
-#define CRAMSK_CLKMULT_A	((uint16_t)(3 << CRABIT_CLKMULT_A))
-#define CRAMSK_INTSRC_A		((uint16_t)(3 << CRABIT_INTSRC_A))
-#define CRAMSK_CLKPOL_A		((uint16_t)(3 << CRABIT_CLKPOL_A))
-#define CRAMSK_INDXSRC_A	((uint16_t)(3 << CRABIT_INDXSRC_A))
-#define CRAMSK_CLKSRC_A		((uint16_t)(3 << CRABIT_CLKSRC_A))
+#define CRAMSK_INDXSRC_B	(3 << CRABIT_INDXSRC_B)
+#define CRAMSK_CLKSRC_B		(3 << CRABIT_CLKSRC_B)
+#define CRAMSK_INDXPOL_A	(1 << CRABIT_INDXPOL_A)
+#define CRAMSK_LOADSRC_A	(3 << CRABIT_LOADSRC_A)
+#define CRAMSK_CLKMULT_A	(3 << CRABIT_CLKMULT_A)
+#define CRAMSK_INTSRC_A		(3 << CRABIT_INTSRC_A)
+#define CRAMSK_CLKPOL_A		(3 << CRABIT_CLKPOL_A)
+#define CRAMSK_INDXSRC_A	(3 << CRABIT_INDXSRC_A)
+#define CRAMSK_CLKSRC_A		(3 << CRABIT_CLKSRC_A)
 
-#define CRBMSK_INTRESETCMD	((uint16_t)(1 << CRBBIT_INTRESETCMD))
-#define CRBMSK_INTRESET_B	((uint16_t)(1 << CRBBIT_INTRESET_B))
-#define CRBMSK_INTRESET_A	((uint16_t)(1 << CRBBIT_INTRESET_A))
-#define CRBMSK_CLKENAB_A	((uint16_t)(1 << CRBBIT_CLKENAB_A))
-#define CRBMSK_INTSRC_B		((uint16_t)(3 << CRBBIT_INTSRC_B))
-#define CRBMSK_LATCHSRC		((uint16_t)(3 << CRBBIT_LATCHSRC))
-#define CRBMSK_LOADSRC_B	((uint16_t)(3 << CRBBIT_LOADSRC_B))
-#define CRBMSK_CLKMULT_B	((uint16_t)(3 << CRBBIT_CLKMULT_B))
-#define CRBMSK_CLKENAB_B	((uint16_t)(1 << CRBBIT_CLKENAB_B))
-#define CRBMSK_INDXPOL_B	((uint16_t)(1 << CRBBIT_INDXPOL_B))
-#define CRBMSK_CLKPOL_B		((uint16_t)(1 << CRBBIT_CLKPOL_B))
+#define CRBMSK_INTRESETCMD	(1 << CRBBIT_INTRESETCMD)
+#define CRBMSK_INTRESET_B	(1 << CRBBIT_INTRESET_B)
+#define CRBMSK_INTRESET_A	(1 << CRBBIT_INTRESET_A)
+#define CRBMSK_CLKENAB_A	(1 << CRBBIT_CLKENAB_A)
+#define CRBMSK_INTSRC_B		(3 << CRBBIT_INTSRC_B)
+#define CRBMSK_LATCHSRC		(3 << CRBBIT_LATCHSRC)
+#define CRBMSK_LOADSRC_B	(3 << CRBBIT_LOADSRC_B)
+#define CRBMSK_CLKMULT_B	(3 << CRBBIT_CLKMULT_B)
+#define CRBMSK_CLKENAB_B	(1 << CRBBIT_CLKENAB_B)
+#define CRBMSK_INDXPOL_B	(1 << CRBBIT_INDXPOL_B)
+#define CRBMSK_CLKPOL_B		(1 << CRBBIT_CLKPOL_B)
 
 #define CRBMSK_INTCTRL		(CRBMSK_INTRESETCMD | CRBMSK_INTRESET_A | CRBMSK_INTRESET_B)	/*  Interrupt reset control bits. */
 
@@ -699,15 +680,15 @@
 
 /*  Bit field masks for standardized SETUP structure. */
 
-#define STDMSK_INTSRC		((uint16_t)(3 << STDBIT_INTSRC))
-#define STDMSK_LATCHSRC		((uint16_t)(3 << STDBIT_LATCHSRC))
-#define STDMSK_LOADSRC		((uint16_t)(3 << STDBIT_LOADSRC))
-#define STDMSK_INDXSRC		((uint16_t)(1 << STDBIT_INDXSRC))
-#define STDMSK_INDXPOL		((uint16_t)(1 << STDBIT_INDXPOL))
-#define STDMSK_CLKSRC		((uint16_t)(3 << STDBIT_CLKSRC))
-#define STDMSK_CLKPOL		((uint16_t)(1 << STDBIT_CLKPOL))
-#define STDMSK_CLKMULT		((uint16_t)(3 << STDBIT_CLKMULT))
-#define STDMSK_CLKENAB		((uint16_t)(1 << STDBIT_CLKENAB))
+#define STDMSK_INTSRC		(3 << STDBIT_INTSRC)
+#define STDMSK_LATCHSRC		(3 << STDBIT_LATCHSRC)
+#define STDMSK_LOADSRC		(3 << STDBIT_LOADSRC)
+#define STDMSK_INDXSRC		(1 << STDBIT_INDXSRC)
+#define STDMSK_INDXPOL		(1 << STDBIT_INDXPOL)
+#define STDMSK_CLKSRC		(3 << STDBIT_CLKSRC)
+#define STDMSK_CLKPOL		(1 << STDBIT_CLKPOL)
+#define STDMSK_CLKMULT		(3 << STDBIT_CLKMULT)
+#define STDMSK_CLKENAB		(1 << STDBIT_CLKENAB)
 
 struct bufferDMA {
 	dma_addr_t PhysicalBase;

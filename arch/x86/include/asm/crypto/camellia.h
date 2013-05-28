@@ -48,6 +48,22 @@ asmlinkage void __camellia_enc_blk_2way(struct camellia_ctx *ctx, u8 *dst,
 asmlinkage void camellia_dec_blk_2way(struct camellia_ctx *ctx, u8 *dst,
 				      const u8 *src);
 
+/* 16-way parallel cipher functions (avx/aes-ni) */
+asmlinkage void camellia_ecb_enc_16way(struct camellia_ctx *ctx, u8 *dst,
+				       const u8 *src);
+asmlinkage void camellia_ecb_dec_16way(struct camellia_ctx *ctx, u8 *dst,
+				       const u8 *src);
+
+asmlinkage void camellia_cbc_dec_16way(struct camellia_ctx *ctx, u8 *dst,
+				       const u8 *src);
+asmlinkage void camellia_ctr_16way(struct camellia_ctx *ctx, u8 *dst,
+				   const u8 *src, le128 *iv);
+
+asmlinkage void camellia_xts_enc_16way(struct camellia_ctx *ctx, u8 *dst,
+				       const u8 *src, le128 *iv);
+asmlinkage void camellia_xts_dec_16way(struct camellia_ctx *ctx, u8 *dst,
+				       const u8 *src, le128 *iv);
+
 static inline void camellia_enc_blk(struct camellia_ctx *ctx, u8 *dst,
 				    const u8 *src)
 {
@@ -78,5 +94,8 @@ extern void camellia_crypt_ctr(void *ctx, u128 *dst, const u128 *src,
 			       le128 *iv);
 extern void camellia_crypt_ctr_2way(void *ctx, u128 *dst, const u128 *src,
 				    le128 *iv);
+
+extern void camellia_xts_enc(void *ctx, u128 *dst, const u128 *src, le128 *iv);
+extern void camellia_xts_dec(void *ctx, u128 *dst, const u128 *src, le128 *iv);
 
 #endif /* ASM_X86_CAMELLIA_H */

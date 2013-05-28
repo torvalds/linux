@@ -59,7 +59,6 @@ nv98_mc_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	nv_subdev(priv)->intr = nouveau_mc_intr;
 	priv->base.intr_map = nv98_mc_intr;
 	return 0;
 }

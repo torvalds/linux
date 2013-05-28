@@ -146,7 +146,7 @@ out_no_tfm:
  * then disable recovery tracking.
  */
 static void
-legacy_recdir_name_error(int error)
+legacy_recdir_name_error(struct nfs4_client *clp, int error)
 {
 	printk(KERN_ERR "NFSD: unable to generate recoverydir "
 			"name (%d).\n", error);
@@ -159,9 +159,7 @@ legacy_recdir_name_error(int error)
 	if (error == -ENOENT) {
 		printk(KERN_ERR "NFSD: disabling legacy clientid tracking. "
 			"Reboot recovery will not function correctly!\n");
-
-		/* the argument is ignored by the legacy exit function */
-		nfsd4_client_tracking_exit(NULL);
+		nfsd4_client_tracking_exit(clp->net);
 	}
 }
 
@@ -184,7 +182,7 @@ nfsd4_create_clid_dir(struct nfs4_client *clp)
 
 	status = nfs4_make_rec_clidname(dname, &clp->cl_name);
 	if (status)
-		return legacy_recdir_name_error(status);
+		return legacy_recdir_name_error(clp, status);
 
 	status = nfs4_save_creds(&original_cred);
 	if (status < 0)
@@ -341,7 +339,7 @@ nfsd4_remove_clid_dir(struct nfs4_client *clp)
 
 	status = nfs4_make_rec_clidname(dname, &clp->cl_name);
 	if (status)
-		return legacy_recdir_name_error(status);
+		return legacy_recdir_name_error(clp, status);
 
 	status = mnt_want_write_file(nn->rec_file);
 	if (status)
@@ -601,7 +599,7 @@ nfsd4_check_legacy_client(struct nfs4_client *clp)
 
 	status = nfs4_make_rec_clidname(dname, &clp->cl_name);
 	if (status) {
-		legacy_recdir_name_error(status);
+		legacy_recdir_name_error(clp, status);
 		return status;
 	}
 

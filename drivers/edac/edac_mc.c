@@ -86,7 +86,7 @@ static void edac_mc_dump_dimm(struct dimm_info *dimm, int number)
 	edac_dimm_info_location(dimm, location, sizeof(location));
 
 	edac_dbg(4, "%s%i: %smapped as virtual row %d, chan %d\n",
-		 dimm->mci->mem_is_per_rank ? "rank" : "dimm",
+		 dimm->mci->csbased ? "rank" : "dimm",
 		 number, location, dimm->csrow, dimm->cschannel);
 	edac_dbg(4, "  dimm = %p\n", dimm);
 	edac_dbg(4, "  dimm->label = '%s'\n", dimm->label);
@@ -341,7 +341,7 @@ struct mem_ctl_info *edac_mc_alloc(unsigned mc_num,
 	memcpy(mci->layers, layers, sizeof(*layer) * n_layers);
 	mci->nr_csrows = tot_csrows;
 	mci->num_cschannel = tot_channels;
-	mci->mem_is_per_rank = per_rank;
+	mci->csbased = per_rank;
 
 	/*
 	 * Alocate and fill the csrow/channels structs
@@ -1235,7 +1235,7 @@ void edac_mc_handle_error(const enum hw_event_mc_err_type type,
 			 * incrementing the compat API counters
 			 */
 			edac_dbg(4, "%s csrows map: (%d,%d)\n",
-				 mci->mem_is_per_rank ? "rank" : "dimm",
+				 mci->csbased ? "rank" : "dimm",
 				 dimm->csrow, dimm->cschannel);
 			if (row == -1)
 				row = dimm->csrow;

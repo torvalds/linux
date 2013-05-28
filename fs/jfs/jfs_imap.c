@@ -1493,7 +1493,7 @@ int diAlloc(struct inode *pip, bool dir, struct inode *ip)
 		/* mask any prior bits for the starting words of the
 		 * summary map.
 		 */
-		mask = ONES << (EXTSPERSUM - bitno);
+		mask = (bitno == 0) ? 0 : (ONES << (EXTSPERSUM - bitno));
 		inosmap = le32_to_cpu(iagp->inosmap[sword]) | mask;
 		extsmap = le32_to_cpu(iagp->extsmap[sword]) | mask;
 

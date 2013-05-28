@@ -130,14 +130,11 @@ static int ichx_read_bit(int reg, unsigned nr)
 
 static bool ichx_gpio_check_available(struct gpio_chip *gpio, unsigned nr)
 {
-	return ichx_priv.use_gpio & (1 << (nr / 32));
+	return !!(ichx_priv.use_gpio & (1 << (nr / 32)));
 }
 
 static int ichx_gpio_direction_input(struct gpio_chip *gpio, unsigned nr)
 {
-	if (!ichx_gpio_check_available(gpio, nr))
-		return -ENXIO;
-
 	/*
 	 * Try setting pin as an input and verify it worked since many pins
 	 * are output-only.
@@ -151,9 +148,6 @@ static int ichx_gpio_direction_input(struct gpio_chip *gpio, unsigned nr)
 static int ichx_gpio_direction_output(struct gpio_chip *gpio, unsigned nr,
 					int val)
 {
-	if (!ichx_gpio_check_available(gpio, nr))
-		return -ENXIO;
-
 	/* Set GPIO output value. */
 	ichx_write_bit(GPIO_LVL, nr, val, 0);
 
@@ -169,9 +163,6 @@ static int ichx_gpio_direction_output(struct gpio_chip *gpio, unsigned nr,
 
 static int ichx_gpio_get(struct gpio_chip *chip, unsigned nr)
 {
-	if (!ichx_gpio_check_available(chip, nr))
-		return -ENXIO;
-
 	return ichx_read_bit(GPIO_LVL, nr);
 }
 
@@ -179,9 +170,6 @@ static int ich6_gpio_get(struct gpio_chip *chip, unsigned nr)
 {
 	unsigned long flags;
 	u32 data;
-
-	if (!ichx_gpio_check_available(chip, nr))
-		return -ENXIO;
 
 	/*
 	 * GPI 0 - 15 need to be read from the power management registers on
@@ -207,6 +195,9 @@ static int ich6_gpio_get(struct gpio_chip *chip, unsigned nr)
 
 static int ichx_gpio_request(struct gpio_chip *chip, unsigned nr)
 {
+	if (!ichx_gpio_check_available(chip, nr))
+		return -ENXIO;
+
 	/*
 	 * Note we assume the BIOS properly set a bridge's USE value.  Some
 	 * chips (eg Intel 3100) have bogus USE values though, so first see if
@@ -214,7 +205,7 @@ static int ichx_gpio_request(struct gpio_chip *chip, unsigned nr)
 	 * If it can't be trusted, assume that the pin can be used as a GPIO.
 	 */
 	if (ichx_priv.desc->use_sel_ignore[nr / 32] & (1 << (nr & 0x1f)))
-		return 1;
+		return 0;
 
 	return ichx_read_bit(GPIO_USE_SEL, nr) ? 0 : -ENODEV;
 }

@@ -176,12 +176,6 @@ static const struct comedi_lrange range_usbdux_ai_range = { 1, {
 								}
 };
 
-static const struct comedi_lrange range_usbdux_ao_range = { 1, {
-								UNI_RANGE
-								(2.5),
-							       }
-};
-
 /*
  * private structure of one subdevice
  */
@@ -681,7 +675,11 @@ static void usbduxsub_ao_IsocIrq(struct urb *urb)
 static int usbduxsub_start(struct usbduxsub *usbduxsub)
 {
 	int errcode = 0;
-	uint8_t local_transfer_buffer[16];
+	uint8_t *local_transfer_buffer;
+
+	local_transfer_buffer = kmalloc(16, GFP_KERNEL);
+	if (!local_transfer_buffer)
+		return -ENOMEM;
 
 	/* 7f92 to zero */
 	local_transfer_buffer[0] = 0;
@@ -702,19 +700,22 @@ static int usbduxsub_start(struct usbduxsub *usbduxsub)
 				  1,
 				  /* Timeout */
 				  BULK_TIMEOUT);
-	if (errcode < 0) {
+	if (errcode < 0)
 		dev_err(&usbduxsub->interface->dev,
 			"comedi_: control msg failed (start)\n");
-		return errcode;
-	}
-	return 0;
+
+	kfree(local_transfer_buffer);
+	return errcode;
 }
 
 static int usbduxsub_stop(struct usbduxsub *usbduxsub)
 {
 	int errcode = 0;
+	uint8_t *local_transfer_buffer;
 
-	uint8_t local_transfer_buffer[16];
+	local_transfer_buffer = kmalloc(16, GFP_KERNEL);
+	if (!local_transfer_buffer)
+		return -ENOMEM;
 
 	/* 7f92 to one */
 	local_transfer_buffer[0] = 1;
@@ -732,12 +733,12 @@ static int usbduxsub_stop(struct usbduxsub *usbduxsub)
 				  1,
 				  /* Timeout */
 				  BULK_TIMEOUT);
-	if (errcode < 0) {
+	if (errcode < 0)
 		dev_err(&usbduxsub->interface->dev,
 			"comedi_: control msg failed (stop)\n");
-		return errcode;
-	}
-	return 0;
+
+	kfree(local_transfer_buffer);
+	return errcode;
 }
 
 static int usbduxsub_upload(struct usbduxsub *usbduxsub,
@@ -1369,7 +1370,7 @@ static int usbdux_getstatusinfo(struct comedi_device *dev, int chan)
 
 	/* 32 bits big endian from the A/D converter */
 	one = be32_to_cpu(*((int32_t *)((this_usbduxsub->insnBuffer)+1)));
-	/* mask out the staus byte */
+	/* mask out the status byte */
 	one = one & 0x00ffffff;
 	one = one ^ 0x00800000;
 
@@ -2204,7 +2205,7 @@ static int usbduxsigma_attach_common(struct comedi_device *dev,
 	down(&uds->sem);
 	/* pointer back to the corresponding comedi device */
 	uds->comedidev = dev;
-	dev->board_name = "usbduxsigma";
+
 	/* set number of subdevices */
 	if (uds->high_speed)
 		n_subdevs = 4;	/* with pwm */
@@ -2262,7 +2263,7 @@ static int usbduxsigma_attach_common(struct comedi_device *dev,
 	/* 8 bit resolution */
 	s->maxdata = 0x00ff;
 	/* unipolar range */
-	s->range_table = (&range_usbdux_ao_range);
+	s->range_table = &range_unipolar2_5;
 	/* callback */
 	s->do_cmdtest = usbdux_ao_cmdtest;
 	s->do_cmd = usbdux_ao_cmd;

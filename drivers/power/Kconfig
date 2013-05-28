@@ -152,6 +152,7 @@ config BATTERY_SBS
 
 config BATTERY_BQ27x00
 	tristate "BQ27x00 battery driver"
+	depends on I2C || I2C=n
 	help
 	  Say Y here to enable support for batteries with BQ27x00 (I2C/HDQ) chips.
 
@@ -254,7 +255,7 @@ config BATTERY_RX51
 
 config CHARGER_ISP1704
 	tristate "ISP1704 USB Charger Detection"
-	depends on USB_OTG_UTILS
+	depends on USB_PHY
 	help
 	  Say Y to enable support for USB Charger Detection with
 	  ISP1707/ISP1704 USB transceivers.
@@ -284,6 +285,7 @@ config CHARGER_LP8788
 	tristate "TI LP8788 charger driver"
 	depends on MFD_LP8788
 	depends on LP8788_ADC
+	depends on IIO
 	help
 	  Say Y to enable support for the LP8788 linear charger.
 
@@ -340,6 +342,13 @@ config CHARGER_SMB347
 	  Say Y to include support for Summit Microelectronics SMB347
 	  Battery Charger.
 
+config CHARGER_TPS65090
+	tristate "TPS65090 battery charger driver"
+	depends on MFD_TPS65090
+	help
+	 Say Y here to enable support for battery charging with TPS65090
+	 PMIC chips.
+
 config AB8500_BM
 	bool "AB8500 Battery Management Driver"
 	depends on AB8500_CORE && AB8500_GPADC
@@ -352,13 +361,6 @@ config BATTERY_GOLDFISH
 	help
 	  Say Y to enable support for the battery and AC power in the
 	  Goldfish emulator.
-
-config CHARGER_PM2301
-	bool "PM2301 Battery Charger Driver"
-	depends on AB8500_BM
-	help
-	  Say Y to include support for PM2301 charger driver.
-	  Depends on AB8500 battery management core.
 
 source "drivers/power/reset/Kconfig"
 

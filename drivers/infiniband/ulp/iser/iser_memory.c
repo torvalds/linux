@@ -416,8 +416,9 @@ int iser_reg_rdma_mem(struct iscsi_iser_task *iser_task,
 			for (i=0 ; i<ib_conn->page_vec->length ; i++)
 				iser_err("page_vec[%d] = 0x%llx\n", i,
 					 (unsigned long long) ib_conn->page_vec->pages[i]);
-			return err;
 		}
+		if (err)
+			return err;
 	}
 	return 0;
 }

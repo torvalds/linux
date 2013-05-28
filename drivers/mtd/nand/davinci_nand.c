@@ -34,6 +34,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/slab.h>
 #include <linux/of_device.h>
+#include <linux/of.h>
 
 #include <linux/platform_data/mtd-davinci.h>
 #include <linux/platform_data/mtd-davinci-aemif.h>
@@ -577,7 +578,6 @@ static struct davinci_nand_pdata
 	return pdev->dev.platform_data;
 }
 #else
-#define davinci_nand_of_match NULL
 static struct davinci_nand_pdata
 	*nand_davinci_get_pdata(struct platform_device *pdev)
 {
@@ -878,22 +878,12 @@ static struct platform_driver nand_davinci_driver = {
 	.driver		= {
 		.name	= "davinci_nand",
 		.owner	= THIS_MODULE,
-		.of_match_table = davinci_nand_of_match,
+		.of_match_table = of_match_ptr(davinci_nand_of_match),
 	},
 };
 MODULE_ALIAS("platform:davinci_nand");
 
-static int __init nand_davinci_init(void)
-{
-	return platform_driver_probe(&nand_davinci_driver, nand_davinci_probe);
-}
-module_init(nand_davinci_init);
-
-static void __exit nand_davinci_exit(void)
-{
-	platform_driver_unregister(&nand_davinci_driver);
-}
-module_exit(nand_davinci_exit);
+module_platform_driver_probe(nand_davinci_driver, nand_davinci_probe);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Texas Instruments");

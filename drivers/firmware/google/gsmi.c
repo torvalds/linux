@@ -28,6 +28,7 @@
 #include <linux/reboot.h>
 #include <linux/efi.h>
 #include <linux/module.h>
+#include <linux/ucs2_string.h>
 
 #define GSMI_SHUTDOWN_CLEAN	0	/* Clean Shutdown */
 /* TODO(mikew@google.com): Tie in HARDLOCKUP_DETECTOR with NMIWDT */
@@ -288,17 +289,6 @@ static int gsmi_exec(u8 func, u8 sub)
 	return rc;
 }
 
-/* Return the number of unicode characters in data */
-static size_t
-utf16_strlen(efi_char16_t *data, unsigned long maxlength)
-{
-	unsigned long length = 0;
-
-	while (*data++ != 0 && length < maxlength)
-		length++;
-	return length;
-}
-
 static efi_status_t gsmi_get_variable(efi_char16_t *name,
 				      efi_guid_t *vendor, u32 *attr,
 				      unsigned long *data_size,
@@ -311,7 +301,7 @@ static efi_status_t gsmi_get_variable(efi_char16_t *name,
 	};
 	efi_status_t ret = EFI_SUCCESS;
 	unsigned long flags;
-	size_t name_len = utf16_strlen(name, GSMI_BUF_SIZE / 2);
+	size_t name_len = ucs2_strnlen(name, GSMI_BUF_SIZE / 2);
 	int rc;
 
 	if (name_len >= GSMI_BUF_SIZE / 2)
@@ -380,7 +370,7 @@ static efi_status_t gsmi_get_next_variable(unsigned long *name_size,
 		return EFI_BAD_BUFFER_SIZE;
 
 	/* Let's make sure the thing is at least null-terminated */
-	if (utf16_strlen(name, GSMI_BUF_SIZE / 2) == GSMI_BUF_SIZE / 2)
+	if (ucs2_strnlen(name, GSMI_BUF_SIZE / 2) == GSMI_BUF_SIZE / 2)
 		return EFI_INVALID_PARAMETER;
 
 	spin_lock_irqsave(&gsmi_dev.lock, flags);
@@ -408,7 +398,7 @@ static efi_status_t gsmi_get_next_variable(unsigned long *name_size,
 
 		/* Copy the name back */
 		memcpy(name, gsmi_dev.name_buf->start, GSMI_BUF_SIZE);
-		*name_size = utf16_strlen(name, GSMI_BUF_SIZE / 2) * 2;
+		*name_size = ucs2_strnlen(name, GSMI_BUF_SIZE / 2) * 2;
 
 		/* copy guid to return buffer */
 		memcpy(vendor, &param.guid, sizeof(param.guid));
@@ -434,7 +424,7 @@ static efi_status_t gsmi_set_variable(efi_char16_t *name,
 			      EFI_VARIABLE_BOOTSERVICE_ACCESS |
 			      EFI_VARIABLE_RUNTIME_ACCESS,
 	};
-	size_t name_len = utf16_strlen(name, GSMI_BUF_SIZE / 2);
+	size_t name_len = ucs2_strnlen(name, GSMI_BUF_SIZE / 2);
 	efi_status_t ret = EFI_SUCCESS;
 	int rc;
 	unsigned long flags;
@@ -893,9 +883,16 @@ static __init int gsmi_init(void)
 		goto out_remove_bin_file;
 	}
 
-	ret = register_efivars(&efivars, &efivar_ops, gsmi_kobj);
+	ret = efivars_register(&efivars, &efivar_ops, gsmi_kobj);
 	if (ret) {
 		printk(KERN_INFO "gsmi: Failed to register efivars\n");
+		goto out_remove_sysfs_files;
+	}
+
+	ret = efivars_sysfs_init();
+	if (ret) {
+		printk(KERN_INFO "gsmi: Failed to create efivars files\n");
+		efivars_unregister(&efivars);
 		goto out_remove_sysfs_files;
 	}
 
@@ -930,7 +927,7 @@ static void __exit gsmi_exit(void)
 	unregister_die_notifier(&gsmi_die_notifier);
 	atomic_notifier_chain_unregister(&panic_notifier_list,
 					 &gsmi_panic_notifier);
-	unregister_efivars(&efivars);
+	efivars_unregister(&efivars);
 
 	sysfs_remove_files(gsmi_kobj, gsmi_attrs);
 	sysfs_remove_bin_file(gsmi_kobj, &eventlog_bin_attr);

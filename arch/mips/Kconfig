@@ -18,7 +18,7 @@ config MIPS
 	select HAVE_KRETPROBES
 	select HAVE_DEBUG_KMEMLEAK
 	select ARCH_BINFMT_ELF_RANDOMIZE_PIE
-	select HAVE_ARCH_TRANSPARENT_HUGEPAGE
+	select HAVE_ARCH_TRANSPARENT_HUGEPAGE if CPU_SUPPORTS_HUGEPAGES && 64BIT
 	select RTC_LIB if !MACH_LOONGSON
 	select GENERIC_ATOMIC64 if !64BIT
 	select ARCH_HAS_ATOMIC64_DEC_IF_POSITIVE
@@ -38,7 +38,7 @@ config MIPS
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_CMOS_UPDATE
 	select HAVE_MOD_ARCH_SPECIFIC
-	select HAVE_VIRT_TO_BUS
+	select VIRT_TO_BUS
 	select MODULES_USE_ELF_REL if MODULES
 	select MODULES_USE_ELF_RELA if MODULES && 64BIT
 	select CLONE_BACKWARDS
@@ -61,8 +61,7 @@ config MIPS_ALCHEMY
 	select SYS_HAS_CPU_MIPS32_R1
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_APM_EMULATION
-	select GENERIC_GPIO
-	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select ARCH_REQUIRE_GPIOLIB
 	select SYS_SUPPORTS_ZBOOT
 	select USB_ARCH_HAS_OHCI
 	select USB_ARCH_HAS_EHCI
@@ -225,7 +224,6 @@ config MACH_JZ4740
 	select SYS_SUPPORTS_ZBOOT_UART16550
 	select DMA_NONCOHERENT
 	select IRQ_CPU
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	select SYS_HAS_EARLY_PRINTK
 	select HAVE_PWM
@@ -306,7 +304,6 @@ config MIPS_MALTA
 	select HW_HAS_PCI
 	select I8253
 	select I8259
-	select MIPS_BOARDS_GEN
 	select MIPS_BONITO64
 	select MIPS_CPU_SCACHE
 	select PCI_GT64XXX_PCI0
@@ -337,12 +334,12 @@ config MIPS_SEAD3
 	select BOOT_RAW
 	select CEVT_R4K
 	select CSRC_R4K
+	select CSRC_GIC
 	select CPU_MIPSR2_IRQ_VI
 	select CPU_MIPSR2_IRQ_EI
 	select DMA_NONCOHERENT
 	select IRQ_CPU
 	select IRQ_GIC
-	select MIPS_BOARDS_GEN
 	select MIPS_CPU_SCACHE
 	select MIPS_MSC
 	select SYS_HAS_CPU_MIPS32_R1
@@ -354,6 +351,7 @@ config MIPS_SEAD3
 	select SYS_SUPPORTS_BIG_ENDIAN
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_SMARTMIPS
+	select SYS_SUPPORTS_MICROMIPS
 	select USB_ARCH_HAS_EHCI
 	select USB_EHCI_BIG_ENDIAN_DESC
 	select USB_EHCI_BIG_ENDIAN_MMIO
@@ -404,6 +402,8 @@ config PMC_MSP
 	select IRQ_CPU
 	select SERIAL_8250
 	select SERIAL_8250_CONSOLE
+	select USB_EHCI_BIG_ENDIAN_MMIO
+	select USB_EHCI_BIG_ENDIAN_DESC
 	help
 	  This adds support for the PMC-Sierra family of Multi-Service
 	  Processor System-On-A-Chips.  These parts include a number
@@ -657,7 +657,7 @@ config SNI_RM
 	bool "SNI RM200/300/400"
 	select FW_ARC if CPU_LITTLE_ENDIAN
 	select FW_ARC32 if CPU_LITTLE_ENDIAN
-	select SNIPROM if CPU_BIG_ENDIAN
+	select FW_SNIPROM if CPU_BIG_ENDIAN
 	select ARCH_MAY_HAVE_PC_FDC
 	select BOOT_ELF32
 	select CEVT_R4K
@@ -910,6 +910,9 @@ config CEVT_GT641XX
 config CEVT_R4K
 	bool
 
+config CEVT_GIC
+	bool
+
 config CEVT_SB1250
 	bool
 
@@ -935,7 +938,6 @@ config CSRC_SB1250
 	bool
 
 config GPIO_TXX9
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	bool
 
@@ -983,9 +985,6 @@ config MIPS_MSC
 config MIPS_NILE4
 	bool
 
-config MIPS_DISABLE_OBSOLETE_IDE
-	bool
-
 config SYNC_R4K
 	bool
 
@@ -1005,9 +1004,6 @@ config GENERIC_ISA_DMA_SUPPORT_BROKEN
 	select GENERIC_ISA_DMA
 
 config ISA_DMA_API
-	bool
-
-config GENERIC_GPIO
 	bool
 
 config HOLES_IN_ZONE
@@ -1079,9 +1075,6 @@ config IRQ_GT641XX
 config IRQ_GIC
 	bool
 
-config MIPS_BOARDS_GEN
-	bool
-
 config PCI_GT64XXX_PCI0
 	bool
 
@@ -1110,7 +1103,6 @@ config SOC_PNX833X
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_BIG_ENDIAN
-	select GENERIC_GPIO
 	select CPU_MIPSR2_IRQ_VI
 
 config SOC_PNX8335
@@ -1144,7 +1136,7 @@ config DEFAULT_SGI_PARTITION
 config FW_ARC32
 	bool
 
-config SNIPROM
+config FW_SNIPROM
 	bool
 
 config BOOT_ELF32
@@ -1152,7 +1144,7 @@ config BOOT_ELF32
 
 config MIPS_L1_CACHE_SHIFT
 	int
-	default "4" if MACH_DECSTATION || MIKROTIK_RB532 || PMC_MSP4200_EVAL
+	default "4" if MACH_DECSTATION || MIKROTIK_RB532 || PMC_MSP4200_EVAL || SOC_RT288X
 	default "6" if MIPS_CPU_SCACHE
 	default "7" if SGI_IP22 || SGI_IP27 || SGI_IP28 || SNI_RM || CPU_CAVIUM_OCTEON
 	default "5"
@@ -1201,7 +1193,6 @@ config CPU_LOONGSON2F
 	bool "Loongson 2F"
 	depends on SYS_HAS_CPU_LOONGSON2F
 	select CPU_LOONGSON2
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	help
 	  The Loongson 2F processor implements the MIPS III instruction set
@@ -1242,6 +1233,7 @@ config CPU_MIPS32_R2
 	select CPU_HAS_PREFETCH
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
+	select HAVE_KVM
 	help
 	  Choose this option to build a kernel for release 2 or later of the
 	  MIPS32 architecture.  Most modern embedded systems with a 32-bit
@@ -1433,6 +1425,7 @@ config CPU_CAVIUM_OCTEON
 	select CPU_SUPPORTS_HUGEPAGES
 	select LIBFDT
 	select USE_OF
+	select USB_EHCI_BIG_ENDIAN_MMIO
 	help
 	  The Cavium Octeon processor is a highly integrated chip containing
 	  many ethernet hardware widgets for networking tasks. The processor
@@ -1493,7 +1486,6 @@ config CPU_XLP
 	select CPU_SUPPORTS_32BIT_KERNEL
 	select CPU_SUPPORTS_64BIT_KERNEL
 	select CPU_SUPPORTS_HIGHMEM
-	select CPU_HAS_LLSC
 	select WEAK_ORDERING
 	select WEAK_REORDERING_BEYOND_LLSC
 	select CPU_HAS_PREFETCH
@@ -1737,11 +1729,24 @@ config 32BIT
 config 64BIT
 	bool "64-bit kernel"
 	depends on CPU_SUPPORTS_64BIT_KERNEL && SYS_SUPPORTS_64BIT_KERNEL
-	select HAVE_SYSCALL_WRAPPERS
 	help
 	  Select this option if you want to build a 64-bit kernel.
 
 endchoice
+
+config KVM_GUEST
+	bool "KVM Guest Kernel"
+	help
+	  Select this option if building a guest kernel for KVM (Trap & Emulate) mode
+
+config KVM_HOST_FREQ
+	int "KVM Host Processor Frequency (MHz)"
+	depends on KVM_GUEST
+	default 500
+	help
+	  Select this option if building a guest kernel for KVM to skip
+	  RTC emulation when determining guest CPU Frequency.  Instead, the guest
+	  processor frequency is automatically derived from the host frequency.
 
 choice
 	prompt "Kernel page size"
@@ -1817,6 +1822,15 @@ config FORCE_MAX_ZONEORDER
 
 	  The page size is not necessarily 4KB.  Keep this in mind
 	  when choosing a value for this option.
+
+config CEVT_GIC
+	bool "Use GIC global counter for clock events"
+	depends on IRQ_GIC && !(MIPS_SEAD3 || MIPS_MT_SMTC)
+	help
+	  Use the GIC global counter for the clock events. The R4K clock
+	  event driver is always present, so if the platform ends up not
+	  detecting a GIC, it will fall back to the R4K timer for the
+	  generation of clock events.
 
 config BOARD_SCACHE
 	bool
@@ -2023,6 +2037,7 @@ config SB1_PASS_2_1_WORKAROUNDS
 	depends on CPU_SB1 && CPU_SB1_PASS_2
 	default y
 
+
 config 64BIT_PHYS_ADDR
 	bool
 
@@ -2040,6 +2055,13 @@ config CPU_HAS_SMARTMIPS
 	  this option will not work on a MIPS core without SmartMIPS core.  If
 	  you don't know you probably don't have SmartMIPS and should say N
 	  here.
+
+config CPU_MICROMIPS
+	depends on SYS_SUPPORTS_MICROMIPS
+	bool "Build kernel using microMIPS ISA"
+	help
+	  When this option is enabled the kernel will be built using the
+	  microMIPS ISA
 
 config CPU_HAS_WB
 	bool
@@ -2101,6 +2123,9 @@ config SYS_SUPPORTS_HIGHMEM
 	bool
 
 config SYS_SUPPORTS_SMARTMIPS
+	bool
+
+config SYS_SUPPORTS_MICROMIPS
 	bool
 
 config ARCH_FLATMEM_ENABLE
@@ -2539,7 +2564,14 @@ source "kernel/power/Kconfig"
 
 endmenu
 
-source "arch/mips/kernel/cpufreq/Kconfig"
+config MIPS_EXTERNAL_TIMER
+	bool
+
+if CPU_SUPPORTS_CPUFREQ && MIPS_EXTERNAL_TIMER
+menu "CPU Power Management"
+source "drivers/cpufreq/Kconfig"
+endmenu
+endif
 
 source "net/Kconfig"
 
@@ -2556,3 +2588,5 @@ source "security/Kconfig"
 source "crypto/Kconfig"
 
 source "lib/Kconfig"
+
+source "arch/mips/kvm/Kconfig"

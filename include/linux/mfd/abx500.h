@@ -89,6 +89,11 @@ struct abx500_fg;
  *				points.
  * @maint_thres			This is the threshold where we stop reporting
  *				battery full while in maintenance, in per cent
+ * @pcut_enable:			Enable power cut feature in ab8505
+ * @pcut_max_time:		Max time threshold
+ * @pcut_flag_time:		Flagtime threshold
+ * @pcut_max_restart:		Max number of restarts
+ * @pcut_debounce_time:		Sets battery debounce time
  */
 struct abx500_fg_parameters {
 	int recovery_sleep_timer;
@@ -106,6 +111,11 @@ struct abx500_fg_parameters {
 	int battok_raising_th_sel1;
 	int user_cap_limit;
 	int maint_thres;
+	bool pcut_enable;
+	u8 pcut_max_time;
+	u8 pcut_flag_time;
+	u8 pcut_max_restart;
+	u8 pcut_debounce_time;
 };
 
 /**
@@ -173,11 +183,11 @@ struct abx500_battery_type {
 	int low_high_vol_lvl;
 	int battery_resistance;
 	int n_temp_tbl_elements;
-	struct abx500_res_to_temp *r_to_t_tbl;
+	const struct abx500_res_to_temp *r_to_t_tbl;
 	int n_v_cap_tbl_elements;
-	struct abx500_v_to_cap *v_to_cap_tbl;
+	const struct abx500_v_to_cap *v_to_cap_tbl;
 	int n_batres_tbl_elements;
-	struct batres_vs_temp *batres_tbl;
+	const struct batres_vs_temp *batres_tbl;
 };
 
 /**
@@ -236,7 +246,11 @@ struct abx500_bm_charger_parameters {
  * @interval_not_charging charge alg cycle period time when not charging (sec)
  * @temp_hysteresis	temperature hysteresis
  * @gnd_lift_resistance	Battery ground to phone ground resistance (mOhm)
- * @maxi:		maximization parameters
+ * @n_chg_out_curr		number of elements in array chg_output_curr
+ * @n_chg_in_curr		number of elements in array chg_input_curr
+ * @chg_output_curr	charger output current level map
+ * @chg_input_curr		charger input current level map
+ * @maxi		maximization parameters
  * @cap_levels		capacity in percent for the different capacity levels
  * @bat_type		table of supported battery types
  * @chg_params		charger parameters
@@ -257,6 +271,7 @@ struct abx500_bm_data {
 	bool autopower_cfg;
 	bool ac_enabled;
 	bool usb_enabled;
+	bool usb_power_path;
 	bool no_maintenance;
 	bool capacity_scaling;
 	bool chg_unknown_bat;
@@ -270,6 +285,10 @@ struct abx500_bm_data {
 	int interval_not_charging;
 	int temp_hysteresis;
 	int gnd_lift_resistance;
+	int n_chg_out_curr;
+	int n_chg_in_curr;
+	int *chg_output_curr;
+	int *chg_input_curr;
 	const struct abx500_maxim_parameters *maxi;
 	const struct abx500_bm_capacity_levels *cap_levels;
 	struct abx500_battery_type *bat_type;

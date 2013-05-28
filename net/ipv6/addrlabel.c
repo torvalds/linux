@@ -414,8 +414,7 @@ static const struct nla_policy ifal_policy[IFAL_MAX+1] = {
 	[IFAL_LABEL]		= { .len = sizeof(u32), },
 };
 
-static int ip6addrlbl_newdel(struct sk_buff *skb, struct nlmsghdr *nlh,
-			     void *arg)
+static int ip6addrlbl_newdel(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct net *net = sock_net(skb->sk);
 	struct ifaddrlblmsg *ifal;
@@ -436,10 +435,7 @@ static int ip6addrlbl_newdel(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	if (!tb[IFAL_ADDRESS])
 		return -EINVAL;
-
 	pfx = nla_data(tb[IFAL_ADDRESS]);
-	if (!pfx)
-		return -EINVAL;
 
 	if (!tb[IFAL_LABEL])
 		return -EINVAL;
@@ -533,8 +529,7 @@ static inline int ip6addrlbl_msgsize(void)
 		+ nla_total_size(4);	/* IFAL_LABEL */
 }
 
-static int ip6addrlbl_get(struct sk_buff *in_skb, struct nlmsghdr* nlh,
-			  void *arg)
+static int ip6addrlbl_get(struct sk_buff *in_skb, struct nlmsghdr* nlh)
 {
 	struct net *net = sock_net(in_skb->sk);
 	struct ifaddrlblmsg *ifal;
@@ -561,10 +556,7 @@ static int ip6addrlbl_get(struct sk_buff *in_skb, struct nlmsghdr* nlh,
 
 	if (!tb[IFAL_ADDRESS])
 		return -EINVAL;
-
 	addr = nla_data(tb[IFAL_ADDRESS]);
-	if (!addr)
-		return -EINVAL;
 
 	rcu_read_lock();
 	p = __ipv6_addr_label(net, addr, ipv6_addr_type(addr), ifal->ifal_index);

@@ -1334,16 +1334,10 @@ static int imx_udc_start(struct usb_gadget *gadget,
 		struct usb_gadget_driver *driver)
 {
 	struct imx_udc_struct *imx_usb;
-	int retval;
 
 	imx_usb = container_of(gadget, struct imx_udc_struct, gadget);
 	/* first hook up the driver ... */
 	imx_usb->driver = driver;
-	imx_usb->gadget.dev.driver = &driver->driver;
-
-	retval = device_add(&imx_usb->gadget.dev);
-	if (retval)
-		goto fail;
 
 	D_INI(imx_usb->dev, "<%s> registered gadget driver '%s'\n",
 		__func__, driver->driver.name);
@@ -1351,10 +1345,6 @@ static int imx_udc_start(struct usb_gadget *gadget,
 	imx_udc_enable(imx_usb);
 
 	return 0;
-fail:
-	imx_usb->driver = NULL;
-	imx_usb->gadget.dev.driver = NULL;
-	return retval;
 }
 
 static int imx_udc_stop(struct usb_gadget *gadget,
@@ -1367,10 +1357,7 @@ static int imx_udc_stop(struct usb_gadget *gadget,
 	imx_udc_disable(imx_usb);
 	del_timer(&imx_usb->timer);
 
-	imx_usb->gadget.dev.driver = NULL;
 	imx_usb->driver = NULL;
-
-	device_del(&imx_usb->gadget.dev);
 
 	D_INI(imx_usb->dev, "<%s> unregistered gadget driver '%s'\n",
 		__func__, driver->driver.name);
@@ -1472,11 +1459,6 @@ static int __init imx_udc_probe(struct platform_device *pdev)
 	imx_usb->clk = clk;
 	imx_usb->dev = &pdev->dev;
 
-	device_initialize(&imx_usb->gadget.dev);
-
-	imx_usb->gadget.dev.parent = &pdev->dev;
-	imx_usb->gadget.dev.dma_mask = pdev->dev.dma_mask;
-
 	platform_set_drvdata(pdev, imx_usb);
 
 	usb_init_data(imx_usb);
@@ -1528,8 +1510,6 @@ static int __exit imx_udc_remove(struct platform_device *pdev)
 
 	if (pdata->exit)
 		pdata->exit(&pdev->dev);
-
-	platform_set_drvdata(pdev, NULL);
 
 	return 0;
 }

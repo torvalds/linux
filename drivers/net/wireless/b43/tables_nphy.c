@@ -2174,7 +2174,7 @@ static const u16 b43_ntab_loftlt1_r3[] = {
 /* volatile  tables, PHY revision >= 3 */
 
 /* indexed by antswctl2g */
-static const u16 b43_ntab_antswctl2g_r3[4][32] = {
+static const u16 b43_ntab_antswctl_r3[4][32] = {
 	{
 		0x0082, 0x0082, 0x0211, 0x0222, 0x0328,
 		0x0000, 0x0000, 0x0000, 0x0144, 0x0000,
@@ -2800,7 +2800,7 @@ static const struct nphy_rf_control_override_rev7
 	{ 0x0010, 0x344, 0x345, 0x0010, 4 },
 };
 
-struct nphy_gain_ctl_workaround_entry nphy_gain_ctl_wa_phy6_radio11_ghz2 = {
+static struct nphy_gain_ctl_workaround_entry nphy_gain_ctl_wa_phy6_radio11_ghz2 = {
 	{ 10, 14, 19, 27 },
 	{ -5, 6, 10, 15 },
 	{ 0xA, 0xA, 0xA, 0xA, 0xA, 0xA, 0xA, 0xA, 0xA, 0xA },
@@ -2811,7 +2811,7 @@ struct nphy_gain_ctl_workaround_entry nphy_gain_ctl_wa_phy6_radio11_ghz2 = {
 	0x18, 0x18, 0x18,
 	0x01D0, 0x5,
 };
-struct nphy_gain_ctl_workaround_entry nphy_gain_ctl_workaround[2][4] = {
+static struct nphy_gain_ctl_workaround_entry nphy_gain_ctl_workaround[2][4] = {
 	{ /* 2GHz */
 		{ /* PHY rev 3 */
 			{ 7, 11, 16, 23 },
@@ -3095,9 +3095,55 @@ void b43_ntab_write_bulk(struct b43_wldev *dev, u32 offset,
 }
 
 #define ntab_upload(dev, offset, data) do { \
-		b43_ntab_write_bulk(dev, offset, offset##_SIZE, data);	\
+		b43_ntab_write_bulk(dev, offset, ARRAY_SIZE(data), data); \
 	} while (0)
-void b43_nphy_rev0_1_2_tables_init(struct b43_wldev *dev)
+
+static void b43_nphy_tables_init_rev3(struct b43_wldev *dev)
+{
+	struct ssb_sprom *sprom = dev->dev->bus_sprom;
+	u8 antswlut;
+
+	if (b43_current_band(dev->wl) == IEEE80211_BAND_5GHZ)
+		antswlut = sprom->fem.ghz5.antswlut;
+	else
+		antswlut = sprom->fem.ghz2.antswlut;
+
+	/* Static tables */
+	ntab_upload(dev, B43_NTAB_FRAMESTRUCT_R3, b43_ntab_framestruct_r3);
+	ntab_upload(dev, B43_NTAB_PILOT_R3, b43_ntab_pilot_r3);
+	ntab_upload(dev, B43_NTAB_TMAP_R3, b43_ntab_tmap_r3);
+	ntab_upload(dev, B43_NTAB_INTLEVEL_R3, b43_ntab_intlevel_r3);
+	ntab_upload(dev, B43_NTAB_TDTRN_R3, b43_ntab_tdtrn_r3);
+	ntab_upload(dev, B43_NTAB_NOISEVAR0_R3, b43_ntab_noisevar0_r3);
+	ntab_upload(dev, B43_NTAB_NOISEVAR1_R3, b43_ntab_noisevar1_r3);
+	ntab_upload(dev, B43_NTAB_MCS_R3, b43_ntab_mcs_r3);
+	ntab_upload(dev, B43_NTAB_TDI20A0_R3, b43_ntab_tdi20a0_r3);
+	ntab_upload(dev, B43_NTAB_TDI20A1_R3, b43_ntab_tdi20a1_r3);
+	ntab_upload(dev, B43_NTAB_TDI40A0_R3, b43_ntab_tdi40a0_r3);
+	ntab_upload(dev, B43_NTAB_TDI40A1_R3, b43_ntab_tdi40a1_r3);
+	ntab_upload(dev, B43_NTAB_PILOTLT_R3, b43_ntab_pilotlt_r3);
+	ntab_upload(dev, B43_NTAB_CHANEST_R3, b43_ntab_channelest_r3);
+	ntab_upload(dev, B43_NTAB_FRAMELT_R3, b43_ntab_framelookup_r3);
+	ntab_upload(dev, B43_NTAB_C0_ESTPLT_R3, b43_ntab_estimatepowerlt0_r3);
+	ntab_upload(dev, B43_NTAB_C1_ESTPLT_R3, b43_ntab_estimatepowerlt1_r3);
+	ntab_upload(dev, B43_NTAB_C0_ADJPLT_R3, b43_ntab_adjustpower0_r3);
+	ntab_upload(dev, B43_NTAB_C1_ADJPLT_R3, b43_ntab_adjustpower1_r3);
+	ntab_upload(dev, B43_NTAB_C0_GAINCTL_R3, b43_ntab_gainctl0_r3);
+	ntab_upload(dev, B43_NTAB_C1_GAINCTL_R3, b43_ntab_gainctl1_r3);
+	ntab_upload(dev, B43_NTAB_C0_IQLT_R3, b43_ntab_iqlt0_r3);
+	ntab_upload(dev, B43_NTAB_C1_IQLT_R3, b43_ntab_iqlt1_r3);
+	ntab_upload(dev, B43_NTAB_C0_LOFEEDTH_R3, b43_ntab_loftlt0_r3);
+	ntab_upload(dev, B43_NTAB_C1_LOFEEDTH_R3, b43_ntab_loftlt1_r3);
+
+	/* Volatile tables */
+	if (antswlut < ARRAY_SIZE(b43_ntab_antswctl_r3))
+		ntab_upload(dev, B43_NTAB_ANT_SW_CTL_R3,
+			    b43_ntab_antswctl_r3[antswlut]);
+	else
+		B43_WARN_ON(1);
+}
+
+static void b43_nphy_tables_init_rev0(struct b43_wldev *dev)
 {
 	/* Static tables */
 	ntab_upload(dev, B43_NTAB_FRAMESTRUCT, b43_ntab_framestruct);
@@ -3130,48 +3176,13 @@ void b43_nphy_rev0_1_2_tables_init(struct b43_wldev *dev)
 	ntab_upload(dev, B43_NTAB_C1_LOFEEDTH, b43_ntab_loftlt1);
 }
 
-#define ntab_upload_r3(dev, offset, data) do { \
-		b43_ntab_write_bulk(dev, offset, ARRAY_SIZE(data), data); \
-	} while (0)
-void b43_nphy_rev3plus_tables_init(struct b43_wldev *dev)
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/InitTables */
+void b43_nphy_tables_init(struct b43_wldev *dev)
 {
-	struct ssb_sprom *sprom = dev->dev->bus_sprom;
-
-	/* Static tables */
-	ntab_upload_r3(dev, B43_NTAB_FRAMESTRUCT_R3, b43_ntab_framestruct_r3);
-	ntab_upload_r3(dev, B43_NTAB_PILOT_R3, b43_ntab_pilot_r3);
-	ntab_upload_r3(dev, B43_NTAB_TMAP_R3, b43_ntab_tmap_r3);
-	ntab_upload_r3(dev, B43_NTAB_INTLEVEL_R3, b43_ntab_intlevel_r3);
-	ntab_upload_r3(dev, B43_NTAB_TDTRN_R3, b43_ntab_tdtrn_r3);
-	ntab_upload_r3(dev, B43_NTAB_NOISEVAR0_R3, b43_ntab_noisevar0_r3);
-	ntab_upload_r3(dev, B43_NTAB_NOISEVAR1_R3, b43_ntab_noisevar1_r3);
-	ntab_upload_r3(dev, B43_NTAB_MCS_R3, b43_ntab_mcs_r3);
-	ntab_upload_r3(dev, B43_NTAB_TDI20A0_R3, b43_ntab_tdi20a0_r3);
-	ntab_upload_r3(dev, B43_NTAB_TDI20A1_R3, b43_ntab_tdi20a1_r3);
-	ntab_upload_r3(dev, B43_NTAB_TDI40A0_R3, b43_ntab_tdi40a0_r3);
-	ntab_upload_r3(dev, B43_NTAB_TDI40A1_R3, b43_ntab_tdi40a1_r3);
-	ntab_upload_r3(dev, B43_NTAB_PILOTLT_R3, b43_ntab_pilotlt_r3);
-	ntab_upload_r3(dev, B43_NTAB_CHANEST_R3, b43_ntab_channelest_r3);
-	ntab_upload_r3(dev, B43_NTAB_FRAMELT_R3, b43_ntab_framelookup_r3);
-	ntab_upload_r3(dev, B43_NTAB_C0_ESTPLT_R3,
-		       b43_ntab_estimatepowerlt0_r3);
-	ntab_upload_r3(dev, B43_NTAB_C1_ESTPLT_R3,
-		       b43_ntab_estimatepowerlt1_r3);
-	ntab_upload_r3(dev, B43_NTAB_C0_ADJPLT_R3, b43_ntab_adjustpower0_r3);
-	ntab_upload_r3(dev, B43_NTAB_C1_ADJPLT_R3, b43_ntab_adjustpower1_r3);
-	ntab_upload_r3(dev, B43_NTAB_C0_GAINCTL_R3, b43_ntab_gainctl0_r3);
-	ntab_upload_r3(dev, B43_NTAB_C1_GAINCTL_R3, b43_ntab_gainctl1_r3);
-	ntab_upload_r3(dev, B43_NTAB_C0_IQLT_R3, b43_ntab_iqlt0_r3);
-	ntab_upload_r3(dev, B43_NTAB_C1_IQLT_R3, b43_ntab_iqlt1_r3);
-	ntab_upload_r3(dev, B43_NTAB_C0_LOFEEDTH_R3, b43_ntab_loftlt0_r3);
-	ntab_upload_r3(dev, B43_NTAB_C1_LOFEEDTH_R3, b43_ntab_loftlt1_r3);
-
-	/* Volatile tables */
-	if (sprom->fem.ghz2.antswlut < ARRAY_SIZE(b43_ntab_antswctl2g_r3))
-		ntab_upload_r3(dev, B43_NTAB_ANT_SW_CTL_R3,
-			       b43_ntab_antswctl2g_r3[sprom->fem.ghz2.antswlut]);
+	if (dev->phy.rev >= 3)
+		b43_nphy_tables_init_rev3(dev);
 	else
-		B43_WARN_ON(1);
+		b43_nphy_tables_init_rev0(dev);
 }
 
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/GetIpaGainTbl */

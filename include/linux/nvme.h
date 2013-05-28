@@ -107,6 +107,12 @@ struct nvme_id_ctrl {
 	__u8			vs[1024];
 };
 
+enum {
+	NVME_CTRL_ONCS_COMPARE			= 1 << 0,
+	NVME_CTRL_ONCS_WRITE_UNCORRECTABLE	= 1 << 1,
+	NVME_CTRL_ONCS_DSM			= 1 << 2,
+};
+
 struct nvme_lbaf {
 	__le16			ms;
 	__u8			ds;
@@ -135,6 +141,34 @@ enum {
 	NVME_LBAF_RP_BETTER	= 1,
 	NVME_LBAF_RP_GOOD	= 2,
 	NVME_LBAF_RP_DEGRADED	= 3,
+};
+
+struct nvme_smart_log {
+	__u8			critical_warning;
+	__u8			temperature[2];
+	__u8			avail_spare;
+	__u8			spare_thresh;
+	__u8			percent_used;
+	__u8			rsvd6[26];
+	__u8			data_units_read[16];
+	__u8			data_units_written[16];
+	__u8			host_reads[16];
+	__u8			host_writes[16];
+	__u8			ctrl_busy_time[16];
+	__u8			power_cycles[16];
+	__u8			power_on_hours[16];
+	__u8			unsafe_shutdowns[16];
+	__u8			media_errors[16];
+	__u8			num_err_log_entries[16];
+	__u8			rsvd192[320];
+};
+
+enum {
+	NVME_SMART_CRIT_SPARE		= 1 << 0,
+	NVME_SMART_CRIT_TEMPERATURE	= 1 << 1,
+	NVME_SMART_CRIT_RELIABILITY	= 1 << 2,
+	NVME_SMART_CRIT_MEDIA		= 1 << 3,
+	NVME_SMART_CRIT_VOLATILE_MEMORY	= 1 << 4,
 };
 
 struct nvme_lba_range_type {
@@ -173,11 +207,11 @@ struct nvme_common_command {
 	__u8			flags;
 	__u16			command_id;
 	__le32			nsid;
-	__u32			cdw2[2];
+	__le32			cdw2[2];
 	__le64			metadata;
 	__le64			prp1;
 	__le64			prp2;
-	__u32			cdw10[6];
+	__le32			cdw10[6];
 };
 
 struct nvme_rw_command {
@@ -216,6 +250,31 @@ enum {
 	NVME_RW_DSM_LATENCY_LOW		= 3 << 4,
 	NVME_RW_DSM_SEQ_REQ		= 1 << 6,
 	NVME_RW_DSM_COMPRESSED		= 1 << 7,
+};
+
+struct nvme_dsm_cmd {
+	__u8			opcode;
+	__u8			flags;
+	__u16			command_id;
+	__le32			nsid;
+	__u64			rsvd2[2];
+	__le64			prp1;
+	__le64			prp2;
+	__le32			nr;
+	__le32			attributes;
+	__u32			rsvd12[4];
+};
+
+enum {
+	NVME_DSMGMT_IDR		= 1 << 0,
+	NVME_DSMGMT_IDW		= 1 << 1,
+	NVME_DSMGMT_AD		= 1 << 2,
+};
+
+struct nvme_dsm_range {
+	__le32			cattr;
+	__le32			nlb;
+	__le64			slba;
 };
 
 /* Admin commands */
@@ -257,6 +316,9 @@ enum {
 	NVME_FEAT_WRITE_ATOMIC	= 0x0a,
 	NVME_FEAT_ASYNC_EVENT	= 0x0b,
 	NVME_FEAT_SW_PROGRESS	= 0x0c,
+	NVME_FWACT_REPL		= (0 << 3),
+	NVME_FWACT_REPL_ACTV	= (1 << 3),
+	NVME_FWACT_ACTV		= (2 << 3),
 };
 
 struct nvme_identify {
@@ -334,6 +396,16 @@ struct nvme_download_firmware {
 	__u32			rsvd12[4];
 };
 
+struct nvme_format_cmd {
+	__u8			opcode;
+	__u8			flags;
+	__u16			command_id;
+	__le32			nsid;
+	__u64			rsvd2[4];
+	__le32			cdw10;
+	__u32			rsvd11[5];
+};
+
 struct nvme_command {
 	union {
 		struct nvme_common_command common;
@@ -344,6 +416,8 @@ struct nvme_command {
 		struct nvme_create_sq create_sq;
 		struct nvme_delete_queue delete_queue;
 		struct nvme_download_firmware dlfw;
+		struct nvme_format_cmd format;
+		struct nvme_dsm_cmd dsm;
 	};
 };
 
@@ -360,6 +434,7 @@ enum {
 	NVME_SC_FUSED_FAIL		= 0x9,
 	NVME_SC_FUSED_MISSING		= 0xa,
 	NVME_SC_INVALID_NS		= 0xb,
+	NVME_SC_CMD_SEQ_ERROR		= 0xc,
 	NVME_SC_LBA_RANGE		= 0x80,
 	NVME_SC_CAP_EXCEEDED		= 0x81,
 	NVME_SC_NS_NOT_READY		= 0x82,
@@ -432,5 +507,112 @@ struct nvme_admin_cmd {
 #define NVME_IOCTL_ID		_IO('N', 0x40)
 #define NVME_IOCTL_ADMIN_CMD	_IOWR('N', 0x41, struct nvme_admin_cmd)
 #define NVME_IOCTL_SUBMIT_IO	_IOW('N', 0x42, struct nvme_user_io)
+
+#ifdef __KERNEL__
+#include <linux/pci.h>
+#include <linux/miscdevice.h>
+#include <linux/kref.h>
+
+#define NVME_IO_TIMEOUT	(5 * HZ)
+
+/*
+ * Represents an NVM Express device.  Each nvme_dev is a PCI function.
+ */
+struct nvme_dev {
+	struct list_head node;
+	struct nvme_queue **queues;
+	u32 __iomem *dbs;
+	struct pci_dev *pci_dev;
+	struct dma_pool *prp_page_pool;
+	struct dma_pool *prp_small_pool;
+	int instance;
+	int queue_count;
+	int db_stride;
+	u32 ctrl_config;
+	struct msix_entry *entry;
+	struct nvme_bar __iomem *bar;
+	struct list_head namespaces;
+	struct kref kref;
+	struct miscdevice miscdev;
+	char name[12];
+	char serial[20];
+	char model[40];
+	char firmware_rev[8];
+	u32 max_hw_sectors;
+	u32 stripe_size;
+	u16 oncs;
+};
+
+/*
+ * An NVM Express namespace is equivalent to a SCSI LUN
+ */
+struct nvme_ns {
+	struct list_head list;
+
+	struct nvme_dev *dev;
+	struct request_queue *queue;
+	struct gendisk *disk;
+
+	int ns_id;
+	int lba_shift;
+	int ms;
+	u64 mode_select_num_blocks;
+	u32 mode_select_block_len;
+};
+
+/*
+ * The nvme_iod describes the data in an I/O, including the list of PRP
+ * entries.  You can't see it in this data structure because C doesn't let
+ * me express that.  Use nvme_alloc_iod to ensure there's enough space
+ * allocated to store the PRP list.
+ */
+struct nvme_iod {
+	void *private;		/* For the use of the submitter of the I/O */
+	int npages;		/* In the PRP list. 0 means small pool in use */
+	int offset;		/* Of PRP list */
+	int nents;		/* Used in scatterlist */
+	int length;		/* Of data, in bytes */
+	dma_addr_t first_dma;
+	struct scatterlist sg[0];
+};
+
+static inline u64 nvme_block_nr(struct nvme_ns *ns, sector_t sector)
+{
+	return (sector >> (ns->lba_shift - 9));
+}
+
+/**
+ * nvme_free_iod - frees an nvme_iod
+ * @dev: The device that the I/O was submitted to
+ * @iod: The memory to free
+ */
+void nvme_free_iod(struct nvme_dev *dev, struct nvme_iod *iod);
+
+int nvme_setup_prps(struct nvme_dev *dev, struct nvme_common_command *cmd,
+			struct nvme_iod *iod, int total_len, gfp_t gfp);
+struct nvme_iod *nvme_map_user_pages(struct nvme_dev *dev, int write,
+				unsigned long addr, unsigned length);
+void nvme_unmap_user_pages(struct nvme_dev *dev, int write,
+			struct nvme_iod *iod);
+struct nvme_queue *get_nvmeq(struct nvme_dev *dev);
+void put_nvmeq(struct nvme_queue *nvmeq);
+int nvme_submit_sync_cmd(struct nvme_queue *nvmeq, struct nvme_command *cmd,
+						u32 *result, unsigned timeout);
+int nvme_submit_flush_data(struct nvme_queue *nvmeq, struct nvme_ns *ns);
+int nvme_submit_admin_cmd(struct nvme_dev *, struct nvme_command *,
+							u32 *result);
+int nvme_identify(struct nvme_dev *, unsigned nsid, unsigned cns,
+							dma_addr_t dma_addr);
+int nvme_get_features(struct nvme_dev *dev, unsigned fid, unsigned nsid,
+			dma_addr_t dma_addr, u32 *result);
+int nvme_set_features(struct nvme_dev *dev, unsigned fid, unsigned dword11,
+			dma_addr_t dma_addr, u32 *result);
+
+struct sg_io_hdr;
+
+int nvme_sg_io(struct nvme_ns *ns, struct sg_io_hdr __user *u_hdr);
+int nvme_sg_get_version_num(int __user *ip);
+
+#endif
 
 #endif /* _LINUX_NVME_H */

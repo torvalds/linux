@@ -2201,7 +2201,7 @@ static int pfkey_spdadd(struct sock *sk, struct sk_buff *skb, const struct sadb_
 		      XFRM_POLICY_BLOCK : XFRM_POLICY_ALLOW);
 	xp->priority = pol->sadb_x_policy_priority;
 
-	sa = ext_hdrs[SADB_EXT_ADDRESS_SRC-1],
+	sa = ext_hdrs[SADB_EXT_ADDRESS_SRC-1];
 	xp->family = pfkey_sadb_addr2xfrm_addr(sa, &xp->selector.saddr);
 	if (!xp->family) {
 		err = -EINVAL;
@@ -2214,7 +2214,7 @@ static int pfkey_spdadd(struct sock *sk, struct sk_buff *skb, const struct sadb_
 	if (xp->selector.sport)
 		xp->selector.sport_mask = htons(0xffff);
 
-	sa = ext_hdrs[SADB_EXT_ADDRESS_DST-1],
+	sa = ext_hdrs[SADB_EXT_ADDRESS_DST-1];
 	pfkey_sadb_addr2xfrm_addr(sa, &xp->selector.daddr);
 	xp->selector.prefixlen_d = sa->sadb_address_prefixlen;
 
@@ -2315,7 +2315,7 @@ static int pfkey_spddelete(struct sock *sk, struct sk_buff *skb, const struct sa
 
 	memset(&sel, 0, sizeof(sel));
 
-	sa = ext_hdrs[SADB_EXT_ADDRESS_SRC-1],
+	sa = ext_hdrs[SADB_EXT_ADDRESS_SRC-1];
 	sel.family = pfkey_sadb_addr2xfrm_addr(sa, &sel.saddr);
 	sel.prefixlen_s = sa->sadb_address_prefixlen;
 	sel.proto = pfkey_proto_to_xfrm(sa->sadb_address_proto);
@@ -2323,7 +2323,7 @@ static int pfkey_spddelete(struct sock *sk, struct sk_buff *skb, const struct sa
 	if (sel.sport)
 		sel.sport_mask = htons(0xffff);
 
-	sa = ext_hdrs[SADB_EXT_ADDRESS_DST-1],
+	sa = ext_hdrs[SADB_EXT_ADDRESS_DST-1];
 	pfkey_sadb_addr2xfrm_addr(sa, &sel.daddr);
 	sel.prefixlen_d = sa->sadb_address_prefixlen;
 	sel.proto = pfkey_proto_to_xfrm(sa->sadb_address_proto);
@@ -2693,6 +2693,7 @@ static int key_notify_policy_flush(const struct km_event *c)
 	hdr->sadb_msg_pid = c->portid;
 	hdr->sadb_msg_version = PF_KEY_V2;
 	hdr->sadb_msg_errno = (uint8_t) 0;
+	hdr->sadb_msg_satype = SADB_SATYPE_UNSPEC;
 	hdr->sadb_msg_len = (sizeof(struct sadb_msg) / sizeof(uint64_t));
 	pfkey_broadcast(skb_out, GFP_ATOMIC, BROADCAST_ALL, NULL, c->net);
 	return 0;

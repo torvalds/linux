@@ -174,8 +174,7 @@ static void mon_free_mem(struct mon_private *monpriv)
 	int i;
 
 	for (i = 0; i < MON_MSGLIM; i++)
-		if (monpriv->msg_array[i])
-			kfree(monpriv->msg_array[i]);
+		kfree(monpriv->msg_array[i]);
 	kfree(monpriv);
 }
 

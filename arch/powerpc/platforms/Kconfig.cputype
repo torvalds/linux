@@ -124,9 +124,8 @@ config 6xx
 	select PPC_HAVE_PMU_SUPPORT
 
 config POWER3
-	bool
 	depends on PPC64 && PPC_BOOK3S
-	default y if !POWER4_ONLY
+	def_bool y
 
 config POWER4
 	depends on PPC64 && PPC_BOOK3S
@@ -145,8 +144,7 @@ config TUNE_CELL
 	  but somewhat slower on other machines. This option only changes
 	  the scheduling of instructions, not the selection of instructions
 	  itself, so the resulting kernel will keep running on all other
-	  machines. When building a kernel that is supposed to run only
-	  on Cell, you should also select the POWER4_ONLY option.
+	  machines.
 
 # this is temp to handle compat with arch=ppc
 config 8xx
@@ -232,7 +230,7 @@ config PHYS_64BIT
 
 config ALTIVEC
 	bool "AltiVec Support"
-	depends on 6xx || POWER4
+	depends on 6xx || POWER4 || (PPC_E500MC && PPC64)
 	---help---
 	  This option enables kernel support for the Altivec extensions to the
 	  PowerPC processor. The kernel currently supports saving and restoring

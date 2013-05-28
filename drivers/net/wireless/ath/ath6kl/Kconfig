@@ -30,6 +30,15 @@ config ATH6KL_DEBUG
 	---help---
 	  Enables debug support
 
+config ATH6KL_TRACING
+	bool "Atheros ath6kl tracing support"
+	depends on ATH6KL
+	depends on EVENT_TRACING
+	---help---
+	  Select this to ath6kl use tracing infrastructure.
+
+	  If unsure, say Y to make it easier to debug problems.
+
 config ATH6KL_REGDOMAIN
 	bool "Atheros ath6kl regdomain support"
 	depends on ATH6KL

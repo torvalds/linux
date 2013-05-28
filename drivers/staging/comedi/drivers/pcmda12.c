@@ -154,21 +154,11 @@ static int pcmda12_attach(struct comedi_device *dev,
 {
 	struct pcmda12_private *devpriv;
 	struct comedi_subdevice *s;
-	unsigned long iobase;
 	int ret;
 
-	iobase = it->options[0];
-	printk(KERN_INFO
-	       "comedi%d: %s: io: %lx %s ", dev->minor, dev->driver->driver_name,
-	       iobase, it->options[1] ? "simultaneous xfer mode enabled" : "");
-
-	if (!request_region(iobase, IOSIZE, dev->driver->driver_name)) {
-		printk("I/O port conflict\n");
-		return -EIO;
-	}
-	dev->iobase = iobase;
-
-	dev->board_name = dev->driver->driver_name;
+	ret = comedi_request_region(dev, it->options[0], IOSIZE);
+	if (ret)
+		return ret;
 
 	devpriv = kzalloc(sizeof(*devpriv), GFP_KERNEL);
 	if (!devpriv)
@@ -193,22 +183,14 @@ static int pcmda12_attach(struct comedi_device *dev,
 
 	zero_chans(dev);	/* clear out all the registers, basically */
 
-	printk(KERN_INFO "attached\n");
-
 	return 1;
-}
-
-static void pcmda12_detach(struct comedi_device *dev)
-{
-	if (dev->iobase)
-		release_region(dev->iobase, IOSIZE);
 }
 
 static struct comedi_driver pcmda12_driver = {
 	.driver_name	= "pcmda12",
 	.module		= THIS_MODULE,
 	.attach		= pcmda12_attach,
-	.detach		= pcmda12_detach,
+	.detach		= comedi_legacy_detach,
 };
 module_comedi_driver(pcmda12_driver);
 

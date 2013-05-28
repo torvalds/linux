@@ -9,6 +9,9 @@
  *  Copyright (C) 2007-2008 Hewlett-Packard Development Company, L.P.
  *  	Alex Chiang <achiang@hp.com>
  *
+ *  Copyright (C) 2013 Huawei Tech. Co., Ltd.
+ *	Jiang Liu <jiang.liu@huawei.com>
+ *
  *  This program is free software; you can redistribute it and/or modify it
  *  under the terms and conditions of the GNU General Public License,
  *  version 2, as published by the Free Software Foundation.
@@ -28,10 +31,9 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/types.h>
+#include <linux/list.h>
 #include <linux/pci.h>
 #include <linux/acpi.h>
-#include <acpi/acpi_bus.h>
-#include <acpi/acpi_drivers.h>
 #include <linux/dmi.h>
 
 static bool debug;
@@ -61,20 +63,12 @@ ACPI_MODULE_NAME("pci_slot");
 #define SLOT_NAME_SIZE 21		/* Inspired by #define in acpiphp.h */
 
 struct acpi_pci_slot {
-	acpi_handle root_handle;	/* handle of the root bridge */
 	struct pci_slot *pci_slot;	/* corresponding pci_slot */
 	struct list_head list;		/* node in the list of slots */
 };
 
-static int acpi_pci_slot_add(struct acpi_pci_root *root);
-static void acpi_pci_slot_remove(struct acpi_pci_root *root);
-
 static LIST_HEAD(slot_list);
 static DEFINE_MUTEX(slot_list_lock);
-static struct acpi_pci_driver acpi_pci_slot_driver = {
-	.add = acpi_pci_slot_add,
-	.remove = acpi_pci_slot_remove,
-};
 
 static int
 check_slot(acpi_handle handle, unsigned long long *sun)
@@ -113,21 +107,8 @@ out:
 	return device;
 }
 
-struct callback_args {
-	acpi_walk_callback	user_function;	/* only for walk_p2p_bridge */
-	struct pci_bus		*pci_bus;
-	acpi_handle		root_handle;
-};
-
 /*
- * register_slot
- *
- * Called once for each SxFy object in the namespace. Don't worry about
- * calling pci_create_slot multiple times for the same pci_bus:device,
- * since each subsequent call simply bumps the refcount on the pci_slot.
- *
- * The number of calls to pci_destroy_slot from unregister_slot is
- * symmetrical.
+ * Check whether handle has an associated slot and create PCI slot if it has.
  */
 static acpi_status
 register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
@@ -137,12 +118,21 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 	char name[SLOT_NAME_SIZE];
 	struct acpi_pci_slot *slot;
 	struct pci_slot *pci_slot;
-	struct callback_args *parent_context = context;
-	struct pci_bus *pci_bus = parent_context->pci_bus;
+	struct pci_bus *pci_bus = context;
 
 	device = check_slot(handle, &sun);
 	if (device < 0)
 		return AE_OK;
+
+	/*
+	 * There may be multiple PCI functions associated with the same slot.
+	 * Check whether PCI slot has already been created for this PCI device.
+	 */
+	list_for_each_entry(slot, &slot_list, list) {
+		pci_slot = slot->pci_slot;
+		if (pci_slot->bus == pci_bus && pci_slot->number == device)
+			return AE_OK;
+	}
 
 	slot = kmalloc(sizeof(*slot), GFP_KERNEL);
 	if (!slot) {
@@ -158,12 +148,8 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 		return AE_OK;
 	}
 
-	slot->root_handle = parent_context->root_handle;
 	slot->pci_slot = pci_slot;
-	INIT_LIST_HEAD(&slot->list);
-	mutex_lock(&slot_list_lock);
 	list_add(&slot->list, &slot_list);
-	mutex_unlock(&slot_list_lock);
 
 	get_device(&pci_bus->dev);
 
@@ -173,131 +159,24 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 	return AE_OK;
 }
 
-/*
- * walk_p2p_bridge - discover and walk p2p bridges
- * @handle: points to an acpi_pci_root
- * @context: p2p_bridge_context pointer
- *
- * Note that when we call ourselves recursively, we pass a different
- * value of pci_bus in the child_context.
- */
-static acpi_status
-walk_p2p_bridge(acpi_handle handle, u32 lvl, void *context, void **rv)
+void acpi_pci_slot_enumerate(struct pci_bus *bus, acpi_handle handle)
 {
-	int device, function;
-	unsigned long long adr;
-	acpi_status status;
-	acpi_handle dummy_handle;
-	acpi_walk_callback user_function;
-
-	struct pci_dev *dev;
-	struct pci_bus *pci_bus;
-	struct callback_args child_context;
-	struct callback_args *parent_context = context;
-
-	pci_bus = parent_context->pci_bus;
-	user_function = parent_context->user_function;
-
-	status = acpi_get_handle(handle, "_ADR", &dummy_handle);
-	if (ACPI_FAILURE(status))
-		return AE_OK;
-
-	status = acpi_evaluate_integer(handle, "_ADR", NULL, &adr);
-	if (ACPI_FAILURE(status))
-		return AE_OK;
-
-	device = (adr >> 16) & 0xffff;
-	function = adr & 0xffff;
-
-	dev = pci_get_slot(pci_bus, PCI_DEVFN(device, function));
-	if (!dev || !dev->subordinate)
-		goto out;
-
-	child_context.pci_bus = dev->subordinate;
-	child_context.user_function = user_function;
-	child_context.root_handle = parent_context->root_handle;
-
-	dbg("p2p bridge walk, pci_bus = %x\n", dev->subordinate->number);
-	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, (u32)1,
-				     user_function, NULL, &child_context, NULL);
-	if (ACPI_FAILURE(status))
-		goto out;
-
-	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, (u32)1,
-				     walk_p2p_bridge, NULL, &child_context, NULL);
-out:
-	pci_dev_put(dev);
-	return AE_OK;
+	mutex_lock(&slot_list_lock);
+	acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, 1,
+			    register_slot, NULL, bus, NULL);
+	mutex_unlock(&slot_list_lock);
 }
 
-/*
- * walk_root_bridge - generic root bridge walker
- * @root: poiner of an acpi_pci_root
- * @user_function: user callback for slot objects
- *
- * Call user_function for all objects underneath this root bridge.
- * Walk p2p bridges underneath us and call user_function on those too.
- */
-static int
-walk_root_bridge(struct acpi_pci_root *root, acpi_walk_callback user_function)
-{
-	acpi_status status;
-	acpi_handle handle = root->device->handle;
-	struct pci_bus *pci_bus = root->bus;
-	struct callback_args context;
-
-	context.pci_bus = pci_bus;
-	context.user_function = user_function;
-	context.root_handle = handle;
-
-	dbg("root bridge walk, pci_bus = %x\n", pci_bus->number);
-	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, (u32)1,
-				     user_function, NULL, &context, NULL);
-	if (ACPI_FAILURE(status))
-		return status;
-
-	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, (u32)1,
-				     walk_p2p_bridge, NULL, &context, NULL);
-	if (ACPI_FAILURE(status))
-		err("%s: walk_p2p_bridge failure - %d\n", __func__, status);
-
-	return status;
-}
-
-/*
- * acpi_pci_slot_add
- * @handle: points to an acpi_pci_root
- */
-static int
-acpi_pci_slot_add(struct acpi_pci_root *root)
-{
-	acpi_status status;
-
-	status = walk_root_bridge(root, register_slot);
-	if (ACPI_FAILURE(status))
-		err("%s: register_slot failure - %d\n", __func__, status);
-
-	return status;
-}
-
-/*
- * acpi_pci_slot_remove
- * @handle: points to an acpi_pci_root
- */
-static void
-acpi_pci_slot_remove(struct acpi_pci_root *root)
+void acpi_pci_slot_remove(struct pci_bus *bus)
 {
 	struct acpi_pci_slot *slot, *tmp;
-	struct pci_bus *pbus;
-	acpi_handle handle = root->device->handle;
 
 	mutex_lock(&slot_list_lock);
 	list_for_each_entry_safe(slot, tmp, &slot_list, list) {
-		if (slot->root_handle == handle) {
+		if (slot->pci_slot->bus == bus) {
 			list_del(&slot->list);
-			pbus = slot->pci_slot->bus;
 			pci_destroy_slot(slot->pci_slot);
-			put_device(&pbus->dev);
+			put_device(&bus->dev);
 			kfree(slot);
 		}
 	}
@@ -332,5 +211,4 @@ static struct dmi_system_id acpi_pci_slot_dmi_table[] __initdata = {
 void __init acpi_pci_slot_init(void)
 {
 	dmi_check_system(acpi_pci_slot_dmi_table);
-	acpi_pci_register_driver(&acpi_pci_slot_driver);
 }

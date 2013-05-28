@@ -380,104 +380,40 @@ iblock_execute_sync_cache(struct se_cmd *cmd)
 }
 
 static sense_reason_t
+iblock_do_unmap(struct se_cmd *cmd, void *priv,
+		sector_t lba, sector_t nolb)
+{
+	struct block_device *bdev = priv;
+	int ret;
+
+	ret = blkdev_issue_discard(bdev, lba, nolb, GFP_KERNEL, 0);
+	if (ret < 0) {
+		pr_err("blkdev_issue_discard() failed: %d\n", ret);
+		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
+	}
+
+	return 0;
+}
+
+static sense_reason_t
 iblock_execute_unmap(struct se_cmd *cmd)
 {
-	struct se_device *dev = cmd->se_dev;
-	struct iblock_dev *ib_dev = IBLOCK_DEV(dev);
-	unsigned char *buf, *ptr = NULL;
-	sector_t lba;
-	int size;
-	u32 range;
-	sense_reason_t ret = 0;
-	int dl, bd_dl, err;
+	struct block_device *bdev = IBLOCK_DEV(cmd->se_dev)->ibd_bd;
 
-	/* We never set ANC_SUP */
-	if (cmd->t_task_cdb[1])
-		return TCM_INVALID_CDB_FIELD;
-
-	if (cmd->data_length == 0) {
-		target_complete_cmd(cmd, SAM_STAT_GOOD);
-		return 0;
-	}
-
-	if (cmd->data_length < 8) {
-		pr_warn("UNMAP parameter list length %u too small\n",
-			cmd->data_length);
-		return TCM_PARAMETER_LIST_LENGTH_ERROR;
-	}
-
-	buf = transport_kmap_data_sg(cmd);
-	if (!buf)
-		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-
-	dl = get_unaligned_be16(&buf[0]);
-	bd_dl = get_unaligned_be16(&buf[2]);
-
-	size = cmd->data_length - 8;
-	if (bd_dl > size)
-		pr_warn("UNMAP parameter list length %u too small, ignoring bd_dl %u\n",
-			cmd->data_length, bd_dl);
-	else
-		size = bd_dl;
-
-	if (size / 16 > dev->dev_attrib.max_unmap_block_desc_count) {
-		ret = TCM_INVALID_PARAMETER_LIST;
-		goto err;
-	}
-
-	/* First UNMAP block descriptor starts at 8 byte offset */
-	ptr = &buf[8];
-	pr_debug("UNMAP: Sub: %s Using dl: %u bd_dl: %u size: %u"
-		" ptr: %p\n", dev->transport->name, dl, bd_dl, size, ptr);
-
-	while (size >= 16) {
-		lba = get_unaligned_be64(&ptr[0]);
-		range = get_unaligned_be32(&ptr[8]);
-		pr_debug("UNMAP: Using lba: %llu and range: %u\n",
-				 (unsigned long long)lba, range);
-
-		if (range > dev->dev_attrib.max_unmap_lba_count) {
-			ret = TCM_INVALID_PARAMETER_LIST;
-			goto err;
-		}
-
-		if (lba + range > dev->transport->get_blocks(dev) + 1) {
-			ret = TCM_ADDRESS_OUT_OF_RANGE;
-			goto err;
-		}
-
-		err = blkdev_issue_discard(ib_dev->ibd_bd, lba, range,
-					   GFP_KERNEL, 0);
-		if (err < 0) {
-			pr_err("blkdev_issue_discard() failed: %d\n",
-					err);
-			ret = TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-			goto err;
-		}
-
-		ptr += 16;
-		size -= 16;
-	}
-
-err:
-	transport_kunmap_data_sg(cmd);
-	if (!ret)
-		target_complete_cmd(cmd, GOOD);
-	return ret;
+	return sbc_execute_unmap(cmd, iblock_do_unmap, bdev);
 }
 
 static sense_reason_t
 iblock_execute_write_same_unmap(struct se_cmd *cmd)
 {
-	struct iblock_dev *ib_dev = IBLOCK_DEV(cmd->se_dev);
-	int rc;
+	struct block_device *bdev = IBLOCK_DEV(cmd->se_dev)->ibd_bd;
+	sector_t lba = cmd->t_task_lba;
+	sector_t nolb = sbc_get_write_same_sectors(cmd);
+	int ret;
 
-	rc = blkdev_issue_discard(ib_dev->ibd_bd, cmd->t_task_lba,
-			sbc_get_write_same_sectors(cmd), GFP_KERNEL, 0);
-	if (rc < 0) {
-		pr_warn("blkdev_issue_discard() failed: %d\n", rc);
-		return TCM_LOGICAL_UNIT_COMMUNICATION_FAILURE;
-	}
+	ret = iblock_do_unmap(cmd, bdev, lba, nolb);
+	if (ret)
+		return ret;
 
 	target_complete_cmd(cmd, GOOD);
 	return 0;
@@ -679,6 +615,8 @@ iblock_execute_rw(struct se_cmd *cmd)
 				rw = WRITE_FUA;
 			else if (!(q->flush_flags & REQ_FLUSH))
 				rw = WRITE_FUA;
+			else
+				rw = WRITE;
 		} else {
 			rw = WRITE;
 		}

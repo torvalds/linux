@@ -162,6 +162,7 @@ struct xfrm_state {
 		xfrm_address_t	saddr;
 		int		header_len;
 		int		trailer_len;
+		u32		extra_flags;
 	} props;
 
 	struct xfrm_lifetime_cfg lft;

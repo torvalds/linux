@@ -275,7 +275,8 @@ void mesh_path_fix_nexthop(struct mesh_path *mpath, struct sta_info *next_hop);
 void mesh_path_expire(struct ieee80211_sub_if_data *sdata);
 void mesh_rx_path_sel_frame(struct ieee80211_sub_if_data *sdata,
 			    struct ieee80211_mgmt *mgmt, size_t len);
-int mesh_path_add(struct ieee80211_sub_if_data *sdata, const u8 *dst);
+struct mesh_path *
+mesh_path_add(struct ieee80211_sub_if_data *sdata, const u8 *dst);
 
 int mesh_path_add_gate(struct mesh_path *mpath);
 int mesh_path_send_to_gates(struct mesh_path *mpath);
@@ -313,8 +314,6 @@ void mesh_path_timer(unsigned long data);
 void mesh_path_flush_by_nexthop(struct sta_info *sta);
 void mesh_path_discard_frame(struct ieee80211_sub_if_data *sdata,
 			     struct sk_buff *skb);
-void mesh_path_quiesce(struct ieee80211_sub_if_data *sdata);
-void mesh_path_restart(struct ieee80211_sub_if_data *sdata);
 void mesh_path_tx_root_frame(struct ieee80211_sub_if_data *sdata);
 
 bool mesh_action_is_path_sel(struct ieee80211_mgmt *mgmt);
@@ -359,22 +358,12 @@ static inline bool mesh_path_sel_is_hwmp(struct ieee80211_sub_if_data *sdata)
 
 void ieee80211_mesh_notify_scan_completed(struct ieee80211_local *local);
 
-void ieee80211_mesh_quiesce(struct ieee80211_sub_if_data *sdata);
-void ieee80211_mesh_restart(struct ieee80211_sub_if_data *sdata);
-void mesh_plink_quiesce(struct sta_info *sta);
-void mesh_plink_restart(struct sta_info *sta);
 void mesh_path_flush_by_iface(struct ieee80211_sub_if_data *sdata);
 void mesh_sync_adjust_tbtt(struct ieee80211_sub_if_data *sdata);
 void ieee80211s_stop(void);
 #else
 static inline void
 ieee80211_mesh_notify_scan_completed(struct ieee80211_local *local) {}
-static inline void ieee80211_mesh_quiesce(struct ieee80211_sub_if_data *sdata)
-{}
-static inline void ieee80211_mesh_restart(struct ieee80211_sub_if_data *sdata)
-{}
-static inline void mesh_plink_quiesce(struct sta_info *sta) {}
-static inline void mesh_plink_restart(struct sta_info *sta) {}
 static inline bool mesh_path_sel_is_hwmp(struct ieee80211_sub_if_data *sdata)
 { return false; }
 static inline void mesh_path_flush_by_iface(struct ieee80211_sub_if_data *sdata)

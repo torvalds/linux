@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2013 Intel Corporation. All rights reserved.
  * Copyright (c) 2006, 2007, 2008, 2009, 2010 QLogic Corporation.
  * All rights reserved.
  * Copyright (c) 2003, 2004, 2005, 2006 PathScale, Inc. All rights reserved.
@@ -51,7 +52,7 @@ static u32 qib_6120_iblink_state(u64);
 
 /*
  * This file contains all the chip-specific register information and
- * access functions for the QLogic QLogic_IB PCI-Express chip.
+ * access functions for the Intel Intel_IB PCI-Express chip.
  *
  */
 

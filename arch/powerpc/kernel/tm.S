@@ -309,6 +309,7 @@ _GLOBAL(tm_recheckpoint)
 	or	r5, r6, r5			/* Set MSR.FP+.VSX/.VEC */
 	mtmsr	r5
 
+#ifdef CONFIG_ALTIVEC
 	/* FP and VEC registers:  These are recheckpointed from thread.fpr[]
 	 * and thread.vr[] respectively.  The thread.transact_fpr[] version
 	 * is more modern, and will be loaded subsequently by any FPUnavailable
@@ -323,6 +324,7 @@ _GLOBAL(tm_recheckpoint)
 	REST_32VRS(0, r5, r3)			/* r5 scratch, r3 THREAD ptr */
 	ld	r5, THREAD_VRSAVE(r3)
 	mtspr	SPRN_VRSAVE, r5
+#endif
 
 dont_restore_vec:
 	andi.	r0, r4, MSR_FP

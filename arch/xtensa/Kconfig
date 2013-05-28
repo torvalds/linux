@@ -1,15 +1,13 @@
-config FRAME_POINTER
-	def_bool n
-
 config ZONE_DMA
 	def_bool y
 
 config XTENSA
 	def_bool y
+	select ARCH_WANT_FRAME_POINTERS
 	select HAVE_IDE
 	select GENERIC_ATOMIC64
 	select HAVE_GENERIC_HARDIRQS
-	select HAVE_VIRT_TO_BUS
+	select VIRT_TO_BUS
 	select GENERIC_IRQ_SHOW
 	select GENERIC_CPU_DEVICES
 	select MODULES_USE_ELF_RELA
@@ -33,9 +31,6 @@ config RWSEM_XCHGADD_ALGORITHM
 config GENERIC_HWEIGHT
 	def_bool y
 
-config GENERIC_GPIO
-	bool
-
 config ARCH_HAS_ILOG2_U32
 	def_bool n
 
@@ -51,6 +46,15 @@ config HZ
 
 source "init/Kconfig"
 source "kernel/Kconfig.freezer"
+
+config LOCKDEP_SUPPORT
+	def_bool y
+
+config STACKTRACE_SUPPORT
+	def_bool y
+
+config TRACE_IRQFLAGS_SUPPORT
+	def_bool y
 
 config MMU
 	def_bool n
@@ -102,6 +106,35 @@ config MATH_EMULATION
 	bool "Math emulation"
 	help
 	Can we use information of configuration file?
+
+config INITIALIZE_XTENSA_MMU_INSIDE_VMLINUX
+	bool "Initialize Xtensa MMU inside the Linux kernel code"
+	default y
+	help
+	  Earlier version initialized the MMU in the exception vector
+	  before jumping to _startup in head.S and had an advantage that
+	  it was possible to place a software breakpoint at 'reset' and
+	  then enter your normal kernel breakpoints once the MMU was mapped
+	  to the kernel mappings (0XC0000000).
+
+	  This unfortunately doesn't work for U-Boot and likley also wont
+	  work for using KEXEC to have a hot kernel ready for doing a
+	  KDUMP.
+
+	  So now the MMU is initialized in head.S but it's necessary to
+	  use hardware breakpoints (gdb 'hbreak' cmd) to break at _startup.
+	  xt-gdb can't place a Software Breakpoint in the  0XD region prior
+	  to mapping the MMU and after mapping even if the area of low memory
+	  was mapped gdb wouldn't remove the breakpoint on hitting it as the
+	  PC wouldn't match. Since Hardware Breakpoints are recommended for
+	  Linux configurations it seems reasonable to just assume they exist
+	  and leave this older mechanism for unfortunate souls that choose
+	  not to follow Tensilica's recommendation.
+
+	  Selecting this will cause U-Boot to set the KERNEL Load and Entry
+	  address at 0x00003000 instead of the mapped std of 0xD0003000.
+
+	  If in doubt, say Y.
 
 endmenu
 
@@ -251,21 +284,6 @@ source "drivers/pci/hotplug/Kconfig"
 endmenu
 
 menu "Executable file formats"
-
-# only elf supported
-config KCORE_ELF
-	def_bool y
-        depends on PROC_FS
-        help
-          If you enabled support for /proc file system then the file
-          /proc/kcore will contain the kernel core image in ELF format. This
-          can be used in gdb:
-
-          $ cd /usr/src/linux ; gdb vmlinux /proc/kcore
-
-          This is especially useful if you have compiled the kernel with the
-          "-g" option to preserve debugging information. It is mainly used
-	  for examining kernel data structures on the live kernel.
 
 source "fs/Kconfig.binfmt"
 

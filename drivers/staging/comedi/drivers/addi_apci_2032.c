@@ -287,9 +287,7 @@ static int apci2032_auto_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret;
 
-	dev->board_name = dev->driver->driver_name;
-
-	ret = comedi_pci_enable(pcidev, dev->board_name);
+	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
 	dev->iobase = pci_resource_start(pcidev, 1);
@@ -350,20 +348,14 @@ static int apci2032_auto_attach(struct comedi_device *dev,
 
 static void apci2032_detach(struct comedi_device *dev)
 {
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-
 	if (dev->iobase)
 		apci2032_reset(dev);
 	if (dev->irq)
 		free_irq(dev->irq, dev);
 	if (dev->read_subdev)
 		kfree(dev->read_subdev->private);
-	if (dev->subdevices)
-		addi_watchdog_cleanup(&dev->subdevices[1]);
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-	}
+	comedi_spriv_free(dev, 1);
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver apci2032_driver = {
@@ -374,9 +366,9 @@ static struct comedi_driver apci2032_driver = {
 };
 
 static int apci2032_pci_probe(struct pci_dev *dev,
-					const struct pci_device_id *ent)
+			      const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &apci2032_driver);
+	return comedi_pci_auto_config(dev, &apci2032_driver, id->driver_data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(apci2032_pci_table) = {

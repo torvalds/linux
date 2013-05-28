@@ -111,6 +111,7 @@ static struct usb_gadget_strings *dev_strings[] = {
 	NULL,
 };
 
+struct eth_dev *the_dev;
 static u8 hostaddr[ETH_ALEN];
 
 /*-------------------------------------------------------------------------*/
@@ -124,7 +125,7 @@ static int __init ncm_do_config(struct usb_configuration *c)
 		c->bmAttributes |= USB_CONFIG_ATT_WAKEUP;
 	}
 
-	return ncm_bind_config(c, hostaddr);
+	return ncm_bind_config(c, hostaddr, the_dev);
 }
 
 static struct usb_configuration ncm_config_driver = {
@@ -143,9 +144,9 @@ static int __init gncm_bind(struct usb_composite_dev *cdev)
 	int			status;
 
 	/* set up network link layer */
-	status = gether_setup(cdev->gadget, hostaddr);
-	if (status < 0)
-		return status;
+	the_dev = gether_setup(cdev->gadget, hostaddr);
+	if (IS_ERR(the_dev))
+		return PTR_ERR(the_dev);
 
 	/* Allocate string descriptor numbers ... note that string
 	 * contents can be overridden by the composite_dev glue.
@@ -168,13 +169,13 @@ static int __init gncm_bind(struct usb_composite_dev *cdev)
 	return 0;
 
 fail:
-	gether_cleanup();
+	gether_cleanup(the_dev);
 	return status;
 }
 
 static int __exit gncm_unbind(struct usb_composite_dev *cdev)
 {
-	gether_cleanup();
+	gether_cleanup(the_dev);
 	return 0;
 }
 

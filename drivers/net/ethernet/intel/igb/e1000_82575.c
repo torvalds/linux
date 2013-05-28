@@ -100,6 +100,7 @@ static bool igb_sgmii_uses_mdio_82575(struct e1000_hw *hw)
 		break;
 	case e1000_82580:
 	case e1000_i350:
+	case e1000_i354:
 	case e1000_i210:
 	case e1000_i211:
 		reg = rd32(E1000_MDICNFG);
@@ -149,6 +150,7 @@ static s32 igb_init_phy_params_82575(struct e1000_hw *hw)
 		switch (hw->mac.type) {
 		case e1000_82580:
 		case e1000_i350:
+		case e1000_i354:
 			phy->ops.read_reg = igb_read_phy_reg_82580;
 			phy->ops.write_reg = igb_write_phy_reg_82580;
 			break;
@@ -174,13 +176,14 @@ static s32 igb_init_phy_params_82575(struct e1000_hw *hw)
 
 	/* Verify phy id and set remaining function pointers */
 	switch (phy->id) {
+	case M88E1545_E_PHY_ID:
 	case I347AT4_E_PHY_ID:
 	case M88E1112_E_PHY_ID:
 	case M88E1111_I_PHY_ID:
 		phy->type		= e1000_phy_m88;
+		phy->ops.check_polarity	= igb_check_polarity_m88;
 		phy->ops.get_phy_info	= igb_get_phy_info_m88;
-		if (phy->id == I347AT4_E_PHY_ID ||
-		    phy->id == M88E1112_E_PHY_ID)
+		if (phy->id != M88E1111_I_PHY_ID)
 			phy->ops.get_cable_length =
 					 igb_get_cable_length_m88_gen2;
 		else
@@ -227,7 +230,7 @@ out:
  *  igb_init_nvm_params_82575 - Init NVM func ptrs.
  *  @hw: pointer to the HW structure
  **/
-s32 igb_init_nvm_params_82575(struct e1000_hw *hw)
+static s32 igb_init_nvm_params_82575(struct e1000_hw *hw)
 {
 	struct e1000_nvm_info *nvm = &hw->nvm;
 	u32 eecd = rd32(E1000_EECD);
@@ -287,6 +290,7 @@ s32 igb_init_nvm_params_82575(struct e1000_hw *hw)
 			nvm->ops.read = igb_read_nvm_spi;
 		nvm->ops.write = igb_write_nvm_spi;
 		break;
+	case e1000_i354:
 	case e1000_i350:
 		nvm->ops.validate = igb_validate_nvm_checksum_i350;
 		nvm->ops.update = igb_update_nvm_checksum_i350;
@@ -352,6 +356,7 @@ static s32 igb_init_mac_params_82575(struct e1000_hw *hw)
 		mac->rar_entry_count = E1000_RAR_ENTRIES_82580;
 		break;
 	case e1000_i350:
+	case e1000_i354:
 		mac->rar_entry_count = E1000_RAR_ENTRIES_I350;
 		break;
 	default:
@@ -384,6 +389,9 @@ static s32 igb_init_mac_params_82575(struct e1000_hw *hw)
 		dev_spec->eee_disable = false;
 	else
 		dev_spec->eee_disable = true;
+	/* Allow a single clear of the SW semaphore on I210 and newer */
+	if (mac->type >= e1000_i210)
+		dev_spec->clear_semaphore_once = true;
 	/* physical interface link setup */
 	mac->ops.setup_physical_interface =
 		(hw->phy.media_type == e1000_media_type_copper)
@@ -435,8 +443,6 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 		mac->type = e1000_i350;
 		break;
 	case E1000_DEV_ID_I210_COPPER:
-	case E1000_DEV_ID_I210_COPPER_OEM1:
-	case E1000_DEV_ID_I210_COPPER_IT:
 	case E1000_DEV_ID_I210_FIBER:
 	case E1000_DEV_ID_I210_SERDES:
 	case E1000_DEV_ID_I210_SGMII:
@@ -445,14 +451,18 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 	case E1000_DEV_ID_I211_COPPER:
 		mac->type = e1000_i211;
 		break;
+	case E1000_DEV_ID_I354_BACKPLANE_1GBPS:
+	case E1000_DEV_ID_I354_SGMII:
+	case E1000_DEV_ID_I354_BACKPLANE_2_5GBPS:
+		mac->type = e1000_i354;
+		break;
 	default:
 		return -E1000_ERR_MAC_INIT;
 		break;
 	}
 
 	/* Set media type */
-	/*
-	 * The 82575 uses bits 22:23 for link mode. The mode can be changed
+	/* The 82575 uses bits 22:23 for link mode. The mode can be changed
 	 * based on the EEPROM. We cannot rely upon device ID. There
 	 * is no distinguishable difference between fiber and internal
 	 * SerDes mode on the 82575. There can be an external PHY attached
@@ -621,8 +631,7 @@ static s32 igb_get_phy_id_82575(struct e1000_hw *hw)
 	u32 ctrl_ext;
 	u32 mdic;
 
-	/*
-	 * For SGMII PHYs, we try the list of possible addresses until
+	/* For SGMII PHYs, we try the list of possible addresses until
 	 * we find one that works.  For non-SGMII PHYs
 	 * (e.g. integrated copper PHYs), an address of 1 should
 	 * work.  The result of this function should mean phy->phy_addr
@@ -644,6 +653,7 @@ static s32 igb_get_phy_id_82575(struct e1000_hw *hw)
 			break;
 		case e1000_82580:
 		case e1000_i350:
+		case e1000_i354:
 		case e1000_i210:
 		case e1000_i211:
 			mdic = rd32(E1000_MDICNFG);
@@ -665,8 +675,7 @@ static s32 igb_get_phy_id_82575(struct e1000_hw *hw)
 	wrfl();
 	msleep(300);
 
-	/*
-	 * The address field in the I2CCMD register is 3 bits and 0 is invalid.
+	/* The address field in the I2CCMD register is 3 bits and 0 is invalid.
 	 * Therefore, we need to test 1-7
 	 */
 	for (phy->addr = 1; phy->addr < 8; phy->addr++) {
@@ -674,8 +683,7 @@ static s32 igb_get_phy_id_82575(struct e1000_hw *hw)
 		if (ret_val == 0) {
 			hw_dbg("Vendor ID 0x%08X read at address %u\n",
 			       phy_id, phy->addr);
-			/*
-			 * At the time of this writing, The M88 part is
+			/* At the time of this writing, The M88 part is
 			 * the only supported SGMII PHY product.
 			 */
 			if (phy_id == M88_VENDOR)
@@ -711,15 +719,13 @@ static s32 igb_phy_hw_reset_sgmii_82575(struct e1000_hw *hw)
 {
 	s32 ret_val;
 
-	/*
-	 * This isn't a true "hard" reset, but is the only reset
+	/* This isn't a true "hard" reset, but is the only reset
 	 * available to us at this time.
 	 */
 
 	hw_dbg("Soft resetting SGMII attached PHY...\n");
 
-	/*
-	 * SFP documentation requires the following to configure the SPF module
+	/* SFP documentation requires the following to configure the SPF module
 	 * to work on SGMII.  No further documentation is given.
 	 */
 	ret_val = hw->phy.ops.write_reg(hw, 0x1B, 0x8084);
@@ -774,8 +780,7 @@ static s32 igb_set_d0_lplu_state_82575(struct e1000_hw *hw, bool active)
 		data &= ~IGP02E1000_PM_D0_LPLU;
 		ret_val = phy->ops.write_reg(hw, IGP02E1000_PHY_POWER_MGMT,
 						 data);
-		/*
-		 * LPLU and SmartSpeed are mutually exclusive.  LPLU is used
+		/* LPLU and SmartSpeed are mutually exclusive.  LPLU is used
 		 * during Dx states where the power conservation is most
 		 * important.  During driver activity we should enable
 		 * SmartSpeed, so performance is maintained.
@@ -838,8 +843,7 @@ static s32 igb_set_d0_lplu_state_82580(struct e1000_hw *hw, bool active)
 	} else {
 		data &= ~E1000_82580_PM_D0_LPLU;
 
-		/*
-		 * LPLU and SmartSpeed are mutually exclusive.  LPLU is used
+		/* LPLU and SmartSpeed are mutually exclusive.  LPLU is used
 		 * during Dx states where the power conservation is most
 		 * important.  During driver activity we should enable
 		 * SmartSpeed, so performance is maintained.
@@ -867,7 +871,7 @@ static s32 igb_set_d0_lplu_state_82580(struct e1000_hw *hw, bool active)
  *  During driver activity, SmartSpeed should be enabled so performance is
  *  maintained.
  **/
-s32 igb_set_d3_lplu_state_82580(struct e1000_hw *hw, bool active)
+static s32 igb_set_d3_lplu_state_82580(struct e1000_hw *hw, bool active)
 {
 	struct e1000_phy_info *phy = &hw->phy;
 	s32 ret_val = 0;
@@ -877,8 +881,7 @@ s32 igb_set_d3_lplu_state_82580(struct e1000_hw *hw, bool active)
 
 	if (!active) {
 		data &= ~E1000_82580_PM_D3_LPLU;
-		/*
-		 * LPLU and SmartSpeed are mutually exclusive.  LPLU is used
+		/* LPLU and SmartSpeed are mutually exclusive.  LPLU is used
 		 * during Dx states where the power conservation is most
 		 * important.  During driver activity we should enable
 		 * SmartSpeed, so performance is maintained.
@@ -964,8 +967,7 @@ static s32 igb_acquire_swfw_sync_82575(struct e1000_hw *hw, u16 mask)
 		if (!(swfw_sync & (fwmask | swmask)))
 			break;
 
-		/*
-		 * Firmware currently using resource (fwmask)
+		/* Firmware currently using resource (fwmask)
 		 * or other software thread using resource (swmask)
 		 */
 		igb_put_hw_semaphore(hw);
@@ -1065,8 +1067,7 @@ static s32 igb_check_for_link_82575(struct e1000_hw *hw)
 	if (hw->phy.media_type != e1000_media_type_copper) {
 		ret_val = igb_get_pcs_speed_and_duplex_82575(hw, &speed,
 		                                             &duplex);
-		/*
-		 * Use this flag to determine if link needs to be checked or
+		/* Use this flag to determine if link needs to be checked or
 		 * not.  If  we have link clear the flag so that we do not
 		 * continue to check for link.
 		 */
@@ -1135,15 +1136,13 @@ static s32 igb_get_pcs_speed_and_duplex_82575(struct e1000_hw *hw, u16 *speed,
 	*speed = 0;
 	*duplex = 0;
 
-	/*
-	 * Read the PCS Status register for link state. For non-copper mode,
+	/* Read the PCS Status register for link state. For non-copper mode,
 	 * the status register is not accurate. The PCS status register is
 	 * used instead.
 	 */
 	pcs = rd32(E1000_PCS_LSTAT);
 
-	/*
-	 * The link up bit determines when link is up on autoneg. The sync ok
+	/* The link up bit determines when link is up on autoneg. The sync ok
 	 * gets set once both sides sync up and agree upon link. Stable link
 	 * can be determined by checking for both link up and link sync ok
 	 */
@@ -1214,8 +1213,7 @@ static s32 igb_reset_hw_82575(struct e1000_hw *hw)
 	u32 ctrl, icr;
 	s32 ret_val;
 
-	/*
-	 * Prevent the PCI-E bus from sticking if there is no TLP connection
+	/* Prevent the PCI-E bus from sticking if there is no TLP connection
 	 * on the last TLP read/write transaction when MAC is reset.
 	 */
 	ret_val = igb_disable_pcie_master(hw);
@@ -1244,8 +1242,7 @@ static s32 igb_reset_hw_82575(struct e1000_hw *hw)
 
 	ret_val = igb_get_auto_rd_done(hw);
 	if (ret_val) {
-		/*
-		 * When auto config read does not complete, do not
+		/* When auto config read does not complete, do not
 		 * return with an error. This can happen in situations
 		 * where there is no eeprom and prevents getting link.
 		 */
@@ -1287,7 +1284,7 @@ static s32 igb_init_hw_82575(struct e1000_hw *hw)
 
 	/* Disabling VLAN filtering */
 	hw_dbg("Initializing the IEEE VLAN\n");
-	if (hw->mac.type == e1000_i350)
+	if ((hw->mac.type == e1000_i350) || (hw->mac.type == e1000_i354))
 		igb_clear_vfta_i350(hw);
 	else
 		igb_clear_vfta(hw);
@@ -1308,8 +1305,7 @@ static s32 igb_init_hw_82575(struct e1000_hw *hw)
 	/* Setup link and flow control */
 	ret_val = igb_setup_link(hw);
 
-	/*
-	 * Clear all of the statistics registers (clear on read).  It is
+	/* Clear all of the statistics registers (clear on read).  It is
 	 * important that we do this after we have tried to establish link
 	 * because the symbol error count will increment wildly if there
 	 * is no link.
@@ -1361,11 +1357,17 @@ static s32 igb_setup_copper_link_82575(struct e1000_hw *hw)
 	switch (hw->phy.type) {
 	case e1000_phy_i210:
 	case e1000_phy_m88:
-		if (hw->phy.id == I347AT4_E_PHY_ID ||
-		    hw->phy.id == M88E1112_E_PHY_ID)
+		switch (hw->phy.id) {
+		case I347AT4_E_PHY_ID:
+		case M88E1112_E_PHY_ID:
+		case M88E1545_E_PHY_ID:
+		case I210_I_PHY_ID:
 			ret_val = igb_copper_link_setup_m88_gen2(hw);
-		else
+			break;
+		default:
 			ret_val = igb_copper_link_setup_m88(hw);
+			break;
+		}
 		break;
 	case e1000_phy_igp_3:
 		ret_val = igb_copper_link_setup_igp(hw);
@@ -1407,17 +1409,17 @@ static s32 igb_setup_serdes_link_82575(struct e1000_hw *hw)
 		return ret_val;
 
 
-	/*
-	 * On the 82575, SerDes loopback mode persists until it is
+	/* On the 82575, SerDes loopback mode persists until it is
 	 * explicitly turned off or a power cycle is performed.  A read to
 	 * the register does not indicate its status.  Therefore, we ensure
 	 * loopback mode is disabled during initialization.
 	 */
 	wr32(E1000_SCTL, E1000_SCTL_DISABLE_SERDES_LOOPBACK);
 
-	/* power on the sfp cage if present */
+	/* power on the sfp cage if present and turn on I2C */
 	ctrl_ext = rd32(E1000_CTRL_EXT);
 	ctrl_ext &= ~E1000_CTRL_EXT_SDP3_DATA;
+	ctrl_ext |= E1000_CTRL_I2C_ENA;
 	wr32(E1000_CTRL_EXT, ctrl_ext);
 
 	ctrl_reg = rd32(E1000_CTRL);
@@ -1461,8 +1463,7 @@ static s32 igb_setup_serdes_link_82575(struct e1000_hw *hw)
 				pcs_autoneg = false;
 		}
 
-		/*
-		 * non-SGMII modes only supports a speed of 1000/Full for the
+		/* non-SGMII modes only supports a speed of 1000/Full for the
 		 * link so it is best to just force the MAC and let the pcs
 		 * link either autoneg or be forced to 1000/Full
 		 */
@@ -1476,8 +1477,7 @@ static s32 igb_setup_serdes_link_82575(struct e1000_hw *hw)
 
 	wr32(E1000_CTRL, ctrl_reg);
 
-	/*
-	 * New SerDes mode allows for forcing speed or autonegotiating speed
+	/* New SerDes mode allows for forcing speed or autonegotiating speed
 	 * at 1gb. Autoneg should be default set by most drivers. This is the
 	 * mode that will be compatible with older link partners and switches.
 	 * However, both are supported by the hardware and some drivers/tools.
@@ -1587,8 +1587,7 @@ static s32 igb_read_mac_addr_82575(struct e1000_hw *hw)
 {
 	s32 ret_val = 0;
 
-	/*
-	 * If there's an alternate MAC address place it in RAR0
+	/* If there's an alternate MAC address place it in RAR0
 	 * so that it will override the Si installed default perm
 	 * address.
 	 */
@@ -1772,8 +1771,7 @@ static s32 igb_set_pcie_completion_timeout(struct e1000_hw *hw)
 	if (gcr & E1000_GCR_CMPL_TMOUT_MASK)
 		goto out;
 
-	/*
-	 * if capababilities version is type 1 we can write the
+	/* if capabilities version is type 1 we can write the
 	 * timeout of 10ms to 200ms through the GCR register
 	 */
 	if (!(gcr & E1000_GCR_CAP_VER2)) {
@@ -1781,8 +1779,7 @@ static s32 igb_set_pcie_completion_timeout(struct e1000_hw *hw)
 		goto out;
 	}
 
-	/*
-	 * for version 2 capabilities we need to write the config space
+	/* for version 2 capabilities we need to write the config space
 	 * directly in order to set the completion timeout value for
 	 * 16ms to 55ms
 	 */
@@ -1813,27 +1810,33 @@ out:
  **/
 void igb_vmdq_set_anti_spoofing_pf(struct e1000_hw *hw, bool enable, int pf)
 {
-	u32 dtxswc;
+	u32 reg_val, reg_offset;
 
 	switch (hw->mac.type) {
 	case e1000_82576:
+		reg_offset = E1000_DTXSWC;
+		break;
 	case e1000_i350:
-		dtxswc = rd32(E1000_DTXSWC);
-		if (enable) {
-			dtxswc |= (E1000_DTXSWC_MAC_SPOOF_MASK |
-				   E1000_DTXSWC_VLAN_SPOOF_MASK);
-			/* The PF can spoof - it has to in order to
-			 * support emulation mode NICs */
-			dtxswc ^= (1 << pf | 1 << (pf + MAX_NUM_VFS));
-		} else {
-			dtxswc &= ~(E1000_DTXSWC_MAC_SPOOF_MASK |
-				    E1000_DTXSWC_VLAN_SPOOF_MASK);
-		}
-		wr32(E1000_DTXSWC, dtxswc);
+	case e1000_i354:
+		reg_offset = E1000_TXSWC;
 		break;
 	default:
-		break;
+		return;
 	}
+
+	reg_val = rd32(reg_offset);
+	if (enable) {
+		reg_val |= (E1000_DTXSWC_MAC_SPOOF_MASK |
+			     E1000_DTXSWC_VLAN_SPOOF_MASK);
+		/* The PF can spoof - it has to in order to
+		 * support emulation mode NICs
+		 */
+		reg_val ^= (1 << pf | 1 << (pf + MAX_NUM_VFS));
+	} else {
+		reg_val &= ~(E1000_DTXSWC_MAC_SPOOF_MASK |
+			     E1000_DTXSWC_VLAN_SPOOF_MASK);
+	}
+	wr32(reg_offset, reg_val);
 }
 
 /**
@@ -1856,6 +1859,7 @@ void igb_vmdq_set_loopback_pf(struct e1000_hw *hw, bool enable)
 			dtxswc &= ~E1000_DTXSWC_VMDQ_LOOPBACK_EN;
 		wr32(E1000_DTXSWC, dtxswc);
 		break;
+	case e1000_i354:
 	case e1000_i350:
 		dtxswc = rd32(E1000_TXSWC);
 		if (enable)
@@ -1868,7 +1872,6 @@ void igb_vmdq_set_loopback_pf(struct e1000_hw *hw, bool enable)
 		/* Currently no other hardware supports loopback */
 		break;
 	}
-
 
 }
 
@@ -1903,7 +1906,6 @@ void igb_vmdq_set_replication_pf(struct e1000_hw *hw, bool enable)
 static s32 igb_read_phy_reg_82580(struct e1000_hw *hw, u32 offset, u16 *data)
 {
 	s32 ret_val;
-
 
 	ret_val = hw->phy.ops.acquire(hw);
 	if (ret_val)
@@ -2006,8 +2008,7 @@ static s32 igb_reset_hw_82580(struct e1000_hw *hw)
 	/* Get current control state. */
 	ctrl = rd32(E1000_CTRL);
 
-	/*
-	 * Prevent the PCI-E bus from sticking if there is no TLP connection
+	/* Prevent the PCI-E bus from sticking if there is no TLP connection
 	 * on the last TLP read/write transaction when MAC is reset.
 	 */
 	ret_val = igb_disable_pcie_master(hw);
@@ -2042,17 +2043,12 @@ static s32 igb_reset_hw_82580(struct e1000_hw *hw)
 
 	ret_val = igb_get_auto_rd_done(hw);
 	if (ret_val) {
-		/*
-		 * When auto config read does not complete, do not
+		/* When auto config read does not complete, do not
 		 * return with an error. This can happen in situations
 		 * where there is no eeprom and prevents getting link.
 		 */
 		hw_dbg("Auto Read Done did not complete\n");
 	}
-
-	/* If EEPROM is not present, run manual init scripts */
-	if ((rd32(E1000_EECD) & E1000_EECD_PRES) == 0)
-		igb_reset_init_script_82575(hw);
 
 	/* clear global device reset status bit */
 	wr32(E1000_STATUS, E1000_STAT_DEV_RST_SET);
@@ -2187,7 +2183,8 @@ static s32 igb_validate_nvm_checksum_82580(struct e1000_hw *hw)
 
 	if (nvm_data & NVM_COMPATIBILITY_BIT_MASK) {
 		/* if checksums compatibility bit is set validate checksums
-		 * for all 4 ports. */
+		 * for all 4 ports.
+		 */
 		eeprom_regions_count = 4;
 	}
 
@@ -2299,6 +2296,41 @@ out:
 }
 
 /**
+ *  __igb_access_emi_reg - Read/write EMI register
+ *  @hw: pointer to the HW structure
+ *  @addr: EMI address to program
+ *  @data: pointer to value to read/write from/to the EMI address
+ *  @read: boolean flag to indicate read or write
+ **/
+static s32 __igb_access_emi_reg(struct e1000_hw *hw, u16 address,
+				  u16 *data, bool read)
+{
+	s32 ret_val = E1000_SUCCESS;
+
+	ret_val = hw->phy.ops.write_reg(hw, E1000_EMIADD, address);
+	if (ret_val)
+		return ret_val;
+
+	if (read)
+		ret_val = hw->phy.ops.read_reg(hw, E1000_EMIDATA, data);
+	else
+		ret_val = hw->phy.ops.write_reg(hw, E1000_EMIDATA, *data);
+
+	return ret_val;
+}
+
+/**
+ *  igb_read_emi_reg - Read Extended Management Interface register
+ *  @hw: pointer to the HW structure
+ *  @addr: EMI address to program
+ *  @data: value to be read from the EMI address
+ **/
+s32 igb_read_emi_reg(struct e1000_hw *hw, u16 addr, u16 *data)
+{
+	return __igb_access_emi_reg(hw, addr, data, true);
+}
+
+/**
  *  igb_set_eee_i350 - Enable/disable EEE support
  *  @hw: pointer to the HW structure
  *
@@ -2328,7 +2360,6 @@ s32 igb_set_eee_i350(struct e1000_hw *hw)
 		if (eee_su & E1000_EEE_SU_LPI_CLK_STP)
 			hw_dbg("LPI Clock Stop Bit should not be set!\n");
 
-
 	} else {
 		ipcnfg &= ~(E1000_IPCNFG_EEE_1G_AN |
 			E1000_IPCNFG_EEE_100M_AN);
@@ -2345,6 +2376,108 @@ out:
 	return ret_val;
 }
 
+/**
+ *  igb_set_eee_i354 - Enable/disable EEE support
+ *  @hw: pointer to the HW structure
+ *
+ *  Enable/disable EEE legacy mode based on setting in dev_spec structure.
+ *
+ **/
+s32 igb_set_eee_i354(struct e1000_hw *hw)
+{
+	struct e1000_phy_info *phy = &hw->phy;
+	s32 ret_val = 0;
+	u16 phy_data;
+
+	if ((hw->phy.media_type != e1000_media_type_copper) ||
+	    (phy->id != M88E1545_E_PHY_ID))
+		goto out;
+
+	if (!hw->dev_spec._82575.eee_disable) {
+		/* Switch to PHY page 18. */
+		ret_val = phy->ops.write_reg(hw, E1000_M88E1545_PAGE_ADDR, 18);
+		if (ret_val)
+			goto out;
+
+		ret_val = phy->ops.read_reg(hw, E1000_M88E1545_EEE_CTRL_1,
+					    &phy_data);
+		if (ret_val)
+			goto out;
+
+		phy_data |= E1000_M88E1545_EEE_CTRL_1_MS;
+		ret_val = phy->ops.write_reg(hw, E1000_M88E1545_EEE_CTRL_1,
+					     phy_data);
+		if (ret_val)
+			goto out;
+
+		/* Return the PHY to page 0. */
+		ret_val = phy->ops.write_reg(hw, E1000_M88E1545_PAGE_ADDR, 0);
+		if (ret_val)
+			goto out;
+
+		/* Turn on EEE advertisement. */
+		ret_val = igb_read_xmdio_reg(hw, E1000_EEE_ADV_ADDR_I354,
+					     E1000_EEE_ADV_DEV_I354,
+					     &phy_data);
+		if (ret_val)
+			goto out;
+
+		phy_data |= E1000_EEE_ADV_100_SUPPORTED |
+			    E1000_EEE_ADV_1000_SUPPORTED;
+		ret_val = igb_write_xmdio_reg(hw, E1000_EEE_ADV_ADDR_I354,
+						E1000_EEE_ADV_DEV_I354,
+						phy_data);
+	} else {
+		/* Turn off EEE advertisement. */
+		ret_val = igb_read_xmdio_reg(hw, E1000_EEE_ADV_ADDR_I354,
+					     E1000_EEE_ADV_DEV_I354,
+					     &phy_data);
+		if (ret_val)
+			goto out;
+
+		phy_data &= ~(E1000_EEE_ADV_100_SUPPORTED |
+			      E1000_EEE_ADV_1000_SUPPORTED);
+		ret_val = igb_write_xmdio_reg(hw, E1000_EEE_ADV_ADDR_I354,
+					      E1000_EEE_ADV_DEV_I354,
+					      phy_data);
+	}
+
+out:
+	return ret_val;
+}
+
+/**
+ *  igb_get_eee_status_i354 - Get EEE status
+ *  @hw: pointer to the HW structure
+ *  @status: EEE status
+ *
+ *  Get EEE status by guessing based on whether Tx or Rx LPI indications have
+ *  been received.
+ **/
+s32 igb_get_eee_status_i354(struct e1000_hw *hw, bool *status)
+{
+	struct e1000_phy_info *phy = &hw->phy;
+	s32 ret_val = 0;
+	u16 phy_data;
+
+	/* Check if EEE is supported on this device. */
+	if ((hw->phy.media_type != e1000_media_type_copper) ||
+	    (phy->id != M88E1545_E_PHY_ID))
+		goto out;
+
+	ret_val = igb_read_xmdio_reg(hw, E1000_PCS_STATUS_ADDR_I354,
+				     E1000_PCS_STATUS_DEV_I354,
+				     &phy_data);
+	if (ret_val)
+		goto out;
+
+	*status = phy_data & (E1000_PCS_STATUS_TX_LPI_RCVD |
+			      E1000_PCS_STATUS_RX_LPI_RCVD) ? true : false;
+
+out:
+	return ret_val;
+}
+
 static const u8 e1000_emc_temp_data[4] = {
 	E1000_EMC_INTERNAL_DATA,
 	E1000_EMC_DIODE1_DATA,
@@ -2358,11 +2491,12 @@ static const u8 e1000_emc_therm_limit[4] = {
 	E1000_EMC_DIODE3_THERM_LIMIT
 };
 
-/* igb_get_thermal_sensor_data_generic - Gathers thermal sensor data
+/**
+ *  igb_get_thermal_sensor_data_generic - Gathers thermal sensor data
  *  @hw: pointer to hardware structure
  *
  *  Updates the temperatures in mac.thermal_sensor_data
- */
+ **/
 s32 igb_get_thermal_sensor_data_generic(struct e1000_hw *hw)
 {
 	s32 status = E1000_SUCCESS;
@@ -2410,12 +2544,13 @@ s32 igb_get_thermal_sensor_data_generic(struct e1000_hw *hw)
 	return status;
 }
 
-/* igb_init_thermal_sensor_thresh_generic - Sets thermal sensor thresholds
+/**
+ *  igb_init_thermal_sensor_thresh_generic - Sets thermal sensor thresholds
  *  @hw: pointer to hardware structure
  *
  *  Sets the thermal sensor thresholds according to the NVM map
  *  and save off the threshold and location values into mac.thermal_sensor_data
- */
+ **/
 s32 igb_init_thermal_sensor_thresh_generic(struct e1000_hw *hw)
 {
 	s32 status = E1000_SUCCESS;

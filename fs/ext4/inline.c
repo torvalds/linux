@@ -19,7 +19,8 @@
 
 #define EXT4_XATTR_SYSTEM_DATA	"data"
 #define EXT4_MIN_INLINE_DATA_SIZE	((sizeof(__le32) * EXT4_N_BLOCKS))
-#define EXT4_INLINE_DOTDOT_SIZE	4
+#define EXT4_INLINE_DOTDOT_OFFSET	2
+#define EXT4_INLINE_DOTDOT_SIZE		4
 
 int ext4_get_inline_size(struct inode *inode)
 {
@@ -1289,6 +1290,120 @@ out:
 	return ret;
 }
 
+/*
+ * This function fills a red-black tree with information from an
+ * inlined dir.  It returns the number directory entries loaded
+ * into the tree.  If there is an error it is returned in err.
+ */
+int htree_inlinedir_to_tree(struct file *dir_file,
+			    struct inode *dir, ext4_lblk_t block,
+			    struct dx_hash_info *hinfo,
+			    __u32 start_hash, __u32 start_minor_hash,
+			    int *has_inline_data)
+{
+	int err = 0, count = 0;
+	unsigned int parent_ino;
+	int pos;
+	struct ext4_dir_entry_2 *de;
+	struct inode *inode = file_inode(dir_file);
+	int ret, inline_size = 0;
+	struct ext4_iloc iloc;
+	void *dir_buf = NULL;
+	struct ext4_dir_entry_2 fake;
+
+	ret = ext4_get_inode_loc(inode, &iloc);
+	if (ret)
+		return ret;
+
+	down_read(&EXT4_I(inode)->xattr_sem);
+	if (!ext4_has_inline_data(inode)) {
+		up_read(&EXT4_I(inode)->xattr_sem);
+		*has_inline_data = 0;
+		goto out;
+	}
+
+	inline_size = ext4_get_inline_size(inode);
+	dir_buf = kmalloc(inline_size, GFP_NOFS);
+	if (!dir_buf) {
+		ret = -ENOMEM;
+		up_read(&EXT4_I(inode)->xattr_sem);
+		goto out;
+	}
+
+	ret = ext4_read_inline_data(inode, dir_buf, inline_size, &iloc);
+	up_read(&EXT4_I(inode)->xattr_sem);
+	if (ret < 0)
+		goto out;
+
+	pos = 0;
+	parent_ino = le32_to_cpu(((struct ext4_dir_entry_2 *)dir_buf)->inode);
+	while (pos < inline_size) {
+		/*
+		 * As inlined dir doesn't store any information about '.' and
+		 * only the inode number of '..' is stored, we have to handle
+		 * them differently.
+		 */
+		if (pos == 0) {
+			fake.inode = cpu_to_le32(inode->i_ino);
+			fake.name_len = 1;
+			strcpy(fake.name, ".");
+			fake.rec_len = ext4_rec_len_to_disk(
+						EXT4_DIR_REC_LEN(fake.name_len),
+						inline_size);
+			ext4_set_de_type(inode->i_sb, &fake, S_IFDIR);
+			de = &fake;
+			pos = EXT4_INLINE_DOTDOT_OFFSET;
+		} else if (pos == EXT4_INLINE_DOTDOT_OFFSET) {
+			fake.inode = cpu_to_le32(parent_ino);
+			fake.name_len = 2;
+			strcpy(fake.name, "..");
+			fake.rec_len = ext4_rec_len_to_disk(
+						EXT4_DIR_REC_LEN(fake.name_len),
+						inline_size);
+			ext4_set_de_type(inode->i_sb, &fake, S_IFDIR);
+			de = &fake;
+			pos = EXT4_INLINE_DOTDOT_SIZE;
+		} else {
+			de = (struct ext4_dir_entry_2 *)(dir_buf + pos);
+			pos += ext4_rec_len_from_disk(de->rec_len, inline_size);
+			if (ext4_check_dir_entry(inode, dir_file, de,
+					 iloc.bh, dir_buf,
+					 inline_size, pos)) {
+				ret = count;
+				goto out;
+			}
+		}
+
+		ext4fs_dirhash(de->name, de->name_len, hinfo);
+		if ((hinfo->hash < start_hash) ||
+		    ((hinfo->hash == start_hash) &&
+		     (hinfo->minor_hash < start_minor_hash)))
+			continue;
+		if (de->inode == 0)
+			continue;
+		err = ext4_htree_store_dirent(dir_file,
+				   hinfo->hash, hinfo->minor_hash, de);
+		if (err) {
+			count = err;
+			goto out;
+		}
+		count++;
+	}
+	ret = count;
+out:
+	kfree(dir_buf);
+	brelse(iloc.bh);
+	return ret;
+}
+
+/*
+ * So this function is called when the volume is mkfsed with
+ * dir_index disabled. In order to keep f_pos persistent
+ * after we convert from an inlined dir to a blocked based,
+ * we just pretend that we are a normal dir and return the
+ * offset as if '.' and '..' really take place.
+ *
+ */
 int ext4_read_inline_dir(struct file *filp,
 			 void *dirent, filldir_t filldir,
 			 int *has_inline_data)
@@ -1302,6 +1417,7 @@ int ext4_read_inline_dir(struct file *filp,
 	int ret, inline_size = 0;
 	struct ext4_iloc iloc;
 	void *dir_buf = NULL;
+	int dotdot_offset, dotdot_size, extra_offset, extra_size;
 
 	ret = ext4_get_inode_loc(inode, &iloc);
 	if (ret)
@@ -1330,8 +1446,21 @@ int ext4_read_inline_dir(struct file *filp,
 	sb = inode->i_sb;
 	stored = 0;
 	parent_ino = le32_to_cpu(((struct ext4_dir_entry_2 *)dir_buf)->inode);
+	offset = filp->f_pos;
 
-	while (!error && !stored && filp->f_pos < inode->i_size) {
+	/*
+	 * dotdot_offset and dotdot_size is the real offset and
+	 * size for ".." and "." if the dir is block based while
+	 * the real size for them are only EXT4_INLINE_DOTDOT_SIZE.
+	 * So we will use extra_offset and extra_size to indicate them
+	 * during the inline dir iteration.
+	 */
+	dotdot_offset = EXT4_DIR_REC_LEN(1);
+	dotdot_size = dotdot_offset + EXT4_DIR_REC_LEN(2);
+	extra_offset = dotdot_size - EXT4_INLINE_DOTDOT_SIZE;
+	extra_size = extra_offset + inline_size;
+
+	while (!error && !stored && filp->f_pos < extra_size) {
 revalidate:
 		/*
 		 * If the version has changed since the last call to
@@ -1340,15 +1469,23 @@ revalidate:
 		 * dir to make sure.
 		 */
 		if (filp->f_version != inode->i_version) {
-			for (i = 0;
-			     i < inode->i_size && i < offset;) {
+			for (i = 0; i < extra_size && i < offset;) {
+				/*
+				 * "." is with offset 0 and
+				 * ".." is dotdot_offset.
+				 */
 				if (!i) {
-					/* skip "." and ".." if needed. */
-					i += EXT4_INLINE_DOTDOT_SIZE;
+					i = dotdot_offset;
+					continue;
+				} else if (i == dotdot_offset) {
+					i = dotdot_size;
 					continue;
 				}
+				/* for other entry, the real offset in
+				 * the buf has to be tuned accordingly.
+				 */
 				de = (struct ext4_dir_entry_2 *)
-					(dir_buf + i);
+					(dir_buf + i - extra_offset);
 				/* It's too expensive to do a full
 				 * dirent test each time round this
 				 * loop, but we do have to test at
@@ -1356,43 +1493,47 @@ revalidate:
 				 * failure will be detected in the
 				 * dirent test below. */
 				if (ext4_rec_len_from_disk(de->rec_len,
-					inline_size) < EXT4_DIR_REC_LEN(1))
+					extra_size) < EXT4_DIR_REC_LEN(1))
 					break;
 				i += ext4_rec_len_from_disk(de->rec_len,
-							    inline_size);
+							    extra_size);
 			}
 			offset = i;
 			filp->f_pos = offset;
 			filp->f_version = inode->i_version;
 		}
 
-		while (!error && filp->f_pos < inode->i_size) {
+		while (!error && filp->f_pos < extra_size) {
 			if (filp->f_pos == 0) {
 				error = filldir(dirent, ".", 1, 0, inode->i_ino,
 						DT_DIR);
 				if (error)
 					break;
 				stored++;
+				filp->f_pos = dotdot_offset;
+				continue;
+			}
 
-				error = filldir(dirent, "..", 2, 0, parent_ino,
-						DT_DIR);
+			if (filp->f_pos == dotdot_offset) {
+				error = filldir(dirent, "..", 2,
+						dotdot_offset,
+						parent_ino, DT_DIR);
 				if (error)
 					break;
 				stored++;
 
-				filp->f_pos = offset = EXT4_INLINE_DOTDOT_SIZE;
+				filp->f_pos = dotdot_size;
 				continue;
 			}
 
-			de = (struct ext4_dir_entry_2 *)(dir_buf + offset);
+			de = (struct ext4_dir_entry_2 *)
+				(dir_buf + filp->f_pos - extra_offset);
 			if (ext4_check_dir_entry(inode, filp, de,
 						 iloc.bh, dir_buf,
-						 inline_size, offset)) {
+						 extra_size, filp->f_pos)) {
 				ret = stored;
 				goto out;
 			}
-			offset += ext4_rec_len_from_disk(de->rec_len,
-							 inline_size);
 			if (le32_to_cpu(de->inode)) {
 				/* We might block in the next section
 				 * if the data destination is
@@ -1415,9 +1556,8 @@ revalidate:
 				stored++;
 			}
 			filp->f_pos += ext4_rec_len_from_disk(de->rec_len,
-							      inline_size);
+							      extra_size);
 		}
-		offset = 0;
 	}
 out:
 	kfree(dir_buf);

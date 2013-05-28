@@ -26,7 +26,7 @@ static inline void serial_out(int offset, int value, unsigned int base_addr)
 	__raw_writel(value, PORT(base_addr, offset));
 }
 
-void __init prom_init_early_console(char port)
+void __init fw_init_early_console(char port)
 {
 	console_port = port;
 }

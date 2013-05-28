@@ -934,17 +934,4 @@ static struct pcmcia_driver bluecard_driver = {
 	.remove		= bluecard_detach,
 	.id_table	= bluecard_ids,
 };
-
-static int __init init_bluecard_cs(void)
-{
-	return pcmcia_register_driver(&bluecard_driver);
-}
-
-
-static void __exit exit_bluecard_cs(void)
-{
-	pcmcia_unregister_driver(&bluecard_driver);
-}
-
-module_init(init_bluecard_cs);
-module_exit(exit_bluecard_cs);
+module_pcmcia_driver(bluecard_driver);

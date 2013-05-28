@@ -1,0 +1,16 @@
+#
+# SSBI bus support
+#
+
+menu "Qualcomm MSM SSBI bus support"
+
+config SSBI
+	tristate "Qualcomm Single-wire Serial Bus Interface (SSBI)"
+	help
+	  If you say yes to this option, support will be included for the
+	  built-in SSBI interface on Qualcomm MSM family processors.
+
+	  This is required for communicating with Qualcomm PMICs and
+	  other devices that have the SSBI interface.
+
+endmenu

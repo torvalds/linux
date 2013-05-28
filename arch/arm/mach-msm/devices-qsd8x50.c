@@ -30,6 +30,37 @@
 #include <linux/platform_data/mmc-msm_sdcc.h>
 #include "clock-pcom.h"
 
+static struct resource msm_gpio_resources[] = {
+	{
+		.start	= 64 + 165 + 9,
+		.end	= 64 + 165 + 9,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= 64 + 165 + 10,
+		.end	= 64 + 165 + 10,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= 0xa9000800,
+		.end	= 0xa9000800 + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+		.name  = "gpio1"
+	},
+	{
+		.start	= 0xa9100C00,
+		.end	= 0xa9100C00 + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+		.name  = "gpio2"
+	},
+};
+
+struct platform_device msm_device_gpio_8x50 = {
+	.name	= "gpio-msm-8x50",
+	.num_resources	= ARRAY_SIZE(msm_gpio_resources),
+	.resource	= msm_gpio_resources,
+};
+
 static struct resource resources_uart3[] = {
 	{
 		.start	= INT_UART3,

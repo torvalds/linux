@@ -196,7 +196,7 @@ static void pcan_write_canreg(const struct sja1000_priv *priv, int port, u8 v)
 	int c = (priv->reg_base - card->ioport_addr) / PCC_CHAN_SIZE;
 
 	/* sja1000 register changes control the leds state */
-	if (port == REG_MOD)
+	if (port == SJA1000_MOD)
 		switch (v) {
 		case MOD_RM:
 			/* Reset Mode: set led on */
@@ -509,11 +509,11 @@ static void pcan_free_channels(struct pcan_pccard *card)
 static inline int pcan_channel_present(struct sja1000_priv *priv)
 {
 	/* make sure SJA1000 is in reset mode */
-	pcan_write_canreg(priv, REG_MOD, 1);
-	pcan_write_canreg(priv, REG_CDR, CDR_PELICAN);
+	pcan_write_canreg(priv, SJA1000_MOD, 1);
+	pcan_write_canreg(priv, SJA1000_CDR, CDR_PELICAN);
 
 	/* read reset-values */
-	if (pcan_read_canreg(priv, REG_CDR) == CDR_PELICAN)
+	if (pcan_read_canreg(priv, SJA1000_CDR) == CDR_PELICAN)
 		return 1;
 
 	return 0;
@@ -740,15 +740,4 @@ static struct pcmcia_driver pcan_driver = {
 	.remove = pcan_remove,
 	.id_table = pcan_table,
 };
-
-static int __init pcan_init(void)
-{
-	return pcmcia_register_driver(&pcan_driver);
-}
-module_init(pcan_init);
-
-static void __exit pcan_exit(void)
-{
-	pcmcia_unregister_driver(&pcan_driver);
-}
-module_exit(pcan_exit);
+module_pcmcia_driver(pcan_driver);

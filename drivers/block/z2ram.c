@@ -309,20 +309,18 @@ err_out:
     return rc;
 }
 
-static int
+static void
 z2_release(struct gendisk *disk, fmode_t mode)
 {
     mutex_lock(&z2ram_mutex);
     if ( current_device == -1 ) {
     	mutex_unlock(&z2ram_mutex);
-    	return 0;
+    	return;
     }
     mutex_unlock(&z2ram_mutex);
     /*
      * FIXME: unmap memory
      */
-
-    return 0;
 }
 
 static const struct block_device_operations z2_fops =

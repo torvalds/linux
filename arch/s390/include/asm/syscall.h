@@ -23,6 +23,7 @@
  * type here is what we want [need] for both 32 bit and 64 bit systems.
  */
 extern const unsigned int sys_call_table[];
+extern const unsigned int sys_call_table_emu[];
 
 static inline long syscall_get_nr(struct task_struct *task,
 				  struct pt_regs *regs)

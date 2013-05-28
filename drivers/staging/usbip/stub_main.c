@@ -38,11 +38,11 @@ static spinlock_t busid_table_lock;
 
 static void init_busid_table(void)
 {
-	int i;
-
+	/*
+	 * This also sets the bus_table[i].status to
+	 * STUB_BUSID_OTHER, which is 0.
+	 */
 	memset(busid_table, 0, sizeof(busid_table));
-	for (i = 0; i < MAX_BUSID; i++)
-		busid_table[i].status = STUB_BUSID_OTHER;
 
 	spin_lock_init(&busid_table_lock);
 }
@@ -167,22 +167,22 @@ static ssize_t store_match_busid(struct device_driver *dev, const char *buf,
 	strncpy(busid, buf + 4, BUSID_SIZE);
 
 	if (!strncmp(buf, "add ", 4)) {
-		if (add_match_busid(busid) < 0) {
+		if (add_match_busid(busid) < 0)
 			return -ENOMEM;
-		} else {
-			pr_debug("add busid %s\n", busid);
-			return count;
-		}
-	} else if (!strncmp(buf, "del ", 4)) {
-		if (del_match_busid(busid) < 0) {
-			return -ENODEV;
-		} else {
-			pr_debug("del busid %s\n", busid);
-			return count;
-		}
-	} else {
-		return -EINVAL;
+
+		pr_debug("add busid %s\n", busid);
+		return count;
 	}
+
+	if (!strncmp(buf, "del ", 4)) {
+		if (del_match_busid(busid) < 0)
+			return -ENODEV;
+
+		pr_debug("del busid %s\n", busid);
+		return count;
+	}
+
+	return -EINVAL;
 }
 static DRIVER_ATTR(match_busid, S_IRUSR | S_IWUSR, show_match_busid,
 		   store_match_busid);

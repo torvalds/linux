@@ -4,7 +4,7 @@
 #include <core/device.h>
 #include <core/subdev.h>
 
-enum nouveau_therm_mode {
+enum nouveau_therm_fan_mode {
 	NOUVEAU_THERM_CTRL_NONE = 0,
 	NOUVEAU_THERM_CTRL_MANUAL = 1,
 	NOUVEAU_THERM_CTRL_AUTO = 2,
@@ -73,6 +73,7 @@ int  _nouveau_therm_fini(struct nouveau_object *, bool);
 
 extern struct nouveau_oclass nv40_therm_oclass;
 extern struct nouveau_oclass nv50_therm_oclass;
+extern struct nouveau_oclass nv84_therm_oclass;
 extern struct nouveau_oclass nva3_therm_oclass;
 extern struct nouveau_oclass nvd0_therm_oclass;
 

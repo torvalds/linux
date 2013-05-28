@@ -11,7 +11,6 @@
 #include <asm/time.h>
 #include <asm/irq.h>
 #include <asm/mips-boards/generic.h>
-#include <asm/mips-boards/prom.h>
 
 unsigned long cpu_khz;
 

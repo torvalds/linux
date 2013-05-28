@@ -48,7 +48,7 @@ static const int eukrea_cpuimx27_pins[] __initconst = {
 	PE14_PF_UART1_CTS,
 	PE15_PF_UART1_RTS,
 	/* UART4 */
-#if defined(MACH_EUKREA_CPUIMX27_USEUART4)
+#if defined(CONFIG_MACH_EUKREA_CPUIMX27_USEUART4)
 	PB26_AF_UART4_RTS,
 	PB28_AF_UART4_TXD,
 	PB29_AF_UART4_CTS,
@@ -272,7 +272,7 @@ static void __init eukrea_cpuimx27_init(void)
 	/* SDHC2 can be used for Wifi */
 	imx27_add_mxc_mmc(1, NULL);
 #endif
-#if defined(MACH_EUKREA_CPUIMX27_USEUART4)
+#if defined(CONFIG_MACH_EUKREA_CPUIMX27_USEUART4)
 	/* in which case UART4 is also used for Bluetooth */
 	imx27_add_imx_uart3(&uart_pdata);
 #endif

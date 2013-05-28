@@ -550,7 +550,7 @@ static int mpc512x_psc_clock(struct uart_port *port, int enable)
 		return 0;
 
 	psc_num = (port->mapbase & 0xf00) >> 8;
-	snprintf(clk_name, sizeof(clk_name), "psc%d_clk", psc_num);
+	snprintf(clk_name, sizeof(clk_name), "psc%d_mclk", psc_num);
 	psc_clk = clk_get(port->dev, clk_name);
 	if (IS_ERR(psc_clk)) {
 		dev_err(port->dev, "Failed to get PSC clock entry!\n");
@@ -1497,18 +1497,23 @@ mpc52xx_uart_init(void)
 	if (psc_ops && psc_ops->fifoc_init) {
 		ret = psc_ops->fifoc_init();
 		if (ret)
-			return ret;
+			goto err_init;
 	}
 
 	ret = platform_driver_register(&mpc52xx_uart_of_driver);
 	if (ret) {
 		printk(KERN_ERR "%s: platform_driver_register failed (%i)\n",
 		       __FILE__, ret);
-		uart_unregister_driver(&mpc52xx_uart_driver);
-		return ret;
+		goto err_reg;
 	}
 
 	return 0;
+err_reg:
+	if (psc_ops && psc_ops->fifoc_uninit)
+		psc_ops->fifoc_uninit();
+err_init:
+	uart_unregister_driver(&mpc52xx_uart_driver);
+	return ret;
 }
 
 static void __exit

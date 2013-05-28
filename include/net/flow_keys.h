@@ -9,6 +9,7 @@ struct flow_keys {
 		__be32 ports;
 		__be16 port16[2];
 	};
+	u16 thoff;
 	u8 ip_proto;
 };
 

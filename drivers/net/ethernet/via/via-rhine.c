@@ -508,8 +508,10 @@ static struct rtnl_link_stats64 *rhine_get_stats64(struct net_device *dev,
 static int netdev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 static const struct ethtool_ops netdev_ethtool_ops;
 static int  rhine_close(struct net_device *dev);
-static int rhine_vlan_rx_add_vid(struct net_device *dev, unsigned short vid);
-static int rhine_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid);
+static int rhine_vlan_rx_add_vid(struct net_device *dev,
+				 __be16 proto, u16 vid);
+static int rhine_vlan_rx_kill_vid(struct net_device *dev,
+				  __be16 proto, u16 vid);
 static void rhine_restart_tx(struct net_device *dev);
 
 static void rhine_wait_bit(struct rhine_private *rp, u8 reg, u8 mask, bool low)
@@ -1026,8 +1028,9 @@ static int rhine_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev->features |= NETIF_F_SG|NETIF_F_HW_CSUM;
 
 	if (pdev->revision >= VT6105M)
-		dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX |
-		NETIF_F_HW_VLAN_FILTER;
+		dev->features |= NETIF_F_HW_VLAN_CTAG_TX |
+				 NETIF_F_HW_VLAN_CTAG_RX |
+				 NETIF_F_HW_VLAN_CTAG_FILTER;
 
 	/* dev->name not defined before register_netdev()! */
 	rc = register_netdev(dev);
@@ -1414,7 +1417,7 @@ static void rhine_update_vcam(struct net_device *dev)
 	rhine_set_vlan_cam_mask(ioaddr, vCAMmask);
 }
 
-static int rhine_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
+static int rhine_vlan_rx_add_vid(struct net_device *dev, __be16 proto, u16 vid)
 {
 	struct rhine_private *rp = netdev_priv(dev);
 
@@ -1425,7 +1428,7 @@ static int rhine_vlan_rx_add_vid(struct net_device *dev, unsigned short vid)
 	return 0;
 }
 
-static int rhine_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
+static int rhine_vlan_rx_kill_vid(struct net_device *dev, __be16 proto, u16 vid)
 {
 	struct rhine_private *rp = netdev_priv(dev);
 
@@ -1933,7 +1936,7 @@ static int rhine_rx(struct net_device *dev, int limit)
 			skb->protocol = eth_type_trans(skb, dev);
 
 			if (unlikely(desc_length & DescTag))
-				__vlan_hwaccel_put_tag(skb, vlan_tci);
+				__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q), vlan_tci);
 			netif_receive_skb(skb);
 
 			u64_stats_update_begin(&rp->rx_stats.syncp);

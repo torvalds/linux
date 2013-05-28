@@ -20,10 +20,11 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <linux/types.h>
+#include <linux/compat.h>
+#include <linux/export.h>
 #include <linux/ioctl.h>
 #include <linux/media.h>
-#include <linux/export.h>
+#include <linux/types.h>
 
 #include <media/media-device.h>
 #include <media/media-devnode.h>
@@ -101,9 +102,12 @@ static long media_device_enum_entities(struct media_device *mdev,
 		return -EINVAL;
 
 	u_ent.id = ent->id;
-	u_ent.name[0] = '\0';
-	if (ent->name)
-		strlcpy(u_ent.name, ent->name, sizeof(u_ent.name));
+	if (ent->name) {
+		strncpy(u_ent.name, ent->name, sizeof(u_ent.name));
+		u_ent.name[sizeof(u_ent.name) - 1] = '\0';
+	} else {
+		memset(u_ent.name, 0, sizeof(u_ent.name));
+	}
 	u_ent.type = ent->type;
 	u_ent.revision = ent->revision;
 	u_ent.flags = ent->flags;
@@ -124,35 +128,31 @@ static void media_device_kpad_to_upad(const struct media_pad *kpad,
 	upad->flags = kpad->flags;
 }
 
-static long media_device_enum_links(struct media_device *mdev,
-				    struct media_links_enum __user *ulinks)
+static long __media_device_enum_links(struct media_device *mdev,
+				      struct media_links_enum *links)
 {
 	struct media_entity *entity;
-	struct media_links_enum links;
 
-	if (copy_from_user(&links, ulinks, sizeof(links)))
-		return -EFAULT;
-
-	entity = find_entity(mdev, links.entity);
+	entity = find_entity(mdev, links->entity);
 	if (entity == NULL)
 		return -EINVAL;
 
-	if (links.pads) {
+	if (links->pads) {
 		unsigned int p;
 
 		for (p = 0; p < entity->num_pads; p++) {
 			struct media_pad_desc pad;
 			media_device_kpad_to_upad(&entity->pads[p], &pad);
-			if (copy_to_user(&links.pads[p], &pad, sizeof(pad)))
+			if (copy_to_user(&links->pads[p], &pad, sizeof(pad)))
 				return -EFAULT;
 		}
 	}
 
-	if (links.links) {
+	if (links->links) {
 		struct media_link_desc __user *ulink;
 		unsigned int l;
 
-		for (l = 0, ulink = links.links; l < entity->num_links; l++) {
+		for (l = 0, ulink = links->links; l < entity->num_links; l++) {
 			struct media_link_desc link;
 
 			/* Ignore backlinks. */
@@ -169,8 +169,26 @@ static long media_device_enum_links(struct media_device *mdev,
 			ulink++;
 		}
 	}
+
+	return 0;
+}
+
+static long media_device_enum_links(struct media_device *mdev,
+				    struct media_links_enum __user *ulinks)
+{
+	struct media_links_enum links;
+	int rval;
+
+	if (copy_from_user(&links, ulinks, sizeof(links)))
+		return -EFAULT;
+
+	rval = __media_device_enum_links(mdev, &links);
+	if (rval < 0)
+		return rval;
+
 	if (copy_to_user(ulinks, &links, sizeof(*ulinks)))
 		return -EFAULT;
+
 	return 0;
 }
 
@@ -251,10 +269,71 @@ static long media_device_ioctl(struct file *filp, unsigned int cmd,
 	return ret;
 }
 
+#ifdef CONFIG_COMPAT
+
+struct media_links_enum32 {
+	__u32 entity;
+	compat_uptr_t pads; /* struct media_pad_desc * */
+	compat_uptr_t links; /* struct media_link_desc * */
+	__u32 reserved[4];
+};
+
+static long media_device_enum_links32(struct media_device *mdev,
+				      struct media_links_enum32 __user *ulinks)
+{
+	struct media_links_enum links;
+	compat_uptr_t pads_ptr, links_ptr;
+
+	memset(&links, 0, sizeof(links));
+
+	if (get_user(links.entity, &ulinks->entity)
+	    || get_user(pads_ptr, &ulinks->pads)
+	    || get_user(links_ptr, &ulinks->links))
+		return -EFAULT;
+
+	links.pads = compat_ptr(pads_ptr);
+	links.links = compat_ptr(links_ptr);
+
+	return __media_device_enum_links(mdev, &links);
+}
+
+#define MEDIA_IOC_ENUM_LINKS32		_IOWR('|', 0x02, struct media_links_enum32)
+
+static long media_device_compat_ioctl(struct file *filp, unsigned int cmd,
+				      unsigned long arg)
+{
+	struct media_devnode *devnode = media_devnode_data(filp);
+	struct media_device *dev = to_media_device(devnode);
+	long ret;
+
+	switch (cmd) {
+	case MEDIA_IOC_DEVICE_INFO:
+	case MEDIA_IOC_ENUM_ENTITIES:
+	case MEDIA_IOC_SETUP_LINK:
+		return media_device_ioctl(filp, cmd, arg);
+
+	case MEDIA_IOC_ENUM_LINKS32:
+		mutex_lock(&dev->graph_mutex);
+		ret = media_device_enum_links32(dev,
+				(struct media_links_enum32 __user *)arg);
+		mutex_unlock(&dev->graph_mutex);
+		break;
+
+	default:
+		ret = -ENOIOCTLCMD;
+	}
+
+	return ret;
+}
+#endif /* CONFIG_COMPAT */
+
 static const struct media_file_operations media_device_fops = {
 	.owner = THIS_MODULE,
 	.open = media_device_open,
 	.ioctl = media_device_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = media_device_compat_ioctl,
+#endif /* CONFIG_COMPAT */
 	.release = media_device_close,
 };
 

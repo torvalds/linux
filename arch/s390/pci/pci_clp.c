@@ -13,6 +13,7 @@
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/pci.h>
+#include <asm/pci_debug.h>
 #include <asm/pci_clp.h>
 
 /*
@@ -144,6 +145,7 @@ int clp_add_pci_device(u32 fid, u32 fh, int configured)
 	struct zpci_dev *zdev;
 	int rc;
 
+	zpci_dbg(3, "add fid:%x, fh:%x, c:%d\n", fid, fh, configured);
 	zdev = zpci_alloc_device();
 	if (IS_ERR(zdev))
 		return PTR_ERR(zdev);
@@ -204,8 +206,8 @@ static int clp_set_pci_fn(u32 *fh, u8 nr_dma_as, u8 command)
 	if (!rc && rrb->response.hdr.rsp == CLP_RC_OK)
 		*fh = rrb->response.fh;
 	else {
-		pr_err("Set PCI FN failed with response: %x  cc: %d\n",
-			rrb->response.hdr.rsp, rc);
+		zpci_dbg(0, "SPF fh:%x, cc:%d, resp:%x\n", *fh, rc,
+			 rrb->response.hdr.rsp);
 		rc = -EIO;
 	}
 	clp_free_block(rrb);
@@ -221,6 +223,8 @@ int clp_enable_fh(struct zpci_dev *zdev, u8 nr_dma_as)
 	if (!rc)
 		/* Success -> store enabled handle in zdev */
 		zdev->fh = fh;
+
+	zpci_dbg(3, "ena fid:%x, fh:%x, rc:%d\n", zdev->fid, zdev->fh, rc);
 	return rc;
 }
 
@@ -237,9 +241,8 @@ int clp_disable_fh(struct zpci_dev *zdev)
 	if (!rc)
 		/* Success -> store disabled handle in zdev */
 		zdev->fh = fh;
-	else
-		dev_err(&zdev->pdev->dev,
-			"Failed to disable fn handle: 0x%x\n", fh);
+
+	zpci_dbg(3, "dis fid:%x, fh:%x, rc:%d\n", zdev->fid, zdev->fh, rc);
 	return rc;
 }
 

@@ -53,11 +53,13 @@ int test__basic_mmap(void)
 		goto out_free_cpus;
 	}
 
-	evlist = perf_evlist__new(cpus, threads);
+	evlist = perf_evlist__new();
 	if (evlist == NULL) {
 		pr_debug("perf_evlist__new\n");
 		goto out_free_cpus;
 	}
+
+	perf_evlist__set_maps(evlist, cpus, threads);
 
 	for (i = 0; i < nsyscalls; ++i) {
 		char name[64];

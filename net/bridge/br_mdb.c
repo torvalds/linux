@@ -80,6 +80,7 @@ static int br_mdb_fill_info(struct sk_buff *skb, struct netlink_callback *cb,
 				port = p->port;
 				if (port) {
 					struct br_mdb_entry e;
+					memset(&e, 0, sizeof(e));
 					e.ifindex = port->dev->ifindex;
 					e.state = p->state;
 					if (p->addr.proto == htons(ETH_P_IP))
@@ -136,6 +137,7 @@ static int br_mdb_dump(struct sk_buff *skb, struct netlink_callback *cb)
 				break;
 
 			bpm = nlmsg_data(nlh);
+			memset(bpm, 0, sizeof(*bpm));
 			bpm->ifindex = dev->ifindex;
 			if (br_mdb_fill_info(skb, cb, dev) < 0)
 				goto out;
@@ -171,6 +173,7 @@ static int nlmsg_populate_mdb_fill(struct sk_buff *skb,
 		return -EMSGSIZE;
 
 	bpm = nlmsg_data(nlh);
+	memset(bpm, 0, sizeof(*bpm));
 	bpm->family  = AF_BRIDGE;
 	bpm->ifindex = dev->ifindex;
 	nest = nla_nest_start(skb, MDBA_MDB);
@@ -228,6 +231,7 @@ void br_mdb_notify(struct net_device *dev, struct net_bridge_port *port,
 {
 	struct br_mdb_entry entry;
 
+	memset(&entry, 0, sizeof(entry));
 	entry.ifindex = port->dev->ifindex;
 	entry.addr.proto = group->proto;
 	entry.addr.u.ip4 = group->u.ip4;
@@ -378,7 +382,7 @@ static int __br_mdb_add(struct net *net, struct net_bridge *br,
 	return ret;
 }
 
-static int br_mdb_add(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
+static int br_mdb_add(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct net *net = sock_net(skb->sk);
 	struct br_mdb_entry *entry;
@@ -454,7 +458,7 @@ unlock:
 	return err;
 }
 
-static int br_mdb_del(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
+static int br_mdb_del(struct sk_buff *skb, struct nlmsghdr *nlh)
 {
 	struct net_device *dev;
 	struct br_mdb_entry *entry;

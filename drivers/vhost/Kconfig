@@ -1,6 +1,7 @@
 config VHOST_NET
 	tristate "Host kernel accelerator for virtio net"
 	depends on NET && EVENTFD && (TUN || !TUN) && (MACVTAP || !MACVTAP)
+	select VHOST_RING
 	---help---
 	  This kernel module can be loaded in host kernel to accelerate
 	  guest networking with virtio_net. Not to be confused with virtio_net
@@ -9,6 +10,17 @@ config VHOST_NET
 	  To compile this driver as a module, choose M here: the module will
 	  be called vhost_net.
 
-if STAGING
-source "drivers/vhost/Kconfig.tcm"
-endif
+config VHOST_SCSI
+	tristate "VHOST_SCSI TCM fabric driver"
+	depends on TARGET_CORE && EVENTFD && m
+	select VHOST_RING
+	default n
+	---help---
+	Say M here to enable the vhost_scsi TCM fabric module
+	for use with virtio-scsi guests
+
+config VHOST_RING
+	tristate
+	---help---
+	  This option is selected by any driver which needs to access
+	  the host side of a virtio ring.

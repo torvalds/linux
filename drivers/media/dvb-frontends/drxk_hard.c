@@ -1947,8 +1947,7 @@ static int ShutDown(struct drxk_state *state)
 	return 0;
 }
 
-static int GetLockStatus(struct drxk_state *state, u32 *pLockStatus,
-			 u32 Time)
+static int GetLockStatus(struct drxk_state *state, u32 *pLockStatus)
 {
 	int status = -EINVAL;
 
@@ -2490,32 +2489,6 @@ error:
 	return status;
 }
 
-static int ReadIFAgc(struct drxk_state *state, u32 *pValue)
-{
-	u16 agcDacLvl;
-	int status;
-	u16 Level = 0;
-
-	dprintk(1, "\n");
-
-	status = read16(state, IQM_AF_AGC_IF__A, &agcDacLvl);
-	if (status < 0) {
-		printk(KERN_ERR "drxk: Error %d on %s\n", status, __func__);
-		return status;
-	}
-
-	*pValue = 0;
-
-	if (agcDacLvl > DRXK_AGC_DAC_OFFSET)
-		Level = agcDacLvl - DRXK_AGC_DAC_OFFSET;
-	if (Level < 14000)
-		*pValue = (14000 - Level) / 4;
-	else
-		*pValue = 0;
-
-	return status;
-}
-
 static int GetQAMSignalToNoise(struct drxk_state *state,
 			       s32 *pSignalToNoise)
 {
@@ -2654,12 +2627,7 @@ static int GetDVBTSignalToNoise(struct drxk_state *state,
 		/* log(x) x = (16bits + 16bits) << 15 ->32 bits  */
 		c = Log10Times100(SqrErrIQ);
 
-		iMER = a + b;
-		/* No negative MER, clip to zero */
-		if (iMER > c)
-			iMER -= c;
-		else
-			iMER = 0;
+		iMER = a + b - c;
 	}
 	*pSignalToNoise = iMER;
 
@@ -6380,46 +6348,257 @@ static int drxk_set_parameters(struct dvb_frontend *fe)
 	fe->ops.tuner_ops.get_if_frequency(fe, &IF);
 	Start(state, 0, IF);
 
+	/* After set_frontend, stats aren't avaliable */
+	p->strength.stat[0].scale = FE_SCALE_RELATIVE;
+	p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->block_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->pre_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->pre_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+
 	/* printk(KERN_DEBUG "drxk: %s IF=%d done\n", __func__, IF); */
 
 	return 0;
 }
 
-static int drxk_read_status(struct dvb_frontend *fe, fe_status_t *status)
+static int get_strength(struct drxk_state *state, u64 *strength)
 {
-	struct drxk_state *state = fe->demodulator_priv;
-	u32 stat;
+	int status;
+	struct SCfgAgc   rfAgc, ifAgc;
+	u32          totalGain  = 0;
+	u32          atten      = 0;
+	u32          agcRange   = 0;
+	u16            scu_lvl  = 0;
+	u16            scu_coc  = 0;
+	/* FIXME: those are part of the tuner presets */
+	u16 tunerRfGain         = 50; /* Default value on az6007 driver */
+	u16 tunerIfGain         = 40; /* Default value on az6007 driver */
 
-	dprintk(1, "\n");
+	*strength = 0;
 
-	if (state->m_DrxkState == DRXK_NO_DEV)
-		return -ENODEV;
-	if (state->m_DrxkState == DRXK_UNINITIALIZED)
-		return -EAGAIN;
+	if (IsDVBT(state)) {
+		rfAgc = state->m_dvbtRfAgcCfg;
+		ifAgc = state->m_dvbtIfAgcCfg;
+	} else if (IsQAM(state)) {
+		rfAgc = state->m_qamRfAgcCfg;
+		ifAgc = state->m_qamIfAgcCfg;
+	} else {
+		rfAgc = state->m_atvRfAgcCfg;
+		ifAgc = state->m_atvIfAgcCfg;
+	}
 
-	*status = 0;
-	GetLockStatus(state, &stat, 0);
-	if (stat == MPEG_LOCK)
-		*status |= 0x1f;
-	if (stat == FEC_LOCK)
-		*status |= 0x0f;
-	if (stat == DEMOD_LOCK)
-		*status |= 0x07;
+	if (rfAgc.ctrlMode == DRXK_AGC_CTRL_AUTO) {
+		/* SCU outputLevel */
+		status = read16(state, SCU_RAM_AGC_RF_IACCU_HI__A, &scu_lvl);
+		if (status < 0)
+			return status;
+
+		/* SCU c.o.c. */
+		read16(state, SCU_RAM_AGC_RF_IACCU_HI_CO__A, &scu_coc);
+		if (status < 0)
+			return status;
+
+		if (((u32) scu_lvl + (u32) scu_coc) < 0xffff)
+			rfAgc.outputLevel = scu_lvl + scu_coc;
+		else
+			rfAgc.outputLevel = 0xffff;
+
+		/* Take RF gain into account */
+		totalGain += tunerRfGain;
+
+		/* clip output value */
+		if (rfAgc.outputLevel < rfAgc.minOutputLevel)
+			rfAgc.outputLevel = rfAgc.minOutputLevel;
+		if (rfAgc.outputLevel > rfAgc.maxOutputLevel)
+			rfAgc.outputLevel = rfAgc.maxOutputLevel;
+
+		agcRange = (u32) (rfAgc.maxOutputLevel - rfAgc.minOutputLevel);
+		if (agcRange > 0) {
+			atten += 100UL *
+				((u32)(tunerRfGain)) *
+				((u32)(rfAgc.outputLevel - rfAgc.minOutputLevel))
+				/ agcRange;
+		}
+	}
+
+	if (ifAgc.ctrlMode == DRXK_AGC_CTRL_AUTO) {
+		status = read16(state, SCU_RAM_AGC_IF_IACCU_HI__A,
+				&ifAgc.outputLevel);
+		if (status < 0)
+			return status;
+
+		status = read16(state, SCU_RAM_AGC_INGAIN_TGT_MIN__A,
+				&ifAgc.top);
+		if (status < 0)
+			return status;
+
+		/* Take IF gain into account */
+		totalGain += (u32) tunerIfGain;
+
+		/* clip output value */
+		if (ifAgc.outputLevel < ifAgc.minOutputLevel)
+			ifAgc.outputLevel = ifAgc.minOutputLevel;
+		if (ifAgc.outputLevel > ifAgc.maxOutputLevel)
+			ifAgc.outputLevel = ifAgc.maxOutputLevel;
+
+		agcRange  = (u32) (ifAgc.maxOutputLevel - ifAgc.minOutputLevel);
+		if (agcRange > 0) {
+			atten += 100UL *
+				((u32)(tunerIfGain)) *
+				((u32)(ifAgc.outputLevel - ifAgc.minOutputLevel))
+				/ agcRange;
+		}
+	}
+
+	/*
+	 * Convert to 0..65535 scale.
+	 * If it can't be measured (AGC is disabled), just show 100%.
+	 */
+	if (totalGain > 0)
+		*strength = (65535UL * atten / totalGain / 100);
+	else
+		*strength = 65535;
+
 	return 0;
 }
 
-static int drxk_read_ber(struct dvb_frontend *fe, u32 *ber)
+static int drxk_get_stats(struct dvb_frontend *fe)
 {
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct drxk_state *state = fe->demodulator_priv;
-
-	dprintk(1, "\n");
+	int status;
+	u32 stat;
+	u16 reg16;
+	u32 post_bit_count;
+	u32 post_bit_err_count;
+	u32 post_bit_error_scale;
+	u32 pre_bit_err_count;
+	u32 pre_bit_count;
+	u32 pkt_count;
+	u32 pkt_error_count;
+	s32 cnr;
 
 	if (state->m_DrxkState == DRXK_NO_DEV)
 		return -ENODEV;
 	if (state->m_DrxkState == DRXK_UNINITIALIZED)
 		return -EAGAIN;
 
-	*ber = 0;
+	/* get status */
+	state->fe_status = 0;
+	GetLockStatus(state, &stat);
+	if (stat == MPEG_LOCK)
+		state->fe_status |= 0x1f;
+	if (stat == FEC_LOCK)
+		state->fe_status |= 0x0f;
+	if (stat == DEMOD_LOCK)
+		state->fe_status |= 0x07;
+
+	/*
+	 * Estimate signal strength from AGC
+	 */
+	get_strength(state, &c->strength.stat[0].uvalue);
+	c->strength.stat[0].scale = FE_SCALE_RELATIVE;
+
+
+	if (stat >= DEMOD_LOCK) {
+		GetSignalToNoise(state, &cnr);
+		c->cnr.stat[0].svalue = cnr * 100;
+		c->cnr.stat[0].scale = FE_SCALE_DECIBEL;
+	} else {
+		c->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	}
+
+	if (stat < FEC_LOCK) {
+		c->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->block_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->pre_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->pre_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		c->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+		return 0;
+	}
+
+	/* Get post BER */
+
+	/* BER measurement is valid if at least FEC lock is achieved */
+
+	/* OFDM_EC_VD_REQ_SMB_CNT__A and/or OFDM_EC_VD_REQ_BIT_CNT can be written
+		to set nr of symbols or bits over which
+		to measure EC_VD_REG_ERR_BIT_CNT__A . See CtrlSetCfg(). */
+
+	/* Read registers for post/preViterbi BER calculation */
+	status = read16(state, OFDM_EC_VD_ERR_BIT_CNT__A, &reg16);
+	if (status < 0)
+		goto error;
+	pre_bit_err_count = reg16;
+
+	status = read16(state, OFDM_EC_VD_IN_BIT_CNT__A , &reg16);
+	if (status < 0)
+		goto error;
+	pre_bit_count = reg16;
+
+	/* Number of bit-errors */
+	status = read16(state, FEC_RS_NR_BIT_ERRORS__A, &reg16);
+	if (status < 0)
+		goto error;
+	post_bit_err_count = reg16;
+
+	status = read16(state, FEC_RS_MEASUREMENT_PRESCALE__A, &reg16);
+	if (status < 0)
+		goto error;
+	post_bit_error_scale = reg16;
+
+	status = read16(state, FEC_RS_MEASUREMENT_PERIOD__A, &reg16);
+	if (status < 0)
+		goto error;
+	pkt_count = reg16;
+
+	status = read16(state, SCU_RAM_FEC_ACCUM_PKT_FAILURES__A, &reg16);
+	if (status < 0)
+		goto error;
+	pkt_error_count = reg16;
+	write16(state, SCU_RAM_FEC_ACCUM_PKT_FAILURES__A, 0);
+
+	post_bit_err_count *= post_bit_error_scale;
+
+	post_bit_count = pkt_count * 204 * 8;
+
+	/* Store the results */
+	c->block_error.stat[0].scale = FE_SCALE_COUNTER;
+	c->block_error.stat[0].uvalue += pkt_error_count;
+	c->block_count.stat[0].scale = FE_SCALE_COUNTER;
+	c->block_count.stat[0].uvalue += pkt_count;
+
+	c->pre_bit_error.stat[0].scale = FE_SCALE_COUNTER;
+	c->pre_bit_error.stat[0].uvalue += pre_bit_err_count;
+	c->pre_bit_count.stat[0].scale = FE_SCALE_COUNTER;
+	c->pre_bit_count.stat[0].uvalue += pre_bit_count;
+
+	c->post_bit_error.stat[0].scale = FE_SCALE_COUNTER;
+	c->post_bit_error.stat[0].uvalue += post_bit_err_count;
+	c->post_bit_count.stat[0].scale = FE_SCALE_COUNTER;
+	c->post_bit_count.stat[0].uvalue += post_bit_count;
+
+error:
+	return status;
+}
+
+
+static int drxk_read_status(struct dvb_frontend *fe, fe_status_t *status)
+{
+	struct drxk_state *state = fe->demodulator_priv;
+	int rc;
+
+	dprintk(1, "\n");
+
+	rc = drxk_get_stats(fe);
+	if (rc < 0)
+		return rc;
+
+	*status = state->fe_status;
+
 	return 0;
 }
 
@@ -6427,7 +6606,7 @@ static int drxk_read_signal_strength(struct dvb_frontend *fe,
 				     u16 *strength)
 {
 	struct drxk_state *state = fe->demodulator_priv;
-	u32 val = 0;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 
 	dprintk(1, "\n");
 
@@ -6436,8 +6615,7 @@ static int drxk_read_signal_strength(struct dvb_frontend *fe,
 	if (state->m_DrxkState == DRXK_UNINITIALIZED)
 		return -EAGAIN;
 
-	ReadIFAgc(state, &val);
-	*strength = val & 0xffff;
+	*strength = c->strength.stat[0].uvalue;
 	return 0;
 }
 
@@ -6454,6 +6632,10 @@ static int drxk_read_snr(struct dvb_frontend *fe, u16 *snr)
 		return -EAGAIN;
 
 	GetSignalToNoise(state, &snr2);
+
+	/* No negative SNR, clip to zero */
+	if (snr2 < 0)
+		snr2 = 0;
 	*snr = snr2 & 0xffff;
 	return 0;
 }
@@ -6529,7 +6711,6 @@ static struct dvb_frontend_ops drxk_ops = {
 	.get_tune_settings = drxk_get_tune_settings,
 
 	.read_status = drxk_read_status,
-	.read_ber = drxk_read_ber,
 	.read_signal_strength = drxk_read_signal_strength,
 	.read_snr = drxk_read_snr,
 	.read_ucblocks = drxk_read_ucblocks,
@@ -6538,6 +6719,7 @@ static struct dvb_frontend_ops drxk_ops = {
 struct dvb_frontend *drxk_attach(const struct drxk_config *config,
 				 struct i2c_adapter *i2c)
 {
+	struct dtv_frontend_properties *p;
 	struct drxk_state *state = NULL;
 	u8 adr = config->adr;
 	int status;
@@ -6617,6 +6799,27 @@ struct dvb_frontend *drxk_attach(const struct drxk_config *config,
 		}
 	} else if (init_drxk(state) < 0)
 		goto error;
+
+
+	/* Initialize stats */
+	p = &state->frontend.dtv_property_cache;
+	p->strength.len = 1;
+	p->cnr.len = 1;
+	p->block_error.len = 1;
+	p->block_count.len = 1;
+	p->pre_bit_error.len = 1;
+	p->pre_bit_count.len = 1;
+	p->post_bit_error.len = 1;
+	p->post_bit_count.len = 1;
+
+	p->strength.stat[0].scale = FE_SCALE_RELATIVE;
+	p->cnr.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->block_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->block_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->pre_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->pre_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->post_bit_error.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
+	p->post_bit_count.stat[0].scale = FE_SCALE_NOT_AVAILABLE;
 
 	printk(KERN_INFO "drxk: frontend initialized.\n");
 	return &state->frontend;

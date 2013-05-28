@@ -1176,14 +1176,6 @@ int saa7134_s_ctrl_internal(struct saa7134_dev *dev,  struct saa7134_fh *fh, str
 	int restart_overlay = 0;
 	int err;
 
-	/* When called from the empress code fh == NULL.
-	   That needs to be fixed somehow, but for now this is
-	   good enough. */
-	if (fh) {
-		err = v4l2_prio_check(&dev->prio, fh->prio);
-		if (0 != err)
-			return err;
-	}
 	err = -EINVAL;
 
 	mutex_lock(&dev->lock);
@@ -1352,6 +1344,7 @@ static int video_open(struct file *file)
 	if (NULL == fh)
 		return -ENOMEM;
 
+	v4l2_fh_init(&fh->fh, vdev);
 	file->private_data = fh;
 	fh->dev      = dev;
 	fh->radio    = radio;
@@ -1359,7 +1352,6 @@ static int video_open(struct file *file)
 	fh->fmt      = format_by_fourcc(V4L2_PIX_FMT_BGR24);
 	fh->width    = 720;
 	fh->height   = 576;
-	v4l2_prio_open(&dev->prio, &fh->prio);
 
 	videobuf_queue_sg_init(&fh->cap, &video_qops,
 			    &dev->pci->dev, &dev->slock,
@@ -1384,6 +1376,8 @@ static int video_open(struct file *file)
 		/* switch to video/vbi mode */
 		video_mux(dev,dev->ctl_input);
 	}
+	v4l2_fh_add(&fh->fh);
+
 	return 0;
 }
 
@@ -1504,7 +1498,8 @@ static int video_release(struct file *file)
 	saa7134_pgtable_free(dev->pci,&fh->pt_cap);
 	saa7134_pgtable_free(dev->pci,&fh->pt_vbi);
 
-	v4l2_prio_close(&dev->prio, fh->prio);
+	v4l2_fh_del(&fh->fh);
+	v4l2_fh_exit(&fh->fh);
 	file->private_data = NULL;
 	kfree(fh);
 	return 0;
@@ -1557,6 +1552,7 @@ static int saa7134_try_get_set_fmt_vbi_cap(struct file *file, void *priv,
 	struct saa7134_dev *dev = fh->dev;
 	struct saa7134_tvnorm *norm = dev->tvnorm;
 
+	memset(&f->fmt.vbi.reserved, 0, sizeof(f->fmt.vbi.reserved));
 	f->fmt.vbi.sampling_rate = 6750000 * 4;
 	f->fmt.vbi.samples_per_line = 2048 /* VBI_LINE_LENGTH */;
 	f->fmt.vbi.sample_format = V4L2_PIX_FMT_GREY;
@@ -1755,7 +1751,6 @@ static int saa7134_enum_input(struct file *file, void *priv,
 	strcpy(i->name, card_in(dev, n).name);
 	if (card_in(dev, n).tv)
 		i->type = V4L2_INPUT_TYPE_TUNER;
-	i->audioset = 1;
 	if (n == dev->ctl_input) {
 		int v1 = saa_readb(SAA7134_STATUS_VIDEO1);
 		int v2 = saa_readb(SAA7134_STATUS_VIDEO2);
@@ -1784,11 +1779,6 @@ static int saa7134_s_input(struct file *file, void *priv, unsigned int i)
 {
 	struct saa7134_fh *fh = priv;
 	struct saa7134_dev *dev = fh->dev;
-	int err;
-
-	err = v4l2_prio_check(&dev->prio, fh->prio);
-	if (0 != err)
-		return err;
 
 	if (i >= SAA7134_INPUT_MAX)
 		return -EINVAL;
@@ -1805,6 +1795,8 @@ static int saa7134_querycap(struct file *file, void  *priv,
 {
 	struct saa7134_fh *fh = priv;
 	struct saa7134_dev *dev = fh->dev;
+	struct video_device *vdev = video_devdata(file);
+	u32 radio_caps, video_caps, vbi_caps;
 
 	unsigned int tuner_type = dev->tuner_type;
 
@@ -1812,54 +1804,67 @@ static int saa7134_querycap(struct file *file, void  *priv,
 	strlcpy(cap->card, saa7134_boards[dev->board].name,
 		sizeof(cap->card));
 	sprintf(cap->bus_info, "PCI:%s", pci_name(dev->pci));
-	cap->capabilities =
-		V4L2_CAP_VIDEO_CAPTURE |
-		V4L2_CAP_VBI_CAPTURE |
-		V4L2_CAP_READWRITE |
-		V4L2_CAP_STREAMING |
-		V4L2_CAP_TUNER;
-	if (dev->has_rds)
-		cap->capabilities |= V4L2_CAP_RDS_CAPTURE;
-	if (saa7134_no_overlay <= 0)
-		cap->capabilities |= V4L2_CAP_VIDEO_OVERLAY;
 
-	if ((tuner_type == TUNER_ABSENT) || (tuner_type == UNSET))
-		cap->capabilities &= ~V4L2_CAP_TUNER;
+	cap->device_caps = V4L2_CAP_READWRITE | V4L2_CAP_STREAMING;
+	if ((tuner_type != TUNER_ABSENT) && (tuner_type != UNSET))
+		cap->device_caps |= V4L2_CAP_TUNER;
+
+	radio_caps = V4L2_CAP_RADIO;
+	if (dev->has_rds)
+		radio_caps |= V4L2_CAP_RDS_CAPTURE;
+
+	video_caps = V4L2_CAP_VIDEO_CAPTURE;
+	if (saa7134_no_overlay <= 0)
+		video_caps |= V4L2_CAP_VIDEO_OVERLAY;
+
+	vbi_caps = V4L2_CAP_VBI_CAPTURE;
+
+	switch (vdev->vfl_type) {
+	case VFL_TYPE_RADIO:
+		cap->device_caps |= radio_caps;
+		break;
+	case VFL_TYPE_GRABBER:
+		cap->device_caps |= video_caps;
+		break;
+	case VFL_TYPE_VBI:
+		cap->device_caps |= vbi_caps;
+		break;
+	}
+	cap->capabilities = radio_caps | video_caps | vbi_caps |
+		cap->device_caps | V4L2_CAP_DEVICE_CAPS;
+	if (vdev->vfl_type == VFL_TYPE_RADIO) {
+		cap->device_caps &= ~V4L2_CAP_STREAMING;
+		if (!dev->has_rds)
+			cap->device_caps &= ~V4L2_CAP_READWRITE;
+	}
+
 	return 0;
 }
 
-int saa7134_s_std_internal(struct saa7134_dev *dev, struct saa7134_fh *fh, v4l2_std_id *id)
+int saa7134_s_std_internal(struct saa7134_dev *dev, struct saa7134_fh *fh, v4l2_std_id id)
 {
 	unsigned long flags;
 	unsigned int i;
 	v4l2_std_id fixup;
-	int err;
 
-	/* When called from the empress code fh == NULL.
-	   That needs to be fixed somehow, but for now this is
-	   good enough. */
-	if (fh) {
-		err = v4l2_prio_check(&dev->prio, fh->prio);
-		if (0 != err)
-			return err;
-	} else if (res_locked(dev, RESOURCE_OVERLAY)) {
+	if (!fh && res_locked(dev, RESOURCE_OVERLAY)) {
 		/* Don't change the std from the mpeg device
 		   if overlay is active. */
 		return -EBUSY;
 	}
 
 	for (i = 0; i < TVNORMS; i++)
-		if (*id == tvnorms[i].id)
+		if (id == tvnorms[i].id)
 			break;
 
 	if (i == TVNORMS)
 		for (i = 0; i < TVNORMS; i++)
-			if (*id & tvnorms[i].id)
+			if (id & tvnorms[i].id)
 				break;
 	if (i == TVNORMS)
 		return -EINVAL;
 
-	if ((*id & V4L2_STD_SECAM) && (secam[0] != '-')) {
+	if ((id & V4L2_STD_SECAM) && (secam[0] != '-')) {
 		if (secam[0] == 'L' || secam[0] == 'l') {
 			if (secam[1] == 'C' || secam[1] == 'c')
 				fixup = V4L2_STD_SECAM_LC;
@@ -1879,7 +1884,7 @@ int saa7134_s_std_internal(struct saa7134_dev *dev, struct saa7134_fh *fh, v4l2_
 			return -EINVAL;
 	}
 
-	*id = tvnorms[i].id;
+	id = tvnorms[i].id;
 
 	mutex_lock(&dev->lock);
 	if (fh && res_check(fh, RESOURCE_OVERLAY)) {
@@ -1901,7 +1906,7 @@ int saa7134_s_std_internal(struct saa7134_dev *dev, struct saa7134_fh *fh, v4l2_
 }
 EXPORT_SYMBOL_GPL(saa7134_s_std_internal);
 
-static int saa7134_s_std(struct file *file, void *priv, v4l2_std_id *id)
+static int saa7134_s_std(struct file *file, void *priv, v4l2_std_id id)
 {
 	struct saa7134_fh *fh = priv;
 
@@ -2009,11 +2014,11 @@ static int saa7134_g_tuner(struct file *file, void *priv,
 	if (NULL != card_in(dev, n).name) {
 		strcpy(t->name, "Television");
 		t->type = V4L2_TUNER_ANALOG_TV;
+		saa_call_all(dev, tuner, g_tuner, t);
 		t->capability = V4L2_TUNER_CAP_NORM |
 			V4L2_TUNER_CAP_STEREO |
 			V4L2_TUNER_CAP_LANG1 |
 			V4L2_TUNER_CAP_LANG2;
-		t->rangehigh = 0xffffffffUL;
 		t->rxsubchans = saa7134_tvaudio_getstereo(dev);
 		t->audmode = saa7134_tvaudio_rx2mode(t->rxsubchans);
 	}
@@ -2023,15 +2028,14 @@ static int saa7134_g_tuner(struct file *file, void *priv,
 }
 
 static int saa7134_s_tuner(struct file *file, void *priv,
-					struct v4l2_tuner *t)
+					const struct v4l2_tuner *t)
 {
 	struct saa7134_fh *fh = priv;
 	struct saa7134_dev *dev = fh->dev;
-	int rx, mode, err;
+	int rx, mode;
 
-	err = v4l2_prio_check(&dev->prio, fh->prio);
-	if (0 != err)
-		return err;
+	if (0 != t->index)
+		return -EINVAL;
 
 	mode = dev->thread.mode;
 	if (UNSET == mode) {
@@ -2050,22 +2054,20 @@ static int saa7134_g_frequency(struct file *file, void *priv,
 	struct saa7134_fh *fh = priv;
 	struct saa7134_dev *dev = fh->dev;
 
+	if (0 != f->tuner)
+		return -EINVAL;
+
 	f->type = fh->radio ? V4L2_TUNER_RADIO : V4L2_TUNER_ANALOG_TV;
-	f->frequency = dev->ctl_freq;
+	saa_call_all(dev, tuner, g_frequency, f);
 
 	return 0;
 }
 
 static int saa7134_s_frequency(struct file *file, void *priv,
-					struct v4l2_frequency *f)
+					const struct v4l2_frequency *f)
 {
 	struct saa7134_fh *fh = priv;
 	struct saa7134_dev *dev = fh->dev;
-	int err;
-
-	err = v4l2_prio_check(&dev->prio, fh->prio);
-	if (0 != err)
-		return err;
 
 	if (0 != f->tuner)
 		return -EINVAL;
@@ -2074,42 +2076,12 @@ static int saa7134_s_frequency(struct file *file, void *priv,
 	if (1 == fh->radio && V4L2_TUNER_RADIO != f->type)
 		return -EINVAL;
 	mutex_lock(&dev->lock);
-	dev->ctl_freq = f->frequency;
 
 	saa_call_all(dev, tuner, s_frequency, f);
 
 	saa7134_tvaudio_do_scan(dev);
 	mutex_unlock(&dev->lock);
 	return 0;
-}
-
-static int saa7134_g_audio(struct file *file, void *priv, struct v4l2_audio *a)
-{
-	strcpy(a->name, "audio");
-	return 0;
-}
-
-static int saa7134_s_audio(struct file *file, void *priv, const struct v4l2_audio *a)
-{
-	return 0;
-}
-
-static int saa7134_g_priority(struct file *file, void *f, enum v4l2_priority *p)
-{
-	struct saa7134_fh *fh = f;
-	struct saa7134_dev *dev = fh->dev;
-
-	*p = v4l2_prio_max(&dev->prio);
-	return 0;
-}
-
-static int saa7134_s_priority(struct file *file, void *f,
-					enum v4l2_priority prio)
-{
-	struct saa7134_fh *fh = f;
-	struct saa7134_dev *dev = fh->dev;
-
-	return v4l2_prio_change(&dev->prio, &fh->prio, prio);
 }
 
 static int saa7134_enum_fmt_vid_cap(struct file *file, void  *priv,
@@ -2279,12 +2251,6 @@ static int saa7134_streamoff(struct file *file, void *priv,
 	return 0;
 }
 
-static int saa7134_g_parm(struct file *file, void *fh,
-				struct v4l2_streamparm *parm)
-{
-	return 0;
-}
-
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 static int vidioc_g_register (struct file *file, void *priv,
 			      struct v4l2_dbg_register *reg)
@@ -2300,7 +2266,7 @@ static int vidioc_g_register (struct file *file, void *priv,
 }
 
 static int vidioc_s_register (struct file *file, void *priv,
-				struct v4l2_dbg_register *reg)
+				const struct v4l2_dbg_register *reg)
 {
 	struct saa7134_fh *fh = priv;
 	struct saa7134_dev *dev = fh->dev;
@@ -2311,19 +2277,6 @@ static int vidioc_s_register (struct file *file, void *priv,
 	return 0;
 }
 #endif
-
-static int radio_querycap(struct file *file, void *priv,
-					struct v4l2_capability *cap)
-{
-	struct saa7134_fh *fh = file->private_data;
-	struct saa7134_dev *dev = fh->dev;
-
-	strcpy(cap->driver, "saa7134");
-	strlcpy(cap->card, saa7134_boards[dev->board].name, sizeof(cap->card));
-	sprintf(cap->bus_info, "PCI:%s", pci_name(dev->pci));
-	cap->capabilities = V4L2_CAP_TUNER;
-	return 0;
-}
 
 static int radio_g_tuner(struct file *file, void *priv,
 					struct v4l2_tuner *t)
@@ -2339,6 +2292,7 @@ static int radio_g_tuner(struct file *file, void *priv,
 	t->type = V4L2_TUNER_RADIO;
 
 	saa_call_all(dev, tuner, g_tuner, t);
+	t->audmode &= V4L2_TUNER_MODE_MONO | V4L2_TUNER_MODE_STEREO;
 	if (dev->input->amux == TV) {
 		t->signal = 0xf800 - ((saa_readb(0x581) & 0x1f) << 11);
 		t->rxsubchans = (saa_readb(0x529) & 0x08) ?
@@ -2347,7 +2301,7 @@ static int radio_g_tuner(struct file *file, void *priv,
 	return 0;
 }
 static int radio_s_tuner(struct file *file, void *priv,
-					struct v4l2_tuner *t)
+					const struct v4l2_tuner *t)
 {
 	struct saa7134_fh *fh = file->private_data;
 	struct saa7134_dev *dev = fh->dev;
@@ -2377,26 +2331,12 @@ static int radio_g_input(struct file *filp, void *priv, unsigned int *i)
 	return 0;
 }
 
-static int radio_g_audio(struct file *file, void *priv,
-					struct v4l2_audio *a)
-{
-	memset(a, 0, sizeof(*a));
-	strcpy(a->name, "Radio");
-	return 0;
-}
-
-static int radio_s_audio(struct file *file, void *priv,
-					const struct v4l2_audio *a)
-{
-	return 0;
-}
-
 static int radio_s_input(struct file *filp, void *priv, unsigned int i)
 {
 	return 0;
 }
 
-static int radio_s_std(struct file *file, void *fh, v4l2_std_id *norm)
+static int radio_s_std(struct file *file, void *fh, v4l2_std_id norm)
 {
 	return 0;
 }
@@ -2441,8 +2381,6 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_g_fmt_vbi_cap		= saa7134_try_get_set_fmt_vbi_cap,
 	.vidioc_try_fmt_vbi_cap		= saa7134_try_get_set_fmt_vbi_cap,
 	.vidioc_s_fmt_vbi_cap		= saa7134_try_get_set_fmt_vbi_cap,
-	.vidioc_g_audio			= saa7134_g_audio,
-	.vidioc_s_audio			= saa7134_s_audio,
 	.vidioc_cropcap			= saa7134_cropcap,
 	.vidioc_reqbufs			= saa7134_reqbufs,
 	.vidioc_querybuf		= saa7134_querybuf,
@@ -2465,9 +2403,6 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_g_fbuf			= saa7134_g_fbuf,
 	.vidioc_s_fbuf			= saa7134_s_fbuf,
 	.vidioc_overlay			= saa7134_overlay,
-	.vidioc_g_priority		= saa7134_g_priority,
-	.vidioc_s_priority		= saa7134_s_priority,
-	.vidioc_g_parm			= saa7134_g_parm,
 	.vidioc_g_frequency		= saa7134_g_frequency,
 	.vidioc_s_frequency		= saa7134_s_frequency,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
@@ -2486,12 +2421,10 @@ static const struct v4l2_file_operations radio_fops = {
 };
 
 static const struct v4l2_ioctl_ops radio_ioctl_ops = {
-	.vidioc_querycap	= radio_querycap,
+	.vidioc_querycap	= saa7134_querycap,
 	.vidioc_g_tuner		= radio_g_tuner,
 	.vidioc_enum_input	= radio_enum_input,
-	.vidioc_g_audio		= radio_g_audio,
 	.vidioc_s_tuner		= radio_s_tuner,
-	.vidioc_s_audio		= radio_s_audio,
 	.vidioc_s_input		= radio_s_input,
 	.vidioc_s_std		= radio_s_std,
 	.vidioc_queryctrl	= radio_queryctrl,

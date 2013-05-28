@@ -87,7 +87,7 @@ static struct device *mci_pdev;
 /*
  * various constants for Memory Controllers
  */
-static const char *mem_types[] = {
+static const char * const mem_types[] = {
 	[MEM_EMPTY] = "Empty",
 	[MEM_RESERVED] = "Reserved",
 	[MEM_UNKNOWN] = "Unknown",
@@ -107,7 +107,7 @@ static const char *mem_types[] = {
 	[MEM_RDDR3] = "Registered-DDR3"
 };
 
-static const char *dev_types[] = {
+static const char * const dev_types[] = {
 	[DEV_UNKNOWN] = "Unknown",
 	[DEV_X1] = "x1",
 	[DEV_X2] = "x2",
@@ -118,7 +118,7 @@ static const char *dev_types[] = {
 	[DEV_X64] = "x64"
 };
 
-static const char *edac_caps[] = {
+static const char * const edac_caps[] = {
 	[EDAC_UNKNOWN] = "Unknown",
 	[EDAC_NONE] = "None",
 	[EDAC_RESERVED] = "Reserved",
@@ -143,7 +143,7 @@ static const char *edac_caps[] = {
  * and the per-dimm/per-rank one
  */
 #define DEVICE_ATTR_LEGACY(_name, _mode, _show, _store) \
-	struct device_attribute dev_attr_legacy_##_name = __ATTR(_name, _mode, _show, _store)
+	static struct device_attribute dev_attr_legacy_##_name = __ATTR(_name, _mode, _show, _store)
 
 struct dev_ch_attribute {
 	struct device_attribute attr;
@@ -179,9 +179,6 @@ static ssize_t csrow_size_show(struct device *dev,
 	struct csrow_info *csrow = to_csrow(dev);
 	int i;
 	u32 nr_pages = 0;
-
-	if (csrow->mci->csbased)
-		return sprintf(data, "%u\n", PAGES_TO_MiB(csrow->nr_pages));
 
 	for (i = 0; i < csrow->nr_channels; i++)
 		nr_pages += csrow->channels[i]->dimm->nr_pages;
@@ -330,17 +327,17 @@ static struct device_attribute *dynamic_csrow_dimm_attr[] = {
 };
 
 /* possible dynamic channel ce_count attribute files */
-DEVICE_CHANNEL(ch0_ce_count, S_IRUGO | S_IWUSR,
+DEVICE_CHANNEL(ch0_ce_count, S_IRUGO,
 		   channel_ce_count_show, NULL, 0);
-DEVICE_CHANNEL(ch1_ce_count, S_IRUGO | S_IWUSR,
+DEVICE_CHANNEL(ch1_ce_count, S_IRUGO,
 		   channel_ce_count_show, NULL, 1);
-DEVICE_CHANNEL(ch2_ce_count, S_IRUGO | S_IWUSR,
+DEVICE_CHANNEL(ch2_ce_count, S_IRUGO,
 		   channel_ce_count_show, NULL, 2);
-DEVICE_CHANNEL(ch3_ce_count, S_IRUGO | S_IWUSR,
+DEVICE_CHANNEL(ch3_ce_count, S_IRUGO,
 		   channel_ce_count_show, NULL, 3);
-DEVICE_CHANNEL(ch4_ce_count, S_IRUGO | S_IWUSR,
+DEVICE_CHANNEL(ch4_ce_count, S_IRUGO,
 		   channel_ce_count_show, NULL, 4);
-DEVICE_CHANNEL(ch5_ce_count, S_IRUGO | S_IWUSR,
+DEVICE_CHANNEL(ch5_ce_count, S_IRUGO,
 		   channel_ce_count_show, NULL, 5);
 
 /* Total possible dynamic ce_count attribute file table */
@@ -612,7 +609,7 @@ static int edac_create_dimm_object(struct mem_ctl_info *mci,
 	device_initialize(&dimm->dev);
 
 	dimm->dev.parent = &mci->dev;
-	if (mci->mem_is_per_rank)
+	if (mci->csbased)
 		dev_set_name(&dimm->dev, "rank%d", index);
 	else
 		dev_set_name(&dimm->dev, "dimm%d", index);
@@ -778,14 +775,10 @@ static ssize_t mci_size_mb_show(struct device *dev,
 	for (csrow_idx = 0; csrow_idx < mci->nr_csrows; csrow_idx++) {
 		struct csrow_info *csrow = mci->csrows[csrow_idx];
 
-		if (csrow->mci->csbased) {
-			total_pages += csrow->nr_pages;
-		} else {
-			for (j = 0; j < csrow->nr_channels; j++) {
-				struct dimm_info *dimm = csrow->channels[j]->dimm;
+		for (j = 0; j < csrow->nr_channels; j++) {
+			struct dimm_info *dimm = csrow->channels[j]->dimm;
 
-				total_pages += dimm->nr_pages;
-			}
+			total_pages += dimm->nr_pages;
 		}
 	}
 

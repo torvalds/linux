@@ -1,0 +1,69 @@
+/*
+ * mpa1600.dts - Device Tree file for Phontech MPA 1600
+ *
+ *  Copyright (C) 2013 Joachim Eastwood <manabian@gmail.com>
+ *
+ * Licensed under GPLv2 only
+ */
+/dts-v1/;
+/include/ "at91rm9200.dtsi"
+
+/ {
+	model = "Phontech MPA 1600";
+	compatible = "phontech,mpa1600", "atmel,at91rm9200";
+
+	memory {
+		reg = <0x20000000 0x4000000>;
+	};
+
+	clocks {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+
+		main_clock: clock@0 {
+			compatible = "atmel,osc", "fixed-clock";
+			clock-frequency = <18432000>;
+		};
+	};
+
+	ahb {
+		apb {
+			dbgu: serial@fffff200 {
+				status = "okay";
+			};
+
+			macb0: ethernet@fffbc000 {
+				phy-mode = "rmii";
+				status = "okay";
+			};
+
+			ssc0: ssc@fffd0000 {
+				status = "okay";
+			};
+
+			ssc1: ssc@fffd4000 {
+				status = "okay";
+			};
+		};
+
+		usb0: ohci@00300000 {
+			num-ports = <1>;
+			status = "okay";
+		};
+	};
+
+	i2c@0 {
+		status = "okay";
+	};
+
+	gpio_keys {
+		compatible = "gpio-keys";
+
+		monitor_mute {
+			label = "Monitor mute";
+			gpios = <&pioC 1 1>;
+			linux,code = <113>;
+		};
+	};
+};

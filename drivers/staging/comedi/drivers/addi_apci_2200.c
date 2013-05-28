@@ -88,9 +88,7 @@ static int apci2200_auto_attach(struct comedi_device *dev,
 	struct comedi_subdevice *s;
 	int ret;
 
-	dev->board_name = dev->driver->driver_name;
-
-	ret = comedi_pci_enable(pcidev, dev->board_name);
+	ret = comedi_pci_enable(dev);
 	if (ret)
 		return ret;
 
@@ -130,16 +128,10 @@ static int apci2200_auto_attach(struct comedi_device *dev,
 
 static void apci2200_detach(struct comedi_device *dev)
 {
-	struct pci_dev *pcidev = comedi_to_pci_dev(dev);
-
 	if (dev->iobase)
 		apci2200_reset(dev);
-	if (dev->subdevices)
-		addi_watchdog_cleanup(&dev->subdevices[2]);
-	if (pcidev) {
-		if (dev->iobase)
-			comedi_pci_disable(pcidev);
-	}
+	comedi_spriv_free(dev, 2);
+	comedi_pci_disable(dev);
 }
 
 static struct comedi_driver apci2200_driver = {
@@ -150,9 +142,9 @@ static struct comedi_driver apci2200_driver = {
 };
 
 static int apci2200_pci_probe(struct pci_dev *dev,
-					const struct pci_device_id *ent)
+			      const struct pci_device_id *id)
 {
-	return comedi_pci_auto_config(dev, &apci2200_driver);
+	return comedi_pci_auto_config(dev, &apci2200_driver, id->driver_data);
 }
 
 static DEFINE_PCI_DEVICE_TABLE(apci2200_pci_table) = {

@@ -89,6 +89,9 @@ typedef void (*ftrace_func_t)(unsigned long ip, unsigned long parent_ip,
  *            that the call back has its own recursion protection. If it does
  *            not set this, then the ftrace infrastructure will add recursion
  *            protection for the caller.
+ * STUB   - The ftrace_ops is just a place holder.
+ * INITIALIZED - The ftrace_ops has already been initialized (first use time
+ *            register_ftrace_function() is called, it will initialized the ops)
  */
 enum {
 	FTRACE_OPS_FL_ENABLED			= 1 << 0,
@@ -98,6 +101,8 @@ enum {
 	FTRACE_OPS_FL_SAVE_REGS			= 1 << 4,
 	FTRACE_OPS_FL_SAVE_REGS_IF_SUPPORTED	= 1 << 5,
 	FTRACE_OPS_FL_RECURSION_SAFE		= 1 << 6,
+	FTRACE_OPS_FL_STUB			= 1 << 7,
+	FTRACE_OPS_FL_INITIALIZED		= 1 << 8,
 };
 
 struct ftrace_ops {
@@ -108,6 +113,7 @@ struct ftrace_ops {
 #ifdef CONFIG_DYNAMIC_FTRACE
 	struct ftrace_hash		*notrace_hash;
 	struct ftrace_hash		*filter_hash;
+	struct mutex			regex_lock;
 #endif
 };
 
@@ -259,8 +265,10 @@ struct ftrace_probe_ops {
 	void			(*func)(unsigned long ip,
 					unsigned long parent_ip,
 					void **data);
-	int			(*callback)(unsigned long ip, void **data);
-	void			(*free)(void **data);
+	int			(*init)(struct ftrace_probe_ops *ops,
+					unsigned long ip, void **data);
+	void			(*free)(struct ftrace_probe_ops *ops,
+					unsigned long ip, void **data);
 	int			(*print)(struct seq_file *m,
 					 unsigned long ip,
 					 struct ftrace_probe_ops *ops,
@@ -394,7 +402,6 @@ ssize_t ftrace_filter_write(struct file *file, const char __user *ubuf,
 			    size_t cnt, loff_t *ppos);
 ssize_t ftrace_notrace_write(struct file *file, const char __user *ubuf,
 			     size_t cnt, loff_t *ppos);
-loff_t ftrace_regex_lseek(struct file *file, loff_t offset, int whence);
 int ftrace_regex_release(struct inode *inode, struct file *file);
 
 void __init
@@ -566,6 +573,8 @@ static inline loff_t ftrace_regex_lseek(struct file *file, loff_t offset, int wh
 static inline int
 ftrace_regex_release(struct inode *inode, struct file *file) { return -ENODEV; }
 #endif /* CONFIG_DYNAMIC_FTRACE */
+
+loff_t ftrace_filter_lseek(struct file *file, loff_t offset, int whence);
 
 /* totally disable ftrace - can not re-enable after this */
 void ftrace_kill(void);

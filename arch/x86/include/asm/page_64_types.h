@@ -48,6 +48,5 @@
  * arch/x86/kernel/head_64.S), and it is mapped here:
  */
 #define KERNEL_IMAGE_SIZE	(512 * 1024 * 1024)
-#define KERNEL_IMAGE_START	_AC(0xffffffff80000000, UL)
 
 #endif /* _ASM_X86_PAGE_64_DEFS_H */

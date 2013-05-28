@@ -1337,7 +1337,7 @@ int tpm_pm_suspend(struct device *dev)
 {
 	struct tpm_chip *chip = dev_get_drvdata(dev);
 	struct tpm_cmd_t cmd;
-	int rc;
+	int rc, try;
 
 	u8 dummy_hash[TPM_DIGEST_SIZE] = { 0 };
 
@@ -1355,9 +1355,32 @@ int tpm_pm_suspend(struct device *dev)
 	}
 
 	/* now do the actual savestate */
-	cmd.header.in = savestate_header;
-	rc = transmit_cmd(chip, &cmd, SAVESTATE_RESULT_SIZE,
-			  "sending savestate before suspend");
+	for (try = 0; try < TPM_RETRY; try++) {
+		cmd.header.in = savestate_header;
+		rc = transmit_cmd(chip, &cmd, SAVESTATE_RESULT_SIZE, NULL);
+
+		/*
+		 * If the TPM indicates that it is too busy to respond to
+		 * this command then retry before giving up.  It can take
+		 * several seconds for this TPM to be ready.
+		 *
+		 * This can happen if the TPM has already been sent the
+		 * SaveState command before the driver has loaded.  TCG 1.2
+		 * specification states that any communication after SaveState
+		 * may cause the TPM to invalidate previously saved state.
+		 */
+		if (rc != TPM_WARN_RETRY)
+			break;
+		msleep(TPM_TIMEOUT_RETRY);
+	}
+
+	if (rc)
+		dev_err(chip->dev,
+			"Error (%d) sending savestate before suspend\n", rc);
+	else if (try > 0)
+		dev_warn(chip->dev, "TPM savestate took %dms\n",
+			 try * TPM_TIMEOUT_RETRY);
+
 	return rc;
 }
 EXPORT_SYMBOL_GPL(tpm_pm_suspend);

@@ -28,27 +28,27 @@
 #define VIF_PR_FMT	" vif:%s(%d%s)"
 #define VIF_PR_ARG	__get_str(vif_name), __entry->vif_type, __entry->p2p ? "/p2p" : ""
 
-#define CHANDEF_ENTRY	__field(u32, control_freq)				\
-			__field(u32, chan_width)				\
-			__field(u32, center_freq1)				\
+#define CHANDEF_ENTRY	__field(u32, control_freq)					\
+			__field(u32, chan_width)					\
+			__field(u32, center_freq1)					\
 			__field(u32, center_freq2)
-#define CHANDEF_ASSIGN(c)							\
-			__entry->control_freq = (c)->chan->center_freq;		\
-			__entry->chan_width = (c)->width;			\
-			__entry->center_freq1 = (c)->center_freq1;		\
+#define CHANDEF_ASSIGN(c)								\
+			__entry->control_freq = (c)->chan ? (c)->chan->center_freq : 0;	\
+			__entry->chan_width = (c)->width;				\
+			__entry->center_freq1 = (c)->center_freq1;			\
 			__entry->center_freq2 = (c)->center_freq2;
 #define CHANDEF_PR_FMT	" control:%d MHz width:%d center: %d/%d MHz"
-#define CHANDEF_PR_ARG	__entry->control_freq, __entry->chan_width,		\
+#define CHANDEF_PR_ARG	__entry->control_freq, __entry->chan_width,			\
 			__entry->center_freq1, __entry->center_freq2
 
-#define CHANCTX_ENTRY	CHANDEF_ENTRY						\
-			__field(u8, rx_chains_static)				\
+#define CHANCTX_ENTRY	CHANDEF_ENTRY							\
+			__field(u8, rx_chains_static)					\
 			__field(u8, rx_chains_dynamic)
-#define CHANCTX_ASSIGN	CHANDEF_ASSIGN(&ctx->conf.def)				\
-			__entry->rx_chains_static = ctx->conf.rx_chains_static;	\
+#define CHANCTX_ASSIGN	CHANDEF_ASSIGN(&ctx->conf.def)					\
+			__entry->rx_chains_static = ctx->conf.rx_chains_static;		\
 			__entry->rx_chains_dynamic = ctx->conf.rx_chains_dynamic
 #define CHANCTX_PR_FMT	CHANDEF_PR_FMT " chains:%d/%d"
-#define CHANCTX_PR_ARG	CHANDEF_PR_ARG,						\
+#define CHANCTX_PR_ARG	CHANDEF_PR_ARG,							\
 			__entry->rx_chains_static, __entry->rx_chains_dynamic
 
 
@@ -286,8 +286,7 @@ TRACE_EVENT(drv_config,
 		__field(u16, listen_interval)
 		__field(u8, long_frame_max_tx_count)
 		__field(u8, short_frame_max_tx_count)
-		__field(int, center_freq)
-		__field(int, channel_type)
+		CHANDEF_ENTRY
 		__field(int, smps)
 	),
 
@@ -303,15 +302,13 @@ TRACE_EVENT(drv_config,
 			local->hw.conf.long_frame_max_tx_count;
 		__entry->short_frame_max_tx_count =
 			local->hw.conf.short_frame_max_tx_count;
-		__entry->center_freq = local->hw.conf.channel ?
-					local->hw.conf.channel->center_freq : 0;
-		__entry->channel_type = local->hw.conf.channel_type;
+		CHANDEF_ASSIGN(&local->hw.conf.chandef)
 		__entry->smps = local->hw.conf.smps_mode;
 	),
 
 	TP_printk(
-		LOCAL_PR_FMT " ch:%#x freq:%d",
-		LOCAL_PR_ARG, __entry->changed, __entry->center_freq
+		LOCAL_PR_FMT " ch:%#x" CHANDEF_PR_FMT,
+		LOCAL_PR_ARG, __entry->changed, CHANDEF_PR_ARG
 	)
 );
 
@@ -359,8 +356,7 @@ TRACE_EVENT(drv_bss_info_changed,
 		__dynamic_array(u8, ssid, info->ssid_len);
 		__field(bool, hidden_ssid);
 		__field(int, txpower)
-		__field(u8, p2p_ctwindow)
-		__field(bool, p2p_oppps)
+		__field(u8, p2p_oppps_ctwindow)
 	),
 
 	TP_fast_assign(
@@ -400,8 +396,7 @@ TRACE_EVENT(drv_bss_info_changed,
 		memcpy(__get_dynamic_array(ssid), info->ssid, info->ssid_len);
 		__entry->hidden_ssid = info->hidden_ssid;
 		__entry->txpower = info->txpower;
-		__entry->p2p_ctwindow = info->p2p_ctwindow;
-		__entry->p2p_oppps = info->p2p_oppps;
+		__entry->p2p_oppps_ctwindow = info->p2p_noa_attr.oppps_ctwindow;
 	),
 
 	TP_printk(
@@ -428,6 +423,30 @@ TRACE_EVENT(drv_prepare_multicast,
 	TP_printk(
 		LOCAL_PR_FMT " prepare mc (%d)",
 		LOCAL_PR_ARG, __entry->mc_count
+	)
+);
+
+TRACE_EVENT(drv_set_multicast_list,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata, int mc_count),
+
+	TP_ARGS(local, sdata, mc_count),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		__field(bool, allmulti)
+		__field(int, mc_count)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		__entry->allmulti = sdata->flags & IEEE80211_SDATA_ALLMULTI;
+		__entry->mc_count = mc_count;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT " configure mc filter, count=%d, allmulti=%d",
+		LOCAL_PR_ARG, __entry->mc_count, __entry->allmulti
 	)
 );
 
@@ -940,23 +959,26 @@ TRACE_EVENT(drv_get_survey,
 );
 
 TRACE_EVENT(drv_flush,
-	TP_PROTO(struct ieee80211_local *local, bool drop),
+	TP_PROTO(struct ieee80211_local *local,
+		 u32 queues, bool drop),
 
-	TP_ARGS(local, drop),
+	TP_ARGS(local, queues, drop),
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
 		__field(bool, drop)
+		__field(u32, queues)
 	),
 
 	TP_fast_assign(
 		LOCAL_ASSIGN;
 		__entry->drop = drop;
+		__entry->queues = queues;
 	),
 
 	TP_printk(
-		LOCAL_PR_FMT " drop:%d",
-		LOCAL_PR_ARG, __entry->drop
+		LOCAL_PR_FMT " queues:0x%x drop:%d",
+		LOCAL_PR_ARG, __entry->queues, __entry->drop
 	)
 );
 
@@ -968,23 +990,23 @@ TRACE_EVENT(drv_channel_switch,
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
+		CHANDEF_ENTRY
 		__field(u64, timestamp)
 		__field(bool, block_tx)
-		__field(u16, freq)
 		__field(u8, count)
 	),
 
 	TP_fast_assign(
 		LOCAL_ASSIGN;
+		CHANDEF_ASSIGN(&ch_switch->chandef)
 		__entry->timestamp = ch_switch->timestamp;
 		__entry->block_tx = ch_switch->block_tx;
-		__entry->freq = ch_switch->channel->center_freq;
 		__entry->count = ch_switch->count;
 	),
 
 	TP_printk(
-		LOCAL_PR_FMT " new freq:%u count:%d",
-		LOCAL_PR_ARG, __entry->freq, __entry->count
+		LOCAL_PR_FMT " new " CHANDEF_PR_FMT " count:%d",
+		LOCAL_PR_ARG, CHANDEF_PR_ARG, __entry->count
 	)
 );
 
@@ -1042,15 +1064,17 @@ TRACE_EVENT(drv_remain_on_channel,
 	TP_PROTO(struct ieee80211_local *local,
 		 struct ieee80211_sub_if_data *sdata,
 		 struct ieee80211_channel *chan,
-		 unsigned int duration),
+		 unsigned int duration,
+		 enum ieee80211_roc_type type),
 
-	TP_ARGS(local, sdata, chan, duration),
+	TP_ARGS(local, sdata, chan, duration, type),
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
 		VIF_ENTRY
 		__field(int, center_freq)
 		__field(unsigned int, duration)
+		__field(u32, type)
 	),
 
 	TP_fast_assign(
@@ -1058,12 +1082,13 @@ TRACE_EVENT(drv_remain_on_channel,
 		VIF_ASSIGN;
 		__entry->center_freq = chan->center_freq;
 		__entry->duration = duration;
+		__entry->type = type;
 	),
 
 	TP_printk(
-		LOCAL_PR_FMT  VIF_PR_FMT " freq:%dMHz duration:%dms",
+		LOCAL_PR_FMT  VIF_PR_FMT " freq:%dMHz duration:%dms type=%d",
 		LOCAL_PR_ARG, VIF_PR_ARG,
-		__entry->center_freq, __entry->duration
+		__entry->center_freq, __entry->duration, __entry->type
 	)
 );
 

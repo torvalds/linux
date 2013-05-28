@@ -30,7 +30,6 @@
 #include <linux/serial.h>
 #include <linux/serial_core.h>
 
-#include <bcm63xx_clk.h>
 #include <bcm63xx_irq.h>
 #include <bcm63xx_regs.h>
 #include <bcm63xx_io.h>
@@ -235,7 +234,7 @@ static const char *bcm_uart_type(struct uart_port *port)
  */
 static void bcm_uart_do_rx(struct uart_port *port)
 {
-	struct tty_port *port = &port->state->port;
+	struct tty_port *tty_port = &port->state->port;
 	unsigned int max_count;
 
 	/* limit number of char read in interrupt, should not be
@@ -260,7 +259,7 @@ static void bcm_uart_do_rx(struct uart_port *port)
 			bcm_uart_writel(port, val, UART_CTL_REG);
 
 			port->icount.overrun++;
-			tty_insert_flip_char(port, 0, TTY_OVERRUN);
+			tty_insert_flip_char(tty_port, 0, TTY_OVERRUN);
 		}
 
 		if (!(iestat & UART_IR_STAT(UART_IR_RXNOTEMPTY)))
@@ -299,11 +298,11 @@ static void bcm_uart_do_rx(struct uart_port *port)
 
 
 		if ((cstat & port->ignore_status_mask) == 0)
-			tty_insert_flip_char(port, c, flag);
+			tty_insert_flip_char(tty_port, c, flag);
 
 	} while (--max_count);
 
-	tty_flip_buffer_push(port);
+	tty_flip_buffer_push(tty_port);
 }
 
 /*

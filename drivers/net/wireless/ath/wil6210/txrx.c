@@ -14,10 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <linux/kernel.h>
-#include <linux/netdevice.h>
 #include <linux/etherdevice.h>
-#include <linux/hardirq.h>
 #include <net/ieee80211_radiotap.h>
 #include <linux/if_arp.h>
 #include <linux/moduleparam.h>
@@ -83,8 +80,6 @@ static int wil_vring_alloc(struct wil6210_priv *wil, struct vring *vring)
 	 */
 	vring->va = dma_alloc_coherent(dev, sz, &vring->pa, GFP_KERNEL);
 	if (!vring->va) {
-		wil_err(wil, "vring_alloc [%d] failed to alloc DMA mem\n",
-			vring->size);
 		kfree(vring->ctx);
 		vring->ctx = NULL;
 		return -ENOMEM;
@@ -196,8 +191,7 @@ static int wil_vring_alloc_skb(struct wil6210_priv *wil, struct vring *vring,
  *  - Phy info
  */
 static void wil_rx_add_radiotap_header(struct wil6210_priv *wil,
-				       struct sk_buff *skb,
-				       volatile struct vring_rx_desc *d)
+				       struct sk_buff *skb)
 {
 	struct wireless_dev *wdev = wil->wdev;
 	struct wil6210_rtap {
@@ -221,6 +215,7 @@ static void wil_rx_add_radiotap_header(struct wil6210_priv *wil,
 		__le16 vendor_skip;
 		u8 vendor_data[0];
 	} __packed;
+	struct vring_rx_desc *d = wil_skb_rxdesc(skb);
 	struct wil6210_rtap_vendor *rtap_vendor;
 	int rtap_len = sizeof(struct wil6210_rtap);
 	int phy_length = 0; /* phy info header size, bytes */
@@ -317,6 +312,8 @@ static void wil_swap_ethaddr(void *data)
 /**
  * reap 1 frame from @swhead
  *
+ * Rx descriptor copied to skb->cb
+ *
  * Safe to call from IRQ
  */
 static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
@@ -325,11 +322,14 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 	struct device *dev = wil_to_dev(wil);
 	struct net_device *ndev = wil_to_ndev(wil);
 	volatile struct vring_rx_desc *d;
+	struct vring_rx_desc *d1;
 	struct sk_buff *skb;
 	dma_addr_t pa;
 	unsigned int sz = RX_BUF_LEN;
 	u8 ftype;
 	u8 ds_bits;
+
+	BUILD_BUG_ON(sizeof(struct vring_rx_desc) > sizeof(skb->cb));
 
 	if (wil_vring_is_empty(vring))
 		return NULL;
@@ -345,11 +345,14 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 	dma_unmap_single(dev, pa, sz, DMA_FROM_DEVICE);
 	skb_trim(skb, d->dma.length);
 
-	wil->stats.last_mcs_rx = wil_rxdesc_mcs(d);
+	d1 = wil_skb_rxdesc(skb);
+	*d1 = *d;
+
+	wil->stats.last_mcs_rx = wil_rxdesc_mcs(d1);
 
 	/* use radiotap header only if required */
 	if (ndev->type == ARPHRD_IEEE80211_RADIOTAP)
-		wil_rx_add_radiotap_header(wil, skb, d);
+		wil_rx_add_radiotap_header(wil, skb);
 
 	wil_dbg_txrx(wil, "Rx[%3d] : %d bytes\n", vring->swhead, d->dma.length);
 	wil_hex_dump_txrx("Rx ", DUMP_PREFIX_NONE, 32, 4,
@@ -365,7 +368,7 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 	 * Driver should recognize it by frame type, that is found
 	 * in Rx descriptor. If type is not data, it is 802.11 frame as is
 	 */
-	ftype = wil_rxdesc_ftype(d) << 2;
+	ftype = wil_rxdesc_ftype(d1) << 2;
 	if (ftype != IEEE80211_FTYPE_DATA) {
 		wil_dbg_txrx(wil, "Non-data frame ftype 0x%08x\n", ftype);
 		/* TODO: process it */
@@ -380,7 +383,7 @@ static struct sk_buff *wil_vring_reap_rx(struct wil6210_priv *wil,
 		return NULL;
 	}
 
-	ds_bits = wil_rxdesc_ds_bits(d);
+	ds_bits = wil_rxdesc_ds_bits(d1);
 	if (ds_bits == 1) {
 		/*
 		 * HW bug - in ToDS mode, i.e. Rx on AP side,
@@ -522,6 +525,7 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 		.vring_cfg = {
 			.tx_sw_ring = {
 				.max_mpdu_size = cpu_to_le16(TX_BUF_LEN),
+				.ring_size = cpu_to_le16(size),
 			},
 			.ringid = id,
 			.cidxtid = (cid & 0xf) | ((tid & 0xf) << 4),
@@ -553,14 +557,13 @@ int wil_vring_init_tx(struct wil6210_priv *wil, int id, int size,
 		goto out;
 
 	cmd.vring_cfg.tx_sw_ring.ring_mem_base = cpu_to_le64(vring->pa);
-	cmd.vring_cfg.tx_sw_ring.ring_size = cpu_to_le16(vring->size);
 
 	rc = wmi_call(wil, WMI_VRING_CFG_CMDID, &cmd, sizeof(cmd),
 		      WMI_VRING_CFG_DONE_EVENTID, &reply, sizeof(reply), 100);
 	if (rc)
 		goto out_free;
 
-	if (reply.cmd.status != WMI_VRING_CFG_SUCCESS) {
+	if (reply.cmd.status != WMI_FW_STATUS_SUCCESS) {
 		wil_err(wil, "Tx config failed, status 0x%02x\n",
 			reply.cmd.status);
 		rc = -EINVAL;
@@ -784,9 +787,14 @@ void wil_tx_complete(struct wil6210_priv *wil, int ringid)
 	wil_dbg_txrx(wil, "%s(%d)\n", __func__, ringid);
 
 	while (!wil_vring_is_empty(vring)) {
-		volatile struct vring_tx_desc *d = &vring->va[vring->swtail].tx;
+		volatile struct vring_tx_desc *d1 =
+					      &vring->va[vring->swtail].tx;
+		struct vring_tx_desc dd, *d = &dd;
 		dma_addr_t pa;
 		struct sk_buff *skb;
+
+		dd = *d1;
+
 		if (!(d->dma.status & TX_DMA_STATUS_DU))
 			break;
 

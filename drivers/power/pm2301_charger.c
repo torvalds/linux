@@ -16,24 +16,25 @@
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
-#include <linux/completion.h>
 #include <linux/regulator/consumer.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/workqueue.h>
-#include <linux/kobject.h>
-#include <linux/mfd/abx500.h>
 #include <linux/mfd/abx500/ab8500.h>
 #include <linux/mfd/abx500/ab8500-bm.h>
-#include <linux/mfd/abx500/ab8500-gpadc.h>
 #include <linux/mfd/abx500/ux500_chargalg.h>
 #include <linux/pm2301_charger.h>
 #include <linux/gpio.h>
+#include <linux/pm_runtime.h>
+#include <linux/pm.h>
 
 #include "pm2301_charger.h"
 
 #define to_pm2xxx_charger_ac_device_info(x) container_of((x), \
 		struct pm2xxx_charger, ac_chg)
+#define SLEEP_MIN		50
+#define SLEEP_MAX		100
+#define PM2XXX_AUTOSUSPEND_DELAY 500
 
 static int pm2xxx_interrupt_registers[] = {
 	PM2XXX_REG_INT1,
@@ -113,33 +114,24 @@ static const struct i2c_device_id pm2xxx_ident[] = {
 
 static void set_lpn_pin(struct pm2xxx_charger *pm2)
 {
-	if (pm2->ac.charger_connected)
-		return;
-	gpio_set_value(pm2->lpn_pin, 1);
-
-	return;
+	if (!pm2->ac.charger_connected && gpio_is_valid(pm2->lpn_pin)) {
+		gpio_set_value(pm2->lpn_pin, 1);
+		usleep_range(SLEEP_MIN, SLEEP_MAX);
+	}
 }
 
 static void clear_lpn_pin(struct pm2xxx_charger *pm2)
 {
-	if (pm2->ac.charger_connected)
-		return;
-	gpio_set_value(pm2->lpn_pin, 0);
-
-	return;
+	if (!pm2->ac.charger_connected && gpio_is_valid(pm2->lpn_pin))
+		gpio_set_value(pm2->lpn_pin, 0);
 }
 
 static int pm2xxx_reg_read(struct pm2xxx_charger *pm2, int reg, u8 *val)
 {
 	int ret;
-	/*
-	 * When AC adaptor is unplugged, the host
-	 * must put LPN high to be able to
-	 * communicate by I2C with PM2301
-	 * and receive I2C "acknowledge" from PM2301.
-	 */
-	mutex_lock(&pm2->lock);
-	set_lpn_pin(pm2);
+
+	/* wake up the device */
+	pm_runtime_get_sync(pm2->dev);
 
 	ret = i2c_smbus_read_i2c_block_data(pm2->config.pm2xxx_i2c, reg,
 				1, val);
@@ -147,8 +139,8 @@ static int pm2xxx_reg_read(struct pm2xxx_charger *pm2, int reg, u8 *val)
 		dev_err(pm2->dev, "Error reading register at 0x%x\n", reg);
 	else
 		ret = 0;
-	clear_lpn_pin(pm2);
-	mutex_unlock(&pm2->lock);
+
+	pm_runtime_put_sync(pm2->dev);
 
 	return ret;
 }
@@ -156,14 +148,9 @@ static int pm2xxx_reg_read(struct pm2xxx_charger *pm2, int reg, u8 *val)
 static int pm2xxx_reg_write(struct pm2xxx_charger *pm2, int reg, u8 val)
 {
 	int ret;
-	/*
-	 * When AC adaptor is unplugged, the host
-	 * must put LPN high to be able to
-	 * communicate by I2C with PM2301
-	 * and receive I2C "acknowledge" from PM2301.
-	 */
-	mutex_lock(&pm2->lock);
-	set_lpn_pin(pm2);
+
+	/* wake up the device */
+	pm_runtime_get_sync(pm2->dev);
 
 	ret = i2c_smbus_write_i2c_block_data(pm2->config.pm2xxx_i2c, reg,
 				1, &val);
@@ -171,8 +158,8 @@ static int pm2xxx_reg_write(struct pm2xxx_charger *pm2, int reg, u8 val)
 		dev_err(pm2->dev, "Error writing register at 0x%x\n", reg);
 	else
 		ret = 0;
-	clear_lpn_pin(pm2);
-	mutex_unlock(&pm2->lock);
+
+	pm_runtime_put_sync(pm2->dev);
 
 	return ret;
 }
@@ -192,11 +179,22 @@ static int pm2xxx_charging_disable_mngt(struct pm2xxx_charger *pm2)
 {
 	int ret;
 
+	/* Disable SW EOC ctrl */
+	ret = pm2xxx_reg_write(pm2, PM2XXX_SW_CTRL_REG, PM2XXX_SWCTRL_HW);
+	if (ret < 0) {
+		dev_err(pm2->dev, "%s pm2xxx write failed\n", __func__);
+		return ret;
+	}
+
 	/* Disable charging */
 	ret = pm2xxx_reg_write(pm2, PM2XXX_BATT_CTRL_REG2,
 			(PM2XXX_CH_AUTO_RESUME_DIS | PM2XXX_CHARGER_DIS));
+	if (ret < 0) {
+		dev_err(pm2->dev, "%s pm2xxx write failed\n", __func__);
+		return ret;
+	}
 
-	return ret;
+	return 0;
 }
 
 static int pm2xxx_charger_batt_therm_mngt(struct pm2xxx_charger *pm2, int val)
@@ -216,21 +214,14 @@ int pm2xxx_charger_die_therm_mngt(struct pm2xxx_charger *pm2, int val)
 
 static int pm2xxx_charger_ovv_mngt(struct pm2xxx_charger *pm2, int val)
 {
-	int ret = 0;
+	dev_err(pm2->dev, "Overvoltage detected\n");
+	pm2->flags.ovv = true;
+	power_supply_changed(&pm2->ac_chg.psy);
 
-	pm2->failure_input_ovv++;
-	if (pm2->failure_input_ovv < 4) {
-		ret = pm2xxx_charging_enable_mngt(pm2);
-		goto out;
-	} else {
-		pm2->failure_input_ovv = 0;
-		dev_err(pm2->dev, "Overvoltage detected\n");
-		pm2->flags.ovv = true;
-		power_supply_changed(&pm2->ac_chg.psy);
-	}
+	/* Schedule a new HW failure check */
+	queue_delayed_work(pm2->charger_wq, &pm2->check_hw_failure_work, 0);
 
-out:
-	return ret;
+	return 0;
 }
 
 static int pm2xxx_charger_wd_exp_mngt(struct pm2xxx_charger *pm2, int val)
@@ -245,13 +236,29 @@ static int pm2xxx_charger_wd_exp_mngt(struct pm2xxx_charger *pm2, int val)
 
 static int pm2xxx_charger_vbat_lsig_mngt(struct pm2xxx_charger *pm2, int val)
 {
+	int ret;
+
 	switch (val) {
 	case PM2XXX_INT1_ITVBATLOWR:
 		dev_dbg(pm2->dev, "VBAT grows above VBAT_LOW level\n");
+		/* Enable SW EOC ctrl */
+		ret = pm2xxx_reg_write(pm2, PM2XXX_SW_CTRL_REG,
+							PM2XXX_SWCTRL_SW);
+		if (ret < 0) {
+			dev_err(pm2->dev, "%s pm2xxx write failed\n", __func__);
+			return ret;
+		}
 		break;
 
 	case PM2XXX_INT1_ITVBATLOWF:
 		dev_dbg(pm2->dev, "VBAT drops below VBAT_LOW level\n");
+		/* Disable SW EOC ctrl */
+		ret = pm2xxx_reg_write(pm2, PM2XXX_SW_CTRL_REG,
+							PM2XXX_SWCTRL_HW);
+		if (ret < 0) {
+			dev_err(pm2->dev, "%s pm2xxx write failed\n", __func__);
+			return ret;
+		}
 		break;
 
 	default:
@@ -322,16 +329,27 @@ static int pm2_int_reg0(void *pm2_data, int val)
 	struct pm2xxx_charger *pm2 = pm2_data;
 	int ret = 0;
 
-	if (val & (PM2XXX_INT1_ITVBATLOWR | PM2XXX_INT1_ITVBATLOWF)) {
-		ret = pm2xxx_charger_vbat_lsig_mngt(pm2, val &
-			(PM2XXX_INT1_ITVBATLOWR | PM2XXX_INT1_ITVBATLOWF));
+	if (val & PM2XXX_INT1_ITVBATLOWR) {
+		ret = pm2xxx_charger_vbat_lsig_mngt(pm2,
+						PM2XXX_INT1_ITVBATLOWR);
+		if (ret < 0)
+			goto out;
+	}
+
+	if (val & PM2XXX_INT1_ITVBATLOWF) {
+		ret = pm2xxx_charger_vbat_lsig_mngt(pm2,
+						PM2XXX_INT1_ITVBATLOWF);
+		if (ret < 0)
+			goto out;
 	}
 
 	if (val & PM2XXX_INT1_ITVBATDISCONNECT) {
 		ret = pm2xxx_charger_bat_disc_mngt(pm2,
 				PM2XXX_INT1_ITVBATDISCONNECT);
+		if (ret < 0)
+			goto out;
 	}
-
+out:
 	return ret;
 }
 
@@ -447,7 +465,6 @@ static int pm2_int_reg5(void *pm2_data, int val)
 	struct pm2xxx_charger *pm2 = pm2_data;
 	int ret = 0;
 
-
 	if (val & (PM2XXX_INT6_ITVPWR2DROP | PM2XXX_INT6_ITVPWR1DROP)) {
 		dev_dbg(pm2->dev, "VMPWR drop to VBAT level\n");
 	}
@@ -468,14 +485,22 @@ static irqreturn_t  pm2xxx_irq_int(int irq, void *data)
 	struct pm2xxx_interrupts *interrupt = pm2->pm2_int;
 	int i;
 
-	for (i = 0; i < PM2XXX_NUM_INT_REG; i++) {
-		 pm2xxx_reg_read(pm2,
+	/* wake up the device */
+	pm_runtime_get_sync(pm2->dev);
+
+	do {
+		for (i = 0; i < PM2XXX_NUM_INT_REG; i++) {
+			pm2xxx_reg_read(pm2,
 				pm2xxx_interrupt_registers[i],
 				&(interrupt->reg[i]));
 
-		if (interrupt->reg[i] > 0)
-			interrupt->handler[i](pm2, interrupt->reg[i]);
-	}
+			if (interrupt->reg[i] > 0)
+				interrupt->handler[i](pm2, interrupt->reg[i]);
+		}
+	} while (gpio_get_value(pm2->pdata->gpio_irq_number) == 0);
+
+	pm_runtime_mark_last_busy(pm2->dev);
+	pm_runtime_put_autosuspend(pm2->dev);
 
 	return IRQ_HANDLED;
 }
@@ -592,6 +617,8 @@ static int pm2xxx_charger_ac_get_property(struct power_supply *psy,
 			val->intval = POWER_SUPPLY_HEALTH_DEAD;
 		else if (pm2->flags.main_thermal_prot)
 			val->intval = POWER_SUPPLY_HEALTH_OVERHEAT;
+		else if (pm2->flags.ovv)
+			val->intval = POWER_SUPPLY_HEALTH_OVERVOLTAGE;
 		else
 			val->intval = POWER_SUPPLY_HEALTH_GOOD;
 		break;
@@ -673,10 +700,6 @@ static int pm2xxx_charging_init(struct pm2xxx_charger *pm2)
 	/* Disable battery low monitoring */
 	ret = pm2xxx_reg_write(pm2, PM2XXX_BATT_LOW_LEV_COMP_REG,
 		PM2XXX_VBAT_LOW_MONITORING_ENA);
-
-	/* Disable LED */
-	ret = pm2xxx_reg_write(pm2, PM2XXX_LED_CTRL_REG,
-		PM2XXX_LED_SELECT_DIS);
 
 	return ret;
 }
@@ -822,10 +845,54 @@ static void pm2xxx_charger_ac_work(struct work_struct *work)
 	sysfs_notify(&pm2->ac_chg.psy.dev->kobj, NULL, "present");
 };
 
+static void pm2xxx_charger_check_hw_failure_work(struct work_struct *work)
+{
+	u8 reg_value;
+
+	struct pm2xxx_charger *pm2 = container_of(work,
+		struct pm2xxx_charger, check_hw_failure_work.work);
+
+	if (pm2->flags.ovv) {
+		pm2xxx_reg_read(pm2, PM2XXX_SRCE_REG_INT4, &reg_value);
+
+		if (!(reg_value & (PM2XXX_INT4_S_ITVPWR1OVV |
+					PM2XXX_INT4_S_ITVPWR2OVV))) {
+			pm2->flags.ovv = false;
+			power_supply_changed(&pm2->ac_chg.psy);
+		}
+	}
+
+	/* If we still have a failure, schedule a new check */
+	if (pm2->flags.ovv) {
+		queue_delayed_work(pm2->charger_wq,
+			&pm2->check_hw_failure_work, round_jiffies(HZ));
+	}
+}
+
 static void pm2xxx_charger_check_main_thermal_prot_work(
 	struct work_struct *work)
 {
-};
+	int ret;
+	u8 val;
+
+	struct pm2xxx_charger *pm2 = container_of(work, struct pm2xxx_charger,
+					check_main_thermal_prot_work);
+
+	/* Check if die temp warning is still active */
+	ret = pm2xxx_reg_read(pm2, PM2XXX_SRCE_REG_INT5, &val);
+	if (ret < 0) {
+		dev_err(pm2->dev, "%s pm2xxx read failed\n", __func__);
+		return;
+	}
+	if (val & (PM2XXX_INT5_S_ITTHERMALWARNINGRISE
+			| PM2XXX_INT5_S_ITTHERMALSHUTDOWNRISE))
+		pm2->flags.main_thermal_prot = true;
+	else if (val & (PM2XXX_INT5_S_ITTHERMALWARNINGFALL
+				| PM2XXX_INT5_S_ITTHERMALSHUTDOWNFALL))
+		pm2->flags.main_thermal_prot = false;
+
+	power_supply_changed(&pm2->ac_chg.psy);
+}
 
 static struct pm2xxx_interrupts pm2xxx_int = {
 	.handler[0] = pm2_int_reg0,
@@ -840,24 +907,105 @@ static struct pm2xxx_irq pm2xxx_charger_irq[] = {
 	{"PM2XXX_IRQ_INT", pm2xxx_irq_int},
 };
 
-static int pm2xxx_wall_charger_resume(struct i2c_client *i2c_client)
+#ifdef CONFIG_PM
+
+#ifdef CONFIG_PM_SLEEP
+
+static int pm2xxx_wall_charger_resume(struct device *dev)
 {
+	struct i2c_client *i2c_client = to_i2c_client(dev);
+	struct pm2xxx_charger *pm2;
+
+	pm2 =  (struct pm2xxx_charger *)i2c_get_clientdata(i2c_client);
+	set_lpn_pin(pm2);
+
+	/* If we still have a HW failure, schedule a new check */
+	if (pm2->flags.ovv)
+		queue_delayed_work(pm2->charger_wq,
+				&pm2->check_hw_failure_work, 0);
+
 	return 0;
 }
 
-static int pm2xxx_wall_charger_suspend(struct i2c_client *i2c_client,
-	pm_message_t state)
+static int pm2xxx_wall_charger_suspend(struct device *dev)
 {
+	struct i2c_client *i2c_client = to_i2c_client(dev);
+	struct pm2xxx_charger *pm2;
+
+	pm2 =  (struct pm2xxx_charger *)i2c_get_clientdata(i2c_client);
+	clear_lpn_pin(pm2);
+
+	/* Cancel any pending HW failure check */
+	if (delayed_work_pending(&pm2->check_hw_failure_work))
+		cancel_delayed_work(&pm2->check_hw_failure_work);
+
+	flush_work(&pm2->ac_work);
+	flush_work(&pm2->check_main_thermal_prot_work);
+
 	return 0;
 }
 
-static int __devinit pm2xxx_wall_charger_probe(struct i2c_client *i2c_client,
+#endif
+
+#ifdef CONFIG_PM_RUNTIME
+
+static int  pm2xxx_runtime_suspend(struct device *dev)
+{
+	struct i2c_client *pm2xxx_i2c_client = to_i2c_client(dev);
+	struct pm2xxx_charger *pm2;
+	int ret = 0;
+
+	pm2 = (struct pm2xxx_charger *)i2c_get_clientdata(pm2xxx_i2c_client);
+	if (!pm2) {
+		dev_err(pm2->dev, "no pm2xxx_charger data supplied\n");
+		ret = -EINVAL;
+		return ret;
+	}
+
+	clear_lpn_pin(pm2);
+
+	return ret;
+}
+
+static int  pm2xxx_runtime_resume(struct device *dev)
+{
+	struct i2c_client *pm2xxx_i2c_client = to_i2c_client(dev);
+	struct pm2xxx_charger *pm2;
+	int ret = 0;
+
+	pm2 = (struct pm2xxx_charger *)i2c_get_clientdata(pm2xxx_i2c_client);
+	if (!pm2) {
+		dev_err(pm2->dev, "no pm2xxx_charger data supplied\n");
+		ret = -EINVAL;
+		return ret;
+	}
+
+	if (gpio_is_valid(pm2->lpn_pin) && gpio_get_value(pm2->lpn_pin) == 0)
+		set_lpn_pin(pm2);
+
+	return ret;
+}
+
+#endif
+
+static const struct dev_pm_ops pm2xxx_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(pm2xxx_wall_charger_suspend,
+		pm2xxx_wall_charger_resume)
+	SET_RUNTIME_PM_OPS(pm2xxx_runtime_suspend, pm2xxx_runtime_resume, NULL)
+};
+#define  PM2XXX_PM_OPS (&pm2xxx_pm_ops)
+#else
+#define  PM2XXX_PM_OPS  NULL
+#endif
+
+static int pm2xxx_wall_charger_probe(struct i2c_client *i2c_client,
 		const struct i2c_device_id *id)
 {
 	struct pm2xxx_platform_data *pl_data = i2c_client->dev.platform_data;
 	struct pm2xxx_charger *pm2;
 	int ret = 0;
 	u8 val;
+	int i;
 
 	pm2 = kzalloc(sizeof(struct pm2xxx_charger), GFP_KERNEL);
 	if (!pm2) {
@@ -867,7 +1015,6 @@ static int __devinit pm2xxx_wall_charger_probe(struct i2c_client *i2c_client,
 
 	/* get parent data */
 	pm2->dev = &i2c_client->dev;
-	pm2->gpadc = ab8500_gpadc_get("ab8500-gpadc.0");
 
 	pm2->pm2_int = &pm2xxx_int;
 
@@ -888,14 +1035,6 @@ static int __devinit pm2xxx_wall_charger_probe(struct i2c_client *i2c_client,
 	}
 
 	pm2->bat = pl_data->battery;
-
-	/*get lpn GPIO from platform data*/
-	if (!pm2->pdata->lpn_gpio) {
-		dev_err(pm2->dev, "no lpn gpio data supplied\n");
-		ret = -EINVAL;
-		goto free_device_info;
-	}
-	pm2->lpn_pin = pm2->pdata->lpn_gpio;
 
 	if (!i2c_check_functionality(i2c_client->adapter,
 			I2C_FUNC_SMBUS_BYTE_DATA |
@@ -945,6 +1084,10 @@ static int __devinit pm2xxx_wall_charger_probe(struct i2c_client *i2c_client,
 	INIT_WORK(&pm2->check_main_thermal_prot_work,
 		pm2xxx_charger_check_main_thermal_prot_work);
 
+	/* Init work for HW failure check */
+	INIT_DEFERRABLE_WORK(&pm2->check_hw_failure_work,
+		pm2xxx_charger_check_hw_failure_work);
+
 	/*
 	 * VDD ADC supply needs to be enabled from this driver when there
 	 * is a charger connected to avoid erroneous BTEMP_HIGH/LOW
@@ -965,40 +1108,72 @@ static int __devinit pm2xxx_wall_charger_probe(struct i2c_client *i2c_client,
 	}
 
 	/* Register interrupts */
-	ret = request_threaded_irq(pm2->pdata->irq_number, NULL,
+	ret = request_threaded_irq(gpio_to_irq(pm2->pdata->gpio_irq_number),
+				NULL,
 				pm2xxx_charger_irq[0].isr,
 				pm2->pdata->irq_type,
 				pm2xxx_charger_irq[0].name, pm2);
 
 	if (ret != 0) {
 		dev_err(pm2->dev, "failed to request %s IRQ %d: %d\n",
-		pm2xxx_charger_irq[0].name, pm2->pdata->irq_number, ret);
+		pm2xxx_charger_irq[0].name,
+			gpio_to_irq(pm2->pdata->gpio_irq_number), ret);
 		goto unregister_pm2xxx_charger;
 	}
 
-	/*Initialize lock*/
+	ret = pm_runtime_set_active(pm2->dev);
+	if (ret)
+		dev_err(pm2->dev, "set active Error\n");
+
+	pm_runtime_enable(pm2->dev);
+	pm_runtime_set_autosuspend_delay(pm2->dev, PM2XXX_AUTOSUSPEND_DELAY);
+	pm_runtime_use_autosuspend(pm2->dev);
+	pm_runtime_resume(pm2->dev);
+
+	/* pm interrupt can wake up system */
+	ret = enable_irq_wake(gpio_to_irq(pm2->pdata->gpio_irq_number));
+	if (ret) {
+		dev_err(pm2->dev, "failed to set irq wake\n");
+		goto unregister_pm2xxx_interrupt;
+	}
+
 	mutex_init(&pm2->lock);
 
-	/*
-	 * Charger detection mechanism requires pulling up the LPN pin
-	 * while i2c communication if Charger is not connected
-	 * LPN pin of PM2301 is GPIO60 of AB9540
-	 */
-	ret = gpio_request(pm2->lpn_pin, "pm2301_lpm_gpio");
-	if (ret < 0) {
-		dev_err(pm2->dev, "pm2301_lpm_gpio request failed\n");
-		goto unregister_pm2xxx_charger;
+	if (gpio_is_valid(pm2->pdata->lpn_gpio)) {
+		/* get lpn GPIO from platform data */
+		pm2->lpn_pin = pm2->pdata->lpn_gpio;
+
+		/*
+		 * Charger detection mechanism requires pulling up the LPN pin
+		 * while i2c communication if Charger is not connected
+		 * LPN pin of PM2301 is GPIO60 of AB9540
+		 */
+		ret = gpio_request(pm2->lpn_pin, "pm2301_lpm_gpio");
+
+		if (ret < 0) {
+			dev_err(pm2->dev, "pm2301_lpm_gpio request failed\n");
+			goto disable_pm2_irq_wake;
+		}
+		ret = gpio_direction_output(pm2->lpn_pin, 0);
+		if (ret < 0) {
+			dev_err(pm2->dev, "pm2301_lpm_gpio direction failed\n");
+			goto free_gpio;
+		}
+		set_lpn_pin(pm2);
 	}
-	ret = gpio_direction_output(pm2->lpn_pin, 0);
-	if (ret < 0) {
-		dev_err(pm2->dev, "pm2301_lpm_gpio direction failed\n");
-		goto free_gpio;
-	}
+
+	/* read  interrupt registers */
+	for (i = 0; i < PM2XXX_NUM_INT_REG; i++)
+		pm2xxx_reg_read(pm2,
+			pm2xxx_interrupt_registers[i],
+			&val);
 
 	ret = pm2xxx_charger_detection(pm2, &val);
 
 	if ((ret == 0) && val) {
 		pm2->ac.charger_connected = 1;
+		ab8500_override_turn_on_stat(~AB8500_POW_KEY_1_ON,
+					     AB8500_MAIN_CH_DET);
 		pm2->ac_conn = true;
 		power_supply_changed(&pm2->ac_chg.psy);
 		sysfs_notify(&pm2->ac_chg.psy.dev->kobj, NULL, "present");
@@ -1007,7 +1182,13 @@ static int __devinit pm2xxx_wall_charger_probe(struct i2c_client *i2c_client,
 	return 0;
 
 free_gpio:
-	gpio_free(pm2->lpn_pin);
+	if (gpio_is_valid(pm2->lpn_pin))
+		gpio_free(pm2->lpn_pin);
+disable_pm2_irq_wake:
+	disable_irq_wake(gpio_to_irq(pm2->pdata->gpio_irq_number));
+unregister_pm2xxx_interrupt:
+	/* disable interrupt */
+	free_irq(gpio_to_irq(pm2->pdata->gpio_irq_number), pm2);
 unregister_pm2xxx_charger:
 	/* unregister power supply */
 	power_supply_unregister(&pm2->ac_chg.psy);
@@ -1018,18 +1199,24 @@ free_charger_wq:
 	destroy_workqueue(pm2->charger_wq);
 free_device_info:
 	kfree(pm2);
+
 	return ret;
 }
 
-static int __devexit pm2xxx_wall_charger_remove(struct i2c_client *i2c_client)
+static int pm2xxx_wall_charger_remove(struct i2c_client *i2c_client)
 {
 	struct pm2xxx_charger *pm2 = i2c_get_clientdata(i2c_client);
 
+	/* Disable pm_runtime */
+	pm_runtime_disable(pm2->dev);
 	/* Disable AC charging */
 	pm2xxx_charger_ac_en(&pm2->ac_chg, false, 0, 0);
 
+	/* Disable wake by pm interrupt */
+	disable_irq_wake(gpio_to_irq(pm2->pdata->gpio_irq_number));
+
 	/* Disable interrupts */
-	free_irq(pm2->pdata->irq_number, pm2);
+	free_irq(gpio_to_irq(pm2->pdata->gpio_irq_number), pm2);
 
 	/* Delete the work queue */
 	destroy_workqueue(pm2->charger_wq);
@@ -1041,8 +1228,8 @@ static int __devexit pm2xxx_wall_charger_remove(struct i2c_client *i2c_client)
 
 	power_supply_unregister(&pm2->ac_chg.psy);
 
-	/*Free GPIO60*/
-	gpio_free(pm2->lpn_pin);
+	if (gpio_is_valid(pm2->lpn_pin))
+		gpio_free(pm2->lpn_pin);
 
 	kfree(pm2);
 
@@ -1058,12 +1245,11 @@ MODULE_DEVICE_TABLE(i2c, pm2xxx_id);
 
 static struct i2c_driver pm2xxx_charger_driver = {
 	.probe = pm2xxx_wall_charger_probe,
-	.remove = __devexit_p(pm2xxx_wall_charger_remove),
-	.suspend = pm2xxx_wall_charger_suspend,
-	.resume = pm2xxx_wall_charger_resume,
+	.remove = pm2xxx_wall_charger_remove,
 	.driver = {
 		.name = "pm2xxx-wall_charger",
 		.owner = THIS_MODULE,
+		.pm = PM2XXX_PM_OPS,
 	},
 	.id_table = pm2xxx_id,
 };
@@ -1078,11 +1264,10 @@ static void __exit pm2xxx_charger_exit(void)
 	i2c_del_driver(&pm2xxx_charger_driver);
 }
 
-subsys_initcall_sync(pm2xxx_charger_init);
+device_initcall_sync(pm2xxx_charger_init);
 module_exit(pm2xxx_charger_exit);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Rajkumar kasirajan, Olivier Launay");
-MODULE_ALIAS("platform:pm2xxx-charger");
+MODULE_ALIAS("i2c:pm2xxx-charger");
 MODULE_DESCRIPTION("PM2xxx charger management driver");
-

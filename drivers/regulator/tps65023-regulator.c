@@ -107,12 +107,7 @@ static const unsigned int DCDC_FIXED_1800000_VSEL_table[] = {
 };
 
 /* Supported voltage values for LDO regulators for tps65020 */
-static const unsigned int TPS65020_LDO1_VSEL_table[] = {
-	1000000, 1050000, 1100000, 1300000,
-	1800000, 2500000, 3000000, 3300000,
-};
-
-static const unsigned int TPS65020_LDO2_VSEL_table[] = {
+static const unsigned int TPS65020_LDO_VSEL_table[] = {
 	1000000, 1050000, 1100000, 1300000,
 	1800000, 2500000, 3000000, 3300000,
 };
@@ -154,20 +149,15 @@ struct tps_driver_data {
 static int tps65023_dcdc_get_voltage_sel(struct regulator_dev *dev)
 {
 	struct tps_pmic *tps = rdev_get_drvdata(dev);
-	int ret;
-	int data, dcdc = rdev_get_id(dev);
+	int dcdc = rdev_get_id(dev);
 
 	if (dcdc < TPS65023_DCDC_1 || dcdc > TPS65023_DCDC_3)
 		return -EINVAL;
 
-	if (dcdc == tps->core_regulator) {
-		ret = regmap_read(tps->regmap, TPS65023_REG_DEF_CORE, &data);
-		if (ret != 0)
-			return ret;
-		data &= (tps->info[dcdc]->table_len - 1);
-		return data;
-	} else
+	if (dcdc != tps->core_regulator)
 		return 0;
+
+	return regulator_get_voltage_sel_regmap(dev);
 }
 
 static int tps65023_dcdc_set_voltage_sel(struct regulator_dev *dev,
@@ -175,23 +165,11 @@ static int tps65023_dcdc_set_voltage_sel(struct regulator_dev *dev,
 {
 	struct tps_pmic *tps = rdev_get_drvdata(dev);
 	int dcdc = rdev_get_id(dev);
-	int ret;
 
 	if (dcdc != tps->core_regulator)
 		return -EINVAL;
 
-	ret = regmap_write(tps->regmap, TPS65023_REG_DEF_CORE, selector);
-	if (ret)
-		goto out;
-
-	/* Tell the chip that we have changed the value in DEFCORE
-	 * and its time to update the core voltage
-	 */
-	ret = regmap_update_bits(tps->regmap, TPS65023_REG_CON_CTRL2,
-				 TPS65023_REG_CTRL2_GO, TPS65023_REG_CTRL2_GO);
-
-out:
-	return ret;
+	return regulator_set_voltage_sel_regmap(dev, selector);
 }
 
 /* Operations permitted on VDCDCx */
@@ -202,6 +180,7 @@ static struct regulator_ops tps65023_dcdc_ops = {
 	.get_voltage_sel = tps65023_dcdc_get_voltage_sel,
 	.set_voltage_sel = tps65023_dcdc_set_voltage_sel,
 	.list_voltage = regulator_list_voltage_table,
+	.map_voltage = regulator_map_voltage_ascend,
 };
 
 /* Operations permitted on LDOx */
@@ -212,6 +191,7 @@ static struct regulator_ops tps65023_ldo_ops = {
 	.get_voltage_sel = regulator_get_voltage_sel_regmap,
 	.set_voltage_sel = regulator_set_voltage_sel_regmap,
 	.list_voltage = regulator_list_voltage_table,
+	.map_voltage = regulator_map_voltage_ascend,
 };
 
 static struct regmap_config tps65023_regmap_config = {
@@ -285,6 +265,10 @@ static int tps_65023_probe(struct i2c_client *client,
 		default: /* DCDCx */
 			tps->desc[i].enable_mask =
 					1 << (TPS65023_NUM_REGULATOR - i);
+			tps->desc[i].vsel_reg = TPS65023_REG_DEF_CORE;
+			tps->desc[i].vsel_mask = info->table_len - 1;
+			tps->desc[i].apply_reg = TPS65023_REG_CON_CTRL2;
+			tps->desc[i].apply_bit = TPS65023_REG_CTRL2_GO;
 		}
 
 		config.dev = &client->dev;
@@ -347,13 +331,13 @@ static const struct tps_info tps65020_regs[] = {
 	},
 	{
 		.name = "LDO1",
-		.table_len = ARRAY_SIZE(TPS65020_LDO1_VSEL_table),
-		.table = TPS65020_LDO1_VSEL_table,
+		.table_len = ARRAY_SIZE(TPS65020_LDO_VSEL_table),
+		.table = TPS65020_LDO_VSEL_table,
 	},
 	{
 		.name = "LDO2",
-		.table_len = ARRAY_SIZE(TPS65020_LDO2_VSEL_table),
-		.table = TPS65020_LDO2_VSEL_table,
+		.table_len = ARRAY_SIZE(TPS65020_LDO_VSEL_table),
+		.table = TPS65020_LDO_VSEL_table,
 	},
 };
 

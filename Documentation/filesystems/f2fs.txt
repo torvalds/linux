@@ -146,7 +146,7 @@ USAGE
 
 Format options
 --------------
--l [label]   : Give a volume label, up to 256 unicode name.
+-l [label]   : Give a volume label, up to 512 unicode name.
 -a [0 or 1]  : Split start location of each area for heap-based allocation.
                1 is set by default, which performs this.
 -o [int]     : Set overprovision ratio in percent over volume size.
@@ -156,6 +156,8 @@ Format options
 -z [int]     : Set the number of sections per zone.
                1 is set by default.
 -e [str]     : Set basic extension list. e.g. "mp3,gif,mov"
+-t [0 or 1]  : Disable discard command or not.
+               1 is set by default, which conducts discard.
 
 ================================================================================
 DESIGN

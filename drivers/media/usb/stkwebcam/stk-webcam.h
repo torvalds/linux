@@ -23,6 +23,8 @@
 #define STKWEBCAM_H
 
 #include <linux/usb.h>
+#include <media/v4l2-device.h>
+#include <media/v4l2-ctrls.h>
 #include <media/v4l2-common.h>
 
 #define DRIVER_VERSION		"v0.0.1"
@@ -59,7 +61,6 @@ enum stk_mode {MODE_VGA, MODE_SXGA, MODE_CIF, MODE_QVGA, MODE_QCIF};
 
 struct stk_video {
 	enum stk_mode mode;
-	int brightness;
 	__u32 palette;
 	int hflip;
 	int vflip;
@@ -91,11 +92,15 @@ struct regval {
 };
 
 struct stk_camera {
+	struct v4l2_device v4l2_dev;
+	struct v4l2_ctrl_handler hdl;
 	struct video_device vdev;
 	struct usb_device *udev;
 	struct usb_interface *interface;
 	int webcam_model;
 	struct file *owner;
+	struct mutex lock;
+	int first_init;
 
 	u8 isoc_ep;
 
@@ -113,6 +118,7 @@ struct stk_camera {
 
 	int frame_size;
 	/* Streaming buffers */
+	int reading;
 	unsigned int n_sbufs;
 	struct stk_sio_buffer *sio_bufs;
 	struct list_head sio_avail;

@@ -101,12 +101,14 @@ nvc0_bar_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 		return ret;
 
 	/* BAR3 */
-	ret = nouveau_gpuobj_new(parent, NULL, 0x1000, 0, 0, &priv->bar[0].mem);
+	ret = nouveau_gpuobj_new(nv_object(priv), NULL, 0x1000, 0, 0,
+				&priv->bar[0].mem);
 	mem = priv->bar[0].mem;
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(parent, NULL, 0x8000, 0, 0, &priv->bar[0].pgd);
+	ret = nouveau_gpuobj_new(nv_object(priv), NULL, 0x8000, 0, 0,
+				&priv->bar[0].pgd);
 	if (ret)
 		return ret;
 
@@ -114,7 +116,7 @@ nvc0_bar_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(parent, NULL,
+	ret = nouveau_gpuobj_new(nv_object(priv), NULL,
 				 (pci_resource_len(pdev, 3) >> 12) * 8,
 				 0x1000, NVOBJ_FLAG_ZERO_ALLOC,
 				 &vm->pgt[0].obj[0]);
@@ -133,12 +135,14 @@ nvc0_bar_ctor(struct nouveau_object *parent, struct nouveau_object *engine,
 	nv_wo32(mem, 0x020c, upper_32_bits(pci_resource_len(pdev, 3) - 1));
 
 	/* BAR1 */
-	ret = nouveau_gpuobj_new(parent, NULL, 0x1000, 0, 0, &priv->bar[1].mem);
+	ret = nouveau_gpuobj_new(nv_object(priv), NULL, 0x1000, 0, 0,
+				&priv->bar[1].mem);
 	mem = priv->bar[1].mem;
 	if (ret)
 		return ret;
 
-	ret = nouveau_gpuobj_new(parent, NULL, 0x8000, 0, 0, &priv->bar[1].pgd);
+	ret = nouveau_gpuobj_new(nv_object(priv), NULL, 0x8000, 0, 0,
+				&priv->bar[1].pgd);
 	if (ret)
 		return ret;
 

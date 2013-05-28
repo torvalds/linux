@@ -789,12 +789,20 @@ static void __ir_to_input(struct wiimote_data *wdata, const __u8 *ir,
 	input_report_abs(wdata->ir, yid, y);
 }
 
-static void handler_status(struct wiimote_data *wdata, const __u8 *payload)
+/* reduced status report with "BB BB" key data only */
+static void handler_status_K(struct wiimote_data *wdata,
+			     const __u8 *payload)
 {
 	handler_keys(wdata, payload);
 
 	/* on status reports the drm is reset so we need to resend the drm */
 	wiiproto_req_drm(wdata, WIIPROTO_REQ_NULL);
+}
+
+/* extended status report with "BB BB LF 00 00 VV" data */
+static void handler_status(struct wiimote_data *wdata, const __u8 *payload)
+{
+	handler_status_K(wdata, payload);
 
 	wiiext_event(wdata, payload[2] & 0x02);
 
@@ -802,6 +810,12 @@ static void handler_status(struct wiimote_data *wdata, const __u8 *payload)
 		wdata->state.cmd_battery = payload[5];
 		wiimote_cmd_complete(wdata);
 	}
+}
+
+/* reduced generic report with "BB BB" key data only */
+static void handler_generic_K(struct wiimote_data *wdata, const __u8 *payload)
+{
+	handler_keys(wdata, payload);
 }
 
 static void handler_data(struct wiimote_data *wdata, const __u8 *payload)
@@ -947,16 +961,26 @@ struct wiiproto_handler {
 
 static struct wiiproto_handler handlers[] = {
 	{ .id = WIIPROTO_REQ_STATUS, .size = 6, .func = handler_status },
+	{ .id = WIIPROTO_REQ_STATUS, .size = 2, .func = handler_status_K },
 	{ .id = WIIPROTO_REQ_DATA, .size = 21, .func = handler_data },
+	{ .id = WIIPROTO_REQ_DATA, .size = 2, .func = handler_generic_K },
 	{ .id = WIIPROTO_REQ_RETURN, .size = 4, .func = handler_return },
+	{ .id = WIIPROTO_REQ_RETURN, .size = 2, .func = handler_generic_K },
 	{ .id = WIIPROTO_REQ_DRM_K, .size = 2, .func = handler_keys },
 	{ .id = WIIPROTO_REQ_DRM_KA, .size = 5, .func = handler_drm_KA },
+	{ .id = WIIPROTO_REQ_DRM_KA, .size = 2, .func = handler_generic_K },
 	{ .id = WIIPROTO_REQ_DRM_KE, .size = 10, .func = handler_drm_KE },
+	{ .id = WIIPROTO_REQ_DRM_KE, .size = 2, .func = handler_generic_K },
 	{ .id = WIIPROTO_REQ_DRM_KAI, .size = 17, .func = handler_drm_KAI },
+	{ .id = WIIPROTO_REQ_DRM_KAI, .size = 2, .func = handler_generic_K },
 	{ .id = WIIPROTO_REQ_DRM_KEE, .size = 21, .func = handler_drm_KEE },
+	{ .id = WIIPROTO_REQ_DRM_KEE, .size = 2, .func = handler_generic_K },
 	{ .id = WIIPROTO_REQ_DRM_KAE, .size = 21, .func = handler_drm_KAE },
+	{ .id = WIIPROTO_REQ_DRM_KAE, .size = 2, .func = handler_generic_K },
 	{ .id = WIIPROTO_REQ_DRM_KIE, .size = 21, .func = handler_drm_KIE },
+	{ .id = WIIPROTO_REQ_DRM_KIE, .size = 2, .func = handler_generic_K },
 	{ .id = WIIPROTO_REQ_DRM_KAIE, .size = 21, .func = handler_drm_KAIE },
+	{ .id = WIIPROTO_REQ_DRM_KAIE, .size = 2, .func = handler_generic_K },
 	{ .id = WIIPROTO_REQ_DRM_E, .size = 21, .func = handler_drm_E },
 	{ .id = WIIPROTO_REQ_DRM_SKAI1, .size = 21, .func = handler_drm_SKAI1 },
 	{ .id = WIIPROTO_REQ_DRM_SKAI2, .size = 21, .func = handler_drm_SKAI2 },
@@ -970,7 +994,6 @@ static int wiimote_hid_event(struct hid_device *hdev, struct hid_report *report,
 	struct wiiproto_handler *h;
 	int i;
 	unsigned long flags;
-	bool handled = false;
 
 	if (size < 1)
 		return -EINVAL;
@@ -981,11 +1004,11 @@ static int wiimote_hid_event(struct hid_device *hdev, struct hid_report *report,
 		h = &handlers[i];
 		if (h->id == raw_data[0] && h->size < size) {
 			h->func(wdata, &raw_data[1]);
-			handled = true;
+			break;
 		}
 	}
 
-	if (!handled)
+	if (!handlers[i].id)
 		hid_warn(hdev, "Unhandled report %hhu size %d\n", raw_data[0],
 									size);
 
@@ -1160,6 +1183,7 @@ static void wiimote_destroy(struct wiimote_data *wdata)
 	wiimote_leds_destroy(wdata);
 
 	power_supply_unregister(&wdata->battery);
+	kfree(wdata->battery.name);
 	input_unregister_device(wdata->accel);
 	input_unregister_device(wdata->ir);
 	input_unregister_device(wdata->input);
@@ -1216,9 +1240,14 @@ static int wiimote_hid_probe(struct hid_device *hdev,
 	wdata->battery.properties = wiimote_battery_props;
 	wdata->battery.num_properties = ARRAY_SIZE(wiimote_battery_props);
 	wdata->battery.get_property = wiimote_battery_get_property;
-	wdata->battery.name = "wiimote_battery";
 	wdata->battery.type = POWER_SUPPLY_TYPE_BATTERY;
 	wdata->battery.use_for_apm = 0;
+	wdata->battery.name = kasprintf(GFP_KERNEL, "wiimote_battery_%s",
+					wdata->hdev->uniq);
+	if (!wdata->battery.name) {
+		ret = -ENOMEM;
+		goto err_battery_name;
+	}
 
 	ret = power_supply_register(&wdata->hdev->dev, &wdata->battery);
 	if (ret) {
@@ -1254,6 +1283,8 @@ err_free:
 	return ret;
 
 err_battery:
+	kfree(wdata->battery.name);
+err_battery_name:
 	input_unregister_device(wdata->input);
 	wdata->input = NULL;
 err_input:
@@ -1283,6 +1314,8 @@ static void wiimote_hid_remove(struct hid_device *hdev)
 static const struct hid_device_id wiimote_hid_devices[] = {
 	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_NINTENDO,
 				USB_DEVICE_ID_NINTENDO_WIIMOTE) },
+	{ HID_BLUETOOTH_DEVICE(USB_VENDOR_ID_NINTENDO,
+				USB_DEVICE_ID_NINTENDO_WIIMOTE2) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, wiimote_hid_devices);

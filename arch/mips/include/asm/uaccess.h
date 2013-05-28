@@ -23,7 +23,11 @@
  */
 #ifdef CONFIG_32BIT
 
-#define __UA_LIMIT	0x80000000UL
+#ifdef CONFIG_KVM_GUEST
+#define __UA_LIMIT 0x40000000UL
+#else
+#define __UA_LIMIT 0x80000000UL
+#endif
 
 #define __UA_ADDR	".word"
 #define __UA_LA		"la"
@@ -55,8 +59,13 @@ extern u64 __ua_limit;
  * address in this range it's the process's problem, not ours :-)
  */
 
+#ifdef CONFIG_KVM_GUEST
+#define KERNEL_DS	((mm_segment_t) { 0x80000000UL })
+#define USER_DS		((mm_segment_t) { 0xC0000000UL })
+#else
 #define KERNEL_DS	((mm_segment_t) { 0UL })
 #define USER_DS		((mm_segment_t) { __UA_LIMIT })
+#endif
 
 #define VERIFY_READ    0
 #define VERIFY_WRITE   1
@@ -261,6 +270,7 @@ do {									\
 	__asm__ __volatile__(						\
 	"1:	" insn "	%1, %3				\n"	\
 	"2:							\n"	\
+	"	.insn						\n"	\
 	"	.section .fixup,\"ax\"				\n"	\
 	"3:	li	%0, %4					\n"	\
 	"	j	2b					\n"	\
@@ -287,7 +297,9 @@ do {									\
 	__asm__ __volatile__(						\
 	"1:	lw	%1, (%3)				\n"	\
 	"2:	lw	%D1, 4(%3)				\n"	\
-	"3:	.section	.fixup,\"ax\"			\n"	\
+	"3:							\n"	\
+	"	.insn						\n"	\
+	"	.section	.fixup,\"ax\"			\n"	\
 	"4:	li	%0, %4					\n"	\
 	"	move	%1, $0					\n"	\
 	"	move	%D1, $0					\n"	\
@@ -355,6 +367,7 @@ do {									\
 	__asm__ __volatile__(						\
 	"1:	" insn "	%z2, %3		# __put_user_asm\n"	\
 	"2:							\n"	\
+	"	.insn						\n"	\
 	"	.section	.fixup,\"ax\"			\n"	\
 	"3:	li	%0, %4					\n"	\
 	"	j	2b					\n"	\
@@ -373,6 +386,7 @@ do {									\
 	"1:	sw	%2, (%3)	# __put_user_asm_ll32	\n"	\
 	"2:	sw	%D2, 4(%3)				\n"	\
 	"3:							\n"	\
+	"	.insn						\n"	\
 	"	.section	.fixup,\"ax\"			\n"	\
 	"4:	li	%0, %4					\n"	\
 	"	j	3b					\n"	\
@@ -524,6 +538,7 @@ do {									\
 	__asm__ __volatile__(						\
 	"1:	" insn "	%1, %3				\n"	\
 	"2:							\n"	\
+	"	.insn						\n"	\
 	"	.section .fixup,\"ax\"				\n"	\
 	"3:	li	%0, %4					\n"	\
 	"	j	2b					\n"	\
@@ -549,7 +564,9 @@ do {									\
 	"1:	ulw	%1, (%3)				\n"	\
 	"2:	ulw	%D1, 4(%3)				\n"	\
 	"	move	%0, $0					\n"	\
-	"3:	.section	.fixup,\"ax\"			\n"	\
+	"3:							\n"	\
+	"	.insn						\n"	\
+	"	.section	.fixup,\"ax\"			\n"	\
 	"4:	li	%0, %4					\n"	\
 	"	move	%1, $0					\n"	\
 	"	move	%D1, $0					\n"	\
@@ -616,6 +633,7 @@ do {									\
 	__asm__ __volatile__(						\
 	"1:	" insn "	%z2, %3		# __put_user_unaligned_asm\n" \
 	"2:							\n"	\
+	"	.insn						\n"	\
 	"	.section	.fixup,\"ax\"			\n"	\
 	"3:	li	%0, %4					\n"	\
 	"	j	2b					\n"	\
@@ -634,6 +652,7 @@ do {									\
 	"1:	sw	%2, (%3)	# __put_user_unaligned_asm_ll32 \n" \
 	"2:	sw	%D2, 4(%3)				\n"	\
 	"3:							\n"	\
+	"	.insn						\n"	\
 	"	.section	.fixup,\"ax\"			\n"	\
 	"4:	li	%0, %4					\n"	\
 	"	j	3b					\n"	\

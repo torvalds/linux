@@ -241,8 +241,6 @@ static inline struct thread_info *current_thread_info(void)
 					   skip sending interrupt */
 #define TS_RESTORE_SIGMASK	0x0008	/* restore signal mask in do_signal() */
 
-#define tsk_is_polling(t) (task_thread_info(t)->status & TS_POLLING)
-
 #ifndef __ASSEMBLY__
 #define HAVE_SET_RESTORE_SIGMASK	1
 static inline void set_restore_sigmask(void)

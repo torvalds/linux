@@ -51,7 +51,7 @@ static int rfkill_regulator_set_block(void *data, bool blocked)
 	return 0;
 }
 
-struct rfkill_ops rfkill_regulator_ops = {
+static struct rfkill_ops rfkill_regulator_ops = {
 	.set_block = rfkill_regulator_set_block,
 };
 

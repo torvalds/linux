@@ -167,15 +167,6 @@ void show_stack(struct task_struct *task, unsigned long *sp)
 	show_trace(task, sp);
 }
 
-void dump_stack(void)
-{
-	unsigned long stack;
-
-	show_trace(current, &stack);
-}
-
-EXPORT_SYMBOL(dump_stack);
-
 static void show_registers(struct pt_regs *regs)
 {
 	int i = 0;

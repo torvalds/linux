@@ -104,6 +104,8 @@ struct clk {
 	int (*set_rate) (struct clk *clk, unsigned long rate);
 	int (*round_rate) (struct clk *clk, unsigned long rate);
 	int (*reset) (struct clk *clk, bool reset);
+	void (*clk_enable) (struct clk *clk);
+	void (*clk_disable) (struct clk *clk);
 };
 
 /* Clock flags: SoC-specific flags start at BIT(16) */

@@ -700,9 +700,6 @@ static ssize_t apds990x_lux_calib_store(struct device *dev,
 	if (strict_strtoul(buf, 0, &value))
 		return -EINVAL;
 
-	if (chip->lux_calib > APDS_RANGE)
-		return -EINVAL;
-
 	chip->lux_calib = value;
 
 	return len;
@@ -1204,7 +1201,7 @@ static int apds990x_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_PM_SLEEP
 static int apds990x_suspend(struct device *dev)
 {
 	struct i2c_client *client = container_of(dev, struct i2c_client, dev);
@@ -1227,10 +1224,6 @@ static int apds990x_resume(struct device *dev)
 
 	return 0;
 }
-#else
-#define apds990x_suspend  NULL
-#define apds990x_resume	  NULL
-#define apds990x_shutdown NULL
 #endif
 
 #ifdef CONFIG_PM_RUNTIME

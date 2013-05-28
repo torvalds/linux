@@ -46,6 +46,7 @@
  */
 #undef __NO_VERSION__
 
+#include <linux/file.h>
 #include "device.h"
 #include "card.h"
 #include "baseband.h"
@@ -72,7 +73,6 @@
 #include "int.h"
 #include "iowpa.h"
 
-/*---------------------  Static Definitions -------------------------*/
 /* static int msglevel = MSG_LEVEL_DEBUG; */
 static int          msglevel                =MSG_LEVEL_INFO;
 
@@ -95,13 +95,11 @@ MODULE_DESCRIPTION(DEVICE_FULL_DRV_NAM);
 #define RX_DESC_DEF0     64
 DEVICE_PARAM(RxDescriptors0,"Number of receive usb desc buffer");
 
-
 #define TX_DESC_DEF0     64
 DEVICE_PARAM(TxDescriptors0,"Number of transmit usb desc buffer");
 
 #define CHANNEL_DEF     6
 DEVICE_PARAM(Channel, "Channel number");
-
 
 /* PreambleType[] is the preamble length used for transmit.
    0: indicate allows long preamble type
@@ -117,7 +115,6 @@ DEVICE_PARAM(RTSThreshold, "RTS threshold");
 
 #define FRAG_THRESH_DEF     2346
 DEVICE_PARAM(FragThreshold, "Fragmentation threshold");
-
 
 #define DATA_RATE_DEF     13
 /* datarate[] index
@@ -148,7 +145,6 @@ DEVICE_PARAM(OPMode, "Infrastruct, adhoc, AP mode ");
    2: indicate AP mode used
 */
 
-
 /* PSMode[]
    0: indicate disable power saving mode
    1: indicate enable power saving mode
@@ -156,7 +152,6 @@ DEVICE_PARAM(OPMode, "Infrastruct, adhoc, AP mode ");
 
 #define PS_MODE_DEF     0
 DEVICE_PARAM(PSMode, "Power saving mode");
-
 
 #define SHORT_RETRY_DEF     8
 DEVICE_PARAM(ShortRetryLimit, "Short frame retry limits");
@@ -173,8 +168,6 @@ DEVICE_PARAM(LongRetryLimit, "long frame retry limits");
 #define BBP_TYPE_DEF     2
 DEVICE_PARAM(BasebandType, "baseband type");
 
-
-
 /* 80211hEnable[]
    0: indicate disable 802.11h
    1: indicate enable 802.11h
@@ -183,7 +176,6 @@ DEVICE_PARAM(BasebandType, "baseband type");
 #define X80211h_MODE_DEF     0
 
 DEVICE_PARAM(b80211hEnable, "802.11h mode");
-
 
 /*
  * Static vars definitions
@@ -204,11 +196,8 @@ static const long frequency_list[] = {
     5700, 5745, 5765, 5785, 5805, 5825
 	};
 
-
 static const struct iw_handler_def	iwctl_handler_def;
 */
-
-/*---------------------  Static Functions  --------------------------*/
 
 static int vt6656_probe(struct usb_interface *intf,
 			const struct usb_device_id *id);
@@ -245,21 +234,13 @@ static int Config_FileGetParameter(unsigned char *string,
 				   unsigned char *dest,
 				   unsigned char *source);
 
-
 static void usb_device_reset(struct vnt_private *pDevice);
-
-
-
-/*---------------------  Export Variables  --------------------------*/
-
-/*---------------------  Export Functions  --------------------------*/
-
 
 static void
 device_set_options(struct vnt_private *pDevice) {
 
-    BYTE    abyBroadcastAddr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-    BYTE    abySNAP_RFC1042[ETH_ALEN] = {0xAA, 0xAA, 0x03, 0x00, 0x00, 0x00};
+    u8    abyBroadcastAddr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+    u8    abySNAP_RFC1042[ETH_ALEN] = {0xAA, 0xAA, 0x03, 0x00, 0x00, 0x00};
     u8 abySNAP_Bridgetunnel[ETH_ALEN] = {0xAA, 0xAA, 0x03, 0x00, 0x00, 0xF8};
 
     memcpy(pDevice->abyBroadcastAddr, abyBroadcastAddr, ETH_ALEN);
@@ -293,7 +274,6 @@ device_set_options(struct vnt_private *pDevice) {
     pDevice->bDiversityRegCtlON = false;
 }
 
-
 static void device_init_diversity_timer(struct vnt_private *pDevice)
 {
     init_timer(&pDevice->TimerSQ3Tmax1);
@@ -313,7 +293,6 @@ static void device_init_diversity_timer(struct vnt_private *pDevice)
 
     return;
 }
-
 
 /*
  * initialization of MAC & BBP registers
@@ -366,8 +345,8 @@ static int device_init_registers(struct vnt_private *pDevice,
         }
     }
 
-    sInitCmd.byInitClass = (BYTE)InitType;
-    sInitCmd.bExistSWNetAddr = (BYTE) pDevice->bExistSWNetAddr;
+    sInitCmd.byInitClass = (u8)InitType;
+    sInitCmd.bExistSWNetAddr = (u8) pDevice->bExistSWNetAddr;
     for (ii = 0; ii < 6; ii++)
 	sInitCmd.bySWNetAddr[ii] = pDevice->abyCurrentNetAddr[ii];
     sInitCmd.byShortRetryLimit = pDevice->byShortRetryLimit;
@@ -379,7 +358,7 @@ static int device_init_registers(struct vnt_private *pDevice,
                                     0,
                                     0,
                                     sizeof(CMD_CARD_INIT),
-                                    (PBYTE) &(sInitCmd));
+                                    (u8 *) &(sInitCmd));
 
     if ( ntStatus != STATUS_SUCCESS ) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" Issue Card init fail \n");
@@ -388,7 +367,7 @@ static int device_init_registers(struct vnt_private *pDevice,
     }
     if (InitType == DEVICE_INIT_COLD) {
 
-        ntStatus = CONTROLnsRequestIn(pDevice,MESSAGE_TYPE_INIT_RSP,0,0,sizeof(RSP_CARD_INIT), (PBYTE) &(sInitRsp));
+        ntStatus = CONTROLnsRequestIn(pDevice,MESSAGE_TYPE_INIT_RSP,0,0,sizeof(RSP_CARD_INIT), (u8 *) &(sInitRsp));
 
         if (ntStatus != STATUS_SUCCESS) {
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Cardinit request in status fail!\n");
@@ -418,7 +397,7 @@ static int device_init_registers(struct vnt_private *pDevice,
         pDevice->bNonERPPresent = false;
         pDevice->bBarkerPreambleMd = false;
         if ( pDevice->bFixRate ) {
-            pDevice->wCurrentRate = (WORD) pDevice->uConnectionRate;
+            pDevice->wCurrentRate = (u16) pDevice->uConnectionRate;
         } else {
             if ( pDevice->byBBType == BB_TYPE_11B )
                 pDevice->wCurrentRate = RATE_11M;
@@ -669,8 +648,6 @@ static int vt6656_suspend(struct usb_interface *intf, pm_message_t message)
 	if (device->flags & DEVICE_FLAGS_OPENED)
 		device_close(device->dev);
 
-	usb_put_dev(interface_to_usbdev(intf));
-
 	return 0;
 }
 
@@ -680,8 +657,6 @@ static int vt6656_resume(struct usb_interface *intf)
 
 	if (!device || !device->dev)
 		return -ENODEV;
-
-	usb_get_dev(interface_to_usbdev(intf));
 
 	if (!(device->flags & DEVICE_FLAGS_OPENED))
 		device_open(device->dev);
@@ -775,7 +750,6 @@ static void device_free_tx_bufs(struct vnt_private *pDevice)
     return;
 }
 
-
 static void device_free_rx_bufs(struct vnt_private *pDevice)
 {
     PRCB pRCB;
@@ -813,14 +787,12 @@ static void device_free_int_bufs(struct vnt_private *pDevice)
     return;
 }
 
-
 static bool device_alloc_bufs(struct vnt_private *pDevice)
 {
 
     PUSB_SEND_CONTEXT pTxContext;
     PRCB pRCB;
     int ii;
-
 
     for (ii = 0; ii < pDevice->cbTD; ii++) {
 
@@ -846,7 +818,6 @@ static bool device_alloc_bufs(struct vnt_private *pDevice)
         DBG_PRT(MSG_LEVEL_ERR,KERN_ERR "%s : alloc rx usb context failed\n", pDevice->dev->name);
         goto free_tx;
     }
-
 
     pDevice->FirstRecvFreeList = NULL;
     pDevice->LastRecvFreeList = NULL;
@@ -877,7 +848,6 @@ static bool device_alloc_bufs(struct vnt_private *pDevice)
         pDevice->NumRecvFreeList++;
         pRCB++;
     }
-
 
 	pDevice->pControlURB = usb_alloc_urb(0, GFP_ATOMIC);
 	if (pDevice->pControlURB == NULL) {
@@ -911,9 +881,6 @@ free_tx:
 	return false;
 }
 
-
-
-
 static bool device_init_defrag_cb(struct vnt_private *pDevice)
 {
 	int i;
@@ -937,8 +904,6 @@ free_frag:
     return false;
 }
 
-
-
 static void device_free_frag_bufs(struct vnt_private *pDevice)
 {
 	PSDeFragControlBlock pDeF;
@@ -953,8 +918,6 @@ static void device_free_frag_bufs(struct vnt_private *pDevice)
     }
 }
 
-
-
 int device_alloc_frag_buf(struct vnt_private *pDevice,
 		PSDeFragControlBlock pDeF)
 {
@@ -968,9 +931,6 @@ int device_alloc_frag_buf(struct vnt_private *pDevice,
     return true;
 }
 
-
-/*-----------------------------------------------------------------*/
-
 static int  device_open(struct net_device *dev)
 {
 	struct vnt_private *pDevice = netdev_priv(dev);
@@ -978,7 +938,6 @@ static int  device_open(struct net_device *dev)
      pDevice->fWPA_Authened = false;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " device_open...\n");
-
 
     pDevice->rx_buf_sz = MAX_TOTAL_SIZE_WITH_ALL_HEADERS;
 
@@ -1065,7 +1024,6 @@ static int  device_open(struct net_device *dev)
 	else
 		bScheduleCommand((void *) pDevice, WLAN_CMD_BSSID_SCAN, NULL);
 
-
     netif_stop_queue(pDevice->dev);
     pDevice->flags |= DEVICE_FLAGS_OPENED;
 
@@ -1087,8 +1045,6 @@ free_rx_tx:
     return -ENOMEM;
 }
 
-
-
 static int device_close(struct net_device *dev)
 {
 	struct vnt_private *pDevice = netdev_priv(dev);
@@ -1103,7 +1059,6 @@ static int device_close(struct net_device *dev)
 	bScheduleCommand((void *) pDevice, WLAN_CMD_DISASSOCIATE, NULL);
         mdelay(30);
     }
-
 
         memset(pMgmt->abyDesireSSID, 0, WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1);
         pMgmt->bShareKeyAlgorithm = false;
@@ -1168,7 +1123,6 @@ static void vt6656_disconnect(struct usb_interface *intf)
 
 	if (!device)
 		return;
-
 
 	usb_set_intfdata(intf, NULL);
 	usb_put_dev(interface_to_usbdev(intf));
@@ -1320,53 +1274,29 @@ static int Config_FileGetParameter(unsigned char *string,
 /* if read fails, return NULL, or return data pointer */
 static unsigned char *Config_FileOperation(struct vnt_private *pDevice)
 {
-    unsigned char *config_path = CONFIG_PATH;
-    unsigned char *buffer = NULL;
-    struct file   *filp=NULL;
-    mm_segment_t old_fs = get_fs();
+	unsigned char *buffer = kmalloc(1024, GFP_KERNEL);
+	struct file   *file;
 
-    int result = 0;
+	if (!buffer) {
+		printk("allocate mem for file fail?\n");
+		return NULL;
+	}
 
-    set_fs (KERNEL_DS);
+	file = filp_open(CONFIG_PATH, O_RDONLY, 0);
+	if (IS_ERR(file)) {
+		kfree(buffer);
+		printk("Config_FileOperation file Not exist\n");
+		return NULL;
+	}
 
-    /* open file */
-      filp = filp_open(config_path, O_RDWR, 0);
-        if (IS_ERR(filp)) {
-	     printk("Config_FileOperation file Not exist\n");
-	     result=-1;
-             goto error2;
-	  }
+	if (kernel_read(file, 0, buffer, 1024) < 0) {
+		printk("read file error?\n");
+		kfree(buffer);
+		buffer = NULL;
+	}
 
-     if(!(filp->f_op) || !(filp->f_op->read) ||!(filp->f_op->write)) {
-           printk("file %s is not read or writeable?\n",config_path);
-	  result = -1;
-	  goto error1;
-     	}
-
-    buffer = kmalloc(1024, GFP_KERNEL);
-    if(buffer==NULL) {
-      printk("allocate mem for file fail?\n");
-      result = -1;
-      goto error1;
-    }
-
-    if(filp->f_op->read(filp, buffer, 1024, &filp->f_pos)<0) {
-     printk("read file error?\n");
-     result = -1;
-    }
-
-error1:
-  if(filp_close(filp,NULL))
-       printk("Config_FileOperation:close file fail\n");
-
-error2:
-  set_fs (old_fs);
-
-if(result!=0) {
-    kfree(buffer);
-    buffer=NULL;
-}
-  return buffer;
+	fput(file);
+	return buffer;
 }
 
 /* return --->-1:fail; >=0:successful */
@@ -1434,7 +1364,6 @@ static void device_set_multi(struct net_device *dev)
 	u8 byTmpMode = 0;
 	int rc;
 
-
 	spin_lock_irq(&pDevice->lock);
     rc = CONTROLnsRequestIn(pDevice,
                             MESSAGE_TYPE_READ,
@@ -1470,8 +1399,8 @@ static void device_set_multi(struct net_device *dev)
             mc_filter[bit_nr >> 5] |= cpu_to_le32(1 << (bit_nr & 31));
         }
         for (ii = 0; ii < 4; ii++) {
-             MACvWriteMultiAddr(pDevice, ii, *((PBYTE)&mc_filter[0] + ii));
-             MACvWriteMultiAddr(pDevice, ii+ 4, *((PBYTE)&mc_filter[1] + ii));
+             MACvWriteMultiAddr(pDevice, ii, *((u8 *)&mc_filter[0] + ii));
+             MACvWriteMultiAddr(pDevice, ii+ 4, *((u8 *)&mc_filter[1] + ii));
         }
         pDevice->byRxMode &= ~(RCR_UNICAST);
         pDevice->byRxMode |= (RCR_MULTICAST|RCR_BROADCAST);
@@ -1521,7 +1450,6 @@ static int device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 	return rc;
 }
-
 
 static int ethtool_ioctl(struct net_device *dev, void *useraddr)
 {

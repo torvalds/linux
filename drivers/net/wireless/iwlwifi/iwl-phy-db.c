@@ -22,7 +22,7 @@
  * USA
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.GPL.
+ * in the file called COPYING.
  *
  * Contact Information:
  *  Intel Linux Wireless <ilw@linux.intel.com>
@@ -65,6 +65,7 @@
 #include <linux/string.h>
 #include <linux/export.h>
 
+#include "iwl-drv.h"
 #include "iwl-phy-db.h"
 #include "iwl-debug.h"
 #include "iwl-op-mode.h"
@@ -149,7 +150,7 @@ struct iwl_phy_db *iwl_phy_db_init(struct iwl_trans *trans)
 	/* TODO: add default values of the phy db. */
 	return phy_db;
 }
-EXPORT_SYMBOL(iwl_phy_db_init);
+IWL_EXPORT_SYMBOL(iwl_phy_db_init);
 
 /*
  * get phy db section: returns a pointer to a phy db section specified by
@@ -215,7 +216,7 @@ void iwl_phy_db_free(struct iwl_phy_db *phy_db)
 
 	kfree(phy_db);
 }
-EXPORT_SYMBOL(iwl_phy_db_free);
+IWL_EXPORT_SYMBOL(iwl_phy_db_free);
 
 int iwl_phy_db_set_section(struct iwl_phy_db *phy_db, struct iwl_rx_packet *pkt,
 			   gfp_t alloc_ctx)
@@ -260,7 +261,7 @@ int iwl_phy_db_set_section(struct iwl_phy_db *phy_db, struct iwl_rx_packet *pkt,
 
 	return 0;
 }
-EXPORT_SYMBOL(iwl_phy_db_set_section);
+IWL_EXPORT_SYMBOL(iwl_phy_db_set_section);
 
 static int is_valid_channel(u16 ch_id)
 {
@@ -495,4 +496,4 @@ int iwl_send_phy_db_data(struct iwl_phy_db *phy_db)
 		       "Finished sending phy db non channel data\n");
 	return 0;
 }
-EXPORT_SYMBOL(iwl_send_phy_db_data);
+IWL_EXPORT_SYMBOL(iwl_send_phy_db_data);

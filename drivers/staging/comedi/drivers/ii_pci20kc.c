@@ -77,9 +77,6 @@ options for PCI-20341M:
 	     3  200
 */
 
-/* XXX needs to use ioremap() for compatibility with 2.4 kernels.  Should also
- * check_mem_region() etc. - fmhess */
-
 #include "../comedidev.h"
 
 #define PCI20000_ID			0x1d
@@ -212,7 +209,6 @@ static int pci20xxx_attach(struct comedi_device *dev,
 	dev->private = devpriv;
 
 	devpriv->ioaddr = (void __iomem *)(unsigned long)it->options[0];
-	dev->board_name = "pci20kc";
 
 	/* Check PCI-20001 C-2A Carrier Board ID */
 	if ((readb(devpriv->ioaddr) & PCI20000_ID) != PCI20000_ID) {
