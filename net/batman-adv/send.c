@@ -250,30 +250,19 @@ int batadv_send_skb_generic_unicast(struct batadv_priv *bat_priv,
 	struct ethhdr *ethhdr = (struct ethhdr *)skb->data;
 	struct batadv_unicast_packet *unicast_packet;
 	struct batadv_orig_node *orig_node;
-	struct batadv_neigh_node *neigh_node;
 	int ret = NET_RX_DROP;
 
 	/* get routing information */
-	if (is_multicast_ether_addr(ethhdr->h_dest)) {
+	if (is_multicast_ether_addr(ethhdr->h_dest))
 		orig_node = batadv_gw_get_selected_orig(bat_priv);
-		if (orig_node)
-			goto find_router;
-	}
+	else
+		/* check for tt host - increases orig_node refcount.
+		 * returns NULL in case of AP isolation
+		 */
+		orig_node = batadv_transtable_search(bat_priv, ethhdr->h_source,
+						     ethhdr->h_dest);
 
-	/* check for tt host - increases orig_node refcount.
-	 * returns NULL in case of AP isolation
-	 */
-	orig_node = batadv_transtable_search(bat_priv, ethhdr->h_source,
-					     ethhdr->h_dest);
-
-find_router:
-	/* find_router():
-	 *  - if orig_node is NULL it returns NULL
-	 *  - increases neigh_nodes refcount if found.
-	 */
-	neigh_node = batadv_find_router(bat_priv, orig_node, NULL);
-
-	if (!neigh_node)
+	if (!orig_node)
 		goto out;
 
 	switch (packet_type) {
@@ -305,8 +294,6 @@ find_router:
 		ret = 0;
 
 out:
-	if (neigh_node)
-		batadv_neigh_node_free_ref(neigh_node);
 	if (orig_node)
 		batadv_orig_node_free_ref(orig_node);
 	if (ret == NET_RX_DROP)
