@@ -1226,8 +1226,8 @@ setting up the config and muxing for the pins right before the device is
 probing, nevertheless orthogonal to the GPIO subsystem.
 
 But there are also situations where it makes sense for the GPIO subsystem
-to communicate directly with with the pinctrl subsystem, using the latter
-as a back-end. This is when the GPIO driver may call out to the functions
+to communicate directly with the pinctrl subsystem, using the latter as a
+back-end. This is when the GPIO driver may call out to the functions
 described in the section "Pin control interaction with the GPIO subsystem"
 above. This only involves per-pin multiplexing, and will be completely
 hidden behind the gpio_*() function namespace. In this case, the driver
