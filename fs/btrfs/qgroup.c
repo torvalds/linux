@@ -430,7 +430,7 @@ out:
 	}
 	btrfs_free_path(path);
 
-	if (ret)
+	if (ret < 0)
 		ulist_free(fs_info->qgroup_ulist);
 
 	return ret < 0 ? ret : 0;
