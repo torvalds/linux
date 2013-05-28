@@ -2078,6 +2078,7 @@ static int wm8994_get_fll_config(struct wm8994 *control, struct fll_div *fll,
 
 		/* Move down to proper range now rounding is done */
 		fll->k = K / 10;
+		fll->lambda = 0;
 
 		pr_debug("N=%x K=%x\n", fll->n, fll->k);
 		break;
