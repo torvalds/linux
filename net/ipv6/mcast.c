@@ -1409,8 +1409,9 @@ static void mld_sendpack(struct sk_buff *skb)
 	idev = __in6_dev_get(skb->dev);
 	IP6_UPD_PO_STATS(net, idev, IPSTATS_MIB_OUT, skb->len);
 
-	payload_len = (skb->tail - skb->network_header) - sizeof(*pip6);
-	mldlen = skb->tail - skb->transport_header;
+	payload_len = (skb_tail_pointer(skb) - skb_network_header(skb)) -
+		sizeof(*pip6);
+	mldlen = skb_tail_pointer(skb) - skb_transport_header(skb);
 	pip6->payload_len = htons(payload_len);
 
 	pmr->mld2r_cksum = csum_ipv6_magic(&pip6->saddr, &pip6->daddr, mldlen,
