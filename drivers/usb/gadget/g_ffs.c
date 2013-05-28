@@ -30,6 +30,7 @@
 
 #define USBF_ECM_INCLUDED
 #  include "f_ecm.c"
+#define USB_FSUBSET_INCLUDED
 #  include "f_subset.c"
 #  ifdef USB_ETH_RNDIS
 #    include "f_rndis.c"

@@ -56,6 +56,8 @@ usb_f_phonet-y			:= f_phonet.o
 obj-$(CONFIG_USB_F_PHONET)	+= usb_f_phonet.o
 usb_f_eem-y			:= f_eem.o
 obj-$(CONFIG_USB_F_EEM)		+= usb_f_eem.o
+usb_f_ecm_subset-y		:= f_subset.o
+obj-$(CONFIG_USB_F_SUBSET)	+= usb_f_ecm_subset.o
 
 #
 # USB gadget drivers

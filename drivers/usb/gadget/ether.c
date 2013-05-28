@@ -103,6 +103,7 @@ static inline bool has_rndis(void)
  * a "gcc --combine ... part1.c part2.c part3.c ... " build would.
  */
 #include "u_ecm.h"
+#define USB_FSUBSET_INCLUDED
 #include "f_subset.c"
 #ifdef	USB_ETH_RNDIS
 #include "f_rndis.c"
