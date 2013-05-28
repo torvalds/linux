@@ -438,7 +438,7 @@ struct s5p_mfc_enc_params {
 	u32 rc_framerate_num;
 	u32 rc_framerate_denom;
 
-	union {
+	struct {
 		struct s5p_mfc_h264_enc_params h264;
 		struct s5p_mfc_mpeg4_enc_params mpeg4;
 	} codec;
