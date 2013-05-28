@@ -60,6 +60,7 @@ ENTRY(ret_from_kernel_thread)
 	mov	(REG_D0,fp),d0
 	mov	(REG_A0,fp),a0
 	calls	(a0)
+	GET_THREAD_INFO a2		# A2 must be set on return from sys_exit()
 	clr	d0
 	mov	d0,(REG_D0,fp)
 	jmp	syscall_exit
