@@ -1608,4 +1608,13 @@ struct sec4_sg_entry {
 #define NFIFOENTRY_PLEN_SHIFT	0
 #define NFIFOENTRY_PLEN_MASK	(0xFF << NFIFOENTRY_PLEN_SHIFT)
 
+/* Append Load Immediate Command */
+#define FD_CMD_APPEND_LOAD_IMMEDIATE			0x80000000
+
+/* Set SEQ LIODN equal to the Non-SEQ LIODN for the job */
+#define FD_CMD_SET_SEQ_LIODN_EQUAL_NONSEQ_LIODN		0x40000000
+
+/* Frame Descriptor Command for Replacement Job Descriptor */
+#define FD_CMD_REPLACE_JOB_DESC				0x20000000
+
 #endif /* DESC_H */
