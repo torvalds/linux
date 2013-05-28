@@ -2,6 +2,7 @@
 # Makefile for the bus drivers.
 #
 
+obj-$(CONFIG_IMX_WEIM)	+= imx-weim.o
 obj-$(CONFIG_MVEBU_MBUS) += mvebu-mbus.o
 obj-$(CONFIG_OMAP_OCP2SCP)	+= omap-ocp2scp.o
 
