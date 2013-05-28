@@ -80,15 +80,6 @@ static const char	hcd_name [] = "ohci_hcd";
 
 static void ohci_dump (struct ohci_hcd *ohci, int verbose);
 static void ohci_stop (struct usb_hcd *hcd);
-#ifdef CONFIG_PCI
-static void sb800_prefetch(struct ohci_hcd *ohci, int on);
-#else
-static inline void sb800_prefetch(struct ohci_hcd *ohci, int on)
-{
-	return;
-}
-#endif
-
 
 #include "ohci-hub.c"
 #include "ohci-dbg.c"

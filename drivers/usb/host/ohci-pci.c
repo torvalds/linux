@@ -168,19 +168,6 @@ static int ohci_quirk_amd700(struct usb_hcd *hcd)
 	return 0;
 }
 
-static void sb800_prefetch(struct ohci_hcd *ohci, int on)
-{
-	struct pci_dev *pdev;
-	u16 misc;
-
-	pdev = to_pci_dev(ohci_to_hcd(ohci)->self.controller);
-	pci_read_config_word(pdev, 0x50, &misc);
-	if (on == 0)
-		pci_write_config_word(pdev, 0x50, misc & 0xfcff);
-	else
-		pci_write_config_word(pdev, 0x50, misc | 0x0300);
-}
-
 /* List of quirks for OHCI */
 static const struct pci_device_id ohci_pci_quirks[] = {
 	{
