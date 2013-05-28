@@ -560,6 +560,9 @@ void ieee80211_iterate_active_interfaces(
 	list_for_each_entry(sdata, &local->interfaces, list) {
 		switch (sdata->vif.type) {
 		case NL80211_IFTYPE_MONITOR:
+			if (!(sdata->u.mntr_flags & MONITOR_FLAG_ACTIVE))
+				continue;
+			break;
 		case NL80211_IFTYPE_AP_VLAN:
 			continue;
 		default:
@@ -598,6 +601,9 @@ void ieee80211_iterate_active_interfaces_atomic(
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 		switch (sdata->vif.type) {
 		case NL80211_IFTYPE_MONITOR:
+			if (!(sdata->u.mntr_flags & MONITOR_FLAG_ACTIVE))
+				continue;
+			break;
 		case NL80211_IFTYPE_AP_VLAN:
 			continue;
 		default:

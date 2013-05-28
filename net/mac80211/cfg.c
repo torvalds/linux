@@ -73,16 +73,19 @@ static int ieee80211_change_iface(struct wiphy *wiphy,
 		struct ieee80211_local *local = sdata->local;
 
 		if (ieee80211_sdata_running(sdata)) {
+			u32 mask = MONITOR_FLAG_COOK_FRAMES |
+				   MONITOR_FLAG_ACTIVE;
+
 			/*
-			 * Prohibit MONITOR_FLAG_COOK_FRAMES to be
-			 * changed while the interface is up.
+			 * Prohibit MONITOR_FLAG_COOK_FRAMES and
+			 * MONITOR_FLAG_ACTIVE to be changed while the
+			 * interface is up.
 			 * Else we would need to add a lot of cruft
 			 * to update everything:
 			 *	cooked_mntrs, monitor and all fif_* counters
 			 *	reconfigure hardware
 			 */
-			if ((*flags & MONITOR_FLAG_COOK_FRAMES) !=
-			    (sdata->u.mntr_flags & MONITOR_FLAG_COOK_FRAMES))
+			if ((*flags & mask) != (sdata->u.mntr_flags & mask))
 				return -EBUSY;
 
 			ieee80211_adjust_monitor_flags(sdata, -1);
