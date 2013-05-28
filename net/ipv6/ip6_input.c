@@ -241,9 +241,11 @@ resubmit:
 				icmpv6_send(skb, ICMPV6_PARAMPROB,
 					    ICMPV6_UNK_NEXTHDR, nhoff);
 			}
-		} else
+			kfree_skb(skb);
+		} else {
 			IP6_INC_STATS_BH(net, idev, IPSTATS_MIB_INDELIVERS);
-		kfree_skb(skb);
+			consume_skb(skb);
+		}
 	}
 	rcu_read_unlock();
 	return 0;

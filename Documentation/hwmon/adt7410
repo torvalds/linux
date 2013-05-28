@@ -4,9 +4,14 @@ Kernel driver adt7410
 Supported chips:
   * Analog Devices ADT7410
     Prefix: 'adt7410'
-    Addresses scanned: I2C 0x48 - 0x4B
+    Addresses scanned: None
     Datasheet: Publicly available at the Analog Devices website
                http://www.analog.com/static/imported-files/data_sheets/ADT7410.pdf
+  * Analog Devices ADT7420
+    Prefix: 'adt7420'
+    Addresses scanned: None
+    Datasheet: Publicly available at the Analog Devices website
+               http://www.analog.com/static/imported-files/data_sheets/ADT7420.pdf
 
 Author: Hartmut Knaack <knaack.h@gmx.de>
 
@@ -26,6 +31,10 @@ supports continous temperature sampling, as well as sampling one temperature
 value per second or even justget one sample on demand for power saving.
 Besides, it can completely power down its ADC, if power management is
 required.
+
+The ADT7420 is register compatible, the only differences being the package,
+a slightly narrower operating temperature range (-40°C to +150°C), and a
+better accuracy (0.25°C instead of 0.50°C.)
 
 Configuration Notes
 -------------------

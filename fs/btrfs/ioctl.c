@@ -527,6 +527,8 @@ fail:
 	if (async_transid) {
 		*async_transid = trans->transid;
 		err = btrfs_commit_transaction_async(trans, root, 1);
+		if (err)
+			err = btrfs_commit_transaction(trans, root);
 	} else {
 		err = btrfs_commit_transaction(trans, root);
 	}
@@ -592,16 +594,14 @@ static int create_snapshot(struct btrfs_root *root, struct inode *dir,
 		*async_transid = trans->transid;
 		ret = btrfs_commit_transaction_async(trans,
 				     root->fs_info->extent_root, 1);
+		if (ret)
+			ret = btrfs_commit_transaction(trans, root);
 	} else {
 		ret = btrfs_commit_transaction(trans,
 					       root->fs_info->extent_root);
 	}
-	if (ret) {
-		/* cleanup_transaction has freed this for us */
-		if (trans->aborted)
-			pending_snapshot = NULL;
+	if (ret)
 		goto fail;
-	}
 
 	ret = pending_snapshot->error;
 	if (ret)
@@ -2245,13 +2245,6 @@ static int btrfs_ioctl_defrag(struct file *file, void __user *argp)
 	if (ret)
 		return ret;
 
-	if (atomic_xchg(&root->fs_info->mutually_exclusive_operation_running,
-			1)) {
-		pr_info("btrfs: dev add/delete/balance/replace/resize operation in progress\n");
-		mnt_drop_write_file(file);
-		return -EINVAL;
-	}
-
 	if (btrfs_root_readonly(root)) {
 		ret = -EROFS;
 		goto out;
@@ -2306,7 +2299,6 @@ static int btrfs_ioctl_defrag(struct file *file, void __user *argp)
 		ret = -EINVAL;
 	}
 out:
-	atomic_set(&root->fs_info->mutually_exclusive_operation_running, 0);
 	mnt_drop_write_file(file);
 	return ret;
 }

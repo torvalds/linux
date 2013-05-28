@@ -307,6 +307,10 @@ static void md_make_request(struct request_queue *q, struct bio *bio)
 		bio_io_error(bio);
 		return;
 	}
+	if (mddev->ro == 1 && unlikely(rw == WRITE)) {
+		bio_endio(bio, bio_sectors(bio) == 0 ? 0 : -EROFS);
+		return;
+	}
 	smp_rmb(); /* Ensure implications of  'active' are visible */
 	rcu_read_lock();
 	if (mddev->suspended) {
@@ -2994,6 +2998,9 @@ rdev_size_store(struct md_rdev *rdev, const char *buf, size_t len)
 		} else if (!sectors)
 			sectors = (i_size_read(rdev->bdev->bd_inode) >> 9) -
 				rdev->data_offset;
+		if (!my_mddev->pers->resize)
+			/* Cannot change size for RAID0 or Linear etc */
+			return -EINVAL;
 	}
 	if (sectors < my_mddev->dev_sectors)
 		return -EINVAL; /* component must fit device */
@@ -6525,7 +6532,17 @@ static int md_ioctl(struct block_device *bdev, fmode_t mode,
 			mddev->ro = 0;
 			sysfs_notify_dirent_safe(mddev->sysfs_state);
 			set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
-			md_wakeup_thread(mddev->thread);
+			/* mddev_unlock will wake thread */
+			/* If a device failed while we were read-only, we
+			 * need to make sure the metadata is updated now.
+			 */
+			if (test_bit(MD_CHANGE_DEVS, &mddev->flags)) {
+				mddev_unlock(mddev);
+				wait_event(mddev->sb_wait,
+					   !test_bit(MD_CHANGE_DEVS, &mddev->flags) &&
+					   !test_bit(MD_CHANGE_PENDING, &mddev->flags));
+				mddev_lock(mddev);
+			}
 		} else {
 			err = -EROFS;
 			goto abort_unlock;

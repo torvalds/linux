@@ -92,14 +92,14 @@ If the CONFIG_RCU_CPU_STALL_INFO kernel configuration parameter is set,
 more information is printed with the stall-warning message, for example:
 
 	INFO: rcu_preempt detected stall on CPU
-	0: (63959 ticks this GP) idle=241/3fffffffffffffff/0
+	0: (63959 ticks this GP) idle=241/3fffffffffffffff/0 softirq=82/543
 	   (t=65000 jiffies)
 
 In kernels with CONFIG_RCU_FAST_NO_HZ, even more information is
 printed:
 
 	INFO: rcu_preempt detected stall on CPU
-	0: (64628 ticks this GP) idle=dd5/3fffffffffffffff/0 drain=0 . timer not pending
+	0: (64628 ticks this GP) idle=dd5/3fffffffffffffff/0 softirq=82/543 last_accelerate: a345/d342 nonlazy_posted: 25 .D
 	   (t=65000 jiffies)
 
 The "(64628 ticks this GP)" indicates that this CPU has taken more
@@ -116,13 +116,28 @@ number between the two "/"s is the value of the nesting, which will
 be a small positive number if in the idle loop and a very large positive
 number (as shown above) otherwise.
 
-For CONFIG_RCU_FAST_NO_HZ kernels, the "drain=0" indicates that the CPU is
-not in the process of trying to force itself into dyntick-idle state, the
-"." indicates that the CPU has not given up forcing RCU into dyntick-idle
-mode (it would be "H" otherwise), and the "timer not pending" indicates
-that the CPU has not recently forced RCU into dyntick-idle mode (it
-would otherwise indicate the number of microseconds remaining in this
-forced state).
+The "softirq=" portion of the message tracks the number of RCU softirq
+handlers that the stalled CPU has executed.  The number before the "/"
+is the number that had executed since boot at the time that this CPU
+last noted the beginning of a grace period, which might be the current
+(stalled) grace period, or it might be some earlier grace period (for
+example, if the CPU might have been in dyntick-idle mode for an extended
+time period.  The number after the "/" is the number that have executed
+since boot until the current time.  If this latter number stays constant
+across repeated stall-warning messages, it is possible that RCU's softirq
+handlers are no longer able to execute on this CPU.  This can happen if
+the stalled CPU is spinning with interrupts are disabled, or, in -rt
+kernels, if a high-priority process is starving RCU's softirq handler.
+
+For CONFIG_RCU_FAST_NO_HZ kernels, the "last_accelerate:" prints the
+low-order 16 bits (in hex) of the jiffies counter when this CPU last
+invoked rcu_try_advance_all_cbs() from rcu_needs_cpu() or last invoked
+rcu_accelerate_cbs() from rcu_prepare_for_idle().  The "nonlazy_posted:"
+prints the number of non-lazy callbacks posted since the last call to
+rcu_needs_cpu().  Finally, an "L" indicates that there are currently
+no non-lazy callbacks ("." is printed otherwise, as shown above) and
+"D" indicates that dyntick-idle processing is enabled ("." is printed
+otherwise, for example, if disabled via the "nohz=" kernel boot parameter).
 
 
 Multiple Warnings From One Stall

@@ -107,7 +107,7 @@ void ieee80211_recalc_idle(struct ieee80211_local *local)
 
 	lockdep_assert_held(&local->mtx);
 
-	active = !list_empty(&local->chanctx_list);
+	active = !list_empty(&local->chanctx_list) || local->monitors;
 
 	if (!local->ops->remain_on_channel) {
 		list_for_each_entry(roc, &local->roc_list, list) {

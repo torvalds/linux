@@ -142,6 +142,7 @@ nouveau_i2c_port_create_(struct nouveau_object *parent,
 	/* drop port's i2c subdev refcount, i2c handles this itself */
 	if (ret == 0) {
 		list_add_tail(&port->head, &i2c->ports);
+		atomic_dec(&parent->refcount);
 		atomic_dec(&engine->refcount);
 	}
 

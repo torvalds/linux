@@ -29,7 +29,7 @@ Supported chips:
       http://www.summitmicro.com/prod_select/summary/SMM766/SMM766_2086.pdf
       http://www.summitmicro.com/prod_select/summary/SMM766B/SMM766B_2122.pdf
 
-Author: Guenter Roeck <guenter.roeck@ericsson.com>
+Author: Guenter Roeck <linux@roeck-us.net>
 
 
 Module Parameters

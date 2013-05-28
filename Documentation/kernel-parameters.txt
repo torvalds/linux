@@ -2459,9 +2459,12 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			In kernels built with CONFIG_RCU_NOCB_CPU=y, set
 			the specified list of CPUs to be no-callback CPUs.
 			Invocation of these CPUs' RCU callbacks will
-			be offloaded to "rcuoN" kthreads created for
-			that purpose.  This reduces OS jitter on the
+			be offloaded to "rcuox/N" kthreads created for
+			that purpose, where "x" is "b" for RCU-bh, "p"
+			for RCU-preempt, and "s" for RCU-sched, and "N"
+			is the CPU number.  This reduces OS jitter on the
 			offloaded CPUs, which can be useful for HPC and
+
 			real-time workloads.  It can also improve energy
 			efficiency for asymmetric multiprocessors.
 
@@ -2485,6 +2488,17 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 			leaf rcu_node structure.  Useful for very large
 			systems.
 
+	rcutree.jiffies_till_first_fqs= [KNL,BOOT]
+			Set delay from grace-period initialization to
+			first attempt to force quiescent states.
+			Units are jiffies, minimum value is zero,
+			and maximum value is HZ.
+
+	rcutree.jiffies_till_next_fqs= [KNL,BOOT]
+			Set delay between subsequent attempts to force
+			quiescent states.  Units are jiffies, minimum
+			value is one, and maximum value is HZ.
+
 	rcutree.qhimark=	[KNL,BOOT]
 			Set threshold of queued
 			RCU callbacks over which batch limiting is disabled.
@@ -2499,16 +2513,15 @@ bytes respectively. Such letter suffixes can also be entirely omitted.
 	rcutree.rcu_cpu_stall_timeout= [KNL,BOOT]
 			Set timeout for RCU CPU stall warning messages.
 
-	rcutree.jiffies_till_first_fqs= [KNL,BOOT]
-			Set delay from grace-period initialization to
-			first attempt to force quiescent states.
-			Units are jiffies, minimum value is zero,
-			and maximum value is HZ.
+	rcutree.rcu_idle_gp_delay=	[KNL,BOOT]
+			Set wakeup interval for idle CPUs that have
+			RCU callbacks (RCU_FAST_NO_HZ=y).
 
-	rcutree.jiffies_till_next_fqs= [KNL,BOOT]
-			Set delay between subsequent attempts to force
-			quiescent states.  Units are jiffies, minimum
-			value is one, and maximum value is HZ.
+	rcutree.rcu_idle_lazy_gp_delay=	[KNL,BOOT]
+			Set wakeup interval for idle CPUs that have
+			only "lazy" RCU callbacks (RCU_FAST_NO_HZ=y).
+			Lazy RCU callbacks are those which RCU can
+			prove do nothing more than free memory.
 
 	rcutorture.fqs_duration= [KNL,BOOT]
 			Set duration of force_quiescent_state bursts.

@@ -182,6 +182,15 @@ struct iwl_queue {
 #define TFD_TX_CMD_SLOTS 256
 #define TFD_CMD_SLOTS 32
 
+/*
+ * The FH will write back to the first TB only, so we need
+ * to copy some data into the buffer regardless of whether
+ * it should be mapped or not. This indicates how much to
+ * copy, even for HCMDs it must be big enough to fit the
+ * DRAM scratch from the TX cmd, at least 16 bytes.
+ */
+#define IWL_HCMD_MIN_COPY_SIZE	16
+
 struct iwl_pcie_txq_entry {
 	struct iwl_device_cmd *cmd;
 	struct iwl_device_cmd *copy_cmd;

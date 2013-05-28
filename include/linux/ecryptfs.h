@@ -6,9 +6,8 @@
 #define ECRYPTFS_VERSION_MINOR 0x04
 #define ECRYPTFS_SUPPORTED_FILE_VERSION 0x03
 /* These flags indicate which features are supported by the kernel
- * module; userspace tools such as the mount helper read
- * ECRYPTFS_VERSIONING_MASK from a sysfs handle in order to determine
- * how to behave. */
+ * module; userspace tools such as the mount helper read the feature
+ * bits from a sysfs handle in order to determine how to behave. */
 #define ECRYPTFS_VERSIONING_PASSPHRASE            0x00000001
 #define ECRYPTFS_VERSIONING_PUBKEY                0x00000002
 #define ECRYPTFS_VERSIONING_PLAINTEXT_PASSTHROUGH 0x00000004
@@ -19,13 +18,6 @@
 #define ECRYPTFS_VERSIONING_HMAC                  0x00000080
 #define ECRYPTFS_VERSIONING_FILENAME_ENCRYPTION   0x00000100
 #define ECRYPTFS_VERSIONING_GCM                   0x00000200
-#define ECRYPTFS_VERSIONING_MASK (ECRYPTFS_VERSIONING_PASSPHRASE \
-				  | ECRYPTFS_VERSIONING_PLAINTEXT_PASSTHROUGH \
-				  | ECRYPTFS_VERSIONING_PUBKEY \
-				  | ECRYPTFS_VERSIONING_XATTR \
-				  | ECRYPTFS_VERSIONING_MULTKEY \
-				  | ECRYPTFS_VERSIONING_DEVMISC \
-				  | ECRYPTFS_VERSIONING_FILENAME_ENCRYPTION)
 #define ECRYPTFS_MAX_PASSWORD_LENGTH 64
 #define ECRYPTFS_MAX_PASSPHRASE_BYTES ECRYPTFS_MAX_PASSWORD_LENGTH
 #define ECRYPTFS_SALT_SIZE 8

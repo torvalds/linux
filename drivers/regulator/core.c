@@ -2830,7 +2830,7 @@ EXPORT_SYMBOL_GPL(regulator_get_bypass_regmap);
  * regulator_allow_bypass - allow the regulator to go into bypass mode
  *
  * @regulator: Regulator to configure
- * @allow: enable or disable bypass mode
+ * @enable: enable or disable bypass mode
  *
  * Allow the regulator to go into bypass mode if all other consumers
  * for the regulator also enable bypass mode and the machine
@@ -3057,9 +3057,13 @@ int regulator_bulk_enable(int num_consumers,
 	return 0;
 
 err:
-	pr_err("Failed to enable %s: %d\n", consumers[i].supply, ret);
-	while (--i >= 0)
-		regulator_disable(consumers[i].consumer);
+	for (i = 0; i < num_consumers; i++) {
+		if (consumers[i].ret < 0)
+			pr_err("Failed to enable %s: %d\n", consumers[i].supply,
+			       consumers[i].ret);
+		else
+			regulator_disable(consumers[i].consumer);
+	}
 
 	return ret;
 }

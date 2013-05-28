@@ -432,6 +432,7 @@ static struct file_system_type openprom_fs_type = {
 	.mount		= openprom_mount,
 	.kill_sb	= kill_anon_super,
 };
+MODULE_ALIAS_FS("openpromfs");
 
 static void op_inode_init_once(void *data)
 {

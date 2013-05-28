@@ -1231,34 +1231,40 @@ static bool ieee80211_tx_frags(struct ieee80211_local *local,
 		if (local->queue_stop_reasons[q] ||
 		    (!txpending && !skb_queue_empty(&local->pending[q]))) {
 			if (unlikely(info->flags &
-					IEEE80211_TX_INTFL_OFFCHAN_TX_OK &&
-				     local->queue_stop_reasons[q] &
-					~BIT(IEEE80211_QUEUE_STOP_REASON_OFFCHANNEL))) {
+				     IEEE80211_TX_INTFL_OFFCHAN_TX_OK)) {
+				if (local->queue_stop_reasons[q] &
+				    ~BIT(IEEE80211_QUEUE_STOP_REASON_OFFCHANNEL)) {
+					/*
+					 * Drop off-channel frames if queues
+					 * are stopped for any reason other
+					 * than off-channel operation. Never
+					 * queue them.
+					 */
+					spin_unlock_irqrestore(
+						&local->queue_stop_reason_lock,
+						flags);
+					ieee80211_purge_tx_queue(&local->hw,
+								 skbs);
+					return true;
+				}
+			} else {
+
 				/*
-				 * Drop off-channel frames if queues are stopped
-				 * for any reason other than off-channel
-				 * operation. Never queue them.
+				 * Since queue is stopped, queue up frames for
+				 * later transmission from the tx-pending
+				 * tasklet when the queue is woken again.
 				 */
-				spin_unlock_irqrestore(
-					&local->queue_stop_reason_lock, flags);
-				ieee80211_purge_tx_queue(&local->hw, skbs);
-				return true;
+				if (txpending)
+					skb_queue_splice_init(skbs,
+							      &local->pending[q]);
+				else
+					skb_queue_splice_tail_init(skbs,
+								   &local->pending[q]);
+
+				spin_unlock_irqrestore(&local->queue_stop_reason_lock,
+						       flags);
+				return false;
 			}
-
-			/*
-			 * Since queue is stopped, queue up frames for later
-			 * transmission from the tx-pending tasklet when the
-			 * queue is woken again.
-			 */
-			if (txpending)
-				skb_queue_splice_init(skbs, &local->pending[q]);
-			else
-				skb_queue_splice_tail_init(skbs,
-							   &local->pending[q]);
-
-			spin_unlock_irqrestore(&local->queue_stop_reason_lock,
-					       flags);
-			return false;
 		}
 		spin_unlock_irqrestore(&local->queue_stop_reason_lock, flags);
 
@@ -1844,9 +1850,24 @@ netdev_tx_t ieee80211_subif_start_xmit(struct sk_buff *skb,
 		}
 
 		if (!is_multicast_ether_addr(skb->data)) {
+			struct sta_info *next_hop;
+			bool mpp_lookup = true;
+
 			mpath = mesh_path_lookup(sdata, skb->data);
-			if (!mpath)
+			if (mpath) {
+				mpp_lookup = false;
+				next_hop = rcu_dereference(mpath->next_hop);
+				if (!next_hop ||
+				    !(mpath->flags & (MESH_PATH_ACTIVE |
+						      MESH_PATH_RESOLVING)))
+					mpp_lookup = true;
+			}
+
+			if (mpp_lookup)
 				mppath = mpp_path_lookup(sdata, skb->data);
+
+			if (mppath && mpath)
+				mesh_path_del(mpath->sdata, mpath->dst);
 		}
 
 		/*
@@ -2350,9 +2371,9 @@ static int ieee80211_beacon_add_tim(struct ieee80211_sub_if_data *sdata,
 	if (local->tim_in_locked_section) {
 		__ieee80211_beacon_add_tim(sdata, ps, skb);
 	} else {
-		spin_lock(&local->tim_lock);
+		spin_lock_bh(&local->tim_lock);
 		__ieee80211_beacon_add_tim(sdata, ps, skb);
-		spin_unlock(&local->tim_lock);
+		spin_unlock_bh(&local->tim_lock);
 	}
 
 	return 0;

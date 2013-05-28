@@ -138,8 +138,7 @@ int pl320_ipc_unregister_notifier(struct notifier_block *nb)
 }
 EXPORT_SYMBOL_GPL(pl320_ipc_unregister_notifier);
 
-static int __init pl320_probe(struct amba_device *adev,
-				const struct amba_id *id)
+static int pl320_probe(struct amba_device *adev, const struct amba_id *id)
 {
 	int ret;
 

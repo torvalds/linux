@@ -410,9 +410,8 @@ void __init init_mem_mapping(void)
 	/* the ISA range is always mapped regardless of memory holes */
 	init_memory_mapping(0, ISA_END_ADDRESS);
 
-	/* xen has big range in reserved near end of ram, skip it at first */
-	addr = memblock_find_in_range(ISA_END_ADDRESS, end, PMD_SIZE,
-			 PAGE_SIZE);
+	/* xen has big range in reserved near end of ram, skip it at first.*/
+	addr = memblock_find_in_range(ISA_END_ADDRESS, end, PMD_SIZE, PMD_SIZE);
 	real_end = addr + PMD_SIZE;
 
 	/* step_size need to be small so pgt_buf from BRK could cover it */

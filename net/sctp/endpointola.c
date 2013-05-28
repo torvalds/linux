@@ -155,7 +155,7 @@ static struct sctp_endpoint *sctp_endpoint_init(struct sctp_endpoint *ep,
 
 	/* SCTP-AUTH extensions*/
 	INIT_LIST_HEAD(&ep->endpoint_shared_keys);
-	null_key = sctp_auth_shkey_create(0, GFP_KERNEL);
+	null_key = sctp_auth_shkey_create(0, gfp);
 	if (!null_key)
 		goto nomem;
 

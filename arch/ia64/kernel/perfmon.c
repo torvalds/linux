@@ -619,6 +619,7 @@ static struct file_system_type pfm_fs_type = {
 	.mount    = pfmfs_mount,
 	.kill_sb  = kill_anon_super,
 };
+MODULE_ALIAS_FS("pfmfs");
 
 DEFINE_PER_CPU(unsigned long, pfm_syst_info);
 DEFINE_PER_CPU(struct task_struct *, pmu_owner);

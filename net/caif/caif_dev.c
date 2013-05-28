@@ -118,7 +118,7 @@ static struct caif_device_entry *caif_get(struct net_device *dev)
 	return NULL;
 }
 
-void caif_flow_cb(struct sk_buff *skb)
+static void caif_flow_cb(struct sk_buff *skb)
 {
 	struct caif_device_entry *caifd;
 	void (*dtor)(struct sk_buff *skb) = NULL;

@@ -323,18 +323,10 @@ void irq_enter(void)
 
 static inline void invoke_softirq(void)
 {
-	if (!force_irqthreads) {
-#ifdef __ARCH_IRQ_EXIT_IRQS_DISABLED
+	if (!force_irqthreads)
 		__do_softirq();
-#else
-		do_softirq();
-#endif
-	} else {
-		__local_bh_disable((unsigned long)__builtin_return_address(0),
-				SOFTIRQ_OFFSET);
+	else
 		wakeup_softirqd();
-		__local_bh_enable(SOFTIRQ_OFFSET);
-	}
 }
 
 /*
@@ -342,9 +334,15 @@ static inline void invoke_softirq(void)
  */
 void irq_exit(void)
 {
+#ifndef __ARCH_IRQ_EXIT_IRQS_DISABLED
+	local_irq_disable();
+#else
+	WARN_ON_ONCE(!irqs_disabled());
+#endif
+
 	account_irq_exit_time(current);
 	trace_hardirq_exit();
-	sub_preempt_count(IRQ_EXIT_OFFSET);
+	sub_preempt_count(HARDIRQ_OFFSET);
 	if (!in_interrupt() && local_softirq_pending())
 		invoke_softirq();
 
@@ -354,7 +352,6 @@ void irq_exit(void)
 		tick_nohz_irq_exit();
 #endif
 	rcu_irq_exit();
-	sched_preempt_enable_no_resched();
 }
 
 /*
