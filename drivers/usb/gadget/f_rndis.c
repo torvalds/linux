@@ -670,6 +670,7 @@ rndis_bind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct usb_composite_dev *cdev = c->cdev;
 	struct f_rndis		*rndis = func_to_rndis(f);
+	struct usb_string	*us;
 	int			status;
 	struct usb_ep		*ep;
 
@@ -696,16 +697,13 @@ rndis_bind(struct usb_configuration *c, struct usb_function *f)
 		rndis_opts->bound = true;
 	}
 #endif
-
-	if (rndis_string_defs[0].id == 0) {
-		status = usb_string_ids_tab(c->cdev, rndis_string_defs);
-		if (status)
-			return status;
-
-		rndis_control_intf.iInterface = rndis_string_defs[0].id;
-		rndis_data_intf.iInterface = rndis_string_defs[1].id;
-		rndis_iad_descriptor.iFunction = rndis_string_defs[2].id;
-	}
+	us = usb_gstrings_attach(cdev, rndis_strings,
+				 ARRAY_SIZE(rndis_string_defs));
+	if (IS_ERR(us))
+		return PTR_ERR(us);
+	rndis_control_intf.iInterface = us[0].id;
+	rndis_data_intf.iInterface = us[1].id;
+	rndis_iad_descriptor.iFunction = us[2].id;
 
 	/* allocate instance-specific interface IDs */
 	status = usb_interface_id(c, f);
@@ -840,7 +838,6 @@ rndis_old_unbind(struct usb_configuration *c, struct usb_function *f)
 
 	rndis_deregister(rndis->config);
 
-	rndis_string_defs[0].id = 0;
 	usb_free_all_descriptors(f);
 
 	kfree(rndis->notify_req->buf);
@@ -876,7 +873,6 @@ rndis_bind_config_vendor(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
 	rndis->port.unwrap = rndis_rm_hdr;
 
 	rndis->port.func.name = "rndis";
-	rndis->port.func.strings = rndis_strings;
 	/* descriptors are per-instance copies */
 	rndis->port.func.bind = rndis_bind;
 	rndis->port.func.unbind = rndis_old_unbind;
@@ -950,7 +946,6 @@ static void rndis_unbind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct f_rndis		*rndis = func_to_rndis(f);
 
-	rndis_string_defs[0].id = 0;
 	usb_free_all_descriptors(f);
 
 	kfree(rndis->notify_req->buf);
@@ -984,7 +979,6 @@ static struct usb_function *rndis_alloc(struct usb_function_instance *fi)
 	rndis->port.unwrap = rndis_rm_hdr;
 
 	rndis->port.func.name = "rndis";
-	rndis->port.func.strings = rndis_strings;
 	/* descriptors are per-instance copies */
 	rndis->port.func.bind = rndis_bind;
 	rndis->port.func.unbind = rndis_unbind;
