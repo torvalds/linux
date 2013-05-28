@@ -108,6 +108,14 @@ config PINCTRL_IMX6SL
 	help
 	  Say Y here to enable the imx6sl pinctrl driver
 
+config PINCTRL_VF610
+	bool "Freescale Vybrid VF610 pinctrl driver"
+	depends on OF
+	depends on SOC_VF610
+	select PINCTRL_IMX
+	help
+	  Say Y here to enable the Freescale Vybrid VF610 pinctrl driver
+
 config PINCTRL_LANTIQ
 	bool
 	depends on LANTIQ
