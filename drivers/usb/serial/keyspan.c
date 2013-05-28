@@ -520,12 +520,7 @@ static void	usa28_instat_callback(struct urb *urb)
 		goto exit;
 	}
 
-	/*
-	dev_dbg(&urb->dev->dev,
-		"%s %x %x %x %x %x %x %x %x %x %x %x %x", __func__,
-		data[0], data[1], data[2], data[3], data[4], data[5],
-		data[6], data[7], data[8], data[9], data[10], data[11]);
-	*/
+	/*dev_dbg(&urb->dev->dev, "%s %12ph", __func__, data);*/
 
 	/* Now do something useful with the data */
 	msg = (struct keyspan_usa28_portStatusMessage *)data;
@@ -607,11 +602,7 @@ static void	usa49_instat_callback(struct urb *urb)
 		goto exit;
 	}
 
-	/*
-	dev_dbg(&urb->dev->dev, "%s: %x %x %x %x %x %x %x %x %x %x %x",
-		__func__, data[0], data[1], data[2], data[3], data[4],
-		data[5], data[6], data[7], data[8], data[9], data[10]);
-	*/
+	/*dev_dbg(&urb->dev->dev, "%s: %11ph", __func__, data);*/
 
 	/* Now do something useful with the data */
 	msg = (struct keyspan_usa49_portStatusMessage *)data;
