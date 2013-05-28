@@ -66,10 +66,7 @@ static const struct snd_pcm_hardware bf5xx_pcm_hardware = {
 static int bf5xx_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
-	size_t size = bf5xx_pcm_hardware.buffer_bytes_max;
-	snd_pcm_lib_malloc_pages(substream, size);
-
-	return 0;
+	return snd_pcm_lib_malloc_pages(substream, params_buffer_bytes(params));
 }
 
 static int bf5xx_pcm_hw_free(struct snd_pcm_substream *substream)
