@@ -39,7 +39,6 @@
 
 #include "../codecs/ad193x.h"
 
-#include "bf5xx-tdm-pcm.h"
 #include "bf5xx-tdm.h"
 
 static struct snd_soc_card bf5xx_ad193x;

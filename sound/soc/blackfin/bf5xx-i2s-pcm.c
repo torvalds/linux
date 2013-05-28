@@ -39,7 +39,6 @@
 
 #include <asm/dma.h>
 
-#include "bf5xx-i2s-pcm.h"
 #include "bf5xx-sport.h"
 
 static void bf5xx_dma_irq(void *data)
