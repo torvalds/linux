@@ -183,9 +183,12 @@ static int atmel_tsadcc_probe(struct platform_device *pdev)
 	struct input_dev	*input_dev;
 	struct resource		*res;
 	struct at91_tsadcc_data *pdata = pdev->dev.platform_data;
-	int		err = 0;
+	int		err;
 	unsigned int	prsc;
 	unsigned int	reg;
+
+	if (!pdata)
+		return -EINVAL;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -264,9 +267,6 @@ static int atmel_tsadcc_probe(struct platform_device *pdev)
 
 	prsc = clk_get_rate(ts_dev->clk);
 	dev_info(&pdev->dev, "Master clock is set at: %d Hz\n", prsc);
-
-	if (!pdata)
-		goto err_fail;
 
 	if (!pdata->adc_clock)
 		pdata->adc_clock = ADC_DEFAULT_CLOCK;
