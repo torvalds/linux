@@ -1789,7 +1789,6 @@ static int s5p_mfc_start_streaming(struct vb2_queue *q, unsigned int count)
 		}
 	}
 
-	v4l2_ctrl_handler_setup(&ctx->ctrl_handler);
 	/* If context is ready then dev = work->data;schedule it to run */
 	if (s5p_mfc_ctx_ready(ctx))
 		set_work_bit_irqsave(ctx);
@@ -1950,6 +1949,7 @@ int s5p_mfc_enc_ctrls_setup(struct s5p_mfc_ctx *ctx)
 		if (controls[i].is_volatile && ctx->ctrls[i])
 			ctx->ctrls[i]->flags |= V4L2_CTRL_FLAG_VOLATILE;
 	}
+	v4l2_ctrl_handler_setup(&ctx->ctrl_handler);
 	return 0;
 }
 
