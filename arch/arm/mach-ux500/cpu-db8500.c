@@ -162,26 +162,15 @@ static void __init db8500_add_gpios(struct device *parent)
 	dbx500_add_pinctrl(parent, "pinctrl-db8500", U8500_PRCMU_BASE);
 }
 
-static int usb_db8500_rx_dma_cfg[] = {
-	DB8500_DMA_DEV38_USB_OTG_IEP_1_9,
-	DB8500_DMA_DEV37_USB_OTG_IEP_2_10,
-	DB8500_DMA_DEV36_USB_OTG_IEP_3_11,
-	DB8500_DMA_DEV19_USB_OTG_IEP_4_12,
-	DB8500_DMA_DEV18_USB_OTG_IEP_5_13,
-	DB8500_DMA_DEV17_USB_OTG_IEP_6_14,
-	DB8500_DMA_DEV16_USB_OTG_IEP_7_15,
-	DB8500_DMA_DEV39_USB_OTG_IEP_8
-};
-
-static int usb_db8500_tx_dma_cfg[] = {
-	DB8500_DMA_DEV38_USB_OTG_OEP_1_9,
-	DB8500_DMA_DEV37_USB_OTG_OEP_2_10,
-	DB8500_DMA_DEV36_USB_OTG_OEP_3_11,
-	DB8500_DMA_DEV19_USB_OTG_OEP_4_12,
-	DB8500_DMA_DEV18_USB_OTG_OEP_5_13,
-	DB8500_DMA_DEV17_USB_OTG_OEP_6_14,
-	DB8500_DMA_DEV16_USB_OTG_OEP_7_15,
-	DB8500_DMA_DEV39_USB_OTG_OEP_8
+static int usb_db8500_dma_cfg[] = {
+	DB8500_DMA_DEV38_USB_OTG_IEP_AND_OEP_1_9,
+	DB8500_DMA_DEV37_USB_OTG_IEP_AND_OEP_2_10,
+	DB8500_DMA_DEV36_USB_OTG_IEP_AND_OEP_3_11,
+	DB8500_DMA_DEV19_USB_OTG_IEP_AND_OEP_4_12,
+	DB8500_DMA_DEV18_USB_OTG_IEP_AND_OEP_5_13,
+	DB8500_DMA_DEV17_USB_OTG_IEP_AND_OEP_6_14,
+	DB8500_DMA_DEV16_USB_OTG_IEP_AND_OEP_7_15,
+	DB8500_DMA_DEV39_USB_OTG_IEP_AND_OEP_8
 };
 
 static const char *db8500_read_soc_id(void)
@@ -215,7 +204,7 @@ struct device * __init u8500_init_devices(void)
 
 	db8500_add_rtc(parent);
 	db8500_add_gpios(parent);
-	db8500_add_usb(parent, usb_db8500_rx_dma_cfg, usb_db8500_tx_dma_cfg);
+	db8500_add_usb(parent, usb_db8500_dma_cfg, usb_db8500_dma_cfg);
 
 	for (i = 0; i < ARRAY_SIZE(platform_devs); i++)
 		platform_devs[i]->dev.parent = parent;
@@ -232,17 +221,7 @@ static struct device * __init u8500_of_init_devices(void)
 {
 	struct device *parent = db8500_soc_device_init();
 
-	db8500_add_usb(parent, usb_db8500_rx_dma_cfg, usb_db8500_tx_dma_cfg);
-
-	u8500_dma40_device.dev.parent = parent;
-
-	/*
-	 * Devices to be DT:ed:
-	 *   u8500_dma40_device  = todo
-	 *   db8500_pmu_device   = done
-	 *   db8500_prcmu_device = done
-	 */
-	platform_device_register(&u8500_dma40_device);
+	db8500_add_usb(parent, usb_db8500_dma_cfg, usb_db8500_dma_cfg);
 
 	return parent;
 }
@@ -251,9 +230,9 @@ static struct of_dev_auxdata u8500_auxdata_lookup[] __initdata = {
 	/* Requires call-back bindings. */
 	OF_DEV_AUXDATA("arm,cortex-a9-pmu", 0, "arm-pmu", &db8500_pmu_platdata),
 	/* Requires DMA bindings. */
-	OF_DEV_AUXDATA("arm,pl011", 0x80120000, "uart0", &uart0_plat),
-	OF_DEV_AUXDATA("arm,pl011", 0x80121000, "uart1", &uart1_plat),
-	OF_DEV_AUXDATA("arm,pl011", 0x80007000, "uart2", &uart2_plat),
+	OF_DEV_AUXDATA("arm,pl011", 0x80120000, "uart0", NULL),
+	OF_DEV_AUXDATA("arm,pl011", 0x80121000, "uart1", NULL),
+	OF_DEV_AUXDATA("arm,pl011", 0x80007000, "uart2", NULL),
 	OF_DEV_AUXDATA("arm,pl022", 0x80002000, "ssp0",  &ssp0_plat),
 	OF_DEV_AUXDATA("arm,pl18x", 0x80126000, "sdi0",  &mop500_sdi0_data),
 	OF_DEV_AUXDATA("arm,pl18x", 0x80118000, "sdi1",  &mop500_sdi1_data),
@@ -289,6 +268,9 @@ static struct of_dev_auxdata u8500_auxdata_lookup[] __initdata = {
 		"ux500-msp-i2s.2", &msp2_platform_data),
 	OF_DEV_AUXDATA("stericsson,ux500-msp-i2s", 0x80125000,
 		"ux500-msp-i2s.3", &msp3_platform_data),
+	/* Requires clock name bindings and channel address lookup table. */
+	OF_DEV_AUXDATA("stericsson,db8500-dma40", 0x801C0000,
+		       "dma40.0", &dma40_plat_data),
 	{},
 };
 

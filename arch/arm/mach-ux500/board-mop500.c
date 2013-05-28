@@ -425,35 +425,20 @@ void mop500_snowball_ethernet_clock_enable(void)
 static struct cryp_platform_data u8500_cryp1_platform_data = {
 		.mem_to_engine = {
 				.dir = STEDMA40_MEM_TO_PERIPH,
-				.src_dev_type = STEDMA40_DEV_SRC_MEMORY,
-				.dst_dev_type = DB8500_DMA_DEV48_CAC1_TX,
-				.src_info.data_width = STEDMA40_WORD_WIDTH,
-				.dst_info.data_width = STEDMA40_WORD_WIDTH,
+				.dev_type = DB8500_DMA_DEV48_CAC1,
 				.mode = STEDMA40_MODE_LOGICAL,
-				.src_info.psize = STEDMA40_PSIZE_LOG_4,
-				.dst_info.psize = STEDMA40_PSIZE_LOG_4,
 		},
 		.engine_to_mem = {
 				.dir = STEDMA40_PERIPH_TO_MEM,
-				.src_dev_type = DB8500_DMA_DEV48_CAC1_RX,
-				.dst_dev_type = STEDMA40_DEV_DST_MEMORY,
-				.src_info.data_width = STEDMA40_WORD_WIDTH,
-				.dst_info.data_width = STEDMA40_WORD_WIDTH,
+				.dev_type = DB8500_DMA_DEV48_CAC1,
 				.mode = STEDMA40_MODE_LOGICAL,
-				.src_info.psize = STEDMA40_PSIZE_LOG_4,
-				.dst_info.psize = STEDMA40_PSIZE_LOG_4,
 		}
 };
 
 static struct stedma40_chan_cfg u8500_hash_dma_cfg_tx = {
 		.dir = STEDMA40_MEM_TO_PERIPH,
-		.src_dev_type = STEDMA40_DEV_SRC_MEMORY,
-		.dst_dev_type = DB8500_DMA_DEV50_HAC1_TX,
-		.src_info.data_width = STEDMA40_WORD_WIDTH,
-		.dst_info.data_width = STEDMA40_WORD_WIDTH,
+		.dev_type = DB8500_DMA_DEV50_HAC1_TX,
 		.mode = STEDMA40_MODE_LOGICAL,
-		.src_info.psize = STEDMA40_PSIZE_LOG_16,
-		.dst_info.psize = STEDMA40_PSIZE_LOG_16,
 };
 
 static struct hash_platform_data u8500_hash1_platform_data = {
@@ -471,19 +456,13 @@ static struct platform_device *mop500_platform_devs[] __initdata = {
 static struct stedma40_chan_cfg ssp0_dma_cfg_rx = {
 	.mode = STEDMA40_MODE_LOGICAL,
 	.dir = STEDMA40_PERIPH_TO_MEM,
-	.src_dev_type =  DB8500_DMA_DEV8_SSP0_RX,
-	.dst_dev_type = STEDMA40_DEV_DST_MEMORY,
-	.src_info.data_width = STEDMA40_BYTE_WIDTH,
-	.dst_info.data_width = STEDMA40_BYTE_WIDTH,
+	.dev_type = DB8500_DMA_DEV8_SSP0,
 };
 
 static struct stedma40_chan_cfg ssp0_dma_cfg_tx = {
 	.mode = STEDMA40_MODE_LOGICAL,
 	.dir = STEDMA40_MEM_TO_PERIPH,
-	.src_dev_type = STEDMA40_DEV_SRC_MEMORY,
-	.dst_dev_type = DB8500_DMA_DEV8_SSP0_TX,
-	.src_info.data_width = STEDMA40_BYTE_WIDTH,
-	.dst_info.data_width = STEDMA40_BYTE_WIDTH,
+	.dev_type = DB8500_DMA_DEV8_SSP0,
 };
 #endif
 
@@ -512,55 +491,37 @@ static void __init mop500_spi_init(struct device *parent)
 static struct stedma40_chan_cfg uart0_dma_cfg_rx = {
 	.mode = STEDMA40_MODE_LOGICAL,
 	.dir = STEDMA40_PERIPH_TO_MEM,
-	.src_dev_type =  DB8500_DMA_DEV13_UART0_RX,
-	.dst_dev_type = STEDMA40_DEV_DST_MEMORY,
-	.src_info.data_width = STEDMA40_BYTE_WIDTH,
-	.dst_info.data_width = STEDMA40_BYTE_WIDTH,
+	.dev_type = DB8500_DMA_DEV13_UART0,
 };
 
 static struct stedma40_chan_cfg uart0_dma_cfg_tx = {
 	.mode = STEDMA40_MODE_LOGICAL,
 	.dir = STEDMA40_MEM_TO_PERIPH,
-	.src_dev_type = STEDMA40_DEV_SRC_MEMORY,
-	.dst_dev_type = DB8500_DMA_DEV13_UART0_TX,
-	.src_info.data_width = STEDMA40_BYTE_WIDTH,
-	.dst_info.data_width = STEDMA40_BYTE_WIDTH,
+	.dev_type = DB8500_DMA_DEV13_UART0,
 };
 
 static struct stedma40_chan_cfg uart1_dma_cfg_rx = {
 	.mode = STEDMA40_MODE_LOGICAL,
 	.dir = STEDMA40_PERIPH_TO_MEM,
-	.src_dev_type =  DB8500_DMA_DEV12_UART1_RX,
-	.dst_dev_type = STEDMA40_DEV_DST_MEMORY,
-	.src_info.data_width = STEDMA40_BYTE_WIDTH,
-	.dst_info.data_width = STEDMA40_BYTE_WIDTH,
+	.dev_type = DB8500_DMA_DEV12_UART1,
 };
 
 static struct stedma40_chan_cfg uart1_dma_cfg_tx = {
 	.mode = STEDMA40_MODE_LOGICAL,
 	.dir = STEDMA40_MEM_TO_PERIPH,
-	.src_dev_type = STEDMA40_DEV_SRC_MEMORY,
-	.dst_dev_type = DB8500_DMA_DEV12_UART1_TX,
-	.src_info.data_width = STEDMA40_BYTE_WIDTH,
-	.dst_info.data_width = STEDMA40_BYTE_WIDTH,
+	.dev_type = DB8500_DMA_DEV12_UART1,
 };
 
 static struct stedma40_chan_cfg uart2_dma_cfg_rx = {
 	.mode = STEDMA40_MODE_LOGICAL,
 	.dir = STEDMA40_PERIPH_TO_MEM,
-	.src_dev_type =  DB8500_DMA_DEV11_UART2_RX,
-	.dst_dev_type = STEDMA40_DEV_DST_MEMORY,
-	.src_info.data_width = STEDMA40_BYTE_WIDTH,
-	.dst_info.data_width = STEDMA40_BYTE_WIDTH,
+	.dev_type = DB8500_DMA_DEV11_UART2,
 };
 
 static struct stedma40_chan_cfg uart2_dma_cfg_tx = {
 	.mode = STEDMA40_MODE_LOGICAL,
 	.dir = STEDMA40_MEM_TO_PERIPH,
-	.src_dev_type = STEDMA40_DEV_SRC_MEMORY,
-	.dst_dev_type = DB8500_DMA_DEV11_UART2_TX,
-	.src_info.data_width = STEDMA40_BYTE_WIDTH,
-	.dst_info.data_width = STEDMA40_BYTE_WIDTH,
+	.dev_type = DB8500_DMA_DEV11_UART2,
 };
 #endif
 
@@ -675,6 +636,8 @@ static void __init snowball_init_machine(void)
 	mop500_uart_init(parent);
 
 	mop500_snowball_ethernet_clock_enable();
+
+	u8500_cryp1_hash1_init(parent);
 
 	/* This board has full regulator constraints */
 	regulator_has_full_constraints();

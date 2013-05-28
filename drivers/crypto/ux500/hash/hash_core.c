@@ -122,6 +122,13 @@ static void hash_dma_setup_channel(struct hash_device_data *device_data,
 				struct device *dev)
 {
 	struct hash_platform_data *platform_data = dev->platform_data;
+	struct dma_slave_config conf = {
+		.direction = DMA_MEM_TO_DEV,
+		.dst_addr = device_data->phybase + HASH_DMA_FIFO,
+		.dst_addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES,
+		.dst_maxburst = 16,
+        };
+
 	dma_cap_zero(device_data->dma.mask);
 	dma_cap_set(DMA_SLAVE, device_data->dma.mask);
 
@@ -130,6 +137,8 @@ static void hash_dma_setup_channel(struct hash_device_data *device_data,
 		dma_request_channel(device_data->dma.mask,
 				platform_data->dma_filter,
 				device_data->dma.cfg_mem2hash);
+
+	dmaengine_slave_config(device_data->dma.chan_mem2hash, &conf);
 
 	init_completion(&device_data->dma.complete);
 }
@@ -1699,6 +1708,7 @@ static int ux500_hash_probe(struct platform_device *pdev)
 		goto out_kfree;
 	}
 
+	device_data->phybase = res->start;
 	device_data->base = ioremap(res->start, resource_size(res));
 	if (!device_data->base) {
 		dev_err(dev, "[%s] ioremap() failed!",
@@ -1726,11 +1736,17 @@ static int ux500_hash_probe(struct platform_device *pdev)
 		goto out_regulator;
 	}
 
+	ret = clk_prepare(device_data->clk);
+	if (ret) {
+		dev_err(dev, "[%s] clk_prepare() failed!", __func__);
+		goto out_clk;
+	}
+
 	/* Enable device power (and clock) */
 	ret = hash_enable_power(device_data, false);
 	if (ret) {
 		dev_err(dev, "[%s]: hash_enable_power() failed!", __func__);
-		goto out_clk;
+		goto out_clk_unprepare;
 	}
 
 	ret = hash_check_hw(device_data);
@@ -1756,11 +1772,14 @@ static int ux500_hash_probe(struct platform_device *pdev)
 		goto out_power;
 	}
 
-	dev_info(dev, "[%s] successfully probed\n", __func__);
+	dev_info(dev, "successfully registered\n");
 	return 0;
 
 out_power:
 	hash_disable_power(device_data, false);
+
+out_clk_unprepare:
+	clk_unprepare(device_data->clk);
 
 out_clk:
 	clk_put(device_data->clk);
@@ -1826,6 +1845,7 @@ static int ux500_hash_remove(struct platform_device *pdev)
 		dev_err(dev, "[%s]: hash_disable_power() failed",
 			__func__);
 
+	clk_unprepare(device_data->clk);
 	clk_put(device_data->clk);
 	regulator_put(device_data->regulator);
 
