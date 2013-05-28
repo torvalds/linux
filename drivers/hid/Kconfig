@@ -596,8 +596,8 @@ config HID_SAMSUNG
 config HID_SONY
 	tristate "Sony PS2/3 accessories"
 	depends on USB_HID
-	select NEW_LEDS
-	select LEDS_CLASS
+	depends on NEW_LEDS
+	depends on LEDS_CLASS
 	---help---
 	Support for
 	  

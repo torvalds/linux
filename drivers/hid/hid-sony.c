@@ -21,6 +21,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/usb.h>
+#include <linux/leds.h>
 
 #include "hid-ids.h"
 
@@ -103,10 +104,8 @@ struct sony_sc {
 };
 
 struct buzz_extra {
-#ifdef CONFIG_LEDS_CLASS
 	int led_state;
 	struct led_classdev *leds[4];
-#endif
 };
 
 /* Sony Vaio VGX has wrongly mouse pointer declared as constant */
@@ -274,7 +273,6 @@ static int sixaxis_set_operational_bt(struct hid_device *hdev)
 	return hdev->hid_output_raw_report(hdev, buf, sizeof(buf), HID_FEATURE_REPORT);
 }
 
-#ifdef CONFIG_LEDS_CLASS
 static void buzz_set_leds(struct hid_device *hdev, int leds)
 {
 	struct list_head *report_list =
@@ -351,13 +349,15 @@ static enum led_brightness buzz_led_get_brightness(struct led_classdev *led)
 
 	return on ? LED_FULL : LED_OFF;
 }
-#endif
 
 static int buzz_init(struct hid_device *hdev)
 {
 	struct sony_sc *drv_data;
 	struct buzz_extra *buzz;
-	int ret = 0;
+	int n, ret = 0;
+	struct led_classdev *led;
+	size_t name_sz;
+	char *name;
 
 	drv_data = hid_get_drvdata(hdev);
 	BUG_ON(!(drv_data->quirks & BUZZ_CONTROLLER));
@@ -374,90 +374,69 @@ static int buzz_init(struct hid_device *hdev)
 	 * LEDs to on */
 	buzz_set_leds(hdev, 0x00);
 
-#ifdef CONFIG_LEDS_CLASS
-	{
-		int n;
-		struct led_classdev *led;
-		size_t name_sz;
-		char *name;
+	name_sz = strlen(dev_name(&hdev->dev)) + strlen("::buzz#") + 1;
 
-		name_sz = strlen(dev_name(&hdev->dev)) + strlen("::buzz#") + 1;
-
-		for (n = 0; n < 4; n++) {
-			led = kzalloc(sizeof(struct led_classdev) + name_sz, GFP_KERNEL);
-			if (!led) {
-				hid_err(hdev, "Couldn't allocate memory for LED %d\n", n);
-				goto error_leds;
-			}
-
-			name = (void *)(&led[1]);
-			snprintf(name, name_sz, "%s::buzz%d", dev_name(&hdev->dev), n + 1);
-			led->name = name;
-			led->brightness = 0;
-			led->max_brightness = 1;
-			led->brightness_get = buzz_led_get_brightness;
-			led->brightness_set = buzz_led_set_brightness;
-
-			if (led_classdev_register(&hdev->dev, led)) {
-				hid_err(hdev, "Failed to register LED %d\n", n);
-				kfree(led);
-				goto error_leds;
-			}
-
-			buzz->leds[n] = led;
+	for (n = 0; n < 4; n++) {
+		led = kzalloc(sizeof(struct led_classdev) + name_sz, GFP_KERNEL);
+		if (!led) {
+			hid_err(hdev, "Couldn't allocate memory for LED %d\n", n);
+			goto error_leds;
 		}
+
+		name = (void *)(&led[1]);
+		snprintf(name, name_sz, "%s::buzz%d", dev_name(&hdev->dev), n + 1);
+		led->name = name;
+		led->brightness = 0;
+		led->max_brightness = 1;
+		led->brightness_get = buzz_led_get_brightness;
+		led->brightness_set = buzz_led_set_brightness;
+
+		if (led_classdev_register(&hdev->dev, led)) {
+			hid_err(hdev, "Failed to register LED %d\n", n);
+			kfree(led);
+			goto error_leds;
+		}
+
+		buzz->leds[n] = led;
 	}
-#endif
 
 	return ret;
 
-#ifdef CONFIG_LEDS_CLASS
 error_leds:
-	{
-		int n;
-		struct led_classdev *led;
-
-		for (n = 0; n < 4; n++) {
-			led = buzz->leds[n];
-			buzz->leds[n] = NULL;
-			if (!led)
-				continue;
-			led_classdev_unregister(led);
-			kfree(led);
-		}
+	for (n = 0; n < 4; n++) {
+		led = buzz->leds[n];
+		buzz->leds[n] = NULL;
+		if (!led)
+			continue;
+		led_classdev_unregister(led);
+		kfree(led);
 	}
 
 	kfree(drv_data->extra);
 	drv_data->extra = NULL;
 	return ret;
-#endif
 }
 
 static void buzz_remove(struct hid_device *hdev)
 {
 	struct sony_sc *drv_data;
 	struct buzz_extra *buzz;
+	struct led_classdev *led;
+	int n;
 
 	drv_data = hid_get_drvdata(hdev);
 	BUG_ON(!(drv_data->quirks & BUZZ_CONTROLLER));
 
 	buzz = drv_data->extra;
-	
-#ifdef CONFIG_LEDS_CLASS
-	{
-		int n;
-		struct led_classdev *led;
 
-		for (n = 0; n < 4; n++) {
-			led = buzz->leds[n];
-			buzz->leds[n] = NULL;
-			if (!led)
-				continue;
-			led_classdev_unregister(led);
-			kfree(led);
-		}
+	for (n = 0; n < 4; n++) {
+		led = buzz->leds[n];
+		buzz->leds[n] = NULL;
+		if (!led)
+			continue;
+		led_classdev_unregister(led);
+		kfree(led);
 	}
-#endif
 
 	kfree(drv_data->extra);
 	drv_data->extra = NULL;
