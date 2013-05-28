@@ -198,7 +198,7 @@ static int bf5xx_tdm_resume(struct snd_soc_dai *dai)
 	int ret;
 	struct sport_device *sport = snd_soc_dai_get_drvdata(dai);
 
-	ret = sport_set_multichannel(sport, 8, 0xFF, 1);
+	ret = sport_set_multichannel(sport, 8, 0xFF, 0xFF, 1);
 	if (ret) {
 		pr_err("SPORT is busy!\n");
 		ret = -EBUSY;
@@ -265,7 +265,7 @@ static int bfin_tdm_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	/* SPORT works in TDM mode */
-	ret = sport_set_multichannel(sport_handle, 8, 0xFF, 1);
+	ret = sport_set_multichannel(sport_handle, 8, 0xFF, 0xFF, 1);
 	if (ret) {
 		pr_err("SPORT is busy!\n");
 		ret = -EBUSY;
