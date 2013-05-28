@@ -581,11 +581,6 @@ enum {
 #define EXT4_FREE_BLOCKS_NOFREE_LAST_CLUSTER	0x0020
 
 /*
- * Flags used by ext4_discard_partial_page_buffers
- */
-#define EXT4_DISCARD_PARTIAL_PG_ZERO_UNMAPPED	0x0001
-
-/*
  * ioctl commands
  */
 #define	EXT4_IOC_GETFLAGS		FS_IOC_GETFLAGS
@@ -2102,9 +2097,6 @@ extern int ext4_block_zero_page_range(handle_t *handle,
 		struct address_space *mapping, loff_t from, loff_t length);
 extern int ext4_zero_partial_blocks(handle_t *handle, struct inode *inode,
 			     loff_t lstart, loff_t lend);
-extern int ext4_discard_partial_page_buffers(handle_t *handle,
-		struct address_space *mapping, loff_t from,
-		loff_t length, int flags);
 extern int ext4_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf);
 extern qsize_t *ext4_get_reserved_space(struct inode *inode);
 extern void ext4_da_update_reserve_space(struct inode *inode,
