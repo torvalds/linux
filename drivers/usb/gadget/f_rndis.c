@@ -698,11 +698,6 @@ rndis_bind(struct usb_configuration *c, struct usb_function *f)
 #endif
 
 	if (rndis_string_defs[0].id == 0) {
-		/* ... and setup RNDIS itself */
-		status = rndis_init();
-		if (status < 0)
-			return status;
-
 		status = usb_string_ids_tab(c->cdev, rndis_string_defs);
 		if (status)
 			return status;
@@ -844,7 +839,6 @@ rndis_old_unbind(struct usb_configuration *c, struct usb_function *f)
 	struct f_rndis		*rndis = func_to_rndis(f);
 
 	rndis_deregister(rndis->config);
-	rndis_exit();
 
 	rndis_string_defs[0].id = 0;
 	usb_free_all_descriptors(f);
@@ -891,11 +885,9 @@ rndis_bind_config_vendor(struct usb_configuration *c, u8 ethaddr[ETH_ALEN],
 	rndis->port.func.disable = rndis_disable;
 
 	status = usb_add_function(c, &rndis->port.func);
-	if (status) {
+	if (status)
 		kfree(rndis);
 fail:
-		rndis_exit();
-	}
 	return status;
 }
 
@@ -958,7 +950,6 @@ static void rndis_unbind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct f_rndis		*rndis = func_to_rndis(f);
 
-	rndis_exit();
 	rndis_string_defs[0].id = 0;
 	usb_free_all_descriptors(f);
 
@@ -974,10 +965,8 @@ static struct usb_function *rndis_alloc(struct usb_function_instance *fi)
 
 	/* allocate and initialize one new instance */
 	rndis = kzalloc(sizeof(*rndis), GFP_KERNEL);
-	if (!rndis) {
-		rndis_exit();
+	if (!rndis)
 		return ERR_PTR(-ENOMEM);
-	}
 
 	opts = container_of(fi, struct f_rndis_opts, func_inst);
 

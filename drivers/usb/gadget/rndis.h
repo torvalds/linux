@@ -217,7 +217,4 @@ int  rndis_signal_disconnect (int configNr);
 int  rndis_state (int configNr);
 extern void rndis_set_host_mac (int configNr, const u8 *addr);
 
-int rndis_init(void);
-void rndis_exit (void);
-
 #endif  /* _LINUX_RNDIS_H */
