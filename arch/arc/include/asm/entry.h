@@ -252,7 +252,7 @@
 	ld  \out, [\tsk, TASK_THREAD_INFO]
 
 	/* Go to end of page where stack begins (grows upwards) */
-	add2 \out, \out, (THREAD_SIZE - 4)/4   /* one word GUTTER */
+	add2 \out, \out, (THREAD_SIZE)/4
 
 .endm
 

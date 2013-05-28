@@ -110,7 +110,7 @@ struct callee_regs {
 	/* open-coded current_thread_info() */			\
 	register unsigned long sp asm ("sp");			\
 	unsigned long pg_start = (sp & ~(THREAD_SIZE - 1));	\
-	(struct pt_regs *)(pg_start + THREAD_SIZE - 4) - 1;	\
+	(struct pt_regs *)(pg_start + THREAD_SIZE) - 1;	\
 })
 
 static inline long regs_return_value(struct pt_regs *regs)

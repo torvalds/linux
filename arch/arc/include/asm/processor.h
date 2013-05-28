@@ -50,7 +50,7 @@ struct task_struct;
 unsigned long thread_saved_pc(struct task_struct *t);
 
 #define task_pt_regs(p) \
-	((struct pt_regs *)(THREAD_SIZE - 4 + (void *)task_stack_page(p)) - 1)
+	((struct pt_regs *)(THREAD_SIZE + (void *)task_stack_page(p)) - 1)
 
 /* Free all resources held by a thread. */
 #define release_thread(thread) do { } while (0)

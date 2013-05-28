@@ -75,8 +75,6 @@ asmlinkage void ret_from_fork(void);
  * ~                ~
  * |    --to--      |   (scratch Regs of user mode)
  * |     r0         |
- * ------------------
- * |   UNUSED 1 word|
  * ------------------  <===== END of PAGE
  */
 int copy_thread(unsigned long clone_flags,
