@@ -2642,6 +2642,7 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 	__be16 *svlan_tci = NULL;                /* Encapsulates priority and SVLAN ID */
 	__be16 *svlan_encapsulated_proto = NULL; /* packet type ID field (or len) for SVLAN tag */
 	u16 queue_map;
+	unsigned long tail_offset;
 
 	if (pkt_dev->nr_labels)
 		protocol = htons(ETH_P_MPLS_UC);
@@ -2708,7 +2709,12 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 		*vlan_encapsulated_proto = htons(ETH_P_IP);
 	}
 
-	skb->network_header = skb->tail;
+	tail_offset = skb_tail_offset(skb);
+	if (tail_offset > 0xffff) {
+		kfree_skb(skb);
+		return NULL;
+	}
+	skb_set_network_header(skb, tail_offset);
 	skb->transport_header = skb->network_header + sizeof(struct iphdr);
 	skb_put(skb, sizeof(struct iphdr) + sizeof(struct udphdr));
 	skb_set_queue_mapping(skb, queue_map);
@@ -2775,6 +2781,7 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 	__be16 *svlan_tci = NULL;                /* Encapsulates priority and SVLAN ID */
 	__be16 *svlan_encapsulated_proto = NULL; /* packet type ID field (or len) for SVLAN tag */
 	u16 queue_map;
+	unsigned long tail_offset;
 
 	if (pkt_dev->nr_labels)
 		protocol = htons(ETH_P_MPLS_UC);
@@ -2822,7 +2829,12 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 		*vlan_encapsulated_proto = htons(ETH_P_IPV6);
 	}
 
-	skb->network_header = skb->tail;
+	tail_offset = skb_tail_offset(skb);
+	if (tail_offset > 0xffff) {
+		kfree_skb(skb);
+		return NULL;
+	}
+	skb_set_network_header(skb, tail_offset);
 	skb->transport_header = skb->network_header + sizeof(struct ipv6hdr);
 	skb_put(skb, sizeof(struct ipv6hdr) + sizeof(struct udphdr));
 	skb_set_queue_mapping(skb, queue_map);
