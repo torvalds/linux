@@ -1319,7 +1319,7 @@ static int ip6mr_mfc_delete(struct mr6_table *mrt, struct mf6cctl *mfc,
 static int ip6mr_device_event(struct notifier_block *this,
 			      unsigned long event, void *ptr)
 {
-	struct net_device *dev = ptr;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct net *net = dev_net(dev);
 	struct mr6_table *mrt;
 	struct mif_device *v;

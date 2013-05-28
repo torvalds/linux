@@ -1391,6 +1391,20 @@ void dev_disable_lro(struct net_device *dev)
 }
 EXPORT_SYMBOL(dev_disable_lro);
 
+static void netdev_notifier_info_init(struct netdev_notifier_info *info,
+				      struct net_device *dev)
+{
+	info->dev = dev;
+}
+
+static int call_netdevice_notifier(struct notifier_block *nb, unsigned long val,
+				   struct net_device *dev)
+{
+	struct netdev_notifier_info info;
+
+	netdev_notifier_info_init(&info, dev);
+	return nb->notifier_call(nb, val, &info);
+}
 
 static int dev_boot_phase = 1;
 
@@ -1423,7 +1437,7 @@ int register_netdevice_notifier(struct notifier_block *nb)
 		goto unlock;
 	for_each_net(net) {
 		for_each_netdev(net, dev) {
-			err = nb->notifier_call(nb, NETDEV_REGISTER, dev);
+			err = call_netdevice_notifier(nb, NETDEV_REGISTER, dev);
 			err = notifier_to_errno(err);
 			if (err)
 				goto rollback;
@@ -1431,7 +1445,7 @@ int register_netdevice_notifier(struct notifier_block *nb)
 			if (!(dev->flags & IFF_UP))
 				continue;
 
-			nb->notifier_call(nb, NETDEV_UP, dev);
+			call_netdevice_notifier(nb, NETDEV_UP, dev);
 		}
 	}
 
@@ -1447,10 +1461,11 @@ rollback:
 				goto outroll;
 
 			if (dev->flags & IFF_UP) {
-				nb->notifier_call(nb, NETDEV_GOING_DOWN, dev);
-				nb->notifier_call(nb, NETDEV_DOWN, dev);
+				call_netdevice_notifier(nb, NETDEV_GOING_DOWN,
+							dev);
+				call_netdevice_notifier(nb, NETDEV_DOWN, dev);
 			}
-			nb->notifier_call(nb, NETDEV_UNREGISTER, dev);
+			call_netdevice_notifier(nb, NETDEV_UNREGISTER, dev);
 		}
 	}
 
@@ -1488,10 +1503,11 @@ int unregister_netdevice_notifier(struct notifier_block *nb)
 	for_each_net(net) {
 		for_each_netdev(net, dev) {
 			if (dev->flags & IFF_UP) {
-				nb->notifier_call(nb, NETDEV_GOING_DOWN, dev);
-				nb->notifier_call(nb, NETDEV_DOWN, dev);
+				call_netdevice_notifier(nb, NETDEV_GOING_DOWN,
+							dev);
+				call_netdevice_notifier(nb, NETDEV_DOWN, dev);
 			}
-			nb->notifier_call(nb, NETDEV_UNREGISTER, dev);
+			call_netdevice_notifier(nb, NETDEV_UNREGISTER, dev);
 		}
 	}
 unlock:
@@ -1499,6 +1515,25 @@ unlock:
 	return err;
 }
 EXPORT_SYMBOL(unregister_netdevice_notifier);
+
+/**
+ *	call_netdevice_notifiers_info - call all network notifier blocks
+ *	@val: value passed unmodified to notifier function
+ *	@dev: net_device pointer passed unmodified to notifier function
+ *	@info: notifier information data
+ *
+ *	Call all network notifier blocks.  Parameters and return value
+ *	are as for raw_notifier_call_chain().
+ */
+
+int call_netdevice_notifiers_info(unsigned long val, struct net_device *dev,
+				  struct netdev_notifier_info *info)
+{
+	ASSERT_RTNL();
+	netdev_notifier_info_init(info, dev);
+	return raw_notifier_call_chain(&netdev_chain, val, info);
+}
+EXPORT_SYMBOL(call_netdevice_notifiers_info);
 
 /**
  *	call_netdevice_notifiers - call all network notifier blocks
@@ -1511,8 +1546,9 @@ EXPORT_SYMBOL(unregister_netdevice_notifier);
 
 int call_netdevice_notifiers(unsigned long val, struct net_device *dev)
 {
-	ASSERT_RTNL();
-	return raw_notifier_call_chain(&netdev_chain, val, dev);
+	struct netdev_notifier_info info;
+
+	return call_netdevice_notifiers_info(val, dev, &info);
 }
 EXPORT_SYMBOL(call_netdevice_notifiers);
 

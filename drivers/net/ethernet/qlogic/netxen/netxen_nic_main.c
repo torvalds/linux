@@ -3311,7 +3311,7 @@ static int netxen_netdev_event(struct notifier_block *this,
 				 unsigned long event, void *ptr)
 {
 	struct netxen_adapter *adapter;
-	struct net_device *dev = (struct net_device *)ptr;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct net_device *orig_dev = dev;
 	struct net_device *slave;
 

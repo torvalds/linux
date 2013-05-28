@@ -1568,7 +1568,7 @@ int ndisc_rcv(struct sk_buff *skb)
 
 static int ndisc_netdev_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
-	struct net_device *dev = ptr;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct net *net = dev_net(dev);
 	struct inet6_dev *idev;
 

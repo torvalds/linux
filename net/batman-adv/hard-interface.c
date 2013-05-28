@@ -595,7 +595,7 @@ void batadv_hardif_remove_interfaces(void)
 static int batadv_hard_if_event(struct notifier_block *this,
 				unsigned long event, void *ptr)
 {
-	struct net_device *net_dev = ptr;
+	struct net_device *net_dev = netdev_notifier_info_to_dev(ptr);
 	struct batadv_hard_iface *hard_iface;
 	struct batadv_hard_iface *primary_if = NULL;
 	struct batadv_priv *bat_priv;

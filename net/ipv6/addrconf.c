@@ -2826,9 +2826,9 @@ static void addrconf_ip6_tnl_config(struct net_device *dev)
 }
 
 static int addrconf_notify(struct notifier_block *this, unsigned long event,
-			   void *data)
+			   void *ptr)
 {
-	struct net_device *dev = (struct net_device *) data;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct inet6_dev *idev = __in6_dev_get(dev);
 	int run_pending = 0;
 	int err;

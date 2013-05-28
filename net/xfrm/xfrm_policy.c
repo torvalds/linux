@@ -2784,7 +2784,7 @@ static void __net_init xfrm_dst_ops_init(struct net *net)
 
 static int xfrm_dev_event(struct notifier_block *this, unsigned long event, void *ptr)
 {
-	struct net_device *dev = ptr;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 
 	switch (event) {
 	case NETDEV_DOWN:

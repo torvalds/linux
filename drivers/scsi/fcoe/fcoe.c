@@ -1975,7 +1975,7 @@ static int fcoe_device_notification(struct notifier_block *notifier,
 {
 	struct fcoe_ctlr_device *cdev;
 	struct fc_lport *lport = NULL;
-	struct net_device *netdev = ptr;
+	struct net_device *netdev = netdev_notifier_info_to_dev(ptr);
 	struct fcoe_ctlr *ctlr;
 	struct fcoe_interface *fcoe;
 	struct fcoe_port *port;

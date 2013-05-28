@@ -539,9 +539,9 @@ static int clip_create(int number)
 }
 
 static int clip_device_event(struct notifier_block *this, unsigned long event,
-			     void *arg)
+			     void *ptr)
 {
-	struct net_device *dev = arg;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 
 	if (!net_eq(dev_net(dev), &init_net))
 		return NOTIFY_DONE;

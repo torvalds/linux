@@ -2647,7 +2647,7 @@ static void team_port_change_check(struct team_port *port, bool linkup)
 static int team_device_event(struct notifier_block *unused,
 			     unsigned long event, void *ptr)
 {
-	struct net_device *dev = (struct net_device *) ptr;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct team_port *port;
 
 	port = team_port_get_rtnl(dev);

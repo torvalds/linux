@@ -1921,7 +1921,7 @@ static void pktgen_change_name(const struct pktgen_net *pn, struct net_device *d
 static int pktgen_device_event(struct notifier_block *unused,
 			       unsigned long event, void *ptr)
 {
-	struct net_device *dev = ptr;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct pktgen_net *pn = net_generic(dev_net(dev), pg_net_id);
 
 	if (pn->pktgen_exiting)

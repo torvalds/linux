@@ -2293,7 +2293,7 @@ out_unlock:
 static int afiucv_netdev_event(struct notifier_block *this,
 			       unsigned long event, void *ptr)
 {
-	struct net_device *event_dev = (struct net_device *)ptr;
+	struct net_device *event_dev = netdev_notifier_info_to_dev(ptr);
 	struct sock *sk;
 	struct iucv_sock *iucv;
 

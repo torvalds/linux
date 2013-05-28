@@ -1717,10 +1717,9 @@ void ieee80211_remove_interfaces(struct ieee80211_local *local)
 }
 
 static int netdev_notify(struct notifier_block *nb,
-			 unsigned long state,
-			 void *ndev)
+			 unsigned long state, void *ptr)
 {
-	struct net_device *dev = ndev;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct ieee80211_sub_if_data *sdata;
 
 	if (state != NETDEV_CHANGENAME)

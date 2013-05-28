@@ -3277,7 +3277,7 @@ static int bond_slave_netdev_event(unsigned long event,
 static int bond_netdev_event(struct notifier_block *this,
 			     unsigned long event, void *ptr)
 {
-	struct net_device *event_dev = (struct net_device *)ptr;
+	struct net_device *event_dev = netdev_notifier_info_to_dev(ptr);
 
 	pr_debug("event_dev: %s, event: %lx\n",
 		 event_dev ? event_dev->name : "None",

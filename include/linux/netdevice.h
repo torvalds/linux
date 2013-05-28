@@ -1599,6 +1599,19 @@ struct packet_offload {
 
 extern int register_netdevice_notifier(struct notifier_block *nb);
 extern int unregister_netdevice_notifier(struct notifier_block *nb);
+
+struct netdev_notifier_info {
+	struct net_device *dev;
+};
+
+static inline struct net_device *
+netdev_notifier_info_to_dev(const struct netdev_notifier_info *info)
+{
+	return info->dev;
+}
+
+extern int call_netdevice_notifiers_info(unsigned long val, struct net_device *dev,
+					 struct netdev_notifier_info *info);
 extern int call_netdevice_notifiers(unsigned long val, struct net_device *dev);
 
 

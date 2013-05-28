@@ -1053,7 +1053,7 @@ EXPORT_SYMBOL_GPL(macvtap_get_socket);
 static int macvtap_device_event(struct notifier_block *unused,
 				unsigned long event, void *ptr)
 {
-	struct net_device *dev = ptr;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct macvlan_dev *vlan;
 	struct device *classdev;
 	dev_t devt;

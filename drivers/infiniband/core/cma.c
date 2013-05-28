@@ -3269,9 +3269,9 @@ static int cma_netdev_change(struct net_device *ndev, struct rdma_id_private *id
 }
 
 static int cma_netdev_callback(struct notifier_block *self, unsigned long event,
-			       void *ctx)
+			       void *ptr)
 {
-	struct net_device *ndev = (struct net_device *)ctx;
+	struct net_device *ndev = netdev_notifier_info_to_dev(ptr);
 	struct cma_device *cma_dev;
 	struct rdma_id_private *id_priv;
 	int ret = NOTIFY_DONE;

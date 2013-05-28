@@ -352,9 +352,9 @@ EXPORT_SYMBOL(caif_enroll_dev);
 
 /* notify Caif of device events */
 static int caif_device_notify(struct notifier_block *me, unsigned long what,
-			      void *arg)
+			      void *ptr)
 {
-	struct net_device *dev = arg;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct caif_device_entry *caifd = NULL;
 	struct caif_dev_common *caifdev;
 	struct cfcnfg *cfg;

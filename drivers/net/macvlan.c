@@ -921,7 +921,7 @@ static struct rtnl_link_ops macvlan_link_ops = {
 static int macvlan_device_event(struct notifier_block *unused,
 				unsigned long event, void *ptr)
 {
-	struct net_device *dev = ptr;
+	struct net_device *dev = netdev_notifier_info_to_dev(ptr);
 	struct macvlan_dev *vlan, *next;
 	struct macvlan_port *port;
 	LIST_HEAD(list_kill);
