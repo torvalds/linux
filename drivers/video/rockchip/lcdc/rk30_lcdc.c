@@ -67,6 +67,28 @@ static int rk30_lcdc_clk_disable(struct rk30_lcdc_device *lcdc_dev)
 	printk("rk30 lcdc%d clk disable...\n",lcdc_dev->id);
 	return 0;
 }
+
+static int rk30_lcdc_read_reg_defalut_cfg(struct rk30_lcdc_device *lcdc_dev)
+{
+	int reg = 0;
+	spin_lock(&lcdc_dev->reg_lock);
+	if(likely(lcdc_dev->clk_on))
+	{
+		for(reg=SYS_CTRL0;reg<=DSP_VACT_ST_END_F1; reg +=4)
+		{
+			lcdc_readl(lcdc_dev,reg);
+		}
+		
+		spin_unlock(&lcdc_dev->reg_lock);
+	}
+	else   //clk already disabled 
+	{
+		spin_unlock(&lcdc_dev->reg_lock);
+		
+	}
+
+	return 0;
+}
 static int rk30_lcdc_init(struct rk_lcdc_device_driver *dev_drv)
 {
 	int i = 0;
@@ -98,7 +120,7 @@ static int rk30_lcdc_init(struct rk_lcdc_device_driver *dev_drv)
    	}
 	
 	rk30_lcdc_clk_enable(lcdc_dev);
-	
+	rk30_lcdc_read_reg_defalut_cfg(lcdc_dev);
 	lcdc_msk_reg(lcdc_dev,SYS_CTRL0,m_HWC_CHANNEL_ID | m_WIN2_CHANNEL_ID | m_WIN1_CBR_CHANNEL_ID |
 		m_WIN1_YRGB_CHANNEL_ID | m_WIN0_CBR_CHANNEL1_ID | m_WIN0_YRGB_CHANNEL1_ID | 
 		m_WIN0_CBR_CHANNEL0_ID | m_WIN0_YRGB_CHANNEL0_ID,v_HWC_CHANNEL_ID(7) | 
@@ -335,7 +357,6 @@ static int win0_open(struct rk30_lcdc_device *lcdc_dev,bool open)
 }
 static int win1_open(struct rk30_lcdc_device *lcdc_dev,bool open)
 {
-	unsigned char i = 0;
 	spin_lock(&lcdc_dev->reg_lock);
 	if(likely(lcdc_dev->clk_on))
 	{
@@ -703,10 +724,6 @@ static int win2_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
 	struct layer_par *par )
 {
 	u32 xact, yact, xvir, yvir, xpos, ypos;
-	u32 ScaleYrgbX = 0x1000;
-	u32 ScaleYrgbY = 0x1000;
-	u32 ScaleCbrX = 0x1000;
-	u32 ScaleCbrY = 0x1000;
 	u8 fmt_cfg = 0;
 	char fmt[9];
 	
@@ -717,8 +734,7 @@ static int win2_set_par(struct rk30_lcdc_device *lcdc_dev,rk_screen *screen,
 	xpos = par->xpos+screen->left_margin + screen->hsync_len;
 	ypos = par->ypos+screen->upper_margin + screen->vsync_len;
 	
-	ScaleYrgbX = CalScale(xact, par->xsize);
-	ScaleYrgbY = CalScale(yact, par->ysize);
+	
 	DBG(1,"%s for lcdc%d>>format:%s>>>xact:%d>>yact:%d>>xsize:%d>>ysize:%d>>xvir:%d>>yvir:%d>>xpos:%d>>ypos:%d>>\n",
 		__func__,lcdc_dev->id,get_format_string(par->format,fmt),xact,yact,par->xsize,par->ysize,xvir,yvir,xpos,ypos);
 
@@ -913,7 +929,6 @@ int rk30_lcdc_ioctl(struct rk_lcdc_device_driver * dev_drv,unsigned int cmd, uns
 	u32 panel_size[2];
 	void __user *argp = (void __user *)arg;
 	int ret = 0;
-	int enable;
 	struct color_key_cfg clr_key_cfg;
 	switch(cmd)
 	{
@@ -1436,7 +1451,7 @@ static irqreturn_t rk30_lcdc_isr(int irq, void *dev_id)
 	ktime_t timestamp = ktime_get();
 	
 	lcdc_msk_reg(lcdc_dev, INT_STATUS, m_FRM_START_INT_CLEAR, v_FRM_START_INT_CLEAR(1));
-	lcdc_cfg_done(lcdc_dev);
+	//lcdc_cfg_done(lcdc_dev);
 	//lcdc_msk_reg(lcdc_dev, INT_STATUS, m_LINE_FLAG_INT_CLEAR, v_LINE_FLAG_INT_CLEAR(1));
  
 	if(lcdc_dev->driver.num_buf < 3)  //three buffer ,no need to wait for sync
@@ -1512,7 +1527,9 @@ static int __devinit rk30_lcdc_probe (struct platform_device *pdev)
 {
 	struct rk30_lcdc_device *lcdc_dev=NULL;
 	rk_screen *screen;
+#if defined(CONFIG_ONE_LCDC_DUAL_OUTPUT_INF)
 	rk_screen *screen1;
+#endif
 	struct rk29fb_info *screen_ctr_info;
 	struct resource *res = NULL;
 	struct resource *mem;
