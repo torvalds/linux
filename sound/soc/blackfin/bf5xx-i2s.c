@@ -42,6 +42,7 @@
 #include <linux/gpio.h>
 
 #include "bf5xx-sport.h"
+#include "bf5xx-i2s-pcm.h"
 
 struct bf5xx_i2s_port {
 	u16 tcr1;
@@ -49,6 +50,13 @@ struct bf5xx_i2s_port {
 	u16 tcr2;
 	u16 rcr2;
 	int configured;
+
+	unsigned int slots;
+	unsigned int tx_mask;
+	unsigned int rx_mask;
+
+	struct bf5xx_i2s_pcm_data tx_dma_data;
+	struct bf5xx_i2s_pcm_data rx_dma_data;
 };
 
 static int bf5xx_i2s_set_dai_fmt(struct snd_soc_dai *cpu_dai,
@@ -170,6 +178,64 @@ static void bf5xx_i2s_shutdown(struct snd_pcm_substream *substream,
 		bf5xx_i2s->configured = 0;
 }
 
+static int bf5xx_i2s_set_channel_map(struct snd_soc_dai *dai,
+		unsigned int tx_num, unsigned int *tx_slot,
+		unsigned int rx_num, unsigned int *rx_slot)
+{
+	struct sport_device *sport_handle = snd_soc_dai_get_drvdata(dai);
+	struct bf5xx_i2s_port *bf5xx_i2s = sport_handle->private_data;
+	unsigned int tx_mapped = 0, rx_mapped = 0;
+	unsigned int slot;
+	int i;
+
+	if ((tx_num > BFIN_TDM_DAI_MAX_SLOTS) ||
+			(rx_num > BFIN_TDM_DAI_MAX_SLOTS))
+		return -EINVAL;
+
+	for (i = 0; i < tx_num; i++) {
+		slot = tx_slot[i];
+		if ((slot < BFIN_TDM_DAI_MAX_SLOTS) &&
+				(!(tx_mapped & (1 << slot)))) {
+			bf5xx_i2s->tx_dma_data.map[i] = slot;
+			tx_mapped |= 1 << slot;
+		} else
+			return -EINVAL;
+	}
+	for (i = 0; i < rx_num; i++) {
+		slot = rx_slot[i];
+		if ((slot < BFIN_TDM_DAI_MAX_SLOTS) &&
+				(!(rx_mapped & (1 << slot)))) {
+			bf5xx_i2s->rx_dma_data.map[i] = slot;
+			rx_mapped |= 1 << slot;
+		} else
+			return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int bf5xx_i2s_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
+	unsigned int rx_mask, int slots, int width)
+{
+	struct sport_device *sport_handle = snd_soc_dai_get_drvdata(dai);
+	struct bf5xx_i2s_port *bf5xx_i2s = sport_handle->private_data;
+
+	if (slots % 8 != 0 || slots > 8)
+		return -EINVAL;
+
+	if (width != 32)
+		return -EINVAL;
+
+	bf5xx_i2s->slots = slots;
+	bf5xx_i2s->tx_mask = tx_mask;
+	bf5xx_i2s->rx_mask = rx_mask;
+
+	bf5xx_i2s->tx_dma_data.tdm_mode = slots != 0;
+	bf5xx_i2s->rx_dma_data.tdm_mode = slots != 0;
+
+	return sport_set_multichannel(sport_handle, slots, tx_mask, rx_mask, 0);
+}
+
 #ifdef CONFIG_PM
 static int bf5xx_i2s_suspend(struct snd_soc_dai *dai)
 {
@@ -206,13 +272,31 @@ static int bf5xx_i2s_resume(struct snd_soc_dai *dai)
 		return -EBUSY;
 	}
 
-	return 0;
+	return sport_set_multichannel(sport_handle, bf5xx_i2s->slots,
+			bf5xx_i2s->tx_mask, bf5xx_i2s->rx_mask, 0);
 }
 
 #else
 #define bf5xx_i2s_suspend	NULL
 #define bf5xx_i2s_resume	NULL
 #endif
+
+static int bf5xx_i2s_dai_probe(struct snd_soc_dai *dai)
+{
+	struct sport_device *sport_handle = snd_soc_dai_get_drvdata(dai);
+	struct bf5xx_i2s_port *bf5xx_i2s = sport_handle->private_data;
+	unsigned int i;
+
+	for (i = 0; i < BFIN_TDM_DAI_MAX_SLOTS; i++) {
+		bf5xx_i2s->tx_dma_data.map[i] = i;
+		bf5xx_i2s->rx_dma_data.map[i] = i;
+	}
+
+	dai->playback_dma_data = &bf5xx_i2s->tx_dma_data;
+	dai->capture_dma_data = &bf5xx_i2s->rx_dma_data;
+
+	return 0;
+}
 
 #define BF5XX_I2S_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 |\
 		SNDRV_PCM_RATE_16000 | SNDRV_PCM_RATE_22050 | \
@@ -226,22 +310,25 @@ static int bf5xx_i2s_resume(struct snd_soc_dai *dai)
 	 SNDRV_PCM_FMTBIT_S32_LE)
 
 static const struct snd_soc_dai_ops bf5xx_i2s_dai_ops = {
-	.shutdown	= bf5xx_i2s_shutdown,
-	.hw_params	= bf5xx_i2s_hw_params,
-	.set_fmt	= bf5xx_i2s_set_dai_fmt,
+	.shutdown	 = bf5xx_i2s_shutdown,
+	.hw_params	 = bf5xx_i2s_hw_params,
+	.set_fmt	 = bf5xx_i2s_set_dai_fmt,
+	.set_tdm_slot	 = bf5xx_i2s_set_tdm_slot,
+	.set_channel_map = bf5xx_i2s_set_channel_map,
 };
 
 static struct snd_soc_dai_driver bf5xx_i2s_dai = {
+	.probe = bf5xx_i2s_dai_probe,
 	.suspend = bf5xx_i2s_suspend,
 	.resume = bf5xx_i2s_resume,
 	.playback = {
-		.channels_min = 1,
-		.channels_max = 2,
+		.channels_min = 2,
+		.channels_max = 8,
 		.rates = BF5XX_I2S_RATES,
 		.formats = BF5XX_I2S_FORMATS,},
 	.capture = {
-		.channels_min = 1,
-		.channels_max = 2,
+		.channels_min = 2,
+		.channels_max = 8,
 		.rates = BF5XX_I2S_RATES,
 		.formats = BF5XX_I2S_FORMATS,},
 	.ops = &bf5xx_i2s_dai_ops,
@@ -257,7 +344,7 @@ static int bf5xx_i2s_probe(struct platform_device *pdev)
 	int ret;
 
 	/* configure SPORT for I2S */
-	sport_handle = sport_init(pdev, 4, 2 * sizeof(u32),
+	sport_handle = sport_init(pdev, 4, 8 * sizeof(u32),
 		sizeof(struct bf5xx_i2s_port));
 	if (!sport_handle)
 		return -ENODEV;
