@@ -1544,7 +1544,7 @@ int core_dev_setup_virtual_lun0(void)
 {
 	struct se_hba *hba;
 	struct se_device *dev;
-	char buf[16];
+	char buf[] = "rd_pages=8,rd_nullio=1";
 	int ret;
 
 	hba = core_alloc_hba("rd_mcp", 0, HBA_FLAGS_INTERNAL_USE);
@@ -1557,8 +1557,6 @@ int core_dev_setup_virtual_lun0(void)
 		goto out_free_hba;
 	}
 
-	memset(buf, 0, 16);
-	sprintf(buf, "rd_pages=8");
 	hba->transport->set_configfs_dev_params(dev, buf, sizeof(buf));
 
 	ret = target_configure_device(dev);
