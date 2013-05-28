@@ -353,6 +353,13 @@ choice
 		  their output to the standard serial port on the RealView
 		  PB1176 platform.
 
+	config DEBUG_ROCKCHIP_UART
+		bool "Kernel low-level debugging messages via Rockchip UART"
+		depends on ARCH_ROCKCHIP
+		help
+		  Say Y here if you want kernel low-level debugging support
+		  on Rockchip based platforms.
+
 	config DEBUG_S3C_UART0
 		depends on PLAT_SAMSUNG
 		select DEBUG_EXYNOS_UART if ARCH_EXYNOS
@@ -589,6 +596,32 @@ endchoice
 
 choice
 	prompt "Low-level debug console UART"
+	depends on DEBUG_ROCKCHIP_UART
+
+	config DEBUG_RK29_UART0
+		bool "RK29 UART0"
+
+	config DEBUG_RK29_UART1
+		bool "RK29 UART1"
+
+	config DEBUG_RK29_UART2
+		bool "RK29 UART2"
+
+	config DEBUG_RK3X_UART0
+		bool "RK3X UART0"
+
+	config DEBUG_RK3X_UART1
+		bool "RK3X UART1"
+
+	config DEBUG_RK3X_UART2
+		bool "RK3X UART2"
+
+	config DEBUG_RK3X_UART3
+		bool "RK3X UART3"
+endchoice
+
+choice
+	prompt "Low-level debug console UART"
 	depends on DEBUG_LL && DEBUG_TEGRA_UART
 
 	config TEGRA_DEBUG_UART_AUTO_ODMDATA
@@ -639,6 +672,7 @@ config DEBUG_LL_INCLUDE
 	default "debug/picoxcell.S" if DEBUG_PICOXCELL_UART
 	default "debug/pxa.S" if DEBUG_PXA_UART1 || DEBUG_MMP_UART2 || \
 				 DEBUG_MMP_UART3
+	default "debug/rockchip.S" if DEBUG_ROCKCHIP_UART
 	default "debug/sirf.S" if DEBUG_SIRFPRIMA2_UART1 || DEBUG_SIRFMARCO_UART1
 	default "debug/socfpga.S" if DEBUG_SOCFPGA_UART
 	default "debug/sunxi.S" if DEBUG_SUNXI_UART0 || DEBUG_SUNXI_UART1
