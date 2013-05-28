@@ -138,7 +138,6 @@ static int ixp4xx_spkr_remove(struct platform_device *dev)
 	unsigned int pin = (unsigned int) input_get_drvdata(input_dev);
 
 	input_unregister_device(input_dev);
-	platform_set_drvdata(dev, NULL);
 
 	/* turn the speaker off */
 	disable_irq(IRQ_IXP4XX_TIMER2);
