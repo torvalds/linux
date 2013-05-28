@@ -681,6 +681,7 @@ config USB_ETH_EEM
        bool "Ethernet Emulation Model (EEM) support"
        depends on USB_ETH
 	select USB_LIBCOMPOSITE
+	select USB_F_EEM
        default n
        help
          CDC EEM is a newer USB standard that is somewhat simpler than CDC ECM
