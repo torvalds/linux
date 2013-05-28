@@ -436,7 +436,6 @@ ssize_t uwb_est_find_size(struct uwb_rc *rc, const struct uwb_rceb *rceb,
 	unsigned long flags;
 	unsigned itr;
 	u16 type_event_high, event;
-	u8 *ptr = (u8 *) rceb;
 
 	read_lock_irqsave(&uwb_est_lock, flags);
 	size = -ENOSPC;
@@ -453,12 +452,12 @@ ssize_t uwb_est_find_size(struct uwb_rc *rc, const struct uwb_rceb *rceb,
 		if (size != -ENOENT)
 			goto out;
 	}
-	dev_dbg(dev, "event 0x%02x/%04x/%02x: no handlers available; "
-		"RCEB %02x %02x %02x %02x\n",
+	dev_dbg(dev,
+		"event 0x%02x/%04x/%02x: no handlers available; RCEB %4ph\n",
 		(unsigned) rceb->bEventType,
 		(unsigned) le16_to_cpu(rceb->wEvent),
 		(unsigned) rceb->bEventContext,
-		ptr[0], ptr[1], ptr[2], ptr[3]);
+		rceb);
 	size = -ENOENT;
 out:
 	read_unlock_irqrestore(&uwb_est_lock, flags);
