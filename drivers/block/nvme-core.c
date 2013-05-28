@@ -1927,8 +1927,14 @@ static int nvme_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	INIT_LIST_HEAD(&dev->namespaces);
 	dev->pci_dev = pdev;
 	pci_set_drvdata(pdev, dev);
-	dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
-	dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
+
+	if (!dma_set_mask(&pdev->dev, DMA_BIT_MASK(64)))
+		dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
+	else if (!dma_set_mask(&pdev->dev, DMA_BIT_MASK(32)))
+		dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(32));
+	else
+		goto disable;
+
 	result = nvme_set_instance(dev);
 	if (result)
 		goto disable;
