@@ -728,7 +728,7 @@ int wmi_pcp_start(struct wil6210_priv *wil, int bi, u8 wmi_nettype, u8 chan)
 		.bcon_interval = cpu_to_le16(bi),
 		.network_type = wmi_nettype,
 		.disable_sec_offload = 1,
-		.channel = chan,
+		.channel = chan - 1,
 	};
 	struct {
 		struct wil6210_mbox_hdr_wmi wmi;
