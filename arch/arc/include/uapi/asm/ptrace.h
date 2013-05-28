@@ -20,16 +20,19 @@
  *
  * This is to decouple pt_regs from user-space ABI, to be able to change it
  * w/o affecting the ABI.
- * Although the layout (initial padding) is similar to pt_regs to have some
- * optimizations when copying pt_regs to/from user_regs_struct.
+ *
+ * The intermediate pad,pad2 are relics of initial layout based on pt_regs
+ * for optimizations when copying pt_regs to/from user_regs_struct.
+ * We no longer need them, but can't be changed as they are part of ABI now.
  *
  * Also, sigcontext only care about the scratch regs as that is what we really
- * save/restore for signal handling.
+ * save/restore for signal handling. However gdb also uses the same struct
+ * hence callee regs need to be in there too.
 */
 struct user_regs_struct {
 
+	long pad;
 	struct {
-		long pad;
 		long bta, lp_start, lp_end, lp_count;
 		long status32, ret, blink, fp, gp;
 		long r12, r11, r10, r9, r8, r7, r6, r5, r4, r3, r2, r1, r0;

@@ -432,9 +432,6 @@
 	st.a    r9, [sp, -4]
 	lr	r9, [erbta]
 	st.a    r9, [sp, -4]
-
-	/* move up by 1 word to "create" pt_regs->"stack_place_holder" */
-	sub sp, sp, 4
 .endm
 
 /*--------------------------------------------------------------
@@ -474,9 +471,6 @@
  * by hardware and that is not good.
  *-------------------------------------------------------------*/
 .macro RESTORE_ALL_SYS
-
-	add sp, sp, 4       /* hop over unused "pt_regs->stack_place_holder" */
-
 	ld.ab   r9, [sp, 4]
 	sr	r9, [erbta]
 	ld.ab   r9, [sp, 4]
@@ -530,9 +524,6 @@
 	st.a    r9, [sp, -4]
 	lr	r9, [bta_l1]
 	st.a    r9, [sp, -4]
-
-	/* move up by 1 word to "create" pt_regs->"stack_place_holder" */
-	sub sp, sp, 4
 .endm
 
 .macro SAVE_ALL_INT2
@@ -561,9 +552,6 @@
 	st.a    r9, [sp, -4]
 	lr	r9, [bta_l2]
 	st.a    r9, [sp, -4]
-
-	/* move up by 1 word to "create" pt_regs->"stack_place_holder" */
-	sub sp, sp, 4
 .endm
 
 /*--------------------------------------------------------------
@@ -577,8 +565,6 @@
  *-------------------------------------------------------------*/
 
 .macro RESTORE_ALL_INT1
-	add sp, sp, 4       /* hop over unused "pt_regs->stack_place_holder" */
-
 	ld.ab   r9, [sp, 4] /* Actual reg file */
 	sr	r9, [bta_l1]
 	ld.ab   r9, [sp, 4]
@@ -601,8 +587,6 @@
 .endm
 
 .macro RESTORE_ALL_INT2
-	add sp, sp, 4       /* hop over unused "pt_regs->stack_place_holder" */
-
 	ld.ab   r9, [sp, 4]
 	sr	r9, [bta_l2]
 	ld.ab   r9, [sp, 4]

@@ -17,12 +17,6 @@
 /* THE pt_regs: Defines how regs are saved during entry into kernel */
 
 struct pt_regs {
-	/*
-	 * 1 word gutter after reg-file has been saved
-	 * Technically not needed, Since SP always points to a "full" location
-	 * (vs. "empty"). But pt_regs is shared with tools....
-	 */
-	long res;
 
 	/* Real registers */
 	long bta;	/* bta_l1, bta_l2, erbta */
