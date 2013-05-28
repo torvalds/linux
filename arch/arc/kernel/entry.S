@@ -680,17 +680,6 @@ restore_regs :
 	; XXX can this be optimised out
 	IRQ_DISABLE_SAVE    r9, r10	;@r10 has prisitine (pre-disable) copy
 
-#ifdef CONFIG_ARC_CURR_IN_REG
-	; Restore User R25
-	; Earlier this used to be only for returning to user mode
-	; However with 2 levels of IRQ this can also happen even if
-	; in kernel mode
-	ld r9, [sp, PT_sp]
-	brhs r9, VMALLOC_START, 8f
-	RESTORE_USER_R25
-8:
-#endif
-
 	; Restore REG File. In case multiple Events outstanding,
 	; use the same priorty as rtie: EXCPN, L2 IRQ, L1 IRQ, None
 	; Note that we use realtime STATUS32 (not pt_regs->status32) to

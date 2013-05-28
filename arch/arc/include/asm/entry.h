@@ -102,6 +102,10 @@
 	POP	r2
 	POP	r1
 	POP	r0
+
+#ifdef CONFIG_ARC_CURR_IN_REG
+	ld	r25, [sp, 12]
+#endif
 .endm
 
 /*--------------------------------------------------------------
@@ -138,6 +142,7 @@
 	POP	r13
 .endm
 
+#define OFF_USER_R25_FROM_R24	(SZ_CALLEE_REGS + SZ_PT_REGS - 8)/4
 
 /*--------------------------------------------------------------
  * Collect User Mode callee regs as struct callee_regs - needed by
@@ -155,7 +160,7 @@
 
 #ifdef CONFIG_ARC_CURR_IN_REG
 	; Retrieve orig r25 and save it on stack
-	ld      r12, [r25, TASK_THREAD + THREAD_USER_R25]
+	ld.as   r12, [sp, OFF_USER_R25_FROM_R24]
 	st.a    r12, [sp, -4]
 #else
 	PUSH	r25
@@ -204,7 +209,7 @@
 
 #ifdef CONFIG_ARC_CURR_IN_REG
 	ld.ab   r12, [sp, 4]
-	st      r12, [r25, TASK_THREAD + THREAD_USER_R25]
+	st.as   r12, [sp, OFF_USER_R25_FROM_R24]
 #else
 	POP	r25
 #endif
@@ -216,13 +221,6 @@
  *-------------------------------------------------------------*/
 .macro DISCARD_CALLEE_SAVED_USER
 	add     sp, sp, SZ_CALLEE_REGS
-.endm
-
-/*--------------------------------------------------------------
- * Restore User mode r25 saved in task_struct->thread.user_r25
- *-------------------------------------------------------------*/
-.macro RESTORE_USER_R25
-	ld  r25, [r25, TASK_THREAD + THREAD_USER_R25]
 .endm
 
 /*-------------------------------------------------------------
@@ -297,22 +295,21 @@
 
 	GET_CURR_TASK_ON_CPU   r9
 
-#ifdef CONFIG_ARC_CURR_IN_REG
-
-	/* If current task pointer cached in r25, time to
-	 *  -safekeep USER r25 in task->thread_struct->user_r25
-	 *  -load r25 with current task ptr
-	 */
-	st.as	r25, [r9, (TASK_THREAD + THREAD_USER_R25)/4]
-	mov	r25, r9
-#endif
-
 	/* With current tsk in r9, get it's kernel mode stack base */
 	GET_TSK_STACK_BASE  r9, r9
 
 66:
+#ifdef CONFIG_ARC_CURR_IN_REG
+	/*
+	 * Treat r25 as scratch reg, save it on stack first
+	 * Load it with current task pointer
+	 */
+	st	r25, [r9, -4]
+	GET_CURR_TASK_ON_CPU   r25
+#endif
+
 	/* Save Pre Intr/Exception User SP on kernel stack */
-	st.a    sp, [r9, -12]	; Make room for orig_r0 and orig_r8
+	st.a    sp, [r9, -16]	; Make room for orig_r0, orig_r8, user_r25
 
 	/* CAUTION:
 	 * SP should be set at the very end when we are done with everything
@@ -466,7 +463,7 @@
 	RESTORE_R12_TO_R0
 
 	ld  sp, [sp] /* restore original sp */
-	/* orig_r0 and orig_r8 skipped automatically */
+	/* orig_r0, orig_r8, user_r25 skipped automatically */
 .endm
 
 
@@ -549,7 +546,7 @@
 	RESTORE_R12_TO_R0
 
 	ld  sp, [sp] /* restore original sp */
-	/* orig_r0 and orig_r8 skipped automatically */
+	/* orig_r0, orig_r8, user_r25 skipped automatically */
 .endm
 
 .macro RESTORE_ALL_INT2
@@ -568,7 +565,7 @@
 	RESTORE_R12_TO_R0
 
 	ld  sp, [sp] /* restore original sp */
-	/* orig_r0 and orig_r8 skipped automatically */
+	/* orig_r0, orig_r8, user_r25 skipped automatically */
 .endm
 
 

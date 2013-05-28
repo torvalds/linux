@@ -54,6 +54,8 @@ struct pt_regs {
 #endif
 		long orig_r8_word;
 	};
+
+	long user_r25;
 };
 
 /* Callee saved registers - need to be saved only when you are scheduled out */

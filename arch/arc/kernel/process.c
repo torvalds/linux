@@ -77,6 +77,7 @@ asmlinkage void ret_from_fork(void);
  * |      SP        |
  * |    orig_r0     |
  * |    orig_r8     |
+ * |    user_r25    |
  * ------------------  <===== END of PAGE
  */
 int copy_thread(unsigned long clone_flags,
