@@ -694,6 +694,7 @@ config USB_ETH_RNDIS
 	bool "RNDIS support"
 	depends on USB_ETH
 	select USB_LIBCOMPOSITE
+	select USB_F_RNDIS
 	default y
 	help
 	   Microsoft Windows XP bundles the "Remote NDIS" (RNDIS) protocol,
