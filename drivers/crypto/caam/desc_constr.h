@@ -177,9 +177,25 @@ static inline void append_##cmd(u32 *desc, dma_addr_t ptr, unsigned int len, \
 }
 APPEND_CMD_PTR(key, KEY)
 APPEND_CMD_PTR(load, LOAD)
-APPEND_CMD_PTR(store, STORE)
 APPEND_CMD_PTR(fifo_load, FIFO_LOAD)
 APPEND_CMD_PTR(fifo_store, FIFO_STORE)
+
+static inline void append_store(u32 *desc, dma_addr_t ptr, unsigned int len,
+				u32 options)
+{
+	u32 cmd_src;
+
+	cmd_src = options & LDST_SRCDST_MASK;
+
+	append_cmd(desc, CMD_STORE | options | len);
+
+	/* The following options do not require pointer */
+	if (!(cmd_src == LDST_SRCDST_WORD_DESCBUF_SHARED ||
+	      cmd_src == LDST_SRCDST_WORD_DESCBUF_JOB    ||
+	      cmd_src == LDST_SRCDST_WORD_DESCBUF_JOB_WE ||
+	      cmd_src == LDST_SRCDST_WORD_DESCBUF_SHARED_WE))
+		append_ptr(desc, ptr);
+}
 
 #define APPEND_SEQ_PTR_INTLEN(cmd, op) \
 static inline void append_seq_##cmd##_ptr_intlen(u32 *desc, dma_addr_t ptr, \
