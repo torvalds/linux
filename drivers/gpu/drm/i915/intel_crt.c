@@ -149,7 +149,7 @@ static void intel_enable_crt(struct intel_encoder *encoder)
 	intel_crt_set_dpms(encoder, crt->connector->base.dpms);
 }
 
-
+/* Special dpms function to support cloning between dvo/sdvo/crt. */
 static void intel_crt_dpms(struct drm_connector *connector, int mode)
 {
 	struct drm_device *dev = connector->dev;
@@ -180,6 +180,8 @@ static void intel_crt_dpms(struct drm_connector *connector, int mode)
 	else
 		encoder->connectors_active = true;
 
+	/* We call connector dpms manually below in case pipe dpms doesn't
+	 * change due to cloning. */
 	if (mode < old_dpms) {
 		/* From off to on, enable the pipe first. */
 		intel_crtc_update_dpms(crtc);

@@ -180,6 +180,7 @@ static void intel_enable_dvo(struct intel_encoder *encoder)
 	intel_dvo->dev.dev_ops->dpms(&intel_dvo->dev, true);
 }
 
+/* Special dpms function to support cloning between dvo/sdvo/crt. */
 static void intel_dvo_dpms(struct drm_connector *connector, int mode)
 {
 	struct intel_dvo *intel_dvo = intel_attached_dvo(connector);
@@ -201,6 +202,8 @@ static void intel_dvo_dpms(struct drm_connector *connector, int mode)
 		return;
 	}
 
+	/* We call connector dpms manually below in case pipe dpms doesn't
+	 * change due to cloning. */
 	if (mode == DRM_MODE_DPMS_ON) {
 		intel_dvo->base.connectors_active = true;
 
