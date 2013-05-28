@@ -44,9 +44,10 @@ static int recover_dentry(struct page *ipage, struct inode *inode)
 	struct f2fs_node *raw_node = (struct f2fs_node *)kaddr;
 	struct f2fs_inode *raw_inode = &(raw_node->i);
 	nid_t pino = le32_to_cpu(raw_inode->i_pino);
+	struct f2fs_dir_entry *de;
 	struct qstr name;
 	struct page *page;
-	struct inode *dir;
+	struct inode *dir, *einode;
 	int err = 0;
 
 	dir = check_dirty_dir_inode(F2FS_SB(inode->i_sb), pino);
@@ -61,13 +62,26 @@ static int recover_dentry(struct page *ipage, struct inode *inode)
 
 	name.len = le32_to_cpu(raw_inode->i_namelen);
 	name.name = raw_inode->i_name;
-
-	if (f2fs_find_entry(dir, &name, &page)) {
+retry:
+	de = f2fs_find_entry(dir, &name, &page);
+	if (de && inode->i_ino == le32_to_cpu(de->ino)) {
 		kunmap(page);
 		f2fs_put_page(page, 0);
-	} else {
-		err = __f2fs_add_link(dir, &name, inode);
+		goto out;
 	}
+	if (de) {
+		einode = f2fs_iget(inode->i_sb, le32_to_cpu(de->ino));
+		if (IS_ERR(einode)) {
+			WARN_ON(1);
+			if (PTR_ERR(einode) == -ENOENT)
+				err = -EEXIST;
+			goto out;
+		}
+		f2fs_delete_entry(de, page, einode);
+		iput(einode);
+		goto retry;
+	}
+	err = __f2fs_add_link(dir, &name, inode);
 out:
 	f2fs_msg(inode->i_sb, KERN_NOTICE, "recover_inode and its dentry: "
 			"ino = %x, name = %s, dir = %lx, err = %d",
